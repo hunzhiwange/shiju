@@ -14,6 +14,7 @@ E::Universal(value) => { use desktop_provider_apps::components::universal::Event
         E::ListEditor(value) => { use desktop_provider_apps::components::list::EditorMessage as V; use events::list::ListMessage as L; events::list::message(match value { V::Sort(v)=>L::Sort(v),V::Category(v)=>L::Category(v),V::Notes(v)=>L::Notes(v),V::Cancel=>L::Cancel,V::Save=>L::Save }) },
         E::None => Message::None,
         E::CopyCode(value) => Message::CopyCode(value),
+        E::HelpContext(effect) => crate::app::components::text_editor_context_menu::text_context_message(effect),
         E::Edit(value) => events::edit::message(value),
         E::Icons(value) => events::icons::message(value),
         E::Endpoints(value) => events::endpoints::message(value),
@@ -26,6 +27,8 @@ E::Universal(value) => { use desktop_provider_apps::components::universal::Event
 pub(super) fn render_help<'a>(title: &'a str, body: std::borrow::Cow<'a,str>, color: Option<iced::Color>, i18n: crate::app::i18n::I18n) -> Element<'a,desktop_provider_apps::Message> {
     crate::app::components::chat_panel::message_view::selectable_titled_text(title,body,color,i18n).map(|message| match message {
         Message::CopyCode(value) => desktop_provider_apps::Message::CopyCode(value),
+        Message::Chat(crate::app::message::ChatMessage::AppendText(value)) => desktop_provider_apps::Message::HelpContext(desktop_ui_controls::text_editor_context_menu::TextContextEffect::Append(value)),
+        Message::View(crate::app::message::ViewMessage::OpenUrlExternal(value)) => desktop_provider_apps::Message::HelpContext(desktop_ui_controls::text_editor_context_menu::TextContextEffect::OpenUrl(value)),
         _ => desktop_provider_apps::Message::None,
     })
 }

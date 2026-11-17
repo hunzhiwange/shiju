@@ -129,12 +129,12 @@ fn provider_help<'a>(
     color: Option<iced::Color>,
     i18n: I18n,
 ) -> Element<'a, domain::Message> {
-    // Provider cards expose CopyCode; full selection actions are exercised through the view adapter below.
     desktop_chat_view::message_view::markdown_selection::selectable_titled_text::<HelpEvent>(
         title, body, color, i18n,
     )
     .map(|e| match e {
         HelpEvent::Copy(text) => domain::Message::CopyCode(text),
+        HelpEvent::Context(effect) => domain::Message::HelpContext(effect),
         _ => domain::Message::None,
     })
 }
@@ -142,6 +142,7 @@ fn provider_help<'a>(
 enum HelpEvent {
     None,
     Copy(String),
+    Context(desktop_ui_controls::text_editor_context_menu::TextContextEffect),
 }
 impl desktop_chat_view::message_view::markdown_selection::SelectionMessage for HelpEvent {
     fn none() -> Self {
@@ -151,12 +152,7 @@ impl desktop_chat_view::message_view::markdown_selection::SelectionMessage for H
         Self::Copy(text)
     }
     fn context(effect: desktop_ui_controls::text_editor_context_menu::TextContextEffect) -> Self {
-        match effect {
-            desktop_ui_controls::text_editor_context_menu::TextContextEffect::Copy(text) => {
-                Self::Copy(text)
-            }
-            _ => Self::None,
-        }
+        Self::Context(effect)
     }
     fn selection(_: String, _: usize, _: usize, _: Option<String>) -> Self {
         Self::None
@@ -172,6 +168,7 @@ fn map_provider(event: domain::Message) -> Message {
             Message::Settings(SettingsMessage::AppProviders(ListMessage::Cancel))
         }
         domain::Message::CopyCode(text) => Message::CopyCode(text),
+        domain::Message::HelpContext(effect) => <Message as desktop_chat_view::message_view::markdown_selection::SelectionMessage>::context(effect),
         _ => Message::None,
     }
 }

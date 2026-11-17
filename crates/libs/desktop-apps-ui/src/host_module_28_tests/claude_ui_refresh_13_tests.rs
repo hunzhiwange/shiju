@@ -271,7 +271,7 @@ async fn ui_refresh_13_layout_and_interaction() {
                     ));
                 }
                 if let (AppId::OpenCode, "create") = (provider, phase) {
-                    let format = scene.bounds(&[1, 0, 0, 0]);
+                    let format = scene.bounds(&[1, 0, 1]);
                     assert!(matches!(
                         scene.click(&mut renderer, format.center()).as_slice(),
                         [Message::Settings(SettingsMessage::AppProviderEdit(
@@ -455,7 +455,7 @@ async fn ui_refresh_13_preserves_values_and_disabled_states() {
                     (AppId::Gemini, false) => &[1, 0, 3, 1],
                     (AppId::Codex | AppId::GrokBuild, true) => &[1, 0, 2],
                     (AppId::Codex | AppId::GrokBuild, false) => &[1, 0, 5],
-                    (AppId::OpenCode, true) => &[1, 0, 3],
+                    (AppId::OpenCode, true) => &[1, 0, 4],
                     (AppId::OpenCode, false) => &[1, 0, 6],
                     _ => unreachable!(),
                 };
@@ -514,7 +514,11 @@ async fn ui_refresh_13_preserves_values_and_disabled_states() {
                         assert_eq!(model, &expected_model);
                     }
                     _ => {
-                        let editor_index = usize::from(provider == AppId::OpenCode);
+                        let editor_index = match (provider, create) {
+                            (AppId::OpenCode, true) => 2,
+                            (AppId::OpenCode, false) => 1,
+                            _ => 0,
+                        };
                         let contents = |form: &EditForm| match provider {
                             AppId::Codex => form.codex.as_ref().unwrap().toml.text(),
                             AppId::GrokBuild => form.grok.as_ref().unwrap().toml.text(),

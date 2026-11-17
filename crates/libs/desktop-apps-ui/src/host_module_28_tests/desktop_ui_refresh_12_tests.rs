@@ -290,16 +290,15 @@ async fn ui_refresh_12_layout_and_interaction() {
 
     let mut scene =
         Scene::new(list::overlay(&list, Help::test(), base()), &mut renderer, Size::new(420, 760));
-    let actions = [1, 0, 0, 1, 0, 2];
-    for (index, copy, delete) in [(0, false, false), (1, true, false), (2, false, true)] {
-        let path = [&actions[..], &[index]].concat();
-        let cursor = mouse::Cursor::Available(scene.modal(&path).center());
+    for (index, label, copy, delete) in [(0, "编辑", false, false), (1, "复制", true, false), (2, "删除", false, true)] {
+        let point = scene.text_bounds(&renderer, label).center();
+        let cursor = mouse::Cursor::Available(point);
         assert!(
             scene
                 .send(
                     &mut renderer,
                     &[Event::Mouse(mouse::Event::CursorMoved {
-                        position: scene.modal(&path).center(),
+                        position: point,
                     })],
                     cursor
                 )
@@ -307,7 +306,7 @@ async fn ui_refresh_12_layout_and_interaction() {
         );
         scene.capture(&mut renderer, &Theme::Light, cursor, &format!("list-hover-{index}"));
         assert!(matches!(
-            scene.press(&mut renderer, &path).as_slice(),
+            scene.click(&mut renderer, point).as_slice(),
             [Message::Settings(SettingsMessage::AppProviderEdit(EditMessage::Open {
                 id, copy: actual_copy, delete: actual_delete,
             }))] if id == "fixture-id" && *actual_copy == copy && *actual_delete == delete

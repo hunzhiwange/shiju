@@ -29,6 +29,7 @@ pub enum Message {
     Snippets(components::snippets::Event),
     Universal(components::universal::Event),
     CopyCode(String),
+    HelpContext(desktop_ui_controls::text_editor_context_menu::TextContextEffect),
     Edit(message::edit::EditMessage),
     Icons(message::icons::Event),
     Endpoints(message::endpoints::Event),

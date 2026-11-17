@@ -7881,6 +7881,7 @@ dependencies = [
 name = "desktop-settings-skills"
 version = "0.6.0"
 dependencies = [
+ "config-runtime-paths",
  "config-skills",
  "config-ui",
  "desktop-assets",

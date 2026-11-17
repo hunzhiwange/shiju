@@ -35,12 +35,21 @@ pub(super) fn help<'a, E>(
 ) -> iced::widget::Row<'a, E> {
     iced::widget::row![label]
 }
-#[derive(Default)]
 struct Fixture {
     project_path: Option<String>,
     recent_projects: Vec<String>,
     skills_settings: State,
     theme: iced::Theme,
+}
+impl Default for Fixture {
+    fn default() -> Self {
+        Self {
+            project_path: None,
+            recent_projects: Vec::new(),
+            skills_settings: State::default(),
+            theme: iced::Theme::Dark,
+        }
+    }
 }
 struct State {
     directory_provider: config_skills::SkillsDirectoryProvider,
@@ -219,21 +228,21 @@ fn browser_widgets_build_for_status_actions_and_common_states() {
     let _ = empty_state("空", "没有结果");
     let _ = detail_source_note(config_ui::DesktopLocale::SimplifiedChinese, Some("/tmp/skill"));
     let _ = detail_source_note(config_ui::DesktopLocale::SimplifiedChinese, None);
-    let _ = detail_action_button(
+    let _ = detail_action_button::<Message>(
         config_ui::DesktopLocale::SimplifiedChinese,
         "执行",
         Icon::Plus,
         DetailActionStyle::Primary,
         Some(Message::SkillsRefresh),
     );
-    let _ = detail_action_button(
+    let _ = detail_action_button::<Message>(
         config_ui::DesktopLocale::SimplifiedChinese,
         "删除",
         Icon::Trash,
         DetailActionStyle::Danger,
         None,
     );
-    let _ = detail_action_button(
+    let _ = detail_action_button::<Message>(
         config_ui::DesktopLocale::SimplifiedChinese,
         "次要",
         Icon::ArrowRepeat,
@@ -321,15 +330,16 @@ fn detail_modal_keeps_toggle_available_when_install_requires_project() {
 #[test]
 fn overlays_build_for_base_loading_and_each_detail_source() {
     let mut app = app();
-    let _ = view_overlays(app.context(), empty_state("base", "content"));
+    let _ = view_overlays(app.context(), empty_state("base", "content"), std::convert::identity);
 
     app.skills_settings.selected_skill_id = Some("selected".to_string());
-    let _ = view_overlays(app.context(), empty_state("base", "content"));
+    let _ = view_overlays(app.context(), empty_state("base", "content"), std::convert::identity);
 
     for source in ["workspace", "ancestor", "global", "bundled", "unknown"] {
         app.skills_settings.selected_skill_detail =
             Some(selected_detail(source, SkillsCatalogKind::Personal));
-        let _ = view_overlays(app.context(), empty_state("base", "content"));
+        let _ =
+            view_overlays(app.context(), empty_state("base", "content"), std::convert::identity);
     }
 }
 

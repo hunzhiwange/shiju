@@ -155,10 +155,20 @@ fn iam_keys(keys: serde_json::Value) -> FixtureResponse {
 fn assert_api_key(request: &str) {
     let api_key = request
         .lines()
-        .find(|line| line.to_ascii_lowercase().starts_with("x-api-key:"))
+        .find_map(|line| {
+            let (name, value) = line.split_once(": ")?;
+            name.eq_ignore_ascii_case("x-api-key").then_some(value)
+        })
         .expect("X-Api-Key header");
-    assert_eq!(api_key, format!("x-api-key: {CREDENTIAL}"));
+    assert!(api_key == CREDENTIAL, "X-Api-Key credential must match exactly");
     assert!(!request.lines().any(|line| line.to_ascii_lowercase().starts_with("cookie:")));
+}
+
+#[test]
+fn api_key_header_name_is_case_insensitive() {
+    for name in ["x-api-key", "X-Api-Key", "X-API-KEY"] {
+        assert_api_key(&format!("GET / HTTP/1.1\r\n{name}: {CREDENTIAL}\r\n\r\n"));
+    }
 }
 
 #[tokio::test(flavor = "multi_thread")]

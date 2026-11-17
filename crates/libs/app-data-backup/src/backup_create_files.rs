@@ -223,7 +223,10 @@ pub(super) fn lock_backup(file: &File, exclusive: bool) -> Result<(), Error> {
         });
     }
     // A reader may have opened the file before a deleter unlinked it.
-    if file.metadata().map_err(|_| Error::StorageUnavailable)?.nlink() != 1 {
+    let metadata = file.metadata().map_err(|_| Error::StorageUnavailable)?;
+    // Directories count child directories as links; only regular sources must
+    // have exactly one link. An unlinked directory must still be rejected.
+    if metadata.nlink() == 0 || (!metadata.is_dir() && metadata.nlink() != 1) {
         return Err(Error::Conflict);
     }
     Ok(())

@@ -258,8 +258,9 @@ async fn cc_route_021_stream_heartbeats_do_not_extend_idle_after_output() {
     assert_eq!(response.headers()[header::CONTENT_TYPE], "text/event-stream");
     let mut stream = Body::new(response.into_body()).into_data_stream();
     let prelude = timeout(GUARD, stream.next()).await.unwrap().unwrap().unwrap();
-    assert!(prelude.starts_with(HEARTBEAT));
-    assert!(prelude.ends_with(b"model output\"}}]}\r\n\r\n"));
+    let normalized_heartbeat = String::from_utf8_lossy(HEARTBEAT).replace("\r\n", "\n");
+    assert!(prelude.starts_with(normalized_heartbeat.as_bytes()));
+    assert!(prelude.ends_with(b"model output\"}}]}\n\n"));
     pause();
     advance(Duration::from_millis(650)).await;
     resume();
@@ -305,8 +306,9 @@ async fn cc_route_021_stream_idle_zero_disables_idle_without_a_total_timeout() {
     pause();
     advance(Duration::from_secs(601)).await;
     resume();
-    chunk(&mut upstream, b"data: [DONE]\n\n").await.unwrap();
-    assert_eq!(timeout(GUARD, stream.next()).await.unwrap().unwrap().unwrap(), "data: [DONE]\n\n");
+    let completion = b"data: {\"choices\":[{\"index\":0,\"delta\":{},\"finish_reason\":\"stop\"}]}\n\ndata: [DONE]\n\n";
+    chunk(&mut upstream, completion).await.unwrap();
+    assert_eq!(timeout(GUARD, stream.next()).await.unwrap().unwrap().unwrap(), &completion[..]);
     assert!(timeout(GUARD, stream.next()).await.unwrap().is_none());
     assert_upstream_closed(&mut upstream).await;
     fixture.listener.stop().await.unwrap();

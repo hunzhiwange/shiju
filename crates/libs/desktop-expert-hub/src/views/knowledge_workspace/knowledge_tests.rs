@@ -1635,7 +1635,19 @@ fn check_form_help(
         "{title}: static explanation is still inline: {description}"
     );
     let label = probe.label(title, index);
-    let icon = Point::new(label.x + label.width + 15.0, label.center_y());
+    // The shared help row wraps its icon below long localized labels on narrow screens.
+    fn help_icon(layout: Layout<'_>, label: Rectangle) -> Option<Point> {
+        let children: Vec<_> = layout.children().collect();
+        if children.len() == 2
+            && children[0].bounds() == label
+            && children[1].bounds().size() == Size::new(22.0, 22.0)
+        {
+            return Some(children[1].bounds().center());
+        }
+        children.into_iter().find_map(|child| help_icon(child, label))
+    }
+    let icon = help_icon(Layout::new(&ui.node), label)
+        .unwrap_or_else(|| panic!("{title}: missing help icon beside label {label:?}"));
     assert!(
         Rectangle::with_size(Size::new(ui.size.width as f32, ui.size.height as f32)).contains(icon)
     );

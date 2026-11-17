@@ -86,7 +86,7 @@ fn live_message_meta_fallback_applies_to_chat_roles() {
             false,
             "model-b"
         ),
-        Some("model-b · 刚刚".to_string())
+        None
     );
     assert_eq!(
         live_message_meta_fallback(
@@ -97,6 +97,16 @@ fn live_message_meta_fallback_applies_to_chat_roles() {
             "model-b"
         ),
         Some("model-b · 刚刚".to_string())
+    );
+    assert_eq!(
+        live_message_meta_fallback(
+            desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
+            ChatRole::Assistant,
+            false,
+            true,
+            "model-b"
+        ),
+        None
     );
     assert_eq!(
         live_message_meta_fallback(

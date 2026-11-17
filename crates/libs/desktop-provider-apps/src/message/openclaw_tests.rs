@@ -1,10 +1,10 @@
+use crate::Scope;
 use super::edit_test_state::ListState;
 use super::openclaw;
 use crate::{
     AgentAppsContext,
     state::{
         edit::{EditForm, Mode},
-        Scope,
         openclaw::Draft,
     },
 };

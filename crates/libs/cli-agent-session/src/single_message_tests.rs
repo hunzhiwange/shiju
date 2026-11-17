@@ -213,7 +213,7 @@ fn setup(
         provider_name: "test-provider".to_string(),
         model_name: "test-model".to_string(),
         system_prompt: "test-system-prompt".to_string(),
-        approval_manager: None,
+        _approval_manager: None,
         channel_name: "cli",
     }
 }

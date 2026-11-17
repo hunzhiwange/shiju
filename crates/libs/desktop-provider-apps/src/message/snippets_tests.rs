@@ -1,8 +1,8 @@
+use crate::Scope;
 use super::snippets::{finish, save};
 use crate::{
     AgentAppsContext,
     state::{
-        Scope,
         snippets::{Form, Operation},
     },
 };

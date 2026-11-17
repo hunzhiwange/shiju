@@ -97,7 +97,7 @@ pub(super) fn setup_cli(
         provider_name,
         model_name,
         system_prompt: "test-system-prompt".to_string(),
-        approval_manager: None,
+        _approval_manager: None,
         channel_name: "cli",
     })
 }

@@ -1,6 +1,6 @@
+use app_auth::providers::kimi::KimiFiles;
 use super::kimi;
 use crate::providers::{
-    kimi::KimiFiles,
     live::{
         commit::{ExecutionHostId, ProviderTransactions},
         write_guard::WriteError,

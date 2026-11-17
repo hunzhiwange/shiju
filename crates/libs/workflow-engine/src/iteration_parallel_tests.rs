@@ -1,3 +1,4 @@
+use model_types::Provider;
 use super::*;
 use model_types::{ChatMessage, ChatRequest, ChatResponse};
 use serde_json::json;

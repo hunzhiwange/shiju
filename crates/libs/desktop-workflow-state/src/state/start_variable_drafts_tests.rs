@@ -1,6 +1,7 @@
 //! 开始变量草稿与 YAML 互转的测试，覆盖选择、文件和文件列表类型。
 //! fixture 验证默认值清理、选项合并及最大数量钳制等兼容边界。
 use super::*;
+use crate::yaml_map_for_state;
 
 fn yaml_value(input: &str) -> Value {
     serde_yaml::from_str(input).expect("test YAML should parse")

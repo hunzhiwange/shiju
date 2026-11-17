@@ -430,11 +430,11 @@ impl crate::auth::controller::Ports for Ports {
     ) -> Result<(), &'static str> {
         panic!("unexpected browser effect")
     }
-    async fn connect_auth(
+    fn connect_auth(
         &self,
         _: vw_gateway_client::GatewayClient,
-    ) -> Result<local_app_auth::Credentials, String> {
-        panic!("unexpected provisioning")
+    ) -> impl std::future::Future<Output = Result<local_app_auth::Credentials, String>> + Send + 'static {
+        async { panic!("unexpected provisioning") }
     }
 }
 fn update_at(app: &mut AuthFixture, event: Event, endpoint: GatewayEndpoint) -> Task<Event> {

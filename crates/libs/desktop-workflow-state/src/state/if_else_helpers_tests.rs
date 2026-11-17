@@ -8,6 +8,7 @@ fn test_module_is_wired() {
 }
 
 use super::*;
+use crate::yaml_map_for_state;
 use iced::Point;
 use iced::widget::text_editor;
 

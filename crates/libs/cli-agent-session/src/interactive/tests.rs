@@ -37,7 +37,7 @@ fn setup(provider_name: &str) -> CliSetup {
         provider_name: provider_name.to_string(),
         model_name: "test-model".to_string(),
         system_prompt: "test-system-prompt".to_string(),
-        approval_manager: None,
+        _approval_manager: None,
         channel_name: "cli",
     }
 }

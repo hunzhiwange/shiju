@@ -86,6 +86,33 @@ async fn write_headers(socket: &mut TcpStream, status: &str, length: u32) {
 
 #[tokio::test]
 async fn diagnostic_speedtest_reports_each_endpoint() {
+    // Keep proxy isolation local to this fixture process: changing the parent
+    // environment would race other tests, while host proxies can turn a closed
+    // fixture connection into an HTTP 502 response.
+    const CHILD: &str = "SHIJU_SPEEDTEST_FIXTURE_CHILD";
+    if std::env::var_os(CHILD).is_none() {
+        let mut child = tokio::process::Command::new(std::env::current_exe().unwrap())
+            .args([
+                "--exact",
+                "agent_apps_diagnostic_executors::speedtest::tests::diagnostic_speedtest_reports_each_endpoint",
+                "--nocapture",
+            ])
+            .env(CHILD, "1")
+            .env("NO_PROXY", "*")
+            .env("no_proxy", "*")
+            .kill_on_drop(true)
+            .spawn()
+            .unwrap();
+        let status = match timeout(Duration::from_secs(30), child.wait()).await {
+            Ok(status) => status.unwrap(),
+            Err(_) => {
+                child.kill().await.unwrap();
+                panic!("speedtest fixture subprocess timed out");
+            }
+        };
+        assert!(status.success(), "speedtest fixture subprocess failed: {status}");
+        return;
+    }
     let directory = tempfile::tempdir().unwrap();
     let jobs = DiagnosticJobs::open(directory.path()).unwrap();
     let owner = DiagnosticJobOwner {

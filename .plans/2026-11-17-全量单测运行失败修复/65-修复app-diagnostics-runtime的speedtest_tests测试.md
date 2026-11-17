@@ -4,7 +4,7 @@
 
 批次：【批次1】 依赖：无
 
-状态：未开始
+状态：待回归
 
 来源：原任务19全量实际执行；证据编号136。
 预计会话范围：仅本测试定义文件中以下失败族及证据证明必要的底层修复，不接管整包。
@@ -38,3 +38,12 @@ python3 scripts/cargo_slot.py cargo test -p app-diagnostics-runtime --lib 'agent
 ```
 
 完成证据：各条精确过滤执行1项且passed=1、failed=0、退出0；参数化子进程用例同时记录子进程证据。记录槽位、双缓存路径、日志、代码状态和审查diff。不运行全量测试；最后统一验收任务负责跨任务复验。
+
+## 本次执行记录
+
+- 代码审查：测速共用 upstream_http_client_builder，默认采用宿主代理；测试通过直接断开测量连接断言 Transport。代理可能将该断连转换为 HTTP 502，与证据136一致。相邻 reachability 夹具使用 no_proxy。未取得当前行为红灯，原因见编译阻塞。
+- 修复仅限本任务测试文件：以同一精确测试名启动独立子进程，设置 NO_PROXY/no_proxy=*，避免更改父进程全局环境；保留真实 TCP 夹具、业务提交入口和所有断言。子进程超时30秒后 kill 并等待回收。
+- 修复前后均运行原定精确 cargo_slot.py 命令。日志：/tmp/shiju-task65-red.log、/tmp/shiju-task65-green.log。均在 rmcp 0.8.5 编译阶段报13个 E0432/E0433/E0425（base64、schemars、paste、server handler 等不可用），两次退出101，未执行测试，实际测试数0；不能记为通过，未获得子进程通过证据。
+- 两次实际槽位均为3；CARGO_TARGET_DIR 与 CARGO_BUILD_BUILD_DIR 均为 /Users/xiangmin/worker/code/shiju/target/rust-slot-3。两次入口均已退出并释放自有锁；槽位后续已由其他任务领取，未触碰新所有者。保留缓存。
+- git diff --check 针对修改文件通过；代码差异仅增加测试进程代理隔离。未修改公共依赖清单、Cargo.lock、生产代理行为或其他任务文件。
+- 下一步：公共依赖编译问题解决后，重跑上方原定命令，确认父、子进程各1项通过；验证前保留本任务文件。

@@ -5669,5 +5669,6 @@
   "仅退出 Vim，保留文件": "Exit Vim and keep the file open",
   "返回 Normal": "Return to Normal mode",
   "编辑器使用帮助": "Editor help",
-  "多光标": "Multiple cursors"
+  "多光标": "Multiple cursors",
+  "当前任务数": "Current task count"
 }

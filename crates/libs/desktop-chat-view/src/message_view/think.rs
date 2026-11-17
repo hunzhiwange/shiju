@@ -6,7 +6,8 @@ pub fn split_think(raw: &str) -> (Vec<String>, String, bool) {
     let mut thinking_open = false;
 
     fn normalize_visible_text(s: &str) -> String {
-        if !s.contains('\r')
+        if !s.ends_with('\n')
+            && !s.contains('\r')
             && !s.contains("\n\n\n")
             && !s.contains(" \n")
             && !s.contains("\t\n")

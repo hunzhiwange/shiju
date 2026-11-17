@@ -23,6 +23,7 @@ from cargo_slot import group_alive, signal_group
 ROOT = Path(__file__).resolve().parents[1]
 QUIET_SECONDS = 30.0
 MAX_WAIT_SECONDS = 60.0
+MAX_UPDATE_WAIT_SECONDS = 3600.0
 
 def start_watcher(changed):
     command = ['watchexec', '--quiet', '--postpone', '--debounce', '500ms',
@@ -106,6 +107,28 @@ def build(mode, env, lock, changed, watcher, initial=False):
         fcntl.flock(lock, fcntl.LOCK_UN)
 
 
+def request_restart(mode):
+    state = ROOT / 'target/dev-watch'
+    lock_path = state / f'{mode}.lock'
+    if not lock_path.exists():
+        raise RuntimeError(f'请先启动 make {mode}-watch')
+    with lock_path.open('a') as instance:
+        try:
+            fcntl.flock(instance, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError:
+            # A separate command never reads or intercepts application stdin.
+            request = state / f'{mode}.restart'
+            temporary = state / f'{mode}.{os.getpid()}.tmp'
+            try:
+                temporary.write_text(str(time.time_ns()))
+                os.replace(temporary, request)
+            finally:
+                temporary.unlink(missing_ok=True)
+            print(f'[watch] 已请求切换 {mode}；处理结果请查看监听终端。')
+            return
+        raise RuntimeError(f'请先启动 make {mode}-watch')
+
+
 def watch(mode):
     state = ROOT / 'target/dev-watch'
     state.mkdir(parents=True, exist_ok=True)
@@ -115,6 +138,8 @@ def watch(mode):
             fcntl.flock(instance, fcntl.LOCK_EX | fcntl.LOCK_NB)
         except BlockingIOError:
             raise RuntimeError(f'{mode} watcher 已在运行')
+        request = state / f'{mode}.restart'
+        request.unlink(missing_ok=True)
         with (state / 'build.lock').open('a') as lock:
             env = os.environ.copy()
             running = None
@@ -122,6 +147,9 @@ def watch(mode):
             watcher = start_watcher(changed)
             changed.set()
             initial = True
+            ready = False
+            ready_since = None
+            last_request = None
             try:
                 while True:
                     if watcher.poll() is not None:
@@ -129,20 +157,45 @@ def watch(mode):
                     if changed.wait(timeout=0.5):
                         first_build = initial
                         initial = False
-                        if build(mode, env, lock, changed, watcher, initial=first_build):
-                            # Do not let pending edits starve application startup.
-                            # Leave the event set for the next debounced build.
-                            if watcher.poll() is not None:
-                                raise RuntimeError('Watchexec 在编译期间退出')
-                            stop(running)
-                            running = None
-                            if mode == 'gateway':
-                                command = ['cargo', 'run', '-p', 'vw-cli', '--bin', 'shiju', '--', 'gateway']
-                            else:
-                                command = ['cargo', 'run', '-p', 'vw-desktop', '--bin', 'shi-ju']
-                            running = subprocess.Popen(command, cwd=ROOT, env=env,
-                                                       start_new_session=True)
-                            print(f'[watch] 已启动 {" ".join(command)} (PID {running.pid})', flush=True)
+                        ready = build(mode, env, lock, changed, watcher, initial=first_build)
+                        if ready:
+                            if ready_since is None:
+                                ready_since = time.monotonic()
+                            if running is not None:
+                                print(f'[watch] 新版就绪：执行 make {mode}-restart 切换；'
+                                      '最迟在首个待切换版本就绪 1 小时后自动切换。', flush=True)
+                    manual = False
+                    try:
+                        token = request.read_text()
+                    except FileNotFoundError:
+                        token = None
+                    if token is not None and token != last_request:
+                        last_request = token
+                        manual = True
+                        if not ready:
+                            print('[watch] 当前没有编译成功的待切换版本，保留旧进程。', flush=True)
+                    expired = ready_since is not None and (
+                        time.monotonic() - ready_since >= MAX_UPDATE_WAIT_SECONDS)
+                    if ready and (running is None or manual or expired):
+                        if watcher.poll() is not None:
+                            raise RuntimeError('Watchexec 已退出')
+                        # Recheck current sources before replacing the running app:
+                        # cargo run must not discover a known compile error afterwards.
+                        if running is not None:
+                            if not build(mode, env, lock, changed, watcher, initial=True):
+                                ready = False
+                                continue
+                        stop(running)
+                        running = None
+                        if mode == 'gateway':
+                            command = ['cargo', 'run', '-p', 'vw-cli', '--bin', 'shiju', '--', 'gateway']
+                        else:
+                            command = ['cargo', 'run', '-p', 'vw-desktop', '--bin', 'shi-ju']
+                        running = subprocess.Popen(command, cwd=ROOT, env=env,
+                                                   start_new_session=True)
+                        ready = False
+                        ready_since = None
+                        print(f'[watch] 已启动 {" ".join(command)} (PID {running.pid})', flush=True)
                     if running is not None and running.poll() is not None:
                         print(f'[watch] 程序退出 ({running.returncode})；下次修改后重新编译启动。', flush=True)
                         stop(running)
@@ -158,7 +211,15 @@ def watch(mode):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('mode', choices=['gateway', 'desktop'])
+    parser.add_argument('--restart', action='store_true', help='请求运行中的 watcher 切换新版')
     args = parser.parse_args()
+    if args.restart:
+        try:
+            request_restart(args.mode)
+            return 0
+        except (OSError, RuntimeError) as exc:
+            print(f'[watch] {exc}', file=sys.stderr)
+            return 1
     if shutil.which('watchexec') is None:
         parser.error('需要 Watchexec：macOS 执行 brew install watchexec；其他平台见 https://watchexec.github.io/')
     if os.name != 'posix':

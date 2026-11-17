@@ -367,19 +367,27 @@ tui: ## 启动 CLI TUI
 ## Desktop 开发
 ## ============================================================================
 
-.PHONY: gateway-watch desktop-watch
+.PHONY: gateway-watch desktop-watch gateway-restart desktop-restart
 
-# 保存后自动编译；成功才替换进程，失败保留旧版。Ctrl-C 清理本入口启动的进程。
+# 保存后自动编译；成功后等待手动切换，最多等待 1 小时。失败保留旧版。
+# 从首个待切换版本编译成功开始计时，后续更新不延后期限；正在编译时等待编译完成。
+# Ctrl-C 清理本入口启动的进程。
 # 首次立即编译启动；后续静默 30 秒或累计等待 60 秒后编译（编译锁空闲时）。
 # 持续写入不会无限延迟更新，也不中断已开始的编译；期间旧程序继续运行。
 # 两个入口共用编译锁，沿用普通 cargo run 的构建目录；桌面重启会丢失内存状态。
 # 依赖 Watchexec（macOS: brew install watchexec），实际启动沿用 cargo run。
 # 去掉本 Makefile 的默认 target 覆盖，交由 .cargo/config.toml 决定；保留用户显式覆盖。
-gateway-watch: ## Watchexec 监听源码，编译成功后重启 Gateway
+gateway-watch: ## 监听编译 Gateway，手动切换或 1 小时后自动重启
 	$(if $(filter file,$(origin CARGO_TARGET_DIR)),env -u CARGO_TARGET_DIR )python3 ./scripts/dev_watch.py gateway
 
-desktop-watch: ## Watchexec 监听源码，编译成功后重启桌面（含 webview）
+desktop-watch: ## 监听编译桌面，手动切换或 1 小时后自动重启（含 webview）
 	$(if $(filter file,$(origin CARGO_TARGET_DIR)),env -u CARGO_TARGET_DIR )python3 ./scripts/dev_watch.py desktop
+
+gateway-restart: ## 请求 gateway-watch 切换新版，不占用程序输入
+	python3 ./scripts/dev_watch.py gateway --restart
+
+desktop-restart: ## 请求 desktop-watch 切换新版，不占用程序输入
+	python3 ./scripts/dev_watch.py desktop --restart
 
 desktop-check: ## 检查 vw-desktop 是否可构建
 	cargo check -p vw-desktop

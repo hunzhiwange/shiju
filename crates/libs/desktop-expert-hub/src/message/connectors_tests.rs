@@ -1,6 +1,6 @@
 //! 验证连接器账号隔离、取消、必填变量与密码处理。
 use super::connectors::*;
-use desktop_account::{AccountIdentity, AccountOrigin, AccountRepository, SecretSkey, VerifiedAccount};
+use desktop_account::{AccountOrigin, AccountRepository, SecretSkey, VerifiedAccount};
 use desktop_skill_hub::skill_hub::{ExpertHubState, LoadState, connectors::{ConnectorForm, ConnectorWork}};
 #[derive(Default)]
 struct App { expert_hub: ExpertHubState, account: AccountRepository }
@@ -20,10 +20,18 @@ fn app() -> App {
     let mut app = App::default();
     let mut repository = AccountRepository::default();
     repository.upsert_verified(
-        VerifiedAccount::from_parts(
-            AccountIdentity::new("company-1", "示例公司", "founder", "active").unwrap(),
+        VerifiedAccount::from_gateway_profile(
+            gateway_shiju_account::ShijuAccountProfileDto {
+                company_name: "示例公司".into(),
+                company_status: "active".into(),
+                name: "示例用户".into(),
+                account_name: "sample".into(),
+                user_status: "active".into(),
+                departments: Vec::new(),
+                roles: Vec::new(),
+            },
             SecretSkey::new("credential").unwrap(),
-        ),
+        ).unwrap(),
         AccountOrigin::BrowserLogin,
     );
     app.account = repository;

@@ -334,7 +334,11 @@ async fn transport_error_includes_underlying_connection_failure() {
     let port = listener.local_addr().expect("local addr").port();
     drop(listener);
     let endpoint = GatewayEndpoint::new("127.0.0.1", port);
-    let error = reqwest::Client::new()
+    // This fixture must reach the closed loopback port rather than a system proxy.
+    let error = reqwest::Client::builder()
+        .no_proxy()
+        .build()
+        .expect("build direct test client")
         .get(format!("{}/closed", endpoint.base_url()))
         .send()
         .await

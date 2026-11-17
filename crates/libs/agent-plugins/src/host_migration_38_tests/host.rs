@@ -19,7 +19,7 @@ impl ContextHost for Host {
     type ApprovalManager = ();
     type HookRunner = agent_hooks::HookRunner;
     type SecurityPolicy = agent_security::SecurityPolicy;
-    type Observer = ();
+    type Observer = std::sync::atomic::AtomicUsize;
     type ImageAssetId = agent_multimodal::assets::ImageAssetId;
     type ImageAssetScope = agent_multimodal::assets::ImageAssetScope;
     fn task_local() -> &'static tokio::task::LocalKey<Arc<ToolUseContext<Self>>> { &CONTEXT }
@@ -79,7 +79,12 @@ impl plugin_hooks::host::HookHost for Host {
  }
  fn directory() -> String { panic!("unexpected project lookup") }
  async fn execution_runner(_: &Path) -> anyhow::Result<Option<Arc<agent_hooks::HookRunner>>> { anyhow::bail!("unexpected runner lookup") }
- async fn cleanup(_: &Arc<ToolUseContext<Self>>) { panic!("unexpected cleanup") }
+ async fn cleanup(context: &Arc<ToolUseContext<Self>>) {
+     // This fixture owns no native control runtime. Record the lifecycle port
+     // so tests can verify cleanup without invoking a production host.
+     context.observer().expect("unexpected cleanup without lifecycle observer")
+         .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+ }
  fn new_runner() -> agent_hooks::HookRunner { agent_hooks::HookRunner::new() }
  fn connections(_: &str, _: &Path) -> Arc<Self::Connections> { Arc::new(<Self as tool_mcp::McpToolHost>::new_connections()) }
  fn hook_source_matches(server: &agent_client_protocol::McpServerHttp, root: &Path, name: &str) -> anyhow::Result<bool> { plugin_mcp::mcp_auth::hook_source_matches(&Source, server, root, name) }

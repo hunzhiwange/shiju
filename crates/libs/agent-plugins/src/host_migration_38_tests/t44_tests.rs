@@ -1,7 +1,23 @@
-use super::hook_stop::emit;
 use super::{hooks::HookRunner, tools::ToolUseContext};
 use serde_json::{Value, json};
-use std::sync::Arc;
+use std::sync::{
+    Arc,
+    atomic::{AtomicUsize, Ordering},
+};
+
+async fn emit(
+    context: Arc<ToolUseContext>,
+    interrupt: bool,
+    active: bool,
+    message: Option<&str>,
+) -> anyhow::Result<plugin_hooks::hook_stop::Outcome> {
+    let cleanup = context.observer().unwrap().clone();
+    let before = cleanup.load(Ordering::SeqCst);
+    let result = super::hook_stop::emit(context, interrupt, active, message).await;
+    assert_eq!(cleanup.load(Ordering::SeqCst), before + 1);
+    result
+}
+
 pub(crate) fn fixture(
     root: &std::path::Path,
     state: &std::path::Path,
@@ -11,6 +27,7 @@ pub(crate) fn fixture(
         ToolUseContext::new("session", Some(root.to_string_lossy().into_owned()))
             .with_turn_id(turn)
             .with_model("fixture")
+            .with_observer(Arc::new(AtomicUsize::new(0)))
             .with_hook_runner(runner(root, state)),
     )
 }
@@ -96,7 +113,6 @@ async fn codex_plugin_compat_t44_cancellation_remains_responsive() {
     assert!(events.contains("Interrupt"));
 }
 
-
 #[tokio::test]
 async fn codex_plugin_compat_t44_cancels_in_flight_stop_and_bounds_interrupt() {
     let root = tempfile::tempdir().unwrap();
@@ -110,6 +126,7 @@ async fn codex_plugin_compat_t44_cancels_in_flight_stop_and_bounds_interrupt() {
     let ctx = Arc::new(
         ToolUseContext::new("session", Some(root.path().to_string_lossy().into_owned()))
             .with_model("fixture")
+            .with_observer(Arc::new(AtomicUsize::new(0)))
             .with_turn_id("turn")
             .with_abort_token(token.clone())
             .with_hook_runner(register(root.path(), state.path(), &manifest)),

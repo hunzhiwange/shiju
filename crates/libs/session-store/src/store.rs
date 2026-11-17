@@ -501,6 +501,32 @@ impl SessionStore {
         }
     }
 
+    /// 显式替换已读取的历史；并发变动时拒绝提交，保留 calls 与 steps。
+    pub fn replace_session_ui_history(
+        &self,
+        scope: &ProjectScope,
+        expected: &ChatSession,
+        session: &ChatSession,
+    ) -> Result<()> {
+        validate_id("session id", &session.id)?;
+        anyhow::ensure!(expected.id == session.id, "session id cannot change");
+        match &self.provider {
+            SessionStoreProvider::Sqlite(database) => {
+                database.with_sqlite_transaction(TransactionBehavior::Immediate, |transaction| {
+                    let stored = load_session_from_connection(transaction, scope, &session.id)?;
+                    validate_history_replacement(stored.as_ref(), expected)?;
+                    let call_count = existing_session_call_count(transaction, scope, &session.id, session.calls.len())?;
+                    upsert_session_header(transaction, scope, session, call_count)?;
+                    replace_session_messages(transaction, scope, session)?;
+                    Ok(())
+                })
+            }
+            SessionStoreProvider::Postgres(store) => {
+                run_sync_database(|| store.replace_session_ui_history(scope, expected, session))
+            }
+        }
+    }
+
     pub fn save_session_ui_snapshot(
         &self,
         scope: &ProjectScope,
@@ -3082,4 +3108,14 @@ fn session_call_sequence(records: &[(i64, String)], stream: u64) -> Result<i64> 
         }
     }
     Ok(matching.unwrap_or(next))
+}
+
+fn validate_history_replacement(stored: Option<&ChatSession>, expected: &ChatSession) -> Result<()> {
+    let stored = stored.ok_or(SessionMessageDeltaError::NotFound)?;
+    if serde_json::to_value(stored)? != serde_json::to_value(expected)? {
+        return Err(SessionMessageDeltaError::Conflict(
+            "session history changed: reload history before replacing".to_string(),
+        ).into());
+    }
+    Ok(())
 }

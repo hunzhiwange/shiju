@@ -1437,6 +1437,19 @@ pub fn save_session_scoped_for_tenant(
     }
 }
 
+/// 按显式租户原子替换已读取的历史，拒绝覆盖并发更新。
+#[cfg(not(target_arch = "wasm32"))]
+pub fn replace_session_ui_history_scoped_for_tenant(
+    tenant: &TenantScope,
+    expected: &ChatSession,
+    session: &ChatSession,
+    scope: Option<&str>,
+) -> anyhow::Result<()> {
+    run_project_operation_fallible("replace session UI history", tenant, scope, |store, project_scope| {
+        store.replace_session_ui_history(project_scope, expected, session)
+    })
+}
+
 /// 按显式租户保存 UI 会话，并将持久化失败返回给调用方。
 pub fn save_session_ui_scoped_for_tenant(
     tenant: &TenantScope,

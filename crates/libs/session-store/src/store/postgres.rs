@@ -439,6 +439,27 @@ impl PostgresSessionStore {
         Ok(())
     }
 
+    /// 原子比较并替换历史，保留调用与步骤。
+    pub(super) fn replace_session_ui_history(
+        &self,
+        scope: &ProjectScope,
+        expected: &ChatSession,
+        session: &ChatSession,
+    ) -> Result<()> {
+        let mut connection = self.database.connect_postgres()?;
+        let mut transaction = connection.transaction()?;
+        lock_session_scope(&mut transaction, scope)?;
+        // Use the same header lock as delta writers before reading history.
+        super::history::validate_postgres_snapshot(&mut transaction, scope, expected)?;
+        let stored = load_session(&mut transaction, scope, &session.id)?;
+        super::validate_history_replacement(stored.as_ref(), expected)?;
+        let call_count = stored.as_ref().map_or(0, |chat| chat.calls.len());
+        upsert_session_header(&mut transaction, scope, session, call_count)?;
+        replace_session_messages(&mut transaction, scope, session)?;
+        transaction.commit()?;
+        Ok(())
+    }
+
     /// 保存 UI 所需的会话头、消息和步骤，保留已有调用计数。
     pub(super) fn save_session_ui_snapshot(
         &self,

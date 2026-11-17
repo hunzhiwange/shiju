@@ -1695,3 +1695,27 @@ fn session_call_corruption_cannot_replace_existing_history() -> Result<()> {
         Ok(())
     })
 }
+
+#[test]
+fn session_history_explicit_replacement_rejects_stale_and_cross_scope_snapshots() -> Result<()> {
+    for_each_session_store_provider(|fixture| {
+        let scope = fixture.create_project(&fixture.tenant_a, "history-replace")?;
+        let other = fixture.create_project(&fixture.tenant_b, "history-replace")?;
+        let original = sample_session("history-replace", "Renamed", 100);
+        fixture.store.save_session(&scope, &original)?;
+        let mut replacement = original.clone();
+        replacement.messages[0].content = "retry prompt".into();
+        replacement.messages[1].content = "new answer".into();
+        replacement.updated_ms = 200;
+        replacement.calls.clear();
+        replacement.steps.clear();
+        assert!(fixture.store.replace_session_ui_history(&other, &original, &replacement).is_err());
+        fixture.store.replace_session_ui_history(&scope, &original, &replacement)?;
+        replacement.calls = original.calls.clone();
+        replacement.steps = original.steps.clone();
+        assert_json_eq!(fixture.store.load_session(&scope, &original.id)?, Some(&replacement));
+        assert!(fixture.store.replace_session_ui_history(&scope, &original, &original).is_err());
+        assert_json_eq!(fixture.store.load_session(&scope, &original.id)?, Some(&replacement));
+        Ok(())
+    })
+}

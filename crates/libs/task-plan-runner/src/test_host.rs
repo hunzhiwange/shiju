@@ -16,6 +16,7 @@ impl crate::PlanRunHost for TestHost {
     fn has_committed_first_response(&self, tenant: &vw_api_transport::id::TenantScope, project_id: &str, session_id: &str) -> anyhow::Result<bool> { session_store::ui_store::has_committed_first_response(tenant, project_id, session_id) }
     fn commit_first_response(&self, tenant: &vw_api_transport::id::TenantScope, project_id: &str, commit: session_store::FirstResponseCommit<'_>) -> anyhow::Result<bool> { session_store::ui_store::commit_first_response(tenant, project_id, commit) }
     fn save_session_ui_scoped_for_tenant(&self, tenant: &vw_api_transport::id::TenantScope, session: &session_ui_types::ChatSession, scope: Option<&str>, preserve_calls: bool) -> anyhow::Result<std::path::PathBuf> { session_store::ui_store::save_session_ui_scoped_for_tenant(tenant, session, scope, preserve_calls) }
+    fn replace_session_ui_history_scoped_for_tenant(&self, tenant: &vw_api_transport::id::TenantScope, expected: &session_ui_types::ChatSession, session: &session_ui_types::ChatSession, scope: Option<&str>) -> anyhow::Result<()> { session_store::ui_store::replace_session_ui_history_scoped_for_tenant(tenant, expected, session, scope) }
     fn now_ms(&self) -> u64 { 1 }
     fn create_slug(&self) -> String { "plan-run-fixture".to_string() }
 }

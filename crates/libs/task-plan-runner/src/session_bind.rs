@@ -93,10 +93,10 @@ pub async fn persist_plan_run_session_history(
         let info = ui_store::load_agent_session_scoped_for_tenant(&tenant, &session_id, scope)
             .filter(Info::is_plan_run)
             .ok_or_else(|| format!("缺少 plan-run 会话预留: {session_id}"))?;
-        let mut chat =
-            ui_store::load_session_scoped_for_tenant_fallible(&tenant, &session_id, scope)
-                .map_err(|error| error.to_string())?
-                .unwrap_or_else(|| ChatSession {
+        let loaded = ui_store::load_session_scoped_for_tenant_fallible(&tenant, &session_id, scope)
+            .map_err(|error| error.to_string())?;
+        let existing = loaded.is_some();
+        let mut chat = loaded.unwrap_or_else(|| ChatSession {
                     id: info.id.clone(),
                     title: info.title.clone(),
                     messages: Vec::new(),
@@ -118,6 +118,7 @@ pub async fn persist_plan_run_session_history(
             }
         }
 
+        let expected = chat.clone();
         chat.messages = vec![
             ChatMessage {
                 role: ChatRole::User,
@@ -156,6 +157,9 @@ pub async fn persist_plan_run_session_history(
             {
                 return Err(format!("plan-run 会话预留已失效: {session_id}"));
             }
+        } else if existing {
+            ui_store::replace_session_ui_history_scoped_for_tenant(&tenant, &expected, &chat, scope)
+                .map_err(|error| error.to_string())?;
         } else {
             ui_store::save_session_ui_scoped_for_tenant(&tenant, &chat, scope, true)
                 .map_err(|error| error.to_string())?;

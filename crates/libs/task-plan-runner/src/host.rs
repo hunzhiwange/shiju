@@ -9,6 +9,7 @@ pub trait PlanRunHost: Send + Sync {
     fn has_committed_first_response(&self, tenant: &vw_api_transport::id::TenantScope, project_id: &str, session_id: &str) -> anyhow::Result<bool>;
     fn commit_first_response(&self, tenant: &vw_api_transport::id::TenantScope, project_id: &str, commit: session_store::FirstResponseCommit<'_>) -> anyhow::Result<bool>;
     fn save_session_ui_scoped_for_tenant(&self, tenant: &vw_api_transport::id::TenantScope, session: &session_ui_types::ChatSession, scope: Option<&str>, preserve_calls: bool) -> anyhow::Result<std::path::PathBuf>;
+    fn replace_session_ui_history_scoped_for_tenant(&self, tenant: &vw_api_transport::id::TenantScope, expected: &session_ui_types::ChatSession, session: &session_ui_types::ChatSession, scope: Option<&str>) -> anyhow::Result<()>;
     fn now_ms(&self) -> u64;
     fn create_slug(&self) -> String;
 }

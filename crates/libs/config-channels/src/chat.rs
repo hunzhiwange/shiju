@@ -298,6 +298,9 @@ impl ChannelsConfig {
 
     /// 拒绝不存在的实例与空白引用；可用性在所属项目的执行边界校验。
     pub fn validate_instance_execution(&self) -> Result<(), String> {
+        if self.instance_execution.is_empty() {
+            return Ok(());
+        }
         let profiles = self.resolve_channel_instance_profiles().map_err(|err| err.to_string())?;
         for (key, execution) in &self.instance_execution {
             if !profiles.iter().any(|profile| &profile.profile_ref == key) {

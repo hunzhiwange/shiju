@@ -96,6 +96,27 @@ pub async fn authorize_site<H: ContextHost>(
     context: &ToolUseContext<H>,
     origin: &str,
 ) -> anyhow::Result<()> {
+    authorize_site_with_lock_check(policy, context, origin,
+        computer_control::native::locked_session::lock_state).await
+}
+
+/// Instance-local lock evidence for host approval tests.
+#[cfg(feature = "test-support")]
+pub async fn authorize_site_with_lock_state<H: ContextHost>(
+    policy: &Arc<RwLock<ComputerControlPolicy>>,
+    context: &ToolUseContext<H>,
+    origin: &str,
+    state: computer_control::native::locked_session::LockState,
+) -> anyhow::Result<()> {
+    authorize_site_with_lock_check(policy, context, origin, || state).await
+}
+
+async fn authorize_site_with_lock_check<H: ContextHost>(
+    policy: &Arc<RwLock<ComputerControlPolicy>>,
+    context: &ToolUseContext<H>,
+    origin: &str,
+    lock_state: impl Fn() -> computer_control::native::locked_session::LockState,
+) -> anyhow::Result<()> {
     let user = local_user();
     let version = {
         let p = policy.read();
@@ -110,7 +131,7 @@ pub async fn authorize_site<H: ContextHost>(
         }
         p.version()
     };
-    if computer_control::native::locked_session::lock_state()
+    if lock_state()
         != computer_control::native::locked_session::LockState::Unlocked
     {
         bail!("Unlock manually before approving a new Chrome site");
@@ -124,7 +145,7 @@ pub async fn authorize_site<H: ContextHost>(
     {
         bail!("Chrome site approval required");
     }
-    if computer_control::native::locked_session::lock_state()
+    if lock_state()
         != computer_control::native::locked_session::LockState::Unlocked
     {
         bail!("Session locked during Chrome site approval");

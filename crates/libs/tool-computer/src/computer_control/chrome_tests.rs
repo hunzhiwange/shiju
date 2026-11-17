@@ -4,7 +4,15 @@ use super::*;
 use anyhow::Context;
 use std::path::PathBuf;
 use tokio_util::sync::CancellationToken;
-use tool_computer::chrome::authorize_site;
+async fn authorize_site(
+    policy: &Arc<RwLock<ComputerControlPolicy>>,
+    context: &ToolUseContext,
+    origin: &str,
+) -> anyhow::Result<()> {
+    tool_computer::chrome::authorize_site_with_lock_state(
+        policy, context, origin, computer_control::native::locked_session::LockState::Unlocked,
+    ).await
+}
 use computer_control::chrome::origin_policy::canonical_origin;
 fn local_user() -> String { format!("uid:{}", unsafe { libc::geteuid() }) }
 fn control_error(code: ControlErrorCode) -> anyhow::Error { anyhow::anyhow!("computer control denied: {code:?}") }

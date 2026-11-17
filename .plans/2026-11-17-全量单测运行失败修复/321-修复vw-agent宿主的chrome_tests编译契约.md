@@ -4,7 +4,7 @@
 
 批次：【批次1】 依赖：无
 
-状态：已阻塞
+状态：已完成
 
 来源：继续执行宿主单测；诊断编号56, 57, 58（宿主编译错误证据.json）。
 预计会话范围：修复一个源码文件中的宿主接口或测试夹具编译契约；不接管整包。
@@ -145,3 +145,10 @@ python3 scripts/cargo_slot.py cargo test -p vw-agent --lib cc_control_10_transfe
 - 修改后合并同组入口：`python3 scripts/cargo_slot.py sh -c 'cargo test -p vw-agent --lib cc_control_10_ -- --nocapture'`，退出101，32条其他文件编译错误，日志 `/tmp/shiju-321-after.log`；未再报告 chrome_tests.rs 错误。有效运行0项，不算行为通过。原真实 Chrome 用例仍按原有 ignored 保留，不强制运行或安装宿主。
 - 两轮均槽位3；CARGO_TARGET_DIR 与 CARGO_BUILD_BUILD_DIR 均为 `/Users/xiangmin/worker/code/shiju/target/rust-slot-3`。入口与子进程均已退出，槽位由脚本释放，缓存保留。
 - 阻塞包括 VideoContext/McpToolRuntime 契约、compaction、ui_store、with_tenant_instance、task_plan_run_*、ACP_CLIENT_CACHE 与 overflow_error；归其他编号任务，不接管。等待这些宿主阻塞解除后重跑上述 cc_control_10_（应运行5项、ignored 1项），通过后再完成删卡。`git diff --check` 本任务文件通过；未编译桌面。
+
+## 继续执行
+
+- 重新验证旧阻塞已解除：槽位1运行 cc_control_10_，退出101，4 passed、1 failed、1 ignored；日志 /tmp/shiju-321-retry2.log。站点审批用例失败为物理锁屏检测，不是旧编译错误。
+- 必要范围扩展：chrome.rs 新增 feature=test-support 的实例级锁状态入口，生产入口仍两次调用真实 lock_state。仅提交自身入口/锁检查提取差异，不提交已有9行 BrowserPermission 策略修改。vw-agent 清单追加 tool-computer test-support 开发特性。
+
+- 最终验证：`python3 scripts/cargo_slot.py cargo test -p vw-agent --lib cc_control_10_ -- --nocapture`，槽位1，两个缓存变量均 `/Users/xiangmin/worker/code/shiju/target/rust-slot-1`，退出0；5 passed、0 failed、1 ignored，日志 `/tmp/shiju-321-retry3.log`。生产调用者与宿主目标一同编译通过，不重复check。入口与编译子进程退出；脚本释放锁并保留缓存。初次重试因已有 CLI 重型编译主动取消（退出130），待其退出后才运行上述测试。

@@ -589,3 +589,8 @@ features = ["host-test-support"]
 path = "../libs/computer-control"
 version = "0.6.0"
 features = ["test-support"]
+
+[dev-dependencies.tool-computer]
+path = "../libs/tool-computer"
+version = "0.6.0"
+features = ["test-support"]

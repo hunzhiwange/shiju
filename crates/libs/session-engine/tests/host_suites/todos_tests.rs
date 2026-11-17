@@ -89,6 +89,6 @@ fn maybe_mark_todo_in_progress_noops_for_empty_list_without_side_effects() {
 
     super::maybe_mark_todo_in_progress(&mut session, &ctx, &mut tool_state);
 
-    assert!(crate::runner_todos::read_todos_or_empty(&ctx.session).is_empty());
+    assert!(read(&ctx).is_empty());
     assert!(session.messages.is_empty());
 }

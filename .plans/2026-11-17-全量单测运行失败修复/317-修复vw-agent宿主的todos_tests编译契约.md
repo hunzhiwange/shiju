@@ -4,7 +4,7 @@
 
 批次：【批次1】 依赖：无
 
-状态：未开始
+状态：待回归
 
 来源：继续执行宿主单测；诊断编号5（宿主编译错误证据.json）。
 预计会话范围：修复一个源码文件中的宿主接口或测试夹具编译契约；不接管整包。
@@ -54,3 +54,13 @@ python3 scripts/cargo_slot.py cargo test -p vw-agent --lib maybe_mark_todo_in_pr
 编译取证命令（不是测试通过证据）：`python3 scripts/cargo_slot.py cargo test -p vw-agent --lib --no-run`。同阶段顺序命令合并一次入口复用缓存，不默认逐任务全量测试。
 
 最终需由原任务303执行两阶段全量验收；这组修复仅覆盖已发现编译阻塞，尚不能保证宿主全部运行失败已发现。
+
+## 本轮执行记录
+
+- 确认目标函数为 `#[test]`，宿主 `processor/todos.rs` 通过 path 注册该共享测试；宿主无根级 runner_todos，实际调用 session_engine 接口。
+- 最小修复：使用现有 `read(&ctx)` 读取真实 todo 存储并解析。保留空列表及无消息副作用断言；读取/解析失败会直接失败，不以默认空列表掩盖。
+- 修复前执行指定定向命令，退出101：51条宿主编译错误，包含本任务E0433。日志 `/tmp/shiju-317-red.log`。
+- 修复后执行同一命令：`python3 scripts/cargo_slot.py cargo test -p vw-agent --lib maybe_mark_todo_in_progress_noops_for_empty_list_without_side_effects -- --nocapture`。日志 `/tmp/shiju-317-green.log`；退出101，45条其余宿主编译错误，本文件诊断消失；有效测试数0，行为验证尚未运行。两轮入口均已退出并完成自有进程收尾。
+- 两轮均槽位1；CARGO_TARGET_DIR 与 CARGO_BUILD_BUILD_DIR 均为 `/Users/xiangmin/worker/code/shiju/target/rust-slot-1`，入口负责进程清理及释放自有锁，缓存保留。
+- `git diff --check` 通过。未执行整包测试、桌面构建或重复check；有效测试数0，不能记为行为通过。
+- 等待兄弟任务解除 core 历史接口、compaction测试夹具、cron Config、gateway宿主导入及VideoContext契约等错误后，重跑上述同宿主定向命令，要求运行数>0、failed=0、退出0后方可完成并删除本文件。

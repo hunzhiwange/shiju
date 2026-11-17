@@ -227,6 +227,14 @@ impl SecurityPolicy {
         if !self.bash_checks_enabled() {
             return PermissionResult::allow();
         }
+        // Strip 只移除支持的重定向；剩余操作符不能借 allowlist 放行。
+        if self.policy_check_enabled(|policy| policy.redirects)
+            && self.shell_redirect_policy == ShellRedirectPolicy::Strip
+            && !self.allow_unsafe_shell_patterns
+            && (contains_unquoted_char(command, '>') || contains_unquoted_char(command, '<'))
+        {
+            return PermissionResult::deny("Command blocked: unsupported shell redirection");
+        }
         let parsed = parse_command(command);
         if self.policy_check_enabled(|policy| policy.read_only)
             && self.autonomy == AutonomyLevel::ReadOnly
@@ -511,6 +519,14 @@ impl SecurityPolicy {
             return None;
         }
         if workspace_paths_enabled {
+            // 在规范化之前保留父目录引用的拒绝语义及原始诊断路径。
+            if let Some(path) = allowlist::find_forbidden_path_argument(command, |path| {
+                !Path::new(path)
+                    .components()
+                    .any(|component| matches!(component, std::path::Component::ParentDir))
+            }) {
+                return Some(path);
+            }
             let parsed = parse_command(command);
             if let PathCheckResult::Blocked { path, .. } =
                 check_path_constraints(&parsed, &self.workspace_dir, &self.allowed_roots)

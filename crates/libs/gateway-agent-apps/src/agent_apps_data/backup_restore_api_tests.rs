@@ -1,14 +1,27 @@
 //! HTTP fixtures only; never use ambient home or user configuration.
 use super::{backup_crud_api, backup_restore_api};
-use {app_settings_store::settings_store::GatewaySettingsStore, agent_database::GlobalDatabase};
 use axum::Extension;
 use serde_json::{Value, json};
-use sha2::{Digest, Sha256};
 use std::{fs, os::unix::fs::PermissionsExt};
-use {
-    vw_api_transport::id::ProjectScope,
-    vw_api_transport::id::TenantScope,
-};
+use {agent_database::GlobalDatabase, app_settings_store::settings_store::GatewaySettingsStore};
+use {vw_api_transport::id::ProjectScope, vw_api_transport::id::TenantScope};
+
+// Resolve the process-global runtime paths before any route opens storage.
+fn isolated_test() -> bool {
+    const CHILD: &str = "SHIJU_BACKUP_RESTORE_CHILD";
+    if std::env::var_os(CHILD).is_some() {
+        return false;
+    }
+    let root = tempfile::tempdir().unwrap();
+    let status = std::process::Command::new(std::env::current_exe().unwrap())
+        .args(["--exact", std::thread::current().name().unwrap(), "--nocapture"])
+        .env(CHILD, "1")
+        .env("VIBEWINDOW_TEST_ROOT", root.path().canonicalize().unwrap())
+        .status()
+        .unwrap();
+    assert!(status.success(), "isolated backup restore child failed: {status}");
+    true
+}
 
 struct Fixture {
     _root: tempfile::TempDir,
@@ -26,25 +39,20 @@ impl Fixture {
         let root = tempfile::tempdir().unwrap();
         fs::set_permissions(root.path(), fs::Permissions::from_mode(0o700)).unwrap();
         let directory = root.path().canonicalize().unwrap();
-        let backups = directory.join("backups");
-        fs::create_dir(&backups).unwrap();
-        fs::set_permissions(&backups, fs::Permissions::from_mode(0o700)).unwrap();
-        let policy = directory.join("policy.json");
-        let token = "anonymous-backup-fixture-token-00001";
-        fs::write(&policy, json!({"principals":[{"id":"reader", "token_sha256":hex::encode(Sha256::digest(token)),
-            "grants":[{"platform_id":"p","company_id":"c","host_id":"h","data_backups":["project"]}]}],
-            "hosts":[{"id":"h","online":true,"binding":"local","home":directory,
-            "applications":directory,"search_paths":[],"data_backup_root":backups}]}).to_string()).unwrap();
-        fs::set_permissions(&policy, fs::Permissions::from_mode(0o600)).unwrap();
         let tenant = TenantScope::new("p", "c").unwrap();
         let project = ProjectScope::new(tenant.clone(), "project".into()).unwrap();
         let db = GlobalDatabase::new(directory.join("fixture.sqlite")).unwrap();
         GatewaySettingsStore::new(db.clone())
             .unwrap()
-            .upsert(&tenant, "agent_apps_user", "reader", r#"{"appOrder":[],"visibleApps":[]}"#)
+            .upsert(
+                &tenant,
+                "agent_apps_user",
+                "desktop-local-user",
+                r#"{"appOrder":[],"visibleApps":[]}"#,
+            )
             .unwrap();
-        let app = backup_crud_api::router_with_policy(Some(policy.clone()))
-            .merge(backup_restore_api::router_with_policy(Some(policy)))
+        let app = backup_crud_api::router_with_policy(None)
+            .merge(backup_restore_api::router_with_policy(None))
             .layer(Extension(tenant))
             .layer(Extension(db));
         let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
@@ -56,13 +64,12 @@ impl Fixture {
             _root: root,
             server,
             url,
-            target: json!({"scope":project,"targetHostId":"h","principalId":"reader"}),
+            target: json!({"scope":project,"targetHostId":local_app_auth::HOST_ID,"principalId":"desktop-local-user"}),
         }
     }
     async fn call(&self, operation: &str, request: Value) -> reqwest::Response {
         reqwest::Client::new()
             .post(format!("{}/agent-apps/data/backups/{operation}", self.url))
-            .header("x-agent-apps-token", "anonymous-backup-fixture-token-00001")
             .json(&request)
             .send()
             .await
@@ -83,6 +90,9 @@ impl Fixture {
 
 #[tokio::test]
 async fn cc_data_35_restore_api_reports_safety_snapshot() {
+    if isolated_test() {
+        return;
+    }
     let fixture = Fixture::new().await;
     let created = fixture.create().await;
     let preview = fixture
@@ -142,20 +152,30 @@ async fn cc_data_35_restore_api_reports_safety_snapshot() {
 }
 #[tokio::test]
 async fn cc_data_35_restore_api_rejects_unauthorized_without_io() {
+    if isolated_test() {
+        return;
+    }
     let fixture = Fixture::new().await;
+    // Authentication is owned by Gateway middleware. This route must reject
+    // a tenant outside its authenticated Extension before opening owner storage.
+    let mut foreign = fixture.target.clone();
+    foreign["scope"] = serde_json::to_value(
+        ProjectScope::new(TenantScope::new("p", "foreign").unwrap(), "project".into()).unwrap(),
+    )
+    .unwrap();
+    let runtime_root = agent_paths::paths().data.join("apps");
+    assert!(!runtime_root.exists());
     let database_before = fs::read(fixture._root.path().join("fixture.sqlite")).unwrap();
-    let before: Vec<_> = fs::read_dir(fixture._root.path().join("backups"))
-        .unwrap()
-        .map(|e| e.unwrap().file_name())
-        .collect();
+    let before: Vec<_> =
+        fs::read_dir(fixture._root.path()).unwrap().map(|e| e.unwrap().file_name()).collect();
     for (path, request) in [
         (
             "restore",
-            json!({"target":fixture.target,"backupId":"missing","expectedRevision":"missing","categories":["preferences"],"idempotencyKey":"unauthorized","confirmed":true}),
+            json!({"target":foreign,"backupId":"missing","expectedRevision":"missing","categories":["preferences"],"idempotencyKey":"unauthorized","confirmed":true}),
         ),
-        ("restore/preview", json!({"target":fixture.target,"backupId":"missing"})),
-        ("diagnose", json!({"target":fixture.target})),
-        ("restore/get", json!({"target":fixture.target,"operationId":"missing"})),
+        ("restore/preview", json!({"target":foreign,"backupId":"missing"})),
+        ("diagnose", json!({"target":foreign})),
+        ("restore/get", json!({"target":foreign,"operationId":"missing"})),
     ] {
         let response = reqwest::Client::new()
             .post(format!("{}/agent-apps/data/backups/{path}", fixture.url))
@@ -163,12 +183,11 @@ async fn cc_data_35_restore_api_rejects_unauthorized_without_io() {
             .send()
             .await
             .unwrap();
-        assert!(matches!(response.status().as_u16(), 401 | 403));
+        assert_eq!(response.status(), 403);
     }
-    let after: Vec<_> = fs::read_dir(fixture._root.path().join("backups"))
-        .unwrap()
-        .map(|e| e.unwrap().file_name())
-        .collect();
+    let after: Vec<_> =
+        fs::read_dir(fixture._root.path()).unwrap().map(|e| e.unwrap().file_name()).collect();
     assert_eq!(before, after);
+    assert!(!runtime_root.exists());
     assert_eq!(database_before, fs::read(fixture._root.path().join("fixture.sqlite")).unwrap());
 }

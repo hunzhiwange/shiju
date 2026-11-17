@@ -168,12 +168,14 @@ fn cc_data_03_source_reads_wal_copy_without_source_shm() {
 #[test]
 fn cc_data_03_source_capture_rejects_changes_and_oversize_files() {
     let root = tempfile::tempdir().unwrap();
-    let path = root.path().join("selected.json");
+    // Direct capture expects a resolved path, as supplied by selected_path.
+    let root_path = root.path().canonicalize().unwrap();
+    let path = root_path.join("selected.json");
     fs::write(&path, r#"{"version":2,"mcp":{}}"#).unwrap();
     let captured = super::source_files::capture(&path).unwrap();
     fs::write(&path, r#"{"version":2,"prompts":{}}"#).unwrap();
     assert_eq!(captured.verify(&path), Err(SourceError::Changed));
     let file = fs::File::create(&path).unwrap();
     file.set_len(256 * 1024 * 1024 + 1).unwrap();
-    assert!(matches!(read_selected_source(&scope(), root.path(), &path), Err(SourceError::TooLarge)));
+    assert!(matches!(read_selected_source(&scope(), &root_path, &path), Err(SourceError::TooLarge)));
 }

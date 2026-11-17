@@ -4,7 +4,7 @@
 
 批次：【批次1】 依赖：无
 
-状态：未开始
+状态：待回归
 
 来源：继续执行宿主单测；诊断编号65, 66, 67, 68, 69, 70（宿主编译错误证据.json）。
 预计会话范围：修复一个源码文件中的宿主接口或测试夹具编译契约；不接管整包。
@@ -233,3 +233,12 @@ python3 scripts/cargo_slot.py cargo test -p vw-agent --lib video_edit_command_sy
 编译取证命令（不是测试通过证据）：`python3 scripts/cargo_slot.py cargo test -p vw-agent --lib --no-run`。同阶段顺序命令合并一次入口复用缓存，不默认逐任务全量测试。
 
 最终需由原任务303执行两阶段全量验收；这组修复仅覆盖已发现编译阻塞，尚不能保证宿主全部运行失败已发现。
+
+## 本次执行记录（2026-11-18）
+
+- 仅修改本任务 command_tests.rs：六个调用显式包裹现有 NativeVideoContext，沿用生产 entry.rs 的适配边界，保留全部原生安全断言；未改业务接口。
+- 已核对三个候选均为真实 #[test]。合并精确公共前缀运行：`python3 scripts/cargo_slot.py cargo test -p vw-agent --lib video_edit_command_ -- --nocapture`，覆盖本文件三个测试。
+- 修复前：槽位1，退出101，15处编译错误，包含本文件六处E0277；日志 `/tmp/shiju-task334-before.log`。
+- 修复后：槽位1，退出101，本文件诊断消失；其余8处错误属于 controls_tests.rs、prepare_tests.rs、entry_test_transport.rs 和 e2e_tests.rs。日志 `/tmp/shiju-task334-after.log`。有效执行0项，未宣称行为通过。
+- 两次 CARGO_TARGET_DIR 与 CARGO_BUILD_BUILD_DIR 均为 `/Users/xiangmin/worker/code/shiju/target/rust-slot-1`；入口已退出并释放自有槽位。只格式化修改文件，未运行桌面构建或额外check。
+- 待兄弟任务解除宿主阻塞后，在本任务重跑上述过滤（预期3项），真实测试通过后方可完成删卡；全量验收仍归303。

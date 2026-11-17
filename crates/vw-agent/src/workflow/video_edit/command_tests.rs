@@ -1,3 +1,4 @@
+use super::prepare::NativeVideoContext;
 use super::*;
 use crate::tools::ToolRuntimeContext;
 
@@ -13,12 +14,18 @@ fn video_edit_command_symlink_obeys_native_security_and_full_access() {
     let mut config = crate::app::agent::config::Config::default();
     config.autonomy.workspace_only = true;
     let ctx = ctx.with_test_config(config);
-    assert!(prepare_video_edit_request("/shiju 剪辑 link.mp4", &ctx).is_err());
+    assert!(
+        prepare_video_edit_request("/shiju 剪辑 link.mp4", &NativeVideoContext(ctx.clone()))
+            .is_err()
+    );
     let full = ctx.clone().with_tool_use_context(
         ctx.tool_use_context().as_ref().clone().with_full_access_enabled(true),
     );
     assert_eq!(
-        prepare_video_edit_request("/shiju 剪辑 link.mp4", &full).unwrap().unwrap().video_path,
+        prepare_video_edit_request("/shiju 剪辑 link.mp4", &NativeVideoContext(full.clone()))
+            .unwrap()
+            .unwrap()
+            .video_path,
         file.canonicalize().unwrap()
     );
 }
@@ -36,13 +43,19 @@ fn video_edit_command_external_allowed_root_and_no_project() {
     let ctx = ToolRuntimeContext::new("video", Some(root.path().to_string_lossy().into()))
         .with_test_config(config);
     let query = format!("/shiju 剪辑 '{}'", file.display());
-    assert!(prepare_video_edit_request(&query, &ctx).unwrap().is_some());
+    assert!(
+        prepare_video_edit_request(&query, &NativeVideoContext(ctx.clone())).unwrap().is_some()
+    );
     let full = ToolRuntimeContext::new("video", None).with_tool_use_context(
         crate::tools::ToolUseContext::new("video", None).with_full_access_enabled(true),
     );
-    let req = prepare_video_edit_request(&query, &full).unwrap().unwrap();
+    let req =
+        prepare_video_edit_request(&query, &NativeVideoContext(full.clone())).unwrap().unwrap();
     assert_eq!(req.project_root, None);
-    assert!(prepare_video_edit_request("/shiju 剪辑 relative.mp4", &full).is_err());
+    assert!(
+        prepare_video_edit_request("/shiju 剪辑 relative.mp4", &NativeVideoContext(full.clone()))
+            .is_err()
+    );
 }
 
 #[test]
@@ -68,6 +81,10 @@ fn video_edit_command_delegated_parent_remains_restricted_under_full_access() {
         .with_tool_use_context(base)
         .with_test_config(config);
     assert!(
-        prepare_video_edit_request(&format!("/shiju 剪辑 '{}'", file.display()), &ctx).is_err()
+        prepare_video_edit_request(
+            &format!("/shiju 剪辑 '{}'", file.display()),
+            &NativeVideoContext(ctx.clone())
+        )
+        .is_err()
     );
 }

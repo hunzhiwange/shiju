@@ -209,15 +209,19 @@ fn prompt_runtime_metadata() {
 fn prompt_truncation() {
     let ws = make_workspace();
 
-    // 创建一个超大文件，超过截断限制
+    // SOUL.md 会注入基础提示；AGENTS.md 通过临时 system 消息单独注入。
     let big_content = "x".repeat(BOOTSTRAP_MAX_CHARS + 1000);
-    std::fs::write(ws.path().join("AGENTS.md"), &big_content).unwrap();
+    std::fs::write(ws.path().join("SOUL.md"), &big_content).unwrap();
 
     let prompt = build_system_prompt(ws.path(), "model", &[], &[], None, None);
 
     // 验证截断标记存在，且完整内容不在提示中
     assert!(prompt.contains("truncated at"), "large files should be truncated");
     assert!(!prompt.contains(&big_content), "full content should not appear");
+    assert!(prompt.contains(&format!(
+        "### SOUL.md\n\n{}\n\n[... truncated at {BOOTSTRAP_MAX_CHARS} chars",
+        "x".repeat(BOOTSTRAP_MAX_CHARS)
+    )));
 }
 
 /// 测试空文件会被跳过

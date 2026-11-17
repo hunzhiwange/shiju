@@ -4,7 +4,7 @@
 
 批次：【批次1】 依赖：无
 
-状态：未开始
+状态：待回归
 
 来源：继续执行宿主单测；诊断编号11, 41（宿主编译错误证据.json）。
 预计会话范围：修复一个源码文件中的宿主接口或测试夹具编译契约；不接管整包。
@@ -96,3 +96,13 @@ python3 scripts/cargo_slot.py cargo test -p vw-agent --lib handle_agent_rejects_
 编译取证命令（不是测试通过证据）：`python3 scripts/cargo_slot.py cargo test -p vw-agent --lib --no-run`。同阶段顺序命令合并一次入口复用缓存，不默认逐任务全量测试。
 
 最终需由原任务303执行两阶段全量验收；这组修复仅覆盖已发现编译阻塞，尚不能保证宿主全部运行失败已发现。
+
+## 执行记录（2026-11-18）
+
+- 显式从 gateway 父模块导入生产限流常量；Router 返回值已是 Response，直接传给 response_json，不再调用无必要的 into_response。保留全部安全断言。
+- 已核对两个过滤名称均为 #[tokio::test] 入口。
+- 修复前后均执行：`python3 scripts/cargo_slot.py sh -c 'cargo test -p vw-agent --lib handle_agent_enforces_agent_rate_limit_before_auth -- --nocapture && cargo test -p vw-agent --lib handle_agent_rejects_invalid_json_body -- --nocapture'`。
+- 修复前槽位1，双缓存路径均为 `/Users/xiangmin/worker/code/shiju/target/rust-slot-1`；退出101，38条编译错误，包含本文件 E0425/E0599；日志 `/tmp/shiju-325-before.log`。
+- 修复后槽位3，双缓存路径均为 `/Users/xiangmin/worker/code/shiju/target/rust-slot-3`；退出101，43条其他编译错误，本文件诊断已消失；日志 `/tmp/shiju-325-after.log`。共享工作区同期变化，数量不能作严格差值比较。
+- 两次有效测试数均为0；第一条因编译失败退出，第二条由 && 阻止执行，未声称行为通过。其他阻塞含 VideoContext trait、session 测试引用等，归兄弟任务，不扩大写入范围。
+- `git diff --check -- crates/vw-agent/src/gateway/agent_tests.rs` 通过。自有两次槽位入口均退出；保留任务文件，待同宿主编译阻塞解除后原命令完成有效测试再收尾。

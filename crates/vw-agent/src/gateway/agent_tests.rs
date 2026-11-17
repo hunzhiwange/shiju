@@ -1,6 +1,7 @@
 // 覆盖代理网关的认证、限流、错误脱敏及成功生命周期。
 
 use super::*;
+use super::super::RATE_LIMIT_WINDOW_SECS;
 use crate::app::agent::config::Config;
 use crate::app::agent::gateway::{GatewayRateLimiter, IdempotencyStore};
 use crate::app::agent::memory::{Memory, MemoryCategory, MemoryEntry, NoneMemory};
@@ -223,7 +224,7 @@ async fn handle_agent_rejects_invalid_json_body() {
 
     assert_eq!(response.status(), StatusCode::BAD_REQUEST);
     assert!(
-        response_json(response.into_response()).await["error"]
+        response_json(response).await["error"]
             .as_str()
             .unwrap()
             .contains("Invalid JSON")

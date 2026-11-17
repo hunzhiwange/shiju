@@ -1,0 +1,11 @@
+# aionrs implementation notes
+
+Source contract: iOfficeAI/aionrs revision `8e61a90329fa9f67c4fdf7e97fe02c24dba33f75` (v0.2.11), `docs/json-stream-protocol.md`, `crates/aion-cli/src/cli.rs`, `crates/aion-config/src/config.rs`. These files were read from the fixed upstream revision; no upstream engine was imported.
+
+Implementation resides in `acp-server::aionrs`; `vw-acp` only assembles the `aionrs-acp` binary. Registry key/display name is `aionrs`. `agent-config::merged_agent_catalog` derives the disabled official `acp-aionrs` preset with inherited defaults and a fixed backend. Existing configuration persistence and selection paths are reused.
+
+One child per session, bounded NDJSON reads, ready protocol 0.2.0/approval/default-mode check, unique turn/call identities, concurrent once-only permissions, fail-closed replies, and process retirement on cancel/error. Configuration is isolated through a temporary HOME/config directory and explicit project-dir, with an empty allow-list and auto-approve disabled. Secrets remain in inherited credential environment variables, never argv or diagnostics. Tool payloads are omitted from UI events. Nested Spawn requests are denied. Cancellation sends pending denials and stop, then kills the process group/tree; subsequent prompts require a fresh session.
+
+MCP, skills, restore, attachments, full access, session model selection and usage reporting are not advertised. Existing model-source gates reject selected session models before launch; CLI-local provider/model uses environment configuration. Main CLI and bridge are separate PATH artifacts. No guessed download or npm package is installed; the install action supplies the fixed revision and separate bridge deployment requirement.
+
+Per the user's explicit override, no Cargo command, test, physical run or final regression was executed. No slot was acquired and no CARGO_TARGET_DIR was set. Added protocol/registry/catalog/profile tests are unexecuted. Two-turn, tool denial/no side effect, hostile prior config, cancellation cleanup, platform discovery and actual model requests all require future unified validation. This note is implementation context, not passing acceptance evidence. Batch 20 has no remaining numbered task file; the current pi driver and registry entry exist. Public plan.md/prompt.md were not changed.

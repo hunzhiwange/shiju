@@ -4,6 +4,9 @@ use config_acp_install::acp_install_command;
 
 /// 按网关所在平台安装内置代理，不接收任意命令、包名或 URL。
 pub async fn install_builtin_agent(agent: &str) -> Result<(), String> {
+    if agent == "aionrs" {
+        return Err("请安装固定 revision 8e61a90329fa9f67c4fdf7e97fe02c24dba33f75 的官方 aionrs CLI，并将 ShiJu 发行包中的 aionrs-acp 放入 PATH；两者分别发现，暂无一键安装".into());
+    }
     if crate::managed_runtime::install(agent).await? {
         return Ok(());
     }

@@ -27,6 +27,8 @@ pub fn acp_install_command_for_platform(
     platform: AcpInstallPlatform,
 ) -> Option<(&'static str, &'static [&'static str])> {
     let args: &[&str] = match agent {
+        // Native CLI and ShiJu bridge are separate artifacts; no guessed npm installer.
+        "aionrs" => return None,
         // The official omp executable requires Bun >=1.4.4 on the gateway host.
         "omp" => &["install", "-g", "@oh-my-pi/pi-coding-agent@18.22.0"],
         // Native Stakpak releases require a pinned, checksum-reviewed platform

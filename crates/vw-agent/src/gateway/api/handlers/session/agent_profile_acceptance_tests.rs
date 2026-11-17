@@ -107,3 +107,8 @@ fn acp_onboarding_omp_builtin_profile_persists_and_runs() {
 fn acp_onboarding_vtcode_builtin_profile_persists_and_runs() {
     suite::acp_onboarding_vtcode_builtin_profile_persists_and_runs::<Host>();
 }
+
+#[test]
+fn acp_onboarding_aionrs_builtin_profile_persists_and_runs() {
+    suite::acp_onboarding_aionrs_builtin_profile_persists_and_runs::<Host>();
+}

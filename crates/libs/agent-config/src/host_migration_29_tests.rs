@@ -596,3 +596,37 @@ fn acp_onboarding_vtcode_catalog_binding() {
         serde_json::to_value(entry).unwrap()
     );
 }
+
+#[test]
+fn acp_onboarding_aionrs_builtin_preset_metadata() {
+    let catalog = load_agent_configs(&json!({}));
+    let entry = catalog.get("acp-aionrs").expect("official aionrs preset");
+    assert!(entry.builtin);
+    assert!(!entry.enabled);
+    assert!(!entry.allow_as_subagent);
+    assert_eq!(entry.label.as_deref(), Some("aionrs"));
+    assert!(!entry.description.as_ref().unwrap().is_empty());
+    assert!(!entry.recommended_prompts.is_empty());
+    assert_eq!(entry.runtime, AgentRuntime::Acp { backend: "aionrs".into() });
+    assert_eq!(
+        serde_json::to_value(&entry.defaults).unwrap(),
+        serde_json::to_value(config_agent::AgentDefinitionConfig::default().defaults)
+            .unwrap()
+    );
+}
+
+#[test]
+fn acp_onboarding_aionrs_catalog_binding() {
+    let catalog = load_agent_configs(&json!({"agents":{"acp-aionrs":{
+        "provider":"","model":"","enabled":true,"label":"Selected aionrs","runtime":{"kind":"native"},"builtin":false
+    }}}));
+    let entry = &catalog["acp-aionrs"];
+    assert!(entry.enabled && entry.builtin);
+    assert_eq!(entry.runtime, AgentRuntime::Acp { backend: "aionrs".into() });
+    let saved = serde_json::to_value(&catalog).unwrap();
+    let reloaded = load_agent_configs(&json!({"agents": saved}));
+    assert_eq!(
+        serde_json::to_value(&reloaded["acp-aionrs"]).unwrap(),
+        serde_json::to_value(entry).unwrap()
+    );
+}

@@ -61,12 +61,26 @@ fn selected_command_is_never_silently_ignored() {
 #[test]
 fn command_catalog_exposes_stable_ids_and_disabled_reasons() {
     let items = command_palette_items();
-    let ids = items.iter().map(|item| item.id.as_str()).collect::<Vec<_>>();
-    assert_eq!(
-        &ids[..3],
-        &["help", "status", "exit"],
-        "the locally implemented command ids remain stable"
-    );
+    // Stable IDs are routing keys; new commands may be inserted in the palette.
+    for (id, route) in [
+        ("help", CommandRoute::Help),
+        ("status", CommandRoute::Status),
+        ("exit", CommandRoute::Exit),
+    ] {
+        let matching = items.iter().filter(|item| item.id == id).collect::<Vec<_>>();
+        assert_eq!(matching.len(), 1, "stable command {id} must appear exactly once");
+        assert!(!matching[0].disabled, "local command {id} must be enabled");
+        assert_eq!(matching[0].disabled_reason, None);
+        assert_eq!(route_selection("command_palette", id).unwrap(), route);
+    }
+    for item in &items {
+        assert_eq!(
+            item.disabled,
+            item.disabled_reason.as_deref().is_some_and(|reason| !reason.trim().is_empty()),
+            "disabled command {} must explain why it is unavailable",
+            item.id
+        );
+    }
     assert!(items.iter().any(|item| item.id == "resume" && !item.disabled));
     assert!(items.iter().any(|item| item.id == "continue" && !item.disabled));
     assert!(items.iter().any(|item| item.id == "new" && !item.disabled));

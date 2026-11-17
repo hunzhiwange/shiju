@@ -247,6 +247,16 @@ fn normalize_agent_spec_for_name(name: &str, spec: &AgentCommandSpec) -> AgentCo
 }
 
 const BUILT_IN_AGENT_DEFINITIONS: &[BuiltInAgentDefinition] = &[
+    // Official v0.6.0 extension launches the host-local ACP binary without arguments.
+    BuiltInAgentDefinition {
+        name: "corust-agent",
+        display_name: "Corust Agent",
+        command: "corust-agent-acp",
+        args: &[],
+        env: &[],
+        local_command_candidates: &["corust-agent-acp"],
+        local_args: &[],
+    },
     // Official Poolside ACP server: https://github.com/poolsideai/pool
     // Discover the operator-installed native CLI; do not substitute an npm package.
     BuiltInAgentDefinition {

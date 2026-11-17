@@ -255,3 +255,12 @@ fn acp_onboarding_poolside_installer_contract() {
     }
     assert!(acp_install_command("poolside; echo unsafe").is_none());
 }
+
+#[test]
+fn acp_onboarding_corust_agent_installer_contract() {
+    use super::{AcpInstallPlatform, acp_install_command_for_platform};
+    for platform in [AcpInstallPlatform::Unix, AcpInstallPlatform::Windows] {
+        assert!(acp_install_command_for_platform("corust-agent", platform).is_none());
+    }
+    assert!(acp_install_command("corust-agent; echo unsafe").is_none());
+}

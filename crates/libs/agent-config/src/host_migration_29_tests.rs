@@ -14,7 +14,7 @@ fn agent_catalog_covers_thirty_unique_backends() {
             AgentRuntime::Native => None,
         })
         .collect::<HashSet<_>>();
-    assert_eq!(backends.len(), 32);
+    assert_eq!(backends.len(), 33);
     assert!(catalog["main"].builtin);
     assert!(!catalog["acp-snow"].enabled);
     assert_eq!(
@@ -77,7 +77,7 @@ fn agent_catalog_keeps_all_backends_without_installed_clis() {
     const CHILD: &str = "SHIJU_CATALOG_EMPTY_CLI_ENV";
     if std::env::var_os(CHILD).is_some() {
         let catalog = load_agent_configs(&json!({}));
-        assert_eq!(catalog.keys().filter(|key| key.starts_with("acp-")).count(), 32);
+        assert_eq!(catalog.keys().filter(|key| key.starts_with("acp-")).count(), 33);
         assert_eq!(catalog["acp-snow"].runtime, AgentRuntime::Acp { backend: "snow".into() });
         return;
     }
@@ -661,6 +661,40 @@ fn acp_onboarding_poolside_catalog_binding() {
     let reloaded = load_agent_configs(&json!({"agents": saved}));
     assert_eq!(
         serde_json::to_value(&reloaded["acp-poolside"]).unwrap(),
+        serde_json::to_value(entry).unwrap()
+    );
+}
+
+#[test]
+fn acp_onboarding_corust_agent_builtin_preset_metadata() {
+    let catalog = load_agent_configs(&json!({}));
+    let entry = catalog.get("acp-corust-agent").expect("official Corust Agent preset");
+    assert!(entry.builtin);
+    assert!(!entry.enabled);
+    assert!(!entry.allow_as_subagent);
+    assert_eq!(entry.label.as_deref(), Some("Corust Agent"));
+    assert!(!entry.description.as_ref().unwrap().is_empty());
+    assert!(!entry.recommended_prompts.is_empty());
+    assert_eq!(entry.runtime, AgentRuntime::Acp { backend: "corust-agent".into() });
+    assert_eq!(
+        serde_json::to_value(&entry.defaults).unwrap(),
+        serde_json::to_value(config_agent::AgentDefinitionConfig::default().defaults)
+            .unwrap()
+    );
+}
+
+#[test]
+fn acp_onboarding_corust_agent_catalog_binding() {
+    let catalog = load_agent_configs(&json!({"agents":{"acp-corust-agent":{
+        "provider":"","model":"","enabled":true,"label":"Selected Corust Agent","runtime":{"kind":"native"},"builtin":false
+    }}}));
+    let entry = &catalog["acp-corust-agent"];
+    assert!(entry.enabled && entry.builtin);
+    assert_eq!(entry.runtime, AgentRuntime::Acp { backend: "corust-agent".into() });
+    let saved = serde_json::to_value(&catalog).unwrap();
+    let reloaded = load_agent_configs(&json!({"agents": saved}));
+    assert_eq!(
+        serde_json::to_value(&reloaded["acp-corust-agent"]).unwrap(),
         serde_json::to_value(entry).unwrap()
     );
 }

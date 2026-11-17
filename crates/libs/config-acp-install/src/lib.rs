@@ -27,6 +27,8 @@ pub fn acp_install_command_for_platform(
     platform: AcpInstallPlatform,
 ) -> Option<(&'static str, &'static [&'static str])> {
     let args: &[&str] = match agent {
+        // Corust uses the operator-installed native ACP binary.
+        "corust-agent" => return None,
         // Native CLI and ShiJu bridge are separate artifacts; no guessed npm installer.
         "aionrs" => return None,
         // The official omp executable requires Bun >=1.4.4 on the gateway host.

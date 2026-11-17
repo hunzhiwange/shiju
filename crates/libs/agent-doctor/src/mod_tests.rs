@@ -85,7 +85,7 @@ fn diagnose_returns_structured_results_in_check_order() {
             categories.push(result.category.as_str());
         }
     }
-    assert_eq!(categories[..5], ["config", "workspace", "daemon", "environment", "cli-tools"]);
+    assert_eq!(categories, ["config", "workspace", "daemon", "environment"]);
 }
 
 #[test]

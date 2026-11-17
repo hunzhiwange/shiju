@@ -1,9 +1,10 @@
 use super::*;
 
-// 测试默认自治级别应为 Supervised
+// 策略默认保持监督模式，独立于配置枚举的完全自治默认值。
 #[test]
 fn autonomy_default_is_supervised() {
-    assert_eq!(AutonomyLevel::default(), AutonomyLevel::Supervised);
+    assert_eq!(SecurityPolicy::default().autonomy, AutonomyLevel::Supervised);
+    assert_eq!(AutonomyLevel::default(), AutonomyLevel::Full);
 }
 
 // 测试自治级别的 JSON 序列化/反序列化往返正确性

@@ -187,10 +187,10 @@ fn bundled_models_include_qwen37_plus_multimodal_metadata() {
     assert_eq!(modalities.output.iter().map(String::as_str).collect::<Vec<_>>(), vec!["text"]);
     assert_eq!(model.limit.context, 1_000_000);
     assert_eq!(model.limit.output, 64_000);
-    assert_eq!(cost.input, Some(0.5));
-    assert_eq!(cost.output, Some(3.0));
-    assert_eq!(cost.cache_read, Some(0.05));
-    assert_eq!(cost.cache_write, Some(0.625));
+    assert_eq!(cost.input, Some(0.276));
+    assert_eq!(cost.output, Some(1.101));
+    assert_eq!(cost.cache_read, Some(0.0552));
+    assert_eq!(cost.cache_write, Some(0.345));
 }
 
 #[test]
@@ -353,7 +353,7 @@ fn audit_provider_models(label: &str, providers: &HashMap<String, Provider>) -> 
             });
             if model.limit.context == 0
                 && !media_generation
-                && !documented_shiju_unknown_limit(provider_id, model_id, "context")
+                && !documented_unknown_limit(provider_id, model_id, "context")
             {
                 return Err(format!("{label}/{provider_id}/{model_id}: missing context limit"));
             }
@@ -383,6 +383,19 @@ fn bundled_model_assets_have_no_missing_limits_or_malformed_modalities() {
         ("shiju", include_str!("../assets/model/shiju.json")),
     ] {
         let value: Value = serde_json::from_str(text).expect("model asset should be valid JSON");
+        for (provider_id, provider) in value.as_object().unwrap() {
+            // The Shiju file also contains source documentation.
+            if let Some(models) = provider.get("models").and_then(Value::as_object) {
+                for (model_id, model) in models {
+                    for field in ["context", "output"] {
+                        assert!(
+                            model["limit"][field].as_u64().is_some(),
+                            "{label}/{provider_id}/{model_id}: missing or invalid {field} limit"
+                        );
+                    }
+                }
+            }
+        }
         let providers = if label == "shiju" {
             value
                 .get("shiju")
@@ -484,7 +497,7 @@ fn bundled_api_models_have_typed_limits_and_non_text_outputs_are_not_text_models
             assert!(
                 model.limit.context > 0
                     || media_generation
-                    || documented_shiju_unknown_limit(&provider_id, model_id, "context"),
+                    || documented_unknown_limit(&provider_id, model_id, "context"),
                 "{provider_id}/{model_id} should have a token context limit unless it generates images/video"
             );
             let output_is_text = model
@@ -494,7 +507,7 @@ fn bundled_api_models_have_typed_limits_and_non_text_outputs_are_not_text_models
             if output_is_text {
                 assert!(
                     model.limit.output > 0
-                        || documented_shiju_unknown_limit(&provider_id, model_id, "output"),
+                        || documented_unknown_limit(&provider_id, model_id, "output"),
                     "{provider_id}/{model_id} should have a text output limit"
                 );
             }
@@ -514,6 +527,18 @@ fn bundled_api_models_have_typed_limits_and_non_text_outputs_are_not_text_models
             }
         }
     }
+}
+
+// Pin explicit zero values from the bundled upstream snapshot independently of
+// parsing. Zero means unpublished/not applicable; never invent token limits.
+// New zero values still fail until reviewed, and absent fields fail below.
+fn documented_unknown_limit(provider: &str, model: &str, field: &str) -> bool {
+    static ZEROS: std::sync::LazyLock<Value> = std::sync::LazyLock::new(|| {
+        serde_json::from_str(include_str!("catalog_zero_limits.json")).unwrap()
+    });
+    ZEROS[format!("{provider}/{model}")].as_array().is_some_and(|fields| {
+        fields.iter().any(|item| item.as_str() == Some(field))
+    }) || documented_shiju_unknown_limit(provider, model, field)
 }
 
 // Only documented model-specific exceptions may omit a token limit.

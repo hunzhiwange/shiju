@@ -230,7 +230,8 @@ fn shiju_skill_contract_preserves_catalog_detail_and_version_shapes() {
         "download_expires_at": 1785246140,
         "download_url": null,
         "created_at": "2026-07-28T09:55:25+08:00",
-        "updated_at": "2026-07-28T09:56:15+08:00"
+        "updated_at": "2026-07-28T09:56:15+08:00",
+        "scan_result": null
     }]);
 
     let catalog: ShijuSkillCursorPageDto =
@@ -249,6 +250,12 @@ fn shiju_skill_contract_preserves_catalog_detail_and_version_shapes() {
     assert!(detail.level.is_empty());
     assert_eq!(detail.is_all_company_accessible, 0);
     assert!(versions[0].download_url.is_none());
+    assert!(versions[0].scan_result.is_none());
+    let mut legacy_version = versions_fixture[0].clone();
+    legacy_version.as_object_mut().unwrap().remove("scan_result");
+    let legacy: ShijuSkillVersionDto =
+        serde_json::from_value(legacy_version).expect("legacy version without scan result");
+    assert!(legacy.scan_result.is_none());
     assert_eq!(serde_json::to_value(catalog).unwrap(), catalog_fixture);
     assert_eq!(serde_json::to_value(versions).unwrap(), versions_fixture);
 

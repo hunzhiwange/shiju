@@ -228,7 +228,7 @@ fn timeline_block_tooltip_truncates_preview_to_100_characters() {
             desktop_i18n::I18n::new(config_ui::DesktopLocale::English),
             &unknown
         )
-        .contains("不可用")
+        .contains("Unavailable")
     );
 }
 

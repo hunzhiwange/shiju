@@ -1,6 +1,6 @@
 use super::{
     agy_login::{AgyLogin, MANAGED_SERVICE},
-    test_support::oauth_server,
+    test_support::{oauth_server, read_request},
     flow::{AuthAccountScope, AuthFlows},
 };
 use base64::{Engine as _, engine::general_purpose::URL_SAFE_NO_PAD};
@@ -13,7 +13,7 @@ use std::{
     time::{Duration, Instant},
 };
 use tokio::{
-    io::{AsyncReadExt, AsyncWriteExt},
+    io::AsyncWriteExt,
     net::TcpListener,
 };
 use uuid::Uuid;
@@ -201,7 +201,10 @@ async fn auth6_agy_login_commits_expected_scoped_result() {
     let sent = received.await.unwrap();
     let (headers, body) = sent.split_once("\r\n\r\n").unwrap();
     assert!(headers.starts_with("POST /token HTTP/1.1"));
-    assert!(headers.contains("\r\ncontent-type: application/x-www-form-urlencoded\r\n"));
+    assert!(headers.lines().filter_map(|line| line.split_once(':')).any(|(name, value)| {
+        name.eq_ignore_ascii_case("content-type")
+            && value.trim() == "application/x-www-form-urlencoded"
+    }));
     let form: HashMap<_, _> = Url::parse(&format!("https://fixture.invalid/?{body}"))
         .unwrap()
         .query_pairs()
@@ -347,20 +350,9 @@ async fn auth6_agy_login_rejects_invalid_or_stale_input() {
     let exchange = exchanging.poll_with(&flows, scope, |outbound| *outbound.url_mut() = endpoint);
     let server = async {
         let (mut stream, _) = listener.accept().await.unwrap();
-        let mut headers = Vec::new();
-        while !headers.ends_with(b"\r\n\r\n") {
-            headers.push(stream.read_u8().await.unwrap());
-        }
-        let headers = String::from_utf8(headers).unwrap();
-        let size = headers
-            .lines()
-            .find_map(|line| line.strip_prefix("content-length: "))
-            .unwrap()
-            .parse()
-            .unwrap();
-        let mut form = vec![0; size];
-        stream.read_exact(&mut form).await.unwrap();
-        assert!(String::from_utf8(form).unwrap().contains("code=late-exchange"));
+        let sent = read_request(&mut stream).await;
+        let (_, form) = sent.split_once("\r\n\r\n").unwrap();
+        assert!(form.contains("code=late-exchange"));
         flows.cancel(scope, exchanging_id, Instant::now).unwrap();
         let reply = format!(
             "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{tokens}",

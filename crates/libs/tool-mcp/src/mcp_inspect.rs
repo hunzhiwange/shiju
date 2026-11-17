@@ -125,7 +125,7 @@ async fn inspect_server<H: McpToolHost>(
         Box::pin(async move {
             let peer = client.peer();
             let catalogs = &client.service().catalogs;
-            let capabilities = &peer.peer_info().context("MCP server capabilities unavailable")?.capabilities;
+            peer.peer_info().context("MCP server capabilities unavailable")?;
             let mut payload = ServerInspectPayload::default();
             match catalogs.tools(peer).await.context("failed to list MCP tools") {
                 Ok(tools) => {

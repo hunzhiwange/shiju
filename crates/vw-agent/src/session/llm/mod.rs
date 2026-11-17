@@ -58,6 +58,7 @@ pub use model_selector::{
 };
 #[cfg(test)]
 pub(crate) use prompt::model_limit_for_request;
+#[cfg(any(test, target_arch = "wasm32"))]
 pub(crate) use prompt::resolve_auto_model;
 pub(crate) use prompt::stream_chat_with_tools_for_session_with_abort;
 pub(crate) use prompt::{acp_model_source, is_acp_model};
@@ -70,6 +71,9 @@ pub use types::{
     AgentInfo, Error, PromptStreamEvent, StreamEvent, StreamInput, ToolCall, ToolCallKind,
 };
 
+#[cfg(all(not(test), not(target_arch = "wasm32")))]
+pub(crate) use types::catalog_error_string;
+#[cfg(any(test, target_arch = "wasm32"))]
 pub(crate) use types::{catalog_error_string, prevent_error_replay};
 
 #[cfg(test)]

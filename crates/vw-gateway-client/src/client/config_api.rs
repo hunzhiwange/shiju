@@ -99,6 +99,7 @@ impl GatewayClient {
             .global_acp_config_get::<T>().await
     }
 
+    #[cfg(test)]
     pub(crate) async fn global_config_get_path(
         &self,
         path: &[&str],
@@ -107,6 +108,7 @@ impl GatewayClient {
             .global_config_get_path(path).await
     }
 
+    #[cfg(test)]
     pub(crate) async fn global_config_patch_path(
         &self,
         path: &[&str],

@@ -6,9 +6,39 @@ use std::sync::{Arc, Mutex};
 
 use anyhow::Result;
 use async_trait::async_trait;
+#[cfg(all(not(test), not(target_arch = "wasm32")))]
+use serde_json::{Value, json};
+#[cfg(any(test, target_arch = "wasm32"))]
 use serde_json::{Map, Value, json};
 use tokio::sync::Mutex as AsyncMutex;
 use vw_api_chat_identity::ReasoningEffortDto;
+#[cfg(all(not(test), not(target_arch = "wasm32")))]
+use vw_api_agent_scheduler::{
+    AgentEventDto, AgentEventKindDto, AgentOutboxMessageDto,
+    AgentOutboxMessageStatusDto, AgentSchedulerBulkCommandRequest,
+    AgentSchedulerBulkCommandResponse, AgentSchedulerCommandKindDto,
+    AgentSchedulerCommandRequest as AgentSchedulerProjectCommandRequest,
+    AgentSchedulerCommandResponse as AgentSchedulerProjectCommandResponse,
+    AgentSchedulerCreateTaskRequest, AgentSchedulerCreateTaskResponse,
+    AgentSchedulerDispatchModeDto, AgentSchedulerLegacyImportRequest,
+    AgentSchedulerLegacyImportResponse,
+    AgentSchedulerOutboxDrainRequest as AgentSchedulerProjectOutboxDrainRequest,
+    AgentSchedulerOutboxDrainResponse as AgentSchedulerProjectOutboxDrainResponse,
+    AgentSchedulerReplaceTaskGraphRequest, AgentSchedulerTaskArtifactDto,
+    AgentSchedulerTaskArtifactsResponse, AgentSchedulerTaskBoardEventDto,
+    AgentSchedulerTaskBoardEventsResponse, AgentSchedulerTaskBoardSnapshotReadModelDto,
+    AgentSchedulerTaskBoardStatusResponse, AgentSchedulerTaskBoardTaskDto,
+    AgentSchedulerTaskBoardTaskReadModelDto, AgentSchedulerTaskBoardWorkflowResponse,
+    AgentSchedulerTaskGraphEdgeDto, AgentSchedulerTaskGraphReadinessDto,
+    AgentSchedulerTaskGraphResponse, AgentSchedulerTaskGraphTaskDto, AgentSchedulerTaskLogDto,
+    AgentSchedulerTaskLogsResponse, AgentSchedulerTaskMetadataUpdateRequest,
+    AgentSchedulerTaskMetadataUpdateResponse,
+    AgentSchedulerWakeRequest as AgentSchedulerProjectWakeRequest,
+    AgentSchedulerWakeResponse as AgentSchedulerProjectWakeResponse,
+    AgentSchedulerWorkspaceContextDto, AgentTaskDto, AgentTaskKindDto, AgentTaskStatusDto,
+    TaskDependencyNodeDto,
+};
+#[cfg(any(test, target_arch = "wasm32"))]
 use vw_api_agent_scheduler::{
     AgentCapabilityKindDto, AgentEventDto, AgentEventKindDto, AgentOutboxMessageDto,
     AgentOutboxMessageStatusDto, AgentRunDto, AgentRunStatusDto, AgentSchedulerBulkCommandRequest,
@@ -35,9 +65,17 @@ use vw_api_agent_scheduler::{
     TaskDependencyNodeDto,
 };
 use vw_api_transport::common::TimestampMs;
+#[cfg(all(not(test), not(target_arch = "wasm32")))]
+use vw_api_task::TaskPoolWorkflowStatusRoleDto;
+#[cfg(any(test, target_arch = "wasm32"))]
 use vw_api_task::{TaskPoolWorkflowSnapshotDto, TaskPoolWorkflowStatusRoleDto};
 
 use task_scheduler::adapters::dispatch::LocalOnlyDispatchAdapter;
+#[cfg(all(not(test), not(target_arch = "wasm32")))]
+use task_scheduler::domain::{
+    AgentRunStatus, AgentSchedulerContext, AssigneeId, RunId, TaskId, TeamId,
+};
+#[cfg(any(test, target_arch = "wasm32"))]
 use task_scheduler::domain::{
     AgentCapabilityKind, AgentRunStatus, AgentSchedulerContext, AssigneeId, RunId, TaskId, TeamId,
 };
@@ -47,6 +85,7 @@ use task_scheduler::engine::dispatch::{
 };
 use task_scheduler::engine::recovery::{RecoveryEngine, RecoveryOutcome};
 use task_scheduler::events::AgentEventKind;
+#[cfg(any(test, target_arch = "wasm32"))]
 use task_scheduler::lifecycle_bridge::{
     LifecycleStatusProjection, status_role_key as lifecycle_status_role_key,
 };
@@ -81,9 +120,13 @@ const DEFAULT_EVENT_LIMIT: usize = 100;
 const MAX_EVENT_LIMIT: usize = 1_000;
 const DEFAULT_OUTBOX_DRAIN_LIMIT: usize = 50;
 const MAX_OUTBOX_DRAIN_LIMIT: usize = 500;
+#[cfg(test)]
 const LOCAL_GATEWAY_WORKER_ID: &str = "gateway-local";
+#[cfg(test)]
 const DEFAULT_WORKER_RUN_LEASE_EXTENSION_MS: i64 = 30 * 60 * 1_000;
+#[cfg(test)]
 const WORKER_OUTCOME_SUCCESS: &str = "success";
+#[cfg(test)]
 const WORKER_OUTCOME_FAILURE: &str = "failure";
 
 type ProjectDispatchLock = Arc<AsyncMutex<()>>;

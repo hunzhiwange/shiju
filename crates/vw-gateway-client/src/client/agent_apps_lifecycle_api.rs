@@ -1,11 +1,12 @@
 //! 兼容门面：生命周期行为由 gateway-app-lifecycle 拥有。
 use vw_api_app_operations::{AppActionExecutionResult, AppActionPreview, AppActionPreviewRequest, AppActionSubmitRequest, AppOperationStatus};
 use super::GatewayClient;
+#[cfg(any(test, target_arch = "wasm32"))]
 use serde::{Serialize, de::DeserializeOwned};
-use vw_api_types::agent_apps::*;
+
 use vw_api_transport::id::TaskId;
 pub use gateway_app_lifecycle::AgentAppsLifecycleError;
-pub(super) use gateway_app_lifecycle::operation_path;
+
 
 impl GatewayClient {
     pub async fn agent_apps_action_preview(
@@ -103,6 +104,7 @@ impl GatewayClient {
             .agent_apps_operation_cancel_authorized(host, id, token).await
     }
 
+    #[cfg(test)]
     pub(super) async fn agent_apps_lifecycle_request<B: Serialize, T: DeserializeOwned>(
         &self,
         method: reqwest::Method,

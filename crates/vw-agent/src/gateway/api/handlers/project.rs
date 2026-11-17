@@ -1,4 +1,5 @@
 //! Project route composition and application host callbacks.
+#[cfg(any(test, target_arch = "wasm32"))]
 pub(super) use gateway_project::{load_project, project_context_directory, project_scope};
 
 fn project_host() -> gateway_project::ProjectHost {

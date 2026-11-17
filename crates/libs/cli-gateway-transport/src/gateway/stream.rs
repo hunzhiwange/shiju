@@ -42,6 +42,7 @@ impl GatewayUiRuntime {
 
     /// 以阻塞方式发起聊天流，并把 gateway 事件规整为 `UiRuntimeEvent`。
     #[cfg(not(target_arch = "wasm32"))]
+    #[cfg(test)]
     pub(crate) fn stream_chat_blocking(
         &self,
         body: &GatewayChatStreamRequest,

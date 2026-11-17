@@ -5,5 +5,7 @@ pub(crate) async fn handle_session_lifecycle_command(
     msg: &traits::ChannelMessage,
     command: ChannelRuntimeCommand,
 ) -> String { channel_runtime::runtime_command::session_lifecycle::handle_session_lifecycle_command(super::super::manager::command_host(), ctx, msg, command).await }
+#[cfg(any(test, target_arch = "wasm32"))]
 pub(crate) use channel_runtime::runtime_command::session_lifecycle::{invalidate_archive};
+#[cfg(any(test, target_arch = "wasm32"))]
 pub(crate) use channel_runtime::manager::{persist_current_route, is_session_lifecycle_command};

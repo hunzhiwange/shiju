@@ -631,6 +631,7 @@ async fn poll_imessage_connection(
 /// 仅查询 `is_from_me = 0` 的消息（收到的消息），
 /// 忽略自己发送的消息。
 #[cfg(not(target_arch = "wasm32"))]
+#[cfg(test)]
 async fn get_max_rowid(db_path: &Path) -> anyhow::Result<i64> {
     let conn = open_imessage_connection(db_path).await?;
     let (_, rowid) = load_initial_rowid(conn).await?;
@@ -670,6 +671,7 @@ async fn get_max_rowid(db_path: &Path) -> anyhow::Result<i64> {
 /// - 使用索引字段 ROWID 进行查询，性能良好
 /// - 限制返回数量避免大量历史消息堆积
 #[cfg(not(target_arch = "wasm32"))]
+#[cfg(test)]
 async fn fetch_new_messages(
     db_path: &Path,
     since_rowid: i64,

@@ -1,4 +1,7 @@
 //! Host composition for system prompts.
+#[cfg(all(not(test), not(target_arch = "wasm32")))]
+pub use llm_runtime::messages::has_tool_calls;
+#[cfg(any(test, target_arch = "wasm32"))]
 pub use llm_runtime::messages::{build_chat_messages, resolve_tools, has_tool_calls};
 pub fn build_system_messages(input: &super::types::StreamInput, is_codex: bool) -> Vec<String> {
     super::prompt::ensure_host();

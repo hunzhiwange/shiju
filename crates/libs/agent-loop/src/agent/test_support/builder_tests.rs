@@ -148,8 +148,8 @@ pub fn build_fills_defaults_when_optional_fields_are_absent<H: crate::agent::Age
     let agent = required_builder::<H>().build().unwrap();
 
     assert_eq!(agent.tools.len(), 1);
-    assert_eq!(agent.tool_specs.len(), 1);
-    assert_eq!(agent.tool_specs[0].id, "first_tool");
+    assert_eq!(agent._tool_specs.len(), 1);
+    assert_eq!(agent._tool_specs[0].id, "first_tool");
     assert_eq!(agent.memory.name(), "none");
     assert_eq!(agent.observer.name(), "noop");
     assert_eq!(agent.config.max_iterations, 50_000);
@@ -182,7 +182,7 @@ pub fn build_collects_tool_specs_in_tool_order<H: crate::agent::AgentHost>() {
     .build()
     .unwrap();
 
-    let tool_spec_ids = agent.tool_specs.iter().map(|spec| spec.id.as_str()).collect::<Vec<_>>();
+    let tool_spec_ids = agent._tool_specs.iter().map(|spec| spec.id.as_str()).collect::<Vec<_>>();
 
     assert_eq!(tool_spec_ids, vec!["first_tool", "second_tool"]);
 }

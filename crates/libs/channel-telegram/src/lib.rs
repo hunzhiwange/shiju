@@ -125,6 +125,7 @@ pub struct TelegramChannel {
     ///
     /// 实现安全配对流程，要求用户先完成配对才能与机器人交互。
     /// `None` 表示禁用配对机制（不推荐）。
+    #[cfg(test)]
     pairing: Option<gateway_pairing::pairing::PairingGuard>,
 
     /// HTTP 客户端

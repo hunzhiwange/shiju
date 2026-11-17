@@ -68,6 +68,7 @@ pub use skill_core::audit as audit;
 ///
 /// 负责从文件系统、远程仓库等源扫描和发现可用技能。
 /// 支持多种发现策略，包括目录扫描、Git 仓库克隆等。
+#[cfg(any(test, target_arch = "wasm32"))]
 use skill_core::discovery as discovery;
 
 /// 技能核心模块
@@ -80,6 +81,7 @@ mod skill;
 ///
 /// 定义技能系统使用的各种常量，如默认目录名、文件扩展名、
 /// 信任域名列表、超时配置等。
+#[cfg(any(test, target_arch = "wasm32"))]
 use skill_core::constants as constants;
 
 /// 技能安装模块
@@ -100,6 +102,7 @@ use skill_core::loader as loader;
 /// - 下载策略（允许/禁止/询问）
 /// - 域名信任验证
 /// - 来源别名解析
+#[cfg(any(test, target_arch = "wasm32"))]
 use skill_core::policy as policy;
 
 /// 技能提示注入模块

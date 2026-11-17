@@ -1,4 +1,5 @@
 //! Shared tool permission orchestration.
+#[cfg(any(test, target_arch = "wasm32"))]
 pub use tool_context::decision::{PermissionDecision, finalize_tool_input};
 #[cfg(any(unix, test))]
 use super::context::ToolUseContext;

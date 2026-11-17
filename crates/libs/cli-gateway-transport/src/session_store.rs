@@ -61,6 +61,7 @@ impl GatewayUiRuntime {
         gateway_session::GatewaySessionClient::new(self.client().transport().clone()).session_ui_save(session_id, directory.as_deref(), session).await.map(|_| ())
     }
 
+    #[cfg(test)]
     async fn session_ui_previews(&self) -> Result<Vec<ChatSessionMeta>, String> {
         let directory = self.directory_value();
         gateway_session::GatewaySessionClient::new(self.client().transport().clone()).session_ui_previews(directory.as_deref()).await
@@ -183,6 +184,7 @@ impl GatewayUiRuntime {
     }
 
     /// 加载当前工作目录可见的会话摘要列表。
+    #[cfg(test)]
     pub(crate) fn session_ui_previews_blocking(&self) -> Result<Vec<ChatSessionMeta>, String> {
         block_on_gateway(self.session_ui_previews())
     }

@@ -1,6 +1,7 @@
 //! Append-only context checkpoints. Original chat messages are never rewritten.
 
 use serde_json::Value;
+#[cfg(any(test, target_arch = "wasm32"))]
 pub(super) use session_engine::compaction_checkpoint::{validate_session, message_hash, matches_prefix};
 pub(super) fn scope_for_directory(directory: &str) -> String {
     session_engine::compaction_checkpoint::scope_for_directory(&super::ui_store::current_tenant_scope(), directory)

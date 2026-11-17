@@ -33,7 +33,6 @@
 use config_security::AuditConfig;
 use anyhow::Result;
 use chrono::{DateTime, Utc};
-use parking_lot::Mutex;
 use serde::{Deserialize, Serialize};
 use std::fs::OpenOptions;
 use std::io::Write;
@@ -377,14 +376,11 @@ impl AuditEvent {
 ///
 /// - `log_path`：日志文件的完整路径
 /// - `config`：审计配置
-/// - `buffer`：事件缓冲区（用于批量写入，当前实现为单个事件写入）
 pub struct AuditLogger {
     /// 日志文件路径
     log_path: PathBuf,
     /// 审计配置
     config: AuditConfig,
-    /// 事件缓冲区（线程安全）
-    buffer: Mutex<Vec<AuditEvent>>,
 }
 
 /// 命令执行日志结构体
@@ -462,7 +458,7 @@ impl AuditLogger {
             initialize_audit_log_file(&log_path)?;
         }
 
-        Ok(Self { log_path, config, buffer: Mutex::new(Vec::new()) })
+        Ok(Self { log_path, config })
     }
 
     /// 记录审计事件

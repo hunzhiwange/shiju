@@ -8,6 +8,7 @@ pub use processes::shutdown_shell_processes;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod session_tools;
 pub type ShellTool = tool_shell::ShellTool<crate::tools::context::AgentContextHost>;
+#[cfg(any(test, target_arch = "wasm32"))]
 pub(crate) use tool_shell::shell::{apply_allowed_shell_environment, collect_allowed_shell_env_vars, allowed_shell_env_value};
 #[cfg(test)]
 use super::traits::Tool;

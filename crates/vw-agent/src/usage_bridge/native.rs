@@ -1,4 +1,7 @@
 //! Native request host authorization and runtime context adapter.
+#[cfg(all(not(test), not(target_arch = "wasm32")))]
+pub(crate) use agent_usage::native::with_session;
+#[cfg(any(test, target_arch = "wasm32"))]
 pub(crate) use agent_usage::native::{with_session, ui_tokens};
 
 pub(crate) struct NativeRequest;

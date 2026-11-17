@@ -280,6 +280,7 @@ async fn send_message_with_client(
 
 impl QQChannel {
     /// 发送 JSON POST 请求。
+    #[cfg(test)]
     async fn post_json(
         &self,
         token: &str,
@@ -292,6 +293,7 @@ impl QQChannel {
     }
 
     /// 上传媒体文件并获取 file_info。
+    #[cfg(test)]
     async fn upload_media_file_info(
         &self,
         token: &str,

@@ -146,6 +146,7 @@ pub struct SessionOptions {
 }
 
 impl SessionOptions {
+    #[cfg(test)]
     pub(crate) fn cycle_permission_mode(
         &self,
         capabilities: &SessionCapabilityMatrix,
@@ -188,6 +189,7 @@ impl SessionOptions {
         self.acp_backend = backend;
     }
 
+    #[cfg(test)]
     pub(crate) fn finish_acp_session_start(
         &mut self,
         execution: &SessionExecutionSnapshot,
@@ -235,18 +237,22 @@ impl SessionOptions {
         self.subagent_mode = if enabled { SubagentMode::Enabled } else { SubagentMode::Disabled };
     }
 
+    #[cfg(test)]
     pub(crate) fn workflow_mode_enabled(&self) -> bool {
         self.workflow_mode == WorkflowMode::Enabled
     }
 
+    #[cfg(test)]
     pub(crate) fn goal_mode_enabled(&self) -> bool {
         true
     }
 
+    #[cfg(test)]
     pub(crate) fn set_workflow_mode(&mut self, enabled: bool) {
         self.workflow_mode = if enabled { WorkflowMode::Enabled } else { WorkflowMode::Disabled };
     }
 
+    #[cfg(test)]
     pub(crate) fn set_goal_mode(&mut self, _enabled: bool) {
         // 目标模式底层固定开启，不可关闭。
         self.goal_mode = GoalMode::Enabled;

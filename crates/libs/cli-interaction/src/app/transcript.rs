@@ -1,5 +1,14 @@
 //! 终端历史与阅读器。
 
+#[cfg(all(not(test), not(target_arch = "wasm32")))]
+use super::{
+    GatewayV3Bridge,
+    Line,
+    TerminalMode,
+    TranscriptPager,
+    V3GatewayApp,
+};
+#[cfg(any(test, target_arch = "wasm32"))]
 use super::{
     Backend,
     CustomTerminal,
@@ -42,6 +51,7 @@ impl V3GatewayApp {
     }
 
     /// 仅将已提交单元写入终端原生回滚区，不泄漏尚未完成的流式内容。
+    #[cfg(test)]
     pub(crate) fn insert_committed_history<B>(
         &self,
         terminal: &mut CustomTerminal<B>,

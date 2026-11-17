@@ -65,7 +65,7 @@ use std::sync::Arc;
 pub struct Agent<H: super::AgentHost> {
     pub(crate) provider: Box<dyn Provider>,
     pub(crate) tools: Vec<Box<dyn Tool>>,
-    pub(crate) tool_specs: Vec<ToolSpec>,
+    pub(crate) _tool_specs: Vec<ToolSpec>,
     pub(crate) memory: Arc<dyn Memory>,
     pub(crate) observer: Arc<dyn Observer>,
     pub(crate) security: Option<Arc<SecurityPolicy>>,

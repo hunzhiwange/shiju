@@ -8,7 +8,7 @@ use crate::session::{
     GatewaySessionCreateBody, GatewaySessionDiffQuery, GatewaySessionForkBody,
     GatewaySessionMessageDeltaResponse, GatewaySessionMessageListQuery, GatewaySessionMessagePage,
     GatewaySessionMessagePageQuery, GatewaySessionPatchBody, GatewaySessionResetBody,
-    GatewaySessionScopeBody, GatewaySessionSummarizeBody, GatewaySessionTitleGenerateBody,
+    GatewaySessionSummarizeBody, GatewaySessionTitleGenerateBody,
     GatewaySessionTitleGenerateResponse, GatewaySessionTodoPutBody, GatewaySessionUiSummary,
 };
 use session_ui_types::{

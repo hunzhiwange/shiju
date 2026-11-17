@@ -10,6 +10,7 @@ use crate::{
 };
 use profile::AcpLaunchProfile;
 
+#[cfg(any(test, target_arch = "wasm32"))]
 pub(super) use llm_runtime::acp::model_source::fingerprint;
 
 pub(super) async fn prepare(

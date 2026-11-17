@@ -96,7 +96,7 @@ fn macos_lock_state() -> LockState {
     #[link(name = "CoreFoundation", kind = "framework")]
     unsafe extern "C" {
         fn CFRelease(value: Object);
-        fn CFStringCreateWithCString(allocator: Object, bytes: *const u8, encoding: u32) -> Object;
+        fn CFStringCreateWithCString(allocator: Object, bytes: *const std::ffi::c_char, encoding: u32) -> Object;
         fn CFDictionaryGetValue(dictionary: Object, key: Object) -> Object;
         fn CFGetTypeID(value: Object) -> usize;
         fn CFBooleanGetTypeID() -> usize;
@@ -110,7 +110,7 @@ fn macos_lock_state() -> LockState {
             return LockState::Unknown;
         }
         let key = CFStringCreateWithCString(
-            std::ptr::null(), b"CGSSessionScreenIsLocked\0".as_ptr(), 0x08000100,
+            std::ptr::null(), c"CGSSessionScreenIsLocked".as_ptr(), 0x08000100,
         );
         if key.is_null() {
             CFRelease(dictionary);

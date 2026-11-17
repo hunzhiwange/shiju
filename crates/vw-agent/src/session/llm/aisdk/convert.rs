@@ -1,4 +1,5 @@
 //! Host composition for the canonical AI SDK implementation.
+#[cfg(any(test, target_arch = "wasm32"))]
 pub(crate) use llm_runtime::aisdk::convert::*;
 
 #[cfg(test)]

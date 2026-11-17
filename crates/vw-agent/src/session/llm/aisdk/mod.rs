@@ -15,9 +15,11 @@ mod request;
 mod stream;
 
 /// 执行 AI SDK 流式请求的公开入口。
+#[cfg(any(test, target_arch = "wasm32"))]
 pub use request::do_stream_request_aisdk;
 
 #[cfg(not(target_arch = "wasm32"))]
+#[cfg(any(test, target_arch = "wasm32"))]
 pub(super) use llm_runtime::aisdk::driver::validate_catalog_request;
 
 #[cfg(all(test, not(target_arch = "wasm32")))]

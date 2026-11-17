@@ -15,6 +15,7 @@ mod protocol_bridge_stream;
 pub(crate) mod routing;
 mod transport;
 pub use transport::ProviderRelayBackend;
+#[cfg(any(test, target_arch = "wasm32"))]
 pub(crate) use transport::{chat_url, official_deepseek_messages_url};
 
 pub(crate) mod messages;

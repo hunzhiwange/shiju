@@ -19,6 +19,7 @@ pub mod scheduler;
 pub use schedule::{
     next_run_for_schedule, normalize_expression, schedule_cron_expression, validate_schedule,
 };
+#[cfg(any(test, target_arch = "wasm32"))]
 pub(crate) use store::next_run_in_window;
 #[allow(unused_imports)]
 pub use store::{
@@ -26,6 +27,7 @@ pub use store::{
     add_shell_job_with_window, due_jobs, get_job, list_history, list_jobs, list_runs,
     record_last_run, record_run, remove_job, reschedule_after_run, update_job,
 };
+#[cfg(any(test, target_arch = "wasm32"))]
 pub(crate) use types::normalize_fallbacks;
 pub use types::{CronJob, CronJobPatch, CronRun, DeliveryConfig, JobType, Schedule, SessionTarget};
 

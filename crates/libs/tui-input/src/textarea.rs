@@ -20,6 +20,7 @@ use crate::input_types::TextElement as UserTextElement;
 use crate::key_hint::KeyBindingListExt;
 use crate::key_hint::is_altgr;
 use crate::keymap::EditorKeymap;
+#[cfg(any(test, target_arch = "wasm32"))]
 use crate::keymap::KeymapContext;
 use crate::keymap::RuntimeKeymap;
 use crate::keymap::VimNormalKeymap;
@@ -34,7 +35,9 @@ use ratatui::buffer::Buffer;
 use ratatui::layout::Rect;
 use ratatui::style::Color;
 use ratatui::style::Style;
+#[cfg(test)]
 use ratatui::style::Stylize;
+#[cfg(any(test, target_arch = "wasm32"))]
 use ratatui::text::Span;
 use ratatui::widgets::StatefulWidgetRef;
 use ratatui::widgets::WidgetRef;
@@ -106,6 +109,7 @@ struct TextElement {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg(test)]
 pub(crate) struct TextElementSnapshot {
     pub(crate) id: u64,
     pub(crate) range: Range<usize>,
@@ -323,6 +327,7 @@ impl TextArea {
 
     /// 返回表示在 Vim 正常模式下最后一个可编辑项的位置。
     /// Return the cursor position that represents the last editable item in Vim normal mode.
+    #[cfg(test)]
     pub(crate) fn vim_normal_end_cursor(&self) -> usize {
         if self.text.is_empty() { 0 } else { self.prev_atomic_boundary(self.text.len()) }
     }
@@ -332,12 +337,14 @@ impl TextArea {
     ///
     /// This is observable so the composer can avoid stealing the second key of
     /// `d{motion}` or `y{motion}` for higher-level shortcuts.
+    #[cfg(test)]
     pub(crate) fn is_vim_operator_pending(&self) -> bool {
         !matches!(self.vim_pending, VimPending::None)
     }
 
     /// 返回持有下一个编辑键的上下文键映射
     /// Return the keymap context that owns the next editing key.
+    #[cfg(test)]
     pub(crate) fn keymap_context(&self) -> KeymapContext {
         if !self.vim_enabled || self.vim_mode == VimMode::Insert {
             return KeymapContext::Editor;
@@ -356,6 +363,7 @@ impl TextArea {
     /// Calling this while Vim is disabled is a no-op, which lets parent
     /// workflows reset mode after submissions without first branching on the
     /// current keymap state.
+    #[cfg(test)]
     pub(crate) fn enter_vim_insert_mode(&mut self) {
         if self.vim_enabled {
             self.vim_mode = VimMode::Insert;
@@ -384,12 +392,14 @@ impl TextArea {
     /// Paste burst detection is disabled in Vim normal mode so a fast sequence
     /// like `dd` or `yw` remains command input instead of being converted into
     /// literal text.
+    #[cfg(test)]
     pub(crate) fn allows_paste_burst(&self) -> bool {
         !self.vim_enabled || self.vim_mode == VimMode::Insert
     }
 
     /// 返回是否使用插入模式光标样式渲染。
     /// Return whether rendering should use the insert-mode cursor style.
+    #[cfg(test)]
     pub(crate) fn uses_vim_insert_cursor(&self) -> bool {
         self.vim_enabled && self.vim_mode == VimMode::Insert
     }
@@ -399,6 +409,7 @@ impl TextArea {
     ///
     /// In Vim insert mode or while a command is pending, Escape is an editing
     /// transition rather than a popup cancel/backtrack or turn-interrupt shortcut.
+    #[cfg(test)]
     pub(crate) fn should_handle_vim_insert_escape(&self, event: KeyEvent) -> bool {
         self.vim_enabled
             && (self.vim_mode == VimMode::Insert || !matches!(self.vim_pending, VimPending::None))
@@ -426,6 +437,7 @@ impl TextArea {
 
     /// 返回用于激活 Vim 编辑模式的样式脚本报示
     /// Return the styled footer indicator for the active Vim editing mode.
+    #[cfg(test)]
     pub(crate) fn vim_mode_indicator_span(&self) -> Option<Span<'static>> {
         if !self.vim_enabled {
             return None;
@@ -1534,6 +1546,7 @@ impl TextArea {
             .collect()
     }
 
+    #[cfg(test)]
     pub(crate) fn text_element_snapshots(&self) -> Vec<TextElementSnapshot> {
         self.elements
             .iter()
@@ -2060,6 +2073,7 @@ impl StatefulWidgetRef for &TextArea {
 }
 
 impl TextArea {
+    #[cfg(test)]
     pub(crate) fn render_ref_masked(
         &self,
         area: Rect,
@@ -2081,6 +2095,7 @@ impl TextArea {
     ///
     /// Highlight ranges are byte ranges in `self.text`. They affect only the buffer rendering and
     /// do not mutate the editable text, cursor, element metadata, or wrapping cache.
+    #[cfg(test)]
     pub(crate) fn render_ref_styled_with_highlights(
         &self,
         area: Rect,
@@ -2158,6 +2173,7 @@ impl TextArea {
 
     /// 在文本域视口之外不渲染宽度保持的掩码字符。
     /// Renders width-preserving mask glyphs without writing outside the textarea viewport.
+    #[cfg(test)]
     fn render_lines_masked(
         &self,
         area: Rect,

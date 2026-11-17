@@ -623,6 +623,7 @@ impl MattermostChannel {
 ///
 /// - `true`：消息包含对机器人的提及
 /// - `false`：消息不包含提及
+#[cfg(test)]
 fn contains_bot_mention_mm(
     text: &str,
     bot_user_id: &str,

@@ -57,7 +57,9 @@ mod zsh_dangerous_tests;
 
 use super::{SecurityCategory, SecurityFinding, SecurityValidator, Severity};
 use crate::shell::ast::{CommandInfo, ParsedCommand, RedirectKind};
+#[cfg(test)]
 use regex::Regex;
+#[cfg(test)]
 use std::sync::LazyLock;
 use config_security::BashValidatorChecksConfig;
 
@@ -307,6 +309,7 @@ pub(super) fn redirect_targets(cmd: &ParsedCommand) -> Vec<(RedirectKind, String
         .unwrap_or_default()
 }
 
+#[cfg(test)]
 pub(super) fn contains_regex(regex: &LazyLock<Regex>, command: &str) -> bool {
     regex.is_match(command)
 }

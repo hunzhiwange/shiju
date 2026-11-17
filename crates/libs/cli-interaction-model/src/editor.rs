@@ -78,11 +78,13 @@ impl Default for EditorState {
 
 impl EditorState {
     /// 返回当前可撤销的快照数。
+    #[cfg(test)]
     pub(crate) fn undo_depth(&self) -> usize {
         self.undo.len()
     }
 
     /// 返回当前可重做的快照数。
+    #[cfg(test)]
     pub(crate) fn redo_depth(&self) -> usize {
         self.redo.len()
     }
@@ -160,6 +162,7 @@ pub(crate) fn apply_editor_command(prompt: &mut PromptState, command: EditorComm
 }
 
 /// 根据光标与视口状态返回当前可见的文本行。
+#[cfg(test)]
 pub(crate) fn editor_viewport(prompt: &PromptState) -> EditorViewport {
     let (line, column) = cursor_display_position(prompt.value.as_str(), prompt.cursor.char_index);
     let lines = prompt.value.split('\n').map(ToOwned::to_owned).collect::<Vec<_>>();
@@ -187,6 +190,7 @@ pub(crate) fn byte_index_for_grapheme(value: &str, grapheme_index: usize) -> Opt
 }
 
 /// 返回当前选区的完整 UTF-8 文本；空选区或非法边界返回空。
+#[cfg(test)]
 pub(crate) fn selected_text(prompt: &PromptState) -> Option<String> {
     let selection = prompt.editor.selection?;
     let (start, end) = selection.ordered();

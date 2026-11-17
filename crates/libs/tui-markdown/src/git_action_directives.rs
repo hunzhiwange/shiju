@@ -1,8 +1,11 @@
 //! 解析嵌入助手 Markdown 的 Codex App 指令，同时保留可见正文。
 //! Codex App directives embedded in assistant markdown.
 
+#[cfg(any(test, target_arch = "wasm32"))]
 use std::collections::HashMap;
+#[cfg(any(test, target_arch = "wasm32"))]
 use std::collections::HashSet;
+#[cfg(any(test, target_arch = "wasm32"))]
 use std::path::Path;
 
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
@@ -31,6 +34,7 @@ pub(crate) enum GitActionDirective {
 }
 
 impl GitActionDirective {
+    #[cfg(test)]
     pub(crate) fn created_branch_cwd(&self) -> Option<&str> {
         match self {
             Self::CreateBranch { cwd, .. } => Some(cwd),
@@ -40,18 +44,22 @@ impl GitActionDirective {
 }
 
 #[derive(Debug, Eq, PartialEq)]
+#[cfg(test)]
 pub(crate) struct ParsedAssistantMarkdown {
     /// 去除有效 Git 指令后的正文，以及按出现顺序去重的动作列表。
     pub(crate) visible_markdown: String,
     pub(crate) git_actions: Vec<GitActionDirective>,
 }
 
+#[cfg(test)]
 impl ParsedAssistantMarkdown {
+    #[cfg(test)]
     pub(crate) fn last_created_branch_cwd(&self) -> Option<&str> {
         self.git_actions.iter().rev().find_map(GitActionDirective::created_branch_cwd)
     }
 }
 
+#[cfg(test)]
 pub(crate) fn parse_assistant_markdown(markdown: &str, cwd: &Path) -> ParsedAssistantMarkdown {
     // 按行改写代码评论并提取 Git 指令，避免隐藏标记生成空白展示行。
     let mut git_actions = Vec::new();
@@ -80,6 +88,7 @@ pub(crate) fn parse_assistant_markdown(markdown: &str, cwd: &Path) -> ParsedAssi
     ParsedAssistantMarkdown { visible_markdown: visible_lines.join("\n"), git_actions }
 }
 
+#[cfg(test)]
 fn rewrite_code_comment_line(line: &str, cwd: &Path) -> Option<String> {
     // 仅接受一到三个前导冒号及完整必填属性，格式异常时让原文继续可见。
     let content = line.trim_start_matches([' ', '\t']);
@@ -148,10 +157,12 @@ pub(crate) fn strip_line_directives(line: &str) -> (String, Vec<GitActionDirecti
     (visible, actions)
 }
 
+#[cfg(test)]
 fn directive_integer(attributes: &HashMap<String, String>, name: &str) -> Option<i64> {
     attributes.get(name)?.trim().trim_start_matches(['P', 'p']).parse().ok()
 }
 
+#[cfg(test)]
 fn title_has_priority(title: &str) -> bool {
     let bytes = title.trim_start().as_bytes();
     bytes.len() >= 4
@@ -161,6 +172,7 @@ fn title_has_priority(title: &str) -> bool {
         && bytes[3] == b']'
 }
 
+#[cfg(test)]
 fn parse_code_comment_attributes(input: &str) -> Option<HashMap<String, String>> {
     let mut attributes = HashMap::new();
     let mut rest = input.trim();
@@ -226,6 +238,7 @@ fn parse_attributes(input: &str) -> Option<std::collections::HashMap<String, Str
     Some(attrs)
 }
 
+#[cfg(test)]
 fn parse_quoted_value(input: &str) -> Option<(String, &str)> {
     // 只对转义双引号做解码，其他反斜杠按路径内容原样保留。
     let mut value = String::new();

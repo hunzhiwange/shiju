@@ -11,7 +11,6 @@ use axum::{
 };
 use serde::Deserialize;
 use {
-    vw_api_types::agent_apps::*,
     vw_api_transport::id::TenantScope,
 };
 #[derive(Deserialize)]

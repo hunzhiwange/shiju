@@ -26,6 +26,7 @@ use cli_interaction_model::{UiRuntimeEvent, UiRuntimeTerminalEvent};
 
 /// legacy CLI 链路当前暴露给交互层的成功结果。
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg(test)]
 pub(crate) struct SessionProcessorCliResult {
     pub(crate) output: String,
     pub(crate) usage: models::TokenUsage,
@@ -74,6 +75,7 @@ impl SessionProcessorComparableResult {
     ///
     /// 这样旧调用点仍可保持 `Result<SessionProcessorCliResult>` 不变，
     /// 而新对照桥入口则可以继续保留更细粒度的终态信息。
+    #[cfg(test)]
     pub(crate) fn into_cli_result(self) -> anyhow::Result<SessionProcessorCliResult> {
         let SessionProcessorComparableResult { output, usage, step_finishes, terminal } = self;
 
@@ -93,6 +95,7 @@ impl SessionProcessorComparableResult {
 }
 
 /// 运行 legacy processor，并返回可用于对照桥的统一结果结构。
+#[cfg(test)]
 pub(crate) async fn run_session_processor_comparable_for_cli(
     req: legacy_processor::Request,
     delta_tx: Option<mpsc::Sender<String>>,
@@ -159,6 +162,7 @@ pub(crate) async fn run_session_processor_comparable_for_cli(
 }
 
 /// 保留 legacy CLI 现有的 processor 包装入口。
+#[cfg(test)]
 pub(crate) async fn run_session_processor_for_cli(
     req: legacy_processor::Request,
     delta_tx: Option<mpsc::Sender<String>>,

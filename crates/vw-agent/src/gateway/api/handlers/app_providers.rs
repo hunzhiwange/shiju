@@ -1,5 +1,14 @@
 //! Native application provider records. Responses and errors never contain credentials.
 use crate::{app_providers::AppProviderStore, global_database::GlobalDatabase};
+#[cfg(all(not(test), not(target_arch = "wasm32")))]
+use axum::{
+    Extension, Json, Router,
+    extract::{DefaultBodyLimit, Path, rejection::JsonRejection},
+    http::StatusCode,
+    response::Response,
+    routing::get,
+};
+#[cfg(any(test, target_arch = "wasm32"))]
 use axum::{
     Extension, Json, Router,
     extract::{DefaultBodyLimit, Path, rejection::JsonRejection},
@@ -60,6 +69,7 @@ pub(crate) fn router() -> Router {
                 .layer(DefaultBodyLimit::max(16 * 1024)),
         )
 }
+#[cfg(any(test, target_arch = "wasm32"))]
 use gateway_app_providers::{error, store};
 
 use gateway_app_providers::read;

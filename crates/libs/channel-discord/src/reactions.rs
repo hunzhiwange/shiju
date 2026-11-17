@@ -14,6 +14,7 @@ use std::fmt::Write as _;
 /// 包含一系列用于消息确认的 Unicode 表情符号。
 /// 这些表情会在需要确认收到消息时随机选择使用。
 const DISCORD_ACK_REACTIONS: &[&str] = &["⚡️", "🦀", "🙌", "💪", "👌", "👀", "👣"];
+#[cfg(test)]
 const DISCORD_API_BASE_URL: &str = "https://discord.com/api/v10";
 
 /// 生成均匀分布的随机索引
@@ -137,6 +138,7 @@ pub(super) fn encode_emoji_for_discord(emoji: &str) -> String {
 /// let url = discord_reaction_url("123456", "789012", "👍");
 /// // 返回类似：https://discord.com/api/v10/channels/123456/messages/789012/reactions/%F0%9F%91%8D/@me
 /// ```
+#[cfg(test)]
 pub(super) fn discord_reaction_url(channel_id: &str, message_id: &str, emoji: &str) -> String {
     discord_reaction_url_with_base(DISCORD_API_BASE_URL, channel_id, message_id, emoji)
 }

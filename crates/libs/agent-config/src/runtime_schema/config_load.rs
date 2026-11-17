@@ -18,6 +18,7 @@ use crate::store::SystemConfigStore;
 use crate::runtime_migration::migrate_user_config;
 use crate::runtime_schema::config_env::apply_env_overrides;
 use crate::runtime_schema::config_helpers::config_dir_creation_error;
+#[cfg(target_arch = "wasm32")]
 use crate::runtime_schema::config_validate::validate_config;
 use crate::schema::workspace::ConfigResolutionSource;
 use crate::runtime_schema::{

@@ -10,6 +10,9 @@ use axum::{
     },
     routing::{get, post},
 };
+#[cfg(all(not(test), not(target_arch = "wasm32")))]
+use futures_util::StreamExt;
+#[cfg(any(test, target_arch = "wasm32"))]
 use futures_util::{StreamExt, stream};
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
@@ -787,6 +790,7 @@ pub(super) fn workflow_response_to_chat_response(
     }
 }
 
+#[cfg(test)]
 pub(super) fn workflow_response_to_sse_response(
     response: WorkflowRunResponse,
     conversation_id: Option<String>,
@@ -799,6 +803,7 @@ pub(super) fn workflow_response_to_sse_response(
     Sse::new(sse_stream).into_response()
 }
 
+#[cfg(test)]
 pub(super) fn workflow_response_to_sse_events(
     response: WorkflowRunResponse,
     conversation_id: Option<String>,
@@ -891,6 +896,7 @@ pub(super) fn node_started_data_from_event(
     }
 }
 
+#[cfg(test)]
 pub(super) fn node_started_data(
     node: &WorkflowNodeRunDto,
     index: u32,

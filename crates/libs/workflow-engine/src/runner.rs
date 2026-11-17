@@ -10,11 +10,12 @@ use workflow_core::template::{render_jinja_value_template, render_template, valu
 use workflow_core::variables::{VariablePool, selector_from_value};
 use model_protocol::dsml::contains_deepseek_dsml_markup;
 use model_types::{StreamOptions, TokenUsage};
-use model_types::{ChatMessage, ChatRequest, Provider};
+use model_types::{ChatMessage, ChatRequest};
 use futures_util::StreamExt;
 use serde_json::Value;
 use std::cmp::Ordering;
 use std::collections::{BTreeMap, BTreeSet};
+#[cfg(test)]
 use std::sync::Arc;
 use std::time::Duration;
 use std::time::Instant;

@@ -107,7 +107,7 @@ pub(crate) struct CliSetup {
     ///
     /// 在交互模式下启用，用于在执行高风险操作前请求用户确认。
     /// 在守护进程模式下为 `None`，表示代理自主执行。
-    pub(crate) approval_manager: Option<ApprovalManager>,
+    pub(crate) _approval_manager: Option<ApprovalManager>,
 
     /// 通道名称
     ///
@@ -460,7 +460,7 @@ pub(crate) fn setup_cli(
         provider_name,
         model_name,
         system_prompt,
-        approval_manager,
+        _approval_manager: approval_manager,
         channel_name,
     })
 }

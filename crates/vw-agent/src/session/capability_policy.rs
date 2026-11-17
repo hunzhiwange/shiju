@@ -1,4 +1,5 @@
 //! Native defaults resolved from trusted host configuration.
+#[cfg(any(test, target_arch = "wasm32"))]
 pub(crate) use session_engine::capability_policy::{
     CapabilityPolicyResolution, normalize_capability_id, resolve_skill_capabilities,
     resolve_skill_defaults,

@@ -143,10 +143,10 @@ pub struct ListSelectionView {
     row_display: SelectionRowDisplay,
     header: Box<dyn Renderable>,
     initial_selected_idx: Option<usize>,
-    side_content: Box<dyn Renderable>,
-    side_content_width: SideContentWidth,
-    side_content_min_width: u16,
-    stacked_side_content: Option<Box<dyn Renderable>>,
+    _side_content: Box<dyn Renderable>,
+    _side_content_width: SideContentWidth,
+    _side_content_min_width: u16,
+    _stacked_side_content: Option<Box<dyn Renderable>>,
     last_selected_id: Option<String>,
 }
 impl ListSelectionView {
@@ -186,10 +186,10 @@ impl ListSelectionView {
             row_display: params.row_display,
             header,
             initial_selected_idx: params.initial_selected_idx,
-            side_content: params.side_content,
-            side_content_width: params.side_content_width,
-            side_content_min_width: params.side_content_min_width,
-            stacked_side_content: params.stacked_side_content,
+            _side_content: params.side_content,
+            _side_content_width: params.side_content_width,
+            _side_content_min_width: params.side_content_min_width,
+            _stacked_side_content: params.stacked_side_content,
             last_selected_id: None,
         };
         view.apply_filter();

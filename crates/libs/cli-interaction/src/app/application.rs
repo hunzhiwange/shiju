@@ -32,6 +32,7 @@ use super::{
 
 impl V3GatewayApp {
     /// 以内联终端模式创建应用，并用会话配置补齐缺失的模型名。
+    #[cfg(test)]
     pub(crate) fn new(runtime: GatewayUiRuntime, mut state: TuiState) -> Self {
         if state.status.model_name.is_none() {
             state.status.model_name = state.session_options.model.clone();
@@ -197,6 +198,7 @@ impl V3GatewayApp {
     }
 
     /// 可变借用 TUI 状态；调用方需继续维护 reducer 不变量。
+    #[cfg(test)]
     pub(crate) fn state_mut(&mut self) -> &mut TuiState {
         &mut self.state
     }

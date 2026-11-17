@@ -14,7 +14,6 @@ use cli_interaction_state::{TuiAction, TuiState, reduce_tui_state};
 /// 控制器可接收的时钟或终端事件。
 #[derive(Debug)]
 pub(crate) enum TuiControllerEvent {
-    Tick,
     Terminal(CrosstermEvent),
 }
 
@@ -32,7 +31,6 @@ pub(crate) enum TuiOverlayCommand {
 pub(crate) enum TuiControllerCommand {
     Continue,
     FileSearchQueryChanged { query: Option<String> },
-    Quit,
     CancelActiveSubmission,
     QueuePrompt { text: String, attachments: Vec<vw_tui::V3Attachment> },
     OpenTranscript,
@@ -57,7 +55,7 @@ impl TuiController {
             TuiControllerEvent::Terminal(CrosstermEvent::Key(key)) => {
                 self.handle_key_event(state, key)
             }
-            TuiControllerEvent::Tick | TuiControllerEvent::Terminal(_) => {
+            TuiControllerEvent::Terminal(_) => {
                 TuiControllerCommand::Continue
             }
         }

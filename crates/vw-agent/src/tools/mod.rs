@@ -148,6 +148,7 @@ pub use cron_runs::CronRunsTool;
 pub use cron_update::CronUpdateTool;
 #[cfg(not(target_arch = "wasm32"))]
 pub use enter_worktree::EnterWorktreeTool;
+#[cfg(any(test, target_arch = "wasm32"))]
 pub(crate) use executor::{ToolResultHistoryEntry, build_tool_result_history_messages};
 #[cfg(not(target_arch = "wasm32"))]
 pub use exit_worktree::ExitWorktreeTool;
@@ -234,6 +235,11 @@ pub use tool_types::{
     ToolResult, ToolSpec,
 };
 
+#[cfg(all(not(test), not(target_arch = "wasm32")))]
+pub(crate) use scheduler::{
+    PendingToolCall, ScheduledToolBatchMode, schedule_tool_calls,
+};
+#[cfg(any(test, target_arch = "wasm32"))]
 pub(crate) use scheduler::{
     PendingToolCall, ScheduledToolBatch, ScheduledToolBatchMode, schedule_tool_calls,
 };
@@ -242,6 +248,9 @@ pub use toolset::{
     default_tools, default_tools_with_runtime, execute_tool_call, execute_tool_from_registry,
     is_binary, tool_specs_for_context,
 };
+#[cfg(all(not(test), not(target_arch = "wasm32")))]
+pub(crate) use toolset::agent_tool_parallel_limit_for_context;
+#[cfg(any(test, target_arch = "wasm32"))]
 pub(crate) use toolset::{agent_tool_parallel_limit_for_context, execute_agent_tool_call};
 pub use web_fetch::WebFetchTool;
 pub use web_search_tool::WebSearchTool;

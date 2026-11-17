@@ -1,5 +1,6 @@
 //! 通道启动的宿主组合入口。
 use super::*;
+#[cfg(any(test, target_arch = "wasm32"))]
 pub(crate) use channel_runtime::manager::start::*;
 pub async fn start_channels(config: Config) -> Result<()> {
     #[cfg(not(target_arch = "wasm32"))]

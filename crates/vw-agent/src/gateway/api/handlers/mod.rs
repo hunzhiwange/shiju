@@ -306,7 +306,9 @@ mod aggregation_members_tests;
 mod aggregation_omo;
 #[cfg(all(test, target_os = "macos"))]
 mod aggregation_omo_tests;
+#[cfg(any(test, target_arch = "wasm32"))]
 pub(crate) use gateway_aggregation::aggregation_omp as aggregation_omp;
+#[cfg(any(test, target_arch = "wasm32"))]
 pub(crate) use gateway_aggregation::aggregation_pi as aggregation_pi;
 mod aggregation_read;
 #[cfg(all(test, target_os = "macos"))]

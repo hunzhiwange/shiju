@@ -55,6 +55,7 @@ use std::io::Write;
 use std::path::{Path, PathBuf};
 
 /// 随机加密密钥的长度（以字节为单位，256位，匹配 ChaCha20 算法要求）。
+#[cfg(test)]
 const KEY_LEN: usize = 32;
 
 /// ChaCha20-Poly1305 的 nonce 长度（以字节为单位）。
@@ -624,6 +625,7 @@ fn hex_encode(data: &[u8]) -> String {
 /// let empty = build_windows_icacls_grant_arg("   ");
 /// assert_eq!(empty, None);
 /// ```
+#[cfg(any(windows, test))]
 fn build_windows_icacls_grant_arg(username: &str) -> Option<String> {
     // 去除用户名两端的空白字符
     let normalized = username.trim();

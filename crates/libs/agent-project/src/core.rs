@@ -12,7 +12,9 @@ use agent_bus as bus;
 use runtime_flags as flag;
 use git_discovery::git_repository;
 use serde_json::Value;
-use std::path::{Path, PathBuf};
+use std::path::Path;
+#[cfg(test)]
+use std::path::PathBuf;
 use std::time::{SystemTime, UNIX_EPOCH};
 use {
     vw_api_transport::id::ProjectId,
@@ -50,6 +52,7 @@ fn local_project_id_from_path(path: &Path) -> String {
     format!("local-{hash:016x}")
 }
 
+#[cfg(test)]
 fn find_git_entry(start: &Path) -> Option<(PathBuf, PathBuf)> {
     let mut cur = start.to_path_buf();
     loop {

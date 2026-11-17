@@ -17,6 +17,7 @@ mod types;
 
 pub(crate) mod compat;
 pub(crate) use compat::mcp_auth::runtime_headers as plugin_mcp_http_headers;
+#[cfg(any(test, target_arch = "wasm32"))]
 pub(crate) use compat::mcp_capabilities::{
     client_info as mcp_client_info, validate_server_protocol as validate_mcp_server_protocol,
 };
@@ -25,9 +26,14 @@ pub(crate) use compat::mcp_connection_sessions::{
 };
 pub(crate) use compat::mcp_connection_settings::settings as plugin_mcp_connection_settings;
 pub use compat::mcp_connections::McpSessionConnections;
+#[cfg(any(test, target_arch = "wasm32"))]
 pub(crate) use compat::mcp_content::{normalize_mcp_tool_result, preserve_mcp_wire_result};
 pub(crate) use compat::mcp_elicitation;
+#[cfg(any(test, target_arch = "wasm32"))]
 pub(crate) use compat::mcp_notifications::{McpCatalogs, ToolCatalogBinding};
+#[cfg(all(not(test), not(target_arch = "wasm32")))]
+pub(crate) use compat::mcp_resources::call as call_mcp_resource;
+#[cfg(any(test, target_arch = "wasm32"))]
 pub(crate) use compat::mcp_resources::{RawResponse as RawMcpResponse, call as call_mcp_resource};
 
 /// 插件管理命令与命令行执行入口。
@@ -38,6 +44,7 @@ pub use compat::hook_manifest::{
     CodexHooksManifest,
 };
 pub(crate) use compat::mcp_environment::runtime_cwd as plugin_mcp_runtime_cwd;
+#[cfg(any(test, target_arch = "wasm32"))]
 pub(crate) use compat::skill_invocation::reference_text as plugin_skill_reference_text;
 pub(crate) use hook_handler::trusted_plugin_hook_handlers;
 pub use hook_trust::{
@@ -51,6 +58,9 @@ pub use install::{
     PluginInstallResult, install_plugin_from_marketplace, install_plugin_from_source,
     install_plugin_marketplace_entry,
 };
+#[cfg(all(not(test), not(target_arch = "wasm32")))]
+pub(crate) use install::{remove_installed_plugin, set_plugin_enabled};
+#[cfg(any(test, target_arch = "wasm32"))]
 pub(crate) use install::{install_dir_from_config, remove_installed_plugin, set_plugin_enabled};
 pub use loader::{
     DiscoveredPlugin, PluginDiscovery, PluginDiscoveryDiagnostic, PluginDiscoveryOptions,
@@ -58,6 +68,9 @@ pub use loader::{
 };
 pub use manifest::load_plugin_manifest;
 pub(crate) use mcp::{merge_enabled_plugin_mcp_servers, plugin_mcp_discovery_options};
+#[cfg(all(not(test), not(target_arch = "wasm32")))]
+pub(crate) use skills::load_plugin_skills;
+#[cfg(any(test, target_arch = "wasm32"))]
 pub(crate) use skills::{catalog_skills, load_plugin_skills};
 /// 已完成路径审计和字段规范化的插件清单类型。
 pub use types::{
@@ -121,9 +134,12 @@ pub use compat::marketplace::{
 };
 pub use compat::upgrade::prepare_plugin_marketplace_upgrade;
 
+#[cfg(any(test, target_arch = "wasm32"))]
 pub(crate) use compat::hook_trust_content::plugin_content_hash as plugin_package_content_hash;
+#[cfg(any(test, target_arch = "wasm32"))]
 pub(crate) use install::publish_materialized_install;
 
+#[cfg(any(test, target_arch = "wasm32"))]
 pub(crate) use compat::identity::read_install_metadata as plugin_install_metadata;
 
 pub use compat::dependencies::{
@@ -134,4 +150,5 @@ pub(crate) use compat::dependencies::missing_mcp_executable as plugin_missing_mc
 
 pub(crate) use compat::session_snapshot;
 
+#[cfg(any(test, target_arch = "wasm32"))]
 pub(crate) use compat::host_files::patch_input;

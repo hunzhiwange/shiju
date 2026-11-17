@@ -13,6 +13,7 @@ use tokio_util::sync::CancellationToken;
 use agent_loop::core::errors::ToolLoopCancelled;
 pub use agent_loop::execution::ToolExecutionOutcome;
 pub(crate) use agent_loop::execution::{execute_tools_parallel, execute_tools_sequential};
+#[cfg(any(test, target_arch = "wasm32"))]
 pub(crate) use agent_loop::execution::schedule_parsed_tool_batches as schedule_tool_batches;
 #[cfg(test)]
 #[path = "../../../../libs/agent-loop/src/execution_tests.rs"]

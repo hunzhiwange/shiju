@@ -29,6 +29,7 @@ mod turn;
 pub(crate) use agent_loop::core::turn::TOOL_LOOP_REPLY_TARGET;
 
 pub use errors::is_tool_iteration_limit_error;
+#[cfg(any(test, target_arch = "wasm32"))]
 pub(crate) use errors::{ToolLoopCancelled, is_tool_loop_cancelled};
 pub use tool_loop::run_tool_call_loop;
 pub(crate) use tool_loop::run_tool_call_loop_with_skills;
@@ -38,6 +39,7 @@ pub(crate) use turn::run_tool_call_loop_with_non_cli_approval_context;
 
 pub use constants::AUTOSAVE_MIN_MESSAGE_CHARS;
 pub use history::autosave_memory_key;
+#[cfg(any(test, target_arch = "wasm32"))]
 pub(crate) use history::build_native_assistant_history;
 pub use timeouts::{effective_message_timeout_secs, message_timeout_budget_secs};
 

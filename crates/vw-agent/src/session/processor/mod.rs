@@ -25,6 +25,9 @@
 //! - `types`: 公共类型定义（Request、StreamEvent等）
 //! - `utils`: 辅助工具函数
 
+#[cfg(all(not(test), not(target_arch = "wasm32")))]
+pub(crate) use super::session::Session;
+#[cfg(any(test, target_arch = "wasm32"))]
 pub(crate) use super::session::{Role, Session};
 
 pub(crate) mod context_governance;
@@ -49,6 +52,7 @@ mod turn_policy;
 mod types;
 mod utils;
 
+#[cfg(any(test, target_arch = "wasm32"))]
 pub(super) use utils::compact_tool_output;
 
 pub(crate) use prefetch::app_session_scope_from_root_async;
@@ -56,6 +60,7 @@ pub(crate) use types::ToolSessionState;
 
 #[cfg(test)]
 pub(crate) use helpers::allowed_tool_ids_for_request_from_specs;
+#[cfg(any(test, target_arch = "wasm32"))]
 pub(crate) use helpers::{allowed_tool_ids, should_execute_structured_tool_calls_locally};
 pub use runner::run;
 pub(crate) use runner::run_with_persisted_history;

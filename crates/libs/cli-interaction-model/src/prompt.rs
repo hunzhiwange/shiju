@@ -324,6 +324,7 @@ impl PromptState {
         apply_editor_command(self, EditorCommand::Move { motion, select: false })
     }
 
+    #[cfg(test)]
     pub(crate) fn can_move_cursor(&self, motion: PromptMotion) -> bool {
         let mut clone = self.clone();
         apply_editor_command(&mut clone, EditorCommand::Move { motion, select: false })
@@ -384,10 +385,12 @@ impl PromptState {
     }
 
     /// 取出下一条待执行命令。
+    #[cfg(test)]
     pub(crate) fn pop_queued_command(&mut self) -> Option<QueuedPromptCommand> {
         if self.queued_commands.is_empty() { None } else { Some(self.queued_commands.remove(0)) }
     }
 
+    #[cfg(test)]
     pub(crate) fn drain_queued_for(
         &mut self,
         boundary: QueueDrainBoundary,
@@ -404,6 +407,7 @@ impl PromptState {
         Some(self.queued_commands.remove(index))
     }
 
+    #[cfg(test)]
     pub(crate) fn reclaim_latest_queued(
         &mut self,
         session_id: Option<&str>,
@@ -415,6 +419,7 @@ impl PromptState {
         self.queued_commands.remove(index).into()
     }
 
+    #[cfg(test)]
     pub(crate) fn stash_draft(&mut self) -> bool {
         if self.stashed_draft.is_some() || self.value.is_empty() {
             return false;
@@ -424,6 +429,7 @@ impl PromptState {
         true
     }
 
+    #[cfg(test)]
     pub(crate) fn restore_stashed_draft(&mut self) -> bool {
         if !self.value.is_empty() {
             return false;

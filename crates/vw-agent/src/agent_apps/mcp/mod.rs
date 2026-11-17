@@ -1,6 +1,15 @@
 //! Persistence for the managed MCP catalog.
 
-pub use agent_app_services::mcp::*;
+pub use agent_app_services::mcp::{credentials, McpCatalogStore, McpRevocation, StoredCatalogRecord};
+#[cfg(not(target_arch = "wasm32"))]
+pub use agent_app_services::mcp::{connection_runtime, probe_jobs_host, McpExecutionConnection};
+#[cfg(target_os = "macos")]
+pub use agent_app_services::mcp::{
+    binding, bulk, data_migration, import, profile_slot, resync, probe_host,
+    McpBindingTarget, McpImportEntry, McpImportOutcome, McpImportReport, McpImportSource,
+    McpMigration, McpMigrationCommit, McpResyncResult, McpResyncTargetResult, McpResyncTask,
+    resync_targets,
+};
 
 #[cfg(not(target_arch = "wasm32"))]
 mod connectivity;

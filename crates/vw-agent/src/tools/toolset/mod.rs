@@ -1,4 +1,5 @@
 pub use tool_assembly::toolset::is_binary;
+#[cfg(any(test, target_arch = "wasm32"))]
 use super::context::ToolUseContext;
 use super::discovery::ToolDiscoveryCatalog;
 use super::tool_search::ToolSearchTool;
@@ -43,6 +44,7 @@ pub use tool_assembly::runtime::execute_tool_call;
 
 pub(crate) use tool_assembly::runtime::execute_bound_app_tool;
 
+#[cfg(any(test, target_arch = "wasm32"))]
 pub(crate) use tool_assembly::runtime::execute_agent_tool_call;
 
 pub use tool_assembly::runtime::execute_tool_from_registry;

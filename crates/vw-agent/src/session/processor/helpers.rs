@@ -2,6 +2,7 @@
 use serde_json::Value;
 use std::collections::HashSet;
 use super::runner_host::AgentRunnerHost as AgentHelperHost;
+#[cfg(any(test, target_arch = "wasm32"))]
 pub(crate) use session_engine::helpers::{allowed_tool_ids_for_request_from_specs, response_preview, is_acp_request, should_execute_structured_tool_calls_locally};
 pub(crate) fn allowed_tool_ids(model: Option<&str>) -> HashSet<String> { session_engine::helpers::allowed_tool_ids::<AgentHelperHost>(model) }
 pub(crate) fn allowed_tool_ids_for_request(model: Option<&str>, options: &Value) -> HashSet<String> { session_engine::helpers::allowed_tool_ids_for_request::<AgentHelperHost>(model, options) }

@@ -16,6 +16,7 @@ use reqwest::multipart::{Form, Part};
 use serde_json::json;
 use std::path::PathBuf;
 
+#[cfg(test)]
 const DISCORD_API_BASE_URL: &str = "https://discord.com/api/v10";
 
 pub(super) fn discord_messages_url(api_base: &str, recipient: &str) -> String {
@@ -60,6 +61,7 @@ pub(super) fn discord_messages_url(api_base: &str, recipient: &str) -> String {
 /// # 安全性
 ///
 /// 该函数会自动对错误响应进行敏感信息脱敏处理，避免在错误日志中泄露敏感数据
+#[cfg(test)]
 pub(super) async fn send_discord_message_json(
     client: &reqwest::Client,
     bot_token: &str,
@@ -155,6 +157,7 @@ pub(super) async fn send_discord_message_json_to_url(
 ///
 /// - 该函数会自动对错误响应进行敏感信息脱敏处理
 /// - 文件路径错误会被明确报告，但不会泄露系统路径之外的信息
+#[cfg(test)]
 pub(super) async fn send_discord_message_with_files(
     client: &reqwest::Client,
     bot_token: &str,

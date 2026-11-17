@@ -481,11 +481,13 @@ impl UiQuestionOverlay {
     }
 
     /// 当前 question 是否来自工具侧的通用退化问题面。
+    #[cfg(test)]
     pub(crate) fn is_tool_backed(&self) -> bool {
         self.tool.is_some()
     }
 
     /// 当前 question 应使用哪种表面类型呈现。
+    #[cfg(test)]
     pub(crate) fn surface_kind(&self) -> UiQuestionSurfaceKind {
         if self.is_permission_request() {
             UiQuestionSurfaceKind::PermissionRequest
@@ -497,6 +499,7 @@ impl UiQuestionOverlay {
     }
 
     /// 当前 question 是否看起来像工具审批请求。
+    #[cfg(test)]
     pub(crate) fn is_permission_request(&self) -> bool {
         self.is_tool_backed()
             && self.prompts.iter().any(|prompt| {
@@ -510,6 +513,7 @@ impl UiQuestionOverlay {
     }
 
     /// question modal 在当前宿主下的展示标题。
+    #[cfg(test)]
     pub(crate) fn modal_title(&self) -> &'static str {
         match self.surface_kind() {
             UiQuestionSurfaceKind::Question => "提问",
@@ -519,6 +523,7 @@ impl UiQuestionOverlay {
     }
 
     /// 当前表面的统一请求名词。
+    #[cfg(test)]
     pub(crate) fn request_label(&self) -> &'static str {
         match self.surface_kind() {
             UiQuestionSurfaceKind::Question => "提问",
@@ -528,6 +533,7 @@ impl UiQuestionOverlay {
     }
 
     /// 当前表面在提交失败时的错误标题。
+    #[cfg(test)]
     pub(crate) fn reply_error_title(&self) -> &'static str {
         match self.surface_kind() {
             UiQuestionSurfaceKind::Question => "提问回复失败",
@@ -537,6 +543,7 @@ impl UiQuestionOverlay {
     }
 
     /// 当前表面在拒绝失败时的错误标题。
+    #[cfg(test)]
     pub(crate) fn reject_error_title(&self) -> &'static str {
         match self.surface_kind() {
             UiQuestionSurfaceKind::Question => "提问拒绝失败",
@@ -546,6 +553,7 @@ impl UiQuestionOverlay {
     }
 
     /// 当前表面在空提交时的提示标题。
+    #[cfg(test)]
     pub(crate) fn empty_submission_title(&self) -> &'static str {
         match self.surface_kind() {
             UiQuestionSurfaceKind::Question => "提交提问回复",
@@ -555,6 +563,7 @@ impl UiQuestionOverlay {
     }
 
     /// 当前表面在空提交时的提示文案。
+    #[cfg(test)]
     pub(crate) fn empty_submission_message(&self) -> &'static str {
         match self.surface_kind() {
             UiQuestionSurfaceKind::Question => "请至少提供一个回答后再提交。",
@@ -593,6 +602,7 @@ pub fn workflow_action_label(label: &str, id: &str) -> String {
     format!("{} [{}]", label.trim(), id.trim())
 }
 
+#[cfg(test)]
 fn contains_permission_marker(value: &str) -> bool {
     let normalized = value.trim().to_ascii_lowercase();
     if normalized.is_empty() {
@@ -604,6 +614,7 @@ fn contains_permission_marker(value: &str) -> bool {
         .any(|marker| normalized.contains(marker))
 }
 
+#[cfg(test)]
 fn option_looks_like_permission(value: &str) -> bool {
     let normalized = value.trim().to_ascii_lowercase();
     if normalized.is_empty() {

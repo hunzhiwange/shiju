@@ -1,6 +1,7 @@
 //! Gateway publication and managed-account adapter for the mode route.
 use super::*;
 // Mode authorization and publication belong to gateway-app-routing.
+#[cfg(any(test, target_arch = "wasm32"))]
 pub(crate) use gateway_app_providers::mode_apply::ProviderRouteRuntime;
 #[cfg(target_os = "macos")]
 use super::super::app_routing::RoutingControl;

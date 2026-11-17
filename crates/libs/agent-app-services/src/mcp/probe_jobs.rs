@@ -12,7 +12,6 @@ use {
     vw_api_mcp_management::McpConnectionCheckItem,
     vw_api_mcp_management::McpConnectionDefinition,
     vw_api_mcp_management::McpCredentialRef,
-    vw_api_mcp_management::McpFailureCode,
     vw_api_mcp_management::McpRecordId,
 };
 

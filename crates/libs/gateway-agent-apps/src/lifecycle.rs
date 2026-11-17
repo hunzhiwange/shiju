@@ -23,7 +23,6 @@ use vw_agent_apps::apps::{
     },
 };
 use {
-    vw_api_types::agent_apps::*,
     vw_api_transport::id::TaskId,
     vw_api_transport::id::TenantScope,
     vw_api_task::TaskStatus,

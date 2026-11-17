@@ -1,9 +1,11 @@
 //! JSON 请求兼容转发。
+#[cfg(test)]
 use serde::{Serialize, de::DeserializeOwned};
+#[cfg(test)]
 use super::GatewayClient;
-#[cfg(not(target_arch = "wasm32"))]
-pub(super) use gateway_http::get_json_blocking;
 
+
+#[cfg(test)]
 impl GatewayClient {
     pub(super) async fn get_json<T: DeserializeOwned>(
         &self,

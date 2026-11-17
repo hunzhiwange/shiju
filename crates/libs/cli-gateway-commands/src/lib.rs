@@ -8,6 +8,9 @@ use clap::{ArgMatches, Args, Command, Error, FromArgMatches, Subcommand};
 use cli_api_system::config::{self, ConfigCommands};
 use cli_api_core::context::ApiContext;
 pub use cli_api_core::ApiOptions;
+#[cfg(all(not(test), not(target_arch = "wasm32")))]
+use cli_api_core::ensure_confirmed;
+#[cfg(any(test, target_arch = "wasm32"))]
 use cli_api_core::{ApiOutputFormat, ensure_confirmed};
 use cli_api_system::control::{self, ControlCommands, ProviderCommands};
 use cli_api_system::desktop::{self, DesktopCommands};
@@ -299,6 +302,7 @@ pub async fn run(args: ApiArgs) -> Result<()> {
     run_with_io(args, &mut stdin, &mut stdout).await
 }
 
+#[cfg(test)]
 async fn run_with_writer<W: Write>(args: ApiArgs, writer: &mut W) -> Result<()> {
     let mut stdin = std::io::empty();
     run_with_io(args, &mut stdin, writer).await

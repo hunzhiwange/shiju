@@ -760,6 +760,7 @@ fn write_index_content(directory: &str, file_path: &str, content: &str) -> Resul
     Ok(())
 }
 
+#[cfg(test)]
 fn git_file_mode(directory: &str, file_path: &str) -> Result<String, String> {
     let repo = open_repo(directory)?;
     let index = repo.index().map_err(|err| err.to_string())?;
@@ -770,6 +771,7 @@ fn git_file_mode(directory: &str, file_path: &str) -> Result<String, String> {
         .unwrap_or_else(|| "100644".to_string()))
 }
 
+#[cfg(test)]
 fn git_hash_object_stdin(directory: &str, content: &str) -> Result<String, String> {
     let repo = open_repo(directory)?;
     let oid = repo.blob(content.as_bytes()).map_err(|err| err.to_string())?;

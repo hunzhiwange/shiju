@@ -33,6 +33,7 @@ impl MiscHost for Host {
     }
 }
 pub(crate) fn router<S: Clone + Send + Sync + 'static>() -> Router<S> { gateway_misc::router::<S, Host>() }
+#[cfg(any(test, target_arch = "wasm32"))]
 pub(crate) use gateway_misc::not_implemented;
 #[cfg(test)]
 use axum::extract::Extension;

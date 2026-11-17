@@ -12,6 +12,9 @@ use rmcp::service::{Peer, RoleClient};
 use serde_json::Value;
 use std::{future::Future, path::Path, time::Duration};
 
+#[cfg(all(not(test), not(target_arch = "wasm32")))]
+pub(crate) use mcp_client::client::RunningMcpPeer;
+#[cfg(any(test, target_arch = "wasm32"))]
 pub(crate) use mcp_client::client::{RunningMcpPeer, unsupported_mcp_capabilities_json};
 
 pub use mcp_client::{

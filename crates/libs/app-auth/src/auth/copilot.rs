@@ -409,7 +409,7 @@ impl CopilotAuth {
 
 pub use app_auth_core::response::valid_token;
 pub(crate) use app_auth_core::response::{
-    read_json, read_json_limited, read_body_limited, utc_now,
+    read_json, read_json_limited, utc_now,
 };
 
 fn copilot_account(

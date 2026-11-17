@@ -1,6 +1,7 @@
 //! Host lifecycle composition; plugin-hooks owns the single state container.
 use crate::tools::{ToolUseContext, context::AgentContextHost};
 use std::{path::Path, sync::Arc};
+#[cfg(any(test, target_arch = "wasm32"))]
 pub use plugin_hooks::hook_session::validate;
 pub(crate) async fn start(context: Arc<ToolUseContext>, resumed: bool) -> anyhow::Result<()> {
     plugin_hooks::hook_session::start::<AgentContextHost>(context, resumed).await

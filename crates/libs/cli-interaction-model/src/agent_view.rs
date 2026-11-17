@@ -38,6 +38,7 @@ pub struct AgentViewState {
 
 impl AgentViewState {
     /// 切换到已知成员；未知 ID 会显式报错且不改变当前视图。
+    #[cfg(test)]
     pub(crate) fn switch_to(&mut self, agent_id: &str) -> Result<(), String> {
         if !self.members.iter().any(|member| member.id == agent_id) {
             return Err(format!("unknown agent: {agent_id}"));
@@ -47,11 +48,13 @@ impl AgentViewState {
     }
 
     /// 恢复显示主智能体的消息。
+    #[cfg(test)]
     pub(crate) fn return_to_leader(&mut self) {
         self.viewed_agent_id = None;
     }
 
     /// 返回当前视图应渲染的消息；成员尚无快照时返回空切片。
+    #[cfg(test)]
     pub(crate) fn visible_messages<'a>(
         &'a self,
         leader_messages: &'a [UiMessage],
@@ -67,12 +70,14 @@ impl AgentViewState {
     }
 
     /// 返回当前正在查看的成员，主智能体视图下为空。
+    #[cfg(test)]
     pub(crate) fn viewed_member(&self) -> Option<&AgentMember> {
         let id = self.viewed_agent_id.as_deref()?;
         self.members.iter().find(|member| member.id == id)
     }
 
     /// 更新成员状态，并在当前成员结束或停止后自动返回主视图。
+    #[cfg(test)]
     pub(crate) fn update_status(&mut self, agent_id: &str, status: AgentStatus) {
         if let Some(member) = self.members.iter_mut().find(|member| member.id == agent_id) {
             member.status = status;

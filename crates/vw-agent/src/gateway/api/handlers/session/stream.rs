@@ -181,6 +181,11 @@ use axum::response::IntoResponse;
 use axum::{Extension, Json, extract::Query, http::HeaderMap};
 #[cfg(test)]
 use gateway_session::stream::*;
+#[cfg(all(not(test), not(target_arch = "wasm32")))]
+pub(crate) use gateway_session::stream::{
+    GatewayChatStreamCollected, StreamTurnMessageIds,
+};
+#[cfg(any(test, target_arch = "wasm32"))]
 pub(crate) use gateway_session::stream::{
     GatewayChatStreamCollected, StreamTurnMessageIds, split_stream_model_ref,
 };

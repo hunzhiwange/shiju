@@ -1,5 +1,9 @@
 //! Confirmed shares use scoped create-only storage, then guarded native activation.
+#[cfg(all(not(test), not(target_arch = "wasm32")))]
+use vw_api_app_operations::ImportPromptShareApiRequest;
+#[cfg(any(test, target_arch = "wasm32"))]
 use vw_api_app_operations::{ImportPromptShareApiRequest, ImportPromptShareResult, PromptActivationChoice, PromptEntry, PromptRevision, PromptShareActivationError};
+#[cfg(any(test, target_arch = "wasm32"))]
 use vw_api_app_identity::{AppId};
 use axum::{Extension, Json, Router, extract::{DefaultBodyLimit, rejection::JsonRejection}, http::{HeaderMap, StatusCode, header}, response::{IntoResponse, Response}, routing::post};
 use std::path::PathBuf;

@@ -378,6 +378,7 @@ impl GatewayUiRuntime {
     }
 
     #[cfg(not(target_arch = "wasm32"))]
+    #[cfg(test)]
     pub(crate) fn enabled_acp_backend_keys_blocking(&self) -> Result<Vec<String>, String> {
         block_on_gateway(self.enabled_acp_backend_keys())
     }

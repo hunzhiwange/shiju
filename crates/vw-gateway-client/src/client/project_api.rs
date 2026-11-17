@@ -19,7 +19,7 @@ use vw_api_worktree::{
 
 use super::GatewayClient;
 
-pub(super) use gateway_project::encode_path_segment;
+
 
 impl GatewayClient {
     pub async fn project_list(

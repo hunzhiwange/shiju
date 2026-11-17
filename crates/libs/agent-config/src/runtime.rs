@@ -27,7 +27,6 @@
 //! config::update(patch).await?;
 //! ```
 
-use crate::runtime_schema::load_or_init_config;
 #[cfg(not(target_arch = "wasm32"))]
 use secret_store::gateway_skey_store::GatewaySkeyReplacement;
 #[cfg(not(target_arch = "wasm32"))]
@@ -37,6 +36,7 @@ use agent_log as log;
 #[cfg(not(target_arch = "wasm32"))]
 use agent_database::GlobalDatabase;
 use serde_json::{Map, Value};
+#[cfg(test)]
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 use std::sync::LazyLock;
@@ -224,6 +224,7 @@ pub struct State {
 /// let deduped = deduplicate_plugins(plugins);
 /// // 结果: ["bar@2.0", "foo@3.0"]
 /// ```
+#[cfg(test)]
 fn deduplicate_plugins(plugins: Vec<String>) -> Vec<String> {
     let mut seen = HashSet::<String>::new();
     let mut out = Vec::new();
@@ -262,6 +263,7 @@ fn deduplicate_plugins(plugins: Vec<String>) -> Vec<String> {
 /// assert_eq!(plugin_name("file:///plugins/my-plugin.wasm"), "my-plugin");
 /// assert_eq!(plugin_name("simple"), "simple");
 /// ```
+#[cfg(test)]
 fn plugin_name(spec: &str) -> String {
     // 处理文件路径格式：file:///path/to/plugin.wasm
     if let Some(rest) = spec.strip_prefix("file://") {

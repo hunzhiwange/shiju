@@ -100,11 +100,13 @@ impl IntegrationPanel {
     }
 
     /// 将已有内容标记为正在刷新，便于界面保留上一次列表。
+    #[cfg(test)]
     pub(crate) fn begin_refresh(&mut self) {
         self.state = IntegrationLoadState::Loading;
     }
 
     /// 应用刷新结果，成功时按稳定 ID 保留选中项，失败时仅保存脱敏错误。
+    #[cfg(test)]
     pub(crate) fn finish_refresh(&mut self, result: Result<Vec<IntegrationItem>, String>) {
         let selected_id = self.items.get(self.selected).map(|item| item.id.clone());
         match result {
@@ -155,6 +157,7 @@ impl IntegrationPanel {
     }
 
     /// 切换技能目录平台，并重置子选择器和条目选中位置。
+    #[cfg(test)]
     pub(crate) fn set_skill_provider(&mut self, provider: SkillsDirectoryProvider) {
         self.skill_provider = provider;
         self.can_toggle = provider == SkillsDirectoryProvider::Vibewindow;
@@ -164,6 +167,7 @@ impl IntegrationPanel {
     }
 
     /// 仅在技能面板中打开平台选择器。
+    #[cfg(test)]
     pub(crate) fn open_skill_provider_picker(&mut self) -> bool {
         if self.kind != IntegrationKind::Skill {
             return false;
@@ -176,10 +180,12 @@ impl IntegrationPanel {
         true
     }
 
+    #[cfg(test)]
     pub(crate) fn cancel_skill_provider_picker(&mut self) -> bool {
         self.skill_provider_picker.take().is_some()
     }
 
+    #[cfg(test)]
     pub(crate) fn move_skill_provider_picker_selection(&mut self, delta: isize) {
         let Some(picker) = self.skill_provider_picker.as_mut() else {
             return;
@@ -192,6 +198,7 @@ impl IntegrationPanel {
         };
     }
 
+    #[cfg(test)]
     pub(crate) fn selected_skill_provider(&self) -> Option<SkillsDirectoryProvider> {
         self.skill_provider_picker
             .as_ref()

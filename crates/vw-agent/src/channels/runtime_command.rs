@@ -35,6 +35,8 @@ pub(crate) use command::{
     is_natural_language_all_tools_once_intent, is_runtime_token,
     parse_natural_language_runtime_command, parse_runtime_command,
 };
+#[cfg(any(test, target_arch = "wasm32"))]
 pub(crate) use handler::handle_runtime_command_if_needed;
 
+#[cfg(any(test, target_arch = "wasm32"))]
 pub(crate) use session_lifecycle::{is_session_lifecycle_command, persist_current_route};

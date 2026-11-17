@@ -2,6 +2,7 @@
 use agent_config::runtime::Config;
 use agent_skills::{Skill, types::SkillLoadMode};
 use std::path::Path;
+#[cfg(any(test, target_arch = "wasm32"))]
 pub(crate) use agent_plugins::skills::catalog_skills;
 #[cfg(test)]
 pub(super) use agent_plugins::skills::PluginSkillInventory;

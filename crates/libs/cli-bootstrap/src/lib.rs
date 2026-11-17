@@ -39,6 +39,7 @@
     dead_code
 )]
 
+#[cfg(any(test, target_arch = "wasm32"))]
 use agent_migration as migration;
 use anyhow::{Context, Result, bail};
 use clap::Parser;

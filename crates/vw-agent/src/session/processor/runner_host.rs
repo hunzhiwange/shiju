@@ -1,4 +1,7 @@
 //! Native instances and scoped IO used by the session engine.
+#[cfg(all(not(test), not(target_arch = "wasm32")))]
+use super::types::{Request, ResolvedRequestModel, StreamEvent};
+#[cfg(any(test, target_arch = "wasm32"))]
 use super::types::{Request, ResolvedRequestModel, StreamEvent, ToolSessionState};
 use crate::session::prompt;
 use crate::{

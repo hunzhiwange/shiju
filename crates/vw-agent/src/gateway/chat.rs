@@ -65,6 +65,9 @@ pub async fn run_gateway_chat_simple(state: &AppState, message: &str) -> anyhow:
 #[cfg(test)]
 async fn run_gateway_chat_simple_with_extractor(state: &AppState, message: &str, extractor: &dyn ImageTextExtractor) -> anyhow::Result<String> { agent_gateway::chat::run_gateway_chat_simple_with_extractor::<Host>(state, message, extractor).await }
 pub async fn run_gateway_chat_with_tools(state: &AppState, message: &str, id: &str) -> anyhow::Result<String> { agent_gateway::chat::run_gateway_chat_with_tools::<Host>(state, message, id).await }
+#[cfg(all(not(test), not(target_arch = "wasm32")))]
+pub use agent_gateway::chat::sanitize_gateway_response;
+#[cfg(any(test, target_arch = "wasm32"))]
 pub use agent_gateway::chat::{sanitize_gateway_response, log_channel_message};
 #[cfg(test)]
 #[path = "../../../libs/agent-gateway/src/chat_tests.rs"]

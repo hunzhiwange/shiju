@@ -92,13 +92,21 @@ mod launch;
 #[cfg(all(test, unix))]
 mod local_access_tests;
 
+#[cfg(all(not(test), not(target_arch = "wasm32")))]
+pub(super) use gateway_agent_apps::host_context::{provider_config_home, authorize_provider_config_access};
+#[cfg(any(test, target_arch = "wasm32"))]
 pub(super) use gateway_agent_apps::host_context::{provider_config_home, provider_preview_context, provider_editor_context, provider_editor_authorization, authorize_provider_config_access, authorize_provider_login};
 #[cfg(target_os = "macos")]
+#[cfg(all(not(test), not(target_arch = "wasm32")))]
+pub(crate) use gateway_agent_apps::host_context::{provider_discovery_host, recover_providers_on_startup};
+#[cfg(target_os = "macos")]
+#[cfg(any(test, target_arch = "wasm32"))]
 pub(crate) use gateway_agent_apps::host_context::{provider_discovery_host, recover_providers_on_startup, claude_editor_authorization};
 
 #[cfg(target_os = "macos")]
 mod usage_refresh;
 #[cfg(target_os = "macos")]
+#[cfg(any(test, target_arch = "wasm32"))]
 pub(crate) use access::{
     RoutingControlScope, authorize_routing_control, authorize_routing_mode, routing_setup,
 };
@@ -123,41 +131,56 @@ mod usage_native;
 mod apps_usage_script;
 
 
+#[cfg(any(test, target_arch = "wasm32"))]
 pub(super) use gateway_agent_apps::host_context::authorize_mcp_catalog_read;
 
 /// Write to the explicitly granted catalog scope on the requested host.
+#[cfg(any(test, target_arch = "wasm32"))]
 pub(super) use access::authorize_mcp_catalog_write;
 
 #[cfg(target_os = "macos")]
+#[cfg(any(test, target_arch = "wasm32"))]
 pub(super) use gateway_agent_apps::host_context::{authorize_mcp_native_read, authorize_mcp_native_write};
 #[cfg(target_os = "macos")]
+#[cfg(any(test, target_arch = "wasm32"))]
 pub(super) use access::{authorize_aggregation_read, authorize_aggregation_write, authorize_pi_directory};
 
 #[cfg(target_os = "macos")]
+#[cfg(any(test, target_arch = "wasm32"))]
 pub(super) use access::{authorize_diagnostic_job, authorize_diagnostic_probe};
 
 #[cfg(target_os = "macos")]
+#[cfg(any(test, target_arch = "wasm32"))]
 pub(crate) use access::{aggregation_lifecycle_host, authorize_aggregation_lifecycle};
 
 #[cfg(target_os = "macos")]
+#[cfg(any(test, target_arch = "wasm32"))]
 pub(super) use access::authorize_codex_restart;
 
 #[cfg(target_os = "macos")]
+#[cfg(any(test, target_arch = "wasm32"))]
 pub(super) use access::authorize_mcp_acp_read;
 
+#[cfg(any(test, target_arch = "wasm32"))]
 pub(super) use access::authorize_skill_repos;
 
+#[cfg(any(test, target_arch = "wasm32"))]
 pub(super) use access::authorize_claude_config;
 
+#[cfg(any(test, target_arch = "wasm32"))]
 pub(super) use access::authorize_skill_inventory;
 
+#[cfg(any(test, target_arch = "wasm32"))]
 pub(super) use access::{authorize_skill_install, authorize_skill_install_owner};
 
+#[cfg(any(test, target_arch = "wasm32"))]
 pub(super) use access::authorize_skill_import;
 
 #[cfg(target_os = "macos")]
+#[cfg(any(test, target_arch = "wasm32"))]
 pub(super) use access::authorize_skill_bindings;
 
+#[cfg(any(test, target_arch = "wasm32"))]
 pub(super) use access::authorize_skill_job;
 
 #[cfg(target_os = "macos")]
@@ -165,6 +188,7 @@ pub(super) use access::authorize_skill_job;
 mod hermes_dashboard;
 
 #[cfg(target_os = "macos")]
+#[cfg(any(test, target_arch = "wasm32"))]
 pub(super) use access::authorize_prompts_read;
 
 #[cfg(target_os = "macos")]
@@ -172,9 +196,11 @@ pub(super) use access::authorize_prompts_read;
 mod hermes_memory;
 
 #[cfg(target_os = "macos")]
+#[cfg(any(test, target_arch = "wasm32"))]
 pub(super) use access::authorize_prompts_write;
 
 #[cfg(target_os = "macos")]
+#[cfg(any(test, target_arch = "wasm32"))]
 pub(in super::super) use access::authorize_prompts_activation;
 
 #[cfg(target_os = "macos")]
@@ -191,32 +217,44 @@ mod workspace_directory;
 
 pub(super) use access::{authorize_project_profiles, authorize_project_profiles_maintenance};
 
+#[cfg(any(test, target_arch = "wasm32"))]
 pub(super) use access::{authorize_external_history, authorize_external_history_delete};
 
+#[cfg(any(test, target_arch = "wasm32"))]
 pub(super) use access::authorize_data_backups;
 
+#[cfg(any(test, target_arch = "wasm32"))]
 pub(super) use access::authorize_external_history_resume;
 
 pub(super) use access::authorize_external_history_maintenance;
 
 #[cfg(target_os = "macos")]
+#[cfg(any(test, target_arch = "wasm32"))]
 pub(super) use access::periodic_data_backup_targets;
 
+#[cfg(any(test, target_arch = "wasm32"))]
 pub(super) use access::{authenticate_data_migration, authorize_data_migration};
 
+#[cfg(any(test, target_arch = "wasm32"))]
 pub(super) use access::authorize_device_sync_upload;
 
+#[cfg(any(test, target_arch = "wasm32"))]
 pub(super) use access::authorize_device_sync_config;
 
+#[cfg(any(test, target_arch = "wasm32"))]
 pub(super) use access::authorize_device_sync_probe;
 
 #[cfg(target_os = "macos")]
+#[cfg(any(test, target_arch = "wasm32"))]
 pub(super) use access::data_location_roots;
 
+#[cfg(any(test, target_arch = "wasm32"))]
 pub(super) use access::authorize_data_export;
 
+#[cfg(any(test, target_arch = "wasm32"))]
 pub(super) use access::authorize_device_sync_download;
 
+#[cfg(any(test, target_arch = "wasm32"))]
 pub(super) use access::usage_scan_targets;
 
 pub(super) use access::ExternalHistoryInstance;

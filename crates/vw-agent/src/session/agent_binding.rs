@@ -3,6 +3,7 @@ use anyhow::Result;
 use config_agent_profile::AgentRuntime;
 pub(crate) use session_engine::agent_binding::AgentBinding;
 
+#[cfg(any(test, target_arch = "wasm32"))]
 pub(super) use session_engine::binding_store::storage_key;
 pub(super) fn store() -> Result<app_settings_store::settings_store::GatewaySettingsStore> {
     let database = agent_database::GlobalDatabase::for_home(&crate::global::paths().home)?;

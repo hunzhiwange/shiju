@@ -3,6 +3,7 @@
 //! `app` 负责宿主生命周期，`bridge` 转换 Gateway 与界面契约，`state`/`model`
 //! 保持可测的纯状态。本模块只导出当前 CLI 入口，不在此处隐式选择其他实现。
 
+#[cfg(any(test, target_arch = "wasm32"))]
 use vw_tui::V3Surface;
 
 pub(crate) mod app;
@@ -62,6 +63,7 @@ mod orchestration_tests;
 mod plan_goal_tests;
 
 /// 构造独立界面对象，但不将其注册或切换为默认 TUI。
+#[cfg(test)]
 pub(crate) fn build_surface() -> V3Surface {
     V3Surface::new()
 }

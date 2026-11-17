@@ -51,6 +51,7 @@ use llm_runtime::acp::session::CachedAcpClientEntry;
 ///
 /// 字段保持为 `Option`，让调用方能区分“用户未配置”和“明确配置为空”的场景。
 pub(super) type ParsedAcpOptions = llm_runtime::acp::options::ParsedAcpOptions<skill_mounts::MountedSkills>;
+#[cfg(any(test, target_arch = "wasm32"))]
 pub(super) use llm_runtime::acp::options::AcpReplayStrategy;
 
 pub(crate) mod source_selection;

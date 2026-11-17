@@ -16,6 +16,7 @@ pub(crate) mod agent_apps;
 pub mod agent_apps_diagnostic_executors;
 pub use agent_gateway::agent_apps_diagnostic_jobs as agent_apps_diagnostic_jobs;
 #[cfg(target_os = "macos")]
+#[cfg(any(test, target_arch = "wasm32"))]
 pub(crate) use app_routing_services::failover_runtime as agent_apps_failover_runtime;
 #[cfg(target_os = "macos")]
 pub use agent_gateway::agent_apps_high_availability_service as agent_apps_high_availability_service;

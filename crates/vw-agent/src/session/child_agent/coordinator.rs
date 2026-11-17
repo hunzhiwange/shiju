@@ -4,6 +4,9 @@ use std::ops::Deref;
 use std::time::Duration;
 use tokio_util::sync::CancellationToken;
 use crate::tools::ToolUseContext;
+#[cfg(all(not(test), not(target_arch = "wasm32")))]
+pub(crate) use session_engine::child_agent::coordinator::ChildAgentTaskSnapshot;
+#[cfg(any(test, target_arch = "wasm32"))]
 pub(crate) use session_engine::child_agent::coordinator::{
     ChildAgentTaskState, ChildAgentTaskSnapshot, WaitCondition, ChildAgentWaitOutcome,
 };

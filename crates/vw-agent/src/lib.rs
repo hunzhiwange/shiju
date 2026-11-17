@@ -190,6 +190,7 @@ pub mod global_database;
 pub(crate) use agent_health as health;
 
 // 心跳机制
+#[cfg(any(test, target_arch = "wasm32"))]
 pub(crate) use agent_heartbeat as heartbeat;
 
 // 扩展钩子

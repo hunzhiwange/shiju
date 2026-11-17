@@ -163,6 +163,7 @@ impl HttpRequestTool {
     /// # 返回值
     ///
     /// 返回脱敏后的请求头列表，敏感值被替换为 `"***REDACTED***"`
+    #[cfg(test)]
     fn redact_headers_for_display(headers: &[(String, String)]) -> Vec<(String, String)> {
         headers
             .iter()

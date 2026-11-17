@@ -113,6 +113,7 @@ impl DiagItem {
         Self { severity: Severity::Error, category, message: msg.into() }
     }
 
+    #[cfg(test)]
     fn icon(&self) -> &'static str {
         match self.severity {
             Severity::Ok => "✅",

@@ -66,6 +66,7 @@ impl SqliteMemory {
 
             Ok(Self {
                 conn: std::sync::Arc::new(parking_lot::Mutex::new(conn)),
+                #[cfg(test)]
                 db_path,
                 embedder,
                 vector_weight,
@@ -78,7 +79,7 @@ impl SqliteMemory {
         {
             // WASM 目标当前仅保留结构体配置，不打开本地 SQLite 连接。
             let _ = open_timeout_secs;
-            Ok(Self { db_path, embedder, vector_weight, keyword_weight, cache_max })
+            Ok(Self { #[cfg(test)] db_path, embedder, vector_weight, keyword_weight, cache_max })
         }
     }
 }

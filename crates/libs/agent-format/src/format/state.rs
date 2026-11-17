@@ -42,8 +42,10 @@ pub(super) struct FormatterInfo {
 
 #[derive(Debug, Clone)]
 pub(super) enum EnabledCheck {
+    #[cfg(test)]
     Always,
     Which(&'static str),
+    #[cfg(test)]
     FileUpAny(&'static [&'static str]),
     Prettier,
     Oxfmt,

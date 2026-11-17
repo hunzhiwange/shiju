@@ -9,11 +9,18 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::mem;
 
 use super::TuiState;
+#[cfg(all(not(test), not(target_arch = "wasm32")))]
+use cli_interaction_model::{
+    UiAssistantMessage, UiMessage, UiMessageBase, UiMessageId, UiProgressMessage,
+    UiSearchMatch, UiStep, UiSystemMessage, UiThinkingBlock, UiTokenUsage, UiToolCall, UiToolResult, UiTurnTerminal,
+};
+#[cfg(any(test, target_arch = "wasm32"))]
 use cli_interaction_model::{
     UiAssistantMessage, UiMessage, UiMessageBase, UiMessageId, UiOverlay, UiProgressMessage,
     UiSearchMatch, UiStep, UiSystemMessage, UiThinkingBlock, UiTokenUsage, UiToolCall,
     UiToolCallState, UiToolResult, UiTurnTerminal, UiUserMessage,
 };
+#[cfg(any(test, target_arch = "wasm32"))]
 use serde_json::Value;
 use unicode_width::UnicodeWidthChar;
 
@@ -70,6 +77,7 @@ pub(crate) struct TuiToolCallGroup<'a> {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg(test)]
 pub(crate) struct TuiToolRowView {
     pub(crate) tool_name: String,
     pub(crate) display_name: String,
@@ -83,6 +91,7 @@ pub(crate) struct TuiToolRowView {
     pub(crate) notice_labels: Vec<String>,
 }
 
+#[cfg(test)]
 pub(crate) fn select_tool_row_view(group: &TuiToolCallGroup<'_>) -> TuiToolRowView {
     TuiToolRowView {
         tool_name: group.call.tool_name.clone(),
@@ -117,6 +126,7 @@ pub(crate) fn select_tool_row_view(group: &TuiToolCallGroup<'_>) -> TuiToolRowVi
     }
 }
 
+#[cfg(test)]
 fn tool_display_name(tool_name: &str) -> String {
     match tool_name.trim().to_ascii_lowercase().as_str() {
         "read" => "Read".to_string(),
@@ -127,6 +137,7 @@ fn tool_display_name(tool_name: &str) -> String {
     }
 }
 
+#[cfg(test)]
 fn redact_tool_payload(payload: &str) -> String {
     let Ok(mut value) = serde_json::from_str::<Value>(payload) else {
         return payload.to_string();
@@ -135,6 +146,7 @@ fn redact_tool_payload(payload: &str) -> String {
     serde_json::to_string(&value).unwrap_or_else(|_| "[unavailable]".to_string())
 }
 
+#[cfg(test)]
 fn redact_sensitive_json(value: &mut Value) {
     match value {
         Value::Object(entries) => {
@@ -205,6 +217,7 @@ pub(crate) struct TuiCollapsedExploreResults<'a> {
 ///
 /// 这样 renderer 不需要再把“裸 item 列表 + 外部 scroll 状态”重新拼回窗口语义。
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg(test)]
 pub(crate) struct TuiVisibleTranscriptWindow<'a> {
     pub(crate) items: Vec<TuiTranscriptItem<'a>>,
     item_keys: Vec<String>,
@@ -226,12 +239,14 @@ pub(crate) struct TuiVisibleTranscriptWindow<'a> {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg(test)]
 pub(crate) struct TuiTranscriptMeasurement {
     pub(crate) key: String,
     pub(crate) height: usize,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
+#[cfg(test)]
 pub(crate) struct TuiTranscriptMeasurements {
     pub(crate) content_width: u16,
     pub(crate) verbose: bool,
@@ -240,12 +255,15 @@ pub(crate) struct TuiTranscriptMeasurements {
 
 /// 当前 viewport 能力的稳定摘要。
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[cfg(test)]
 pub(crate) struct TuiViewportSummary {
     pub(crate) rows: u16,
     pub(crate) message_capacity: usize,
 }
 
+#[cfg(test)]
 impl TuiViewportSummary {
+    #[cfg(test)]
     pub(crate) fn label(self) -> String {
         format!("{}rows/{}messages", self.rows, self.message_capacity)
     }
@@ -253,6 +271,7 @@ impl TuiViewportSummary {
 
 /// 当前可见 transcript 窗口的稳定摘要。
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[cfg(test)]
 pub(crate) struct TuiWindowSummary {
     pub(crate) top_message: usize,
     pub(crate) sticky_message: Option<usize>,
@@ -265,7 +284,9 @@ pub(crate) struct TuiWindowSummary {
     pub(crate) covered_message_end: usize,
 }
 
+#[cfg(test)]
 impl TuiWindowSummary {
+    #[cfg(test)]
     pub(crate) fn coverage_label(self) -> String {
         if self.total_items == 0 || self.end_item_index == 0 {
             "-".to_string()
@@ -281,6 +302,7 @@ impl TuiWindowSummary {
         }
     }
 
+    #[cfg(test)]
     pub(crate) fn sticky_label(self) -> String {
         match self.sticky_message {
             Some(anchor) => format!("sticky m{anchor}"),
@@ -289,15 +311,18 @@ impl TuiWindowSummary {
         }
     }
 
+    #[cfg(test)]
     pub(crate) fn sticky_notice(self) -> Option<String> {
         self.sticky_message
             .map(|anchor| format!("message {anchor} is parked above the viewport host."))
     }
 
+    #[cfg(test)]
     pub(crate) fn has_sticky_anchor(self) -> bool {
         self.sticky_message.is_some()
     }
 
+    #[cfg(test)]
     pub(crate) fn follows_tail(self) -> bool {
         self.follow_tail
     }
@@ -305,12 +330,15 @@ impl TuiWindowSummary {
 
 /// 当前窗口顶部可复用的 sticky prompt 摘要。
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg(test)]
 pub(crate) struct TuiStickyPromptSummary {
     pub(crate) message_index: usize,
     pub(crate) preview: String,
 }
 
+#[cfg(test)]
 impl TuiStickyPromptSummary {
+    #[cfg(test)]
     pub(crate) fn label(&self) -> String {
         format!("prompt m{}", self.message_index)
     }
@@ -318,6 +346,7 @@ impl TuiStickyPromptSummary {
 
 /// 当前窗口的未读边界摘要。
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[cfg(test)]
 pub(crate) struct TuiUnseenRangeSummary {
     pub(crate) first_unseen_message: usize,
     pub(crate) first_unseen_item_index: usize,
@@ -326,7 +355,9 @@ pub(crate) struct TuiUnseenRangeSummary {
     pub(crate) boundary_in_window: bool,
 }
 
+#[cfg(test)]
 impl TuiUnseenRangeSummary {
+    #[cfg(test)]
     pub(crate) fn pill_label(self) -> String {
         if self.unseen_message_count == 1 {
             "1 new message".to_string()
@@ -335,6 +366,7 @@ impl TuiUnseenRangeSummary {
         }
     }
 
+    #[cfg(test)]
     pub(crate) fn divider_label(self) -> String {
         format!("{} below", self.pill_label())
     }
@@ -403,14 +435,17 @@ pub(crate) struct TuiTranscriptLayoutCacheBucket {
 }
 
 impl TuiTranscriptLayoutCacheBucket {
+    #[cfg(test)]
     fn item_heights(&self) -> &[usize] {
         &self.item_heights
     }
 
+    #[cfg(test)]
     fn rows_before(&self, item_index: usize) -> usize {
         self.prefix_rows.get(item_index).copied().unwrap_or_default()
     }
 
+    #[cfg(test)]
     fn total_rows(&self) -> usize {
         self.prefix_rows.last().copied().unwrap_or_default()
     }
@@ -442,10 +477,12 @@ pub(crate) struct TuiTranscriptLayoutCache {
 const MAX_TRANSCRIPT_LAYOUT_BUCKETS: usize = 16;
 
 impl TuiTranscriptLayoutCache {
+    #[cfg(test)]
     pub(crate) fn clear(&mut self) {
         self.buckets.clear();
     }
 
+    #[cfg(test)]
     pub(crate) fn bucket(
         &self,
         content_width: u16,
@@ -511,6 +548,7 @@ impl TuiTranscriptLayoutCache {
         }
     }
 
+    #[cfg(test)]
     pub(crate) fn apply_measurements(&mut self, measurements: &TuiTranscriptMeasurements) {
         let Some(bucket) =
             self.buckets.get_mut(&(measurements.content_width, measurements.verbose))
@@ -540,12 +578,14 @@ impl TuiTranscriptLayoutCache {
         }
     }
 
+    #[cfg(test)]
     pub(crate) fn measured_item_count(&self, content_width: u16, verbose: bool) -> usize {
         self.bucket(content_width, verbose)
             .map(|bucket| bucket.measured_keys.len())
             .unwrap_or_default()
     }
 
+    #[cfg(test)]
     pub(crate) fn bucket_count(&self) -> usize {
         self.buckets.len()
     }
@@ -586,7 +626,9 @@ impl TuiTranscriptLayoutCache {
     }
 }
 
+#[cfg(test)]
 impl<'a> TuiVisibleTranscriptWindow<'a> {
+    #[cfg(test)]
     fn empty(state: &TuiState) -> Self {
         Self {
             items: Vec::new(),
@@ -609,24 +651,29 @@ impl<'a> TuiVisibleTranscriptWindow<'a> {
         }
     }
 
+    #[cfg(test)]
     pub(crate) fn is_empty(&self) -> bool {
         self.items.is_empty()
     }
 
+    #[cfg(test)]
     pub(crate) fn len(&self) -> usize {
         self.items.len()
     }
 
+    #[cfg(test)]
     pub(crate) fn visible_items(&self) -> &[TuiTranscriptItem<'a>] {
         let top_offset = self.top_item_index.saturating_sub(self.start_item_index);
         &self.items[top_offset.min(self.items.len())..]
     }
 
+    #[cfg(test)]
     pub(crate) fn visible_keys(&self) -> &[String] {
         let top_offset = self.top_item_index.saturating_sub(self.start_item_index);
         &self.item_keys[top_offset.min(self.item_keys.len())..]
     }
 
+    #[cfg(test)]
     pub(crate) fn viewport_summary(&self) -> TuiViewportSummary {
         TuiViewportSummary {
             rows: self.viewport_rows,
@@ -634,6 +681,7 @@ impl<'a> TuiVisibleTranscriptWindow<'a> {
         }
     }
 
+    #[cfg(test)]
     pub(crate) fn window_summary(&self) -> TuiWindowSummary {
         TuiWindowSummary {
             top_message: self.top_message,
@@ -648,10 +696,12 @@ impl<'a> TuiVisibleTranscriptWindow<'a> {
         }
     }
 
+    #[cfg(test)]
     pub(crate) fn sticky_prompt(&self) -> Option<&TuiStickyPromptSummary> {
         self.sticky_prompt.as_ref()
     }
 
+    #[cfg(test)]
     pub(crate) fn unseen_range(&self) -> Option<TuiUnseenRangeSummary> {
         self.unseen_range
     }
@@ -670,6 +720,7 @@ pub(crate) struct TuiTranscriptProjectionCache {
 }
 
 impl TuiTranscriptProjectionCache {
+    #[cfg(test)]
     fn is_empty(&self) -> bool {
         self.items.is_empty()
     }
@@ -793,6 +844,7 @@ struct AssistantTurnBuilder<'a> {
 }
 
 /// 返回当前消息窗口的可见切片。
+#[cfg(test)]
 pub(crate) fn select_visible_message_window(state: &TuiState) -> &[UiMessage] {
     if state.messages.is_empty() {
         return &state.messages[0..0];
@@ -816,6 +868,7 @@ pub(crate) fn select_visible_message_window(state: &TuiState) -> &[UiMessage] {
 /// 该窗口仍以 `scroll.top_message` 作为原始消息锚点，
 /// 但会向上提升为“包含该消息的完整 transcript item”，避免 assistant turn
 /// 在 thinking/tool/step 边界处被切开。
+#[cfg(test)]
 pub(crate) fn select_visible_grouped_transcript_window(
     state: &TuiState,
 ) -> TuiVisibleTranscriptWindow<'_> {
@@ -908,22 +961,26 @@ pub(crate) fn select_visible_grouped_transcript_window(
 }
 
 /// 返回 grouped transcript 每个顶层项的原始消息锚点。
+#[cfg(test)]
 pub(crate) fn select_transcript_message_anchors(state: &TuiState) -> Vec<usize> {
     state.transcript.anchors().to_vec()
 }
 
 /// 基于扁平 `UiMessage` 序列派生 grouped/collapsed transcript。
+#[cfg(test)]
 pub(crate) fn select_grouped_transcript(state: &TuiState) -> Vec<TuiTranscriptItem<'_>> {
     materialize_transcript_items(&state.messages, state.transcript.items())
 }
 
 /// 按现有 `UiMessage` 元信息派生 grouped transcript。
+#[cfg(test)]
 pub(crate) fn derive_grouped_transcript(messages: &[UiMessage]) -> Vec<TuiTranscriptItem<'_>> {
     let projection = derive_transcript_projection_cache(messages);
     materialize_transcript_items(messages, projection.items())
 }
 
 /// 基于扁平 `UiMessage` 序列派生 grouped transcript 的消息锚点。
+#[cfg(test)]
 pub(crate) fn derive_transcript_message_anchors(messages: &[UiMessage]) -> Vec<usize> {
     derive_transcript_projection_cache(messages).anchors
 }
@@ -1051,6 +1108,7 @@ pub fn select_status_summary(state: &TuiState) -> TuiStatusSummary {
 }
 
 /// 基于当前激活的搜索弹层派生搜索结果。
+#[cfg(test)]
 pub(crate) fn select_search_matches(state: &TuiState) -> Vec<UiSearchMatch> {
     let Some(UiOverlay::Search(search)) = state.overlays.active() else {
         return Vec::new();
@@ -1068,6 +1126,7 @@ pub(crate) fn select_search_matches(state: &TuiState) -> Vec<UiSearchMatch> {
 }
 
 /// 按消息内容派生搜索命中列表。
+#[cfg(test)]
 pub(crate) fn derive_search_matches(
     messages: &[UiMessage],
     query: &str,
@@ -1197,6 +1256,7 @@ fn transcript_projection_key(messages: &[UiMessage], item: &TuiTranscriptProject
     }
 }
 
+#[cfg(test)]
 fn derive_sticky_prompt_summary(
     messages: &[UiMessage],
     projection: &TuiTranscriptProjectionCache,
@@ -1222,6 +1282,7 @@ fn derive_sticky_prompt_summary(
     })
 }
 
+#[cfg(test)]
 fn derive_unseen_range_summary(
     messages: &[UiMessage],
     projection: &TuiTranscriptProjectionCache,
@@ -1267,6 +1328,7 @@ fn derive_unseen_range_summary(
     })
 }
 
+#[cfg(test)]
 fn user_prompt_index_for_assistant(
     messages: &[UiMessage],
     assistant_index: usize,
@@ -1290,6 +1352,7 @@ fn user_prompt_index_for_assistant(
         .find_map(|(index, message)| matches!(message, UiMessage::User(_)).then_some(index))
 }
 
+#[cfg(test)]
 fn prompt_preview(prompt: &UiUserMessage) -> String {
     let head = prompt
         .text
@@ -1300,6 +1363,7 @@ fn prompt_preview(prompt: &UiUserMessage) -> String {
     truncate_preview(head, 72)
 }
 
+#[cfg(test)]
 fn truncate_preview(value: &str, max_chars: usize) -> String {
     let char_count = value.chars().count();
     if char_count <= max_chars {
@@ -1314,6 +1378,7 @@ fn truncate_preview(value: &str, max_chars: usize) -> String {
     format!("{prefix}...")
 }
 
+#[cfg(test)]
 fn materialize_transcript_items<'a>(
     messages: &'a [UiMessage],
     items: &[TuiTranscriptProjectionItem],
@@ -1548,6 +1613,7 @@ fn tool_result_matches_messages(result: &UiToolResult, messages: &[IndexedUiMess
     })
 }
 
+#[cfg(test)]
 fn transcript_item_index_for_message(
     items: &[TuiTranscriptProjectionItem],
     message_index: usize,
@@ -1558,6 +1624,7 @@ fn transcript_item_index_for_message(
         .unwrap_or_else(|| items.len().saturating_sub(1))
 }
 
+#[cfg(test)]
 fn transcript_window_end_index(
     items: &[TuiTranscriptProjectionItem],
     top_item_index: usize,
@@ -1579,6 +1646,7 @@ fn transcript_window_end_index(
     end_index
 }
 
+#[cfg(test)]
 fn transcript_window_end_index_by_rows(
     item_heights: &[usize],
     top_item_index: usize,
@@ -1599,6 +1667,7 @@ fn transcript_window_end_index_by_rows(
     end_index
 }
 
+#[cfg(test)]
 fn transcript_window_start_index_for_tail(
     messages: &[UiMessage],
     projection: &TuiTranscriptProjectionCache,
@@ -1634,6 +1703,7 @@ fn transcript_window_start_index_for_tail(
     start_index
 }
 
+#[cfg(test)]
 fn transcript_window_end_index_for_viewport(
     messages: &[UiMessage],
     projection: &TuiTranscriptProjectionCache,
@@ -1664,6 +1734,7 @@ fn transcript_window_end_index_for_viewport(
     )
 }
 
+#[cfg(test)]
 fn transcript_window_end_index_by_estimated_rows(
     messages: &[UiMessage],
     items: &[TuiTranscriptProjectionItem],

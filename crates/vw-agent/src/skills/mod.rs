@@ -51,15 +51,26 @@ mod types;
 pub use agent_metadata::{
     SkillAgentDependency, SkillAgentInterface, SkillAgentMetadata, SkillAgentPolicy,
 };
+#[cfg(any(test, target_arch = "wasm32"))]
 pub(crate) use audit::audit_open_skill_markdown_with_security;
+#[cfg(all(not(test), not(target_arch = "wasm32")))]
+pub(crate) use invoked::InvokedSkillRecord;
+#[cfg(any(test, target_arch = "wasm32"))]
 pub(crate) use invoked::{InvokedSkillRecord, InvokedSkillReplay};
+#[cfg(any(test, target_arch = "wasm32"))]
 pub(crate) use loader::{load_skill_directory, read_markdown_skill_metadata};
 pub use prompt::{skills_to_prompt, skills_to_prompt_with_mode};
+#[cfg(any(test, target_arch = "wasm32"))]
 pub(crate) use session_state::SkillListingSessionState;
+#[cfg(any(test, target_arch = "wasm32"))]
 pub(crate) use types::SkillLoadMode;
 pub use types::{PluginSkillSource, Skill, SkillTool};
 
+#[cfg(any(test, target_arch = "wasm32"))]
 pub(crate) use agent_skills::local::{is_local_skill_disabled, local_skill_disabled_marker_path};
+#[cfg(all(not(test), not(target_arch = "wasm32")))]
+pub(crate) use agent_skills::local_sources::discover_local_skill_source_dirs_with_provider;
+#[cfg(any(test, target_arch = "wasm32"))]
 pub(crate) use agent_skills::local_sources::{
     LocalSkillSourceKind, discover_local_skill_source_dirs_with_provider, workspace_skills_dir,
 };

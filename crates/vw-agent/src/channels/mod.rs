@@ -139,8 +139,10 @@ pub use whatsapp_web::WhatsAppWebChannel;
 // ============================================================================
 
 /// 通道配置处理
+#[cfg(any(test, target_arch = "wasm32"))]
 pub(crate) use channel_support::config;
 /// 消息格式化工具
+#[cfg(any(test, target_arch = "wasm32"))]
 pub(crate) use channel_runtime::format;
 /// 会话历史管理
 pub(crate) mod history;
@@ -163,13 +165,18 @@ pub(crate) mod session;
 // 外部依赖导入
 // ============================================================================
 
+#[cfg(any(test, target_arch = "wasm32"))]
 use crate::app::agent::memory::MemoryCategory;
 use crate::app::agent::skills;
+#[cfg(any(test, target_arch = "wasm32"))]
 pub(crate) use config::*;
+#[cfg(any(test, target_arch = "wasm32"))]
 pub(crate) use format::*;
+#[cfg(any(test, target_arch = "wasm32"))]
 pub(crate) use history::*;
 pub use manager::*;
 pub use prompt::*;
+#[cfg(any(test, target_arch = "wasm32"))]
 pub(crate) use routing::*;
 pub(crate) use runtime_command::*;
 pub(crate) use scope::*;
@@ -179,26 +186,59 @@ pub(crate) use session::*;
 #[path = "mod_tests.rs"]
 mod mod_tests;
 
+#[cfg(all(not(test), not(target_arch = "wasm32")))]
+use crate::app::agent::agent::loop_::scrub_credentials;
+#[cfg(any(test, target_arch = "wasm32"))]
 use crate::app::agent::agent::loop_::{
     build_shell_policy_instructions, scrub_credentials,
 };
+#[cfg(any(test, target_arch = "wasm32"))]
 use crate::app::agent::approval::{ApprovalManager, ApprovalResponse, PendingApprovalError};
+#[cfg(all(not(test), not(target_arch = "wasm32")))]
+use crate::app::agent::config::schema::save_config;
+#[cfg(any(test, target_arch = "wasm32"))]
 use crate::app::agent::config::schema::{apply_env_overrides, save_config};
+#[cfg(all(not(test), not(target_arch = "wasm32")))]
+use crate::app::agent::config::Config;
+#[cfg(any(test, target_arch = "wasm32"))]
 use crate::app::agent::config::{Config, NonCliNaturalLanguageApprovalMode};
+#[cfg(any(test, target_arch = "wasm32"))]
 use crate::app::agent::memory::{self, Memory};
+#[cfg(any(test, target_arch = "wasm32"))]
 use crate::app::agent::observability::{self, Observer, runtime_trace};
+#[cfg(any(test, target_arch = "wasm32"))]
 use crate::app::agent::provider::provider;
-use model_types::{ChatMessage, Provider};
+use model_types::ChatMessage;
+#[cfg(any(test, target_arch = "wasm32"))]
+use model_types::Provider;
+#[cfg(any(test, target_arch = "wasm32"))]
 use crate::app::agent::runtime;
+#[cfg(any(test, target_arch = "wasm32"))]
 use crate::app::agent::security::SecurityPolicy;
+#[cfg(any(test, target_arch = "wasm32"))]
 use crate::app::agent::tools::Tool;
+#[cfg(any(test, target_arch = "wasm32"))]
 use crate::app::agent::util::truncate_with_ellipsis;
+#[cfg(all(not(test), not(target_arch = "wasm32")))]
+use anyhow::Result;
+#[cfg(any(test, target_arch = "wasm32"))]
 use anyhow::{Context, Result};
+#[cfg(all(not(test), not(target_arch = "wasm32")))]
+use std::collections::HashMap;
+#[cfg(any(test, target_arch = "wasm32"))]
 use std::collections::{HashMap, HashSet};
+#[cfg(any(test, target_arch = "wasm32"))]
 use std::fmt::Write;
 use std::path::{Path, PathBuf};
+#[cfg(any(test, target_arch = "wasm32"))]
 use std::sync::atomic::{AtomicU64, Ordering};
+#[cfg(all(not(test), not(target_arch = "wasm32")))]
+use std::sync::Arc;
+#[cfg(any(test, target_arch = "wasm32"))]
 use std::sync::{Arc, Mutex, OnceLock};
+#[cfg(all(not(test), not(target_arch = "wasm32")))]
+use std::time::Instant;
+#[cfg(any(test, target_arch = "wasm32"))]
 use std::time::{Duration, Instant};
 use tokio_util::sync::CancellationToken;
 
@@ -276,14 +316,17 @@ pub use channel_runtime::ChannelCommands;
 
 pub(crate) use channel_support::routing::ChannelRouteSelection;
 
+#[cfg(any(test, target_arch = "wasm32"))]
 pub(crate) use channel_support::config::{
     ChannelRuntimeDefaults, ConfigFileStamp, RuntimeAutonomyPolicy, RuntimeConfigState,
 };
 
 pub use channel_support::runtime_state::ChannelRuntimeContext;
 
+#[cfg(any(test, target_arch = "wasm32"))]
 pub(crate) use channel_support::scope::{InFlightSenderTaskState, InFlightTaskCompletion};
 
+#[cfg(any(test, target_arch = "wasm32"))]
 pub(crate) use channel_runtime::ChannelHealthState;
 
 pub(crate) use channel_runtime::ConfiguredChannel;

@@ -1,5 +1,33 @@
 //! 运行器提交与审批操作。
 
+#[cfg(all(not(test), not(target_arch = "wasm32")))]
+use super::{
+    ActiveRunner,
+    CronMutation,
+    MemoryMutation,
+    PathBuf,
+    PendingPermissionReplyDto,
+    PermissionDecision,
+    Result,
+    RunnerControl,
+    TuiOverlayCommand,
+    UiConfirmIntent,
+    V3DisplayEvent,
+    V3GatewayApp,
+    WorkflowRunOwnership,
+    new_draft_id,
+    next_plan_run_request_id,
+    next_workflow_run_request_id,
+    push_runner_error,
+    spawn_directory_switch,
+    spawn_permission_reply,
+    spawn_plan_run,
+    spawn_question_reply,
+    spawn_workflow_resume,
+    spawn_workflow_run,
+    workflow_run_request,
+};
+#[cfg(any(test, target_arch = "wasm32"))]
 use super::{
     ActiveRunner,
     CronMutation,

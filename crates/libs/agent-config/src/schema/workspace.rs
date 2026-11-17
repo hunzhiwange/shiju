@@ -20,7 +20,9 @@
 //!
 //! - `active_workspace.toml` - 活动工作空间状态标记文件，记录当前使用的配置目录路径
 
-use anyhow::{Context, Result};
+use anyhow::Result;
+#[cfg(test)]
+use anyhow::Context;
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
 #[cfg(not(target_arch = "wasm32"))]
@@ -126,6 +128,7 @@ fn active_workspace_state_path(marker_root: &Path) -> PathBuf {
 ///
 /// - 使用路径规范化（canonicalize）来正确处理符号链接
 /// - 例如在 macOS 上，`/var` 可能是 `/private/var` 的符号链接
+#[cfg(test)]
 pub(super) fn is_temp_directory(path: &Path) -> bool {
     let temp = std::env::temp_dir();
     // 使用规范化路径来正确处理符号链接（例如 macOS 的 /var → /private/var）
@@ -234,6 +237,7 @@ async fn load_persisted_workspace_dirs(
 /// - 文件不存在时直接返回 `Ok(())`（幂等操作）
 /// - 删除失败时返回错误
 #[cfg(not(target_arch = "wasm32"))]
+#[cfg(test)]
 async fn remove_active_workspace_marker(marker_root: &Path) -> Result<()> {
     let state_path = active_workspace_state_path(marker_root);
 
@@ -258,6 +262,7 @@ async fn remove_active_workspace_marker(marker_root: &Path) -> Result<()> {
 ///
 /// 在 WASM 环境中，该操作为空操作。
 #[cfg(target_arch = "wasm32")]
+#[cfg(test)]
 async fn remove_active_workspace_marker(_marker_root: &Path) -> Result<()> {
     Ok(())
 }
@@ -266,6 +271,7 @@ async fn remove_active_workspace_marker(_marker_root: &Path) -> Result<()> {
 ///
 /// 在 WASM 环境中，该操作为空操作。
 #[cfg(target_arch = "wasm32")]
+#[cfg(test)]
 async fn write_active_workspace_marker(_marker_root: &Path, _config_dir: &Path) -> Result<()> {
     Ok(())
 }
@@ -298,6 +304,7 @@ async fn write_active_workspace_marker(_marker_root: &Path, _config_dir: &Path) 
 /// - 写入临时文件失败时返回错误
 /// - 原子重命名失败时删除临时文件并返回错误
 #[cfg(not(target_arch = "wasm32"))]
+#[cfg(test)]
 async fn write_active_workspace_marker(marker_root: &Path, config_dir: &Path) -> Result<()> {
     // 确保标记根目录存在
     fs::create_dir_all(marker_root).await.with_context(|| {
@@ -358,11 +365,7 @@ async fn write_active_workspace_marker(marker_root: &Path, config_dir: &Path) ->
 ///
 /// - 主标记写入失败时返回错误
 /// - 镜像标记写入失败时仅记录警告，不中断流程
-pub(crate) async fn persist_active_workspace_config_dir(config_dir: &Path) -> Result<()> {
-    let default_config_dir = default_config_dir()?;
-    persist_active_workspace_config_dir_with_default(config_dir, &default_config_dir).await
-}
-
+#[cfg(test)]
 pub(super) async fn persist_active_workspace_config_dir_with_default(
     config_dir: &Path,
     default_config_dir: &Path,
@@ -599,6 +602,7 @@ pub(super) async fn resolve_runtime_config_dirs_from_env(
 /// # 返回值
 ///
 /// 成功返回 `Ok(())`，失败返回错误
+#[cfg(test)]
 pub(crate) async fn persist_active_workspace_marker(
     default_config_dir: &Path,
     config_dir: &Path,
@@ -618,6 +622,7 @@ pub(crate) async fn persist_active_workspace_marker(
 /// # 返回值
 ///
 /// 成功返回 `Ok(())`，失败返回错误
+#[cfg(test)]
 pub(crate) async fn clear_active_workspace_marker(default_config_dir: &Path) -> Result<()> {
     remove_active_workspace_marker(default_config_dir).await
 }
@@ -640,6 +645,7 @@ pub(crate) async fn clear_active_workspace_marker(default_config_dir: &Path) -> 
 /// 主要用于确保原子写入操作（如重命名文件）的结果持久化，
 /// 防止系统崩溃后丢失文件系统更改。
 #[cfg(unix)]
+#[cfg(test)]
 pub(crate) async fn sync_directory(path: &Path) -> Result<()> {
     let file = tokio::fs::File::open(path).await?;
     file.sync_all().await?;
@@ -652,6 +658,7 @@ pub(crate) async fn sync_directory(path: &Path) -> Result<()> {
 /// 这是因为不同平台的文件系统同步机制不同，
 /// 且在大多数情况下不需要显式同步目录。
 #[cfg(not(unix))]
+#[cfg(test)]
 pub(crate) async fn sync_directory(_path: &Path) -> Result<()> {
     Ok(())
 }

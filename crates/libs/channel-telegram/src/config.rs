@@ -15,7 +15,10 @@
 //! - **流式响应**：支持流式模式下的草稿消息更新
 
 use super::TelegramChannel;
-use agent_config::runtime::{Config, StreamMode};
+use agent_config::runtime::StreamMode;
+#[cfg(test)]
+use agent_config::runtime::Config;
+#[cfg(test)]
 use gateway_pairing::pairing::PairingGuard;
 use anyhow::Context;
 use parking_lot::Mutex;
@@ -25,6 +28,7 @@ use std::sync::{Arc, RwLock};
 ///
 /// 用户通过发送此命令加配对码来完成与机器人的绑定。
 /// 例如：`/bind ABC123`
+#[cfg(test)]
 const TELEGRAM_BIND_COMMAND: &str = "/bind";
 
 impl TelegramChannel {
@@ -63,6 +67,7 @@ impl TelegramChannel {
         Self {
             bot_token,
             allowed_users: Arc::new(RwLock::new(normalized_allowed)),
+            #[cfg(test)]
             pairing: None,
             client: channel_support::http::proxied_client("channel.telegram"),
             stream_mode: StreamMode::Off,
@@ -283,6 +288,7 @@ impl TelegramChannel {
     ///
     /// - 无法找到用户主目录或打开共享数据库
     /// - 配置 payload 解密、反序列化或校验失败
+    #[cfg(test)]
     pub(super) async fn load_config_without_env() -> anyhow::Result<Config> {
         agent_config::runtime::get_global_for_tenant_without_env(
             &vw_api_transport::TenantScope::default(),
@@ -310,6 +316,7 @@ impl TelegramChannel {
     /// - 配置文件中缺少 `[channels.telegram]` 节
     /// - 身份字符串为空
     /// - 配置文件写入失败
+    #[cfg(test)]
     pub(super) async fn persist_allowed_identity(&self, identity: &str) -> anyhow::Result<()> {
         // 加载当前配置
         let mut config = Self::load_config_without_env().await?;
@@ -351,6 +358,7 @@ impl TelegramChannel {
     /// # 注意
     ///
     /// 此方法仅修改内存中的列表，需要配合 `persist_allowed_identity` 持久化
+    #[cfg(test)]
     pub(super) fn add_allowed_identity_runtime(&self, identity: &str) {
         let normalized = Self::normalize_identity(identity);
         // 忽略空身份
@@ -386,6 +394,7 @@ impl TelegramChannel {
     /// assert_eq!(TelegramChannel::extract_bind_code("/bind@mybot XYZ789"), Some("XYZ789"));
     /// assert_eq!(TelegramChannel::extract_bind_code("/other command"), None);
     /// ```
+    #[cfg(test)]
     pub(super) fn extract_bind_code(text: &str) -> Option<&str> {
         let mut parts = text.split_whitespace();
 
@@ -412,6 +421,7 @@ impl TelegramChannel {
     ///
     /// - `true`: 存在活跃的配对码
     /// - `false`: 配对码已过期、已使用或未启用配对模式
+    #[cfg(test)]
     pub(super) fn pairing_code_active(&self) -> bool {
         self.pairing.as_ref().and_then(PairingGuard::pairing_code).is_some()
             || self.allowed_users.read().is_ok_and(|users| users.is_empty())

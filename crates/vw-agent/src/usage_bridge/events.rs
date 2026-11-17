@@ -1,4 +1,5 @@
 //! Scope-local usage invalidations.
+#[cfg(any(test, target_arch = "wasm32"))]
 pub(crate) use agent_usage::events::{CacheChange, cache_channel, cache_updated};
 
 pub(crate) fn revisions(scope: &vw_api_transport::ProjectScope, host: &str) -> anyhow::Result<std::collections::BTreeMap<String, u64>> {

@@ -2,6 +2,9 @@
 use std::sync::Arc;
 use super::SessionScope;
 use crate::tools::{Tool, ToolSpec};
+#[cfg(all(not(test), not(target_arch = "wasm32")))]
+pub use session_engine::runtime::dynamic_hosts::SessionHostCalls;
+#[cfg(any(test, target_arch = "wasm32"))]
 pub use session_engine::runtime::dynamic_hosts::{HostRegistrationConflict, SessionHostCalls};
 pub(crate) struct HostTools;
 impl session_engine::runtime::dynamic_hosts::HostTools for HostTools {

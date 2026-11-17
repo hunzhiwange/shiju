@@ -67,7 +67,6 @@ pub mod claude_rotation;
 mod claude_rotation_tests;
 
 #[cfg(target_os = "macos")]
-pub(crate) use app_auth_core::keychain;
 
 #[cfg(not(target_arch = "wasm32"))]
 pub mod xai;

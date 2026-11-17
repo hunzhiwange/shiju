@@ -30,6 +30,7 @@ use ratatui::layout::Rect;
 use unicode_width::UnicodeWidthStr;
 
 const TIP_SEPARATOR: &str = " | ";
+#[cfg(test)]
 const DESIRED_SPACERS_BETWEEN_SECTIONS: u16 = 2;
 const OTHER_OPTION_LABEL: &str = "None of the above";
 const OTHER_OPTION_DESCRIPTION: &str = "Optionally, add details in notes (tab).";

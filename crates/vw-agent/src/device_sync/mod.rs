@@ -25,4 +25,5 @@ pub use ::device_sync::s3_download;
 #[cfg(target_os = "macos")]
 pub use ::device_sync::webdav_download;
 #[cfg(target_os = "macos")]
+#[cfg(any(test, target_arch = "wasm32"))]
 pub(crate) use ::device_sync::skill_receive;

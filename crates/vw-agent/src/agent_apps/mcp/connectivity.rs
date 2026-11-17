@@ -1,4 +1,5 @@
 //! Native transport adapter; catalog policy and revision checks belong to the domain.
+#[cfg(any(test, target_arch = "wasm32"))]
 pub use agent_app_services::mcp::connectivity::*;
 use agent_app_services::mcp::connection_runtime::{CheckPeer, ConnectionCheckRuntime};
 use crate::tools::mcp_common::{RunningMcpPeer, open_connection_check_peer};

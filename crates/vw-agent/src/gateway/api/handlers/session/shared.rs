@@ -3,6 +3,9 @@ use axum::http::HeaderMap;
 use vw_api_transport::TenantScope;
 use crate::gateway::{ApiError, instance::{InstanceQuery, with_instance}};
 use crate::session::ui_store;
+#[cfg(all(not(test), not(target_arch = "wasm32")))]
+pub(super) use gateway_session::shared::{UiSessionListQuery, UiSessionCreateBody};
+#[cfg(any(test, target_arch = "wasm32"))]
 pub(super) use gateway_session::shared::{UiSessionListQuery, UiSessionCreateBody, session_api_error, lifecycle_api_error};
 pub(super) fn has_explicit_directory(query: &InstanceQuery, headers: &HeaderMap) -> bool {
     gateway_session::shared::has_explicit_directory(&gateway_instance::host::InstanceQuery { directory: query.directory.clone() }, headers)

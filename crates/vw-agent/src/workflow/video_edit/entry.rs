@@ -5,6 +5,9 @@ use crate::{
 use anyhow::Result;
 use serde_json::Value;
 use std::sync::Arc;
+#[cfg(all(not(test), not(target_arch = "wasm32")))]
+pub use workflow_video_edit::entry::command_query;
+#[cfg(any(test, target_arch = "wasm32"))]
 pub use workflow_video_edit::entry::{command_query, VideoEntryCloud, ShijuVideoEntryProvider};
 use workflow_video_edit::entry::{VideoEntryHost, VideoEntryInput, VideoEntryServices};
 

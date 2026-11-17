@@ -32,6 +32,7 @@ impl<H: ContextHost> GitOperationsTool<H> {
         matches!(operation, "merge" | "commit" | "add" | "checkout" | "stash" | "reset" | "revert")
     }
 
+    #[cfg(test)]
     fn is_read_only(&self, operation: &str) -> bool {
         matches!(operation, "status" | "diff" | "log" | "show" | "branch" | "rev-parse")
     }

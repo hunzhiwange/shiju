@@ -1,5 +1,25 @@
 //! 会话视图与消息投影。
 
+#[cfg(all(not(test), not(target_arch = "wasm32")))]
+use super::{
+    ChatWidget,
+    ChatWidgetConfig,
+    GatewayUiRuntime,
+    GatewayV3Bridge,
+    PermissionMode,
+    ReasoningEffort,
+    SESSION_HISTORY_DISPLAY_LIMIT,
+    TuiState,
+    UiMessage,
+    UiStepState,
+    V3Attachment,
+    V3AttachmentKind,
+    V3DisplayEvent,
+    V3SelectionItem,
+    V3StepStatus,
+    command_palette_items_with_integrations,
+};
+#[cfg(any(test, target_arch = "wasm32"))]
 use super::{
     ChatWidget,
     ChatWidgetConfig,

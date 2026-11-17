@@ -4,6 +4,7 @@
 //! 网关只通过存储门面访问这些能力，不直接依赖具体数据库实现。
 
 /// 文档导入载荷的校验与文本提取。
+#[cfg(any(test, target_arch = "wasm32"))]
 pub(crate) use agent_knowledge::import;
 
 /// 知识库对外存储门面；名称为兼容既有调用者保留。

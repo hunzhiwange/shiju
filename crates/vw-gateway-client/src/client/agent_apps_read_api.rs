@@ -59,6 +59,7 @@ impl GatewayClient {
         gateway_app_read::GatewayAppReadClient::new(self.transport.clone())
             .agent_apps_installations_authorized(host, app, token).await
     }
+    #[cfg(test)]
     pub(super) async fn agent_apps_read_request<T: serde::de::DeserializeOwned>(
         &self,
         path: &str,

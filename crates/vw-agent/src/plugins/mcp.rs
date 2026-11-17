@@ -1,4 +1,7 @@
 //! Compose MCP loading with the active tenant turn selection.
+#[cfg(all(not(test), not(target_arch = "wasm32")))]
+pub(crate) use agent_plugins::mcp::plugin_mcp_discovery_options;
+#[cfg(any(test, target_arch = "wasm32"))]
 pub(crate) use agent_plugins::mcp::{
     plugin_mcp_discovery_options, load_plugin_mcp_declarations,
 };

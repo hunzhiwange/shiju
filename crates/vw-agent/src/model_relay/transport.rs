@@ -11,17 +11,23 @@ impl ProviderRelayBackend {
 }
 
 
+#[cfg(any(test, target_arch = "wasm32"))]
 pub(crate) use model_protocol::endpoint_urls::chat_url;
 
 
+#[cfg(any(test, target_arch = "wasm32"))]
 pub(crate) use model_protocol::endpoint_urls::official_deepseek_messages_url;
 
+#[cfg(any(test, target_arch = "wasm32"))]
 pub(crate) use model_protocol::endpoint_urls::official_alibaba_messages_url;
 
+#[cfg(any(test, target_arch = "wasm32"))]
 pub(super) use model_protocol::endpoint_urls::messages_url;
 
+#[cfg(any(test, target_arch = "wasm32"))]
 pub(super) use model_protocol::endpoint_urls::responses_url;
 
+#[cfg(any(test, target_arch = "wasm32"))]
 pub(super) use model_protocol::endpoint_urls::gemini_url;
 
 #[async_trait::async_trait]

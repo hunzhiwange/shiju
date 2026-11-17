@@ -1,5 +1,6 @@
 //! 通道运行实现与宿主能力注入。
 use super::*;
+#[cfg(any(test, target_arch = "wasm32"))]
 pub(crate) use channel_runtime::manager::message_execution::*;
 pub(crate) async fn run_message_execution(
     ctx: &ChannelRuntimeContext,

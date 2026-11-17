@@ -21,6 +21,7 @@ use super::embeddings::EmbeddingProvider;
 use parking_lot::Mutex;
 #[cfg(not(target_arch = "wasm32"))]
 use rusqlite::Connection;
+#[cfg(test)]
 use std::path::PathBuf;
 use std::sync::Arc;
 
@@ -31,6 +32,7 @@ const SQLITE_OPEN_TIMEOUT_CAP_SECS: u64 = 300;
 pub struct SqliteMemory {
     #[cfg(not(target_arch = "wasm32"))]
     conn: Arc<Mutex<Connection>>,
+    #[cfg(test)]
     db_path: PathBuf,
     embedder: Arc<dyn EmbeddingProvider>,
     vector_weight: f32,

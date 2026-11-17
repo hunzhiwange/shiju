@@ -1,5 +1,18 @@
 //! 活动运行器生命周期。
 
+#[cfg(all(not(test), not(target_arch = "wasm32")))]
+use super::{
+    ActiveRunner,
+    Arc,
+    Editor,
+    EditorAction,
+    RunnerControl,
+    V3Action,
+    V3GatewayApp,
+    mpsc,
+    push_runner_error,
+};
+#[cfg(any(test, target_arch = "wasm32"))]
 use super::{
     ActiveRunner,
     ActiveStream,
@@ -204,6 +217,7 @@ impl ActiveRunner {
     }
 
     /// 返回交互刷新或回复工作线程是否尚未结束。
+    #[cfg(test)]
     pub(crate) fn interaction_in_flight(&self) -> bool {
         self.interaction_in_flight
     }

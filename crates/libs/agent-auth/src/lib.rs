@@ -80,10 +80,12 @@ pub fn remove(key: &str) -> Result<(), std::io::Error> {
 
 /// 认证服务门面。
 ///
-/// 该类型预留状态目录和密钥加密开关，用于统一承接不同 provider 的
-/// OAuth token 获取流程。字段保持私有，避免调用方直接接触敏感状态。
+/// 保留旧构造接口供调用方迁移；当前 OAuth 接口尚未使用构造参数。
+/// 测试构建保留参数快照以验证兼容接口。
 pub struct AuthService {
+    #[cfg(test)]
     state_dir: PathBuf,
+    #[cfg(test)]
     secrets_encrypt: bool,
 }
 
@@ -99,7 +101,14 @@ impl AuthService {
     ///
     /// 返回配置好的 `AuthService` 实例。
     pub fn new(state_dir: &std::path::Path, secrets_encrypt: bool) -> Self {
-        Self { state_dir: state_dir.to_path_buf(), secrets_encrypt }
+        #[cfg(not(test))]
+        let _ = (state_dir, secrets_encrypt);
+        Self {
+            #[cfg(test)]
+            state_dir: state_dir.to_path_buf(),
+            #[cfg(test)]
+            secrets_encrypt,
+        }
     }
 
     /// 从应用配置创建认证服务。
@@ -112,7 +121,7 @@ impl AuthService {
     ///
     /// 返回默认认证服务实例。
     pub fn from_config(_config: &config_aggregate::Config) -> Self {
-        Self { state_dir: std::path::PathBuf::new(), secrets_encrypt: false }
+        Self::new(std::path::Path::new(""), false)
     }
 
     /// 获取可用的 Gemini access token。

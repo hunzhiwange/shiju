@@ -11,8 +11,13 @@ use crate::app::agent::hooks::HookRunner;
 use crate::app::agent::security::SecurityPolicy;
 
 use tool_context::host::ContextHost;
+#[cfg(any(test, target_arch = "wasm32"))]
 pub use tool_context::context::{WorkflowState, WorktreeBindingState};
+#[cfg(any(test, target_arch = "wasm32"))]
 pub use tool_context::{MAX_PENDING_IMAGE_RELOADS, PendingImageReloadQueue};
+#[cfg(all(not(test), not(target_arch = "wasm32")))]
+pub use super::read_state::{FileReadStateEntry, FileSnapshot};
+#[cfg(any(test, target_arch = "wasm32"))]
 pub use super::read_state::{FileReadStateCache, FileReadStateEntry, FileSnapshot};
 pub type ToolUseContext = tool_context::context::ToolUseContext<AgentContextHost>;
 #[derive(Clone)]

@@ -11,52 +11,72 @@
 pub(crate) mod agent {
     pub use crate::agent;
     pub use crate::approval;
+    #[cfg(any(test, target_arch = "wasm32"))]
     pub use crate::auth;
+    #[cfg(any(test, target_arch = "wasm32"))]
     pub use crate::bus;
     pub use crate::channels;
+    #[cfg(any(test, target_arch = "wasm32"))]
     pub use crate::command;
     pub use crate::config;
     pub(crate) use crate::cron;
     #[cfg(not(target_arch = "wasm32"))]
+    #[cfg(any(test, target_arch = "wasm32"))]
     pub use crate::daemon;
     #[cfg(not(target_arch = "wasm32"))]
+    #[cfg(any(test, target_arch = "wasm32"))]
     pub use crate::doctor;
+    #[cfg(any(test, target_arch = "wasm32"))]
     pub use crate::env;
+    #[cfg(any(test, target_arch = "wasm32"))]
     pub use crate::file;
     pub use crate::flag;
 
     #[cfg(not(target_arch = "wasm32"))]
     pub use crate::gateway;
+    #[cfg(any(test, target_arch = "wasm32"))]
     pub use crate::global;
 
     pub(crate) use crate::health;
+    #[cfg(any(test, target_arch = "wasm32"))]
     pub(crate) use crate::heartbeat;
     pub use crate::hooks;
+    #[cfg(any(test, target_arch = "wasm32"))]
     pub use crate::id;
+    #[cfg(any(test, target_arch = "wasm32"))]
     pub use crate::installation;
+    #[cfg(any(test, target_arch = "wasm32"))]
     pub(crate) use crate::integrations;
 
     pub use crate::memory;
     pub(crate) use crate::multimodal;
     pub use crate::observability;
+    #[cfg(any(test, target_arch = "wasm32"))]
     pub use crate::patch;
+    #[cfg(any(test, target_arch = "wasm32"))]
     pub use crate::permission;
     pub use crate::project;
     pub use crate::provider;
     pub use crate::providers;
     #[cfg(not(target_arch = "wasm32"))]
+    #[cfg(any(test, target_arch = "wasm32"))]
     pub use crate::pty;
+    #[cfg(any(test, target_arch = "wasm32"))]
     pub use crate::question;
     pub use crate::runtime;
+    #[cfg(any(test, target_arch = "wasm32"))]
     pub use crate::scheduler;
     pub use crate::security;
 
     pub use crate::session;
+    #[cfg(any(test, target_arch = "wasm32"))]
     pub use crate::shell;
     pub use crate::skill;
 
     pub use crate::skills;
+    #[cfg(any(test, target_arch = "wasm32"))]
     pub use crate::snapshot;
+    #[cfg(any(test, target_arch = "wasm32"))]
     pub use crate::storage;
     pub use crate::tools;
     #[cfg(not(target_arch = "wasm32"))]

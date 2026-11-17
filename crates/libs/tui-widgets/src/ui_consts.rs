@@ -16,8 +16,11 @@
 /// - Chat composer reserves this many columns for the left border + padding.
 /// - Status indicator lines begin with this many spaces for alignment.
 /// - User history lines account for this many columns (e.g., "▌ ") when wrapping.
+#[cfg(test)]
 pub(crate) const LIVE_PREFIX_COLS: u16 = 2;
 /// 页脚沿用实时内容的左侧缩进列数。
+#[cfg(test)]
 pub(crate) const FOOTER_INDENT_COLS: usize = LIVE_PREFIX_COLS as usize;
 /// 记录查看快捷键的统一提示文本。
+#[cfg(test)]
 pub(crate) const TRANSCRIPT_HINT: &str = "ctrl + t to view transcript";

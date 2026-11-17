@@ -5,6 +5,7 @@ use acp_server::server::BackendError;
 use crate::provider::provider;
 use crate::session::runtime::SessionScope;
 
+#[cfg(any(test, target_arch = "wasm32"))]
 pub(super) use agent_acp::models::{load_selection, save_selection};
 
 pub(super) async fn session_models(

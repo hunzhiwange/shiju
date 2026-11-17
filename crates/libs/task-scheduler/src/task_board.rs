@@ -685,6 +685,7 @@ impl<'a> AgentTaskBoardService<'a> {
         )
     }
 
+    #[cfg(test)]
     fn append_audit_event_with_payload(
         &self,
         project_path: &(impl AgentSchedulerStorageContext + ?Sized),
@@ -979,6 +980,7 @@ fn set_reasoning_effort(
     Ok(())
 }
 
+#[cfg(any(test, target_arch = "wasm32"))]
 pub(super) use crate::runner::local::reasoning_effort_from_metadata;
 
 fn set_metadata_u32(metadata: &mut Map<String, Value>, key: &str, value: Option<u32>) {
@@ -1003,6 +1005,7 @@ fn timestamp_field(value: &Value, key: &str) -> Option<TimestampMs> {
     value.get(key).and_then(Value::as_i64).map(TimestampMs)
 }
 
+#[cfg(test)]
 fn string_field(value: &Value, key: &str) -> Option<String> {
     value.get(key).and_then(Value::as_str).and_then(non_empty_str).map(str::to_string)
 }

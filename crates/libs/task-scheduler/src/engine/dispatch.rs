@@ -33,6 +33,7 @@ pub enum DispatchTarget {
 }
 
 impl DispatchTarget {
+    #[cfg(test)]
     fn as_str(&self) -> &'static str {
         match self {
             Self::Local(_) => "local",
@@ -302,6 +303,7 @@ fn dispatch_metadata_string(task: &StoredAgentTask, key: &str) -> Option<String>
         .map(str::to_string)
 }
 
+#[cfg(test)]
 fn required_skills_from_metadata(metadata: &Value) -> Result<Vec<String>> {
     let skills = string_array_field(metadata, "required_skills")?;
     if skills.is_empty() {
@@ -310,6 +312,7 @@ fn required_skills_from_metadata(metadata: &Value) -> Result<Vec<String>> {
     Ok(skills)
 }
 
+#[cfg(test)]
 fn string_array_field(metadata: &Value, field_name: &str) -> Result<Vec<String>> {
     let Some(value) = metadata.get(field_name) else {
         return Ok(Vec::new());
@@ -328,6 +331,7 @@ fn string_array_field(metadata: &Value, field_name: &str) -> Result<Vec<String>>
         .collect()
 }
 
+#[cfg(test)]
 fn preferred_runtime_from_metadata(metadata: &Value) -> Result<Option<String>> {
     let Some(value) = metadata.get("preferred_runtime").or_else(|| metadata.get("runtime")) else {
         return Ok(None);

@@ -1,7 +1,11 @@
 //! Project instance host composition.
 use gateway_types::ApiError;
 use crate::project;
+#[cfg(any(test, target_arch = "wasm32"))]
 use std::path::PathBuf;
+#[cfg(all(not(test), not(target_arch = "wasm32")))]
+pub use agent_gateway::instance::{InstanceQuery, resolve_directory};
+#[cfg(any(test, target_arch = "wasm32"))]
 pub use agent_gateway::instance::{InstanceQuery, resolve_directory, normalize_rel_path, load_local_project};
 #[cfg(test)]
 use agent_gateway::instance::display_directory;

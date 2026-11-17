@@ -5,6 +5,7 @@ use crate::global_database::GlobalDatabase;
 use vw_api_transport::TenantScope;
 use vw_api_app_aggregation::{AggregationQuery, DesktopMappingChange};
 use super::aggregation_codex_settings::SnapshotHost;
+#[cfg(any(test, target_arch = "wasm32"))]
 pub(super) use gateway_aggregation::aggregation_desktop::{finish, failure};
 pub(super) fn router() -> Router {
     let router =

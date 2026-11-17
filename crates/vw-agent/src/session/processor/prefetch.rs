@@ -1,6 +1,9 @@
 //! Typed prefetch tool and agent lookup composition.
 use std::{collections::HashSet, path::{Path, PathBuf}};
 use crate::tools::ToolRuntimeContext;
+#[cfg(all(not(test), not(target_arch = "wasm32")))]
+pub(crate) use session_engine::prefetch::app_session_scope_from_root_async;
+#[cfg(any(test, target_arch = "wasm32"))]
 pub(crate) use session_engine::prefetch::{block_on, app_session_scope_from_root, app_session_scope_from_root_async};
 pub(crate) struct AgentPrefetchHost;
 impl session_engine::prefetch::PrefetchHost for AgentPrefetchHost {

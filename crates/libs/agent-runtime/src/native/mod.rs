@@ -482,6 +482,7 @@ impl NativeRuntime {
     ///     println!("Shell 路径: {:?}", path);
     /// }
     /// ```
+    #[cfg(test)]
     pub(crate) fn selected_shell_program(&self) -> Option<&Path> {
         self.shell.as_ref().map(|shell| shell.program.as_path())
     }

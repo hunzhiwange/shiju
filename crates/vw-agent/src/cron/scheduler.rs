@@ -50,6 +50,7 @@ use chrono::{DateTime, Utc};
 use std::sync::Arc;
 // Execution rule tests live in agent-cron.
 // Shell command and pure scheduling tests live in agent-cron.
+#[cfg(any(test, target_arch = "wasm32"))]
 pub(crate) use agent_cron::scheduler::notify_schedule_changed;
 #[cfg(not(target_arch = "wasm32"))]
 use agent_cron::scheduler::{cron_gateway_agent_request, format_gateway_agent_output};

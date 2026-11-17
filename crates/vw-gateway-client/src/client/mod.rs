@@ -405,7 +405,7 @@ mod usage_read_api;
 mod usage_scan_api;
 pub use gateway_usage_scan::*;
 
-pub use gateway_usage_price::*;
+
 mod usage_price_api;
 
 #[cfg(all(test, not(target_arch = "wasm32")))]

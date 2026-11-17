@@ -128,6 +128,9 @@ pub(crate) use core::{
 /// - `run_tool_call_loop` - 运行工具调用循环（基本版本）
 /// - `run_tool_call_loop_with_non_cli_approval_context` - 带非CLI审批上下文的循环
 /// - `run_tool_call_loop_with_reply_target` - 带回复目标的循环
+#[cfg(all(not(test), not(target_arch = "wasm32")))]
+pub(crate) use core::run_tool_call_loop;
+#[cfg(any(test, target_arch = "wasm32"))]
 pub(crate) use core::{
     ToolLoopCancelled, is_tool_iteration_limit_error, is_tool_loop_cancelled, run_tool_call_loop,
 };
@@ -138,6 +141,7 @@ pub(crate) use core::{
 /// - `build_shell_policy_instructions` - 构建Shell策略指令
 /// - `build_tool_instructions` - 从工具列表构建指令
 /// - `build_tool_instructions_from_specs` - 从规格说明构建指令
+#[cfg(any(test, target_arch = "wasm32"))]
 pub(crate) use instructions::{
     build_shell_policy_instructions, build_tool_instructions_from_specs,
 };
@@ -191,6 +195,7 @@ pub(crate) use history::{apply_compaction_summary, build_compaction_transcript, 
 pub(crate) use context::build_context;
 
 /// 非 CLI 审批上下文（供 crate 内部复用）
+#[cfg(any(test, target_arch = "wasm32"))]
 pub(crate) use approval::NonCliApprovalContext;
 
 /// 带 非 CLI 审批上下文的工具循环函数（仅供测试使用）

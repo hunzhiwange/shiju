@@ -285,7 +285,7 @@ impl<H: super::AgentHost> AgentBuilder<H> {
         Ok(Agent {
             provider: self.provider.ok_or_else(|| anyhow::anyhow!("provider is required"))?,
             tools,
-            tool_specs,
+            _tool_specs: tool_specs,
             memory: self.memory.ok_or_else(|| anyhow::anyhow!("memory is required"))?,
             observer: self.observer.ok_or_else(|| anyhow::anyhow!("observer is required"))?,
             security: self.security,

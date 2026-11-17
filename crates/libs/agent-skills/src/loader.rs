@@ -388,6 +388,7 @@ fn frontmatter_string(value: Option<&str>) -> Option<String> {
 /// # 返回值
 ///
 /// 返回提取到的描述字符串。如果找不到有效描述，返回 `"No description"`。
+#[cfg(test)]
 fn extract_description(content: &str) -> String {
     parse_markdown_skill_metadata(content)
         .description
@@ -411,6 +412,7 @@ fn extract_description(content: &str) -> String {
 /// # 性能
 ///
 /// 找到第一个有效描述行后立即返回，不会读取文件的剩余部分。
+#[cfg(test)]
 fn extract_description_from_markdown(path: &Path) -> Result<String> {
     Ok(read_markdown_skill_metadata(path)?
         .description

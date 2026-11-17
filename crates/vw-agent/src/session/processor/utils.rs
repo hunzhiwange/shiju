@@ -7,12 +7,14 @@ mod output_compaction;
 mod session_ingest;
 mod tool_parsing;
 
+#[cfg(any(test, target_arch = "wasm32"))]
 pub(crate) use docs::{is_docs_request, list_docs};
 #[allow(unused_imports)]
 pub(crate) use file_links::{
     build_file_link, compact_file_link, extract_file_link_blocks, extract_file_path_from_input,
     maybe_inject_file_link, resolve_full_path,
 };
+#[cfg(any(test, target_arch = "wasm32"))]
 pub(crate) use message_format::{
     assistant_message_with_reasoning, now_ms, tool_calls_to_assistant_message,
     tool_result_to_message,

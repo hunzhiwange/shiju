@@ -36,7 +36,9 @@ mod runtime_pipeline;
 pub mod selectors;
 use cli_interaction_model::snapshots;
 
-use self::selectors::{TuiSearchTextCache, TuiTranscriptLayoutCache, TuiTranscriptMeasurements};
+use self::selectors::{TuiSearchTextCache, TuiTranscriptLayoutCache};
+#[cfg(test)]
+use self::selectors::TuiTranscriptMeasurements;
 use self::selectors::{TuiTranscriptProjectionCache, derive_transcript_projection_cache};
 
 const EXTENDED_MESSAGE_PREFIX: &str = "vibewindow:tui:";
@@ -107,18 +109,21 @@ impl Default for TuiScrollState {
 
 impl TuiScrollState {
     /// 将滚动位置钳制到当前消息数量允许的范围内。
+    #[cfg(test)]
     pub(crate) fn clamp(&mut self, message_count: usize) {
         self.top_message = self.top_message.min(message_count.saturating_sub(1));
         self.refresh_sticky(message_count);
     }
 
     /// 让滚动位置对齐到末尾消息。
+    #[cfg(test)]
     pub(crate) fn snap_to_tail(&mut self, message_count: usize) {
         self.top_message = message_count.saturating_sub(1);
         self.refresh_sticky(message_count);
     }
 
     /// 同步当前 scrollable 宿主反馈出的视口能力。
+    #[cfg(test)]
     pub(crate) fn sync_viewport(&mut self, viewport_height: u16, viewport_width: u16) {
         // 兼容现有 footer/测试摘要；真实窗口裁剪改由 selectors 基于行高推导。
         self.viewport_messages = viewport_height as usize;
@@ -150,6 +155,7 @@ impl TuiScrollState {
         }
     }
 
+    #[cfg(test)]
     fn refresh_sticky(&mut self, message_count: usize) {
         self.sticky_message = if self.follow_tail || message_count == 0 || self.top_message == 0 {
             None
@@ -412,11 +418,13 @@ pub struct TuiModelCatalogEntry {
 
 impl TuiModelCatalogEntry {
     /// 返回可直接提交给 `/model` 的稳定模型标识。
+    #[cfg(test)]
     pub(crate) fn qualified_id(&self) -> String {
         format!("{}/{}", self.provider_id, self.model_id)
     }
 
     /// 供 prompt footer 展示的附加说明。
+    #[cfg(test)]
     pub(crate) fn suggestion_detail(&self) -> String {
         if self.model_name.trim().is_empty() || self.model_name == self.model_id {
             format!("供应商: {}", self.provider_name)
@@ -426,6 +434,7 @@ impl TuiModelCatalogEntry {
     }
 
     /// 按 provider/model 的常见检索字段做不区分大小写的包含匹配。
+    #[cfg(test)]
     pub(crate) fn matches_query(&self, query: &str) -> bool {
         let query = query.trim();
         if query.is_empty() {
@@ -693,6 +702,7 @@ impl TuiState {
     }
 
     /// 在历史头部插入消息，同时按稳定消息 ID 保持手动滚动锚点。
+    #[cfg(test)]
     pub(crate) fn prepend_messages_preserving_anchor(&mut self, mut messages: Vec<UiMessage>) {
         if messages.is_empty() {
             return;
@@ -752,6 +762,7 @@ impl TuiState {
     }
 
     /// 合并 renderer 对当前可见窗口的真实行高测量结果。
+    #[cfg(test)]
     pub(crate) fn apply_transcript_measurements(
         &mut self,
         measurements: &TuiTranscriptMeasurements,
@@ -791,6 +802,7 @@ impl TuiState {
     }
 
     /// 清空当前 transcript 与持久化镜像，但保留 workspace/session 上下文。
+    #[cfg(test)]
     pub(crate) fn clear_messages(&mut self) {
         self.messages.clear();
         self.unseen_baseline_id = None;

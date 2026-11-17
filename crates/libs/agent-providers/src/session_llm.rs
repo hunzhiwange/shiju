@@ -78,6 +78,7 @@ impl SessionLlmProvider {
             .collect()
     }
 
+    #[cfg(any(test, target_arch = "wasm32"))]
     fn extract_system_and_last_user<'a>(messages: &'a [ChatMessage]) -> (Option<&'a str>, &'a str) {
         let system = messages.iter().find(|m| m.role == "system").map(|m| m.content.as_str());
         let last_user =

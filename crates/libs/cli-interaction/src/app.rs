@@ -8,11 +8,13 @@ use cli_gateway_transport::stream_adapter::terminal_from_error_message;
 use anyhow::{Result, anyhow};
 use crossterm::event::{self, Event, KeyEventKind};
 use dialoguer::Editor;
+#[cfg(any(test, target_arch = "wasm32"))]
 use ratatui::backend::Backend;
 use ratatui::backend::CrosstermBackend;
 use ratatui::layout::Rect;
 use ratatui::text::Line;
 use std::io;
+#[cfg(any(test, target_arch = "wasm32"))]
 use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
@@ -26,6 +28,13 @@ use vw_gateway_client::{
     GatewayWorkflowStreamEvent, PendingPermissionReplyDto,
 };
 use session_ui_types::{ChatSession, ChatSessionMeta};
+#[cfg(all(not(test), not(target_arch = "wasm32")))]
+use vw_tui::{
+    ChatWidget, ChatWidgetConfig, CustomTerminal, TerminalMode, TranscriptPager,
+    TranscriptReflowState, V3Action, V3Attachment, V3AttachmentKind, V3DisplayEvent, V3Event,
+    V3SelectionItem, V3StepStatus, run_terminal,
+};
+#[cfg(any(test, target_arch = "wasm32"))]
 use vw_tui::{
     ChatWidget, ChatWidgetConfig, CustomTerminal, TerminalMode, TranscriptPager,
     TranscriptReflowState, V3Action, V3Attachment, V3AttachmentKind, V3DisplayEvent, V3Event,
@@ -73,6 +82,11 @@ use cli_gateway_automation::orchestration::{
     control_owned_task_blocking, load_orchestration_blocking,
     load_owned_task_detail_blocking, load_owned_workflow_detail_blocking,
 };
+#[cfg(all(not(test), not(target_arch = "wasm32")))]
+use cli_gateway_session::plan_run::{
+    stop_owned_plan_run_blocking, stream_plan_run_resumable_blocking,
+};
+#[cfg(any(test, target_arch = "wasm32"))]
 use cli_gateway_session::plan_run::{
     plan_run_request, stop_owned_plan_run_blocking, stream_plan_run_resumable_blocking,
 };
@@ -347,6 +361,7 @@ pub(crate) use startup::initial_tui_state;
 pub(crate) use startup::restore_or_create_session_state;
 pub(crate) use startup::bootstrap_directory_switch;
 use startup::new_draft_id;
+#[cfg(any(test, target_arch = "wasm32"))]
 pub(crate) use terminal::apply_ready_terminal_events;
 use terminal::run_event_loop;
 use workers::spawn_stream;

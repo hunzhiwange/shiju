@@ -3,7 +3,6 @@ use vw_api_app_operations::{AppActionExecutionResult, AppActionPreview, AppActio
 use super::GatewayAppLifecycleClient;
 use serde::{Serialize, de::DeserializeOwned};
 use {
-    vw_api_types::agent_apps::*,
     vw_api_transport::id::TaskId,
 };
 

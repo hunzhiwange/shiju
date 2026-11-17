@@ -45,6 +45,7 @@ pub struct ClawdTalkChannel {
     #[cfg(test)]
     telnyx_api_url: String,
     /// Webhook 密钥，用于验证传入通话的签名
+    #[cfg(test)]
     webhook_secret: Option<String>,
 }
 
@@ -83,6 +84,7 @@ impl ClawdTalkChannel {
                 .expect("ClawdTalk HTTP client should build"),
             #[cfg(test)]
             telnyx_api_url: Self::TELNYX_API_URL.to_string(),
+            #[cfg(test)]
             webhook_secret: config.webhook_secret,
         }
     }

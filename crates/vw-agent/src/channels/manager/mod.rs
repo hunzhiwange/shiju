@@ -24,20 +24,30 @@ mod start;
 mod telegram;
 mod typing;
 
+#[cfg(any(test, target_arch = "wasm32"))]
 pub(crate) use channels_config::*;
 pub use command::*;
+#[cfg(any(test, target_arch = "wasm32"))]
 pub(crate) use dispatch::*;
+#[cfg(any(test, target_arch = "wasm32"))]
 pub(crate) use errors::*;
 pub(crate) use execution_control::*;
 pub use health::*;
+#[cfg(any(test, target_arch = "wasm32"))]
 pub(crate) use listener::*;
+#[cfg(any(test, target_arch = "wasm32"))]
 pub(crate) use message_execution::*;
+#[cfg(any(test, target_arch = "wasm32"))]
 pub(crate) use message_helpers::*;
+#[cfg(any(test, target_arch = "wasm32"))]
 pub(crate) use message_response::*;
 pub(crate) use message_result::*;
+#[cfg(any(test, target_arch = "wasm32"))]
 pub(crate) use provider::*;
 pub use start::*;
+#[cfg(any(test, target_arch = "wasm32"))]
 pub(crate) use telegram::*;
+#[cfg(any(test, target_arch = "wasm32"))]
 pub(crate) use typing::*;
 
 #[cfg(test)]

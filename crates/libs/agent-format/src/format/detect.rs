@@ -39,8 +39,10 @@ pub(super) async fn is_enabled(state: &Arc<State>, item: &FormatterInfo) -> bool
 impl FormatterInfo {
     async fn enabled(&self) -> bool {
         match self.enabled {
+            #[cfg(test)]
             EnabledCheck::Always => true,
             EnabledCheck::Which(program) => which(program).is_some(),
+            #[cfg(test)]
             EnabledCheck::FileUpAny(targets) => {
                 let start = instance::directory();
                 if start.trim().is_empty() {

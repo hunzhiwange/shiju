@@ -343,6 +343,6 @@ mod mod_tests;
 #[path = "tests.rs"]
 mod tests;
 
-use serde::{Deserialize, Serialize};
+
 
 pub use agent_cli_types::IntegrationCommands;

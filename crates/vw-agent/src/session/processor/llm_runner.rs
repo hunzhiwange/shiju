@@ -4,6 +4,9 @@ use crate::session::message::AssistantError;
 use crate::tools::ToolSpec;
 use serde_json::Value;
 use session_engine::processor_events::StreamEvent;
+#[cfg(all(not(test), not(target_arch = "wasm32")))]
+pub(crate) use session_engine::llm_runner::LlmStep;
+#[cfg(any(test, target_arch = "wasm32"))]
 pub(crate) use session_engine::llm_runner::{LlmStep, is_prompt_too_long_error, input_length_range_max, is_request_too_long_error};
 #[cfg(test)]
 use session_engine::llm_runner::collect_llm_step_from_stream;

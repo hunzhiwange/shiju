@@ -1,4 +1,7 @@
 //! 宿主租户上下文与网关审批缓存组合。
+#[cfg(all(not(test), not(target_arch = "wasm32")))]
+pub(crate) use agent_gateway::approval_state::clear_approval_manager_for_directory;
+#[cfg(any(test, target_arch = "wasm32"))]
 pub(crate) use agent_gateway::approval_state::{ACP_APPROVAL_CHANNEL, clear_approval_manager_for_directory};
 
 pub(crate) async fn approval_manager_for_current_instance() -> std::sync::Arc<agent_approval::ApprovalManager> {

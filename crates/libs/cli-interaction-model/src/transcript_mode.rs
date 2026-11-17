@@ -32,16 +32,19 @@ pub struct TranscriptModeState {
 }
 
 impl TranscriptModeState {
+    #[cfg(test)]
     pub(crate) fn visible_lines(&self) -> &[String] {
         let start = self.top_line.min(self.lines.len());
         let end = start.saturating_add(self.viewport_rows.max(1)).min(self.lines.len());
         &self.lines[start..end]
     }
 
+    #[cfg(test)]
     pub(crate) fn max_top_line(&self) -> usize {
         self.lines.len().saturating_sub(self.viewport_rows.max(1))
     }
 
+    #[cfg(test)]
     pub(crate) fn clamp_top_line(&mut self) {
         self.top_line = self.top_line.min(self.max_top_line());
     }

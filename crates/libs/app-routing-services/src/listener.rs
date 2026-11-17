@@ -310,10 +310,6 @@ impl RoutingListener {
     }
 
     #[cfg(target_os = "macos")]
-    #[cfg_attr(
-        not(test),
-        expect(dead_code, reason = "awaits the aggregation configuration caller")
-    )]
     pub fn revoke_aggregation(
         &self,
         handle: &super::RouteRevocation,

@@ -15,6 +15,7 @@ use tui_approval::ApprovalOverlay;
 use tui_user_input::RequestUserInputOverlay;
 use tui_bottom_pane::BottomPane;
 use tui_widgets::bottom_pane_view::BottomPaneView;
+#[cfg(test)]
 use tui_cells::history_cell::HistoryCell;
 use tui_render::renderable::Renderable;
 use tui_contracts::action::{

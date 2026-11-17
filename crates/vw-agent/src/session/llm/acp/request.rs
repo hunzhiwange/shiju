@@ -51,6 +51,7 @@ impl Host for RuntimeHost {
 pub(crate) async fn do_stream_request_acp(model: &provider::Model, info: &provider::Info, auth: Option<&auth::Info>, options: &Value, messages: &Value, session: &str, abort: Option<&tokio::sync::watch::Receiver<bool>>, on_event: &mut impl FnMut(StreamEvent)) -> Result<(), Error> {
     llm_runtime::acp::request::do_stream_request_acp::<RuntimeHost>(model, info, auth, options, messages, session, abort, on_event).await
 }
+#[cfg(any(test, target_arch = "wasm32"))]
 pub(super) use llm_runtime::acp::request::validate_session_model;
 #[cfg(test)]
 #[path = "request_tests.rs"]

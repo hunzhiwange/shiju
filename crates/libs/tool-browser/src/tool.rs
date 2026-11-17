@@ -54,13 +54,18 @@ impl BrowserTool {
         native_chrome_path: Option<String>,
         computer_use: super::ComputerUseConfig,
     ) -> Self {
+        #[cfg(not(any(test, feature = "browser-native")))]
+        let _ = (native_headless, native_webdriver_url, native_chrome_path);
         Self {
             security,
             allowed_domains: normalize_domains(allowed_domains),
             session_name,
             backend,
+            #[cfg(any(test, feature = "browser-native"))]
             native_headless,
+            #[cfg(any(test, feature = "browser-native"))]
             native_webdriver_url,
+            #[cfg(any(test, feature = "browser-native"))]
             native_chrome_path,
             computer_use,
             #[cfg(feature = "browser-native")]
@@ -110,6 +115,7 @@ impl BrowserTool {
     }
 
     /// 返回经过解析与协议校验的 Computer Use 服务地址。
+    #[cfg(test)]
     pub(crate) fn computer_use_endpoint_url(&self) -> anyhow::Result<reqwest::Url> {
         self.computer_use_client().endpoint_url()
     }

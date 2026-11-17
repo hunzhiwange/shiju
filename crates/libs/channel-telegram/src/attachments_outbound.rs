@@ -8,6 +8,7 @@
 //! 主要用于将 Telegram 消息中的图片附件转换为可在内部消息流中使用的格式。
 
 use super::TelegramChannel;
+#[cfg(test)]
 use base64::Engine as _;
 
 impl TelegramChannel {
@@ -46,6 +47,7 @@ impl TelegramChannel {
     ///
     /// 图片处理（调整尺寸）在阻塞线程池中执行，以避免阻塞异步运行时。
     /// 这对于大图片处理特别重要。
+    #[cfg(test)]
     pub(super) async fn resolve_photo_data_uri(&self, file_id: &str) -> anyhow::Result<String> {
         // 步骤 1：通过 Telegram getFile API 获取文件路径信息
         let get_file_url = self.api_url(&format!("getFile?file_id={}", file_id));

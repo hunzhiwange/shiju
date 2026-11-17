@@ -166,6 +166,7 @@ pub fn add_ms_or_saturate(timestamp: TimestampMs, delta_ms: i64) -> TimestampMs 
     TimestampMs(timestamp.0.saturating_add(delta_ms).max(timestamp.0))
 }
 
+#[cfg(test)]
 pub(super) fn workspace_payload(workspace: &AgentSchedulerWorkspaceContextDto) -> Value {
     json!({
         "slot_id": workspace.slot_id,
@@ -335,6 +336,7 @@ pub fn task_board_status_role_from_metadata(metadata: &Value) -> Option<TaskPool
     }
 }
 
+#[cfg(test)]
 pub(super) fn workflow_status_role(
     workflow: &TaskPoolWorkflowSnapshotDto,
     status_key: &str,
@@ -346,6 +348,7 @@ pub(super) fn workflow_status_role(
         .map(|status| status.role)
 }
 
+#[cfg(test)]
 pub(super) fn task_metadata_object(value: Value) -> Result<Map<String, Value>, ApiError> {
     match value {
         Value::Object(map) => Ok(map),
@@ -354,6 +357,7 @@ pub(super) fn task_metadata_object(value: Value) -> Result<Map<String, Value>, A
     }
 }
 
+#[cfg(test)]
 pub(super) fn set_lifecycle_projection_metadata(
     metadata: &mut Map<String, Value>,
     target: &LifecycleStatusProjection,
@@ -488,6 +492,7 @@ pub(super) fn project_wake_response_from_local_outcome(
     }
 }
 
+#[cfg(test)]
 pub(super) fn empty_project_wake_response() -> AgentSchedulerProjectWakeResponse {
     AgentSchedulerProjectWakeResponse {
         dispatched: false,
@@ -595,6 +600,7 @@ pub(super) fn event_to_dto(event: StoredAgentEvent) -> AgentEventDto {
     }
 }
 
+#[cfg(test)]
 pub(super) fn run_to_dto(run: StoredAgentRun) -> AgentRunDto {
     AgentRunDto {
         id: run.id.as_str().to_string(),
@@ -627,6 +633,7 @@ pub(super) fn outbox_to_dto(message: StoredOutboxMessage) -> AgentOutboxMessageD
     }
 }
 
+#[cfg(test)]
 pub(super) fn run_status_to_dto(status: AgentRunStatus) -> AgentRunStatusDto {
     match status {
         AgentRunStatus::Pending => AgentRunStatusDto::Pending,
@@ -696,6 +703,7 @@ pub(super) fn task_status_to_dto(status: AgentTaskStatus) -> AgentTaskStatusDto 
     }
 }
 
+#[cfg(test)]
 pub(super) fn capability_kind_from_dto(kind: AgentCapabilityKindDto) -> AgentCapabilityKind {
     match kind {
         AgentCapabilityKindDto::Skill => AgentCapabilityKind::Skill,
@@ -707,6 +715,7 @@ pub(super) fn capability_kind_from_dto(kind: AgentCapabilityKindDto) -> AgentCap
     }
 }
 
+#[cfg(test)]
 pub(super) fn capability_kind_to_dto(kind: AgentCapabilityKind) -> AgentCapabilityKindDto {
     match kind {
         AgentCapabilityKind::Skill => AgentCapabilityKindDto::Skill,

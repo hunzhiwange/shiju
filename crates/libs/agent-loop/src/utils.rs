@@ -9,7 +9,9 @@
 //!
 //! 本模块在安全敏感上下文中运行，用于防止敏感凭证在工具输出中意外泄露。
 
+#[cfg(test)]
 use regex::{Regex, RegexSet};
+#[cfg(test)]
 use std::sync::LazyLock;
 
 /// 敏感键名模式集合
@@ -25,6 +27,7 @@ use std::sync::LazyLock;
 /// - credential（凭证）
 ///
 /// 所有模式均为不区分大小写匹配。
+#[cfg(test)]
 pub(crate) static SENSITIVE_KEY_PATTERNS: LazyLock<RegexSet> = LazyLock::new(|| {
     RegexSet::new([
         r"(?i)token",
@@ -48,6 +51,7 @@ pub(crate) static SENSITIVE_KEY_PATTERNS: LazyLock<RegexSet> = LazyLock::new(|| 
 /// # 捕获组
 ///
 /// - 第 1 组：文件路径
+#[cfg(test)]
 pub(crate) static TOOL_FILE_PATH_REGEX: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r#"(?i)(?:file_path|path)\s*[:=]\s*"([^"]+)""#).unwrap());
 

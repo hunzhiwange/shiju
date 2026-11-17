@@ -228,6 +228,7 @@ impl SettingsPanel {
         true
     }
 
+    #[cfg(test)]
     pub(crate) fn move_model_picker_selection(&mut self, delta: isize) {
         let Some(picker) = self.model_picker.as_mut() else {
             return;
@@ -241,6 +242,7 @@ impl SettingsPanel {
     }
 
     /// 确认模型选择；选项已失效时不修改待提交值。
+    #[cfg(test)]
     pub(crate) fn confirm_model_picker(&mut self) -> bool {
         let Some(picker) = self.model_picker.take() else {
             return false;
@@ -252,11 +254,13 @@ impl SettingsPanel {
         true
     }
 
+    #[cfg(test)]
     pub(crate) fn cancel_model_picker(&mut self) -> bool {
         self.model_picker.take().is_some()
     }
 
     /// 在有可用委托智能体时打开对应选择器。
+    #[cfg(test)]
     pub(crate) fn open_delegate_agent_picker(&mut self) -> bool {
         if self.delegate_agent_options.is_empty() {
             return false;
@@ -270,6 +274,7 @@ impl SettingsPanel {
         true
     }
 
+    #[cfg(test)]
     pub(crate) fn move_delegate_agent_picker_selection(&mut self, delta: isize) {
         let Some(picker) = self.delegate_agent_picker.as_mut() else {
             return;
@@ -285,6 +290,7 @@ impl SettingsPanel {
     }
 
     /// 确认委托智能体选择，仅更新待提交快照。
+    #[cfg(test)]
     pub(crate) fn confirm_delegate_agent_picker(&mut self) -> bool {
         let Some(picker) = self.delegate_agent_picker.take() else {
             return false;
@@ -296,11 +302,13 @@ impl SettingsPanel {
         true
     }
 
+    #[cfg(test)]
     pub(crate) fn cancel_delegate_agent_picker(&mut self) -> bool {
         self.delegate_agent_picker.take().is_some()
     }
 
     /// 仅在存在多个 ACP 后端时打开选择器。
+    #[cfg(test)]
     pub(crate) fn open_acp_backend_picker(&mut self) -> bool {
         if self.acp_backend_options.len() <= 1 {
             return false;
@@ -314,6 +322,7 @@ impl SettingsPanel {
         true
     }
 
+    #[cfg(test)]
     pub(crate) fn move_acp_backend_picker_selection(&mut self, delta: isize) {
         let Some(picker) = self.acp_backend_picker.as_mut() else {
             return;
@@ -329,6 +338,7 @@ impl SettingsPanel {
     }
 
     /// 确认 ACP 后端选择，不在此处执行会话切换。
+    #[cfg(test)]
     pub(crate) fn confirm_acp_backend_picker(&mut self) -> bool {
         let Some(picker) = self.acp_backend_picker.take() else {
             return false;
@@ -340,16 +350,19 @@ impl SettingsPanel {
         true
     }
 
+    #[cfg(test)]
     pub(crate) fn cancel_acp_backend_picker(&mut self) -> bool {
         self.acp_backend_picker.take().is_some()
     }
 
     /// 返回经过查询过滤后的当前选中行。
+    #[cfg(test)]
     pub(crate) fn selected_row(&self) -> Option<&SettingRow> {
         self.visible_rows().get(self.selected).copied()
     }
 
     /// 在可见行中循环移动选中位置，空列表时回到零。
+    #[cfg(test)]
     pub(crate) fn move_selection(&mut self, delta: isize) {
         let len = self.visible_rows().len();
         if len == 0 {
@@ -406,6 +419,7 @@ impl SettingsPanel {
     }
 
     /// 按当前查询返回可见行，保留原始稳定顺序。
+    #[cfg(test)]
     pub(crate) fn visible_rows(&self) -> Vec<&SettingRow> {
         let query = self.query.trim().to_lowercase();
         self.rows
@@ -415,6 +429,7 @@ impl SettingsPanel {
     }
 
     /// 校验主题名后更新预览；不支持的值会显式失败。
+    #[cfg(test)]
     pub(crate) fn preview_theme(&mut self, theme: &str) -> Result<(), String> {
         if !matches!(
             theme,

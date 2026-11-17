@@ -1,5 +1,6 @@
 //! 识矩账号兼容门面，敏感请求由领域客户端持有。
 use super::GatewayClient;
+#[cfg(any(test, target_arch = "wasm32"))]
 use serde::{Serialize, de::DeserializeOwned};
 pub use gateway_shiju_account::*;
 
@@ -64,6 +65,7 @@ impl GatewayClient {
             .shiju_account_password_update(credential, body).await
     }
 
+    #[cfg(test)]
     pub(super) async fn shiju_account_sensitive_request<B, T>(
         &self,
         method: reqwest::Method,
@@ -80,6 +82,7 @@ impl GatewayClient {
             .shiju_account_sensitive_request(method, path, query, body, credential).await
     }
 
+    #[cfg(test)]
     pub(super) async fn shiju_empty_sensitive_request<B>(
         &self,
         method: reqwest::Method,

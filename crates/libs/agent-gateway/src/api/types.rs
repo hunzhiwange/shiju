@@ -16,7 +16,7 @@
 //! 2. 序列化 HTTP 响应体（通过 `Serialize` trait）
 //! 3. 在 API 路由处理器与业务逻辑层之间传递数据
 
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 // Integration credential request types are owned by gateway-integrations.
 
 pub use gateway_memory::{MemoryQuery, MemoryStoreBody};

@@ -7,6 +7,7 @@ use serde_json::json;
 use acp_server::server::{
     BackendError, BackendPrompt, PromptContent,
 };
+#[cfg(any(test, target_arch = "wasm32"))]
 use vw_api_transport::id::TenantScope;
 
 use crate::agent::loop_::approval::NonCliApprovalContext;

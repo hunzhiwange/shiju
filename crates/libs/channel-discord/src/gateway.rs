@@ -35,6 +35,7 @@ type GatewayWs =
 ///
 /// - `write`: WebSocket 写入端，用于发送消息到 Discord Gateway
 /// - `read`: WebSocket 读取端，用于接收来自 Discord Gateway 的消息
+#[cfg(test)]
 pub(super) struct GatewayConnection {
     /// WebSocket 写入端（Sink），用于向 Gateway 发送消息
     pub(super) write: GatewayWs,

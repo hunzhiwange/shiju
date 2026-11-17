@@ -133,9 +133,7 @@ pub fn context_governance_decision(
     }
 }
 
-fn message_role(message: &Value) -> Option<&str> {
-    message.get("role").and_then(Value::as_str)
-}
+
 
 #[cfg(test)]
 pub use crate::invoked_skill_context::restore_invoked_skill_context;

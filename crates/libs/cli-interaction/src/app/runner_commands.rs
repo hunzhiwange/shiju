@@ -38,7 +38,6 @@ impl ActiveRunner {
                 self.start_file_search(app, query);
                 RunnerControl::Continue
             }
-            TuiControllerCommand::Quit => RunnerControl::Quit,
             TuiControllerCommand::CancelActiveSubmission => {
                 if let Some(stream) = self.active_stream.as_ref() {
                     match stream.kind {

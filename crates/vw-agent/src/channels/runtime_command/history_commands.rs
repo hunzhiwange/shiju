@@ -4,4 +4,5 @@ pub(crate) async fn handle_history_command(
     ctx: &ChannelRuntimeContext,
     command: ChannelRuntimeCommand,
 ) -> Result<String> { channel_runtime::runtime_command::history_commands::handle_history_command(super::super::manager::command_host(), ctx, command).await }
+#[cfg(any(test, target_arch = "wasm32"))]
 pub(crate) use channel_runtime::runtime_command::history_commands::{invalidate_history, cached_history};

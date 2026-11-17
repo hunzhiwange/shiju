@@ -2,7 +2,7 @@
 use std::{sync::Arc, collections::HashMap, future::Future, pin::Pin};
 use anyhow::Result;
 use channel_support::{runtime_state::ChannelRuntimeContext, scope::ChannelMessageSnapshot, routing::ChannelRouteSelection, session_events::ChannelProcessorResponse};
-use channel_types::{Channel, ChannelMessage};
+use channel_types::{ChannelMessage};
 use config_agent::AgentDefinitionConfig;
 use session_engine::agent_binding::AgentBinding;
 use tokio_util::sync::CancellationToken;

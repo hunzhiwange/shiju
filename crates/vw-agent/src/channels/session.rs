@@ -1,6 +1,7 @@
 //! 通道会话映射与 processor 集成；映射绑定完整消息作用域。
 use super::*;
 
+#[cfg(any(test, target_arch = "wasm32"))]
 pub(crate) use channel_support::session::sender_session_store;
 
 pub(crate) async fn clear_sender_session_id(
@@ -17,10 +18,13 @@ pub(crate) async fn resolve_or_create_sender_session_id(snapshot: &ChannelMessag
     crate::session::ui_store::with_tenant_scope(snapshot.scope.chat.tenant.clone(), channel_support::session::resolve_or_create_sender_session_id(&ChannelSessionHost, snapshot, msg, route)).await
 }
 
+#[cfg(any(test, target_arch = "wasm32"))]
 pub(crate) use channel_support::session::{ChannelSessionOwnership, ownership_scope_key};
 
+#[cfg(any(test, target_arch = "wasm32"))]
 pub(crate) use channel_support::session::channel_session_ownership;
 
+#[cfg(any(test, target_arch = "wasm32"))]
 pub(crate) use channel_support::session::save_channel_session_route;
 
 pub(crate) async fn owned_channel_sessions(snapshot: &ChannelMessageSnapshot) -> Result<Vec<crate::session::session::Info>> {
@@ -161,6 +165,7 @@ pub(crate) async fn collect_channel_response(
 ///
 /// - `think_timing` 字段被初始化为空向量
 /// - 无法识别的角色会被过滤掉
+#[cfg(any(test, target_arch = "wasm32"))]
 pub(crate) use channel_support::session_events::to_session_history;
 
 #[cfg(test)]

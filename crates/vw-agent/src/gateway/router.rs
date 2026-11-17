@@ -34,8 +34,11 @@
 
 // Host route composition; middleware policy belongs to agent-gateway.
 use axum::Router;
+#[cfg(any(test, target_arch = "wasm32"))]
 use tower_http::cors::AllowOrigin;
+#[cfg(any(test, target_arch = "wasm32"))]
 use tower_http::cors::Any;
+#[cfg(any(test, target_arch = "wasm32"))]
 use tower_http::cors::CorsLayer;
 
 use crate::app::agent::gateway::api::handlers;

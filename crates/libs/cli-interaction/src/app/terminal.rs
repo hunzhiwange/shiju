@@ -2,6 +2,25 @@
 
 use std::time::Instant;
 
+#[cfg(all(not(test), not(target_arch = "wasm32")))]
+use super::{
+    ActiveRunner,
+    CrosstermBackend,
+    Duration,
+    Event,
+    KeyEventKind,
+    Rect,
+    RunnerControl,
+    TERMINAL_EVENT_BUDGET,
+    TerminalMode,
+    TranscriptPager,
+    V3Action,
+    V3GatewayApp,
+    V3Terminal,
+    event,
+    io,
+};
+#[cfg(any(test, target_arch = "wasm32"))]
 use super::{
     ActiveRunner,
     CrosstermBackend,

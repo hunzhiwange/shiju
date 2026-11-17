@@ -50,6 +50,7 @@ impl SearchState {
     }
 
     /// 开始新查询并返回专用代次号，供异步回传时校验。
+    #[cfg(test)]
     pub(crate) fn begin_request(&mut self, query: impl Into<String>) -> u64 {
         self.query = query.into();
         self.generation = self.generation.saturating_add(1);
@@ -58,6 +59,7 @@ impl SearchState {
     }
 
     /// 仅应用当前活跃代次的结果；返回值表示回传是否被接受。
+    #[cfg(test)]
     pub(crate) fn apply_results(
         &mut self,
         generation: u64,

@@ -3,13 +3,12 @@ use crate::{
     processor_events::StreamEvent,
     runner::Request,
     runner_types::{ResolvedRequestModel, ToolSessionState},
-    session_memory::Session,
 };
 use agent_config::runtime_schema::Config;
 use agent_skills::Skill;
 use serde_json::Value;
 use std::{
-    collections::{HashMap, HashSet},
+    collections::HashMap,
     path::Path,
     sync::Arc,
 };

@@ -35,6 +35,7 @@
 /// stats.output_tokens += 300;
 /// ```
 #[derive(Default)]
+#[cfg(test)]
 pub(crate) struct CliStats {
     /// 用户发送的消息数量
     pub(crate) user_messages: usize,
@@ -92,6 +93,7 @@ pub(crate) struct CliStats {
 /// assert!(title.contains("1700 tokens"));
 /// assert!(title.contains("openai / gpt-4"));
 /// ```
+#[cfg(test)]
 pub(crate) fn build_session_title(
     stats: &CliStats,
     provider_name: &str,

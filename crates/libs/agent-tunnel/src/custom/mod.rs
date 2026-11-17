@@ -245,7 +245,7 @@ impl Tunnel for CustomTunnel {
                 .timeout(std::time::Duration::from_secs(5))
                 .send()
                 .await
-                .is_ok();
+                .is_ok_and(|response| response.status().is_success());
         }
 
         // 未配置健康检查 URL 时，检查子进程是否仍在运行

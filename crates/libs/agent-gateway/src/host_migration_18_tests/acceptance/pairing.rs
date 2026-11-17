@@ -10,9 +10,30 @@ use axum::response::IntoResponse;
 
 #[tokio::test]
 async fn persist_pairing_tokens_writes_config_tokens() {
-    let temp = tempfile::tempdir().unwrap();
-    let config_path = temp.path().join(".vibewindow.json");
-    let workspace_path = temp.path().join("workspace");
+    const CHILD: &str = "SHIJU_ACCEPTANCE_PAIRING_STORE_CHILD";
+    if std::env::var_os(CHILD).is_none() {
+        let root = tempfile::tempdir().unwrap();
+        let output = std::process::Command::new(std::env::current_exe().unwrap())
+            .args([
+                "--exact",
+                "host_migration_18_tests::acceptance::pairing::persist_pairing_tokens_writes_config_tokens",
+                "--nocapture",
+            ])
+            .env(CHILD, "1")
+            .env("VIBEWINDOW_TEST_ROOT", root.path())
+            .output()
+            .unwrap();
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        println!("{stdout}");
+        assert!(output.status.success(), "isolated pairing child failed: {stdout}\n{stderr}");
+        assert!(stdout.contains("1 passed; 0 failed"));
+        return;
+    }
+
+    let (config_dir, workspace_path) =
+        agent_config::runtime_schema::default_config_and_workspace_dirs().unwrap();
+    let config_path = config_dir.join("vibewindow.json");
 
     let mut config = Config::default();
     config.config_path = config_path.clone();
@@ -27,8 +48,12 @@ async fn persist_pairing_tokens_writes_config_tokens() {
     let shared_config = Arc::new(Mutex::new(config));
     persist_pairing_tokens(shared_config.clone(), &guard).await.unwrap();
 
-    let saved = tokio::fs::read_to_string(config_path).await.unwrap();
-    let parsed: Config = serde_json::from_str(&saved).unwrap();
+    // 正式加载入口读取默认租户数据库配置并解密配对令牌。
+    let parsed = agent_config::runtime::get_global_for_tenant_without_env(
+        &vw_api_transport::TenantScope::default(),
+    )
+    .await
+    .unwrap();
     assert_eq!(parsed.gateway.paired_tokens.len(), 1);
     let persisted = &parsed.gateway.paired_tokens[0];
     assert_eq!(persisted.len(), 64);

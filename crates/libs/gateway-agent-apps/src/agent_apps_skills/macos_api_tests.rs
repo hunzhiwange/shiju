@@ -21,6 +21,20 @@ use agent_database::GlobalDatabase;
 
 const TOKEN: &str = "macos-acceptance-fixture-token";
 
+// Runtime paths are cached; initialize them only in a private child process.
+fn isolated_test() -> bool {
+    const CHILD: &str = "SHIJU_MACOS_SKILLS_CHILD";
+    if std::env::var_os(CHILD).is_some() { return false; }
+    let root = tempfile::tempdir().unwrap();
+    let status = std::process::Command::new(std::env::current_exe().unwrap())
+        .args(["--exact", std::thread::current().name().unwrap(), "--nocapture"])
+        .env(CHILD, "1")
+        .env("VIBEWINDOW_TEST_ROOT", root.path().canonicalize().unwrap())
+        .status().unwrap();
+    assert!(status.success(), "isolated macOS skills child failed: {status}");
+    true
+}
+
 struct Fixture {
     root: tempfile::TempDir,
     policy: std::path::PathBuf,
@@ -34,7 +48,10 @@ impl Fixture {
         let source = root.path().join("source");
         let ssot = root.path().join("ssot");
         fs::create_dir(&source).unwrap();
-        fs::create_dir(&ssot).unwrap();
+        // Observe the production execution root inside the isolated process.
+        let execution_root = agent_paths::paths().home.join(".agents/skills");
+        fs::create_dir_all(&execution_root).unwrap();
+        std::os::unix::fs::symlink(&execution_root, &ssot).unwrap();
         fs::write(source.join("SKILL.md"), "---\nname: Tool\ndescription: Fixture\n---\nInstructions").unwrap();
         // A packaged hook must remain inert during installation.
         fs::write(source.join("install.sh"), "#!/bin/sh\nexit 99\n").unwrap();
@@ -142,6 +159,7 @@ async fn lifecycle(f: &Fixture) {
 
 #[tokio::test]
 async fn cp12_macos_api_success() {
+    if isolated_test() { return; }
     let home = tempfile::tempdir().unwrap();
     let fixture = Fixture::new(GlobalDatabase::for_home(home.path()).unwrap());
     lifecycle(&fixture).await;
@@ -149,6 +167,7 @@ async fn cp12_macos_api_success() {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn cp12_macos_api_postgres_success() {
+    if isolated_test() { return; }
     // A missing database is an explicit failure, never a zero-work success.
     let database = agent_database::test_support::PostgresTestDatabase::from_environment()
         .expect("macOS API acceptance requires VIBEWINDOW_TEST_POSTGRES_URL");
@@ -158,6 +177,7 @@ async fn cp12_macos_api_postgres_success() {
 
 #[tokio::test]
 async fn cp12_macos_api_rejects_without_side_effects() {
+    if isolated_test() { return; }
     let home = tempfile::tempdir().unwrap();
     let f = Fixture::new(GlobalDatabase::for_home(home.path()).unwrap());
     let server = f.serve().await;
@@ -312,6 +332,7 @@ async fn remote_update(f: &Fixture, cancel: bool) {
 
 #[tokio::test]
 async fn cp12_macos_api_remote_update_and_precommit_cancel() {
+    if isolated_test() { return; }
     for cancel in [false, true] {
         let home = tempfile::tempdir().unwrap();
         remote_update(&Fixture::new(GlobalDatabase::for_home(home.path()).unwrap()), cancel).await;
@@ -320,6 +341,7 @@ async fn cp12_macos_api_remote_update_and_precommit_cancel() {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn cp12_macos_api_postgres_remote_update_and_precommit_cancel() {
+    if isolated_test() { return; }
     for cancel in [false, true] {
         let database = agent_database::test_support::PostgresTestDatabase::from_environment()
             .expect("macOS API acceptance requires VIBEWINDOW_TEST_POSTGRES_URL");

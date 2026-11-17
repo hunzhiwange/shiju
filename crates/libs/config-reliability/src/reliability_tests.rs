@@ -17,7 +17,9 @@ fn reliability_defaults_match_documented_values() {
 #[test]
 fn reliability_serializes_only_effective_fields() {
     let serialized = serde_json::to_value(super::ReliabilityConfig::default()).unwrap();
-    let keys = serialized.as_object().unwrap().keys().map(String::as_str).collect::<Vec<_>>();
+    let mut keys = serialized.as_object().unwrap().keys().map(String::as_str).collect::<Vec<_>>();
+    // preserve_order 特性会改变映射迭代顺序，但不改变配置字段契约。
+    keys.sort_unstable();
 
     assert_eq!(
         keys,

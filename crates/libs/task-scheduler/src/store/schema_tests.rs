@@ -18,7 +18,8 @@ use agent_database::GlobalDatabase;
 use agent_database::test_support::PostgresTestDatabase;
 use agent_project::store::ProjectStore;
 
-const SQLITE_SCHEDULER_TABLES: [&str; 12] = [
+// Worker/team 存储已移出调度器；这里独立列出当前结构，避免复用实现常量掩盖回归。
+const SQLITE_SCHEDULER_TABLES: [&str; 10] = [
     "scheduler_meta",
     "scheduler_tasks",
     "scheduler_task_dependencies",
@@ -26,14 +27,12 @@ const SQLITE_SCHEDULER_TABLES: [&str; 12] = [
     "scheduler_task_logs",
     "scheduler_task_artifacts",
     "scheduler_run_workspaces",
-    "scheduler_workers",
-    "scheduler_teams",
     "scheduler_resource_leases",
     "scheduler_events",
     "scheduler_outbox_messages",
 ];
 
-const POSTGRES_SCHEDULER_TABLES: [&str; 12] = [
+const POSTGRES_SCHEDULER_TABLES: [&str; 10] = [
     "scheduler_meta",
     "scheduler_tasks",
     "scheduler_task_dependencies",
@@ -41,14 +40,12 @@ const POSTGRES_SCHEDULER_TABLES: [&str; 12] = [
     "scheduler_task_logs",
     "scheduler_task_artifacts",
     "scheduler_run_workspaces",
-    "scheduler_workers",
-    "scheduler_teams",
     "scheduler_resource_leases",
     "scheduler_events",
     "scheduler_outbox_messages",
 ];
 
-const LEGACY_SCHEDULER_TABLES: [&str; 10] = [
+const LEGACY_SCHEDULER_TABLES: [&str; 8] = [
     "tasks",
     "runs",
     "task_logs",
@@ -56,12 +53,10 @@ const LEGACY_SCHEDULER_TABLES: [&str; 10] = [
     "run_workspaces",
     "events",
     "outbox_messages",
-    "workers",
-    "teams",
     "resource_leases",
 ];
 
-const SQLITE_SCHEDULER_PRIMARY_KEYS: [(&str, &[&str]); 12] = [
+const SQLITE_SCHEDULER_PRIMARY_KEYS: [(&str, &[&str]); 10] = [
     ("scheduler_meta", &["platform_id", "company_id", "project_id", "key"]),
     ("scheduler_tasks", &["platform_id", "company_id", "project_id", "id"]),
     (
@@ -72,14 +67,12 @@ const SQLITE_SCHEDULER_PRIMARY_KEYS: [(&str, &[&str]); 12] = [
     ("scheduler_task_logs", &["platform_id", "company_id", "project_id", "task_id", "seq_no"]),
     ("scheduler_task_artifacts", &["id"]),
     ("scheduler_run_workspaces", &["platform_id", "company_id", "project_id", "run_id"]),
-    ("scheduler_workers", &["platform_id", "company_id", "project_id", "id"]),
-    ("scheduler_teams", &["platform_id", "company_id", "project_id", "id"]),
     ("scheduler_resource_leases", &["platform_id", "company_id", "project_id", "id"]),
     ("scheduler_events", &["id"]),
     ("scheduler_outbox_messages", &["platform_id", "company_id", "project_id", "id"]),
 ];
 
-const POSTGRES_SCHEDULER_PRIMARY_KEYS: [(&str, &[&str]); 12] = [
+const POSTGRES_SCHEDULER_PRIMARY_KEYS: [(&str, &[&str]); 10] = [
     ("scheduler_meta", &["platform_id", "company_id", "project_id", "key"]),
     ("scheduler_tasks", &["platform_id", "company_id", "project_id", "id"]),
     (
@@ -90,8 +83,6 @@ const POSTGRES_SCHEDULER_PRIMARY_KEYS: [(&str, &[&str]); 12] = [
     ("scheduler_task_logs", &["platform_id", "company_id", "project_id", "task_id", "seq_no"]),
     ("scheduler_task_artifacts", &["id"]),
     ("scheduler_run_workspaces", &["platform_id", "company_id", "project_id", "run_id"]),
-    ("scheduler_workers", &["platform_id", "company_id", "project_id", "id"]),
-    ("scheduler_teams", &["platform_id", "company_id", "project_id", "id"]),
     ("scheduler_resource_leases", &["platform_id", "company_id", "project_id", "id"]),
     ("scheduler_events", &["id"]),
     ("scheduler_outbox_messages", &["platform_id", "company_id", "project_id", "id"]),
@@ -125,6 +116,7 @@ fn agent_scheduler_schema_uses_only_prefixed_scheduler_tables() -> Result<()> {
 }
 
 fn assert_sqlite_scheduler_schema() -> Result<()> {
+    let tenant = TenantScope::default();
     let temp_dir = tempfile::tempdir()?;
     let home = temp_dir.path().join("home");
     let project_path = temp_dir.path().join("project");
@@ -171,8 +163,6 @@ fn assert_sqlite_scheduler_schema() -> Result<()> {
         "idx_scheduler_task_logs_task_seq",
         "idx_scheduler_task_artifacts_task",
         "idx_scheduler_run_workspaces_task",
-        "idx_scheduler_workers_runtime_status",
-        "idx_scheduler_workers_container_state",
         "idx_scheduler_resource_leases_active_resource",
         "idx_scheduler_outbox_delivery_status",
     ] {
@@ -194,7 +184,7 @@ fn assert_sqlite_scheduler_schema() -> Result<()> {
     conn.execute(
         "INSERT INTO scheduler_meta (platform_id, company_id, project_id, key, value)
          VALUES (?1, ?2, ?3, ?4, ?5)",
-        params!["local", "local", "test-project", "schema_test_marker", "kept"],
+        params![tenant.platform_id().as_ref(), tenant.company_id().as_ref(), "test-project", "schema_test_marker", "kept"],
     )?;
     drop(conn);
 
@@ -204,7 +194,7 @@ fn assert_sqlite_scheduler_schema() -> Result<()> {
     let marker: String = conn.query_row(
         "SELECT value FROM scheduler_meta
          WHERE platform_id = ?1 AND company_id = ?2 AND project_id = ?3 AND key = ?4",
-        params!["local", "local", "test-project", "schema_test_marker"],
+        params![tenant.platform_id().as_ref(), tenant.company_id().as_ref(), "test-project", "schema_test_marker"],
         |row| row.get(0),
     )?;
     assert_eq!(marker, "kept");
@@ -213,6 +203,7 @@ fn assert_sqlite_scheduler_schema() -> Result<()> {
 }
 
 fn assert_postgres_scheduler_schema() -> Result<()> {
+    let tenant = TenantScope::default();
     let fixture = agent_database::test_support::postgres_test_database!();
     let database = fixture.database().clone();
     let project_path = "postgres-scheduler-schema-project".to_owned();
@@ -273,7 +264,7 @@ fn assert_postgres_scheduler_schema() -> Result<()> {
     connection.execute(
         "INSERT INTO scheduler_meta (platform_id, company_id, project_id, key, value)
          VALUES ($1, $2, $3, $4, $5)",
-        &[&"local", &"local", &"test-project", &"schema_test_marker", &"kept"],
+        &[&tenant.platform_id().as_ref(), &tenant.company_id().as_ref(), &"test-project", &"schema_test_marker", &"kept"],
     )?;
     drop(connection);
 
@@ -284,7 +275,7 @@ fn assert_postgres_scheduler_schema() -> Result<()> {
         .query_one(
             "SELECT value FROM scheduler_meta
              WHERE platform_id = $1 AND company_id = $2 AND project_id = $3 AND key = $4",
-            &[&"local", &"local", &"test-project", &"schema_test_marker"],
+            &[&tenant.platform_id().as_ref(), &tenant.company_id().as_ref(), &"test-project", &"schema_test_marker"],
         )?
         .get(0);
     assert_eq!(marker, "kept");

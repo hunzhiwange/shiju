@@ -91,3 +91,10 @@ Rust 编译资源和会话调度按 `.plans/references/rust.md` 的项目覆盖�
 系统安装HTTP400（退出0，0.000575秒）；诊断HTTP200但startup_failed；模型能力session_model明确unsupported_cli、connected=false。builtin acp-devin存在且未启用。来源任务12及脱敏证据缺失；当前安装源码返回None，模型驱动无Devin已验证版本。未PATCH、未提交chat/stream，无法证明指定模型或文件创建，保留已阻塞。
 
 复用既有shiju产物，当前源码与拒绝行为一致。Rue.js6297项快照零差异、目标不存在；结束配置完整相等，自有网关已停止且端口关闭。证据 /tmp/shiju-devin-accept-20261118/（0700）。无代码修复，未运行Cargo、单测、Clippy、页面或浏览器验证；仅文档轻量检查。旧.plans/references/rust.md缺失，本次无需槽位。详见ACP验收末尾Devin章节；待系统安装、session_model真实驱动及脱敏接入证据交付后完整重跑。
+
+
+### 扩大范围重试（2026-11-18）
+
+已校验官方3000.13.4 Darwin arm64包；原生ACP握手与session/new成功，但原完整指定模型未解析并回退默认。未发送prompt，显式session/set_config_option选原模型返回-32602 Invalid params。隔离auth status为Not logged in，models list退出1要求登录；宿主默认凭据目录和相关环境变量均无。需要有效Devin认证及原模型可用路由，不能仅加启动参数冒充session_model支持。
+
+探针已退出，未系统安装、未改配置或权限，旧网关端口关闭，Rue.js6297项快照零差异。新证据 /tmp/shiju-devin-retry-20261118/（0700），详见验收追加小节。仅文档轻量检查，未运行Cargo或页面验证；保持已阻塞，待外部认证和模型接入条件具备后继续。

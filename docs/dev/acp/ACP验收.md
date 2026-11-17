@@ -972,3 +972,14 @@ Rust重型命令经scripts/cargo_slot.py槽位入口串行执行，对应CARGO_T
 - Rue.js `packages/rue/src` 存在；目标acpdemo/devin初始不存在，结束未创建。排除.git、node_modules、target的普通文件SHA-256快照前后6297项零差异。结束GET完整配置与基线相等，无临时配置需要恢复；自有网关已停止、端口关闭，未重启用户服务、未占用Cargo槽位。
 - 未运行Cargo、定向单测、Clippy、桌面编译、浏览器或页面构建：本次无代码修复，复用既有产物，遇到明确能力阻塞后仅完成独立检查与文档轻量检查；不宣称单测或真实会话成功。旧 `.plans/references/rust.md` 不存在，本次无需编译。
 - 本机0700私有证据 `/tmp/shiju-devin-accept-20261118/` 保存原始请求/响应、指标、配置基线与重读、构建与源码摘要、快照、网关日志及清理记录，不提交敏感载荷或供应商二进制。任务33保留已阻塞，待交付系统安装、真实session_model驱动和脱敏接入证据后完整重跑。
+
+
+### Devin 扩大范围重试（2026-11-18）
+
+- 重查共享源码，系统安装仍显式None，session_model驱动仍无Devin已验证版本。进一步核对官方[安装说明](https://docs.devin.ai/cli)、[模型说明](https://docs.devin.ai/cli/models)、[配置格式](https://docs.devin.ai/cli/reference/configuration/config-file)及[认证说明](https://docs.devin.ai/cli/enterprise/devin-auth)。官方支持选模，但上述文档未提供已确认的任意外部供应商base URL配置路径；不把未找到入口夸大为永久不支持。
+- 已安全突破“无已校验发行物”的调查限制：只读取官方install.sh，未执行；按官方current/manifest.json下载3000.13.4 Darwin arm64包，SHA-256 `24b52c2bb312f8ab3d71545a173a69446901b27da5a44300bd03464ab066525b` 与manifest一致。仅将普通文件解出到0700私有目录，未系统安装或写入宿主PATH。初次解压因本机Python不支持tarfile filter参数停止，随后改为逐项校验路径并只提取普通文件成功。
+- 原生--version、--help、acp --help均退出0，版本3000.13.4 (d9a56503ce88)。ACP支持--model/DEVIN_MODEL以及in-process执行。使用隔离HOME/XDG目录、Rue.js cwd、完整原指定模型启动原生ACP，无权限绕过或云引擎替换。initialize成功，protocolVersion=1、agentInfo为affogato/Devin Agent 3000.13.4，认证方式devin-browser。
+- session/new可返回本地会话，但stderr明确报告指定模型未解析并回退默认；响应model.currentValue为swe-1-6-fast、options为空。因此没有提交prompt或把该会话视为成功。继续显式调用session/set_config_option，设置完整原模型，得到-32602 Invalid params（Invalid value for config option model）。第二次探针退出0、耗时0.232574459秒；协议成功或进程退出0不等于指定模型调用成功。
+- auth status退出0但明确Not logged in，models list退出1并要求devin auth login；宿主默认~/.config/devin、~/.local/share/devin、~/.devin不存在，DEVIN_/WINDSURF_/COGNITION_环境变量数量0。当前真实外部前置是有效且获授权的Devin认证；补齐后仍须确认该原模型的可用路由，不能使用默认模型冒充。没有自动开启登录、注册账号、伪造认证或重定向身份服务。未在缺认证及模型绑定证据时发布伪支持驱动。
+- 两次原生探针均已退出（in-process，无共享daemon），未新增网关、未PATCH全局配置、未系统安装或修改权限策略；原自有网关50568端口仍关闭。Rue.js与前轮结束快照比较6297项零差异，目标目录未创建。无代码修复，未运行Cargo、单测、Clippy或页面验证，仅文档轻量检查。任务保持已阻塞，待有效认证及原模型接入条件具备后继续。
+- 新私有证据 `/tmp/shiju-devin-retry-20261118/`（0700）：官方脚本、manifest、校验包、原生帮助、认证状态、模型列表错误、ACP请求/响应/退出指标、边界及清理记录。供应商二进制和原始敏感载荷不提交。

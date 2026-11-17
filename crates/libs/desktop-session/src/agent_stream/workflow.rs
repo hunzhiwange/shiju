@@ -625,6 +625,12 @@ pub(super) fn temporary_workflow_yaml(query: &str, model: Option<&str>) -> Resul
         }
     });
 
+    // JSON 数字在 arbitrary_precision 下使用私有 Serde 标记；通过文本边界
+    // 解析为 YAML 数值，避免把标记映射写进节点坐标及模型参数。
+    let json = serde_json::to_string(&workflow)
+        .map_err(|error| format!("生成临时工作流失败: {error}"))?;
+    let workflow: serde_yaml::Value = serde_yaml::from_str(&json)
+        .map_err(|error| format!("生成临时工作流失败: {error}"))?;
     serde_yaml::to_string(&workflow).map_err(|error| format!("生成临时工作流失败: {error}"))
 }
 

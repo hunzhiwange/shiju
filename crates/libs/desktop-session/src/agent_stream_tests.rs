@@ -279,7 +279,13 @@ fn chat_tool_event_keeps_legacy_tool_content() {
     assert_eq!(request_id, 7);
     assert_eq!(event.step_index, 3);
     assert_eq!(event.call_id, "call-1");
-    assert_eq!(event.legacy_delta(), "tool shell\n{\"input\":\"{}\",\"status\":\"running\"}\n");
+    let delta = event.legacy_delta();
+    let content = delta.strip_prefix("tool shell\n").expect("legacy tool prefix");
+    let content = content.strip_suffix('\n').expect("legacy tool trailing newline");
+    assert_eq!(
+        serde_json::from_str::<serde_json::Value>(content).expect("legacy JSON payload"),
+        payload["payload"]
+    );
 }
 
 #[test]
@@ -1444,8 +1450,16 @@ async fn stream_workflow_chat_messages_sends_auth_query_and_parses_events() {
             "POST /v1/workflow/applications/chat-messages?directory=%2Ftmp%2Fproject "
         )
     );
-    assert!(request.contains("authorization: Bearer skey-value"));
-    assert!(!request.contains("x-skey:"));
+    let headers = request.split_once("\r\n\r\n").expect("HTTP headers").0;
+    let headers = headers.lines().skip(1).filter_map(|line| line.split_once(':'))
+        .map(|(name, value)| (name.to_ascii_lowercase(), value.trim()))
+        .collect::<Vec<_>>();
+    assert_eq!(
+        headers.iter().filter(|(name, _)| name == "authorization")
+            .map(|(_, value)| *value).collect::<Vec<_>>(),
+        vec!["Bearer skey-value"]
+    );
+    assert!(!headers.iter().any(|(name, _)| name == "x-skey"));
     assert!(
         matches!(&events[0], super::WorkflowChatMessagesEvent::Delta(delta) if delta == "hello")
     );

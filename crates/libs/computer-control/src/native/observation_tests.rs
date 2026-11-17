@@ -148,13 +148,20 @@ fn cc_control_05_identity_mismatch_is_rejected_before_reading() {
 }
 #[tokio::test]
 async fn cc_control_05_revocation_and_lock_reject_subsequent_observation() {
-    let o = observer(FakePlatform::default());
+    let calls = Arc::new(AtomicUsize::new(0));
+    let o = observer(FakePlatform { calls: calls.clone(), ..Default::default() });
     assert!(o.observe(false).await.is_ok());
+    assert_eq!(calls.load(Ordering::SeqCst), 1);
     o.locked.store(true, Ordering::SeqCst);
-    assert_eq!(
-        o.observe(false).await.unwrap_err(),
-        NativeObservationError::Control(ControlErrorCode::Unsupported)
-    );
+    // macOS supports locked observation, but this fixture has no locked-use grant.
+    // Other platforms reject locked observation before checking that grant.
+    let locked_error = if cfg!(target_os = "macos") {
+        ControlErrorCode::PermissionDenied
+    } else {
+        ControlErrorCode::Unsupported
+    };
+    assert_eq!(o.observe(false).await.unwrap_err(), NativeObservationError::Control(locked_error));
+    assert_eq!(calls.load(Ordering::SeqCst), 1);
     o.locked.store(false, Ordering::SeqCst);
     o.policy
         .write()
@@ -168,6 +175,7 @@ async fn cc_control_05_revocation_and_lock_reject_subsequent_observation() {
         o.observe(false).await.unwrap_err(),
         NativeObservationError::Control(ControlErrorCode::StalePermission)
     );
+    assert_eq!(calls.load(Ordering::SeqCst), 1);
 }
 #[tokio::test]
 async fn cc_control_05_cancel_during_read_does_not_deliver_content() {

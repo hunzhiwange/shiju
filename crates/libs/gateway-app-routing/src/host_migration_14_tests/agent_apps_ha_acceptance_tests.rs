@@ -1,5 +1,5 @@
 //! Controlled macOS acceptance: a standalone gateway owns routing without Iced.
-use crate::host_migration_7_tests::fixture::{HOST, MANAGER, spawn_gateway, write_policy};
+use crate::host_migration_7_tests::fixture::{HOST, MANAGER, Lifecycle, write_policy};
 use {app_provider_services::AppProviderStore, agent_database::GlobalDatabase};
 use axum::{Json, Router, routing::post};
 use reqwest::{Client, Method, StatusCode};
@@ -19,6 +19,17 @@ impl Drop for Servers {
 
 #[tokio::test]
 async fn ha_macos_headless_routing_acceptance() -> anyhow::Result<()> {
+    const CHILD: &str = "SHIJU_HA_ACCEPTANCE_CHILD";
+    if std::env::var_os(CHILD).is_none() {
+        let root = tempfile::tempdir()?;
+        let output = std::process::Command::new(std::env::current_exe()?)
+            .args(["--exact", "host_migration_14_tests::agent_apps_ha_acceptance_tests::ha_macos_headless_routing_acceptance", "--nocapture"])
+            .env(CHILD, "1").env("VIBEWINDOW_TEST_ROOT", root.path())
+            .env_remove("VIBEWINDOW_TEST_HOME").output()?;
+        eprint!("{}{}", String::from_utf8_lossy(&output.stdout), String::from_utf8_lossy(&output.stderr));
+        assert!(output.status.success(), "isolated acceptance failed: {}", output.status);
+        return Ok(());
+    }
     let mut servers = Servers(Vec::new());
     let failures = Arc::new(AtomicBool::new(false));
     let hits = Arc::new(AtomicUsize::new(0));
@@ -57,20 +68,23 @@ async fn ha_macos_headless_routing_acceptance() -> anyhow::Result<()> {
             let _ = socket.shutdown().await;
         }
     }));
-    let home = tempfile::tempdir()?;
-    let root = home.path().join("credentials");
-    fs::create_dir(&root)?;
+    let home = agent_paths::paths().home.clone();
+    use sha2::{Digest, Sha256};
+    let root = agent_paths::paths().data.join("apps").join(hex::encode(
+        Sha256::digest(serde_json::to_vec(&("p", "owner"))?),
+    ));
+    fs::create_dir_all(&root)?;
     fs::set_permissions(&root, fs::Permissions::from_mode(0o700))?;
-    fs::create_dir(home.path().join(".claude"))?;
-    let policy = home.path().join("access.json");
-    write_policy(&policy, home.path(), 0);
+    fs::create_dir(home.as_path().join(".claude"))?;
+    let policy = home.as_path().join("access.json");
+    write_policy(&policy, home.as_path(), 0);
     let mut grants: Value = serde_json::from_slice(&fs::read(&policy)?)?;
     grants["principals"][0]["grants"][0]["routing_apps"] = json!([
         {"project_id":"project","app_id":"claude"}
     ]);
     grants["principals"][0]["grants"][0]["provider_config_write"] = json!(true);
     fs::write(&policy, grants.to_string())?;
-    let db = GlobalDatabase::for_home(home.path())?;
+    let db = GlobalDatabase::for_home(home.as_path())?;
     let tenant = TenantScope::new("p", "owner")?;
     for (id, base_url) in [("current", unavailable), ("backup", endpoint)] {
         AppProviderStore::new(db.clone()).map_err(anyhow::Error::msg)?.claude_save(
@@ -92,7 +106,7 @@ async fn ha_macos_headless_routing_acceptance() -> anyhow::Result<()> {
         };
         let transactions =
             ProviderTransactions::new(&root, ExecutionHostId::new(HOST).unwrap()).unwrap();
-        let mut guard = lock_app(Claude, &home.path().join(".claude")).unwrap();
+        let mut guard = lock_app(Claude, &home.as_path().join(".claude")).unwrap();
         transactions
             .commit(
                 &tenant,
@@ -102,7 +116,39 @@ async fn ha_macos_headless_routing_acceptance() -> anyhow::Result<()> {
             )
             .unwrap();
     }
-    let (_gateway, port) = spawn_gateway(home.path(), &policy).await;
+    // Compose the same mode publication endpoint and host adapter as the native
+    // gateway. The lifecycle-only fixture does not register provider APIs.
+    let routing = Arc::new(app_routing_services::RoutingListener::with_database(db.clone()));
+    let mode = gateway_app_providers::mode_apply::router_with_policy(Some(policy.clone()))
+        .layer(axum::middleware::from_fn(|mut request: axum::extract::Request, next: axum::middleware::Next| async move {
+            let control = request.extensions().get::<crate::server::lifecycle_api::RoutingControl>().cloned();
+            assert!(control.is_some());
+            request.extensions_mut().insert(gateway_app_providers::mode_apply::ModeHost(Arc::new(
+                crate::server::provider_mode_host::Host(control, true),
+            )));
+            next.run(request).await
+        }));
+    let app = Router::new().nest("/v1", crate::server::router()
+        .merge(crate::server::agent_apps_high_availability::router()).merge(mode));
+    let app = crate::server::lifecycle_api::configure_with_policy(
+        app, &routing, policy.clone(), db.clone(),
+        crate::server::lifecycle_api::RoutingPaths {
+            home: home.as_path().to_owned(), config: home.as_path().join(".config/shiju"),
+            state: home.as_path().join(".local/state/shiju"),
+        },
+        |database, policy, tenant, host| Lifecycle(agent_gateway::aggregation_lifecycle::AggregationLifecycle { database, policy, tenant, host }),
+    ).await.layer(axum::Extension(db.clone()))
+        .layer(axum::middleware::from_fn(|mut request: axum::extract::Request, next: axum::middleware::Next| async move {
+            let tenant = TenantScope::new(
+                request.headers()["x-platform-id"].to_str().unwrap(),
+                request.headers()["x-company-id"].to_str().unwrap(),
+            ).unwrap();
+            request.extensions_mut().insert(tenant);
+            next.run(request).await
+        }));
+    let socket = tokio::net::TcpListener::bind("127.0.0.1:0").await?;
+    let port = socket.local_addr()?.port();
+    servers.0.push(tokio::spawn(async move { axum::serve(socket, app).await.unwrap(); }));
     let client = Client::builder().no_proxy().timeout(Duration::from_secs(15)).build()?;
     let sdk = gateway_app_failover::GatewayAppFailoverClient::new(gateway_http::GatewayTransport::new(
         gateway_endpoint::GatewayEndpoint::new("127.0.0.1", port)
@@ -142,7 +188,7 @@ async fn ha_macos_headless_routing_acceptance() -> anyhow::Result<()> {
     policy.retry_timeout.max_retries = 2;
     policy.circuit_breaker.failure_threshold = 1;
     policy.circuit_breaker.success_threshold = 1;
-    policy.circuit_breaker.min_requests = 1;
+    policy.circuit_breaker.min_requests = 5;
     policy.circuit_breaker.cooldown_secs = 300;
     assert_eq!(ha(Method::PUT, "policy").json(&policy).send().await?.status(), StatusCode::OK);
     assert_eq!(ha(Method::PUT, "enabled").json(&json!({"expectedVersion":version,"enabled":true}))
@@ -150,7 +196,7 @@ async fn ha_macos_headless_routing_acceptance() -> anyhow::Result<()> {
     let enabled = sdk.agent_apps_failover_queue(&sdk_scope, Some(MANAGER)).await?;
     assert!(enabled.enabled);
     assert_eq!(enabled.entries.len(), 2);
-    let config_bytes = fs::read(home.path().join(".claude/settings.json"))?;
+    let config_bytes = fs::read(home.as_path().join(".claude/settings.json"))?;
     let config: Value = serde_json::from_slice(&config_bytes)?;
     let token = config["env"]["ANTHROPIC_AUTH_TOKEN"].as_str().unwrap();
     let url = config["env"]["ANTHROPIC_BASE_URL"].as_str().unwrap();
@@ -188,7 +234,7 @@ async fn ha_macos_headless_routing_acceptance() -> anyhow::Result<()> {
     let health = ha(Method::GET, "health").query(&[("providerId", "backup")]).send().await?;
     assert_eq!(health.status(), StatusCode::OK);
     assert_eq!(health.json::<Value>().await?["state"], "closed");
-    assert_eq!(fs::read(home.path().join(".claude/settings.json"))?, config_bytes);
+    assert_eq!(fs::read(home.as_path().join(".claude/settings.json"))?, config_bytes);
     let response = ha(Method::GET, "queue").send().await?;
     assert_eq!(response.status(), StatusCode::OK);
     let queue = response.json::<Value>().await?;
@@ -198,10 +244,10 @@ async fn ha_macos_headless_routing_acceptance() -> anyhow::Result<()> {
     let disabled = response.json::<Value>().await?;
     assert_eq!(disabled["enabled"], false);
     assert_eq!(disabled["entries"], queue["entries"]);
+    routing.stop().await?;
     eprintln!("controlled headless acceptance: OS={}, arch={}, version={}, backup_http={}, primary_connections={}",
         std::env::consts::OS, std::env::consts::ARCH, env!("CARGO_PKG_VERSION"),
         hits.load(Ordering::SeqCst), connections.load(Ordering::SeqCst));
-    drop(_gateway); // kills and waits for the standalone gateway process
     for task in servers.0.drain(..) {
         task.abort();
         assert!(task.await.unwrap_err().is_cancelled());

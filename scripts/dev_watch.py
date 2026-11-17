@@ -23,7 +23,7 @@ from cargo_slot import group_alive, signal_group
 ROOT = Path(__file__).resolve().parents[1]
 QUIET_SECONDS = 30.0
 MAX_WAIT_SECONDS = 60.0
-MAX_UPDATE_WAIT_SECONDS = 3600.0
+MAX_UPDATE_WAIT_SECONDS = 1800.0
 
 def start_watcher(changed):
     command = ['watchexec', '--quiet', '--postpone', '--debounce', '500ms',
@@ -163,7 +163,7 @@ def watch(mode):
                                 ready_since = time.monotonic()
                             if running is not None:
                                 print(f'[watch] 新版就绪：执行 make {mode}-restart 切换；'
-                                      '最迟在首个待切换版本就绪 1 小时后自动切换。', flush=True)
+                                      '最迟在首个待切换版本就绪 30 分钟后自动切换。', flush=True)
                     manual = False
                     try:
                         token = request.read_text()

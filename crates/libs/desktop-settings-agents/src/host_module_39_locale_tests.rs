@@ -12,7 +12,7 @@ fn desktop_gettext_area_7_acp_validation_is_localized_without_changing_input() {
         acp_agents: &mut agents,
         acp_agent: &mut agent,
         access: desktop_config::ConfigAccess::new(
-            gateway_endpoint::GatewayEndpoint::default(),
+            gateway_endpoint::GatewayEndpoint::new("127.0.0.1", 1),
             None,
         ),
         client: Err("isolated".into()),
@@ -42,7 +42,7 @@ fn desktop_gettext_area_7_dialogue_feedback_switches_locale() {
     let mut translation = None;
     let mut saved = None;
     let mut input = crate::dialogue_flow_update::Update {
-        endpoint: gateway_endpoint::GatewayEndpoint::default(),
+        endpoint: gateway_endpoint::GatewayEndpoint::new("127.0.0.1", 1),
         project_path: None,
         desktop_preferences_persistence: &mut persistence,
         dialogue_flow_permission_editor: &mut editor,

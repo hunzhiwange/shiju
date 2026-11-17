@@ -142,11 +142,20 @@ fn summarize_providers_labels_sources_and_sorts_by_name_then_id() {
         summary.iter().map(|provider| provider.id.as_str()).collect::<Vec<_>>(),
         vec!["a", "builtin", "z"]
     );
-    assert_eq!(summary[0].source_label, "环境变量");
+    assert_eq!(
+        summary[0].source_label.display(config_ui::DesktopLocale::SimplifiedChinese),
+        "环境变量"
+    );
     assert!(summary[0].connected);
-    assert_eq!(summary[1].source_label, "内置");
+    assert_eq!(
+        summary[1].source_label.display(config_ui::DesktopLocale::SimplifiedChinese),
+        "内置"
+    );
     assert!(!summary[1].connected);
-    assert_eq!(summary[2].source_label, "API 密钥");
+    assert_eq!(
+        summary[2].source_label.display(config_ui::DesktopLocale::SimplifiedChinese),
+        "API 密钥"
+    );
     assert!(summary[2].connected);
 }
 
@@ -249,7 +258,9 @@ fn summarize_providers_labels_config_source_and_sorts_equal_names_by_id() {
         summary.iter().map(|provider| provider.id.as_str()).collect::<Vec<_>>(),
         vec!["a-config", "z-config"]
     );
-    assert!(summary.iter().all(|provider| provider.source_label == "配置"));
+    assert!(summary.iter().all(|provider| {
+        provider.source_label.display(config_ui::DesktopLocale::SimplifiedChinese) == "配置"
+    }));
     assert!(summary[0].connected);
     assert!(!summary[1].connected, "配置存在但没有密钥，不应显示为已连接");
 }

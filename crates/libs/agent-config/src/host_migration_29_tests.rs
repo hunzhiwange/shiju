@@ -14,7 +14,9 @@ fn agent_catalog_covers_thirty_unique_backends() {
             AgentRuntime::Native => None,
         })
         .collect::<HashSet<_>>();
-    assert_eq!(backends.len(), 33);
+    let specs = acp_agent_registry::built_in_agent_specs();
+    let expected_backends = specs.keys().map(String::as_str).collect::<HashSet<_>>();
+    assert_eq!(backends, expected_backends);
     assert!(catalog["main"].builtin);
     assert!(!catalog["acp-snow"].enabled);
     assert_eq!(
@@ -77,7 +79,12 @@ fn agent_catalog_keeps_all_backends_without_installed_clis() {
     const CHILD: &str = "SHIJU_CATALOG_EMPTY_CLI_ENV";
     if std::env::var_os(CHILD).is_some() {
         let catalog = load_agent_configs(&json!({}));
-        assert_eq!(catalog.keys().filter(|key| key.starts_with("acp-")).count(), 33);
+        let expected_keys = acp_agent_registry::built_in_agent_specs()
+            .keys()
+            .map(|backend| format!("acp-{backend}"))
+            .collect::<HashSet<_>>();
+        let actual_keys = catalog.keys().filter(|key| key.starts_with("acp-")).cloned().collect::<HashSet<_>>();
+        assert_eq!(actual_keys, expected_keys);
         assert_eq!(catalog["acp-snow"].runtime, AgentRuntime::Acp { backend: "snow".into() });
         return;
     }
@@ -86,7 +93,7 @@ fn agent_catalog_keeps_all_backends_without_installed_clis() {
         std::env::temp_dir().join(format!("shiju-catalog-empty-{}", std::process::id()));
     std::fs::create_dir_all(&empty_home).unwrap();
     let result = std::process::Command::new(std::env::current_exe().unwrap())
-        .args(["agent_catalog_keeps_all_backends_without_installed_clis", "--nocapture"])
+        .args(["host_migration_29_tests::agent_catalog_keeps_all_backends_without_installed_clis", "--exact", "--nocapture"])
         .env_clear()
         .env(CHILD, "1")
         .env("PATH", &empty_home)
@@ -96,7 +103,8 @@ fn agent_catalog_keeps_all_backends_without_installed_clis() {
         .output()
         .unwrap();
     std::fs::remove_dir_all(&empty_home).unwrap();
-    assert!(result.status.success(), "{}", String::from_utf8_lossy(&result.stdout));
+    println!("{}", String::from_utf8_lossy(&result.stdout));
+    assert!(result.status.success(), "{}", String::from_utf8_lossy(&result.stderr));
 }
 
 #[test]

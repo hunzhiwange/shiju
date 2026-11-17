@@ -518,9 +518,22 @@ fn streaming_body_keeps_completed_text_and_think_editors_visible() {
     let content = text_editor::Content::new();
     let editor: Element<'_, Message> = iced::widget::text_editor(&content).into();
     let editor_tag = Tree::new(editor.as_widget()).tag;
-    assert_eq!(
-        count_tag(&tree, editor_tag),
-        2,
-        "completed text and reasoning use editors; the mutable tail stays plain"
-    );
+    // Rich Markdown uses selectable fragments rather than a plain text editor.
+    // Compare the completed prefix with its Markdown view so losing that view
+    // cannot be hidden by an editor elsewhere in the body.
+    fn assert_same_tree(actual: &Tree, expected: &Tree) {
+        assert_eq!(actual.tag, expected.tag);
+        assert_eq!(actual.children.len(), expected.children.len());
+        for (actual, expected) in actual.children.iter().zip(&expected.children) {
+            assert_same_tree(actual, expected);
+        }
+    }
+    assert_eq!(tree.children.len(), 3, "completed text, reasoning and mutable tail stay visible");
+    let markdown = parse_markdown_blocks("阶段 **说明**");
+    assert!(!markdown[0].inline.is_empty(), "the prefix must retain rich Markdown");
+    let expected = super::markdown::markdown_body_view(&app, 0, 0, &markdown);
+    assert_same_tree(&tree.children[0], &Tree::new(expected.as_widget()));
+    assert_eq!(count_tag(&tree.children[0], editor_tag), 0);
+    assert_eq!(count_tag(&tree.children[1], editor_tag), 1, "completed reasoning uses its editor");
+    assert_eq!(count_tag(&tree.children[2], editor_tag), 0, "the mutable tail stays plain");
 }

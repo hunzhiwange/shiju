@@ -344,6 +344,34 @@ async fn execute_action_reports_trimmed_unstructured_http_failure() {
 
 #[tokio::test]
 async fn execute_action_contextualizes_sidecar_disconnect() {
+    // Keep host proxies from turning the fixture's disconnect into an HTTP 502.
+    // Use a child process so parallel tests retain their own environment and client cache.
+    const TEST: &str =
+        "computer_use::execution::execution_tests::execute_action_contextualizes_sidecar_disconnect";
+    const CHILD: &str = "SHIJU_BROWSER_DISCONNECT_TEST";
+    if std::env::var(CHILD).as_deref() != Ok(TEST) {
+        let output = std::process::Command::new(std::env::current_exe().unwrap())
+            .args(["--exact", TEST, "--nocapture"])
+            .env(CHILD, TEST)
+            .env_remove("HTTP_PROXY")
+            .env_remove("http_proxy")
+            .env_remove("HTTPS_PROXY")
+            .env_remove("https_proxy")
+            .env_remove("ALL_PROXY")
+            .env_remove("all_proxy")
+            .env("NO_PROXY", "127.0.0.1,localhost")
+            .env("no_proxy", "127.0.0.1,localhost")
+            .output()
+            .unwrap();
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        println!("{stdout}");
+        eprintln!("{stderr}");
+        assert!(output.status.success(), "isolated test failed: {}", output.status);
+        assert!(stdout.contains("1 passed; 0 failed"), "child must execute one test");
+        return;
+    }
+
     let (endpoint, server) = disconnecting_server().await;
     let endpoint_for_assertion = endpoint.clone();
     let client = client(endpoint, None);

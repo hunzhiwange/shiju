@@ -248,6 +248,15 @@ fn normalize_agent_spec_for_name(name: &str, spec: &AgentCommandSpec) -> AgentCo
 
 const BUILT_IN_AGENT_DEFINITIONS: &[BuiltInAgentDefinition] = &[
     BuiltInAgentDefinition {
+        name: "aionrs",
+        display_name: "aionrs",
+        command: "aionrs-acp",
+        args: &[],
+        env: &[],
+        local_command_candidates: &["aionrs-acp"],
+        local_args: &[],
+    },
+    BuiltInAgentDefinition {
         name: "omp",
         display_name: "omp",
         command: "npx",

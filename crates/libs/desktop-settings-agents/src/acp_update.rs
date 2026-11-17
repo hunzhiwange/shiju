@@ -42,30 +42,30 @@ fn apply_snapshot(app: &mut Update, snapshot: AcpSettingsSnapshot) {
     }
 }
 
-fn request(state: &AcpSettingsState) -> Result<(String, AcpAgentConfig), String> {
+fn request(state: &AcpSettingsState) -> Result<(String, AcpAgentConfig), desktop_i18n::format::Message> {
     let name = state.new_agent_name_input.trim();
     if name.is_empty() {
-        return Err("ACP 名称不能为空".to_string());
+        return Err(desktop_i18n::format::Message::new("ACP 名称不能为空", vec![]));
     }
     if state.editing_agent.is_none() && state.catalog.contains_key(name) {
-        return Err(format!("ACP 名称已存在: {name}"));
+        return Err(desktop_i18n::format::Message::new("ACP 名称已存在: %s", vec![name.into()]));
     }
 
     let command = state.new_agent_command_input.trim();
     if command.is_empty() {
-        return Err("ACP 启动命令不能为空".to_string());
+        return Err(desktop_i18n::format::Message::new("ACP 启动命令不能为空", vec![]));
     }
 
     if state.editing_agent.as_deref().is_some_and(|original| original != name) {
-        return Err("已有 ACP 不支持重命名".into());
+        return Err(desktop_i18n::format::Message::new("已有 ACP 不支持重命名", vec![]));
     }
     let mut env = std::collections::HashMap::new();
     for (key, value) in &state.editor_env {
         if key.trim().is_empty() || key.contains(['=', '\0']) {
-            return Err("环境变量名称不能为空或包含等号、空字符".into());
+            return Err(desktop_i18n::format::Message::new("环境变量名称不能为空或包含等号、空字符", vec![]));
         }
         if env.insert(key.clone(), value.clone()).is_some() {
-            return Err("环境变量名称不能重复".into());
+            return Err(desktop_i18n::format::Message::new("环境变量名称不能重复", vec![]));
         }
     }
     Ok((
@@ -159,7 +159,10 @@ pub fn update(app: &mut Update, message: AcpMessage) -> Task<Message> {
                 }
                 _ => match request(app.state) {
                     Ok(request) => request,
-                    Err(error) => return app.show_error_toast(error),
+                    Err(error) => return app.show_error_toast(
+                        error.render(desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese))
+                            .expect("valid ACP validation message"),
+                    ),
                 },
             };
             let previous = cancel_diagnostic(app);
@@ -369,8 +372,11 @@ pub fn update(app: &mut Update, message: AcpMessage) -> Task<Message> {
             let (agent, spec) = match request(app.state) {
                 Ok(request) => request,
                 Err(error) => {
-                    app.state.error_translation = None;
-                    app.state.save_error = Some(error);
+                    app.state.save_error = Some(
+                        error.render(desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese))
+                            .expect("valid ACP validation message"),
+                    );
+                    app.state.error_translation = Some(error);
                     return Task::none();
                 }
             };

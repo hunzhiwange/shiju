@@ -585,4 +585,9 @@ impl Fixture {
 enum SettingsMessage { Acp(AcpMessage) }
 fn update(app: &mut Fixture, message: SettingsMessage) -> iced::Task<crate::acp_update_message::Message> { match message { SettingsMessage::Acp(message) => super::update(&mut app.inputs(), message) } }
 fn apply_snapshot(app: &mut Fixture, snapshot: AcpSettingsSnapshot) { super::apply_snapshot(&mut app.inputs(), snapshot); }
-fn new_agent_request(app: &Fixture) -> Result<(String, AcpAgentConfig), String> { super::request(&app.acp_settings) }
+fn new_agent_request(app: &Fixture) -> Result<(String, AcpAgentConfig), String> {
+    super::request(&app.acp_settings).map_err(|error| {
+        error.render(desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese))
+            .expect("valid ACP validation message")
+    })
+}

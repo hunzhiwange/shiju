@@ -912,3 +912,17 @@ Rust重型命令经scripts/cargo_slot.py的slot(number=6)串行执行，CARGO_TA
 | cargo build -p vw-cli --bin shiju | 槽位6最终退出0，6m07s，正式二进制和源码摘要已核对 |
 
 Rust重型命令经scripts/cargo_slot.py槽位入口串行执行，对应CARGO_TARGET_DIR和CARGO_BUILD_BUILD_DIR均为target/rust-slot-N绝对路径。共31项定向单测通过；仅格式化修改的两个思考协议Rust文件，保留其他文件格式。执行相关差异git diff --check；未运行桌面编译、全仓构建/测试、全特性Clippy、全仓格式检查、wasm或Makefile。旧.plans/references/rust.md缺失，沿用现有槽位入口，不修改plan.md或prompt.md。
+
+
+# Cortex Code 验收（2026-11-18）
+
+结论：已阻塞，未通过。任务30已有完整验收及环境恢复记录；任务10文件与 `docs/dev/evidence/acp-onboarding-cortex-code.md` 当前均不存在，不以文件缺失推定接入通过。当前注册存在，启动参数为 `cortex acp serve`；安装策略 `crates/libs/config-acp-install/src/lib.rs` 对 cortex-code 返回 None，独立 installer_contract 测试也明确断言 Unix/Windows 均不支持系统安装。模型来源驱动未列入 Cortex Code 的 verified_release，实际接口明确拒绝 session_model。补齐系统安装及指定模型接入、交付脱敏接入证据后重跑任务31。
+
+- 本次复用任务30正式 shiju 0.6.0 产物 `/tmp/shiju-amp-complete-20261118/shiju`，SHA-256 `c01a466afc21a06e643db6341457e404981f06833833c6c327e7a02774758b78`；构建来源沿用上一节的 df9f114345adf4f843a0929e88750cb48122ba22 加工作区修复，未重新构建，不宣称对应当前 clean HEAD。当前相关源码摘要另存私有证据，当前安装拒绝源码与实测一致，不单凭旧二进制判定当前实现失败。
+- 使用自有回环网关 127.0.0.1:51431、现有开发配置；全部 API 均携带任务规定的三个租户/目录头。GET installed、agent?include_disabled=true、acp 与完整配置均 HTTP200；Cortex 安装前后均 false；内置 acp-cortex-code 为 builtin=true、runtime.kind=acp、backend=cortex-code、enabled=false。
+- POST /v1/desktop/acp-install/cortex-code：HTTP400，curl退出0，0.001179秒，明确返回“该 ACP 暂无一键安装命令，请使用官方安装器”。未改用外部安装脚本，无可核验入口或上游版本。
+- POST /v1/desktop/acp-diagnostic/acp-smoke-cortex-code 使用当前 GET 的对应 ACP 配置：HTTP200，curl退出0，0.008343秒，结果 startup_failed，未视为握手或会话成功。GET /v1/acp-model-source/cortex-code：HTTP200，curl退出0，0.000679秒；session_model=unsupported、reason=unsupported_cli，cli_local=supported，connected=false。
+- Rue.js packages/rue/src 存在，目标 acpdemo/cortex-code 初始不存在；已保存 Git 初始状态及排除 .git/node_modules/target 的普通文件 SHA-256 快照，前后6297项、0差异。未创建目标产物，未覆盖任何用户文件。
+- 安装与指定模型能力为前置阻塞，未临时启用预设、未发 chat/stream、无会话标识或 chat.done；未执行会话 summary/options、页面文件功能验收、浏览器或页面构建。未执行 Rust 单测、Clippy 或编译：没有行为修复，遇到明确外部能力阻塞后停止执行，不声称测试通过。
+- 结束 GET 全部配置与基线相等，无需恢复 PATCH。自有网关 PID91090 退出0，端口已关闭；未重启或终止用户服务，未申请 Cargo 槽位。
+- 原始配置、请求、响应、指标、快照及清理记录仅存本机0700目录 `/tmp/shiju-cortex-accept-20261118/`，不提交敏感载荷或供应商二进制。此次仅追加本节并更新任务31阻塞状态。

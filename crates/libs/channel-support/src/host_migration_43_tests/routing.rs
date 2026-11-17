@@ -78,9 +78,92 @@ pub(super) fn context(workspace_dir: &Path) -> ChannelRuntimeContext {
     }
 }
 
+// The host and configuration caches are process-global; keep catalog tests isolated.
+#[cfg(not(target_arch = "wasm32"))]
+async fn provider_catalog_fixture(test: &str) -> bool {
+    const CHILD: &str = "SHIJU_CHANNEL_ROUTING_TEST_CHILD";
+    if std::env::var_os(CHILD).is_none() {
+        let root = tempfile::tempdir().unwrap();
+        let module = module_path!().split_once("::").unwrap().1;
+        let mut child = std::process::Command::new(std::env::current_exe().unwrap())
+            .args(["--exact", &format!("{module}::{test}"), "--nocapture"])
+            .env_clear()
+            .env("PATH", std::env::var_os("PATH").unwrap_or_default())
+            .env("HOME", root.path())
+            .env("TMPDIR", root.path())
+            .env("VW_MODEL_RECOVERY_TEST_ROOT", root.path())
+            .env("VIBEWINDOW_TEST_ROOT", root.path())
+            .env("VIBEWINDOW_CONFIG_DIR", root.path().join("config"))
+            .env("VIBEWINDOW_DISABLE_MODELS_FETCH", "1")
+            .env(CHILD, "1")
+            .current_dir(root.path())
+            .stdout(std::process::Stdio::piped())
+            .stderr(std::process::Stdio::piped())
+            .spawn()
+            .unwrap();
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(60);
+        while child.try_wait().unwrap().is_none() {
+            if std::time::Instant::now() >= deadline {
+                child.kill().unwrap();
+                let output = child.wait_with_output().unwrap();
+                panic!(
+                    "isolated routing test timed out: {}\n{}",
+                    String::from_utf8_lossy(&output.stdout),
+                    String::from_utf8_lossy(&output.stderr)
+                );
+            }
+            tokio::time::sleep(std::time::Duration::from_millis(10)).await;
+        }
+        let output = child.wait_with_output().unwrap();
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        assert!(
+            output.status.success() && stdout.contains("1 passed"),
+            "{stdout}\n{}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+        println!("isolated routing child: {stdout}");
+        return true;
+    }
+
+    fn tenant() -> vw_api_transport::id::TenantScope {
+        vw_api_transport::id::TenantScope::new("routing-tests", "catalog").unwrap()
+    }
+    agent_provider::provider::install_host(agent_provider::provider::Host {
+        current_tenant_scope: tenant,
+        read_catalogs: |config| {
+            Box::pin(async move {
+                // These providers use explicit models, with no native deployment binding.
+                agent_provider::model_catalog::read_with(&config, |_| {
+                    Err(agent_config::runtime::Error::Invalid(
+                        "routing fixture has no native model catalog binding".into(),
+                    ))
+                })
+            })
+        },
+    });
+    agent_config::runtime::update_global_for_tenant(
+        &tenant(),
+        serde_json::json!({
+            "providers": {
+                "routing-zeta": {"models": {"fixture-model": {"status": "active"}}},
+                "routing-alpha": {"models": {"fixture-model": {"status": "active"}}}
+            }
+        }),
+    )
+    .await
+    .unwrap();
+    false
+}
+
 #[tokio::test]
 async fn resolve_provider_alias_normalizes_known_provider_id_case() {
+    #[cfg(not(target_arch = "wasm32"))]
+    if provider_catalog_fixture("resolve_provider_alias_normalizes_known_provider_id_case").await {
+        return;
+    }
     let ids = available_provider_ids().await.unwrap();
+    #[cfg(not(target_arch = "wasm32"))]
+    assert!(ids.iter().any(|id| id == "routing-alpha"));
     if let Some(first) = ids.first() {
         assert_eq!(
             resolve_provider_alias(&first.to_ascii_uppercase()).await.unwrap(),
@@ -97,7 +180,16 @@ async fn resolve_provider_alias_rejects_blank_input() {
 
 #[tokio::test]
 async fn available_provider_ids_is_sorted() {
+    #[cfg(not(target_arch = "wasm32"))]
+    if provider_catalog_fixture("available_provider_ids_is_sorted").await {
+        return;
+    }
     let ids = available_provider_ids().await.unwrap();
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        assert!(ids.iter().any(|id| id == "routing-alpha"));
+        assert!(ids.iter().any(|id| id == "routing-zeta"));
+    }
     let mut sorted = ids.clone();
     sorted.sort();
 

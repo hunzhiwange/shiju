@@ -287,7 +287,12 @@ fn emit(entry: Option<&Value>, indent: usize) -> Result<String, WriteError> {
     let Some(entry) = entry else {
         return Ok(String::new());
     };
-    let s = serde_yaml::to_string(&vec![entry]).map_err(|_| WriteError::InvalidResource)?;
+    // Parse JSON text so arbitrary_precision numbers become native YAML scalars,
+    // rather than serde_json's private serialization marker maps.
+    let json = serde_json::to_string(&vec![entry]).map_err(|_| WriteError::InvalidResource)?;
+    let yaml: serde_yaml::Value =
+        serde_yaml::from_str(&json).map_err(|_| WriteError::InvalidResource)?;
+    let s = serde_yaml::to_string(&yaml).map_err(|_| WriteError::InvalidResource)?;
     Ok(s.lines().map(|l| format!("{}{l}\n", " ".repeat(indent))).collect())
 }
 pub(super) fn directory_components(

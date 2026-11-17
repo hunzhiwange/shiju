@@ -13,6 +13,7 @@ fn cc04_hermes_roundtrip_keeps_unrelated_yaml() {
     assert_eq!(rows["one"].declaration["api_key"], "fake-new");
     assert_eq!(rows["one"].declaration["key_env"], "FIXTURE_KEY");
     assert_eq!(rows["one"].declaration["future"], "keep");
+    assert_eq!(rows["one"].declaration["models"][0]["context_length"], 8192);
     assert!(String::from_utf8_lossy(&out).contains("# keep\nagent: {max_turns: 50}\n"));
     assert!(String::from_utf8_lossy(&out).contains("  - name: other\n    api_key: fake-other\n"));
 }

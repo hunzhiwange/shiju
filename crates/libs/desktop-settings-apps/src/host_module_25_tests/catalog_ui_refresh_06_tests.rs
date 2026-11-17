@@ -5,13 +5,10 @@ use desktop_i18n::I18n;
 use iced::advanced::renderer::{Headless, Style};
 use iced::advanced::{
     Layout, clipboard, layout,
-    widget::{
-        Tree,
-        operation::{Operation, Outcome, Scrollable, focusable},
-    },
+    widget::{Tree, operation::Operation},
 };
 use iced::keyboard::{self, Key, key::Named};
-use iced::{Element, Event, Font, Point, Rectangle, Renderer, Size, Theme, Vector, mouse};
+use iced::{Element, Event, Font, Point, Rectangle, Renderer, Size, Theme, mouse};
 use iced_runtime::user_interface::{Cache, UserInterface};
 use vw_api_app_identity::{
     AppCatalogEntry, AppHostPreferences, AppId, AppInstallation, AppInstallationEnvironment,
@@ -178,6 +175,17 @@ impl<'a> Scene<'a> {
             .bounds()
     }
 
+    fn label(&mut self, renderer: &Renderer, value: &str) -> Rectangle {
+        let mut labels = CatalogLabels::default();
+        self.ui.operate(renderer, &mut labels);
+        labels
+            .0
+            .into_iter()
+            .find(|(label, _)| label == value)
+            .unwrap_or_else(|| panic!("missing label {value:?}"))
+            .1
+    }
+
     fn send(
         &mut self,
         renderer: &mut Renderer,
@@ -225,38 +233,6 @@ impl<'a> Scene<'a> {
             point.map_or(mouse::Cursor::Unavailable, mouse::Cursor::Available),
         );
     }
-
-    fn focus_next(&mut self, renderer: &Renderer) {
-        let mut operation: Box<dyn Operation> = Box::new(focusable::focus_next());
-        loop {
-            self.ui.operate(renderer, operation.as_mut());
-            match operation.finish() {
-                Outcome::Chain(next) => operation = next,
-                _ => break,
-            }
-        }
-    }
-}
-
-#[derive(Default)]
-struct BodyOffset(f32);
-
-impl Operation for BodyOffset {
-    fn traverse(&mut self, operate: &mut dyn FnMut(&mut dyn Operation)) {
-        operate(self);
-    }
-
-    fn scrollable(
-        &mut self,
-        _id: Option<&iced::advanced::widget::Id>,
-        bounds: Rectangle,
-        content: Rectangle,
-        translation: Vector,
-        _state: &mut dyn Scrollable,
-    ) {
-        assert!(bounds.height < content.height, "body must overflow the short viewport");
-        self.0 = translation.y;
-    }
 }
 
 fn key(key: Named) -> Event {
@@ -288,12 +264,10 @@ fn catalog_messages(messages: Vec<Message>) -> Vec<AppsCatalogMessage> {
         .collect()
 }
 
-const SEARCH: &[usize] = &[0, 1, 0, 0, 0, 1];
+const SEARCH: &[usize] = &[0, 2, 0, 0, 0, 1];
 const REFRESH: &[usize] = &[0, 0, 1];
 const SETTINGS: &[usize] = &[0, 0, 2];
-const SUMMARY: &[usize] = &[0, 2, 1, 0, 0, 0, 0];
-const CONNECTION: &[usize] = &[1, 1, 0, 0];
-const CONNECTION_FOOTER: &[usize] = &[1, 1, 0, 0, 0, 2];
+const SUMMARY: &[usize] = &[0, 4, 1, 0, 0, 0];
 
 #[tokio::test]
 async fn ui_refresh_06_layout_and_interaction() {
@@ -308,7 +282,7 @@ async fn ui_refresh_06_layout_and_interaction() {
         restart_required: false,
         capabilities: None,
     });
-    let mut scene = Scene::new(view(&state), &mut renderer, Size::new(640.0, 960.0));
+    let mut scene = Scene::new(view(&state), &mut renderer, Size::new(640.0, 1800.0));
     let name = scene.bounds(&[SUMMARY, &[2, 0]].concat());
     let actions = scene.bounds(&[SUMMARY, &[3]].concat());
     let summary = scene.bounds(SUMMARY);
@@ -316,49 +290,45 @@ async fn ui_refresh_06_layout_and_interaction() {
     assert!(name.x + name.width < actions.x);
     assert!(actions.x + actions.width <= summary.x + summary.width);
     assert!((name.y - summary.y).abs() < 0.5);
-    let launch = scene.bounds(&[SUMMARY, &[3, 1]].concat());
+    let launch = scene.label(&renderer, "启动");
     let brand = scene.bounds(&[SUMMARY, &[1]].concat());
-    assert!((launch.center_y() - brand.center_y()).abs() < 0.5);
+    assert!((actions.center_y() - brand.center_y()).abs() < 0.5);
     let search = scene.bounds(SEARCH);
     let search_text = scene.bounds(&[SEARCH, &[0]].concat());
-    let search_icon = scene.bounds(&[0, 1, 0, 0, 0, 0]);
+    let search_icon = scene.bounds(&[0, 2, 0, 0, 0, 0]);
     assert!((search.center_y() - search_text.center_y()).abs() < 0.5);
     assert!((search.center_y() - search_icon.center_y()).abs() < 0.5);
 
-    let connection = scene.bounds(&[0, 1, 0, 0, 0, 2]).center();
-    assert!(scene.hover(&mut renderer, connection).is_empty());
     let theme = Theme::Dark;
-    scene.draw(&mut renderer, &theme, Some(connection));
-    save_screenshot(&mut renderer, &theme, Size::new(640, 960), "connection-tooltip");
-    assert!(scene.hover(&mut renderer, search.center()).is_empty());
-    assert!(matches!(
-        catalog_messages(scene.click(&mut renderer, connection)).as_slice(),
-        [AppsCatalogMessage::ConnectionOpen]
-    ));
+    scene.draw(&mut renderer, &theme, Some(search.center()));
+    save_screenshot(&mut renderer, &theme, Size::new(640, 1800), "catalog-interaction");
 
     let launch_point = launch.center();
-    assert!(matches!(
-        catalog_messages(scene.hover(&mut renderer, launch_point)).as_slice(),
-        [AppsCatalogMessage::Drag(drag::DragMessage::Hover(AppId::Codex))]
-    ));
+    assert!(scene.hover(&mut renderer, launch_point).is_empty());
     assert!(matches!(
         catalog_messages(scene.click(&mut renderer, launch_point)).as_slice(),
         [AppsCatalogMessage::Launch(launch::LaunchMessage::Open(AppId::Codex, id))]
             if id.0 == "fixture-installation"
     ));
-    let toggle = scene.bounds(&[SUMMARY, &[3, 2]].concat()).center();
+    let toggle = scene.label(&renderer, "已选择").center();
     assert!(matches!(
-        catalog_messages(scene.click(&mut renderer, toggle)).as_slice(),
-        [AppsCatalogMessage::ToggleDetails(AppId::Codex)]
+        catalog_messages(scene.hover(&mut renderer, toggle)).as_slice(),
+        [AppsCatalogMessage::Drag(drag::DragMessage::Hover(AppId::Codex))]
     ));
+    assert!(scene.click(&mut renderer, toggle).is_empty());
     let grip = scene.bounds(&[SUMMARY, &[0]].concat()).center();
+    assert!(scene.hover(&mut renderer, grip).is_empty());
     assert!(matches!(
         catalog_messages(scene.click(&mut renderer, grip)).as_slice(),
         [AppsCatalogMessage::Drag(drag::DragMessage::Start(AppId::Codex))]
     ));
-    let details: &[usize] = &[0, 2, 1, 0, 0, 2, 0, 3];
-    let path = scene.bounds(&[details, &[1, 1]].concat());
-    let update = scene.bounds(&[details, &[3, 1]].concat());
+    assert!(matches!(
+        catalog_messages(scene.hover(&mut renderer, search.center())).as_slice(),
+        [AppsCatalogMessage::Drag(drag::DragMessage::Leave(AppId::Codex))]
+    ));
+    let path =
+        scene.label(&renderer, &state.rows[0].observation.as_ref().unwrap().installations[0].path);
+    let update = scene.label(&renderer, "检查升级");
     assert!(path.height > 26.0 && path.y + path.height < update.y);
     assert!(matches!(
         catalog_messages(scene.click(&mut renderer, update.center())).as_slice(),
@@ -368,10 +338,7 @@ async fn ui_refresh_06_layout_and_interaction() {
             target: AppActionTarget::Installation { installation_id },
         }))] if installation_id.0 == "fixture-installation"
     ));
-    assert!(matches!(
-        catalog_messages(scene.hover(&mut renderer, search.center())).as_slice(),
-        [AppsCatalogMessage::Drag(drag::DragMessage::Leave(AppId::Codex))]
-    ));
+    assert!(scene.hover(&mut renderer, search.center()).is_empty());
     assert!(scene.click(&mut renderer, search.center()).is_empty());
     assert!(matches!(
         catalog_messages(scene.send(&mut renderer, &[ime("測試篩選")], Some(search.center()))).as_slice(),
@@ -387,20 +354,17 @@ async fn ui_refresh_06_layout_and_interaction() {
     state.query = "  FIXTURE-MISSING  ".into();
     let mut scene = Scene::new(view(&state), &mut renderer, Size::new(640.0, 640.0));
     let content = Layout::new(&scene.node).children().next().unwrap();
-    assert_eq!(content.children().count(), 3, "only one status group matches the command");
+    assert_eq!(content.children().count(), 6, "only one status group matches the command");
     assert!(matches!(
-        catalog_messages(
-            scene.click(&mut renderer, scene.bounds(&[SUMMARY, &[3, 1]].concat()).center())
-        )
-        .as_slice(),
+        catalog_messages(scene.click(&mut renderer, scene.bounds(&[0, 4, 1, 0, 0, 0, 3]).center()))
+            .as_slice(),
         [AppsCatalogMessage::ToggleDetails(AppId::Claude)]
     ));
     drop(scene);
 
     state.expanded = Some(AppId::Claude);
-    let install_button = &[0, 2, 1, 0, 0, 2, 0, 2, 1];
-    let mut scene = Scene::new(view(&state), &mut renderer, Size::new(640.0, 640.0));
-    let install = scene.bounds(install_button).center();
+    let mut scene = Scene::new(view(&state), &mut renderer, Size::new(640.0, 1200.0));
+    let install = scene.label(&renderer, "Linux 安装预检").center();
     assert!(matches!(
         catalog_messages(scene.click(&mut renderer, install)).as_slice(),
         [AppsCatalogMessage::Lifecycle(LifecycleMessage::Preview(AppActionPreviewRequest {
@@ -412,8 +376,9 @@ async fn ui_refresh_06_layout_and_interaction() {
     drop(scene);
 
     state.lifecycle.busy = true;
-    let mut scene = Scene::new(view(&state), &mut renderer, Size::new(640.0, 640.0));
-    assert!(scene.click(&mut renderer, scene.bounds(install_button).center()).is_empty());
+    let mut scene = Scene::new(view(&state), &mut renderer, Size::new(640.0, 1200.0));
+    let install = scene.label(&renderer, "Linux 安装预检").center();
+    assert!(scene.click(&mut renderer, install).is_empty());
 }
 
 #[tokio::test]
@@ -440,93 +405,44 @@ async fn ui_refresh_06_preserves_values_and_disabled_states() {
     for target in [REFRESH, SETTINGS] {
         assert!(scene.click(&mut renderer, scene.bounds(target).center()).is_empty());
     }
-    let primary = scene.bounds(&[SUMMARY, &[3, 1]].concat()).center();
-    let toggle = scene.bounds(&[SUMMARY, &[3, 2]].concat()).center();
+    let primary = scene.label(&renderer, "启动").center();
+    let toggle = scene.label(&renderer, "已选择").center();
+    assert!(scene.hover(&mut renderer, primary).is_empty());
+    assert!(scene.click(&mut renderer, primary).is_empty());
     assert!(matches!(
-        catalog_messages(scene.hover(&mut renderer, primary)).as_slice(),
+        catalog_messages(scene.hover(&mut renderer, toggle)).as_slice(),
         [AppsCatalogMessage::Drag(drag::DragMessage::Hover(AppId::Codex))]
     ));
-    assert!(scene.click(&mut renderer, primary).is_empty());
     assert!(scene.click(&mut renderer, toggle).is_empty());
 
     drop(scene);
     state.drag = Default::default();
+    // Legacy connection state must not expose a separate credentials form.
     state.connection_open = true;
-    for size in [Size::new(420.0, 480.0), Size::new(960.0, 640.0)] {
-        let scene = Scene::new(
-            view_overlays(&state, I18n::new(Default::default()), &iced::Theme::Light, view(&state)),
+    for (size, theme) in
+        [(Size::new(420.0, 960.0), Theme::Dark), (Size::new(960.0, 640.0), Theme::Light)]
+    {
+        let mut scene = Scene::new(
+            view_overlays(&state, I18n::new(Default::default()), &theme, view(&state)),
             &mut renderer,
             size,
         );
-        let card = scene.bounds(CONNECTION);
-        assert!((card.width - (size.width - 24.0).min(520.0)).abs() < 0.5);
-        assert!((card.center_x() - size.width / 2.0).abs() < 0.5);
-        assert!((card.center_y() - size.height / 2.0).abs() < 0.5);
+        let mut labels = CatalogLabels::default();
+        scene.ui.operate(&renderer, &mut labels);
+        assert!(
+            !labels.0.iter().any(|(label, _)| matches!(
+                label.as_str(),
+                "高级连接" | "选择执行主机" | "加载应用"
+            ))
+        );
+        let search = scene.bounds(SEARCH).center();
+        assert!(scene.click(&mut renderer, search).is_empty());
+        assert!(matches!(
+            catalog_messages(scene.send(&mut renderer, &[ime("測試篩選")], Some(search))).as_slice(),
+            [AppsCatalogMessage::QueryInput(value)] if value == "測試篩選"
+        ));
+        scene.draw(&mut renderer, &theme, Some(search));
     }
-    let modal_size = Size::new(420.0, 250.0);
-    let mut scene = Scene::new(
-        view_overlays(&state, I18n::new(Default::default()), &iced::Theme::Light, view(&state)),
-        &mut renderer,
-        modal_size,
-    );
-    let card = scene.bounds(CONNECTION);
-    assert!(card.x >= 12.0 && card.x + card.width <= modal_size.width - 12.0);
-    let scroll = scene.bounds(&[CONNECTION, &[0, 1]].concat());
-    let footer = scene.bounds(CONNECTION_FOOTER);
-    assert!(scroll.y + scroll.height < footer.y);
-    let confirm = scene.bounds(&[CONNECTION_FOOTER, &[2]].concat()).center();
-    let cancel = scene.bounds(&[CONNECTION_FOOTER, &[1]].concat()).center();
-    assert!(scene.click(&mut renderer, confirm).is_empty(), "empty token disables loading");
-    scene.focus_next(&renderer);
-    assert!(matches!(
-        catalog_messages(scene.send(&mut renderer, &[ime("-測試")], None)).as_slice(),
-        [AppsCatalogMessage::HostInput(value)] if value == "fixture-host-測試"
-    ));
-    assert!(scene.send(&mut renderer, &[key(Named::Enter), key(Named::Escape)], None).is_empty());
-    let mut offset = BodyOffset::default();
-    scene.ui.operate(&renderer, &mut offset);
-    assert_eq!(offset.0, 0.0);
-    let scroll_point = Point::new(scroll.x + 3.0, scroll.center_y());
-    assert!(scene.hover(&mut renderer, scroll_point).is_empty());
-    let scroll_event = Event::Mouse(mouse::Event::WheelScrolled {
-        delta: mouse::ScrollDelta::Pixels { x: 0.0, y: -160.0 },
-    });
-    assert!(scene.send(&mut renderer, &[scroll_event], Some(scroll_point)).is_empty());
-    scene.ui.operate(&renderer, &mut offset);
-    assert!(offset.0 > 0.0, "wheel must move the modal body");
-    let theme = Theme::Dark;
-    scene.draw(&mut renderer, &theme, None);
-    save_screenshot(&mut renderer, &theme, Size::new(420, 250), "connection-scrolled");
-    assert!(matches!(
-        catalog_messages(scene.click(&mut renderer, cancel)).as_slice(),
-        [AppsCatalogMessage::ConnectionClose]
-    ));
-    let mut roomy = Scene::new(
-        view_overlays(&state, I18n::new(Default::default()), &iced::Theme::Light, view(&state)),
-        &mut renderer,
-        Size::new(960.0, 640.0),
-    );
-    let refresh = roomy.bounds(&[&[0][..], REFRESH].concat()).center();
-    assert!(!roomy.bounds(CONNECTION).contains(refresh));
-    assert!(roomy.click(&mut renderer, refresh).is_empty());
-    drop(roomy);
-    let close = scene.bounds(&[CONNECTION, &[0, 0, 1]].concat()).center();
-    assert!(matches!(
-        catalog_messages(scene.click(&mut renderer, close)).as_slice(),
-        [AppsCatalogMessage::ConnectionClose]
-    ));
-
-    drop(scene);
-    state.token = "fake-fixture-token".into();
-    let mut scene = Scene::new(
-        view_overlays(&state, I18n::new(Default::default()), &iced::Theme::Light, view(&state)),
-        &mut renderer,
-        modal_size,
-    );
-    assert!(matches!(
-        catalog_messages(scene.click(&mut renderer, confirm)).as_slice(),
-        [AppsCatalogMessage::Refresh]
-    ));
 }
 
 #[derive(Default)]

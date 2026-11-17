@@ -97,7 +97,8 @@ fn default_acp_icon_uses_requested_size() {
 
 #[test]
 fn default_acp_icon_uses_robot_instead_of_connector() {
-    let source = include_str!("icons.rs");
+    // 本地图标模块仅重导出；检查实际提供默认 ACP 图标的共享实现。
+    let source = include_str!("../../../desktop-ui-controls/src/icons.rs");
     assert!(
         source.contains("assets::get_icon(Icon::Robot)"),
         "default ACP backend should use robot icon like slash ACP entries"

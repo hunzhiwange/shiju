@@ -615,7 +615,11 @@ async fn cc_route_037_authorized_native_gemini_json_and_sse() {
                 timeout(Duration::from_secs(10), received.recv()).await.unwrap().unwrap();
             assert_eq!(headers["x-goog-api-key"], "fixture-upstream");
             assert!(!headers.contains_key(header::AUTHORIZATION));
-            assert_eq!(outgoing, body);
+            let mut expected_body = body.clone();
+            // The native Gemini boundary normalizes empty object schemas.
+            expected_body["tools"][0]["functionDeclarations"][0]["parameters"]["properties"] =
+                json!({});
+            assert_eq!(outgoing, expected_body);
             assert_eq!(
                 uri.path(),
                 if streaming {

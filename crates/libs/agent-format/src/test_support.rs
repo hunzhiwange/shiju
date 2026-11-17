@@ -3,7 +3,7 @@ use crate::{State, host::{BoxFuture, FormatHost}};
 use std::{collections::HashMap, path::{Path, PathBuf}, sync::{Arc, LazyLock, Mutex}};
 use tokio::sync::OnceCell;
 
-tokio::task_local! { static DIRECTORY: String; }
+tokio::task_local! { static DIRECTORY: String; static WORKTREE: String; }
 static STATES: LazyLock<Mutex<HashMap<String, Arc<OnceCell<Arc<State>>>>>> =
     LazyLock::new(|| Mutex::new(HashMap::new()));
 
@@ -17,7 +17,7 @@ pub(crate) fn install() { crate::host::install(Arc::new(TestHost)); }
 
 impl FormatHost for TestHost {
     fn directory(&self) -> String { DIRECTORY.try_with(Clone::clone).unwrap_or_default() }
-    fn worktree(&self) -> String { self.directory() }
+    fn worktree(&self) -> String { WORKTREE.try_with(Clone::clone).unwrap_or_else(|_| self.directory()) }
     fn state(&self) -> BoxFuture<Arc<State>> {
         let key = self.directory();
         Box::pin(async move {
@@ -54,4 +54,13 @@ pub(crate) async fn provide<R>(
         if let Some(init) = init { init().await; }
         Ok(f().await)
     }).await
+}
+
+/// 为嵌套目录测试显式提供工作树边界，不执行项目发现。
+pub(crate) async fn provide_in_worktree<R>(
+    directory: impl AsRef<Path>,
+    worktree: impl AsRef<Path>,
+    f: impl FnOnce() -> BoxFuture<R> + Send + 'static,
+) -> Result<R, std::convert::Infallible> {
+    WORKTREE.scope(worktree.as_ref().to_string_lossy().into_owned(), provide(directory, None, f)).await
 }

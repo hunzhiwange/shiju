@@ -62,6 +62,14 @@ async fn in_project<T: Send + 'static>(
     instance::provide(dir, None, f).await.expect("project context")
 }
 
+async fn in_worktree<T: Send + 'static>(
+    dir: &Path,
+    worktree: &Path,
+    f: impl FnOnce() -> crate::host::BoxFuture<T> + Send + 'static,
+) -> T {
+    instance::provide_in_worktree(dir, worktree, f).await.expect("project context")
+}
+
 fn formatter(name: &str, enabled: EnabledCheck) -> FormatterInfo {
     FormatterInfo {
         name: name.to_string(),
@@ -293,12 +301,12 @@ async fn prettier_searches_up_to_worktree_only() {
 
     std::fs::write(project.join("package.json"), r#"{"dependencies":{"prettier":"3"}}"#)
         .expect("write package");
-    assert!(in_project(&nested, || Box::pin(async { prettier_enabled().await })).await);
+    assert!(in_worktree(&nested, &project, || Box::pin(async { prettier_enabled().await })).await);
 
     std::fs::remove_file(project.join("package.json")).expect("remove package");
     std::fs::write(outer.path().join("package.json"), r#"{"dependencies":{"prettier":"3"}}"#)
         .expect("write outer package");
-    assert!(!in_project(&nested, || Box::pin(async { prettier_enabled().await })).await);
+    assert!(!in_worktree(&nested, &project, || Box::pin(async { prettier_enabled().await })).await);
 }
 
 #[tokio::test]
@@ -315,7 +323,7 @@ async fn prettier_skips_unreadable_nearest_manifest_and_uses_valid_parent() {
     std::fs::write(project.path().join("package.json"), r#"{"dependencies":{"prettier":"3"}}"#)
         .expect("write parent package");
 
-    assert!(in_project(&nested, || Box::pin(async { prettier_enabled().await })).await);
+    assert!(in_worktree(&nested, project.path(), || Box::pin(async { prettier_enabled().await })).await);
 }
 
 #[tokio::test]
@@ -377,11 +385,11 @@ async fn biome_accepts_json_config_and_ignores_parent_above_worktree() {
     std::fs::create_dir_all(&nested).expect("create nested dir");
 
     std::fs::write(project.join("biome.json"), "{}").expect("write config");
-    assert!(in_project(&nested, || Box::pin(async { biome_enabled().await })).await);
+    assert!(in_worktree(&nested, &project, || Box::pin(async { biome_enabled().await })).await);
 
     std::fs::remove_file(project.join("biome.json")).expect("remove config");
     std::fs::write(outer.path().join("biome.jsonc"), "{}").expect("write outer config");
-    assert!(!in_project(&nested, || Box::pin(async { biome_enabled().await })).await);
+    assert!(!in_worktree(&nested, &project, || Box::pin(async { biome_enabled().await })).await);
 }
 
 #[tokio::test]
@@ -553,7 +561,7 @@ async fn pint_skips_invalid_nearest_manifest_and_uses_valid_parent() {
     )
     .expect("write parent composer");
 
-    assert!(in_project(&nested, || Box::pin(async { pint_enabled().await })).await);
+    assert!(in_worktree(&nested, project.path(), || Box::pin(async { pint_enabled().await })).await);
 }
 
 #[tokio::test]

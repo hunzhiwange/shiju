@@ -429,6 +429,7 @@ mod tests {
     fn blocked_command_does_not_apply_requested_schedule_change() {
         let tmp = TempDir::new().unwrap();
         let mut config = test_config(&tmp);
+        config.security.bash.enabled = true;
         config.autonomy.allowed_commands = vec!["echo".into()];
         let job = make_job(&config, "*/5 * * * *", Some("UTC"), "echo original");
 

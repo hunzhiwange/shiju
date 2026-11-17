@@ -92,7 +92,11 @@ async fn cc_route_029_outbound_probe_expected_behavior() {
     let home = tempfile::tempdir().unwrap();
     let policy = home.path().join("access.json");
     write_policy(&policy, home.path(), 0);
+    // The execution host prepares the state root before opening diagnostic jobs.
+    let state = home.path().join(".local/state/shiju");
+    fs::create_dir_all(&state).unwrap();
     let (_gateway, port) = spawn_gateway(home.path(), &policy).await;
+    assert!(state.join("agent-app-diagnostics/diagnostics.lock").is_file());
 
     let raw = reqwest::Client::builder().no_proxy().timeout(GUARD).build().unwrap();
     let start = |body: Value| {

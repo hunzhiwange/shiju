@@ -4,7 +4,7 @@
 
 批次：【批次1】 依赖：无
 
-状态：未开始
+状态：待回归
 
 来源：继续执行宿主单测；诊断编号2（宿主编译错误证据.json）。
 预计会话范围：修复一个源码文件中的宿主接口或测试夹具编译契约；不接管整包。
@@ -57,3 +57,9 @@ python3 scripts/cargo_slot.py cargo test -p vw-agent --lib -- --list
 编译取证命令（不是测试通过证据）：`python3 scripts/cargo_slot.py cargo test -p vw-agent --lib --no-run`。同阶段顺序命令合并一次入口复用缓存，不默认逐任务全量测试。
 
 最终需由原任务303执行两阶段全量验收；这组修复仅覆盖已发现编译阻塞，尚不能保证宿主全部运行失败已发现。
+
+## 执行记录（2026-11-18）
+
+- 核对实际调用者：宿主 memory_context 测试已迁入 agent-loop；loop_ 测试导出没有消费者，core::history 绑定仍由 llm_round 直接调用。删除 loop_.rs 的失效测试重导出及对应说明，保留生产实现及安全断言。
+- 排队等待已有 Cargo 退出后执行 `python3 scripts/cargo_slot.py cargo test -p vw-agent --lib -- --list`，槽位1；CARGO_TARGET_DIR 与 CARGO_BUILD_BUILD_DIR 均为 `/Users/xiangmin/worker/code/shiju/target/rust-slot-1`。退出101，有效测试0；日志 `/tmp/shiju-task322-list.log`。本项 E0432 已消失，但仍有38条兄弟编译错误（compaction 夹具导入、RATE_LIMIT_WINDOW_SECS、ui_store、VideoContext 等），不能声称行为通过。入口及其子进程已退出。
+- 已核对 `loop_tools/native_mode.rs` 的真实 tokio::test：`run_tool_call_loop_native_mode_preserves_fallback_tool_call_ids`。待同宿主兄弟阻塞解除后，先重新列出测试，再运行 `python3 scripts/cargo_slot.py cargo test -p vw-agent --lib run_tool_call_loop_native_mode_preserves_fallback_tool_call_ids -- --nocapture`，必须有效数>0且failed=0。未重复执行已知无法编译的测试目标；保留任务文件等待回归。

@@ -106,13 +106,11 @@ pub(crate) use core::tools_to_openai_format;
 /// - `DEFAULT_MAX_ITERATIONS` - 默认最大工具迭代次数
 /// - `autosave_memory_key` - 自动保存记忆的键
 /// - `build_native_assistant_history` - 构建原生助手历史
-/// - `build_native_assistant_history_from_parsed_calls` - 从解析的调用构建历史
 /// - `looks_like_unverified_action_completion_without_tool_call` - 检测未验证的操作完成
 #[cfg(test)]
 pub(crate) use core::{
     DEFAULT_MAX_HISTORY_MESSAGES, DEFAULT_MAX_ITERATIONS, autosave_memory_key,
-    build_native_assistant_history, build_native_assistant_history_from_parsed_calls,
-    looks_like_unverified_action_completion_without_tool_call,
+    build_native_assistant_history, looks_like_unverified_action_completion_without_tool_call,
 };
 // ============================================================================
 // 核心循环功能导出

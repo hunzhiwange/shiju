@@ -38,4 +38,15 @@ pub fn preserve_mcp_wire_result(message: &mut Value) {
     };
     typed["_meta"] = json!({ WIRE_RESULT: raw });
     *result = typed;
+    // SSE is decoded again from text through rmcp's untagged ServerResult.
+    // With arbitrary_precision, numeric annotations can pass from_value but
+    // make that decoder fall through to EmptyResult. Keep the complete raw
+    // payload in the carrier for plugin-mcp's validation and restoration.
+    if !matches!(
+        serde_json::from_str::<rmcp::model::ServerJsonRpcMessage>(&message.to_string()),
+        Ok(rmcp::model::ServerJsonRpcMessage::Response(response))
+            if matches!(response.result, rmcp::model::ServerResult::CallToolResult(_))
+    ) {
+        message["result"]["content"] = json!([{"type":"text","text":""}]);
+    }
 }

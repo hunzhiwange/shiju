@@ -1,6 +1,13 @@
 use gateway_usage_read::UsageSummary;
 
 pub struct State {
+    pub(super) scope: Option<crate::Identity>,
+    pub(super) activity: Option<(crate::Identity, bool)>,
+    pub(super) activity_client: Option<vw_gateway_client::GatewayClient>,
+    pub(super) activity_pending: bool,
+    pub(super) status_pending: bool,
+    pub(super) last_status: Option<std::time::Instant>,
+    pub(super) last_query: Option<std::time::Instant>,
     pub display: super::display::State,
     pub models: crate::models::State,
     pub pricing: super::pricing::State,
@@ -22,6 +29,7 @@ impl State {
         self.pricing.close();
         self.models.close();
         self.display.close();
+        self.status_pending = false;
         self.open = false;
         self.sequence = self.sequence.wrapping_add(1);
         self.loading = false;
@@ -34,6 +42,7 @@ impl State {
         self.charts.result = None;
         self.groups.loading = true;
         self.groups.result = None;
+        self.last_query = Some(std::time::Instant::now());
         self.open = true;
         self.sequence = self.sequence.wrapping_add(1);
         self.loading = true;
@@ -44,7 +53,7 @@ impl State {
 
 impl Default for State {
     fn default() -> Self {
-        Self { display: super::display::State::default(), models: crate::models::State::default(), pricing: super::pricing::State::default(), scan: super::scan::State::default(), charts: super::charts::State::default(), logs: super::logs::State::default(), groups: super::groups::State::default(), query: super::overview::default_query(), open: false, sequence: 0, loading: false, result: None }
+        Self { scope: None, activity: None, activity_client: None, activity_pending: false, status_pending: false, last_status: None, last_query: None, display: super::display::State::default(), models: crate::models::State::default(), pricing: super::pricing::State::default(), scan: super::scan::State::default(), charts: super::charts::State::default(), logs: super::logs::State::default(), groups: super::groups::State::default(), query: super::overview::default_query(), open: false, sequence: 0, loading: false, result: None }
     }
 }
 

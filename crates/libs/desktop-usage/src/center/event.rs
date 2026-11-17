@@ -12,6 +12,10 @@ pub enum Event {
     Scan(scan::Event),
     Logs(logs::Event),
     Groups(groups::Event),
+    /// Host calls this when page/window visibility or identity changes.
+    ActivityChanged,
+    ActivitySettled(Identity, bool, Result<(), String>),
+    SyncStatus(u64, Identity, Result<gateway_usage_scan::UsageLastScan, String>),
     Tick,
     Filter(overview::Change),
     Close,

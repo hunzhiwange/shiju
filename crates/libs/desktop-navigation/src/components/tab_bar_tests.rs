@@ -50,23 +50,25 @@ fn view_filters_internal_tabs_and_omits_add_button_when_apps_is_open() {
     let empty_tree = element_tree(view(&test_app()));
     assert_eq!(empty_tree.children.len(), 2);
 
-    let mut app = test_app();
     let mut tabs = vec![
         tab("home", "Home", Screen::Home),
         tab("find:internal", "Find", Screen::Home),
         tab("project", "Project", Screen::Project),
     ];
     let hovered = Some("project".to_string());
-    app.open_tabs = &tabs;
-    app.hovered_tab_id = &hovered;
-    let without_apps = element_tree(view(&app));
+    let without_apps = {
+        let app = State { open_tabs: &tabs, hovered_tab_id: &hovered, ..test_app() };
+        element_tree(view(&app))
+    };
     assert_eq!(without_apps.children.len(), 3);
     assert_eq!(max_child_count(&without_apps.children[1]), 2);
 
     tabs.retain(|tab| tab.id != "project");
     tabs.push(tab("apps", "Apps", Screen::Apps));
-    app.open_tabs = &tabs;
-    let with_apps = element_tree(view(&app));
+    let with_apps = {
+        let app = State { open_tabs: &tabs, hovered_tab_id: &hovered, ..test_app() };
+        element_tree(view(&app))
+    };
     assert_eq!(with_apps.children.len(), 2);
 }
 

@@ -20,9 +20,9 @@ pub fn stage_sql(scope: &SourceScope, sql: &str) -> Result<SourceSnapshot, Sourc
     connection.execute_batch(
         "PRAGMA trusted_schema=OFF; PRAGMA temp_store=MEMORY; PRAGMA page_size=4096; PRAGMA max_page_count=65536;"
     ).map_err(|_| SourceError::InvalidData)?;
-    connection.set_limit(Limit::SQLITE_LIMIT_LENGTH, 16 * 1024 * 1024);
-    connection.set_limit(Limit::SQLITE_LIMIT_SQL_LENGTH, MAX_SQL_BYTES as i32);
-    connection.set_limit(Limit::SQLITE_LIMIT_ATTACHED, 0);
+    connection.set_limit(Limit::SQLITE_LIMIT_LENGTH, 16 * 1024 * 1024).map_err(|_| SourceError::InvalidData)?;
+    connection.set_limit(Limit::SQLITE_LIMIT_SQL_LENGTH, MAX_SQL_BYTES as i32).map_err(|_| SourceError::InvalidData)?;
+    connection.set_limit(Limit::SQLITE_LIMIT_ATTACHED, 0).map_err(|_| SourceError::InvalidData)?;
     // Bound VM work as well as the size of input and database pages. Keep the
     // handler active during schema checks and record extraction, too.
     let mut ticks = 0usize;

@@ -53,7 +53,12 @@ async fn embed_posts_dashscope_payload_and_decodes_float_embeddings() {
 
     assert_eq!(embeddings, vec![vec![1.0, 2.5, 3.0]]);
     assert!(request.starts_with("POST /embeddings HTTP/1.1"));
-    assert!(request.contains("authorization: Bearer secret-key"));
+    let (headers, _) = request.split_once("\r\n\r\n").expect("HTTP request headers");
+    let authorization = headers.lines().skip(1).find_map(|line| {
+        let (name, value) = line.split_once(':')?;
+        name.eq_ignore_ascii_case("authorization").then(|| value.trim())
+    });
+    assert_eq!(authorization, Some("Bearer secret-key"));
     assert!(request.contains(r#""model":"embed-model""#));
     assert!(request.contains(r#""input":["alpha","beta"]"#));
     assert!(request.contains(r#""dimensions":3"#));

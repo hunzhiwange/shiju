@@ -983,3 +983,17 @@ Rust重型命令经scripts/cargo_slot.py槽位入口串行执行，对应CARGO_T
 - auth status退出0但明确Not logged in，models list退出1并要求devin auth login；宿主默认~/.config/devin、~/.local/share/devin、~/.devin不存在，DEVIN_/WINDSURF_/COGNITION_环境变量数量0。当前真实外部前置是有效且获授权的Devin认证；补齐后仍须确认该原模型的可用路由，不能使用默认模型冒充。没有自动开启登录、注册账号、伪造认证或重定向身份服务。未在缺认证及模型绑定证据时发布伪支持驱动。
 - 两次原生探针均已退出（in-process，无共享daemon），未新增网关、未PATCH全局配置、未系统安装或修改权限策略；原自有网关50568端口仍关闭。Rue.js与前轮结束快照比较6297项零差异，目标目录未创建。无代码修复，未运行Cargo、单测、Clippy或页面验证，仅文档轻量检查。任务保持已阻塞，待有效认证及原模型接入条件具备后继续。
 - 新私有证据 `/tmp/shiju-devin-retry-20261118/`（0700）：官方脚本、manifest、校验包、原生帮助、认证状态、模型列表错误、ACP请求/响应/退出指标、边界及清理记录。供应商二进制和原始敏感载荷不提交。
+
+
+## Harn 验收（2026-11-18）
+
+结论：已阻塞，未通过。任务33已明确阻塞并恢复环境；来源任务 `13-Harn.md` 与 `docs/dev/evidence/acp-onboarding-harn.md` 均不存在，缺失不视为已交付。
+
+- 当前注册迁移至 `crates/libs/acp-agent-registry/src/agent_registry.rs`，入口为 `harn serve acp --session-environment isolated`，隔离子进程环境；`config-acp-install/src/lib.rs` 明确返回None，模型来源驱动无Harn verified_release。`agent-config/src/catalog.rs` 派生builtin预设。现有onboarding生命周期与拒绝测试使用Python协议fixture，不能证明真实供应商或指定模型成功。
+- 复用任务30正式shiju 0.6.0产物 `/tmp/shiju-amp-complete-20261118/shiju`，SHA-256 `c01a466afc21a06e643db6341457e404981f06833833c6c327e7a02774758b78`；构建来源为df9f114345adf4f843a0929e88750cb48122ba22加当时工作区修复，不宣称当前clean HEAD构建。保存当前相关源码摘要，当前源码与拒绝行为一致，不单凭旧产物判定失败。
+- 自有回环网关127.0.0.1:57877，沿用现有开发配置；所有请求携带平台10001、公司100010005及规定Rue.js目录头。installed、agents、ACP和全局配置基线GET均200。安装前后Harn未安装；POST系统安装HTTP400、客户端退出0、耗时0.000518秒，明确“该 ACP 暂无一键安装命令，请使用官方安装器”。无真实CLI入口和版本可核验，未使用任意下载或shell替代系统链路。
+- 传入当前ACP配置的诊断HTTP200但结果startup_failed；模型能力GET200，session_model=unsupported、reason=unsupported_cli，cli_local=supported、connected=false。未以HTTP200或默认模型冒充指定 `alibaba-token-plan-cn/deepseek-v4.1-flash-1017` 成功。
+- GET确认acp-harn、builtin=true、backend=harn、enabled=false。安装及选模前置阻塞后未PATCH启用、未提交chat/stream；无SSE、chat.done、summary/options或selected_model/full_access绑定证据，未创建编辑器文件。
+- Rue.js `packages/rue/src` 存在；目标acpdemo/harn初始不存在，结束未创建。排除.git、node_modules、target的普通文件SHA-256快照6297项，前后零差异。结束GET完整配置与基线一致，无临时写入需要恢复；自有网关退出0、端口已关闭，未重启用户服务。
+- 无代码变更或行为修复，复用既有产物；未运行Cargo、定向单测、Clippy、桌面编译、浏览器或页面构建，仅做文档轻量检查。旧 `.plans/references/rust.md` 不存在，本次无需编译槽位。任务34保留已阻塞；系统安装、真实session_model驱动和脱敏接入证据交付后完整重跑。
+- 本次0700私有证据 `/tmp/shiju-harn-accept-20261118/` 保存原始响应及指标、配置基线和重读、源码与构建摘要、网关日志、快照及清理记录；敏感环境值、原始载荷和供应商二进制不提交。

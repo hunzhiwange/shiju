@@ -163,7 +163,20 @@ fn tool_workflow_view<'a>(
     raw: &str,
 ) -> Option<Element<'a, Message>> {
     desktop_chat_tools::tools::workflow_view::tool_workflow_view(&app.card(), m, t, raw)
-        .map(|v| v.map(|_| Message::Other))
+        .map(|v| {
+            v.map(|message| {
+                use desktop_chat_tools::advanced_input::Message as ChatMessage;
+                use desktop_chat_tools::card_input::Message as CardMessage;
+                match message {
+                    CardMessage::OpenToolDetail(m, t, raw) => {
+                        Message::Chat(ChatMessage::OpenToolDetail(m, t, raw))
+                    }
+                    CardMessage::ToolHover(m, t) => Message::Chat(ChatMessage::ToolHover(m, t)),
+                    CardMessage::ToolHoverLeave => Message::Chat(ChatMessage::ToolHoverLeave),
+                    _ => Message::Other,
+                }
+            })
+        })
 }
 fn tool_todowrite_compact_view<'a>(
     app: &'a App,

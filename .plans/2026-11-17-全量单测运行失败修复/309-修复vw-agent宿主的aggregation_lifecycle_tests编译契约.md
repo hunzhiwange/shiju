@@ -4,7 +4,7 @@
 
 批次：【批次1】 依赖：无
 
-状态：未开始
+状态：待回归
 
 来源：继续执行宿主单测；诊断编号28, 29（宿主编译错误证据.json）。
 预计会话范围：修复一个源码文件中的宿主接口或测试夹具编译契约；不接管整包。
@@ -114,3 +114,11 @@ python3 scripts/cargo_slot.py cargo test -p vw-agent --lib aggregation_t19_host_
 编译取证命令（不是测试通过证据）：`python3 scripts/cargo_slot.py cargo test -p vw-agent --lib --no-run`。同阶段顺序命令合并一次入口复用缓存，不默认逐任务全量测试。
 
 最终需由原任务303执行两阶段全量验收；这组修复仅覆盖已发现编译阻塞，尚不能保证宿主全部运行失败已发现。
+
+## 本轮执行记录
+
+- 已核对 `#[tokio::test]` 入口与宿主父模块；start/stop 实现已迁至 `gateway_app_routing::server::lifecycle_api`，测试直接引用真实处理器，configure_with_policy 仍复用宿主生命周期组装。
+- 修复请求闭包遗漏的 `x-agent-apps-token`，保留未授权401、授权200、重复启动与原生配置恢复断言。
+- 修复前后均执行 `python3 scripts/cargo_slot.py cargo test -p vw-agent --lib aggregation_t19_host_stop_and_start_use_authorized_router -- --nocapture`。槽位1，CARGO_TARGET_DIR 与 CARGO_BUILD_BUILD_DIR 均为 `/Users/xiangmin/worker/code/shiju/target/rust-slot-1`。
+- 修复前编译失败67条（含本任务两条E0425）；修复后退出101、65条其他编译错误，无本文件诊断；有效运行测试0，不能视作行为通过。日志 `/tmp/shiju-task309-after.log`。阻塞示例：compat/t42_tests.rs 的 process_with_summarizer、llm transport_tests.rs 的 summary_output_budget、video_edit prepare_tests.rs 的 VideoContext 契约。
+- git diff --check 定向通过；自有编译已退出。其余宿主任务解除阻塞后须重跑上述真实测试，成功前保留本文件。

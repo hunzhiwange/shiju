@@ -349,8 +349,8 @@ async fn aggregation_t19_host_stop_and_start_use_authorized_router() {
     policy["hosts"][0]["routing_startup"] = json!({"enabled":true,"listen_port":0});
     std::fs::write(&f.policy, policy.to_string()).unwrap();
     let router = Router::new()
-        .route("/stop/{host}", axum::routing::post(super::super::app_routing::stop))
-        .route("/start/{host}", axum::routing::post(super::super::app_routing::start))
+        .route("/stop/{host}", axum::routing::post(gateway_app_routing::server::lifecycle_api::stop))
+        .route("/start/{host}", axum::routing::post(gateway_app_routing::server::lifecycle_api::start))
         .layer(Extension(tenant()));
     let router = super::super::app_routing::configure_with_policy(
         router,
@@ -363,6 +363,7 @@ async fn aggregation_t19_host_stop_and_start_use_authorized_router() {
         Request::builder()
             .method("POST")
             .uri(path)
+            .header("x-agent-apps-token", token)
             .header("content-type", "application/json")
             .body(Body::from("{}"))
             .unwrap()

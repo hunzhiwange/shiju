@@ -1,0 +1,13 @@
+{
+  "head_at_log_end": "9d812b524866306913eeec067ab9158f2a475253",
+  "platform": "aarch64-apple-darwin",
+  "rust": "1.99.1",
+  "nextest": "0.9.152",
+  "slot": 4,
+  "target_dir": "/Users/xiangmin/worker/code/shiju/target/rust-slot-4",
+  "summary": "26137 tests run: 25548 passed (3 leaky), 589 failed, 23 skipped",
+  "exit_code": 100,
+  "aborted_tests": 2,
+  "second_stage": "未运行；前阶段失败",
+  "log": "/tmp/shiju-task19-final/retry22.log"
+}

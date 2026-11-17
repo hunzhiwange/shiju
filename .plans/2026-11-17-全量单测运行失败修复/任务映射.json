@@ -1,0 +1,2422 @@
+{
+  "failure_count": 589,
+  "tasks": [
+    {
+      "number": 1,
+      "package": "acp-agent-registry",
+      "file": "crates/libs/acp-agent-registry/src/agent_registry_tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "1-修复acp-agent-registry的agent_registry_tests测试.md"
+    },
+    {
+      "number": 2,
+      "package": "acp-client",
+      "file": "crates/libs/acp-client/src/client/actor_tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "2-修复acp-client的actor_tests测试.md"
+    },
+    {
+      "number": 3,
+      "package": "acp-client",
+      "file": "crates/libs/acp-client/src/client/event_client_tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "3-修复acp-client的event_client_tests测试.md"
+    },
+    {
+      "number": 4,
+      "package": "acp-session-connect",
+      "file": "crates/libs/acp-session-connect/src/connect_load_tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "4-修复acp-session-connect的connect_load_tests测试.md"
+    },
+    {
+      "number": 5,
+      "package": "agent-app-services",
+      "file": "crates/libs/agent-app-services/src/auth_accounts_tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "5-修复agent-app-services的auth_accounts_tests测试.md"
+    },
+    {
+      "number": 6,
+      "package": "agent-app-services",
+      "file": "crates/libs/agent-app-services/src/mcp/data_migration_tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "6-修复agent-app-services的data_migration_tests测试.md"
+    },
+    {
+      "number": 7,
+      "package": "agent-app-services",
+      "file": "crates/libs/agent-app-services/src/postgres_tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "7-修复agent-app-services的postgres_tests测试.md"
+    },
+    {
+      "number": 8,
+      "package": "agent-app-services",
+      "file": "crates/libs/agent-app-services/src/prompt_data_migration_tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "8-修复agent-app-services的prompt_data_migration_tests测试.md"
+    },
+    {
+      "number": 9,
+      "package": "agent-app-services",
+      "file": "crates/libs/agent-app-services/src/store_tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "9-修复agent-app-services的store_tests测试.md"
+    },
+    {
+      "number": 10,
+      "package": "agent-approval",
+      "file": "crates/libs/agent-approval/src/policy_tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "10-修复agent-approval的policy_tests测试.md"
+    },
+    {
+      "number": 11,
+      "package": "agent-config",
+      "file": "crates/libs/agent-config/src/host_migration_29_tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "11-修复agent-config的host_migration_29_tests测试.md"
+    },
+    {
+      "number": 12,
+      "package": "agent-cron",
+      "file": "crates/libs/agent-cron/src/cli_tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "12-修复agent-cron的cli_tests测试.md"
+    },
+    {
+      "number": 13,
+      "package": "agent-cron",
+      "file": "crates/libs/agent-cron/src/host_migration_54_tests/announcement.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "13-修复agent-cron的announcement测试.md"
+    },
+    {
+      "number": 14,
+      "package": "agent-cron",
+      "file": "crates/libs/agent-cron/src/mod_tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "14-修复agent-cron的mod_tests测试.md"
+    },
+    {
+      "number": 15,
+      "package": "agent-doctor",
+      "file": "crates/libs/agent-doctor/src/mod_tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "15-修复agent-doctor的mod_tests测试.md"
+    },
+    {
+      "number": 16,
+      "package": "agent-doctor",
+      "file": "crates/libs/agent-doctor/src/model_probe_tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "16-修复agent-doctor的model_probe_tests测试.md"
+    },
+    {
+      "number": 17,
+      "package": "agent-format",
+      "file": "crates/libs/agent-format/src/format/detect_tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "17-修复agent-format的detect_tests测试.md"
+    },
+    {
+      "number": 18,
+      "package": "agent-gateway",
+      "file": "crates/libs/agent-gateway/src/host_migration_16_tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "18-修复agent-gateway的host_migration_16_tests测试.md"
+    },
+    {
+      "number": 19,
+      "package": "agent-gateway",
+      "file": "crates/libs/agent-gateway/src/host_migration_18_tests/acceptance/pairing.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "19-修复agent-gateway的pairing测试.md"
+    },
+    {
+      "number": 20,
+      "package": "agent-gateway",
+      "file": "crates/libs/agent-gateway/src/pairing_tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "20-修复agent-gateway的pairing_tests测试.md"
+    },
+    {
+      "number": 21,
+      "package": "agent-loop",
+      "file": "crates/libs/agent-loop/src/prompt/mod_tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "21-修复agent-loop的mod_tests测试.md"
+    },
+    {
+      "number": 22,
+      "package": "agent-loop",
+      "file": "crates/libs/agent-loop/src/tests/agent_facade_host.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "22-修复agent-loop的agent_facade_host测试.md"
+    },
+    {
+      "number": 23,
+      "package": "agent-memory",
+      "file": "crates/libs/agent-memory/src/embeddings/alibaba_tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "23-修复agent-memory的alibaba_tests测试.md"
+    },
+    {
+      "number": 24,
+      "package": "agent-memory",
+      "file": "crates/libs/agent-memory/src/qdrant/tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "24-修复agent-memory的tests测试.md"
+    },
+    {
+      "number": 25,
+      "package": "agent-multimodal",
+      "file": "crates/libs/agent-multimodal/src/tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "25-修复agent-multimodal的tests测试.md"
+    },
+    {
+      "number": 26,
+      "package": "agent-plugins",
+      "file": "crates/libs/agent-plugins/src/host_migration_37_tests/t21_tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "26-修复agent-plugins的t21_tests测试.md"
+    },
+    {
+      "number": 27,
+      "package": "agent-plugins",
+      "file": "crates/libs/agent-plugins/src/host_migration_38_tests/t44_tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "27-修复agent-plugins的t44_tests测试.md"
+    },
+    {
+      "number": 28,
+      "package": "agent-runtime",
+      "file": "crates/libs/agent-runtime/src/native/tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "28-修复agent-runtime的tests测试.md"
+    },
+    {
+      "number": 29,
+      "package": "agent-security",
+      "file": "crates/libs/agent-security/src/policy/legacy_security_tests/autonomy.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "29-修复agent-security的autonomy测试.md"
+    },
+    {
+      "number": 30,
+      "package": "agent-security",
+      "file": "crates/libs/agent-security/src/policy/legacy_security_tests/path_policy.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "30-修复agent-security的path_policy测试.md"
+    },
+    {
+      "number": 31,
+      "package": "agent-security",
+      "file": "crates/libs/agent-security/src/policy/legacy_security_tests/shell_safety.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "31-修复agent-security的shell_safety测试.md"
+    },
+    {
+      "number": 32,
+      "package": "agent-skills",
+      "file": "crates/libs/agent-skills/src/host_migration_52_tests/cli_tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "32-修复agent-skills的cli_tests测试.md"
+    },
+    {
+      "number": 33,
+      "package": "agent-skills",
+      "file": "crates/libs/agent-skills/src/host_migration_52_tests/installer_tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "33-修复agent-skills的installer_tests测试.md"
+    },
+    {
+      "number": 34,
+      "package": "agent-skills",
+      "file": "crates/libs/agent-skills/src/host_migration_52_tests/tests/load_skills.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "34-修复agent-skills的load_skills测试.md"
+    },
+    {
+      "number": 35,
+      "package": "agent-skills",
+      "file": "crates/libs/agent-skills/src/shiju_tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "35-修复agent-skills的shiju_tests测试.md"
+    },
+    {
+      "number": 36,
+      "package": "agent-skills",
+      "file": "crates/libs/agent-skills/src/tests/skills_prompt.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "36-修复agent-skills的skills_prompt测试.md"
+    },
+    {
+      "number": 37,
+      "package": "agent-tunnel",
+      "file": "crates/libs/agent-tunnel/src/custom/tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "37-修复agent-tunnel的tests测试.md"
+    },
+    {
+      "number": 38,
+      "package": "app-auth",
+      "file": "crates/libs/app-auth/src/auth/codex_browser_tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "38-修复app-auth的codex_browser_tests测试.md"
+    },
+    {
+      "number": 39,
+      "package": "app-auth",
+      "file": "crates/libs/app-auth/src/auth/codex_device_tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "39-修复app-auth的codex_device_tests测试.md"
+    },
+    {
+      "number": 40,
+      "package": "app-auth",
+      "file": "crates/libs/app-auth/src/auth/codex_refresh_tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "40-修复app-auth的codex_refresh_tests测试.md"
+    },
+    {
+      "number": 41,
+      "package": "app-auth",
+      "file": "crates/libs/app-auth/src/auth/copilot_token_tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "41-修复app-auth的copilot_token_tests测试.md"
+    },
+    {
+      "number": 42,
+      "package": "app-auth",
+      "file": "crates/libs/app-auth/src/auth/dsh_account_tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "42-修复app-auth的dsh_account_tests测试.md"
+    },
+    {
+      "number": 43,
+      "package": "app-auth",
+      "file": "crates/libs/app-auth/src/auth/kimi_account_tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "43-修复app-auth的kimi_account_tests测试.md"
+    },
+    {
+      "number": 44,
+      "package": "app-auth",
+      "file": "crates/libs/app-auth/src/auth/kimi_tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "44-修复app-auth的kimi_tests测试.md"
+    },
+    {
+      "number": 45,
+      "package": "app-auth",
+      "file": "crates/libs/app-auth/src/auth/logout_tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "45-修复app-auth的logout_tests测试.md"
+    },
+    {
+      "number": 46,
+      "package": "app-auth",
+      "file": "crates/libs/app-auth/src/auth/xai_refresh_tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "46-修复app-auth的xai_refresh_tests测试.md"
+    },
+    {
+      "number": 47,
+      "package": "app-auth",
+      "file": "crates/libs/app-auth/src/auth/xai_tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "47-修复app-auth的xai_tests测试.md"
+    },
+    {
+      "number": 48,
+      "package": "app-auth",
+      "file": "crates/libs/app-auth/src/providers/live/recovery_tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "48-修复app-auth的recovery_tests测试.md"
+    },
+    {
+      "number": 49,
+      "package": "app-auth-agy",
+      "file": "crates/libs/app-auth-agy/src/agy_account_tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "49-修复app-auth-agy的agy_account_tests测试.md"
+    },
+    {
+      "number": 50,
+      "package": "app-auth-agy",
+      "file": "crates/libs/app-auth-agy/src/agy_login_tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "50-修复app-auth-agy的agy_login_tests测试.md"
+    },
+    {
+      "number": 51,
+      "package": "app-catalog",
+      "file": "crates/libs/app-catalog/src/acp_projection_tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "51-修复app-catalog的acp_projection_tests测试.md"
+    },
+    {
+      "number": 52,
+      "package": "app-config-patch",
+      "file": "crates/libs/app-config-patch/src/patch_json5_tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "52-修复app-config-patch的patch_json5_tests测试.md"
+    },
+    {
+      "number": 53,
+      "package": "app-data-backup",
+      "file": "crates/libs/app-data-backup/src/backup_create_tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "53-修复app-data-backup的backup_create_tests测试.md"
+    },
+    {
+      "number": 54,
+      "package": "app-data-backup",
+      "file": "crates/libs/app-data-backup/src/backup_delete_tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "54-修复app-data-backup的backup_delete_tests测试.md"
+    },
+    {
+      "number": 55,
+      "package": "app-data-backup",
+      "file": "crates/libs/app-data-backup/src/backup_list_tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "55-修复app-data-backup的backup_list_tests测试.md"
+    },
+    {
+      "number": 56,
+      "package": "app-data-backup",
+      "file": "crates/libs/app-data-backup/src/backup_rename_tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "56-修复app-data-backup的backup_rename_tests测试.md"
+    },
+    {
+      "number": 57,
+      "package": "app-data-backup",
+      "file": "crates/libs/app-data-backup/src/location_delete_tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "57-修复app-data-backup的location_delete_tests测试.md"
+    },
+    {
+      "number": 58,
+      "package": "app-data-backup",
+      "file": "crates/libs/app-data-backup/src/retention_tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "58-修复app-data-backup的retention_tests测试.md"
+    },
+    {
+      "number": 59,
+      "package": "app-data-format",
+      "file": "crates/libs/app-data-format/src/source_tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "59-修复app-data-format的source_tests测试.md"
+    },
+    {
+      "number": 60,
+      "package": "app-data-management",
+      "file": "crates/libs/app-data-management/src/backup_restore_tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "60-修复app-data-management的backup_restore_tests测试.md"
+    },
+    {
+      "number": 61,
+      "package": "app-data-management",
+      "file": "crates/libs/app-data-management/src/recovery_tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "61-修复app-data-management的recovery_tests测试.md"
+    },
+    {
+      "number": 62,
+      "package": "app-data-management",
+      "file": "crates/libs/app-data-management/src/rollback_tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "62-修复app-data-management的rollback_tests测试.md"
+    },
+    {
+      "number": 63,
+      "package": "app-data-projection",
+      "file": "crates/libs/app-data-projection/src/skills_tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "63-修复app-data-projection的skills_tests测试.md"
+    },
+    {
+      "number": 64,
+      "package": "app-data-projection",
+      "file": "crates/libs/app-data-projection/src/usage_tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "64-修复app-data-projection的usage_tests测试.md"
+    },
+    {
+      "number": 65,
+      "package": "app-diagnostics-runtime",
+      "file": "crates/libs/app-diagnostics-runtime/src/agent_apps_diagnostic_executors/speedtest_tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "65-修复app-diagnostics-runtime的speedtest_tests测试.md"
+    },
+    {
+      "number": 66,
+      "package": "app-openclaw",
+      "file": "crates/libs/app-openclaw/src/openclaw_model_tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "66-修复app-openclaw的openclaw_model_tests测试.md"
+    },
+    {
+      "number": 67,
+      "package": "app-openclaw-config-rules",
+      "file": "crates/libs/app-openclaw-config-rules/src/defaults_tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "67-修复app-openclaw-config-rules的defaults_tests测试.md"
+    },
+    {
+      "number": 68,
+      "package": "app-provider-environment",
+      "file": "crates/libs/app-provider-environment/src/env_diagnose_tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "68-修复app-provider-environment的env_diagnose_tests测试.md"
+    },
+    {
+      "number": 69,
+      "package": "app-provider-native",
+      "file": "crates/libs/app-provider-native/src/providers/hermes_tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "69-修复app-provider-native的hermes_tests测试.md"
+    },
+    {
+      "number": 70,
+      "package": "app-provider-services",
+      "file": "crates/libs/app-provider-services/src/host_migration_49_tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "70-修复app-provider-services的host_migration_49_tests测试.md"
+    },
+    {
+      "number": 71,
+      "package": "app-provider-services",
+      "file": "crates/libs/app-provider-services/src/kimi_binding_tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "71-修复app-provider-services的kimi_binding_tests测试.md"
+    },
+    {
+      "number": 72,
+      "package": "app-providers",
+      "file": "crates/libs/app-providers/src/aggregation/catalog_ack_tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "72-修复app-providers的catalog_ack_tests测试.md"
+    },
+    {
+      "number": 73,
+      "package": "app-providers",
+      "file": "crates/libs/app-providers/src/aggregation/daemon_restart_desktop_tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "73-修复app-providers的daemon_restart_desktop_tests测试.md"
+    },
+    {
+      "number": 74,
+      "package": "app-providers",
+      "file": "crates/libs/app-providers/src/aggregation/daemon_restart_tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "74-修复app-providers的daemon_restart_tests测试.md"
+    },
+    {
+      "number": 75,
+      "package": "app-providers",
+      "file": "crates/libs/app-providers/src/aggregation/stale_clients_tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "75-修复app-providers的stale_clients_tests测试.md"
+    },
+    {
+      "number": 76,
+      "package": "app-providers",
+      "file": "crates/libs/app-providers/src/providers/codex_catalog_tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "76-修复app-providers的codex_catalog_tests测试.md"
+    },
+    {
+      "number": 77,
+      "package": "app-routing-services",
+      "file": "crates/libs/app-routing-services/src/adapter_selection_tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "77-修复app-routing-services的adapter_selection_tests测试.md"
+    },
+    {
+      "number": 78,
+      "package": "app-routing-services",
+      "file": "crates/libs/app-routing-services/src/body_limits_tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "78-修复app-routing-services的body_limits_tests测试.md"
+    },
+    {
+      "number": 79,
+      "package": "app-routing-services",
+      "file": "crates/libs/app-routing-services/src/cancellation_tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "79-修复app-routing-services的cancellation_tests测试.md"
+    },
+    {
+      "number": 80,
+      "package": "app-routing-services",
+      "file": "crates/libs/app-routing-services/src/capacity_tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "80-修复app-routing-services的capacity_tests测试.md"
+    },
+    {
+      "number": 81,
+      "package": "app-routing-services",
+      "file": "crates/libs/app-routing-services/src/config_apply_tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "81-修复app-routing-services的config_apply_tests测试.md"
+    },
+    {
+      "number": 82,
+      "package": "app-routing-services",
+      "file": "crates/libs/app-routing-services/src/dispatch_tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "82-修复app-routing-services的dispatch_tests测试.md"
+    },
+    {
+      "number": 83,
+      "package": "app-routing-services",
+      "file": "crates/libs/app-routing-services/src/host_migration_13_tests/agent_apps_failover_timeouts_tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "83-修复app-routing-services的agent_apps_failover_timeouts_tests测试.md"
+    },
+    {
+      "number": 84,
+      "package": "app-routing-services",
+      "file": "crates/libs/app-routing-services/src/host_migration_13_tests/agent_apps_high_availability_service_tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "84-修复app-routing-services的agent_apps_high_availability_service_tests测试.md"
+    },
+    {
+      "number": 85,
+      "package": "app-routing-services",
+      "file": "crates/libs/app-routing-services/src/outbound_custom_tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "85-修复app-routing-services的outbound_custom_tests测试.md"
+    },
+    {
+      "number": 86,
+      "package": "app-routing-services",
+      "file": "crates/libs/app-routing-services/src/outbound_system_tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "86-修复app-routing-services的outbound_system_tests测试.md"
+    },
+    {
+      "number": 87,
+      "package": "app-routing-services",
+      "file": "crates/libs/app-routing-services/src/protocol_errors_tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "87-修复app-routing-services的protocol_errors_tests测试.md"
+    },
+    {
+      "number": 88,
+      "package": "app-routing-services",
+      "file": "crates/libs/app-routing-services/src/timeouts_tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "88-修复app-routing-services的timeouts_tests测试.md"
+    },
+    {
+      "number": 89,
+      "package": "app-routing-services",
+      "file": "crates/libs/app-routing-services/src/transport_security_tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "89-修复app-routing-services的transport_security_tests测试.md"
+    },
+    {
+      "number": 90,
+      "package": "app-self-update",
+      "file": "crates/libs/app-self-update/src/update_tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "90-修复app-self-update的update_tests测试.md"
+    },
+    {
+      "number": 91,
+      "package": "app-settings-store",
+      "file": "crates/libs/app-settings-store/src/agent_apps_high_availability_store_tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "91-修复app-settings-store的agent_apps_high_availability_store_tests测试.md"
+    },
+    {
+      "number": 92,
+      "package": "app-settings-store",
+      "file": "crates/libs/app-settings-store/src/agent_apps_skills_store_tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "92-修复app-settings-store的agent_apps_skills_store_tests测试.md"
+    },
+    {
+      "number": 93,
+      "package": "app-skills",
+      "file": "crates/libs/app-skills/src/backup_restore_tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "93-修复app-skills的backup_restore_tests测试.md"
+    },
+    {
+      "number": 94,
+      "package": "app-skills",
+      "file": "crates/libs/app-skills/src/copy_deploy_tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "94-修复app-skills的copy_deploy_tests测试.md"
+    },
+    {
+      "number": 95,
+      "package": "app-skills",
+      "file": "crates/libs/app-skills/src/disable_deploy_tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "95-修复app-skills的disable_deploy_tests测试.md"
+    },
+    {
+      "number": 96,
+      "package": "app-skills",
+      "file": "crates/libs/app-skills/src/link_deploy_tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "96-修复app-skills的link_deploy_tests测试.md"
+    },
+    {
+      "number": 97,
+      "package": "app-skills",
+      "file": "crates/libs/app-skills/src/uninstall_tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "97-修复app-skills的uninstall_tests测试.md"
+    },
+    {
+      "number": 98,
+      "package": "app-skills",
+      "file": "crates/libs/app-skills/src/update_apply_tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "98-修复app-skills的update_apply_tests测试.md"
+    },
+    {
+      "number": 99,
+      "package": "app-usage-balances",
+      "file": "crates/libs/app-usage-balances/src/deepseek_tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "99-修复app-usage-balances的deepseek_tests测试.md"
+    },
+    {
+      "number": 100,
+      "package": "app-usage-balances",
+      "file": "crates/libs/app-usage-balances/src/siliconflow_tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "100-修复app-usage-balances的siliconflow_tests测试.md"
+    },
+    {
+      "number": 101,
+      "package": "app-usage-balances",
+      "file": "crates/libs/app-usage-balances/src/stepfun_tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "101-修复app-usage-balances的stepfun_tests测试.md"
+    },
+    {
+      "number": 102,
+      "package": "app-usage-subscriptions",
+      "file": "crates/libs/app-usage-subscriptions/src/agy_tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "102-修复app-usage-subscriptions的agy_tests测试.md"
+    },
+    {
+      "number": 103,
+      "package": "app-usage-subscriptions",
+      "file": "crates/libs/app-usage-subscriptions/src/copilot_tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "103-修复app-usage-subscriptions的copilot_tests测试.md"
+    },
+    {
+      "number": 104,
+      "package": "app-usage-subscriptions",
+      "file": "crates/libs/app-usage-subscriptions/src/grok_tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "104-修复app-usage-subscriptions的grok_tests测试.md"
+    },
+    {
+      "number": 105,
+      "package": "app-usage-subscriptions",
+      "file": "crates/libs/app-usage-subscriptions/src/kimi_tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "105-修复app-usage-subscriptions的kimi_tests测试.md"
+    },
+    {
+      "number": 106,
+      "package": "channel-dingtalk",
+      "file": "crates/libs/channel-dingtalk/src/outbound_tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "106-修复channel-dingtalk的outbound_tests测试.md"
+    },
+    {
+      "number": 107,
+      "package": "channel-discord",
+      "file": "crates/libs/channel-discord/src/mod_tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "107-修复channel-discord的mod_tests测试.md"
+    },
+    {
+      "number": 108,
+      "package": "channel-lark",
+      "file": "crates/libs/channel-lark/src/token_http_tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "108-修复channel-lark的token_http_tests测试.md"
+    },
+    {
+      "number": 109,
+      "package": "channel-lark",
+      "file": "crates/libs/channel-lark/src/ws_tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "109-修复channel-lark的ws_tests测试.md"
+    },
+    {
+      "number": 110,
+      "package": "channel-mattermost",
+      "file": "crates/libs/channel-mattermost/src/mod_tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "110-修复channel-mattermost的mod_tests测试.md"
+    },
+    {
+      "number": 111,
+      "package": "channel-runtime",
+      "file": "crates/libs/channel-runtime/src/host_migration_40_tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "111-修复channel-runtime的host_migration_40_tests测试.md"
+    },
+    {
+      "number": 112,
+      "package": "channel-runtime",
+      "file": "crates/libs/channel-runtime/src/host_migration_41_tests/command_parsing.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "112-修复channel-runtime的command_parsing测试.md"
+    },
+    {
+      "number": 113,
+      "package": "channel-runtime",
+      "file": "crates/libs/channel-runtime/src/host_migration_41_tests/system_prompt.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "113-修复channel-runtime的system_prompt测试.md"
+    },
+    {
+      "number": 114,
+      "package": "channel-runtime",
+      "file": "crates/libs/channel-runtime/src/host_migration_43_tests/prompt.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "114-修复channel-runtime的prompt测试.md"
+    },
+    {
+      "number": 115,
+      "package": "channel-runtime",
+      "file": "crates/libs/channel-runtime/src/manager/channels_config_tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "115-修复channel-runtime的channels_config_tests测试.md"
+    },
+    {
+      "number": 116,
+      "package": "channel-runtime",
+      "file": "crates/libs/channel-runtime/src/runtime_command/approval_commands_tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "116-修复channel-runtime的approval_commands_tests测试.md"
+    },
+    {
+      "number": 117,
+      "package": "channel-runtime",
+      "file": "crates/libs/channel-runtime/src/runtime_command/approval_config_tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "117-修复channel-runtime的approval_config_tests测试.md"
+    },
+    {
+      "number": 118,
+      "package": "channel-support",
+      "file": "crates/libs/channel-support/src/host_migration_42_tests/config.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "118-修复channel-support的config测试.md"
+    },
+    {
+      "number": 119,
+      "package": "channel-support",
+      "file": "crates/libs/channel-support/src/host_migration_43_tests/routing.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "119-修复channel-support的routing测试.md"
+    },
+    {
+      "number": 120,
+      "package": "channel-wati",
+      "file": "crates/libs/channel-wati/src/tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "120-修复channel-wati的tests测试.md"
+    },
+    {
+      "number": 121,
+      "package": "cli-bootstrap",
+      "file": "crates/libs/cli-bootstrap/src/handlers/api/coverage_tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "121-修复cli-bootstrap的coverage_tests测试.md"
+    },
+    {
+      "number": 122,
+      "package": "cli-gateway-commands",
+      "file": "crates/libs/cli-gateway-commands/src/operations_tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "122-修复cli-gateway-commands的operations_tests测试.md"
+    },
+    {
+      "number": 123,
+      "package": "cli-gateway-commands",
+      "file": "crates/libs/cli-gateway-commands/src/tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "123-修复cli-gateway-commands的tests测试.md"
+    },
+    {
+      "number": 124,
+      "package": "cli-gateway-workspace",
+      "file": "crates/libs/cli-gateway-workspace/src/workspace_files_tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "124-修复cli-gateway-workspace的workspace_files_tests测试.md"
+    },
+    {
+      "number": 125,
+      "package": "cli-interaction",
+      "file": "crates/libs/cli-interaction/src/bridge_tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "125-修复cli-interaction的bridge_tests测试.md"
+    },
+    {
+      "number": 126,
+      "package": "cli-interaction",
+      "file": "crates/libs/cli-interaction/src/command_tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "126-修复cli-interaction的command_tests测试.md"
+    },
+    {
+      "number": 127,
+      "package": "cli-interaction",
+      "file": "crates/libs/cli-interaction/src/integration_tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "127-修复cli-interaction的integration_tests测试.md"
+    },
+    {
+      "number": 128,
+      "package": "cli-interaction",
+      "file": "crates/libs/cli-interaction/src/interaction_tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "128-修复cli-interaction的interaction_tests测试.md"
+    },
+    {
+      "number": 129,
+      "package": "cli-interaction",
+      "file": "crates/libs/cli-interaction/src/orchestration_tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "129-修复cli-interaction的orchestration_tests测试.md"
+    },
+    {
+      "number": 130,
+      "package": "cli-interaction",
+      "file": "crates/libs/cli-interaction/src/parity_tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "130-修复cli-interaction的parity_tests测试.md"
+    },
+    {
+      "number": 131,
+      "package": "cli-interaction",
+      "file": "crates/libs/cli-interaction/src/session_command_tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "131-修复cli-interaction的session_command_tests测试.md"
+    },
+    {
+      "number": 132,
+      "package": "cli-interaction",
+      "file": "crates/libs/cli-interaction/src/terminal_req_12_tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "132-修复cli-interaction的terminal_req_12_tests测试.md"
+    },
+    {
+      "number": 133,
+      "package": "cli-security-commands",
+      "file": "crates/libs/cli-security-commands/src/estop_tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "133-修复cli-security-commands的estop_tests测试.md"
+    },
+    {
+      "number": 134,
+      "package": "computer-control",
+      "file": "crates/libs/computer-control/src/chrome/bridge_tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "134-修复computer-control的bridge_tests测试.md"
+    },
+    {
+      "number": 135,
+      "package": "computer-control",
+      "file": "crates/libs/computer-control/src/chrome/origin_policy_tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "135-修复computer-control的origin_policy_tests测试.md"
+    },
+    {
+      "number": 136,
+      "package": "computer-control",
+      "file": "crates/libs/computer-control/src/host_tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "136-修复computer-control的host_tests测试.md"
+    },
+    {
+      "number": 137,
+      "package": "computer-control",
+      "file": "crates/libs/computer-control/src/lifecycle_tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "137-修复computer-control的lifecycle_tests测试.md"
+    },
+    {
+      "number": 138,
+      "package": "computer-control",
+      "file": "crates/libs/computer-control/src/native/input_tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "138-修复computer-control的input_tests测试.md"
+    },
+    {
+      "number": 139,
+      "package": "computer-control",
+      "file": "crates/libs/computer-control/src/native/observation_tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "139-修复computer-control的observation_tests测试.md"
+    },
+    {
+      "number": 140,
+      "package": "config-aggregate",
+      "file": "crates/libs/config-aggregate/src/config_tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "140-修复config-aggregate的config_tests测试.md"
+    },
+    {
+      "number": 141,
+      "package": "config-reliability",
+      "file": "crates/libs/config-reliability/src/reliability_tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "141-修复config-reliability的reliability_tests测试.md"
+    },
+    {
+      "number": 142,
+      "package": "config-skills",
+      "file": "crates/libs/config-skills/src/skills_tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "142-修复config-skills的skills_tests测试.md"
+    },
+    {
+      "number": 143,
+      "package": "desktop-account-ui",
+      "file": "crates/libs/desktop-account-ui/src/host_module_35_tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "143-修复desktop-account-ui的host_module_35_tests测试.md"
+    },
+    {
+      "number": 144,
+      "package": "desktop-apps-ui",
+      "file": "crates/libs/desktop-apps-ui/src/host_module_35_tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "144-修复desktop-apps-ui的host_module_35_tests测试.md"
+    },
+    {
+      "number": 145,
+      "package": "desktop-chat-input",
+      "file": "crates/libs/desktop-chat-input/src/input_panel/attachment_tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "145-修复desktop-chat-input的attachment_tests测试.md"
+    },
+    {
+      "number": 146,
+      "package": "desktop-chat-input",
+      "file": "crates/libs/desktop-chat-input/src/input_panel/icons_tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "146-修复desktop-chat-input的icons_tests测试.md"
+    },
+    {
+      "number": 147,
+      "package": "desktop-chat-tools",
+      "file": "crates/libs/desktop-chat-tools/src/tools/lsp_view_tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "147-修复desktop-chat-tools的lsp_view_tests测试.md"
+    },
+    {
+      "number": 148,
+      "package": "desktop-chat-view",
+      "file": "crates/libs/desktop-chat-view/src/desktop_split_05_tests/message_policies.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "148-修复desktop-chat-view的message_policies测试.md"
+    },
+    {
+      "number": 149,
+      "package": "desktop-chat-view",
+      "file": "crates/libs/desktop-chat-view/src/host_module_38_tests/feedback_dialogs.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "149-修复desktop-chat-view的feedback_dialogs测试.md"
+    },
+    {
+      "number": 150,
+      "package": "desktop-chat-view",
+      "file": "crates/libs/desktop-chat-view/src/host_module_5_tests/assistant_body_tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "150-修复desktop-chat-view的assistant_body_tests测试.md"
+    },
+    {
+      "number": 151,
+      "package": "desktop-chat-view",
+      "file": "crates/libs/desktop-chat-view/src/host_module_6_tests/app_state_tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "151-修复desktop-chat-view的app_state_tests测试.md"
+    },
+    {
+      "number": 152,
+      "package": "desktop-chat-view",
+      "file": "crates/libs/desktop-chat-view/src/latest_user_question_button_tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "152-修复desktop-chat-view的latest_user_question_button_tests测试.md"
+    },
+    {
+      "number": 153,
+      "package": "desktop-chat-view",
+      "file": "crates/libs/desktop-chat-view/src/message_view/think_tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "153-修复desktop-chat-view的think_tests测试.md"
+    },
+    {
+      "number": 154,
+      "package": "desktop-chat-view",
+      "file": "crates/libs/desktop-chat-view/src/modals/permission_modal_tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "154-修复desktop-chat-view的permission_modal_tests测试.md"
+    },
+    {
+      "number": 155,
+      "package": "desktop-chat-view",
+      "file": "crates/libs/desktop-chat-view/src/trajectory/timeline_tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "155-修复desktop-chat-view的timeline_tests测试.md"
+    },
+    {
+      "number": 156,
+      "package": "desktop-expert-hub",
+      "file": "crates/libs/desktop-expert-hub/src/views/knowledge_workspace/knowledge_tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "156-修复desktop-expert-hub的knowledge_tests测试.md"
+    },
+    {
+      "number": 157,
+      "package": "desktop-git-ui",
+      "file": "crates/libs/desktop-git-ui/src/host_module_13_tests/diff_tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "157-修复desktop-git-ui的diff_tests测试.md"
+    },
+    {
+      "number": 158,
+      "package": "desktop-git-ui",
+      "file": "crates/libs/desktop-git-ui/src/host_module_13_tests/refresh_tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "158-修复desktop-git-ui的refresh_tests测试.md"
+    },
+    {
+      "number": 159,
+      "package": "desktop-git-ui",
+      "file": "crates/libs/desktop-git-ui/src/host_module_13_tests/shared_tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "159-修复desktop-git-ui的shared_tests测试.md"
+    },
+    {
+      "number": 160,
+      "package": "desktop-git-ui",
+      "file": "crates/libs/desktop-git-ui/src/host_module_6_tests/advanced_view_tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "160-修复desktop-git-ui的advanced_view_tests测试.md"
+    },
+    {
+      "number": 161,
+      "package": "desktop-i18n",
+      "file": "crates/libs/desktop-i18n/src/desktop_split_22_tests/apps_tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "161-修复desktop-i18n的apps_tests测试.md"
+    },
+    {
+      "number": 162,
+      "package": "desktop-i18n",
+      "file": "crates/libs/desktop-i18n/src/desktop_split_22_tests/gettext_area_12_tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "162-修复desktop-i18n的gettext_area_12_tests测试.md"
+    },
+    {
+      "number": 163,
+      "package": "desktop-i18n",
+      "file": "crates/libs/desktop-i18n/src/desktop_split_22_tests/gettext_area_14_tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "163-修复desktop-i18n的gettext_area_14_tests测试.md"
+    },
+    {
+      "number": 164,
+      "package": "desktop-i18n",
+      "file": "crates/libs/desktop-i18n/src/desktop_split_22_tests/gettext_area_15_tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "164-修复desktop-i18n的gettext_area_15_tests测试.md"
+    },
+    {
+      "number": 165,
+      "package": "desktop-i18n",
+      "file": "crates/libs/desktop-i18n/src/desktop_split_22_tests/gettext_area_7_tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "165-修复desktop-i18n的gettext_area_7_tests测试.md"
+    },
+    {
+      "number": 166,
+      "package": "desktop-i18n",
+      "file": "crates/libs/desktop-i18n/src/desktop_split_22_tests/gettext_area_9_tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "166-修复desktop-i18n的gettext_area_9_tests测试.md"
+    },
+    {
+      "number": 167,
+      "package": "desktop-i18n",
+      "file": "crates/libs/desktop-i18n/src/gettext_area_19_tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "167-修复desktop-i18n的gettext_area_19_tests测试.md"
+    },
+    {
+      "number": 168,
+      "package": "desktop-i18n",
+      "file": "crates/libs/desktop-i18n/src/gettext_catalog_tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "168-修复desktop-i18n的gettext_catalog_tests测试.md"
+    },
+    {
+      "number": 169,
+      "package": "desktop-i18n",
+      "file": "crates/libs/desktop-i18n/src/settings_models_tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "169-修复desktop-i18n的settings_models_tests测试.md"
+    },
+    {
+      "number": 170,
+      "package": "desktop-navigation",
+      "file": "crates/libs/desktop-navigation/src/components/top_bar/widgets_tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "170-修复desktop-navigation的widgets_tests测试.md"
+    },
+    {
+      "number": 171,
+      "package": "desktop-navigation",
+      "file": "crates/libs/desktop-navigation/src/host_module_38_tests/toolbar.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "171-修复desktop-navigation的toolbar测试.md"
+    },
+    {
+      "number": 172,
+      "package": "desktop-release",
+      "file": "crates/libs/desktop-release/src/desktop_release_tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "172-修复desktop-release的desktop_release_tests测试.md"
+    },
+    {
+      "number": 173,
+      "package": "desktop-session",
+      "file": "crates/libs/desktop-session/src/agent_stream_tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "173-修复desktop-session的agent_stream_tests测试.md"
+    },
+    {
+      "number": 174,
+      "package": "desktop-session",
+      "file": "crates/libs/desktop-session/src/host_module_1_tests/runtime_tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "174-修复desktop-session的runtime_tests测试.md"
+    },
+    {
+      "number": 175,
+      "package": "desktop-settings-agents",
+      "file": "crates/libs/desktop-settings-agents/src/desktop_split_12_tests/tools.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "175-修复desktop-settings-agents的tools测试.md"
+    },
+    {
+      "number": 176,
+      "package": "desktop-settings-appearance",
+      "file": "crates/libs/desktop-settings-appearance/src/host_module_26_tests/general.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "176-修复desktop-settings-appearance的general测试.md"
+    },
+    {
+      "number": 177,
+      "package": "desktop-settings-apps",
+      "file": "crates/libs/desktop-settings-apps/src/host_module_25_tests/catalog_ui_refresh_06_tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "177-修复desktop-settings-apps的catalog_ui_refresh_06_tests测试.md"
+    },
+    {
+      "number": 178,
+      "package": "desktop-settings-apps",
+      "file": "crates/libs/desktop-settings-apps/src/host_module_25_tests/details_tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "178-修复desktop-settings-apps的details_tests测试.md"
+    },
+    {
+      "number": 179,
+      "package": "desktop-settings-apps",
+      "file": "crates/libs/desktop-settings-apps/src/host_module_25_tests/launch_ui_refresh_07_tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "179-修复desktop-settings-apps的launch_ui_refresh_07_tests测试.md"
+    },
+    {
+      "number": 180,
+      "package": "desktop-settings-channels",
+      "file": "crates/libs/desktop-settings-channels/src/host_module_18_ui_tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "180-修复desktop-settings-channels的host_module_18_ui_tests测试.md"
+    },
+    {
+      "number": 181,
+      "package": "desktop-settings-channels",
+      "file": "crates/libs/desktop-settings-channels/src/host_split_4_tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "181-修复desktop-settings-channels的host_split_4_tests测试.md"
+    },
+    {
+      "number": 182,
+      "package": "desktop-settings-memory",
+      "file": "crates/libs/desktop-settings-memory/src/host_module_22_tests/ui.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "182-修复desktop-settings-memory的ui测试.md"
+    },
+    {
+      "number": 183,
+      "package": "desktop-settings-providers",
+      "file": "crates/libs/desktop-settings-providers/src/desktop_split_11_tests/providers.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "183-修复desktop-settings-providers的providers测试.md"
+    },
+    {
+      "number": 184,
+      "package": "desktop-settings-providers",
+      "file": "crates/libs/desktop-settings-providers/src/models_tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "184-修复desktop-settings-providers的models_tests测试.md"
+    },
+    {
+      "number": 185,
+      "package": "desktop-settings-security",
+      "file": "crates/libs/desktop-settings-security/src/desktop_split_02_tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "185-修复desktop-settings-security的desktop_split_02_tests测试.md"
+    },
+    {
+      "number": 186,
+      "package": "desktop-settings-shell",
+      "file": "crates/libs/desktop-settings-shell/src/host_module_30_tests/help_ui_refresh_03_tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "186-修复desktop-settings-shell的help_ui_refresh_03_tests测试.md"
+    },
+    {
+      "number": 187,
+      "package": "desktop-settings-shell",
+      "file": "crates/libs/desktop-settings-shell/src/host_module_36_tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "187-修复desktop-settings-shell的host_module_36_tests测试.md"
+    },
+    {
+      "number": 188,
+      "package": "desktop-skill-hub",
+      "file": "crates/libs/desktop-skill-hub/src/host_module_29_tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "188-修复desktop-skill-hub的host_module_29_tests测试.md"
+    },
+    {
+      "number": 189,
+      "package": "desktop-task-board",
+      "file": "crates/libs/desktop-task-board/src/board_tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "189-修复desktop-task-board的board_tests测试.md"
+    },
+    {
+      "number": 190,
+      "package": "desktop-task-board",
+      "file": "crates/libs/desktop-task-board/src/common_tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "190-修复desktop-task-board的common_tests测试.md"
+    },
+    {
+      "number": 191,
+      "package": "desktop-task-executor",
+      "file": "crates/libs/desktop-task-executor/src/executor/scheduling_tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "191-修复desktop-task-executor的scheduling_tests测试.md"
+    },
+    {
+      "number": 192,
+      "package": "desktop-task-model",
+      "file": "crates/libs/desktop-task-model/src/models_tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "192-修复desktop-task-model的models_tests测试.md"
+    },
+    {
+      "number": 193,
+      "package": "desktop-terminal",
+      "file": "crates/libs/desktop-terminal/src/host_module_34_tests/focus.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "193-修复desktop-terminal的focus测试.md"
+    },
+    {
+      "number": 194,
+      "package": "desktop-voice-ui",
+      "file": "crates/libs/desktop-voice-ui/src/message/voice_recordings_tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "194-修复desktop-voice-ui的voice_recordings_tests测试.md"
+    },
+    {
+      "number": 195,
+      "package": "desktop-web-install",
+      "file": "crates/libs/desktop-web-install/src/web_install/installer_tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "195-修复desktop-web-install的installer_tests测试.md"
+    },
+    {
+      "number": 196,
+      "package": "desktop-web-runtime",
+      "file": "crates/libs/desktop-web-runtime/src/host_module_15_tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "196-修复desktop-web-runtime的host_module_15_tests测试.md"
+    },
+    {
+      "number": 197,
+      "package": "desktop-workflow-canvas",
+      "file": "crates/libs/desktop-workflow-canvas/src/canvas/utils_tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "197-修复desktop-workflow-canvas的utils_tests测试.md"
+    },
+    {
+      "number": 198,
+      "package": "desktop-workflow-state",
+      "file": "crates/libs/desktop-workflow-state/src/state/core_tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "198-修复desktop-workflow-state的core_tests测试.md"
+    },
+    {
+      "number": 199,
+      "package": "desktop-workflow-state",
+      "file": "crates/libs/desktop-workflow-state/src/state/node_editor_integrations_tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "199-修复desktop-workflow-state的node_editor_integrations_tests测试.md"
+    },
+    {
+      "number": 200,
+      "package": "gateway-agent-apps",
+      "file": "crates/libs/gateway-agent-apps/src/agent_apps_data/backup_acceptance_tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "200-修复gateway-agent-apps的backup_acceptance_tests测试.md"
+    },
+    {
+      "number": 201,
+      "package": "gateway-agent-apps",
+      "file": "crates/libs/gateway-agent-apps/src/agent_apps_data/backup_crud_api_tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "201-修复gateway-agent-apps的backup_crud_api_tests测试.md"
+    },
+    {
+      "number": 202,
+      "package": "gateway-agent-apps",
+      "file": "crates/libs/gateway-agent-apps/src/agent_apps_data/backup_restore_api_tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "202-修复gateway-agent-apps的backup_restore_api_tests测试.md"
+    },
+    {
+      "number": 203,
+      "package": "gateway-agent-apps",
+      "file": "crates/libs/gateway-agent-apps/src/agent_apps_data/data_aux_api_tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "203-修复gateway-agent-apps的data_aux_api_tests测试.md"
+    },
+    {
+      "number": 204,
+      "package": "gateway-agent-apps",
+      "file": "crates/libs/gateway-agent-apps/src/agent_apps_data/migration_acceptance_tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "204-修复gateway-agent-apps的migration_acceptance_tests测试.md"
+    },
+    {
+      "number": 205,
+      "package": "gateway-agent-apps",
+      "file": "crates/libs/gateway-agent-apps/src/agent_apps_skills/backups_api_tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "205-修复gateway-agent-apps的backups_api_tests测试.md"
+    },
+    {
+      "number": 206,
+      "package": "gateway-agent-apps",
+      "file": "crates/libs/gateway-agent-apps/src/agent_apps_skills/macos_api_tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "206-修复gateway-agent-apps的macos_api_tests测试.md"
+    },
+    {
+      "number": 207,
+      "package": "gateway-agent-apps",
+      "file": "crates/libs/gateway-agent-apps/src/agent_apps_skills/uninstall_api_tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "207-修复gateway-agent-apps的uninstall_api_tests测试.md"
+    },
+    {
+      "number": 208,
+      "package": "gateway-agent-apps",
+      "file": "crates/libs/gateway-agent-apps/src/agent_apps_skills/updates_api_tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "208-修复gateway-agent-apps的updates_api_tests测试.md"
+    },
+    {
+      "number": 209,
+      "package": "gateway-agent-apps",
+      "file": "crates/libs/gateway-agent-apps/src/apps_usage_acceptance_tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "209-修复gateway-agent-apps的apps_usage_acceptance_tests测试.md"
+    },
+    {
+      "number": 210,
+      "package": "gateway-agent-apps",
+      "file": "crates/libs/gateway-agent-apps/src/host_migration_13_tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "210-修复gateway-agent-apps的host_migration_13_tests测试.md"
+    },
+    {
+      "number": 211,
+      "package": "gateway-agent-apps",
+      "file": "crates/libs/gateway-agent-apps/src/host_migration_14_tests/agent_apps_auth_remove_tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "211-修复gateway-agent-apps的agent_apps_auth_remove_tests测试.md"
+    },
+    {
+      "number": 212,
+      "package": "gateway-agent-apps",
+      "file": "crates/libs/gateway-agent-apps/src/host_migration_14_tests/agent_apps_delete_tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "212-修复gateway-agent-apps的agent_apps_delete_tests测试.md"
+    },
+    {
+      "number": 213,
+      "package": "gateway-agent-apps",
+      "file": "crates/libs/gateway-agent-apps/src/host_migration_14_tests/agent_apps_rename_tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "213-修复gateway-agent-apps的agent_apps_rename_tests测试.md"
+    },
+    {
+      "number": 214,
+      "package": "gateway-agent-apps",
+      "file": "crates/libs/gateway-agent-apps/src/host_migration_2_tests/launch_tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "214-修复gateway-agent-apps的launch_tests测试.md"
+    },
+    {
+      "number": 215,
+      "package": "gateway-agent-apps",
+      "file": "crates/libs/gateway-agent-apps/src/host_migration_3_tests/agent_apps_auth_binding_tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "215-修复gateway-agent-apps的agent_apps_auth_binding_tests测试.md"
+    },
+    {
+      "number": 216,
+      "package": "gateway-agent-apps",
+      "file": "crates/libs/gateway-agent-apps/src/host_migration_3_tests/agent_apps_auth_cancel_tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "216-修复gateway-agent-apps的agent_apps_auth_cancel_tests测试.md"
+    },
+    {
+      "number": 217,
+      "package": "gateway-agent-apps",
+      "file": "crates/libs/gateway-agent-apps/src/host_migration_3_tests/agent_apps_auth_default_tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "217-修复gateway-agent-apps的agent_apps_auth_default_tests测试.md"
+    },
+    {
+      "number": 218,
+      "package": "gateway-agent-apps",
+      "file": "crates/libs/gateway-agent-apps/src/host_migration_3_tests/agent_apps_auth_integration_tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "218-修复gateway-agent-apps的agent_apps_auth_integration_tests测试.md"
+    },
+    {
+      "number": 219,
+      "package": "gateway-agent-apps",
+      "file": "crates/libs/gateway-agent-apps/src/host_migration_3_tests/agent_apps_auth_logout_tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "219-修复gateway-agent-apps的agent_apps_auth_logout_tests测试.md"
+    },
+    {
+      "number": 220,
+      "package": "gateway-agent-apps",
+      "file": "crates/libs/gateway-agent-apps/src/host_migration_3_tests/agent_apps_auth_poll_tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "220-修复gateway-agent-apps的agent_apps_auth_poll_tests测试.md"
+    },
+    {
+      "number": 221,
+      "package": "gateway-agent-apps",
+      "file": "crates/libs/gateway-agent-apps/src/host_migration_3_tests/agent_apps_auth_read_tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "221-修复gateway-agent-apps的agent_apps_auth_read_tests测试.md"
+    },
+    {
+      "number": 222,
+      "package": "gateway-agent-apps",
+      "file": "crates/libs/gateway-agent-apps/src/host_migration_3_tests/agent_apps_auth_redaction_tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "222-修复gateway-agent-apps的agent_apps_auth_redaction_tests测试.md"
+    },
+    {
+      "number": 223,
+      "package": "gateway-agent-apps",
+      "file": "crates/libs/gateway-agent-apps/src/host_migration_3_tests/agent_apps_auth_security_tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "223-修复gateway-agent-apps的agent_apps_auth_security_tests测试.md"
+    },
+    {
+      "number": 224,
+      "package": "gateway-agent-apps",
+      "file": "crates/libs/gateway-agent-apps/src/host_migration_3_tests/agent_apps_auth_start_tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "224-修复gateway-agent-apps的agent_apps_auth_start_tests测试.md"
+    },
+    {
+      "number": 225,
+      "package": "gateway-agent-apps",
+      "file": "crates/libs/gateway-agent-apps/src/host_migration_4_tests/start.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "225-修复gateway-agent-apps的start测试.md"
+    },
+    {
+      "number": 226,
+      "package": "gateway-app-diagnostics",
+      "file": "crates/libs/gateway-app-diagnostics/src/agent_apps_diagnostics_api_tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "226-修复gateway-app-diagnostics的agent_apps_diagnostics_api_tests测试.md"
+    },
+    {
+      "number": 227,
+      "package": "gateway-app-providers",
+      "file": "crates/libs/gateway-app-providers/src/host_migration_6_tests/codex_catalog_tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "227-修复gateway-app-providers的codex_catalog_tests测试.md"
+    },
+    {
+      "number": 228,
+      "package": "gateway-app-routing",
+      "file": "crates/libs/gateway-app-routing/src/host_migration_14_tests/agent_apps_ha_acceptance_tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "228-修复gateway-app-routing的agent_apps_ha_acceptance_tests测试.md"
+    },
+    {
+      "number": 229,
+      "package": "gateway-app-routing",
+      "file": "crates/libs/gateway-app-routing/src/host_migration_14_tests/agent_apps_high_availability_tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "229-修复gateway-app-routing的agent_apps_high_availability_tests测试.md"
+    },
+    {
+      "number": 230,
+      "package": "gateway-app-routing",
+      "file": "crates/libs/gateway-app-routing/src/host_migration_14_tests/aggregation_resync_tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "230-修复gateway-app-routing的aggregation_resync_tests测试.md"
+    },
+    {
+      "number": 231,
+      "package": "gateway-app-routing",
+      "file": "crates/libs/gateway-app-routing/src/host_migration_57_tests/aggregation.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "231-修复gateway-app-routing的aggregation测试.md"
+    },
+    {
+      "number": 232,
+      "package": "gateway-app-routing",
+      "file": "crates/libs/gateway-app-routing/src/host_migration_7_tests/outbound_probe_tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "232-修复gateway-app-routing的outbound_probe_tests测试.md"
+    },
+    {
+      "number": 233,
+      "package": "gateway-app-routing",
+      "file": "crates/libs/gateway-app-routing/src/host_migration_7_tests/outbound_scan_tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "233-修复gateway-app-routing的outbound_scan_tests测试.md"
+    },
+    {
+      "number": 234,
+      "package": "gateway-channel",
+      "file": "crates/libs/gateway-channel/src/wechat_tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "234-修复gateway-channel的wechat_tests测试.md"
+    },
+    {
+      "number": 235,
+      "package": "gateway-chat-stream",
+      "file": "crates/libs/gateway-chat-stream/src/stream_tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "235-修复gateway-chat-stream的stream_tests测试.md"
+    },
+    {
+      "number": 236,
+      "package": "gateway-config",
+      "file": "crates/libs/gateway-config/src/host_migration_8_tests/runtime.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "236-修复gateway-config的runtime测试.md"
+    },
+    {
+      "number": 237,
+      "package": "gateway-desktop",
+      "file": "crates/libs/gateway-desktop/src/desktop_skills_tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "237-修复gateway-desktop的desktop_skills_tests测试.md"
+    },
+    {
+      "number": 238,
+      "package": "gateway-desktop",
+      "file": "crates/libs/gateway-desktop/src/desktop_skills_tests.rs",
+      "batch": 2,
+      "previous": 237,
+      "filename": "238-修复gateway-desktop的desktop_skills_tests测试第2组.md"
+    },
+    {
+      "number": 239,
+      "package": "gateway-http",
+      "file": "crates/libs/gateway-http/src/http_tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "239-修复gateway-http的http_tests测试.md"
+    },
+    {
+      "number": 240,
+      "package": "gateway-mcp",
+      "file": "crates/libs/gateway-mcp/src/mcp_api_tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "240-修复gateway-mcp的mcp_api_tests测试.md"
+    },
+    {
+      "number": 241,
+      "package": "gateway-openclaw-settings",
+      "file": "crates/libs/gateway-openclaw-settings/src/host_migration_16_tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "241-修复gateway-openclaw-settings的host_migration_16_tests测试.md"
+    },
+    {
+      "number": 242,
+      "package": "gateway-session",
+      "file": "crates/libs/gateway-session/src/host_migration_10_tests/messages.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "242-修复gateway-session的messages测试.md"
+    },
+    {
+      "number": 243,
+      "package": "gateway-session",
+      "file": "crates/libs/gateway-session/src/host_migration_11_tests/group_5.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "243-修复gateway-session的group_5测试.md"
+    },
+    {
+      "number": 244,
+      "package": "gateway-session",
+      "file": "crates/libs/gateway-session/src/host_migration_12_tests/ui.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "244-修复gateway-session的ui测试.md"
+    },
+    {
+      "number": 245,
+      "package": "gateway-shiju-app",
+      "file": "crates/libs/gateway-shiju-app/src/shiju_app_api_tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "245-修复gateway-shiju-app的shiju_app_api_tests测试.md"
+    },
+    {
+      "number": 246,
+      "package": "gateway-shiju-skill",
+      "file": "crates/libs/gateway-shiju-skill/src/shiju_skill_api_tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "246-修复gateway-shiju-skill的shiju_skill_api_tests测试.md"
+    },
+    {
+      "number": 247,
+      "package": "gateway-skill-market",
+      "file": "crates/libs/gateway-skill-market/src/skill_market_api_tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "247-修复gateway-skill-market的skill_market_api_tests测试.md"
+    },
+    {
+      "number": 248,
+      "package": "gateway-voice",
+      "file": "crates/libs/gateway-voice/src/voice_api_tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "248-修复gateway-voice的voice_api_tests测试.md"
+    },
+    {
+      "number": 249,
+      "package": "llm-runtime",
+      "file": "crates/libs/llm-runtime/src/acp/model_source/drivers/vibe_tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "249-修复llm-runtime的vibe_tests测试.md"
+    },
+    {
+      "number": 250,
+      "package": "llm-runtime",
+      "file": "crates/libs/llm-runtime/src/host_migration_21_tests/claude.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "250-修复llm-runtime的claude测试.md"
+    },
+    {
+      "number": 251,
+      "package": "llm-runtime",
+      "file": "crates/libs/llm-runtime/src/host_migration_21_tests/codex.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "251-修复llm-runtime的codex测试.md"
+    },
+    {
+      "number": 252,
+      "package": "memory-algorithms",
+      "file": "crates/libs/memory-algorithms/src/chunker/tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "252-修复memory-algorithms的tests测试.md"
+    },
+    {
+      "number": 253,
+      "package": "model-protocol",
+      "file": "crates/libs/model-protocol/src/messages_gemini_request_tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "253-修复model-protocol的messages_gemini_request_tests测试.md"
+    },
+    {
+      "number": 254,
+      "package": "model-protocol",
+      "file": "crates/libs/model-protocol/src/messages_gemini_stream_tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "254-修复model-protocol的messages_gemini_stream_tests测试.md"
+    },
+    {
+      "number": 255,
+      "package": "model-protocol",
+      "file": "crates/libs/model-protocol/src/messages_responses_stream_tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "255-修复model-protocol的messages_responses_stream_tests测试.md"
+    },
+    {
+      "number": 256,
+      "package": "model-protocol",
+      "file": "crates/libs/model-protocol/src/responses_anthropic_request_tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "256-修复model-protocol的responses_anthropic_request_tests测试.md"
+    },
+    {
+      "number": 257,
+      "package": "model-protocol",
+      "file": "crates/libs/model-protocol/src/responses_anthropic_stream_tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "257-修复model-protocol的responses_anthropic_stream_tests测试.md"
+    },
+    {
+      "number": 258,
+      "package": "model-protocol",
+      "file": "crates/libs/model-protocol/src/responses_compaction_tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "258-修复model-protocol的responses_compaction_tests测试.md"
+    },
+    {
+      "number": 259,
+      "package": "model-protocol",
+      "file": "crates/libs/model-protocol/src/responses_tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "259-修复model-protocol的responses_tests测试.md"
+    },
+    {
+      "number": 260,
+      "package": "model-protocol",
+      "file": "crates/libs/model-protocol/src/search_citations_tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "260-修复model-protocol的search_citations_tests测试.md"
+    },
+    {
+      "number": 261,
+      "package": "model-relay-http",
+      "file": "crates/libs/model-relay-http/src/host_migration_46_tests/hosted_search_tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "261-修复model-relay-http的hosted_search_tests测试.md"
+    },
+    {
+      "number": 262,
+      "package": "provider-model-cache",
+      "file": "crates/libs/provider-model-cache/src/models_cache_tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "262-修复provider-model-cache的models_cache_tests测试.md"
+    },
+    {
+      "number": 263,
+      "package": "provider-model-catalog",
+      "file": "crates/libs/provider-model-catalog/src/catalog_tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "263-修复provider-model-catalog的catalog_tests测试.md"
+    },
+    {
+      "number": 264,
+      "package": "runtime-flags",
+      "file": "crates/libs/runtime-flags/src/mod_tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "264-修复runtime-flags的mod_tests测试.md"
+    },
+    {
+      "number": 265,
+      "package": "session-engine",
+      "file": "crates/libs/session-engine/src/host_migration_19_tests/persistence.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "265-修复session-engine的persistence测试.md"
+    },
+    {
+      "number": 266,
+      "package": "session-engine",
+      "file": "crates/libs/session-engine/src/host_migration_23_tests/claude_protocol_parity.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "266-修复session-engine的claude_protocol_parity测试.md"
+    },
+    {
+      "number": 267,
+      "package": "session-engine",
+      "file": "crates/libs/session-engine/src/host_migration_23_tests/compaction.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "267-修复session-engine的compaction测试.md"
+    },
+    {
+      "number": 268,
+      "package": "session-engine",
+      "file": "crates/libs/session-engine/src/host_split_8_tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "268-修复session-engine的host_split_8_tests测试.md"
+    },
+    {
+      "number": 269,
+      "package": "session-engine",
+      "file": "crates/libs/session-engine/src/message_tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "269-修复session-engine的message_tests测试.md"
+    },
+    {
+      "number": 270,
+      "package": "session-engine",
+      "file": "crates/libs/session-engine/src/summary_tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "270-修复session-engine的summary_tests测试.md"
+    },
+    {
+      "number": 271,
+      "package": "session-store",
+      "file": "crates/libs/session-store/src/store/postgres_tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "271-修复session-store的postgres_tests测试.md"
+    },
+    {
+      "number": 272,
+      "package": "session-store",
+      "file": "crates/libs/session-store/src/ui_store_tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "272-修复session-store的ui_store_tests测试.md"
+    },
+    {
+      "number": 273,
+      "package": "shiju-client",
+      "file": "crates/libs/shiju-client/src/apps_tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "273-修复shiju-client的apps_tests测试.md"
+    },
+    {
+      "number": 274,
+      "package": "skill-core",
+      "file": "crates/libs/skill-core/src/audit_tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "274-修复skill-core的audit_tests测试.md"
+    },
+    {
+      "number": 275,
+      "package": "skill-core",
+      "file": "crates/libs/skill-core/src/tests/prompt.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "275-修复skill-core的prompt测试.md"
+    },
+    {
+      "number": 276,
+      "package": "task-plan-runner",
+      "file": "crates/libs/task-plan-runner/src/host_migration_51_session_bind_tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "276-修复task-plan-runner的host_migration_51_session_bind_tests测试.md"
+    },
+    {
+      "number": 277,
+      "package": "task-scheduler",
+      "file": "crates/libs/task-scheduler/src/adapters/local_tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "277-修复task-scheduler的local_tests测试.md"
+    },
+    {
+      "number": 278,
+      "package": "task-scheduler",
+      "file": "crates/libs/task-scheduler/src/runner/workspace_claim_tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "278-修复task-scheduler的workspace_claim_tests测试.md"
+    },
+    {
+      "number": 279,
+      "package": "task-scheduler",
+      "file": "crates/libs/task-scheduler/src/store/runs_tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "279-修复task-scheduler的runs_tests测试.md"
+    },
+    {
+      "number": 280,
+      "package": "task-scheduler",
+      "file": "crates/libs/task-scheduler/src/store/schema_tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "280-修复task-scheduler的schema_tests测试.md"
+    },
+    {
+      "number": 281,
+      "package": "tool-agents",
+      "file": "crates/libs/tool-agents/src/agent_tool/spec_input_tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "281-修复tool-agents的spec_input_tests测试.md"
+    },
+    {
+      "number": 282,
+      "package": "tool-browser",
+      "file": "crates/libs/tool-browser/src/computer_use/execution_tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "282-修复tool-browser的execution_tests测试.md"
+    },
+    {
+      "number": 283,
+      "package": "tool-office",
+      "file": "crates/libs/tool-office/src/host_migration_33_tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "283-修复tool-office的host_migration_33_tests测试.md"
+    },
+    {
+      "number": 284,
+      "package": "tool-office",
+      "file": "crates/libs/tool-office/src/host_migration_35_tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "284-修复tool-office的host_migration_35_tests测试.md"
+    },
+    {
+      "number": 285,
+      "package": "tool-services",
+      "file": "crates/libs/tool-services/src/config/tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "285-修复tool-services的tests测试.md"
+    },
+    {
+      "number": 286,
+      "package": "tool-services",
+      "file": "crates/libs/tool-services/src/schedule/tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "286-修复tool-services的tests测试.md"
+    },
+    {
+      "number": 287,
+      "package": "tool-shell",
+      "file": "crates/libs/tool-shell/src/host_migration_31_tests/tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "287-修复tool-shell的tests测试.md"
+    },
+    {
+      "number": 288,
+      "package": "tool-web",
+      "file": "crates/libs/tool-web/src/codesearch/tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "288-修复tool-web的tests测试.md"
+    },
+    {
+      "number": 289,
+      "package": "tool-web",
+      "file": "crates/libs/tool-web/src/http_request/tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "289-修复tool-web的tests测试.md"
+    },
+    {
+      "number": 290,
+      "package": "tui-bottom-pane",
+      "file": "crates/libs/tui-bottom-pane/src/file_search_integration_tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "290-修复tui-bottom-pane的file_search_integration_tests测试.md"
+    },
+    {
+      "number": 291,
+      "package": "tui-chat",
+      "file": "crates/libs/tui-chat/src/chatwidget/selection_overlay_tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "291-修复tui-chat的selection_overlay_tests测试.md"
+    },
+    {
+      "number": 292,
+      "package": "tui-chat",
+      "file": "crates/libs/tui-chat/src/chatwidget/tests/exec_flow.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "292-修复tui-chat的exec_flow测试.md"
+    },
+    {
+      "number": 293,
+      "package": "tui-chat",
+      "file": "crates/libs/tui-chat/src/status_indicator_widget_tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "293-修复tui-chat的status_indicator_widget_tests测试.md"
+    },
+    {
+      "number": 294,
+      "package": "tui-chat",
+      "file": "crates/libs/tui-chat/src/terminal_req_03_tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "294-修复tui-chat的terminal_req_03_tests测试.md"
+    },
+    {
+      "number": 295,
+      "package": "tui-composer",
+      "file": "crates/libs/tui-composer/src/chat_composer_tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "295-修复tui-composer的chat_composer_tests测试.md"
+    },
+    {
+      "number": 296,
+      "package": "tui-onboarding",
+      "file": "crates/libs/tui-onboarding/src/welcome_tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "296-修复tui-onboarding的welcome_tests测试.md"
+    },
+    {
+      "number": 297,
+      "package": "vw-api-apps-usage",
+      "file": "crates/libs/api-apps-usage/src/apps_usage_tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "297-修复vw-api-apps-usage的apps_usage_tests测试.md"
+    },
+    {
+      "number": 298,
+      "package": "vw-gateway-client",
+      "file": "crates/vw-gateway-client/src/client/agent_apps_diagnostics_api_tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "298-修复vw-gateway-client的agent_apps_diagnostics_api_tests测试.md"
+    },
+    {
+      "number": 299,
+      "package": "vw-gateway-client",
+      "file": "crates/vw-gateway-client/src/client/shiju_skill_api_tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "299-修复vw-gateway-client的shiju_skill_api_tests测试.md"
+    },
+    {
+      "number": 300,
+      "package": "vw-tui",
+      "file": "crates/vw-tui/tests/upstream_snapshot_matrix.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "300-修复vw-tui的upstream_snapshot_matrix测试.md"
+    },
+    {
+      "number": 301,
+      "package": "workflow-engine",
+      "file": "crates/libs/workflow-engine/src/tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "301-修复workflow-engine的tests测试.md"
+    },
+    {
+      "number": 302,
+      "package": "worktree-core",
+      "file": "crates/libs/worktree-core/src/host_migration_50_tests/recovery_restore_tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "302-修复worktree-core的recovery_restore_tests测试.md"
+    }
+  ],
+  "unresolved_sources": []
+}

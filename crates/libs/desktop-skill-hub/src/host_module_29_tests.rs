@@ -2,7 +2,7 @@
 use super::*;
 use crate::skill_hub::*;
 use desktop_account::{
-    AccountIdentity, AccountOrigin, AccountRepository, SecretSkey, VerifiedAccount,
+    AccountOrigin, AccountRepository, SecretSkey, VerifiedAccount,
 };
 #[derive(Default)]
 struct Fixture {
@@ -47,10 +47,18 @@ fn marketplace_query(fixture: &Fixture) -> gateway_shiju_skill::ShijuSkillSearch
 fn repository_with_account(secret: &str, company_id: &str) -> AccountRepository {
     let mut repository = AccountRepository::default();
     repository.upsert_verified(
-        VerifiedAccount::from_parts(
-            AccountIdentity::new(company_id, "示例公司", "founder", "active").unwrap(),
+        VerifiedAccount::from_gateway_profile(
+            gateway_shiju_account::ShijuAccountProfileDto {
+                company_name: company_id.to_string(),
+                company_status: "active".into(),
+                name: "测试用户".into(),
+                account_name: "founder".into(),
+                user_status: "active".into(),
+                departments: Vec::new(),
+                roles: Vec::new(),
+            },
             SecretSkey::new(secret).unwrap(),
-        ),
+        ).expect("verified fixture account"),
         AccountOrigin::BrowserLogin,
     );
     repository
@@ -374,7 +382,7 @@ fn mine_tag_catalog_responses_ignore_stale_generation_and_account() {
 fn installed_skill_load_does_not_invalidate_marketplace_results() {
     let mut app = Fixture::default();
     replace_repository(&mut app.account, repository_with_account("account-secret", "company-1"));
-    let _task = app.reduce(SkillHubMessage::Open);
+    let _task = app.reduce(SkillHubMessage::OpenShijuSkills);
     let generation = app.expert_hub.request_generation;
     let account_id = app.expert_hub.account_id.clone().unwrap();
     let _task = app.reduce(SkillHubMessage::SelectSkillTab(SkillTab::Installed));
@@ -394,6 +402,9 @@ fn installed_skill_load_does_not_invalidate_marketplace_results() {
 fn ensure_installed_skills_loads_without_switching_active_tab() {
     let mut app = Fixture::default();
     replace_repository(&mut app.account, repository_with_account("account-secret", "company-1"));
+    app.expert_hub.clear_for_account(
+        app.account.active_account().map(|account| account.id().to_string()),
+    );
     let active_tab = app.expert_hub.skill_tab;
     let request_generation = app.expert_hub.request_generation;
 
@@ -428,6 +439,9 @@ fn ensure_installed_skills_loads_without_switching_active_tab() {
 fn refresh_installed_skills_forces_latest_request_without_switching_tab() {
     let mut app = Fixture::default();
     replace_repository(&mut app.account, repository_with_account("account-secret", "company-1"));
+    app.expert_hub.clear_for_account(
+        app.account.active_account().map(|account| account.id().to_string()),
+    );
     let active_tab = app.expert_hub.skill_tab;
     let request_generation = app.expert_hub.request_generation;
 
@@ -688,7 +702,12 @@ fn direct_install_preserves_selected_targets_and_ignores_stale_results() {
 
     assert_eq!(app.expert_hub.install_guide.selected_install_selections(), selections);
     assert_eq!(app.expert_hub.install_guide.installed_selection_count(), 2);
-    assert_eq!(task.units(), 2);
+    assert_eq!(task.units(), 1); // 登录信息同步任务；成功提示由 Effect 承载。
+    assert!(matches!(
+        app.effects.as_slice(),
+        [Effect::Feedback(ToastKind::Success, _, _)]
+    ));
+    assert!(matches!(app.expert_hub.install_guide.direct_install, ShijuDirectInstallState::Installed));
 }
 
 #[test]
@@ -824,15 +843,7 @@ mod upgrade_scenarios {
     use upgrades::FunctionUpgradeReport;
     fn app_with_skills() -> Fixture {
         let mut app = Fixture::default();
-        let mut repository = AccountRepository::default();
-        repository.upsert_verified(
-            VerifiedAccount::from_parts(
-                AccountIdentity::new("company-1", "示例公司", "founder", "active").unwrap(),
-                SecretSkey::new("test-secret").unwrap(),
-            ),
-            AccountOrigin::BrowserLogin,
-        );
-        app.account = repository;
+        app.account = repository_with_account("test-secret", "company-1");
         app.expert_hub.account_id =
             app.account.active_account().map(|account| account.id().to_owned());
         app.expert_hub.installed = LoadState::Loaded(vec![InstalledSkill {

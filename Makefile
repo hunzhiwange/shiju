@@ -367,6 +367,19 @@ tui: ## 启动 CLI TUI
 ## Desktop 开发
 ## ============================================================================
 
+.PHONY: gateway-watch desktop-watch
+
+# 保存后自动编译；成功才替换进程，失败保留旧版。Ctrl-C 清理本入口启动的进程。
+# 最后一次修改后静默 30 秒才编译，连续修改重置计时，编译期间的修改合并到下一轮。
+# 两个入口共用编译锁，沿用普通 cargo run 的构建目录；桌面重启会丢失内存状态。
+# 依赖 Watchexec（macOS: brew install watchexec），实际启动沿用 cargo run。
+# 去掉本 Makefile 的默认 target 覆盖，交由 .cargo/config.toml 决定；保留用户显式覆盖。
+gateway-watch: ## Watchexec 监听源码，编译成功后重启 Gateway
+	$(if $(filter file,$(origin CARGO_TARGET_DIR)),env -u CARGO_TARGET_DIR )python3 ./scripts/dev_watch.py gateway
+
+desktop-watch: ## Watchexec 监听源码，编译成功后重启桌面（含 webview）
+	$(if $(filter file,$(origin CARGO_TARGET_DIR)),env -u CARGO_TARGET_DIR )python3 ./scripts/dev_watch.py desktop
+
 desktop-check: ## 检查 vw-desktop 是否可构建
 	cargo check -p vw-desktop
 

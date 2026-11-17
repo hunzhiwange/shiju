@@ -4,7 +4,6 @@ use vw_api_app_identity::{AppId, AppRuntimeKind};
 #[test]
 fn cc_apps_acp_projection_preserves_registry_entries_and_legacy_view() {
     let projection = acp_registry();
-    assert_eq!(projection.len(), 22);
     assert_eq!(projection, acp_agent_registry::built_in_agent_specs());
     assert_eq!(legacy_registry(), acp_agent_registry::built_in_agent_registry());
     assert!(legacy_registry().contains_key("claude-legacy"));
@@ -21,7 +20,9 @@ fn cc_apps_acp_projection_preserves_registry_multiple_forms() {
     );
     let desktop = apps.iter().find(|app| app.metadata.id == AppId::ClaudeDesktop).unwrap();
     assert_eq!(desktop.metadata.runtime_kinds, vec![AppRuntimeKind::DesktopApp]);
-    assert_eq!(acp_registry().len(), 22, "unmapped ACP agents must remain visible");
+    let registry = acp_registry();
+    assert_eq!(registry, acp_agent_registry::built_in_agent_specs());
+    assert!(registry.contains_key("qwen"), "unmapped ACP agents must remain visible");
 }
 
 #[test]

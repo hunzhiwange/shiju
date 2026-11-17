@@ -75,6 +75,9 @@ pub fn configure(profile: &mut AcpLaunchProfile, endpoint: &str) -> anyhow::Resu
         "compaction_model": model,
         "utility_models": {"title": "session-selected", "smart_approve": "session-selected"},
     });
+    // Decode numbers before TOML serialization: arbitrary_precision JSON numbers
+    // otherwise serialize as serde_json private structures instead of integers.
+    let settings: toml::Value = serde_json::from_value(settings)?;
     let bytes = toml::to_string(&settings)?.into_bytes();
     profile.overlay_environment(std::collections::HashMap::from([
         ("VIBE_HOME".into(), profile.directory().to_string_lossy().into_owned()),

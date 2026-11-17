@@ -122,8 +122,14 @@ fn normalize_agent_name_trims_and_lowercases() {
 
 #[test]
 fn built_in_specs_include_stable_user_keys() {
+    let _env_lock = agent_registry_env_test_lock();
     let specs = built_in_agent_specs();
-    let codex_args = &specs[DEFAULT_AGENT_NAME].args;
+    // 默认启动参数属于静态目录；解析后的规格可能采用本机已安装的 CLI。
+    let codex_args = built_in_agent_definitions()
+        .iter()
+        .find(|definition| definition.name == DEFAULT_AGENT_NAME)
+        .expect("codex definition should exist")
+        .args;
     let gemini_args = &specs["gemini"].args;
     let qoder_args = &specs["qoder"].args;
     let qwen_args = &specs["qwen"].args;
@@ -131,8 +137,8 @@ fn built_in_specs_include_stable_user_keys() {
     assert!(specs.contains_key(DEFAULT_AGENT_NAME));
     assert!(specs.contains_key("claude"));
     assert_eq!(specs["auggie"].env["AUGMENT_DISABLE_AUTO_UPDATE"], "1");
-    assert_eq!(codex_args.first().map(String::as_str), Some("-y"));
-    assert!(codex_args.iter().any(|arg| arg == CODEX_ADAPTER_PACKAGE));
+    assert_eq!(codex_args.first().copied(), Some("-y"));
+    assert!(codex_args.iter().any(|arg| *arg == CODEX_ADAPTER_PACKAGE));
     assert!(!codex_args.iter().any(|arg| arg.contains("mcp_servers.node_repl")));
     for args in [gemini_args, qoder_args, qwen_args] {
         assert!(!args.iter().any(|arg| matches!(arg.as_str(), "yolo" | "bypass_permissions")));
@@ -146,6 +152,12 @@ fn built_in_specs_include_stable_user_keys() {
 
 #[test]
 fn merge_specs_normalizes_legacy_codex_acp_args() {
+    let _env_lock = agent_registry_env_test_lock();
+    let dir = TestDir::new("codex-legacy");
+    let binary = dir.path().join(if cfg!(windows) { "codex-acp.exe" } else { "codex-acp" });
+    write_file(&binary);
+    let _config_guard = EnvGuard::set_os("VIBEWINDOW_CONFIG_DIR", dir.path().as_os_str());
+    let _path_guard = EnvGuard::set_os("PATH", dir.path().as_os_str());
     let mut overrides = HashMap::new();
     overrides.insert(
         " Codex ".to_string(),
@@ -164,8 +176,10 @@ fn merge_specs_normalizes_legacy_codex_acp_args() {
     let merged = merge_agent_specs(Some(&overrides));
     let spec = merged.get(DEFAULT_AGENT_NAME).expect("codex override should be normalized");
 
-    assert_eq!(spec.command, "npx");
-    assert_eq!(spec.args, ["-y", CODEX_ADAPTER_PACKAGE]);
+    // 只有旧包名和过期配置全部归一化为官方默认参数后，才会采用本地 CLI。
+    assert_eq!(spec.command, binary.to_string_lossy());
+    assert!(spec.args.is_empty());
+    assert_eq!(normalize_codex_args(&overrides[" Codex "].args), ["-y", CODEX_ADAPTER_PACKAGE]);
 }
 
 #[test]
@@ -329,6 +343,7 @@ fn built_in_agent_command_falls_back_to_definition_command() {
 fn built_in_agent_command_uses_opencode_resolution_with_acp_arg() {
     let _env_lock = agent_registry_env_test_lock();
     let dir = TestDir::new("opencode-definition");
+    let _config_guard = EnvGuard::set_os("VIBEWINDOW_CONFIG_DIR", dir.path().as_os_str());
     let binary = dir.path().join(opencode_binary_name());
     write_file(&binary);
     let definition = BuiltInAgentDefinition {

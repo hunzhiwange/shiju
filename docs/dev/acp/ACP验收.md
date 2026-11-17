@@ -673,3 +673,20 @@ Rust 重型命令均经 scripts/cargo_slot.py 的 slot(number=4)，CARGO_TARGET_
 只格式化新增 Rust 文件，未运行桌面编译、整仓构建/测试、全特性 Clippy、全仓格式检查、wasm 或 Makefile。上述既有严格 lint 失败不影响本次实机文件创建结论，但不被描述为通过。
 
 成功重跑 API 耗时补充：new-install：HTTP 200，客户端退出 0，1.341 秒；new-diagnostic：HTTP 200，客户端退出 0，0.780 秒；capability：HTTP 200，客户端退出 0，0.001 秒；enable：HTTP 200，客户端退出 0，8.208 秒；restore：HTTP 200，客户端退出 0，6.489 秒。
+
+
+# Dirac 验收（2026-11-17）
+
+结论：通过本次“完整文件创建为终点”验收。普通诊断返回 authentication_required，未计作通过；指定 session_model 的真实会话独立成功。
+
+- 前置核对：来源任务已不存在，已读 acp-onboarding-dirac.md、差异清单、当前注册/安装契约及模型驱动；任务24已有完成记录，环境已清理。当前代码拆分到 acp-agent-registry、config-acp-install、llm-runtime；旧 .plans/references/rust.md 不存在，沿用 scripts/cargo_slot.py。
+- 复用任务24的 shiju 0.6.0 槽位4构建，SHA-256 `fd909abe08985bac9cd36f2fbafc465cecaa213f330e367efd29f5b68c1d152c`；构建证据在 /tmp/shiju-dimcode-20261117-retry/build.log，来源 HEAD f72f5c2e8f00ad7a0927eb8b2cb740e102ba893b。Dirac 驱动、注册及安装文件与该来源无差异，本次源码摘要存 source-hashes.json。未重新编译或运行无关 Cargo 检查。
+- 系统安装 POST /v1/desktop/acp-install/dirac：HTTP200、客户端退出0、6.734秒，installed 从 false 到 true。真实入口 /opt/homebrew/lib/node_modules/dirac-cli/dist/cli.mjs，版本0.5.24，SHA-256 `c88e043f590a520da3345050e32bbe6930a68cefad60945ef4a7d14648217429`。临时网关 PATH 使用已存在 Node24.14.0，未替换模型或安装链路。
+- 普通诊断 HTTP200、退出0、1.829秒，结果 authentication_required；模型来源接口 session_model=supported，审核平台 Darwin arm64、版本0.5.24。acp-dirac 的 builtin=true、backend=dirac，基线 disabled；临时启用 PATCH HTTP200、9.218秒，并 GET 重读确认。
+- 请求严格沿用任务JSON及三个指定租户/目录头。首次流 HTTP200、curl退出28、300.006774秒。查询会话已 idle，使用原 x-vw-stream-request-id 与 Last-Event-ID=346 续传；HTTP200、退出0、0.023489秒，没有重复提交创建任务。合并事件：chat.context_loaded=1、chat.step_start=1、chat.delta=213、chat.tool=131（状态事件）、chat.session_updated=2、chat.step_finish=1、chat.done=1、chat.error=0。
+- 实际会话 `ses_1e98f062f001U6qDpLkF0H3EWc`：summary确认 acp-dirac/dirac、full_access=true；运行中 options connected=true，selected_model.source=session_model、provider_id=alibaba-token-plan-cn、完整模型ID=alibaba-token-plan-cn/deepseek-v4.1-flash-1017。结束 connected=false，选定模型保持。access_status=client_only，不宣称 Native 免审批已认证。
+- 实际产物 /Users/xiangmin/worker/code/ruejs/acpdemo/dirac/：README.md、index.html、vite.config.mjs、src/main.tsx、src/App.tsx、src/env.d.ts、src/style.css。已读源码与说明：useApp挂载、ref/computed、textarea onInput、实时字数、localStorage同步保存与初始化恢复均存在；Vite复用 examples/shared/rue-vite.mjs，别名指向 packages/rue/src。README含根目录运行命令，末尾文件树代码块未闭合（排版瑕疵，不影响源码/运行说明）。未运行浏览器、页面构建或页面测试，不声称实际渲染通过。
+- before.json/after.json为排除.git、node_modules、target的普通文件SHA-256快照；仅目标目录新增上述7文件，目录外0差异。未覆盖既有目标，未提交Rue.js工作区。
+- 恢复：urllib路径多次返回408，首次恢复脚本因空响应JSON解析退出；重启自有网关后仍408。最终 curl --noproxy '*' 直连 PATCH enabled=false 返回HTTP200、退出0，GET重读disabled，与基线完整有效智能体配置相等。未将中间失败隐藏，尚未定位408根因；基线无显式覆盖项，最终保留等效disabled覆盖，不宣称存储字节一致。系统安装保留，未改其他预设或默认模型。
+- 清理：自有网关端口61356、49398均已退出0，slot4锁释放、缓存保留，未重启用户服务。全部原始配置、请求、响应、SSE、摘要和快照仅存本机 /tmp/shiju-dirac-accept-20261117（0700）；未提交凭据或供应商二进制。
+- 本次无产品代码修复，复用已有验证产物；仅做文档轻量差异检查，不重新运行单测、Clippy、桌面编译、全仓构建或额外页面回归。历史单测不是本次新增验证证据；本次证据为系统API、真实模型工具调用、落盘源码和恢复重读。

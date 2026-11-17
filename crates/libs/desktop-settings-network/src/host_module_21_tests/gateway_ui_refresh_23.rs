@@ -527,6 +527,12 @@ async fn ui_refresh_23_preserves_values_and_disabled_states() {
         &[service_display_label(app.desktop_locale, "stop").into()],
     );
     let confirm = positions.labels.iter().rev().find(|(value, _)| value == &confirm).unwrap().1;
+    for (theme, name) in [
+        (&Theme::Light, "service-confirm-420-light"),
+        (&Theme::Dark, "service-confirm-420-dark"),
+    ] {
+        capture(&mut ui, &mut renderer, theme, Size::new(420, 520), name, mouse::Cursor::Unavailable);
+    }
     assert!(matches!(
         click(&mut ui, &mut renderer, cancel.center()).as_slice(),
         [Message::Gateway(GatewayMessage::CancelDangerServiceCommand)]

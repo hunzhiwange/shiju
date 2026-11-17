@@ -749,7 +749,7 @@ mod system_settings_gateway_tests;
 /// 返回覆盖层；宿主在已有页面上组合，页面消息无需反向映射。
 pub fn overlay<'a>(app: View<'a>) -> Option<Element<'a, Message>> {
     if !(app.gateway_settings.pending_service_command_confirmation.is_some() || app.gateway_settings.show_help_modal) { return None; }
-    Some(view_overlays(app, iced::widget::Space::new().into()))
+    Some(view_overlays(app, iced::widget::Space::new().width(Length::Fill).height(Length::Fill).into()))
 }
 
 mod service;

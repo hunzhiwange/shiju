@@ -432,5 +432,5 @@ mod system_settings_gateway_client_tests;
 /// 返回覆盖层；宿主在已有页面上组合，页面消息无需反向映射。
 pub fn overlay<'a>(app: View<'a>) -> Option<Element<'a, Message>> {
     if !(app.gateway_client_settings.show_help_modal || app.gateway_client_settings.pending_remove_server_id.as_ref().is_some_and(|id| app.gateway_client_settings.servers.iter().any(|s| &s.id == id))) { return None; }
-    Some(view_overlays(app, iced::widget::Space::new().into()))
+    Some(view_overlays(app, iced::widget::Space::new().width(Length::Fill).height(Length::Fill).into()))
 }

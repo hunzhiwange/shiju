@@ -4,7 +4,7 @@
 
 批次：【批次1】 依赖：无
 
-状态：未开始
+状态：已完成
 
 来源：原任务19全量实际执行；证据编号405, 408。
 预计会话范围：仅本测试定义文件中以下失败族及证据证明必要的底层修复，不接管整包。
@@ -52,3 +52,10 @@ python3 scripts/cargo_slot.py cargo test -p gateway-agent-apps --lib 'agent_apps
 ```
 
 完成证据：各条精确过滤执行1项且passed=1、failed=0、退出0；参数化子进程用例同时记录子进程证据。记录槽位、双缓存路径、日志、代码状态和审查diff。不运行全量测试；最后统一验收任务负责跨任务复验。
+
+## 执行证据
+
+- 根因：执行上下文已由 Gateway 本地主机提供，策略夹具不再参与路由授权；旧 reader 身份和目录与真实执行上下文不一致。仅迁移本文件夹具，使用 desktop-local-user/local host，并以子进程 VIBEWINDOW_TEST_ROOT 隔离缓存路径，保留全部业务及租户隔离断言；无共享业务文件写入。
+- 初始两条原命令经单个 cargo_slot.py sh -c 入口执行。槽位3，CARGO_TARGET_DIR 与 CARGO_BUILD_BUILD_DIR 均为 /Users/xiangmin/worker/code/shiju/target/rust-slot-3。日志 /tmp/shiju-201-red-1.log、/tmp/shiju-201-red-2.log。首条遇 tool-computer 既有 BrowserPermission/browser_permissions/transfer_permission 编译错误退出101，未取得当前运行红灯；第二条编译时已读到修复后夹具，父/子各1 passed、0 failed，退出0。
+- 最终按本文件两条精确 Cargo 命令顺序执行（同一槽位入口，前条成功再执行后条），槽位4；双缓存路径均为 /Users/xiangmin/worker/code/shiju/target/rust-slot-4。日志 /tmp/shiju-201-green-1.log、/tmp/shiju-201-green-2.log。每条父/子进程均执行1项，1 passed、0 failed，入口退出0；未执行全量测试或额外 check。
+- 已审查本文件与测试 diff；rustfmt 仅修改测试文件，git diff --check 通过。两个入口均已退出并释放自有槽位锁，保留缓存。工作区另有大量他人变更与暂存内容，不纳入本次提交。

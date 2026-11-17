@@ -1,14 +1,27 @@
 //! HTTP fixtures only; never use ambient home or user configuration.
 use super::backup_crud_api;
-use {app_settings_store::settings_store::GatewaySettingsStore, agent_database::GlobalDatabase};
 use axum::Extension;
 use serde_json::{Value, json};
-use sha2::{Digest, Sha256};
 use std::{fs, os::unix::fs::PermissionsExt};
-use {
-    vw_api_transport::id::ProjectScope,
-    vw_api_transport::id::TenantScope,
-};
+use {agent_database::GlobalDatabase, app_settings_store::settings_store::GatewaySettingsStore};
+use {vw_api_transport::id::ProjectScope, vw_api_transport::id::TenantScope};
+
+// Runtime paths are cached globally, so each case resolves them in a fresh process.
+fn isolated_test() -> bool {
+    const CHILD: &str = "SHIJU_BACKUP_CRUD_CHILD";
+    if std::env::var_os(CHILD).is_some() {
+        return false;
+    }
+    let root = tempfile::tempdir().unwrap();
+    let status = std::process::Command::new(std::env::current_exe().unwrap())
+        .args(["--exact", std::thread::current().name().unwrap(), "--nocapture"])
+        .env(CHILD, "1")
+        .env("VIBEWINDOW_TEST_ROOT", root.path().canonicalize().unwrap())
+        .status()
+        .unwrap();
+    assert!(status.success(), "isolated backup CRUD child failed: {status}");
+    true
+}
 
 struct Fixture {
     _root: tempfile::TempDir,
@@ -26,26 +39,15 @@ impl Fixture {
         let root = tempfile::tempdir().unwrap();
         fs::set_permissions(root.path(), fs::Permissions::from_mode(0o700)).unwrap();
         let directory = root.path().canonicalize().unwrap();
-        let backups = directory.join("backups");
-        fs::create_dir(&backups).unwrap();
-        fs::set_permissions(&backups, fs::Permissions::from_mode(0o700)).unwrap();
-        let policy = directory.join("policy.json");
-        let token = "anonymous-backup-fixture-token-00001";
-        fs::write(&policy, json!({"principals":[{"id":"reader", "token_sha256":hex::encode(Sha256::digest(token)),
-            "grants":[{"platform_id":"p","company_id":"c","host_id":"h","data_backups":["project"]}]}],
-            "hosts":[{"id":"h","online":true,"binding":"local","home":directory,
-            "applications":directory,"search_paths":[],"data_backup_root":backups}]}).to_string()).unwrap();
-        fs::set_permissions(&policy, fs::Permissions::from_mode(0o600)).unwrap();
         let tenant = TenantScope::new("p", "c").unwrap();
         let project = ProjectScope::new(tenant.clone(), "project".into()).unwrap();
         let db = GlobalDatabase::new(directory.join("fixture.sqlite")).unwrap();
         GatewaySettingsStore::new(db.clone())
             .unwrap()
-            .upsert(&tenant, "agent_apps_user", "reader", "{\"fixture\":true}")
+            .upsert(&tenant, "agent_apps_user", "desktop-local-user", "{\"fixture\":true}")
             .unwrap();
-        let app = backup_crud_api::router_with_policy(Some(policy))
-            .layer(Extension(tenant))
-            .layer(Extension(db));
+        let app =
+            backup_crud_api::router_with_policy(None).layer(Extension(tenant)).layer(Extension(db));
         let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
         let url = format!("http://{}", listener.local_addr().unwrap());
         let server = tokio::spawn(async move {
@@ -55,13 +57,12 @@ impl Fixture {
             _root: root,
             server,
             url,
-            target: json!({"scope":project,"targetHostId":"h","principalId":"reader"}),
+            target: json!({"scope":project,"targetHostId":local_app_auth::HOST_ID,"principalId":"desktop-local-user"}),
         }
     }
     async fn call(&self, operation: &str, request: Value) -> reqwest::Response {
         reqwest::Client::new()
             .post(format!("{}/agent-apps/data/backups/{operation}", self.url))
-            .header("x-agent-apps-token", "anonymous-backup-fixture-token-00001")
             .json(&request)
             .send()
             .await
@@ -81,6 +82,9 @@ impl Fixture {
 }
 #[tokio::test]
 async fn cc_data_34_backup_api_maintains_isolated_backups() {
+    if isolated_test() {
+        return;
+    }
     let fixture = Fixture::new().await;
     let created = fixture.create().await;
     assert_eq!(fixture.create().await["backupId"], created["backupId"]);
@@ -126,6 +130,9 @@ async fn cc_data_34_backup_api_maintains_isolated_backups() {
 }
 #[tokio::test]
 async fn cc_data_34_backup_api_rejects_cross_tenant_id() {
+    if isolated_test() {
+        return;
+    }
     let fixture = Fixture::new().await;
     let created = fixture.create().await;
     let mut foreign = fixture.target.clone();

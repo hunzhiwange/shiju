@@ -1,0 +1,1466 @@
+[
+  {
+    "id": 1,
+    "key": [
+      "crates/vw-desktop/src/app/message/view/mod.rs",
+      742,
+      "E0004",
+      "non-exhaustive patterns: `app::message::view::ViewMessage::MobileMine` not covered"
+    ],
+    "file": "crates/vw-desktop/src/app/message/view/mod.rs",
+    "line": 742,
+    "code": "E0004",
+    "message": "non-exhaustive patterns: `app::message::view::ViewMessage::MobileMine` not covered",
+    "diagnostic": "error[E0004]: non-exhaustive patterns: `app::message::view::ViewMessage::MobileMine` not covered\n    --> crates/vw-desktop/src/app/message/view/mod.rs:742:22\n     |\n 742 |     let task = match message {\n     |                      ^^^^^^^ pattern `app::message::view::ViewMessage::MobileMine` not covered\n     |\nnote: `app::message::view::ViewMessage` defined here\n    --> crates/vw-desktop/src/app/message/view/mod.rs:84:10\n     |\n  84 | pub enum ViewMessage {\n     |          ^^^^^^^^^^^\n...\n  90 |     MobileMine,\n     |     ---------- not covered\n     = note: the matched value is of type `app::message::view::ViewMessage`\nhelp: ensure that all possible cases are being handled by adding a match arm with a wildcard pattern or an explicit pattern as shown\n     |\n1143 ~         ViewMessage::AppThemeSelected(_) => theme::update(app, message),\n1144 ~         app::message::view::ViewMessage::MobileMine => todo!(),\n     |\n\nFor more information about this error, try `rustc --explain E0004`.\nwarning: `vw-desktop` (lib) generated 1 warning",
+    "source_context": "738:         | ViewMessage::MobileNewSession(_)\n739:         | ViewMessage::GlobalMouseReleased\n740:             if app.layout_drag.dragging_work_sidebar || app.navigation_workspace.dragging_work_split\n741:     );\n742:     let task = match message {\n743:         #[cfg(not(target_arch = \"wasm32\"))]\n744:         msg @ ViewMessage::WebInstall(_) => panel::update(app, msg),\n745:         #[cfg(not(target_arch = \"wasm32\"))]\n746:         msg @ ViewMessage::AppUpdatePrepared(_) => panel::update(app, msg),\n747:         #[cfg(not(target_arch = \"wasm32\"))]",
+    "symbol": "update",
+    "logs": [
+      "host-stage",
+      "desktop-stage"
+    ]
+  },
+  {
+    "id": 2,
+    "key": [
+      "crates/vw-agent/src/agent/loop_.rs",
+      114,
+      "E0432",
+      "unresolved import `core::build_native_assistant_history_from_parsed_calls`"
+    ],
+    "file": "crates/vw-agent/src/agent/loop_.rs",
+    "line": 114,
+    "code": "E0432",
+    "message": "unresolved import `core::build_native_assistant_history_from_parsed_calls`",
+    "diagnostic": "error[E0432]: unresolved import `core::build_native_assistant_history_from_parsed_calls`\n   --> crates/vw-agent/src/agent/loop_.rs:114:37\n    |\n114 |     build_native_assistant_history, build_native_assistant_history_from_parsed_calls,\n    |                                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ no `build_native_assistant_history_from_parsed_calls` in `agent::loop_::core`",
+    "source_context": "110: /// - `looks_like_unverified_action_completion_without_tool_call` - 检测未验证的操作完成\n111: #[cfg(test)]\n112: pub(crate) use core::{\n113:     DEFAULT_MAX_HISTORY_MESSAGES, DEFAULT_MAX_ITERATIONS, autosave_memory_key,\n114:     build_native_assistant_history, build_native_assistant_history_from_parsed_calls,\n115:     looks_like_unverified_action_completion_without_tool_call,\n116: };\n117: // ============================================================================\n118: // 核心循环功能导出\n119: // ============================================================================",
+    "symbol": null,
+    "logs": [
+      "host-stage"
+    ]
+  },
+  {
+    "id": 3,
+    "key": [
+      "crates/libs/llm-runtime/tests/host_suites/tests.rs",
+      9,
+      "E0432",
+      "unresolved import `super::acp::is_acp_session_changed_message`"
+    ],
+    "file": "crates/libs/llm-runtime/tests/host_suites/tests.rs",
+    "line": 9,
+    "code": "E0432",
+    "message": "unresolved import `super::acp::is_acp_session_changed_message`",
+    "diagnostic": "error[E0432]: unresolved import `super::acp::is_acp_session_changed_message`\n --> crates/vw-agent/src/session/llm/../../../../libs/llm-runtime/tests/host_suites/tests.rs:9:41\n  |\n9 |     extract_tool_call_from_acp_message, is_acp_session_changed_message, lookup_acp_command,\n  |                                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ no `is_acp_session_changed_message` in `session::llm::acp`",
+    "source_context": "5: \n6: use super::acp::{\n7:     AcpReplayStrategy, ParsedAcpOptions, acp_session_name, build_acp_command_line,\n8:     build_replay_prompt, extract_delta_from_acp_message, extract_reasoning_delta_from_acp_message,\n9:     extract_tool_call_from_acp_message, is_acp_session_changed_message, lookup_acp_command,\n10:     missing_session_error, normalize_acp_agent_config, parse_acp_options, parse_replay_strategy,\n11: };\n12: use serde_json::json;\n13: use acp_types::{AcpSessionOptions, AuthPolicy, NonInteractivePermissionPolicy, PermissionMode};\n14: ",
+    "symbol": null,
+    "logs": [
+      "host-stage"
+    ]
+  },
+  {
+    "id": 4,
+    "key": [
+      "crates/vw-agent/src/plugins/compat/t42_tests.rs",
+      53,
+      "E0432",
+      "unresolved imports `compaction::compaction_tests::model_with_limits`, `compaction::compaction_tests::user_message`"
+    ],
+    "file": "crates/vw-agent/src/plugins/compat/t42_tests.rs",
+    "line": 53,
+    "code": "E0432",
+    "message": "unresolved imports `compaction::compaction_tests::model_with_limits`, `compaction::compaction_tests::user_message`",
+    "diagnostic": "error[E0432]: unresolved imports `compaction::compaction_tests::model_with_limits`, `compaction::compaction_tests::user_message`\n  --> crates/vw-agent/src/plugins/compat/t42_tests.rs:53:40\n   |\n53 |     use compaction::compaction_tests::{model_with_limits, user_message};\n   |                                        ^^^^^^^^^^^^^^^^^  ^^^^^^^^^^^^ no `user_message` in `session::compaction::compaction_tests`\n   |                                        |\n   |                                        no `model_with_limits` in `session::compaction::compaction_tests`",
+    "source_context": "49:     session: &str,\n50:     auto: bool,\n51:     fail: bool,\n52: ) -> Result<CompactionOutcome, crate::session::session::Error> {\n53:     use compaction::compaction_tests::{model_with_limits, user_message};\n54:     compaction::process_with_summarizer(\n55:         ProcessInput {\n56:             session_id: session.into(),\n57:             parent_id: \"boundary\".into(),\n58:             auto,",
+    "symbol": "attempt",
+    "logs": [
+      "host-stage"
+    ]
+  },
+  {
+    "id": 5,
+    "key": [
+      "crates/libs/session-engine/tests/host_suites/todos_tests.rs",
+      92,
+      "E0433",
+      "cannot find `runner_todos` in the crate root"
+    ],
+    "file": "crates/libs/session-engine/tests/host_suites/todos_tests.rs",
+    "line": 92,
+    "code": "E0433",
+    "message": "cannot find `runner_todos` in the crate root",
+    "diagnostic": "error[E0433]: cannot find `runner_todos` in the crate root\n  --> crates/vw-agent/src/session/processor/../../../../libs/session-engine/tests/host_suites/todos_tests.rs:92:20\n   |\n92 |     assert!(crate::runner_todos::read_todos_or_empty(&ctx.session).is_empty());\n   |                    ^^^^^^^^^^^^ could not find `runner_todos` in the crate root",
+    "source_context": "88:     let mut tool_state = super::super::ToolSessionState::default();\n89: \n90:     super::maybe_mark_todo_in_progress(&mut session, &ctx, &mut tool_state);\n91: \n92:     assert!(crate::runner_todos::read_todos_or_empty(&ctx.session).is_empty());\n93:     assert!(session.messages.is_empty());\n94: }",
+    "symbol": "maybe_mark_todo_in_progress_noops_for_empty_list_without_side_effects",
+    "logs": [
+      "host-stage"
+    ]
+  },
+  {
+    "id": 6,
+    "key": [
+      "crates/libs/agent-loop/src/tests/prompt_host.rs",
+      133,
+      "E0433",
+      "cannot find `ToolRuntimeContext` in `tool_types`"
+    ],
+    "file": "crates/libs/agent-loop/src/tests/prompt_host.rs",
+    "line": 133,
+    "code": "E0433",
+    "message": "cannot find `ToolRuntimeContext` in `tool_types`",
+    "diagnostic": "error[E0433]: cannot find `ToolRuntimeContext` in `tool_types`\n   --> crates/vw-agent/src/agent/prompt/../../../../libs/agent-loop/src/tests/prompt_host.rs:133:40\n    |\n133 |     let workflow_context = tool_types::ToolRuntimeContext::new(\n    |                                        ^^^^^^^^^^^^^^^^^^ could not find `ToolRuntimeContext` in `tool_types`\n    |\nhelp: consider importing this type alias through its public re-export\n    |\n  2 + use crate::tools::ToolRuntimeContext;\n    |\nhelp: if you import `ToolRuntimeContext`, refer to it directly\n    |\n133 -     let workflow_context = tool_types::ToolRuntimeContext::new(\n133 +     let workflow_context = ToolRuntimeContext::new(\n    |",
+    "source_context": "129:             \"missing execution boundary '{expected}':\\n{execution}\"\n130:         );\n131:     }\n132: \n133:     let workflow_context = tool_types::ToolRuntimeContext::new(\n134:         \"workflow-subtask-session\",\n135:         Some(temp.path().to_string_lossy().to_string()),\n136:     );\n137:     let agent_tool = tool_types::tool_specs_for_context(&workflow_context)\n138:         .into_iter()",
+    "symbol": "base_and_task_plan_prompts_share_recursive_orchestration_policy",
+    "logs": [
+      "host-stage"
+    ]
+  },
+  {
+    "id": 7,
+    "key": [
+      "crates/libs/agent-loop/src/tests/prompt_host.rs",
+      137,
+      "E0425",
+      "cannot find function `tool_specs_for_context` in crate `tool_types`"
+    ],
+    "file": "crates/libs/agent-loop/src/tests/prompt_host.rs",
+    "line": 137,
+    "code": "E0425",
+    "message": "cannot find function `tool_specs_for_context` in crate `tool_types`",
+    "diagnostic": "error[E0425]: cannot find function `tool_specs_for_context` in crate `tool_types`\n   --> crates/vw-agent/src/agent/prompt/../../../../libs/agent-loop/src/tests/prompt_host.rs:137:34\n    |\n137 |     let agent_tool = tool_types::tool_specs_for_context(&workflow_context)\n    |                                  ^^^^^^^^^^^^^^^^^^^^^^ not found in `tool_types`",
+    "source_context": "133:     let workflow_context = tool_types::ToolRuntimeContext::new(\n134:         \"workflow-subtask-session\",\n135:         Some(temp.path().to_string_lossy().to_string()),\n136:     );\n137:     let agent_tool = tool_types::tool_specs_for_context(&workflow_context)\n138:         .into_iter()\n139:         .find(|spec| spec.id == \"AgentTool\")\n140:         .expect(\"default workflow/goal session toolset should include AgentTool\");\n141:     for action in [\"launch\", \"run\", \"status\", \"wait\", \"stop\"] {\n142:         assert!(",
+    "symbol": "base_and_task_plan_prompts_share_recursive_orchestration_policy",
+    "logs": [
+      "host-stage"
+    ]
+  },
+  {
+    "id": 8,
+    "key": [
+      "crates/libs/channel-runtime/src/manager/execution_control_tests.rs",
+      79,
+      "E0422",
+      "cannot find struct, variant or union type `ChannelTaskGuard` in this scope"
+    ],
+    "file": "crates/libs/channel-runtime/src/manager/execution_control_tests.rs",
+    "line": 79,
+    "code": "E0422",
+    "message": "cannot find struct, variant or union type `ChannelTaskGuard` in this scope",
+    "diagnostic": "error[E0422]: cannot find struct, variant or union type `ChannelTaskGuard` in this scope\n  --> crates/vw-agent/src/channels/manager/../../../../libs/channel-runtime/src/manager/execution_control_tests.rs:79:21\n   |\n79 |         let guard = ChannelTaskGuard {\n   |                     ^^^^^^^^^^^^^^^^ not found in this scope",
+    "source_context": "75:                 cancellation: CancellationToken::new(),\n76:                 completion: completion.clone(),\n77:             },\n78:         );\n79:         let guard = ChannelTaskGuard {\n80:             ctx: ctx.clone(),\n81:             scope,\n82:             task_id: 1,\n83:             completion: completion.clone(),\n84:             gate: Some(gate),",
+    "symbol": "channel_worker_abort_releases_busy_state_and_notifies_stop",
+    "logs": [
+      "host-stage"
+    ]
+  },
+  {
+    "id": 9,
+    "key": [
+      "crates/vw-agent/src/cron/delivery_tests.rs",
+      9,
+      "E0425",
+      "cannot find type `Config` in this scope"
+    ],
+    "file": "crates/vw-agent/src/cron/delivery_tests.rs",
+    "line": 9,
+    "code": "E0425",
+    "message": "cannot find type `Config` in this scope",
+    "diagnostic": "error[E0425]: cannot find type `Config` in this scope\n --> crates/vw-agent/src/cron/delivery_tests.rs:9:40\n  |\n9 | fn fixture(tmp: &tempfile::TempDir) -> Config {\n  |                                        ^^^^^^ not found in this scope",
+    "source_context": "5: use serde_json::{Value, json};\n6: use tokio::time::{Duration, timeout};\n7: use vw_api_transport::id::TenantScope;\n8: \n9: fn fixture(tmp: &tempfile::TempDir) -> Config {\n10:     let mut config = Config::default();\n11:     config.workspace_dir = tmp.path().join(\"workspace\");\n12:     config.config_path = tmp.path().join(\"config.json\");\n13:     std::fs::create_dir_all(&config.workspace_dir).unwrap();\n14:     config.channels_config.wecom =",
+    "symbol": "fixture",
+    "logs": [
+      "host-stage"
+    ]
+  },
+  {
+    "id": 10,
+    "key": [
+      "crates/vw-agent/src/cron/delivery_tests.rs",
+      24,
+      "E0425",
+      "cannot find type `Config` in this scope"
+    ],
+    "file": "crates/vw-agent/src/cron/delivery_tests.rs",
+    "line": 24,
+    "code": "E0425",
+    "message": "cannot find type `Config` in this scope",
+    "diagnostic": "error[E0425]: cannot find type `Config` in this scope\n  --> crates/vw-agent/src/cron/delivery_tests.rs:24:24\n   |\n24 | async fn save(config: &Config) {\n   |                        ^^^^^^ not found in this scope",
+    "source_context": "20: fn tenant() -> TenantScope {\n21:     TenantScope::new(\"cron-wecom-test\", uuid::Uuid::new_v4().to_string()).unwrap()\n22: }\n23: \n24: async fn save(config: &Config) {\n25:     crate::config::schema::save_config_for_tenant(\n26:         config,\n27:         &crate::session::ui_store::current_tenant_scope(),\n28:     )\n29:     .await",
+    "symbol": "save",
+    "logs": [
+      "host-stage"
+    ]
+  },
+  {
+    "id": 11,
+    "key": [
+      "crates/vw-agent/src/gateway/agent_tests.rs",
+      258,
+      "E0425",
+      "cannot find value `RATE_LIMIT_WINDOW_SECS` in this scope"
+    ],
+    "file": "crates/vw-agent/src/gateway/agent_tests.rs",
+    "line": 258,
+    "code": "E0425",
+    "message": "cannot find value `RATE_LIMIT_WINDOW_SECS` in this scope",
+    "diagnostic": "error[E0425]: cannot find value `RATE_LIMIT_WINDOW_SECS` in this scope\n   --> crates/vw-agent/src/gateway/agent_tests.rs:258:60\n    |\n258 |     assert_eq!(response_json(second).await[\"retry_after\"], RATE_LIMIT_WINDOW_SECS);\n    |                                                            ^^^^^^^^^^^^^^^^^^^^^^ not found in this scope",
+    "source_context": "254:     let second = handle_agent(State(state), ConnectInfo(peer()), HeaderMap::new(), body()).await;\n255: \n256:     assert_eq!(first.status(), StatusCode::BAD_REQUEST);\n257:     assert_eq!(second.status(), StatusCode::TOO_MANY_REQUESTS);\n258:     assert_eq!(response_json(second).await[\"retry_after\"], RATE_LIMIT_WINDOW_SECS);\n259: }\n260: \n261: #[tokio::test]\n262: async fn handle_agent_uses_trusted_forwarded_client_for_rate_limit() {\n263:     let mut state = state(false, &[], 1);",
+    "symbol": "handle_agent_enforces_agent_rate_limit_before_auth",
+    "logs": [
+      "host-stage"
+    ]
+  },
+  {
+    "id": 12,
+    "key": [
+      "crates/libs/gateway-instance/src/instance_tests.rs",
+      177,
+      "E0531",
+      "cannot find tuple struct or tuple variant `Json` in this scope"
+    ],
+    "file": "crates/libs/gateway-instance/src/instance_tests.rs",
+    "line": 177,
+    "code": "E0531",
+    "message": "cannot find tuple struct or tuple variant `Json` in this scope",
+    "diagnostic": "error[E0531]: cannot find tuple struct or tuple variant `Json` in this scope\n   --> crates/vw-agent/src/gateway/api/handlers/../../../../../libs/gateway-instance/src/instance_tests.rs:177:9\n    |\n177 |     let Json(info) = path_get::<Host>(Query(query_for(temp.path())), HeaderMap::new())\n    |         ^^^^ not found in this scope",
+    "source_context": "173: \n174: #[tokio::test]\n175: async fn path_get_reports_global_and_instance_paths() {\n176:     let temp = tempfile::tempdir().expect(\"tempdir\");\n177:     let Json(info) = path_get::<Host>(Query(query_for(temp.path())), HeaderMap::new())\n178:         .await\n179:         .expect(\"path_get should succeed\");\n180: \n181:     assert!(!info.home.is_empty());\n182:     let home = directories::UserDirs::new().unwrap();",
+    "symbol": "path_get_reports_global_and_instance_paths",
+    "logs": [
+      "host-stage"
+    ]
+  },
+  {
+    "id": 13,
+    "key": [
+      "crates/libs/gateway-instance/src/instance_tests.rs",
+      196,
+      "E0531",
+      "cannot find tuple struct or tuple variant `Json` in this scope"
+    ],
+    "file": "crates/libs/gateway-instance/src/instance_tests.rs",
+    "line": 196,
+    "code": "E0531",
+    "message": "cannot find tuple struct or tuple variant `Json` in this scope",
+    "diagnostic": "error[E0531]: cannot find tuple struct or tuple variant `Json` in this scope\n   --> crates/vw-agent/src/gateway/api/handlers/../../../../../libs/gateway-instance/src/instance_tests.rs:196:9\n    |\n196 |     let Json(info) = path_get::<Host>(Query(InstanceQuery { directory: None }), headers_for(temp.path()))\n    |         ^^^^ not found in this scope",
+    "source_context": "192: \n193: #[tokio::test]\n194: async fn path_get_uses_directory_header_when_query_missing() {\n195:     let temp = tempfile::tempdir().expect(\"tempdir\");\n196:     let Json(info) = path_get::<Host>(Query(InstanceQuery { directory: None }), headers_for(temp.path()))\n197:         .await\n198:         .expect(\"path_get should succeed\");\n199: \n200:     assert_eq!(info.directory, temp.path().to_string_lossy());\n201: }",
+    "symbol": "path_get_uses_directory_header_when_query_missing",
+    "logs": [
+      "host-stage"
+    ]
+  },
+  {
+    "id": 14,
+    "key": [
+      "crates/libs/gateway-instance/src/instance_tests.rs",
+      219,
+      "E0531",
+      "cannot find tuple struct or tuple variant `Json` in this scope"
+    ],
+    "file": "crates/libs/gateway-instance/src/instance_tests.rs",
+    "line": 219,
+    "code": "E0531",
+    "message": "cannot find tuple struct or tuple variant `Json` in this scope",
+    "diagnostic": "error[E0531]: cannot find tuple struct or tuple variant `Json` in this scope\n   --> crates/vw-agent/src/gateway/api/handlers/../../../../../libs/gateway-instance/src/instance_tests.rs:219:9\n    |\n219 |     let Json(info) = vcs_get::<Host>(Query(query_for(temp.path())), HeaderMap::new())\n    |         ^^^^ not found in this scope",
+    "source_context": "215: \n216: #[tokio::test]\n217: async fn vcs_get_returns_empty_branch_for_non_git_directory() {\n218:     let temp = tempfile::tempdir().expect(\"tempdir\");\n219:     let Json(info) = vcs_get::<Host>(Query(query_for(temp.path())), HeaderMap::new())\n220:         .await\n221:         .expect(\"vcs_get should succeed\");\n222: \n223:     assert_eq!(info.branch, \"\");\n224: }",
+    "symbol": "vcs_get_returns_empty_branch_for_non_git_directory",
+    "logs": [
+      "host-stage"
+    ]
+  },
+  {
+    "id": 15,
+    "key": [
+      "crates/libs/gateway-instance/src/instance_tests.rs",
+      248,
+      "E0531",
+      "cannot find tuple struct or tuple variant `Json` in this scope"
+    ],
+    "file": "crates/libs/gateway-instance/src/instance_tests.rs",
+    "line": 248,
+    "code": "E0531",
+    "message": "cannot find tuple struct or tuple variant `Json` in this scope",
+    "diagnostic": "error[E0531]: cannot find tuple struct or tuple variant `Json` in this scope\n   --> crates/vw-agent/src/gateway/api/handlers/../../../../../libs/gateway-instance/src/instance_tests.rs:248:9\n    |\n248 |     let Json(info) = vcs_get::<Host>(Query(query_for(temp.path())), HeaderMap::new())\n    |         ^^^^ not found in this scope",
+    "source_context": "244:     repo.set_head(\"refs/heads/unit-test-branch\").expect(\"checkout branch ref\");\n245:     repo.checkout_head(Some(git2::build::CheckoutBuilder::new().force()))\n246:         .expect(\"checkout worktree\");\n247: \n248:     let Json(info) = vcs_get::<Host>(Query(query_for(temp.path())), HeaderMap::new())\n249:         .await\n250:         .expect(\"vcs_get should succeed\");\n251: \n252:     assert_eq!(info.branch, \"unit-test-branch\");\n253: }",
+    "symbol": "vcs_get_reports_current_git_branch",
+    "logs": [
+      "host-stage"
+    ]
+  },
+  {
+    "id": 16,
+    "key": [
+      "crates/libs/gateway-instance/src/instance_tests.rs",
+      372,
+      "E0531",
+      "cannot find tuple struct or tuple variant `Json` in this scope"
+    ],
+    "file": "crates/libs/gateway-instance/src/instance_tests.rs",
+    "line": 372,
+    "code": "E0531",
+    "message": "cannot find tuple struct or tuple variant `Json` in this scope",
+    "diagnostic": "error[E0531]: cannot find tuple struct or tuple variant `Json` in this scope\n   --> crates/vw-agent/src/gateway/api/handlers/../../../../../libs/gateway-instance/src/instance_tests.rs:372:9\n    |\n372 |     let Json(disposed) = instance_dispose::<Host>(Query(query_for(temp.path())), HeaderMap::new())\n    |         ^^^^ not found in this scope",
+    "source_context": "368: #[tokio::test]\n369: async fn instance_dispose_returns_true_and_clears_cached_instance() {\n370:     let temp = tempfile::tempdir().expect(\"tempdir\");\n371: \n372:     let Json(disposed) = instance_dispose::<Host>(Query(query_for(temp.path())), HeaderMap::new())\n373:         .await\n374:         .expect(\"dispose should succeed\");\n375: \n376:     assert!(disposed);\n377: }",
+    "symbol": "instance_dispose_returns_true_and_clears_cached_instance",
+    "logs": [
+      "host-stage"
+    ]
+  },
+  {
+    "id": 17,
+    "key": [
+      "crates/libs/gateway-instance/src/instance_tests.rs",
+      396,
+      "E0531",
+      "cannot find tuple struct or tuple variant `Json` in this scope"
+    ],
+    "file": "crates/libs/gateway-instance/src/instance_tests.rs",
+    "line": 396,
+    "code": "E0531",
+    "message": "cannot find tuple struct or tuple variant `Json` in this scope",
+    "diagnostic": "error[E0531]: cannot find tuple struct or tuple variant `Json` in this scope\n   --> crates/vw-agent/src/gateway/api/handlers/../../../../../libs/gateway-instance/src/instance_tests.rs:396:9\n    |\n396 |     let Json(disposed) = instance_dispose::<Host>(Query(query_for(temp.path())), HeaderMap::new())\n    |         ^^^^ not found in this scope",
+    "source_context": "392:     .await\n393:     .expect(\"instance context should be provided\")\n394:     .expect(\"approval manager should load\");\n395: \n396:     let Json(disposed) = instance_dispose::<Host>(Query(query_for(temp.path())), HeaderMap::new())\n397:         .await\n398:         .expect(\"dispose should succeed\");\n399:     assert!(disposed);\n400: \n401:     let after = crate::app::agent::project::instance::provide(temp.path(), None, || {",
+    "symbol": "instance_dispose_clears_directory_approval_manager",
+    "logs": [
+      "host-stage"
+    ]
+  },
+  {
+    "id": 18,
+    "key": [
+      "crates/libs/gateway-instance/src/instance_tests.rs",
+      431,
+      "E0531",
+      "cannot find tuple struct or tuple variant `Json` in this scope"
+    ],
+    "file": "crates/libs/gateway-instance/src/instance_tests.rs",
+    "line": 431,
+    "code": "E0531",
+    "message": "cannot find tuple struct or tuple variant `Json` in this scope",
+    "diagnostic": "error[E0531]: cannot find tuple struct or tuple variant `Json` in this scope\n   --> crates/vw-agent/src/gateway/api/handlers/../../../../../libs/gateway-instance/src/instance_tests.rs:431:9\n    |\n431 |     let Json(disposed) = instance_dispose::<Host>(Query(query_for(temp.path())), HeaderMap::new())\n    |         ^^^^ not found in this scope",
+    "source_context": "427:             let _ = tx.send(evt);\n428:         }\n429:     });\n430: \n431:     let Json(disposed) = instance_dispose::<Host>(Query(query_for(temp.path())), HeaderMap::new())\n432:         .await\n433:         .expect(\"dispose should succeed\");\n434:     assert!(disposed);\n435: \n436:     let event = tokio::time::timeout(std::time::Duration::from_secs(1), rx.recv())",
+    "symbol": "instance_dispose_publishes_disposed_event_for_directory",
+    "logs": [
+      "host-stage"
+    ]
+  },
+  {
+    "id": 19,
+    "key": [
+      "crates/vw-agent/src/gateway/api/handlers/session/turn_fork_tests.rs",
+      18,
+      "E0433",
+      "cannot find module or crate `ui_store` in this scope"
+    ],
+    "file": "crates/vw-agent/src/gateway/api/handlers/session/turn_fork_tests.rs",
+    "line": 18,
+    "code": "E0433",
+    "message": "cannot find module or crate `ui_store` in this scope",
+    "diagnostic": "error[E0433]: cannot find module or crate `ui_store` in this scope\n  --> crates/vw-agent/src/gateway/api/handlers/session/turn_fork_tests.rs:18:26\n   |\n18 |         .layer(Extension(ui_store::current_tenant_scope()))\n   |                          ^^^^^^^^ use of unresolved module or unlinked crate `ui_store`\n   |\n   = help: if you wanted to use a crate named `ui_store`, use `cargo add ui_store` to add it to your `Cargo.toml`\nhelp: consider importing this module\n   |\n 1 + use crate::session::ui_store;\n   |",
+    "source_context": "14: \n15: async fn request(method: Method, path: &str, directory: &str, body: Value) -> (StatusCode, Value) {\n16:     let response = super::super::super::router()\n17:         .with_state(state())\n18:         .layer(Extension(ui_store::current_tenant_scope()))\n19:         .oneshot(\n20:             Request::builder()\n21:                 .method(method)\n22:                 .uri(path)\n23:                 .header(\"content-type\", \"application/json\")",
+    "symbol": "request",
+    "logs": [
+      "host-stage"
+    ]
+  },
+  {
+    "id": 20,
+    "key": [
+      "crates/vw-agent/src/gateway/api/handlers/session/turn_fork_tests.rs",
+      90,
+      "E0425",
+      "cannot find function `with_tenant_instance` in this scope"
+    ],
+    "file": "crates/vw-agent/src/gateway/api/handlers/session/turn_fork_tests.rs",
+    "line": 90,
+    "code": "E0425",
+    "message": "cannot find function `with_tenant_instance` in this scope",
+    "diagnostic": "error[E0425]: cannot find function `with_tenant_instance` in this scope\n  --> crates/vw-agent/src/gateway/api/handlers/session/turn_fork_tests.rs:90:5\n   |\n90 |     with_tenant_instance(ui_store::current_tenant_scope(), source.directory.clone(), move || {\n   |     ^^^^^^^^^^^^^^^^^^^^ not found in this scope\n   |\nnote: function `crate::gateway::router::router_tests::handlers::session::stream::stream_tests::with_tenant_instance` exists but is inaccessible\n  --> crates/vw-agent/src/gateway/api/handlers/session/shared.rs:16:1\n   |\n16 | / pub(super) async fn with_tenant_instance<T>(\n17 | |     tenant: TenantScope,\n18 | |     directory: String,\n19 | |     f: impl FnOnce() -> crate::app::agent::project::BoxFuture<Result<T, ApiError>> + Send + 'static,\n...  |\n24 | |     ui_store::with_tenant_scope(tenant, with_instance(directory, f)).await\n25 | | }\n   | |_^ not accessible",
+    "source_context": "86:     directory\n87: }\n88: \n89: async fn worktree_cleanup(source: &agent_session::session::Info, target: String) {\n90:     with_tenant_instance(ui_store::current_tenant_scope(), source.directory.clone(), move || {\n91:         Box::pin(async move {\n92:             crate::worktree::remove_fork_checkout(target)\n93:                 .await\n94:                 .map_err(|error| ApiError::internal(error.to_string()))\n95:         })",
+    "symbol": "worktree_cleanup",
+    "logs": [
+      "host-stage"
+    ]
+  },
+  {
+    "id": 21,
+    "key": [
+      "crates/vw-agent/src/gateway/api/handlers/session/turn_fork_tests.rs",
+      90,
+      "E0433",
+      "cannot find module or crate `ui_store` in this scope"
+    ],
+    "file": "crates/vw-agent/src/gateway/api/handlers/session/turn_fork_tests.rs",
+    "line": 90,
+    "code": "E0433",
+    "message": "cannot find module or crate `ui_store` in this scope",
+    "diagnostic": "error[E0433]: cannot find module or crate `ui_store` in this scope\n  --> crates/vw-agent/src/gateway/api/handlers/session/turn_fork_tests.rs:90:26\n   |\n90 |     with_tenant_instance(ui_store::current_tenant_scope(), source.directory.clone(), move || {\n   |                          ^^^^^^^^ use of unresolved module or unlinked crate `ui_store`\n   |\n   = help: if you wanted to use a crate named `ui_store`, use `cargo add ui_store` to add it to your `Cargo.toml`\nhelp: consider importing this module\n   |\n 1 + use crate::session::ui_store;\n   |",
+    "source_context": "86:     directory\n87: }\n88: \n89: async fn worktree_cleanup(source: &agent_session::session::Info, target: String) {\n90:     with_tenant_instance(ui_store::current_tenant_scope(), source.directory.clone(), move || {\n91:         Box::pin(async move {\n92:             crate::worktree::remove_fork_checkout(target)\n93:                 .await\n94:                 .map_err(|error| ApiError::internal(error.to_string()))\n95:         })",
+    "symbol": "worktree_cleanup",
+    "logs": [
+      "host-stage"
+    ]
+  },
+  {
+    "id": 22,
+    "key": [
+      "crates/vw-agent/src/gateway/api/handlers/session/turn_fork_tests.rs",
+      103,
+      "E0433",
+      "cannot find module or crate `ui_store` in this scope"
+    ],
+    "file": "crates/vw-agent/src/gateway/api/handlers/session/turn_fork_tests.rs",
+    "line": 103,
+    "code": "E0433",
+    "message": "cannot find module or crate `ui_store` in this scope",
+    "diagnostic": "error[E0433]: cannot find module or crate `ui_store` in this scope\n   --> crates/vw-agent/src/gateway/api/handlers/session/turn_fork_tests.rs:103:26\n    |\n103 |         .layer(Extension(ui_store::current_tenant_scope()))\n    |                          ^^^^^^^^ use of unresolved module or unlinked crate `ui_store`\n    |\n    = help: if you wanted to use a crate named `ui_store`, use `cargo add ui_store` to add it to your `Cargo.toml`\nhelp: consider importing this module\n    |\n  1 + use crate::session::ui_store;\n    |",
+    "source_context": "99: }\n100: \n101: fn acceptance_app() -> axum::Router {\n102:     super::super::super::router().with_state(state())\n103:         .layer(Extension(ui_store::current_tenant_scope()))\n104: }\n105: #[tokio::test]\n106: async fn session_fork_before_turn_keeps_only_complete_earlier_turns() {\n107:     gateway_session::fork_acceptance::session_fork_before_turn_keeps_only_complete_earlier_turns::<super::super::super::message_ops::Host, super::super::super::stream::Host>(acceptance_app).await;\n108: }",
+    "symbol": "acceptance_app",
+    "logs": [
+      "host-stage"
+    ]
+  },
+  {
+    "id": 23,
+    "key": [
+      "crates/vw-agent/src/gateway/api/handlers/session/turn_fork_tests.rs",
+      187,
+      "E0433",
+      "cannot find module or crate `ui_store` in this scope"
+    ],
+    "file": "crates/vw-agent/src/gateway/api/handlers/session/turn_fork_tests.rs",
+    "line": 187,
+    "code": "E0433",
+    "message": "cannot find module or crate `ui_store` in this scope",
+    "diagnostic": "error[E0433]: cannot find module or crate `ui_store` in this scope\n   --> crates/vw-agent/src/gateway/api/handlers/session/turn_fork_tests.rs:187:5\n    |\n187 |     ui_store::with_tenant_scope(tenant.clone(), async {\n    |     ^^^^^^^^ use of unresolved module or unlinked crate `ui_store`\n    |\n    = help: if you wanted to use a crate named `ui_store`, use `cargo add ui_store` to add it to your `Cargo.toml`\nhelp: consider importing this module\n    |\n  1 + use crate::session::ui_store;\n    |",
+    "source_context": "183: async fn worktree_environment_fork_waits_for_setup_and_rejects_failure() {\n184:     let _guard = SESSION_OPS_TEST_LOCK.lock().await;\n185:     ensure_test_home();\n186:     let tenant = TenantScope::new(\"environment-fork\", Uuid::new_v4().to_string()).unwrap();\n187:     ui_store::with_tenant_scope(tenant.clone(), async {\n188:         let repo = repository();\n189:         crate::config::update_global_for_tenant(&tenant, json!({\"worktree_settings\": {\"root\": repo.path().join(\"managed\")}})).await.unwrap();\n190:         let source = create_session_in(repo.path(), \"Source\").await;\n191:         let (_, boundary) = persist_turn(&source.id, \"prompt\", \"answer\").await;\n192:         let scope = vw_api_transport::ProjectScope::new(tenant, vw_api_transport::ProjectId::from(source.project_id.as_str())).unwrap();",
+    "symbol": "worktree_environment_fork_waits_for_setup_and_rejects_failure",
+    "logs": [
+      "host-stage"
+    ]
+  },
+  {
+    "id": 24,
+    "key": [
+      "crates/vw-agent/src/gateway/api/handlers/session/turn_fork_tests.rs",
+      286,
+      "E0425",
+      "cannot find function `with_tenant_instance` in this scope"
+    ],
+    "file": "crates/vw-agent/src/gateway/api/handlers/session/turn_fork_tests.rs",
+    "line": 286,
+    "code": "E0425",
+    "message": "cannot find function `with_tenant_instance` in this scope",
+    "diagnostic": "error[E0425]: cannot find function `with_tenant_instance` in this scope\n   --> crates/vw-agent/src/gateway/api/handlers/session/turn_fork_tests.rs:286:9\n    |\n286 |         with_tenant_instance(ui_store::current_tenant_scope(), workspace.clone(), move || {\n    |         ^^^^^^^^^^^^^^^^^^^^ not found in this scope\n    |\nnote: function `crate::gateway::router::router_tests::handlers::session::stream::stream_tests::with_tenant_instance` exists but is inaccessible\n   --> crates/vw-agent/src/gateway/api/handlers/session/shared.rs:16:1\n    |\n 16 | / pub(super) async fn with_tenant_instance<T>(\n 17 | |     tenant: TenantScope,\n 18 | |     directory: String,\n 19 | |     f: impl FnOnce() -> crate::app::agent::project::BoxFuture<Result<T, ApiError>> + Send + 'static,\n...   |\n 24 | |     ui_store::with_tenant_scope(tenant, with_instance(directory, f)).await\n 25 | | }\n    | |_^ not accessible",
+    "source_context": "282:         }\n283:         assert!(forked.is_user_navigable());\n284:         let id = forked.id.clone();\n285:         let workspace = forked.directory.clone();\n286:         with_tenant_instance(ui_store::current_tenant_scope(), workspace.clone(), move || {\n287:             Box::pin(async move {\n288:                 for (agent, backend) in\n289:                     [(\"main\", None), (\"acp-claude\", Some(\"claude\")), (\"acp-codex\", Some(\"codex\"))]\n290:                 {\n291:                     let (binding, _) = agent_binding::prepare(",
+    "symbol": "fork_selection_before_start_survives_reload",
+    "logs": [
+      "host-stage"
+    ]
+  },
+  {
+    "id": 25,
+    "key": [
+      "crates/vw-agent/src/gateway/api/handlers/session/turn_fork_tests.rs",
+      286,
+      "E0433",
+      "cannot find module or crate `ui_store` in this scope"
+    ],
+    "file": "crates/vw-agent/src/gateway/api/handlers/session/turn_fork_tests.rs",
+    "line": 286,
+    "code": "E0433",
+    "message": "cannot find module or crate `ui_store` in this scope",
+    "diagnostic": "error[E0433]: cannot find module or crate `ui_store` in this scope\n   --> crates/vw-agent/src/gateway/api/handlers/session/turn_fork_tests.rs:286:30\n    |\n286 |         with_tenant_instance(ui_store::current_tenant_scope(), workspace.clone(), move || {\n    |                              ^^^^^^^^ use of unresolved module or unlinked crate `ui_store`\n    |\n    = help: if you wanted to use a crate named `ui_store`, use `cargo add ui_store` to add it to your `Cargo.toml`\nhelp: consider importing this module\n    |\n  1 + use crate::session::ui_store;\n    |",
+    "source_context": "282:         }\n283:         assert!(forked.is_user_navigable());\n284:         let id = forked.id.clone();\n285:         let workspace = forked.directory.clone();\n286:         with_tenant_instance(ui_store::current_tenant_scope(), workspace.clone(), move || {\n287:             Box::pin(async move {\n288:                 for (agent, backend) in\n289:                     [(\"main\", None), (\"acp-claude\", Some(\"claude\")), (\"acp-codex\", Some(\"codex\"))]\n290:                 {\n291:                     let (binding, _) = agent_binding::prepare(",
+    "symbol": "fork_selection_before_start_survives_reload",
+    "logs": [
+      "host-stage"
+    ]
+  },
+  {
+    "id": 26,
+    "key": [
+      "crates/vw-agent/src/gateway/api/handlers/session/fork_acp_tests.rs",
+      10,
+      "E0433",
+      "cannot find module or crate `ui_store` in this scope"
+    ],
+    "file": "crates/vw-agent/src/gateway/api/handlers/session/fork_acp_tests.rs",
+    "line": 10,
+    "code": "E0433",
+    "message": "cannot find module or crate `ui_store` in this scope",
+    "diagnostic": "error[E0433]: cannot find module or crate `ui_store` in this scope\n  --> crates/vw-agent/src/gateway/api/handlers/session/fork_acp_tests.rs:10:100\n   |\n10 |         crate::gateway::api::handlers::session::router().with_state(state()).layer(axum::Extension(ui_store::current_tenant_scope()))\n   |                                                                                                    ^^^^^^^^ use of unresolved module or unlinked crate `ui_store`\n   |\n   = help: if you wanted to use a crate named `ui_store`, use `cargo add ui_store` to add it to your `Cargo.toml`\nhelp: consider importing this module\n   |\n 1 + use crate::session::ui_store;\n   |",
+    "source_context": "6: }\n7: #[tokio::test(flavor = \"multi_thread\", worker_threads = 2)]\n8: async fn fork_acp_first_prompt_and_restart_preserve_history() {\n9:     fn app() -> axum::Router {\n10:         crate::gateway::api::handlers::session::router().with_state(state()).layer(axum::Extension(ui_store::current_tenant_scope()))\n11:     }\n12:     let name = concat!(module_path!(), \"::fork_acp_first_prompt_and_restart_preserve_history\");\n13:     gateway_session::fork_acceptance::fork_acp_first_prompt_and_restart_preserve_history::<crate::gateway::api::handlers::session::message_ops::Host, crate::gateway::api::handlers::session::stream::Host>(app, name.split_once(\"::\").unwrap().1).await;\n14: }",
+    "symbol": "app",
+    "logs": [
+      "host-stage"
+    ]
+  },
+  {
+    "id": 27,
+    "key": [
+      "crates/libs/gateway-aggregation/tests/host/aggregation_omo_tests.rs",
+      86,
+      "E0433",
+      "cannot find `aggregation_omo` in `super`"
+    ],
+    "file": "crates/libs/gateway-aggregation/tests/host/aggregation_omo_tests.rs",
+    "line": 86,
+    "code": "E0433",
+    "message": "cannot find `aggregation_omo` in `super`",
+    "diagnostic": "error[E0433]: cannot find `aggregation_omo` in `super`\n   --> crates/vw-agent/src/gateway/api/handlers/../../../../../libs/gateway-aggregation/tests/host/aggregation_omo_tests.rs:86:16\n    |\n 86 |         super::aggregation_omo::router_with_policy(Some(self.policy.clone()))\n    |                ^^^^^^^^^^^^^^^ could not find `aggregation_omo` in `super`\n    |\nnote: module `crate::gateway::router::router_tests::handlers::aggregation_omo` exists but is inaccessible\n   --> crates/vw-agent/src/gateway/api/handlers/mod.rs:306:1\n    |\n306 | mod aggregation_omo;\n    | ^^^^^^^^^^^^^^^^^^^^ not accessible",
+    "source_context": "82:         std::fs::write(&self.policy,json!({\"principals\":[{\"id\":\"operator\",\"token_sha256\":hex::encode(Sha256::digest(TOKEN)),\"grants\":[{\"platform_id\":\"platform\",\"company_id\":\"company\",\"host_id\":\"host\",\"provider_config_read\":read,\"provider_config_write\":write,\"aggregation_read\":if agg_read{permits.clone()}else{json!([])},\"aggregation_write\":if agg_write{permits}else{json!([])}}]}],\"hosts\":[{\"id\":\"host\",\"online\":true,\"binding\":\"local\",\"home\":self.root.path(),\"credential_root\":self.root.path().join(\"private\"),\"applications\":self.root.path().join(\"Applications\"),\"search_paths\":[]}]}).to_string()).unwrap();\n83:         std::fs::set_permissions(&self.policy, std::fs::Permissions::from_mode(0o600)).unwrap();\n84:     }\n85:     fn router(&self) -> Router {\n86:         super::aggregation_omo::router_with_policy(Some(self.policy.clone()))\n87:             .layer(Extension(self.db.clone()))\n88:             .layer(middleware::from_fn(crate::gateway::middleware::tenant_scope_middleware))\n89:     }\n90:     async fn request(\n91:         &self,",
+    "symbol": "router",
+    "logs": [
+      "host-stage"
+    ]
+  },
+  {
+    "id": 28,
+    "key": [
+      "crates/libs/gateway-aggregation/tests/host/aggregation_lifecycle_tests.rs",
+      352,
+      "E0425",
+      "cannot find value `stop` in module `super::super::app_routing`"
+    ],
+    "file": "crates/libs/gateway-aggregation/tests/host/aggregation_lifecycle_tests.rs",
+    "line": 352,
+    "code": "E0425",
+    "message": "cannot find value `stop` in module `super::super::app_routing`",
+    "diagnostic": "error[E0425]: cannot find value `stop` in module `super::super::app_routing`\n   --> /Users/xiangmin/worker/code/shiju/crates/vw-agent/../libs/gateway-aggregation/tests/host/aggregation_lifecycle_tests.rs:352:79\n    |\n352 |         .route(\"/stop/{host}\", axum::routing::post(super::super::app_routing::stop))\n    |                                                                               ^^^^ not found in `super::super::app_routing`",
+    "source_context": "348:     let mut policy: Value = serde_json::from_slice(&std::fs::read(&f.policy).unwrap()).unwrap();\n349:     policy[\"hosts\"][0][\"routing_startup\"] = json!({\"enabled\":true,\"listen_port\":0});\n350:     std::fs::write(&f.policy, policy.to_string()).unwrap();\n351:     let router = Router::new()\n352:         .route(\"/stop/{host}\", axum::routing::post(super::super::app_routing::stop))\n353:         .route(\"/start/{host}\", axum::routing::post(super::super::app_routing::start))\n354:         .layer(Extension(tenant()));\n355:     let router = super::super::app_routing::configure_with_policy(\n356:         router,\n357:         &listener,",
+    "symbol": "aggregation_t19_host_stop_and_start_use_authorized_router",
+    "logs": [
+      "host-stage"
+    ]
+  },
+  {
+    "id": 29,
+    "key": [
+      "crates/libs/gateway-aggregation/tests/host/aggregation_lifecycle_tests.rs",
+      353,
+      "E0425",
+      "cannot find value `start` in module `super::super::app_routing`"
+    ],
+    "file": "crates/libs/gateway-aggregation/tests/host/aggregation_lifecycle_tests.rs",
+    "line": 353,
+    "code": "E0425",
+    "message": "cannot find value `start` in module `super::super::app_routing`",
+    "diagnostic": "error[E0425]: cannot find value `start` in module `super::super::app_routing`\n   --> /Users/xiangmin/worker/code/shiju/crates/vw-agent/../libs/gateway-aggregation/tests/host/aggregation_lifecycle_tests.rs:353:80\n    |\n353 |         .route(\"/start/{host}\", axum::routing::post(super::super::app_routing::start))\n    |                                                                                ^^^^^ not found in `super::super::app_routing`\n    |\nnote: these functions exist but are inaccessible\n   --> crates/vw-agent/src/tools/shell/session_tools_tests.rs:41:1\n    |\n 41 |   async fn start(tools: &[Box<dyn Tool>], ctx: Arc<ToolUseContext>) -> ToolCallResult {\n    |   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ `crate::tools::shell::session_tools_tests::start`: not accessible\n    |\n   ::: crates/vw-agent/src/tools/shell/long_running_tests.rs:35:1\n    |\n 35 | / fn start<'a>(\n 36 | |     root: &'a Path,\n 37 | |     session: &'a str,\n 38 | |     script: &str,\n...   |\n 55 | |     (cleanup, result)\n 56 | | }\n    | |_^ `crate::tools::shell::long_running_tests::start`: not accessible\nhelp: consider importing one of these functions\n    |\n  1 + use crate::gateway::start;\n    |\n  1 + use crate::plugins::hook_session::start;\n    |\n  1 + use crate::session::fork_execution::start;\n    |\nhelp: if you import `start`, refer to it directly\n    |\n353 -         .route(\"/start/{host}\", axum::routing::post(super::super::app_routing::start))\n353 +         .route(\"/start/{host}\", axum::routing::post(start))\n    |",
+    "source_context": "349:     policy[\"hosts\"][0][\"routing_startup\"] = json!({\"enabled\":true,\"listen_port\":0});\n350:     std::fs::write(&f.policy, policy.to_string()).unwrap();\n351:     let router = Router::new()\n352:         .route(\"/stop/{host}\", axum::routing::post(super::super::app_routing::stop))\n353:         .route(\"/start/{host}\", axum::routing::post(super::super::app_routing::start))\n354:         .layer(Extension(tenant()));\n355:     let router = super::super::app_routing::configure_with_policy(\n356:         router,\n357:         &listener,\n358:         f.policy.clone(),",
+    "symbol": "aggregation_t19_host_stop_and_start_use_authorized_router",
+    "logs": [
+      "host-stage"
+    ]
+  },
+  {
+    "id": 30,
+    "key": [
+      "crates/libs/agent-gateway/src/webhook_ingress/tests.rs",
+      381,
+      "E0425",
+      "cannot find value `RATE_LIMIT_WINDOW_SECS` in this scope"
+    ],
+    "file": "crates/libs/agent-gateway/src/webhook_ingress/tests.rs",
+    "line": 381,
+    "code": "E0425",
+    "message": "cannot find value `RATE_LIMIT_WINDOW_SECS` in this scope",
+    "diagnostic": "error[E0425]: cannot find value `RATE_LIMIT_WINDOW_SECS` in this scope\n   --> crates/vw-agent/src/gateway/webhook_ingress/../../../../libs/agent-gateway/src/webhook_ingress/tests.rs:381:37\n    |\n381 |     assert_eq!(body[\"retry_after\"], RATE_LIMIT_WINDOW_SECS);\n    |                                     ^^^^^^^^^^^^^^^^^^^^^^ not found in this scope",
+    "source_context": "377:             .expect(\"second request should be rate limited\"),\n378:     );\n379: \n380:     assert_eq!(status, StatusCode::TOO_MANY_REQUESTS);\n381:     assert_eq!(body[\"retry_after\"], RATE_LIMIT_WINDOW_SECS);\n382: }\n383: \n384: #[test]\n385: fn enforce_rate_limit_scopes_limits_to_each_peer_address() {\n386:     let state = state_with(",
+    "symbol": "enforce_rate_limit_returns_retry_after_after_limit_is_exceeded",
+    "logs": [
+      "host-stage"
+    ]
+  },
+  {
+    "id": 31,
+    "key": [
+      "crates/libs/agent-gateway/src/webhook_ingress/tests.rs",
+      628,
+      "E0425",
+      "cannot find value `RATE_LIMIT_WINDOW_SECS` in this scope"
+    ],
+    "file": "crates/libs/agent-gateway/src/webhook_ingress/tests.rs",
+    "line": 628,
+    "code": "E0425",
+    "message": "cannot find value `RATE_LIMIT_WINDOW_SECS` in this scope",
+    "diagnostic": "error[E0425]: cannot find value `RATE_LIMIT_WINDOW_SECS` in this scope\n   --> crates/vw-agent/src/gateway/webhook_ingress/../../../../libs/agent-gateway/src/webhook_ingress/tests.rs:628:37\n    |\n628 |     assert_eq!(body[\"retry_after\"], RATE_LIMIT_WINDOW_SECS);\n    |                                     ^^^^^^^^^^^^^^^^^^^^^^ not found in this scope",
+    "source_context": "624:     );\n625: \n626:     assert_eq!(first_status, StatusCode::OK);\n627:     assert_eq!(second_status, StatusCode::TOO_MANY_REQUESTS);\n628:     assert_eq!(body[\"retry_after\"], RATE_LIMIT_WINDOW_SECS);\n629:     assert_eq!(provider.calls.load(Ordering::SeqCst), 1);\n630: }\n631: \n632: #[tokio::test]\n633: async fn handle_webhook_inner_returns_auth_error_before_provider_call() {",
+    "symbol": "handle_webhook_inner_returns_rate_limit_before_provider_call",
+    "logs": [
+      "host-stage"
+    ]
+  },
+  {
+    "id": 32,
+    "key": [
+      "crates/vw-agent/src/plugins/compat/t42_tests.rs",
+      54,
+      "E0425",
+      "cannot find function `process_with_summarizer` in module `compaction`"
+    ],
+    "file": "crates/vw-agent/src/plugins/compat/t42_tests.rs",
+    "line": 54,
+    "code": "E0425",
+    "message": "cannot find function `process_with_summarizer` in module `compaction`",
+    "diagnostic": "error[E0425]: cannot find function `process_with_summarizer` in module `compaction`\n  --> crates/vw-agent/src/plugins/compat/t42_tests.rs:54:17\n   |\n54 |     compaction::process_with_summarizer(\n   |                 ^^^^^^^^^^^^^^^^^^^^^^^ not found in `compaction`",
+    "source_context": "50:     auto: bool,\n51:     fail: bool,\n52: ) -> Result<CompactionOutcome, crate::session::session::Error> {\n53:     use compaction::compaction_tests::{model_with_limits, user_message};\n54:     compaction::process_with_summarizer(\n55:         ProcessInput {\n56:             session_id: session.into(),\n57:             parent_id: \"boundary\".into(),\n58:             auto,\n59:             messages: vec![",
+    "symbol": "attempt",
+    "logs": [
+      "host-stage"
+    ]
+  },
+  {
+    "id": 33,
+    "key": [
+      "crates/libs/llm-runtime/tests/host_suites/transport_tests.rs",
+      51,
+      "E0425",
+      "cannot find function `summary_output_budget` in module `crate::session::processor::context_governance`"
+    ],
+    "file": "crates/libs/llm-runtime/tests/host_suites/transport_tests.rs",
+    "line": 51,
+    "code": "E0425",
+    "message": "cannot find function `summary_output_budget` in module `crate::session::processor::context_governance`",
+    "diagnostic": "error[E0425]: cannot find function `summary_output_budget` in module `crate::session::processor::context_governance`\n  --> crates/vw-agent/src/session/llm/../../../../libs/llm-runtime/tests/host_suites/transport_tests.rs:51:77\n   |\n51 |                 let budget = crate::session::processor::context_governance::summary_output_budget(&input.model.limit);\n   |                                                                             ^^^^^^^^^^^^^^^^^^^^^ not found in `crate::session::processor::context_governance`",
+    "source_context": "47:                 let fixture = RecoveryConfig::new(&format!(\"http://{address}/v1\"), Some(\"fixture-key\")).await;\n48:                 let mut input = test_input(\"model-recovery\");\n49:                 input.model = provider::get_model(\"model-recovery\", \"original\").await.unwrap();\n50:                 input.model.limit = provider::ModelLimit { context: 1_048_576, input: None, output: 1_048_576 };\n51:                 let budget = crate::session::processor::context_governance::summary_output_budget(&input.model.limit);\n52:                 input.agent.options.insert(\"max_output_tokens\".into(), json!(budget));\n53:                 input.agent.options.insert(\"disable_tools\".into(), json!(true));\n54:                 let result = stream(input, |_| {}).await;\n55:                 assert!(result.is_ok(), \"{result:?}\");\n56:                 let payload = server.join().unwrap();",
+    "symbol": "compaction_output_budget_reaches_openai_compatible_request",
+    "logs": [
+      "host-stage"
+    ]
+  },
+  {
+    "id": 34,
+    "key": [
+      "crates/vw-agent/src/session/llm/acp/controls_tests.rs",
+      30,
+      "E0425",
+      "cannot find value `ACP_CLIENT_CACHE` in this scope"
+    ],
+    "file": "crates/vw-agent/src/session/llm/acp/controls_tests.rs",
+    "line": 30,
+    "code": "E0425",
+    "message": "cannot find value `ACP_CLIENT_CACHE` in this scope",
+    "diagnostic": "error[E0425]: cannot find value `ACP_CLIENT_CACHE` in this scope\n  --> crates/vw-agent/src/session/llm/acp/controls_tests.rs:30:21\n   |\n30 |     let mut cache = ACP_CLIENT_CACHE.lock();\n   |                     ^^^^^^^^^^^^^^^^ not found in this scope",
+    "source_context": "26:     )\n27:     .await;\n28:     assert!(!Arc::ptr_eq(&first.client, &second.client));\n29:     assert_ne!(first.client.tenant, second.client.tenant);\n30:     let mut cache = ACP_CLIENT_CACHE.lock();\n31:     cache.remove(&first.key);\n32:     cache.remove(&second.key);\n33: }\n34: \n35: #[tokio::test]",
+    "symbol": "acp_session_options_follow_capabilities_isolate_tenant_connections",
+    "logs": [
+      "host-stage"
+    ]
+  },
+  {
+    "id": 35,
+    "key": [
+      "crates/libs/session-engine/tests/host_suites/runtime/lifecycle_tests.rs",
+      134,
+      "E0425",
+      "cannot find function `tools` in module `crate::session::dynamic_tool_store_tests`"
+    ],
+    "file": "crates/libs/session-engine/tests/host_suites/runtime/lifecycle_tests.rs",
+    "line": 134,
+    "code": "E0425",
+    "message": "cannot find function `tools` in module `crate::session::dynamic_tool_store_tests`",
+    "diagnostic": "error[E0425]: cannot find function `tools` in module `crate::session::dynamic_tool_store_tests`\n   --> crates/vw-agent/src/session/runtime/../../../../libs/session-engine/tests/host_suites/runtime/lifecycle_tests.rs:134:159\n    |\n134 | ...ssion::dynamic_tool_store_tests::tools(\"fork-spec\"), [\"persistent_tool\".into()], crate::session::dynamic_tool_store::PersistentT...\n    |                                     ^^^^^ not found in `crate::session::dynamic_tool_store_tests`\n\nwarning: private item shadows public glob re-export\n  --> crates/vw-agent/src/provider/provider.rs:49:1\n   |\n49 | / async fn load_state_impl(filter: bool) -> State {\n50 | |     ensure_host();\n51 | |     agent_provider::provider::load_state_impl(filter).await\n52 | | }\n   | |_^\n   |\nnote: the name `load_state_impl` in the value namespace is supposed to be publicly re-exported here\n  --> crates/vw-agent/src/provider/provider.rs:8:9\n   |\n 8 | pub use agent_provider::provider::*;\n   |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^\nnote: but the private item here shadows it\n  --> crates/vw-agent/src/provider/provider.rs:49:1\n   |\n49 | / async fn load_state_impl(filter: bool) -> State {\n50 | |     ensure_host();\n51 | |     agent_provider::provider::load_state_impl(filter).await\n52 | | }\n   | |_^\n   = note: `#[warn(hidden_glob_reexports)]` on by default",
+    "source_context": "130:                 store.save_session(project_scope, &crate::session::ui_types::ChatSession {\n131:                     id: source.clone(), title: \"source\".into(), messages: vec![], message_ids: vec![],\n132:                     calls: vec![], steps: vec![], created_ms: 1, updated_ms: 1,\n133:                 })?;\n134:                 store.replace_dynamic_tools(project_scope, &source, &crate::tools::catalog::ToolCatalog::default(), crate::session::dynamic_tool_store_tests::tools(\"fork-spec\"), [\"persistent_tool\".into()], crate::session::dynamic_tool_store::PersistentToolPolicy::trusted_host())?;\n135:                 Ok(())\n136:             }).unwrap();\n137:             use crate::session::message;\n138:             let info: message::Info = serde_json::from_value(serde_json::json!({\n139:                 \"role\":\"user\", \"id\":\"msg-restore\", \"sessionID\":source,",
+    "symbol": "dynamic_tools_restore_fork_copies_specs_without_capabilities",
+    "logs": [
+      "host-stage"
+    ]
+  },
+  {
+    "id": 36,
+    "key": [
+      "crates/vw-agent/src/workflow/video_edit/prepare_tests.rs",
+      31,
+      "E0277",
+      "the trait bound `tool_assembly::runtime::ToolRuntimeContext<AgentContextHost>: VideoContext` is not satisfied"
+    ],
+    "file": "crates/vw-agent/src/workflow/video_edit/prepare_tests.rs",
+    "line": 31,
+    "code": "E0277",
+    "message": "the trait bound `tool_assembly::runtime::ToolRuntimeContext<AgentContextHost>: VideoContext` is not satisfied",
+    "diagnostic": "error[E0277]: the trait bound `tool_assembly::runtime::ToolRuntimeContext<AgentContextHost>: VideoContext` is not satisfied\n  --> crates/vw-agent/src/workflow/video_edit/prepare_tests.rs:31:29\n   |\n31 |     prepare_cloud_video(db, cloud, req, b\"template snapshot\", \"model snapshot\", None).await\n   |                             ^^^^^ the trait `VideoContext` is not implemented for `tool_assembly::runtime::ToolRuntimeContext<AgentContextHost>`\n   |\nhelp: the trait `VideoContext` is implemented for `NativeVideoContext`\n  --> crates/vw-agent/src/workflow/video_edit/prepare.rs:17:1\n   |\n17 | impl VideoContext for NativeVideoContext {\n   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n   = note: required for `Cloud<ToolRuntimeContext<AgentContextHost>>` to implement `workflow_video_edit::prepare::VideoPrepareCloud`\n   = note: required for the cast from `&Cloud<ToolRuntimeContext<AgentContextHost>>` to `&dyn workflow_video_edit::prepare::VideoPrepareCloud`\n   = note: the full name for the type has been written to '/Users/xiangmin/worker/code/shiju/target/rust-slot-3/debug/deps/vw_agent-34a8ee06192c08ab.long-type-5750499563032529921.txt'\n   = note: consider using `--verbose` to print the full type name to the console",
+    "source_context": "27:     db: GlobalDatabase,\n28:     cloud: &Cloud,\n29:     req: &VideoEditRequest,\n30: ) -> Result<PreparedCloudVideo> {\n31:     prepare_cloud_video(db, cloud, req, b\"template snapshot\", \"model snapshot\", None).await\n32: }\n33: #[tokio::test]\n34: async fn video_edit_prepare_multiple_spaces_use_real_question_and_cancel() {\n35:     for cancel in [false, true] {\n36:         let (_root, db, mut cloud, req) = fixture();",
+    "symbol": "prepare",
+    "logs": [
+      "host-stage"
+    ]
+  },
+  {
+    "id": 37,
+    "key": [
+      "crates/libs/agent-loop/src/query_engine_tests.rs",
+      412,
+      "E0308",
+      "mismatched types"
+    ],
+    "file": "crates/libs/agent-loop/src/query_engine_tests.rs",
+    "line": 412,
+    "code": "E0308",
+    "message": "mismatched types",
+    "diagnostic": "error[E0308]: mismatched types\n   --> crates/vw-agent/src/agent/loop_/../../../../libs/agent-loop/src/query_engine_tests.rs:412:32\n    |\n412 |     engine.hook_runtime = Some(runtime.clone());\n    |                           ---- ^^^^^^^^^^^^^^^ expected `agent_hooks::HookRuntime`, found `hooks::runtime::HookRuntime`\n    |                           |\n    |                           arguments to this enum variant are incorrect\n    |\n    = note: `hooks::runtime::HookRuntime` and `agent_hooks::HookRuntime` have similar names, but are actually distinct types\nnote: `hooks::runtime::HookRuntime` is defined in the current crate\n   --> crates/vw-agent/src/hooks/runtime.rs:9:1\n    |\n  9 | pub struct HookRuntime(agent_hooks::HookRuntime);\n    | ^^^^^^^^^^^^^^^^^^^^^^\nnote: `agent_hooks::HookRuntime` is defined in crate `agent_hooks`\n   --> crates/libs/agent-hooks/src/runtime.rs:21:1\n    |\n 21 | pub struct HookRuntime {\n    | ^^^^^^^^^^^^^^^^^^^^^^\nhelp: the type constructed contains `hooks::runtime::HookRuntime` due to the type of the argument passed\n   --> crates/vw-agent/src/agent/loop_/../../../../libs/agent-loop/src/query_engine_tests.rs:412:27\n    |\n412 |     engine.hook_runtime = Some(runtime.clone());\n    |                           ^^^^^---------------^\n    |                                |\n    |                                this argument influences the type of `Some`\nnote: tuple variant defined here\n   --> /rustc/58cf8f9c35b355199727627d07ae34a4e2846d67/library/core/src/option.rs:606:4",
+    "source_context": "408:     engine.tools_registry = vec![Box::new(HookProbeTool)];\n409:     engine.compact_context = true;\n410:     engine.history =\n411:         vec![ChatMessage::user(\"previous task\"), ChatMessage::assistant(\"previous result\")];\n412:     engine.hook_runtime = Some(runtime.clone());\n413: \n414:     let response = engine.submit_message(\"exercise primary and retry\").await.unwrap();\n415: \n416:     assert_eq!(response, \"recovered\");\n417:     assert_eq!(runtime.audit_store().entries().len(), 2);",
+    "symbol": "query_engine_uses_hook_runtime_for_primary_and_retry_turns",
+    "logs": [
+      "host-stage"
+    ]
+  },
+  {
+    "id": 38,
+    "key": [
+      "crates/libs/agent-loop/src/query_engine_tests.rs",
+      432,
+      "E0308",
+      "mismatched types"
+    ],
+    "file": "crates/libs/agent-loop/src/query_engine_tests.rs",
+    "line": 432,
+    "code": "E0308",
+    "message": "mismatched types",
+    "diagnostic": "error[E0308]: mismatched types\n   --> crates/vw-agent/src/agent/loop_/../../../../libs/agent-loop/src/query_engine_tests.rs:432:32\n    |\n432 |     engine.hook_runtime = Some(disabled.clone());\n    |                           ---- ^^^^^^^^^^^^^^^^ expected `agent_hooks::HookRuntime`, found `hooks::runtime::HookRuntime`\n    |                           |\n    |                           arguments to this enum variant are incorrect\n    |\n    = note: `hooks::runtime::HookRuntime` and `agent_hooks::HookRuntime` have similar names, but are actually distinct types\nnote: `hooks::runtime::HookRuntime` is defined in the current crate\n   --> crates/vw-agent/src/hooks/runtime.rs:9:1\n    |\n  9 | pub struct HookRuntime(agent_hooks::HookRuntime);\n    | ^^^^^^^^^^^^^^^^^^^^^^\nnote: `agent_hooks::HookRuntime` is defined in crate `agent_hooks`\n   --> crates/libs/agent-hooks/src/runtime.rs:21:1\n    |\n 21 | pub struct HookRuntime {\n    | ^^^^^^^^^^^^^^^^^^^^^^\nhelp: the type constructed contains `hooks::runtime::HookRuntime` due to the type of the argument passed\n   --> crates/vw-agent/src/agent/loop_/../../../../libs/agent-loop/src/query_engine_tests.rs:432:27\n    |\n432 |     engine.hook_runtime = Some(disabled.clone());\n    |                           ^^^^^----------------^\n    |                                |\n    |                                this argument influences the type of `Some`\nnote: tuple variant defined here\n   --> /rustc/58cf8f9c35b355199727627d07ae34a4e2846d67/library/core/src/option.rs:606:4",
+    "source_context": "428:         ProviderStep::Response(chat_text(\"disabled\", None)),\n429:     ]);\n430:     let mut engine = test_engine(provider, Arc::new(FakeMemory::default()));\n431:     engine.tools_registry = vec![Box::new(HookProbeTool)];\n432:     engine.hook_runtime = Some(disabled.clone());\n433: \n434:     assert_eq!(engine.submit_message(\"hooks disabled\").await.unwrap(), \"disabled\");\n435:     assert!(disabled.audit_store().entries().is_empty());\n436: }\n437: ",
+    "symbol": "query_engine_uses_hook_runtime_for_primary_and_retry_turns",
+    "logs": [
+      "host-stage"
+    ]
+  },
+  {
+    "id": 39,
+    "key": [
+      "crates/vw-agent/src/agent_apps/mcp/acp_mount_tests.rs",
+      133,
+      "E0308",
+      "mismatched types"
+    ],
+    "file": "crates/vw-agent/src/agent_apps/mcp/acp_mount_tests.rs",
+    "line": 133,
+    "code": "E0308",
+    "message": "mismatched types",
+    "diagnostic": "error[E0308]: mismatched types\n   --> crates/vw-agent/src/agent_apps/mcp/acp_mount_tests.rs:133:60\n    |\n132 |     let current = agent_app_services::mcp::acceptance::acp::revoke_cached(\n    |                   ------------------------------------------------------- arguments to this function are incorrect\n133 |         &catalog, &project_scope, &selected, &root, &tool, pool.as_ref(),\n    |                                                            ^^^^^^^^^^^^^ expected `&Arc<McpSessionConnections>`, found `&McpSessionConnections`\n    |\n    = note: expected reference `&std::sync::Arc<McpSessionConnections>`\n               found reference `&McpSessionConnections`\nnote: function defined here\n   --> crates/libs/agent-app-services/src/mcp/acceptance/acp.rs:94:14\n    |\n 94 | pub async fn revoke_cached(catalog: &McpCatalogStore, project_scope: &McpCatalogScope,\n    |              ^^^^^^^^^^^^^",
+    "source_context": "129:     assert_eq!(restored_backend.session_tool_count(id), Some(1));\n130: \n131:     let pool = tools.mcp_connections().unwrap();\n132:     let current = agent_app_services::mcp::acceptance::acp::revoke_cached(\n133:         &catalog, &project_scope, &selected, &root, &tool, pool.as_ref(),\n134:     ).await;\n135: \n136:     let restored_backend = VibeWindowBackend::new(tenant.clone());\n137:     restored_backend.load_session(id, workspace.clone()).await.unwrap();\n138:     assert_eq!(restored_backend.session_tool_count(id), Some(0));",
+    "symbol": "cc_mcp_t29_explicit_catalog_selection_mounts_only_the_selected_server",
+    "logs": [
+      "host-stage"
+    ]
+  },
+  {
+    "id": 40,
+    "key": [
+      "crates/vw-agent/src/cron/delivery_tests.rs",
+      10,
+      "E0433",
+      "cannot find type `Config` in this scope"
+    ],
+    "file": "crates/vw-agent/src/cron/delivery_tests.rs",
+    "line": 10,
+    "code": "E0433",
+    "message": "cannot find type `Config` in this scope",
+    "diagnostic": "error[E0433]: cannot find type `Config` in this scope\n  --> crates/vw-agent/src/cron/delivery_tests.rs:10:22\n   |\n10 |     let mut config = Config::default();\n   |                      ^^^^^^ use of undeclared type `Config`",
+    "source_context": "6: use tokio::time::{Duration, timeout};\n7: use vw_api_transport::id::TenantScope;\n8: \n9: fn fixture(tmp: &tempfile::TempDir) -> Config {\n10:     let mut config = Config::default();\n11:     config.workspace_dir = tmp.path().join(\"workspace\");\n12:     config.config_path = tmp.path().join(\"config.json\");\n13:     std::fs::create_dir_all(&config.workspace_dir).unwrap();\n14:     config.channels_config.wecom =\n15:         Some(serde_json::from_value(json!({\"bot_id\":\"bot\",\"secret\":\"secret\"})).unwrap());",
+    "symbol": "fixture",
+    "logs": [
+      "host-stage"
+    ]
+  },
+  {
+    "id": 41,
+    "key": [
+      "crates/vw-agent/src/gateway/agent_tests.rs",
+      226,
+      "E0599",
+      "no method named `into_response` found for struct `axum::http::Response<T>` in the current scope"
+    ],
+    "file": "crates/vw-agent/src/gateway/agent_tests.rs",
+    "line": 226,
+    "code": "E0599",
+    "message": "no method named `into_response` found for struct `axum::http::Response<T>` in the current scope",
+    "diagnostic": "error[E0599]: no method named `into_response` found for struct `axum::http::Response<T>` in the current scope\n   --> crates/vw-agent/src/gateway/agent_tests.rs:226:32\n    |\n226 |         response_json(response.into_response()).await[\"error\"]\n    |                                ^^^^^^^^^^^^^ method not found in `axum::http::Response<axum::body::Body>`\n    |\n   ::: /Users/xiangmin/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/axum-core-0.5.6/src/response/into_response.rs:115:8\n    |\n115 |     fn into_response(self) -> Response;\n    |        ------------- the method is available for `axum::http::Response<axum::body::Body>` here\n    |\n    = help: items from traits can only be used if the trait is in scope\nhelp: trait `IntoResponse` which provides `into_response` is implemented but not in scope; perhaps you want to import it\n    |\n  3 + use axum::response::IntoResponse;\n    |",
+    "source_context": "222:     let response = app.oneshot(request).await.expect(\"router should respond\");\n223: \n224:     assert_eq!(response.status(), StatusCode::BAD_REQUEST);\n225:     assert!(\n226:         response_json(response.into_response()).await[\"error\"]\n227:             .as_str()\n228:             .unwrap()\n229:             .contains(\"Invalid JSON\")\n230:     );\n231: }",
+    "symbol": "handle_agent_rejects_invalid_json_body",
+    "logs": [
+      "host-stage"
+    ]
+  },
+  {
+    "id": 42,
+    "key": [
+      "crates/vw-agent/src/gateway/api/handlers/task_plan_run_tests.rs",
+      38,
+      "E0425",
+      "cannot find function `task_plan_run_status` in this scope"
+    ],
+    "file": "crates/vw-agent/src/gateway/api/handlers/task_plan_run_tests.rs",
+    "line": 38,
+    "code": "E0425",
+    "message": "cannot find function `task_plan_run_status` in this scope",
+    "diagnostic": "error[E0425]: cannot find function `task_plan_run_status` in this scope\n  --> crates/vw-agent/src/gateway/api/handlers/task_plan_run_tests.rs:38:24\n   |\n38 |     let Json(status) = task_plan_run_status::<Host>(Extension(owner.clone()), Path(task_id.clone()))\n   |                        ^^^^^^^^^^^^^^^^^^^^ not found in this scope",
+    "source_context": "34:             },\n35:         )\n36:         .expect(\"observe planning\");\n37: \n38:     let Json(status) = task_plan_run_status::<Host>(Extension(owner.clone()), Path(task_id.clone()))\n39:         .await\n40:         .expect(\"owner status\");\n41:     assert_eq!(status.status, TaskPlanRunStatus::Running);\n42:     assert_eq!(status.current_session_id.as_deref(), Some(session_id.as_str()));\n43: ",
+    "symbol": "task_plan_run_control_routes_are_tenant_scoped_and_stop_is_idempotent",
+    "logs": [
+      "host-stage"
+    ]
+  },
+  {
+    "id": 43,
+    "key": [
+      "crates/vw-agent/src/gateway/api/handlers/task_plan_run_tests.rs",
+      45,
+      "E0425",
+      "cannot find function `task_plan_run_status` in this scope"
+    ],
+    "file": "crates/vw-agent/src/gateway/api/handlers/task_plan_run_tests.rs",
+    "line": 45,
+    "code": "E0425",
+    "message": "cannot find function `task_plan_run_status` in this scope",
+    "diagnostic": "error[E0425]: cannot find function `task_plan_run_status` in this scope\n  --> crates/vw-agent/src/gateway/api/handlers/task_plan_run_tests.rs:45:9\n   |\n45 |         task_plan_run_status::<Host>(Extension(outsider.clone()), Path(task_id.clone()))\n   |         ^^^^^^^^^^^^^^^^^^^^ not found in this scope",
+    "source_context": "41:     assert_eq!(status.status, TaskPlanRunStatus::Running);\n42:     assert_eq!(status.current_session_id.as_deref(), Some(session_id.as_str()));\n43: \n44:     let cross_tenant_status =\n45:         task_plan_run_status::<Host>(Extension(outsider.clone()), Path(task_id.clone()))\n46:             .await\n47:             .expect_err(\"cross-tenant status must be hidden\");\n48:     assert_eq!(cross_tenant_status.status, StatusCode::NOT_FOUND);\n49:     let cross_tenant_stop = task_plan_run_stop::<Host>(Extension(outsider), Path(task_id.clone()))\n50:         .await",
+    "symbol": "task_plan_run_control_routes_are_tenant_scoped_and_stop_is_idempotent",
+    "logs": [
+      "host-stage"
+    ]
+  },
+  {
+    "id": 44,
+    "key": [
+      "crates/vw-agent/src/gateway/api/handlers/task_plan_run_tests.rs",
+      49,
+      "E0425",
+      "cannot find function `task_plan_run_stop` in this scope"
+    ],
+    "file": "crates/vw-agent/src/gateway/api/handlers/task_plan_run_tests.rs",
+    "line": 49,
+    "code": "E0425",
+    "message": "cannot find function `task_plan_run_stop` in this scope",
+    "diagnostic": "error[E0425]: cannot find function `task_plan_run_stop` in this scope\n  --> crates/vw-agent/src/gateway/api/handlers/task_plan_run_tests.rs:49:29\n   |\n49 |     let cross_tenant_stop = task_plan_run_stop::<Host>(Extension(outsider), Path(task_id.clone()))\n   |                             ^^^^^^^^^^^^^^^^^^ not found in this scope",
+    "source_context": "45:         task_plan_run_status::<Host>(Extension(outsider.clone()), Path(task_id.clone()))\n46:             .await\n47:             .expect_err(\"cross-tenant status must be hidden\");\n48:     assert_eq!(cross_tenant_status.status, StatusCode::NOT_FOUND);\n49:     let cross_tenant_stop = task_plan_run_stop::<Host>(Extension(outsider), Path(task_id.clone()))\n50:         .await\n51:         .expect_err(\"cross-tenant stop must be hidden\");\n52:     assert_eq!(cross_tenant_stop.status, StatusCode::NOT_FOUND);\n53:     assert!(!cancellation.is_cancelled());\n54: ",
+    "symbol": "task_plan_run_control_routes_are_tenant_scoped_and_stop_is_idempotent",
+    "logs": [
+      "host-stage"
+    ]
+  },
+  {
+    "id": 45,
+    "key": [
+      "crates/vw-agent/src/gateway/api/handlers/task_plan_run_tests.rs",
+      55,
+      "E0425",
+      "cannot find function `task_plan_run_stop` in this scope"
+    ],
+    "file": "crates/vw-agent/src/gateway/api/handlers/task_plan_run_tests.rs",
+    "line": 55,
+    "code": "E0425",
+    "message": "cannot find function `task_plan_run_stop` in this scope",
+    "diagnostic": "error[E0425]: cannot find function `task_plan_run_stop` in this scope\n  --> crates/vw-agent/src/gateway/api/handlers/task_plan_run_tests.rs:55:25\n   |\n55 |     let Json(stopped) = task_plan_run_stop::<Host>(Extension(owner.clone()), Path(task_id.clone()))\n   |                         ^^^^^^^^^^^^^^^^^^ not found in this scope",
+    "source_context": "51:         .expect_err(\"cross-tenant stop must be hidden\");\n52:     assert_eq!(cross_tenant_stop.status, StatusCode::NOT_FOUND);\n53:     assert!(!cancellation.is_cancelled());\n54: \n55:     let Json(stopped) = task_plan_run_stop::<Host>(Extension(owner.clone()), Path(task_id.clone()))\n56:         .await\n57:         .expect(\"owner stop\");\n58:     assert_eq!(stopped.status, TaskPlanRunStatus::Cancelled);\n59:     assert!(cancellation.is_cancelled());\n60: ",
+    "symbol": "task_plan_run_control_routes_are_tenant_scoped_and_stop_is_idempotent",
+    "logs": [
+      "host-stage"
+    ]
+  },
+  {
+    "id": 46,
+    "key": [
+      "crates/vw-agent/src/gateway/api/handlers/task_plan_run_tests.rs",
+      62,
+      "E0425",
+      "cannot find function `task_plan_run_stop` in this scope"
+    ],
+    "file": "crates/vw-agent/src/gateway/api/handlers/task_plan_run_tests.rs",
+    "line": 62,
+    "code": "E0425",
+    "message": "cannot find function `task_plan_run_stop` in this scope",
+    "diagnostic": "error[E0425]: cannot find function `task_plan_run_stop` in this scope\n  --> crates/vw-agent/src/gateway/api/handlers/task_plan_run_tests.rs:62:9\n   |\n62 |         task_plan_run_stop::<Host>(Extension(owner), Path(task_id)).await.expect(\"idempotent stop\");\n   |         ^^^^^^^^^^^^^^^^^^ not found in this scope",
+    "source_context": "58:     assert_eq!(stopped.status, TaskPlanRunStatus::Cancelled);\n59:     assert!(cancellation.is_cancelled());\n60: \n61:     let Json(stopped_again) =\n62:         task_plan_run_stop::<Host>(Extension(owner), Path(task_id)).await.expect(\"idempotent stop\");\n63:     assert_eq!(stopped_again.status, TaskPlanRunStatus::Cancelled);\n64: }",
+    "symbol": "task_plan_run_control_routes_are_tenant_scoped_and_stop_is_idempotent",
+    "logs": [
+      "host-stage"
+    ]
+  },
+  {
+    "id": 47,
+    "key": [
+      "crates/libs/gateway-app-providers/src/host_tests/desktop_mapping_tests.rs",
+      138,
+      "E0599",
+      "no method named `transport` found for struct `GatewayAppProviderClient` in the current scope"
+    ],
+    "file": "crates/libs/gateway-app-providers/src/host_tests/desktop_mapping_tests.rs",
+    "line": 138,
+    "code": "E0599",
+    "message": "no method named `transport` found for struct `GatewayAppProviderClient` in the current scope",
+    "diagnostic": "error[E0599]: no method named `transport` found for struct `GatewayAppProviderClient` in the current scope\n   --> crates/vw-agent/src/gateway/api/handlers/../../../../../libs/gateway-app-providers/src/host_tests/desktop_mapping_tests.rs:138:74\n    |\n138 |     assert!(gateway_app_provider::GatewayAppProviderClient::new(f.client.transport().clone()).claude_desktop_provider_switch(\"one\",...\n    |                                                                          ^^^^^^^^^ private field, not a method",
+    "source_context": "134:     let saved = f.record(\"one\").unwrap();\n135:     request.mapping.routes.values_mut().next().unwrap().model = \"bad\\nmodel\".into();\n136:     assert!(f.client.claude_desktop_mapping_save(\"one\", &request, TOKEN).await.is_err());\n137:     assert_eq!(f.record(\"one\").unwrap(), saved);\n138:     assert!(gateway_app_provider::GatewayAppProviderClient::new(f.client.transport().clone()).claude_desktop_provider_switch(\"one\", &f.target(), TOKEN).await.is_err());\n139:     assert_eq!(std::fs::read(f.file()).unwrap(), before);\n140:     assert!(!f.root.path().join(\"private/provider-live\").exists());\n141: }\n142: #[tokio::test]\n143: async fn cc04_desktop_mapping_imported_native_profile_reaches_transactional_files() {",
+    "symbol": "cc04_desktop_mapping_sdk_api_import_validates_and_never_activates",
+    "logs": [
+      "host-stage"
+    ]
+  },
+  {
+    "id": 48,
+    "key": [
+      "crates/libs/gateway-app-providers/src/host_tests/desktop_mapping_tests.rs",
+      171,
+      "E0599",
+      "no method named `transport` found for struct `GatewayAppProviderClient` in the current scope"
+    ],
+    "file": "crates/libs/gateway-app-providers/src/host_tests/desktop_mapping_tests.rs",
+    "line": 171,
+    "code": "E0599",
+    "message": "no method named `transport` found for struct `GatewayAppProviderClient` in the current scope",
+    "diagnostic": "error[E0599]: no method named `transport` found for struct `GatewayAppProviderClient` in the current scope\n   --> crates/vw-agent/src/gateway/api/handlers/../../../../../libs/gateway-app-providers/src/host_tests/desktop_mapping_tests.rs:171:70\n    |\n171 | ...   gateway_app_provider::GatewayAppProviderClient::new(f.client.transport().clone()).claude_desktop_provider_switch(\"native\", &f...\n    |                                                                    ^^^^^^^^^ private field, not a method",
+    "source_context": "167:         f.client.claude_desktop_import_claude(&f.target(), TOKEN).await.unwrap().imported,\n168:         1\n169:     );\n170:     let result =\n171:         gateway_app_provider::GatewayAppProviderClient::new(f.client.transport().clone()).claude_desktop_provider_switch(\"native\", &f.target(), TOKEN).await.unwrap();\n172:     assert_eq!(result.live, ClaudeDesktopLiveResult::Applied);\n173:     let profile = f.root.path().join(format!(\n174:         \"Library/Application Support/Claude-3p/configLibrary/{}.json\",\n175:         vw_agent_apps::providers::claude_desktop::PROFILE_ID\n176:     ));",
+    "symbol": "cc04_desktop_mapping_imported_native_profile_reaches_transactional_files",
+    "logs": [
+      "host-stage"
+    ]
+  },
+  {
+    "id": 49,
+    "key": [
+      "crates/libs/gateway-app-providers/src/host_tests/desktop_mapping_tests.rs",
+      224,
+      "E0599",
+      "no method named `transport` found for struct `GatewayAppProviderClient` in the current scope"
+    ],
+    "file": "crates/libs/gateway-app-providers/src/host_tests/desktop_mapping_tests.rs",
+    "line": 224,
+    "code": "E0599",
+    "message": "no method named `transport` found for struct `GatewayAppProviderClient` in the current scope",
+    "diagnostic": "error[E0599]: no method named `transport` found for struct `GatewayAppProviderClient` in the current scope\n   --> crates/vw-agent/src/gateway/api/handlers/../../../../../libs/gateway-app-providers/src/host_tests/desktop_mapping_tests.rs:224:66\n    |\n224 |     gateway_app_provider::GatewayAppProviderClient::new(f.client.transport().clone()).claude_desktop_provider_save(\"form\", &write, ...\n    |                                                                  ^^^^^^^^^ private field, not a method",
+    "source_context": "220:             },\n221:         },\n222:         activation: ClaudeDesktopActivation::CatalogOnly,\n223:     };\n224:     gateway_app_provider::GatewayAppProviderClient::new(f.client.transport().clone()).claude_desktop_provider_save(\"form\", &write, TOKEN).await.unwrap();\n225:     let before = f.record(\"form\").unwrap();\n226:     let view = f.client.claude_desktop_form_read(\"form\", &f.target(), TOKEN).await.unwrap();\n227:     assert_eq!(view.name, \"中文直连\");\n228:     assert!(view.direct_editable && view.mapping_editable);\n229:     assert_eq!(view.mapping.mode, DesktopMappingMode::Direct);",
+    "symbol": "cc04_ui_desktop_form_read_is_redacted_and_permission_checked",
+    "logs": [
+      "host-stage"
+    ]
+  },
+  {
+    "id": 50,
+    "key": [
+      "crates/libs/gateway-app-providers/src/host_tests/hermes_tests.rs",
+      162,
+      "E0433",
+      "cannot find type `GatewayClient` in this scope"
+    ],
+    "file": "crates/libs/gateway-app-providers/src/host_tests/hermes_tests.rs",
+    "line": 162,
+    "code": "E0433",
+    "message": "cannot find type `GatewayClient` in this scope",
+    "diagnostic": "error[E0433]: cannot find type `GatewayClient` in this scope\n   --> crates/vw-agent/src/gateway/api/handlers/../../../../../libs/gateway-app-providers/src/host_tests/hermes_tests.rs:162:19\n    |\n162 |     let foreign = GatewayClient::new(\n    |                   ^^^^^^^^^^^^^ use of undeclared type `GatewayClient`",
+    "source_context": "158:     );\n159:     let mut bad = f.request(HermesActivation::Add);\n160:     bad.target_host_id = \"foreign\".into();\n161:     assert!(f.client.hermes_provider_save(\"one\", &bad, TOKEN).await.is_err());\n162:     let foreign = GatewayClient::new(\n163:         GatewayEndpoint::new(\"127.0.0.1\", f.port)\n164:             .with_tenant_scope(TenantScope::new(\"p\", \"b\").unwrap()),\n165:     )\n166:     .unwrap();\n167:     assert!(",
+    "symbol": "cc04_hermes_permission_tenant_and_host_denials_leave_no_changes",
+    "logs": [
+      "host-stage"
+    ]
+  },
+  {
+    "id": 51,
+    "key": [
+      "crates/libs/agent-gateway/src/handlers_tests.rs",
+      945,
+      "E0425",
+      "cannot find function `process_channel_messages` in this scope"
+    ],
+    "file": "crates/libs/agent-gateway/src/handlers_tests.rs",
+    "line": 945,
+    "code": "E0425",
+    "message": "cannot find function `process_channel_messages` in this scope",
+    "diagnostic": "error[E0425]: cannot find function `process_channel_messages` in this scope\n   --> crates/vw-agent/src/gateway/../../../libs/agent-gateway/src/handlers_tests.rs:945:9\n    |\n945 |         process_channel_messages(\n    |         ^^^^^^^^^^^^^^^^^^^^^^^^ not found in this scope",
+    "source_context": "941:     let mut message = channel_message();\n942:     message.channel = \"qq\".into();\n943:     for command in [\"/stop\", \"/help stop\", \"/stop extra\"] {\n944:         message.content = command.into();\n945:         process_channel_messages(\n946:             &state,\n947:             \"QQ\",\n948:             &channel,\n949:             &[message.clone()],\n950:             qq_memory_key,",
+    "symbol": "channel_command_cancel_webhook_uses_common_stop_and_help",
+    "logs": [
+      "host-stage"
+    ]
+  },
+  {
+    "id": 52,
+    "key": [
+      "crates/libs/agent-gateway/src/handlers_tests.rs",
+      1097,
+      "E0425",
+      "cannot find function `process_channel_messages` in this scope"
+    ],
+    "file": "crates/libs/agent-gateway/src/handlers_tests.rs",
+    "line": 1097,
+    "code": "E0425",
+    "message": "cannot find function `process_channel_messages` in this scope",
+    "diagnostic": "error[E0425]: cannot find function `process_channel_messages` in this scope\n    --> crates/vw-agent/src/gateway/../../../libs/agent-gateway/src/handlers_tests.rs:1097:5\n     |\n1097 |     process_channel_messages(\n     |     ^^^^^^^^^^^^^^^^^^^^^^^^ not found in this scope",
+    "source_context": "1093:     let state = state();\n1094:     let channel = Arc::new(RecordingChannel { fail_send: true, ..Default::default() });\n1095:     let mut msg = channel_message();\n1096:     msg.content = \"/stop\".into();\n1097:     process_channel_messages(\n1098:         &state,\n1099:         \"recording\",\n1100:         &channel,\n1101:         &[msg],\n1102:         qq_memory_key,",
+    "symbol": "channel_command_cancel_webhook_failed_send_preserves_state",
+    "logs": [
+      "host-stage"
+    ]
+  },
+  {
+    "id": 53,
+    "key": [
+      "crates/vw-agent/src/mcp/tests.rs",
+      24,
+      "E0277",
+      "the trait bound `tool_assembly::runtime::ToolRuntimeContext<AgentContextHost>: agent_mcp::McpToolRuntime` is not satisfied"
+    ],
+    "file": "crates/vw-agent/src/mcp/tests.rs",
+    "line": 24,
+    "code": "E0277",
+    "message": "the trait bound `tool_assembly::runtime::ToolRuntimeContext<AgentContextHost>: agent_mcp::McpToolRuntime` is not satisfied",
+    "diagnostic": "error[E0277]: the trait bound `tool_assembly::runtime::ToolRuntimeContext<AgentContextHost>: agent_mcp::McpToolRuntime` is not satisfied\n  --> crates/vw-agent/src/mcp/tests.rs:24:52\n   |\n24 |     let result = McpToolRuntime::execute_tool_call(&ctx, \"definitely_missing_tool\", \"{}\");\n   |                  --------------------------------- ^^^^ the trait `agent_mcp::McpToolRuntime` is not implemented for `tool_assembly::runtime::ToolRuntimeContext<AgentContextHost>`\n   |                  |\n   |                  required by a bound introduced by this call\n   |\nhelp: the trait `agent_mcp::McpToolRuntime` is implemented for `mcp::NativeRuntime`\n  --> crates/vw-agent/src/mcp/mod.rs:10:1\n   |\n10 | impl McpToolRuntime for NativeRuntime {\n   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^",
+    "source_context": "20: #[test]\n21: fn unknown_tool_call_is_rejected_without_execution() {\n22:     let ctx = ToolRuntimeContext::for_specs();\n23: \n24:     let result = McpToolRuntime::execute_tool_call(&ctx, \"definitely_missing_tool\", \"{}\");\n25: \n26:     assert!(result.is_err());\n27:     assert!(format!(\"{:?}\", result.unwrap_err()).contains(\"Unknown tool: definitely_missing_tool\"));\n28: }\n29: ",
+    "symbol": "unknown_tool_call_is_rejected_without_execution",
+    "logs": [
+      "host-stage"
+    ]
+  },
+  {
+    "id": 54,
+    "key": [
+      "crates/vw-agent/src/mcp/tests.rs",
+      34,
+      "E0277",
+      "the trait bound `tool_assembly::runtime::ToolRuntimeContext<AgentContextHost>: agent_mcp::McpToolRuntime` is not satisfied"
+    ],
+    "file": "crates/vw-agent/src/mcp/tests.rs",
+    "line": 34,
+    "code": "E0277",
+    "message": "the trait bound `tool_assembly::runtime::ToolRuntimeContext<AgentContextHost>: agent_mcp::McpToolRuntime` is not satisfied",
+    "diagnostic": "error[E0277]: the trait bound `tool_assembly::runtime::ToolRuntimeContext<AgentContextHost>: agent_mcp::McpToolRuntime` is not satisfied\n  --> crates/vw-agent/src/mcp/tests.rs:34:52\n   |\n34 |     let result = McpToolRuntime::execute_tool_call(&ctx, \"file_read\", \"{}\");\n   |                  --------------------------------- ^^^^ the trait `agent_mcp::McpToolRuntime` is not implemented for `tool_assembly::runtime::ToolRuntimeContext<AgentContextHost>`\n   |                  |\n   |                  required by a bound introduced by this call\n   |\nhelp: the trait `agent_mcp::McpToolRuntime` is implemented for `mcp::NativeRuntime`\n  --> crates/vw-agent/src/mcp/mod.rs:10:1\n   |\n10 | impl McpToolRuntime for NativeRuntime {\n   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^",
+    "source_context": "30: #[test]\n31: fn registered_tool_call_with_missing_arguments_is_rejected_before_execution() {\n32:     let ctx = ToolRuntimeContext::for_specs();\n33: \n34:     let result = McpToolRuntime::execute_tool_call(&ctx, \"file_read\", \"{}\");\n35: \n36:     assert!(result.is_err());\n37:     assert!(format!(\"{:?}\", result.unwrap_err()).contains(\"path\"));\n38: }",
+    "symbol": "registered_tool_call_with_missing_arguments_is_rejected_before_execution",
+    "logs": [
+      "host-stage"
+    ]
+  },
+  {
+    "id": 55,
+    "key": [
+      "crates/vw-agent/src/session/compaction_summary_tests.rs",
+      55,
+      "E0425",
+      "cannot find function `overflow_error` in this scope"
+    ],
+    "file": "crates/vw-agent/src/session/compaction_summary_tests.rs",
+    "line": 55,
+    "code": "E0425",
+    "message": "cannot find function `overflow_error` in this scope",
+    "diagnostic": "error[E0425]: cannot find function `overflow_error` in this scope\n  --> crates/vw-agent/src/session/compaction_summary_tests.rs:55:45\n   |\n55 |     processor::enqueue_test_llm_stream(vec![overflow_error(\"invalid API key\")]);\n   |                                             ^^^^^^^^^^^^^^ not found in this scope",
+    "source_context": "51:     crate::session::compaction_checkpoint::save(&session, &source, \"previous decision\", None)\n52:         .await\n53:         .unwrap();\n54:     let restored = crate::session::compaction_checkpoint::restore(&session, &source).await.unwrap();\n55:     processor::enqueue_test_llm_stream(vec![overflow_error(\"invalid API key\")]);\n56:     assert!(\n57:         summarize_async(\n58:             session.clone(),\n59:             restored.clone(),\n60:             \"test/model\".into(),",
+    "symbol": "compaction_failed_attempt_leaves_previous_checkpoint_restorable",
+    "logs": [
+      "host-stage"
+    ]
+  },
+  {
+    "id": 56,
+    "key": [
+      "crates/libs/tool-computer/src/computer_control/chrome_tests.rs",
+      85,
+      "E0624",
+      "method `consume_transfer` is private"
+    ],
+    "file": "crates/libs/tool-computer/src/computer_control/chrome_tests.rs",
+    "line": 85,
+    "code": "E0624",
+    "message": "method `consume_transfer` is private",
+    "diagnostic": "error[E0624]: method `consume_transfer` is private\n   --> crates/vw-agent/src/tools/../../../libs/tool-computer/src/computer_control/chrome_tests.rs:85:14\n    |\n 85 |           host.consume_transfer(&r).unwrap();\n    |                ^^^^^^^^^^^^^^^^ private method\n    |\n   ::: crates/libs/computer-control/src/host.rs:337:5\n    |\n337 | /     pub(crate) fn consume_transfer(\n338 | |         &self,\n339 | |         request: &ComputerControlRequest,\n340 | |     ) -> Result<(), ControlErrorCode> {\n    | |_____________________________________- private method defined here",
+    "source_context": "81:         },\n82:     };\n83:     for _ in 0..2 {\n84:         scope_tool_use_context(ctx.clone(), approve_transfer(&host, &r)).await.unwrap();\n85:         host.consume_transfer(&r).unwrap();\n86:     }\n87:     let entries = seen.lock();\n88:     assert_eq!(entries.len(), 2);\n89:     assert!(entries.iter().all(|(name, args)| name == \"computer_control.chrome_upload\"\n90:         && !args.to_string().contains(\"eA==\")",
+    "symbol": "cc_control_10_transfer_approval_is_fresh_and_redacts_file_bytes",
+    "logs": [
+      "host-stage"
+    ]
+  },
+  {
+    "id": 57,
+    "key": [
+      "crates/libs/tool-computer/src/computer_control/chrome_tests.rs",
+      103,
+      "E0624",
+      "method `consume_transfer` is private"
+    ],
+    "file": "crates/libs/tool-computer/src/computer_control/chrome_tests.rs",
+    "line": 103,
+    "code": "E0624",
+    "message": "method `consume_transfer` is private",
+    "diagnostic": "error[E0624]: method `consume_transfer` is private\n   --> crates/vw-agent/src/tools/../../../libs/tool-computer/src/computer_control/chrome_tests.rs:103:21\n    |\n103 |       assert_eq!(host.consume_transfer(&r), Err(ControlErrorCode::PermissionDenied));\n    |                       ^^^^^^^^^^^^^^^^ private method\n    |\n   ::: crates/libs/computer-control/src/host.rs:337:5\n    |\n337 | /     pub(crate) fn consume_transfer(\n338 | |         &self,\n339 | |         request: &ComputerControlRequest,\n340 | |     ) -> Result<(), ControlErrorCode> {\n    | |_____________________________________- private method defined here",
+    "source_context": "99:             .with_bypass_non_cli_approval_for_turn(true)\n100:             .with_channel(\"slack\"),\n101:     );\n102:     assert!(scope_tool_use_context(ctx, approve_transfer(&host, &r)).await.is_err());\n103:     assert_eq!(host.consume_transfer(&r), Err(ControlErrorCode::PermissionDenied));\n104: }\n105: #[tokio::test]\n106: async fn cc_control_10_site_approval_cannot_override_explicit_deny() {\n107:     let (_, p, _) = authority();\n108:     let (ctx, seen) = approval_context();",
+    "symbol": "cc_control_10_full_access_and_turn_bypass_cannot_grant_transfers",
+    "logs": [
+      "host-stage"
+    ]
+  },
+  {
+    "id": 58,
+    "key": [
+      "crates/libs/tool-computer/src/computer_control/chrome_tests.rs",
+      176,
+      "E0624",
+      "method `stop` is private"
+    ],
+    "file": "crates/libs/tool-computer/src/computer_control/chrome_tests.rs",
+    "line": 176,
+    "code": "E0624",
+    "message": "method `stop` is private",
+    "diagnostic": "error[E0624]: method `stop` is private\n   --> crates/vw-agent/src/tools/../../../libs/tool-computer/src/computer_control/chrome_tests.rs:176:17\n    |\n176 |         runtime.stop(&(context.tenant_scope(),\"cc10\".into(),None)).await;\n    |                 ^^^^ private method\n    |\n   ::: crates/libs/tool-computer/src/lib.rs:283:5\n    |\n283 |     async fn stop(&self, owner: &Owner) {\n    |     ----------------------------------- private method defined here",
+    "source_context": "172:         let denied=execute_tool_from_registry(&tools,\"computer_control\",invoke(json!({\"kind\":\"snapshot\"})),context.clone()).await;\n173:         anyhow::ensure!(denied.is_err(),\"old handle survived redirect\");println!(\"real Chrome redirect refused old handle: {}\",denied.err().unwrap());\n174:         anyhow::ensure!(seen.lock().iter().filter(|(name,_)|name==\"computer_control.chrome_upload\").count()==1,\"upload approval missing\");\n175:         anyhow::ensure!(seen.lock().iter().filter(|(name,_)|name==\"computer_control.chrome_download\").count()==1,\"download approval missing\");\n176:         runtime.stop(&(context.tenant_scope(),\"cc10\".into(),None)).await;\n177:         Ok(())\n178:     }.await;\n179:     std::fs::write(&done, b\"done\")?;\n180:     let status = tokio::time::timeout(Duration::from_secs(15), driver.wait()).await??;\n181:     while let Some(line) = lines.next_line().await? {",
+    "symbol": "cc_control_10_real_chrome_tool_transfer_and_redirect_denial",
+    "logs": [
+      "host-stage"
+    ]
+  },
+  {
+    "id": 59,
+    "key": [
+      "crates/libs/tool-agents/src/session_tool/tests.rs",
+      339,
+      "E0599",
+      "no method named `mark_succeeded` found for struct `session_engine::task_session::TaskSessionCoordinator` in the current scope"
+    ],
+    "file": "crates/libs/tool-agents/src/session_tool/tests.rs",
+    "line": 339,
+    "code": "E0599",
+    "message": "no method named `mark_succeeded` found for struct `session_engine::task_session::TaskSessionCoordinator` in the current scope",
+    "diagnostic": "error[E0599]: no method named `mark_succeeded` found for struct `session_engine::task_session::TaskSessionCoordinator` in the current scope\n   --> crates/vw-agent/src/tools/session_tool/../../../../libs/tool-agents/src/session_tool/tests.rs:339:17\n    |\n339 |     coordinator.mark_succeeded(&parent.info.id, &task.info.id).expect(\"finish\");\n    |                 ^^^^^^^^^^^^^^ method not found in `session_engine::task_session::TaskSessionCoordinator`",
+    "source_context": "335:     let task = create_task(project.path(), &parent.info.id).await;\n336:     let coordinator = TaskSessionCoordinator::new();\n337:     coordinator.register(&parent.info.id, &task.info.id, None).expect(\"register\");\n338:     coordinator.mark_running(&parent.info.id, &task.info.id).expect(\"start\");\n339:     coordinator.mark_succeeded(&parent.info.id, &task.info.id).expect(\"finish\");\n340:     let (request_tx, request_rx) = oneshot::channel();\n341:     let request_tx = std::sync::Mutex::new(Some(request_tx));\n342:     let executor = Arc::new(\n343:         move |_directory: String, request: vw_api_chat::chat::GatewayChatStreamRequest| {\n344:             request_tx",
+    "symbol": "session_tool_send_continues_existing_visible_task",
+    "logs": [
+      "host-stage"
+    ]
+  },
+  {
+    "id": 60,
+    "key": [
+      "crates/libs/tool-agents/src/session_tool/tests.rs",
+      407,
+      "E0624",
+      "method `spawn_background_turn` is private"
+    ],
+    "file": "crates/libs/tool-agents/src/session_tool/tests.rs",
+    "line": 407,
+    "code": "E0624",
+    "message": "method `spawn_background_turn` is private",
+    "diagnostic": "error[E0624]: method `spawn_background_turn` is private\n   --> crates/vw-agent/src/tools/session_tool/../../../../libs/tool-agents/src/session_tool/tests.rs:407:10\n    |\n407 |           .spawn_background_turn(parent.info.id, task.info, \"Continue\".into())\n    |            ^^^^^^^^^^^^^^^^^^^^^ private method\n    |\n   ::: crates/libs/tool-agents/src/session_tool/mod.rs:177:5\n    |\n177 | /     fn spawn_background_turn(\n178 | |         &self,\n179 | |         parent_session_id: String,\n180 | |         task: session::Info,\n181 | |         prompt: String,\n182 | |     ) -> anyhow::Result<()> {\n    | |___________________________- private method defined here",
+    "source_context": "403:         .with_coordinator(TaskSessionCoordinator::new())\n404:         .with_stream_executor(executor);\n405: \n406:     let error = tool\n407:         .spawn_background_turn(parent.info.id, task.info, \"Continue\".into())\n408:         .expect_err(\"unregistered task startup must fail\");\n409: \n410:     assert!(error.to_string().contains(\"unknown task session\"));\n411:     assert!(!executor_called.load(std::sync::atomic::Ordering::SeqCst));\n412: }",
+    "symbol": "background_turn_reports_startup_failure_instead_of_succeeding_silently",
+    "logs": [
+      "host-stage"
+    ]
+  },
+  {
+    "id": 61,
+    "key": [
+      "crates/libs/tool-agents/src/session_tool/tests.rs",
+      434,
+      "E0599",
+      "no method named `mark_succeeded` found for struct `session_engine::task_session::TaskSessionCoordinator` in the current scope"
+    ],
+    "file": "crates/libs/tool-agents/src/session_tool/tests.rs",
+    "line": 434,
+    "code": "E0599",
+    "message": "no method named `mark_succeeded` found for struct `session_engine::task_session::TaskSessionCoordinator` in the current scope",
+    "diagnostic": "error[E0599]: no method named `mark_succeeded` found for struct `session_engine::task_session::TaskSessionCoordinator` in the current scope\n   --> crates/vw-agent/src/tools/session_tool/../../../../libs/tool-agents/src/session_tool/tests.rs:434:17\n    |\n434 |     coordinator.mark_succeeded(&parent.info.id, &task.info.id).expect(\"finish\");\n    |                 ^^^^^^^^^^^^^^ method not found in `session_engine::task_session::TaskSessionCoordinator`",
+    "source_context": "430:         .expect(\"internal child session\");\n431:     let coordinator = TaskSessionCoordinator::new();\n432:     coordinator.register(&parent.info.id, &task.info.id, None).expect(\"register\");\n433:     coordinator.mark_running(&parent.info.id, &task.info.id).expect(\"start\");\n434:     coordinator.mark_succeeded(&parent.info.id, &task.info.id).expect(\"finish\");\n435:     let tool = SessionTool::new(Some(parent.info.id.clone()), project.path().to_path_buf())\n436:         .with_coordinator(coordinator);\n437: \n438:     let listed = tool.execute(json!({\"action\":\"list\"})).await.expect(\"list\");\n439:     let listed: serde_json::Value = serde_json::from_str(&listed.output).expect(\"list JSON\");",
+    "symbol": "session_tool_lists_statuses_reads_and_rejects_non_task_targets",
+    "logs": [
+      "host-stage"
+    ]
+  },
+  {
+    "id": 62,
+    "key": [
+      "crates/libs/tool-agents/src/session_tool/tests.rs",
+      540,
+      "E0599",
+      "no method named `mark_succeeded` found for struct `session_engine::task_session::TaskSessionCoordinator` in the current scope"
+    ],
+    "file": "crates/libs/tool-agents/src/session_tool/tests.rs",
+    "line": 540,
+    "code": "E0599",
+    "message": "no method named `mark_succeeded` found for struct `session_engine::task_session::TaskSessionCoordinator` in the current scope",
+    "diagnostic": "error[E0599]: no method named `mark_succeeded` found for struct `session_engine::task_session::TaskSessionCoordinator` in the current scope\n   --> crates/vw-agent/src/tools/session_tool/../../../../libs/tool-agents/src/session_tool/tests.rs:540:21\n    |\n540 |         coordinator.mark_succeeded(&parent_id, &first_id).expect(\"finish first\");\n    |                     ^^^^^^^^^^^^^^ method not found in `session_engine::task_session::TaskSessionCoordinator`",
+    "source_context": "536:     let first_id = first.info.id.clone();\n537:     let parent_id = parent.info.id.clone();\n538:     let transition = tokio::spawn(async move {\n539:         tokio::task::yield_now().await;\n540:         coordinator.mark_succeeded(&parent_id, &first_id).expect(\"finish first\");\n541:     });\n542:     let result = tool.execute(json!({\"action\":\"wait\",\"session_ids\":[first.info.id, second.info.id],\"condition\":\"any\",\"timeout_ms\":1000})).await.expect(\"wait\");\n543:     transition.await.expect(\"transition\");\n544:     let output: serde_json::Value = serde_json::from_str(&result.output).expect(\"JSON\");\n545:     assert_eq!(output[\"timed_out\"], false);",
+    "symbol": "session_tool_wait_returns_first_changed_target",
+    "logs": [
+      "host-stage"
+    ]
+  },
+  {
+    "id": 63,
+    "key": [
+      "crates/libs/tool-agents/src/thread_tool/tests.rs",
+      437,
+      "E0599",
+      "no method named `mark_succeeded` found for struct `session_engine::task_session::TaskSessionCoordinator` in the current scope"
+    ],
+    "file": "crates/libs/tool-agents/src/thread_tool/tests.rs",
+    "line": 437,
+    "code": "E0599",
+    "message": "no method named `mark_succeeded` found for struct `session_engine::task_session::TaskSessionCoordinator` in the current scope",
+    "diagnostic": "error[E0599]: no method named `mark_succeeded` found for struct `session_engine::task_session::TaskSessionCoordinator` in the current scope\n   --> crates/vw-agent/src/tools/thread_tool/../../../../libs/tool-agents/src/thread_tool/tests.rs:437:17\n    |\n437 |     coordinator.mark_succeeded(&parent.info.id, &ready.info.id).expect(\"ready\");\n    |                 ^^^^^^^^^^^^^^ method not found in `session_engine::task_session::TaskSessionCoordinator`",
+    "source_context": "433:     for id in [&busy.info.id, &ready.info.id] {\n434:         coordinator.register(&parent.info.id, id, None).expect(\"register\");\n435:         coordinator.mark_running(&parent.info.id, id).expect(\"running\");\n436:     }\n437:     coordinator.mark_succeeded(&parent.info.id, &ready.info.id).expect(\"ready\");\n438:     for id in [&busy.info.id, &ready.info.id] {\n439:         let state =\n440:             coordinator.snapshots(&parent.info.id, &[id.clone()]).expect(\"snapshot\").remove(0);\n441:         crate::session::ui_store::save_visible_task_state(\n442:             &TenantScope::default(),",
+    "symbol": "send_message_to_thread_rejects_busy_and_foreign_task",
+    "logs": [
+      "host-stage"
+    ]
+  },
+  {
+    "id": 64,
+    "key": [
+      "crates/libs/tool-agents/src/thread_tool/execution_tests.rs",
+      108,
+      "E0599",
+      "no method named `mark_failed` found for struct `session_engine::task_session::TaskSessionCoordinator` in the current scope"
+    ],
+    "file": "crates/libs/tool-agents/src/thread_tool/execution_tests.rs",
+    "line": 108,
+    "code": "E0599",
+    "message": "no method named `mark_failed` found for struct `session_engine::task_session::TaskSessionCoordinator` in the current scope",
+    "diagnostic": "error[E0599]: no method named `mark_failed` found for struct `session_engine::task_session::TaskSessionCoordinator` in the current scope\n   --> crates/vw-agent/src/tools/thread_tool/../../../../libs/tool-agents/src/thread_tool/execution_tests.rs:108:17\n    |\n108 |     coordinator.mark_failed(&context.session, &ids[0], &error).expect(\"failure\");\n    |                 ^^^^^^^^^^^ method not found in `session_engine::task_session::TaskSessionCoordinator`",
+    "source_context": "104:         coordinator.mark_running(&context.session, &task.info.id).expect(\"running\");\n105:         ids.push(task.info.id);\n106:     }\n107:     let error = json!({\"name\":\"APIError\",\"message\":\"error decoding response body\"}).to_string();\n108:     coordinator.mark_failed(&context.session, &ids[0], &error).expect(\"failure\");\n109: \n110:     let result = execute_tool_call(\n111:         \"wait_threads\",\n112:         &json!({\"thread_ids\":ids,\"timeout_ms\":0}).to_string(),\n113:         &context,",
+    "symbol": "wait_threads_registry_reports_child_failure_while_other_target_runs",
+    "logs": [
+      "host-stage"
+    ]
+  },
+  {
+    "id": 65,
+    "key": [
+      "crates/vw-agent/src/workflow/video_edit/command_tests.rs",
+      16,
+      "E0277",
+      "the trait bound `tool_assembly::runtime::ToolRuntimeContext<AgentContextHost>: VideoContext` is not satisfied"
+    ],
+    "file": "crates/vw-agent/src/workflow/video_edit/command_tests.rs",
+    "line": 16,
+    "code": "E0277",
+    "message": "the trait bound `tool_assembly::runtime::ToolRuntimeContext<AgentContextHost>: VideoContext` is not satisfied",
+    "diagnostic": "error[E0277]: the trait bound `tool_assembly::runtime::ToolRuntimeContext<AgentContextHost>: VideoContext` is not satisfied\n  --> crates/vw-agent/src/workflow/video_edit/command_tests.rs:16:62\n   |\n16 |     assert!(prepare_video_edit_request(\"/shiju 剪辑 link.mp4\", &ctx).is_err());\n   |                                                                ^^^^ the trait `VideoContext` is not implemented for `tool_assembly::runtime::ToolRuntimeContext<AgentContextHost>`\n   |\nhelp: the trait `VideoContext` is implemented for `NativeVideoContext`\n  --> crates/vw-agent/src/workflow/video_edit/prepare.rs:17:1\n   |\n17 | impl VideoContext for NativeVideoContext {\n   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n   = note: required for the cast from `&tool_assembly::runtime::ToolRuntimeContext<AgentContextHost>` to `&dyn VideoContext`",
+    "source_context": "12:     let ctx = ToolRuntimeContext::new(\"video\", Some(root.path().to_string_lossy().into()));\n13:     let mut config = crate::app::agent::config::Config::default();\n14:     config.autonomy.workspace_only = true;\n15:     let ctx = ctx.with_test_config(config);\n16:     assert!(prepare_video_edit_request(\"/shiju 剪辑 link.mp4\", &ctx).is_err());\n17:     let full = ctx.clone().with_tool_use_context(\n18:         ctx.tool_use_context().as_ref().clone().with_full_access_enabled(true),\n19:     );\n20:     assert_eq!(\n21:         prepare_video_edit_request(\"/shiju 剪辑 link.mp4\", &full).unwrap().unwrap().video_path,",
+    "symbol": "video_edit_command_symlink_obeys_native_security_and_full_access",
+    "logs": [
+      "host-stage"
+    ]
+  },
+  {
+    "id": 66,
+    "key": [
+      "crates/vw-agent/src/workflow/video_edit/command_tests.rs",
+      21,
+      "E0277",
+      "the trait bound `tool_assembly::runtime::ToolRuntimeContext<AgentContextHost>: VideoContext` is not satisfied"
+    ],
+    "file": "crates/vw-agent/src/workflow/video_edit/command_tests.rs",
+    "line": 21,
+    "code": "E0277",
+    "message": "the trait bound `tool_assembly::runtime::ToolRuntimeContext<AgentContextHost>: VideoContext` is not satisfied",
+    "diagnostic": "error[E0277]: the trait bound `tool_assembly::runtime::ToolRuntimeContext<AgentContextHost>: VideoContext` is not satisfied\n  --> crates/vw-agent/src/workflow/video_edit/command_tests.rs:21:58\n   |\n21 |         prepare_video_edit_request(\"/shiju 剪辑 link.mp4\", &full).unwrap().unwrap().video_path,\n   |                                                            ^^^^^ the trait `VideoContext` is not implemented for `tool_assembly::runtime::ToolRuntimeContext<AgentContextHost>`\n   |\nhelp: the trait `VideoContext` is implemented for `NativeVideoContext`\n  --> crates/vw-agent/src/workflow/video_edit/prepare.rs:17:1\n   |\n17 | impl VideoContext for NativeVideoContext {\n   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n   = note: required for the cast from `&tool_assembly::runtime::ToolRuntimeContext<AgentContextHost>` to `&dyn VideoContext`",
+    "source_context": "17:     let full = ctx.clone().with_tool_use_context(\n18:         ctx.tool_use_context().as_ref().clone().with_full_access_enabled(true),\n19:     );\n20:     assert_eq!(\n21:         prepare_video_edit_request(\"/shiju 剪辑 link.mp4\", &full).unwrap().unwrap().video_path,\n22:         file.canonicalize().unwrap()\n23:     );\n24: }\n25: \n26: #[test]",
+    "symbol": "video_edit_command_symlink_obeys_native_security_and_full_access",
+    "logs": [
+      "host-stage"
+    ]
+  },
+  {
+    "id": 67,
+    "key": [
+      "crates/vw-agent/src/workflow/video_edit/command_tests.rs",
+      39,
+      "E0277",
+      "the trait bound `tool_assembly::runtime::ToolRuntimeContext<AgentContextHost>: VideoContext` is not satisfied"
+    ],
+    "file": "crates/vw-agent/src/workflow/video_edit/command_tests.rs",
+    "line": 39,
+    "code": "E0277",
+    "message": "the trait bound `tool_assembly::runtime::ToolRuntimeContext<AgentContextHost>: VideoContext` is not satisfied",
+    "diagnostic": "error[E0277]: the trait bound `tool_assembly::runtime::ToolRuntimeContext<AgentContextHost>: VideoContext` is not satisfied\n  --> crates/vw-agent/src/workflow/video_edit/command_tests.rs:39:48\n   |\n39 |     assert!(prepare_video_edit_request(&query, &ctx).unwrap().is_some());\n   |                                                ^^^^ the trait `VideoContext` is not implemented for `tool_assembly::runtime::ToolRuntimeContext<AgentContextHost>`\n   |\nhelp: the trait `VideoContext` is implemented for `NativeVideoContext`\n  --> crates/vw-agent/src/workflow/video_edit/prepare.rs:17:1\n   |\n17 | impl VideoContext for NativeVideoContext {\n   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n   = note: required for the cast from `&tool_assembly::runtime::ToolRuntimeContext<AgentContextHost>` to `&dyn VideoContext`",
+    "source_context": "35:     config.autonomy.allowed_roots = vec![external.path().to_string_lossy().into_owned()];\n36:     let ctx = ToolRuntimeContext::new(\"video\", Some(root.path().to_string_lossy().into()))\n37:         .with_test_config(config);\n38:     let query = format!(\"/shiju 剪辑 '{}'\", file.display());\n39:     assert!(prepare_video_edit_request(&query, &ctx).unwrap().is_some());\n40:     let full = ToolRuntimeContext::new(\"video\", None).with_tool_use_context(\n41:         crate::tools::ToolUseContext::new(\"video\", None).with_full_access_enabled(true),\n42:     );\n43:     let req = prepare_video_edit_request(&query, &full).unwrap().unwrap();\n44:     assert_eq!(req.project_root, None);",
+    "symbol": "video_edit_command_external_allowed_root_and_no_project",
+    "logs": [
+      "host-stage"
+    ]
+  },
+  {
+    "id": 68,
+    "key": [
+      "crates/vw-agent/src/workflow/video_edit/command_tests.rs",
+      43,
+      "E0277",
+      "the trait bound `tool_assembly::runtime::ToolRuntimeContext<AgentContextHost>: VideoContext` is not satisfied"
+    ],
+    "file": "crates/vw-agent/src/workflow/video_edit/command_tests.rs",
+    "line": 43,
+    "code": "E0277",
+    "message": "the trait bound `tool_assembly::runtime::ToolRuntimeContext<AgentContextHost>: VideoContext` is not satisfied",
+    "diagnostic": "error[E0277]: the trait bound `tool_assembly::runtime::ToolRuntimeContext<AgentContextHost>: VideoContext` is not satisfied\n  --> crates/vw-agent/src/workflow/video_edit/command_tests.rs:43:50\n   |\n43 |     let req = prepare_video_edit_request(&query, &full).unwrap().unwrap();\n   |                                                  ^^^^^ the trait `VideoContext` is not implemented for `tool_assembly::runtime::ToolRuntimeContext<AgentContextHost>`\n   |\nhelp: the trait `VideoContext` is implemented for `NativeVideoContext`\n  --> crates/vw-agent/src/workflow/video_edit/prepare.rs:17:1\n   |\n17 | impl VideoContext for NativeVideoContext {\n   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n   = note: required for the cast from `&tool_assembly::runtime::ToolRuntimeContext<AgentContextHost>` to `&dyn VideoContext`",
+    "source_context": "39:     assert!(prepare_video_edit_request(&query, &ctx).unwrap().is_some());\n40:     let full = ToolRuntimeContext::new(\"video\", None).with_tool_use_context(\n41:         crate::tools::ToolUseContext::new(\"video\", None).with_full_access_enabled(true),\n42:     );\n43:     let req = prepare_video_edit_request(&query, &full).unwrap().unwrap();\n44:     assert_eq!(req.project_root, None);\n45:     assert!(prepare_video_edit_request(\"/shiju 剪辑 relative.mp4\", &full).is_err());\n46: }\n47: \n48: #[test]",
+    "symbol": "video_edit_command_external_allowed_root_and_no_project",
+    "logs": [
+      "host-stage"
+    ]
+  },
+  {
+    "id": 69,
+    "key": [
+      "crates/vw-agent/src/workflow/video_edit/command_tests.rs",
+      45,
+      "E0277",
+      "the trait bound `tool_assembly::runtime::ToolRuntimeContext<AgentContextHost>: VideoContext` is not satisfied"
+    ],
+    "file": "crates/vw-agent/src/workflow/video_edit/command_tests.rs",
+    "line": 45,
+    "code": "E0277",
+    "message": "the trait bound `tool_assembly::runtime::ToolRuntimeContext<AgentContextHost>: VideoContext` is not satisfied",
+    "diagnostic": "error[E0277]: the trait bound `tool_assembly::runtime::ToolRuntimeContext<AgentContextHost>: VideoContext` is not satisfied\n  --> crates/vw-agent/src/workflow/video_edit/command_tests.rs:45:66\n   |\n45 |     assert!(prepare_video_edit_request(\"/shiju 剪辑 relative.mp4\", &full).is_err());\n   |                                                                    ^^^^^ the trait `VideoContext` is not implemented for `tool_assembly::runtime::ToolRuntimeContext<AgentContextHost>`\n   |\nhelp: the trait `VideoContext` is implemented for `NativeVideoContext`\n  --> crates/vw-agent/src/workflow/video_edit/prepare.rs:17:1\n   |\n17 | impl VideoContext for NativeVideoContext {\n   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n   = note: required for the cast from `&tool_assembly::runtime::ToolRuntimeContext<AgentContextHost>` to `&dyn VideoContext`",
+    "source_context": "41:         crate::tools::ToolUseContext::new(\"video\", None).with_full_access_enabled(true),\n42:     );\n43:     let req = prepare_video_edit_request(&query, &full).unwrap().unwrap();\n44:     assert_eq!(req.project_root, None);\n45:     assert!(prepare_video_edit_request(\"/shiju 剪辑 relative.mp4\", &full).is_err());\n46: }\n47: \n48: #[test]\n49: fn video_edit_command_delegated_parent_remains_restricted_under_full_access() {\n50:     use std::sync::Arc;",
+    "symbol": "video_edit_command_external_allowed_root_and_no_project",
+    "logs": [
+      "host-stage"
+    ]
+  },
+  {
+    "id": 70,
+    "key": [
+      "crates/vw-agent/src/workflow/video_edit/command_tests.rs",
+      71,
+      "E0277",
+      "the trait bound `tool_assembly::runtime::ToolRuntimeContext<AgentContextHost>: VideoContext` is not satisfied"
+    ],
+    "file": "crates/vw-agent/src/workflow/video_edit/command_tests.rs",
+    "line": 71,
+    "code": "E0277",
+    "message": "the trait bound `tool_assembly::runtime::ToolRuntimeContext<AgentContextHost>: VideoContext` is not satisfied",
+    "diagnostic": "error[E0277]: the trait bound `tool_assembly::runtime::ToolRuntimeContext<AgentContextHost>: VideoContext` is not satisfied\n  --> crates/vw-agent/src/workflow/video_edit/command_tests.rs:71:80\n   |\n71 |         prepare_video_edit_request(&format!(\"/shiju 剪辑 '{}'\", file.display()), &ctx).is_err()\n   |                                                                                  ^^^^ the trait `VideoContext` is not implemented for `tool_assembly::runtime::ToolRuntimeContext<AgentContextHost>`\n   |\nhelp: the trait `VideoContext` is implemented for `NativeVideoContext`\n  --> crates/vw-agent/src/workflow/video_edit/prepare.rs:17:1\n   |\n17 | impl VideoContext for NativeVideoContext {\n   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n   = note: required for the cast from `&tool_assembly::runtime::ToolRuntimeContext<AgentContextHost>` to `&dyn VideoContext`",
+    "source_context": "67:     let ctx = ToolRuntimeContext::new(\"child\", Some(root.path().to_string_lossy().into()))\n68:         .with_tool_use_context(base)\n69:         .with_test_config(config);\n70:     assert!(\n71:         prepare_video_edit_request(&format!(\"/shiju 剪辑 '{}'\", file.display()), &ctx).is_err()\n72:     );\n73: }",
+    "symbol": "video_edit_command_delegated_parent_remains_restricted_under_full_access",
+    "logs": [
+      "host-stage"
+    ]
+  },
+  {
+    "id": 71,
+    "key": [
+      "crates/vw-agent/src/workflow/video_edit/cloud_prepare_tests.rs",
+      16,
+      "E0277",
+      "the trait bound `tool_assembly::runtime::ToolRuntimeContext<AgentContextHost>: VideoContext` is not satisfied"
+    ],
+    "file": "crates/vw-agent/src/workflow/video_edit/cloud_prepare_tests.rs",
+    "line": 16,
+    "code": "E0277",
+    "message": "the trait bound `tool_assembly::runtime::ToolRuntimeContext<AgentContextHost>: VideoContext` is not satisfied",
+    "diagnostic": "error[E0277]: the trait bound `tool_assembly::runtime::ToolRuntimeContext<AgentContextHost>: VideoContext` is not satisfied\n  --> crates/vw-agent/src/workflow/video_edit/cloud_prepare_tests.rs:16:145\n   |\n16 | ... root, &ctx).await;\n   |           ^^^^ the trait `VideoContext` is not implemented for `tool_assembly::runtime::ToolRuntimeContext<AgentContextHost>`\n   |\nhelp: the trait `VideoContext` is implemented for `NativeVideoContext`\n  --> crates/vw-agent/src/workflow/video_edit/prepare.rs:17:1\n   |\n17 | impl VideoContext for NativeVideoContext {\n   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n   = note: required for the cast from `&tool_assembly::runtime::ToolRuntimeContext<AgentContextHost>` to `&dyn VideoContext`",
+    "source_context": "12:     .await\n13:     .unwrap();\n14:     let hub = skill.location.unwrap().parent().unwrap().to_path_buf();\n15:     let root = hub.join(\"cutvideo\");\n16:     workflow_video_edit::test_support::contracts::video_edit_prepare_native_receipts_keep_signed_tickets_in_memory(&provider, dir.path(), root, &ctx).await;\n17: }\n18: #[tokio::test]\n19: async fn video_edit_prepare_cloud_identity_is_independent_of_local_tenant_and_rejects_mismatch() {\n20:     let (_dir, ctx, skill) = super::cloud_tests::fixture(\"ok\");\n21:     assert_ne!(ctx.tool_use_context().tenant_scope().company_id().as_ref(), \"10011\");",
+    "symbol": "video_edit_prepare_native_receipts_keep_signed_tickets_in_memory",
+    "logs": [
+      "host-stage"
+    ]
+  },
+  {
+    "id": 72,
+    "key": [
+      "crates/vw-agent/src/workflow/video_edit/prepare_tests.rs",
+      15,
+      "E0277",
+      "the trait bound `tool_assembly::runtime::ToolRuntimeContext<AgentContextHost>: VideoContext` is not satisfied"
+    ],
+    "file": "crates/vw-agent/src/workflow/video_edit/prepare_tests.rs",
+    "line": 15,
+    "code": "E0277",
+    "message": "the trait bound `tool_assembly::runtime::ToolRuntimeContext<AgentContextHost>: VideoContext` is not satisfied",
+    "diagnostic": "error[E0277]: the trait bound `tool_assembly::runtime::ToolRuntimeContext<AgentContextHost>: VideoContext` is not satisfied\n  --> crates/vw-agent/src/workflow/video_edit/prepare_tests.rs:15:87\n   |\n15 |         prepare_video_edit_request(&format!(\"/shiju 剪辑 \\\"{}\\\" 保留重点\", path.display()), &ctx)\n   |                                                                                             ^^^^ the trait `VideoContext` is not implemented for `tool_assembly::runtime::ToolRuntimeContext<AgentContextHost>`\n   |\nhelp: the trait `VideoContext` is implemented for `NativeVideoContext`\n  --> crates/vw-agent/src/workflow/video_edit/prepare.rs:17:1\n   |\n17 | impl VideoContext for NativeVideoContext {\n   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n   = note: required for the cast from `&tool_assembly::runtime::ToolRuntimeContext<AgentContextHost>` to `&dyn VideoContext`",
+    "source_context": "11:         uuid::Uuid::new_v4().to_string(),\n12:         Some(root.path().to_string_lossy().into()),\n13:     );\n14:     let request =\n15:         prepare_video_edit_request(&format!(\"/shiju 剪辑 \\\"{}\\\" 保留重点\", path.display()), &ctx)\n16:             .unwrap()\n17:             .unwrap();\n18:     let db = GlobalDatabase::new(root.path().join(\"app/db\")).unwrap();\n19:     let cloud = Cloud {\n20:         ctx,",
+    "symbol": "fixture",
+    "logs": [
+      "host-stage"
+    ]
+  },
+  {
+    "id": 73,
+    "key": [
+      "crates/vw-agent/src/workflow/video_edit/prepare_tests.rs",
+      76,
+      "E0277",
+      "the trait bound `tool_assembly::runtime::ToolRuntimeContext<AgentContextHost>: VideoContext` is not satisfied"
+    ],
+    "file": "crates/vw-agent/src/workflow/video_edit/prepare_tests.rs",
+    "line": 76,
+    "code": "E0277",
+    "message": "the trait bound `tool_assembly::runtime::ToolRuntimeContext<AgentContextHost>: VideoContext` is not satisfied",
+    "diagnostic": "error[E0277]: the trait bound `tool_assembly::runtime::ToolRuntimeContext<AgentContextHost>: VideoContext` is not satisfied\n  --> crates/vw-agent/src/workflow/video_edit/prepare_tests.rs:76:59\n   |\n76 |     let identity = identify_video_source(&req.video_path, &cloud.ctx).unwrap();\n   |                                                           ^^^^^^^^^^ the trait `VideoContext` is not implemented for `tool_assembly::runtime::ToolRuntimeContext<AgentContextHost>`\n   |\nhelp: the trait `VideoContext` is implemented for `NativeVideoContext`\n  --> crates/vw-agent/src/workflow/video_edit/prepare.rs:17:1\n   |\n17 | impl VideoContext for NativeVideoContext {\n   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n   = note: required for the cast from `&tool_assembly::runtime::ToolRuntimeContext<AgentContextHost>` to `&dyn VideoContext`",
+    "source_context": "72: }\n73: #[test]\n74: fn video_edit_prepare_streaming_hash_obeys_security_and_cancellation() {\n75:     let (root, _db, cloud, req) = fixture();\n76:     let identity = identify_video_source(&req.video_path, &cloud.ctx).unwrap();\n77:     assert_eq!(identity.sha256.len(), 64);\n78:     let token = tokio_util::sync::CancellationToken::new();\n79:     token.cancel();\n80:     let ctx = cloud.ctx.clone().with_tool_use_context(\n81:         cloud.ctx.tool_use_context().as_ref().clone().with_abort_token(token),",
+    "symbol": "video_edit_prepare_streaming_hash_obeys_security_and_cancellation",
+    "logs": [
+      "host-stage"
+    ]
+  },
+  {
+    "id": 74,
+    "key": [
+      "crates/vw-agent/src/workflow/video_edit/prepare_tests.rs",
+      83,
+      "E0277",
+      "the trait bound `tool_assembly::runtime::ToolRuntimeContext<AgentContextHost>: VideoContext` is not satisfied"
+    ],
+    "file": "crates/vw-agent/src/workflow/video_edit/prepare_tests.rs",
+    "line": 83,
+    "code": "E0277",
+    "message": "the trait bound `tool_assembly::runtime::ToolRuntimeContext<AgentContextHost>: VideoContext` is not satisfied",
+    "diagnostic": "error[E0277]: the trait bound `tool_assembly::runtime::ToolRuntimeContext<AgentContextHost>: VideoContext` is not satisfied\n  --> crates/vw-agent/src/workflow/video_edit/prepare_tests.rs:83:52\n   |\n83 |     assert!(identify_video_source(&req.video_path, &ctx).is_err());\n   |                                                    ^^^^ the trait `VideoContext` is not implemented for `tool_assembly::runtime::ToolRuntimeContext<AgentContextHost>`\n   |\nhelp: the trait `VideoContext` is implemented for `NativeVideoContext`\n  --> crates/vw-agent/src/workflow/video_edit/prepare.rs:17:1\n   |\n17 | impl VideoContext for NativeVideoContext {\n   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n   = note: required for the cast from `&tool_assembly::runtime::ToolRuntimeContext<AgentContextHost>` to `&dyn VideoContext`",
+    "source_context": "79:     token.cancel();\n80:     let ctx = cloud.ctx.clone().with_tool_use_context(\n81:         cloud.ctx.tool_use_context().as_ref().clone().with_abort_token(token),\n82:     );\n83:     assert!(identify_video_source(&req.video_path, &ctx).is_err());\n84:     let outside = tempfile::tempdir().unwrap();\n85:     let path = outside.path().join(\"source.mp4\");\n86:     std::fs::write(&path, b\"outside\").unwrap();\n87:     let mut config = crate::app::agent::config::Config::default();\n88:     config.autonomy.workspace_only = true;",
+    "symbol": "video_edit_prepare_streaming_hash_obeys_security_and_cancellation",
+    "logs": [
+      "host-stage"
+    ]
+  },
+  {
+    "id": 75,
+    "key": [
+      "crates/vw-agent/src/workflow/video_edit/prepare_tests.rs",
+      90,
+      "E0277",
+      "the trait bound `tool_assembly::runtime::ToolRuntimeContext<AgentContextHost>: VideoContext` is not satisfied"
+    ],
+    "file": "crates/vw-agent/src/workflow/video_edit/prepare_tests.rs",
+    "line": 90,
+    "code": "E0277",
+    "message": "the trait bound `tool_assembly::runtime::ToolRuntimeContext<AgentContextHost>: VideoContext` is not satisfied",
+    "diagnostic": "error[E0277]: the trait bound `tool_assembly::runtime::ToolRuntimeContext<AgentContextHost>: VideoContext` is not satisfied\n  --> crates/vw-agent/src/workflow/video_edit/prepare_tests.rs:90:42\n   |\n90 |     assert!(identify_video_source(&path, &cloud.ctx.clone().with_test_config(config)).is_err());\n   |                                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ the trait `VideoContext` is not implemented for `tool_assembly::runtime::ToolRuntimeContext<AgentContextHost>`\n   |\nhelp: the trait `VideoContext` is implemented for `NativeVideoContext`\n  --> crates/vw-agent/src/workflow/video_edit/prepare.rs:17:1\n   |\n17 | impl VideoContext for NativeVideoContext {\n   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n   = note: required for the cast from `&tool_assembly::runtime::ToolRuntimeContext<AgentContextHost>` to `&dyn VideoContext`",
+    "source_context": "86:     std::fs::write(&path, b\"outside\").unwrap();\n87:     let mut config = crate::app::agent::config::Config::default();\n88:     config.autonomy.workspace_only = true;\n89:     config.workspace_dir = root.path().into();\n90:     assert!(identify_video_source(&path, &cloud.ctx.clone().with_test_config(config)).is_err());\n91: }\n92: \n93: #[tokio::test]\n94: async fn video_edit_prepare_cross_tenant_runs_and_native_mismatch_are_isolated() {\n95:     let (root, db, cloud, req) = fixture();",
+    "symbol": "video_edit_prepare_streaming_hash_obeys_security_and_cancellation",
+    "logs": [
+      "host-stage"
+    ]
+  },
+  {
+    "id": 76,
+    "key": [
+      "crates/vw-agent/src/workflow/video_edit/entry_test_transport.rs",
+      35,
+      "E0277",
+      "the trait bound `tool_assembly::runtime::ToolRuntimeContext<AgentContextHost>: VideoContext` is not satisfied"
+    ],
+    "file": "crates/vw-agent/src/workflow/video_edit/entry_test_transport.rs",
+    "line": 35,
+    "code": "E0277",
+    "message": "the trait bound `tool_assembly::runtime::ToolRuntimeContext<AgentContextHost>: VideoContext` is not satisfied",
+    "diagnostic": "error[E0277]: the trait bound `tool_assembly::runtime::ToolRuntimeContext<AgentContextHost>: VideoContext` is not satisfied\n  --> crates/vw-agent/src/workflow/video_edit/entry_test_transport.rs:35:63\n   |\n35 |         workflow_video_edit::test_support::receipts::external(Arc::new(context.clone()))\n   |                                                               ^^^^^^^^^^^^^^^^^^^^^^^^^ the trait `VideoContext` is not implemented for `tool_assembly::runtime::ToolRuntimeContext<AgentContextHost>`\n   |\nhelp: the trait `VideoContext` is implemented for `NativeVideoContext`\n  --> crates/vw-agent/src/workflow/video_edit/prepare.rs:17:1\n   |\n17 | impl VideoContext for NativeVideoContext {\n   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n   = note: required for the cast from `std::sync::Arc<tool_assembly::runtime::ToolRuntimeContext<AgentContextHost>>` to `std::sync::Arc<(dyn VideoContext + 'static)>`",
+    "source_context": "31:     if let Some(factory) = EXTERNALS.lock().unwrap().get(session) {\n32:         return Some(factory(context));\n33:     }\n34:     SESSIONS.lock().unwrap().contains(session).then(|| {\n35:         workflow_video_edit::test_support::receipts::external(Arc::new(context.clone()))\n36:     })\n37: }",
+    "symbol": "get",
+    "logs": [
+      "host-stage"
+    ]
+  },
+  {
+    "id": 77,
+    "key": [
+      "crates/vw-agent/src/workflow/video_edit/e2e_tests.rs",
+      26,
+      "E0277",
+      "the trait bound `tool_assembly::runtime::ToolRuntimeContext<AgentContextHost>: VideoContext` is not satisfied"
+    ],
+    "file": "crates/vw-agent/src/workflow/video_edit/e2e_tests.rs",
+    "line": 26,
+    "code": "E0277",
+    "message": "the trait bound `tool_assembly::runtime::ToolRuntimeContext<AgentContextHost>: VideoContext` is not satisfied",
+    "diagnostic": "error[E0277]: the trait bound `tool_assembly::runtime::ToolRuntimeContext<AgentContextHost>: VideoContext` is not satisfied\n  --> crates/vw-agent/src/workflow/video_edit/e2e_tests.rs:26:30\n   |\n26 |                     context: Arc::new(context.clone()),\n   |                              ^^^^^^^^^^^^^^^^^^^^^^^^^ the trait `VideoContext` is not implemented for `tool_assembly::runtime::ToolRuntimeContext<AgentContextHost>`\n   |\nhelp: the trait `VideoContext` is implemented for `NativeVideoContext`\n  --> crates/vw-agent/src/workflow/video_edit/prepare.rs:17:1\n   |\n17 | impl VideoContext for NativeVideoContext {\n   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n   = note: required for the cast from `std::sync::Arc<tool_assembly::runtime::ToolRuntimeContext<AgentContextHost>>` to `std::sync::Arc<(dyn VideoContext + 'static)>`\n\nSome errors have detailed explanations: E0277, E0308, E0422, E0425, E0432, E0433, E0531, E0599, E0624.\nFor more information about an error, try `rustc --explain E0277`.\nwarning: `vw-agent` (lib test) generated 1 warning",
+    "source_context": "22:         session,\n23:         Arc::new(move |context| {\n24:             (\n25:                 Arc::new(Cloud {\n26:                     context: Arc::new(context.clone()),\n27:                     scenario: scenario.clone(),\n28:                     writes: Default::default(),\n29:                 }),\n30:                 Arc::new(Model(scenario.clone())),\n31:             )",
+    "symbol": "external",
+    "logs": [
+      "host-stage"
+    ]
+  }
+]

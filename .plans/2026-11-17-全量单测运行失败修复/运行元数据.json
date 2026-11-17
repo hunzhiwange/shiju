@@ -8,6 +8,11 @@
   "summary": "26137 tests run: 25548 passed (3 leaky), 589 failed, 23 skipped",
   "exit_code": 100,
   "aborted_tests": 2,
-  "second_stage": "未运行；前阶段失败",
-  "log": "/tmp/shiju-task19-final/retry22.log"
+  "second_stage": "已续跑联合宿主及桌面独立命令，均编译退出101，尚未执行用例",
+  "log": "/tmp/shiju-task19-final/retry22.log",
+  "host_compile_diagnostics": 77,
+  "host_logs": [
+    "host-stage.log.gz",
+    "desktop-stage.log.gz"
+  ]
 }

@@ -2416,7 +2416,471 @@
       "batch": 1,
       "previous": null,
       "filename": "302-修复worktree-core的recovery_restore_tests测试.md"
+    },
+    {
+      "number": 304,
+      "package": "vw-agent",
+      "file": "crates/libs/agent-gateway/src/handlers_tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "304-修复vw-agent宿主的handlers_tests编译契约.md",
+      "kind": "宿主编译修复",
+      "diagnostics": [
+        51,
+        52
+      ]
+    },
+    {
+      "number": 305,
+      "package": "vw-agent",
+      "file": "crates/libs/agent-gateway/src/webhook_ingress/tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "305-修复vw-agent宿主的tests编译契约.md",
+      "kind": "宿主编译修复",
+      "diagnostics": [
+        30,
+        31
+      ]
+    },
+    {
+      "number": 306,
+      "package": "vw-agent",
+      "file": "crates/libs/agent-loop/src/query_engine_tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "306-修复vw-agent宿主的query_engine_tests编译契约.md",
+      "kind": "宿主编译修复",
+      "diagnostics": [
+        37,
+        38
+      ]
+    },
+    {
+      "number": 307,
+      "package": "vw-agent",
+      "file": "crates/libs/agent-loop/src/tests/prompt_host.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "307-修复vw-agent宿主的prompt_host编译契约.md",
+      "kind": "宿主编译修复",
+      "diagnostics": [
+        6,
+        7
+      ]
+    },
+    {
+      "number": 308,
+      "package": "vw-agent",
+      "file": "crates/libs/channel-runtime/src/manager/execution_control_tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "308-修复vw-agent宿主的execution_control_tests编译契约.md",
+      "kind": "宿主编译修复",
+      "diagnostics": [
+        8
+      ]
+    },
+    {
+      "number": 309,
+      "package": "vw-agent",
+      "file": "crates/libs/gateway-aggregation/tests/host/aggregation_lifecycle_tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "309-修复vw-agent宿主的aggregation_lifecycle_tests编译契约.md",
+      "kind": "宿主编译修复",
+      "diagnostics": [
+        28,
+        29
+      ]
+    },
+    {
+      "number": 310,
+      "package": "vw-agent",
+      "file": "crates/libs/gateway-aggregation/tests/host/aggregation_omo_tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "310-修复vw-agent宿主的aggregation_omo_tests编译契约.md",
+      "kind": "宿主编译修复",
+      "diagnostics": [
+        27
+      ]
+    },
+    {
+      "number": 311,
+      "package": "vw-agent",
+      "file": "crates/libs/gateway-app-providers/src/host_tests/desktop_mapping_tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "311-修复vw-agent宿主的desktop_mapping_tests编译契约.md",
+      "kind": "宿主编译修复",
+      "diagnostics": [
+        47,
+        48,
+        49
+      ]
+    },
+    {
+      "number": 312,
+      "package": "vw-agent",
+      "file": "crates/libs/gateway-app-providers/src/host_tests/hermes_tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "312-修复vw-agent宿主的hermes_tests编译契约.md",
+      "kind": "宿主编译修复",
+      "diagnostics": [
+        50
+      ]
+    },
+    {
+      "number": 313,
+      "package": "vw-agent",
+      "file": "crates/libs/gateway-instance/src/instance_tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "313-修复vw-agent宿主的instance_tests编译契约.md",
+      "kind": "宿主编译修复",
+      "diagnostics": [
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18
+      ]
+    },
+    {
+      "number": 314,
+      "package": "vw-agent",
+      "file": "crates/libs/llm-runtime/tests/host_suites/tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "314-修复vw-agent宿主的tests编译契约.md",
+      "kind": "宿主编译修复",
+      "diagnostics": [
+        3
+      ]
+    },
+    {
+      "number": 315,
+      "package": "vw-agent",
+      "file": "crates/libs/llm-runtime/tests/host_suites/transport_tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "315-修复vw-agent宿主的transport_tests编译契约.md",
+      "kind": "宿主编译修复",
+      "diagnostics": [
+        33
+      ]
+    },
+    {
+      "number": 316,
+      "package": "vw-agent",
+      "file": "crates/libs/session-engine/tests/host_suites/runtime/lifecycle_tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "316-修复vw-agent宿主的lifecycle_tests编译契约.md",
+      "kind": "宿主编译修复",
+      "diagnostics": [
+        35
+      ]
+    },
+    {
+      "number": 317,
+      "package": "vw-agent",
+      "file": "crates/libs/session-engine/tests/host_suites/todos_tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "317-修复vw-agent宿主的todos_tests编译契约.md",
+      "kind": "宿主编译修复",
+      "diagnostics": [
+        5
+      ]
+    },
+    {
+      "number": 318,
+      "package": "vw-agent",
+      "file": "crates/libs/tool-agents/src/session_tool/tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "318-修复vw-agent宿主的tests编译契约.md",
+      "kind": "宿主编译修复",
+      "diagnostics": [
+        59,
+        60,
+        61,
+        62
+      ]
+    },
+    {
+      "number": 319,
+      "package": "vw-agent",
+      "file": "crates/libs/tool-agents/src/thread_tool/execution_tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "319-修复vw-agent宿主的execution_tests编译契约.md",
+      "kind": "宿主编译修复",
+      "diagnostics": [
+        64
+      ]
+    },
+    {
+      "number": 320,
+      "package": "vw-agent",
+      "file": "crates/libs/tool-agents/src/thread_tool/tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "320-修复vw-agent宿主的tests编译契约.md",
+      "kind": "宿主编译修复",
+      "diagnostics": [
+        63
+      ]
+    },
+    {
+      "number": 321,
+      "package": "vw-agent",
+      "file": "crates/libs/tool-computer/src/computer_control/chrome_tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "321-修复vw-agent宿主的chrome_tests编译契约.md",
+      "kind": "宿主编译修复",
+      "diagnostics": [
+        56,
+        57,
+        58
+      ]
+    },
+    {
+      "number": 322,
+      "package": "vw-agent",
+      "file": "crates/vw-agent/src/agent/loop_.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "322-修复vw-agent宿主的loop_编译契约.md",
+      "kind": "宿主编译修复",
+      "diagnostics": [
+        2
+      ]
+    },
+    {
+      "number": 323,
+      "package": "vw-agent",
+      "file": "crates/vw-agent/src/agent_apps/mcp/acp_mount_tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "323-修复vw-agent宿主的acp_mount_tests编译契约.md",
+      "kind": "宿主编译修复",
+      "diagnostics": [
+        39
+      ]
+    },
+    {
+      "number": 324,
+      "package": "vw-agent",
+      "file": "crates/vw-agent/src/cron/delivery_tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "324-修复vw-agent宿主的delivery_tests编译契约.md",
+      "kind": "宿主编译修复",
+      "diagnostics": [
+        9,
+        10,
+        40
+      ]
+    },
+    {
+      "number": 325,
+      "package": "vw-agent",
+      "file": "crates/vw-agent/src/gateway/agent_tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "325-修复vw-agent宿主的agent_tests编译契约.md",
+      "kind": "宿主编译修复",
+      "diagnostics": [
+        11,
+        41
+      ]
+    },
+    {
+      "number": 326,
+      "package": "vw-agent",
+      "file": "crates/vw-agent/src/gateway/api/handlers/session/fork_acp_tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "326-修复vw-agent宿主的fork_acp_tests编译契约.md",
+      "kind": "宿主编译修复",
+      "diagnostics": [
+        26
+      ]
+    },
+    {
+      "number": 327,
+      "package": "vw-agent",
+      "file": "crates/vw-agent/src/gateway/api/handlers/session/turn_fork_tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "327-修复vw-agent宿主的turn_fork_tests编译契约.md",
+      "kind": "宿主编译修复",
+      "diagnostics": [
+        19,
+        20,
+        21,
+        22,
+        23,
+        24,
+        25
+      ]
+    },
+    {
+      "number": 328,
+      "package": "vw-agent",
+      "file": "crates/vw-agent/src/gateway/api/handlers/task_plan_run_tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "328-修复vw-agent宿主的task_plan_run_tests编译契约.md",
+      "kind": "宿主编译修复",
+      "diagnostics": [
+        42,
+        43,
+        44,
+        45,
+        46
+      ]
+    },
+    {
+      "number": 329,
+      "package": "vw-agent",
+      "file": "crates/vw-agent/src/mcp/tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "329-修复vw-agent宿主的tests编译契约.md",
+      "kind": "宿主编译修复",
+      "diagnostics": [
+        53,
+        54
+      ]
+    },
+    {
+      "number": 330,
+      "package": "vw-agent",
+      "file": "crates/vw-agent/src/plugins/compat/t42_tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "330-修复vw-agent宿主的t42_tests编译契约.md",
+      "kind": "宿主编译修复",
+      "diagnostics": [
+        4,
+        32
+      ]
+    },
+    {
+      "number": 331,
+      "package": "vw-agent",
+      "file": "crates/vw-agent/src/session/compaction_summary_tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "331-修复vw-agent宿主的compaction_summary_tests编译契约.md",
+      "kind": "宿主编译修复",
+      "diagnostics": [
+        55
+      ]
+    },
+    {
+      "number": 332,
+      "package": "vw-agent",
+      "file": "crates/vw-agent/src/session/llm/acp/controls_tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "332-修复vw-agent宿主的controls_tests编译契约.md",
+      "kind": "宿主编译修复",
+      "diagnostics": [
+        34
+      ]
+    },
+    {
+      "number": 333,
+      "package": "vw-agent",
+      "file": "crates/vw-agent/src/workflow/video_edit/cloud_prepare_tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "333-修复vw-agent宿主的cloud_prepare_tests编译契约.md",
+      "kind": "宿主编译修复",
+      "diagnostics": [
+        71
+      ]
+    },
+    {
+      "number": 334,
+      "package": "vw-agent",
+      "file": "crates/vw-agent/src/workflow/video_edit/command_tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "334-修复vw-agent宿主的command_tests编译契约.md",
+      "kind": "宿主编译修复",
+      "diagnostics": [
+        65,
+        66,
+        67,
+        68,
+        69,
+        70
+      ]
+    },
+    {
+      "number": 335,
+      "package": "vw-agent",
+      "file": "crates/vw-agent/src/workflow/video_edit/e2e_tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "335-修复vw-agent宿主的e2e_tests编译契约.md",
+      "kind": "宿主编译修复",
+      "diagnostics": [
+        77
+      ]
+    },
+    {
+      "number": 336,
+      "package": "vw-agent",
+      "file": "crates/vw-agent/src/workflow/video_edit/entry_test_transport.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "336-修复vw-agent宿主的entry_test_transport编译契约.md",
+      "kind": "宿主编译修复",
+      "diagnostics": [
+        76
+      ]
+    },
+    {
+      "number": 337,
+      "package": "vw-agent",
+      "file": "crates/vw-agent/src/workflow/video_edit/prepare_tests.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "337-修复vw-agent宿主的prepare_tests编译契约.md",
+      "kind": "宿主编译修复",
+      "diagnostics": [
+        36,
+        72,
+        73,
+        74,
+        75
+      ]
+    },
+    {
+      "number": 338,
+      "package": "vw-desktop",
+      "file": "crates/vw-desktop/src/app/message/view/mod.rs",
+      "batch": 1,
+      "previous": null,
+      "filename": "338-修复vw-desktop宿主的mod编译契约.md",
+      "kind": "宿主编译修复",
+      "diagnostics": [
+        1
+      ]
     }
   ],
-  "unresolved_sources": []
+  "unresolved_sources": [],
+  "host_compile_diagnostic_count": 77,
+  "final_acceptance_task": 303
 }

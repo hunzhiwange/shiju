@@ -829,3 +829,22 @@ Rust重型命令经scripts/cargo_slot.py的slot(number=6)串行执行，CARGO_TA
 | cargo build -p vw-cli --bin shiju | 最终退出0，13m19s；此前阶段构建均退出0，最终复制产物及源码摘要已核对 |
 
 没有运行桌面编译、全仓测试/构建、全特性Clippy、全仓格式检查、wasm或Makefile，也没有在页面创建后追加浏览器、页面构建或页面测试。完整文件创建、实际模型绑定、目录边界及本任务配置恢复均有最终轮新证据；原生免审批、其他操作系统和飞书配置变化归因仍不在本次通过声明内。
+
+
+# siGit Code 验收（2026-11-18）
+
+结论：**指定模型完整文件创建验收通过**。首次客户端300秒超时后，通过现有续传接口取得原请求chat.done；不把HTTP200或诊断结果当成成功终态。
+
+- 前置：已核对siGit接入证据、当前注册/安装/派生预设/模型驱动及Nova最终验收与恢复记录。旧路径已迁移至crates/libs/acp-agent-registry、config-acp-install、agent-config及llm-runtime；使用RustCodeGraph检查。来源任务已移除不作为通过依据。
+- 复用Nova最终shiju 0.6.0构建，二进制SHA-256 `b507ddebf25b76f2341a9e77c181415cbbbe964643d86389f9046e318082fad6`，构建来源d6fef4272d346339ca0bbcf00c04af6d944601b5及既有source-hashes-final.json；当前摘要逐项匹配，siGit驱动、注册、安装与预设源码对该构建HEAD无差异。不宣称clean HEAD构建。
+- 全部API携带X-Platform-ID=10001、X-Company-ID=100010005、X-Directory=/Users/xiangmin/worker/code/ruejs。取得config、installed、agents、acp基线。自有回环网关先读gateway --help，使用现有开发配置、TOKIO_WORKER_THREADS=4。
+- 首次系统安装HTTP400、curl退出0、0.197120秒；受审源码安装要求仓库Cargo槽位环境，首个网关未继承该环境。停止该自有网关后，经scripts/cargo_slot.py的slot(number=6)入口启动，两个构建目录均为target/rust-slot-6；系统安装重试HTTP200、退出0、16.371460秒，installed false→true。未用任意URL、shell或未修补CLI替代系统安装链路。槽位4被其他进程占用，等待入口终止后改用空闲槽位6，未清理他人锁。
+- 真实入口为开发配置acp-runtime/sigit-1.7.10-model-source-v1/sigit，受审版本1.7.10。入口SHA-256 `b98bdfdc85884922297704df67d5b9441a8fd399352457bfd75cc09f86934520`；收据源码SHA-256 `088809cfc43ceda419913488390a65e830ac8ff66f1b5dd14a8d833d6b46369e`、补丁SHA-256 `4d775d40748eb3a4fc5656034d591052c4d8e7d99cd58e238ea9f6230f9f9256`均回读核对。
+- 普通诊断HTTP200、退出0、4.022415秒，authentication_required，独立记录。模型来源接口HTTP200确认session_model supported、审核版本1.7.10、Darwin arm64。内置acp-sigit的builtin=true、runtime.kind=acp、backend=sigit，基线disabled；启用PATCH和GET重读均HTTP200。
+- 请求严格使用任务JSON及指定alibaba-token-plan-cn/deepseek-v4.1-flash-1017。首次chat/stream HTTP200，curl退出28、300秒限时结束，无chat.done；先查询原会话summary/options。确认现有stream_acceptance与transport支持续传后，以响应x-vw-stream-request-id及最后SSE id发送Last-Event-ID，原请求续传HTTP200、退出0、0.008489秒，未重新提交创建任务。合计chat.context_loaded=1、chat.step_start=1、chat.delta=283、chat.tool=132（状态事件）、chat.session_updated=2、chat.step_finish=1、chat.done=1、chat.error=0。
+- 会话ses_1ea5ef4bb0013SlCxrrDHv6w7y：运行中summary确认acp-sigit/sigit、full_access=true；运行中options connected=true，selected_model.source=session_model、provider_id=alibaba-token-plan-cn、完整模型ID=alibaba-token-plan-cn/deepseek-v4.1-flash-1017。结束后connected=false、所选模型保持匹配；以实际接口证据判断绑定，不依赖助手自述。
+- 实际产物acpdemo/sigit/共8文件：README.md、index.html、vite.config.mjs、tsconfig.json、src/App.tsx、src/main.tsx、src/env.d.ts、src/style.css。已读源码和说明：useApp挂载、textarea onInput、ref/computed实时统计非空白字数及字符数；300ms防抖写localStorage、初始化恢复，pagehide/beforeunload补齐待保存内容。Vite复用examples/shared/rue-vite.mjs，别名指向packages/rue/src，实际使用本仓库@rue-js/rue；README提供运行说明。没有运行浏览器、页面构建、类型检查或额外页面测试，不宣称实际渲染/刷新交互实测。
+- 目标目录初始不存在，未覆盖用户文件。排除.git/node_modules/target的普通文件SHA-256快照6282→6290，仅新增上述8文件，目录外0差异；保留初始Git状态，未提交Rue.js工作区。
+- 恢复PATCH客户端60秒超时（HTTP000、退出28），随后GET确认全部agents与基线相等、siGit disabled。完整config差异仅agents.acp-sigit：基线无显式覆盖，恢复后保留等效disabled预设覆盖；不宣称存储字节一致，未覆盖其他配置。系统安装保留。
+- 自有网关PID52270/61882均停止并退出0；最终端口55582关闭、PID61882不存在。槽位6入口正常退出释放自有锁、缓存保留；未重启用户服务。
+- 原始配置、请求、响应、SSE、日志、入口收据/构建摘要与快照仅存本机0700目录 `/tmp/shiju-sigit-accept-20261118/`。本次无产品代码修复，复用已验证构建；执行系统安装、诊断、模型/预设/会话API、续传、文件内容与快照检查。未运行新Rust单测、Cargo检查、Clippy、桌面编译、全仓构建/测试、wasm或Makefile；历史单测不计本次证据。旧任务引用.plans/references/rust.md不存在，实际使用现有槽位入口完成安装。

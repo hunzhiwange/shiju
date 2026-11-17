@@ -342,3 +342,13 @@ impl NativeHttp {
         Self { transport, release, requests, wallet_status, server }
     }
 }
+
+#[test]
+fn usage_snapshot_decodes_fractional_numbers_with_gateway_features() {
+    let wire = r#"{"capabilities":["balance"],"snapshot":{"result":{"source":{"kind":"provider","id":"wallet"},"queriedAt":1,"credentialState":"valid","credentialMessage":null,"outcome":{"status":"success","data":{"kind":"balance","value":[{"currency":"CNY","remaining":-1.25}]}}},"stale":false,"refreshFailure":null}}"#;
+    let response: vw_api_apps_usage::apps_usage::UsageSnapshotResponse =
+        serde_json::from_str(wire).unwrap();
+    assert!(matches!(response.snapshot.unwrap().result.outcome,
+        UsageQueryOutcome::Success { data: UsageQueryData::Balance(wallets) }
+        if wallets[0].remaining.map(f64::from) == Some(-1.25)));
+}

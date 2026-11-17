@@ -20,6 +20,35 @@ pub(super) fn classify_route(route: &GatewayRouteEntry) -> Option<RouteCoverage>
     if matches!(path, "/v1/doc" | "/v1/find/symbol") {
         return Some(RouteCoverage::Excluded("documented placeholder returns 501 Not Implemented"));
     }
+    // Keep unsupported routes explicit: new endpoints still require a coverage audit.
+    let exclusion = match (route.method, path) {
+        ("POST", "/v1/agent-apps/diagnostics/jobs")
+        | ("POST", "/v1/agent-apps/mcp/checks")
+        | ("POST", "/v1/agent-apps/diagnostics/endpoint-candidates/query")
+        | ("GET", "/v1/agent-apps/diagnostics/jobs/{id}")
+        | ("POST", "/v1/agent-apps/diagnostics/jobs/{id}/cancel")
+        | ("GET" | "POST", "/v1/agent-apps/mcp")
+        | ("GET", "/v1/agent-apps/mcp/presets" | "/v1/agent-apps/mcp/native") => {
+            Some("desktop application diagnostics and managed MCP have no CLI command")
+        }
+        ("POST", "/v1/mcp/apps/call") => {
+            Some("session-bound MCP App tool calls have no CLI command")
+        }
+        ("POST", "/v1/agent/{key}/copy") => Some("agent profile copy has no CLI command"),
+        ("POST", "/v1/cron/preview" | "/api/cron/preview") => {
+            Some("cron schedule preview has no CLI command")
+        }
+        ("POST", "/v1/session/{session_id}/dynamic-tools/hosts")
+        | ("PUT", "/v1/session/{session_id}/dynamic-tools")
+        | ("GET", "/v1/session/{session_id}/dynamic-tools/calls")
+        | ("POST", "/v1/session/{session_id}/dynamic-tools/calls/{call_id}/response") => {
+            Some("dynamic tool host protocol has no CLI command")
+        }
+        _ => None,
+    };
+    if let Some(reason) = exclusion {
+        return Some(RouteCoverage::Excluded(reason));
+    }
     if path == "/v1/cron/runs/{id}" {
         return Some(RouteCoverage::Alias("api operations cron runs"));
     }

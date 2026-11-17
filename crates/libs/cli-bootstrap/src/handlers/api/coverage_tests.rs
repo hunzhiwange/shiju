@@ -15,7 +15,9 @@ fn api_route_coverage_classifies_every_documented_gateway_route() {
         .map(|route| format!("{} {}", route.method, route.path))
         .collect::<Vec<_>>();
 
-    assert_eq!(routes.len(), 234, "Gateway route baseline changed");
+    // The five authorized application diagnostic routes are macOS-only.
+    let platform_route_count = if cfg!(target_os = "macos") { 5 } else { 0 };
+    assert_eq!(routes.len(), 250 + platform_route_count, "Gateway route baseline changed");
     assert!(missing.is_empty(), "unclassified Gateway routes:\n{}", missing.join("\n"));
 
     let mut keys = HashSet::new();
@@ -53,5 +55,5 @@ fn api_route_coverage_classifies_every_documented_gateway_route() {
             }
         }
     }
-    assert_eq!((command_count, alias_count, excluded_count), (228, 3, 3));
+    assert_eq!((command_count, alias_count, excluded_count), (232, 3, 15 + platform_route_count));
 }

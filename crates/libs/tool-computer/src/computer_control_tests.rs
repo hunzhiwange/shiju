@@ -434,3 +434,20 @@ async fn cc_control_07_live_registry_input_and_image_reach_model() {
         images.len()
     );
 }
+
+#[tokio::test]
+async fn cc_runtime_07_skill_observe_drag_observe_stop_uses_registry() {
+    let (_, os, tools) = fixture(true);
+    for action in [
+        json!({"action":"native_observe","screenshot":true}),
+        json!({"action":"native_input","input":{"kind":"drag","path":[[0,0],[0,0]],"button":"left","duration_ms":100}}),
+        json!({"action":"native_observe","screenshot":true}),
+        json!({"action":"stop"}),
+    ] {
+        let result = execute_tool_from_registry(
+            &tools, "computer_control", args(action), context("chat"),
+        ).await.unwrap();
+        assert!(result.result.is_success());
+    }
+    assert_eq!(os.inputs.load(Ordering::SeqCst), 1);
+}

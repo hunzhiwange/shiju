@@ -598,3 +598,6 @@ pub fn office_owner<H: ContextHost>(context: &ToolUseContext<H>) -> anyhow::Resu
 #[cfg(test)]
 #[path = "service_backend_tests.rs"]
 mod service_backend_tests;
+
+#[cfg(test)]
+mod skill_contract_tests;

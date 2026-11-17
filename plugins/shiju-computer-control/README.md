@@ -1,8 +1,15 @@
 # ShiJu 电脑操控本地资源
 
-原生应用宿主链接在 ShiJu 桌面程序内。此插件只提供 Chrome Native
-Messaging 中继、扩展和 Excel/Word 加载项；不声明独立 MCP server。
-锁屏执行是否可用以桌面宿主探测结果为准，安装资源不代表授权或就绪。
+本插件通过 `.codex-plugin/plugin.json` 的 `skills: "./skills"` 暴露
+`skills/computer-control/SKILL.md`，沿用现有插件技能发现流程。安装并启用插件后，
+技能编排宿主注册的真实 `computer_control` 工具，不声明独立 CLI 或 MCP server。
+工具未注册、服务缺失与权限未授予必须分别检查，安装技能不代表执行就绪。
+
+原生应用策略由 ShiJu 宿主管理，系统调用由包内
+`Contents/Helpers/ShiJu Computer Use.app/Contents/MacOS/shiju-computer-use` 执行。
+系统权限属于实际执行服务，不能借用其他应用的 TCC 授权。
+本插件还提供 Chrome Native Messaging 中继、扩展和 Excel/Word 加载项；
+这些资源各自需要连接与授权。锁屏及其他平台不在本技能的就绪承诺中。
 
 ## 本地安装（macOS）
 
@@ -31,7 +38,7 @@ Office：使用支持 ExcelApi 1.2、WordApi 1.3 的 Excel/Word 客户端。
 与 word/manifest.xml，打开任务窗格。在 ShiJu 设置中按文档配对，令牌仅保存在
 会话内；WebSocket 服务地址和一次性凭证由实际宿主提供。
 
-原生控制需用户在系统设置中授予 ShiJu 辅助功能、屏幕录制权限；涉及应用自动化
+原生控制需用户在系统设置中核对实际执行的 ShiJu Computer Use.app 的辅助功能、屏幕录制权限；涉及应用自动化
 时按系统提示授权。不得通过安装器改写 TCC。重启后应重新检查宿主状态、Chrome
 扩展连接和 Office 配对，分别在临时文档验证操作与回读。本轮尚未执行这些验收。
 

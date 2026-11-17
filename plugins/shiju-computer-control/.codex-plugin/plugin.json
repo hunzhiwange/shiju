@@ -1,5 +1,6 @@
 {
   "name": "shiju-computer-control",
   "version": "0.1.0",
-  "description": "ShiJu native application, Chrome and Office control resources. Requires the ShiJu desktop host and explicit per-session authorization."
+  "description": "ShiJu computer_control tool workflow and local integration resources. Requires the ShiJu host, bundled control service and explicit authorization.",
+  "skills": "./skills"
 }

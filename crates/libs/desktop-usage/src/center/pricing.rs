@@ -20,11 +20,15 @@ pub struct State {
     pending_delete: Option<String>,
     source: String,
     import: text_editor::Content,
+    models: crate::models::State,
+    files_open: bool,
+    page: usize,
 }
 
 #[derive(Clone, Debug)]
 pub enum Event {
     Feedback(bool, String),
+    Models(crate::models::Event), Files, CancelDelete, Page(usize),
     Open, Close, Reload, New, Edit(usize), CancelEdit,
     Field(usize, String), Source(String), ImportEdit(text_editor::Action),
     Save, Delete(String), ConfirmDelete(String), Import,
@@ -57,14 +61,28 @@ enum Write { Save(ModelPricingInfo, bool), Delete(String), Import(String, Vec<Mo
 pub fn update(state: &mut State, current: Option<Identity>, visible: bool, client: Result<vw_gateway_client::GatewayClient, String>, event: Event) -> Task<Outcome<Event>> {
 
     match event {
+        Event::Models(event) => {
+            let refresh = matches!(&event, crate::models::Event::Polled(_, id, Ok(_)) if current.as_ref() == Some(id) && state.open && state.scope.as_ref() == Some(id));
+            let task = crate::models::update_with_client(&mut state.models, current.clone(), client.clone(), event)
+                .map(|event| message(Event::Models(event)));
+            if refresh { return Task::batch([task, update(state, current, visible, client, Event::Reload)]); }
+            return task;
+        }
+        Event::Files => state.files_open = !state.files_open,
+        Event::CancelDelete => state.pending_delete = None,
+        Event::Page(page) => state.page = page.min(state.prices.len().saturating_sub(1) / 20),
         Event::Feedback(..) => {},
-        Event::Close if !state.busy => { state.open = false; state.sequence = state.sequence.wrapping_add(1); }
+        Event::Close if !state.busy => { state.close(); }
         Event::Open | Event::Reload => {
             if state.busy { return Task::none(); }
+            let load_models = matches!(event, Event::Open);
             state.open = true;
             let Some(scope) = current else { state.error = Some("请选择项目与执行主机".into()); return Task::none(); };
             if state.scope.as_ref() != Some(&scope) {
                 state.editor = None;
+                state.pending_delete = None;
+                state.page = 0;
+                state.models.close();
                 state.prices.clear();
                 state.import = text_editor::Content::new();
             }
@@ -74,18 +92,21 @@ pub fn update(state: &mut State, current: Option<Identity>, visible: bool, clien
             state.busy = true;
             state.error = None;
 
-            return Task::perform(async move {
+            let models = if load_models { crate::models::update_with_client(&mut state.models, Some(scope.clone()), client.clone(), crate::models::Event::Open)
+                .map(|event| message(Event::Models(event))) } else { Task::none() };
+            let prices = Task::perform(async move {
                 let result = async {
                     gateway_usage_price::GatewayUsagePriceClient::new(client?.transport().clone()).usage_prices(&UsageScanScope { project_id: scope.project.clone().into(), target_host: scope.host.clone() }).await.map_err(|e| e.to_string())
                 }.await;
                 (scope, result)
             }, move |(scope, result)| message(Event::Loaded(ticket, scope, result)));
+            return Task::batch([models, prices]);
         }
         Event::Loaded(ticket, scope, result) => {
             if state.open && state.sequence == ticket && state.scope.as_ref() == Some(&scope) {
                 state.busy = false;
                 if !visible || current.as_ref() != Some(&scope) { state.error = Some("项目或主机已切换，请重新加载".into()); return Task::none(); }
-                match result { Ok(prices) => state.prices = prices, Err(e) => state.error = Some(e) }
+                match result { Ok(prices) => { state.prices = prices; state.page = state.page.min(state.prices.len().saturating_sub(1) / 20); }, Err(e) => state.error = Some(e) }
             }
         }
         Event::Written(ticket, scope, result) => {
@@ -132,7 +153,10 @@ pub fn update(state: &mut State, current: Option<Identity>, visible: bool, clien
                     Some(price) => validate(&price).map(|()| Write::Save(price, state.creating)),
                     None => Err("请先选择价格".into()),
                 },
-                Event::ConfirmDelete(id) => Ok(Write::Delete(id)),
+                Event::ConfirmDelete(id) => {
+                    if state.pending_delete.as_ref() != Some(&id) { return Task::none(); }
+                    Ok(Write::Delete(id))
+                },
                 _ => (|| {
                     let prices: Vec<ModelPricingInfo> = serde_json::from_str(&state.import.text()).map_err(|e| format!("导入 JSON 无效：{e}"))?;
                     if state.source.trim().is_empty() || state.source.len() > 256 || prices.is_empty() || prices.len() > 256 { return Err("请填写来源并提供 1–256 条价格".into()); }
@@ -179,14 +203,29 @@ pub fn overlay<'a, M: Clone + 'static>(state: &'a State, _current: Option<Identi
 
     if !state.open { return base; }
     let enabled = !state.busy;
-    let mut body = column![text("USD / 百万 Token；未知成本不等于零。自动价格的手工编辑会成为自定义覆盖。")].spacing(10);
-    for (index, price) in state.prices.iter().enumerate() {
-        body = body.push(row![text(format!("{} · {} · 输入 {} / 输出 {} / 缓存读 {} / 创建 {}", price.price.model_id.as_ref(), if price.is_custom { "自定义" } else { "自动" }, price.price.input_cost_per_million, price.price.output_cost_per_million, price.price.cache_read_cost_per_million, price.price.cache_creation_cost_per_million)).width(Length::Fill), action("编辑", Event::Edit(index), enabled), action("删除", Event::Delete(price.price.model_id.0.clone()), enabled)].spacing(8));
+    let mut body = column![crate::models::card(&state.models).map(|event| message(Event::Models(event))),
+        settings_modal_card(column![text("默认计费配置").size(16), text("按账本记录的模型计价；暂不支持切换请求或返回模型。")].spacing(6)),
+        row![text(format!("模型定价（{}）", state.prices.len())).size(18), text("USD / 百万 Tokens"), action("新增定价", Event::New, enabled), action("文件…", Event::Files, enabled)].spacing(12),
+        row![text("模型").width(Length::FillPortion(3)), text("输入").width(Length::Fill), text("输出").width(Length::Fill), text("缓存读取").width(Length::Fill), text("缓存写入").width(Length::Fill), text("操作").width(130)].spacing(8)
+    ].spacing(12);
+    if state.files_open {
+        body = body.push(settings_modal_card(column![text("定价文件"), text("价格由所选执行主机管理，暂不支持打开定价文件。可使用下方 JSON 导入。")].spacing(6)));
+    }
+    if state.prices.is_empty() && !state.busy { body = body.push(text("暂无模型定价")); }
+    for (index, price) in state.prices.iter().enumerate().skip(state.page * 20).take(20) {
+        body = body.push(row![
+            column![text(&price.price.display_name), text(price.price.model_id.as_ref()).size(12), text(if price.is_custom { "自定义" } else { "自动" }).size(12)].width(Length::FillPortion(3)),
+            text(format!("${}", price.price.input_cost_per_million)).width(Length::Fill),
+            text(format!("${}", price.price.output_cost_per_million)).width(Length::Fill),
+            text(format!("${}", price.price.cache_read_cost_per_million)).width(Length::Fill),
+            text(format!("${}", price.price.cache_creation_cost_per_million)).width(Length::Fill),
+            row![action("编辑", Event::Edit(index), enabled), action("删除", Event::Delete(price.price.model_id.0.clone()), enabled)].spacing(6).width(130)
+        ].spacing(8));
         if state.pending_delete.as_deref() == Some(price.price.model_id.as_ref()) {
-            body = body.push(action("确认删除", Event::ConfirmDelete(price.price.model_id.0.clone()), enabled));
+            body = body.push(row![text("确认删除此模型定价？"), action("确认删除", Event::ConfirmDelete(price.price.model_id.0.clone()), enabled), action("取消", Event::CancelDelete, enabled)].spacing(8));
         }
     }
-    body = body.push(action("新增价格", Event::New, enabled));
+    body = body.push(row![action("上一页", Event::Page(state.page.saturating_sub(1)), enabled && state.page > 0), text(format!("{} / {}", state.page + 1, state.prices.len().saturating_sub(1) / 20 + 1)), action("下一页", Event::Page(state.page + 1), enabled && (state.page + 1) * 20 < state.prices.len())].spacing(10));
     if let Some(price) = &state.editor {
         for (index, (label, value)) in [("模型 ID", price.model_id.as_ref()), ("显示名称", price.display_name.as_str()), ("输入", price.input_cost_per_million.as_str()), ("输出", price.output_cost_per_million.as_str()), ("缓存读取", price.cache_read_cost_per_million.as_str()), ("缓存创建", price.cache_creation_cost_per_million.as_str())].into_iter().enumerate() {
             body = body.push(column![text(label), settings_text_input(label, value).on_input_maybe((enabled && (index != 0 || state.creating)).then_some(move |value| message(Event::Field(index, value))))].spacing(4));
@@ -200,6 +239,16 @@ pub fn overlay<'a, M: Clone + 'static>(state: &'a State, _current: Option<Identi
     let mut header = column![text("模型定价").size(20)].spacing(8);
     if state.busy { header = header.push(text("正在处理…")); }
     if let Some(error) = &state.error { header = header.push(settings_error_banner(error)); }
-    let footer = row![action("重新加载", Event::Reload, enabled), action("关闭", Event::Close, enabled)].spacing(8);
-    settings_modal_overlay(Some(base), map(message(Event::Close)), Element::from(settings_modal_layout(header, body, Some(footer.into())).width(880).height(680)).map(map))
+    let footer = row![action("重新加载", Event::Reload, enabled), action("返回用量统计", Event::Close, enabled)].spacing(8);
+    let panel = settings_modal_overlay(Some(base), map(message(Event::Close)), Element::from(settings_modal_layout(header, body, Some(footer.into())).width(1080).height(720)).map(map));
+    if crate::models::picker_open(&state.models) {
+        // Map after rendering so callers keep their existing Outcome boundary.
+        let picker = crate::models::overlay_with_base(&state.models, iced::widget::Space::new().into(), |event| message(Event::Models(if matches!(event, crate::models::Event::Close) { crate::models::Event::Picker(false) } else { event })));
+        return iced::widget::stack![panel, picker.map(map)].into();
+    }
+    panel
 }
+
+#[cfg(test)]
+#[path = "../usage_replica_08_tests.rs"]
+mod tests;

@@ -176,16 +176,12 @@ fn hook_catalog_failure_isolated_from_existing_integrations() {
         V3Action::Submit { text: "/hooks".to_string(), attachments: Vec::new() },
     );
     server.join().expect("join hook failure fixture");
-    runner.drain(&mut app);
+    drain_until(&mut runner, &mut app, |_, app| {
+        transcript_text(app).contains("failed to load Hook catalog")
+    });
 
     assert_eq!(app.state().integration_catalog, vec![existing]);
-    assert!(app.state().messages.iter().any(|message| match message {
-        cli_interaction_model::UiMessage::Error(error) => {
-            error.message.contains("failed to load Hook catalog")
-                && !error.message.contains("must-not-leak")
-        }
-        _ => false,
-    }));
+    assert!(!transcript_text(&app).contains("must-not-leak"));
 }
 
 #[test]
@@ -327,14 +323,9 @@ fn hook_mutation_refreshes_only_after_gateway_success() {
     request_receiver.recv_timeout(Duration::from_secs(2)).expect("failed Hook POST");
     drain_until(&mut runner, &mut app, |runner, app| {
         !runner.hook_mutation_in_flight()
-            && app.state().messages.iter().any(|message| match message {
-                cli_interaction_model::UiMessage::Error(error) => {
-                    error.message.contains("failed to revoke Hook")
-                        && !error.message.contains("must-not-leak")
-                }
-                _ => false,
-            })
+            && transcript_text(app).contains("failed to revoke Hook")
     });
+    assert!(!transcript_text(&app).contains("must-not-leak"));
     assert!(runner.hook_catalog_contains("safe-plugin", "abc123", true));
     assert!(request_receiver.recv_timeout(Duration::from_millis(100)).is_err());
 
@@ -453,20 +444,12 @@ fn memory_search_failure_preserves_existing_integrations() {
     runner.execute_action(&mut app, submit("/memory unavailable"));
     let request = server.join().expect("join memory failure fixture");
     drain_until(&mut runner, &mut app, |_, app| {
-        app.state().messages.iter().any(|message| match message {
-            cli_interaction_model::UiMessage::Error(error) => {
-                error.message.contains("failed to query memory")
-            }
-            _ => false,
-        })
+        transcript_text(app).contains("failed to query memory")
     });
 
     assert!(request.starts_with("GET /v1/memory?query=unavailable "));
     assert_eq!(app.state().integration_catalog, original);
-    assert!(app.state().messages.iter().all(|message| match message {
-        cli_interaction_model::UiMessage::Error(error) => !error.message.contains("must-not-leak"),
-        _ => true,
-    }));
+    assert!(!transcript_text(&app).contains("must-not-leak"));
 }
 
 #[test]
@@ -615,16 +598,14 @@ fn memory_mutations_confirm_overwrite_and_delete() {
     assert!(requests[0].starts_with("GET /v1/memory?query=owned "));
     assert!(requests[1].starts_with("POST /v1/memory "));
     assert_eq!(
-        request_body(&requests[1]),
-        r#"{"category":"core","content":"sensitive-memory-content","key":"owned/key"}"#
+        serde_json::from_str::<serde_json::Value>(request_body(&requests[1]))
+            .expect("memory store JSON"),
+        serde_json::json!({"category": "core", "content": SECRET_CONTENT, "key": "owned/key"})
     );
     assert!(requests[2].starts_with("GET /v1/memory?query=owned "));
     assert!(requests[3].starts_with("DELETE /v1/memory/owned%2Fkey "));
     assert!(requests[4].starts_with("GET /v1/memory?query=owned "));
-    assert!(app.state().messages.iter().all(|message| match message {
-        cli_interaction_model::UiMessage::Error(error) => !error.message.contains(SECRET_CONTENT),
-        _ => true,
-    }));
+    assert!(!transcript_text(&app).contains(SECRET_CONTENT));
 }
 
 #[test]
@@ -669,24 +650,15 @@ fn memory_mutation_failure_preserves_snapshot_and_redacts_content() {
     );
     drain_until(&mut runner, &mut app, |runner, app| {
         !runner.memory_mutation_in_flight()
-            && app.state().messages.iter().any(|message| match message {
-                cli_interaction_model::UiMessage::Error(error) => {
-                    error.message.contains("failed to store memory")
-                }
-                _ => false,
-            })
+            && transcript_text(app).contains("failed to store memory")
     });
 
     let request = server.join().expect("join failed memory mutation fixture");
     assert!(request.starts_with("POST /v1/memory "));
     assert_eq!(app.state().integration_catalog, original);
-    assert!(app.state().messages.iter().all(|message| match message {
-        cli_interaction_model::UiMessage::Error(error) => {
-            !error.message.contains(SECRET_CONTENT)
-                && !error.message.contains("server-secret-must-not-leak")
-        }
-        _ => true,
-    }));
+    let transcript = transcript_text(&app);
+    assert!(!transcript.contains(SECRET_CONTENT));
+    assert!(!transcript.contains("server-secret-must-not-leak"));
 }
 
 fn plugin_item(id: &str) -> IntegrationItem {
@@ -721,6 +693,16 @@ fn memory_item(id: &str, detail: &str) -> IntegrationItem {
 
 fn submit(text: &str) -> V3Action {
     V3Action::Submit { text: text.to_string(), attachments: Vec::new() }
+}
+
+// Runner errors are displayed directly in the widget's committed transcript.
+fn transcript_text(app: &V3GatewayApp) -> String {
+    app.widget()
+        .transcript_lines(240, false)
+        .into_iter()
+        .map(|line| line.to_string())
+        .collect::<Vec<_>>()
+        .join("\n")
 }
 
 fn drain_until(

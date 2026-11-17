@@ -1,8 +1,6 @@
 //! Synthetic media receipts exercise the native gateway, never video performance.
 use workflow_video_edit::test_support::scenario::{Cloud, Fault, Model, Scenario};
-use super::{
-    entry_test_transport,
-};
+use super::{entry_test_transport, prepare::NativeVideoContext};
 use crate::gateway::api::handlers::session::stream::{
     GatewayChatStreamCollected, collect_gateway_chat_stream_with_observer,
 };
@@ -23,7 +21,7 @@ fn external(session: &str, scenario: Arc<Scenario>) -> entry_test_transport::Tra
         Arc::new(move |context| {
             (
                 Arc::new(Cloud {
-                    context: Arc::new(context.clone()),
+                    context: Arc::new(NativeVideoContext(context.clone())),
                     scenario: scenario.clone(),
                     writes: Default::default(),
                 }),

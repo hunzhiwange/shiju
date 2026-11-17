@@ -4,7 +4,7 @@
 
 批次：【批次1】 依赖：无
 
-状态：未开始
+状态：待回归
 
 来源：继续执行宿主单测；诊断编号77（宿主编译错误证据.json）。
 预计会话范围：修复一个源码文件中的宿主接口或测试夹具编译契约；不接管整包。
@@ -68,3 +68,11 @@ python3 scripts/cargo_slot.py cargo test -p vw-agent --lib external -- --nocaptu
 编译取证命令（不是测试通过证据）：`python3 scripts/cargo_slot.py cargo test -p vw-agent --lib --no-run`。同阶段顺序命令合并一次入口复用缓存，不默认逐任务全量测试。
 
 最终需由原任务303执行两阶段全量验收；这组修复仅覆盖已发现编译阻塞，尚不能保证宿主全部运行失败已发现。
+
+## 本次实施与验证
+
+- 夹具 Cloud 使用现有 `prepare::NativeVideoContext(context.clone())`，复用真实宿主权限、取消和工具调用边界，未修改生产接口或断言。
+- `external` 是夹具函数，非测试入口；源码确认本模块有8个 `#[tokio::test]`，改用模块过滤：`python3 scripts/cargo_slot.py sh -c 'echo CARGO_TARGET_DIR=$CARGO_TARGET_DIR CARGO_BUILD_BUILD_DIR=$CARGO_BUILD_BUILD_DIR; RUST_TEST_THREADS=1 cargo test -p vw-agent --lib workflow::video_edit::e2e_tests:: -- --nocapture'`。
+- 2026-11-18 实际槽位1，双缓存均为 `/Users/xiangmin/worker/code/shiju/target/rust-slot-1`；退出101，有效执行0项。日志 `/tmp/shiju-task335.log`。本文件E0277消失，剩余6条E0277在 `prepare_tests.rs`（5条，任务337）与 `entry_test_transport.rs`（1条，任务336）；不接管其他任务文件。
+- `git diff --check -- crates/vw-agent/src/workflow/video_edit/e2e_tests.rs` 通过。未运行全量、桌面编译或重复check。入口已退出并释放自有槽位，保留缓存。
+- 待任务336、337解除宿主编译阻塞后重跑上述8项真实测试；当前不作为行为通过证据，保留编号文件。

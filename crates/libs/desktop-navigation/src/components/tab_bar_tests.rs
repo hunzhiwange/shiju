@@ -220,3 +220,41 @@ async fn close_corner_triangle_draws_valid_bounds_and_handles_zero_width() {
     assert_eq!(empty.len(), 1);
     assert_eq!(drawn.len(), 1);
 }
+
+#[tokio::test(flavor = "multi_thread")]
+async fn view_draws_unicode_tabs_and_selects_home_in_both_themes() {
+    use iced::advanced::clipboard;
+    use iced::{Event, Point, Size, mouse};
+    use iced_runtime::user_interface::{Cache, UserInterface};
+
+    {
+        let mut fonts = iced::advanced::graphics::text::font_system().write().unwrap();
+        for font in desktop_assets::fonts::load_all() {
+            fonts.load_font(font);
+        }
+    }
+    let mut renderer = <iced::Renderer as Headless>::new(
+        Font::with_name("Noto Sans CJK SC"), Pixels(16.0), Some("tiny-skia"),
+    ).await.unwrap();
+    let tabs = vec![tab("home", "首页", Screen::Home), tab("project", "项目 Project", Screen::Project)];
+    let hovered = Some("project".to_string());
+    let app = State { open_tabs: &tabs, hovered_tab_id: &hovered, ..test_app() };
+    let size = Size::new(640, TAB_BAR_HEIGHT as u32);
+    for theme in [Theme::Dark, Theme::Light] {
+        let mut ui = UserInterface::build(
+            view(&app), Size::new(size.width as f32, size.height as f32), Cache::new(), &mut renderer,
+        );
+        let cursor = mouse::Cursor::Available(Point::new(20.0, 18.0));
+        let mut messages = Vec::new();
+        let _ = ui.update(
+            &[
+                Event::Mouse(mouse::Event::ButtonPressed(mouse::Button::Left)),
+                Event::Mouse(mouse::Event::ButtonReleased(mouse::Button::Left)),
+            ], cursor, &mut renderer, &mut clipboard::Null, &mut messages,
+        );
+        assert!(messages.iter().any(|message| matches!(message, Message::TabSelected(id) if id == "home")), "{messages:?}");
+        ui.draw(&mut renderer, &theme, &iced::advanced::renderer::Style { text_color: theme.palette().text }, cursor);
+        let pixels = renderer.screenshot(size, 1.0, Color::TRANSPARENT);
+        assert!(pixels.chunks_exact(4).any(|pixel| pixel[3] > 0));
+    }
+}

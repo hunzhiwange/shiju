@@ -139,9 +139,19 @@ async fn aggregation_t27_native_ps_detects_real_isolated_codex() {
             let _ = self.0.wait();
         }
     }
-    // Explicit test-only installation input: missing real CLI is a failure, never a skip.
+    // Prefer the explicit installation override; otherwise use the installed real CLI.
     let executable = std::env::var_os("T27_CODEX_BINARY")
-        .expect("set T27_CODEX_BINARY to the installed real Codex CLI");
+        .map(std::path::PathBuf::from)
+        .or_else(|| {
+            std::env::split_paths(&std::env::var_os("PATH")?).find_map(|dir| {
+                let candidate = dir.join("codex");
+                let metadata = fs::metadata(&candidate).ok()?;
+                (metadata.is_file() && metadata.permissions().mode() & 0o111 != 0)
+                    .then(|| fs::canonicalize(candidate).ok())
+                    .flatten()
+            })
+        })
+        .expect("install Codex CLI on PATH or set T27_CODEX_BINARY to the real CLI");
     let home = tempfile::tempdir().unwrap();
     let mut client = Client(
         Command::new(executable)

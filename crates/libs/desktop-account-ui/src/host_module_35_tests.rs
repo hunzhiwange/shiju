@@ -262,6 +262,9 @@ impl Fixture {
             crate::view::monthly_quota(&self.account, self.desktop_locale)
                 .unwrap_or_else(|| iced::widget::Space::new().into()),
         ]
+        // The production modal is mounted over the full application viewport.
+        .width(iced::Fill)
+        .height(iced::Fill)
         .into();
         match crate::account_details::details(&self.account, self.desktop_locale) {
             Some(modal) => desktop_ui_controls::system_settings_common::settings_modal_overlay(

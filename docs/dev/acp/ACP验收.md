@@ -848,3 +848,19 @@ Rust重型命令经scripts/cargo_slot.py的slot(number=6)串行执行，CARGO_TA
 - 恢复PATCH客户端60秒超时（HTTP000、退出28），随后GET确认全部agents与基线相等、siGit disabled。完整config差异仅agents.acp-sigit：基线无显式覆盖，恢复后保留等效disabled预设覆盖；不宣称存储字节一致，未覆盖其他配置。系统安装保留。
 - 自有网关PID52270/61882均停止并退出0；最终端口55582关闭、PID61882不存在。槽位6入口正常退出释放自有锁、缓存保留；未重启用户服务。
 - 原始配置、请求、响应、SSE、日志、入口收据/构建摘要与快照仅存本机0700目录 `/tmp/shiju-sigit-accept-20261118/`。本次无产品代码修复，复用已验证构建；执行系统安装、诊断、模型/预设/会话API、续传、文件内容与快照检查。未运行新Rust单测、Cargo检查、Clippy、桌面编译、全仓构建/测试、wasm或Makefile；历史单测不计本次证据。旧任务引用.plans/references/rust.md不存在，实际使用现有槽位入口完成安装。
+
+
+# Amp 验收（2026-11-18）
+
+结论：**已阻塞**。系统安装与预设保存重读成功，但指定模型会话返回 chat.error，未创建文件；不以 HTTP200 或能力声明认定通过。
+
+- 已核对来源接入证据、差异清单、当前注册/派生预设/模型驱动，以及任务29 siGit验收完成及恢复记录。RustCodeGraph索引可用；旧源码路径已迁移到crates/libs。历史Amp原生测试通过不替代本次生产链路验收。
+- 复用Nova最终shiju 0.6.0构建，SHA-256 `b507ddebf25b76f2341a9e77c181415cbbbe964643d86389f9046e318082fad6`；构建来源HEAD d6fef4272d346339ca0bbcf00c04af6d944601b5，既有source-hashes-final.json全部摘要与当前文件一致；Amp驱动、注册和catalog对构建HEAD无差异。不宣称clean HEAD构建。
+- 全部API携带X-Platform-ID=10001、X-Company-ID=100010005、X-Directory=/Users/xiangmin/worker/code/ruejs。保存installed、agents、acp和config基线。读取gateway帮助后经scripts/cargo_slot.py槽位6启动自有回环网关，两个构建目录均为target/rust-slot-6，使用现有开发配置。
+- 系统安装POST HTTP200、curl退出0、1.284865秒，amp-acp installed false→true。真实入口acp-runtime/amp-acp-0.12.0-model-source-v1/node_modules/.bin/amp-acp解析到amp-acp/dist/index.js，SHA-256 `fc3b527cad139098f2f120992e91414e4e0b45af6a71fc479d5e4b79c1122934`；受审桥接0.12.0、历史本地ThreadWorker引擎0.0.1778732631-gc5875c，非当前原生CLI声明。引擎dist/main.js摘要 `2cca8fdfbad3fdc9cec0d4de31946279c51a47adb9e6dd0242131f3cac7a5a1d`。
+- 普通诊断HTTP200、退出0、0.009185秒，结果startup_failed，独立记录。模型来源API声明session_model supported、cli_local unsupported，Darwin arm64。acp-amp-acp的builtin=true、runtime.kind=acp、backend=amp-acp，基线disabled；启用PATCH与GET回读成功。
+- 请求严格使用任务JSON、指定alibaba-token-plan-cn/deepseek-v4.1-flash-1017和full_access=true。chat/stream HTTP200、curl退出0、49.378849秒；chat.context_loaded、chat.step_start、chat.model_recovery（phase=stopped）、chat.session_updated、chat.error各1，chat.done=0、chat.tool=0。未超时、续传或重复提交。
+- 会话ses_1ea742ec9001YpbZ32JEevjrhR的summary确认acp-amp-acp/amp-acp、full_access=true；最终options.selected_model.source=session_model、provider_id=alibaba-token-plan-cn、完整模型ID匹配。轮询与最终connected均false，未取得connected=true证据。错误为“Amp selected model execution failed”。底层可定位到patches/acp-model-source/amp-acp/apply.py:83将引擎result.is_error映射为该错误；现有证据不足以判断供应商原始原因，不归因为认证失败或模型不支持。未绕过或修改产品行为；需独立排查引擎原始失败后重跑本任务。
+- 目标acpdemo/amp-acp初始及结束均不存在，无页面或README。排除.git/node_modules/target的普通文件SHA-256快照6290→6290，0差异；保存初始Git状态，未提交Rue.js工作区。未运行浏览器、页面构建或页面测试。
+- 恢复PATCH HTTP200，GET确认全部agents与基线相等、Amp disabled。完整config仅agents.acp-amp-acp增加等效disabled覆盖，不宣称存储字节一致。保留系统安装。自有网关PID77770退出0、回环端口51791关闭；槽位入口退出并释放自有锁、保留缓存，未重启用户服务。
+- 原始配置、请求、SSE、日志、构建/入口摘要及快照仅存0700本机目录 `/tmp/shiju-amp-accept-20261118/`。本次无产品代码修复，复用已验证构建，未运行新Rust单测、Cargo检查、Clippy、桌面编译、全仓测试/构建、wasm或Makefile；历史单测不计新证据。旧.plans/references/rust.md不存在，实际使用现有槽位入口。任务文件保留已阻塞；重跑条件为真实指定模型成功终态、connected绑定及完整文件落盘均取得新证据。

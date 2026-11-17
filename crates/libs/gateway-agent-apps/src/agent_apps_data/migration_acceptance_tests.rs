@@ -5,7 +5,7 @@ use serde_json::json;
 use std::{cell::Cell, fs, os::unix::fs::PermissionsExt};
 use vw_agent_apps::data_management::{
     export::{export_portable_package, verify_portable_package},
-    preview::Decision,
+    preview::Difference,
     safety_snapshot::SafetySnapshotScope,
     source::{SourceScope, read_selected_source},
 };
@@ -56,8 +56,10 @@ fn cc_data_45_macos_migration_round_trip_is_idempotent() {
     let expected = serde_json::to_value(&rows).unwrap();
     // A fresh preview exercises semantic re-import, rather than only request replay.
     let preview = f.store.preview_cc_providers(&f.scope, &source).unwrap();
-    let decisions: Vec<_> = preview.entries().iter().map(|entry| (entry.id, Decision::Skip)).collect();
-    assert_eq!(f.store.import_cc_providers(&f.scope, &source, &preview, &decisions, &root).unwrap().0, 0);
+    assert_eq!(preview.entries().len(), 1);
+    assert_eq!(preview.entries()[0].difference, Difference::Identical);
+    // Identical entries are skipped automatically; decisions are only for conflicts.
+    assert_eq!(f.store.import_cc_providers(&f.scope, &source, &preview, &[], &root).unwrap().0, 0);
     assert_eq!(serde_json::to_value(f.store.list(f.scope.project().tenant_scope(), AppId::Claude).unwrap()).unwrap(), expected);
     let receipt = export_portable_package(&root, &SafetySnapshotScope {
         project: f.scope.project().clone(), host_id: "host".into(), principal_id: "principal".into(),

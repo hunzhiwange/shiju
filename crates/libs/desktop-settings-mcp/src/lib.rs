@@ -356,3 +356,9 @@ mod host_module_39_infrastructure_tests;
 
 #[cfg(test)]
 mod host_module_39_locale_tests;
+
+/// Independent third-party application MCP view and scoped message adapter.
+pub mod third_party;
+
+#[cfg(test)]
+mod third_party_tests;

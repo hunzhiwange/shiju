@@ -97,8 +97,10 @@ fn skills_to_prompt_compact_mode_omits_instructions_and_tools() {
     assert!(prompt.contains("<name>test</name>"));
     // 位置应为相对于工作空间的相对路径
     assert!(prompt.contains("<location>skills/test/SKILL.md</location>"));
-    // 紧凑模式应显示按需加载提示
-    assert!(prompt.contains("loaded on demand"));
+    // 紧凑模式应要求在执行技能任务前，从 location 读取完整指令。
+    assert!(prompt.contains(
+        "Before taking task actions for a skill that applies or is invoked, read its complete instruction file from `location`."
+    ));
 
     // 验证省略的元素
     assert!(!prompt.contains("<instructions>"));

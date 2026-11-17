@@ -165,14 +165,14 @@ async fn cp12_macos_api_success() {
     lifecycle(&fixture).await;
 }
 
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn cp12_macos_api_postgres_success() {
+#[test]
+fn cp12_macos_api_postgres_success() {
     if isolated_test() { return; }
     // A missing database is an explicit failure, never a zero-work success.
     let database = agent_database::test_support::PostgresTestDatabase::from_environment()
         .expect("macOS API acceptance requires VIBEWINDOW_TEST_POSTGRES_URL");
     let fixture = Fixture::new(database.database().clone());
-    lifecycle(&fixture).await;
+    tokio::runtime::Runtime::new().unwrap().block_on(lifecycle(&fixture));
 }
 
 #[tokio::test]
@@ -245,8 +245,11 @@ async fn remote_update(f: &Fixture, cancel: bool) {
     let task = tokio::spawn(async move { axum::serve(listener, app).await.unwrap(); });
     let _archive_server = Server { endpoint, task };
     let project = ProjectScope::new(TenantScope::new("p", "c").unwrap(), "project".into()).unwrap();
-    SkillReposStore::new(f.database.clone()).unwrap().save(&project, 0,
-        SkillRepo { owner: "owner".into(), name: "repo".into(), branch: "main".into(), enabled: true }).unwrap();
+    let database = f.database.clone();
+    tokio::task::spawn_blocking(move || {
+        SkillReposStore::new(database).unwrap().save(&project, 0,
+            SkillRepo { owner: "owner".into(), name: "repo".into(), branch: "main".into(), enabled: true }).unwrap();
+    }).await.unwrap();
     let root = f.root.path().join("ssot");
     let server = f.serve_at(origin.clone()).await;
     let client = server.client();
@@ -339,12 +342,13 @@ async fn cp12_macos_api_remote_update_and_precommit_cancel() {
     }
 }
 
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn cp12_macos_api_postgres_remote_update_and_precommit_cancel() {
+#[test]
+fn cp12_macos_api_postgres_remote_update_and_precommit_cancel() {
     if isolated_test() { return; }
     for cancel in [false, true] {
         let database = agent_database::test_support::PostgresTestDatabase::from_environment()
             .expect("macOS API acceptance requires VIBEWINDOW_TEST_POSTGRES_URL");
-        remote_update(&Fixture::new(database.database().clone()), cancel).await;
+        let fixture = Fixture::new(database.database().clone());
+        tokio::runtime::Runtime::new().unwrap().block_on(remote_update(&fixture, cancel));
     }
 }

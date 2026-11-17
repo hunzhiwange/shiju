@@ -180,7 +180,6 @@ pub fn view_overlays<'a>(
 }
 pub mod launch {
     use super::*;
-use iced::widget::column;
     pub use domain::launch::{LaunchChoice, LaunchState};
     pub type LaunchMessage = domain::launch::LaunchMessage<Context>;
     pub fn overlay<'a>(
@@ -200,7 +199,6 @@ use iced::widget::column;
 }
 pub mod preferences {
     use super::*;
-use iced::widget::column;
     pub use domain::preferences::PreferencesState;
     pub fn visible_rows(state: &AppsCatalogState) -> Vec<&CatalogRow> {
         domain::preferences::visible_rows(&view_state(state))
@@ -224,7 +222,6 @@ use iced::widget::column;
 }
 pub mod lifecycle {
     use super::*;
-use iced::widget::column;
     pub use domain::lifecycle::*;
     pub fn overlay<'a>(
         state: &'a LifecycleState,

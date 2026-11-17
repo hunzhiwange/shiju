@@ -262,6 +262,8 @@ fn user_question_nav_overlay<'a>(
     .map(panel_message)
 }
 
-pub(crate) use desktop_chat_view::panel::rough_message_heights;
 #[cfg(test)]
 pub(crate) use desktop_chat_view::panel::user_question_indices;
+
+#[cfg(test)]
+pub(crate) use desktop_chat_view::panel::rough_message_heights;

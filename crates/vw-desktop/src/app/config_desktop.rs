@@ -90,7 +90,6 @@ impl App {
     }
 }
 
-pub(crate) use desktop_config::config_desktop::session_reasoning_efforts_from_config;
 
 /// 公开函数，执行 load_app_config_async 对应的应用流程。
 /// 返回值表达处理结果；失败通过错误值、日志或任务消息显式传递。
@@ -318,3 +317,6 @@ pub(in crate::app) mod config_desktop_tests;
 fn config_access() -> desktop_config::ConfigAccess {
     desktop_config::ConfigAccess::new(gateway_client_endpoint(), None)
 }
+
+#[cfg(test)]
+pub(crate) use desktop_config::config_desktop::session_reasoning_efforts_from_config;

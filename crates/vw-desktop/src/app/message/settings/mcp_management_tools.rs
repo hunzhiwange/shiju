@@ -1,7 +1,7 @@
 //! Shell navigation and feedback mapping for tool discovery.
 use super::{McpMessage, SettingsMessage};
 use crate::app::{App, Message, message::agent_apps_diagnostics as diagnostics};
-pub use desktop_settings_mcp::configuration_update::tools::{Context, ToolsMessage, ToolsState};
+pub use desktop_settings_mcp::configuration_update::tools::{ToolsMessage, ToolsState};
 use iced::Task;
 pub(crate) fn message(event: ToolsMessage) -> Message {
     Message::Settings(SettingsMessage::Mcp(McpMessage::Tools(event)))
@@ -63,3 +63,6 @@ pub(crate) fn apply_effects(
     }
     Task::batch(tasks)
 }
+
+#[cfg(test)]
+pub use desktop_settings_mcp::configuration_update::tools::Context;

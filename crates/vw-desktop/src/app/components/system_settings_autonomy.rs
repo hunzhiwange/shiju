@@ -23,9 +23,9 @@ fn map(message: Local) -> Message { match message {
         Local::AutonomyShellRedirectPolicyChanged(a) => Message::Settings(SettingsMessage::AutonomyShellRedirectPolicyChanged(a)),
         Local::AutonomyTabSelected(a) => Message::Settings(SettingsMessage::AutonomyTabSelected(a)),
         Local::AutonomyWorkspaceOnlyToggled(a) => Message::Settings(SettingsMessage::AutonomyWorkspaceOnlyToggled(a)),
-Local::None => Message::None, Local::CopyCode(value) => Message::CopyCode(value), Local::OpenUrlExternal(value) => Message::OpenUrlExternal(value), Local::AppendText(value) => Message::AppendText(value),
+Local::None => Message::None, Local::CopyCode(value) => Message::CopyCode(value), Local::OpenUrlExternal(value) => Message::View(crate::app::message::ViewMessage::OpenUrlExternal(value)), Local::AppendText(value) => Message::Chat(crate::app::message::ChatMessage::AppendText(value)),
 }}
-fn inputs(app: &App) -> View<'_> { View {autonomy_settings: &app.autonomy_settings, available_tools: &app.agents_settings.available_tools, desktop_locale: app.general_settings.desktop_locale, app_theme: &app.appearance.app_theme, last_copied_code_hash: app.clipboard_state.last_copied_code_hash, help_text: |i18n, theme, title, label, body| iced::widget::row![Element::from(crate::app::components::system_settings_common::settings_hover_help_label(i18n, theme, title, label, body)).map(|m| match m { Message::CopyCode(v) => Local::CopyCode(v), Message::OpenUrlExternal(value) => Local::OpenUrlExternal(value), Message::AppendText(value) => Local::AppendText(value), _ => Local::None })], }}
+fn inputs(app: &App) -> View<'_> { View {autonomy_settings: &app.autonomy_settings, available_tools: &app.agents_settings.available_tools, desktop_locale: app.general_settings.desktop_locale, app_theme: &app.appearance.app_theme, last_copied_code_hash: app.clipboard_state.last_copied_code_hash, help_text: |i18n, theme, title, label, body| iced::widget::row![Element::from(crate::app::components::system_settings_common::settings_hover_help_label(i18n, theme, title, label, body)).map(|m| match m { Message::CopyCode(v) => Local::CopyCode(v), Message::View(crate::app::message::ViewMessage::OpenUrlExternal(value)) => Local::OpenUrlExternal(value), Message::Chat(crate::app::message::ChatMessage::AppendText(value)) => Local::AppendText(value), _ => Local::None })], }}
 pub fn view(app: &App) -> Element<'_, Message> { desktop_settings_agents::system_settings_autonomy::view(&inputs(app)).map(map) }
 pub(crate) use desktop_settings_agents::system_settings_autonomy::AUTONOMY_TABS;
 pub fn view_overlays<'a>(app: &'a App, dialog: Element<'a, Message>) -> Element<'a, Message> { desktop_settings_agents::system_settings_autonomy::view_overlays(&inputs(app), dialog, map) }
@@ -38,3 +38,7 @@ mod system_settings_autonomy_tests;
 mod ui_refresh_22_tests;
 
 #[cfg(test)] use crate::app::state::{AutonomyListKind, AutonomySettingsTab};
+
+#[cfg(test)]
+#[path = "settings_help_routing_tests.rs"]
+mod routing_tests;

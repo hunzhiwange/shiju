@@ -1,5 +1,4 @@
 use super::I18n;
-pub use desktop_i18n::apps::*;
 
 /// Refresh only built-in hub titles; user-authored tab names remain unchanged.
 #[cfg(not(target_arch = "wasm32"))]
@@ -19,3 +18,6 @@ pub(crate) fn refresh_hub_titles(app: &mut crate::app::App) {
 
 #[cfg(target_arch = "wasm32")]
 pub(crate) fn refresh_hub_titles(_app: &mut crate::app::App) {}
+
+#[cfg(test)]
+pub use desktop_i18n::apps::*;

@@ -1,6 +1,6 @@
 //! Cross-domain startup assembly; domain states own their local transformations.
 use crate::app::state::RuntimePlatform;
-use crate::app::{App, Message};
+use crate::app::App;
 
 impl App {
     pub(in crate::app) fn apply_external_apps_state(
@@ -65,3 +65,6 @@ impl App {
         self.task_board.apply_preferences(&cfg);
     }
 }
+
+#[cfg(test)]
+use crate::app::Message;

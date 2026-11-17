@@ -85,7 +85,7 @@ pub fn update_bulk(
             (*state.task_board_bulk_reasoning_effort) =
                 crate::update::model::validated_reasoning_effort(
                     (*state.task_board_bulk_acp_agent).as_deref(),
-                    (*state.task_board_bulk_reasoning_effort),
+                    *state.task_board_bulk_reasoning_effort,
                     model_options,
                 );
             (*state.task_board_last_model) = model.clone();

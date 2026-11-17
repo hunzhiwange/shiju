@@ -1,6 +1,6 @@
 use iced::widget::{button, container, text_input};
 use iced::widget::scrollable::Direction;
-use iced::{Background, Border, Color, Font, Theme};
+use iced::{Background, Border, Color, Theme};
 use super::model::TrajectoryRecordKind;
 use super::json_tree::JsonTreeTokenKind;
 use desktop_chat_tools::card_style::{chat_scroll_direction, is_dark_theme};

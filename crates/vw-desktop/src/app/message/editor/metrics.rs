@@ -5,7 +5,7 @@ use iced::Task;
 use super::{EditorSettingsPatch, persistence};
 use crate::app::{App, Message};
 
-pub(crate) use desktop_editor::metrics::{Metrics, MetricsPreview};
+pub(crate) use desktop_editor::metrics::Metrics;
 use desktop_editor::metrics::apply;
 fn applied(app: &App) -> Metrics {
     Metrics {
@@ -54,3 +54,6 @@ fn apply_to_open_editors(app: &mut App, font_size: Option<f32>, line_height: Opt
         line_height,
     );
 }
+
+#[cfg(test)]
+pub(crate) use desktop_editor::metrics::MetricsPreview;

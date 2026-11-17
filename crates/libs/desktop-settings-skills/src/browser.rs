@@ -4,7 +4,7 @@ use crate::catalog::{catalog_group_section, catalog_matches_query, icon_svg};
 use crate::types::SkillsDirectoryScope;
 use crate::{BrowserContext, Event};
 use desktop_assets::assets::Icon;
-use desktop_i18n::{I18n, settings_extensions::text as tr};
+use desktop_i18n::settings_extensions::text as tr;
 use desktop_ui_controls::system_settings_common::{
     SETTINGS_CONTROL_PADDING, SETTINGS_CONTROL_TEXT_SIZE, settings_field_label,
     settings_group_card, settings_muted_text_style, settings_select, settings_text_input_style,

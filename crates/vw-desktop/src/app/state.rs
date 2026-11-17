@@ -18,19 +18,14 @@
 
 use iced::widget::Id;
 use iced::Point;
-use serde_json::Value;
-use std::collections::{HashMap, HashSet};
-use std::path::PathBuf;
+use std::collections::HashMap;
 
 #[cfg(not(target_arch = "wasm32"))]
 use crate::app::lsp::LspEvent;
 #[cfg(not(target_arch = "wasm32"))]
 use crate::app::lsp::LspServiceManager;
-use crate::app::message;
-use crate::app::models::{self, ChatMessage, ChatSessionStep};
 use crate::app::terminal::TerminalState;
 use crate::app::FocusArea;
-use config_tools::HttpRequestConfig;
 
 mod account;
 mod agent;
@@ -43,10 +38,7 @@ mod settings;
 mod workspace;
 
 
-pub(crate) use account::{
-    AccountOperation, AccountPasswordEditorState, AccountProfileEditorState, AccountState,
-    MonthlyQuotaState,
-};
+pub(crate) use account::AccountState;
 pub(crate) use agent::*;
 #[cfg(not(target_arch = "wasm32"))]
 pub(crate) use app_state::NativeStartupState;
@@ -55,7 +47,7 @@ pub use app_state::{
     TaskBoardViewMode, TrajectoryDetailsTab, WebBookmark,
 };
 pub(crate) use app_state::{
-    Notification, QuickMessageHandoffState, Toast, ToastKind, WorkBrowserState,
+    QuickMessageHandoffState, ToastKind, WorkBrowserState,
     default_recent_project_session_auto_refresh,
     default_recent_project_session_refresh_interval_seconds,
 };
@@ -63,10 +55,7 @@ pub(crate) use knowledge::*;
 pub(crate) use pet::*;
 pub use presentation::AppTab;
 pub(crate) use presentation::{
-    LayoutMode, LayoutPreference, MobileLayoutState,
-    ConventionalCommitType, ExternalOpenApp, ModelPopoverHover, RuntimePlatform, TopBarGatewayTab,
-    WORK_SIDEBAR_INITIAL_VISIBLE_ITEMS, WORK_SIDEBAR_LOAD_MORE_STEP, WORK_SIDEBAR_RAIL_WIDTH,
-    WORK_SIDEBAR_SPACE_TASKS_INITIAL_VISIBLE, WORK_SIDEBAR_SPACE_TASKS_LOAD_MORE_STEP,
+    LayoutMode, LayoutPreference, MobileLayoutState, ExternalOpenApp, ModelPopoverHover, RuntimePlatform, TopBarGatewayTab, WORK_SIDEBAR_RAIL_WIDTH,
     WorkResourceMode, WorkSidebarFilterScope, WorkSidebarFilterStatus, WorkSidebarFilterTime,
     WorkSidebarTab, WorkspaceMode,
 };
@@ -87,3 +76,42 @@ pub(crate) use agent_apps::AppsCatalogState;
 pub(crate) mod app_providers;
 
 pub(crate) mod project_profiles;
+
+#[cfg(test)]
+use config_tools::HttpRequestConfig;
+#[cfg(test)]
+use crate::app::message;
+#[cfg(test)]
+use crate::app::models;
+#[cfg(test)]
+use crate::app::models::ChatMessage;
+#[cfg(test)]
+use crate::app::models::ChatSessionStep;
+#[cfg(test)]
+use serde_json::Value;
+#[cfg(test)]
+use std::collections::HashSet;
+#[cfg(test)]
+use std::path::PathBuf;
+#[cfg(test)]
+pub(crate) use account::AccountOperation;
+#[cfg(test)]
+pub(crate) use account::AccountPasswordEditorState;
+#[cfg(test)]
+pub(crate) use account::AccountProfileEditorState;
+#[cfg(test)]
+pub(crate) use account::MonthlyQuotaState;
+#[cfg(test)]
+pub(crate) use app_state::Notification;
+#[cfg(test)]
+pub(crate) use app_state::Toast;
+#[cfg(test)]
+pub(crate) use presentation::ConventionalCommitType;
+#[cfg(test)]
+pub(crate) use presentation::WORK_SIDEBAR_INITIAL_VISIBLE_ITEMS;
+#[cfg(test)]
+pub(crate) use presentation::WORK_SIDEBAR_LOAD_MORE_STEP;
+#[cfg(test)]
+pub(crate) use presentation::WORK_SIDEBAR_SPACE_TASKS_INITIAL_VISIBLE;
+#[cfg(test)]
+pub(crate) use presentation::WORK_SIDEBAR_SPACE_TASKS_LOAD_MORE_STEP;

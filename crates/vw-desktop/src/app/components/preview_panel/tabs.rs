@@ -2,6 +2,7 @@
 use crate::app::{Message, message::PreviewMessage};
 use desktop_editor::components::preview_panel::tabs;
 
+#[cfg(test)]
 pub fn build_preview_tab_menu<'a>(i18n: desktop_i18n::I18n, path: &str) -> iced::Element<'a, Message> {
     tabs::build_preview_tab_menu(i18n, path).map(map_message)
 }

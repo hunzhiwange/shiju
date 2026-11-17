@@ -5,7 +5,7 @@ use std::fmt;
 
 use anyhow::Result;
 use iced::widget::scrollable::{Direction, Scrollbar};
-use iced::widget::{Space, button, column, container, row, scrollable, text};
+use iced::widget::{Space, button, container, row, scrollable, text};
 use iced::{Alignment, Element, Length, Task, Theme};
 
 use desktop_ui_controls::system_settings_common::{

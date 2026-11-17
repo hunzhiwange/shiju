@@ -16,7 +16,6 @@ pub use path::{
     normalize_file_reference_to_path, normalize_file_url_to_path, relative_to_project_root,
     resolve_path,
 };
-pub(crate) use text::markdown_code_fence;
 pub use text::{
     normalize_display_text, single_line_preview, strip_internal_tool_trace, truncate_chars,
     truncate_lines_middle,
@@ -32,8 +31,12 @@ pub use time::{
     format_chat_time_label, project_last_modified_ms, relative_modified_label,
     relative_time_bucket, relative_time_label, relative_time_label_for_bucket,
 };
-pub(crate) use ui::text_context_menu;
 pub use ui::{
     bold_font, capped_scroll_height, chat_context_menu, chat_context_target_key,
     copy_tooltip_content,
 };
+
+#[cfg(test)]
+pub(crate) use text::markdown_code_fence;
+#[cfg(test)]
+pub(crate) use ui::text_context_menu;

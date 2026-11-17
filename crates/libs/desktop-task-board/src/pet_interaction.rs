@@ -155,7 +155,7 @@ impl TaskPetState<'_> {
     pub fn request_task_pet_resize(&mut self) {
         // Reuse the existing animation subscription for one geometry update.
         if (*self.task_pet_expand_target).is_none() {
-            *self.task_pet_expand_target = Some((*self.task_pet_expand_progress));
+            *self.task_pet_expand_target = Some(*self.task_pet_expand_progress);
         }
     }
 
@@ -165,7 +165,7 @@ impl TaskPetState<'_> {
 
     pub fn toggle_task_pet_collapsed(&mut self) {
         *self.task_pet_collapsed = !(*self.task_pet_collapsed);
-        *self.task_pet_expand_target = Some(if (*self.task_pet_collapsed) { 0.0 } else { 1.0 });
+        *self.task_pet_expand_target = Some(if *self.task_pet_collapsed { 0.0 } else { 1.0 });
     }
 
     pub fn advance_task_pet_expand_animation(
@@ -194,7 +194,7 @@ impl TaskPetState<'_> {
     pub fn start_task_pet_drag(&mut self) {
         *self.task_pet_dragging = true;
         *self.task_pet_drag_anchor = None;
-        *self.task_pet_drag_start = (*self.task_pet_position);
+        *self.task_pet_drag_start = *self.task_pet_position;
         *self.task_pet_walk_until_ms = self.now_ms + PET_WALK_ANIMATION_MS;
     }
 
@@ -393,7 +393,7 @@ pub fn task_pet_is_walking(task_pet_dragging: &bool, task_pet_walk_until_ms: &u6
 
 pub fn task_pet_window_size(task_pet_avatar_kind: &TaskPetAvatarKind, task_pet_expand_progress: &f32, task_pet_items: &Vec<TaskPetItem>, task_pet_reply_request_id: &Option<u64>, task_pet_scale: &f32, task_pet_size_draft: &Option<f32>) -> iced::Size {
     let progress = smooth_progress((*task_pet_expand_progress).clamp(0.0, 1.0));
-    let mut size = task_pet_window_size_for_progress((*task_pet_expand_progress));
+    let mut size = task_pet_window_size_for_progress(*task_pet_expand_progress);
     let count = (*task_pet_items).len();
     if count == 0 {
         size.height = PET_COLLAPSED_HEIGHT;
@@ -429,7 +429,7 @@ pub fn task_pet_window_size(task_pet_avatar_kind: &TaskPetAvatarKind, task_pet_e
 }
 
 pub fn task_pet_preview_scale(task_pet_scale: &f32, task_pet_size_draft: &Option<f32>) -> f32 {
-    (*task_pet_size_draft).unwrap_or((*task_pet_scale))
+    (*task_pet_size_draft).unwrap_or(*task_pet_scale)
 }
 
 pub fn task_pet_active_count(task_pet_items: &Vec<TaskPetItem>) -> usize {

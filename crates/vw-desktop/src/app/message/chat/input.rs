@@ -30,7 +30,7 @@ use super::ClipboardPastePayload;
 use crate::app::components::chat_panel::message_measure::ChatMessageMeasurement;
 use crate::app::state::WorkspaceMode;
 use crate::app::{App, Message, message};
-pub(crate) use file_search::{FileSearchResult, build_ranked_file_search_entries};
+pub(crate) use file_search::FileSearchResult;
 use iced::Task;
 use std::time::Duration;
 
@@ -677,3 +677,6 @@ pub(crate) fn apply_chat_message_measurements(
 
     changed
 }
+
+#[cfg(test)]
+pub(crate) use file_search::build_ranked_file_search_entries;

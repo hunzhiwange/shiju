@@ -1,5 +1,5 @@
 //! Connection drafts use the public DTO; only the gateway validates and persists definitions.
-use super::{McpMessage, SettingsMessage, mcp_management_list as catalog};
+use super::{McpMessage, SettingsMessage};
 use crate::app::{App, Message};
 use iced::Task;
 
@@ -14,3 +14,6 @@ pub(crate) fn update(app: &mut App, event: FormMessage) -> Task<Message> {
     let effects = std::mem::take(&mut input.effects);
     super::mcp_management_tools::apply_effects(app, task, effects)
 }
+
+#[cfg(test)]
+use super::mcp_management_list as catalog;

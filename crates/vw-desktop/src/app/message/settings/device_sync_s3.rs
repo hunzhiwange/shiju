@@ -3,7 +3,6 @@ use crate::app::{App, Message, message::SettingsMessage};
 use iced::Task;
 pub(crate) use desktop_settings_memory::device_sync_s3::{Event, State};
 use desktop_settings_memory::device_sync_s3 as domain;
-pub(crate) use desktop_settings_memory::system_settings_device_sync::s3_modal::S3Preset;
 pub(crate) fn message(event: Event) -> Message { Message::Settings(SettingsMessage::DeviceSyncS3(event)) }
 pub(crate) fn visible(app: &App) -> bool { domain::visible(&app.apps_catalog.device_sync_s3, super::data_management::export_ui::identity(app).as_ref()) }
 pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
@@ -15,3 +14,6 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
         domain::Output::Success(value) => Task::done(Message::Settings(SettingsMessage::DeviceSyncS3(Event::Feedback(true, value)))),
     })
 }
+
+#[cfg(test)]
+pub(crate) use desktop_settings_memory::system_settings_device_sync::s3_modal::S3Preset;

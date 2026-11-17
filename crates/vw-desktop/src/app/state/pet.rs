@@ -4,7 +4,6 @@ use super::*;
 use crate::app::models::ChatRole;
 
 pub use desktop_task_board::pet_state::TaskPetAvatarKind;
-pub(crate) use desktop_task_board::pet_state::{TaskPetItem, TaskPetStatus};
 
 use desktop_task_board::pet_interaction::{self, *};
 
@@ -125,6 +124,7 @@ impl App {
         self.task_pet_state().move_task_pet_window_to(x, y)
     }
 
+    #[cfg(test)]
     fn move_task_pet_to(&mut self, position: iced::Point) {
         self.task_pet_state().move_task_pet_to(position)
     }
@@ -208,3 +208,8 @@ impl App {
 #[cfg(test)]
 #[path = "pet_tests.rs"]
 mod pet_tests;
+
+#[cfg(test)]
+pub(crate) use desktop_task_board::pet_state::TaskPetItem;
+#[cfg(test)]
+pub(crate) use desktop_task_board::pet_state::TaskPetStatus;

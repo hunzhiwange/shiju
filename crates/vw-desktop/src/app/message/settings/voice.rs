@@ -1,5 +1,5 @@
 //! Desktop routing for the voice settings domain.
-pub use desktop_settings_voice::{Event, Loaded, LocalResources, State, local_resources};
+pub use desktop_settings_voice::Event;
 use crate::app::{App, Message};
 use iced::Task;
 fn message(event: Event) -> Message {
@@ -35,3 +35,12 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
 #[cfg(all(test, target_os = "macos"))]
 #[path = "voice_tests.rs"]
 mod tests;
+
+#[cfg(test)]
+pub use desktop_settings_voice::Loaded;
+#[cfg(test)]
+pub use desktop_settings_voice::LocalResources;
+#[cfg(test)]
+pub use desktop_settings_voice::State;
+#[cfg(test)]
+pub use desktop_settings_voice::local_resources;

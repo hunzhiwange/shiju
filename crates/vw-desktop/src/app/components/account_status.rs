@@ -16,6 +16,7 @@ fn map(message: desktop_account_ui::view::Message) -> Message {
         }
     }
 }
+#[cfg(test)]
 pub(crate) fn trigger_label(app: &App) -> String {
     desktop_account_ui::view::trigger_label(&app.account, app.general_settings.desktop_locale)
 }

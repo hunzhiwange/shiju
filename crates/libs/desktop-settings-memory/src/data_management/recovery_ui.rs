@@ -31,7 +31,6 @@ pub enum Event {
 pub enum Output { Event(Event), Error(String), Success(String) }
 fn message(event: Event) -> Output { Output::Event(event) }
 fn notify_error(value: impl Into<String>) -> Task<Output> { Task::done(Output::Error(value.into())) }
-fn success(value: impl Into<String>) -> Task<Output> { Task::done(Output::Success(value.into())) }
 pub fn visible(state: &State, current: Option<&Identity>) -> bool {
     state.open && current.is_some() && current == state.identity.as_ref()
 }

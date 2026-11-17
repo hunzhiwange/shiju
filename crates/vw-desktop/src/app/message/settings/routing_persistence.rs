@@ -5,7 +5,6 @@ use crate::app::{App, Message};
 use iced::Task;
 use serde_json::Value;
 use desktop_settings_providers::routing_persistence as domain;
-pub(crate) use domain::RoutingPersistence;
 
 fn message(event: domain::Message) -> Message {
     Message::Settings(SettingsMessage::ModelRoutes(match event {
@@ -54,3 +53,6 @@ pub(crate) fn flush(app: &mut App) -> (Task<Message>, Option<tokio::sync::watch:
 #[cfg(test)]
 #[path = "routing_persistence_tests.rs"]
 mod tests;
+
+#[cfg(test)]
+pub(crate) use domain::RoutingPersistence;

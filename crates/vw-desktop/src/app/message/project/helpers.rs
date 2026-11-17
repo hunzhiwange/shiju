@@ -8,7 +8,6 @@ use crate::app::{App, Message};
 use iced::Task;
 use vw_api_project::ProjectDto;
 
-pub(crate) use desktop_workspace::project_message::attachments::is_supported_image_attachment;
 pub(crate) fn collect_local_attachments(
     app: &App,
     picked: Vec<String>,
@@ -103,19 +102,7 @@ pub(crate) async fn refresh_file_index_with_fallback(project_path: &str) -> File
     snapshot
 }
 
-#[allow(dead_code)]
-/// unique_name_in_dir 处理当前模块对应的消息或状态转换。
-///
-/// 参数由调用方提供应用状态、用户输入或后台任务结果；返回值会交给上层消息循环继续处理。
-/// 变更范围限制在当前消息处理路径内，不引入额外的流程分支。
-pub(crate) use desktop_workspace::project_message::paths::unique_name_in_dir;
 
-#[allow(dead_code)]
-/// copy_recursively 处理当前模块对应的消息或状态转换。
-///
-/// 参数由调用方提供应用状态、用户输入或后台任务结果；返回值会交给上层消息循环继续处理。
-/// 变更范围限制在当前消息处理路径内，不引入额外的流程分支。
-pub(crate) use desktop_workspace::project_message::paths::copy_recursively;
 
 /// find_session_project_path 处理当前模块对应的消息或状态转换。
 ///
@@ -141,12 +128,12 @@ fn gateway_client() -> Result<vw_gateway_client::GatewayClient, String> {
     crate::app::gateway_client()
 }
 
-pub(crate) use desktop_workspace::project_message::gateway::GatewayFileContext;
 
 /// resolve_gateway_file_context 处理当前模块对应的消息或状态转换。
 ///
 /// 参数由调用方提供应用状态、用户输入或后台任务结果；返回值会交给上层消息循环继续处理。
 /// 变更范围限制在当前消息处理路径内，不引入额外的流程分支。
+#[cfg(test)]
 pub(crate) async fn resolve_gateway_file_context(
     project_path: &str,
 ) -> Result<GatewayFileContext, String> {
@@ -636,3 +623,12 @@ pub(crate) fn prepare_session_ui_chunks_task(
 #[cfg(test)]
 #[path = "helpers_tests.rs"]
 mod helpers_tests;
+
+#[cfg(test)]
+pub(crate) use desktop_workspace::project_message::attachments::is_supported_image_attachment;
+#[cfg(test)]
+pub(crate) use desktop_workspace::project_message::gateway::GatewayFileContext;
+#[cfg(test)]
+pub(crate) use desktop_workspace::project_message::paths::copy_recursively;
+#[cfg(test)]
+pub(crate) use desktop_workspace::project_message::paths::unique_name_in_dir;

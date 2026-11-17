@@ -102,7 +102,6 @@ pub(super) const SKILLS_TABS: &[SettingsTabDescriptor<SkillsSettingsTab>] = &[
     ),
 ];
 
-pub(super) use desktop_settings_skills::page::skills_tab_labels;
 fn system_config_view(app: &App) -> Element<'_, Message> {
     desktop_settings_skills::page::system_config_view(config_context(app)).map(page_message)
 }
@@ -195,3 +194,6 @@ fn heading_help<'a>(
     );
     desktop_ui_controls::system_settings_common::help::settings_hover_help_label(label, content)
 }
+
+#[cfg(test)]
+pub(super) use desktop_settings_skills::page::skills_tab_labels;

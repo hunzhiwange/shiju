@@ -1,6 +1,5 @@
 //! 将账户恢复及登录后的原生技能准备接入桌面异步消息。
 
-use super::AccountMessage;
 use crate::app::skill_hub::{
     NativeShijuSkillPrepared, ShijuInstallationsReport, ShijuTargetInstallation, SkillInstallScope,
     SkillInstallSelection, SkillInstallTarget, resolve_skill_destinations,
@@ -69,3 +68,6 @@ pub(super) fn finished(
         ),
     }
 }
+
+#[cfg(test)]
+use super::AccountMessage;

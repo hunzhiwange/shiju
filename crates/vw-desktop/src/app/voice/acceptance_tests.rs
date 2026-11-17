@@ -1,5 +1,5 @@
 //! Cross-feature cancellation uses real HTTP sockets and the production message router.
-use super::{playback, preview::Preview};
+use desktop_voice::acceptance_fixture;
 use crate::app::{
     App,
     message::{voice, voice_draft::Phase},
@@ -10,7 +10,6 @@ use std::{
     sync::mpsc,
     time::{Duration, Instant},
 };
-use config_voice::VoiceName;
 use gateway_endpoint::GatewayEndpoint;
 
 #[test]
@@ -69,9 +68,8 @@ fn voice_task_19_voice_acceptance_end_closes_all_streams() {
         }
     });
     let mut app = App::new().0;
-    let (output, _) = playback::fixture(24000, 1);
     app.voice.settings.preview =
-        Some(Preview::start_output(endpoint, VoiceName::Marin, || Ok(output)).unwrap());
+        Some(acceptance_fixture::pending_preview(endpoint).unwrap());
     waiting.recv_timeout(Duration::from_secs(5)).unwrap();
     let began = Instant::now();
     // The same shutdown entry point is called when the production window closes.
@@ -95,14 +93,7 @@ fn voice_task_19_full_app_cancel_releases_local_preview_and_preserves_draft() {
     let (started, ready) = mpsc::channel();
     let (stopped, done) = mpsc::channel();
     app.voice.settings.preview = Some(
-        Preview::start_local_worker(None, move |_, cancel| {
-            started.send(()).unwrap();
-            while !cancel.is_cancelled() {
-                std::thread::sleep(Duration::from_millis(1));
-            }
-            stopped.send(()).unwrap();
-            Ok(())
-        })
+        acceptance_fixture::cancellable_local_preview(started, stopped)
         .unwrap(),
     );
     ready.recv_timeout(Duration::from_secs(2)).unwrap();

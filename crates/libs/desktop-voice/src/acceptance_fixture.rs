@@ -113,3 +113,25 @@ async fn exchange() -> Result<Vec<(TranscriptRole, String)>, Box<dyn std::error:
 fn id(value: &str) -> VoiceId {
     value.to_owned().try_into().unwrap()
 }
+
+/// Start a real pending HTTP preview without opening an audio device.
+pub fn pending_preview(endpoint: GatewayEndpoint) -> Result<super::preview::Preview, String> {
+    super::preview::Preview::start_output::<()>(endpoint, config_voice::VoiceName::Marin, || {
+        panic!("pending preview must be cancelled before audio output opens")
+    })
+}
+
+/// Observe cancellation through the production preview type, without system speech.
+pub fn cancellable_local_preview(
+    started: std::sync::mpsc::Sender<()>,
+    stopped: std::sync::mpsc::Sender<()>,
+) -> Result<super::preview::Preview, String> {
+    super::preview::Preview::start_local_worker(None, move |_, cancel| {
+        started.send(()).map_err(|e| e.to_string())?;
+        while !cancel.is_cancelled() {
+            std::thread::sleep(Duration::from_millis(1));
+        }
+        stopped.send(()).map_err(|e| e.to_string())?;
+        Ok(())
+    })
+}

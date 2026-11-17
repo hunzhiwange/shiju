@@ -1,4 +1,4 @@
-use super::*;
+#[cfg(test)]
 pub(super) fn build_node_next_step_existing_item<'a>(
     i18n: desktop_i18n::I18n,
     edge: &'a WorkflowEdge,
@@ -7,6 +7,7 @@ pub(super) fn build_node_next_step_existing_item<'a>(
     crate::view::next_step::build_node_next_step_existing_item(i18n, edge, node)
         .map(Message::WorkflowTool)
 }
+#[cfg(test)]
 pub(super) fn build_node_next_step_section<'a>(
     i18n: desktop_i18n::I18n,
     state: &'a WorkflowState,
@@ -15,6 +16,7 @@ pub(super) fn build_node_next_step_section<'a>(
     crate::view::next_step::build_node_next_step_section(i18n, state, editor)
         .map(Message::WorkflowTool)
 }
+#[cfg(test)]
 pub(super) fn build_start_next_step_button(
     source_node_id: String,
     source_handle_id: Option<&str>,
@@ -27,3 +29,6 @@ pub(super) fn build_start_next_step_button(
     )
     .map(Message::WorkflowTool)
 }
+
+#[cfg(test)]
+use super::*;

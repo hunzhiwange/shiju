@@ -3,7 +3,7 @@ use crate::app::{App, Message};
 use crate::app::message::SettingsMessage;
 use desktop_settings_security::{SecurityView, security_message::Message as Local};
 use iced::Element;
-pub(crate) use desktop_settings_security::system_settings_security::{SECURITY_TABS, security_tab_label};
+pub(crate) use desktop_settings_security::system_settings_security::SECURITY_TABS;
 fn map(message: Local) -> Message {
     match message {
         Local::SecurityBashSecurityEnabledToggled(a) => Message::Settings(SettingsMessage::SecurityBashSecurityEnabledToggled(a)),
@@ -47,17 +47,24 @@ fn map(message: Local) -> Message {
         Local::SecuritySave => Message::Settings(SettingsMessage::SecuritySave),
         Local::SecurityHelpOpen => Message::Settings(SettingsMessage::SecurityHelpOpen),
         Local::SecurityHelpClose => Message::Settings(SettingsMessage::SecurityHelpClose),
-        Local::CopyCode(value) => Message::CopyCode(value), Local::OpenUrlExternal(value) => Message::OpenUrlExternal(value), Local::AppendText(value) => Message::AppendText(value),
+        Local::CopyCode(value) => Message::CopyCode(value), Local::OpenUrlExternal(value) => Message::View(crate::app::message::ViewMessage::OpenUrlExternal(value)), Local::AppendText(value) => Message::Chat(crate::app::message::ChatMessage::AppendText(value)),
         Local::None => Message::None,
     }
 }
 fn inputs(app: &App) -> SecurityView<'_> {
     SecurityView { security_settings: &app.security_settings, desktop_locale: app.general_settings.desktop_locale,
         app_theme: &app.appearance.app_theme, last_copied_code_hash: app.clipboard_state.last_copied_code_hash,
-        help_text: |title, body, color, i18n| crate::app::components::chat_panel::message_view::selectable_titled_text(title, body, color, i18n).map(|message| match message { Message::CopyCode(value) => Local::CopyCode(value), Message::OpenUrlExternal(value) => Local::OpenUrlExternal(value), Message::AppendText(value) => Local::AppendText(value), _ => Local::None }),
+        help_text: |title, body, color, i18n| crate::app::components::chat_panel::message_view::selectable_titled_text(title, body, color, i18n).map(|message| match message { Message::CopyCode(value) => Local::CopyCode(value), Message::View(crate::app::message::ViewMessage::OpenUrlExternal(value)) => Local::OpenUrlExternal(value), Message::Chat(crate::app::message::ChatMessage::AppendText(value)) => Local::AppendText(value), _ => Local::None }),
     }
 }
 pub fn view(app: &App) -> Element<'_, Message> { desktop_settings_security::system_settings_security::view(&inputs(app)).map(map) }
 pub fn view_overlays<'a>(app: &'a App, dialog: Element<'a, Message>) -> Element<'a, Message> {
     desktop_settings_security::system_settings_security::host_overlays(&inputs(app), dialog, map)
 }
+
+#[cfg(test)]
+pub(crate) use desktop_settings_security::system_settings_security::security_tab_label;
+
+#[cfg(test)]
+#[path = "settings_help_routing_tests.rs"]
+mod routing_tests;

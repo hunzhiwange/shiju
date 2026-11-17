@@ -1,8 +1,7 @@
 //! HTTP 请求节点的安全可视化编辑面板。
 
-use super::*;
-
 #[allow(clippy::too_many_arguments)]
+#[cfg(test)]
 pub(super) fn build_http_request_section<'a>(
     i18n: desktop_i18n::I18n,
     validation: &'a super::state::WorkflowNodeEditorValidation,
@@ -45,3 +44,6 @@ pub(super) fn build_http_request_section<'a>(
     )
     .map(Message::WorkflowTool)
 }
+
+#[cfg(test)]
+use super::*;

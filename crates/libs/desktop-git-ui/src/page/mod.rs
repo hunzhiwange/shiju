@@ -69,21 +69,25 @@ pub(crate) fn git_repo_path_for_app(_app: &ViewContext) -> Option<String> {
 }
 
 #[cfg(not(target_arch = "wasm32"))]
+#[cfg(test)]
 pub(crate) fn get_diff_file_metas_for_repo_path(path: &str) -> Vec<DiffFileMeta> {
     ops::get_diff_file_metas_for_repo_path(path)
 }
 
 #[cfg(target_arch = "wasm32")]
+#[cfg(test)]
 pub(crate) fn get_diff_file_metas_for_repo_path(_path: &str) -> Vec<DiffFileMeta> {
     vec![]
 }
 
 #[cfg(not(target_arch = "wasm32"))]
+#[cfg(test)]
 pub(crate) fn load_diff_content_for_repo_path(path: &str, meta: &DiffFileMeta) -> (String, String) {
     ops::load_diff_content_for_repo_path(path, meta)
 }
 
 #[cfg(target_arch = "wasm32")]
+#[cfg(test)]
 pub(crate) fn load_diff_content_for_repo_path(
     _path: &str,
     _meta: &DiffFileMeta,

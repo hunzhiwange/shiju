@@ -2,7 +2,7 @@
 
 
 use iced::widget::Id;
-use iced::widget::pane_grid::{Axis, Direction, Node, Pane, ResizeEvent, State, Target};
+use iced::widget::pane_grid::{Node, Pane, ResizeEvent, State, Target};
 
 
 pub const PANE_SPACING: f32 = 1.0;

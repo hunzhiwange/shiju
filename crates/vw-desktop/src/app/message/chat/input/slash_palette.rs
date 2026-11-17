@@ -65,6 +65,7 @@ fn scroll_slash_palette_to_selected(app: &App) -> Task<Message> {
     .map(|_: ()| Message::None)
 }
 
+#[cfg(test)]
 pub(crate) fn open_slash_palette(app: &mut App, query: &str) -> Task<Message> {
     let effects = app.input_suggestions.open_slash(query, app.skills_settings.catalog.is_empty(), app.skills_settings.loading);
     super::file_search::apply_suggestion_effects(app, effects)

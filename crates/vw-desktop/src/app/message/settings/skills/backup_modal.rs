@@ -1,7 +1,7 @@
 //! Backup selection is retained after conflicts and isolated by execution context.
 use crate::app::{App, Message, message::SettingsMessage};
 use iced::Task;
-pub(crate) use desktop_settings_skills::update::backup_modal::{Event, Readback, Change};
+pub(crate) use desktop_settings_skills::update::backup_modal::Event;
 pub(crate) fn message(event: Event) -> Message { Message::Settings(SettingsMessage::SkillsBackups(event)) }
 
 pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
@@ -25,3 +25,8 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
         }
     }
 }
+
+#[cfg(test)]
+pub(crate) use desktop_settings_skills::update::backup_modal::Change;
+#[cfg(test)]
+pub(crate) use desktop_settings_skills::update::backup_modal::Readback;

@@ -1,5 +1,4 @@
 //! Desktop path selection for the local dictation archive.
-pub(crate) use voice_recordings::{Entry, Store, pcm};
 use std::path::PathBuf;
 
 pub(crate) fn path() -> Result<PathBuf, String> {
@@ -8,6 +7,14 @@ pub(crate) fn path() -> Result<PathBuf, String> {
         .ok_or_else(|| "无法定位本机录音目录。".into())
 }
 
+#[cfg(test)]
 pub(crate) fn local() -> Result<Store, String> {
     Store::open(&path()?)
 }
+
+#[cfg(test)]
+pub(crate) use voice_recordings::Entry;
+#[cfg(test)]
+pub(crate) use voice_recordings::Store;
+#[cfg(test)]
+pub(crate) use voice_recordings::pcm;

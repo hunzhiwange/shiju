@@ -27,8 +27,8 @@ fn effects(app: &mut App, effects: Vec<Effect>, task: Task<Local>) -> Task<Messa
 fn inputs(app: &mut App, validation_error: Option<String>) -> domain::Update<'_> {
  domain::Update { state: &mut app.agents_settings, access: crate::app::config::agent_config_access(), client: crate::app::config::gateway_client(), acp_agents: &app.session_state.acp_agents, acp_loading: app.acp_settings.loading, new_session_creating: app.workspace_state.new_session_creating, project_path: app.navigation_tabs.project_path.clone(), validation_error, effects: Vec::new() }
 }
+#[cfg(test)]
 pub(super) fn config_task(project_path: Option<String>) -> Task<Message> { domain::config_task(crate::app::config::agent_config_access(), crate::app::config::gateway_client(), project_path).map(event) }
-pub(in crate::app) use domain::merge_catalog_profiles;
 pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
  let SettingsMessage::Agents(message) = message else { return Task::none(); };
  let validation = if matches!(message, AgentsMessage::ProfileSave) { app.agents_settings.profile_modal.as_ref().and_then(|draft| crate::app::components::system_settings_agents::defaults::validation_error(app, draft)) } else { None };
@@ -42,3 +42,6 @@ pub(super) fn handle_agents_config_saved(app: &mut App, result: Result<(), Strin
  let pending = std::mem::take(&mut input.effects); drop(input); effects(app, pending, task)
 }
 #[cfg(test)] #[path="agents_tests.rs"] mod tests;
+
+#[cfg(test)]
+pub(in crate::app) use domain::merge_catalog_profiles;

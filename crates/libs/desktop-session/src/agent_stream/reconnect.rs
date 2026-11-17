@@ -1,4 +1,3 @@
-use super::*;
 
 pub(super) const GATEWAY_STREAM_INITIAL_RETRY_DELAY: std::time::Duration =
     std::time::Duration::from_millis(500);

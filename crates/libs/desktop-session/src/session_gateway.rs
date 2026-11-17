@@ -29,7 +29,7 @@ use gateway_skill_market::SkillMarketSkillSetPageDto;
 use gateway_skill_market::SkillMarketSourceDto;
 use vw_api_agent_scheduler::AgentSchedulerScopeDto;
 use vw_api_transport::id::ProjectId;
-use vw_api_project::{ProjectScopeDto, TenantScopeDto};
+use vw_api_project::ProjectScopeDto;
 use {gateway_shiju_account::ShijuAccountMeDto, gateway_shiju_account::ShijuAccountPasswordUpdateRequest, gateway_shiju_account::ShijuAccountProfileDto, gateway_shiju_account::ShijuAccountUpdateRequest, gateway_shiju_account::ShijuAccountUpdateResponseDto, gateway_shiju_account::ShijuCredential, gateway_shiju_account::ShijuLoginChallengeDto, gateway_shiju_account::ShijuLoginPollDto};
 use gateway_shiju_skill::{ShijuInstalledSkillDto, ShijuMaintainedSkillQuery, ShijuSkillCursorPageDto, ShijuSkillDetailDto, ShijuSkillPageDto, ShijuSkillReadmeDto, ShijuSkillSearchQuery, ShijuSkillTagCatalogDto, ShijuSkillVersionDto, ShijuSystemSkillDto, ShijuSystemSkillQuery, ShijuTenantSkillDto};
 use gateway_shiju_app::{ShijuAppApiKeyBindingDto, ShijuAppApiKeyBindingSaveRequest, ShijuAppCatalogDto, ShijuAppLaunchDto, ShijuAppListDto, ShijuIamApiKeyListDto};

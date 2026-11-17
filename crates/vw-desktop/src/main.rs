@@ -1,5 +1,9 @@
 //! 桌面应用入口模块，负责启动 iced 应用并注册窗口、字体、主题和渲染器配置。
 
+// Apple ld's large __eh_frame note is misclassified by rustc (rust-lang/rust#159105).
+// Preserve default unwind metadata: disabling compact unwind breaks catch_unwind.
+#![cfg_attr(target_os = "macos", allow(linker_messages, reason = "Apple ld compact unwind size note; rust-lang/rust#159105"))]
+
 #![cfg_attr(all(target_os = "windows", not(debug_assertions)), windows_subsystem = "windows")]
 
 #[cfg(windows)]

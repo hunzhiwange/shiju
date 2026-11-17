@@ -1,6 +1,6 @@
 //! Catalog requests use only SDK reads and reject stale gateway/host responses.
 use super::SettingsMessage;
-use crate::app::components::system_settings_apps::catalog::{self, CatalogRow};
+use crate::app::components::system_settings_apps::catalog::CatalogRow;
 use crate::app::{App, Message, state::AgentAppsContext};
 use iced::Task;
 
@@ -358,3 +358,6 @@ pub(crate) fn catalog_input(state: &mut crate::app::state::AppsCatalogState) -> 
         preferences: &mut state.preferences, launch: &mut state.launch,
     }
 }
+
+#[cfg(test)]
+use crate::app::components::system_settings_apps::catalog;

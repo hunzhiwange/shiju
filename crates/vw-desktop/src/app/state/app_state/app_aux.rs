@@ -1,7 +1,10 @@
 //! Compatibility exports for application state composition.
 
+#[cfg(test)]
 pub use desktop_navigation::components::notification::Notification;
-pub use desktop_ui_controls::toast::{Toast, ToastKind};
+pub use desktop_ui_controls::toast::ToastKind;
+#[cfg(test)]
+pub use desktop_ui_controls::toast::Toast;
 pub use desktop_web_runtime::state::WorkBrowserState;
 pub use desktop_apps_ui::bookmark::{CookieConfig, WebBookmark};
 

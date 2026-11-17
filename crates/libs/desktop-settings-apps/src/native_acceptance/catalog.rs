@@ -8,8 +8,7 @@ use super::page_fixture as system_settings_apps;
 use super::page_fixture::{AppsCatalogState, Message as AppMessage};
 use crate::system_settings_apps::catalog::CatalogRow;
 use desktop_i18n::I18n;
-use iced::{Element, Subscription, Task, Theme, window};
-use vw_api_app_identity::*;
+use iced::{Element, Task, Theme, window};
 
 #[derive(Clone, Debug)]
 enum Message {
@@ -120,7 +119,7 @@ impl Harness {
     fn update(&mut self, message: Message) -> Task<Message> {
         match message {
             Message::Opened(id) => self.window = id,
-            Message::Ui(_) => {}
+            Message::Ui(message) => { drop(message); }
             Message::Frame => {
                 self.frames += 1;
                 if self.frames == 8 {

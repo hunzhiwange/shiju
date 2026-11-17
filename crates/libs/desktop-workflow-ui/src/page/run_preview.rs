@@ -1,6 +1,7 @@
 //! Desktop mapping for workflow domain views.
+#[cfg(test)]
 use super::*;
-use state::WorkflowRunPreview;
+#[cfg(test)]
 pub(super) fn build_saved_app_run_preview_layer(
     i18n: desktop_i18n::I18n,
     preview: &WorkflowRunPreview,
@@ -9,6 +10,7 @@ pub(super) fn build_saved_app_run_preview_layer(
     crate::view::run_preview::build_saved_app_run_preview_layer(i18n, preview, error_copied)
         .map(Message::WorkflowTool)
 }
+#[cfg(test)]
 pub(super) fn build_saved_app_run_detail_layer(
     i18n: desktop_i18n::I18n,
     detail: &state::WorkflowRunDetailDialog,
@@ -16,9 +18,11 @@ pub(super) fn build_saved_app_run_detail_layer(
     crate::view::run_preview::build_saved_app_run_detail_layer(i18n, detail)
         .map(Message::WorkflowTool)
 }
+#[cfg(test)]
 pub(super) fn workflow_run_output(i18n: desktop_i18n::I18n, output: &str) -> Element<'_, Message> {
     crate::view::run_preview::workflow_run_output(i18n, output).map(Message::WorkflowTool)
 }
+#[cfg(test)]
 pub(super) fn workflow_run_error(
     i18n: desktop_i18n::I18n,
     preview: &WorkflowRunPreview,

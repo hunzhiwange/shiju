@@ -31,6 +31,7 @@ fn authorized(app: &App, context: &catalog::Context) -> bool {
         && !app.apps_catalog.token.is_empty()
         && app.apps_catalog.context.as_ref() == Some(&context.endpoint)
 }
+#[cfg(test)]
 pub(crate) fn visible(app: &App) -> Option<&ImportState> {
     desktop_settings_mcp::management_import::visible(
         app.mcp_settings.import.as_ref(),

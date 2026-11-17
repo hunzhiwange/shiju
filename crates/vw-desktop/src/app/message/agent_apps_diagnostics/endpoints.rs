@@ -1,4 +1,4 @@
-pub use desktop_apps_ui::agent_apps_diagnostics::endpoints::{Event, Reply};
+pub use desktop_apps_ui::agent_apps_diagnostics::endpoints::Event;
 use crate::app::{App, Message, message::app_providers::list::{self, ListMessage}};
 use iced::Task;
 pub(crate) fn message(event: Event) -> Message { list::message(ListMessage::EndpointDiagnostics(event)) }
@@ -32,3 +32,6 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
     }};
     Task::batch([task, custom, toast])
 }
+
+#[cfg(test)]
+pub use desktop_apps_ui::agent_apps_diagnostics::endpoints::Reply;

@@ -15,6 +15,7 @@ fn event(message: domain::Message) -> Message { Message::Settings(match message 
  domain::Message::DialogueFlowExpandShellToolSectionToggled(v) => SettingsMessage::DialogueFlowExpandShellToolSectionToggled(v),
  domain::Message::DialogueFlowExpandEditToolSectionToggled(v) => SettingsMessage::DialogueFlowExpandEditToolSectionToggled(v),
 }) }
+#[cfg(test)]
 pub fn dialogue_flow_permission_text_task(path: Option<String>) -> Task<Message> { domain::dialogue_flow_permission_text_task(path).map(event) }
 #[cfg(test)]
 use crate::app::config::preferences_scope;

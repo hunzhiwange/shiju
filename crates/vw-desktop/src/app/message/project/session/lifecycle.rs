@@ -8,7 +8,7 @@ use crate::app::message::project::helpers::{
     find_session_project_path, load_prepared_session_open_from_gateway_task, now_ms,
     prepare_session_ui_chunks_task, prepare_session_ui_task,
 };
-use crate::app::{App, Message, models};
+use crate::app::{App, Message};
 use web_time::Instant;
 
 /// 幂等登记外部创建的会话，不触碰当前活动会话及聊天运行态。
@@ -30,6 +30,7 @@ use desktop_workspace::project_message::session::history_open::{
 };
 pub(crate) use desktop_workspace::project_message::session::lifecycle::latest_assistant_model_label;
 
+#[cfg(test)]
 pub(crate) fn loaded_chat_from_gateway_messages(
     messages: Vec<message_types::WithParts>,
 ) -> (Vec<models::ChatMessage>, Vec<Option<String>>) {
@@ -752,3 +753,6 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
         _ => None,
     }
 }
+
+#[cfg(test)]
+use crate::app::models;

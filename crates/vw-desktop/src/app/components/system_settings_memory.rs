@@ -32,7 +32,9 @@ pub fn view(app: &App) -> Element<'_, Message> {
         PageMessage::None => Message::None,
     })
 }
-pub(super) use domain::memory_tab_label;
 #[cfg(test)]
 #[path = "system_settings_memory_ui_refresh_20_tests.rs"]
 mod ui_refresh_20_tests;
+
+#[cfg(test)]
+pub(super) use domain::memory_tab_label;

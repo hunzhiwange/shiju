@@ -1,6 +1,6 @@
 //! 应用提示的状态投影与重试消息映射。
 use crate::app::{App, Message};
-use iced::{Element, widget::Container};
+use iced::Element;
 use desktop_ui_controls::toast as shared;
 pub use shared::confirm_dialog;
 
@@ -19,9 +19,13 @@ pub fn view(app: &App) -> Element<'static, Message> {
     shared::view(app.toast_state.active_toast.as_ref(), app.general_settings.desktop_locale, cache_sync_retry_message(app))
 }
 
+#[cfg(test)]
 pub(crate) fn modal_with_feedback<'a>(
     app: &App,
     card: Container<'a, Message>,
 ) -> Container<'a, Message> {
     shared::modal_with_feedback(card, app.toast_state.active_toast.as_ref().map(|_| view(app)))
 }
+
+#[cfg(test)]
+use iced::widget::Container;

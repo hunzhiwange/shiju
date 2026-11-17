@@ -1,6 +1,6 @@
 //! External history catalog; credentials stay in the application connection.
 use crate::app::{App, Message, state::AgentAppsContext};
-pub use desktop_apps_ui::agent_apps::external_sessions::{Event, Scope, State};
+pub use desktop_apps_ui::agent_apps::external_sessions::{Event, State};
 use iced::{Element, Task};
 pub(crate) fn message(event: Event) -> Message {
     Message::Settings(crate::app::message::settings::SettingsMessage::AppsCatalog(
@@ -142,3 +142,6 @@ fn update_compression(
     };
     Task::batch([task, feedback])
 }
+
+#[cfg(test)]
+pub use desktop_apps_ui::agent_apps::external_sessions::Scope;

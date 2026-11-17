@@ -7,7 +7,7 @@ use crate::tool_text_support::content_safe_font;
 /// 重新导出 use crate::card_style::{，让上层模块通过稳定路径访问。
 use crate::card_style::{
     bold_font, chat_secondary_muted_text_color, chat_secondary_subtle_text_color,
-    chat_secondary_text_color, icon_svg, is_dark_theme,
+    chat_secondary_text_color, icon_svg,
 };
 /// 重新导出 use iced::widget::{container, row, svg, text}，让上层模块通过稳定路径访问。
 use iced::widget::text::Wrapping;

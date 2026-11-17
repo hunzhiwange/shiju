@@ -1,4 +1,3 @@
-use super::*;
 
 pub(super) const WORKFLOW_HISTORY_MAX_CHARS: usize = 12_000;
 

@@ -24,7 +24,6 @@ pub(crate) mod storage_modal;
 pub(crate) mod backup_modal;
 
 use desktop_settings_skills::update::catalog::{self as domain, Event, Effect};
-pub(super) use domain::map_catalog_items;
 fn refresh_task(project_path: Option<String>) -> Task<Message> {
     Task::perform(async move { gateway_skills_async(crate::app::config::gateway_client_endpoint(), project_path.as_deref()).await }, |result| {
         Message::Settings(SettingsMessage::SkillsLoaded(result))
@@ -244,3 +243,6 @@ pub(crate) fn update_input(app: &App) -> desktop_settings_skills::update::Input 
             && app.skills_settings.jobs.snapshot.as_ref().is_none_or(|job| !jobs_view::terminal(job.phase)),
     }
 }
+
+#[cfg(test)]
+pub(super) use domain::map_catalog_items;

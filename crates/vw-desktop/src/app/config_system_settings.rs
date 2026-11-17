@@ -77,7 +77,6 @@ impl App {
     }
 }
 
-pub(in crate::app) use desktop_config::config_system_settings::{normalize_editor_metrics, normalize_system_settings_config};
 
 fn bootstrap_store() -> desktop_config::config_system_settings::BootstrapStore {
     desktop_config::config_system_settings::BootstrapStore {
@@ -93,6 +92,7 @@ pub(super) fn load_gateway_client_bootstrap_config() -> GatewayClientSystemSetti
     if let Some(config) = WINDOW_TEST_BOOTSTRAP.get() { return config.clone(); }
     bootstrap_store().load_gateway_client_bootstrap_config()
 }
+#[cfg(test)]
 pub(super) fn save_gateway_client_bootstrap_config(config: &GatewayClientSystemSettingsConfig) -> Result<(), String> {
     #[cfg(test)]
     assert!(WINDOW_TEST_BOOTSTRAP.get().is_none(), "window fixture must not write bootstrap files");
@@ -185,3 +185,8 @@ pub(in crate::app) fn config_access() -> desktop_config::ConfigAccess {
     desktop_config::ConfigAccess::new(gateway_client_endpoint(), None)
         .with_bootstrap_config(load_gateway_client_bootstrap_config())
 }
+
+#[cfg(test)]
+pub(in crate::app) use desktop_config::config_system_settings::normalize_editor_metrics;
+#[cfg(test)]
+pub(in crate::app) use desktop_config::config_system_settings::normalize_system_settings_config;

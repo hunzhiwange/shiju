@@ -84,7 +84,7 @@ async fn repository_snapshot_preview_renders_chinese_in_both_themes() {
             app.git.show_git_diff_summary = false;
             app.git.git_diff_file_metas = vec![super::DiffFileMeta {
                 path: file.path.clone(),
-                status: vw_api_git::GitFileStatus::Modified,
+                status: desktop_git_ui::git_panel::utils::FileStatus::Modified,
                 old_oid: None,
                 old_size: old.len() as u64,
                 new_size: new.len() as u64,

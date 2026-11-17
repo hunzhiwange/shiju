@@ -1,20 +1,24 @@
 use crate::app::{App, Message, Screen, message};
-use crate::app::state::{WorkspaceMode, WorkResourceMode};
 use crate::app::message::view::MenuType;
 use desktop_navigation::components::top_bar::menus as domain;
-use crate::app::components::top_bar::menu_actions::NativeMenuAction;
+#[cfg(test)]
 pub(crate) enum MenuEntry {
  Item { #[cfg(any(target_os="macos",test))] action: Option<NativeMenuAction>, label: &'static str, shortcut: Option<&'static str>, message: Box<Message> }, Separator,
 }
+#[cfg(test)]
 fn adapt(entry: domain::MenuEntry) -> MenuEntry {
  match entry {
  domain::MenuEntry::Separator => MenuEntry::Separator,
  domain::MenuEntry::Item { action: _action, label, shortcut, message } => MenuEntry::Item { #[cfg(any(target_os="macos",test))] action: _action, label, shortcut, message: Box::new(map(*message)) },
  }
 }
+#[cfg(test)]
 pub(crate) fn file_menu_entries(is_project: bool) -> Vec<MenuEntry> { domain::file_menu_entries(is_project).into_iter().map(adapt).collect() }
+#[cfg(test)]
 pub(crate) fn edit_menu_entries(is_project: bool) -> Vec<MenuEntry> { domain::edit_menu_entries(is_project).into_iter().map(adapt).collect() }
+#[cfg(test)]
 pub(crate) fn view_menu_entries(workspace_mode: WorkspaceMode, show_file_manager: bool, file_manager_show_changes: bool) -> Vec<MenuEntry> { domain::view_menu_entries(workspace_mode, show_file_manager, file_manager_show_changes).into_iter().map(adapt).collect() }
+#[cfg(test)]
 pub(crate) fn help_menu_entries() -> Vec<MenuEntry> { domain::help_menu_entries().into_iter().map(adapt).collect() }
 fn to_domain(value: MenuType) -> domain::MenuType { match value {MenuType::File => domain::MenuType::File,MenuType::Edit => domain::MenuType::Edit,MenuType::View => domain::MenuType::View,MenuType::Help => domain::MenuType::Help,MenuType::OpenExternal => domain::MenuType::OpenExternal,MenuType::GatewayServices => domain::MenuType::GatewayServices,} }
 fn from_domain(value: domain::MenuType) -> MenuType { match value {domain::MenuType::File => MenuType::File,domain::MenuType::Edit => MenuType::Edit,domain::MenuType::View => MenuType::View,domain::MenuType::Help => MenuType::Help,domain::MenuType::OpenExternal => MenuType::OpenExternal,domain::MenuType::GatewayServices => MenuType::GatewayServices,} }
@@ -57,3 +61,10 @@ domain::Message::PasteShortcut => Message::PasteShortcut,
 domain::Message::MenuHovered(menu) => Message::View(message::ViewMessage::MenuHovered(from_domain(menu))),
 domain::Message::MenuAction(event) => Message::View(message::ViewMessage::MenuAction(Box::new(map(*event)))),
 } }
+
+#[cfg(test)]
+use crate::app::components::top_bar::menu_actions::NativeMenuAction;
+#[cfg(test)]
+use crate::app::state::WorkResourceMode;
+#[cfg(test)]
+use crate::app::state::WorkspaceMode;

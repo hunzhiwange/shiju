@@ -1,6 +1,7 @@
 use super::*;
 use iced::widget::column;
 
+#[cfg(test)]
 pub(super) fn build_chunks_panel(app: ViewInput<'_>) -> Element<'_, Message> {
     let i18n = desktop_i18n::I18n::new(app.desktop_locale);
     let selected_document = app.knowledge.selected_document();

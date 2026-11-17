@@ -44,7 +44,9 @@ fn input(app: &App) -> domain::Input<'_> {
  new_session: super::new_session::button_input(app), }
 }
 pub fn project_sessions_panel(app: &App, path: Option<String>) -> iced::Element<'_, Message> { domain::project_sessions_panel(&input(app), path).map(map) }
+#[cfg(test)]
 pub fn build_session_menu<'a>(i18n: crate::app::i18n::I18n, id: String, path: String, disabled: bool) -> iced::Element<'a, Message> { domain::build_session_menu(i18n, id, path, disabled).map(map) }
+#[cfg(test)]
 pub fn project_sessions_header_with_tools<'a>(i18n: crate::app::i18n::I18n, title: String, path: String, clickable: bool, toggle: message::ProjectMessage, show: bool, refreshing: bool) -> iced::Element<'a, Message> { domain::project_sessions_header_with_tools(i18n, title, path, clickable, domain::Message::HeaderToolsToggle, show, refreshing).map(move |event| match event { domain::Message::HeaderToolsToggle => Message::Project(toggle.clone()), other => map(other) }) }
 
 #[cfg(test)]

@@ -190,7 +190,7 @@ pub fn update_context_target_from_editor_event(
                 return;
             };
             let clicked_inside_active_selection = matches!(
-                (*preview_context_target),
+                *preview_context_target,
                 Some((ref target_path, start_line, start_col, end_line, end_col))
                     if *target_path == path
                         && (start_line, start_col) != (end_line, end_col)

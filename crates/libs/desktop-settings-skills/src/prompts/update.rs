@@ -116,7 +116,6 @@ pub fn update(app: &mut Input<'_>, event: Event) -> Task<Message> {
                 Ok(catalog) => { state.catalog = Some(catalog); state.editor = None; state.undo = None; return crate::prompts::update::Input::show_success_toast("提示词已保存"); }
                 Err(error) => { let draft = state.editor.as_mut().expect("saving editor"); draft.saving = false; draft.error = Some(error.clone()); return crate::prompts::update::Input::show_error_toast(error); }
             }
-            Task::none()
         }
         Event::Mutate(_) | Event::Undo if app.prompts.loading || app.prompts.mutating || app.prompts.editor.is_some() => Task::none(),
         Event::Mutate(_) | Event::Undo if app.context.as_ref() != Some(&context) || app.token.is_empty() => crate::prompts::update::Input::show_error_toast("请先连接应用管理"),

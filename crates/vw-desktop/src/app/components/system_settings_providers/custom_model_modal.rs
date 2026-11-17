@@ -14,7 +14,7 @@ pub fn view_overlays<'a>(app: &'a App, dialog: Element<'a, Message>) -> Element<
 #[path = "custom_model_modal_ui_refresh_09_tests.rs"]
 mod ui_refresh_09_tests;
 
-pub(super) use desktop_settings_providers::custom_model_modal::{custom_modal_card_style, custom_segment_style, stacked_field_row};
+#[cfg(test)]
 pub(super) fn responsive_field_with_help<'a, Control>(
     app: &'a App, label: &'a str, description: impl Into<std::borrow::Cow<'a,str>>,
     control: impl Fn() -> Control + 'a,
@@ -26,3 +26,10 @@ where Control: Into<Element<'a,Message>> {
         if wide { label.width(iced::Length::Fill).wrap().into() } else { label.wrap().into() }
     })
 }
+
+#[cfg(test)]
+pub(super) use desktop_settings_providers::custom_model_modal::custom_modal_card_style;
+#[cfg(test)]
+pub(super) use desktop_settings_providers::custom_model_modal::custom_segment_style;
+#[cfg(test)]
+pub(super) use desktop_settings_providers::custom_model_modal::stacked_field_row;

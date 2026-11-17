@@ -1,6 +1,4 @@
 //! Desktop Shell selection and local terminal authorization adapter.
-#[cfg(not(target_arch = "wasm32"))]
-pub(crate) use desktop_terminal::panes;
 pub use desktop_terminal::{
     TerminalTheme, build_palette, truncate_string_to_limit, truncate_terminal_content,
 };
@@ -20,3 +18,6 @@ pub(crate) fn open_local_directory(path: &str) -> std::io::Result<()> {
     }
     desktop_terminal::local::open_local_directory(path)
 }
+
+#[cfg(test)]
+pub(crate) use desktop_terminal::panes;

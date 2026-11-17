@@ -3,7 +3,7 @@ use crate::app::{App, Message, state::AgentAppsContext};
 use desktop_apps_ui::{Connection, Notice, agent_apps::daily_memory as domain};
 use iced::{Element, Task};
 pub(crate) use domain::State;
-pub use domain::{Event, Scope};
+pub use domain::Event;
 fn message(event: Event) -> Message {
     Message::Settings(crate::app::message::settings::SettingsMessage::AppsCatalog(
         crate::app::message::settings::AppsCatalogMessage::DailyMemory(event)))
@@ -30,3 +30,6 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
     Task::batch([task, feedback])
 }
 pub(crate) fn subscription(state: &State) -> iced::Subscription<Message> { domain::subscription(state).map(message) }
+
+#[cfg(test)]
+pub use domain::Scope;

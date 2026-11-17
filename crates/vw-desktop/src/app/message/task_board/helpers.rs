@@ -21,6 +21,7 @@ pub(crate) use execution::*;
 /// 对外暴露当前模块需要复用的能力。
 pub(crate) use logs::*;
 /// 对外暴露当前模块需要复用的能力。
-pub(crate) use review::*;
-/// 对外暴露当前模块需要复用的能力。
 pub(crate) use settings::*;
+
+#[cfg(test)]
+pub(crate) use review::*;

@@ -23,7 +23,7 @@ use iced::alignment::Horizontal;
 use iced::widget::{
     Space, button, column, container, image, row, text, text::Wrapping,
 };
-use iced::{Alignment, Background, ContentFit, Element, Length, Theme};
+use iced::{Alignment, ContentFit, Element, Length, Theme};
 use super::install_cli_modal_progress::update_value;
 pub(crate) use super::install_cli_modal_progress::{update_progress_block_localized, logo_badge_style, hash_copy_text};
 #[cfg(test)] pub(crate) use super::install_cli_modal_progress::{update_progress_card_style, format_bytes, format_rate, compact_url};
@@ -471,3 +471,6 @@ pub fn view_inner<'a>(
     let card = settings_modal_layout(header, body, actions).width(540).height(height);
     settings_modal_overlay(None, close_message, container(card).padding(12))
 }
+
+#[cfg(test)]
+use iced::Background;

@@ -2,7 +2,7 @@
 
 use crate::NetworkTab as SystemTab;
 use desktop_ui_controls::system_settings_common::*;
-use crate::help::{settings_hover_help_label, settings_page_heading_with_help, settings_group_heading_with_help, settings_flexible_row_with_help, with_settings_help_modal, with_settings_help_modal_mapped, HelpRenderer};
+use crate::help::settings_page_heading_with_help;
 use crate::NetworkTabDescriptor as SettingsTabDescriptor;
 use desktop_i18n::I18n;
 use desktop_i18n::settings_models::connection_text::text as connection_text;

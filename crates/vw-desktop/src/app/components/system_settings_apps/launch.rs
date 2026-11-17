@@ -1,5 +1,6 @@
-pub use desktop_settings_apps::system_settings_apps::launch::{LaunchState, LaunchChoice};
+pub use desktop_settings_apps::system_settings_apps::launch::LaunchState;
 pub type LaunchMessage = desktop_settings_apps::system_settings_apps::launch::LaunchMessage<crate::app::state::AgentAppsContext>;
+#[cfg(test)]
 pub type ReplyScope = desktop_settings_apps::system_settings_apps::launch::ReplyScope<crate::app::state::AgentAppsContext>;
 fn event(value: LaunchMessage) -> crate::app::Message { super::message(crate::app::message::settings::AppsCatalogMessage::Launch(value)) }
 pub(crate) fn update(app: &mut crate::app::App, message: LaunchMessage) -> iced::Task<crate::app::Message> {
@@ -14,3 +15,6 @@ pub(crate) fn update(app: &mut crate::app::App, message: LaunchMessage) -> iced:
 #[path = "launch_view.rs"]
 mod view;
 pub(crate) use view::overlay;
+
+#[cfg(test)]
+pub use desktop_settings_apps::system_settings_apps::launch::LaunchChoice;

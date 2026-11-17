@@ -446,7 +446,7 @@ pub fn update(app: &mut TabState<'_>, appearance: Appearance, actions: &mut Vec<
         },
         PreviewMessage::AutoSaveDelayElapsed { path, revision } => {
             if !matches!(
-                (*app.preview_auto_save_mode),
+                *app.preview_auto_save_mode,
                 PreviewAutoSaveMode::AfterDelay | PreviewAutoSaveMode::OnFocusChange
             ) {
                 return Task::none();
@@ -463,7 +463,7 @@ pub fn update(app: &mut TabState<'_>, appearance: Appearance, actions: &mut Vec<
         }
         PreviewMessage::WindowUnfocused => {
             if !matches!(
-                (*app.preview_auto_save_mode),
+                *app.preview_auto_save_mode,
                 PreviewAutoSaveMode::OnFocusChange | PreviewAutoSaveMode::OnWindowChange
             ) {
                 return Task::none();

@@ -1,8 +1,6 @@
 //! Cross-domain cache reconciliation and gateway effects for archived project deletion.
 use super::*;
-pub(super) use desktop_settings_sessions::archived_chats::project_delete::{
-    apply, delete_checked, handles,
-};
+pub(super) use desktop_settings_sessions::archived_chats::project_delete::handles;
 pub(super) fn update(
     app: &mut App,
     message: ArchivedChatsMessage,
@@ -42,3 +40,8 @@ fn task(
     )
     .map(super::event)
 }
+
+#[cfg(test)]
+pub(super) use desktop_settings_sessions::archived_chats::project_delete::apply;
+#[cfg(test)]
+pub(super) use desktop_settings_sessions::archived_chats::project_delete::delete_checked;

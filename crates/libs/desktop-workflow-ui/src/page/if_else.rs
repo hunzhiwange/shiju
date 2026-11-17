@@ -1,4 +1,4 @@
-use super::*;
+#[cfg(test)]
 pub(super) fn build_if_else_visual_section<'a>(
     i18n: desktop_i18n::I18n,
     cases: &'a [super::state::WorkflowIfElseCaseDraft],
@@ -7,6 +7,7 @@ pub(super) fn build_if_else_visual_section<'a>(
     crate::view::if_else::build_if_else_visual_section(i18n, cases, validation)
         .map(Message::WorkflowTool)
 }
+#[cfg(test)]
 pub(super) fn build_if_else_case_card<'a>(
     i18n: desktop_i18n::I18n,
     index: usize,
@@ -16,6 +17,7 @@ pub(super) fn build_if_else_case_card<'a>(
     crate::view::if_else::build_if_else_case_card(i18n, index, case, validation)
         .map(Message::WorkflowTool)
 }
+#[cfg(test)]
 pub(super) fn build_if_else_condition_card<'a>(
     i18n: desktop_i18n::I18n,
     case_index: usize,
@@ -32,3 +34,6 @@ pub(super) fn build_if_else_condition_card<'a>(
     )
     .map(Message::WorkflowTool)
 }
+
+#[cfg(test)]
+use super::*;

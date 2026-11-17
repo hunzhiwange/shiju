@@ -74,13 +74,17 @@ impl App {
         estimated_height: f32,
     ) { self.chat_ui().apply_stream_tail_estimated_height(message_idx, estimated_height) }
     pub(crate) fn sync_chat_scroll_compat_fields(&mut self) { self.chat_ui().sync_chat_scroll_compat_fields() }
+    #[cfg(test)]
     pub(crate) fn protected_chat_ui_chunk_starts(&self) -> Vec<usize> { self.chat_ui_schedule().protected_chat_ui_chunk_starts() }
     pub(crate) fn pin_chat_ui_chunk(&mut self, chunk_start_idx: Option<usize>) { self.chat_ui().pin_chat_ui_chunk(chunk_start_idx) }
+    #[cfg(test)]
     pub(crate) fn unload_chat_ui_chunk(&mut self, chunk_start_idx: usize) { self.chat_ui().unload_chat_ui_chunk(chunk_start_idx) }
     pub(crate) fn visible_chat_message_window(&self) -> (usize, usize) { self.chat_ui_schedule().visible_chat_message_window() }
     pub(crate) fn prune_chat_heavy_editor_caches(&mut self, start_idx: usize, end_idx: usize) { self.chat_ui().prune_chat_heavy_editor_caches(start_idx, end_idx) }
+    #[cfg(test)]
     pub(crate) fn prune_chat_ui_chunks(&mut self, start_idx: usize, end_idx: usize) { self.chat_ui().prune_chat_ui_chunks(start_idx, end_idx) }
     pub(crate) fn preferred_base_chat_ui_chunk_start(&self) -> usize { self.chat_ui_schedule().preferred_base_chat_ui_chunk_start() }
+    #[cfg(test)]
     pub(crate) fn collect_chat_ui_chunk_starts(
         &self,
         start_idx: usize,
@@ -102,6 +106,7 @@ impl App {
         start_idx: usize,
         end_idx: usize,
     ) { self.chat_ui().refine_chat_message_estimated_heights(start_idx, end_idx) }
+    #[cfg(test)]
     pub(crate) fn rebuild_chat_message_estimated_heights(&mut self) { self.chat_ui().rebuild_chat_message_estimated_heights() }
     pub fn invalidate_chat_ui_state(&mut self) { self.chat_ui().invalidate_chat_ui_state() }
     pub fn apply_prepared_chat_ui_phase(&mut self, phase: PreparedChatUiPhase) { self.chat_ui().apply_prepared_chat_ui_phase(phase) }

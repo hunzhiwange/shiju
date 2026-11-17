@@ -1,6 +1,7 @@
 use super::*;
 use iced::widget::column;
 
+#[cfg(test)]
 pub(super) fn document_row<'a>(app: ViewInput<'a>, document: &'a KnowledgeDocumentDto) -> Element<'a, Message> {
     let chunking_mode = app
         .knowledge

@@ -1,13 +1,13 @@
 //! Desktop workflow message mapping.
 
-use super::*;
-
+#[cfg(test)]
 pub(super) fn start_variable_file_type_options(
     i18n: desktop_i18n::I18n,
 ) -> [(&'static str, &'static str, &'static str); 5] {
     crate::view::start_inputs::start_variable_file_type_options(i18n)
 }
 
+#[cfg(test)]
 pub(super) fn build_start_variable_option_editor<'a>(
     i18n: desktop_i18n::I18n,
     variable: &'a super::state::WorkflowStartVariableDraft,
@@ -16,6 +16,7 @@ pub(super) fn build_start_variable_option_editor<'a>(
         .map(Message::WorkflowTool)
 }
 
+#[cfg(test)]
 pub(super) fn build_start_variable_select_default_field<'a>(
     i18n: desktop_i18n::I18n,
     variable: &'a super::state::WorkflowStartVariableDraft,
@@ -24,6 +25,7 @@ pub(super) fn build_start_variable_select_default_field<'a>(
         .map(Message::WorkflowTool)
 }
 
+#[cfg(test)]
 pub(super) fn build_start_variable_file_type_button(
     value: &'static str,
     label: &'static str,
@@ -39,6 +41,7 @@ pub(super) fn build_start_variable_file_type_button(
     .map(Message::WorkflowTool)
 }
 
+#[cfg(test)]
 pub(super) fn build_start_variable_upload_method_button(
     value: &'static str,
     label: &'static str,
@@ -48,6 +51,7 @@ pub(super) fn build_start_variable_upload_method_button(
         .map(Message::WorkflowTool)
 }
 
+#[cfg(test)]
 pub(super) fn build_start_variable_file_settings<'a>(
     i18n: desktop_i18n::I18n,
     start_variable_editor: &'a super::state::WorkflowStartVariableEditorDraft,
@@ -56,6 +60,7 @@ pub(super) fn build_start_variable_file_settings<'a>(
         .map(Message::WorkflowTool)
 }
 
+#[cfg(test)]
 pub(super) fn build_start_variable_card<'a>(
     i18n: desktop_i18n::I18n,
     start_variable_editor: &'a super::state::WorkflowStartVariableEditorDraft,
@@ -63,3 +68,6 @@ pub(super) fn build_start_variable_card<'a>(
     crate::view::start_inputs::build_start_variable_card(i18n, start_variable_editor)
         .map(Message::WorkflowTool)
 }
+
+#[cfg(test)]
+use super::*;

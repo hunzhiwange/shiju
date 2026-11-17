@@ -12,4 +12,5 @@ pub(crate) fn update(app: &mut crate::app::App, message: PreferencesMessage) -> 
 #[path = "preferences_view.rs"]
 mod view;
 pub(crate) use view::overlay;
+#[cfg(test)]
 pub(crate) fn visible_rows(state: &crate::app::state::AppsCatalogState) -> Vec<&super::catalog::CatalogRow> { desktop_settings_apps::system_settings_apps::preferences::visible_rows(&super::view_state(state)) }

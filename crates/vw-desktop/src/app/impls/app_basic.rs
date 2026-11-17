@@ -4,8 +4,7 @@
 use iced::Theme;
 use std::time::Duration;
 
-use super::state::ExternalOpenApp;
-use super::{App, Screen};
+use super::App;
 use crate::app::message::NotificationMessage;
 use crate::app::state::ToastKind;
 
@@ -24,6 +23,7 @@ impl App {
 
     /// 模块内可见函数，执行 is_diff_file_expanded 对应的应用流程。
     /// 返回值表达处理结果；失败通过错误值、日志或任务消息显式传递。
+    #[cfg(test)]
     pub(crate) fn is_diff_file_expanded(&self, path: &str) -> bool {
         desktop_git_ui::message_git::diff::is_diff_file_expanded(&self.git.expanded_files_set, path)
     }
@@ -37,6 +37,7 @@ impl App {
 
     /// 模块内可见函数，执行 ensure_diff_file_expanded 对应的应用流程。
     /// 返回值表达处理结果；失败通过错误值、日志或任务消息显式传递。
+    #[cfg(test)]
     pub(crate) fn ensure_diff_file_expanded(&mut self, path: String) {
         desktop_git_ui::message_git::diff::ensure_diff_file_expanded(&mut self.git.expanded_files_set, &mut self.git.expanded_files, path)
     }
@@ -56,12 +57,14 @@ impl App {
 
     /// 模块内可见函数，执行 set_single_expanded_file 对应的应用流程。
     /// 返回值表达处理结果；失败通过错误值、日志或任务消息显式传递。
+    #[cfg(test)]
     pub(crate) fn set_single_expanded_file(&mut self, path: String) {
         desktop_git_ui::message_git::diff::set_single_expanded_file(&mut self.git.expanded_files, &mut self.git.expanded_files_set, path)
     }
 
     /// 模块内可见函数，执行 is_file_tree_dir_expanded 对应的应用流程。
     /// 返回值表达处理结果；失败通过错误值、日志或任务消息显式传递。
+    #[cfg(test)]
     pub(crate) fn is_file_tree_dir_expanded(&self, path: &str) -> bool {
         self.workspace_state.file_tree_expanded_set.contains(path)
     }
@@ -166,6 +169,7 @@ impl App {
 
     /// 模块内可见函数，执行 can_open_external 对应的应用流程。
     /// 返回值表达处理结果；失败通过错误值、日志或任务消息显式传递。
+    #[cfg(test)]
     pub(crate) fn can_open_external(&self, target: ExternalOpenApp) -> bool {
         desktop_navigation::external_apps_update::can_open_external(
             &self.external_navigation.open_external_exists,
@@ -316,3 +320,8 @@ impl App {
 #[cfg(test)]
 #[path = "app_basic_tests.rs"]
 mod app_basic_tests;
+
+#[cfg(test)]
+use super::Screen;
+#[cfg(test)]
+use super::state::ExternalOpenApp;

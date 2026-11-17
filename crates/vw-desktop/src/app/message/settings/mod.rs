@@ -17,7 +17,6 @@ mod channels;
 pub(crate) mod computer_control;
 mod cron;
 pub(crate) mod cron_history;
-pub(crate) use cron::validate_delivery as validate_cron_delivery;
 pub(crate) mod backup_inventory;
 mod dialogue_flow;
 mod embedding_routes;
@@ -69,12 +68,10 @@ pub use apps_catalog::AppsCatalogMessage;
 use iced::Task;
 
 pub(crate) use messages::{
-    AcpMessage, AgentConfigTabMessage, AgentsMessage, BashPolicyCheck, BashValidatorCheck,
-    BrowserMessage, ChannelsMessage, EmbeddingRoutesMessage, GatewayClientMessage, GatewayMessage,
-    GeneralSettingsMessage, HooksMessage, HttpRequestMessage, McpMessage, MemoryMessage,
-    ModelConfigTabMessage, ModelRoutesMessage, MultimodalMessage, QueryClassificationMessage,
-    QuickMessagesMessage, RuntimeMessage, SettingsMessage, StorageMessage, ThemeChromeField,
-    ThemeColorPickerTarget, ThemePaletteField, ThemesMessage, TunnelMessage, WebSearchMessage,
+    AcpMessage, AgentConfigTabMessage, AgentsMessage, ChannelsMessage, GatewayClientMessage,
+    GeneralSettingsMessage, McpMessage,
+    ModelConfigTabMessage, ModelRoutesMessage,
+    QuickMessagesMessage, SettingsMessage, ThemesMessage,
 };
 
 pub(crate) use projects::set_worktree_enabled;
@@ -361,3 +358,40 @@ pub(crate) mod device_sync_preview;
 
 pub(crate) mod device_sync_s3;
 pub(crate) mod device_sync_webdav;
+
+#[cfg(test)]
+pub(crate) use cron::validate_delivery as validate_cron_delivery;
+#[cfg(test)]
+pub(crate) use messages::BashPolicyCheck;
+#[cfg(test)]
+pub(crate) use messages::BashValidatorCheck;
+#[cfg(test)]
+pub(crate) use messages::BrowserMessage;
+#[cfg(test)]
+pub(crate) use messages::EmbeddingRoutesMessage;
+#[cfg(test)]
+pub(crate) use messages::GatewayMessage;
+#[cfg(test)]
+pub(crate) use messages::HooksMessage;
+#[cfg(test)]
+pub(crate) use messages::HttpRequestMessage;
+#[cfg(test)]
+pub(crate) use messages::MemoryMessage;
+#[cfg(test)]
+pub(crate) use messages::MultimodalMessage;
+#[cfg(test)]
+pub(crate) use messages::QueryClassificationMessage;
+#[cfg(test)]
+pub(crate) use messages::RuntimeMessage;
+#[cfg(test)]
+pub(crate) use messages::StorageMessage;
+#[cfg(test)]
+pub(crate) use messages::ThemeChromeField;
+#[cfg(test)]
+pub(crate) use messages::ThemeColorPickerTarget;
+#[cfg(test)]
+pub(crate) use messages::ThemePaletteField;
+#[cfg(test)]
+pub(crate) use messages::TunnelMessage;
+#[cfg(test)]
+pub(crate) use messages::WebSearchMessage;

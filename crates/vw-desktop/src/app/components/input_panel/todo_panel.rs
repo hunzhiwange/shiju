@@ -1,6 +1,6 @@
 use crate::app::{App, Message, TodoPanelPlacement, message};
 use desktop_chat_input::input_panel::todo_panel as domain;
-pub(crate) use domain::{TodoPanelSurface, TodoPanelData};
+pub(crate) use domain::TodoPanelSurface;
 fn input(app: &App) -> domain::Input<'_> {
  domain::Input { i18n: crate::app::i18n::I18n::new(app.general_settings.desktop_locale),
  active_query: app.current_session_runtime_ref().and_then(|r| r.request_lifecycle.active_agent_request.as_ref().map(|request| request.query.as_str())),
@@ -19,3 +19,6 @@ pub fn todo_panel(app: &App, items: &[todo_types::Todo], anim: u8, surface: Todo
  domain::Message::OpenGit => Message::Batch(vec![Message::Project(message::ProjectMessage::FileManagerShowChanges(true)), Message::Git(message::GitMessage::RefreshGitPanelData)]),
  })
 }
+
+#[cfg(test)]
+pub(crate) use domain::TodoPanelData;

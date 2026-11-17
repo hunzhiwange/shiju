@@ -20,18 +20,15 @@ use crate::app::components::text_editor_context_menu::{
     focus_editor_task, paste_action, paste_task, selection_copy_task, selection_cut_task,
     selection_delete_task,
 };
-use crate::app::state::{TaskBoardDetailTab, TaskBoardSettingsModalTab};
-use crate::app::task::executor::TaskLogStream;
 use crate::app::task::{
-    Task, TaskBoardSettings, TaskDraft, TaskImportPromptFormat, TaskLogEntry,
-    TaskSplitMode, TaskStatus, normalize_task_model_input,
+    Task, TaskStatus,
 };
 
 mod helpers;
 mod message;
 mod update;
 
-pub(crate) use helpers::{import_prompt_template, sync_task_logs_editor};
+pub(crate) use helpers::sync_task_logs_editor;
 pub use message::TaskBoardMessage;
 pub(crate) use message::WorktreePoolMaintenanceOutcome;
 pub use update::update;
@@ -39,3 +36,24 @@ pub use update::update;
 #[cfg(test)]
 #[path = "task_board_tests.rs"]
 mod task_board_tests;
+
+#[cfg(test)]
+use crate::app::state::TaskBoardDetailTab;
+#[cfg(test)]
+use crate::app::state::TaskBoardSettingsModalTab;
+#[cfg(test)]
+use crate::app::task::TaskBoardSettings;
+#[cfg(test)]
+use crate::app::task::TaskDraft;
+#[cfg(test)]
+use crate::app::task::TaskImportPromptFormat;
+#[cfg(test)]
+use crate::app::task::TaskLogEntry;
+#[cfg(test)]
+use crate::app::task::TaskSplitMode;
+#[cfg(test)]
+use crate::app::task::executor::TaskLogStream;
+#[cfg(test)]
+use crate::app::task::normalize_task_model_input;
+#[cfg(test)]
+pub(crate) use helpers::import_prompt_template;

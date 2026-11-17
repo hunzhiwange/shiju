@@ -2,7 +2,7 @@
 use crate::app::{App, Message, message};
 use iced::Element;
 use desktop_chat_input::input_panel::attachment as shared;
-pub(crate) use shared::{AttachmentDisplayKind, AttachmentDisplayItem, parse_attachment_markers};
+pub(crate) use shared::{AttachmentDisplayItem, parse_attachment_markers};
 
 fn map_message(message: shared::Message) -> Message {
     match message {
@@ -26,3 +26,6 @@ pub(crate) fn attachment_preview_strip(
 ) -> Element<'static, Message> {
     shared::attachment_preview_strip(i18n, items).map(map_message)
 }
+
+#[cfg(test)]
+pub(crate) use shared::AttachmentDisplayKind;

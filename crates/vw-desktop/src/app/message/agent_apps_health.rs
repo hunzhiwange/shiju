@@ -3,7 +3,7 @@ use crate::app::{App, Message};
 use super::app_providers::list::{self, ListMessage};
 use iced::Task;
 use vw_api_app_failover::FailoverQueueQuery;
-pub use desktop_apps_ui::agent_apps_health::{Context, State, Event};
+pub use desktop_apps_ui::agent_apps_health::{Context, Event};
 pub fn message(event: Event) -> Message { list::message(ListMessage::FailoverHealth(event)) }
 fn current(app: &App, c: &Context) -> bool {
     app.app_providers.scope.as_ref() == Some(&c.scope)
@@ -47,3 +47,6 @@ pub fn update(app: &mut App, event: Event) -> Task<Message> {
 pub(crate) fn selected(app: &App, provider: &str) -> bool {
     app.apps_catalog.failover_health.context.as_ref().is_some_and(|c| c.provider.as_ref() == provider)
 }
+
+#[cfg(test)]
+pub use desktop_apps_ui::agent_apps_health::State;

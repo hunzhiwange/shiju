@@ -12,6 +12,7 @@ pub(super) fn build_start_visual_section<'a>(
         .map(Message::WorkflowTool)
 }
 
+#[cfg(test)]
 pub(super) fn build_start_variable_editor_modal(
     i18n: desktop_i18n::I18n,
     state: &WorkflowState,
@@ -24,6 +25,7 @@ pub(super) fn build_start_variable_editor_modal(
     )
 }
 
+#[cfg(test)]
 pub(super) fn build_start_variable_section<'a>(
     i18n: desktop_i18n::I18n,
     variables: &'a [super::state::WorkflowStartVariableDraft],
@@ -39,6 +41,7 @@ pub(super) fn build_start_variable_section<'a>(
     .map(Message::WorkflowTool)
 }
 
+#[cfg(test)]
 pub(super) fn build_start_variable_summary_item<'a>(
     i18n: desktop_i18n::I18n,
     index: usize,
@@ -56,6 +59,7 @@ pub(super) fn build_start_variable_summary_item<'a>(
     .map(Message::WorkflowTool)
 }
 
+#[cfg(test)]
 pub(super) fn build_start_builtin_variables_section(
     i18n: desktop_i18n::I18n,
     state: &WorkflowState,
@@ -64,6 +68,7 @@ pub(super) fn build_start_builtin_variables_section(
         .map(Message::WorkflowTool)
 }
 
+#[cfg(test)]
 pub(super) fn build_start_builtin_variable_item(
     i18n: desktop_i18n::I18n,
     item: StartBuiltinVariableItem,

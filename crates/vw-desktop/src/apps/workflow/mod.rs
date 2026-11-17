@@ -20,7 +20,6 @@ use crate::app::{App, AppTab, Message, Screen};
 use iced::Task;
 
 pub(crate) const WORKFLOW_TOOL_TAB_ID: &str = "workflow_tool";
-pub(crate) use desktop_workflow_ui::view::node_editor::NODE_EDITOR_DSL_EDITOR_ID;
 
 pub(crate) fn sync_top_tab(app: &mut App) {
     let title = app.workflow_state.display_title(crate::app::i18n::I18n::new(app.general_settings.desktop_locale));
@@ -72,3 +71,6 @@ pub(crate) fn refresh_top_tab_title(app: &mut App) {
             app.workflow_state.display_title(crate::app::i18n::I18n::new(app.general_settings.desktop_locale));
     }
 }
+
+#[cfg(test)]
+pub(crate) use desktop_workflow_ui::view::node_editor::NODE_EDITOR_DSL_EDITOR_ID;

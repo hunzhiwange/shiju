@@ -4,7 +4,7 @@ use crate::app::{App, Message, state::AgentAppsContext};
 use iced::Task;
 use vw_api_mcp_management::*;
 
-pub use desktop_settings_mcp::configuration_update::catalog::{CatalogMessage, CatalogState};
+pub use desktop_settings_mcp::configuration_update::catalog::CatalogMessage;
 pub use desktop_settings_mcp::management_context::Context;
 pub(crate) fn context(app: &App) -> Option<Context> {
     let client = crate::app::config::gateway_client().ok()?;
@@ -64,3 +64,6 @@ pub(crate) fn input(app: &mut App) -> desktop_settings_mcp::management_update::U
         effects: Vec::new(),
     }
 }
+
+#[cfg(test)]
+pub use desktop_settings_mcp::configuration_update::catalog::CatalogState;

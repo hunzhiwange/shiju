@@ -1,8 +1,10 @@
 pub use desktop_settings_apps::system_settings_apps::lifecycle::*;
 use crate::app::Message;
+#[cfg(test)]
 pub(crate) fn action_button<'a>(label: &'a str, request: vw_api_app_operations::AppActionPreviewRequest, enabled: bool) -> iced::Element<'a, Message> {
     desktop_settings_apps::system_settings_apps::lifecycle_view::action_button(label, request, enabled, super::domain_event)
 }
+#[cfg(test)]
 pub(crate) fn progress(state: &LifecycleState) -> iced::Element<'_, Message> {
     desktop_settings_apps::system_settings_apps::lifecycle_view::progress(state, super::domain_event)
 }

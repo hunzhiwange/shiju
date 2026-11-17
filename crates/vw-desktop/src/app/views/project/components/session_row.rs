@@ -1,8 +1,7 @@
-use crate::app::{App, Message};
+use crate::app::App;
 use crate::app::i18n::I18n;
 use session_info::Info;
 use desktop_workspace::views::project::components::session_row as domain;
-pub use domain::SessionRowDetails;
 pub use domain::SessionRowStatus;
 pub(in crate::app::views::project) fn status_for_session(app: &App, id: &str) -> SessionRowStatus {
  let runtime = app.session_state.session_runtime_states.get(id);
@@ -68,6 +67,7 @@ pub(in crate::app::views::project) fn row_input(app: &App, id: &str, title: &str
  relative: crate::app::i18n::chat::relative_time(i18n, crate::app::components::chat_panel::utils::relative_time_bucket(updated, crate::app::time::now_ms())),
  }
 }
+#[cfg(test)]
 pub fn session_row(app: &App, id: &str, details: &SessionRowDetails, status: SessionRowStatus, open: Message) -> iced::Element<'static, Message> {
  let mut input = row_input(app, id, details.title(), details.updated);
  input.pinned = app.session_ui_projection.pinned.contains(&(details.project_id().to_owned(), id.to_owned()));
@@ -77,3 +77,8 @@ pub fn session_row(app: &App, id: &str, details: &SessionRowDetails, status: Ses
 #[cfg(test)]
 #[path = "session_row_tests.rs"]
 mod session_row_tests;
+
+#[cfg(test)]
+use crate::app::Message;
+#[cfg(test)]
+pub use domain::SessionRowDetails;

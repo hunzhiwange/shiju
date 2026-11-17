@@ -1,16 +1,15 @@
-use super::*;
 
 pub(crate) use desktop_settings_network::app_init::state::{HttpRequestSettingsState};
 
 pub(crate) use desktop_settings_agents::acp_state::AcpSettingsState;
 
-pub use desktop_settings_mcp::state::{McpNewServerState, McpNewServerTransport, McpSettingsTab};
+pub use desktop_settings_mcp::state::McpSettingsTab;
 
 pub(crate) use desktop_settings_mcp::management_state::McpSettingsState;
 
 pub use desktop_settings_security::security_state::*;
 
-pub(crate) use desktop_settings_security::app_init::state::{AutonomyListKind, AutonomyListEditorState, AutonomySettingsState, AutonomySettingsTab};
+pub(crate) use desktop_settings_security::app_init::state::AutonomySettingsState;
 
 /// 存储设置面板状态
 ///
@@ -40,3 +39,16 @@ pub(crate) const AUTONOMY_LIST_KINDS: [AutonomyListKind; 7] = [
     AutonomyListKind::AllowedRoots,
     AutonomyListKind::NonCliExcludedTools,
 ];
+
+#[cfg(test)]
+use super::*;
+#[cfg(test)]
+pub use desktop_settings_mcp::state::McpNewServerState;
+#[cfg(test)]
+pub use desktop_settings_mcp::state::McpNewServerTransport;
+#[cfg(test)]
+pub(crate) use desktop_settings_security::app_init::state::AutonomyListEditorState;
+#[cfg(test)]
+pub(crate) use desktop_settings_security::app_init::state::AutonomyListKind;
+#[cfg(test)]
+pub(crate) use desktop_settings_security::app_init::state::AutonomySettingsTab;

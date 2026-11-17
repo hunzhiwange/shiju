@@ -5,14 +5,11 @@
 
 pub use desktop_settings_shell::GeneralSettingsTab;
 
-/// 对外暴露当前模块需要复用的能力。
-pub(super) use super::*;
 
 mod acp_diagnostic;
 mod agents;
 pub(crate) mod aggregation_omo;
 mod archived_chats;
-pub(crate) use acp_diagnostic::AcpDiagnosticStatus;
 pub(crate) use archived_chats::*;
 #[cfg(not(target_arch = "wasm32"))]
 mod computer_control;
@@ -26,10 +23,7 @@ mod cron_templates;
 #[allow(unused_imports)]
 pub(crate) use cron_templates::*;
 mod cron_history;
-pub(crate) use cron_history::*;
 mod cron_schedule_draft;
-pub(crate) use cron_frequency::CronFrequency;
-pub(crate) use cron_schedule_draft::*;
 mod infrastructure;
 mod provider_model;
 mod runtime;
@@ -52,3 +46,14 @@ mod settings_tests;
 
 mod worktrees;
 pub(crate) use worktrees::*;
+
+#[cfg(test)]
+pub(crate) use acp_diagnostic::AcpDiagnosticStatus;
+#[cfg(test)]
+pub(crate) use cron_frequency::CronFrequency;
+#[cfg(test)]
+pub(crate) use cron_history::*;
+#[cfg(test)]
+pub(crate) use cron_schedule_draft::*;
+#[cfg(test)]
+pub(super) use super::*;

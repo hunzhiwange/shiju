@@ -81,8 +81,7 @@ pub fn effect(app: &mut App, effect: Effect) -> Task<Message> {
             super::edit::dispatch_save(client,scope,generation,form,token)
         },
         Effect::Field(field) => {
-            return run(app, |state, _, _| { desktop_provider_apps::message::edit::change(state, &field); Task::none() });
-            Task::none()
+            run(app, |state, _, _| { desktop_provider_apps::message::edit::change(state, &field); Task::none() })
         }
     }
 }

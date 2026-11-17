@@ -1,3 +1,7 @@
+// Apple ld's large __eh_frame note is misclassified by rustc (rust-lang/rust#159105).
+// Preserve default unwind metadata: disabling compact unwind breaks catch_unwind.
+#![cfg_attr(all(test, target_os = "macos"), allow(linker_messages, reason = "Apple ld compact unwind size note; rust-lang/rust#159105"))]
+
 #![allow(
 	// 当前阶段优先保证工作区 Clippy 收敛，桌面端历史风格告警后续再分批治理
 	clippy::all,

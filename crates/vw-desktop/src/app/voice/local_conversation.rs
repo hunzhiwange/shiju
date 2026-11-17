@@ -1,5 +1,5 @@
 //! Desktop chat projection and native speech facade.
-pub use desktop_voice::local_conversation::{speak, spoken_prefix};
+#[cfg(test)]
 pub(crate) fn speech_text(raw: &str) -> String {
     if raw.len() > 65_536 {
         return String::new();
@@ -10,3 +10,8 @@ pub(crate) fn speech_text(raw: &str) -> String {
 #[cfg(test)]
 #[path = "local_conversation_tests.rs"]
 mod tests;
+
+#[cfg(test)]
+pub use desktop_voice::local_conversation::speak;
+#[cfg(test)]
+pub use desktop_voice::local_conversation::spoken_prefix;

@@ -19,7 +19,6 @@ fn map(message: crate::views::Message) -> crate::views::workspace::Message {
         crate::views::Message::None => crate::views::workspace::Message::None,
     }
 }
-pub(super) use domain::{grid_column_count, public_tab_specs, source_selector_visible};
 pub(super) fn loading_view() -> Element<'static, Message> {
     domain::loading_view().map(map)
 }
@@ -38,3 +37,10 @@ pub(super) fn source_selector(
 ) -> Element<'static, Message> {
     domain::source_selector(i18n, state).map(map)
 }
+
+#[cfg(test)]
+pub(super) use domain::grid_column_count;
+#[cfg(test)]
+pub(super) use domain::public_tab_specs;
+#[cfg(test)]
+pub(super) use domain::source_selector_visible;

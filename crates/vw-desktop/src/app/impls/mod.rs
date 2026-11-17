@@ -6,11 +6,10 @@ use super::*;
 pub(super) use crate::app::components;
 pub(super) use crate::app::config;
 pub(super) use crate::app::message;
-pub(super) use crate::app::models;
 pub(super) use crate::app::views;
 pub(super) use crate::app::{
-    AgentRequest, App, AppTab, CookieConfig, DiffTheme, FocusArea, Message, RecentProjectMeta,
-    Screen, SettingsTab, Shell, TerminalState, TerminalTheme, load_recent_projects,
+    AgentRequest, App, FocusArea, Message,
+    Screen, TerminalState, load_recent_projects,
     load_recent_projects_meta,
 };
 
@@ -34,3 +33,20 @@ mod app_view_status;
 pub(crate) use app_view_status::STATUS_BAR_HEIGHT;
 #[cfg(test)]
 mod tests;
+
+#[cfg(test)]
+pub(super) use crate::app::AppTab;
+#[cfg(test)]
+pub(super) use crate::app::CookieConfig;
+#[cfg(test)]
+pub(super) use crate::app::DiffTheme;
+#[cfg(test)]
+pub(super) use crate::app::RecentProjectMeta;
+#[cfg(test)]
+pub(super) use crate::app::SettingsTab;
+#[cfg(test)]
+pub(super) use crate::app::Shell;
+#[cfg(test)]
+pub(super) use crate::app::TerminalTheme;
+#[cfg(test)]
+pub(super) use crate::app::models;

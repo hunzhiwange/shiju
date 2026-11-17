@@ -426,7 +426,7 @@ pub fn update_local(
         }
         TaskBoardMessage::ToggleExecutorPopover => {
             (*state.executor_popover) = !(*state.executor_popover);
-            if (*state.executor_popover) {
+            if *state.executor_popover {
                 (*state.bulk_executor_popover) = false;
             }
         }
@@ -452,7 +452,7 @@ pub fn update_local(
         }
         TaskBoardMessage::ToggleBulkExecutorPopover => {
             (*state.bulk_executor_popover) = !(*state.bulk_executor_popover);
-            if (*state.bulk_executor_popover) {
+            if *state.bulk_executor_popover {
                 (*state.executor_popover) = false;
             }
         }

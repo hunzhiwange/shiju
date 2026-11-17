@@ -76,9 +76,7 @@ fn wrap_pending_permission_tool_card<'a, M: Clone + 'static>(
     super::permission_card::wrap_pending_permission_tool_card(content, label, on_press, is_active)
 }
 
-pub(crate) use super::assistant_body::{
-    deduped_tool_last_indices, deduped_tool_last_indices_with_metadata,
-};
+pub(crate) use super::assistant_body::deduped_tool_last_indices_with_metadata;
 
 fn push_explore_summary<'a, M: SelectionMessage + 'static>(
     mut body: Column<'a, M>,

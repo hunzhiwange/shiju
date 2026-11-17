@@ -1,4 +1,4 @@
-pub use desktop_provider_apps::message::paths::{Event,available};
+pub use desktop_provider_apps::message::paths::Event;
 use crate::app::{App,Message};
 use desktop_provider_apps::Scope;
 use iced::Task;
@@ -43,3 +43,6 @@ pub fn open(client:GatewayClient,scope:Scope,token:String,path:String)->Task<Mes
  desktop_provider_apps::message::paths::open_local(&home,&path)
  }).await.ok().and_then(Result::ok)},|opened|if opened.is_some(){Message::None}else{message(Event::FolderFailed)})
 }
+
+#[cfg(test)]
+pub use desktop_provider_apps::message::paths::available;

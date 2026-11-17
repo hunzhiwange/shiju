@@ -2,13 +2,12 @@
 use crate::app::{
     App, Message,
     message::agent_apps_diagnostics::{
-        self as diagnostics, Context, McpDiagnosticMessage as Event,
+        self as diagnostics, McpDiagnosticMessage as Event,
     },
 };
 use iced::Task;
-use vw_api_app_diagnostics::*;
 
-pub use desktop_settings_mcp::configuration_update::probe::ProbeTransport;
+#[cfg(test)]
 pub(crate) fn cleanup(
     transport: ProbeTransport,
     context: Context,
@@ -34,3 +33,10 @@ pub(crate) fn invalidate(app: &mut App) -> Task<Message> {
     )
     .map(|result| diagnostics::message(Event::Cleaned(result)))
 }
+
+#[cfg(test)]
+use crate::app::message::agent_apps_diagnostics::Context;
+#[cfg(test)]
+use vw_api_app_diagnostics::*;
+#[cfg(test)]
+pub use desktop_settings_mcp::configuration_update::probe::ProbeTransport;

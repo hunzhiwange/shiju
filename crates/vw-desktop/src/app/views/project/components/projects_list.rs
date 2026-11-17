@@ -28,6 +28,7 @@ pub fn projects_list<'a>(app: &App, collapsed_hover_mode: bool) -> iced::Element
  };
  domain::projects_list(&input, collapsed_hover_mode).map(map)
 }
+#[cfg(test)]
 pub(super) fn title_tooltip<'a>(content: impl Into<iced::Element<'a, Message>>, title: impl Into<String>, position: iced::widget::tooltip::Position) -> iced::Element<'a, Message> {
  // Tooltip has no events of its own; keep the caller's message type.
  desktop_workspace::views::project::components::projects_list::title_tooltip(content, title, position)

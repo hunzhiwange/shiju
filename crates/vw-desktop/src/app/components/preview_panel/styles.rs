@@ -1,7 +1,4 @@
 //! 预览标签栏的桌面布局投影。
-pub(super) use desktop_editor::components::preview_panel::styles::{
-    menu_button_style, small_icon_svg, file_tab_icon_svg, file_icon_for, truncate_title,
-};
 use desktop_editor::components::preview_panel::styles::{self, PreviewTabsLayout};
 use crate::app::App;
 
@@ -14,3 +11,14 @@ fn layout(app: &App) -> PreviewTabsLayout {
 pub(super) fn should_show_preview_tabs_scrollbar(app: &App) -> bool {
     styles::should_show_preview_tabs_scrollbar(layout(app), app.navigation_tabs.preview_tabs.iter().map(|tab| tab.title.as_str()))
 }
+
+#[cfg(test)]
+pub(super) use desktop_editor::components::preview_panel::styles::file_icon_for;
+#[cfg(test)]
+pub(super) use desktop_editor::components::preview_panel::styles::file_tab_icon_svg;
+#[cfg(test)]
+pub(super) use desktop_editor::components::preview_panel::styles::menu_button_style;
+#[cfg(test)]
+pub(super) use desktop_editor::components::preview_panel::styles::small_icon_svg;
+#[cfg(test)]
+pub(super) use desktop_editor::components::preview_panel::styles::truncate_title;

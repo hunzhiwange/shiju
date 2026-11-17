@@ -1,7 +1,7 @@
 //! 桌面设置记录和保存结果提示适配。
 use crate::app::{App, Message};
 use iced::Task;
-pub(crate) use desktop_editor::persistence::{ConfigPersistence, EditorSettingsPatch};
+pub(crate) use desktop_editor::persistence::EditorSettingsPatch;
 
 pub(super) fn enqueue(app: &mut App, patch: EditorSettingsPatch) -> Task<Message> {
     #[cfg(not(target_arch = "wasm32"))]
@@ -21,3 +21,6 @@ pub(super) fn save_complete(app: &mut App, result: Result<(), String>) -> Task<M
     }
     next
 }
+
+#[cfg(test)]
+pub(crate) use desktop_editor::persistence::ConfigPersistence;

@@ -25,7 +25,7 @@ pub fn build_commit_request(
 ) -> Result<SelectedCommitRequest, String> {
     let summary = (*git_commit_message).trim().to_string();
     let body = (*git_commit_description).trim().to_string();
-    let subject = if let Some(commit_type) = (*git_commit_type) {
+    let subject = if let Some(commit_type) = *git_commit_type {
         let scope = (*git_commit_scope).trim();
         if scope.is_empty() {
             format!("{}: {}", commit_type.as_str(), summary)

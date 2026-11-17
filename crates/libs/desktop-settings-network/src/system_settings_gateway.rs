@@ -4,7 +4,7 @@
 //! 注释聚焦调用边界、返回值和错误传播方式，便于后续维护设置页与工具栏行为时快速定位职责。
 
 use desktop_ui_controls::system_settings_common::*;
-use crate::help::{settings_hover_help_label, settings_page_heading_with_help, settings_group_heading_with_help, settings_flexible_row_with_help, with_settings_help_modal, with_settings_help_modal_mapped, HelpRenderer};
+use crate::help::{settings_hover_help_label, settings_page_heading_with_help, settings_group_heading_with_help, settings_flexible_row_with_help, HelpRenderer};
 use desktop_i18n::I18n;
 use desktop_i18n::settings_models::connection_text::text as connection_text;
 use desktop_i18n::settings_models::messages::render as owned_text;
@@ -755,6 +755,5 @@ pub fn overlay<'a>(app: View<'a>) -> Option<Element<'a, Message>> {
 mod service;
 mod calendar;
 use service::*;
-use calendar::*;
 pub use service::{service_command_copy_button, service_display_label};
 pub use calendar::{skey_calendar_popover, skey_date_picker};

@@ -1,7 +1,7 @@
 use iced::{Background, Border};
 use iced::widget::scrollable::{Direction, Scrollbar};
 use iced::{Color, Theme, Length};
-use iced::widget::{Svg, svg, button};
+use iced::widget::{Svg, svg};
 use desktop_assets::assets::{self, Icon};
 pub fn is_dark_theme(theme: &Theme) -> bool {
     theme.palette().background.r + theme.palette().background.g + theme.palette().background.b < 1.5

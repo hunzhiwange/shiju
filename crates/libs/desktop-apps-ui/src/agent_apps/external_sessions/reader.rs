@@ -10,7 +10,6 @@ use iced::{
     futures::SinkExt,
     widget::{button, column, container, row, scrollable, text},
 };
-use gateway_external_session::AgentAppsReadError;
 use vw_api_external_session::*;
 
 pub(super) fn handles(event: &Event) -> bool {

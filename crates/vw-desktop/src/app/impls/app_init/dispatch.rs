@@ -61,7 +61,7 @@ pub(in crate::app) fn update(app: &mut App, message: Message) -> Update {
         }),
         #[cfg(not(target_arch = "wasm32"))]
         Message::StartupGatewaySnapshotLoaded(generation, snapshot) => {
-            Update::Continue({ app.apply_startup_gateway_snapshot(generation, *snapshot) })
+            Update::Continue(app.apply_startup_gateway_snapshot(generation, *snapshot))
         }
         #[cfg(not(target_arch = "wasm32"))]
         Message::StartupSessionsLoaded(generation, message) => Update::Continue({

@@ -4,10 +4,7 @@
 use super::ChatMessage;
 use desktop_session::session_gateway;
 use crate::app::{App, Message};
-pub(super) use desktop_session::message::chat::stream::permissions::{
-    advance_permission_requests_after_reply, split_auto_approved_permission_requests,
-    sync_permission_requests,
-};
+pub(super) use desktop_session::message::chat::stream::permissions::split_auto_approved_permission_requests;
 use iced::Task;
 use {
     gateway_interaction::PendingPermissionReplyDto,
@@ -284,3 +281,8 @@ fn permission_state(
         permission_modal_requests: &mut app.session_state.permission_modal_requests,
     }
 }
+
+#[cfg(test)]
+pub(super) use desktop_session::message::chat::stream::permissions::advance_permission_requests_after_reply;
+#[cfg(test)]
+pub(super) use desktop_session::message::chat::stream::permissions::sync_permission_requests;

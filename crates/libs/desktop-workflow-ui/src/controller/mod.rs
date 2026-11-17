@@ -2,7 +2,7 @@
 use crate::message::{WorkflowMessage, WorkflowSaveTarget};
 use desktop_workflow_model::*;
 use desktop_workflow_state::state::*;
-use iced::{Point, Task, widget::text_editor};
+use iced::{Task, widget::text_editor};
 pub(crate) mod app;
 pub(crate) mod canvas;
 pub(crate) mod document;
@@ -37,6 +37,7 @@ impl Context<'_> {
     fn show_error_toast(&self, error: impl ToString) -> Task<Output> {
         Task::done(Output::Effect(Effect::Error(error.to_string())))
     }
+#[cfg(target_arch = "wasm32")]
     fn show_warning_toast(&self, error: impl ToString) -> Task<Output> {
         Task::done(Output::Effect(Effect::Warning(error.to_string())))
     }
@@ -91,6 +92,7 @@ pub(crate) fn save_active_app(app: &mut Context<'_>, force_picker: bool) -> Task
     save_entry(app, entry, force_picker)
 }
 
+#[cfg(test)]
 fn suggested_new_node_position(app: &Context<'_>) -> Point {
     let zoom = app.workflow_state.zoom.max(0.0001);
     let center_screen = Point::new(app.window_size.0 * 0.52, app.window_size.1 * 0.5);
@@ -112,8 +114,6 @@ pub(crate) fn save_entry(
 pub(crate) fn open_file() -> Task<Output> {
     crate::message::effects::open_file().map(Output::Workflow)
 }
-
-#[cfg(test)]
 
 pub(crate) fn export_svg(app: &mut Context<'_>) -> Task<Output> {
     crate::message::effects::export_svg(&mut app.workflow_state).map(Output::Workflow)
@@ -141,3 +141,6 @@ pub(crate) use crate::message::effects::suggested_export_file_name;
 #[cfg(test)]
 #[path = "../host_module_12_tests.rs"]
 mod host_module_12_tests;
+
+#[cfg(test)]
+use iced::Point;

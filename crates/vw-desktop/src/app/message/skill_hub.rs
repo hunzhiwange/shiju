@@ -1,7 +1,7 @@
 //! 协调识矩技能列表、详情、安装、版本操作与本地缓存同步消息。
 
 use crate::app::skill_hub::{
-    CursorPage, ExpertHubSection, InstalledSkill, LoadState, MarketplaceSkill,
+    CursorPage, ExpertHubSection, InstalledSkill, MarketplaceSkill,
     MineSkillStatus, PackageVersionCacheEntry, Page, PublicDetailMode,
     ShijuInstallationsReport, ShijuKeySyncReport,
     ShijuMultiInstallReport, ShijuPackageId, ShijuPackageRelease, ShijuUninstallReport,
@@ -21,9 +21,6 @@ use std::path::{
     PathBuf,
 };
 
-use gateway_shiju_skill::{
-    ShijuMaintainedSkillQuery, ShijuSkillSearchQuery,
-};
 
 pub(crate) mod connectors;
 pub(crate) mod knowledge;
@@ -34,13 +31,10 @@ mod upgrades;
 #[cfg(test)]
 mod upgrades_tests;
 pub(crate) use public::PublicSkillMessage;
-pub(crate) use public::selectable_expert_skill;
 
 pub(crate) use desktop_expert_hub::message::skill_hub::{
     EXPERT_HUB_TAB_ID, EXPERT_HUB_TITLE, SHIJU_SKILLS_TAB_ID, SHIJU_SKILLS_TITLE,
 };
-pub(super) use desktop_expert_hub::skill_operations::*;
-pub(super) use desktop_expert_hub::message::skill_hub::install_shiju_package_for_targets;
 use desktop_expert_hub::message::{
     SkillUpdate, HubPage, Effect,
 };
@@ -486,8 +480,11 @@ fn run_domain(app: &mut App, operation: impl FnOnce(&mut SkillUpdate<'_>) -> Tas
     }), effects])
 }
 pub(crate) fn account_changed(app: &mut App) -> Task<Message> { run_domain(app, domain::account_changed) }
+#[cfg(test)]
 pub(super) fn dispatch_download_with(app: &App, version_id: u64, opener: impl FnOnce(&str) -> Result<(), SkillHubError>) -> Result<(), SkillHubError> { domain::dispatch_download_with(&app.expert_hub, version_id, opener) }
+#[cfg(test)]
 pub(super) fn mine_query(app: &App) -> ShijuMaintainedSkillQuery { domain::mine_query(&app.expert_hub) }
+#[cfg(test)]
 pub(super) fn marketplace_query(app: &App) -> ShijuSkillSearchQuery { domain::marketplace_query(&app.expert_hub) }
 
 pub(crate) fn open_expert_hub_tab(app: &mut App) {
@@ -517,3 +514,16 @@ fn open_shiju_skills_tab(app: &mut App) {
     app.navigation_tabs.active_tab_id = Some(SHIJU_SKILLS_TAB_ID.to_string());
     app.navigation_tabs.screen = Screen::ShijuSkills;
 }
+
+#[cfg(test)]
+use crate::app::skill_hub::LoadState;
+#[cfg(test)]
+use gateway_shiju_skill::ShijuMaintainedSkillQuery;
+#[cfg(test)]
+use gateway_shiju_skill::ShijuSkillSearchQuery;
+#[cfg(test)]
+pub(crate) use public::selectable_expert_skill;
+#[cfg(test)]
+pub(super) use desktop_expert_hub::message::skill_hub::install_shiju_package_for_targets;
+#[cfg(test)]
+pub(super) use desktop_expert_hub::skill_operations::*;

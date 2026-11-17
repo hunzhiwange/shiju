@@ -7,9 +7,7 @@ use super::App;
 #[cfg(test)]
 use super::models::ChatRole;
 use super::models::{ChatMessage, ChatSession, ChatSessionStep, TokenUsage};
-pub(crate) use desktop_session::message::chat::stream::{
-    assign_message_model_to_step, bind_message_model_to_step,
-};
+pub(crate) use desktop_session::message::chat::stream::bind_message_model_to_step;
 use std::collections::HashMap;
 
 mod active;
@@ -39,7 +37,6 @@ pub use self::loading::{
     prepare_session_open, prepare_session_open_from_ui_store, prepare_timeline_page,
     session_content_signature, session_usage, shared_chat_messages,
 };
-pub(crate) use self::view_cache::SessionViewCache;
 
 const EMPTY_SESSION_ID: &str = "__empty__";
 
@@ -47,3 +44,8 @@ pub(crate) use desktop_session::session::backfill_message_models_from_steps;
 
 #[cfg(test)]
 mod view_cache_tests;
+
+#[cfg(test)]
+pub(crate) use desktop_session::message::chat::stream::assign_message_model_to_step;
+#[cfg(test)]
+pub(crate) use self::view_cache::SessionViewCache;

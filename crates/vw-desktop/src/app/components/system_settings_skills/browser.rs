@@ -1,10 +1,7 @@
-use crate::app::assets::Icon;
 #[cfg(test)]
 use crate::app::state::SkillsDirectoryScope;
 use crate::app::{App, Message, message::SettingsMessage};
-use config_ui::DesktopLocale;
 use desktop_settings_skills::{BrowserContext, BrowserState, Event};
-use iced::Element;
 fn context(app: &App) -> BrowserContext<'_> {
     let s = &app.skills_settings;
     BrowserContext {
@@ -83,9 +80,7 @@ pub(super) fn skill_project_options(app: &App) -> Vec<String> {
 }
 #[cfg(test)]
 pub(super) use desktop_settings_skills::browser::detail_source_note;
-pub(super) use desktop_settings_skills::browser::{
-    DetailActionStyle, catalog_panel_style, header_panel_style,
-};
+#[cfg(test)]
 pub(super) fn status_banner<'a>(
     message: impl iced::widget::text::IntoFragment<'a>,
     is_error: bool,
@@ -108,12 +103,15 @@ pub(super) fn refresh_button(
 ) -> iced::Element<'static, Message> {
     desktop_settings_skills::browser::refresh_button(locale, loading).map(message)
 }
+#[cfg(test)]
 pub(super) fn loading_banner<'a>(label: &'a str) -> iced::Element<'a, Message> {
     desktop_settings_skills::browser::loading_banner(label).map(message)
 }
+#[cfg(test)]
 pub(super) fn empty_state<'a>(title: &'a str, description: &'a str) -> iced::Element<'a, Message> {
     desktop_settings_skills::browser::empty_state(title, description).map(message)
 }
+#[cfg(test)]
 pub(super) fn detail_action_button(
     locale: DesktopLocale,
     label: &'static str,
@@ -144,3 +142,16 @@ fn help<'a>(
     });
     desktop_ui_controls::system_settings_common::help::settings_hover_help_label(label, content)
 }
+
+#[cfg(test)]
+use config_ui::DesktopLocale;
+#[cfg(test)]
+use crate::app::assets::Icon;
+#[cfg(test)]
+use iced::Element;
+#[cfg(test)]
+pub(super) use desktop_settings_skills::browser::DetailActionStyle;
+#[cfg(test)]
+pub(super) use desktop_settings_skills::browser::catalog_panel_style;
+#[cfg(test)]
+pub(super) use desktop_settings_skills::browser::header_panel_style;

@@ -26,7 +26,6 @@ mod settings_builders;
 pub(in crate::app) mod startup;
 
 pub(super) use desktop_settings_agents::acp::sort_acp_agents;
-pub(super) use desktop_workspace::basic::display_name_for_path;
 pub(super) use desktop_apps_ui::bookmark::load_web_bookmarks;
 
 mod preferences;
@@ -34,3 +33,6 @@ mod preferences;
 mod startup_snapshot;
 mod system_settings;
 pub(in crate::app) mod dispatch;
+
+#[cfg(test)]
+pub(super) use desktop_workspace::basic::display_name_for_path;

@@ -2,7 +2,7 @@ mod app_aux;
 
 pub use app_aux::{CookieConfig, RecentProjectMeta, WebBookmark};
 pub(crate) use app_aux::{
-    Notification, Toast, ToastKind, WorkBrowserState, default_recent_project_session_auto_refresh,
+    ToastKind, WorkBrowserState, default_recent_project_session_auto_refresh,
     default_recent_project_session_refresh_interval_seconds,
 };
 
@@ -17,6 +17,7 @@ pub use desktop_chat_view::trajectory::model::TrajectoryDetailsTab;
 pub use desktop_session::message::chat::git_handoff::QuickMessageGitCommitAction;
 pub(crate) use desktop_session::message::chat::git_handoff::QuickMessageHandoffState;
 
+#[cfg(test)]
 pub(crate) type UsageStepRawKey = SessionStepRawKey;
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -271,3 +272,8 @@ mod settings_preview_fields_tests;
 
 #[cfg(test)]
 mod workspace_task_fields_tests;
+
+#[cfg(test)]
+pub(crate) use app_aux::Notification;
+#[cfg(test)]
+pub(crate) use app_aux::Toast;

@@ -3,7 +3,6 @@
 use crate::app::Message;
 use crate::app::state::MAIN_AGENT_KEY;
 use desktop_task_board as taskboard;
-use taskboard::update::projection::*;
 
 use super::helpers::*;
 use super::*;
@@ -1089,3 +1088,6 @@ fn projection_state(
         settings: &mut app.task_board.task_board_settings,
     }
 }
+
+#[cfg(test)]
+use taskboard::update::projection::*;

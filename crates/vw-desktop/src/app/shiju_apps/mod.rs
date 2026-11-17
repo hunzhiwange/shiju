@@ -1,6 +1,6 @@
 //! 识矩应用领域状态导出与桌面辅助程序路径适配。
 pub(crate) use desktop_app_launch::{
-    ShijuAppDetailTarget, ShijuAppLaunchState, ShijuAppsLoadState, ShijuAppsState, ShijuAppsTab,
+    ShijuAppLaunchState, ShijuAppsState,
 };
 
 pub(crate) fn launch_shiju_app(
@@ -13,3 +13,10 @@ pub(crate) fn launch_shiju_app(
         expected_installation_id,
     )
 }
+
+#[cfg(test)]
+pub(crate) use desktop_app_launch::ShijuAppDetailTarget;
+#[cfg(test)]
+pub(crate) use desktop_app_launch::ShijuAppsLoadState;
+#[cfg(test)]
+pub(crate) use desktop_app_launch::ShijuAppsTab;

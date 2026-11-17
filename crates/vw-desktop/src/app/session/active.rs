@@ -116,6 +116,7 @@ impl App {
     }
 
     /// 将聊天尾部新增的消息增量纳入问题导航索引。
+    #[cfg(test)]
     pub(crate) fn sync_active_session_user_question_index(&mut self) {
         self.chat_view.active_session_view_state.sync_active_session_user_question_index(&self.chat_view.chat);
     }
@@ -126,6 +127,7 @@ impl App {
             .refresh_active_session_tail_message_meta(changed_idx, &self.chat_view.chat);
     }
 
+    #[cfg(test)]
     pub(crate) fn clear_active_session_steps(&mut self) {
         self.chat_view.active_session_view_state.clear_active_session_steps(
             crate::app::components::chat_panel::trajectory::project_trajectory,
@@ -143,11 +145,13 @@ impl App {
     /// 执行 replace_active_session_calls 对应的领域操作。
     ///
     /// 原始调用记录来自会话 UI 快照，单独维护以避免历史加载时覆盖步骤索引。
+    #[cfg(test)]
     pub(crate) fn replace_active_session_calls(&mut self, calls: Vec<Value>) {
         self.chat_view.active_session_view_state.replace_active_session_calls(calls);
     }
 
     /// 替换当前会话按稳定 turn/step 键保存的原始 LLM 载荷。
+    #[cfg(test)]
     pub(crate) fn replace_active_session_step_llm_raw(
         &mut self,
         raw: HashMap<SessionStepRawKey, Value>,
@@ -159,6 +163,7 @@ impl App {
     }
 
     /// 替换当前会话在存储层已存在的原始 LLM 稳定 turn/step 键。
+    #[cfg(test)]
     pub(crate) fn replace_active_session_llm_raw_step_indices(
         &mut self,
         indices: Vec<SessionStepRawKey>,

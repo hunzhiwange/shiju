@@ -95,7 +95,7 @@ pub fn prepare_changed_files(
 ) -> Option<String> {
 
             (*git_diff_context_menu) = None;
-            if (*git_changed_files_loading) {
+            if *git_changed_files_loading {
                 return None;
             }
             let Some(path) = repo_path.clone() else {

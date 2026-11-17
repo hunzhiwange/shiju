@@ -6,7 +6,7 @@ use iced::{
     widget::{Row, Text},
 };
 pub use shared::{
-    settings_close_button, settings_close_button_style, settings_close_icon_style,
+    settings_close_button,
     settings_help_button, settings_help_button_with_locale, settings_help_copy_state,
 };
 use std::borrow::Cow;
@@ -36,3 +36,8 @@ pub fn with_settings_help_modal<'a>(
         close_message,
     )
 }
+
+#[cfg(test)]
+pub use shared::settings_close_button_style;
+#[cfg(test)]
+pub use shared::settings_close_icon_style;

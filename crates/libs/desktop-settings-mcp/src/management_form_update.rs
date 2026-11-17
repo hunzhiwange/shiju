@@ -1,7 +1,6 @@
 use crate::management_form::*;
 use crate::management_update::{self as scope, Update};
 use iced::Task;
-use vw_api_mcp_management::*;
 fn authorized(app: &Update<'_>, context: &crate::management_context::Context) -> bool {
     app.context.as_ref() == Some(context)
         && app.authorized

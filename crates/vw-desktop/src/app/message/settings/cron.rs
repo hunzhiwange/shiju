@@ -18,6 +18,7 @@ pub fn update(app: &mut App, event: SettingsMessage) -> Task<Message> {
 pub(crate) fn refresh_run_history_locale(app: &mut App) {
  domain::refresh_run_history_locale(&mut app.cron_settings, app.general_settings.desktop_locale);
 }
+#[cfg(test)]
 pub(crate) fn validate_delivery(app: &App, draft: &crate::app::state::CronJobDraft) -> Result<(), String> {
  desktop_settings_cron::delivery::validate(draft, crate::app::components::system_settings_cron::availability(app))
 }

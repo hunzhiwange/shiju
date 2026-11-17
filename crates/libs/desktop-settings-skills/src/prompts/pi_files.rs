@@ -15,7 +15,7 @@ use gateway_app_prompt_resources::{
     PiPromptFileKind, PiPromptFileSnapshot, PiPromptResourcesScope,
 };
 use iced::{
-    Element, Length,
+    Element,
     widget::{button, column, row, text, text_editor},
 };
 

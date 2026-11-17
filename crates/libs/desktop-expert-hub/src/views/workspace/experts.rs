@@ -1,6 +1,6 @@
 //! 桌面组合尚属市场子域的内容，专家布局由领域库拥有。
 use super::{public_skill_detail, public_skills};
-use crate::message::skill_hub::{PublicSkillMessage, SkillHubMessage};
+use crate::message::skill_hub::SkillHubMessage;
 use crate::views::workspace::{Message, ViewInput as WorkspaceInput};
 use desktop_skill_hub::skill_hub::LoadState;
 use iced::Element;
@@ -31,3 +31,6 @@ pub(super) fn view<'a>(app: &WorkspaceInput<'a>) -> Element<'a, Message> {
         |message| Message::SkillHub(SkillHubMessage::Public(message)),
     )
 }
+
+#[cfg(test)]
+use crate::message::skill_hub::PublicSkillMessage;

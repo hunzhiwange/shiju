@@ -2,8 +2,7 @@
 use crate::app::{App, Message, message::SettingsMessage};
 use iced::Task;
 
-pub(crate) use desktop_settings_skills::storage_modal::{Event, Readback};
-pub(crate) use desktop_settings_skills::update::storage_modal::Change;
+pub(crate) use desktop_settings_skills::storage_modal::Event;
 pub(crate) fn message(event: Event) -> Message { Message::Settings(SettingsMessage::SkillsStorage(event)) }
 
 pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
@@ -18,4 +17,10 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
         }
     }
 }
+
+#[cfg(test)]
+pub(crate) use desktop_settings_skills::storage_modal::Readback;
+#[cfg(test)]
+pub(crate) use desktop_settings_skills::update::storage_modal::Change;
+#[cfg(test)]
 pub(crate) use desktop_settings_skills::update::storage_modal::open_local;

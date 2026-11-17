@@ -3,8 +3,7 @@
 use super::{capture_native, capture};
 #[cfg(not(test))]
 pub use audio_capture::{
-    Capture, CaptureError, FRAME_SAMPLES, InputDevice, LiveCapture, LiveFrames, MAX_SECONDS,
-    Recording, SAMPLE_RATE, VolumeSummary, input_devices,
+    Capture, LiveCapture,
 };
 
 // Desktop worker tests share the backend source to retain private device fixtures.

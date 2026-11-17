@@ -1,4 +1,4 @@
-use crate::app::{App, Message};
+#[cfg(test)]
 fn message(event: desktop_settings_skills::deeplink::Event) -> Message {
     use crate::app::message::settings::skills::repo_modal::{Event, message};
     use desktop_settings_skills::deeplink::Event as Ui;
@@ -9,6 +9,7 @@ fn message(event: desktop_settings_skills::deeplink::Event) -> Message {
         Ui::ConfirmSource => Event::ConfirmSource,
     })
 }
+#[cfg(test)]
 pub(super) fn view<'a>(app: &'a App) -> iced::Element<'a, Message> {
     let s = &app.skills_settings.repositories;
     desktop_settings_skills::deeplink::view(
@@ -21,3 +22,8 @@ pub(super) fn view<'a>(app: &'a App) -> iced::Element<'a, Message> {
         message,
     )
 }
+
+#[cfg(test)]
+use crate::app::App;
+#[cfg(test)]
+use crate::app::Message;

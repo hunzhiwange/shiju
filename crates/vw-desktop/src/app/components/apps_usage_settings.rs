@@ -1,5 +1,5 @@
 //! Maps provider selection and toast effects to the usage settings owner.
-pub use desktop_usage::apps_usage_settings::{Editor, Event};
+pub use desktop_usage::apps_usage_settings::Event;
 use desktop_usage::apps_usage_settings::{self as domain, Message as LocalMessage};
 use crate::app::{App, Message, message::app_providers::list::{ListMessage, message}};
 use super::{apps_usage_cards, system_settings::SystemTab};
@@ -26,3 +26,6 @@ pub(crate) fn overlay<'a>(app: &'a App, base: iced::Element<'a, Message>) -> ice
     let scope = (app.navigation_panels.show_system_settings && app.navigation_panels.system_settings_tab == SystemTab::Apps).then(|| apps_usage_cards::current_scope(app, false)).flatten();
     domain::overlay(&app.app_providers.usage.settings, scope, base, map)
 }
+
+#[cfg(test)]
+pub use desktop_usage::apps_usage_settings::Editor;

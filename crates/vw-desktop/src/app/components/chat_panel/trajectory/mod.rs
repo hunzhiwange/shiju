@@ -2,14 +2,12 @@
 
 #![allow(dead_code)]
 
-pub(crate) use desktop_chat_view::trajectory::details::trajectory_detail_values;
 #[allow(unused_imports)]
 pub(crate) use desktop_chat_view::trajectory::ledger::{
     LedgerFoldAction, MAX_LEDGER_SEARCH_RESULTS, build_ledger_groups, filter_ledger_records,
     trajectory_ledger,
 };
 
-pub(crate) use crate::app::state::TrajectoryDetailsTab;
 #[allow(unused_imports)]
 pub(crate) use desktop_chat_view::trajectory::model::{
     MetricAvailability, TrajectoryControlsState, TrajectoryDetailsAction, TrajectoryDetailsState,
@@ -84,3 +82,8 @@ pub(crate) fn view(app: &App) -> iced::Element<'_, Message> {
         })
     })
 }
+
+#[cfg(test)]
+pub(crate) use crate::app::state::TrajectoryDetailsTab;
+#[cfg(test)]
+pub(crate) use desktop_chat_view::trajectory::details::trajectory_detail_values;

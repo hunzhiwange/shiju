@@ -1,4 +1,3 @@
-pub use desktop_provider_apps::message::dsh::{Field,change,load,save};
 use crate::app::{App,Message,state::app_providers::list::Scope};
 pub(crate) fn change_membership(app:&mut App,id:String,add:bool)->iced::Task<Message> {
  let current=super::list::current(app,vw_api_app_identity::AppId::Dsh).ok();
@@ -8,3 +7,12 @@ pub(crate) fn membership_changed(app:&mut App,scope:Scope,generation:u64,add:boo
  let current=super::list::current(app,scope.app).ok();
  super::provider_update::membership_changed(app,current,scope,generation,add,result)
 }
+
+#[cfg(test)]
+pub use desktop_provider_apps::message::dsh::Field;
+#[cfg(test)]
+pub use desktop_provider_apps::message::dsh::change;
+#[cfg(test)]
+pub use desktop_provider_apps::message::dsh::load;
+#[cfg(test)]
+pub use desktop_provider_apps::message::dsh::save;

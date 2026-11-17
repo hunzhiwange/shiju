@@ -3,7 +3,6 @@ mod markdown_links;
 mod markdown_selection;
 pub(in crate::app::components) use markdown_selection::selectable_titled_text;
 mod parse;
-pub(crate) use parse::assistant_speech_text;
 mod render_cache;
 mod styles;
 
@@ -13,20 +12,12 @@ use iced::Element;
 use session_ui_types::ProcessingTiming;
 use std::borrow::Cow;
 mod snapshot;
-pub(crate) use self::parse::hash_chat_content;
 pub(crate) use self::render_cache::{
-    RevisionRenderKey, assistant_render_blocks, build_render_cache_entry,
-    effective_assistant_render_cache,
-};
-pub(crate) use self::styles::{
-    compaction_status_card_style, compaction_status_text_color, message_surface_contract,
-    message_surface_style,
+    RevisionRenderKey, build_render_cache_entry,
 };
 pub(crate) use desktop_chat_view::message_view::assistant_body::deduped_tool_last_indices;
 pub(crate) use desktop_chat_view::message_view::contracts::*;
-pub(crate) use desktop_chat_view::message_view::markdown::{
-    MarkdownBlock, markdown_block_key, markdown_editor_text, parse_markdown_blocks,
-};
+pub(crate) use desktop_chat_view::message_view::markdown::markdown_block_key;
 #[cfg(test)]
 pub(crate) use desktop_chat_view::message_view::permission_card::should_highlight_pending_permission_tool;
 pub(crate) use desktop_chat_view::message_view::text::estimate_message_height_rough;
@@ -143,3 +134,26 @@ pub(super) fn should_use_user_message_editor(
         no_attachments,
     )
 }
+
+#[cfg(test)]
+pub(crate) use desktop_chat_view::message_view::markdown::MarkdownBlock;
+#[cfg(test)]
+pub(crate) use desktop_chat_view::message_view::markdown::markdown_editor_text;
+#[cfg(test)]
+pub(crate) use desktop_chat_view::message_view::markdown::parse_markdown_blocks;
+#[cfg(test)]
+pub(crate) use parse::assistant_speech_text;
+#[cfg(test)]
+pub(crate) use self::parse::hash_chat_content;
+#[cfg(test)]
+pub(crate) use self::render_cache::assistant_render_blocks;
+#[cfg(test)]
+pub(crate) use self::render_cache::effective_assistant_render_cache;
+#[cfg(test)]
+pub(crate) use self::styles::compaction_status_card_style;
+#[cfg(test)]
+pub(crate) use self::styles::compaction_status_text_color;
+#[cfg(test)]
+pub(crate) use self::styles::message_surface_contract;
+#[cfg(test)]
+pub(crate) use self::styles::message_surface_style;

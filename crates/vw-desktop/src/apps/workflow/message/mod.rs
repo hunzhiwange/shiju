@@ -1,7 +1,7 @@
 //! Desktop effects for the workflow domain.
 use crate::app::{App, Message};
 use desktop_workflow_ui::controller::{Context, Effect, Output};
-pub use desktop_workflow_ui::message::{WorkflowMessage, WorkflowSaveTarget};
+pub use desktop_workflow_ui::message::WorkflowMessage;
 use iced::{Task, widget::text_editor};
 pub fn update(app: &mut App, message: WorkflowMessage) -> Task<Message> {
     if let WorkflowMessage::HostEffect(effect) = message {
@@ -89,3 +89,6 @@ fn start_native_video_edit(app: &mut App) -> Task<Message> {
 
 #[cfg(test)]
 mod video_edit_tests;
+
+#[cfg(test)]
+pub use desktop_workflow_ui::message::WorkflowSaveTarget;

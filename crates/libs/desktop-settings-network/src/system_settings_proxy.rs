@@ -19,7 +19,7 @@
 
 use desktop_ui_controls::system_settings_common::*;
 use desktop_ui_controls::system_settings_common::settings_help_button_with_locale as settings_help_button;
-use crate::help::{settings_hover_help_label, settings_page_heading_with_help, settings_group_heading_with_help, settings_flexible_row_with_help, with_settings_help_modal, with_settings_help_modal_mapped, HelpRenderer};
+use crate::help::{settings_page_heading_with_help, settings_group_heading_with_help, settings_flexible_row_with_help};
 use desktop_i18n::I18n;
 use crate::Message;
 use iced::widget::{checkbox, column, container, row, text};

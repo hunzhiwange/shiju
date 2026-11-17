@@ -15,7 +15,6 @@ use {
     vw_api_model_catalog::ModelCatalogEditRequest,
     vw_api_model_catalog::ModelCatalogIdentity,
     vw_api_model_catalog::ModelCatalogPreset,
-    vw_api_model_catalog::ModelCatalogProject,
     vw_api_model_catalog::ModelCatalogQuery,
     vw_api_model_catalog::ModelCatalogReadResponse,
 };

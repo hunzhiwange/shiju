@@ -108,8 +108,10 @@ pub enum Message {
     Batch(Vec<Message>),
 }
 
-pub(crate) use desktop_chat_view::chat_ui::ChatMarkdownSelection;
 
 pub use desktop_git_ui::DiffTheme;
 
 #[cfg(test)] #[path="ui_types_tests.rs"] mod ui_types_tests;
+
+#[cfg(test)]
+pub(crate) use desktop_chat_view::chat_ui::ChatMarkdownSelection;

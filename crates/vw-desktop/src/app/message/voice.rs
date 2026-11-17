@@ -15,7 +15,6 @@ use std::sync::Mutex;
 
 #[path = "voice_screen.rs"]
 mod screen;
-pub use screen::ScreenEvent;
 
 #[path = "voice_dictation.rs"]
 pub(super) mod dictation;
@@ -301,3 +300,6 @@ mod new_draft_tests;
 #[cfg(test)]
 #[path = "voice_ui_tests.rs"]
 mod ui_tests;
+
+#[cfg(test)]
+pub use screen::ScreenEvent;

@@ -1,3 +1,4 @@
+#[cfg(test)]
 pub(crate) mod policy_modal;
 
 pub(crate) mod health;

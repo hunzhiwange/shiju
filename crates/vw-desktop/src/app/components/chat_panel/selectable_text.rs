@@ -1,7 +1,4 @@
-use crate::app::models::ChatRole;
-pub use desktop_chat_view::selectable_text::{
-    SelectableTextPolicy, read_only_editor_content, selectable_text_policy,
-};
+#[cfg(test)]
 pub(crate) fn visible_editor_text_for_message(
     role: ChatRole,
     content: &str,
@@ -20,3 +17,12 @@ pub(crate) fn visible_editor_text_for_message(
         role, &cleaned, &cleaned, &cleaned,
     )
 }
+
+#[cfg(test)]
+use crate::app::models::ChatRole;
+#[cfg(test)]
+pub use desktop_chat_view::selectable_text::SelectableTextPolicy;
+#[cfg(test)]
+pub use desktop_chat_view::selectable_text::read_only_editor_content;
+#[cfg(test)]
+pub use desktop_chat_view::selectable_text::selectable_text_policy;

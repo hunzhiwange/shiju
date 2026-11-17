@@ -31,7 +31,7 @@ use super::{
     canonical_tool_name, tool_permission_state,
 };
 use crate::card_style::{
-    bold_font, change_pills, chat_context_target_key, chat_scroll_direction, deletions_pill,
+    change_pills, chat_context_target_key, chat_scroll_direction, deletions_pill,
     eye_icon_button_style, eye_icon_svg_style, file_button_style, icon_svg,
     simplified_block_style, simplified_code_block_style, truncate_chars, truncate_lines_middle,
 };

@@ -1,7 +1,6 @@
 //! 桌面注入只读领域输入并映射消息。
 use crate::views::workspace::{Message, ViewInput as WorkspaceInput};
 use crate::views::{self, public_skill_detail as domain};
-use desktop_skill_hub::skill_hub::*;
 use iced::Element;
 
 fn map(message: views::Message) -> Message {
@@ -32,12 +31,14 @@ pub(super) fn view<'a>(app: &WorkspaceInput<'a>) -> Element<'a, Message> {
     })
     .map(map)
 }
+#[cfg(test)]
 pub(super) fn installed_in_catalog(
     market: &PublicSkillMarketState,
     target: &PublicDetailTarget,
 ) -> bool {
     domain::installed_in_catalog(market, target)
 }
+#[cfg(test)]
 pub(super) fn detail_scope_action_message(
     detail: &PublicDetailState,
     scope: SkillInstallScope,
@@ -45,12 +46,14 @@ pub(super) fn detail_scope_action_message(
 ) -> Option<Message> {
     domain::detail_scope_action_message(detail, scope, project_available).map(map)
 }
+#[cfg(test)]
 pub(super) fn detail_target_action_message(
     detail: &PublicDetailState,
     target: SkillInstallTarget,
 ) -> Option<Message> {
     domain::detail_target_action_message(detail, target).map(map)
 }
+#[cfg(test)]
 pub(super) fn detail_project_action_message(
     selected_project_path: Option<&str>,
     install_busy: bool,
@@ -59,3 +62,6 @@ pub(super) fn detail_project_action_message(
     domain::detail_project_action_message(selected_project_path, install_busy, project_path)
         .map(map)
 }
+
+#[cfg(test)]
+use desktop_skill_hub::skill_hub::*;

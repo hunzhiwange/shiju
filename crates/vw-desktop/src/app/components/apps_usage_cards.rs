@@ -5,7 +5,7 @@ use iced::{Element, Task};
 use vw_api_app_auth::AuthService;
 use vw_api_app_identity::AppId;
 
-pub use desktop_usage::apps_usage_cards::{Event, Failure, Scope, Target, binding_app};
+pub use desktop_usage::apps_usage_cards::{Event, Scope, binding_app};
 
 use super::system_settings::SystemTab;
 use crate::app::{
@@ -114,3 +114,8 @@ pub(crate) fn current_scope(app: &App, account: bool) -> Option<Scope> {
 #[cfg(test)]
 #[path = "apps_usage_cards_tests.rs"]
 pub(in crate::app) mod tests;
+
+#[cfg(test)]
+pub use desktop_usage::apps_usage_cards::Failure;
+#[cfg(test)]
+pub use desktop_usage::apps_usage_cards::Target;

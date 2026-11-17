@@ -2,7 +2,7 @@
 use crate::app::{App, Message, state::AgentAppsContext};
 use desktop_apps_ui::{Connection, Notice, agent_apps::hermes_memory as domain};
 pub(crate) use domain::State;
-pub use domain::{Event, Scope};
+pub use domain::Event;
 use iced::{Element, Task};
 fn message(event: Event) -> Message {
     Message::Settings(crate::app::message::settings::SettingsMessage::AppsCatalog(
@@ -43,3 +43,6 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
     };
     Task::batch([task, feedback])
 }
+
+#[cfg(test)]
+pub use domain::Scope;

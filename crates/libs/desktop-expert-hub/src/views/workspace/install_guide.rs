@@ -2,10 +2,6 @@
 use crate::views::install_guide::{self, InstallInput};
 use crate::views::workspace::{Message, ViewInput as WorkspaceInput};
 use iced::Element;
-pub(super) use install_guide::{
-    InstallTargetPresentation, direct_install_button_label, install_target_presentations,
-    target_path_label, target_root_label,
-};
 fn input<'a>(app: &WorkspaceInput<'a>) -> InstallInput<'a> {
     InstallInput {
         state: &app.expert_hub.install_guide,
@@ -14,6 +10,7 @@ fn input<'a>(app: &WorkspaceInput<'a>) -> InstallInput<'a> {
         recent_projects: &app.recent_projects,
     }
 }
+#[cfg(test)]
 pub(super) fn install_project_options(app: &WorkspaceInput) -> Vec<String> {
     install_guide::install_project_options(&app.project_path, &app.recent_projects)
 }
@@ -29,6 +26,7 @@ fn map(message: crate::views::Message) -> Message {
         crate::views::Message::None => Message::None,
     }
 }
+#[cfg(test)]
 pub(super) fn view<'a>(app: &WorkspaceInput<'a>) -> Element<'a, Message> {
     install_guide::view(&input(app)).map(map)
 }
@@ -45,3 +43,14 @@ pub(super) fn with_uninstall_confirmation<'a>(
         None => base,
     }
 }
+
+#[cfg(test)]
+pub(super) use install_guide::InstallTargetPresentation;
+#[cfg(test)]
+pub(super) use install_guide::direct_install_button_label;
+#[cfg(test)]
+pub(super) use install_guide::install_target_presentations;
+#[cfg(test)]
+pub(super) use install_guide::target_path_label;
+#[cfg(test)]
+pub(super) use install_guide::target_root_label;

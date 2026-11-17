@@ -143,7 +143,7 @@ pub fn update(
                 let auto_save_task = if edit_attempted
                     && tab.is_dirty
                     && matches!(
-                        (*preview_auto_save_mode),
+                        *preview_auto_save_mode,
                         PreviewAutoSaveMode::AfterDelay | PreviewAutoSaveMode::OnFocusChange
                     ) {
                     let revision = tab.auto_save_revision;
@@ -272,7 +272,7 @@ pub fn update(
 
                 // 检查是否需要重置选择目标为全选（1,1 到 1,1 表示无选择）
                 let should_reset_target = !matches!(
-                    (*preview_context_target),
+                    *preview_context_target,
                     Some((ref p, start_line, start_col, end_line, end_col))
                         if *p == path && (start_line, start_col, end_line, end_col) != (1, 1, 1, 1)
                 );

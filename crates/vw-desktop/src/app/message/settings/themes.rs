@@ -3,7 +3,6 @@ use crate::app::{App, Message};
 use iced::Task;
 use super::SettingsMessage;
 use desktop_settings_appearance::system_settings_themes::update::{self as domain, Effect};
-pub use desktop_settings_appearance::system_settings_themes::messages::{ThemeChromeField, ThemeColorPickerTarget, ThemePaletteField, ThemesMessage};
 
 pub(super) fn toast_kind(kind: domain::ToastKind) -> crate::app::state::ToastKind {
     match kind {
@@ -39,3 +38,12 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
     app.appearance.active_custom_theme_id = final_id;
     Task::batch(tasks)
 }
+
+#[cfg(test)]
+pub use desktop_settings_appearance::system_settings_themes::messages::ThemeChromeField;
+#[cfg(test)]
+pub use desktop_settings_appearance::system_settings_themes::messages::ThemeColorPickerTarget;
+#[cfg(test)]
+pub use desktop_settings_appearance::system_settings_themes::messages::ThemePaletteField;
+#[cfg(test)]
+pub use desktop_settings_appearance::system_settings_themes::messages::ThemesMessage;

@@ -25,12 +25,8 @@
 //! ```
 
 pub use preview_content::{compute_search_matches, format_text_preview_content};
-#[cfg(not(target_arch = "wasm32"))]
-pub(crate) use preview_content::path_to_file_uri;
 
 pub use desktop_editor::preview::PreviewTab;
-#[cfg(not(target_arch = "wasm32"))]
-pub(crate) use desktop_editor::preview::{LspHoverPending, LspProgress};
 
 pub use desktop_editor::preview::file_validation::{safe_preview_text, preview_open_error, preview_open_error_message};
 
@@ -39,3 +35,10 @@ pub use desktop_editor::preview::tab::safe_preview;
 
 /// Semantic metadata for previews that cannot display editable text.
 pub use desktop_editor::preview::tab::preview_description;
+
+#[cfg(test)]
+pub(crate) use desktop_editor::preview::LspHoverPending;
+#[cfg(test)]
+pub(crate) use desktop_editor::preview::LspProgress;
+#[cfg(test)]
+pub(crate) use preview_content::path_to_file_uri;

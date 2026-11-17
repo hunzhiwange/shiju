@@ -164,9 +164,6 @@ pub use self::git::{
 };
 /// 对外暴露当前模块需要复用的能力。
 pub use self::message::{after, spawn_blocking_opt};
-#[cfg(not(target_arch = "wasm32"))]
-/// 对外暴露当前模块需要复用的能力。
-pub(crate) use self::preview::{LspHoverPending, LspProgress, path_to_file_uri};
 /// 对外暴露当前模块需要复用的能力。
 pub use self::preview::{PreviewTab, preview_open_error, safe_preview};
 /// 对外暴露当前模块需要复用的能力。
@@ -202,3 +199,10 @@ pub(crate) mod mcp_form;
 pub mod mcp_app_bridge;
 #[cfg(not(target_arch = "wasm32"))]
 mod mcp_app_download;
+
+#[cfg(test)]
+pub(crate) use self::preview::LspHoverPending;
+#[cfg(test)]
+pub(crate) use self::preview::LspProgress;
+#[cfg(test)]
+pub(crate) use self::preview::path_to_file_uri;

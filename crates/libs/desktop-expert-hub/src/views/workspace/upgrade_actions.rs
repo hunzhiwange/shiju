@@ -1,6 +1,4 @@
-use crate::views::workspace::{Message, ViewInput as WorkspaceInput};
-use crate::views::{ViewInput, upgrade_actions as domain};
-use iced::Element;
+#[cfg(test)]
 pub(super) fn view<'a>(app: &WorkspaceInput<'a>) -> Element<'a, Message> {
     domain::view(&ViewInput {
         expert_hub: &app.expert_hub,
@@ -9,6 +7,7 @@ pub(super) fn view<'a>(app: &WorkspaceInput<'a>) -> Element<'a, Message> {
     })
     .map(map)
 }
+#[cfg(test)]
 fn map(message: crate::views::Message) -> crate::views::workspace::Message {
     match message {
         crate::views::Message::SkillHub(m) => crate::views::workspace::Message::SkillHub(m),
@@ -19,3 +18,14 @@ fn map(message: crate::views::Message) -> crate::views::workspace::Message {
         crate::views::Message::None => crate::views::workspace::Message::None,
     }
 }
+
+#[cfg(test)]
+use crate::views::ViewInput;
+#[cfg(test)]
+use crate::views::upgrade_actions as domain;
+#[cfg(test)]
+use crate::views::workspace::Message;
+#[cfg(test)]
+use crate::views::workspace::ViewInput as WorkspaceInput;
+#[cfg(test)]
+use iced::Element;

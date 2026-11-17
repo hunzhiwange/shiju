@@ -5,6 +5,7 @@ use crate::app::models::ChatMessage;
 use crate::app::state::{ActiveSessionViewState, ChatPanelMode};
 use std::mem;
 pub(crate) use desktop_session::session::view_cache::{SessionOpenUiCommit, SessionViewCacheInsertResult};
+#[cfg(test)]
 pub(crate) type SessionViewCache = desktop_session::session::view_cache::SessionViewCache<SessionViewSnapshot>;
 pub(crate) struct SessionViewSnapshot(desktop_chat_view::view_snapshot::SessionViewSnapshot<ActiveSessionViewState, ChatPanelMode>);
 impl SessionViewSnapshot {

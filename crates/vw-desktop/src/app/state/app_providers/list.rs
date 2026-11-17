@@ -1,4 +1,4 @@
-pub use desktop_provider_apps::{Scope, state::list::{Snapshot, Editor}};
+pub use desktop_provider_apps::{Scope, state::list::Snapshot};
 #[cfg(not(target_arch = "wasm32"))]
 type Usage = crate::app::components::apps_usage_cards::Cards;
 #[cfg(target_arch = "wasm32")]
@@ -15,3 +15,6 @@ pub(crate) type ListState = desktop_provider_apps::state::list::ListState<
     crate::app::state::aggregation_omo::Form,
     Usage,
 >;
+
+#[cfg(test)]
+pub use desktop_provider_apps::state::list::Editor;

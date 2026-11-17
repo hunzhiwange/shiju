@@ -4,7 +4,6 @@ pub(crate) use desktop_git_ui::git_panel::left_panel::traverse_commit_focus;
 pub use desktop_git_ui::git_panel::ops::{
     DiffFileMeta, checkout_branch, current_branch, list_branches,
 };
-pub(crate) use desktop_git_ui::git_panel::repository_ops;
 use desktop_git_ui::page;
 fn input(app: &App) -> page::ViewContext<'_> {
     page::ViewContext {
@@ -101,3 +100,6 @@ pub(crate) fn get_diff_file_metas_for_repo_path(_path: &str) -> Vec<DiffFileMeta
 }
 #[cfg(test)]
 mod repository_tests;
+
+#[cfg(test)]
+pub(crate) use desktop_git_ui::git_panel::repository_ops;

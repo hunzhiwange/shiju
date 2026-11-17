@@ -3,7 +3,7 @@ use crate::app::{App, Message, message::SettingsMessage};
 use iced::Task;
 use vw_api_app_skills::updates_api::CheckSkillUpdatesRequest;
 
-pub(crate) use desktop_settings_skills::updates_view::{Operation, Outcome, Event};
+pub(crate) use desktop_settings_skills::updates_view::Event;
 pub(crate) fn message(event: Event) -> Message { Message::Settings(SettingsMessage::SkillsUpdates(event)) }
 
 pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
@@ -27,3 +27,8 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
         }
     }
 }
+
+#[cfg(test)]
+pub(crate) use desktop_settings_skills::updates_view::Operation;
+#[cfg(test)]
+pub(crate) use desktop_settings_skills::updates_view::Outcome;

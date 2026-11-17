@@ -1,14 +1,13 @@
 //! 提供系统设置消息处理共享的小型工具函数。
 
-use model_types::Info;
 
+#[cfg(test)]
 pub async fn load_gateway_providers() -> Result<std::collections::HashMap<String, Info>, String> {
     desktop_settings_providers::provider_tasks::load_gateway_providers(
         crate::app::config::gateway_client()?.endpoint().clone(),
     ).await
 }
 
-pub use desktop_settings_providers::settings_util::{parse_comma_or_newline_list, is_provider_connected, sync_save};
 
 #[cfg(target_arch = "wasm32")]
 #[allow(dead_code)]
@@ -21,3 +20,12 @@ pub fn wasm_save_task(
 ) -> iced::Task<crate::app::Message> {
     crate::app::config::spawn_gateway_task(tag, future)
 }
+
+#[cfg(test)]
+use model_types::Info;
+#[cfg(test)]
+pub use desktop_settings_providers::settings_util::is_provider_connected;
+#[cfg(test)]
+pub use desktop_settings_providers::settings_util::parse_comma_or_newline_list;
+#[cfg(test)]
+pub use desktop_settings_providers::settings_util::sync_save;

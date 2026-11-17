@@ -35,7 +35,8 @@ impl Requests {
         );
     }
     fn view(&self) -> Element<'_, Message> {
-        let root = Space::new().into();
+        // Modal layers inherit the base dimensions, as they do in the desktop host.
+        let root = Space::new().width(iced::Length::Fill).height(iced::Length::Fill).into();
         let feedback = || {
             self.active_toast.as_ref().map(|_| {
                 desktop_ui_controls::toast::view(
@@ -346,7 +347,11 @@ async fn ui_refresh_33_layout_and_interaction() {
                 let Some(&(viewport, initial)) = bounds.scroll.first() else {
                     panic!("permission details must scroll independently from actions");
                 };
-                assert!(label(&bounds, &toast_label).y > approve.y + approve.height);
+                assert!(
+                    label(&bounds, &toast_label).y > approve.y + approve.height,
+                    "toast={:?}, approve={approve:?}",
+                    label(&bounds, &toast_label)
+                );
                 let (_, selected) = bounds
                     .labels
                     .iter()
@@ -476,7 +481,11 @@ async fn ui_refresh_33_preserves_values_and_disabled_states() {
             let bounds = geometry(&mut ui, &renderer);
             let submit = label(&bounds, i18n.__("确定"));
             let cancel = label(&bounds, i18n.__("取消"));
-            assert!(label(&bounds, &toast_label).y > submit.y + submit.height);
+            assert!(
+                label(&bounds, &toast_label).y > submit.y + submit.height,
+                "toast={:?}, submit={submit:?}",
+                label(&bounds, &toast_label)
+            );
             let option = label(&bounds, B).center();
             let neutral = capture(
                 &mut ui,
@@ -514,7 +523,7 @@ async fn ui_refresh_33_preserves_values_and_disabled_states() {
             let close = assert_centered_controls(
                 app.view(),
                 &renderer,
-                label(&bounds, SINGLE),
+                label(&bounds, i18n.__("需要确认")),
                 *input,
                 label(&bounds, &toast_label),
             );
@@ -522,14 +531,25 @@ async fn ui_refresh_33_preserves_values_and_disabled_states() {
                 click(&mut ui, &mut renderer, close).as_slice(),
                 [Message::Question(Question::QuestionReject)]
             ));
+            // Bring the custom field into the independently scrolling content viewport.
+            let viewport = bounds.scroll[0].0;
+            let scroll_to_input = (input.center_y() - viewport.center_y()).max(0.0);
             assert!(
-                click(
+                send(
                     &mut ui,
                     &mut renderer,
-                    Point::new(input.x + input.width - 7.0, input.center_y())
+                    mouse::Cursor::Available(viewport.center()),
+                    &[Event::Mouse(mouse::Event::WheelScrolled {
+                        delta: mouse::ScrollDelta::Pixels { x: 0.0, y: -scroll_to_input },
+                    })],
                 )
                 .is_empty()
             );
+            let translation = geometry(&mut ui, &renderer).scroll[0].1;
+            let input_point =
+                Point::new(input.x + input.width - 7.0, input.center_y()) - translation;
+            assert!(viewport.contains(input_point));
+            assert!(click(&mut ui, &mut renderer, input_point).is_empty());
             let changed = key(&mut ui, &mut renderer, Key::Character("x".into()), Some("x"));
             assert!(matches!(
                 changed.as_slice(),
@@ -550,6 +570,17 @@ async fn ui_refresh_33_preserves_values_and_disabled_states() {
                 click(&mut ui, &mut renderer, cancel.center()).as_slice(),
                 [Message::Question(Question::QuestionReject)]
             ));
+            assert!(
+                send(
+                    &mut ui,
+                    &mut renderer,
+                    mouse::Cursor::Available(viewport.center()),
+                    &[Event::Mouse(mouse::Event::WheelScrolled {
+                        delta: mouse::ScrollDelta::Pixels { x: 0.0, y: scroll_to_input },
+                    })],
+                )
+                .is_empty()
+            );
             let single = click(&mut ui, &mut renderer, option);
             assert!(matches!(
                 single.as_slice(),

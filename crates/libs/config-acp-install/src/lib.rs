@@ -57,6 +57,9 @@ pub fn acp_install_command_for_platform(
         // Discover the official host CLI. No pinned, checksum-reviewed distribution
         // is registered here; never install a guessed npm package or moving script.
         "devin" => return None,
+        // Native Snowflake CLI: discover the host installation. Registry archives
+        // currently have no published checksums; do not execute a download script.
+        "cortex-code" => return None,
         "amp-acp" => &["install", "-g", "amp-acp@0.12.0"],
         "sigit" => &["install", "-g", "@smbcloud/sigit@1.7.10"],
         "nova" => &["install", "-g", "@compass-ai/nova@1.1.65"],

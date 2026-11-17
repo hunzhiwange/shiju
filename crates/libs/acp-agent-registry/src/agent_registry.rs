@@ -247,6 +247,15 @@ fn normalize_agent_spec_for_name(name: &str, spec: &AgentCommandSpec) -> AgentCo
 }
 
 const BUILT_IN_AGENT_DEFINITIONS: &[BuiltInAgentDefinition] = &[
+    BuiltInAgentDefinition {
+        name: "cortex-code",
+        display_name: "Cortex Code",
+        command: "cortex",
+        args: &["acp", "serve"],
+        env: &[],
+        local_command_candidates: &["cortex"],
+        local_args: &["acp", "serve"],
+    },
     // JetBrains ACP CLI: https://junie.jetbrains.com/docs/junie-cli-acp.html
     // Preserve the boolean option as one argv, including for host-local discovery.
     BuiltInAgentDefinition {

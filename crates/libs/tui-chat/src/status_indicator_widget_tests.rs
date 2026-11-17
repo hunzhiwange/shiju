@@ -38,6 +38,7 @@ fn status_indicator_renders_supplied_elapsed_seconds() {
     widget.render(area, &mut buffer);
 
     let rendered = format!("{buffer:?}");
-    assert!(rendered.contains("• ⠋ Working"));
+    // 7 秒经过 77 个 90ms 帧间隔，应显示第八帧。
+    assert!(rendered.contains("• ⠧ Working"));
     assert!(rendered.contains("(7s"));
 }

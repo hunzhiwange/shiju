@@ -26,7 +26,7 @@ use tracing::{
 };
 
 const SECRET: &str = "never-return-this-fixture-secret";
-const OUTPUT: &[u8] = b"data: {\"choices\":[{\"delta\":{\"content\":\"model output\"}}]}\n\n";
+const OUTPUT: &[u8] = b"data: {\"choices\":[{\"index\":0,\"delta\":{\"content\":\"model output\"}}]}\n\n";
 
 #[tokio::test]
 async fn cc_route_024_protocol_errors_expected_behavior() {
@@ -198,7 +198,9 @@ async fn cc_route_024_sse_error_before_output_uses_http_and_done_ends_the_stream
     let mut upstream = fixture.upstream_request(true).await;
     upstream.write_all(STREAM_HEAD).await.unwrap();
     let mut complete = OUTPUT.to_vec();
-    complete.extend_from_slice(b"data: [DONE]\n\n");
+    complete.extend_from_slice(
+        b"data: {\"choices\":[{\"index\":0,\"delta\":{},\"finish_reason\":\"stop\"}]}\n\ndata: [DONE]\n\n",
+    );
     let mut upstream_chunk = complete.clone();
     upstream_chunk.extend_from_slice(error.as_bytes());
     chunk(&mut upstream, &upstream_chunk).await.unwrap();

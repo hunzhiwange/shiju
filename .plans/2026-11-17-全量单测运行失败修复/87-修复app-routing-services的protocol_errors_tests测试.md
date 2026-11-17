@@ -4,7 +4,7 @@
 
 批次：【批次1】 依赖：无
 
-状态：未开始
+状态：待回归
 
 来源：原任务19全量实际执行；证据编号165, 166。
 预计会话范围：仅本测试定义文件中以下失败族及证据证明必要的底层修复，不接管整包。
@@ -52,3 +52,12 @@ python3 scripts/cargo_slot.py cargo test -p app-routing-services --lib 'protocol
 ```
 
 完成证据：各条精确过滤执行1项且passed=1、failed=0、退出0；参数化子进程用例同时记录子进程证据。记录槽位、双缓存路径、日志、代码状态和审查diff。不运行全量测试；最后统一验收任务负责跨任务复验。
+
+## 本次执行证据
+
+- 已读 dispatch::forward_json、timeouts 的首输出/终止处理、共享 stream_observer 及 sse_framing、timeouts_tests::Fixture。dispatch 在超时观察前调用 validated_body；Chat choice 缺少 index 会立即拒绝，且 [DONE] 要求 choice 已 finish。仅修本文件 OUTPUT 的 index=0、完成序列的 finish_reason=stop，保留错误脱敏、超时、截断和终止后错误不转发等断言；不削弱业务校验。
+- 修改前逐条运行本文件两条精确命令：日志 /tmp/shiju-87-red1.log、/tmp/shiju-87-red2.log，均退出101、实际0项。槽位3，CARGO_TARGET_DIR 与 CARGO_BUILD_BUILD_DIR 均为 /Users/xiangmin/worker/code/shiju/target/rust-slot-3。
+- 修改后逐条原命令复验：日志 /tmp/shiju-87-after1.log、/tmp/shiju-87-after2.log，均退出101、实际0项。槽位4，双缓存路径均为 /Users/xiangmin/worker/code/shiju/target/rust-slot-4。两阶段顺序命令各合并一次 cargo_slot.py sh -c 入口；未运行全量测试、桌面编译或额外 check。
+- 当前共同阻塞为 rmcp 0.8.5 的13个 E0425/E0432/E0433 编译错误，缺少 base64/schemars/paste、handler::server 及 capabilities builder 类型。相邻任务81–86已有相同共享依赖证据，未修改共享依赖清单或注册表。不能将编译失败算作当前行为红灯或通过。
+- cargo_slot 入口均已退出并释放自有槽位，保留缓存；git diff --check 对本测试文件通过。审查仅上述两处夹具修正，无业务文件修改。
+- 待共享依赖恢复后重跑两条精确命令，每条须实际1项且 passed=1、failed=0、退出0；仍需确认完成帧与后续错误同一读取时的行为。尚无行为验收证据，保留任务文件。

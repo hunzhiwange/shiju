@@ -139,7 +139,8 @@ mod tests {
             api_url,
             tenant_id: Some("tenant1".into()),
             allowed_numbers: vec!["*".into()],
-            client: reqwest::Client::new(),
+            // 本地 HTTP 夹具必须直连，避免宿主代理将连接失败改写为 HTTP 响应。
+            client: reqwest::Client::builder().no_proxy().build().expect("build local test client"),
         }
     }
 

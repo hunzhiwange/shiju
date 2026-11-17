@@ -395,10 +395,15 @@ fn normalize_chat_tool_event() {
     assert_eq!(event.status, super::GatewayChatToolStatus::Completed);
     assert_eq!(event.occurred_ms, 123);
     assert_eq!(event.payload["output"], "done");
-    assert_eq!(
-        event.legacy_delta(),
-        "tool shell\n{\"output\":\"done\",\"status\":\"completed\"}\n"
-    );
+    let delta = event.legacy_delta();
+    let mut lines = delta.split('\n');
+    assert_eq!(lines.next(), Some("tool shell"));
+    // JSON object order depends on the unified serde_json/preserve_order feature.
+    let payload: serde_json::Value =
+        serde_json::from_str(lines.next().expect("tool payload line")).expect("valid JSON");
+    assert_eq!(payload, json!({"output": "done", "status": "completed"}));
+    assert_eq!(lines.next(), Some(""));
+    assert_eq!(lines.next(), None);
 }
 
 #[test]

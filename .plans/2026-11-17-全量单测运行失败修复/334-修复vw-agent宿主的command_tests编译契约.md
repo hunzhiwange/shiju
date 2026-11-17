@@ -79,7 +79,7 @@ help: the trait `VideoContext` is implemented for `NativeVideoContext`
 22:         file.canonicalize().unwrap()
 23:     );
 24: }
-25: 
+25:
 26: #[test]
 ```
 
@@ -147,7 +147,7 @@ help: the trait `VideoContext` is implemented for `NativeVideoContext`
 44:     assert_eq!(req.project_root, None);
 45:     assert!(prepare_video_edit_request("/shiju 剪辑 relative.mp4", &full).is_err());
 46: }
-47: 
+47:
 48: #[test]
 ```
 
@@ -179,7 +179,7 @@ help: the trait `VideoContext` is implemented for `NativeVideoContext`
 44:     assert_eq!(req.project_root, None);
 45:     assert!(prepare_video_edit_request("/shiju 剪辑 relative.mp4", &full).is_err());
 46: }
-47: 
+47:
 48: #[test]
 49: fn video_edit_command_delegated_parent_remains_restricted_under_full_access() {
 50:     use std::sync::Arc;

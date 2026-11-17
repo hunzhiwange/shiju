@@ -30,14 +30,14 @@ error[E0531]: cannot find tuple struct or tuple variant `Json` in this scope
 当前源码片段：
 
 ```rust
-173: 
+173:
 174: #[tokio::test]
 175: async fn path_get_reports_global_and_instance_paths() {
 176:     let temp = tempfile::tempdir().expect("tempdir");
 177:     let Json(info) = path_get::<Host>(Query(query_for(temp.path())), HeaderMap::new())
 178:         .await
 179:         .expect("path_get should succeed");
-180: 
+180:
 181:     assert!(!info.home.is_empty());
 182:     let home = directories::UserDirs::new().unwrap();
 ```
@@ -57,14 +57,14 @@ error[E0531]: cannot find tuple struct or tuple variant `Json` in this scope
 当前源码片段：
 
 ```rust
-192: 
+192:
 193: #[tokio::test]
 194: async fn path_get_uses_directory_header_when_query_missing() {
 195:     let temp = tempfile::tempdir().expect("tempdir");
 196:     let Json(info) = path_get::<Host>(Query(InstanceQuery { directory: None }), headers_for(temp.path()))
 197:         .await
 198:         .expect("path_get should succeed");
-199: 
+199:
 200:     assert_eq!(info.directory, temp.path().to_string_lossy());
 201: }
 ```
@@ -84,14 +84,14 @@ error[E0531]: cannot find tuple struct or tuple variant `Json` in this scope
 当前源码片段：
 
 ```rust
-215: 
+215:
 216: #[tokio::test]
 217: async fn vcs_get_returns_empty_branch_for_non_git_directory() {
 218:     let temp = tempfile::tempdir().expect("tempdir");
 219:     let Json(info) = vcs_get::<Host>(Query(query_for(temp.path())), HeaderMap::new())
 220:         .await
 221:         .expect("vcs_get should succeed");
-222: 
+222:
 223:     assert_eq!(info.branch, "");
 224: }
 ```
@@ -114,11 +114,11 @@ error[E0531]: cannot find tuple struct or tuple variant `Json` in this scope
 244:     repo.set_head("refs/heads/unit-test-branch").expect("checkout branch ref");
 245:     repo.checkout_head(Some(git2::build::CheckoutBuilder::new().force()))
 246:         .expect("checkout worktree");
-247: 
+247:
 248:     let Json(info) = vcs_get::<Host>(Query(query_for(temp.path())), HeaderMap::new())
 249:         .await
 250:         .expect("vcs_get should succeed");
-251: 
+251:
 252:     assert_eq!(info.branch, "unit-test-branch");
 253: }
 ```
@@ -141,11 +141,11 @@ error[E0531]: cannot find tuple struct or tuple variant `Json` in this scope
 368: #[tokio::test]
 369: async fn instance_dispose_returns_true_and_clears_cached_instance() {
 370:     let temp = tempfile::tempdir().expect("tempdir");
-371: 
+371:
 372:     let Json(disposed) = instance_dispose::<Host>(Query(query_for(temp.path())), HeaderMap::new())
 373:         .await
 374:         .expect("dispose should succeed");
-375: 
+375:
 376:     assert!(disposed);
 377: }
 ```
@@ -168,12 +168,12 @@ error[E0531]: cannot find tuple struct or tuple variant `Json` in this scope
 392:     .await
 393:     .expect("instance context should be provided")
 394:     .expect("approval manager should load");
-395: 
+395:
 396:     let Json(disposed) = instance_dispose::<Host>(Query(query_for(temp.path())), HeaderMap::new())
 397:         .await
 398:         .expect("dispose should succeed");
 399:     assert!(disposed);
-400: 
+400:
 401:     let after = crate::app::agent::project::instance::provide(temp.path(), None, || {
 ```
 
@@ -195,12 +195,12 @@ error[E0531]: cannot find tuple struct or tuple variant `Json` in this scope
 427:             let _ = tx.send(evt);
 428:         }
 429:     });
-430: 
+430:
 431:     let Json(disposed) = instance_dispose::<Host>(Query(query_for(temp.path())), HeaderMap::new())
 432:         .await
 433:         .expect("dispose should succeed");
 434:     assert!(disposed);
-435: 
+435:
 436:     let event = tokio::time::timeout(std::time::Duration::from_secs(1), rx.recv())
 ```
 

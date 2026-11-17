@@ -41,13 +41,13 @@ help: the trait `agent_mcp::McpToolRuntime` is implemented for `mcp::NativeRunti
 20: #[test]
 21: fn unknown_tool_call_is_rejected_without_execution() {
 22:     let ctx = ToolRuntimeContext::for_specs();
-23: 
+23:
 24:     let result = McpToolRuntime::execute_tool_call(&ctx, "definitely_missing_tool", "{}");
-25: 
+25:
 26:     assert!(result.is_err());
 27:     assert!(format!("{:?}", result.unwrap_err()).contains("Unknown tool: definitely_missing_tool"));
 28: }
-29: 
+29:
 ```
 
 ### 宿主诊断54：E0277
@@ -76,9 +76,9 @@ help: the trait `agent_mcp::McpToolRuntime` is implemented for `mcp::NativeRunti
 30: #[test]
 31: fn registered_tool_call_with_missing_arguments_is_rejected_before_execution() {
 32:     let ctx = ToolRuntimeContext::for_specs();
-33: 
+33:
 34:     let result = McpToolRuntime::execute_tool_call(&ctx, "file_read", "{}");
-35: 
+35:
 36:     assert!(result.is_err());
 37:     assert!(format!("{:?}", result.unwrap_err()).contains("path"));
 38: }

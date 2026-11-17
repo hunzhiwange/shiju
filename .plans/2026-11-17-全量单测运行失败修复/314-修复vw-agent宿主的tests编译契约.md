@@ -30,7 +30,7 @@ error[E0432]: unresolved import `super::acp::is_acp_session_changed_message`
 当前源码片段：
 
 ```rust
-5: 
+5:
 6: use super::acp::{
 7:     AcpReplayStrategy, ParsedAcpOptions, acp_session_name, build_acp_command_line,
 8:     build_replay_prompt, extract_delta_from_acp_message, extract_reasoning_delta_from_acp_message,
@@ -39,7 +39,7 @@ error[E0432]: unresolved import `super::acp::is_acp_session_changed_message`
 11: };
 12: use serde_json::json;
 13: use acp_types::{AcpSessionOptions, AuthPolicy, NonInteractivePermissionPolicy, PermissionMode};
-14: 
+14:
 ```
 
 ## 步骤和验证

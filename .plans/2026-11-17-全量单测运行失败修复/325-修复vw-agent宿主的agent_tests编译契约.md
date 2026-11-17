@@ -31,12 +31,12 @@ error[E0425]: cannot find value `RATE_LIMIT_WINDOW_SECS` in this scope
 
 ```rust
 254:     let second = handle_agent(State(state), ConnectInfo(peer()), HeaderMap::new(), body()).await;
-255: 
+255:
 256:     assert_eq!(first.status(), StatusCode::BAD_REQUEST);
 257:     assert_eq!(second.status(), StatusCode::TOO_MANY_REQUESTS);
 258:     assert_eq!(response_json(second).await["retry_after"], RATE_LIMIT_WINDOW_SECS);
 259: }
-260: 
+260:
 261: #[tokio::test]
 262: async fn handle_agent_uses_trusted_forwarded_client_for_rate_limit() {
 263:     let mut state = state(false, &[], 1);
@@ -69,7 +69,7 @@ help: trait `IntoResponse` which provides `into_response` is implemented but not
 
 ```rust
 222:     let response = app.oneshot(request).await.expect("router should respond");
-223: 
+223:
 224:     assert_eq!(response.status(), StatusCode::BAD_REQUEST);
 225:     assert!(
 226:         response_json(response.into_response()).await["error"]

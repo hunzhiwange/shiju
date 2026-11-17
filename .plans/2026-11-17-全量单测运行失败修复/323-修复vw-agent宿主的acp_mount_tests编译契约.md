@@ -41,12 +41,12 @@ note: function defined here
 
 ```rust
 129:     assert_eq!(restored_backend.session_tool_count(id), Some(1));
-130: 
+130:
 131:     let pool = tools.mcp_connections().unwrap();
 132:     let current = agent_app_services::mcp::acceptance::acp::revoke_cached(
 133:         &catalog, &project_scope, &selected, &root, &tool, pool.as_ref(),
 134:     ).await;
-135: 
+135:
 136:     let restored_backend = VibeWindowBackend::new(tenant.clone());
 137:     restored_backend.load_session(id, workspace.clone()).await.unwrap();
 138:     assert_eq!(restored_backend.session_tool_count(id), Some(0));

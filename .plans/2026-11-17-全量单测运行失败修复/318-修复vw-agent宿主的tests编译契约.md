@@ -69,11 +69,11 @@ error[E0624]: method `spawn_background_turn` is private
 ```rust
 403:         .with_coordinator(TaskSessionCoordinator::new())
 404:         .with_stream_executor(executor);
-405: 
+405:
 406:     let error = tool
 407:         .spawn_background_turn(parent.info.id, task.info, "Continue".into())
 408:         .expect_err("unregistered task startup must fail");
-409: 
+409:
 410:     assert!(error.to_string().contains("unknown task session"));
 411:     assert!(!executor_called.load(std::sync::atomic::Ordering::SeqCst));
 412: }
@@ -101,7 +101,7 @@ error[E0599]: no method named `mark_succeeded` found for struct `session_engine:
 434:     coordinator.mark_succeeded(&parent.info.id, &task.info.id).expect("finish");
 435:     let tool = SessionTool::new(Some(parent.info.id.clone()), project.path().to_path_buf())
 436:         .with_coordinator(coordinator);
-437: 
+437:
 438:     let listed = tool.execute(json!({"action":"list"})).await.expect("list");
 439:     let listed: serde_json::Value = serde_json::from_str(&listed.output).expect("list JSON");
 ```

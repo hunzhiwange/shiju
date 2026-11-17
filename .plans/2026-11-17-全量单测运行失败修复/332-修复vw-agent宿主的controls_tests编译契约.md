@@ -38,7 +38,7 @@ error[E0425]: cannot find value `ACP_CLIENT_CACHE` in this scope
 31:     cache.remove(&first.key);
 32:     cache.remove(&second.key);
 33: }
-34: 
+34:
 35: #[tokio::test]
 ```
 

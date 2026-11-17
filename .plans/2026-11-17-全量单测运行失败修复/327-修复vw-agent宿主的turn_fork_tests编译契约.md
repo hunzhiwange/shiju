@@ -36,7 +36,7 @@ help: consider importing this module
 当前源码片段：
 
 ```rust
-14: 
+14:
 15: async fn request(method: Method, path: &str, directory: &str, body: Value) -> (StatusCode, Value) {
 16:     let response = super::super::super::router()
 17:         .with_state(state())
@@ -77,7 +77,7 @@ note: function `crate::gateway::router::router_tests::handlers::session::stream:
 ```rust
 86:     directory
 87: }
-88: 
+88:
 89: async fn worktree_cleanup(source: &agent_session::session::Info, target: String) {
 90:     with_tenant_instance(ui_store::current_tenant_scope(), source.directory.clone(), move || {
 91:         Box::pin(async move {
@@ -110,7 +110,7 @@ help: consider importing this module
 ```rust
 86:     directory
 87: }
-88: 
+88:
 89: async fn worktree_cleanup(source: &agent_session::session::Info, target: String) {
 90:     with_tenant_instance(ui_store::current_tenant_scope(), source.directory.clone(), move || {
 91:         Box::pin(async move {
@@ -142,7 +142,7 @@ help: consider importing this module
 
 ```rust
 99: }
-100: 
+100:
 101: fn acceptance_app() -> axum::Router {
 102:     super::super::super::router().with_state(state())
 103:         .layer(Extension(ui_store::current_tenant_scope()))

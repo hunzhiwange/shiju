@@ -32,11 +32,11 @@ error[E0425]: cannot find value `RATE_LIMIT_WINDOW_SECS` in this scope
 ```rust
 377:             .expect("second request should be rate limited"),
 378:     );
-379: 
+379:
 380:     assert_eq!(status, StatusCode::TOO_MANY_REQUESTS);
 381:     assert_eq!(body["retry_after"], RATE_LIMIT_WINDOW_SECS);
 382: }
-383: 
+383:
 384: #[test]
 385: fn enforce_rate_limit_scopes_limits_to_each_peer_address() {
 386:     let state = state_with(
@@ -58,13 +58,13 @@ error[E0425]: cannot find value `RATE_LIMIT_WINDOW_SECS` in this scope
 
 ```rust
 624:     );
-625: 
+625:
 626:     assert_eq!(first_status, StatusCode::OK);
 627:     assert_eq!(second_status, StatusCode::TOO_MANY_REQUESTS);
 628:     assert_eq!(body["retry_after"], RATE_LIMIT_WINDOW_SECS);
 629:     assert_eq!(provider.calls.load(Ordering::SeqCst), 1);
 630: }
-631: 
+631:
 632: #[tokio::test]
 633: async fn handle_webhook_inner_returns_auth_error_before_provider_call() {
 ```

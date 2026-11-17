@@ -182,7 +182,7 @@ help: the trait `VideoContext` is implemented for `NativeVideoContext`
 89:     config.workspace_dir = root.path().into();
 90:     assert!(identify_video_source(&path, &cloud.ctx.clone().with_test_config(config)).is_err());
 91: }
-92: 
+92:
 93: #[tokio::test]
 94: async fn video_edit_prepare_cross_tenant_runs_and_native_mismatch_are_isolated() {
 95:     let (root, db, cloud, req) = fixture();

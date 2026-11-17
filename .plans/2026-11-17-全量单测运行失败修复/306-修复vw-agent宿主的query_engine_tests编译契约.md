@@ -58,9 +58,9 @@ note: tuple variant defined here
 410:     engine.history =
 411:         vec![ChatMessage::user("previous task"), ChatMessage::assistant("previous result")];
 412:     engine.hook_runtime = Some(runtime.clone());
-413: 
+413:
 414:     let response = engine.submit_message("exercise primary and retry").await.unwrap();
-415: 
+415:
 416:     assert_eq!(response, "recovered");
 417:     assert_eq!(runtime.audit_store().entries().len(), 2);
 ```
@@ -108,11 +108,11 @@ note: tuple variant defined here
 430:     let mut engine = test_engine(provider, Arc::new(FakeMemory::default()));
 431:     engine.tools_registry = vec![Box::new(HookProbeTool)];
 432:     engine.hook_runtime = Some(disabled.clone());
-433: 
+433:
 434:     assert_eq!(engine.submit_message("hooks disabled").await.unwrap(), "disabled");
 435:     assert!(disabled.audit_store().entries().is_empty());
 436: }
-437: 
+437:
 ```
 
 ## 步骤和验证

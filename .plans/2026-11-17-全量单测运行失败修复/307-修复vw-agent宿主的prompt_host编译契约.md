@@ -43,7 +43,7 @@ help: if you import `ToolRuntimeContext`, refer to it directly
 129:             "missing execution boundary '{expected}':\n{execution}"
 130:         );
 131:     }
-132: 
+132:
 133:     let workflow_context = tool_types::ToolRuntimeContext::new(
 134:         "workflow-subtask-session",
 135:         Some(temp.path().to_string_lossy().to_string()),

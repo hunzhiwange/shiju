@@ -35,7 +35,7 @@ error[E0599]: no method named `mark_failed` found for struct `session_engine::ta
 106:     }
 107:     let error = json!({"name":"APIError","message":"error decoding response body"}).to_string();
 108:     coordinator.mark_failed(&context.session, &ids[0], &error).expect("failure");
-109: 
+109:
 110:     let result = execute_tool_call(
 111:         "wait_threads",
 112:         &json!({"thread_ids":ids,"timeout_ms":0}).to_string(),

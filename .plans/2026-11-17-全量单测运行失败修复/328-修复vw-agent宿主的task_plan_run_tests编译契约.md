@@ -33,13 +33,13 @@ error[E0425]: cannot find function `task_plan_run_status` in this scope
 34:             },
 35:         )
 36:         .expect("observe planning");
-37: 
+37:
 38:     let Json(status) = task_plan_run_status::<Host>(Extension(owner.clone()), Path(task_id.clone()))
 39:         .await
 40:         .expect("owner status");
 41:     assert_eq!(status.status, TaskPlanRunStatus::Running);
 42:     assert_eq!(status.current_session_id.as_deref(), Some(session_id.as_str()));
-43: 
+43:
 ```
 
 ### 宿主诊断43：E0425
@@ -59,7 +59,7 @@ error[E0425]: cannot find function `task_plan_run_status` in this scope
 ```rust
 41:     assert_eq!(status.status, TaskPlanRunStatus::Running);
 42:     assert_eq!(status.current_session_id.as_deref(), Some(session_id.as_str()));
-43: 
+43:
 44:     let cross_tenant_status =
 45:         task_plan_run_status::<Host>(Extension(outsider.clone()), Path(task_id.clone()))
 46:             .await
@@ -93,7 +93,7 @@ error[E0425]: cannot find function `task_plan_run_stop` in this scope
 51:         .expect_err("cross-tenant stop must be hidden");
 52:     assert_eq!(cross_tenant_stop.status, StatusCode::NOT_FOUND);
 53:     assert!(!cancellation.is_cancelled());
-54: 
+54:
 ```
 
 ### 宿主诊断45：E0425
@@ -114,13 +114,13 @@ error[E0425]: cannot find function `task_plan_run_stop` in this scope
 51:         .expect_err("cross-tenant stop must be hidden");
 52:     assert_eq!(cross_tenant_stop.status, StatusCode::NOT_FOUND);
 53:     assert!(!cancellation.is_cancelled());
-54: 
+54:
 55:     let Json(stopped) = task_plan_run_stop::<Host>(Extension(owner.clone()), Path(task_id.clone()))
 56:         .await
 57:         .expect("owner stop");
 58:     assert_eq!(stopped.status, TaskPlanRunStatus::Cancelled);
 59:     assert!(cancellation.is_cancelled());
-60: 
+60:
 ```
 
 ### 宿主诊断46：E0425
@@ -140,7 +140,7 @@ error[E0425]: cannot find function `task_plan_run_stop` in this scope
 ```rust
 58:     assert_eq!(stopped.status, TaskPlanRunStatus::Cancelled);
 59:     assert!(cancellation.is_cancelled());
-60: 
+60:
 61:     let Json(stopped_again) =
 62:         task_plan_run_stop::<Host>(Extension(owner), Path(task_id)).await.expect("idempotent stop");
 63:     assert_eq!(stopped_again.status, TaskPlanRunStatus::Cancelled);

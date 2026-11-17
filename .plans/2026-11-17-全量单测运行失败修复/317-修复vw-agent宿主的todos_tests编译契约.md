@@ -31,9 +31,9 @@ error[E0433]: cannot find `runner_todos` in the crate root
 
 ```rust
 88:     let mut tool_state = super::super::ToolSessionState::default();
-89: 
+89:
 90:     super::maybe_mark_todo_in_progress(&mut session, &ctx, &mut tool_state);
-91: 
+91:
 92:     assert!(crate::runner_todos::read_todos_or_empty(&ctx.session).is_empty());
 93:     assert!(session.messages.is_empty());
 94: }

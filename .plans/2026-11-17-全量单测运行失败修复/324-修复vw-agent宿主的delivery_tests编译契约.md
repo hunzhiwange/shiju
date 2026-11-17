@@ -33,7 +33,7 @@ error[E0425]: cannot find type `Config` in this scope
 5: use serde_json::{Value, json};
 6: use tokio::time::{Duration, timeout};
 7: use vw_api_transport::id::TenantScope;
-8: 
+8:
 9: fn fixture(tmp: &tempfile::TempDir) -> Config {
 10:     let mut config = Config::default();
 11:     config.workspace_dir = tmp.path().join("workspace");
@@ -60,7 +60,7 @@ error[E0425]: cannot find type `Config` in this scope
 20: fn tenant() -> TenantScope {
 21:     TenantScope::new("cron-wecom-test", uuid::Uuid::new_v4().to_string()).unwrap()
 22: }
-23: 
+23:
 24: async fn save(config: &Config) {
 25:     crate::config::schema::save_config_for_tenant(
 26:         config,
@@ -86,7 +86,7 @@ error[E0433]: cannot find type `Config` in this scope
 ```rust
 6: use tokio::time::{Duration, timeout};
 7: use vw_api_transport::id::TenantScope;
-8: 
+8:
 9: fn fixture(tmp: &tempfile::TempDir) -> Config {
 10:     let mut config = Config::default();
 11:     config.workspace_dir = tmp.path().join("workspace");

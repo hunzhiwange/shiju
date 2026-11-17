@@ -15,11 +15,17 @@ struct TestDir {
 impl TestDir {
     fn new() -> Self {
         static COUNTER: AtomicU64 = AtomicU64::new(0);
-        let n = COUNTER.fetch_add(1, Ordering::Relaxed);
-        let mut path = std::env::temp_dir();
-        path.push(format!("vw-cli-estop-test-{n}"));
-        std::fs::create_dir_all(&path).unwrap();
-        Self { path }
+        loop {
+            let n = COUNTER.fetch_add(1, Ordering::Relaxed);
+            let path = std::env::temp_dir()
+                .join(format!("vw-cli-estop-test-{}-{n}", std::process::id()));
+            // 独占创建，避免跨进程或遗留目录导致状态串用及相互清理。
+            match std::fs::create_dir(&path) {
+                Ok(()) => return Self { path },
+                Err(error) if error.kind() == std::io::ErrorKind::AlreadyExists => continue,
+                Err(error) => panic!("Failed to create test directory {}: {error}", path.display()),
+            }
+        }
     }
 
     fn config_path(&self) -> PathBuf {

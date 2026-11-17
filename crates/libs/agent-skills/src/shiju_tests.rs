@@ -21,13 +21,27 @@ fn fixture(responses: Vec<(String, String)>) -> (String, thread::JoinHandle<Vec<
             .into_iter()
             .map(|(status, body)| {
                 let (mut stream, _) = listener.accept().expect("accept SHIJU skill request");
+                stream
+                    .set_read_timeout(Some(std::time::Duration::from_secs(5)))
+                    .expect("fixture request timeout");
                 let mut request = Vec::new();
                 let mut buffer = [0_u8; 2048];
                 loop {
                     let read = stream.read(&mut buffer).expect("read SHIJU skill request");
+                    assert_ne!(read, 0, "request ended before headers and body were complete");
                     request.extend_from_slice(&buffer[..read]);
-                    if read == 0 || request.windows(4).any(|window| window == b"\r\n\r\n") {
-                        break;
+                    if let Some(header_end) = request.windows(4).position(|w| w == b"\r\n\r\n") {
+                        let headers = std::str::from_utf8(&request[..header_end])
+                            .expect("request headers UTF-8");
+                        let content_length = headers
+                            .lines()
+                            .filter_map(|line| line.split_once(':'))
+                            .find(|(name, _)| name.eq_ignore_ascii_case("content-length"))
+                            .map(|(_, value)| value.trim().parse::<usize>().expect("content length"))
+                            .unwrap_or(0);
+                        if request.len() >= header_end + 4 + content_length {
+                            break;
+                        }
                     }
                 }
                 let response = format!(
@@ -48,6 +62,28 @@ fn envelope(data: serde_json::Value) -> String {
 
 fn credential() -> ShijuCredential {
     ShijuCredential::new("fixture-private-skill-secret").expect("credential")
+}
+
+#[test]
+fn shiju_fixture_waits_for_request_body() {
+    let (base, requests) = fixture(vec![("204 No Content".to_string(), String::new())]);
+    let mut stream = std::net::TcpStream::connect(base.trim_start_matches("http://"))
+        .expect("connect fixture");
+    stream
+        .set_read_timeout(Some(std::time::Duration::from_millis(100)))
+        .expect("timeout");
+    stream
+        .write_all(b"POST /skills/31/install HTTP/1.1\r\nHost: localhost\r\nContent-Length: 17\r\n\r\n")
+        .expect("write headers");
+    let mut response = [0_u8; 1];
+    let early = stream.read(&mut response);
+    let body_result = stream.write_all(br#"{"version_id":88}"#);
+    let requests = requests.join().expect("join fixture");
+    assert!(matches!(early, Err(error) if matches!(
+        error.kind(), std::io::ErrorKind::WouldBlock | std::io::ErrorKind::TimedOut
+    )));
+    body_result.expect("write body");
+    assert!(requests[0].ends_with(r#"{"version_id":88}"#));
 }
 
 #[tokio::test(flavor = "multi_thread")]

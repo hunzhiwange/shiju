@@ -248,13 +248,13 @@ fn normalize_agent_spec_for_name(name: &str, spec: &AgentCommandSpec) -> AgentCo
 
 const BUILT_IN_AGENT_DEFINITIONS: &[BuiltInAgentDefinition] = &[
     BuiltInAgentDefinition {
-        name: "aionrs",
-        display_name: "aionrs",
-        command: "aionrs-acp",
-        args: &[],
+        name: "omp",
+        display_name: "omp",
+        command: "npx",
+        args: &["-y", "@oh-my-pi/pi-coding-agent@18.22.0", "acp"],
         env: &[],
-        local_command_candidates: &["aionrs-acp"],
-        local_args: &[],
+        local_command_candidates: &["omp"],
+        local_args: &["acp"],
     },
     // Official native ACP bridge: https://github.com/vinhnx/VTCode
     // Keep bridge switches scoped to the child; preserve the CLI's local configuration.

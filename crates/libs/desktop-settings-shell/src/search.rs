@@ -14,6 +14,7 @@ use desktop_settings_skills::types::SkillsSettingsTab;
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SystemSettingsSearchTarget {
     TopLevel(SystemTab),
+    ThirdParty(desktop_ui_controls::settings_navigation::ThirdPartyPage),
     General(GeneralSettingsTab),
     GeneralField(&'static GeneralSettingField),
     Models(ModelConfigTab),
@@ -33,6 +34,7 @@ impl SystemSettingsSearchTarget {
     pub fn page(self) -> SystemTab {
         match self {
             Self::TopLevel(tab) | Self::Network(tab) => tab,
+            Self::ThirdParty(_) => SystemTab::Apps,
             Self::General(_) | Self::GeneralField(_) => SystemTab::General,
             Self::Models(_) => SystemTab::Models,
             Self::Cron(_) => SystemTab::Cron,
@@ -88,6 +90,7 @@ pub fn search_target_is_active(
     target: SystemSettingsSearchTarget,
 ) -> bool {
     match target {
+        SystemSettingsSearchTarget::ThirdParty(_) => false,
         SystemSettingsSearchTarget::GeneralField(_) => false,
         SystemSettingsSearchTarget::TopLevel(tab) => {
             tab == state.page || (tab == SystemTab::WebSearch && crate::is_network_tab(state.page))

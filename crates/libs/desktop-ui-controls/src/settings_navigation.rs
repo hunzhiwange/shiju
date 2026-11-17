@@ -102,7 +102,7 @@ impl SystemTab {
             SystemTab::Voice => "语音设置",
             #[cfg(not(target_arch = "wasm32"))]
             SystemTab::ComputerControl => "电脑操控",
-            SystemTab::Apps => "应用列表",
+            SystemTab::Apps => "第三方智能体",
             #[cfg(not(target_arch = "wasm32"))]
             SystemTab::Auth => "授权中心",
             SystemTab::General => "常规设置",
@@ -182,7 +182,7 @@ pub fn system_tab_keywords(tab: SystemTab) -> &'static [&'static str] {
         SystemTab::Worktrees => &["worktree", "工作树", "清理", "环境"],
         SystemTab::ArchivedChats => &["archived", "chats", "归档", "聊天", "历史项目"],
         SystemTab::Providers => {
-            &["providers", "api key", "model", "模型", "密钥", "base url", "catalog", "第三方智能体", "third-party agents", "cc-switch"]
+            &["providers", "api key", "model", "模型", "密钥", "base url", "catalog"]
         }
         SystemTab::Models => &["models", "llm", "ai", "provider"],
         SystemTab::Cron => &["cron", "schedule", "task", "自动化"],
@@ -224,14 +224,11 @@ pub const GROUPS: &[(&str, &[SystemTab])] = {
                 ArchivedChats,
             ],
         ),
-        ("模型与智能体", &[Models, Agents, Memory]),
+        ("模型与智能体", &[Models, Providers, Agents, Memory]),
         (
             "第三方智能体",
             &[
                 Apps,
-                Providers,
-                #[cfg(not(target_arch = "wasm32"))]
-                Auth,
             ],
         ),
         ("网络与集成", &[GatewayClient, Gateway, WebSearch]),
@@ -251,3 +248,23 @@ pub enum GeneralSettingsTab {
 #[cfg(test)]
 #[path = "settings_navigation_tests.rs"]
 mod tests;
+
+/// Pages within the third-party area; native agent settings retain their own targets.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub enum ThirdPartyPage {
+    #[default]
+    Agents,
+    Mcp,
+    Skills,
+    Sessions,
+    Authorization,
+    Usage,
+    ManagementTools,
+}
+impl ThirdPartyPage {
+    pub const ALL: &'static [(Self, &'static str)] = &[
+        (Self::Agents, "智能体管理"), (Self::Mcp, "MCP"), (Self::Skills, "Skills"),
+        (Self::Sessions, "会话"), (Self::Authorization, "授权中心"),
+        (Self::Usage, "用量与额度"), (Self::ManagementTools, "管理工具"),
+    ];
+}

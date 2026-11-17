@@ -549,6 +549,7 @@ fn update_navigation(
             )
         }
         Some(domain::Effect::SystemSettingsVisibilityChanged(visible)) => {
+            if !visible { crate::app::components::third_party_settings::invalidate(app); }
             app.workspace_state.project_tools_menu_path = None;
             #[cfg(not(target_arch = "wasm32"))]
             {

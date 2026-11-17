@@ -213,7 +213,7 @@ fn execute(app: &mut App, effect: Effect) -> Task<Message> {
 #[path = "skills_tests.rs"]
 mod skills_tests;
 
-fn update_input(app: &App) -> desktop_settings_skills::update::Input {
+pub(crate) fn update_input(app: &App) -> desktop_settings_skills::update::Input {
     let client = crate::app::config::gateway_client();
     let context = client.as_ref().ok().map(|client| crate::app::state::AgentAppsContext {
         gateway: client.endpoint().base_url(),

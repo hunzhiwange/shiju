@@ -207,25 +207,7 @@ fn settings_content(app: &App, active_tab: SystemTab) -> Element<'_, Message> {
         SystemTab::ComputerControl => super::system_settings_computer_control::view(app),
         #[cfg(not(target_arch = "wasm32"))]
         SystemTab::Voice => super::system_settings_voice::view(app),
-        SystemTab::Apps => super::system_settings_data::recovery_ui::overlay(
-            app,
-            super::system_settings_data::export_ui::overlay(
-                app,
-                column![
-                    super::system_settings_apps::view(
-                        &app.apps_catalog,
-                        crate::app::i18n::I18n::new(app.general_settings.desktop_locale),
-                    ),
-                    crate::app::components::system_settings_data::migration_preview_ui::view(app),
-                    crate::app::message::settings::backup_inventory::view(app),
-                    super::system_settings_data::export_ui::view(app),
-                    super::system_settings_data::backup_list_ui::view(app),
-                    super::system_settings_data::recovery_ui::view(app),
-                ]
-                .spacing(12)
-                .into(),
-            ),
-        ),
+        SystemTab::Apps => super::third_party_settings::view(app),
         #[cfg(not(target_arch = "wasm32"))]
         SystemTab::Auth => super::system_settings_auth::view(app),
         SystemTab::General => crate::app::components::system_settings_general::view(app),
@@ -234,28 +216,7 @@ fn settings_content(app: &App, active_tab: SystemTab) -> Element<'_, Message> {
         SystemTab::Projects => crate::app::components::system_settings_projects::view(app),
         SystemTab::ArchivedChats => super::system_settings_archived_chats::view(app),
         SystemTab::Worktrees => super::system_settings_worktrees::view(app),
-        SystemTab::Providers => {
-            use super::system_settings_common::{
-                rounded_action_btn_style, settings_muted_text_style,
-            };
-            use iced::widget::{button, text};
-
-            column![
-                text("应用供应商由应用目录管理；选择目标应用后可查看执行主机上的配置与状态。")
-                    .size(13)
-                    .style(settings_muted_text_style),
-                button(text("管理应用供应商"))
-                    .padding([8, 14])
-                    .style(rounded_action_btn_style)
-                    .on_press(Message::Settings(message::SettingsMessage::SystemTabSelected(
-                        SystemTab::Apps,
-                    ))),
-                crate::app::components::system_settings_providers::connected::view(app),
-            ]
-            .spacing(12)
-            .width(Length::Fill)
-            .into()
-        }
+        SystemTab::Providers => super::system_settings_providers::connected::view(app),
         SystemTab::Models => crate::app::components::system_settings_models::view(app),
         SystemTab::Cron => crate::app::components::system_settings_cron::view(app),
         SystemTab::Agents => crate::app::components::system_settings_agents::view(app),
@@ -464,11 +425,12 @@ pub fn view(app: &App) -> Element<'_, Message> {
     }
 
     #[cfg(not(target_arch = "wasm32"))]
-    if active_tab == SystemTab::Auth {
+    if active_tab == SystemTab::Auth || (active_tab == SystemTab::Apps && app.apps_catalog.third_party_page == desktop_ui_controls::settings_navigation::ThirdPartyPage::Authorization) {
         dialog = super::system_settings_auth::overlay(&app.agent_apps_auth, dialog);
     }
 
     if app.navigation_panels.system_settings_tab == SystemTab::Apps {
+        dialog = super::third_party_settings::overlays(app, dialog);
         dialog = super::system_settings_apps::view_overlays(
             &app.apps_catalog,
             crate::app::i18n::I18n::new(app.general_settings.desktop_locale),

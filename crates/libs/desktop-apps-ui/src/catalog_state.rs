@@ -25,6 +25,8 @@ pub struct AppsCatalogState<
     Preferences,
     Lifecycle,
     Drag,
+    ThirdPartySkills,
+    ThirdPartyMcpScope,
     Row
 > {
     pub device_sync_webdav: DeviceSyncWebdav,
@@ -53,6 +55,10 @@ pub struct AppsCatalogState<
     pub lifecycle: Lifecycle,
     pub model_diagnostics: crate::diagnostics::model_state::ModelState,
     pub high_availability: crate::agent_apps_high_availability_policy::State,
+    pub third_party_page: desktop_ui_controls::settings_navigation::ThirdPartyPage,
+    pub navigation_generation: u64,
+    pub third_party_skills: ThirdPartySkills,
+    pub third_party_mcp_scope: ThirdPartyMcpScope,
     pub query: String,
     pub hovered: Option<vw_api_app_identity::AppId>,
     pub pending_tray_app: Option<vw_api_app_identity::AppId>,
@@ -93,6 +99,8 @@ impl<
     Preferences,
     Lifecycle,
     Drag,
+    ThirdPartySkills,
+    ThirdPartyMcpScope,
     Row
 > std::fmt::Debug for AppsCatalogState<
     DeviceSyncWebdav,
@@ -118,6 +126,8 @@ impl<
     Preferences,
     Lifecycle,
     Drag,
+    ThirdPartySkills,
+    ThirdPartyMcpScope,
     Row
 > {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -148,6 +158,8 @@ impl<
     Preferences: Default,
     Lifecycle: Default,
     Drag: Default,
+    ThirdPartySkills: Default,
+    ThirdPartyMcpScope: Default,
     Row
 > Default for AppsCatalogState<
     DeviceSyncWebdav,
@@ -173,6 +185,8 @@ impl<
     Preferences,
     Lifecycle,
     Drag,
+    ThirdPartySkills,
+    ThirdPartyMcpScope,
     Row
 > {
     fn default() -> Self { Self {
@@ -202,6 +216,10 @@ impl<
         lifecycle: Default::default(),
         model_diagnostics: Default::default(),
         high_availability: Default::default(),
+        third_party_page: Default::default(),
+        navigation_generation: 0,
+        third_party_skills: Default::default(),
+        third_party_mcp_scope: Default::default(),
         query: Default::default(),
         hovered: Default::default(),
         pending_tray_app: Default::default(),

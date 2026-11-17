@@ -67,5 +67,9 @@ pub fn catalog(app: &App) -> Vec<SystemSettingsSearchEntry> {
     extend_tabs!(system_settings_network::NETWORK_TABS, "网络配置", Network);
     extend_tabs!(system_settings_mcp::MCP_TABS, "智能体 / MCP", AgentMcp);
     extend_tabs!(system_settings_skills::SKILLS_TABS, "智能体 / 技能", AgentSkills);
+    for &(page, label) in desktop_ui_controls::settings_navigation::ThirdPartyPage::ALL {
+        entries.push(SystemSettingsSearchEntry::new(label, Some("第三方智能体"),
+            &["cc-switch", "third-party agents"], SystemSettingsSearchTarget::ThirdParty(page)));
+    }
     desktop_settings_shell::search::localize_catalog(entries, app.general_settings.desktop_locale)
 }

@@ -65,7 +65,7 @@ pub fn update(state: &mut State, input: &Input, message: Message) -> Effect {
         || input.host != message.scope.host
         || state.catalog != message.catalog
         || state.catalog != input.catalog
-        || input.project != message.scope.context.project
+        || input.directory != message.scope.context.project
     {
         return Effect::None;
     }

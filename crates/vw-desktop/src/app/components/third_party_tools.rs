@@ -50,31 +50,6 @@ pub(crate) fn view(app: &App, selected: Option<AppId>) -> Element<'_, Message> {
 /// Reuse the existing confirmation flows, including their original request targets.
 /// The parent must call this once instead of mounting these overlays twice.
 pub(crate) fn overlay<'a>(app: &'a App, base: Element<'a, Message>) -> Element<'a, Message> {
-    let base = app_routing::requests::overlay(&app.apps_catalog, base);
-    let base = app_routing::config::overlay(&app.apps_catalog, base);
-    let base = iced::widget::stack![base,
-        desktop_apps_ui::app_routing::outbound::overlay(
-            &app.apps_catalog.routing, iced::widget::Space::new().into(),
-        ).map(|event| Message::Settings(crate::app::message::settings::SettingsMessage::AppsCatalog(
-            crate::app::message::settings::AppsCatalogMessage::Routing(event),
-        )))
-    ].into();
-    let state = &app.apps_catalog.high_availability;
-    let base = if state.open {
-        use desktop_apps_ui::agent_apps_high_availability::policy_modal as domain;
-        use crate::app::message::agent_apps_high_availability_policy as policy;
-        iced::widget::stack![base, domain::overlay(domain::State {
-            open: state.open, busy: state.busy, loaded: state.loaded,
-            fields: &state.fields, error: &state.error,
-        }, iced::widget::Space::new().into()).map(|event| policy::message(match event {
-            domain::Event::Close => policy::Event::Close,
-            domain::Event::Edit(i, value) => policy::Event::Edit(i, value),
-            domain::Event::Save => policy::Event::Save,
-            domain::Event::Reload => policy::Event::Reload,
-        }))].into()
-    } else {
-        base
-    };
     let base = system_settings_data::backup_list_ui::overlay(app, base);
     let base = system_settings_data::recovery_ui::overlay(app, base);
     system_settings_device_sync::overlay(app, base)

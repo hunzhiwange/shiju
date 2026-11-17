@@ -59,6 +59,10 @@ fn project(app: &App, entry: SystemSettingsSearchEntry) -> NavigationEntry<Messa
 }
 fn search_target_is_active(app: &App, target: SystemSettingsSearchTarget) -> bool {
     use desktop_settings_shell::search::{ActiveNavigation, search_target_is_active};
+    if let SystemSettingsSearchTarget::ThirdParty(page) = target {
+        return app.navigation_panels.system_settings_tab == desktop_settings_shell::SystemTab::Apps
+            && app.apps_catalog.third_party_page == page;
+    }
     search_target_is_active(
         &ActiveNavigation {
             page: app.navigation_panels.system_settings_tab,

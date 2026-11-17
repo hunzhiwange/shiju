@@ -6,6 +6,10 @@ use iced::Task;
 
 #[derive(Clone)]
 pub enum AppsCatalogMessage {
+    SelectApp(vw_api_app_identity::AppId),
+    Navigate(desktop_ui_controls::settings_navigation::ThirdPartyPage),
+    ThirdPartyMcp(desktop_settings_mcp::third_party::Message),
+    ThirdPartySkills(desktop_settings_skills::third_party::Message),
     ExternalSessions(crate::app::components::external_sessions::Event),
     ProjectProfiles(crate::app::message::project_profiles::Event),
     Routing(crate::app::components::app_routing::lifecycle::Event),
@@ -60,6 +64,15 @@ impl std::fmt::Debug for AppsCatalogMessage {
 }
 pub(super) fn update(app: &mut App, message: AppsCatalogMessage) -> Task<Message> {
     match message {
+        AppsCatalogMessage::SelectApp(id) => {
+            if !app.apps_catalog.rows.iter().any(|row| row.entry.id == id) { return Task::none(); }
+            let page = app.apps_catalog.third_party_page;
+            app.apps_catalog.expanded = Some(id);
+            return crate::app::components::third_party_settings::navigate(app, page);
+        }
+        AppsCatalogMessage::Navigate(page) => return crate::app::components::third_party_settings::navigate(app, page),
+        AppsCatalogMessage::ThirdPartyMcp(event) => return crate::app::components::third_party_settings::mcp_update(app, event),
+        AppsCatalogMessage::ThirdPartySkills(event) => return crate::app::components::third_party_settings::skills_update(app, event),
         AppsCatalogMessage::ExternalSessions(event) => return crate::app::components::external_sessions::update(app, event),
         AppsCatalogMessage::Routing(event) => return crate::app::components::app_routing::lifecycle::update(app, event),
         AppsCatalogMessage::OpenClawCatalog(event) => return crate::app::components::openclaw_catalog::update(app, event),
@@ -118,6 +131,7 @@ pub(super) fn update(app: &mut App, message: AppsCatalogMessage) -> Task<Message
             catalog_input(&mut app.apps_catalog).query(query);
         }
         AppsCatalogMessage::ToggleDetails(id) => {
+            crate::app::components::third_party_settings::invalidate(app);
             app.apps_catalog.openclaw_tools.invalidate();
             app.apps_catalog.openclaw_env.invalidate();
             app.apps_catalog.workspace_files.invalidate();
@@ -212,6 +226,9 @@ pub(super) fn update(app: &mut App, message: AppsCatalogMessage) -> Task<Message
         }
         AppsCatalogMessage::ConnectionClose => app.apps_catalog.connection_open = false,
         AppsCatalogMessage::HostInput(host) => {
+            let connection_open = app.apps_catalog.connection_open;
+            crate::app::components::third_party_settings::invalidate(app);
+            app.apps_catalog.connection_open = connection_open;
             app.apps_catalog.external_sessions.invalidate();
             app.apps_catalog.prompts.invalidate();
             app.app_providers.model_catalog = None;
@@ -231,6 +248,9 @@ pub(super) fn update(app: &mut App, message: AppsCatalogMessage) -> Task<Message
             catalog_input(&mut app.apps_catalog).credentials(Some(host), None);
         }
         AppsCatalogMessage::TokenInput(token) => {
+            let connection_open = app.apps_catalog.connection_open;
+            crate::app::components::third_party_settings::invalidate(app);
+            app.apps_catalog.connection_open = connection_open;
             app.apps_catalog.external_sessions.invalidate();
             app.apps_catalog.prompts.invalidate();
             app.app_providers.model_catalog = None;

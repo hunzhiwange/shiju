@@ -23,6 +23,7 @@ use super::providers::refresh_task;
 pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
     match message {
         SettingsMessage::TabSelected(tab) => {
+            crate::app::components::third_party_settings::invalidate(app);
             app.apps_catalog.external_sessions.cancel_reader();
             app.apps_catalog.daily_memory.invalidate();
             app.apps_catalog.hermes_memory.invalidate();
@@ -36,6 +37,13 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
             Task::none()
         }
         SettingsMessage::SystemTabSelected(tab) => {
+            crate::app::components::third_party_settings::invalidate(app);
+            #[cfg(not(target_arch = "wasm32"))]
+            if tab == SystemTab::Auth {
+                app.navigation_panels.system_settings_tab = SystemTab::Apps;
+                return crate::app::components::third_party_settings::navigate(app,
+                    desktop_ui_controls::settings_navigation::ThirdPartyPage::Authorization);
+            }
             app.apps_catalog.external_sessions.cancel_reader();
             app.apps_catalog.daily_memory.invalidate();
             app.apps_catalog.hermes_memory.invalidate();
@@ -175,6 +183,7 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
             let child_task = match target {
                 SystemSettingsSearchTarget::TopLevel(_)
                 | SystemSettingsSearchTarget::Network(_) => Task::none(),
+                SystemSettingsSearchTarget::ThirdParty(page) => crate::app::components::third_party_settings::navigate(app, page),
                 SystemSettingsSearchTarget::General(tab) => super::general::update(
                     app,
                     SettingsMessage::General(GeneralSettingsMessage::TabSelected(tab)),

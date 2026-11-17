@@ -27,6 +27,10 @@ pub(crate) fn view_overlays<'a>(
     theme: &Theme,
     base: Element<'a, Message>,
 ) -> Element<'a, Message> {
+    let base = iced::widget::stack![base,
+        desktop_apps_ui::app_routing::outbound::overlay(&state.routing, iced::widget::Space::new().into())
+            .map(|event| message(AppsCatalogMessage::Routing(event)))
+    ].into();
     let base = crate::app::components::app_routing::requests::overlay(state, base);
     let base = crate::app::components::app_routing::config::overlay(state, base);
     let base = crate::app::components::openclaw_catalog::overlay(&state.openclaw_catalog, base);

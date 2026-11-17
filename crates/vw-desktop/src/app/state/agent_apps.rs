@@ -26,6 +26,8 @@ pub(crate) type AppsCatalogState = desktop_apps_ui::catalog_state::AppsCatalogSt
     crate::app::components::system_settings_apps::preferences::PreferencesState,
     crate::app::components::system_settings_apps::lifecycle::LifecycleState,
     crate::app::components::system_settings_apps::drag::DragState,
+    desktop_settings_skills::third_party::State,
+    Option<desktop_settings_mcp::third_party::Scope>,
     CatalogRow
 >;
 pub fn reset_if_context_changed(state: &mut AppsCatalogState, context: &AgentAppsContext) -> bool {

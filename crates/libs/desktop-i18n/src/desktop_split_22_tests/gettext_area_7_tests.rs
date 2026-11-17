@@ -39,13 +39,13 @@ fn desktop_gettext_area_7_all_help_documents_have_complete_catalog_entries() {
     let tw = crate::catalog::parse_catalog(include_str!("../locales/zh-TW.json")).unwrap();
     let mut count = 0;
     for source in [
-        include_str!("../../../../vw-desktop/src/app/components/system_settings_help.rs"),
-        include_str!("../../../../vw-desktop/src/app/components/system_settings_autonomy.rs"),
-        include_str!("../../../../vw-desktop/src/app/components/system_settings_cron.rs"),
-        include_str!("../../../../vw-desktop/src/app/components/system_settings_heartbeat.rs"),
-        include_str!("../../../../vw-desktop/src/app/components/system_settings_proxy.rs"),
-        include_str!("../../../../vw-desktop/src/app/components/system_settings_reliability.rs"),
-        include_str!("../../../../vw-desktop/src/app/components/system_settings_scheduler.rs"),
+        include_str!("../../../desktop-settings-appearance/src/help.rs"),
+        include_str!("../../../desktop-settings-agents/src/system_settings_autonomy.rs"),
+        include_str!("../../../desktop-settings-cron/src/system_settings_cron/mod.rs"),
+        include_str!("../../../desktop-settings-cron/src/system_settings_heartbeat.rs"),
+        include_str!("../../../desktop-settings-network/src/system_settings_proxy.rs"),
+        include_str!("../../../desktop-settings-runtime/src/system_settings_reliability.rs"),
+        include_str!("../../../desktop-settings-cron/src/system_settings_scheduler.rs"),
     ] {
         for block in source.split("r#\"").skip(1) {
             let key = block.split("\"#").next().unwrap();

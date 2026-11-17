@@ -134,7 +134,7 @@ fn cc04_env_diagnose_execution_process_is_read_only() {
     let output = std::process::Command::new(std::env::current_exe().unwrap())
         .args([
             "--exact",
-            "providers::env_diagnose_tests::cc04_env_diagnose_execution_process_is_read_only",
+            "env_diagnose_tests::cc04_env_diagnose_execution_process_is_read_only",
             "--nocapture",
         ])
         .env(PROBE, "fixture-inherited-secret")

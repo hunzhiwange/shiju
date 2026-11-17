@@ -4,7 +4,7 @@
 
 批次：【批次1】 依赖：无
 
-状态：未开始
+状态：待回归
 
 来源：继续执行宿主单测；诊断编号30, 31（宿主编译错误证据.json）。
 预计会话范围：修复一个源码文件中的宿主接口或测试夹具编译契约；不接管整包。
@@ -85,3 +85,13 @@ python3 scripts/cargo_slot.py cargo test -p vw-agent --lib handle_webhook_inner_
 编译取证命令（不是测试通过证据）：`python3 scripts/cargo_slot.py cargo test -p vw-agent --lib --no-run`。同阶段顺序命令合并一次入口复用缓存，不默认逐任务全量测试。
 
 最终需由原任务303执行两阶段全量验收；这组修复仅覆盖已发现编译阻塞，尚不能保证宿主全部运行失败已发现。
+
+## 本轮执行证据（2026-11-18）
+
+- 根因：库父模块私有导入的常量无法经宿主的 `agent_gateway::webhook_ingress::*` 带入共享测试；直接从 `gateway_types` 显式导入，不改生产逻辑或安全断言。
+- 两个过滤名均已核对为真实 `#[test]` / `#[tokio::test]` 入口。
+- 修复前后均执行：`python3 scripts/cargo_slot.py sh -c 'cargo test -p vw-agent --lib enforce_rate_limit_returns_retry_after_after_limit_is_exceeded -- --nocapture && cargo test -p vw-agent --lib handle_webhook_inner_returns_rate_limit_before_provider_call -- --nocapture'`。
+- 两轮均为槽位3；`CARGO_TARGET_DIR` 和 `CARGO_BUILD_BUILD_DIR` 均为 `/Users/xiangmin/worker/code/shiju/target/rust-slot-3`。
+- 修复前退出101，70条编译错误，包含本任务两处 E0425；修复后退出101，剩68条其他文件错误，本文件诊断消失。日志：`/tmp/shiju-task305-before.log`、`/tmp/shiju-task305-after.log`。
+- 有效测试数0，尚无行为通过证据；第一条编译失败，第二条因 `&&` 未执行。剩余阻塞包括 `agent/loop_.rs` 的 core 导入、llm host_suites 的 acp 导入、compaction fixture 导入等，归兄弟任务处理。
+- 两轮入口均已退出并释放自有槽位锁，保留缓存。待兄弟宿主编译阻塞解除后重跑上述两条命令；保留编号文件，不声称完成。

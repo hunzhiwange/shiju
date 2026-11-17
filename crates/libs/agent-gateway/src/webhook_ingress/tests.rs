@@ -2,6 +2,7 @@
 
 // 认证、限流和幂等检查必须先于 provider 调用，失败时也不得泄漏内部详情。
 use super::*;
+use gateway_types::RATE_LIMIT_WINDOW_SECS;
 use crate::app::agent::config::Config;
 use crate::app::agent::gateway::{GatewayRateLimiter, IdempotencyStore};
 use crate::app::agent::memory::{Memory, MemoryCategory, MemoryEntry, NoneMemory};

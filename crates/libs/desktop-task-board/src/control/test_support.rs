@@ -48,3 +48,40 @@ impl TestApp {
         }
     }
 }
+
+pub async fn assert_element_draws(
+    mut element: iced::Element<'_, crate::message::TaskBoardMessage>,
+    theme: &iced::Theme,
+    width: f32,
+) {
+    use iced::advanced::renderer::Headless;
+    use iced::Color;
+
+    let mut renderer = <iced::Renderer as Headless>::new(
+        iced::Font::DEFAULT,
+        iced::Pixels(16.0),
+        Some("tiny-skia"),
+    )
+    .await
+    .expect("tiny-skia headless renderer should be available");
+    let mut tree = iced::advanced::widget::Tree::new(element.as_widget());
+    let viewport = iced::Rectangle::with_size(iced::Size::new(width, 800.0));
+    let node = element.as_widget_mut().layout(
+        &mut tree,
+        &renderer,
+        &iced::advanced::layout::Limits::new(iced::Size::ZERO, viewport.size()),
+    );
+
+    element.as_widget().draw(
+        &tree,
+        &mut renderer,
+        theme,
+        &iced::advanced::renderer::Style::default(),
+        iced::advanced::Layout::new(&node),
+        iced::mouse::Cursor::Unavailable,
+        &viewport,
+    );
+
+    let pixels = renderer.screenshot(iced::Size::new(width as u32, 800), 1.0, Color::TRANSPARENT);
+    assert!(pixels.chunks_exact(4).any(|pixel| pixel[3] > 0));
+}

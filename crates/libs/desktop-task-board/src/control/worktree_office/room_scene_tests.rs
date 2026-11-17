@@ -4,7 +4,7 @@ use iced::{Element, Length};
 
 use desktop_task_model::{Task, TaskLogEntry, TaskStatus};
 use desktop_task_executor::executor::state::{WorktreeSlotSnapshot, WorktreeState};
-use crate::control::test_support::TestApp as App;
+use crate::control::test_support::{TestApp as App, assert_element_draws};
 use crate::message::TaskBoardMessage as Message;
 
 use super::*;
@@ -194,4 +194,24 @@ fn busy_room_builds_log_bubble_from_recent_task_messages() {
 
     keep_element(build_worktree_room_scene(&app.view(), &busy));
     keep_element(build_worktree_pixel_card(&app.view(), &busy));
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn room_scene_draws_unicode_states_in_dark_and_light_layouts() {
+    for width in [1200.0, 1600.0] {
+        let app = test_app(width);
+        for state in [
+            WorktreeState::Idle,
+            WorktreeState::Busy,
+            WorktreeState::Tainted,
+            WorktreeState::Recycling,
+            WorktreeState::Dead,
+        ] {
+            let slot = slot("工位-甲", state);
+            for theme in [iced::Theme::Dark, iced::Theme::Light] {
+                assert_element_draws(build_worktree_room_scene(&app.view(), &slot), &theme, width)
+                    .await;
+            }
+        }
+    }
 }

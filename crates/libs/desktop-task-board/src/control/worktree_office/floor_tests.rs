@@ -1,10 +1,9 @@
 //! 工作树办公室地面与装饰的测试，覆盖响应式尺寸和明暗主题样式。
 //! 元素会进入实际绘制路径，以检查边框、背景及文字透明度。
-use iced::advanced::renderer::Headless;
 use iced::{Background, Color, Element, Length, Theme};
 
 use desktop_task_executor::executor::state::{WorktreePoolSnapshot, WorktreeSlotSnapshot, WorktreeState};
-use crate::control::test_support::TestApp as App;
+use crate::control::test_support::{TestApp as App, assert_element_draws};
 use crate::message::TaskBoardMessage as Message;
 
 use super::*;
@@ -62,36 +61,6 @@ fn background_color(style: iced::widget::container::Style) -> Color {
 
 fn color_tuple(color: Color) -> (f32, f32, f32, f32) {
     (color.r, color.g, color.b, color.a)
-}
-
-async fn assert_element_draws(mut element: Element<'_, Message>) {
-    let mut renderer = <iced::Renderer as Headless>::new(
-        iced::Font::DEFAULT,
-        iced::Pixels(16.0),
-        Some("tiny-skia"),
-    )
-    .await
-    .expect("tiny-skia headless renderer should be available");
-    let mut tree = iced::advanced::widget::Tree::new(element.as_widget());
-    let viewport = iced::Rectangle::with_size(iced::Size::new(640.0, 480.0));
-    let node = element.as_widget_mut().layout(
-        &mut tree,
-        &renderer,
-        &iced::advanced::layout::Limits::new(iced::Size::ZERO, viewport.size()),
-    );
-
-    element.as_widget().draw(
-        &tree,
-        &mut renderer,
-        &Theme::Dark,
-        &iced::advanced::renderer::Style::default(),
-        iced::advanced::Layout::new(&node),
-        iced::mouse::Cursor::Unavailable,
-        &viewport,
-    );
-
-    let pixels = renderer.screenshot(iced::Size::new(640, 480), 1.0, Color::TRANSPARENT);
-    assert!(pixels.chunks_exact(4).any(|pixel| pixel[3] > 0));
 }
 
 #[test]
@@ -255,17 +224,25 @@ fn pixel_floor_builds_narrow_and_wide_maintenance_layouts() {
 
 #[tokio::test(flavor = "multi_thread")]
 async fn pixel_floor_draws_wide_layout_at_exact_width_threshold() {
-    let app = test_app(1360.0);
     let idle = slot("idle", WorktreeState::Idle);
     let busy = slot("busy", WorktreeState::Busy);
     let tainted = slot("tainted", WorktreeState::Tainted);
     let pool = snapshot(1, 1, 1, 0, 0);
 
-    assert_element_draws(build_worktree_pixel_floor(
-        &app.view(),
-        &pool,
-        vec![&idle, &busy],
-        vec![&tainted],
-    ))
-    .await;
+    for width in [1200.0, 1360.0] {
+        let app = test_app(width);
+        for theme in [Theme::Dark, Theme::Light] {
+            assert_element_draws(
+                build_worktree_pixel_floor(
+                    &app.view(),
+                    &pool,
+                    vec![&idle, &busy],
+                    vec![&tainted],
+                ),
+                &theme,
+                width,
+            )
+            .await;
+        }
+    }
 }

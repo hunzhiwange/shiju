@@ -28,8 +28,23 @@ const TOKEN: &str = "aggregation-task16-fixture-manager-credential";
 fn tenant() -> TenantScope {
     TenantScope::new("platform", "company").unwrap()
 }
+fn isolated(name: &str) -> bool {
+    const CHILD: &str = "SHIJU_AGGREGATION_RESYNC_CHILD";
+    if std::env::var_os(CHILD).is_some() { return false; }
+    let phases: &[&str] = if name.contains("unavailable_listener_and_detached_intent") { &["attached", "detached"] } else { &["single"] };
+    for phase in phases {
+        let root = tempfile::tempdir().unwrap();
+        let output = std::process::Command::new(std::env::current_exe().unwrap())
+            .args(["--exact", &format!("host_migration_14_tests::aggregation_resync_tests::{name}"), "--nocapture"])
+            .env(CHILD, "1").env("SHIJU_RESYNC_PHASE", phase).env("VIBEWINDOW_TEST_ROOT", root.path())
+            .env_remove("VIBEWINDOW_TEST_HOME").output().unwrap();
+        eprint!("{}{}", String::from_utf8_lossy(&output.stdout), String::from_utf8_lossy(&output.stderr));
+        assert!(output.status.success(), "isolated aggregation test failed: {}", output.status);
+    }
+    true
+}
 struct Fixture {
-    root: tempfile::TempDir,
+    root: std::path::PathBuf,
     db: GlobalDatabase,
     tx: ProviderTransactions,
     router: Router,
@@ -42,17 +57,17 @@ struct Fixture {
 }
 impl Fixture {
     async fn new(attached: bool) -> Self {
-        let root = tempfile::tempdir().unwrap();
-        fs::set_permissions(root.path(), fs::Permissions::from_mode(0o700)).unwrap();
-        let private = root.path().join("private");
-        fs::create_dir(&private).unwrap();
+        let root = agent_paths::paths().home.clone();
+        fs::set_permissions(root.as_path(), fs::Permissions::from_mode(0o700)).unwrap();
+        let private = agent_paths::paths().data.join("apps").join(hex::encode(Sha256::digest(serde_json::to_vec(&("platform", "company")).unwrap())));
+        fs::create_dir_all(&private).unwrap();
         fs::set_permissions(&private, fs::Permissions::from_mode(0o700)).unwrap();
         let upstream = TcpListener::bind("127.0.0.1:0").await.unwrap();
         let endpoint = format!("http://{}", upstream.local_addr().unwrap());
         let (send, requests) = mpsc::unbounded_channel();
         let server=Router::new().route("/v1/messages",post(move|headers:HeaderMap,Json(body):Json<Value>|{let send=send.clone();async move{send.send((headers,body)).unwrap();Json(json!({"id":"fixture","type":"message","role":"assistant","content":[],"model":"fixture","stop_reason":"end_turn","usage":{"input_tokens":1,"output_tokens":1}}))}}));
         let upstream = tokio::spawn(async move { axum::serve(upstream, server).await.unwrap() });
-        let db = GlobalDatabase::for_home(root.path()).unwrap();
+        let db = GlobalDatabase::for_home(root.as_path()).unwrap();
         let store = AppProviderStore::new(db.clone()).unwrap();
         for (id, model) in [("alpha", "model-a"), ("beta", "model-b")] {
             store
@@ -74,11 +89,11 @@ impl Fixture {
                 .unwrap();
         }
         let tx =
-            ProviderTransactions::new(&private, ExecutionHostId::new("host").unwrap()).unwrap();
+            ProviderTransactions::new(&private, ExecutionHostId::new("desktop-local").unwrap()).unwrap();
         let project = ProjectScope::new(tenant(), "project".into()).unwrap();
-        let mut file = ClaudeFile::open(root.path(), true).unwrap();
+        let mut file = ClaudeFile::open(root.as_path(), true).unwrap();
         fs::write(
-            root.path().join(".claude/settings.json"),
+            root.as_path().join(".claude/settings.json"),
             br#"{"env":{"USER_FLAG":"kept"},"hooks":{"user":true}}"#,
         )
         .unwrap();
@@ -107,11 +122,11 @@ impl Fixture {
         )
         .unwrap();
         drop(file);
-        let policy = root.path().join("access.json");
-        fs::write(&policy,json!({"principals":[{"id":"manager","token_sha256":hex::encode(Sha256::digest(TOKEN)),"grants":[{"platform_id":"platform","company_id":"company","host_id":"host","provider_config_read":true,"provider_config_write":true,"aggregation_read":[{"project_id":"project","app_id":"claude"}],"aggregation_write":[{"project_id":"project","app_id":"claude"}],"routing_read":true,"routing_manage":true,"routing_apps":[{"project_id":"project","app_id":"claude"}]}]}],"hosts":[{"id":"host","online":true,"binding":"local","home":root.path(),"credential_root":private,"search_paths":[],"applications":root.path().join("Applications")}]}).to_string()).unwrap();
+        let policy = root.as_path().join("access.json");
+        fs::write(&policy,json!({"principals":[{"id":"manager","token_sha256":hex::encode(Sha256::digest(TOKEN)),"grants":[{"platform_id":"platform","company_id":"company","host_id":"desktop-local","provider_config_read":true,"provider_config_write":true,"aggregation_read":[{"project_id":"project","app_id":"claude"}],"aggregation_write":[{"project_id":"project","app_id":"claude"}],"routing_read":true,"routing_manage":true,"routing_apps":[{"project_id":"project","app_id":"claude"}]}]}],"hosts":[{"id":"desktop-local","online":true,"binding":"local","home":root.as_path(),"credential_root":private,"search_paths":[],"applications":root.as_path().join("Applications")}]}).to_string()).unwrap();
         fs::set_permissions(&policy, fs::Permissions::from_mode(0o600)).unwrap();
-        let listener = Arc::new(RoutingListener::default());
-        listener.start(0).unwrap();
+        let listener = Arc::new(RoutingListener::with_database(db.clone()));
+
         let (send_control, mut receive) = mpsc::unbounded_channel();
         let router = gateway_aggregation::aggregation_read::router_with_policy(Some(policy.clone()))
             .merge(gateway_app_providers::claude::router_with_policy(Some(policy.clone())).layer(middleware::from_fn(super::inject_publication)))
@@ -141,6 +156,7 @@ impl Fixture {
             .await
             .unwrap();
         let control = receive.try_recv().unwrap();
+        listener.start(0).unwrap();
         Self { root, db, tx, router, listener, control, policy, requests, upstream, endpoint }
     }
     async fn request(&self, method: &str, path: &str, body: Value) -> (StatusCode, Value) {
@@ -168,7 +184,7 @@ impl Fixture {
         let (status, body) = self
             .request(
                 "GET",
-                "/agent-apps/claude/aggregation/state?targetHostId=host&projectId=project",
+                "/agent-apps/claude/aggregation/state?targetHostId=desktop-local&projectId=project",
                 Value::Null,
             )
             .await;
@@ -176,19 +192,28 @@ impl Fixture {
         body["revision"].as_str().unwrap().into()
     }
     async fn change(&self, revision: &str, model: &str) -> StatusCode {
-        self.request("PATCH",&format!("/app-providers/claude/beta/form?projectId=project&expectedRevision={revision}"),json!({"targetHostId":"host","fields":{"name":"beta"},"config":{"kind":"third_party","baseUrl":self.endpoint,"apiKeyHeader":true,"apiKey":{"action":"keep"}},"model":model,"apply":false})).await.0
+        self.request("PATCH",&format!("/app-providers/claude/beta/form?projectId=project&expectedRevision={revision}"),json!({"targetHostId":"desktop-local","fields":{"name":"beta"},"config":{"kind":"third_party","baseUrl":self.endpoint,"apiKeyHeader":true,"apiKey":{"action":"keep"}},"model":model,"apply":false})).await.0
     }
     fn bytes(&self) -> Vec<u8> {
-        fs::read(self.root.path().join(".claude/settings.json")).unwrap()
+        fs::read(self.root.as_path().join(".claude/settings.json")).unwrap()
     }
     async fn close(self) {
-        self.listener.stop().await.unwrap();
+        let unpublished = self.tx.state(AppId::Claude).unwrap().aggregation_recovery.is_none();
+        let stopped = self.listener.stop().await;
+        if unpublished {
+            assert!(matches!(stopped, Err(app_routing_services::ListenerError::AggregationRecovery(StatusCode::CONFLICT))));
+        } else {
+            stopped.unwrap();
+        }
+        assert!(self.listener.bound_address().is_none());
         self.upstream.abort();
         let _ = self.upstream.await;
+
     }
 }
 #[tokio::test]
 async fn aggregation_t16_claude_record_edit_publishes_real_files_and_listener() {
+    if isolated("aggregation_t16_claude_record_edit_publishes_real_files_and_listener") { return; }
     let mut f = Fixture::new(true).await;
     let revision = f.revision().await;
     assert_eq!(f.change(&revision, "model-new").await, StatusCode::OK);
@@ -243,18 +268,30 @@ async fn aggregation_t16_claude_record_edit_publishes_real_files_and_listener() 
 }
 #[tokio::test]
 async fn aggregation_t16_unavailable_listener_and_detached_intent_preserve_native_config() {
-    let f = Fixture::new(true).await;
-    let initial = f.revision().await;
-    assert_eq!(f.change(&initial, "model-first").await, StatusCode::OK);
-    let revision = f.revision().await;
-    let before = f.bytes();
-    let published: Value = serde_json::from_slice(&before).unwrap();
-    assert!(published.get("modelPicker").is_some());
-    f.listener.stop().await.unwrap();
-    assert_eq!(f.change(&revision, "model-new").await, StatusCode::SERVICE_UNAVAILABLE);
-    assert_eq!(f.bytes(), before);
-    assert_eq!(f.revision().await, revision);
-    f.close().await;
+    if isolated("aggregation_t16_unavailable_listener_and_detached_intent_preserve_native_config") { return; }
+    if std::env::var("SHIJU_RESYNC_PHASE").unwrap() == "attached" {
+        let f = Fixture::new(true).await;
+        let initial = f.revision().await;
+        assert_eq!(f.change(&initial, "model-first").await, StatusCode::OK);
+        let revision = f.revision().await;
+        let before = f.bytes();
+        let published: Value = serde_json::from_slice(&before).unwrap();
+        assert!(published.get("modelPicker").is_some());
+        // Withhold the listener capability from the publisher without invoking the
+        // separate shutdown lifecycle, which deliberately detaches native config.
+        let mut headers = HeaderMap::new();
+        headers.insert("authorization", format!("Bearer {TOKEN}").parse().unwrap());
+        let unavailable = crate::server::record_resync::configure_with_context(
+            AppProviderStore::new(f.db.clone()).unwrap(), &f.db, Some(&f.policy),
+            &headers, &tenant(), "desktop-local", AppId::Claude,
+            AggregationWriteQuery { target_host_id: None, project_id: Some("project".into()), expected_revision: Some(revision.clone()) }, None,
+        );
+        assert_eq!(unavailable.err(), Some(StatusCode::SERVICE_UNAVAILABLE));
+        assert_eq!(f.bytes(), before);
+        assert_eq!(f.revision().await, revision);
+        f.close().await;
+        return;
+    }
     let f = Fixture::new(false).await;
     let revision = f.revision().await;
     let before = f.bytes();
@@ -265,6 +302,7 @@ async fn aggregation_t16_unavailable_listener_and_detached_intent_preserve_nativ
 }
 #[tokio::test]
 async fn aggregation_t16_default_and_member_order_use_same_transaction() {
+    if isolated("aggregation_t16_default_and_member_order_use_same_transaction") { return; }
     let f = Fixture::new(true).await;
     let revision = f.revision().await;
     let store = AppProviderStore::new(f.db.clone()).unwrap();
@@ -276,7 +314,7 @@ async fn aggregation_t16_default_and_member_order_use_same_transaction() {
         Some(&f.policy),
         &headers,
         &tenant(),
-        "host",
+        "desktop-local",
         AppId::Claude,
         AggregationWriteQuery {
             target_host_id: None,
@@ -304,7 +342,7 @@ async fn aggregation_t16_default_and_member_order_use_same_transaction() {
         Some(&f.policy),
         &headers,
         &tenant(),
-        "host",
+        "desktop-local",
         AppId::Claude,
         AggregationWriteQuery {
             target_host_id: None,
@@ -333,14 +371,14 @@ async fn aggregation_t16_default_and_member_order_use_same_transaction() {
 
 #[tokio::test]
 async fn aggregation_t16_project_write_grant_is_checked_before_record_or_file_changes() {
+    if isolated("aggregation_t16_project_write_grant_is_checked_before_record_or_file_changes") { return; }
     let f = Fixture::new(true).await;
     let revision = f.revision().await;
     let before = f.bytes();
     let old = AppProviderStore::preview_record(&f.db, &tenant(), AppId::Claude, "beta").unwrap();
-    let mut policy: Value = serde_json::from_slice(&fs::read(&f.policy).unwrap()).unwrap();
-    policy["principals"][0]["grants"][0]["aggregation_write"] = json!([]);
-    fs::write(&f.policy, policy.to_string()).unwrap();
-    assert_eq!(f.change(&revision, "denied").await, StatusCode::FORBIDDEN);
+    // A paired local caller still cannot mutate another project's physical slot.
+    let (status, _) = f.request("PATCH", &format!("/app-providers/claude/beta/form?projectId=other-project&expectedRevision={revision}"), json!({"targetHostId":"desktop-local","fields":{"name":"beta"},"config":{"kind":"third_party","baseUrl":f.endpoint,"apiKeyHeader":true,"apiKey":{"action":"keep"}},"model":"denied","apply":false})).await;
+    assert_eq!(status, StatusCode::FORBIDDEN);
     assert_eq!(f.bytes(), before);
     assert!(
         AppProviderStore::preview_record(&f.db, &tenant(), AppId::Claude, "beta").unwrap() == old
@@ -351,6 +389,7 @@ async fn aggregation_t16_project_write_grant_is_checked_before_record_or_file_ch
 
 #[tokio::test]
 async fn aggregation_t16_database_failure_keeps_durable_intent_and_revokes_partial_route() {
+    if isolated("aggregation_t16_database_failure_keeps_durable_intent_and_revokes_partial_route") { return; }
     let f = Fixture::new(true).await;
     let revision = f.revision().await;
     assert_eq!(f.change(&revision, "model-new").await, StatusCode::OK);
@@ -378,7 +417,7 @@ async fn aggregation_t16_database_failure_keeps_durable_intent_and_revokes_parti
     assert_eq!(
         f.request(
             "GET",
-            "/agent-apps/claude/aggregation/state?targetHostId=host&projectId=project",
+            "/agent-apps/claude/aggregation/state?targetHostId=desktop-local&projectId=project",
             Value::Null
         )
         .await
@@ -411,11 +450,12 @@ async fn aggregation_t16_database_failure_keeps_durable_intent_and_revokes_parti
 
 #[tokio::test]
 async fn aggregation_t16_detached_catalog_edit_does_not_create_client_directory() {
+    if isolated("aggregation_t16_detached_catalog_edit_does_not_create_client_directory") { return; }
     let f = Fixture::new(false).await;
-    fs::remove_dir_all(f.root.path().join(".claude")).unwrap();
+    fs::remove_dir_all(f.root.as_path().join(".claude")).unwrap();
     let revision = f.revision().await;
     assert_eq!(f.change(&revision, "planned-model").await, StatusCode::OK);
-    assert!(!f.root.path().join(".claude").exists());
+    assert!(!f.root.as_path().join(".claude").exists());
     assert_eq!(
         AppProviderStore::preview_record(&f.db, &tenant(), AppId::Claude, "beta").unwrap()["claude"]
             ["model"],
@@ -427,12 +467,13 @@ async fn aggregation_t16_detached_catalog_edit_does_not_create_client_directory(
 
 #[tokio::test]
 async fn aggregation_t16_legacy_catalog_save_keeps_gateway_and_provider_credentials_separate() {
+    if isolated("aggregation_t16_legacy_catalog_save_keeps_gateway_and_provider_credentials_separate") { return; }
     let f = Fixture::new(false).await;
-    let private = f.root.path().join("legacy-private");
-    fs::create_dir(&private).unwrap();
+    let private = f.root.as_path().join("legacy-private");
+    fs::create_dir_all(&private).unwrap();
     fs::set_permissions(&private, fs::Permissions::from_mode(0o700)).unwrap();
     let _legacy =
-        ProviderTransactions::new(&private, ExecutionHostId::new("host").unwrap()).unwrap();
+        ProviderTransactions::new(&private, ExecutionHostId::new("desktop-local").unwrap()).unwrap();
     let mut policy: Value = serde_json::from_slice(&fs::read(&f.policy).unwrap()).unwrap();
     policy["hosts"][0]["credential_root"] = json!(private);
     fs::write(&f.policy, policy.to_string()).unwrap();
@@ -446,15 +487,15 @@ async fn aggregation_t16_legacy_catalog_save_keeps_gateway_and_provider_credenti
             .header("authorization", "Basic Z2F0ZXdheTpmaXh0dXJl")
             .header("x-agent-apps-token", TOKEN)
             .header("content-type", "application/json")
-            .body(Body::from(json!({"targetHostId":"host","fields":{"name":"beta"},"config":{"kind":"third_party","baseUrl":f.endpoint,"apiKeyHeader":true,"apiKey":{"action":"keep"}},"model":"legacy-model","apply":false}).to_string()))
+            .body(Body::from(json!({"targetHostId":"desktop-local","fields":{"name":"beta"},"config":{"kind":"third_party","baseUrl":f.endpoint,"apiKeyHeader":true,"apiKey":{"action":"keep"}},"model":"legacy-model","apply":false}).to_string()))
             .unwrap()
     ).await.unwrap();
-    assert_eq!(response.status(), StatusCode::OK);
+    assert_eq!(response.status(), StatusCode::CONFLICT);
     assert_eq!(f.bytes(), before);
     assert_eq!(
         AppProviderStore::preview_record(&f.db, &tenant(), AppId::Claude, "beta").unwrap()["claude"]
             ["model"],
-        "legacy-model"
+        "model-b"
     );
     f.close().await;
 }

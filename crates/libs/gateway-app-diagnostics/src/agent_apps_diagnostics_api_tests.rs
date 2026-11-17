@@ -194,6 +194,8 @@ async fn assert_start_is_not_replayed(redirect: bool) {
         while Instant::now() < deadline {
             match listener.accept() {
                 Ok((mut stream, _)) => {
+                    // Accepted sockets may inherit the listener's nonblocking mode.
+                    stream.set_nonblocking(false).unwrap();
                     stream.set_read_timeout(Some(Duration::from_secs(1))).unwrap();
                     let mut reader = std::io::BufReader::new(&mut stream);
                     let mut length = 0;
@@ -329,6 +331,8 @@ async fn diagnostic_endpoints_sdk_uses_scoped_body() {
             while Instant::now() < deadline {
                 match listener.accept() {
                     Ok((mut stream, _)) => {
+                        // Accepted sockets may inherit the listener's nonblocking mode.
+                        stream.set_nonblocking(false).unwrap();
                         stream.set_read_timeout(Some(Duration::from_secs(1))).unwrap();
                         let mut reader = std::io::BufReader::new(&mut stream);
                         let mut lines = Vec::new();

@@ -103,6 +103,7 @@ impl GatewayAppDiagnosticsClient {
             .transport.native_transport()
             .map_err(AgentAppsSettingsError::Transport)?
             .request(method, url)
+            .header("x-agent-apps-token", token)
             .query(scope);
         if let Some(body) = body {
             request = request.json(body);

@@ -12,7 +12,7 @@ fn rendered(chat: &ChatWidget, width: u16, height: u16) -> String {
     let area = Rect::new(0, 0, width, height);
     let mut buffer = Buffer::empty(area);
     chat.render(area, &mut buffer);
-    (0..height)
+    let frame = (0..height)
         .map(|y| {
             let mut line = (0..width).map(|x| buffer[(x, y)].symbol()).collect::<String>();
             while line.ends_with(' ') {
@@ -21,7 +21,12 @@ fn rendered(chat: &ChatWidget, width: u16, height: u16) -> String {
             line
         })
         .collect::<Vec<_>>()
-        .join("\n")
+        .join("\n");
+    // 与相邻渲染快照一致：保留动画占位，只固定随时间变化的帧。
+    const FRAMES: [&str; 10] = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
+    FRAMES.into_iter().fold(frame, |frame, spinner| {
+        frame.replace(&format!("• {spinner} "), "• ⠋ ")
+    })
 }
 
 #[test]
@@ -55,7 +60,7 @@ thinking: Inspecting the workspace.
 › shell cargo check -p vw-tui
 Checking vw-tui
   •
-• Working (0s • esc to interrupt)
+• ⠋ Working (0s • esc to interrupt)
 
 › Compose a ShiJu task
   esc interrupt

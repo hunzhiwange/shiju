@@ -58,7 +58,7 @@ fn shiju_apps_tabs_ignore_stale_or_wrong_account_results() {
 
     let _ = app.update(ShijuAppsMessage::MineLoaded {
         generation: mine_generation.wrapping_sub(1),
-        account_id: "company-1".to_string(),
+        account_id: app.account.active_account_id().unwrap().to_owned(),
         result: Ok(ShijuAppListDto { apps: Vec::new() }),
     });
     let _ = app.update(ShijuAppsMessage::MineLoaded {
@@ -70,7 +70,7 @@ fn shiju_apps_tabs_ignore_stale_or_wrong_account_results() {
 
     let _ = app.update(ShijuAppsMessage::MineLoaded {
         generation: mine_generation,
-        account_id: "company-1".to_string(),
+        account_id: app.account.active_account_id().unwrap().to_owned(),
         result: Ok(ShijuAppListDto { apps: Vec::new() }),
     });
     assert!(matches!(app.shiju_apps.mine, ShijuAppsLoadState::Loaded(_)));
@@ -81,7 +81,7 @@ fn shiju_apps_tabs_ignore_stale_or_wrong_account_results() {
     assert!(matches!(app.shiju_apps.store, ShijuAppsLoadState::Loading { .. }));
     let _ = app.update(ShijuAppsMessage::StoreLoaded {
         generation: store_generation,
-        account_id: "company-1".to_string(),
+        account_id: app.account.active_account_id().unwrap().to_owned(),
         result: Ok(ShijuAppCatalogDto { apps: Vec::new() }),
     });
     assert!(matches!(app.shiju_apps.store, ShijuAppsLoadState::Loaded(_)));
@@ -133,7 +133,8 @@ fn api_key(api_key_id: u64, status: &str) -> ShijuIamApiKeyDto {
 fn app_ready_for_launch() -> Fixture {
     let mut app = Fixture::default();
     app.account = repository("account-secret", "company-1");
-    app.shiju_apps.account_id = Some("company-1".to_string());
+    // Lifecycle requests are scoped to the stored account, not its company ID.
+    app.shiju_apps.account_id = app.account.active_account_id().map(str::to_owned);
     app.shiju_apps.mine = ShijuAppsLoadState::Loaded(ShijuAppListDto { apps: vec![ready_app()] });
     app
 }
@@ -169,7 +170,7 @@ fn configured_binding_continues_existing_launch() {
 
     let _task = app.update(ShijuAppsMessage::BindingLoaded {
         generation,
-        account_id: "company-1".to_string(),
+        account_id: app.account.active_account_id().unwrap().to_owned(),
         installation_id: "01K1APP0000000000000000001".to_string(),
         result: Ok(binding(true, true)),
     });
@@ -191,7 +192,7 @@ fn unconfigured_binding_selects_first_enabled_key() {
     let generation = app.shiju_apps.generation;
     let _ = app.update(ShijuAppsMessage::BindingLoaded {
         generation,
-        account_id: "company-1".to_string(),
+        account_id: app.account.active_account_id().unwrap().to_owned(),
         installation_id: "01K1APP0000000000000000001".to_string(),
         result: Ok(binding(false, true)),
     });
@@ -203,7 +204,7 @@ fn unconfigured_binding_selects_first_enabled_key() {
 
     let _ = app.update(ShijuAppsMessage::ApiKeysLoaded {
         generation,
-        account_id: "company-1".to_string(),
+        account_id: app.account.active_account_id().unwrap().to_owned(),
         installation_id: "01K1APP0000000000000000001".to_string(),
         result: Ok(ShijuIamApiKeyListDto {
             api_keys: vec![api_key(41, "disabled"), api_key(42, "enabled")],
@@ -237,7 +238,7 @@ fn unconfigured_binding_rejects_read_only_or_missing_enabled_keys() {
 
     let _ = app.update(ShijuAppsMessage::BindingLoaded {
         generation: 12,
-        account_id: "company-1".to_string(),
+        account_id: app.account.active_account_id().unwrap().to_owned(),
         installation_id: "01K1APP0000000000000000001".to_string(),
         result: Ok(binding(false, false)),
     });
@@ -259,7 +260,7 @@ fn unconfigured_binding_rejects_read_only_or_missing_enabled_keys() {
     };
     let _ = app.update(ShijuAppsMessage::ApiKeysLoaded {
         generation: 13,
-        account_id: "company-1".to_string(),
+        account_id: app.account.active_account_id().unwrap().to_owned(),
         installation_id: "01K1APP0000000000000000001".to_string(),
         result: Ok(ShijuIamApiKeyListDto { api_keys: vec![api_key(41, "disabled")] }),
     });
@@ -280,7 +281,7 @@ fn unconfigured_binding_rejects_read_only_or_missing_enabled_keys() {
     };
     let _ = app.update(ShijuAppsMessage::BindingLoaded {
         generation: 14,
-        account_id: "company-1".to_string(),
+        account_id: app.account.active_account_id().unwrap().to_owned(),
         installation_id: "01K1APP0000000000000000001".to_string(),
         result: Err("gateway unavailable".to_string()),
     });
@@ -371,7 +372,7 @@ fn binding_save_success_continues_launch_and_ignores_stale_results() {
 
     let _ = app.update(ShijuAppsMessage::ApiKeyBindingSaved {
         generation: 8,
-        account_id: "company-1".to_string(),
+        account_id: app.account.active_account_id().unwrap().to_owned(),
         installation_id: "01K1APP0000000000000000001".to_string(),
         result: Ok(()),
     });
@@ -385,7 +386,7 @@ fn binding_save_success_continues_launch_and_ignores_stale_results() {
 
     let _task = app.update(ShijuAppsMessage::ApiKeyBindingSaved {
         generation: 9,
-        account_id: "company-1".to_string(),
+        account_id: app.account.active_account_id().unwrap().to_owned(),
         installation_id: "01K1APP0000000000000000001".to_string(),
         result: Ok(()),
     });
@@ -407,7 +408,7 @@ fn binding_failures_preserve_selection_and_close_detail_cancels_stale_work() {
 
     let _ = app.update(ShijuAppsMessage::ApiKeyBindingSaved {
         generation: 11,
-        account_id: "company-1".to_string(),
+        account_id: app.account.active_account_id().unwrap().to_owned(),
         installation_id: "01K1APP0000000000000000001".to_string(),
         result: Err("gateway unavailable".to_string()),
     });
@@ -449,7 +450,7 @@ fn stale_or_wrong_account_launch_is_ignored() {
 
     let _ = app.update(ShijuAppsMessage::LaunchPrepared {
         generation: 8,
-        account_id: "company-1".to_string(),
+        account_id: app.account.active_account_id().unwrap().to_owned(),
         installation_id: "01K1APP0000000000000000001".to_string(),
         result: Ok(launch.clone()),
     });

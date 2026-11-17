@@ -93,7 +93,12 @@ fn dismiss_preview_transient_ui_clears_git_file_menu() {
 async fn refresh_git_panel_data_task_emits_all_refresh_messages() {
     let messages = collect_task_messages(controller::refresh_task().map(Message::Git)).await;
 
-    assert_eq!(messages.len(), 3);
+    assert_eq!(messages.len(), 4);
+    assert!(
+        messages
+            .iter()
+            .any(|message| matches!(message, Message::Git(GitMessage::RefreshRepository)))
+    );
     assert!(
         messages
             .iter()

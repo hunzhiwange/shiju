@@ -2,6 +2,7 @@
 
 use super::policy_inputs::*;
 use config_ui::{DesktopLocale, GatewayClientSystemSettingsConfig};
+use desktop_i18n::I18n;
 use iced::Element;
 use iced::advanced::{
     clipboard,
@@ -448,7 +449,7 @@ fn assert_contextual_help(
     help: &[(&str, usize, &str)],
 ) {
     let locale = app.desktop_locale;
-    let theme = app.app_theme;
+    let theme = &app.app_theme;
     let width = if locale == DesktopLocale::English { 680 } else { 480 };
     let size = Size::new(width, height);
     let mut ui = scene(element, renderer, size);
@@ -554,7 +555,7 @@ fn assert_help_card(
     );
     let bounds = positions.label(title);
     let prefix = format!("settings-help-{:?}-{}-{title}", app.desktop_locale, size.width);
-    let theme = app.app_theme;
+    let theme = &app.app_theme;
     let cursor = mouse::Cursor::Unavailable;
     let idle = capture(ui, renderer, theme, size, &format!("{prefix}-idle"), cursor);
     let icon = [

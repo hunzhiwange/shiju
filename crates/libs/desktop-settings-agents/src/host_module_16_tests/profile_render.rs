@@ -6,7 +6,7 @@ pub(super) fn overlay<'a>(app: &'a ProfileFixture, base: Element<'a, Event>) -> 
     let card = crate::profile_modal::page_card(crate::profile_modal::PageInput {
         state: &app.agents_settings,
         locale: app.desktop_locale,
-        theme: app.app_theme,
+        theme: &app.app_theme,
         help: super::selectable_help,
         acp_agents: &app.acp_agents,
         acp_loading: app.acp_settings.loading,

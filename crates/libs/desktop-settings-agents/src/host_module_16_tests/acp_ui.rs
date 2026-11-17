@@ -4,7 +4,9 @@ use super::acp_inputs::mcp;
 use super::acp_inputs::*;
 use crate::acp::{acp_description, setup_hint};
 use crate::acp_state::AcpDiagnosticStatus;
+use config_aggregate::AcpAgentConfig;
 use config_ui::{DesktopLocale, GatewayClientSystemSettingsConfig};
+use desktop_i18n::I18n;
 use desktop_settings_mcp::state::{McpNewServerTransport, McpSettingsTab};
 use iced::Element;
 use iced::advanced::{
@@ -868,7 +870,7 @@ async fn settings_help_gap_13_mcp_edit_heading_moves_preservation_rule() {
     assert_help_card(
         &mut ui,
         &mut renderer,
-        (size, app.app_theme, locale),
+        (size, &app.app_theme, locale),
         "编辑 MCP 服务器",
         rule,
     );

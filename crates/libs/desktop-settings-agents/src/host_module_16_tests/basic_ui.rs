@@ -1088,7 +1088,7 @@ async fn settings_help_gap_05_acp_model_capability_controls_choices() {
         assert_modal_help(
             &mut scene,
             &mut renderer,
-            app.app_theme,
+            &app.app_theme,
             app.desktop_locale,
             "模型",
             "会话模型来源下，显式选择优先于智能体默认；继承会话模型在无选择时使用环境默认。CLI 本地配置是独立来源，由会话单独选择。",
@@ -1156,7 +1156,7 @@ async fn settings_help_gap_05_fixed_role_and_tool_controls_remain_visible() {
     assert_modal_help(
         &mut scene,
         &mut renderer,
-        app.app_theme,
+        &app.app_theme,
         app.desktop_locale,
         "注册工具",
         "选择在对话开始时注册给模型的工具。",

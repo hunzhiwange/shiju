@@ -1,7 +1,7 @@
 use super::dialogue_inputs::{DialogueFixture, Message};
 use config_ui::DesktopLocale;
 use iced::advanced::clipboard;
-use iced::advanced::renderer::Style;
+use iced::advanced::renderer::{Headless, Style};
 use iced::advanced::widget::{Id, Operation};
 use iced::{Element, Event, Point, Rectangle, Renderer, Size, Theme, mouse};
 use iced_runtime::user_interface::{Cache, UserInterface};

@@ -21,7 +21,7 @@ pub(super) fn basic<'a>(
         crate::basic::Input {
             help: super::selectable_help,
             locale: app.desktop_locale,
-            theme: app.app_theme,
+            theme: &app.app_theme,
             profile: profile_input(app),
             defaults: defaults_input(app, draft),
         },
@@ -38,7 +38,7 @@ pub(super) fn identity<'a>(
         crate::identity::Input {
             help: super::selectable_help,
             locale: app.desktop_locale,
-            theme: app.app_theme,
+            theme: &app.app_theme,
             active_prompt_tab: &state.active_prompt_tab,
             workspace_identity_files: &state.workspace_identity_files,
             workspace_identity_root_path: state.workspace_identity_root_path.as_deref(),
@@ -62,7 +62,7 @@ pub(super) fn tools<'a>(
         crate::tools::Input {
             help: super::selectable_help,
             locale: app.desktop_locale,
-            theme: app.app_theme,
+            theme: &app.app_theme,
             available_tools: &app.agents_settings.available_tools,
             active_tools_list_tab: &app.agents_settings.active_tools_list_tab,
         },
@@ -78,7 +78,7 @@ pub(super) fn skills<'a>(
         crate::skills::Input {
             help: super::selectable_help,
             locale: app.desktop_locale,
-            theme: app.app_theme,
+            theme: &app.app_theme,
             project_options: crate::agents_view::agent_project_options(
                 app.project_path.as_deref(),
                 &app.recent_projects,
@@ -100,7 +100,7 @@ pub(super) fn mcp<'a>(
         crate::mcp::Input {
             help: super::selectable_help,
             locale: app.desktop_locale,
-            theme: app.app_theme,
+            theme: &app.app_theme,
             inspect: app.mcp_settings.inspect.as_ref(),
             inspect_loading: app.mcp_settings.inspect_loading,
             inspect_error: app.mcp_settings.inspect_error.as_ref(),
@@ -131,6 +131,6 @@ pub(super) fn agents(app: &ProfileFixture) -> Element<'_, Event> {
     crate::agents_view::agents_view(crate::agents_view::Input {
         state: &app.agents_settings,
         catalog: catalog_input(app),
-        theme: app.app_theme,
+        theme: &app.app_theme,
     })
 }

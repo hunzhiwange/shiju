@@ -41,7 +41,7 @@ fn inputs(app: &PolicyFixture) -> crate::autonomy_inputs::View<'_> {
         autonomy_settings: &app.autonomy_settings,
         available_tools: &app.agents_settings.available_tools,
         desktop_locale: app.desktop_locale,
-        app_theme: app.app_theme,
+        app_theme: &app.app_theme,
         last_copied_code_hash: None,
         help_text: |i18n, theme, title, label, body| {
             desktop_ui_controls::system_settings_common::help::settings_hover_help_label(
@@ -107,7 +107,7 @@ pub(super) mod security {
         desktop_settings_security::SecurityView {
             security_settings: &app.security_settings,
             desktop_locale: app.desktop_locale,
-            app_theme: app.app_theme,
+            app_theme: &app.app_theme,
             last_copied_code_hash: None,
             help_text: |title, body, color, i18n| {
                 desktop_chat_view::message_view::markdown_selection::selectable_titled_text::<Message>(title, body, color, i18n).map(|event| match event { Message::CopyCode(text) => Secure::CopyCode(text), _ => Secure::None })

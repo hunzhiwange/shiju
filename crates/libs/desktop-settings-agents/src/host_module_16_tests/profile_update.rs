@@ -355,7 +355,7 @@ pub(super) fn defaults_input<'a>(
     crate::defaults::catalog_input(
         &app.agents_settings,
         app.desktop_locale,
-        app.app_theme,
+        &app.app_theme,
         super::selectable_help,
         crate::defaults::supports_fixed_model(
             &draft.runtime,

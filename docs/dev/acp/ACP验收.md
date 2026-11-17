@@ -767,3 +767,19 @@ Rust重型命令均经scripts/cargo_slot.py的slot(number=6)串行执行，CARGO
 | cargo build -p vw-cli --bin shiju | 两轮均退出0，最终49.43秒 |
 
 仅格式化修改的Grok驱动与新测试文件。未运行桌面编译、整仓测试/构建、全特性Clippy、全仓格式检查、wasm或Makefile；没有运行浏览器、页面构建或创建后的额外页面回归，不宣称实际渲染或页面执行已通过。任务27按完整文件创建验收完成；默认线程数启动等待与既有严格lint问题仍保留其明确边界。
+
+# Nova 验收（2026-11-17）
+
+结论：**已阻塞，未通过**。本次模型来源API明确拒绝指定的 session_model，不以安装成功、普通诊断或历史受控模型测试替代真实指定模型文件创建。
+
+- 前置：任务27已有完整文件创建通过及配置恢复、进程清理记录；来源任务7已不存在，已读差异清单、只读plan.md及docs/dev/evidence/acp-onboarding-nova.md。使用RustCodeGraph核对模型驱动与安装白名单、注册目录；当前模块已迁移至acp-agent-registry、config-acp-install、agent-config、llm-runtime。历史Nova接入明确只验证CLI本地模型路径，任意宿主模型绑定保持UnsupportedCli。
+- 构建：复用任务27最终shiju 0.6.0，复制到本次0700私有目录后核对SHA-256 `791a91fc449e433c470d9999344161d681bcc7a15bbc5b54c65949f1e315ebea`。来源HEAD `888e83caa02341506b8e52bce0b52d9e17361170`，构建日志位于/tmp/shiju-grok-retry-20261117/chat-build.log；当前模型分派、注册、安装白名单、派生目录、进程启动与网关bootstrap摘要全部匹配source-hashes-chat-build.json，没有用未知来源旧产物判断新行为。
+- 自有网关使用现有开发配置、回环端口64076，启动前读取gateway --help；沿用前序成功运行条件TOKIO_WORKER_THREADS=4，未修改持久线程配置。所有API携带X-Platform-ID=10001、X-Company-ID=100010005、X-Directory=/Users/xiangmin/worker/code/ruejs，取得config、installed、agents、acp基线。
+- POST /v1/desktop/acp-install/nova：HTTP200、客户端退出0、11.164126秒，installed false→true。实际入口 /opt/homebrew/lib/node_modules/@compass-ai/nova/scripts/bin-wrapper.mjs，package.json版本1.1.65，入口SHA-256 `82f4ea07714bc0227d9c7206420acc1fdb41cd2f4a2886d1146db47af456119b`。使用系统固定安装链路，没有临时替换URL或shell安装。
+- 使用本次对应ACP配置POST /v1/desktop/acp-diagnostic/acp-smoke-nova：HTTP200、退出0、2.102539秒，authentication_required。GET /v1/acp-model-source/nova：HTTP200、退出0，session_model=unsupported、reason=unsupported_cli；cli_local=supported、connected=false。驱动verified_release没有nova，source_protocol/configure也没有nova分派；这是与历史能力边界一致的确定阻塞，不是诊断认证结果的推测。
+- GET预设确认acp-nova、builtin=true、runtime.kind=acp、runtime.backend=nova，基线enabled=false。能力拒绝后未临时启用、未PATCH任何配置、未提交chat/stream创建请求；未执行SSE、会话summary/acp-options绑定核验、实际模型工具调用或文件内容验收。没有会话成功终态，也没有可宣称通过的页面产物；未改用CLI本地默认模型冒充指定模型。
+- Rue.js packages/rue/package.json存在；acpdemo/nova/起初不存在，结束仍不存在。普通文件SHA-256快照排除.git、node_modules、target，前后均6275文件、0差异；初始Git状态保留。未覆盖用户文件，未提交Rue.js工作区。
+- 清理：自有网关收到停止信号后退出0，PID40938不存在、端口64076关闭；未重启用户服务，没有取得槽位锁或清理缓存。系统安装保留；未改enabled或其他配置，无临时配置需恢复，未执行恢复PATCH或取得恢复GET证据。
+- 原始配置、请求、响应、日志、构建/入口摘要、前后快照及清理证据仅存本机 /tmp/shiju-nova-accept-20261117（0700）。本次没有产品代码修复，复用已验证产物，仅执行系统API、入口元数据核验、进程及快照检查；未运行新单测、Cargo、Clippy、桌面编译、全仓构建、浏览器、页面构建或额外页面回归。未把历史单测描述为本次验证。
+
+重跑条件：先独立实现并验证Nova的宿主指定模型中继，再从任务28步骤1完整重跑。任务文件保留已阻塞；未绕过当前能力门控或扩大本次验收为新驱动实现。

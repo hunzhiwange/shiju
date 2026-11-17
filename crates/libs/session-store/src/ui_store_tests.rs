@@ -429,8 +429,8 @@ fn message_page_and_delta_use_narrow_ui_store_adapters() -> Result<()> {
             expected_updated_ms: 2,
             updated_ms: 3,
             upserts: vec![SessionMessageRecord {
-                seq_no: 0,
-                message_id: Some("msg-1".to_owned()),
+                seq_no: 1,
+                message_id: Some("msg-2".to_owned()),
                 message: ChatMessage {
                     role: ChatRole::User,
                     content: "updated".to_owned(),
@@ -446,7 +446,15 @@ fn message_page_and_delta_use_narrow_ui_store_adapters() -> Result<()> {
     assert_eq!(result.upserted_rows, 1);
 
     let page = load_session_message_page_scoped_for_tenant(&tenant, &session.id, scope, None, 1)?;
+    assert_eq!(page.records.len(), 1);
+    assert_eq!(page.records[0].seq_no, 1);
+    assert_eq!(page.records[0].message_id.as_deref(), Some("msg-2"));
     assert_eq!(page.records[0].message.content, "updated");
+    assert!(page.has_more);
+
+    let history = load_session_scoped(&session.id, scope).expect("session history");
+    assert_eq!(history.messages.len(), 2);
+    assert_eq!(history.messages[0].content, "hello");
     Ok(())
 }
 
@@ -592,13 +600,14 @@ fn current_scope_path_raw_todo_index_and_archive_wrappers_round_trip() -> Result
     );
     assert!(snapshot_path.exists());
 
+    // Raw steps reference the persisted session, not the snapshot file.
+    save_session(&session).expect("session path");
     let payload = serde_json::json!({"request": "raw", "stream_id": 41});
     let raw_path =
         persist_llm_raw_step(&session_id, 8, &payload, fixture.scope()).expect("raw path");
     assert_eq!(raw_path, fixture.database_path);
     assert_eq!(load_llm_raw_step_scoped(&session_id, 8, fixture.scope())?, Some(payload));
 
-    save_session(&session).expect("session path");
     let todos = vec![SessionTodoItem {
         id: "todo-current-scope".to_owned(),
         content: "cover current scope wrappers".to_owned(),
@@ -615,7 +624,10 @@ fn current_scope_path_raw_todo_index_and_archive_wrappers_round_trip() -> Result
     assert_eq!(sessions.len(), 1);
     sessions[0].title = "Reindexed by current scope".to_owned();
     save_sessions(&sessions);
-    assert_eq!(load_sessions()[0].title, "Reindexed by current scope");
+    // Index refreshes preserve the authoritative stored session.
+    assert_eq!(load_sessions()[0].title, session.title);
+    let preserved = load_session(&session_id).expect("session after index refresh");
+    assert_eq!(preserved.messages[0].content, session.messages[0].content);
 
     let mut archived_ids = HashSet::new();
     archived_ids.insert(session_id.clone());

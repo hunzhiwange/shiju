@@ -95,6 +95,9 @@ async fn cc_control_09_authenticated_host_and_live_revocation() {
     let user = format!("uid:{}", unsafe { libc::geteuid() });
     let mut policy = ComputerControlPolicy::new(ComputerControlConfig::default());
     policy.set_enabled(&user, ControlFeature::Chrome, true).unwrap();
+    // The host refreshes OS lock evidence; unknown also requires this grant.
+    // Snapshot uses the paired runtime and does not require an unlocked desktop.
+    policy.set_enabled(&user, ControlFeature::LockedUse, true).unwrap();
     policy
         .set_grant(
             &user,

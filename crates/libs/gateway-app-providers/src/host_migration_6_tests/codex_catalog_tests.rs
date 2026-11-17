@@ -37,6 +37,7 @@ impl Fixture {
         std::fs::set_permissions(&policy, std::fs::Permissions::from_mode(0o600)).unwrap();
         let router = super::codex_catalog::router_with_policy(Some(policy.clone()), super::publication_control())
             .layer(Extension(db.clone()))
+            .layer(middleware::from_fn(super::publication))
             .layer(middleware::from_fn(gateway_types::tenant_scope::tenant_scope_middleware));
         let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
         let port = listener.local_addr().unwrap().port();

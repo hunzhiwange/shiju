@@ -46,7 +46,7 @@ fn tui_gateway_bridge_preserves_request_and_terminal_semantics() {
     state.session_options.select_acp_backend(Some("codex".to_string()));
 
     let display = GatewayV3Bridge::session_display_data(&runtime, &state);
-    assert_eq!(display.version, "0.4.0");
+    assert_eq!(display.version, env!("CARGO_PKG_VERSION"));
     assert_eq!(display.cwd, PathBuf::from("/workspace"));
     assert_eq!(display.gateway_endpoint, "127.0.0.1:9");
     assert_eq!(display.model, "openai/gpt-5.6");
@@ -213,7 +213,7 @@ fn tui_gateway_bridge_preserves_request_and_terminal_semantics() {
     let mut buffer = Buffer::empty(area);
     app.widget().render(area, &mut buffer);
     let rendered = buffer.content.iter().map(|cell| cell.symbol()).collect::<String>();
-    assert!(rendered.contains(">_ ShiJu (v0.4.0)"));
+    assert!(rendered.contains(concat!(">_ ShiJu (v", env!("CARGO_PKG_VERSION"), ")")));
     assert!(rendered.contains("hello world"), "copied ChatWidget must render bridged deltas");
 }
 

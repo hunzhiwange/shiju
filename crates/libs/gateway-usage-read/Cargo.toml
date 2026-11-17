@@ -16,3 +16,7 @@ reqwest = { version = "0.13", default-features = false, features = ["json", "que
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 reqwest = { version = "0.13", features = ["json", "query"] }
+
+[dev-dependencies]
+app-usage-store = { path = "../app-usage-store" }
+rusqlite = { version = "0.37.0", features = ["bundled"] }

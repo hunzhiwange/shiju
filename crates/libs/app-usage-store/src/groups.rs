@@ -1,5 +1,5 @@
 //! Provider/model statistics over the canonical ledger and retained rollups.
-//! Performance is a per-request arithmetic mean, split by evidence kind. Pruned
+//! Performance keeps legacy means alongside replica medians and weighted speeds. Pruned
 //! records have no retained performance samples and never enter those denominators.
 use std::{collections::BTreeMap, str::FromStr};
 
@@ -33,6 +33,21 @@ impl MetricSamples {
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct PerformanceStats {
+    /// Replica sample rules: successful relay TTFT median, native estimated TTFT
+    /// median, and weighted generation speed. Legacy means remain independent.
+    #[serde(default)]
+    pub first_token_median_ms: Option<f64>,
+    #[serde(default)]
+    pub first_token_samples: u64,
+    #[serde(default)]
+    pub speed_output_tokens: u64,
+    #[serde(default)]
+    pub speed_duration_ms: f64,
+    #[serde(default)]
+    pub speed_samples: u64,
+
+    #[serde(skip)]
+    first_token_values: Vec<f64>,
     pub first_token_ms: MetricSamples,
     pub latency_ms: MetricSamples,
     pub output_tokens_per_second: MetricSamples,
@@ -233,6 +248,17 @@ fn grouped(
             models,
         )?;
     }
+    for stats in groups.values_mut() {
+        for performance in [&mut stats.measured, &mut stats.estimated] {
+            let values = &mut performance.first_token_values;
+            values.sort_by(f64::total_cmp);
+            let n = values.len();
+            performance.first_token_median_ms = if n == 0 { None } else if n % 2 == 0 {
+                Some(values[n / 2 - 1] / 2.0 + values[n / 2] / 2.0)
+            } else { Some(values[n / 2]) };
+            values.clear();
+        }
+    }
     Ok(groups)
 }
 
@@ -344,6 +370,34 @@ fn accumulate(
             }
         } else {
             stats.tokens.push(TokenStats { requests: count, tokens: tokens.clone() });
+        }
+    }
+    // Archives intentionally carry no performance samples.
+    let relay = r.sources.iter().any(|s| s.kind == UsageSourceKind::Relay);
+    let expected = if relay { UsageMeasurementKind::Measured } else { UsageMeasurementKind::Estimated };
+    let valid = |m: &Option<UsageMeasurement>| m.as_ref()
+        .filter(|m| m.kind == expected && m.value.is_finite() && m.value >= 0.0)
+        .map(|m| m.value);
+    let first = valid(&r.performance.first_token_ms);
+    let latency = valid(&r.performance.latency_ms);
+    let performance = if relay { &mut stats.measured } else { &mut stats.estimated };
+    if !relay || r.status == UsageRequestStatus::Succeeded {
+        if let Some(first) = first {
+            performance.first_token_values.push(first);
+            performance.first_token_samples = add(performance.first_token_samples, 1)?;
+        }
+    }
+    if let (Some(output), Some(latency)) = (r.tokens.as_ref().and_then(|t| t.output), latency) {
+        let duration = if relay { first.map(|first| latency - first) } else { Some(latency) };
+        let minimum_output = if relay { 100 } else { 200 };
+        let minimum_duration = if relay { 100.0 } else { 1000.0 };
+        if let Some(duration) = duration.filter(|d| *d >= minimum_duration) {
+            if output >= minimum_output {
+                performance.speed_output_tokens = add(performance.speed_output_tokens, output)?;
+                performance.speed_duration_ms += duration;
+                if !performance.speed_duration_ms.is_finite() { return Err("usage duration overflow".into()); }
+                performance.speed_samples = add(performance.speed_samples, 1)?;
+            }
         }
     }
     for (index, measurement) in [

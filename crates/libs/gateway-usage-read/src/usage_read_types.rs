@@ -51,6 +51,19 @@ pub struct MetricSamples {
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct PerformanceStats {
+    /// Replica sample rules: successful relay TTFT median, native estimated TTFT
+    /// median, and weighted generation speed. Legacy means remain independent.
+    #[serde(default)]
+    pub first_token_median_ms: Option<f64>,
+    #[serde(default)]
+    pub first_token_samples: u64,
+    #[serde(default)]
+    pub speed_output_tokens: u64,
+    #[serde(default)]
+    pub speed_duration_ms: f64,
+    #[serde(default)]
+    pub speed_samples: u64,
+
     pub first_token_ms: MetricSamples,
     pub latency_ms: MetricSamples,
     pub output_tokens_per_second: MetricSamples,
@@ -129,3 +142,73 @@ pub struct UsageSessionSummary {
     pub native_session_id: String,
     pub summary: UsageSummary,
 }
+
+/// Normalized counters. None means unavailable or ambiguous, never a fabricated zero.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct UsageTokenTotals {
+    pub fresh_input: Option<u64>,
+    pub output: Option<u64>,
+    pub cache_read: Option<u64>,
+    pub cache_creation: Option<u64>,
+    pub real_tokens: Option<u64>,
+}
+
+impl UsageTokenTotals {
+    pub fn from_groups<'a>(groups: impl IntoIterator<Item = &'a UsageTokens>) -> Self {
+        let groups: Vec<_> = groups.into_iter().collect();
+        if groups.is_empty() { return Self::default(); }
+        let sum = |get: fn(&UsageTokens) -> Option<u64>| groups.iter()
+            .try_fold(0_u64, |sum, group| sum.checked_add(get(group)?));
+        let fresh = |t: &UsageTokens| match t.input_semantics {
+            UsageInputSemantics::Fresh => t.input,
+            UsageInputSemantics::Total => t.input?
+                .checked_sub(t.cache_read?)?.checked_sub(t.cache_creation?),
+            UsageInputSemantics::Unknown => None,
+        };
+        Self {
+            fresh_input: sum(fresh),
+            output: sum(|t| t.output),
+            cache_read: sum(|t| t.cache_read),
+            cache_creation: sum(|t| t.cache_creation),
+            // Included reasoning and the 1h creation subset must never be counted twice.
+            real_tokens: sum(|t| {
+                let input = match t.input_semantics {
+                    UsageInputSemantics::Fresh => t.input?.checked_add(t.cache_read?)?
+                        .checked_add(t.cache_creation?)?,
+                    UsageInputSemantics::Total => t.input?,
+                    UsageInputSemantics::Unknown => return None,
+                };
+                let output = match t.reasoning_semantics {
+                    UsageReasoningSemantics::IncludedInOutput => t.output?,
+                    UsageReasoningSemantics::SeparateFromOutput => t.output?.checked_add(t.reasoning?)?,
+                    UsageReasoningSemantics::Unknown if t.reasoning == Some(0) => t.output?,
+                    UsageReasoningSemantics::Unknown => return None,
+                };
+                input.checked_add(output)
+            }),
+        }
+    }
+
+    pub fn cache_hit_rate(&self) -> Option<f64> {
+        let denominator = self.fresh_input?.checked_add(self.cache_read?)?
+            .checked_add(self.cache_creation?)?;
+        Some(if denominator == 0 { 0.0 } else { self.cache_read? as f64 / denominator as f64 })
+    }
+}
+
+impl UsageSummary {
+    pub fn token_totals(&self) -> UsageTokenTotals {
+        if self.requests_without_tokens > 0 { return UsageTokenTotals::default(); }
+        UsageTokenTotals::from_groups(&self.token_groups)
+    }
+
+    /// Replica uses all matched requests as the denominator, including unknown statuses.
+    pub fn replica_success_rate(&self) -> f64 {
+        if self.counts.total_requests == 0 { 0.0 }
+        else { self.succeeded_requests as f64 / self.counts.total_requests as f64 }
+    }
+}
+
+#[cfg(test)]
+#[path = "usage_replica_01_tests.rs"]
+mod usage_replica_01_tests;

@@ -13,3 +13,13 @@ pub mod event;
 pub mod view;
 
 pub mod update;
+
+pub mod metrics;
+
+pub mod hero;
+
+pub mod range_picker;
+
+pub mod settings_sheet;
+
+pub mod log_columns;

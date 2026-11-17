@@ -583,7 +583,7 @@ fn build_call_list<'a>(
                 .collect::<Vec<_>>()
                 .join(", ");
             i18n.format(
-                "%s:%u:%u · 调用点 %u",
+                "%s:%u:%u · 调用点 %s",
                 &[
                     item.path.as_str().into(),
                     item.line.into(),

@@ -2768,7 +2768,7 @@
   "文档中未返回结构化符号结果。": "No structured symbols returned for this document.",
   "未返回结构化调用层级结果。": "No structured call hierarchy returned.",
   "位置: %u:%u\n\n": "Location: %u:%u\n\n",
-  "%s:%u:%u · 调用点 %u": "%s:%u:%u · %u call sites",
+  "%s:%u:%u · 调用点 %s": "%s:%u:%u · call sites %s",
   "查看 Diff": "View Diff",
   "还有 %u 个文件": "%u more files",
   "会话上下文": "Chat context",

@@ -4,7 +4,7 @@
 
 批次：【批次1】 依赖：无
 
-状态：未开始
+状态：待回归
 
 来源：继续执行宿主单测；诊断编号63（宿主编译错误证据.json）。
 预计会话范围：修复一个源码文件中的宿主接口或测试夹具编译契约；不接管整包。
@@ -57,3 +57,11 @@ python3 scripts/cargo_slot.py cargo test -p vw-agent --lib send_message_to_threa
 编译取证命令（不是测试通过证据）：`python3 scripts/cargo_slot.py cargo test -p vw-agent --lib --no-run`。同阶段顺序命令合并一次入口复用缓存，不默认逐任务全量测试。
 
 最终需由原任务303执行两阶段全量验收；这组修复仅覆盖已发现编译阻塞，尚不能保证宿主全部运行失败已发现。
+
+## 本次执行证据（2026-11-18）
+
+- 根因：依赖 session-engine 的 mark_succeeded 为 #[cfg(test)]，宿主构建依赖时不可见。仅将本文件夹具迁移到等价公开 finish_turn(..., None, |_| Ok(()))；保留随后持久化和全部安全断言，不修改共享业务接口。
+- 已核实过滤入口为 #[tokio::test]，命令：`python3 scripts/cargo_slot.py cargo test -p vw-agent --lib send_message_to_thread_rejects_busy_and_foreign_task -- --nocapture`。
+- 实际槽位1，CARGO_TARGET_DIR 与 CARGO_BUILD_BUILD_DIR 均为 `/Users/xiangmin/worker/code/shiju/target/rust-slot-1`；退出101，执行测试0项（未通过）。完整日志 `/tmp/shiju-task320.log`。
+- 同宿主仍有43条其他编译错误，包括 loop_ core 导入、t42 compaction 测试辅助函数、VideoContext trait 等；本任务原 mark_succeeded 诊断已消失。自有验证进程已退出，槽位由入口释放。
+- `git diff --check -- crates/libs/tool-agents/src/thread_tool/tests.rs` 通过。待兄弟任务解除宿主编译错误后，重跑上述真实测试；保留任务卡，不声明行为验收完成。

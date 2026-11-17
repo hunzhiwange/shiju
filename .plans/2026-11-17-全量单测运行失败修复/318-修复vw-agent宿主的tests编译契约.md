@@ -4,7 +4,7 @@
 
 批次：【批次1】 依赖：无
 
-状态：未开始
+状态：待回归
 
 来源：继续执行宿主单测；诊断编号59, 60, 61, 62（宿主编译错误证据.json）。
 预计会话范围：修复一个源码文件中的宿主接口或测试夹具编译契约；不接管整包。
@@ -156,3 +156,11 @@ python3 scripts/cargo_slot.py cargo test -p vw-agent --lib session_tool_wait_ret
 
 - 共享接口写入归属：本任务需在 `crates/libs/tool-agents/src/session_tool/mod.rs` 将后台启动入口按相邻 `validated_target` 模式标记 doc(hidden) public，供宿主注册的现有测试保留启动失败断言；当前该文件无未提交改动。协调器测试便捷方法仅在依赖自身 cfg(test) 下存在，夹具改用真实公开 finish_turn 接口。
 - 当前已有其他 Cargo/rustc 编译运行，等待重型编译退出后串行验证。
+
+### 验证结果（2026-11-18）
+
+- 四个候选均为真实 tokio 测试。第一次使用单槽位 sh -c 入口按原命令顺序验证，第一条编译退出101，其余未执行；实际运行0项。
+- 重试命令：`python3 scripts/cargo_slot.py cargo test -p vw-agent --lib background_turn_reports_startup_failure_instead_of_succeeding_silently -- --nocapture`，退出101，实际运行0项。日志 `/tmp/shiju-task318-validation.log`。
+- 两次均槽位1；CARGO_TARGET_DIR 与 CARGO_BUILD_BUILD_DIR 均为 `/Users/xiangmin/worker/code/shiju/target/rust-slot-1`。自有入口已退出并释放锁。
+- 本任务四条诊断已消失；宿主仍有44条其他编译错误，包括 thread_tool/tests.rs:437 的 mark_succeeded、tool-computer 私有方法和 VideoContext 契约。保留所有断言，未接管兄弟文件。
+- 两个源码文件的 git diff --check 通过；代码已提交为 95d3ae7b9。仍须待兄弟编译阻塞解除后运行原列四个测试，各要求实际数>0、failed=0、退出0。当前不能宣称行为通过，保留任务卡。

@@ -4,7 +4,7 @@
 
 批次：【批次1】 依赖：无
 
-状态：未开始
+状态：待回归
 
 来源：继续执行宿主单测；诊断编号26（宿主编译错误证据.json）。
 预计会话范围：修复一个源码文件中的宿主接口或测试夹具编译契约；不接管整包。
@@ -62,3 +62,14 @@ python3 scripts/cargo_slot.py cargo test -p vw-agent --lib app -- --nocapture
 编译取证命令（不是测试通过证据）：`python3 scripts/cargo_slot.py cargo test -p vw-agent --lib --no-run`。同阶段顺序命令合并一次入口复用缓存，不默认逐任务全量测试。
 
 最终需由原任务303执行两阶段全量验收；这组修复仅覆盖已发现编译阻塞，尚不能保证宿主全部运行失败已发现。
+
+## 执行记录（2026-11-18）
+
+- 最小修复：在归属测试文件显式导入 `crate::session::ui_store`，保持真实路由、租户作用域和历史断言。
+- 已核对两个 `#[test]`/`#[tokio::test]` 入口；定位候选 `app` 是夹具，改用有效过滤 `fork_acp_`，应覆盖两条测试。
+- 修改前后均执行 `python3 scripts/cargo_slot.py cargo test -p vw-agent --lib fork_acp_ -- --nocapture`；均槽位1，两个缓存变量均为 `/Users/xiangmin/worker/code/shiju/target/rust-slot-1`。
+- 修改前退出101，43条编译错误，包含本文件 E0433；修改后退出101，42条编译错误，本文件诊断消失。后者日志 `/tmp/shiju-task326-after.log`。
+- 其余阻塞包括 `plugins/compat/t42_tests.rs` 的 `process_with_summarizer`、`session/llm/acp/controls_tests.rs` 的 `ACP_CLIENT_CACHE`、`workflow/video_edit/prepare_tests.rs` 的 `VideoContext` 等，属于其他任务，未扩大修改范围。
+- 实际运行测试0条，不能声称行为通过；保留本任务，待同宿主其他编译阻塞解除后以上述过滤命令验收两条真实测试。自有两轮入口均已退出并释放槽位。
+
+- 提交尚未成功：多次 `git commit --only` 均因共享 `.git/index.lock` 已存在退出128；观察到其他 Git 进程 PID73488，未删除共享锁或修改其他暂存内容。需锁释放后提交本文件及测试导入修复。

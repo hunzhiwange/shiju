@@ -4,7 +4,7 @@
 
 批次：【批次1】 依赖：无
 
-状态：未开始
+状态：已阻塞
 
 来源：原任务19全量实际执行；证据编号415, 416, 418。
 预计会话范围：仅本测试定义文件中以下失败族及证据证明必要的底层修复，不接管整包。
@@ -92,3 +92,12 @@ python3 scripts/cargo_slot.py cargo test -p gateway-agent-apps --lib 'host_migra
 ```
 
 完成证据：各条精确过滤执行1项且passed=1、failed=0、退出0；参数化子进程用例同时记录子进程证据。记录槽位、双缓存路径、日志、代码状态和审查diff。不运行全量测试；最后统一验收任务负责跨任务复验。
+
+## 本次执行证据（2026-11-17）
+
+- 三条精确命令在 cargo_slot.py 同一 sh 入口顺序执行；槽位1，双缓存路径均为 `/Users/xiangmin/worker/code/shiju/target/rust-slot-1`。每条实际执行1项、failed=1、退出101。
+- PostgreSQL 两条仍缺少测试URL；日志 `/tmp/shiju-219-red-auth6_api_logout_commits_expected_scoped_result_postgres.log`、`/tmp/shiju-219-red-auth6_api_logout_rejects_invalid_or_stale_input_postgres.log`。
+- SQLite 当前失败前移至286行：设置默认账户404而非204；日志 `/tmp/shiju-219-red-auth6_api_logout_commits_expected_scoped_result.log`。补充原生诊断亦执行1项、失败1项、退出101，正文 code=not_found（`/tmp/shiju-219-diagnostic.log`）。诊断改动已撤回。
+- 阻塞依赖：`app-access-service/src/access.rs` 的 authorize_scoped/execution_context 当前忽略策略路径、headers与目标主机，固定 gateway_host、desktop-local-user；`agent_apps_auth_read.rs` 同样忽略 Basic Auth 参数。原夹具 owner/host/credential_root 不再参与解析，当前隔离权限断言无法由旧夹具表达。需共享鉴权变更所有者明确兼容接线或隔离测试入口；不能弱化权限断言或擅自恢复旧鉴权。邻近任务217亦有同类404。
+- 已启动自有 postgres:18 容器 shiju-task219-postgres（仅127.0.0.1动态端口），随后清理。由于当前鉴权会解析真实本机环境，未继续执行可能写入原生凭据的注销请求。验收未完成，历史DSH 400尚未触达。
+- 自有Cargo入口均已结束，槽位已释放，缓存保留。测试文件无最终改动，仅编号状态及证据更新，不创建专用提交。未运行全量测试。

@@ -4,7 +4,7 @@
 
 批次：【批次1】 依赖：无
 
-状态：未开始
+状态：待回归
 
 来源：继续执行宿主单测；诊断编号9, 10, 40（宿主编译错误证据.json）。
 预计会话范围：修复一个源码文件中的宿主接口或测试夹具编译契约；不接管整包。
@@ -112,3 +112,14 @@ python3 scripts/cargo_slot.py cargo test -p vw-agent --lib save -- --nocapture
 编译取证命令（不是测试通过证据）：`python3 scripts/cargo_slot.py cargo test -p vw-agent --lib --no-run`。同阶段顺序命令合并一次入口复用缓存，不默认逐任务全量测试。
 
 最终需由原任务303执行两阶段全量验收；这组修复仅覆盖已发现编译阻塞，尚不能保证宿主全部运行失败已发现。
+
+## 本次执行记录（2026-11-18）
+
+- 父模块不再导出 Config；参照 delivery.rs，测试文件显式导入 crate::config::Config，仅修改一行，不变更断言或生产接口。
+- fixture/save 均为辅助函数；rg 确认三个真实 #[tokio::test] 入口，使用过滤 cron::delivery_tests:: 覆盖本文件。
+- 修复前命令：`python3 scripts/cargo_slot.py sh -c 'RUST_TEST_THREADS=1 cargo test -p vw-agent --lib cron::delivery_tests:: -- --nocapture'`，槽位1，退出101，42条编译错误，复现本文件三处 Config 错误；日志 /tmp/shiju-task324-red.log。
+- 修复后等待其他 Cargo 退出，再执行同一命令：槽位1，退出101，宿主仍有38条编译错误（E0277/E0425/E0432/E0433/E0599/E0624）。有效执行测试0项，未取得行为通过证据。
+- 两次 CARGO_TARGET_DIR/CARGO_BUILD_BUILD_DIR 均为 /Users/xiangmin/worker/code/shiju/target/rust-slot-1；自有入口已退出，由槽位脚本清理。git diff --check 限本文件通过。
+- 待同宿主兄弟编译阻塞解除后重跑上述真实测试过滤，要求实际3项通过；本任务保留，不删除，不把编译取证记作测试通过。
+
+- 提交未完成：git add/commit 被共享 .git/index.lock 阻断，30次有界等待重试仍失败。曾核实 PID66504（rustcodegraph watch 子进程 git）持锁，未删除他人锁或终止其进程。保留代码和任务文件，待锁释放后提交。

@@ -4,7 +4,7 @@
 
 批次：【批次1】 依赖：无
 
-状态：未开始
+状态：待回归
 
 来源：原任务19全量实际执行；证据编号450。
 预计会话范围：仅本测试定义文件中以下失败族及证据证明必要的底层修复，不接管整包。
@@ -38,3 +38,14 @@ python3 scripts/cargo_slot.py cargo test -p gateway-app-routing --lib 'host_migr
 ```
 
 完成证据：各条精确过滤执行1项且passed=1、failed=0、退出0；参数化子进程用例同时记录子进程证据。记录槽位、双缓存路径、日志、代码状态和审查diff。不运行全量测试；最后统一验收任务负责跨任务复验。
+
+## 本次执行证据（2026-11-18）
+
+- 已补齐本用例私有 home 权限（0700）及 `.local/state/shiju`，诊断存储 `open_on_execution_host` 不递归创建父目录；生产启动负责准备状态根目录。未修改共享 fixture 或业务安全逻辑。
+- 原精确命令执行 1 项，0 passed / 1 failed，退出 101：首个权限断言实际 503，预期 403；日志 `/tmp/shiju-task233-red.log`。
+- 修复后同一精确命令执行 1 项，0 passed / 1 failed，退出 101：首个权限断言实际 202，预期 403；日志 `/tmp/shiju-task233-green.log`（文件名不代表通过）。
+- 两次均使用槽位 1，CARGO_TARGET_DIR 与 CARGO_BUILD_BUILD_DIR 均为 `/Users/xiangmin/worker/code/shiju/target/rust-slot-1`；入口已退出，保留缓存。
+- 当前共享授权迁移使 `app-access-service::authorize_scoped` 调用 `execution_context`，忽略旧 policy/token/grants，身份固定 `desktop-local-user`；因此旧 READER、租户和 host 授权断言无法依靠旧策略夹具验证。未删除或弱化任何断言，未回退共享授权实现；需要授权迁移负责方提供 Gateway 配对授权的替代隔离测试入口后定向回归。
+- 已审查本任务 diff，仅测试初始化 4 行；其他任务的共享 fixture、Cargo.lock 和暂存内容保持原样。不运行全量测试。
+
+- 本任务提交：`f85871d60`，仅包含 outbound_scan_tests.rs；编号文件保留待回归。

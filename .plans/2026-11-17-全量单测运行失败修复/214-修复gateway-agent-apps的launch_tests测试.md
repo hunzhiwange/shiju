@@ -4,7 +4,7 @@
 
 批次：【批次1】 依赖：无
 
-状态：未开始
+状态：待回归
 
 来源：原任务19全量实际执行；证据编号402, 428。
 预计会话范围：仅本测试定义文件中以下失败族及证据证明必要的底层修复，不接管整包。
@@ -52,3 +52,13 @@ python3 scripts/cargo_slot.py cargo test -p gateway-agent-apps --lib 'host_migra
 ```
 
 完成证据：各条精确过滤执行1项且passed=1、failed=0、退出0；参数化子进程用例同时记录子进程证据。记录槽位、双缓存路径、日志、代码状态和审查diff。不运行全量测试；最后统一验收任务负责跨任务复验。
+
+## 本次执行记录
+
+- 根因：`app-auth-codex/src/rotation.rs::should_adopt_cli_rotation`要求同一 workspace/subject 的可解析 id_token，且 token 变化必须携带严格递增的 last_refresh。旧夹具使用 fixture-id 且无时间戳，因此拒绝写回；参照相邻 account_tests/auth_accounts_tests 补齐两代固定 JWT 和日期。仅修改本测试文件两处凭据，不改业务安全条件。
+- 当前检出额外阻塞：`app-access-service/src/access.rs::execution_context`忽略 legacy policy/token/grants，转为全局 gateway_host；`gateway-app-settings/src/agent_apps_settings_api.rs`也不再发送旧应用 token。两个原生命令目前各运行1项、0 passed/1 failed、Cargo退出101，提前失败于264行401断言，未进入CLI轮换。日志：`/tmp/shiju-214-red-identity.log`、`/tmp/shiju-214-red-native.log`。
+- 红灯入口槽位9，CARGO_TARGET_DIR与CARGO_BUILD_BUILD_DIR均为`/Users/xiangmin/worker/code/shiju/target/rust-slot-9`。该轮进程已退出、锁已释放。
+- 保留认证/身份权限/租户及子进程断言，不删除旧断言以取得通过。需先明确统一网关认证迁移后的测试契约与执行路径隔离，再回归本文件；本任务不反向恢复已移除的认证体系。
+- 修改后两条精确测试分别1项、0 passed/1 failed、Cargo退出101，同样在264行401断言失败。日志：`/tmp/shiju-214-final-identity.log`、`/tmp/shiju-214-final-native.log`。使用cargo_slot.py的run(number=11)原生入口顺序复用缓存，双路径均为`/Users/xiangmin/worker/code/shiju/target/rust-slot-11`；入口已退出，锁释放。未启动CLI子进程，未取得轮换行为通过证据。
+- 审查diff：仅launch_tests.rs两行夹具变化，保留全部断言；git diff --check通过。未运行全量测试、桌面构建或额外Cargo check。代码与本记录一并提交，任务保留待回归。
+- 提交未完成：git commit --only 指定本任务两文件，多次等待并重试仍退出128，错误为.git/index.lock已存在；未删除共享锁或触碰其他暂存内容。需锁释放后提交本任务差异。

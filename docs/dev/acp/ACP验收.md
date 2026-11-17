@@ -939,27 +939,6 @@ Rust重型命令经scripts/cargo_slot.py槽位入口串行执行，对应CARGO_T
 - 新私有证据 `/tmp/shiju-cortex-retry-20261118/`：官方脚本、版本、manifest、校验后的发行包、CLI帮助、原生协议请求/响应/错误、退出指标、目录边界和清理记录。供应商二进制及原始载荷不提交。
 
 
-## Corust Agent 验收（2026-11-18）
-
-结论：已阻塞，未通过。来源任务 `11-Corust-Agent.md` 与 `docs/dev/evidence/acp-onboarding-corust-agent.md` 均不存在。任务31已明确记录阻塞并完成清理，未争用其网关。
-
-- 当前注册位于 `crates/libs/acp-agent-registry/src/agent_registry.rs`，命令 `corust-agent-acp`、空参数；旧路径已迁移。`config-acp-install/src/lib.rs:59–61` 明确返回None，`llm-runtime/src/acp/model_source/drivers/mod.rs` 无Corust已验证版本和驱动；`agent-config/src/catalog.rs` 派生内置预设。现有onboarding测试使用Python协议fixture，不能证明真实CLI或指定模型成功，未据此宣称通过。
-- 复用任务30正式shiju 0.6.0产物 `/tmp/shiju-amp-complete-20261118/shiju`，SHA-256 `c01a466afc21a06e643db6341457e404981f06833833c6c327e7a02774758b78`，构建来源为 `df9f114345adf4f843a0929e88750cb48122ba22` 加当时工作区修复；未宣称当前clean HEAD构建。当前相关源码摘要存私有证据，拒绝行为与当前源码一致，不单凭旧产物判定实现失败。
-- 新建自有回环网关，使用现有开发配置。全部HTTP请求携带指定平台10001、公司100010005与Rue.js目录头；安装、预设、ACP配置及全局配置基线GET均200。安装前后corust-agent均false；POST系统安装HTTP400、客户端退出0、耗时0.007392秒，明确“该 ACP 暂无一键安装命令，请使用官方安装器”。无实际入口或CLI版本可核验，未使用替代下载或shell安装。
-- 按接口传入对应ACP配置，诊断HTTP200、客户端退出0、0.068754秒，但响应为startup_failed。模型能力GET200、客户端退出0，session_model明确unsupported_cli，cli_local supported、connected=false。未用CLI默认模型替代指定 `alibaba-token-plan-cn/deepseek-v4.1-flash-1017`。
-- 本次GET确认 `acp-corust-agent` 的builtin=true、backend=corust-agent、enabled=false。安装与模型前置已阻塞，未临时启用、未PATCH、未提交chat/stream，无SSE、chat.done、会话绑定或完整文件创建证据。未取得selected_model、full_access或真实模型请求证明。
-- Rue.js源码 `packages/rue/src` 存在；目标 `acpdemo/corust-agent/` 初始不存在且结束未创建。排除.git、node_modules、target的普通文件SHA-256快照6297项、零差异。全局配置结束GET200，完整内容与基线相等；无需恢复写入。仅停止自有网关，退出0、端口关闭。
-- 未运行Cargo、单测、Clippy、页面构建、浏览器或创建后的额外回归；本轮无代码修改与行为修复，前置阻塞，仅文档轻量检查。旧 `.plans/references/rust.md` 不存在，本轮无需编译槽位。任务32保留已阻塞，待系统安装、真实session_model驱动和脱敏接入证据交付后完整重跑。
-- 本次私有证据 `/tmp/shiju-corust-accept-20261118/`，根目录0700，包含原始响应、指标、配置基线及重读、网关日志、构建与当前源码摘要、快照和清理记录；原始配置与敏感载荷不提交。首次基线连接早于网关就绪失败，网关就绪后重新读取成功，未重复提交创建任务。
-
-### Corust 扩大范围重试（2026-11-18）
-
-- 当前共享源码仍无Corust系统安装命令或session_model驱动，未改变模型、租户、引擎或权限策略。本轮进一步查询官方发行源：原Corust-ai仓库重定向到rustingai，官方extension.toml和GitHub最新发行均为v0.6.0。下载Darwin arm64包，按GitHub release asset digest核验SHA-256 `6a74d46f645774f0a7e2a95371bad39d63927e231a34d52d2800c79f508f025f` 一致，仅解出普通文件至0700私有目录，未安装到宿主PATH。官方来源：[发行页](https://github.com/rustingai/corust-agent-release/releases/tag/v0.6.0)、[扩展清单](https://github.com/rustingai/corust-agent-release/blob/main/extension.toml)。
-- 原生--help/--version均退出0但无输出，不能据此推断参数支持。ACP initialize实际成功，protocolVersion=1，agentInfo版本0.1.0（与发行v0.6.0分别记录），唯一认证方法oauth_browser。隔离HOME、本仓库Rue.js cwd下，session/new携带原完整指定模型，返回JSON-RPC -32000 Authentication required。此处model字段不构成选模被支持的证据，未发送prompt或创建任务。
-- 仅检查宿主存在性与环境变量名：无~/.corust目录，CORUST_环境变量数量0；二进制显示CORUST_API_KEY/CORUST_HOME及OAuth入口，但这些静态字符串不能证明外部Alibaba模型可配置。未伪造认证、重定向身份服务、注册账号、自动开启浏览器登录或替换默认模型。当前真正外部前置为获授权的有效Corust认证；即使补齐，仍须证明原指定模型真实请求、系统安装及完整会话产物。
-- 自有原生探针已退出，未启动新网关、未PATCH配置、未系统安装；旧自有网关端口仍关闭。Rue.js与前轮结束快照比较6297项零差异，未创建目标目录。仅文档轻量检查，无代码变更，不运行Cargo、单测、Clippy或页面验证。私有证据 `/tmp/shiju-corust-retry-20261118/`（0700）保存官方manifest、release API、校验包、原生协议请求/响应、退出指标、边界及清理记录；供应商二进制与原始载荷不提交。任务仍已阻塞，待有效认证与模型入口证据后继续。
-
-
 ## Devin 验收（2026-11-18）
 
 结论：已阻塞，未通过。任务32已有明确阻塞及环境恢复记录；来源任务 `12-Devin.md` 和 `docs/dev/evidence/acp-onboarding-devin.md` 均不存在，不以缺失推定接入通过。

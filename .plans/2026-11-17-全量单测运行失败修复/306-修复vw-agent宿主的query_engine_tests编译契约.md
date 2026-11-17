@@ -4,7 +4,7 @@
 
 批次：【批次1】 依赖：无
 
-状态：未开始
+状态：待回归
 
 来源：继续执行宿主单测；诊断编号37, 38（宿主编译错误证据.json）。
 预计会话范围：修复一个源码文件中的宿主接口或测试夹具编译契约；不接管整包。
@@ -130,3 +130,12 @@ python3 scripts/cargo_slot.py cargo test -p vw-agent --lib query_engine_uses_hoo
 编译取证命令（不是测试通过证据）：`python3 scripts/cargo_slot.py cargo test -p vw-agent --lib --no-run`。同阶段顺序命令合并一次入口复用缓存，不默认逐任务全量测试。
 
 最终需由原任务303执行两阶段全量验收；这组修复仅覆盖已发现编译阻塞，尚不能保证宿主全部运行失败已发现。
+
+## 本次执行记录（2026-11-18）
+
+- 已提交 `54207264c`：两处运行时赋值沿用网关生产调用的 `HookRuntime::shared()`，保留原有审计及禁用断言；仅修改本任务测试文件。
+- 原红灯：宿主诊断37、38的E0308。等待已有宿主编译退出后执行定向命令，等待期间完成最小修复，因此本次日志是修复后尝试，不是修复前复现。
+- 验证命令：`python3 scripts/cargo_slot.py cargo test -p vw-agent --lib query_engine_uses_hook_runtime_for_primary_and_retry_turns -- --nocapture`。
+- 槽位1；`CARGO_TARGET_DIR`、`CARGO_BUILD_BUILD_DIR`均为 `/Users/xiangmin/worker/code/shiju/target/rust-slot-1`。
+- 退出101；宿主lib test仍有70条其它编译错误（包括TaskSessionCoordinator旧方法、私有spawn_background_turn及VideoContext契约）。本文件两处E0308已不在此次输出中；有效执行测试0，不能记为行为通过。日志：`/tmp/shiju-306-red.log`。
+- 自有验证入口已退出并释放槽位；`git diff --check`通过。保留编号文件，待同宿主其余编译阻塞解除后按上述命令运行真实用例，要求有效数>0、failed=0、退出0，再收尾。

@@ -301,10 +301,10 @@ fn variable_card_and_validation_helpers_expose_expected_child_counts() {
     );
     std::hint::black_box(action_card);
 
-    let field = build_editor_field::<()>("变量名称", text("内容").into());
+    let field = build_editor_field::<WorkflowMessage>("变量名称", text("内容").into());
     assert_eq!(field.as_widget().children().len(), 2);
 
-    let validated_error = build_editor_field_validated(
+    let validated_error = build_editor_field_validated::<WorkflowMessage>(
         "变量值",
         text("bad").into(),
         Some(("变量值必须是合法 YAML").to_string()),
@@ -374,9 +374,9 @@ fn helper_builders_cover_optional_actions_and_validation_summary_branches() {
         Some(WorkflowMessage::CloseVariableEditor),
         Some(WorkflowMessage::CloseVariablePanel),
     );
-    let _field = build_editor_field::<()>("变量名称", text("内容").into());
-    let _validated_ok = build_editor_field_validated("变量类型", text("string").into(), None);
-    let _validated_error = build_editor_field_validated(
+    let _field = build_editor_field::<WorkflowMessage>("变量名称", text("内容").into());
+    let _validated_ok = build_editor_field_validated::<WorkflowMessage>("变量类型", text("string").into(), None);
+    let _validated_error = build_editor_field_validated::<WorkflowMessage>(
         "变量值",
         text("bad").into(),
         Some(("变量值必须是合法 YAML").to_string()),
@@ -412,4 +412,39 @@ fn helper_builders_cover_optional_actions_and_validation_summary_branches() {
         desktop_i18n::I18n::new(Default::default()),
         &long_validation,
     );
+}
+
+#[tokio::test]
+async fn variables_tests_draw_chinese_in_both_themes() {
+    use iced::advanced::renderer::Headless;
+    use iced::{Font, Renderer, Size, mouse};
+    use iced_runtime::user_interface::{Cache, UserInterface};
+
+    {
+        let mut fonts = iced::advanced::graphics::text::font_system().write().unwrap();
+        for font in desktop_assets::fonts::load_all() {
+            fonts.load_font(font);
+        }
+    }
+    let mut renderer = Renderer::new(
+        Font::with_name("Noto Sans CJK SC"), 14.0.into(), Some("tiny-skia"),
+    ).await.unwrap();
+    let size = Size::new(1200, 800);
+
+    for theme in [Theme::Light, Theme::Dark] {
+        let view = build_editor_field_validated::<WorkflowMessage>(
+            "变量值", text("中文内容").into(), Some("变量值必须是合法 YAML".into()),
+        );
+        let mut ui = UserInterface::build(
+            view, Size::new(1200.0, 800.0), Cache::new(), &mut renderer,
+        );
+        ui.draw(
+            &mut renderer, &theme,
+            &iced::advanced::renderer::Style { text_color: theme.palette().text },
+            mouse::Cursor::Unavailable,
+        );
+        let pixels = renderer.screenshot(size, 1.0, theme.palette().background);
+        assert_eq!(pixels.len(), 1200 * 800 * 4);
+        assert!(pixels.chunks_exact(4).any(|pixel| pixel != &pixels[..4]));
+    }
 }

@@ -49,11 +49,11 @@ fn desktop_gettext_area_13_lifecycle_validation_keeps_template_and_identifier() 
     }
     let message = state.feedback().unwrap().localized.as_ref().unwrap();
     assert_eq!(
-        message.render(I18n::new(DesktopLocale::English)).unwrap(),
+        message.render(I18n::new(DesktopLocale::English)),
         "Custom workflow label is required: 用户/%s/%n"
     );
     assert_eq!(
-        message.render(I18n::new(DesktopLocale::TraditionalChinese)).unwrap(),
+        message.render(I18n::new(DesktopLocale::TraditionalChinese)),
         "自訂工作流 label 不能為空: 用户/%s/%n"
     );
 }

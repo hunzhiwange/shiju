@@ -440,3 +440,40 @@ fn run_node(id: &str, title: &str, status: Option<&str>) -> WorkflowRunNodePrevi
 }
 
 use desktop_ui_controls::selectable_text::markdown_selection::SelectionMessage;
+
+#[tokio::test]
+async fn run_preview_tests_draw_chinese_in_both_themes() {
+    use iced::advanced::renderer::Headless;
+    use iced::{Font, Renderer, Size, mouse};
+    use iced_runtime::user_interface::{Cache, UserInterface};
+
+    {
+        let mut fonts = iced::advanced::graphics::text::font_system().write().unwrap();
+        for font in desktop_assets::fonts::load_all() {
+            fonts.load_font(font);
+        }
+    }
+    let mut renderer = Renderer::new(
+        Font::with_name("Noto Sans CJK SC"), 14.0.into(), Some("tiny-skia"),
+    ).await.unwrap();
+    let size = Size::new(1200, 800);
+    let mut preview = run_preview(WorkflowRunStatus::Running);
+    preview.nodes.push(run_node("start", "开始节点", Some("running")));
+    preview.text_output = "中文运行结果".into();
+    for theme in [Theme::Light, Theme::Dark] {
+        let view = build_saved_app_run_preview_layer(
+            desktop_i18n::I18n::new(Default::default()), &preview, false,
+        );
+        let mut ui = UserInterface::build(
+            view, Size::new(1200.0, 800.0), Cache::new(), &mut renderer,
+        );
+        ui.draw(
+            &mut renderer, &theme,
+            &iced::advanced::renderer::Style { text_color: theme.palette().text },
+            mouse::Cursor::Unavailable,
+        );
+        let pixels = renderer.screenshot(size, 1.0, theme.palette().background);
+        assert_eq!(pixels.len(), 1200 * 800 * 4);
+        assert!(pixels.chunks_exact(4).any(|pixel| pixel != &pixels[..4]));
+    }
+}

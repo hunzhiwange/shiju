@@ -150,7 +150,7 @@ fn attachment_chip_styles_follow_theme_and_hover_contracts() {
 #[test]
 fn attachment_thumbnail_uses_image_and_icon_fallback_shapes() {
     let existing_path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("src/app/components/input_panel/attachment_tests.rs");
+        .join("src/input_panel/attachment_tests.rs");
     assert!(existing_path.exists());
     let existing_image = attachment_thumbnail(
         existing_path.to_string_lossy().into_owned(),
@@ -159,7 +159,7 @@ fn attachment_thumbnail_uses_image_and_icon_fallback_shapes() {
     assert_size(&existing_image, Length::Fixed(28.0), Length::Fixed(28.0));
 
     let missing_path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("src/app/components/input_panel/__missing_attachment_thumbnail__.png");
+        .join("src/input_panel/__missing_attachment_thumbnail__.png");
     assert!(!missing_path.exists());
     let missing_image = attachment_thumbnail(
         missing_path.to_string_lossy().into_owned(),

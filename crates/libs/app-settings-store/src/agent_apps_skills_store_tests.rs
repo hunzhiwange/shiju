@@ -187,7 +187,9 @@ fn cp12_zip_install_reports_partial_results_and_preserves_existing() -> Result<(
     assert_eq!(std::fs::read_to_string(ssot.join("taken/keep"))?, "external");
     let state = store.get(&project, "host", &ssot)?;
     assert_eq!(state.version, 2);
-    assert!(state.skills.iter().all(|skill| skill.source == path));
+    // Origins are canonicalized, including macOS's /var -> /private/var alias.
+    let canonical_archive = std::fs::canonicalize(&path)?;
+    assert!(state.skills.iter().all(|skill| skill.source == canonical_archive));
     let repeated = store.install_from_zip(&project, "host", &ssot, &path)?;
     assert!(repeated.installed.is_empty());
     assert_eq!(repeated.skipped.len(), 3);

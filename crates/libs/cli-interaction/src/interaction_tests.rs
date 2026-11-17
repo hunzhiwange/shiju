@@ -179,6 +179,7 @@ fn workflow_resume_requires_current_owned_pause() {
                 .as_deref()
                 .is_some_and(|request_id| request_id != first_request_id)
     });
+    let first_resume = requests.recv_timeout(Duration::from_secs(1)).expect("first resume request");
     let second_request_id =
         app.state().tasks.workflow_pause_request_id.clone().expect("replacement pause question");
 
@@ -198,6 +199,7 @@ fn workflow_resume_requires_current_owned_pause() {
     drain_until(&mut runner, &mut app, |runner, app| {
         !runner.interaction_in_flight() && app.state().tasks.workflow_pause_request_id.is_none()
     });
+    let second_resume = requests.recv_timeout(Duration::from_secs(1)).expect("second resume request");
     runner.execute_action(
         &mut app,
         workflow_answer(second_request_id.as_str(), "duplicate", "Continue [continue]"),
@@ -207,10 +209,8 @@ fn workflow_resume_requires_current_owned_pause() {
         "completed pause must not be replayable"
     );
 
-    let recorded = requests.try_iter().collect::<Vec<_>>();
-    let resume =
-        recorded.iter().filter(|request| request.path == "/v1/workflow/resume").collect::<Vec<_>>();
-    assert_eq!(resume.len(), 2);
+    let resume = [first_resume, second_resume];
+    assert!(resume.iter().all(|request| request.path == "/v1/workflow/resume"));
     assert_eq!(
         serde_json::from_str::<serde_json::Value>(resume[0].body.as_str()).expect("first resume"),
         json!({

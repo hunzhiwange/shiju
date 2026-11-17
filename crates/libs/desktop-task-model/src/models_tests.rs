@@ -215,17 +215,24 @@ fn task_lifecycle_preserves_and_sets_execution_fields() {
     let failed_duration = task.last_execution_duration_ms;
     assert!(task.logs.iter().any(|log| log.message == "失败原因: boom"));
 
-    task.start_execution("retry".into()).expect("failed retry start should be allowed");
+    // 通用工作流先将失败任务重新排队，再开始下一次执行。
+    assert!(task.start_execution("retry before requeue".into()).is_err());
+    assert_eq!(task.status, super::TaskStatus::Failed);
+    assert_eq!(task.retry_count, 1);
+    task.set_status(super::TaskStatus::Pending);
+    assert_eq!(task.last_error, None);
+    task.start_execution("retry".into()).expect("requeued retry start should be allowed");
+    assert_eq!(task.retry_count, 1);
     assert_eq!(task.last_execution_duration_ms, failed_duration);
     task.mark_execution_succeeded();
     task.apply_task_transition(
-        super::TaskStatus::CodeComplete,
+        super::TaskStatus::Completed,
         super::super::workflow::TaskTransitionIntent::ExecutionSucceeded,
     )
-    .expect("running to code complete should be allowed");
+    .expect("generic workflow execution should complete directly");
     assert_eq!(task.last_error, None);
     assert_eq!(task.pause_reason, None);
-    assert_eq!(task.status, super::TaskStatus::CodeComplete);
+    assert_eq!(task.status, super::TaskStatus::Completed);
 }
 
 #[test]
@@ -236,12 +243,14 @@ fn apply_task_transition_rejects_illegal_edge_and_keeps_status() {
     task.set_status(super::TaskStatus::Running);
     let log_count_before = task.logs.len();
 
-    // Running -> Completed 不是 MergeSucceeded 的合法边，必须被拒绝且不改状态。
+    // 通用工作流 Running 的成功边只到 Completed，不能直接归档。
     let error = task
-        .apply_task_transition(super::TaskStatus::Completed, TaskTransitionIntent::MergeSucceeded)
+        .apply_task_transition(super::TaskStatus::Archived, TaskTransitionIntent::MergeSucceeded)
         .expect_err("illegal edge must be rejected");
     assert_eq!(error.from, super::TaskStatus::Running);
-    assert_eq!(error.to, super::TaskStatus::Completed);
+    assert_eq!(error.to, super::TaskStatus::Archived);
+    assert_eq!(error.intent, TaskTransitionIntent::MergeSucceeded);
+    assert_eq!(error.workflow_id, super::super::workflow::DEFAULT_TASK_WORKFLOW_ID);
     assert_eq!(task.status, super::TaskStatus::Running);
     assert!(task.logs.len() > log_count_before);
     assert!(task.logs.iter().any(|log| log.message.contains("状态转移被状态机拒绝")));
@@ -567,7 +576,16 @@ fn task_status_workflow_helpers_use_selected_workflow_and_default_fallback() {
     assert_eq!(content_idea.next_for_workflow_id("content_publishing"), Some(content_queued));
     assert_eq!(
         super::TaskStatus::all_for_workflow_id("missing-workflow"),
-        super::TaskStatus::all().to_vec()
+        vec![
+            super::TaskStatus::Pool,
+            super::TaskStatus::Pending,
+            super::TaskStatus::Planning,
+            super::TaskStatus::Running,
+            super::TaskStatus::Failed,
+            super::TaskStatus::Paused,
+            super::TaskStatus::Completed,
+            super::TaskStatus::Archived,
+        ]
     );
     assert_eq!(
         super::TaskStatus::Pool.label_for_workflow_id("missing-workflow"),

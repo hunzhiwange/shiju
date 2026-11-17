@@ -9,7 +9,7 @@ fn update(
     crate::model_update::persist_status_effect(
         state,
         effect,
-        gateway_endpoint::GatewayEndpoint::default(),
+        gateway_endpoint::GatewayEndpoint::new("127.0.0.1", 1),
         true,
         "",
     )

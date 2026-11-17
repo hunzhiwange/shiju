@@ -4,8 +4,8 @@ use crate::view_style::ViewStyle;
 use iced::{Element};
 use iced::widget::{text, column};
 use serde_json::json;
-#[derive(Default)]
 struct Fixture { model_settings: ModelSettingsState, theme: iced::Theme }
+impl Default for Fixture { fn default() -> Self { Self { model_settings: Default::default(), theme: iced::Theme::Light } } }
 fn test_app() -> Fixture { Fixture::default() }
 fn style(app: &Fixture) -> ViewStyle<'_> {
     ViewStyle { locale: config_ui::DesktopLocale::SimplifiedChinese, theme: &app.theme, help_text: |title, body, _, _| column![text(title),text(body)].into() }

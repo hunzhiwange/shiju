@@ -59,7 +59,7 @@ fn discovered_models_ignore_blank_and_duplicate_ids() {
 fn custom_provider_draft_rejects_non_object_configs() {
     for raw in [json!(null), json!(false), json!(42), json!("provider"), json!([])] {
         assert_eq!(
-            custom_provider_draft_from_value("invalid", &raw).unwrap_err(),
+            custom_provider_draft_from_value("invalid", &raw).unwrap_err().display(config_ui::DesktopLocale::SimplifiedChinese),
             "提供商 invalid 的配置格式无效"
         );
     }

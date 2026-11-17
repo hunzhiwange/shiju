@@ -89,11 +89,11 @@ fn remote_sync_rejects_busy_states_and_advances_through_labels() {
 
     app.provider_settings.models_sync_progress = 0.34;
     let _ = update(&mut app, SettingsMessage::ProviderModelsSyncTick);
-    assert_eq!(app.provider_settings.models_sync_label, "正在写入本地缓存…");
+    assert_eq!(app.provider_settings.models_sync_label.display(config_ui::DesktopLocale::SimplifiedChinese), "正在写入本地缓存…");
 
     app.provider_settings.models_sync_progress = 0.69;
     let _ = update(&mut app, SettingsMessage::ProviderModelsSyncTick);
-    assert_eq!(app.provider_settings.models_sync_label, "正在刷新提供商视图…");
+    assert_eq!(app.provider_settings.models_sync_label.display(config_ui::DesktopLocale::SimplifiedChinese), "正在刷新提供商视图…");
 
     app.provider_settings.models_sync_progress = 0.89;
     let _ = update(&mut app, SettingsMessage::ProviderModelsSyncTick);
@@ -114,11 +114,11 @@ fn remote_sync_tick_keeps_fetch_label_during_initial_phase_and_ignores_busy_requ
 
     let _ = update(&mut app, SettingsMessage::ProviderModelsSyncRemote);
     assert_eq!(app.provider_settings.models_sync_progress, 0.08);
-    assert_eq!(app.provider_settings.models_sync_label, "starting");
+    assert_eq!(app.provider_settings.models_sync_label.display(config_ui::DesktopLocale::SimplifiedChinese), "starting");
 
     let _ = update(&mut app, SettingsMessage::ProviderModelsSyncTick);
     assert_eq!(app.provider_settings.models_sync_progress, 0.15);
-    assert_eq!(app.provider_settings.models_sync_label, "正在从 models.dev 拉取模型目录…");
+    assert_eq!(app.provider_settings.models_sync_label.display(config_ui::DesktopLocale::SimplifiedChinese), "正在从 models.dev 拉取模型目录…");
 }
 
 #[test]
@@ -825,8 +825,23 @@ fn shiju_official_provider_messages_are_idempotent() {
     );
     assert_eq!(app.provider_settings.popular_patterns, ["openai"]);
 
-    let _ = update(&mut app, SettingsMessage::ProviderConnectOpen("shiju".to_string()));
-    let modal = app.provider_settings.connect_modal.as_ref().unwrap();
-    assert_eq!(modal.provider_id, "shiju");
-    assert_eq!(modal.provider_name, "识矩");
+    for account_active in [false, true] {
+        let endpoint = gateway_endpoint::GatewayEndpoint::new("127.0.0.1", 1);
+        let (_, effect) = super::update(
+            &mut app.provider_settings,
+            &mut app.model_settings,
+            endpoint.clone(),
+            desktop_config::ConfigAccess::new(endpoint, None),
+            account_active,
+            SettingsMessage::ProviderConnectOpen("shiju".into()),
+        );
+        assert!(app.provider_settings.connect_modal.is_none());
+        if account_active {
+            assert!(matches!(effect, Some(Message::SyncAccount)));
+        } else {
+            assert!(matches!(effect, Some(Message::Warning(message))
+                if message.display(config_ui::DesktopLocale::SimplifiedChinese)
+                    == "请先登录识矩账户，模型将自动配置"));
+        }
+    }
 }

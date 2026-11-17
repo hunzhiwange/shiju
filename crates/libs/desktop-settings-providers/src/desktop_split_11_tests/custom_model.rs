@@ -220,8 +220,8 @@ async fn ui_refresh_09_layout_and_interaction() {
 
     let body = scene.bounds(&modal(&[1]));
     let close = scene.bounds(&modal(&[0, 0, 1]));
-    let cancel = scene.bounds(&modal(&[2, 1]));
-    let save = scene.bounds(&modal(&[2, 2]));
+    let cancel = scene.bounds(&modal(&[2, 0]));
+    let save = scene.bounds(&modal(&[2, 1]));
     assert!(scene.scroll(&mut renderer, body, 230.0) > 150.0);
 
     let before = scene.capture(
@@ -281,13 +281,13 @@ async fn ui_refresh_09_layout_and_interaction() {
     app.provider_settings.custom_provider_tab = CustomProviderTab::Authentication;
     screenshot(&app, &mut renderer, &Theme::Dark, Size::new(420, 620), "provider-account-auth");
 }
-fn narrow<'a>(app: &'a App, renderer: &mut Renderer) -> Scene<'a> {
+pub(crate) fn narrow<'a>(app: &'a App, renderer: &mut Renderer) -> Scene<'a> {
     Scene::new(view(app), renderer, Size::new(420, 620))
 }
 
 pub(crate) fn modal(path: &[usize]) -> Vec<usize> {
     // Stack, active layer, centering container, inset, card, contents.
-    [&[1, 1, 0, 0, 0][..], path].concat()
+    [&[1, 1, 0, 0][..], path].concat()
 }
 
 pub(crate) fn group(path: &[usize]) -> Vec<usize> {

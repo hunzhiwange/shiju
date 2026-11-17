@@ -87,7 +87,7 @@ fn provider_and_model_summary_structs_preserve_public_fields() {
     };
     assert_eq!(provider.id, "openai");
     assert_eq!(provider.name, "OpenAI");
-    assert_eq!(provider.source_label, "config");
+    assert_eq!(provider.source_label.display(config_ui::DesktopLocale::SimplifiedChinese), "config");
     assert!(provider.connected);
 
     let catalog = ModelCatalogEntry {

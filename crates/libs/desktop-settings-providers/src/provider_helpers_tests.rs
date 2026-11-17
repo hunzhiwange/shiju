@@ -145,7 +145,7 @@ fn summarize_providers_maps_every_source_and_sorts_by_name_then_id() {
             (
                 summary.id.as_str(),
                 summary.name.as_str(),
-                summary.source_label.as_str(),
+                &*summary.source_label,
                 summary.connected,
             )
         })

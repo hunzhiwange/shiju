@@ -10,8 +10,8 @@ use iced::advanced::widget::Tree;
 use iced::widget::text;
 
 // 模型路由从空目录开始构造，使空态和卡片数量断言彼此独立。
-#[derive(Default)]
 struct Fixture { routes: Vec<ModelRoute>, theme: iced::Theme }
+impl Default for Fixture { fn default() -> Self { Self { routes: Vec::new(), theme: iced::Theme::Light } } }
 fn test_app() -> Fixture { Fixture::default() }
 fn style(app: &Fixture) -> ViewStyle<'_> {
     ViewStyle { locale: DesktopLocale::SimplifiedChinese, theme: &app.theme, help_text: |title, body, _, _| iced::widget::column![text(title), text(body)].into() }

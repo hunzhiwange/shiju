@@ -57,8 +57,8 @@ fn model_detail_and_model_settings_defaults_are_stable() {
     assert_eq!(modal.provider_name, "OpenAI");
     assert_eq!(modal.model_id, "gpt");
     assert_eq!(modal.model_name, "GPT");
-    assert_eq!(modal.rows[0].label, "Context");
-    assert_eq!(modal.rows[0].value, "128k");
+    assert_eq!(modal.rows[0].label.display(config_ui::DesktopLocale::SimplifiedChinese), "Context");
+    assert_eq!(modal.rows[0].value.display(config_ui::DesktopLocale::SimplifiedChinese), "128k");
     assert_eq!(modal.raw_json, "{}");
     assert!(modal.show_raw);
 

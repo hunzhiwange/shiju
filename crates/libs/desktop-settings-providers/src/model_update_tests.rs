@@ -41,12 +41,11 @@ fn provider_summary() -> ProviderModelsSummary {
     }))
 }
 
-fn row_value<'a>(rows: &'a [ModelDetailRow], label: &str) -> &'a str {
+fn row_value(rows: &[ModelDetailRow], label: &str) -> String {
     rows.iter()
-        .find(|row| row.label == label)
+        .find(|row| row.label.display(config_ui::DesktopLocale::SimplifiedChinese) == label)
         .unwrap_or_else(|| panic!("missing detail row: {label}"))
-        .value
-        .as_str()
+        .value.display(config_ui::DesktopLocale::SimplifiedChinese)
 }
 
 #[test]
@@ -190,7 +189,7 @@ fn model_detail_open_uses_defaults_for_missing_or_wrong_typed_values() {
     assert_eq!(row_value(rows, "输出模态 (capabilities.output.*)"), "无");
     assert_eq!(row_value(rows, "输入价格 (cost.input)"), "0");
     assert_eq!(row_value(rows, "请求头数量 (headers)"), "0");
-    assert!(!rows.iter().any(|row| row.label == "混合输入 (capabilities.interleaved)"));
+    assert!(!rows.iter().any(|row| row.label.display(config_ui::DesktopLocale::SimplifiedChinese) == "混合输入 (capabilities.interleaved)"));
 }
 
 #[test]

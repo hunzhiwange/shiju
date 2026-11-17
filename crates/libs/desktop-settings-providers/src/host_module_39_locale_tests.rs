@@ -51,7 +51,7 @@ fn desktop_i18n_settings_models_cached_details_translate_without_mutating_servic
         let tool_row = modal
             .rows
             .iter()
-            .find(|row| row.label == "支持工具调用 (capabilities.toolcall)")
+            .find(|row| row.label.display(config_ui::DesktopLocale::SimplifiedChinese) == "支持工具调用 (capabilities.toolcall)")
             .unwrap();
         assert_eq!(tool_row.label.display(locale), tools_label);
         assert_eq!(tool_row.value.display(locale), supported);
@@ -87,7 +87,7 @@ fn desktop_i18n_settings_models_validation_and_sync_keep_semantics_after_switch(
     let mut provider = crate::provider_state::ProviderSettingsState::default();
     let mut models = crate::state::ModelSettingsState::default();
     provider.loading = false;
-    let endpoint = gateway_endpoint::GatewayEndpoint::default();
+    let endpoint = gateway_endpoint::GatewayEndpoint::new("127.0.0.1", 1);
     let config = desktop_config::ConfigAccess::new(endpoint.clone(), None);
     let _ = crate::provider_update::update(
         &mut provider,

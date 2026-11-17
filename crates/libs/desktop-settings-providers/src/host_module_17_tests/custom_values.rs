@@ -3,7 +3,7 @@ use crate::provider_state::{CustomProviderTab, ModelCapabilityDefaults};
 use crate::provider_view_test_support::Fixture as App;
 use crate::state::CustomProviderModelTab;
 use crate::view_message::{Message, SettingsMessage};
-use iced::{Renderer, Size, Theme, mouse};
+use iced::{Renderer, Size, Theme, Vector, mouse};
 fn provider_update(app: &mut App, message: crate::provider_message::SettingsMessage) {
     let endpoint = gateway_endpoint::GatewayEndpoint::new("127.0.0.1", 1);
     let _ = crate::provider_update::update(
@@ -70,7 +70,7 @@ async fn ui_refresh_09_preserves_values_and_disabled_states() {
     app.provider_settings.custom_models_discovering = true;
     let mut scene = narrow(&app, &mut renderer);
     let discover = scene.bounds(&scalar_control(0, &[1]));
-    let save = scene.bounds(&modal(&[2, 2]));
+    let save = scene.bounds(&modal(&[2, 1]));
     for button in [discover, save] {
         assert!(scene.click(&mut renderer, button.center()).is_empty());
     }
@@ -129,7 +129,7 @@ async fn ui_refresh_09_preserves_values_and_disabled_states() {
 
     apply(&mut app, add_messages);
     let mut scene = narrow(&app, &mut renderer);
-    let save = scene.bounds(&modal(&[2, 2]));
+    let save = scene.bounds(&modal(&[2, 1]));
     let id = scene.bounds(&scalar_control(0, &[]));
     assert!(scene.click(&mut renderer, id.center()).is_empty());
     assert!(
@@ -217,7 +217,7 @@ async fn ui_refresh_09_preserves_values_and_disabled_states() {
         crate::provider_message::SettingsMessage::CustomProviderModelOpen(Some(0)),
     );
     let mut scene = narrow(&app, &mut renderer);
-    let cancel = scene.bounds(&modal(&[2, 1]));
+    let cancel = scene.bounds(&modal(&[2, 0]));
     let messages = scene.click(&mut renderer, cancel.center());
     assert!(matches!(
         messages.as_slice(),
@@ -238,7 +238,7 @@ async fn ui_refresh_09_preserves_values_and_disabled_states() {
         )),
     );
     let mut scene = narrow(&app, &mut renderer);
-    let save = scene.bounds(&modal(&[2, 2]));
+    let save = scene.bounds(&modal(&[2, 1]));
     scene.capture(&mut renderer, &Theme::Dark, mouse::Cursor::Unavailable, "provider-save-failed");
     assert!(matches!(
         scene.click(&mut renderer, save.center()).as_slice(),
@@ -248,7 +248,7 @@ async fn ui_refresh_09_preserves_values_and_disabled_states() {
 
 fn save_model(app: &mut App, renderer: &mut Renderer) {
     let mut scene = narrow(app, renderer);
-    let save = scene.bounds(&modal(&[2, 2]));
+    let save = scene.bounds(&modal(&[2, 1]));
     let messages = scene.click(renderer, save.center());
     assert!(matches!(
         messages.as_slice(),
@@ -318,7 +318,7 @@ async fn settings_help_gap_03_preserves_masks_and_validation() {
     app.provider_settings.custom_provider_tab = CustomProviderTab::Basic;
     app.provider_settings.custom.provider_id = "INVALID".into();
     let mut provider = Scene::new(view(&app), &mut renderer, size);
-    let save = provider.bounds(&modal(&[2, 2])).center();
+    let save = provider.bounds(&modal(&[2, 1])).center();
     let messages = provider.click(&mut renderer, save);
     assert!(matches!(
         messages.as_slice(),
@@ -358,7 +358,7 @@ async fn settings_help_gap_03_preserves_masks_and_validation() {
         [Message::Settings(SettingsMessage::CustomProviderModelModalOutputLimitChanged(value))]
             if value == "0"
     ));
-    let save = model.bounds(&modal(&[2, 2])).center();
+    let save = model.bounds(&modal(&[2, 1])).center();
     let messages = model.click(&mut renderer, save);
     assert!(matches!(
         messages.as_slice(),
@@ -379,7 +379,7 @@ async fn settings_help_gap_03_preserves_masks_and_validation() {
         [Message::Settings(SettingsMessage::CustomProviderModelModalInputLimitChanged(value))]
             if value.is_empty()
     ));
-    let save = model.bounds(&modal(&[2, 2])).center();
+    let save = model.bounds(&modal(&[2, 1])).center();
     let messages = model.click(&mut renderer, save);
     drop(model);
     apply(&mut app, clear);

@@ -53,13 +53,13 @@ fn validate_routes_reports_provider_model_and_priority_errors_with_row_number() 
     let mut input = Vec::new();
     input =
         vec![ModelRoute::default(), route("chat", " ", "gpt-5", "1")];
-    assert_eq!(validate_routes(&input).unwrap_err(), "第 2 条路由缺少 provider");
+    assert_eq!(validate_routes(&input).unwrap_err().display(config_ui::DesktopLocale::SimplifiedChinese), "第 2 条路由缺少 provider");
 
     input[1].provider = "openai".to_string();
     input[1].model.clear();
-    assert_eq!(validate_routes(&input).unwrap_err(), "第 2 条路由缺少 model");
+    assert_eq!(validate_routes(&input).unwrap_err().display(config_ui::DesktopLocale::SimplifiedChinese), "第 2 条路由缺少 model");
 
     input[1].model = "gpt-5".to_string();
     input[1].priority_input = "-1".to_string();
-    assert_eq!(validate_routes(&input).unwrap_err(), "第 2 条路由的 priority 不是有效数字");
+    assert_eq!(validate_routes(&input).unwrap_err().display(config_ui::DesktopLocale::SimplifiedChinese), "第 2 条路由的 priority 不是有效数字");
 }

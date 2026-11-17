@@ -54,12 +54,12 @@ fn provider_result_messages_preserve_errors() {
     assert!(matches!(
         refreshed,
         Message::Settings(SettingsMessage::ProvidersRefreshed(Err(error)))
-            if error == "refresh failed"
+            if error.display(config_ui::DesktopLocale::SimplifiedChinese) == "refresh failed"
     ));
     assert!(matches!(
         synced,
         Message::Settings(SettingsMessage::ProviderModelsSyncDone(Err(error)))
-            if error == "sync failed"
+            if error.display(config_ui::DesktopLocale::SimplifiedChinese) == "sync failed"
     ));
 }
 
@@ -99,7 +99,7 @@ fn provider_catalog_loaded_message_preserves_success_and_error() {
     assert!(matches!(
         failed,
         Message::Settings(SettingsMessage::ProviderCatalogLoaded(Err(error)))
-            if error == "catalog failed"
+            if error.display(config_ui::DesktopLocale::SimplifiedChinese) == "catalog failed"
     ));
 }
 
@@ -114,7 +114,7 @@ fn popular_providers_saved_message_preserves_success_and_error() {
     assert!(matches!(
         failed,
         Message::Settings(SettingsMessage::PopularProvidersSaved(Err(error)))
-            if error == "save failed"
+            if error.display(config_ui::DesktopLocale::SimplifiedChinese) == "save failed"
     ));
 }
 

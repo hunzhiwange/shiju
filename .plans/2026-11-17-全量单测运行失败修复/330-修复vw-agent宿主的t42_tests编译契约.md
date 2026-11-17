@@ -4,7 +4,7 @@
 
 批次：【批次1】 依赖：无
 
-状态：未开始
+状态：待回归
 
 来源：继续执行宿主单测；诊断编号4, 32（宿主编译错误证据.json）。
 预计会话范围：修复一个源码文件中的宿主接口或测试夹具编译契约；不接管整包。
@@ -86,3 +86,12 @@ python3 scripts/cargo_slot.py cargo test -p vw-agent --lib attempt -- --nocaptur
 编译取证命令（不是测试通过证据）：`python3 scripts/cargo_slot.py cargo test -p vw-agent --lib --no-run`。同阶段顺序命令合并一次入口复用缓存，不默认逐任务全量测试。
 
 最终需由原任务303执行两阶段全量验收；这组修复仅覆盖已发现编译阻塞，尚不能保证宿主全部运行失败已发现。
+
+## 本次执行记录
+
+- 修复限于 `crates/vw-agent/src/plugins/compat/t42_tests.rs`：本地构造模型和消息夹具；调用 `session_engine::compaction::process_with_summarizer::<AgentContextHost>`，沿用真实宿主 hook 与检查点路径，保留全部断言。未改共享业务接口。
+- `attempt` 为夹具；rg 核实两个真实 tokio 测试入口为 `codex_plugin_compat_t42_emits_events_around_compaction`、`codex_plugin_compat_t42_applies_stop_at_the_correct_boundary`。
+- 等待既有 Cargo 编译退出后运行：`python3 scripts/cargo_slot.py cargo test -p vw-agent --lib codex_plugin_compat_t42_ -- --nocapture`。
+- 槽位1；CARGO_TARGET_DIR 与 CARGO_BUILD_BUILD_DIR 均为 `/Users/xiangmin/worker/code/shiju/target/rust-slot-1`；日志 `/tmp/shiju-task330.log`；退出101，有效测试数0，不能算行为通过。
+- 本文件原 E0432/E0425 未再出现；宿主受其余16条编译错误阻塞：controls_tests.rs 的 ACP_CLIENT_CACHE、compaction_summary_tests.rs 的 overflow_error，以及 workflow/video_edit 的 VideoContext trait 契约。未接管兄弟任务。
+- 已对修改文件 rustfmt，git diff --check 通过。自有验证进程退出并释放槽位；保留本任务文件，待其余宿主阻塞解除后重跑上述两条真实测试；不标记完成、不删除任务文件。

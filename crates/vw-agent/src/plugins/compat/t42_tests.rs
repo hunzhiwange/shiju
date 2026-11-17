@@ -1,9 +1,10 @@
+use crate::{provider::provider, session::message};
 use crate::{
-    session::compaction::{self, CompactionOutcome, ProcessInput},
+    session::compaction::{CompactionOutcome, ProcessInput},
     tools::ToolUseContext,
 };
 use serde_json::{Value, json};
-use std::sync::Arc;
+use std::{collections::HashMap, sync::Arc};
 
 pub(crate) fn fixture(
     root: &std::path::Path,
@@ -42,6 +43,98 @@ fn fixture_output(
             .with_hook_runner(Arc::new(runner)),
     )
 }
+fn capability_io(text: bool) -> provider::CapabilityIO {
+    provider::CapabilityIO { text, audio: false, image: false, video: false, pdf: false }
+}
+
+fn model_with_limits(context: u64, input: Option<u64>, output: u64) -> provider::Model {
+    provider::Model {
+        id: "model-fixture".to_string(),
+        provider_id: "provider-fixture".to_string(),
+        api: provider::ApiInfo {
+            protocols: None,
+            id: "api-fixture".to_string(),
+            url: "https://example.test/v1".to_string(),
+            adapter: provider::default_adapter(),
+        },
+        name: "Fixture Model".to_string(),
+        family: None,
+        capabilities: provider::Capabilities {
+            native_tool_search: false,
+            catalog_execution: None,
+            temperature: true,
+            reasoning: false,
+            reasoning_options: None,
+            attachment: false,
+            toolcall: true,
+            input: capability_io(true),
+            output: capability_io(true),
+            interleaved: provider::InterleavedCapability::Bool(false),
+        },
+        cost: provider::ModelCost {
+            input: 0.0,
+            output: 0.0,
+            cache: provider::ModelCostCache { read: 0.0, write: 0.0 },
+            experimental_over_200k: None,
+        },
+        limit: provider::ModelLimit { context, input, output },
+        status: "stable".to_string(),
+        options: HashMap::new(),
+        headers: HashMap::new(),
+        release_date: "2026-01-01".to_string(),
+        variants: HashMap::new(),
+    }
+}
+
+fn model_ref() -> message::ModelRef {
+    message::ModelRef {
+        provider_id: "provider-fixture".to_string(),
+        model_id: "model-fixture".to_string(),
+    }
+}
+
+fn part_base(session_id: &str, message_id: &str, part_id: &str) -> message::PartBase {
+    message::PartBase {
+        id: part_id.to_string(),
+        session_id: session_id.to_string(),
+        message_id: message_id.to_string(),
+    }
+}
+
+fn text_part(session_id: &str, message_id: &str, part_id: &str, text: &str) -> message::Part {
+    message::Part::Text(message::TextPart {
+        base: part_base(session_id, message_id, part_id),
+        text: text.to_string(),
+        synthetic: None,
+        ignored: None,
+        time: None,
+        metadata: None,
+    })
+}
+
+fn user_message(session_id: &str, id: &str, text: &str) -> message::WithParts {
+    let parts = if text.is_empty() {
+        Vec::new()
+    } else {
+        vec![text_part(session_id, id, &format!("{id}_text"), text)]
+    };
+
+    message::WithParts {
+        info: message::Info::User(Box::new(message::UserInfo {
+            id: id.to_string(),
+            session_id: session_id.to_string(),
+            time: message::UserTime { created: 1 },
+            summary: None,
+            agent: "agent-fixture".to_string(),
+            model: model_ref(),
+            system: None,
+            tools: None,
+            variant: Some("variant-a".to_string()),
+        })),
+        parts,
+    }
+}
+
 async fn run(session: &str, auto: bool, fail: bool) -> CompactionOutcome {
     attempt(session, auto, fail).await.unwrap()
 }
@@ -50,8 +143,7 @@ async fn attempt(
     auto: bool,
     fail: bool,
 ) -> Result<CompactionOutcome, crate::session::session::Error> {
-    use compaction::compaction_tests::{model_with_limits, user_message};
-    compaction::process_with_summarizer(
+    session_engine::compaction::process_with_summarizer::<crate::tools::context::AgentContextHost>(
         ProcessInput {
             session_id: session.into(),
             parent_id: "boundary".into(),

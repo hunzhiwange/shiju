@@ -17,13 +17,14 @@ fn task(id: &str, priority: u32, order: u32) -> super::models::Task {
 fn simulate_task_execution_step_covers_all_status_transitions() {
     use super::TaskStatus;
 
+    // 默认通用流程跳过开发审核阶段，未包含的状态没有模拟下一步。
     assert_eq!(
         super::simulate_task_execution_step("/repo", "task", TaskStatus::Pool),
         Some(TaskStatus::Pending)
     );
     assert_eq!(
         super::simulate_task_execution_step("/repo", "task", TaskStatus::Pending),
-        Some(TaskStatus::Planning)
+        Some(TaskStatus::Running)
     );
     assert_eq!(
         super::simulate_task_execution_step("/repo", "task", TaskStatus::Planning),
@@ -31,7 +32,7 @@ fn simulate_task_execution_step_covers_all_status_transitions() {
     );
     assert_eq!(
         super::simulate_task_execution_step("/repo", "task", TaskStatus::Running),
-        Some(TaskStatus::CodeComplete)
+        Some(TaskStatus::Completed)
     );
     assert_eq!(
         super::simulate_task_execution_step("/repo", "task", TaskStatus::Failed),
@@ -39,20 +40,20 @@ fn simulate_task_execution_step_covers_all_status_transitions() {
     );
     assert_eq!(
         super::simulate_task_execution_step("/repo", "task", TaskStatus::CodeComplete),
-        Some(TaskStatus::CodeReview)
+        None
     );
     assert_eq!(
         super::simulate_task_execution_step("/repo", "task", TaskStatus::CodeReview),
-        Some(TaskStatus::PrSubmitted)
+        None
     );
     assert_eq!(
         super::simulate_task_execution_step("/repo", "task", TaskStatus::PrSubmitted),
-        Some(TaskStatus::Completed)
+        None
     );
     assert_eq!(super::simulate_task_execution_step("/repo", "task", TaskStatus::Paused), None);
     assert_eq!(
         super::simulate_task_execution_step("/repo", "task", TaskStatus::Completed),
-        Some(TaskStatus::Archived)
+        None
     );
     assert_eq!(super::simulate_task_execution_step("/repo", "task", TaskStatus::Archived), None);
 }
@@ -74,11 +75,10 @@ fn simulate_task_execution_step_uses_state_machine() {
         );
     }
 
-    // 终态由状态机决定：Completed 沿默认线性边推进到 Archived，
-    // Archived/Paused 没有下一步。
+    // 通用流程的 Completed 为终态，和 Archived/Paused 一样没有下一步。
     assert_eq!(
         super::simulate_task_execution_step("/repo", "task", TaskStatus::Completed),
-        Some(TaskStatus::Archived)
+        None
     );
     assert_eq!(super::simulate_task_execution_step("/repo", "task", TaskStatus::Archived), None);
     assert_eq!(super::simulate_task_execution_step("/repo", "task", TaskStatus::Paused), None);

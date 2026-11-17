@@ -997,3 +997,13 @@ Rust重型命令经scripts/cargo_slot.py槽位入口串行执行，对应CARGO_T
 - Rue.js `packages/rue/src` 存在；目标acpdemo/harn初始不存在，结束未创建。排除.git、node_modules、target的普通文件SHA-256快照6297项，前后零差异。结束GET完整配置与基线一致，无临时写入需要恢复；自有网关退出0、端口已关闭，未重启用户服务。
 - 无代码变更或行为修复，复用既有产物；未运行Cargo、定向单测、Clippy、桌面编译、浏览器或页面构建，仅做文档轻量检查。旧 `.plans/references/rust.md` 不存在，本次无需编译槽位。任务34保留已阻塞；系统安装、真实session_model驱动和脱敏接入证据交付后完整重跑。
 - 本次0700私有证据 `/tmp/shiju-harn-accept-20261118/` 保存原始响应及指标、配置基线和重读、源码与构建摘要、网关日志、快照及清理记录；敏感环境值、原始载荷和供应商二进制不提交。
+
+
+### Harn 扩大范围重试（2026-11-18）
+
+- 重查共享安装策略仍为None，session_model仍无已验证驱动。进一步核对官方[发行v0.10.201](https://github.com/burin-labs/harn/releases/tag/v0.10.201)及[供应商配置](https://github.com/burin-labs/harn/blob/v0.10.201/docs/src/llm/providers.md)。Darwin arm64 gzip包SHA-256 `332a7a94162e8c9d3345bbc34fcc6e1043e952b707f1ba44ba79fceb2c21a414` 与GitHub release asset digest一致，原生版本0.10.201。旧注册清单未提供摘要不等于官方发行缺少校验；本次已取得可校验发行物，仅解压至私有目录，未系统安装。
+- 隔离HOME/XDG目录，以现有 `serve acp --session-environment isolated` 启动，initialize和session/new均成功。未配置overlay时，完整原模型设置返回-32602 invalid_model，提示provider不在目录；使用官方HARN_PROVIDERS_CONFIG机制注册同名供应商后，完整 `alibaba-token-plan-cn/deepseek-v4.1-flash-1017` 被session/set_config_option接受。该结果只证明选择器接受，不证明凭据、请求或实际模型绑定成功。探针进程未携带供应商密钥，也未输出凭据。
+- 进一步发送不写文件的普通文本提示，返回JSON-RPC -32000，terminalClass=generic_throw，Compilation error；中文编辑器简化提示亦返回 Unexpected character '。'。没有得到成功模型调用、chat.done或编辑器产物。原生[源码prompt.rs](https://github.com/burin-labs/harn/blob/v0.10.201/crates/harn-serve/src/adapters/acp/prompt.rs)第323–355行确认：有pipeline时加载该程序；无文件时将prompt直接包装为pipeline main程序编译。因此当前无文件入口是程序执行语义，不能仅注册供应商或安装二进制就宣称自然语言编码agent可用。未通过改写用户请求为代码、替换引擎或放宽权限伪造验收。
+- 本轮确认新的实质前置：需要可审查、兼容自然语言请求的Harn agent pipeline/上游入口，再补系统安装及session_model驱动并验证真实请求。未把缺少宿主Harn认证当作已证实根因；选模接受后的编译失败发生在供应商调用之前。兼容pipeline尚未交付，当前继续保留阻塞；完整请求及模型绑定仍需后续端到端验收。
+- 所有自有原生探针已退出（overlay探针关闭stdin后未自然退出，5秒后仅终止自有进程，退出-15；其他探针退出0）。未新增网关、未PATCH全局配置，旧57877端口仍关闭。原生进程在Rue.js目标目录外创建9项`.harn`数据库及锁文件；已逐项确认此前不存在、摘要未变化后移至私有证据，移除新建空目录，恢复原6297项快照，无目标产物。未删除其他文件或宣称执行期间无越界。
+- 私有证据 `/tmp/shiju-harn-retry-20261118/`（0700）保存发行API与校验包、文档、原生请求/响应和退出指标、上游源码、运行文件与恢复记录。无本仓库代码变更，未运行Cargo、单测、Clippy或页面测试；文档轻量检查。不提交供应商包、完整配置或原始载荷。

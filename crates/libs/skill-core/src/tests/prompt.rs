@@ -51,7 +51,7 @@ fn skills_to_prompt_with_skills() {
 ///
 /// 当使用 `SkillsPromptInjectionMode::Compact` 模式时：
 /// - 技能位置以相对路径显示
-/// - 包含"loaded on demand"提示
+/// - 要求在执行技能任务前从 location 读取完整指令
 /// - 不包含详细指令(`<instructions>`)和工具(`<tools>`)信息
 ///
 /// 这种模式适用于减少提示词体积的场景。
@@ -85,7 +85,9 @@ fn skills_to_prompt_compact_mode_omits_instructions_and_tools() {
     assert!(prompt.contains("<available_skills>"));
     assert!(prompt.contains("<name>test</name>"));
     assert!(prompt.contains("<location>skills/test/SKILL.md</location>"));
-    assert!(prompt.contains("loaded on demand"));
+    assert!(prompt.contains(
+        "Before taking task actions for a skill that applies or is invoked, read its complete instruction file from `location`."
+    ));
     // 验证省略的内容
     assert!(!prompt.contains("<instructions>"));
     assert!(!prompt.contains("<instruction>Do the thing.</instruction>"));

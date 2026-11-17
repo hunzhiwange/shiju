@@ -409,7 +409,7 @@ async fn query_engine_uses_hook_runtime_for_primary_and_retry_turns() {
     engine.compact_context = true;
     engine.history =
         vec![ChatMessage::user("previous task"), ChatMessage::assistant("previous result")];
-    engine.hook_runtime = Some(runtime.clone());
+    engine.hook_runtime = Some(runtime.shared());
 
     let response = engine.submit_message("exercise primary and retry").await.unwrap();
 
@@ -429,7 +429,7 @@ async fn query_engine_uses_hook_runtime_for_primary_and_retry_turns() {
     ]);
     let mut engine = test_engine(provider, Arc::new(FakeMemory::default()));
     engine.tools_registry = vec![Box::new(HookProbeTool)];
-    engine.hook_runtime = Some(disabled.clone());
+    engine.hook_runtime = Some(disabled.shared());
 
     assert_eq!(engine.submit_message("hooks disabled").await.unwrap(), "disabled");
     assert!(disabled.audit_store().entries().is_empty());

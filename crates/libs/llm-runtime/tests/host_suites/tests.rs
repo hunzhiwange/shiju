@@ -6,9 +6,10 @@
 use super::acp::{
     AcpReplayStrategy, ParsedAcpOptions, acp_session_name, build_acp_command_line,
     build_replay_prompt, extract_delta_from_acp_message, extract_reasoning_delta_from_acp_message,
-    extract_tool_call_from_acp_message, is_acp_session_changed_message, lookup_acp_command,
+    extract_tool_call_from_acp_message, lookup_acp_command,
     missing_session_error, normalize_acp_agent_config, parse_acp_options, parse_replay_strategy,
 };
+use llm_runtime::acp::is_acp_session_changed_message;
 use serde_json::json;
 use acp_types::{AcpSessionOptions, AuthPolicy, NonInteractivePermissionPolicy, PermissionMode};
 

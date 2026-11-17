@@ -4,7 +4,7 @@
 
 批次：【批次1】 依赖：无
 
-状态：未开始
+状态：待回归
 
 来源：继续执行宿主单测；诊断编号3（宿主编译错误证据.json）。
 预计会话范围：修复一个源码文件中的宿主接口或测试夹具编译契约；不接管整包。
@@ -57,3 +57,12 @@ python3 scripts/cargo_slot.py cargo test -p vw-agent --lib -- --list
 编译取证命令（不是测试通过证据）：`python3 scripts/cargo_slot.py cargo test -p vw-agent --lib --no-run`。同阶段顺序命令合并一次入口复用缓存，不默认逐任务全量测试。
 
 最终需由原任务303执行两阶段全量验收；这组修复仅覆盖已发现编译阻塞，尚不能保证宿主全部运行失败已发现。
+
+## 本次执行记录（2026-11-18）
+
+- 宿主 ACP 聚合模块未导出匹配函数；测试改从真实归属 `llm_runtime::acp` 导入，不修改生产接口、不弱化断言。
+- 修复前执行 `python3 scripts/cargo_slot.py cargo test -p vw-agent --lib acp_session_changed_matcher_accepts_nested_acp_prefixes -- --exact`，退出101，53条编译错误；未执行测试（此未限定模块的 exact 过滤不作为验收命令）。
+- 已核对源码 `#[test]` 与宿主 `session::llm::tests` 注册。正确验收命令：`python3 scripts/cargo_slot.py cargo test -p vw-agent --lib session::llm::tests::acp_session_changed_matcher_accepts_nested_acp_prefixes -- --exact`。
+- 修复后上述正确命令退出101，52条其它编译错误；日志 `/tmp/shiju-task314-after.log` 不再包含本文件或该导入错误。有效执行数0，不能宣称行为通过。阻塞包含 ACP_CLIENT_CACHE、上下文治理函数、VideoContext 等其它归属错误。
+- 两次均槽位1，CARGO_TARGET_DIR 与 CARGO_BUILD_BUILD_DIR 均为 `/Users/xiangmin/worker/code/shiju/target/rust-slot-1`。入口已退出并自动清理自有进程与锁；不删除后续任务重新领取的锁。
+- `git diff --check -- crates/libs/llm-runtime/tests/host_suites/tests.rs` 通过。其余宿主任务解除编译阻塞后须运行上述精确测试，ran>0、failed=0 才可完成并删卡。

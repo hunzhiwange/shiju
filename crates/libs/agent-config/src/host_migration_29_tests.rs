@@ -494,3 +494,37 @@ fn acp_onboarding_harn_catalog_binding() {
         serde_json::to_value(entry).unwrap()
     );
 }
+
+#[test]
+fn acp_onboarding_mimo_code_builtin_preset_metadata() {
+    let catalog = load_agent_configs(&json!({}));
+    let entry = catalog.get("acp-mimo-code").expect("official MiMo Code preset");
+    assert!(entry.builtin);
+    assert!(!entry.enabled);
+    assert!(!entry.allow_as_subagent);
+    assert_eq!(entry.label.as_deref(), Some("MiMo Code"));
+    assert!(!entry.description.as_ref().unwrap().is_empty());
+    assert!(!entry.recommended_prompts.is_empty());
+    assert_eq!(entry.runtime, AgentRuntime::Acp { backend: "mimo-code".into() });
+    assert_eq!(
+        serde_json::to_value(&entry.defaults).unwrap(),
+        serde_json::to_value(config_agent::AgentDefinitionConfig::default().defaults)
+            .unwrap()
+    );
+}
+
+#[test]
+fn acp_onboarding_mimo_code_catalog_binding() {
+    let catalog = load_agent_configs(&json!({"agents":{"acp-mimo-code":{
+        "provider":"","model":"","enabled":true,"label":"Selected MiMo Code","runtime":{"kind":"native"},"builtin":false
+    }}}));
+    let entry = &catalog["acp-mimo-code"];
+    assert!(entry.enabled && entry.builtin);
+    assert_eq!(entry.runtime, AgentRuntime::Acp { backend: "mimo-code".into() });
+    let saved = serde_json::to_value(&catalog).unwrap();
+    let reloaded = load_agent_configs(&json!({"agents": saved}));
+    assert_eq!(
+        serde_json::to_value(&reloaded["acp-mimo-code"]).unwrap(),
+        serde_json::to_value(entry).unwrap()
+    );
+}

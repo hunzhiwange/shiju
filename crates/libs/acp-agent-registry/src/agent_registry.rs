@@ -247,6 +247,16 @@ fn normalize_agent_spec_for_name(name: &str, spec: &AgentCommandSpec) -> AgentCo
 }
 
 const BUILT_IN_AGENT_DEFINITIONS: &[BuiltInAgentDefinition] = &[
+    // Official npm launcher: https://github.com/XiaomiMiMo/MiMo-Code
+    BuiltInAgentDefinition {
+        name: "mimo-code",
+        display_name: "MiMo Code",
+        command: "npx",
+        args: &["-y", "@mimo-ai/cli@0.1.17", "acp"],
+        env: &[],
+        local_command_candidates: &["mimo"],
+        local_args: &["acp"],
+    },
     // Official registry: burin-labs/harn spec/acp-registry/harn/agent.json.
     // Standard ACP clients omit Harn's environmentPolicy extension. Explicitly
     // isolate session environments rather than inherit the gateway's secrets.

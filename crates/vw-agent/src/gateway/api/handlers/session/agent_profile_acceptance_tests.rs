@@ -92,3 +92,8 @@ fn acp_onboarding_stakpak_builtin_profile_persists_and_runs() {
 fn acp_onboarding_harn_builtin_profile_persists_and_runs() {
     suite::acp_onboarding_harn_builtin_profile_persists_and_runs::<Host>();
 }
+
+#[test]
+fn acp_onboarding_mimo_code_builtin_profile_persists_and_runs() {
+    suite::acp_onboarding_mimo_code_builtin_profile_persists_and_runs::<Host>();
+}

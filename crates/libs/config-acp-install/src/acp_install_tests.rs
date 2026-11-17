@@ -213,3 +213,15 @@ fn acp_onboarding_harn_installer_contract() {
     }
     assert!(acp_install_command("harn; echo unsafe").is_none());
 }
+
+#[test]
+fn acp_onboarding_mimo_code_installer_contract() {
+    use super::{AcpInstallPlatform, acp_install_command_for_platform};
+    for platform in [AcpInstallPlatform::Unix, AcpInstallPlatform::Windows] {
+        assert_eq!(
+            acp_install_command_for_platform("mimo-code", platform),
+            Some(("npm", &["install", "-g", "@mimo-ai/cli@0.1.17"][..]))
+        );
+    }
+    assert!(acp_install_command("mimo-code; echo unsafe").is_none());
+}

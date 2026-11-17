@@ -10,9 +10,33 @@ async fn fixture(body: &'static str) -> (String, tokio::task::JoinHandle<String>
     let address = listener.local_addr().expect("WeChat fixture address");
     let handle = tokio::spawn(async move {
         let (mut stream, _) = listener.accept().await.expect("accept WeChat request");
-        let mut buffer = [0_u8; 2048];
-        let read = stream.read(&mut buffer).await.expect("read WeChat request");
-        let request = String::from_utf8_lossy(&buffer[..read]).into_owned();
+        // TCP reads can split the headers and body across separate packets.
+        let request = tokio::time::timeout(std::time::Duration::from_secs(5), async {
+            let mut request = Vec::new();
+            let mut buffer = [0_u8; 2048];
+            loop {
+                let read = stream.read(&mut buffer).await.expect("read WeChat request");
+                assert_ne!(read, 0, "WeChat request ended before headers and body completed");
+                request.extend_from_slice(&buffer[..read]);
+                let Some(header_end) = request.windows(4).position(|part| part == b"\r\n\r\n")
+                else {
+                    continue;
+                };
+                let content_length = String::from_utf8_lossy(&request[..header_end])
+                    .lines()
+                    .find_map(|line| {
+                        let (name, value) = line.split_once(':')?;
+                        name.eq_ignore_ascii_case("content-length")
+                            .then(|| value.trim().parse::<usize>().expect("WeChat content length"))
+                    })
+                    .unwrap_or(0);
+                if request.len() >= header_end + 4 + content_length {
+                    return String::from_utf8(request).expect("WeChat request UTF-8");
+                }
+            }
+        })
+        .await
+        .expect("WeChat request read timed out");
         let response = format!(
             "HTTP/1.1 200 OK\r\ncontent-type: application/json\r\ncontent-length: {}\r\nconnection: close\r\n\r\n{body}",
             body.len()

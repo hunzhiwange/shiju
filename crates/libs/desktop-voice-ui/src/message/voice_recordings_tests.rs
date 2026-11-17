@@ -27,6 +27,8 @@ async fn voice_task_14_recordings_retry_reads_stored_wav_over_loopback() {
                     Err(e) => panic!("{e}"),
                 }
             };
+            // Accepted sockets can inherit the listener's nonblocking mode on macOS.
+            stream.set_nonblocking(false).unwrap();
             stream.set_read_timeout(Some(Duration::from_secs(5))).unwrap();
             let mut reader = std::io::BufReader::new(&mut stream);
             let mut request = String::new();

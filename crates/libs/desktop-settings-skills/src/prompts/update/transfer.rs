@@ -19,7 +19,7 @@ pub fn update(app: &mut Input<'_>, event: Event) -> Task<Message> {
     let context = AgentAppsContext { gateway: client.endpoint().base_url(), tenant: client.endpoint().tenant_scope().clone(), project: app.project_path.clone() };
     let prompts_client = gateway_app_prompts::GatewayAppPromptsClient::new(client.transport().clone());
     let catalog_generation = app.generation;
-    if app.context.as_ref() != Some(&context) || app.token.is_empty() { return Task::none(); }
+    if app.context.as_ref() != Some(&context) { return Task::none(); }
     let state = &mut app.prompts;
     let Some(scope) = state.scope.clone() else { return Task::none(); };
     if scope.target_host_id != app.host || app.project_id.as_deref() != Some(scope.project_id.as_ref()) { return Task::none(); }

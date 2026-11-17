@@ -20,13 +20,9 @@ impl GatewayAppProviderClient {
         #[cfg(not(target_arch = "wasm32"))]
         {
             let base = format!("{}/environment/diagnose", provider_collection_path(app));
-            let mut credential = reqwest::header::HeaderValue::from_str(token)
-                .map_err(|_| Error::Transport("invalid application credential".into()))?;
-            credential.set_sensitive(true);
             let request = self.transport.dynamic_host_client()
                 .post(format!("{}{}", self.transport.endpoint().base_url(), base))
-                .json(request_body)
-                .header("x-agent-apps-token", credential);
+                .json(request_body);
             let response = gateway_http::apply_request_context(request, self.transport.endpoint())
                 .send()
                 .await

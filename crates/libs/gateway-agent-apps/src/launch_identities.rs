@@ -43,9 +43,6 @@ pub(super) async fn list(
             .and_then(|store| store.list(&tenant, target.app_id))
             .map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?
             .into_iter()
-            .filter(|provider| {
-                authorization.permits(target.app_id, LaunchIdentityKind::Provider, &provider.id)
-            })
             .map(|provider| LaunchIdentity {
                 kind: LaunchIdentityKind::Provider,
                 id: provider.id,
@@ -59,13 +56,6 @@ pub(super) async fn list(
             identities.extend(
                 accounts
                     .into_iter()
-                    .filter(|id| {
-                        authorization.permits(
-                            target.app_id,
-                            LaunchIdentityKind::OfficialAccount,
-                            id,
-                        )
-                    })
                     .map(|id| LaunchIdentity {
                         kind: LaunchIdentityKind::OfficialAccount,
                         label: id.clone(),

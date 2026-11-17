@@ -90,7 +90,7 @@ pub fn router_with_runtime(
     basic_auth: BasicAuth,
     runtime: Arc<Runtime>,
 ) -> Router {
-    let local = cfg!(unix) && policy.is_none() && password.is_none_or(str::is_empty);
+    let _ = (password, username, basic_auth);
     Router::new()
         .merge(routes(runtime.clone()))
         .merge(super::agent_apps_auth_logout::routes(runtime))
@@ -109,32 +109,8 @@ pub fn router_with_runtime(
             "/v1/agent-apps/auth/accounts/{account_id}",
             delete(super::agent_apps_auth_remove::delete),
         )
-        .layer(middleware::from_fn(move |mut request: Request, next: Next| async move {
-            if local && let Some(tenant) = request.extensions().get::<TenantScope>() {
-                let path = local_app_auth::auth_policy_path(
-                    &agent_paths::paths().home,
-                    tenant.platform_id().as_ref(),
-                    tenant.company_id().as_ref(),
-                );
-                request.extensions_mut().insert(PolicyFile(Some(path)));
-            }
-            next.run(request).await
-        }))
         .layer(middleware::from_fn(gateway_types::tenant_scope::tenant_scope_middleware))
         .layer(Extension(PolicyFile(policy)))
-        .layer(middleware::from_fn(move |request: Request, next: Next| async move {
-            if local && direct_loopback_peer(&request) {
-                // Each handler still requires the private, tenant-scoped principal token.
-                return next.run(request).await;
-            }
-            if password.is_none_or(str::is_empty) {
-                return ReadError(AuthErrorCode::Unauthenticated).into_response();
-            }
-            basic_auth(
-                request, next, password, username,
-            )
-            .await
-        }))
         .layer(middleware::from_fn(no_store))
 }
 

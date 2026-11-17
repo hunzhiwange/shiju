@@ -20,12 +20,9 @@ impl std::error::Error for SkillInstallError {}
 impl GatewayAppSkillsClient {
     pub async fn agent_apps_skills_install(&self, query: &InstallSkillRequest, token: &str)
         -> Result<InstallSkillResponse, SkillInstallError> {
-        let mut credential = reqwest::header::HeaderValue::from_str(token)
-            .map_err(|_| SkillInstallError::Transport)?;
-        credential.set_sensitive(true);
         let request = self.transport.native_transport().map_err(|_| SkillInstallError::Transport)?
             .post(format!("{}/v1/agent-apps/skills/install", self.transport.endpoint().base_url()))
-            .json(query).header("x-agent-apps-token", credential);
+            .json(query);
         let response = gateway_http::apply_request_context(request, self.transport.endpoint())
             .send().await.map_err(|_| SkillInstallError::Transport)?;
         let status = response.status();

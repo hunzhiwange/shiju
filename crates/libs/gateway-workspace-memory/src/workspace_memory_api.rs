@@ -100,12 +100,10 @@ impl GatewayWorkspaceMemoryClient {
     }
     pub(super) async fn workspace_request(&self, method: reqwest::Method, resource: &str, scope: &WorkspaceMemoryScope, token: &str, body: Option<serde_json::Value>) -> Result<reqwest::Response, WorkspaceMemoryError> {
         use WorkspaceMemoryError as E;
-        if scope.target_host_id.trim().is_empty() || token.trim().is_empty() { return Err(E::InvalidInput); }
-        let mut credential = reqwest::header::HeaderValue::from_str(token).map_err(|_| E::InvalidInput)?;
-        credential.set_sensitive(true);
+        if scope.target_host_id.trim().is_empty() { return Err(E::InvalidInput); }
         let mut request = self.transport.native_transport().map_err(|_| E::Transport)?
             .request(method, format!("{}/v1/agent-apps/openclaw/workspace/{resource}", self.transport.endpoint().base_url()))
-            .query(scope).header("x-agent-apps-token", credential);
+            .query(scope);
         if let Some(body) = body { request = request.json(&body); }
         let response = gateway_http::apply_request_context(request, self.transport.endpoint()).send().await.map_err(|_| E::Transport)?;
         if !response.status().is_success() { return Err(E::Http(response.status().as_u16())); }

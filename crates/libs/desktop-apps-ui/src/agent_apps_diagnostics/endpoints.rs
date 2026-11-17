@@ -55,7 +55,7 @@ fn current(app: &Host<'_>, context: &ModelContext, generation: u64) -> bool {
         && app.catalog_context == Some(&context.scope.context)
         && app.credentials_generation == context.credentials_generation
         && app.project == Some(context.project.as_ref())
-        && !app.token.is_empty()
+
         && app.current_scope.as_ref() == Some(&context.scope)
         && app.form
             .as_ref()

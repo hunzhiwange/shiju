@@ -85,7 +85,7 @@ pub fn update(state: &mut State, connection: Connection, event: Event, notice: &
         let reply = match &event { Event::Search(super::daily_memory_search::Event::Finished(s, ..)) | Event::Listed(s, _) | Event::Read(s, ..) | Event::Written(s, _) | Event::Deleted(s, ..) => Some(s), _ => None };
     if let Some(s) = reply {
         if !state.open || s.context != context || s.host != host || s.project != project || s.catalog != generation || s.generation != state.generation { return Task::none(); }
-    } else if catalog_context.as_ref() != Some(&context) || token.is_empty() { return error(notice, "请先连接应用服务"); }
+    } else if catalog_context.as_ref() != Some(&context) { return error(notice, "请先连接应用服务"); }
     match event.clone() {
         Event::Listed(_, result) => { state.listing = false; match result { Ok(files) => {state.files = files; state.error = None;}, Err(e) => state.error = Some(e) } return Task::none(); }
         Event::Read(_, request, result) => {

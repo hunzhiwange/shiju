@@ -26,7 +26,7 @@ fn msg(event: Event) -> super::Event { message(super::Event::Compression(event))
 pub fn update(state: &mut super::State, connection: crate::Connection, notice: &mut Option<crate::Notice>, event: Event) -> Task<super::Event> {
     let crate::Connection { client, context, catalog_context, project, host, generation, token } = connection;
     if !state.open || catalog_context.as_ref() != Some(&context)
-        || state.host != host || token.is_empty()
+        || state.host != host
         || state.maintenance.is_open() { return Task::none(); }
     let scope = Scope { context, host: state.host.clone(), project,
         catalog: generation, generation: state.generation, append: false };

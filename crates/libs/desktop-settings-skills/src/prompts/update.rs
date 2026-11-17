@@ -83,7 +83,7 @@ pub fn update(app: &mut Input<'_>, event: Event) -> Task<Message> {
         }
         Event::Save if app.prompts.mutating => Task::none(),
         Event::Save => {
-            if app.context.as_ref() != Some(&context) || app.token.is_empty() { return crate::prompts::update::Input::show_error_toast("请先连接应用管理"); }
+            if app.context.as_ref() != Some(&context) { return crate::prompts::update::Input::show_error_toast("请先连接应用管理"); }
             let state = &mut app.prompts;
             let Some(scope) = state.scope.clone() else { return Task::none(); };
             if scope.target_host_id != app.host || app.project_id.as_deref() != Some(scope.project_id.as_ref()) { return Task::none(); }
@@ -118,7 +118,7 @@ pub fn update(app: &mut Input<'_>, event: Event) -> Task<Message> {
             }
         }
         Event::Mutate(_) | Event::Undo if app.prompts.loading || app.prompts.mutating || app.prompts.editor.is_some() => Task::none(),
-        Event::Mutate(_) | Event::Undo if app.context.as_ref() != Some(&context) || app.token.is_empty() => crate::prompts::update::Input::show_error_toast("请先连接应用管理"),
+        Event::Mutate(_) | Event::Undo if app.context.as_ref() != Some(&context) => crate::prompts::update::Input::show_error_toast("请先连接应用管理"),
         Event::Mutate(action) => mutate(app, client, context, catalog_generation, action, false),
         Event::Undo => {
             let Some(undo) = app.prompts.undo.clone() else { return Task::none(); };
@@ -166,7 +166,7 @@ pub fn update(app: &mut Input<'_>, event: Event) -> Task<Message> {
             if app.prompts.editor.is_some() { return Task::none(); }
             app.prompts.invalidate();
             if matches!(id, AppId::ClaudeDesktop | AppId::OpenClaw) { return crate::prompts::update::Input::show_error_toast("请使用该应用的专属入口"); }
-            if app.token.is_empty() || app.context.as_ref() != Some(&context) { return crate::prompts::update::Input::show_error_toast("请先连接应用管理"); }
+            if app.context.as_ref() != Some(&context) { return crate::prompts::update::Input::show_error_toast("请先连接应用管理"); }
             let Some(project) = app.project_id.as_deref().filter(|p| !p.is_empty()) else { return crate::prompts::update::Input::show_error_toast("请先选择项目"); };
             let scope = AgentAppPromptsScope { project_id: project.into(), target_host_id: app.host.clone(), app_id: id };
             let state = &mut app.prompts;

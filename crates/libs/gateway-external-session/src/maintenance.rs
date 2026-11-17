@@ -19,13 +19,9 @@ impl GatewayExternalSessionClient {
         }
         #[cfg(not(target_arch = "wasm32"))]
         {
-            let mut credential = reqwest::header::HeaderValue::from_str(token).map_err(|_| {
-                AgentAppsReadError::Transport("invalid application credential".into())
-            })?;
-            credential.set_sensitive(true);
             let pending = self.transport.dynamic_host_client()
                 .post(format!("{}/v1/external-sessions/maintenance", self.transport.endpoint().base_url()))
-                .header("x-agent-apps-token", credential)
+
                 .json(request);
             let response = gateway_http::apply_request_context(pending, self.transport.endpoint())
                 .send()
@@ -56,16 +52,12 @@ impl GatewayExternalSessionClient {
         }
         #[cfg(not(target_arch = "wasm32"))]
         {
-            let mut credential = reqwest::header::HeaderValue::from_str(token).map_err(|_| {
-                AgentAppsReadError::Transport("invalid application credential".into())
-            })?;
-            credential.set_sensitive(true);
             let pending = self.transport.dynamic_host_client()
                 .post(format!(
                     "{}/v1/external-sessions/maintenance/query",
                     self.transport.endpoint().base_url()
                 ))
-                .header("x-agent-apps-token", credential)
+
                 .json(request);
             let response = gateway_http::apply_request_context(pending, self.transport.endpoint())
                 .send()
@@ -96,16 +88,12 @@ impl GatewayExternalSessionClient {
         }
         #[cfg(not(target_arch = "wasm32"))]
         {
-            let mut credential = reqwest::header::HeaderValue::from_str(token).map_err(|_| {
-                AgentAppsReadError::Transport("invalid application credential".into())
-            })?;
-            credential.set_sensitive(true);
             let pending = self.transport.dynamic_host_client()
                 .post(format!(
                     "{}/v1/external-sessions/maintenance/cancel",
                     self.transport.endpoint().base_url()
                 ))
-                .header("x-agent-apps-token", credential)
+
                 .json(request);
             let response = gateway_http::apply_request_context(pending, self.transport.endpoint())
                 .send()

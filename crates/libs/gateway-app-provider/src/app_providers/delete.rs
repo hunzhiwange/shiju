@@ -12,12 +12,9 @@ impl GatewayAppProviderClient {
         token: &str,
     ) -> Result<AppProviderDeleted, String> {
         let path = provider_path(app, id)?;
-        let mut credential = reqwest::header::HeaderValue::from_str(token)
-            .map_err(|_| "invalid application credential")?;
-        credential.set_sensitive(true);
         let builder = self.transport.client()
             .delete(format!("{}{}", self.transport.endpoint().base_url(), path))
-            .header("x-agent-apps-token", credential)
+
             .json(request);
         let response = gateway_http::apply_request_context(builder, self.transport.endpoint())
             .send()

@@ -180,7 +180,7 @@ impl<L, F, A, S, P, D, O, M, U> ListState<L, F, A, S, P, D, O, M, U> {
                         return Task::none();
                     }
                 };
-                if scope.host.is_empty() || token.is_empty() {
+                if scope.host.is_empty() {
                     *error = Some("请先连接应用执行主机".into());
                     return Task::none();
                 }

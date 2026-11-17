@@ -6,7 +6,7 @@ impl GatewayAppSkillsClient {
         -> Result<ClaudeConfigResponse, String> {
         let request = self.transport.native_transport().map_err(|_| "Claude transport unavailable")?
             .get(format!("{}/v1/agent-apps/claude/config-status", self.transport.endpoint().base_url()))
-            .query(scope).header("x-agent-apps-token", claude_token(token)?);
+            .query(scope);
         claude_response(gateway_http::apply_request_context(request, self.transport.endpoint())).await
     }
 
@@ -24,14 +24,11 @@ impl GatewayAppSkillsClient {
         -> Result<ClaudeConfigChangeResponse, String> {
         let request = self.transport.native_transport().map_err(|_| "Claude transport unavailable")?
             .post(format!("{}/v1/agent-apps/claude/{path}", self.transport.endpoint().base_url()))
-            .json(body).header("x-agent-apps-token", claude_token(token)?);
+            .json(body);
         claude_response(gateway_http::apply_request_context(request, self.transport.endpoint())).await
     }
 }
 fn claude_token(token: &str) -> Result<reqwest::header::HeaderValue, String> {
-    let mut value = reqwest::header::HeaderValue::from_str(token)
-        .map_err(|_| "invalid Claude control credential")?;
-    value.set_sensitive(true);
     Ok(value)
 }
 async fn claude_response<T: serde::de::DeserializeOwned>(request: reqwest::RequestBuilder)

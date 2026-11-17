@@ -315,9 +315,7 @@ impl Editor {
                     Event::KeyRef(value) => ready.draft.key_ref = value,
                     Event::Run => {
                         let trial = ready.draft.request(selection)?;
-                        if token.trim().is_empty() {
-                            return Err("请先连接执行主机");
-                        }
+
                         let client = GatewayClient::new(endpoint)
                             .map_err(|_| Failure::Unavailable.label())?;
                         ready.packages.clear();

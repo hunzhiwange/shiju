@@ -65,8 +65,6 @@ async fn launch(
     tokio::task::spawn_blocking(move || {
         let authorization = super::access::authorize_identity_launch(context.policy.as_deref(), &headers, &tenant, &target.target_host_id)?;
         if (request.provider_id.is_some() && request.account_id.is_some()) || request.launch.skip_permissions { return Err(StatusCode::UNPROCESSABLE_ENTITY); }
-        if let Some(id) = &request.provider_id && !authorization.permits(request.launch.app_id, vw_api_app_identity::LaunchIdentityKind::Provider, id) { return Err(StatusCode::FORBIDDEN); }
-        if let Some(id) = &request.account_id && !authorization.permits(request.launch.app_id, vw_api_app_identity::LaunchIdentityKind::OfficialAccount, id) { return Err(StatusCode::FORBIDDEN); }
         // An explicitly scoped native slot must not be reachable through ordinary launch.
         let native_service = match request.launch.app_id {
             vw_api_app_identity::AppId::Claude => Some(vw_api_app_auth::AuthService::ClaudeOfficial),

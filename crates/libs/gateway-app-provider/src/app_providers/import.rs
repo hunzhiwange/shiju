@@ -16,16 +16,13 @@ impl GatewayAppProviderClient {
         }
         #[cfg(not(target_arch = "wasm32"))]
         {
-            let mut credential = reqwest::header::HeaderValue::from_str(token)
-                .map_err(|_| Error::Transport("invalid application credential".into()))?;
-            credential.set_sensitive(true);
             let app = serde_json::to_value(app)
                 .map_err(|_| Error::Transport("invalid application".into()))?;
             let app = app.as_str().ok_or_else(|| Error::Transport("invalid application".into()))?;
             let url = format!("{}/v1/app-providers/{app}/catalog/import", self.transport.endpoint().base_url());
             let request = self.transport.dynamic_host_client()
                 .post(url)
-                .header("x-agent-apps-token", credential)
+
                 .json(body);
             let response = gateway_http::apply_request_context(request, self.transport.endpoint())
                 .send()

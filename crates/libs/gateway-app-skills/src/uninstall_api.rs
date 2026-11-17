@@ -20,11 +20,8 @@ impl GatewayAppSkillsClient {
         let id = encoded_id(id)?;
         let client = self.transport.native_transport().map_err(|_| SkillUninstallError::Transport)?;
         let url = format!("{}/v1/agent-apps/skills/{id}", self.transport.endpoint().base_url());
-        let mut credential = reqwest::header::HeaderValue::from_str(token)
-            .map_err(|_| SkillUninstallError::Transport)?;
-        credential.set_sensitive(true);
         let response = gateway_http::apply_request_context(
-            client.delete(url).json(request).header("x-agent-apps-token", credential), self.transport.endpoint())
+            client.delete(url).json(request), self.transport.endpoint())
             .send().await.map_err(|_| SkillUninstallError::Transport)?;
         if !response.status().is_success() {
             return Err(SkillUninstallError::Http { status: response.status().as_u16() });

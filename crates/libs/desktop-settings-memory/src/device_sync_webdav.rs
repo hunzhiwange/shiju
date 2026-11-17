@@ -162,7 +162,7 @@ pub fn update(state: &mut State, current: Option<Identity>, client: Option<vw_ga
                     let target = DataManagementTarget {
                         scope,
                         target_host_id: host,
-                        principal_id: s.principal.clone(),
+                        principal_id: "desktop-local-user".into(),
                     };
                     let (task, error) = s.task_panel.update(
                         TaskPanelMessage::Discover {
@@ -268,7 +268,7 @@ pub fn update(state: &mut State, current: Option<Identity>, client: Option<vw_ga
             let target = DataManagementTarget {
                 scope,
                 target_host_id: host,
-                principal_id: s.principal.clone(),
+                principal_id: "desktop-local-user".into(),
             };
             let selection = s.selection.clone();
             let (task, error, status) = s.preview.update(
@@ -308,7 +308,7 @@ pub fn update(state: &mut State, current: Option<Identity>, client: Option<vw_ga
             let target = DataManagementTarget {
                 scope,
                 target_host_id: host,
-                principal_id: s.principal.clone(),
+                principal_id: "desktop-local-user".into(),
             };
             let (t, error) = s.task_panel.update(e, client, target, token);
             let mut tasks = vec![t.map(|m| message(Event::TaskPanel(m)))];

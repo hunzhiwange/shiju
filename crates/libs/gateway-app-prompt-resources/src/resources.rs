@@ -122,7 +122,7 @@ impl GatewayAppPromptResourcesClient {
     }
     async fn prompt_resources_request<T: DeserializeOwned>(&self, method: reqwest::Method, path: &str,
         host: &str, body: Option<serde_json::Value>, token: &str) -> Result<T, AgentAppPromptsError> {
-        if host.trim().is_empty() || token.trim().is_empty() {
+        if host.trim().is_empty() {
             return Err(AgentAppPromptsError::InvalidInput);
         }
         GatewayAppLifecycleClient::new(self.transport.clone()).agent_apps_lifecycle_request(method, path, host, body.as_ref(), Some(token)).await.map_err(|error| match error {

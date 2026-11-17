@@ -70,7 +70,7 @@ pub fn update(app: &mut Update<'_>, message: CatalogMessage) -> Task<CatalogMess
             state.context = Some(context.clone());
             state.result = None;
             state.loading = false;
-            if context.host.is_empty() || app.token.is_empty() || !app.authorized {
+            if context.host.is_empty() || !app.authorized {
                 state.result = Some(Err("请先在应用管理中连接目标主机".into()));
                 return Task::none();
             }

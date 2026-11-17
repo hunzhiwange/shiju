@@ -67,11 +67,11 @@ pub fn update(state: &mut State, current: Option<Identity>, client: Option<vw_ga
         }
         _ => {}
     }
-    if state.busy || state.principal.trim().is_empty() { return Task::none(); }
+    if state.busy { return Task::none(); }
     let Ok(client) = client.clone().ok_or(()) else { return Task::none(); };
     let project = current.project.clone();
     let Ok(scope) = ProjectScope::new(client.endpoint().tenant_scope().clone(), project.into()) else { return Task::none(); };
-    let target = DataManagementTarget { scope, target_host_id: current.host.clone(), principal_id: state.principal.trim().into() };
+    let target = DataManagementTarget { scope, target_host_id: current.host.clone(), principal_id: "desktop-local-user".into() };
     let token = token.clone();
     let generation = state.generation.wrapping_add(1);
     let task = match event {

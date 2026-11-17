@@ -283,7 +283,7 @@ impl GatewayAppPromptsClient {
         token: &str,
     ) -> Result<T, AgentAppPromptsError> {
         use AgentAppPromptsError as E;
-        if scope.target_host_id.trim().is_empty() || token.trim().is_empty() {
+        if scope.target_host_id.trim().is_empty() {
             return Err(E::InvalidInput);
         }
         let transport = self.transport.native_transport().map_err(|_| E::Transport)?;
@@ -294,8 +294,7 @@ impl GatewayAppPromptsClient {
             .request(
                 if body.is_some() { reqwest::Method::POST } else { reqwest::Method::GET },
                 format!("{}/v1/agent-apps/prompts{path}", self.transport.endpoint().base_url()),
-            )
-            .header("x-agent-apps-token", credential);
+            );
         if let Some(body) = body {
             request = request.json(&body);
         } else {

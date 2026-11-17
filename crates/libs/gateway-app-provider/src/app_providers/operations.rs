@@ -102,10 +102,7 @@ impl GatewayAppProviderClient {
             let url = format!("{}/v1/app-providers/operations{path}", self.transport.endpoint().base_url());
             let mut request = self.transport.dynamic_host_client().request(method, url);
             if let Some(token) = token {
-                let mut credential = reqwest::header::HeaderValue::from_str(token)
-                    .map_err(|_| Error::Transport("invalid application credential".into()))?;
-                credential.set_sensitive(true);
-                request = request.header("x-agent-apps-token", credential);
+                request = request;
             }
             if let Some(body) = body {
                 request = request.json(body);

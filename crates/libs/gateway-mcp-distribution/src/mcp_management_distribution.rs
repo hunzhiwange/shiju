@@ -201,13 +201,9 @@ impl GatewayMcpDistributionClient {
             url.path_segments_mut()
                 .map_err(|_| AgentAppsSettingsError::Transport("invalid gateway URL".into()))?
                 .extend(segments);
-            let mut credential = reqwest::header::HeaderValue::from_str(token).map_err(|_| {
-                AgentAppsSettingsError::Transport("invalid application credential".into())
-            })?;
-            credential.set_sensitive(true);
             let request = self.transport.dynamic_host_client()
                 .request(method, url)
-                .header("x-agent-apps-token", credential)
+
                 .json(body);
             let response = gateway_http::apply_request_context(request, self.transport.endpoint())
                 .send()

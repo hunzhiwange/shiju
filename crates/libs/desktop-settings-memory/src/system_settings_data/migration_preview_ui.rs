@@ -88,8 +88,6 @@ pub fn view<'a>(state: &'a State, current: Option<DataManagementTarget>, context
     if !state.open { return base.into(); }
     let mut body = column![
         text("目标主机已授权来源；本机文件上传尚未提供。请勿填写文件路径。"),
-        text("用户身份（由服务端重新鉴权）"),
-        settings_text_input("用户身份", &state.principal).on_input(|v| message(Event::Principal(v))),
         text("已授权来源句柄"),
         settings_text_input("来源句柄", &state.source).on_input(|v| message(Event::Source(v))),
         text("当前可预览供应商类别；凭据、绝对路径与系统集成仅显示排除计数。"),

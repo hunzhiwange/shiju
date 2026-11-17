@@ -104,7 +104,6 @@ fn start(state: &mut super::State, connection: &Connection, notice: &mut Option<
     if !state.open
         || connection.catalog_context.as_ref() != Some(&context)
         || identity.target_host != connection.host
-        || connection.token.is_empty()
         || Some(connection.project.as_str()) != Some(identity.scope.project_id().as_ref())
     {
         return notify_error(notice, "会话作用域已变化，请刷新列表");
@@ -329,7 +328,6 @@ pub(super) fn current_scope(state: &super::State, connection: &Connection) -> Op
     let reader = state.reader.as_ref()?;
     if !state.open
         || connection.catalog_context.as_ref() != Some(&context)
-        || connection.token.is_empty()
         || reader.identity.target_host != connection.host
         || Some(connection.project.as_str()) != Some(reader.identity.scope.project_id().as_ref())
     {

@@ -70,12 +70,9 @@ impl GatewayModelCatalogClient {
             if let Some(id) = id {
                 url.path_segments_mut().map_err(|_| invalid_url())?.push(id.as_ref());
             }
-            let mut credential = reqwest::header::HeaderValue::from_str(token)
-                .map_err(|_| Error::Transport("invalid application credential".into()))?;
-            credential.set_sensitive(true);
             let mut request = self.transport.dynamic_host_client()
                 .request(method, url)
-                .header("x-agent-apps-token", credential)
+
                 .query(project)
                 .query(&[("targetHostId", target_host_id)]);
             if let Some(input) = input {

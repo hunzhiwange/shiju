@@ -8,7 +8,7 @@ fn authorized(app: &Update<'_>, context: &crate::management_context::Context) ->
     app.context.as_ref() == Some(context)
         && app.authorized
         && !context.host.is_empty()
-        && !app.token.is_empty()
+
 }
 /// Decoded clipboard drafts share confirmation; system URI routing has a separate owner.
 pub(crate) fn open_draft(app: &mut Update<'_>, request: McpCreateRequest) -> Task<ImportMessage> {

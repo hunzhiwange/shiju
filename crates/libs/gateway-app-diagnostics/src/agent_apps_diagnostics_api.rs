@@ -99,16 +99,11 @@ impl GatewayAppDiagnosticsClient {
         url.path_segments_mut()
             .map_err(|_| AgentAppsSettingsError::Transport("invalid gateway URL".into()))?
             .extend(segments);
-        let mut credential = reqwest::header::HeaderValue::from_str(token).map_err(|_| {
-            AgentAppsSettingsError::Transport("invalid application credential".into())
-        })?;
-        credential.set_sensitive(true);
         let mut request = self
             .transport.native_transport()
             .map_err(AgentAppsSettingsError::Transport)?
             .request(method, url)
-            .query(scope)
-            .header("x-agent-apps-token", credential);
+            .query(scope);
         if let Some(body) = body {
             request = request.json(body);
         }

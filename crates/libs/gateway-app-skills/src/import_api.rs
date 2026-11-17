@@ -20,12 +20,9 @@ impl std::error::Error for SkillImportError {}
 impl GatewayAppSkillsClient {
     pub async fn agent_apps_skills_import(&self, query: &ImportSkillRequest, token: &str)
         -> Result<ImportSkillResponse, SkillImportError> {
-        let mut credential = reqwest::header::HeaderValue::from_str(token)
-            .map_err(|_| SkillImportError::Transport)?;
-        credential.set_sensitive(true);
         let request = self.transport.native_transport().map_err(|_| SkillImportError::Transport)?
             .post(format!("{}/v1/agent-apps/skills/import", self.transport.endpoint().base_url()))
-            .json(query).header("x-agent-apps-token", credential);
+            .json(query);
         let response = gateway_http::apply_request_context(request, self.transport.endpoint())
             .send().await.map_err(|_| SkillImportError::Transport)?;
         let status = response.status();
@@ -37,12 +34,9 @@ impl GatewayAppSkillsClient {
     }
     pub async fn agent_apps_skills_unmanaged(&self, query: &UnmanagedSkillsQuery, token: &str)
         -> Result<UnmanagedSkillsResponse, SkillImportError> {
-        let mut credential = reqwest::header::HeaderValue::from_str(token)
-            .map_err(|_| SkillImportError::Transport)?;
-        credential.set_sensitive(true);
         let request = self.transport.native_transport().map_err(|_| SkillImportError::Transport)?
             .get(format!("{}/v1/agent-apps/skills/unmanaged", self.transport.endpoint().base_url()))
-            .query(query).header("x-agent-apps-token", credential);
+            .query(query);
         let response = gateway_http::apply_request_context(request, self.transport.endpoint())
             .send().await.map_err(|_| SkillImportError::Transport)?;
         let status = response.status();

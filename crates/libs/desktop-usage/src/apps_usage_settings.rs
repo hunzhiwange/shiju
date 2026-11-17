@@ -277,9 +277,7 @@ pub fn update(editor: &mut Editor, scope: Option<Scope>, visible: bool, selected
         let Ok(client) = GatewayClient::new(endpoint) else {
             return Task::done(Message::Error("无法连接额度设置网关".into()));
         };
-        if token.is_empty() {
-            return Task::done(Message::Error("请先连接执行主机".into()));
-        }
+
 
         editor.sequence = editor.sequence.wrapping_add(1);
         let ticket = editor.sequence;
@@ -312,9 +310,7 @@ pub fn update(editor: &mut Editor, scope: Option<Scope>, visible: bool, selected
             let Ok(client) = GatewayClient::new(endpoint) else {
                 return Task::done(Message::Error("无法连接额度设置网关".into()));
             };
-            if token.is_empty() {
-                return Task::done(Message::Error("请先连接执行主机".into()));
-            }
+
             editor.sequence = editor.sequence.wrapping_add(1);
             let ticket = editor.sequence;
             modal.phase = Phase::Script(apps_usage_script::Editor::Loading(ticket));
@@ -379,9 +375,7 @@ pub fn update(editor: &mut Editor, scope: Option<Scope>, visible: bool, selected
                         let Ok(client) = GatewayClient::new(endpoint) else {
                             return Task::done(Message::Error("无法连接额度设置网关".into()));
                         };
-                        if token.is_empty() {
-                            return Task::done(Message::Error("请先连接执行主机".into()));
-                        }
+
                         let selection = modal.selection.clone();
                         editor.sequence = editor.sequence.wrapping_add(1);
                         let ticket = editor.sequence;

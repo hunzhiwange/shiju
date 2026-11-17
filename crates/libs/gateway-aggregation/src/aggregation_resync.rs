@@ -161,23 +161,7 @@ pub fn configure_with_context<H: ResyncHost>(
 
 /// Reuse the legacy provider grant with the scoped API's single Bearer identity.
 /// Conflicting credentials are rejected instead of authorizing different subjects.
-pub fn provider_headers(mut headers: HeaderMap) -> Result<HeaderMap, StatusCode> {
-    let mut values = headers.get_all(axum::http::header::AUTHORIZATION).iter();
-    let Some(value) = values.next() else { return Ok(headers) };
-    let token = value
-        .to_str()
-        .ok()
-        .and_then(|v| v.strip_prefix("Bearer "))
-        .filter(|v| v.len() >= 32 && v.len() <= 512 && v.bytes().all(|b| b.is_ascii_graphic()))
-        .ok_or(StatusCode::UNAUTHORIZED)?
-        .to_owned();
-    if values.next().is_some() {
-        return Err(StatusCode::UNAUTHORIZED);
-    }
-    let mut legacy = headers.get_all("x-agent-apps-token").iter();
-    if legacy.next().is_some_and(|v| v.as_bytes() != token.as_bytes()) || legacy.next().is_some() {
-        return Err(StatusCode::UNAUTHORIZED);
-    }
-    headers.insert("x-agent-apps-token", token.parse().map_err(|_| StatusCode::UNAUTHORIZED)?);
+pub fn provider_headers(headers: HeaderMap) -> Result<HeaderMap, StatusCode> {
+    // Authentication is enforced once by the enclosing Gateway middleware.
     Ok(headers)
 }

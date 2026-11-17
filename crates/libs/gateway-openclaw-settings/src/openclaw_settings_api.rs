@@ -155,7 +155,7 @@ impl GatewayOpenClawSettingsClient {
         body: Option<serde_json::Value>,
     ) -> Result<T, OpenClawSettingsError> {
         use OpenClawSettingsError as E;
-        if scope.target_host_id.trim().is_empty() || token.trim().is_empty() {
+        if scope.target_host_id.trim().is_empty() {
             return Err(E::InvalidInput);
         }
         let transport = self.transport.native_transport().map_err(|_| E::Transport)?;
@@ -167,8 +167,7 @@ impl GatewayOpenClawSettingsClient {
                 method,
                 format!("{}/v1/agent-apps/openclaw/settings/{resource}", self.transport.endpoint().base_url()),
             )
-            .query(scope)
-            .header("x-agent-apps-token", credential);
+            .query(scope);
         if let Some(body) = body {
             request = request.json(&body);
         }

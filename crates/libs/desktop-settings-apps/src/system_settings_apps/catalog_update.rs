@@ -204,7 +204,7 @@ impl CatalogState {
     pub fn cache_is_fresh(&self) -> bool {
         self.error.is_none()
             && !self.host.trim().is_empty()
-            && !self.token.is_empty()
+
             && self.loaded_at.is_some_and(|at| at.elapsed() < std::time::Duration::from_secs(30))
     }
 }
@@ -229,12 +229,12 @@ impl CatalogInput<'_> {
         if use_cache
             && self.error.is_none()
             && !self.host.trim().is_empty()
-            && !self.token.is_empty()
+
             && self.loaded_at.is_some_and(|at| at.elapsed() < std::time::Duration::from_secs(30))
         {
             return RefreshDecision::Skip;
         }
-        if self.host.trim().is_empty() || self.token.is_empty() {
+        if self.host.trim().is_empty() {
             if local && cfg!(unix) {
                 return RefreshDecision::ConnectLocal;
             }
@@ -287,7 +287,7 @@ impl CatalogInput<'_> {
         if *self.loading {
             return Ok(None);
         }
-        if self.context.as_ref() != Some(context) || self.host.is_empty() || self.token.is_empty() {
+        if self.context.as_ref() != Some(context) || self.host.is_empty() {
             return Err("请先连接应用服务");
         }
         if !self.rows.iter().any(|row| row.entry.id == id) {

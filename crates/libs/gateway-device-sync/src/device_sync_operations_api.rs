@@ -117,12 +117,11 @@ impl GatewayDeviceSyncClient {
         body: Option<&B>, token: &str, expected_status: u16) -> Result<Vec<u8>, DeviceSyncOperationsError> {
         use DeviceSyncOperationsError as E;
         let mut credential = reqwest::header::HeaderValue::from_str(token).map_err(|_| E::InvalidInput)?;
-        if token.trim().is_empty() { return Err(E::InvalidInput); }
+
         credential.set_sensitive(true);
         let transport = match transport { DeviceSyncTransport::Webdav => "webdav", DeviceSyncTransport::S3 => "s3" };
         let mut request = self.transport.native_transport().map_err(|_| E::Transport)?.request(method,
-            format!("{}/v1/agent-apps/device-sync/{transport}/{operation}", self.transport.endpoint().base_url()))
-            .header("x-agent-apps-token", credential);
+            format!("{}/v1/agent-apps/device-sync/{transport}/{operation}", self.transport.endpoint().base_url()));
         if let Some((project, host)) = scope {
             if host.trim().is_empty() { return Err(E::InvalidInput); }
             request = request.query(&[("projectId", project.as_ref()), ("targetHostId", host)]);

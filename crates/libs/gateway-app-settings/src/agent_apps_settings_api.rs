@@ -233,7 +233,7 @@ impl GatewayAppSettingsClient {
                 .request(method, format!("{}/v1/agent-apps/{resource}", self.transport.endpoint().base_url()))
                 .query(&[("targetHostId", host)]);
             if let Some(token) = token {
-                request = request.header("x-agent-apps-token", token);
+                request = request;
             }
             if let Some(body) = body {
                 request = request.json(body);

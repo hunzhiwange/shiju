@@ -96,11 +96,8 @@ impl GatewayAppRoutingClient {
                 .pop_if_empty()
                 .extend(["v1", "app-routing", "hosts"])
                 .extend(path);
-            let mut token = reqwest::header::HeaderValue::from_str(token)
-                .map_err(|_| AppRoutingError::InvalidRequest)?;
-            token.set_sensitive(true);
             let mut request =
-                self.transport.dynamic_host_client().request(method, url).header("x-agent-apps-token", token);
+                self.transport.dynamic_host_client().request(method, url);
             if let Some(body) = body {
                 request = request.json(body);
             }

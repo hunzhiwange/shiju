@@ -117,7 +117,7 @@ pub fn claude_editor_authorization(
     let authorization = access::authorize_provider_editor(path, headers, tenant, target, true)?;
     let owns_slot = authorization
         .native_login_owner(vw_api_app_auth::AuthService::ClaudeOfficial)
-        .map(|owns| owns && path.is_some());
+        .map(|owns| owns);
     let host = authorization.host;
     let root = host.credential_root.ok_or(axum::http::StatusCode::SERVICE_UNAVAILABLE)?;
     Ok((host.home, root, authorization.principal, owns_slot))

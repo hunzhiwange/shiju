@@ -2,29 +2,17 @@
 
 use super::GatewayAppAuthClient;
 use gateway_http::apply_request_context;
-use reqwest::header::{CACHE_CONTROL, HeaderValue};
+use reqwest::header::CACHE_CONTROL;
 use serde::Deserialize;
 use serde::de::DeserializeOwned;
 use vw_api_app_auth::{AuthAccount, AuthError, AuthService, AuthStatus};
 
-/// A trusted principal token and optional Basic credentials for managed gateways.
+/// Legacy call-site fields retained for source compatibility. Requests use the
+/// active Gateway endpoint authentication; these fields are ignored.
 pub struct AgentAppsAuthCredentials<'a> {
     pub username: &'a str,
     pub password: &'a str,
     pub principal_token: &'a str,
-}
-
-impl AgentAppsAuthCredentials<'_> {
-    pub(super) fn apply_basic_auth(
-        &self,
-        request: reqwest::RequestBuilder,
-    ) -> reqwest::RequestBuilder {
-        if self.username.is_empty() && self.password.is_empty() {
-            request
-        } else {
-            request.basic_auth(self.username, Some(self.password))
-        }
-    }
 }
 
 /// A supplier's account reference in the selected authorization scope.
@@ -120,19 +108,15 @@ impl GatewayAppAuthClient {
         account_id: Option<&str>,
         credentials: &AgentAppsAuthCredentials<'_>,
     ) -> Result<T, AgentAppsAuthReadError> {
-        let mut principal = HeaderValue::from_str(credentials.principal_token)
-            .map_err(|_| AgentAppsAuthReadError::InvalidPrincipalToken)?;
-        principal.set_sensitive(true);
 
-        // Use the endpoint's tenant scope without its regular gateway credential.
-        let mut context = self.transport.endpoint().clone();
-        context.auth = None;
+        // Use the active Gateway tenant and optional skey.
+        let context = self.transport.endpoint().clone();
+        // Retain the configured Gateway authentication.
         let request = self.transport.dynamic_host_client()
             .get(format!("{}/v1/agent-apps/auth/{resource}", context.base_url()))
             .query(&ScopeQuery { host_id, service, account_id })
-            .header(CACHE_CONTROL, "no-cache, no-store")
-            .header("x-agent-apps-token", principal);
-        let request = credentials.apply_basic_auth(request);
+            .header(CACHE_CONTROL, "no-cache, no-store");
+        let _ = credentials;
         let response = apply_request_context(request, &context)
             .send()
             .await

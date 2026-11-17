@@ -38,7 +38,7 @@ pub async fn run(
     mut pastes: tokio::sync::mpsc::Receiver<AuthPasteRequest>,
     mut updates: mpsc::Sender<Update>,
 ) {
-    if !client.endpoint().is_loopback() || !connection.valid() {
+    if !connection.valid() {
         let _ = updates.send(Update::Failed("授权中心需要有效的本机回环管理连接")).await;
         return;
     }

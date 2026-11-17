@@ -60,15 +60,14 @@ fn toolbar<U: Clone + 'static>(state: &State, usage: &Usage<'_, U>) -> Element<'
             .style(primary_action_btn_style)
             .padding([8, 14])
             .on_press_maybe(
-                (state.loopback && idle && (configured || cfg!(unix)))
+                (idle)
                     .then(|| message(Event::Refresh)),
             ),
         button(text(if batch_pending { "正在刷新额度…" } else { "刷新全部额度" }).size(14))
             .style(rounded_action_btn_style)
             .padding([8, 14])
             .on_press_maybe(
-                (state.loopback
-                    && configured
+                (configured
                     && idle
                     && state.rows.is_some()
                     && usage.available
@@ -76,7 +75,7 @@ fn toolbar<U: Clone + 'static>(state: &State, usage: &Usage<'_, U>) -> Element<'
                     .then(|| Event::RefreshUsage)
             ),
     ];
-    let actions = if state.loopback && show_management {
+    let actions = if show_management {
         actions.push(
             button(text("管理连接").size(14))
                 .style(rounded_action_btn_style)
@@ -136,9 +135,6 @@ fn login_preferences<'a, U: Clone + 'static>(state: &State<'a>) -> Element<'a, E
 }
 
 fn services<'a, U: Clone + 'static>(state: &State<'a>, mut usage: Usage<'a, U>) -> Element<'a, Event<U>> {
-    if !state.loopback {
-        return settings_error_banner("授权中心需要本机回环管理连接。请在网关设置中选择本机连接。");
-    }
     if state.pending.is_some() {
         return list_placeholder(Icon::Clock, "正在读取授权账号…");
     }
@@ -422,29 +418,17 @@ pub fn overlay<'a, U: Clone + 'static>(state: &State<'a>, base: Element<'a, Even
     let pinned = state.binding.is_some();
     let host = settings_text_input("网关登记的主机标识", &form.host)
         .on_input_maybe((!pinned).then_some(|value| message(Event::Host(value))));
-    let token = settings_text_input("具备所需授权权限的主机主体令牌", &form.token)
-        .secure(true)
-        .on_input_maybe((!pinned).then_some(|value| message(Event::Token(value))));
     let close = message(Event::Close);
     let Some(scope) = state.scope else { return base };
     let body = column![
         text(format!("{} · 公司 {}", scope.gateway, scope.tenant.company_id().as_ref()))
             .size(13)
             .style(settings_muted_text_style),
-        text("凭据仅在当前网关和公司范围内保留于本次桌面会话。")
+        text("使用当前网关连接的认证与租户配置。")
             .size(13)
             .style(settings_muted_text_style),
         settings_field_label("执行主机"),
         host,
-        settings_field_label("管理用户名"),
-        settings_text_input("管理用户名", &form.username)
-            .on_input(|value| message(Event::Username(value))),
-        settings_field_label("管理密码"),
-        settings_text_input("管理密码", &form.password)
-            .secure(true)
-            .on_input(|value| message(Event::Password(value))),
-        settings_field_label("主体令牌"),
-        token,
     ]
     .spacing(8);
     let footer = row![

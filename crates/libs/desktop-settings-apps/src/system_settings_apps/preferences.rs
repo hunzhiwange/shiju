@@ -212,7 +212,7 @@ pub fn update<C: Clone + PartialEq + Send + 'static>(catalog: &mut Input<'_, C>,
     let context = current.unwrap();
     let host = catalog.host.to_owned();
     let token = catalog.token.to_owned();
-    if host.is_empty() || token.is_empty() {
+    if host.is_empty() {
         return iced::Task::done(PreferencesMessage::Error(("请先选择已授权执行主机").into()));
     }
     state.busy = true;

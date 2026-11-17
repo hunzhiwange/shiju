@@ -113,12 +113,9 @@ impl GatewayModelCatalogClient {
         }
         #[cfg(not(target_arch = "wasm32"))]
         {
-            let mut credential = reqwest::header::HeaderValue::from_str(token)
-                .map_err(|_| Error::Transport("invalid application credential".into()))?;
-            credential.set_sensitive(true);
             let mut request = self.transport.dynamic_host_client()
                 .get(format!("{}/v1/model-catalog{resource}", self.transport.endpoint().base_url()))
-                .header("x-agent-apps-token", credential)
+
                 .query(project)
                 .query(target);
             if let Some(search) = search {

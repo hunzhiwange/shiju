@@ -140,22 +140,18 @@ impl GatewayAppAuthClient {
         service: AuthService,
         credentials: &AgentAppsAuthCredentials<'_>,
     ) -> Result<RequestBuilder, AgentAppsAuthError> {
-        let mut principal = HeaderValue::from_str(credentials.principal_token)
-            .map_err(|_| AgentAppsAuthError::InvalidPrincipalToken)?;
-        principal.set_sensitive(true);
 
-        // Use the endpoint's tenant scope without its regular gateway credential.
-        let mut context = self.transport.endpoint().clone();
-        context.auth = None;
+        // Use the active Gateway tenant and optional skey.
+        let context = self.transport.endpoint().clone();
+        // Retain the configured Gateway authentication.
         let mut url = Url::parse(&format!("{}/v1/agent-apps/auth", context.base_url()))
             .map_err(|_| AgentAppsAuthError::Transport)?;
         url.path_segments_mut().map_err(|_| AgentAppsAuthError::Transport)?.extend(path);
         let request = self.transport.dynamic_host_client()
             .request(method, url)
             .query(&ScopeQuery { host_id, service })
-            .header(CACHE_CONTROL, "no-cache, no-store")
-            .header("x-agent-apps-token", principal);
-        let request = credentials.apply_basic_auth(request);
+            .header(CACHE_CONTROL, "no-cache, no-store");
+        let _ = credentials;
         Ok(apply_request_context(request, &context))
     }
 }

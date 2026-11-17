@@ -191,10 +191,7 @@ impl GatewayAppFailoverClient {
             request = request.query(&[("providerId", provider_id.as_ref())]);
         }
         if let Some(token) = token {
-            let mut value = reqwest::header::HeaderValue::from_str(token)
-                .map_err(|_| Error::InvalidCredential)?;
-            value.set_sensitive(true);
-            request = request.header("x-agent-apps-token", value);
+            request = request;
         }
         if let Some(body) = body {
             request = request.json(body);

@@ -37,11 +37,8 @@ impl GatewayAppSkillsClient {
         if let Some(id) = id {
             url.path_segments_mut().map_err(|_| SkillInventoryError::Transport)?.push(id);
         }
-        let mut credential = reqwest::header::HeaderValue::from_str(token)
-            .map_err(|_| SkillInventoryError::Transport)?;
-        credential.set_sensitive(true);
         let request = self.transport.native_transport().map_err(|_| SkillInventoryError::Transport)?
-            .get(url).query(scope).header("x-agent-apps-token", credential);
+            .get(url).query(scope);
         let response = gateway_http::apply_request_context(request, self.transport.endpoint())
             .send().await.map_err(|_| SkillInventoryError::Transport)?;
         let status = response.status();

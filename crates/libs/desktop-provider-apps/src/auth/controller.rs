@@ -70,10 +70,6 @@ pub fn update<U: Usage>(
         return Task::none();
     }
 
-    // GatewayEndpoint currently uses HTTP. Keep management credentials on the direct loopback.
-    if !state.loopback {
-        return Task::none();
-    }
 
     match event {
         Event::AccountAction(_) => unreachable!("account action events handled above"),
@@ -207,9 +203,6 @@ pub fn update<U: Usage>(
                 return crate::error(notice, "无法建立管理连接，请重试");
             };
             let Some(connection) = state.connection.clone() else {
-                if !cfg!(unix) {
-                    return Task::none();
-                }
                 let generation = state.begin();
                 return Task::perform(ports.connect_auth(client), move |result| {
                     message(Event::LocalReady { scope, generation, result })

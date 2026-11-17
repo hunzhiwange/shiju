@@ -205,7 +205,8 @@ async fn serve_gateway(
         // Model providers validate client payload and context sizes.
         .layer(DefaultBodyLimit::disable())
         .layer(from_fn(request_timeout_middleware))
-        .merge(super::router::management_auth_router())
+        .merge(super::router::management_auth_router()
+            .layer(from_fn_with_state(state.clone(), skey_auth_middleware)))
         .layer(cors)
         .layer(axum::Extension(sync));
 

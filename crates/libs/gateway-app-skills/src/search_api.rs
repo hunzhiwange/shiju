@@ -22,12 +22,9 @@ impl std::error::Error for MarketSearchError {}
 impl GatewayAppSkillsClient {
     pub async fn agent_apps_market_search(&self, query: &MarketSearchQuery, token: &str)
         -> Result<MarketSearchResponse, MarketSearchError> {
-        let mut credential = reqwest::header::HeaderValue::from_str(token)
-            .map_err(|_| MarketSearchError::Transport)?;
-        credential.set_sensitive(true);
         let request = self.transport.native_transport().map_err(|_| MarketSearchError::Transport)?
             .get(format!("{}/v1/agent-apps/skills/search", self.transport.endpoint().base_url()))
-            .query(query).header("x-agent-apps-token", credential);
+            .query(query);
         let response = gateway_http::apply_request_context(request, self.transport.endpoint())
             .send().await.map_err(|_| MarketSearchError::Transport)?;
         let status = response.status();

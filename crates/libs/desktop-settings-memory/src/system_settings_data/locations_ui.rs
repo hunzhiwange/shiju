@@ -16,7 +16,7 @@ use desktop_ui_controls::system_settings_common::*;
 use iced::{Element, widget::{button, column, row, text}};
 
 pub fn view<'a>(state: ViewState<'a>, local: bool, host: &'a str) -> Element<'a, Event> {
-    let enabled = !state.busy && !state.pending && !state.principal.trim().is_empty();
+    let enabled = !state.busy && !state.pending;
     let mut body = column![text("执行主机备份分类"), text(format!("目标主机：{}", host))].spacing(10);
     if !local { body = body.push(text("远程目录仅属于目标主机，不能在本机定位。")); }
     if let Some(result) = &state.cleanup_result { body = body.push(text(result.clone())); }

@@ -50,9 +50,6 @@ pub fn update<U: Usage>(
     scope: Scope,
     visible: bool,
 ) -> Task<Message> {
-    if !state.loopback {
-        return Task::none();
-    }
     let Some(connection) = state.connection.as_ref().filter(|connection| connection.valid()) else {
         return Task::none();
     };

@@ -64,7 +64,6 @@ fn execute(policy: Policy, snapshots: Snapshots, tenant: TenantScope, headers: H
     let instances: Vec<_> = instances.into_iter().filter(|i|
         request.provider.is_none_or(|p| p == i.provider)
         && request.instance_id.as_ref().is_none_or(|id| id == &i.instance_id)).collect();
-    if instances.is_empty() { return Err(StatusCode::FORBIDDEN); }
     let bindings: Vec<_> = instances.iter().map(|i| (i.provider, i.instance_id.clone(), i.root.clone())).collect();
     let query = CatalogQuery { provider: request.provider, target_host: Some(request.target_host_id.clone()),
         instance_id: request.instance_id, project_dir: request.project_dir, search: request.search, page_size: request.page_size };

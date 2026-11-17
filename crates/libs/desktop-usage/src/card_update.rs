@@ -276,9 +276,7 @@ fn update_at(app: &mut Input<'_>, event: Event, endpoint: GatewayEndpoint) -> Ta
         }
         Event::RefreshAll | Event::BatchFinished(..) => unreachable!("batch events handled above"),
     };
-    if token.is_empty() {
-        return app.show_error_toast("请先连接执行主机");
-    }
+
     if cards.refreshing(&scope) || linked_busy {
         return Task::none();
     }

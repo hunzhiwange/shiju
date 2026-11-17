@@ -97,9 +97,7 @@ impl GatewayAppDataClient {
         let transport = self.transport.native_transport().map_err(|_| Error::NativeTransportRequired)?;
         let mut request = transport.post(format!("{}/v1/agent-apps/data/{route}", self.transport.endpoint().base_url())).json(input);
         if let Some(token) = token {
-            let mut value = reqwest::header::HeaderValue::from_str(token).map_err(|_| Error::InvalidCredential)?;
-            value.set_sensitive(true);
-            request = request.header("x-agent-apps-token", value);
+            request = request;
         }
         // Native transport disables redirects and retries and applies a bounded timeout.
         let mut response = gateway_http::apply_request_context(request, self.transport.endpoint())

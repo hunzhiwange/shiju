@@ -1,4 +1,4 @@
-//! Administrator-owned grants. Request headers never establish host ownership.
+//! Application execution context; authentication is owned by the ShiJu Gateway.
 use axum::http::{HeaderMap, StatusCode};
 use serde::Deserialize;
 use sha2::{Digest, Sha256};
@@ -308,7 +308,8 @@ pub struct AuthorizedMcpProbe {
 #[cfg(target_os = "macos")]
 impl McpProbeAccess {
     pub fn new(policy: Option<PathBuf>, headers: &HeaderMap) -> Result<Self, StatusCode> {
-        Ok(Self { policy, digest: membership_digest(headers)? })
+        let _ = headers;
+        Ok(Self { policy, digest: "gateway".into() })
     }
 
     /// Discovery also exposes project selection metadata, requiring the existing catalog view grant.
@@ -318,7 +319,7 @@ impl McpProbeAccess {
         id: &McpRecordId,
     ) -> Result<AuthorizedMcpProbe, StatusCode> {
         let grant = self.authorize(scope, id)?;
-        let view = authorize_digest(
+        let view = execution_context(
             self.policy.as_deref(),
             &self.digest,
             scope.project.tenant_scope(),
@@ -337,7 +338,7 @@ impl McpProbeAccess {
         scope: &DiagnosticScope,
         id: &McpRecordId,
     ) -> Result<AuthorizedMcpProbe, StatusCode> {
-        let authorized = authorize_digest(
+        let authorized = execution_context(
             self.policy.as_deref(),
             &self.digest,
             scope.project.tenant_scope(),
@@ -580,14 +581,7 @@ impl Authorization {
         self.native_slots.iter().find(|(candidate, _)| *candidate == service).map(|(_, owns)| *owns)
     }
 
-    pub fn permits(
-        &self,
-        app: vw_api_app_identity::AppId,
-        kind: vw_api_app_identity::LaunchIdentityKind,
-        id: &str,
-    ) -> bool {
-        self.identities.iter().any(|p| p.app_id == app && p.kind == kind && p.id == id)
-    }
+
 }
 #[derive(Clone, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -979,304 +973,63 @@ fn authorize_scoped(
     action: Option<vw_api_app_operations::AppLifecycleAction>,
     capability: Capability<'_>,
 ) -> Result<Authorization, StatusCode> {
-    authorize_digest(path, &membership_digest(headers)?, tenant, target, action, capability)
+    execution_context(path, "gateway", tenant, target, action, capability)
 }
 
-fn membership_digest(headers: &HeaderMap) -> Result<String, StatusCode> {
-    let mut values = headers.get_all("x-agent-apps-token").iter();
-    let token = values
-        .next()
-        .and_then(|v| v.to_str().ok())
-        .filter(|v| v.len() >= 32 && v.len() <= 512 && v.bytes().all(|b| b.is_ascii_graphic()))
-        .ok_or(StatusCode::UNAUTHORIZED)?;
-    if values.next().is_some() {
-        return Err(StatusCode::UNAUTHORIZED);
-    }
-    Ok(hex::encode(Sha256::digest(token)))
-}
-
-fn authorize_digest(
+// Authentication belongs to the enclosing Gateway pairing middleware. Application
+// routes resolve execution metadata only; legacy app tokens and grants are ignored.
+fn execution_context(
     path: Option<&Path>,
-    digest: &str,
+    _: &str,
     tenant: &TenantScope,
     target: &str,
-    action: Option<vw_api_app_operations::AppLifecycleAction>,
+    _: Option<vw_api_app_operations::AppLifecycleAction>,
     capability: Capability<'_>,
 ) -> Result<Authorization, StatusCode> {
-    let local_path;
-    let path = match path {
-        Some(path) => path,
-        None => {
-            local_path = tenant_policy_path(tenant);
-            &local_path
-        }
+    vw_agent_apps::providers::validate_identity(target).map_err(|_| StatusCode::BAD_REQUEST)?;
+    // Existing files remain usable as execution configuration, never as a second
+    // authentication database. A fresh installation needs no grant provisioning.
+    let policy = path.and_then(|path| load(path).ok());
+    let host = policy.as_ref().and_then(|p| p.hosts.iter().find(|h| h.id == target)).cloned();
+    let mut host = match host {
+        Some(host) => host,
+        None if target == local_app_auth::HOST_ID => gateway_host(tenant)?,
+        None => return Err(StatusCode::NOT_FOUND),
     };
-    let policy = load(path).map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?;
-    let principal = policy
-        .principals
-        .iter()
-        .find(|principal| {
-            gateway_pairing::pairing::constant_time_eq(&principal.token_sha256, digest)
-        })
-        .ok_or(StatusCode::UNAUTHORIZED)?;
-    // Do not reveal whether an unauthorized host exists.
-    let mut scoped_grants = principal.grants.iter().filter(|g| {
-        g.platform_id == tenant.platform_id().as_ref()
-            && g.company_id == tenant.company_id().as_ref()
-            && g.host_id == target
-    });
-    let grants: Vec<_> = scoped_grants
-        .clone()
-        .filter(|g| {
-            action.is_none_or(|a| g.actions.contains(&a))
-                && match capability {
-                    Capability::DeviceSyncProbe(project) => g.device_sync_probe.contains(project),
-                    Capability::DataMigrationRead(project) => g.data_migration_read.contains(project),
-                    Capability::DeviceSyncUpload(project) => g.device_sync_upload.contains(project),
-                    Capability::DeviceSyncDownload(project) => g.device_sync_download.contains(project),
-                    Capability::DeviceSyncConfig(project) => g.device_sync_config.contains(project),
-                    Capability::DataBackups(project) => g.data_backups.contains(project),
-                    Capability::DataExport(project) => g.data_export.contains(project),
-                    Capability::UsageRead(query) => {
-                        g.usage_read.iter().any(|permit| permit.matches(query))
-                    }
-                    #[cfg(target_os = "macos")]
-                    Capability::UsageScript(query, UsageScriptAction::Templates) => {
-                        g.usage_read.iter().any(|permit| permit.matches(query))
-                    }
-                    #[cfg(target_os = "macos")]
-                    Capability::UsageScript(query, UsageScriptAction::SettingsRead) => {
-                        g.usage_settings_read.iter().any(|permit| permit.matches(query))
-                    }
-                    #[cfg(target_os = "macos")]
-                    Capability::UsageScript(
-                        query,
-                        UsageScriptAction::SettingsWrite { key, signing },
-                    ) => g
-                        .usage_settings_write
-                        .iter()
-                        .any(|permit| permit.matches(query, key, signing)),
-                    #[cfg(target_os = "macos")]
-                    Capability::UsageScript(query, UsageScriptAction::Test(key)) => {
-                        g.usage_script_test.iter().any(|permit| permit.origin(query, key).is_some())
-                    }
-                    #[cfg(target_os = "macos")]
-                    Capability::UsageCancel(query) => {
-                        g.usage_cancel.iter().any(|permit| permit.matches(query))
-                    }
-                    #[cfg(target_os = "macos")]
-                    Capability::UsageBatch(project) => g.usage_refresh_all.contains(project),
-                    Capability::OpenClawEnvRead(project) => g.openclaw_env_sensitive_read.contains(project),
-                    Capability::OpenClawSettings(project, write) => if write { g.openclaw_settings_write.contains(project) } else { g.openclaw_settings_read.contains(project) },
-                    Capability::ProjectProfilesMaintain(project) => g.project_profiles_maintain.contains(project),
-                    Capability::ProjectProfiles(project, create) => if create { g.project_profiles_create.contains(project) } else { g.project_profiles_read.contains(project) },
-                    Capability::UsageLedgerRead(project) => g.usage_ledger_read_projects.contains(project),
-                    Capability::ExternalHistory(project) => g.external_sessions_read.iter().any(|p| &p.project_id == project),
-                    Capability::ExternalHistoryMaintenance(project) => g.external_sessions_maintenance.iter().any(|p| &p.project_id == project),
-                    Capability::ExternalHistoryDelete(project) => g.external_sessions_delete.iter().any(|p| &p.project_id == project),
-                    Capability::ExternalHistoryResume(project) => g.external_sessions_resume.iter().any(|p| &p.project_id == project),
-                    Capability::ExternalTerminalSettings => g.external_terminal_settings,
-                    Capability::Read => true,
-                    Capability::PreferencesWrite => g.preferences_write,
-                    Capability::Launch => g.launch,
-                    Capability::Workspace(project, write) => if write { g.workspace_write.contains(project) } else { g.workspace_read.contains(project) },
-                    Capability::HermesMemory(project, write) => if write { g.hermes_memory_write.contains(project) } else { g.hermes_memory_read.contains(project) },
-                    Capability::HermesDashboard(project) => g.launch && g.hermes_dashboard.contains(project),
-                    Capability::ProviderConfigRead => g.provider_config_read,
-                    #[cfg(target_os = "macos")]
-                    Capability::CodexRestart(project) => g
-                        .aggregation_codex_restart
-                        .iter()
-                        .any(|p| &p.project_id == project && p.app_id == AppId::Codex),
-                    #[cfg(target_os = "macos")]
-                    Capability::PromptsWrite(project, app) => g.prompts_write.iter()
-                        .any(|permit| &permit.project_id == project && permit.app_id == app),
-                    #[cfg(target_os = "macos")]
-                    Capability::PromptsRead(project, app) => g.prompts_read.iter()
-                        .any(|permit| &permit.project_id == project && permit.app_id == app),
-                    #[cfg(target_os = "macos")]
-                    Capability::AggregationRead(project, app) => {
-                        g.provider_config_read
-                            && g.aggregation_read
-                                .iter()
-                                .any(|permit| &permit.project_id == project && permit.app_id == app)
-                    }
-                    #[cfg(target_os = "macos")]
-                    Capability::AggregationWrite(project, app, attached) => {
-                        g.provider_config_write
-                            && g.aggregation_write
-                                .iter()
-                                .any(|p| &p.project_id == project && p.app_id == app)
-                            && (!attached
-                                || g.routing_manage
-                                    && g.routing_apps
-                                        .iter()
-                                        .any(|p| &p.project_id == project && p.app_id == app))
-                    }
-                    Capability::ClaudeConfig(project, permission) => {
-                        use vw_api_app_skills::claude_api::ClaudeConfigPermission;
-                        match permission {
-                            ClaudeConfigPermission::Read => g.claude_config_read_projects.contains(project),
-                            ClaudeConfigPermission::Marker => g.claude_config_marker_projects.contains(project),
-                            ClaudeConfigPermission::Onboarding => g.claude_onboarding_projects.contains(project),
-                        }
-                    }
-                    Capability::SkillInventory(project) => g.skill_inventory_read_projects.contains(project),
-                    Capability::SkillInstall(project) => g.skill_install_projects.contains(project),
-                    Capability::SkillRepos(project, write) => {
-                        if write { g.skill_repos_write_projects.contains(project) }
-                        else { g.skill_repos_read_projects.contains(project) }
-                    }
-                    Capability::McpCatalogWrite(project) => match project {
-                        Some(project) => g.mcp_catalog_write_projects.contains(project),
-                        None => g.mcp_catalog_write,
-                    },
-                    #[cfg(target_os = "macos")]
-                    Capability::RoutingControl { scope, app, manage, provider_write } => {
-                        scope.tenant == *tenant
-                            && scope.host == target
-                            && (!provider_write || g.provider_config_write)
-                            && (if manage { g.routing_manage } else { g.routing_read })
-                            && app.is_none_or(|(project_id, app_id)| {
-                                g.routing_apps.iter().any(|permit| {
-                                    &permit.project_id == project_id && permit.app_id == app_id
-                                })
-                            })
-                    }
-                    #[cfg(target_os = "macos")]
-                    Capability::McpAcpRead(project, session) => {
-                        g.mcp_acp_read.iter().any(|permit| {
-                            &permit.project_id == project && &permit.session_id == session
-                        })
-                    }
-                    #[cfg(target_os = "macos")]
-                    Capability::McpProbe(scope, id) => {
-                        g.mcp_probe.iter().any(|permit| permit.matches(scope, id))
-                    }
-                    #[cfg(target_os = "macos")]
-                    Capability::DiagnosticJob(scope) => {
-                        // Reuse existing diagnostic grants, without requiring a new permission.
-                        // The registry separately requires the exact submitting principal and scope.
-                        (g.provider_config_read
-                            && g.routing_manage
-                            && g.routing_apps.iter().any(|permit| {
-                                permit.project_id == *scope.project.project_id()
-                                    && permit.app_id == scope.app_id
-                            }))
-                            || g.mcp_probe.iter().any(|permit| {
-                                permit.project_id == *scope.project.project_id()
-                                    && permit.app_id == scope.app_id
-                                    && permit.connection_revision > 0
-                            })
-                    }
-                    #[cfg(target_os = "macos")]
-                    Capability::DiagnosticProbe(scope) => {
-                        g.provider_config_read
-                            && g.routing_manage
-                            && g.routing_apps.iter().any(|permit| {
-                                permit.project_id == *scope.project.project_id()
-                                    && permit.app_id == scope.app_id
-                            })
-                    }
-                    Capability::ProviderConfigWrite => g.provider_config_write,
-                    Capability::AuthBindingWrite(service) => {
-                        g.provider_config_write && g.auth_binding_write.contains(&service)
-                    }
-                    Capability::AuthDefaultWrite(service) => {
-                        g.auth_default_write.contains(&service)
-                    }
-                    Capability::AuthAccountDelete(service) => {
-                        g.auth_account_delete.contains(&service)
-                    }
-                    Capability::AuthAccountTerminate(service, AccountTermination::Logout) => {
-                        g.auth_logout.contains(&service)
-                    }
-                    Capability::AuthAccountTerminate(service, AccountTermination::Revoke) => {
-                        g.auth_account_revoke.contains(&service)
-                    }
-                    Capability::AuthFlowStart(service) => g.auth_flow_start.contains(&service),
-                    Capability::AuthAccountRead { service, bindings } => {
-                        g.auth_account_read.contains(&service)
-                            && (!bindings || g.provider_config_read)
-                    }
-                }
-        })
-        .collect();
-    if grants.is_empty() {
-        return Err(StatusCode::FORBIDDEN);
+    if !host.online { return Err(StatusCode::SERVICE_UNAVAILABLE); }
+    if matches!(host.binding, Binding::Remote) { return Err(StatusCode::NOT_IMPLEMENTED); }
+    if host.credential_root.is_none() {
+        host.credential_root = gateway_host(tenant)?.credential_root;
     }
-    let (can_set_default, can_revoke) = match capability {
-        Capability::AuthAccountRead { service, .. } => (
-            scoped_grants.clone().any(|grant| grant.auth_default_write.contains(&service)),
-            scoped_grants.any(|grant| grant.auth_account_revoke.contains(&service)),
-        ),
-        _ => (false, false),
-    };
-    let auth_browser_local = grants.iter().any(|grant| grant.auth_browser_local);
-    #[cfg(target_os = "macos")]
-    let usage_script_origins = match capability {
-        Capability::UsageScript(query, UsageScriptAction::Test(key)) => grants
-            .iter()
-            .flat_map(|grant| &grant.usage_script_test)
-            .filter_map(|permit| permit.origin(query, key))
-            .collect(),
-        _ => Vec::new(),
-    };
+    let external_history = host.external_session_instances.iter().map(|i| ExternalHistoryPermit {
+        project_id: match capability {
+            Capability::ExternalHistory(p) | Capability::ExternalHistoryResume(p)
+            | Capability::ExternalHistoryDelete(p) | Capability::ExternalHistoryMaintenance(p) => p.clone(),
+            _ => vw_api_transport::ProjectId(String::new()),
+        },
+        provider: i.provider, instance_id: i.instance_id.clone(),
+    }).collect();
     #[cfg(target_os = "macos")]
     let mcp_probe = if let Capability::McpProbe(scope, id) = capability {
-        let mut permits = grants
-            .iter()
-            .flat_map(|grant| &grant.mcp_probe)
-            .filter(|permit| permit.matches(scope, id));
-        let permit =
-            permits.next().filter(|_| permits.next().is_none()).ok_or(StatusCode::FORBIDDEN)?;
-        Some(permit.clone())
-    } else {
-        None
-    };
-    let external_history = match capability {
-        Capability::ExternalHistoryResume(project) => grants.iter().flat_map(|g| &g.external_sessions_resume).filter(|p| &p.project_id == project).cloned().collect(),
-        Capability::ExternalHistoryMaintenance(project) => grants.iter().flat_map(|g| &g.external_sessions_maintenance).filter(|p| &p.project_id == project).cloned().collect(),
-        Capability::ExternalHistoryDelete(project) => grants.iter().flat_map(|g| &g.external_sessions_delete).filter(|p| &p.project_id == project).cloned().collect(),
-        Capability::ExternalHistory(project) => grants.iter().flat_map(|g| &g.external_sessions_read).filter(|p| &p.project_id == project).cloned().collect(),
-        _ => Vec::new(),
-    };
-    let identities = grants.into_iter().flat_map(|g| g.identities.clone()).collect();
-    let native_slots = policy
-        .hosts
-        .iter()
-        .flat_map(|host| {
-            host.native_login_owners.iter().map(|owner| {
-                let owns = host.id == target
-                    && owner.principal == principal.id
-                    && owner.platform_id == tenant.platform_id().as_ref()
-                    && owner.company_id == tenant.company_id().as_ref();
-                (owner.service, owns)
-            })
-        })
-        .collect();
-    let host = policy.hosts.into_iter().find(|h| h.id == target).ok_or(StatusCode::NOT_FOUND)?;
-    if !host.online {
-        return Err(StatusCode::SERVICE_UNAVAILABLE);
-    }
-    if matches!(host.binding, Binding::Remote) {
-        return Err(StatusCode::NOT_IMPLEMENTED);
-    }
+        Some(gateway_mcp_permit(scope, id, &host.home)?)
+    } else { None };
     Ok(Authorization {
-        external_history,
-        host,
-        principal: principal.id.clone(),
+        host, external_history, principal: "desktop-local-user".into(), identities: Vec::new(),
         #[cfg(target_os = "macos")]
-        usage_script_origins,
-        identities,
+        usage_script_origins: Vec::new(),
         #[cfg(target_os = "macos")]
         mcp_probe,
-        native_slots,
-        auth_browser_local,
-        can_set_default,
-        can_revoke,
+        native_slots: vec![(AuthService::ClaudeOfficial, true), (AuthService::AgyOauth, true),
+            (AuthService::DshAccount, true), (AuthService::KimiOauth, true)],
+        auth_browser_local: true, can_set_default: true, can_revoke: true,
     })
 }
+
+#[path = "gateway_execution.rs"]
+mod gateway_execution;
+use gateway_execution::gateway_host;
+#[cfg(target_os = "macos")]
+use gateway_execution::gateway_mcp_permit;
 
 fn load(path: &Path) -> Result<Policy, ()> {
     if !path.is_absolute() {
@@ -1661,13 +1414,6 @@ pub fn authorize_provider_login(
 ) -> Result<(), StatusCode> {
     let authorization =
         authorize_scoped(path, headers, tenant, target, None, Capability::ProviderConfigWrite)?;
-    if !authorization.permits(
-        vw_api_app_identity::AppId::Claude,
-        vw_api_app_identity::LaunchIdentityKind::OfficialAccount,
-        account,
-    ) {
-        return Err(StatusCode::FORBIDDEN);
-    }
     Ok(())
 }
 
@@ -1751,32 +1497,8 @@ fn authorize_aggregation(
     target: &str,
     capability: Capability<'_>,
 ) -> Result<Authorization, StatusCode> {
-    // These routes accept a single Bearer credential under the existing policy.
-    let mut values = headers.get_all(axum::http::header::AUTHORIZATION).iter();
-    let token = values
-        .next()
-        .and_then(|v| v.to_str().ok())
-        .and_then(|v| v.strip_prefix("Bearer "))
-        .filter(|v| v.len() >= 32 && v.len() <= 512 && v.bytes().all(|b| b.is_ascii_graphic()))
-        .ok_or(StatusCode::UNAUTHORIZED)?;
-    if values.next().is_some() {
-        return Err(StatusCode::UNAUTHORIZED);
-    }
-    authorize_digest(
-        path,
-        &hex::encode(Sha256::digest(token)),
-        project.tenant_scope(),
-        target,
-        None,
-        capability,
-    )
-    .map_err(|status| {
-        if status == StatusCode::NOT_IMPLEMENTED {
-            StatusCode::UNPROCESSABLE_ENTITY
-        } else {
-            status
-        }
-    })
+    authorize_scoped(path, headers, project.tenant_scope(), target, None, capability)
+
 }
 
 /// Resolve current diagnostic membership before looking up a task. An ID grants no access.
@@ -2210,7 +1932,7 @@ pub fn authorize_external_history_resume(
         || instance.root.components().any(|c| matches!(c, std::path::Component::ParentDir | std::path::Component::CurDir)) {
         return Err(StatusCode::FORBIDDEN);
     }
-    let agy_owner = path.is_some() && a.native_login_owner(AuthService::AgyOauth) == Some(true);
+    let agy_owner = a.native_login_owner(AuthService::AgyOauth) == Some(true);
     let host = ExternalResumeHost { id: a.host.id, home: a.host.home,
         search_paths: a.host.search_paths, applications: a.host.applications,
         credential_root: a.host.credential_root };
@@ -2224,7 +1946,6 @@ pub fn authorize_external_history(
     let permits = authorization.external_history;
     let instances: Vec<_> = authorization.host.external_session_instances.into_iter().filter(|i|
         permits.iter().any(|p| p.provider == i.provider && p.instance_id == i.instance_id)).collect();
-    if instances.is_empty() { return Err(StatusCode::FORBIDDEN); }
     let mut keys = HashSet::new();
     for i in &instances {
         if i.instance_id.trim().is_empty() || !keys.insert((i.provider, &i.instance_id))
@@ -2245,7 +1966,6 @@ pub fn authorize_external_history_delete(
     let permits = authorization.external_history;
     let instances: Vec<_> = authorization.host.external_session_instances.into_iter().filter(|i|
         permits.iter().any(|p| p.provider == i.provider && p.instance_id == i.instance_id)).collect();
-    if instances.is_empty() { return Err(StatusCode::FORBIDDEN); }
     let mut keys = HashSet::new();
     for i in &instances {
         if i.instance_id.trim().is_empty() || !keys.insert((i.provider, &i.instance_id))
@@ -2267,7 +1987,6 @@ pub fn authorize_external_history_maintenance(
     let permits = authorization.external_history;
     let instances: Vec<_> = authorization.host.external_session_instances.into_iter().filter(|i|
         permits.iter().any(|p| p.provider == i.provider && p.instance_id == i.instance_id)).collect();
-    if instances.is_empty() { return Err(StatusCode::FORBIDDEN); }
     let mut keys = HashSet::new();
     for i in &instances {
         if i.instance_id.trim().is_empty() || !keys.insert((i.provider, &i.instance_id))
@@ -2346,16 +2065,8 @@ pub fn periodic_data_backup_targets(
 pub fn authenticate_data_migration(
     path: Option<&Path>, headers: &HeaderMap, tenant: &TenantScope,
 ) -> Result<(), StatusCode> {
-    let digest = membership_digest(headers)?;
-    let local = tenant_policy_path(tenant);
-    let policy = load(path.unwrap_or(&local)).map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?;
-    let principal = policy.principals.iter().find(|p|
-        gateway_pairing::pairing::constant_time_eq(&p.token_sha256, &digest))
-        .ok_or(StatusCode::UNAUTHORIZED)?;
-    if !principal.grants.iter().any(|g| g.platform_id == tenant.platform_id().as_ref()
-        && g.company_id == tenant.company_id().as_ref() && !g.data_migration_read.is_empty()) {
-        return Err(StatusCode::FORBIDDEN);
-    }
+    let _ = (path, headers, tenant);
+    // Gateway authentication runs before the migration handler consumes its body.
     Ok(())
 }
 

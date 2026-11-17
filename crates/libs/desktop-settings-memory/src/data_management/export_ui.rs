@@ -55,14 +55,14 @@ pub fn update(state: &mut State, current: Option<Identity>, client: Option<vw_ga
             state.categories.retain(|entry| *entry != category);
             if selected { state.categories.push(category); }
         }
-        Event::Export if !state.busy && !state.categories.is_empty() && !state.principal.trim().is_empty() => {
+        Event::Export if !state.busy && !state.categories.is_empty() => {
             let Ok(client) = client.clone().ok_or(()) else { return Task::none(); };
             let Ok(scope) = ProjectScope::new(current.context.tenant.clone(), current.project.clone().into()) else { return Task::none(); };
             state.busy = true;
             state.generation = state.generation.wrapping_add(1);
             let generation = state.generation;
             let request = ExportDataRequest {
-                target: DataManagementTarget { scope, target_host_id: current.host.clone(), principal_id: state.principal.trim().to_owned() },
+                target: DataManagementTarget { scope, target_host_id: current.host.clone(), principal_id: "desktop-local-user".into() },
                 selections: state.categories.iter().map(|category| DataSelection { category: *category, entries: DataEntrySelection::All }).collect(),
                 format: DataArchiveFormat::Json,
                 idempotency_key: format!("desktop-export-{}-{generation}", std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap_or_default().as_nanos()),

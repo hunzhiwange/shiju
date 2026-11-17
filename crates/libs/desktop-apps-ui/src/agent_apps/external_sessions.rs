@@ -147,7 +147,7 @@ pub fn update(
     if project.trim().is_empty() {
         return notify_error(notice, "请先选择项目");
     }
-    if catalog_context.as_ref() != Some(&context) || host.is_empty() || token.is_empty() {
+    if catalog_context.as_ref() != Some(&context) || host.is_empty() {
         return notify_error(notice, "请先连接应用服务");
     }
     let cursor = if matches!(event, Event::Next) {

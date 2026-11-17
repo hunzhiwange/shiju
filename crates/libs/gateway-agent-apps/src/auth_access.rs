@@ -15,7 +15,7 @@ pub(crate) fn authorize_auth_account_read(
     use vw_api_app_auth::AuthService;
     let authorized =
         access::authorize_auth_account_read(path, headers, tenant, target, service, bindings)?;
-    let owns_native_slot = path.is_some() && authorized.native_login_owner(service) == Some(true);
+    let owns_native_slot = authorized.native_login_owner(service) == Some(true);
     if matches!(service, AuthService::AgyOauth | AuthService::DshAccount) && !owns_native_slot {
         return Err(StatusCode::FORBIDDEN);
     }
@@ -33,7 +33,7 @@ pub(crate) fn authorize_auth_binding(
     use vw_api_app_auth::AuthService;
 
     let authorized = access::authorize_auth_binding(path, headers, tenant, target, service)?;
-    let owns_native_slot = path.is_some() && authorized.native_login_owner(service) == Some(true);
+    let owns_native_slot = authorized.native_login_owner(service) == Some(true);
     if matches!(service, AuthService::AgyOauth | AuthService::KimiOauth) && !owns_native_slot {
         return Err(StatusCode::FORBIDDEN);
     }
@@ -48,7 +48,7 @@ pub(crate) fn authorize_auth_default(
     service: vw_api_app_auth::AuthService,
 ) -> Result<AuthAccountHost, axum::http::StatusCode> {
     let authorized = access::authorize_auth_default(path, headers, tenant, target, service)?;
-    let owns_native_slot = path.is_some() && authorized.native_login_owner(service) == Some(true);
+    let owns_native_slot = authorized.native_login_owner(service) == Some(true);
     account_host(&authorized, owns_native_slot)
 }
 
@@ -63,7 +63,7 @@ pub(crate) fn authorize_auth_account_delete(
     use vw_api_app_auth::AuthService;
 
     let authorized = access::authorize_auth_account_delete(path, headers, tenant, target, service)?;
-    let owns_native_slot = path.is_some() && authorized.native_login_owner(service) == Some(true);
+    let owns_native_slot = authorized.native_login_owner(service) == Some(true);
     if matches!(service, AuthService::AgyOauth | AuthService::DshAccount) && !owns_native_slot {
         return Err(StatusCode::FORBIDDEN);
     }
@@ -83,7 +83,7 @@ pub(crate) fn authorize_auth_account_termination(
 
     let authorized =
         access::authorize_auth_account_termination(path, headers, tenant, target, service, action)?;
-    let owns_native_slot = path.is_some() && authorized.native_login_owner(service) == Some(true);
+    let owns_native_slot = authorized.native_login_owner(service) == Some(true);
     if (service == AuthService::DshAccount
         || service == AuthService::AgyOauth && matches!(action, AccountTermination::Logout))
         && !owns_native_slot
@@ -117,7 +117,7 @@ pub(crate) fn authorize_auth_flow_start(
 
     let authorized = access::authorize_auth_flow_start(path, headers, tenant, target, service)?;
     if matches!(service, AuthService::AgyOauth | AuthService::DshAccount)
-        && !(path.is_some() && authorized.native_login_owner(service) == Some(true))
+        && !(authorized.native_login_owner(service) == Some(true))
     {
         return Err(StatusCode::FORBIDDEN);
     }

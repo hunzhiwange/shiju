@@ -343,7 +343,7 @@ pub fn update(state: &mut State, current: Option<Identity>, client: Option<vw_ga
             let target = DataManagementTarget {
                 scope,
                 target_host_id: current.host,
-                principal_id: state.principal.trim().into(),
+                principal_id: "desktop-local-user".into(),
             };
             let (task, toast) = state.task_panel.update(
                 TaskPanelMessage::Discover {
@@ -374,9 +374,7 @@ pub fn update(state: &mut State, current: Option<Identity>, client: Option<vw_ga
             };
         }
         Event::Preview(e) if !state.busy && !state.task_panel.is_busy() => {
-            if state.principal.trim().is_empty() {
-                return notify_error("请填写同步主体");
-            }
+
             let Ok(scope) =
                 ProjectScope::new(current.context.tenant.clone(), current.project.clone().into())
             else {
@@ -385,7 +383,7 @@ pub fn update(state: &mut State, current: Option<Identity>, client: Option<vw_ga
             let target = DataManagementTarget {
                 scope,
                 target_host_id: current.host,
-                principal_id: state.principal.trim().into(),
+                principal_id: "desktop-local-user".into(),
             };
             let (task, toast, status) = state.preview.update(
                 e,
@@ -423,7 +421,7 @@ pub fn update(state: &mut State, current: Option<Identity>, client: Option<vw_ga
             let target = DataManagementTarget {
                 scope,
                 target_host_id: current.host,
-                principal_id: state.principal.trim().into(),
+                principal_id: "desktop-local-user".into(),
             };
             let (task, toast) = state.task_panel.update(e, client, target, token);
             let task = task.map(|e| message(Event::TaskPanel(e)));

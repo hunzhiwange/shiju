@@ -190,7 +190,11 @@ impl Selection {
                 .map_err(|_| AuthErrorCode::InvalidInput)?;
             Ok(TrialInputs {
                 principal: authorization.principal,
-                origins: authorization.usage_script_origins,
+                origins: vec![{
+                    let mut origin = Url::parse(&profile.base_url).map_err(|_| AuthErrorCode::InvalidInput)?;
+                    origin.set_path("/"); origin.set_query(None); origin.set_fragment(None);
+                    origin
+                }],
                 base_url: profile.base_url,
                 api_key: key.map(|_| profile.api_key),
             })

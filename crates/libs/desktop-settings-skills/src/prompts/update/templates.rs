@@ -33,7 +33,7 @@ pub fn update(app: &mut Input<'_>, event: Event) -> Task<Message> {
         state.entries.sort_by(|a, b| a.slug.cmp(&b.slug));
         return Task::none();
     }
-    if app.context.as_ref() != Some(&context) || app.token.is_empty() { return crate::prompts::update::Input::show_error_toast("请先连接应用管理"); }
+    if app.context.as_ref() != Some(&context) { return crate::prompts::update::Input::show_error_toast("请先连接应用管理"); }
     if matches!(event, Event::Open) {
         let Some(project) = app.project_id.as_deref().filter(|p| !p.is_empty()) else { return crate::prompts::update::Input::show_error_toast("请先选择项目"); };
         let scope = PiPromptResourcesScope { project_id: project.into(), target_host_id: app.host.clone() };

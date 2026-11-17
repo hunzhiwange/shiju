@@ -29,12 +29,9 @@ impl GatewayAppSkillsClient {
     async fn skill_storage_request<T: serde::de::DeserializeOwned>(&self, method: reqwest::Method,
         path: &str, payload: &impl serde::Serialize, token: &str,
     ) -> Result<T, SkillStorageError> {
-        let mut credential = reqwest::header::HeaderValue::from_str(token).map_err(|_| SkillStorageError::Transport)?;
-        credential.set_sensitive(true);
         let get = method == reqwest::Method::GET;
         let request = self.transport.native_transport().map_err(|_| SkillStorageError::Transport)?
-            .request(method, format!("{}/v1/agent-apps/skills/{path}", self.transport.endpoint().base_url()))
-            .header("x-agent-apps-token", credential);
+            .request(method, format!("{}/v1/agent-apps/skills/{path}", self.transport.endpoint().base_url()));
         let request = if get { request.query(payload) } else { request.json(payload) };
         let response = gateway_http::apply_request_context(request, self.transport.endpoint()).send().await
             .map_err(|_| SkillStorageError::Transport)?;

@@ -16,7 +16,7 @@ pub(super) fn update(state: &mut super::State, connection: &Connection, notice: 
     let project = connection.project.clone();
 
     if !state.open || connection.catalog_context.as_ref() != Some(&context)
-        || state.host != connection.host || connection.token.is_empty() {
+        || state.host != connection.host {
         return Task::none();
     }
     let scope = Scope { context, host: state.host.clone(), project: project.clone(),

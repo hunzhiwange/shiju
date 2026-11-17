@@ -14,7 +14,7 @@ pub fn current(
     let project = project.filter(|p| !p.is_empty())?;
     let choice = selected?;
     if scope.host.is_empty()
-        || token.is_empty()
+
         || endpoint != Some(&scope.endpoint)
         || !applications.into_iter().any(|id| id == choice.0)
     {

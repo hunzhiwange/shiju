@@ -77,9 +77,9 @@ pub fn update(state: &mut State, current: Option<Identity>, client: Option<vw_ga
         Event::Reveal(id) => {
             let Ok(client) = client.clone().ok_or(()) else { return Task::none(); };
             if !crate::system_settings_data::locations::can_reveal(client.endpoint().is_loopback(), &current.host) { return notify_error("远程目录不可在本机定位"); }
-            if state.busy || !state.locations.iter().any(|location| location.id == id) || state.principal.trim().is_empty() { return Task::none(); }
+            if state.busy || !state.locations.iter().any(|location| location.id == id) { return Task::none(); }
             let Ok(scope) = ProjectScope::new(current.context.tenant.clone(), current.project.clone().into()) else { return Task::none(); };
-            let target = DataManagementTarget { scope, target_host_id: current.host.clone(), principal_id: state.principal.trim().to_owned() };
+            let target = DataManagementTarget { scope, target_host_id: current.host.clone(), principal_id: "desktop-local-user".into() };
             state.busy = true;
             state.generation = state.generation.wrapping_add(1);
             let generation = state.generation;
@@ -140,10 +140,10 @@ pub fn update(state: &mut State, current: Option<Identity>, client: Option<vw_ga
         }
         Event::Cancel => state.pending = None,
         action @ (Event::Refresh | Event::Create | Event::Confirm | Event::SavePolicy) => {
-            if state.principal.trim().is_empty() { return notify_error("请填写授权主体 ID"); }
+
             let Ok(client) = client.clone().ok_or(()) else { return Task::none(); };
             let Ok(scope) = ProjectScope::new(current.context.tenant.clone(), current.project.clone().into()) else { return Task::none(); };
-            let target = DataManagementTarget { scope, target_host_id: current.host.clone(), principal_id: state.principal.trim().to_owned() };
+            let target = DataManagementTarget { scope, target_host_id: current.host.clone(), principal_id: "desktop-local-user".into() };
             let policy = if matches!(action, Event::SavePolicy) {
                 let (Ok(interval_hours), Ok(retain_count)) = (state.interval.parse::<u32>(), state.retain.parse::<u32>()) else {
                     return notify_error("周期与保留数必须为非负整数");

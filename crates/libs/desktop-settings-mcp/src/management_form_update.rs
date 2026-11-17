@@ -5,7 +5,7 @@ fn authorized(app: &Update<'_>, context: &crate::management_context::Context) ->
     app.context.as_ref() == Some(context)
         && app.authorized
         && !context.host.is_empty()
-        && !app.token.is_empty()
+
 }
 pub fn update(app: &mut Update<'_>, event: FormMessage) -> Task<FormMessage> {
     match event {

@@ -86,9 +86,7 @@ impl GatewayDeviceSyncClient {
         if id.is_empty() || matches!(id, "." | "..") {
             return Err(DeviceSyncTasksError::InvalidTaskId);
         }
-        if token.trim().is_empty() {
-            return Err(DeviceSyncTasksError::InvalidToken);
-        }
+
         let mut authorization = reqwest::header::HeaderValue::from_str(&format!("Bearer {token}"))
             .map_err(|_| DeviceSyncTasksError::InvalidToken)?;
         authorization.set_sensitive(true);

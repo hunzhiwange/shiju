@@ -95,7 +95,7 @@ pub fn update(input: Input<'_>, event: Event, notice: &mut Option<crate::Notice>
             return Task::none();
         }
         Event::Open(id) => {
-            if input.token.is_empty() || input.catalog_context != Some(&context)
+            if input.catalog_context != Some(&context)
                 || !input.requested_app_exists {
                 return crate::error(notice, "请先连接应用管理");
             }
@@ -122,7 +122,6 @@ pub fn update(input: Input<'_>, event: Event, notice: &mut Option<crate::Notice>
     if input.catalog_context != Some(&context)
         || scope.target_host_id != input.host
         || input.project != Some(scope.project_id.as_ref())
-        || input.token.is_empty()
     {
         state.invalidate();
         return crate::error(notice, "连接或项目已更改，请重新打开策略");

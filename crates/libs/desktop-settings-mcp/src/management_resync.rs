@@ -260,7 +260,7 @@ pub fn update(app: &mut Update<'_>, value: ResyncMessage) -> Task<ResyncMessage>
         *app.state =
             ResyncState { context: Some(context.clone()), generation, ..Default::default() };
     }
-    if !app.authorized || app.token.is_empty() || context.host.is_empty() {
+    if !app.authorized || context.host.is_empty() {
         return Task::none();
     }
     match value {

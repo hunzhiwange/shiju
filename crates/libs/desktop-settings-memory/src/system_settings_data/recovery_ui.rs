@@ -38,11 +38,8 @@ pub fn overlay<'a, E: Clone + 'static>(state: ViewState<'a>, visible: bool, base
     let header = settings_modal_header(text("恢复与损坏诊断").size(18), settings_close_button(close.clone()));
     let mut body = column![
         text("诊断不修改数据。恢复前由执行主机校验备份并建立回退点；无法安全保存原数据时拒绝恢复。"),
-        text("授权主体 ID"),
-        settings_text_input("填写当前授权主体 ID", state.principal)
-            .on_input_maybe((!state.busy && !state.submitted).then_some(|v| message(Event::Principal(v)))),
         button(text("诊断 / 刷新备份")).padding([8, 14]).style(rounded_action_btn_style)
-            .on_press_maybe((!state.busy && !state.submitted && !state.principal.trim().is_empty()).then_some(message(Event::Diagnose))),
+            .on_press_maybe((!state.busy && !state.submitted).then_some(message(Event::Diagnose))),
     ].spacing(12);
     if let Some(diagnosis) = &state.diagnosis {
         body = body.push(text(match diagnosis.target_health {

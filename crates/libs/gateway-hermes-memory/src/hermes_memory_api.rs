@@ -59,14 +59,12 @@ impl GatewayHermesMemoryClient {
 
     async fn hermes_memory_request<T: DeserializeOwned>(&self, method: reqwest::Method, resource: &str, scope: &HermesMemoryScope, token: &str, body: Option<serde_json::Value>) -> Result<T, HermesMemoryError> {
         use HermesMemoryError as E;
-        if scope.target_host_id.trim().is_empty() || token.trim().is_empty() {
+        if scope.target_host_id.trim().is_empty() {
             return Err(E::InvalidInput);
         }
         let transport = self.transport.native_transport().map_err(|_| E::Transport)?;
-        let mut credential = reqwest::header::HeaderValue::from_str(token).map_err(|_| E::InvalidInput)?;
-        credential.set_sensitive(true);
         let mut request = transport.request(method, format!("{}/v1/agent-apps/hermes/{resource}", self.transport.endpoint().base_url()))
-            .query(scope).header("x-agent-apps-token", credential);
+            .query(scope);
         if let Some(body) = body { request = request.json(&body); }
         let response = gateway_http::apply_request_context(request, self.transport.endpoint()).send().await.map_err(|_| E::Transport)?;
         if !response.status().is_success() { return Err(E::Http(response.status().as_u16())); }

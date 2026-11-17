@@ -100,9 +100,6 @@ impl GatewayAppUsageClient {
         selection: &UsageSnapshotQuery,
         principal_token: &str,
     ) -> Result<UsageSnapshotResponse, AppsUsageReadError> {
-        if principal_token.trim().is_empty() {
-            return Err(AppsUsageReadError::InvalidPrincipalToken);
-        }
         self.apps_usage_read("/v1/usage/limits", selection, principal_token).await
     }
 
@@ -130,14 +127,10 @@ impl GatewayAppUsageClient {
         selection: &UsageSnapshotQuery,
         principal_token: &str,
     ) -> Result<T, AppsUsageReadError> {
-        let mut token = HeaderValue::from_str(principal_token)
-            .map_err(|_| AppsUsageReadError::InvalidPrincipalToken)?;
-        token.set_sensitive(true);
         let request = self.transport.dynamic_host_client()
             .get(format!("{}{path}", self.transport.endpoint().base_url()))
             .query(selection)
-            .header(CACHE_CONTROL, "no-cache, no-store")
-            .header("x-agent-apps-token", token);
+            .header(CACHE_CONTROL, "no-cache, no-store");
 
         let response = apply_request_context(request, self.transport.endpoint())
             .send()

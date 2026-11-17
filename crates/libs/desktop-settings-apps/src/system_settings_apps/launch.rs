@@ -280,7 +280,7 @@ pub fn update<C: Clone + PartialEq + Send + 'static>(catalog: &mut Input<'_, C>,
     match message {
         LaunchMessage::Open(id, installation_id) => {
 
-            if catalog.loading || catalog.token.is_empty() {
+            if catalog.loading {
                 return Task::none();
             }
             let valid = catalog
@@ -362,7 +362,7 @@ pub fn update<C: Clone + PartialEq + Send + 'static>(catalog: &mut Input<'_, C>,
         }
         LaunchMessage::Submit => {
 
-            if catalog.launch.error.is_some() || catalog.host.is_empty() || catalog.token.is_empty()
+            if catalog.launch.error.is_some() || catalog.host.is_empty()
             {
                 return Task::none();
             }

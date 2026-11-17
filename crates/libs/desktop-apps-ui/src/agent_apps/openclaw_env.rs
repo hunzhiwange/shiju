@@ -181,7 +181,7 @@ pub fn update(
         }
         _ => {}
     }
-    if catalog_context.as_ref() != Some(&context) || token.is_empty() {
+    if catalog_context.as_ref() != Some(&context) {
         return notify_error(notice, "请先连接应用服务");
     }
 

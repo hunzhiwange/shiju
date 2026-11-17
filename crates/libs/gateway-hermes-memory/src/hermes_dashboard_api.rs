@@ -24,10 +24,8 @@ impl GatewayHermesMemoryClient {
     async fn hermes_dashboard_request<T: DeserializeOwned>(&self, method: reqwest::Method, resource: &str, scope: &DashboardScope, token: &str) -> Result<T, HermesDashboardError> {
         use HermesDashboardError as E;
         let transport = self.transport.native_transport().map_err(|_| E::Transport)?;
-        let mut credential = reqwest::header::HeaderValue::from_str(token).map_err(|_| E::InvalidInput)?;
-        credential.set_sensitive(true);
         let request = transport.request(method, format!("{}{BASE}/{resource}", self.transport.endpoint().base_url()))
-            .query(scope).header("x-agent-apps-token", credential);
+            .query(scope);
         let response = gateway_http::apply_request_context(request, self.transport.endpoint()).send().await.map_err(|_| E::Transport)?;
         if !response.status().is_success() { return Err(E::Http(response.status().as_u16())); }
         response.json().await.map_err(|_| E::Decode)

@@ -94,7 +94,7 @@ type Message = Event;
 fn message(event: Event) -> Message { event }
 
 pub fn context(gateway: Option<&AgentAppsContext>, host: &str, generation: u64, access: u64, loading: bool, token: &str) -> Option<Context> {
-    if token.is_empty() || host.is_empty() || loading { return None; }
+    if host.is_empty() || loading { return None; }
     Some(Context { gateway: gateway?.clone(), host: host.into(), generation, access })
 }
 

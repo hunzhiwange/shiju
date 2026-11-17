@@ -57,7 +57,7 @@ fn service(form: &EditForm, app: AppId) -> Option<(AuthService, Option<AuthRegio
 
 fn origin_matches(origin_input: &Origin<'_>, scope: &Scope, provider_generation: u64) -> bool {
     origin_input.provider_generation == provider_generation
-        && !origin_input.token.trim().is_empty()
+
         && origin_input.provider_scope.is_some_and(|origin| {
             origin.context.gateway == scope.gateway
                 && origin.context.tenant == scope.tenant
@@ -70,11 +70,11 @@ fn origin_matches(origin_input: &Origin<'_>, scope: &Scope, provider_generation:
 pub fn connection_matches(
     binding: &Binding,
     connection: &Connection,
-    supplier_token: &str,
+    _supplier_token: &str,
 ) -> bool {
     connection.valid_management()
         && connection.host.trim() == binding.host
-        && connection.token.trim() == supplier_token.trim()
+
 }
 
 fn credentials(connection: &Connection) -> AgentAppsAuthCredentials<'_> {
@@ -97,9 +97,6 @@ pub fn update<U: Usage>(state: &mut State<U>, notice: &mut Option<Notice>, effec
     if let Event::OpenBinding { provider_id, provider_generation } = event {
         if !origin_input.visible_apps {
             return Task::none();
-        }
-        if !endpoint.is_loopback() {
-            return error(notice, "选择授权账号需要本机回环管理连接");
         }
         let candidate = origin_input.provider_scope.and_then(|origin| {
             let form = origin_input.form?;
@@ -138,7 +135,6 @@ pub fn update<U: Usage>(state: &mut State<U>, notice: &mut Option<Notice>, effec
     }
 
     if !(origin_input.visible_auth || effects.opened)
-        || !endpoint.is_loopback()
     {
         return Task::none();
     }

@@ -225,10 +225,7 @@ impl GatewayAppUsageClient {
         request: RequestBuilder,
         principal_token: &str,
     ) -> Result<Response, AppsUsageWriteError> {
-        let mut token = HeaderValue::from_str(principal_token)
-            .map_err(|_| AppsUsageWriteError::InvalidPrincipalToken)?;
-        token.set_sensitive(true);
-        let request = request.header("x-agent-apps-token", token);
+        let request = request;
         let response = apply_request_context(request, self.transport.endpoint())
             .send()
             .await

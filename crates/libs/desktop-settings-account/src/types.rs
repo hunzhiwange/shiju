@@ -50,24 +50,12 @@ impl Connection {
         }
     }
 
-    pub fn valid(&self) -> bool {
-        self.valid_management()
-            || self.host == local_app_auth::HOST_ID
-                && self.username.is_empty()
-                && self.password.is_empty()
-                && !self.token.trim().is_empty()
-    }
+    pub fn valid(&self) -> bool { self.valid_management() }
 
     pub fn valid_management(&self) -> bool {
-        let username = self.username.trim();
-        !self.host.trim().is_empty()
-            && !self.host.chars().any(char::is_control)
-            && !username.is_empty()
-            && !username.contains(':')
-            && !username.chars().any(char::is_control)
-            && !self.password.is_empty()
-            && !self.token.trim().is_empty()
+        !self.host.trim().is_empty() && !self.host.chars().any(char::is_control)
     }
+
 }
 
 #[derive(Clone, Copy)]

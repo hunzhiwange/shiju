@@ -126,7 +126,7 @@ pub fn update(state: &mut State, connection: Connection, event: Event, notice: &
         }
         _ => {}
     }
-    if catalog_context.as_ref() != Some(&context) || token.is_empty() { return notify_error(notice, "请先连接应用服务"); }
+    if catalog_context.as_ref() != Some(&context) { return notify_error(notice, "请先连接应用服务"); }
         if state.busy { return Task::none(); }
     if !matches!(event, Event::Open) && (!state.open || !state.loaded) { return Task::none(); }
     match event {

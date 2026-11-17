@@ -31,7 +31,7 @@ fn error(_: impl std::fmt::Debug) -> String {
 }
 fn current(state: &ModelState, access: &Access<'_>, context: &ModelContext) -> bool {
     state.access_generation == context.credentials_generation
-        && !access.token.is_empty()
+
         && access.context.as_ref() == Some(&context.scope.context)
         && access.project.as_deref() == Some(context.project.as_ref())
         && access.actual.as_ref() == Some(&context.scope)

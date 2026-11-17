@@ -91,11 +91,7 @@ impl GatewayAppReadClient {
         let transport = &self.transport.client();
         let request = transport.get(format!("{}{path}", self.transport.endpoint().base_url())).query(query);
         let request = if let Some(token) = token {
-            let mut value = reqwest::header::HeaderValue::from_str(token).map_err(|_| {
-                AgentAppsReadError::Transport("invalid application credential".into())
-            })?;
-            value.set_sensitive(true);
-            request.header("x-agent-apps-token", value)
+            request
         } else {
             request
         };

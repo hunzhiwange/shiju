@@ -4,7 +4,7 @@
 
 批次：【批次1】 依赖：无
 
-状态：未开始
+状态：待回归
 
 来源：继续执行宿主单测；诊断编号47, 48, 49（宿主编译错误证据.json）。
 预计会话范围：修复一个源码文件中的宿主接口或测试夹具编译契约；不接管整包。
@@ -113,3 +113,16 @@ python3 scripts/cargo_slot.py cargo test -p vw-agent --lib cc04_ui_desktop_form_
 编译取证命令（不是测试通过证据）：`python3 scripts/cargo_slot.py cargo test -p vw-agent --lib --no-run`。同阶段顺序命令合并一次入口复用缓存，不默认逐任务全量测试。
 
 最终需由原任务303执行两阶段全量验收；这组修复仅覆盖已发现编译阻塞，尚不能保证宿主全部运行失败已发现。
+
+## 2026-11-18 执行记录
+
+- 已核对宿主父模块注册、Fixture 和 GatewayAppProviderClient 接口；三处直接复用 f.client 调用 provider_switch/provider_save，不新增 transport 访问器，不改变断言或业务接口。
+- 首次定向命令日志 `/tmp/shiju-task311-before.log`；发现其他宿主编译后中断自有入口，退出130，已等待清理完成，不作为红灯通过证据。原始诊断47—49为修复依据。
+- 修改后在槽位1执行以下串行入口，两缓存路径均为 `/Users/xiangmin/worker/code/shiju/target/rust-slot-1`：
+
+```sh
+python3 scripts/cargo_slot.py sh -c 'cargo test -p vw-agent --lib cc04_desktop_mapping_sdk_api_import_validates_and_never_activates -- --nocapture && cargo test -p vw-agent --lib cc04_desktop_mapping_imported_native_profile_reaches_transactional_files -- --nocapture && cargo test -p vw-agent --lib cc04_ui_desktop_form_read_is_redacted_and_permission_checked -- --nocapture'
+```
+
+- 日志 `/tmp/shiju-task311-after.log`，退出101；vw-agent lib test 仍有61条兄弟编译错误（包括视频 VideoContext 契约及 IntoResponse trait 缺失），本文件不再出现诊断。有效测试数0，后两命令因首条失败未执行，不记行为通过。
+- 自有入口已退出并释放槽位；未执行全量、桌面构建或额外 check。待兄弟任务解除宿主编译阻塞后重跑上述三条命令，必要验证通过前保留任务卡。

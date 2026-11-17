@@ -222,10 +222,14 @@ export class LocalAmp {
     const kill = () => { terminal.kill().catch(() => {}); };
     active.controller.signal.addEventListener('abort', kill, { once: true });
     try {
+      // Cancellation can arrive while the host is creating the terminal, before
+      // the listener exists. Reap that terminal before rejecting the stale turn.
+      if (active.controller.signal.aborted || session.active !== active) await terminal.kill();
       check();
       const exit = await terminal.waitForExit();
       check();
       const output = await terminal.currentOutput();
+      check();
       return JSON.stringify({ ...output, exitCode: exit.exitCode, signal: exit.signal });
     } finally { active.controller.signal.removeEventListener('abort', kill); await terminal.release(); }
   }

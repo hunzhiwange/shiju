@@ -4,7 +4,7 @@
 
 批次：【批次1】 依赖：无
 
-状态：未开始
+状态：待回归
 
 来源：继续执行宿主单测；诊断编号35（宿主编译错误证据.json）。
 预计会话范围：修复一个源码文件中的宿主接口或测试夹具编译契约；不接管整包。
@@ -81,3 +81,12 @@ python3 scripts/cargo_slot.py cargo test -p vw-agent --lib dynamic_tools_restore
 编译取证命令（不是测试通过证据）：`python3 scripts/cargo_slot.py cargo test -p vw-agent --lib --no-run`。同阶段顺序命令合并一次入口复用缓存，不默认逐任务全量测试。
 
 最终需由原任务303执行两阶段全量验收；这组修复仅覆盖已发现编译阻塞，尚不能保证宿主全部运行失败已发现。
+
+## 本次执行记录
+
+- 根因：宿主 `dynamic_tool_store_tests` 只注册真实 ClientTool 恢复契约，不再提供 session-store 私有 `tools` 夹具。当前 lifecycle 测试改用本文件内 PersistentTool，保留名称、描述、schema、执行结果及全部恢复/能力断言；不修改业务接口或扩大可见性。
+- 已核对 `#[tokio::test]` 入口，定向命令：`python3 scripts/cargo_slot.py cargo test -p vw-agent --lib dynamic_tools_restore_fork_copies_specs_without_capabilities -- --nocapture`。
+- 修复前：槽位1，退出101，日志 `/tmp/shiju-316-before.log`，复现目标 E0425。
+- 修复后：槽位6，退出101，日志 `/tmp/shiju-316-after.log`；目标 tools/lifecycle_tests 诊断消失，但仍有44条兄弟编译错误（compaction夹具、Config、ui_store、ACP_CLIENT_CACHE、VideoContext等），实际测试0项，不能视为通过。
+- 双缓存分别为 `/Users/xiangmin/worker/code/shiju/target/rust-slot-1` 与 `/Users/xiangmin/worker/code/shiju/target/rust-slot-6`，各自 CARGO_TARGET_DIR/CARGO_BUILD_BUILD_DIR 相同；两次入口均已退出并释放自有槽位。
+- `git diff --check` 通过。待兄弟编译阻塞解除后重跑上述命令，要求有效数>0、failed=0、退出0；任务文件保留。

@@ -107,6 +107,32 @@ async fn session_tool_create_marks_visible_parent_relation() {
     crate::project::instance::dispose_all().await;
 }
 
+// Keep the persistence fixture local: host test modules do not expose store test helpers.
+struct PersistentTool;
+
+#[async_trait::async_trait]
+impl crate::tools::Tool for PersistentTool {
+    fn name(&self) -> &str {
+        "persistent_tool"
+    }
+
+    fn description(&self) -> &str {
+        "fork-spec"
+    }
+
+    fn parameters_schema(&self) -> serde_json::Value {
+        serde_json::json!({"type": "object"})
+    }
+
+    async fn execute(&self, _: serde_json::Value) -> anyhow::Result<crate::tools::ToolResult> {
+        Ok(crate::tools::ToolResult {
+            success: true,
+            output: "fork-spec".into(),
+            error: None,
+        })
+    }
+}
+
 #[tokio::test]
 async fn dynamic_tools_restore_fork_copies_specs_without_capabilities() {
     let _guard = LIFECYCLE_TEST_LOCK.lock().await;
@@ -131,7 +157,7 @@ async fn dynamic_tools_restore_fork_copies_specs_without_capabilities() {
                     id: source.clone(), title: "source".into(), messages: vec![], message_ids: vec![],
                     calls: vec![], steps: vec![], created_ms: 1, updated_ms: 1,
                 })?;
-                store.replace_dynamic_tools(project_scope, &source, &crate::tools::catalog::ToolCatalog::default(), crate::session::dynamic_tool_store_tests::tools("fork-spec"), ["persistent_tool".into()], crate::session::dynamic_tool_store::PersistentToolPolicy::trusted_host())?;
+                store.replace_dynamic_tools(project_scope, &source, &crate::tools::catalog::ToolCatalog::default(), vec![std::sync::Arc::new(PersistentTool)], ["persistent_tool".into()], crate::session::dynamic_tool_store::PersistentToolPolicy::trusted_host())?;
                 Ok(())
             }).unwrap();
             use crate::session::message;

@@ -152,6 +152,7 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
         | ViewMessage::OpenUsage
         | ViewMessage::OpenKnowledge
         | ViewMessage::OpenWorkflowTool
+        | ViewMessage::OpenThirdPartyAgents
         | ViewMessage::OpenWorkflowManager
         | ViewMessage::AppsOpenMostRecent
         | ViewMessage::AppsSearchChanged(_) => apps::update(app, message),

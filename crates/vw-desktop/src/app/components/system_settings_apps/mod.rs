@@ -1,5 +1,5 @@
 pub(crate) mod catalog;
-mod details;
+pub(super) mod details;
 pub(crate) mod drag;
 pub(crate) mod lifecycle;
 mod list;

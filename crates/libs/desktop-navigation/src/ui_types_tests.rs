@@ -31,6 +31,7 @@ fn screen_variants_exclude_removed_apps() {
             super::Screen::Knowledge => "Knowledge",
             super::Screen::WorkflowTool => "WorkflowTool",
             super::Screen::WorkflowManager => "WorkflowManager",
+            super::Screen::ThirdPartyAgents => "ThirdPartyAgents",
             super::Screen::TaskBoard => "TaskBoard",
             super::Screen::ShijuApps => "ShijuApps",
             super::Screen::ShijuSkills => "ShijuSkills",

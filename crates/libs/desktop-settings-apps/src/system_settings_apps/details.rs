@@ -171,7 +171,7 @@ fn path_field<'a, M: 'a>(label: &'a str, path: &'a str) -> Element<'a, M> {
     .into()
 }
 
-pub(super) fn actions<'a, M: Clone + 'static>(
+pub fn actions<'a, M: Clone + 'static>(
     state: &ViewState<'a>,
     app: &'a CatalogRow,
     local_available: bool,

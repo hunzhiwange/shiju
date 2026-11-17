@@ -9,6 +9,7 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
         ViewMessage::OpenUsage => domain::Message::OpenUsage,
         ViewMessage::OpenKnowledge => domain::Message::OpenKnowledge,
         ViewMessage::OpenWorkflowTool => domain::Message::OpenWorkflowTool,
+        ViewMessage::OpenThirdPartyAgents => domain::Message::OpenThirdPartyAgents,
         ViewMessage::OpenWorkflowManager => domain::Message::OpenWorkflowManager,
         ViewMessage::AppsOpenMostRecent => domain::Message::AppsOpenMostRecent,
         ViewMessage::AppsSearchChanged(value) => domain::Message::AppsSearchChanged(value),
@@ -27,6 +28,10 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
     );
     match effect {
         None => Task::none(),
+        Some(domain::Effect::OpenThirdPartyAgents) => {
+            app.navigation_panels.show_system_settings = false;
+            crate::app::message::settings::update(app, crate::app::message::SettingsMessage::AppsCatalog(crate::app::message::settings::AppsCatalogMessage::EnsureLoaded))
+        }
         Some(domain::Effect::OpenUsage) => {
             app.usage_center.close();
             app.usage_panel.usage_model_info = None;

@@ -76,7 +76,7 @@ fn render_tiles_grid_arranges_builtin_tiles_across_complete_and_partial_rows() {
     let mut app = test_app();
     app.window_size = (800.0, 700.0);
 
-    assert_eq!(grid_row_tile_counts(&app, false), vec![4, 1]);
+    assert_eq!(grid_row_tile_counts(&app, false), vec![4, 2]);
 }
 
 #[test]
@@ -160,4 +160,11 @@ fn render_header_shows_clear_button_for_nonempty_unblocked_search() {
 #[test]
 fn builtin_tiles_omit_design_entry() {
     assert!(!super::builtin_tile_titles().contains(&concat!("设", "计")));
+}
+
+#[test]
+fn third_party_agents_tile_is_searchable_as_an_independent_tool() {
+    let mut app = test_app();
+    app.apps_search_query = "第三方智能体".into();
+    assert_eq!(grid_row_tile_counts(&app, false), vec![1]);
 }

@@ -66,7 +66,7 @@ pub(super) fn update(app: &mut App, message: AppsCatalogMessage) -> Task<Message
     match message {
         AppsCatalogMessage::SelectApp(id) => {
             if !app.apps_catalog.rows.iter().any(|row| row.entry.id == id) { return Task::none(); }
-            let page = app.apps_catalog.third_party_page;
+            let page = desktop_ui_controls::settings_navigation::ThirdPartyPage::Agents;
             app.apps_catalog.expanded = Some(id);
             return crate::app::components::third_party_settings::navigate(app, page);
         }

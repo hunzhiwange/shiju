@@ -116,6 +116,7 @@ impl App {
             Screen::Knowledge => views::knowledge::view(self),
             Screen::WorkflowTool => crate::apps::workflow::view(self),
             Screen::WorkflowManager => views::workflow_manager::view(self),
+            Screen::ThirdPartyAgents => components::third_party_settings::standalone(self),
             Screen::TaskBoard => views::task_board::view(self),
             #[cfg(not(target_arch = "wasm32"))]
             Screen::ShijuApps => views::expert_hub::shiju_apps::view(self),

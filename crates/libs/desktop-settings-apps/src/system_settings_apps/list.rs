@@ -225,7 +225,7 @@ fn empty<'a, M: 'static>(title: &'a str, description: &'a str, glyph: Icon) -> E
     .into()
 }
 
-fn brand<M: 'static>(app: AppId) -> Element<'static, M> {
+pub fn brand<M: 'static>(app: AppId) -> Element<'static, M> {
     let (glyph, monochrome) = match app {
         AppId::Claude | AppId::ClaudeDesktop => (Some(Icon::AppClaudeCode), false),
         AppId::Codex | AppId::Gemini => (None, false),

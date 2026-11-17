@@ -33,7 +33,7 @@ pub fn update(app: &mut App, event: Event) -> Task<Message> {
     } else {
         app.apps_catalog.failover_health.context.clone().filter(|c| current(app, c))
     };
-    let polling = app.navigation_panels.show_system_settings && app.navigation_panels.system_settings_tab == crate::app::components::system_settings::SystemTab::Apps;
+    let polling = crate::app::components::third_party_settings::is_visible(app);
     let mut notice = None;
     let task = desktop_apps_ui::agent_apps_health::update(&mut app.apps_catalog.failover_health,
         context, polling, crate::app::config::gateway_client(), &app.apps_catalog.token, event, &mut notice).map(message);

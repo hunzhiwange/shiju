@@ -16,6 +16,7 @@ fn map(event: Event) -> Message {
         Event::WebBookmarkEditStart(index) => Message::View(ViewMessage::WebBookmarkEditStart(index)),
         Event::OpenKnowledge => Message::View(ViewMessage::OpenKnowledge),
         Event::OpenWorkflowTool => Message::View(ViewMessage::OpenWorkflowTool),
+        Event::OpenThirdPartyAgents => Message::View(ViewMessage::OpenThirdPartyAgents),
         Event::OpenWorkflowManager => Message::View(ViewMessage::OpenWorkflowManager),
         Event::AppsSearchChanged(query) => Message::View(ViewMessage::AppsSearchChanged(query)),
     }

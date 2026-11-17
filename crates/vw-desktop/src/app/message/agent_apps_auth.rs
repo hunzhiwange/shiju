@@ -7,7 +7,7 @@ pub(in crate::app) mod binding;
 pub(in crate::app) mod browser;
 pub(in crate::app) mod flow;
 
-use crate::app::{App, Message, components::system_settings::SystemTab, message::SettingsMessage};
+use crate::app::{App, Message, message::SettingsMessage};
 use browser::LinkAction;
 use iced::Task;
 
@@ -33,8 +33,9 @@ pub(in crate::app) fn update_at(
         controller,
     };
     let origin = Origin {
-        visible_apps: app.navigation_panels.show_system_settings && app.navigation_panels.system_settings_tab == SystemTab::Apps,
-        visible_auth: app.navigation_panels.show_system_settings && app.navigation_panels.system_settings_tab == SystemTab::Auth,
+        visible_apps: crate::app::components::third_party_settings::is_visible(app),
+        visible_auth: crate::app::components::third_party_settings::is_visible(app)
+            && app.apps_catalog.third_party_page == desktop_ui_controls::settings_navigation::ThirdPartyPage::Authorization,
         provider_generation: app.app_providers.generation,
         provider_scope: app.app_providers.scope.as_ref(),
         form: app.app_providers.form.as_ref(),
@@ -57,7 +58,7 @@ pub(in crate::app) fn update_at(
     )
     .map(message);
     if effects.opened {
-        app.navigation_panels.system_settings_tab = SystemTab::Auth;
+        app.apps_catalog.third_party_page = desktop_ui_controls::settings_navigation::ThirdPartyPage::Authorization;
         app.navigation_panels.system_settings_help_tab = None;
     }
     if effects.saved {

@@ -225,12 +225,6 @@ pub const GROUPS: &[(&str, &[SystemTab])] = {
             ],
         ),
         ("模型与智能体", &[Models, Providers, Agents, Memory]),
-        (
-            "第三方智能体",
-            &[
-                Apps,
-            ],
-        ),
         ("网络与集成", &[GatewayClient, Gateway, WebSearch]),
         ("运行与安全", &[Cron, Security, Autonomy, Hooks, Observability]),
     ]

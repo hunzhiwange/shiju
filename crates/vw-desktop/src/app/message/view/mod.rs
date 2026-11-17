@@ -453,6 +453,7 @@ pub enum ViewMessage {
     OpenWorkflowTool,
     /// 打开任务工作流管理面板
     OpenWorkflowManager,
+    OpenThirdPartyAgents,
     /// 打开任务工作流管理面板并切换到阶段能力
     /// 打开最近使用的应用
     AppsOpenMostRecent,
@@ -1060,6 +1061,7 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
         | ViewMessage::OpenApps
         | ViewMessage::OpenKnowledge
         | ViewMessage::OpenWorkflowTool
+        | ViewMessage::OpenThirdPartyAgents
         | ViewMessage::OpenWorkflowManager
         | ViewMessage::AppsOpenMostRecent
         | ViewMessage::AppsSearchChanged(_)

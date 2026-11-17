@@ -9,6 +9,7 @@ pub fn matches_navigation(i18n: I18n, source: &str, query: &str) -> bool {
         "知识库" => "knowledge",
         "工作流" => "workflow",
         "任务编排" => "workflow_manager",
+        "第三方智能体" => "third_party_agents",
         _ => source,
     };
     query.is_empty()

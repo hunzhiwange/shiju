@@ -59,6 +59,7 @@ pub enum Screen {
     Knowledge,
     WorkflowTool,
     WorkflowManager,
+    ThirdPartyAgents,
     TaskBoard,
     #[cfg(not(target_arch = "wasm32"))]
     ShijuApps,

@@ -6,6 +6,7 @@ pub enum Message {
     OpenKnowledge,
     OpenWorkflowTool,
     OpenWorkflowManager,
+    OpenThirdPartyAgents,
     AppsOpenMostRecent,
     AppsSearchChanged(String),
 }
@@ -14,6 +15,7 @@ pub enum Effect {
     OpenKnowledge,
     OpenWorkflowTool,
     OpenWorkflowManager,
+    OpenThirdPartyAgents,
     OpenRecent(String),
 }
 pub struct Context<'a> {
@@ -101,6 +103,17 @@ pub fn update(
             (*app.screen) = Screen::WorkflowTool;
             Some(Effect::OpenWorkflowTool)
         }
+        Message::OpenThirdPartyAgents => {
+            let id = "third_party_agents".to_string();
+            app.open_tabs.retain(|tab| tab.id != "apps");
+            if !app.open_tabs.iter().any(|tab| tab.id == id) {
+                app.open_tabs.push(AppTab { id: id.clone(), title: "第三方智能体".into(),
+                    screen: Screen::ThirdPartyAgents, project_path: None });
+            }
+            *app.active_tab_id = Some(id);
+            *app.screen = Screen::ThirdPartyAgents;
+            Some(Effect::OpenThirdPartyAgents)
+        }
         Message::OpenWorkflowManager => {
             let id = "workflow_manager".to_string();
             if let Some(pos) = (*app.open_tabs).iter().position(|t| t.id == "apps") {
@@ -136,3 +149,7 @@ pub fn update(
         }
     }
 }
+
+#[cfg(test)]
+#[path = "apps_tests.rs"]
+mod tests;

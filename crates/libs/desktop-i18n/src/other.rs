@@ -10,6 +10,7 @@ pub fn tab_label(i18n: I18n, id: &str, raw: &str) -> String {
         "usage" => "用量",
         "knowledge" => "知识库",
         "workflow_manager" => "任务编排",
+        "third_party_agents" => "第三方智能体",
         "workflow_tool" => "工作流",
         _ => return raw.to_owned(),
     };

@@ -44,6 +44,8 @@ fn isolated(test: &str) -> bool {
 fn fixture() -> App {
     assert_eq!(crate::app::config::gateway_client_endpoint().normalized_host(), "[");
     let mut app = App::new().0;
+    app.navigation_tabs.screen = crate::app::Screen::ThirdPartyAgents;
+    app.navigation_panels.show_system_settings = false;
     app.apps_catalog.host = "隔离主机".into();
     app.apps_catalog.loading = false;
     app.apps_catalog.rows = [AppId::Codex, AppId::OpenClaw, AppId::Hermes].into_iter()
@@ -117,7 +119,7 @@ async fn third_party_task_08_pages_rasterize_in_both_themes() {
                     app.apps_catalog.expanded = selected;
                     app.apps_catalog.error = Some("隔离场景：读取失败，请重试".into());
                     let mut ui = UserInterface::build(
-                        overlays(&app, view(&app)),
+                        standalone(&app),
                         Size::new(size.width as f32, size.height as f32),
                         Cache::new(), &mut renderer,
                     );
@@ -179,4 +181,17 @@ fn third_party_task_08_previous_host_observation_is_ignored() {
     assert!(state.loading);
     assert_eq!(state.host, "隔离主机");
     assert_eq!(state.rows.len(), 3);
+}
+
+#[test]
+fn third_party_agents_settings_search_opens_independent_page() {
+    if !isolated("third_party_agents_settings_search_opens_independent_page") { return; }
+    let mut app = fixture();
+    app.navigation_panels.show_system_settings = true;
+    let _ = crate::app::message::settings::update(&mut app,
+        SettingsMessage::SystemSearchTargetSelected(SystemSettingsSearchTarget::ThirdParty(ThirdPartyPage::Skills)));
+    assert_eq!(app.navigation_tabs.screen, crate::app::Screen::ThirdPartyAgents);
+    assert!(!app.navigation_panels.show_system_settings);
+    assert_eq!(app.apps_catalog.third_party_page, ThirdPartyPage::Skills);
+    assert_eq!(app.navigation_tabs.active_tab_id.as_deref(), Some("third_party_agents"));
 }

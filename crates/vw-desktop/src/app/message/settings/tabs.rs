@@ -36,13 +36,16 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
             app.navigation_panels.system_settings_help_tab = None;
             Task::none()
         }
+        SettingsMessage::SystemTabSelected(SystemTab::Apps) => {
+            crate::app::message::view::update(app, crate::app::message::ViewMessage::OpenThirdPartyAgents)
+        }
         SettingsMessage::SystemTabSelected(tab) => {
             crate::app::components::third_party_settings::invalidate(app);
             #[cfg(not(target_arch = "wasm32"))]
             if tab == SystemTab::Auth {
-                app.navigation_panels.system_settings_tab = SystemTab::Apps;
-                return crate::app::components::third_party_settings::navigate(app,
-                    desktop_ui_controls::settings_navigation::ThirdPartyPage::Authorization);
+                let open = crate::app::message::view::update(app, crate::app::message::ViewMessage::OpenThirdPartyAgents);
+                return Task::batch([open, crate::app::components::third_party_settings::navigate(app,
+                    desktop_ui_controls::settings_navigation::ThirdPartyPage::Authorization)]);
             }
             app.apps_catalog.external_sessions.cancel_reader();
             app.apps_catalog.daily_memory.invalidate();

@@ -2,7 +2,7 @@ use super::catalog;
 use crate::app::{Message, state::AppsCatalogState};
 use desktop_ui_controls::system_settings_common::*;
 use iced::widget::{button, column, text};
-pub(super) fn view<'a>(state: &'a AppsCatalogState, app: &'a catalog::CatalogRow) -> iced::Element<'a, Message> {
+pub(crate) fn view<'a>(state: &'a AppsCatalogState, app: &'a catalog::CatalogRow) -> iced::Element<'a, Message> {
     let mut cross = column![].spacing(10);
     if let Some(scope) = vw_api_project_profiles::ProjectProfileScope::for_app(app.entry.id) {
         cross = cross.push(crate::app::components::project_profile_selection::view(&state.project_profiles, scope));

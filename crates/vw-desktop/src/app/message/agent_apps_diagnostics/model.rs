@@ -14,7 +14,7 @@ pub(crate) fn can_show(app: &App) -> bool {
         actual: app.app_providers.scope.as_ref().and_then(|s| list::current(app, s.app).ok().map(|(_, scope)| scope)),
         catalog: app.app_providers.snapshot.as_ref().map(|s| &s.catalog),
         client: crate::app::config::gateway_client(),
-        show_apps: app.navigation_panels.show_system_settings && app.navigation_panels.system_settings_tab == crate::app::components::system_settings::SystemTab::Apps,
+        show_apps: crate::app::components::third_party_settings::is_visible(app),
     };
     domain::can_show(&app.apps_catalog.model_diagnostics, &access)
 }
@@ -25,7 +25,7 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
         actual: app.app_providers.scope.as_ref().and_then(|s| list::current(app, s.app).ok().map(|(_, scope)| scope)),
         catalog: app.app_providers.snapshot.as_ref().map(|s| &s.catalog),
         client: crate::app::config::gateway_client(),
-        show_apps: app.navigation_panels.show_system_settings && app.navigation_panels.system_settings_tab == crate::app::components::system_settings::SystemTab::Apps,
+        show_apps: crate::app::components::third_party_settings::is_visible(app),
     };
     let mut notice = None;
     let task = domain::update(&mut app.apps_catalog.model_diagnostics, &access, &mut notice, event).map(message);

@@ -8,7 +8,7 @@ use super::safety_snapshot::{
 };
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
-use std::{io::Read, path::Path};
+use std::{io::Read, os::unix::fs::PermissionsExt, path::Path};
 
 /// Safe metadata only; never use the receipt as authorization to read a backup.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -142,6 +142,7 @@ pub fn create_local_backup(
     // snapshot format/reader. The private staging tree is never a visible backup.
     let staging = tempfile::Builder::new()
         .prefix(".backup-capture-")
+        .permissions(std::fs::Permissions::from_mode(0o700))
         .tempdir_in(root)
         .map_err(|_| Error::StorageUnavailable)?;
     let receipt = safety_snapshot::create_safety_snapshot(staging.path(), scope, targets, capture)?;

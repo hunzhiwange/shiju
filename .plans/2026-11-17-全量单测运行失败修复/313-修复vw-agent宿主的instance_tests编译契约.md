@@ -4,7 +4,7 @@
 
 批次：【批次1】 依赖：无
 
-状态：未开始
+状态：待回归
 
 来源：继续执行宿主单测；诊断编号12, 13, 14, 15, 16, 17, 18（宿主编译错误证据.json）。
 预计会话范围：修复一个源码文件中的宿主接口或测试夹具编译契约；不接管整包。
@@ -225,3 +225,12 @@ python3 scripts/cargo_slot.py cargo test -p vw-agent --lib vcs_get_returns_empty
 编译取证命令（不是测试通过证据）：`python3 scripts/cargo_slot.py cargo test -p vw-agent --lib --no-run`。同阶段顺序命令合并一次入口复用缓存，不默认逐任务全量测试。
 
 最终需由原任务303执行两阶段全量验收；这组修复仅覆盖已发现编译阻塞，尚不能保证宿主全部运行失败已发现。
+
+## 本次执行记录（2026-11-18）
+
+- 根因：宿主父模块不再导入 `axum::Json`，共享测试依赖 `use super::*` 的隐式传递导入失效。在测试文件显式导入 `axum::Json`，不修改生产接口及断言。
+- 已核对七个候选均为 `#[tokio::test]` 入口。为合并同阶段验证，修复后采用模块过滤 `gateway::api::handlers::instance::instance_tests::`，覆盖七个目标及该模块其余真实测试。
+- 修复前：`python3 scripts/cargo_slot.py cargo test -p vw-agent --lib path_get_reports_global_and_instance_paths -- --nocapture`，退出101，61条编译错误，包含本任务七处 E0531；有效测试数0。日志 `/tmp/shiju-313-red.log`。
+- 修复后：`python3 scripts/cargo_slot.py cargo test -p vw-agent --lib gateway::api::handlers::instance::instance_tests:: -- --nocapture`，退出101，有效测试数0；日志 `/tmp/shiju-313-after.log`。七处 Json 诊断均已消除；宿主其它文件仍存在编译阻塞，未取得行为通过证据。保留任务文件，待兄弟编译修复后重跑上述模块过滤，要求实际测试数>0、failed=0、退出0。
+- 两次均使用槽位1，`CARGO_TARGET_DIR` / `CARGO_BUILD_BUILD_DIR` 均为 `/Users/xiangmin/worker/code/shiju/target/rust-slot-1`。未运行桌面构建或全量测试，`git diff --check` 通过。
+- 两次入口均已退出并释放自有槽位锁，缓存保留。

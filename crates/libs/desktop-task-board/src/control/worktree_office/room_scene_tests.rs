@@ -113,7 +113,7 @@ fn busy_room_builds_for_missing_running_and_finished_tasks() {
     let busy = slot("busy", WorktreeState::Busy);
 
     let missing_app = test_app(1_440.0);
-    keep_element(build_worktree_room_scene(&missing_app, &busy));
+    keep_element(build_worktree_room_scene(&missing_app.view(), &busy));
 
     let mut running_app = test_app(1_440.0);
     let mut running = task("task-busy", TaskStatus::Running);

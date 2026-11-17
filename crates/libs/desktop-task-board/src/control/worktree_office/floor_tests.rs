@@ -236,21 +236,21 @@ fn pixel_floor_builds_narrow_and_wide_maintenance_layouts() {
 
     let narrow_app = test_app(1200.0);
     keep_element(build_worktree_pixel_floor(
-        &narrow_app,
+        &narrow_app.view(),
         &pool,
         vec![&idle, &busy],
         vec![&tainted],
     ));
-    keep_element(build_worktree_pixel_floor(&narrow_app, &pool, vec![&idle], Vec::new()));
+    keep_element(build_worktree_pixel_floor(&narrow_app.view(), &pool, vec![&idle], Vec::new()));
 
     let wide_app = test_app(1500.0);
     keep_element(build_worktree_pixel_floor(
-        &wide_app,
+        &wide_app.view(),
         &pool,
         vec![&idle, &busy],
         vec![&tainted, &recycling],
     ));
-    keep_element(build_worktree_pixel_floor(&wide_app, &pool, vec![&idle, &busy], Vec::new()));
+    keep_element(build_worktree_pixel_floor(&wide_app.view(), &pool, vec![&idle, &busy], Vec::new()));
 }
 
 #[tokio::test(flavor = "multi_thread")]

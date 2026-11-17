@@ -151,3 +151,8 @@ python3 scripts/cargo_slot.py cargo test -p vw-agent --lib session_tool_wait_ret
 编译取证命令（不是测试通过证据）：`python3 scripts/cargo_slot.py cargo test -p vw-agent --lib --no-run`。同阶段顺序命令合并一次入口复用缓存，不默认逐任务全量测试。
 
 最终需由原任务303执行两阶段全量验收；这组修复仅覆盖已发现编译阻塞，尚不能保证宿主全部运行失败已发现。
+
+## 执行记录
+
+- 共享接口写入归属：本任务需在 `crates/libs/tool-agents/src/session_tool/mod.rs` 将后台启动入口按相邻 `validated_target` 模式标记 doc(hidden) public，供宿主注册的现有测试保留启动失败断言；当前该文件无未提交改动。协调器测试便捷方法仅在依赖自身 cfg(test) 下存在，夹具改用真实公开 finish_turn 接口。
+- 当前已有其他 Cargo/rustc 编译运行，等待重型编译退出后串行验证。

@@ -174,7 +174,8 @@ impl<H: SessionHost> SessionTool<H> {
         })
     }
 
-    fn spawn_background_turn(
+    #[doc(hidden)]
+    pub fn spawn_background_turn(
         &self,
         parent_session_id: String,
         task: session::Info,

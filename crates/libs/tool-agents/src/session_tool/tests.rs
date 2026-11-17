@@ -336,7 +336,7 @@ async fn session_tool_send_continues_existing_visible_task() {
     let coordinator = TaskSessionCoordinator::new();
     coordinator.register(&parent.info.id, &task.info.id, None).expect("register");
     coordinator.mark_running(&parent.info.id, &task.info.id).expect("start");
-    coordinator.mark_succeeded(&parent.info.id, &task.info.id).expect("finish");
+    coordinator.finish_turn(&parent.info.id, &task.info.id, None, |_| Ok(())).expect("finish");
     let (request_tx, request_rx) = oneshot::channel();
     let request_tx = std::sync::Mutex::new(Some(request_tx));
     let executor = Arc::new(
@@ -431,7 +431,7 @@ async fn session_tool_lists_statuses_reads_and_rejects_non_task_targets() {
     let coordinator = TaskSessionCoordinator::new();
     coordinator.register(&parent.info.id, &task.info.id, None).expect("register");
     coordinator.mark_running(&parent.info.id, &task.info.id).expect("start");
-    coordinator.mark_succeeded(&parent.info.id, &task.info.id).expect("finish");
+    coordinator.finish_turn(&parent.info.id, &task.info.id, None, |_| Ok(())).expect("finish");
     let tool = SessionTool::new(Some(parent.info.id.clone()), project.path().to_path_buf())
         .with_coordinator(coordinator);
 
@@ -537,7 +537,7 @@ async fn session_tool_wait_returns_first_changed_target() {
     let parent_id = parent.info.id.clone();
     let transition = tokio::spawn(async move {
         tokio::task::yield_now().await;
-        coordinator.mark_succeeded(&parent_id, &first_id).expect("finish first");
+        coordinator.finish_turn(&parent_id, &first_id, None, |_| Ok(())).expect("finish first");
     });
     let result = tool.execute(json!({"action":"wait","session_ids":[first.info.id, second.info.id],"condition":"any","timeout_ms":1000})).await.expect("wait");
     transition.await.expect("transition");

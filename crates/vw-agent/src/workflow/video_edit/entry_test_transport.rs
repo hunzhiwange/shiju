@@ -1,5 +1,6 @@
 //! Session-scoped external transport registration; receipts belong to the domain.
 use super::entry::VideoEntryCloud;
+use super::prepare::NativeVideoContext;
 use crate::tools::ToolRuntimeContext;
 use model_types::Provider;
 use std::{collections::{BTreeMap, HashSet}, sync::{Arc, LazyLock, Mutex}};
@@ -32,6 +33,6 @@ pub(super) fn get(
         return Some(factory(context));
     }
     SESSIONS.lock().unwrap().contains(session).then(|| {
-        workflow_video_edit::test_support::receipts::external(Arc::new(context.clone()))
+        workflow_video_edit::test_support::receipts::external(Arc::new(NativeVideoContext(context.clone())))
     })
 }

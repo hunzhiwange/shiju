@@ -1026,3 +1026,17 @@ Rust重型命令经scripts/cargo_slot.py槽位入口串行执行，对应CARGO_T
 - Rue.js普通文件快照从6297项到6303项，最终差异仅上述6个目标文件。Harn期间新建的`.burin/index/snapshot.bin`与`.harn-tmp/.gitignore`已保留到私有证据并移除新建空目录，不宣称执行期间没有运行缓存。自有网关全部退出0、端口关闭，无残留Harn进程；未删除他人改动或提交Rue.js工作区。
 - 聚焦验证：7项Rust测试（注册1、配置2、模型驱动2、确认选模2）和6项Python/原生测试（自然语言1、宿主读写/拒绝/40轮预算3、安装档案2）通过，均有有效测试数及红绿证据。acp-client定向Clippy通过。受影响库Clippy仍有既有失败：首次依赖agent-log的3项lint；--no-deps后llm-runtime已有101项lint，未涉及新增Harn文件；未修复无关问题，也未宣称Clippy全通过。未运行全仓测试、桌面客户端编译、wasm或页面检查。
 - 私有证据 `/tmp/shiju-harn-complete-20261118/`、`/tmp/shiju-harn-retry-20261118/`（根目录0700）保存各轮请求/响应、SSE及续传、构建与版本、安装失败复现、模型绑定、产物SHA-256、前后快照、恢复与清理记录。原始配置、凭据、敏感载荷和供应商二进制均不提交。详见新增 `docs/dev/evidence/acp-onboarding-harn.md`。
+
+
+## Junie 验收（2026-11-18）
+
+结论：已阻塞，未通过。前序 Harn 已完成验收及环境恢复；来源任务14与脱敏证据 `docs/dev/evidence/acp-onboarding-junie.md` 均不存在，不以任务缺失推定接入通过。
+
+- 当前实现已迁移至 `acp-agent-registry`、`config-acp-install`、`agent-config` 和 `llm-runtime`。Junie 注册入口为 `junie --acp=true`，安装白名单显式返回 None；模型来源无 Junie verified_release 或驱动。现有 onboarding 协议 fixture 不等于真实供应商验收。
+- 复用前序正式 shiju 0.6.0 产物 `/tmp/shiju-harn-complete-20261118/shiju`，SHA-256 `245d9857ee0005fba1936d1a8bea31719406ef6c550bfe0cc53cb46115ce130e`，构建来源沿用 Harn 章节（共享工作区加 Harn 实现），不宣称当前 clean HEAD 构建。保存当前相关源码摘要，源码和实测拒绝一致，不单凭旧二进制认定失败。
+- 自有回环网关127.0.0.1:51629，使用现有开发配置；全部请求携带平台10001、公司100010005及Rue.js目录头。安装、agents、ACP及完整配置基线GET均200；Junie安装前后均false。系统安装POST HTTP400、客户端退出0、0.002037秒，明确“该 ACP 暂无一键安装命令，请使用官方安装器”。无真实入口和版本可核验，未使用任意脚本替代系统安装。
+- 传入对应ACP配置的普通诊断HTTP200、客户端退出0、0.018792秒，结果startup_failed。模型能力GET HTTP200，session_model明确unsupported/unsupported_cli，cli_local支持、connected=false；未切换到默认模型。
+- GET确认acp-junie、builtin=true、runtime.kind=acp、backend=junie、enabled=false。安装与指定模型前置阻塞，未PATCH启用或提交chat/stream；无SSE终态、会话summary/options、full_access或selected_model绑定证据，未创建编辑器产物。
+- Rue.js `packages/rue/src` 存在，目标acpdemo/junie前后不存在。普通文件SHA-256快照排除.git、node_modules、target，前后6303项零差异；完整配置结束GET与基线一致，无临时配置待恢复。自有网关退出0、端口已关闭，未重启用户服务、未使用Cargo槽位。
+- 未运行Cargo、定向单测、Clippy、桌面编译、浏览器或页面构建：本次无代码修复，复用已有产物，明确能力阻塞后仅完成独立API检查与文档轻量检查，不宣称真实会话或单测通过。旧 `.plans/references/rust.md` 不存在，本次无需编译。
+- 本机0700私有证据 `/tmp/shiju-junie-accept-20261118/` 保存原始请求/响应、HTTP/耗时/退出指标、配置基线与重读、源码/二进制摘要、快照及网关清理记录，不提交原始敏感载荷或供应商二进制。保留任务35已阻塞；需补齐经审查的系统安装、真实session_model驱动与脱敏接入证据后完整重跑。

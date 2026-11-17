@@ -227,12 +227,12 @@ fn runtime_defaults_ignore_incomplete_main_agent_model_binding() {
 fn runtime_defaults_use_builtin_provider_and_model_when_unset() {
     let config = Config::default();
 
-    assert_eq!(resolved_default_provider(&config), "openrouter");
-    assert_eq!(resolved_default_model(&config), "zhipuai-coding-plan/glm-5");
+    assert_eq!(resolved_default_provider(&config), "shiju");
+    assert_eq!(resolved_default_model(&config), "shiju/deepseek-v4.1-flash");
 
     let defaults = runtime_defaults_from_config(&config);
-    assert_eq!(defaults.default_provider, "openrouter");
-    assert_eq!(defaults.model, "zhipuai-coding-plan/glm-5");
+    assert_eq!(defaults.default_provider, "shiju");
+    assert_eq!(defaults.model, "shiju/deepseek-v4.1-flash");
     assert_eq!(defaults.temperature, config.default_temperature);
 }
 
@@ -511,7 +511,12 @@ async fn maybe_apply_runtime_config_update_returns_load_errors_for_changed_files
 async fn maybe_apply_runtime_config_update_applies_changed_config_to_runtime_state() {
     let _env = ConfigEnvGuard::new();
     let dir = tempfile::tempdir().unwrap();
-    let ctx = context(Some(dir.path().to_path_buf()), vec!["old_tool".to_string()]);
+    let mut ctx = context(Some(dir.path().to_path_buf()), vec!["old_tool".to_string()]);
+    // 显式使用监督模式，确保热重载后的工具审批策略可被观察。
+    ctx.approval_manager = Arc::new(ApprovalManager::from_config(&AutonomyConfig {
+        level: agent_config::schema::AutonomyLevel::Supervised,
+        ..AutonomyConfig::default()
+    }));
     let config_path = runtime_config_path(&ctx).unwrap();
     runtime_config_store().lock().unwrap_or_else(|e| e.into_inner()).remove(&config_path);
     ctx.provider_cache

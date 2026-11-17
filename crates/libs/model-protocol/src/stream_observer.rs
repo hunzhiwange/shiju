@@ -438,10 +438,30 @@ pub fn validated_body(
             }
             let next = tokio::select! { biased; () = cancel.cancelled() => return None, next = stream.next() => next };
             let (chunk, done) = match next {
-                Some(Ok(bytes)) => match observer.push(&bytes) {
-                    Ok(update) => (Ok(bytes), update.completed),
-                    Err(_) => (Err(std::io::Error::other("Invalid upstream stream")), true),
-                },
+                Some(Ok(bytes)) => {
+                    // Stop at the protocol terminal delimiter even when a transport
+                    // read also contains bytes belonging to a later event.
+                    let mut end = 0;
+                    let mut result = Ok(false);
+                    for line in bytes.split_inclusive(|byte| *byte == b'\n') {
+                        end += line.len();
+                        match observer.push(line) {
+                            Ok(update) if update.completed => {
+                                result = Ok(true);
+                                break;
+                            }
+                            Ok(_) => {}
+                            Err(error) => {
+                                result = Err(error);
+                                break;
+                            }
+                        }
+                    }
+                    match result {
+                        Ok(done) => (Ok(bytes.slice(..end)), done),
+                        Err(_) => (Err(std::io::Error::other("Invalid upstream stream")), true),
+                    }
+                }
                 Some(Err(_)) => (Err(std::io::Error::other("Upstream stream failed")), true),
                 None if observer.finish().is_ok() => return None,
                 None => {

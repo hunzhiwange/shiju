@@ -87,6 +87,7 @@ pub enum ViewMessage {
     MobileBack,
     MobileChat,
     MobileSettings,
+    MobileMine,
     MobileSettingsTab(crate::app::components::system_settings::SystemTab),
     MobileProjectSelected(String),
     MobileSessionSelected(String, String),

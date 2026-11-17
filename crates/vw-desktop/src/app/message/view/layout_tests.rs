@@ -341,3 +341,28 @@ fn shutdown_waits_for_pending_layout_preferences() {
         assert!(requests.try_recv().is_err());
     });
 }
+
+
+#[cfg(not(target_arch = "wasm32"))]
+#[test]
+fn mobile_layout_window_restores_original_dimensions_for_desktop_and_auto() {
+    use crate::app::state::LayoutPreference;
+    for restore in [LayoutPreference::Desktop, LayoutPreference::Auto] {
+        let mut app = crate::app::App::new().0;
+        app.window_size = (1280.0, 820.0);
+        assert_eq!(super::layout_window_size(&mut app, LayoutPreference::Mobile), Some((430.0, 820.0)));
+        app.window_size = (430.0, 820.0);
+        // 重复选择手机不得覆盖原始尺寸。
+        assert_eq!(super::layout_window_size(&mut app, LayoutPreference::Mobile), Some((430.0, 820.0)));
+        assert_eq!(super::layout_window_size(&mut app, restore), Some((1280.0, 820.0)));
+        assert_eq!(super::layout_window_size(&mut app, restore), None);
+    }
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+#[test]
+fn mobile_layout_window_does_not_enlarge_already_narrow_window() {
+    let mut app = crate::app::App::new().0;
+    app.window_size = (360.0, 740.0);
+    assert_eq!(super::layout_window_size(&mut app, crate::app::state::LayoutPreference::Mobile), Some((360.0, 740.0)));
+}

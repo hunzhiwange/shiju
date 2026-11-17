@@ -203,6 +203,7 @@ fn mobile_message(message: &ViewMessage) -> Option<desktop_navigation::mobile_la
  ViewMessage::MobileBack => Local::Back,
  ViewMessage::MobileChat => Local::Chat,
  ViewMessage::MobileSettings => Local::Settings,
+ ViewMessage::MobileMine => Local::Mine,
  ViewMessage::MobileSettingsTab(tab) => Local::SettingsTab(*tab),
  ViewMessage::MobileProjectSelected(path) => Local::ProjectSelected(path.clone()),
  ViewMessage::MobileSessionSelected(path, id) => Local::SessionSelected(path.clone(), id.clone()),
@@ -212,16 +213,48 @@ fn mobile_message(message: &ViewMessage) -> Option<desktop_navigation::mobile_la
 }
 fn update_mobile(app: &mut App, message: desktop_navigation::mobile_layout::Message) -> Task<Message> {
  use desktop_navigation::mobile_layout as domain;
+ #[cfg(not(target_arch = "wasm32"))]
+ if let domain::Message::Selected(preference) = &message {
+     if let Some(window) = app.main_window_id {
+         if let Some((width, height)) = layout_window_size(app, *preference) {
+             app.mobile_layout.select(*preference);
+             return iced::window::resize(window, iced::Size::new(width, height));
+         }
+     }
+ }
+
  let blocked = app.session_state.question_modal_request.is_some() || app.session_state.permission_modal_request.is_some() || app.workspace_state.new_session_picker_project.is_some();
  let effect = domain::update(domain::Context { mobile: &mut app.mobile_layout, panels: &mut app.navigation_panels, tabs: &mut app.navigation_tabs, notifications_expanded: &mut app.notification_state.notifications_expanded }, blocked, message);
  match effect {
+ None if app.mobile_layout.drawer_open && app.navigation_tabs.project_path.is_none() => {
+     if let Some(path) = app.workspace_state.recent_projects.first().cloned() {
+         update_mobile(app, domain::Message::ProjectSelected(path))
+     } else {
+         Task::none()
+     }
+ },
  None => Task::none(),
  Some(domain::Effect::OpenSettingsTab(tab)) => super::update(app, ViewMessage::OpenSystemSettingsTab(tab)),
  Some(domain::Effect::OpenProject(path)) => Task::batch([
- Task::done(Message::Project(crate::app::message::ProjectMessage::OpenRecentPressed(path.clone()))),
+ crate::app::message::project::update(app, crate::app::message::ProjectMessage::OpenRecentPressed(path.clone())),
  Task::done(Message::Project(crate::app::message::ProjectMessage::ProjectLoadSessions(path))),
  ]),
  Some(domain::Effect::OpenSession(path, id)) => Task::done(Message::Project(crate::app::message::ProjectMessage::OpenProjectSessionPressed(path, id))),
- Some(domain::Effect::CreateSession(path)) => Task::done(Message::Project(crate::app::message::ProjectMessage::ProjectCreateSession(path))),
+ Some(domain::Effect::CreateSession(path)) => crate::app::message::project::update(app, crate::app::message::ProjectMessage::ProjectCreateSession(path)),
  }
+}
+
+/// 仅由原生主窗口的显式布局切换调用，浏览器保持宿主视口尺寸。
+#[cfg(not(target_arch = "wasm32"))]
+fn layout_window_size(app: &mut App, preference: crate::app::state::LayoutPreference) -> Option<(f32, f32)> {
+    use crate::app::state::LayoutPreference;
+    match preference {
+        LayoutPreference::Mobile => {
+            if app.desktop_layout_window_size.is_none() {
+                app.desktop_layout_window_size = Some(app.window_size);
+            }
+            Some((app.window_size.0.min(430.0), app.window_size.1))
+        }
+        LayoutPreference::Desktop | LayoutPreference::Auto => app.desktop_layout_window_size.take(),
+    }
 }

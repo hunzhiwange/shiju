@@ -22,6 +22,7 @@ pub struct MobileLayoutState {
     preference: LayoutPreference,
     logical_width: Option<f32>,
     pub drawer_open: bool,
+    pub mine_open: bool,
     pub settings_detail: bool,
 }
 
@@ -31,6 +32,7 @@ impl Default for MobileLayoutState {
             preference: LayoutPreference::Auto,
             logical_width: None,
             drawer_open: false,
+            mine_open: false,
             settings_detail: false,
         }
     }
@@ -78,6 +80,7 @@ pub enum Message {
     Back,
     Chat,
     Settings,
+    Mine,
     SettingsTab(SystemTab),
     ProjectSelected(String),
     SessionSelected(String, String),
@@ -98,13 +101,18 @@ pub struct Context<'a> {
 pub fn update(app: Context<'_>, blocked: bool, message: Message) -> Option<Effect> {
     match message {
         Message::Selected(preference) => app.mobile.select(preference),
-        Message::DrawerToggled => app.mobile.drawer_open = !app.mobile.drawer_open,
+        Message::DrawerToggled => {
+            app.mobile.mine_open = false;
+            app.mobile.drawer_open = !app.mobile.drawer_open;
+        },
         Message::Back => {
             if blocked {
                 return None;
             }
             if *app.notifications_expanded {
                 *app.notifications_expanded = false;
+            } else if app.mobile.mine_open {
+                app.mobile.mine_open = false;
             } else if app.mobile.drawer_open {
                 app.mobile.drawer_open = false;
             } else if app.panels.show_system_settings && app.mobile.settings_detail {
@@ -115,12 +123,19 @@ pub fn update(app: Context<'_>, blocked: bool, message: Message) -> Option<Effec
                 app.mobile.drawer_open = true;
             }
         }
+        Message::Mine => {
+            app.mobile.mine_open = true;
+            app.mobile.drawer_open = false;
+            app.panels.show_system_settings = false;
+        }
         Message::Chat => {
+            app.mobile.mine_open = false;
             app.panels.show_system_settings = false;
             app.mobile.drawer_open = false;
             app.tabs.show_project();
         }
         Message::Settings => {
+            app.mobile.mine_open = false;
             app.panels.show_system_settings = true;
             app.mobile.settings_detail = false;
             app.mobile.drawer_open = false;

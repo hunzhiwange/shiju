@@ -1,7 +1,7 @@
 //! 账号领域视图映射到桌面全局消息。
 use crate::app::{App, Message};
 use iced::Element;
-fn map(message: desktop_account_ui::view::Message) -> Message {
+pub(crate) fn map(message: desktop_account_ui::view::Message) -> Message {
     match message {
         desktop_account_ui::view::Message::Account(message) => Message::Account(message),
         desktop_account_ui::view::Message::OpenInstallGuide => {

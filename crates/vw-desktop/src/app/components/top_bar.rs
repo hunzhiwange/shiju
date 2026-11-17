@@ -23,7 +23,13 @@ pub fn view(app: &App) -> Element<'_, Message> {
     let view_menu = menus::view_menu(app);
     let help_menu = menus::help_menu(app);
     let settings = controls::settings_button(crate::app::i18n::I18n::new(app.general_settings.desktop_locale));
-    let open_external_module = external::open_external_module(app);
+    let open_external_module = iced::widget::row![
+        crate::app::views::mobile::layout_switch(app),
+        external::open_external_module(app),
+    ]
+    .spacing(4)
+    .align_y(iced::Alignment::Center)
+    .into();
     let gateway_services = gateway::gateway_services_module(app);
     let project_view_tools = controls::project_view_tools(app);
     let traffic_light_spacer = drag::traffic_light_spacer();

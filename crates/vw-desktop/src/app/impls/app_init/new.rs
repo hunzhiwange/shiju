@@ -156,6 +156,7 @@ impl App {
             // ========== 窗口和布局 ==========
             window_size: (1200.0, 800.0),
             mobile_layout: crate::app::state::MobileLayoutState::new(1200.0, 800.0),
+            desktop_layout_window_size: None,
             fullscreen_layout_settling: false,
             startup_resize_checked: false,
 

@@ -98,11 +98,7 @@ impl App {
     /// ```
     pub fn view(&self) -> Element<'_, Message> {
         // 构建顶部栏组件
-        let top: Element<'_, Message> = iced::widget::column![
-            components::top_bar::view(self),
-            views::mobile::layout_selector(self)
-        ]
-        .into();
+        let top = components::top_bar::view(self);
         // 构建标签栏组件
         let tab_bar = components::tab_bar::view(self);
 
@@ -139,7 +135,7 @@ impl App {
         let main_view: Element<'_, Message> = if self.mobile_layout.mode()
             == crate::app::state::LayoutMode::Mobile
         {
-            views::mobile::view(self)
+            views::mobile::narrow_view(self)
         } else if self.navigation_panels.show_system_settings {
             iced::widget::column![top, components::system_settings::view(self)]
                 .width(iced::Length::Fill)

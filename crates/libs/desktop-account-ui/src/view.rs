@@ -145,6 +145,11 @@ fn delete_account_button_style(
 }
 
 pub fn menu(account: &AccountState, locale: DesktopLocale) -> Element<'_, Message> {
+    container(inline_menu(account, locale)).width(Length::Fixed(320.0)).into()
+}
+
+/// 移动账号页使用可收缩的同一套登录与账号操作。
+pub fn inline_menu(account: &AccountState, locale: DesktopLocale) -> Element<'_, Message> {
     let i18n = desktop_i18n::I18n::new(locale);
     let busy = account.operation.is_busy();
     let can_submit_manual = !busy && !account.manual_input.expose().trim().is_empty();
@@ -272,7 +277,7 @@ pub fn menu(account: &AccountState, locale: DesktopLocale) -> Element<'_, Messag
         content = content.push(sign_out);
     }
 
-    container(content).width(Length::Fixed(320.0)).padding(12).style(menu_style).into()
+    container(content).width(Length::Fill).padding(12).style(menu_style).into()
 }
 
 /// 构建账号入口；菜单关闭时只返回触发按钮，打开时附加上层弹窗。

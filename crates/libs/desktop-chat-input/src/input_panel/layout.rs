@@ -196,11 +196,11 @@ pub fn controls<'a, Message: Clone + 'a>(
                 .padding(7)
                 .width(Length::Fixed(334.0))
                 .style(|theme| super::surface_styles::input_card_style(theme, false, None));
-        let toggle = iced::widget::button(iced::widget::text("模型与工具").size(12))
-            .padding([10, 12])
-            .height(44)
-            .style(desktop_ui_controls::system_settings_common::rounded_action_btn_style)
-            .on_press(toggle_model);
+        let icon = super::icons::icon_svg(desktop_assets::assets::Icon::Sliders, 14.0)
+            .style(|theme: &iced::Theme, _| iced::widget::svg::Style {
+                color: Some(theme.palette().text),
+            });
+        let toggle = super::panel::bottom_bar_round_toggle(icon.into(), "模型与工具", toggle_model);
         let toggle: Element<'_, Message> = AboveOverlay::new(toggle, menu)
             .show(expanded)
             .block_background_events(true)

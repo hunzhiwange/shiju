@@ -610,3 +610,16 @@ Rust 重型命令全部经 scripts/cargo_slot.py，串行复用槽位 3；CARGO_
 `node patches/acp-model-source/deepagents/guard_tests.mjs <审核包或私有夹具目录>`：新增宿主错误用例先以原守卫失败，再以新守卫通过；覆盖 5 类权限结果、取消、宿主撤销及 7 类未审核工具不执行。`python3 scripts/acp_onboarding_deepagents_acceptance.py <私有新审核包入口>` 最终退出 0，覆盖真实拒绝/允许写入、错误工具、MCP/工作区扩张拒绝、同进程恢复、取消续用和认证/模型错误不回退。夹具此前期待宿主拒绝导致整轮 fatal 的旧断言失败，已改为明确检查工具错误、无敏感详情、无越权文件及后续成功，并重新取得通过证据。
 
 未运行桌面构建、整仓测试/构建、全特性 Clippy、全仓格式检查、wasm 或 Makefile；仅格式化修改文件。任务 23 文件创建验收完成，严格 lint 既有失败与配置存储差异如上保留。
+
+
+# DimCode 验收（2026-11-17）
+
+结论：**已阻塞，未通过**。任务 23 最新扩围验收已通过并记录配置恢复、自有进程退出；来源任务 3 已删除，接入证据明确 session_model 尚未开放。本次新核对不能由历史接入通过替代。
+
+- RustCodeGraph 索引 12,369 文件；经 node 读取当前生产驱动及注册、派生目录。注册位于 `crates/libs/acp-agent-registry/src/agent_registry.rs`，固定 dimcode@0.5.28，本地 dim acp；安装白名单位于 `crates/libs/config-acp-install/src/lib.rs`，固定 npm 安装同版本。`crates/libs/agent-config/src/catalog.rs` 派生 builtin=true、backend=dimcode、默认停用的 acp-dimcode。以上是源码核对，未冒称本次系统安装或配置保存通过。
+- 当前生产 `crates/libs/llm-runtime/src/acp/model_source/drivers/mod.rs` 无 DimCode 的 verified_release、source_protocol 和 configure 分支；capabilities 对 session_model 返回 UnsupportedCli，协议路由亦明确拒绝未验证驱动。该文件 SHA-256 为 `3646c08fed609baee841dc211de5b649bc9ead5014af961d846ef3ef37ff302d`。新增完整私有中继驱动超出本验收小修范围；没有替换指定模型、租户、引擎或改用 CLI 默认模型。
+- Rue.js 的 packages/rue/package.json 存在，acpdemo/dimcode/ 起初不存在。初始 Git 状态及排除 .git/node_modules/target 的 6,245 个普通文件 SHA-256 快照已采集；没有写入 Rue.js。未做结束快照，不将静态只读检查声称为完整目录边界验收。
+- 未执行安装、普通诊断、模型来源 API、配置 PATCH、SSE、会话绑定、产物创建验收；没有运行版本和二进制摘要可报告。未启动网关、供应商进程或领取编译槽位，未改配置，无本次运行环境需恢复。纯文档记录，未运行 Cargo、定向测试、Clippy、桌面或页面构建、浏览器；没有把历史测试结果算作本次通过。
+- 本次源码副本、摘要、初始快照及工作区状态仅存本机 0700 目录 `/var/folders/rg/zr19lb_s5w32q6d2qkd6p0n80000gp/T/shiju-dimcode-20261117-wzy8qvop`，未提交原始配置、敏感请求或供应商二进制。任务引用的 .plans/references/rust.md 不存在，本轮未调用 Cargo。
+
+重跑条件：交付并验证 DimCode session_model 私有中继驱动，使用包含该实现的已验证构建，从任务 24 步骤 1 重跑。任务文件保持已阻塞并保留。

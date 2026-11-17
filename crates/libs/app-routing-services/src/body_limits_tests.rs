@@ -245,7 +245,18 @@ async fn cc_route_020_response_bounds_wait_for_complete_body() {
 
     let mut exact = vec![b' '; LIMIT];
     exact[..2].copy_from_slice(b"{}");
-    let mut client = fixture.request(&fields, PROMPT).await;
+    // Decode HTTP framing before comparing the complete entity: usage observation
+    // wraps the buffered response in a stream, allowing chunked transfer encoding.
+    let request = reqwest::Client::builder()
+        .no_proxy()
+        .timeout(Duration::from_secs(3))
+        .build()
+        .unwrap()
+        .post(format!("http://{}/v1/chat/completions", fixture.address))
+        .bearer_auth(&fixture.token)
+        .header("Content-Type", "application/json")
+        .body(PROMPT);
+    let response = tokio::spawn(async move { request.send().await.unwrap() });
     let mut upstream = fixture.upstream_request().await;
     upstream
         .write_all(
@@ -254,10 +265,9 @@ async fn cc_route_020_response_bounds_wait_for_complete_body() {
         .await
         .unwrap();
     upstream.write_all(&exact).await.unwrap();
-    assert_status(&mut client, 200, "response at the exact wire limit").await;
-    let mut response = Vec::new();
-    timeout(Duration::from_secs(3), client.read_to_end(&mut response)).await.unwrap().unwrap();
-    assert!(response.ends_with(&exact));
+    let response = response.await.unwrap();
+    assert_eq!(response.status(), reqwest::StatusCode::OK);
+    assert_eq!(response.bytes().await.unwrap().as_ref(), exact.as_slice());
 
     exact.push(b' ');
     let encoded = gzip(&exact);

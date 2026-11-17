@@ -58,6 +58,7 @@ pub mod claude_view;
 pub mod deeplink;
 
 pub mod page;
+pub mod third_party;
 pub fn plugin_dependency_summary(
     checks: &[gateway_desktop_settings::DesktopPluginDependencyDto],
 ) -> &'static str {

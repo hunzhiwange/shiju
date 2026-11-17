@@ -469,6 +469,9 @@ async fn markdown_delivery_lark_transport_failure_and_timeout_stop_current_part(
         ChannelDeliveryError, DeliveryFailureKind,
     };
     use tokio::io::{AsyncReadExt, AsyncWriteExt};
+    // Client construction loads runtime proxy/TLS settings synchronously before
+    // the request timer starts. Allow that setup within the fixture deadline.
+    let request_wait = Duration::from_secs(35);
     for mode in ["disconnect", "truncated", "timeout"] {
         let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
         let ch = test_channel(&format!("http://{}", listener.local_addr().unwrap()));
@@ -478,7 +481,7 @@ async fn markdown_delivery_lark_transport_failure_and_timeout_stop_current_part(
         let server = tokio::spawn(async move {
             for index in 0..2 {
                 let (mut socket, _) =
-                    tokio::time::timeout(Duration::from_secs(2), listener.accept())
+                    tokio::time::timeout(request_wait, listener.accept())
                         .await
                         .unwrap()
                         .unwrap();
@@ -524,7 +527,7 @@ async fn markdown_delivery_lark_transport_failure_and_timeout_stop_current_part(
             ch.send(&SendMessage::new(delivery_markdown(), "oc_chat")).await
         });
         for label in ["A", "B"] {
-            let request = tokio::time::timeout(Duration::from_secs(2), captured_rx.recv())
+            let request = tokio::time::timeout(request_wait, captured_rx.recv())
                 .await
                 .unwrap()
                 .unwrap();

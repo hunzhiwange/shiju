@@ -192,6 +192,8 @@ pub fn save_usage_record_in_transaction(
     }
     let mut value = value.clone();
     value.record.suspected_duplicate_of = matched.suspected;
+    super::pricing::apply_billing_default(transaction, scope, identity, &mut value.record)
+        .map_err(|_| UsageStoreError::StorageUnavailable)?;
     // A semantic collision remains a distinct request.
     // A caller-chosen colliding canonical ID must never silently attach a source.
     let exists: bool = transaction

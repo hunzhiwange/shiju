@@ -121,3 +121,10 @@ pub struct UsagePriceDeleted { pub deleted: bool }
 /// Accepted work is queried through usage_job; this is not a success result.
 #[derive(Debug, Clone, Deserialize)]
 pub struct UsagePriceSyncAccepted { pub task_id: String, pub status: String }
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum BillingModelSource { Request, Response }
+pub type BillingDefaults = BTreeMap<String, BillingModelSource>;
+#[derive(Debug, Clone, Deserialize)]
+pub struct UsagePricingStorage { pub path: String, pub can_open: bool, pub reason: Option<String> }

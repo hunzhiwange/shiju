@@ -24,6 +24,16 @@ impl std::fmt::Display for UsagePriceError {
 impl std::error::Error for UsagePriceError {}
 
 impl GatewayUsagePriceClient {
+    pub async fn usage_billing_defaults(&self, scope: &UsageScanScope) -> Result<BillingDefaults, UsagePriceError> {
+        self.usage_price_request(reqwest::Method::GET, &["prices", "billing-defaults"], scope, None).await
+    }
+    pub async fn usage_save_billing_defaults(&self, scope: &UsageScanScope, defaults: &BillingDefaults) -> Result<BillingDefaults, UsagePriceError> {
+        self.usage_price_request(reqwest::Method::PUT, &["prices", "billing-defaults"], scope, Some(json!(defaults))).await
+    }
+    pub async fn usage_pricing_storage(&self, scope: &UsageScanScope, open: bool) -> Result<UsagePricingStorage, UsagePriceError> {
+        if open { self.usage_price_request(reqwest::Method::POST, &["prices", "storage", "open"], scope, None).await }
+        else { self.usage_price_request(reqwest::Method::GET, &["prices", "storage"], scope, None).await }
+    }
     pub async fn usage_prices(&self, scope: &UsageScanScope) -> Result<Vec<StoredModelPricing>, UsagePriceError> {
         self.usage_price_request(reqwest::Method::GET, &["prices"], scope, None).await
     }

@@ -27,6 +27,9 @@ pub(super) fn router(host: crate::Host) -> Router {
         .route("/usage/prices", get(list).post(create))
         .route("/usage/prices/{id}", axum::routing::put(replace).delete(delete))
         .route("/usage/prices/import", post(import))
+        .route("/usage/prices/billing-defaults", get(billing).put(save_billing))
+        .route("/usage/prices/storage", get(storage_info))
+        .route("/usage/prices/storage/open", post(open_storage))
         .route("/usage/models-dev/candidates", get(candidates))
         .route("/usage/models-dev/config", get(config).put(save_config))
         .route("/usage/models-dev/sync", post(sync))
@@ -46,6 +49,7 @@ fn authorize(p: &Policy, t: TenantScope, h: &HeaderMap, i: &Intent, write: bool)
 fn connection(host: crate::Host) -> Result<rusqlite::Connection, StatusCode> {
     let db = (host.database)().map_err(unavailable)?;
     let c = db.connect_sqlite().map_err(unavailable)?;
+    u::pricing::initialize_pricing_store(&c).map_err(unavailable)?;
     u::models_sync::initialize_models_sync(&c).map_err(unavailable)?;
     u::exchange_store::initialize_exchange_store(&c).map_err(unavailable)?;
     Ok(c)
@@ -63,12 +67,13 @@ struct DisplayBody {
     #[serde(default)] manual_rates: BTreeMap<String,f64>,
 }
 #[derive(Clone, Copy)]
-enum Read { Prices, Config, Display }
+enum Read { Prices, Config, Display, Billing }
 async fn read(p: Policy,t: TenantScope,h: HeaderMap,i: Intent,kind: Read) -> Response {
     tokio::task::spawn_blocking(move || {
         let o = authorize(&p,t,&h,&i,false)?;
         let c = connection(p.1)?;
         match kind {
+            Read::Billing => output(u::pricing::load_billing_defaults(&c,&o.scope,&o.target_host).map_err(domain)?),
             Read::Prices => output(u::pricing::list_model_pricing(&c,&o.scope,&o.target_host).map_err(domain)?),
             Read::Config => output(u::models_sync::get_models_sync_config(&c,&o.scope,&o.target_host).map_err(domain)?),
             Read::Display => {
@@ -82,14 +87,16 @@ macro_rules! read_handler { ($name:ident,$kind:ident) => {
     async fn $name(Extension(p): Extension<Policy>,Extension(t): Extension<TenantScope>,h: HeaderMap,Query(i): Query<Intent>) -> Response { read(p,t,h,i,Read::$kind).await }
 }; }
 read_handler!(list,Prices);
+read_handler!(billing,Billing);
 read_handler!(config,Config);
 read_handler!(display,Display);
-enum Write { Price(u::pricing::ModelPricingInfo,Option<String>), Delete(String), Import(ImportBody), Config(u::models_sync::ModelsDevSyncConfig), Display(DisplayBody) }
+enum Write { Billing(u::pricing::BillingDefaults), Price(u::pricing::ModelPricingInfo,Option<String>), Delete(String), Import(ImportBody), Config(u::models_sync::ModelsDevSyncConfig), Display(DisplayBody) }
 async fn write(p: Policy,t: TenantScope,h: HeaderMap,i: Intent,kind: Write) -> Response {
     tokio::task::spawn_blocking(move || {
         let o = authorize(&p,t,&h,&i,true)?;
         let mut c = connection(p.1)?;
         match kind {
+            Write::Billing(defaults) => output(u::pricing::save_billing_defaults(&mut c,&o.scope,&o.target_host,defaults).map_err(domain)?),
             Write::Price(price,id) => {
                 if id.is_some_and(|id| id != price.model_id.as_ref()) { return Err(StatusCode::BAD_REQUEST); }
                 output(u::pricing::save_model_pricing(&mut c,&o.scope,&o.target_host,price).map_err(domain)?)
@@ -169,4 +176,30 @@ async fn sync_request(p: Policy, t: TenantScope, h: HeaderMap, i: Intent, force:
     }).map_err(unavailable)?;
     jobs.insert(id.clone(),super::scan::Job {owner:o,operation,result:result_slot});
     Ok((StatusCode::ACCEPTED,Json(json!({"task_id":id,"status":"queued"}))))
+}
+
+async fn save_billing(Extension(p): Extension<Policy>,Extension(t): Extension<TenantScope>,h: HeaderMap,Query(i): Query<Intent>,Json(r): Json<u::pricing::BillingDefaults>) -> Response { write(p,t,h,i,Write::Billing(r)).await }
+
+async fn storage_info(Extension(p): Extension<Policy>,Extension(t): Extension<TenantScope>,h: HeaderMap,Query(i): Query<Intent>) -> Response { storage_action(p,t,h,i,false).await }
+async fn open_storage(Extension(p): Extension<Policy>,Extension(t): Extension<TenantScope>,h: HeaderMap,Query(i): Query<Intent>) -> Response { storage_action(p,t,h,i,true).await }
+async fn storage_action(p: Policy,t: TenantScope,h: HeaderMap,i: Intent,open: bool) -> Response {
+    tokio::task::spawn_blocking(move || {
+        // Paths are resolved only after local executor/project maintenance authorization.
+        // The request never supplies a path, and the desktop never opens this path itself.
+        authorize(&p,t,&h,&i,true)?;
+        let db = (p.1.database)().map_err(unavailable)?;
+        let path = db.sqlite_path().map_err(|_| StatusCode::NOT_IMPLEMENTED)?.canonicalize().map_err(unavailable)?;
+        let directory = path.parent().ok_or(StatusCode::SERVICE_UNAVAILABLE)?;
+        let can_open = cfg!(target_os = "macos") || cfg!(target_os = "windows")
+            || (cfg!(target_os = "linux") && (std::env::var_os("DISPLAY").is_some() || std::env::var_os("WAYLAND_DISPLAY").is_some()));
+        if open {
+            if !can_open { return Err(StatusCode::NOT_IMPLEMENTED); }
+            let mut command = if cfg!(target_os = "macos") { std::process::Command::new("/usr/bin/open") }
+                else if cfg!(target_os = "windows") { std::process::Command::new("explorer.exe") }
+                else { std::process::Command::new("xdg-open") };
+            let status = command.arg(directory).stdin(std::process::Stdio::null()).stdout(std::process::Stdio::null()).stderr(std::process::Stdio::null()).status().map_err(unavailable)?;
+            if !status.success() { return Err(StatusCode::SERVICE_UNAVAILABLE); }
+        }
+        output(json!({"path":path.to_string_lossy(),"can_open":can_open,"reason":if can_open { None } else { Some("执行主机没有可用的桌面目录打开能力") }}))
+    }).await.map_err(unavailable)?
 }

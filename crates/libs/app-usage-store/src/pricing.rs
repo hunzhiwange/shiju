@@ -26,7 +26,8 @@ pub fn initialize_pricing_store(connection: &Connection) -> Result<(), String> {
             model_id TEXT NOT NULL,
             payload_json TEXT NOT NULL,
             PRIMARY KEY(scope_key, model_id)
-        );",
+        );
+        CREATE TABLE IF NOT EXISTS usage_billing_defaults (scope_key TEXT PRIMARY KEY NOT NULL, payload_json TEXT NOT NULL);",
         )
         .map_err(storage)
 }
@@ -115,3 +116,57 @@ pub fn delete_model_pricing(
     transaction.commit().map_err(storage)?;
     Ok(deleted > 0)
 }
+
+/// Defaults affect newly ingested relay requests; native reported costs stay authoritative.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum BillingModelSource { Request, Response }
+
+pub const BILLING_APPS: [&str; 4] = ["claude", "codex", "gemini", "grokbuild"];
+pub type BillingDefaults = std::collections::BTreeMap<String, BillingModelSource>;
+
+pub fn load_billing_defaults(connection: &Connection, scope: &ProjectScope, host: &str) -> Result<BillingDefaults, String> {
+    let payload: Option<String> = connection.query_row(
+        "SELECT payload_json FROM usage_billing_defaults WHERE scope_key=?1", [key(scope, host)?], |row| row.get(0)
+    ).optional().map_err(storage)?;
+    match payload {
+        Some(payload) => serde_json::from_str(&payload).map_err(|_| "Invalid saved billing defaults".into()),
+        None => Ok(BILLING_APPS.into_iter().map(|app| (app.into(), BillingModelSource::Response)).collect()),
+    }
+}
+
+pub fn save_billing_defaults(connection: &mut Connection, scope: &ProjectScope, host: &str, defaults: BillingDefaults) -> Result<BillingDefaults, String> {
+    if defaults.len() != BILLING_APPS.len() || BILLING_APPS.iter().any(|app| !defaults.contains_key(*app)) {
+        return Err("Invalid billing applications".into());
+    }
+    let payload = serde_json::to_string(&defaults).map_err(|_| "Invalid billing defaults".to_owned())?;
+    let tx = connection.transaction_with_behavior(TransactionBehavior::Immediate).map_err(storage)?;
+    tx.execute("INSERT INTO usage_billing_defaults(scope_key,payload_json) VALUES (?1,?2)
+        ON CONFLICT(scope_key) DO UPDATE SET payload_json=excluded.payload_json", params![key(scope, host)?, payload]).map_err(storage)?;
+    tx.commit().map_err(storage)?;
+    Ok(defaults)
+}
+
+pub(crate) fn apply_billing_default(connection: &Connection, scope: &ProjectScope, identity: &super::store::UsageSourceIdentity, record: &mut vw_api_usage::UsageRecord) -> Result<(), String> {
+    use vw_api_usage::{UsageCost, UsageCostSource, UsageSourceKind};
+    use std::str::FromStr;
+    if identity.kind != UsageSourceKind::Relay || !BILLING_APPS.contains(&identity.app.as_str())
+        || !matches!(record.cost.source, UsageCostSource::Unknown | UsageCostSource::Calculated) { return Ok(()); }
+    let defaults = load_billing_defaults(connection, scope, &identity.target_host)?;
+    let source = defaults.get(&identity.app).ok_or("Invalid billing application")?;
+    let model = match source {
+        BillingModelSource::Request => record.models.request_model.clone(),
+        BillingModelSource::Response => record.models.response_model.clone().or_else(|| record.models.request_model.clone()),
+    };
+    record.models.pricing_model = model.clone();
+    record.cost = UsageCost { source: UsageCostSource::Unknown, amount_usd: None };
+    let (Some(model), Some(tokens), Some(multiplier)) = (model, &record.tokens, &record.models.pricing_multiplier) else { return Ok(()); };
+    let Some(price) = get_model_pricing(connection, scope, &identity.target_host, &ModelId::from(model))? else { return Ok(()); };
+    let multiplier = rust_decimal::Decimal::from_str(multiplier).map_err(|_| "Invalid pricing multiplier")?;
+    if let Some(cost) = super::cost::calculate(tokens, Some(&price.price.rates()?), Some(multiplier))? { record.cost = cost.to_usage_cost(); }
+    Ok(())
+}
+
+#[cfg(test)]
+#[path = "usage_replica_08_billing_tests.rs"]
+mod billing_tests;

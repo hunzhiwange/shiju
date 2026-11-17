@@ -85,6 +85,7 @@ fn add_at_rejects_invalid_timestamp() {
 fn update_rejects_disallowed_command() {
     let tmp = TempDir::new().unwrap();
     let mut config = test_config(&tmp);
+    config.security.bash.enabled = true;
     config.autonomy.allowed_commands = vec!["echo".into()];
     let job = add_cron_job(&config);
 

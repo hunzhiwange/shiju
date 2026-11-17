@@ -21,7 +21,7 @@ use agent_skills::local::{is_local_skill_disabled, local_skill_disabled_marker_p
 use agent_skills::loader::read_markdown_skill_metadata;
 use config_skills::SkillsDirectoryProvider;
 
-static BUILT_IN_SKILLS_DIR: Dir<'_> = include_dir!("$CARGO_MANIFEST_DIR/../../vw-agent/assets/skills");
+static BUILT_IN_SKILLS_DIR: Dir<'_> = include_dir!("$CARGO_MANIFEST_DIR/../agent-skills/assets/skills");
 static RECOMMENDED_SKILL_IDS: &[&str] = &["create-task-plans", "do-task-plans", "rustcodegraph"];
 static BUILT_IN_SKILLS: Lazy<Vec<BuiltInSkillMeta>> = Lazy::new(discover_built_in_skills);
 

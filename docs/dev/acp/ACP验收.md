@@ -926,3 +926,14 @@ Rust重型命令经scripts/cargo_slot.py槽位入口串行执行，对应CARGO_T
 - 安装与指定模型能力为前置阻塞，未临时启用预设、未发 chat/stream、无会话标识或 chat.done；未执行会话 summary/options、页面文件功能验收、浏览器或页面构建。未执行 Rust 单测、Clippy 或编译：没有行为修复，遇到明确外部能力阻塞后停止执行，不声称测试通过。
 - 结束 GET 全部配置与基线相等，无需恢复 PATCH。自有网关 PID91090 退出0，端口已关闭；未重启或终止用户服务，未申请 Cargo 槽位。
 - 原始配置、请求、响应、指标、快照及清理记录仅存本机0700目录 `/tmp/shiju-cortex-accept-20261118/`，不提交敏感载荷或供应商二进制。此次仅追加本节并更新任务31阻塞状态。
+
+
+## Cortex Code 追加排查（2026-11-18）
+
+- 按扩大排查授权重新核对共享工作区；安装仍为显式 None，模型来源仍无 Cortex verified_release。进一步核对官方 [安装说明](https://docs.snowflake.com/en/user-guide/cortex-code/cortex-code-cli)、[ACP前置条件](https://docs.snowflake.com/en/user-guide/cortex-code/cortex-code-acp) 和 [设置](https://docs.snowflake.com/en/user-guide/cortex-code/settings)：ACP要求先配置 Snowflake 连接，模型选项并不能证明可接入任意外部供应商。文档、设置及原生CLI帮助未提供已确认的外部模型端点配置路径；不把未发现入口夸大为上游永久不支持。
+- 已突破“无可核验官方发行物”的调查限制：只下载并阅读官方 https://ai.snowflake.com/static/cc-scripts/install.sh，未执行安装脚本；其固定发行前缀为 cortex-code-cli/a4643c4278，stable指向 `1.2.46+175654.6f8561fd271f`。按脚本的URL编码规则获取manifest及Darwin arm64包，下载退出0，SHA-256 `76a37a37b432fa0b684d67efdaba0b2753b40d34924836a445f6597b24e665ee` 与官方manifest一致。首次未编码“+”的manifest请求404；编码后成功，不把404当作发行物不可用。
+- 发行物仅解压到0700私有目录；原生 `--version`、`--help`、`acp serve --help` 全部退出0，版本 Cortex Code v1.2.46。ACP帮助支持 --connection、--model、--workdir 及权限工具选项，没有已确认的外部模型base URL入口。未安装到系统、未修改shell配置或权限策略，未把临时下载代替系统安装验收。
+- 使用独立 SNOWFLAKE_HOME/COCO_LOG_DIR、本仓库Rue.js cwd及完整指定模型 `alibaba-token-plan-cn/deepseek-v4.1-flash-1017` 进行原生ACP探针，未添加bypass。initialize成功，protocolVersion=1（agentInfo报告1.0.0，与发行版本分别记录）；随后session/new因没有Snowflake连接退出。首次解析被供应商非JSON错误输出中断，已重跑将原始stdout/stderr直接写入私有文件；第二次退出7、耗时2.025069秒，明确报错 `No Snowflake connection available`。没有发送prompt或创建任务，没有取得指定模型请求证据。
+- 本机默认 ~/.snowflake 不存在，SNOWFLAKE_/CORTEX_ 环境变量数量0；只核对存在性与变量名，未读取或记录凭据。当前真实外部前置为获授权且可用的Snowflake连接；此条件即使补齐，也仍需证明指定Alibaba模型能保持完整绑定，不能用Snowflake默认模型冒充。安全替代路径已覆盖官方校验发行物、原生参数/环境选模及ACP直连诊断；没有注册账号、伪造认证、重定向身份服务或替换引擎。
+- 两个自有探针PID已退出，原自有网关51431端口仍关闭，无新增网关、系统安装、宿主Snowflake配置或配置PATCH。Rue.js与上一轮结束快照比较仍6297项、0差异；无目标产物。当前仅文档变化，未运行Cargo或页面测试。任务保持已阻塞，保留任务文件。
+- 新私有证据 `/tmp/shiju-cortex-retry-20261118/`：官方脚本、版本、manifest、校验后的发行包、CLI帮助、原生协议请求/响应/错误、退出指标、目录边界和清理记录。供应商二进制及原始载荷不提交。

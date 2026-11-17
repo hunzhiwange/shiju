@@ -91,3 +91,7 @@ Rust 编译资源和会话调度按 `.plans/references/rust.md` 的项目覆盖�
 - 新证据见 docs/dev/acp/ACP验收.md 末尾 Cortex Code 章节及 /tmp/shiju-cortex-accept-20261118/；配置完整重读相等，Rue.js 文件快照6297项零差异，自有网关已退出、端口关闭。
 - 未运行 Cargo、单测、Clippy、chat/stream、会话绑定和页面验收；没有行为修复，前置阻塞停止执行。未修改 plan.md/prompt.md，旧 .plans/references/rust.md 不存在，本次无需编译槽位。
 - 重跑条件：交付 Cortex 官方系统安装链路、session_model 实际模型驱动与脱敏接入证据后，完整重跑本任务；本文件保留。
+
+### 扩大范围追加排查（2026-11-18）
+
+已核验官方Darwin arm64发行1.2.46及manifest SHA-256，原生版本/帮助均退出0，ACP initialize成功；指定原模型的session/new因缺Snowflake连接退出7。宿主无Snowflake目录或相关环境变量，未注册账号或替换模型。当前需要外部认证状态，且认证后仍需证明指定Alibaba模型路由；不能自行伪造认证或承诺兼容。具体新增证据见验收文档追加排查小节和 /tmp/shiju-cortex-retry-20261118/。两次探针退出、原自有网关关闭、Rue.js零差异，无系统安装或配置修改；文档轻量检查，不运行Cargo。保留已阻塞。

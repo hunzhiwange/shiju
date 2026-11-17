@@ -13,6 +13,7 @@ async fn video_edit_prepare_native_receipts_keep_signed_tickets_in_memory() {
     .unwrap();
     let hub = skill.location.unwrap().parent().unwrap().to_path_buf();
     let root = hub.join("cutvideo");
+    let ctx = super::prepare::NativeVideoContext(ctx);
     workflow_video_edit::test_support::contracts::video_edit_prepare_native_receipts_keep_signed_tickets_in_memory(&provider, dir.path(), root, &ctx).await;
 }
 #[tokio::test]

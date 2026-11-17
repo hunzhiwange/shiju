@@ -4,7 +4,7 @@
 
 批次：【批次1】 依赖：无
 
-状态：未开始
+状态：待回归
 
 来源：继续执行宿主单测；诊断编号71（宿主编译错误证据.json）。
 预计会话范围：修复一个源码文件中的宿主接口或测试夹具编译契约；不接管整包。
@@ -64,3 +64,12 @@ python3 scripts/cargo_slot.py cargo test -p vw-agent --lib video_edit_prepare_na
 编译取证命令（不是测试通过证据）：`python3 scripts/cargo_slot.py cargo test -p vw-agent --lib --no-run`。同阶段顺序命令合并一次入口复用缓存，不默认逐任务全量测试。
 
 最终需由原任务303执行两阶段全量验收；这组修复仅覆盖已发现编译阻塞，尚不能保证宿主全部运行失败已发现。
+
+## 本轮执行记录
+
+- 根因：共享合同现接收 `&dyn VideoContext`，宿主测试仍传裸 `ToolRuntimeContext`；复用生产 cloud::discover 使用的 `prepare::NativeVideoContext` 包装原上下文，保留真实策略、执行路径及全部安全断言，仅修改本任务归属文件。
+- 真实入口已确认是 `#[tokio::test] video_edit_prepare_native_receipts_keep_signed_tickets_in_memory`。
+- 修改前执行任务指定精确命令：退出101，宿主15条编译错误，有效测试0。槽位1，双缓存路径均为 `/Users/xiangmin/worker/code/shiju/target/rust-slot-1`。
+- 修改后执行同命令：`python3 scripts/cargo_slot.py cargo test -p vw-agent --lib video_edit_prepare_native_receipts_keep_signed_tickets_in_memory -- --nocapture`，退出101，宿主剩14条编译错误，有效测试0；完整日志 `/tmp/shiju-task333-after.log`。槽位3，双缓存路径均为 `/Users/xiangmin/worker/code/shiju/target/rust-slot-3`。
+- 本文件E0277已消失；剩余 controls_tests 的 ACP_CLIENT_CACHE 及 prepare_tests、command_tests、entry_test_transport、e2e_tests 的 VideoContext 错误归兄弟任务，不接管其文件。待其解除后须在本任务重跑上述真实测试，不能将编译诊断消失记为行为通过。
+- 轻量 `git diff --check -- crates/vw-agent/src/workflow/video_edit/cloud_prepare_tests.rs` 通过。未运行重复check、桌面构建或全量测试。两次入口及自有子进程已退出，槽位自动释放，保留缓存。

@@ -3,7 +3,7 @@ use super::policy::{ComputerControlPolicy, ControlFeature};
 use parking_lot::RwLock;
 use std::sync::{
     Arc,
-    atomic::{AtomicBool, AtomicUsize, Ordering},
+    atomic::{AtomicUsize, Ordering},
 };
 use std::time::Duration;
 use tokio::net::UnixStream;
@@ -23,7 +23,11 @@ fn fixture() -> Arc<ControlHost> {
             true,
         )
         .unwrap();
-    Arc::new(ControlHost::new(Arc::new(RwLock::new(policy)), Arc::new(AtomicBool::new(false))))
+    // Protocol tests supply lock evidence without depending on the host desktop.
+    Arc::new(ControlHost::new_with_lock_state(
+        Arc::new(RwLock::new(policy)),
+        crate::native::locked_session::LockState::Unlocked,
+    ))
 }
 fn request(ticket: &SessionTicket) -> ComputerControlRequest {
     ComputerControlRequest {
@@ -262,7 +266,10 @@ async fn cc_control_04_live_revocation_prevents_dispatch() {
     let user = format!("uid:{}", unsafe { libc::geteuid() });
     policy.set_enabled(&user, ControlFeature::NativeApps, true).unwrap();
     let policy = Arc::new(RwLock::new(policy));
-    let host = Arc::new(ControlHost::new(policy.clone(), Arc::new(AtomicBool::new(false))));
+    let host = Arc::new(ControlHost::new_with_lock_state(
+        policy.clone(),
+        crate::native::locked_session::LockState::Unlocked,
+    ));
     let ticket = host.issue(target(), Duration::from_secs(10)).unwrap();
     let count = Arc::new(AtomicUsize::new(0));
     let (mut client, task) = connect(host, &ticket, count.clone(), false).await;

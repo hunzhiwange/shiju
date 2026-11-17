@@ -1,6 +1,7 @@
 //! `task_plan_run` 网关 handler 校验与路由接线测试。
 
 use super::{Host, global_plan_run_control_registry, router};
+use gateway_task::task_plan_run::{task_plan_run_status, task_plan_run_stop};
 use axum::{Extension, extract::Path};
 use axum::Json;
 use axum::http::StatusCode;

@@ -4,7 +4,7 @@
 
 批次：【批次1】 依赖：无
 
-状态：未开始
+状态：待回归
 
 来源：继续执行宿主单测；诊断编号42, 43, 44, 45, 46（宿主编译错误证据.json）。
 预计会话范围：修复一个源码文件中的宿主接口或测试夹具编译契约；不接管整包。
@@ -162,3 +162,11 @@ python3 scripts/cargo_slot.py cargo test -p vw-agent --lib task_plan_run_control
 编译取证命令（不是测试通过证据）：`python3 scripts/cargo_slot.py cargo test -p vw-agent --lib --no-run`。同阶段顺序命令合并一次入口复用缓存，不默认逐任务全量测试。
 
 最终需由原任务303执行两阶段全量验收；这组修复仅覆盖已发现编译阻塞，尚不能保证宿主全部运行失败已发现。
+
+## 本次执行记录（2026-11-18）
+
+- 根因：handler 已迁移到 `gateway_task::task_plan_run`，宿主独立测试未导入两个公开函数。仅补充测试导入，保留 Host 适配、租户隔离与幂等断言。
+- 已核实过滤名为 `#[tokio::test]` 入口；原始红灯采用本任务诊断42—46，未额外重复构建。
+- 验证：`python3 scripts/cargo_slot.py cargo test -p vw-agent --lib task_plan_run_control_routes_are_tenant_scoped_and_stop_is_idempotent -- --nocapture`，槽位1；CARGO_TARGET_DIR 与 CARGO_BUILD_BUILD_DIR 均为 `/Users/xiangmin/worker/code/shiju/target/rust-slot-1`。
+- 退出101，宿主仍有20条兄弟编译错误（t42_tests 的 compaction 导出、controls_tests 的 ACP_CLIENT_CACHE、video_edit 的 VideoContext/McpToolRuntime 和 overflow_error）。本文件诊断不再出现，实际执行测试数0，不能算通过。完整日志 `/tmp/shiju-task328-test.log`。入口及其子进程已退出并释放槽位。
+- 定向 diff 空白检查通过；待兄弟编译阻塞解除后重跑上述真实测试，要求有效数>0、失败0。保留编号文件，不提前删除或声称验收完成。

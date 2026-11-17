@@ -4,6 +4,9 @@ version = "0.6.0"
 edition = "2024"
 license = "MIT"
 
+[features]
+test-support = ["computer-control/test-support"]
+
 [lib]
 doctest = false
 

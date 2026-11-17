@@ -8,6 +8,9 @@ license = "MIT"
 name = "shiju-computer-use"
 path = "src/bin/shiju-computer-use.rs"
 
+[features]
+test-support = []
+
 [lib]
 doctest = false
 

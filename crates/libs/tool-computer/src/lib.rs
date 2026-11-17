@@ -121,6 +121,19 @@ impl NativeControlRuntime {
             sessions: Mutex::new(HashMap::new()),
         })
     }
+    /// Deterministic, instance-local desktop evidence for downstream protocol tests.
+    #[cfg(feature = "test-support")]
+    pub fn with_factory_and_lock_state(
+        policy: Arc<RwLock<ComputerControlPolicy>>,
+        factory: Arc<BackendFactory>,
+        state: computer_control::native::locked_session::LockState,
+    ) -> Arc<Self> {
+        let mut runtime = Self::with_factory(policy.clone(), factory);
+        Arc::get_mut(&mut runtime).expect("new runtime is uniquely owned").host =
+            Arc::new(ControlHost::new_with_lock_state(policy, state));
+        runtime
+    }
+
     /// Trusted local setup only: TLS credentials and origin never come from tool input.
     /// Binding does not pair a document or grant any execution permission.
     pub async fn bind_office(

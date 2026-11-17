@@ -91,9 +91,10 @@ impl Fixture {
     async fn new() -> Self {
         let policy = Arc::new(RwLock::new(ComputerControlPolicy::new(Default::default())));
         policy.write().set_enabled(&local_user(), ControlFeature::Word, true).unwrap();
-        let runtime = tool_computer::NativeControlRuntime::with_factory(
+        let runtime = tool_computer::NativeControlRuntime::with_factory_and_lock_state(
             policy,
             Arc::new(|_, _, _, _, _, _| panic!("Word must never use native backend")),
+            computer_control::native::locked_session::LockState::Unlocked,
         );
         let transport =
             runtime.bind_office(certificates().path(), "https://localhost:3000").await.unwrap();

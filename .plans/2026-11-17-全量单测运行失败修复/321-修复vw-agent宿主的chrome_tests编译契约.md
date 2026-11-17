@@ -4,7 +4,7 @@
 
 批次：【批次1】 依赖：无
 
-状态：未开始
+状态：已阻塞
 
 来源：继续执行宿主单测；诊断编号56, 57, 58（宿主编译错误证据.json）。
 预计会话范围：修复一个源码文件中的宿主接口或测试夹具编译契约；不接管整包。
@@ -134,3 +134,14 @@ python3 scripts/cargo_slot.py cargo test -p vw-agent --lib cc_control_10_transfe
 编译取证命令（不是测试通过证据）：`python3 scripts/cargo_slot.py cargo test -p vw-agent --lib --no-run`。同阶段顺序命令合并一次入口复用缓存，不默认逐任务全量测试。
 
 最终需由原任务303执行两阶段全量验收；这组修复仅覆盖已发现编译阻塞，尚不能保证宿主全部运行失败已发现。
+
+## 执行记录
+
+共享写入归属：本任务需在 crates/vw-agent/Cargo.toml 添加 computer-control 的 dev-dependency test-support，使用既有 new_with_lock_state 隔离物理锁屏；该清单当前无未提交差异。生产 host.rs 已有他人修改，本任务不写入。
+
+- 实现：测试通过 ChromeBridge::serve 和认证 UnixStream 协议走真实 consume_transfer 路径，保留两次独立审批、字节脱敏及 full-access/turn-bypass 拒绝断言；额外断言消耗后重放被 PermissionDenied 拒绝。扩展端只按既有 bridge_tests 帧协议提供确定性回读，不替换授权实现。清理使用公开 stop_context。
+- 为排除物理锁屏影响，authority 使用已有 test-support 的 new_with_lock_state(Unlocked)，不添加 LockedUse 授权，不变更生产策略或私有接口可见性。
+- 修改前：`python3 scripts/cargo_slot.py cargo test -p vw-agent --lib cc_control_10_transfer_approval_is_fresh_and_redacts_file_bytes -- --nocapture`，退出101，38条编译错误，日志 `/tmp/shiju-321-before.log`。
+- 修改后合并同组入口：`python3 scripts/cargo_slot.py sh -c 'cargo test -p vw-agent --lib cc_control_10_ -- --nocapture'`，退出101，32条其他文件编译错误，日志 `/tmp/shiju-321-after.log`；未再报告 chrome_tests.rs 错误。有效运行0项，不算行为通过。原真实 Chrome 用例仍按原有 ignored 保留，不强制运行或安装宿主。
+- 两轮均槽位3；CARGO_TARGET_DIR 与 CARGO_BUILD_BUILD_DIR 均为 `/Users/xiangmin/worker/code/shiju/target/rust-slot-3`。入口与子进程均已退出，槽位由脚本释放，缓存保留。
+- 阻塞包括 VideoContext/McpToolRuntime 契约、compaction、ui_store、with_tenant_instance、task_plan_run_*、ACP_CLIENT_CACHE 与 overflow_error；归其他编号任务，不接管。等待这些宿主阻塞解除后重跑上述 cc_control_10_（应运行5项、ignored 1项），通过后再完成删卡。`git diff --check` 本任务文件通过；未编译桌面。

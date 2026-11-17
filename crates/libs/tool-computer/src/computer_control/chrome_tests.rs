@@ -13,7 +13,7 @@ use tool_types::Tool;
 use computer_control::{host::ControlHost, policy::{ComputerControlPolicy, GrantScope}};
 use config_computer_control::GrantDecision;
 use vw_api_computer_control::*;
-use std::{sync::{Arc, atomic::AtomicBool}, time::Duration};
+use std::{sync::Arc, time::Duration};
 use parking_lot::RwLock;
 use serde_json::Value;
 async fn approve_transfer(host: &ControlHost, request: &ComputerControlRequest) -> anyhow::Result<()> {
@@ -41,7 +41,7 @@ fn approval_context() -> (Arc<ToolUseContext>, ApprovalLog) {
     hooks.register(Box::new(Approvals(seen.clone())));
     (Arc::new(ToolUseContext::new("cc10", None).with_hook_runner(Arc::new(hooks))), seen)
 }
-fn authority() -> (Arc<ControlHost>, Arc<RwLock<ComputerControlPolicy>>, ComputerControlRequest) {
+fn authority() -> (Arc<ControlHost>, Arc<RwLock<ComputerControlPolicy>>, ComputerControlRequest, computer_control::host::SessionTicket) {
     let mut p = ComputerControlPolicy::new(Default::default());
     p.set_enabled(&local_user(), ControlFeature::Chrome, true).unwrap();
     p.set_grant(
@@ -51,13 +51,15 @@ fn authority() -> (Arc<ControlHost>, Arc<RwLock<ComputerControlPolicy>>, Compute
     )
     .unwrap();
     let p = Arc::new(RwLock::new(p));
-    let host = Arc::new(ControlHost::new(p.clone(), Arc::new(AtomicBool::new(false))));
+    let host = Arc::new(ControlHost::new_with_lock_state(
+        p.clone(), computer_control::native::locked_session::LockState::Unlocked,
+    ));
     let target =
         ComputerControlTarget::ChromeTab { tab_id: 7, origin: "https://example.test".into() };
     let ticket = host.issue(target.clone(), Duration::from_secs(60)).unwrap();
     let r = ComputerControlRequest {
         request_id: ControlRequestId("cc10".into()),
-        session_id: ticket.session_id,
+        session_id: ticket.session_id.clone(),
         permission_version: ticket.permission_version,
         target,
         action: ComputerControlAction::Chrome {
@@ -67,11 +69,59 @@ fn authority() -> (Arc<ControlHost>, Arc<RwLock<ComputerControlPolicy>>, Compute
             },
         },
     };
-    (host, p, r)
+    (host, p, r, ticket)
 }
+use computer_control::host::{HostMessage, HostReply, SessionTicket, read_frame, write_frame};
+use computer_control::chrome::bridge::{ChromeBridge, EXTENSION_ID};
+use tokio::net::UnixStream;
+
+// Exercise the public authenticated protocol, including the bridge's one-use
+// transfer check, rather than reaching into ControlHost's private grant storage.
+async fn transfer_connection(
+    host: Arc<ControlHost>,
+    ticket: SessionTicket,
+) -> (UnixStream, tokio::task::JoinHandle<std::io::Result<()>>, tokio::task::JoinHandle<()>) {
+    let (native, mut extension) = UnixStream::pair().unwrap();
+    let id = ticket.session_id.clone();
+    let pairing = tokio::spawn(async move { ChromeBridge::pair(native, id).await.unwrap() });
+    write_frame(&mut extension, &json!({
+        "type":"hello", "version":1, "extensionId":EXTENSION_ID, "challenge":"cc10"
+    })).await.unwrap();
+    let _: Value = read_frame(&mut extension).await.unwrap();
+    let bridge = pairing.await.unwrap();
+    let extension = tokio::spawn(async move {
+        while let Ok(request) = read_frame::<_, Value>(&mut extension).await {
+            let data = match request["action"].as_str().unwrap() {
+                "enumerate" => json!([{"tabId":7,"documentId":"cc10", "navigationVersion":0,
+                    "url":"https://example.test/fixture"}]),
+                "upload" => {
+                    assert_eq!(request["args"]["approved"], true);
+                    json!({"uploaded":true})
+                }
+                other => panic!("unexpected extension action: {other}"),
+            };
+            write_frame(&mut extension, &json!({"type":"response", "version":1,
+                "sessionId":request["sessionId"], "id":request["id"], "ok":true, "data":data
+            })).await.unwrap();
+        }
+    });
+    let (mut client, server) = UnixStream::pair().unwrap();
+    let serve = tokio::spawn(async move { bridge.serve(&host, server).await });
+    write_frame(&mut client, &HostMessage::Hello {
+        session_id: ticket.session_id, credential: ticket.credential,
+    }).await.unwrap();
+    assert_eq!(read_frame::<_, HostReply>(&mut client).await.unwrap(), HostReply::Ready);
+    (client, serve, extension)
+}
+
+async fn transfer_action(client: &mut UnixStream, sequence: u64, request: &ComputerControlRequest) -> HostReply {
+    write_frame(client, &HostMessage::Action { sequence, request: request.clone() }).await.unwrap();
+    tokio::time::timeout(Duration::from_secs(5), read_frame(client)).await.unwrap().unwrap()
+}
+
 #[tokio::test]
 async fn cc_control_10_transfer_approval_is_fresh_and_redacts_file_bytes() {
-    let (host, _, mut r) = authority();
+    let (host, _, mut r, ticket) = authority();
     let (ctx, seen) = approval_context();
     r.action = ComputerControlAction::Chrome {
         command: ChromeCommand::Upload {
@@ -80,10 +130,22 @@ async fn cc_control_10_transfer_approval_is_fresh_and_redacts_file_bytes() {
             content_base64: "eA==".into(),
         },
     };
-    for _ in 0..2 {
+    let (mut client, serve, extension) = transfer_connection(host.clone(), ticket).await;
+    for sequence in 1..=2 {
         scope_tool_use_context(ctx.clone(), approve_transfer(&host, &r)).await.unwrap();
-        host.consume_transfer(&r).unwrap();
+        assert_eq!(transfer_action(&mut client, sequence, &r).await, HostReply::Completed {
+            request_id: r.request_id.clone(),
+            outcome: ControlOutcome::Succeeded { output: ControlOutput::Acknowledged },
+        });
     }
+    assert_eq!(transfer_action(&mut client, 3, &r).await, HostReply::Completed {
+        request_id: r.request_id.clone(),
+        outcome: ControlOutcome::Rejected { error: ControlErrorCode::PermissionDenied },
+    });
+    drop(client);
+    serve.await.unwrap().unwrap();
+    extension.abort();
+    let _ = extension.await;
     let entries = seen.lock();
     assert_eq!(entries.len(), 2);
     assert!(entries.iter().all(|(name, args)| name == "computer_control.chrome_upload"
@@ -92,7 +154,7 @@ async fn cc_control_10_transfer_approval_is_fresh_and_redacts_file_bytes() {
 }
 #[tokio::test]
 async fn cc_control_10_full_access_and_turn_bypass_cannot_grant_transfers() {
-    let (host, _, r) = authority();
+    let (host, _, r, ticket) = authority();
     let ctx = Arc::new(
         ToolUseContext::new("cc10", None)
             .with_full_access_enabled(true)
@@ -100,11 +162,19 @@ async fn cc_control_10_full_access_and_turn_bypass_cannot_grant_transfers() {
             .with_channel("slack"),
     );
     assert!(scope_tool_use_context(ctx, approve_transfer(&host, &r)).await.is_err());
-    assert_eq!(host.consume_transfer(&r), Err(ControlErrorCode::PermissionDenied));
+    let (mut client, serve, extension) = transfer_connection(host, ticket).await;
+    assert_eq!(transfer_action(&mut client, 1, &r).await, HostReply::Completed {
+        request_id: r.request_id.clone(),
+        outcome: ControlOutcome::Rejected { error: ControlErrorCode::PermissionDenied },
+    });
+    drop(client);
+    serve.await.unwrap().unwrap();
+    extension.abort();
+    let _ = extension.await;
 }
 #[tokio::test]
 async fn cc_control_10_site_approval_cannot_override_explicit_deny() {
-    let (_, p, _) = authority();
+    let (_, p, _, _) = authority();
     let (ctx, seen) = approval_context();
     p.write()
         .set_grant(
@@ -173,7 +243,7 @@ async fn cc_control_10_real_chrome_tool_transfer_and_redirect_denial() -> anyhow
         anyhow::ensure!(denied.is_err(),"old handle survived redirect");println!("real Chrome redirect refused old handle: {}",denied.err().unwrap());
         anyhow::ensure!(seen.lock().iter().filter(|(name,_)|name=="computer_control.chrome_upload").count()==1,"upload approval missing");
         anyhow::ensure!(seen.lock().iter().filter(|(name,_)|name=="computer_control.chrome_download").count()==1,"download approval missing");
-        runtime.stop(&(context.tenant_scope(),"cc10".into(),None)).await;
+        runtime.stop_context(context.as_ref()).await;
         Ok(())
     }.await;
     std::fs::write(&done, b"done")?;
@@ -215,7 +285,7 @@ async fn cc_control_10_generic_approval_audit_does_not_record_inline_file_bytes(
 
 #[tokio::test]
 async fn cc_control_10_cancelled_connection_never_waits_for_extension() {
-    let (_, policy, _) = authority();
+    let (_, policy, _, _) = authority();
     let runtime = NativeControlRuntime::with_factory(
         policy,
         Arc::new(|_, _, _, _, _, _| panic!("Chrome cannot use native backend")),

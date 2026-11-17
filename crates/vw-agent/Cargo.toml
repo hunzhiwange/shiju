@@ -584,3 +584,8 @@ features = ["test-support"]
 path = "../libs/gateway-config"
 version = "0.6.0"
 features = ["host-test-support"]
+
+[dev-dependencies.computer-control]
+path = "../libs/computer-control"
+version = "0.6.0"
+features = ["test-support"]

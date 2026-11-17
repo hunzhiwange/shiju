@@ -390,7 +390,13 @@ fn task_pool_recovery_restart_retains_unconfirmed_writer() -> Result<()> {
     let sibling = root.path().join("sibling");
     std::fs::create_dir(&sibling)?;
     let status = std::process::Command::new(std::env::current_exe()?)
-        .args(["--exact", "agent_scheduler::runner::workspace_claim_tests::task_pool_recovery_restart_retains_unconfirmed_writer"])
+        .args([
+            "--exact",
+            concat!(module_path!(), "::task_pool_recovery_restart_retains_unconfirmed_writer")
+                .split_once("::")
+                .expect("test module includes crate name")
+                .1,
+        ])
         .env(CHILD, root.path()).status()?;
     assert!(status.success());
     for path in [&project, &child, &root.path().to_path_buf()] {

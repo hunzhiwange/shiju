@@ -1,6 +1,6 @@
 use super::{
     codex_refresh::CodexRefresh,
-    copilot_tests::oauth_server,
+    copilot_tests::{oauth_server, read_request},
     credential_file::{AccountCredential, CredentialFileStore},
     flow::AuthAccountScope,
 };
@@ -8,17 +8,9 @@ use base64::{Engine as _, engine::general_purpose::URL_SAFE_NO_PAD};
 use reqwest::{Request, Url};
 use serde_json::{Value, json};
 use std::{os::unix::fs::PermissionsExt, time::Duration};
-use tokio::{
-    io::{AsyncBufReadExt, AsyncReadExt, AsyncWriteExt, BufReader},
-    net::TcpListener,
-    sync::oneshot,
-    task::JoinHandle,
-    time::timeout,
-};
+use tokio::{io::AsyncWriteExt, net::TcpListener, sync::oneshot, task::JoinHandle, time::timeout};
 use {
-    vw_api_app_identity::AppId,
-    vw_api_app_auth::AuthErrorCode,
-    vw_api_app_auth::AuthService,
+    vw_api_app_auth::AuthErrorCode, vw_api_app_auth::AuthService, vw_api_app_identity::AppId,
     vw_api_transport::id::TenantScope,
 };
 
@@ -91,8 +83,19 @@ pub(super) fn route(request: &mut Request, server: &Url) {
 fn assert_form(request: &str, id: &str) {
     let (headers, body) = request.split_once("\r\n\r\n").unwrap();
     assert!(headers.starts_with("POST /oauth/token HTTP/1.1\r\n"));
-    assert!(headers.contains("\r\ncontent-type: application/x-www-form-urlencoded\r\n"));
-    assert!(headers.contains("\r\nuser-agent: cc-switch-codex-oauth\r\n"));
+    for (name, expected) in [
+        ("content-type", "application/x-www-form-urlencoded"),
+        ("user-agent", "cc-switch-codex-oauth"),
+    ] {
+        let values: Vec<_> = headers
+            .lines()
+            .skip(1)
+            .filter_map(|line| line.split_once(':'))
+            .filter(|(key, _)| key.eq_ignore_ascii_case(name))
+            .map(|(_, value)| value.trim())
+            .collect();
+        assert_eq!(values, [expected], "unexpected {name} header");
+    }
     assert_eq!(
         body,
         format!(
@@ -109,25 +112,12 @@ pub(super) async fn gated_refresh(
     let (received, seen) = oneshot::channel();
     let (release, wait) = oneshot::channel();
     let task = tokio::spawn(async move {
-        let (stream, _) = listener.accept().await.unwrap();
-        let mut stream = BufReader::new(stream);
-        let mut headers = String::new();
-        while !headers.ends_with("\r\n\r\n") {
-            assert_ne!(stream.read_line(&mut headers).await.unwrap(), 0);
-        }
-        let size: usize = headers
-            .lines()
-            .find_map(|line| line.strip_prefix("content-length: "))
-            .unwrap()
-            .parse()
-            .unwrap();
-        let mut body = vec![0; size];
-        stream.read_exact(&mut body).await.unwrap();
-        assert_form(&format!("{headers}{}", String::from_utf8(body).unwrap()), "alpha");
+        let (mut stream, _) = listener.accept().await.unwrap();
+        assert_form(&read_request(&mut stream).await, "alpha");
         received.send(()).unwrap();
         wait.await.unwrap();
         let reply = reply.to_string();
-        stream.get_mut().write_all(format!(
+        stream.write_all(format!(
             "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{reply}",
             reply.len(),
         ).as_bytes()).await.unwrap();

@@ -4,7 +4,7 @@
 
 批次：【批次1】 依赖：无
 
-状态：未开始
+状态：待回归
 
 来源：原任务19全量实际执行；证据编号403, 404。
 预计会话范围：仅本测试定义文件中以下失败族及证据证明必要的底层修复，不接管整包。
@@ -52,3 +52,12 @@ python3 scripts/cargo_slot.py cargo test -p gateway-agent-apps --lib 'agent_apps
 ```
 
 完成证据：各条精确过滤执行1项且passed=1、failed=0、退出0；参数化子进程用例同时记录子进程证据。记录槽位、双缓存路径、日志、代码状态和审查diff。不运行全量测试；最后统一验收任务负责跨任务复验。
+
+## 本次执行证据（2026-11-17）
+
+- 原命令分别运行1项，均 failed=1、退出101；当前实际红灯为 create 返回403，日志 `/tmp/task200-red1.log`、`/tmp/task200-red2.log`。旧503不可直接沿用。
+- 当前访问层 execution_context 已采用网关本机身份并忽略旧 policy；夹具改用 desktop-local-user / 本机HOST_ID，以独立子进程设置 VIBEWINDOW_TEST_ROOT，备份目录跟随真实租户路径。保留恢复、保留策略、损坏保护及外租户哨兵断言。不改共享业务文件。
+- 红灯槽位4，修复后槽位6；每次 CARGO_TARGET_DIR 与 CARGO_BUILD_BUILD_DIR 都为 `/Users/xiangmin/worker/code/shiju/target/rust-slot-N`（N为对应槽位）。入口为 scripts/cargo_slot.py sh -c，同阶段两条原精确命令顺序运行。
+- 修复后日志 `/tmp/task200-green1.log`、`/tmp/task200-green2.log`；受共享工作区 tool-computer 编译失败影响，尚无本任务通过证据。错误 E0432/E0433 BrowserPermission、E0609 browser_permissions、E0599 transfer_permission，位于 computer_control/chrome.rs:106/107/170。未接管无关并发变更。需依赖修复后重跑两条精确命令，确认父子进程各1项通过。
+- 第一条修复后命令已报告上述编译错误；等待其它编译作业收尾后停止自有入口（退出130），自有进程组已退出、槽位6已释放，第二条修复后命令未执行。
+- 仅审查自身diff并做 git diff --check；不运行全量测试或桌面编译。保留本任务文件供定向回归。

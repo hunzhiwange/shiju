@@ -35,6 +35,12 @@ fn terminal_req_03_clipboard_error_preserves_unicode_draft_and_reports_error() {
     let area = Rect::new(0, 0, 80, 20);
     let mut buffer = Buffer::empty(area);
     widget.render(area, &mut buffer);
-    let rendered: String = buffer.content.iter().map(|cell| cell.symbol()).collect();
+    // Ratatui stores a blank continuation cell after each wide Chinese glyph.
+    let rendered: String = buffer
+        .content
+        .iter()
+        .map(|cell| cell.symbol())
+        .filter(|symbol| *symbol != " ")
+        .collect();
     assert!(rendered.contains("剪贴板中没有可用图片"));
 }

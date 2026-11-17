@@ -118,7 +118,12 @@ async fn voice_task_06_client_drop_notifies_gateway_cancellation() {
             let deadline = std::time::Instant::now() + std::time::Duration::from_secs(5);
             loop {
                 match listener.accept() {
-                    Ok((socket, _)) => return socket,
+                    Ok((socket, _)) => {
+                        // Accepted sockets may inherit the listener's nonblocking mode.
+                        // The fixture reads synchronously with a bounded timeout.
+                        socket.set_nonblocking(false).unwrap();
+                        return socket;
+                    }
                     Err(error)
                         if error.kind() == std::io::ErrorKind::WouldBlock
                             && std::time::Instant::now() < deadline =>

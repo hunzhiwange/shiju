@@ -783,3 +783,49 @@ Rust重型命令均经scripts/cargo_slot.py的slot(number=6)串行执行，CARGO
 - 原始配置、请求、响应、日志、构建/入口摘要、前后快照及清理证据仅存本机 /tmp/shiju-nova-accept-20261117（0700）。本次没有产品代码修复，复用已验证产物，仅执行系统API、入口元数据核验、进程及快照检查；未运行新单测、Cargo、Clippy、桌面编译、全仓构建、浏览器、页面构建或额外页面回归。未把历史单测描述为本次验证。
 
 重跑条件：先独立实现并验证Nova的宿主指定模型中继，再从任务28步骤1完整重跑。任务文件保留已阻塞；未绕过当前能力门控或扩大本次验收为新驱动实现。
+
+# Nova 验收（2026-11-17–18 扩围补丁重跑）
+
+结论：**指定模型完整文件创建验收通过**，替代前述模型能力阻塞结论。用户明确授权参考 Cursor 使用补丁突破，并另行明确同意仅在私有验收目录通过官方 API 授予最小数据处理同意；未替换模型、租户或引擎，未降低审批策略。
+
+## 补丁与失败修复
+
+- 固定 `@compass-ai/nova@1.1.65`，沿用系统受管安装链路，在独立安装中校验官方 npm archive integrity、原始 bundle SHA-256及补丁上下文；安装后验证入口、bundle和辅助模块摘要。没有修改全局供应商文件，没有使用任意URL或shell替代安装。只有本机Darwin arm64受管产物通过校验才开放session_model，其他情况保持显式拒绝。
+- 新增Nova驱动及受管补丁：MC模型目录固定为所选模型，主/辅助模型解析绑定同一模型；供应商ACP保留的Auto项不作为验收依据。使用原生Messages协议连接宿主的私有回环中继，凭据仅进入子进程环境，JSON绑定文件0600、目录0700。启动参数、环境冲突、非回环URL和未审核入口失败关闭。通过ACP RPC显式选定 `anthropic/<宿主模型ID>`；anthropic为供应商协议目录命名空间，实际上游仍为所选宿主provider/model，不是换用Claude模型。
+- 原有owner approval握手、供应商permission/request到标准审批的转换和失败终态处理保持不变。原生补丁探针两轮均完成，实际/v1/messages只请求selected-host-model且携带正确中继Bearer；HTTP401得到failed终态，没有回退。拒绝edit_file时文件保持before，后续轮仍完成；最终隔离探针的工作区仅有fixture.txt。
+- 空白环境先复现原生Consent not granted，没有绕过。用户授权后，通过官方导出的getConsentManager/createMinimalConsent/grantConsent在 `/tmp/shiju-nova-patch-20261117/native-home/.nova/` 授权，回读valid=true、dataCollection=true，telemetry/analytics/errorReporting均false。显式状态目录经过0700、属主与符号链接检查；未修改用户全局Nova/Compass同意记录，最终确认两处全局consent.json仍不存在。补丁本身不自动授予同意。
+- 首次真实模型轮已正常完成并创建7个页面文件，但发现供应商另在工作区新建7个.nova缓存、日志、学习记录和shell产物，因此该轮不计完整边界通过。逐文件确认均不在before快照、内容摘要仍匹配后，将本轮全部14个新文件移入私有first-run-owned-files，工作区恢复到6275文件、0差异；没有覆盖或删除既有用户文件。随后补丁将项目状态定位到私有目录，增加目录边界/符号链接回归；保留首轮失败证据。首次受管安装也移入私有first-managed-install，最终由系统API重新安装当前补丁，没有就地修改旧安装或用户全局CLI。
+
+## 最终系统安装与指定模型
+
+- 最终槽位6构建 `cargo build -p vw-cli --bin shiju` 退出0，13m19s。复制到私有目录后运行，二进制SHA-256 `b507ddebf25b76f2341a9e77c181415cbbbe964643d86389f9046e318082fad6`；Nova驱动、分派、受管安装器、契约和补丁的构建前后摘要一致，见source-hashes-final.json。不是未含补丁的历史产物；源码存在其他会话改动，不宣称clean HEAD构建。
+- 全部验收API使用X-Platform-ID=10001、X-Company-ID=100010005、X-Directory=/Users/xiangmin/worker/code/ruejs，保存config、installed、agents、acp基线。最终系统安装POST HTTP200、客户端退出0、10.739381秒，installed true→true；本任务最初系统安装曾false→true。受管目录为现有开发配置下的acp-runtime/nova-1.1.65-model-source-v1，入口node_modules/.bin/nova解析到scripts/bin-wrapper.mjs，package.json版本1.1.65。
+- 最终入口SHA-256 `82f4ea07714bc0227d9c7206420acc1fdb41cd2f4a2886d1146db47af456119b`，dist/cli.js为 `23ea8eeb9f3fca0a5fa2a9b1200aa1efa6a0f3a172e6c766b3388991dd135c93`，dist/shiju-session-model.mjs为 `21cd7af09568a2a915fedc08d53a576f0df2badf7e7ff5b2979e2a1d47e3c76e`；均与审核契约一致。
+- 普通诊断HTTP200、退出0、0.654875秒，authentication_required，独立记录。模型来源API确认session_model supported、审核1.1.65、Darwin arm64；不能把普通诊断作为真实模型成功依据。
+- acp-nova的builtin=true、runtime.kind=acp、backend=nova，基线disabled；临时启用PATCH HTTP200、退出0、6.899301秒，GET重读enabled。
+- 请求严格沿用任务JSON，指定alibaba-token-plan-cn/deepseek-v4.1-flash-1017与full_access=true。POST /v1/chat/stream：HTTP200、curl退出0、176.668669秒，无超时、续传或重复提交。事件：chat.context_loaded=1、chat.step_start=1、chat.delta=3、chat.tool=48（状态事件）、chat.session_updated=2、chat.step_finish=1、chat.done=1、chat.error=0。
+- 会话 `ses_1ea41e6ae001rpN1rPUXhvFkSa` 的运行中/结束summary确认acp-nova/nova、full_access=true；运行中options connected=true，selected_model.source=session_model、provider_id=alibaba-token-plan-cn、完整模型ID=alibaba-token-plan-cn/deepseek-v4.1-flash-1017。结束connected=false，所选模型保持匹配。供应商ACP版本自报1.0.0，npm实际包为1.1.65；权限support=client_only，不宣称Native免审批认证。
+
+## 文件、恢复与清理
+
+- 最终实际产物 `/Users/xiangmin/worker/code/ruejs/acpdemo/nova/` 共7文件：README.md、index.html、vite.config.mjs、src/main.tsx、src/App.tsx、src/env.d.ts、src/style.css。已检查源码和说明：useApp挂载、ref/computed、textarea onInput实时统计、每次输入localStorage保存及初始化恢复；Vite复用仓库examples/shared/rue-vite.mjs与指向packages/rue/src的别名，实际使用本仓库@rue-js/rue。README提供根目录运行说明。没有运行浏览器、页面构建或额外页面测试，不宣称实际渲染/刷新交互已实测。
+- 最终目标起初不存在；排除.git/node_modules/target的普通文件SHA-256快照6275→6282，仅新增上述7文件，目录外0差异。修复后的.nova运行状态均进入私有目录；保留首轮越界失败及其产物，不将首轮计为通过。未提交Rue.js工作区。
+- 配置接口多次408完整保留：首轮启用/恢复408，重启自有网关后启用200，首轮恢复重启重试200。首轮最初无显式覆盖，恢复保留等效disabled覆盖，不宣称存储字节一致。最终轮启用200；结束恢复PATCH HTTP408（48.659633秒），重启后的重试亦408（30.003708秒），随后GET证实Nova disabled且完整config与本轮基线相等，说明不能仅凭408推断未保存。
+- 再次重启回读确认Nova仍disabled，全部agents与最终轮基线完全相等。此时仅channels_config.feishu_instances从空列表变为1项，故不宣称重启后的完整config仍相等；本任务PATCH只涉及agents.acp-nova，未请求修改飞书配置，未覆盖这项非本任务差异，也不臆断其外部写入/运行时投影来源。
+- 六个自有网关PID96914/38290/91837/18438/43829/51893分别对应回环端口53279/56288/60225/54642/57921/59890，均正常退出0；最终核对PID不存在、端口关闭，见cleanup-final.json。没有重启用户服务。所有使用槽位产物的编译/测试进程均已结束并释放自有锁，缓存保留。
+- 全部真实请求、配置、SSE、探针、源码/二进制摘要、快照和恢复证据仅保留本机0700目录 `/tmp/shiju-nova-patch-20261117/`：accept-final为首次文件完成但边界失败轮，boundary-final为最终通过轮；原始模型能力阻塞证据仍在/tmp/shiju-nova-accept-20261117。未提交凭据、完整配置、原始敏感载荷或供应商/宿主二进制。
+
+## 定向验证
+
+Rust重型命令经scripts/cargo_slot.py的slot(number=6)串行执行，CARGO_TARGET_DIR与CARGO_BUILD_BUILD_DIR均为 `/Users/xiangmin/worker/code/shiju/target/rust-slot-6`。仅格式化新增/修改的Nova Rust文件；旧任务引用.plans/references/rust.md不存在，使用现有槽位入口。一次切换排队入口时遇到获锁竞态，自有入口中断，核实其进程与编译子进程已退出后清理自己的遗留锁；该次不计通过，没有清理他人锁或缓存。
+
+| 命令/检查 | 本次结果 |
+| --- | --- |
+| cargo test -p llm-runtime --lib nova_ -- --test-threads=1 | 驱动接入前1失败；最终1通过，483过滤 |
+| python3 scripts/acp_model_source_nova_tests.py | 最终4通过，含供应商拒绝、绑定文件权限/地址、状态目录及项目目录/符号链接边界 |
+| cargo test -p vw-acp --test onboarding_nova -- --test-threads=1 | 6通过、3需专用环境的真实CLI测试ignored；原生补丁探针和指定模型会话另行实际执行 |
+| cargo clippy -p acp-agent-registry --lib --no-deps -- -D warnings | 最终退出0 |
+| cargo clippy -p llm-runtime --lib --no-deps -- -D warnings | 退出101，101项既有诊断，未见本次Nova文件诊断，不计通过；未宣称最终全量严格lint通过 |
+| cargo build -p vw-cli --bin shiju | 最终退出0，13m19s；此前阶段构建均退出0，最终复制产物及源码摘要已核对 |
+
+没有运行桌面编译、全仓测试/构建、全特性Clippy、全仓格式检查、wasm或Makefile，也没有在页面创建后追加浏览器、页面构建或页面测试。完整文件创建、实际模型绑定、目录边界及本任务配置恢复均有最终轮新证据；原生免审批、其他操作系统和飞书配置变化归因仍不在本次通过声明内。

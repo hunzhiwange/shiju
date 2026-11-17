@@ -18,6 +18,7 @@ pub mod gemini;
 pub mod glm_acp_agent;
 pub mod goose;
 pub mod grok;
+pub mod nova;
 pub mod hermes;
 pub mod iflow;
 pub mod kilocode;
@@ -46,7 +47,8 @@ pub fn capabilities(
     };
     let patched = matches!(
         agent,
-        "deepagents"
+        "nova"
+            | "deepagents"
             | "amp-acp"
             | "sigit"
             | "auggie"
@@ -107,6 +109,7 @@ pub fn verified_release(agent: &str) -> Option<&'static str> {
         "codebuddy" => "2.179.3",
         "glm-acp-agent" => "1.17.1",
         "grok" => "1.0.24; 1.0.77",
+        "nova" => "1.1.65 (reviewed host model binding)",
         "amp-acp" => "0.12.0 (Amp 0.0.1778732631-gc5875c; reviewed local ThreadWorker)",
         "sigit" => "1.7.10 (reviewed host boundary)",
         "dirac" => "0.5.24",
@@ -128,7 +131,7 @@ pub fn source_protocol(
 ) -> anyhow::Result<model_protocols::ModelProtocol> {
     use model_protocols::ModelProtocol as P;
     Ok(match agent {
-        "amp-acp" | "claude" => P::Messages,
+        "nova" | "amp-acp" | "claude" => P::Messages,
         "codex" | "kiro" => P::Responses,
         "gemini" => P::Gemini,
         "grok" | "dimcode" | "deepagents" | "autohand" | "sigit" | "glm-acp-agent" | "dirac" | "auggie" | "cursor" | "droid"
@@ -213,6 +216,7 @@ pub fn configure(
         "droid" => droid::configure(profile, endpoint),
         "glm-acp-agent" => glm_acp_agent::configure(profile, endpoint),
         "grok" => grok::configure(profile, endpoint),
+        "nova" => nova::configure(profile, endpoint),
         "sigit" => sigit::configure(profile, endpoint),
         "dirac" => dirac::configure(profile, endpoint),
         "gemini" => gemini::configure(profile, endpoint),
@@ -237,3 +241,7 @@ mod deepagents_tests;
 #[cfg(test)]
 #[path = "dimcode_tests.rs"]
 mod dimcode_tests;
+
+#[cfg(test)]
+#[path = "nova_tests.rs"]
+mod nova_tests;

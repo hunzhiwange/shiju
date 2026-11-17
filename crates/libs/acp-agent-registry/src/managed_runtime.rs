@@ -148,7 +148,7 @@ pub fn reviewed_agent_command(agent: &str) -> Result<Option<(String, Vec<String>
         "auggie" | "qoder" | "qwen" | "snow" => vec!["--acp".into()],
         "copilot" => vec!["--acp".into(), "--stdio".into()],
         "kilocode" => vec!["acp".into(), "--pure".into()],
-        "opencode" | "openclaw" => vec!["acp".into()],
+        "nova" | "opencode" | "openclaw" => vec!["acp".into()],
         _ => vec![],
     };
     // Drivers validate the supplier's executable basename, while npm owns the symlink.
@@ -266,6 +266,8 @@ pub(super) async fn install(agent: &str) -> Result<bool, String> {
     std::fs::create_dir(&stage.0).map_err(|_| "Cannot create ACP installation stage")?;
     let assets = stage.0.join("assets");
     for (name, text) in [
+        ("nova/apply.py", include_str!("../../../../patches/acp-model-source/nova/apply.py")),
+        ("nova/session-model.mjs", include_str!("../../../../patches/acp-model-source/nova/session-model.mjs")),
         ("install.py", include_str!("managed_runtime/install.py")),
         (
             "sigit.patch",

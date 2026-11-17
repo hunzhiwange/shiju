@@ -487,8 +487,8 @@ fn agent_run_store_loads_pending_and_stale_rows_from_sqlite() -> Result<()> {
         store.create_task(&context, finite_task(&task_id)?)?;
         conn.execute(
             "INSERT INTO scheduler_runs (
-                 platform_id, company_id, project_id, id, task_id, worker_id, status, attempt
-             ) VALUES (?1, ?2, ?3, ?4, ?5, NULL, ?6, ?7)",
+                 platform_id, company_id, project_id, id, task_id, status, attempt
+             ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
             params![
                 platform_id,
                 company_id,
@@ -509,8 +509,8 @@ fn agent_run_store_loads_pending_and_stale_rows_from_sqlite() -> Result<()> {
     store.create_task(&context, finite_task(&invalid_task_id)?)?;
     conn.execute(
         "INSERT INTO scheduler_runs (
-             platform_id, company_id, project_id, id, task_id, worker_id, status, attempt
-         ) VALUES (?1, ?2, ?3, ?4, ?5, NULL, ?6, ?7)",
+             platform_id, company_id, project_id, id, task_id, status, attempt
+         ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
         params![
             platform_id,
             company_id,

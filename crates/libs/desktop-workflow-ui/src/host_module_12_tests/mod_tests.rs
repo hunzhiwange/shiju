@@ -187,3 +187,44 @@ fn suggested_node_position_clamps_zero_zoom_and_offsets_by_node_count() {
         .collect();
     assert_eq!(suggested_new_node_position(&app.context()), Point::new(80.0, 68.0));
 }
+
+#[tokio::test]
+async fn controller_loaded_workflow_draws_in_light_and_dark_themes() {
+    use iced::advanced::{Layout, layout, renderer::Headless, widget::Tree};
+    use iced::{Color, Font, Pixels, Rectangle, Size, Theme, mouse};
+
+    let mut app = app_with_workflow();
+    update(&mut app.context(), WorkflowMessage::SelectNode("start".to_string()));
+    for theme in [Theme::Light, Theme::Dark] {
+        let mut element = crate::view::view(
+            desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
+            &app.workflow_state,
+            None,
+            None,
+            Some,
+            None,
+        );
+        let mut renderer =
+            <iced::Renderer as Headless>::new(Font::DEFAULT, Pixels(16.0), Some("tiny-skia"))
+                .await
+                .expect("tiny-skia renderer should be available");
+        let mut tree = Tree::new(element.as_widget());
+        let viewport = Rectangle::with_size(Size::new(1440.0, 960.0));
+        let node = element.as_widget_mut().layout(
+            &mut tree,
+            &renderer,
+            &layout::Limits::new(Size::ZERO, viewport.size()),
+        );
+        element.as_widget().draw(
+            &tree,
+            &mut renderer,
+            &theme,
+            &iced::advanced::renderer::Style::default(),
+            Layout::new(&node),
+            mouse::Cursor::Unavailable,
+            &viewport,
+        );
+        let pixels = renderer.screenshot(Size::new(1440, 960), 1.0, Color::TRANSPARENT);
+        assert!(pixels.chunks_exact(4).any(|pixel| pixel[3] > 0));
+    }
+}

@@ -29,14 +29,20 @@ fn sync_video_tenant(app: &mut Fixture) {
     context.workflow_state.select_tenant(context.tenant.clone());
 }
 
+#[path = "host_module_12_tests/app_tests.rs"]
 mod app_tests;
 
+#[path = "host_module_12_tests/document_tests.rs"]
 mod document_tests;
 
+#[path = "host_module_12_tests/run_tests.rs"]
 mod run_tests;
 
+#[path = "host_module_12_tests/mod_tests.rs"]
 mod mod_tests;
 
+#[path = "host_module_12_tests/tests.rs"]
 mod tests;
 
+#[path = "host_module_12_tests/video_edit_tests.rs"]
 mod video_edit_tests;

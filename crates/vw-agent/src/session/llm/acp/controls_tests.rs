@@ -1,5 +1,6 @@
 //! Real ACP JSON-RPC child process; record codec round trips use temporary storage.
 use super::*;
+use llm_runtime::acp::cache::ACP_CLIENT_CACHE;
 use serde_json::json;
 
 #[tokio::test]

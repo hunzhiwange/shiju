@@ -4,7 +4,7 @@
 
 批次：【批次1】 依赖：无
 
-状态：未开始
+状态：待回归
 
 来源：继续执行宿主单测；诊断编号34（宿主编译错误证据.json）。
 预计会话范围：修复一个源码文件中的宿主接口或测试夹具编译契约；不接管整包。
@@ -57,3 +57,12 @@ python3 scripts/cargo_slot.py cargo test -p vw-agent --lib acp_session_options_f
 编译取证命令（不是测试通过证据）：`python3 scripts/cargo_slot.py cargo test -p vw-agent --lib --no-run`。同阶段顺序命令合并一次入口复用缓存，不默认逐任务全量测试。
 
 最终需由原任务303执行两阶段全量验收；这组修复仅覆盖已发现编译阻塞，尚不能保证宿主全部运行失败已发现。
+
+## 本轮执行记录
+
+- 根因：`controls_tests` 注册在 `controls::tests`，`use super::*` 不会引入祖父模块的缓存导入。直接导入运行时公开的 `llm_runtime::acp::cache::ACP_CLIENT_CACHE`，不改生产接口和租户隔离断言。
+- 已核实过滤名为 `#[tokio::test]` 真实入口。
+- 修改前后均运行 `python3 scripts/cargo_slot.py cargo test -p vw-agent --lib acp_session_options_follow_capabilities_isolate_tenant_connections -- --nocapture`；均槽位1，`CARGO_TARGET_DIR` 与 `CARGO_BUILD_BUILD_DIR` 为 `/Users/xiangmin/worker/code/shiju/target/rust-slot-1`。
+- 修改前退出101，包含当前E0425及7条兄弟VideoContext E0277；修改后退出101，当前E0425消失，仅剩7条兄弟错误，涉及 prepare_tests、entry_test_transport、e2e_tests，归任务335—337。有效运行测试0，不能记为行为通过。复查日志 `/tmp/shiju-task332-test.log`。
+- `git diff --check -- crates/vw-agent/src/session/llm/acp/controls_tests.rs` 通过；自有入口及子进程均已退出，槽位已自动释放、缓存保留。未运行全量或桌面构建。
+- 保留本卡；兄弟编译阻塞解除后须重跑上述定向命令，取得有效数>0、failed=0、退出0再完成清理。

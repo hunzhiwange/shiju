@@ -481,7 +481,8 @@ async fn listen_filters_events_and_dispatches_valid_message() {
     let (tx, mut rx) = mpsc::channel(2);
 
     let listen_handle = tokio::spawn(async move { channel.listen(tx).await });
-    let message = timeout(Duration::from_secs(2), rx.recv()).await.unwrap().unwrap();
+    // 监听启动包含 HTTP 客户端初始化，为并行负载预留有界时间。
+    let message = timeout(Duration::from_secs(10), rx.recv()).await.unwrap().unwrap();
     listen_handle.await.unwrap().unwrap();
 
     let gateway_request = server.next_request().await;
@@ -531,7 +532,8 @@ async fn listen_dispatches_dm_with_attachment_and_generated_id() {
     let (tx, mut rx) = mpsc::channel(1);
 
     let listen_handle = tokio::spawn(async move { channel.listen(tx).await });
-    let message = timeout(Duration::from_secs(2), rx.recv()).await.unwrap().unwrap();
+    // 监听启动包含 HTTP 客户端初始化，为并行负载预留有界时间。
+    let message = timeout(Duration::from_secs(10), rx.recv()).await.unwrap().unwrap();
     listen_handle.await.unwrap().unwrap();
 
     let gateway_request = server.next_request().await;
@@ -576,7 +578,8 @@ async fn listen_allows_group_sender_override_without_mention() {
     let (tx, mut rx) = mpsc::channel(1);
 
     let listen_handle = tokio::spawn(async move { channel.listen(tx).await });
-    let message = timeout(Duration::from_secs(2), rx.recv()).await.unwrap().unwrap();
+    // 监听启动包含 HTTP 客户端初始化，为并行负载预留有界时间。
+    let message = timeout(Duration::from_secs(10), rx.recv()).await.unwrap().unwrap();
     listen_handle.await.unwrap().unwrap();
 
     let gateway_request = server.next_request().await;

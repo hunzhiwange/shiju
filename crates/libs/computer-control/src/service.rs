@@ -7,8 +7,7 @@
 //! it on policy edits/revocation or gateway shutdown. The service exits after at
 //! most 300 seconds. Never expose this bootstrap channel as a listener or forward
 //! model-provided config. A same-UID connection to control.sock still needs Hello.
-//! The binary currently dispatches native observation; other actions fail with
-//! Unsupported until their service-side backend is connected.
+//! The binary dispatches native observation and input with session-scoped media.
 use crate::host::ControlHost;
 use std::{
     future::Future,
@@ -116,4 +115,31 @@ pub struct ServiceReady {
     pub session_id: vw_api_computer_control::ControlSessionId,
     pub credential: String,
     pub permission_version: vw_api_computer_control::PermissionVersion,
+}
+
+/// Private launcher channel operations; this endpoint is never exposed to tools.
+#[derive(serde::Serialize, serde::Deserialize)]
+pub enum ServiceCommand {
+    Resolve { reference: vw_api_computer_control::ScreenshotReference, offset: usize },
+}
+#[derive(serde::Serialize, serde::Deserialize)]
+pub struct ServiceImageChunk {
+    pub data: String,
+    pub done: bool,
+}
+/// Locate only the helper bundled alongside the running ShiJu executable.
+pub fn executable() -> io::Result<PathBuf> {
+    let current = std::env::current_exe()?;
+    let contents = current
+        .parent()
+        .and_then(Path::parent)
+        .ok_or_else(|| io::Error::other("missing application bundle"))?;
+    let helper = contents.join("Helpers/ShiJu Computer Use.app/Contents/MacOS/shiju-computer-use");
+    if !helper.is_file() {
+        return Err(io::Error::new(
+            io::ErrorKind::NotFound,
+            "bundled computer control App unavailable",
+        ));
+    }
+    Ok(helper)
 }

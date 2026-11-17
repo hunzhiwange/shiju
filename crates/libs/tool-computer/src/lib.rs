@@ -3,6 +3,7 @@
 //! carry host credentials, permission versions or control-session identities.
 #[path = "computer_control/chrome.rs"]
 pub mod chrome;
+mod service_backend;
 
 use tool_types::{Tool, ToolCallResult, ToolResult};
 use tool_context::{context::{ToolUseContext, current_tool_use_context}, host::ContextHost};
@@ -95,8 +96,8 @@ impl NativeControlRuntime {
         }
         let runtime = Self::with_factory(
             Arc::new(RwLock::new(ComputerControlPolicy::new(config))),
-            Arc::new(|policy, locked, session, version, target, cancel| {
-                Ok(Arc::new(NativeObserver::new(policy, locked, session, version, target, cancel)?))
+            Arc::new(|policy, _locked, _session, _version, target, cancel| {
+                Ok(Arc::new(service_backend::ServiceBackend::new(policy.read().config().clone(), target, cancel)))
             }),
         );
         *shared = Arc::downgrade(&runtime);
@@ -468,6 +469,7 @@ impl<H: ContextHost> Tool for ComputerControlTool<H> {
                     {"type":"object","additionalProperties":false,"required":["kind"],"properties":{"kind":{"const":"activate"}}},
                     {"type":"object","additionalProperties":false,"required":["kind","text"],"properties":{"kind":{"const":"type_text"},"text":{"type":"string","maxLength":16384}}},
                     {"type":"object","additionalProperties":false,"required":["kind","x","y","button"],"properties":{"kind":{"const":"click"},"x":{"type":"integer","minimum":0},"y":{"type":"integer","minimum":0},"button":{"enum":["left","right","middle"]}}},
+                    {"type":"object","additionalProperties":false,"required":["kind","path","button","duration_ms"],"properties":{"kind":{"const":"drag"},"path":{"type":"array","minItems":2,"maxItems":128,"items":{"type":"array","minItems":2,"maxItems":2,"items":{"type":"integer"}}},"button":{"enum":["left","right","middle"]},"duration_ms":{"type":"integer","minimum":1,"maximum":5000}}},
                     {"type":"object","additionalProperties":false,"required":["kind","delta_x","delta_y"],"properties":{"kind":{"const":"scroll"},"delta_x":{"type":"integer"},"delta_y":{"type":"integer"}}},
                     {"type":"object","additionalProperties":false,"required":["kind","key","modifiers"],"properties":{"kind":{"const":"press"},"key":{"type":"string"},"modifiers":{"type":"array","items":{"enum":["shift","control","alt","meta"]},"uniqueItems":true}}}
                 ]}}}
@@ -592,3 +594,7 @@ pub fn office_owner<H: ContextHost>(context: &ToolUseContext<H>) -> anyhow::Resu
     let identity = serde_json::to_vec(&(context.tenant_scope(), context.session(), context.workspace_root()))?;
     Ok(ControlSessionId(hex::encode(Sha256::digest(identity))))
 }
+
+#[cfg(test)]
+#[path = "service_backend_tests.rs"]
+mod service_backend_tests;

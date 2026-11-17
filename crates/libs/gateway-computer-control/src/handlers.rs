@@ -19,6 +19,7 @@ fn user() -> String {
 pub fn router() -> Router {
     Router::new()
         .route("/computer-control/status", get(status))
+        .route("/computer-control/native-permission", post(request_native_permission))
         .route("/computer-control/settings", axum::routing::put(save))
         .route("/computer-control/approvals", get(approvals).delete(revoke))
         .route("/computer-control/pairing", post(pair))
@@ -54,7 +55,7 @@ async fn status(Extension(t): Extension<TenantScope>, h: HeaderMap) -> Result<Js
     let documents = runtime.office_transport().map(|o| o.connected_documents()).unwrap_or_default();
     let policy = runtime.control_policy().read();
     let config = policy.config().users.get(&user()).cloned().unwrap_or_default();
-    let permissions = computer_control::native::native_permissions();
+    let permissions = service_permissions("--permissions").await;
     let (readiness, auth, backend, caps) = match permissions {
         Ok(p) => (if p.accessibility && p.screen_recording { ControlReadiness::Ready } else { ControlReadiness::Unauthorized }, if p.accessibility && p.screen_recording { SystemAuthorization::Granted } else { SystemAuthorization::Denied }, ControlBackend::Available, vec![ControlCapability::Observe, ControlCapability::Screenshot, ControlCapability::Input]),
         Err(_) => (ControlReadiness::Unsupported, SystemAuthorization::NotChecked, ControlBackend::Unsupported, vec![]),
@@ -153,3 +154,18 @@ async fn pair(Extension(t): Extension<TenantScope>, h: HeaderMap, Json(q): Json<
 #[cfg(test)]
 #[path = "computer_control_tests.rs"]
 mod tests;
+
+async fn request_native_permission(Extension(_t): Extension<TenantScope>, h: HeaderMap, Json(q): Json<NativePermissionRequest>) -> Result<Json<NativePermissionReport>, Failure> {
+    let _runtime = runtime(&_t, &h).await?;
+    let mode = if q.screen_recording { "--request-screen-recording" } else { "--request-accessibility" };
+    Ok(Json(service_permissions(mode).await?))
+}
+
+async fn service_permissions(mode: &'static str) -> Result<NativePermissionReport, Failure> {
+    tokio::task::spawn_blocking(move || {
+        let executable = computer_control::service::executable().map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?;
+        let output = std::process::Command::new(executable).arg(mode).output().map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?;
+        if !output.status.success() { return Err(StatusCode::UNPROCESSABLE_ENTITY); }
+        serde_json::from_slice(&output.stdout).map_err(|_| StatusCode::BAD_GATEWAY)
+    }).await.map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
+}

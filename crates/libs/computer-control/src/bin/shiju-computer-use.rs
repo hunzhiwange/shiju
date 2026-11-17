@@ -6,7 +6,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         host::{ControlHost, read_frame, write_frame},
         native::NativeObserver,
         policy::ComputerControlPolicy,
-        service::{ControlService, ServiceBootstrap, ServiceReady},
+        service::{
+            ControlService, ServiceBootstrap, ServiceCommand, ServiceImageChunk, ServiceReady,
+        },
     };
     use parking_lot::RwLock;
     use std::{
@@ -16,6 +18,28 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     };
     use tokio_util::sync::CancellationToken;
     use vw_api_computer_control::{ComputerControlAction, ControlErrorCode};
+    if let Some(mode) = std::env::args().nth(1) {
+        let permissions = match mode.as_str() {
+            "--permissions" => computer_control::native::native_permissions(),
+            "--request-accessibility" => computer_control::native::request_native_permission(
+                computer_control::native::NativePermission::Accessibility,
+            ),
+            "--request-screen-recording" => computer_control::native::request_native_permission(
+                computer_control::native::NativePermission::ScreenRecording,
+            ),
+            _ => return Err("unknown control App mode".into()),
+        }
+        .map_err(|_| "native permissions unavailable")?;
+        println!(
+            "{}",
+            serde_json::to_string(&vw_api_computer_control::NativePermissionReport {
+                executable: std::env::current_exe()?.display().to_string(),
+                accessibility: permissions.accessibility,
+                screen_recording: permissions.screen_recording,
+            })?
+        );
+        return Ok(());
+    }
     let runtime = tokio::runtime::Builder::new_current_thread().enable_all().build()?;
     runtime.block_on(async {
         if unsafe { libc::fcntl(3, libc::F_GETFD) } == -1 {
@@ -30,7 +54,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
         let bootstrap: ServiceBootstrap = tokio::time::timeout(Duration::from_secs(5), read_frame(&mut channel)).await??;
         let policy = Arc::new(RwLock::new(ComputerControlPolicy::new(bootstrap.config)));
-        let locked = Arc::new(AtomicBool::new(true));
+        let locked = Arc::new(AtomicBool::new(false));
         let host = Arc::new(ControlHost::new(policy.clone(), locked.clone()));
         let ticket = host.issue(bootstrap.target, Duration::from_secs(bootstrap.lifetime_seconds))
             .map_err(|_| std::io::Error::new(std::io::ErrorKind::PermissionDenied, "session denied"))?;
@@ -38,14 +62,21 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         let service = ControlService::bind(&root.path().join("session"))?;
         write_frame(&mut channel, &ServiceReady { socket_path: service.socket_path().into(), session_id: ticket.session_id.clone(), credential: ticket.credential, permission_version: ticket.permission_version }).await?;
         let shutdown = CancellationToken::new();
+        let observer = Arc::new(tokio::sync::OnceCell::<Arc<NativeObserver>>::new());
+        let shared = observer.clone();
         let execute = move |request: vw_api_computer_control::ComputerControlRequest, cancel| {
             let policy = policy.clone();
             let locked = locked.clone();
+            let shared = shared.clone();
             async move {
+                let observer = shared.get_or_try_init(|| async {
+                    NativeObserver::new(policy, locked, request.session_id, request.permission_version, request.target, cancel).map(Arc::new).map_err(|e| e.code())
+                }).await?;
                 match request.action {
-                    ComputerControlAction::NativeObserve { screenshot } => {
-                        let observer = NativeObserver::new(policy, locked, request.session_id, request.permission_version, request.target, cancel).map_err(|e| e.code())?;
-                        observer.observe(screenshot).await.map_err(|e| e.code())
+                    ComputerControlAction::NativeObserve { screenshot } => observer.observe(screenshot).await.map_err(|e| e.code()),
+                    ComputerControlAction::NativeInput { input } => {
+                        observer.execute_input(&input).await.map_err(|e| e.code())?;
+                        Ok(vw_api_computer_control::ControlOutput::Acknowledged)
                     }
                     _ => Err(ControlErrorCode::Unsupported),
                 }
@@ -57,7 +88,17 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         tokio::pin!(running);
         tokio::select! {
             result = &mut running => result?,
-            _ = async { use tokio::io::AsyncReadExt; let mut byte = [0]; let _ = channel.read(&mut byte).await; } => {
+            _ = async {
+                loop {
+                    let Ok(ServiceCommand::Resolve { reference, offset }) = read_frame::<_, ServiceCommand>(&mut channel).await else { break };
+                    let Some(observer) = observer.get() else { break };
+                    let Ok(image) = observer.resolve_screenshot(&reference) else { break };
+                    if offset > image.len() || !image.is_char_boundary(offset) { break; }
+                    let end = (offset + 512 * 1024).min(image.len());
+                    let chunk = ServiceImageChunk { data: image[offset..end].into(), done: end == image.len() };
+                    if write_frame(&mut channel, &chunk).await.is_err() { break; }
+                }
+            } => {
                 host.stop(&ticket.session_id);
                 shutdown.cancel();
                 running.await?;

@@ -119,7 +119,7 @@ fn permission_argument_summary_rejects_missing_empty_and_unsupported_arguments()
 }
 
 #[test]
-fn permission_arguments_preview_skips_empty_values_and_truncates_large_json() {
+fn permission_arguments_preview_skips_empty_values_and_preserves_large_json() {
     let mut req = request("perm-1");
     req.metadata.insert("arguments".to_string(), json!({}));
     assert_eq!(permission_arguments_preview(&req), None);
@@ -128,9 +128,13 @@ fn permission_arguments_preview_skips_empty_values_and_truncates_large_json() {
     assert!(permission_arguments_preview(&req).expect("preview").contains("\"cmd\""));
 
     req.metadata.insert("arguments".to_string(), json!({"text": "x".repeat(500)}));
-    let preview = permission_arguments_preview(&req).expect("truncated preview");
-    assert_eq!(preview.chars().count(), 321);
-    assert!(preview.ends_with('…'));
+    let preview = permission_arguments_preview(&req).expect("complete preview");
+    assert_eq!(
+        preview,
+        serde_json::to_string_pretty(req.metadata.get("arguments").expect("arguments")).unwrap()
+    );
+    let arguments: serde_json::Value = serde_json::from_str(&preview).expect("valid JSON");
+    assert_eq!(arguments["text"], "x".repeat(500));
 }
 
 #[test]

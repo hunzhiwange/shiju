@@ -275,8 +275,10 @@ fn running_think_block_defaults_collapsed_when_reasoning_summary_is_enabled() {
 
 #[test]
 fn running_think_blocks_prefer_plain_text_body() {
-    assert!(should_prefer_plain_think_body(true, false));
-    assert!(should_prefer_plain_think_body(false, true));
+    assert!(should_prefer_plain_think_body(true, true));
+    // 已结束的思考和非流式历史消息应保留可选择正文。
+    assert!(!should_prefer_plain_think_body(true, false));
+    assert!(!should_prefer_plain_think_body(false, true));
     assert!(!should_prefer_plain_think_body(false, false));
 }
 

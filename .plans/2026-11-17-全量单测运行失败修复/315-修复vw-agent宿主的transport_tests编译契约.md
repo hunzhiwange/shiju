@@ -4,7 +4,7 @@
 
 批次：【批次1】 依赖：无
 
-状态：未开始
+状态：待回归
 
 来源：继续执行宿主单测；诊断编号33（宿主编译错误证据.json）。
 预计会话范围：修复一个源码文件中的宿主接口或测试夹具编译契约；不接管整包。
@@ -57,3 +57,11 @@ python3 scripts/cargo_slot.py cargo test -p vw-agent --lib compaction_output_bud
 编译取证命令（不是测试通过证据）：`python3 scripts/cargo_slot.py cargo test -p vw-agent --lib --no-run`。同阶段顺序命令合并一次入口复用缓存，不默认逐任务全量测试。
 
 最终需由原任务303执行两阶段全量验收；这组修复仅覆盖已发现编译阻塞，尚不能保证宿主全部运行失败已发现。
+
+## 本次执行记录
+
+- 根因：`context_governance::summary_output_budget` 只在 session-engine 自身 cfg(test) 重导出，vw-agent 宿主编译依赖库时不可见。改用现有公开 `session_engine::compaction_budget::summary_output_budget`，保留真实流请求和 20_000 token 断言，不改生产 API。
+- 已核对测试入口为 `#[test] fn compaction_output_budget_reaches_openai_compatible_request`，父模块注册在 vw-agent `session/llm/stream.rs`。
+- 修复前命令：`python3 scripts/cargo_slot.py cargo test -p vw-agent --lib compaction_output_budget_reaches_openai_compatible_request -- --nocapture`；槽位3，两个缓存路径均 `/Users/xiangmin/worker/code/shiju/target/rust-slot-3`；退出101，编译51条错误，包含本任务 E0425；有效测试数0，未通过。完整输出 `/tmp/shiju-315-red.log`。
+- 曾排队等待其他 Cargo/rustc 退出后运行相同定向命令；等待时其他编译持续占用，排队入口已停止（退出130，尚未启动第二次 Cargo），无本任务构建子进程或槽位遗留。宿主仍有51条编译错误，未取得行为通过证据；保留任务文件，待兄弟修复解除阻塞后复验相同命令。
+- 轻量检查：本次源码 `git diff --check` 通过。

@@ -48,7 +48,7 @@ fn compaction_output_budget_reaches_openai_compatible_request() {
                 let mut input = test_input("model-recovery");
                 input.model = provider::get_model("model-recovery", "original").await.unwrap();
                 input.model.limit = provider::ModelLimit { context: 1_048_576, input: None, output: 1_048_576 };
-                let budget = crate::session::processor::context_governance::summary_output_budget(&input.model.limit);
+                let budget = session_engine::compaction_budget::summary_output_budget(&input.model.limit);
                 input.agent.options.insert("max_output_tokens".into(), json!(budget));
                 input.agent.options.insert("disable_tools".into(), json!(true));
                 let result = stream(input, |_| {}).await;

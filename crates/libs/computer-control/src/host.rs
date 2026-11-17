@@ -64,6 +64,8 @@ struct Session {
 }
 
 pub struct ControlHost {
+    #[cfg(test)]
+    test_lock_state: Option<LockState>,
     local_user: String,
     uid: u32,
     policy: Arc<RwLock<ComputerControlPolicy>>,
@@ -77,6 +79,8 @@ impl ControlHost {
         // SAFETY: geteuid has no preconditions and returns the current OS identity.
         let uid = unsafe { libc::geteuid() };
         Self {
+            #[cfg(test)]
+            test_lock_state: None,
             local_user: format!("uid:{uid}"),
             uid,
             policy,
@@ -85,9 +89,23 @@ impl ControlHost {
         }
     }
 
+    /// Instance-local lock evidence for protocol tests, independent of the desktop.
+    #[cfg(test)]
+    pub(crate) fn new_with_lock_state(
+        policy: Arc<RwLock<ComputerControlPolicy>>,
+        state: LockState,
+    ) -> Self {
+        let mut host = Self::new(policy, Arc::new(AtomicBool::new(state != LockState::Unlocked)));
+        host.test_lock_state = Some(state);
+        host
+    }
+
     /// Unknown evidence is treated as locked for authorization. Dispatch permits
     /// only application-runtime commands or the target-directed AX command subset.
     fn refresh_lock(&self) -> LockState {
+        #[cfg(test)]
+        let state = self.test_lock_state.unwrap_or_else(locked_session::lock_state);
+        #[cfg(not(test))]
         let state = locked_session::lock_state();
         let locked = state != LockState::Unlocked;
         self.locked.store(locked, Ordering::SeqCst);

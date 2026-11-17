@@ -120,7 +120,7 @@ fn host_fixture() -> (
     ComputerControlRequest,
 ) {
     use crate::host::ControlHost;
-    use std::sync::{Arc, atomic::AtomicBool};
+    use std::sync::Arc;
     let user = format!("uid:{}", unsafe { libc::geteuid() });
     let mut p = ComputerControlPolicy::new(ComputerControlConfig::default());
     p.set_enabled(&user, ControlFeature::Chrome, true).unwrap();
@@ -131,7 +131,12 @@ fn host_fixture() -> (
     )
     .unwrap();
     let policy = Arc::new(parking_lot::RwLock::new(p));
-    let host = Arc::new(ControlHost::new(policy.clone(), Arc::new(AtomicBool::new(false))));
+    // These protocol/transfer tests require an unlocked session; do not depend
+    // on the physical desktop's lock evidence or grant locked-use permission.
+    let host = Arc::new(ControlHost::new_with_lock_state(
+        policy.clone(),
+        crate::native::locked_session::LockState::Unlocked,
+    ));
     let target =
         ComputerControlTarget::ChromeTab { tab_id: 7, origin: "https://example.test".into() };
     let ticket = host.issue(target.clone(), std::time::Duration::from_secs(60)).unwrap();

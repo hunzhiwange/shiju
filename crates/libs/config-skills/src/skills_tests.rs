@@ -17,7 +17,9 @@ fn skills_config_defaults_to_vibewindow_directory_provider() {
     assert_eq!(config.prompt_injection_mode, super::SkillsPromptInjectionMode::Compact);
 
     let serialized = serde_json::to_value(&config).unwrap();
-    let keys = serialized.as_object().unwrap().keys().map(String::as_str).collect::<Vec<_>>();
+    let mut keys = serialized.as_object().unwrap().keys().map(String::as_str).collect::<Vec<_>>();
+    // serde_json 的 preserve_order 特性可由工作区其他依赖启用，键集合不依赖迭代顺序。
+    keys.sort_unstable();
     assert_eq!(
         keys,
         ["auto_load_project_skills", "directory_provider", "prompt_injection_mode", "security"]

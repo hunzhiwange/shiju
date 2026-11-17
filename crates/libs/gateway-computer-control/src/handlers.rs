@@ -54,9 +54,9 @@ async fn status(Extension(t): Extension<TenantScope>, h: HeaderMap) -> Result<Js
     let runtime = runtime(&t, &h).await?;
     let chrome_connected = runtime.chrome_connected().await;
     let documents = runtime.office_transport().map(|o| o.connected_documents()).unwrap_or_default();
+    let permissions = service_permissions("--permissions").await;
     let policy = runtime.control_policy().read();
     let config = policy.config().users.get(&user()).cloned().unwrap_or_default();
-    let permissions = service_permissions("--permissions").await;
     let (readiness, auth, backend, caps) = match permissions {
         Ok(p) => (if p.accessibility && p.screen_recording { ControlReadiness::Ready } else { ControlReadiness::Unauthorized }, if p.accessibility && p.screen_recording { SystemAuthorization::Granted } else { SystemAuthorization::Denied }, ControlBackend::Available, vec![ControlCapability::Observe, ControlCapability::Screenshot, ControlCapability::Input]),
         Err(_) => (ControlReadiness::Unsupported, SystemAuthorization::NotChecked, ControlBackend::Unsupported, vec![]),

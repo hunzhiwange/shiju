@@ -195,7 +195,15 @@ async fn cc_control_06_revocation_permission_and_lock_reject_without_input() {
     );
     os.0.lock().missing_ax = false;
     o.locked.store(true, Ordering::SeqCst);
-    assert_eq!(o.execute_input_with(&text(), &os).await, Err(err(ControlErrorCode::Unsupported)));
+    // macOS supports locked native input, but this fixture has no locked-use grant.
+    // Other platforms reject locked native input before checking that grant.
+    let locked_error = if cfg!(target_os = "macos") {
+        ControlErrorCode::PermissionDenied
+    } else {
+        ControlErrorCode::Unsupported
+    };
+    assert_eq!(o.execute_input_with(&text(), &os).await, Err(err(locked_error)));
+    assert!(os.0.lock().events.is_empty());
     o.locked.store(false, Ordering::SeqCst);
     o.policy
         .write()

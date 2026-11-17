@@ -69,6 +69,7 @@ fn policy_autonomy_levels_bypass_interactive_approval() {
 #[test]
 fn policy_always_ask_takes_precedence_over_auto_and_session_allowlist() {
     let manager = ApprovalManager::from_config(&AutonomyConfig {
+        level: AutonomyLevel::Supervised,
         auto_approve: vec!["shell".to_string()],
         always_ask: vec!["shell".to_string()],
         ..AutonomyConfig::default()

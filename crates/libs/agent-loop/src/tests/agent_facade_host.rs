@@ -130,6 +130,14 @@ fn merge_json_value_deep_merges_objects_and_replaces_scalars() {
     assert_eq!(target["bash"], true);
 }
 
+fn assert_builtin_catalog(agents: &HashMap<String, DelegateAgentConfig>) {
+    let expected = agent_config::catalog::merged_agent_catalog(&HashMap::new());
+    assert_eq!(
+        serde_json::to_value(agents).unwrap(),
+        serde_json::to_value(expected).unwrap()
+    );
+}
+
 #[test]
 fn load_agent_configs_merges_configured_agents_with_builtins() {
     let cfg = json!({
@@ -162,7 +170,7 @@ fn load_agent_configs_merges_configured_agents_with_builtins() {
 
     let fallback = load_agent_configs(&json!({"agents": "not an object"}));
     assert!(fallback.contains_key("main"));
-    assert_eq!(fallback.len(), 27);
+    assert_builtin_catalog(&fallback);
 }
 
 #[test]
@@ -177,7 +185,7 @@ fn load_agent_configs_discards_malformed_configured_map() {
 
     assert!(!agents.contains_key("incomplete"));
     assert!(agents.contains_key("main"));
-    assert_eq!(agents.len(), 27);
+    assert_builtin_catalog(&agents);
 }
 
 #[test]
@@ -185,7 +193,7 @@ fn load_agent_configs_uses_builtins_when_agents_key_is_missing() {
     let agents = load_agent_configs(&json!({"default_agent": "main"}));
 
     assert!(agents.contains_key("main"));
-    assert_eq!(agents.len(), 27);
+    assert_builtin_catalog(&agents);
     assert!(agents.values().all(|agent| agent.builtin));
 }
 

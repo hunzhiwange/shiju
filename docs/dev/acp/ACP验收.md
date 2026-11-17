@@ -958,3 +958,17 @@ Rust重型命令经scripts/cargo_slot.py槽位入口串行执行，对应CARGO_T
 - 原生--help/--version均退出0但无输出，不能据此推断参数支持。ACP initialize实际成功，protocolVersion=1，agentInfo版本0.1.0（与发行v0.6.0分别记录），唯一认证方法oauth_browser。隔离HOME、本仓库Rue.js cwd下，session/new携带原完整指定模型，返回JSON-RPC -32000 Authentication required。此处model字段不构成选模被支持的证据，未发送prompt或创建任务。
 - 仅检查宿主存在性与环境变量名：无~/.corust目录，CORUST_环境变量数量0；二进制显示CORUST_API_KEY/CORUST_HOME及OAuth入口，但这些静态字符串不能证明外部Alibaba模型可配置。未伪造认证、重定向身份服务、注册账号、自动开启浏览器登录或替换默认模型。当前真正外部前置为获授权的有效Corust认证；即使补齐，仍须证明原指定模型真实请求、系统安装及完整会话产物。
 - 自有原生探针已退出，未启动新网关、未PATCH配置、未系统安装；旧自有网关端口仍关闭。Rue.js与前轮结束快照比较6297项零差异，未创建目标目录。仅文档轻量检查，无代码变更，不运行Cargo、单测、Clippy或页面验证。私有证据 `/tmp/shiju-corust-retry-20261118/`（0700）保存官方manifest、release API、校验包、原生协议请求/响应、退出指标、边界及清理记录；供应商二进制与原始载荷不提交。任务仍已阻塞，待有效认证与模型入口证据后继续。
+
+
+## Devin 验收（2026-11-18）
+
+结论：已阻塞，未通过。任务32已有明确阻塞及环境恢复记录；来源任务 `12-Devin.md` 和 `docs/dev/evidence/acp-onboarding-devin.md` 均不存在，不以缺失推定接入通过。
+
+- 当前注册与安装代码已迁移到 `crates/libs/acp-agent-registry/src/agent_registry.rs`、`crates/libs/config-acp-install/src/lib.rs`；注册为 `devin acp`，安装策略明确返回None。`agent-config/src/catalog.rs` 派生builtin预设；`llm-runtime/src/acp/model_source/drivers/mod.rs` 无Devin verified_release及驱动。现有onboarding测试含协议fixture，不能证明真实供应商会话通过。
+- 复用任务30正式shiju 0.6.0产物 `/tmp/shiju-amp-complete-20261118/shiju`，SHA-256 `c01a466afc21a06e643db6341457e404981f06833833c6c327e7a02774758b78`。构建来源沿用任务30的df9f114345adf4f843a0929e88750cb48122ba22加工作区修复，不宣称当前clean HEAD构建；另存当前相关源码摘要，当前源码与拒绝行为一致，不单凭旧产物判定失败。
+- 自有回环网关127.0.0.1:50568，现有开发配置；所有请求携带规定平台10001、公司100010005及Rue.js目录头。installed、agents、ACP及全局配置基线GET均200；安装前后Devin均未安装。POST系统安装HTTP400、客户端退出0、0.000575秒，明确“该 ACP 暂无一键安装命令，请使用官方安装器”；无真实入口及CLI版本可核验，未使用任意脚本替代系统链路。
+- 传入当前对应ACP配置的诊断HTTP200、客户端退出0、0.009044秒，结果startup_failed。模型能力GET HTTP200、客户端退出0、0.000645秒，session_model=unsupported、reason=unsupported_cli，cli_local=supported、connected=false；未改用默认模型冒充指定 `alibaba-token-plan-cn/deepseek-v4.1-flash-1017`。
+- GET确认内置预设acp-devin、builtin=true、runtime.kind=acp、backend=devin、enabled=false。前置安装及模型能力阻塞后未PATCH启用、未发送chat/stream，无SSE、chat.done、会话summary/options或selected_model/full_access绑定证据，未创建编辑器文件。
+- Rue.js `packages/rue/src` 存在；目标acpdemo/devin初始不存在，结束未创建。排除.git、node_modules、target的普通文件SHA-256快照前后6297项零差异。结束GET完整配置与基线相等，无临时配置需要恢复；自有网关已停止、端口关闭，未重启用户服务、未占用Cargo槽位。
+- 未运行Cargo、定向单测、Clippy、桌面编译、浏览器或页面构建：本次无代码修复，复用既有产物，遇到明确能力阻塞后仅完成独立检查与文档轻量检查；不宣称单测或真实会话成功。旧 `.plans/references/rust.md` 不存在，本次无需编译。
+- 本机0700私有证据 `/tmp/shiju-devin-accept-20261118/` 保存原始请求/响应、指标、配置基线与重读、构建与源码摘要、快照、网关日志及清理记录，不提交敏感载荷或供应商二进制。任务33保留已阻塞，待交付系统安装、真实session_model驱动和脱敏接入证据后完整重跑。

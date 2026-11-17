@@ -17,7 +17,7 @@ fn cp12_backup_restore_success() {
     let backup = uninstall.finish().unwrap();
     let mut restore = SkillRestore::prepare(&root, &backups, &backup.backup_id, &BTreeMap::new()).unwrap();
     let applied = restore.publish().unwrap();
-    assert_eq!(applied.skill.source, root.join("example"));
+    assert_eq!(applied.skill.source, root.canonicalize().unwrap().join("example"));
     restore.finish();
     assert!(root.join("example/SKILL.md").is_file());
     assert!(backup.backup_path.join("skill/SKILL.md").is_file());

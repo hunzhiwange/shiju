@@ -11,7 +11,7 @@ fn created() -> Value {
     json!({"type":"response.created","response":{"id":"resp_43"}})
 }
 fn terminal(output: Value) -> Value {
-    json!({"type":"response.completed","response":{"id":"resp_43","status":"completed",
+    json!({"type":"response.completed","response":{"id":"resp_43","model":"upstream","status":"completed",
         "output":output,"usage":{"input_tokens":12,"output_tokens":4}}})
 }
 fn message(text: &str) -> Value {
@@ -51,9 +51,10 @@ fn cc_route_043_messages_responses_stream_expected_behavior() {
         "content_index":0,"item_id":"msg","delta":"你"}),
     );
     assert_eq!(delta[0]["type"], "content_block_start");
-    assert_eq!(delta[1]["delta"]["text"], "你");
+    // Text waits for the authoritative snapshot, which owns URL citations.
+    assert_eq!(delta.len(), 1);
     let end = frame(&mut d, terminal(json!([message("你好")])));
-    assert_eq!(end[0]["delta"]["text"], "好");
+    assert_eq!(end[0]["delta"]["text"], "你好");
     assert_eq!(end[1], json!({"type":"content_block_stop","index":0}));
     assert_eq!(end[2]["delta"]["stop_reason"], "end_turn");
     assert_eq!(end[2]["usage"], json!({"input_tokens":12,"output_tokens":4}));

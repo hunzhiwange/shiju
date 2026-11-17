@@ -468,15 +468,31 @@ for raw_line in sys.stdin:
     elif method == "session/new":
         session_counter += 1
         result = {"sessionId": f"session-{session_counter}"}
+    elif method in ("session/load", "session/resume"):
+        result = {
+            "modes": {
+                "currentModeId": "default",
+                "availableModes": [
+                    {"id": "default", "name": "Default"},
+                    {"id": "focus", "name": "Focus"},
+                ],
+            },
+        }
     elif method in (
-        "session/load",
-        "session/resume",
         "session/set_mode",
         "session/set_model",
     ):
         result = {}
     elif method == "session/set_config_option":
-        result = {"configOptions": []}
+        result = {
+            "configOptions": [{
+                "id": "effort",
+                "name": "Effort",
+                "type": "select",
+                "currentValue": message["params"]["value"],
+                "options": [{"value": "high", "name": "High"}],
+            }],
+        }
     elif method == "session/prompt":
         result = {"stopReason": "end_turn"}
     else:
@@ -559,9 +575,24 @@ async fn acp_client_connect_and_load_adapter_delegates_config_option() {
     .await
     .expect("config option should set");
 
-    assert!(response.config_options.is_empty());
+    assert_eq!(response.config_options.len(), 1);
+    let option = serde_json::to_value(&response.config_options[0]).expect("config option JSON");
+    assert_eq!(option["id"], "effort");
+    assert_eq!(option["currentValue"], "high");
     client.close().await.expect("client should close");
-    assert!(fixture.logged_methods().iter().any(|method| method == "session/set_config_option"));
+    assert_eq!(
+        fixture.logged_methods(),
+        vec!["initialize", "session/new", "session/set_config_option"]
+    );
+    let calls = fs::read_to_string(&fixture.calls_log).expect("protocol calls");
+    let config_call: serde_json::Value =
+        serde_json::from_str(calls.lines().last().expect("config call")).expect("config call JSON");
+    assert_eq!(
+        config_call["params"],
+        serde_json::json!({
+            "sessionId": created.session_id, "configId": "effort", "value": "high"
+        })
+    );
 }
 
 #[tokio::test]

@@ -97,7 +97,7 @@ fn acp_security_and_autonomy_defaults_are_populated_2() {
     assert!(autonomy.auto_approve.contains(&"file_read".to_string()));
     assert!(autonomy.always_ask.is_empty());
     assert!(autonomy.allowed_roots.is_empty());
-    assert!(autonomy.non_cli_excluded_tools.contains(&"shell".to_string()));
+    assert!(autonomy.non_cli_excluded_tools.contains(&"bash".to_string()));
     for kind in [
         AutonomyListKind::AllowedCommands,
         AutonomyListKind::ForbiddenPaths,

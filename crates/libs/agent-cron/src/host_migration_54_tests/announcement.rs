@@ -159,7 +159,14 @@ async fn deliver_announcement_sends_configured_mattermost_thread_message() {
     let request = request.await.unwrap();
 
     assert!(request.starts_with("POST /api/v4/posts HTTP/1.1"));
-    assert!(request.contains("authorization: Bearer mattermost-token"));
+    let (headers, _) = request.split_once("\r\n\r\n").unwrap();
+    // HTTP header names are case-insensitive; credential values remain exact.
+    let authorization = headers
+        .lines()
+        .filter_map(|line| line.split_once(':'))
+        .find(|(name, _)| name.eq_ignore_ascii_case("authorization"))
+        .map(|(_, value)| value.trim());
+    assert_eq!(authorization, Some("Bearer mattermost-token"));
     assert!(request.contains(r#""channel_id":"channel-a""#));
     assert!(request.contains(r#""root_id":"root-b""#));
     assert!(request.contains(r#""message":"hello mattermost""#));

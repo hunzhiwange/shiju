@@ -31,14 +31,23 @@ fn archive_rejects_traversal_foreign_root_and_duplicate_files() {
         vec![("../outside", b"data".as_slice())],
         vec![("other/index.html", b"data".as_slice())],
         vec![("shiju-web-1.2.3/C:/outside", b"data".as_slice())],
-        vec![
-            ("shiju-web-1.2.3/index.html", b"a".as_slice()),
-            ("shiju-web-1.2.3/index.html", b"b".as_slice()),
-        ],
     ] {
         let destination = tempfile::tempdir().unwrap();
         assert!(extract(&archive(&files), destination.path(), "shiju-web-1.2.3").is_err());
     }
+
+    // ZipWriter 拒绝同名条目；不同名称规范化到同一路径，验证解包器拒绝覆盖。
+    let destination = tempfile::tempdir().unwrap();
+    let bytes = archive(&[
+        ("shiju-web-1.2.3/index.html", b"a"),
+        ("shiju-web-1.2.3/./index.html", b"b"),
+    ]);
+    let error = extract(&bytes, destination.path(), "shiju-web-1.2.3").unwrap_err();
+    assert_eq!(
+        error.downcast_ref::<std::io::Error>().unwrap().kind(),
+        std::io::ErrorKind::AlreadyExists,
+    );
+    assert_eq!(fs::read(destination.path().join("shiju-web-1.2.3/index.html")).unwrap(), b"a");
 }
 
 #[test]

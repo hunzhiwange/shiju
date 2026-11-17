@@ -2,7 +2,7 @@
 
 use super::*;
 use agent_approval::{ApprovalManager, ApprovalResponse};
-use agent_config::runtime_schema::{AutonomyConfig, ReliabilityConfig};
+use agent_config::runtime_schema::{AutonomyConfig, AutonomyLevel, ReliabilityConfig};
 use agent_memory::NoneMemory;
 use agent_observability::NoopObserver;
 use model_types::{ChatMessage, Provider};
@@ -55,6 +55,7 @@ impl Tool for NamedTool {
 
 fn approval_config(auto_approve: &[&str]) -> AutonomyConfig {
     let mut config = AutonomyConfig::default();
+    config.level = AutonomyLevel::Supervised;
     config.auto_approve = auto_approve.iter().map(|tool| (*tool).to_string()).collect();
     config.always_ask = Vec::new();
     config

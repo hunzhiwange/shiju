@@ -5,6 +5,7 @@ use super::{
 use agent_database::{GlobalDatabase, test_support::PostgresTestDatabase};
 use axum::http::{StatusCode, header};
 use serde_json::{Value, json};
+use sha2::{Digest, Sha256};
 use std::{
     fs,
     path::Path,
@@ -197,9 +198,11 @@ printf '%s\n' '{ACCESS} {REFRESH} {CODE}' >&2
     assert_redacted("account response body", &response.text().await?);
 
     let tenant = TenantScope::new("p", "c")?;
-    let credential = CredentialFileStore::new(&home.join("credentials"))
-        .and_then(|store| store.for_owner("owner"))
-        .and_then(|owner| owner.read(&tenant, "host", AppId::Claude, &account.account_id))
+    let credential = CredentialFileStore::new(&agent_paths::paths().data.join("apps").join(
+        hex::encode(Sha256::digest(serde_json::to_vec(&("p", "c"))?)),
+    ))
+        .and_then(|store| store.for_owner("desktop-local-user"))
+        .and_then(|owner| owner.read(&tenant, local_app_auth::HOST_ID, AppId::Claude, &account.account_id))
         .map_err(anyhow::Error::msg)?;
     let AccountCredential::ClaudeDirectory(directory) = credential else {
         anyhow::bail!("authorized account has no managed credential directory");
@@ -285,38 +288,57 @@ fn runtime() -> anyhow::Result<tokio::runtime::Runtime> {
     Ok(tokio::runtime::Builder::new_current_thread().enable_all().build()?)
 }
 
+// Runtime paths are process-wide; isolate them before initialization so the real
+// CLI lookup and credential store cannot reach the developer's home.
+fn check_isolated_redaction(postgres: bool, success: bool) -> anyhow::Result<()> {
+    const CHILD_ROOT: &str = "SHIJU_AUTH_REDACTION_TEST_ROOT";
+    if let Some(root) = std::env::var_os(CHILD_ROOT) {
+        let home = std::path::PathBuf::from(root);
+        let pg = postgres.then(PostgresTestDatabase::from_environment).transpose()?;
+        let database = match &pg {
+            Some(fixture) => fixture.database().clone(),
+            None => GlobalDatabase::for_home(&home)?,
+        };
+        let capture = Capture::default();
+        let _guard = tracing::subscriber::set_default(capture.clone());
+        return runtime()?.block_on(async {
+            if success { commit(&home, database, capture).await }
+            else { reject(&home, database, capture).await }
+        });
+    }
+    let home = tempfile::tempdir()?;
+    let path = std::env::join_paths([home.path(), Path::new("/usr/bin"), Path::new("/bin")])?;
+    let name = if success { "auth6_redaction_commits_expected_scoped_result" }
+        else { "auth6_redaction_rejects_invalid_or_stale_input" };
+    let suffix = if postgres { "_postgres" } else { "" };
+    let status = std::process::Command::new(std::env::current_exe()?)
+        .args(["--exact", &format!("host_migration_3_tests::agent_apps_auth_redaction_tests::{name}{suffix}"), "--nocapture"])
+        .env(CHILD_ROOT, home.path())
+        .env("VIBEWINDOW_TEST_ROOT", home.path())
+        .env("HOME", home.path())
+        .env("PATH", path)
+        .env_remove("CLAUDE_CONFIG_DIR")
+        .status()?;
+    anyhow::ensure!(status.success(), "isolated redaction child failed: {status}");
+    Ok(())
+}
+
 #[test]
 fn auth6_redaction_commits_expected_scoped_result() -> anyhow::Result<()> {
-    let home = tempfile::tempdir()?;
-    let db = GlobalDatabase::for_home(home.path())?;
-    let capture = Capture::default();
-    let _guard = tracing::subscriber::set_default(capture.clone());
-    runtime()?.block_on(commit(home.path(), db, capture))
+    check_isolated_redaction(false, true)
 }
 
 #[test]
 fn auth6_redaction_rejects_invalid_or_stale_input() -> anyhow::Result<()> {
-    let home = tempfile::tempdir()?;
-    let db = GlobalDatabase::for_home(home.path())?;
-    let capture = Capture::default();
-    let _guard = tracing::subscriber::set_default(capture.clone());
-    runtime()?.block_on(reject(home.path(), db, capture))
+    check_isolated_redaction(false, false)
 }
 
 #[test]
 fn auth6_redaction_commits_expected_scoped_result_postgres() -> anyhow::Result<()> {
-    let home = tempfile::tempdir()?;
-    let db = PostgresTestDatabase::from_environment()?;
-    let capture = Capture::default();
-    let _guard = tracing::subscriber::set_default(capture.clone());
-    runtime()?.block_on(commit(home.path(), db.database().clone(), capture))
+    check_isolated_redaction(true, true)
 }
 
 #[test]
 fn auth6_redaction_rejects_invalid_or_stale_input_postgres() -> anyhow::Result<()> {
-    let home = tempfile::tempdir()?;
-    let db = PostgresTestDatabase::from_environment()?;
-    let capture = Capture::default();
-    let _guard = tracing::subscriber::set_default(capture.clone());
-    runtime()?.block_on(reject(home.path(), db.database().clone(), capture))
+    check_isolated_redaction(true, false)
 }

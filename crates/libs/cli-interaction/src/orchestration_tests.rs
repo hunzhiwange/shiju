@@ -85,7 +85,7 @@ fn orchestration_panels_render_gateway_snapshots() {
     let port = listener.local_addr().expect("address").port();
     let server = thread::spawn(move || {
         let mut paths = Vec::new();
-        for _ in 0..4 {
+        for _ in 0..3 {
             let (mut stream, _) = listener.accept().expect("accept");
             let request = read_request(&mut stream);
             let path = request
@@ -114,10 +114,6 @@ fn orchestration_panels_render_gateway_snapshots() {
                         "read_model":{"title":"Owned task","status_label":"Running"}
                     }]
                 }),
-                path if path.ends_with("/workers") => json!({"workers":[{
-                    "id":"worker-1","model":"auto","status":"idle","worker_role":"reviewer",
-                    "team_id":"team-1","room_id":"room-1","updated_at_ms":4
-                }]}),
                 _ => json!({}),
             };
             write_json(&mut stream, &body.to_string());
@@ -131,11 +127,11 @@ fn orchestration_panels_render_gateway_snapshots() {
     assert_eq!(snapshot.workflows.items[0].uuid, "wf-1");
     assert_eq!(snapshot.schedules.items[0].id, "cron-1");
     assert_eq!(snapshot.cron_jobs.len(), 1, "canonical Cron DTO must survive in the snapshot");
-    assert_eq!(snapshot.agents.members[0].id, "worker-1");
+    assert!(snapshot.agents.members.is_empty(), "legacy workers are no longer fetched");
     assert_eq!(snapshot.tasks.tasks[0].id, "task-1");
     assert_eq!(snapshot.tasks.tasks[0].canonical_status, CanonicalTaskStatus::Running);
     assert!(snapshot.warnings.is_empty(), "{:?}", snapshot.warnings);
-    assert_eq!(server.join().expect("server").len(), 4);
+    assert_eq!(server.join().expect("server").len(), 3);
 }
 
 #[test]
@@ -289,7 +285,19 @@ fn task_control_refreshes_snapshot_only_after_gateway_success() {
             let request = read_request(&mut stream);
             let request_line = request.lines().next().unwrap_or_default().to_string();
             let path = request_line.split_whitespace().nth(1).unwrap_or_default();
-            let body = if request_line.starts_with("POST ") {
+            let body = if path == "/v1/projects/resolve" {
+                let body: serde_json::Value =
+                    serde_json::from_str(request_body(&request)).expect("project resolve JSON");
+                assert_eq!(body["directory"], "/workspace");
+                assert_eq!(body["create_if_missing"], false);
+                json!({"project": {
+                    "id": "project-one", "name": "Project one",
+                    "directory": "/workspace", "display_path": "/workspace",
+                    "status": "ready", "created_at_ms": 1, "updated_at_ms": 2,
+                    "git": {"is_repo": false, "has_uncommitted_changes": false}
+                }})
+            } else if request_line.starts_with("POST ") {
+                assert_eq!(path, "/v1/agent-scheduler/projects/project-one/commands");
                 json!({"accepted": true})
             } else if path == "/v1/workflow/applications" {
                 json!([])
@@ -312,8 +320,6 @@ fn task_control_refreshes_snapshot_only_after_gateway_success() {
                         "read_model": {"title": "Owned task", "status_label": "Paused"}
                     }]
                 })
-            } else if path.ends_with("/workers") {
-                json!({"workers": []})
             } else {
                 panic!("unexpected refresh path: {path}");
             };
@@ -334,7 +340,10 @@ fn task_control_refreshes_snapshot_only_after_gateway_success() {
         "Gateway success must refresh and commit the canonical snapshot"
     );
     let success_requests = success_server.join().expect("success server");
+    assert!(success_app.state().orchestration.warnings.is_empty());
+    assert_eq!(success_app.state().orchestration.scope, Some(scope()));
     assert_eq!(success_requests.len(), 5);
+    assert!(success_requests[1].starts_with("POST /v1/projects/resolve "));
     assert!(
         success_requests[0].starts_with("POST /v1/agent-scheduler/projects/project-one/commands ")
     );

@@ -35,6 +35,7 @@ fn delegate_capability_policy_is_consistent_across_agenttool_gateway_and_legacy_
     let parent_tools: Vec<Arc<dyn Tool>> = vec![
         Arc::new(DelegateParityTool { name: "file_read" }),
         Arc::new(DelegateParityTool { name: "shell" }),
+        Arc::new(DelegateParityTool { name: "memory_store" }),
         Arc::new(DelegateParityTool { name: "skill" }),
         Arc::new(DelegateParityTool { name: "AgentTool" }),
     ];
@@ -57,7 +58,8 @@ fn delegate_capability_policy_is_consistent_across_agenttool_gateway_and_legacy_
             &trusted_skills,
         );
         let legacy_names = legacy.iter().map(|tool| tool.name()).collect::<Vec<_>>();
-        assert_eq!(legacy_names, vec!["file_read", "skill"]);
+        // 必需命令能力保留兼容入口；未选择的可选能力与递归委派入口仍不可见。
+        assert_eq!(legacy_names, vec!["file_read", "shell", "skill"]);
 
         let skill = legacy.iter().find(|tool| tool.name() == "skill").expect("skill tool");
         match expected_skill_enum {

@@ -4,7 +4,7 @@
 
 批次：【批次1】 依赖：无
 
-状态：未开始
+状态：待回归
 
 来源：继续执行宿主单测；诊断编号39（宿主编译错误证据.json）。
 预计会话范围：修复一个源码文件中的宿主接口或测试夹具编译契约；不接管整包。
@@ -67,3 +67,11 @@ python3 scripts/cargo_slot.py cargo test -p vw-agent --lib cc_mcp_t29_explicit_c
 编译取证命令（不是测试通过证据）：`python3 scripts/cargo_slot.py cargo test -p vw-agent --lib --no-run`。同阶段顺序命令合并一次入口复用缓存，不默认逐任务全量测试。
 
 最终需由原任务303执行两阶段全量验收；这组修复仅覆盖已发现编译阻塞，尚不能保证宿主全部运行失败已发现。
+
+## 本次执行记录
+
+- 已核对父模块的 macOS lib-test 注册及真实 `#[tokio::test]` 入口；`revoke_cached` 要求 `&Arc<McpSessionConnections>`，调用改传 `&pool`，未修改公共接口或断言。
+- 修复前运行上述精确过滤命令：槽位1，退出101，宿主43条编译错误，未进入测试执行。
+- 修复后同命令：槽位3，`CARGO_TARGET_DIR` 与 `CARGO_BUILD_BUILD_DIR` 均为 `/Users/xiangmin/worker/code/shiju/target/rust-slot-3`；退出101，宿主剩余38条其他编译错误，本文件诊断已消失。有效运行0项，不计通过。日志：`/tmp/shiju-task323-after.log`。
+- 其他阻塞包括 compaction 测试导入、ui_store / with_tenant_instance、task_plan_run_* 缺失、VideoContext 契约等，归兄弟任务处理，未越界修改。两个入口均已退出，自有槽位按脚本释放。
+- `git diff --check`（仅修改源码）通过。待同宿主兄弟编译阻塞解除后重跑编号中的精确测试，要求运行数>0、failed=0后再删除此文件；全量仍归任务303。

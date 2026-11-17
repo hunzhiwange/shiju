@@ -130,7 +130,7 @@ async fn cc_mcp_t29_explicit_catalog_selection_mounts_only_the_selected_server()
 
     let pool = tools.mcp_connections().unwrap();
     let current = agent_app_services::mcp::acceptance::acp::revoke_cached(
-        &catalog, &project_scope, &selected, &root, &tool, pool.as_ref(),
+        &catalog, &project_scope, &selected, &root, &tool, &pool,
     ).await;
 
     let restored_backend = VibeWindowBackend::new(tenant.clone());

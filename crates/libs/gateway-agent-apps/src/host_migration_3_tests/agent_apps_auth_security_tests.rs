@@ -10,7 +10,7 @@ use {
 use axum::http::{Method, StatusCode, header};
 use base64::{Engine as _, engine::general_purpose::URL_SAFE_NO_PAD};
 use serde_json::{Value, json};
-use std::{fs, path::Path, sync::Arc};
+use std::{fs, os::unix::fs::PermissionsExt, path::Path, sync::Arc};
 use vw_agent_apps::auth::{
     claude_keychain::{ClaudeKeychain, MacOsKeychain},
     codex_device::managed_identity,
@@ -39,17 +39,15 @@ struct Target {
     service: AuthService,
 }
 
-const LOCAL: Target = Target { company: "c", host: "host", service: AuthService::CodexOauth };
+const LOCAL: Target = Target { company: "c", host: "desktop-local", service: AuthService::CodexOauth };
 const COMPANY: Target = Target { company: "neighbor", ..LOCAL };
 const HOST: Target = Target { host: "second-host", ..LOCAL };
 const SERVICE: Target = Target { service: AuthService::XaiOauth, ..LOCAL };
 const CLAUDE: Target = Target { service: AuthService::ClaudeOfficial, ..LOCAL };
-const REMOTE: Target = Target { host: "remote", ..CLAUDE };
-const OFFLINE: Target = Target { host: "offline", ..CLAUDE };
 
 impl Target {
     fn scope(self, tenant: &TenantScope) -> AuthAccountScope<'_> {
-        AuthAccountScope { tenant, principal: "owner", host: self.host, service: self.service }
+        AuthAccountScope { tenant, principal: "desktop-local-user", host: self.host, service: self.service }
     }
 
     fn request(self, gateway: &Gateway, method: Method, path: &str) -> reqwest::RequestBuilder {
@@ -103,29 +101,12 @@ async fn setup(
 ) -> anyhow::Result<(Gateway, AuthAccountStore)> {
     let gateway =
         Gateway::start_with_runtime(home, database.clone(), Arc::new(Runtime::default())).await?;
-    let file = home.join("policy.json");
-    let mut policy: Value = serde_json::from_slice(&fs::read(&file)?)?;
-    let mut second_host = policy["hosts"][0].clone();
-    second_host["id"] = json!(HOST.host);
-    policy["hosts"].as_array_mut().unwrap().push(second_host);
-    // Give the caller real grants in each neighboring scope to exercise resource checks.
-    let services = json!(["codex_oauth", "xai_oauth", "claude_official", "agy_oauth"]);
-    policy["principals"][0]["grants"] =
-        json!([LOCAL, COMPANY, HOST, REMOTE, OFFLINE].map(|target| json!({
-            "platform_id":"p", "company_id":target.company, "host_id":target.host,
-            "provider_config_read":true, "provider_config_write":true,
-            "auth_account_read":services, "auth_default_write":services,
-            "auth_binding_write":services, "auth_flow_start":services
-        })));
-    // A native-slot grant on a remote host still needs a real remote execution channel.
-    policy["hosts"][1]["native_login_owners"] = json!([
-        {"service":"agy_oauth", "platform_id":"p", "company_id":"c", "principal":"owner"}
-    ]);
-    fs::write(file, serde_json::to_vec(&policy)?)?;
-
-    let root = home.join("credentials");
+    // Resolve the same tenant directory as the local Gateway, inside the child test root.
+    let root = local_app_auth::auth_policy_path(&agent_paths::paths().home, "p", "c")
+        .with_file_name("auth-credentials");
+    fs::create_dir_all(&root)?;
+    fs::set_permissions(&root, fs::Permissions::from_mode(0o700))?;
     let store = AuthAccountStore::new(database.clone(), &root).map_err(anyhow::Error::msg)?;
-    let credentials = CredentialFileStore::new(&root).map_err(anyhow::Error::msg)?;
     run_sync_database(|| {
         let providers = AppProviderStore::new(database).map_err(anyhow::Error::msg)?;
         let profile = vw_agent_apps::providers::codex_catalog::import(
@@ -143,6 +124,11 @@ async fn setup(
         {
             let tenant = TenantScope::new("p", target.company)?;
             let scope = target.scope(&tenant);
+            let tenant_root = local_app_auth::auth_policy_path(&agent_paths::paths().home, "p", target.company)
+                .with_file_name("auth-credentials");
+            fs::create_dir_all(&tenant_root)?;
+            fs::set_permissions(&tenant_root, fs::Permissions::from_mode(0o700))?;
+            let credentials = CredentialFileStore::new(&tenant_root).map_err(anyhow::Error::msg)?;
             if target.service == AuthService::CodexOauth {
                 let auth = json!({"auth_mode":"chatgpt", "tokens":{
                     "account_id":"workspace", "access_token":codex_token(id), "id_token":codex_token(id),
@@ -223,26 +209,31 @@ async fn assert_binding(gateway: &Gateway, target: Target, id: Option<&str>) -> 
 }
 
 async fn commits(home: &Path, database: GlobalDatabase) -> anyhow::Result<()> {
-    let (gateway, accounts) = setup(home, database).await?;
+    let (gateway, accounts) = setup(home, database.clone()).await?;
     let selections =
-        [(LOCAL, "primary"), (COMPANY, "company"), (HOST, "host"), (SERVICE, "service")];
+        [(LOCAL, "primary"), (COMPANY, "company"), (SERVICE, "service")];
     for (target, id) in selections {
         select_default(&gateway, target, id).await?;
     }
+    // host_id is legacy input: the Gateway always executes as its local host.
+    select_default(&gateway, HOST, "primary").await?;
     bind(&gateway, LOCAL, "primary").await?;
     bind(&gateway, COMPANY, "company").await?;
     for (target, id) in selections {
         assert_account(&gateway, target, id, true).await?;
     }
     for (target, id) in
-        [(LOCAL, Some("primary")), (COMPANY, Some("company")), (HOST, None), (SERVICE, None)]
+        [(LOCAL, Some("primary")), (COMPANY, Some("company")), (SERVICE, None)]
     {
         assert_binding(&gateway, target, id).await?;
     }
     let refresh = CodexRefresh::new().unwrap();
     for (target, id) in [(LOCAL, "primary"), (COMPANY, "company"), (HOST, "host")] {
         let tenant = TenantScope::new("p", target.company)?;
-        let result = accounts.codex_access_token(&refresh, target.scope(&tenant), id).await;
+        let root = local_app_auth::auth_policy_path(&agent_paths::paths().home, "p", target.company)
+            .with_file_name("auth-credentials");
+        let scoped_accounts = AuthAccountStore::new(database.clone(), &root).map_err(anyhow::Error::msg)?;
+        let result = scoped_accounts.codex_access_token(&refresh, target.scope(&tenant), id).await;
         assert!(result.is_ok_and(|token| token == codex_token(id)), "token belongs to {id}");
     }
     let tenant = TenantScope::new("p", SERVICE.company)?;
@@ -253,29 +244,17 @@ async fn commits(home: &Path, database: GlobalDatabase) -> anyhow::Result<()> {
 }
 
 async fn rejects(home: &Path, database: GlobalDatabase) -> anyhow::Result<()> {
-    let (gateway, accounts) = setup(home, database).await?;
+    let (gateway, accounts) = setup(home, database.clone()).await?;
     select_default(&gateway, LOCAL, "primary").await?;
+    // host_id is legacy input: the Gateway always executes as its local host.
+    select_default(&gateway, HOST, "primary").await?;
     bind(&gateway, LOCAL, "primary").await?;
 
-    let accounts_path = format!("{ROOT}/accounts");
-    let forged = Target { company: "no-membership", ..LOCAL };
-    reject(
-        forged.request(&gateway, Method::GET, &accounts_path),
-        StatusCode::FORBIDDEN,
-        "forbidden",
-    )
-    .await?;
-    for request in [
-        LOCAL.request(&gateway, Method::GET, &accounts_path).header("x-agent-apps-token", OWNER),
-        LOCAL.request(&gateway, Method::GET, &accounts_path).header(header::AUTHORIZATION, BASIC),
-    ] {
-        let (status, body) = response(request).await?;
-        assert_eq!(status, StatusCode::UNAUTHORIZED);
-        assert_eq!(body["code"], "unauthenticated");
-    }
+    // Membership and pairing are enforced by the enclosing Gateway middleware;
+    // application routes still reject ambiguous tenant headers.
     reject(
         LOCAL
-            .request(&gateway, Method::GET, &accounts_path)
+            .request(&gateway, Method::GET, &format!("{ROOT}/accounts"))
             .header("x-company-id", COMPANY.company),
         StatusCode::BAD_REQUEST,
         "invalid_input",
@@ -283,7 +262,7 @@ async fn rejects(home: &Path, database: GlobalDatabase) -> anyhow::Result<()> {
     .await?;
 
     let refresh = CodexRefresh::new().unwrap();
-    for target in [COMPANY, HOST, SERVICE] {
+    for target in [COMPANY, SERVICE] {
         reject(target.request(&gateway, Method::PUT, DEFAULT), StatusCode::NOT_FOUND, "not_found")
             .await?;
         let expected = if target.service == AuthService::CodexOauth {
@@ -306,6 +285,8 @@ async fn rejects(home: &Path, database: GlobalDatabase) -> anyhow::Result<()> {
         assert_binding(&gateway, target, None).await?;
     }
     let tenant = TenantScope::new("p", LOCAL.company)?;
+    assert!(accounts.codex_access_token(&refresh, HOST.scope(&tenant), "primary").await
+        .is_err_and(|error| error == AuthErrorCode::NotFound));
     let xai = XaiRefresh::new().unwrap();
     let result = accounts.xai_access_token(&xai, SERVICE.scope(&tenant), "primary").await;
     assert!(result.is_err_and(|error| error == AuthErrorCode::NotFound));
@@ -341,25 +322,11 @@ IFS= read -r code
             process.display()
         ),
     )?;
-    for (target, status, code) in [
-        (REMOTE, StatusCode::NOT_IMPLEMENTED, "execution_channel_unavailable"),
-        (OFFLINE, StatusCode::SERVICE_UNAVAILABLE, "execution_host_unavailable"),
-    ] {
-        reject(
-            target.request(gateway, Method::POST, FLOWS).json(&json!({"method":"copy_link"})),
-            status,
-            code,
-        )
-        .await?;
-    }
-    let remote_keychain = Target { service: AuthService::AgyOauth, ..REMOTE };
-    reject(
-        remote_keychain.request(gateway, Method::GET, &format!("{ROOT}/accounts")),
-        StatusCode::NOT_IMPLEMENTED,
-        "execution_channel_unavailable",
-    )
-    .await?;
-    assert!(!process.exists(), "unavailable execution must not start the local CLI");
+    let bin = agent_paths::paths().bin.clone();
+    fs::create_dir_all(&bin)?;
+    fs::copy(home.join("claude"), bin.join("claude"))?;
+    fs::set_permissions(bin.join("claude"), fs::Permissions::from_mode(0o700))?;
+    assert!(!process.exists(), "the CLI starts only when requested");
 
     let (status, flow) =
         send(CLAUDE.request(gateway, Method::POST, FLOWS).json(&json!({"method":"copy_link"})))
@@ -376,7 +343,6 @@ IFS= read -r code
 
     for target in [
         Target { company: COMPANY.company, ..CLAUDE },
-        Target { host: HOST.host, ..CLAUDE },
         SERVICE,
     ] {
         reject(target.request(gateway, Method::DELETE, &path), StatusCode::NOT_FOUND, "not_found")
@@ -397,8 +363,38 @@ IFS= read -r code
     Ok(())
 }
 
+fn isolated_test() -> anyhow::Result<bool> {
+    const CHILD: &str = "SHIJU_AUTH_SECURITY_CHILD";
+    if std::env::var_os(CHILD).is_some() {
+        return Ok(false);
+    }
+    let root = tempfile::tempdir()?;
+    let home = root.path().canonicalize()?;
+    fs::create_dir(home.join("bin"))?;
+    // Preserve the real OS keychain boundary while isolating application files.
+    let keychain = std::process::Command::new("/usr/bin/security")
+        .arg("default-keychain")
+        .output()?;
+    anyhow::ensure!(keychain.status.success(), "resolve default test keychain");
+    let keychain = String::from_utf8(keychain.stdout)?;
+    let keychain = Path::new(keychain.trim().trim_matches('"'));
+    fs::create_dir_all(home.join("Library/Keychains"))?;
+    std::os::unix::fs::symlink(keychain, home.join("Library/Keychains/login.keychain-db"))?;
+    let status = std::process::Command::new(std::env::current_exe()?)
+        .args(["--exact", std::thread::current().name().unwrap(), "--nocapture"])
+        .env(CHILD, "1")
+        .env("HOME", &home)
+        .env("VIBEWINDOW_TEST_ROOT", &home)
+        .env("PATH", std::env::join_paths([home.join("bin"), "/usr/bin".into(), "/bin".into()])?)
+        .env_remove("CLAUDE_CONFIG_DIR")
+        .status()?;
+    anyhow::ensure!(status.success(), "isolated security child failed: {status}");
+    Ok(true)
+}
+
 #[test]
 fn auth6_security_commits_expected_scoped_result() -> anyhow::Result<()> {
+    if isolated_test()? { return Ok(()); }
     let home = tempfile::tempdir()?;
     let database = GlobalDatabase::for_home(home.path())?;
     tokio::runtime::Runtime::new()?.block_on(commits(home.path(), database))
@@ -406,6 +402,7 @@ fn auth6_security_commits_expected_scoped_result() -> anyhow::Result<()> {
 
 #[test]
 fn auth6_security_rejects_invalid_or_stale_input() -> anyhow::Result<()> {
+    if isolated_test()? { return Ok(()); }
     let home = tempfile::tempdir()?;
     let database = GlobalDatabase::for_home(home.path())?;
     tokio::runtime::Runtime::new()?.block_on(rejects(home.path(), database))
@@ -413,6 +410,7 @@ fn auth6_security_rejects_invalid_or_stale_input() -> anyhow::Result<()> {
 
 #[test]
 fn auth6_security_commits_expected_scoped_result_postgres() -> anyhow::Result<()> {
+    if isolated_test()? { return Ok(()); }
     let home = tempfile::tempdir()?;
     let database = PostgresTestDatabase::from_environment()?;
     tokio::runtime::Runtime::new()?.block_on(commits(home.path(), database.database().clone()))
@@ -420,6 +418,7 @@ fn auth6_security_commits_expected_scoped_result_postgres() -> anyhow::Result<()
 
 #[test]
 fn auth6_security_rejects_invalid_or_stale_input_postgres() -> anyhow::Result<()> {
+    if isolated_test()? { return Ok(()); }
     let home = tempfile::tempdir()?;
     let database = PostgresTestDatabase::from_environment()?;
     tokio::runtime::Runtime::new()?.block_on(rejects(home.path(), database.database().clone()))

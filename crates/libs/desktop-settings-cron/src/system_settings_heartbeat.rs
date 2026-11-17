@@ -32,7 +32,7 @@ use iced::{Alignment, Element, Length};
 pub enum SettingsMessage { HeartbeatHelpOpen,HeartbeatHelpClose,HeartbeatEnabledToggled(bool),HeartbeatIntervalChanged(u32),HeartbeatMessageChanged(String),HeartbeatTargetChanged(String),HeartbeatToChanged(String) }
 mod message { pub use super::SettingsMessage; }
 #[derive(Debug, Clone)]
-pub enum Message { None, CopyCode(String), Settings(SettingsMessage) }
+pub enum Message { None, CopyCode(String), OpenUrl(String), Settings(SettingsMessage) }
 pub struct ViewData<'a> {
  pub heartbeat_settings: &'a crate::app_init::state::HeartbeatSettingsState,
  pub desktop_locale: config_ui::DesktopLocale,

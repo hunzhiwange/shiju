@@ -7,6 +7,7 @@ use iced::Element;
 fn help_content<'a>(title: &'a str, body: std::borrow::Cow<'a,str>, color: Option<iced::Color>, i18n: desktop_i18n::I18n) -> Element<'a,Local> {
  crate::app::components::chat_panel::message_view::selectable_titled_text(title,body,color,i18n).map(|event| match event {
  Message::None => Local::None, Message::CopyCode(value) => Local::CopyCode(value),
+ Message::View(crate::app::message::ViewMessage::OpenUrlExternal(url)) => Local::OpenUrl(url),
  _ => unreachable!("selectable help only emits copy or no-op events"),
  })
 }
@@ -14,7 +15,7 @@ fn data(app: &App) -> domain::ViewData<'_> {
  domain::ViewData { heartbeat_settings: &app.heartbeat_settings, desktop_locale: app.general_settings.desktop_locale, app_theme: &app.appearance.app_theme, last_copied_code_hash: app.clipboard_state.last_copied_code_hash, help_content }
 }
 fn map(event: Local) -> Message {
- match event { Local::None => Message::None, Local::CopyCode(v) => Message::CopyCode(v), Local::Settings(event) => Message::Settings(match event { Event::HeartbeatHelpOpen => Global::HeartbeatHelpOpen,
+ match event { Local::None => Message::None, Local::CopyCode(v) => Message::CopyCode(v), Local::OpenUrl(url) => Message::View(crate::app::message::ViewMessage::OpenUrlExternal(url)), Local::Settings(event) => Message::Settings(match event { Event::HeartbeatHelpOpen => Global::HeartbeatHelpOpen,
 Event::HeartbeatHelpClose => Global::HeartbeatHelpClose,
 Event::HeartbeatEnabledToggled(v) => Global::HeartbeatEnabledToggled(v),
 Event::HeartbeatIntervalChanged(v) => Global::HeartbeatIntervalChanged(v),

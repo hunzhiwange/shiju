@@ -334,12 +334,13 @@ mod modal_render {
                 for size in [Size::new(380, 680), Size::new(1100, 900)] {
                     app.app_theme = theme.clone();
                     let mut ui = UserInterface::build(
-                        with_edit_modal(
-                            &app,
+                        domain::view_overlays(
+                            &data(&app),
                             iced::widget::container(text("任务列表"))
                                 .width(Length::Fill)
                                 .height(Length::Fill)
                                 .into(),
+                            std::convert::identity,
                         ),
                         Size::new(size.width as f32, size.height as f32),
                         Cache::new(),

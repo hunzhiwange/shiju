@@ -4,8 +4,8 @@ fn app() -> Fixture {
 }
 fn history_app() -> Fixture {
     let mut app = fixture();
-    app.cron_settings.history.sync_context(true, None);
-    drop(update(&mut app, SettingsMessage::CronTabSelected(CronSettingsTab::History)));
+
+    select_tab(&mut app, CronSettingsTab::History);
     app
 }
 fn validate_delivery(app: &Fixture, draft: &CronJobDraft) -> Result<(), String> {
@@ -111,8 +111,8 @@ fn cron_history_refresh_error_preserves_rows() {
 fn cron_history_stale_response_is_ignored() {
     let mut app = history_app();
     let generation = app.cron_settings.history.generation;
-    let _ = update(&mut app, SettingsMessage::CronTabSelected(CronSettingsTab::Jobs));
-    let _ = update(&mut app, SettingsMessage::CronTabSelected(CronSettingsTab::History));
+    select_tab(&mut app, CronSettingsTab::Jobs);
+    select_tab(&mut app, CronSettingsTab::History);
     let current = app.cron_settings.history.generation;
     assert!(current > generation);
     history_loaded(&mut app, generation, Ok((history_response(), vec![job("old")])));
@@ -165,4 +165,12 @@ fn cron_wecom_form_requires_credentials_and_explicit_target() {
     assert!(validate_delivery(&app, &draft).is_ok());
     draft.delivery_to = "other".into();
     assert!(validate_delivery(&app, &draft).is_err());
+}
+
+// The desktop host reconciles history visibility after the domain changes tabs.
+fn select_tab(app: &mut Fixture, tab: CronSettingsTab) {
+    drop(update(app, SettingsMessage::CronTabSelected(tab)));
+    if app.cron_settings.history.sync_context(tab == CronSettingsTab::History, None) {
+        drop(update(app, SettingsMessage::CronHistory(crate::message::HistoryMessage::Refresh)));
+    }
 }

@@ -121,6 +121,8 @@ pub const CRON_TABS: &[(CronSettingsTab, &str, &[&str])] = &[
 
 mod fields;
 use fields::*;
+#[cfg(test)]
+pub(crate) use fields::{project_field, pick_field};
 pub use fields::{job_is_agent, edit_form, add_tab, config_tab};
 
 pub fn view<'a, M: Clone + 'static>(app: &ViewData<'a>, scheduler_content: Element<'a, M>, map: fn(Message) -> M) -> Element<'a, M> {

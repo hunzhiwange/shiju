@@ -32,7 +32,7 @@ async fn cron_list_summary_groups_and_direct_toggle() {
     assert!(positions.labels.iter().all(|(s, _)| !s.starts_with("全选")));
     let title = positions.label("每日巡检");
     assert!(
-        matches!(click(&mut ui, &mut renderer, Point::new(positions.scroll.unwrap().0.width - 40.0, title.center_y())).as_slice(),
+        matches!(click(&mut ui, &mut renderer, Point::new(title.x + title.width + 32.0, title.center_y())).as_slice(),
         [Message::Settings(SettingsMessage::CronJobEnabledChanged(id, false))] if id == "list-job")
     );
     assert!(matches!(
@@ -124,7 +124,7 @@ async fn cron_list_controls_dispatch_correct_job_ids() {
         [Message::Settings(SettingsMessage::CronJobSelectionToggled(id, false))] if id == "list-job")
     );
     assert!(
-        matches!(click(&mut ui, &mut renderer, Point::new(positions.scroll.unwrap().0.width - 40.0, title.center_y())).as_slice(),
+        matches!(click(&mut ui, &mut renderer, Point::new(title.x + title.width + 32.0, title.center_y())).as_slice(),
         [Message::Settings(SettingsMessage::CronJobEnabledChanged(id, false))] if id == "list-job")
     );
     assert!(matches!(
@@ -132,7 +132,7 @@ async fn cron_list_controls_dispatch_correct_job_ids() {
         [Message::Settings(SettingsMessage::CronListFilterChanged(CronListFilter::Enabled))]
     ));
     assert!(matches!(
-        click(&mut ui, &mut renderer, positions.label("新增任务").center()).as_slice(),
+        click(&mut ui, &mut renderer, positions.label("新建定时任务").center()).as_slice(),
         [Message::Settings(SettingsMessage::CronTabSelected(CronSettingsTab::Add))]
     ));
     drop(ui);

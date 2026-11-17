@@ -270,9 +270,9 @@ async fn cron_project_selector_clears_selected_path() {
     app.desktop_locale = DesktopLocale::SimplifiedChinese;
     let size = Size::new(420, 260);
     let mut ui = scene(
-        project_field(&app, PROJECT, |path| {
-            Message::Settings(SettingsMessage::CronJobEditProjectPathChanged(path))
-        }),
+        domain::project_field(&data(&app), PROJECT, |path| {
+            LocalMessage::Settings(crate::message::SettingsMessage::CronJobEditProjectPathChanged(path))
+        }).map(map),
         &mut renderer,
         size,
     );
@@ -426,9 +426,9 @@ async fn ui_refresh_27_preserves_values_and_disabled_states() {
     // A missing provider catalog leaves an empty picker inert.
     let size = Size::new(420, 120);
     let mut ui = scene(
-        frame(pick_field(Vec::new(), None, |value| {
-            Message::Settings(SettingsMessage::CronAddModelChanged(value))
-        })),
+        frame(domain::pick_field(Vec::new(), None, |value| {
+            LocalMessage::Settings(crate::message::SettingsMessage::CronAddModelChanged(value))
+        }).map(map)),
         &mut renderer,
         size,
     );
@@ -783,7 +783,21 @@ async fn help_rollout_15_heartbeat_preserves_status_and_actions() {
         let interval =
             desktop_i18n::__!(tr, "%u 分钟", app.heartbeat_settings.interval_minutes).unwrap();
         assert_fits(positions.label(&interval), size);
-        assert_fits(positions.label(error), size);
+        // Save failures are shown by the host toast rather than an inline form label.
+        let toast = desktop_ui_controls::toast::Toast {
+            id: 1,
+            kind: desktop_ui_controls::toast::ToastKind::Error,
+            message: app.heartbeat_settings.save_error.clone().unwrap(),
+            localized_message: None,
+        };
+        let mut feedback = scene(
+            desktop_ui_controls::toast::view(Some(&toast), locale, None),
+            &mut renderer,
+            size,
+        );
+        assert_fits(geometry(&mut feedback, &renderer).label(&format!("{} · {error}", tr.__("操作失败"))), size);
+        capture(&mut feedback, &mut renderer, &app.app_theme, size, "heartbeat-error-toast", mouse::Cursor::Unavailable);
+        drop(feedback);
         assert_fits(positions.input("fixture-recipient"), size);
         assert_schedule_help(
             &app,

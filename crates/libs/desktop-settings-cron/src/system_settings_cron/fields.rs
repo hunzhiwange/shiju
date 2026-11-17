@@ -161,7 +161,7 @@ impl std::fmt::Display for ProjectChoice {
     }
 }
 
-pub(super) fn project_field<'a>(
+pub(crate) fn project_field<'a>(
     app: &ViewData<'_>,
     path: &str,
     on_selected: impl Fn(String) -> Message + 'a,
@@ -185,7 +185,7 @@ pub(super) fn project_field<'a>(
     .into()
 }
 
-pub(super) fn pick_field<'a>(
+pub(crate) fn pick_field<'a>(
     options: Vec<String>,
     selected: Option<String>,
     on_selected: impl Fn(String) -> Message + 'a,

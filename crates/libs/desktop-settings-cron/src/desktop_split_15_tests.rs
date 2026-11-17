@@ -139,7 +139,7 @@ fn jobs_tab_covers_partial_selection_non_editing_and_job_without_output() {
     app.cron_settings.selected_job_ids = vec!["job-1".to_string()];
 
     keep_element(jobs_tab(&app));
-    keep_element(view(&app));
+    keep_element(domain::view(&data(&app), iced::widget::Space::new().into(), std::convert::identity));
 }
 
 #[test]

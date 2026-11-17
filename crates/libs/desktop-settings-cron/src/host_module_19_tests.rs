@@ -50,17 +50,18 @@ fn update(
         gateway_endpoint::GatewayEndpoint::new("127.0.0.1", 9),
         None,
     );
-    crate::update::cron::update(
-        &mut crate::update::cron::Inputs {
+    let mut inputs = crate::update::cron::Inputs {
             cron_settings: &mut app.cron_settings,
             desktop_locale: app.desktop_locale,
             delivery: app.delivery,
             client: Err("fixture gateway unavailable".into()),
             config: &config,
             notices: &mut Vec::new(),
-        },
-        event,
-    )
+        };
+    match event {
+        SettingsMessage::CronHistory(event) => crate::update::history::update(&mut inputs, event),
+        event => crate::update::cron::update(&mut inputs, event),
+    }
 }
 fn jobs_tab(app: &Fixture) -> Element<'_, Message> {
     domain::list::jobs_tab(&data(app)).map(map)
@@ -114,6 +115,7 @@ fn help_heartbeat<'a>(
     .map(|m| match m {
         Message::None => crate::system_settings_heartbeat::Message::None,
         Message::CopyCode(v) => crate::system_settings_heartbeat::Message::CopyCode(v),
+        Message::View(ViewMessage::OpenUrlExternal(url)) => crate::system_settings_heartbeat::Message::OpenUrl(url),
         _ => unreachable!(),
     })
 }
@@ -149,6 +151,7 @@ mod heartbeat {
         match event {
             Local::None => Message::None,
             Local::CopyCode(v) => Message::CopyCode(v),
+            Local::OpenUrl(url) => Message::View(ViewMessage::OpenUrlExternal(url)),
             Local::Settings(event) => Message::Settings(match event {
                 Event::HeartbeatHelpOpen => SettingsMessage::HeartbeatHelpOpen,
                 Event::HeartbeatHelpClose => SettingsMessage::HeartbeatHelpClose,

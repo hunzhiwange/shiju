@@ -269,6 +269,13 @@ fn auth6_agy_read_filters_real_keychain_and_reports_native_default() {
     let other = foreign.managed("owner", &credential("owner", 2), "ready");
     fixture.switch(&ready).unwrap();
     let scope = scope(&fixture.tenant);
+    // Keep concurrent writers out of this read-only snapshot. The production
+    // readers use nonblocking shared locks and correctly report AccountInUse
+    // if another test acquires the physical keychain lock between assertions.
+    use std::os::fd::AsRawFd;
+    let snapshot = std::fs::File::open(fixture.home.join("Library/Keychains")).unwrap();
+    // SAFETY: snapshot owns the descriptor and dropping it releases the lock.
+    assert_eq!(unsafe { libc::flock(snapshot.as_raw_fd(), libc::LOCK_SH) }, 0);
     let accounts = read_accounts_in(scope, fixture.target(Some(scope)), &fixture.entry()).unwrap();
     assert_eq!(accounts.len(), 2);
     assert!(!accounts.iter().any(|account| account.account_id == other));
@@ -286,6 +293,7 @@ fn auth6_agy_read_filters_real_keychain_and_reports_native_default() {
         require_account(scope, fixture.target(Some(scope)), &other),
         Err(AuthErrorCode::NotFound)
     );
+    drop(snapshot);
     let lock = lock_keychain(&fixture.home).unwrap();
     assert_eq!(
         read_accounts_in(scope, fixture.target(Some(scope)), &fixture.entry()),

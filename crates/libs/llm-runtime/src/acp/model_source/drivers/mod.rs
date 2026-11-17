@@ -129,9 +129,9 @@ pub fn source_protocol(
     use model_protocols::ModelProtocol as P;
     Ok(match agent {
         "amp-acp" | "claude" => P::Messages,
-        "codex" | "kiro" | "grok" => P::Responses,
+        "codex" | "kiro" => P::Responses,
         "gemini" => P::Gemini,
-        "dimcode" | "deepagents" | "autohand" | "sigit" | "glm-acp-agent" | "dirac" | "auggie" | "cursor" | "droid"
+        "grok" | "dimcode" | "deepagents" | "autohand" | "sigit" | "glm-acp-agent" | "dirac" | "auggie" | "cursor" | "droid"
         | "codebuddy" | "goose" | "hermes" | "iflow" | "kilocode" | "openclaw" | "pi" | "qoder"
         | "qwen" | "trae" => P::Chat,
         "opencode" => model_transport::routing_selection::client_protocol(api)

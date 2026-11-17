@@ -51,20 +51,34 @@ pub fn configure(profile: &mut AcpLaunchProfile, endpoint: &str) -> anyhow::Resu
         }
         home
     };
-    let model = serde_json::json!({
-        "model": profile.model_alias,
-        "base_url": format!("{}/v1", endpoint.trim_end_matches('/')),
-        "env_key": "SHIJU_GROK_RELAY_KEY",
-        "api_backend": "responses"
-    });
-    let document = serde_json::json!({
-        "model": {"shiju-session":model, "grok-4.6":model, "grok-4.5":model},
-        "models": {"default":"shiju-session", "session_summary":"shiju-session",
-            "prompt_suggestion":"shiju-session", "image_description":"shiju-session",
-            "web_search":"shiju-session", "allowed_models":["shiju-session"], "max_retries":0},
-        "subagents":{"enabled":false},
-        "cli":{"use_leader":false, "auto_update":false}
-    });
+    let model = toml::toml! {
+        model = (profile.model_alias.clone())
+        base_url = (format!("{}/v1", endpoint.trim_end_matches('/')))
+        env_key = "SHIJU_GROK_RELAY_KEY"
+        api_backend = "chat_completions"
+        supports_reasoning_effort = (profile.model_supports_reasoning)
+    };
+    // Keep numbers native to TOML: serde_json's arbitrary_precision numbers
+    // serialize as private maps when sent directly to a different format.
+    let document = toml::toml! {
+        [model]
+        shiju-session = (model.clone())
+        "grok-4.6" = (model.clone())
+        "grok-4.5" = (model.clone())
+        [models]
+        default = "shiju-session"
+        session_summary = "shiju-session"
+        prompt_suggestion = "shiju-session"
+        image_description = "shiju-session"
+        web_search = "shiju-session"
+        allowed_models = ["shiju-session"]
+        max_retries = 0
+        [subagents]
+        enabled = false
+        [cli]
+        use_leader = false
+        auto_update = false
+    };
     let contents = toml::to_string(&document)?;
     let config = home.join("config.toml");
     if config.exists() {
@@ -77,7 +91,7 @@ pub fn configure(profile: &mut AcpLaunchProfile, endpoint: &str) -> anyhow::Resu
                 && metadata.uid() == unsafe { libc::geteuid() },
             "unsafe Grok config"
         );
-        let saved: serde_json::Value = toml::from_str(&std::fs::read_to_string(&config)?)?;
+        let saved: toml::Value = toml::from_str(&std::fs::read_to_string(&config)?)?;
         for key in ["model", "base_url", "env_key", "api_backend"] {
             anyhow::ensure!(
                 saved["model"]["shiju-session"][key] == model[key],
@@ -112,3 +126,7 @@ pub fn configure(profile: &mut AcpLaunchProfile, endpoint: &str) -> anyhow::Resu
 pub fn configure(_profile: &mut AcpLaunchProfile, _endpoint: &str) -> anyhow::Result<()> {
     anyhow::bail!("Grok Build state ACL is not verified on this platform")
 }
+
+#[cfg(all(test, unix))]
+#[path = "grok_tests.rs"]
+mod tests;

@@ -724,3 +724,46 @@ Rust 重型命令均经 scripts/cargo_slot.py 的 slot(number=4)，CARGO_TARGET_
 清理：首轮自有网关收到SIGTERM后15秒未退出，脚本对自有进程组升级SIGKILL，退出-9；第二轮收到SIGTERM退出0。两个自有PID均已不存在、端口均关闭，没有重启用户服务，没有领取或遗留槽位锁。未修改临时enabled配置，无待恢复配置。
 
 重跑条件：先解决并验证现有开发配置下网关启动的权限规则等待，再使用来源可核验构建从任务27步骤1重跑；保留任务文件为已阻塞，不以静态能力声明或历史测试替代本次端到端证据。
+
+
+# Grok Build 验收（2026-11-17 扩围重跑）
+
+结论：**指定模型完整文件创建验收通过**，替代前述启动阻塞结论。用户追加继续排障及扩围修复授权后，本次修复了两处 Grok 模型驱动问题；未替换指定模型、租户或引擎，未降低权限策略。严格 Clippy 的既有失败单独保留。
+
+## 启动排障与底层修复
+
+- 复用原已验证构建重试时，仅为自有临时网关设置 TOKIO_WORKER_THREADS=4，并将调试日志限制在0700私有目录，网关及配置API恢复响应。没有修改持久配置或重启用户服务；这是本次成功启动的运行条件，不声称默认线程数下的等待根因已修复。
+- 首轮会话 ses_1e9c18db0001uIlg1e6MhjC9yX 的 Grok 在 initialize 前退出1。隔离原生探针复现 `models.max_retries` 类型错误：serde_json arbitrary_precision 的数字0跨格式序列化成 `$serde_json::private::Number` 表。grok.rs 改为原生 TOML 表与整数生成配置，恢复校验同步使用 TOML 值，保留私有目录/文件权限、环境令牌及模型绑定校验。新增独立 grok_tests.rs，先取得真实失败，再通过。
+- 该修复构建 SHA-256 06c9d349d8f5b0bd5c7df4a240880898fae9d6e6dda155ace9d085086699642e。第二轮 ses_1e9dc224d001a6QwrngQx1nKpQ 已 connected 且指定模型绑定正确，但 prompt 因 Responses 转换层422 Unsupported Responses capability结束，明确不计通过。真实1.0.77的隔离请求捕获确认默认 include、prompt_cache_key、reasoning.summary=concise 超出现有通用转换契约，未放宽转换器白名单或借用 Codex 特例。
+- [官方自定义模型说明](https://github.com/xai-org/grok-build/blob/main/crates/codegen/xai-grok-pager/docs/user-guide/11-custom-models.md)提供原生 chat_completions；本地真实1.0.77探针确认实际 Chat 请求。grok.rs 的受管模型配置与 drivers/mod.rs 的 source_protocol 同步改为原生 Chat，所选模型仍绑定相同宿主中继；supports_reasoning_effort 按所选模型能力设置，不制造能力支持。凭据仍仅进入子进程环境，主/辅助模型继续绑定同一选定模型，CLI子代理与共享leader继续禁用。
+- 两轮失败均已正常终止，未创建目标文件；普通文件快照均0差异，配置恢复并GET确认有效预设与基线相等。首轮基线无显式覆盖，恢复后保留等效disabled覆盖，不宣称其存储字节一致。最终成功轮使用新的基线，完整config恢复相等。
+
+## 最终构建、系统链路与指定模型
+
+- 槽位6最终构建 shiju 0.6.0，cargo build -p vw-cli --bin shiju 退出0，49.43秒；二进制 SHA-256 `791a91fc449e433c470d9999344161d681bcc7a15bbc5b54c65949f1e315ebea`。原生TOML首轮构建亦退出0、5m59s。构建前后核对 Grok 驱动/测试、模型分派、注册、安装白名单、派生目录、客户端与网关启动源码摘要，无变化；来源HEAD及摘要存 source-hashes-chat-build.json。复制产物到私有目录后运行，未从可被并发替换的槽位路径启动网关。
+- 所有验收API使用 X-Platform-ID=10001、X-Company-ID=100010005、X-Directory=/Users/xiangmin/worker/code/ruejs。保存 installed、agents、acp和config基线。POST /v1/desktop/acp-install/grok：HTTP200、客户端退出0、2.917秒，installed true→true；实际入口 /Users/xiangmin/.grok/bin/grok，解析到 grok-1.0.77，--version为 grok 1.0.77 (50ca579fa996)、退出0，文件 SHA-256 `197c66a63e5ac46e07450b0ca21d141ce665050a412180f185dadfae1c7a5b2a`。安装结果保留，没有使用替代安装链路或任意URL。
+- POST /v1/desktop/acp-diagnostic/acp-smoke-grok 使用当前对应ACP配置：HTTP200、退出0、7.886秒，authentication_required，仅作为普通诊断结果。模型来源API独立确认session_model supported；本次真实执行版本1.0.77，不将目录列出的历史1.0.24当成本轮实测。
+- acp-grok 的 builtin=true、backend=grok，基线disabled；临时PATCH enabled=true：HTTP200、退出0、8.862秒，GET重读enabled。真实请求严格沿用任务JSON、指定模型与full_access=true，未改为CLI默认模型。
+- POST /v1/chat/stream：HTTP200、curl退出0、207.714567秒，无超时或续传，无重复提交同一运行中的创建任务。事件：chat.context_loaded=1、chat.step_start=1、chat.delta=564、chat.tool=75（状态事件数）、chat.session_updated=2、chat.step_finish=1、chat.done=1、chat.error=0。
+- 成功会话 `ses_1e9e43208001LJpsZIhvgFJPLl` 的运行中及结束summary均确认 acp-grok/grok、full_access=true。运行中options connected=true、selected_model.source=session_model、provider_id=alibaba-token-plan-cn、完整模型ID=alibaba-token-plan-cn/deepseek-v4.1-flash-1017；结束connected=false，选定模型仍匹配。access_status.support=client_only，未声称Native免审批认证。
+
+## 实际文件、目录边界与恢复
+
+- /Users/xiangmin/worker/code/ruejs/acpdemo/grok/ 新增8文件：README.md、index.html、vite.config.mjs、tsconfig.json、src/main.tsx、src/App.tsx、src/env.d.ts、src/style.css。已逐文件读取：useApp挂载、ref/computed、textarea onInput 实时统计、localStorage 初始化恢复、250ms防抖保存及pagehide/卸载补写存在；README提供根目录启动与运行说明。Vite复用examples/shared/rue-vite.mjs，Rue别名指向packages/rue/src，确实引用本仓库 @rue-js/rue。
+- 成功轮目标起初不存在，未覆盖既有产物。排除.git/node_modules/target的普通文件SHA-256快照6267→6275，仅目标目录新增上述8文件，目录外0差异；before.json、after.json、boundary.json保留。没有提交Rue.js工作区。
+- 恢复PATCH：HTTP200、退出0、7.849秒；GET重读enabled=false，完整config及有效智能体配置均与成功轮基线相等。未修改其他预设、默认模型或权限策略。
+- 本轮扩围自有网关端口55805、51639、55158均退出0，三个自有PID均不存在、端口均关闭；原生探针与捕获服务亦已退出。两个槽位6检查控制进程均正常结束并释放自有锁，缓存保留，未操作他人进程/锁。最初等待槽位4时仅取消尚未取得锁的自有排队进程，130不算测试证据。
+- 全部原始配置、请求/响应、SSE、探针、日志、源码/二进制摘要及快照仅存 /tmp/shiju-grok-retry-20261117（0700）：根目录为首次握手失败，final/为Responses转换失败，chat-final/为最终成功轮，capture*/为隔离原生请求探针。此前阻塞证据仍保留 /tmp/shiju-grok-accept-20261117。未提交凭据、完整配置、原始敏感载荷或二进制。
+
+## 定向验证与边界
+
+Rust重型命令均经scripts/cargo_slot.py的slot(number=6)串行执行，CARGO_TARGET_DIR与CARGO_BUILD_BUILD_DIR均为 /Users/xiangmin/worker/code/shiju/target/rust-slot-6。任务旧引用.plans/references/rust.md不存在，使用现有槽位入口。
+
+| 槽位内原生命令 | 本次结果 |
+| --- | --- |
+| cargo test -p llm-runtime --lib grok_generated_config_ -- --test-threads=1 | 修复前1失败；原生TOML修复后1通过 |
+| cargo test -p llm-runtime --lib grok_ -- --test-threads=1 | 原生Chat修复前2通过/2失败；修复后4通过，含既有私有绑定冲突与恢复设置测试 |
+| cargo clippy -p llm-runtime --lib --no-deps -- -D warnings | 两轮均退出101，101项既有诊断，无本次Grok驱动、测试或分派文件诊断；未计通过 |
+| cargo build -p vw-cli --bin shiju | 两轮均退出0，最终49.43秒 |
+
+仅格式化修改的Grok驱动与新测试文件。未运行桌面编译、整仓测试/构建、全特性Clippy、全仓格式检查、wasm或Makefile；没有运行浏览器、页面构建或创建后的额外页面回归，不宣称实际渲染或页面执行已通过。任务27按完整文件创建验收完成；默认线程数启动等待与既有严格lint问题仍保留其明确边界。

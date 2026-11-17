@@ -370,7 +370,8 @@ tui: ## 启动 CLI TUI
 .PHONY: gateway-watch desktop-watch
 
 # 保存后自动编译；成功才替换进程，失败保留旧版。Ctrl-C 清理本入口启动的进程。
-# 最后一次修改后静默 30 秒才编译，连续修改重置计时，编译期间的修改合并到下一轮。
+# 首次立即编译启动；后续静默 30 秒或累计等待 60 秒后编译（编译锁空闲时）。
+# 持续写入不会无限延迟更新，也不中断已开始的编译；期间旧程序继续运行。
 # 两个入口共用编译锁，沿用普通 cargo run 的构建目录；桌面重启会丢失内存状态。
 # 依赖 Watchexec（macOS: brew install watchexec），实际启动沿用 cargo run。
 # 去掉本 Makefile 的默认 target 覆盖，交由 .cargo/config.toml 决定；保留用户显式覆盖。

@@ -22,10 +22,12 @@ from cargo_slot import group_alive, signal_group
 
 ROOT = Path(__file__).resolve().parents[1]
 QUIET_SECONDS = 30.0
+MAX_WAIT_SECONDS = 60.0
 
 def start_watcher(changed):
-    command = ['watchexec', '--debounce', '500ms', '--on-busy-update', 'queue',
-               '--shell=none']
+    command = ['watchexec', '--quiet', '--postpone', '--debounce', '500ms',
+               '--fs-events', 'create,remove,rename,modify',
+               '--on-busy-update', 'queue', '--shell=none']
     for path in ('crates', '.cargo', 'Cargo.toml', 'Cargo.lock', 'rust-toolchain.toml', 'rust-toolchain'):
         if (ROOT / path).exists():
             command += ['--watch', path]
@@ -62,7 +64,7 @@ def stop(process):
         time.sleep(0.05)
 
 
-def build(mode, env, lock, changed, watcher):
+def build(mode, env, lock, changed, watcher, initial=False):
     # Both watch targets share this lock: never compile their heavy Rust targets
     # concurrently. Build and run inherit the same normal Cargo environment.
     while True:
@@ -72,17 +74,22 @@ def build(mode, env, lock, changed, watcher):
         except BlockingIOError:
             time.sleep(0.2)
     try:
-        # Trailing debounce: every notification resets the quiet period. Do it
-        # after acquiring the build lock too, since edits may arrive while waiting.
-        # Events during a build remain pending and use the same debounce next time.
+        # First launch is immediate. Later builds debounce with a hard deadline,
+        # so continuous edits cannot starve updates. Never cancel an active build.
         changed.clear()
-        while changed.wait(timeout=QUIET_SECONDS):
-            changed.clear()
-            if watcher.poll() is not None:
-                raise RuntimeError('Watchexec 已退出')
+        if not initial:
+            deadline = time.monotonic() + MAX_WAIT_SECONDS
+            while True:
+                remaining = deadline - time.monotonic()
+                if remaining <= 0 or not changed.wait(timeout=min(QUIET_SECONDS, remaining)):
+                    break
+                changed.clear()
+                if watcher.poll() is not None:
+                    raise RuntimeError('Watchexec 已退出')
         if watcher.poll() is not None:
             raise RuntimeError('Watchexec 已退出')
-        print(f'[watch] 已停止修改 {QUIET_SECONDS:g} 秒，编译 {mode}，旧进程继续运行…', flush=True)
+        reason = '首次立即编译' if initial else '静默期或最长等待期结束，开始编译'
+        print(f'[watch] {reason} {mode}', flush=True)
         targets = [('vw-cli', 'shiju')] if mode == 'gateway' else [
             ('vw-webview', 'vw-webview'), ('vw-desktop', 'shi-ju')]
         for package, binary in targets:
@@ -113,15 +120,18 @@ def watch(mode):
             running = None
             changed = threading.Event()
             watcher = start_watcher(changed)
+            changed.set()
+            initial = True
             try:
                 while True:
                     if watcher.poll() is not None:
                         raise RuntimeError(f'Watchexec 已退出 ({watcher.returncode})')
                     if changed.wait(timeout=0.5):
-                        if build(mode, env, lock, changed, watcher):
-                            # An edit during compilation needs another build.
-                            if changed.is_set():
-                                continue
+                        first_build = initial
+                        initial = False
+                        if build(mode, env, lock, changed, watcher, initial=first_build):
+                            # Do not let pending edits starve application startup.
+                            # Leave the event set for the next debounced build.
                             if watcher.poll() is not None:
                                 raise RuntimeError('Watchexec 在编译期间退出')
                             stop(running)

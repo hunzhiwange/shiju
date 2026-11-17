@@ -51,18 +51,41 @@ fn work_top_bar_keeps_all_global_menus_and_project_tools() {
     code_app.workspace_mode = WorkspaceMode::Code;
     let code_element = code_app.view();
     let code_children = code_element.as_widget().children();
-    let code_structure = ordered_tree_shape(&code_children);
 
     let mut work_app = test_app();
     work_app.screen = Screen::Project;
     work_app.workspace_mode = WorkspaceMode::Work;
     let work_element = work_app.view();
     let work_children = work_element.as_widget().children();
-    let work_structure = ordered_tree_shape(&work_children);
 
     assert_eq!(code_children.len(), 11);
     assert_eq!(work_children.len(), 11);
-    assert_eq!(work_structure, code_structure);
+    // 全局分区在两种模式下保留；项目工具按各自工作空间提供。
+    for index in (0..11).filter(|&index| index != 4 && index != 9) {
+        assert_eq!(
+            ordered_tree_shape(&work_children[index..=index]),
+            ordered_tree_shape(&code_children[index..=index]),
+            "global toolbar section {index}",
+        );
+    }
+
+    // 视图菜单保留入口，展开项随工作模式变化。
+    let code_view = &code_children[4].children;
+    let work_view = &work_children[4].children;
+    assert_eq!(code_view.len(), 2);
+    assert_eq!(work_view.len(), 2);
+    assert_eq!(ordered_tree_shape(&work_view[..1]), ordered_tree_shape(&code_view[..1]));
+    assert_eq!(work_view[1].children.len(), 4);
+    assert_eq!(code_view[1].children.len(), if cfg!(target_arch = "wasm32") { 4 } else { 5 });
+
+    let code_tools = &code_children[9].children;
+    let work_tools = &work_children[9].children;
+    let native_tools = if cfg!(target_arch = "wasm32") { 0 } else { 2 };
+    assert_eq!(code_tools.len(), 4 + native_tools);
+    assert_eq!(work_tools.len(), 3 + native_tools);
+    // Work 的两种侧栏替代 Code 的侧栏、审查和文件树；其后公共工具保持顺序。
+    assert_eq!(ordered_tree_shape(&work_tools[2..]), ordered_tree_shape(&code_tools[3..]));
+    assert!(work_tools[..2].iter().all(|tool| tool.children.len() == 2));
 }
 
 #[test]

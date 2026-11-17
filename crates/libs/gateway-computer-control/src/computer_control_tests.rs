@@ -54,3 +54,20 @@ fn cc_control_18_auth_enabled_requires_valid_skey() {
     headers.append("authorization", HeaderValue::from_static("Bearer test-control-key"));
     assert_eq!(super::authorize(&guard, &headers), Err(StatusCode::UNAUTHORIZED));
 }
+
+#[test]
+fn cc_runtime_06_rejects_gateway_identity_as_executor() {
+    let expected = std::env::current_exe().unwrap();
+    let other = std::env::current_dir().unwrap();
+    let report = NativePermissionReport { executable: other.display().to_string(), accessibility: true, screen_recording: false };
+    assert!(super::validate_service_identity(&expected, &report).is_err());
+    let report = NativePermissionReport { executable: expected.display().to_string(), ..report };
+    assert!(super::validate_service_identity(&expected, &report).is_ok());
+}
+#[test]
+fn cc_runtime_06_permissions_are_independent() {
+    let report: NativeServiceReport = serde_json::from_value(serde_json::json!({"state":"available","permissions":{"executable":"/helper","accessibility":true,"screen_recording":false}})).unwrap();
+    let permissions = report.permissions.unwrap();
+    assert!(permissions.accessibility);
+    assert!(!permissions.screen_recording);
+}

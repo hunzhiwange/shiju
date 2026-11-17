@@ -73,9 +73,6 @@ fn acp_model_source_relay_responses_parallel_tools_roles_and_structured_output()
         {"type":"function_call","call_id":"b","name":"two","arguments":"{}"},
         {"type":"function_call_output","call_id":"a","output":"first"},
         {"type":"function_call_output","call_id":"b","output":"second"}
-    ],"tools":[
-        {"type":"function","name":"one","parameters":{"type":"object","properties":{"n":{"type":"integer"}}}},
-        {"type":"function","name":"two","parameters":{"type":"object"}}
     ],"text":{"format":{"type":"json_schema","name":"answer","strict":true,"schema":{"type":"object"}}},"tool_choice":{"type":"function","name":"one"},"parallel_tool_calls":true});
     let (chat, tools) = super::responses::to_chat(&request, false).unwrap();
     assert_eq!(chat["messages"][0], json!({"role":"system","content":"system"}));

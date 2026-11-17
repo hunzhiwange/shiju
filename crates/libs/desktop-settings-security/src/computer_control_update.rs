@@ -7,6 +7,11 @@ use vw_api_computer_control::*;
 #[derive(Debug, Clone)]
 pub enum Event {
     Refresh,
+    Manage(ControlSetting),
+    ManageClose,
+    OpenSystemPermission { screen_recording: bool },
+    NativePermissionRequested { identity: ControlIdentity, generation: u64, result: Result<NativePermissionReport, String> },
+    NativeServiceLoaded { identity: ControlIdentity, generation: u64, result: Result<NativeServiceReport, String> },
     Loaded { identity: ControlIdentity, generation: u64, result: Result<(ComputerControlStatus, ControlApprovals), String> },
     Toggle(ControlSetting, bool),
     Revoke(ControlGrantScope),
@@ -39,14 +44,22 @@ fn refresh(state: &mut ComputerControlSettingsState, endpoint: &GatewayEndpoint)
     state.error = None;
     let identity = ControlIdentity::from_endpoint(endpoint);
     state.identity = Some(identity.clone());
+    state.native_service = None;
+    state.native_permission_report = None;
+    state.target_host = endpoint.base_url();
     let client = gateway_http::GatewayTransport::new(endpoint.clone())
         .map(gateway_computer_control::GatewayComputerControlClient::new);
-    Task::perform(async move {
+    let service_identity = identity.clone();
+    let service_client = client.clone();
+    let service_task = Task::perform(async move {
+        service_client?.native_service().await.map_err(safe_error)
+    }, move |result| Event::NativeServiceLoaded { identity: service_identity.clone(), generation, result });
+    Task::batch([service_task, Task::perform(async move {
         let client = client?;
         let status = client.computer_control_status().await.map_err(safe_error)?;
         let approvals = client.computer_control_approvals().await.map_err(safe_error)?;
         Ok((status, approvals))
-    }, move |result| message(Event::Loaded { identity: identity.clone(), generation, result }))
+    }, move |result| message(Event::Loaded { identity: identity.clone(), generation, result }))])
 }
 
 pub fn update(state: &mut ComputerControlSettingsState, endpoint: &GatewayEndpoint, session: Option<&str>, workspace: Option<&str>, event: Event) -> (Task<Event>, Option<Notice>) {
@@ -69,6 +82,45 @@ fn update_inner(state: &mut ComputerControlSettingsState, endpoint: &GatewayEndp
         state.identity = Some(identity.clone());
     }
     match event {
+        Event::Manage(feature @ ControlSetting::NativeApps) => {
+            state.management = Some(feature);
+            Task::none()
+        }
+        Event::Manage(_) => Task::none(),
+        Event::ManageClose => { state.management = None; Task::none() }
+        Event::OpenSystemPermission { screen_recording } => {
+            if state.busy() { return Task::none(); }
+            if !endpoint.is_loopback() {
+                return notify(notice, Notice::Error("请在运行远程网关的电脑上申请系统权限".into()));
+            }
+            if !state.native_service.as_ref().is_some_and(|report| report.state == NativeServiceState::Available) {
+                return notify(notice, Notice::Error("请先刷新并确认执行应用已安装且可连接".into()));
+            }
+            state.generation += 1;
+            let generation = state.generation;
+            state.requesting_permission = true;
+            let client = gateway_http::GatewayTransport::new(endpoint.clone()).map(gateway_computer_control::GatewayComputerControlClient::new);
+            Task::perform(async move { client?.request_native_permission(screen_recording).await.map_err(safe_error) }, move |result| Event::NativePermissionRequested { identity: identity.clone(), generation, result })
+        }
+        Event::NativePermissionRequested { identity: source, generation, result } => {
+            if generation != state.generation || !state.requesting_permission || source != identity { return Task::none(); }
+            state.requesting_permission = false;
+            match result {
+                Ok(report) => {
+                    state.native_permission_report = Some(report);
+                    refresh(state, endpoint)
+                }
+                Err(error) => notify(notice, Notice::Error(error)),
+            }
+        }
+        Event::NativeServiceLoaded { identity: source, generation, result } => {
+            if source != identity || generation != state.generation { return Task::none(); }
+            match result {
+                Ok(report) => { state.native_permission_report = report.permissions.clone(); state.native_service = Some(report); }
+                Err(error) => return notify(notice, Notice::Error(error)),
+            }
+            Task::none()
+        }
         Event::Refresh => refresh(state, endpoint),
         Event::Loaded { identity: source, generation, result } => {
             if source != identity { return Task::none(); }

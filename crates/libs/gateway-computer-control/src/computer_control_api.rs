@@ -12,6 +12,12 @@ impl std::fmt::Display for ComputerControlApiError {
 }
 impl std::error::Error for ComputerControlApiError {}
 impl GatewayComputerControlClient {
+    pub async fn native_service(&self) -> Result<NativeServiceReport, ComputerControlApiError> {
+        self.control_request::<(), _>(reqwest::Method::GET, "native-service", None).await
+    }
+    pub async fn request_native_permission(&self, screen_recording: bool) -> Result<NativePermissionReport, ComputerControlApiError> {
+        self.control_request(reqwest::Method::POST, "native-permission", Some(&NativePermissionRequest { screen_recording })).await
+    }
     pub async fn computer_control_status(&self) -> Result<ComputerControlStatus, ComputerControlApiError> {
         self.control_request::<(), _>(reqwest::Method::GET, "status", None).await
     }

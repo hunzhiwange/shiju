@@ -20,6 +20,7 @@ pub fn router() -> Router {
     Router::new()
         .route("/computer-control/status", get(status))
         .route("/computer-control/native-permission", post(request_native_permission))
+        .route("/computer-control/native-service", get(native_service))
         .route("/computer-control/settings", axum::routing::put(save))
         .route("/computer-control/approvals", get(approvals).delete(revoke))
         .route("/computer-control/pairing", post(pair))
@@ -161,11 +162,36 @@ async fn request_native_permission(Extension(_t): Extension<TenantScope>, h: Hea
     Ok(Json(service_permissions(mode).await?))
 }
 
+async fn native_service(Extension(_t): Extension<TenantScope>, h: HeaderMap) -> Result<Json<NativeServiceReport>, Failure> {
+    let _runtime = runtime(&_t, &h).await?;
+    if !cfg!(target_os = "macos") {
+        return Ok(Json(NativeServiceReport { state: NativeServiceState::Unsupported, permissions: None }));
+    }
+    let report = match computer_control::service::executable() {
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => NativeServiceReport { state: NativeServiceState::NotInstalled, permissions: None },
+        Err(_) => NativeServiceReport { state: NativeServiceState::Disconnected, permissions: None },
+        Ok(_) => match service_permissions("--permissions").await {
+            Ok(permissions) => NativeServiceReport { state: NativeServiceState::Available, permissions: Some(permissions) },
+            Err(_) => NativeServiceReport { state: NativeServiceState::Disconnected, permissions: None },
+        },
+    };
+    Ok(Json(report))
+}
+
+fn validate_service_identity(expected: &std::path::Path, report: &NativePermissionReport) -> Result<(), Failure> {
+    let actual = std::fs::canonicalize(&report.executable).map_err(|_| StatusCode::BAD_GATEWAY)?;
+    let expected = std::fs::canonicalize(expected).map_err(|_| StatusCode::BAD_GATEWAY)?;
+    if actual != expected { return Err(StatusCode::BAD_GATEWAY); }
+    Ok(())
+}
+
 async fn service_permissions(mode: &'static str) -> Result<NativePermissionReport, Failure> {
-    tokio::task::spawn_blocking(move || {
+    tokio::time::timeout(std::time::Duration::from_secs(30), async move {
         let executable = computer_control::service::executable().map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?;
-        let output = std::process::Command::new(executable).arg(mode).output().map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?;
+        let output = tokio::process::Command::new(&executable).arg(mode).kill_on_drop(true).output().await.map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?;
         if !output.status.success() { return Err(StatusCode::UNPROCESSABLE_ENTITY); }
-        serde_json::from_slice(&output.stdout).map_err(|_| StatusCode::BAD_GATEWAY)
-    }).await.map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
+        let report = serde_json::from_slice(&output.stdout).map_err(|_| StatusCode::BAD_GATEWAY)?;
+        validate_service_identity(&executable, &report)?;
+        Ok(report)
+    }).await.map_err(|_| StatusCode::GATEWAY_TIMEOUT)?
 }

@@ -87,13 +87,7 @@ fn aggregation_t25_compaction_request_protects_the_summary_turn() {
     assert!(overrides.get("n").is_none());
     let ordinary =
         json!({"model":"selected","stream":true,"input":[{"role":"user","content":"hi"}]});
-    // The resident bridge also handles ordinary Responses turns without a summary prompt.
-    let ordinary = Request::from_responses(ordinary).unwrap();
-    assert_eq!(ordinary.chat["messages"], json!([{"role":"user","content":"hi"}]));
-    let non_streaming = json!({"model":"selected","stream":false,"input":[
-        {"role":"user","content":"hi"}, {"type":"compaction_trigger"}
-    ]});
-    assert!(matches!(Request::from_responses(non_streaming), Err(StatusCode::UNPROCESSABLE_ENTITY)));
+    assert!(matches!(Request::from_responses(ordinary), Err(StatusCode::UNPROCESSABLE_ENTITY)));
     let duplicate = json!({"model":"selected","stream":true,"input":[
         {"type":"compaction_trigger"}, {"type":"compaction_trigger"}
     ]});

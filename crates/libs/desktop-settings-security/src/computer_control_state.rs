@@ -49,9 +49,14 @@ pub struct ComputerControlSettingsState {
     pub error: Option<String>,
     pub pairing: Option<OfficePairingDraft>,
     pub pairing_generation: u64,
+    pub management: Option<ControlSetting>,
+    pub native_permission_report: Option<NativePermissionReport>,
+    pub requesting_permission: bool,
+    pub native_service: Option<NativeServiceReport>,
+    pub target_host: String,
 }
 impl ComputerControlSettingsState {
-    pub fn busy(&self) -> bool { self.loading || self.saving }
+    pub fn busy(&self) -> bool { self.loading || self.saving || self.requesting_permission }
     pub fn feature(&self, feature: ControlSetting) -> Option<&ControlFeatureStatus> {
         self.status.as_ref().map(|s| match feature {
             ControlSetting::NativeApps => &s.native_apps,

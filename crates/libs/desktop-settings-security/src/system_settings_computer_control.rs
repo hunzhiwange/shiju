@@ -47,6 +47,9 @@ pub fn view<'a>(
     page(state)
 }
 pub fn page(state: &ComputerControlSettingsState) -> Element<'_, Event> {
+    if let Some(feature) = state.management {
+        return management_page(state, feature);
+    }
     let header = column![
         text("电脑操控").size(28),
         text("管理识矩如何使用电脑上的应用程序").size(13).style(settings_muted_text_style),
@@ -128,6 +131,9 @@ pub fn page(state: &ComputerControlSettingsState) -> Element<'_, Event> {
                     text(format!("能力：{capabilities}")).size(11).style(settings_muted_text_style),
                 );
             }
+        }
+        if matches!(feature, ControlSetting::NativeApps) {
+            details = details.push(action("管理权限", Event::Manage(feature), true));
         }
         if matches!(feature, ControlSetting::Excel | ControlSetting::Word) {
             details = details.push(action(
@@ -223,6 +229,74 @@ pub fn page(state: &ComputerControlSettingsState) -> Element<'_, Event> {
     .spacing(24)
     .height(Length::Fill)
     .into()
+}
+
+fn management_page(state: &ComputerControlSettingsState, feature: ControlSetting) -> Element<'_, Event> {
+    let chrome = feature == ControlSetting::Chrome;
+    let title = if chrome { "Google Chrome" } else { "任意应用" };
+    let mut content = column![
+        action("返回电脑操控", Event::ManageClose, true),
+        text(title).size(28),
+        text(state.feature(feature).map(|report| readiness_label(report.readiness)).unwrap_or("尚未取得服务端状态"))
+            .size(13).style(settings_muted_text_style),
+        action("刷新状态", Event::Refresh, !state.busy()),
+    ].spacing(20).width(Length::Fill);
+    if let Some(error) = &state.error {
+        content = content.push(settings_error_banner(error));
+    }
+        let mut permissions = column![
+            text("系统权限").size(17),
+            text("请为 ShiJu Computer Use 执行应用分别授予辅助功能和屏幕录制权限。远程网关需在目标电脑操作；打开设置或发出申请不代表已授权。").size(13),
+        ].spacing(12);
+        permissions = permissions.push(text(format!("目标网关：{}", state.target_host)).size(13));
+        if let Some(report) = &state.native_service {
+            let label = match report.state {
+                vw_api_computer_control::NativeServiceState::Available => "执行应用可用",
+                vw_api_computer_control::NativeServiceState::NotInstalled => "执行应用未安装",
+                vw_api_computer_control::NativeServiceState::Disconnected => "执行应用断开或身份验证失败",
+                vw_api_computer_control::NativeServiceState::Unsupported => "目标系统暂不支持",
+            };
+            permissions = permissions.push(text(label).size(13));
+        }
+        if cfg!(target_os = "macos") {
+            permissions = permissions.push(row![
+                action("申请辅助功能权限", Event::OpenSystemPermission { screen_recording: false }, !state.busy()),
+                action("申请屏幕录制权限", Event::OpenSystemPermission { screen_recording: true }, !state.busy()),
+            ].spacing(10).wrap());
+        }
+        if let Some(report) = &state.native_permission_report {
+            permissions = permissions.push(text(format!("申请进程：{}", report.executable)).size(13));
+            permissions = permissions.push(text(format!("辅助功能：{}；屏幕录制：{}",
+                if report.accessibility { "已授权" } else { "未授权" },
+                if report.screen_recording { "已授权" } else { "未授权" })).size(13));
+            if !report.screen_recording {
+                permissions = permissions.push(text("屏幕录制尚未生效；若已在系统中启用，则待重启执行应用后刷新确认。").size(13));
+            }
+            permissions = permissions.push(text("请在系统授权列表中启用上述进程对应的应用。授权后刷新；屏幕录制仍未生效时，按系统提示退出并重新启动该应用。开发程序重新构建后可能需要重新授权。").size(13));
+        }
+        content = content.push(settings_group_card(permissions));
+    let mut grants = column![text(if chrome { "已授权网站" } else { "已授权应用" }).size(17)].spacing(12);
+    let mut count = 0;
+    for scope in &state.approvals {
+        let identity = match (chrome, scope) {
+            (true, ControlGrantScope::ChromeOrigin(identity)) => identity,
+            (false, ControlGrantScope::Application(identity)) => identity,
+            _ => continue,
+        };
+        count += 1;
+        grants = grants.push(row![
+            text(identity).size(13).width(Length::Fill),
+            action("撤销授权", Event::Revoke(scope.clone()), !state.busy()),
+        ].spacing(12).align_y(Alignment::Center));
+    }
+    if count == 0 {
+        grants = grants.push(text(if state.status.is_some() { "暂无授权" } else { "授权列表尚未加载" }).size(13));
+    }
+    grants = grants.push(text("持久授权在实际操作的确认提示中授予，可在此撤销。").size(13).style(settings_muted_text_style));
+    content = content.push(settings_group_card(grants));
+    scrollable(container(content).padding([0, 7]).width(Length::Fill))
+        .direction(Direction::Vertical(Scrollbar::new().width(4).scroller_width(4)))
+        .height(Length::Fill).into()
 }
 
 fn feature_description(feature: ControlSetting) -> &'static str {

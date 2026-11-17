@@ -414,3 +414,25 @@ pub struct ControlPairingResponse { pub credential: String, pub permission_versi
 
 #[cfg(test)]
 mod tests;
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct NativePermissionRequest { pub screen_recording: bool }
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct NativePermissionReport {
+    pub executable: String,
+    pub accessibility: bool,
+    pub screen_recording: bool,
+}
+
+/// Read-only probe of the bundled execution App, never the gateway process.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct NativeServiceReport {
+    pub state: NativeServiceState,
+    pub permissions: Option<NativePermissionReport>,
+}
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum NativeServiceState { Available, NotInstalled, Disconnected, Unsupported }

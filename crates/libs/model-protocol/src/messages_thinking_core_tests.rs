@@ -255,3 +255,86 @@ fn model_protocol_015_effort_and_schema_remain_separate_from_replay() {
     body["output_config"]["effort"] = 3.into();
     assert_eq!(context.request(&body), Err(StatusCode::BAD_REQUEST));
 }
+
+#[test]
+fn model_protocol_015_unreasoned_adaptive_tools_replay_only_issued_content() {
+    let context = context();
+    let mut body = response();
+    body["choices"][0]["message"].as_object_mut().unwrap().remove("reasoning_content");
+    body["choices"][0]["message"]["content"] = Value::Null;
+    let result = context.result(&body, "selected").unwrap();
+    let input = replay(&result);
+    let converted =
+        context.request(&input).expect("adaptive mode may return tools without thinking");
+    assert!(converted["messages"][1].get("reasoning_content").is_none());
+    assert_eq!(converted["messages"][1]["tool_calls"][0]["id"], "a");
+    for (field, value) in
+        [("id", json!("foreign")), ("name", json!("changed")), ("input", json!({"x":2}))]
+    {
+        let mut tampered = input.clone();
+        tampered["messages"][1]["content"][0][field] = value;
+        assert_eq!(context.request(&tampered), Err(StatusCode::UNPROCESSABLE_ENTITY));
+    }
+    let mut tampered = input.clone();
+    tampered["messages"][1]["content"]
+        .as_array_mut()
+        .unwrap()
+        .push(json!({"type":"text","text":"forged"}));
+    assert_eq!(context.request(&tampered), Err(StatusCode::UNPROCESSABLE_ENTITY));
+    assert_eq!(self::context().request(&input), Err(StatusCode::UNPROCESSABLE_ENTITY));
+}
+
+#[test]
+fn model_protocol_015_unreasoned_receipts_bind_identity_and_deployment() {
+    let references = Arc::new(References::default());
+    let original = identity();
+    let context = Context::new(&original, "deployment".into(), references.clone());
+    let mut body = response();
+    body["choices"][0]["message"].as_object_mut().unwrap().remove("reasoning_content");
+    let input = replay(&context.result(&body, "selected").unwrap());
+    assert!(context.request(&input).is_ok());
+    for field in ["tenant", "project", "session", "provider", "model", "generation"] {
+        let mut other = original.clone();
+        match field {
+            "tenant" => {
+                other.tenant = vw_api_transport::TenantScope::new("other", "fixture").unwrap()
+            }
+            "project" => other.project = "other".into(),
+            "session" => other.session = "other".into(),
+            "provider" => other.provider = "other".into(),
+            "model" => other.model = "other".into(),
+            _ => other.generation += 1,
+        }
+        assert_eq!(
+            Context::new(&other, "deployment".into(), references.clone()).request(&input),
+            Err(StatusCode::UNPROCESSABLE_ENTITY)
+        );
+    }
+    assert_eq!(
+        Context::new(&original, "other-deployment".into(), references).request(&input),
+        Err(StatusCode::UNPROCESSABLE_ENTITY)
+    );
+}
+
+#[test]
+fn model_protocol_015_unreasoned_expired_or_malformed_receipt_is_rejected() {
+    let mut body = response();
+    body["choices"][0]["message"].as_object_mut().unwrap().remove("reasoning_content");
+    let result = context().result(&body, "selected").unwrap();
+    let mut normalized = json!(["deployment", {"role":"assistant","content":result["content"]}]);
+    normalized.sort_all_objects();
+    let digest =
+        hex::encode(ring::digest::digest(&ring::digest::SHA256, normalized.to_string().as_bytes()));
+    for deadline in ["0", "invalid"] {
+        let references = Arc::new(References::default());
+        references
+            .remember(
+                &ReferenceScope::Session(identity()),
+                &format!("shiju-unreasoned-v1:{digest}"),
+                deadline,
+            )
+            .unwrap();
+        let context = Context::new(&identity(), "deployment".into(), references);
+        assert_eq!(context.request(&replay(&result)), Err(StatusCode::UNPROCESSABLE_ENTITY));
+    }
+}

@@ -49,23 +49,37 @@ impl Context {
             if message["role"] == "user" && !blocks.clone().any(|b| b["type"] == "tool_result") {
                 break;
             }
+            let signed_tools = blocks.clone().any(|block| {
+                block["type"] == "tool_use"
+                    && block["id"].as_str().is_some_and(|id| {
+                        self.references
+                            .check_item(
+                                &ReferenceScope::Session(self.identity.clone()),
+                                &format!("shiju-thinking-tool:{id}"),
+                            )
+                            .is_ok()
+                    })
+            });
             if message["role"] == "assistant"
                 && blocks.clone().any(|b| b["type"] == "tool_use")
                 && !blocks.clone().any(|b| b["type"] == "thinking")
-                && (explicitly_thinking
-                    || blocks.clone().any(|block| {
-                        block["type"] == "tool_use"
-                            && block["id"].as_str().is_some_and(|id| {
-                                self.references
-                                    .check_item(
-                                        &ReferenceScope::Session(self.identity.clone()),
-                                        &format!("shiju-thinking-tool:{id}"),
-                                    )
-                                    .is_ok()
-                            })
-                    }))
+                && (explicitly_thinking || signed_tools)
             {
-                return Err(StatusCode::UNPROCESSABLE_ENTITY);
+                // Adaptive providers may legitimately omit reasoning. Only an
+                // exact message previously issued in this deployment may replay
+                // without it; stripping a signed block still fails closed.
+                let issued = self.references.resolve(
+                    &ReferenceScope::Session(self.identity.clone()),
+                    &format!("shiju-unreasoned-v1:{}", self.digest(message)),
+                );
+                if signed_tools
+                    || !issued
+                        .ok()
+                        .and_then(|value| value.parse::<i64>().ok())
+                        .is_some_and(|deadline| deadline >= chrono::Utc::now().timestamp())
+                {
+                    return Err(StatusCode::UNPROCESSABLE_ENTITY);
+                }
             }
         }
         let mut reasoning = Vec::new();
@@ -181,6 +195,14 @@ impl Context {
                     return Err(StatusCode::BAD_GATEWAY);
                 }
             }
+        }
+        if thought.is_empty() && !tools.is_empty() {
+            let normalized = json!({"role":"assistant","content":result["content"]});
+            self.references.remember(
+                &ReferenceScope::Session(self.identity.clone()),
+                &format!("shiju-unreasoned-v1:{}", self.digest(&normalized)),
+                &(chrono::Utc::now().timestamp() + 900).to_string(),
+            )?;
         }
         if !thought.is_empty() {
             result["content"]

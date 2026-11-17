@@ -174,7 +174,18 @@ async fn aggregation_t28_real_codex_ack_does_not_restart_or_hide_stale_client() 
         }
     }
     let executable = std::env::var_os("T28_CODEX_BINARY")
-        .expect("set T28_CODEX_BINARY to the installed real Codex CLI");
+        .map(std::path::PathBuf::from)
+        .or_else(|| {
+            // Use the installed CLI on PATH when no explicit test override is supplied.
+            std::env::split_paths(&std::env::var_os("PATH")?).find_map(|dir| {
+                let candidate = dir.join("codex");
+                let metadata = fs::metadata(&candidate).ok()?;
+                (metadata.is_file() && metadata.permissions().mode() & 0o111 != 0)
+                    .then(|| fs::canonicalize(candidate).ok())
+                    .flatten()
+            })
+        })
+        .expect("install Codex CLI on PATH or set T28_CODEX_BINARY to the real CLI");
     let home = tempfile::tempdir().unwrap();
     let mut child = Client(
         Command::new(executable)

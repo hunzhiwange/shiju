@@ -6,6 +6,18 @@ fn key(code: KeyCode) -> KeyEvent {
     KeyEvent::new(code, KeyModifiers::NONE)
 }
 
+// Exercise the public key/idle path: ASCII input is held briefly for paste detection.
+fn type_char(pane: &mut BottomPane, ch: char, query: Option<&str>, action: V3Action) {
+    // Keep separate keystrokes outside the burst interval, including after selection.
+    std::thread::sleep(std::time::Duration::from_millis(50));
+    assert_eq!(pane.handle_key_event(key(KeyCode::Char(ch))), action);
+    let deadline = pane.composer().next_paste_flush_deadline().expect("pending ASCII input");
+    std::thread::sleep(deadline.saturating_duration_since(std::time::Instant::now()));
+    assert!(pane.flush_paste_burst_if_due(std::time::Instant::now()));
+    assert_eq!(pane.composer().active_file_search_query(), query);
+    assert_eq!(pane.file_search_visible(), query.is_some());
+}
+
 #[test]
 fn typing_at_requests_search_and_selecting_inserts_path() {
     let mut pane = BottomPane::new(BottomPaneParams {
@@ -14,20 +26,10 @@ fn typing_at_requests_search_and_selecting_inserts_path() {
     });
     pane.set_command_palette_items(vec![V3SelectionItem::new("search", "Search")]);
 
-    assert_eq!(
-        pane.handle_key_event(key(KeyCode::Char('@'))),
-        V3Action::FileSearchQueryChanged { query: Some(String::new()) }
-    );
-    assert!(pane.file_search_visible());
+    type_char(&mut pane, '@', Some(""), V3Action::None);
     assert!(!pane.command_palette_visible());
-    assert_eq!(
-        pane.handle_key_event(key(KeyCode::Char('s'))),
-        V3Action::FileSearchQueryChanged { query: Some("s".into()) }
-    );
-    assert_eq!(
-        pane.handle_key_event(key(KeyCode::Char('r'))),
-        V3Action::FileSearchQueryChanged { query: Some("sr".into()) }
-    );
+    type_char(&mut pane, 's', Some("s"), V3Action::None);
+    type_char(&mut pane, 'r', Some("sr"), V3Action::None);
 
     pane.set_file_search_matches(
         "sr",
@@ -48,10 +50,7 @@ fn typing_at_requests_search_and_selecting_inserts_path() {
     assert_eq!(pane.draft(), "@src/main.rs ");
     assert!(!pane.file_search_visible());
 
-    assert_eq!(
-        pane.handle_key_event(key(KeyCode::Char('@'))),
-        V3Action::FileSearchQueryChanged { query: Some(String::new()) }
-    );
+    type_char(&mut pane, '@', Some(""), V3Action::None);
     assert_eq!(
         pane.handle_key_event(key(KeyCode::Esc)),
         V3Action::FileSearchQueryChanged { query: None }
@@ -59,6 +58,12 @@ fn typing_at_requests_search_and_selecting_inserts_path() {
     assert_eq!(pane.draft(), "@src/main.rs @");
     assert!(!pane.file_search_visible());
 
-    assert_eq!(pane.handle_key_event(key(KeyCode::Char('!'))), V3Action::None);
+    // The dismissed @ is still the active token until the buffered ! is flushed.
+    type_char(
+        &mut pane,
+        '!',
+        None,
+        V3Action::FileSearchQueryChanged { query: Some(String::new()) },
+    );
     assert_eq!(pane.draft(), "@src/main.rs @!");
 }

@@ -934,6 +934,26 @@ async fn channel_reload_saved_credentials_update_existing_webhook_router() {
     let _ = watcher.await;
 }
 
+// Use the same runtime and dispatch path as the host webhook adapters.
+async fn dispatch_webhook_message<C: channel_types::Channel + 'static>(
+    state: &AppState,
+    channel: &Arc<C>,
+    message: ChannelMessage,
+) {
+    let runtime = super::super::channel_runtime::channel_runtime(state).unwrap();
+    let mut ctx = runtime.as_ref().clone();
+    ctx.channels_by_name = Arc::new(std::collections::HashMap::from([(
+        channel_support::scope::channel_instance_key(&message.channel, &message.instance_id),
+        channel.clone() as Arc<dyn channel_types::Channel>,
+    )]));
+    crate::channels::manager::process_channel_message(
+        Arc::new(ctx),
+        message,
+        tokio_util::sync::CancellationToken::new(),
+    )
+    .await;
+}
+
 #[tokio::test]
 async fn channel_command_cancel_webhook_uses_common_stop_and_help() {
     let state = state();
@@ -942,16 +962,7 @@ async fn channel_command_cancel_webhook_uses_common_stop_and_help() {
     message.channel = "qq".into();
     for command in ["/stop", "/help stop", "/stop extra"] {
         message.content = command.into();
-        process_channel_messages(
-            &state,
-            "QQ",
-            &channel,
-            &[message.clone()],
-            qq_memory_key,
-            "QQ",
-            true,
-        )
-        .await;
+        dispatch_webhook_message(&state, &channel, message.clone()).await;
     }
     let sent = channel.sent.lock();
     assert_eq!(sent.len(), 3);
@@ -1094,16 +1105,7 @@ async fn channel_command_cancel_webhook_failed_send_preserves_state() {
     let channel = Arc::new(RecordingChannel { fail_send: true, ..Default::default() });
     let mut msg = channel_message();
     msg.content = "/stop".into();
-    process_channel_messages(
-        &state,
-        "recording",
-        &channel,
-        &[msg],
-        qq_memory_key,
-        "recording",
-        true,
-    )
-    .await;
+    dispatch_webhook_message(&state, &channel, msg).await;
     assert_eq!(channel.sent.lock().len(), 1);
     let runtime = super::super::channel_runtime::channel_runtime(&state).unwrap();
     assert!(runtime.conversation_histories.lock().unwrap().is_empty());

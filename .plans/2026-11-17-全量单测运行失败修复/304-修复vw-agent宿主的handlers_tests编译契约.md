@@ -4,7 +4,7 @@
 
 批次：【批次1】 依赖：无
 
-状态：未开始
+状态：待回归
 
 来源：继续执行宿主单测；诊断编号51, 52（宿主编译错误证据.json）。
 预计会话范围：修复一个源码文件中的宿主接口或测试夹具编译契约；不接管整包。
@@ -85,3 +85,13 @@ python3 scripts/cargo_slot.py cargo test -p vw-agent --lib channel_command_cance
 编译取证命令（不是测试通过证据）：`python3 scripts/cargo_slot.py cargo test -p vw-agent --lib --no-run`。同阶段顺序命令合并一次入口复用缓存，不默认逐任务全量测试。
 
 最终需由原任务303执行两阶段全量验收；这组修复仅覆盖已发现编译阻塞，尚不能保证宿主全部运行失败已发现。
+
+## 本轮实施与验证（2026-11-18）
+
+- 两处旧 `process_channel_messages` 调用迁移为本测试文件内 `dispatch_webhook_message`：沿用真实 webhook 的 channel runtime、实例 key 注册和宿主 manager 分发；保留所有回复、线程及安全状态断言。未修改公共生产接口。
+- 两个过滤名称均已核实为 `#[tokio::test]` 入口。
+- 等待已有 Cargo 进程结束后运行：`python3 scripts/cargo_slot.py sh -c 'cargo test -p vw-agent --lib channel_command_cancel_webhook_failed_send_preserves_state -- --nocapture && cargo test -p vw-agent --lib channel_command_cancel_webhook_uses_common_stop_and_help -- --nocapture'`。
+- 实际槽位1；`CARGO_TARGET_DIR` 与 `CARGO_BUILD_BUILD_DIR` 均为 `/Users/xiangmin/worker/code/shiju/target/rust-slot-1`。
+- 首个 Cargo 退出101：宿主 lib test 仍有70条编译错误，包括 `agent/loop_.rs` 的 `build_native_assistant_history_from_parsed_calls` 导入、`execution_control_tests.rs` 的 `ChannelTaskGuard`、session/compaction/VideoContext 等兄弟契约错误。有效测试数0；第二条因 `&&` 未运行，不能声称行为通过。
+- `git diff --check -- crates/libs/agent-gateway/src/handlers_tests.rs` 通过。入口与自有 Cargo 已退出，保留槽位缓存。
+- 待同宿主其余编号任务消除编译阻塞后，在本任务中重跑以上两个定向测试；取得有效通过证据前保留本文件，不删除、不宣称完成。

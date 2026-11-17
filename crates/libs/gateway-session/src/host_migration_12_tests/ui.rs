@@ -280,7 +280,7 @@ async fn session_ui_summary_refreshes_a_stale_delta_before_first_response() {
         session_ui_summary::<Host>(Path(session_id.clone()), query(), HeaderMap::new()).await.unwrap();
     assert_eq!(summary.updated_ms, 20);
     assert_eq!(summary.message_count, 1);
-    assert!(summary.last_content.is_none());
+    assert_eq!(summary.last_content.as_deref(), Some("first message"));
     delta.expected_updated_ms = summary.updated_ms;
     let Json(retry) =
         session_ui_message_delta::<Host>(Path(session_id.clone()), query(), HeaderMap::new(), Json(delta))
@@ -303,8 +303,14 @@ async fn session_ui_summary_refreshes_a_stale_delta_before_first_response() {
     assert_eq!(page.total_count, 2);
     assert_eq!(page.items[1].message.content, "partial answer");
     let Json(preview) =
-        session_ui_preview_meta::<Host>(Path(session_id), query(), HeaderMap::new()).await.unwrap();
-    assert!(preview.is_none());
+        session_ui_preview_meta::<Host>(Path(session_id.clone()), query(), HeaderMap::new()).await.unwrap();
+    assert!(preview.is_some(), "pending root remains discoverable");
+    let scope = ui_store::resolve_session_scope_id(
+        Some(&project.path().to_string_lossy()), None,
+    ).unwrap();
+    assert!(!ui_store::has_committed_first_response(
+        &ui_store::current_tenant_scope(), &scope, &session_id,
+    ).unwrap());
 }
 
 #[tokio::test(flavor = "multi_thread")]
@@ -767,7 +773,11 @@ async fn session_ui_save_propagates_session_store_failure() {
     let connection =
         Connection::open(ui_store::session_file_path(&session_id).expect("session store path"))
             .expect("open session store database");
-    connection.execute_batch("BEGIN EXCLUSIVE").expect("acquire database write lock");
+    // 作用域解析也会访问数据库；在真正写入会话索引时注入失败，避免提前返回 400。
+    connection.execute_batch(
+        "CREATE TRIGGER fail_ui_save BEFORE UPDATE ON session_index
+         BEGIN SELECT RAISE(ABORT, 'injected session store failure'); END;",
+    ).expect("inject session store write failure");
 
     let error = session_ui_save::<Host>(
         Path(session_id.clone()),
@@ -778,6 +788,7 @@ async fn session_ui_save_propagates_session_store_failure() {
     .await
     .expect_err("session store write failure must fail the request");
 
+    connection.execute_batch("DROP TRIGGER fail_ui_save").expect("remove injected failure");
     assert_eq!(error.status, axum::http::StatusCode::INTERNAL_SERVER_ERROR);
     let claims = crate::raw_commit::claim(
         &ui_store::current_tenant_scope(),
@@ -1279,6 +1290,14 @@ async fn ui_snapshot_handlers_isolate_same_session_id_across_tenants() {
     let tenant_b = vw_api_transport::TenantScope::new("platform-b", "company-b").expect("tenant B");
     let session_a = scoped_session("tenant-shared-session", "tenant A", "alpha", 10);
     let session_b = scoped_session("tenant-shared-session", "tenant B", "beta", 20);
+
+    // UI 保存不能发布新会话；先由运行时建立各租户的独立历史。
+    ui_store::with_tenant_scope(tenant_a.clone(), async {
+        save_runtime_session(&project, &session_a);
+    }).await;
+    ui_store::with_tenant_scope(tenant_b.clone(), async {
+        save_runtime_session(&project, &session_b);
+    }).await;
 
     let save_a = ui_store::with_tenant_scope(
         tenant_a.clone(),

@@ -256,11 +256,11 @@ async fn ui_refresh_08_layout_and_interaction() {
             .is_empty()
     );
 
-    let actions: &[usize] = &[2, 0, 0, 0, 0, 0, 0, 1, 0];
+    let actions: &[usize] = &[2, 0, 0, 0, 0, 0, 0, 2];
     let connect = scene.bounds(&modal_path(&[actions, &[0]].concat()));
     let favorite = scene.bounds(&modal_path(&[actions, &[1]].concat()));
-    let logo = scene.bounds(&modal_path(&[2, 0, 0, 0, 0, 0, 0, 0, 0]));
-    let logo_glyph = scene.bounds(&modal_path(&[2, 0, 0, 0, 0, 0, 0, 0, 0, 0]));
+    let logo = scene.bounds(&modal_path(&[2, 0, 0, 0, 0, 0, 0, 0]));
+    let logo_glyph = scene.bounds(&modal_path(&[2, 0, 0, 0, 0, 0, 0, 0, 0]));
     assert!((logo.center().y - logo_glyph.center().y).abs() < 0.5);
     assert!(connect.x > 12.0 && favorite.x + favorite.width < 408.0);
     assert!((connect.center().y - favorite.center().y).abs() < 0.5);
@@ -431,7 +431,7 @@ async fn ui_refresh_08_preserves_values_and_disabled_states() {
         &mut renderer,
         Size::new(420.0, 620.0),
     );
-    let actions: &[usize] = &[2, 0, 0, 0, 0, 0, 0, 1, 0];
+    let actions: &[usize] = &[2, 0, 0, 0, 0, 0, 0, 2];
     for index in [0, 1] {
         let point = scene.bounds(&modal_path(&[actions, &[index]].concat())).center();
         assert!(scene.click(&mut renderer, point).is_empty());

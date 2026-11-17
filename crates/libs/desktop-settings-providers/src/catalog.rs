@@ -190,7 +190,8 @@ pub fn modal<'a>(s: &'a crate::provider_state::ProviderSettingsState, style: Vie
     let card = settings_modal_card(column![header, search, body].spacing(14).height(Length::Fill))
         .width(Length::Fixed(900.0))
         .height(Length::Fixed(520.0));
-    Some((close, container(card).padding(12).into()))
+    // The modal overlay already reserves the outer window inset.
+    Some((close, container(card).into()))
 }
 
 /// Show the service catalog for a saved application provider.

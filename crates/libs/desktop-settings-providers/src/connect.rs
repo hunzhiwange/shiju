@@ -65,7 +65,8 @@ pub fn modal<'a>(s: &'a crate::provider_state::ProviderSettingsState, style: Vie
         .width(Length::Fixed(560.0))
         .height(Length::Fixed(350.0));
 
-    Some((close, container(card).padding(12).into()))
+    // The modal overlay already reserves the outer window inset.
+    Some((close, container(card).into()))
 }
 
 #[cfg(test)]

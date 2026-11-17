@@ -117,7 +117,6 @@ async fn agent_runtime_lock_put_rejects_replacement_and_implicit_switches() {
     let _env_lock = global_async_env_lock().lock().await;
     use config_agent_profile::AgentRuntime;
     use config_agent::AgentDefinitionConfig;
-    let _env_lock = global_async_env_lock().lock().await;
     let home = TempDir::new().unwrap();
     let _home = EnvGuard::set("HOME", home.path().as_os_str());
     let mut current = config::Config::default();
@@ -207,7 +206,6 @@ async fn agent_runtime_lock_put_accepts_first_save_and_locks_native() {
     let _env_lock = global_async_env_lock().lock().await;
     use config_agent_profile::AgentRuntime;
     use config_agent::AgentDefinitionConfig;
-    let _env_lock = global_async_env_lock().lock().await;
     let home = TempDir::new().unwrap();
     let _home = EnvGuard::set("HOME", home.path().as_os_str());
     let state = state(config::Config::default(), false, &[]);

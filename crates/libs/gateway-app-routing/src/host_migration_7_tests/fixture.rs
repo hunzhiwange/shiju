@@ -121,11 +121,12 @@ impl Drop for GatewayProcess {
 }
 pub(crate) async fn spawn_gateway(home: &Path, policy: &Path) -> (GatewayProcess, u16) {
     let routing = Arc::new(RoutingListener::default());
+    let database = GlobalDatabase::for_home(home).unwrap();
     let app = axum::Router::new().nest("/v1", crate::server::router().merge(crate::server::agent_apps_high_availability::router()));
-    let app = configure_with_policy(app, &routing, policy.to_owned(), GlobalDatabase::for_home(home).unwrap(),
+    let app = configure_with_policy(app, &routing, policy.to_owned(), database.clone(),
         RoutingPaths { home: home.to_owned(), config: home.join(".config/shiju"), state: home.join(".local/state/shiju") },
         |database, policy, tenant, host| Lifecycle(agent_gateway::aggregation_lifecycle::AggregationLifecycle { database, policy, tenant, host }),
-    ).await.layer(axum::middleware::from_fn(tenant));
+    ).await.layer(axum::Extension(database)).layer(axum::middleware::from_fn(tenant));
     let socket = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
     let port = socket.local_addr().unwrap().port();
     let task = tokio::spawn(async move { axum::serve(socket, app).await.unwrap(); });

@@ -264,10 +264,8 @@ async fn write(
                 service::update_queue(database.clone(), &scope, version, change)
             }
             Change::Enabled(body) => {
-                let policy =
-                    std::env::var_os("SHIJU_AGENT_APPS_ACCESS_FILE").map(std::path::PathBuf::from);
                 let (home, provider_root) = provider_editor_context(
-                    policy.as_deref(),
+                    Some(&control.policy),
                     &headers,
                     &tenant,
                     &scope.target_host_id,

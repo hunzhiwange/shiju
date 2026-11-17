@@ -4,7 +4,7 @@
 
 批次：【批次1】 依赖：无
 
-状态：未开始
+状态：待回归
 
 来源：原任务19全量实际执行；证据编号437, 438, 442, 445。
 预计会话范围：仅本测试定义文件中以下失败族及证据证明必要的底层修复，不接管整包。
@@ -80,3 +80,14 @@ python3 scripts/cargo_slot.py cargo test -p gateway-app-routing --lib 'host_migr
 ```
 
 完成证据：各条精确过滤执行1项且passed=1、failed=0、退出0；参数化子进程用例同时记录子进程证据。记录槽位、双缓存路径、日志、代码状态和审查diff。不运行全量测试；最后统一验收任务负责跨任务复验。
+
+## 执行记录
+
+- 共享依赖：任务229写入 `host_migration_7_tests/fixture.rs` 的数据库注入与 `server/agent_apps_high_availability.rs` 的策略来源；写入前两文件无外部差异。任务228的验收夹具独立，不覆盖其改动。
+- 当前红灯：槽位1，四条精确命令均执行1项、失败1项、退出101；日志 `/tmp/shiju-task229/red-*.log`。双缓存均为 `/Users/xiangmin/worker/code/shiju/target/rust-slot-1`。
+- 外部授权迁移并发移除了本测试认证头，当前访问层明确忽略旧令牌/grants；保留其外部修改，不削弱原认证与隔离断言。
+
+- 已修复：共享夹具显式注入临时数据库；HA enabled 使用 RoutingControl 的策略路径；启用测试改用已注册的项目路由 mode 入口。按用户回复恢复本文件令牌头，保留原认证/隔离断言。
+- 最终验证：原四条精确命令每条实际运行1项，passed=0、failed=1、退出101；日志 `/tmp/shiju-task229/final-<测试名>.log`，摘要 `/tmp/shiju-task229/final-summary.log`。沿用槽位1，两个缓存路径均为 `/Users/xiangmin/worker/code/shiju/target/rust-slot-1`；入口及子进程已退出，槽位释放。diff --check 通过。无参数化子进程用例。
+- 未完成原因：并发授权迁移的 `app-access-service/src/access.rs:execution_context` 明确忽略旧 token/grants，并由 `gateway_execution.rs:gateway_host` 使用进程级 home/root，绕开本测试临时策略的执行目录。读取无令牌返回200（预期401）、写入无令牌返回200（预期401）、health跨host拒绝断言失败；enabled进入实际模式事务但因执行根不匹配返回409 revision_conflict（预期200）。恢复旧请求头后仍复现，非本次接线修复引入。不能削弱断言或恢复整个授权架构以冒充通过。
+- 后续：待授权迁移所有者提供统一 pairing 中间件与临时执行目录注入方案，再按原四命令回归。本任务保持待回归且保留编号文件。

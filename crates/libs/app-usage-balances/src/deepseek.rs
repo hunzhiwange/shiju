@@ -134,17 +134,14 @@ fn deserialize_amount<'de, D>(deserializer: D) -> Result<Option<UsageNumber>, D:
 where
     D: Deserializer<'de>,
 {
-    #[derive(Deserialize)]
-    #[serde(untagged)]
-    enum Amount {
-        Number(f64),
-        Text(String),
-    }
-
-    let value = match Option::<Amount>::deserialize(deserializer)? {
-        None => return Ok(None),
-        Some(Amount::Number(value)) => value,
-        Some(Amount::Text(value)) => value.parse::<f64>().map_err(de::Error::custom)?,
+    // Preserve JSON numbers when arbitrary_precision represents decimals as maps.
+    let value = match serde_json::Value::deserialize(deserializer)? {
+        serde_json::Value::Null => return Ok(None),
+        serde_json::Value::Number(value) => value
+            .as_f64()
+            .ok_or_else(|| de::Error::custom("balance amount must be finite"))?,
+        serde_json::Value::String(value) => value.parse::<f64>().map_err(de::Error::custom)?,
+        _ => return Err(de::Error::custom("balance amount must be a number or string")),
     };
     UsageNumber::try_from(value).map(Some).map_err(de::Error::custom)
 }

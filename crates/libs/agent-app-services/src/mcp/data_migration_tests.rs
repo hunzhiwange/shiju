@@ -19,6 +19,8 @@ fn cc_data_10_owner_add_skip_replace_and_repeat_without_duplicate_rows() {
     let snapshots = tempfile::tempdir().unwrap();
     use std::os::unix::fs::PermissionsExt;
     std::fs::set_permissions(snapshots.path(), std::fs::Permissions::from_mode(0o700)).unwrap();
+    // Snapshot storage rejects symlink components, including macOS /var.
+    let snapshot_root = snapshots.path().canonicalize().unwrap();
     let project = ProjectScope::new(
         TenantScope::new("fixture-platform", "fixture-company").unwrap(),
         "fixture-project".into(),
@@ -36,13 +38,13 @@ fn cc_data_10_owner_add_skip_replace_and_repeat_without_duplicate_rows() {
     let source = read_selected_source(&scope, sources.path(), &path).unwrap();
     let prepared = store.preview_data_migration(&scope, &source, &[]).unwrap();
     let result =
-        store.commit_data_migration(&scope, &source, &prepared, &[], snapshots.path()).unwrap();
+        store.commit_data_migration(&scope, &source, &prepared, &[], &snapshot_root).unwrap();
     assert_eq!(result.outcome, Ok(1));
     assert!(result.snapshot.is_some());
     let prepared = store.preview_data_migration(&scope, &source, &[]).unwrap();
     assert_eq!(
         store
-            .commit_data_migration(&scope, &source, &prepared, &[], snapshots.path())
+            .commit_data_migration(&scope, &source, &prepared, &[], &snapshot_root)
             .unwrap()
             .outcome,
         Ok(0)
@@ -58,7 +60,7 @@ fn cc_data_10_owner_add_skip_replace_and_repeat_without_duplicate_rows() {
                 &source,
                 &prepared,
                 &[(id, Decision::Skip)],
-                snapshots.path()
+                &snapshot_root
             )
             .unwrap()
             .outcome,
@@ -72,7 +74,7 @@ fn cc_data_10_owner_add_skip_replace_and_repeat_without_duplicate_rows() {
                 &source,
                 &prepared,
                 &[(id, Decision::Replace)],
-                snapshots.path()
+                &snapshot_root
             )
             .unwrap()
             .outcome,
@@ -88,7 +90,7 @@ fn cc_data_10_owner_add_skip_replace_and_repeat_without_duplicate_rows() {
             &source,
             &prepared,
             &[(id, Decision::Replace)],
-            snapshots.path(),
+            &snapshot_root,
         )
         .unwrap()
         .outcome

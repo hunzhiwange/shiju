@@ -548,3 +548,16 @@ pnpm exec vite --config acpdemo/qoder/vite.config.mjs
 仅格式化修改文件；未运行桌面编译、整仓构建、全量测试、全仓格式检查、全特性 Clippy、wasm 或 Makefile。功能重跑通过不代表上述严格 llm-runtime lint 已通过。
 
 补充检查：删除死函数所涉 `gateway-app-skills` 的定向严格 Clippy 通过 `python3 scripts/cargo_slot.py cargo clippy -p gateway-app-skills --lib --no-deps -- -D warnings` 在槽位 9 执行（两个构建目录变量均为 `/Users/xiangmin/worker/code/shiju/target/rust-slot-9`），退出 101，15 项既有 unused token 等诊断；没有修改这些无关调用。此前等待槽位 4 的同一检查尚未取得锁，已仅中断持有本任务私有日志文件的自有排队进程，再经标准入口取得槽位 9；未操作其他任务进程或锁。最后检查结束后自有编译控制进程均已退出，槽位缓存保留。普通诊断首次 curl 退出 0、HTTP 200、2.263259 秒；首轮失败流 curl 退出 0、HTTP 200、155.432666 秒，明确不计为成功。
+
+
+## 2026-11-17 DeepAgents 验收复核
+
+结论：**已阻塞，未通过**。任务 22 已于本日完成实机验收并记录配置恢复、自有进程退出；来源任务 2 已删除，接入证据仍明确 session_model 未发布。
+
+本次先检查 RustCodeGraph 索引（12,367 文件），explore 未及时返回，转查当前生产源码；注册与模型驱动已迁至独立 crate。`crates/libs/acp-agent-registry/src/agent_registry.rs` 保留 deepagents 与 deepagents-acp@0.1.42；`crates/libs/config-acp-install/src/lib.rs` 保留固定安装映射；`crates/libs/agent-config/src/catalog.rs` 派生 builtin=true、backend=deepagents、默认停用的 acp-deepagents。
+
+当前实际生产 `crates/libs/llm-runtime/src/acp/model_source/drivers/mod.rs` 的 verified_release、source_protocol、configure 均无 deepagents 分支，capabilities 因未验证版本返回 SessionModel/UnsupportedCli。vw-agent 兼容层委托此驱动，迁移没有解除阻塞。生产驱动 SHA-256：`b189cc94de2873cbf41b92dd07cf9c4e7daa5881133676d58a6940170c807767`。新增完整私有中继驱动超出验收小修范围，未扩大实现或替换指定模型。
+
+Rue.js 源码 packages/rue/package.json 存在，目标 acpdemo/deepagents/ 不存在；初始 Git 状态、源码副本及摘要存于本机 0700 目录 `/var/folders/rg/zr19lb_s5w32q6d2qkd6p0n80000gp/T/shiju-deepagents-20261117-8iuu7mzw`。未写 Rue.js 文件，未生成完整普通文件快照，不能声称全目录边界验证通过。
+
+未执行安装、诊断、模型来源 API、配置 PATCH、SSE 或会话绑定及产物验收；未启动网关或供应商进程、未领取编译槽位，未改配置，无本次运行环境需恢复。无运行版本或二进制摘要可报告。仅文档变更，未运行 Cargo、Clippy、测试、页面构建或浏览器。恢复条件仍为交付并验证 DeepAgents session_model 驱动，再用包含该实现的已验证构建从步骤 1 重跑；任务 23 保持已阻塞并保留。

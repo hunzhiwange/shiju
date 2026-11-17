@@ -12,6 +12,36 @@ SPEC.loader.exec_module(dev)
 
 
 class RelaxDevTests(unittest.TestCase):
+    def test_local_build_bypasses_installer_and_uses_matching_std(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            state = root / 'state'
+            state.mkdir()
+            binary = root / 'relax/target/release/relax'
+            binary.parent.mkdir(parents=True)
+            binary.write_bytes(b'runner')
+            binary.chmod(0o755)
+            std = root / 'relax/libs/relax/compiler/std/std/lib.rs'
+            std.parent.mkdir(parents=True)
+            std.touch()
+            (state / 'local.json').write_text(json.dumps({'binary': str(binary)}))
+            with patch.object(dev, 'STATE', state), patch.object(dev, 'prepare_pinned') as pinned, \
+                    patch.object(dev, 'prepare_launch_dir', return_value=state / 'run'):
+                self.assertEqual(dev.prepare_locked(),
+                                 (binary.resolve(), binary.resolve().parents[2], state / 'run'))
+                binary.write_bytes(b'new runner')
+                self.assertEqual(dev.prepare_locked()[0].read_bytes(), b'new runner')
+                pinned.assert_not_called()
+
+    def test_invalid_local_build_fails_without_pinned_fallback(self):
+        with tempfile.TemporaryDirectory() as folder:
+            state = Path(folder)
+            (state / 'local.json').write_text('{"binary": "/missing/relax"}')
+            with patch.object(dev, 'STATE', state), patch.object(dev, 'prepare_pinned') as pinned:
+                with self.assertRaisesRegex(RuntimeError, '绝对路径'):
+                    dev.prepare_locked()
+                pinned.assert_not_called()
+
     def test_environment_preserves_slot_and_unifies_intermediates(self):
         with patch.dict(dev.os.environ, {'CARGO_TARGET_DIR': '/repo/target/rust-slot-3',
                                          'CARGO_BUILD_BUILD_DIR': '/old/shared'}, clear=True):
@@ -22,7 +52,7 @@ class RelaxDevTests(unittest.TestCase):
     def test_bad_patch_stops_before_network_or_build(self):
         with patch.object(dev, 'digest', return_value='invalid'), patch.object(dev, 'run') as run:
             with self.assertRaisesRegex(RuntimeError, '补丁校验失败'):
-                dev.prepare_locked()
+                dev.prepare_pinned()
             run.assert_not_called()
 
     def test_corrupt_cached_binary_is_rejected(self):
@@ -36,7 +66,7 @@ class RelaxDevTests(unittest.TestCase):
             with patch.object(dev, 'STATE', state), patch.object(dev, 'run') as run:
                 run.return_value.stdout = 'rustc'
                 with self.assertRaisesRegex(RuntimeError, '安装损坏'):
-                    dev.prepare_locked()
+                    dev.prepare_pinned()
                 self.assertEqual(run.call_count, 1)
 
     def test_vendor_keeps_git_and_registry_duplicates_separate(self):

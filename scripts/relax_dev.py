@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Pinned, repository-local Relax installation and live development entry points."""
+"""Repository-local Relax installation and live development entry points."""
 import hashlib
 import json
 import os
@@ -47,6 +47,25 @@ def prepare():
 
 
 def prepare_locked():
+    local_config = STATE / 'local.json'
+    if local_config.exists():
+        config = json.loads(local_config.read_text())
+        if not isinstance(config, dict) or not isinstance(config.get('binary'), str):
+            raise RuntimeError(f'Relax 本地配置需要 binary 路径字符串：{local_config}')
+        binary = Path(config['binary']).expanduser()
+        if not binary.is_absolute() or not binary.is_file() or not os.access(binary, os.X_OK):
+            raise RuntimeError(f'Relax 本地 binary 必须是可执行文件的绝对路径：{binary}')
+        binary = binary.resolve()
+        tool = binary.parents[2]
+        if not (tool / 'libs/relax/compiler/std/std/lib.rs').is_file():
+            raise RuntimeError(f'Relax 本地构建必须位于源码目录的 target/release/relax：{binary}')
+        print(f'Relax 使用本地构建：{binary}', flush=True)
+    else:
+        binary, tool = prepare_pinned()
+    return binary, tool, prepare_launch_dir()
+
+
+def prepare_pinned():
     spec = json.loads(MANIFEST.read_text())
     patch = ROOT / 'patches' / 'relax' / 'compatibility.patch'
     if digest(patch) != spec['patch_sha256']:
@@ -93,6 +112,10 @@ def prepare_locked():
         binary.parent.mkdir(parents=True, exist_ok=True)
         shutil.copy2(built, binary)
         receipt.write_text(json.dumps({'sha256': digest(binary)}))
+    return binary, tool
+
+
+def prepare_launch_dir():
     # A nearby directory-source config overrides unsupported ancestor registry mirrors.
     # It changes neither tracked .cargo/config.toml nor the user's Cargo configuration.
     lock_key = digest(ROOT / 'Cargo.lock')
@@ -109,7 +132,7 @@ def prepare_locked():
         config.write_text('[source.crates-io]\nreplace-with = "shiju-relax-vendor"\n'
                           '[source.shiju-relax-vendor]\ndirectory = ' + json.dumps(str(vendor), ensure_ascii=False) + '\n')
         stamp.write_text(vendor_key)
-    return binary, tool, launch_dir
+    return launch_dir
 
 
 def prepare_vendor(vendor):

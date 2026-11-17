@@ -1,18 +1,24 @@
 //! Charts consume server buckets verbatim, preserving empty periods and cost provenance.
 use crate::Identity;
+use super::hero::Metric;
+use desktop_ui_controls::system_settings_common::rounded_action_btn_style;
 
-use iced::{widget::{column, container, row, scrollable, text, tooltip, Space}, Element, Length, Task};
+use iced::{widget::{column, container, row, scrollable, text, tooltip, Space, button, svg, stack}, Element, Length, Task};
 use gateway_usage_read::{UsageReadScope, UsageSeries, UsageSeriesBucket};
 use vw_api_usage::UsageQuery;
 
 #[derive(Default)]
 pub struct State {
+    pub metric: Metric,
+    pub line: bool,
     pub loading: bool,
     pub result: Option<Result<(UsageSeries, UsageSeries), String>>,
 }
 
 #[derive(Clone, Debug)]
 pub enum Event {
+    Metric(Metric),
+    Line(bool),
     Loaded(u64, Identity, Result<(UsageSeries, UsageSeries), String>),
 }
 
@@ -35,7 +41,11 @@ pub fn load(client: Result<vw_gateway_client::GatewayClient, String>, ticket: u6
 }
 
 pub fn update(state: &mut State, current: Option<Identity>, visible: bool, open: bool, generation: u64, event: Event) -> Task<Event> {
-    let Event::Loaded(ticket, scope, result) = event;
+    let (ticket, scope, result) = match event {
+        Event::Metric(metric) => { state.metric = metric; return Task::none(); }
+        Event::Line(line) => { state.line = line; return Task::none(); }
+        Event::Loaded(ticket, scope, result) => (ticket, scope, result),
+    };
     if open && generation == ticket
         && current.as_ref() == Some(&scope)
         && visible {
@@ -60,68 +70,98 @@ fn detail(bucket: &UsageSeriesBucket) -> String {
         if tokens.is_empty() { "无 Token 数据" } else { &tokens }, bucket.start_unix_seconds.0, bucket.end_unix_seconds.0)
 }
 
-fn chart(series: &UsageSeries, heatmap: bool) -> Element<'_, Event> {
-    if series.buckets.is_empty() {
-        return text("暂无用量桶").into();
+/// Source heatmap uses quartiles so isolated peaks do not flatten every other day.
+pub fn thresholds(values: &[Option<f64>], metric: Metric) -> [f64; 3] {
+    let mut values: Vec<_> = values.iter().flatten().copied().filter(|v| v.is_finite() && (*v > 0.0 || metric == Metric::HitRate)).collect();
+    values.sort_by(f64::total_cmp);
+    if values.is_empty() { return [f64::INFINITY; 3]; }
+    [values[values.len()/4], values[values.len()/2], values[values.len()*3/4]]
+}
+pub fn axis(values: &[Option<f64>], metric: Metric) -> (f64, f64) {
+    if metric == Metric::HitRate {
+        if values.iter().all(Option::is_none) { return (0.0, 1.0); }
+        let min = values.iter().flatten().copied().fold(1.0, f64::min);
+        let floor = ((min - ((1.0-min)/2.0).max(0.02))*20.0+1e-9).floor()/20.0;
+        return (if floor < 0.5 { 0.0 } else { floor }, 1.0);
     }
-    let maximum = series.buckets.iter().map(|b| b.summary.counts.total_requests).max().unwrap_or(0).max(1);
-    let mut cells = row![].spacing(if heatmap { 4 } else { 8 });
-    let mut week = column![].spacing(4);
-    // UTC calendar alignment: Unix epoch was Thursday, Monday is row zero.
+    (0.0, values.iter().flatten().copied().fold(0.0, f64::max).max(1.0))
+}
+fn chart(series: &UsageSeries, heatmap: bool, metric: Metric, line: bool) -> Element<'_, Event> {
+    if series.buckets.is_empty() { return text("暂无用量桶").into(); }
+    let values: Vec<_> = series.buckets.iter().map(|b| metric.value(&b.summary)).collect();
+    let levels = thresholds(&values, metric);
+    let (floor, ceiling) = axis(&values, metric);
+    let mut cells = row![].spacing(if heatmap { 3 } else { 0 });
+    let mut week = column![].spacing(3);
     let first_weekday = (series.buckets[0].start_unix_seconds.0.div_euclid(86400) + 3).rem_euclid(7) as usize;
-    if heatmap {
-        for _ in 0..first_weekday { week = week.push(Space::new().height(28).width(28)); }
-    }
+    if heatmap { for _ in 0..first_weekday { week = week.push(Space::new().height(12).width(12)); } }
+    let width = (series.buckets.len() as f64 * 18.0).max(600.0);
+    let step = width / series.buckets.len() as f64;
+    let mut drawing = format!(r##"<svg xmlns="http://www.w3.org/2000/svg" width="{width}" height="108" viewBox="0 0 {width} 108">"##);
+    for y in [4, 54, 104] { drawing.push_str(&format!(r##"<path d="M0 {y} H{width}" stroke="#82949d" stroke-opacity="0.2"/>"##)); }
+    let mut previous = None;
     for (index, bucket) in series.buckets.iter().enumerate() {
-        let count = bucket.summary.counts.total_requests;
-        let ratio = count as f32 / maximum as f32;
-        let height = if heatmap { 28.0 } else { (ratio * 100.0).max(2.0) };
-        let mark = container(Space::new().width(Length::Fill).height(height))
-            .width(if heatmap { 28.0 } else { 64.0 })
-            .style(move |theme: &iced::Theme| {
-                let palette = theme.extended_palette();
-                let mut color = palette.primary.strong.color;
-                if heatmap && count > 0 { color.a = 0.35 + ratio * 0.65; }
-                container::Style::default()
-                    .background(if count == 0 { palette.background.strong.color } else { color })
-                    .border(iced::Border { color: palette.background.strong.text, width: 1.0, radius: 3.0.into() })
-            });
-        let card = container(text(detail(bucket)).size(13)).padding(10).style(container::rounded_box);
+        let value = values[index];
+        let ratio = value.map_or(0.0, |v| ((v-floor)/(ceiling-floor)).clamp(0.0,1.0));
+        let card = container(text(format!("{} · {}\n{}", metric.label(), metric.format(value), detail(bucket))).size(12)).padding(10).style(container::rounded_box);
         if heatmap {
+            let level = value.filter(|v| *v > 0.0 || metric == Metric::HitRate).map_or(0, |v| 1 + levels.iter().filter(|threshold| v > **threshold).count());
+            let mark = container(Space::new().width(12).height(12)).style(move |theme: &iced::Theme| {
+                let color = if level == 0 { theme.extended_palette().background.strong.color } else { iced::Color::from_rgba(0.0, 0.68, 0.73, 0.2 + level as f32 * 0.2) };
+                container::Style::default().background(color).border(iced::Border { radius: 3.0.into(), ..Default::default() })
+            });
             week = week.push(tooltip(mark, card, tooltip::Position::Top).snap_within_viewport(true));
-            if (first_weekday + index + 1) % 7 == 0 {
-                cells = cells.push(week);
-                week = column![].spacing(4);
-            }
+            if (first_weekday+index+1)%7 == 0 { cells = cells.push(week); week = column![].spacing(3); }
         } else {
-            let cell = column![
-                container(mark).height(104.0).align_y(iced::alignment::Vertical::Bottom),
-                text(count.to_string()).size(11),
-                text(bucket.label.clone()).size(11).width(100),
-            ].spacing(4);
-            cells = cells.push(tooltip(cell, card, tooltip::Position::Top).snap_within_viewport(true));
+            let x = (index as f64 + 0.5)*step;
+            let y = 104.0-ratio*100.0;
+            if value.is_some() {
+                if line {
+                    if let Some((px, py)) = previous { drawing.push_str(&format!(r##"<path d="M{px} {py} L{x} {y}" fill="none" stroke="#00adb8" stroke-width="2"/>"##)); }
+                    drawing.push_str(&format!(r##"<circle cx="{x}" cy="{y}" r="2" fill="#00adb8"/>"##));
+                } else {
+                    let bar = step.min(36.0)*0.75;
+                    drawing.push_str(&format!(r##"<rect x="{}" y="{y}" width="{bar}" height="{}" rx="3" fill="#00adb8"/>"##,x-bar/2.0,ratio*100.0));
+                }
+                previous = Some((x,y));
+            } else { previous = None; }
+            cells = cells.push(tooltip(container(Space::new().height(108)).width(Length::Fill),card,tooltip::Position::Top).snap_within_viewport(true));
         }
     }
-    if heatmap && (first_weekday + series.buckets.len()) % 7 != 0 { cells = cells.push(week); }
-
-    scrollable(container(cells).padding([7, 7]))
-        .direction(scrollable::Direction::Horizontal(scrollable::Scrollbar::new().width(4).scroller_width(4)))
-        .into()
+    if heatmap && (first_weekday+series.buckets.len())%7 != 0 { cells = cells.push(week); }
+    if heatmap {
+        return scrollable(container(row![column![text("一").size(10), Space::new().height(14), text("三").size(10), Space::new().height(14), text("五").size(10), Space::new().height(14), text("日").size(10)], cells].spacing(7)).padding([7,7]))
+            .direction(scrollable::Direction::Horizontal(scrollable::Scrollbar::new().width(4).scroller_width(4))).into();
+    }
+    drawing.push_str("</svg>");
+    let plot = stack![svg(svg::Handle::from_memory(drawing.into_bytes())).width(Length::Fill).height(108).content_fit(iced::ContentFit::Fill), cells];
+    let mut labels = row![].spacing(0);
+    let stride = series.buckets.len().div_ceil(6);
+    for (index, bucket) in series.buckets.iter().enumerate() {
+        if index % stride == 0 { labels = labels.push(text(bucket.label.clone()).size(10).width(Length::Fill)); }
+    }
+    let ticks = column![text(metric.format(Some(ceiling))).size(10), Space::new().height(30), text(metric.format(Some((floor+ceiling)/2.0))).size(10), Space::new().height(30), text(metric.format(Some(floor))).size(10)].width(90);
+    container(row![ticks, column![plot, labels].spacing(6).width(Length::Fill)].spacing(8)).padding([7, 7]).into()
 }
 
-pub fn view(state: &State) -> Element<'_, Event> {
-
-    let mut body = column![text("请求趋势与每日热力图 · UTC"), text("周一至周日由上至下，颜色越深请求越多；空桶保留，悬浮查看费用与完整时间。窄窗口可横向滚动。").size(12)].spacing(8);
+pub fn view(state: &State) -> Element<'_, Event> { view_metric(state, state.metric) }
+/// Center integration can supply the hero selection without reloading server buckets.
+pub fn view_metric(state: &State, metric: Metric) -> Element<'_, Event> {
+    let mut controls = row![].spacing(8);
+    for item in Metric::ALL { controls = controls.push(button(text(item.label()).size(12)).padding([6,10]).style(rounded_action_btn_style).on_press(Event::Metric(item))); }
+    controls = controls.push(button(text(if state.line { "切换柱状图" } else { "切换折线图" }).size(12)).padding([6,10]).style(rounded_action_btn_style).on_press(Event::Line(!state.line)));
+    let body = column![controls].spacing(12);
     if state.loading { return body.push(text("正在加载图表…")).into(); }
     match &state.result {
         None => body.push(text("请选择用量范围")).into(),
         Some(Err(error)) => body.push(text(format!("图表加载失败：{error}"))).into(),
-        Some(Ok((trend, heatmap))) => {
-            body = body.push(text(format!("趋势 · {:?}", trend.interval))).push(chart(trend, false))
-                .push(text("每日热力图 · 请求数")).push(chart(heatmap, true));
-            body.into()
-        }
+        Some(Ok((trend, heatmap))) => body.push(text(format!("{}趋势 · {:?} · UTC",metric.label(),trend.interval)).size(12))
+            .push(chart(trend,false,metric,state.line)).push(text(format!("每日热力图 · {}",metric.label())).size(12))
+            .push(chart(heatmap,true,metric,false)).push(text("少 ░ ▒ ▓ 多 · 悬停查看日期与数值；未知数据保留为空").size(11)).into(),
     }
 }
-
 fn message(event: Event) -> Event { event }
+
+#[cfg(test)]
+#[path = "../usage_replica_03_tests.rs"]
+mod usage_replica_03_tests;

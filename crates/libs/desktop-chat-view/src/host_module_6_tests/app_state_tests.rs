@@ -63,3 +63,14 @@ fn session_title_uses_project_session_when_active_session_is_not_in_recent_list(
 
     assert_eq!(get_session_title(&app), "规划 · task-1");
 }
+
+#[test]
+fn session_title_keeps_new_session_fallback_when_all_matching_titles_are_blank() {
+    let mut app = App::new().0;
+    app.active_session_id = Some("active".to_string());
+    app.sessions = vec![session_info("active", "   ")];
+    app.project_sessions
+        .insert("/tmp/project".to_string(), vec![session_info("active", "")]);
+
+    assert_eq!(get_session_title(&app), "新会话");
+}

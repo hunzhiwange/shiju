@@ -21,7 +21,14 @@ use web_time::{Duration as WebDuration, SystemTime as WebSystemTime};
 /// 本函数不吞掉底层错误；没有显式错误通道时，会用空集合、`None` 或现有 UI 状态表达不可用结果。
 pub fn get_session_title<'a>(active_session_id: Option<&str>, sessions: impl Iterator<Item = &'a session_info::Info>, i18n: desktop_i18n::I18n, render_title: impl Fn(&str, &str) -> String) -> String {
     if let Some(session_id) = active_session_id {
-        if let Some(session) = sessions.into_iter().find(|session| session.id == session_id) {
+        let mut fallback = None;
+        for session in sessions.filter(|session| session.id == session_id) {
+            if !session.title.trim().is_empty() {
+                return render_title(&session.id, &session.title);
+            }
+            fallback.get_or_insert(session);
+        }
+        if let Some(session) = fallback {
             return render_title(&session.id, &session.title);
         }
     }

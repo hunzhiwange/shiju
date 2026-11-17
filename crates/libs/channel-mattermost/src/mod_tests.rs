@@ -35,9 +35,33 @@ async fn recording_http_server(
             let Ok((mut stream, _)) = listener.accept().await else {
                 return;
             };
-            let mut buffer = vec![0; 4096];
-            let n = stream.read(&mut buffer).await.unwrap_or(0);
-            let request = String::from_utf8_lossy(&buffer[..n]).to_string();
+            // TCP 读取可能只返回请求头，必须按 Content-Length 收齐请求体。
+            let request = tokio::time::timeout(std::time::Duration::from_secs(5), async {
+                let mut buffer = Vec::new();
+                let mut chunk = [0; 4096];
+                loop {
+                    let n = stream.read(&mut chunk).await.unwrap();
+                    assert_ne!(n, 0, "connection closed before the complete request arrived");
+                    buffer.extend_from_slice(&chunk[..n]);
+                    if let Some(end) = buffer.windows(4).position(|bytes| bytes == b"\r\n\r\n") {
+                        let headers = std::str::from_utf8(&buffer[..end]).unwrap();
+                        let length = headers
+                            .lines()
+                            .filter_map(|line| line.split_once(':'))
+                            .find(|(name, _)| name.eq_ignore_ascii_case("content-length"))
+                            .expect("JSON request must have Content-Length")
+                            .1
+                            .trim()
+                            .parse::<usize>()
+                            .unwrap();
+                        if buffer.len() >= end + 4 + length {
+                            break String::from_utf8(buffer).unwrap();
+                        }
+                    }
+                }
+            })
+            .await
+            .expect("timed out reading the complete HTTP request");
             let _ = tx.send(request).await;
             let response = format!(
                 "{status_line}\r\ncontent-length: {}\r\ncontent-type: application/json\r\n\r\n{body}",

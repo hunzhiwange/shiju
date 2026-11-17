@@ -690,3 +690,20 @@ Rust 重型命令均经 scripts/cargo_slot.py 的 slot(number=4)，CARGO_TARGET_
 - 恢复：urllib路径多次返回408，首次恢复脚本因空响应JSON解析退出；重启自有网关后仍408。最终 curl --noproxy '*' 直连 PATCH enabled=false 返回HTTP200、退出0，GET重读disabled，与基线完整有效智能体配置相等。未将中间失败隐藏，尚未定位408根因；基线无显式覆盖项，最终保留等效disabled覆盖，不宣称存储字节一致。系统安装保留，未改其他预设或默认模型。
 - 清理：自有网关端口61356、49398均已退出0，slot4锁释放、缓存保留，未重启用户服务。全部原始配置、请求、响应、SSE、摘要和快照仅存本机 /tmp/shiju-dirac-accept-20261117（0700）；未提交凭据或供应商二进制。
 - 本次无产品代码修复，复用已有验证产物；仅做文档轻量差异检查，不重新运行单测、Clippy、桌面编译、全仓构建或额外页面回归。历史单测不是本次新增验证证据；本次证据为系统API、真实模型工具调用、落盘源码和恢复重读。
+
+
+# GLM Agent 验收（2026-11-17）
+
+结论：通过本次“完整文件创建为终点”验收。普通诊断 authentication_required 单独记录，不作为真实模型成功依据。
+
+- 前置：来源任务5已不存在，已核对接入证据、差异清单、当前注册/安装白名单、派生预设及模型驱动；任务25已有通过及清理记录。代码已拆分至 acp-agent-registry、config-acp-install、agent-config、llm-runtime。旧 .plans/references/rust.md 不存在，使用现有槽位约定。
+- 构建：复用任务24/25的 shiju 0.6.0，SHA-256 `fd909abe08985bac9cd36f2fbafc465cecaa213f330e367efd29f5b68c1d152c`；构建日志与源码摘要见 /tmp/shiju-dimcode-20261117-retry。当前 GLM 驱动/注册/安装链路已核对，drivers/mod.rs 与构建源码摘要一致；该文件相对构建时 HEAD 的差异仅为当时已纳入构建的 DimCode 接入。槽位4被其他编译占用，退出尚未取得锁的自有排队进程，复制并复核上述既有二进制到0700私有目录运行；没有使用可被并发替换的槽位路径启动网关，没有操作他人锁或缓存。
+- 所有请求使用 X-Platform-ID=10001、X-Company-ID=100010005、X-Directory=/Users/xiangmin/worker/code/ruejs。保存 installed、agent、acp及config基线。系统安装 POST HTTP200、客户端退出0、1.817秒，installed false→true；真实入口 /opt/homebrew/lib/node_modules/glm-acp-agent/dist/index.js，package.json版本1.17.1，SHA-256 `d0d9237bffcbd5017a0085aa3c4625c29e2b750f87c358fa9c455d3cd4cdbd98`。未采用其他安装链路。
+- 普通诊断 HTTP200、退出0、0.998秒，authentication_required。模型来源接口确认 session_model supported、审核版本1.17.1、Darwin arm64。确认 acp-glm-acp-agent 的 builtin=true、backend=glm-acp-agent，基线disabled；临时启用PATCH HTTP200、11.951秒，GET重读enabled。
+- 请求严格采用任务指定JSON。首流HTTP200、curl退出28、300.005292秒；查询实际会话已idle，核对现有续传实现后以原 x-vw-stream-request-id 和 Last-Event-ID=66 续传，HTTP200、退出0、91.986313秒，没有重复提交创建任务。合并事件：chat.context_loaded=1、chat.step_start=1、chat.delta=23、chat.tool=60（状态事件数）、chat.session_updated=2、chat.step_finish=1、chat.done=1、chat.error=0。
+- 会话 `ses_1e9a518ad001uwV3EiO1cB8m3e`：运行中summary确认 acp-glm-acp-agent/glm-acp-agent、full_access=true；options connected=true，selected_model.source=session_model、provider_id=alibaba-token-plan-cn、完整模型ID=alibaba-token-plan-cn/deepseek-v4.1-flash-1017。结束及重启自有网关后回读connected=false，selected_model仍匹配。权限support=client_only，不宣称Native免审批通过。
+- 实际产物 /Users/xiangmin/worker/code/ruejs/acpdemo/glm-acp-agent/ 共8文件：README.md、index.html、vite.config.mjs、tsconfig.json、src/main.tsx、src/App.tsx、src/env.d.ts、src/style.css。已检查源码与说明：useApp挂载、ref/computed、textarea onInput实时统计、localStorage逐次保存和初始化恢复；Vite复用仓库examples/shared/rue-vite.mjs，别名指向packages/rue/src。README提供根目录启动命令。未运行浏览器、页面构建或额外页面测试，未宣称实际渲染通过。
+- 初始目标不存在，未覆盖既有文件。普通文件SHA-256快照排除.git/node_modules/target：6259→6267，仅目标目录新增上述8文件，目录外0差异；before.json、after.json、boundary.json保留。未提交Rue.js工作区。
+- 恢复与清理：启动早期首次配置GET超时60秒、curl探测超时15秒，网关就绪后重试成功。首次恢复urllib超时，curl恢复返回HTTP408，均未计成功；重启自有网关后curl PATCH返回HTTP200、退出0、20.886秒，GET重读enabled=false，与基线完整有效智能体配置相等。基线无显式覆盖项，最终保留等效disabled覆盖，不宣称存储字节一致。未改其他预设或默认模型，系统安装保留。自有网关均正常退出0，未重启用户服务、未持有槽位锁。
+- 本次无产品代码修复，复用已验证构建，只运行本次系统API、真实会话、源码/目录快照及文档轻量检查；未运行新单测、Cargo检查、Clippy、桌面编译、整仓构建或额外页面回归，不将历史单测描述为本次证据。
+- 全部原始请求、配置、响应、SSE、快照、源码摘要与本机进程采样仅存 /tmp/shiju-glm-accept-20261117（0700）。没有提交凭据、原始敏感载荷、供应商或宿主二进制。配置接口早期超时/408根因尚未确定，已保留失败证据与成功恢复回读。

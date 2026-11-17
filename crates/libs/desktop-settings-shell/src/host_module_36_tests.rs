@@ -33,6 +33,14 @@ fn catalog(locale: config_ui::DesktopLocale) -> Vec<SystemSettingsSearchEntry> {
             SystemSettingsSearchTarget::Network(tab),
         ));
     }
+    entries.extend(desktop_settings_providers::models_page::MODEL_TABS.iter().map(|descriptor| {
+        SystemSettingsSearchEntry::new(
+            descriptor.label,
+            Some("模型"),
+            descriptor.keywords,
+            SystemSettingsSearchTarget::Models(descriptor.tab),
+        )
+    }));
     localize_catalog(entries, locale)
 }
 #[test]
@@ -124,8 +132,16 @@ fn tab_matches_query(tab: SystemTab, query: &str) -> bool {
 #[test]
 fn multimodal_search_keywords_include_ocr_and_image_model() {
 
-    assert!(tab_matches_query(SystemTab::Models, "OCR"));
-    assert!(tab_matches_query(SystemTab::Models, "图片模型"));
+    use desktop_settings_providers::state::ModelConfigTab;
+
+    for query in ["OCR", "图片模型"] {
+        let results = search_results(catalog(config_ui::DesktopLocale::SimplifiedChinese), query);
+        let entry = results.first().expect("multimodal search result");
+        assert_eq!(entry.target, SystemSettingsSearchTarget::Models(ModelConfigTab::Multimodal));
+        assert_eq!(entry.target.page(), SystemTab::Models);
+        assert_eq!(entry.label, "多模态");
+        assert_eq!(entry.parent_label, Some("模型"));
+    }
 }
 
 use crate::cron_render_test_support;

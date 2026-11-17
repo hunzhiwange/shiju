@@ -661,21 +661,22 @@ fn submit_non_visual_node_uses_default_title_trimmed_description_and_next_z_inde
     state.submit_node_editor().expect("answer editor should submit");
     let first_z_index = state.document.nodes[0].z_index;
 
-    open_editor(&mut state, "http-request");
+    // 未知节点沿用原始 YAML 编辑路径，不受内置节点可视化支持扩展影响。
+    open_editor(&mut state, "custom-unknown");
     assert!(editor(&state).visual_draft.is_none());
     state.set_node_editor_title("   ".to_string());
     state.set_node_editor_description("  invokes an endpoint  ".to_string());
 
-    state.submit_node_editor().expect("HTTP request editor should submit");
+    state.submit_node_editor().expect("custom node editor should submit");
 
     assert_eq!(state.document.nodes.len(), 2);
     let node = &state.document.nodes[1];
-    assert_eq!(node.block_type, "http-request");
-    assert_eq!(node.title, "HTTP 请求");
+    assert_eq!(node.block_type, "custom-unknown");
+    assert_eq!(node.title, "custom unknown");
     assert_eq!(node.description, "invokes an endpoint");
     assert_eq!(node.z_index, first_z_index + 1.0);
     assert_eq!(state.selected_node_id.as_deref(), Some(node.id.as_str()));
-    assert_eq!(state.status_message.as_deref(), Some("已新增 HTTP 请求 节点"));
+    assert_eq!(state.status_message.as_deref(), Some("已新增 custom unknown 节点"));
 }
 
 #[test]

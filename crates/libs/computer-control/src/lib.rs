@@ -17,3 +17,9 @@ pub mod native;
 pub mod chrome;
 
 pub mod office;
+
+#[cfg(unix)]
+pub mod service;
+
+#[cfg(all(test, unix))]
+mod service_tests;

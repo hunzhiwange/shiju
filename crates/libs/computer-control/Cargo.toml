@@ -4,6 +4,10 @@ version = "0.6.0"
 edition = "2024"
 license = "MIT"
 
+[[bin]]
+name = "shiju-computer-use"
+path = "src/bin/shiju-computer-use.rs"
+
 [lib]
 doctest = false
 

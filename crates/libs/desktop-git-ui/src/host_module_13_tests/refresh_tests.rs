@@ -51,12 +51,15 @@ fn refresh_worktree_options_with_project_marks_request_loading() {
 
 #[test]
 fn refresh_worktree_options_while_same_project_is_loading_preserves_options() {
+    let temp = tempfile::TempDir::new().expect("tempdir");
+    git2::Repository::init(temp.path()).expect("init repo");
+    let project_path = temp.path().to_string_lossy().to_string();
     let (mut app, _task) = Fixture::new();
-    app.project_path = Some("/project".to_string());
+    app.project_path = Some(project_path.clone());
     app.git.git_worktree_options_loading = true;
-    app.git.git_worktree_options_project_path = Some("/project".to_string());
+    app.git.git_worktree_options_project_path = Some(project_path.clone());
     app.git.git_worktree_options = vec![GitWorktreeOption {
-        directory: "/project".to_string(),
+        directory: project_path.clone(),
         label: "main".to_string(),
         branch: Some("main".to_string()),
     }];
@@ -64,7 +67,7 @@ fn refresh_worktree_options_while_same_project_is_loading_preserves_options() {
     let _task = update(&mut app, GitMessage::RefreshWorktreeOptions);
 
     assert_eq!(app.git.git_worktree_options.len(), 1);
-    assert_eq!(app.git.git_worktree_options[0].directory, "/project");
+    assert_eq!(app.git.git_worktree_options[0].directory, project_path);
     assert!(app.git.git_worktree_options_loading);
 }
 
@@ -288,13 +291,16 @@ fn refresh_changed_files_while_loading_preserves_cached_state() {
 
 #[test]
 fn refresh_changed_files_with_project_marks_request_loading() {
+    let temp = tempfile::TempDir::new().expect("tempdir");
+    git2::Repository::init(temp.path()).expect("init repo");
+    let project_path = temp.path().to_string_lossy().to_string();
     let (mut app, _task) = Fixture::new();
-    app.project_path = Some("/repo".to_string());
+    app.project_path = Some(project_path.clone());
 
     let _task = update(&mut app, GitMessage::RefreshChangedFiles);
 
     assert!(app.git.git_changed_files_loading);
-    assert_eq!(app.git.git_changed_files_repo_path.as_deref(), Some("/repo"));
+    assert_eq!(app.git.git_changed_files_repo_path.as_deref(), Some(project_path.as_str()));
 }
 
 #[test]
@@ -320,10 +326,13 @@ fn refresh_diff_file_metas_without_repository_clears_cached_contents() {
 
 #[test]
 fn refresh_diff_file_metas_while_same_repo_is_loading_preserves_contents() {
+    let temp = tempfile::TempDir::new().expect("tempdir");
+    git2::Repository::init(temp.path()).expect("init repo");
+    let project_path = temp.path().to_string_lossy().to_string();
     let (mut app, _task) = Fixture::new();
-    app.project_path = Some("/repo".to_string());
+    app.project_path = Some(project_path.clone());
     app.git.git_diff_file_metas_loading = true;
-    app.git.git_diff_file_metas_repo_path = Some("/repo".to_string());
+    app.git.git_diff_file_metas_repo_path = Some(project_path.clone());
     app.git
         .git_diff_contents
         .insert("pending.rs".to_string(), ("old".to_string(), "new".to_string()));
@@ -331,19 +340,22 @@ fn refresh_diff_file_metas_while_same_repo_is_loading_preserves_contents() {
     let _task = update(&mut app, GitMessage::RefreshDiffFileMetas);
 
     assert!(app.git.git_diff_file_metas_loading);
-    assert_eq!(app.git.git_diff_file_metas_repo_path.as_deref(), Some("/repo"));
+    assert_eq!(app.git.git_diff_file_metas_repo_path.as_deref(), Some(project_path.as_str()));
     assert!(app.git.git_diff_contents.contains_key("pending.rs"));
 }
 
 #[test]
 fn refresh_diff_file_metas_with_project_marks_request_loading() {
+    let temp = tempfile::TempDir::new().expect("tempdir");
+    git2::Repository::init(temp.path()).expect("init repo");
+    let project_path = temp.path().to_string_lossy().to_string();
     let (mut app, _task) = Fixture::new();
-    app.project_path = Some("/repo".to_string());
+    app.project_path = Some(project_path.clone());
 
     let _task = update(&mut app, GitMessage::RefreshDiffFileMetas);
 
     assert!(app.git.git_diff_file_metas_loading);
-    assert_eq!(app.git.git_diff_file_metas_repo_path.as_deref(), Some("/repo"));
+    assert_eq!(app.git.git_diff_file_metas_repo_path.as_deref(), Some(project_path.as_str()));
 }
 
 #[test]

@@ -31,6 +31,7 @@ fn isolated(test: &str) -> bool {
 }
 fn fixture() -> Fixture {
     let config = serde_json::from_value(serde_json::json!({
+        "cli": true,
         "feishu": {"app_id":"fixture-app", "app_secret":"fixture-secret"},
         "dingtalk": {"client_id":"", "client_secret":""},
         "lark": {"app_id":"", "app_secret":""},
@@ -144,6 +145,7 @@ async fn settings_help_gap_06_dingtalk_keeps_allowlist_consequences() {
     }
     let mut renderer = renderer().await;
     let mut app = fixture();
+    app.channels_settings.active_tab = ChannelsSettingsTab::DingTalk;
     for (width, theme, locale) in help_gap_06_contexts() {
         app.desktop_locale = locale;
         app.app_theme = theme.clone();

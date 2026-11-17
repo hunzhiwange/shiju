@@ -17,7 +17,7 @@ async fn api_cli_context_input_output_and_confirmation_are_stable() {
         Cli::try_parse_from(["shiju", "provider", "list"]).expect("api provider list should parse");
     let api_args = cli.command.into_api_args().expect("expected API command");
     assert_eq!(api_args.options.host(), "127.0.0.1");
-    assert_eq!(api_args.options.port(), 14_682);
+    assert_eq!(api_args.options.port(), if cfg!(debug_assertions) { 42_617 } else { 14_682 });
     assert_eq!(api_args.options.platform(), "local");
     assert_eq!(api_args.options.company(), "local");
     assert_eq!(api_args.options.output(), ApiOutputFormat::Json);

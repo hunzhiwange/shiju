@@ -225,3 +225,15 @@ fn acp_onboarding_mimo_code_installer_contract() {
     }
     assert!(acp_install_command("mimo-code; echo unsafe").is_none());
 }
+
+#[test]
+fn acp_onboarding_omp_installer_contract() {
+    use super::{AcpInstallPlatform, acp_install_command_for_platform};
+    for platform in [AcpInstallPlatform::Unix, AcpInstallPlatform::Windows] {
+        assert_eq!(
+            acp_install_command_for_platform("omp", platform),
+            Some(("npm", &["install", "-g", "@oh-my-pi/pi-coding-agent@18.22.0"][..]))
+        );
+    }
+    assert!(acp_install_command("omp; echo unsafe").is_none());
+}

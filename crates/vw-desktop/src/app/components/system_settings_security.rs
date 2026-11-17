@@ -47,14 +47,14 @@ fn map(message: Local) -> Message {
         Local::SecuritySave => Message::Settings(SettingsMessage::SecuritySave),
         Local::SecurityHelpOpen => Message::Settings(SettingsMessage::SecurityHelpOpen),
         Local::SecurityHelpClose => Message::Settings(SettingsMessage::SecurityHelpClose),
-        Local::CopyCode(value) => Message::CopyCode(value),
+        Local::CopyCode(value) => Message::CopyCode(value), Local::OpenUrlExternal(value) => Message::OpenUrlExternal(value), Local::AppendText(value) => Message::AppendText(value),
         Local::None => Message::None,
     }
 }
 fn inputs(app: &App) -> SecurityView<'_> {
     SecurityView { security_settings: &app.security_settings, desktop_locale: app.general_settings.desktop_locale,
         app_theme: &app.appearance.app_theme, last_copied_code_hash: app.clipboard_state.last_copied_code_hash,
-        help_text: |title, body, color, i18n| crate::app::components::chat_panel::message_view::selectable_titled_text(title, body, color, i18n).map(|message| match message { Message::CopyCode(value) => Local::CopyCode(value), _ => Local::None }),
+        help_text: |title, body, color, i18n| crate::app::components::chat_panel::message_view::selectable_titled_text(title, body, color, i18n).map(|message| match message { Message::CopyCode(value) => Local::CopyCode(value), Message::OpenUrlExternal(value) => Local::OpenUrlExternal(value), Message::AppendText(value) => Local::AppendText(value), _ => Local::None }),
     }
 }
 pub fn view(app: &App) -> Element<'_, Message> { desktop_settings_security::system_settings_security::view(&inputs(app)).map(map) }

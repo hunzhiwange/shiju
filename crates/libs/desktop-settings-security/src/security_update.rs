@@ -442,7 +442,7 @@ pub fn update(state: &mut SecuritySettingsState, message: Message) -> bool {
             false
         }
 
-        Message::CopyCode(_) | Message::None => false,
+        Message::CopyCode(_) | Message::OpenUrlExternal(_) | Message::AppendText(_) | Message::None => false,
     }
 }
 #[cfg(test)]

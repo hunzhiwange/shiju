@@ -13,12 +13,12 @@ fn root_child_count(app: &CatalogFixture) -> usize {
 fn agents_view_loading_state_adds_status_row() {
     let mut app = CatalogFixture::default();
 
-    assert_eq!(root_child_count(&app), 4);
+    assert_eq!(root_child_count(&app), 2);
 
     app.agents_settings.config_ready = true;
     app.agents_settings.loading = true;
 
-    assert_eq!(root_child_count(&app), 5);
+    assert_eq!(root_child_count(&app), 4);
 }
 
 #[test]
@@ -54,7 +54,7 @@ fn agents_view_builds_cards_for_main_enabled_disabled_and_model_variants() {
     app.agents_settings.entries = vec![main, enabled_worker, disabled_custom];
     app.agents_settings.selected_agent = "custom-disabled".to_string();
 
-    assert_eq!(root_child_count(&app), 5);
+    assert_eq!(root_child_count(&app), 4);
 }
 
 #[test]
@@ -84,7 +84,7 @@ fn agents_view_missing_selection_uses_first_entry_and_unknown_tab_falls_back() {
     )
     .expect("a missing selection should fall back to the first entry");
     assert_eq!(selected.key, first_key);
-    assert_eq!(root_child_count(&app), 5);
+    assert_eq!(root_child_count(&app), 4);
 }
 
 #[derive(Default)]

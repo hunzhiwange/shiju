@@ -869,17 +869,14 @@ fn scroll_to(scene: &mut Scene<'_>, renderer: &mut Renderer, bounds: Rectangle) 
     let (viewport, _, offset) = scene.geometry(renderer).scrolls[0];
     let y = bounds.center().y - offset.y;
     let target = viewport.y + 90.0;
-    assert!(
-        scene
-            .events(
-                renderer,
-                &[Event::Mouse(mouse::Event::WheelScrolled {
-                    delta: mouse::ScrollDelta::Pixels { x: 0.0, y: target - y },
-                })],
-                mouse::Cursor::Available(viewport.center()),
-            )
-            .is_empty()
+    let messages = scene.events(
+        renderer,
+        &[Event::Mouse(mouse::Event::WheelScrolled {
+            delta: mouse::ScrollDelta::Pixels { x: 0.0, y: target - y },
+        })],
+        mouse::Cursor::Available(Point::new(viewport.x + 2.0, viewport.center_y())),
     );
+    assert!(messages.is_empty(), "unexpected scroll messages: {messages:?}");
     let (_, _, offset) = scene.geometry(renderer).scrolls[0];
     let bounds = bounds - offset;
     assert!(viewport.contains(bounds.center()), "{bounds:?} outside {viewport:?}");

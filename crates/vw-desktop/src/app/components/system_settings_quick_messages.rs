@@ -6,7 +6,7 @@ pub fn view(app: &App) -> Element<'_, Message> { domain::view(&domain::View { qu
 fn map_message(action: domain::Message) -> Message {
  use domain::Message as A;
  let action = match action {
- A::None => return Message::None, A::CopyCode(v) => return Message::CopyCode(v),
+ A::None => return Message::None, A::CopyCode(v) => return Message::CopyCode(v), A::OpenUrlExternal(v) => return Message::OpenUrlExternal(v), A::AppendText(v) => return Message::AppendText(v),
  A::Add => QuickMessagesMessage::Add, A::Save => QuickMessagesMessage::Save,
  A::Remove(v) => QuickMessagesMessage::Remove(v), A::MoveUp(v) => QuickMessagesMessage::MoveUp(v), A::MoveDown(v) => QuickMessagesMessage::MoveDown(v),
  A::TextChanged(i,v) => QuickMessagesMessage::TextChanged(i,v), A::GroupChanged(i,v) => QuickMessagesMessage::GroupChanged(i,v), A::KindChanged(i,v) => QuickMessagesMessage::KindChanged(i,v),
@@ -14,5 +14,5 @@ fn map_message(action: domain::Message) -> Message {
  Message::Settings(SettingsMessage::QuickMessages(action))
 }
 fn render_help<'a>(title: &'a str, body: std::borrow::Cow<'a,str>, color: Option<iced::Color>, i18n: desktop_i18n::I18n) -> Element<'a, domain::Message> {
- super::chat_panel::message_view::selectable_titled_text(title, body, color, i18n).map(|m| match m { Message::None => domain::Message::None, Message::CopyCode(v) => domain::Message::CopyCode(v), _ => unreachable!("plain help emitted chat action") })
+ super::chat_panel::message_view::selectable_titled_text(title, body, color, i18n).map(|m| match m { Message::None => domain::Message::None, Message::CopyCode(v) => domain::Message::CopyCode(v), Message::OpenUrlExternal(v) => domain::Message::OpenUrlExternal(v), Message::AppendText(v) => domain::Message::AppendText(v), _ => unreachable!("plain help emitted chat action") })
 }

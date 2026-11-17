@@ -54,5 +54,5 @@ fn agents_view_builds_main_enabled_disabled_and_model_metadata() {
 
     let element = inputs::agents(&app);
 
-    assert_eq!(element.as_widget().children().len(), 5);
+    assert_eq!(element.as_widget().children().len(), 4);
 }

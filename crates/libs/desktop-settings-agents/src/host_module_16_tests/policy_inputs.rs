@@ -25,14 +25,14 @@ pub(super) struct PolicyFixture {
 fn auto_event(message: Auto) -> Message {
     match message {
         Auto::None => Message::None,
-        Auto::CopyCode(text) => Message::CopyCode(text),
+        Auto::CopyCode(text) => Message::CopyCode(text), Auto::OpenUrlExternal(value) => Message::OpenUrlExternal(value), Auto::AppendText(value) => Message::AppendText(value),
         other => Message::Autonomy(other),
     }
 }
 fn secure_event(message: Secure) -> Message {
     match message {
         Secure::None => Message::None,
-        Secure::CopyCode(text) => Message::CopyCode(text),
+        Secure::CopyCode(text) => Message::CopyCode(text), Secure::OpenUrlExternal(value) => Message::OpenUrlExternal(value), Secure::AppendText(value) => Message::AppendText(value),
         other => Message::Security(other),
     }
 }
@@ -50,7 +50,7 @@ fn inputs(app: &PolicyFixture) -> crate::autonomy_inputs::View<'_> {
                     Message,
                 >(title, body, theme.map(|theme| theme.palette().text), i18n)
                 .map(|event| match event {
-                    Message::CopyCode(text) => Auto::CopyCode(text),
+                    Message::CopyCode(text) => Auto::CopyCode(text), Message::OpenUrlExternal(value) => Auto::OpenUrlExternal(value), Message::AppendText(value) => Auto::AppendText(value),
                     _ => Auto::None,
                 }),
             )
@@ -110,7 +110,7 @@ pub(super) mod security {
             app_theme: &app.app_theme,
             last_copied_code_hash: None,
             help_text: |title, body, color, i18n| {
-                desktop_chat_view::message_view::markdown_selection::selectable_titled_text::<Message>(title, body, color, i18n).map(|event| match event { Message::CopyCode(text) => Secure::CopyCode(text), _ => Secure::None })
+                desktop_chat_view::message_view::markdown_selection::selectable_titled_text::<Message>(title, body, color, i18n).map(|event| match event { Message::CopyCode(text) => Secure::CopyCode(text), Message::OpenUrlExternal(value) => Secure::OpenUrlExternal(value), Message::AppendText(value) => Secure::AppendText(value), _ => Secure::None })
             },
         }
     }

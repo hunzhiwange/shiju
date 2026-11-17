@@ -55,7 +55,7 @@ pub(super) fn view(app: &DialogueFixture) -> Element<'_, Message> {
                     Message,
                 >(title, body, theme.map(|theme| theme.palette().text), i18n)
                 .map(|event| match event {
-                    Message::CopyCode(text) => Local::CopyCode(text),
+                    Message::CopyCode(text) => Local::CopyCode(text), Message::OpenUrlExternal(value) => Local::OpenUrlExternal(value), Message::AppendText(value) => Local::AppendText(value),
                     _ => Local::None,
                 }),
             )
@@ -63,7 +63,7 @@ pub(super) fn view(app: &DialogueFixture) -> Element<'_, Message> {
     })
     .map(|event| match event {
         Local::None => Message::None,
-        Local::CopyCode(text) => Message::CopyCode(text),
+        Local::CopyCode(text) => Message::CopyCode(text), Local::OpenUrlExternal(value) => Message::OpenUrlExternal(value), Local::AppendText(value) => Message::AppendText(value),
         other => Message::Dialogue(other),
     })
 }
@@ -72,8 +72,8 @@ pub(super) mod quick {
     use desktop_settings_appearance::quick_messages as domain;
     pub fn view(app: &DialogueFixture) -> Element<'_, Message> {
         domain::view(&domain::View { quick_messages: &app.quick_messages, desktop_locale: app.desktop_locale, app_theme: &app.app_theme },
-            |title, body, color, i18n| desktop_chat_view::message_view::markdown_selection::selectable_titled_text::<Message>(title, body, color, i18n).map(|event| match event { Message::CopyCode(text) => domain::Message::CopyCode(text), _ => domain::Message::None }))
-            .map(|event| match event { domain::Message::None => Message::None, domain::Message::CopyCode(text) => Message::CopyCode(text), other => Message::Quick(other) })
+            |title, body, color, i18n| desktop_chat_view::message_view::markdown_selection::selectable_titled_text::<Message>(title, body, color, i18n).map(|event| match event { Message::CopyCode(text) => domain::Message::CopyCode(text), Message::OpenUrlExternal(value) => domain::Message::OpenUrlExternal(value), Message::AppendText(value) => domain::Message::AppendText(value), _ => domain::Message::None }))
+            .map(|event| match event { domain::Message::None => Message::None, domain::Message::CopyCode(text) => Message::CopyCode(text), domain::Message::OpenUrlExternal(value) => Message::OpenUrlExternal(value), domain::Message::AppendText(value) => Message::AppendText(value), other => Message::Quick(other) })
     }
     pub fn apply(app: &mut DialogueFixture, message: domain::Message) {
         let domain::Message::TextChanged(index, value) = message else {

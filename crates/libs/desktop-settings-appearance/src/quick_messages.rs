@@ -9,7 +9,7 @@ use desktop_i18n::I18n;
 use crate::headings::{HelpRenderer, settings_page_heading_with_help};
 #[derive(Debug, Clone)]
 pub enum Message {
-    None, CopyCode(String), Add, Remove(usize), TextChanged(usize, String),
+    None, CopyCode(String), OpenUrlExternal(String), AppendText(String), Add, Remove(usize), TextChanged(usize, String),
     GroupChanged(usize, config_ui::QuickMessageGroup),
     KindChanged(usize, config_ui::QuickMessageKind),
     MoveUp(usize), MoveDown(usize), Save,

@@ -483,6 +483,13 @@ fn saved_config_stays_clean_after_discard_refresh_in_either_response_order() {
             app.agents_settings.project_path = project_path.clone();
             let _ = update(
                 &mut app,
+                SettingsMessage::Agents(AgentsMessage::ProviderChanged(
+                    "main".into(),
+                    "fixture-provider".into(),
+                )),
+            );
+            let _ = update(
+                &mut app,
                 SettingsMessage::Agents(AgentsMessage::ModelChanged(
                     "main".into(),
                     "saved-model".into(),

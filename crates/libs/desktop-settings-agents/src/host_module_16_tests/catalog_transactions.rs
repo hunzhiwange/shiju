@@ -168,7 +168,7 @@ async fn agent_catalog_keeps_two_columns_and_scrollbar_gutter() {
             &renderer,
             &layout::Limits::new(Size::ZERO, Size::new(width, 5000.0)),
         );
-        let scrollable = &node.children()[3];
+        let scrollable = &node.children()[2];
         let content = &scrollable.children()[0];
         let grid = &content.children()[0];
         assert_eq!(grid.bounds().x, 7.0);

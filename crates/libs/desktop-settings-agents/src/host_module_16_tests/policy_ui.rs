@@ -210,6 +210,7 @@ async fn ui_refresh_22_layout_and_interaction() {
         app.security_settings.show_help_modal = false;
     }
     app.desktop_locale = DesktopLocale::SimplifiedChinese;
+    app.security_settings.active_tab = SecuritySettingsTab::SandboxAndResources;
     let mut ui = scene(security::view(&app), &mut renderer, Size::new(640, 1100));
     let positions = geometry(&mut ui, &renderer);
     positions.assert_centered(positions.focusable[0], "沙箱启用");

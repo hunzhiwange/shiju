@@ -397,7 +397,7 @@ async fn ui_refresh_15_preserves_values_and_disabled_states() {
         let name = geometry.inputs[0].1.center();
         assert!(fields.click(&mut renderer, name).is_empty());
         assert!(matches!(
-            fields.send(&mut renderer, &[key(Named::End), Event::InputMethod(iced::input_method::Event::Commit("追加".into()))],
+            fields.send(&mut renderer, &[key(Named::End), Event::InputMethod(iced::advanced::input_method::Event::Commit("追加".into()))],
                 mouse::Cursor::Available(name)).as_slice(),
             [Message::Agents(A::ProfileNameChanged(value))] if *value == format!("{}追加", draft.label)
         ));

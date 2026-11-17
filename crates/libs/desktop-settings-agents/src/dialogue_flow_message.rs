@@ -3,7 +3,7 @@ pub enum Message {
     DialogueFlowExpandEditToolSectionToggled(bool),
     DialogueFlowExpandShellToolSectionToggled(bool),
     DialogueFlowShowReasoningSummaryToggled(bool),
-    CopyCode(String), None,
+    CopyCode(String), OpenUrlExternal(String), AppendText(String), None,
 }
 
 /// `DialogueFlowPermissionLoaded` 的加载结果类型。

@@ -78,6 +78,6 @@ pub enum Message {
     SecuritySave,
     SecurityHelpOpen,
     SecurityHelpClose,
-    CopyCode(String),
+    CopyCode(String), OpenUrlExternal(String), AppendText(String),
     None,
 }

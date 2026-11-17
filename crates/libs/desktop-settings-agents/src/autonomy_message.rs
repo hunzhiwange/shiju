@@ -22,5 +22,5 @@ pub enum Message {
     AutonomyTabSelected(desktop_settings_security::app_init::state::AutonomySettingsTab),
     AutonomyWorkspaceOnlyToggled(bool),
     AutonomySave,
-    CopyCode(String), None,
+    CopyCode(String), OpenUrlExternal(String), AppendText(String), None,
 }

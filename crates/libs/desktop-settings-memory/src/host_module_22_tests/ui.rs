@@ -677,9 +677,15 @@ fn check_gap_help(
             .is_empty()
         );
         let item = iced::Point::new(body.x + 24.0, body.y + 14.0);
+        let copied = click(&mut ui, renderer, item);
         assert!(
-            matches!(click(&mut ui, renderer, item).as_slice(), [Message::CopyCode(value)] if value == description),
-            "{title}: help should contain the localized static explanation"
+            matches!(
+                copied.as_slice(),
+                [Message::CopyCode(value)]
+                    | [Message::Settings(SettingsMessage::Storage(StorageMessage::HelpCopy(value)))]
+                    if value == description
+            ),
+            "{title}: help should contain the localized static explanation; got {copied:?}"
         );
     }
     assert!(send(&mut ui, renderer, away, &[key(Named::Escape)]).is_empty());

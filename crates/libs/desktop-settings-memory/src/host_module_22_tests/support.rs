@@ -62,8 +62,13 @@ impl desktop_chat_view::message_view::markdown_selection::SelectionMessage for M
     fn copy(value: String) -> Self {
         Self::CopyCode(value)
     }
-    fn context(_: desktop_ui_controls::text_editor_context_menu::TextContextEffect) -> Self {
-        Self::None
+    fn context(effect: desktop_ui_controls::text_editor_context_menu::TextContextEffect) -> Self {
+        match effect {
+            desktop_ui_controls::text_editor_context_menu::TextContextEffect::Copy(value) => {
+                Self::CopyCode(value)
+            }
+            _ => Self::None,
+        }
     }
     fn selection(_: String, _: usize, _: usize, _: Option<String>) -> Self {
         Self::None

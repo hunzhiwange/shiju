@@ -8,8 +8,6 @@ use std::fs;
 use std::path::PathBuf;
 use std::sync::Arc;
 #[cfg(unix)]
-use std::sync::atomic::{AtomicU64, Ordering};
-#[cfg(unix)]
 use std::time::{Duration as StdDuration, Instant};
 
 use tokio::sync::{mpsc, oneshot};
@@ -32,9 +30,6 @@ fn client(command: &str, args: &[&str]) -> AcpClient {
         },
     )
 }
-
-#[cfg(unix)]
-static UNIQUE_TEST_ID: AtomicU64 = AtomicU64::new(1);
 
 // 下列行为用例重点检查复用、取消、通道关闭和失败后的状态一致性。
 #[test]
@@ -611,6 +606,7 @@ async fn wait_for_shutdown_reason(
 
 #[cfg(unix)]
 struct MockActorAgentFixture {
+    _temp_dir: tempfile::TempDir,
     cwd: PathBuf,
     script_path: PathBuf,
     calls_log: PathBuf,
@@ -627,15 +623,18 @@ impl MockActorAgentFixture {
     }
 
     fn with_script(script: &str) -> Self {
-        let id = UNIQUE_TEST_ID.fetch_add(1, Ordering::Relaxed);
-        let base = std::env::temp_dir().join(format!("vw-acp-actor-test-{id}"));
+        let temp_dir = tempfile::Builder::new()
+            .prefix("vw-acp-actor-test-")
+            .tempdir()
+            .expect("fixture directory");
+        let base = temp_dir.path();
         let cwd = base.join("cwd");
         let script_path = base.join("mock_agent.py");
         let calls_log = base.join("calls.jsonl");
         fs::create_dir_all(&cwd).expect("fixture cwd");
         fs::write(&script_path, script).expect("fixture script");
         fs::write(&calls_log, "").expect("fixture calls log");
-        Self { cwd, script_path, calls_log }
+        Self { _temp_dir: temp_dir, cwd, script_path, calls_log }
     }
 
     fn client(&self, actor_idle_timeout: Duration) -> AcpClient {
@@ -664,21 +663,16 @@ impl MockActorAgentFixture {
 }
 
 #[cfg(unix)]
-impl Drop for MockActorAgentFixture {
-    fn drop(&mut self) {
-        if let Some(base) = self.script_path.parent().filter(|path| path.exists()) {
-            let _ = fs::remove_dir_all(base);
-        }
-    }
-}
-
-#[cfg(unix)]
 fn mock_actor_agent_script() -> &'static str {
     r#"import json
 import sys
 
 calls_log = sys.argv[1]
 session_counter = 0
+modes = {
+    "currentModeId": "plan",
+    "availableModes": [{"id": "plan", "name": "Plan"}],
+}
 
 def write_call(message):
     with open(calls_log, "a", encoding="utf-8") as handle:
@@ -706,16 +700,17 @@ for raw_line in sys.stdin:
         }
     elif method == "session/new":
         session_counter += 1
-        result = {"sessionId": f"session-{session_counter}"}
-    elif method in (
-        "session/load",
-        "session/resume",
-        "session/set_mode",
-        "session/set_model",
-    ):
+        result = {"sessionId": f"session-{session_counter}", "modes": modes}
+    elif method in ("session/load", "session/resume"):
+        result = {"modes": modes}
+    elif method in ("session/set_mode", "session/set_model"):
         result = {}
     elif method == "session/set_config_option":
-        result = {"configOptions": []}
+        result = {"configOptions": [{
+            "id": "effort", "name": "Effort", "type": "select",
+            "currentValue": message["params"]["value"],
+            "options": [{"value": "high", "name": "High"}],
+        }]}
     elif method == "session/prompt":
         result = {"stopReason": "end_turn"}
     else:

@@ -87,3 +87,12 @@ fn cc_control_19_credential_debug_is_redacted() {
     let credential = PairingCredential("one-use-test-credential".into());
     assert!(!format!("{credential:?}").contains(&credential.0));
 }
+
+#[test]
+fn cc_control_19_page_builds_for_loading_and_reported_states() {
+    // Both paths must remain renderable while the server snapshot is unavailable or partial.
+    let loading = ComputerControlSettingsState::default();
+    let _ = page(&loading);
+    let loaded = loaded_state();
+    let _ = page(&loaded);
+}

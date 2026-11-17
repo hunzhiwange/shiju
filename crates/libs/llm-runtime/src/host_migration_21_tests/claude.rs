@@ -133,20 +133,37 @@ fn acp_model_source_claude_rejects_credentials_in_existing_arguments() {
 
 #[test]
 fn acp_model_source_claude_rejects_unrepresentable_capabilities_before_publication() {
-    for mode in ["temperature", "tools", "protocol", "responses"] {
+    for mode in ["temperature", "tools", "protocol", "missing_api"] {
         let mut launch = profile(&Default::default());
         match mode {
             "temperature" => launch.model_supports_temperature = false,
             "tools" => launch.model_supports_tool_call = false,
-            "protocol" => launch.model_api.as_mut().unwrap().adapter = "google".into(),
-            "responses" => {
-                launch.model_api.as_mut().unwrap().url =
-                    "https://example.invalid/v1/responses".into()
-            }
+            "protocol" => launch.model_api.as_mut().unwrap().adapter = "unknown".into(),
+            "missing_api" => launch.model_api = None,
             _ => unreachable!(),
         }
-        assert!(configure(&mut launch, "http://127.0.0.1:12345").is_err());
-        assert!(!launch.directory().join("settings.json").exists());
+        assert!(configure(&mut launch, "http://127.0.0.1:12345").is_err(), "{mode}");
+        assert!(!launch.directory().join("settings.json").exists(), "{mode}");
+    }
+    // The relay supports these conversions for ordinary text/tool turns.
+    for (adapter, url, target) in [
+        ("google", "https://example.invalid/v1", model_protocols::ModelProtocol::Gemini),
+        (
+            "openai-compatible",
+            "https://example.invalid/v1/responses",
+            model_protocols::ModelProtocol::Responses,
+        ),
+    ] {
+        let mut launch = profile(&Default::default());
+        let api = launch.model_api.as_mut().unwrap();
+        api.adapter = adapter.into();
+        api.url = url.into();
+        let route = crate::acp::model_source::drivers::launch_route("claude", &launch).unwrap();
+        assert_eq!(route.target, target);
+        assert!(route.conversion_required);
+        configure(&mut launch, "http://127.0.0.1:12345").unwrap();
+        assert_eq!(launch.config().env["VW_ACP_CLAUDE_NATIVE_MESSAGES"], "0");
+        assert!(launch.directory().join("settings.json").exists());
     }
     let mut native = profile(&Default::default());
     native.model_api.as_mut().unwrap().adapter = "anthropic".into();

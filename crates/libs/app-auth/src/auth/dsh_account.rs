@@ -461,8 +461,10 @@ fn records_mut(document: &mut Yaml) -> &mut Mapping {
 }
 
 fn yaml_record(payload: serde_json::Value) -> Result<Yaml, AuthErrorCode> {
-    serde_yaml::to_value(serde_json::json!({"kind": "grant", "payload": payload}))
-        .map_err(|_| AuthErrorCode::StorageUnavailable)
+    // JSON text preserves numeric scalars with serde_json arbitrary_precision enabled.
+    let json = serde_json::to_string(&serde_json::json!({"kind": "grant", "payload": payload}))
+        .map_err(|_| AuthErrorCode::StorageUnavailable)?;
+    serde_yaml::from_str(&json).map_err(|_| AuthErrorCode::StorageUnavailable)
 }
 
 fn write_document(

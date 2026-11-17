@@ -76,7 +76,10 @@ impl Fixture {
     }
 
     pub(super) fn write(&self, document: &Value) {
-        write_private(&self.credentials, serde_yaml::to_string(document).unwrap().as_bytes());
+        // Parse JSON text so arbitrary-precision numbers remain YAML scalars.
+        let yaml: serde_yaml::Value =
+            serde_yaml::from_str(&serde_json::to_string(document).unwrap()).unwrap();
+        write_private(&self.credentials, serde_yaml::to_string(&yaml).unwrap().as_bytes());
     }
 
     pub(super) fn read(&self) -> Value {

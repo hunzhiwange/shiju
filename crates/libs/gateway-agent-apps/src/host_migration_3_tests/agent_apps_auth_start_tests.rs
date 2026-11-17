@@ -175,7 +175,6 @@ printf delivered > '{}'
             .header(header::AUTHORIZATION, BASIC)
             .header("x-platform-id", "p")
             .header("x-company-id", "c")
-            .header("x-agent-apps-token", token)
             .json(&body)
             .send()
             .await?;

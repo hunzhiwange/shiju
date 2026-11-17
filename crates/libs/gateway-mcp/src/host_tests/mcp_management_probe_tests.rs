@@ -55,7 +55,7 @@ async fn send(
         .header("content-type", "application/json")
         .header("x-platform-id", "p")
         .header("x-company-id", company)
-        .header("x-agent-apps-token", token);
+        ;
     if authenticated {
         request = request.header("authorization", AUTH);
     }

@@ -149,7 +149,6 @@ async fn cc04_dsh_binding_errors_and_denials_have_no_side_effects() {
             .put(format!("http://127.0.0.1:{}/v1/app-providers/dsh/one/config", f.port))
             .header("x-platform-id", "p")
             .header("x-company-id", company)
-            .header("x-agent-apps-token", token)
             .json(&body)
             .send()
             .await

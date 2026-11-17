@@ -61,7 +61,7 @@ async fn diagnostic_api_read_and_cancel_are_scope_bound() -> anyhow::Result<()> 
     let request = |id: &str, cancel: bool, project: &str, host: &str, app_id: &str, token: &str| {
         Request::builder().method(if cancel {"POST"} else {"GET"})
             .uri(format!("/agent-apps/diagnostics/jobs/{id}{}?projectId={project}&targetHostId={host}&appId={app_id}", if cancel {"/cancel"} else {""}))
-            .header("x-agent-apps-token", token).body(Body::empty()).unwrap()
+            .body(Body::empty()).unwrap()
     };
     let foreign_tenant_app =
         crate::agent_apps_diagnostics::router_with_policy::<super::probe_host::NativeProbeHost>(Some(policy.clone()))

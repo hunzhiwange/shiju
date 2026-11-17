@@ -201,7 +201,6 @@ impl Gateway {
                 company,
             )
             .basic_auth("test", Some("secret"))
-            .header("x-agent-apps-token", token)
             .send()
             .await?;
         assert_eq!(response.headers()["cache-control"], "no-store");
@@ -212,7 +211,6 @@ impl Gateway {
         Ok(self
             .request(reqwest::Method::GET, &format!("{ROOT}/status?{COPILOT}"), company)
             .basic_auth("test", Some("secret"))
-            .header("x-agent-apps-token", token)
             .send()
             .await?
             .error_for_status()?

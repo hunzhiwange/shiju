@@ -36,7 +36,6 @@ async fn call(
     let req = Request::builder()
         .method(if patch.is_some() { "PATCH" } else { "GET" })
         .uri(format!("/agent-apps/preferences?targetHostId={host}"))
-        .header("x-agent-apps-token", token)
         .header("x-platform-id", "p")
         .header("x-company-id", company)
         .header("content-type", "application/json");

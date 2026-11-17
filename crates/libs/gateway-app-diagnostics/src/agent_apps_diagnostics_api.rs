@@ -91,7 +91,7 @@ impl GatewayAppDiagnosticsClient {
         segments: &[&str],
         scope: &DiagnosticScopeQuery,
         body: Option<&B>,
-        token: &str,
+        _token: &str,
     ) -> Result<T, AgentAppsSettingsError> {
         let mut url =
             reqwest::Url::parse(&format!("{}/v1/agent-apps/diagnostics", self.transport.endpoint().base_url()))
@@ -103,7 +103,6 @@ impl GatewayAppDiagnosticsClient {
             .transport.native_transport()
             .map_err(AgentAppsSettingsError::Transport)?
             .request(method, url)
-            .header("x-agent-apps-token", token)
             .query(scope);
         if let Some(body) = body {
             request = request.json(body);

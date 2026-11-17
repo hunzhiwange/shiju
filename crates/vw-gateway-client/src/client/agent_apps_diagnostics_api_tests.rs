@@ -134,7 +134,7 @@ async fn diagnostic_sdk_preserves_job_identity() {
                 )
             );
             assert_eq!(recorded.body, body);
-            assert_eq!(recorded.header("x-agent-apps-token"), Some("fixture-member"));
+            assert_eq!(recorded.header("x-agent-apps-token"), None);
             assert_eq!(recorded.header("authorization"), Some("Bearer fixture-gateway-auth"));
             assert_eq!(
                 recorded.header("x-platform-id"),
@@ -379,8 +379,9 @@ async fn diagnostic_endpoints_sdk_uses_scoped_body() {
             "candidate query must use its read-only endpoint with only scope in the URL"
         );
         assert_eq!(*recorded_body, serde_json::to_value(&query).unwrap());
+        assert!(!lines.iter().any(|line| line.split_once(':')
+            .is_some_and(|(key, _)| key.eq_ignore_ascii_case("x-agent-apps-token"))));
         for (name, value) in [
-            ("x-agent-apps-token", "fixture-member"),
             ("authorization", "Bearer fixture-gateway-auth"),
             ("x-platform-id", client.endpoint().tenant_scope().platform_id().as_ref()),
             ("x-company-id", client.endpoint().tenant_scope().company_id().as_ref()),

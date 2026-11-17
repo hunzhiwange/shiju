@@ -59,9 +59,6 @@ async fn request(
         .header("x-platform-id", "test-platform")
         .header("x-company-id", "test-company")
         .header("content-type", "application/json");
-    if let Some(token) = token {
-        request = request.header("x-agent-apps-token", token);
-    }
     let response = tokio::time::timeout(
         Duration::from_secs(5),
         router.clone().oneshot(

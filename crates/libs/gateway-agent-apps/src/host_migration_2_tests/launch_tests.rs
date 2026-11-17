@@ -31,7 +31,6 @@ async fn call(app: &Router, token: &str, value: Value) -> (StatusCode, Value) {
                 .method("POST")
                 .uri("/agent-apps/launch?targetHostId=h")
                 .header("content-type", "application/json")
-                .header("x-agent-apps-token", token)
                 .header("x-platform-id", "p")
                 .header("x-company-id", "c")
                 .body(Body::from(value.to_string()))
@@ -154,7 +153,6 @@ async fn cc_apps_launch_api_target_scope_accepts_and_rejects_before_terminal() {
                     .uri(format!("/agent-apps/launch-sessions/{id}?targetHostId=h"))
                     .header("x-platform-id", "p")
                     .header("x-company-id", company)
-                    .header("x-agent-apps-token", token)
                     .body(Body::empty())
                     .unwrap(),
             )

@@ -86,7 +86,7 @@ async fn ha_api_queue_read_enforces_scope() -> anyhow::Result<()> {
             .header("x-company-id", company)
             .query(&[("projectId", project), ("targetHostId", host), ("appId", app)]);
         match token {
-            Some(token) => request.header("x-agent-apps-token", token),
+            Some(token) => request,
             None => request,
         }
     };
@@ -195,7 +195,7 @@ async fn ha_api_queue_write_rejects_conflicts() -> anyhow::Result<()> {
             .query(&[("projectId", "project"), ("targetHostId", HOST), ("appId", "codex")])
             .json(&body);
         match token {
-            Some(token) => request.header("x-agent-apps-token", token),
+            Some(token) => request,
             None => request,
         }
     };
@@ -524,7 +524,6 @@ async fn ha_api_health_and_policy_are_scope_bound() -> anyhow::Result<()> {
         let mut request = client.request(method,
             format!("http://127.0.0.1:{port}/v1/agent-apps/high-availability/{resource}"))
             .header("x-platform-id", "p").header("x-company-id", "owner")
-            .header("x-agent-apps-token", token)
             .query(&[("projectId", "project"), ("targetHostId", host), ("appId", "codex")]);
         if resource.starts_with("health") {
             request = request.query(&[("providerId", "provider")]);

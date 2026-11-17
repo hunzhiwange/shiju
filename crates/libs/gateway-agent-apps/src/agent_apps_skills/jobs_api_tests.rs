@@ -40,7 +40,7 @@ impl Fixture {
         let suffix = if cancel { "/cancel" } else { "" };
         let response = app.oneshot(Request::builder().method(if cancel { "POST" } else { "GET" })
             .uri(format!("/agent-apps/skills/jobs/{id}{suffix}?projectId=project&targetHostId=h"))
-            .header("x-agent-apps-token", token).body(Body::empty()).unwrap()).await.unwrap();
+            .body(Body::empty()).unwrap()).await.unwrap();
         let status = response.status();
         let bytes = axum::body::to_bytes(response.into_body(), 16384).await.unwrap();
         (status, serde_json::from_slice(&bytes).unwrap_or(Value::Null))

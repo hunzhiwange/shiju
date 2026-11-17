@@ -17,7 +17,6 @@ fn router(path: &Path) -> Router {
 fn request(endpoint: &str, token: &str, company: &str, host: &str) -> Request<Body> {
     Request::builder()
         .uri(format!("/agent-apps/{endpoint}?targetHostId={host}&appId=claude"))
-        .header("x-agent-apps-token", token)
         .header("x-platform-id", "p")
         .header("x-company-id", company)
         .body(Body::empty())

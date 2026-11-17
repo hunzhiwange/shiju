@@ -192,7 +192,6 @@ impl Gateway {
         let response = self
             .request(Method::DELETE, &format!("{ROOT}/accounts/{id}?{scope}"), company)
             .basic_auth("test", Some("secret"))
-            .header("x-agent-apps-token", token)
             .send()
             .await?;
         assert_eq!(response.headers()["cache-control"], "no-store");

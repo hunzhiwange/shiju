@@ -72,7 +72,6 @@ async fn send(
                 .header("authorization", "Bearer dynamic-acceptance-skey")
                 .header("x-platform-id", "p")
                 .header("x-company-id", company)
-                .header("x-agent-apps-token", token)
                 .header("content-type", "application/json")
                 .body(Body::from(payload.to_string()))
                 .unwrap(),

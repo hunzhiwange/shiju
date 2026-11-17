@@ -16,7 +16,6 @@ async fn local_apps_default_router_loads_new_private_grant_without_restart_or_en
                 .uri("/agent-apps/catalog?targetHostId=desktop-local")
                 .header("x-platform-id", "p")
                 .header("x-company-id", "c")
-                .header("x-agent-apps-token", token)
                 .body(Body::empty())
                 .unwrap()
         };
@@ -86,7 +85,7 @@ async fn verify_local_auth(home: &std::path::Path, app_token: &str) {
             .extension(ConnectInfo(peer.parse::<SocketAddr>().unwrap()))
             .header("x-platform-id", "p")
             .header("x-company-id", company)
-            .header("x-agent-apps-token", token);
+            ;
         if forwarded {
             builder = builder.header("x-forwarded-for", "127.0.0.1");
         }

@@ -161,9 +161,6 @@ async fn query(
     if let Some(auth) = auth {
         request = request.header(header::AUTHORIZATION, auth);
     }
-    if let Some(token) = token {
-        request = request.header("x-agent-apps-token", token);
-    }
     let response = request.send().await?;
     let status = response.status();
     if path.starts_with("/v1/agent-apps/auth/") {

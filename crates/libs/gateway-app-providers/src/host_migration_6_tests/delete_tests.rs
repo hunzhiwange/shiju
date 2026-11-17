@@ -130,7 +130,7 @@ async fn cc04_delete_api_permission_scope_and_unknown_config_denials_preserve_ro
             .header("content-type", "application/json")
             .header("x-platform-id", "p")
             .header("x-company-id", company)
-            .header("x-agent-apps-token", token);
+            ;
         if auth {
             req = req.header("authorization", "Basic dGVzdDpzZWNyZXQ=");
         }

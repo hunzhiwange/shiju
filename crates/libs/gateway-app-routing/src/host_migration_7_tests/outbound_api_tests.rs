@@ -20,9 +20,6 @@ async fn request(
         .request(method, format!("http://127.0.0.1:{port}/v1/app-routing/hosts/{HOST}/egress"))
         .header("x-platform-id", "p")
         .header("x-company-id", "owner");
-    if let Some(token) = token {
-        request = request.header("x-agent-apps-token", token);
-    }
     if let Some(body) = body {
         request = request.json(&body);
     }

@@ -247,9 +247,6 @@ impl Gateway {
         if basic {
             request = request.header("authorization", BASIC);
         }
-        if let Some(token) = token {
-            request = request.header("x-agent-apps-token", token);
-        }
         let response = request.send().await?;
         let status = response.status();
         if path.starts_with(ROOT) {

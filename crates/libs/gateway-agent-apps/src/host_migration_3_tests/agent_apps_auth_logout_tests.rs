@@ -222,7 +222,6 @@ impl Gateway {
         let response = self
             .request(Method::POST, &format!("{ROOT}/accounts/{id}/revoke?{scope}"), company)
             .basic_auth("test", Some("secret"))
-            .header("x-agent-apps-token", token)
             .send()
             .await?;
         assert_eq!(response.headers()["cache-control"], "no-store");
@@ -239,7 +238,6 @@ impl Gateway {
         let response = self
             .request(Method::POST, &format!("{ROOT}/logout?{scope}"), company)
             .basic_auth("test", Some("secret"))
-            .header("x-agent-apps-token", token)
             .json(&body)
             .send()
             .await?;

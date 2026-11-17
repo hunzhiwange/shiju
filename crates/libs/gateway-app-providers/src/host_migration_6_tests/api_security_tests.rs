@@ -166,7 +166,6 @@ impl Fixture {
             .request(method.parse().unwrap(), format!("{}{path}", self.url))
             .header("x-platform-id", "p")
             .header("x-company-id", company)
-            .header("x-agent-apps-token", token)
             .json(&body)
             .send()
             .await

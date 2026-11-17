@@ -33,7 +33,7 @@ async fn get(
         .get(format!("http://{}{path}?{query}", gateway.addr))
         .header("x-platform-id", "p")
         .header("x-company-id", company)
-        .header("x-agent-apps-token", token);
+        ;
     if basic {
         request = request.header(header::AUTHORIZATION, BASIC);
     }

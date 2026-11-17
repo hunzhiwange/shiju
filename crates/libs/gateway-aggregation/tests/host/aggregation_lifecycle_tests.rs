@@ -363,7 +363,6 @@ async fn aggregation_t19_host_stop_and_start_use_authorized_router() {
         Request::builder()
             .method("POST")
             .uri(path)
-            .header("x-agent-apps-token", token)
             .header("content-type", "application/json")
             .body(Body::from("{}"))
             .unwrap()

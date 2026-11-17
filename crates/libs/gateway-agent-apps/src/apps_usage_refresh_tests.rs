@@ -103,7 +103,6 @@ async fn request(
                 .uri(format!("/v1{path}"))
                 .header("x-platform-id", "test-platform")
                 .header("x-company-id", company)
-                .header("x-agent-apps-token", token)
                 .header("content-type", "application/json")
                 .body(if body.is_null() { Body::empty() } else { Body::from(body.to_string()) })
                 .unwrap(),

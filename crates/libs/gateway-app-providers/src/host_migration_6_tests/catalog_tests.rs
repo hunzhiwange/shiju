@@ -67,7 +67,6 @@ use vw_api_app_provider_base::AppProviderWrite;
             .uri(path)
             .header("x-platform-id", "p")
             .header("x-company-id", company)
-            .header("x-agent-apps-token", token)
             .body(Body::empty())
             .unwrap()
     }

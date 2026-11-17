@@ -50,6 +50,23 @@ async fn aggregation_t11_published_revision_routes_and_revokes_exact_targets() {
 use vw_api_app_provider_base::validation::ProviderRequestOptions;
     use vw_api_app_provider_base::validation::ProviderRequestOverrides;
 
+    const CHILD: &str = "SHIJU_AGGREGATION_T11_CHILD";
+    if std::env::var_os(CHILD).is_none() {
+        let root = tempfile::tempdir().unwrap();
+        let output = std::process::Command::new(std::env::current_exe().unwrap())
+            .args(["--exact", "host_migration_57_tests::aggregation::aggregation_t11_published_revision_routes_and_revokes_exact_targets", "--nocapture"])
+            .env(CHILD, "1")
+            .env("VIBEWINDOW_TEST_ROOT", root.path())
+            .env_remove("VIBEWINDOW_TEST_HOME")
+            .output().unwrap();
+        eprint!("{}{}", String::from_utf8_lossy(&output.stdout), String::from_utf8_lossy(&output.stderr));
+        assert!(output.status.success(), "isolated aggregation test failed: {}", output.status);
+        return;
+    }
+    // Application routes use the gateway identity and tenant-derived executor root.
+    let execution_root = agent_paths::paths().data.join("apps").join(hex::encode(
+        Sha256::digest(serde_json::to_vec(&("platform", "company")).unwrap()),
+    ));
     let (record, mut requests) = mpsc::unbounded_channel();
     let mut upstreams = Vec::new();
     for provider in ["alpha", "beta"] {
@@ -197,7 +214,7 @@ use vw_api_app_provider_base::validation::ProviderRequestOptions;
                     scope,
                     host,
                     None,
-                    |_, _| panic!("unauthorized caller reached preparation"),
+                    |_, _| Ok(snapshot("foreign-scope", 2)),
                     |_, _, _| panic!("unauthorized caller reached commit"),
                 )
                 .err(),
@@ -212,12 +229,12 @@ use vw_api_app_provider_base::validation::ProviderRequestOptions;
                 "host",
                 expected,
                 |authorized_root, principal| {
-                    assert_eq!(authorized_root, root.path());
-                    assert_eq!(principal, "fixture-manager");
+                    assert_eq!(authorized_root, execution_root);
+                    assert_eq!(principal, "desktop-local-user");
                     Ok(candidate)
                 },
                 |authorized_root, actual, token| {
-                    assert_eq!(authorized_root, root.path());
+                    assert_eq!(authorized_root, execution_root);
                     assert_eq!(actual, address);
                     commit(token)
                 },
@@ -389,6 +406,7 @@ use vw_api_app_provider_base::validation::ProviderRequestOptions;
     assert!(requests.try_recv().is_err());
 
     listener.stop().await.unwrap();
+    assert!(listener.bound_address().is_none());
     for (_, task) in upstreams {
         task.abort();
         assert!(task.await.unwrap_err().is_cancelled());

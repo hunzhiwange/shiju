@@ -4,7 +4,7 @@
 
 批次：【批次1】 依赖：无
 
-状态：未开始
+状态：待回归
 
 来源：继续执行宿主单测；诊断编号19, 20, 21, 22, 23, 24, 25（宿主编译错误证据.json）。
 预计会话范围：修复一个源码文件中的宿主接口或测试夹具编译契约；不接管整包。
@@ -277,3 +277,14 @@ python3 scripts/cargo_slot.py cargo test -p vw-agent --lib worktree_environment_
 编译取证命令（不是测试通过证据）：`python3 scripts/cargo_slot.py cargo test -p vw-agent --lib --no-run`。同阶段顺序命令合并一次入口复用缓存，不默认逐任务全量测试。
 
 最终需由原任务303执行两阶段全量验收；这组修复仅覆盖已发现编译阻塞，尚不能保证宿主全部运行失败已发现。
+
+## 本次执行记录
+
+- 仅在归属测试文件显式导入宿主 `session::shared::with_tenant_instance` 与 `crate::session::ui_store`；不改变可见性、业务行为或断言。
+- 已核对父模块：session_ops_tests 注册 turn_fork_tests，shared 是 session 的子模块。原候选 acceptance_app、request、worktree_cleanup 为夹具；改用真实测试模块过滤，涵盖其中全部测试入口。
+- 修复前后均执行：`python3 scripts/cargo_slot.py cargo test -p vw-agent --lib turn_fork_tests -- --nocapture`。
+- 两次均为槽位1；CARGO_TARGET_DIR 与 CARGO_BUILD_BUILD_DIR 均为 `/Users/xiangmin/worker/code/shiju/target/rust-slot-1`。
+- 修复前退出101，复现本文件全部7条缺失导入诊断，日志 `/tmp/shiju-task327-before.log`。
+- 修复后退出101，本文件诊断全部消失，宿主仍有20条其他错误（compaction 测试导出、ACP_CLIENT_CACHE、VideoContext/McpToolRuntime trait、overflow_error 等），日志 `/tmp/shiju-task327-after.log`。有效运行测试0，不能记为行为通过；未重复check，未运行桌面构建。
+- `git diff --check -- crates/vw-agent/src/gateway/api/handlers/session/turn_fork_tests.rs` 退出0。自有验证入口已退出，缓存保留。
+- 保留编号文件；待兄弟任务解除宿主编译阻塞后，重跑上述有效模块过滤，要求运行数>0、failed=0、退出0，再收尾。

@@ -8,7 +8,8 @@ use serde_json::{Value, json};
 use tower::ServiceExt;
 use uuid::Uuid;
 
-use crate::session::{agent_binding, message};
+use crate::gateway::api::handlers::session::shared::with_tenant_instance;
+use crate::session::{agent_binding, message, ui_store};
 use message::{Info as MessageInfo, Part, WithParts};
 use vw_api_transport::id::TenantScope;
 

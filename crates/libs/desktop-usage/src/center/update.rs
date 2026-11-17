@@ -45,6 +45,37 @@ fn update_event(input: &mut Input<'_>, event: Event) -> Task<Event> {
     let visible = input.visible;
     let client = input.client;
     match event {
+        Event::Sync => { state.sync_requested = true; update(input, Event::Scan(scan::Event::Open)) }
+        Event::TodayRefresh => {
+            state.today = None;
+            state.today_sequence = state.today_sequence.wrapping_add(1);
+            let ticket = state.today_sequence;
+            let Some(scope) = current else { return Task::none(); };
+            Task::perform(async move {
+                let result = async {
+                    let range = super::range_picker::Preset::Today.resolve(chrono::Local::now())?;
+                    let client = gateway_usage_read::GatewayUsageReadClient::new(client()?.transport().clone());
+                    client.usage_summary(&gateway_usage_read::UsageReadScope {
+                        project_id: scope.project.clone().into(), target_host: scope.host.clone(), time_zone: "UTC".into(),
+                    }, &vw_api_usage::UsageQuery { range, ..super::overview::default_query() }).await.map_err(|e| e.to_string())
+                }.await;
+                (scope, result)
+            }, move |(scope, result)| Event::TodayLoaded(ticket, scope, result))
+        }
+        Event::TodayLoaded(ticket, scope, result) => {
+            if state.today_sequence == ticket && current.as_ref() == Some(&scope) {
+                state.today = result.ok().map(|summary| (scope, summary));
+            }
+            Task::none()
+        }
+        Event::Tab(tab) => { state.tab = tab; Task::none() }
+        Event::Hero(event) => { super::hero::update(&mut state.hero, event); state.charts.metric = state.hero.metric; Task::none() }
+        Event::Range(event) => {
+            if let Some(range) = state.range_picker.update(event, &state.query.range) {
+                state.query.range = range;
+                update(input, Event::Refresh)
+            } else { Task::none() }
+        }
         Event::Display(display::Event::Feedback(success, message))
         | Event::Pricing(pricing::Event::Feedback(success, message))
         | Event::Scan(scan::Event::Feedback(success, message)) => {
@@ -56,20 +87,32 @@ fn update_event(input: &mut Input<'_>, event: Event) -> Task<Event> {
             Task::none()
         }
         Event::Display(event) => {
-            display::update(&mut state.display, current, visible, client(), event)
-                .map(display_outcome)
+            let task = display::update(&mut state.display, current, visible, client(), event).map(display_outcome);
+            state.charts.line = state.display.preferences().area;
+            task
         }
         Event::Pricing(event) => {
             pricing::update(&mut state.pricing, current, visible, client(), event)
                 .map(pricing_outcome)
         }
         Event::Scan(event) => {
-            scan::update(&mut state.scan, current, client(), event).map(scan_outcome)
+            let synced_settings = matches!(&event, scan::Event::Done(_, scope, Ok(scan::Reply::Settings(..))) if current.as_ref() == Some(scope));
+            let failed_settings = matches!(&event, scan::Event::Done(_, _, Err(_)));
+            let task = scan::update(&mut state.scan, current, client(), event).map(scan_outcome);
+            if failed_settings { state.sync_requested = false; }
+            if synced_settings && state.sync_requested && !state.scan.pending {
+                state.sync_requested = false;
+                Task::batch([task, Task::done(Event::Scan(scan::Event::Run(scan::Action::Sync)))])
+            } else { task }
         }
         Event::Models(event) => {
             models::update(&mut state.models, current, client, event).map(Event::Models)
         }
         Event::Charts(event) => {
+            if let charts::Event::Metric(metric) = &event { state.hero.metric = *metric; }
+            if let charts::Event::Line(line) = &event {
+                return update(input, Event::Display(display::Event::Trend(*line)));
+            }
             charts::update(&mut state.charts, current, visible, state.open, state.sequence, event)
                 .map(Event::Charts)
         }
@@ -94,6 +137,7 @@ fn update_event(input: &mut Input<'_>, event: Event) -> Task<Event> {
         Event::Load(all) => {
             state.open = true;
             state.range(all);
+            state.range_picker.preset = Some(if all { super::range_picker::Preset::All } else { super::range_picker::Preset::Day });
             update(input, Event::Refresh)
         }
         Event::ActivityChanged => Task::none(),
@@ -152,6 +196,7 @@ fn update_event(input: &mut Input<'_>, event: Event) -> Task<Event> {
         }
         Event::Refresh => {
             if !visible || !state.open { return Task::none(); }
+            if let Ok(range) = state.range_picker.refresh_range(&state.query.range) { state.query.range = range; }
             state.scope = current.clone();
             state.status_pending = false;
             let query = state.query.clone();
@@ -201,6 +246,8 @@ pub fn update(input: &mut Input<'_>, event: Event) -> Task<Event> {
     if scope_changed {
         let reopen = input.state.open;
         input.state.close();
+        input.state.today = None;
+        input.state.today_sequence = input.state.today_sequence.wrapping_add(1);
         input.state.scope = input.current.clone();
         input.state.scan = scan::State::default();
         input.state.logs = logs::State::default();

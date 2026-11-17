@@ -3,6 +3,12 @@ use crate::Identity;
 use gateway_usage_read::UsageSummary;
 #[derive(Clone, Debug)]
 pub enum Event {
+    TodayRefresh,
+    Sync,
+    TodayLoaded(u64, Identity, Result<UsageSummary, String>),
+    Tab(super::state::DetailTab),
+    Hero(super::hero::Event),
+    Range(super::range_picker::Event),
     Load(bool),
     Refresh,
     Display(display::Event),

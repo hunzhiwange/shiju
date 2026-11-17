@@ -62,6 +62,7 @@ pub(crate) fn view(app: &App) -> Element<'_, Message> {
                 .on_press(message(AppsCatalogMessage::Navigate(page))),
         );
     }
+    resources = resources.push(crate::app::views::usage::center::entry(app));
     let selected = state.expanded;
     let body: Element<'_, Message> = match state.third_party_page {
         ThirdPartyPage::Agents => {

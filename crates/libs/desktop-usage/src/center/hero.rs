@@ -36,9 +36,13 @@ pub fn update(state: &mut State, event: Event) {
     match event { Event::Select(metric) => state.metric = metric, Event::ToggleDetails => state.expanded = !state.expanded }
 }
 pub fn view<'a>(state: &State, summary: Option<&UsageSummary>, loading: bool) -> Element<'a, Event> {
+    view_with_cost(state, summary, loading, None)
+}
+pub fn view_with_cost<'a>(state: &State, summary: Option<&UsageSummary>, loading: bool, cost: Option<&str>) -> Element<'a, Event> {
     let mut cells = row![].spacing(0);
     for metric in Metric::ALL {
         let value = if loading { "…".into() } else if summary.is_none_or(|s| s.counts.total_requests == 0) { "—".into() }
+            else if metric == Metric::Cost { cost.map(str::to_owned).unwrap_or_else(|| metric.format(summary.and_then(|s| metric.value(s)))) }
             else { metric.format(summary.and_then(|s| metric.value(s))) };
         let selected = state.metric == metric;
         let cell = column![text(metric.label()).size(12), text(value).size(24),

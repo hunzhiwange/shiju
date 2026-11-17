@@ -49,7 +49,7 @@ impl std::fmt::Display for ScopeOption {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result { f.write_str(&self.label) }
 }
 pub fn view(query: &UsageQuery) -> Element<'_, Change> { view_with_options(query, &[]) }
-pub fn view_with_options<'a>(query: &'a UsageQuery, options: &'a [ScopeOption]) -> Element<'a, Change> {
+pub fn view_with_options<'a>(query: &'a UsageQuery, options: &[ScopeOption]) -> Element<'a, Change> {
     let action = |label: &'static str, change| button(text(label).size(13)).padding([6,10]).style(rounded_action_btn_style).on_press(change);
     let mut apps = row![action("全部应用", Change::App(String::new()))].spacing(4);
     for (id, label) in APPS {

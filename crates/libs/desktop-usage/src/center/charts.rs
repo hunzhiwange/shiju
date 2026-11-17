@@ -147,6 +147,10 @@ fn chart(series: &UsageSeries, heatmap: bool, metric: Metric, line: bool) -> Ele
 pub fn view(state: &State) -> Element<'_, Event> { view_metric(state, state.metric) }
 /// Center integration can supply the hero selection without reloading server buckets.
 pub fn view_metric(state: &State, metric: Metric) -> Element<'_, Event> {
+    view_range(state, metric, None)
+}
+/// The global page chooses heatmap for all time and trend for shorter ranges.
+pub fn view_range(state: &State, metric: Metric, all: Option<bool>) -> Element<'_, Event> {
     let mut controls = row![].spacing(8);
     for item in Metric::ALL { controls = controls.push(button(text(item.label()).size(12)).padding([6,10]).style(rounded_action_btn_style).on_press(Event::Metric(item))); }
     controls = controls.push(button(text(if state.line { "切换柱状图" } else { "切换折线图" }).size(12)).padding([6,10]).style(rounded_action_btn_style).on_press(Event::Line(!state.line)));
@@ -155,9 +159,18 @@ pub fn view_metric(state: &State, metric: Metric) -> Element<'_, Event> {
     match &state.result {
         None => body.push(text("请选择用量范围")).into(),
         Some(Err(error)) => body.push(text(format!("图表加载失败：{error}"))).into(),
-        Some(Ok((trend, heatmap))) => body.push(text(format!("{}趋势 · {:?} · UTC",metric.label(),trend.interval)).size(12))
-            .push(chart(trend,false,metric,state.line)).push(text(format!("每日热力图 · {}",metric.label())).size(12))
-            .push(chart(heatmap,true,metric,false)).push(text("少 ░ ▒ ▓ 多 · 悬停查看日期与数值；未知数据保留为空").size(11)).into(),
+        Some(Ok((trend, heatmap))) => {
+            let mut body = body;
+            if all != Some(true) {
+                body = body.push(text(format!("{}趋势 · {:?} · UTC", metric.label(), trend.interval)).size(12))
+                    .push(chart(trend, false, metric, state.line));
+            }
+            if all != Some(false) {
+                body = body.push(text(format!("每日热力图 · {}", metric.label())).size(12))
+                    .push(chart(heatmap, true, metric, false));
+            }
+            body.into()
+        },
     }
 }
 fn message(event: Event) -> Event { event }

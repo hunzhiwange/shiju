@@ -44,16 +44,13 @@ mod tests;
 /// // 将 element 返回给 iced 框架进行渲染
 /// ```
 pub fn view(app: &App) -> Element<'_, Message> {
-    // 从应用状态中提取使用数据
     let usage_data = data::from_app(app);
-    // 使用提取的数据构建完整的使用统计视图布局
-    let content: Element<'_, Message> = iced::widget::column![
-        center::view(app),
-        external_usage_entry(),
-        layout::build_usage_view(app, &usage_data),
-    ]
-    .spacing(8)
-    .into();
+    let content: Element<'_, Message> = if app.usage_center.open {
+        center::view(app)
+    } else {
+        iced::widget::column![center::view(app), external_usage_entry(), layout::build_usage_view(app, &usage_data)]
+            .spacing(8).into()
+    };
     if let Some(modal) = raw_modal::view(app) {
         iced::widget::stack![content, modal].into()
     } else {

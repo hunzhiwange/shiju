@@ -6,7 +6,11 @@ fn fixture() -> (ControlHost, SessionTicket, ComputerControlRequest) {
     let user = format!("uid:{}", unsafe { libc::geteuid() });
     let mut policy = ComputerControlPolicy::new(ComputerControlConfig::default());
     policy.set_enabled(&user, ControlFeature::NativeApps, true).unwrap();
-    let host = ControlHost::new(Arc::new(RwLock::new(policy)), Arc::new(AtomicBool::new(false)));
+    // Lifecycle authorization is independent of the host desktop lock state.
+    let host = ControlHost::new_with_lock_state(
+        Arc::new(RwLock::new(policy)),
+        crate::native::locked_session::LockState::Unlocked,
+    );
     let target = ComputerControlTarget::NativeApp {
         bundle_id: "com.apple.TextEdit".into(), process_id: 10,
     };

@@ -937,3 +937,17 @@ Rust重型命令经scripts/cargo_slot.py槽位入口串行执行，对应CARGO_T
 - 本机默认 ~/.snowflake 不存在，SNOWFLAKE_/CORTEX_ 环境变量数量0；只核对存在性与变量名，未读取或记录凭据。当前真实外部前置为获授权且可用的Snowflake连接；此条件即使补齐，也仍需证明指定Alibaba模型能保持完整绑定，不能用Snowflake默认模型冒充。安全替代路径已覆盖官方校验发行物、原生参数/环境选模及ACP直连诊断；没有注册账号、伪造认证、重定向身份服务或替换引擎。
 - 两个自有探针PID已退出，原自有网关51431端口仍关闭，无新增网关、系统安装、宿主Snowflake配置或配置PATCH。Rue.js与上一轮结束快照比较仍6297项、0差异；无目标产物。当前仅文档变化，未运行Cargo或页面测试。任务保持已阻塞，保留任务文件。
 - 新私有证据 `/tmp/shiju-cortex-retry-20261118/`：官方脚本、版本、manifest、校验后的发行包、CLI帮助、原生协议请求/响应/错误、退出指标、目录边界和清理记录。供应商二进制及原始载荷不提交。
+
+
+## Corust Agent 验收（2026-11-18）
+
+结论：已阻塞，未通过。来源任务 `11-Corust-Agent.md` 与 `docs/dev/evidence/acp-onboarding-corust-agent.md` 均不存在。任务31已明确记录阻塞并完成清理，未争用其网关。
+
+- 当前注册位于 `crates/libs/acp-agent-registry/src/agent_registry.rs`，命令 `corust-agent-acp`、空参数；旧路径已迁移。`config-acp-install/src/lib.rs:59–61` 明确返回None，`llm-runtime/src/acp/model_source/drivers/mod.rs` 无Corust已验证版本和驱动；`agent-config/src/catalog.rs` 派生内置预设。现有onboarding测试使用Python协议fixture，不能证明真实CLI或指定模型成功，未据此宣称通过。
+- 复用任务30正式shiju 0.6.0产物 `/tmp/shiju-amp-complete-20261118/shiju`，SHA-256 `c01a466afc21a06e643db6341457e404981f06833833c6c327e7a02774758b78`，构建来源为 `df9f114345adf4f843a0929e88750cb48122ba22` 加当时工作区修复；未宣称当前clean HEAD构建。当前相关源码摘要存私有证据，拒绝行为与当前源码一致，不单凭旧产物判定实现失败。
+- 新建自有回环网关，使用现有开发配置。全部HTTP请求携带指定平台10001、公司100010005与Rue.js目录头；安装、预设、ACP配置及全局配置基线GET均200。安装前后corust-agent均false；POST系统安装HTTP400、客户端退出0、耗时0.007392秒，明确“该 ACP 暂无一键安装命令，请使用官方安装器”。无实际入口或CLI版本可核验，未使用替代下载或shell安装。
+- 按接口传入对应ACP配置，诊断HTTP200、客户端退出0、0.068754秒，但响应为startup_failed。模型能力GET200、客户端退出0，session_model明确unsupported_cli，cli_local supported、connected=false。未用CLI默认模型替代指定 `alibaba-token-plan-cn/deepseek-v4.1-flash-1017`。
+- 本次GET确认 `acp-corust-agent` 的builtin=true、backend=corust-agent、enabled=false。安装与模型前置已阻塞，未临时启用、未PATCH、未提交chat/stream，无SSE、chat.done、会话绑定或完整文件创建证据。未取得selected_model、full_access或真实模型请求证明。
+- Rue.js源码 `packages/rue/src` 存在；目标 `acpdemo/corust-agent/` 初始不存在且结束未创建。排除.git、node_modules、target的普通文件SHA-256快照6297项、零差异。全局配置结束GET200，完整内容与基线相等；无需恢复写入。仅停止自有网关，退出0、端口关闭。
+- 未运行Cargo、单测、Clippy、页面构建、浏览器或创建后的额外回归；本轮无代码修改与行为修复，前置阻塞，仅文档轻量检查。旧 `.plans/references/rust.md` 不存在，本轮无需编译槽位。任务32保留已阻塞，待系统安装、真实session_model驱动和脱敏接入证据交付后完整重跑。
+- 本次私有证据 `/tmp/shiju-corust-accept-20261118/`，根目录0700，包含原始响应、指标、配置基线及重读、网关日志、构建与当前源码摘要、快照和清理记录；原始配置与敏感载荷不提交。首次基线连接早于网关就绪失败，网关就绪后重新读取成功，未重复提交创建任务。

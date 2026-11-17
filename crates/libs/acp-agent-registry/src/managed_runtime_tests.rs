@@ -88,3 +88,15 @@ fn deepagents_recoverable_host_errors_use_a_separate_reviewed_install() {
             .ends_with("deepagents-0.1.42-model-source-v2")
     );
 }
+
+#[test]
+fn harn_reviewed_natural_language_runtime_is_pinned() {
+    let contract = super::contract("harn").expect("Harn must have a reviewed runtime");
+    assert_eq!(contract.layout, "standalone");
+    assert_eq!(contract.version, "0.10.201");
+    assert!(contract.files.contains_key("harn"));
+    assert!(contract.files.contains_key("agent.harn"));
+    let directory = tempfile::tempdir().unwrap();
+    std::fs::write(directory.path().join("harn"), "tampered").unwrap();
+    assert!(super::verify(directory.path(), &contract).is_err());
+}

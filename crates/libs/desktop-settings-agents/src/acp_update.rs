@@ -118,7 +118,7 @@ pub fn update(app: &mut Update, message: AcpMessage) -> Task<Message> {
             if app.state.installing_agent.is_some() {
                 return Task::none();
             }
-            if config_acp_install::acp_install_command(&agent).is_none() {
+            if !config_acp_install::acp_install_supported(&agent) {
                 return app.show_error_toast("该 ACP 暂无一键安装命令，请使用官方安装器");
             }
             app.state.installing_agent = Some(agent.clone());

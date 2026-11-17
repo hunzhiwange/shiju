@@ -24,6 +24,36 @@ def check_files(root, files):
         if digest(root / name) != expected:
             raise RuntimeError('Reviewed artifact checksum mismatch: ' + name)
 
+if agent == 'harn':
+    import platform
+    if (platform.system(), platform.machine()) != ('Darwin', 'arm64'):
+        raise RuntimeError('Harn reviewed runtime is Darwin-arm64 only')
+    archive = assets / 'harn.tar.gz'
+    with urllib.request.urlopen(contract['artifact_url'], timeout=120) as response, archive.open('wb') as output:
+        shutil.copyfileobj(response, output)
+    if digest(archive) != contract['archive_sha256']:
+        raise RuntimeError('Harn fixed archive checksum mismatch')
+    runtime.mkdir()
+    with tarfile.open(archive) as package:
+        for member in package.getmembers():
+            path = Path(member.name)
+            # The fixed supplier archive includes two optional aliases to harn.
+            # They are not used by this runtime; never materialize archive links.
+            if member.issym() and member.name in ('harn-dap', 'harn-lsp') and member.linkname == 'harn':
+                continue
+            if path.is_absolute() or '..' in path.parts or not (member.isfile() or member.isdir()):
+                raise RuntimeError('Unsafe Harn archive entry')
+            if member.isfile():
+                destination = runtime / path
+                destination.parent.mkdir(parents=True, exist_ok=True)
+                destination.write_bytes(package.extractfile(member).read())
+    (runtime / 'harn').rename(runtime / 'harn-native')
+    (runtime / 'harn-native').chmod(0o700)
+    shutil.copy2(assets / 'harn/launcher.py', runtime / 'harn')
+    (runtime / 'harn').chmod(0o700)
+    shutil.copy2(assets / 'harn/agent.harn', runtime / 'agent.harn')
+    check_files(runtime, contract['files'])
+    raise SystemExit(0)
 if agent == 'trae':
     import platform
     if (platform.system(), platform.machine()) != ('Darwin', 'arm64'):

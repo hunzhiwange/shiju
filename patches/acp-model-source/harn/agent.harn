@@ -1,0 +1,29 @@
+// Natural-language ACP entry for the pinned Harn runtime. All effects retain
+// Harn's capability checks and ACP permission handling; no process tool is exposed.
+import { agent_loop } from "std/agent/loop"
+import { AgentSpec } from "std/agent/options"
+
+pipeline default(harness: Harness) {
+  let tools = tool_registry()
+  tools = tool_define(tools, "read_file", "Read a UTF-8 workspace file", {
+    parameters: {path: {type: "string"}},
+    handler: { args -> harness.tools.invoke("read_file", {path: args.path}) },
+  })
+  tools = tool_define(tools, "write_file", "Write a complete UTF-8 workspace file, creating parent directories", {
+    parameters: {path: {type: "string"}, content: {type: "string"}},
+    handler: { args ->
+      harness.tools.invoke("write_file", {path: args.path, content: args.content})
+      return "File written"
+    },
+  })
+  const options: AgentSpec = {
+    tools: tools,
+    tool_format: "native",
+    tool_format_override_reason: "The host selected a tool-capable OpenAI chat route; the private relay validates its tool contract.",
+    loop_until_done: true,
+    max_iterations: 80,
+  }
+  const result = agent_loop(harness, prompt, "Complete the user's request using workspace file tools. Respect the requested file boundaries. Inspect existing source before editing. Report failures honestly. Do not run tests or commands unless requested.", options)
+  harness.stdio.println(result.visible_text)
+  require result.status == "done", "Harn agent did not complete: " + result.status
+}

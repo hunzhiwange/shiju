@@ -1007,3 +1007,22 @@ Rust重型命令经scripts/cargo_slot.py槽位入口串行执行，对应CARGO_T
 - 本轮确认新的实质前置：需要可审查、兼容自然语言请求的Harn agent pipeline/上游入口，再补系统安装及session_model驱动并验证真实请求。未把缺少宿主Harn认证当作已证实根因；选模接受后的编译失败发生在供应商调用之前。兼容pipeline尚未交付，当前继续保留阻塞；完整请求及模型绑定仍需后续端到端验收。
 - 所有自有原生探针已退出（overlay探针关闭stdin后未自然退出，5秒后仅终止自有进程，退出-15；其他探针退出0）。未新增网关、未PATCH全局配置，旧57877端口仍关闭。原生进程在Rue.js目标目录外创建9项`.harn`数据库及锁文件；已逐项确认此前不存在、摘要未变化后移至私有证据，移除新建空目录，恢复原6297项快照，无目标产物。未删除其他文件或宣称执行期间无越界。
 - 私有证据 `/tmp/shiju-harn-retry-20261118/`（0700）保存发行API与校验包、文档、原生请求/响应和退出指标、上游源码、运行文件与恢复记录。无本仓库代码变更，未运行Cargo、单测、Clippy或页面测试；文档轻量检查。不提交供应商包、完整配置或原始载荷。
+
+
+### Harn 实现补齐与最终实机验收（2026-11-18）
+
+结论：最终编辑器文件创建验收通过。保留前述失败记录；原请求创建5项文件后因轮次预算失败，修复后通过显式补全会话完成全部6项文件，不宣称首次请求一次通过。
+
+- 在本任务的扩围授权内补齐实现：固定官方Harn 0.10.201 Darwin arm64发行物、摘要校验安装、原生 `std/agent/loop` 自然语言pipeline、私有会话模型overlay，以及将宿主工具调用转成标准ACP文件读写的传输适配。推理与agent循环仍由官方Harn执行，工厂key保持harn。普通引擎内fs写入曾绕开宿主回调，已改为仅经宿主文件接口；未开放进程工具或放宽宿主审批。
+- 官方gzip发行包SHA-256 `332a7a94162e8c9d3345bbc34fcc6e1043e952b707f1ba44ba79fceb2c21a414`；系统安装校验原生二进制、launcher及pipeline，保留许可证。只跳过官方包中指向harn的两个未使用DAP/LSP别名，不提取链接；其他链接仍拒绝。仅已验证的Darwin arm64提供此管理安装，CLI-local模型来源明确不支持。
+- 正式CLI为shiju 0.6.0，最终二进制SHA-256 `245d9857ee0005fba1936d1a8bea31719406ef6c550bfe0cc53cb46115ce130e`。构建来源为f0d2a6d56a43ea6d1ff2673ebea254db698dd2fa附近共享工作区加本任务实现，使用Cargo槽位11 `cargo build -p vw-cli --bin shiju`；不宣称clean HEAD构建。使用复制后的自有二进制运行网关，未重启用户服务或占用槽位产物运行。
+- 所有HTTP请求保留平台10001、公司100010005和Rue.js目录头。新安装HTTP200（实际下载安装15.250594秒；后续校验重读安装200），安装状态从false变true；真实入口是管理runtime中的harn launcher，官方引擎 `harn-native --version` 为0.10.201。普通诊断HTTP200但结果authentication_required，单独记录，未把它算作诊断通过。实际session_model初始化、选模及模型调用另有成功证据。
+- 内置acp-harn的builtin=true、backend=harn；临时PATCH enabled=true并GET确认保存。最初没有显式acp-harn覆写，API拒绝删除builtin条目，已恢复enabled=false并重读确认有效预设与原始基线一致，保留显式disabled覆写。最终补全会话各自结束时完整配置与会前基线相等，其他预设和默认配置未改写。
+- 首次真实调用揭示客户端旧session/set_model与Harn当前协议不匹配；已专门使用session/set_config_option(model)并要求返回值精确确认，不做失败回退。模型relay凭据只授予Harn进程内调用，子命令和MCP进程不继承；overlay、pipeline及运行状态放入请求私有目录，拒绝外部启动参数、环境及项目供应商覆写。
+- 原创建请求300秒超时后，先调查状态，再按源码确认的接口用同一请求ID及Last-Event-ID续传，没有重复创建任务。续传最终记录budget_exhausted及5项部分文件。新增原生回归复现40轮上限问题后，将pipeline上限调整为80，并证明超过40轮读取仍可经宿主完成写入。旧原生会话跨网关重启恢复返回unknown session，未自动替换；该恢复路径未验收通过，保留限制。
+- 已保留部分产物，显式新建同模型、同后端补全会话 `ses_1eb8e9a8c001trQR138CGlci3R`：HTTP200、客户端退出0、100.001998秒，chat.done且无chat.error，实际补README并修复250ms保存防抖导致的立即刷新丢稿风险。静态复核又发现README的workspace filter不匹配，最终会话 `ses_1eb937736001SbYKa1LXS8gE5L` 由Harn工具修正说明：HTTP200、客户端退出0、99.168283秒，chat.done且无chat.error。
+- 两次成功会话均查询执行中及结束后的summary/options；执行中connected=true，绑定agent=acp-harn、backend=harn、full_access=true；selected_model.source=session_model、provider_id=alibaba-token-plan-cn、model完整为 `alibaba-token-plan-cn/deepseek-v4.1-flash-1017`。权限状态如实为client_only，未宣称原生免审批。结束后连接释放时connected=false，保留原selected_model，不将其描述为仍有活动连接。
+- 最终产物：`acpdemo/harn/index.html`、`package.json`、`vite.config.ts`、`src/main.tsx`、`src/style.css`、`README.md`。9条成功Harn写工具记录覆盖全部6个文件。静态核对本仓库@rue-js/rue导入、指向源码的Vite aliases及其真实文件、textarea输入、computed实时计数、localStorage读取恢复与每次输入同步保存；README使用 `pnpm --dir acpdemo/harn dev`，没有修改workspace列表。未运行页面构建、浏览器、物理刷新或创建后的页面回归，不宣称这些行为已实测。
+- Rue.js普通文件快照从6297项到6303项，最终差异仅上述6个目标文件。Harn期间新建的`.burin/index/snapshot.bin`与`.harn-tmp/.gitignore`已保留到私有证据并移除新建空目录，不宣称执行期间没有运行缓存。自有网关全部退出0、端口关闭，无残留Harn进程；未删除他人改动或提交Rue.js工作区。
+- 聚焦验证：7项Rust测试（注册1、配置2、模型驱动2、确认选模2）和6项Python/原生测试（自然语言1、宿主读写/拒绝/40轮预算3、安装档案2）通过，均有有效测试数及红绿证据。acp-client定向Clippy通过。受影响库Clippy仍有既有失败：首次依赖agent-log的3项lint；--no-deps后llm-runtime已有101项lint，未涉及新增Harn文件；未修复无关问题，也未宣称Clippy全通过。未运行全仓测试、桌面客户端编译、wasm或页面检查。
+- 私有证据 `/tmp/shiju-harn-complete-20261118/`、`/tmp/shiju-harn-retry-20261118/`（根目录0700）保存各轮请求/响应、SSE及续传、构建与版本、安装失败复现、模型绑定、产物SHA-256、前后快照、恢复与清理记录。原始配置、凭据、敏感载荷和供应商二进制均不提交。详见新增 `docs/dev/evidence/acp-onboarding-harn.md`。

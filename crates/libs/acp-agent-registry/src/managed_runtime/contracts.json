@@ -651,5 +651,18 @@
       "dist/shiju-session-model.mjs": "21cd7af09568a2a915fedc08d53a576f0df2badf7e7ff5b2979e2a1d47e3c76e"
     },
     "integrity": "sha512-krb6SLYHdGnafeipKrM7PlHWSv1iiC93g9zEXAcnOC8MKO5kX8NOd1/UCu9omCDXdCCbz3nfr86XDx6pdkAwjw=="
+  },
+  "harn": {
+    "layout": "standalone",
+    "package": "harn-cli",
+    "version": "0.10.201",
+    "bin": "harn",
+    "artifact_url": "https://github.com/burin-labs/harn/releases/download/v0.10.201/harn-aarch64-apple-darwin.tar.gz",
+    "archive_sha256": "332a7a94162e8c9d3345bbc34fcc6e1043e952b707f1ba44ba79fceb2c21a414",
+    "files": {
+      "agent.harn": "de190de7489ebfdf5928fe76335d10e54c1832e0e0c052b019eb111a5e44df0c",
+      "harn-native": "23c951212c045c56deea491f9ce9505b8298472daa862334b33413ea31dcdcca",
+      "harn": "e6b82965c671d0da8aca94f37100da99f1d9589f8f38c871cd6aaf7f5631d9fa"
+    }
   }
 }

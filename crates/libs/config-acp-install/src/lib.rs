@@ -62,9 +62,8 @@ pub fn acp_install_command_for_platform(
         // Discover the official host CLI. No pinned, checksum-reviewed distribution
         // is registered here; never install a guessed npm package or moving script.
         "devin" => return None,
-        // Harn publishes native archives (official registry v0.10.201), without
-        // archive checksums in its manifest. Discover an operator-installed harn;
-        // never substitute a same-name npm package or an unreviewed installer.
+        // Harn uses the separately reviewed native distribution and pipeline on
+        // Darwin arm64. There is no shell fallback on other platforms.
         "harn" => return None,
         // JetBrains documents native installers, but no pinned/checksum-reviewed
         // distribution is registered. Discover the operator-installed Junie CLI.
@@ -204,6 +203,13 @@ fn official_installer(
         )),
         _ => None,
     }
+}
+
+/// Managed native distributions do not have a shell installation command.
+/// Keep their platform support explicit while using the same system install endpoint.
+pub fn acp_install_supported(agent: &str) -> bool {
+    (agent == "harn" && cfg!(all(target_os = "macos", target_arch = "aarch64")))
+        || acp_install_command(agent).is_some()
 }
 
 #[cfg(test)]

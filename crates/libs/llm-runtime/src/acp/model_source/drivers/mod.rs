@@ -1,5 +1,6 @@
 use super::profile::AcpLaunchProfile;
 pub mod amp_acp;
+pub mod harn;
 pub mod auggie;
 pub mod autohand;
 #[cfg(test)]
@@ -48,6 +49,7 @@ pub fn capabilities(
     let patched = matches!(
         agent,
         "nova"
+            | "harn"
             | "deepagents"
             | "amp-acp"
             | "sigit"
@@ -76,7 +78,7 @@ pub fn capabilities(
         } else {
             Capability::Unsupported { source: Source::SessionModel, reason: Reason::UnsupportedCli }
         },
-        if agent == "amp-acp" {
+        if matches!(agent, "amp-acp" | "harn") {
             Capability::Unsupported { source: Source::CliLocal, reason: Reason::UnsupportedCli }
         } else {
             Capability::Supported { source: Source::CliLocal }
@@ -113,6 +115,7 @@ pub fn verified_release(agent: &str) -> Option<&'static str> {
         "amp-acp" => "0.12.0 (Amp 0.0.1778732631-gc5875c; reviewed local ThreadWorker)",
         "sigit" => "1.7.10 (reviewed host boundary)",
         "dirac" => "0.5.24",
+        "harn" => "0.10.201",
         "snow" => "0.9.14",
         "copilot" => "1.0.105",
         "kilocode" => "7.8.18",
@@ -134,7 +137,7 @@ pub fn source_protocol(
         "nova" | "amp-acp" | "claude" => P::Messages,
         "codex" | "kiro" => P::Responses,
         "gemini" => P::Gemini,
-        "grok" | "dimcode" | "deepagents" | "autohand" | "sigit" | "glm-acp-agent" | "dirac" | "auggie" | "cursor" | "droid"
+        "harn" | "grok" | "dimcode" | "deepagents" | "autohand" | "sigit" | "glm-acp-agent" | "dirac" | "auggie" | "cursor" | "droid"
         | "codebuddy" | "goose" | "hermes" | "iflow" | "kilocode" | "openclaw" | "pi" | "qoder"
         | "qwen" | "trae" => P::Chat,
         "opencode" => model_transport::routing_selection::client_protocol(api)
@@ -200,6 +203,7 @@ pub fn configure(
     launch_route(agent, profile)?;
     match agent {
         "amp-acp" => amp_acp::configure(profile, endpoint),
+        "harn" => harn::configure(profile, endpoint, directory),
         "auggie" => auggie::configure(profile, endpoint),
         "autohand" => autohand::configure(profile, endpoint),
         "deepagents" => deepagents::configure(profile, endpoint, directory),
@@ -245,3 +249,7 @@ mod dimcode_tests;
 #[cfg(test)]
 #[path = "nova_tests.rs"]
 mod nova_tests;
+
+#[cfg(test)]
+#[path = "harn_tests.rs"]
+mod harn_tests;

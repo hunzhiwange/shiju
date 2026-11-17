@@ -222,3 +222,7 @@ pub struct AcpClient {
 mod tests;
 
 pub use lifecycle::ConnectionDiagnostic;
+
+#[cfg(test)]
+#[path = "client/harn_tests.rs"]
+mod harn_tests;

@@ -2,7 +2,7 @@
 use gateway_types::ApiError;
 use axum::{Json, extract::Path};
 use std::sync::atomic::{AtomicBool, Ordering};
-use config_acp_install::acp_install_command;
+use config_acp_install::acp_install_supported;
 
 static INSTALLING: AtomicBool = AtomicBool::new(false);
 struct InstallGuard;
@@ -13,7 +13,7 @@ impl Drop for InstallGuard {
 }
 
 pub(super) async fn install_post(Path(agent): Path<String>) -> Result<Json<String>, ApiError> {
-    if acp_install_command(&agent).is_none() {
+    if !acp_install_supported(&agent) {
         return Err(ApiError::bad_request("该 ACP 暂无一键安装命令，请使用官方安装器"));
     }
     if INSTALLING.compare_exchange(false, true, Ordering::AcqRel, Ordering::Acquire).is_err() {

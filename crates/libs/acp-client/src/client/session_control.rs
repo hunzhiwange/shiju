@@ -137,6 +137,14 @@ impl AcpClient {
             &runtime.expected_session_id,
         )
         .await?;
+        if self.agent_name == "harn" {
+            // Harn 0.10.201 exposes its model pin through the standard config
+            // surface, not the legacy session/set_model method. Require readback.
+            self.confirmed_config_control(&runtime.conn, &session_id, "model", &model)
+                .await?;
+            self.store_reusable_session(Some(session_id));
+            return Ok(());
+        }
         if self.agent_name == "nova" {
             let state = self.actor_state.lock();
             let advertised = state

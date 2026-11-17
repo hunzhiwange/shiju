@@ -264,3 +264,10 @@ fn acp_onboarding_omp_installer_contract() {
     }
     assert!(acp_install_command("omp; echo unsafe").is_none());
 }
+
+#[test]
+fn harn_managed_installer_has_explicit_platform_support_without_shell_fallback() {
+    assert_eq!(super::acp_install_supported("harn"), cfg!(all(target_os = "macos", target_arch = "aarch64")));
+    assert!(super::acp_install_command("harn").is_none());
+    assert!(!super::acp_install_supported("unknown-custom"));
+}

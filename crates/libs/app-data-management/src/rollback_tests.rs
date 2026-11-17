@@ -10,6 +10,8 @@ use {
 fn exercise(fail_restore: bool) {
     let root = tempfile::tempdir().unwrap();
     fs::set_permissions(root.path(), fs::Permissions::from_mode(0o700)).unwrap();
+    // Storage rejects symlinks in every path component, including macOS temp aliases.
+    let storage_root = root.path().canonicalize().unwrap();
     let scope = SourceScope::new(
         ProjectScope::new(TenantScope::new("fixture", "company").unwrap(), ProjectId::from("project")).unwrap(),
         "host".into(), "user".into(),
@@ -21,7 +23,7 @@ fn exercise(fail_restore: bool) {
         SnapshotTarget { category: SnapshotCategory::Provider, object_id: "owner-provider".into() },
         SnapshotTarget { category: SnapshotCategory::Profile, object_id: "owner-profile".into() },
     ];
-    let receipt = create_safety_snapshot(root.path(), &SafetySnapshotScope {
+    let receipt = create_safety_snapshot(&storage_root, &SafetySnapshotScope {
         project: scope.project().clone(), host_id: "host".into(), principal_id: "user".into(),
     }, &targets, || Ok(targets.iter().map(|target| OwnerPreimage {
         target: target.clone(), state: Some(PresentPreimage { revision: "0".into(), bytes: b"old".to_vec() }),
@@ -35,7 +37,7 @@ fn exercise(fail_restore: bool) {
         INSERT INTO provider VALUES ('owned', 'old', 0);
         INSERT INTO profile VALUES ('owned', 'old', 0);").unwrap();
     let mut recovery_order = Vec::new();
-    let report = apply_with_rollback(root.path(), &receipt, &scope, &source, &summary,
+    let report = apply_with_rollback(&storage_root, &receipt, &scope, &source, &summary,
         &[SourceCategory::Providers, SourceCategory::Profiles], &targets,
         |category| {
             let table = match category { SourceCategory::Providers => "provider", SourceCategory::Profiles => "profile", _ => panic!() };

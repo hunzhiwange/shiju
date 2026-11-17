@@ -1,9 +1,4 @@
-use super::{auth_router as agent_apps_auth_read, agent_apps_auth_start::Runtime};
-use {
-    agent_app_services::auth_accounts::AuthAccountScope,
-    app_provider_services::AppProviderStore,
-    agent_database::{GlobalDatabase, run_sync_database, test_support::PostgresTestDatabase},
-};
+use super::{agent_apps_auth_start::Runtime, auth_router as agent_apps_auth_read};
 use axum::{Extension, Form, Json, Router, extract::State, routing::post};
 use base64::{Engine as _, engine::general_purpose::URL_SAFE_NO_PAD};
 use serde_json::{Value, json};
@@ -12,7 +7,6 @@ use std::{
     fs,
     net::SocketAddr,
     os::unix::fs::PermissionsExt,
-    path::Path,
     sync::{Arc, Mutex},
     time::Duration,
 };
@@ -22,19 +16,25 @@ use vw_agent_apps::{
     providers::codex_catalog,
 };
 use {
-    vw_api_app_auth::AuthCredentialState,
-    vw_api_app_auth::AuthErrorCode,
-    vw_api_app_auth::AuthFlow,
-    vw_api_app_auth::AuthFlowId,
-    vw_api_app_auth::AuthLoginMethod,
-    vw_api_app_auth::AuthService,
-    vw_api_app_auth::AuthStartRequest,
-    vw_api_app_auth::AuthStartResponse,
-    vw_api_transport::id::TenantScope,
+    agent_app_services::auth_accounts::AuthAccountScope,
+    agent_database::{GlobalDatabase, run_sync_database, test_support::PostgresTestDatabase},
+    app_provider_services::AppProviderStore,
 };
-use {gateway_endpoint::{GatewayEndpoint}, {gateway_app_auth::AgentAppsAuthCredentials, gateway_app_auth::AgentAppsAuthError, gateway_app_auth::AgentAppsAuthLogout, vw_gateway_client::GatewayClient}};
+use {
+    gateway_endpoint::GatewayEndpoint,
+    {
+        gateway_app_auth::AgentAppsAuthCredentials, gateway_app_auth::AgentAppsAuthError,
+        gateway_app_auth::AgentAppsAuthLogout, vw_gateway_client::GatewayClient,
+    },
+};
+use {
+    vw_api_app_auth::AuthCredentialState, vw_api_app_auth::AuthErrorCode,
+    vw_api_app_auth::AuthFlow, vw_api_app_auth::AuthFlowId, vw_api_app_auth::AuthLoginMethod,
+    vw_api_app_auth::AuthService, vw_api_app_auth::AuthStartRequest,
+    vw_api_app_auth::AuthStartResponse, vw_api_transport::id::TenantScope,
+};
 
-const HOST: &str = "host";
+const HOST: &str = "desktop-local";
 const SERVICE: AuthService = AuthService::CodexOauth;
 const PROVIDER: &str = "official";
 const OWNER: AgentAppsAuthCredentials<'_> = AgentAppsAuthCredentials {
@@ -42,8 +42,6 @@ const OWNER: AgentAppsAuthCredentials<'_> = AgentAppsAuthCredentials {
     password: "secret",
     principal_token: "fixture-auth56-owner-token-aaaaaaaa",
 };
-const OTHER: AgentAppsAuthCredentials<'_> =
-    AgentAppsAuthCredentials { principal_token: "fixture-auth56-other-token-bbbbbbbb", ..OWNER };
 const INPUT: AuthStartRequest = AuthStartRequest {
     method: AuthLoginMethod::DeviceCode,
     github_domain: None,
@@ -171,34 +169,8 @@ impl Fixture {
         let fixture = Self { home: tempfile::tempdir()?, tenant: TenantScope::new("p", "c")? };
         let home = fixture.home.path();
         let root = fixture.root();
-        fs::create_dir(&root)?;
+        fs::create_dir_all(&root)?;
         fs::set_permissions(&root, fs::Permissions::from_mode(0o700))?;
-        let grant = |host| {
-            json!({
-                "platform_id":"p","company_id":"c","host_id":host,
-                "provider_config_read":true,"provider_config_write":true,
-                "auth_account_read":[SERVICE],"auth_flow_start":[SERVICE],
-                "auth_binding_write":[SERVICE],"auth_default_write":[SERVICE],
-                "auth_account_delete":[SERVICE],"auth_logout":[SERVICE]
-            })
-        };
-        let principal = |id, token: &str, grants| json!({"id":id,"token_sha256":hex::encode(Sha256::digest(token)),"grants":grants});
-        let host = |id, binding, root: &Path| {
-            json!({"id":id,"binding":binding,"online":true,"home":home,"applications":home,
-                "search_paths":[],"credential_root":root})
-        };
-        let policy = home.join("policy.json");
-        fs::write(
-            &policy,
-            serde_json::to_vec(&json!({
-                "principals":[
-                    principal("owner", OWNER.principal_token, vec![grant(HOST), grant("remote")]),
-                    principal("other", OTHER.principal_token, vec![grant(HOST)])
-                ],
-                "hosts":[host(HOST,"local",&root),host("remote","remote",&home.join("remote"))]
-            }))?,
-        )?;
-        fs::set_permissions(policy, fs::Permissions::from_mode(0o600))?;
         let profile = codex_catalog::import(
             Some(b"model_provider='openai'\nmodel='fixture-model'\n"),
             Some(b"{}"),
@@ -215,7 +187,12 @@ impl Fixture {
     }
 
     fn root(&self) -> std::path::PathBuf {
-        self.home.path().join("private")
+        let scope = serde_json::to_vec(&(
+            self.tenant.platform_id().as_ref(),
+            self.tenant.company_id().as_ref(),
+        ))
+        .unwrap();
+        agent_paths::paths().data.join("apps").join(hex::encode(Sha256::digest(scope)))
     }
 
     async fn serve(&self, database: GlobalDatabase, oauth: SocketAddr) -> anyhow::Result<Server> {
@@ -226,7 +203,7 @@ impl Fixture {
             agent_apps_auth_read::router_with_runtime(
                 Some(OWNER.password),
                 OWNER.username,
-                Some(self.home.path().join("policy.json")),
+                None,
                 Arc::new(runtime),
             ),
         )
@@ -240,7 +217,7 @@ impl Fixture {
             .read_managed_account(
                 AuthAccountScope {
                     tenant: &self.tenant,
-                    principal: "owner",
+                    principal: "desktop-local-user",
                     host: HOST,
                     service: SERVICE,
                 },
@@ -362,14 +339,15 @@ async fn reject(database: GlobalDatabase) -> anyhow::Result<()> {
     let gateway = fixture.serve(database, upstream.address).await?;
     let sdk = gateway.sdk(&fixture.tenant)?;
     assert_http(
-        sdk.agent_apps_auth_start("remote", SERVICE, &OWNER, &INPUT).await.unwrap_err(),
-        501,
-        AuthErrorCode::ExecutionChannelUnavailable,
+        sdk.agent_apps_auth_start("", SERVICE, &OWNER, &INPUT).await.unwrap_err(),
+        400,
+        AuthErrorCode::InvalidInput,
     );
     oauth.assert_requests(&[]);
     let flow = start(&sdk).await?;
+    let sibling = gateway.sdk(&TenantScope::new("p", "other")?)?;
     assert_http(
-        sdk.agent_apps_auth_cancel(HOST, SERVICE, &OTHER, &flow).await.unwrap_err(),
+        sibling.agent_apps_auth_cancel(HOST, SERVICE, &OWNER, &flow).await.unwrap_err(),
         404,
         AuthErrorCode::NotFound,
     );
@@ -383,37 +361,63 @@ async fn reject(database: GlobalDatabase) -> anyhow::Result<()> {
     oauth.assert_requests(&["start"]);
     assert!(sdk.agent_apps_auth_accounts(HOST, SERVICE, &OWNER).await?.is_empty());
     assert!(sdk.agent_apps_auth_bindings(HOST, SERVICE, None, &OWNER).await?.is_empty());
-    assert!(fs::read_dir(fixture.root())?.next().is_none());
+    assert!(!fixture.root().join(".managed-v1").exists());
     assert!(!fixture.home.path().join("remote").exists());
     gateway.stop().await;
     upstream.stop().await;
     Ok(())
 }
 
+// Runtime paths are process-global: initialize them in a child before any route runs.
+fn isolated(postgres: bool, rejects: bool) -> anyhow::Result<()> {
+    const CHILD: &str = "SHIJU_AUTH_INTEGRATION_CHILD";
+    if std::env::var_os(CHILD).is_some() {
+        let home = tempfile::tempdir()?;
+        let fixture = postgres.then(PostgresTestDatabase::from_environment).transpose()?;
+        let database = match &fixture {
+            Some(fixture) => fixture.database().clone(),
+            None => GlobalDatabase::for_home(home.path())?,
+        };
+        return tokio::runtime::Runtime::new()?.block_on(async {
+            if rejects {
+                reject(database).await
+            } else {
+                commit(database, || match &fixture {
+                    Some(fixture) => fixture.reopen(),
+                    None => GlobalDatabase::for_home(home.path()),
+                })
+                .await
+            }
+        });
+    }
+    let root = tempfile::tempdir()?;
+    let name = format!(
+        "host_migration_3_tests::agent_apps_auth_integration_tests::auth6_integration_{}{}",
+        if rejects { "rejects_invalid_or_stale_input" } else { "commits_expected_scoped_result" },
+        if postgres { "_postgres" } else { "" }
+    );
+    let status = std::process::Command::new(std::env::current_exe()?)
+        .args(["--exact", &name, "--nocapture"])
+        .env(CHILD, "1")
+        .env("VIBEWINDOW_TEST_ROOT", root.path())
+        .status()?;
+    anyhow::ensure!(status.success(), "isolated integration test failed: {status}");
+    Ok(())
+}
+
 #[test]
 fn auth6_integration_commits_expected_scoped_result() -> anyhow::Result<()> {
-    let home = tempfile::tempdir()?;
-    let database = GlobalDatabase::for_home(home.path())?;
-    tokio::runtime::Runtime::new()?
-        .block_on(commit(database, || GlobalDatabase::for_home(home.path())))
+    isolated(false, false)
 }
-
 #[test]
 fn auth6_integration_commits_expected_scoped_result_postgres() -> anyhow::Result<()> {
-    let database = PostgresTestDatabase::from_environment()?;
-    tokio::runtime::Runtime::new()?
-        .block_on(commit(database.database().clone(), || database.reopen()))
+    isolated(true, false)
 }
-
 #[test]
 fn auth6_integration_rejects_invalid_or_stale_input() -> anyhow::Result<()> {
-    let home = tempfile::tempdir()?;
-    let database = GlobalDatabase::for_home(home.path())?;
-    tokio::runtime::Runtime::new()?.block_on(reject(database))
+    isolated(false, true)
 }
-
 #[test]
 fn auth6_integration_rejects_invalid_or_stale_input_postgres() -> anyhow::Result<()> {
-    let database = PostgresTestDatabase::from_environment()?;
-    tokio::runtime::Runtime::new()?.block_on(reject(database.database().clone()))
+    isolated(true, true)
 }

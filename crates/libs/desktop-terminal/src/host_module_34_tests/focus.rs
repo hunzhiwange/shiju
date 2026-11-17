@@ -48,17 +48,23 @@ impl Inputs {
             message,
         )
         .map(Message::Terminal);
+        let mut tasks = vec![task];
         for effect in effects {
             match effect {
                 crate::updates::Effect::Focus => self.editor.inner.lose_focus(),
                 crate::updates::Effect::AppendChat(text) => {
                     self.append_chat = Some(text);
                     self.editor.inner.lose_focus();
+                    // The host focuses its chat input, removing Iced focus from
+                    // the terminal. This fixture has no chat widget to focus.
+                    tasks.push(iced_runtime::task::widget(
+                        iced::advanced::widget::operation::focusable::unfocus(),
+                    ));
                 }
                 _ => {}
             }
         }
-        task
+        Task::batch(tasks)
     }
     fn update(&mut self, message: Message) -> Task<Message> {
         match message {
@@ -655,7 +661,7 @@ async fn terminal_context_menu_splits_the_clicked_pane() {
     let mut messages = Vec::new();
     {
         // Leave room below the click for the full menu. Split Down is the
-        // fourth split entry, immediately before the clipboard actions.
+        // fourth split entry, after the clipboard and chat actions.
         let mut ui = UserInterface::build(
             view(&h.app, h.workspace),
             Size::new(800.0, 800.0),
@@ -667,7 +673,7 @@ async fn terminal_context_menu_splits_the_clicked_pane() {
                 Event::Mouse(Mouse::ButtonPressed(Button::Left)),
                 Event::Mouse(Mouse::ButtonReleased(Button::Left)),
             ],
-            iced::mouse::Cursor::Available(Point::new(160.0, 510.0)),
+            iced::mouse::Cursor::Available(Point::new(160.0, 742.0)),
             &mut h.renderer,
             &mut iced::advanced::clipboard::Null,
             &mut messages,
@@ -1038,7 +1044,7 @@ async fn terminal_drag_preserves_pty_identity_and_uses_new_grid_size() {
         "中文".as_bytes(),
     )
     .await;
-    send_terminal_input(&mut h, first, character_key("\n"), moved, b"\n").await;
+    send_terminal_input(&mut h, first, character_key("\n"), moved, b"\r").await;
     let after = pty_size(&mut h, first, "FIRST:中文 ").await;
     eprintln!("terminal {first} {widget:?}: stty size {before:?} -> {after:?}");
     assert_eq!(before.0, after.0);

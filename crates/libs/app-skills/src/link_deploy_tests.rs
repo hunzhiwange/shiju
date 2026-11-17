@@ -5,8 +5,10 @@ use vw_api_app_identity::{AppId};
 
 fn fixture() -> (tempfile::TempDir, std::path::PathBuf, AppSkillsPath) {
     let temp = tempfile::tempdir().unwrap();
-    let ssot = temp.path().join("ssot");
-    let app = temp.path().join("app");
+    // Deployment requires resolved host paths (macOS temp paths may use /var).
+    let root = fs::canonicalize(temp.path()).unwrap();
+    let ssot = root.join("ssot");
+    let app = root.join("app");
     fs::create_dir_all(ssot.join("example")).unwrap();
     fs::create_dir(&app).unwrap();
     fs::write(ssot.join("example/SKILL.md"), "# Example").unwrap();

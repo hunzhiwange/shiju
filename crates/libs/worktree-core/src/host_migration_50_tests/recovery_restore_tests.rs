@@ -169,6 +169,24 @@ async fn worktree_recovery_restore_failure_can_retry_and_preserves_snapshot() {
 
 #[tokio::test]
 async fn worktree_recovery_restore_survives_process_restart() {
+    const TEST: &str = "host_migration_50_tests::recovery_restore_tests::worktree_recovery_restore_survives_process_restart";
+    // Initialize both processes with the same durable test store before lazy
+    // runtime_store initialization; never mutate the parallel runner's environment.
+    if std::env::var_os("SHIJU_RESTORE_FIXTURE").is_none() {
+        let root = tempfile::tempdir().unwrap();
+        let output = Command::new(std::env::current_exe().unwrap())
+            .args(["--exact", TEST, "--nocapture"])
+            .env("SHIJU_RESTORE_FIXTURE", "1")
+            .env("VIBEWINDOW_TEST_ROOT", root.path())
+            .env("VW_ACP_MOUNT_RECOVERY_DB_ROOT", root.path())
+            .output()
+            .unwrap();
+        print!("{}", String::from_utf8_lossy(&output.stdout));
+        eprint!("{}", String::from_utf8_lossy(&output.stderr));
+        assert!(output.status.success(), "isolated restart fixture failed");
+        assert!(String::from_utf8_lossy(&output.stdout).contains("1 passed"));
+        return;
+    }
     if let Some(primary) = std::env::var_os("SHIJU_RESTORE_CHILD") {
         let scope: ProjectScope =
             serde_json::from_str(&std::env::var("SHIJU_RESTORE_SCOPE").unwrap()).unwrap();
@@ -181,7 +199,7 @@ async fn worktree_recovery_restore_survives_process_restart() {
     let (_temp, primary, record) = fixture().await;
     let id = deleted(&primary, &record).await;
     let child = Command::new(std::env::current_exe().unwrap())
-        .args(["--exact", "host_migration_50_tests::recovery_restore_tests::worktree_recovery_restore_survives_process_restart", "--nocapture"])
+        .args(["--exact", TEST, "--nocapture"])
         .env("SHIJU_RESTORE_CHILD", &primary)
         .env("SHIJU_RESTORE_SCOPE", serde_json::to_string(&record.scope).unwrap())
         .env("SHIJU_RESTORE_ID", &id).output().unwrap();
@@ -191,6 +209,7 @@ async fn worktree_recovery_restore_survives_process_restart() {
         String::from_utf8_lossy(&child.stdout),
         String::from_utf8_lossy(&child.stderr)
     );
+    print!("{}", String::from_utf8_lossy(&child.stdout));
     assert!(String::from_utf8_lossy(&child.stdout).contains("1 passed"));
     // The receipt is durable as well: a new process's successful restore cannot repeat.
     assert!(recovery::restore(&record.scope, &primary, &id).await.is_err());

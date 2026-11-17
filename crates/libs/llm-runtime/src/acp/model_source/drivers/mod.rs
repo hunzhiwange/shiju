@@ -12,6 +12,7 @@ pub mod copilot;
 pub mod cursor;
 pub mod dirac;
 pub mod droid;
+pub mod deepagents;
 pub mod gemini;
 pub mod glm_acp_agent;
 pub mod goose;
@@ -44,7 +45,8 @@ pub fn capabilities(
     };
     let patched = matches!(
         agent,
-        "amp-acp"
+        "deepagents"
+            | "amp-acp"
             | "sigit"
             | "auggie"
             | "trae"
@@ -87,6 +89,7 @@ pub fn verified_release(agent: &str) -> Option<&'static str> {
         }
         "auggie" => "0.37.1",
         "autohand" => "0.9.11 (46a28b16)",
+        "deepagents" => "0.1.42 (reviewed host boundary)",
         "qoder" => "1.1.88",
         "trae" => "0.121.3",
         "cursor" => "2026.11.11-b912975",
@@ -126,7 +129,7 @@ pub fn source_protocol(
         "amp-acp" | "claude" => P::Messages,
         "codex" | "kiro" | "grok" => P::Responses,
         "gemini" => P::Gemini,
-        "autohand" | "sigit" | "glm-acp-agent" | "dirac" | "auggie" | "cursor" | "droid"
+        "deepagents" | "autohand" | "sigit" | "glm-acp-agent" | "dirac" | "auggie" | "cursor" | "droid"
         | "codebuddy" | "goose" | "hermes" | "iflow" | "kilocode" | "openclaw" | "pi" | "qoder"
         | "qwen" | "trae" => P::Chat,
         "opencode" => model_transport::routing_selection::client_protocol(api)
@@ -194,6 +197,7 @@ pub fn configure(
         "amp-acp" => amp_acp::configure(profile, endpoint),
         "auggie" => auggie::configure(profile, endpoint),
         "autohand" => autohand::configure(profile, endpoint),
+        "deepagents" => deepagents::configure(profile, endpoint, directory),
         "claude" => claude::configure(profile, endpoint),
         "codex" => codex::configure(profile, endpoint),
         "codebuddy" => codebuddy::configure(profile, endpoint),
@@ -222,3 +226,7 @@ pub fn configure(
         _ => anyhow::bail!("unknown ACP model-source driver"),
     }
 }
+
+#[cfg(test)]
+#[path = "deepagents_tests.rs"]
+mod deepagents_tests;

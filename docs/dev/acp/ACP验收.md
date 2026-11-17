@@ -561,3 +561,52 @@ pnpm exec vite --config acpdemo/qoder/vite.config.mjs
 Rue.js 源码 packages/rue/package.json 存在，目标 acpdemo/deepagents/ 不存在；初始 Git 状态、源码副本及摘要存于本机 0700 目录 `/var/folders/rg/zr19lb_s5w32q6d2qkd6p0n80000gp/T/shiju-deepagents-20261117-8iuu7mzw`。未写 Rue.js 文件，未生成完整普通文件快照，不能声称全目录边界验证通过。
 
 未执行安装、诊断、模型来源 API、配置 PATCH、SSE 或会话绑定及产物验收；未启动网关或供应商进程、未领取编译槽位，未改配置，无本次运行环境需恢复。无运行版本或二进制摘要可报告。仅文档变更，未运行 Cargo、Clippy、测试、页面构建或浏览器。恢复条件仍为交付并验证 DeepAgents session_model 驱动，再用包含该实现的已验证构建从步骤 1 重跑；任务 23 保持已阻塞并保留。
+
+
+# DeepAgents 验收（2026-11-17 扩围恢复）
+
+结论：**指定模型文件创建验收通过**。用户追加授权扩大范围后，补齐宿主 session_model 私有中继驱动，并修复真实执行发现的两处底层问题。此结论替代本文件此前的能力缺失阻塞；严格 Clippy 的既有失败单独保留，不声称全仓检查通过。
+
+## 实现与安全边界
+
+- 当前实现位于 `crates/libs/llm-runtime/src/acp/model_source/drivers/deepagents.rs`。使用现有 RelayBinding 的租户、项目、会话、provider/model 身份及短期令牌；明确选择 Chat 协议，传入 `--model openai:<选定模型>` 和 `--workspace <请求工作区>`，拒绝自定义 args/env、非私有回环端点及不可执行模型参数。不替换模型、租户或 DeepAgents 引擎。
+- acp-client 对受管 DeepAgents 复用现有 OS 环境白名单，不合并账号凭据或继承 Node 注入、代理及原生模型端点。本次自有网关设置了无效的继承 OPENAI_API_BASE，真实指定模型仍成功；没有通过 CLI 默认模型绕过中继。未扩大工具权限、替换 HOME 或增加 Native 完全访问能力。
+- 真实首轮 session/new 因启动工作区与请求不一致而拒绝；新增独立失败测试后，显式传入工作区，保留原真实路径校验。首轮 HTTP 200、curl 退出 0、48.62 秒，但 SSE chat.error，无模型文件产物，明确不计通过。
+- 第二轮模型绑定成功，但读取目录的宿主文件 RPC 错误被 LangGraph 当成 superstep 异常，134.72 秒后 chat.error。守卫现在将已授权文件 handler 的失败转换为明确 ToolMessage error，不向模型泄露底层异常详情，不回退本地文件，取消仍抛出并中止。未知/拒绝权限、未审核工具限制保持。独立守卫测试先红后绿；原生 CLI 夹具也明确断言宿主写入拒绝无文件且会话可继续。
+- 新守卫的审核摘要为 `82e173b8284d3496e2032be5bec1c155241164f2f4c07aeff5d36e6f27e2faff`，系统安装使用独立 `deepagents-0.1.42-model-source-v2` 目录，保留旧 v1 安装。CLI 文件仍为 `d65ca9295356f90c11402e3ec9f39856324329a8a7acbdfe79592444e471abce`。入口为该受管目录下 `node_modules/.bin/deepagents-acp`，实际包版本及 --version 均为 0.1.42；握手 agentInfo.version=0.0.1 是上游独立字段。
+
+## 本次真实执行
+
+- 使用新构建 shiju 0.6.0，`cargo build -p vw-cli --bin shiju` 成功；最终 SHA-256 `183680133a28dbad5987e7343c6ec12803fe5696f6f7c6080cec2ec0cc5130bd`。构建使用当前共享源码，关键源码摘要与构建时 HEAD 保存在私有 source-hashes.json；未使用旧二进制判定修复成功。最后自有网关监听 127.0.0.1:55084，未重启用户服务。
+- 所有 API 请求均带 X-Platform-ID=10001、X-Company-ID=100010005、X-Directory=/Users/xiangmin/worker/code/ruejs。读取 installed、完整 agent 目录与 acp 配置基线。新合同的安装状态 false→true；系统 POST 安装 HTTP 200、客户端退出 0、1.687 秒，回读受管包版本与摘要匹配。
+- 普通诊断 HTTP 200、客户端退出 0、1.558 秒，内容为 authentication_required；此结果仅作普通诊断记录，未当成模型会话通过。模型来源 API 明确 session_model supported、Darwin arm64、审核 0.1.42。builtin acp-deepagents、backend deepagents 经临时 enabled=true 保存及 GET 重读确认。
+- 原任务 JSON 请求体保持指定 `alibaba-token-plan-cn/deepseek-v4.1-flash-1017`、acp-deepagents、deepagents、session_model、full_access=true 及 Rue.js 工作区。第三轮初始 curl 在 300.011 秒超时退出 28，HTTP 200，未见终态；没有重提创建请求。
+- 查询原会话状态后，根据现有生产代码与续传验收用例确认支持 Last-Event-ID。使用响应的原 x-vw-stream-request-id、原始请求体和游标 206 续传；HTTP 200、curl 退出 0、266.898 秒，响应仍是同一 session `ses_1e9490491001DBBQ6T1C1YapmA`。合并原流与续传流取得 chat.done，chat.error 为 0；7 次成功宿主 write_file 更新实际生成下列 5 文件。API 将这些写入事件展示为 edit，不代表启用了被拒绝的原生 edit_file。
+- 运行中 summary 确认 acp-deepagents/deepagents/full_access=true；options connected=true，selected_model.source=session_model、provider_id=alibaba-token-plan-cn、完整模型 ID=alibaba-token-plan-cn/deepseek-v4.1-flash-1017。成功结束再 GET summary/options 均 HTTP 200，身份与选定模型仍匹配；最终 connected=false，未把已清理的连接描述为持续在线。access_status 为 client_only，未宣称 Native 免审批。
+
+## 实际文件与环境恢复
+
+- 产物位于 `/Users/xiangmin/worker/code/ruejs/acpdemo/deepagents/`：`index.html`、`vite.config.ts`、`src/main.tsx`、`src/style.css`、`README.md`。起初目录不存在，没有覆盖用户文件。
+- 已阅读源码：main.tsx 从 @rue-js/rue 导入 ref/computed/useApp，以受控 textarea 的 onInput 更新状态与实时字数，localStorage 写入及初始化读回实现刷新恢复；HTML、样式、Vite 配置与运行说明齐备。node_modules 的 @rue-js/rue 和对应 Vite 插件真实路径分别指向本仓库 packages/rue 与 packages/vite-plugin-rue。README 推荐从仓库根运行 `pnpm exec vite --config acpdemo/deepagents/vite.config.ts`。
+- 本次只验收真实文件创建与源码内容，没有启动页面、浏览器、页面构建或额外页面回归，不把静态审阅宣称为实际渲染通过。
+- 初始普通文件 SHA-256 快照为 6,240 项，排除 .git/node_modules/target；首轮、第二轮结束均 0 差异。成功后 6,245 项，仅上述目标目录新增 5 文件，目录外差异 0，详见 before.json、first-boundary.json、second-boundary.json、after.json、boundary.json。
+- 每轮 enabled 配置均在 finally 恢复，PATCH 与 GET 均成功，最终 agent 目录与最初有效配置相等、enabled=false。最初没有 acp-deepagents 覆盖条目；内置预设校验禁止 null 删除，因此保留显式 enabled=false 覆盖项，**有效停用状态已恢复，不声称存储字节完全还原**。没有改动其他预设、默认模型或权限策略。
+- 三轮自有网关均退出 0；最终自有网关及槽位控制进程存活数 0，自有槽位锁已释放，缓存保留。受管 v2 安装作为系统安装结果保留。原始请求、响应、完整 SSE、配置、快照和探测脚本仅存本机 `/tmp/shiju-deepagents-20261117-retry`（0700）；未提交凭据、敏感原始载荷、供应商二进制或 Rue.js 工作区文件。
+
+## 定向验证
+
+Rust 重型命令全部经 scripts/cargo_slot.py，串行复用槽位 3；CARGO_TARGET_DIR 与 CARGO_BUILD_BUILD_DIR 均为 `/Users/xiangmin/worker/code/shiju/target/rust-slot-3`。私有 build.py 在同一槽位内完成严格检查、CLI 构建并持有网关生命周期；外部任务占槽期间正常排队，未清理他人锁或缓存。
+
+| 原生子命令（均在槽位入口内） | 结果 |
+| --- | --- |
+| cargo test -p llm-runtime --lib deepagents_selected_model_ -- --test-threads=1 | 1 项业务失败，确认缺失 Chat 路由 |
+| cargo test -p llm-runtime --lib deepagents_ -- --test-threads=1 | 初次及工作区修复后均 4 通过，含既有缓存集合身份回归 |
+| cargo test -p llm-runtime --lib deepagents_private_model_configuration_ -- --test-threads=1 | 1 失败，确认未传工作区；随后上述完整过滤转绿 |
+| cargo test -p acp-agent-registry --lib deepagents_recoverable_host_errors_ -- --test-threads=1 | 1 失败，确认旧安装目录不能发布新合同 |
+| cargo test -p acp-agent-registry --lib managed_runtime::tests -- --test-threads=1 | 2 通过、2 明确忽略（需供应商安装/网络）；真实系统安装另由 API 完成 |
+| cargo clippy -p llm-runtime -p acp-client -p acp-agent-registry --lib --no-deps -- -D warnings | 退出 101，llm-runtime 101 项既有诊断，无本次 DeepAgents/守卫/安装目录/进程隔离文件诊断；未扩大修复无关 lint |
+| cargo build -p vw-cli --bin shiju | 三轮均成功，最终含工作区与宿主文件错误修复 |
+
+`node patches/acp-model-source/deepagents/guard_tests.mjs <审核包或私有夹具目录>`：新增宿主错误用例先以原守卫失败，再以新守卫通过；覆盖 5 类权限结果、取消、宿主撤销及 7 类未审核工具不执行。`python3 scripts/acp_onboarding_deepagents_acceptance.py <私有新审核包入口>` 最终退出 0，覆盖真实拒绝/允许写入、错误工具、MCP/工作区扩张拒绝、同进程恢复、取消续用和认证/模型错误不回退。夹具此前期待宿主拒绝导致整轮 fatal 的旧断言失败，已改为明确检查工具错误、无敏感详情、无越权文件及后续成功，并重新取得通过证据。
+
+未运行桌面构建、整仓测试/构建、全特性 Clippy、全仓格式检查、wasm 或 Makefile；仅格式化修改文件。任务 23 文件创建验收完成，严格 lint 既有失败与配置存储差异如上保留。

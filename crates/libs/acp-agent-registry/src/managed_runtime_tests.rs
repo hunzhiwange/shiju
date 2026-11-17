@@ -78,3 +78,13 @@ async fn acp_onboarding_deepagents_reviewed_install_and_discovery() {
     assert!(verify_reviewed_agent_executable("deepagents", "npx").is_err());
     println!("reviewed DeepAgents: {command}");
 }
+
+#[test]
+fn deepagents_recoverable_host_errors_use_a_separate_reviewed_install() {
+    let contract = super::contract("deepagents").unwrap();
+    assert!(
+        super::installed_directory("deepagents", &contract)
+            .unwrap()
+            .ends_with("deepagents-0.1.42-model-source-v2")
+    );
+}

@@ -28,7 +28,17 @@ export function hostToolGuard(server, agentName) {
         return new ToolMessage({content: "Tool execution denied",
           tool_call_id: request.toolCall.id});
       }
-      return handler(request);
+      try {
+        return await handler(request);
+      } catch (error) {
+        if (server.currentPromptAbortController?.signal.aborted) throw error;
+        // A missing file or denied host RPC is a tool failure, never permission
+        // to fall back locally. Do not expose private host error details.
+        return new ToolMessage({
+          content: "Host file operation failed or was denied. read_file requires a regular file path, not a directory. No local fallback was attempted.",
+          status: "error", tool_call_id: request.toolCall.id
+        });
+      }
     }
   });
 }

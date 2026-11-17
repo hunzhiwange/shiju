@@ -31,7 +31,10 @@ fn root() -> Result<PathBuf, String> {
         .ok_or_else(|| "ACP runtime installation requires a home directory".into())
 }
 fn installed_directory(agent: &str, contract: &Contract) -> Result<PathBuf, String> {
-    Ok(root()?.join(format!("{agent}-{}-model-source-v1", contract.version)))
+    // Keep the prior DeepAgents guard intact while installing the reviewed
+    // recoverable host-file-error contract beside it.
+    let revision = if agent == "deepagents" { 2 } else { 1 };
+    Ok(root()?.join(format!("{agent}-{}-model-source-v{revision}", contract.version)))
 }
 fn verify(directory: &Path, contract: &Contract) -> Result<PathBuf, String> {
     if contract.layout == "standalone" {

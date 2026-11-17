@@ -93,7 +93,10 @@ try:
  for i,permission in enumerate(['reject-once','rpc-error','cancelled','unknown','allow-once','allow-once'],3):
   write_allowed=i==8
   result=rpc(i,'session/prompt',{'sessionId':sid,'prompt':[{'type':'text','text':'fixture'}]})
-  assert ('error' in result) == (i==7), result
+  assert 'result' in result, result
+  if i==7:
+   assert 'Host file operation failed or was denied' in json.dumps(requests[-1])
+   assert 'host denied' not in json.dumps(requests[-1])
   assert os.path.exists(root+'/result.txt') == write_allowed
   print('ROUND',i,'permission',permission,'host_write',write_allowed,'passed',flush=True)
  assert permissions==6 and write_attempts==2,(permissions,write_attempts)

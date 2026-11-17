@@ -61,3 +61,15 @@ for (const name of ["edit_file", "ls", "glob", "grep", "execute", "task", "unkno
 }
 assert.equal(executions, 1, "unreviewed backends must never run");
 console.log("DeepAgents guard: host revocation and 7 unreviewed tools rejected");
+
+const failureGuard = hostToolGuard({...server, requestToolPermission: async () => "allow"}, "deepagents");
+const readRequest = {...request, toolCall: {...request.toolCall, name: "read_file"}};
+const failedRead = await failureGuard.wrapToolCall(readRequest, async () => {
+  throw new Error("private host error fixture");
+});
+assert.equal(failedRead.status, "error");
+assert.ok(!String(failedRead.content).includes("private host error fixture"));
+let continued = false;
+await failureGuard.wrapToolCall(readRequest, async () => { continued = true; return "ok"; });
+assert.ok(continued, "host file failures must allow a later corrected tool call");
+console.log("DeepAgents guard: host file errors are explicit, private, and recoverable");

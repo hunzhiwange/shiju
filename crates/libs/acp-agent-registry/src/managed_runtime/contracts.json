@@ -614,7 +614,7 @@
     "bin": "dist/cli.js",
     "files": {
       "dist/cli.js": "d65ca9295356f90c11402e3ec9f39856324329a8a7acbdfe79592444e471abce",
-      "dist/shiju-guard.mjs": "b491916bf936fc6691dea6de7eb215ad8101eaf7fa8234b26aaadbd289e88df9"
+      "dist/shiju-guard.mjs": "82e173b8284d3496e2032be5bec1c155241164f2f4c07aeff5d36e6f27e2faff"
     }
   },
   "sigit": {

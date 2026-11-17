@@ -57,24 +57,28 @@ fn auto_icon_returns_renderable_star_handle() {
 
 #[test]
 fn primary_button_style_preserves_status_background_and_adds_board_elevation() {
-    let theme = Theme::Dark;
-    let palette = theme.extended_palette();
-    let cases = [
-        (button::Status::Active, palette.primary.base.color),
-        (button::Status::Hovered, palette.primary.base.color.scale_alpha(0.92)),
-        (button::Status::Pressed, palette.primary.base.color.scale_alpha(0.85)),
-        (button::Status::Disabled, palette.primary.base.color),
-    ];
+    for theme in [Theme::Dark, Theme::Light] {
+        for status in [
+            button::Status::Active,
+            button::Status::Hovered,
+            button::Status::Pressed,
+            button::Status::Disabled,
+        ] {
+            let shared = desktop_ui_controls::system_settings_common::primary_action_btn_style(
+                &theme, status,
+            );
+            let style = button_style_primary(&theme, status);
 
-    for (status, expected_background) in cases {
-        let style = button_style_primary(&theme, status);
-
-        assert_color_close(background_color(style.background), expected_background);
-        assert_color_close(style.text_color, Color::WHITE);
-        assert_close(style.border.radius.top_left, 12.0);
-        assert_color_close(style.shadow.color, theme.palette().primary.scale_alpha(0.20));
-        assert_eq!(style.shadow.offset, iced::Vector::new(0.0, 10.0));
-        assert_close(style.shadow.blur_radius, 22.0);
+            assert_color_close(
+                background_color(style.background),
+                background_color(shared.background),
+            );
+            assert_color_close(style.text_color, shared.text_color);
+            assert_close(style.border.radius.top_left, 12.0);
+            assert_color_close(style.shadow.color, theme.palette().primary.scale_alpha(0.20));
+            assert_eq!(style.shadow.offset, iced::Vector::new(0.0, 10.0));
+            assert_close(style.shadow.blur_radius, 22.0);
+        }
     }
 }
 
@@ -88,9 +92,9 @@ fn secondary_button_style_keeps_shared_status_colors_and_uses_board_radius() {
         (&dark, button::Status::Active, dark_palette.background.base.color.scale_alpha(0.52)),
         (&dark, button::Status::Hovered, dark_palette.background.weak.color.scale_alpha(0.9)),
         (&dark, button::Status::Pressed, dark_palette.background.strong.color.scale_alpha(0.94)),
-        (&light, button::Status::Disabled, Color::WHITE.scale_alpha(0.56)),
-        (&light, button::Status::Hovered, Color::WHITE.scale_alpha(0.88)),
-        (&light, button::Status::Pressed, light_palette.background.weak.color.scale_alpha(0.92)),
+        (&light, button::Status::Disabled, light_palette.background.weak.color.scale_alpha(0.50)),
+        (&light, button::Status::Hovered, light_palette.background.weak.color),
+        (&light, button::Status::Pressed, light_palette.background.strong.color),
     ];
 
     for (theme, status, expected_background) in cases {
@@ -104,20 +108,25 @@ fn secondary_button_style_keeps_shared_status_colors_and_uses_board_radius() {
 
 #[test]
 fn danger_button_style_distinguishes_pressed_state_and_uses_board_radius() {
-    let theme = Theme::Light;
-    let cases = [
-        (button::Status::Active, Color::from_rgba8(255, 59, 48, 0.96)),
-        (button::Status::Hovered, Color::from_rgba8(255, 59, 48, 0.96)),
-        (button::Status::Pressed, Color::from_rgba8(220, 45, 40, 0.98)),
-        (button::Status::Disabled, Color::from_rgba8(255, 59, 48, 0.96)),
-    ];
+    for theme in [Theme::Dark, Theme::Light] {
+        let cases = [
+            (button::Status::Active, Color::from_rgb8(196, 43, 40), Color::WHITE),
+            (button::Status::Hovered, Color::from_rgb8(174, 34, 31), Color::WHITE),
+            (button::Status::Pressed, Color::from_rgb8(145, 27, 25), Color::WHITE),
+            (
+                button::Status::Disabled,
+                theme.extended_palette().background.weak.color,
+                theme.palette().text.scale_alpha(0.55),
+            ),
+        ];
 
-    for (status, expected_background) in cases {
-        let style = button_style_danger(&theme, status);
+        for (status, expected_background, expected_text) in cases {
+            let style = button_style_danger(&theme, status);
 
-        assert_color_close(background_color(style.background), expected_background);
-        assert_color_close(style.text_color, Color::WHITE);
-        assert_close(style.border.radius.top_left, 12.0);
+            assert_color_close(background_color(style.background), expected_background);
+            assert_color_close(style.text_color, expected_text);
+            assert_close(style.border.radius.top_left, 12.0);
+        }
     }
 }
 

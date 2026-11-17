@@ -4,7 +4,7 @@
 
 批次：【批次1】 依赖：无
 
-状态：未开始
+状态：待回归
 
 来源：原任务19全量实际执行；证据编号366, 367, 368。
 预计会话范围：仅本测试定义文件中以下失败族及证据证明必要的底层修复，不接管整包。
@@ -60,3 +60,12 @@ python3 scripts/cargo_slot.py cargo test -p desktop-task-board --lib 'common::co
 ```
 
 完成证据：各条精确过滤执行1项且passed=1、failed=0、退出0；参数化子进程用例同时记录子进程证据。记录槽位、双缓存路径、日志、代码状态和审查diff。不运行全量测试；最后统一验收任务负责跨任务复验。
+
+## 本次执行记录
+
+- 根因：看板直接复用公共按钮样式；公共样式已采用可读性配色及独立禁用态，失败测试仍断言旧透明度/白字/红色。仅修改本任务 common_tests.rs，不回退公共样式。
+- 主按钮对照公共样式保留背景与文字继承断言，保留看板圆角和阴影；主按钮、危险按钮覆盖明暗主题，危险按钮逐状态精确配色，次按钮更新浅色状态期望。
+- 修改前按原生精确过滤顺序执行三项，均因非本任务工作区变更 desktop-settings-apps/src/system_settings_apps/list.rs:185 的 E0425（参数改为 _local_available，但调用仍用 local_available）未能进入测试。日志 /tmp/shiju-190-red.log，退出101。
+- 修改后同样逐项精确过滤验证，日志 /tmp/shiju-190-green.log；仍受同一依赖编译错误阻塞，未取得测试通过证据。保留任务待回归，需依赖所有者修复后重跑三项命令。
+- 修改前槽位4，修改后槽位6；双缓存分别均为 /Users/xiangmin/worker/code/shiju/target/rust-slot-4 和 /Users/xiangmin/worker/code/shiju/target/rust-slot-6（CARGO_TARGET_DIR 与 CARGO_BUILD_BUILD_DIR 同值）。未清理他人缓存与进程。
+- rustfmt 仅作用于 common_tests.rs；git diff --check 通过；审查仅包含按钮测试预期与主题覆盖，未修改业务实现或公共计划。

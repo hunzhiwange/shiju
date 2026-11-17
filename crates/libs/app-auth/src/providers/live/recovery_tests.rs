@@ -110,7 +110,16 @@ fn cc04_recovery_next_commit_recovers_and_requires_replanning() {
     let tenant = TenantScope::new("other", "tenant").unwrap();
     let target =
         PendingTarget { pointer: Some("unplanned".into()), mode: None, ..Default::default() };
-    assert_eq!(s.commit(&tenant, &mut guard, &[], target.clone()), Err(WriteError::Recovered));
+    assert_eq!(s.commit(&tenant, &mut guard, &[], target.clone()), Err(WriteError::Conflict));
+    assert!(s.pending(AppId::Claude).unwrap().is_some());
+    assert!(s.state(AppId::Claude).unwrap().pointer.is_none());
+    assert!(!live.path().join("a").exists());
+    assert!(!live.path().join("b").exists());
+    let owner = TenantScope::new("p", "c").unwrap();
+    assert_eq!(s.commit(&owner, &mut guard, &[], target.clone()), Err(WriteError::Recovered));
+    assert!(s.pending(AppId::Claude).unwrap().is_none());
+    assert_eq!(fs::read(live.path().join("a")).unwrap(), b"new");
+    assert_eq!(fs::read(live.path().join("b")).unwrap(), b"new");
     assert_eq!(s.state(AppId::Claude).unwrap().pointer.unwrap().id, "next");
     assert_eq!(s.commit(&tenant, &mut guard, &[], target), Ok(()));
     assert_eq!(s.state(AppId::Claude).unwrap().pointer.unwrap().id, "unplanned");

@@ -66,8 +66,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
                 .style(primary_action_btn_style)
                 .on_press(Message::TaskBoard(TaskBoardMessage::SaveWorkView(true))),
         ]
-        .spacing(8)
-        .wrap();
+        .spacing(8);
         if board.selected_work_view.is_some() {
             actions = actions
                 .push(action("更新 / 重命名", TaskBoardMessage::SaveWorkView(false)))
@@ -79,7 +78,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
                     scrollable::Scrollbar::new().width(4).scroller_width(4),
                 ),
             ))
-            .push(actions);
+            .push(actions.wrap());
     }
     container(content).width(Length::Fill).padding(8).into()
 }

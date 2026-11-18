@@ -86,7 +86,7 @@ def run_session_model(binary, runtime, env, root):
         challenge.write_text(fixture.challenge)
         fixture.read_path = str(challenge)
         config = root / 'gateway'
-        installed = config / 'acp-runtime/amp-acp-0.12.0-model-source-v2'
+        installed = config / 'acp-runtime/amp-acp-0.12.0-model-source-v3'
         shutil.copytree(runtime, installed, symlinks=True)
         native = root / 'native-config'
         native.mkdir()

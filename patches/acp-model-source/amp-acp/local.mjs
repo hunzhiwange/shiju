@@ -2,6 +2,7 @@
 import { createServer } from 'node:http';
 import { randomBytes } from 'node:crypto';
 import { readFile, writeFile, mkdir, rename, lstat } from 'node:fs/promises';
+import { gunzipSync } from 'node:zlib';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -108,13 +109,20 @@ export class LocalAmp {
     return thread;
   }
   async body(req) {
+    const limit = 16 * 1024 * 1024;
     const chunks = []; let size = 0;
     for await (const chunk of req) {
       size += chunk.length;
-      if (size > 16 * 1024 * 1024) throw Error('Amp control request too large');
+      if (size > limit) throw Error('Amp control request too large');
       chunks.push(chunk);
     }
-    return JSON.parse(Buffer.concat(chunks).toString());
+    const bytes = Buffer.concat(chunks);
+    const encoding = req.headers['content-encoding'];
+    if (encoding === 'gzip' && new URL(req.url, this.url).pathname === '/api/internal') {
+      return JSON.parse(gunzipSync(bytes, { maxOutputLength: limit }).toString());
+    }
+    if (encoding && encoding !== 'identity') throw Error('Unsupported Amp control encoding');
+    return JSON.parse(bytes.toString());
   }
   json(res, value) {
     res.writeHead(200, { 'content-type': 'application/json' });
@@ -191,6 +199,7 @@ export class LocalAmp {
     }
     if (body.stream) context.tools.clear();
     if (Array.isArray(body.tools)) body.tools = body.tools.filter(tool => {
+      if (!body.stream && tool.name === 'set_title') return true;
       if (!selection.length) return Object.hasOwn(HOST_FIELDS, tool.name) || tool.name === 'set_title';
       const match = /^mcp__([A-Za-z0-9]+(?:_[A-Za-z0-9]+)*)__[A-Za-z0-9_]+$/.exec(tool.name);
       if (!match || !selection.includes(match[1])) return false;

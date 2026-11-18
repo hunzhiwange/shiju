@@ -54,3 +54,11 @@
 两组的 query 命中 `createRueSiteApp`（`app/app.tsx:32`），callers 返回 `mountRueSiteApp`（`app/app.tsx:39`），node 回读站点入口、`useApp`（`packages/runtime/src/hooks/useApp.ts:4`）及 `_$createApp`（`packages/runtime/src/compiler-runtime/app.ts:57`）。模型答复按这些结果追踪主链路，解释浏览器与 SSR 守卫、缺少 `#app` 时抛错、插件安装、`/rust-layers` 绕过布局，并给出两项快照回归预期。三工具答复未确认独立 SSR 入口，对路由默认历史值的推断缺少工具回读。宿主核对真实工厂定义在 `app/router/index.ts:787`，原索引的同名 query 返回空，按正确文件和行号运行 node 可读到该定义。
 
 受管实现、审批与撤除通过聚焦验证，严格真实验收待回归。余项为指定模型使用有效路径完成调查并产出完整答复。两套私有网关、监听端口、适配器及匹配私有副本的 stdio 子进程均已退出。临时挂载、凭据和数据副本已清理。原始证据仅保留于本机权限 0700 的目录。
+
+## 集成回归与长线程修复
+
+使用 Pi 验收中的同一共享构建，SHA-256 为 `7f8fb6ab97e9e6b00e6694ce48376e2d50a3ce4b2bff3fff93004b98db824916`。同版复用 `python3 scripts/cargo_slot.py cargo test -j 1 -p session-engine --lib acp_mcp_mount_carries_resolved_tool_policy` 的 1 项通过结果，以及之前通过的 Amp 定向审批测试。该测试覆盖同一受管审批入口，后续只改动 Amp 的本地 HTTP 请求解码和辅助标题声明。复用 Goose 的临时 stdio 转发器，仅公布三种真实工具，补齐已有行号分页参数和真实入口元数据，提示 `projectPath` 可省略。保持原提示、模型、权限、参数和真实返回。
+
+三次未限速挂载均在约 55 至 57 秒收到 `chat.error`。原生 Worker 日志确认指定模型中继返回 HTTP 429。转发记录确认其中两轮的 47 次和 52 次图谱调用均成功。降低私有转发器的结果发送频率后，v2 三轮均收到 `chat.done`。对照会话 `ses_1f07608f90016suUoETKA6yxTv` 和 `ses_1f07a578a001R0iy7ZH4o5Z0Uk` 各只回复 `MCP_NOT_AVAILABLE`，零工具事件。挂载会话 `ses_1f07619ec00172p6ARo0j0E3Zy` 用时 277.760 秒，原始转发记录有 43 次 query、6 次 callers、37 次 node，全部成功。
+
+该轮原生日志仍有线程持久化 HTTP 500。固定版 ThreadWorker 会在内部请求超过 25,600 字节时使用 gzip，受管桥原先直接把压缩体解析为 JSON。v3 在既有认证后的内部控制路由接收原生 gzip，并保留 16 MiB 的请求及解压上限。会话挂载时保留非流式辅助推理的 `set_title` 声明，流式用户回合仍限定为已选 MCP。通过相同原生探针确认 32 KB 线程在 v2 无法保存，在 v3 完整写入，加载后可继续执行，撤除后无 MCP。Node 定向运行 5 项通过，覆盖压缩保存、超限拒绝、普通工具路由拒绝 gzip，以及辅助标题请求仅保留 `set_title`。

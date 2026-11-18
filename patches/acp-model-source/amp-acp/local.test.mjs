@@ -1,5 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { Readable } from 'node:stream';
+import { gzipSync } from 'node:zlib';
 import { LocalAmp, selectedStdio } from './local.mjs';
 
 test('Amp accepts only uniquely named, explicit stdio commands', () => {
@@ -13,6 +15,20 @@ test('Amp accepts only uniquely named, explicit stdio commands', () => {
   ]) {
     assert.throws(() => selectedStdio(selection), /Amp requires distinct stdio MCP servers/);
   }
+});
+
+test('Amp reads compressed native thread uploads inside the existing body limit', async () => {
+  const local = new LocalAmp({});
+  local.url = 'http://127.0.0.1:9';
+  const asRequest = (url, body) => Object.assign(Readable.from([gzipSync(body)]), {
+    url, headers: { 'content-encoding': 'gzip' },
+  });
+  const payload = { method: 'uploadThread', params: { thread: { content: 'x'.repeat(32000) } } };
+  assert.deepEqual(await local.body(asRequest('/api/internal?uploadThread', JSON.stringify(payload))), payload);
+  await assert.rejects(local.body(asRequest('/shiju/tool', '{}')), /Unsupported Amp control encoding/);
+  await assert.rejects(local.body(asRequest('/api/internal?uploadThread', 'x'.repeat(16 * 1024 * 1024 + 1))), {
+    code: 'ERR_BUFFER_TOO_LARGE',
+  });
 });
 
 for (const invalidate of ['cancel', 'replace']) {
@@ -84,6 +100,15 @@ test('Amp removes its native summarized thinking display before the model relay'
     await unknown.text();
     assert.equal(unknown.status, 422);
     assert.equal(received.thinking.display, 'unknown');
+    local.agent.sessions.get('session').mcpConfig = { selected_graph: {} };
+    const title = await fetch(`${local.url}/api/provider/anthropic/v1/messages`, {
+      method: 'POST', headers: { authorization: `Bearer ${env.AMP_API_KEY}`, 'content-type': 'application/json' },
+      body: JSON.stringify({ model: 'native-opus', max_tokens: 2048, messages: [],
+        tools: [{ name: 'set_title' }, { name: 'Bash' }] }),
+    });
+    await title.text();
+    assert.equal(title.status, 200);
+    assert.deepEqual(received.tools, [{ name: 'set_title' }]);
   } finally {
     local.close();
     upstream.closeAllConnections();

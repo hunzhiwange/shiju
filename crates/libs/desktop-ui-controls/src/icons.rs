@@ -1,5 +1,5 @@
 //! Shared provider and ACP engine icons for chat and settings.
-use desktop_assets::assets::{self, Icon};
+use desktop_assets::assets::{self, AcpLogo, Icon};
 use iced::widget::svg;
 use iced::{Length, Theme};
 pub fn provider_logo_handle(provider_id: &str) -> svg::Handle {
@@ -238,7 +238,15 @@ pub fn acp_agent_icon<'a, Message: 'a>(agent: &str, size: f32) -> Element<'a, Me
         "qwen" => raw_svg_handle(assets::get_icon(Icon::AppQwenCode), size).into(),
         "trae" => raw_svg_handle(assets::get_icon(Icon::AppTrae), size).into(),
         "vibe" => themed_svg_handle(assets::get_provider_icon("mistral"), size).into(),
-        _ => default_acp_icon(size),
+        _ => match assets::get_acp_logo(&agent.trim().to_ascii_lowercase()) {
+            Some(AcpLogo::Monochrome(handle)) => themed_svg_handle(handle.clone(), size).into(),
+            Some(AcpLogo::Color(handle)) => raw_svg_handle(handle.clone(), size).into(),
+            Some(AcpLogo::Raster(handle)) => image(handle.clone())
+                .width(Length::Fixed(size))
+                .height(Length::Fixed(size))
+                .into(),
+            None => default_acp_icon(size),
+        },
     }
 }
 

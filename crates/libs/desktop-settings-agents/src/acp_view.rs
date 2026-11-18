@@ -17,9 +17,12 @@ use config_aggregate::AcpAgentConfig;
 
 use crate::acp_diagnostic::diagnostic_status;
 
-use crate::acp::{acp_title, acp_description, setup_hint, command_line, ordered_agents};
+use crate::acp::{
+    acp_description, acp_title, built_in_agent_display_name, command_line, ordered_agents, setup_hint,
+};
 
 pub fn acp_card<'a>(input: Input<'a>, agent: String, config: &'a AcpAgentConfig) -> Element<'a, Event> {
+    let builtin = built_in_agent_display_name(&agent).is_some();
     let enabled = input.state.enabled.contains(&agent);
     let saving = input.state.saving_agent.as_deref() == Some(agent.as_str());
     let copied = input.state.copied_agent.as_deref() == Some(agent.as_str());
@@ -48,25 +51,29 @@ pub fn acp_card<'a>(input: Input<'a>, agent: String, config: &'a AcpAgentConfig)
     let summary_agent = agent.clone();
     let summary = responsive(move |size| {
         let title = tr(acp_title(&summary_agent));
+        let labels = row![
+            settings_hover_help_label(
+                input.help,
+                I18n::new(locale),
+                input.theme,
+                title,
+                text(title).size(16),
+                tr(acp_description(&summary_agent)),
+            )
+            .wrap(),
+            settings_value_badge(tr(if enabled { "已启用" } else { "未启用" })),
+        ];
+        let labels = if builtin {
+            labels.push(settings_value_badge(tr("内置 ACP")))
+        } else {
+            labels
+        };
         let identity = row![
             container((input.icon)(&summary_agent, 28.0))
                 .center_x(44.0)
                 .center_y(44.0)
                 .style(settings_icon_tile_style),
-            row![
-                settings_hover_help_label(input.help,
-                    I18n::new(locale),
-                    input.theme,
-                    title,
-                    text(title).size(16),
-                    tr(acp_description(&summary_agent)),
-                )
-                .wrap(),
-                settings_value_badge(tr(if enabled { "已启用" } else { "未启用" })),
-            ]
-            .spacing(8)
-            .align_y(Alignment::Center)
-            .wrap(),
+            labels.spacing(8).align_y(Alignment::Center).wrap(),
         ]
         .spacing(12)
         .align_y(Alignment::Center)
@@ -141,7 +148,14 @@ pub fn acp_card<'a>(input: Input<'a>, agent: String, config: &'a AcpAgentConfig)
             .align_y(Alignment::Center)
             .into()
         } else {
-            text(tr("请自行安装自定义 ACP。")).size(12).style(settings_muted_text_style).into()
+            text(tr(if builtin {
+                "请手动安装此 ACP。"
+            } else {
+                "请自行安装自定义 ACP。"
+            }))
+            .size(12)
+            .style(settings_muted_text_style)
+            .into()
         };
 
     let mut content = column![

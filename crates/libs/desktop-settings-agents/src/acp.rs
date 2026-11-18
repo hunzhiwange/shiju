@@ -1,3 +1,4 @@
+pub(crate) use acp_agent_registry::agent_registry::built_in_agent_display_name;
 use config_aggregate::AcpAgentConfig;
 
 pub(crate) const ACP_ORDER: &[&str] = &[
@@ -26,31 +27,7 @@ pub(crate) const ACP_ORDER: &[&str] = &[
 ];
 
 pub fn acp_title(agent: &str) -> &'static str {
-    match agent {
-        "codex" => "Codex CLI",
-        "claude" => "Claude Code",
-        "gemini" => "Gemini CLI",
-        "copilot" => "GitHub Copilot",
-        "openclaw" => "OpenClaw",
-        "pi" => "PI",
-        "auggie" => "Auggie CLI",
-        "cursor" => "Cursor",
-        "droid" => "Factory droid",
-        "iflow" => "iFlow",
-        "kilocode" => "Kilocode",
-        "opencode" => "OpenCode",
-        "qwen" => "Qwen Code",
-        "kimi" => "Kimi Code CLI",
-        "kiro" => "Kiro",
-        "qoder" => "Qoder CLI",
-        "trae" => "TRAE CLI",
-        "codebuddy" => "CodeBuddy",
-        "goose" => "Goose",
-        "vibe" => "Mistral Vibe",
-        "hermes" => "Hermes Agent",
-        "snow" => "Snow CLI",
-        _ => "自定义 ACP",
-    }
+    built_in_agent_display_name(agent).unwrap_or("自定义 ACP")
 }
 
 pub fn acp_description(agent: &str) -> &'static str {
@@ -77,6 +54,7 @@ pub fn acp_description(agent: &str) -> &'static str {
         "vibe" => "Mistral Vibe 的 vibe-acp 后端。",
         "hermes" => "Nous Research Hermes Agent 的 ACP 后端。",
         "snow" => "Snow CLI 的 ACP 模式。",
+        _ if built_in_agent_display_name(agent).is_some() => "通过 ACP 连接此代理。",
         _ => "自定义 ACP 后端，会按全局配置中的 command / args 启动。",
     }
 }

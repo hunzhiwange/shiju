@@ -7454,6 +7454,7 @@ dependencies = [
 name = "desktop-settings-agents"
 version = "0.6.0"
 dependencies = [
+ "acp-agent-registry",
  "config-acp-install",
  "config-agent",
  "config-agent-profile",

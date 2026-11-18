@@ -8,6 +8,7 @@ license = "MIT"
 doctest = false
 
 [dependencies]
+acp-agent-registry = { path = "../acp-agent-registry", version = "0.6.0" }
 config-agent-profile = { path = "../config-agent-profile", version = "0.6.0" }
 config-aggregate = { path = "../config-aggregate", version = "0.6.0" }
 config-runtime-paths = { path = "../config-runtime-paths", version = "0.6.0" }

@@ -1,4 +1,4 @@
-use super::{acp_title, acp_description, setup_hint, command_line};
+use super::{acp_description, acp_title, command_line, setup_hint};
 use config_aggregate::AcpAgentConfig;
 #[test]
 fn acp_title_description_and_setup_hint_cover_known_and_custom_agents() {
@@ -40,6 +40,14 @@ fn acp_metadata_covers_remaining_catalog_agents() {
     }
     assert!(setup_hint("openclaw").contains("openclaw"));
     assert!(setup_hint("pi").contains("npx"));
+}
+
+#[test]
+fn settings_metadata_covers_every_builtin_acp() {
+    for (agent, spec) in acp_agent_registry::built_in_agent_specs() {
+        assert_eq!(acp_title(&agent), spec.display_name, "{agent}");
+        assert!(!acp_description(&agent).contains("自定义 ACP"), "{agent}");
+    }
 }
 
 #[test]

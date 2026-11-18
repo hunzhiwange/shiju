@@ -705,6 +705,14 @@ pub fn desktop_permission_agent(name: &str) -> Option<&'static str> {
     })
 }
 
+/// 根据注册 key 返回内置 ACP 名称，无需探测本机安装状态。
+pub fn built_in_agent_display_name(name: &str) -> Option<&'static str> {
+    built_in_agent_definitions()
+        .iter()
+        .find(|definition| definition.name == name)
+        .map(|definition| definition.display_name)
+}
+
 /// 返回所有内置 ACP 代理的结构化启动规格。
 ///
 /// 返回值按代理 key 排序，且会尽量优先解析本地已安装的命令；如果找不到

@@ -8,6 +8,7 @@
 //! 所有资源在首次访问时通过 `Lazy` 静态变量延迟加载，
 //! 并缓存在 `HashMap` 中以避免重复加载。
 
+mod acp_logos;
 mod icon;
 mod icon_actions;
 mod icon_apps;
@@ -22,6 +23,7 @@ mod named_icons;
 mod provider_icons;
 mod svg_icons;
 
+pub use acp_logos::{AcpLogo, get_acp_logo};
 pub use icon::Icon;
 pub use images::get_image;
 pub use named_icons::{

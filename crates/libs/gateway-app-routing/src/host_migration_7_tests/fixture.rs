@@ -120,6 +120,14 @@ impl Drop for GatewayProcess {
     }
 }
 pub(crate) async fn spawn_gateway(home: &Path, policy: &Path) -> (GatewayProcess, u16) {
+    spawn_gateway_with_pairing(home, policy, None).await
+}
+
+pub(crate) async fn spawn_gateway_with_pairing(
+    home: &Path,
+    policy: &Path,
+    pairing_tokens: Option<&[String]>,
+) -> (GatewayProcess, u16) {
     let routing = Arc::new(RoutingListener::default());
     let database = GlobalDatabase::for_home(home).unwrap();
     let app = axum::Router::new().nest("/v1", crate::server::router().merge(crate::server::agent_apps_high_availability::router()));
@@ -127,6 +135,15 @@ pub(crate) async fn spawn_gateway(home: &Path, policy: &Path) -> (GatewayProcess
         RoutingPaths { home: home.to_owned(), config: home.join(".config/shiju"), state: home.join(".local/state/shiju") },
         |database, policy, tenant, host| Lifecycle(agent_gateway::aggregation_lifecycle::AggregationLifecycle { database, policy, tenant, host }),
     ).await.layer(axum::Extension(database)).layer(axum::middleware::from_fn(tenant));
+    let app = match pairing_tokens {
+        Some(tokens) => app.layer(axum::middleware::from_fn_with_state(
+            agent_gateway::gateway_test_fixture::state::<(), (), ()>(
+                Default::default(), true, tokens,
+            ),
+            agent_gateway::request_policy::skey_auth_middleware::<(), (), ()>,
+        )),
+        None => app,
+    };
     let socket = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
     let port = socket.local_addr().unwrap().port();
     let task = tokio::spawn(async move { axum::serve(socket, app).await.unwrap(); });

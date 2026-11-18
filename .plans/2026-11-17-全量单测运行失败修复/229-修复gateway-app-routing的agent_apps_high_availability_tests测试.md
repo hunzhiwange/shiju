@@ -91,3 +91,10 @@ python3 scripts/cargo_slot.py cargo test -p gateway-app-routing --lib 'host_migr
 - 最终验证：原四条精确命令每条实际运行1项，passed=0、failed=1、退出101；日志 `/tmp/shiju-task229/final-<测试名>.log`，摘要 `/tmp/shiju-task229/final-summary.log`。沿用槽位1，两个缓存路径均为 `/Users/xiangmin/worker/code/shiju/target/rust-slot-1`；入口及子进程已退出，槽位释放。diff --check 通过。无参数化子进程用例。
 - 未完成原因：并发授权迁移的 `app-access-service/src/access.rs:execution_context` 明确忽略旧 token/grants，并由 `gateway_execution.rs:gateway_host` 使用进程级 home/root，绕开本测试临时策略的执行目录。读取无令牌返回200（预期401）、写入无令牌返回200（预期401）、health跨host拒绝断言失败；enabled进入实际模式事务但因执行根不匹配返回409 revision_conflict（预期200）。恢复旧请求头后仍复现，非本次接线修复引入。不能削弱断言或恢复整个授权架构以冒充通过。
 - 后续：待授权迁移所有者提供统一 pairing 中间件与临时执行目录注入方案，再按原四命令回归。本任务保持待回归且保留编号文件。
+
+## 独立回归准备
+
+- 最新基线复验仍为四条各执行 1 项、失败 1 项、退出 101，见 `/tmp/shiju-task229/recheck-summary.log` 与同目录 `recheck-*.log`。槽位与双缓存路径沿用槽位 1。
+- 本轮四项用例在精确过滤的子进程中初始化临时执行目录。网关夹具按需挂载真实 pairing 中间件，成功路径提供配对令牌，缺失或无效令牌的 401 断言保留。启用用例在当前租户的执行根中种入真实 Claude 事务状态。共享夹具的其他调用者沿用原入口。
+- 保留旧主体、项目、应用、主机和能力隔离断言。配对仅验证客户端身份，当前访问层仍忽略应用 grants。若串行回归确认这些断言剩余失败，需统一相关授权契约。
+- 本轮运行两个修改文件的 rustfmt 解析和 git diff --check。编译窗口由其他会话使用，未启动 Cargo。下一轮执行原四条命令，核对父子进程各 1 项执行证据。

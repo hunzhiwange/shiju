@@ -1,4 +1,6 @@
-use crate::host_migration_7_tests::fixture::{HOST, MANAGER, spawn_gateway, write_policy};
+use crate::host_migration_7_tests::fixture::{
+    GatewayProcess, HOST, MANAGER, READER, spawn_gateway_with_pairing, write_policy,
+};
 use {
     app_provider_services::AppProviderStore,
     app_routing_services::failover_store::FailoverQueueStore,
@@ -6,7 +8,12 @@ use {
 };
 use reqwest::{Client, StatusCode};
 use serde_json::{Value, json};
-use std::{fs, time::Duration};
+use std::{
+    fs,
+    path::{Path, PathBuf},
+    process::Command,
+    time::Duration,
+};
 use vw_api_app_identity::AppId::Codex;
 use vw_api_app_failover::FailoverQueueScope;
 use vw_api_app_failover::FailoverQueueVersion;
@@ -16,11 +23,35 @@ use vw_api_app_provider_profiles::codex_catalog::CodexProfile;
 use vw_api_transport::id::ProjectScope;
 use vw_api_transport::id::TenantScope;
 
+// Application authorization resolves execution paths once per process.
+fn isolated_home(test: &str) -> anyhow::Result<Option<PathBuf>> {
+    const CHILD_ROOT: &str = "SHIJU_HA_API_TEST_ROOT";
+    if let Some(root) = std::env::var_os(CHILD_ROOT) {
+        return Ok(Some(PathBuf::from(root)));
+    }
+    let root = tempfile::tempdir()?;
+    let (_, module) = module_path!().split_once("::").unwrap();
+    let status = Command::new(std::env::current_exe()?)
+        .args(["--exact", &format!("{module}::{test}"), "--nocapture"])
+        .env(CHILD_ROOT, root.path())
+        .env("VIBEWINDOW_TEST_ROOT", root.path())
+        .env_remove("VIBEWINDOW_TEST_HOME")
+        .status()?;
+    anyhow::ensure!(status.success(), "isolated {test} failed: {status}");
+    Ok(None)
+}
+
+async fn spawn_gateway(home: &Path, policy: &Path) -> (GatewayProcess, u16) {
+    spawn_gateway_with_pairing(home, policy, Some(&[MANAGER.into(), READER.into()])).await
+}
+
 #[tokio::test]
 async fn ha_api_queue_read_enforces_scope() -> anyhow::Result<()> {
-    let home = tempfile::tempdir()?;
-    let policy = home.path().join("access.json");
-    write_policy(&policy, home.path(), 0);
+    let Some(home) = isolated_home("ha_api_queue_read_enforces_scope")? else {
+        return Ok(());
+    };
+    let policy = home.as_path().join("access.json");
+    write_policy(&policy, home.as_path(), 0);
     let mut grants: Value = serde_json::from_slice(&fs::read(&policy)?)?;
     grants["principals"][0]["grants"][0]["routing_apps"] = json!([
         {"project_id": "project", "app_id": "codex"},
@@ -28,7 +59,7 @@ async fn ha_api_queue_read_enforces_scope() -> anyhow::Result<()> {
     ]);
     fs::write(&policy, grants.to_string())?;
 
-    let db = GlobalDatabase::for_home(home.path())?;
+    let db = GlobalDatabase::for_home(home.as_path())?;
     let queue = FailoverQueueStore::new(db.clone())?;
     let providers = AppProviderStore::new(db).map_err(anyhow::Error::msg)?;
     let tenant = TenantScope::new("p", "owner")?;
@@ -77,7 +108,7 @@ async fn ha_api_queue_read_enforces_scope() -> anyhow::Result<()> {
         Ok(())
     })?;
 
-    let (_gateway, port) = spawn_gateway(home.path(), &policy).await;
+    let (_gateway, port) = spawn_gateway(home.as_path(), &policy).await;
     let client = Client::builder().no_proxy().timeout(Duration::from_secs(5)).build()?;
     let request = |resource, company, project, host, app, token| {
         let request = client
@@ -86,7 +117,7 @@ async fn ha_api_queue_read_enforces_scope() -> anyhow::Result<()> {
             .header("x-company-id", company)
             .query(&[("projectId", project), ("targetHostId", host), ("appId", app)]);
         match token {
-            Some(token) => request.header("x-agent-apps-token", token),
+            Some(token) => request.bearer_auth(token).header("x-agent-apps-token", token),
             None => request,
         }
     };
@@ -133,16 +164,18 @@ async fn ha_api_queue_read_enforces_scope() -> anyhow::Result<()> {
 
 #[tokio::test]
 async fn ha_api_queue_write_rejects_conflicts() -> anyhow::Result<()> {
-    let home = tempfile::tempdir()?;
-    let policy = home.path().join("access.json");
-    write_policy(&policy, home.path(), 0);
+    let Some(home) = isolated_home("ha_api_queue_write_rejects_conflicts")? else {
+        return Ok(());
+    };
+    let policy = home.as_path().join("access.json");
+    write_policy(&policy, home.as_path(), 0);
     let mut grants: Value = serde_json::from_slice(&fs::read(&policy)?)?;
     grants["principals"][0]["grants"][0]["routing_apps"] = json!([
         {"project_id": "project", "app_id": "codex"}
     ]);
     grants["principals"][0]["grants"][0]["provider_config_write"] = json!(true);
     fs::write(&policy, grants.to_string())?;
-    let db = GlobalDatabase::for_home(home.path())?;
+    let db = GlobalDatabase::for_home(home.as_path())?;
     let tenant = TenantScope::new("p", "owner")?;
     let scope = FailoverQueueScope {
         project: ProjectScope::new(tenant.clone(), "project".into())?,
@@ -182,7 +215,7 @@ async fn ha_api_queue_write_rejects_conflicts() -> anyhow::Result<()> {
             None,
         )
         .map_err(anyhow::Error::msg)?;
-    let (_gateway, port) = spawn_gateway(home.path(), &policy).await;
+    let (_gateway, port) = spawn_gateway(home.as_path(), &policy).await;
     let client = Client::builder().no_proxy().timeout(Duration::from_secs(10)).build()?;
     let request = |method, resource: &str, body: Value, token: Option<&str>| {
         let request = client
@@ -195,7 +228,7 @@ async fn ha_api_queue_write_rejects_conflicts() -> anyhow::Result<()> {
             .query(&[("projectId", "project"), ("targetHostId", HOST), ("appId", "codex")])
             .json(&body);
         match token {
-            Some(token) => request.header("x-agent-apps-token", token),
+            Some(token) => request.bearer_auth(token).header("x-agent-apps-token", token),
             None => request,
         }
     };
@@ -203,6 +236,7 @@ async fn ha_api_queue_write_rejects_conflicts() -> anyhow::Result<()> {
         .get(format!("http://127.0.0.1:{port}/v1/agent-apps/high-availability/queue"))
         .header("x-platform-id", "p")
         .header("x-company-id", "owner")
+        .bearer_auth(MANAGER)
         .header("x-agent-apps-token", MANAGER)
         .query(&[("projectId", "project"), ("targetHostId", HOST), ("appId", "codex")])
         .send()
@@ -241,6 +275,7 @@ async fn ha_api_queue_write_rejects_conflicts() -> anyhow::Result<()> {
             .post(format!("http://127.0.0.1:{port}/v1/agent-apps/high-availability/queue/members"))
             .header("x-platform-id", "p")
             .header("x-company-id", company)
+            .bearer_auth(MANAGER)
             .header("x-agent-apps-token", MANAGER)
             .query(&[("projectId", project), ("targetHostId", host), ("appId", app)])
             .json(&member(1, "second"))
@@ -360,20 +395,27 @@ async fn ha_api_queue_write_rejects_conflicts_enabled() -> anyhow::Result<()> {
 use vw_api_app_provider_base::claude::ClaudeConfig;
     use vw_api_app_provider_base::claude::ClaudeProfile;
     use vw_api_app_identity::{AppId::Claude};
-    let home = tempfile::tempdir()?;
-    let root = home.path().join("credentials");
-    fs::create_dir(&root)?;
+    let Some(home) = isolated_home("ha_api_queue_write_rejects_conflicts_enabled")? else {
+        return Ok(());
+    };
+    use sha2::{Digest, Sha256};
+    let scope_key = serde_json::to_vec(&("p", "owner"))?;
+    let root = agent_paths::paths()
+        .data
+        .join("apps")
+        .join(hex::encode(Sha256::digest(scope_key)));
+    fs::create_dir_all(&root)?;
     fs::set_permissions(&root, fs::Permissions::from_mode(0o700))?;
-    fs::create_dir(home.path().join(".claude"))?;
-    let policy = home.path().join("access.json");
-    write_policy(&policy, home.path(), 0);
+    fs::create_dir(home.as_path().join(".claude"))?;
+    let policy = home.as_path().join("access.json");
+    write_policy(&policy, home.as_path(), 0);
     let mut grants: Value = serde_json::from_slice(&fs::read(&policy)?)?;
     grants["principals"][0]["grants"][0]["routing_apps"] = json!([
         {"project_id":"project","app_id":"claude"}
     ]);
     grants["principals"][0]["grants"][0]["provider_config_write"] = json!(true);
     fs::write(&policy, grants.to_string())?;
-    let db = GlobalDatabase::for_home(home.path())?;
+    let db = GlobalDatabase::for_home(home.as_path())?;
     let tenant = TenantScope::new("p", "owner")?;
     let scope = FailoverQueueScope {
         project: ProjectScope::new(tenant.clone(), "project".into())?,
@@ -407,7 +449,7 @@ use vw_api_app_provider_base::claude::ClaudeConfig;
         };
         let transactions =
             ProviderTransactions::new(&root, ExecutionHostId::new(HOST).unwrap()).unwrap();
-        let mut guard = lock_app(Claude, &home.path().join(".claude")).unwrap();
+        let mut guard = lock_app(Claude, &home.as_path().join(".claude")).unwrap();
         transactions
             .commit(
                 &tenant,
@@ -419,13 +461,14 @@ use vw_api_app_provider_base::claude::ClaudeConfig;
     }
     let queue = FailoverQueueStore::new(db.clone())?;
     let settings = GatewaySettingsStore::new(db)?;
-    let (_gateway, port) = spawn_gateway(home.path(), &policy).await;
+    let (_gateway, port) = spawn_gateway(home.as_path(), &policy).await;
     let client = Client::builder().no_proxy().timeout(Duration::from_secs(15)).build()?;
     let request = |method, path: &str, body: Value| {
         client
             .request(method, format!("http://127.0.0.1:{port}/v1/{path}"))
             .header("x-platform-id", "p")
             .header("x-company-id", "owner")
+            .bearer_auth(MANAGER)
             .header("x-agent-apps-token", MANAGER)
             .json(&body)
     };
@@ -453,7 +496,7 @@ use vw_api_app_provider_base::claude::ClaudeConfig;
     let status = applied.status();
     let body = applied.text().await?;
     assert_eq!(status, StatusCode::OK, "{body}");
-    let native = home.path().join(".claude/settings.json");
+    let native = home.as_path().join(".claude/settings.json");
     let configuration = fs::read(&native)?;
     // Fail after both tentative fields changed: no partial state may persist.
     let exhausted = FailoverQueueState {
@@ -494,9 +537,11 @@ use vw_api_app_provider_base::claude::ClaudeConfig;
 async fn ha_api_health_and_policy_are_scope_bound() -> anyhow::Result<()> {
     use app_routing_services::failover_runtime as agent_apps_failover_runtime;
     use reqwest::Method;
-    let home = tempfile::tempdir()?;
-    let policy_file = home.path().join("access.json");
-    write_policy(&policy_file, home.path(), 0);
+    let Some(home) = isolated_home("ha_api_health_and_policy_are_scope_bound")? else {
+        return Ok(());
+    };
+    let policy_file = home.as_path().join("access.json");
+    write_policy(&policy_file, home.as_path(), 0);
     let mut grants: Value = serde_json::from_slice(&fs::read(&policy_file)?)?;
     for principal in [0, 1] {
         grants["principals"][principal]["grants"][0]["routing_apps"] =
@@ -504,7 +549,7 @@ async fn ha_api_health_and_policy_are_scope_bound() -> anyhow::Result<()> {
     }
     grants["principals"][0]["grants"][0]["provider_config_write"] = json!(true);
     fs::write(&policy_file, grants.to_string())?;
-    let database = GlobalDatabase::for_home(home.path())?;
+    let database = GlobalDatabase::for_home(home.as_path())?;
     let tenant = TenantScope::new("p", "owner")?;
     let scope = FailoverQueueScope {
         project: ProjectScope::new(tenant.clone(), "project".into())?,
@@ -518,12 +563,13 @@ async fn ha_api_health_and_policy_are_scope_bound() -> anyhow::Result<()> {
         },
     ).map_err(anyhow::Error::msg)?;
     let original = agent_apps_failover_runtime::policy(database.clone(), &scope)?;
-    let (_gateway, port) = spawn_gateway(home.path(), &policy_file).await;
+    let (_gateway, port) = spawn_gateway(home.as_path(), &policy_file).await;
     let client = Client::builder().no_proxy().timeout(Duration::from_secs(10)).build()?;
     let request = |method, resource: &str, host: &str, token: &str| {
         let mut request = client.request(method,
             format!("http://127.0.0.1:{port}/v1/agent-apps/high-availability/{resource}"))
             .header("x-platform-id", "p").header("x-company-id", "owner")
+            .bearer_auth(token)
             .header("x-agent-apps-token", token)
             .query(&[("projectId", "project"), ("targetHostId", host), ("appId", "codex")]);
         if resource.starts_with("health") {
@@ -531,7 +577,7 @@ async fn ha_api_health_and_policy_are_scope_bound() -> anyhow::Result<()> {
         }
         request
     };
-    let reader = "fixture-routing-reader-token-000002";
+    let reader = READER;
     for resource in ["health", "policy", "route"] {
         let response = request(Method::GET, resource, HOST, reader).send().await?;
         assert_eq!(response.status(), StatusCode::OK, "{resource}");

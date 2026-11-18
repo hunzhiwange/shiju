@@ -41,3 +41,33 @@
 定向执行 `node --test patches/acp-model-source/auggie/session-model.test.mjs`，5 项通过。现有 Rust ACP 转发和模型驱动未改动，本次未运行 Cargo。
 
 私有网关及其 Auggie、RustCodeGraph 子进程均已退出，临时挂载配置与私有凭据副本已清除，用户原网关仍返回健康检查 HTTP 200。排除新建索引后，RueJS 副本的 4109 个归档文件和符号链接与基准一致。原始请求、SSE、会话回读和回环证据保存在本机权限为 0700 的私有目录。
+
+## 当前共享构建复验
+
+复制共享槽位 3 已有网关产物，SHA-256 为 `e755e458b4fce6ed045ef10a7c077a0d7dfb98d69637442d9c4449d0d50923ac`。共享工作区的后续改动不涉及 Auggie 适配器及其固定产物契约。各组继续使用同一受管 Auggie、提示、模型、租户、`full_access=true` 和同提交的独立 RueJS 副本。
+
+原生组使用安装版 RustCodeGraph 1.2.10。该二进制设置 `RUSTCODEGRAPH_MCP_TOOLS=query,callers,node` 仍返回全部八个工具。另测仓库现有的本地 2.0.0 开发产物，使用相同环境变量仍返回八个工具，因此终止了该副本的本地索引进程，未用此产物发起真实模型请求。受限组通过私有 stdio 转发器仅公布三个目标工具，拒绝其它工具及副本外的路径，并原样转发合法参数和 RustCodeGraph 返回。使用不存在的 Python 路径启动转发器的首次试验未发现任何工具，替换为实测可用的路径后重新完成三轮。
+
+独立 stdio 探针复现 `query("createAppRouter")` 无结果。按文件读取 `app/router/index.ts` 默认返回前 120 行，调用 `node(file, offset=780, limit=12)` 则实际返回第 787 行的路由工厂定义。分页参数受支持，但未列在安装版 MCP 工具定义中。分页组在受限组的基础上，仅在工具定义中补充已实测的 `offset`、`limit`，继续原样转发调用和结果。
+
+| 入口 | 轮次 | 新会话 | HTTP / curl，耗时 | SSE 与结果 |
+| --- | --- | --- | --- | --- |
+| 原生 | 无挂载 | `ses_1effbdba7001CtksX5icofq1C8` | 200 / 0，5.557 秒 | `chat.done`，标记，零工具 |
+| 原生 | 挂载 | `ses_1effbf26a0013j4j73fqKiuKnp` | 200 / 0，259.568 秒 | `chat.done`，119 次工具调用，1 次失败 |
+| 原生 | 撤除 | `ses_1efffe89b00109l7MHAGI1otE3` | 200 / 0，5.447 秒 | `chat.done`，标记后另附说明，零工具 |
+| 三工具 | 无挂载 | `ses_1effd004b001jyOgWJ0SGaMUs3` | 200 / 0，5.051 秒 | `chat.done`，标记，零工具 |
+| 三工具 | 挂载 | `ses_1effd1466001c5XSyTYFJpHMb3` | 200 / 0，220.712 秒 | `chat.done`，94 次工具调用，4 次失败 |
+| 三工具 | 撤除 | `ses_1f00072e9001s3GkRFUbP5ar8Q` | 200 / 0，5.394 秒 | `chat.done`，标记，零工具 |
+| 三工具及分页 | 无挂载 | `ses_1effef19b0019sAE9M7lAXb9kM` | 200 / 0，5.384 秒 | `chat.done`，标记，零工具 |
+| 三工具及分页 | 挂载 | `ses_1efff0724001OjZ98hAqMY6k9O` | 200 / 0，253.071 秒 | `chat.done`，112 次工具调用，6 次失败 |
+| 三工具及分页 | 撤除 | `ses_1f002e41f001NDsfL49kI0ao9C` | 200 / 0，5.426 秒 | `chat.done`，标记，零工具 |
+
+原生挂载轮 `query`、`callers`、`node` 分别成功 46、7、23 次，另有 42 次同服务的额外工具调用。失败的 `node`（`call_020b53dbe911495fac2fe4fe`）再次读取不存在的 `app/router.ts`。答复还原主调用链与两个回归场景，但仍未定位路由工厂定义，再次误判查询串和尾斜杠对布局分支的影响。
+
+三工具挂载轮 `query`、`callers`、`node` 分别成功 59、7、24 次。四次失败都发生在 `node`，分别读取不存在的 `app/router.ts`、`app/router.tsx`、`app/index.html`，以及作为普通文件读取目录 `app`。答复覆盖主要链路、分支和快照回归预期，明确将默认 history 的实现留为推断。两组均未触发 shell、写入或其它服务工具。
+
+分页组挂载轮 `query`、`callers`、`node` 分别成功 57、10、39 次。模型实际发送 `node(file="app/router/index.ts", offset=560, limit=260)`，调用 `call_ec6082b9257343b3b18015f2` 返回第 787 行定义。答复引用该定义准确说明 `createWebHistory` 默认值，同时覆盖完整主链、布局分支和两项快照验证预期。六次失败都是 `node` 读取无效文件路径，首次读取缺扩展名的 `packages/runtime/src/compiler-runtime/app`，另一次请求了不存在的 `app/router.tsx`。该组仅调用三种指定工具。
+
+表中九个会话各有一个 `chat.done`，没有 `chat.error`。各轮运行中确认所选模型与会话权限，`access_status.support=client_only`。结束后会话保留原绑定与选模，ACP 连接已释放。三组撤除轮零工具调用。私有网关与子进程已退出，临时挂载和私有凭据副本均已清除，三个 RueJS 副本的 4109 个归档文件与链接仍与基准一致。
+
+两种隔离转发器均为私有验收配置。Auggie 启动、MCP 发现与中继续轮已有通过证据，5 项 Node 测试复跑通过。Rust 转发边界没有行为改动，未运行 Cargo。严格验收仍需指定模型使用真实工具和有效路径完成零失败挂载轮，并在两轮对照仅返回规定标记。图谱正确索引目前漏掉的定义可作为复验条件之一。若要接受已恢复的探索性工具错误，须由计划负责人调整合同。

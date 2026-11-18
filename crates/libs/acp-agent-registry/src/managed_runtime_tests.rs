@@ -100,3 +100,12 @@ fn harn_reviewed_natural_language_runtime_is_pinned() {
     std::fs::write(directory.path().join("harn"), "tampered").unwrap();
     assert!(super::verify(directory.path(), &contract).is_err());
 }
+
+#[test]
+fn stakpak_reviewed_runtime_pins_native_and_launcher() {
+    let contract = super::contract("stakpak").expect("Stakpak must have a reviewed runtime");
+    assert_eq!(contract.version, "0.3.88");
+    assert_eq!(contract.bin, "stakpak");
+    assert!(contract.files.contains_key("stakpak-native"));
+    assert!(contract.files.contains_key("stakpak"));
+}

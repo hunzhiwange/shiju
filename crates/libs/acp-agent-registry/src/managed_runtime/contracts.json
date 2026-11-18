@@ -675,5 +675,17 @@
       "harn-native": "23c951212c045c56deea491f9ce9505b8298472daa862334b33413ea31dcdcca",
       "harn": "e6b82965c671d0da8aca94f37100da99f1d9589f8f38c871cd6aaf7f5631d9fa"
     }
+  },
+  "stakpak": {
+    "layout": "standalone",
+    "package": "stakpak",
+    "version": "0.3.88",
+    "bin": "stakpak",
+    "artifact_url": "https://github.com/stakpak/agent/releases/download/v0.3.88/stakpak-darwin-aarch64.tar.gz",
+    "archive_sha256": "9c18808f7a3352a5ca2cbb9f123f2b2fafda03a5abef446c20065bb6ec629d1f",
+    "files": {
+      "stakpak-native": "70c559eff250a5be0dcdb19f31f13dca86847ee57648dba78e531506bb482ebc",
+      "stakpak": "bff6d5b2b49b92ce759be1e00cb6955cc0ec7bf181122ae553544197721aca30"
+    }
   }
 }

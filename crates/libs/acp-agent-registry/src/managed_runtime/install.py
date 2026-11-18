@@ -45,6 +45,30 @@ if agent == 'vtcode':
     check_files(runtime, contract['files'])
     native.chmod(0o700)
     raise SystemExit(0)
+if agent == 'stakpak':
+    import platform
+    if (platform.system(), platform.machine()) != ('Darwin', 'arm64'):
+        raise RuntimeError('Stakpak reviewed runtime is Darwin-arm64 only')
+    archive = assets / 'stakpak.tar.gz'
+    run(['/usr/bin/curl', '--fail', '--silent', '--show-error', '--location',
+         '--proto', '=https', '--proto-redir', '=https', '--retry', '2',
+         '--max-time', '40', '--output', str(archive), contract['artifact_url']])
+    if digest(archive) != contract['archive_sha256']:
+        raise RuntimeError('Stakpak fixed archive checksum mismatch')
+    runtime.mkdir()
+    native = runtime / 'stakpak-native'
+    with tarfile.open(archive) as package:
+        members = package.getmembers()
+        if len(members) != 1 or members[0].name != 'stakpak' or not members[0].isfile():
+            raise RuntimeError('Unexpected Stakpak fixed archive layout')
+        with package.extractfile(members[0]) as source, native.open('wb') as output:
+            shutil.copyfileobj(source, output)
+    native.chmod(0o700)
+    launcher = runtime / 'stakpak'
+    shutil.copy2(assets / 'stakpak/launcher.py', launcher)
+    launcher.chmod(0o700)
+    check_files(runtime, contract['files'])
+    raise SystemExit(0)
 if agent == 'harn':
     import platform
     if (platform.system(), platform.machine()) != ('Darwin', 'arm64'):

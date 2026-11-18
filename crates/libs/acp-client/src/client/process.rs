@@ -112,7 +112,7 @@ impl AcpClient {
             );
         }
         let managed_private_provider =
-            matches!(self.agent_name.as_str(), "deepagents" | "dimcode")
+            matches!(self.agent_name.as_str(), "deepagents" | "dimcode" | "stakpak")
                 && env.contains_key("VW_ACP_LAUNCH_REFERENCE");
         let managed_claude = managed_claude_settings(&self.config).is_some();
         let managed_auggie =

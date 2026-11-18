@@ -32,6 +32,7 @@ pub mod qoder;
 pub mod qwen;
 pub mod sigit;
 pub mod snow;
+pub mod stakpak;
 pub mod trae;
 pub mod vibe;
 
@@ -50,6 +51,7 @@ pub fn capabilities(
         agent,
         "nova"
             | "harn"
+            | "stakpak"
             | "deepagents"
             | "amp-acp"
             | "sigit"
@@ -116,6 +118,7 @@ pub fn verified_release(agent: &str) -> Option<&'static str> {
         "sigit" => "1.7.10 (reviewed host boundary)",
         "dirac" => "0.5.24",
         "harn" => "0.10.201",
+        "stakpak" => "0.3.88",
         "snow" => "0.9.14",
         "copilot" => "1.0.105",
         "kilocode" => "7.8.18",
@@ -137,7 +140,7 @@ pub fn source_protocol(
         "nova" | "amp-acp" | "claude" => P::Messages,
         "codex" | "kiro" => P::Responses,
         "gemini" => P::Gemini,
-        "harn" | "grok" | "dimcode" | "deepagents" | "autohand" | "sigit" | "glm-acp-agent" | "dirac" | "auggie" | "cursor" | "droid"
+        "harn" | "stakpak" | "grok" | "dimcode" | "deepagents" | "autohand" | "sigit" | "glm-acp-agent" | "dirac" | "auggie" | "cursor" | "droid"
         | "codebuddy" | "goose" | "hermes" | "iflow" | "kilocode" | "openclaw" | "pi" | "qoder"
         | "qwen" | "trae" => P::Chat,
         "opencode" => model_transport::routing_selection::client_protocol(api)
@@ -204,6 +207,7 @@ pub fn configure(
     match agent {
         "amp-acp" => amp_acp::configure(profile, endpoint),
         "harn" => harn::configure(profile, endpoint, directory),
+        "stakpak" => stakpak::configure(profile, endpoint, directory),
         "auggie" => auggie::configure(profile, endpoint),
         "autohand" => autohand::configure(profile, endpoint),
         "deepagents" => deepagents::configure(profile, endpoint, directory),

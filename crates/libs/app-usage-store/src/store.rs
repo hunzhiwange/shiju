@@ -162,11 +162,12 @@ pub fn save_usage_record_in_transaction(
     let identity_key =
         serde_json::to_string(identity).map_err(|_| UsageStoreError::InvalidInput)?;
     let existing: Option<String> = transaction
-        .query_row(
+        .prepare_cached(
             "SELECT record_id FROM usage_source_identities WHERE scope_key=?1 AND identity_key=?2 UNION ALL SELECT record_id FROM usage_archived_identities WHERE scope_key=?1 AND identity_key=?2 LIMIT 1",
-            params![scope_key, identity_key],
-            |row| row.get(0),
         )
+        .and_then(|mut statement| {
+            statement.query_row(params![scope_key, identity_key], |row| row.get(0))
+        })
         .optional()
         .map_err(storage_error)?;
     if let Some(record_id) = existing {

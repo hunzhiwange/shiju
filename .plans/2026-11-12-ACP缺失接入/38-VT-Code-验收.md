@@ -108,3 +108,8 @@ Rust 编译资源和会话调度按 `.plans/references/rust.md` 的项目覆盖�
 用户已授权补齐产品接入。沿用现有托管运行时安装、请求级模型中继与 ACP 客户端配置选项；只发布实测的 Darwin arm64。依次验证固定摘要安装、私有模型配置与精确选模、原生工具边界，再按原请求验收。工具边界必须覆盖直接文件写入、子进程和网络；验证失败时保持会话模型能力门控。
 
 先扩展安装契约测试 `acp_onboarding_vtcode_installer_contract`，运行 `python3 scripts/cargo_slot.py cargo test -j 1 -p config-acp-install --lib acp_onboarding_vtcode -- --test-threads=1`。预期红灯为 Darwin arm64 尚无系统安装支持。通过后使用固定发行物验证安装产物与摘要，再实施会话模型路径。
+
+- 安装契约首轮失败 1 项，补齐后通过 1 项。提交 `cc815a876`。隔离网关系统安装 HTTP 200，耗时 5.010558 秒，安装状态从 false 到 true。已复核管理入口与官方二进制摘要。
+- ACP 客户端旧 `session/set_model` 红灯 1 项。槽位 10 执行 `cargo test -j 1 -p acp-client --lib vtcode_ -- --test-threads=1` 通过 2 项，覆盖现代接口精确读回和隔离会话拒绝宿主文件及终端回调。提交 `fd551b40d`。
+- 固定发行物的独立回环探针确认目录内可写、取消审批不写、目录外符号链接写入和子进程被阻止。首次与系统安装并行的 Stakpak 验收增加 8 个 Stakpak 目标文件，并改变了其预设值。两项与本任务修改无关，后续改用私有实例。
+- 扩围证据暂存于本机 0700 目录 `/tmp/shiju-vtcode-expanded-20261118.scdg40/`。真实会话验证使用槽位 6 构建 `cargo build -j 1 -p vw-cli --bin shiju`，采用原租户配置和认证的 0700 私有副本。

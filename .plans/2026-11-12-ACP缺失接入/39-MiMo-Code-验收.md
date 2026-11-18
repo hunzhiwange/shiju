@@ -94,3 +94,19 @@ Rust 编译资源和会话调度按 `.plans/references/rust.md` 的项目覆盖�
 - 用 `scripts/cargo_slot.py` 槽位 1 串行执行安装契约和预设目录两条定向测试，3 项通过。旧 Rust 参考文件缺失。未运行协议夹具、Clippy、桌面编译、页面构建和浏览器验证。
 - 全局配置重读一致，自有网关退出并关闭端口，Rue.js 快照 6303 项零差异，目标目录未生成。私有证据 `/tmp/shiju-mimo-code-accept-20261118.pHdvAm/`，脱敏记录见 `docs/dev/acp/ACP验收.md`。
 - 重跑条件为系统安装入口能被网关稳定发现，指定模型驱动及脱敏接入证据已交付。
+
+
+### 官方发行与原生 ACP 重试（2026-11-18）
+
+- 官方 v0.1.17 Darwin arm64 归档通过 GitHub SHA-256 核验，其原生文件与系统安装产物一致。进程内补齐 PATH 后，原租户的网关安装状态为 true，合并配置发现 `mimo`。
+- 隔离原生 ACP v1 使用同名兼容 provider，验证了完整原模型 ID 和 4 项工具定义抵达回环以及合成 `end_turn`。批准审批后宿主写回被拒仍会落盘，外部沙箱拦下了私有目录外的测试写入。
+- 保持已阻塞。ShiJu 仍返回 `unsupported_cli`，原租户模型条目存在，探针环境缺少该 provider 声明的密钥变量。重跑需固定版入口可稳定发现、经审查的 MiMo Code 会话模型中继、原租户授权及强制写入边界。仍待验证预设启用保存、真实会话与 Rue.js 编辑器落盘。
+- 无 PATCH 或真实上游调用。两个网关与探针已退出，端口关闭，全局配置与首轮相等，Rue.js 6303 项快照零差异，目标目录未创建。本轮未重跑 Cargo 或页面检查。证据 `/tmp/shiju-mimo-code-retry-20261118.eAGmwr/`，详见验收文档。
+
+
+### 授权扩展实施
+
+- 使用已核验的官方 Darwin arm64 0.1.17 归档接入受管理安装。仅识别摘要一致的可执行文件，保持 `mimo-code` 注册 key。
+- 复用请求级 Chat 中继。为原生 ACP 生成私有模型目录，发送原模型 ID 并核对原生目录选模值。子进程仅可连接回环中继及绑定私有本地监听端口，禁止继承供应商凭据。
+- 使用 macOS 沙箱阻断原生工作区写入和进程执行，经 host ACP 写回调复用普通工作区文件写入策略，终端回调停用。验证主机拒绝回调时原生回退也无法落盘。
+- 先用 `python3 scripts/cargo_slot.py cargo test -j 1 -p config-acp-install --lib acp_onboarding_mimo_code -- --test-threads=1` 证明系统安装契约缺失。实现后重跑，再执行受影响的 `acp-client` 和 `llm-runtime` 定向测试、原生回环及包级 Clippy。仅在指定租户授权可用时继续原真实创建请求。

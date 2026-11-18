@@ -5,7 +5,7 @@ impl AcpClient {
     /// Resolve a restored permission value against the current host grant.
     /// Other controls (model, thinking, planning) retain their saved values.
     pub fn restored_permission_value<'a>(&self, option: &str, value: &'a str) -> &'a str {
-        if self.full_access && self.permission_mode == PermissionMode::ApproveAll {
+        if self.full_access && self.permission_mode == PermissionMode::ApproveAll && !self.managed_corust() {
             return value;
         }
         self.restricted_permission_value(option, value)
@@ -26,6 +26,7 @@ impl AcpClient {
             return value;
         }
         match self.agent_name.as_str() {
+            "corust-agent" if self.managed_corust() && value == "yolo" => "default",
             "codex" if value == codex::FULL_MODE || self.desktop_workspace.is_some() => {
                 codex::RESTRICTED_MODE
             }

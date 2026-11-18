@@ -38,10 +38,12 @@ pub fn configure(
     let runtime = profile.directory();
     let config_dir = runtime.join("corust/config");
     std::fs::create_dir_all(&config_dir)?;
+    // The native inference client appends an absolute path without joining it.
+    let gateway_url = endpoint.as_str().trim_end_matches('/');
     let base = json!({
         "version": "0.6.0",
         "llm": {"model": model, "max_tokens": profile.model_output_limit},
-        "gateway": {"url": endpoint.as_str(), "timeout_secs": 300},
+        "gateway": {"url": gateway_url, "timeout_secs": 300},
         "tools": {"max_file_size": 1048576},
         "log": {"log_dir": runtime.join("logs"), "log_level": "off", "display_in_frontend": false},
         "rag_config": {"url": endpoint.as_str()},

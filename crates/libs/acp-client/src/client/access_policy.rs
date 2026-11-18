@@ -154,6 +154,11 @@ impl AcpClient {
 
 impl AcpClient {
     async fn guard_native_mode(&self, session_id: &str, mode_id: &str) -> Result<(), AcpError> {
+        if self.managed_corust() && !matches!(mode_id, "default" | "readonly") {
+            return Err(AcpError::Prompt(
+                "Managed Corust requires native tool approval callbacks".into(),
+            ));
+        }
         self.guard_goose_mode(session_id, mode_id).await?;
         self.guard_hermes_mode(session_id, mode_id).await?;
         self.guard_iflow_mode(session_id, mode_id).await?;

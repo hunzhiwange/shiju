@@ -56,7 +56,7 @@ impl AcpClient {
     async fn spawn_actor_runtime(&self, cwd: &Path) -> Result<ActorRuntime, AcpError> {
         // These engines initialize project state before their first session/new RPC.
         let ProcessHandles { mut child, stderr_task } =
-            if matches!(self.agent_name.as_str(), "nova" | "poolside") {
+            if self.managed_corust() || matches!(self.agent_name.as_str(), "nova" | "poolside") {
                 self.spawn_child_at(false, Some(cwd))?
             } else {
                 self.spawn_child()?

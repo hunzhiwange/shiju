@@ -15,6 +15,10 @@ impl AcpClient {
         self.agent_name == "vtcode" && self.config.env.contains_key("VW_ACP_LAUNCH_REFERENCE")
     }
 
+    pub(super) fn managed_corust(&self) -> bool {
+        self.agent_name == "corust-agent" && self.config.env.contains_key("VW_ACP_LAUNCH_REFERENCE")
+    }
+
     pub(super) fn managed_workspace_io(&self) -> bool {
         matches!(self.agent_name.as_str(), "mimo-code" | "omp")
             && self.config.env.contains_key("VW_ACP_LAUNCH_REFERENCE")
@@ -126,7 +130,7 @@ impl AcpClient {
             );
         }
         let managed_vtcode = self.managed_vtcode();
-        let managed_private_provider = managed_vtcode || self.managed_workspace_io() || self.managed_aionrs() || (matches!(self.agent_name.as_str(), "deepagents" | "dimcode" | "junie" | "stakpak")
+        let managed_private_provider = managed_vtcode || self.managed_workspace_io() || self.managed_aionrs() || self.managed_corust() || (matches!(self.agent_name.as_str(), "deepagents" | "dimcode" | "junie" | "stakpak")
                 && env.contains_key("VW_ACP_LAUNCH_REFERENCE"));
         let managed_claude = managed_claude_settings(&self.config).is_some();
         let managed_auggie =

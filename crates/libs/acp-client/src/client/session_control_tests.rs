@@ -590,3 +590,6 @@ async fn managed_omp_model_selection_uses_confirmed_config_option() {
     })
     .await;
 }
+
+#[path = "corust_tests.rs"]
+mod corust_tests;

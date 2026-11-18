@@ -1154,3 +1154,18 @@ Rust重型命令经scripts/cargo_slot.py槽位入口串行执行，对应CARGO_T
 - 两个自有网关仅在自身 PATH 添加 npm 安装所在目录。指定租户的合并配置解析到 `mimo`，安装状态从首轮的 `false` 变为 `true`。初次全局配置 GET 在 30 秒超时，第二次以 90 秒时限重读成功。能力 GET 返回 `session_model=unsupported_cli`，`connected=false`，预设仍停用。租户目录有原模型，探针进程缺少该 provider 声明的密钥环境变量，未验证其他凭据来源。公开 OpenAI 兼容端点使用进程默认 provider 并转换纯文本消息，缺少本任务所需的租户绑定与工具转发。已有 OpenCode 驱动对应独立后端，未替换 MiMo Code。
 - 未改宿主 PATH、租户配置或预设，未发真实上游调用或 Rue.js 创建请求。补齐可稳定发现的固定版入口、经审查的 MiMo Code 请求级模型中继、原租户授权和强制写入边界后，再按原请求验收启用重读、会话绑定与文件创建。
 - 两个自有网关和最终探针均退出 0，回环端口复查关闭。结束全局配置与本轮及首轮基线一致，Rue.js 6303 项普通文件 SHA-256 零差异，Git 状态一致，目标目录未创建。本轮无代码变更，沿用首轮 3 项定向单测证据，未重跑 Cargo、浏览器或页面构建。私有证据目录为 `/tmp/shiju-mimo-code-retry-20261118.eAGmwr/`。
+
+
+## omp 验收（2026-11-18）
+
+结论为已阻塞。系统安装器装入了 OMP 18.22.0，网关可以发现入口。入口缺少 Bun 无法启动，ShiJu 对指定的会话模型来源返回 `unsupported_cli`。
+
+- 前序 MiMo Code 已记录阻塞与环境恢复。从 `e683f7394^` 核对来源任务 19。提交 `e683f7394` 和 `34e5a5595` 交付了 OMP 注册、安装白名单、内置预设和协议夹具。当前缺少任务 19 约定的脱敏接入证据。注册优先发现 `omp acp`，备用入口为 `npx -y @oh-my-pi/pi-coding-agent@18.22.0 acp`。当前 `llm-runtime` 的 `acp/model_source/drivers/mod.rs` 无 OMP 已验证版本及模型驱动。
+- 复用 Harn 验收的 shiju 0.6.0 二进制，SHA-256 为 `245d9857ee0005fba1936d1a8bea31719406ef6c550bfe0cc53cb46115ce130e`。构建基线 `f0d2a6d56a43ea6d1ff2673ebea254db698dd2fa` 包含两笔 OMP 接入提交，构建含前序 Harn 实现。为自有网关进程的 PATH 加入 npm 可执行目录，宿主 PATH 无修改。
+- 按 CLI 帮助使用现有开发配置，在 `127.0.0.1:60336` 启动自有网关。请求均携带平台 10001、公司 100010005 和 Rue.js 目录头，安装、预设、ACP 及全局配置基线 GET 均为 HTTP 200。系统安装 POST 返回 HTTP 200，curl 退出 0，耗时 34.055991 秒。该响应在白名单安装子进程成功退出后返回。网关报告安装状态从 `false` 转为 `true`，保留本次安装的包。
+- 系统入口为 `/opt/homebrew/Cellar/node/26.13.0_2/bin/omp`。链接指向包内 `dist/cli.js`，其 SHA-256 为 `3829c41cecf990533d04467d5391bd5076abaa4a16cbffc14e336527895a3cd3`。本地包清单确认版本 18.22.0，并声明 Bun >=1.4.4。入口的解释器为 `/usr/bin/env bun`，实跑 `--version` 退出 127，报告找不到 Bun，未取得 CLI 自报版本。
+- 将安装前 GET 读出的固定版 `npx` ACP 配置交给普通诊断。HTTP 200，curl 退出 0，耗时 2.000700 秒，结果为 `handshake_failed`。独立模型能力 GET 为 HTTP 200，curl 退出 0，耗时 0.001043 秒，报告 `session_model=unsupported`、`reason=unsupported_cli`、`cli_local=supported`、`connected=false`。
+- 预设 GET 确认 `acp-omp` 的 `builtin=true`、`runtime.kind=acp`、`backend=omp`、`enabled=false`。因启动与模型能力均阻塞，未 PATCH 启用或验证保存重读，未提交指定 `alibaba-token-plan-cn/deepseek-v4.1-flash-1017` 的创建请求。会话 SSE、summary、ACP 选项、权限和绑定无证据，编辑器文件未生成。
+- 已确认 Rue.js 的 `packages/rue/src` 和 `@rue-js/rue` 包。排除 `.git`、`node_modules` 和 `target` 后，前后快照分别有 6308 和 6311 项普通文件，差异为 `acpdemo/stakpak/README.md`、`acpdemo/stakpak/index.html`、`acpdemo/stakpak/src/App.tsx` 及 `acpdemo/stakpak/src/style.css`。这些文件在验收窗口内由外部活动变动，本次未执行 OMP 聊天或写入，未处理这些文件。Git 短状态一致，`acpdemo/omp/` 始终不存在。
+- 结束 GET 的全局配置与基线一致，本次无临时配置需恢复。自有网关正常退出，端口已关闭。仓库有其他 Rust 编译运行，复制槽位 1 已构建的 `config-acp-install` 和 `agent-config` 测试产物后运行过滤 `acp_onboarding_omp --test-threads=1`，分别 1 项和 2 项通过，均退出 0。旧 `.plans/references/rust.md` 缺失。未重新调用 Cargo，未运行协议夹具、Clippy、桌面编译、页面构建或浏览器检查。
+- 原始响应、网关日志、源码与构建摘要、测试和快照存于本机 0700 目录 `/tmp/shiju-omp-accept-20261118.796KMW/`。复跑需使网关可发现受支持的 Bun，补齐经实证的 OMP 指定模型驱动与脱敏接入证据，并在验收窗口内协调 Rue.js 工作区写入。

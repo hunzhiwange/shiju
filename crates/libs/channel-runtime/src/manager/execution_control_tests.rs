@@ -59,39 +59,59 @@ async fn channel_worker_panic_releases_busy_state_and_allows_retry() {
     }
 }
 
+// Hold real runtime feedback open so caller cancellation can be observed before cleanup.
+struct BlockingFeedbackChannel {
+    entered: tokio::sync::Notify,
+    release: tokio::sync::Notify,
+}
+
+#[cfg_attr(target_arch = "wasm32", async_trait::async_trait(?Send))]
+#[cfg_attr(not(target_arch = "wasm32"), async_trait::async_trait)]
+impl Channel for BlockingFeedbackChannel {
+    fn name(&self) -> &str {
+        "blocking-feedback"
+    }
+
+    async fn send(&self, _message: &SendMessage) -> anyhow::Result<()> {
+        self.entered.notify_one();
+        self.release.notified().await;
+        Ok(())
+    }
+
+    async fn listen(
+        &self,
+        _tx: tokio::sync::mpsc::Sender<traits::ChannelMessage>,
+    ) -> anyhow::Result<()> {
+        Ok(())
+    }
+}
+
 #[tokio::test]
 async fn channel_worker_abort_releases_busy_state_and_notifies_stop() {
     for name in ["lark", "feishu", "qq", "telegram", "discord", "slack", "dingtalk", "wecom"] {
         let tmp = tempfile::tempdir().unwrap();
-        let ctx = Arc::new(context(tmp.path(), name, None, false));
-        let msg = message("first", name, "sender", "room");
-        let scope = channel_chat_scope(&ctx, &msg);
-        let gate = channel_chat_gate(&ctx, &msg).try_write_owned().unwrap();
-        let completion = Arc::new(InFlightTaskCompletion::new());
-        ctx.project_state.lock().unwrap().active.insert(
-            scope.clone(),
-            InFlightSenderTaskState {
-                task_id: 1,
-                cancellation: CancellationToken::new(),
-                completion: completion.clone(),
-            },
-        );
-        let guard = ChannelTaskGuard {
-            ctx: ctx.clone(),
-            scope,
-            task_id: 1,
-            completion: completion.clone(),
-            gate: Some(gate),
-        };
-        let worker = tokio::spawn(async move {
-            let _guard = guard;
-            std::future::pending::<()>().await;
+        let channel = Arc::new(BlockingFeedbackChannel {
+            entered: tokio::sync::Notify::new(),
+            release: tokio::sync::Notify::new(),
         });
-        assert!(active_channel_task(&ctx, &msg).is_some(), "{name}");
+        let ctx =
+            Arc::new(context(&tmp.path().join("missing"), name, Some(channel.clone()), false));
+        let mut msg = message("first", name, "sender", "room");
+        msg.content = "hello".into();
+        let cancellation = CancellationToken::new();
+        let worker =
+            tokio::spawn(process_channel_message(ctx.clone(), msg.clone(), cancellation.clone()));
+        tokio::time::timeout(Duration::from_secs(1), channel.entered.notified()).await.unwrap();
+        let task = active_channel_task(&ctx, &msg).expect("runtime task must be registered");
         assert!(channel_chat_gate(&ctx, &msg).try_write().is_err(), "{name}");
         worker.abort();
         assert!(worker.await.unwrap_err().is_cancelled());
-        tokio::time::timeout(Duration::from_secs(1), completion.wait()).await.unwrap();
+        assert!(cancellation.is_cancelled(), "{name}");
+        // Feedback still owns the execution gate until it actually exits.
+        assert!(active_channel_task(&ctx, &msg).is_some(), "{name}");
+        assert!(channel_chat_gate(&ctx, &msg).try_write().is_err(), "{name}");
+        channel.release.notify_one();
+        tokio::time::timeout(Duration::from_secs(1), task.completion.wait()).await.unwrap();
         assert!(active_channel_task(&ctx, &msg).is_none(), "{name}");
         assert!(channel_chat_gate(&ctx, &msg).try_write().is_ok(), "{name}");
         assert!(stop_channel_task(&ctx, &msg).await.contains("没有正在执行"), "{name}");

@@ -170,24 +170,6 @@ fn omp_uses_fixed_native_release() {
 
 #[cfg(all(target_os = "macos", target_arch = "aarch64"))]
 #[tokio::test]
-#[ignore = "downloads the official Corust archive into an explicit isolated directory"]
-async fn corust_managed_install_resolves_and_verifies_native_entry() {
-    let root = std::env::var("VW_ACP_INSTALL_ACCEPTANCE_ROOT").unwrap();
-    assert!(Path::new(&root).is_absolute());
-    let _lock = crate::TEST_HOME_ENV_LOCK.lock().await;
-    // The isolated test process receives VIBEWINDOW_CONFIG_DIR from its caller.
-    assert_eq!(std::env::var("VIBEWINDOW_CONFIG_DIR").as_deref(), Ok(root.as_str()));
-    crate::install_builtin_agent("corust-agent").await.unwrap();
-    let registered = crate::resolve_agent_spec("corust-agent").unwrap();
-    assert!(Path::new(&registered.command).starts_with(&root));
-    assert!(registered.command.ends_with("/corust-agent-acp"));
-    assert!(registered.args.is_empty());
-    verify_reviewed_agent_executable("corust-agent", &registered.command).unwrap();
-    crate::install_builtin_agent("corust-agent").await.unwrap();
-}
-
-#[cfg(all(target_os = "macos", target_arch = "aarch64"))]
-#[tokio::test]
 #[ignore = "downloads the official Devin archive into an explicit isolated directory"]
 async fn devin_managed_install_resolves_and_verifies_native_entry() {
     let root = PathBuf::from(std::env::var_os("VW_ACP_INSTALL_ACCEPTANCE_ROOT").unwrap());
@@ -208,4 +190,22 @@ async fn devin_managed_install_resolves_and_verifies_native_entry() {
     assert!(output.status.success());
     assert!(String::from_utf8(output.stdout).unwrap().contains("3000.13.4"));
     crate::install_builtin_agent("devin").await.unwrap();
+}
+
+#[cfg(all(target_os = "macos", target_arch = "aarch64"))]
+#[tokio::test]
+#[ignore = "downloads the official Corust archive into an explicit isolated directory"]
+async fn corust_managed_install_resolves_and_verifies_native_entry() {
+    let root = std::env::var("VW_ACP_INSTALL_ACCEPTANCE_ROOT").unwrap();
+    assert!(Path::new(&root).is_absolute());
+    let _lock = crate::TEST_HOME_ENV_LOCK.lock().await;
+    // The isolated test process receives VIBEWINDOW_CONFIG_DIR from its caller.
+    assert_eq!(std::env::var("VIBEWINDOW_CONFIG_DIR").as_deref(), Ok(root.as_str()));
+    crate::install_builtin_agent("corust-agent").await.unwrap();
+    let registered = crate::resolve_agent_spec("corust-agent").unwrap();
+    assert!(Path::new(&registered.command).starts_with(&root));
+    assert!(registered.command.ends_with("/corust-agent-acp"));
+    assert!(registered.args.is_empty());
+    verify_reviewed_agent_executable("corust-agent", &registered.command).unwrap();
+    crate::install_builtin_agent("corust-agent").await.unwrap();
 }

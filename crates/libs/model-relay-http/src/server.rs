@@ -88,6 +88,8 @@ impl RelayServer {
         let router = Router::new()
             .route("/", post(handle))
             .route("/v1/chat/completions", post(handle))
+            .route("/v1/onerouter/chat/completions", post(handle))
+            .route("/v1/onerouter/models", get(handle))
             .route("/v1/messages", post(handle_messages))
             .route("/v1/responses", post(handle_responses))
             .route("/v1beta/models", get(handle_gemini))
@@ -198,6 +200,19 @@ async fn handle(State(state): State<Arc<ServerState>>, request: Request) -> Resp
     if !state.binding.accepts(token, state.binding.identity()) {
         return StatusCode::UNAUTHORIZED.into_response();
     }
+    let corust = state.binding.identity().session.ends_with(":corust-agent");
+    if corust && request.uri().path() == "/v1/onerouter/models" {
+        if request.uri().query().is_some() {
+            return StatusCode::BAD_REQUEST.into_response();
+        }
+        // Corust validates its relay credential against this catalog. Expose
+        // only the model already bound to the authenticated request.
+        let model = &state.binding.identity().model;
+        return axum::Json(serde_json::json!({
+            "provider": "onerouter",
+            "models": [{"id": model, "internal_id": model, "display_name": model}],
+        })).into_response();
+    }
     let kiro = state.binding.identity().session.ends_with(":kiro");
     let kiro_control = kiro && request.uri().path() == "/";
     let kiro_target = request
@@ -232,6 +247,7 @@ async fn handle(State(state): State<Arc<ServerState>>, request: Request) -> Resp
         match request.uri().path() {
             "/" if kiro_control => "/kiro/control",
             "/v1/chat/completions" => "/v1/chat/completions",
+            "/v1/onerouter/chat/completions" if corust => "/v1/chat/completions",
             "/v1/messages" => "/v1/messages",
             "/v1/responses" => "/v1/responses",
             _ => return StatusCode::NOT_FOUND.into_response(),
@@ -326,7 +342,13 @@ async fn handle(State(state): State<Arc<ServerState>>, request: Request) -> Resp
                 Some("Read" | "Write" | "Edit" | "Glob")
             ));
         }
-        let body = if aionrs || vtcode || gemini || (kiro && path == "/v1/responses") {
+        if corust && let Some(tools) = json.get_mut("tools").and_then(serde_json::Value::as_array_mut) {
+            tools.retain(|tool| matches!(
+                tool.pointer("/function/name").and_then(serde_json::Value::as_str),
+                Some("read_file" | "write_file" | "glob" | "grep")
+            ));
+        }
+        let body = if corust || aionrs || vtcode || gemini || (kiro && path == "/v1/responses") {
             Bytes::from(serde_json::to_vec(&json).map_err(|_| StatusCode::BAD_REQUEST)?)
         } else {
             body
@@ -440,3 +462,7 @@ fn retain_vtcode_tools(request: &mut serde_json::Value) {
 #[cfg(test)]
 #[path = "vtcode_tests.rs"]
 mod vtcode_tests;
+
+#[cfg(test)]
+#[path = "corust_tests.rs"]
+mod corust_tests;

@@ -233,13 +233,16 @@ if agent == 'corust-agent':
     if digest(archive) != contract['archive_sha256']:
         raise RuntimeError('Corust Agent fixed archive checksum mismatch')
     runtime.mkdir()
-    executable = runtime / contract['bin']
+    executable = runtime / 'corust-agent-native'
     with tarfile.open(archive) as package:
         members = package.getmembers()
-        if len(members) != 1 or members[0].name != executable.name or not members[0].isfile():
+        if len(members) != 1 or members[0].name != contract['bin'] or not members[0].isfile():
             raise RuntimeError('Unexpected Corust Agent archive layout')
         with package.extractfile(members[0]) as source, executable.open('xb') as output:
             shutil.copyfileobj(source, output)
+    launcher = runtime / contract['bin']
+    shutil.copy2(assets / 'corust-agent/launcher.py', launcher)
+    launcher.chmod(0o700)
     check_files(runtime, contract['files'])
     executable.chmod(0o700)
     raise SystemExit(0)

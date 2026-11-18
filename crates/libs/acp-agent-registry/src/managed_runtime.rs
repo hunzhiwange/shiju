@@ -33,7 +33,7 @@ fn root() -> Result<PathBuf, String> {
 fn installed_directory(agent: &str, contract: &Contract) -> Result<PathBuf, String> {
     // Keep the prior DeepAgents guard intact while installing the reviewed
     // recoverable host-file-error contract beside it.
-    let revision = if agent == "deepagents" { 2 } else { 1 };
+    let revision = if matches!(agent, "deepagents" | "corust-agent") { 2 } else { 1 };
     Ok(root()?.join(format!("{agent}-{}-model-source-v{revision}", contract.version)))
 }
 fn verify(directory: &Path, contract: &Contract) -> Result<PathBuf, String> {
@@ -285,6 +285,7 @@ pub(super) async fn install(agent: &str) -> Result<bool, String> {
         ("harn/agent.harn", include_str!("../../../../patches/acp-model-source/harn/agent.harn")),
         ("poolside/launcher.py", include_str!("../../../../patches/acp-model-source/poolside/launcher.py")),
         ("harn/launcher.py", include_str!("../../../../patches/acp-model-source/harn/launcher.py")),
+        ("corust-agent/launcher.py", include_str!("../../../../patches/acp-model-source/corust-agent/launcher.py")),
         ("stakpak/launcher.py", include_str!("../../../../patches/acp-model-source/stakpak/launcher.py")),
         (
             "sigit.patch",

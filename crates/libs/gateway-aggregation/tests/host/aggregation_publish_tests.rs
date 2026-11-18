@@ -29,6 +29,8 @@ fn scope(project: &str) -> ProjectScope {
 }
 struct Fixture {
     root: tempfile::TempDir,
+    home: std::path::PathBuf,
+    credential_root: std::path::PathBuf,
     db: GlobalDatabase,
     tx: ProviderTransactions,
     policy: std::path::PathBuf,
@@ -38,11 +40,15 @@ struct Fixture {
 impl Fixture {
     fn new() -> Self {
         let root = tempfile::tempdir().unwrap();
+        let home = root.path().to_path_buf();
+        let private = home.join("private");
+        Self::with_paths(root, home, private)
+    }
+    fn with_paths(root: tempfile::TempDir, home: std::path::PathBuf, private: std::path::PathBuf) -> Self {
         std::fs::set_permissions(root.path(), std::fs::Permissions::from_mode(0o700)).unwrap();
-        let private = root.path().join("private");
-        std::fs::create_dir(&private).unwrap();
+        std::fs::create_dir_all(&private).unwrap();
         std::fs::set_permissions(&private, std::fs::Permissions::from_mode(0o700)).unwrap();
-        let db = GlobalDatabase::for_home(root.path()).unwrap();
+        let db = GlobalDatabase::for_home(&home).unwrap();
         let store = GatewaySettingsStore::new(db.clone()).unwrap();
         for (id, model) in [("alpha", "first"), ("beta", "second")] {
             store.upsert(&tenant(),"app_providers.records",&format!("\"claude\":{id}"),&json!({"name":id,"category":"custom",
@@ -50,7 +56,7 @@ impl Fixture {
         }
         let tx =
             ProviderTransactions::new(&private, ExecutionHostId::new("host").unwrap()).unwrap();
-        let mut guard = lock_app(AppId::Claude, root.path()).unwrap();
+        let mut guard = lock_app(AppId::Claude, &home).unwrap();
         tx.commit_project_checked(
             &scope("project"),
             &mut guard,
@@ -76,7 +82,7 @@ impl Fixture {
         )
         .unwrap();
         let policy = root.path().join("access.json");
-        let f = Self { root, db, tx, policy, router: Default::default(), routing: None };
+        let f = Self { root, home, credential_root: private, db, tx, policy, router: Default::default(), routing: None };
         f.policy(true, true, false);
         f
     }
@@ -87,7 +93,7 @@ impl Fixture {
                 "provider_config_read":true,"aggregation_read":apps,
                 "provider_config_write":write,"aggregation_write":if aggregation {apps.clone()} else {json!([])},
                 "routing_read":routing,"routing_manage":routing,"routing_apps":apps}]}],
-            "hosts":[{"id":"host","online":true,"binding":"local","home":self.root.path(),"credential_root":self.root.path().join("private"),"search_paths":[],"applications":self.root.path().join("Applications")}]}).to_string()).unwrap();
+            "hosts":[{"id":"host","online":true,"binding":"local","home":self.home,"credential_root":self.credential_root,"search_paths":[],"applications":self.root.path().join("Applications")}]}).to_string()).unwrap();
         std::fs::set_permissions(&self.policy, std::fs::Permissions::from_mode(0o600)).unwrap();
     }
     async fn router(&self) -> Router {
@@ -218,10 +224,10 @@ impl Fixture {
         panic!("publication did not settle");
     }
     fn native(&self) -> std::path::PathBuf {
-        self.root.path().join(".claude/settings.json")
+        self.home.join(".claude/settings.json")
     }
     fn prepare_native(&self) {
-        std::fs::create_dir(self.root.path().join(".claude")).unwrap();
+        std::fs::create_dir(self.home.join(".claude")).unwrap();
         std::fs::write(
             self.native(),
             json!({"env":{"ANTHROPIC_MODEL":"first"},"hooks":{"user":true}}).to_string(),

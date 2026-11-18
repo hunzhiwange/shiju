@@ -122,3 +122,18 @@ python3 scripts/cargo_slot.py cargo test -p vw-agent --lib aggregation_t19_host_
 - 修复前后均执行 `python3 scripts/cargo_slot.py cargo test -p vw-agent --lib aggregation_t19_host_stop_and_start_use_authorized_router -- --nocapture`。槽位1，CARGO_TARGET_DIR 与 CARGO_BUILD_BUILD_DIR 均为 `/Users/xiangmin/worker/code/shiju/target/rust-slot-1`。
 - 修复前编译失败67条（含本任务两条E0425）；修复后退出101、65条其他编译错误，无本文件诊断；有效运行测试0，不能视作行为通过。日志 `/tmp/shiju-task309-after.log`。阻塞示例：compat/t42_tests.rs 的 process_with_summarizer、llm transport_tests.rs 的 summary_output_budget、video_edit prepare_tests.rs 的 VideoContext 契约。
 - git diff --check 定向通过；自有编译已退出。其余宿主任务解除阻塞后须重跑上述真实测试，成功前保留本文件。
+
+## 公共产物回归记录
+
+- 已确认提交 `93e8bb9c2` 包含两处处理器引用与请求头修复，并且是公共构建起始 HEAD `3382a35f8` 的祖先。本测试文件与该构建版本一致。
+- 使用 `/tmp/shiju-host-common-304-LYrH28/receipt.md` 与 `test-binary.txt` 登记的槽位 1 产物 `target/rust-slot-1/debug/deps/vw_agent-e6b6e74ae78b3318`。构建结束 HEAD `17e53b009`，产物 SHA-256 `5548b4e2c673a564f9d12af91061c0e01e0334f68881fd8cf360a1cbf5933e78`。
+- 直接以 `--exact gateway::api::handlers::aggregation_publish_tests::lifecycle_tests::aggregation_t19_host_stop_and_start_use_authorized_router --nocapture` 运行。独立进程使用隔离 HOME、CFFIXED_USER_HOME、CODEX_HOME、各 XDG 目录、TMPDIR、VIBEWINDOW_TEST_ROOT、VIBEWINDOW_TEST_HOME 和工作目录。已核对夹具数据库与原生配置写入临时根。未执行重编。
+- 有效测试 1，0 passed、1 failed，退出 101。共享 `aggregation_publish_tests.rs:191` 的 `Fixture::preview` 先返回 HTTP 409 `revision_conflict`（预期 200），尚未运行启停与授权断言。日志：`/var/folders/rg/zr19lb_s5w32q6d2qkd6p0n80000gp/T/shiju-309-dygbuq6h/309-tests.log`。
+- 需先排查共享发布夹具的预览失败，再用更新后的宿主产物重跑本用例。保留任务文件及既有提交。
+
+## 配对契约迁移
+
+- 查明预览 409 来自执行路径不一致。现行网关按租户解析隔离 home 和凭据根，旧夹具把事务写入另一个私有目录。精确用例现以独立进程启动，并在当前网关识别的租户凭据根初始化事务；数据库与原生 Claude 配置也指向相同隔离 home。
+- 共用接线仅涉及父文件 `aggregation_publish_tests.rs` 的路径初始化。写入前核对该文件无其他编号写入归属和未提交差异，其他夹具仍使用原有默认路径。
+- 启停使用正式应用路由及生产配对校验，发送有效或无效的 Bearer skey，保留拒绝后仍挂载、恢复原配置、重挂载与重复启动幂等断言。
+- `git diff --check` 通过。按本轮指示未编译或运行更新后的源码。旧公共产物的 1 项失败仍是修复前证据。等待包含此次提交的新公共产物，按上一节精确用例在隔离环境中复验。

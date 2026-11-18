@@ -9,7 +9,16 @@ async fn published_claude() -> (
     tokio::sync::mpsc::UnboundedReceiver<Value>,
     String,
 ) {
-    let mut f = Fixture::new();
+    publish_claude(Fixture::new()).await
+}
+
+async fn publish_claude(mut f: Fixture) -> (
+    Fixture,
+    Arc<RoutingListener>,
+    tokio::task::JoinHandle<()>,
+    tokio::sync::mpsc::UnboundedReceiver<Value>,
+    String,
+) {
     let upstream = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
     let origin = format!("http://{}", upstream.local_addr().unwrap());
     let (send, receive) = tokio::sync::mpsc::unbounded_channel();
@@ -344,14 +353,57 @@ async fn aggregation_t19_service_stop_preserves_session_relay_capability_and_lis
 
 #[tokio::test]
 async fn aggregation_t19_host_stop_and_start_use_authorized_router() {
-    let (f, listener, server, _, origin) = published_claude().await;
+    const CHILD_ROOT: &str = "SHIJU_AGGREGATION_309_CHILD_ROOT";
+    let Some(home) = std::env::var_os(CHILD_ROOT).map(std::path::PathBuf::from) else {
+        let root = tempfile::tempdir().unwrap();
+        let home = root.path().canonicalize().unwrap();
+        let (_, module) = module_path!().split_once("::").unwrap();
+        let test = format!("{module}::aggregation_t19_host_stop_and_start_use_authorized_router");
+        let mut command = tokio::process::Command::new(std::env::current_exe().unwrap());
+        command
+            .args(["--exact", &test, "--nocapture"])
+            .env_clear()
+            .env("PATH", "/usr/bin:/bin:/usr/sbin:/sbin")
+            .env("HOME", &home)
+            .env("CFFIXED_USER_HOME", &home)
+            .env("TMPDIR", &home)
+            .env("VIBEWINDOW_TEST_ROOT", &home)
+            .env(CHILD_ROOT, &home)
+            .current_dir(&home)
+            .kill_on_drop(true);
+        for (key, name) in [
+            ("CODEX_HOME", "codex"),
+            ("XDG_CONFIG_HOME", "config"),
+            ("XDG_DATA_HOME", "data"),
+            ("XDG_CACHE_HOME", "cache"),
+            ("XDG_STATE_HOME", "state"),
+            ("XDG_RUNTIME_DIR", "runtime"),
+        ] {
+            let path = home.join(name);
+            std::fs::create_dir(&path).unwrap();
+            command.env(key, path);
+        }
+        let output = tokio::time::timeout(std::time::Duration::from_secs(60), command.output())
+            .await
+            .expect("isolated lifecycle test timed out")
+            .unwrap();
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        assert!(
+            output.status.success() && stdout.contains("1 passed; 0 failed"),
+            "{stdout}\n{}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+        return;
+    };
+    assert_eq!(crate::global::paths().home, home);
+    let credential_root = local_app_auth::auth_policy_path(&home, "platform", "company")
+        .with_file_name("auth-credentials");
+    let fixture = Fixture::with_paths(tempfile::tempdir_in(&home).unwrap(), home, credential_root);
+    let (f, listener, server, _, origin) = publish_claude(fixture).await;
     let mut policy: Value = serde_json::from_slice(&std::fs::read(&f.policy).unwrap()).unwrap();
     policy["hosts"][0]["routing_startup"] = json!({"enabled":true,"listen_port":0});
     std::fs::write(&f.policy, policy.to_string()).unwrap();
-    let router = Router::new()
-        .route("/stop/{host}", axum::routing::post(gateway_app_routing::server::lifecycle_api::stop))
-        .route("/start/{host}", axum::routing::post(gateway_app_routing::server::lifecycle_api::start))
-        .layer(Extension(tenant()));
+    let router = gateway_app_routing::server::router().layer(Extension(tenant()));
     let router = super::super::app_routing::configure_with_policy(
         router,
         &listener,
@@ -359,28 +411,41 @@ async fn aggregation_t19_host_stop_and_start_use_authorized_router() {
         f.db.clone(),
     )
     .await;
+    let pairing = crate::security::pairing::PairingGuard::new(true, &[TOKEN.to_owned()]);
+    let router = router.layer(middleware::from_fn(move |req: Request<Body>, next: middleware::Next| {
+        let pairing = pairing.clone();
+        async move {
+            use axum::response::IntoResponse;
+            match crate::gateway::api::auth::require_pairing_auth(&pairing, req.headers()) {
+                Ok(()) => next.run(req).await,
+                Err(error) => error.into_response(),
+            }
+        }
+    }));
+    let stop = "/app-routing/hosts/host/stop";
+    let start = "/app-routing/hosts/host/start";
     let request = |path: &str, token: &str| {
         Request::builder()
             .method("POST")
             .uri(path)
-            .header("x-agent-apps-token", token)
+            .header("authorization", format!("Bearer {token}"))
             .header("content-type", "application/json")
             .body(Body::from("{}"))
             .unwrap()
     };
     assert_eq!(
-        router.clone().oneshot(request("/stop/host", "untrusted")).await.unwrap().status(),
+        router.clone().oneshot(request(stop, "untrusted")).await.unwrap().status(),
         401
     );
     assert!(f.tx.state(AppId::Claude).unwrap().mode.unwrap().attached);
-    assert_eq!(router.clone().oneshot(request("/stop/host", TOKEN)).await.unwrap().status(), 200);
+    assert_eq!(router.clone().oneshot(request(stop, TOKEN)).await.unwrap().status(), 200);
     assert_eq!(native(&f)["env"]["ANTHROPIC_BASE_URL"], origin);
-    assert_eq!(router.clone().oneshot(request("/start/host", TOKEN)).await.unwrap().status(), 200);
+    assert_eq!(router.clone().oneshot(request(start, TOKEN)).await.unwrap().status(), 200);
     assert!(f.tx.state(AppId::Claude).unwrap().mode.unwrap().attached);
     let bytes = std::fs::read(f.native()).unwrap();
-    assert_eq!(router.clone().oneshot(request("/start/host", TOKEN)).await.unwrap().status(), 200);
+    assert_eq!(router.clone().oneshot(request(start, TOKEN)).await.unwrap().status(), 200);
     assert_eq!(std::fs::read(f.native()).unwrap(), bytes);
-    assert_eq!(router.oneshot(request("/stop/host", TOKEN)).await.unwrap().status(), 200);
+    assert_eq!(router.oneshot(request(stop, TOKEN)).await.unwrap().status(), 200);
     server.abort();
 }
 

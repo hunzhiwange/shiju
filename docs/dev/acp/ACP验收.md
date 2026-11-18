@@ -1169,3 +1169,17 @@ Rust重型命令经scripts/cargo_slot.py槽位入口串行执行，对应CARGO_T
 - 已确认 Rue.js 的 `packages/rue/src` 和 `@rue-js/rue` 包。排除 `.git`、`node_modules` 和 `target` 后，前后快照分别有 6308 和 6311 项普通文件，差异为 `acpdemo/stakpak/README.md`、`acpdemo/stakpak/index.html`、`acpdemo/stakpak/src/App.tsx` 及 `acpdemo/stakpak/src/style.css`。这些文件在验收窗口内由外部活动变动，本次未执行 OMP 聊天或写入，未处理这些文件。Git 短状态一致，`acpdemo/omp/` 始终不存在。
 - 结束 GET 的全局配置与基线一致，本次无临时配置需恢复。自有网关正常退出，端口已关闭。仓库有其他 Rust 编译运行，复制槽位 1 已构建的 `config-acp-install` 和 `agent-config` 测试产物后运行过滤 `acp_onboarding_omp --test-threads=1`，分别 1 项和 2 项通过，均退出 0。旧 `.plans/references/rust.md` 缺失。未重新调用 Cargo，未运行协议夹具、Clippy、桌面编译、页面构建或浏览器检查。
 - 原始响应、网关日志、源码与构建摘要、测试和快照存于本机 0700 目录 `/tmp/shiju-omp-accept-20261118.796KMW/`。复跑需使网关可发现受支持的 Bun，补齐经实证的 OMP 指定模型驱动与脱敏接入证据，并在验收窗口内协调 Rue.js 工作区写入。
+
+
+### Stakpak 补齐接入与最终实机验收（2026-11-18）
+
+结论为通过。补齐固定版本系统安装和指定会话模型驱动后，Stakpak 通过真实租户模型创建了 8 项完整编辑器文件。首次会话失败，预建空目标目录后原请求通过。
+
+- 提交 `f6a2a91df` 固定官方 Stakpak 0.3.88 Darwin arm64 发行和归档、二进制、launcher 摘要，安装器仅接受固定 HTTPS 源和单普通文件归档。沿用 Cursor 的受审查运行时与请求级模型中继。驱动为原生选模生成仅含一个模型的私有目录，CLI 请求使用中继要求的模型 ID，ShiJu 保留原租户及 provider 绑定。请求凭据存于私有启动文件，launcher 使用隔离 HOME、回环网络与文件写入限制，屏蔽本机命令执行。模型仅收到查看、创建和替换工具，文件写入使用现有宿主审批及 ACP 回调。原生正向、取消审批、回调拒写和获批落盘各实测一项，使用合成回环回复。
+- 复用当前共享工作区编译的 shiju 0.6.0，确认产物含 Stakpak 专用工具白名单及固定摘要运行时，二进制 SHA-256 为 `75501c6789b6166fdce7f2c9c0359b0c96f7020205eb171eae11fc45524ade15`。使用现有开发 SQLite 配置与凭据的 0700 隔离副本启动自有网关，保留平台 10001、公司 100010005 和 Rue.js 目录。系统安装 HTTP 200、curl 退出 0、21.000876 秒，状态从 false 到 true，管理入口 `stakpak --version` 为 0.3.88，模型能力重读支持 `session_model`。普通诊断 HTTP 200，结果分别为 `authentication_required` 与 `timed_out`。
+- GET 预设确认 `builtin=true`、`backend=stakpak`。首次临时 PATCH 返回 HTTP 200 和 JSON `null`，验收脚本初版误判响应后恢复预设，未发聊天请求。修正后两轮均 PATCH 并重读 `enabled=true`。首轮真实请求 HTTP 200、35.551140 秒，Stakpak 将不存在的 `acpdemo/stakpak` 当作文件读取，宿主返回 ENOENT，原生 ACP 传播为 `chat.error`。无文件写入。预建空目录后重新发出原请求，HTTP 200、curl 退出 0、90.485968 秒，收到 `chat.done`，无 `chat.error`。
+- 成功会话 `ses_1ec573161001WH9A4gEIhWdszR` 执行期间确认 `connected=true`，summary 的预设为 `acp-stakpak`、后端为 `stakpak`、`full_access=true`。执行期间及结束后 options 的 `selected_model` 均为 `source=session_model`、`provider_id=alibaba-token-plan-cn`、`model=alibaba-token-plan-cn/deepseek-v4.1-flash-1017`。结束后连接释放，`connected=false`。
+- Stakpak 完成 11 项编辑工具操作。实际产物为 `index.html`、`vite.config.mjs`、`tsconfig.json`、`src/main.tsx`、`src/App.tsx`、`src/env.d.ts`、`src/style.css`、`README.md`。静态确认 Vite 复用本仓库 Rue 源码别名，textarea 输入驱动 computed 实时统计，localStorage 同步恢复和防抖写入，离页补写未保存内容。README 提供根目录运行命令。未运行浏览器、页面构建或创建后页面回归。
+- Rue.js 普通文件 SHA-256 快照由 6303 项变为 6311 项，差异仅上述 8 项目标文件。两轮实际聊天后均恢复并重读完整配置和有效预设，均等于各轮基线。首次安装阶段恢复了有效预设，隔离副本额外保留显式停用值，最终随副本清理。所有自有网关退出 0、回环端口已关闭，原开发配置和服务未改动。诊断产生的空 Stakpak 本地状态已按创建时间、文件布局和空会话库核验，移入私有证据。验收 SQLite 和凭据副本已清理。
+- 槽位 1 获得安装白名单和运行时注册各 1 项预期失败。槽位 3 复测注册 1 项、安装契约 2 项通过，均退出 0。槽位 3 对 `config-acp-install`、`acp-agent-registry`、`acp-client` 和 `llm-runtime` 的库目标执行 `cargo clippy -j 1 --lib --no-deps`，退出 0。保留 `llm-runtime` 既有 101 项警告，新增 Stakpak 驱动无警告。已完成静态产物核对和目录边界检查。
+- 私有证据 `/tmp/shiju-stakpak-patch-20261118/` 保存安装回执、构建摘要、原始响应、SSE、产物 SHA-256、基线与清理记录。原始配置和供应商二进制均未提交。

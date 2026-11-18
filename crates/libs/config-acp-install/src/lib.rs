@@ -70,8 +70,7 @@ pub fn acp_install_command_for_platform(
         "junie" => return None,
         // Poolside uses the pinned managed native installer.
         "poolside" => return None,
-        // Native Stakpak releases require a pinned, checksum-reviewed platform
-        // mapping before automatic installation. Discover the host CLI instead.
+        // Stakpak uses the checksum-pinned managed archive on Darwin arm64.
         "stakpak" => return None,
         // VT Code uses the verified native archive on Darwin arm64.
         "vtcode" => return None,

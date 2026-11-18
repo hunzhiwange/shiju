@@ -65,3 +65,19 @@ Claude 动态挂载、调用、结果续轮及撤除隔离已有真实证据。�
 限制工具后的挂载轮有 304 条工具事件，49 次 `query`、4 次 `callers`、20 次 `node` 完成，另有 4 次 `node` 失败。首个失败参数为 `{"file":"app/router.tsx"}`，返回文件不存在。其余失败参数为 `app/i18n.tsx`、`app/router.ts` 和 `app/router/index.tsx`。三种指定工具仍回读了 `createRueSiteApp`、`mountRueSiteApp`、`useApp` 和 `_$createApp`。答复覆盖所需链路和分支，并提出首屏去重与导航后无快照残留两项回归预期。答复明确未能通过 MCP 查证路由工厂默认历史值。宿主独立核对显示，`app/router/index.ts:787` 的工厂存在，RustCodeGraph 1.2.10 在同一索引上查询 `createAppRouter` 仍返回空。
 
 限制工具解决了额外调用，指定模型仍在真实挂载轮发出错误路径，因此完整合同继续阻塞。通过条件是在原合同下模型以现有工具准确读取源文件，或先获得能覆盖上述路由符号的 RustCodeGraph 索引，再复跑三轮。私有权限配置、租户凭据和网关均已清理。
+
+## RustCodeGraph 1.2.11 最终三轮
+
+沿用上述已核验的共享网关、Claude ACP 0.26.0、原请求、租户、指定阿里模型及 `full_access=true`。RustCodeGraph 升为同批次审验的 1.2.11 发行构建（SHA-256 `5fab2f2dbf506ddf71d842ef1a7cd6e744c5ec90ff3f5f043ea020e1b3696312`）。干净 RueJS 副本索引覆盖 3478 个文件，可直接查询 `createAppRouter`（`app/router/index.ts:787`）。复用 Goose 的验收用 stdio 转发器，原 RustCodeGraph 执行查询。目录只公布三种工具，并注明现有入口、`node.offset`、`node.limit` 和默认索引根。直连和转发的 query、callers 与分页 node 结果一致，额外工具和越界路径均被拒绝。Claude 项目级设置只在私有副本临时替换，用于隐藏内置工具，沿用既有审批、凭据和会话撤销路径。[同批工具目录证据](goose.md)
+
+| 轮次 | 新会话 | HTTP / curl / 秒 | 终态及结果 |
+| --- | --- | --- | --- |
+| 无挂载 | `ses_1f0f69791001ytRyYMArkR9dLV` | 200 / 0 / 6.908 | `chat.done`，可见答复为 `MCP_NOT_AVAILABLE`，零工具 |
+| 挂载 | `ses_1f0f6b4330019z7SI4o1pHlwkj` | 200 / 0 / 190.111 | `chat.done`，89 次指定工具调用全成功 |
+| 撤除 | `ses_1f0f99bf8001XGCeWNpejC1XVe` | 200 / 0 / 4.356 | `chat.done`，可见答复为 `MCP_NOT_AVAILABLE`，零工具 |
+
+挂载轮 356 条工具事件，50 次 `query`、1 次 `callers` 和 38 次 `node`。89 个调用 ID 的开始与成功完成逐一对应，零额外工具、失败、模型恢复与 `chat.error`。代表调用 `call_74f9604b35194873b87645ee` 定位 `createRueSiteApp`（`app/app.tsx:32`），`call_acc067a8c0d243f782817d18` 返回 `mountRueSiteApp`（`app/app.tsx:39`），`call_af1255f137f94f4994d5b2ac` 与 `call_a219964b37c946539c131ec4` 回读 `useApp`（`packages/runtime/src/hooks/useApp.ts:4`）和 `_$createApp`（`packages/runtime/src/compiler-runtime/app.ts:57`）。`call_43316910ef9e40749d7e8e64` 找到旧索引缺失的路由工厂。
+
+答复覆盖要求的链路、SSR 入口、容器异常、插件安装与布局条件，指出当前路由表没有 `/rust-layers`。两项可检验预期分别检查 `/design/button` 客户端接管后旧快照节点是否仍连接，以及带哨兵节点的模板经 `snapshotClientRoute` 后是否残留。快照影响属于源码推断，未运行浏览器场景。答复有一处辅助引用偏移，实际浏览器脚本入口声明在 `index.html:74`，挂载守卫在 `app/app.tsx:54-55`。
+
+三轮 summary 均确认 `acp-claude / claude` 与 `full_access=true`。运行中 ACP options 确认 `native` 权限与指定 `session_model`，结束后连接释放并保留模型绑定。严格三轮验收通过，未改变产品代码或重复跑 Cargo。私有网关、监听端口、临时权限配置、挂载及凭据副本已清理，私有 RueJS 的版本控制文件与固定提交逐字节一致。原始 SSE、会话读回和目录探针留在本机 0700 目录。

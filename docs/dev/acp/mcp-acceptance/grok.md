@@ -36,3 +36,26 @@
 - 独立回环模型夹具各发出一次真实 query 请求，Grok 均发送 `session/request_permission`。选 `reject_once` 时以 `cancelled` 结束，原因为 `PermissionRejected`，未向夹具回传工具结果。选 `allow_once` 时，续轮收到真实结果 `createRueSiteApp` 位于 `app/app.tsx:32`，最终 `end_turn`。三轮正式请求未人工回复审批。权限探针保留原生审批流程，并使用独立配置和占位中继令牌。
 
 本次保留现有原生适配，未改驱动或权限策略。失败集中在当前 Grok 工具发现路径及指定模型执行约束，既有生命周期用例不覆盖该偏差，本轮未执行 Cargo。重新验收需要受管入口可按会话直接声明目标工具并保留原生审批，再用原提示与模型复跑三轮。私有网关退出 0、端口关闭，私有租户配置及临时 MCP 文件已清理。RueJS 副本的 4108 个归档普通文件与原提交一致，索引外无新增文件。原始证据留在本机 0700 私有目录。
+
+## 共享构建与上游新版复验
+
+复用共享槽位 3 已有的 ShiJu 0.6.0，二进制副本 SHA-256 为 `f46699dd46d8520d8a7cfc3324132ccd5a2e05857e89fde160052fdcf75add3c`。两组私有实例分别使用固定版 1.0.77 和官方稳定版 1.0.89。复用相同的 RueJS 提交、提示、租户、模型和权限。稳定版组使用本批次 Cursor 验收已使用的只读 stdio 转发器，只公布 query、callers、node，补足分页及 TypeScript 路径说明。它限制三个工具及副本内路径，原样转发调用参数和 RustCodeGraph 的响应。
+
+从官方 npm 元数据读取稳定版 1.0.89 与预发行版 1.0.90，校验 Darwin ARM64 归档的 SHA-512 完整性，解压原生入口到私有目录。分别自报 `1.0.89 (28be5bb1bf65)` 与 `1.0.90 (4f3ee008287d)`，入口 SHA-256 为 `f149e6ad81339491f8d6e0c5fd712f2813042c0dfbb595c28d5767e4567c17a1` 和 `f2e9b293e2f67d46bc8f1cd4d74ac0d0bbb1609e864f8e4c569523125f57b38b`。新版入口仅用于私有实验。 [官方 npm 发行](https://www.npmjs.com/package/@xai-official/grok?activeTab=versions)
+
+| 版本与目录 | 轮次 | 新会话 | HTTP / curl / 秒 | 终态和结果 |
+| --- | --- | --- | --- | --- |
+| 1.0.77 完整 | 无挂载 | `ses_1f02da9ed001pg508bLd0THaGF` | 200 / 0 / 9.643 | `chat.done`，内置搜索 3 次，答复含标记及解释 |
+| 1.0.77 完整 | 挂载 | `ses_1f02dd068001dx5jZsdNQok2Dr` | 200 / 0 / 219.481 | `chat.done`，三个目标工具均成功，另有额外调用及 3 次失败 |
+| 1.0.77 完整 | 撤除 | `ses_1f0312a93001sHNsKN0jDAGqb3` | 200 / 0 / 8.198 | `chat.done`，标记准确，内置搜索 1 次 |
+| 1.0.89 三工具 | 无挂载 | `ses_1f02f822f001vRUHi5Jy15NnWy` | 200 / 0 / 6.497 | `chat.done`，标记准确，内置搜索 1 次 |
+| 1.0.89 三工具 | 挂载 | `ses_1f02f9bc3001NlboTOVSNuLNCU` | 200 / 0 / 231.738 | `chat.done`，三个目标工具均成功，内置搜索 1 次及 5 次工具失败 |
+| 1.0.89 三工具 | 撤除 | `ses_1f0332549001mzhlwPN40Z7Hdv` | 200 / 0 / 6.474 | `chat.done`，内置搜索 2 次，答复含标记及解释 |
+
+六轮均无 `chat.error`，无需续传。控制轮的搜索结果均为空，目标工具调用均为零。六轮 UI summary 与 ACP options 回读均确认原预设、`full_access=true`、指定模型和 `session_model`。运行中连接为 `true`，访问级别为 `client_only`，结束时连接释放。
+
+- 1.0.77 挂载成功完成 query 56 次、callers 12 次、node 36 次。代表性完成事件包含 `call_b493a95f4ac549389ad21e27`（`app/app.tsx:32`）、`call_c7f31d9441bb488798b59180`（`app/app.tsx:39`）、`call_bb65c54cb8854e549a2ddb64`（`useApp.ts:4` 转调工厂）。首次工具失败读取了不存在的 `app/router.ts`，两次后续失败是模型把 status 和 files 的参数放在 `tool_input` 外。答复给出主链及快照重复推断，导航验证仍假定了当前未注册的 `/rust-layers`。
+- 1.0.89 挂载成功完成 query 47 次、callers 8 次、node 31 次。对应事件 `call_204ad622ce7143589d2b93e1`、`call_5564914dc54b4d96b93cba14`、`call_c546bc1087504b0585f37350` 指向相同源码。模型未调用目录外的 MCP 工具，但尝试读取不存在的 `app/router.tsx`、`app/i18n.ts`、`app/index.html`，另有一次错误的 `input` 字段和一次嵌套的 `tool_input`。答复的主链、SSR、缺失容器、插件安装、布局守卫及追加导致的快照重复均与源码相符。它提出预填 `#app` 和静态首页导航两个场景，夹具及浏览器均未运行。
+- 1.0.89 和 1.0.90 的独立原生探针均通过 ACP 挂载真实 stdio。两版在 `--agent-profile` 配置三个限定名后，模型仍只通过原生搜索和分派访问 MCP。1.0.89 的 `session/new._meta.agentProfile` 对象探针也未直接公布这三项定义。两版分别选 `reject_once` 均得到 `PermissionRejected` 与 `cancelled`，模型夹具未收到查询结果。分别选 `allow_once` 均在续轮读到 `app/app.tsx:32`，以 `end_turn` 结束。
+
+严格验收继续阻塞。当前 Grok 发行的原生工具目录和分派方式保留了审批及会话边界。更换共享宿主构建、升级 CLI 和缩小目录后，合同内的失败仍可复现。复跑条件是上游提供保留原生审批的会话级直接工具声明，并让指定模型按原请求完成零失败的调用及精确控制答复。若接受原生发现调用或已恢复的工具错误，需由验收负责人明确调整合同。没有修改 Grok 驱动、注册项或权限，也未运行 Cargo。两座私有网关退出 0、端口关闭，私有租户配置及挂载文件已清理。两份 RueJS 副本的 4109 个归档文件及符号链接均无差异，索引外无新增。原始记录保存在本机 0700 私有目录。

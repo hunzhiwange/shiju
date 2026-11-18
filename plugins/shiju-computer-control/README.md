@@ -5,8 +5,9 @@
 技能编排宿主注册的真实 `computer_control` 工具，不声明独立 CLI 或 MCP server。
 工具未注册、服务缺失与权限未授予必须分别检查，安装技能不代表执行就绪。
 
-原生应用策略由 ShiJu 宿主管理，系统调用由包内
-`Contents/Helpers/ShiJu Computer Use.app/Contents/MacOS/shiju-computer-use` 执行。
+原生应用策略由 ShiJu 宿主管理。当前源码的 macOS 打包脚本构建原生控制服务，
+并将其放入 `Contents/Helpers/ShiJu Computer Use.app/Contents/MacOS/shiju-computer-use`。
+已安装的应用包缺少该服务时，原生控制不可用。提供升级指引前需确认有包含该服务的可用版本。
 系统权限属于实际执行服务，不能借用其他应用的 TCC 授权。
 本插件还提供 Chrome Native Messaging 中继、扩展和 Excel/Word 加载项；
 这些资源各自需要连接与授权。锁屏及其他平台不在本技能的就绪承诺中。

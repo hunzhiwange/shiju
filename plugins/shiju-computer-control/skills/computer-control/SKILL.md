@@ -44,8 +44,8 @@ stop 停止当前会话的控制。用户在界面停止会话或撤销权限也
 
 ## 缺少驱动、权限与失败处理
 
-- 工具存在不等于执行服务可用。原生执行依赖识矩包内 `Contents/Helpers/ShiJu Computer Use.app/Contents/MacOS/shiju-computer-use`；缺失时请用户安装包含该服务的完整识矩包，不能复制 Codex 驱动或借用其授权。
-- 插件安装不会自动取得 TCC。权限由实际执行的 ShiJu Computer Use.app 持有；用户应在系统设置的隐私与安全性中核对该进程的辅助功能（新版系统可能称设备控制与数据访问）和屏幕录制权限，按系统要求重启，再重新观察。不要静默申请或修改 TCC。
+- 当前源码的 macOS 打包脚本将 `computer-control` crate 的 `shiju-computer-use` 二进制放到 `Contents/Helpers/ShiJu Computer Use.app/Contents/MacOS/shiju-computer-use`。如果正在运行的识矩应用包缺少该文件，报告“当前安装包缺少原生控制服务”，停止原生操作。仅在确认有包含该服务的可用版本后提供升级指引。不能复制 Codex 驱动或借用其授权。
+- 确认包内服务存在后，由用户在系统设置的隐私与安全性中核对实际执行的 ShiJu Computer Use.app 的辅助功能和屏幕录制权限，按系统要求重启，再重新观察。插件安装不会授予 TCC 权限。不要静默申请或修改 TCC。
 - PermissionDenied 也可能来自识矩策略或目标授权，先核对原生控制开关和应用授权，再由用户核对系统权限；不能直接断言是 TCC。StalePermission 需重读授权状态；TargetChanged 需重新确认目标；Cancelled 后尊重停止；Unsupported 不宣称已支持锁屏或其他系统。
 - 当前服务端可能将启动、连接及系统权限失败归为 BackendFailure。仅凭此错误不能断言驱动缺失、辅助功能或屏幕录制权限不足；明确报告“执行后端失败，具体原因未确定”，列出包内服务、运行状态与权限的人工排查步骤。不得把资源安装 status 当作驱动在线或权限通过证据。
 - 没有成功的观察与动作回读，不声称电脑操控已就绪。不要输出凭证、socket 鉴权数据或敏感截图内容到诊断日志。

@@ -1401,3 +1401,16 @@ macOS arm64 的托管安装已实测，指定模型和 Rue.js 落盘验收仍阻
 - 官方 stable、Windsurf 和 enterprise 清单均返回 HTTP 200，版本同为 3000.14.30821，macOS arm64 和 Linux arm64 的归档摘要分别完全一致。联邦渠道和 ACP 注册表历史版本 3000.2.17、3000.11.3 的清单请求最终均为 HTTP 403。npm 构建流程使用同一 stable 清单。[官方发行流程](https://github.com/CognitionAI/devin-cli/blob/main/DEVELOPMENT.md)
 - 校验并提取 Linux arm64 公开归档，二进制 SHA-256 为 `02b5ca13f932d5d6537435bbe09acbf836b227e1aded7a875cfa773223b5e23d`。在无外网、只读根文件系统的原生 ARM Linux 容器中运行，同一私有回环提供 OpenAI 端点和默认 API 地址。显式 `ACP_BACKEND=openai` 在 initialize 前退出 1，报 `Unknown backend type: openai`。默认后端握手和建会话成功，无工具短提示仍返回 -32000。回环收到两条分析上报，未收到模型目录或推理请求。
 - 探针容器已退出并自动删除，未挂载原工作区或使用租户凭据。未改代码、未执行 Cargo、未发 Rue.js 创建请求。原始日志位于 0700 私有目录 `/tmp/shiju-devin-linux.KdDN4r/`。仍需可实际执行指定模型推理的 Devin 构建或注入点。
+
+### Corust 指定模型与 Rue.js 编辑器验收（2026-11-18）
+
+指定模型、原生工具和编辑器落盘验收通过。原始创建请求在文件已经落盘后仍未收到终态，使用同一模型完成独立的草稿修复请求，取得真实工具写入和成功终态。保留两次会话证据。
+
+- 复用 Cursor 的请求级中继设计，使用 Corust v0.6.0 原生自定义网关配置。系统托管包校验官方二进制和启动器。原生模型目录只公布请求绑定的模型，中继令牌短期有效，未传入上游凭据。原生文件工具由宿主审批，受管模式拒绝跳过审批；沙箱限定工作区写入和回环中继并禁止子进程。普通 CLI 诊断仍需供应商认证。
+- 使用 `shiju 0.6.0` 网关，SHA-256 `63cf060c099b65678af5deef3bff210034deaf4b0008976a0209d795a4ad5dd9`。首次冷安装 HTTP 400 源于固定发行下载超时。重试实际完成安装。最后一轮冷安装 HTTP 200、curl 0、3.449131 秒，识别到本次 v2 托管入口。诊断 HTTP 200 内容为 `authentication_required`，模型能力接口另行确认 `session_model` 可用。按原平台、公司和目录头执行，临时启用并重读 `acp-corust-agent`。
+- 最初真实请求复现启动器缺少进程工作目录，修复后会话可初始化。随后捕获原生 HTTP 请求行，确定尾斜杠会生成 `//v1/onerouter/chat/completions`，移除后回环工具回合以 `end_turn` 结束。两次失败均无文件落盘，原模型的独立简短探针成功。
+- 文件创建轮使用原请求。初始 HTTP 200，curl 28，耗时 300.003792 秒。用同一请求标识与最后事件 ID 续传，HTTP 200，curl 28，耗时 300.002694 秒，两段均无 `chat.done`，也未收到 `chat.error`。续传期间原生工具在目标目录创建并回读 7 个文件，全程未重新提交该创建请求。
+- 针对读取源码发现的清空草稿错误提示，单独发起收尾请求。真实会话 HTTP 200、curl 0、23.861829 秒，新建 `src/draft.ts`、修改 `src/App.tsx`，SSE 有一个 `chat.done` 且无 `chat.error`。两轮均回读内置预设的 backend 为 `corust-agent`、`full_access=true`，执行中 `connected=true`，模型来源 `session_model`、provider `alibaba-token-plan-cn`、完整 ID `alibaba-token-plan-cn/deepseek-v4.1-flash-1017`。收尾结束时连接关闭，仍能重读同一模型绑定。
+- 最终目录 `acpdemo/corust-agent/` 有 8 个普通文件，分别为 `README.md`、`index.html`、`package.json`、`vite.config.ts`、`src/App.tsx`、`src/draft.ts`、`src/main.tsx`、`src/style.css`。静态核对本仓库 Rue 源码别名、页面挂载、文本输入、实时计数及 localStorage 保存、清空与刷新恢复。README 有运行说明，未运行页面、构建或浏览器验证。
+- 两轮全局配置和预设恢复后与各自基线完全相等，网关退出 0、端口关闭，配置副本已删除。整个 Rue.js 普通文件摘要从 6351 项变为 6359 项，差异全在目标目录。中继鉴权定向测试由 1 项失败转为 1 项通过，受管审批定向测试 1 项通过。受影响库 Clippy 退出 0，有既有告警。原生回环验证获批创建、拒绝不写及禁止写出工作区。Rust 使用槽位 6，未构建桌面。
+- 私有证据见 `/tmp/shiju-corust-provider.2aldun/`、`/tmp/shiju-corust-launch.8l2XP5/` 与 `/tmp/shiju-corust-wire.iX4E3n/`。会话和文件证据分别在 `acceptance-wire/` 与 `acceptance-finish/`，原始请求、日志和供应商文件均留在本机。

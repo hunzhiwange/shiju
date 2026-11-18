@@ -1,9 +1,4 @@
 use super::auth_router as agent_apps_auth_read;
-use {
-    agent_app_services::auth_accounts::{AuthAccountMetadata, AuthAccountScope, AuthAccountStore},
-    app_provider_services::AppProviderStore,
-    agent_database::{GlobalDatabase, test_support::PostgresTestDatabase},
-};
 use axum::{Extension, http::StatusCode};
 use base64::{Engine as _, engine::general_purpose::URL_SAFE_NO_PAD};
 use reqwest::{Method, Response};
@@ -22,82 +17,70 @@ use vw_agent_apps::auth::{
     credential_file::{AccountCredential, CredentialFileStore, KimiCredential},
 };
 use {
-    vw_api_transport::TimestampMs,
-    vw_api_app_identity::AppId,
-    vw_api_app_auth::AuthRegion,
-    vw_api_app_auth::AuthService,
-    vw_api_transport::id::TenantScope,
+    agent_app_services::auth_accounts::{AuthAccountMetadata, AuthAccountScope, AuthAccountStore},
+    agent_database::{GlobalDatabase, test_support::PostgresTestDatabase},
+    app_provider_services::AppProviderStore,
+};
+use {
+    vw_api_app_auth::AuthRegion, vw_api_app_auth::AuthService, vw_api_app_identity::AppId,
+    vw_api_transport::TimestampMs, vw_api_transport::id::TenantScope,
 };
 
-const OWNER: &str = "fixture-logout-owner-token-aaaaaaaa";
-const READER: &str = "fixture-logout-reader-token-bbbbbbb";
+const OWNER: &str = "secret";
+const READER: &str = "invalid";
 const ROOT: &str = "/v1/agent-apps/auth";
-const SCOPE: &str = "host_id=host&service=codex_oauth";
+const SCOPE: &str = "host_id=desktop-local&service=codex_oauth";
+
+fn isolated_test() -> anyhow::Result<bool> {
+    const CHILD: &str = "SHIJU_AUTH_LOGOUT_CHILD";
+    if std::env::var_os(CHILD).is_some() {
+        return Ok(false);
+    }
+    let home = tempfile::tempdir()?;
+    let root = home.path().canonicalize()?;
+    let path = std::env::join_paths([root.as_path(), Path::new("/usr/bin"), Path::new("/bin")])?;
+    let status = std::process::Command::new(std::env::current_exe()?)
+        .args(["--exact", std::thread::current().name().unwrap(), "--nocapture"])
+        .env(CHILD, "1")
+        .env("PATH", path)
+        .env("HOME", &root)
+        .env("VIBEWINDOW_TEST_ROOT", &root)
+        .env_remove("CLAUDE_CONFIG_DIR")
+        .env_remove("DSH_HOME")
+        .env_remove("KIMI_HOME")
+        .status()?;
+    anyhow::ensure!(status.success(), "isolated auth logout child failed: {status}");
+    Ok(true)
+}
+
+fn credential_root(company: &str) -> anyhow::Result<PathBuf> {
+    let root = local_app_auth::auth_policy_path(&agent_paths::paths().home, "p", company)
+        .with_file_name("auth-credentials");
+    fs::create_dir_all(&root)?;
+    fs::set_permissions(&root, fs::Permissions::from_mode(0o700))?;
+    Ok(root)
+}
 
 struct Fixture {
-    home: tempfile::TempDir,
+    home: PathBuf,
     db: GlobalDatabase,
     root: PathBuf,
 }
 
 impl Fixture {
     fn new(db: GlobalDatabase) -> anyhow::Result<Self> {
-        let home = tempfile::tempdir()?;
-        let root = home.path().join("private");
-        fs::create_dir(&root)?;
-        fs::set_permissions(&root, fs::Permissions::from_mode(0o700))?;
-        let grant = |company, host, write| {
-            json!({
-                "platform_id":"p", "company_id":company, "host_id":host,
-                "auth_account_read":["codex_oauth","dsh_account"],
-                "auth_flow_start":if write { json!(["claude_official"]) } else { json!([]) },
-                "auth_browser_local":write,
-                "provider_config_read":true, "provider_config_write":write,
-                "auth_binding_write":if write { json!(["codex_oauth"]) } else { json!([]) },
-                "auth_default_write":if write { json!(["codex_oauth"]) } else { json!([]) },
-                "auth_logout":if write { json!(["codex_oauth","claude_official","dsh_account","kimi_oauth"]) } else { json!([]) },
-                "auth_account_revoke":if write { json!(["codex_oauth","dsh_account"]) } else { json!([]) }
-            })
-        };
-        let principal = |id, token: &str, grants| json!({"id":id, "token_sha256":hex::encode(Sha256::digest(token)), "grants":grants});
-        let host = |id, online, binding| {
-            let execution_home = if id == "cli" {
-                PathBuf::from(std::env::var_os("HOME").expect("test execution HOME"))
-            } else {
-                home.path().to_path_buf()
-            };
-            json!({"id":id, "online":online, "binding":binding, "home":execution_home,
-                "search_paths":[home.path()], "applications":home.path(), "credential_root":root,
-                "native_login_owners": if id == "host" {
-                    json!([
-                        {"service":"dsh_account","platform_id":"p","company_id":"c","principal":"owner"},
-                        {"service":"kimi_oauth","platform_id":"p","company_id":"c","principal":"owner"},
-                    ])
-                } else { json!([]) }})
-        };
-        let policy = home.path().join("access.json");
-        fs::write(
-            &policy,
-            serde_json::to_vec(&json!({
-                "principals":[
-                    principal("owner", OWNER, vec![grant("c","host",true), grant("neighbor","host",true),
-                        grant("c","remote",true), grant("c","offline",true), grant("c","cli",true)]),
-                    principal("reader", READER, vec![grant("c","host",false)])
-                ],
-                "hosts":[host("host",true,"local"), host("remote",true,"remote"), host("offline",false,"local"), host("cli",true,"local")]
-            }))?,
-        )?;
-        fs::set_permissions(&policy, fs::Permissions::from_mode(0o600))?;
+        let home = agent_paths::paths().home.clone();
+        let root = credential_root("c")?;
         let tenant = TenantScope::new("p", "c")?;
         let neighbor = TenantScope::new("p", "neighbor")?;
         let scope = AuthAccountScope {
             tenant: &tenant,
-            principal: "owner",
-            host: "host",
+            principal: "desktop-local-user",
+            host: "desktop-local",
             service: AuthService::CodexOauth,
         };
         let accounts = AuthAccountStore::new(db.clone(), &root).map_err(anyhow::Error::msg)?;
-        let credentials = CredentialFileStore::new(&root).map_err(anyhow::Error::msg)?;
+
         let credential = AccountCredential::CodexAuth(json!({
             "auth_mode":"chatgpt",
             "tokens":{
@@ -115,6 +98,9 @@ impl Fixture {
             (AuthAccountScope { principal: "reader", ..scope }, "foreign-owner"),
             (AuthAccountScope { host: "foreign-host", ..scope }, "foreign-host"),
         ] {
+            let credentials =
+                CredentialFileStore::new(&credential_root(scope.tenant.company_id().as_ref())?)
+                    .map_err(anyhow::Error::msg)?;
             credentials
                 .for_owner(scope.principal)
                 .and_then(|owner| owner.lease(scope.tenant, scope.host, AppId::Codex, id, true))
@@ -147,13 +133,18 @@ impl Fixture {
     async fn serve(&self) -> anyhow::Result<Gateway> {
         let router = super::build_router_with_auth(
             vec![],
-            agent_apps_auth_read::router(
+            agent_apps_auth_read::router(Some("secret"), "test", None),
+        )
+        .layer(Extension(self.db.clone()))
+        .layer(axum::middleware::from_fn(|request, next| async move {
+            agent_gateway::middleware::basic_auth_middleware_with_credentials(
+                request,
+                next,
                 Some("secret"),
                 "test",
-                Some(self.home.path().join("access.json")),
-            ),
-        )
-        .layer(Extension(self.db.clone()));
+            )
+            .await
+        }));
         let listener = TcpListener::bind(("127.0.0.1", 0)).await?;
         let url = format!("http://{}", listener.local_addr()?);
         let server = tokio::spawn(async move {
@@ -174,8 +165,8 @@ impl Fixture {
             store
                 .managed_default_account(AuthAccountScope {
                     tenant: &tenant,
-                    principal: "owner",
-                    host: "host",
+                    principal: "desktop-local-user",
+                    host: "desktop-local",
                     service: AuthService::CodexOauth,
                 })
                 .map_err(|error| anyhow::anyhow!("{error:?}"))
@@ -184,9 +175,9 @@ impl Fixture {
 
     fn has_credential(&self, company: &str) -> anyhow::Result<bool> {
         let tenant = TenantScope::new("p", company)?;
-        let lease = CredentialFileStore::new(&self.root)
-            .and_then(|store| store.for_owner("owner"))
-            .and_then(|owner| owner.lease(&tenant, "host", AppId::Codex, "managed", false))
+        let lease = CredentialFileStore::new(&credential_root(company)?)
+            .and_then(|store| store.for_owner("desktop-local-user"))
+            .and_then(|owner| owner.lease(&tenant, "desktop-local", AppId::Codex, "managed", false))
             .map_err(anyhow::Error::msg)?;
         Ok(lease.read().is_ok())
     }
@@ -217,14 +208,16 @@ impl Gateway {
         id: &str,
         scope: &str,
         company: &str,
-        token: &str,
+        password: &str,
     ) -> anyhow::Result<Response> {
         let response = self
             .request(Method::POST, &format!("{ROOT}/accounts/{id}/revoke?{scope}"), company)
-            .basic_auth("test", Some("secret"))
+            .basic_auth("test", Some(password))
             .send()
             .await?;
-        assert_eq!(response.headers()["cache-control"], "no-store");
+        if response.status() != StatusCode::UNAUTHORIZED {
+            assert_eq!(response.headers()["cache-control"], "no-store");
+        }
         Ok(response)
     }
 
@@ -232,16 +225,18 @@ impl Gateway {
         &self,
         scope: &str,
         company: &str,
-        token: &str,
+        password: &str,
         body: Value,
     ) -> anyhow::Result<Response> {
         let response = self
             .request(Method::POST, &format!("{ROOT}/logout?{scope}"), company)
-            .basic_auth("test", Some("secret"))
+            .basic_auth("test", Some(password))
             .json(&body)
             .send()
             .await?;
-        assert_eq!(response.headers()["cache-control"], "no-store");
+        if response.status() != StatusCode::UNAUTHORIZED {
+            assert_eq!(response.headers()["cache-control"], "no-store");
+        }
         Ok(response)
     }
 
@@ -249,7 +244,6 @@ impl Gateway {
         Ok(self
             .request(Method::GET, &format!("{ROOT}/{resource}?{SCOPE}"), company)
             .basic_auth("test", Some("secret"))
-            .header("x-agent-apps-token", OWNER)
             .send()
             .await?
             .error_for_status()?
@@ -269,7 +263,7 @@ async fn assert_error(response: Response, status: u16, code: &str) -> anyhow::Re
     Ok(body)
 }
 
-const DSH_SCOPE: &str = "host_id=host&service=dsh_account";
+const DSH_SCOPE: &str = "host_id=desktop-local&service=dsh_account";
 const DSH_GRANT: &str = "deepseek-account-platform/default";
 
 async fn commits(fixture: Fixture) -> anyhow::Result<()> {
@@ -278,7 +272,6 @@ async fn commits(fixture: Fixture) -> anyhow::Result<()> {
         let response = gateway
             .request(Method::PUT, &format!("{ROOT}/accounts/managed/default?{SCOPE}"), company)
             .basic_auth("test", Some("secret"))
-            .header("x-agent-apps-token", OWNER)
             .send()
             .await?;
         assert_eq!(response.status(), StatusCode::NO_CONTENT);
@@ -299,21 +292,36 @@ async fn commits(fixture: Fixture) -> anyhow::Result<()> {
     let tenant = TenantScope::new("p", "c")?;
     let id = URL_SAFE_NO_PAD.encode(Sha256::digest(serde_json::to_vec(&(
         &tenant,
-        "owner",
-        "host",
+        "desktop-local-user",
+        "desktop-local",
         AuthService::DshAccount,
         DSH_GRANT,
     ))?));
-    let native = fixture.home.path().join(".dsh");
+    let native = fixture.home.as_path().join(".dsh");
     fs::create_dir(&native)?;
     fs::set_permissions(&native, fs::Permissions::from_mode(0o700))?;
     let credentials = native.join(".credentials.yaml");
-    let initial = json!({"version":1,"records":{
+    let initial = json!({"version":1,"refs":{},"records":{
         (DSH_GRANT):{"kind":"grant","payload":{"version":1,
             "token":"fixture-private-dsh","issuer":"https://example.invalid"}},
         "unrelated":{"preserve":true}
     }});
-    fs::write(&credentials, serde_yaml::to_string(&initial)?)?;
+    // Native schema versions are YAML integers; JSON fixture numbers serialize as floats.
+    fs::write(
+        &credentials,
+        r#"version: 1
+refs: {}
+records:
+  deepseek-account-platform/default:
+    kind: grant
+    payload:
+      version: 1
+      token: fixture-private-dsh
+      issuer: https://example.invalid
+  unrelated:
+    preserve: true
+"#,
+    )?;
     fs::set_permissions(&credentials, fs::Permissions::from_mode(0o600))?;
     assert_error(gateway.revoke(&id, DSH_SCOPE, "c", OWNER).await?, 409, "reauth_required").await?;
     assert_eq!(serde_yaml::from_slice::<Value>(&fs::read(&credentials)?)?, initial);
@@ -323,13 +331,12 @@ async fn commits(fixture: Fixture) -> anyhow::Result<()> {
     );
     assert_eq!(
         serde_yaml::from_slice::<Value>(&fs::read(&credentials)?)?,
-        json!({"version":1,"records":{"unrelated":{"preserve":true}}})
+        json!({"version":1,"refs":{},"records":{"unrelated":{"preserve":true}}})
     );
     assert_error(gateway.revoke(&id, DSH_SCOPE, "c", OWNER).await?, 409, "conflict").await?;
     let status: Value = gateway
         .request(Method::GET, &format!("{ROOT}/status?{DSH_SCOPE}"), "c")
         .basic_auth("test", Some("secret"))
-        .header("x-agent-apps-token", OWNER)
         .send()
         .await?
         .error_for_status()?
@@ -342,7 +349,7 @@ async fn commits(fixture: Fixture) -> anyhow::Result<()> {
 }
 
 async fn assert_kimi_logout(fixture: &Fixture, gateway: &Gateway) -> anyhow::Result<()> {
-    let native = fixture.home.path().join(".kimi-code");
+    let native = fixture.home.as_path().join(".kimi-code");
     fs::create_dir_all(native.join("credentials"))?;
     fs::create_dir(native.join("oauth"))?;
     let config = r#"default_model = "global"
@@ -375,8 +382,8 @@ model = "kimi-for-coding"
     let tenant = TenantScope::new("p", "c")?;
     let scope = AuthAccountScope {
         tenant: &tenant,
-        principal: "owner",
-        host: "host",
+        principal: "desktop-local-user",
+        host: "desktop-local",
         service: AuthService::KimiOauth,
     };
     let credentials = CredentialFileStore::new(&fixture.root).map_err(anyhow::Error::msg)?;
@@ -415,7 +422,7 @@ model = "kimi-for-coding"
                 .map_err(|error| anyhow::anyhow!("{error:?}"))
         })?;
     }
-    let query = "host_id=host&service=kimi_oauth";
+    let query = "host_id=desktop-local&service=kimi_oauth";
     let response = gateway.logout(query, "c", OWNER, json!({"selection":"default"})).await?;
     assert_eq!(response.status(), StatusCode::NO_CONTENT, "default Kimi logout");
     assert!(!native_file("global").exists());
@@ -433,16 +440,16 @@ model = "kimi-for-coding"
 }
 
 async fn assert_claude_cleanup(fixture: &Fixture, gateway: &Gateway) -> anyhow::Result<()> {
-    let home = fixture.home.path();
+    let home = fixture.home.as_path();
     let program = home.join("claude");
     fs::write(
         &program,
         format!(
             r#"#!/bin/sh
 set -eu
-printf '%s\n%s\n' "$$" "$CLAUDE_CONFIG_DIR" > '{}'
 umask 077
 printf '%s' '{{"oauthAccount":{{"accountUuid":"fixture-user","organizationUuid":"fixture-org"}}}}' > .claude.json
+printf '%s\n%s\n' "$$" "$CLAUDE_CONFIG_DIR" > '{}'
 "$BROWSER" 'https://claude.com/cai/oauth/authorize?code=true&state=fixture'
 IFS= read -r code
 "#,
@@ -450,11 +457,10 @@ IFS= read -r code
         ),
     )?;
     fs::set_permissions(&program, fs::Permissions::from_mode(0o700))?;
-    let scope = "host_id=cli&service=claude_official";
+    let scope = "host_id=desktop-local&service=claude_official";
     let started: Value = gateway
         .request(Method::POST, &format!("{ROOT}/flows?{scope}"), "c")
         .basic_auth("test", Some("secret"))
-        .header("x-agent-apps-token", OWNER)
         .json(&json!({"method":"copy_link"}))
         .send()
         .await?
@@ -462,7 +468,18 @@ IFS= read -r code
         .json()
         .await?;
     let flow = started["flow_id"].as_str().expect("Claude flow ID");
-    let process = fs::read_to_string(home.join("login-process"))?;
+    let process = tokio::time::timeout(Duration::from_secs(5), async {
+        loop {
+            match fs::read_to_string(home.join("login-process")) {
+                Ok(value) if value.lines().count() == 2 => break Ok::<_, std::io::Error>(value),
+                Ok(_) => {}
+                Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+                Err(error) => break Err(error),
+            }
+            tokio::time::sleep(Duration::from_millis(10)).await;
+        }
+    })
+    .await??;
     let mut lines = process.lines();
     let pid: libc::pid_t = lines.next().unwrap().parse()?;
     let directory = Path::new(lines.next().unwrap());
@@ -490,7 +507,6 @@ IFS= read -r code
     let snapshot: Value = gateway
         .request(Method::GET, &format!("{ROOT}/flows/{flow}?{scope}"), "c")
         .basic_auth("test", Some("secret"))
-        .header("x-agent-apps-token", OWNER)
         .send()
         .await?
         .error_for_status()?
@@ -512,11 +528,10 @@ async fn rejects(fixture: Fixture) -> anyhow::Result<()> {
     }
     let without_principal = gateway
         .request(Method::POST, &format!("{ROOT}/logout?{SCOPE}"), "c")
-        .basic_auth("test", Some("secret"))
         .json(&json!({"selection":"unknown"}))
         .send()
         .await?;
-    assert_error(without_principal, 401, "unauthenticated").await?;
+    assert_eq!(without_principal.status(), StatusCode::UNAUTHORIZED);
     let absent = assert_error(
         gateway.logout(SCOPE, "c", OWNER, selected("missing")).await?,
         404,
@@ -527,18 +542,25 @@ async fn rejects(fixture: Fixture) -> anyhow::Result<()> {
         let response = gateway.logout(SCOPE, "c", OWNER, selected(id)).await?;
         assert_eq!(assert_error(response, 404, "not_found").await?, absent);
     }
-    assert_error(gateway.logout(SCOPE, "c", READER, selected("managed")).await?, 403, "forbidden")
-        .await?;
-    assert_error(gateway.revoke("managed", SCOPE, "c", READER).await?, 403, "forbidden").await?;
+    assert_eq!(
+        gateway.logout(SCOPE, "c", READER, selected("managed")).await?.status(),
+        StatusCode::UNAUTHORIZED
+    );
+    assert_eq!(
+        gateway.revoke("managed", SCOPE, "c", READER).await?.status(),
+        StatusCode::UNAUTHORIZED
+    );
     assert_error(gateway.revoke("managed", SCOPE, "c", OWNER).await?, 501, "unsupported").await?;
     assert_error(
-        gateway.revoke("managed", "host_id=host&service=claude_official", "c", OWNER).await?,
-        403,
-        "forbidden",
+        gateway
+            .revoke("managed", "host_id=desktop-local&service=claude_official", "c", OWNER)
+            .await?,
+        501,
+        "unsupported",
     )
     .await?;
     assert_error(gateway.revoke("missing", DSH_SCOPE, "c", OWNER).await?, 404, "not_found").await?;
-    assert_error(gateway.revoke("missing", DSH_SCOPE, "neighbor", OWNER).await?, 403, "forbidden")
+    assert_error(gateway.revoke("missing", DSH_SCOPE, "neighbor", OWNER).await?, 404, "not_found")
         .await?;
     assert_error(
         gateway.logout(DSH_SCOPE, "c", OWNER, json!({"selection":"default"})).await?,
@@ -551,7 +573,6 @@ async fn rejects(fixture: Fixture) -> anyhow::Result<()> {
             let response = gateway
                 .request(Method::POST, &format!("{prefix}/{resource}?{SCOPE}"), "c")
                 .basic_auth("test", Some("secret"))
-                .header("x-agent-apps-token", OWNER)
                 .json(&selected("managed"))
                 .send()
                 .await?;
@@ -565,6 +586,9 @@ async fn rejects(fixture: Fixture) -> anyhow::Result<()> {
 
 #[test]
 fn auth6_api_logout_commits_expected_scoped_result() -> anyhow::Result<()> {
+    if isolated_test()? {
+        return Ok(());
+    }
     let home = tempfile::tempdir()?;
     let fixture = Fixture::new(GlobalDatabase::for_home(home.path())?)?;
     tokio::runtime::Runtime::new()?.block_on(commits(fixture))
@@ -572,6 +596,9 @@ fn auth6_api_logout_commits_expected_scoped_result() -> anyhow::Result<()> {
 
 #[test]
 fn auth6_api_logout_rejects_invalid_or_stale_input() -> anyhow::Result<()> {
+    if isolated_test()? {
+        return Ok(());
+    }
     let home = tempfile::tempdir()?;
     let fixture = Fixture::new(GlobalDatabase::for_home(home.path())?)?;
     tokio::runtime::Runtime::new()?.block_on(rejects(fixture))
@@ -579,6 +606,9 @@ fn auth6_api_logout_rejects_invalid_or_stale_input() -> anyhow::Result<()> {
 
 #[test]
 fn auth6_api_logout_commits_expected_scoped_result_postgres() -> anyhow::Result<()> {
+    if isolated_test()? {
+        return Ok(());
+    }
     let db = PostgresTestDatabase::from_environment()?;
     let fixture = Fixture::new(db.database().clone())?;
     let result = tokio::runtime::Runtime::new()?.block_on(commits(fixture));
@@ -588,6 +618,9 @@ fn auth6_api_logout_commits_expected_scoped_result_postgres() -> anyhow::Result<
 
 #[test]
 fn auth6_api_logout_rejects_invalid_or_stale_input_postgres() -> anyhow::Result<()> {
+    if isolated_test()? {
+        return Ok(());
+    }
     let db = PostgresTestDatabase::from_environment()?;
     let fixture = Fixture::new(db.database().clone())?;
     let result = tokio::runtime::Runtime::new()?.block_on(rejects(fixture));

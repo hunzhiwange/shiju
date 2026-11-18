@@ -1378,3 +1378,12 @@ macOS arm64 的托管安装已实测，指定模型和 Rue.js 落盘验收仍阻
 - 普通诊断 HTTP 200 和 `connected` 覆盖 ACP 初始化。能力端点 HTTP 200，仍报告 `session_model=unsupported`、`reason=unsupported_cli`、`connected=false`。`acp-cortex-code` 已核实为 builtin、backend=cortex-code。临时启用后 GET 读回为 enabled，恢复后与原有效预设相等。完整配置曾仅差一个显式停用覆写，恢复独立实例启动前的私有配置行并重启后，GET 与基线完全相等。两个自有网关均退出 0，端口关闭，私有租户数据库与授权副本已清理。
 - 最终网关验证前后 Rue.js 各 6351 个文件 SHA-256、Git 状态均相同，`acpdemo/cortex-code/` 始终不存在。较早的长构建窗口观测到 `acpdemo/aionrs/src/{App.tsx,style.css}` 及 `acpdemo/omp/{README.md,index.html,src/App.tsx,src/env.d.ts,src/main.tsx,src/style.css,vite.config.mjs}` 的并发改动。上述路径没有本轮写操作。未发送聊天、未取得指定模型绑定、SSE 或编辑器，未运行页面、桌面或全仓验证。本轮原始响应、快照、构建和清理证据位于 0700 目录 `/tmp/shiju-cortex-patch.zStXYG/`。
 - 本轮无代码改动，未执行新 Cargo 构建、页面或浏览器验证。0700 私有证据保存于 `/tmp/shiju-devin-gateway-20261118.gfS8c8/`。获得获授权构建后，先确认实际 ACP 请求可使用 ShiJu 中继并严格绑定原模型，再执行 Rue.js 落盘验收。
+
+
+### Devin 本地推理后端复验（2026-11-18）
+
+已确认需求是让 Devin 复用 ShiJu 的阿里模型中继。阻塞点在 Devin 公开二进制的推理入口。
+
+- 对照 Cursor 的固定包补丁，Cursor 的 JavaScript 发行包提供可直接替换的原生代理推理循环入口。Devin 公开发行提供无内部符号的原生 Mach-O 二进制。Cognition 的公开仓库提供发行自动化。[官方发行仓库说明](https://github.com/CognitionAI/devin-cli/blob/main/DEVELOPMENT.md)
+- 从发行二进制找到自带的 `ACP_BACKEND=openai` 使用说明。使用实时回环监听分别启动已安装的 3000.13.4 和官方 3000.14.30821。两个公开版都在处理 ACP initialize 前退出，明确返回 `Invalid ACP_BACKEND: Unknown backend type: openai`。在最新版分别尝试 `DEVIN_MODEL_BACKEND=openai` 与 `DEVIN_DEV_API_PROVIDER=openai`，ACP 建会话成功，精确选择原模型仍返回 `-32602`。四个探针期间回环监听累计收到 0 个请求，停在模型选择前置步骤，未发送推理提示。
+- 保留 `session_model` 能力门控。下一项技术前置是能通过回环验证的 Devin 推理入口，然后才能接入现有阿里中继。本轮未改代码或执行 Cargo，目标目录仍不存在，未删除验收任务。原始探针和脱敏监听计数位于 0700 私有目录 `/tmp/shiju-devin-acp-backend.zr3wmu/`。

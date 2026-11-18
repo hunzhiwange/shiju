@@ -62,6 +62,7 @@ impl AcpClient {
             }
         });
         AcpEventClient {
+            sandboxed_native_io: self.managed_vtcode(),
             claude_permissions: self.agent_name == "claude",
             kimi_permissions: self.agent_name == "kimi",
             codebuddy_permissions: self.agent_name == "codebuddy",
@@ -233,6 +234,9 @@ impl acp::Client for AcpEventClient {
         &self,
         args: acp::WriteTextFileRequest,
     ) -> acp::Result<acp::WriteTextFileResponse> {
+        if self.sandboxed_native_io {
+            return Err(acp::Error::method_not_found());
+        }
         if self.desktop_workspace.is_some() && !self.owns_active_prompt(&args.session_id) {
             return Err(acp::Error::invalid_params()
                 .data("Write request has no matching active host session"));
@@ -247,6 +251,9 @@ impl acp::Client for AcpEventClient {
         &self,
         args: acp::ReadTextFileRequest,
     ) -> acp::Result<acp::ReadTextFileResponse> {
+        if self.sandboxed_native_io {
+            return Err(acp::Error::method_not_found());
+        }
         self.ensure_desktop_session(&args.session_id)?;
         if self.desktop_workspace.is_some()
             && self.permission_mode == PermissionMode::ApproveAll
@@ -265,6 +272,9 @@ impl acp::Client for AcpEventClient {
         &self,
         args: acp::CreateTerminalRequest,
     ) -> acp::Result<acp::CreateTerminalResponse> {
+        if self.sandboxed_native_io {
+            return Err(acp::Error::method_not_found());
+        }
         if (self.desktop_workspace.is_some() && !self.owns_active_prompt(&args.session_id))
             || (self.permission_confirmation.is_some()
                 && self.expected_session_id.lock().as_deref() != Some(args.session_id.0.as_ref()))

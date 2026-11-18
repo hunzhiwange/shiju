@@ -24,6 +24,7 @@ pub(super) struct ActivePromptControl {
 }
 
 pub(super) struct AcpEventClient {
+    pub(super) sandboxed_native_io: bool,
     pub(super) claude_permissions: bool,
     pub(super) kimi_permissions: bool,
     pub(super) codebuddy_permissions: bool,

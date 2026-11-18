@@ -137,7 +137,7 @@ impl AcpClient {
             &runtime.expected_session_id,
         )
         .await?;
-        if matches!(self.agent_name.as_str(), "harn" | "poolside") {
+        if matches!(self.agent_name.as_str(), "harn" | "poolside" | "vtcode") {
             // These engines select the model through ACP config options. Require readback.
             self.confirmed_config_control(&runtime.conn, &session_id, "model", &model)
                 .await?;

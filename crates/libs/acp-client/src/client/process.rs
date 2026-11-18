@@ -6,6 +6,10 @@
 use super::*;
 
 impl AcpClient {
+    pub(super) fn managed_vtcode(&self) -> bool {
+        self.agent_name == "vtcode" && self.config.env.contains_key("VW_ACP_LAUNCH_REFERENCE")
+    }
+
     /// Reject desktop routes whose native tools can execute outside client approval.
     pub fn ensure_desktop_native_access(
         agent_name: &str,
@@ -111,9 +115,9 @@ impl AcpClient {
                 .to_string(),
             );
         }
-        let managed_private_provider =
-            matches!(self.agent_name.as_str(), "deepagents" | "dimcode" | "stakpak")
-                && env.contains_key("VW_ACP_LAUNCH_REFERENCE");
+        let managed_vtcode = self.managed_vtcode();
+        let managed_private_provider = managed_vtcode || (matches!(self.agent_name.as_str(), "deepagents" | "dimcode" | "stakpak")
+                && env.contains_key("VW_ACP_LAUNCH_REFERENCE"));
         let managed_claude = managed_claude_settings(&self.config).is_some();
         let managed_auggie =
             self.agent_name == "auggie" && env.contains_key("VW_ACP_LAUNCH_REFERENCE");
@@ -158,13 +162,38 @@ impl AcpClient {
             }
         }
 
-        let mut cmd = build_spawn_command(self.config.command.trim(), &env);
+        let mut cmd = if managed_vtcode {
+            let executable = self.config.command.trim();
+            crate::verify_reviewed_agent_executable("vtcode", executable)
+                .map_err(AcpError::Initialize)?;
+            let executable = Path::new(executable).canonicalize().map_err(AcpError::Spawn)?;
+            let [Some(policy), Some(config), Some(home)] =
+                ["SHIJU_VTCODE_SANDBOX", "SHIJU_VTCODE_CONFIG", "SHIJU_VTCODE_HOME"]
+                    .map(|key| env.remove(key))
+            else {
+                return Err(AcpError::Initialize("VT Code requires private launch files".into()));
+            };
+            if !cfg!(all(target_os = "macos", target_arch = "aarch64")) || args != ["acp"] {
+                return Err(AcpError::Initialize("Unsupported managed VT Code launch".into()));
+            }
+            // Set private directories only on the child. The host and other ACP agents
+            // retain their normal environment.
+            env.insert("HOME".into(), home.clone());
+            env.insert("TMPDIR".into(), home);
+            env.insert("VT_ACP_ENABLED".into(), "1".into());
+            env.insert("VT_ACP_ZED_ENABLED".into(), "1".into());
+            let mut command = tokio::process::Command::new("/usr/bin/sandbox-exec");
+            command.args(["-f", &policy]).arg(executable).args(["--config", &config]);
+            command
+        } else {
+            build_spawn_command(self.config.command.trim(), &env)
+        };
         if self.agent_name == "copilot" {
             cmd.env_remove("COPILOT_ALLOW_ALL");
         }
         if managed_claude || managed_auggie || managed_cursor || managed_droid || managed_private_provider {
             // Do not inherit OAuth, cloud backends, Node injection or proxy credentials.
-            // Keep the OS runtime paths; HOME is preserved, never substituted.
+            // Keep the OS runtime paths. VT Code overrides its home in the child overlay.
             let runtime = [
                 "PATH",
                 "HOME",

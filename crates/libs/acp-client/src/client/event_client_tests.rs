@@ -27,6 +27,7 @@ fn event_client(
     expected_session_id: Option<String>,
 ) -> AcpEventClient {
     AcpEventClient {
+        sandboxed_native_io: false,
         claude_permissions: false,
         kimi_permissions: false,
         codebuddy_permissions: false,
@@ -58,6 +59,7 @@ fn event_client_with_cwd(
     cwd: PathBuf,
 ) -> AcpEventClient {
     AcpEventClient {
+        sandboxed_native_io: false,
         claude_permissions: false,
         kimi_permissions: false,
         codebuddy_permissions: false,
@@ -1286,4 +1288,33 @@ async fn acp_desktop_approval_backend_matrix() {
 fn droid_native_tools_require_current_full_access() {
     assert!(super::AcpClient::ensure_desktop_native_access("droid", false).is_err());
     assert!(super::AcpClient::ensure_desktop_native_access("droid", true).is_ok());
+}
+
+#[tokio::test]
+async fn vtcode_sandboxed_session_rejects_host_io_callbacks() {
+    let root = tempfile::tempdir().unwrap();
+    let file = root.path().join("fixture.txt");
+    fs::write(&file, "original").unwrap();
+    let (tx, _rx) = mpsc::unbounded_channel();
+    let mut events = event_client_with_cwd(tx, root.path().to_path_buf());
+    events.sandboxed_native_io = true;
+    assert!(
+        events
+            .read_text_file(acp::ReadTextFileRequest::new("fixture", &file))
+            .await
+            .is_err()
+    );
+    assert!(
+        events
+            .write_text_file(acp::WriteTextFileRequest::new("fixture", &file, "changed"))
+            .await
+            .is_err()
+    );
+    assert!(
+        events
+            .create_terminal(acp::CreateTerminalRequest::new("fixture", "true"))
+            .await
+            .is_err()
+    );
+    assert_eq!(fs::read_to_string(file).unwrap(), "original");
 }

@@ -36,6 +36,7 @@ pub mod snow;
 pub mod stakpak;
 pub mod trae;
 pub mod vibe;
+pub mod vtcode;
 
 /// This advertises reviewed CLI binding support, not availability for every model.
 /// Each selected model must pass launch_route before private configuration is written.
@@ -52,6 +53,7 @@ pub fn capabilities(
         agent,
         "nova"
             | "harn"
+            | "vtcode"
             | "poolside"
             | "stakpak"
             | "deepagents"
@@ -120,6 +122,7 @@ pub fn verified_release(agent: &str) -> Option<&'static str> {
         "sigit" => "1.7.10 (reviewed host boundary)",
         "dirac" => "0.5.24",
         "harn" => "0.10.201",
+        "vtcode" => "0.183.0",
         "poolside" => "1.0.16",
         "stakpak" => "0.3.88",
         "snow" => "0.9.14",
@@ -143,7 +146,7 @@ pub fn source_protocol(
         "nova" | "amp-acp" | "claude" => P::Messages,
         "codex" | "kiro" => P::Responses,
         "gemini" => P::Gemini,
-        "harn" | "poolside" | "stakpak" | "grok" | "dimcode" | "deepagents" | "autohand" | "sigit" | "glm-acp-agent" | "dirac" | "auggie" | "cursor" | "droid"
+        "harn" | "vtcode" | "poolside" | "stakpak" | "grok" | "dimcode" | "deepagents" | "autohand" | "sigit" | "glm-acp-agent" | "dirac" | "auggie" | "cursor" | "droid"
         | "codebuddy" | "goose" | "hermes" | "iflow" | "kilocode" | "openclaw" | "pi" | "qoder"
         | "qwen" | "trae" => P::Chat,
         "opencode" => model_transport::routing_selection::client_protocol(api)
@@ -210,6 +213,7 @@ pub fn configure(
     match agent {
         "amp-acp" => amp_acp::configure(profile, endpoint),
         "harn" => harn::configure(profile, endpoint, directory),
+        "vtcode" => vtcode::configure(profile, endpoint, directory),
         "poolside" => poolside::configure(profile, endpoint),
         "stakpak" => stakpak::configure(profile, endpoint, directory),
         "auggie" => auggie::configure(profile, endpoint),

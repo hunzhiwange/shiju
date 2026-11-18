@@ -87,3 +87,15 @@ async fn poolside_model_selection_requires_exact_config_readback() {
     assert!(rejected.is_err());
     assert!(!frames.iter().any(|frame| frame["method"] == "session/set_model"));
 }
+
+#[tokio::test]
+async fn vtcode_model_selection_uses_confirmed_config_control() {
+    let (result, frames) = model_control("vtcode", false).await;
+    result.unwrap();
+    assert!(frames.iter().any(|frame| frame["method"] == "session/set_config_option"
+        && frame["params"]["value"] == "alibaba-token-plan-cn/deepseek-v4.1-flash-1017"));
+    assert!(!frames.iter().any(|frame| frame["method"] == "session/set_model"));
+    let (rejected, frames) = model_control("vtcode", true).await;
+    assert!(rejected.is_err());
+    assert!(!frames.iter().any(|frame| frame["method"] == "session/set_model"));
+}

@@ -10,9 +10,10 @@ impl AcpClient {
         &self,
         conn: &acp::ClientSideConnection,
     ) -> Result<(), AcpError> {
+        let native_io = !self.managed_vtcode();
         let mut capabilities = acp::ClientCapabilities::new()
-            .fs(acp::FileSystemCapabilities::new().read_text_file(true).write_text_file(true))
-            .terminal(true);
+            .fs(acp::FileSystemCapabilities::new().read_text_file(native_io).write_text_file(native_io))
+            .terminal(native_io);
         if self.agent_name == "nova" {
             capabilities = capabilities
                 .meta(Map::from_iter([("compass.owner-approval.v1".into(), json!(true))]));

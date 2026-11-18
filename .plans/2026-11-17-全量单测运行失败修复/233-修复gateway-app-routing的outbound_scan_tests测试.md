@@ -4,7 +4,7 @@
 
 批次：【批次1】 依赖：无
 
-状态：已阻塞
+状态：待回归
 
 来源：原任务19全量实际执行；证据编号450。
 预计会话范围：仅本测试定义文件中以下失败族及证据证明必要的底层修复，不接管整包。
@@ -55,3 +55,17 @@ python3 scripts/cargo_slot.py cargo test -p gateway-app-routing --lib 'host_migr
 - 生产 `client_router` 使用 `skey_auth_middleware`。开启配对鉴权时，无效或缺失 skey 返回 401，有效 skey 只放行请求，不传递逐凭据主体或读写角色。`5cb8b43dc` 移除了旧项目和主机授权门槛，`execution_context` 仍忽略旧令牌及 grants，并产生固定主体 `desktop-local-user`。因此接入真实中间件也无法保留原单测的项目未授权、READER、异租户和异主机的 403 契约。
 - 诊断注册器仍按主体及完整 `DiagnosticScope` 限制状态与取消。单测中的探针读取扫描任务 404 是任务类型断言，应保留。生产集成用例另有旧 PEER 主体断言，有效 skey 之间无法制造该主体差异。替换授权或取消旧断言会改变所验证的产品契约。
 - 独立目录修复已提交 `f85871d60`。本轮仅静态复核，遵守调度未启动 Cargo。最近实际定向验证仍为 1 项失败（202 ≠ 403），生产集成用例未运行。与任务 232 等待同一决策：按配对契约替换旧断言并保留任务范围隔离覆盖，或恢复产品层角色、主机、项目和主体授权，再进行定向及集成回归。仅编号状态更新，无新代码提交。
+
+## 配对契约迁移
+
+用户选择现行 Gateway 配对鉴权。生产集成测试在临时运行根目录的真实 skey 存储中注册哈希并启用鉴权。缺失及无效 skey 均断言 401，有效 skey 支持开始、读取和取消。旧 READER/项目授权和 PEER 主体门槛分别替换为配对准入及有效配对下跨租户、项目、主机、应用的任务读取与取消 404。继续验证探针接口不能读取扫描任务、固定端口、进度、取消和响应凭据保密。隔离单测覆盖跨范围任务读取，并保留原扫描行为断言。
+
+子进程清空继承环境，使用临时目录作为 HOME、VIBEWINDOW_TEST_ROOT、工作目录，并显式指定其下的 CODEX_HOME。子进程在启动业务前核对这些路径。生产集成仅向隔离的配置库写测试 skey。已通过 git diff --check 与 rustfmt 解析，按本轮调度未运行 Cargo。
+
+待串行运行原精确单测和以下集成测试，分别记录实际 1 项通过、退出 0，以及子进程证据与双缓存路径。
+
+```sh
+python3 scripts/cargo_slot.py cargo test -p vw-agent --test cc_route_030_outbound_scan cc_route_030_production_gateway_preserves_fixed_candidates_and_job_boundaries -- --exact --nocapture
+```
+
+迁移提交：`7167b66ef`。

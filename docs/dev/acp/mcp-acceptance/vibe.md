@@ -35,3 +35,23 @@
 无挂载与撤除轮的目标工具隔离成立。Vibe 的 Core 内置 `search_tool_functions` 生成 `Searching for relevant tools` 事件，模型在约定标记后附加文字。挂载轮的第一次实际工具失败是模型请求不存在的 `app/router.tsx`，RustCodeGraph 返回文件不存在，同会话继续完成其他查询。首份副本的挂载轮有 103 次成功、6 次缺失路径失败，无挂载与撤除也各有额外说明。两组共六轮确认 MCP 转发已抵达原生会话，随后发生的是工具搜索、模型输出和路径选择问题。
 
 未修改驱动、审批策略或提示，未运行公共转发单测或 Cargo。两次验收脚本均退出 0，私有网关均停止，回查端口 curl 退出 7，子进程已退出，临时挂载与授权副本已清理。干净副本的 4,109 个归档文件在运行后逐项匹配，除索引外新增文件为零。原始 SSE、会话查询和日志留在本机 0700 私有目录。
+
+## 共享构建与限定工具复验
+
+复用共享槽位 6 的 `shiju 0.6.0` 构建副本，SHA-256 为 `6954a2bb76ca26aa39c3b0dd909786c68b85f336648526ef39651b1e3a31f718`。仍使用受审 Vibe 3.0.4、RustCodeGraph 1.2.10、固定 RueJS 提交和原验收请求。复用 [Goose 验收](goose.md#通过的三轮) 的私有 stdio 转发，目录只公布 query、callers、node。元数据加入分页字段、真实入口文件及 `projectPath` 可省略的根索引说明。协议对照确认原目录 8 项、限定目录 3 项，三种真实工具的参数和返回保持一致，分页读取命中 `app/router/index.ts:787`，额外工具和工作区外路径被拒绝。
+
+| 轮次 | 新会话 | HTTP / curl / 秒 | 结果 |
+| --- | --- | --- | --- |
+| 无挂载 | `ses_1f0559b04001Q5HPQNszfp7u4H` | 200 / 0 / 6.533 | 零图谱工具，2 次内置搜索，标记后有额外文字 |
+| 挂载 | `ses_1f055b5e6001i6fxvseP5NHTRq` | 200 / 0 / 112.783 | 图谱 224 次成功、1 次失败，另有 2 次内置搜索 |
+| 撤除 | `ses_1f0576eb70013Iy1gkPRYmV3i7` | 200 / 0 / 7.816 | 零图谱工具，2 次内置搜索，标记后有额外文字 |
+
+三轮各一条 `chat.done`、零 `chat.error`。UI summary 均确认 `acp-vibe / vibe` 和 `full_access=true`。ACP options 回读原租户所选模型和 `session_model`，运行中为 `client_only`，终态连接均已释放。挂载轮的 225 次图谱调用均有同 ID 的开始与完成事件。query、callers、node 分别成功 9、3、212 次，node 在模型猜测 `packages/server-renderer/src/static.ts` 时真实返回文件不存在。未看到 shell 或文件工具调用。
+
+- query `effect-a6f9e73a-9dc4-563b-bf23-5081426f70ae` 返回 `createRueSiteApp app/app.tsx:32`，callers `effect-5fc9735e-fc35-587a-9f88-eb4b0c5b6309` 返回 `mountRueSiteApp app/app.tsx:39`。
+- node `effect-2032cbe1-6298-55be-b54e-223fc7ea46e4` 返回 `useApp.ts:4` 对 `_$createApp` 的调用，`effect-12040cf1-5569-5ac2-b9b6-815f74aba78e` 返回 `compiler-runtime/app.ts:57` 的工厂。
+- 答复覆盖主链、SSR、缺少容器、路由及 i18n 安装和布局条件，并给出预填模板残留和预渲染页重复 DOM 两项验证设想。两项均为源码推断，实际 DOM 数量未经浏览器验证。
+
+独立原生 ACP 回环探针检查了 Vibe 送给模型的真实工具声明。默认设置、按名停用 `search_tool_functions` 及停用连接器三种空挂载会话均返回 `end_turn`，初始推理请求均包含 `search_tool_functions`。同一次按名过滤成功移除了对照工具 `unified_harness_scratchpad`，确认过滤设置已生效。该探针仅使用本地占位模型和令牌，真实验收仍使用原模型。内置搜索由 Vibe Core 提供，限定 MCP 工具目录后它仍可用。[Mistral 工具过滤配置](https://docs.mistral.ai/vibe/code/cli/configuration-reference)
+
+严格验收仍为已阻塞。保持现有审查入口及原请求时，需要支持直接暴露会话 MCP 工具而不触发内置搜索的受审 Vibe 版本，并由原模型完成精确的无挂载答复。另一种复跑条件是验收方明确接受 Vibe 的原生搜索事件并修改对应答复合同。未改运行时代码、提示或审批，未跑 Cargo。私有网关及子进程已退出，端口关闭，临时挂载与授权副本已清理。RueJS 的 4,109 个归档文件与符号链接逐项一致。原始证据保留在本机 0700 目录。

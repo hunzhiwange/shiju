@@ -99,15 +99,21 @@ async fn acp_mcp_mount_carries_resolved_tool_policy() {
                 .await
                 .unwrap();
         STATE.with(|state| *state.borrow_mut() = resolved);
-        let cfg = config::Config::default();
         for (backend, key) in [
             ("cortex-code", "shiju.cortex.toolPolicy"),
             ("pi", "shiju.pi.toolPolicy"),
         ] {
+            let agent_key = format!("acp-{backend}");
+            let mut cfg = config::Config::default();
+            let mut agent = agent_config::catalog::merged_agent_catalog(&cfg.agents)
+                .remove(&agent_key)
+                .unwrap();
+            agent.enabled = true;
+            cfg.agents.insert(agent_key.clone(), agent);
             let mut parsed = ParsedAcpOptions::default();
             apply_agent_defaults(
                 &cfg,
-                &json!({"agent": format!("acp-{backend}")}),
+                &json!({"agent": agent_key}),
                 backend,
                 workspace.path(),
                 &mut parsed,

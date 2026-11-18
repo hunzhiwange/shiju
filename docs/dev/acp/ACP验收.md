@@ -1261,3 +1261,19 @@ Poolside 以原指定模型完成 Rue.js 编辑器落盘验收。保留前次请
 - 六条完成的写入分别对应 `acpdemo/poolside/index.html`、`package.json`、`vite.config.ts`、`src/main.tsx`、`src/style.css`、`README.md`。静态核对确认 Vite alias 和编译入口均存在，页面从本仓库 `@rue-js/rue` 导入运行时，使用 textarea、computed 实时计数、localStorage 初始化恢复和逐次输入同步保存。README 的启动命令是 `pnpm --dir acpdemo/poolside dev`。未运行浏览器或页面构建。
 - Rue.js 前后普通文件分别为 6319 和 6325 项，摘要差异恰好为上述六个文件。恢复预设后临时配置 GET 与基线完全相等，原开发配置未收到 PATCH，临时副本已删除。自有网关退出 0、端口关闭。一个本轮的已退出沙箱容器经时间和挂载核实后已移除。无代码变更，沿用上节的定向测试和 Clippy 证据。
 - 本轮原始请求、SSE、配置重读、文件摘要、逐项核验和清理记录存于 0700 私有目录 `/tmp/shiju-poolside-complete.4yPggO/`，未提交运行产物或凭据。
+
+
+### VT Code 补齐接入与最终实机验收（2026-11-18）
+
+结论为通过。VT Code 0.183.0 使用原租户、原模型和内置预设，在 Rue.js 工作区创建了 8 项编辑器文件。
+
+- `cc815a876` 接入固定摘要的 Darwin arm64 系统安装，`fd551b40d` 接入请求级模型中继、现代 ACP 选模确认及原生工具沙箱。独立探针验证目录内写入、取消审批、阻断目录外符号链接写入及阻断子进程。宿主在托管会话中拒绝文件与终端回调，由沙箱内原生工具处理。
+- 首次真实会话绑定原模型，但 VT Code 用网关进程的启动目录初始化工具注册，沙箱拒绝了写往 ShiJu 的操作。随后将网关临时从 Rue.js 启动，普通 CLI-local 诊断生成的 `.vtcode/tool-policy.json` 又触发配置覆写拒绝。已按前后快照、时间和文件布局辨认两份自有诊断缓存，并移入私有证据。清理后重试时模型仍反复调用不可用的 shell 工具，300 秒超时且无落盘。查询了原会话状态，停掉自有网关后以原请求标识和 Last-Event-ID 尝试续传，新网关明确返回 HTTP 410。
+- `e380dd943` 将原生进程的启动目录绑定到已解析工作区，中继仅转发读、搜索和补丁工具。最终隔离网关使用 `SHIJU_VTCODE_WRITE_ROOT` 将原生写入范围缩到 `acpdemo/vtcode/`。在收到旧流不可续传回执后，用修复构建重新执行原请求。预建了受约束的空目标目录，目录内普通文件均由 VT Code 工具创建。
+- 最终 shiju 0.6.0 由共享工作区在槽位 6 执行 `cargo build -j 1 -p vw-cli --bin shiju` 构建，二进制 SHA-256 为 `0257dd18ce1224e9d39956fae32db69ed9df3534a3158c90daaceb53798da951`。网关使用原开发配置和已有授权凭据的私有副本，独立设置 HOME 和配置目录，避免共享 SQLite 锁。请求头保持平台 10001、公司 100010005 和 Rue.js 目录。
+- 新安装 HTTP 200、curl 退出 0、9.078962 秒，安装状态从 false 变为 true。最终安装重读 HTTP 200、curl 退出 0、0.018163 秒。管理入口版本为 0.183.0，二进制 SHA-256 为 `88cbc99b8aac0c3a9b8596976c610026aebef14d89f9943735c38016a44919a4`。普通诊断 HTTP 200、结果 `authentication_required`。独立模型能力 GET 确认为 `session_model=supported`，内置预设 `builtin=true`、后端为 `vtcode`，PATCH 后 GET 确认已启用。
+- 最终会话 `ses_1ecbca0ed001zarxPD4JyzO8Bk` 的流返回 HTTP 200、curl 退出 0、250.900821 秒，有 `chat.done` 且无 `chat.error`。执行期间 summary 确认 `acp-vtcode`、`vtcode` 和 `full_access=true`，options 确认 `connected=true`。执行期间及结束后的 `selected_model` 均为 `source=session_model`、`provider_id=alibaba-token-plan-cn`、`model=alibaba-token-plan-cn/deepseek-v4.1-flash-1017`。结束后连接已释放。
+- 4 项编辑工具操作完成，落盘 `index.html`、`vite.config.mjs`、`tsconfig.json`、`src/main.tsx`、`src/App.tsx`、`src/env.d.ts`、`src/style.css` 和 `README.md`。静态确认 Vite 使用仓库 Rue 源码别名，`textarea` 事件驱动实时计数，localStorage 防抖保存和初始化恢复，`pagehide` 与 `beforeunload` 补写。README 提供根目录启动命令。README 所述的组件卸载补写与源码有一处差异，卸载回调实际清理定时器。未运行页面构建、浏览器或页面回归。
+- 最终 Rue.js 普通文件 SHA-256 快照由 6325 项增至 6333 项，只有上述 8 项变更。首次共享环境复查观察到并行 Stakpak 验收创建的 8 个文件及其预设变化，未修改这些产物。最终私有实例恢复配置并 GET 确认为完整基线相等，预设回到停用。自有网关退出 0，复查 9 个回环端口均关闭，诊断缓存及配置和凭据副本已清理，宿主用户服务未重启。
+- 定向单测通过安装契约 1 项、ACP 选模及回调边界 2 项、中继工具范围 1 项。槽位 3 的 `cargo clippy -j 1 --lib --no-deps` 对安装、注册、客户端、运行时及最终中继相关包分轮执行，均退出 0，保留 `llm-runtime` 的既有警告。未执行全仓回归或桌面编译。
+- 本机 0700 目录 `/tmp/shiju-vtcode-expanded-20261118.scdg40/` 保存源码和构建摘要、请求与 SSE、选模、快照、还原及产物摘要。只提交脱敏验收记录和 ShiJu 接入，Rue.js 产物保留在其工作区。

@@ -1,10 +1,10 @@
 //! macOS lifecycle acceptance through production HTTP routes and the real SDK.
-//! No public network, real HOME, environment mutation, or install hooks.
-use std::{fs, os::unix::fs::PermissionsExt};
+//! The child process uses a temporary home and a loopback archive server.
+use std::{fs, io::Write, path::{Path, PathBuf}, sync::{Arc, atomic::{AtomicUsize, Ordering}}};
 
-use axum::{Extension, Router};
-use serde_json::json;
-use sha2::{Digest, Sha256};
+use axum::{Extension, Router, extract::State, routing::get};
+use app_settings_store::agent_apps_skills_store::SkillReposStore;
+use vw_agent_apps::skills::repos::SkillRepo;
 use {
     vw_api_app_skills::install_api::InstallSkillRequest,
     vw_api_app_skills::install_api::SkillInstallSource,
@@ -14,9 +14,10 @@ use {
     vw_api_app_skills::uninstall_api::UninstallSkillRequest,
     vw_api_app_skills::updates_api::CheckSkillUpdatesRequest,
     vw_api_app_skills::updates_api::UpdateSkillRequest,
-    vw_api_transport::id::TenantScope,
+    vw_api_transport::id::{ProjectScope, TenantScope},
 };
-use {gateway_endpoint::{GatewayEndpoint}, gateway_app_skills::GatewayAppSkillsClient};
+use gateway_endpoint::{GatewayAuth, GatewayEndpoint};
+use gateway_app_skills::{GatewayAppSkillsClient, SkillInstallError};
 use agent_database::GlobalDatabase;
 
 const TOKEN: &str = "macos-acceptance-fixture-token";
@@ -24,12 +25,20 @@ const TOKEN: &str = "macos-acceptance-fixture-token";
 // Runtime paths are cached; initialize them only in a private child process.
 fn isolated_test() -> bool {
     const CHILD: &str = "SHIJU_MACOS_SKILLS_CHILD";
-    if std::env::var_os(CHILD).is_some() { return false; }
+    if std::env::var_os(CHILD).is_some() {
+        let root = PathBuf::from(std::env::var_os("VIBEWINDOW_TEST_ROOT").unwrap());
+        assert!(root.starts_with(std::env::temp_dir().canonicalize().unwrap()));
+        assert_eq!(std::env::var_os("HOME").as_deref(), Some(root.as_os_str()));
+        assert_eq!(agent_paths::paths().home, root);
+        return false;
+    }
     let root = tempfile::tempdir().unwrap();
+    let isolated_home = root.path().canonicalize().unwrap();
     let status = std::process::Command::new(std::env::current_exe().unwrap())
         .args(["--exact", std::thread::current().name().unwrap(), "--nocapture"])
         .env(CHILD, "1")
-        .env("VIBEWINDOW_TEST_ROOT", root.path().canonicalize().unwrap())
+        .env("HOME", &isolated_home)
+        .env("VIBEWINDOW_TEST_ROOT", &isolated_home)
         .status().unwrap();
     assert!(status.success(), "isolated macOS skills child failed: {status}");
     true
@@ -37,53 +46,33 @@ fn isolated_test() -> bool {
 
 struct Fixture {
     root: tempfile::TempDir,
-    policy: std::path::PathBuf,
     database: GlobalDatabase,
 }
 
 impl Fixture {
     fn new(database: GlobalDatabase) -> Self {
         let root = tempfile::tempdir().unwrap();
-        fs::set_permissions(root.path(), fs::Permissions::from_mode(0o700)).unwrap();
-        let source = root.path().join("source");
-        let ssot = root.path().join("ssot");
-        fs::create_dir(&source).unwrap();
-        // Observe the production execution root inside the isolated process.
         let execution_root = agent_paths::paths().home.join(".agents/skills");
         fs::create_dir_all(&execution_root).unwrap();
-        std::os::unix::fs::symlink(&execution_root, &ssot).unwrap();
-        fs::write(source.join("SKILL.md"), "---\nname: Tool\ndescription: Fixture\n---\nInstructions").unwrap();
-        // A packaged hook must remain inert during installation.
-        fs::write(source.join("install.sh"), "#!/bin/sh\nexit 99\n").unwrap();
-        let policy = root.path().join("access.json");
-        fs::write(&policy, json!({
-            "principals":[{"id":"installer","token_sha256":hex::encode(Sha256::digest(TOKEN)),
-                "grants":[{"platform_id":"p","company_id":"c","host_id":"h",
-                    "skill_repos_write_projects":["project"],"skill_repos_read_projects":["project"],
-                    "skill_install_projects":["project"],"skill_inventory_read_projects":["project"]}]}],
-            "hosts":[{"id":"h","online":true,"binding":"local","home":root.path(),
-                "applications":root.path(),"search_paths":[],"skills_root":ssot,
-                "skill_install_files":{"selected":source}}]
-        }).to_string()).unwrap();
-        fs::set_permissions(&policy, fs::Permissions::from_mode(0o600)).unwrap();
-        Self { root, policy, database }
-    }
-
-    async fn serve(&self) -> Server {
-        self.serve_at("https://codeload.github.com".into()).await
+        std::os::unix::fs::symlink(&execution_root, root.path().join("ssot")).unwrap();
+        Self { root, database }
     }
 
     async fn serve_at(&self, archives: String) -> Server {
-        let policy = Some(self.policy.clone());
-        let routes = super::install_api::router_at(policy.clone(), archives.clone())
-            .merge(super::discovery_api::router_at(policy.clone(), archives.clone(), archives.clone()))
-            .merge(super::inventory_api::router_with_policy(policy.clone()))
-            .merge(super::updates_api::router_at(policy.clone(), archives))
-            .merge(super::jobs_api::router_with_policy(policy.clone()))
-            .merge(super::uninstall_api::router_with_policy(policy))
-            .layer(Extension(TenantScope::new("p", "c").unwrap()))
-            .layer(Extension(self.database.clone()));
-        let app = Router::new().nest("/v1", routes);
+        let routes = super::install_api::router_at(None, archives.clone())
+            .merge(super::discovery_api::router_at(None, archives.clone(), archives.clone()))
+            .merge(super::inventory_api::router_with_policy(None))
+            .merge(super::updates_api::router_at(None, archives))
+            .merge(super::jobs_api::router_with_policy(None))
+            .merge(super::uninstall_api::router_with_policy(None))
+            .layer(Extension(self.database.clone()))
+            .layer(axum::middleware::from_fn(agent_gateway::middleware::tenant_scope_middleware));
+        let state = agent_gateway::gateway_test_fixture::state::<(), (), ()>(
+            Default::default(), true, &[TOKEN.to_owned()],
+        );
+        let app = Router::new().nest("/v1", routes).layer(axum::middleware::from_fn_with_state(
+            state, agent_gateway::request_policy::skey_auth_middleware::<(), (), ()>,
+        ));
         let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
         let endpoint = GatewayEndpoint::new("127.0.0.1", listener.local_addr().unwrap().port())
             .with_tenant_scope(TenantScope::new("p", "c").unwrap());
@@ -97,7 +86,15 @@ struct Server {
     task: tokio::task::JoinHandle<()>,
 }
 impl Server {
-    fn client(&self) -> GatewayAppSkillsClient { GatewayAppSkillsClient::new(gateway_http::GatewayTransport::new(self.endpoint.clone()).unwrap()) }
+    fn client(&self) -> GatewayAppSkillsClient {
+        self.client_with(self.endpoint.tenant_scope().clone(), TOKEN)
+    }
+
+    fn client_with(&self, tenant: TenantScope, token: &str) -> GatewayAppSkillsClient {
+        let endpoint = self.endpoint.clone().with_tenant_scope(tenant)
+            .with_auth(GatewayAuth { skey: Some(token.into()) });
+        GatewayAppSkillsClient::new(gateway_http::GatewayTransport::new(endpoint).unwrap())
+    }
 }
 impl Drop for Server {
     fn drop(&mut self) { self.task.abort(); }
@@ -107,17 +104,21 @@ fn scope() -> SkillReposQuery {
 }
 fn install() -> InstallSkillRequest {
     InstallSkillRequest { scope: scope(), expected_version: 0,
-        source: SkillInstallSource::Local { file_id: "selected".into(), directory: "tool".into() } }
+        source: SkillInstallSource::Git { repo_id: "owner:repo".into(),
+            selection: "skills/tool".into(), directory: "tool".into() } }
 }
 
 async fn lifecycle(f: &Fixture) {
-    let server = f.serve().await;
+    let (archive, _) = serve_archive(f, false, false).await;
+    seed_repository(f).await;
+    let origin = archive.endpoint.base_url();
+    let server = f.serve_at(origin.clone()).await;
     let client = server.client();
     assert!(client.agent_apps_skills_inventory(&scope(), TOKEN).await.unwrap().skills.is_empty());
-    let result = client.agent_apps_skills_install(&install(), TOKEN).await.unwrap();
-    assert_eq!(result.results.len(), 1);
-    assert_eq!(result.results[0].status, SkillInstallStatus::Installed);
-    assert_eq!(result.results[0].target_host_id, "h");
+    let task_id = install_discovered(&client).await;
+    let installed = f.root.path().join("ssot/tool");
+    assert!(installed.join("install.sh").is_file());
+    assert!(!f.root.path().join("hook-ran").exists());
     let inventory = client.agent_apps_skills_inventory(&scope(), TOKEN).await.unwrap();
     assert_eq!(inventory.version, 1);
     assert_eq!(inventory.skills.len(), 1);
@@ -127,30 +128,35 @@ async fn lifecycle(f: &Fixture) {
     let before = fs::read(f.root.path().join("ssot/tool/SKILL.md")).unwrap();
     let check = client.agent_apps_skills_check_updates(&CheckSkillUpdatesRequest { scope: scope() }, TOKEN).await.unwrap();
     assert_eq!(check.version, 1);
-    assert_eq!(check.without_repository, vec!["tool"]);
+    assert!(check.without_repository.is_empty());
+    assert!(check.failures.is_empty());
+    assert!(check.skill_failures.is_empty());
+    assert_eq!(check.unchanged, vec!["tool"]);
     assert!(check.updates.is_empty());
-    // Local provenance cannot be silently upgraded into a network source.
+    // A stale hash cannot change a repository-backed installation.
     assert!(client.agent_apps_skills_update("tool", &UpdateSkillRequest {
-        scope: scope(), expected_version: 1, expected_hash: detail.content_hash.unwrap(),
+        scope: scope(), expected_version: 1, expected_hash: "0".repeat(64),
     }, TOKEN).await.is_err());
     assert_eq!(fs::read(f.root.path().join("ssot/tool/SKILL.md")).unwrap(), before);
-    let job = client.agent_apps_skills_job(&scope(), &result.task_id, TOKEN).await.unwrap();
+    let job = client.agent_apps_skills_job(&scope(), &task_id, TOKEN).await.unwrap();
     assert_eq!(job.phase, SkillJobPhase::Completed);
     // Closing connections and restarting the HTTP server preserves durable observation.
     drop(client);
     drop(server);
-    let server = f.serve().await;
+    let server = f.serve_at(origin).await;
     let client = server.client();
-    let reread = client.agent_apps_skills_job(&scope(), &result.task_id, TOKEN).await.unwrap();
+    let reread = client.agent_apps_skills_job(&scope(), &task_id, TOKEN).await.unwrap();
     assert_eq!(serde_json::to_value(&reread).unwrap(), serde_json::to_value(&job).unwrap());
-    let cancelled = client.agent_apps_skills_cancel_job(&scope(), &result.task_id, TOKEN).await.unwrap();
+    let cancelled = client.agent_apps_skills_cancel_job(&scope(), &task_id, TOKEN).await.unwrap();
     assert_eq!(cancelled.phase, SkillJobPhase::Completed);
     let removed = client.agent_apps_skills_uninstall("tool", &UninstallSkillRequest {
         scope: scope(), expected_version: 1,
     }, TOKEN).await.unwrap();
     assert_eq!(removed.version, 2);
     assert!(!removed.cleanup_incomplete);
+    assert!(removed.backup_path.starts_with(&agent_paths::paths().home));
     assert!(removed.backup_path.join("skill/SKILL.md").is_file());
+    assert!(!f.root.path().join("hook-ran").exists());
     assert!(!f.root.path().join("ssot/tool").exists());
     let inventory = client.agent_apps_skills_inventory(&scope(), TOKEN).await.unwrap();
     assert_eq!(inventory.version, 2);
@@ -180,79 +186,102 @@ async fn cp12_macos_api_rejects_without_side_effects() {
     if isolated_test() { return; }
     let home = tempfile::tempdir().unwrap();
     let f = Fixture::new(GlobalDatabase::for_home(home.path()).unwrap());
-    let server = f.serve().await;
+    let (archive, state) = serve_archive(&f, false, false).await;
+    seed_repository(&f).await;
+    let server = f.serve_at(archive.endpoint.base_url()).await;
     let client = server.client();
-    assert!(client.agent_apps_skills_install(&install(), "invalid").await.is_err());
-    for (project, host) in [("other", "h"), ("project", "other")] {
+    let denied = server.client_with(TenantScope::new("p", "c").unwrap(), "invalid");
+    assert!(matches!(denied.agent_apps_skills_install(&install(), "invalid").await,
+        Err(SkillInstallError::Http { status: 401 })));
+    let foreign = server.client_with(TenantScope::new("p", "other-company").unwrap(), TOKEN);
+    assert!(matches!(foreign.agent_apps_skills_install(&install(), TOKEN).await,
+        Err(SkillInstallError::Http { status: 404 })));
+    let mut request = install();
+    request.scope.project_id = "other".into();
+    assert!(matches!(client.agent_apps_skills_install(&request, TOKEN).await,
+        Err(SkillInstallError::Http { status: 404 })));
+    for (file_id, status) in [("/client/path", 400), ("unregistered", 403)] {
         let mut request = install();
-        request.scope.project_id = project.into();
-        request.scope.target_host_id = host.into();
-        assert!(client.agent_apps_skills_install(&request, TOKEN).await.is_err());
+        request.source = SkillInstallSource::Local { file_id: file_id.into(), directory: "tool".into() };
+        assert!(matches!(client.agent_apps_skills_install(&request, TOKEN).await,
+            Err(SkillInstallError::Http { status: actual }) if actual == status));
     }
-    for (file_id, directory) in [("/client/path", "tool"), ("selected", "../escape")] {
+    for (selection, directory) in [("../escape", "tool"), ("skills/tool", "../escape")] {
         let mut request = install();
-        request.source = SkillInstallSource::Local { file_id: file_id.into(), directory: directory.into() };
-        assert!(client.agent_apps_skills_install(&request, TOKEN).await.is_err());
+        request.source = SkillInstallSource::Git { repo_id: "owner:repo".into(),
+            selection: selection.into(), directory: directory.into() };
+        assert!(matches!(client.agent_apps_skills_install(&request, TOKEN).await,
+        Err(SkillInstallError::Http { status: 400 })));
     }
+    assert_eq!(state.requests.load(Ordering::SeqCst), 0);
     let inventory = client.agent_apps_skills_inventory(&scope(), TOKEN).await.unwrap();
     assert_eq!(inventory.version, 0);
     assert!(inventory.skills.is_empty());
     assert_eq!(fs::read_dir(f.root.path().join("ssot")).unwrap().count(), 0);
-    assert!(!f.root.path().join("escape").exists());
-    assert!(!f.root.path().join("ssot.backups").exists());
+    let root = agent_paths::paths().home.join(".agents/skills");
+    assert!(!root.with_file_name("escape").exists());
+    let project = ProjectScope::new(TenantScope::new("p", "c").unwrap(), "project".into()).unwrap();
+    assert!(!super::backups_api::backup_root(&root, &project, "h").unwrap().exists());
 }
 
-/// Only the external GitHub archive response is substituted. Extraction,
-/// persistence, publication, authorization, routes and SDK remain production code.
-async fn remote_update(f: &Fixture, cancel: bool) {
-    use std::{io::Write, sync::{Arc, atomic::{AtomicUsize, Ordering}}};
-    use axum::{extract::State, routing::get};
-    use app_settings_store::agent_apps_skills_store::SkillReposStore;
-    use vw_agent_apps::skills::repos::SkillRepo;
-    use {
-    vw_api_transport::id::ProjectScope,
-    vw_api_app_skills::updates_api::SkillUpdatePhase,
-};
+// The archive is the only substituted external service.
+#[derive(Clone)]
+struct ArchiveState {
+    requests: Arc<AtomicUsize>,
+    entered: Arc<tokio::sync::Notify>,
+    release: Arc<tokio::sync::Notify>,
+    hook_marker: PathBuf,
+    update: bool,
+    cancel: bool,
+}
 
-    fn archive(content: &str) -> Vec<u8> {
-        let mut zip = zip::ZipWriter::new(std::io::Cursor::new(Vec::new()));
-        zip.start_file("repo-main/skills/tool/SKILL.md", zip::write::SimpleFileOptions::default()).unwrap();
-        zip.write_all(format!("---\nname: Tool\ndescription: Fixture\n---\n{content}").as_bytes()).unwrap();
-        zip.finish().unwrap().into_inner()
-    }
-    #[derive(Clone)]
-    struct ArchiveState {
-        requests: Arc<AtomicUsize>,
-        entered: Arc<tokio::sync::Notify>,
-        release: Arc<tokio::sync::Notify>,
-        cancel: bool,
-    }
+fn archive(content: &str, hook_marker: &Path) -> Vec<u8> {
+    let mut zip = zip::ZipWriter::new(std::io::Cursor::new(Vec::new()));
+    zip.start_file("repo-main/skills/tool/SKILL.md", zip::write::SimpleFileOptions::default()).unwrap();
+    zip.write_all(format!("---\nname: Tool\ndescription: Fixture\n---\n{content}").as_bytes()).unwrap();
+    zip.start_file("repo-main/skills/tool/install.sh",
+        zip::write::SimpleFileOptions::default().unix_permissions(0o755)).unwrap();
+    let marker = hook_marker.to_str().unwrap().replace('\'', "'\\''");
+    write!(zip, "#!/bin/sh\n: > '{marker}'\nexit 99\n").unwrap();
+    zip.finish().unwrap().into_inner()
+}
+
+async fn serve_archive(f: &Fixture, update: bool, cancel: bool) -> (Server, ArchiveState) {
     async fn download(State(state): State<ArchiveState>) -> Vec<u8> {
         let request = state.requests.fetch_add(1, Ordering::SeqCst);
-        if request < 2 { return archive("old"); }
+        if !state.update || request < 2 { return archive("old", &state.hook_marker); }
         if state.cancel {
             state.entered.notify_one();
             state.release.notified().await;
         }
-        archive("new")
+        archive("new", &state.hook_marker)
     }
-    let state = ArchiveState { requests: Arc::new(AtomicUsize::new(0)),
-        entered: Arc::new(tokio::sync::Notify::new()), release: Arc::new(tokio::sync::Notify::new()), cancel };
+
+    let state = ArchiveState {
+        requests: Arc::new(AtomicUsize::new(0)),
+        entered: Arc::new(tokio::sync::Notify::new()),
+        release: Arc::new(tokio::sync::Notify::new()),
+        hook_marker: f.root.path().join("hook-ran"),
+        update,
+        cancel,
+    };
     let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
     let endpoint = GatewayEndpoint::new("127.0.0.1", listener.local_addr().unwrap().port());
-    let origin = format!("http://127.0.0.1:{}", listener.local_addr().unwrap().port());
     let app = Router::new().route("/owner/repo/zip/refs/heads/main", get(download)).with_state(state.clone());
     let task = tokio::spawn(async move { axum::serve(listener, app).await.unwrap(); });
-    let _archive_server = Server { endpoint, task };
+    (Server { endpoint, task }, state)
+}
+
+async fn seed_repository(f: &Fixture) {
     let project = ProjectScope::new(TenantScope::new("p", "c").unwrap(), "project".into()).unwrap();
     let database = f.database.clone();
     tokio::task::spawn_blocking(move || {
         SkillReposStore::new(database).unwrap().save(&project, 0,
             SkillRepo { owner: "owner".into(), name: "repo".into(), branch: "main".into(), enabled: true }).unwrap();
     }).await.unwrap();
-    let root = f.root.path().join("ssot");
-    let server = f.serve_at(origin.clone()).await;
-    let client = server.client();
+}
+
+async fn install_discovered(client: &GatewayAppSkillsClient) -> vw_api_transport::id::TaskId {
     let discovered = client.agent_apps_skills_discover(
         &vw_api_app_skills::discovery_api::DiscoverSkillsRequest {
             scope: scope(), repo_id: Some("owner:repo".into()), force_refresh: true,
@@ -265,6 +294,9 @@ async fn remote_update(f: &Fixture, cancel: bool) {
         source: SkillInstallSource::Git { repo_id: "owner:repo".into(),
             selection: discovered.skills[0].directory.clone(), directory: "tool".into() },
     }, TOKEN).await.unwrap();
+    assert_eq!(installed.results.len(), 1);
+    assert_eq!(installed.results[0].status, SkillInstallStatus::Pending);
+    assert_eq!(installed.results[0].target_host_id, "h");
     tokio::time::timeout(std::time::Duration::from_secs(10), async {
         loop {
             let job = client.agent_apps_skills_job(&scope(), &installed.task_id, TOKEN).await.unwrap();
@@ -273,6 +305,19 @@ async fn remote_update(f: &Fixture, cancel: bool) {
             tokio::time::sleep(std::time::Duration::from_millis(10)).await;
         }
     }).await.unwrap();
+    installed.task_id
+}
+
+async fn remote_update(f: &Fixture, cancel: bool) {
+    use vw_api_app_skills::updates_api::SkillUpdatePhase;
+
+    let (archive, state) = serve_archive(f, true, cancel).await;
+    seed_repository(f).await;
+    let root = f.root.path().join("ssot");
+    let origin = archive.endpoint.base_url();
+    let server = f.serve_at(origin.clone()).await;
+    let client = server.client();
+    install_discovered(&client).await;
     let before = client.agent_apps_skills_inventory(&scope(), TOKEN).await.unwrap();
     let old_bytes = fs::read(root.join("tool/SKILL.md")).unwrap();
     if !cancel {

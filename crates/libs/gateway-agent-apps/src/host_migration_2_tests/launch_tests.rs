@@ -180,50 +180,70 @@ fn attached_terminal(_: Option<&str>, _: &Path, material: &LaunchMaterial) -> Re
 
 #[tokio::test]
 async fn cc_apps_launch_identity_list_sdk_http_tty_lifetime_and_account_rotation() {
+    if isolated_identity_test() {
+        return;
+    }
     identity_roundtrip(attached_terminal).await;
 }
 #[cfg(target_os = "macos")]
 #[tokio::test]
 async fn cc_apps_launch_native_terminal_sdk_http_lifetime_and_rotation() {
+    if isolated_identity_test() {
+        return;
+    }
     identity_roundtrip(launch_posix_terminal).await;
+}
+// Gateway execution paths are cached per process.
+fn isolated_identity_test() -> bool {
+    const CHILD: &str = "SHIJU_LAUNCH_IDENTITY_CHILD";
+    if std::env::var_os(CHILD).is_some() {
+        return false;
+    }
+    let root = tempfile::tempdir().unwrap();
+    let root_path = root.path().canonicalize().unwrap();
+    let fixture_path =
+        std::env::join_paths([root_path.join("bin"), "/usr/bin".into(), "/bin".into()]).unwrap();
+    let status = std::process::Command::new(std::env::current_exe().unwrap())
+        .args([
+            "--exact",
+            std::thread::current().name().unwrap(),
+            "--nocapture",
+        ])
+        .env(CHILD, "1")
+        .env("VIBEWINDOW_TEST_ROOT", &root_path)
+        .env("PATH", fixture_path)
+        .env("NO_PROXY", "*")
+        .status()
+        .unwrap();
+    assert!(status.success(), "identity launch child failed: {status}");
+    true
 }
 async fn identity_roundtrip(
     terminal_boundary: fn(Option<&str>, &Path, &LaunchMaterial) -> Result<(), String>,
 ) {
-use vw_api_types::agent_apps::*;
+    use gateway_app_settings::{AgentAppsSettingsError, GatewayAppSettingsClient};
+    use gateway_endpoint::GatewayEndpoint;
     use vw_api_app_provider_base::AppProviderWrite;
     use vw_api_app_provider_base::ProviderProtocol;
-    use {gateway_endpoint::{GatewayEndpoint}, gateway_app_settings::{AgentAppsSettingsError, GatewayAppSettingsClient}};
-    let root = tempfile::tempdir().unwrap();
+    use vw_api_types::agent_apps::*;
+    let root = tempfile::tempdir_in(&agent_paths::paths().home).unwrap();
     std::fs::set_permissions(root.path(), std::fs::Permissions::from_mode(0o700)).unwrap();
-    let bin = root.path().join("bin");
-    std::fs::create_dir(&bin).unwrap();
+    let bin = agent_paths::paths().home.join("bin");
+    std::fs::create_dir_all(&bin).unwrap();
     for name in ["claude", "codex"] {
         let script = if name == "claude" {
-            "#!/bin/sh\nif [ \"$1\" = --version ]; then echo 'claude 1.0.0'; exit 0; fi\ntest -t 0 && test -t 1 || exit 30\ntest \"$ANTHROPIC_API_KEY\" = fixture-private-key || exit 31\nprintf '%s' \"$CLAUDE_CONFIG_DIR\" > private-path\nwhile [ ! -f release ]; do sleep 0.05; done\n"
+            "#!/bin/sh\nif [ \"$1\" = --version ]; then echo 'claude 1.0.0'; exit 0; fi\ntest -t 0 && test -t 1 || exit 30\ntest \"$ANTHROPIC_API_KEY\" = fixture-private-key || exit 31\nprintf '%s' \"$CLAUDE_CONFIG_DIR\" > private-path\nattempt=0; while [ ! -f release ] && [ \"$attempt\" -lt 300 ]; do attempt=$((attempt + 1)); sleep 0.05; done\ntest -f release || exit 32\n"
         } else {
-            "#!/bin/sh\nif [ \"$1\" = --version ]; then echo 'codex 1.0.0'; exit 0; fi\ntest -t 0 && test -t 1 || exit 30\ntest -z \"$OPENAI_API_KEY\" || exit 31\nprintf '%s' \"$CODEX_HOME\" > account-path\nprintf '%s' '{\"auth_mode\":\"chatgpt\",\"tokens\":{\"access_token\":\"fixture-new-access\",\"refresh_token\":\"fixture-new-refresh\",\"id_token\":\"fixture-id\",\"account_id\":\"fixture-account\"}}' > \"$CODEX_HOME/auth.json\"\nwhile [ ! -f release ]; do sleep 0.05; done\nexit 9\n"
+            "#!/bin/sh\nif [ \"$1\" = --version ]; then echo 'codex 1.0.0'; exit 0; fi\ntest -t 0 && test -t 1 || exit 30\ntest -z \"$OPENAI_API_KEY\" || exit 31\nprintf '%s' '{\"auth_mode\":\"chatgpt\",\"last_refresh\":\"2026-01-02T00:00:00Z\",\"tokens\":{\"access_token\":\"fixture-new-access\",\"refresh_token\":\"fixture-new-refresh\",\"id_token\":\"eyJhbGciOiJSUzI1NiJ9.eyJzdWIiOiJmaXh0dXJlLXVzZXIifQ.fixture\",\"account_id\":\"fixture-account\"}}' > \"$CODEX_HOME/auth.json\"\nprintf '%s' \"$CODEX_HOME\" > account-path\nattempt=0; while [ ! -f release ] && [ \"$attempt\" -lt 300 ]; do attempt=$((attempt + 1)); sleep 0.05; done\ntest -f release || exit 32\nexit 9\n"
         };
         let path = bin.join(name);
         std::fs::write(&path, script).unwrap();
         std::fs::set_permissions(path, std::fs::Permissions::from_mode(0o700)).unwrap();
     }
-    let credentials = root.path().join("credentials");
-    std::fs::create_dir(&credentials).unwrap();
+    let credentials = local_app_auth::auth_policy_path(&agent_paths::paths().home, "p", "c")
+        .with_file_name("auth-credentials");
+    std::fs::create_dir_all(&credentials).unwrap();
     std::fs::set_permissions(&credentials, std::fs::Permissions::from_mode(0o700)).unwrap();
-    let policy = root.path().join("policy.json");
-    let other_token = "fixture-other-principal-authorized-token-token-12345678";
-    let restricted_token = "fixture-no-identity-grant-token-12345678";
-    let permitted = json!([
-        {"appId":"claude","kind":"provider","id":"selected-provider"},
-        {"appId":"codex","kind":"official_account","id":"selected-account"},
-        {"appId":"claude","kind":"provider","id":"missing-record"},
-        {"appId":"codex","kind":"official_account","id":"missing-record"}
-    ]);
-    let grants = json!([{"platform_id":"p","company_id":"c","host_id":"h","launch":true,"identities":permitted},{"platform_id":"p","company_id":"other","host_id":"h","launch":true,"identities":permitted}]);
-    let value = json!({"principals":[{"id":"a","token_sha256":hex::encode(Sha256::digest(TOKEN)),"grants":grants},{"id":"b","token_sha256":hex::encode(Sha256::digest(other_token)),"grants":grants},{"id":"restricted","token_sha256":hex::encode(Sha256::digest(restricted_token)),"grants":[{"platform_id":"p","company_id":"c","host_id":"h","launch":true}]}],"hosts":[{"id":"h","online":true,"binding":"local","home":root.path(),"search_paths":[bin],"applications":root.path(),"credential_root":credentials}]});
-    std::fs::write(&policy, value.to_string()).unwrap();
-    std::fs::set_permissions(&policy, std::fs::Permissions::from_mode(0o600)).unwrap();
     let db = GlobalDatabase::for_home(root.path()).unwrap();
     let tenant = TenantScope::new("p", "c").unwrap();
     let providers = app_provider_services::AppProviderStore::new(db.clone()).unwrap();
@@ -244,57 +264,78 @@ use vw_api_types::agent_apps::*;
         .unwrap();
     let accounts =
         agent_app_services::auth_accounts::AuthAccountStore::new(db.clone(), &credentials).unwrap();
-    accounts.save(&tenant, "h", AppId::Codex, "selected-account", &vw_agent_apps::auth::credential_file::AccountCredential::CodexAuth(json!({"auth_mode":"chatgpt","tokens":{"access_token":"fixture-old-access","refresh_token":"fixture-old-refresh","id_token":"fixture-id","account_id":"fixture-account"}}))).unwrap();
+    accounts.save(&tenant, local_app_auth::HOST_ID, AppId::Codex, "selected-account", &vw_agent_apps::auth::credential_file::AccountCredential::CodexAuth(json!({"auth_mode":"chatgpt","last_refresh":"2026-01-01T00:00:00Z","tokens":{"access_token":"fixture-old-access","refresh_token":"fixture-old-refresh","id_token":"eyJhbGciOiJSUzI1NiJ9.eyJzdWIiOiJmaXh0dXJlLXVzZXIifQ.fixture","account_id":"fixture-account"}}))).unwrap();
     let router = Router::new()
-        .nest("/v1", router_with_terminal(Some(policy), terminal_boundary))
+        .nest("/v1", router_with_terminal(None, terminal_boundary))
         .layer(Extension(db))
-        .layer(middleware::from_fn(gateway_types::tenant_scope::tenant_scope_middleware));
+        .layer(middleware::from_fn(
+            gateway_types::tenant_scope::tenant_scope_middleware,
+        ));
+    #[cfg(target_os = "macos")]
+    let router = router.layer(middleware::from_fn(|request, next| async move {
+        agent_gateway::middleware::basic_auth_middleware_with_credentials(
+            request,
+            next,
+            Some("fixture-password"),
+            "fixture-user",
+        )
+        .await
+    }));
     let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
     let port = listener.local_addr().unwrap().port();
     let server = tokio::spawn(async move {
         axum::serve(listener, router).await.unwrap();
     });
-    let client = gateway_http::GatewayTransport::new(
-        GatewayEndpoint::new("127.0.0.1", port).with_tenant_scope(tenant.clone()),
-    )
-    .unwrap();
-    let client = GatewayAppSettingsClient::new(client);
-    assert!(matches!(
-        client
-            .agent_apps_launch_identities(
-                "h",
-                AppId::Claude,
-                "invalid-token-long-enough-1234567890"
+    #[cfg(target_os = "macos")]
+    let authenticated_host = "fixture-user:fixture-password@127.0.0.1";
+    #[cfg(not(target_os = "macos"))]
+    let authenticated_host = "127.0.0.1";
+    let sdk = |host, scope| {
+        GatewayAppSettingsClient::new(
+            gateway_http::GatewayTransport::new(
+                GatewayEndpoint::new(host, port).with_tenant_scope(scope),
             )
+            .unwrap(),
+        )
+    };
+    let client = sdk(authenticated_host, tenant.clone());
+    #[cfg(target_os = "macos")]
+    let unauthorized = sdk("127.0.0.1", tenant.clone());
+    #[cfg(target_os = "macos")]
+    assert!(matches!(
+        unauthorized
+            .agent_apps_launch_identities(local_app_auth::HOST_ID, AppId::Claude, TOKEN)
             .await,
         Err(AgentAppsSettingsError::Http { status: 401, .. })
     ));
-    let other = gateway_http::GatewayTransport::new(
-        GatewayEndpoint::new("127.0.0.1", port)
-            .with_tenant_scope(TenantScope::new("p", "other").unwrap()),
-    )
-    .unwrap();
-    let other = GatewayAppSettingsClient::new(other);
-    assert!(
-        other.agent_apps_launch_identities("h", AppId::Claude, TOKEN).await.unwrap().is_empty()
-    );
+    let other = sdk(authenticated_host, TenantScope::new("p", "other").unwrap());
     for (app_id, path_file, expected) in [
         (AppId::Claude, "private-path", LaunchSessionPhase::Completed),
         (AppId::Codex, "account-path", LaunchSessionPhase::Failed),
     ] {
-        let identities = client.agent_apps_launch_identities("h", app_id, TOKEN).await.unwrap();
+        let identities = client
+            .agent_apps_launch_identities(local_app_auth::HOST_ID, app_id, TOKEN)
+            .await
+            .unwrap();
         assert_eq!(identities.len(), 1);
+        assert!(
+            other
+                .agent_apps_launch_identities(local_app_auth::HOST_ID, app_id, TOKEN)
+                .await
+                .unwrap()
+                .is_empty()
+        );
         let serialized = serde_json::to_string(&identities).unwrap();
         assert!(
             !serialized.contains("fixture-private-key")
                 && !serialized.contains("fixture-old-refresh")
-                && !serialized.contains(root.path().to_str().unwrap())
+                && !serialized.contains(agent_paths::paths().home.to_str().unwrap())
         );
         let observed = vw_agent_apps::apps::discovery::read::read(
             app_id,
             &vw_agent_apps::apps::discovery::read::LocalReadEnvironment {
-                host_id: "h".into(),
-                home: root.path().into(),
+                host_id: local_app_auth::HOST_ID.into(),
+                home: agent_paths::paths().home.clone(),
                 search_paths: vec![bin.clone()],
                 applications: root.path().into(),
             },
@@ -310,26 +351,38 @@ use vw_api_types::agent_apps::*;
         let mut missing = identities[0].clone();
         missing.id = "missing-record".into();
         assert!(matches!(
-            client.agent_apps_launch_identity_authorized("h", &request, &missing, TOKEN).await,
-            Err(AgentAppsSettingsError::Http { status: 422, .. })
-        ));
-        assert!(
-            client
-                .agent_apps_launch_identities("h", app_id, restricted_token)
-                .await
-                .unwrap()
-                .is_empty()
-        );
-        assert!(matches!(
             client
                 .agent_apps_launch_identity_authorized(
-                    "h",
+                    local_app_auth::HOST_ID,
                     &request,
-                    &identities[0],
-                    restricted_token
+                    &missing,
+                    TOKEN
                 )
                 .await,
-            Err(AgentAppsSettingsError::Http { status: 403, .. })
+            Err(AgentAppsSettingsError::Http { status: 422, .. })
+        ));
+        #[cfg(target_os = "macos")]
+        assert!(matches!(
+            unauthorized
+                .agent_apps_launch_identity_authorized(
+                    local_app_auth::HOST_ID,
+                    &request,
+                    &identities[0],
+                    TOKEN
+                )
+                .await,
+            Err(AgentAppsSettingsError::Http { status: 401, .. })
+        ));
+        assert!(matches!(
+            other
+                .agent_apps_launch_identity_authorized(
+                    local_app_auth::HOST_ID,
+                    &request,
+                    &identities[0],
+                    TOKEN
+                )
+                .await,
+            Err(AgentAppsSettingsError::Http { status: 422, .. })
         ));
         let mut wrong_kind = identities[0].clone();
         wrong_kind.kind = if wrong_kind.kind == LaunchIdentityKind::Provider {
@@ -338,25 +391,46 @@ use vw_api_types::agent_apps::*;
             LaunchIdentityKind::Provider
         };
         assert!(matches!(
-            client.agent_apps_launch_identity_authorized("h", &request, &wrong_kind, TOKEN).await,
-            Err(AgentAppsSettingsError::Http { status: 403, .. })
+            client
+                .agent_apps_launch_identity_authorized(
+                    local_app_auth::HOST_ID,
+                    &request,
+                    &wrong_kind,
+                    TOKEN
+                )
+                .await,
+            Err(AgentAppsSettingsError::Http { status: 422, .. })
         ));
         assert!(!root.path().join(path_file).exists());
         let result = client
-            .agent_apps_launch_identity_authorized("h", &request, &identities[0], TOKEN)
+            .agent_apps_launch_identity_authorized(
+                local_app_auth::HOST_ID,
+                &request,
+                &identities[0],
+                TOKEN,
+            )
             .await
             .unwrap();
         let id = result.session_id.unwrap();
         assert_eq!(
-            client.agent_apps_launch_session("h", &id, TOKEN).await.unwrap().phase,
+            client
+                .agent_apps_launch_session(local_app_auth::HOST_ID, &id, TOKEN)
+                .await
+                .unwrap()
+                .phase,
             LaunchSessionPhase::Running
         );
+        #[cfg(target_os = "macos")]
         assert!(matches!(
-            client.agent_apps_launch_session("h", &id, other_token).await,
-            Err(AgentAppsSettingsError::Http { status: 404, .. })
+            unauthorized
+                .agent_apps_launch_session(local_app_auth::HOST_ID, &id, TOKEN)
+                .await,
+            Err(AgentAppsSettingsError::Http { status: 401, .. })
         ));
         assert!(matches!(
-            other.agent_apps_launch_session("h", &id, TOKEN).await,
+            other
+                .agent_apps_launch_session(local_app_auth::HOST_ID, &id, TOKEN)
+                .await,
             Err(AgentAppsSettingsError::Http { status: 404, .. })
         ));
         let deadline = std::time::Instant::now() + std::time::Duration::from_secs(5);
@@ -367,13 +441,16 @@ use vw_api_types::agent_apps::*;
         let private =
             std::path::PathBuf::from(std::fs::read_to_string(root.path().join(path_file)).unwrap());
         assert!(private.is_dir());
-        assert_eq!(private.metadata().unwrap().permissions().mode() & 0o777, 0o700);
+        assert_eq!(
+            private.metadata().unwrap().permissions().mode() & 0o777,
+            0o700
+        );
         if app_id == AppId::Codex {
             assert!(
                 accounts
                     .prepare_launch(
                         &tenant,
-                        "h",
+                        local_app_auth::HOST_ID,
                         "selected-account",
                         &request,
                         &observed.installations,
@@ -386,19 +463,34 @@ use vw_api_types::agent_apps::*;
         }
         std::fs::write(root.path().join("release"), "done").unwrap();
         loop {
-            let phase = client.agent_apps_launch_session("h", &id, TOKEN).await.unwrap().phase;
+            let phase = client
+                .agent_apps_launch_session(local_app_auth::HOST_ID, &id, TOKEN)
+                .await
+                .unwrap()
+                .phase;
             if phase == expected {
                 break;
             }
-            assert!(std::time::Instant::now() < deadline, "CLI not reaped/cleaned");
+            assert!(
+                std::time::Instant::now() < deadline,
+                "CLI not reaped/cleaned"
+            );
             tokio::time::sleep(std::time::Duration::from_millis(20)).await;
         }
-        assert!(!private.exists(), "completion must follow private material cleanup");
+        assert!(
+            !private.exists(),
+            "completion must follow private material cleanup"
+        );
         std::fs::remove_file(root.path().join("release")).unwrap();
     }
     let stored = vw_agent_apps::auth::credential_file::CredentialFileStore::new(&credentials)
         .unwrap()
-        .read(&tenant, "h", AppId::Codex, "selected-account")
+        .read(
+            &tenant,
+            local_app_auth::HOST_ID,
+            AppId::Codex,
+            "selected-account",
+        )
         .unwrap();
     let vw_agent_apps::auth::credential_file::AccountCredential::CodexAuth(auth) = stored else {
         panic!("wrong material");

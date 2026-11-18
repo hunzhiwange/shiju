@@ -1,36 +1,32 @@
 use super::auth_router as agent_apps_auth_read;
-use {
-    agent_app_services::auth_accounts::{AuthAccountMetadata, AuthAccountScope, AuthAccountStore},
-    app_provider_services::AppProviderStore,
-    agent_database::{GlobalDatabase, test_support::PostgresTestDatabase},
-};
 use axum::{Extension, http::StatusCode};
 use base64::{Engine as _, engine::general_purpose::URL_SAFE_NO_PAD};
 use serde_json::{Value, json};
-use sha2::{Digest, Sha256};
-use std::{fs, os::unix::fs::PermissionsExt, path::Path};
+use std::{
+    fs,
+    os::unix::fs::PermissionsExt,
+    path::{Path, PathBuf},
+};
 use tokio::{net::TcpListener, task::JoinHandle};
 use vw_agent_apps::{
     auth::credential_file::{AccountCredential, CredentialFileStore, KimiCredential},
     providers::kimi,
 };
 use {
-    vw_api_transport::TimestampMs,
-    vw_api_app_identity::AppId,
-    vw_api_app_auth::AuthRegion,
-    vw_api_app_auth::AuthService,
-    vw_api_transport::id::TenantScope,
+    agent_app_services::auth_accounts::{AuthAccountMetadata, AuthAccountScope, AuthAccountStore},
+    agent_database::{GlobalDatabase, test_support::PostgresTestDatabase},
+    app_provider_services::AppProviderStore,
+};
+use {
+    vw_api_app_auth::AuthRegion, vw_api_app_auth::AuthService, vw_api_app_identity::AppId,
+    vw_api_transport::TimestampMs, vw_api_transport::id::TenantScope,
 };
 
-const OWNER: &str = "fixture-binding-owner-token-aaaaaaaa";
-const OTHER: &str = "fixture-binding-other-token-bbbbbbbb";
-const EDITOR: &str = "fixture-binding-editor-token-cccccccc";
-const READER: &str = "fixture-binding-reader-token-dddddddd";
-const BASIC: &str = "Basic dGVzdDpzZWNyZXQ=";
+const SKEY: &str = "fixture-binding-paired-skey-aaaaaaaa";
 const ROOT: &str = "/v1/agent-apps/auth/bindings";
 const PATH: &str = "/v1/agent-apps/auth/bindings/official";
-const CODEX: &str = "host_id=host&service=codex_oauth";
-const KIMI: &str = "host_id=host&service=kimi_oauth";
+const CODEX: &str = "host_id=desktop-local&service=codex_oauth";
+const KIMI: &str = "host_id=desktop-local&service=kimi_oauth";
 const KIMI_PROVIDER: &str = "managed:kimi-code";
 const KIMI_PATH: &str = "/v1/agent-apps/auth/bindings/managed:kimi-code";
 const EXPIRES: i64 = 4_102_444_800;
@@ -55,56 +51,32 @@ max_context_size = 32000
 "#;
 
 struct Fixture {
-    home: tempfile::TempDir,
+    home: PathBuf,
     db: GlobalDatabase,
 }
 
 impl Fixture {
     fn new(db: GlobalDatabase) -> anyhow::Result<Self> {
-        let home = tempfile::tempdir()?;
-        let root = home.path().join("private");
-        fs::create_dir(&root)?;
-        fs::set_permissions(&root, fs::Permissions::from_mode(0o700))?;
-        let grant = |company, host, write, bind| {
-            json!({"platform_id":"p", "company_id":company, "host_id":host,
-                "provider_config_read":true, "provider_config_write":write,
-                "auth_account_read":["codex_oauth", "kimi_oauth"],
-                "auth_binding_write":if bind { json!(["codex_oauth","kimi_oauth","dsh_account","agy_oauth","github_copilot","xai_oauth","claude_official"]) } else { json!([]) }})
+        let home = agent_paths::paths().home.clone();
+        let credential_root = |tenant: &TenantScope| -> anyhow::Result<PathBuf> {
+            let root = local_app_auth::auth_policy_path(
+                &home,
+                tenant.platform_id().as_ref(),
+                tenant.company_id().as_ref(),
+            )
+            .with_file_name("auth-credentials");
+            fs::create_dir_all(&root)?;
+            fs::set_permissions(&root, fs::Permissions::from_mode(0o700))?;
+            Ok(root)
         };
-        let principal = |id, token: &str, grants| json!({"id":id, "token_sha256":hex::encode(Sha256::digest(token)), "grants":grants});
-        let host = |id, online, binding, root: &Path| {
-            json!({"id":id, "online":online, "binding":binding, "home":home.path(),
-                "search_paths":[], "applications":home.path(), "credential_root":root})
-        };
-        let mut local = host("host", true, "local", &root);
-        local["native_login_owners"] = json!([
-            {"service":"kimi_oauth", "platform_id":"p", "company_id":"c", "principal":"owner"}
-        ]);
-        let remote_root = home.path().join("remote");
-        let offline_root = home.path().join("offline");
-        let policy = home.path().join("access.json");
-        fs::write(
-            &policy,
-            serde_json::to_vec(&json!({
-                "principals":[
-                    principal("owner", OWNER, vec![grant("c","host",true,true), grant("neighbor","host",true,true),
-                        grant("c","remote",true,true), grant("c","offline",true,true)]),
-                    principal("other", OTHER, vec![grant("c","host",true,true)]),
-                    principal("editor", EDITOR, vec![grant("c","host",true,false)]),
-                    principal("reader", READER, vec![grant("c","host",false,true)])
-                ],
-                "hosts":[local, host("remote",true,"remote",&remote_root),
-                    host("offline",false,"local",&offline_root)]
-            }))?,
-        )?;
-        fs::set_permissions(&policy, fs::Permissions::from_mode(0o600))?;
-        let store = AuthAccountStore::new(db.clone(), &root).map_err(anyhow::Error::msg)?;
         let tenant = TenantScope::new("p", "c")?;
         let neighbor = TenantScope::new("p", "neighbor")?;
+        let root = credential_root(&tenant)?;
+        let store = AuthAccountStore::new(db.clone(), &root).map_err(anyhow::Error::msg)?;
         let scope = AuthAccountScope {
             tenant: &tenant,
-            principal: "owner",
-            host: "host",
+            principal: "desktop-local-user",
+            host: local_app_auth::HOST_ID,
             service: AuthService::CodexOauth,
         };
         let credential = AccountCredential::CodexAuth(json!({
@@ -119,7 +91,7 @@ impl Fixture {
             (AuthAccountScope { tenant: &neighbor, ..scope }, "foreign-company"),
             (AuthAccountScope { host: "other-host", ..scope }, "foreign-host"),
         ] {
-            CredentialFileStore::new(&root)
+            CredentialFileStore::new(&credential_root(scope.tenant)?)
                 .and_then(|store| store.for_owner(scope.principal))
                 .and_then(|owner| owner.lease(scope.tenant, scope.host, AppId::Codex, id, true))
                 .and_then(|lease| lease.save(&credential))
@@ -158,8 +130,13 @@ impl Fixture {
             )
             .unwrap();
             providers.codex_save(&tenant, id, &profile, None, None).map_err(anyhow::Error::msg)?;
+            if id == "official" {
+                providers
+                    .codex_save(&neighbor, id, &profile, None, None)
+                    .map_err(anyhow::Error::msg)?;
+            }
         }
-        let native = home.path().join(".kimi-code");
+        let native = home.join(".kimi-code");
         fs::create_dir_all(native.join("credentials"))?;
         fs::create_dir(native.join("oauth"))?;
         fs::write(native.join("config.toml"), KIMI_CONFIG)?;
@@ -200,15 +177,18 @@ impl Fixture {
     }
 
     async fn serve(&self) -> anyhow::Result<Gateway> {
-        let router = super::build_router_with_auth(
-            vec![],
-            agent_apps_auth_read::router(
-                Some("secret"),
-                "test",
-                Some(self.home.path().join("access.json")),
-            ),
-        )
-        .layer(Extension(self.db.clone()));
+        let state = agent_gateway::gateway_test_fixture::state::<(), (), ()>(
+            Default::default(),
+            true,
+            &[SKEY.to_owned()],
+        );
+        let router =
+            super::build_router_with_auth(vec![], agent_apps_auth_read::router(None, "test", None))
+                .layer(Extension(self.db.clone()))
+                .layer(axum::middleware::from_fn_with_state(
+                    state,
+                    agent_gateway::request_policy::skey_auth_middleware::<(), (), ()>,
+                ));
         let listener = TcpListener::bind(("127.0.0.1", 0)).await?;
         let url = format!("http://{}", listener.local_addr()?);
         let server = tokio::spawn(async move { axum::serve(listener, router).await.unwrap() });
@@ -234,7 +214,6 @@ impl Gateway {
         path: &str,
         query: &str,
         company: &str,
-        basic: bool,
         token: Option<&str>,
         body: Value,
     ) -> anyhow::Result<(StatusCode, Value)> {
@@ -244,12 +223,12 @@ impl Gateway {
             .header("x-platform-id", "p")
             .header("x-company-id", company)
             .json(&body);
-        if basic {
-            request = request.header("authorization", BASIC);
+        if let Some(token) = token {
+            request = request.bearer_auth(token);
         }
         let response = request.send().await?;
         let status = response.status();
-        if path.starts_with(ROOT) {
+        if path.starts_with(ROOT) && status != StatusCode::UNAUTHORIZED {
             assert_eq!(response.headers()["cache-control"], "no-store");
         }
         let bytes = response.bytes().await?;
@@ -266,8 +245,7 @@ impl Gateway {
             .get(format!("{}{ROOT}?{query}", self.url))
             .header("x-platform-id", "p")
             .header("x-company-id", "c")
-            .header("authorization", BASIC)
-            .header("x-agent-apps-token", OWNER)
+            .bearer_auth(SKEY)
             .send()
             .await?;
         assert_eq!(response.status(), StatusCode::OK);
@@ -276,41 +254,82 @@ impl Gateway {
     }
 }
 
-fn sqlite() -> anyhow::Result<(tempfile::TempDir, GlobalDatabase)> {
+fn run_isolated(postgres: bool, commit: bool) -> anyhow::Result<()> {
+    const CHILD_ROOT: &str = "SHIJU_AUTH_BINDING_CHILD_ROOT";
+    if let Some(root) = std::env::var_os(CHILD_ROOT) {
+        let root = Path::new(&root);
+        anyhow::ensure!(
+            root.is_absolute()
+                && root.is_dir()
+                && std::env::var_os("VIBEWINDOW_TEST_ROOT").as_deref() == Some(root.as_os_str())
+                && std::env::var_os("HOME").as_deref() == Some(root.as_os_str())
+                && std::env::var_os("CODEX_HOME").as_deref()
+                    == Some(root.join(".codex").as_os_str())
+                && std::env::var_os("KIMI_HOME").as_deref()
+                    == Some(root.join(".kimi-code").as_os_str()),
+            "binding test requires isolated runtime and Codex paths"
+        );
+        let paths = agent_paths::paths();
+        anyhow::ensure!(
+            paths.home == root
+                && [&paths.data, &paths.config, &paths.state]
+                    .into_iter()
+                    .all(|path| path.starts_with(root)),
+            "unexpected runtime paths"
+        );
+        let postgres = postgres.then(PostgresTestDatabase::from_environment).transpose()?;
+        let database = match &postgres {
+            Some(db) => db.database().clone(),
+            None => GlobalDatabase::for_home(root)?,
+        };
+        let fixture = Fixture::new(database)?;
+        tokio::runtime::Runtime::new()?.block_on(async {
+            if commit { check_success(fixture).await } else { check_denials(fixture).await }
+        })?;
+        return postgres.map_or(Ok(()), PostgresTestDatabase::cleanup);
+    }
     let home = tempfile::tempdir()?;
-    let db = GlobalDatabase::for_home(home.path())?;
-    Ok((home, db))
+    let root = home.path().canonicalize()?;
+    let thread = std::thread::current();
+    let name = thread.name().expect("named binding test");
+    let status = std::process::Command::new(std::env::current_exe()?)
+        .args(["--exact", name, "--nocapture"])
+        .env(CHILD_ROOT, &root)
+        .env_remove("VW_MODEL_RECOVERY_TEST_ROOT")
+        .env("VIBEWINDOW_TEST_ROOT", &root)
+        .env("HOME", &root)
+        .env("CODEX_HOME", root.join(".codex"))
+        .env("KIMI_HOME", root.join(".kimi-code"))
+        .status()?;
+    anyhow::ensure!(status.success(), "isolated binding test failed: {status}");
+    Ok(())
 }
 
 #[test]
 fn auth6_api_binding_commits_expected_scoped_result() -> anyhow::Result<()> {
-    let (_home, db) = sqlite()?;
-    tokio::runtime::Runtime::new()?.block_on(check_success(Fixture::new(db)?))
+    run_isolated(false, true)
 }
 
 #[test]
 fn auth6_api_binding_rejects_invalid_or_stale_input() -> anyhow::Result<()> {
-    let (_home, db) = sqlite()?;
-    tokio::runtime::Runtime::new()?.block_on(check_denials(Fixture::new(db)?))
+    run_isolated(false, false)
 }
 
 #[test]
 fn auth6_api_binding_commits_expected_scoped_result_postgres() -> anyhow::Result<()> {
-    let db = PostgresTestDatabase::from_environment()?;
-    tokio::runtime::Runtime::new()?.block_on(check_success(Fixture::new(db.database().clone())?))
+    run_isolated(true, true)
 }
 
 #[test]
 fn auth6_api_binding_rejects_invalid_or_stale_input_postgres() -> anyhow::Result<()> {
-    let db = PostgresTestDatabase::from_environment()?;
-    tokio::runtime::Runtime::new()?.block_on(check_denials(Fixture::new(db.database().clone())?))
+    run_isolated(true, false)
 }
 
 async fn check_success(fixture: Fixture) -> anyhow::Result<()> {
     let app = fixture.serve().await?;
     for account in [Some("first"), Some("first"), Some("second"), None, None] {
         let (status, _) =
-            app.put(PATH, CODEX, "c", true, Some(OWNER), json!({"account_id":account})).await?;
+            app.put(PATH, CODEX, "c", Some(SKEY), json!({"account_id":account})).await?;
         assert_eq!(status, StatusCode::NO_CONTENT, "authorized scoped binding update");
         let expected = account.map_or(
             json!([]),
@@ -318,13 +337,12 @@ async fn check_success(fixture: Fixture) -> anyhow::Result<()> {
         );
         app.assert_binding(CODEX, expected).await?;
     }
-    let native = fixture.home.path().join(".kimi-code");
+    let native = fixture.home.join(".kimi-code");
     let config = native.join("config.toml");
     let grant = native.join("credentials/kimi-code-fixture.json");
     let before_grant = fs::read(&grant)?;
-    let (status, body) = app
-        .put(KIMI_PATH, KIMI, "c", true, Some(OWNER), json!({"account_id":"kimi-account"}))
-        .await?;
+    let (status, body) =
+        app.put(KIMI_PATH, KIMI, "c", Some(SKEY), json!({"account_id":"kimi-account"})).await?;
     assert_eq!(status, StatusCode::NO_CONTENT, "Kimi binding returned {}", body["code"]);
     app.assert_binding(
         KIMI,
@@ -335,7 +353,7 @@ async fn check_success(fixture: Fixture) -> anyhow::Result<()> {
     assert!(selected.contains("default_model = \"chosen\""));
     for _ in 0..2 {
         assert_eq!(
-            app.put(KIMI_PATH, KIMI, "c", true, Some(OWNER), json!({"account_id":null})).await?.0,
+            app.put(KIMI_PATH, KIMI, "c", Some(SKEY), json!({"account_id":null})).await?.0,
             204
         );
         app.assert_binding(KIMI, json!([])).await?;
@@ -348,18 +366,18 @@ async fn check_success(fixture: Fixture) -> anyhow::Result<()> {
 async fn check_denials(fixture: Fixture) -> anyhow::Result<()> {
     let app = fixture.serve().await?;
     for (path, query, company, token, body, code, expected) in [
-        (PATH, CODEX, "c", Some(OWNER), json!({"account_id":"foreign-owner"}), 404, "not_found"),
-        (PATH, CODEX, "c", Some(OWNER), json!({"account_id":"foreign-company"}), 404, "not_found"),
-        (PATH, CODEX, "c", Some(OWNER), json!({"account_id":"foreign-host"}), 404, "not_found"),
-        (PATH, CODEX, "neighbor", Some(OWNER), json!({"account_id":"first"}), 404, "not_found"),
-        (PATH, CODEX, "c", Some(OWNER), json!({"account_id":"stale"}), 409, "reauth_required"),
-        (PATH, CODEX, "c", Some(OWNER), json!({}), 400, "invalid_input"),
-        (PATH, CODEX, "c", Some(OWNER), json!({"account_id":".."}), 400, "invalid_input"),
+        (PATH, CODEX, "c", Some(SKEY), json!({"account_id":"foreign-owner"}), 404, "not_found"),
+        (PATH, CODEX, "c", Some(SKEY), json!({"account_id":"foreign-company"}), 404, "not_found"),
+        (PATH, CODEX, "c", Some(SKEY), json!({"account_id":"foreign-host"}), 404, "not_found"),
+        (PATH, CODEX, "neighbor", Some(SKEY), json!({"account_id":"first"}), 404, "not_found"),
+        (PATH, CODEX, "c", Some(SKEY), json!({"account_id":"stale"}), 409, "reauth_required"),
+        (PATH, CODEX, "c", Some(SKEY), json!({}), 400, "invalid_input"),
+        (PATH, CODEX, "c", Some(SKEY), json!({"account_id":".."}), 400, "invalid_input"),
         (
             PATH,
             CODEX,
             "c",
-            Some(OWNER),
+            Some(SKEY),
             json!({"account_id":null,"service":"kimi_oauth"}),
             400,
             "invalid_input",
@@ -368,82 +386,56 @@ async fn check_denials(fixture: Fixture) -> anyhow::Result<()> {
             "/v1/agent-apps/auth/bindings/custom",
             CODEX,
             "c",
-            Some(OWNER),
+            Some(SKEY),
             json!({"account_id":null}),
             501,
             "unsupported",
         ),
         (
             PATH,
-            "host_id=remote&service=codex_oauth",
+            "host_id=desktop-local&service=xai_oauth",
             "c",
-            Some(OWNER),
-            json!({"account_id":null}),
-            501,
-            "execution_channel_unavailable",
-        ),
-        (
-            PATH,
-            "host_id=offline&service=codex_oauth",
-            "c",
-            Some(OWNER),
-            json!({"account_id":null}),
-            503,
-            "execution_host_unavailable",
-        ),
-        (
-            PATH,
-            "host_id=host&service=agy_oauth",
-            "c",
-            Some(OWNER),
-            json!({"account_id":null}),
-            403,
-            "forbidden",
-        ),
-        (
-            PATH,
-            "host_id=host&service=xai_oauth",
-            "c",
-            Some(OWNER),
+            Some(SKEY),
             json!({"account_id":null}),
             501,
             "unsupported",
         ),
-        (PATH, CODEX, "c", Some(EDITOR), json!({"account_id":null}), 403, "forbidden"),
-        (PATH, CODEX, "c", Some(READER), json!({"account_id":null}), 403, "forbidden"),
-        (PATH, CODEX, "c", None, json!({"account_id":null}), 401, "unauthenticated"),
     ] {
-        let (status, response) = app.put(path, query, company, true, token, body).await?;
+        let (status, response) = app.put(path, query, company, token, body).await?;
         assert_eq!(status.as_u16(), code, "scoped binding rejection {expected}");
         assert_eq!(response["code"], expected);
         assert!(response["correlation_id"].is_string());
         assert!(!response.to_string().contains("fixture-private"));
     }
     for service in ["dsh_account", "github_copilot"] {
-        let query = format!("host_id=host&service={service}");
+        let query = format!("host_id=desktop-local&service={service}");
         let (status, body) =
-            app.put(PATH, &query, "c", true, Some(OWNER), json!({"account_id":null})).await?;
+            app.put(PATH, &query, "c", Some(SKEY), json!({"account_id":null})).await?;
         assert_eq!(status, StatusCode::NOT_IMPLEMENTED);
         assert_eq!(body["code"], "unsupported");
     }
+    assert_eq!(
+        app.put(PATH, CODEX, "c", Some(SKEY), json!({"account_id":"first"})).await?.0,
+        StatusCode::NO_CONTENT
+    );
+    for token in [None, Some("unpaired-binding-skey")] {
+        assert_eq!(
+            app.put(PATH, CODEX, "c", token, json!({"account_id":null})).await?.0,
+            StatusCode::UNAUTHORIZED
+        );
+    }
+    let response = app
+        .client
+        .put(format!("{}{PATH}?{CODEX}", app.url))
+        .header("x-platform-id", "p")
+        .header("x-company-id", "c")
+        .header("x-agent-apps-token", SKEY)
+        .json(&json!({"account_id":null}))
+        .send()
+        .await?;
+    assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
     let (status, body) =
-        app.put(KIMI_PATH, KIMI, "c", true, Some(OTHER), json!({"account_id":null})).await?;
-    assert_eq!(status, StatusCode::FORBIDDEN);
-    assert_eq!(body["code"], "forbidden");
-    assert_eq!(
-        app.put(PATH, CODEX, "c", false, Some(OWNER), json!({"account_id":null})).await?.0,
-        401
-    );
-    assert_eq!(
-        app.put(PATH, CODEX, "c", true, Some(OWNER), json!({"account_id":"first"})).await?.0,
-        204
-    );
-    assert_eq!(
-        app.put(PATH, CODEX, "c", true, Some(OTHER), json!({"account_id":null})).await?.0,
-        404
-    );
-    let (status, body) =
-        app.put(PATH, CODEX, "c", true, Some(OWNER), json!({"account_id":"stale"})).await?;
+        app.put(PATH, CODEX, "c", Some(SKEY), json!({"account_id":"stale"})).await?;
     assert_eq!(status, StatusCode::CONFLICT);
     assert_eq!(body["code"], "reauth_required");
     app.assert_binding(
@@ -452,8 +444,7 @@ async fn check_denials(fixture: Fixture) -> anyhow::Result<()> {
     )
     .await?;
     for path in ["/agent-apps/auth/bindings/official", "/api/agent-apps/auth/bindings/official"] {
-        let (status, _) =
-            app.put(path, CODEX, "c", true, Some(OWNER), json!({"account_id":null})).await?;
+        let (status, _) = app.put(path, CODEX, "c", Some(SKEY), json!({"account_id":null})).await?;
         assert_eq!(status, StatusCode::NOT_FOUND);
     }
     Ok(())

@@ -666,6 +666,16 @@
     },
     "integrity": "sha512-krb6SLYHdGnafeipKrM7PlHWSv1iiC93g9zEXAcnOC8MKO5kX8NOd1/UCu9omCDXdCCbz3nfr86XDx6pdkAwjw=="
   },
+  "omp": {
+    "layout": "standalone",
+    "package": "omp",
+    "version": "18.22.0",
+    "bin": "omp",
+    "artifact_url": "https://github.com/can1357/oh-my-pi/releases/download/v18.22.0/omp-darwin-arm64",
+    "files": {
+      "omp": "d185113d63eba23925e5d70ab661a424b827c06c98f8e766c3bf4ad62ddaff9a"
+    }
+  },
   "mimo-code": {
     "layout": "native",
     "package": "mimo",

@@ -134,3 +134,15 @@ fn mimo_code_runtime_requires_the_pinned_acp_patch_receipt() {
     std::fs::write(executable, b"altered").unwrap();
     assert!(verify(root.path(), &contract).is_err());
 }
+
+#[test]
+fn omp_uses_fixed_native_release() {
+    let contract = super::contract("omp").expect("OMP must have a reviewed runtime");
+    assert_eq!(contract.layout, "standalone");
+    assert_eq!(contract.version, "18.22.0");
+    assert_eq!(contract.bin, "omp");
+    assert_eq!(
+        contract.files["omp"],
+        "d185113d63eba23925e5d70ab661a424b827c06c98f8e766c3bf4ad62ddaff9a"
+    );
+}

@@ -28,6 +28,7 @@ pub mod kilocode;
 pub mod kimi;
 pub mod kiro;
 pub mod openclaw;
+pub mod omp;
 pub mod opencode;
 pub mod pi;
 pub mod poolside;
@@ -56,6 +57,7 @@ pub fn capabilities(
         "nova"
             | "harn"
             | "mimo-code"
+            | "omp"
             | "vtcode"
             | "junie"
             | "poolside"
@@ -127,6 +129,7 @@ pub fn verified_release(agent: &str) -> Option<&'static str> {
         "dirac" => "0.5.24",
         "harn" => "0.10.201",
         "mimo-code" => "0.1.17",
+        "omp" => "18.22.0",
         "vtcode" => "0.183.0",
         "junie" => "26.11.2 (4100.5)",
         "poolside" => "1.0.16",
@@ -152,7 +155,7 @@ pub fn source_protocol(
         "nova" | "amp-acp" | "claude" => P::Messages,
         "codex" | "kiro" => P::Responses,
         "gemini" => P::Gemini,
-        "mimo-code" | "junie" | "harn" | "vtcode" | "poolside" | "stakpak" | "grok" | "dimcode" | "deepagents" | "autohand" | "sigit" | "glm-acp-agent" | "dirac" | "auggie" | "cursor" | "droid"
+        "omp" | "mimo-code" | "junie" | "harn" | "vtcode" | "poolside" | "stakpak" | "grok" | "dimcode" | "deepagents" | "autohand" | "sigit" | "glm-acp-agent" | "dirac" | "auggie" | "cursor" | "droid"
         | "codebuddy" | "goose" | "hermes" | "iflow" | "kilocode" | "openclaw" | "pi" | "qoder"
         | "qwen" | "trae" => P::Chat,
         "opencode" => model_transport::routing_selection::client_protocol(api)
@@ -221,6 +224,7 @@ pub fn configure(
         "junie" => junie::configure(profile, endpoint, directory),
         "harn" => harn::configure(profile, endpoint, directory),
         "mimo-code" => mimo_code::configure(profile, endpoint, directory),
+        "omp" => omp::configure(profile, endpoint, directory),
         "vtcode" => vtcode::configure(profile, endpoint, directory),
         "poolside" => poolside::configure(profile, endpoint),
         "stakpak" => stakpak::configure(profile, endpoint, directory),
@@ -276,3 +280,7 @@ mod harn_tests;
 
 #[cfg(all(test, unix))]
 mod mimo_code_tests;
+
+#[cfg(test)]
+#[path = "omp_tests.rs"]
+mod omp_tests;

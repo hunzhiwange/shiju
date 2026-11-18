@@ -10,8 +10,9 @@ impl AcpClient {
         self.agent_name == "vtcode" && self.config.env.contains_key("VW_ACP_LAUNCH_REFERENCE")
     }
 
-    pub(super) fn managed_mimo_code(&self) -> bool {
-        self.agent_name == "mimo-code" && self.config.env.contains_key("VW_ACP_LAUNCH_REFERENCE")
+    pub(super) fn managed_workspace_io(&self) -> bool {
+        matches!(self.agent_name.as_str(), "mimo-code" | "omp")
+            && self.config.env.contains_key("VW_ACP_LAUNCH_REFERENCE")
     }
 
     /// Reject desktop routes whose native tools can execute outside client approval.
@@ -120,7 +121,7 @@ impl AcpClient {
             );
         }
         let managed_vtcode = self.managed_vtcode();
-        let managed_private_provider = managed_vtcode || self.managed_mimo_code() || (matches!(self.agent_name.as_str(), "deepagents" | "dimcode" | "junie" | "stakpak")
+        let managed_private_provider = managed_vtcode || self.managed_workspace_io() || (matches!(self.agent_name.as_str(), "deepagents" | "dimcode" | "junie" | "stakpak")
                 && env.contains_key("VW_ACP_LAUNCH_REFERENCE"));
         let managed_claude = managed_claude_settings(&self.config).is_some();
         let managed_auggie =
@@ -197,19 +198,23 @@ impl AcpClient {
                 .arg(executable)
                 .args(["--config", &config]);
             command
-        } else if self.managed_mimo_code() {
+        } else if self.managed_workspace_io() {
             let executable = self.config.command.trim();
-            crate::verify_reviewed_agent_executable("mimo-code", executable)
+            crate::verify_reviewed_agent_executable(&self.agent_name, executable)
                 .map_err(AcpError::Initialize)?;
             let executable = Path::new(executable).canonicalize().map_err(AcpError::Spawn)?;
-            let [Some(policy), Some(home), Some(workspace)] =
+            let keys = if self.agent_name == "omp" {
+                ["SHIJU_OMP_SANDBOX", "SHIJU_OMP_HOME", "SHIJU_OMP_WORKSPACE"]
+            } else {
                 ["SHIJU_MIMO_SANDBOX", "SHIJU_MIMO_HOME", "SHIJU_MIMO_WORKSPACE"]
+            };
+            let [Some(policy), Some(home), Some(workspace)] = keys
                     .map(|key| env.remove(key))
             else {
-                return Err(AcpError::Initialize("MiMo Code requires private launch files".into()));
+                return Err(AcpError::Initialize(format!("{} requires private launch files", self.agent_name)));
             };
             if !cfg!(all(target_os = "macos", target_arch = "aarch64")) || args != ["acp"] {
-                return Err(AcpError::Initialize("Unsupported managed MiMo Code launch".into()));
+                return Err(AcpError::Initialize(format!("Unsupported managed {} launch", self.agent_name)));
             }
             env.insert("HOME".into(), home.clone());
             env.insert("TMPDIR".into(), home);
@@ -246,12 +251,26 @@ impl AcpClient {
             shell_command::apply_augmented_path_tokio_command(&mut cmd);
             cmd.envs(&env);
         }
-        if let Some(directory) = directory.filter(|_| !managed_vtcode && !self.managed_mimo_code()) {
+        if let Some(directory) = directory.filter(|_| !managed_vtcode && !self.managed_workspace_io()) {
             cmd.current_dir(directory);
         }
         cmd.args(&args);
-        if self.managed_mimo_code() {
-            cmd.arg("--pure");
+        if self.managed_workspace_io() {
+            match self.agent_name.as_str() {
+                "mimo-code" => {
+                    cmd.arg("--pure");
+                }
+                "omp" => {
+                    cmd.args([
+                        "--tools=read,write,edit",
+                        "--no-extensions",
+                        "--no-skills",
+                        "--no-lsp",
+                        "--offline",
+                    ]);
+                }
+                _ => {}
+            }
         }
         cmd
             .stdin(Stdio::piped())

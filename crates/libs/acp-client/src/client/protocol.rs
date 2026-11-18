@@ -13,9 +13,9 @@ impl AcpClient {
         let native_io = !self.managed_vtcode();
         let mut capabilities = acp::ClientCapabilities::new()
             .fs(acp::FileSystemCapabilities::new()
-                .read_text_file(native_io && !self.managed_mimo_code())
+                .read_text_file(native_io && !self.managed_workspace_io())
                 .write_text_file(native_io))
-            .terminal(native_io && !self.managed_mimo_code());
+            .terminal(native_io && !self.managed_workspace_io());
         if self.agent_name == "nova" {
             capabilities = capabilities
                 .meta(Map::from_iter([("compass.owner-approval.v1".into(), json!(true))]));

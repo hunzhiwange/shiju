@@ -1324,6 +1324,17 @@ async fn vtcode_sandboxed_session_rejects_host_io_callbacks() {
 #[cfg(unix)]
 #[tokio::test]
 async fn mimo_code_managed_full_access_only_writes_ordinary_workspace_files() {
+    assert_managed_workspace_boundary("mimo-code").await;
+}
+
+#[cfg(unix)]
+#[tokio::test]
+async fn omp_managed_full_access_only_writes_ordinary_workspace_files() {
+    assert_managed_workspace_boundary("omp").await;
+}
+
+#[cfg(unix)]
+async fn assert_managed_workspace_boundary(agent: &str) {
     let root = tempfile::tempdir().unwrap();
     let workspace = root.path().canonicalize().unwrap();
     let outside = tempfile::tempdir().unwrap();
@@ -1335,7 +1346,7 @@ async fn mimo_code_managed_full_access_only_writes_ordinary_workspace_files() {
         env: [("VW_ACP_LAUNCH_REFERENCE".into(), "fixture".into())].into(),
         ..Default::default()
     };
-    let client = super::AcpClient::new("mimo-code", config)
+    let client = super::AcpClient::new(agent, config)
         .with_permission_mode(PermissionMode::ApproveAll)
         .with_full_access(true);
     with_workspace_rpc(&client, &workspace, async |io| {

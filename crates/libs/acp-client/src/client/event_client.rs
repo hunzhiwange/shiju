@@ -61,7 +61,7 @@ impl AcpClient {
                 callback(notification);
             }
         });
-        let managed_workspace_io = self.managed_mimo_code();
+        let managed_workspace_io = self.managed_workspace_io();
         AcpEventClient {
             managed_workspace_io,
             sandboxed_native_io: self.managed_vtcode(),

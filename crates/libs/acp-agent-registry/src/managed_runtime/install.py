@@ -24,6 +24,25 @@ def check_files(root, files):
         if digest(root / name) != expected:
             raise RuntimeError('Reviewed artifact checksum mismatch: ' + name)
 
+if agent == 'omp':
+    import platform
+    if (platform.system(), platform.machine()) != ('Darwin', 'arm64'):
+        raise RuntimeError('OMP reviewed runtime is Darwin-arm64 only')
+    runtime.mkdir()
+    executable = runtime / contract['bin']
+    for _ in range(3):
+        result = subprocess.run([
+            '/usr/bin/curl', '--fail', '--silent', '--show-error', '--location',
+            '--proto', '=https', '--proto-redir', '=https', '--max-time', '85',
+            '--continue-at', '-', '--output', str(executable), contract['artifact_url'],
+        ], stdin=subprocess.DEVNULL)
+        if result.returncode == 0:
+            break
+    else:
+        raise RuntimeError('Could not download the reviewed OMP release')
+    check_files(runtime, contract['files'])
+    executable.chmod(0o700)
+    raise SystemExit(0)
 if agent == 'stakpak':
     import platform
     if (platform.system(), platform.machine()) != ('Darwin', 'arm64'):

@@ -1290,3 +1290,22 @@ Poolside 以原指定模型完成 Rue.js 编辑器落盘验收。保留前次请
 - 预设恢复停用并重读等效。私有副本的全局配置多出显式 disabled 覆写，随后整个副本删除，原开发配置未收到 PATCH。自有网关退出 0，端口关闭，无残留原生进程。Rue.js 前后 6333 项普通文件摘要和 Git 状态一致，目标目录不存在。没有重复提交编辑器请求，未运行页面或浏览器验证。
 - 私有证据位于 0700 目录 `/tmp/shiju-mimo-code-implementation.wJIgOO/`，包含源码构建、补丁原生探针及真实会话回读。
 - 已缩小受管模式的工具目录。原生回环确认主提示仍有 read、edit、write，且不提供 shell、glob 或 grep，批准写回仍可创建嵌套文件。两项驱动定向单测和 Clippy 重跑退出 0。若需重新创建，先确认旧会话已停止及目录仍为空，再单独授权发起新请求。
+
+### Devin 固定版本安装复验（2026-11-18）
+
+macOS arm64 的一键安装接入已补齐。指定会话模型和 Rue.js 落盘仍阻塞。
+
+- 托管安装固定官方 Devin 3000.13.4 的 HTTPS 下载地址，同时校验压缩包和解包后的二进制 SHA-256。仅提取普通文件 `bin/devin`，复用现有临时目录校验和原子发布。已安装入口解析为 `devin acp --process-model in-process`。本机供应商二进制摘要为 `62e08b13df72b4626a69669d536c460f45e77f0f58ffc82762436dac5dc8f272`。
+- 槽位 3 的安装白名单回归先复现失败，补丁后槽位 10 的同一用例通过。槽位 10 的托管安装实测从空配置根访问官方地址，校验实际安装、注册解析、版本和重复安装，1 项通过，耗时 15.30 秒。两个受影响包的 Clippy 退出 0。未构建桌面或新网关，未重测 HTTP 安装端点。
+- 新安装的入口在隔离 HOME 和临时工作目录完成 ACP v1 握手和 `session/new`。公开版回退到 `swe-1-6-fast`，显式选择 `alibaba-token-plan-cn/deepseek-v4.1-flash-1017` 返回 `-32602`。认证状态为未登录，模型目录要求先登录。未发送 prompt。
+- 官方固定版随包的 `share/devin/docs/reference/partner-builds.mdx` 说明 OpenAI 兼容自定义端点仅由合作伙伴版提供，获取需要获批 Devin 组织凭据。未携带凭据请求官方安装端点得到 HTTP 403，公开版实测也拒绝合作伙伴专用的 `--disable-tools` 参数。合作伙伴版能否通过 ACP 使用该端点及工具边界尚待验证。
+- 未修改租户或系统默认安装，未启用预设，未启动网关或写入 Rue.js，目标目录仍不存在。原始测试和探针证据在本机 0700 目录 `/tmp/shiju-devin-managed-20261118.tSB9VH/`。取得获授权的合作伙伴版后，先在隔离环境验证真实模型中继、精确选模及工具权限，再重跑原租户的文件落盘验收。
+
+### Corust 固定版本安装复验（2026-11-18）
+
+macOS arm64 的托管安装已实测，指定模型和 Rue.js 落盘验收仍阻塞。
+
+- 固定官方 v0.6.0 Darwin arm64 发行资产 ID 419147804。直链下载超时，改用同一资产的 GitHub API。安装器校验归档 SHA-256，仅解出单个普通可执行文件，并独立校验二进制 SHA-256 `a2a644a851ee03c583ed9f113cc3acbf54d99ff9f8aaaa782535dbd576d97a2e` 后原子发布。入口为 `corust-agent-acp`，不带参数。[官方发行页](https://github.com/rustingai/corust-agent-release/releases/tag/v0.6.0)
+- 白名单用例和生产安装函数用例均先复现预期失败。补丁后白名单 2 项通过，真实托管安装、注册发现、入口校验及重复安装 1 项通过，耗时 53.18 秒。两包定向 Clippy 退出 0，已有 Codex 测试的 `manual_contains` 告警与本次修改无关。
+- 托管入口在隔离配置根和 HOME 下完成 ACP v1 握手，二进制自报 `corust-acp` 0.1.0。携带原完整模型 ID 的 `session/new` 返回 `-32000 Authentication required`，认证方法为 `oauth_browser`。公开发行仓库提供二进制和扩展清单，未找到可用于实现和验证指定模型的公开源码或配置接口。继续保留 `session_model` 能力门控，需先获得 Corust 授权并验证指定模型接入方式。
+- 未启动新网关或复验 HTTP 安装端点，未修改租户配置或启用预设，未执行 `chat/stream`、页面或浏览器验证。原生探针退出 0，Rue.js 前后 6344 项普通文件 SHA-256 零差异，目标目录不存在。原始证据在本机 0700 目录 `/tmp/shiju-corust-patch.LDrqYV/`。

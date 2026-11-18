@@ -75,3 +75,23 @@ RueJS 从 `main` 的 `14fe287b13549f5183d42fbc45b28e1498ffae1c` 导出到私有�
 第二组路由工厂的真实源码已进入答复（`app/router/index.ts:787`）。首次失败 `call_f9c41ce6e32c4f0d8e269158` 仍猜测 `app/router.tsx`，另外三次分别读了不存在的 `app/router.ts`、`app/i18n.ts` 和 `app/static-render-entry.tsx`。两组最终答复覆盖主链、SSR、容器缺失、路由和 i18n、布局绕过及快照。第一组提出的 `/rust-layers` 验证不可直接执行，该路径未注册。第二组提出实际存在的示例页及预填容器场景，重复节点属于源码推断，两场景未实际运行。
 
 严格验收仍为已阻塞。两组的真实读取错误直接违反挂载轮合同，区别于无关回归失败。恢复条件是指定模型在原提示与真实索引下完成零失败的三轮，或上游 RustCodeGraph 改善当前漏索引定义的发现能力后复验。接受已恢复的探索读取失败需要验收负责人调整合同。此次未修改运行时代码，未运行 Cargo。两份副本与归档比对无差异（索引除外），私有挂载、网关、转发器、图谱进程及凭据副本均已清理。
+
+## RustCodeGraph 1.2.11 发行版复验
+
+使用槽位 3 已受审的 shiju 0.6.0（SHA-256 `2e84923a46704187dfd9d56dfc4b45d6ebf9cfc93398a6bb3a82b1cc61a1f935`）、CodeBuddy 2.179.3、之前证明可用的两项原生环境设置，以及相同请求、租户、模型与权限。以 RustCodeGraph 1.2.11 发行二进制（SHA-256 `5fab2f2dbf506ddf71d842ef1a7cd6e744c5ec90ff3f5f043ea020e1b3696312`）对原 RueJS 提交重新索引 3478 个文件，`createAppRouter` 可直接命中 `app/router/index.ts:787`。[发行版及同批次验收](pi.md)
+
+项目配置沿用 `allowedTools`。当前宿主对 CodeBuddy 转发标准 ACP 服务描述，三工具边界由同批已审验的私有 stdio 目录转发器执行。目录补充真实入口文件、`node.offset`、`node.limit` 及默认索引根，模型可以省略 `projectPath`。协议检查确认原生目录 8 项、限定目录 3 项，三种工具的真实返回与直接 stdio 完全一致。额外工具和越界路径被拒绝，副本内不存在的文件仍返回原始图谱错误。没有更改模型工具参数或返回。
+
+首组 1.2.11 挂载完成 109 次指定工具调用，其中两次返回真实错误。`call_3bb37bbf81e5433c98fc4a4f` 把 `packages/router` 当成独立索引根，`call_3d1080805b6c468380a300fc` 请求了未被索引的 `index.html`。撤除轮没有工具事件，标记后带解释。三轮均收到 `chat.done`。为验证这两个具体边界，第二份干净副本在同一目录声明中把可选 `projectPath` 枚举为实际索引根，且将 `node.file` 声明为源码扩展名模式。未增加参数修正或结果替换，独立 stdio 探针再次验证三种成功结果及缺失路径错误与直连相同。
+
+| 最终轮次 | 新会话 | HTTP / curl / 秒 | 终态及结果 |
+| --- | --- | --- | --- |
+| 无挂载 | `ses_1f10172ad001btrvIl8kiqPfdm` | 200 / 0 / 10.008 | 一次 `chat.done`，可见答复仅 `MCP_NOT_AVAILABLE`，零工具 |
+| 挂载 | `ses_1f1019ad0001xJ58m3So6xz3nz` | 200 / 0 / 178.524 | 一次 `chat.done`，80 次指定工具调用全部成功 |
+| 撤除 | `ses_1f104549e001Q6VkCpXBzVZV95` | 200 / 0 / 11.382 | 一次 `chat.done`，可见答复仅 `MCP_NOT_AVAILABLE`，零工具 |
+
+挂载轮 32 次 query、3 次 callers、45 次 node。80 个调用 ID 均配对开始、成功完成和真实输出，零额外工具、工具失败、模型恢复及 `chat.error`。代表性调用 `call_26dfd24f95c94964a45b86cf` 返回 `createRueSiteApp`（`app/app.tsx:32`），`call_969a230c44d24ce2ac833c66` 返回 `mountRueSiteApp`（第 39 行），`call_85a5e894395e49079dc6b795` 读回 `useApp.ts:4` 对 `_$createApp` 的委托。另由 `call_facb2cfb639a4c34afded262` 命中应用工厂（`compiler-runtime/app.ts:57`），`call_5861909adb0949ea841ed109` 命中路由工厂。
+
+答复主链、SSR 与浏览器分流、容器判空、插件安装顺序及布局绕过条件与源码对应。它分析了移除清空造成的快照残留，给出首屏去重和卸载容器两项可检验预期。实际路由表未注册 `/rust-layers`，答复提到的 SSR 与客户端布局差异只在该条件可达时成立。场景 A 应以旧节点身份或已知布局节点计数为依据，根子元素数量取决于产物结构。场景 B 应使用 `mountRueSiteApp().app.dispose()`，站点函数返回的是 `{ app, router }`。本次未运行浏览器场景。
+
+最终三轮均回读 `acp-codebuddy / codebuddy` 和 `full_access=true`。运行中 ACP options 确认指定租户模型、`session_model` 和 `partial` 访问级别，终态连接全部释放。动态挂载三轮验收通过。未修改产品代码或运行 Cargo。两份副本的文件和符号链接与归档一致（索引除外），临时挂载、私有网关、端口、工具子进程和凭据副本均已清理。原始事件及探针结果保留在本机 0700 目录。

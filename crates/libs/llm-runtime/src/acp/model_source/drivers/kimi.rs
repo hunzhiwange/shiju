@@ -2,6 +2,31 @@ use super::AcpLaunchProfile;
 use serde_json::json;
 use std::{collections::HashMap, io::Write, path::Path};
 
+#[derive(serde::Serialize)]
+struct Settings<'a> {
+    default_model: &'static str,
+    telemetry: bool,
+    providers: HashMap<&'static str, Provider>,
+    models: HashMap<&'static str, Model<'a>>,
+}
+
+#[derive(serde::Serialize)]
+struct Provider {
+    #[serde(rename = "type")]
+    kind: &'static str,
+    base_url: String,
+    api_key_env: &'static str,
+}
+
+#[derive(serde::Serialize)]
+struct Model<'a> {
+    provider: &'static str,
+    model: &'a str,
+    max_context_size: u64,
+    max_output_size: u64,
+    capabilities: Vec<&'static str>,
+}
+
 /// Kimi Code 2.5.0 reads a single config beneath KIMI_CODE_HOME, including in ACP.
 /// Keep history across relay rotations, but persist only an environment key name.
 pub fn configure(profile: &mut AcpLaunchProfile, endpoint: &str) -> anyhow::Result<()> {
@@ -73,14 +98,29 @@ pub fn configure(profile: &mut AcpLaunchProfile, endpoint: &str) -> anyhow::Resu
     if profile.model_supports_reasoning {
         capabilities.push("thinking");
     }
-    let settings = json!({
-        "default_model": "session-selected", "telemetry": false,
-        "providers": {"session-provider": {"type": kind,
-            "base_url": format!("{endpoint}{suffix}"), "api_key_env": "VW_KIMI_RELAY_TOKEN"}},
-        "models": {"session-selected": {"provider": "session-provider", "model": profile.model_alias,
-            "max_context_size": profile.model_context_limit.max(1),
-            "max_output_size": profile.model_output_limit.max(1), "capabilities": capabilities}},
-    });
+    // Serialize the limits directly so they remain scalar integers in TOML.
+    let settings = Settings {
+        default_model: "session-selected",
+        telemetry: false,
+        providers: HashMap::from([(
+            "session-provider",
+            Provider {
+                kind,
+                base_url: format!("{endpoint}{suffix}"),
+                api_key_env: "VW_KIMI_RELAY_TOKEN",
+            },
+        )]),
+        models: HashMap::from([(
+            "session-selected",
+            Model {
+                provider: "session-provider",
+                model: &profile.model_alias,
+                max_context_size: profile.model_context_limit.max(1),
+                max_output_size: profile.model_output_limit.max(1),
+                capabilities,
+            },
+        )]),
+    };
     let mut environment = HashMap::from([
         ("KIMI_CODE_HOME".into(), home.to_string_lossy().into_owned()),
         ("VW_KIMI_RELAY_TOKEN".into(), profile.binding.bearer_token().to_owned()),
@@ -98,6 +138,7 @@ pub fn configure(profile: &mut AcpLaunchProfile, endpoint: &str) -> anyhow::Resu
     }
     environment.insert("NO_PROXY".into(), "127.0.0.1,localhost".into());
     environment.insert("no_proxy".into(), "127.0.0.1,localhost".into());
+    let settings = toml::to_string(&settings)?;
     profile.overlay_environment(environment)?;
     let path = home.join("config.toml");
     if let Ok(metadata) = path.symlink_metadata() {
@@ -107,7 +148,7 @@ pub fn configure(profile: &mut AcpLaunchProfile, endpoint: &str) -> anyhow::Resu
         );
     }
     let mut file = tempfile::NamedTempFile::new_in(&home)?;
-    file.write_all(toml::to_string(&settings)?.as_bytes())?;
+    file.write_all(settings.as_bytes())?;
     file.as_file().sync_all()?;
     file.persist(path).map_err(|_| anyhow::anyhow!("cannot publish Kimi configuration"))?;
     Ok(())
@@ -135,3 +176,7 @@ fn private_directory(path: &Path) -> anyhow::Result<()> {
     #[cfg(not(unix))]
     anyhow::bail!("Kimi private state ACL verification unavailable")
 }
+
+#[cfg(all(test, unix))]
+#[path = "kimi_tests.rs"]
+mod tests;

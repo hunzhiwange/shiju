@@ -107,3 +107,10 @@ macOS arm64 托管安装现固定官方 Devin 3000.13.4，校验压缩包和可�
 通过 `scripts/cargo_slot.py` 领取槽位，两项 Cargo 缓存变量均指向对应的 `/Users/xiangmin/worker/code/shiju/target/rust-slot-N`。槽位 3 执行 `cargo test --locked -j 1 -p config-acp-install --lib acp_onboarding_devin_installer_contract`，1 项失败（退出 101），证实旧白名单未启用。槽位 10 重跑同命令，1 项通过。槽位 10 执行 `cargo test --locked -j 1 -p acp-agent-registry --lib devin_managed_install_resolves_and_verifies_native_entry -- --ignored`，通过 1 项真实下载、注册解析、原生版本和重复安装测试。该版本 Clippy 退出 0。第二次冷下载 120 秒超时（退出 101），加入有界重试和断点续传后，在槽位 3 用空配置根重跑同一安装测试，1 项通过，耗时 96.76 秒。最终 `cargo clippy --locked -j 1 -p config-acp-install -p acp-agent-registry --lib --no-deps` 退出 0。共享安装分支的 VT Code 0.183.0 下载、版本和摘要也通过实测。
 
 隔离原生 ACP 握手及建会话成功，精确选模仍返回 -32602，未发送 prompt。公开版依赖 Devin 登录，自定义 OpenAI 端点的官方文档要求获批组织专供的合作伙伴版，其下载接口在未认证时返回 HTTP 403。需要取得获授权的供应商构建，验证其 ACP 推理和权限边界，再以指定模型重跑。未运行新网关 HTTP 路径、桌面编译、页面或浏览器验证，未修改宿主配置或 Rue.js。私有证据 `/tmp/shiju-devin-managed-20261118.tSB9VH/`。
+
+
+### 网关及新版公开 CLI 复验（2026-11-18）
+
+保持已阻塞。复用已核对包含最终 Devin 安装补丁的 shiju 0.6.0，网关冷安装 HTTP 200、退出 0、88.981082 秒，安装状态 false → true。诊断为 authentication_required，session_model 为 unsupported_cli。内置预设启用重读、恢复停用和重读均成功，配置副本已移除，原配置未写入。三轮自有网关正常退出，Rue.js 6351 项摘要零差异，目标目录仍不存在。
+
+校验并原生探测官方新版 3000.14.30821。ACP 建会话成功，原模型仍被拒绝（-32602），使用回环 OpenAI 兼容环境变量重复探测仍相同。未发送编辑器请求，未运行 Cargo、页面或浏览器验证。独立验证均已完成，待提供获授权的 Devin 合作伙伴版或获批组织的本机凭据入口。私有证据 `/tmp/shiju-devin-gateway-20261118.gfS8c8/`。

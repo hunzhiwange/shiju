@@ -30,3 +30,22 @@
 定向命令 `python3 scripts/cargo_slot.py cargo test -j 1 -p vw-acp --test onboarding_dirac acp_onboarding_dirac_rejects_ignored_mcp_servers` 退出 0，1 项通过、4 项被过滤。使用槽位 6，`CARGO_TARGET_DIR` 与 `CARGO_BUILD_BUILD_DIR` 均为仓库的 `target/rust-slot-6`。审批实现和断言无改动，本轮未单独复跑权限用例。
 
 私有网关、原生进程及回环监听器均已退出。私有授权副本和临时挂载文件已清理。原始证据留在本机 0700 验收目录，用户网关与 RueJS 原目录未写入。
+
+## 共享工作区复验
+
+使用当前共享工作区已有的较新 ShiJu 0.6.0 构建，SHA-256 为 `e755e458b4fce6ed045ef10a7c077a0d7dfb98d69637442d9c4449d0d50923ac`。重新使用独立网关和 RueJS 副本，网关实际启动的 Dirac 仍为 0.5.24。请求内容、租户、传输及模型沿用首轮。
+
+| 轮次 | 新会话 | HTTP / curl 退出码 / 秒 | SSE 终态与输出 |
+| --- | --- | --- | --- |
+| 无挂载 | `ses_1f0011541001UbjjdhXM6LMaUY` | 200 / 0 / 6.208 | `chat.done`，可见答复为 `MCP_NOT_AVAILABLE`。 |
+| 挂载 | `ses_1f0012ed5001Fk7am1cEEPy2YK` | 200 / 0 / 1.625 | `chat.error`，原门禁错误及 `phase=stopped` 重现。 |
+| 撤除 | `ses_1f0013617001av2JdbZFAMHIRF` | 200 / 0 / 4.588 | `chat.done`，可见答复为 `MCP_NOT_AVAILABLE`。 |
+
+两个对照均有原生 `respond` 的开始、更新和完成事件。三轮目标工具事件为零，挂载轮所有工具事件为零。三轮 UI summary 均回读正确绑定和 `full_access=true`。对照轮在线确认指定模型和 `client_only`，完成后连接释放且模型可回读。挂载轮全程未建立有效连接，选模和审批均无结果。
+
+- 在私有目录安装 npm 0.6.1，入口摘要为 `9d4b628a77082f661487c14f539cc463fa500dfdd61eb06b330a73519700be5e`。对最新版动态补测三种传输。ACP v1 三次均成功建会话，未声明 MCP 能力，stdio 启动标记缺失，独立 HTTP/SSE 监听器的 TCP 连接数为零。回环模型的三份工具表均仅含 17 个原生工具。此处验证了此前静态检查的实际后果。上游当前源码也仅在 resume 入口将 `mcpServers` 转传给 `loadSession`，后者未消费列表。[Dirac ACP 源码](https://github.com/dirac-run/dirac/blob/225d7cf86d1bd500352b0ef4875b86a1a17b6622/cli/src/agent/DiracAgent.ts)
+- 0.5.24 和 0.6.1 的 `--acp --only-tools` 均在握手前退出 1，提示工具选择参数只用于普通 CLI 任务。0.6.1 的私有配置加载了一个无副作用的自定义标记工具。该工具同时出现在有挂载和无挂载的两个 ACP 会话的模型工具表中，表明工具目录与配置档绑定，无法由 `mcpServers` 注册或撤除。未修改用户工具、工作区或全局配置。[CLI 参数处理](https://github.com/dirac-run/dirac/blob/225d7cf86d1bd500352b0ef4875b86a1a17b6622/cli/src/index.ts)
+- 核对仓库内的受管路径。Snow 补丁依赖 Snow 已有的 MCP 客户端、会话字段及调用循环。OpenClaw 转换依赖其私有 Gateway 原生 MCP，且原生调用不回调 ACP 宿主审批。Dirac 的私有中继只绑定模型和状态目录，缺少这两条路径所需的注册和回传接口。沿用私有自定义工具需要新增会话隔离、工具转换、逐次审批及撤销接线，超出任务卡要求先确认原生 Dirac 消费列表的边界。
+- 当前分支及工作区中的 Dirac 驱动、协议门禁和聚焦目标相对前次提交无变化，复用此前 1 项聚焦测试通过证据。本次复验未再编译。私有网关与原生探针均退出，挂载文件及私有授权副本已清理，用户网关健康检查通过。
+
+仍为已阻塞。解除条件为可安装的 Dirac ACP 入口实际消费会话 MCP 定义，并经宿主审批完成调用及撤除验证。若改用新建受管适配器，需先扩展任务卡范围，明确工具注册、宿主审批和会话撤销的交付要求。

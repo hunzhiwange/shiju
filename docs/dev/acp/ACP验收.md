@@ -1116,3 +1116,14 @@ Rust重型命令经scripts/cargo_slot.py槽位入口串行执行，对应CARGO_T
 - 已确认 Rue.js 的 `packages/rue/src` 和 `@rue-js/rue` 包。排除 `.git`、`node_modules`、`target` 后，前后各 6303 项普通文件的 SHA-256 零差异，Git 状态一致，`acpdemo/vtcode/` 始终不存在。结束 GET 的全局配置与基线相等，自有网关退出 0，端口已关闭。
 - 通过 `scripts/cargo_slot.py` 在槽位 1 串行执行 `cargo test -j 1 -p config-acp-install --lib acp_onboarding_vtcode -- --test-threads=1` 和 `cargo test -j 1 -p agent-config --lib acp_onboarding_vtcode -- --test-threads=1`。安装契约 1 项、预设及目录绑定 2 项通过，均退出 0。任务引用的旧 `.plans/references/rust.md` 缺失，沿用仓库现行槽位入口。未运行协议夹具、Clippy、桌面编译、页面构建或浏览器验证。
 - 原始请求、响应、日志、摘要及快照保存在本机 0700 目录 `/tmp/shiju-vtcode-accept-20261118.wwdBSD/`。补齐经审核的系统安装和指定会话模型驱动后重跑任务 38。
+
+
+### VT Code 官方发行与原生 ACP 重试（2026-11-18）
+
+结论仍为已阻塞。官方发行版已在隔离环境证明原生 ACP 可使用完整指定模型 ID 和工具协议。ShiJu 系统安装、真实租户推理和 Rue.js 编辑器产物仍待验收。
+
+- 官方 Darwin arm64 发行 0.183.0 的归档 SHA-256 为 `ceb895c724cd666f283169cf2c400a2a3988dfc97cc8b62d75882ffedc218f2d`，与 GitHub 资产摘要和官方 .sha256 一致。检查归档后只提取普通可执行文件到 0700 私有目录。原生 `--version` 返回 `0.183.0+4fd8e47a885c`，`acp --help` 正常运行。宿主 PATH 和 ShiJu 安装状态未变。[官方发行](https://github.com/vinhnx/VTCode/releases/tag/0.183.0)
+- 使用隔离 HOME、私有工作目录及限制写入和网络的 macOS 沙箱执行 `vtcode acp`。空配置下，`initialize` 返回 ACP v1，`session/new` 成功但当前 provider 为 OpenRouter，指定模型被拒绝。旧 `session/set_model` 返回 -32601。私有 TOML 配置同名 OpenAI 兼容 provider 后，`session/set_config_option` 的 model 项重读为 `alibaba-token-plan-cn/deepseek-v4.1-flash-1017`，provider 项为 `alibaba-token-plan-cn`。配置的推理档位 low 被无档位能力的合成 provider 明确拒绝，探针改为 none 后可请求。[固定版本 ACP 指南](https://github.com/vinhnx/VTCode/blob/0.183.0/docs/guides/zed-acp.md) · [固定版本配置示例](https://github.com/vinhnx/VTCode/blob/0.183.0/vtcode.toml.example)
+- 回环收到带完整 ID 和 5 项工具定义的非流式 `POST /v1/chat/completions`。显式模型配置没有触发 `GET /v1/models`，常规与目录不可用探针均用合成响应取得 `end_turn`。工具探针取消 `apply_patch` 审批后文件不存在，独立批准探针写出预期的 15 字节。批准后没有收到 `fs/write_text_file`，说明该路径由原生工具直接写入，集成时需用外部边界约束原生工具写入。
+- 自有网关按原租户及目录头只读复查，`installed=false`、`session_model=unsupported_cli`。全局租户配置存在原模型条目，探针进程缺少该 provider 声明的密钥环境变量。网关公开 OpenAI 兼容端点使用进程默认 provider，且只转换文本消息，不能作为本次固定租户及工具协议的中继。未替换 provider 或模型，未向真实上游发请求。重跑需在 ShiJu 补齐固定摘要系统安装、使用原租户可用授权的请求级模型中继、现代 ACP 选模确认及原生工具写入边界，再用原创建请求验证。
+- 本轮未写配置或提交编辑器请求。全局配置重读与首轮基线一致。自有网关退出 0，原生探针由自有进程组终止，复查的 7 个回环端口均关闭。Rue.js 前后 6303 项普通文件的 SHA-256 零差异，Git 状态一致，目标目录不存在。无代码变更，未重跑 Cargo 或页面验证。发行校验、ACP 帧、回环请求、审批结果及清理证据保存在本机 0700 目录 `/tmp/shiju-vtcode-retry-20261118.RGuroQ/`。

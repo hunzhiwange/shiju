@@ -71,3 +71,34 @@
 第二组挂载三种目标工具都成功，另有 34 次同服务辅助工具成功。4 次查询失败均指定了没有独立索引的子目录为 `projectPath`。绕开 DeepAgents 直接向原 RustCodeGraph stdio 发送同样的四个参数，均复现 `isError=true`。答复仍给出主调用链、SSR、容器错误、插件接入、布局绕过、快照推断与两项验证场景。两组均无其他服务、文件或终端工具事件，严格工具范围回归仍待通过。
 
 两个私有网关及其端口均已关闭，私有挂载配置、授权及租户数据副本已清理。原始 SSE 和探针收据留在本机 0700 私有目录。
+
+## 最终集成回归与受管 v4
+
+任务 8 的公共策略用例通过记录对应共享构建 `7f8fb6ab97e9e6b00e6694ce48376e2d50a3ce4b2bff3fff93004b98db824916`，构建基线 `5ad05b0f0`。DeepAgents 之后扩展了该用例的宿主策略覆盖，受影响的同一用例在槽位 3 由 `scripts/cargo_slot.py` 运行 `cargo test -j 1 -p session-engine --lib acp_mcp_mount_carries_resolved_tool_policy`，退出 0，实际 1 项通过。其他已通过的原审批、取消和生命周期证据继续复用。 [任务 8 公共证据](amp-acp.md)
+
+最新共享工作区冷安装 v3 会在 `dist/shiju-stdio.py` 报固定摘要失配。v4 只复用共享脚本的 stdio 传输部分，安装由仓库脚本完成，五项摘要全部匹配。宿主将现有 `allowedTools` / `deniedTools` 写入会话工具策略，受管入口发现时应用规则。拒绝项优先，选集变更仍须新建会话。相同聚焦试验在 v3 因模型收到八个图谱工具退出 1，在 v4 退出 0。试验确认只声明三个获准工具，真实查询、调用者和节点结果继续可读，拒绝与撤除仍成立。修复提交为 `70eeb9569`。
+
+槽位 3 的两个 Cargo 缓存路径均为仓库的 `target/rust-slot-3`。同一槽位入口随后执行 `cargo build -j 1 --locked -p vw-cli --bin shiju`，退出 0，耗时 16 分 30 秒。私有网关 SHA-256 为 `2e84923a46704187dfd9d56dfc4b45d6ebf9cfc93398a6bb3a82b1cc61a1f935`。
+
+1.2.10 限定工具诊断中，无挂载 `ses_1f089d6080015va1CNMpDbmzsv` 返回 HTTP 200、curl 0、5.729308 秒，收到 `chat.done`，只答 `MCP_NOT_AVAILABLE`。挂载 `ses_1f089ed230016lDJev3IchyW9r` 及两次原游标续传均为 HTTP 200、curl 28，三段各约 300 秒，未收到终态。三种工具完成 278 次，另有 5 次无效路径读取，首个为 `app/router.ts`。脚本在超时后清理挂载并退出，该组未发起撤除对照。
+
+最终组复用同批次校验的 RustCodeGraph 1.2.11 发行二进制，SHA-256 为 `5fab2f2dbf506ddf71d842ef1a7cd6e744c5ec90ff3f5f043ea020e1b3696312`。以同一 RueJS 提交重建 3478 文件的索引，该版可直接定位 `createAppRouter`（`app/router/index.ts:787`）。项目配置使用同一原生 stdio 服务名，并以现有 `allowedTools` 条目限定三种工具。原请求、提示摘要、模型和权限一致。 [共享 RustCodeGraph 发行证据](pi.md)
+
+| 轮次 | 新会话 | HTTP / curl / 耗时 | SSE 终态和工具 |
+| --- | --- | --- | --- |
+| 无挂载 | `ses_1f097b64e001thb78UKgXwYxKL` | 200 / 0 / 5.206482 秒 | 一个 `chat.done`，只答 `MCP_NOT_AVAILABLE`，零工具 |
+| 挂载 | `ses_1f097cc30001ZObL1PtzvDTMVr` | 200 / 28 / 300.007352 秒，续传一 200 / 28 / 300.008260 秒，续传二 200 / 0 / 121.700861 秒 | 一个 `chat.done`，248 个成功调用 |
+| 撤除 | `ses_1f0a2d33e001uk1sU7gjrd7vlB` | 200 / 0 / 4.677599 秒 | 一个 `chat.done`，只答 `MCP_NOT_AVAILABLE`，零工具 |
+
+最终三轮均无 `chat.error` 或中继恢复事件。两次续传沿用同一请求标识和会话。三轮 summary 均确认 DeepAgents 绑定和 `full_access=true`。挂载运行中 ACP options 为 `connected=true`、`client_only`，三轮终态连接均释放，所选来源、提供商及完整模型 ID 均保持一致。挂载的 140 次 query、7 次 callers 和 101 次 node 均按同一调用 ID 匹配开始和成功完成，额外工具与失败事件均为零。
+
+| 工具 | 调用 ID | 真实结果 |
+| --- | --- | --- |
+| `rustcodegraph_query` | `call_63100a8a2f864b6c987f2e95` | `createRueSiteApp` 位于 `app/app.tsx:32` |
+| `rustcodegraph_callers` | `call_9463f46222f349f58ed31f05` | `mountRueSiteApp` 位于 `app/app.tsx:39` |
+| `rustcodegraph_node` | `call_c0bc2c0f7fb447f48dcfb98b` | `useApp.ts:4` 的原始源码调用 `_$createApp(factory)` |
+| `rustcodegraph_node` | `call_f6244e3b4de3493b89d7014d` | `compiler-runtime/app.ts:57` 应用工厂及插件安装逻辑 |
+
+最终答复覆盖主调用链、SSR 与浏览器入口、缺少 `#app` 时的错误、router 与 i18n 插件安装顺序以及 `/rust-layers` 布局绕过条件。它对照源码指出图中同名符号误连，明确把快照残留与重复节点列为静态推断。两项场景分别验证空容器快照构建保持一致，以及带既有快照的客户端首次挂载只出现一份 DOM。场景给出了预期结果，未实际执行浏览器测试。模型对未读到的路由工厂函数体明确标注推断，仓库源码第 787–791 行与该推断相符。
+
+两次私有网关均已退出，端口关闭，挂载配置、授权和租户副本均已清理。验收通过，原始事件及源码核对保留在本机 0700 私有目录。

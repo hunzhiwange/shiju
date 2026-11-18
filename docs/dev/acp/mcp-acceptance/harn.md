@@ -29,3 +29,19 @@
 私有网关退出 0，端口关闭，无本次代理或图谱子进程残留。撤除后核对 4108 个源码文件摘要均一致，额外文件仅在私有图谱索引和 Harn 运行缓存目录。已清理私有源码、网关副本和授权副本，原 RueJS 与用户网关配置未改。原始 SSE、诊断与回读在本机 0700 证据目录。
 
 取得支持会话级授权、工具发现及隔离撤除的受审入口后，用原模型和同一请求补跑三轮。
+
+## 共享工作区复验
+
+复用共享工作区较新的 shiju 0.6.0（SHA-256 `6954a2bb76ca26aa39c3b0dd909786c68b85f336648526ef39651b1e3a31f718`），重新在隔离网关跑固定请求。受管 Harn 仍为 0.10.201。
+
+| 轮次 | 新会话 | HTTP / curl / 耗时 | SSE 终态 | 答复与工具 |
+| --- | --- | --- | --- | --- |
+| 无挂载 | `ses_1f035773f001EE83bN0lYT1vlh` | 200 / 0 / 9.687 秒 | `chat.done` | `MCP_NOT_AVAILABLE`，工具事件 0 |
+| 挂载 | `ses_1f0359e23001kseAD12zcvbIhf` | 200 / 0 / 3.920 秒 | `chat.error` | 原生 `session/new` 拒绝，工具事件 0 |
+| 撤除 | `ses_1f035af24001GjkjZWjmyrQjuB` | 200 / 0 / 7.599 秒 | `chat.done` | `MCP_NOT_AVAILABLE`，工具事件 0 |
+
+三个 UI summary 均回读原预设、后端及 `full_access=true`。两轮对照执行中确认 `connected=true`、`client_only` 和指定模型，终态保留选模。挂载轮未连接或完成选模，仍无答复可评分。网关退出 0，端口关闭。两个私有源码副本各核对 4108 个文件摘要后清理，授权副本已清理，保留私有诊断证据。
+
+- 从官方发行下载并按资产摘要验证 Darwin arm64 Harn 0.10.202。压缩包 SHA-256 为 `06730908c8e1778d85c1d1c74bde9f550a8ecc58046aef03ce4306fc39e659bf`，原生文件为 `74f3e9dbac52065979f12dcd0a3e3b262f83c1a3a680fa6ee88b90f3eb717ac7`。受管版本与新版本原生 ACP 都接受空列表，并对 stdio、HTTP、SSE 定义逐一返回相同的 `-32602`。新版本的无 pipeline 入口结果相同。发行物仅用于私有探针。[官方发行](https://github.com/burin-labs/harn/releases/tag/v0.10.202) [版本协议说明](https://github.com/burin-labs/harn/blob/v0.10.202/docs/src/harn-serve.md#acp)
+- 用两版原生引擎分别运行 `AgentSpec.mcp_servers` 聚焦探针。复用原自然语言 pipeline、默认 ACP `ask` 模式、隔离环境和仅进程内可见的模拟中继凭据。两版均由 `tool:mcp:mutate` 拒绝 `harness.tools.mcp_bootstrap`，模型端收到 0 个请求，未执行图谱工具。分别断言真实权限拒绝，每版 1 项通过。`project.mcp_config` 宿主回调同样复现了 `tool:mcp:read` 拒绝，并再次观察到 stdio 子进程无模拟中继变量。原受管 Harn 的宿主写拒绝测试再跑 1 项通过。
+- Harn CLI 当前提供的 `code` 模式同时改变文件写入、进程和外部服务权限，无法作为保留 `ask` 的替代。工作区配置或独立宿主执行也无法沿用现有 Harn ACP 的 MCP 效果检查。当前需要上游入口接收本会话的服务定义，或支持仅授权该会话中指定 MCP 服务且保留审批策略的宿主桥。取得该入口后按固定合同重跑。此次生产实现及 Cargo 范围均无变更，任务继续标记为已阻塞。

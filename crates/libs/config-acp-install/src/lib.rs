@@ -56,8 +56,7 @@ pub fn acp_install_command_for_platform(
         // Native Snowflake CLI: discover the host installation. Registry archives
         // currently have no published checksums; do not execute a download script.
         "cortex-code" => return None,
-        // Corust ships platform archives, not an npm package or reviewed installer.
-        // Discover the host-local corust-agent-acp; never guess a download script.
+        // Corust uses a checksum-pinned managed archive on macOS arm64.
         "corust-agent" => return None,
         // Discover the official host CLI. No pinned, checksum-reviewed distribution
         // is registered here; never install a guessed npm package or moving script.
@@ -205,6 +204,7 @@ fn official_installer(
 /// Keep their platform support explicit while using the same system install endpoint.
 pub fn acp_install_supported(agent: &str) -> bool {
     (matches!(agent, "aionrs" | "harn" | "junie" | "vtcode" | "stakpak" | "poolside") && cfg!(all(target_os = "macos", target_arch = "aarch64")))
+        || (agent == "corust-agent" && cfg!(all(target_os = "macos", target_arch = "aarch64")))
         || acp_install_command(agent).is_some()
 }
 

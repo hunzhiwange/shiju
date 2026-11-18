@@ -296,3 +296,11 @@ fn junie_managed_installer_has_explicit_platform_support_without_shell_fallback(
     );
     assert!(super::acp_install_command("junie").is_none());
 }
+
+#[test]
+fn corust_managed_install_support_matches_reviewed_platform() {
+    assert_eq!(
+        super::acp_install_supported("corust-agent"),
+        cfg!(all(target_os = "macos", target_arch = "aarch64"))
+    );
+}

@@ -173,6 +173,28 @@ if agent == 'vtcode':
     check_files(runtime, contract['files'])
     native.chmod(0o700)
     raise SystemExit(0)
+if agent == 'corust-agent':
+    import platform
+    if (platform.system(), platform.machine()) != ('Darwin', 'arm64'):
+        raise RuntimeError('Corust Agent reviewed runtime is Darwin-arm64 only')
+    archive = assets / 'corust-agent.tar.gz'
+    run(['/usr/bin/curl', '--disable', '--fail', '--silent', '--show-error', '--location',
+         '--proto', '=https', '--proto-redir', '=https', '--retry', '2',
+         '--max-time', '60', '--header', 'Accept: application/octet-stream',
+         '--output', str(archive), contract['artifact_url']])
+    if digest(archive) != contract['archive_sha256']:
+        raise RuntimeError('Corust Agent fixed archive checksum mismatch')
+    runtime.mkdir()
+    executable = runtime / contract['bin']
+    with tarfile.open(archive) as package:
+        members = package.getmembers()
+        if len(members) != 1 or members[0].name != executable.name or not members[0].isfile():
+            raise RuntimeError('Unexpected Corust Agent archive layout')
+        with package.extractfile(members[0]) as source, executable.open('xb') as output:
+            shutil.copyfileobj(source, output)
+    check_files(runtime, contract['files'])
+    executable.chmod(0o700)
+    raise SystemExit(0)
 if agent == 'junie':
     import platform
     import zipfile

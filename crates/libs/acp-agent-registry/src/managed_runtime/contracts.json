@@ -9,6 +9,17 @@
     "source_url": "https://codeload.github.com/iOfficeAI/aionrs/tar.gz/8e61a90329fa9f67c4fdf7e97fe02c24dba33f75",
     "source_sha256": "102f0682858a4f02b505b0413578a0de508a1837cd7b93e5626643d63dd06688"
   },
+  "corust-agent": {
+    "layout": "standalone",
+    "package": "corust-agent",
+    "version": "0.6.0",
+    "bin": "corust-agent-acp",
+    "artifact_url": "https://api.github.com/repos/rustingai/corust-agent-release/releases/assets/419147804",
+    "archive_sha256": "6a74d46f645774f0a7e2a95371bad39d63927e231a34d52d2800c79f508f025f",
+    "files": {
+      "corust-agent-acp": "a2a644a851ee03c583ed9f113cc3acbf54d99ff9f8aaaa782535dbd576d97a2e"
+    }
+  },
   "junie": {
     "layout": "standalone",
     "package": "junie",

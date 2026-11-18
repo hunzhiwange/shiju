@@ -97,3 +97,11 @@ Rust 编译资源和会话调度按 `.plans/references/rust.md` 的项目覆盖�
 ### 扩大范围重试（2026-11-18）
 
 已校验官方v0.6.0 Darwin arm64包SHA-256，原生ACP initialize成功，session/new携带原完整指定模型返回-32000 Authentication required。宿主无~/.corust或CORUST_环境变量，需要有效Corust认证；认证后仍须验证原模型绑定，不能以cli_local替代。未系统安装、未启动新网关、未修改配置，探针已退出，旧网关端口关闭，Rue.js6297项快照零差异。新增证据 /tmp/shiju-corust-retry-20261118/，详见验收文档追加小节。无代码变更，仅文档轻量检查，未运行Cargo或页面验证；保留已阻塞。
+
+### 固定版本安装补丁（2026-11-18）
+
+- 补齐 macOS arm64 的 Corust v0.6.0 系统托管安装及无参数入口解析。官方直链超时后改用固定 GitHub 发行资产 API，归档和二进制均按独立 SHA-256 校验。
+- 通过 `python3 scripts/cargo_slot.py cargo test -p config-acp-install --lib corust -- --nocapture` 验证白名单，修复前 1 失败 1 通过，修复后 2 通过。
+- 通过 `python3 scripts/cargo_slot.py cargo test -j 1 -p acp-agent-registry --lib corust_managed_install_resolves_and_verifies_native_entry -- --ignored --nocapture` 验证生产安装函数。需将 `VIBEWINDOW_CONFIG_DIR` 和 `VW_ACP_INSTALL_ACCEPTANCE_ROOT` 设为同一私有绝对目录。修复前 1 失败，最终从空配置根真实下载安装、入口校验与重复安装 1 通过。
+- `python3 scripts/cargo_slot.py cargo clippy -j 1 -p acp-agent-registry -p config-acp-install --lib --tests` 退出 0，有既有 Codex 测试告警。未重建网关或桌面，未复验 HTTP 路由及配置保存。
+- 托管入口 ACP v1 握手通过，原指定模型的 `session/new` 仍要求 OAuth。公开资料未提供已验证的外部指定模型入口。未发 prompt、未修改租户配置，Rue.js 6344 项文件摘要零差异。私有证据 `/tmp/shiju-corust-patch.LDrqYV/`。保留已阻塞，待获授权并证明精确模型路由后重跑 HTTP 安装与落盘验收。

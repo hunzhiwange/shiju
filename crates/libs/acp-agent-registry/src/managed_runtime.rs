@@ -143,7 +143,7 @@ pub fn reviewed_agent_command(agent: &str) -> Result<Option<(String, Vec<String>
             path.to_string_lossy().into_owned(),
             match agent {
                 "vibe" | "aionrs" => vec![],
-                "harn" => vec![],
+                "harn" | "corust-agent" => vec![],
                 "junie" => vec!["--acp=true".into()],
                 "sigit" => vec!["--acp".into()],
                 "trae" => vec!["acp".into(), "serve".into()],

@@ -146,3 +146,21 @@ fn omp_uses_fixed_native_release() {
         "d185113d63eba23925e5d70ab661a424b827c06c98f8e766c3bf4ad62ddaff9a"
     );
 }
+
+#[cfg(all(target_os = "macos", target_arch = "aarch64"))]
+#[tokio::test]
+#[ignore = "downloads the official Corust archive into an explicit isolated directory"]
+async fn corust_managed_install_resolves_and_verifies_native_entry() {
+    let root = std::env::var("VW_ACP_INSTALL_ACCEPTANCE_ROOT").unwrap();
+    assert!(Path::new(&root).is_absolute());
+    let _lock = crate::TEST_HOME_ENV_LOCK.lock().await;
+    // The isolated test process receives VIBEWINDOW_CONFIG_DIR from its caller.
+    assert_eq!(std::env::var("VIBEWINDOW_CONFIG_DIR").as_deref(), Ok(root.as_str()));
+    crate::install_builtin_agent("corust-agent").await.unwrap();
+    let registered = crate::resolve_agent_spec("corust-agent").unwrap();
+    assert!(Path::new(&registered.command).starts_with(&root));
+    assert!(registered.command.ends_with("/corust-agent-acp"));
+    assert!(registered.args.is_empty());
+    verify_reviewed_agent_executable("corust-agent", &registered.command).unwrap();
+    crate::install_builtin_agent("corust-agent").await.unwrap();
+}

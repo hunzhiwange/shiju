@@ -36,3 +36,24 @@
 - 答复把 `app/en22try-server.tsx` 称为当前静态 SSR 入口，副本的实际构建脚本仍指向已缺失的 `app/entry-server.tsx`。同一副本的 `app/app.tsx` 导入 `./router`，可读到的路由实现位于 `app/hooks/router/index.ts`。答复后文识别两处差异，但将备用文件的 SSR 行为归给当前入口缺少证据，所提静态构建场景也需要先恢复副本中缺失的入口和导入文件。
 - 三轮定位到模型的工具选择、参数和答复偏差，受管入口的挂载、权限模式切换及结果回传均有实测。未发现需要修改 Qoder 驱动、受管入口或公共转发的缺口。未运行 Cargo 聚焦测试。严格验收复跑仍须使用原模型、同一提示与三个独立会话。
 - 私有网关已退出，端口关闭，已清理私有租户配置、临时 MCP 配置及本次启动材料。源码副本与原工作区按验收排除项比较无差异。原始 SSE、回环探针和一次截断工具输出保留在本机 0700 验收目录。
+
+## 共享构建复验
+
+- 复用共享槽位 3 的 ShiJu 0.6.0 私有副本，SHA-256 为 `1a033a19a5c5e2c115e90abbd336f898c0df3ac101a9824ffe8b36f11b0bcc47`。受管 Qoder 1.1.88 两项摘要再次与清单一致。两个私有网关各使用同一 RueJS 提交的干净副本，原工作区缺失的 `app/router/index.ts` 和 `app/entry-server.tsx` 在提交中均存在。索引各覆盖 3478 个文件。租户、模型、提示、服务名和 `full_access` 沿用原合同。
+- 两组各执行无挂载、挂载、撤除。第一组复用同批次的私有 stdio 转发器，只公布原名的 `query`、`callers`、`node`，补充文件路径和分页说明。协议对照确认三个调用的实际结果与 RustCodeGraph 直连完全一致，并验证额外工具和副本外读取被拒绝。第二组直接使用 RustCodeGraph 原生 stdio，检查清洁源码对缺失入口及工具选择的影响。两种路径均由原受管 Qoder 启动，仅挂载轮包含工作区 MCP 配置。
+
+| 传输 | 轮次 | 新会话 ID | HTTP / curl / 耗时（秒） | SSE 终态及答复 |
+| --- | --- | --- | --- | --- |
+| 三工具转发 | 无挂载 | `ses_1f04ad49a0017CRU7q0CqH5wRm` | 200 / 0 / 9.240 | `chat.done`，说明后返回 `MCP_NOT_AVAILABLE` |
+| 三工具转发 | 挂载 | `ses_1f04af9fc001ZukgKb4y86WZDx` | 200 / 0 / 221.186 | `chat.done`，三种工具均成功，另有一次节点读取失败 |
+| 三工具转发 | 撤除 | `ses_1f04e5bc90019wjxgY07c6AMiN` | 200 / 0 / 8.522 | `chat.done`，仅 `MCP_NOT_AVAILABLE` |
+| 原生 stdio | 无挂载 | `ses_1f04b7c86001GNlnq2mS63wbD5` | 200 / 0 / 9.688 | `chat.done`，说明后返回 `MCP_NOT_AVAILABLE` |
+| 原生 stdio | 挂载 | `ses_1f04ba354001tDyl4QCszr7z2w` | 200 / 0 / 202.929 | `chat.done`，三个目标工具无失败，有额外调用 |
+| 原生 stdio | 撤除 | `ses_1f04ebc49001pg3DXWUvUBvuXz` | 200 / 0 / 10.275 | `chat.done`，说明后返回 `MCP_NOT_AVAILABLE` |
+
+- 六轮各收到一个 `chat.done`，无 `chat.error`，无需续传。四个对照会话各有两次空列表 `mcp_list`，目标工具均为零。运行中及结束后的 UI summary 和 ACP options 均确认原绑定、权限标志、提供商和选定模型，运行中权限支持为 `partial`，结束后连接均释放。
+- 三工具转发轮的 query、callers、node 分别成功 42、5、31 次。代表调用 `call_5ff38b935cab4a1d81b525ee`、`call_b2746f7711db47c1bf2a1da1`、`call_60935e6de63846f0a50978be` 和 `call_56fb83853d654857b80a71bc` 依次返回之前核对的 `createRueSiteApp`、`mountRueSiteApp`、`useApp`、`_$createApp`。唯一失败由模型传入 `packages/router/src/index.ts` 引发（`call_725da8d9dcef4b10966c8173`），随后成功读到 `index.tsx`。该轮没有其他工具调用。
+- 原生 stdio 轮 query、callers、node 分别成功 16、5、37 次，无失败。代表调用 `call_e86eed5bef8d4256bee4efb7`、`call_efb6edaa1ddb4cdf983524aa`、`call_ab0814a47a7248c284693171` 和 `call_1d50de15c3fc4940b2e49342` 返回相同四个关键符号和文件行号。另有 8 次 `files`、各一次 `explore` 和 `status`，以及 7 次 MCP 目录查询。两组均不含 shell 或写入调用。
+- 两份挂载答复均给出完整链路、SSR 守卫与实际 SSR 入口、容器异常、路由和 i18n 安装以及布局分支。三工具轮还指出当前路由表缺少 `/rust-layers`，布局条件存在但在默认路由表下未找到匹配路由。两组均提出检查快照哨兵和检查重复布局与 SPA 导航的场景。三工具轮中的单哨兵夹具可直接检查旧节点是否保留，只有夹具含对应标题或导航时才能进一步断言该元素变成两份。这些推断未做浏览器实测。
+- 两组首个偏差均为无挂载答复增加说明。干净副本排除了上次源码缺失的干扰，三工具转发也排除了额外图谱工具执行，但模型格式偏差与路径参数失败仍可单独复现。Qoder 的原生挂载、工具结果回传及撤除隔离已有真实证据，任务转为待回归。复跑继续沿用原模型和三轮原请求。只补充文档，未改受管驱动或运行 Cargo。
+- 两个私有网关及子进程均已退出，端口关闭，私有配置、凭据副本、源码和临时挂载均已清理。每个副本中的 4108 个受版本跟踪的普通文件均与提交逐字节一致。原网关健康，原始证据留存于本机 0700 目录。

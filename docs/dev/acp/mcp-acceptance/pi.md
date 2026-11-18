@@ -56,4 +56,24 @@ v1 私有网关已退出，端口已关闭，副本挂载条目及私有认证�
 - `rustcodegraph_callers` 的 `call_348abb999b42411b81609250` 返回 `mountRueSiteApp`（`app/app.tsx:39`）。
 - `rustcodegraph_node` 的 `call_d2fe89c968474f7193407eb6` 返回 `useApp`（`packages/runtime/src/hooks/useApp.ts:4`）转调 `_$createApp` 的源码。三个 ID 均有真实开始和成功完成事件。
 
-答复按源码追踪了完整调用链、SSR 与浏览器分支、缺少 `#app` 时的异常、路由与 i18n 的安装顺序、`/rust-layers` 的布局分支，指出索引遗漏，并给出静态快照冷启动及切换路由后卸载的两项可检验预期。6 次 `node` 失败来自模型猜测的不存在路径，1 次 `query` 失败来自把源文件传为索引项目目录。所有失败均在 SSE 中记录失败状态，参与答复的目标调用和续轮已获得真实证据。严格三轮验收待回归，复跑条件为原模型在挂载轮完成调查且未发起上述无效查询。两份私有挂载、认证文件及网关进程已清理，槽位已释放。
+答复按源码追踪了完整调用链、SSR 与浏览器分支、缺少 `#app` 时的异常、路由与 i18n 的安装顺序、`/rust-layers` 的布局分支，指出索引遗漏，并给出静态快照冷启动及切换路由后卸载的两项可检验预期。6 次 `node` 失败来自模型猜测的不存在路径，1 次 `query` 失败来自把源文件传为索引项目目录。所有失败均在 SSE 中记录失败状态，参与答复的目标调用和续轮已获得真实证据。该组未通过严格三轮验收，复跑条件为原模型在挂载轮完成调查且未发起上述无效查询。两份私有挂载、认证文件及网关进程已清理，槽位已释放。
+
+## 最终集成回归通过
+
+复用任务 8 Amp 集成回归的同一 ShiJu 0.6.0 构建，核对 SHA-256 均为 `7f8fb6ab97e9e6b00e6694ce48376e2d50a3ce4b2bff3fff93004b98db824916`。后续共享提交 `70eeb9569` 和 `cd22e094a` 分别补 DeepAgents 的策略分支及 Amp 的原生线程保存，Pi 的投影、转发与四项受管摘要一致。沿用提交 `2bd74758a` 后取得的公共宿主工具策略测试结果，未重跑通过的单元测试。[任务 8 验收记录](amp-acp.md)
+
+复用原请求、租户、模型、`full_access=true`、服务名和受管 Pi v2。使用同一 RueJS 干净提交及本地 RustCodeGraph 1.2.11 发行构建，SHA-256 为 `5fab2f2dbf506ddf71d842ef1a7cd6e744c5ec90ff3f5f043ea020e1b3696312`。原生 stdio，索引 3478 个文件，新增可直接定位的 `createAppRouter` 在 `app/router/index.ts:787`。网关的现有允许名单限定三种原名工具。最终组使用发行构建的原始工具目录和现有允许名单。
+
+回归中，1.2.10 的原生挂载轮仍有 5 次无效路径读取。1.2.11 的首个挂载轮有两次把子包目录误作索引根。下一组的 116 次工具调用均成功，但答复直接使用未注册的 `/rust-layers` 设计路由测试。最后一组保持同一原始可复用请求，取得完整证据。
+
+| 轮次 | 会话 ID | HTTP / curl / 秒 | 终态与结果 |
+| --- | --- | --- | --- |
+| 无挂载 | `ses_1f080a309001vRC59WZPLoYyqd` | 200 / 0 / 2.936 | `chat.done`，仅 `MCP_NOT_AVAILABLE`，零工具事件 |
+| 挂载 | `ses_1f080aec5001J94HmG1PuIvrVh` | 200 / 0 / 223.119 | `chat.done`，113 次工具调用成功 |
+| 撤除 | `ses_1f084176e001uwMw0g5ACnB3ld` | 200 / 0 / 3.173 | `chat.done`，仅 `MCP_NOT_AVAILABLE`，零工具事件 |
+
+挂载 SSE 有 962 条工具事件。69 次 `query`、1 次 `callers`、43 次 `node` 全部完成，无额外工具调用、失败事件、`chat.error` 或模型恢复。首个代表查询 `call_b6d02dcd5c97486db3e98750` 命中 `createRueSiteApp`（`app/app.tsx:32`），调用者查询 `call_8ec3f506032e45c8a9cf2d0f` 返回 `mountRueSiteApp`（同文件第 39 行），节点读取 `call_94bd983e57c847c48996a760` 读回 `useApp`（`packages/runtime/src/hooks/useApp.ts:4`）和 `_$createApp` 的下一跳。三个 ID 均见于开始与完成事件。
+
+答复引用完整启动链、SSR 守卫与独立入口、缺少 `#app` 时的异常、路由和 i18n 安装顺序，以及 `/rust-layers` 的布局分支。它指出调用图与源码的差异，将快照残留表述为源码推断，并给出静态文档首次挂载以及导航到已注册的 `/jsx/basic-elements` 两项可检验场景。另按实际路由表核对 `/guide/guide/introduction` 可匹配 `/guide/:path(.*)`，两条测试路径均可用。验收核对了预测，未执行浏览器测试。
+
+三轮在线 ACP options 均回读 `partial`，选中 `session_model` 和指定阿里模型，终态连接均已释放。UI summary 回读 `acp-pi / pi` 及 `full_access=true`。每个成功 MCP 执行均走受管入口的宿主批准门禁。独立标题生成仍有 `kimi-k2.7-code` 的 403，发生在三个 ACP 回合结束后，指定模型的调查与终态均成功。私有网关、监听器、挂载配置及认证副本已清理。备选工具目录构建在排队期间取消，未生成或使用产物，自身进程和槽位已释放。

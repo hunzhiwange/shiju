@@ -57,3 +57,7 @@ mod host_module_31_tests;
 
 #[cfg(test)]
 mod host_module_39_tests;
+
+pub mod work_views;
+#[cfg(test)]
+mod work_views_tests;

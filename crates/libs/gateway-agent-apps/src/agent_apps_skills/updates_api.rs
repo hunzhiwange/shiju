@@ -74,10 +74,11 @@ async fn check(Extension(tenant): Extension<TenantScope>, database: Option<Exten
     let (project, root) = authorize(&policy, tenant, &headers, &request.scope, false)?;
     #[cfg(target_os = "macos")]
     {
-        let store = store(database)?;
-        // Read one snapshot so returned hashes and version describe the same revision.
-        let state = store.get(&project, &request.scope.target_host_id, &root)
-            .map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?;
+        let host = request.scope.target_host_id.clone();
+        let state = tokio::task::spawn_blocking(move || {
+            // Keep version and skill hashes in the same snapshot.
+            store(database)?.get(&project, &host, &root).map_err(|_| StatusCode::SERVICE_UNAVAILABLE)
+        }).await.map_err(|_| StatusCode::SERVICE_UNAVAILABLE)??;
         let report = vw_agent_apps::skills::update_check::check_at(
             &client()?, &state.ssot_root, &state.skills, &state.repo_sources, &policy.1).await;
         // Native report and public failure codes share the established discovery wire format.
@@ -107,12 +108,14 @@ async fn update(Extension(tenant): Extension<TenantScope>, database: Option<Exte
         }
         let (_, _, principal) = app_access_service::access::authorize_skill_install_owner(
             policy.0.as_deref(), &headers, &project, &request.scope.target_host_id, None)?;
-        let store = store(database)?;
-        let job = store.start_skill_update_at(project, request.scope.target_host_id.clone(), request.expected_version,
-            root, client()?, id, request.expected_hash, policy.1, Some(principal)).map_err(|_| StatusCode::CONFLICT)?;
-        Ok(Json(SkillUpdateTask { scope: request.scope, task_id: job.task_id,
-            phase: SkillUpdatePhase::Started, directory: None, requires_reconciliation: false,
-            version: request.expected_version, content_hash: None }))
+        tokio::task::spawn_blocking(move || {
+            let store = store(database)?;
+            let job = store.start_skill_update_at(project, request.scope.target_host_id.clone(), request.expected_version,
+                root, client()?, id, request.expected_hash, policy.1, Some(principal)).map_err(|_| StatusCode::CONFLICT)?;
+            Ok(Json(SkillUpdateTask { scope: request.scope, task_id: job.task_id,
+                phase: SkillUpdatePhase::Started, directory: None, requires_reconciliation: false,
+                version: request.expected_version, content_hash: None }))
+        }).await.map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?
     }
     #[cfg(not(target_os = "macos"))]
     { let _ = (database, project, root, id); Err(StatusCode::NOT_IMPLEMENTED) }
@@ -124,23 +127,25 @@ async fn status(Extension(tenant): Extension<TenantScope>, database: Option<Exte
     let (project, root) = authorize(&policy, tenant, &headers, &scope, false)?;
     #[cfg(target_os = "macos")]
     {
-        let store = store(database)?;
-        let (_, principal) = app_access_service::access::authorize_skill_job(
-            policy.0.as_deref(), &headers, &project, &scope.target_host_id)?;
-        let task_id = TaskId::from(id);
-        let job = store.owned_job(&project, &scope.target_host_id, &task_id, &principal, &root, false)
-            .map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?.ok_or(StatusCode::NOT_FOUND)?;
-        let state = store.get(&project, &scope.target_host_id, &root).map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?;
-        let hash = job.content_hash;
-        use vw_agent_apps::skills::jobs::SkillJobPhase as Phase;
-        let phase = match job.phase {
-            Phase::Started => SkillUpdatePhase::Started, Phase::Staged => SkillUpdatePhase::Staged,
-            Phase::Committing => SkillUpdatePhase::Committing, Phase::Completed => SkillUpdatePhase::Completed,
-            Phase::Failed => SkillUpdatePhase::Failed, Phase::Interrupted => SkillUpdatePhase::Interrupted,
-        };
-        Ok(Json(SkillUpdateTask { scope, task_id: job.task_id, phase,
-            directory: job.installed_directory, requires_reconciliation: job.requires_reconciliation,
-            version: job.update_version.unwrap_or(state.version), content_hash: hash }))
+        tokio::task::spawn_blocking(move || {
+            let store = store(database)?;
+            let (_, principal) = app_access_service::access::authorize_skill_job(
+                policy.0.as_deref(), &headers, &project, &scope.target_host_id)?;
+            let task_id = TaskId::from(id);
+            let job = store.owned_job(&project, &scope.target_host_id, &task_id, &principal, &root, false)
+                .map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?.ok_or(StatusCode::NOT_FOUND)?;
+            let state = store.get(&project, &scope.target_host_id, &root).map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?;
+            let hash = job.content_hash;
+            use vw_agent_apps::skills::jobs::SkillJobPhase as Phase;
+            let phase = match job.phase {
+                Phase::Started => SkillUpdatePhase::Started, Phase::Staged => SkillUpdatePhase::Staged,
+                Phase::Committing => SkillUpdatePhase::Committing, Phase::Completed => SkillUpdatePhase::Completed,
+                Phase::Failed => SkillUpdatePhase::Failed, Phase::Interrupted => SkillUpdatePhase::Interrupted,
+            };
+            Ok(Json(SkillUpdateTask { scope, task_id: job.task_id, phase,
+                directory: job.installed_directory, requires_reconciliation: job.requires_reconciliation,
+                version: job.update_version.unwrap_or(state.version), content_hash: hash }))
+        }).await.map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?
     }
     #[cfg(not(target_os = "macos"))]
     { let _ = (database, project, root, id); Err(StatusCode::NOT_IMPLEMENTED) }

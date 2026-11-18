@@ -79,6 +79,11 @@ impl GatewaySettingsStore {
         Ok(Self { provider })
     }
 
+    #[cfg(target_os = "macos")]
+    pub(super) fn uses_postgres(&self) -> bool {
+        matches!(self.provider, GatewaySettingsStoreProvider::Postgres(_))
+    }
+
     /// Observe an already initialized store without schema locks, DDL or database creation.
     pub fn read_existing(
         database: &GlobalDatabase,

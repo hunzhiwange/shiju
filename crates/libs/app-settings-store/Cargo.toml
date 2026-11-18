@@ -19,7 +19,7 @@ serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 thiserror = "2"
 postgres = { version = "0.19.12", features = ["with-chrono-0_4"] }
-tokio = { version = "1", features = ["rt", "sync", "macros", "time"] }
+tokio = { version = "1", features = ["rt-multi-thread", "sync", "macros", "time"] }
 vw-api-transport = { path = "../api-transport", version = "0.6.0" }
 vw-api-app-failover = { path = "../api-app-failover", version = "0.6.0" }
 vw-api-app-identity = { path = "../api-app-identity", version = "0.6.0" }

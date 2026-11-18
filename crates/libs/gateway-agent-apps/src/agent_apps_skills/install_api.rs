@@ -50,41 +50,41 @@ async fn execute(policy: Option<PathBuf>, tenant: TenantScope,
     {
         use app_settings_store::agent_apps_skills_store::{SkillInstallsStore, SkillReposStore};
         use vw_agent_apps::skills::local_install::validate_directory;
-        let db = match database {
-            Some(Extension(db)) => db,
-            None => GlobalDatabase::for_home(&agent_paths::paths().home)
-                .map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?,
-        };
-        let store = SkillInstallsStore::new(db.clone()).map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?;
-        let state = store.get(&project, &request.scope.target_host_id, &root)
-            .map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?;
-        if state.version != request.expected_version { return Err(StatusCode::CONFLICT); }
-        let host = request.scope.target_host_id.clone();
+        tokio::task::spawn_blocking(move || {
+            let db = match database {
+                Some(Extension(db)) => db,
+                None => GlobalDatabase::for_home(&agent_paths::paths().home)
+                    .map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?,
+            };
+            let store = SkillInstallsStore::new(db.clone()).map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?;
+            let state = store.get(&project, &request.scope.target_host_id, &root)
+                .map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?;
+            if state.version != request.expected_version { return Err(StatusCode::CONFLICT); }
+            let host = request.scope.target_host_id.clone();
 
-        match request.source {
-            SkillInstallSource::Git { repo_id, selection, directory } => {
-                validate_directory(&directory).map_err(|_| StatusCode::BAD_REQUEST)?;
-                if state.skills.iter().any(|skill| skill.directory.eq_ignore_ascii_case(&directory)) {
-                    return Err(StatusCode::CONFLICT);
+            match request.source {
+                SkillInstallSource::Git { repo_id, selection, directory } => {
+                    validate_directory(&directory).map_err(|_| StatusCode::BAD_REQUEST)?;
+                    if state.skills.iter().any(|skill| skill.directory.eq_ignore_ascii_case(&directory)) {
+                        return Err(StatusCode::CONFLICT);
+                    }
+                    let repos = SkillReposStore::new(db).and_then(|store| store.get(&project))
+                        .map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?;
+                    let repo = repos.repos.into_iter().find(|repo| format!("{}:{}", repo.owner, repo.name) == repo_id)
+                        .ok_or(StatusCode::NOT_FOUND)?;
+                    if !repo.enabled { return Err(StatusCode::CONFLICT); }
+                    // Redirects cannot expand the approved GitHub download authority.
+                    let client = reqwest::Client::builder().redirect(reqwest::redirect::Policy::none())
+                        .timeout(std::time::Duration::from_secs(120)).build()
+                        .map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?;
+                    let result = SkillInstallItem { target_host_id: host.clone(), directory: directory.clone(),
+                        status: SkillInstallStatus::Pending };
+                    let job = store.start_repo_install_at(project, host, request.expected_version, root,
+                        client, repo, selection, directory, principal, archives).map_err(|_| StatusCode::BAD_REQUEST)?;
+                    Ok(InstallSkillResponse { scope: request.scope, task_id: job.task_id, results: vec![result] })
                 }
-                let repos = SkillReposStore::new(db).and_then(|store| store.get(&project))
-                    .map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?;
-                let repo = repos.repos.into_iter().find(|repo| format!("{}:{}", repo.owner, repo.name) == repo_id)
-                    .ok_or(StatusCode::NOT_FOUND)?;
-                if !repo.enabled { return Err(StatusCode::CONFLICT); }
-                // Redirects cannot expand the approved GitHub download authority.
-                let client = reqwest::Client::builder().redirect(reqwest::redirect::Policy::none())
-                    .timeout(std::time::Duration::from_secs(120)).build()
-                    .map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?;
-                let result = SkillInstallItem { target_host_id: host.clone(), directory: directory.clone(),
-                    status: SkillInstallStatus::Pending };
-                let job = store.start_repo_install_at(project, host, request.expected_version, root,
-                    client, repo, selection, directory, principal, archives).map_err(|_| StatusCode::BAD_REQUEST)?;
-                Ok(InstallSkillResponse { scope: request.scope, task_id: job.task_id, results: vec![result] })
-            }
-            source_kind => {
-                let source = source.ok_or(StatusCode::FORBIDDEN)?;
-                tokio::task::spawn_blocking(move || {
+                source_kind => {
+                    let source = source.ok_or(StatusCode::FORBIDDEN)?;
                     if let SkillInstallSource::Local { directory, .. } = &source_kind {
                         validate_directory(directory).map_err(|_| StatusCode::BAD_REQUEST)?;
                     }
@@ -125,9 +125,9 @@ async fn execute(policy: Option<PathBuf>, tenant: TenantScope,
                         }
                     }).map_err(|_| StatusCode::CONFLICT)?;
                     Ok(InstallSkillResponse { scope: request.scope, task_id: job.task_id, results })
-                }).await.map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?
+                }
             }
-        }
+        }).await.map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?
     }
     #[cfg(not(target_os = "macos"))]
     { let _ = (database, project, request, root, source, principal); Err(StatusCode::NOT_IMPLEMENTED) }

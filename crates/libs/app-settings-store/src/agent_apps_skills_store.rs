@@ -166,6 +166,25 @@ impl SkillInstallsStore {
         Ok(Self(GatewaySettingsStore::new(database)?))
     }
 
+    // Preserve synchronous cancellation checkpoints during archive preparation.
+    // The PostgreSQL client drives a private runtime. Leave the async context
+    // before calling it, even when invoked by a synchronous checkpoint or Drop.
+    fn job_io<T: Send>(&self, operation: impl FnOnce() -> T + Send) -> T {
+        use tokio::runtime::{Handle, RuntimeFlavor};
+
+        if self.0.uses_postgres() {
+            if let Ok(runtime) = Handle::try_current() {
+                return match runtime.runtime_flavor() {
+                    RuntimeFlavor::MultiThread => tokio::task::block_in_place(operation),
+                    _ => std::thread::scope(|threads| {
+                        threads.spawn(operation).join().unwrap_or_else(|panic| std::panic::resume_unwind(panic))
+                    }),
+                };
+            }
+        }
+        operation()
+    }
+
     pub fn get(
         &self,
         scope: &ProjectScope,
@@ -477,46 +496,48 @@ impl SkillInstallsStore {
         before_commit: &(dyn Fn() -> Result<()> + Sync),
     ) -> Result<SkillInstallsState> {
         use app_skills::update_apply::{download_update_at, SkillUpdate, SkillUpdateMetadata};
-        let snapshot = self.get(scope, host, ssot)?;
+        let snapshot = self.job_io(|| self.get(scope, host, ssot))?;
         ensure!(snapshot.version == expected_version, "skill installation version conflict");
         let saved = snapshot.skills.iter().find(|s| s.directory == directory)
             .context("skill is not installed")?;
         let source = snapshot.repo_sources.get(directory).context("skill has no repository source")?;
         let (_archive, tree) = download_update_at(client, source, archives).await?;
-        before_commit()?;
-        let key = Self::key(scope, host)?;
-        let mut update = None;
-        let result = self.0.update_with_preimages(scope.tenant_scope(), Self::NAMESPACE, &key, &[], |payload| {
-            let mut state = Self::decode(payload, &snapshot.ssot_root)?;
-            // A concurrent uninstall or rebind must never be resurrected.
-            ensure!(state == snapshot, "skill update snapshot conflict");
-            update = Some(SkillUpdate::prepare(&state.ssot_root, &tree, saved,
-                expected_hash, &state.copy_bindings)?);
-            let prepared = update.as_mut().context("missing staged update")?;
-            let entry = state.skills.iter_mut().find(|s| s.directory == directory)
-                .context("skill was uninstalled")?;
-            *entry = prepared.skill.clone();
-            state.update_metadata.insert(directory.to_owned(), SkillUpdateMetadata {
-                content_hash: prepared.content_hash.clone(),
-                updated_at: std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH)?.as_secs(),
-            });
-            for (key, binding) in prepared.bindings() {
-                state.copy_bindings.insert(key.to_owned(), binding.clone());
-            }
-            state.version = state.version.checked_add(1).context("skill installation version exhausted")?;
-            let replacement = serde_json::to_string(&state)?;
-            prepared.publish()?;
-            Ok((state, Some(replacement)))
-        });
-        match result {
-            Ok(state) => { if let Some(update) = update { update.finish(); } Ok(state) }
-            Err(error) => {
-                if let Some(update) = update.as_mut() {
-                    if update.rollback().is_err() { return Err(error.context("skill update rollback requires recovery")); }
+        self.job_io(|| {
+            before_commit()?;
+            let key = Self::key(scope, host)?;
+            let mut update = None;
+            let result = self.0.update_with_preimages(scope.tenant_scope(), Self::NAMESPACE, &key, &[], |payload| {
+                let mut state = Self::decode(payload, &snapshot.ssot_root)?;
+                // A concurrent uninstall or rebind must never be resurrected.
+                ensure!(state == snapshot, "skill update snapshot conflict");
+                update = Some(SkillUpdate::prepare(&state.ssot_root, &tree, saved,
+                    expected_hash, &state.copy_bindings)?);
+                let prepared = update.as_mut().context("missing staged update")?;
+                let entry = state.skills.iter_mut().find(|s| s.directory == directory)
+                    .context("skill was uninstalled")?;
+                *entry = prepared.skill.clone();
+                state.update_metadata.insert(directory.to_owned(), SkillUpdateMetadata {
+                    content_hash: prepared.content_hash.clone(),
+                    updated_at: std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH)?.as_secs(),
+                });
+                for (key, binding) in prepared.bindings() {
+                    state.copy_bindings.insert(key.to_owned(), binding.clone());
                 }
-                Err(error)
+                state.version = state.version.checked_add(1).context("skill installation version exhausted")?;
+                let replacement = serde_json::to_string(&state)?;
+                prepared.publish()?;
+                Ok((state, Some(replacement)))
+            });
+            match result {
+                Ok(state) => { if let Some(update) = update { update.finish(); } Ok(state) }
+                Err(error) => {
+                    if let Some(update) = update.as_mut() {
+                        if update.rollback().is_err() { return Err(error.context("skill update rollback requires recovery")); }
+                    }
+                    Err(error)
+                }
             }
-        }
+        })
     }
 
     /// Disable only the saved deployment for this authorized installation.
@@ -854,7 +875,7 @@ impl SkillInstallsStore {
         runtime.spawn(async move {
             let _guard = guard;
             let outcome = async {
-                let check = || store.check_job_cancel(&scope, &host, &id);
+                let check = || store.job_io(|| store.check_job_cancel(&scope, &host, &id));
                 let prepare = app_skills::repo_install::prepare_checked(
                     &client, &repo, &selection, &state.ssot_root, &directory,
                     &archives, &check,
@@ -871,17 +892,19 @@ impl SkillInstallsStore {
                         }
                     } => { stopped?; anyhow::bail!("skill task stopped before commit"); }
                 };
-                store.set_job_phase(&scope, &host, &id, SkillJobPhase::Staged, None)?;
-                store.set_job_phase(&scope, &host, &id, SkillJobPhase::Committing, None)?;
-                let key = Self::key(&scope, &host)?;
-                store.commit_install(&scope, &key, expected_version, &state.ssot_root,
-                    prepared.installation, Some(prepared.source), None)?;
-                store.set_job_phase(&scope, &host, &id, SkillJobPhase::Completed, Some(directory))?;
-                Ok::<(), anyhow::Error>(())
+                store.job_io(|| {
+                    store.set_job_phase(&scope, &host, &id, SkillJobPhase::Staged, None)?;
+                    store.set_job_phase(&scope, &host, &id, SkillJobPhase::Committing, None)?;
+                    let key = Self::key(&scope, &host)?;
+                    store.commit_install(&scope, &key, expected_version, &state.ssot_root,
+                        prepared.installation, Some(prepared.source), None)?;
+                    store.set_job_phase(&scope, &host, &id, SkillJobPhase::Completed, Some(directory))?;
+                    Ok::<(), anyhow::Error>(())
+                })
             }.await;
             if outcome.is_err() {
                 // Persist no raw filesystem/network errors or private source payloads.
-                let _ = store.set_job_phase(&scope, &host, &id, SkillJobPhase::Failed, None);
+                let _ = store.job_io(|| store.set_job_phase(&scope, &host, &id, SkillJobPhase::Failed, None));
             }
         });
         Ok(job)
@@ -927,8 +950,8 @@ struct SkillJobExit {
 #[cfg(target_os = "macos")]
 impl Drop for SkillJobExit {
     fn drop(&mut self) {
-        let _ = self.store.set_job_phase(&self.scope, &self.host, &self.id,
-            app_skills::jobs::SkillJobPhase::Interrupted, None);
+        let _ = self.store.job_io(|| self.store.set_job_phase(&self.scope, &self.host, &self.id,
+            app_skills::jobs::SkillJobPhase::Interrupted, None));
     }
 }
 
@@ -1191,14 +1214,14 @@ impl SkillInstallsStore {
                     result = work => result?,
                     stopped = async {
                         loop {
-                            if let Err(error) = store.check_job_cancel(&scope, &host, &id) {
+                            if let Err(error) = store.job_io(|| store.check_job_cancel(&scope, &host, &id)) {
                                 break Err::<(), std::io::Error>(error);
                             }
                             tokio::time::sleep(std::time::Duration::from_millis(100)).await;
                         }
                     } => { stopped?; anyhow::bail!("skill task stopped before commit"); }
                 };
-                store.update_jobs(&scope, &host, |jobs| {
+                store.job_io(|| store.update_jobs(&scope, &host, |jobs| {
                     let job = jobs.iter_mut().find(|job| job.snapshot.task_id == id)
                         .context("skill task not found")?;
                     job.snapshot.phase = SkillJobPhase::Completed;
@@ -1207,10 +1230,10 @@ impl SkillInstallsStore {
                     job.snapshot.content_hash = Some(state.update_metadata.get(&directory)
                         .context("missing update metadata")?.content_hash.clone());
                     Ok(())
-                })
+                }))
             }.await;
             if result.is_err() {
-                let _ = store.set_job_phase(&scope, &host, &id, SkillJobPhase::Failed, None);
+                let _ = store.job_io(|| store.set_job_phase(&scope, &host, &id, SkillJobPhase::Failed, None));
             }
         });
         Ok(job)

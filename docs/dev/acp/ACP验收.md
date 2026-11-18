@@ -1142,3 +1142,15 @@ Rust重型命令经scripts/cargo_slot.py槽位入口串行执行，对应CARGO_T
 - 已确认 Rue.js 的 `packages/rue/src` 和 `@rue-js/rue` 包。排除 `.git`、`node_modules`、`target` 后，前后各 6303 项普通文件 SHA-256 零差异，Git 状态一致，`acpdemo/mimo-code/` 始终不存在。结束配置 GET 与基线相等，自有网关退出 0、端口已关闭。
 - 槽位 1 串行执行 `cargo test -j 1 -p config-acp-install --lib acp_onboarding_mimo_code -- --test-threads=1` 和 `cargo test -j 1 -p agent-config --lib acp_onboarding_mimo_code -- --test-threads=1`。安装契约 1 项、预设和目录绑定 2 项通过，均退出 0。仓库缺少旧 `.plans/references/rust.md`，本次使用现行 `scripts/cargo_slot.py`。未重跑协议夹具、Clippy、桌面编译、页面构建或浏览器验证。
 - 原始请求与响应、npm 与运行日志、源码与产物摘要、测试及两次快照存于本机 0700 目录 `/tmp/shiju-mimo-code-accept-20261118.pHdvAm/`。修复安装入口发现并补齐经审核的指定会话模型驱动及接入证据后，按任务 39 完整重跑。
+
+
+### MiMo Code 官方发行与原生 ACP 重试（2026-11-18）
+
+结论仍为已阻塞。已验证官方发行、网关进程内入口发现和原生工具协议。ShiJu 尚无 MiMo Code 的指定会话模型驱动，真实租户推理和 Rue.js 编辑器仍待验收。
+
+- 官方 Darwin arm64 v0.1.17 归档的 SHA-256 `90ce4ce3457d581a4262c42f62c5e20b8d9dedec0ddc05a051b695f2732fe381` 与 GitHub 资产摘要一致。归档只含普通可执行文件 `mimo`，其 SHA-256 `254d1372465ae60e28a2684b97d088a105d0e34672110345a7a87ed152be5270` 与系统安装器装入 npm 包的原生文件完全一致。该二进制的 `--version` 与 `acp --help` 正常退出。[官方发行](https://github.com/XiaomiMiMo/MiMo-Code/releases/tag/v0.1.17)
+- 在私有 HOME、私有工作目录及仅允许回环通信的 macOS 沙箱中启动原生 ACP，`initialize` 自报 `OpenCode` 0.1.17、协议 v1。空配置虽然接受 `session/set_model` 并回显精确 ID，但 `session/new` 公布的初始值为 Xiaomi 模型，空配置探针未发送 prompt。隔离配置登记同名 OpenAI 兼容 provider 后，短 ID 模型键会让 ACP 会话显示完整 ID，但 HTTP 请求使用短 ID。将完整 ID 用作模型键后，原生目录使用 `alibaba-token-plan-cn/alibaba-token-plan-cn/deepseek-v4.1-flash-1017`。使用该原生目录值选模并复查配置，回环收到完整原始模型 ID、流式请求和 4 项工具定义，合成应答产生 `end_turn`。回显和辅助模型请求均不足以证明主提示路由。[固定版本自定义端点说明](https://github.com/XiaomiMiMo/MiMo-Code/blob/v0.1.17/README.md#custom-openai-compatible-endpoints)
+- 合成 `write` 探针在宿主取消 `session/request_permission` 后没有落盘。允许一次审批、拒绝 `fs/write_text_file` 时，原生工具仍写出 15 字节并报告成功。独立探针允许宿主写回也产出相同内容。另一探针批准权限但由外部沙箱禁止私有工作目录之外的测试路径，写入失败、文件未落盘。接入需保证原生回退写入也受宿主文件边界约束。
+- 两个自有网关仅在自身 PATH 添加 npm 安装所在目录。指定租户的合并配置解析到 `mimo`，安装状态从首轮的 `false` 变为 `true`。初次全局配置 GET 在 30 秒超时，第二次以 90 秒时限重读成功。能力 GET 返回 `session_model=unsupported_cli`，`connected=false`，预设仍停用。租户目录有原模型，探针进程缺少该 provider 声明的密钥环境变量，未验证其他凭据来源。公开 OpenAI 兼容端点使用进程默认 provider 并转换纯文本消息，缺少本任务所需的租户绑定与工具转发。已有 OpenCode 驱动对应独立后端，未替换 MiMo Code。
+- 未改宿主 PATH、租户配置或预设，未发真实上游调用或 Rue.js 创建请求。补齐可稳定发现的固定版入口、经审查的 MiMo Code 请求级模型中继、原租户授权和强制写入边界后，再按原请求验收启用重读、会话绑定与文件创建。
+- 两个自有网关和最终探针均退出 0，回环端口复查关闭。结束全局配置与本轮及首轮基线一致，Rue.js 6303 项普通文件 SHA-256 零差异，Git 状态一致，目标目录未创建。本轮无代码变更，沿用首轮 3 项定向单测证据，未重跑 Cargo、浏览器或页面构建。私有证据目录为 `/tmp/shiju-mimo-code-retry-20261118.eAGmwr/`。

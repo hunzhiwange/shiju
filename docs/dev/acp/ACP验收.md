@@ -1019,3 +1019,15 @@ Rust重型命令经scripts/cargo_slot.py槽位入口串行执行，对应CARGO_T
 - Rue.js `packages/rue/src` 存在，目标acpdemo/junie前后不存在。普通文件SHA-256快照排除.git、node_modules、target，前后6303项零差异；完整配置结束GET与基线一致，无临时配置待恢复。自有网关退出0、端口已关闭，未重启用户服务、未使用Cargo槽位。
 - 未运行Cargo、定向单测、Clippy、桌面编译、浏览器或页面构建：本次无代码修复，复用已有产物，明确能力阻塞后仅完成独立API检查与文档轻量检查，不宣称真实会话或单测通过。旧 `.plans/references/rust.md` 不存在，本次无需编译。
 - 本机0700私有证据 `/tmp/shiju-junie-accept-20261118/` 保存原始请求/响应、HTTP/耗时/退出指标、配置基线与重读、源码/二进制摘要、快照及网关清理记录，不提交原始敏感载荷或供应商二进制。保留任务35已阻塞；需补齐经审查的系统安装、真实session_model驱动与脱敏接入证据后完整重跑。
+
+
+### Junie 官方发行与原生 ACP 重试（2026-11-18）
+
+结论仍为已阻塞。已验证官方发行物、原生 ACP、自定义模型的请求路由，以及 Safe 模式的审批和写入行为。原指定模型的真实推理与编辑器端到端验收尚未通过。
+
+- 官方 Darwin arm64 发行 26.11.2（4100.5）压缩包 SHA-256 为 `ad103a996f0a4f5cee051f858bdf0fc33d4ee83b7c9219971d485046f084cd3c`，与 JetBrains 更新清单及 GitHub release asset digest 一致。检查 ZIP 条目后用 ditto 解出应用到私有目录，原生 `--version`、`--help` 均退出0。宿主 PATH 和 ShiJu 系统安装均未更改。[官方发行](https://github.com/JetBrains/junie/releases/tag/4100.5)
+- 隔离 Junie 配置，以 `--acp=true` 启动，initialize 返回 ACP v1 和原生版本。空配置的 session/new 返回 -32000 authentication required。用官方 JSON 自定义模型配置后，session/new 成功并报告 `v1:6:custom:custom:shiju`。回环 HTTP 收到 `OpenAICompletion` 请求，model 精确为 `alibaba-token-plan-cn/deepseek-v4.1-flash-1017`。回环 stub 用于定向验证，未用其响应充当真实推理。[自定义模型说明](https://junie.jetbrains.com/docs/custom-llm-models.html)
+- 真实模型探针先读取指定租户配置并确认原模型在目录中。初次因探针误用旧 profile 目录超时，修正后网关基线读取超时。另核对网关 OpenAI 兼容处理器使用进程默认 provider，且只转发文本历史，因此该入口不能作为本次固定 provider 的工具调用中继。本轮未向外部推理端发请求，未提交目标 chat/stream。
+- 原生 Safe 配置 `brave_mode=off` 经 ACP 重读确认。测试分别触发 shell 和 create 工具，宿主取消审批，两项私有文件均未写入。随后在私有目录批准一次 create，即使客户端声明支持 `fs.writeTextFile`，Junie 仍直接写入文件并报告工具完成，未发 `fs/write_text_file`。同一发行版加 `--sandbox` 后也复现，且未公布 Sandbox 配置项。探针仅在私有目录使用合成工具返回。该结果不能用审批回调代替宿主的文件边界。完整验收需先证明可由宿主执行的文件边界，再接入固定版本系统安装及租户绑定模型中继。[Junie EAP 沙箱说明](https://junie.jetbrains.com/docs/junie-cli-eap.html)
+- 本轮无配置 PATCH。结束配置 GET 超时，无法确认快照重读；未产生待恢复的临时配置。两个自有网关分别退出0和在宽限期后退出-9，端口均关闭，原生探针均已退出。移除了原生探针初始化产生的空宿主实例目录。Rue.js 6303项普通文件与原快照一致，目标目录仍不存在。未运行 Cargo、浏览器或页面检查。
+- 原始发行证据、探针帧、审批结果、配置和清理记录保存在本机0700目录 `/tmp/shiju-junie-retry-20261118/`。未提交供应商二进制、凭据或原始敏感载荷。

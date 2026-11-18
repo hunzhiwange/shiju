@@ -88,3 +88,7 @@ Rust 编译资源和会话调度按 `.plans/references/rust.md` 的项目覆盖�
 ## 本次执行（2026-11-18）
 
 系统安装HTTP400；诊断startup_failed；session_model=unsupported_cli。未提交创建请求。配置重读一致，Rue.js前后6303项SHA-256零差异，自有网关退出0。未运行Cargo、单测或页面检查；详见ACP验收末尾Junie章节。证据：`/tmp/shiju-junie-accept-20261118/`（0700）。补齐系统安装、指定模型驱动及脱敏接入证据后重跑。
+
+## 官方发行与原生 ACP 重试（2026-11-18）
+
+状态仍为已阻塞。官方 Junie 26.11.2 已核验并隔离运行。ACP 握手、自定义模型选择及回环原模型 ID 已验证。Safe 模式取消审批后未写入，批准后原生 create 直接写文件，未调用宿主文件接口，发行版加 --sandbox 后同样复现。未取得真实模型、系统安装和编辑器产物证据。未 PATCH 配置，结束 GET 超时，自有进程已停止，Rue.js 6303 项快照一致。待宿主文件边界与固定租户模型路由可验证后重跑。详见 ACP 验收末尾及私有证据 `/tmp/shiju-junie-retry-20261118/`。

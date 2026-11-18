@@ -46,6 +46,11 @@ pub fn configure(profile: &mut AcpLaunchProfile, endpoint: &str) -> anyhow::Resu
         ("CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC".into(), "1".into()),
         ("DISABLE_AUTOUPDATER".into(), "1".into()),
     ]);
+    if !native_messages {
+        // Claude emits native context edits with adaptive thinking. The relay
+        // can convert thinking and tool turns without that Messages extension.
+        env.insert("CLAUDE_CODE_DISABLE_EXPERIMENTAL_BETAS".into(), "1".into());
+    }
     env.insert(
         "CLAUDE_CODE_MAX_OUTPUT_TOKENS".into(),
         if profile.model_output_limit == 0 {

@@ -170,6 +170,7 @@ fn acp_model_source_claude_rejects_unrepresentable_capabilities_before_publicati
     native.model_supports_reasoning = true;
     configure(&mut native, "http://127.0.0.1:12345").unwrap();
     assert!(!native.config().env.contains_key("MAX_THINKING_TOKENS"));
+    assert!(!native.config().env.contains_key("CLAUDE_CODE_DISABLE_EXPERIMENTAL_BETAS"));
 }
 
 #[test]
@@ -214,6 +215,7 @@ fn acp_model_source_claude_does_not_infer_alibaba_native_without_catalog() {
     });
     launch.model_supports_reasoning = true;
     configure(&mut launch, "http://127.0.0.1:12345").unwrap();
+    assert_eq!(launch.config().env["CLAUDE_CODE_DISABLE_EXPERIMENTAL_BETAS"], "1");
     assert_eq!(launch.config().env["VW_ACP_CLAUDE_NATIVE_MESSAGES"], "0");
     assert!(!launch.config().env.contains_key("MAX_THINKING_TOKENS"));
     assert_eq!(launch.config().env["ANTHROPIC_BASE_URL"], "http://127.0.0.1:12345");

@@ -62,6 +62,36 @@
 
 固定版 `dim acp` 的参数解析仅处理帮助、认证和已移除的远程模式。包内允许工具的命令行参数属于 headless 路径。宿主 `acp_allowed_tools` 则通过 `claudeCode.options.allowedTools` 传递。两者均没有在当前 DimCode ACP 中建立会话级原生工具白名单。桥接端已限制公开工具，原生工具和模型选择仍由 DimCode 的会话处理。工具失败在桥接侧已可复现，改变传输无法修正模型提交的无效文件路径。
 
+## RustCodeGraph 1.2.11 复验
+
+复用同一已核验的 ShiJu 和 DimCode 二进制、RueJS 提交、指定模型、租户、访问级别和原提示。以已通过验收的 RustCodeGraph 1.2.11 发行物重新索引两个私有副本，各 3478 个文件。发行物 SHA-256 为 `5fab2f2dbf506ddf71d842ef1a7cd6e744c5ec90ff3f5f043ea020e1b3696312`。两组均用已有 Supergateway 4.2.2 的受鉴权回环 Streamable HTTP 路径。第一组复用 Goose 的工具目录声明，第二组采用 Qoder 将已存在的入口路径放在说明前部的声明。两组都提供 `offset`、`limit` 及索引根提示。[Goose 目录说明](goose.md#共享构建复验) · [Qoder 直接声明](qoder.md#集成回归与-qoder-原生工具声明)
+
+协议对照确认原始目录 8 项、限定目录 3 项。对两组分别核对查询 `createAppRouter`、查找 `createRueSiteApp` 调用者、分页读取 `app/router/index.ts:787–791` 的结果，转发与直连完全相同。限定目录拒绝额外工具和副本外路径，未改变实际工具结果。原生 DimCode 的 HTTP 连接确实发起 `tools/list`，桥接回执包含分页和索引根元数据。DeepAgents、Pi 的宿主策略只投影给受审的指定 stdio 入口。DimCode 的目标驱动没有对应策略消费入口，本轮沿用原审批并在桥接处限定 MCP 工具。[DeepAgents 策略](deepagents.md#最终集成回归与受管-v4) · [Pi 验收](pi.md#最终集成回归通过)
+
+| 目录与轮次 | 新会话 | HTTP / curl / 秒 | 终态 |
+| --- | --- | --- | --- |
+| Goose，无挂载 | `ses_1f1102cde001saznpnHrhW3gaY` | 200 / 0 / 5.680 | `chat.done`，仅 `MCP_NOT_AVAILABLE`，零工具 |
+| Goose，挂载 | `ses_1f1104374001zX2364bdzRT2LH` | 200 / 28 / 300.011，原游标续传 200 / 0 / 78.368 | `chat.done`，75 次 MCP 和 45 次原生 `grep` |
+| Goose，撤除 | `ses_1f1160af7001U9PR5xMrZBJJeZ` | 200 / 0 / 4.564 | `chat.done`，仅 `MCP_NOT_AVAILABLE`，零工具 |
+| Qoder，无挂载 | `ses_1f112a568001VqtD4N7kcTzPbC` | 200 / 0 / 5.243 | `chat.done`，仅 `MCP_NOT_AVAILABLE`，零工具 |
+| Qoder，挂载 | `ses_1f112ba98001Q639Xb778rjo8h` | 200 / 0 / 210.939 | `chat.done`，76 次 MCP 和 2 次原生 `grep` |
+| Qoder，撤除 | `ses_1f115f382001C2UEhxUnhOs1bU` | 200 / 0 / 5.185 | `chat.done`，仅 `MCP_NOT_AVAILABLE`，零工具 |
+
+六轮各有一个 `chat.done`，无 `chat.error` 或模型恢复。UI summary 与 ACP options 回读 DimCode 绑定、`full_access=true`、指定 `session_model`，连接期间为 `client_only`，终态均已释放。两组每个 MCP 调用均有开始、完成和同 ID 的 `Permission allowed once`，分别为 query/callers/node 19/3/53 和 27/2/47，桥接均无 `isError=true`。撤除轮发出时，桥接仍在监听。
+
+| 工具 | 第二组代表调用 ID | 真实回执 |
+| --- | --- | --- |
+| `rustcodegraph_query` | `call_46d41ada51984962b31c48e5` | `createRueSiteApp` 位于 `app/app.tsx:32` |
+| `rustcodegraph_query` | `call_eb9c2b4f4094453a93d84e37` | `createAppRouter` 位于 `app/router/index.ts:787` |
+| `rustcodegraph_callers` | `call_e7285741e9c24c8fa9fde2bf` | `mountRueSiteApp` 位于 `app/app.tsx:39` |
+| `rustcodegraph_node` | `call_b6c9f134fcfb42c493698ee3` | `packages/runtime/src/hooks/useApp.ts:4` 调用 `_$createApp` |
+
+两次挂载的首个越界点均是插件安装溯源。第一组 `call_72af884d726742268f7f9eef` 直接对路由实现执行原生 `grep`，后续另有一次 `grep` 因单文件匹配上限报错。第二组 `call_42e131729ca84afdbdc03bc9` 在路由实现中查找 `attachRouter`，`call_0766a11131cf42e6b9401559` 又在站点目录查找 `data-rue-client-mode`。两次均有实际原生结果。新图谱和入口说明消除了此前复现的 MCP 路径失败，仍有两次原生工具选择反证。
+
+两组答复均追到工厂，覆盖 SSR、缺少 `#app`、插件顺序、布局分支及快照机制。答复提出部署后首次挂载和预填模板快照的对照，均未实测。第二组片段将 `useApp` 称作 `createRue` 的别名，后文正确追到运行时的实际实现。第二个场景列出的 `snapshotClientRoute` 参数还缺必填的 `outDir`。原生 `grep` 事件独立使两组验收不通过。
+
+本轮只提交验收记录。前轮的四项定向测试结论继续有效，未重复运行 Cargo。两个私有网关和桥接已退出，监听端口、挂载及授权副本已清理。两个 RueJS 副本各有 4109 个 Git blob 与源提交一致，原网关健康检查 HTTP 200。
+
 ## 结论与验证
 
 验收已阻塞。DimCode 0.5.28 可经原生 Streamable HTTP 和 SSE 发现、执行并读回三种 RustCodeGraph 工具。两种传输的真实挂载均有额外工具调用及失败结果。保留 stdio 拒绝、现有审批行为及测试断言。严格验收依赖指定模型及 ACP 运行时能按原提示选用有效路径，并仅调用会话挂载的工具。候选上游版本应具备可复核的工具选择行为或会话工具白名单，再用原合同取得三种真实结果、合规答复及零失败终态。

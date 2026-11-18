@@ -287,3 +287,12 @@ fn stakpak_managed_install_support_matches_reviewed_platform() {
         cfg!(all(target_os = "macos", target_arch = "aarch64"))
     );
 }
+
+#[test]
+fn junie_managed_installer_has_explicit_platform_support_without_shell_fallback() {
+    assert_eq!(
+        super::acp_install_supported("junie"),
+        cfg!(all(target_os = "macos", target_arch = "aarch64"))
+    );
+    assert!(super::acp_install_command("junie").is_none());
+}

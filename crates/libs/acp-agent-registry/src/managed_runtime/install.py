@@ -91,6 +91,37 @@ if agent == 'poolside':
         executable.chmod(0o700)
     check_files(runtime, contract['files'])
     raise SystemExit(0)
+if agent == 'junie':
+    import platform
+    import zipfile
+    if (platform.system(), platform.machine()) != ('Darwin', 'arm64'):
+        raise RuntimeError('Junie reviewed runtime is Darwin-arm64 only')
+    archive = assets / 'junie.zip'
+    for _ in range(3):
+        result = subprocess.run([
+            '/usr/bin/curl', '--fail', '--silent', '--show-error', '--location',
+            '--proto', '=https', '--proto-redir', '=https', '--continue-at', '-',
+            '--speed-limit', '1024', '--speed-time', '12', '--max-time', '45',
+            '--output', str(archive), contract['artifact_url'],
+        ], stdin=subprocess.DEVNULL)
+        if result.returncode == 0:
+            break
+    else:
+        raise RuntimeError('Junie fixed archive download failed')
+    if digest(archive) != contract['archive_sha256']:
+        raise RuntimeError('Junie fixed archive checksum mismatch')
+    with zipfile.ZipFile(archive) as package:
+        for entry in package.infolist():
+            path = Path(entry.filename)
+            if path.is_absolute() or '..' in path.parts:
+                raise RuntimeError('Unsafe Junie archive path')
+    runtime.mkdir()
+    run(['/usr/bin/ditto', '-x', '-k', str(archive), str(runtime)])
+    run(['/usr/bin/codesign', '--verify', '--deep', '--strict', str(runtime / 'Applications/junie.app')])
+    shutil.copy2(assets / 'junie/launcher.py', runtime / 'junie')
+    (runtime / 'junie').chmod(0o700)
+    check_files(runtime, contract['files'])
+    raise SystemExit(0)
 if agent == 'harn':
     import platform
     if (platform.system(), platform.machine()) != ('Darwin', 'arm64'):

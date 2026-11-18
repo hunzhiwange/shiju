@@ -137,6 +137,14 @@ impl AcpClient {
             &runtime.expected_session_id,
         )
         .await?;
+        if self.agent_name == "junie" && self.config.env.contains_key("SHIJU_JUNIE_CONFIG") {
+            self.confirmed_config_control(&runtime.conn, &session_id, "brave_mode", "off")
+                .await?;
+            self.confirmed_config_control(&runtime.conn, &session_id, "model", &model)
+                .await?;
+            self.store_reusable_session(Some(session_id));
+            return Ok(());
+        }
         if matches!(self.agent_name.as_str(), "harn" | "poolside" | "vtcode") {
             // These engines select the model through ACP config options. Require readback.
             self.confirmed_config_control(&runtime.conn, &session_id, "model", &model)

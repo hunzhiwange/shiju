@@ -65,8 +65,7 @@ pub fn acp_install_command_for_platform(
         // Harn uses the separately reviewed native distribution and pipeline on
         // Darwin arm64. There is no shell fallback on other platforms.
         "harn" => return None,
-        // JetBrains documents native installers, but no pinned/checksum-reviewed
-        // distribution is registered. Discover the operator-installed Junie CLI.
+        // Junie uses a reviewed signed app bundle and managed launcher on Darwin arm64.
         "junie" => return None,
         // Poolside uses the pinned managed native installer.
         "poolside" => return None,
@@ -205,7 +204,7 @@ fn official_installer(
 /// Managed native distributions do not have a shell installation command.
 /// Keep their platform support explicit while using the same system install endpoint.
 pub fn acp_install_supported(agent: &str) -> bool {
-    (matches!(agent, "stakpak" | "harn" | "vtcode" | "poolside") && cfg!(all(target_os = "macos", target_arch = "aarch64")))
+    (matches!(agent, "stakpak" | "harn" | "junie" | "vtcode" | "poolside") && cfg!(all(target_os = "macos", target_arch = "aarch64")))
         || acp_install_command(agent).is_some()
 }
 

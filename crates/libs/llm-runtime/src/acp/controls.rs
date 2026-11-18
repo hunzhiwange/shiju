@@ -35,8 +35,8 @@ pub fn is_managed_effort_config(
 }
 
 fn is_permission_config_id(id: &str) -> bool {
-    // Protocol mode and the separate Hermes control found in the fixed-runtime matrix.
-    matches!(id, "mode" | "edit_approval_policy")
+    // Include vendor controls even if the adapter omits their permission category.
+    matches!(id, "mode" | "edit_approval_policy" | "brave_mode" | "sandbox")
 }
 
 pub fn is_permission_config(option: &agent_client_protocol::SessionConfigOption) -> bool {

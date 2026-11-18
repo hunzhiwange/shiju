@@ -1,4 +1,18 @@
 {
+  "junie": {
+    "layout": "standalone",
+    "package": "junie",
+    "version": "4100.5",
+    "bin": "junie",
+    "artifact_url": "https://github.com/JetBrains/junie/releases/download/4100.5/junie-release-4100.5-macos-aarch64.zip",
+    "archive_sha256": "ad103a996f0a4f5cee051f858bdf0fc33d4ee83b7c9219971d485046f084cd3c",
+    "files": {
+      "Applications/junie.app/Contents/MacOS/junie": "4be1f51971aa638ebd9c3caa93e63d2a235e3a4bd133011476f6cbbbcfcc565e",
+      "Applications/junie.app/Contents/app/junie-release-4100.5-macos-aarch64.jar": "5189185e5050d03e7fce5d46c13a7e2c6457f35c8a64aac1d503ce33cfebae74",
+      "Applications/junie.app/Contents/_CodeSignature/CodeResources": "21dee42ad13a17957a6b5ddb1be8ef2aa75087ac5ccd9d51776eea78c1413f9d",
+      "junie": "db3c895af5065c401f7798385d27619e0aa4ef5c227b048b84e0b090c71f2fad"
+    }
+  },
   "codex": {
     "package": "@agentclientprotocol/codex-acp",
     "version": "2.5.0",

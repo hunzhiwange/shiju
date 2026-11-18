@@ -224,5 +224,8 @@ mod tests;
 pub use lifecycle::ConnectionDiagnostic;
 
 #[cfg(test)]
+#[path = "client/junie_tests.rs"]
+mod junie_tests;
+#[cfg(test)]
 #[path = "client/harn_tests.rs"]
 mod harn_tests;

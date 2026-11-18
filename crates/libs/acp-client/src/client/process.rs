@@ -116,7 +116,7 @@ impl AcpClient {
             );
         }
         let managed_vtcode = self.managed_vtcode();
-        let managed_private_provider = managed_vtcode || (matches!(self.agent_name.as_str(), "deepagents" | "dimcode" | "stakpak")
+        let managed_private_provider = managed_vtcode || (matches!(self.agent_name.as_str(), "deepagents" | "dimcode" | "junie" | "stakpak")
                 && env.contains_key("VW_ACP_LAUNCH_REFERENCE"));
         let managed_claude = managed_claude_settings(&self.config).is_some();
         let managed_auggie =

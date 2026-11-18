@@ -1,6 +1,7 @@
 use super::profile::AcpLaunchProfile;
 pub mod amp_acp;
 pub mod harn;
+pub mod junie;
 pub mod auggie;
 pub mod autohand;
 #[cfg(test)]
@@ -53,6 +54,7 @@ pub fn capabilities(
         agent,
         "nova"
             | "harn"
+            | "junie"
             | "vtcode"
             | "poolside"
             | "stakpak"
@@ -84,7 +86,7 @@ pub fn capabilities(
         } else {
             Capability::Unsupported { source: Source::SessionModel, reason: Reason::UnsupportedCli }
         },
-        if matches!(agent, "amp-acp" | "harn") || (agent == "poolside" && verified) {
+        if matches!(agent, "amp-acp" | "harn" | "junie") || (agent == "poolside" && verified) {
             Capability::Unsupported { source: Source::CliLocal, reason: Reason::UnsupportedCli }
         } else {
             Capability::Supported { source: Source::CliLocal }
@@ -122,6 +124,7 @@ pub fn verified_release(agent: &str) -> Option<&'static str> {
         "sigit" => "1.7.10 (reviewed host boundary)",
         "dirac" => "0.5.24",
         "harn" => "0.10.201",
+        "junie" => "26.11.2 (4100.5)",
         "vtcode" => "0.183.0",
         "poolside" => "1.0.16",
         "stakpak" => "0.3.88",
@@ -146,7 +149,7 @@ pub fn source_protocol(
         "nova" | "amp-acp" | "claude" => P::Messages,
         "codex" | "kiro" => P::Responses,
         "gemini" => P::Gemini,
-        "harn" | "vtcode" | "poolside" | "stakpak" | "grok" | "dimcode" | "deepagents" | "autohand" | "sigit" | "glm-acp-agent" | "dirac" | "auggie" | "cursor" | "droid"
+        "junie" | "harn" | "vtcode" | "poolside" | "stakpak" | "grok" | "dimcode" | "deepagents" | "autohand" | "sigit" | "glm-acp-agent" | "dirac" | "auggie" | "cursor" | "droid"
         | "codebuddy" | "goose" | "hermes" | "iflow" | "kilocode" | "openclaw" | "pi" | "qoder"
         | "qwen" | "trae" => P::Chat,
         "opencode" => model_transport::routing_selection::client_protocol(api)
@@ -212,6 +215,7 @@ pub fn configure(
     launch_route(agent, profile)?;
     match agent {
         "amp-acp" => amp_acp::configure(profile, endpoint),
+        "junie" => junie::configure(profile, endpoint, directory),
         "harn" => harn::configure(profile, endpoint, directory),
         "vtcode" => vtcode::configure(profile, endpoint, directory),
         "poolside" => poolside::configure(profile, endpoint),

@@ -1237,3 +1237,16 @@ Rust重型命令经scripts/cargo_slot.py槽位入口串行执行，对应CARGO_T
 - 槽位 1 串行执行 `cargo test -j 1 --locked -p acp-server --lib aionrs -- --test-threads=1` 和 `cargo test -j 1 --locked -p vw-acp --test onboarding_aionrs acp_onboarding_aionrs_registry_contract -- --exact --test-threads=1`，桥接协议 2 项、注册与安装契约 1 项通过，均退出 0。沿用首轮 2 项预设测试证据。未运行 Clippy、桌面编译、页面构建或浏览器检查。
 - 所有自有网关端口关闭，最终网关退出 0，私有配置和 HOME 副本已清理。本轮未 PATCH 预设，最终完整配置重读等于基线，对原租户只读复核未发现 aionrs 覆写。最终复验窗口前后 Rue.js 各 6319 项普通文件摘要一致，Git 短状态一致，目标目录始终不存在。其他窗口的快照数量变化发生于本轮各次取样之间，各自窗口内零差异。
 - 私有证据存于 0700 目录 `/tmp/shiju-aionrs-retry-20261118.hfrQSP/`。完整重跑需确认任务 41 环境收尾，交付受管双入口安装、与锁定版本一致的桥接及宿主写入边界、原租户可用授权和请求级模型中继，再按任务 42 验证安装、预设保存恢复、会话绑定和真实文件创建。
+
+
+### Junie 补丁与最终实机验收（2026-11-18）
+
+结论：通过。Junie 用原指定租户和模型创建了完整的 Rue.js 编辑器源码及运行说明。
+
+- 参考 Cursor 的固定发行与模型中继方式，以及 TRAE 的进程外 macOS 沙箱。系统白名单仅在 Darwin arm64 启用 Junie 26.11.2（4100.5），安装时核对官方压缩包摘要和应用签名。启动器绑定宿主工作目录、会话模型和回环中继，关闭默认配置发现及更新。沙箱限制写入范围、网络和子进程。ACP 在 prompt 前设置并确认 Safe 模式和模型，宿主审批继续生效。原生夹具证明批准后能在工作区创建文件和子目录，但写入工作区外未落盘。
+- 修复了此前握手失败的两个启动差异。宿主没有把 ACP 进程当前目录设为项目，且中继地址没有尾斜杠。启动器从私有会话配置读取项目目录并规范化中继 URL。保留初次启动失败、下载中断及恢复证据。最终二进制 shiju 0.6.0 SHA-256 为 `73ef571b2b65c7a14b49bb318e0ab23dcb154a4c185eb341847cf6f68ff4733b`，以共享工作区构建，核对内嵌启动器和安装代码。
+- 使用开发配置的私有 SQLite 快照和独立宿主目录启动回环网关。所有请求使用平台10001、公司100010005和Rue.js目录头。内置 `acp-junie` 确认为 builtin、backend=junie，临时启用后重读通过。普通诊断 HTTP200、结果 `handshake_failed`，因为它不携带受管会话模型配置。真正会话另行验收。最后从未安装状态调用系统安装接口，HTTP200、客户端退出0、57.609387秒，重读为已安装并核对入口及版本。
+- 原请求会话 `ses_1ec80f1f2001eH7yU2gm0bPuU9` 返回 HTTP200，curl 退出0、137.962439秒，收到 `chat.done` 且无 `chat.error`。执行中 summary/options 验证 agent=acp-junie、backend=junie、full_access=true、connected=true。selected_model 为 source=session_model、provider_id=alibaba-token-plan-cn、model=`alibaba-token-plan-cn/deepseek-v4.1-flash-1017`。会话结束释放连接，仍保留相同模型绑定。SSE 有8条完成的 edit 事件。
+- 产物共8项，分别为 `index.html`、`vite.config.mjs`、`tsconfig.json`、`README.md`、`src/App.tsx`、`src/main.tsx`、`src/env.d.ts`、`src/style.css`。静态确认 Vite 别名指向本仓库 `@rue-js/rue` 源码，编辑器使用 textarea、computed 实时计数及 localStorage 保存与恢复。README 提供开发启动命令。未运行浏览器、构建或物理刷新验证。
+- Rue.js 普通文件快照从6311项到6319项，差异仅 `acpdemo/junie/` 内上述8项。私有配置还原后 GET 与基线相等。确认早期尝试在共享数据库中仅遗留了与本任务记录一致的 disabled 覆写后，在事务内移除该覆写并重读确认，其他值保持一致。自有网关和原生进程退出、端口关闭，移除私有凭据及数据库副本。
+- 两项安装策略测试及一项 ACP Safe 与模型控制测试通过。定向 CLI 构建通过。定向 Clippy 遇到 llm-runtime 已有101项警告，未指向本次 Junie 文件。未运行全仓测试或桌面构建。私有证据 `/tmp/shiju-junie-patch-20261118/`（0700）保存构建与安装指标、SSE、配置重读、快照及清理结果。

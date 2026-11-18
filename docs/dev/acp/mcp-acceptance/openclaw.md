@@ -50,3 +50,34 @@
 首个带宿主接线的共享构建中，私有 ShiJu 网关已读取租户授权。无挂载、撤除轮均能连接指定模型，挂载轮却在启动前被工具清单检查拒绝。追查发现清单由 session engine 为所有 ACP 请求生成，只进入 Claude 扩展元数据。调整后继续使用 OpenClaw 的宿主 MCP 选择，保留完全访问、明确拒绝、非交互审批和禁用工具门禁。
 
 定向命令为 `python3 scripts/cargo_slot.py cargo test -j 1 -p llm-runtime --lib agent_acp_defaults_reach_new_session_and_prompt`。槽位 3 的 target 和 build 目录均为 `target/rust-slot-3`。复现时退出 101，1 项通过、OpenClaw 投影断言失败。实现后同一目标退出 0，2 项通过、0 失败。最终构建及 ShiJu 三轮复验另记。
+
+## 适配后的指定模型验收
+
+槽位 3 的 `cargo build -j 1 --locked -p vw-cli --bin shiju` 退出 0，18 分 11 秒。二进制 SHA-256 为 `f46699dd46d8520d8a7cfc3324132ccd5a2e05857e89fde160052fdcf75add3c`。私有实例从本地授权读取同一模型，安装接口 HTTP 200，实际启动经摘要校验的受管 v2 入口。
+
+| 轮次 | 新会话 | HTTP / curl / 秒 | 结果 |
+| --- | --- | --- | --- |
+| 无挂载 | `ses_1f023649c001Ge0luJ65pVhMwD` | 200 / 0 / 16.501349 | `chat.done`，含 `MCP_NOT_AVAILABLE`、两段说明及 4 次原生 tool search，目标调用为零 |
+| 挂载 | `ses_1f023a66b001X5G6P62PlKWuy2` | 200 / 28 / 300.002255，续传 200 / 0 / 201.989752 | 游标 325 续传，获单个 `chat.done`，无 `chat.error`，396 条工具事件 |
+| 撤除 | `ses_1f02b5355001L7aYPviB84yNt0` | 200 / 0 / 16.144983 | `chat.done`，含 `MCP_NOT_AVAILABLE`、额外说明及 6 次原生 tool search，目标调用为零 |
+| 无完全访问权限 | `ses_1f02b51b3001ZMvfazO7AKZA7z` | 200 / 0 / 0.408323 | 独立拒绝对照，`chat.error` 要求当前完全访问授权，零模型工具事件 |
+
+前三轮运行中回读 `acp-openclaw / openclaw`、`full_access=true`、`connected=true` 与 `client_only`，指定模型来源和完整 ID 均一致。结束后连接释放，仍保留同一模型绑定。
+
+挂载轮 query、callers、node 成功次数为 105、7、67。query 返回 `createRueSiteApp`（`app/app.tsx:32`），callers 返回 `mountRueSiteApp`（`app/app.tsx:39`），node 回读该函数、`useApp` 及 `_$createApp`。工具的开始和完成可按调用 ID 匹配。首个额外调用是 status，随后还调用 files、explore、callees、impact。两次 query 把 `projectPath` 指向索引根以外的目录，均收到未初始化错误。
+
+答复重建主调用链，引用了路由工厂和运行时行号，解释了 SSR、缺少 `#app`、路由及 i18n 安装、`/rust-layers` 布局绕过，并给出浏览器重复 DOM 与构建时预置节点两个预期场景。它把静态快照通道称为唯一自动执行清空的场景，同时又正确描述了浏览器入口的自动挂载，前一处说法与 `app/app.tsx:39-56` 矛盾。重复节点和稳定窗口影响属于推断。三轮有真实挂载与撤除证据，因答复格式、额外调用和两次读取失败，仍未满足严格合同。
+
+### 私有三工具复验
+
+同一构建、提示、模型和租户。临时 stdio 转发器只公布 query、callers、node，传递真实 RustCodeGraph 结果，并拒绝更换索引目录的参数。
+
+| 轮次 | 新会话 | HTTP / curl / 秒 | 结果 |
+| --- | --- | --- | --- |
+| 无挂载 | `ses_1f02b9bc0001op6W02gLecLt25` | 200 / 0 / 18.133280 | `chat.done`，仅输出 `MCP_NOT_AVAILABLE`。一次原生分发失败，目标调用为零 |
+| 挂载 | `ses_1f02be354001rtS7QwRERvMIFf` | 200 / 28 / 300.000616，续传 200 / 0 / 210.921239 | 游标 320 续传，单个 `chat.done`，355 条工具事件 |
+| 撤除 | `ses_1f033b3eb001shKKpuYtsbLLLt` | 200 / 0 / 34.200576 | `chat.done`，含 `MCP_NOT_AVAILABLE`、说明及原生查询失败，目标调用为零 |
+
+三种工具分别成功 94、5、70 次，另有六次工具失败。模型请求了缺失的路由文件、把目录当文件读取，并传入与既定索引根不同的 `projectPath`。挂载轮还出现原生 `exec`（`echo skip`）和 `progress_card`。答复引用了实际主链、SSR、路由与 i18n 分支、布局判断和两个预期场景。独立无完全访问请求同样被宿主拒绝。终态回读保留指定模型，三个会话已断开。
+
+适配和聚焦验证已完成。严格验收仍取决于指定模型在固定提示下满足答复格式、工具范围和零失败要求。现有实现保留原生工具和宿主权限语义，验收条件保持不变。两个私有 ShiJu 网关退出 0，端口关闭，临时挂载、凭据和 SQLite 副本已清理。RueJS 副本的 5122 个归档条目与基准一致。已授权实例健康接口仍为 HTTP 200。

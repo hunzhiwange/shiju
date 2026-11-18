@@ -70,3 +70,26 @@
 准备入口文件名变体时另有一组转发会话在元数据更新前启动，归入附加样本。无挂载会话 `ses_1f021cc57001sk8SMGqMO3TJfU` 和撤除会话 `ses_1f02757ab001K6rqG61llsqfeX` 均 HTTP 200、curl 0、精确标记、零工具。挂载会话 `ses_1f021d64a001Eg61CR20UVkONZ` 首段 HTTP 200、curl 28、300.002 秒，沿同一请求及游标续传，HTTP 200、curl 0、60.464 秒。三轮均收到一次 `chat.done`，无 `chat.error`。挂载轮只有三种图谱工具，194 个调用中有 18 次真实读取失败，首错为 `call_8e3ee947162b49738152f207` 读取 `app/router.ts`。挂载期间模型绑定与权限相同，续传终态采样时连接仍在释放，私有网关随后已退出。
 
 四组副本各自与 RueJS 归档的 4108 个文件或符号链接一致，排除探针索引。私有挂载配置、凭据副本、网关及转发器已清理，端口关闭，未发现本轮相关子进程残留。原始回执仅留在本机私有目录。
+
+## RustCodeGraph 1.2.11 发行版复验
+
+使用同批次已受审的 `shiju 0.6.0`（SHA-256 `2e84923a46704187dfd9d56dfc4b45d6ebf9cfc93398a6bb3a82b1cc61a1f935`）和 RustCodeGraph 1.2.11 发行构建（SHA-256 `5fab2f2dbf506ddf71d842ef1a7cd6e744c5ec90ff3f5f043ea020e1b3696312`）。GLM 入口仍为 1.17.1，入口摘要与前轮一致。复用原请求、提示哈希、固定 RueJS 提交、租户、模型、服务名和权限。两个独立副本均索引 3478 个文件，新索引直接命中 `createAppRouter`（`app/router/index.ts:787`）。[共享发行构建证据](pi.md)
+
+项目配置沿用宿主 `allowedTools`。GLM 使用标准 ACP session/new，当前无 GLM 专用的宿主工具策略转发，限定目录由同批次已审验的私有 stdio 代理执行。目录列出真实源码入口、分页字段与唯一索引根，允许省略 `projectPath`。第二组采用 CodeBuddy 已验证的 `node.file` 源码扩展名模式。两组均保留实际请求参数和 RustCodeGraph 原始返回。协议对照确认原生目录 8 项、限定目录 3 项，query、callers、分页 node 与直连完全一致，未索引路径也保留原始错误内容。额外工具与副本外路径均被拒绝。[目录元数据验证](codebuddy.md)
+
+| 目录 | 轮次 | 新会话 | HTTP / curl / 秒 | 可见结果 |
+| --- | --- | --- | --- | --- |
+| 索引根及分页 | 无挂载 | `ses_1f107bd5c001ZeedmHgP3O6deT` | 200 / 0 / 2.788 | 标记后附加解释，零工具 |
+| 索引根及分页 | 挂载 | `ses_1f107c8f90011VTSSH4ydkM5rO` | 200 / 0 / 161.431 | 32 query、6 callers、39 node，全部成功 |
+| 索引根及分页 | 撤除 | `ses_1f10a407b001upbgOekSUlDp7s` | 200 / 0 / 3.109 | 精确标记，零工具 |
+| 源码扩展名模式 | 无挂载 | `ses_1f1098b6f001d14wjGhV7xQ3lF` | 200 / 0 / 2.637 | 精确标记，零工具 |
+| 源码扩展名模式 | 挂载 | `ses_1f10996ed001kI6JemkpT1HEOZ` | 200 / 0 / 256.854 | 130 次图谱调用成功、1 次图谱读取失败，另有 2 次内置文件工具，触发 100 轮上限 |
+| 源码扩展名模式 | 撤除 | `ses_1f10d83b10013dSfNFwV5PJNks` | 200 / 0 / 2.224 | 精确标记，零工具 |
+
+六个新会话各有一次 `chat.done`，无 `chat.error` 或续传。精确标记为 `MCP_NOT_AVAILABLE`。UI summary 回读 `acp-glm-acp-agent / glm-acp-agent` 与 `full_access=true`，ACP options 两组挂载时均确认 `client_only`、指定模型、提供商和 `session_model`，六轮终态连接释放并保留原模型选择。辅助标题模型仍有独立的 HTTP 403。
+
+第一组挂载的 77 个调用均有同 ID 的开始、完成及对应原始 MCP 成功返回，无其他工具。query `call_89117c9d5bf643aaa9197419` 命中 `createRueSiteApp`（`app/app.tsx:32`），callers `call_275dc6ca3b894112ad5728bd` 返回 `mountRueSiteApp`（第 39 行），node `call_bc8110fbb5844711953c3989` 和 `call_8854dab35d234299a3b35022` 分别读回 `useApp.ts:4` 与 `compiler-runtime/app.ts:57`。query `call_82f1979d38c24c5db9154fc3` 命中旧版缺失的路由工厂。答复引用完整主链、浏览器与 SSR、容器缺失、插件及布局分支，给出静态首屏和站内导航两项场景。重复 DOM 为源码推断，第一项回归描述将移除清空逻辑的条件写反。该组首个合同偏差发生于无挂载轮，提示要求只输出标记，模型在其后给出 143 字符的额外内容（含分隔换行）。
+
+第二组挂载的 49 次 query、9 次 callers、73 次 node 均有开始与完成事件。首个失败 `call_fc98f57932ea42b8961c761f` 请求了不存在且未索引的 `packages/runtime/src/block.ts`。RustCodeGraph 如实返回 `No indexed file matches`，该结果无 `isError`，按实际输出判为失败。随后模型发起两次 GLM 内置目录读取，调用 ID 分别为 `call_31fe8cd3716f40e3a430a178` 和 `call_69264ef01bd34310b43a0034`。GLM 在达到 100 个推理轮次后返回停止说明，虽有 `chat.done`，可见答复没有交付调查结论。提高轮次上限无法补正已经发生的错误调用。
+
+1.2.11 的新路径共实测两组，分别在对照答复格式和挂载工具参数处失败。原生挂载、真实工具输出和撤除隔离已有新证据。严格验收仍需指定模型在原请求下精确完成前后对照，并在同一挂载轮完成零额外工具、零读取失败及准确答复。当前无可在 GLM 现有适配器内同时约束这些行为的受审入口。本轮未改运行时、权限或公共代码，未运行 Cargo。两份副本各 4108 个文件及符号链接与归档一致（索引除外），私有网关、监听端口、挂载、凭据副本和子进程均已清理。

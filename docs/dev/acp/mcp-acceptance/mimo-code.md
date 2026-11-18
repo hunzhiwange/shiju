@@ -27,3 +27,32 @@
 现有 `MIMOCODE_CONFIG` 继续使用私有模型配置，项目配置和外部兼容配置入口继续隔离。受管沙箱只允许执行 MiMo 入口，出站限定本次模型中继端口。MiMo 声明远程 MCP 能力，但已装 RustCodeGraph 只提供 stdio，仓库的 stdio 回环桥属于测试夹具，现有中继只支持模型协议。固定版补丁仅将 MiMo 内部 SDK 请求留在进程内。复跑需要可保留会话、租户、审批、撤销和进程生命周期的宿主兼容入口。
 
 生产代码、安装契约和权限策略未修改。生命周期夹具未运行，原生探针已定位到真实进程启动失败。本次未运行 Cargo。私有网关和原生探针均退出，端口关闭，挂载已撤除，私有配置、凭据和数据库副本已清理。原 RueJS 工作区未写入，现有用户网关的 MiMo 预设仍停用。原始 SSE 和诊断保存在本机私有目录。
+
+## 共享工作区复验
+
+复用较新的共享构建 shiju 0.6.0，SHA-256 为 `6954a2bb76ca26aa39c3b0dd909786c68b85f336648526ef39651b1e3a31f718`。隔离网关使用同一个受审 MiMo Code 安装产物、RueJS 提交、指定租户和模型。三轮请求体与前轮相同，仅更新私有 cwd 与回环端口。
+
+| 轮次 | 新会话 | HTTP / curl / 秒 | 终态与实际调用 |
+| --- | --- | --- | --- |
+| 无挂载 | `ses_1f0418d0500100HJnD3wlVLfTf` | 200 / 0 / 7.627464 | `chat.done`，2 次原生工具搜索 |
+| 挂载 | `ses_1f041abdb001cG6VZoia4sjVpX` | 200 / 0 / 6.550112 | `chat.done`，1 次原生工具搜索 |
+| 撤除 | `ses_1f041c6380016DiY8OyV9OsY32` | 200 / 0 / 8.075596 | `chat.done`，2 次原生工具搜索 |
+
+三轮均无 `chat.error`，均返回 `MCP_NOT_AVAILABLE` 及额外文字。没有目标工具调用或结果。UI summary 和 ACP options 回读原后端、`full_access=true` 及指定模型来源，终态连接已释放。
+
+### 同端口传输和权限诊断
+
+用同一原生程序、`--pure` 与原有进程和出站沙箱约束，在模型端口提供私有 Streamable HTTP 诊断路由。路由通过单独的诊断令牌将请求转给宿主侧真实 RustCodeGraph，只发布三种目标工具。其他端口对照没有 MCP 请求抵达，空挂载对照没有工具声明或调用。
+
+- 保留生产工具白名单与权限时，MiMo 完成 `initialize`、`notifications/initialized`、`tools/list`，日志确认连接及 3 个目录项。回环模型未收到这些工具定义。仅为这三个工具配置询问权限时，仍未发布定义。发行源码在发布工具前同时检查运行权限和代理精确工具白名单。
+- 在诊断私有配置中仅把目录中这三个完整工具名加入白名单，逐个配置为询问，并使模型直接收到工具定义。三个 `session/request_permission` 选择 `allow_once` 后，各收到一次真实 MCP 调用。相同的第一个请求返回取消时，服务收到零次 `tools/call`。诊断前后均无待审批写入请求。
+
+| 工具 | 真实结果 | 回环模型续轮调用 ID |
+| --- | --- | --- |
+| `rustcodegraph_query` | `createRueSiteApp` 位于 `app/app.tsx:32` | `mimo_probe_0` |
+| `rustcodegraph_callers` | `mountRueSiteApp` 位于 `app/app.tsx:39` | `mimo_probe_1` |
+| `rustcodegraph_node` | `packages/runtime/src/hooks/useApp.ts:4` 调用 `_$createApp(factory)` | `mimo_probe_2` |
+
+复核共享工作区新增路径。Cortex 的客户端工具扩展及 DeepAgents、OpenClaw 的受管工具入口依赖各自原生协议。当前通用模型中继没有足以提供会话级 MCP 的路由。公开 npm 最新版本仍为 0.1.17，现有已审入口已是该版本。因此纯 MiMo 配置或升级无法完成端到端验收。剩余依赖为经审核的宿主侧会话级 MCP 入口，以及依据会话目录投影 MiMo 工具白名单和审批规则。需要协调公共中继接入与责任归属，再使用真实网关复跑撤除、取消、策略和原模型三轮。
+
+诊断使用真实 RustCodeGraph 及回环模型，真实指定模型三轮单独记录。此次未改生产代码或安装契约，未运行 Cargo。诊断监听、子进程与隔离网关均已退出，私有配置、凭据和数据库副本已清理。

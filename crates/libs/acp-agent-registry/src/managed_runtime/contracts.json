@@ -141,6 +141,7 @@
     "bin": "hermes",
     "files": {
       "acp_adapter/session_model_state.py": "c3addec1baac1ae16bf70078edfb42efd479d7834afb0305e9dbc4575fba57ee",
+      "mcp/__init__.py": "f66ae17959a1420edb67624dcd79da20860543e1d513b7d5c86ec0250cf8af72",
       "acp_adapter/session.py": "3e8d2e86ca33be43c1daf96b6a39001de97287bd1b96fbb4adaf0f3aa8a4d410",
       "acp_adapter/entry.py": "611eab6b93ed0f97a9e079b5cbde771a0dc9223122cf2c9fb963af408106658b",
       "hermes_cli/main.py": "7e1c678f2584928b863565f99d3bca1d9a530a716838d23766e1449ffa9bca67",

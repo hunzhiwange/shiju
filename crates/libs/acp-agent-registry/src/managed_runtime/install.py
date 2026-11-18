@@ -430,7 +430,7 @@ if contract.get('layout') == 'python':
         shutil.copyfileobj(response, output)
     if digest(wheel) != contract['wheel_sha256']:
         raise RuntimeError('Pinned Python wheel checksum mismatch')
-    package = str(wheel) + ('[acp,cli]' if agent == 'hermes' else '')
+    package = str(wheel) + ('[acp,cli,mcp]' if agent == 'hermes' else '')
     run([uv, 'pip', 'install', '--python', str(python), '--index-url', 'https://pypi.org/simple', package])
     site = runtime / 'lib/python3.12/site-packages'
     if agent == 'vibe':

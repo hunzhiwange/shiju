@@ -112,32 +112,6 @@ fn toolbar<U: Clone + 'static>(
 }
 
 fn login_preferences<'a, U: Clone + 'static>(state: &State<'a>) -> Element<'a, Event<U>> {
-    let mut context = row![].spacing(12).align_y(Alignment::Center);
-    if let Some(scope) = state.scope {
-        context = context.push(
-            text(format!(
-                "平台 {} · 公司 {}",
-                scope.tenant.platform_id().as_ref(),
-                scope.tenant.company_id().as_ref()
-            ))
-            .size(12)
-            .wrapping(text::Wrapping::WordOrGlyph)
-            .style(settings_muted_text_style),
-        );
-    }
-    if let Some(connection) = state.connection {
-        let host = if connection.host == local_app_auth::HOST_ID {
-            "本机"
-        } else {
-            connection.host.trim()
-        };
-        context = context.push(
-            text(format!("执行主机 {host}"))
-                .size(12)
-                .wrapping(text::Wrapping::WordOrGlyph)
-                .style(settings_muted_text_style),
-        );
-    }
     let labels = column![
         title("登录时自动打开浏览器", 15),
         text("关闭后会复制登录链接，可用自己选择的浏览器完成授权。")
@@ -147,12 +121,11 @@ fn login_preferences<'a, U: Clone + 'static>(state: &State<'a>) -> Element<'a, E
     .spacing(4)
     .width(Length::Fill);
     let toggle = settings_toggle(!state.copy_login_link).on_toggle(Event::OpenBrowserPreference);
-    let mut preferences =
-        column![row![labels, toggle].spacing(14).align_y(Alignment::Center),].spacing(10);
-    if state.scope.is_some() || state.connection.is_some() {
-        preferences = preferences.push(settings_divider()).push(context.wrap());
-    }
-    container(preferences).padding([13, 16]).width(Length::Fill).style(auth_panel_style).into()
+    container(row![labels, toggle].spacing(14).align_y(Alignment::Center))
+        .padding([13, 16])
+        .width(Length::Fill)
+        .style(auth_panel_style)
+        .into()
 }
 
 fn auth_panel_style(theme: &Theme) -> container::Style {

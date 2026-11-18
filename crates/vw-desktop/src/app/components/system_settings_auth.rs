@@ -8,7 +8,6 @@ mod binding_modal_tests;
 fn state(app: &App) -> account::State<'_> { project(&app.agent_apps_auth) }
 fn project(s: &crate::app::state::agent_apps_auth::State) -> account::State<'_> {
     account::State {
-        scope: &s.scope,
         rows: &s.rows,
         form: &s.form,
         connection: &s.connection,

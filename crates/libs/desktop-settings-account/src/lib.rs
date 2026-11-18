@@ -50,7 +50,6 @@ pub enum LinkAction {
 
 /// Borrowed account fields used by the view; no global application access.
 pub struct State<'a> {
-    pub scope: &'a Option<Scope>,
     pub rows: &'a Option<Vec<ServiceAccounts>>,
     pub form: &'a Option<Connection>,
     pub connection: &'a Option<Connection>,

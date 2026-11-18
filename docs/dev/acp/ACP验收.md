@@ -1044,3 +1044,15 @@ Rust重型命令经scripts/cargo_slot.py槽位入口串行执行，对应CARGO_T
 - Rue.js 的 `packages/rue/src` 已确认存在。排除 `.git`、`node_modules`、`target` 的普通文件 SHA-256 快照前后各 6303 项，零差异，`acpdemo/poolside/` 前后均不存在。结束 GET 全局配置与基线一致，无临时配置待恢复。自有网关退出 0，端口关闭。
 - 槽位 1 中 `cargo test -j 1 -p config-acp-install --lib acp_onboarding_poolside -- --test-threads=1` 通过 1 项，`cargo test -j 1 -p agent-config --lib acp_onboarding_poolside -- --test-threads=1` 通过 2 项，均退出 0。无代码变更，未重跑协议夹具、Clippy、桌面编译、页面构建或浏览器验证。
 - 原始响应、指标、诊断请求、配置和快照存于本机 0700 目录 `/tmp/shiju-poolside-accept-20261118.aGudrk/`。补齐受审核的系统安装、指定模型驱动及脱敏接入证据后重跑任务 36。
+
+
+### Poolside 官方发行与原生 ACP 重试（2026-11-18）
+
+结论仍为已阻塞。官方 Poolside 1.0.16 可启动，原生 ACP 已证明能向 OpenAI 兼容端点发送完整指定模型 ID，并在隔离工作区验证了只读沙箱的应用审批。真实租户模型调用、ShiJu 系统安装及编辑器产物仍待验收。
+
+- 官方安装脚本与 GitHub 发行均指向 v1.0.16。按脚本路径下载 Darwin arm64 包，SHA-256 `0932af3eb2b57a863acacb664ec8b2b1d3a76c2570a788b086001608cc585f74` 与官方 checksums.txt 和 GitHub 资产摘要均一致。压缩包仅含一个普通可执行文件，解出至 0700 私有目录。原生 `--version`、`--help`、`acp --help` 均退出 0。未执行官方安装脚本或修改宿主 PATH。[官方发行](https://github.com/poolsideai/pool/releases/tag/v1.0.16)
+- 隔离 HOME 启动 `pool acp`，`initialize` 返回协议版本 1 和 agentInfo 1.0.16，空配置的 `session/new` 返回 -32000 Authentication required。通过官方 standalone 设置接入回环探针后，`session/new`、`session/set_config_option(model)` 均成功，重读模型值为 `alibaba-token-plan-cn/deepseek-v4.1-flash-1017`。回环收到带工具定义的 `POST /v1/chat/completions`，请求的 model 精确匹配，ACP 返回 `end_turn`。分别验证目录自动选模、环境变量指定模型，以及 `GET /v1/models` 返回 404 时显式模型仍可发送。探针使用合成回复，未向真实推理端发送请求。[官方 OpenAI 兼容配置](https://github.com/poolsideai/pool/tree/v1.0.16#openai-compatible-api)
+- 原生权限探针禁用 shell、subagent 和 web_fetch。允许路径调用了宿主 `fs/write_text_file`，宿主拒绝后仍残留一个零字节文件，允许该调用的独立探针则写入预期的 14 字节。明确拒绝的目录外路径未落盘。因此仅靠 ACP 写回调还不能保证宿主拒绝时无副作用。
+- `--sandbox required` 在未配置或仅提供额外设置文件时以“no sandbox is configured”退出 1。改为官方文档指定的隔离 HOME 配置位置并复用本机已有 Docker 镜像后，原生 ACP 启动成功。只读沙箱把允许文件暂存在沙箱，目录外写入报 Permission denied。取消应用和保留在沙箱两种选择均未写入宿主，明确批准 `sandbox-apply` 后仅允许文件写入私有工作区，内容 14 字节，目录外文件仍不存在。未给工具挂载 Docker socket、宿主配置或凭据。[官方沙箱配置](https://docs.poolside.ai/sandboxes)
+- 使用原 shiju 0.6.0 构建启动独立网关，按任务租户及目录头只读复查。安装状态仍为 false，模型来源仍为 `unsupported_cli`。租户配置目录中存在指定模型，当前进程无该供应商的 API key 环境变量。既有公开 OpenAI 兼容处理器使用进程默认 provider，且仅转换 role/content，无法为此次测试保证租户绑定和工具协议。原生回环结果表明 Poolside 登录并非自定义模型入口的必要条件。重跑需交付固定摘要的 ShiJu 系统安装、使用原租户授权凭据的请求级模型中继和经验证的宿主权限边界，再用完整指定模型走原创建请求。仅下载发行、向原生 CLI 设置模型或登录 Poolside 均无法解除当前 ShiJu 阻塞。
+- 本轮未写配置或提交编辑器请求。网关结束配置与本轮及首次验收基线一致，自有网关和原生进程均退出，回环端口已关闭，沙箱重试前后 Docker 容器及网络列表相等。Rue.js 前后各 6303 项普通文件 SHA-256 无变化，目标目录仍不存在。无代码变更，未重跑 Cargo 或页面检查。原始发行核验、协议帧、回环请求、审批结果、配置重读和清理证据保存在本机 0700 目录 `/tmp/shiju-poolside-retry-20261118.7IKBGI/`。

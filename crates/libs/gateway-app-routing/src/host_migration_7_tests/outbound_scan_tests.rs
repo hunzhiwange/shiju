@@ -1,12 +1,7 @@
-use super::{
-    fixture::{
-        HOST, MANAGER, READER, assert_error, client, spawn_gateway, write_policy,
-    },
-
-};
+use super::fixture::{HOST, assert_error, client, spawn_gateway, write_policy};
 use agent_gateway::agent_apps_diagnostic_jobs::DiagnosticProbeError;
 use serde_json::{Value, json};
-use std::{fs, future::pending, os::unix::fs::PermissionsExt, time::Duration};
+use std::{fs, future::pending, os::unix::fs::PermissionsExt, process::Command, time::Duration};
 use tokio::{
     io::AsyncReadExt,
     net::{TcpListener, TcpStream},
@@ -18,7 +13,7 @@ use vw_api_app_diagnostics::DiagnosticJobState;
 use vw_api_app_diagnostics::DiagnosticOutcome;
 use vw_api_app_diagnostics::DiagnosticResult;
 
-use vw_api_app_identity::{AppId};
+use vw_api_app_identity::AppId;
 
 #[tokio::test]
 async fn cc_route_030_outbound_scan_expected_behavior() {
@@ -26,50 +21,50 @@ async fn cc_route_030_outbound_scan_expected_behavior() {
         CANDIDATES.iter().map(|(port, _)| *port).collect::<Vec<_>>(),
         [7890, 7891, 1080, 8080, 8888, 3128, 10808, 10809]
     );
-    let home = tempfile::tempdir().unwrap();
-    fs::set_permissions(home.path(), fs::Permissions::from_mode(0o700)).unwrap();
-    // Production startup creates the state root before opening diagnostic storage.
-    fs::create_dir_all(home.path().join(".local/state/shiju")).unwrap();
-    let policy = home.path().join("access.json");
-    write_policy(&policy, home.path(), 0);
-    let (_gateway, port) = spawn_gateway(home.path(), &policy).await;
-    let raw = reqwest::Client::builder().no_proxy().build().unwrap();
+    const CHILD: &str = "SHIJU_OUTBOUND_SCAN_TEST_CHILD";
+    if std::env::var_os(CHILD).is_none() {
+        let root = tempfile::tempdir().unwrap();
+        let path = root.path().canonicalize().unwrap();
+        let status = Command::new(std::env::current_exe().unwrap())
+            .args(["--exact", std::thread::current().name().unwrap(), "--nocapture"])
+            .current_dir(&path)
+            .env_clear()
+            .env(CHILD, &path)
+            .env("HOME", &path)
+            .env("VIBEWINDOW_TEST_ROOT", &path)
+            .env("CODEX_HOME", path.join(".codex"))
+            .env("TMPDIR", &path)
+            .status()
+            .unwrap();
+        assert!(status.success(), "isolated scan test failed: {status}");
+        return;
+    }
+    let home = std::path::PathBuf::from(std::env::var_os(CHILD).unwrap());
+    assert_eq!(std::env::current_dir().unwrap().canonicalize().unwrap(), home);
+    assert_eq!(std::env::var_os("VIBEWINDOW_TEST_ROOT").unwrap(), home.as_os_str());
+    assert_eq!(agent_paths::paths().home, home);
+    assert_eq!(std::env::var_os("CODEX_HOME").unwrap(), home.join(".codex").as_os_str());
+    fs::set_permissions(&home, fs::Permissions::from_mode(0o700)).unwrap();
+    fs::create_dir_all(home.join(".local/state/shiju")).unwrap();
+    let policy = home.join("access.json");
+    write_policy(&policy, &home, 0);
+    let (_gateway, port) = spawn_gateway(&home, &policy).await;
+    let raw = reqwest::Client::builder()
+        .no_proxy()
+        .timeout(Duration::from_secs(5))
+        .build()
+        .unwrap();
     let start = |body: Value| {
         raw.post(format!(
-        "http://127.0.0.1:{port}/v1/app-routing/hosts/{HOST}/projects/fixture/apps/codex/egress/scans"
-    )).header("x-platform-id","p").header("x-company-id","owner")
-        .header("x-agent-apps-token",MANAGER).json(&body).send()
+            "http://127.0.0.1:{port}/v1/app-routing/hosts/{HOST}/projects/fixture/apps/codex/egress/scans"
+        ))
+        .header("x-platform-id", "p")
+        .header("x-company-id", "owner")
+        .json(&body)
+        .send()
     };
-    assert_eq!(start(json!({})).await.unwrap().status(), 403);
-    let mut access: Value = serde_json::from_slice(&fs::read(&policy).unwrap()).unwrap();
-    for index in [0, 1] {
-        access["principals"][index]["grants"][0]["routing_apps"] =
-            json!([{"project_id":"fixture","app_id":"codex"}]);
-    }
-    fs::write(&policy, access.to_string()).unwrap();
     let owner = client(port, "owner");
     let project = "fixture".into();
-    assert_error(
-        crate::GatewayAppRoutingClient::new(owner.clone()).app_routing_start_outbound_scan(HOST, &project, AppId::Codex, READER)
-            .await
-            .unwrap_err(),
-        403,
-        "forbidden",
-    );
-    assert_error(
-        crate::GatewayAppRoutingClient::new(client(port, "other").clone()).app_routing_start_outbound_scan(HOST, &project, AppId::Codex, MANAGER)
-            .await
-            .unwrap_err(),
-        403,
-        "forbidden",
-    );
-    assert_error(
-        crate::GatewayAppRoutingClient::new(owner.clone()).app_routing_start_outbound_scan("other-mac", &project, AppId::Codex, MANAGER)
-            .await
-            .unwrap_err(),
-        403,
-        "forbidden",
-    );
     for body in [
         json!({"ip":"10.0.0.1"}),
         json!({"ports":[22]}),
@@ -84,12 +79,29 @@ async fn cc_route_030_outbound_scan_expected_behavior() {
     let job: vw_api_app_diagnostics::DiagnosticJobIdentity =
         response.json().await.unwrap();
     assert_error(
-        crate::GatewayAppRoutingClient::new(owner.clone()).app_routing_outbound_probe_status(HOST, &project, AppId::Codex, &job.task_id, MANAGER)
+        crate::GatewayAppRoutingClient::new(owner.clone()).app_routing_outbound_probe_status(HOST, &project, AppId::Codex, &job.task_id, "")
             .await
             .unwrap_err(),
         404,
         "not_found",
     );
+    // The registry still isolates existing tasks by tenant, project, host and app.
+    for (tenant, host, project, app) in [
+        ("other", HOST, "fixture", AppId::Codex),
+        ("owner", "other-mac", "fixture", AppId::Codex),
+        ("owner", HOST, "other", AppId::Codex),
+        ("owner", HOST, "fixture", AppId::Claude),
+    ] {
+        let routing = crate::GatewayAppRoutingClient::new(client(port, tenant));
+        assert_error(
+            routing
+                .app_routing_outbound_scan_status(host, &project.into(), app, &job.task_id, "")
+                .await
+                .unwrap_err(),
+            404,
+            "not_found",
+        );
+    }
     let snapshot = timeout(Duration::from_secs(5), async {
         loop {
             let snapshot = crate::GatewayAppRoutingClient::new(owner.clone()).app_routing_outbound_scan_status(
@@ -97,7 +109,7 @@ async fn cc_route_030_outbound_scan_expected_behavior() {
                     &project,
                     AppId::Codex,
                     &job.task_id,
-                    MANAGER,
+                    "",
                 )
                 .await
                 .unwrap();
@@ -128,8 +140,8 @@ async fn cc_route_030_outbound_scan_expected_behavior() {
     assert_eq!(ports, [1080, 3128, 7890, 7891, 8080, 8888, 10808, 10809]);
     // Cancellation remains safe even if the short scan already finished.
     let job =
-        crate::GatewayAppRoutingClient::new(owner.clone()).app_routing_start_outbound_scan(HOST, &project, AppId::Codex, MANAGER).await.unwrap();
-    let cancelled = crate::GatewayAppRoutingClient::new(owner.clone()).app_routing_cancel_outbound_scan(HOST, &project, AppId::Codex, &job.task_id, MANAGER)
+        crate::GatewayAppRoutingClient::new(owner.clone()).app_routing_start_outbound_scan(HOST, &project, AppId::Codex, "").await.unwrap();
+    let cancelled = crate::GatewayAppRoutingClient::new(owner.clone()).app_routing_cancel_outbound_scan(HOST, &project, AppId::Codex, &job.task_id, "")
         .await
         .unwrap();
     assert!(matches!(

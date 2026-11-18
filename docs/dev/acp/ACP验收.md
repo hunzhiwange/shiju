@@ -1309,3 +1309,14 @@ macOS arm64 的托管安装已实测，指定模型和 Rue.js 落盘验收仍阻
 - 白名单用例和生产安装函数用例均先复现预期失败。补丁后白名单 2 项通过，真实托管安装、注册发现、入口校验及重复安装 1 项通过，耗时 53.18 秒。两包定向 Clippy 退出 0，已有 Codex 测试的 `manual_contains` 告警与本次修改无关。
 - 托管入口在隔离配置根和 HOME 下完成 ACP v1 握手，二进制自报 `corust-acp` 0.1.0。携带原完整模型 ID 的 `session/new` 返回 `-32000 Authentication required`，认证方法为 `oauth_browser`。公开发行仓库提供二进制和扩展清单，未找到可用于实现和验证指定模型的公开源码或配置接口。继续保留 `session_model` 能力门控，需先获得 Corust 授权并验证指定模型接入方式。
 - 未启动新网关或复验 HTTP 安装端点，未修改租户配置或启用预设，未执行 `chat/stream`、页面或浏览器验证。原生探针退出 0，Rue.js 前后 6344 项普通文件 SHA-256 零差异，目标目录不存在。原始证据在本机 0700 目录 `/tmp/shiju-corust-patch.LDrqYV/`。
+
+
+### MiMo Code 定向创建通过（2026-11-18）
+
+结论为通过。用户授权了一次新请求。确认旧会话及网关已停止、目标目录仍为空后，以相同租户、后端、指定模型及写入范围提交一次定向创建。保留前两段超时记录。
+
+- 使用工具目录修复 `901d7c102` 的 shiju 0.6.0 重新定向构建，SHA-256 为 `bc30a706633bac0af6f250cffa1bd5e2c917b33fd04e008f5cf7d7f338913db0`。两项驱动定向单测、包级 Clippy 及 CLI 构建均退出 0。复用已校验的缓存构建产物，系统安装接口 HTTP 200、curl 退出 0、耗时 0.049638 秒，重读已安装。冷安装仍待验证。普通诊断为 `authentication_required`，会话模型能力支持，并确认内置预设启用保存。
+- 会话 `ses_1ed1fb0860015E8zd4Owmu9G4M` HTTP 200、curl 退出 0、耗时 54.207869 秒，收到一条 `chat.done` 且无 `chat.error`。运行中确认为 `acp-mimo-code`、`mimo-code`、`full_access=true`、`connected=true`。选中模型来源为 `session_model`，provider 为 `alibaba-token-plan-cn`，完整模型为 `alibaba-token-plan-cn/deepseek-v4.1-flash-1017`。结束后连接释放，模型绑定仍可重读。
+- 四个写入目标为 `index.html`、`vite.config.ts`、`src/main.tsx`、`README.md`。原生 ACP 在向宿主发出文件写回后仍继续执行原生写入，原生路径被沙箱拒绝，因此同一文件会出现写入失败事件。四项实际文件与工具请求内容逐字节相同，随后由会话读回。页面使用本仓库 `@rue-js/rue` 源码，包含 textarea、基于 computed 的 Unicode 码点计数、localStorage 保存与初始化恢复。README 提供 `pnpm exec vite acpdemo/mimo-code` 启动命令。未运行浏览器或页面构建。[上游 ACP 写回实现](https://github.com/XiaomiMiMo/MiMo-Code/blob/v0.1.17/packages/cli/src/acp/agent.ts)
+- Rue.js 普通文件快照从 6333 项增至 6337 项，摘要差异恰好是上述四个目标文件，目标目录外无变化。私有配置恢复有效停用，除显式 disabled 覆写外与基线一致。私有副本随后删除，原开发配置未收到 PATCH。自有网关退出 0，端口关闭，无残留原生进程。
+- 私有证据 `/tmp/shiju-mimo-code-implementation.wJIgOO/focused-accept/` 保存原始 SSE、会话回读、文件核对、快照及清理结果。未提交 Rue.js 产物、凭据或原始载荷。

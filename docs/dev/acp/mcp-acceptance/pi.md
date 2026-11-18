@@ -36,3 +36,24 @@ v1 私有网关已退出，端口已关闭，副本挂载条目及私有认证�
 - 调用复用受审 macOS stdio 沙箱和单操作 runner。MCP 使用独立临时 HOME、工作区只读视图，禁止网络和派生子进程。受管配置接受绝对路径、无额外环境变量的 stdio。私有验收副本保留 SQLite WAL 与 SHM，供只读沙箱打开原索引。
 - 仓库安装脚本基于固定发行包完成 v2 安装，并校验适配器、扩展和两个 Python 文件的摘要。适配器 SHA-256 为 `579df420c0a8d19f72bf34343e592174ff50d40776fda6311c04f488a44dad60`。TypeScript 定向类型检查退出 0。
 - 用同一个 `patches/acp-model-source/pi/probe.py` 测试原生 Pi 和真实 RustCodeGraph。v1 退出 1，挂载工具表缺三种工具。v2 退出 0，七个场景通过，覆盖无挂载、批准、拒绝、撤除、加载重绑及清除、等待审批时取消，以及宿主规则的拒绝优先。工具审批、结构化 ACP 完成事件和模型续轮以同一调用 ID 核对。真实输出含 `createRueSiteApp`、`mountRueSiteApp` 和 `useApp` 对 `_$createApp` 的调用。
+- 宿主定向命令为 `python3 scripts/cargo_slot.py cargo test -j 1 -p session-engine --lib acp_mcp_mount_carries_resolved_tool_policy`。槽位 6 的 `CARGO_TARGET_DIR` 和 `CARGO_BUILD_BUILD_DIR` 均为仓库的 `target/rust-slot-6`。退出 0，实际 1 项通过，同时断言 Pi 和 Cortex 的宿主工具规则覆盖请求元数据。
+
+## 真实网关复验
+
+- 同一槽位继续执行 `cargo build -j 1 --locked -p vw-cli --bin shiju`，退出 0，用时 15 分 52 秒。私有网关二进制 SHA-256 为 `7f8fb6ab97e9e6b00e6694ce48376e2d50a3ce4b2bff3fff93004b98db824916`。未编译桌面客户端。
+- 首轮复验沿用带工作区改动的 RueJS 副本。三轮 HTTP 200、curl 0、均收到 `chat.done`。无挂载与撤除会话 `ses_1f06917c5001su50lzQ5G7SJjt`、`ses_1f06bc64a001h5zp457hzScbQX` 均回复 `MCP_NOT_AVAILABLE`，目标工具事件为零。
+- 挂载会话 `ses_1f06923800016101sioznYHq1a` 以 172.486 秒完成。三个工具分别成功 65、8、30 次。模型另有 12 次节点读取和 2 次查询失败，涉及副本中不存在的路径和工作区外未建索引的父目录。实际失败由 RustCodeGraph 返回并被 ACP 标记为失败，故该轮未通过严格验收。随后改用同一提交的干净存档重新索引，保持请求提示、模型、租户、服务名与批准方式。
+
+干净副本索引 3478 个文件。三轮 HTTP 200、curl 0、各一个 `chat.done`，没有 `chat.error`。UI summary 均为 `acp-pi / pi`、`full_access=true`，在线 ACP options 均回读 `partial` 及指定模型，结束后仍可重读选模。挂载轮使用原生 stdio，仅向模型登记该服务的三种目标 MCP 工具。SSE 实际调用均来自这三种工具。单独的标题生成仍出现上游 403。
+
+| 轮次 | 新会话 | 耗时 | 工具或回复 |
+| --- | --- | --- | --- |
+| 无挂载 | `ses_1f06bd8b4001r7QhWNnD1bvgqS` | 2.932 秒 | `MCP_NOT_AVAILABLE`，零工具事件 |
+| 挂载 | `ses_1f06be48d001HfTPqL6mYVh4Of` | 208.494 秒 | 1105 条工具事件，128 次成功、7 次失败 |
+| 撤除 | `ses_1f06f132a001UfsbWhsqLMUBE1` | 2.968 秒 | `MCP_NOT_AVAILABLE`，零工具事件 |
+
+- `rustcodegraph_query` 的 `call_2216a55a4d844a3ba9035064` 返回 `createRueSiteApp`（`app/app.tsx:32`）。
+- `rustcodegraph_callers` 的 `call_348abb999b42411b81609250` 返回 `mountRueSiteApp`（`app/app.tsx:39`）。
+- `rustcodegraph_node` 的 `call_d2fe89c968474f7193407eb6` 返回 `useApp`（`packages/runtime/src/hooks/useApp.ts:4`）转调 `_$createApp` 的源码。三个 ID 均有真实开始和成功完成事件。
+
+答复按源码追踪了完整调用链、SSR 与浏览器分支、缺少 `#app` 时的异常、路由与 i18n 的安装顺序、`/rust-layers` 的布局分支，指出索引遗漏，并给出静态快照冷启动及切换路由后卸载的两项可检验预期。6 次 `node` 失败来自模型猜测的不存在路径，1 次 `query` 失败来自把源文件传为索引项目目录。所有失败均在 SSE 中记录失败状态，参与答复的目标调用和续轮已获得真实证据。严格三轮验收待回归，复跑条件为原模型在挂载轮完成调查且未发起上述无效查询。两份私有挂载、认证文件及网关进程已清理，槽位已释放。

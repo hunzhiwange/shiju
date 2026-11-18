@@ -96,17 +96,12 @@ pub fn update(
     app: &mut crate::app::App,
     message: TaskBoardMessage,
 ) -> iced::Task<crate::app::Message> {
+    if let Some(task) = super::work_view_prefs::update(app, &message) {
+        return task;
+    }
     match &message {
         TaskBoardMessage::SelectWorkView(view) => {
             app.task_board.switch_work_view(*view);
-            return iced::Task::none();
-        }
-        TaskBoardMessage::TogglePersonalTask(id) => {
-            if let Some(path) = app.navigation_tabs.project_path.clone() {
-                let ids = app.task_board.personal_tasks.entry(path).or_default();
-                if ids.contains(id) { ids.retain(|item| item != id); } else { ids.push(id.clone()); }
-                app.task_board.task_board_selected_tasks.remove(id);
-            }
             return iced::Task::none();
         }
         TaskBoardMessage::OpenWorkProject(path) => {

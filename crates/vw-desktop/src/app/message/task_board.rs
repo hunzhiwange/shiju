@@ -27,6 +27,7 @@ use crate::app::task::{
 mod helpers;
 mod message;
 mod update;
+mod work_view_prefs;
 
 pub(crate) use helpers::sync_task_logs_editor;
 pub use message::TaskBoardMessage;

@@ -10,6 +10,16 @@ pub enum TaskBoardViewMode {
 }
 
 pub struct State {
+    pub work_prefs_project: Option<String>,
+    pub saved_work_views: Vec<crate::work_views::SavedWorkView>,
+    pub selected_work_view: Option<String>,
+    pub work_filter: crate::work_views::WorkViewFilter,
+    pub work_editor_open: bool,
+    pub work_view_name: String,
+    pub work_status_input: String,
+    pub work_min_input: String,
+    pub work_max_input: String,
+    pub work_agent_input: String,
     pub work_view: crate::work_views::BuiltinWorkView,
     pub personal_tasks: HashMap<String, Vec<String>>,
     /// 是否显示任务看板
@@ -185,6 +195,16 @@ impl State {
     pub fn new(cfg: &serde_json::Value, acp_agent: Option<String>, init_ms: u64) -> Self {
         Self {
             // ========== 任务板基础状态 ==========
+            work_prefs_project: None,
+            saved_work_views: Vec::new(),
+            selected_work_view: None,
+            work_filter: Default::default(),
+            work_editor_open: false,
+            work_view_name: String::new(),
+            work_status_input: String::new(),
+            work_min_input: String::new(),
+            work_max_input: String::new(),
+            work_agent_input: String::new(),
             work_view: crate::work_views::BuiltinWorkView::AllTasks,
             personal_tasks: HashMap::new(),
             show_task_board: false,
@@ -329,6 +349,9 @@ impl State {
 impl State {
     pub fn work_task_visible(&self, project: &str, task: &desktop_task_model::Task) -> bool {
         self.work_task_matches(project, self.work_view, task)
+            && desktop_task_model::task_workflow_by_id(&self.task_board_settings.workflow_id)
+                .or_else(|| desktop_task_model::task_workflow_by_id(desktop_task_model::DEFAULT_TASK_WORKFLOW_ID))
+                .is_some_and(|workflow| self.work_filter.matches(task, &workflow))
     }
     pub fn work_task_matches(&self, project: &str, view: crate::work_views::BuiltinWorkView, task: &desktop_task_model::Task) -> bool {
         let workflow = desktop_task_model::task_workflow_by_id(&self.task_board_settings.workflow_id)
@@ -337,6 +360,13 @@ impl State {
     }
     pub fn switch_work_view(&mut self, view: crate::work_views::BuiltinWorkView) {
         self.work_view = view;
+        self.selected_work_view = None;
+        self.work_filter = Default::default();
+        self.work_view_name.clear();
+        self.work_status_input.clear();
+        self.work_min_input.clear();
+        self.work_max_input.clear();
+        self.work_agent_input.clear();
         self.task_board_selected_tasks.clear();
         self.task_board_bulk_active_status = None;
         self.task_board_dragging = None;

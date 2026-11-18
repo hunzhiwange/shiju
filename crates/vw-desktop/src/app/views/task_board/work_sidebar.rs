@@ -19,7 +19,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
             .iter()
             .filter(|task| app.task_board.work_task_matches(project, view, task))
             .collect();
-        let selected = if app.task_board.work_view == view { "• " } else { "" };
+        let selected = if app.task_board.work_view == view && app.task_board.selected_work_view.is_none() { "• " } else { "" };
         content = content.push(
             button(text(format!("{selected}{label}  {}", tasks.len())).size(14))
                 .padding([8, 10])
@@ -44,8 +44,19 @@ pub fn view(app: &App) -> Element<'_, Message> {
     content = content
         .push(text("按当前项目工作流的执行中状态筛选").size(11))
         .push(text("全部视图").size(16))
-        .push(text("暂无保存视图").size(12))
-        .push(text("项目").size(16));
+        .push(text("当前项目保存的快捷入口").size(11));
+    if app.task_board.saved_work_views.is_empty() {
+        content = content.push(text("暂无保存视图").size(12));
+    }
+    for view in &app.task_board.saved_work_views {
+        let selected = if app.task_board.selected_work_view.as_ref() == Some(&view.id) { "• " } else { "" };
+        content = content.push(
+            button(text(format!("{selected}{}", view.name)).size(13))
+                .padding([8, 10]).style(rounded_action_btn_style).width(Length::Fill)
+                .on_press(Message::TaskBoard(TaskBoardMessage::OpenSavedWorkView(view.id.clone()))),
+        );
+    }
+    content = content.push(text("项目").size(16));
     let labels = desktop_workspace::projects::recent_project_labels(
         &app.workspace_state.recent_projects,
         &app.workspace_state.recent_projects_meta,

@@ -76,7 +76,7 @@ class MacosSigningTests(unittest.TestCase):
         self.root = Path(self.temp.name)
         self.bin = self.root / "bin"
         self.bin.mkdir()
-        for name in ("security", "xcrun", "cargo", "codesign", "ditto", "spctl", "hdiutil", "sleep"):
+        for name in ("security", "xcrun", "cargo", "strip", "codesign", "ditto", "spctl", "hdiutil", "sleep"):
             mock = self.bin / name
             mock.write_text(MOCK)
             mock.chmod(0o700)

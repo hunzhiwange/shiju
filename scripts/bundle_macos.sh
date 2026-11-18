@@ -439,6 +439,15 @@ python3 "$(dirname "$0")/computer_control/install_local.py" stage \
 
 ensure_app_icon
 
+# Drop local symbols from the packaged release binaries before signing.
+if [[ "$PROFILE" == "release" || "$PROFILE" == "dist" ]]; then
+  echo "Stripping local symbols from bundled executables..."
+  strip -x "$DEST_DIR/$DESKTOP_BIN_NAME"
+  if [ "$INCLUDE_CLI_IN_APP" = "1" ]; then
+    strip -x "$DEST_DIR/$CLI_BIN_NAME"
+  fi
+fi
+
 if [ "$MACOS_SIGN_MODE" = "developer-id" ]; then
   prepare_signing_keychain
   echo "Signing embedded binaries with Developer ID..."

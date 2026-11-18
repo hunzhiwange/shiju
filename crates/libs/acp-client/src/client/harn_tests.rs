@@ -5,10 +5,10 @@ async fn model_control(agent: &str, wrong_readback: bool) -> (Result<(), AcpErro
     let script = directory.path().join("peer.py");
     let frames = directory.path().join("frames.jsonl");
     std::fs::write(&script, r#"
-import json,sys
+import json,os,sys
 for line in sys.stdin:
  r=json.loads(line)
- with open(sys.argv[1],'a') as f:f.write(line)
+ with open(sys.argv[1],'a') as f:f.write(json.dumps(dict(r,processCwd=os.getcwd()))+'\n')
  if 'method' not in r:continue
  m=r['method']
  if m=='initialize':result={'protocolVersion':1,'agentCapabilities':{},'authMethods':[]}
@@ -47,11 +47,16 @@ for line in sys.stdin:
     .await
     .unwrap();
     client.close().await.unwrap();
-    let frames = std::fs::read_to_string(frames)
+    let frames: Vec<serde_json::Value> = std::fs::read_to_string(frames)
         .unwrap()
         .lines()
         .map(|line| serde_json::from_str(line).unwrap())
         .collect();
+    if agent == "poolside" {
+        let initialize = frames.iter().find(|frame| frame["method"] == "initialize").unwrap();
+        let cwd = Path::new(initialize["processCwd"].as_str().unwrap());
+        assert_eq!(cwd.canonicalize().unwrap(), directory.path().canonicalize().unwrap());
+    }
     (result, frames)
 }
 

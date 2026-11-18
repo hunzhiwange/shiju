@@ -35,3 +35,21 @@
 同一受审二进制分别在三个私有 HOME 下处理 `session/new`，传入空列表、单条 stdio 服务和空列表。回环模型端点依次收到 0、8、0 个目标服务工具声明，挂载轮三种目标工具的结构化定义齐全。控制的 `query` 调用执行了真正的 RustCodeGraph，`app/app.tsx:32` 的命中内容出现在下一条模型请求。三轮 `session/prompt` 均返回 `end_turn`。该探针用于验证协议续轮边界，真实网关三轮另见上表。
 
 保持现有实现和权限，未改 Rust 或受管补丁。转发和会话生命周期未出现故障，未运行编号任务中的定向 Cargo 测试。临时挂载配置和私有网关的供应商凭据已撤除，探针子进程已退出，私有端口已关闭。档案中的 4109 个文件和链接经回读与基准一致，副本仅有索引产生的新增文件。原始日志位于本机 0700 私有验收目录。
+
+## 共享构建复验通过
+
+使用当前共享槽位 6 的 `shiju 0.6.0` 私有副本，SHA-256 为 `6954a2bb76ca26aa39c3b0dd909786c68b85f336648526ef39651b1e3a31f718`。保持同一 Kilocode 7.8.18 受管入口、RustCodeGraph 1.2.10、RueJS 提交、请求提示、模型、租户和权限。挂载轮通过私有 stdio 转发器运行原图谱二进制。转发器只公布合同指定的三种工具，并在工具描述中补充源码分页方式、实际入口名以及索引根说明。
+
+独立协议对照确认，直连目录有 8 项，转发目录有 3 项。相同的查询、调用者查找和从第 787 行开始的源码分页得到逐项一致的真实结果。额外的 `files` 调用及副本外的源码读取均被转发器拒绝。转发器仅用于此次私有验收。
+
+| 轮次 | 新会话 | HTTP / curl / 秒 | SSE 与结果 |
+| --- | --- | --- | --- |
+| 无挂载 | `ses_1f03a9f5a00180eayUeoi39LKD` | 200 / 0 / 8.844667 | `chat.done`，仅 `MCP_NOT_AVAILABLE`，零工具 |
+| 挂载 | `ses_1f03ac2d9001xyuosNZMHtMkqW` | 200 / 0 / 139.069127 | `chat.done`，仅三种指定工具，50 次完成 |
+| 撤除 | `ses_1f03ce2ba0013YpHye6IMClhNP` | 200 / 0 / 8.267320 | `chat.done`，仅 `MCP_NOT_AVAILABLE`，零工具 |
+
+- 每轮恰有一个 `chat.done`，无 `chat.error` 或模型恢复事件。挂载轮 250 条工具状态事件对应 19 次 query、4 次 callers 和 27 次 node，均有成对的开始与完成和实际输出，无失败状态。空查询结果由图谱如实返回。
+- `call_621db9ac4cc74070b1cb0d7b` 命中 `createRueSiteApp`（`app/app.tsx:32`）。`call_42dd223a09ec4f54976994ae` 返回调用者 `mountRueSiteApp`（`app/app.tsx:39`）。`call_43fc1c7edf564c82a00d9155` 与 `call_33ba5b7fcc184d9a8de7773f` 分别读取 `useApp`（`packages/runtime/src/hooks/useApp.ts:4`）和 `_$createApp`（`packages/runtime/src/compiler-runtime/app.ts:57`）的源码。另一次分页读到了路由工厂。
+- 答复覆盖完整调用链、SSR、容器缺失、路由与 i18n 的安装时机及布局条件，并核对了当前路由表中缺少 `/rust-layers`。答复把去掉清空逻辑后的重复 DOM 和滞留节点作为源码推断，提出静态文档首屏接管和从首页切到 `/jsx` 两个有明确预期的场景。具体浏览器计数未运行。
+- 三轮 UI summary 均确认 `acp-kilocode / kilocode` 和 `full_access=true`。ACP options 均回读指定提供商、模型及 `session_model`，运行时为 `client_only`，终态已断开。网关仍记录了独立标题任务的两条 HTTP 403，指定模型的对话流均正常结束。
+- 私有网关、Kilocode 及 MCP 进程已退出，端口已关闭，临时挂载和私有凭据已清理。副本的 4109 个档案文件和链接逐项比对一致，新增内容只有索引。原有网关健康。本轮只更新验收记录，未改运行时代码或执行 Cargo。

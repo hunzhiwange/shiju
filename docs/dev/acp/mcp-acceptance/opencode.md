@@ -40,6 +40,36 @@ RueJS 位于 `main`，基准提交 `14fe287b13549f5183d42fbc45b28e1498ffae1c`。
 
 独立回环探针使用同一受管 OpenCode 二进制与真实 stdio RustCodeGraph。三个独立 ACP 进程的 `session/new` 分别传入空列表、带 `ruejs_graph_probe` 的列表和空列表。三个 `session/prompt` 均以 `end_turn` 结束，本地 Chat Completions 端观测到的目标服务工具定义数依次为 0、8、0。挂载轮可见 `query`、`callers`、`node` 的结构化 schema，实际查询命中 `app/app.tsx:32`，该工具结果出现在续轮请求。回环只用于观测协议边界，真实网关的走查结果另有 SSE 和会话重读佐证。
 
+## 共享工作区复查
+
+以 `76db6b6b7` 为复查起点。对比前次验收后进入共享分支的修改，OpenCode 驱动、ACP 建会话转发、受管合约的 OpenCode 键均无相关变更。使用已授权、预设已启用的现有网关，基于同一干净提交重建索引。RustCodeGraph 1.2.10 的 `query createAppRouter` 仍无命中，但命令行按文件偏移读取可见 `app/router/index.ts:787` 中的真实定义。
+
+扩展独立回环探针，挂载轮按顺序调用 `query(createRueSiteApp)`、`callers(createRueSiteApp)` 和 `node(useApp)`。真实结果分别包含 `app/app.tsx:32`、`mountRueSiteApp` 和 `_$createApp`，三个调用 ID 均在续轮的 tool 消息中匹配。无挂载、挂载和撤除对应目标 schema 数仍为 0、8、0。三个独立 ACP 进程均返回 `end_turn`。
+
+额外验证工具目录是否导致失败。宿主的 `allowedTools` 用于宿主管理的 MCP 工具，原生 ACP `session/new` 只接收服务器定义，RustCodeGraph stdio 也无原生工具列表过滤开关。补充探针在私有目录通过 stdio 转发原始 RustCodeGraph，仅公布三种指定工具、拒绝其他工具名和不同的 projectPath，逐条透传真实调用与输出。两组使用原提示散列、真实模型、原租户、原权限申请和新会话。
+
+### 原生 stdio 复跑
+
+| 轮次 | 新会话 | HTTP / curl | SSE 与结果 |
+| --- | --- | --- | --- |
+| 无挂载 | `ses_1eff04fd2001671vs4cm9fZl7Y` | 200 / 0，18.074 秒 | `chat.done`，`MCP_NOT_AVAILABLE`，零工具事件 |
+| 挂载 | `ses_1eff096a80014pXRgGf1uRneB5` | 200 / 0，230.108 秒 | `chat.done`，无 `chat.error`，156 个调用，其中 2 个失败 |
+| 撤除 | `ses_1eff419d1001H92CafCd1NTkEj` | 200 / 0，16.980 秒 | `chat.done`，`MCP_NOT_AVAILABLE`，零工具事件 |
+
+挂载轮的 query、callers、node 分别成功 90、10、39 次。首次额外调用仍为 `rustcodegraph_status`（`call_5309d6325e9e479d9850ea4b`），另调用 files 和 explore。两次失败分别请求了不存在的 `app/router.ts` 和 `app/i18n.ts`。答复重建了主调用链并覆盖五项分支和影响，但第二个验证场景所假设的 `/rust-layers` 布局快照缺少源文件依据。首个不符合项仍发生在模型选工具时。
+
+### 三工具 stdio 补充探针
+
+| 轮次 | 新会话 | HTTP / curl | SSE 与结果 |
+| --- | --- | --- | --- |
+| 无挂载 | `ses_1eff18171001Dap61d0Hh3Ih2s` | 200 / 0，17.803 秒 | `chat.done`，`MCP_NOT_AVAILABLE`，零工具事件 |
+| 挂载 | `ses_1eff1c739001287yT3C81cJWXC` | 200 / 0，282.050 秒 | `chat.done`，无 `chat.error`，156 个调用，其中 2 个失败 |
+| 撤除 | `ses_1eff615a8001gX0swhCY4N3sZs` | 200 / 0，17.449 秒 | `chat.done`，`MCP_NOT_AVAILABLE`，零工具事件 |
+
+挂载轮只有三种目标工具，query、callers、node 分别成功 104、8、42 次。第一个失败仍是 RustCodeGraph 读取不存在的 `app/router.ts`（`call_84ebacda5213469591d1be83`）。第二次失败由探针误将副本内的 `app` 子目录拒于项目根之外。修正探针后独立重放两个参数：首次仍返回文件不存在，第二次由 RustCodeGraph 返回子目录未初始化。模型答复覆盖主调用链、分支和两项快照场景，但仍未取到路由工厂的真实定义。两组会话绑定、指定选模、`client_only` 权限及终态连接释放与之前一致。
+
+本轮所有临时挂载均撤除，匹配两个私有副本的残留图谱进程已退出，用户网关仍健康。完整验收仍取决于指定模型使用有效工具参数并符合三种工具约束。维持当前模型与合同的情况下，需要模型遵循工具约束，并使用当前索引支持的参数。索引公开缺失定义及 MCP 分页能力可以减少模型猜测，相关改动属于 RustCodeGraph。放宽验收合同须由计划负责人决定。
+
 ## 收尾
 
 模型选工具和缺失路径读取发生在原生 MCP 已可用、工具结果已能回传之后。保留现有 OpenCode 转发、选模与权限实现，Rust 定向测试未触发。两份临时挂载配置已撤除，探针子进程已退出，原网关仍健康。干净快照中 4109 个归档文件及链接与基准一致，排除索引后没有新增文件。请求、响应头、SSE 和协议原始日志留在本机权限为 0700 的私有目录。

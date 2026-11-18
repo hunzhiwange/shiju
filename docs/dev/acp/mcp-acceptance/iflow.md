@@ -1,5 +1,7 @@
 # iFlow 动态挂载 RustCodeGraph
 
+2026-11-19，RustCodeGraph 1.2.11 限定目录通过严格三轮验收。
+
 ## 环境
 
 - 2026-11-19 在 Darwin arm64 复用 `shiju 0.6.0`，构建 SHA-256 为 `e61098c0a9a4f5a6c6f658b191741bc880b4591031ef9d7dae3d9257af66882f`。私有回环网关使用租户配置快照，仅在该实例启用 `acp-iflow`。初跑三轮因快照缺少供应商凭据，在启动 ACP 前返回 `ProviderAuthError`。使用现有授权来源补齐私有配置后重跑。
@@ -56,3 +58,29 @@
 答复覆盖完整启动链、SSR、容器缺失、插件安装和布局分支，提出静态快照冷启动及客户端路由切换两项验证。对照源码，答复在快照分析中把 `replaceChildren()` 的位置写成 `app/app.tsx:45`，实际是第 47 行。浏览器场景未运行。
 
 复验仍阻塞于模型调用超出合同，且产生一次输入路径错误。原生 stdio 接线已在两次真实挂载和独立协议探针中得到验证。复验未改代码、未运行 Cargo，私有网关、子进程及端口已确认关闭，私有凭据与配置快照已清理。
+
+## RustCodeGraph 1.2.11 严格三轮验收
+
+沿用上文相同的受管 iFlow 0.5.19、shiju 构建、RueJS 提交、请求、租户、指定模型及访问配置。1.2.11 发行 SHA-256 为 `5fab2f2dbf506ddf71d842ef1a7cd6e744c5ec90ff3f5f043ea020e1b3696312`，重建索引覆盖 3478 个文件并直接命中 `createAppRouter`（`app/router/index.ts:787`）。仅挂载轮的副本启用 `ruejs_graph_probe`，复用 Goose 已验证的限定 stdio 目录，并配置现有 `allowedTools` 为三个目标工具。转发器只筛选目录并补充真实入口文件名、分页和索引根说明，获准工具的参数及结果原样转发。iFlow 仍使用原生 ACP stdio 接线。[发行校验](pi.md) · [限定目录对照](goose.md)
+
+独立 MCP 对照确认直连公布 8 项、限定目录公布 3 项。query、callers 及带 `offset`、`limit` 的 node 返回与直连一致，额外工具和副本外路径均被拒绝。另以受管 iFlow 直连回环模型验证空、挂载、空三次 `session/new`，只在挂载轮向模型声明三种图谱工具，三次 `session/prompt` 均以 `end_turn` 结束。
+
+| 轮次 | 新会话 | HTTP / curl / 秒 | 可见正文与工具 |
+| --- | --- | --- | --- |
+| 无挂载 | `ses_1f1081bdc001i620LH1tN4inKQ` | 200 / 0 / 5.348438 | 精确 `MCP_NOT_AVAILABLE`，零工具 |
+| 挂载 | `ses_1f108315c001rBwNX5CC3YJUbH` | 200 / 0 / 179.392651 | 调查答复，70 次工具调用全部成功 |
+| 撤除 | `ses_1f10aef8a001jOcH7BOpFe4pzE` | 200 / 0 / 5.136415 | 精确 `MCP_NOT_AVAILABLE`，零工具 |
+
+每轮各有一个 `chat.done`，无 `chat.error` 或 `chat.model_recovery`。对照轮原始 delta 含独立 `<think>` 段。独立标题生成仍出现另一模型的 HTTP 403。运行中回读确认 `acp-iflow / iflow`、`full_access=true`、权限 `partial` 和指定 `session_model`。终态选模一致，连接关闭。挂载轮无 Shell、写入或审批事件。
+
+210 条工具事件按调用 ID 配对为 70 次开始、更新和完成。只有以下工具。
+
+| 工具 | 成功次数 | 代表性调用和返回 |
+| --- | --- | --- |
+| `rustcodegraph_query` | 27 | `call_9285b2ec02224416be0ad9c0` 返回 `createRueSiteApp`（`app/app.tsx:32`），`call_02d991c2908a45c6b0e52e83` 返回 `createAppRouter`（`app/router/index.ts:787`） |
+| `rustcodegraph_callers` | 2 | `call_cc3ddfe4642e41598fca9ab3` 返回 `mountRueSiteApp`（`app/app.tsx:39`） |
+| `rustcodegraph_node` | 41 | `call_bd9baed0e06b4d748c3b0441` 返回 `useApp` 到 `_$createApp` 的源码，`call_6090575b173d46afb1cb3543` 返回运行时工厂和插件安装路径 |
+
+答复核对了完整调用链、浏览器与 SSR 入口、容器缺失错误、路由及 i18n 安装、布局绕过条件和当前路由表。它区分了源码未命中索引和实际定义，并推断移除清空后旧快照与新挂载并存。两项场景分别检查带预置哨兵的快照采集，以及带 app 客户端入口的静态产物首次挂载与导航。第二项中的重复 ID 依赖页面含对应 ID，布局计数也取决于所选快照。未运行 RueJS 构建或浏览器场景。
+
+验收通过。仅修改本记录，未运行 Cargo。私有网关及子进程已退出，端口关闭，挂载条目、私有配置及凭据副本已清理。

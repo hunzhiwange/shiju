@@ -40,9 +40,19 @@ fn diagnostic_api_start_authorizes_before_execution() -> anyhow::Result<()> {
             "host_migration_4_tests::start::diagnostic_api_start_authorizes_before_execution",
             "--nocapture",
         ])
+        .env_clear()
+        .env("PATH", "/usr/bin:/bin")
         .env(CHILD, root.path())
         .env("VIBEWINDOW_TEST_ROOT", root.path())
         .env("HOME", root.path())
+        .env("TMPDIR", root.path())
+        .env("XDG_CONFIG_HOME", root.path().join("xdg-config"))
+        .env("XDG_CACHE_HOME", root.path().join("xdg-cache"))
+        .env("XDG_DATA_HOME", root.path().join("xdg-data"))
+        .env("XDG_STATE_HOME", root.path().join("xdg-state"))
+        .env("CODEX_HOME", root.path().join("codex"))
+        .env("CLAUDE_CONFIG_DIR", root.path().join("claude"))
+        .env("VIBEWINDOW_CONFIG_DIR", root.path().join("shiju-config"))
         .status()?;
     anyhow::ensure!(status.success(), "isolated start test failed: {status}");
     Ok(())

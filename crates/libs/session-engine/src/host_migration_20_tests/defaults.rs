@@ -87,6 +87,7 @@ async fn acp_mcp_mount_carries_resolved_tool_policy() {
                     "deniedTools": ["node"],
                     "_meta": {
                         "shiju.cortex.toolPolicy": {"allow": ["ambient"], "deny": []},
+                        "shiju.deepagents.toolPolicy": {"allow": ["ambient"], "deny": []},
                         "shiju.pi.toolPolicy": {"allow": ["ambient"], "deny": []}
                     }
                 }]
@@ -101,6 +102,7 @@ async fn acp_mcp_mount_carries_resolved_tool_policy() {
         STATE.with(|state| *state.borrow_mut() = resolved);
         for (backend, key) in [
             ("cortex-code", "shiju.cortex.toolPolicy"),
+            ("deepagents", "shiju.deepagents.toolPolicy"),
             ("pi", "shiju.pi.toolPolicy"),
         ] {
             let agent_key = format!("acp-{backend}");

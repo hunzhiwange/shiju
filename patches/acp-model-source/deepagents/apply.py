@@ -89,4 +89,9 @@ shutil.copy2(Path(__file__).with_name('guard.mjs'), root / 'dist/shiju-guard.mjs
 
 for name in ('mcp.mjs', 'mcp.py'):
     shutil.copy2(Path(__file__).with_name(name), root / ('dist/shiju-' + name))
-shutil.copy2(Path(__file__).parents[1] / 'cortex-code/mcp_bridge.py', root / 'dist/shiju-stdio.py')
+# Reuse the stdio transport without incorporating the Cortex ACP bridge.
+bridge = (Path(__file__).parents[1] / 'cortex-code/mcp_bridge.py').read_text()
+stdio, marker, _ = bridge.partition('\nclass Bridge:')
+if not marker:
+    raise SystemExit('Reviewed stdio transport boundary is missing')
+(root / 'dist/shiju-stdio.py').write_text(stdio.rstrip() + '\n')

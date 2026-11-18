@@ -118,6 +118,7 @@ pub async fn apply_agent_defaults<H: DefaultsHost, S>(
             let mut selected = server.clone();
             let policy_key = match backend {
                 "cortex-code" => Some("shiju.cortex.toolPolicy"),
+                "deepagents" => Some("shiju.deepagents.toolPolicy"),
                 "pi" => Some("shiju.pi.toolPolicy"),
                 _ => None,
             };

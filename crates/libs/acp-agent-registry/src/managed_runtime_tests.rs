@@ -85,7 +85,7 @@ fn deepagents_session_mcp_uses_a_separate_reviewed_install() {
     assert!(
         super::installed_directory("deepagents", &contract)
             .unwrap()
-            .ends_with("deepagents-0.1.42-model-source-v3")
+            .ends_with("deepagents-0.1.42-model-source-v4")
     );
 }
 

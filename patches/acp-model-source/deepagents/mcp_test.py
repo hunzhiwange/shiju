@@ -19,7 +19,11 @@ TARGETS = [
 ]
 NAMES = [f'{SERVICE}__{name}' for name, _, _ in TARGETS]
 MOUNT = {'name': SERVICE, 'command': str(GRAPH),
-         'args': ['serve', '--mcp', '--path', str(WORKSPACE), '--no-watch'], 'env': []}
+         'args': ['serve', '--mcp', '--path', str(WORKSPACE), '--no-watch'], 'env': [],
+         '_meta': {'shiju.deepagents.toolPolicy': {
+             'allow': [name for name, _, _ in TARGETS] + ['rustcodegraph_status'],
+             'deny': [f'mcp__{SERVICE}__rustcodegraph_status'],
+         }}}
 
 
 def scenario(endpoint, home, mounted, approval):
@@ -144,7 +148,8 @@ def run(home, mounted, approval):
             thread.join()
 
     names = {desc['function']['name'] for desc in requests[0]['tools']}
-    assert (set(NAMES) <= names if mounted else not (set(NAMES) & names)), names
+    assert {name for name in names if name.startswith(SERVICE + '__')} == (
+        set(NAMES) if mounted else set()), names
     output = [msg['content'] for msg in requests[-1]['messages'] if msg['role'] == 'tool']
     wanted = [text if approval == 'allow-once' else 'Tool execution denied' for _, _, text in TARGETS]
     assert len(output) == (len(wanted) if mounted else 0), output

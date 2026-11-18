@@ -5,8 +5,12 @@ fn acp_onboarding_dimcode_registry_contract() {
     let specs = built_in_agent_specs();
     let spec = specs.get("dimcode").expect("DimCode must be registered");
     assert_eq!(spec.display_name, "DimCode");
-    assert_eq!(spec.command, "npx");
-    assert_eq!(spec.args, ["-y", "dimcode@0.5.28", "acp"]);
+    if spec.command == "npx" {
+        assert_eq!(spec.args, ["-y", "dimcode@0.5.28", "acp"]);
+    } else {
+        assert_eq!(std::path::Path::new(&spec.command).file_stem().unwrap(), "dim");
+        assert_eq!(spec.args, ["acp"]);
+    }
 }
 
 async fn run_peer(deny: bool, stdio: bool) {
@@ -16,14 +20,24 @@ async fn run_peer(deny: bool, stdio: bool) {
     let capture = directory.path().join("frames.jsonl");
     std::fs::write(&script, r#"
 import json,sys
+permission_options=[{
+ 'id':'permission', 'name':'Permission', 'type':'select', 'currentValue':'read-only',
+ 'options':[{'value':value,'name':value} for value in ('read-only','workspace-write','full-access')]
+}]
+permission_confirmed=False
 for line in sys.stdin:
  r=json.loads(line)
  with open(sys.argv[1],'a') as f:f.write(line)
  if 'method' not in r:continue
  m=r['method']
  if m=='initialize':result={'protocolVersion':1,'agentCapabilities':{},'authMethods':[]}
- elif m=='session/new':result={'sessionId':'dimcode-fixture'}
+ elif m=='session/new':result={'sessionId':'dimcode-fixture','configOptions':permission_options}
+ elif m=='session/set_config_option':
+  assert r['params']=={'sessionId':'dimcode-fixture','configId':'permission','value':'read-only'},r
+  permission_confirmed=True
+  result={'configOptions':permission_options}
  elif m=='session/prompt':
+  assert permission_confirmed,r
   if r['params']['prompt'][0]['text']=='cancel':
    cancel=json.loads(sys.stdin.readline())
    with open(sys.argv[1],'a') as f:f.write(json.dumps(cancel)+'\n')

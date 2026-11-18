@@ -1,6 +1,6 @@
 # DimCode 动态挂载 RustCodeGraph
 
-2026-11-19，验证固定版 DimCode 0.5.28 的 ACP 会话。宿主明确拒绝 stdio 挂载，原生 Streamable HTTP 路径完成了三种真实只读工具调用。
+2026-11-19，验证固定版 DimCode 0.5.28 的 ACP 会话。宿主明确拒绝 stdio 挂载，原生 Streamable HTTP 和 SSE 路径均完成了三种真实只读工具调用。
 
 ## 环境与请求
 
@@ -42,10 +42,30 @@
 
 从 RueJS 副本目录启动桥接后重新挂载，会话 `ses_1efd619710012ExtVPzgHswn9n` 首段 HTTP 200、curl 28、300.010 秒。随后使用原请求标识及游标续传，HTTP 200，仍有目标工具结果。两段共完成 query 115 次、callers 2 次、node 84 次，桥接记录 15 次 `isError=true`。也出现了 `glob`、`skill` 与 `grep`。确认复跑已违反合同后关闭私有网关，续传以 curl 18 结束，未收到 `chat.done` 或 `chat.error`。该复跑未再发撤除轮，撤除证据来自首组已完成的 HTTP 三轮。
 
+## SSE 复验
+
+以同版本 Supergateway 的 SSE 传输桥接真实 RustCodeGraph，沿用回环绑定、Bearer 鉴权和三项工具的公开范围。首次夹具误启动了两套进程并共享私有目录，清理时相互影响，撤除轮报缺少模型凭据。该轮只用于诊断，复跑使用新目录、单一网关和桥接，原提示及模型保持一致。
+
+| 轮次 | 新会话 | HTTP / curl 退出码 / 秒 | SSE 终态及结果 |
+| --- | --- | --- | --- |
+| 无挂载 | `ses_1eff2b107001xduPn7OyKWH94b` | 200 / 0 / 5.638 | `chat.done`，`MCP_NOT_AVAILABLE`，零工具事件 |
+| 挂载 | `ses_1eff2c7b6001IjptjvhMfvdCQF` | 首段 200 / 28 / 300.009，续传 200 / 0 / 153.436 | 原请求和游标续传后收到一个 `chat.error` |
+| 撤除 | `ses_1eff9b53e001JG615aoNIKd3XB` | 200 / 0 / 4.217 | 桥接仍在线，`chat.done`，`MCP_NOT_AVAILABLE`，零工具事件 |
+
+三轮 UI summary 和 ACP options 核对同一绑定、`full_access=true`、指定会话模型和 `client_only` 权限状态。终态连接均释放。挂载轮两段工具完成事件包含 query 211 次、callers 11 次、node 81 次和原生 `exec` 一次。桥接报告 5 次 `isError=true`，均为模型猜测了不存在的文件，包含 `app/router.tsx`、`app/router.ts`、`app/i18n.ts` 和 `app/index.html`。观察到原生 `exec` 使用 `true` 并获逐次放行后，终止本轮私有 DimCode 进程。宿主以 `server shut down unexpectedly` 结束挂载流，未取得可验收的完整答复。撤除轮在同一私有网关另建会话。
+
+| 工具 | 独立 SSE 复跑代表调用 ID | 回执 |
+| --- | --- | --- |
+| `rustcodegraph_query` | `call_195dffb39fc144dc9c5998e7` | `createRueSiteApp` 位于 `app/app.tsx:32` |
+| `rustcodegraph_callers` | `call_c304ff961b8c4623b32d1a16` | `mountRueSiteApp` 位于 `app/app.tsx:39` |
+| `rustcodegraph_node` | `call_9ce390a95c514c40abef0c6a` | `packages/runtime/src/hooks/useApp.ts:4` 调用 `_$createApp` |
+
+固定版 `dim acp` 的参数解析仅处理帮助、认证和已移除的远程模式。包内允许工具的命令行参数属于 headless 路径。宿主 `acp_allowed_tools` 则通过 `claudeCode.options.allowedTools` 传递。两者均没有在当前 DimCode ACP 中建立会话级原生工具白名单。桥接端已限制公开工具，原生工具和模型选择仍由 DimCode 的会话处理。工具失败在桥接侧已可复现，改变传输无法修正模型提交的无效文件路径。
+
 ## 结论与验证
 
-验收已阻塞。DimCode 0.5.28 可经原生 Streamable HTTP 发现、执行并读回三种 RustCodeGraph 工具。两次挂载均有意外工具调用及失败结果。保留 stdio 拒绝、现有审批行为及测试断言。复验须用同一模型和提示，在 HTTP 路径上取得三种真实工具结果、合规答复及零失败终态。
+验收已阻塞。DimCode 0.5.28 可经原生 Streamable HTTP 和 SSE 发现、执行并读回三种 RustCodeGraph 工具。两种传输的真实挂载均有额外工具调用及失败结果。保留 stdio 拒绝、现有审批行为及测试断言。严格验收依赖指定模型及 ACP 运行时能按原提示选用有效路径，并仅调用会话挂载的工具。候选上游版本应具备可复核的工具选择行为或会话工具白名单，再用原合同取得三种真实结果、合规答复及零失败终态。
 
-定向命令 `python3 scripts/cargo_slot.py cargo test -j 1 -p vw-acp --test onboarding_dimcode acp_onboarding_dimcode_rejects_stdio_mcp_instead_of_silently_ignoring_it` 使用槽位 3，两个缓存路径均为仓库的 `target/rust-slot-3`。检测到同仓 rust-analyzer 发起的 workspace Cargo 检查仍在编译后，为保持重型编译串行，终止自有槽位入口，退出 130，执行零项测试。复跑前发现另一个 Cargo 编译已启动。已确认自有编译子进程退出、槽位锁释放，保留缓存。真实 stdio 三轮提供了独立门禁证据。
+定向测试复跑使用槽位 3，`CARGO_TARGET_DIR` 与 `CARGO_BUILD_BUILD_DIR` 均为仓库的 `target/rust-slot-3`。首次中止退出 130、零测试。恢复后原 stdio 过滤命令退出 0，1 项通过。原拒写夹具缺少权限选项，导致 `acp_onboarding_dimcode_permission_denial` 在建会话时提前失败，退出 101，1 项失败。夹具补齐只读权限确认后，审批拒写、stdio 拒绝和会话生命周期均通过。注册断言原先固定要求 `npx`，现按注册表契约同时验证已安装的 `dim acp` 与固定版本回退入口。最终 `python3 scripts/cargo_slot.py cargo test -j 1 -p vw-acp --test onboarding_dimcode acp_onboarding_dimcode_` 退出 0，4 项通过。生产权限、传输门禁与原拒写断言均未修改。
 
 私有网关、桥接和监听端口已清理。已删除私有网关上游授权副本、一次性桥接密钥及临时 MCP 配置。RueJS 副本 4109 个 Git blob 与源提交一致，原工作区和用户全局配置未写入。原网关健康检查仍为 HTTP 200。原始日志保存在本机 0700 目录。

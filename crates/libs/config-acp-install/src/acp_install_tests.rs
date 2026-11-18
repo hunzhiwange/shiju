@@ -220,6 +220,10 @@ fn acp_onboarding_poolside_installer_contract() {
     for platform in [AcpInstallPlatform::Unix, AcpInstallPlatform::Windows] {
         assert!(acp_install_command_for_platform("poolside", platform).is_none());
     }
+    assert_eq!(
+        super::acp_install_supported("poolside"),
+        cfg!(all(target_os = "macos", target_arch = "aarch64"))
+    );
     assert!(acp_install_command("poolside; echo unsafe").is_none());
 }
 

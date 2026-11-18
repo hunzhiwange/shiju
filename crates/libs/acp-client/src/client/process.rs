@@ -59,7 +59,7 @@ impl AcpClient {
             return Err(AcpError::EmptyCommand);
         }
 
-        if matches!(self.agent_name.as_str(), "deepagents" | "sigit" | "amp-acp") {
+        if matches!(self.agent_name.as_str(), "deepagents" | "sigit" | "amp-acp" | "poolside") {
             // Local discovery, npx fallback and explicit overrides share this boundary.
             // Never execute the supplier's unpatched permission/file fallbacks.
             crate::verify_reviewed_agent_executable(&self.agent_name, self.config.command.trim())

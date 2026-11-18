@@ -272,6 +272,7 @@ pub(super) async fn install(agent: &str) -> Result<bool, String> {
         ("install.py", include_str!("managed_runtime/install.py")),
         ("harn/agent.harn", include_str!("../../../../patches/acp-model-source/harn/agent.harn")),
         ("stakpak/launcher.py", include_str!("../../../../patches/acp-model-source/stakpak/launcher.py")),
+        ("poolside/launcher.py", include_str!("../../../../patches/acp-model-source/poolside/launcher.py")),
         ("harn/launcher.py", include_str!("../../../../patches/acp-model-source/harn/launcher.py")),
         (
             "sigit.patch",

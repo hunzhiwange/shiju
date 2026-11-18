@@ -1,6 +1,6 @@
 use super::*;
 
-async fn model_control(wrong_readback: bool) -> (Result<(), AcpError>, Vec<serde_json::Value>) {
+async fn model_control(agent: &str, wrong_readback: bool) -> (Result<(), AcpError>, Vec<serde_json::Value>) {
     let directory = tempfile::tempdir().unwrap();
     let script = directory.path().join("peer.py");
     let frames = directory.path().join("frames.jsonl");
@@ -23,7 +23,7 @@ for line in sys.stdin:
  if 'id' in r:print(json.dumps({'jsonrpc':'2.0','id':r['id'],'result':result}),flush=True)
 "#).unwrap();
     let client = AcpClient::new(
-        "harn",
+        agent,
         AcpAgentConfig {
             command: "python3".into(),
             args: vec![
@@ -57,7 +57,7 @@ for line in sys.stdin:
 
 #[tokio::test]
 async fn harn_model_selection_uses_confirmed_config_control() {
-    let (result, frames) = model_control(false).await;
+    let (result, frames) = model_control("harn", false).await;
     result.unwrap();
     assert!(frames.iter().any(|frame| frame["method"] == "session/set_config_option"
         && frame["params"]["configId"] == "model"
@@ -67,7 +67,18 @@ async fn harn_model_selection_uses_confirmed_config_control() {
 
 #[tokio::test]
 async fn harn_model_selection_rejects_wrong_readback_without_fallback() {
-    let (result, frames) = model_control(true).await;
+    let (result, frames) = model_control("harn", true).await;
     assert!(result.is_err());
+    assert!(!frames.iter().any(|frame| frame["method"] == "session/set_model"));
+}
+
+#[tokio::test]
+async fn poolside_model_selection_requires_exact_config_readback() {
+    let (accepted, frames) = model_control("poolside", false).await;
+    accepted.unwrap();
+    assert!(frames.iter().any(|frame| frame["method"] == "session/set_config_option"
+        && frame["params"]["configId"] == "model"));
+    let (rejected, frames) = model_control("poolside", true).await;
+    assert!(rejected.is_err());
     assert!(!frames.iter().any(|frame| frame["method"] == "session/set_model"));
 }

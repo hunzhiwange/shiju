@@ -68,8 +68,7 @@ pub fn acp_install_command_for_platform(
         // JetBrains documents native installers, but no pinned/checksum-reviewed
         // distribution is registered. Discover the operator-installed Junie CLI.
         "junie" => return None,
-        // Poolside publishes native installers. Until a pinned distribution and
-        // checksums are reviewed, discover an operator-installed pool CLI only.
+        // Poolside uses the pinned managed native installer.
         "poolside" => return None,
         // Native Stakpak releases require a pinned, checksum-reviewed platform
         // mapping before automatic installation. Discover the host CLI instead.
@@ -207,7 +206,7 @@ fn official_installer(
 /// Managed native distributions do not have a shell installation command.
 /// Keep their platform support explicit while using the same system install endpoint.
 pub fn acp_install_supported(agent: &str) -> bool {
-    (matches!(agent, "stakpak" | "harn" | "vtcode") && cfg!(all(target_os = "macos", target_arch = "aarch64")))
+    (matches!(agent, "stakpak" | "harn" | "vtcode" | "poolside") && cfg!(all(target_os = "macos", target_arch = "aarch64")))
         || acp_install_command(agent).is_some()
 }
 

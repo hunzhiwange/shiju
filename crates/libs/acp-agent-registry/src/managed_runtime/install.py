@@ -69,6 +69,28 @@ if agent == 'stakpak':
     launcher.chmod(0o700)
     check_files(runtime, contract['files'])
     raise SystemExit(0)
+if agent == 'poolside':
+    import platform
+    if (platform.system(), platform.machine()) != ('Darwin', 'arm64'):
+        raise RuntimeError('Poolside reviewed runtime is Darwin-arm64 only')
+    archive = assets / 'poolside.tar.gz'
+    run(['/usr/bin/curl', '--fail', '--silent', '--show-error', '--location',
+         '--proto', '=https', '--proto-redir', '=https', '--max-time', '120',
+         '--output', str(archive), contract['artifact_url']])
+    if digest(archive) != contract['archive_sha256']:
+        raise RuntimeError('Poolside fixed archive checksum mismatch')
+    runtime.mkdir()
+    native = runtime / 'pool-native'
+    with tarfile.open(archive) as package:
+        if package.getnames() != ['pool-darwin-arm64'] or not package.getmember('pool-darwin-arm64').isfile():
+            raise RuntimeError('Unexpected Poolside fixed archive layout')
+        with package.extractfile('pool-darwin-arm64') as source, native.open('xb') as output:
+            shutil.copyfileobj(source, output)
+    shutil.copy2(assets / 'poolside/launcher.py', runtime / 'pool')
+    for executable in (native, runtime / 'pool'):
+        executable.chmod(0o700)
+    check_files(runtime, contract['files'])
+    raise SystemExit(0)
 if agent == 'harn':
     import platform
     if (platform.system(), platform.machine()) != ('Darwin', 'arm64'):

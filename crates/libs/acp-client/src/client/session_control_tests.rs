@@ -563,3 +563,30 @@ mod qwen_tests;
 
 #[path = "dimcode_tests.rs"]
 mod dimcode_tests;
+
+#[tokio::test]
+async fn managed_omp_model_selection_uses_confirmed_config_option() {
+    let agent = TestAgent::with_fail_set_model();
+    with_fixture(agent.clone(), async |fixture| {
+        fixture.client.agent_name = "omp".into();
+        fixture.client.config.env.insert("VW_ACP_LAUNCH_REFERENCE".into(), "fixture".into());
+        let cwd = PathBuf::from("/tmp/vw-acp-session-control");
+        let session_id = "model-session".to_string();
+        let model = "shiju-session/selected-model".to_string();
+
+        fixture
+            .client
+            .actor_set_session_model(&mut fixture.runtime, session_id.clone(), cwd.clone(), model.clone())
+            .await
+            .expect("OMP model must be confirmed through config options");
+
+        assert_eq!(
+            agent.calls(),
+            vec![
+                RecordedCall::ResumeSession { session_id: session_id.clone(), cwd },
+                RecordedCall::SetConfig { session_id, option_name: "model".into(), value_id: model },
+            ]
+        );
+    })
+    .await;
+}

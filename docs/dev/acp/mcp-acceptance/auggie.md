@@ -71,3 +71,40 @@
 表中九个会话各有一个 `chat.done`，没有 `chat.error`。各轮运行中确认所选模型与会话权限，`access_status.support=client_only`。结束后会话保留原绑定与选模，ACP 连接已释放。三组撤除轮零工具调用。私有网关与子进程已退出，临时挂载和私有凭据副本均已清除，三个 RueJS 副本的 4109 个归档文件与链接仍与基准一致。
 
 两种隔离转发器均为私有验收配置。Auggie 启动、MCP 发现与中继续轮已有通过证据，5 项 Node 测试复跑通过。Rust 转发边界没有行为改动，未运行 Cargo。严格验收仍需指定模型使用真实工具和有效路径完成零失败挂载轮，并在两轮对照仅返回规定标记。图谱正确索引目前漏掉的定义可作为复验条件之一。若要接受已恢复的探索性工具错误，须由计划负责人调整合同。
+
+## RustCodeGraph 1.2.11 发行版复验
+
+复用已核验的共享 ShiJu 构建 `2e84923a46704187dfd9d56dfc4b45d6ebf9cfc93398a6bb3a82b1cc61a1f935`、原请求、租户、模型、访问条件及固定 Auggie 0.37.1。RustCodeGraph 采用受审 1.2.11 发行构建，SHA-256 为 `5fab2f2dbf506ddf71d842ef1a7cd6e744c5ec90ff3f5f043ea020e1b3696312`。干净 RueJS 副本重新索引 3478 个文件，能直接查询 `createAppRouter`（`app/router/index.ts:787`）。[共享网关构建](qoder.md) · [图谱发行验证](pi.md)
+
+宿主的三工具 `allowedTools` 配置与私有 stdio 目录一致。现有宿主工具策略只向 Cortex、DeepAgents 和 Pi 的受管入口投影，Auggie 的实际约束由已验证的 Goose 转发器执行。直连公开八项，限定目录公开三项，补充入口文件、分页和默认索引根元数据。协议对照逐项比对真实 query、callers、分页 node 及缺失路径诊断，结果完全相同，额外工具与越界路径请求均被拒绝。[Goose 私有工具目录](goose.md)
+
+| 目录 | 轮次 | 新会话 | HTTP / curl，耗时 | SSE 与结果 |
+| --- | --- | --- | --- | --- |
+| 同批目录 | 无挂载 | `ses_1f0fc35030015ZGfCGXNrlLqrE` | 200 / 0，6.180 秒 | `chat.done`，`MCP_NOT_AVAILABLE`，零工具 |
+| 同批目录 | 挂载 | `ses_1f0fc4de300164wvxlBEzldL1w` | 200 / 0，144.466 秒 | `chat.done`，63 次调用，1 次读取未命中 |
+| 同批目录 | 撤除 | `ses_1f0fe8338001o6b7iVahNVe2ip` | 200 / 0，5.493 秒 | `chat.done`，`MCP_NOT_AVAILABLE`，零工具 |
+| 索引感知目录 | 无挂载 | `ses_1f0ff7a5b001rG3IYEQJW0360g` | 200 / 0，5.269 秒 | `chat.done`，`MCP_NOT_AVAILABLE`，零工具 |
+| 索引感知目录 | 挂载 | `ses_1f0ff9000001NmMIXqabInxkOW` | 200 / 0，141.026 秒 | `chat.done`，46 次图谱调用，4 次原生读取 |
+| 索引感知目录 | 撤除 | `ses_1f101b874001XsoJTgcKcaTE7q` | 200 / 0，5.201 秒 | `chat.done`，`MCP_NOT_AVAILABLE`，零工具 |
+| 原生工具移除 | 无挂载 | `ses_1f101bed70012kttW3o2BviDWs` | 200 / 0，5.154 秒 | `chat.done`，`MCP_NOT_AVAILABLE`，零工具 |
+| 原生工具移除 | 挂载 | `ses_1f101d432001iQULiKl9cMXPnn` | 200 / 0，147.692 秒 | `chat.done`，73 次指定工具调用全部成功 |
+| 原生工具移除 | 撤除 | `ses_1f10415e3001FRhg9imWroubqJ` | 200 / 0，4.770 秒 | `chat.done`，`MCP_NOT_AVAILABLE`，零工具 |
+
+第一组仅调用三种指定工具，25 次 query、5 次 callers、32 次 node 返回真实结果。另一次 `call_30034152d2f34344aa509231` 请求真实存在的根 `index.html`，但 1.2.11 返回 ``No indexed file matches `index.html`.``。该返回未设置 `isError`，因此网关事件标为完成。实际没有读回文件，严格验收仍未通过。第二组只把目录的入口说明改为索引实际可读的构建脚本与 TypeScript 源码，并声明 HTML 未索引。两种目录均原样转发调用参数、成功结果和错误。
+
+第二组的 18 次 query、5 次 callers、23 次 node 都成功。另有四次 Auggie 原生读取，首个是 `call_6f1c661ca68c49adb7d1ce91`，按正则读取 `packages/router/src/index.tsx`。这四次不属于限定图谱服务。
+
+第三组沿用索引感知目录，在另一个私有 RueJS 副本使用 Auggie 原生项目级 `.augment/settings.json` 的 `removedTools`。固定 CLI 的项目工具目录确认全部 20 项原生工具被移除。独立回环使用与网关相同的受管入口，无挂载时模型请求没有工具声明，有挂载时只声明三种指定工具。三个真实查询结果分别以相同调用 ID 出现在模型续轮。两种回环均以 `end_turn` 结束，原生 ACP、网关权限与安装契约保持一致。
+
+**第三组严格验收通过。** 九个新会话各有一次 `chat.done`，没有 `chat.error`。第三组挂载的 146 条工具事件中，31 次 query、2 次 callers、40 次 node 的开始与完成逐一对应。零额外工具、真实读取失败和越界调用。两轮对照的可见最终答复精确为 `MCP_NOT_AVAILABLE`。
+
+| 证据 | 同一 SSE 调用 ID | 真实结果 |
+| --- | --- | --- |
+| 首次查询 | `call_c1e6422a7e6f42c3ae650592` | `createRueSiteApp`，`app/app.tsx:32` |
+| 调用者 | `call_0eb2ef6e803740b0a3abcbaf` | `mountRueSiteApp`，`app/app.tsx:39` |
+| Hook 源码 | `call_170176f4e64a445c89d67bda` | `useApp` 调用 `_$createApp(factory)`，`packages/runtime/src/hooks/useApp.ts:4` |
+| 应用工厂源码 | `call_40830cbb25cb4978850b801c` | `_$createApp`，`packages/runtime/src/compiler-runtime/app.ts:57` |
+
+答复准确追踪调用链、SSR 与客户端守卫、容器缺失、路由及 i18n 插件安装与布局条件，并指出当前路由表没有注册 `/rust-layers`。答复把快照残留作为源码推断，提出静态客户端接管及预填快照模板两项预期。验证时应以旧快照哨兵是否残留为主，只有预填快照本身包含导航时才预期出现两套导航，两项场景应统一哨兵选择器。未实际运行 RueJS 浏览器或构建场景。
+
+最终三个会话的 UI summary 均确认 `acp-auggie / auggie` 与 `full_access=true`，在线 ACP options 为 `client_only` 并使用指定 `session_model`，终态均已释放连接且保留选模。未改运行时代码或运行 Cargo。私有项目设置和挂载均已从副本撤除，私有凭据已清理，三个网关及子进程退出，原网关健康检查 HTTP 200。三个 RueJS 副本的 4109 个归档文件与链接均与基准一致。原始 SSE、会话回读和回环证据留在本机 0700 私有目录。

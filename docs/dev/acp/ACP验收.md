@@ -2,12 +2,97 @@
 
 ```bash
 curl -sS -N --max-time 180 -H 'Content-Type: application/json' \
-  -H 'X-Platform-ID: 10000' \
-  -H 'X-Company-ID: 100000000' \
+  -H 'X-Platform-ID: 10001' \
+  -H 'X-Company-ID: 100010005' \
   -H 'X-Directory: /Users/xiangmin/worker/code/ruejs' \
   --data-binary '{"model":"alibaba-token-plan-cn/deepseek-v4.1-flash-1017","agent":"acp-codex","acp_agent":"codex","acp_model_source":"session_model","options":{"cwd":"/Users/xiangmin/worker/code/ruejs","full_access":true},"messages":[{"role":"user","content":"帮我用 Rue.js 实现一个纯文本编辑器，支持输入、实时显示字数、刷新后恢复内容。只写到 acpdemo/codex/，不修改目录外文件。使用本仓库的 @rue-js/rue；在目标目录内提供可运行页面与运行说明。"}]}' \
   http://127.0.0.1:42617/v1/chat/stream
 ```
+
+## Codex ACP 动态挂载 RustCodeGraph（2026-11-18）
+
+真实模型验收通过。网关 `127.0.0.1:42617` 在租户 `10001 / 100010005` 中使用 `alibaba-token-plan-cn/deepseek-v4.1-flash-1017`，会话重读确认 `acp-codex / codex`、`session_model` 和 `full_access=true`。文档原示例租户 `10000 / 100000000` 的网关有效配置缺少该提供商，模型解析在上游请求前失败。
+
+### 可复用的验收请求
+
+下面的 `curl` 调用 `POST /v1/chat/stream`。这个入口从工作区的宿主配置解析可用 MCP，尚无请求级 MCP 选择字段。要复现外挂，先按下文在 RueJS 的 `.vwacprc.json` 配置服务，再发起聊天。ShiJu 会在发给 Codex 的 ACP `session/new` 请求中携带 `params.mcpServers`。聊天提示里的服务名只约束本次任务用哪个工具。
+
+任务是用动态挂载的 RustCodeGraph 追踪 RueJS 站点从浏览器入口到应用挂载和路由视图的流程，再分析取消清空静态快照的影响。挂载前和挂载后各执行一次下面的完整请求，每次由网关创建新会话。验收其他 ACP 时，把 `agent` 和 `acp_agent` 换成对应的预设名和后端名，继续使用同一个任务和 MCP 服务名。下方多步任务已核对索引覆盖，真实模型验收待跑。此前真实模型实测的是单次符号查询。
+
+```bash
+curl -sS -N --max-time 300 -H 'Content-Type: application/json' \
+  -H 'X-Platform-ID: 10001' \
+  -H 'X-Company-ID: 100010005' \
+  -H 'X-Directory: /Users/xiangmin/worker/code/ruejs' \
+  --data-binary @- http://127.0.0.1:42617/v1/chat/stream <<'JSON'
+{
+  "model": "alibaba-token-plan-cn/deepseek-v4.1-flash-1017",
+  "agent": "acp-codex",
+  "acp_agent": "codex",
+  "acp_model_source": "session_model",
+  "options": {
+    "cwd": "/Users/xiangmin/worker/code/ruejs",
+    "full_access": true
+  },
+  "messages": [
+    {
+      "role": "user",
+      "content": "这是 RueJS 站点启动流程的只读调查。只允许使用本会话挂载的 ruejs_graph_probe MCP。若工具未挂载，只回答 MCP_NOT_AVAILABLE。禁止调用 shell、其他工具或修改文件，源码通过 MCP 查看。\n1. 用 rustcodegraph_query 定位 createRueSiteApp，再用 rustcodegraph_callers 查找调用者。\n2. 用 rustcodegraph_node 查看调用者与 useApp 的定义，追到运行时应用工厂。说明浏览器和 SSR 分支如何决定是否挂载、#app 缺失时如何处理、路由与 i18n 如何接入应用，以及根组件何时绕过站点布局。\n3. 假设移除挂载前清空 #app 子节点的逻辑，分析静态快照可能受到的影响，给出两项有明确预期结果的回归验证场景。\n按调用链、分支行为、影响与验证三部分输出。关键结论附符号和文件:行号。若调用图与源码不一致，指出差异和证据。"
+    }
+  ]
+}
+JSON
+```
+
+### 挂载与验收步骤
+
+1. 在 RueJS 工作区用 `rustcodegraph status` 确认索引可用。此次用已安装的 RustCodeGraph 初始化索引，共索引 3711 个文件。
+2. 在未挂载的情况下执行上述请求。预期回复 `MCP_NOT_AVAILABLE`，收到一个 `chat.done`，工具事件为零。
+3. 在没有现有 `.vwacprc.json` 的 RueJS 工作区临时放入以下宿主配置。若复现环境已有此文件，合并该条目并在验收后移除该条目。ShiJu 在建会话时把启用的服务传入 ACP `session/new.mcpServers`，Codex 用户配置无需写入。
+
+```json
+{
+  "mcpServers": [
+    {
+      "name": "ruejs_graph_probe",
+      "command": "/Users/xiangmin/.rustcodegraph/bin/rustcodegraph",
+      "args": ["serve", "--mcp", "--path", "/Users/xiangmin/worker/code/ruejs", "--no-watch"],
+      "enabled": true
+    }
+  ]
+}
+```
+
+4. 用相同请求再开一个新会话。核对 `chat.tool` 中 `rustcodegraph_query`、`rustcodegraph_callers` 和 `rustcodegraph_node` 均有成功完成事件，且全部来自 `ruejs_graph_probe`。核对答复引用 `mountRueSiteApp`、`createRueSiteApp`、`useApp` 和运行时应用工厂，解释浏览器与 SSR 分支、容器缺失和布局切换，并把取消清空节点的影响标为推断。最终应收到一个 `chat.done`，无 `chat.error`。验收后清理临时配置。
+
+### ShiJu 发给 Codex 的 ACP 请求
+
+下面按当前客户端和 ACP 协议结构展示挂载后的最小 JSON-RPC 请求。`enabled` 在 ShiJu 解析宿主配置时使用，传给 Codex 的 stdio 服务定义包含 `name`、`command`、`args` 和 `env`。
+
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 1,
+  "method": "session/new",
+  "params": {
+    "cwd": "/Users/xiangmin/worker/code/ruejs",
+    "mcpServers": [
+      {
+        "name": "ruejs_graph_probe",
+        "command": "/Users/xiangmin/.rustcodegraph/bin/rustcodegraph",
+        "args": ["serve", "--mcp", "--path", "/Users/xiangmin/worker/code/ruejs", "--no-watch"],
+        "env": []
+      }
+    ]
+  }
+}
+```
+
+### 已有实测记录
+
+此前单次符号查询的无挂载会话 `ses_1ef248272001nZb564zSaKL4WW` 返回 `MCP_NOT_AVAILABLE`，工具事件为零。挂载会话 `ses_1ef24cd3e00122akIqq7mQc5D3` 记录了 `mcp.ruejs_graph_probe.rustcodegraph_query` 的开始与完成事件，命中 `createRueSiteApp`（`app/app.tsx:32`）。两轮均收到一个 `chat.done`，无 `chat.error`。验收后已清理临时配置，Codex 用户配置 SHA-256 一致，保留 RueJS 索引。
+
+隔离网关另用回环 Responses 端点完成无挂载、挂载、移除三轮，新会话的模型请求仅在挂载一轮收到 MCP namespace，并在续轮收到真实工具输出。本次范围为新会话挂载、调用与移除后的新会话，未验证同一已连接会话热切换。未重新执行上方编辑器创建请求，也未运行 Cargo。SSE、会话重读与回环观测保存在本机私有目录 `/tmp/shiju-codex-mcp.ESCb9U/`。
 
 # OpenCode 验收
 

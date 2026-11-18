@@ -24,6 +24,7 @@ ROOT = Path(__file__).resolve().parents[1]
 QUIET_SECONDS = 30.0
 MAX_WAIT_SECONDS = 60.0
 MAX_UPDATE_WAIT_SECONDS = 1800.0
+REQUEST_POLL_SECONDS = 0.2
 
 def start_watcher(changed):
     command = ['watchexec', '--quiet', '--postpone', '--debounce', '500ms',
@@ -65,28 +66,34 @@ def stop(process):
         time.sleep(0.05)
 
 
-def build(mode, env, lock, changed, watcher, initial=False):
+def build(mode, env, lock, changed, watcher, poll_restart, initial=False):
     # Both watch targets share this lock: never compile their heavy Rust targets
     # concurrently. Build and run inherit the same normal Cargo environment.
     while True:
+        poll_restart()
         try:
             fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
             break
         except BlockingIOError:
-            time.sleep(0.2)
+            time.sleep(REQUEST_POLL_SECONDS)
     try:
         # First launch is immediate. Later builds debounce with a hard deadline,
         # so continuous edits cannot starve updates. Never cancel an active build.
         changed.clear()
         if not initial:
-            deadline = time.monotonic() + MAX_WAIT_SECONDS
+            started = time.monotonic()
+            deadline = started + MAX_WAIT_SECONDS
+            quiet_until = started + QUIET_SECONDS
             while True:
-                remaining = deadline - time.monotonic()
-                if remaining <= 0 or not changed.wait(timeout=min(QUIET_SECONDS, remaining)):
+                poll_restart()
+                remaining = min(deadline, quiet_until) - time.monotonic()
+                if remaining <= 0:
                     break
-                changed.clear()
-                if watcher.poll() is not None:
-                    raise RuntimeError('Watchexec 已退出')
+                if changed.wait(timeout=min(REQUEST_POLL_SECONDS, remaining)):
+                    changed.clear()
+                    quiet_until = time.monotonic() + QUIET_SECONDS
+                    if watcher.poll() is not None:
+                        raise RuntimeError('Watchexec 已退出')
         if watcher.poll() is not None:
             raise RuntimeError('Watchexec 已退出')
         reason = '首次立即编译' if initial else '静默期或最长等待期结束，开始编译'
@@ -97,7 +104,10 @@ def build(mode, env, lock, changed, watcher, initial=False):
             process = subprocess.Popen(['cargo', 'build', '-p', package, '--bin', binary],
                                        cwd=ROOT, env=env, start_new_session=True)
             try:
-                if process.wait() != 0:
+                while process.poll() is None:
+                    poll_restart()
+                    time.sleep(REQUEST_POLL_SECONDS)
+                if process.returncode != 0:
                     print('[watch] 编译失败，保留旧进程；修改后自动重试。', flush=True)
                     return False
             finally:
@@ -150,41 +160,48 @@ def watch(mode):
             ready = False
             ready_since = None
             last_request = None
+            restart_pending = False
+
+            def poll_restart():
+                nonlocal last_request, restart_pending
+                try:
+                    token = request.read_text()
+                except FileNotFoundError:
+                    return
+                if token != last_request:
+                    last_request = token
+                    restart_pending = True
+                    print(f'[watch] 已收到 {mode} 切换请求，编译成功后自动切换。', flush=True)
+
             try:
                 while True:
                     if watcher.poll() is not None:
                         raise RuntimeError(f'Watchexec 已退出 ({watcher.returncode})')
-                    if changed.wait(timeout=0.5):
+                    if changed.wait(timeout=REQUEST_POLL_SECONDS):
                         first_build = initial
                         initial = False
-                        ready = build(mode, env, lock, changed, watcher, initial=first_build)
+                        ready = build(mode, env, lock, changed, watcher, poll_restart,
+                                      initial=first_build)
                         if ready:
                             if ready_since is None:
                                 ready_since = time.monotonic()
-                            if running is not None:
+                            if running is not None and not restart_pending:
                                 print(f'[watch] 新版就绪：执行 make {mode}-restart 切换；'
                                       '最迟在首个待切换版本就绪 30 分钟后自动切换。', flush=True)
-                    manual = False
-                    try:
-                        token = request.read_text()
-                    except FileNotFoundError:
-                        token = None
-                    if token is not None and token != last_request:
-                        last_request = token
-                        manual = True
-                        if not ready:
-                            print('[watch] 当前没有编译成功的待切换版本，保留旧进程。', flush=True)
+                    poll_restart()
                     expired = ready_since is not None and (
                         time.monotonic() - ready_since >= MAX_UPDATE_WAIT_SECONDS)
-                    if ready and (running is None or manual or expired):
+                    if ready and (running is None or restart_pending or expired):
                         if watcher.poll() is not None:
                             raise RuntimeError('Watchexec 已退出')
                         # Recheck current sources before replacing the running app:
                         # cargo run must not discover a known compile error afterwards.
                         if running is not None:
-                            if not build(mode, env, lock, changed, watcher, initial=True):
+                            if not build(mode, env, lock, changed, watcher, poll_restart,
+                                         initial=True):
                                 ready = False
                                 continue
+                        poll_restart()
                         stop(running)
                         running = None
                         if mode == 'gateway':
@@ -195,6 +212,7 @@ def watch(mode):
                                                    start_new_session=True)
                         ready = False
                         ready_since = None
+                        restart_pending = False
                         print(f'[watch] 已启动 {" ".join(command)} (PID {running.pid})', flush=True)
                     if running is not None and running.poll() is not None:
                         print(f'[watch] 程序退出 ({running.returncode})；下次修改后重新编译启动。', flush=True)

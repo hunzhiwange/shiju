@@ -73,3 +73,30 @@ RueJS 位于 `main`，基准提交 `14fe287b13549f5183d42fbc45b28e1498ffae1c`。
 ## 收尾
 
 模型选工具和缺失路径读取发生在原生 MCP 已可用、工具结果已能回传之后。保留现有 OpenCode 转发、选模与权限实现，Rust 定向测试未触发。两份临时挂载配置已撤除，探针子进程已退出，原网关仍健康。干净快照中 4109 个归档文件及链接与基准一致，排除索引后没有新增文件。请求、响应头、SSE 和协议原始日志留在本机权限为 0700 的私有目录。
+
+## RustCodeGraph 1.2.11 复验
+
+使用同一受审 OpenCode 1.19.5、现有开发网关、固定 RueJS 提交、原提示、模型与权限。RustCodeGraph 1.2.11 发行构建 SHA-256 为 `5fab2f2dbf506ddf71d842ef1a7cd6e744c5ec90ff3f5f043ea020e1b3696312`。重建的 3478 文件索引能直接查到 `createAppRouter`（`app/router/index.ts:787`）。当前共享宿主向 Cortex、DeepAgents 和 Pi 下发各自的工具策略，受审 OpenCode 未接收该扩展。本轮仅在私有验收目录复用 Goose 的 stdio 转发及既有入口、分页和索引根说明，由原生 OpenCode 消费工具目录。[发行构建与策略证据](pi.md) · [stdio 路径](goose.md)
+
+直连公开 8 项，限定目录公开 3 项。独立比较确认路由工厂查询、调用者查询和带行号的源码分页输出逐项相等。限定转发拒绝额外工具和越界文件，目录内未索引路径保持图谱实际返回。`app/router.ts` 的回复是 `No indexed file matches`，协议未设置 `isError`。验收另核对真实内容，避免把未命中计为源码读取成功。
+
+| 继承入口说明的轮次 | 新会话 | HTTP / curl / 秒 | SSE 与结果 |
+| --- | --- | --- | --- |
+| 无挂载 | `ses_1f0f70458001Q5OoGsuBbkBPL3` | 200 / 0 / 23.236 | `chat.done`，仅 `MCP_NOT_AVAILABLE`，零工具 |
+| 挂载 | `ses_1f0f75fa6001ls3zf5mFUSiWb4` | 200 / 0 / 297.510 | `chat.done`，76 个完成事件，仅三种指定工具，其中一次文件未命中 |
+| 撤除 | `ses_1f0fbeb4d001q00T0OiEjJhLMb` | 200 / 0 / 22.737 | `chat.done`，仅 `MCP_NOT_AVAILABLE`，零工具 |
+
+首个不符合项为 `call_11a5d419cb144ad89331a35c` 读取目录说明推荐的 `index.html`。文件存在，RustCodeGraph 返回该文件未被索引，SSE 将此文本标为 completed。答复仍引用三种工具读回的调用链、SSR 守卫、容器缺失、插件安装和布局条件，并给出静态页首屏去重与非空模板快照捕获两项预期。首组按内容存在文件未命中，保留为对照。
+
+第二组只调整转发器的 tool schema 说明，移除 HTML 入口推荐并注明索引不含 HTML 模板。项目、索引、分页参数、过滤边界和所有调用返回均沿用首组。直连对照再次通过。
+
+| 仅推荐索引入口的轮次 | 新会话 | HTTP / curl / 秒 | SSE 与结果 |
+| --- | --- | --- | --- |
+| 无挂载 | `ses_1f0fc4c6e001hTgNU9nX0TKTtL` | 200 / 0 / 19.158 | `chat.done`，仅 `MCP_NOT_AVAILABLE`，零工具 |
+| 挂载 | `ses_1f0fc9783001WqoltjtLUyRrDA` | 200 / 0 / 252.770 | `chat.done`，89 个完成事件，仅三种指定工具，其中两次文件未命中 |
+| 撤除 | `ses_1f10074cc001nPMS6dy0d4f2Tu` | 200 / 0 / 20.023 | `chat.done`，仅 `MCP_NOT_AVAILABLE`，零工具 |
+
+- 两组六轮各收到一个 `chat.done`，均无 `chat.error)，无需续传。UI summary 均为 `acp-opencode / opencode`、`full_access=true`。连接中权限为 `client_only`，终态均已断开，仍绑定 `session_model` 和指定阿里模型。挂载轮的所有调用 ID 均匹配开始与完成。
+- 第二组的 38 次 query、1 次 callers 和 50 次 node 均返回原生响应。`call_384981932cb443ebadcd51d4` 查询命中 `createRueSiteApp`（`app/app.tsx:32`）。`call_ea99360f401f41fdb47a94b2` 返回 `mountRueSiteApp`（同文件第 39 行）。`call_ac91e425441f452e9e4f4e81` 和 `call_f47a38dd37994374a95147c2` 读回 `useApp` 与 `_$createApp` 源码。两组均无额外工具调用。
+- 第二组又请求 `index.html`（`call_2336d624d87d4dcc9d9319c6`），随后请求 `packages/rue/package.json`（`call_78cdf522955b41cf9b12434f`）。两个受版本跟踪的文件均存在，RustCodeGraph 均原样返回未被索引。新版两次挂载均复现 `index.html` 未命中，第二组另有一次 JSON 未命中。最终答复复原完整启动链、SSR 与浏览器分支、容器缺失、插件安装和当前未注册的 `/rust-layers` 布局分支。静态快照残留是源码推断，两项场景覆盖预置旧节点的 DOM 夹具和静态产物挂载后的去重，未执行浏览器测试。
+- 严格合同仍阻塞在模型请求未索引的文件。目前没有需要修补的 OpenCode 转发断点。复跑条件为固定模型使用已索引文件完成走查，或取得能实际读取这两类跟踪文件且已受审的图谱构建。私有挂载已撤除，专属转发器与图谱进程已退出，4109 个归档项内容一致，原网关仍健康。本轮未修改运行时或运行 Cargo。

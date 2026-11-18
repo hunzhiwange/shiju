@@ -304,7 +304,10 @@ async fn aggregation_t47_scope_and_permissions_precede_writes() {
         assert_eq!(status, 409, "{error}");
         assert_eq!(error["error"]["code"], "revision_conflict");
     }
-    assert_eq!(f.tx.state(AppId::OpenCode).unwrap(), tx_before);
+    assert!(
+        f.tx.state(AppId::OpenCode).unwrap() == tx_before,
+        "rejected requests must preserve the full OpenCode transaction state"
+    );
     assert!(f.tx.pending(AppId::OpenCode).unwrap().is_none());
     assert!(!f.root.join(".config/opencode").exists());
     assert_eq!(std::fs::read(f.root.join(".omo/omo.jsonc")).unwrap(), before);

@@ -58,6 +58,12 @@ if agent == 'cortex-code':
             with package.extractfile(member) as source, destination.open('xb') as output:
                 shutil.copyfileobj(source, output)
             destination.chmod(0o700 if member.mode & 0o111 else 0o600)
+    native = runtime / 'cortex-native'
+    (runtime / 'cortex').rename(native)
+    run([sys.executable, str(assets / 'cortex-code/apply.py'), str(native), str(runtime / 'cortex-local')])
+    launcher = runtime / 'cortex'
+    shutil.copyfile(assets / 'cortex-code/launcher.py', launcher)
+    launcher.chmod(0o700)
     check_files(runtime, contract['files'])
     raise SystemExit(0)
 

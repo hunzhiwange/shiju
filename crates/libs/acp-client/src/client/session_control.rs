@@ -146,6 +146,7 @@ impl AcpClient {
             return Ok(());
         }
         if matches!(self.agent_name.as_str(), "harn" | "poolside" | "vtcode" | "aionrs")
+            || self.managed_cortex()
             || (self.agent_name == "omp" && self.managed_workspace_io())
         {
             // These engines select the model through ACP config options. Require readback.

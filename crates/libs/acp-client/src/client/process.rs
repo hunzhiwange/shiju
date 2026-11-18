@@ -6,6 +6,11 @@
 use super::*;
 
 impl AcpClient {
+    pub(super) fn managed_cortex(&self) -> bool {
+        self.agent_name == "cortex-code"
+            && self.config.env.contains_key("VW_ACP_LAUNCH_REFERENCE")
+    }
+
     pub(super) fn managed_aionrs(&self) -> bool {
         self.agent_name == "aionrs" && self.config.env.contains_key("SHIJU_AIONRS_SANDBOX")
             && self.config.env.contains_key("VW_ACP_LAUNCH_REFERENCE")
@@ -130,9 +135,18 @@ impl AcpClient {
             );
         }
         let managed_vtcode = self.managed_vtcode();
-        let managed_private_provider = managed_vtcode || self.managed_workspace_io() || self.managed_aionrs() || self.managed_corust() || (matches!(self.agent_name.as_str(), "deepagents" | "dimcode" | "junie" | "stakpak")
+        let managed_private_provider = managed_vtcode
+            || self.managed_workspace_io()
+            || self.managed_aionrs()
+            || self.managed_corust()
+            || self.managed_cortex()
+            || (matches!(self.agent_name.as_str(), "deepagents" | "dimcode" | "junie" | "stakpak")
                 && env.contains_key("VW_ACP_LAUNCH_REFERENCE"));
         let managed_claude = managed_claude_settings(&self.config).is_some();
+        if self.managed_cortex() {
+            crate::verify_reviewed_agent_executable("cortex-code", self.config.command.trim())
+                .map_err(AcpError::Initialize)?;
+        }
         let managed_auggie =
             self.agent_name == "auggie" && env.contains_key("VW_ACP_LAUNCH_REFERENCE");
         let managed_droid =

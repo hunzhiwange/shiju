@@ -13,6 +13,7 @@ pub mod codebuddy;
 pub mod codex;
 pub mod copilot;
 pub mod corust;
+pub mod cortex;
 pub mod cursor;
 pub mod dirac;
 pub mod dimcode;
@@ -73,6 +74,7 @@ pub fn capabilities(
             | "qoder"
             | "droid"
             | "corust-agent"
+            | "cortex-code"
             | "cursor"
             | "codex"
             | "gemini"
@@ -115,6 +117,7 @@ pub fn verified_release(agent: &str) -> Option<&'static str> {
         "qoder" => "1.1.88",
         "trae" => "0.121.3",
         "corust-agent" => "0.6.0",
+        "cortex-code" => "1.2.46",
         "cursor" => "2026.11.11-b912975",
         "droid" => "1.9.0",
         "codex" => "2.5.0 (Codex 0.165.0)",
@@ -161,7 +164,7 @@ pub fn source_protocol(
         "nova" | "amp-acp" | "claude" => P::Messages,
         "codex" | "kiro" => P::Responses,
         "gemini" => P::Gemini,
-        "corust-agent" | "aionrs" | "omp" | "mimo-code" | "junie" | "harn" | "vtcode" | "poolside" | "stakpak" | "grok" | "dimcode" | "deepagents" | "autohand" | "sigit" | "glm-acp-agent" | "dirac" | "auggie" | "cursor" | "droid"
+        "corust-agent" | "cortex-code" | "aionrs" | "omp" | "mimo-code" | "junie" | "harn" | "vtcode" | "poolside" | "stakpak" | "grok" | "dimcode" | "deepagents" | "autohand" | "sigit" | "glm-acp-agent" | "dirac" | "auggie" | "cursor" | "droid"
         | "codebuddy" | "goose" | "hermes" | "iflow" | "kilocode" | "openclaw" | "pi" | "qoder"
         | "qwen" | "trae" => P::Chat,
         "opencode" => model_transport::routing_selection::client_protocol(api)
@@ -248,6 +251,7 @@ pub fn configure(
         "snow" => snow::configure(profile, endpoint),
         "copilot" => copilot::configure(profile, endpoint),
         "corust-agent" => corust::configure(profile, endpoint, directory),
+        "cortex-code" => cortex::configure(profile, endpoint, directory),
         "cursor" => cursor::configure(profile, endpoint),
         "droid" => droid::configure(profile, endpoint),
         "glm-acp-agent" => glm_acp_agent::configure(profile, endpoint),

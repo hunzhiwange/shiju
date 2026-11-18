@@ -33,7 +33,7 @@ fn root() -> Result<PathBuf, String> {
 fn installed_directory(agent: &str, contract: &Contract) -> Result<PathBuf, String> {
     // Keep the prior DeepAgents guard intact while installing the reviewed
     // recoverable host-file-error contract beside it.
-    let revision = if matches!(agent, "deepagents" | "corust-agent") { 2 } else { 1 };
+    let revision = if matches!(agent, "deepagents" | "corust-agent" | "cortex-code") { 2 } else { 1 };
     Ok(root()?.join(format!("{agent}-{}-model-source-v{revision}", contract.version)))
 }
 fn verify(directory: &Path, contract: &Contract) -> Result<PathBuf, String> {
@@ -280,6 +280,8 @@ pub(super) async fn install(agent: &str) -> Result<bool, String> {
         ("nova/apply.py", include_str!("../../../../patches/acp-model-source/nova/apply.py")),
         ("nova/session-model.mjs", include_str!("../../../../patches/acp-model-source/nova/session-model.mjs")),
         ("install.py", include_str!("managed_runtime/install.py")),
+        ("cortex-code/apply.py", include_str!("../../../../patches/acp-model-source/cortex-code/apply.py")),
+        ("cortex-code/launcher.py", include_str!("../../../../patches/acp-model-source/cortex-code/launcher.py")),
         ("mimo-code/stdio-only.patch", include_str!("../../../../patches/acp-model-source/mimo-code/stdio-only.patch")),
         ("junie/launcher.py", include_str!("../../../../patches/acp-model-source/junie/launcher.py")),
         ("harn/agent.harn", include_str!("../../../../patches/acp-model-source/harn/agent.harn")),

@@ -12,5 +12,16 @@
       "old": "function resolveWorkspaceSkillSourcePlan(workspaceDir, opts) {\n",
       "new": "function resolveWorkspaceSkillSourcePlan(workspaceDir, opts) {\n\tconst selected = process.env.SHIJU_OPENCLAW_SKILL_ROOT;\n\tif (selected !== undefined) {\n\t\tif (selected && (!path.isAbsolute(selected) || !fs.statSync(selected).isDirectory())) throw new Error(\"Invalid session skill directory\");\n\t\tconst roots = selected ? [{dir: selected, source: \"openclaw-extra\", tier: \"extra\"}] : [];\n\t\treturn {roots, allowSymlinkTargets: selected ? fs.readdirSync(selected).map(name => fs.realpathSync(path.join(selected, name))) : [], pluginSkillRoots: [], managedSkillsDir: selected || path.join(workspaceDir, \"skills\"), workspaceDir};\n\t}\n"
     }
-  ]
+  ],
+  "mcp_lifecycle": {
+    "file": "dist/mcp-stdio-transport-Dlawzoy1.mjs",
+    "original": "19c700d0ce90f8db22bd0738b3936faf12523558f30f74010efcbd707d02302c",
+    "patched": "5bc81023917314bfba0ab85f6987909845a44ae43cfbde2e60038a71bf100b35",
+    "changes": [
+      {
+        "old": "abortSignal: this.startupAbort.signal,",
+        "new": "abortSignal: this.startupAbort.signal,\n\t\t\t\tterminateOnHostLoss: true,"
+      }
+    ]
+  }
 }

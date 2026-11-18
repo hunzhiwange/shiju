@@ -233,6 +233,17 @@ pub async fn do_stream_request_acp<H: Host>(
         None
     };
 
+    let openclaw_mcp = if acp_agent_name == "openclaw" {
+        if !parsed_options.mcp_servers.is_empty()
+            && merged_options.get("disable_tools").and_then(Value::as_bool) == Some(true)
+        {
+            return Err(acp_option_error("OpenClaw MCP requires tools to be enabled"));
+        }
+        super::model_source::drivers::openclaw::project_mcp(&parsed_options, source)
+            .map_err(to_api_error)?
+    } else {
+        serde_json::Map::new()
+    };
     // The profile owns the relay, token and private files for this request only.
     // CLI-local execution preserves the user's original configuration.
     let launch_profile = match source {
@@ -250,9 +261,14 @@ pub async fn do_stream_request_acp<H: Host>(
                 }
                 std::future::pending::<()>().await;
             };
+            let prepare = if openclaw_mcp.is_empty() {
+                H::prepare_launch(&acp_agent_name, &normalized_acp_cfg, model, &scoped_session)
+            } else {
+                H::prepare_openclaw_mcp_launch(&normalized_acp_cfg, model, &scoped_session, &openclaw_mcp)
+            };
             // Dropping preparation also drops its owned Gateway during startup.
             let profile = tokio::select! {
-                result = H::prepare_launch(&acp_agent_name, &normalized_acp_cfg, model, &scoped_session) => result.map_err(to_api_error)?,
+                result = prepare => result.map_err(to_api_error)?,
                 () = cancellation => {
                     on_event(StreamEvent::Error(message::AssistantError::MessageAbortedError { message: "aborted".to_string() }));
                     return Err(Error::Aborted);
@@ -262,6 +278,10 @@ pub async fn do_stream_request_acp<H: Host>(
         }
         vw_api_acp_model::acp_model_source::AcpModelSource::CliLocal => None,
     };
+    if !openclaw_mcp.is_empty() {
+        // The fresh Gateway owns these servers. The ACP bridge rejects a nonempty list.
+        parsed_options.mcp_servers.clear();
+    }
     // Managed SessionModel requests are metered by the owned relay. Never bill
     // their ACP session snapshots a second time.
     let mut request_usage = std::collections::HashMap::new();

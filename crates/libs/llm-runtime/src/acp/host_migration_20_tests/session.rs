@@ -439,3 +439,45 @@ fn acp_onboarding_deepagents_cache_key_preserves_tool_set_identity() {
     options.session_options.as_mut().unwrap().allowed_tools = Some(vec!["read_file".into()]);
     assert_ne!(key, acp_client_cache_key("fixture", &config, cwd, &options));
 }
+
+#[test]
+fn agent_acp_defaults_reach_new_session_and_prompt_openclaw_projection() {
+    use agent_client_protocol::{EnvVariable, McpServer, McpServerStdio};
+    use vw_api_acp_model::acp_model_source::AcpModelSource::{CliLocal, SessionModel};
+
+    let project = super::super::model_source::drivers::openclaw::project_mcp;
+    let server = McpServerStdio::new("ruejs_graph_probe", "/private/tools/rustcodegraph")
+        .args(vec!["serve".into(), "--mcp".into()]);
+    let mut options = parsed_options();
+    options.session_options = None;
+    options.mcp_servers = vec![McpServer::Stdio(server.clone())];
+    assert!(project(&options, SessionModel).is_err());
+
+    options.full_access = true;
+    options.permission_mode = Some(PermissionMode::ApproveAll);
+    assert!(project(&options, SessionModel).is_err());
+    options.non_interactive_permissions = None;
+    assert!(project(&options, CliLocal).is_err());
+    options.permission_mode = Some(PermissionMode::DenyAll);
+    assert!(project(&options, SessionModel).is_err());
+    options.permission_mode = Some(PermissionMode::ApproveReads);
+    assert!(project(&options, SessionModel).is_err());
+    options.permission_mode = Some(PermissionMode::ApproveAll);
+    options.session_options = parsed_options().session_options;
+
+    let projected = project(&options, SessionModel).unwrap();
+    assert_eq!(
+        projected["ruejs_graph_probe"],
+        serde_json::json!({"transport":"stdio","command":"/private/tools/rustcodegraph","args":["serve","--mcp"]})
+    );
+
+    options.mcp_servers = vec![McpServer::Stdio(
+        server.clone().env(vec![EnvVariable::new("TOKEN", "fixture")]),
+    )];
+    assert!(project(&options, SessionModel).is_err());
+    options.mcp_servers = vec![McpServer::Stdio(server.args(vec!["${VW_OPENCLAW_RELAY_TOKEN}".into()]))];
+    assert!(project(&options, SessionModel).is_err());
+
+    options.mcp_servers.clear();
+    assert!(project(&options, SessionModel).unwrap().is_empty());
+}

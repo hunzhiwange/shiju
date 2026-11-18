@@ -36,6 +36,7 @@ impl Host for CacheHost {
     fn supplier(agent: &str, skills: Option<&Self::Skills>) -> Result<(), Error> { runtime::skill_mounts::prepare_supplier(agent, skills) }
     fn validate_mounts(agent: &str, selected: bool) -> Result<(), Error> { runtime::skill_mounts::validate(agent, selected) }
     fn prepare_launch<'a>(agent: &'a str, cfg: &'a AcpAgentConfig, model: &'a provider::Model, session: &'a str) -> HostFuture<'a, anyhow::Result<AcpLaunchProfile>> { unimplemented!("unused host port in cache fixture") }
+    fn prepare_openclaw_mcp_launch<'a>(_config: &'a AcpAgentConfig, _model: &'a provider::Model, _session: &'a str, _mcp: &'a serde_json::Map<String, serde_json::Value>) -> HostFuture<'a, anyhow::Result<AcpLaunchProfile>> { unimplemented!("unused host port in cache fixture") }
     fn approval<'a>(slot: &'a parking_lot::Mutex<Option<acp_host_io::permissions::PermissionConfirmation>>, session: &str) -> Self::Approval<'a> { runtime::approval::PromptApproval::bind(slot, None, tokio_util::sync::CancellationToken::new()) }
     fn observe_rpc(direction: acp_types::AcpMessageDirection, message: &acp_types::AcpJsonRpcMessage) {  }
     fn tool_input_preview(arguments: &str) -> String { arguments.to_owned() }

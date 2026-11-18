@@ -18,6 +18,7 @@ pub(super) async fn prepare(
     config: &AcpAgentConfig,
     model: &provider::Model,
     session: &str,
+    openclaw_mcp: &serde_json::Map<String, serde_json::Value>,
 ) -> anyhow::Result<AcpLaunchProfile> {
     let project = instance::project()
         .ok_or_else(|| anyhow::anyhow!("ACP launch requires project context"))?;
@@ -42,7 +43,7 @@ pub(super) async fn prepare(
     .await?;
     let endpoint = format!("http://{}", server.address());
     profile.attach_server(server);
-    llm_runtime::acp::model_source::configure_profile(agent, &mut profile, &endpoint, &directory).await?;
+    llm_runtime::acp::model_source::configure_profile(agent, &mut profile, &endpoint, &directory, openclaw_mcp).await?;
     Ok(profile)
 }
 

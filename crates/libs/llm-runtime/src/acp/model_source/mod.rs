@@ -49,8 +49,19 @@ pub fn prepare_profile(agent: &str, config: &agent_config::schema::AcpAgentConfi
 }
 
 /// Finish the reviewed driver configuration after the host binds its actual relay.
-pub async fn configure_profile(agent: &str, profile: &mut profile::AcpLaunchProfile, endpoint: &str, directory: &str) -> anyhow::Result<()> {
-    drivers::configure(agent, profile, endpoint, directory)?;
+pub async fn configure_profile(
+    agent: &str,
+    profile: &mut profile::AcpLaunchProfile,
+    endpoint: &str,
+    directory: &str,
+    openclaw_mcp: &serde_json::Map<String, serde_json::Value>,
+) -> anyhow::Result<()> {
+    if agent == "openclaw" && !openclaw_mcp.is_empty() {
+        drivers::launch_route(agent, profile)?;
+        drivers::openclaw::configure_with_mcp(profile, endpoint, directory, openclaw_mcp)?;
+    } else {
+        drivers::configure(agent, profile, endpoint, directory)?;
+    }
     if let Some(gateway) = profile.gateway.as_mut() { gateway.start().await?; }
     Ok(())
 }

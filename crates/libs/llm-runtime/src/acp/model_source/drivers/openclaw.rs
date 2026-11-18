@@ -1,13 +1,33 @@
 use super::AcpLaunchProfile;
-use serde_json::json;
+use acp_types::PermissionMode;
+use agent_client_protocol::McpServer;
+use serde_json::{Map, Value, json};
 use std::{
     collections::HashMap,
     path::{Path, PathBuf},
 };
+use vw_api_acp_model::acp_model_source::AcpModelSource;
 
 /// OpenClaw 2026.10.10 ACP is only a bridge. Put the provider on an owned
 /// foreground Gateway, and bind the bridge explicitly to its fresh loopback port.
-pub fn configure(profile: &mut AcpLaunchProfile, endpoint: &str, workspace: &str) -> anyhow::Result<()> {
+pub fn configure(
+    profile: &mut AcpLaunchProfile,
+    endpoint: &str,
+    workspace: &str,
+) -> anyhow::Result<()> {
+    configure_with_mcp(profile, endpoint, workspace, &Map::new())
+}
+
+pub(crate) fn configure_with_mcp(
+    profile: &mut AcpLaunchProfile,
+    endpoint: &str,
+    workspace: &str,
+    mcp: &Map<String, Value>,
+) -> anyhow::Result<()> {
+    if !mcp.is_empty() {
+        acp_agent_registry::verify_openclaw_mcp_executable(&profile.config().command)
+            .map_err(anyhow::Error::msg)?;
+    }
     anyhow::ensure!(
         profile.config().args == ["acp"],
         "OpenClaw requires native ACP without Gateway overrides"
@@ -47,7 +67,7 @@ pub fn configure(profile: &mut AcpLaunchProfile, endpoint: &str, workspace: &str
         .map_err(|_| anyhow::anyhow!("OpenClaw Gateway token entropy unavailable"))?;
     let gateway_token = hex::encode(bytes);
     let token_file = profile.write_config("gateway-token", gateway_token.as_bytes())?;
-    let config = json!({
+    let mut config = json!({
         "gateway": {"mode":"local", "bind":"loopback", "port":address.port(),
             "auth":{"mode":"token","token":"${VW_OPENCLAW_GATEWAY_TOKEN}"},
             "controlUi":{"enabled":false}},
@@ -66,6 +86,10 @@ pub fn configure(profile: &mut AcpLaunchProfile, endpoint: &str, workspace: &str
                 "reasoning":false,"input":["text"]}]
         }}}
     });
+    if !mcp.is_empty() {
+        config["mcp"] = json!({"servers": mcp});
+        config["tools"] = json!({"toolSearch": false});
+    }
     let config_file = profile.write_config("openclaw.json", &serde_json::to_vec(&config)?)?;
     profile.overlay_environment(HashMap::from([
         ("OPENCLAW_STATE_DIR".into(), profile.directory().to_string_lossy().into_owned()),
@@ -139,4 +163,59 @@ fn state_directory(profile: &AcpLaunchProfile) -> anyhow::Result<PathBuf> {
         anyhow::bail!("OpenClaw private state ACL verification unavailable");
     }
     Ok(path)
+}
+
+/// The private Gateway executes native MCP tools without ACP permission callbacks.
+/// Only an already unrestricted host request can move its selected servers there.
+/// ACP's session tool inventory is sent as Claude metadata. OpenClaw's service
+/// selection comes from the host-resolved MCP defaults.
+pub(crate) fn project_mcp<S>(
+    options: &crate::acp::options::ParsedAcpOptions<S>,
+    source: AcpModelSource,
+) -> anyhow::Result<Map<String, Value>> {
+    let mut servers = Map::new();
+    if options.mcp_servers.is_empty() {
+        return Ok(servers);
+    }
+    anyhow::ensure!(
+        source == AcpModelSource::SessionModel,
+        "OpenClaw MCP requires an owned session-model Gateway"
+    );
+    anyhow::ensure!(
+        options.full_access
+            && matches!(options.permission_mode, None | Some(PermissionMode::ApproveAll))
+            && options.non_interactive_permissions.is_none(),
+        "OpenClaw native MCP requires full access without non-interactive approval restrictions"
+    );
+    for server in &options.mcp_servers {
+        let McpServer::Stdio(server) = server else {
+            anyhow::bail!("OpenClaw managed MCP supports only stdio");
+        };
+        let command = server.command.to_str().filter(|command| literal_mcp_value(command));
+        anyhow::ensure!(
+            command.is_some()
+                && server.command.is_absolute()
+                && server.args.iter().all(|arg| literal_mcp_value(arg))
+                && server.env.is_empty(),
+            "OpenClaw managed stdio MCP requires a literal absolute command and no environment overrides"
+        );
+        anyhow::ensure!(
+            !server.name.is_empty()
+                && server
+                    .name
+                    .bytes()
+                    .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'_' | b'-')),
+            "OpenClaw managed MCP server name is invalid"
+        );
+        let entry = json!({"transport":"stdio", "command":command, "args":server.args});
+        anyhow::ensure!(
+            servers.insert(server.name.clone(), entry).is_none(),
+            "OpenClaw managed MCP server names must be unique"
+        );
+    }
+    Ok(servers)
+}
+
+fn literal_mcp_value(value: &str) -> bool {
+    !value.contains('\0') && !value.contains("${")
 }

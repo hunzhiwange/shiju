@@ -36,7 +36,7 @@ fn installed_directory(agent: &str, contract: &Contract) -> Result<PathBuf, Stri
         3
     } else if matches!(
         agent,
-        "deepagents" | "corust-agent" | "cursor" | "hermes" | "snow"
+        "deepagents" | "corust-agent" | "cursor" | "hermes" | "snow" | "openclaw"
     ) {
         2
     } else {
@@ -144,8 +144,14 @@ fn verify(directory: &Path, contract: &Contract) -> Result<PathBuf, String> {
 
 /// Absence is explicit: callers must not advertise patched support based on a CLI name.
 pub fn reviewed_agent_command(agent: &str) -> Result<Option<(String, Vec<String>)>, String> {
-    let Some(contract) = contract(agent) else { return Ok(None) };
-    let path = verify(&installed_directory(agent, &contract)?, &contract)?;
+    let Some(mut contract) = contract(agent) else { return Ok(None) };
+    let mut directory = installed_directory(agent, &contract)?;
+    // A previously installed OpenClaw remains available for launches without MCP.
+    if agent == "openclaw" && !directory.exists() {
+        contract.files.remove(OPENCLAW_MCP_TRANSPORT);
+        directory = root()?.join(format!("openclaw-{}-model-source-v1", contract.version));
+    }
+    let path = verify(&directory, &contract)?;
     if !contract.layout.is_empty() {
         return Ok(Some((
             path.to_string_lossy().into_owned(),
@@ -179,11 +185,30 @@ pub fn reviewed_agent_command(agent: &str) -> Result<Option<(String, Vec<String>
         other => other,
     };
     let executable =
-        installed_directory(agent, &contract)?.join("node_modules/.bin").join(bin_name);
+        directory.join("node_modules/.bin").join(bin_name);
     if executable.canonicalize().ok() != path.canonicalize().ok() || !executable.is_file() {
         return Err("ACP executable does not resolve to its reviewed artifact".into());
     }
     Ok(Some((executable.to_string_lossy().into_owned(), args)))
+}
+
+const OPENCLAW_MCP_TRANSPORT: &str = "dist/mcp-stdio-transport-Dlawzoy1.mjs";
+
+/// Native stdio mounts require the transport with verified host-exit cleanup.
+pub fn verify_openclaw_mcp_executable(command: &str) -> Result<(), String> {
+    let contract = contract("openclaw").ok_or("OpenClaw contract is unavailable")?;
+    let executable = Path::new(command)
+        .canonicalize()
+        .map_err(|_| "OpenClaw MCP requires the reviewed runtime")?;
+    let package = executable.parent().ok_or("Invalid OpenClaw entry")?;
+    let bytes = std::fs::read(package.join(OPENCLAW_MCP_TRANSPORT))
+        .map_err(|_| "OpenClaw MCP requires the reviewed stdio lifecycle patch")?;
+    if contract.files.get(OPENCLAW_MCP_TRANSPORT)
+        != Some(&hex::encode(Sha256::digest(bytes)))
+    {
+        return Err("OpenClaw MCP requires the reviewed stdio lifecycle patch".into());
+    }
+    Ok(())
 }
 
 /// Validate explicit overrides too; a familiar executable name is never proof of a patch.
@@ -199,7 +224,7 @@ pub fn verify_reviewed_agent_executable(agent: &str, command: &str) -> Result<()
             Err("Claude managed launch requires an installed verified ACP adapter".into())
         };
     }
-    let Some(contract) = contract(agent) else { return Ok(()) };
+    let Some(mut contract) = contract(agent) else { return Ok(()) };
     let executable = Path::new(command)
         .canonicalize()
         .map_err(|_| "Reviewed ACP executable is unavailable; install it on the gateway host")?;
@@ -240,6 +265,16 @@ pub fn verify_reviewed_agent_executable(agent: &str, command: &str) -> Result<()
         for directory in executable.ancestors() {
             if let Ok(path) = verify(directory, &contract)
                 && path.canonicalize().ok().as_ref() == Some(&executable)
+            {
+                return Ok(());
+            }
+        }
+    }
+    if agent == "openclaw" {
+        contract.files.remove(OPENCLAW_MCP_TRANSPORT);
+        for directory in executable.ancestors() {
+            if verify(directory, &contract)
+                .is_ok_and(|path| path.canonicalize().ok().as_ref() == Some(&executable))
             {
                 return Ok(());
             }

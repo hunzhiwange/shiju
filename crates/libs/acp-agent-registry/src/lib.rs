@@ -10,7 +10,7 @@ pub use agent_registry::{
     resolve_agent_command, resolve_agent_spec, resolve_agent_spec_with_overrides,
 };
 pub use install::install_builtin_agent;
-pub use managed_runtime::{reviewed_agent_command, verify_reviewed_agent_executable};
+pub use managed_runtime::{reviewed_agent_command, verify_openclaw_mcp_executable, verify_reviewed_agent_executable};
 
 #[cfg(test)]
 static TEST_HOME_ENV_LOCK: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());

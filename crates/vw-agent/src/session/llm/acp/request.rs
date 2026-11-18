@@ -34,7 +34,15 @@ impl Host for RuntimeHost {
     fn scanner(agent: &str, cfg: &mut config::schema::AcpAgentConfig, skills: Option<&Self::Skills>) -> Result<(), Error> { super::skill_mounts::configure_native_scanner(agent, cfg, skills) }
     fn supplier(agent: &str, skills: Option<&Self::Skills>) -> Result<(), Error> { super::skill_mounts::prepare_supplier(agent, skills) }
     fn validate_mounts(agent: &str, selected: bool) -> Result<(), Error> { super::skill_mounts::validate(agent, selected) }
-    fn prepare_launch<'a>(agent: &'a str, cfg: &'a config::schema::AcpAgentConfig, model: &'a provider::Model, session: &'a str) -> HostFuture<'a, anyhow::Result<super::model_source::profile::AcpLaunchProfile>> { Box::pin(super::model_source::prepare(agent, cfg, model, session)) }
+    fn prepare_launch<'a>(agent: &'a str, cfg: &'a config::schema::AcpAgentConfig, model: &'a provider::Model, session: &'a str) -> HostFuture<'a, anyhow::Result<super::model_source::profile::AcpLaunchProfile>> { Box::pin(async move { super::model_source::prepare(agent, cfg, model, session, &Default::default()).await }) }
+    fn prepare_openclaw_mcp_launch<'a>(
+        config: &'a config::schema::AcpAgentConfig,
+        model: &'a provider::Model,
+        session: &'a str,
+        mcp: &'a serde_json::Map<String, Value>,
+    ) -> HostFuture<'a, anyhow::Result<super::model_source::profile::AcpLaunchProfile>> {
+        Box::pin(super::model_source::prepare("openclaw", config, model, session, mcp))
+    }
     fn approval<'a>(slot: &'a parking_lot::Mutex<Option<acp_host_io::permissions::PermissionConfirmation>>, session: &str) -> Self::Approval<'a> { super::approval::PromptApproval::bind(slot, session) }
     fn observe_rpc(_direction: acp_types::AcpMessageDirection, _message: &acp_types::AcpJsonRpcMessage) {
         #[cfg(test)]

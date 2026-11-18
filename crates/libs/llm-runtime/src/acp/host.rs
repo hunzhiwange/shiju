@@ -39,6 +39,13 @@ pub trait Host: Send + Sync + 'static {
     fn supplier(agent: &str, skills: Option<&Self::Skills>) -> Result<(), Error>;
     fn validate_mounts(agent: &str, selected: bool) -> Result<(), Error>;
     fn prepare_launch<'a>(agent: &'a str, cfg: &'a AcpAgentConfig, model: &'a provider::Model, session: &'a str) -> HostFuture<'a, anyhow::Result<AcpLaunchProfile>>;
+    fn prepare_openclaw_mcp_launch<'a>(
+        config: &'a AcpAgentConfig,
+        model: &'a provider::Model,
+        session: &'a str,
+        mcp: &'a serde_json::Map<String, serde_json::Value>,
+    ) -> HostFuture<'a, anyhow::Result<AcpLaunchProfile>>;
+
     fn approval<'a>(slot: &'a parking_lot::Mutex<Option<acp_host_io::permissions::PermissionConfirmation>>, session: &str) -> Self::Approval<'a>;
     fn observe_rpc(direction: acp_types::AcpMessageDirection, message: &acp_types::AcpJsonRpcMessage);
     fn tool_input_preview(arguments: &str) -> String;

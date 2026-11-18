@@ -48,10 +48,22 @@ fn map(message: desktop_task_board::panel::PanelMessage) -> Message {
  desktop_task_board::panel::PanelMessage::Selection { session_id, message_idx, text_idx, text } => Message::ChatMarkdownSelectionChanged { session_id, message_idx, text_idx, text } }
 }
 pub fn build_task_panel(app: &App, edit: bool) -> iced::Element<'_, Message> {
- desktop_task_board::panel::build_with_controls(
+ let panel = desktop_task_board::panel::build_with_controls(
  input(app), edit, model_selector::view(app), executor_selector::input(app),
  || reasoning_selector::domain_build(app, edit, false),
- ).map(map)
+ ).map(map);
+ if let Some(task) = app.task_board.task_board_viewing_logs.as_ref() {
+     let personal = app.navigation_tabs.project_path.as_ref()
+         .and_then(|path| app.task_board.personal_tasks.get(path))
+         .is_some_and(|ids| ids.contains(&task.id));
+     iced::widget::column![
+         iced::widget::button(iced::widget::text(if personal { "移出我的任务" } else { "加入我的任务" }))
+             .padding([8, 12])
+             .style(crate::app::components::system_settings_common::rounded_action_btn_style)
+             .on_press(Message::TaskBoard(crate::app::message::TaskBoardMessage::TogglePersonalTask(task.id.clone()))),
+         panel
+     ].spacing(8).into()
+ } else { panel }
 }
 pub(crate) fn build_bulk_task_split_selector(app: &App) -> iced::Element<'_, Message> { desktop_task_board::panel::build_bulk_task_split_selector(input(app)).map(map) }
 pub(crate) fn build_bulk_agent_selector(app: &App) -> iced::Element<'_, Message> { desktop_task_board::panel::build_bulk_agent_selector(input(app)).map(map) }

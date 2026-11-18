@@ -20,6 +20,7 @@ use super::common::{
 };
 /// Borrowed board data and the still separately owned selector/menu views.
 pub struct BoardView<'a, M> {
+    pub task_visible: Option<std::rc::Rc<dyn Fn(&Task) -> bool + 'a>>,
     pub task_board_settings: &'a desktop_task_model::TaskBoardSettings,
     pub task_board_tasks: &'a Vec<Task>,
     pub task_board_selected_tasks: &'a std::collections::HashSet<String>,
@@ -173,7 +174,7 @@ fn build_status_column<'a, M: Clone + From<TaskBoardMessage> + 'a>(app: &BoardVi
     let mut tasks: Vec<&Task> = app
         .task_board_tasks
         .iter()
-        .filter(|t| t.status == status && !t.deleted && !t.archived)
+        .filter(|t| t.status == status && !t.deleted && !t.archived && app.task_visible.as_ref().is_none_or(|visible| visible(t)))
         .collect();
     sort_task_cards(&mut tasks);
 

@@ -32,6 +32,9 @@ pub struct WorktreePoolMaintenanceOutcome {
 #[derive(Debug, Clone)]
 /// 描述 TaskBoardMessage 支持的离散状态或消息分支。
 pub enum TaskBoardMessage {
+    SelectWorkView(crate::work_views::BuiltinWorkView),
+    TogglePersonalTask(String),
+    OpenWorkProject(String),
     ToggleBoard,
     CloseBoard,
     LoadTasks,

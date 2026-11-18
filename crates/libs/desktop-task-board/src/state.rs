@@ -10,6 +10,8 @@ pub enum TaskBoardViewMode {
 }
 
 pub struct State {
+    pub work_view: crate::work_views::BuiltinWorkView,
+    pub personal_tasks: HashMap<String, Vec<String>>,
     /// 是否显示任务看板
     pub show_task_board: bool,
     /// 任务看板是否正在加载
@@ -183,6 +185,8 @@ impl State {
     pub fn new(cfg: &serde_json::Value, acp_agent: Option<String>, init_ms: u64) -> Self {
         Self {
             // ========== 任务板基础状态 ==========
+            work_view: crate::work_views::BuiltinWorkView::AllTasks,
+            personal_tasks: HashMap::new(),
             show_task_board: false,
             task_board_loading: false,
             task_board_view_mode: TaskBoardViewMode::default(),
@@ -319,5 +323,26 @@ impl State {
                 *setting = value;
             }
         }
+    }
+}
+
+impl State {
+    pub fn work_task_visible(&self, project: &str, task: &desktop_task_model::Task) -> bool {
+        self.work_task_matches(project, self.work_view, task)
+    }
+    pub fn work_task_matches(&self, project: &str, view: crate::work_views::BuiltinWorkView, task: &desktop_task_model::Task) -> bool {
+        let workflow = desktop_task_model::task_workflow_by_id(&self.task_board_settings.workflow_id)
+            .or_else(|| desktop_task_model::task_workflow_by_id(desktop_task_model::DEFAULT_TASK_WORKFLOW_ID));
+        workflow.is_some_and(|workflow| view.matches(task, &workflow, self.personal_tasks.get(project).map(Vec::as_slice).unwrap_or(&[])))
+    }
+    pub fn switch_work_view(&mut self, view: crate::work_views::BuiltinWorkView) {
+        self.work_view = view;
+        self.task_board_selected_tasks.clear();
+        self.task_board_bulk_active_status = None;
+        self.task_board_dragging = None;
+        self.task_board_drag_pending = None;
+        self.task_board_context_menu = None;
+        self.task_board_bulk_model_popover = false;
+        self.task_board_bulk_executor_popover = false;
     }
 }

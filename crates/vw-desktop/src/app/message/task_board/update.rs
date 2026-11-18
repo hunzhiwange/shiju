@@ -96,6 +96,43 @@ pub fn update(
     app: &mut crate::app::App,
     message: TaskBoardMessage,
 ) -> iced::Task<crate::app::Message> {
+    match &message {
+        TaskBoardMessage::SelectWorkView(view) => {
+            app.task_board.switch_work_view(*view);
+            return iced::Task::none();
+        }
+        TaskBoardMessage::TogglePersonalTask(id) => {
+            if let Some(path) = app.navigation_tabs.project_path.clone() {
+                let ids = app.task_board.personal_tasks.entry(path).or_default();
+                if ids.contains(id) { ids.retain(|item| item != id); } else { ids.push(id.clone()); }
+                app.task_board.task_board_selected_tasks.remove(id);
+            }
+            return iced::Task::none();
+        }
+        TaskBoardMessage::OpenWorkProject(path) => {
+            if !std::path::Path::new(path).is_dir() {
+                return app.show_error_toast("项目目录不存在或不可访问".to_string());
+            }
+            let task = app.open_project_and_index(path.clone());
+            app.task_board.show_task_board = true;
+            app.task_board.switch_work_view(taskboard::work_views::BuiltinWorkView::AllTasks);
+            app.navigation_tabs.screen = crate::app::Screen::TaskBoard;
+            return iced::Task::batch([task, sync_task_board_gateway_snapshot(path.clone()), maybe_schedule_worktree_snapshot_refresh(app, true)]);
+        }
+        TaskBoardMessage::SelectAllTasksInStatus(status) | TaskBoardMessage::InvertTaskSelectionInStatus(status) => {
+            let path = app.navigation_tabs.project_path.as_deref().unwrap_or("");
+            let ids: Vec<_> = app.task_board.task_board_tasks.iter()
+                .filter(|task| task.status == *status && app.task_board.work_task_visible(path, task))
+                .map(|task| task.id.clone()).collect();
+            for id in ids {
+                if matches!(&message, TaskBoardMessage::SelectAllTasksInStatus(_)) || !app.task_board.task_board_selected_tasks.remove(&id) {
+                    app.task_board.task_board_selected_tasks.insert(id);
+                }
+            }
+            return iced::Task::none();
+        }
+        _ => {}
+    }
     let model_options = taskboard::update::model::reasoning_model_for_message(&message)
         .map(|model| {
             crate::app::components::input_panel::reasoning_selector::model_reasoning_effort_options(

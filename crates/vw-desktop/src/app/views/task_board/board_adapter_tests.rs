@@ -18,3 +18,59 @@ fn board_composes_host_bulk_selectors() {
         let _ = super::build_kanban_board(&app);
     }
 }
+
+use crate::app::message::TaskBoardMessage;
+use desktop_task_board::work_views::BuiltinWorkView;
+fn dispatch(app: &mut App, message: TaskBoardMessage) {
+    let _ = crate::app::message::task_board::update(app, message);
+}
+#[test]
+fn work_sidebar_personal_marks_are_project_scoped() {
+    let (mut app, _) = App::new();
+    app.navigation_tabs.project_path = Some("/project-a".into());
+    let task = Task::new(20);
+    app.task_board.task_board_tasks = vec![task.clone()];
+    dispatch(&mut app, TaskBoardMessage::TogglePersonalTask(task.id.clone()));
+    dispatch(&mut app, TaskBoardMessage::SelectWorkView(BuiltinWorkView::MyTasks));
+    assert!(app.task_board.work_task_visible("/project-a", &task));
+    assert!(!app.task_board.work_task_visible("/project-b", &task));
+    dispatch(&mut app, TaskBoardMessage::TogglePersonalTask(task.id.clone()));
+    assert!(!app.task_board.work_task_visible("/project-a", &task));
+}
+#[test]
+fn work_sidebar_switch_clears_transient_selection() {
+    let (mut app, _) = App::new();
+    app.task_board.task_board_selected_tasks.insert("hidden".into());
+    app.task_board.task_board_dragging = Some(("hidden".into(), TaskStatus::Pending));
+    dispatch(&mut app, TaskBoardMessage::SelectWorkView(BuiltinWorkView::MyTasks));
+    assert!(app.task_board.task_board_selected_tasks.is_empty());
+    assert!(app.task_board.task_board_dragging.is_none());
+}
+#[test]
+fn work_sidebar_select_all_excludes_hidden_tasks() {
+    let (mut app, _) = App::new();
+    app.navigation_tabs.project_path = Some("/project-a".into());
+    let visible = Task::new(20);
+    let mut hidden = visible.clone();
+    hidden.id = "hidden".into();
+    app.task_board.task_board_tasks = vec![visible.clone(), hidden.clone()];
+    dispatch(&mut app, TaskBoardMessage::TogglePersonalTask(visible.id.clone()));
+    dispatch(&mut app, TaskBoardMessage::SelectWorkView(BuiltinWorkView::MyTasks));
+    dispatch(&mut app, TaskBoardMessage::SelectAllTasksInStatus(visible.status));
+    assert!(app.task_board.task_board_selected_tasks.contains(&visible.id));
+    assert!(!app.task_board.task_board_selected_tasks.contains(&hidden.id));
+}
+#[test]
+fn work_sidebar_project_message_opens_work_and_clears_snapshot() {
+    let (mut app, _) = App::new();
+    let path = std::env::current_dir().unwrap().to_string_lossy().into_owned();
+    app.navigation_tabs.project_path = Some("/previous-project".into());
+    app.task_board.task_board_tasks = vec![Task::new(20)];
+    dispatch(&mut app, TaskBoardMessage::OpenWorkProject(path.clone()));
+    assert_eq!(app.navigation_tabs.project_path.as_deref(), Some(path.as_str()));
+    assert!(app.task_board.show_task_board);
+    assert_eq!(app.navigation_tabs.screen, crate::app::Screen::TaskBoard);
+    assert!(app.task_board.task_board_tasks.is_empty());
+    dispatch(&mut app, TaskBoardMessage::OpenWorkProject("/missing-work-sidebar-project".into()));
+    assert_eq!(app.navigation_tabs.project_path.as_deref(), Some(path.as_str()));
+}

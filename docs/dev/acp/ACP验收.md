@@ -1209,3 +1209,16 @@ Rust重型命令经scripts/cargo_slot.py槽位入口串行执行，对应CARGO_T
 - 已确认 `packages/rue/src` 与 `@rue-js/rue`。排除 `.git`、`node_modules`、`target` 后，前后各 6311 项普通文件 SHA-256 零差异，Git 短状态一致，`acpdemo/aionrs/` 始终不存在。结束配置 GET 等于基线，无临时启用值需恢复。自有网关退出 0、端口已关闭，隔离配置副本已清理。
 - 复用槽位 1 已复制的 `agent-config` 测试二进制，过滤 `acp_onboarding_aionrs --test-threads=1`，预设元数据和目录绑定共 2 项通过，退出 0。其他 Rust 编译正在运行，本次未重编译或执行桥接协议及注册集成测试。未运行 Clippy、桌面编译、页面构建或浏览器验证。
 - 原始请求、响应、日志、快照与摘要存于本机 0700 目录 `/tmp/shiju-aionrs-accept-20261118.fxP6on/`。补齐双入口的受管安装、经实证的指定模型与权限链路，并确认任务 41 的环境恢复后，按任务 42 完整重跑。
+
+
+### Poolside 补丁与真实模型验收（2026-11-18）
+
+系统安装、内置预设和真实指定模型调用已通过。任务 36 仍为已阻塞，真实会话在两段 SSE 等待期间均未发起写入，未取得编辑器或成功终态。
+
+- 提交 `15bfb9815`、`decc0cdd8` 将 Darwin arm64 的官方 Poolside 1.0.16 纳入 ShiJu 的固定版本安装。托管启动在会话工作区建立只读沙箱，使用当前请求自己的租户模型中继。原生沙箱暂存的文本变更逐文件交给宿主 ACP 写入接口，原生批量应用始终被拦截。启动要求可用的本地 Docker 引擎，使用固定摘要的容器镜像。原生定向探针验证了嵌套新文件、目录外拒绝及宿主拒绝后零残留。
+- 使用槽位 1 构建 `shiju 0.6.0`，命令为 `cargo build -j 4 -p vw-cli --bin shiju`，退出 0。构建完成时工作区 HEAD 为 `5c05e7d46674ce0bb26309bc083619c7967d3db2`，包含 Poolside 补丁和同仓并行任务变更。二进制 SHA-256 为 `0b3e616b039ead3877dc087b0324452692585e2c5adc5c48981a68b5d9d3366d`。
+- 独立网关使用现有开发 SQLite 配置及密钥的私有临时副本，保留原平台、公司和 Rue.js 目录头。系统安装 HTTP 200，curl 退出 0，98.150942 秒，安装状态由 false 变为 true。管理入口的原生版本为 1.0.16，原生二进制 SHA-256 为 `5dcb0162fd21a535e4f67117125e7d205e27a6881862aa223d0424082848f874`。普通诊断 HTTP 200、`connected`。模型能力报告 `session_model=supported`。内置 `acp-poolside` 默认停用，临时启用后 GET 重读确认生效。
+- 使用任务原始请求提交一次。运行中和续传结束后的 summary/options 均确认会话 `ses_1ec6e3281001IsHjkwT4oKwXyq` 为 `acp-poolside`、后端 `poolside`、`full_access=true`、`connected=true`、`access_status.support=client_only`，`selected_model` 为 `session_model`、`provider_id=alibaba-token-plan-cn`、完整模型 `alibaba-token-plan-cn/deepseek-v4.1-flash-1017`。真实模型流返回文本和源码读取工具结果。
+- 首段 HTTP 200、curl 退出 28、300.005226 秒。查询确认会话仍在线，使用原 stream request ID 和 Last-Event-ID 续传。续传 HTTP 200、curl 退出 28、300.001471 秒。两段共 95 次读取工具调用，无写入调用、`chat.done` 或 `chat.error`。目标目录始终不存在。未重新提交相同创建请求。后续完整验收须在同一模型上取得实际文件写入和成功终态，尚无证据将本次长时间读取归因于模型中继或宿主写入失败。
+- 启用配置只写入临时副本。结束时 PATCH 恢复停用，GET 确认有效预设与基线一致。副本配置多出一个显式停用覆写，退出后临时副本已删除，原开发配置未收到 PATCH。自有网关退出 0，回环端口关闭，无残留 Poolside 容器。Rue.js 前后各 6311 个普通文件摘要相同。
+- 槽位 1 中安装契约 1 项、模型选项及工作目录 1 项、Poolside ACP 协议 3 项均通过。Python 暂存过滤测试 2 项和原生允许/拒绝探针通过。限定四个受影响库的 `cargo clippy --lib --no-deps` 退出 0，已有 lint 仍在。未运行桌面编译、页面构建或浏览器检查。原始请求、SSE、配置、构建与清理证据仅存 0700 私有目录 `/tmp/shiju-poolside-bridge.VUxOmR/`，原生实测另存 `/tmp/shiju-poolside-new-dir.dzL1Tg/`。

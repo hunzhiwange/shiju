@@ -34,3 +34,21 @@
 ## 定向回归
 
 `python3 scripts/cargo_slot.py cargo test -j 1 -p acp-client --lib acp_onboarding_sigit_mcp_selection_rejects_before_new_or_load` 退出码 0，实际执行 1 项并通过，318 项被过滤。该用例确认非空选择在 `session/new` 和 `session/load` 发送前失败。复用 Cargo 槽位 3，`CARGO_TARGET_DIR` 和 `CARGO_BUILD_BUILD_DIR` 均指向仓库根目录下的 `target/rust-slot-3`。槽位已释放，缓存保留。
+
+## 共享工作区复验
+
+在独立网关换用共享工作区已有 ShiJu 0.6.0 构建，SHA-256 为 `f46699dd46d8520d8a7cfc3324132ccd5a2e05857e89fde160052fdcf75add3c`。沿用相同审核版 siGit 入口、提示、模型、租户和 RueJS 提交。同一 stdio 服务仅在挂载轮启用。
+
+| 轮次 | 新会话 | HTTP / curl 退出码 / 秒 | SSE 终态与答复 |
+| --- | --- | --- | --- |
+| 无挂载 | `ses_1f0260df7001V6lGifrPQPXs42` | 200 / 0 / 8.007 | `chat.done`，最终答复为 `MCP_NOT_AVAILABLE`。 |
+| 挂载 | `ses_1f0262ebd001GELGCS4sul0INc` | 200 / 0 / 4.742 | `chat.model_recovery` 的 `phase=stopped`，随后 `chat.error`，未发送携带 MCP 的建会话请求。 |
+| 撤除 | `ses_1f026437a0017PuXweykgbMSYJ` | 200 / 0 / 7.219 | `chat.done`，最终答复为 `MCP_NOT_AVAILABLE`。 |
+
+复现了 `siGit reviewed host-only runtime does not support MCP servers`。三轮均无工具事件，UI summary 均确认绑定和完全访问请求。两轮对照在线确认指定模型及 `client_only`。挂载轮没有有效连接、选模、工具结果或调查答复。GitHub 的最新发布仍为 v1.7.10。[上游发行记录](https://github.com/getsigit/sigit/releases/tag/v1.7.10)
+
+- 独立调用现有 Cortex 的 stdio 沙箱执行器。新建索引缺少 SQLite WAL/SHM 边车文件时，真实 RustCodeGraph 握手成功，`tools/list` 返回空列表。保持同一只读策略，由宿主持有私有索引的 SQLite 读事务后，三种工具均成功并返回首轮记录的相同符号和路径。传入工作区之外另一份已索引副本的 `projectPath` 未读到查询结果。仅为定位原因，另在私有副本中验证放行两个 SQLite 边车文件的写入也能恢复三个工具，产品未采用该授权。
+- 直接借用 Cortex 或 DeepAgents 的执行器仍缺少 siGit 侧注册工具及回传结果的回调。Cortex 使用 `_meta.clientTools`，DeepAgents 使用自己的工具注册和分发路径。siGit 受审版本收到了 MCP 定义以后，只能在原生端启动连接，且获批后在工具分发处拒绝原生执行。原生 stdio 库增加配置环境项时延续父进程环境，缺少隔离启动入口。HTTP 路径共享工具分发限制，同一个 RustCodeGraph 二进制的 MCP 启动入口只提供 stdio。
+- 挂载仍需一个经审查的宿主持有执行入口，绑定会话的工具清单与每次审批，隔离服务进程环境，在撤除、取消和关闭时回收，并返回原始工具结果。可在支持该合同的新版受审运行时到位后复验，或扩展本计划范围，新增 siGit 至 ShiJu 宿主的工具注册及执行回调。本轮复用现有构建及本机探针。协议门禁与断言无改动，定向测试结果沿用上节。
+
+私有网关、沙箱服务及 SQLite 读事务已关闭，临时挂载和凭据副本已清理，用户网关健康检查通过。

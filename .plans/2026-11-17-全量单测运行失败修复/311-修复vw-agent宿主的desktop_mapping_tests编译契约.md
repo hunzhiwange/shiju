@@ -126,3 +126,19 @@ python3 scripts/cargo_slot.py sh -c 'cargo test -p vw-agent --lib cc04_desktop_m
 
 - 日志 `/tmp/shiju-task311-after.log`，退出101；vw-agent lib test 仍有61条兄弟编译错误（包括视频 VideoContext 契约及 IntoResponse trait 缺失），本文件不再出现诊断。有效测试数0，后两命令因首条失败未执行，不记行为通过。
 - 自有入口已退出并释放槽位；未执行全量、桌面构建或额外 check。待兄弟任务解除宿主编译阻塞后重跑上述三条命令，必要验证通过前保留任务卡。
+
+## 2026-11-18 复用公共产物验证
+
+- 编译修复提交 `b8e9794ae` 已核对，包含在公共构建起始 HEAD `3382a35f8`，结束 HEAD `17e53b009`。编译退出 0，槽位 1，直接使用 `target/rust-slot-1/debug/deps/vw_agent-e6b6e74ae78b3318`。SHA-256 为 `5548b4e2c673a564f9d12af91061c0e01e0334f68881fd8cf360a1cbf5933e78`，凭据为 `/tmp/shiju-host-common-304-LYrH28/receipt.md`。
+- 每条命令均为上述二进制加 `--exact --nocapture` 和完整测试名，模块前缀为 `gateway::api::handlers::app_providers::desktop_mapping_tests::`。每个子进程独立设置 HOME、CODEX_HOME、XDG、VIBEWINDOW_TEST_ROOT、VIBEWINDOW_CONFIG_DIR、CLAUDE_CONFIG_DIR、TMPDIR 和工作目录。源码核对确认 SQLite、策略、Claude 配置、凭证路径、监听端口均来自本地临时夹具。
+- `cc04_desktop_mapping_sdk_api_import_validates_and_never_activates`：运行 1，失败 1，退出 101。第 103 行，错误令牌的导入调用返回成功。日志 `/tmp/shiju-task311-recheck-BVh9Wb/1.log`。
+- `cc04_desktop_mapping_imported_native_profile_reaches_transactional_files`：运行 1，失败 1，退出 101。第 177 行，返回 Applied 后读取预期 profile 文件得到 ENOENT。日志 `/tmp/shiju-task311-recheck-BVh9Wb/2.log`。
+- `cc04_ui_desktop_form_read_is_redacted_and_permission_checked`：运行 1，失败 1，退出 101。第 226 行，表单读取返回 HTTP 409。日志 `/tmp/shiju-task311-recheck-BVh9Wb/3.log`。
+- 合计 3 项有效测试，0 通过，3 失败。执行和产物记录在 `/tmp/shiju-task311-recheck-BVh9Wb/results.json` 和 `artifact.txt`。槽位已释放。三个运行期故障需按实际业务归属修复后用新产物复验，当前授权禁止重编，保留任务卡。
+
+## 2026-11-18 迁移运行期测试契约
+
+- 应用路由的执行上下文已由 Gateway 配对、进程运行时路径和请求租户决定。移除仅对旧契约有效的授权文件，让真实 PairingGuard 校验端点携带的 skey。错误配对的读写均断言 401，并核查目录、记录及文件副作用。旧参数仅用于维持现有 SDK 签名。
+- 四个用例在独立子进程中使用全新临时目录作为 HOME、CODEX_HOME、XDG 和应用状态路径。事务和原生 profile 跟随该运行时目录。表单测试使用项目绑定事务及现行 scoped 请求，检查脱敏、有效 revision、跨项目 403、非法 URL 422，以及读取不改变状态和配置文件。
+- 本轮仅修改本编号拥有的测试文件与任务卡。已运行该文件 rustfmt 和 git diff --check。重型编译窗口由其他任务持有，未重编或运行旧产物。
+- 新公共产物包含本轮提交后，按完全限定名称分别验证原三项及夹具影响的 `cc04_desktop_mapping_permissions_refuse_catalog_side_effects`，记录四项实际执行数、退出码和日志。每项需观察 1 passed / 0 failed，退出 0。

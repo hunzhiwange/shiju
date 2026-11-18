@@ -37,23 +37,42 @@ use std::sync::Arc;
 const HOST: &str = local_app_auth::HOST_ID;
 const PRINCIPAL: &str = "desktop-local-user";
 
+const ISOLATED_DIRS: [(&str, &str); 5] = [
+    ("CODEX_HOME", ".codex"),
+    ("XDG_CONFIG_HOME", ".config"),
+    ("XDG_DATA_HOME", ".local/share"),
+    ("XDG_STATE_HOME", ".local/state"),
+    ("XDG_CACHE_HOME", ".cache"),
+];
+
 fn isolated_test() -> bool {
     const ROOT: &str = "SHIJU_USAGE_ACCEPTANCE_ROOT";
     if let Some(root) = std::env::var_os(ROOT) {
         let root = std::path::PathBuf::from(root);
-        assert_eq!(std::env::var_os("VIBEWINDOW_TEST_ROOT").as_deref(), Some(root.as_os_str()));
-        assert_eq!(agent_paths::paths().home, root);
-        assert_eq!(std::env::var_os("CODEX_HOME").unwrap(), root.join(".codex").into_os_string());
+        assert!(root.starts_with(std::env::temp_dir().canonicalize().unwrap()));
+        assert_eq!(std::env::current_dir().unwrap(), root);
+        for key in ["HOME", "VIBEWINDOW_TEST_ROOT"] {
+            assert_eq!(std::env::var_os(key).as_deref(), Some(root.as_os_str()));
+        }
+        for (key, suffix) in ISOLATED_DIRS {
+            assert_eq!(std::env::var_os(key).as_deref(), Some(root.join(suffix).as_os_str()));
+        }
+        let paths = agent_paths::paths();
+        assert_eq!(paths.home, root);
+        for path in [&paths.config, &paths.data, &paths.state, &paths.cache] {
+            assert!(path.starts_with(&root));
+        }
         return false;
     }
     let root = tempfile::tempdir().unwrap();
     let path = root.path().canonicalize().unwrap();
     let status = std::process::Command::new(std::env::current_exe().unwrap())
         .args(["--exact", std::thread::current().name().unwrap(), "--nocapture"])
+        .current_dir(&path)
         .env(ROOT, &path)
         .env("VIBEWINDOW_TEST_ROOT", &path)
         .env("HOME", &path)
-        .env("CODEX_HOME", path.join(".codex"))
+        .envs(ISOLATED_DIRS.map(|(key, suffix)| (key, path.join(suffix))))
         .status()
         .unwrap();
     assert!(status.success(), "isolated usage acceptance child failed: {status}");

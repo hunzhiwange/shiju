@@ -1427,3 +1427,12 @@ macOS arm64 的托管安装已实测，指定模型和 Rue.js 落盘验收仍阻
 - 在 `acpdemo/cortex-code/` 核对 `index.html`、`package.json`、`tsconfig.json`、`vite.config.ts`、`src/main.tsx`、`src/style.css` 和 `README.md`。Vite 通过工作区链接读取本仓库 `@rue-js/rue` 的现有构建产物，包入口已核实存在。源码用 Rue 的 signal 和 textarea 实现实时 Unicode 字符数，输入即保存到 localStorage，初始化恢复，README 给出启动命令。未运行页面构建、浏览器或桌面验证。
 - 成功轮 Rue.js 摘要从 6359 项增至 6366 项，差异仅以上 7 个文件。预设恢复为原停用值并重新读回，私有完整配置仅多一个显式停用覆写。两个回环网关均退出 0，端口 56147、56489 已关闭，两份私有租户副本均清理。原开发配置未收到 PATCH。原始证据和逐项校验保存于本机 0700 目录 `/tmp/shiju-cortex-local.Pi6oxR/`，Rue.js 产物留在其工作区。
 - 私有证据见 `/tmp/shiju-corust-provider.2aldun/`、`/tmp/shiju-corust-launch.8l2XP5/` 与 `/tmp/shiju-corust-wire.iX4E3n/`。会话和文件证据分别在 `acceptance-wire/` 与 `acceptance-finish/`，原始请求、日志和供应商文件均留在本机。
+
+
+### Devin 免登录验收暂缓（2026-11-18）
+
+用户要求保留原生 `devin acp`，免 Devin 登录，继续选用现有 ShiJu 阿里中继中的 `alibaba-token-plan-cn/deepseek-v4.1-flash-1017`。目前该组合仍阻塞，保留任务 33。
+
+- `jev-gateway` 的公开实测证明正常登录后的 Devin CLI 3000.11.3 可以把 `GetChatMessage` 导向回环代理，并接收工具调用继续下一轮。已按其协议准备只回复固定标记的私有探针，1 项 Connect 帧格式模拟检查通过。官方登录流程已结束，未产生本机登录凭据，未运行认证后的原生探针。[Jev 的原生 CLI 实测](https://github.com/vinilana/jev-gateway#using-it-with-devin)
+- `devin-byok` 的公开源码包含桌面扩展启动的 ACP 子进程包装器，以及由桌面环境提供的本地虚拟身份和兼容服务。尚未验证当前固定版独立 `devin acp` 能否以同样方式使用本地模型并保留原审批边界。Cortex Code 的免登录补丁依赖其发行包内置 Chat Completions 传输，已测 Devin 公开版在握手前拒绝 `ACP_BACKEND=openai`。[桌面 BYOK 说明](https://github.com/cyberlieflife/devin-byok#新电脑安装与本地账户) · [ACP 包装器源码](https://github.com/cyberlieflife/devin-byok/blob/master/cmd/devin-wrapper/main.go)
+- 复跑条件是取得可在隔离环境验证的 Devin 本地推理入口，并确认原生会话、工具权限和模型绑定。独立 CLI 仍未发送指定模型的真实推理请求，Rue.js 目标目录仍不存在。本记录为文档更新，未运行 Cargo。前轮模拟探针位于 0700 私有目录 `/tmp/shiju-devin-auth-relay.ULKCLY/`，没有服务保持运行。

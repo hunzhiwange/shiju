@@ -13,6 +13,8 @@ pub enum EditorMessage {
     ClearCopiedLspCommand(u64),
     #[cfg(not(target_arch = "wasm32"))]
     LspInstalled(Result<(), String>),
+    #[cfg(not(target_arch = "wasm32"))]
+    LspInstallationStatus(Vec<desktop_lsp::install::Server>),
     TogglePopover(EditorPopover),
     ClosePopover,
     SetOption(EditorOption, bool),
@@ -252,7 +254,12 @@ pub fn update(
 pub fn prepare_message(shutdown: bool, read_only: bool, popover: &mut Option<EditorPopover>, message: &EditorMessage) -> bool {
     if shutdown && !matches!(message, EditorMessage::ConfigSaved(_)) { return false; }
     #[cfg(not(target_arch = "wasm32"))]
-    if matches!(message, EditorMessage::ClearCopiedLspCommand(_) | EditorMessage::LspInstalled(_)) {
+    if matches!(
+        message,
+        EditorMessage::ClearCopiedLspCommand(_)
+            | EditorMessage::LspInstalled(_)
+            | EditorMessage::LspInstallationStatus(_)
+    ) {
         return true;
     }
     if read_only && matches!(message, EditorMessage::OpenReplace | EditorMessage::Undo | EditorMessage::Redo | EditorMessage::Cut | EditorMessage::Paste | EditorMessage::ClipboardContentReceived(_) | EditorMessage::Delete) { return false; }

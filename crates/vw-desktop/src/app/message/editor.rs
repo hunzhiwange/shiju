@@ -86,6 +86,13 @@ pub fn update(app: &mut App, message: EditorMessage) -> Task<Message> {
                 Err(error) => app.show_error_toast(error),
             }
         }
+        #[cfg(not(target_arch = "wasm32"))]
+        EditorMessage::LspInstallationStatus(servers) => {
+            if app.preview_state.installing_lsp.is_none() {
+                app.preview_state.installed_lsp = servers;
+            }
+            Task::none()
+        }
         EditorMessage::TogglePopover(kind) => {
             let editor = app.navigation_tabs.preview_tabs.iter_mut()
                 .find(|tab| Some(&tab.path) == app.navigation_tabs.active_preview_path.as_ref())

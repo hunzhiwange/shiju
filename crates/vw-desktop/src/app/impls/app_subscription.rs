@@ -54,6 +54,34 @@ fn needs_activity_animation_tick(app: &App, startup_transition_active: bool) -> 
 }
 
 #[cfg(not(target_arch = "wasm32"))]
+fn lsp_installation_status_stream() -> impl iced::futures::Stream<Item = Message> {
+    use iced::futures::{StreamExt, stream};
+    stream::once(async {
+        let servers = desktop_lsp::install::detect_installed().await;
+        Message::Editor(message::EditorMessage::LspInstallationStatus(servers))
+    })
+    .chain(stream::pending())
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+fn lsp_installation_status_subscription(app: &App) -> Subscription<Message> {
+    use crate::app::components::system_settings::SystemTab;
+    use crate::app::state::GeneralSettingsTab;
+    let editor_settings_open = app.navigation_panels.show_system_settings
+        && (app.navigation_panels.system_settings_tab == SystemTab::Editor
+            || (app.navigation_panels.system_settings_tab == SystemTab::General
+                && app.general_settings.general_settings_tab == GeneralSettingsTab::Editor));
+    if (editor_settings_open || app.preview_state.show_preview_settings)
+        && app.preview_state.installing_lsp.is_none()
+    {
+        // Re-entering settings or finishing an installation starts a fresh scan.
+        Subscription::run(lsp_installation_status_stream)
+    } else {
+        Subscription::none()
+    }
+}
+
+#[cfg(not(target_arch = "wasm32"))]
 type WorkflowRunBoxStream<T> = iced::futures::stream::BoxStream<'static, T>;
 #[cfg(target_arch = "wasm32")]
 type WorkflowRunBoxStream<T> = iced::futures::stream::LocalBoxStream<'static, T>;
@@ -293,6 +321,8 @@ impl App {
         Subscription::batch(vec![
             usage_center_tick,
             cron_history_subscription(self),
+            #[cfg(not(target_arch = "wasm32"))]
+            lsp_installation_status_subscription(self),
             #[cfg(not(target_arch = "wasm32"))]
             iced::time::every(self.voice.hotkeys.interval())
                 .map(|_| Message::Voice(message::voice::Event::HotkeyTick)),

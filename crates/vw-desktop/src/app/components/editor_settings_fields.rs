@@ -20,6 +20,8 @@ pub(crate) fn view(app: &App, control_width: f32) -> iced::Element<'_, Message> 
         #[cfg(not(target_arch = "wasm32"))]
         installing_lsp: app.preview_state.installing_lsp,
         #[cfg(not(target_arch = "wasm32"))]
+        installed_lsp: app.preview_state.installed_lsp.clone(),
+        #[cfg(not(target_arch = "wasm32"))]
         activity_frame: app.status_animation_frame,
     }, control_width, move |title, description| {
         super::chat_panel::message_view::selectable_titled_text(title, description, Some(color), i18n)

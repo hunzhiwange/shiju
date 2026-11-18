@@ -309,7 +309,7 @@ impl LspServiceEntry {
     }
 }
 
-fn resolve_lsp_launch_command(config: &LspServerConfig) -> Result<LspCommand, String> {
+fn resolve_lsp_executable(config: &LspServerConfig) -> Result<LspCommand, String> {
     let mut command = match resolve_lsp_command(config) {
         Ok(command) => command,
         Err(original_error) => {
@@ -336,7 +336,11 @@ fn resolve_lsp_launch_command(config: &LspServerConfig) -> Result<LspCommand, St
     let resolved = shell_command::resolve_executable(&command.program)
         .ok_or_else(|| format!("LSP server program {} not found", command.program))?;
     command.program = resolved.to_string_lossy().into_owned();
+    Ok(command)
+}
 
+fn resolve_lsp_launch_command(config: &LspServerConfig) -> Result<LspCommand, String> {
+    let command = resolve_lsp_executable(config)?;
     if config.key == "rust-analyzer" {
         let mut probe = Command::new(&command.program);
         #[cfg(windows)]

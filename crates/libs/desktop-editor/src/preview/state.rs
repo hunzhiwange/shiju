@@ -21,6 +21,8 @@ pub struct State {
     pub lsp_copy_generation: u64,
     #[cfg(not(target_arch = "wasm32"))]
     pub installing_lsp: Option<desktop_lsp::install::Server>,
+    #[cfg(not(target_arch = "wasm32"))]
+    pub installed_lsp: Vec<desktop_lsp::install::Server>,
     /// 是否正在应用 LSP 补全（仅非 wasm32 平台）
     #[cfg(not(target_arch = "wasm32"))]
     pub lsp_applying_completion: bool,
@@ -97,6 +99,8 @@ impl State {
             lsp_copy_generation: 0,
             #[cfg(not(target_arch = "wasm32"))]
             installing_lsp: None,
+                #[cfg(not(target_arch = "wasm32"))]
+            installed_lsp: Vec::new(),
             #[cfg(not(target_arch = "wasm32"))]
             lsp_applying_completion: false,
             #[cfg(not(target_arch = "wasm32"))]

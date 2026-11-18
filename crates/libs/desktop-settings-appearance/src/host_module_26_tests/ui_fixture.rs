@@ -124,6 +124,8 @@ pub fn editor_fields(app: &Fixture, width: f32) -> Element<'_, Message> {
             #[cfg(not(target_arch = "wasm32"))]
             installing_lsp: None,
             #[cfg(not(target_arch = "wasm32"))]
+            installed_lsp: Vec::new(),
+            #[cfg(not(target_arch = "wasm32"))]
             activity_frame: 0,
         },
         width,

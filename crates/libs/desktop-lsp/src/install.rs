@@ -43,6 +43,56 @@ impl Server {
     }
 }
 
+/// Identify installed servers using the same executable resolution as the editor.
+pub async fn detect_installed() -> Vec<Server> {
+    let resolved = tokio::task::spawn_blocking(|| {
+        Server::ALL
+            .into_iter()
+            .filter_map(|server| {
+                let key = match server {
+                    Server::Rust => "rust-analyzer",
+                    Server::Python => "pyright",
+                    Server::TypeScript => "typescript-language-server",
+                    Server::Go => "gopls",
+                    Server::Lua => "lua-language-server",
+                };
+                let config = iced_code_editor::lsp_server_config(key)?;
+                let command = crate::resolve_lsp_executable(config).ok()?;
+                Some((server, command.program))
+            })
+            .collect::<Vec<_>>()
+    })
+    .await
+    .unwrap_or_default();
+
+    let mut installed = Vec::new();
+    for (server, program) in resolved {
+        // rustup may provide a proxy even when the component is missing.
+        if server == Server::Rust {
+            let mut probe = tokio::process::Command::new(program);
+            #[cfg(windows)]
+            probe.creation_flags(0x0800_0000);
+            shell_command::apply_augmented_path_tokio_command(&mut probe);
+            let status = tokio::time::timeout(
+                std::time::Duration::from_secs(3),
+                probe
+                    .arg("--version")
+                    .kill_on_drop(true)
+                    .stdin(std::process::Stdio::null())
+                    .stdout(std::process::Stdio::null())
+                    .stderr(std::process::Stdio::null())
+                    .status(),
+            )
+            .await;
+            if !matches!(status, Ok(Ok(status)) if status.success()) {
+                continue;
+            }
+        }
+        installed.push(server);
+    }
+    installed
+}
+
 /// Run only fixed package-manager arguments; never invoke a shell or elevate privileges.
 pub async fn install(server: Server) -> Result<(), String> {
     if matches!(server, Server::Lua) && !cfg!(target_os = "macos") {

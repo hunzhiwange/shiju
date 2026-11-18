@@ -31,6 +31,8 @@ pub struct SettingsView {
     #[cfg(not(target_arch = "wasm32"))]
     pub installing_lsp: Option<Server>,
     #[cfg(not(target_arch = "wasm32"))]
+    pub installed_lsp: Vec<Server>,
+    #[cfg(not(target_arch = "wasm32"))]
     pub activity_frame: usize,
 }
 
@@ -224,6 +226,7 @@ fn lsp_install_guide<Help: Clone + 'static>(
     use desktop_ui_controls::status_animation::activity_spinner;
     use desktop_ui_controls::system_settings_common::{
         SETTINGS_CONTROL_TEXT_SIZE, primary_action_btn_style, rounded_action_btn_style,
+        settings_success_banner_style,
     };
     use iced::widget::{button, container, svg, text::Wrapping};
 
@@ -265,13 +268,23 @@ fn lsp_install_guide<Help: Clone + 'static>(
             ),
         };
         let command = server.manual_command();
-        servers = servers.push(settings_row_with_help(
-            server.label(),
-            format!("{command}\n\n{requirement}"),
-            control_width,
-            actions,
-            render_help,
-        ));
+        let name = server.label();
+        let mut label = settings_hover_help_label(
+            settings_field_label(name),
+            render_help(name, format!("{command}\n\n{requirement}").into()).map(Message::Help),
+        )
+        .spacing(6)
+        .align_y(Alignment::Center)
+        .width(Length::Fill);
+        if state.installed_lsp.contains(&server) {
+            label = label.push(
+                container(text(i18n.__("已安装")).size(12))
+                    .padding([3, 8])
+                    .style(settings_success_banner_style),
+            );
+        }
+        servers =
+            servers.push(settings_flexible_row_with_label(label.wrap(), control_width, actions));
         if installing {
             let spinner =
                 activity_spinner(state.activity_frame, 16.0).style(|theme: &iced::Theme, _| {

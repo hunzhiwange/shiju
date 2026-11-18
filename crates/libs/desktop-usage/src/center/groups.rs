@@ -191,7 +191,9 @@ pub fn update(
         Event::Loaded(ticket, scope, result) => {
             if open && generation == ticket && current.as_ref() == Some(&scope) && visible {
                 state.loading = false;
-                state.result = Some(result);
+                if result.is_ok() || !state.result.as_ref().is_some_and(Result::is_ok) {
+                    state.result = Some(result);
+                }
                 return state.load_columns();
             }
         }

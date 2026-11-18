@@ -55,7 +55,9 @@ pub fn update(state: &mut State, current: Option<Identity>, visible: bool, open:
         && current.as_ref() == Some(&scope)
         && visible {
         state.loading = false;
-        state.result = Some(result);
+        if result.is_ok() || !state.result.as_ref().is_some_and(Result::is_ok) {
+            state.result = Some(result);
+        }
     }
     Task::none()
 }

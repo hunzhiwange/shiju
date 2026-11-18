@@ -46,7 +46,9 @@ impl std::fmt::Display for PageSizeOption {
 #[derive(Default)]
 pub struct State {
     ticket: u64,
+    load_generation: u64,
     detail_ticket: u64,
+    detail_generation: u64,
     pub query: Option<UsageQuery>,
     page: u64,
     page_input: Option<String>,
@@ -122,6 +124,7 @@ pub enum Event {
     Help(TextContextEffect),
     None,
     Reload,
+    RefreshHead,
     ExpireHighlights,
     Next,
     Previous,
@@ -135,7 +138,7 @@ pub enum Event {
     Open(String),
     CloseDetail,
     Loaded(u64, u64, Identity, UsageQuery, Result<UsageLogResult, String>),
-    DetailLoaded(u64, u64, Identity, UsageQuery, Result<UsageLogDetail, String>),
+    DetailLoaded(u64, u64, Identity, Result<UsageLogDetail, String>),
 }
 impl SelectionMessage for Event {
     fn none() -> Self { Self::None }
@@ -163,6 +166,28 @@ pub fn refresh(
 ) -> Task<Event> {
     state.query = Some(query);
     update(state, current, visible, open, generation, client, Event::Reload)
+}
+
+/// Reconcile only the newest page against a fresh ledger snapshot.
+pub(super) fn refresh_head(
+    state: &mut State,
+    current: Option<Identity>,
+    visible: bool,
+    open: bool,
+    generation: u64,
+    client: Result<vw_gateway_client::GatewayClient, String>,
+    query: UsageQuery,
+) -> Task<Event> {
+    if state.page() != 1 {
+        return Task::none();
+    }
+    state.query = Some(query);
+    let event = if state.result.as_ref().is_some_and(Result::is_ok) {
+        Event::RefreshHead
+    } else {
+        Event::Reload
+    };
+    update(state, current, visible, open, generation, client, event)
 }
 
 pub fn update(
@@ -219,12 +244,16 @@ pub fn update(
         }
         Event::Loaded(ticket, seq, expected, query, result) => {
             if active
-                && generation == seq
+                && state.load_generation == seq
                 && scope.as_ref() == Some(&expected)
                 && state.ticket == ticket
                 && state.query.as_ref() == Some(&query)
             {
+                let keep_rows = !state.loading && result.is_err();
                 state.loading = false;
+                if keep_rows {
+                    return Task::none();
+                }
                 let highlight_until = result.as_ref().ok()
                     .and_then(|logs| state.highlight_new_rows(logs, Instant::now()));
                 state.result = Some(result);
@@ -239,13 +268,12 @@ pub fn update(
                 }
             }
         }
-        Event::DetailLoaded(ticket, seq, expected, query, result) => {
+        Event::DetailLoaded(ticket, seq, expected, result) => {
             if active
-                && generation == seq
+                && state.detail_generation == seq
                 && scope.as_ref() == Some(&expected)
                 && state.detail_ticket == ticket
                 && state.detail_open
-                && state.query.as_ref() == Some(&query)
             {
                 state.detail = Some(result);
             }
@@ -261,6 +289,7 @@ pub fn update(
                 return Task::none();
             };
             state.detail_ticket = state.detail_ticket.wrapping_add(1);
+            state.detail_generation = generation;
             let ticket = state.detail_ticket;
             state.detail_open = true;
             state.detail = None;
@@ -276,22 +305,25 @@ pub fn update(
                             .map_err(|e| e.to_string()),
                         Err(error) => Err(error),
                     };
-                    (scope, query, result)
+                    (scope, result)
                 },
-                move |(scope, query, result)| {
-                    message(Event::DetailLoaded(ticket, generation, scope, query, result))
+                move |(scope, result)| {
+                    message(Event::DetailLoaded(ticket, generation, scope, result))
                 },
             );
         }
-        Event::Reload | Event::Next | Event::Previous | Event::Jump => {
+        Event::Reload | Event::RefreshHead | Event::Next | Event::Previous | Event::Jump => {
             if !active {
                 return Task::none();
             }
-            if state.loading && !matches!(event, Event::Reload) {
+            let head_only = matches!(event, Event::RefreshHead);
+            let reload = head_only || matches!(event, Event::Reload);
+            if state.loading && !reload {
                 return Task::none();
             }
             let page = match event {
                 Event::Reload => state.page(),
+                Event::RefreshHead if state.page() == 1 => 1,
                 Event::Next if state.page() < state.last_page() => state.page() + 1,
                 Event::Previous if state.page() > 1 => state.page() - 1,
                 Event::Jump => {
@@ -302,7 +334,7 @@ pub fn update(
                 }
                 _ => return Task::none(),
             };
-            if !matches!(event, Event::Reload) {
+            if !reload {
                 state.page_input = None;
                 state.clear_highlights();
             }
@@ -314,15 +346,20 @@ pub fn update(
                 }
                 state.initialized = true;
             }
-            state.detail_open = false;
-            state.detail = None;
-            state.detail_ticket = state.detail_ticket.wrapping_add(1);
+            if !head_only {
+                state.detail_open = false;
+                state.detail = None;
+                state.detail_ticket = state.detail_ticket.wrapping_add(1);
+                state.result = None;
+            }
             state.ticket = state.ticket.wrapping_add(1);
+            state.load_generation = generation;
             let ticket = state.ticket;
-            state.result = None;
             let Some(scope) = scope else {
                 state.loading = false;
-                state.result = Some(Err("网关不可用，请检查连接".into()));
+                if !head_only {
+                    state.result = Some(Err("网关不可用，请检查连接".into()));
+                }
                 return Task::none();
             };
             let Some(query) = state.query.clone() else {
@@ -331,7 +368,7 @@ pub fn update(
             let mut page_query = query.clone();
             page_query.cursor = None;
             page_query.limit = Some(state.page_size());
-            state.loading = true;
+            state.loading = !head_only;
             let client = client.map(|client| {
                 gateway_usage_read::GatewayUsageReadClient::new(client.transport().clone())
             });
@@ -663,7 +700,7 @@ pub(super) fn log_row_style(theme: &Theme, status: button::Status, fresh: bool) 
     let interacting = matches!(status, button::Status::Hovered | button::Status::Pressed);
     style.background = if fresh {
         let alpha = if interacting { 0.23 } else { 0.15 };
-        Some(Color::from_rgb8(247, 171, 81).scale_alpha(alpha).into())
+        Some(Color::from_rgb8(249, 200, 66).scale_alpha(alpha).into())
     } else {
         match status {
             button::Status::Pressed => Some(ink.scale_alpha(0.10).into()),

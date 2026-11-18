@@ -1069,3 +1069,15 @@ Rust重型命令经scripts/cargo_slot.py槽位入口串行执行，对应CARGO_T
 - 已确认 Rue.js 的 `packages/rue/src` 存在。排除 `.git`、`node_modules`、`target` 后，前后各 6303 项普通文件的 SHA-256 零差异，Git 状态一致，`acpdemo/stakpak/` 始终不存在。结束 GET 的全局配置与基线相同，无临时配置需恢复。自有网关退出 0，端口已关闭。
 - 通过 `scripts/cargo_slot.py` 在槽位 1 串行运行定向测试。安装契约 1 项、预设与目录绑定 2 项通过，均退出 0。无代码变更，未重跑协议夹具、Clippy、桌面编译、页面构建或浏览器验证。该任务引用的旧 `.plans/references/rust.md` 不存在，沿用仓库现行槽位入口。
 - 原始响应、诊断请求、网关日志、源码与构建摘要、测试日志及快照存于本机 0700 目录 `/tmp/shiju-stakpak-accept-20261118.BFPoyZ/`。补齐经审核的系统安装、指定会话模型驱动及脱敏接入证据后重跑任务 37。
+
+
+### Stakpak 官方发行与原生 ACP 重试（2026-11-18）
+
+结论仍为已阻塞。原生 Stakpak 可通过私有模型目录使用完整指定模型 ID 并发送带工具定义的请求。ShiJu 系统安装、真实租户模型调用与编辑器产物仍待验收。
+
+- 官方 v0.3.88 Darwin arm64 发行包 SHA-256 `9c18808f7a3352a5ca2cbb9f123f2b2fafda03a5abef446c20065bb6ec629d1f` 与 GitHub release asset digest 一致。归档仅含一个普通可执行文件，解出至 0700 私有目录。原生 `--version` 返回 0.3.88，`acp --help` 正常退出。宿主 PATH 和系统安装状态未变。[官方发行](https://github.com/stakpak/agent/releases/tag/v0.3.88)
+- 空配置 `initialize` 返回 ACP v1 及 agentInfo 0.3.88，`session/new` 返回 -32000 Authentication required。使用官方自定义 OpenAI 兼容 profile 和回环测试凭据后，`session/new` 成功，按短 ID 或完整 ID 提供 `/v1/models` 均未被原生 ACP 读取。它公布的目录为空，精确选模返回 -32602，直接提示在请求前因 `Provider not found: stakpak` 失败。固定版源码确认兼容端点读取本地 models.dev 缓存，ACP 选模要求精确匹配目录 ID。[官方配置](https://github.com/stakpak/agent/blob/v0.3.88/README.md#manual-configuration) · [兼容模型目录实现](https://github.com/stakpak/agent/blob/v0.3.88/libs/ai/src/providers/openai/provider.rs) · [ACP 选模实现](https://github.com/stakpak/agent/blob/v0.3.88/cli/src/commands/acp/server.rs)
+- 在隔离 HOME 的模型缓存中登记完整 `alibaba-token-plan-cn/deepseek-v4.1-flash-1017`，使目录条目的 provider 指向同名自定义端点。原生 `session/new` 公布精确的 provider 和模型 ID，`session/set_model` 成功，回环收到携带完整 ID 及 19 项工具定义的 `POST /v1/chat/completions`，合成回复以 `end_turn` 结束。另验证 OpenAI 类型的兼容 profile 配合私有缓存也能发出同一完整模型 ID。两种探针均只访问回环，无真实供应商推理、租户凭据或浏览器认证。[缓存读取实现](https://github.com/stakpak/agent/blob/v0.3.88/libs/ai/src/registry/models_dev.rs)
+- 使用同名 provider 的隔离探针验证文件审批。取消审批时未收到写回调，文件未落盘。批准工具后拒绝 `fs/write_text_file`，原生返回工具错误，文件仍未落盘。独立批准探针由宿主回调写入私有目录中预期的 14 字节。仅验证了受测的原生创建路径，Rue.js 编辑器任务未提交。
+- 原 shiju 0.6.0 构建的自有回环网关复查仍为 `installed=false` 和 `session_model=unsupported_cli`。租户配置目录含指定模型，探针环境无配置声明的供应商密钥。既有公开 OpenAI 兼容处理器使用进程默认 provider，并将消息转换为文本历史，无法保证本任务的租户绑定和工具协议。复跑需要受审查的固定摘要系统安装、使用原租户授权的请求级模型中继，以及由 Stakpak 驱动生成的私有模型目录并验证宿主权限边界。安装发行物或设置原生 profile 本身无法解除 ShiJu 的能力门控。
+- 两轮全局配置重读一致，无 PATCH 或临时配置需恢复。自有网关和原生探针均退出 0，两轮网关端口已关闭。Rue.js 快照前后各 6303 项普通文件零差异，目标目录始终不存在。未重跑 Cargo、页面构建或浏览器验证。发行校验、原生帧、回环请求、审批和清理记录存于本机 0700 目录 `/tmp/shiju-stakpak-retry-20261118.w71m2q/`。

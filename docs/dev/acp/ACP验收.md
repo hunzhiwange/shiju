@@ -1031,3 +1031,16 @@ Rust重型命令经scripts/cargo_slot.py槽位入口串行执行，对应CARGO_T
 - 原生 Safe 配置 `brave_mode=off` 经 ACP 重读确认。测试分别触发 shell 和 create 工具，宿主取消审批，两项私有文件均未写入。随后在私有目录批准一次 create，即使客户端声明支持 `fs.writeTextFile`，Junie 仍直接写入文件并报告工具完成，未发 `fs/write_text_file`。同一发行版加 `--sandbox` 后也复现，且未公布 Sandbox 配置项。探针仅在私有目录使用合成工具返回。该结果不能用审批回调代替宿主的文件边界。完整验收需先证明可由宿主执行的文件边界，再接入固定版本系统安装及租户绑定模型中继。[Junie EAP 沙箱说明](https://junie.jetbrains.com/docs/junie-cli-eap.html)
 - 本轮无配置 PATCH。结束配置 GET 超时，无法确认快照重读；未产生待恢复的临时配置。两个自有网关分别退出0和在宽限期后退出-9，端口均关闭，原生探针均已退出。移除了原生探针初始化产生的空宿主实例目录。Rue.js 6303项普通文件与原快照一致，目标目录仍不存在。未运行 Cargo、浏览器或页面检查。
 - 原始发行证据、探针帧、审批结果、配置和清理记录保存在本机0700目录 `/tmp/shiju-junie-retry-20261118/`。未提交供应商二进制、凭据或原始敏感载荷。
+
+
+## Poolside 验收（2026-11-18）
+
+结论：已阻塞。当前系统安装拒绝 Poolside，模型来源拒绝 `session_model`。前序 Junie 已记录阻塞并停止自有进程，未留临时配置写入。历史提交 `00f4d9c1d` 交付了 `pool acp` 注册、内置预设和协议夹具，来源任务文件已移除，当前缺少 `docs/dev/evidence/acp-onboarding-poolside.md`。
+
+- 当前安装策略 `crates/libs/config-acp-install/src/lib.rs` 对 `poolside` 返回 `None`，`crates/libs/llm-runtime/src/acp/model_source/drivers/mod.rs` 未登记其已验证版本或驱动。复用 Harn 验收构建的 shiju 0.6.0，构建来源为 `f0d2a6d56a43ea6d1ff2673ebea254db698dd2fa` 附近的工作区加 Harn 实现，构建基线已包含 Poolside 注册提交。二进制 SHA-256 为 `245d9857ee0005fba1936d1a8bea31719406ef6c550bfe0cc53cb46115ce130e`，当前相关源码摘要另存私有证据。
+- 在自有回环网关 `127.0.0.1:56388` 使用现有开发配置，请求均携带平台 10001、公司 100010005 和 Rue.js 目录头。安装、预设、ACP 及完整配置基线 GET 均为 HTTP 200。安装前后 `poolside=false`。系统安装 POST 返回 HTTP 400，curl 退出 0、耗时 0.000566 秒，响应为“该 ACP 暂无一键安装命令，请使用官方安装器”。宿主未找到 `pool` 入口，未取得 CLI 版本。
+- 按当前 ACP 配置发送诊断，HTTP 200、curl 退出 0、耗时 0.011112 秒，结果为 `startup_failed`。模型能力 GET 返回 HTTP 200、curl 退出 0、耗时 0.000773 秒，`session_model=unsupported`、`reason=unsupported_cli`、`cli_local=supported`、`connected=false`。
+- GET 确认 `acp-poolside` 的 `builtin=true`、`runtime.kind=acp`、`backend=poolside`、`enabled=false`。安装与模型前置阻塞后未 PATCH，也未提交指定 `alibaba-token-plan-cn/deepseek-v4.1-flash-1017` 的创建请求。无 SSE 终态、会话绑定或产物验收证据。
+- Rue.js 的 `packages/rue/src` 已确认存在。排除 `.git`、`node_modules`、`target` 的普通文件 SHA-256 快照前后各 6303 项，零差异，`acpdemo/poolside/` 前后均不存在。结束 GET 全局配置与基线一致，无临时配置待恢复。自有网关退出 0，端口关闭。
+- 槽位 1 中 `cargo test -j 1 -p config-acp-install --lib acp_onboarding_poolside -- --test-threads=1` 通过 1 项，`cargo test -j 1 -p agent-config --lib acp_onboarding_poolside -- --test-threads=1` 通过 2 项，均退出 0。无代码变更，未重跑协议夹具、Clippy、桌面编译、页面构建或浏览器验证。
+- 原始响应、指标、诊断请求、配置和快照存于本机 0700 目录 `/tmp/shiju-poolside-accept-20261118.aGudrk/`。补齐受审核的系统安装、指定模型驱动及脱敏接入证据后重跑任务 36。

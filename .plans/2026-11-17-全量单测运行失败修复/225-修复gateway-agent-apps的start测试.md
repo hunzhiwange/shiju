@@ -46,3 +46,9 @@ python3 scripts/cargo_slot.py cargo test -p gateway-agent-apps --lib 'host_migra
 - 两轮均槽位3，CARGO_TARGET_DIR 与 CARGO_BUILD_BUILD_DIR 均 `/Users/xiangmin/worker/code/shiju/target/rust-slot-3`；入口和子进程已退出，缓存保留。
 - 当前失败早于原证据：start.rs:158 未授权请求返回202，预期403。现有 app-access-service/src/access.rs 的 authorize_scoped 委托 execution_context，明确忽略旧 token/grants 并将认证交给外围 Gateway 配对中间件。直接路由测试的原安全契约已受底层迁移影响；不在本任务中恢复旧授权或削弱安全断言。
 - 需授权迁移所有者提供等效受保护路由测试接线后，再运行本任务原精确命令，当前不能宣称原响应修复已获得行为绿灯。未运行全量测试或桌面构建。
+
+## 独立回归准备
+
+- 改用现有 `gateway_test_fixture::state` 和真实 `skey_auth_middleware`，子进程设置临时运行目录，允许 MCP 的授权和执行读取同一隔离数据库。各诊断类型均断言无效配对令牌返回 401，且不发请求、不启动 stdio、不写作业。其他项目的 MCP 记录与包含不存在记录的批次断言 404，保留拒绝全部批次产生副作用的检查。
+- 待确认的旧隔离断言：已配对身份对其他项目的模型请求、其他 `targetHostId`、其他 `appId`，以及同项目内未列入旧 grant 的 MCP 记录应返回 403。旧权限文件已不参与当前授权。现夹具验证项目级 MCP 记录隔离及批次预检，不能代替上述旧 ACL 契约。保持该问题待确认，未调整生产授权。
+- 仅完成 `rustfmt --emit stdout` 解析与 `git diff --check`。按当前串行安排未启动 Cargo，待获得编译窗口后用原精确命令验证母子进程计数。

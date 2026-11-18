@@ -27,11 +27,30 @@ use vw_api_transport::id::TenantScope;
 
 const TOKEN: &str = "fixture-diagnostic-member-token-00001";
 
-#[tokio::test]
-async fn diagnostic_api_start_authorizes_before_execution() -> anyhow::Result<()> {
+#[test]
+fn diagnostic_api_start_authorizes_before_execution() -> anyhow::Result<()> {
+    const CHILD: &str = "SHIJU_DIAGNOSTIC_START_ROOT";
+    if let Some(root) = std::env::var_os(CHILD) {
+        return tokio::runtime::Runtime::new()?.block_on(check_start(std::path::Path::new(&root)));
+    }
     let root = tempfile::tempdir()?;
-    std::fs::set_permissions(root.path(), std::fs::Permissions::from_mode(0o700))?;
-    let database = GlobalDatabase::for_home(root.path())?;
+    let status = std::process::Command::new(std::env::current_exe()?)
+        .args([
+            "--exact",
+            "host_migration_4_tests::start::diagnostic_api_start_authorizes_before_execution",
+            "--nocapture",
+        ])
+        .env(CHILD, root.path())
+        .env("VIBEWINDOW_TEST_ROOT", root.path())
+        .env("HOME", root.path())
+        .status()?;
+    anyhow::ensure!(status.success(), "isolated start test failed: {status}");
+    Ok(())
+}
+
+async fn check_start(root: &std::path::Path) -> anyhow::Result<()> {
+    std::fs::set_permissions(root, std::fs::Permissions::from_mode(0o700))?;
+    let database = GlobalDatabase::for_home(root)?;
     let tenant = TenantScope::new("platform", "company")?;
     let count = Arc::new(AtomicUsize::new(0));
     let observed = count.clone();
@@ -96,7 +115,7 @@ async fn diagnostic_api_start_authorizes_before_execution() -> anyhow::Result<()
         tags: Vec::new(),
         connection,
     };
-    let mcp = catalog
+    catalog
         .create(
             &mcp_scope,
             draft(
@@ -108,7 +127,7 @@ async fn diagnostic_api_start_authorizes_before_execution() -> anyhow::Result<()
             ),
         )
         .unwrap();
-    let marker = root.path().join("stdio-started");
+    let marker = root.join("stdio-started");
     catalog
         .create(
             &mcp_scope,
@@ -123,27 +142,22 @@ async fn diagnostic_api_start_authorizes_before_execution() -> anyhow::Result<()
             ),
         )
         .unwrap();
-    let policy = root.path().join("access.json");
-    let grant = json!({"platform_id":"platform", "company_id":"company", "host_id":"host",
-        "provider_config_read":true,"routing_manage":true,
-        "routing_apps":[{"project_id":"project","app_id":"claude"}],
-        "mcp_probe":[{"project_id":"project", "app_id":"claude", "record_id":"http",
-            "connection_revision":mcp.connection_revision,
-            "endpoint_sha256":hex::encode(Sha256::digest(mcp_url.as_bytes()))}]});
-    std::fs::write(&policy, json!({
-        "principals":[{"id":"member", "token_sha256":hex::encode(Sha256::digest(TOKEN)), "grants":[grant]}],
-        "hosts":[{"id":"host", "binding":"local", "online":true, "home":root.path(), "applications":root.path(), "search_paths":[], "credential_root":root.path()}]
-    }).to_string())?;
-    std::fs::set_permissions(&policy, std::fs::Permissions::from_mode(0o600))?;
-    let jobs = DiagnosticJobs::open(root.path()).unwrap();
-    let app = crate::agent_apps_diagnostics::router_with_policy::<super::probe_host::NativeProbeHost>(Some(policy.clone()))
+    let jobs = DiagnosticJobs::open(root).unwrap();
+    let state = agent_gateway::gateway_test_fixture::state::<(), (), ()>(
+        Default::default(), true, &[TOKEN.to_owned()],
+    );
+    let app = crate::agent_apps_diagnostics::router::<super::probe_host::NativeProbeHost>()
         .layer(Extension(tenant))
         .layer(Extension(database))
-        .layer(Extension(jobs.clone()));
+        .layer(Extension(jobs.clone()))
+        .layer(axum::middleware::from_fn_with_state(
+            state, agent_gateway::request_policy::skey_auth_middleware::<(), (), ()>,
+        ));
     let request = |body: Value, project: &str, host: &str, app_id: &str, token: &str| {
         Request::builder().method("POST")
             .uri(format!("/agent-apps/diagnostics/jobs?projectId={project}&targetHostId={host}&appId={app_id}"))
             .header("content-type", "application/json")
+            .header("authorization", format!("Bearer {token}"))
             .body(Body::from(body.to_string())).unwrap()
     };
     for body in [
@@ -154,37 +168,24 @@ async fn diagnostic_api_start_authorizes_before_execution() -> anyhow::Result<()
         json!({"kind":"mcp","serverIds":["sentinel"]}),
     ] {
         let response =
-            app.clone().oneshot(request(body, "foreign", "host", "claude", TOKEN)).await?;
+            app.clone().oneshot(request(body, "project", "desktop-local", "claude", "invalid-token")).await?;
         assert_eq!(
             response.status(),
-            StatusCode::FORBIDDEN,
-            "reject before submitting any diagnostic"
+            StatusCode::UNAUTHORIZED,
+            "pairing rejects before submitting any diagnostic"
         );
     }
     assert_eq!(count.load(Ordering::SeqCst), 0);
     assert!(!marker.exists(), "denied stdio configuration must not execute");
-    assert!(!root.path().join("diagnostics.json").exists(), "denied requests must not create jobs");
-    for (project, host, app_id, token, expected) in [
-        ("project", "foreign", "claude", TOKEN, StatusCode::FORBIDDEN),
-        ("project", "host", "codex", TOKEN, StatusCode::FORBIDDEN),
-        ("project", "host", "claude", "invalid-token", StatusCode::UNAUTHORIZED),
-    ] {
-        assert_eq!(
-            app.clone()
-                .oneshot(request(
-                    json!({"kind":"reachability","providerId":"provider"}),
-                    project,
-                    host,
-                    app_id,
-                    token
-                ))
-                .await?
-                .status(),
-            expected
-        );
-    }
+    assert!(!root.join("diagnostics.json").exists(), "denied requests must not create jobs");
+    // A paired client still cannot resolve an MCP record from another project.
+    let response = app.clone().oneshot(request(
+        json!({"kind":"mcp","serverIds":["http"]}),
+        "foreign", "desktop-local", "claude", TOKEN,
+    )).await?;
+    assert_eq!(response.status(), StatusCode::NOT_FOUND);
     for (body, expected) in [
-        (json!({"kind":"mcp","serverIds":["http","sentinel"]}), StatusCode::FORBIDDEN),
+        (json!({"kind":"mcp","serverIds":["sentinel","missing"]}), StatusCode::NOT_FOUND),
         (
             json!({"kind":"model","providerId":"provider","modelId":"fixture-model","baseUrl":url}),
             StatusCode::BAD_REQUEST,
@@ -195,17 +196,18 @@ async fn diagnostic_api_start_authorizes_before_execution() -> anyhow::Result<()
         ),
     ] {
         let response =
-            app.clone().oneshot(request(body, "project", "host", "claude", TOKEN)).await?;
+            app.clone().oneshot(request(body, "project", "desktop-local", "claude", TOKEN)).await?;
         assert_eq!(response.status(), expected);
         assert!(!marker.exists());
         assert_eq!(count.load(Ordering::SeqCst), 0);
     }
+    assert!(!root.join("diagnostics.json").exists(), "rejected inputs must not create jobs");
     let response = app
         .clone()
         .oneshot(request(
             json!({"kind":"model","providerId":"provider","modelId":"missing-model"}),
             "project",
-            "host",
+            "desktop-local",
             "claude",
             TOKEN,
         ))
@@ -223,11 +225,11 @@ async fn diagnostic_api_start_authorizes_before_execution() -> anyhow::Result<()
         (json!({"kind":"mcp","serverIds":["http"]}), 0),
     ] {
         let response =
-            app.clone().oneshot(request(body, "project", "host", "claude", TOKEN)).await?;
+            app.clone().oneshot(request(body, "project", "desktop-local", "claude", TOKEN)).await?;
         assert_eq!(response.status(), StatusCode::ACCEPTED);
         let job: DiagnosticJobIdentity =
             serde_json::from_slice(&axum::body::to_bytes(response.into_body(), 16384).await?)?;
-        let owner = DiagnosticJobOwner { scope: job.scope.clone(), principal: "member".into() };
+        let owner = DiagnosticJobOwner { scope: job.scope.clone(), principal: "desktop-local-user".into() };
         let snapshot = tokio::time::timeout(Duration::from_secs(5), async {
             loop {
                 let snapshot = jobs.snapshot(&owner, &job.task_id).unwrap();
@@ -265,10 +267,10 @@ async fn diagnostic_api_start_authorizes_before_execution() -> anyhow::Result<()
                 TenantScope::new("platform", "company")?,
                 "project".into(),
             )?,
-            target_host_id: "host".into(),
+            target_host_id: "desktop-local".into(),
             app_id: AppId::Claude,
         },
-        principal: "member".into(),
+        principal: "desktop-local-user".into(),
     };
     let mut held = Vec::new();
     for _ in 0..128 {
@@ -284,7 +286,7 @@ async fn diagnostic_api_start_authorizes_before_execution() -> anyhow::Result<()
         .oneshot(request(
             json!({"kind":"reachability","providerId":"provider"}),
             "project",
-            "host",
+            "desktop-local",
             "claude",
             TOKEN,
         ))

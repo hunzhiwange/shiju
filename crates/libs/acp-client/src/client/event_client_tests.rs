@@ -28,6 +28,7 @@ fn event_client(
 ) -> AcpEventClient {
     AcpEventClient {
         sandboxed_native_io: false,
+        managed_workspace_io: false,
         claude_permissions: false,
         kimi_permissions: false,
         codebuddy_permissions: false,
@@ -60,6 +61,7 @@ fn event_client_with_cwd(
 ) -> AcpEventClient {
     AcpEventClient {
         sandboxed_native_io: false,
+        managed_workspace_io: false,
         claude_permissions: false,
         kimi_permissions: false,
         codebuddy_permissions: false,
@@ -1317,4 +1319,54 @@ async fn vtcode_sandboxed_session_rejects_host_io_callbacks() {
             .is_err()
     );
     assert_eq!(fs::read_to_string(file).unwrap(), "original");
+}
+
+#[cfg(unix)]
+#[tokio::test]
+async fn mimo_code_managed_full_access_only_writes_ordinary_workspace_files() {
+    let root = tempfile::tempdir().unwrap();
+    let workspace = root.path().canonicalize().unwrap();
+    let outside = tempfile::tempdir().unwrap();
+    let outside_file = outside.path().canonicalize().unwrap().join("outside.txt");
+    let file = workspace.join("notes").join("allowed.txt");
+    let linked = workspace.join("link");
+    std::os::unix::fs::symlink(outside.path(), &linked).unwrap();
+    let config = AcpAgentConfig {
+        env: [("VW_ACP_LAUNCH_REFERENCE".into(), "fixture".into())].into(),
+        ..Default::default()
+    };
+    let client = super::AcpClient::new("mimo-code", config)
+        .with_permission_mode(PermissionMode::ApproveAll)
+        .with_full_access(true);
+    with_workspace_rpc(&client, &workspace, async |io| {
+        let mut io = tokio::io::BufReader::new(io);
+        for blocked in [&outside_file, &linked.join("outside.txt")] {
+            let response = workspace_rpc(
+                &mut io,
+                "fs/write_text_file",
+                serde_json::json!({"sessionId":"workspace", "path": blocked, "content":"blocked"}),
+            )
+            .await;
+            assert!(response.get("error").is_some(), "{response}");
+        }
+        assert!(!outside_file.exists());
+
+        let response = workspace_rpc(
+            &mut io,
+            "fs/write_text_file",
+            serde_json::json!({"sessionId":"workspace", "path": file, "content":"allowed"}),
+        )
+        .await;
+        assert!(response.get("result").is_some(), "{response}");
+        assert_eq!(fs::read_to_string(&file).unwrap(), "allowed");
+
+        let response = workspace_rpc(
+            &mut io,
+            "terminal/create",
+            serde_json::json!({"sessionId":"workspace", "command":"/usr/bin/true"}),
+        )
+        .await;
+        assert!(response.get("error").is_some(), "{response}");
+    })
+    .await;
 }

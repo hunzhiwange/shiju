@@ -109,3 +109,28 @@ fn stakpak_reviewed_runtime_pins_native_and_launcher() {
     assert!(contract.files.contains_key("stakpak-native"));
     assert!(contract.files.contains_key("stakpak"));
 }
+
+#[test]
+fn mimo_code_runtime_requires_the_pinned_acp_patch_receipt() {
+    let contract = contract("mimo-code").unwrap();
+    let root = tempfile::tempdir().unwrap();
+    let executable = root.path().join("mimo");
+    std::fs::write(&executable, b"fixture executable").unwrap();
+    let patch = include_str!("../../../../patches/acp-model-source/mimo-code/stdio-only.patch");
+    assert_eq!(
+        contract.patch_sha256.as_deref().unwrap(),
+        hex::encode(Sha256::digest(patch.as_bytes())),
+    );
+    assert!(verify(root.path(), &contract).is_err());
+
+    let receipt = serde_json::json!({
+        "version": "0.1.17",
+        "source_sha256": contract.source_sha256,
+        "patch_sha256": contract.patch_sha256,
+        "sha256": hex::encode(Sha256::digest(b"fixture executable")),
+    });
+    std::fs::write(root.path().join("build-receipt.json"), receipt.to_string()).unwrap();
+    assert_eq!(verify(root.path(), &contract).unwrap(), executable);
+    std::fs::write(executable, b"altered").unwrap();
+    assert!(verify(root.path(), &contract).is_err());
+}

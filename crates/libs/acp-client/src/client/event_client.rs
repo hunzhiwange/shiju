@@ -61,7 +61,9 @@ impl AcpClient {
                 callback(notification);
             }
         });
+        let managed_workspace_io = self.managed_mimo_code();
         AcpEventClient {
+            managed_workspace_io,
             sandboxed_native_io: self.managed_vtcode(),
             claude_permissions: self.agent_name == "claude",
             kimi_permissions: self.agent_name == "kimi",
@@ -87,13 +89,17 @@ impl AcpClient {
                 "gemini" | "qwen"
             ),
             expected_session_id,
-            desktop_workspace: self.desktop_workspace.clone(),
+            desktop_workspace: if managed_workspace_io {
+                Some(cwd.canonicalize().unwrap_or_else(|_| cwd.to_path_buf()))
+            } else {
+                self.desktop_workspace.clone()
+            },
             active_prompt: self.active_prompt.clone(),
             event_tx,
             filesystem: FileSystemHandlers::new(FileSystemHandlersOptions {
                 cwd: cwd.to_path_buf(),
                 permission_mode,
-                full_access: self.full_access,
+                full_access: self.full_access && !managed_workspace_io,
                 non_interactive_permissions: self.non_interactive_permissions,
                 on_operation: on_operation.clone(),
                 confirm_write: None,
@@ -251,7 +257,7 @@ impl acp::Client for AcpEventClient {
         &self,
         args: acp::ReadTextFileRequest,
     ) -> acp::Result<acp::ReadTextFileResponse> {
-        if self.sandboxed_native_io {
+        if self.sandboxed_native_io || self.managed_workspace_io {
             return Err(acp::Error::method_not_found());
         }
         self.ensure_desktop_session(&args.session_id)?;
@@ -272,7 +278,7 @@ impl acp::Client for AcpEventClient {
         &self,
         args: acp::CreateTerminalRequest,
     ) -> acp::Result<acp::CreateTerminalResponse> {
-        if self.sandboxed_native_io {
+        if self.sandboxed_native_io || self.managed_workspace_io {
             return Err(acp::Error::method_not_found());
         }
         if (self.desktop_workspace.is_some() && !self.owns_active_prompt(&args.session_id))

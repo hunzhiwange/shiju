@@ -20,6 +20,7 @@ pub mod gemini;
 pub mod glm_acp_agent;
 pub mod goose;
 pub mod grok;
+pub mod mimo_code;
 pub mod nova;
 pub mod hermes;
 pub mod iflow;
@@ -54,6 +55,7 @@ pub fn capabilities(
         agent,
         "nova"
             | "harn"
+            | "mimo-code"
             | "vtcode"
             | "junie"
             | "poolside"
@@ -124,6 +126,7 @@ pub fn verified_release(agent: &str) -> Option<&'static str> {
         "sigit" => "1.7.10 (reviewed host boundary)",
         "dirac" => "0.5.24",
         "harn" => "0.10.201",
+        "mimo-code" => "0.1.17",
         "vtcode" => "0.183.0",
         "junie" => "26.11.2 (4100.5)",
         "poolside" => "1.0.16",
@@ -149,7 +152,7 @@ pub fn source_protocol(
         "nova" | "amp-acp" | "claude" => P::Messages,
         "codex" | "kiro" => P::Responses,
         "gemini" => P::Gemini,
-        "junie" | "harn" | "vtcode" | "poolside" | "stakpak" | "grok" | "dimcode" | "deepagents" | "autohand" | "sigit" | "glm-acp-agent" | "dirac" | "auggie" | "cursor" | "droid"
+        "mimo-code" | "junie" | "harn" | "vtcode" | "poolside" | "stakpak" | "grok" | "dimcode" | "deepagents" | "autohand" | "sigit" | "glm-acp-agent" | "dirac" | "auggie" | "cursor" | "droid"
         | "codebuddy" | "goose" | "hermes" | "iflow" | "kilocode" | "openclaw" | "pi" | "qoder"
         | "qwen" | "trae" => P::Chat,
         "opencode" => model_transport::routing_selection::client_protocol(api)
@@ -217,6 +220,7 @@ pub fn configure(
         "amp-acp" => amp_acp::configure(profile, endpoint),
         "junie" => junie::configure(profile, endpoint, directory),
         "harn" => harn::configure(profile, endpoint, directory),
+        "mimo-code" => mimo_code::configure(profile, endpoint, directory),
         "vtcode" => vtcode::configure(profile, endpoint, directory),
         "poolside" => poolside::configure(profile, endpoint),
         "stakpak" => stakpak::configure(profile, endpoint, directory),
@@ -269,3 +273,6 @@ mod nova_tests;
 #[cfg(test)]
 #[path = "harn_tests.rs"]
 mod harn_tests;
+
+#[cfg(all(test, unix))]
+mod mimo_code_tests;

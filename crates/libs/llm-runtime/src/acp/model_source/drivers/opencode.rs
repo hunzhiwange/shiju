@@ -28,7 +28,7 @@ pub fn configure(profile: &mut AcpLaunchProfile, endpoint: &str) -> anyhow::Resu
         }),
         "conflicting OpenCode model environment"
     );
-    reject_managed_configuration()?;
+    reject_managed_configuration("opencode", "OPENCODE_TEST_MANAGED_CONFIG_DIR")?;
     let url = reqwest::Url::parse(endpoint)
         .map_err(|_| anyhow::anyhow!("invalid OpenCode relay endpoint"))?;
     anyhow::ensure!(
@@ -168,9 +168,9 @@ fn private_directory(path: &Path) -> anyhow::Result<()> {
 /// System policy wins over inline JSON. Refuse it rather than bypassing policy or
 /// allowing its model/account to silently replace the session-owned provider.
 #[cfg(unix)]
-fn reject_managed_configuration() -> anyhow::Result<()> {
+pub(super) fn reject_managed_configuration(name: &str, override_key: &str) -> anyhow::Result<()> {
     anyhow::ensure!(
-        std::env::var_os("OPENCODE_TEST_MANAGED_CONFIG_DIR").is_none_or(|value| value.is_empty()),
+        std::env::var_os(override_key).is_none_or(|value| value.is_empty()),
         "OpenCode inherited managed configuration override is unsupported"
     );
     let directory = if cfg!(target_os = "macos") {
@@ -178,7 +178,7 @@ fn reject_managed_configuration() -> anyhow::Result<()> {
     } else {
         Path::new("/etc/opencode")
     };
-    let mut paths = vec![directory.join("opencode.json"), directory.join("opencode.jsonc")];
+    let mut paths = vec![directory.join(format!("{name}.json")), directory.join(format!("{name}.jsonc"))];
     if cfg!(target_os = "macos") {
         // Match Node's OS account lookup, not a spoofable USER environment value.
         let mut account: libc::passwd = unsafe { std::mem::zeroed() };
@@ -209,7 +209,7 @@ fn reject_managed_configuration() -> anyhow::Result<()> {
 }
 
 #[cfg(not(unix))]
-fn reject_managed_configuration() -> anyhow::Result<()> {
+pub(super) fn reject_managed_configuration(_name: &str, _override_key: &str) -> anyhow::Result<()> {
     anyhow::bail!("OpenCode managed policy isolation is unverified on this platform")
 }
 

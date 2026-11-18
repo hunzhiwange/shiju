@@ -48,6 +48,91 @@ if agent == 'stakpak':
     launcher.chmod(0o700)
     check_files(runtime, contract['files'])
     raise SystemExit(0)
+if agent == 'mimo-code':
+    import platform
+    if (platform.system(), platform.machine()) != ('Darwin', 'arm64'):
+        raise RuntimeError('MiMo Code reviewed runtime is Darwin-arm64 only')
+
+    def download(url, destination, sha256):
+        for _ in range(3):
+            result = subprocess.run([
+                '/usr/bin/curl', '--fail', '--silent', '--show-error', '--location',
+                '--proto', '=https', '--proto-redir', '=https', '--max-time', '50',
+                '--continue-at', '-', '--output', str(destination), url,
+            ], stdin=subprocess.DEVNULL)
+            if result.returncode == 0:
+                break
+        else:
+            raise RuntimeError('MiMo Code reviewed download failed')
+        if digest(destination) != sha256:
+            raise RuntimeError('MiMo Code fixed archive checksum mismatch')
+
+    archive = assets / 'mimo-code-source.tar.gz'
+    bun_archive = assets / 'mimo-code-bun.tgz'
+    patch = assets / 'mimo-code/stdio-only.patch'
+    download(contract['source_url'], archive, contract['source_sha256'])
+    download(contract['bun_url'], bun_archive, contract['bun_sha256'])
+    if digest(patch) != contract['patch_sha256']:
+        raise RuntimeError('MiMo Code ACP patch checksum mismatch')
+
+    extracted = assets / 'mimo-code-source'
+    extracted.mkdir()
+    with tarfile.open(archive) as package:
+        entries = package.getmembers()
+        for entry in entries:
+            path = Path(entry.name)
+            if path.is_absolute() or '..' in path.parts or not (entry.isdir() or entry.isfile()):
+                raise RuntimeError('Unsafe MiMo Code source archive')
+            entry.mode &= 0o700
+        package.extractall(extracted, members=entries)
+    source = extracted / 'XiaomiMiMo-MiMo-Code-3704f8d'
+
+    bun = assets / 'bun'
+    with tarfile.open(bun_archive) as package:
+        member = package.getmember('package/bin/bun')
+        if not member.isfile():
+            raise RuntimeError('Unexpected Bun executable archive entry')
+        with package.extractfile(member) as input_file, bun.open('xb') as output_file:
+            shutil.copyfileobj(input_file, output_file)
+    bun.chmod(0o700)
+    run(['/usr/bin/patch', '-p1', '-i', str(patch)], source)
+
+    home = assets / 'build-home'
+    home.mkdir(mode=0o700)
+    models = assets / 'mimo-code-models.json'
+    models.write_text('{}')
+    build_env = {
+        'PATH': f'{assets}:/usr/bin:/bin',
+        'HOME': str(home),
+        'CI': 'true',
+        'MIMOCODE_VERSION': contract['version'],
+        'MIMOCODE_CHANNEL': 'latest',
+        'MIMOCODE_COMMIT_SHA': '3704f8d',
+        'MODELS_DEV_API_JSON': str(models),
+    }
+    for concurrency in ('16', '4'):
+        result = subprocess.run([
+            bun, 'install', '--registry', 'https://registry.npmjs.org',
+            '--network-concurrency', concurrency, '--frozen-lockfile', '--ignore-scripts',
+        ], cwd=source, env=build_env, stdin=subprocess.DEVNULL)
+        if result.returncode == 0:
+            break
+    else:
+        raise RuntimeError('MiMo Code locked dependency installation failed')
+    subprocess.run(
+        [bun, 'run', 'script/build.ts', '--single', '--skip-install'],
+        cwd=source / 'packages/cli', env=build_env, check=True, stdin=subprocess.DEVNULL,
+    )
+
+    runtime.mkdir()
+    native = runtime / 'mimo'
+    shutil.copy2(source / 'packages/cli/dist/mimocode-darwin-arm64/bin/mimo', native)
+    native.chmod(0o700)
+    (runtime / 'build-receipt.json').write_text(json.dumps({
+        'version': contract['version'], 'source_sha256': contract['source_sha256'],
+        'patch_sha256': contract['patch_sha256'], 'sha256': digest(native),
+    }))
+    raise SystemExit(0)
 if agent == 'vtcode':
     import platform
     if (platform.system(), platform.machine()) != ('Darwin', 'arm64'):

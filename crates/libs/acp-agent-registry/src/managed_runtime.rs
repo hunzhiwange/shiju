@@ -271,6 +271,7 @@ pub(super) async fn install(agent: &str) -> Result<bool, String> {
         ("nova/apply.py", include_str!("../../../../patches/acp-model-source/nova/apply.py")),
         ("nova/session-model.mjs", include_str!("../../../../patches/acp-model-source/nova/session-model.mjs")),
         ("install.py", include_str!("managed_runtime/install.py")),
+        ("mimo-code/stdio-only.patch", include_str!("../../../../patches/acp-model-source/mimo-code/stdio-only.patch")),
         ("junie/launcher.py", include_str!("../../../../patches/acp-model-source/junie/launcher.py")),
         ("harn/agent.harn", include_str!("../../../../patches/acp-model-source/harn/agent.harn")),
         ("poolside/launcher.py", include_str!("../../../../patches/acp-model-source/poolside/launcher.py")),

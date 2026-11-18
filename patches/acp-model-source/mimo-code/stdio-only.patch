@@ -1,0 +1,33 @@
+--- a/packages/cli/src/cli/cmd/acp.ts
++++ b/packages/cli/src/cli/cmd/acp.ts
+@@ -8 +7,0 @@
+-import { withNetworkOptions, resolveNetworkOptions } from "../network"
+@@ -15,8 +14 @@
+-  builder: (yargs) => {
+-    return withNetworkOptions(yargs).option("cwd", {
+-      describe: "working directory",
+-      type: "string",
+-      default: process.cwd(),
+-    })
+-  },
+-  handler: async (args) => {
++  handler: async () => {
+@@ -25,6 +17,3 @@
+-      const opts = await resolveNetworkOptions(args)
+-      // Private HTTP shim for this ACP session's SDK client — not a task-token host.
+-      // Advertising would hand `issue`/`list` a base_url that only works for callers
+-      // already inside this process's directory scope.
+-      const server = await Server.listen({ ...opts, advertise: false })
+-
++      // The ACP SDK and its server are in the same process. Keep its request
++      // surface on stdio, including tool and model relay access.
++      const { app } = Server.Default()
+@@ -32 +21,2 @@
+-        baseUrl: `http://${server.hostname}:${server.port}`,
++        baseUrl: "http://mimocode.acp.internal",
++        fetch: (request) => Promise.resolve(app.fetch(request)),
+--- a/packages/cli/script/generate.ts
++++ b/packages/cli/script/generate.ts
+@@ -19 +19 @@
+-const snapshot = validateCatalog(JSON.parse(modelsData))
++const snapshot = validateCatalog(JSON.parse(modelsData), Boolean(process.env.MODELS_DEV_API_JSON))

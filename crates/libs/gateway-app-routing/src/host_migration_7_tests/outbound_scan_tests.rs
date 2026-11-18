@@ -33,6 +33,10 @@ async fn cc_route_030_outbound_scan_expected_behavior() {
             .env("HOME", &path)
             .env("VIBEWINDOW_TEST_ROOT", &path)
             .env("CODEX_HOME", path.join(".codex"))
+            .env("XDG_CONFIG_HOME", path.join(".config"))
+            .env("XDG_DATA_HOME", path.join(".local/share"))
+            .env("XDG_STATE_HOME", path.join(".local/state"))
+            .env("XDG_CACHE_HOME", path.join(".cache"))
             .env("TMPDIR", &path)
             .status()
             .unwrap();

@@ -1387,3 +1387,10 @@ macOS arm64 的托管安装已实测，指定模型和 Rue.js 落盘验收仍阻
 - 对照 Cursor 的固定包补丁，Cursor 的 JavaScript 发行包提供可直接替换的原生代理推理循环入口。Devin 公开发行提供无内部符号的原生 Mach-O 二进制。Cognition 的公开仓库提供发行自动化。[官方发行仓库说明](https://github.com/CognitionAI/devin-cli/blob/main/DEVELOPMENT.md)
 - 从发行二进制找到自带的 `ACP_BACKEND=openai` 使用说明。使用实时回环监听分别启动已安装的 3000.13.4 和官方 3000.14.30821。两个公开版都在处理 ACP initialize 前退出，明确返回 `Invalid ACP_BACKEND: Unknown backend type: openai`。在最新版分别尝试 `DEVIN_MODEL_BACKEND=openai` 与 `DEVIN_DEV_API_PROVIDER=openai`，ACP 建会话成功，精确选择原模型仍返回 `-32602`。四个探针期间回环监听累计收到 0 个请求，停在模型选择前置步骤，未发送推理提示。
 - 保留 `session_model` 能力门控。下一项技术前置是能通过回环验证的 Devin 推理入口，然后才能接入现有阿里中继。本轮未改代码或执行 Cargo，目标目录仍不存在，未删除验收任务。原始探针和脱敏监听计数位于 0700 私有目录 `/tmp/shiju-devin-acp-backend.zr3wmu/`。
+
+
+### Devin 原生推理调用边界（2026-11-18）
+
+- 对校验过的公开版 3000.14.30821 做只读 ARM64 交叉引用检查。确认两处原生代码引用 `/exa.api_server_pb.ApiServerService/GetChatMessage`，另有 `AssignModel` 和模型配置 RPC。二进制中 `OPENAI_API_BASE` 的可定位代码引用出现在批量环境变量字符串表，另一次出现在后端错误提示。未发现 `chat/completions` 或 `/v1/responses` 字面量。静态结果定位了候选调用边界，实际推理和工具续接仍待验证。
+- 使用私有 HOME、临时工作目录及仅允许私有回环出站的 macOS 沙箱运行原版。将 Devin 和 Windsurf 的 URL 指向同一个只记录路径并返回 404 的本地监听器。ACP initialize 和 session/new 成功。无工具的固定文本探针在 session/prompt 返回 `-32000 Authentication required`，没有任何请求抵达监听器。原生进程正常退出。此结果表明仅更换网络地址仍无法到达候选调用。
+- 未修改发行二进制、认证或工具权限，未运行 Cargo，未发 Rue.js 编辑器请求。阿里模型和 ShiJu 中继仍沿用原验收合同。现有公开版尚无已验证的等效注入点，任务保留已阻塞。原始反汇编、回环探针和回执保存在本机 0700 私有目录 `/tmp/shiju-devin-native-call.EFyccs/`。

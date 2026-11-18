@@ -43,3 +43,32 @@ AutoHand 发行版按显式配置参数、`AUTOHAND_CONFIG`、`AUTOHAND_HOME` �
 原生 stdio 的挂载、真实调用和撤除对照已有证据。任务保留为已阻塞，原因是原生工具发现与脚本行为超出提示的限定，且当前已验证的配置入口无法按会话限定模型仅使用指定工具。CLI 局部开关和进程级工具范围的回环探针没有恢复该合同。需要原生会话级工具范围支持后，按同一请求复跑三轮。
 
 仅更新本验收记录。未触及公共 ACP 转发或生命周期边界，未执行 Cargo 定向测试或构建。原始 SSE 和回读保存在本机私有目录。临时配置已撤除，私有网关与 MCP 子进程已退出，回环端口已关闭。
+
+## 共享构建与原生工具范围复验
+
+使用 RueJS 同一提交的干净归档，RustCodeGraph 1.2.10 在每份副本索引 3478 个文件。原提示、租户、模型及会话权限保持一致。工作区保留的其他任务修改未纳入本任务。核对时，AutoHand 驱动和生命周期夹具自前次记录起没有提交修改。npm 官方 `latest` 仍为固定的 0.9.11。AutoHand 仍使用原生 ACP。[官方 ACP 说明](https://docs.autohand.ai/integrations/acp-mode)
+
+先用原构建（SHA-256 `e61098c0a9a4f5a6c6f658b191741bc880b4591031ef9d7dae3d9257af66882f`）及完整 stdio 工具集跑干净源码对照，再分别用该构建和 Snow 共享构建（`e755e458b4fce6ed045ef10a7c077a0d7dfb98d69637442d9c4449d0d50923ac`）复跑工具范围。
+
+在私有副本的 `.autohand/settings.local.json` 通过 `permissions.availableTools` 限定三个完整的 MCP 工具名。经 stdio 转发器把同一个 RustCodeGraph 的工具列表限制为这三项，描述首部附原工具名供 AutoHand 的相关性筛选使用，调用参数与结果原样传递。转发器拒绝其他工具名和副本外的 `projectPath`。项目权限配置三轮相同，只有挂载轮有宿主 MCP 条目。此验证找到了可用的项目级限制，补充了前次仅验证进程参数的结果。
+
+独立回环在 AutoHand 私有主配置设置 `features.codeMode=false`、`ui.completionReportEnabled=false`，正常流中模型可见工具数依次为 0、3、0。没有 Code Mode 派发或强制回顾指令。挂载轮实际按顺序调用 query、callers、node，续轮收到对应的三个真实输出，三轮均 `end_turn`。项目权限可以限制模型所见工具，但 AutoHand 的项目配置合并不接纳这两个主配置字段。此探针使用回环模型，真实请求继续沿用 ShiJu 受管入口。
+
+| 构建与工具范围 | 轮次 | 新会话 ID | HTTP / curl / 耗时 | 终态和结果 |
+| --- | --- | --- | --- | --- |
+| 原构建，完整 | 无挂载 | `ses_1effc6fc9001N41TrLPqYaR670` | 200 / 0 / 6.954 秒 | `chat.done`，目标工具为零，执行内置搜索和脚本，标记后追加说明 |
+| 原构建，完整 | 挂载 | `ses_1effc8b6c001bWLjwq0uX3KXfB` | 200 / 0 / 203.121 秒 | `chat.done`，三种目标工具成功，仍有额外调用和两次 `node` 失败 |
+| 原构建，完整 | 撤除 | `ses_1efffa647001GCAjpfNcRprLnv` | 200 / 0 / 10.996 秒 | `chat.done`，`MCP_NOT_AVAILABLE`，目标工具为零 |
+| 原构建，限定 | 无挂载 | `ses_1effde695001BMh4Q3MCxSlUnv` | 200 / 0 / 4.920 秒 | `chat.done`，零工具事件，答复含未执行的 DSML 标记 |
+| 原构建，限定 | 挂载 | `ses_1effdfb23001QaFvBjqVjDkjhk` | 200 / 0 / 205.012 秒 | `chat.done`，只调用三种指定工具，146 次成功，1 次失败 |
+| 原构建，限定 | 撤除 | `ses_1f0011d8d001cgntFAqRFAj9c4` | 200 / 0 / 5.992 秒 | `chat.done`，零工具事件，答复仍含未执行的 DSML 标记 |
+| 共享构建，限定 | 无挂载 | `ses_1efff45e2001IIWFriTBBW9xyw` | 200 / 0 / 6.490 秒 | `chat.done`，零工具事件，答复是未被执行的 DSML 脚本调用标记 |
+| 共享构建，限定 | 挂载 | `ses_1efff61d9001FJEs6jhmBTMM8O` | 200 / 0 / 64.671 秒 | `chat.done`，只调用三种指定工具，40 次成功，2 次失败 |
+| 共享构建，限定 | 撤除 | `ses_1f0005f9c001J4okg3gnZ05M4R` | 200 / 0 / 6.033 秒 | `chat.done`，答复为 `MCP_NOT_AVAILABLE`，零工具事件 |
+
+共享构建三轮均无 `chat.error`。UI summary 回读确认指定预设与 `full_access=true`。ACP options 确认指定模型和 `session_model`，执行中 `connected=true`、`access_status.support=client_only`，终态 `connected=false`。工具限制只收窄模型可见能力，没有修改审批模式。
+
+共享构建挂载轮的 `call_d1adea153da54f9aaa23c36e` 查到 `createRueSiteApp`（`app/app.tsx:32`），`call_4fb07daf2ba24cc1b4fb52fe` 查到其调用者 `mountRueSiteApp`（同文件第 39 行），`call_bb77a4803bc94cfb892d5c72` 读回 `useApp` 第 4 行委托 `_$createApp`。首次失败请求读了不存在的 `app/router.tsx`，随后又读了不存在的 `app/router.ts`。在同一索引中，`query createAppRouter` 返回空，按文件行读取 `app/router/index.ts:787` 则可见工厂定义。答复覆盖主链、SSR 和缺少容器的分支、插件接入、布局绕过及两项快照验证设想。它明确未完整回读路由插件安装实现。预期节点数量必然翻倍的说法超出源码证据，实际数量取决于快照和新根块结构。
+
+项目级限制消除了共享构建挂载轮的额外调用，但两种受管构建的限定无挂载轮都返回 DSML 标记。可控回环证明关闭主配置中的 Code Mode 和强制回顾后，三种工具仍可调用并续轮。真实验收还需要受管入口支持这两项设置，以及固定模型使用现有索引准确定位文件，或由 RustCodeGraph 修复相关符号索引。三轮合同当前仍有实际失败，故保留为已阻塞。没有修改产品代码或运行 Cargo。
+三座私有网关、回环端口及工具进程均已关闭。临时工作区、权限配置和租户凭据副本已清理，私有目录保留脱敏检查和原始事件证据。

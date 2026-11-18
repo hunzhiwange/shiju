@@ -222,7 +222,7 @@ fn sidebar(app: &App) -> Element<'_, Message> {
     .width(214)
     .height(Length::Fill)
     .style(|theme: &Theme| {
-        container::Style::default().background(theme.extended_palette().background.weak.color)
+        container::Style::default().background(theme.palette().text.scale_alpha(0.035))
     })
     .into()
 }
@@ -254,13 +254,14 @@ fn sidebar_action<'a>(
         .height(30)
         .padding([0, 8])
         .style(move |theme, status| {
-            let colors = theme.extended_palette();
+            let ink = theme.palette().text;
             let mut style = rounded_action_btn_style(theme, status);
             style.border = iced::border::rounded(7);
             style.background = match status {
-                button::Status::Pressed => Some(colors.background.strongest.color.into()),
-                _ if active => Some(colors.background.strong.color.into()),
-                button::Status::Hovered => Some(theme.palette().text.scale_alpha(0.07).into()),
+                button::Status::Pressed => Some(ink.scale_alpha(0.11).into()),
+                button::Status::Hovered if active => Some(ink.scale_alpha(0.09).into()),
+                _ if active => Some(ink.scale_alpha(0.07).into()),
+                button::Status::Hovered => Some(ink.scale_alpha(0.045).into()),
                 _ => None,
             };
             style

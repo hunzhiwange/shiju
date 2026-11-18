@@ -71,8 +71,13 @@ pub fn configure(
                 }
             }}
         }},
-        "permission": {"*": "deny", "read": "allow", "list": "allow",
-            "glob": "allow", "grep": "allow", "edit": "ask"},
+        // Searches use a child ripgrep process, which the managed profile forbids.
+        "agent": {
+            "build": {"tool_allowlist": ["read", "edit", "write"]},
+            "compose": {"tool_allowlist": ["read", "edit", "write"]},
+            "plan": {"tool_allowlist": ["read"]}
+        },
+        "permission": {"*": "deny", "read": "allow", "edit": "ask"},
         "autoupdate": false, "share": "disabled"
     });
     let config = profile.write_config("mimocode.json", &serde_json::to_vec(&config)?)?;

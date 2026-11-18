@@ -1277,3 +1277,16 @@ Poolside 以原指定模型完成 Rue.js 编辑器落盘验收。保留前次请
 - 最终 Rue.js 普通文件 SHA-256 快照由 6325 项增至 6333 项，只有上述 8 项变更。首次共享环境复查观察到并行 Stakpak 验收创建的 8 个文件及其预设变化，未修改这些产物。最终私有实例恢复配置并 GET 确认为完整基线相等，预设回到停用。自有网关退出 0，复查 9 个回环端口均关闭，诊断缓存及配置和凭据副本已清理，宿主用户服务未重启。
 - 定向单测通过安装契约 1 项、ACP 选模及回调边界 2 项、中继工具范围 1 项。槽位 3 的 `cargo clippy -j 1 --lib --no-deps` 对安装、注册、客户端、运行时及最终中继相关包分轮执行，均退出 0，保留 `llm-runtime` 的既有警告。未执行全仓回归或桌面编译。
 - 本机 0700 目录 `/tmp/shiju-vtcode-expanded-20261118.scdg40/` 保存源码和构建摘要、请求与 SSE、选模、快照、还原及产物摘要。只提交脱敏验收记录和 ShiJu 接入，Rue.js 产物保留在其工作区。
+
+
+### MiMo Code 中继与真实租户复验（2026-11-18）
+
+结论为已阻塞。MiMo Code 的安全会话模型中继已实现，原租户与指定模型在真实会话中连接成功。首次请求和原标识续传均超时，编辑器未落盘。
+
+- 提交 `993043bf6` 固定上游 v0.1.17 源码、Bun 1.3.14 和补丁收据。原生发行的 ACP 内置 SDK 在服务启用密码后收到 HTTP 401。补丁把 HTTP 调用留在 ACP 进程内，消除了内部 TCP 监听。子进程网络仅允许本次模型中继，原生写入及子进程执行受沙箱拒绝。Git 探测在受管启动中禁用，防止尝试启动 Git。普通文件写入经受控宿主回调，完整访问也遵守工作区边界。[固定版本 ACP 实现](https://github.com/XiaomiMiMo/MiMo-Code/blob/v0.1.17/packages/cli/src/cli/cmd/acp.ts)
+- 原生补丁和受管安装脚本均已构建并通过 0.1.17 版本检查。脚本回放使用已校验的官方下载及私有 Bun 缓存，产物 SHA-256 为 `c086c1bd5c4ada962880f7636de5b07fc442db19edccf3e383887f6f3c47f7ae`。冷依赖下载重试耗时超过网关请求窗口，完整冷安装仍待验证。Git 工作区原生回环探针确认完整模型 ID 及中继认证抵达，宿主拒绝写回时零文件，批准时可在嵌套目录落盘 15 字节。4 项定向单测和包级 Clippy 退出 0，Clippy 存在既有警告。
+- shiju 0.6.0 使用共享工作区定向构建，SHA-256 为 `9532aa90df2fc080b0144cfb13edd5324b48fdc9d5ab34204a5ab1db87247d5d`。使用开发配置私有 SQLite 副本和自有回环网关。安装接口对已校验的受管入口返回 HTTP 200、curl 退出 0、0.042674 秒，重读为已安装。普通诊断为 `authentication_required`，模型能力报告支持 `session_model`。内置 `acp-mimo-code` 启用后重读确认。
+- 真实会话 `ses_1ed007a660014ohi6BLSTQno64` 的运行中回读确认 `agent=acp-mimo-code`、`backend=mimo-code`、`full_access=true`、`connected=true`。选中模型为 `session_model`、`alibaba-token-plan-cn`、`alibaba-token-plan-cn/deepseek-v4.1-flash-1017`。流中已完成两个文件读取。进程边界拒绝 shell，三个使用外部 ripgrep 的 glob 调用保持运行状态。初始 SSE 和同标识续传均 HTTP 200，curl 均退出 28，分别耗时 300.007973 秒及 300.011271 秒。两段流均无 `chat.done` 或 `chat.error`。
+- 预设恢复停用并重读等效。私有副本的全局配置多出显式 disabled 覆写，随后整个副本删除，原开发配置未收到 PATCH。自有网关退出 0，端口关闭，无残留原生进程。Rue.js 前后 6333 项普通文件摘要和 Git 状态一致，目标目录不存在。没有重复提交编辑器请求，未运行页面或浏览器验证。
+- 私有证据位于 0700 目录 `/tmp/shiju-mimo-code-implementation.wJIgOO/`，包含源码构建、补丁原生探针及真实会话回读。
+- 已缩小受管模式的工具目录。原生回环确认主提示仍有 read、edit、write，且不提供 shell、glob 或 grep，批准写回仍可创建嵌套文件。两项驱动定向单测和 Clippy 重跑退出 0。若需重新创建，先确认旧会话已停止及目录仍为空，再单独授权发起新请求。

@@ -90,7 +90,7 @@ tokio-util = { version = "0.7", features = ["rt"] }
 vw-api-app-failover = { path = "../api-app-failover", version = "0.6.0" }
 vw-api-tools = { path = "../api-tools", version = "0.6.0" }
 
-agent-gateway = { path = "../agent-gateway", version = "0.6.0" }
+agent-gateway = { path = "../agent-gateway", version = "0.6.0", features = ["test-support"] }
 gateway-app-auth = { path = "../gateway-app-auth", version = "0.6.0" }
 zip = { version = "8.6", default-features = false, features = ["deflate-flate2-zlib-rs"] }
 gateway-app-usage = { path = "../gateway-app-usage", version = "0.6.0" }

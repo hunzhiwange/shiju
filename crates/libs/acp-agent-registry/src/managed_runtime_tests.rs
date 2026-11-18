@@ -164,3 +164,27 @@ async fn corust_managed_install_resolves_and_verifies_native_entry() {
     verify_reviewed_agent_executable("corust-agent", &registered.command).unwrap();
     crate::install_builtin_agent("corust-agent").await.unwrap();
 }
+
+#[cfg(all(target_os = "macos", target_arch = "aarch64"))]
+#[tokio::test]
+#[ignore = "downloads the official Devin archive into an explicit isolated directory"]
+async fn devin_managed_install_resolves_and_verifies_native_entry() {
+    let root = PathBuf::from(std::env::var_os("VW_ACP_INSTALL_ACCEPTANCE_ROOT").unwrap());
+    assert!(root.is_absolute());
+    let _lock = crate::TEST_HOME_ENV_LOCK.lock().await;
+    assert_eq!(std::env::var_os("VIBEWINDOW_CONFIG_DIR").as_deref(), Some(root.as_os_str()));
+    assert!(reviewed_agent_command("devin").is_err());
+
+    crate::install_builtin_agent("devin").await.unwrap();
+    let registered = crate::resolve_agent_spec("devin").unwrap();
+    assert_eq!(
+        Path::new(&registered.command),
+        root.join("acp-runtime/devin-3000.13.4-model-source-v1/devin")
+    );
+    assert_eq!(registered.args, ["acp", "--process-model", "in-process"]);
+    verify_reviewed_agent_executable("devin", &registered.command).unwrap();
+    let output = std::process::Command::new(&registered.command).arg("--version").output().unwrap();
+    assert!(output.status.success());
+    assert!(String::from_utf8(output.stdout).unwrap().contains("3000.13.4"));
+    crate::install_builtin_agent("devin").await.unwrap();
+}

@@ -709,6 +709,17 @@
     "bun_sha256": "603d327a393c32fec5d9e7165c5f57afc28f1c84ef85593448870ccc41bda636",
     "files": {}
   },
+  "devin": {
+    "layout": "standalone",
+    "package": "devin",
+    "version": "3000.13.4",
+    "bin": "devin",
+    "artifact_url": "https://static.devin.ai/cli/3000.13.4/devin-3000.13.4-aarch64-apple-darwin.tar.gz",
+    "archive_sha256": "24b52c2bb312f8ab3d71545a173a69446901b27da5a44300bd03464ab066525b",
+    "files": {
+      "devin": "62e08b13df72b4626a69669d536c460f45e77f0f58ffc82762436dac5dc8f272"
+    }
+  },
   "vtcode": {
     "layout": "standalone",
     "package": "vtcode",

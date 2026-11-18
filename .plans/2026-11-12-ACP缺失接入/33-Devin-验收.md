@@ -98,3 +98,12 @@ Rust 编译资源和会话调度按 `.plans/references/rust.md` 的项目覆盖�
 已校验官方3000.13.4 Darwin arm64包；原生ACP握手与session/new成功，但原完整指定模型未解析并回退默认。未发送prompt，显式session/set_config_option选原模型返回-32602 Invalid params。隔离auth status为Not logged in，models list退出1要求登录；宿主默认凭据目录和相关环境变量均无。需要有效Devin认证及原模型可用路由，不能仅加启动参数冒充session_model支持。
 
 探针已退出，未系统安装、未改配置或权限，旧网关端口关闭，Rue.js6297项快照零差异。新证据 /tmp/shiju-devin-retry-20261118/（0700），详见验收追加小节。仅文档轻量检查，未运行Cargo或页面验证；保持已阻塞，待外部认证和模型接入条件具备后继续。
+
+
+### 固定版本安装补丁及复验（2026-11-18）
+
+macOS arm64 托管安装现固定官方 Devin 3000.13.4，校验压缩包和可执行文件摘要，注册入口使用 ACP 进程内模式。安装验证通过，任务保留已阻塞。
+
+通过 `scripts/cargo_slot.py` 领取槽位，两项 Cargo 缓存变量均指向对应的 `/Users/xiangmin/worker/code/shiju/target/rust-slot-N`。槽位 3 执行 `cargo test --locked -j 1 -p config-acp-install --lib acp_onboarding_devin_installer_contract`，1 项失败（退出 101），证实旧白名单未启用。槽位 10 重跑同命令，1 项通过。槽位 10 执行 `cargo test --locked -j 1 -p acp-agent-registry --lib devin_managed_install_resolves_and_verifies_native_entry -- --ignored`，通过 1 项真实下载、注册解析、原生版本和重复安装测试。该版本 Clippy 退出 0。第二次冷下载 120 秒超时（退出 101），加入有界重试和断点续传后，在槽位 3 用空配置根重跑同一安装测试，1 项通过，耗时 96.76 秒。最终 `cargo clippy --locked -j 1 -p config-acp-install -p acp-agent-registry --lib --no-deps` 退出 0。共享安装分支的 VT Code 0.183.0 下载、版本和摘要也通过实测。
+
+隔离原生 ACP 握手及建会话成功，精确选模仍返回 -32602，未发送 prompt。公开版依赖 Devin 登录，自定义 OpenAI 端点的官方文档要求获批组织专供的合作伙伴版，其下载接口在未认证时返回 HTTP 403。需要取得获授权的供应商构建，验证其 ACP 推理和权限边界，再以指定模型重跑。未运行新网关 HTTP 路径、桌面编译、页面或浏览器验证，未修改宿主配置或 Rue.js。私有证据 `/tmp/shiju-devin-managed-20261118.tSB9VH/`。

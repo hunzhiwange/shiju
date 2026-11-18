@@ -58,8 +58,7 @@ pub fn acp_install_command_for_platform(
         "cortex-code" => return None,
         // Corust uses a checksum-pinned managed archive on macOS arm64.
         "corust-agent" => return None,
-        // Discover the official host CLI. No pinned, checksum-reviewed distribution
-        // is registered here; never install a guessed npm package or moving script.
+        // Devin uses the checksum-pinned managed archive on Darwin arm64.
         "devin" => return None,
         // Harn uses the separately reviewed native distribution and pipeline on
         // Darwin arm64. There is no shell fallback on other platforms.
@@ -203,7 +202,7 @@ fn official_installer(
 /// Managed native distributions do not have a shell installation command.
 /// Keep their platform support explicit while using the same system install endpoint.
 pub fn acp_install_supported(agent: &str) -> bool {
-    (matches!(agent, "aionrs" | "harn" | "junie" | "vtcode" | "stakpak" | "poolside") && cfg!(all(target_os = "macos", target_arch = "aarch64")))
+    (matches!(agent, "aionrs" | "devin" | "harn" | "junie" | "vtcode" | "stakpak" | "poolside") && cfg!(all(target_os = "macos", target_arch = "aarch64")))
         || (agent == "corust-agent" && cfg!(all(target_os = "macos", target_arch = "aarch64")))
         || acp_install_command(agent).is_some()
 }

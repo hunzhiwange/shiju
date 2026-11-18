@@ -152,22 +152,33 @@ if agent == 'mimo-code':
         'patch_sha256': contract['patch_sha256'], 'sha256': digest(native),
     }))
     raise SystemExit(0)
-if agent == 'vtcode':
+if agent in ('devin', 'vtcode'):
     import platform
     if (platform.system(), platform.machine()) != ('Darwin', 'arm64'):
-        raise RuntimeError('VT Code reviewed runtime is Darwin-arm64 only')
-    archive = assets / 'vtcode.tar.gz'
-    run(['/usr/bin/curl', '--fail', '--silent', '--show-error', '--location',
-         '--proto', '=https', '--proto-redir', '=https', '--max-time', '120',
-         '--output', str(archive), contract['artifact_url']])
+        raise RuntimeError(f'{agent} reviewed runtime is Darwin-arm64 only')
+    archive = assets / f'{agent}.tar.gz'
+    for _ in range(3):
+        result = subprocess.run([
+            '/usr/bin/curl', '--disable', '--fail', '--silent', '--show-error', '--location',
+            '--proto', '=https', '--proto-redir', '=https', '--max-time', '80',
+            '--speed-time', '20', '--speed-limit', '65536', '--continue-at', '-',
+            '--output', str(archive), contract['artifact_url'],
+        ], stdin=subprocess.DEVNULL)
+        if result.returncode == 0:
+            break
+        if result.returncode == 33:  # Some servers refuse partial transfers.
+            archive.unlink(missing_ok=True)
+    else:
+        raise RuntimeError(f'{agent} reviewed download failed')
     if digest(archive) != contract['archive_sha256']:
-        raise RuntimeError('VT Code fixed archive checksum mismatch')
+        raise RuntimeError(f'{agent} fixed archive checksum mismatch')
     runtime.mkdir()
-    native = runtime / 'vtcode'
+    native = runtime / contract['bin']
+    entry_name = {'devin': 'bin/devin', 'vtcode': './vtcode'}[agent]
     with tarfile.open(archive) as package:
-        entries = [entry for entry in package.getmembers() if entry.name == './vtcode']
+        entries = [entry for entry in package.getmembers() if entry.name == entry_name]
         if len(entries) != 1 or not entries[0].isfile():
-            raise RuntimeError('Unexpected VT Code executable archive entry')
+            raise RuntimeError(f'Unexpected {agent} executable archive entry')
         with package.extractfile(entries[0]) as source, native.open('xb') as output:
             shutil.copyfileobj(source, output)
     check_files(runtime, contract['files'])

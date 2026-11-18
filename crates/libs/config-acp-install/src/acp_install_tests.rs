@@ -189,6 +189,10 @@ fn acp_onboarding_corust_agent_installer_contract() {
 
 #[test]
 fn acp_onboarding_devin_installer_contract() {
+    assert_eq!(
+        super::acp_install_supported("devin"),
+        cfg!(all(target_os = "macos", target_arch = "aarch64"))
+    );
     use super::{AcpInstallPlatform, acp_install_command_for_platform};
     for platform in [AcpInstallPlatform::Unix, AcpInstallPlatform::Windows] {
         assert!(acp_install_command_for_platform("devin", platform).is_none());

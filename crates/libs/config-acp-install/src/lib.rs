@@ -74,8 +74,7 @@ pub fn acp_install_command_for_platform(
         // Native Stakpak releases require a pinned, checksum-reviewed platform
         // mapping before automatic installation. Discover the host CLI instead.
         "stakpak" => return None,
-        // Discover the official native VT Code CLI. Automatic installation needs
-        // a reviewed, pinned platform/checksum mapping, never a same-name npm package.
+        // VT Code uses the verified native archive on Darwin arm64.
         "vtcode" => return None,
         // The official omp executable requires Bun >=1.4.4 on the gateway host.
         "omp" => &["install", "-g", "@oh-my-pi/pi-coding-agent@18.22.0"],
@@ -208,7 +207,7 @@ fn official_installer(
 /// Managed native distributions do not have a shell installation command.
 /// Keep their platform support explicit while using the same system install endpoint.
 pub fn acp_install_supported(agent: &str) -> bool {
-    (agent == "harn" && cfg!(all(target_os = "macos", target_arch = "aarch64")))
+    (matches!(agent, "harn" | "vtcode") && cfg!(all(target_os = "macos", target_arch = "aarch64")))
         || acp_install_command(agent).is_some()
 }
 

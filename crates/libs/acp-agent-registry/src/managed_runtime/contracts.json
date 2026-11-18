@@ -652,6 +652,17 @@
     },
     "integrity": "sha512-krb6SLYHdGnafeipKrM7PlHWSv1iiC93g9zEXAcnOC8MKO5kX8NOd1/UCu9omCDXdCCbz3nfr86XDx6pdkAwjw=="
   },
+  "vtcode": {
+    "layout": "standalone",
+    "package": "vtcode",
+    "version": "0.183.0",
+    "bin": "vtcode",
+    "artifact_url": "https://github.com/vinhnx/VTCode/releases/download/0.183.0/vtcode-0.183.0-aarch64-apple-darwin.tar.gz",
+    "archive_sha256": "ceb895c724cd666f283169cf2c400a2a3988dfc97cc8b62d75882ffedc218f2d",
+    "files": {
+      "vtcode": "88cbc99b8aac0c3a9b8596976c610026aebef14d89f9943735c38016a44919a4"
+    }
+  },
   "harn": {
     "layout": "standalone",
     "package": "harn-cli",

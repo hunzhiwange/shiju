@@ -239,6 +239,10 @@ fn acp_onboarding_vtcode_installer_contract() {
         assert!(acp_install_command_for_platform("vtcode", platform).is_none());
     }
     assert!(acp_install_command("vtcode; echo unsafe").is_none());
+    assert_eq!(
+        super::acp_install_supported("vtcode"),
+        cfg!(all(target_os = "macos", target_arch = "aarch64"))
+    );
 }
 
 #[test]

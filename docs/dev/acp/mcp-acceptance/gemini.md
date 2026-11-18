@@ -28,3 +28,23 @@
 - 上游 `McpClientManager::startConfiguredMcpServers` 在遍历已配置服务前检查工作区信任，适用于 stdio、HTTP 和 SSE。stdio 创建还有自己的信任检查。换传输无法越过前置门禁。待受管 ACP 能应用用户明确授予的工作区信任后，使用原请求和相同模型复验。未修改 Rust、受管补丁或权限设置，未运行 Cargo 测试。
 
 自有网关及回环端口已关闭，私有副本的临时 MCP 配置和凭据副本已清理。原 RueJS 和运行中的用户网关未改配置。私有网关启动时仍打开了开发环境的共享工作区记忆数据库，未验证其内容差异。原始日志和事件证据留在本机私有目录。
+
+## 共享构建复验
+
+使用共享槽位 3 已有的 shiju 0.6.0 构建，SHA-256 为 `e755e458b4fce6ed045ef10a7c077a0d7dfb98d69637442d9c4449d0d50923ac`。依旧使用受管 Gemini 0.66.0、同一 RueJS 提交、提示哈希、租户和指定模型。回环网关同时隔离 HOME、运行根及工作目录，核对打开的记忆 SQLite 文件位于私有目录。
+
+| 轮次 | 新会话 | HTTP / curl / 秒 | 答复 |
+| --- | --- | --- | --- |
+| 无挂载 | `ses_1eff933c4001lmv06aFS6ipo2l` | 200 / 0 / 6.664 | `MCP_NOT_AVAILABLE` 加说明 |
+| 挂载 | `ses_1eff94f4a001LqMRyB413WEGPe` | 200 / 0 / 4.913 | `MCP_NOT_AVAILABLE` |
+| 撤除 | `ses_1eff9643d001heYNOkbFIUTHWF` | 200 / 0 / 5.030 | `MCP_NOT_AVAILABLE` |
+
+三轮各有一次 `chat.done`，无 `chat.error` 或 `chat.tool`。运行中与结束后读回确认原绑定、`full_access=true` 和 `session_model` 模型；连接由运行中的 `true` 转为 `false`，运行时权限仍为 `client_only`。无工具输出或源码答复可核对。另一模型的独立标题生成再次返回 HTTP 403。
+
+复验以只读观测记录实际 Gemini 进程初始化时的三个字段。挂载轮的会话配置确有目标 stdio 服务，`mcpEnabled=true`、`isTrustedFolder()=false`。两轮对照均没有该服务。观测只记录服务是否存在、传输和信任判断，继续执行原生初始化。由此将实际请求的首个阻断边界定位到 Gemini 的工具发现。
+
+另以空白的私有原生信任文件，分别用 HTTP 与 SSE 直接创建 ACP 会话。回环模型请求只声明内置工具，两个 MCP 路径均未收到请求。上游主线仍在枚举配置服务前检查文件夹信任，升级无法排除此门禁。[Gemini CLI MCP 发现实现](https://github.com/google-gemini/gemini-cli/blob/main/packages/core/src/tools/mcp-client-manager.ts)
+
+已核对受管 0.66.0 支持从 `GEMINI_CLI_TRUSTED_FOLDERS_PATH` 读取原生文件夹授权。本机默认信任文件不存在，私有副本也无既有授权。继续验收需要用户明确授权测试副本的准确路径，使受管进程读取私有原生信任文件。该授权覆盖文件夹级能力，应保留原生工具审批。工作区信任覆盖开关、关闭信任检查及服务器免审批均未使用。[Gemini CLI 信任文档](https://geminicli.com/docs/cli/trusted-folders/)
+
+复验网关已退出，临时挂载及凭据副本已清理。没有涉及 Rust 公共转发改动，未运行 Cargo。保留 `已阻塞`，待明确授权后复验挂载和严格对照。

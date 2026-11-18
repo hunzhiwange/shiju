@@ -1250,3 +1250,14 @@ Rust重型命令经scripts/cargo_slot.py槽位入口串行执行，对应CARGO_T
 - 产物共8项，分别为 `index.html`、`vite.config.mjs`、`tsconfig.json`、`README.md`、`src/App.tsx`、`src/main.tsx`、`src/env.d.ts`、`src/style.css`。静态确认 Vite 别名指向本仓库 `@rue-js/rue` 源码，编辑器使用 textarea、computed 实时计数及 localStorage 保存与恢复。README 提供开发启动命令。未运行浏览器、构建或物理刷新验证。
 - Rue.js 普通文件快照从6311项到6319项，差异仅 `acpdemo/junie/` 内上述8项。私有配置还原后 GET 与基线相等。确认早期尝试在共享数据库中仅遗留了与本任务记录一致的 disabled 覆写后，在事务内移除该覆写并重读确认，其他值保持一致。自有网关和原生进程退出、端口关闭，移除私有凭据及数据库副本。
 - 两项安装策略测试及一项 ACP Safe 与模型控制测试通过。定向 CLI 构建通过。定向 Clippy 遇到 llm-runtime 已有101项警告，未指向本次 Junie 文件。未运行全仓测试或桌面构建。私有证据 `/tmp/shiju-junie-patch-20261118/`（0700）保存构建与安装指标、SSE、配置重读、快照及清理结果。
+
+
+### Poolside 定向补全通过（2026-11-18）
+
+Poolside 以原指定模型完成 Rue.js 编辑器落盘验收。保留前次请求和续传超时记录。本轮在前次网关停止并确认无产物后发起独立的定向补全会话，直接提供已核实的 Rue 用法、同层示例的 Vite 配置和六项文件清单，减少重复源码探索。
+
+- 复用上节 shiju 0.6.0 构建与经摘要校验的 Poolside 1.0.16 管理安装。临时开发配置副本启动遇到 SQLite 锁，改用隔离 HOME 后就绪。一次重新下载安装失败，随后复用前轮已校验的原生二进制和管理入口，系统安装端点幂等验证返回 HTTP 200。诊断为 `connected`，能力为 `session_model=supported`，预设启用后 GET 重读确认保存。
+- 使用原平台、公司和 Rue.js 目录。会话 `ses_1ec938c6c001utmldYyG1TOUb8` 返回 HTTP 200、curl 退出 0、耗时 36.128496 秒，恰好一个 `chat.done`，无 `chat.error`。运行中 summary/options 确认 `agent=acp-poolside`、`backend=poolside`、`full_access=true`、`connected=true`、`access_status.support=client_only`。选中模型来源为 `session_model`，provider 为 `alibaba-token-plan-cn`，完整模型为 `alibaba-token-plan-cn/deepseek-v4.1-flash-1017`。结束后连接释放，模型绑定仍可重读。
+- 六条完成的写入分别对应 `acpdemo/poolside/index.html`、`package.json`、`vite.config.ts`、`src/main.tsx`、`src/style.css`、`README.md`。静态核对确认 Vite alias 和编译入口均存在，页面从本仓库 `@rue-js/rue` 导入运行时，使用 textarea、computed 实时计数、localStorage 初始化恢复和逐次输入同步保存。README 的启动命令是 `pnpm --dir acpdemo/poolside dev`。未运行浏览器或页面构建。
+- Rue.js 前后普通文件分别为 6319 和 6325 项，摘要差异恰好为上述六个文件。恢复预设后临时配置 GET 与基线完全相等，原开发配置未收到 PATCH，临时副本已删除。自有网关退出 0、端口关闭。一个本轮的已退出沙箱容器经时间和挂载核实后已移除。无代码变更，沿用上节的定向测试和 Clippy 证据。
+- 本轮原始请求、SSE、配置重读、文件摘要、逐项核验和清理记录存于 0700 私有目录 `/tmp/shiju-poolside-complete.4yPggO/`，未提交运行产物或凭据。

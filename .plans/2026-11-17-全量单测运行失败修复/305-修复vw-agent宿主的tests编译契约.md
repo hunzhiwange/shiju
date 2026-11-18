@@ -95,3 +95,11 @@ python3 scripts/cargo_slot.py cargo test -p vw-agent --lib handle_webhook_inner_
 - 修复前退出101，70条编译错误，包含本任务两处 E0425；修复后退出101，剩68条其他文件错误，本文件诊断消失。日志：`/tmp/shiju-task305-before.log`、`/tmp/shiju-task305-after.log`。
 - 有效测试数0，尚无行为通过证据；第一条编译失败，第二条因 `&&` 未执行。剩余阻塞包括 `agent/loop_.rs` 的 core 导入、llm host_suites 的 acp 导入、compaction fixture 导入等，归兄弟任务处理。
 - 两轮入口均已退出并释放自有槽位锁，保留缓存。待兄弟宿主编译阻塞解除后重跑上述两条命令；保留编号文件，不声称完成。
+
+## 复用公共产物回归（2026-11-18）
+
+- 核对了提交 `6e6253b81` 已包含在任务304公共编译开始版本 `3382a35f8` 中。公共编译结束版本 `17e53b009`，退出0，凭据 `/tmp/shiju-host-common-304-LYrH28/receipt.md`。
+- 领取槽位1，直接运行凭据中与 Cargo JSON 一致的 `target/rust-slot-1/debug/deps/vw_agent-e6b6e74ae78b3318`，SHA-256 `5548b4e2c673a564f9d12af91061c0e01e0334f68881fd8cf360a1cbf5933e78`。未重编。
+- 参数为 `--exact --nocapture gateway::webhook_ingress::tests::enforce_rate_limit_returns_retry_after_after_limit_is_exceeded gateway::webhook_ingress::tests::handle_webhook_inner_returns_rate_limit_before_provider_call`。有效2项，1 passed、1 failed，退出101。日志及命令凭据见 `/var/folders/rg/zr19lb_s5w32q6d2qkd6p0n80000gp/T/shiju-305-host-r63iwqsb/` 下的 `tests.log`、`tests.exit`、`command.json` 和 `artifact.txt`。
+- 用例使用内存夹具和本地 provider 桩。宿主提示词可扫描工作区，因此 HOME、CODEX_HOME、XDG、应用配置、状态根和工作目录都指向隔离目录，另用 macOS 沙箱拒绝读写真实 Codex 配置。
+- 限流响应断言通过。宿主入口用例首次请求构建提示词时，`session-engine/src/prompt.rs:64` 的 `block_in_place` 在默认单线程测试运行时 panic。将该用例切换到 Tokio 多线程运行时，保留原断言。旧产物无法验证这项改动，待公共编译窗口释放后更新宿主产物并隔离重跑两条用例，任务保留待回归。

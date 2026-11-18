@@ -592,7 +592,8 @@ async fn handle_webhook_inner_returns_success_payload_for_authorized_loopback_re
     assert_eq!(provider.calls.load(Ordering::SeqCst), 1);
 }
 
-#[tokio::test]
+// 宿主构建提示词时使用 block_in_place，需要多线程运行时。
+#[tokio::test(flavor = "multi_thread")]
 async fn handle_webhook_inner_returns_rate_limit_before_provider_call() {
     let provider = Arc::new(StaticProvider::default());
     let state = state_with(

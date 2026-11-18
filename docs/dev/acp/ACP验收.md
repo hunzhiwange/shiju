@@ -1394,3 +1394,10 @@ macOS arm64 的托管安装已实测，指定模型和 Rue.js 落盘验收仍阻
 - 对校验过的公开版 3000.14.30821 做只读 ARM64 交叉引用检查。确认两处原生代码引用 `/exa.api_server_pb.ApiServerService/GetChatMessage`，另有 `AssignModel` 和模型配置 RPC。二进制中 `OPENAI_API_BASE` 的可定位代码引用出现在批量环境变量字符串表，另一次出现在后端错误提示。未发现 `chat/completions` 或 `/v1/responses` 字面量。静态结果定位了候选调用边界，实际推理和工具续接仍待验证。
 - 使用私有 HOME、临时工作目录及仅允许私有回环出站的 macOS 沙箱运行原版。将 Devin 和 Windsurf 的 URL 指向同一个只记录路径并返回 404 的本地监听器。ACP initialize 和 session/new 成功。无工具的固定文本探针在 session/prompt 返回 `-32000 Authentication required`，没有任何请求抵达监听器。原生进程正常退出。此结果表明仅更换网络地址仍无法到达候选调用。
 - 未修改发行二进制、认证或工具权限，未运行 Cargo，未发 Rue.js 编辑器请求。阿里模型和 ShiJu 中继仍沿用原验收合同。现有公开版尚无已验证的等效注入点，任务保留已阻塞。原始反汇编、回环探针和回执保存在本机 0700 私有目录 `/tmp/shiju-devin-native-call.EFyccs/`。
+
+
+### Devin Linux 及公开发行渠道复验（2026-11-18）
+
+- 官方 stable、Windsurf 和 enterprise 清单均返回 HTTP 200，版本同为 3000.14.30821，macOS arm64 和 Linux arm64 的归档摘要分别完全一致。联邦渠道和 ACP 注册表历史版本 3000.2.17、3000.11.3 的清单请求最终均为 HTTP 403。npm 构建流程使用同一 stable 清单。[官方发行流程](https://github.com/CognitionAI/devin-cli/blob/main/DEVELOPMENT.md)
+- 校验并提取 Linux arm64 公开归档，二进制 SHA-256 为 `02b5ca13f932d5d6537435bbe09acbf836b227e1aded7a875cfa773223b5e23d`。在无外网、只读根文件系统的原生 ARM Linux 容器中运行，同一私有回环提供 OpenAI 端点和默认 API 地址。显式 `ACP_BACKEND=openai` 在 initialize 前退出 1，报 `Unknown backend type: openai`。默认后端握手和建会话成功，无工具短提示仍返回 -32000。回环收到两条分析上报，未收到模型目录或推理请求。
+- 探针容器已退出并自动删除，未挂载原工作区或使用租户凭据。未改代码、未执行 Cargo、未发 Rue.js 创建请求。原始日志位于 0700 私有目录 `/tmp/shiju-devin-linux.KdDN4r/`。仍需可实际执行指定模型推理的 Devin 构建或注入点。

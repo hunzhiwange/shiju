@@ -124,3 +124,8 @@ macOS arm64 托管安装现固定官方 Devin 3000.13.4，校验压缩包和可�
 ### 原生 RPC 调用边界复验（2026-11-18）
 
 公开版 3000.14.30821 中确认了 `GetChatMessage` 原生 RPC 引用。将 API 地址指向私有回环后，在仅允许该回环出站的沙箱内，原生 ACP 握手和建会话成功，无工具探针在 `session/prompt` 返回 -32000，监听收到零请求。当前未验证到能保留 Devin 原生会话与工具续接的本地注入点。未运行 Cargo 或提交编辑器请求，保留已阻塞。证据 `/tmp/shiju-devin-native-call.EFyccs/`。
+
+
+### Linux 与发行渠道复验（2026-11-18）
+
+官方 stable、Windsurf 和 enterprise 发布的对应 macOS arm64、Linux arm64 归档摘要一致。官方 Linux arm64 3000.14.30821 在隔离容器内同样于握手前拒绝 `ACP_BACKEND=openai`。默认后端的 prompt 返回 -32000，回环只收到分析上报。未找到可接现有阿里中继的入口，保留已阻塞。探针已清理，未改代码、未运行 Cargo，Rue.js 目标仍不存在。证据 `/tmp/shiju-devin-linux.KdDN4r/`。

@@ -43,3 +43,26 @@
 原生挂载及撤除已经生效。严格验收仍需能在会话级限定工具集合、同时保留 Droid 权限边界的受审入口，再使用固定提示和模型跑三轮。当前生产驱动和公共 ACP 转发未改。未触及公共转发测试所覆盖的故障，未运行 Cargo、桌面构建或浏览器测试。
 
 私有网关退出 0，端口关闭，未发现本次工具或代理子进程残留。撤除配置后与导出快照逐项比较，4109 项内容一致，额外文件仅为私有图谱索引。私有源码、运行目录及授权副本已清理。现有网关的 Droid 预设仍为停用。原始 SSE、回读和诊断证据保存在本机 0700 目录。
+
+## 共享新版网关复验
+
+复用共享槽位 3 的 shiju 0.6.0 私有副本，SHA-256 为 `06086ba0fc9580bd82fdcf1327696acb6ee648727ed2b054e1ee32d60d8f37d5`。同一受管 Droid 1.9.0、模型、提示、租户、权限、RueJS 提交及 stdio 传输重新执行三轮。
+
+| 轮次 | 新会话 | HTTP / curl / 耗时 | SSE 终态 | 答复与工具 |
+| --- | --- | --- | --- | --- |
+| 无挂载 | `ses_1f019d19a00150aCqqdKGAPsCl` | 200 / 0 / 14.164 秒 | `chat.done` ×1 | `MCP_NOT_AVAILABLE`，工具 0 |
+| 挂载 | `ses_1f01a0b09001FxEvEQSXKR7rFu` | 200 / 0 / 237.961 秒 | `chat.done` ×1 | 三部分调查，102 对工具事件，101 项成功，1 项失败 |
+| 撤除 | `ses_1f01dae7e001NT9sqKLTM7wCuM` | 200 / 0 / 19.523 秒 | `chat.done` ×1 | `MCP_NOT_AVAILABLE`，图谱工具 0，`ToolSearch` 失败 1 次 |
+
+三轮均无 `chat.error`，回读确认 `acp-droid / droid`、`full_access=true`、`session_model` 和完整模型 ID。运行中权限为 `client_only`，结束后连接关闭。挂载轮首个工具为内置 `ToolSearch`，之后还执行了 `status`、`files`、`explore`。调用 `call_6dea39fa25f9de37_2` 读取不存在的 `app/router.ts` 并失败，随后读到实际入口 `app/router/index.ts`。撤除轮搜索返回 `Tool(s) not found`。
+
+挂载轮的 `call_5d05ea71c998762b_0` 查询得到 `createRueSiteApp`（`app/app.tsx:32`），`call_e074a195617db8d0_0` 得到调用者 `mountRueSiteApp`（`app/app.tsx:39`），`call_42e43f7f3a5ca362_0` 读取到 `useApp`（`packages/runtime/src/hooks/useApp.ts:4`）调用 `_$createApp`。答复覆盖四段调用链、SSR、容器缺失、插件顺序和布局分支，还指出 `createAppRouter` 定义在 `app/router/index.ts:787`，索引按符号查询漏报。答复提出浏览器初次挂载和客户端导航两项回归，未运行这两个场景。答复声称只用了图谱 MCP，与 SSE 所示的内置搜索不符。
+
+### 替代入口复验
+
+- 校验了 Factory 公开 Darwin arm64 独立发行版 1.13.0，官方 SHA-256 为 `ae552d8cdb515728f899558747207b950f4332762ea3495894d70cc680ba611d`。在私有环境中保留 Airgap 和回环模型，分别发送空列表、stdio、HTTP 与 SSE 的 `session/new`。均成功建会话并取得 `end_turn`，第一份工具目录始终有 `ToolSearch`，图谱定义仍未直接发布。该版本只用于诊断，受管清单仍固定 1.9.0。[Factory 发行说明](https://docs.factory.com/changelog/release-notes)
+- 1.9.0 与 1.13.0 在 ACP 模式用 `--only-tools Read` 均仍向模型声明完整内置列表。1.13.0 也在握手前拒绝会话 MCP 选择器，且 `--remove-tools ToolSearch` 未移除工具。两版均接受带工具选择字段的原生 `session/new`，字段置于顶层或 `_meta` 时模型侧列表均无变化。Factory SDK 的工具限制属于 Droid 自有会话接口，当前 ACP 入口的建会话只转发 cwd 和 MCP 定义。[Factory SDK](https://docs.factory.com/sdk/typescript)
+- 固定版回环诊断向原生 Droid 返回已挂载且尚未声明的图谱查询调用。批准探针收到 `session/request_permission`，以 `allow_once` 批准后，真实图谱输出进入 ACP 完成事件及下一次模型请求，终态为 `end_turn`。拒绝探针以 `reject_once` 回应，调用失败、无图谱输出，终态为 `cancelled`。可见原生执行器已有权限控制，剩余缺口在模型目录发布和工具选择。
+- 新版网关的独立 `full_access=false` 探针再次返回 HTTP 200 与 `chat.error`，初始化拒绝仍要求当前完全访问授权。全程保留受管门禁。网关及探针退出，端口关闭，私有授权副本清理。导出快照比对 4109 项一致，现有网关 Droid 预设仍停用。未修改应用代码，未运行 Cargo。
+
+仍为已阻塞。复跑需要受审的 ACP 入口能在请求绑定的目录中直接发布并限定会话工具，同时保留原生审批和撤除。若验收负责人决定接受 Droid 的原生搜索及其额外调用，应先更新工具与失败判据，再按更新后的合同验收。

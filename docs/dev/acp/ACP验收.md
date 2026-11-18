@@ -1183,3 +1183,15 @@ Rust重型命令经scripts/cargo_slot.py槽位入口串行执行，对应CARGO_T
 - Rue.js 普通文件 SHA-256 快照由 6303 项变为 6311 项，差异仅上述 8 项目标文件。两轮实际聊天后均恢复并重读完整配置和有效预设，均等于各轮基线。首次安装阶段恢复了有效预设，隔离副本额外保留显式停用值，最终随副本清理。所有自有网关退出 0、回环端口已关闭，原开发配置和服务未改动。诊断产生的空 Stakpak 本地状态已按创建时间、文件布局和空会话库核验，移入私有证据。验收 SQLite 和凭据副本已清理。
 - 槽位 1 获得安装白名单和运行时注册各 1 项预期失败。槽位 3 复测注册 1 项、安装契约 2 项通过，均退出 0。槽位 3 对 `config-acp-install`、`acp-agent-registry`、`acp-client` 和 `llm-runtime` 的库目标执行 `cargo clippy -j 1 --lib --no-deps`，退出 0。保留 `llm-runtime` 既有 101 项警告，新增 Stakpak 驱动无警告。已完成静态产物核对和目录边界检查。
 - 私有证据 `/tmp/shiju-stakpak-patch-20261118/` 保存安装回执、构建摘要、原始响应、SSE、产物 SHA-256、基线与清理记录。原始配置和供应商二进制均未提交。
+
+
+### omp 官方发行与原生 ACP 重试（2026-11-18）
+
+结论仍为已阻塞。私有 Bun 恢复了系统安装入口，官方独立二进制也可启动。两种入口都已通过隔离 ACP 向回环发送完整指定模型 ID。原租户推理、ShiJu 会话绑定及 Rue.js 编辑器落盘仍待验收。
+
+- 校验 OMP 18.22.0 官方 npm 归档的 SHA-512 与 registry integrity 一致，归档内 `dist/cli.js` 与系统安装入口 SHA-256 一致。Bun 1.4.4 Darwin arm64 归档 SHA-256 为 `c240d7f0ccb90c263a849fcdb09b7ee62630d921348ed6aafda86b9d577bc510`，与 GitHub 资产摘要一致。私有 PATH 加入解出的 Bun 后，系统入口自报 `omp/18.22.0`。官方独立 Darwin arm64 产物 SHA-256 为 `d185113d63eba23925e5d70ab661a424b827c06c98f8e766c3bf4ad62ddaff9a`，与 GitHub 资产摘要及官方校验清单一致，不依赖 PATH 中的 Bun 即可自报相同版本。[OMP 固定发行](https://github.com/can1357/oh-my-pi/releases/tag/v18.22.0) · [OMP npm 发行](https://registry.npmjs.org/@oh-my-pi%2fpi-coding-agent/18.22.0) · [Bun 固定发行](https://github.com/oven-sh/bun/releases/tag/bun-v1.4.4)
+- 在私有 HOME、工作目录及限制文件写入和仅允许回环联网的 macOS 沙箱内，两个入口均回报 ACP v1、OMP 18.22.0。空配置未发布可用的指定模型，旧 `session/set_model` 被拒。私有 `models.yml` 注册原 provider，短模型条目虽在 ACP 显示完整模型名，实际 HTTP 仍只发送短 ID。以完整 ID 登记模型时，经 `session/set_config_option` 选择并重读带双 provider 前缀的原生选项 `alibaba-token-plan-cn/alibaba-token-plan-cn/deepseek-v4.1-flash-1017`，两种入口均向回环 `POST /v1/chat/completions` 发送完整原模型 ID 和 11 项工具定义，合成响应终态为 `end_turn`。[固定版模型配置](https://github.com/can1357/oh-my-pi/blob/v18.22.0/docs/models.md)
+- 在宣告宿主文件回调的受测写入路径上，OMP 直接发送 `fs/write_text_file`，未先请求 ACP 审批。拒绝宿主回调时工具报告失败且未落盘，允许受限回调时写出预期 15 字节。省略文件回调能力时，私有目录内的 15 字节由 OMP 原生工具直接写入，目录外测试写入被沙箱拦下。接入时需同时约束宿主回调和 CLI 原生写入。
+- 用原租户、目录和现有开发配置复查。自有网关仅在自身 PATH 引入私有 Bun，读取的绝对 OMP 入口可发现，`installed=true`。使用该入口与私有诊断 HOME，普通诊断 HTTP 200，curl 退出 0，耗时 1.543001 秒，返回 `authentication_required`。诊断在 initialize 返回认证方法时即报告该状态。模型来源 GET 仍返回 `unsupported_cli`、`connected=false`。原模型在租户目录存在，网关启动环境缺少其 provider 声明的一个授权变量，其他凭据来源未实测。
+- 当前 OMP 未接入已验证版本、协议分派或请求级模型驱动。原生私有模型目录与独立二进制均未改变 ShiJu 能力门控。公开 OpenAI 兼容端点用进程默认 provider 处理纯文本消息，无法作为原租户与工具协议的中继。复跑需持久可发现的固定版运行入口、经审查的请求级模型中继、原租户可用授权、宿主和原生工具写入边界，以及脱敏接入证据。届时按原请求验证启用保存、真实指定会话和文件创建。
+- 两轮复查均无 PATCH、真实上游推理或 Rue.js 创建请求。第一次全局配置前后相同。第二次仅 `agents.acp-junie.enabled` 在复查窗口变化，首轮验收到本轮之间也只涉及该 Junie 条目。本任务未写入或回滚其他任务的配置。两轮 Rue.js 快照各 6311 项，零差异，Git 状态一致，OMP 目标目录未创建。两个自有网关和十个原生探针全部退出 0，所用回环端口关闭。私有 Bun 和独立 OMP 只保留在本机 0700 证据目录 `/tmp/shiju-omp-retry-20261118.yQhe7P/`，宿主 PATH 未改。本轮沿用首轮三项定向测试，未重跑 Cargo、页面构建或浏览器验证。

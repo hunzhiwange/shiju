@@ -29,15 +29,20 @@ fn isolated_test() -> bool {
         let root = PathBuf::from(std::env::var_os("VIBEWINDOW_TEST_ROOT").unwrap());
         assert!(root.starts_with(std::env::temp_dir().canonicalize().unwrap()));
         assert_eq!(std::env::var_os("HOME").as_deref(), Some(root.as_os_str()));
+        assert_eq!(std::env::current_dir().unwrap(), root);
+        assert_eq!(std::env::var_os("CODEX_HOME").as_deref(), Some(root.join(".codex").as_os_str()));
         assert_eq!(agent_paths::paths().home, root);
+        assert!(agent_paths::paths().config.starts_with(&root));
         return false;
     }
     let root = tempfile::tempdir().unwrap();
     let isolated_home = root.path().canonicalize().unwrap();
     let status = std::process::Command::new(std::env::current_exe().unwrap())
         .args(["--exact", std::thread::current().name().unwrap(), "--nocapture"])
+        .current_dir(&isolated_home)
         .env(CHILD, "1")
         .env("HOME", &isolated_home)
+        .env("CODEX_HOME", isolated_home.join(".codex"))
         .env("VIBEWINDOW_TEST_ROOT", &isolated_home)
         .status().unwrap();
     assert!(status.success(), "isolated macOS skills child failed: {status}");

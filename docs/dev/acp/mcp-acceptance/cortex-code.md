@@ -1,6 +1,6 @@
 # Cortex Code 动态挂载 RustCodeGraph
 
-2026-11-19，固定版原生入口忽略 `mcpServers`。ShiJu 受管 v3 已接入会话级 MCP，真实工具成功回传。指定模型的工具参数与答复仍有偏差，严格三轮验收未通过。
+2026-11-19，ShiJu 受管 Cortex v3 使用 RustCodeGraph 1.2.11 通过严格三轮验收。固定版原生入口忽略 `mcpServers`，由受管入口投影会话工具并沿用宿主审批。
 
 ## 环境和请求
 
@@ -74,3 +74,36 @@ Cortex v3 将宿主已有的 MCP `allowedTools` 和 `deniedTools` 投影到显�
 两组网关均正常退出、端口关闭，私有租户副本和实验挂载文件已清理。原始回执、SSE 和原生观测保留在本机 0700 私有目录。
 
 聚焦 Rust 验证使用 `cargo test -j 1 -p session-engine --lib acp_mcp_mount_carries_resolved_tool_policy`，经 `scripts/cargo_slot.py` 在共享槽位 6 执行，两个缓存路径均为仓库的 `target/rust-slot-6`。该夹具覆盖 Cortex 和 Pi。旧过滤名在槽位 3 执行时因共享测试已改名而匹配零项。按实际名称运行旧产物，发现夹具未启用内置预设，1 项失败。提交 `2bd74758a` 修正夹具后，同一断言 1 项通过、0 项失败，既有编译告警仍存在。适配与聚焦验证已完成，任务卡保留指定模型严格验收的外部阻塞条件。
+
+## RustCodeGraph 1.2.11 复验
+
+复用上文 SHA-256 为 `1a033a19a5c5e2c115e90abbd336f898c0df3ac101a9824ffe8b36f11b0bcc47` 的私有网关和已受审 Cortex v3 四项摘要。原请求体、模型、租户、`full_access=true` 及服务名保持一致，仅更换私有副本路径与发行版图谱。RustCodeGraph 1.2.11 SHA-256 为 `5fab2f2dbf506ddf71d842ef1a7cd6e744c5ec90ff3f5f043ea020e1b3696312`。从同一 RueJS 提交重建 3478 文件的索引，宿主保留私有副本的 WAL 与 SHM。使用原生 stdio 和现有 `allowedTools` 策略，原生 Cortex 日志只登记三个目标工具。 [同批发行记录](pi.md) · [三工具策略](deepagents.md)
+
+Cortex 只执行已选绝对路径程序，工具沙箱禁止子进程。用于 Goose 和 Qoder 的脚本转发需要派生 RustCodeGraph。在 Cortex 同一沙箱中直接启动 Python 解释器后，脚本在 `subprocess.Popen` 处报 `PermissionError: [Errno 1] Operation not permitted`，未进入 MCP 初始化。复验沿用原生工具目录。该目录未列出 `node.offset` 与 `node.limit`，独立只读沙箱探针证实实际调用能分页读回 `app/router/index.ts:787–789`，`query(createAppRouter)` 直接命中第 787 行。第二组真实模型实际完成 13 个分页调用，并成功使用一次正确的索引根。调用结果由工具原样返回。 [转发器对照](goose.md) · [直接声明对照](qoder.md)
+
+| 组别 | 轮次 | 新会话 | HTTP / curl / 秒 | 结果 |
+| --- | --- | --- | --- | --- |
+| 1 | 无挂载 | `ses_1f1001462001iw8Wl56IPIlSjN` | 200 / 0 / 12.506 | 零工具，标记后附说明 |
+| 1 | 挂载 | `ses_1f10045f5001ZzrqyPiROlkuLj` | 200 / 0 / 133.508 | 27 次 query、14 次 callers、17 次 node 均成功 |
+| 1 | 撤除 | `ses_1f1025024001fYyAIaSN2ucYYc` | 200 / 0 / 11.285 | 仅 `MCP_NOT_AVAILABLE`，零工具 |
+| 2 | 无挂载 | `ses_1f1037beb0019NVXkqcdHtHLlw` | 200 / 0 / 11.706 | 零工具，标记后附说明 |
+| 2 | 挂载 | `ses_1f103aa4e001sikLy7AFUeD1Oq` | 200 / 0 / 207.501 | 39 次 query、1 次 callers、37 次 node 均成功 |
+| 2 | 撤除 | `ses_1f106d596001iPVzGN67XaZ7Sd` | 200 / 0 / 11.675 | 仅 `MCP_NOT_AVAILABLE`，零工具 |
+
+各轮一个 `chat.done`，无 `chat.error` 或恢复。两次挂载只执行三个选中工具，每个开始 ID 对应成功完成。首组错误地将未注册的 `/rust-layers` 用于回归场景。第二组给出完整调用链、SSR、容器错误、路由和 i18n、布局条件和快照影响，并提出静态快照所有权检查及从已注册的 `/design/space` 导航到 `/jsx` 两项场景。两组均在无挂载时重复复现模型附加说明的偏差。各轮 UI summary 和 ACP options 读回指定预设、访问配置及模型绑定。
+
+### 通过的三轮
+
+第三组沿用同一发行版、三工具目录及原请求。先核对无挂载答复精确匹配，随后进入挂载及撤除。三轮均独立建会话。
+
+| 轮次 | 会话 ID | HTTP / curl / 秒 | 终态与结果 |
+| --- | --- | --- | --- |
+| 无挂载 | `ses_1f107dc6c001k7twWQdiuOOM0u` | 200 / 0 / 12.336 | `chat.done`，仅 `MCP_NOT_AVAILABLE`，零工具 |
+| 挂载 | `ses_1f1080d44001pUsprTo82xlhio` | 200 / 0 / 189.887 | `chat.done`，34 次 query、1 次 callers、28 次 node 全部成功 |
+| 撤除 | `ses_1f10af3c2001tIJcTk8iPJ8HcO` | 200 / 0 / 11.329 | `chat.done`，仅 `MCP_NOT_AVAILABLE`，零工具 |
+
+- 各轮恰有一个 `chat.done`，无 `chat.error`、模型恢复、额外工具或失败调用。63 个完成 ID 均对应开始事件。17 个 `node` 调用使用分页，全部调用采用配置指定的索引根。
+- `call_ae5c0e1cdf674831a616c881` 命中 `createRueSiteApp`（`app/app.tsx:32`）。`call_1eb65333e3964d7f9a7ca896` 返回 `mountRueSiteApp`（同文件第 39 行）。`call_936eeaf517334de893a6dc5f` 和 `call_4c61300f56014a379d637342` 读回 `useApp`（`packages/runtime/src/hooks/useApp.ts:4`）及 `_$createApp`（`packages/runtime/src/compiler-runtime/app.ts:57`）。
+- 答复按调用链覆盖 SSR 与客户端入口、容器缺失、路由和 i18n 的安装及布局条件，指出调用图与源码差异。两项可检验场景分别检查预填快照哨兵，以及卸载与重挂载时快照是否残留。已核实 `app.unmount` 是 `dispose` 的别名（`packages/runtime/src/compiler-runtime/app.ts:96–97`），且现有单测检查卸载后容器为空。未清空时预期保留一份旧快照，重挂载只会加上新的应用树。未运行 RueJS 浏览器场景。
+- UI summary 三轮均回读 `acp-cortex-code / cortex-code` 与 `full_access=true`。ACP options 回读 `session_model`、原提供商及完整模型 ID，终态连接均释放。沿用已验证的宿主逐次审批、只读工具沙箱及撤销路径。
+- 本轮只修改验收记录，未修改适配器或运行 Cargo。三座私有网关均退出 0，端口关闭，私有租户副本及临时挂载已清理。RueJS 副本的 4108 个版本控制普通文件与原提交逐字节一致。

@@ -213,7 +213,7 @@ fn filter_dropdown<'a>(
     open_menu: Option<FilterMenu>,
     icon: Icon,
     label: &str,
-    width: u16,
+    width: u32,
     content: impl FnOnce() -> Element<'a, Change>,
 ) -> Element<'a, Change> {
     let open = open_menu == Some(menu);

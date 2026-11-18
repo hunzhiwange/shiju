@@ -50,3 +50,19 @@
 九轮 UI summary 均回读 `acp-qwen / qwen` 和 `full_access=true`。运行中的 ACP options 均回读连接有效、指定模型及 `access_status.support=native`。终态连接释放，指定模型绑定仍可重读。目标工具调用未出现交互审批事件。此结果仅覆盖本次只读查询和请求的完全访问级别。
 
 原生挂载、调用及撤除已有证据。严格合同仍阻塞在默认发现路径及指定模型的额外调用和读取错误。Qwen 驱动和受管补丁保持原有行为，私有关闭 ToolSearch 设置仅用于排障。三个私有网关已退出，监听端口关闭，临时授权文件及私有挂载、诊断设置已清理。未修改原 RueJS 或用户网关配置。原始证据保留于本机私有目录。此次未修改公共转发边界，未运行 Cargo。
+
+## 当前共享构建的限定目录复验
+
+复用共享槽位 3 已有的 ShiJu 0.6.0 副本，SHA-256 为 `f46699dd46d8520d8a7cfc3324132ccd5a2e05857e89fde160052fdcf75add3c`，仍使用受审 Qwen 0.26.7、同一 RueJS 干净提交及 RustCodeGraph 1.2.10。三个新会话保持原提示、模型、租户、服务名与权限。私有 RueJS 的三轮均关闭原生 ToolSearch。仅挂载轮由同批次的私有 stdio 转发器公布三个原名工具，并在声明中补充真实入口路径与分页说明。转发器把参数和结果原样传给同一个 RustCodeGraph，拒绝目录外路径与额外工具。独立协议对照证实目录从八项缩至三项，查询、调用者与从第 784 行读取路由模块的输出和直连一致，额外工具和越界路径均被拒绝。
+
+| 轮次 | 新会话 | HTTP / curl / 耗时 | SSE 终态及结果 |
+| --- | --- | --- | --- |
+| 无挂载 | `ses_1f04f1617001AVSdyoDCAakzZ1` | 200 / 0 / 6.094 秒 | `chat.done`，仅 `MCP_NOT_AVAILABLE`，零工具事件 |
+| 挂载 | `ses_1f04f2e6e001zl4SvGuKmTNclc` | 200 / 0 / 299.054 秒 | `chat.done`，三项指定工具均成功 |
+| 撤除 | `ses_1f053c008001Dh0TnhXGlAvgIJ` | 200 / 0 / 4.193 秒 | `chat.done`，仅 `MCP_NOT_AVAILABLE`，零工具事件 |
+
+- 三轮各收到一条 `chat.done`，零 `chat.error`，无需续传。按调用 ID 对齐开始、完成及输出。挂载轮共 405 条工具事件，其中 27 次 `query`、3 次 `callers` 和 51 次 `node` 全部完成，零额外工具和零工具错误。部分符号检索返回空，随后按实际文件与分页取回源码。另有独立标题模型的 HTTP 403，指定模型的调查流正常完成。
+- `call_23ed4a10bbdd449db6d0173c` 定位 `createRueSiteApp`（`app/app.tsx:32`），`call_b8aa44250deb4284b28c6f55` 返回 `mountRueSiteApp`（同文件第 39 行）。`call_851f798915e042708d897f7c` 回读浏览器守卫、容器检查、清空和布局分支。 `call_0efac4e7ea934bc9935961c1` 与 `call_6b52798c73ce4ac695bb8ed4` 回读 `useApp` 转调用及运行时工厂。`call_7f53b3a10d604fe4b279440e` 分页取得 `app/router/index.ts:787` 的 `createAppRouter` 默认 history 与路由注册。
+- 答复用源码行号覆盖调用链、SSR、缺少 `#app` 时的异常、路由和 i18n 挂载、`/rust-layers` 布局分支，并指出图谱漏边及符号覆盖差异。两项验证分别检查静态页接管后的 DOM 唯一性和空模板的快照采集不变量，均为建议场景，未执行。重复布局是从追加挂载语义得出的推断。精确 DOM 数量、整页字节一致性及旧导航点击表现仍需用相应夹具实测，旧链接可能发生浏览器原生跳转。
+- UI summary 三轮均回读 `acp-qwen / qwen` 和 `full_access=true`。ACP options 均确认指定模型及 `session_model`，连接期间为 `native`，终态连接释放。未观察到交互审批。受管入口和原生权限规则保留。
+- 严格三轮通过。私有网关与工具进程均已退出，临时挂载、诊断配置和授权文件已清理。副本的 4109 个归档文件和符号链接比对一致。原网关健康。仅更新验收文档，未改 Qwen 驱动或补丁，未运行 Cargo。

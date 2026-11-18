@@ -1,4 +1,4 @@
-// Fixed Cursor ACP runtime: Chat inference with upstream shell execution and blob history.
+// Fixed Cursor ACP runtime: Chat inference with native shell and MCP execution and blob history.
 'use strict';
 const { readFileSync, lstatSync } = require('node:fs');
 const { createHash } = require('node:crypto');
@@ -28,8 +28,6 @@ const tool = { type: 'function', function: {
   parameters: { type: 'object', properties: { command: { type: 'string' } }, required: ['command'], additionalProperties: false },
 } };
 
-// Only the foreground shell tool is published. Other native/remote tools are unavailable,
-// rather than being simulated or silently redirected to a different agent.
 function shellArgs(call, cwd) {
   if (call.name !== 'shell') throw new Error('Cursor unsupported returned tool');
   let a;
@@ -39,7 +37,30 @@ function shellArgs(call, cwd) {
   return { command: a.command, workingDirectory: cwd, timeout: 60000, toolCallId: call.id };
 }
 
-async function* parseStream(body) {
+function mcpTools(descriptors) {
+  const tools = new Map();
+  for (const descriptor of descriptors) {
+    const { name, providerIdentifier, toolName, clientKey, description, inputSchema } = descriptor;
+    if (!/^[a-zA-Z0-9_-]{1,64}$/.test(name) || name === 'shell' || tools.has(name)
+        || !providerIdentifier || !toolName || !clientKey || inputSchema?.type !== 'object')
+      throw new Error('Cursor unsupported or ambiguous MCP tool descriptor');
+    tools.set(name, {
+      definition: { type: 'function', function: { name, description, parameters: inputSchema } },
+      target: { name, providerIdentifier, toolName, serverIdentifier: clientKey },
+    });
+  }
+  return tools;
+}
+
+function mcpArgs(call, target) {
+  let args;
+  try { args = JSON.parse(call.arguments); } catch { throw new Error('Cursor invalid tool arguments'); }
+  if (!args || typeof args !== 'object' || Array.isArray(args))
+    throw new Error('Cursor invalid MCP tool arguments');
+  return { ...target, args, toolCallId: call.id };
+}
+
+async function* parseStream(body, tools = new Map()) {
   const decoder = new TextDecoder(); let buffer = '', done = false, finish, call, content = '', reasoning = '';
   function consume(line) {
     if (!line.startsWith('data:')) return;
@@ -76,7 +97,8 @@ async function* parseStream(body) {
   if (buffer.trim()) { const delta = consume(buffer.trim()); if (delta) yield delta; }
   if (!done || !['stop', 'tool_calls'].includes(finish) || (finish === 'tool_calls') !== !!call || call && !call.id)
     throw new Error('Cursor incomplete or unsupported model completion');
-  if (call) shellArgs(call, '/');
+  if (call && tools.has(call.name)) mcpArgs(call, tools.get(call.name).target);
+  else if (call) shellArgs(call, '/');
   yield { completed: true, content, reasoning, call };
 }
 
@@ -93,11 +115,19 @@ function history(conversation) {
       else if (step.message.case === 'assistantMessage') text += step.message.value.text;
       else if (step.message.case === 'toolCall') {
         const tc = step.message.value;
-        if (tc.tool.case !== 'shellToolCall' || !tc.toolCallId || !tc.tool.value.result?.result.case)
+        const { args, result } = tc.tool.value ?? {};
+        if (!tc.toolCallId || !args || !result?.result.case)
           throw new Error('Cursor unsupported or incomplete history tool');
+        let name, parameters;
+        if (tc.tool.case === 'shellToolCall') {
+          name = 'shell'; parameters = { command: args.command };
+        } else if (tc.tool.case === 'mcpToolCall') {
+          ({ name, args: parameters = {} } = args.toJson());
+          if (!name) throw new Error('Cursor incomplete MCP history tool');
+        } else throw new Error('Cursor unsupported history tool');
         messages.push({ role: 'assistant', content: text || null, ...(reasoning ? { reasoning_content: reasoning } : {}),
-          tool_calls: [{ id: tc.toolCallId, type: 'function', function: { name: 'shell', arguments: JSON.stringify({ command: tc.tool.value.args.command }) } }] });
-        messages.push({ role: 'tool', tool_call_id: tc.toolCallId, content: JSON.stringify(tc.tool.value.result.toJson()) });
+          tool_calls: [{ id: tc.toolCallId, type: 'function', function: { name, arguments: JSON.stringify(parameters) } }] });
+        messages.push({ role: 'tool', tool_call_id: tc.toolCallId, content: JSON.stringify(result.toJson()) });
         text = ''; reasoning = '';
       } else throw new Error('Cursor unsupported history step');
     }
@@ -110,8 +140,8 @@ async function run(api, ctx, state, action, model, updates, resources, blobs, ac
   const c = config();
   if ((options.requestedModel?.modelId ?? model?.modelId) !== c.model)
     throw new Error('Cursor selected model mismatch');
-  if (action.action.case !== 'userMessageAction' || mcp.length || state.summary?.length)
-    throw new Error('Cursor unsupported action, MCP or summarized history');
+  if (action.action.case !== 'userMessageAction' || state.summary?.length)
+    throw new Error('Cursor unsupported action or summarized history');
   const user = action.action.value.userMessage;
   if (!user || user.selectedContext?.selectedImages?.length || user.selectedContext?.cursorCommands?.length || user.selectedContext?.selectedSkills?.length)
     throw new Error('Cursor unsupported user content');
@@ -120,7 +150,9 @@ async function run(api, ctx, state, action, model, updates, resources, blobs, ac
   await api.context(ctx, action, resources, store.getId());
   const requestContext = action.action.value.requestContext;
   const cwd = store.getMetadata('workspacePath') ?? process.cwd();
-  const messages = [{ role: 'system', content: 'You are Cursor, a coding assistant. Use the provided native shell tool to inspect and edit files. Follow the user write scope. Only foreground shell execution is available; remote services and other tools are unavailable.\nWorkspace and rules:\n' + JSON.stringify(requestContext?.toJson() ?? {}) },
+  const mountedTools = mcpTools(mcp);
+  const tools = [tool, ...Array.from(mountedTools.values(), entry => entry.definition)];
+  const messages = [{ role: 'system', content: 'You are Cursor, a coding assistant. Use the available tools as requested. Follow the user write scope. When using the shell tool, run foreground commands only.\nWorkspace and rules:\n' + JSON.stringify(requestContext?.toJson() ?? {}) },
     ...history(await store.getFullConversation(ctx)), { role: 'user', content: user.text }];
   const make = (name, value) => proto(api.pb, name).fromJson(value);
   const put = async value => {
@@ -141,12 +173,12 @@ async function run(api, ctx, state, action, model, updates, resources, blobs, ac
       ctx.signal.throwIfAborted();
       const response = await fetch(new URL('v1/chat/completions', c.endpoint), {
         method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${c.token}` },
-        body: JSON.stringify({ model: c.model, messages, tools: [tool], parallel_tool_calls: false, stream: true, max_tokens: c.outputLimit }),
+        body: JSON.stringify({ model: c.model, messages, tools, parallel_tool_calls: false, stream: true, max_tokens: c.outputLimit }),
         signal: ctx.signal, redirect: 'error',
       });
       if (!response.ok) { await response.body?.cancel(); throw new Error(`Cursor model request failed (HTTP ${response.status})`); }
       let result;
-      for await (const delta of parseStream(response.body)) {
+      for await (const delta of parseStream(response.body, mountedTools)) {
         if (delta.text) await updates.sendUpdate(ctx, api.updates.textDelta(delta.text));
         if (delta.reasoning) await updates.sendUpdate(ctx, api.updates.thinkingDelta(delta.reasoning));
         if (delta.completed) result = delta;
@@ -157,19 +189,26 @@ async function run(api, ctx, state, action, model, updates, resources, blobs, ac
         if (!result.content) throw new Error('Cursor empty assistant completion');
         await save(); await updates.sendUpdate(ctx, api.updates.turnEnded()); return;
       }
-      const call = result.call, args = shellArgs(call, cwd);
-      const parsed = api.parseShell(args.command);
-      Object.assign(args, parsed.legacy, { parsingResult: parsed.structured });
-      const tc = make('ToolCall', { toolCallId: call.id, shellToolCall: { args } });
+      const call = result.call;
+      const mounted = mountedTools.get(call.name);
+      const args = mounted ? mcpArgs(call, mounted.target) : shellArgs(call, cwd);
+      if (!mounted) {
+        const parsed = api.parseShell(args.command);
+        Object.assign(args, parsed.legacy, { parsingResult: parsed.structured });
+      }
+      const toolCase = mounted ? 'mcpToolCall' : 'shellToolCall';
+      const argsCase = mounted ? 'mcpArgs' : 'shellArgs';
+      const resultCase = mounted ? 'mcpResult' : 'shellResult';
+      const tc = make('ToolCall', { toolCallId: call.id, [toolCase]: { args } });
       await updates.sendUpdate(ctx, api.updates.toolCallStarted(call.id, tc));
-      const request = api.ExecServerMessage.fromJson({ id: index + 1, execId: call.id, shellArgs: args });
+      const request = api.ExecServerMessage.fromJson({ id: index + 1, execId: call.id, [argsCase]: args });
       let toolResult;
       for await (const reply of exec.handle(ctx, request)) {
         if (reply.message.case === 'streamClose' && reply.message.value.id === index + 1 && toolResult) continue;
-        if (reply.message.case !== 'shellResult' || reply.id !== index + 1 || toolResult) throw new Error('Cursor native shell response mismatch');
+        if (reply.message.case !== resultCase || reply.id !== index + 1 || toolResult) throw new Error('Cursor native tool response mismatch');
         toolResult = reply.message.value;
       }
-      if (!toolResult) throw new Error('Cursor missing native shell result');
+      if (!toolResult?.result.case) throw new Error('Cursor missing native tool result');
       tc.tool.value.result = toolResult;
       await step({ toolCall: tc.toJson() }); await save();
       await updates.sendUpdate(ctx, api.updates.toolCallCompleted(call.id, tc));
@@ -195,4 +234,9 @@ function modelManager(ModelManager, pb, provider) {
 function unavailableServices() {
   return new Proxy({}, { get: (_, name) => async () => { throw new Error(`Cursor remote service unavailable in session model mode: ${String(name)}`); } });
 }
-module.exports = { validateConfig, parseStream, shellArgs, history, run, modelManager, config, unavailableServices };
+function toolCallStatus(call) {
+  if (!process.env.SHIJU_CURSOR_MODEL_CONFIG || call.tool.case !== 'mcpToolCall') return 'completed';
+  const result = call.tool.value.result?.result;
+  return result?.case === 'success' && !result.value.isError ? 'completed' : 'failed';
+}
+module.exports = { validateConfig, parseStream, shellArgs, history, run, modelManager, config, unavailableServices, toolCallStatus };

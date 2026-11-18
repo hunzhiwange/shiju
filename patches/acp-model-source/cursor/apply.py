@@ -63,5 +63,12 @@ source = source[:services_start] + native_services + managed_services + source[s
 # Upstream ACP normally turns inference failures into successful text responses.
 source = replace(source, 'catch(e){if(this.lastRequestId=M.d.getLastParentAgentRequestId(),e instanceof r.cc||t.canceled)return;',
     'catch(e){if(this.lastRequestId=M.d.getLastParentAgentRequestId(),e instanceof r.cc||t.canceled)return;if(process.env.SHIJU_CURSOR_MODEL_CONFIG)throw new Error("Cursor session model request failed",{cause:e});')
+# ACP normally reports only a success flag for MCP, even when the server returned an error.
+source = replace(source, 'case"mcpToolCall":{const e=t.value.result?.result;return"success"===e?.case?{success:!0}',
+    'case"mcpToolCall":{if(process.env.SHIJU_CURSOR_MODEL_CONFIG)return t.value.result?.toJson();const e=t.value.result?.result;return"success"===e?.case?{success:!0}')
+for tool_call, call_id in [('e', 't'), ('t', 'a')]:
+    anchor = f'toolCallId:{call_id},status:"completed",content:this.toolCalls.extractToolCallContent({tool_call})'
+    source = replace(source, anchor,
+        f'toolCallId:{call_id},status:shijuCursor.toolCallStatus({tool_call}),content:this.toolCalls.extractToolCallContent({tool_call})')
 entry.write_text('const shijuCursor=require("./session-model.cjs");\n' + source)
 shutil.copy2(assets / 'session-model.cjs', root / 'session-model.cjs')

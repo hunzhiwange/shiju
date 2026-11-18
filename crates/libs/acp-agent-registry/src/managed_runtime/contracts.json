@@ -360,7 +360,7 @@
       "dist-package/5438.index.js": "8af4ae2f09b810dc97384863e8a94a8ddc5e67437cbbd390d21328bde82dc22e",
       "dist-package/node": "06eb3f5762c2b6890e99d03f931bf01d9b20fd341dec1a8c1ef5c1809e66102b",
       "dist-package/7244.index.js": "fb32354c1eb24f96eef147d8be61be3e58b1fec1c045bace421bbf4bbb4b3c6e",
-      "dist-package/4119.index.js": "0855798db0a0ea09043215d977e7d58029f4fd504e7338ca32e8c39fe9b35ba6",
+      "dist-package/4119.index.js": "3d179933450337421113a0a7ac0d959291e52bf093e1b2cb04684e813b166a45",
       "dist-package/6306.index.js": "923a3e00c90c3db14ddb2cb831c43549e90a161bd1d12a5fc790e7c2cdf969db",
       "dist-package/index.js.LICENSE.txt": "34c3fe4e597802c099492d9f33eeb26a3ced8c30e87b5c19f50d937619102eba",
       "dist-package/5720.index.js": "9afbe5152dd8755d2f9a90539a8b19c5d366186cb0e77bed00b92641d4172825",
@@ -620,7 +620,7 @@
       "dist-package/node_modules/node-gyp-build/package.json": "9e8def3fbf123e28aa1ca4b6aa557fba4e66eecf6e86d170b61ec1c7ed51305d",
       "dist-package/node_modules/node-gyp-build/SECURITY.md": "994ea9cf579d2164b7736a6728ba48773ae78b0ae8f20290bee63fc62bb7362e",
       "dist-package/node_modules/node-gyp-build/node-gyp-build.js": "134f0585f7c665db89f332a379158c6f113274422e42aaf54e0aa9d5ac37f577",
-      "dist-package/session-model.cjs": "47e077074f4cdbeba29edb1bbe95c38c234faaad7db39af842a3ca9ecae31dc0"
+      "dist-package/session-model.cjs": "93232608f3dcd50169fb76fa52493a4e86185bf0063503aa5fdf52ea76ce0545"
     }
   },
   "droid": {

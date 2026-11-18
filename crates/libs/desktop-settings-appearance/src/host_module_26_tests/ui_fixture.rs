@@ -121,7 +121,7 @@ pub fn editor_fields(app: &Fixture, width: f32) -> Element<'_, Message> {
             lsp_disabled: false,
         },
         width,
-        move |title, body| help(title, body.into(), Some(color), i18n).map(Box::new),
+        move |title, body| help(title, body, Some(color), i18n).map(Box::new),
     )
     .map(|v| match v {
         EditorAction::Help(message) => *message,
@@ -189,12 +189,9 @@ pub fn general_view(app: &Fixture) -> Element<'_, Message> {
         general_settings_tab: app.general_settings_tab,
     };
     let page = match app.general_settings_tab {
-        desktop_ui_controls::settings_navigation::GeneralSettingsTab::Editor => crate::editor::content(
-            app.desktop_locale,
-            &app.app_theme,
-            editor_fields(app, 250.0),
-            help,
-        ),
+        desktop_ui_controls::settings_navigation::GeneralSettingsTab::Editor => {
+            editor_fields(app, 250.0)
+        }
         desktop_ui_controls::settings_navigation::GeneralSettingsTab::Themes => {
             crate::system_settings_themes::gallery::view(&self::inputs(app))
         }

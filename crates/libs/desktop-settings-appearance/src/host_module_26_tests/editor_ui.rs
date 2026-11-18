@@ -217,9 +217,9 @@ impl<'a> Scene<'a> {
     }
 }
 
-const TRIGGER: &[usize] = &[0, 2, 0, 1, 0, 0];
-const FONT_SLIDER: &[usize] = &[0, 4, 0, 1, 0, 0, 0];
-const HEIGHT_SLIDER: &[usize] = &[0, 6, 0, 1, 0, 0, 0];
+const TRIGGER: &[usize] = &[1, 0, 2, 0, 1, 0, 0];
+const FONT_SLIDER: &[usize] = &[1, 0, 4, 0, 1, 0, 0, 0];
+const HEIGHT_SLIDER: &[usize] = &[1, 0, 6, 0, 1, 0, 0, 0];
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn ui_refresh_05_preserves_values_and_disabled_states() {
@@ -236,7 +236,7 @@ async fn ui_refresh_05_preserves_values_and_disabled_states() {
     assert!(scene.key(Named::Enter).is_empty());
     assert!(scene.overlay_bounds().is_none(), "following system must disable manual theme");
 
-    let toggle = scene.bounds(&[0, 0, 0, 1, 0, 0]).center();
+    let toggle = scene.bounds(&[1, 0, 0, 0, 1, 0, 0]).center();
     assert!(matches!(
         scene.click(toggle).as_slice(),
         [Message::Editor(EditorMessage::ToggleFollowSystemTheme(false))]
@@ -277,11 +277,11 @@ async fn ui_refresh_05_preserves_values_and_disabled_states() {
     app.editor_follow_system_theme = false;
     let mut scene = Scene::new(editor_fields(&app, 250.0), 640, 540).await;
     let trigger = scene.bounds(TRIGGER);
-    let label_column = scene.bounds(&[0, 2, 0, 0]);
+    let label_column = scene.bounds(&[1, 0, 2, 0, 0]);
     assert!((trigger.center_y() - label_column.center_y()).abs() < 0.5);
     assert_eq!(trigger.height, 38.0);
     for index in [0, 1] {
-        let center = scene.bounds(&[0, 2, 0, 1, 0, 0, 0, index]).center_y();
+        let center = scene.bounds(&[1, 0, 2, 0, 1, 0, 0, 0, index]).center_y();
         assert!((center - trigger.center_y()).abs() < 0.5);
     }
 

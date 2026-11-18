@@ -699,7 +699,7 @@ mod tab_appearance {
             "editor-tab-zh-dark",
             "主题与显示",
             "统一编辑器主题来源及排版参数。",
-            "需要对应语言服务器可用。",
+            "编辑器主题",
         )
         .await;
     }

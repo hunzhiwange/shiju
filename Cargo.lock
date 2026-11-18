@@ -12420,6 +12420,7 @@ dependencies = [
  "rust-i18n",
  "serde_json",
  "syntect",
+ "two-face 0.5.2+bat-0.26.1",
  "unicode-width 0.2.2",
  "web-time",
 ]

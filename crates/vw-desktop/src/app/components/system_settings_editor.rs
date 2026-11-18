@@ -10,7 +10,7 @@ fn fields(app: &App) -> Element<'_, Message> {
     .into()
 }
 pub(crate) fn content(app: &App) -> Element<'_, Message> {
-    domain::content(app.general_settings.desktop_locale, &app.appearance.app_theme, fields(app), render_help)
+    fields(app)
 }
 pub fn view(app: &App) -> Element<'_, Message> {
     domain::view(app.general_settings.desktop_locale, &app.appearance.app_theme, fields(app), render_help)

@@ -9,7 +9,7 @@ pub enum Event {
     Tab(super::state::DetailTab),
     Hero(super::hero::Event),
     Range(super::range_picker::Event),
-    Load(bool),
+    Load(range_picker::Preset),
     Refresh,
     Display(display::Event),
     Pricing(pricing::Event),

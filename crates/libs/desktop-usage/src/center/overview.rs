@@ -1,9 +1,11 @@
 //! Query changes are atomic and always invalidate pagination.
 use desktop_assets::assets::{Icon, get_icon, get_provider_icon};
-use desktop_ui_controls::system_settings_common::rounded_action_btn_style;
+use desktop_ui_controls::system_settings_common::{
+    rounded_action_btn_style, settings_pick_list_menu_style, settings_pick_list_style,
+};
 use iced::{
-    Element,
-    widget::{button, column, pick_list, row, svg, text, tooltip},
+    Element, Length, Theme,
+    widget::{button, column, container, pick_list, row, scrollable, svg, text, tooltip},
 };
 use vw_api_usage::{UsageFilter, UsageProvider, UsageQuery, UsageRange, UsageSourceKind};
 
@@ -82,13 +84,15 @@ pub fn view_with_options<'a>(
     query: &'a UsageQuery,
     options: &[ScopeOption],
 ) -> Element<'a, Change> {
-    let action = |label: &'static str, change| {
+    let action = |label: &'static str, change, selected| {
         button(text(label).size(13))
-            .padding([6, 10])
-            .style(rounded_action_btn_style)
+            .padding([6, 9])
+            .style(move |theme, status| filter_button(theme, status, selected))
             .on_press(change)
     };
-    let mut apps = row![action("全部应用", Change::App(String::new()))].spacing(4);
+    let mut apps = row![action("全部", Change::App(String::new()), query.filter.app.is_none())]
+        .spacing(2)
+        .align_y(iced::Alignment::Center);
     for (id, label) in APPS {
         let icon = match id {
             "claude" => get_icon(Icon::AppClaudeCode),
@@ -104,16 +108,9 @@ pub fn view_with_options<'a>(
         };
         let selected = query.filter.app.as_deref() == Some(id);
         apps = apps.push(tooltip(
-            button(svg(icon).width(20).height(20))
-                .padding([6, 8])
-                .style(move |theme, status| {
-                    let mut style = rounded_action_btn_style(theme, status);
-                    if selected {
-                        style.background =
-                            Some(theme.extended_palette().background.strong.color.into());
-                    }
-                    style
-                })
+            button(svg(icon).width(18).height(18))
+                .padding([6, 7])
+                .style(move |theme, status| filter_button(theme, status, selected))
                 .on_press(Change::App(id.into())),
             text(label),
             tooltip::Position::Bottom,
@@ -123,23 +120,56 @@ pub fn view_with_options<'a>(
         .iter()
         .find(|o| o.provider == query.filter.provider && o.model == query.filter.request_model)
         .cloned();
+    let apps = scrollable(container(apps).padding([3, 5]).style(|theme: &Theme| {
+        container::Style::default().border(iced::Border {
+            color: theme.palette().text.scale_alpha(0.14),
+            width: 1.0,
+            radius: 9.0.into(),
+        })
+    }))
+    .width(Length::Shrink)
+    .direction(scrollable::Direction::Horizontal(
+        scrollable::Scrollbar::new().width(4).scroller_width(4),
+    ));
+    let mut sources = row![].spacing(3);
+    for (label, source) in [
+        ("全部来源", None),
+        ("原生日志", Some(UsageSourceKind::Native)),
+        ("路由", Some(UsageSourceKind::Relay)),
+        ("识矩", Some(UsageSourceKind::Shiju)),
+    ] {
+        let selected = query.filter.source_kind == source;
+        sources = sources.push(action(label, Change::Source(source), selected));
+    }
+    sources = sources.push(action("清除筛选", Change::Clear, false));
     column![
         row![
-            apps,
             pick_list(options.to_vec(), selected, |o| Change::Scope(o.provider, o.model))
                 .placeholder("供应商 / 模型")
-                .padding([6, 10])
-        ]
-        .spacing(12),
-        row![
-            action("清除筛选", Change::Clear),
-            action("全部来源", Change::Source(None)),
-            action("原生日志", Change::Source(Some(UsageSourceKind::Native))),
-            action("路由", Change::Source(Some(UsageSourceKind::Relay))),
-            action("识矩", Change::Source(Some(UsageSourceKind::Shiju))),
+                .text_size(13)
+                .padding([7, 10])
+                .width(156)
+                .style(settings_pick_list_style)
+                .menu_style(settings_pick_list_menu_style),
+            apps,
         ]
         .spacing(8)
+        .align_y(iced::Alignment::Center),
+        sources,
     ]
-    .spacing(8)
+    .spacing(6)
+    .width(Length::Fill)
     .into()
+}
+
+fn filter_button(theme: &Theme, status: button::Status, selected: bool) -> button::Style {
+    let mut style = rounded_action_btn_style(theme, status);
+    style.border.width = 0.0;
+    style.border.radius = 6.0.into();
+    if selected {
+        style.background = Some(theme.extended_palette().background.strong.color.into());
+    } else if status == button::Status::Active {
+        style.background = None;
+    }
+    style
 }

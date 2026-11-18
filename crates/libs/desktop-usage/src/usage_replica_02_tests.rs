@@ -35,6 +35,28 @@ fn usage_replica_02_calendar_midnight_and_rolling() {
     assert_eq!(Preset::Day.resolve(now).unwrap(), UsageRange::Rolling { seconds: 86400 });
 }
 #[test]
+fn usage_replica_02_month_presets_use_local_calendar_boundaries() {
+    let zone = FixedOffset::east_opt(8 * 3600).unwrap();
+    let now = zone.with_ymd_and_hms(2026, 1, 18, 10, 29, 0).unwrap();
+    let january = zone.with_ymd_and_hms(2026, 1, 1, 0, 0, 0).unwrap();
+    let december = zone.with_ymd_and_hms(2025, 12, 1, 0, 0, 0).unwrap();
+
+    assert_eq!(
+        Preset::PreviousMonth.resolve(now).unwrap(),
+        UsageRange::Absolute {
+            start_unix_seconds: UsageUnixSeconds(december.timestamp()),
+            end_unix_seconds: UsageUnixSeconds(january.timestamp()),
+        }
+    );
+    assert_eq!(
+        Preset::ThisMonth.resolve(now).unwrap(),
+        UsageRange::Absolute {
+            start_unix_seconds: UsageUnixSeconds(january.timestamp()),
+            end_unix_seconds: UsageUnixSeconds(now.timestamp()),
+        }
+    );
+}
+#[test]
 fn usage_replica_02_cancel_does_not_commit_and_month_wraps() {
     let mut picker = State::default();
     let range = UsageRange::All;

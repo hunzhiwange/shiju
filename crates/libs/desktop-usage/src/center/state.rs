@@ -89,8 +89,4 @@ impl State {
     pub fn filter(&mut self, change: super::overview::Change) {
         super::overview::apply(&mut self.query, change);
     }
-    pub fn range(&mut self, all: bool) {
-        self.query.range = if all { vw_api_usage::UsageRange::All }
-            else { vw_api_usage::UsageRange::Rolling { seconds: 86400 } };
-    }
 }

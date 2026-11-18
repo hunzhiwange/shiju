@@ -134,10 +134,9 @@ fn update_event(input: &mut Input<'_>, event: Event) -> Task<Event> {
             state.filter(change);
             update(input, Event::Refresh)
         }
-        Event::Load(all) => {
+        Event::Load(preset) => {
             state.open = true;
-            state.range(all);
-            state.range_picker.preset = Some(if all { super::range_picker::Preset::All } else { super::range_picker::Preset::Day });
+            state.range_picker.preset = Some(preset);
             update(input, Event::Refresh)
         }
         Event::ActivityChanged => Task::none(),

@@ -2,8 +2,9 @@
 use desktop_ui_controls::system_settings_common::rounded_action_btn_style;
 use gateway_usage_read::UsageSummary;
 use iced::{
-    Element, Length,
-    widget::{Space, button, column, container, row, text, tooltip},
+    Element, Font, Length,
+    font::Weight,
+    widget::{Space, button, column, container, row, rule, text, tooltip},
 };
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
@@ -56,16 +57,33 @@ impl Metric {
         }
     }
 }
+pub(super) fn compact_count(value: f64) -> String {
+    for (divisor, suffix) in
+        [(1e18, "E"), (1e15, "P"), (1e12, "T"), (1e9, "B"), (1e6, "M"), (1e3, "K")]
+    {
+        if value >= divisor {
+            let number = format!("{:.2}", value / divisor);
+            return format!("{}{suffix}", number.trim_end_matches('0').trim_end_matches('.'));
+        }
+    }
+    format!("{value:.0}")
+}
+
 #[derive(Clone, Debug)]
 pub enum Event {
     Select(Metric),
     ToggleDetails,
 }
-#[derive(Default)]
 pub struct State {
     pub metric: Metric,
     pub expanded: bool,
 }
+impl Default for State {
+    fn default() -> Self {
+        Self { metric: Metric::Tokens, expanded: false }
+    }
+}
+
 pub fn update(state: &mut State, event: Event) {
     match event {
         Event::Select(metric) => state.metric = metric,
@@ -85,7 +103,7 @@ pub fn view_with_cost<'a>(
     loading: bool,
     cost: Option<&str>,
 ) -> Element<'a, Event> {
-    let mut cells = row![].spacing(12);
+    let mut cells = row![];
     for metric in Metric::ALL {
         let value = if loading {
             "…".into()
@@ -94,13 +112,31 @@ pub fn view_with_cost<'a>(
         } else if metric == Metric::Cost {
             cost.map(str::to_owned)
                 .unwrap_or_else(|| metric.format(summary.and_then(|s| metric.value(s))))
+        } else if matches!(metric, Metric::Requests | Metric::Tokens) {
+            summary.and_then(|s| metric.value(s)).map_or_else(|| "—".into(), compact_count)
         } else {
             metric.format(summary.and_then(|s| metric.value(s)))
         };
+        let display_value = if metric == Metric::Cost {
+            value.split_once('（').map_or(value.as_str(), |(amount, _)| amount)
+        } else {
+            &value
+        };
         let selected = state.metric == metric;
+        let label: Element<'_, Event> = if selected {
+            text(metric.label()).size(13).into()
+        } else {
+            text(metric.label()).size(13).style(text::secondary).into()
+        };
         let cell = column![
-            text(metric.label()).size(13).style(iced::widget::text::secondary),
-            text(value).size(28),
+            column![
+                label,
+                text(display_value.to_owned())
+                    .size(28)
+                    .font(Font { weight: Weight::Semibold, ..Font::DEFAULT })
+            ]
+            .spacing(5)
+            .padding([12, 14]),
             container(Space::new().height(2)).width(Length::Fill).style(
                 move |theme: &iced::Theme| {
                     container::Style::default().background(if selected {
@@ -110,11 +146,10 @@ pub fn view_with_cost<'a>(
                     })
                 }
             )
-        ]
-        .spacing(12);
+        ];
         let help = match metric {
             Metric::Cost => format!(
-                "已知费用小计；未知费用 {} 请求",
+                "已知费用 {value}\n未知费用 {} 请求",
                 summary.map_or(0, |s| s.counts.unknown_cost_requests)
             ),
             Metric::Tokens => {
@@ -126,26 +161,38 @@ pub fn view_with_cost<'a>(
             }
             Metric::Requests => "当前范围内全部请求，包含失败与未知状态。".into(),
         };
-        cells = cells.push(tooltip(
-            button(cell)
-                .padding([18, 20])
-                .width(Length::Fill)
-                .style(move |theme, status| {
-                    let mut style = rounded_action_btn_style(theme, status);
-                    style.border.width = 0.0;
-                    style.border.radius = 0.0.into();
-                    if !matches!(status, iced::widget::button::Status::Hovered) {
-                        style.background = None;
-                    }
-                    style.text_color = theme.palette().text;
-                    style
-                })
-                .on_press(Event::Select(metric)),
-            container(text(help).size(12)).padding(10).style(container::rounded_box),
-            tooltip::Position::Top,
-        ));
+        let help = if matches!(metric, Metric::Requests | Metric::Tokens) && !loading {
+            format!(
+                "{} · {}\n{help}",
+                metric.label(),
+                metric.format(summary.and_then(|s| metric.value(s)))
+            )
+        } else {
+            help
+        };
+        cells = cells.push(
+            tooltip(
+                button(cell)
+                    .padding(0)
+                    .width(Length::Fill)
+                    .style(move |theme, status| {
+                        let mut style = rounded_action_btn_style(theme, status);
+                        style.border.width = 0.0;
+                        style.border.radius = 0.0.into();
+                        if matches!(status, button::Status::Active) {
+                            style.background = None;
+                        }
+                        style.text_color = theme.palette().text;
+                        style
+                    })
+                    .on_press(Event::Select(metric)),
+                container(text(help).size(12)).padding(10).style(container::rounded_box),
+                tooltip::Position::Top,
+            )
+            .snap_within_viewport(true),
+        );
     }
-    let mut body = column![cells].spacing(4);
+    let mut body = column![cells, rule::horizontal(1)].spacing(0);
     if state.expanded {
         let totals = summary.map(UsageSummary::token_totals).unwrap_or_default();
         let mut details = row![].spacing(0);
@@ -171,10 +218,11 @@ pub fn view_with_cost<'a>(
     body.push(
         container(
             button(text(if state.expanded { "收起明细 ∧" } else { "展开明细 ∨" }).size(11))
-                .padding([4, 10])
+                .padding([3, 10])
                 .style(rounded_action_btn_style)
                 .on_press(Event::ToggleDetails),
         )
+        .padding(iced::padding::top(6))
         .center_x(Length::Fill),
     )
     .into()

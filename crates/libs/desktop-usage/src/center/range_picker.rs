@@ -1,9 +1,9 @@
 //! Local calendar drafts. Only a returned range commits a query; callers refresh on Some.
-use chrono::{DateTime, Datelike, Duration, Local, NaiveDate, NaiveDateTime, TimeZone};
+use chrono::{DateTime, Datelike, Duration, Local, Months, NaiveDate, NaiveDateTime, TimeZone};
 use desktop_ui_controls::system_settings_common::*;
 use iced::{
-    Element, Length,
-    widget::{button, checkbox, column, container, row, text, text_input},
+    Element, Length, Theme,
+    widget::{Space, button, checkbox, column, container, row, rule, scrollable, text, text_input},
 };
 use vw_api_usage::{UsageRange, UsageUnixSeconds};
 
@@ -14,11 +14,21 @@ pub enum Preset {
     Week,
     Fortnight,
     Month,
+    PreviousMonth,
+    ThisMonth,
     All,
 }
 impl Preset {
-    pub const ALL: [Self; 6] =
-        [Self::Today, Self::Day, Self::Week, Self::Fortnight, Self::Month, Self::All];
+    pub const ALL: [Self; 8] = [
+        Self::Today,
+        Self::Day,
+        Self::Week,
+        Self::Fortnight,
+        Self::Month,
+        Self::PreviousMonth,
+        Self::ThisMonth,
+        Self::All,
+    ];
     pub fn label(self) -> &'static str {
         match self {
             Self::Today => "当天",
@@ -26,6 +36,8 @@ impl Preset {
             Self::Week => "近7天",
             Self::Fortnight => "近14天",
             Self::Month => "近30天",
+            Self::PreviousMonth => "上月",
+            Self::ThisMonth => "本月",
             Self::All => "全部",
         }
     }
@@ -37,34 +49,42 @@ impl Preset {
         if self == Self::Day {
             return Ok(UsageRange::Rolling { seconds: 86400 });
         }
-        let days = match self {
-            Self::Week => 6,
-            Self::Fortnight => 13,
-            Self::Month => 29,
-            _ => 0,
+        let today = now.date_naive();
+        let month_start = today.with_day(1).unwrap();
+        let zone = now.timezone();
+        let date = match self {
+            Self::PreviousMonth => month_start.checked_sub_months(Months::new(1)),
+            Self::ThisMonth => Some(month_start),
+            Self::Week => today.checked_sub_signed(Duration::days(6)),
+            Self::Fortnight => today.checked_sub_signed(Duration::days(13)),
+            Self::Month => today.checked_sub_signed(Duration::days(29)),
+            _ => Some(today),
+        }
+        .ok_or("日期超出范围")?;
+        let end = if self == Self::PreviousMonth {
+            local_day_start(&zone, month_start)?
+        } else {
+            now.timestamp()
         };
-        let date =
-            now.date_naive().checked_sub_signed(Duration::days(days)).ok_or("日期超出范围")?;
-        let start = now
-            .timezone()
-            .from_local_datetime(&date.and_hms_opt(0, 0, 0).unwrap())
-            .earliest()
-            // Some zones skip midnight. Find that date's first valid local minute.
-            .or_else(|| {
-                (1..1440).find_map(|minute| {
-                    now.timezone()
-                        .from_local_datetime(
-                            &(date.and_hms_opt(0, 0, 0).unwrap() + Duration::minutes(minute)),
-                        )
-                        .earliest()
-                })
-            })
-            .ok_or("当地日期不存在")?;
         Ok(UsageRange::Absolute {
-            start_unix_seconds: UsageUnixSeconds(start.timestamp()),
-            end_unix_seconds: UsageUnixSeconds(now.timestamp()),
+            start_unix_seconds: UsageUnixSeconds(local_day_start(&zone, date)?),
+            end_unix_seconds: UsageUnixSeconds(end),
         })
     }
+}
+
+fn local_day_start(zone: &impl TimeZone, date: NaiveDate) -> Result<i64, String> {
+    let midnight = date.and_hms_opt(0, 0, 0).unwrap();
+    zone.from_local_datetime(&midnight)
+        .earliest()
+        // Some zones skip midnight. Find that date's first valid local minute.
+        .or_else(|| {
+            (1..1440).find_map(|minute| {
+                zone.from_local_datetime(&(midnight + Duration::minutes(minute))).earliest()
+            })
+        })
+        .map(|time| time.timestamp())
+        .ok_or_else(|| "当地日期不存在".into())
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -216,6 +236,10 @@ impl State {
             Event::Active(field) => {
                 if !self.live || field == Field::Start {
                     self.active = field;
+                    let value = if field == Field::Start { &self.start } else { &self.end };
+                    if let Ok(date) = NaiveDateTime::parse_from_str(value, "%Y-%m-%d %H:%M") {
+                        self.month = date.date().with_day(1).unwrap();
+                    }
                 }
             }
             Event::Live(live) => {
@@ -292,62 +316,100 @@ impl State {
         if !self.open {
             return trigger.into();
         }
-        let presets = Preset::ALL
-            .into_iter()
-            .fold(row![].spacing(4), |r, p| r.push(action(p.label().into(), Event::Preset(p))));
-        let input = |label, value, field| {
-            column![
-                action(label, Event::Active(field)),
-                text_input("YYYY-MM-DD HH:MM", value)
-                    .style(settings_text_input_style)
-                    .padding(SETTINGS_CONTROL_PADDING)
-                    .size(SETTINGS_CONTROL_TEXT_SIZE)
-                    .on_input_maybe(if field == Field::End && self.live {
-                        None
-                    } else {
-                        Some(move |v| Event::Input(field, v))
-                    })
-            ]
-            .spacing(4)
+        let mut presets = row![].spacing(5);
+        for preset in Preset::ALL {
+            let selected = self.preset == Some(preset);
+            presets = presets.push(action(preset.label().into(), Event::Preset(preset)).style(
+                move |theme, status| {
+                    let mut style = rounded_action_btn_style(theme, status);
+                    if selected {
+                        style.background = Some(theme.extended_palette().primary.weak.color.into());
+                        style.text_color = theme.extended_palette().primary.weak.text;
+                    }
+                    style
+                },
+            ));
+        }
+        let input = |label: &str, value: &str, field| {
+            let active = self.active == field;
+            let enabled = field != Field::End || !self.live;
+            container(
+                column![
+                    action(label.into(), Event::Active(field))
+                        .padding([2, 5])
+                        .style(move |theme, status| {
+                            let mut style = rounded_action_btn_style(theme, status);
+                            style.border.width = 0.0;
+                            style.background = None;
+                            if active {
+                                style.text_color = theme.palette().primary;
+                            }
+                            style
+                        })
+                        .on_press_maybe(enabled.then_some(Event::Active(field))),
+                    text_input("YYYY-MM-DD HH:MM", value)
+                        .style(settings_text_input_style)
+                        .padding(SETTINGS_CONTROL_PADDING)
+                        .size(SETTINGS_CONTROL_TEXT_SIZE)
+                        .on_input_maybe(enabled.then_some(move |value| Event::Input(field, value)))
+                ]
+                .spacing(4),
+            )
+            .padding(7)
+            .width(Length::Fill)
+            .style(move |theme: &Theme| {
+                let palette = theme.palette();
+                container::Style::default().border(iced::Border {
+                    radius: 9.0.into(),
+                    width: 1.0,
+                    color: if active { palette.primary } else { palette.text.scale_alpha(0.16) },
+                })
+            })
         };
         let fields = column![
-            text("自定义日期与时间，最长30天").size(12),
-            input("开始时间".into(), &self.start, Field::Start),
-            input("结束时间".into(), &self.end, Field::End),
-            checkbox(self.live).label("结束时间跟随当前时刻").on_toggle(Event::Live),
-            text(self.error.as_deref().unwrap_or("")).size(12)
+            text("自定义时间 · 最长 30 天").size(12).style(text::secondary),
+            input("开始时间", &self.start, Field::Start),
+            input("结束时间", &self.end, Field::End),
+            checkbox(self.live)
+                .label("结束时间跟随当前时刻")
+                .size(16)
+                .text_size(13)
+                .style(settings_checkbox_style)
+                .on_toggle(Event::Live)
         ]
-        .spacing(8)
-        .width(280);
+        .spacing(10)
+        .width(244);
+
         let mut calendar = column![
             row![
                 action("‹".into(), Event::Month(-1)),
+                Space::new().width(Length::Fill),
                 action(self.month.format("%Y年%m月").to_string(), Event::Today),
+                Space::new().width(Length::Fill),
                 action("›".into(), Event::Month(1))
             ]
-            .spacing(4),
+            .align_y(iced::Alignment::Center),
             ["日", "一", "二", "三", "四", "五", "六"].into_iter().fold(
                 row![].spacing(2),
                 |days, label| days.push(
-                    container(text(label).size(13).style(text::secondary)).width(40).center_x(40)
+                    container(text(label).size(12).style(text::secondary)).center_x(Length::Fill)
                 )
             )
         ]
-        .spacing(4);
+        .spacing(3);
         let first =
             self.month - Duration::days(i64::from(self.month.weekday().num_days_from_sunday()));
+        let parse_date = |value: &str| {
+            NaiveDateTime::parse_from_str(value, "%Y-%m-%d %H:%M").ok().map(|time| time.date())
+        };
+        let (start, end) = (parse_date(&self.start), parse_date(&self.end));
         for week in 0..6 {
             let mut days = row![].spacing(2);
             for day in 0..7 {
                 let date = first + Duration::days(week * 7 + day);
-                let start = NaiveDateTime::parse_from_str(&self.start, "%Y-%m-%d %H:%M")
-                    .ok()
-                    .map(|dt| dt.date());
-                let end = NaiveDateTime::parse_from_str(&self.end, "%Y-%m-%d %H:%M")
-                    .ok()
-                    .map(|dt| dt.date());
                 let endpoint = start == Some(date) || end == Some(date);
                 let in_range = start.zip(end).is_some_and(|(s, e)| s <= date && date <= e);
+                let other_month = date.month() != self.month.month();
                 days = days.push(
                     button(
                         text(date.day().to_string())
@@ -355,22 +417,23 @@ impl State {
                             .width(Length::Fill)
                             .align_x(iced::alignment::Horizontal::Center),
                     )
-                    .padding([6, 8])
-                    .width(40)
-                    .height(36)
+                    .padding([4, 0])
+                    .width(Length::Fill)
+                    .height(29)
                     .style(move |theme, status| {
-                        let mut style = if endpoint {
-                            primary_action_btn_style(theme, status)
-                        } else {
-                            rounded_action_btn_style(theme, status)
-                        };
-                        if !endpoint && in_range {
+                        if endpoint {
+                            return primary_action_btn_style(theme, status);
+                        }
+                        let mut style = rounded_action_btn_style(theme, status);
+                        style.border = iced::border::rounded(5);
+                        if in_range {
                             style.background =
                                 Some(theme.extended_palette().background.strong.color.into());
+                        } else if status == button::Status::Active {
+                            style.background = None;
                         }
-                        if !endpoint && date.month() != self.month.month() {
-                            style.text_color =
-                                theme.extended_palette().background.strong.text.scale_alpha(0.5);
+                        if other_month {
+                            style.text_color = style.text_color.scale_alpha(0.55);
                         }
                         style
                     })
@@ -379,32 +442,38 @@ impl State {
             }
             calendar = calendar.push(days);
         }
+
+        let form = row![
+            fields,
+            container(calendar).padding(10).width(296).style(|theme: &Theme| {
+                container::Style::default()
+                    .background(theme.extended_palette().background.weak.color)
+                    .border(iced::border::rounded(10))
+            })
+        ]
+        .spacing(16)
+        .wrap();
+        let body = scrollable(container(form).padding([0, 7]).center_x(Length::Fill))
+            .direction(scrollable::Direction::Vertical(
+                scrollable::Scrollbar::new().width(4).scroller_width(4),
+            ))
+            .height(Length::Fill)
+            .width(Length::Fill);
         let footer = row![
-            action("取消".into(), Event::Cancel).width(Length::Fill),
-            button(
-                text("确定")
-                    .size(13)
-                    .width(Length::Fill)
-                    .align_x(iced::alignment::Horizontal::Center)
-            )
-            .width(Length::Fill)
-            .padding([6, 10])
-            .style(primary_action_btn_style)
-            .on_press(Event::Apply)
+            Space::new().width(Length::Fill),
+            action("取消".into(), Event::Cancel),
+            action("确定".into(), Event::Apply).style(primary_action_btn_style)
         ]
         .spacing(8);
-        let panel = settings_modal_card(
-            column![
-                presets,
-                row![
-                    column![fields, footer].spacing(16),
-                    container(calendar).padding(16).style(container::rounded_box)
-                ]
-                .spacing(20)
-            ]
-            .spacing(20),
-        )
-        .width(Length::Shrink);
+        let mut panel = column![presets.wrap(), rule::horizontal(1), body].spacing(8);
+        if let Some(error) = &self.error {
+            panel = panel.push(text(error).size(12).style(text::danger));
+        }
+        let panel = settings_modal_card(panel.push(footer).height(Length::Fill))
+            .padding([12, 14])
+            .width(610)
+            .max_height(372)
+            .style(|theme| settings_modal_card_style(theme).background(theme.palette().background));
         desktop_ui_controls::overlays::BelowOverlay::new(trigger, panel)
             .show(true)
             .gap(8.0)

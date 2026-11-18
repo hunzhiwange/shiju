@@ -1,9 +1,10 @@
 use super::{display, event::Event, overview, pricing, scan, state::DetailTab};
 use crate::models;
+use desktop_assets::assets::{Icon, get_icon};
 use desktop_ui_controls::system_settings_common::rounded_action_btn_style;
 use iced::{
-    Element, Length,
-    widget::{Space, button, column, container, row, scrollable, text},
+    Element, Length, Theme,
+    widget::{Space, button, column, container, row, scrollable, svg, text},
 };
 
 pub fn view<'a>(
@@ -18,14 +19,15 @@ pub fn view<'a>(
             .on_press(event)
     };
     if !state.open {
-        return action("第三方智能体用量统计 ›", Event::Load(true)).into();
+        return action("第三方智能体用量统计 ›", Event::Load(super::range_picker::Preset::Month))
+            .into();
     }
     let header = row![
-        column![
-            text("用量统计").size(26),
-            text("查看成本、请求与模型使用情况").size(13).style(text::secondary)
-        ]
-        .spacing(6),
+        svg(get_icon(Icon::BarChartFill))
+            .width(22)
+            .height(22)
+            .style(|theme: &Theme, _| svg::Style { color: Some(theme.palette().text) }),
+        text("用量统计").size(25),
         Space::new().width(Length::Fill),
         action("刷新", Event::Refresh),
         action("同步", Event::Sync),
@@ -67,35 +69,30 @@ pub fn view<'a>(
     let hero =
         super::hero::view_with_cost(&state.hero, summary, state.loading, known_cost.as_deref())
             .map(Event::Hero);
-    let notice = if state.loading {
-        "正在加载用量…".into()
-    } else {
-        match &state.result {
-            Some(Err(error)) => format!("用量加载失败：{error}"),
-            Some(Ok(summary)) => format!(
-                "已知费用 {} · 未知费用 {} 请求",
-                known_cost.unwrap_or_else(|| "—".into()),
-                summary.counts.unknown_cost_requests
-            ),
-            None => "请选择用量范围".into(),
+    let mut chart_section = column![].width(Length::Fill).spacing(8);
+    match &state.result {
+        Some(Err(error)) => {
+            chart_section = chart_section.push(text(format!("用量加载失败：{error}")).size(12));
         }
-    };
-    let overview_card = container(
-        column![
-            hero,
-            text(notice).size(12).style(text::secondary),
-            super::charts::view_range(
-                &state.charts,
-                state.hero.metric,
-                Some(matches!(&state.query.range, vw_api_usage::UsageRange::All))
-            )
-            .map(Event::Charts)
-        ]
-        .spacing(12),
+        Some(Ok(summary)) if summary.counts.unknown_cost_requests > 0 => {
+            chart_section = chart_section.push(
+                text(format!("{} 个请求的费用未知", summary.counts.unknown_cost_requests))
+                    .size(12)
+                    .style(text::secondary),
+            );
+        }
+        _ => {}
+    }
+    let chart = super::charts::view_range(
+        &state.charts,
+        state.hero.metric,
+        Some(matches!(&state.query.range, vw_api_usage::UsageRange::All)),
     )
-    .padding(20)
-    .width(Length::Fill)
-    .style(container::rounded_box);
+    .map(Event::Charts);
+    let overview_card = container(column![hero, chart_section.push(chart).padding([14, 16])])
+        .width(Length::Fill)
+        .clip(true)
+        .style(panel_style);
     let mut tabs = row![].spacing(8);
     for (tab, label) in [
         (DetailTab::Logs, "请求日志"),
@@ -126,7 +123,7 @@ pub fn view<'a>(
     let details = container(column![tabs, detail].spacing(12))
         .padding(20)
         .width(Length::Fill)
-        .style(container::rounded_box);
+        .style(panel_style);
     let tools = row![
         action("模型同步选择", Event::Models(models::Event::Open)),
         action("币种与显示", Event::Display(display::Event::Open)),
@@ -138,20 +135,27 @@ pub fn view<'a>(
             .spacing(16)
             .align_y(iced::Alignment::Start),
     )
-    .padding([8, 0])
     .width(Length::Fill);
     let body = column![
         header,
-        text(status).size(12).style(text::secondary),
         filter_card,
         overview_card,
         details,
-        tools
+        column![tools, text(status).size(12).style(text::secondary)].spacing(8)
     ]
-    .spacing(20);
+    .spacing(16);
     scrollable(container(body).padding([7, 7]).max_width(1280).center_x(Length::Fill))
         .direction(scrollable::Direction::Vertical(
             scrollable::Scrollbar::new().width(4).scroller_width(4),
         ))
         .into()
+}
+
+fn panel_style(theme: &Theme) -> container::Style {
+    let palette = theme.palette();
+    container::Style::default().background(palette.background).border(iced::Border {
+        color: palette.text.scale_alpha(0.14),
+        width: 1.0,
+        radius: 14.0.into(),
+    })
 }

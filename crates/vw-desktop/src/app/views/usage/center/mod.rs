@@ -76,5 +76,8 @@ pub fn entry(app: &App) -> Element<'_, Message> {
     let label = summary.map_or_else(|| "今日金额 —".into(), |summary| format!("今日金额 {} · 未知费用 {} 请求", display::amount(app, &summary.known_cost_usd), summary.counts.unknown_cost_requests));
     iced::widget::button(iced::widget::text(format!("用量统计 ›\n{label}")).size(13))
         .padding([10, 12]).style(desktop_ui_controls::system_settings_common::rounded_action_btn_style)
-        .on_press(Message::View(ViewMessage::UsageCenter(Event::Load(true)))).into()
+        .on_press(Message::View(ViewMessage::UsageCenter(Event::Load(
+            desktop_usage::center::range_picker::Preset::Month,
+        ))))
+        .into()
 }

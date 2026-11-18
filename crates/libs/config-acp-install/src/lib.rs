@@ -204,7 +204,7 @@ fn official_installer(
 /// Managed native distributions do not have a shell installation command.
 /// Keep their platform support explicit while using the same system install endpoint.
 pub fn acp_install_supported(agent: &str) -> bool {
-    (matches!(agent, "harn" | "junie" | "vtcode" | "stakpak" | "poolside") && cfg!(all(target_os = "macos", target_arch = "aarch64")))
+    (matches!(agent, "aionrs" | "harn" | "junie" | "vtcode" | "stakpak" | "poolside") && cfg!(all(target_os = "macos", target_arch = "aarch64")))
         || acp_install_command(agent).is_some()
 }
 

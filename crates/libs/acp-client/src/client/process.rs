@@ -6,6 +6,11 @@
 use super::*;
 
 impl AcpClient {
+    pub(super) fn managed_aionrs(&self) -> bool {
+        self.agent_name == "aionrs" && self.config.env.contains_key("SHIJU_AIONRS_SANDBOX")
+            && self.config.env.contains_key("VW_ACP_LAUNCH_REFERENCE")
+    }
+
     pub(super) fn managed_vtcode(&self) -> bool {
         self.agent_name == "vtcode" && self.config.env.contains_key("VW_ACP_LAUNCH_REFERENCE")
     }
@@ -121,7 +126,7 @@ impl AcpClient {
             );
         }
         let managed_vtcode = self.managed_vtcode();
-        let managed_private_provider = managed_vtcode || self.managed_workspace_io() || (matches!(self.agent_name.as_str(), "deepagents" | "dimcode" | "junie" | "stakpak")
+        let managed_private_provider = managed_vtcode || self.managed_workspace_io() || self.managed_aionrs() || (matches!(self.agent_name.as_str(), "deepagents" | "dimcode" | "junie" | "stakpak")
                 && env.contains_key("VW_ACP_LAUNCH_REFERENCE"));
         let managed_claude = managed_claude_settings(&self.config).is_some();
         let managed_auggie =

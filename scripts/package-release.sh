@@ -140,6 +140,12 @@ build_acp() {
     --bin acp --all-features
 }
 
+build_aionrs_bridge() {
+  if [[ "$TARGET" == aarch64-apple-darwin ]]; then
+    "${CARGO_CMD[@]}" "${PROFILE_FLAG[@]}" --target "$TARGET" -p vw-acp --bin aionrs-acp
+  fi
+}
+
 build_desktop() {
   "${CARGO_CMD[@]}" "${PROFILE_FLAG[@]}" --target "$TARGET" -p vw-desktop \
     --bin shi-ju --all-features
@@ -187,6 +193,7 @@ archive_name() {
 case "$KIND" in
   cli)
     build_cli
+    build_aionrs_bridge
     ;;
   acp)
     build_acp
@@ -196,6 +203,7 @@ case "$KIND" in
     ;;
   all)
     build_primary_cli
+    build_aionrs_bridge
     build_acp
     build_desktop
     ;;
@@ -225,6 +233,10 @@ case "$KIND" in
     copy_linux_desktop_files
     ;;
 esac
+
+if [[ "$TARGET" == aarch64-apple-darwin && ( "$KIND" == cli || "$KIND" == all ) ]]; then
+  copy_binary aionrs-acp
+fi
 
 ARCHIVE_NAME="$(archive_name)"
 rm -f "$OUT_DIR/$ARCHIVE_NAME"

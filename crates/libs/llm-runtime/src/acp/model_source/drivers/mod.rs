@@ -1,4 +1,5 @@
 use super::profile::AcpLaunchProfile;
+pub mod aionrs;
 pub mod amp_acp;
 pub mod harn;
 pub mod junie;
@@ -54,7 +55,8 @@ pub fn capabilities(
     };
     let patched = matches!(
         agent,
-        "nova"
+        "aionrs"
+            | "nova"
             | "harn"
             | "mimo-code"
             | "omp"
@@ -127,6 +129,7 @@ pub fn verified_release(agent: &str) -> Option<&'static str> {
         "amp-acp" => "0.12.0 (Amp 0.0.1778732631-gc5875c; reviewed local ThreadWorker)",
         "sigit" => "1.7.10 (reviewed host boundary)",
         "dirac" => "0.5.24",
+        "aionrs" => "0.2.11",
         "harn" => "0.10.201",
         "mimo-code" => "0.1.17",
         "omp" => "18.22.0",
@@ -155,7 +158,7 @@ pub fn source_protocol(
         "nova" | "amp-acp" | "claude" => P::Messages,
         "codex" | "kiro" => P::Responses,
         "gemini" => P::Gemini,
-        "omp" | "mimo-code" | "junie" | "harn" | "vtcode" | "poolside" | "stakpak" | "grok" | "dimcode" | "deepagents" | "autohand" | "sigit" | "glm-acp-agent" | "dirac" | "auggie" | "cursor" | "droid"
+        "aionrs" | "omp" | "mimo-code" | "junie" | "harn" | "vtcode" | "poolside" | "stakpak" | "grok" | "dimcode" | "deepagents" | "autohand" | "sigit" | "glm-acp-agent" | "dirac" | "auggie" | "cursor" | "droid"
         | "codebuddy" | "goose" | "hermes" | "iflow" | "kilocode" | "openclaw" | "pi" | "qoder"
         | "qwen" | "trae" => P::Chat,
         "opencode" => model_transport::routing_selection::client_protocol(api)
@@ -220,6 +223,7 @@ pub fn configure(
 ) -> anyhow::Result<()> {
     launch_route(agent, profile)?;
     match agent {
+        "aionrs" => aionrs::configure(profile, endpoint, directory),
         "amp-acp" => amp_acp::configure(profile, endpoint),
         "junie" => junie::configure(profile, endpoint, directory),
         "harn" => harn::configure(profile, endpoint, directory),

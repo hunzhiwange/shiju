@@ -402,6 +402,41 @@ if agent == 'sigit':
         'patch_sha256': contract['patch_sha256'], 'sha256': digest(runtime / 'sigit')}))
     raise SystemExit(0)
 
+if agent == 'aionrs':
+    archive = assets / 'aionrs.tar.gz'
+    with urllib.request.urlopen(contract['source_url'], timeout=45) as response, archive.open('xb') as output:
+        shutil.copyfileobj(response, output)
+    if digest(archive) != contract['source_sha256']:
+        raise RuntimeError('aionrs fixed source checksum mismatch')
+    source = assets / 'aionrs-source'
+    source.mkdir()
+    with tarfile.open(archive) as tar:
+        members = tar.getmembers()
+        roots = {Path(member.name).parts[0] for member in members if Path(member.name).parts}
+        if len(roots) != 1 or any(
+            not member.name or Path(member.name).is_absolute() or '..' in Path(member.name).parts
+            or not (member.isdir() or member.isfile()) for member in members
+        ):
+            raise RuntimeError('Unexpected aionrs source archive layout')
+        tar.extractall(source, members=members)
+    source = source / roots.pop()
+    target = Path(os.environ.get('CARGO_TARGET_DIR', str(assets / 'cargo-target'))).absolute()
+    build_env = dict(os.environ, CARGO_TARGET_DIR=str(target), CARGO_BUILD_BUILD_DIR=str(target))
+    subprocess.run(
+        ['cargo', 'build', '-j', '1', '--locked', '-p', 'aion-cli', '--bin', 'aionrs'],
+        cwd=source, env=build_env, check=True, stdin=subprocess.DEVNULL,
+    )
+    runtime.mkdir(mode=0o700)
+    engine = runtime / 'aionrs'
+    bridge = runtime / contract['bin']
+    shutil.copy2(target / 'debug/aionrs', engine)
+    shutil.copy2(assets / 'aionrs-acp', bridge)
+    (runtime / 'build-receipt.json').write_text(json.dumps({
+        'version': contract['version'], 'source_sha256': contract['source_sha256'],
+        'engine_sha256': digest(engine), 'sha256': digest(bridge),
+    }))
+    raise SystemExit(0)
+
 if contract.get('layout') == 'native':
     # This is the real upstream Rust CLI, built from the fixed, reviewed source.
     # Cargo inherits the caller's shared-slot directories when run from this repository.

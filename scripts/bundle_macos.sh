@@ -14,6 +14,11 @@ CLI_SOURCE_BIN_NAME="shiju"
 CLI_BIN_NAME="shiju"
 CLI_COMPAT_BIN_NAME="vibe-agent"
 ACP_BIN_NAME="acp"
+AIONRS_BRIDGE_NAME="aionrs-acp"
+BUILD_AIONRS_BRIDGE=0
+if [[ "$TARGET" == "aarch64-apple-darwin" || ( -z "$TARGET" && "$(uname -m)" == arm64 ) ]]; then
+  BUILD_AIONRS_BRIDGE=1
+fi
 MACOS_ICON_SOURCE="${MACOS_ICON_SOURCE:-assets/logo/icon.icns}"
 MACOS_ICON_NAME="ShiJu.icns"
 PACKAGE_APP="${PACKAGE_APP:-0}"
@@ -313,8 +318,14 @@ if [ "$MODE" = "cli" ]; then
   fi
   cp "$SRC_BIN" "$OUT_DIR/${CLI_BIN_NAME}"
   cp "$COMPAT_SRC_BIN" "$OUT_DIR/${CLI_COMPAT_BIN_NAME}"
+  CLI_BINARIES=("$CLI_BIN_NAME" "$CLI_COMPAT_BIN_NAME")
+  if [ "$BUILD_AIONRS_BRIDGE" = "1" ]; then
+    cargo_build -p vw-acp --bin "$AIONRS_BRIDGE_NAME"
+    cp "$TARGET_DIR/$AIONRS_BRIDGE_NAME" "$OUT_DIR/$AIONRS_BRIDGE_NAME"
+    CLI_BINARIES+=("$AIONRS_BRIDGE_NAME")
+  fi
   ZIP_NAME="ShiJu-CLI-macos${TARGET_SUFFIX}-${PROFILE}.zip"
-  (cd "$OUT_DIR" && /usr/bin/zip -qry "$ZIP_NAME" "$CLI_BIN_NAME" "$CLI_COMPAT_BIN_NAME")
+  (cd "$OUT_DIR" && /usr/bin/zip -qry "$ZIP_NAME" "${CLI_BINARIES[@]}")
   echo "$OUT_DIR/$ZIP_NAME"
   exit 0
 fi
@@ -365,6 +376,9 @@ else
   if [ "$INCLUDE_ACP_IN_APP" = "1" ]; then
     echo "Building ACP binary (to include in app bundle)..."
     cargo_build -p vw-acp --bin "$ACP_BIN_NAME"
+    if [ "$BUILD_AIONRS_BRIDGE" = "1" ]; then
+      cargo_build -p vw-acp --bin "$AIONRS_BRIDGE_NAME"
+    fi
   fi
 fi
 
@@ -404,6 +418,9 @@ fi
 if [ "$INCLUDE_ACP_IN_APP" = "1" ]; then
   echo "Copying ACP binary to bundle..."
   cp "$TARGET_DIR/${ACP_BIN_NAME}" "$DEST_DIR/${ACP_BIN_NAME}"
+  if [ "$BUILD_AIONRS_BRIDGE" = "1" ] && [ -x "$TARGET_DIR/$AIONRS_BRIDGE_NAME" ]; then
+    cp "$TARGET_DIR/$AIONRS_BRIDGE_NAME" "$DEST_DIR/$AIONRS_BRIDGE_NAME"
+  fi
 fi
 
 # Stage our controller as a separate app with its own stable TCC identity.
@@ -431,7 +448,7 @@ if [ "$MACOS_SIGN_MODE" = "developer-id" ]; then
     --options runtime \
     --entitlements "$(dirname "$0")/macos_webview_entitlements.plist" \
     "$DEST_DIR/vw-webview"
-  for binary_name in "$CLI_BIN_NAME" "$CLI_COMPAT_BIN_NAME" "$ACP_BIN_NAME"; do
+  for binary_name in "$CLI_BIN_NAME" "$CLI_COMPAT_BIN_NAME" "$ACP_BIN_NAME" "$AIONRS_BRIDGE_NAME"; do
     binary_path="$DEST_DIR/$binary_name"
     if [ -f "$binary_path" ]; then
       codesign_with_identity \
@@ -459,7 +476,7 @@ else
   codesign --force --sign - \
     --entitlements "$(dirname "$0")/macos_webview_entitlements.plist" \
     "$DEST_DIR/vw-webview"
-  for binary_name in "$CLI_BIN_NAME" "$CLI_COMPAT_BIN_NAME" "$ACP_BIN_NAME"; do
+  for binary_name in "$CLI_BIN_NAME" "$CLI_COMPAT_BIN_NAME" "$ACP_BIN_NAME" "$AIONRS_BRIDGE_NAME"; do
     binary_path="$DEST_DIR/$binary_name"
     if [ -f "$binary_path" ]; then
       codesign --force --sign - "$binary_path"

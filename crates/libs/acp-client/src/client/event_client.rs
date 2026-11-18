@@ -64,7 +64,7 @@ impl AcpClient {
         let managed_workspace_io = self.managed_workspace_io();
         AcpEventClient {
             managed_workspace_io,
-            sandboxed_native_io: self.managed_vtcode(),
+            sandboxed_native_io: self.managed_vtcode() || self.managed_aionrs(),
             claude_permissions: self.agent_name == "claude",
             kimi_permissions: self.agent_name == "kimi",
             codebuddy_permissions: self.agent_name == "codebuddy",

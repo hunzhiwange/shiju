@@ -13,6 +13,12 @@ pub struct Frame {
     pub capabilities: Option<Capabilities>,
 }
 #[derive(Debug, Deserialize)]
-pub struct Tool { pub name: String }
+pub struct Tool {
+    pub name: String,
+    pub args: serde_json::Value,
+}
 #[derive(Debug, Deserialize)]
-pub struct Capabilities { pub tool_approval: bool, pub current_mode: String }
+pub struct Capabilities {
+    pub tool_approval: bool,
+    pub current_mode: String,
+}

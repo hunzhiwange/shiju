@@ -66,6 +66,14 @@ fn verify(directory: &Path, contract: &Contract) -> Result<PathBuf, String> {
         {
             return Err("Native ACP build receipt checksum mismatch".into());
         }
+        if contract.package == "aion-cli"
+            && receipt["engine_sha256"]
+                != hex::encode(Sha256::digest(
+                    std::fs::read(directory.join("aionrs")).map_err(|_| "Missing aionrs engine")?,
+                ))
+        {
+            return Err("Native aionrs engine checksum mismatch".into());
+        }
         return Ok(executable);
     }
     if contract.layout == "python" {
@@ -134,7 +142,7 @@ pub fn reviewed_agent_command(agent: &str) -> Result<Option<(String, Vec<String>
         return Ok(Some((
             path.to_string_lossy().into_owned(),
             match agent {
-                "vibe" => vec![],
+                "vibe" | "aionrs" => vec![],
                 "harn" => vec![],
                 "junie" => vec!["--acp=true".into()],
                 "sigit" => vec!["--acp".into()],
@@ -408,6 +416,16 @@ pub(super) async fn install(agent: &str) -> Result<bool, String> {
         std::fs::create_dir_all(path.parent().ok_or("Invalid ACP asset path")?)
             .map_err(|_| "Cannot create ACP patch directory")?;
         std::fs::write(path, text).map_err(|_| "Cannot write embedded ACP patch")?;
+    }
+    if agent == "aionrs" {
+        let bridge = std::env::current_exe()
+            .map_err(|_| "Cannot locate packaged ShiJu binaries")?
+            .with_file_name("aionrs-acp");
+        if !bridge.symlink_metadata().is_ok_and(|metadata| metadata.is_file()) {
+            return Err("Packaged aionrs-acp is missing beside the ShiJu executable".into());
+        }
+        std::fs::copy(bridge, assets.join("aionrs-acp"))
+            .map_err(|_| "Cannot stage packaged aionrs bridge")?;
     }
     let runtime = stage.0.join("runtime");
     let uv = if matches!(agent, "vibe" | "hermes") {

@@ -139,6 +139,14 @@ impl BackendPrompt {
 /// ACP Agent 侧依赖的最小宿主接口。
 #[async_trait]
 pub trait SessionBackend: Send + Sync + 'static {
+    fn supports_session_load(&self) -> bool {
+        true
+    }
+
+    fn supports_mcp_servers(&self) -> bool {
+        true
+    }
+
     /// Whether this backend prepares native session skill directories.
     fn supports_skill_mounts(&self) -> bool {
         false

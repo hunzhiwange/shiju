@@ -145,7 +145,7 @@ impl AcpClient {
             self.store_reusable_session(Some(session_id));
             return Ok(());
         }
-        if matches!(self.agent_name.as_str(), "harn" | "poolside" | "vtcode") {
+        if matches!(self.agent_name.as_str(), "harn" | "poolside" | "vtcode" | "aionrs") {
             // These engines select the model through ACP config options. Require readback.
             self.confirmed_config_control(&runtime.conn, &session_id, "model", &model)
                 .await?;

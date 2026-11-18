@@ -318,7 +318,15 @@ async fn handle(State(state): State<Arc<ServerState>>, request: Request) -> Resp
         if vtcode {
             retain_vtcode_tools(&mut json);
         }
-        let body = if vtcode || gemini || (kiro && path == "/v1/responses") {
+        let aionrs = path == "/v1/chat/completions"
+            && state.binding.identity().session.ends_with(":aionrs");
+        if aionrs && let Some(tools) = json.get_mut("tools").and_then(serde_json::Value::as_array_mut) {
+            tools.retain(|tool| matches!(
+                tool.pointer("/function/name").and_then(serde_json::Value::as_str),
+                Some("Read" | "Write" | "Edit" | "Glob")
+            ));
+        }
+        let body = if aionrs || vtcode || gemini || (kiro && path == "/v1/responses") {
             Bytes::from(serde_json::to_vec(&json).map_err(|_| StatusCode::BAD_REQUEST)?)
         } else {
             body

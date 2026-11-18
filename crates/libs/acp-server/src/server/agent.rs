@@ -288,8 +288,10 @@ where
             ))
             .agent_capabilities(
                 AgentCapabilities::new()
-                    .load_session(true)
-                    .mcp_capabilities(McpCapabilities::new().http(true).sse(true)),
+                    .load_session(self.backend.supports_session_load())
+                    .mcp_capabilities(McpCapabilities::new()
+                        .http(self.backend.supports_mcp_servers())
+                        .sse(self.backend.supports_mcp_servers())),
             ))
     }
 

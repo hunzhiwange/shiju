@@ -28,6 +28,9 @@ pub async fn request_timeout_middleware(req: Request<Body>, next: Next) -> Respo
 pub fn request_timeout_for_path(path: &str) -> Duration {
     if is_long_running_sse_path(path) {
         Duration::from_secs(WORKFLOW_CHAT_MESSAGES_TIMEOUT_SECS)
+    } else if path == "/v1/desktop/acp-install/aionrs" {
+        // The pinned upstream ships source only; a cold locked build needs the managed deadline.
+        Duration::from_secs(910)
     } else if path
         .strip_prefix("/v1/desktop/acp-install/")
         .is_some_and(|agent| !agent.is_empty() && !agent.contains('/'))

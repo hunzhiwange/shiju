@@ -29,3 +29,31 @@
 已装 RustCodeGraph 仅提供 stdio。仓库可定位的 stdio 到回环桥属于测试夹具，现有 OMP 回环只承载模型协议。复跑需要可复用的宿主兼容入口，并保留会话、租户、权限、撤销和进程生命周期约束。
 
 本次提交仅包含验收记录。依据真实三轮及独立探针定位边界，未运行 Cargo 生命周期夹具。私有网关和探针已退出，网关端口关闭，挂载已撤除，私有配置与租户数据库已清理。原始证据保存在本机私有目录。
+
+## 共享工作区复验
+
+较新的共享构建 shiju 0.6.0（SHA-256 `6954a2bb76ca26aa39c3b0dd909786c68b85f336648526ef39651b1e3a31f718`）复用了前轮固定 OMP、RueJS 提交、提示及指定模型。仍以私有网关发起三次新会话。
+
+| 轮次 | 新会话 | HTTP / curl / 秒 | 最终正文与工具 |
+| --- | --- | --- | --- |
+| 无挂载 | `ses_1f044c153001ImNMlnlmUqX2ZR` | 200 / 0 / 7.748094 | `MCP_NOT_AVAILABLE`，零工具 |
+| 挂载 | `ses_1f044e0cd001YOPxTzF7c0TnmG` | 200 / 0 / 7.087581 | `posix_spawn` 返回 `EPERM`，随后输出 `MCP_NOT_AVAILABLE`，零工具 |
+| 撤除 | `ses_1f044fd8e001fZETcs0dnG4nYm` | 200 / 0 / 7.972795 | `MCP_NOT_AVAILABLE`，零工具 |
+
+三轮均有一个 `chat.done`，没有 `chat.error`、`chat.model_recovery` 或目标工具事件。剥离推理标签后，对照正文均准确。运行中 UI summary 与 ACP options 再次确认 `acp-omp / omp`、`full_access=true`、`client_only` 和指定模型绑定。终态连接释放。挂载轮没有调查答复。
+
+### 同端口传输和权限诊断
+
+保留生产进程及出站沙箱，使用同一原生 OMP、私有 `PI_CODING_AGENT_DIR` 和占位密钥。在模型端口提供带独立令牌的私有 Streamable HTTP 诊断路由，转给宿主的真实 RustCodeGraph，仅发布三种目标工具。空目录与不同端口对照没有 MCP 请求抵达。与模型同端口时，OMP 完成 `initialize`、`notifications/initialized` 和 `tools/list`。三个工具出现在系统提示的 `xd://` 目录，直接函数声明仍只有 `read`、`write`、`edit`。
+
+仅在诊断私有配置设 `tools.xdev=false` 后，三种工具以 `mcp__ruejs_graph_probe_` 前缀直接声明。诊断模型依次调用三项，收到真实 RustCodeGraph 结果并续轮至 `end_turn`。探针的 ACP 客户端对权限回调选择取消，但 OMP 没有为这三次调用发出任何 `session/request_permission`。因此生产路径还需要宿主逐次执行原工具审批和权限校验。
+
+| 目标工具 | 诊断调用 ID | 真实结果 |
+| --- | --- | --- |
+| `rustcodegraph_query` | `omp_probe_0` | `createRueSiteApp` 位于 `app/app.tsx:32` |
+| `rustcodegraph_callers` | `omp_probe_1` | `mountRueSiteApp` 位于 `app/app.tsx:39` |
+| `rustcodegraph_node` | `omp_probe_2` | `packages/runtime/src/hooks/useApp.ts:4` 调用 `_$createApp(factory)` |
+
+已核对 Cortex Code、DeepAgents 和 OpenClaw 新增的受管入口，分别依赖各自的客户端工具扩展或适配协议。现有模型中继路由仍缺少会话级 MCP 入口。上游 18.22.2 与 18.22.0 的 ACP 代理源码相同，升级不能提供所需的宿主中继或审批。下一步需要公共接线归属确认，将宿主侧会话 MCP 转接接入模型中继端口，并在转接内按会话授权每次工具调用及处理撤销。确认后才能为 OMP 绑定私有目录并用原模型复验。 [OMP 18.22.0 ACP 源码](https://raw.githubusercontent.com/can1357/oh-my-pi/v18.22.0/packages/coding-agent/src/modes/acp/acp-agent.ts) · [OMP 18.22.2 ACP 源码](https://raw.githubusercontent.com/can1357/oh-my-pi/v18.22.2/packages/coding-agent/src/modes/acp/acp-agent.ts)
+
+这次只更新验收记录，未运行 Cargo。诊断和网关的进程与监听已退出，私有配置、模型凭据及租户数据库副本已清理，项目挂载已撤除。原始 SSE 和诊断保存在本机私有目录。

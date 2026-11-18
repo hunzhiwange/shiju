@@ -490,20 +490,7 @@ impl State {
             .padding([12, 14])
             .width(620)
             .height(368)
-            .style(|theme| {
-                let palette = theme.palette();
-                let surface = iced::Color { a: 1.0, ..palette.background };
-                let mut style = settings_modal_card_style(theme).background(surface);
-                style.border = iced::Border {
-                    color: palette.text.scale_alpha(0.13),
-                    width: 1.0,
-                    radius: 12.0.into(),
-                };
-                style.shadow.color = iced::Color::BLACK.scale_alpha(0.14);
-                style.shadow.blur_radius = 14.0;
-                style.shadow.offset.y = 4.0;
-                style
-            })
+            .style(super::overview::filter_popup_style)
             .into()
     }
 }

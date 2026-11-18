@@ -8,7 +8,6 @@ use iced::{Element, Task};
 pub struct State {
     pub open: bool,
     navigation: Option<Navigation>,
-    rebuild_job: bool,
     pub(super) scope: Option<Identity>,
     sequence: u64,
     pub(super) pending: bool,
@@ -16,7 +15,6 @@ pub struct State {
     pub(super) last: Option<UsageLastScan>,
     pub(super) job: Option<UsageJobSnapshot>,
     pub(super) error: Option<String>,
-    pub(super) confirm_rebuild: bool,
 }
 impl State {
     pub(super) fn set_scope(&mut self, scope: Option<Identity>) {
@@ -36,11 +34,13 @@ impl State {
     }
 }
 #[derive(Clone, Debug)]
-pub enum Action { Save(UsageScanPreferences), Load, Sync, Cancel, Poll, Rebuild, Rollup, Backfill }
+pub enum Action { Save(UsageScanPreferences), Load, Sync, Cancel, Poll, Rollup, Backfill }
 #[derive(Clone, Debug)]
 pub enum Event {
     Feedback(bool, String),
-    Open, Close, ConfirmRebuild, DismissRebuild, Navigate(Navigation), Run(Action),
+    Completed(Identity, bool, String),
+    RefreshHead,
+    Open, Close, Navigate(Navigation), Run(Action),
     Done(u64, Identity, Result<Reply, String>),
     Poll(u64, Identity),
 }
@@ -63,23 +63,34 @@ fn job_failed(job: &UsageJobSnapshot) -> bool {
         .is_some_and(|s| matches!(s, "Cancelled" | "Failed" | "cancelled" | "failed")))
         || job.progress.get("errors").and_then(|v| v.as_array()).is_some_and(|errors| !errors.is_empty())
 }
+
+fn scan_summary(job: &UsageJobSnapshot) -> Option<(bool, String)> {
+    let phase = job.progress.get("phase")?.as_str()?;
+    if !matches!(phase, "Completed" | "completed" | "Failed" | "failed") {
+        return None;
+    }
+    let counts = job.progress.get("counts")?;
+    let imported = counts.get("imported")?.as_u64()?;
+    let files = counts.get("files_scanned")?.as_u64()?;
+    let errors = job.progress.get("errors")?.as_array()?.len();
+    let success = matches!(phase, "Completed" | "completed") && errors == 0;
+    let title = if success { "同步完成" } else { "同步失败" };
+    Some((success, format!("{title}：新增 {imported} 条，扫描 {files} 个文件，错误 {errors}")))
+}
+
 fn poll(sequence: u64, scope: Identity) -> Task<Outcome<Event>> {
     Task::perform(async { tokio::time::sleep(std::time::Duration::from_secs(2)).await },
         move |_| message(Event::Poll(sequence, scope.clone())))
 }
 pub fn update(state: &mut State, current: Option<Identity>, client: Result<vw_gateway_client::GatewayClient, String>, event: Event) -> Task<Outcome<Event>> {
     match event {
-        Event::Feedback(..) => {},
+        Event::Feedback(..) | Event::Completed(..) | Event::RefreshHead => {},
         Event::Open => {
             state.set_scope(current.clone());
             state.open = true;
             return update(state, current, client, Event::Run(Action::Load));
         }
-        Event::Close => { state.open = false; state.confirm_rebuild = false; }
-        Event::ConfirmRebuild => {
-            if !state.pending && state.scope == current && !state.job.as_ref().is_some_and(|job| !terminal(job)) { state.confirm_rebuild = true; }
-        }
-        Event::DismissRebuild => state.confirm_rebuild = false,
+        Event::Close => state.open = false,
         Event::Navigate(destination) => {
             if matches!(destination, Navigation::Routing) { state.open = false; }
             state.navigation = Some(destination);
@@ -108,12 +119,23 @@ pub fn update(state: &mut State, current: Option<Identity>, client: Result<vw_ga
                 }
                 Ok(Reply::Job(job)) => {
                     let active = !terminal(&job);
+                    let refresh = if job.progress.contains_key("counts") {
+                        message(Event::RefreshHead)
+                    } else {
+                        Outcome::Refresh
+                    };
+                    let notice = if active {
+                        None
+                    } else if let Some((success, summary)) = scan_summary(&job) {
+                        Some(message(Event::Completed(scope.clone(), success, summary)))
+                    } else if job_failed(&job) {
+                        Some(Outcome::Error("用量任务未成功完成，请重试或查看主机任务详情".into()))
+                    } else {
+                        Some(Outcome::Success("用量同步完成".into()))
+                    };
                     state.job = Some(job);
-                    if active { return poll(sequence, scope); }
-                    let failed = job_failed(state.job.as_ref().expect("stored job"));
-                    let notice = if failed { Outcome::Error("用量任务未成功完成，请重试或查看主机任务详情".into()) }
-                        else { Outcome::Success(if state.rebuild_job { "Codex 重建完成；主机未返回备份凭证" } else { "用量同步完成" }.into()) };
-                    return Task::batch([Task::done(notice), Task::done(Outcome::Refresh), update(state, current, client, Event::Run(Action::Load))]);
+                    let Some(notice) = notice else { return poll(sequence, scope); };
+                    return Task::batch([Task::done(notice), Task::done(refresh), update(state, current, client, Event::Run(Action::Load))]);
                 }
             }
         }
@@ -122,12 +144,9 @@ pub fn update(state: &mut State, current: Option<Identity>, client: Result<vw_ga
 
             if state.scope.as_ref() != Some(&scope) || state.pending { return Task::none(); }
             let active = state.job.as_ref().is_some_and(|job| !terminal(job));
-            if active && matches!(action, Action::Sync | Action::Rebuild | Action::Rollup | Action::Backfill) { return Task::none(); }
-            if matches!(action, Action::Rebuild) && !state.confirm_rebuild { return Task::none(); }
+            if active && matches!(action, Action::Sync | Action::Rollup | Action::Backfill) { return Task::none(); }
             let job_id = state.job.as_ref().map(|j| j.task_id.clone());
             if matches!(action, Action::Cancel | Action::Poll) && !active { return Task::none(); }
-            if matches!(action, Action::Sync | Action::Rebuild) { state.rebuild_job = matches!(action, Action::Rebuild); }
-            state.confirm_rebuild = false;
             state.pending = true;
             state.sequence = state.sequence.wrapping_add(1);
             state.error = None;
@@ -143,7 +162,6 @@ pub fn update(state: &mut State, current: Option<Identity>, client: Result<vw_ga
                         Action::Cancel => client.usage_cancel_job(&target, job_id.as_deref().unwrap_or_default()).await.map(Reply::Job),
                         Action::Poll => client.usage_job(&target, job_id.as_deref().unwrap_or_default()).await.map(Reply::Job),
                         Action::Save(preferences) => client.usage_save_scan_preferences(&target, preferences).await.map(Reply::Saved),
-                        Action::Rebuild => client.usage_rebuild_codex(&target).await.map(Reply::Job),
                         Action::Rollup => client.usage_rollup(&target).await.map(Reply::Job),
                         Action::Backfill => client.usage_backfill(&target).await.map(Reply::Job),
                     };

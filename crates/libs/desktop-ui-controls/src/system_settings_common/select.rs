@@ -34,7 +34,7 @@ pub fn settings_select<'a, Message: Clone + 'a, T: Clone + PartialEq + ToString 
     let labels = options.iter().map(ToString::to_string).collect();
     let label = selected.map(|value| value.to_string());
     let enabled = !options.is_empty();
-    let trigger = trigger(label.clone().unwrap_or_default(), label.is_none(), enabled, None);
+    let trigger = trigger(label.clone().unwrap_or_default(), label.is_none(), enabled, None, None);
     let values = Rc::clone(&options);
     SettingsSelect {
         trigger,
@@ -48,6 +48,7 @@ pub fn settings_select<'a, Message: Clone + 'a, T: Clone + PartialEq + ToString 
         on_open: None,
         width: Length::Fixed(280.0),
         toolbar_icon: None,
+        trigger_height: None,
     }
 }
 
@@ -63,11 +64,19 @@ pub struct SettingsSelect<'a, T, Message> {
     on_open: Option<(String, Message)>,
     width: Length,
     toolbar_icon: Option<Icon>,
+    trigger_height: Option<f32>,
 }
 
 impl<T, Message> SettingsSelect<'_, T, Message> {
     pub fn width(mut self, width: impl Into<Length>) -> Self {
         self.width = width.into();
+        self
+    }
+
+    /// Set the trigger height without changing the menu row size.
+    pub fn height(mut self, height: f32) -> Self {
+        self.trigger_height = Some(height);
+        self.rebuild_trigger();
         self
     }
 
@@ -99,11 +108,19 @@ impl<T, Message> SettingsSelect<'_, T, Message> {
 
     fn rebuild_trigger(&mut self) {
         let label = self.label.as_ref().unwrap_or(&self.placeholder);
-        self.trigger = trigger(label.clone(), self.label.is_none(), self.enabled, self.toolbar_icon);
+        self.trigger = trigger(
+            label.clone(), self.label.is_none(), self.enabled, self.toolbar_icon, self.trigger_height,
+        );
     }
 }
 
-fn trigger(value: String, placeholder: bool, enabled: bool, toolbar_icon: Option<Icon>) -> Element<'static, ()> {
+fn trigger(
+    value: String,
+    placeholder: bool,
+    enabled: bool,
+    toolbar_icon: Option<Icon>,
+    trigger_height: Option<f32>,
+) -> Element<'static, ()> {
     let mut content = row![];
     if let Some(icon) = toolbar_icon {
         content = content.push(icon_svg(icon, 14.0).style(styles::icon));
@@ -119,11 +136,14 @@ fn trigger(value: String, placeholder: bool, enabled: bool, toolbar_icon: Option
         .spacing(if toolbar_icon.is_some() { 6 } else { 12 })
         .height(Length::Fill)
         .align_y(Alignment::Center);
+    let custom_height = trigger_height.or(toolbar_icon.map(|_| 30.0));
+    let vertical_padding = if custom_height.is_some() { 0.0 } else { 9.0 };
+    let horizontal_padding = if toolbar_icon.is_some() { 8.0 } else { 12.0 };
     button(content)
         .on_press_maybe(enabled.then_some(()))
-        .padding(if toolbar_icon.is_some() { [0, 8] } else { [9, 12] })
+        .padding([vertical_padding, horizontal_padding])
         .width(Length::Fill)
-        .height(if toolbar_icon.is_some() { 30.0 } else { SETTINGS_CONTROL_HEIGHT })
+        .height(custom_height.unwrap_or(SETTINGS_CONTROL_HEIGHT))
         .style(move |theme: &Theme, _| button::Style {
             text_color: styles::label(theme, placeholder, enabled),
             ..Default::default()

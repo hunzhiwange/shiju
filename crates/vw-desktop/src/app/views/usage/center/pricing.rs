@@ -5,6 +5,10 @@ use desktop_usage::center::{Outcome, pricing as domain};
 use iced::Element;
 fn map(outcome: Outcome<Event>) -> Message {
     match outcome {
+        Outcome::Event(Event::None) => Message::None,
+        Outcome::Event(Event::Help(effect)) => {
+            crate::app::components::text_editor_context_menu::text_context_message(effect)
+        }
         Outcome::Event(event) => {
             Message::View(ViewMessage::UsageCenter(super::Event::Pricing(event)))
         }
@@ -18,5 +22,6 @@ fn map(outcome: Outcome<Event>) -> Message {
     }
 }
 pub fn overlay<'a>(app: &'a App, base: Element<'a, Message>) -> Element<'a, Message> {
-    domain::overlay(&app.usage_center.pricing, super::identity(app), base, map)
+    let i18n = crate::app::i18n::I18n::new(app.general_settings.desktop_locale);
+    domain::overlay(&app.usage_center.pricing, super::identity(app), base, i18n, map)
 }

@@ -33,6 +33,7 @@ fn pricing_outcome(outcome: Outcome<pricing::Event>) -> Event {
 }
 fn scan_outcome(outcome: Outcome<scan::Event>) -> Event {
     match outcome {
+        Outcome::Event(scan::Event::RefreshHead) => Event::RefreshScan,
         Outcome::Event(e) => Event::Scan(e),
         Outcome::Refresh => Event::Refresh,
         Outcome::Error(e) => Event::Scan(scan::Event::Feedback(false, e)),
@@ -68,11 +69,17 @@ fn update_event(input: &mut Input<'_>, event: Event) -> Task<Event> {
             }
             Task::none()
         }
-        Event::Tab(tab) => { state.tab = tab; Task::none() }
+        Event::Tab(tab) => {
+            if state.tab != tab {
+                state.groups.close_table_controls();
+            }
+            state.tab = tab;
+            Task::none()
+        }
         Event::Hero(event) => { super::hero::update(&mut state.hero, event); state.charts.metric = state.hero.metric; Task::none() }
         Event::Range(event) => {
             if matches!(event, super::range_picker::Event::Open) {
-                state.scope_menu_open = false;
+                state.filter_menu = None;
             }
             if let Some(range) = state.range_picker.update(event, &state.query.range) {
                 state.query.range = range;
@@ -109,6 +116,10 @@ fn update_event(input: &mut Input<'_>, event: Event) -> Task<Event> {
             charts::update(&mut state.charts, current, visible, state.open, state.sequence, event)
                 .map(Event::Charts)
         }
+        Event::Groups(groups::Event::ColumnError(error)) => {
+            input.feedback = Some((false, format!("列设置保存/加载失败：{error}")));
+            Task::none()
+        }
         Event::Groups(event) => {
             groups::update(&mut state.groups, current, visible, state.open, state.sequence, event)
                 .map(Event::Groups)
@@ -123,13 +134,13 @@ fn update_event(input: &mut Input<'_>, event: Event) -> Task<Event> {
             event,
         )
         .map(Event::Logs),
-        Event::Filter(super::overview::Change::ScopeMenu(open)) => {
-            state.scope_menu_open = open;
-            if open { state.range_picker.open = false; }
+        Event::Filter(super::overview::Change::OpenMenu(menu)) => {
+            state.filter_menu = menu;
+            if menu.is_some() { state.range_picker.open = false; }
             Task::none()
         }
         Event::Filter(change) => {
-            state.scope_menu_open = false;
+            state.filter_menu = None;
             if matches!(change, super::overview::Change::Clear) {
                 if let Some(query) = &mut state.logs.query {
                     query.filter.status = None;
@@ -162,7 +173,7 @@ fn update_event(input: &mut Input<'_>, event: Event) -> Task<Event> {
                 let changed = last.last_complete_scan != previous;
                 state.scan.last = Some(last);
                 if changed {
-                    return Task::batch([update(input, Event::Refresh), update(input, Event::TodayRefresh)]);
+                    return Task::batch([update(input, Event::RefreshScan), update(input, Event::TodayRefresh)]);
                 }
             }
             Task::none()
@@ -174,7 +185,7 @@ fn update_event(input: &mut Input<'_>, event: Event) -> Task<Event> {
                 vw_api_usage::UsageRange::Custom { live_end_time: false, .. });
             if rolling && !state.loading && state.last_query.is_none_or(|last|
                 now.saturating_duration_since(last).as_secs() >= 60) {
-                return update(input, Event::Refresh);
+                return update(input, Event::RefreshScan);
             }
             if state.status_pending || state.last_status.is_some_and(|last|
                 now.saturating_duration_since(last).as_secs() < 5) { return Task::none(); }
@@ -201,18 +212,20 @@ fn update_event(input: &mut Input<'_>, event: Event) -> Task<Event> {
             state.accept(current.as_ref(), visible, ticket, &scope, result);
             Task::none()
         }
-        Event::Refresh => {
+        Event::Refresh | Event::RefreshScan => {
             if !visible || !state.open { return Task::none(); }
+            let preserve = matches!(event, Event::RefreshScan);
             if let Ok(range) = state.range_picker.refresh_range(&state.query.range) { state.query.range = range; }
             state.scope = current.clone();
             state.status_pending = false;
             let query = state.query.clone();
-            let ticket = state.begin();
+            let ticket = state.begin_refresh(preserve);
             let mut log_query = query.clone();
             if let Some(previous) = &state.logs.query {
                 log_query.filter.status = previous.filter.status;
             }
-            let logs = logs::refresh(
+            let refresh_logs = if preserve { logs::refresh_head } else { logs::refresh };
+            let logs = refresh_logs(
                 &mut state.logs,
                 current.clone(),
                 visible,
@@ -268,7 +281,7 @@ pub fn update(input: &mut Input<'_>, event: Event) -> Task<Event> {
     }
     let resumed = matches!(&event, Event::ActivityChanged) && input.visible && input.state.open;
     let reload_scope = scope_changed && input.state.open && input.visible
-        && !matches!(&event, Event::Close | Event::Load(_) | Event::Refresh | Event::Filter(_));
+        && !matches!(&event, Event::Close | Event::Load(_) | Event::Refresh | Event::RefreshScan | Event::Filter(_));
     let task = if resumed { update_event(input, Event::Refresh) }
         else { update_event(input, event) };
     let task = if reload_scope { Task::batch([task, update_event(input, Event::Refresh)]) }

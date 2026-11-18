@@ -237,7 +237,11 @@ impl App {
             &mut self.toast_state.active_toast, &mut self.toast_state.next_toast_id, kind, message.into(),
         );
         crate::app::message::after(
-            Duration::from_millis(2200),
+            if matches!(kind, ToastKind::Summary { .. }) {
+                Duration::from_secs(3)
+            } else {
+                Duration::from_millis(2200)
+            },
             crate::app::Message::Notification(NotificationMessage::HideToast(id)),
         )
     }

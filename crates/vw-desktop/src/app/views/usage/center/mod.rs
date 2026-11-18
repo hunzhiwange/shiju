@@ -37,6 +37,16 @@ pub(crate) fn is_visible(app: &App) -> bool {
 pub fn update(app: &mut App, event: Event) -> Task<Message> {
     let current = identity(app);
     let visible = is_usage_screen(app);
+    let event = match event {
+        Event::Scan(scan::Event::Completed(scope, success, summary)) => {
+            return if visible && app.usage_center.open && current.as_ref() == Some(&scope) {
+                app.show_toast(crate::app::state::ToastKind::Summary { success }, summary)
+            } else {
+                Task::none()
+            };
+        }
+        event => event,
+    };
     let mut input = desktop_usage::center::update::Input {
         state: &mut app.usage_center,
         current,
@@ -83,6 +93,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
     let content = desktop_usage::center::view::view(&app.usage_center, known_cost, i18n)
         .map(|event| match event {
             Event::Logs(event) => logs::map(event),
+            Event::Groups(event) => groups::map(event),
             event => Message::View(ViewMessage::UsageCenter(event)),
         });
     display::overlay(app, pricing::overlay(app, scan::overlay(app, content)))

@@ -2,7 +2,11 @@
 use crate::Identity;
 use vw_gateway_client::GatewayClient;
 type Message = Event;
-use desktop_ui_controls::system_settings_common::*;
+use desktop_i18n::I18n;
+use desktop_ui_controls::{
+    selectable_text::markdown_selection::SelectionMessage,
+    system_settings_common::{*, help::settings_selectable_help_label},
+};
 use desktop_assets::assets::Icon;
 use iced::{Element, Length, Task, Theme, widget::{button, checkbox, column, container, row, rule, text}};
 use gateway_usage_price::{ModelsDevEntry, ModelsDevSyncConfig, ModelsDevSyncState};
@@ -244,9 +248,10 @@ pub(crate) fn picker<'a, M: Clone + 'static>(
     settings_modal_overlay(Some(base), map(cancel), Element::from(card).map(map))
 }
 
-pub(crate) fn sync_card<'a, M: Clone + 'static>(
+pub(crate) fn sync_card<'a, M: SelectionMessage + 'static>(
     state: &'a State,
     more: Element<'a, M>,
+    i18n: I18n,
     map: fn(Event) -> M,
 ) -> Element<'a, M> {
     let ready = !state.busy && state.catalog_ready();
@@ -277,8 +282,16 @@ pub(crate) fn sync_card<'a, M: Clone + 'static>(
     ].spacing(8).align_y(iced::Alignment::Center);
     let mut content = column![row![
         icon_svg(Icon::ArrowRepeat, 20.0),
-        column![text(title).size(16), text(summary).size(12).style(text::secondary)]
-            .spacing(4).width(Length::Fill),
+        column![
+            settings_selectable_help_label(
+                i18n,
+                None,
+                "models.dev 同步怎么工作",
+                text(title).size(16),
+                "启动时拉取所选模型的最新价格，最多每 6 小时一次；可以自动包含常用模型。",
+            ),
+            text(summary).size(12).style(text::secondary),
+        ].spacing(4).width(Length::Fill),
         controls,
     ].spacing(12).align_y(iced::Alignment::Center)].spacing(8);
     if !state.progress.is_empty() { content = content.push(text(&state.progress).size(12).style(text::secondary)); }

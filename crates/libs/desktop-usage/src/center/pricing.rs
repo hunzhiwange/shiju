@@ -2,6 +2,10 @@
 use crate::Identity;
 use super::Outcome;
 
+use desktop_ui_controls::{
+    selectable_text::markdown_selection::SelectionMessage,
+    text_editor_context_menu::TextContextEffect,
+};
 use iced::{Task, widget::text_editor};
 use gateway_usage_price::{ModelPricingInfo, StoredModelPricing, BillingDefaults, BillingModelSource, UsagePricingStorage};
 use gateway_usage_scan::UsageScanScope;
@@ -37,6 +41,8 @@ pub enum ImportView { Catalog, Json }
 #[derive(Clone, Debug)]
 pub enum Event {
     Feedback(bool, String),
+    Help(TextContextEffect),
+    None,
     Models(crate::models::Event), Files, CloseFiles, CancelDelete, Page(usize),
     BillingEdit, BillingCancel, BillingField(String, BillingModelSource), BillingSave,
     BillingLoaded(u64, Identity, Result<BillingDefaults, String>),
@@ -49,6 +55,25 @@ pub enum Event {
     Loaded(u64, Identity, Result<Vec<StoredModelPricing>, String>),
     Written(u64, Identity, Result<(), String>),
 }
+
+impl SelectionMessage for Outcome<Event> {
+    fn none() -> Self {
+        message(Event::None)
+    }
+
+    fn copy(text: String) -> Self {
+        Self::context(TextContextEffect::Copy(text))
+    }
+
+    fn context(effect: TextContextEffect) -> Self {
+        message(Event::Help(effect))
+    }
+
+    fn selection(_: String, _: usize, _: usize, _: Option<String>) -> Self {
+        Self::none()
+    }
+}
+
 impl State {
     pub fn close(&mut self) {
         let sequence = self.sequence.wrapping_add(1);
@@ -143,7 +168,7 @@ pub fn update(state: &mut State, current: Option<Identity>, visible: bool, clien
         Event::CloseFiles => state.files_open = false,
         Event::CancelDelete => state.pending_delete = None,
         Event::Page(page) => state.page = page.min(state.prices.len().saturating_sub(1) / 20),
-        Event::Feedback(..) => {},
+        Event::Feedback(..) | Event::Help(_) | Event::None => {},
         Event::Close if !state.busy && !state.billing_busy && !state.storage_busy => { state.close(); }
         Event::Open | Event::Reload | Event::RefreshPrices => {
             if matches!(event, Event::Reload) && (state.billing_busy || state.storage_busy) { return Task::none(); }

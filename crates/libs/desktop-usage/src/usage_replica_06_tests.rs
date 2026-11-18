@@ -15,18 +15,17 @@ fn usage_replica_06_terminal_feedback_distinguishes_failure_and_cancellation() {
 }
 
 #[test]
-fn usage_replica_06_close_keeps_job_and_clears_rebuild_confirmation() {
-    let mut state = State { open: true, confirm_rebuild: true, job: Some(snapshot("Running")), ..State::default() };
+fn usage_replica_06_close_keeps_job() {
+    let mut state = State { open: true, job: Some(snapshot("Running")), ..State::default() };
     let _task = update(&mut state, None, Err("unused transport".into()), Event::Close);
     assert!(!state.open);
-    assert!(!state.confirm_rebuild);
     assert_eq!(state.job.as_ref().unwrap().task_id, "fixture-job");
 }
 
 #[test]
-fn usage_replica_06_unscoped_rebuild_never_starts_work() {
+fn usage_replica_06_unscoped_sync_never_starts_work() {
     let mut state = State::default();
-    let _task = update(&mut state, None, Err("unused transport".into()), Event::Run(Action::Rebuild));
+    let _task = update(&mut state, None, Err("unused transport".into()), Event::Run(Action::Sync));
     assert!(!state.pending);
     assert!(state.job.is_none());
 }

@@ -9,7 +9,7 @@ pub struct State {
     pub tab: DetailTab,
     pub hero: super::hero::State,
     pub range_picker: super::range_picker::State,
-    pub(super) scope_menu_open: bool,
+    pub(super) filter_menu: Option<super::overview::FilterMenu>,
     pub(super) scope: Option<crate::Identity>,
     pub(super) activity: Option<(crate::Identity, bool)>,
     pub(super) activity_client: Option<vw_gateway_client::GatewayClient>,
@@ -43,26 +43,28 @@ impl State {
         self.result = None;
         self.scan.open = false;
         self.range_picker.open = false;
-        self.scope_menu_open = false;
+        self.filter_menu = None;
     }
 
-    pub fn begin(&mut self) -> u64 {
-        self.charts.loading = true;
-        self.charts.result = None;
-        self.groups.loading = true;
-        self.groups.result = None;
+    pub(super) fn begin_refresh(&mut self, preserve: bool) -> u64 {
+        if !preserve {
+            self.charts.result = None;
+            self.groups.result = None;
+            self.result = None;
+        }
+        self.charts.loading = self.charts.result.is_none();
+        self.groups.loading = self.groups.result.is_none();
         self.last_query = Some(std::time::Instant::now());
         self.open = true;
         self.sequence = self.sequence.wrapping_add(1);
         self.loading = true;
-        self.result = None;
         self.sequence
     }
 }
 
 impl Default for State {
     fn default() -> Self {
-        Self { today: None, today_sequence: 0, tab: DetailTab::default(), hero: super::hero::State::default(), range_picker: super::range_picker::State::default(), scope_menu_open: false, scope: None, activity: None, activity_client: None, activity_pending: false, status_pending: false, last_status: None, last_query: None, display: super::display::State::default(), pricing: super::pricing::State::default(), scan: super::scan::State::default(), charts: super::charts::State::default(), logs: super::logs::State::default(), groups: super::groups::State::default(), query: super::overview::default_query(), open: false, sequence: 0, loading: false, result: None }
+        Self { today: None, today_sequence: 0, tab: DetailTab::default(), hero: super::hero::State::default(), range_picker: super::range_picker::State::default(), filter_menu: None, scope: None, activity: None, activity_client: None, activity_pending: false, status_pending: false, last_status: None, last_query: None, display: super::display::State::default(), pricing: super::pricing::State::default(), scan: super::scan::State::default(), charts: super::charts::State::default(), logs: super::logs::State::default(), groups: super::groups::State::default(), query: super::overview::default_query(), open: false, sequence: 0, loading: false, result: None }
     }
 }
 
@@ -71,7 +73,9 @@ impl State {
         scope: &crate::Identity, result: Result<UsageSummary, String>) {
         if self.open && self.loading && self.sequence == ticket && current == Some(scope) && visible {
             self.loading = false;
-            self.result = Some(result);
+            if result.is_ok() || !self.result.as_ref().is_some_and(Result::is_ok) {
+                self.result = Some(result);
+            }
         }
     }
     pub fn missing_scope(&mut self) {

@@ -27,6 +27,9 @@ pub const APPS: [(&str, &str); 11] = [
 pub fn default_query() -> UsageQuery {
     UsageQuery { range: UsageRange::All, filter: UsageFilter::default(), cursor: None, limit: None }
 }
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum FilterMenu { Scope, Source }
+
 #[derive(Clone, Debug)]
 pub enum Change {
     App(String),
@@ -35,7 +38,7 @@ pub enum Change {
     Source(Option<UsageSourceKind>),
     Range(UsageRange),
     Scope(Option<UsageProvider>, Option<String>),
-    ScopeMenu(bool),
+    OpenMenu(Option<FilterMenu>),
     Clear,
 }
 pub fn apply(query: &mut UsageQuery, change: Change) {
@@ -62,7 +65,7 @@ pub fn apply(query: &mut UsageQuery, change: Change) {
             query.filter.provider = provider;
             query.filter.request_model = model.and_then(optional);
         }
-        Change::ScopeMenu(_) => return,
+        Change::OpenMenu(_) => return,
         Change::Source(value) => query.filter.source_kind = value,
         Change::Range(value) => query.range = value,
         Change::Clear => query.filter = UsageFilter::default(),
@@ -83,14 +86,14 @@ const SOURCES: [(&str, Option<UsageSourceKind>); 4] = [
     ("识矩", Some(UsageSourceKind::Shiju)),
 ];
 
-pub fn view(query: &UsageQuery, menu_open: bool) -> Element<'_, Change> {
-    primary_filters(query, &[], menu_open)
+pub fn view(query: &UsageQuery, open_menu: Option<FilterMenu>) -> Element<'_, Change> {
+    primary_filters(query, &[], open_menu)
 }
 
 pub(super) fn primary_filters<'a>(
     query: &'a UsageQuery,
     options: &[ScopeOption],
-    menu_open: bool,
+    open_menu: Option<FilterMenu>,
 ) -> Element<'a, Change> {
     let mut apps = row![
         button(
@@ -148,17 +151,20 @@ pub(super) fn primary_filters<'a>(
     ));
     row![
         container(apps).width(Length::Fill).max_width(448),
-        scope_menu(query, options, menu_open),
+        scope_menu(query, options, open_menu),
+        source_menu(query, open_menu),
     ]
     .spacing(9)
     .align_y(iced::Alignment::Center)
     .into()
 }
 
-fn scope_menu<'a>(query: &UsageQuery, options: &[ScopeOption], open: bool) -> Element<'a, Change> {
+fn scope_menu<'a>(
+    query: &UsageQuery,
+    options: &[ScopeOption],
+    open_menu: Option<FilterMenu>,
+) -> Element<'a, Change> {
     let filter = &query.filter;
-    let current_source = SOURCES.iter().find(|(_, source)| *source == filter.source_kind)
-        .map_or("全部来源", |(label, _)| *label);
     let current_scope = options.iter().find(|option| {
         option.provider == filter.provider && option.model == filter.request_model
     }).map(|option| option.label.as_str()).or_else(|| filter.request_model.as_deref()).or_else(|| {
@@ -168,71 +174,87 @@ fn scope_menu<'a>(query: &UsageQuery, options: &[ScopeOption], open: bool) -> El
             None => None,
         }
     });
-    let label = match (current_scope, filter.source_kind) {
-        (Some(scope), Some(_)) => format!("{scope} · {current_source}"),
-        (Some(scope), None) => scope.to_owned(),
-        (None, Some(_)) => current_source.to_owned(),
-        (None, None) => "供应商 / 模型".into(),
-    };
+    filter_dropdown(
+        FilterMenu::Scope, open_menu, Icon::ListUl, current_scope.unwrap_or("供应商 / 模型"), 164,
+        || {
+            let mut items = column![menu_item(
+                "全部供应商 / 模型".into(), Change::Scope(None, None),
+                filter.provider.is_none() && filter.request_model.is_none(),
+            )].spacing(2).width(Length::Fill);
+            for option in options {
+                let selected = option.provider == filter.provider && option.model == filter.request_model;
+                let change = Change::Scope(option.provider.clone(), option.model.clone());
+                items = items.push(menu_item(option.label.clone(), change, selected));
+            }
+            column![
+                scrollable(items).height(Length::Shrink).direction(scrollable::Direction::Vertical(
+                    scrollable::Scrollbar::new().width(4).scroller_width(4).spacing(3)
+                )),
+                rule::horizontal(1),
+                menu_item("清除所有筛选".into(), Change::Clear, false),
+            ].spacing(4).into()
+        },
+    )
+}
+
+fn source_menu<'a>(query: &UsageQuery, open_menu: Option<FilterMenu>) -> Element<'a, Change> {
+    let active = query.filter.source_kind;
+    let label = SOURCES.iter().find(|(_, source)| *source == active)
+        .map_or("全部来源", |(label, _)| *label);
+    filter_dropdown(FilterMenu::Source, open_menu, Icon::Funnel, label, 126, || {
+        column(SOURCES.map(|(label, source)| {
+            menu_item(label.into(), Change::Source(source), source == active)
+        })).spacing(2).into()
+    })
+}
+
+fn filter_dropdown<'a>(
+    menu: FilterMenu,
+    open_menu: Option<FilterMenu>,
+    icon: Icon,
+    label: &str,
+    width: u16,
+    content: impl FnOnce() -> Element<'a, Change>,
+) -> Element<'a, Change> {
+    let open = open_menu == Some(menu);
     let trigger = button(container(row![
-        icon_svg(Icon::ListUl, 15.0),
-        SettingsSelectLabel::new(label),
+        icon_svg(icon, 15.0),
+        SettingsSelectLabel::new(label.to_owned()),
         icon_svg(Icon::ChevronDown, 11.0),
     ].spacing(8).align_y(iced::Alignment::Center)).center_y(Length::Fill))
-    .width(164)
+    .width(width)
     .height(SETTINGS_CONTROL_HEIGHT)
     .padding([0, 9])
     .style(rounded_action_btn_style)
-    .on_press(Change::ScopeMenu(!open));
+    .on_press(Change::OpenMenu(if open { None } else { Some(menu) }));
     if !open {
         return trigger.into();
     }
-
-    let caption = |label: &'static str| container(text(label).size(12).style(text::secondary))
-        .padding([4, 8]);
-    let mut items = column![caption("来源")].spacing(2).width(Length::Fill);
-    for (label, source) in SOURCES {
-        items = items.push(menu_item(label.into(), Change::Source(source), filter.source_kind == source));
-    }
-    items = items.push(rule::horizontal(1)).push(caption("供应商 / 模型"))
-        .push(menu_item("全部供应商 / 模型".into(), Change::Scope(None, None),
-            filter.provider.is_none() && filter.request_model.is_none()));
-    for option in options {
-        let selected = option.provider == filter.provider && option.model == filter.request_model;
-        let change = Change::Scope(option.provider.clone(), option.model.clone());
-        items = items.push(menu_item(option.label.clone(), change, selected));
-    }
-    let footer = menu_item("清除筛选".into(), Change::Clear, false);
-    let panel = container(column![
-        scrollable(items).height(Length::Shrink).direction(scrollable::Direction::Vertical(
-            scrollable::Scrollbar::new().width(4).scroller_width(4).spacing(3)
-        )),
-        rule::horizontal(1),
-        footer,
-    ].spacing(4))
-        .padding(7)
-        .width(292)
+    let panel = container(content()).padding(7)
+        .width(if menu == FilterMenu::Scope { 292 } else { width })
         .max_height(410)
-        .style(|theme: &Theme| {
-            let palette = theme.palette();
-            let surface = iced::Color { a: 1.0, ..palette.background };
-            let mut style = settings_modal_card_style(theme).background(surface);
-            style.border = iced::Border {
-                color: palette.text.scale_alpha(0.13),
-                width: 1.0,
-                radius: 10.0.into(),
-            };
-            style.shadow.color = iced::Color::BLACK.scale_alpha(0.12);
-            style.shadow.blur_radius = 12.0;
-            style.shadow.offset.y = 4.0;
-            style
-        });
+        .style(filter_popup_style);
     BelowOverlay::new(trigger, panel)
         .show(true)
         .gap(6.0)
-        .on_close(Change::ScopeMenu(false))
+        .on_close(Change::OpenMenu(None))
         .capture_outside_click(true)
         .into()
+}
+
+pub(super) fn filter_popup_style(theme: &Theme) -> container::Style {
+    let palette = theme.palette();
+    let surface = iced::Color { a: 1.0, ..palette.background };
+    let mut style = settings_modal_card_style(theme).background(surface);
+    style.border = iced::Border {
+        color: palette.text.scale_alpha(0.13),
+        width: 1.0,
+        radius: 12.0.into(),
+    };
+    style.shadow.color = iced::Color::BLACK.scale_alpha(0.12);
+    style.shadow.blur_radius = 12.0;
+    style.shadow.offset.y = 4.0;
+    style
 }
 
 fn menu_item<'a>(label: String, change: Change, selected: bool) -> Element<'a, Change> {

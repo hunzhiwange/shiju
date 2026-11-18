@@ -178,18 +178,23 @@ pub fn view_with_cost<'a>(
                     .width(Length::Fill)
                     .style(move |theme, status| {
                         let mut style = rounded_action_btn_style(theme, status);
-                        style.border.width = 0.0;
-                        style.border.radius = 0.0.into();
-                        if matches!(status, button::Status::Active) {
-                            style.background = None;
-                        }
-                        style.text_color = theme.palette().text;
+                        style.border = iced::border::rounded(9);
+                        let ink = theme.palette().text;
+                        style.background = match status {
+                            button::Status::Hovered => Some(ink.scale_alpha(0.025).into()),
+                            button::Status::Pressed => Some(ink.scale_alpha(0.048).into()),
+                            _ => None,
+                        };
+                        style.text_color = ink;
                         style
                     })
                     .on_press(Event::Select(metric)),
-                container(text(help).size(12)).padding(10).style(container::rounded_box),
+                text(help).size(12),
                 tooltip::Position::Top,
             )
+            .gap(5)
+            .padding(10)
+            .style(super::view::metric_tooltip_style)
             .snap_within_viewport(true),
         );
     }

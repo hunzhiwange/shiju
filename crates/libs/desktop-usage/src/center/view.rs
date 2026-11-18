@@ -1,9 +1,10 @@
-use super::{event::Event, overview, scan, state::DetailTab};
+use super::{event::Event, groups, overview, scan, state::DetailTab};
 use desktop_assets::assets::{Icon, get_icon};
 use desktop_ui_controls::system_settings_common::{
-    SETTINGS_CONTROL_HEIGHT, rounded_action_btn_style, settings_modal_overlay_with_backdrop_dismiss,
+    SETTINGS_CONTROL_HEIGHT, rounded_action_btn_style, settings_inactive_view,
     settings_right_drawer_overlay,
 };
+use desktop_ui_controls::tooltip::tooltip_dark_style;
 use iced::{
     Element, Length, Theme,
     widget::{
@@ -63,6 +64,9 @@ pub fn view<'a>(
         text(sync_help).size(12),
         tooltip::Position::Bottom,
     )
+    .gap(6)
+    .padding(7)
+    .style(tooltip_dark_style)
     .snap_within_viewport(true);
     let settings = tooltip(
         button(container(header_icon(Icon::Sliders)).center_y(Length::Fill))
@@ -73,6 +77,9 @@ pub fn view<'a>(
         text("用量设置").size(12),
         tooltip::Position::Bottom,
     )
+    .gap(6)
+    .padding(7)
+    .style(tooltip_dark_style)
     .snap_within_viewport(true);
     let sync_controls = container(
         row![sync, rule::vertical(1), settings]
@@ -99,10 +106,7 @@ pub fn view<'a>(
     ]
     .spacing(7)
     .align_y(iced::Alignment::Center);
-    let mut options =
-        vec![overview::ScopeOption {
-            label: "供应商 / 模型".into(), provider: None, model: None
-        }];
+    let mut options = Vec::new();
     if let Some(Ok((providers, models))) = &state.groups.result {
         for provider in providers {
             let label = match &provider.provider {
@@ -126,10 +130,15 @@ pub fn view<'a>(
         }
     }
     // Own the option vector in the picker; do not return a borrow of local data.
-    let filters = overview::primary_filters(&state.query, &options).map(Event::Filter);
+    let popup_open = state.range_picker.open || state.filter_menu.is_some();
+    let background = |content: Element<'a, Event>| {
+        if popup_open { settings_inactive_view(content) } else { content }
+    };
+    let filters = overview::primary_filters(&state.query, &options, state.filter_menu).map(Event::Filter);
+    let filters = if state.range_picker.open { settings_inactive_view(filters) } else { filters };
     let summary = state.result.as_ref().and_then(|r| r.as_ref().ok());
     let hero =
-        super::hero::view_with_cost(&state.hero, summary, state.loading, known_cost.as_deref())
+        super::hero::view_with_cost(&state.hero, summary, state.loading && summary.is_none(), known_cost.as_deref())
             .map(Event::Hero);
     let mut chart_section = column![].width(Length::Fill).spacing(8);
     match &state.result {
@@ -161,45 +170,48 @@ pub fn view<'a>(
         counts.map(|(providers, _)| providers.len() as u64),
         counts.map(|(_, models)| models.len() as u64),
     ];
-    let tabs: Element<'_, Event> = if state.tab == DetailTab::Logs {
-        responsive(move |size| {
-            let tabs = detail_tabs(state.tab, counts);
-            let filters = container(super::logs::toolbar(&state.logs).map(Event::Logs))
-                .align_right(Length::Fill)
-                .padding([0, 8]);
-            if size.width >= 500.0 {
-                row![tabs, filters].spacing(8).align_y(iced::Alignment::Center).into()
-            } else {
-                column![tabs, filters].spacing(4).into()
-            }
-        })
-        .height(Length::Shrink)
-        .into()
-    } else {
-        detail_tabs(state.tab, counts)
+    let group_table = match state.tab {
+        DetailTab::Logs => None,
+        DetailTab::Providers => Some(groups::Table::Providers),
+        DetailTab::Models => Some(groups::Table::Models),
     };
-    let detail: Element<'_, Event> = match state.tab {
-        DetailTab::Logs => super::logs::table(&state.logs, i18n).map(Event::Logs),
-        DetailTab::Providers => container(super::groups::provider_view(&state.groups).map(Event::Groups))
-            .padding(14).into(),
-        DetailTab::Models => container(super::groups::model_view(&state.groups).map(Event::Groups))
-            .padding(14).into(),
+    let tabs = responsive(move |size| {
+        let tabs = detail_tabs(state.tab, counts);
+        let toolbar = match group_table {
+            Some(table) => groups::toolbar(&state.groups, table).map(Event::Groups),
+            None => super::logs::toolbar(&state.logs).map(Event::Logs),
+        };
+        let toolbar = container(toolbar)
+            .align_right(Length::Fill)
+            .padding([0.0, super::logs::TABLE_INSET]);
+        if size.width >= 500.0 {
+            row![tabs, toolbar].spacing(8).align_y(iced::Alignment::Center).into()
+        } else {
+            column![tabs, toolbar].spacing(4).into()
+        }
+    })
+    .height(Length::Shrink);
+    let detail = match group_table {
+        Some(table) => groups::table_view(&state.groups, table, i18n).map(Event::Groups),
+        None => super::logs::table(&state.logs, i18n).map(Event::Logs),
     };
     let details = container(column![tabs, rule::horizontal(1), detail])
         .width(Length::Fill)
         .style(panel_style);
-    let filters = column![
-        row![state.range_picker.view().map(Event::Range), filters,]
-            .spacing(12)
-            .align_y(iced::Alignment::Center),
-        overview::source_filters(&state.query).map(Event::Filter),
+    let date = state.range_picker.view().map(Event::Range);
+    let date = if state.filter_menu.is_some() { settings_inactive_view(date) } else { date };
+    let filters = row![
+        date,
+        container(rule::vertical(1)).height(18),
+        filters,
     ]
-    .spacing(6)
+    .spacing(10)
+    .align_y(iced::Alignment::Center)
     .width(Length::Fill);
     let body = column![
-        column![header, rule::horizontal(1), filters].spacing(11),
-        overview_card,
-        details,
+        column![background(header.into()), rule::horizontal(1), filters].spacing(11),
+        background(overview_card.into()),
+        background(details.into()),
     ]
     .spacing(16);
     let page = scrollable(container(body).padding([7, 7]).max_width(1280).center_x(Length::Fill))
@@ -207,22 +219,13 @@ pub fn view<'a>(
             scrollable::Scrollbar::new().width(4).scroller_width(4),
         ))
         .height(Length::Fill);
-    let drawer = if state.tab == DetailTab::Logs {
-        super::logs::detail_drawer(&state.logs)
-            .map(|(close, drawer)| (Event::Logs(close), drawer.map(Event::Logs)))
-    } else {
-        None
+    let drawer = match group_table {
+        Some(_) => groups::detail_drawer(&state.groups)
+            .map(|(close, drawer)| (Event::Groups(close), drawer.map(Event::Groups))),
+        None => super::logs::detail_drawer(&state.logs)
+            .map(|(close, drawer)| (Event::Logs(close), drawer.map(Event::Logs))),
     };
-    let page = settings_right_drawer_overlay(page.into(), drawer);
-    // A top-level modal suppresses the underlying chart and filter overlays.
-    match state.range_picker.dialog() {
-        Some(dialog) => settings_modal_overlay_with_backdrop_dismiss(
-            page,
-            Event::Range(super::range_picker::Event::Cancel),
-            dialog.map(Event::Range),
-        ),
-        None => stack![page].into(),
-    }
+    settings_right_drawer_overlay(page.into(), drawer)
 }
 
 fn header_segment_style(theme: &Theme, status: button::Status, first: bool) -> button::Style {
@@ -236,7 +239,7 @@ fn header_segment_style(theme: &Theme, status: button::Status, first: bool) -> b
 }
 
 fn detail_tabs(active: DetailTab, counts: [Option<u64>; 3]) -> Element<'static, Event> {
-    let mut tabs = row![].spacing(4).padding(iced::padding::left(12));
+    let mut tabs = row![].spacing(16).padding(iced::padding::left(super::logs::TABLE_INSET));
     for ((tab, label), count) in [
         (DetailTab::Logs, "请求日志"),
         (DetailTab::Providers, "供应商"),
@@ -257,7 +260,7 @@ fn detail_tabs(active: DetailTab, counts: [Option<u64>; 3]) -> Element<'static, 
                     }),
             );
         }
-        let label = container(content).padding([0, 8]).center_y(SETTINGS_CONTROL_HEIGHT);
+        let label = container(content).padding([0, 2]).center_y(SETTINGS_CONTROL_HEIGHT);
         let indicator = container(Space::new().height(2)).width(Length::Fill).style(move |theme: &Theme| {
             container::Style::default().background(if selected {
                 theme.palette().text
@@ -294,4 +297,24 @@ pub(super) fn panel_style(theme: &Theme) -> container::Style {
         width: 1.0,
         radius: 14.0.into(),
     })
+}
+
+pub(super) fn metric_tooltip_style(theme: &Theme) -> container::Style {
+    let palette = theme.palette();
+    let surface = if desktop_ui_controls::system_settings_common::theme::is_dark_theme(theme) { palette.background } else { iced::Color::WHITE };
+    container::Style {
+        background: Some(surface.into()),
+        text_color: Some(palette.text),
+        border: iced::Border {
+            color: palette.text.scale_alpha(0.12),
+            width: 1.0,
+            radius: 9.0.into(),
+        },
+        shadow: iced::Shadow {
+            color: iced::Color::BLACK.scale_alpha(0.10),
+            offset: iced::Vector::new(0.0, 2.0),
+            blur_radius: 7.0,
+        },
+        ..Default::default()
+    }
 }

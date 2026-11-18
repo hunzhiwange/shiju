@@ -22,6 +22,7 @@ pub enum ToastKind {
     Info,
     Warning,
     Error,
+    Summary { success: bool },
 }
 
 #[derive(Debug, Clone)]
@@ -61,7 +62,7 @@ struct ToastPalette {
 
 fn toast_palette(kind: ToastKind) -> ToastPalette {
     match kind {
-        ToastKind::Success => ToastPalette {
+        ToastKind::Success | ToastKind::Summary { success: true } => ToastPalette {
             icon: Icon::Check,
             accent: Color::from_rgb8(0x28, 0x8F, 0x61),
             background: Color::from_rgb8(0xE8, 0xF7, 0xEF),
@@ -79,7 +80,7 @@ fn toast_palette(kind: ToastKind) -> ToastPalette {
             background: Color::from_rgb8(0xFF, 0xF4, 0xD6),
             title: "请注意",
         },
-        ToastKind::Error => ToastPalette {
+        ToastKind::Error | ToastKind::Summary { success: false } => ToastPalette {
             icon: Icon::X,
             accent: Color::from_rgb8(0xC5, 0x3E, 0x3E),
             background: Color::from_rgb8(0xFE, 0xEA, 0xEA),
@@ -167,12 +168,47 @@ pub fn view<Message: Clone + 'static>(
     let accent = palette.accent;
     let background = palette.background;
     let i18n = I18n::new(locale);
-    let title = i18n.__(palette.title);
     let message = toast
         .localized_message
         .as_ref()
         .map(|message| message.render(i18n).expect("valid toast template"))
         .unwrap_or_else(|| toast.message.clone());
+    if matches!(toast.kind, ToastKind::Summary { .. }) {
+        let icon = container(icon_svg(palette.icon, 11.0, Color::WHITE))
+            .center_x(18)
+            .center_y(18)
+            .style(move |_| {
+                container::Style::default().background(accent).border(iced::border::rounded(9))
+            });
+        return container(
+            row![icon, text(message).size(13).wrapping(Wrapping::WordOrGlyph)]
+                .spacing(10)
+                .align_y(Alignment::Center),
+        )
+        .padding([10, 14])
+        .max_width(540)
+        .style(|theme| {
+            let palette = theme.palette();
+            let surface = if is_dark_theme(theme) { palette.background } else { Color::WHITE };
+            container::Style {
+                background: Some(surface.into()),
+                text_color: Some(palette.text),
+                border: Border {
+                    color: palette.text.scale_alpha(0.13),
+                    width: 1.0,
+                    radius: 11.0.into(),
+                },
+                shadow: iced::Shadow {
+                    color: Color::BLACK.scale_alpha(0.14),
+                    offset: Vector::new(0.0, 6.0),
+                    blur_radius: 18.0,
+                },
+                ..Default::default()
+            }
+        })
+        .into();
+    }
+    let title = i18n.__(palette.title);
     let label = if message.is_empty() { title.to_owned() } else { format!("{title} · {message}") };
 
     let icon_badge = container(icon_svg(palette.icon, 14.0, accent))

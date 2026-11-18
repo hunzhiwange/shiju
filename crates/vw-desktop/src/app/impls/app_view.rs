@@ -263,7 +263,14 @@ impl App {
             } else {
                 44
             };
-            desktop_navigation::view_layout::with_toast(root_content, toast, toast_bottom)
+            let alignment = if self.toast_state.active_toast.as_ref().is_some_and(|toast| {
+                matches!(toast.kind, crate::app::state::ToastKind::Summary { .. })
+            }) {
+                iced::alignment::Horizontal::Center
+            } else {
+                iced::alignment::Horizontal::Right
+            };
+            desktop_navigation::view_layout::with_toast(root_content, toast, toast_bottom, alignment)
         };
 
         desktop_navigation::view_layout::with_wallpaper(

@@ -60,7 +60,7 @@ fn scan_controls(state: &State, ready: bool) -> Element<'_, Outcome<Event>> {
         || "尚未完成同步".into(),
         |time| time.format("%Y-%m-%d %H:%M:%S").to_string(),
     );
-    let scanning = column![
+    let mut scanning = column![
         row![
             row![
                 text("自动扫描会话日志").size(15),
@@ -101,6 +101,25 @@ fn scan_controls(state: &State, ready: bool) -> Element<'_, Outcome<Event>> {
         ].spacing(8).align_y(iced::Alignment::Center),
     ].spacing(10);
 
+    if let Some(job) = &state.job {
+        // Job payloads may include paths. Show only the task status.
+        let phase = job
+            .progress
+            .get("phase")
+            .or_else(|| job.progress.get("status"))
+            .and_then(|value| value.as_str())
+            .unwrap_or("等待主机反馈");
+        scanning = scanning.push(text(format!("任务状态  {phase}")).size(12));
+        if active {
+            scanning = scanning.push(
+                row![
+                    action("取消任务", Event::Run(Action::Cancel), ready),
+                    action("刷新进度", Event::Run(Action::Poll), ready),
+                ]
+                .spacing(8),
+            );
+        }
+    }
     let routing = row![
         column![
             text("记录请求用量").size(15),
@@ -112,63 +131,10 @@ fn scan_controls(state: &State, ready: bool) -> Element<'_, Outcome<Event>> {
     ]
     .spacing(12)
     .align_y(iced::Alignment::Center);
-    let mut maintenance = column![
-        row![
-            text("Codex 用量维护").size(15).width(Length::Fill),
-            action("重建 Codex 用量", Event::ConfirmRebuild, ready && !active),
-        ]
-        .spacing(12)
-        .align_y(iced::Alignment::Center),
-        text(
-            "重建会替换当前项目与主机的原生 Codex 用量。主机接口不提供备份凭证，请先自行确认备份。"
-        )
-        .size(12)
-        .style(text::secondary),
-    ]
-    .spacing(9);
-    if state.confirm_rebuild {
-        maintenance = maintenance.push(
-            card(
-                column![
-                    text("确认重建 Codex 用量？").size(14),
-                    text("重建会重新读取会话记录。关闭设置不会中断已开始的任务。").size(12),
-                    row![
-                        action("取消", Event::DismissRebuild, true),
-                        action("确认重建", Event::Run(Action::Rebuild), ready && !active)
-                            .style(primary_action_btn_style),
-                    ]
-                    .spacing(8),
-                ]
-                .spacing(8),
-            )
-            .padding(10),
-        );
-    }
-    if let Some(job) = &state.job {
-        // Job payloads may include paths. Show only the task status.
-        let phase = job
-            .progress
-            .get("phase")
-            .or_else(|| job.progress.get("status"))
-            .and_then(|value| value.as_str())
-            .unwrap_or("等待主机反馈");
-        maintenance = maintenance.push(text(format!("任务状态  {phase}")).size(12));
-        if active {
-            maintenance = maintenance.push(
-                row![
-                    action("取消任务", Event::Run(Action::Cancel), ready),
-                    action("刷新进度", Event::Run(Action::Poll), ready),
-                ]
-                .spacing(8),
-            );
-        }
-    }
     let mut body = column![
         container(scanning).padding(14),
         rule::horizontal(1),
         container(routing).padding(14),
-        rule::horizontal(1),
-        container(maintenance).padding(14),
     ];
     if state.error.is_some() {
         body = body.push(

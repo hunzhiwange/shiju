@@ -433,6 +433,11 @@ fn modal_overlay<'a, Message: Clone + 'a>(
     }
 }
 
+/// Paint a view while a floating control owns input and overlays.
+pub fn settings_inactive_view<'a, Message: 'a>(content: Element<'a, Message>) -> Element<'a, Message> {
+    Element::new(ModalBackground(content))
+}
+
 // Paint the underlying view without exposing its overlays, focus targets, or events.
 struct ModalBackground<'a, Message>(Element<'a, Message>);
 

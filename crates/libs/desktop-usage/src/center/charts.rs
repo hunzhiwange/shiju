@@ -121,25 +121,7 @@ fn bucket_tooltip(
     .spacing(7);
     tooltip(mark, content, tooltip::Position::FollowCursor)
         .padding(11)
-        .style(|theme: &Theme| {
-            let palette = theme.palette();
-            let surface = if is_dark_theme(theme) { palette.background } else { Color::WHITE };
-            container::Style {
-                background: Some(surface.into()),
-                text_color: Some(palette.text),
-                border: iced::Border {
-                    color: palette.text.scale_alpha(0.12),
-                    width: 1.0,
-                    radius: 9.0.into(),
-                },
-                shadow: iced::Shadow {
-                    color: Color::BLACK.scale_alpha(0.10),
-                    offset: iced::Vector::new(0.0, 2.0),
-                    blur_radius: 7.0,
-                },
-                ..Default::default()
-            }
-        })
+        .style(super::view::metric_tooltip_style)
         .snap_within_viewport(true)
         .into()
 }

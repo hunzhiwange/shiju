@@ -1,7 +1,11 @@
 //! Server-paged ledger requests. Column preferences never change the query.
 use crate::Identity;
+use std::{
+    collections::{HashMap, HashSet},
+    time::{Duration, Instant},
+};
 
-use desktop_assets::assets::{Icon, get_icon};
+use desktop_assets::assets::Icon;
 use desktop_i18n::I18n;
 use desktop_ui_controls::{
     selectable_text::markdown_selection::SelectionMessage,
@@ -12,18 +16,32 @@ use desktop_ui_controls::system_settings_common::{
     SETTINGS_CONTROL_HEIGHT, SETTINGS_CONTROL_PADDING, SETTINGS_CONTROL_TEXT_SIZE,
     rounded_action_btn_style, settings_close_button,
     settings_modal_card_style, settings_modal_header, settings_modal_layout,
-    settings_pick_list_menu_style, settings_select, settings_text_input_style,
+    settings_select, settings_text_input_style,
 };
 
 use gateway_usage_read::{UsageLogDetail, UsageLogResult, UsageReadScope};
 use iced::{
-    Element, Font, Length, Task, Theme, font,
-    widget::{Space, button, column, container, row, rule, scrollable, svg, text, text_input, tooltip},
+    Color, Element, Font, Length, Task, Theme, font,
+    widget::{Space, button, column, container, responsive, row, rule, scrollable, text, text_input},
 };
 use vw_api_usage::*;
 
 const PAGE_SIZES: [u32; 4] = [10, 20, 50, 100];
-const DEFAULT_PAGE_SIZE: u32 = 100;
+const DEFAULT_PAGE_SIZE: u32 = 20;
+const HIGHLIGHT_DURATION: Duration = Duration::from_secs(3);
+
+const PAGINATION_CONTROL_HEIGHT: f32 = 28.0;
+pub(super) const TABLE_INSET: f32 = 16.0;
+pub(super) const COLUMN_GAP: f32 = 10.0;
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+struct PageSizeOption(u32);
+
+impl std::fmt::Display for PageSizeOption {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{} 条/页", self.0)
+    }
+}
 
 #[derive(Default)]
 pub struct State {
@@ -41,12 +59,44 @@ pub struct State {
     preference_error: Option<String>,
     page_size: u32,
     initialized: bool,
+    first_page_rows: Option<Vec<(i64, String)>>,
+    highlighted: HashMap<String, Instant>,
 }
 
 impl State {
     pub(super) fn first_page(&mut self) {
         self.page = 1;
         self.page_input = None;
+        self.clear_highlights();
+    }
+
+    fn clear_highlights(&mut self) {
+        self.first_page_rows = None;
+        self.highlighted.clear();
+    }
+
+    fn highlight_new_rows(&mut self, logs: &UsageLogResult, now: Instant) -> Option<Instant> {
+        if self.page() != 1 { return None; }
+        let rows: Vec<_> = logs.page.items.iter()
+            .map(|item| (item.record.started_at_unix_seconds.0, item.record.id.clone()))
+            .collect();
+        let previous = self.first_page_rows.replace(rows)?;
+        let known: HashSet<_> = previous.iter().map(|(_, id)| id.as_str()).collect();
+        // When the old page was full, older rows can slide in from page two.
+        let cutoff = if previous.len() == self.page_size() as usize {
+            previous.last()
+        } else {
+            None
+        };
+        let until = now + HIGHLIGHT_DURATION;
+        let mut changed = false;
+        for row in self.first_page_rows.as_deref().unwrap_or_default() {
+            if !known.contains(row.1.as_str()) && cutoff.is_none_or(|cutoff| row > cutoff) {
+                self.highlighted.insert(row.1.clone(), until);
+                changed = true;
+            }
+        }
+        changed.then_some(until)
     }
 
     fn page(&self) -> u64 {
@@ -72,6 +122,7 @@ pub enum Event {
     Help(TextContextEffect),
     None,
     Reload,
+    ExpireHighlights,
     Next,
     Previous,
     PageInput(String),
@@ -128,6 +179,10 @@ pub fn update(
 
     match event {
         Event::None | Event::Help(_) => {},
+        Event::ExpireHighlights => {
+            let now = Instant::now();
+            state.highlighted.retain(|_, until| *until > now);
+        }
         Event::Toggle(index) => {
             state.columns.toggle(index);
             state.preference_error = state.columns.save().err();
@@ -170,9 +225,17 @@ pub fn update(
                 && state.query.as_ref() == Some(&query)
             {
                 state.loading = false;
+                let highlight_until = result.as_ref().ok()
+                    .and_then(|logs| state.highlight_new_rows(logs, Instant::now()));
                 state.result = Some(result);
                 if state.result.as_ref().is_some_and(Result::is_ok) {
                     state.page = state.page().min(state.last_page());
+                }
+                if let Some(until) = highlight_until {
+                    return Task::perform(
+                        async move { tokio::time::sleep_until(until.into()).await },
+                        |_| Event::ExpireHighlights,
+                    );
                 }
             }
         }
@@ -241,6 +304,7 @@ pub fn update(
             };
             if !matches!(event, Event::Reload) {
                 state.page_input = None;
+                state.clear_highlights();
             }
             state.page = page;
             if !state.initialized {
@@ -351,78 +415,14 @@ pub(super) fn toolbar(state: &State) -> Element<'_, Event> {
         Some(UsageRequestStatus::Unknown),
     ]
     .map(RequestStatusOption);
-    let icon = |icon| {
-        svg(get_icon(icon))
-            .width(16)
-            .height(16)
-            .style(|theme: &Theme, _| svg::Style { color: Some(theme.palette().text) })
-    };
-    let mut options = column![].spacing(2);
-    for (index, (_, label, _, _)) in COLUMNS.iter().enumerate().skip(1) {
-        let check: Element<'_, Event> = if state.columns.visible(index) {
-            icon(Icon::Check).into()
-        } else {
-            Space::new().width(16).into()
-        };
-        options = options.push(
-            button(row![check, text(*label).size(13)].spacing(9).align_y(iced::Alignment::Center))
-                .width(Length::Fill)
-                .padding([6, 9])
-                .style(|theme, status| {
-                    let mut style = rounded_action_btn_style(theme, status);
-                    style.border = iced::border::rounded(7);
-                    if status == button::Status::Active {
-                        style.background = None;
-                    }
-                    style
-                })
-                .on_press(Event::Toggle(index)),
-        );
-    }
-    let menu =
-        container(scrollable(container(options).padding([0, 7]).width(Length::Fill)).direction(
-            scrollable::Direction::Vertical(
-                scrollable::Scrollbar::new().width(4).scroller_width(4),
-            ),
-        ))
-        .padding([5, 0])
-        .width(192)
-        .max_height(458)
-        .style(|theme| {
-            let menu_style = settings_pick_list_menu_style(theme);
-            let mut style = settings_modal_card_style(theme);
-            style.background = Some(menu_style.background);
-            style.border = menu_style.border.rounded(12);
-            style.shadow.offset.y = 4.0;
-            style.shadow.blur_radius = 18.0;
-            style
-        });
-    let trigger = tooltip(
-        button(container(icon(Icon::Columns)).center_x(Length::Fill).center_y(Length::Fill))
-            .width(32)
-            .height(30)
-            .padding(0)
-            .style(move |theme, status| {
-                let mut style = rounded_action_btn_style(theme, status);
-                style.border = iced::border::rounded(7);
-                let ink = theme.palette().text;
-                style.background = match status {
-                    _ if state.columns_open || status == button::Status::Pressed => Some(ink.scale_alpha(0.10).into()),
-                    button::Status::Hovered => Some(ink.scale_alpha(0.06).into()),
-                    _ => None,
-                };
-                style
-            })
-            .on_press(Event::Columns),
-        text("显示列").size(12),
-        tooltip::Position::Top,
-    )
-    .snap_within_viewport(true);
-    let columns = desktop_ui_controls::overlays::BelowOverlay::new(trigger, menu)
-        .show(state.columns_open)
-        .gap(5.0)
-        .on_close(Event::CloseColumns)
-        .capture_outside_click(true);
+    let columns = super::log_columns::column_menu(
+        COLUMNS.iter().enumerate().skip(1).map(|(index, (_, label, _, _))| (index, *label)),
+        |index| state.columns.visible(index),
+        state.columns_open,
+        Event::Columns,
+        Event::CloseColumns,
+        Event::Toggle,
+    );
     row![
         settings_select(statuses, Some(RequestStatusOption(status)), |option| {
             Event::Status(option.0)
@@ -446,163 +446,232 @@ pub fn view(state: &State, i18n: I18n) -> Element<'_, Event> {
 }
 
 pub(super) fn table(state: &State, i18n: I18n) -> Element<'_, Event> {
+    responsive(move |size| table_content(state, i18n, size.width)).height(Length::Shrink).into()
+}
+
+fn table_content(state: &State, i18n: I18n, viewport_width: f32) -> Element<'_, Event> {
     use super::log_columns::COLUMNS;
-    let widths: Vec<f32> = COLUMNS
+    let result = state.result.as_ref().and_then(|result| result.as_ref().ok());
+    let visible: Vec<_> = COLUMNS
         .iter()
         .enumerate()
-        .map(|(index, (_, _, _, minimum))| {
-            state
-                .result
-                .as_ref()
-                .and_then(|r| r.as_ref().ok())
-                .map(|r| {
-                    r.page
-                        .items
-                        .iter()
-                        .map(|d| cell(d, index).chars().count() as f32 * 9.0 + 24.0)
-                        .fold(*minimum, f32::max)
+        .filter(|(index, _)| state.columns.visible(*index))
+        .map(|(index, (_, label, _, minimum))| {
+            let extra = if index == 1 { 20.0 } else { 6.0 };
+            let width = result
+                .into_iter()
+                .flat_map(|result| &result.page.items)
+                .map(|detail| {
+                    let value = log_cell_value(state, detail, index);
+                    value.chars().map(|ch| if ch.is_ascii() { 7.5 } else { 13.0 }).sum::<f32>()
+                        + extra
                 })
-                .unwrap_or(*minimum)
+                .fold(*minimum, f32::max)
+                .min(*minimum * 1.8);
+            (index, *label, width)
         })
         .collect();
+    let columns_width = visible.iter().map(|(_, _, width)| width).sum::<f32>()
+        + COLUMN_GAP * visible.len().saturating_sub(1) as f32;
+    let content_width = columns_width + TABLE_INSET * 2.0;
+    let table_width =
+        if viewport_width.is_finite() { content_width.max(viewport_width) } else { content_width };
     let mut rows = column![].spacing(0);
-    let mut header = row![].spacing(12).align_y(iced::Alignment::Center);
-    for (index, (_, label, _, _)) in COLUMNS.iter().enumerate() {
-        if state.columns.visible(index) {
-            let title = text(*label).size(12);
-            let help = match index {
-                5 => Some("新增输入按来源语义扣除缓存；缺少必要数据时显示 —"),
-                9 => Some("缓存读取 /（新增输入 + 缓存读取 + 缓存创建）"),
-                10 => Some(
-                    "速度怎么算：每秒输出的 token 数。≈ 表示根据会话日志时间戳估算，可能包含等待首字的时间；来源未提供时显示 —。",
-                ),
-                11 | 12 => Some(
-                    "时间怎么算：单位为秒。首字表示开始输出前的等待时间，总耗时表示请求持续时间。≈ 为日志时间戳估算，可能包含客户端准备时间；来源未提供时显示 —。",
-                ),
-                _ => None,
-            };
-            let title: Element<'_, Event> = match help {
-                Some(help) => settings_selectable_help_label(i18n, None, label, title, help).into(),
-                None => title.into(),
-            };
-            header = header.push(container(title).width(Length::Fixed(widths[index])));
-        }
+    let mut header = row![].spacing(COLUMN_GAP).align_y(iced::Alignment::Center);
+    for &(index, label, width) in &visible {
+        let title = text(label).size(12);
+        let help = match index {
+            5 => Some("新增输入按来源语义扣除缓存；缺少必要数据时显示 —"),
+            9 => Some("缓存读取 /（新增输入 + 缓存读取 + 缓存创建）"),
+            10 => Some(
+                "速度怎么算：每秒输出的 token 数。≈ 表示根据会话日志时间戳估算，可能包含等待首字的时间；来源未提供时显示 —。",
+            ),
+            11 | 12 => Some(
+                "时间怎么算：单位为秒。首字表示开始输出前的等待时间，总耗时表示请求持续时间。≈ 为日志时间戳估算，可能包含客户端准备时间；来源未提供时显示 —。",
+            ),
+            _ => None,
+        };
+        let title: Element<'_, Event> = match help {
+            Some(help) => settings_selectable_help_label(i18n, None, label, title, help).into(),
+            None => title.into(),
+        };
+        header = header.push(container(title).width(width));
     }
-    rows = rows.push(container(header).padding([10, 14]).style(|theme: &Theme| {
-        container::Style::default().background(theme.extended_palette().background.weak.color)
-    }));
+    rows = rows.push(container(header).padding([10.0, TABLE_INSET]).width(table_width)
+        .style(table_header_style));
+    rows = rows.push(rule::horizontal(1));
     if state.loading {
-        rows = rows.push(text("正在加载请求…"));
+        rows = rows.push(container(text("正在加载请求…")).padding([10.0, TABLE_INSET]));
     }
     match &state.result {
-        Some(Err(error)) => rows = rows.push(text(format!("请求加载失败：{error}"))),
+        Some(Err(error)) => {
+            rows = rows.push(
+                container(text(format!("请求加载失败：{error}"))).padding([10.0, TABLE_INSET]),
+            )
+        }
         Some(Ok(result)) => {
             if result.page.items.is_empty() {
-                rows = rows.push(container(text("暂无请求")).padding(24));
+                rows = rows.push(container(text("暂无请求")).padding([18.0, TABLE_INSET]));
             }
+            let now = Instant::now();
             for detail in &result.page.items {
-                let mut cells = row![].spacing(12);
-                for (index, (_, _, _, _)) in COLUMNS.iter().enumerate() {
-                    if state.columns.visible(index) {
-                        let value = if index == 0 && state.columns.visible(13) {
-                            cell(detail, index).split(" · ").next().unwrap_or("—").to_owned()
-                        } else {
-                            cell(detail, index)
-                        };
-                        if index == 1 {
-                            let app = detail
-                                .record
-                                .sources
-                                .first()
-                                .map(|s| s.app.as_str())
-                                .unwrap_or("agent");
-                            cells = cells.push(
-                                row![
-                                    iced::widget::svg(desktop_assets::assets::get_provider_icon(
-                                        app
-                                    ))
+                let fresh =
+                    state.highlighted.get(&detail.record.id).is_some_and(|until| *until > now);
+                let mut cells = row![].spacing(COLUMN_GAP).align_y(iced::Alignment::Center);
+                for &(index, _, width) in &visible {
+                    let value = log_cell_value(state, detail, index);
+                    if index == 1 {
+                        let app = detail
+                            .record
+                            .sources
+                            .first()
+                            .map(|s| s.app.as_str())
+                            .unwrap_or("agent");
+                        cells = cells.push(
+                            row![
+                                iced::widget::svg(desktop_assets::assets::get_provider_icon(app))
                                     .width(14)
                                     .height(14),
-                                    text(value).size(13)
-                                ]
-                                .spacing(6)
-                                .width(Length::Fixed(widths[index])),
-                            );
-                        } else {
-                            cells = cells
-                                .push(text(value).size(13).width(Length::Fixed(widths[index])));
-                        }
+                                text(value).size(13)
+                            ]
+                            .spacing(6)
+                            .align_y(iced::Alignment::Center)
+                            .width(width),
+                        );
+                    } else {
+                        cells = cells.push(
+                            text(value)
+                                .size(13)
+                                .width(width)
+                                .wrapping(iced::advanced::text::Wrapping::WordOrGlyph),
+                        );
                     }
                 }
-                rows = rows.push(
-                    button(cells)
-                        .padding([10, 14])
-                        .style(|theme: &iced::Theme, status| {
-                            let mut style = button::text(theme, status);
-                            style.border = iced::Border {
-                                width: 0.5,
-                                color: theme.extended_palette().background.strong.color,
-                                ..Default::default()
-                            };
-                            style
-                        })
-                        .on_press(Event::Open(detail.record.id.clone())),
-                );
+                rows = rows
+                    .push(
+                        button(cells)
+                            .width(table_width)
+                            .padding([10.0, TABLE_INSET])
+                            .style(move |theme: &Theme, status| log_row_style(theme, status, fresh))
+                            .on_press(Event::Open(detail.record.id.clone())),
+                    )
+                    .push(rule::horizontal(1));
             }
         }
         None => {}
     }
-    let nav = |label: &'static str, event: Event, enabled: bool| {
-        button(container(text(label).size(13)).center_y(Length::Fill))
-            .height(SETTINGS_CONTROL_HEIGHT)
-            .padding([6, 10])
-            .style(rounded_action_btn_style)
+    let nav = |label: &str, event: Event, enabled: bool| {
+        button(container(text(label.to_owned()).size(13)).center_y(Length::Fill))
+            .height(PAGINATION_CONTROL_HEIGHT)
+            .padding([0, 7])
+            .style(|theme, status| {
+                let mut style = rounded_action_btn_style(theme, status);
+                style.border = iced::border::rounded(7);
+                let ink = theme.palette().text;
+                style.background = match status {
+                    button::Status::Hovered => Some(ink.scale_alpha(0.06).into()),
+                    button::Status::Pressed => Some(ink.scale_alpha(0.10).into()),
+                    _ => None,
+                };
+                style
+            })
             .on_press_maybe(enabled.then_some(event))
     };
     let request_count = request_count(state);
-    let total = request_count.map_or_else(|| "—".into(), |count| count.to_string());
+    let total = request_count.map_or_else(|| "—".into(), super::metrics::format_count);
     let page_size = state.page_size();
     let page = state.page();
     let last_page = state.last_page();
-    let page_count = request_count.map_or_else(|| "/ —".into(), |_| format!("/ {last_page}"));
+    let page_count = request_count
+        .map_or_else(|| "/ —".into(), |_| format!("/ {}", super::metrics::format_count(last_page)));
     let can_jump = !state.loading && state.jump_target().is_some();
     let current_page = page.to_string();
     let page_input = text_input("页码", state.page_input.as_deref().unwrap_or(&current_page))
-        .width(82)
+        .width(62)
         .size(SETTINGS_CONTROL_TEXT_SIZE)
-        .padding(SETTINGS_CONTROL_PADDING)
-        .style(settings_text_input_style)
+        .align_x(iced::alignment::Horizontal::Center)
+        .padding([
+            SETTINGS_CONTROL_PADDING[0]
+                - (SETTINGS_CONTROL_HEIGHT - PAGINATION_CONTROL_HEIGHT) / 2.0,
+            8.0,
+        ])
+        .style(|theme, status| {
+            let mut style = settings_text_input_style(theme, status);
+            style.border.radius = 8.0.into();
+            style
+        })
         .on_input(Event::PageInput)
         .on_submit_maybe(can_jump.then_some(Event::Jump));
     let footer = container(
         row![
-            text(format!("共 {total} 条记录")).size(13).style(text::secondary),
-            settings_select(PAGE_SIZES, Some(page_size), Event::PageSize).width(108),
-            text("条 / 页").size(13).style(text::secondary),
-            iced::widget::Space::new().width(Length::Fill),
+            text(format!("共 {total} 条记录")).size(12).style(text::secondary),
+            settings_select(
+                PAGE_SIZES.map(PageSizeOption),
+                Some(PageSizeOption(page_size)),
+                |size| { Event::PageSize(size.0) }
+            )
+            .width(140)
+            .height(PAGINATION_CONTROL_HEIGHT),
+            Space::new().width(Length::Fill),
             nav("‹", Event::Previous, !state.loading && page > 1),
             page_input,
-            text(page_count).size(13),
+            text(page_count).size(12).style(text::secondary),
             nav("›", Event::Next, !state.loading && page < last_page),
             nav("跳转", Event::Jump, can_jump)
         ]
-        .spacing(12)
+        .spacing(6)
         .align_y(iced::Alignment::Center),
     )
-    .padding([12, 16])
+    .padding([5.0, TABLE_INSET])
     .width(Length::Fill)
-    .style(container::rounded_box);
-    let table = scrollable(container(rows).padding([0, 7]))
+    .style(|theme: &Theme| {
+        container::Style::default()
+            .background(theme.palette().text.scale_alpha(0.035))
+            .border(iced::border::rounded(iced::border::bottom(14)))
+    });
+    let table = scrollable(rows.width(table_width))
+        .width(Length::Fill)
         .direction(scrollable::Direction::Horizontal(
             scrollable::Scrollbar::new().width(4).scroller_width(4).spacing(3),
         ))
         .height(Length::Shrink);
-    let mut content = column![].spacing(8);
+    let mut content = column![];
     if let Some(error) = &state.preference_error {
         content = content
             .push(text(format!("列设置保存/加载失败：{error}")).size(12).style(text::danger));
     }
     content.push(table).push(footer).into()
+}
+
+fn log_cell_value(state: &State, detail: &UsageLogDetail, index: usize) -> String {
+    let value = cell(detail, index);
+    if index == 0 && state.columns.visible(13) {
+        value.split_once(" · ").map_or(value.as_str(), |(time, _)| time).to_owned()
+    } else {
+        value
+    }
+}
+
+pub(super) fn table_header_style(theme: &Theme) -> container::Style {
+    container::Style::default().background(theme.palette().text.scale_alpha(0.065))
+}
+
+pub(super) fn log_row_style(theme: &Theme, status: button::Status, fresh: bool) -> button::Style {
+    let ink = theme.palette().text;
+    let mut style = button::text(theme, status);
+    style.border = iced::Border::default();
+    let interacting = matches!(status, button::Status::Hovered | button::Status::Pressed);
+    style.background = if fresh {
+        let alpha = if interacting { 0.23 } else { 0.15 };
+        Some(Color::from_rgb8(247, 171, 81).scale_alpha(alpha).into())
+    } else {
+        match status {
+            button::Status::Pressed => Some(ink.scale_alpha(0.10).into()),
+            button::Status::Hovered => Some(ink.scale_alpha(0.06).into()),
+            _ => None,
+        }
+    };
+    style
 }
 
 const DETAIL_FONT: Font = Font {
@@ -624,20 +693,30 @@ pub(super) fn detail_drawer(state: &State) -> Option<(Event, Element<'_, Event>)
             .into(),
         Some(Ok(detail)) => detail_view(detail),
     };
+    Some((Event::CloseDetail, usage_detail_drawer("请求详情", Event::CloseDetail, body)))
+}
+
+pub(super) fn usage_detail_drawer<'a, M: Clone + 'static>(
+    title: &'static str,
+    close: M,
+    body: Element<'a, M>,
+) -> Element<'a, M> {
     let header = column![
         settings_modal_header(
-            text("请求详情").size(21).font(DETAIL_FONT),
-            settings_close_button(Event::CloseDetail),
+            text(title).size(21).font(DETAIL_FONT),
+            settings_close_button(close),
         ),
         rule::horizontal(1)
     ]
     .spacing(12);
-    let drawer = settings_modal_layout(header, body, None).width(500).style(|theme| {
-        let mut style = settings_modal_card_style(theme).background(theme.palette().background);
-        style.border.radius = iced::border::left(18);
-        style
-    });
-    Some((Event::CloseDetail, drawer.into()))
+    settings_modal_layout(header, body, None)
+        .width(500)
+        .style(|theme| {
+            let mut style = settings_modal_card_style(theme).background(theme.palette().background);
+            style.border.radius = iced::border::left(18);
+            style
+        })
+        .into()
 }
 
 fn detail_view(detail: &UsageLogDetail) -> Element<'_, Event> {

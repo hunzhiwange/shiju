@@ -121,16 +121,15 @@ pub fn with_toast<'a, M: Clone + 'static>(
     content: iced::Element<'a, M>,
     toast: iced::Element<'a, M>,
     toast_bottom: u16,
+    alignment: iced::alignment::Horizontal,
 ) -> iced::Element<'a, M> {
     let toast_layer: iced::Element<'a, M> = iced::widget::column![
         iced::widget::Space::new().height(iced::Length::Fill),
-        iced::widget::container(
-            iced::widget::row![iced::widget::Space::new().width(iced::Length::Fill), toast,]
-                .width(iced::Length::Fill)
-        )
+        iced::widget::container(toast)
         .width(iced::Length::Fill)
         .height(iced::Length::Shrink)
-        .padding(iced::Padding::default().top(0).right(12).bottom(toast_bottom as f32).left(0))
+        .align_x(alignment)
+        .padding(iced::Padding::default().right(12).bottom(toast_bottom as f32).left(12))
     ]
     .width(iced::Length::Fill)
     .height(iced::Length::Fill)

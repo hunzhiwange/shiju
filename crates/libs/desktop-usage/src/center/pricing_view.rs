@@ -1,7 +1,11 @@
 use super::{BillingModelSource, Event, ImportView, ModelPricingInfo, Outcome, State, message};
 use crate::{Identity, models};
 use desktop_assets::assets::Icon;
-use desktop_ui_controls::{overlays::BelowOverlay, system_settings_common::*};
+use desktop_i18n::I18n;
+use desktop_ui_controls::{
+    overlays::BelowOverlay,
+    system_settings_common::{*, help::settings_selectable_help_label},
+};
 use iced::{
     Element, Length, Theme,
     widget::{button, column, container, row, rule, text},
@@ -37,6 +41,7 @@ pub fn overlay<'a, M: Clone + 'static>(
     state: &'a State,
     current: Option<Identity>,
     base: Element<'a, M>,
+    i18n: I18n,
     map: fn(Message) -> M,
 ) -> Element<'a, M> {
     if !state.open {
@@ -60,17 +65,20 @@ pub fn overlay<'a, M: Clone + 'static>(
             Some(footer),
         )
     } else {
-        ("定价", Event::Close, price_list(state, enabled), None)
+        ("定价", Event::Close, price_list(state, enabled, i18n), None)
     };
 
     let can_go_back = !state.busy && !state.billing_busy && !state.storage_busy;
     let mut header = column![
-        row![
-            icon_action(Icon::ChevronLeft, "返回", back.clone(), can_go_back),
-            text(title).size(22),
-        ]
-        .spacing(10)
-        .align_y(iced::Alignment::Center),
+        settings_modal_header(
+            row![
+                icon_action(Icon::ChevronLeft, "返回", back.clone(), can_go_back),
+                text(title).size(22),
+            ]
+            .spacing(10)
+            .align_y(iced::Alignment::Center),
+            settings_close_button(message(Event::Close)),
+        ),
         rule::horizontal(1),
     ]
     .spacing(10);
@@ -87,12 +95,18 @@ pub fn overlay<'a, M: Clone + 'static>(
     models::picker(&state.models, panel, move |event| map(message(Event::Models(event))))
 }
 
-fn price_list(state: &State, enabled: bool) -> Element<'_, Message> {
-    let sync = models::sync_card(&state.models, storage_menu(state, enabled), |event| {
+fn price_list(state: &State, enabled: bool, i18n: I18n) -> Element<'_, Message> {
+    let sync = models::sync_card(&state.models, storage_menu(state, enabled), i18n, |event| {
         message(Event::Models(event))
     });
     let title = column![
-        text(format!("模型定价 · {}", state.prices.len())).size(17),
+        settings_selectable_help_label(
+            i18n,
+            None,
+            "成本怎么算",
+            text(format!("模型定价 · {}", state.prices.len())).size(17),
+            "每条请求按模型定价算成本：新增输入、输出、缓存命中、缓存写入各乘对应单价，再相加。",
+        ),
         text("USD / 每百万 Tokens").size(12).style(text::secondary),
     ]
     .spacing(4)

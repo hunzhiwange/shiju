@@ -11,6 +11,7 @@ pub enum Event {
     Range(super::range_picker::Event),
     Load(range_picker::Preset),
     Refresh,
+    RefreshScan,
     Display(display::Event),
     Pricing(pricing::Event),
     Charts(charts::Event),

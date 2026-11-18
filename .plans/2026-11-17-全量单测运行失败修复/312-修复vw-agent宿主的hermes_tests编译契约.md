@@ -66,3 +66,17 @@ python3 scripts/cargo_slot.py cargo test -p vw-agent --lib cc04_hermes_permissio
 - 槽位1；CARGO_TARGET_DIR 与 CARGO_BUILD_BUILD_DIR 均为 `/Users/xiangmin/worker/code/shiju/target/rust-slot-1`。日志 `/tmp/shiju-task312.log`。
 - Cargo 编译失败（101）：宿主仍有53条其他错误，包括 core 导出、runner_todos、ui_store 和 VideoContext 契约；本文件无诊断。有效运行测试数0，不能视为行为通过。子进程已退出，入口已释放槽位。
 - `git diff --check` 本文件通过。保留本编号文件，待兄弟编译阻塞解除后使用上述精确命令补验；不扩大修复归属。
+
+## 公共产物定向补验
+
+- 复用任务304的 `/tmp/shiju-host-common-304-LYrH28/receipt.md` 与 `test-binary.txt`。公共编译退出0，开始 HEAD `3382a35f8`、结束 HEAD `17e53b009`，已核实包含本任务提交 `6f7e95933`，且构建期间只有 ACP 文档提交。
+- 等槽位1释放后领取该槽位，直接运行 `target/rust-slot-1/debug/deps/vw_agent-e6b6e74ae78b3318 --exact --nocapture gateway::api::handlers::app_providers::hermes_tests::cc04_hermes_permission_tenant_and_host_denials_leave_no_changes`，未重编。产物 SHA-256 `5548b4e2c673a564f9d12af91061c0e01e0334f68881fd8cf360a1cbf5933e78`。
+- 清空继承环境，将 HOME、CODEX_HOME、CFFIXED_USER_HOME、XDG、TMPDIR、VIBEWINDOW_TEST_HOME、VIBEWINDOW_TEST_ROOT 和工作目录指向一次性临时目录。授权路径的原生应用目录探测仅在隔离运行目录内，未访问真实 Codex 配置。测试结束后临时环境和自有槽位锁已清理。
+- 有效运行1项，0通过、1失败，进程退出101。日志 `/tmp/shiju-task312-g8jf6z/test.log`，退出码 `/tmp/shiju-task312-g8jf6z/test.exit`，命令和摘要保存在同目录。第153行首条断言失败，使用旧令牌的保存请求未返回错误，后续跨租户和无副作用断言未执行。
+- 当前专用客户端不发送旧应用令牌，应用授权代码将鉴权交给网关配对中间件。夹具只注册租户中间件，未经过配对鉴权，仍断言旧令牌会被拒绝。保留任务与原断言，等待配对鉴权夹具迁移后重新构建并验收。
+
+## 配对鉴权夹具迁移
+
+- 本轮仅修改本任务所属测试文件。八项 Hermes 宿主用例共用夹具，改为使用启用鉴权的真实 `PairingGuard`、生产 `require_pairing_auth` 和 SDK 端点 skey。子进程在独立的 HOME、CODEX_HOME、XDG、应用根目录与工作目录中运行，且核对应用运行路径与夹具根目录一致。
+- 旧用例改名为 `cc04_hermes_pairing_denials_leave_no_changes_and_catalog_is_tenant_scoped`。缺失与错误的 skey 均须返回 401，拒绝后检查 Hermes 文件、两个租户目录记录和运行状态均无变更。合法配对写入租户 b 的目录后，确认只在 b 可见，并且没有写入共享的 Hermes 原生配置和运行状态。省去旧策略中特定主机和读写授权假设，因为现行网关配对不提供该边界。
+- 格式解析及差异空白检查通过。另一任务持有重型编译窗口，本轮未编译、未运行新用例。保留编号文件待新公共产物复验。请使用新产物、槽位及隔离环境执行此注册模块的八个真实测试，先核对列表，再用过滤 `gateway::api::handlers::app_providers::hermes_tests::`，要求 8 passed、0 failed、退出 0。不要用旧测试名判定零项通过。

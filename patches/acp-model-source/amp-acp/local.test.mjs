@@ -1,6 +1,19 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { LocalAmp } from './local.mjs';
+import { LocalAmp, selectedStdio } from './local.mjs';
+
+test('Amp accepts only uniquely named, explicit stdio commands', () => {
+  const server = { name: 'selected_graph', command: '/bin/graph', args: ['serve'], env: [] };
+  assert.deepEqual(Object.entries(selectedStdio([server])), [
+    ['selected_graph', { command: '/bin/graph', args: ['serve'], env: {} }],
+  ]);
+  for (const selection of [
+    [server, server], [{ ...server, type: 'http' }], [{ ...server, name: 'selected-graph' }],
+    [{ ...server, command: 'graph' }],
+  ]) {
+    assert.throws(() => selectedStdio(selection), /Amp requires distinct stdio MCP servers/);
+  }
+});
 
 for (const invalidate of ['cancel', 'replace']) {
   test(`Amp reaps a terminal created after turn ${invalidate}`, async () => {

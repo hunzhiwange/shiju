@@ -19,7 +19,25 @@ replace('F=Z&&!Q.takeMeBack;if(Q.showWelcome', 'F=!1;if(Q.showWelcome')
 replace('let D=gA($.serverStatus)&&at($.serverStatus.features,TB.THREAD_ACTORS_TUI)&&!A.takeMeBack,G;', 'let D=!1,G;')
 # Runs before hooks, native argument processing, filesystem or command tool bodies.
 replace('async invokeTool(A,Q){if(this.runningTools.has(A.id))', '''async invokeTool(A,Q){
-let hostResult;try{const response=await fetch(new URL('/shiju/tool',process.env.AMP_URL),{method:'POST',headers:{'content-type':'application/json',authorization:'Bearer '+process.env.AMP_API_KEY},body:JSON.stringify({sessionId:process.env.SHIJU_AMP_SESSION,id:A.id,name:A.name,input:A.input})});if(!response.ok)throw Error('Host rejected Amp tool');hostResult=await response.json();if(typeof hostResult.output!=='string')throw Error('Invalid Amp host tool output');await this.callbacks.handle({type:'tool:data',toolUse:A.id,data:{status:'done',result:hostResult.output,isFinal:!1}})}catch(error){await this.callbacks.handle({type:'tool:data',toolUse:A.id,data:{status:'error',error:{message:'Amp host tool rejected',displayMessage:'Amp host tool rejected'}}})}const completion=this.toolCompletionResolvers.get(A.id);if(completion)completion.resolve(),this.toolCompletionResolvers.delete(A.id);return;
+const selectedMcp = typeof A.name === "string" && A.name.startsWith("mcp__");
+try {
+  const response = await fetch(new URL(selectedMcp ? '/shiju/mcp-permission' : '/shiju/tool', process.env.AMP_URL), {
+    method: 'POST',
+    headers: {'content-type': 'application/json', authorization: 'Bearer ' + process.env.AMP_API_KEY},
+    body: JSON.stringify({sessionId: process.env.SHIJU_AMP_SESSION, id: A.id, name: A.name, input: A.input})
+  });
+  if (!response.ok) throw Error('Host rejected Amp tool');
+  if (!selectedMcp) {
+    const hostResult = await response.json();
+    if (typeof hostResult.output !== 'string') throw Error('Invalid Amp host tool output');
+    await this.callbacks.handle({type:'tool:data',toolUse:A.id,data:{status:'done',result:hostResult.output,isFinal:!1}});
+  }
+} catch {
+  await this.callbacks.handle({type:'tool:data',toolUse:A.id,data:{status:'error',error:{message:'Amp host tool rejected',displayMessage:'Amp host tool rejected'}}});
+  this.resolveToolCompletion(A.id, true);
+  return;
+}
+if (!selectedMcp) { this.resolveToolCompletion(A.id, true); return; }
 if(this.runningTools.has(A.id))''')
 # Disable ambient discovery before scanning files or starting plugin/MCP processes.
 replace('async function s70(A,Q,B,$){', 'async function s70(A,Q,B,$){return {skills:[],errors:[],warnings:[]};')
@@ -27,7 +45,10 @@ replace('async function kq(A,Q,B){', 'async function kq(A,Q,B){return [];')
 replace('function qk6({filesystem:A,configService:Q},B){', 'function qk6({filesystem:A,configService:Q},B){return u0.of([]);')
 replace('function Nk6({filesystem:A,configService:Q},B){', 'function Nk6({filesystem:A,configService:Q},B){return u0.of([]);')
 replace('async function V0(k0){try{return(await $.readdir(k0))', 'async function V0(k0){return [];try{return(await $.readdir(k0))')
-replace('mcpServers:T,mcpPermissions:x,mcpTrustedServers:h,mcpRegistryUrl:gA(f)?f.workspace?.mcpRegistryUrl??null:null,externalMCPServers:u,skillMCPServers:k', 'mcpServers:{},mcpPermissions:[],mcpTrustedServers:[],mcpRegistryUrl:null,externalMCPServers:{},skillMCPServers:{}')
+replace('mcpServers:T,mcpPermissions:x,mcpTrustedServers:h,mcpRegistryUrl:gA(f)?f.workspace?.mcpRegistryUrl??null:null,externalMCPServers:u,skillMCPServers:k', 'mcpServers:shijuSelectedMcp,mcpPermissions:[],mcpTrustedServers:[],mcpRegistryUrl:null,externalMCPServers:{},skillMCPServers:{}')
+# Keep native discovery/calls, with only the parent-validated stdio list.
+replace('if(A.mcpConfig){let F=await wg4(A.mcpConfig);J=Cg4(J,F)}', 'if(process.env.SHIJU_AMP_MCP_SERVERS)shijuSelectedMcp=await wg4(process.env.SHIJU_AMP_MCP_SERVERS);')
+replace('let J=A.env?Object.entries(A.env).reduce((V,[U,K])=>({...V,[U]:cd(K,process.env)}),{}):void 0,Y=BN6({...process.env,...J,AWS_VAULT_PROMPT:"stdout"}),Z=cd(A.command,Y),F=A.args?A.args.map((V)=>cd(V,Y)):void 0', 'let Y={PATH:process.env.PATH,LANG:process.env.LANG,...A.env},Z=A.command,F=A.args')
 replace('async function yD(){return{trees:[await Jk4(r0.file(process.cwd()))],platform:Yk4()}}', 'async function yD(){return{trees:[{uri:r0.file(process.cwd()).toString()}],platform:Yk4()}}')
 replace('I=w0,await A0(w0);let n=tv4(w0.messages)', 'I=w0;let localLast=w0.messages.at(-1);if(localLast?.role==="assistant"&&localLast.state.type!=="streaming"&&!localLast.content.some(part=>part.type==="tool_use"))await Y.threadService.flushVersion(W,w0.v);await A0(w0);let n=tv4(w0.messages)')
 replace('await pF(s)}if(N0.unsubscribe()', 'await Y.threadService.flushVersion(W,I.v);await pF(s)}if(N0.unsubscribe()')
@@ -37,7 +58,8 @@ replace('getHooks:async()=>(await this.getConfig()).settings?.hooks', 'getHooks:
 replace('trackFilesFromHistory(){', 'trackFilesFromHistory(){return;')
 replace('async restoreFileChangesFromBackups(){', 'async restoreFileChangesFromBackups(){return;')
 replace('async function tM4(A,{configService:Q,filesystem:B,previousUserState:$}){', 'async function tM4(A,{configService:Q,filesystem:B,previousUserState:$}){return {message:{role:"user",messageId:0,content:A.content,source:A.source,agentMode:A.agentMode,meta:{sentAt:Date.now()}}};')
-guard = """const shijuOrigin = new URL(process.env.AMP_URL);
+guard = """let shijuSelectedMcp = {};
+const shijuOrigin = new URL(process.env.AMP_URL);
 if (shijuOrigin.protocol !== 'http:' || shijuOrigin.hostname !== '127.0.0.1' || !shijuOrigin.port || shijuOrigin.username || shijuOrigin.password || !process.env.SHIJU_AMP_SESSION) throw Error('Amp local control boundary is required');
 const shijuFetch = globalThis.fetch.bind(globalThis);
 globalThis.fetch = (input, init) => {
@@ -56,15 +78,20 @@ replace('    this.client = client;\n    this.transport = transport;', '    this.
 # select another provider because the control bridge pins all model requests.
 replace('      mode: s.model,', '      mode: "smart",')
 replace('      env: { TERM: "dumb" },', '      env: { TERM: "dumb", ...this.local.environment(params.sessionId) },')
-replace('  async newSession(params) {', '''  async newSession(params) {
-    await this.local.start();
-    if (params.mcpServers?.length) throw Error('Amp selected MCP isolation is unavailable');''')
-replace('  async loadSession(params) {', '''  async loadSession(params) {
-    await this.local.start();
-    if (params.mcpServers?.length) throw Error('Amp selected MCP isolation is unavailable');''')
-# Do not launch arbitrary binaries, SDK/orb transport, plugin discovery or latest-thread continuation.
+replace('      if (Object.keys(s.mcpConfig).length > 0) {\n        options.mcpConfig = s.mcpConfig;\n      }', '      // Selected MCP configuration travels in the private worker environment.')
+replace('  async newSession(params) {', '  async newSession(params) {\n    await this.local.start();')
+replace('  async loadSession(params) {', '  async loadSession(params) {\n    await this.local.start();')
+assert s.count('convertAcpMcpServersToAmpConfig(params.mcpServers)') == 2
+s = s.replace('convertAcpMcpServersToAmpConfig(params.mcpServers)', 'selectedStdio(params.mcpServers)')
+replace('    let session = this.sessions.get(params.sessionId);\n    if (!session) {', '    let session = this.sessions.get(params.sessionId);\n    if (session) await this.local.reloadSelection(session, params);\n    if (!session) {')
+replace('  async resumeSession(params) {', '  async resumeSession(params) {\n    const existing = this.sessions.get(params.sessionId);\n    if (existing) await this.local.reloadSelection(existing, params);')
+replace('  const closeSession = (sessionId) => {\n    terminateSession(sessionId);\n  };', '  const closeSession = terminateSession;')
+conversion_start = s.index('// src/mcp-config.ts')
+conversion_end = s.index('// src/thread-mapping-store.ts', conversion_start)
+s = s[:conversion_start] + s[conversion_end:]
+# Restrict execution to the local CLI and disable ambient plugin discovery.
 replace('    this.discoverPluginModes = options.discoverPluginModes ?? discoverPluginModes;', '    this.discoverPluginModes = () => [];')
-replace('  async prompt(params) {', '  async prompt(params) {\n    if (params.prompt.some(block => block.type !== "text")) throw Error("Amp non-text prompts are unavailable");\n    await this.local.start();\n    if (this.sessions.get(params.sessionId)?.executor !== "local") throw Error("Amp remote execution is unavailable");')
+replace('  async prompt(params) {', '  async prompt(params) {\n    if (params.prompt.some(block => block.type !== "text")) throw Error("Amp non-text prompts are unavailable");\n    await this.local.start();\n    if (this.sessions.get(params.sessionId)?.executor !== "local") throw Error("Amp remote execution is unavailable");\n    if (this.sessions.get(params.sessionId).reloading) throw Error("Amp session is loading");')
 replace('function createCliTransport(command = process.env.AMP_CLI_PATH ?? "amp", commandArgs = [], preserveCancelledProcess = process.env.AMP_ACP_CANCEL_MODE === "steer")', 'function createCliTransport(command = ampCommand, commandArgs = [], preserveCancelledProcess = false)')
 replace('function createAmpTransport(name = process.env.AMP_ACP_TRANSPORT ?? "cli")', 'function createAmpTransport(name = "cli")')
 assert s.count('  args.push("--no-archive-after-execute");') == 2
@@ -100,7 +127,7 @@ s = s.replace('promptCapabilities: { image: true, embeddedContext: true }', 'pro
 s = s.replace('mcpCapabilities: { http: true, sse: true }', 'mcpCapabilities: { http: false, sse: false }')
 main_start = s.index('if (process.argv.includes("--setup")) {')
 s = s[:main_start] + 'if (process.argv.length !== 2) throw new Error("Amp reviewed adapter requires empty arguments");\nrunAcp();\nprocess.stdin.resume();\n'
-s = s.replace('\n', '\nimport { LocalAmp, ampCommand, localAmpEnvironment } from "./shiju-local.mjs";\n', 1)
+s = s.replace('\n', '\nimport { LocalAmp, ampCommand, localAmpEnvironment, selectedStdio } from "./shiju-local.mjs";\n', 1)
 entry.write_text(s)
 shutil.copy2(Path(__file__).with_name('local.mjs'), root / 'dist/shiju-local.mjs')
 launcher = root / 'dist/amp-cli'

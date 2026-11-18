@@ -426,7 +426,7 @@ pub fn acp_onboarding_amp_acp_builtin_profile_persists_and_runs<H: ProfileAccept
         .join("acp-runtime");
     std::fs::create_dir_all(&directory).unwrap();
     #[cfg(unix)]
-    std::os::unix::fs::symlink(installation, directory.join("amp-acp-0.12.0-model-source-v1"))
+    std::os::unix::fs::symlink(installation, directory.join("amp-acp-0.12.0-model-source-v2"))
         .unwrap();
     let workspace = tempfile::tempdir().unwrap();
     assert_acp_profile::<H>(&runtime, workspace.path(), "amp-acp");

@@ -36,7 +36,7 @@ fn installed_directory(agent: &str, contract: &Contract) -> Result<PathBuf, Stri
         3
     } else if matches!(
         agent,
-        "deepagents" | "corust-agent" | "cursor" | "hermes" | "snow" | "openclaw"
+        "amp-acp" | "deepagents" | "corust-agent" | "cursor" | "hermes" | "snow" | "openclaw"
     ) {
         2
     } else {

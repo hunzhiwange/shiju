@@ -9,6 +9,20 @@ export const ampCommand = path.join(path.dirname(fileURLToPath(import.meta.url))
 export function localAmpEnvironment(overrides) {
   return { PATH: process.env.PATH, LANG: process.env.LANG || 'en_US.UTF-8', ...(process.env.TZ ? { TZ: process.env.TZ } : {}), ...overrides };
 }
+export function selectedStdio(servers = []) {
+  const selected = Object.create(null);
+  for (const server of servers) {
+    if (server.type || !/^[A-Za-z0-9]+(?:_[A-Za-z0-9]+)*$/.test(server.name)
+        || Object.hasOwn(selected, server.name) || !path.isAbsolute(server.command)) {
+      throw Error('Amp requires distinct stdio MCP servers with absolute commands');
+    }
+    selected[server.name] = {
+      command: server.command, args: server.args,
+      env: Object.fromEntries(server.env.map(({ name, value }) => [name, value])),
+    };
+  }
+  return selected;
+}
 const HOST_FIELDS = { Read: ['path', 'read_range'], create_file: ['path', 'content'], edit_file: ['path', 'old_str', 'new_str'], Bash: ['cmd'] };
 export class LocalAmp {
   constructor(agent) {
@@ -47,13 +61,16 @@ export class LocalAmp {
   environment(sessionId) {
     let context = [...this.tokens.values()].find(value => value.sessionId === sessionId);
     if (!context) {
-      context = { sessionId, token: randomBytes(32).toString('hex'), threadId: this.agent.sessions.get(sessionId)?.threadId || null };
+      const session = this.agent.sessions.get(sessionId);
+      context = { sessionId, token: randomBytes(32).toString('hex'), threadId: session.threadId, tools: new Set() };
       this.tokens.set(context.token, context);
     }
+    context.tools.clear();
     return {
       AMP_URL: this.url, AMP_API_KEY: context.token,
       AMP_CLI_PATH: path.join(path.dirname(fileURLToPath(import.meta.url)), 'amp-cli'),
       SHIJU_AMP_SESSION: sessionId,
+      SHIJU_AMP_MCP_SERVERS: JSON.stringify(this.agent.sessions.get(sessionId).mcpConfig || {}),
       AMP_SKIP_UPDATE_CHECK: '1', AMP_DISABLE_PLUGINS: '1',
       AMP_ACP_DISABLE_PLUGIN_LIST: '1', PLUGINS: 'permissions',
       HOME: this.directory, XDG_CONFIG_HOME: path.join(this.directory, 'config'),
@@ -61,6 +78,20 @@ export class LocalAmp {
       HTTP_PROXY: '', HTTPS_PROXY: '', ALL_PROXY: '', http_proxy: '', https_proxy: '', all_proxy: '',
       NO_PROXY: '127.0.0.1,localhost', no_proxy: '127.0.0.1,localhost',
     };
+  }
+  async reloadSelection(session, params) {
+    if (session.active || session.queue.length || session.reloading) throw Error('Amp session is active');
+    const selection = selectedStdio(params.mcpServers);
+    if (params.cwd && path.resolve(params.cwd) !== path.resolve(session.cwd)) throw Error('Amp session cwd mismatch');
+    session.reloading = true;
+    try {
+      this.revoke(params.sessionId);
+      await this.agent.transport.closeSession(params.sessionId);
+      session.mcpConfig = selection;
+      session.processStarted = false;
+    } finally {
+      session.reloading = false;
+    }
   }
   revoke(sessionId) {
     for (const [token, context] of this.tokens) if (context.sessionId === sessionId) this.tokens.delete(token);
@@ -101,9 +132,17 @@ export class LocalAmp {
     const body = await this.body(req);
     if (this.tokens.get(context.token) !== context) throw Error('Amp control context was revoked');
     const route = new URL(req.url, this.url).pathname;
+    const selection = Object.keys(this.agent.sessions.get(context.sessionId).mcpConfig || {});
     if (route === '/shiju/tool') {
       if (body.sessionId !== context.sessionId) throw Error('Amp tool session mismatch');
+      if (selection.length) throw Error('Amp session is restricted to selected MCP tools');
       this.json(res, { output: await this.tool(body) }); return;
+    }
+    if (route === '/shiju/mcp-permission') {
+      if (body.sessionId !== context.sessionId || !context.tools.has(body.name)) throw Error('Amp MCP tool is not selected');
+      await this.approveTool(body, 'other');
+      if (this.tokens.get(context.token) !== context) throw Error('Amp control context was revoked');
+      this.json(res, {}); return;
     }
     if (route === '/api/internal') {
       const { method, params = {} } = body;
@@ -150,7 +189,14 @@ export class LocalAmp {
       if (body.max_tokens <= 1024) throw Error('Amp reasoning requires a larger model output budget');
       body.thinking.budget_tokens = body.max_tokens - 1;
     }
-    if (Array.isArray(body.tools)) body.tools = body.tools.filter(tool => HOST_FIELDS[tool.name] || tool.name === 'set_title').map(tool => {
+    if (body.stream) context.tools.clear();
+    if (Array.isArray(body.tools)) body.tools = body.tools.filter(tool => {
+      if (!selection.length) return Object.hasOwn(HOST_FIELDS, tool.name) || tool.name === 'set_title';
+      const match = /^mcp__([A-Za-z0-9]+(?:_[A-Za-z0-9]+)*)__[A-Za-z0-9_]+$/.exec(tool.name);
+      if (!match || !selection.includes(match[1])) return false;
+      if (body.stream) context.tools.add(tool.name);
+      return true;
+    }).map(tool => {
       if (!HOST_FIELDS[tool.name]) return tool;
       const properties = Object.fromEntries(Object.entries(tool.input_schema.properties).filter(([key]) => HOST_FIELDS[tool.name].includes(key)));
       return { ...tool, input_schema: { ...tool.input_schema, properties, additionalProperties: false }, ...(tool.name === 'Read' ? { description: 'Read a UTF-8 text file through the host with a 1-indexed inclusive read_range. Default [1,1000], maximum 10000 lines. Directory listing and binary files are unavailable.' } : {}) };
@@ -179,26 +225,31 @@ export class LocalAmp {
     }
     res.end();
   }
-  async tool(request) {
+  async approveTool(request, kind, filename) {
     const session = this.agent.sessions.get(request.sessionId);
     const active = session?.active;
     const check = () => { if (!active || active.controller.signal.aborted || session.active !== active) throw Error('Amp turn is no longer active'); };
     check();
+    const permission = await this.agent.client.requestPermission({
+      sessionId: request.sessionId,
+      toolCall: { toolCallId: request.id, title: request.name, kind, status: 'pending', rawInput: request.input || {}, ...(filename ? { locations: [{ path: filename }] } : {}) },
+      options: [{ optionId: 'allow_once', name: 'Allow once', kind: 'allow_once' }, { optionId: 'reject_once', name: 'Reject', kind: 'reject_once' }],
+    });
+    check();
+    if (permission.outcome?.outcome !== 'selected' || permission.outcome.optionId !== 'allow_once') throw Error('Host denied Amp tool');
+    return { active, check };
+  }
+  async tool(request) {
+    const session = this.agent.sessions.get(request.sessionId);
     const args = request.input || {};
     const name = request.name;
-    if (!HOST_FIELDS[name]) throw Error('Amp tool has no host route');
+    if (!Object.hasOwn(HOST_FIELDS, name)) throw Error('Amp tool has no host route');
     if (Object.keys(args).some(key => !HOST_FIELDS[name].includes(key))) throw Error('Unsupported Amp tool arguments');
     const file = args.path;
     if (name !== 'Bash' && (typeof file !== 'string' || !file)) throw Error('Amp tool path required');
     const filename = file && path.resolve(session.cwd, file);
     const kind = name === 'Read' ? 'read' : name === 'Bash' ? 'execute' : 'edit';
-    const permission = await this.agent.client.requestPermission({
-      sessionId: request.sessionId,
-      toolCall: { toolCallId: request.id, title: name, kind, status: 'pending', rawInput: args, ...(filename ? { locations: [{ path: filename }] } : {}) },
-      options: [{ optionId: 'allow_once', name: 'Allow once', kind: 'allow_once' }, { optionId: 'reject_once', name: 'Reject', kind: 'reject_once' }],
-    });
-    check();
-    if (permission.outcome?.outcome !== 'selected' || permission.outcome.optionId !== 'allow_once') throw Error('Host denied Amp tool');
+    const { active, check } = await this.approveTool(request, kind, filename);
     if (name === 'Read') {
       const range = args.read_range || [1, 1000];
       if (!Array.isArray(range) || range.length !== 2 || !range.every(Number.isInteger) || range[0] < 1 || range[1] < range[0] || range[1] - range[0] >= 10000) throw Error('Invalid Amp text read range');

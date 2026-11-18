@@ -4,7 +4,7 @@
 
 线性顺序：原接入批次 1–21 → 新增验收批次 22–42；本批仅任务 36，全部串行，禁止争用网关、租户配置和验收目录。
 
-状态：未开始
+状态：已阻塞
 
 目的：证明 Poolside 通过系统安装、内置预设及指定会话模型，真实创建 Rue.js 编辑器文件；追加实测记录。
 
@@ -84,3 +84,17 @@ Rust 编译资源和会话调度按 `.plans/references/rust.md` 的项目覆盖�
 - 仅使用状态 `未开始`、`已完成`、`已阻塞`、`待回归`。前置接入未交付或指定模型不支持则记录具体阻塞、已尝试路径及重跑条件，不静默跳过。无关构建失败才可记录待回归及确切重跑命令。
 - 通过后标记已完成，在最终回复交接新证据并删除本任务文件；阻塞/待回归时保留本文件，记录已运行与未完成检查。
 - 有实际文档、代码、测试或配置变更时使用 `$git-commit` 技能，只提交本任务相关差异；共享验收文档含其他改动时按差异精确暂存。只有本任务文件的状态或删除时不单独提交，不提交 Rue.js 工作区或其他任务的变更。
+
+
+## 执行记录（2026-11-18）
+
+历史提交 `00f4d9c1d` 已注册 `pool acp` 并派生内置预设，尚无 Poolside 脱敏接入证据。实测系统安装 HTTP 400，安装前后均为 false。诊断为 `startup_failed`，模型来源明确返回 `session_model=unsupported`、`reason=unsupported_cli`。GET 确认预设内置且默认停用。未启用预设或发送创建请求，未获得真实指定模型、会话绑定或编辑器产物。
+
+结束配置与基线相等，自有网关退出 0 且端口关闭，Rue.js 前后 6303 项普通文件摘要一致。私有证据位于 `/tmp/shiju-poolside-accept-20261118.aGudrk/`（0700）。补齐受审核的系统安装、指定模型驱动及脱敏接入证据后，按本任务完整重跑。旧 `.plans/references/rust.md` 缺失，定向测试使用仓库现有 `scripts/cargo_slot.py`。
+
+槽位 1 中 `cargo test -j 1 -p config-acp-install --lib acp_onboarding_poolside -- --test-threads=1` 通过 1 项，`cargo test -j 1 -p agent-config --lib acp_onboarding_poolside -- --test-threads=1` 通过 2 项，均退出 0。无代码变更，未重跑协议夹具、Clippy、桌面编译、页面构建或浏览器验证。 详见 ACP 验收末尾 Poolside 章节。
+
+
+## 原生重试（2026-11-18）
+
+任务保持已阻塞。官方 Darwin arm64 v1.0.16 发行包已校验，原生 ACP v1 完成会话、选模及回环调用，完整 `alibaba-token-plan-cn/deepseek-v4.1-flash-1017` 到达 Chat Completions 请求。未发起真实推理或编辑器请求。只读沙箱拒绝目录外写入，拒绝应用无宿主产物，批准后只写入私有工作区允许文件。网关重读仍为未安装和 `unsupported_cli`。没有配置写入，结束配置与两轮基线一致，自有进程已退出，Rue.js 6303 项文件摘要无变化。未重跑 Cargo 或页面检查。完整证据见 ACP 验收末尾及 `/tmp/shiju-poolside-retry-20261118.7IKBGI/`。待固定版本系统安装、请求级租户模型中继及宿主权限边界在 ShiJu 内可验证后重跑。

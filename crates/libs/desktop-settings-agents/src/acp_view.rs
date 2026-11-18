@@ -8,7 +8,7 @@ use desktop_ui_controls::system_settings_common::{
     settings_icon_tile_style,
     settings_modal_card_style, settings_modal_header, settings_modal_layout,
     settings_modal_overlay, settings_muted_text_style, settings_panel, settings_panel_style, settings_success_banner, settings_text_input,
-    settings_value_badge,
+    settings_success_banner_style, settings_value_badge,
 };
 use desktop_i18n::I18n;
 use iced::widget::{Space, button, column, container, responsive, row, scrollable, text};
@@ -24,6 +24,7 @@ use crate::acp::{
 pub fn acp_card<'a>(input: Input<'a>, agent: String, config: &'a AcpAgentConfig) -> Element<'a, Event> {
     let builtin = built_in_agent_display_name(&agent).is_some();
     let enabled = input.state.enabled.contains(&agent);
+    let installed = input.state.installed.get(&agent).copied().unwrap_or_default();
     let saving = input.state.saving_agent.as_deref() == Some(agent.as_str());
     let copied = input.state.copied_agent.as_deref() == Some(agent.as_str());
     let testing = input.state.diagnostic_agent.as_deref() == Some(agent.as_str())
@@ -65,6 +66,15 @@ pub fn acp_card<'a>(input: Input<'a>, agent: String, config: &'a AcpAgentConfig)
         ];
         let labels = if builtin {
             labels.push(settings_value_badge(tr("内置 ACP")))
+        } else {
+            labels
+        };
+        let labels = if installed {
+            labels.push(
+                container(text(tr("已安装")).size(12))
+                    .padding([3, 8])
+                    .style(settings_success_banner_style),
+            )
         } else {
             labels
         };

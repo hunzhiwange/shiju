@@ -24,7 +24,12 @@ fn snapshot(entries: &[(&str, bool)]) -> AcpSettingsSnapshot {
         }
     }
 
-    AcpSettingsSnapshot { catalog, enabled, defaults: BTreeMap::new() }
+    AcpSettingsSnapshot {
+        catalog,
+        enabled,
+        defaults: BTreeMap::new(),
+        installed: BTreeMap::new(),
+    }
 }
 
 // 行为契约：使用代表性场景固定该分支的可观察结果。
@@ -111,17 +116,21 @@ fn loaded_snapshot_replaces_state_sorts_enabled_agents_and_clears_disabled_selec
     app.acp_settings.save_error = Some("old error".to_string());
     app.acp_settings.catalog.insert("stale".to_string(), acp_config("stale"));
     app.acp_settings.enabled.insert("stale".to_string());
+    app.acp_settings.installed.insert("stale".to_string(), true);
     app.acp_agents = vec!["stale".to_string()];
     app.acp_agent = Some("stale".to_string());
 
+    let mut snapshot = snapshot(&[
+        ("opencode", true),
+        ("disabled", false),
+        ("codex", true),
+        ("claude", true),
+    ]);
+    snapshot.installed =
+        BTreeMap::from([("disabled".to_string(), true), ("codex".to_string(), false)]);
     let _ = update(
         &mut app,
-        SettingsMessage::Acp(AcpMessage::Loaded(Ok(snapshot(&[
-            ("opencode", true),
-            ("disabled", false),
-            ("codex", true),
-            ("claude", true),
-        ])))),
+        SettingsMessage::Acp(AcpMessage::Loaded(Ok(snapshot))),
     );
 
     assert!(!app.acp_settings.loading);
@@ -134,6 +143,9 @@ fn loaded_snapshot_replaces_state_sorts_enabled_agents_and_clears_disabled_selec
         vec!["claude", "codex", "opencode"]
     );
     assert_eq!(app.acp_agents, vec!["codex", "claude", "opencode"]);
+    assert_eq!(app.acp_settings.installed.get("disabled"), Some(&true));
+    assert_eq!(app.acp_settings.installed.get("codex"), Some(&false));
+    assert!(!app.acp_settings.installed.contains_key("stale"));
     assert!(app.acp_agent.is_none());
     assert!(app.acp_settings.save_error.is_none());
 }

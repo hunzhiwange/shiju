@@ -26,6 +26,7 @@ pub struct AcpSettingsSnapshot {
     pub defaults: BTreeMap<String, AcpAgentConfig>,
     pub catalog: BTreeMap<String, AcpAgentConfig>,
     pub enabled: BTreeMap<String, AcpAgentConfig>,
+    pub installed: BTreeMap<String, bool>,
 }
 
 const DEFAULT_ENABLED_ACP_AGENTS: &[&str] =
@@ -295,7 +296,8 @@ pub async fn load_enabled_acp_config_async(&self) -> Result<HashMap<String, AcpA
     Ok(resolve_enabled_acp_config(&catalog, enabled))
 }
 pub async fn load_acp_settings_snapshot_async(&self) -> Result<AcpSettingsSnapshot, String> {
-    let defaults = gateway_config::GatewayConfigClient::new(self.gateway_client()?.transport().clone()).global_acp_defaults_get().await?;
+    let client = gateway_config::GatewayConfigClient::new(self.gateway_client()?.transport().clone());
+    let defaults = client.global_acp_defaults_get().await?;
     let mut catalog = self.fetch_global_acp_config_via_gateway().await?;
     let config = self.fetch_global_agent_config_via_gateway().await?;
     catalog.extend(config.acp_saved);
@@ -305,6 +307,7 @@ pub async fn load_acp_settings_snapshot_async(&self) -> Result<AcpSettingsSnapsh
         defaults,
         catalog: catalog.into_iter().collect(),
         enabled: enabled.into_iter().collect(),
+        installed: client.global_acp_installed_get().await.unwrap_or_default(),
     })
 }
 pub async fn set_global_acp_agent_enabled_async(&self,

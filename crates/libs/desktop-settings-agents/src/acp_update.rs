@@ -35,6 +35,7 @@ fn apply_snapshot(app: &mut Update, snapshot: AcpSettingsSnapshot) {
     });
     app.state.defaults = snapshot.defaults;
     app.state.catalog = snapshot.catalog;
+    app.state.installed = snapshot.installed;
     app.state.enabled = snapshot.enabled.keys().cloned().collect();
     *app.acp_agents = sort_acp_agent_names(app.state.enabled.iter().cloned().collect());
     if app.acp_agent.as_ref().is_some_and(|agent| !app.state.enabled.contains(agent)) {

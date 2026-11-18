@@ -67,3 +67,6 @@ __pycache__/
 !/vendor/iced_winit/
 !/vendor/iced_winit/examples/
 /vendor/iced_winit/Cargo.lock
+
+# Stakpak session files
+.stakpak/session*

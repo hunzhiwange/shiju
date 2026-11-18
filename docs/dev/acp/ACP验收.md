@@ -1335,3 +1335,15 @@ macOS arm64 的托管安装已实测，指定模型和 Rue.js 落盘验收仍阻
 - 最终 Rue.js 普通文件 SHA-256 快照从 6337 项变为 6344 项，差异仅上述 7 项目标文件。恢复 PATCH 和 GET 确认停用预设与基线一致。临时完整配置仅多出一个 aionrs 显式停用覆写，两轮私有 HOME 和配置副本均已清理。两台自有回环网关退出 0，端口 50349 和 63252 已关闭，宿主服务未重启。
 - 槽位 6 最终桥接定向测试 3 项通过，注册与安装契约 1 项通过，沿用前轮预设 2 项的通过证据。限定受影响库的 `cargo clippy --locked -j 1 --lib --no-deps` 退出 0，保留既有 lint。安装器源码语法与受影响 Shell 脚本语法检查通过，未编译桌面端或执行整仓回归。
 - 原始请求、SSE 续传、构建、快照及清理回执存于本机 0700 私有证据目录 `/tmp/shiju-aionrs-patch-20261118.O3OI9A/`。提交仅含 ShiJu 代码和脱敏验收记录，编辑器保留在 Rue.js 工作区。
+
+
+### omp 指定模型与编辑器落盘通过（2026-11-18）
+
+任务 40 的完整文件创建验收通过。系统安装器独立完成固定发行下载和摘要校验，网关在私有副本复核已校验的安装产物。无缓存的网关直下载仍受网络波动影响。
+
+- `1dda025d0` 增加 Darwin arm64 OMP 18.22.0 固定发行安装和私有 Chat 中继。运行时只有本次回环端口可访问，仅提供 read、write、edit，关闭扩展、技能和 LSP。上游长期授权留在宿主；原生写入与子进程执行受限，文件写入由宿主按活动会话和工作区校验。使用旧 `session/set_model` 的真实试跑在首个模型请求之前终止，生成 `chat.error`，目标目录为空。修复 `f7a048e32` 改用 `session/set_config_option` 并强制回读，再发起原请求。
+- 固定发行独立安装脚本在首次传输超时后续传成功，入口自报 `omp/18.22.0`，SHA-256 为 `d185113d63eba23925e5d70ab661a424b827c06c98f8e766c3bf4ad62ddaff9a`。两次无缓存网关安装分别在 175.432302 和 181.497491 秒返回 HTTP 400。延长首段时限后，独立复测仍出现传输长期停顿，因此保留已验证的下载策略。用独立脚本已验证的产物进行复验，系统安装 POST HTTP 200，curl 退出 0，耗时 0.094128 秒，重读 `installed=true`。普通诊断为 `authentication_required`，独立模型能力 GET 报告支持 `session_model`。临时启用内置预设并重读成功。
+- shiju 0.6.0 构建包含上述选模修复，SHA-256 为 `f4fc4393d1fc6783d6d5599d4123161ea68ee249442ad4cea5695e0071465c75`。对现有开发数据的私有 SQLite 副本使用原平台、公司和目录头，并提交原编辑器请求。会话 `ses_1ed32b1f0001iF3UzM3gTx88TR` 返回 HTTP 200，curl 退出 0，耗时 64.447281 秒。收到 57 条工具状态事件、一条 `chat.done` 和零条 `chat.error`。运行中 summary/options 确认 `acp-omp`、`omp`、`full_access=true`、`connected=true`，来源 `session_model`、provider `alibaba-token-plan-cn`、完整模型 `alibaba-token-plan-cn/deepseek-v4.1-flash-1017`。结束后连接释放，选模绑定仍能重读。
+- 实际产物为 `acpdemo/omp/` 中的 `index.html`、`vite.config.mjs`、`README.md`、`src/App.tsx`、`src/env.d.ts`、`src/main.tsx` 和 `src/style.css`。源码通过共享 Vite 别名引用本仓库 `@rue-js/rue`，实现纯文本输入、实时非空白字符计数和 localStorage 保存与恢复。README 提供运行命令。按计划未运行浏览器或页面构建。
+- 最后一轮 Rue.js 普通文件 SHA-256 快照从 6344 项增至 6351 项，差异恰为上述七个文件。原开发配置未收到 PATCH，私有副本的预设和全局配置恢复基线后移除。自有网关全部退出 0，端口已关闭。私有证据在本机 0700 目录 `/tmp/shiju-omp-implementation.Vo2H1W/`。
+- 槽位 10 的固定发行契约、两项宿主写入边界和现代选模回读共四项通过。槽位 3 的 OMP 驱动两项通过，受影响的三个库执行定向 Clippy 退出 0，保留既有警告。未运行整仓回归、桌面编译或其他 ACP 验收。

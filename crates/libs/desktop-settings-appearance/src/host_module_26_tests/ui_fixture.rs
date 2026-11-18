@@ -119,6 +119,12 @@ pub fn editor_fields(app: &Fixture, width: f32) -> Element<'_, Message> {
             language: iced_code_editor::i18n::Language::default(),
             #[cfg(not(target_arch = "wasm32"))]
             lsp_disabled: false,
+            #[cfg(not(target_arch = "wasm32"))]
+            copied_lsp_command: None,
+            #[cfg(not(target_arch = "wasm32"))]
+            installing_lsp: None,
+            #[cfg(not(target_arch = "wasm32"))]
+            activity_frame: 0,
         },
         width,
         move |title, body| help(title, body, Some(color), i18n).map(Box::new),

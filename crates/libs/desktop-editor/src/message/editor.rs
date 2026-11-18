@@ -10,6 +10,8 @@ pub enum EditorMessage {
     #[cfg(not(target_arch = "wasm32"))]
     CopyLspCommand(desktop_lsp::install::Server),
     #[cfg(not(target_arch = "wasm32"))]
+    ClearCopiedLspCommand(u64),
+    #[cfg(not(target_arch = "wasm32"))]
     LspInstalled(Result<(), String>),
     TogglePopover(EditorPopover),
     ClosePopover,
@@ -249,6 +251,10 @@ pub fn update(
 /// 只读与关闭期间的输入限制，以及编辑器弹层清理规则。
 pub fn prepare_message(shutdown: bool, read_only: bool, popover: &mut Option<EditorPopover>, message: &EditorMessage) -> bool {
     if shutdown && !matches!(message, EditorMessage::ConfigSaved(_)) { return false; }
+    #[cfg(not(target_arch = "wasm32"))]
+    if matches!(message, EditorMessage::ClearCopiedLspCommand(_) | EditorMessage::LspInstalled(_)) {
+        return true;
+    }
     if read_only && matches!(message, EditorMessage::OpenReplace | EditorMessage::Undo | EditorMessage::Redo | EditorMessage::Cut | EditorMessage::Paste | EditorMessage::ClipboardContentReceived(_) | EditorMessage::Delete) { return false; }
     if !matches!(message, EditorMessage::TogglePopover(_) | EditorMessage::ClosePopover | EditorMessage::SetOption(_, _) | EditorMessage::SetIndentStyle(_) | EditorMessage::SetWrapColumn(_)) { *popover = None; }
     true

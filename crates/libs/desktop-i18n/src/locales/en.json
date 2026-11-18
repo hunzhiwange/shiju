@@ -1726,6 +1726,7 @@
   "语言服务器安装": "Install language servers",
   "复制命令": "Copy command",
   "快捷安装": "Install",
+  "正在执行的命令": "Running command",
   "快捷安装需要联网，不会自动提权。也可复制各语言的命令，手动在终端运行。": "Installing requires an internet connection and runs without automatic privilege elevation. You can also copy a command and run it in your terminal.",
   "安装后确保语言服务器所在目录在 PATH 中，重启 ShiJu 并重新打开文件。": "After installing, make sure the language server is on PATH, then restart ShiJu and reopen the file.",
   "需要 rustup。https://rustup.rs": "Requires rustup. https://rustup.rs",

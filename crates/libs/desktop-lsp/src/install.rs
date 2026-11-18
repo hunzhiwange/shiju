@@ -3,7 +3,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 
 static INSTALLING: AtomicBool = AtomicBool::new(false);
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Server {
     Rust,
     Python,

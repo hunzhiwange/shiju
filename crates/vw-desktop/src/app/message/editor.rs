@@ -47,21 +47,45 @@ pub fn update(app: &mut App, message: EditorMessage) -> Task<Message> {
     match message {
 
         #[cfg(not(target_arch = "wasm32"))]
-        EditorMessage::CopyLspCommand(server) => iced::clipboard::write(server.manual_command()),
+        EditorMessage::CopyLspCommand(server) => {
+            let state = &mut app.preview_state;
+            state.copied_lsp_command = Some(server);
+            state.lsp_copy_generation = state.lsp_copy_generation.wrapping_add(1);
+            Task::batch([
+                iced::clipboard::write(server.manual_command()),
+                crate::app::message::after(
+                    std::time::Duration::from_secs(2),
+                    Message::Editor(EditorMessage::ClearCopiedLspCommand(state.lsp_copy_generation)),
+                ),
+            ])
+        }
         #[cfg(not(target_arch = "wasm32"))]
-        EditorMessage::InstallLsp(server) => Task::batch([
-            app.show_info_toast("正在安装 LSP，可能需要数分钟。"),
+        EditorMessage::ClearCopiedLspCommand(generation) => {
+            if app.preview_state.lsp_copy_generation == generation {
+                app.preview_state.copied_lsp_command = None;
+            }
+            Task::none()
+        }
+        #[cfg(not(target_arch = "wasm32"))]
+        EditorMessage::InstallLsp(server) => {
+            if app.preview_state.installing_lsp.is_some() {
+                return Task::none();
+            }
+            app.preview_state.installing_lsp = Some(server);
             Task::perform(crate::app::lsp::install::install(server), |result| {
                 Message::Editor(EditorMessage::LspInstalled(result))
-            }),
-        ]),
+            })
+        }
         #[cfg(not(target_arch = "wasm32"))]
-        EditorMessage::LspInstalled(result) => match result {
-            Ok(()) => app.show_success_toast(
-                "LSP 安装完成。请重启 ShiJu 后重新打开文件；若未生效，请检查 PATH。",
-            ),
-            Err(error) => app.show_error_toast(error),
-        },
+        EditorMessage::LspInstalled(result) => {
+            app.preview_state.installing_lsp = None;
+            match result {
+                Ok(()) => app.show_success_toast(
+                    "LSP 安装完成。请重启 ShiJu 后重新打开文件；若未生效，请检查 PATH。",
+                ),
+                Err(error) => app.show_error_toast(error),
+            }
+        }
         EditorMessage::TogglePopover(kind) => {
             let editor = app.navigation_tabs.preview_tabs.iter_mut()
                 .find(|tab| Some(&tab.path) == app.navigation_tabs.active_preview_path.as_ref())

@@ -25,6 +25,14 @@ fn cron_history_subscription(app: &App) -> Subscription<Message> {
 }
 
 fn needs_activity_animation_tick(app: &App, startup_transition_active: bool) -> bool {
+    #[cfg(not(target_arch = "wasm32"))]
+    if app.preview_state.installing_lsp.is_some()
+        && (app.navigation_panels.show_settings
+            || app.navigation_panels.show_system_settings
+            || app.preview_state.show_preview_settings)
+    {
+        return true;
+    }
     desktop_platform::subscriptions::Activity {
         startup_transition_active,
         update_busy: app.update_panel.show_cli_install_modal

@@ -15,6 +15,12 @@ pub struct State {
     /// 是否禁用 LSP（仅非 wasm32 平台）
     #[cfg(not(target_arch = "wasm32"))]
     pub lsp_disabled: bool,
+    #[cfg(not(target_arch = "wasm32"))]
+    pub copied_lsp_command: Option<desktop_lsp::install::Server>,
+    #[cfg(not(target_arch = "wasm32"))]
+    pub lsp_copy_generation: u64,
+    #[cfg(not(target_arch = "wasm32"))]
+    pub installing_lsp: Option<desktop_lsp::install::Server>,
     /// 是否正在应用 LSP 补全（仅非 wasm32 平台）
     #[cfg(not(target_arch = "wasm32"))]
     pub lsp_applying_completion: bool,
@@ -85,6 +91,12 @@ impl State {
             lsp_overlay: iced_code_editor::LspOverlayState::new(),
             #[cfg(not(target_arch = "wasm32"))]
             lsp_disabled: !system.lsp_enabled,
+            #[cfg(not(target_arch = "wasm32"))]
+            copied_lsp_command: None,
+            #[cfg(not(target_arch = "wasm32"))]
+            lsp_copy_generation: 0,
+            #[cfg(not(target_arch = "wasm32"))]
+            installing_lsp: None,
             #[cfg(not(target_arch = "wasm32"))]
             lsp_applying_completion: false,
             #[cfg(not(target_arch = "wasm32"))]

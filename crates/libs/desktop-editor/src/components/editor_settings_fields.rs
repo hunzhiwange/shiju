@@ -2,6 +2,8 @@
 use self::fields::{self as general_fields, Field};
 use super::preview_panel::tabs::{DisplayLanguage, all_languages};
 use desktop_i18n::I18n;
+#[cfg(not(target_arch = "wasm32"))]
+use desktop_lsp::install::Server;
 use desktop_ui_controls::system_settings_common::{
     help::settings_hover_help_label, panels::settings_flexible_row_with_label,
 };
@@ -24,6 +26,12 @@ pub struct SettingsView {
     pub language: iced_code_editor::i18n::Language,
     #[cfg(not(target_arch = "wasm32"))]
     pub lsp_disabled: bool,
+    #[cfg(not(target_arch = "wasm32"))]
+    pub copied_lsp_command: Option<Server>,
+    #[cfg(not(target_arch = "wasm32"))]
+    pub installing_lsp: Option<Server>,
+    #[cfg(not(target_arch = "wasm32"))]
+    pub activity_frame: usize,
 }
 
 #[derive(Debug, Clone)]
@@ -200,7 +208,7 @@ pub fn view<Help: Clone + 'static>(
             .push(group_heading(i18n.__(general_fields::EDITOR_LSP.label), lsp_help.into()))
             .push(settings_group_card(lsp_row))
             .push(group_heading(i18n.__("语言服务器安装"), install_help.into()))
-            .push(lsp_install_guide(i18n, control_width, &render_help))
+            .push(lsp_install_guide(&state, i18n, control_width, &render_help))
     };
 
     groups.into()
@@ -208,31 +216,39 @@ pub fn view<Help: Clone + 'static>(
 
 #[cfg(not(target_arch = "wasm32"))]
 fn lsp_install_guide<Help: Clone + 'static>(
+    state: &SettingsView,
     i18n: I18n,
     control_width: f32,
     render_help: &impl Fn(&'static str, Cow<'static, str>) -> Element<'static, Help>,
 ) -> Element<'static, Message<Help>> {
-    use desktop_lsp::install::Server;
+    use desktop_ui_controls::status_animation::activity_spinner;
     use desktop_ui_controls::system_settings_common::{
         SETTINGS_CONTROL_TEXT_SIZE, primary_action_btn_style, rounded_action_btn_style,
     };
-    use iced::widget::button;
+    use iced::widget::{button, container, svg, text::Wrapping};
 
     let mut servers = column![].width(Length::Fill);
     for (index, server) in Server::ALL.into_iter().enumerate() {
         if index > 0 {
             servers = servers.push(settings_divider());
         }
+        let copy_label = if state.copied_lsp_command == Some(server) {
+            i18n.__("已复制")
+        } else {
+            i18n.__("复制命令")
+        };
+        let installing = state.installing_lsp == Some(server);
+        let install_label =
+            if installing { i18n.__("安装中…") } else { i18n.__("快捷安装") };
+        let can_install = state.installing_lsp.is_none()
+            && (!matches!(server, Server::Lua) || cfg!(target_os = "macos"));
         let actions = row![
-            button(text(i18n.__("复制命令")).size(SETTINGS_CONTROL_TEXT_SIZE))
+            button(text(copy_label).size(SETTINGS_CONTROL_TEXT_SIZE))
                 .on_press(Message::CopyLspCommand(server))
                 .style(rounded_action_btn_style)
                 .padding([6, 12]),
-            button(text(i18n.__("快捷安装")).size(SETTINGS_CONTROL_TEXT_SIZE))
-                .on_press_maybe(
-                    (!matches!(server, Server::Lua) || cfg!(target_os = "macos"))
-                        .then_some(Message::InstallLsp(server)),
-                )
+            button(text(install_label).size(SETTINGS_CONTROL_TEXT_SIZE))
+                .on_press_maybe(can_install.then_some(Message::InstallLsp(server)))
                 .style(primary_action_btn_style)
                 .padding([6, 12]),
         ]
@@ -248,14 +264,54 @@ fn lsp_install_guide<Help: Clone + 'static>(
                 "快捷安装需要 macOS Homebrew。https://brew.sh\nWindows 和 Linux 安装说明见 https://luals.github.io/#install。",
             ),
         };
-        let help = format!("{}\n\n{requirement}", server.manual_command());
+        let command = server.manual_command();
         servers = servers.push(settings_row_with_help(
             server.label(),
-            help,
+            format!("{command}\n\n{requirement}"),
             control_width,
             actions,
             render_help,
         ));
+        if installing {
+            let spinner =
+                activity_spinner(state.activity_frame, 16.0).style(|theme: &iced::Theme, _| {
+                    svg::Style { color: Some(theme.extended_palette().warning.base.color) }
+                });
+            let status = container(
+                row![
+                    spinner,
+                    column![
+                        text(i18n.__("正在执行的命令")).size(14),
+                        text(command)
+                            .size(13)
+                            .font(iced::Font::MONOSPACE)
+                            .wrapping(Wrapping::WordOrGlyph),
+                    ]
+                    .spacing(3)
+                    .width(Length::Fill),
+                ]
+                .spacing(8)
+                .align_y(Alignment::Center),
+            )
+            .padding([9, 12])
+            .width(Length::Fill)
+            .style(|theme: &iced::Theme| {
+                let color = theme.extended_palette().warning.base.color;
+                container::Style {
+                    text_color: Some(theme.palette().text),
+                    background: Some(color.scale_alpha(0.10).into()),
+                    border: iced::Border {
+                        color: color.scale_alpha(0.55),
+                        width: 1.0,
+                        radius: 8.0.into(),
+                    },
+                    ..Default::default()
+                }
+            });
+            servers = servers.push(
+                container(status).padding(iced::Padding { bottom: 12.0, ..iced::Padding::ZERO }),
+            );
+        }
     }
     settings_group_card(servers).into()
 }

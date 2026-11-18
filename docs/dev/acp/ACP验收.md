@@ -1195,3 +1195,17 @@ Rust重型命令经scripts/cargo_slot.py槽位入口串行执行，对应CARGO_T
 - 用原租户、目录和现有开发配置复查。自有网关仅在自身 PATH 引入私有 Bun，读取的绝对 OMP 入口可发现，`installed=true`。使用该入口与私有诊断 HOME，普通诊断 HTTP 200，curl 退出 0，耗时 1.543001 秒，返回 `authentication_required`。诊断在 initialize 返回认证方法时即报告该状态。模型来源 GET 仍返回 `unsupported_cli`、`connected=false`。原模型在租户目录存在，网关启动环境缺少其 provider 声明的一个授权变量，其他凭据来源未实测。
 - 当前 OMP 未接入已验证版本、协议分派或请求级模型驱动。原生私有模型目录与独立二进制均未改变 ShiJu 能力门控。公开 OpenAI 兼容端点用进程默认 provider 处理纯文本消息，无法作为原租户与工具协议的中继。复跑需持久可发现的固定版运行入口、经审查的请求级模型中继、原租户可用授权、宿主和原生工具写入边界，以及脱敏接入证据。届时按原请求验证启用保存、真实指定会话和文件创建。
 - 两轮复查均无 PATCH、真实上游推理或 Rue.js 创建请求。第一次全局配置前后相同。第二次仅 `agents.acp-junie.enabled` 在复查窗口变化，首轮验收到本轮之间也只涉及该 Junie 条目。本任务未写入或回滚其他任务的配置。两轮 Rue.js 快照各 6311 项，零差异，Git 状态一致，OMP 目标目录未创建。两个自有网关和十个原生探针全部退出 0，所用回环端口关闭。私有 Bun 和独立 OMP 只保留在本机 0700 证据目录 `/tmp/shiju-omp-retry-20261118.yQhe7P/`，宿主 PATH 未改。本轮沿用首轮三项定向测试，未重跑 Cargo、页面构建或浏览器验证。
+
+
+## aionrs 验收（2026-11-18）
+
+结论为已阻塞。系统安装入口拒绝 aionrs，模型来源接口拒绝 `session_model`，编辑器尚未创建。
+
+- 从提交 `eaf5d0832^` 核对来源任务 21。提交 `eaf5d0832`、`797bc79f3` 与脱敏接入笔记 `docs/dev/evidence/acp-onboarding-aionrs.md` 确认桥接及预设已交付。任务 41 已在 `568046033` 移除，缺少独立 `shiju-pi-cli` 验收及恢复回执，批次 17 的 Pi 记录对应后端 `pi`。本次检查使用独立的开发配置副本。
+- 复用 Harn 验收的 shiju 0.6.0，SHA-256 为 `245d9857ee0005fba1936d1a8bea31719406ef6c550bfe0cc53cb46115ce130e`。构建源为 `f0d2a6d56a43ea6d1ff2673ebea254db698dd2fa` 附近共享工作区及 Harn 实现，基线包含上述两个 aionrs 提交。当前桥接与安装执行分支和基线一致，相关源码摘要保存在私有目录。
+- 在自有回环网关 `127.0.0.1:58553` 使用开发 SQLite 配置与授权文件的隔离副本，所有请求保留平台 10001、公司 100010005 和 Rue.js 目录头。安装、预设、ACP 及全局配置基线 GET 均为 HTTP 200。系统安装 POST 返回 HTTP 400，curl 退出 0、耗时 0.001595 秒，响应为“该 ACP 暂无一键安装命令，请使用官方安装器”。`gateway-desktop` 在白名单检查处返回，`config-acp-install` 对 aionrs 返回 `None`。安装状态前后均为 false。合并配置解析到 `aionrs-acp`，无参数。PATH 中两个可执行入口均缺失，未取得 CLI 版本。
+- 按读出的 ACP 配置调用普通诊断，HTTP 200、curl 退出 0、0.039814 秒，返回 `startup_failed`。模型能力 GET 为 HTTP 200、curl 退出 0、0.001021 秒，报告 `session_model=unsupported`、`reason=unsupported_cli`、`cli_local=supported`、`connected=false`。当前 `llm-runtime` 未登记 aionrs 的已验证版本或模型驱动。
+- 预设 GET 确认 `acp-aionrs`、`builtin=true`、`runtime.kind=acp`、`backend=aionrs`、`enabled=false`。前置条件未满足，未 PATCH、未发送指定 `alibaba-token-plan-cn/deepseek-v4.1-flash-1017` 的聊天请求，无 SSE、summary、ACP 选项、权限及选模绑定证据。
+- 已确认 `packages/rue/src` 与 `@rue-js/rue`。排除 `.git`、`node_modules`、`target` 后，前后各 6311 项普通文件 SHA-256 零差异，Git 短状态一致，`acpdemo/aionrs/` 始终不存在。结束配置 GET 等于基线，无临时启用值需恢复。自有网关退出 0、端口已关闭，隔离配置副本已清理。
+- 复用槽位 1 已复制的 `agent-config` 测试二进制，过滤 `acp_onboarding_aionrs --test-threads=1`，预设元数据和目录绑定共 2 项通过，退出 0。其他 Rust 编译正在运行，本次未重编译或执行桥接协议及注册集成测试。未运行 Clippy、桌面编译、页面构建或浏览器验证。
+- 原始请求、响应、日志、快照与摘要存于本机 0700 目录 `/tmp/shiju-aionrs-accept-20261118.fxP6on/`。补齐双入口的受管安装、经实证的指定模型与权限链路，并确认任务 41 的环境恢复后，按任务 42 完整重跑。

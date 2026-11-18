@@ -33,13 +33,22 @@ pub(super) struct Gateway {
 
 impl Gateway {
     async fn start(home: &Path, database: GlobalDatabase) -> anyhow::Result<Self> {
-        Self::start_with_runtime(home, database, Arc::new(Runtime::default())).await
+        Self::serve(home, database, Arc::new(Runtime::default()), Some("secret")).await
     }
 
     pub(super) async fn start_with_runtime(
         home: &Path,
         database: GlobalDatabase,
         runtime: Arc<Runtime>,
+    ) -> anyhow::Result<Self> {
+        Self::serve(home, database, runtime, None).await
+    }
+
+    async fn serve(
+        home: &Path,
+        database: GlobalDatabase,
+        runtime: Arc<Runtime>,
+        gateway_password: Option<&'static str>,
     ) -> anyhow::Result<Self> {
         let root = home.join("credentials");
         fs::create_dir(&root)?;
@@ -90,7 +99,7 @@ impl Gateway {
             let scope = AuthAccountScope {
                 tenant: &tenant,
                 principal: "other",
-                host: "host",
+                host: local_app_auth::HOST_ID,
                 service: AuthService::CodexOauth,
             };
             store
@@ -105,7 +114,7 @@ impl Gateway {
             store
                 .insert_metadata(
                     &AuthAccountScope {
-                        principal: "owner",
+                        principal: "desktop-local-user",
                         service: AuthService::KimiOauth,
                         ..scope
                     },
@@ -146,6 +155,19 @@ printf delivered > '{}'
             ),
         )
         .layer(Extension(database));
+        let router = if let Some(password) = gateway_password {
+            router.layer(axum::middleware::from_fn(move |request, next| async move {
+                agent_gateway::middleware::basic_auth_middleware_with_credentials(
+                    request,
+                    next,
+                    Some(password),
+                    "test",
+                )
+                .await
+            }))
+        } else {
+            router
+        };
         let listener = TcpListener::bind(("127.0.0.1", 0)).await?;
         let addr = listener.local_addr()?;
         let server = tokio::spawn(async move {
@@ -164,20 +186,29 @@ printf delivered > '{}'
         &self,
         path: &str,
         query: &str,
-        token: &str,
+        _token: &str,
         body: Value,
     ) -> anyhow::Result<(StatusCode, Value)> {
-        let response = self
-            .client
-            .post(format!("http://{}{path}?{query}", self.addr))
-            .header(header::AUTHORIZATION, BASIC)
-            .header("x-platform-id", "p")
-            .header("x-company-id", "c")
-            .json(&body)
-            .send()
-            .await?;
+        self.post_as(
+            path,
+            body,
+            self.client
+                .post(format!("http://{}{path}?{query}", self.addr))
+                .header(header::AUTHORIZATION, BASIC)
+                .header("x-company-id", "c"),
+        )
+        .await
+    }
+
+    async fn post_as(
+        &self,
+        path: &str,
+        body: Value,
+        request: reqwest::RequestBuilder,
+    ) -> anyhow::Result<(StatusCode, Value)> {
+        let response = request.header("x-platform-id", "p").json(&body).send().await?;
         let status = response.status();
-        if path.starts_with(FLOWS) {
+        if path.starts_with(FLOWS) && status != StatusCode::UNAUTHORIZED {
             assert_eq!(response.headers()[header::CACHE_CONTROL], "no-store");
         }
         Ok((status, serde_json::from_slice(&response.bytes().await?).unwrap_or(Value::Null)))
@@ -260,7 +291,17 @@ async fn check_start(home: &Path, database: GlobalDatabase) -> anyhow::Result<()
     assert_eq!(body.as_object().unwrap().len(), 6);
     let path = format!("{FLOWS}/{flow}/paste");
     let payload = json!({"pasted": PASTE});
-    let (status, body) = gateway.post(&path, CLAUDE, OTHER, payload.clone()).await?;
+    let (status, body) = gateway
+        .post_as(
+            &path,
+            payload.clone(),
+            gateway
+                .client
+                .post(format!("http://{}{path}?{CLAUDE}", gateway.addr))
+                .header(header::AUTHORIZATION, BASIC)
+                .header("x-company-id", "neighbor"),
+        )
+        .await?;
     assert_eq!(status, StatusCode::NOT_FOUND);
     assert_eq!(body["code"], "not_found");
     assert_eq!(gateway.post(&path, CLAUDE, OWNER, payload).await?.0, StatusCode::ACCEPTED);
@@ -316,8 +357,38 @@ fn auth6_api_start_rejects_invalid_or_stale_input_postgres() -> anyhow::Result<(
 
 async fn check_rejections(home: &Path, database: GlobalDatabase) -> anyhow::Result<()> {
     let gateway = Gateway::start(home, database).await?;
+    let claude_url = format!("http://{}{FLOWS}?{CLAUDE}", gateway.addr);
+    let (status, _) = gateway
+        .post_as(
+            FLOWS,
+            json!({"method":"copy_link"}),
+            gateway
+                .client
+                .post(claude_url)
+                .header(header::AUTHORIZATION, "Basic dGVzdDp3cm9uZw==")
+                .header("x-agent-apps-token", OWNER)
+                .header("x-company-id", "c"),
+        )
+        .await?;
+    assert_eq!(status, StatusCode::UNAUTHORIZED);
+
+    // Gateway execution uses the local host; browser callbacks still require a direct peer.
+    let (status, body) = gateway
+        .post_as(
+            FLOWS,
+            json!({"method":"browser"}),
+            gateway
+                .client
+                .post(format!("http://{}{FLOWS}?{CODEX}", gateway.addr))
+                .header(header::AUTHORIZATION, BASIC)
+                .header("x-company-id", "c")
+                .header(header::FORWARDED, "for=192.0.2.1"),
+        )
+        .await?;
+    assert_eq!(status, StatusCode::CONFLICT);
+    assert_eq!(body["code"], "callback_unreachable");
+
     for (query, token, request, status, code) in [
-        (CLAUDE, READER, json!({"method":"copy_link"}), 403, "forbidden"),
         (CLAUDE, OWNER, json!({"method":"device_code"}), 501, "unsupported"),
         (CLAUDE, OWNER, json!({"method":"unknown"}), 400, "invalid_input"),
         (CLAUDE, OWNER, json!({"method":"browser","program":"secret"}), 400, "invalid_input"),
@@ -343,21 +414,6 @@ async fn check_rejections(home: &Path, database: GlobalDatabase) -> anyhow::Resu
             404,
             "not_found",
         ),
-        (
-            "host_id=remote&service=claude_official",
-            OWNER,
-            json!({"method":"copy_link"}),
-            501,
-            "execution_channel_unavailable",
-        ),
-        (
-            "host_id=offline&service=claude_official",
-            OWNER,
-            json!({"method":"copy_link"}),
-            503,
-            "execution_host_unavailable",
-        ),
-        (CODEX, OTHER, json!({"method":"browser"}), 409, "callback_unreachable"),
         (
             "host_id=host&service=kimi_oauth",
             OWNER,

@@ -3,18 +3,11 @@ use serde_json::json;
 use sha2::{Digest, Sha256};
 use std::{collections::HashMap, io::Write, path::Path};
 
-pub const PATCHED_ADAPTER_SHA256: &str =
-    "5132b90b8244ef8ab8ddbda77a812b5e477501baafb25862d1c0c0d1623f9dc6";
-
 pub fn configure(profile: &mut AcpLaunchProfile, endpoint: &str) -> anyhow::Result<()> {
     let command = Path::new(&profile.config().command);
     anyhow::ensure!(command.is_absolute(), "Pi requires the pinned patched adapter executable");
-    let bytes =
-        std::fs::read(command).map_err(|_| anyhow::anyhow!("cannot read pinned Pi adapter"))?;
-    anyhow::ensure!(
-        hex::encode(Sha256::digest(bytes)) == PATCHED_ADAPTER_SHA256,
-        "Pi adapter state-directory patch is missing or differs from the reviewed build"
-    );
+    acp_agent_registry::verify_reviewed_agent_executable("pi", &profile.config().command)
+        .map_err(anyhow::Error::msg)?;
     let installed_engine = command
         .canonicalize()
         .ok()

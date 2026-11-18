@@ -73,7 +73,7 @@ async fn agent_config_cleanup_full_access_acp_preserves_false_and_deny() {
 }
 
 #[tokio::test]
-async fn cortex_mcp_mount_carries_resolved_tool_policy() {
+async fn acp_mcp_mount_carries_resolved_tool_policy() {
     isolated(async {
         let workspace = tempfile::tempdir().unwrap();
         let project = workspace.path().join("project.json");
@@ -85,7 +85,10 @@ async fn cortex_mcp_mount_carries_resolved_tool_policy() {
                     "command": "/test/graph",
                     "allowedTools": ["query", "node"],
                     "deniedTools": ["node"],
-                    "_meta": {"shiju.cortex.toolPolicy": {"allow": ["ambient"], "deny": []}}
+                    "_meta": {
+                        "shiju.cortex.toolPolicy": {"allow": ["ambient"], "deny": []},
+                        "shiju.pi.toolPolicy": {"allow": ["ambient"], "deny": []}
+                    }
                 }]
             })
             .to_string(),
@@ -97,24 +100,29 @@ async fn cortex_mcp_mount_carries_resolved_tool_policy() {
                 .unwrap();
         STATE.with(|state| *state.borrow_mut() = resolved);
         let cfg = config::Config::default();
-        let mut parsed = ParsedAcpOptions::default();
-        apply_agent_defaults(
-            &cfg,
-            &json!({"agent": "acp-cortex-code"}),
-            "cortex-code",
-            workspace.path(),
-            &mut parsed,
-            &json!([]),
-        )
-        .await
-        .unwrap();
+        for (backend, key) in [
+            ("cortex-code", "shiju.cortex.toolPolicy"),
+            ("pi", "shiju.pi.toolPolicy"),
+        ] {
+            let mut parsed = ParsedAcpOptions::default();
+            apply_agent_defaults(
+                &cfg,
+                &json!({"agent": format!("acp-{backend}")}),
+                backend,
+                workspace.path(),
+                &mut parsed,
+                &json!([]),
+            )
+            .await
+            .unwrap();
 
-        assert_eq!(parsed.mcp_servers.len(), 1);
-        let wire = serde_json::to_value(&parsed.mcp_servers[0]).unwrap();
-        assert_eq!(
-            wire["_meta"]["shiju.cortex.toolPolicy"],
-            json!({"allow": ["query", "node"], "deny": ["node"]})
-        );
+            assert_eq!(parsed.mcp_servers.len(), 1);
+            let wire = serde_json::to_value(&parsed.mcp_servers[0]).unwrap();
+            assert_eq!(
+                wire["_meta"][key],
+                json!({"allow": ["query", "node"], "deny": ["node"]})
+            );
+        }
     })
     .await;
 }

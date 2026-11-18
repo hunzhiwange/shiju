@@ -1,20 +1,20 @@
 diff --git a/src/acp/agent.ts b/src/acp/agent.ts
-index 8f4e8b8..6ca7fd1 100644
+index 8f4e8b8..ccaf26c 100644
 --- a/src/acp/agent.ts
 +++ b/src/acp/agent.ts
-@@ -1270,12 +1270,19 @@ function buildStartupInfo(opts: {
+@@ -22,0 +23 @@ import { getAuthMethods } from './auth.js'
++import { discoverMcp } from './session-mcp.js'
+@@ -808 +808,0 @@ export class PiAcpAgent implements ACPAgent {
+-    // MVP: ignore mcpServers.
+@@ -823 +823,2 @@ export class PiAcpAgent implements ACPAgent {
+-        piCommand: process.env.PI_ACP_PI_COMMAND
++        piCommand: process.env.PI_ACP_PI_COMMAND,
++        mcp: await discoverMcp(params.mcpServers, params.cwd)
+@@ -1270,4 +1271,9 @@ function buildStartupInfo(opts: {
 -  // Global skills
 -  // Use getAgentDir() so this respects PI_CODING_AGENT_DIR overrides.
 -  const globalSkillsDir = join(getAgentDir(), 'skills')
 -  pushSkillFromRoot(globalSkillsDir)
--
--  // Also support ~/.agents/skills (pi skill discovery)
--  const legacyAgentsSkillsDir = join(process.env.HOME ?? '', '.agents', 'skills')
--  pushSkillFromRoot(legacyAgentsSkillsDir)
--
--  // Project skills (.pi/skills)
--  const projectSkillsDir = join(opts.cwd, '.pi', 'skills')
--  pushSkillFromRoot(projectSkillsDir)
 +  const skillRoot = process.env.SHIJU_PI_SKILL_ROOT
 +  if (skillRoot !== undefined) {
 +    if (skillRoot && !isAbsolute(skillRoot)) throw new Error('SHIJU_PI_SKILL_ROOT must be absolute')
@@ -24,11 +24,17 @@ index 8f4e8b8..6ca7fd1 100644
 +    // Use getAgentDir() so this respects PI_CODING_AGENT_DIR overrides.
 +    const globalSkillsDir = join(getAgentDir(), 'skills')
 +    pushSkillFromRoot(globalSkillsDir)
-+
+@@ -1275,3 +1281,3 @@ function buildStartupInfo(opts: {
+-  // Also support ~/.agents/skills (pi skill discovery)
+-  const legacyAgentsSkillsDir = join(process.env.HOME ?? '', '.agents', 'skills')
+-  pushSkillFromRoot(legacyAgentsSkillsDir)
 +    // Also support ~/.agents/skills (pi skill discovery)
 +    const legacyAgentsSkillsDir = join(process.env.HOME ?? '', '.agents', 'skills')
 +    pushSkillFromRoot(legacyAgentsSkillsDir)
-+
+@@ -1279,3 +1285,5 @@ function buildStartupInfo(opts: {
+-  // Project skills (.pi/skills)
+-  const projectSkillsDir = join(opts.cwd, '.pi', 'skills')
+-  pushSkillFromRoot(projectSkillsDir)
 +    // Project skills (.pi/skills)
 +    const projectSkillsDir = join(opts.cwd, '.pi', 'skills')
 +    pushSkillFromRoot(projectSkillsDir)
@@ -47,16 +53,237 @@ index 4f55af3..1d2c7fb 100644
 +    if (!isAbsolute(directory)) throw new Error('PI_ACP_STATE_DIR must be absolute')
 +    return directory
 +  }
+diff --git a/src/acp/session-mcp.ts b/src/acp/session-mcp.ts
+new file mode 100644
+index 0000000..0bd19db
+--- /dev/null
++++ b/src/acp/session-mcp.ts
+@@ -0,0 +1,95 @@
++import { createHash } from 'node:crypto'
++import { execFile } from 'node:child_process'
++import { realpath } from 'node:fs/promises'
++import { isAbsolute } from 'node:path'
++import { fileURLToPath } from 'node:url'
++import type { McpServer } from '@agentclientprotocol/sdk'
++
++export const extension = fileURLToPath(new URL('./shiju-mcp-extension.mjs', import.meta.url))
++const helper = fileURLToPath(new URL('./shiju-mcp.py', import.meta.url))
++const namePattern = /^[a-zA-Z0-9]+(?:_[a-zA-Z0-9]+)*$/
++
++type Stdio = { name: string; command: string; args: string[] }
++type Descriptor = { name: string; description: string; inputSchema: { type: string } }
++type Policy = { allow?: string[]; deny?: string[] }
++
++export type SessionMcp = {
++  catalog: Descriptor[]
++  call(name: string, args: Record<string, unknown>, signal: AbortSignal): Promise<string>
++}
++
++function operation(
++  request: { operation: 'list' | 'call'; workspace: string; server: Stdio; name?: string; arguments?: unknown },
++  signal?: AbortSignal
++): Promise<string> {
++  signal?.throwIfAborted()
++  return new Promise((resolve, reject) => {
++    const child = execFile('/usr/bin/python3', ['-I', helper], {
++      env: { HOME: process.env.HOME, PATH: '/usr/bin:/bin' },
++      maxBuffer: 4 * 1024 * 1024,
++      timeout: 20000
++    }, (error, stdout) => {
++      signal?.removeEventListener('abort', disconnect)
++      if (error || signal?.aborted) reject(new Error('Selected MCP operation failed or was cancelled'))
++      else resolve(stdout)
++    })
++    function disconnect() {
++      child.stdin?.end()
++    }
++    child.stdin?.on('error', () => child.kill())
++    signal?.addEventListener('abort', disconnect, { once: true })
++    child.stdin?.write(JSON.stringify(request) + '\n')
++  })
++}
++
++export async function discoverMcp(servers: McpServer[], cwd: string): Promise<SessionMcp | undefined> {
++  if (!servers.length) return undefined
++  if (process.platform !== 'darwin' || process.env.SHIJU_PI_SKILL_ROOT === undefined || servers.length > 16) {
++    throw new Error('Pi MCP requires the reviewed managed macOS stdio sandbox')
++  }
++  const workspace = await realpath(cwd)
++  const tools = new Map<string, { server: Stdio; tool: string }>()
++  const catalog: Descriptor[] = []
++  const names = new Set<string>()
++
++  for (const definition of servers) {
++    if (!('command' in definition) || !namePattern.test(definition.name) || names.has(definition.name) ||
++        !isAbsolute(definition.command) || definition.env.length) {
++      throw new Error('Pi MCP requires uniquely named absolute stdio servers without environment overrides')
++    }
++    names.add(definition.name)
++    const { name, command, args } = definition
++    const server = { name, command, args }
++    const policy = definition._meta?.['shiju.pi.toolPolicy'] as Policy | undefined
++    const discovered = JSON.parse(await operation({ operation: 'list', workspace, server })) as Descriptor[]
++    if (!discovered.length) throw new Error('Selected Pi MCP server did not expose tools')
++    for (const descriptor of discovered) {
++      const id = name + '__' + descriptor.name
++      let policyId = 'mcp__' + id.toLowerCase()
++      if (id !== id.toLowerCase() || policyId.length > 64) {
++        const hash = createHash('sha256').update(name + '\0' + descriptor.name).digest('hex').slice(0, 16)
++        policyId = policyId.slice(0, 47) + '_' + hash
++      }
++      const matches = (list: string[] | undefined) => list?.some(item => item === descriptor.name || item === policyId)
++      if (matches(policy?.deny) || (policy?.allow?.length && !matches(policy.allow))) continue
++      if (!namePattern.test(descriptor.name) || id.length > 64 || tools.has(id) ||
++          descriptor.inputSchema?.type !== 'object' || tools.size >= 256) {
++        throw new Error('Invalid or duplicate selected Pi MCP tool descriptor')
++      }
++      tools.set(id, { server, tool: descriptor.name })
++      catalog.push({ name: id, description: `MCP server ${name}. ${descriptor.description ?? descriptor.name}`,
++        inputSchema: descriptor.inputSchema })
++    }
++  }
++
++  if (Buffer.byteLength(JSON.stringify(catalog)) > 100000) throw new Error('Pi MCP catalog exceeds launch limit')
++  return {
++    catalog,
++    call(name, args, signal) {
++      const entry = tools.get(name)
++      if (!entry) throw new Error('Tool is outside the selected Pi MCP catalog')
++      return operation({ operation: 'call', workspace, server: entry.server,
++        name: entry.tool, arguments: args }, signal)
++    }
++  }
++}
+diff --git a/src/acp/session.ts b/src/acp/session.ts
+index 57bd99e..a42ae89 100644
+--- a/src/acp/session.ts
++++ b/src/acp/session.ts
+@@ -0,0 +1 @@
++import { isDeepStrictEqual } from 'node:util'
+@@ -9,0 +11 @@ import { RequestError } from '@agentclientprotocol/sdk'
++import { discoverMcp } from './session-mcp.js'
+@@ -84 +86,2 @@ export class SessionManager {
+-        piCommand: params.piCommand
++        piCommand: params.piCommand,
++        mcp: await discoverMcp(params.mcpServers, params.cwd)
+@@ -164,0 +168,2 @@ export class PiAcpSession {
++  private mcpTurn?: AbortController
++  private readonly mcpCalls = new Map<string, { name: string; args: unknown }>()
+@@ -263,0 +269 @@ export class PiAcpSession {
++    this.mcpTurn?.abort()
+@@ -307,0 +314,2 @@ export class PiAcpSession {
++    this.mcpCalls.clear()
++    this.mcpTurn = this.proc.mcp ? new AbortController() : undefined
+@@ -347,0 +356,37 @@ export class PiAcpSession {
++  private async handleMcpRequest(id: string, payload: string) {
++    let value: string | undefined
++    try {
++      const turn = this.mcpTurn
++      if (!this.proc.mcp || !turn || !this.pendingTurn) return
++      const signal = AbortSignal.any([turn.signal, this.proc.signal])
++      const { name, toolCallId, args } = JSON.parse(payload)
++      if (typeof name !== 'string' || typeof toolCallId !== 'string' ||
++          !args || typeof args !== 'object' || Array.isArray(args)) return
++      const call = this.mcpCalls.get(toolCallId)
++      if (call?.name !== name || !isDeepStrictEqual(call.args, args)) return
++      this.mcpCalls.delete(toolCallId)
++      signal.throwIfAborted()
++      await this.flushEmits()
++      signal.throwIfAborted()
++      const response = await new Promise<Awaited<ReturnType<AgentSideConnection['requestPermission']>>>((resolve, reject) => {
++        function abort() { reject(new Error('Pi MCP approval cancelled')) }
++        signal.addEventListener('abort', abort, { once: true })
++        this.conn.requestPermission({
++          sessionId: this.sessionId,
++          toolCall: { toolCallId, title: name, kind: 'other', status: 'in_progress', rawInput: args },
++          options: [
++            { optionId: 'allow', name: 'Allow this call', kind: 'allow_once' },
++            { optionId: 'reject', name: 'Reject this call', kind: 'reject_once' }
++          ]
++        }).then(resolve, reject).finally(() => signal.removeEventListener('abort', abort))
++      })
++      if (response.outcome.outcome === 'selected' && response.outcome.optionId === 'allow') {
++        value = await this.proc.mcp.call(name, args, signal)
++      }
++    } catch {
++      // A disconnected, failed or cancelled operation never supplies a result.
++    } finally {
++      this.proc.respondMcp(id, value)
++    }
++  }
++
+@@ -350,0 +396,6 @@ export class PiAcpSession {
++    if (type === 'extension_ui_request' && ev.method === 'editor' &&
++        ev.title === 'ShiJu session MCP' && typeof ev.id === 'string' && typeof ev.prefill === 'string') {
++      void this.handleMcpRequest(ev.id, ev.prefill)
++      return
++    }
++
+@@ -427,0 +479,4 @@ export class PiAcpSession {
++        if (this.proc.mcp?.catalog.some(tool => tool.name === toolName)) {
++          this.mcpCalls.set(toolCallId, { name: toolName, args })
++        }
++
+@@ -530,0 +586 @@ export class PiAcpSession {
++        this.mcpCalls.delete(toolCallId)
 diff --git a/src/pi-rpc/process.ts b/src/pi-rpc/process.ts
-index d62018d..5434d69 100644
+index d62018d..d288679 100644
 --- a/src/pi-rpc/process.ts
 +++ b/src/pi-rpc/process.ts
-@@ -0,0 +1 @@
+@@ -0,0 +1,2 @@
 +import { isAbsolute } from 'node:path'
-@@ -130,0 +132,6 @@ export class PiRpcProcess {
++import { extension, type SessionMcp } from '../acp/session-mcp.js'
+@@ -70,0 +73 @@ type SpawnParams = {
++  mcp?: SessionMcp
+@@ -74,0 +78,3 @@ export class PiRpcProcess {
++  readonly mcp?: SessionMcp
++  private readonly lifetime = new AbortController()
++  get signal(): AbortSignal { return this.lifetime.signal }
+@@ -79 +85 @@ export class PiRpcProcess {
+-  private constructor(child: ChildProcessWithoutNullStreams) {
++  private constructor(child: ChildProcessWithoutNullStreams, mcp?: SessionMcp) {
+@@ -80,0 +87,2 @@ export class PiRpcProcess {
++    this.mcp = mcp
++    child.once('close', () => this.lifetime.abort())
+@@ -130,0 +139,12 @@ export class PiRpcProcess {
 +    const skillRoot = process.env.SHIJU_PI_SKILL_ROOT
 +    if (skillRoot !== undefined) {
 +      if (skillRoot && !isAbsolute(skillRoot)) throw new Error('SHIJU_PI_SKILL_ROOT must be absolute')
 +      args.push('--no-skills', '--no-extensions')
 +      if (skillRoot) args.push('--skill', skillRoot)
 +    }
++    const env = { ...process.env }
++    delete env.VW_PI_MCP_CATALOG
++    if (params.mcp?.catalog.length) {
++      args.push('--extension', extension)
++      env.VW_PI_MCP_CATALOG = JSON.stringify(params.mcp.catalog)
++    }
+@@ -136 +156 @@ export class PiRpcProcess {
+-      env: process.env
++      env
+@@ -179 +199 @@ export class PiRpcProcess {
+-    const proc = new PiRpcProcess(child)
++    const proc = new PiRpcProcess(child, params.mcp)
+@@ -196,0 +217,11 @@ export class PiRpcProcess {
++    if (params.mcp?.catalog.length) {
++      try {
++        const result = await proc.getCommands() as { commands?: Array<{ name: string; source: string }> }
++        if (!result.commands?.some(command => command.name === 'shiju-session-mcp' && command.source === 'extension')) {
++          throw new Error('Pi session MCP extension did not load')
++        }
++      } catch (error) {
++        proc.dispose()
++        throw error
++      }
++    }
+@@ -206,0 +238,8 @@ export class PiRpcProcess {
++  respondMcp(id: string, value?: string): void {
++    if (this.signal.aborted) return
++    const reply = value === undefined ? { cancelled: true } : { value }
++    this.child.stdin.write(JSON.stringify({ type: 'extension_ui_response', id, ...reply }) + '\n', error => {
++      if (error) this.dispose()
++    })
++  }
++
+@@ -207,0 +247 @@ export class PiRpcProcess {
++    this.lifetime.abort()

@@ -1,6 +1,6 @@
 # Pi 动态挂载 RustCodeGraph
 
-2026-11-19，Pi 动态挂载验收阻塞。指定模型在三轮均完成回复。挂载轮宿主已连接 RustCodeGraph，Pi 的模型工具表仍缺少 MCP 工具。[复用请求](../ACP验收.md#可复用的验收请求)
+2026-11-19，Pi 受管 v1 动态挂载验收复现缺口。指定模型在三轮均完成回复。挂载轮宿主已连接 RustCodeGraph，Pi 的模型工具表仍缺少 MCP 工具。[复用请求](../ACP验收.md#可复用的验收请求)
 
 ## 环境
 
@@ -26,6 +26,13 @@
 
 固定版 `src/acp/session.ts` 在会话对象中保存 `mcpServers`，原生 RPC 启动未使用该字段。断点位于 Pi 工具注册之前，发生在结果回传或压缩之前。上游主分支仍记录同一限制。[pi-acp 上游限制](https://github.com/svkozak/pi-acp#limitations)
 
-上游未合并的 #164 依赖较新 Pi 的 `registerMcpServer`，固定的 0.73.1 扩展 API 仅提供 `registerTool` 等接口。#145 的注册工具方案直接在扩展中执行 MCP 调用，缺少 ShiJu 宿主逐工具审批回接，并允许连接失败后继续建会话。普通 Pi MCP 扩展采用独立配置，受管启动以 `--no-extensions` 隔离自动发现。复跑需要受管入口把 ACP 服务注册进 Pi 工具表，同时将调用交回宿主审批并随会话撤销。此次维持现有隔离和两个发行固定值。[#164 会话桥接](https://github.com/svkozak/pi-acp/pull/164) · [#145 扩展方案](https://github.com/svkozak/pi-acp/pull/145)
+上游未合并的 #164 依赖较新 Pi 的 `registerMcpServer`，固定的 0.73.1 扩展 API 仅提供 `registerTool` 等接口。#145 的注册工具方案直接在扩展中执行 MCP 调用，缺少 ShiJu 宿主逐工具审批回接，并允许连接失败后继续建会话。普通 Pi MCP 扩展采用独立配置，受管启动以 `--no-extensions` 隔离自动发现。适配沿用受管扩展隔离和两个发行固定值。[#164 会话桥接](https://github.com/svkozak/pi-acp/pull/164) · [#145 扩展方案](https://github.com/svkozak/pi-acp/pull/145)
 
-生产代码和契约未修改。公共宿主转发测试未运行，故障已在独立原生探针定位到 Pi 适配器。私有网关已退出，端口已关闭，副本挂载条目及私有认证文件已清理。原始证据保留在本机私有目录。
+v1 私有网关已退出，端口已关闭，副本挂载条目及私有认证文件已清理。原始证据保留在本机私有目录。
+
+## 受管 v2 适配与聚焦验证
+
+- 保留 pi-acp 0.0.22、Pi 0.73.1 与原 Relay 绑定。v2 只加载 reviewed adapter 显式指定的扩展，将本会话选中的 stdio 工具注册到 Pi 0.73.1。执行请求须匹配当前提示中原生调用的 ID、工具名及参数，宿主通过 ACP 审批后才查询。取消或关闭会话会撤销在途调用，响应沿 Pi 原生工具 ID 返回。工作区规则在注册时过滤，撤除和重新加载时按新请求重建工具集。
+- 调用复用受审 macOS stdio 沙箱和单操作 runner。MCP 使用独立临时 HOME、工作区只读视图，禁止网络和派生子进程。受管配置接受绝对路径、无额外环境变量的 stdio。私有验收副本保留 SQLite WAL 与 SHM，供只读沙箱打开原索引。
+- 仓库安装脚本基于固定发行包完成 v2 安装，并校验适配器、扩展和两个 Python 文件的摘要。适配器 SHA-256 为 `579df420c0a8d19f72bf34343e592174ff50d40776fda6311c04f488a44dad60`。TypeScript 定向类型检查退出 0。
+- 用同一个 `patches/acp-model-source/pi/probe.py` 测试原生 Pi 和真实 RustCodeGraph。v1 退出 1，挂载工具表缺三种工具。v2 退出 0，七个场景通过，覆盖无挂载、批准、拒绝、撤除、加载重绑及清除、等待审批时取消，以及宿主规则的拒绝优先。工具审批、结构化 ACP 完成事件和模型续轮以同一调用 ID 核对。真实输出含 `createRueSiteApp`、`mountRueSiteApp` 和 `useApp` 对 `_$createApp` 的调用。

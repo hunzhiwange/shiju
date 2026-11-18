@@ -36,7 +36,7 @@ fn installed_directory(agent: &str, contract: &Contract) -> Result<PathBuf, Stri
         3
     } else if matches!(
         agent,
-        "amp-acp" | "corust-agent" | "cursor" | "hermes" | "snow" | "openclaw"
+        "amp-acp" | "corust-agent" | "cursor" | "hermes" | "snow" | "openclaw" | "pi"
     ) {
         2
     } else {
@@ -450,6 +450,7 @@ pub(super) async fn install(agent: &str) -> Result<bool, String> {
             "pi.patch",
             include_str!("../../../../patches/acp-model-source/pi/pi-acp-0.0.22-state-dir.patch"),
         ),
+        ("pi/mcp-extension.mjs", include_str!("../../../../patches/acp-model-source/pi/mcp-extension.mjs")),
         ("iflow/apply.py", include_str!("../../../../patches/acp-model-source/iflow/apply.py")),
         (
             "codebuddy/apply.py",

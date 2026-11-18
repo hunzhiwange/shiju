@@ -116,15 +116,18 @@ pub async fn apply_agent_defaults<H: DefaultsHost, S>(
         })
         .map(|server| {
             let mut selected = server.clone();
-            if backend == "cortex-code" {
+            let policy_key = match backend {
+                "cortex-code" => Some("shiju.cortex.toolPolicy"),
+                "pi" => Some("shiju.pi.toolPolicy"),
+                _ => None,
+            };
+            if let (Some(key), acp_types::AcpMcpServer::Stdio(stdio)) = (policy_key, &mut selected) {
                 let policy = mcp_client::management_for_server(&mcp, server);
-                if let acp_types::AcpMcpServer::Stdio(stdio) = &mut selected {
-                    // Cortex's client tool bridge enforces the resolved host policy.
-                    stdio.meta.get_or_insert_with(Default::default).insert(
-                        "shiju.cortex.toolPolicy".into(),
-                        serde_json::json!({"allow": policy.allowed_tools, "deny": policy.denied_tools}),
-                    );
-                }
+                // The reviewed adapter enforces the host's resolved tool policy.
+                stdio.meta.get_or_insert_with(Default::default).insert(
+                    key.into(),
+                    serde_json::json!({"allow": policy.allowed_tools, "deny": policy.denied_tools}),
+                );
             }
             selected
         })

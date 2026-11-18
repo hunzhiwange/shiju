@@ -1,4 +1,4 @@
-# Pi ACP state directory patch
+# Pi ACP managed runtime patch
 
 Upstream: https://github.com/svkozak/pi-acp commit
 `8be5f22769f71d759aa48d798416c56e8be101ef` (v0.0.22, MIT).
@@ -9,6 +9,15 @@ An empty skill root disables skills; an absolute root is passed through native
 An unset skill root preserves upstream skill discovery.
 An unset `PI_ACP_STATE_DIR` preserves `homedir()/.pi/pi-acp`, including cli_local;
 relative or empty state-directory overrides fail explicitly. Pi itself is unchanged.
+
+The v2 managed runtime connects ACP session mounts to Pi's RPC tool registry.
+It loads only the explicit reviewed extension for that session. Each call is
+bound to its in-progress Pi tool call and requires an ACP `allow_once` decision.
+Discovery and execution reuse the reviewed Cortex stdio sandbox and its
+single-operation runner. This path supports absolute macOS stdio commands with
+no environment overrides. The gateway passes the resolved tool allow and deny
+rules, and the runner gets a private HOME and a workspace read-only view.
+Loading a session reconstructs the tool set from that load request.
 
 Apply and build in a private checkout of that exact commit:
 
@@ -21,10 +30,10 @@ npm run build
 Pinned upstream package-lock SHA256:
 `e257ee4cbe345ee0de44714d34401ed2ed14de41abc2c6ed7511b1a3d923c606`.
 Patch SHA256:
-`88c36304e8d2b510fb684477c53f9f712de2b02616064093b36dfa78e5a4ac2d`.
-Built dist/index.js SHA256 (Node 26.13.0 / npm 11.20.0, Darwin arm64):
-`5132b90b8244ef8ab8ddbda77a812b5e477501baafb25862d1c0c0d1623f9dc6`.
-The session_model driver rejects any other adapter artifact before launching it;
+`61cf81d5a737e55cde753266ef0e3ebaae978eeef63560deb6e2e0b66c8560d8`.
+Built dist/index.js SHA256 (Darwin arm64):
+`579df420c0a8d19f72bf34343e592174ff50d40776fda6311c04f488a44dad60`.
+The session_model driver checks the adapter and installed companion file hashes against the managed registry before launch;
 launch the executable dist/index.js directly (no npx wrapper or extra arguments).
 The native engine used for acceptance is the real published
 `@mariozechner/pi-coding-agent@0.73.1`, gitHead
@@ -32,8 +41,7 @@ The native engine used for acceptance is the real published
 
 Version and model-request acceptance are separate: pi-acp 0.0.22 has no --version
 output. Verify package identity, patch/build digest and native Pi version rather
-than adding a fake version-reporting CLI. Installer/registry publication belongs
-to task 33 and must preserve this pin.
+than adding a fake version-reporting CLI. The managed installer preserves both package pins.
 
 Verify the patch's default/absolute/invalid-directory behavior without reading or
 writing user files:
@@ -54,3 +62,10 @@ Published npm inputs (registry.npmjs.org, npm verified integrity on installation
 
 Apply the patch against the exact pinned commit; the original state-directory
 isolation remains intact. Skills are read by the unchanged native engine, on demand.
+
+With the managed v2 installer output, exercise discovery, host approval, same-ID
+tool results, cancellation, and removal in new and loaded sessions:
+
+```sh
+python3 patches/acp-model-source/pi/probe.py <pi-acp-entry> <rustcodegraph> <indexed-ruejs-copy>
+```

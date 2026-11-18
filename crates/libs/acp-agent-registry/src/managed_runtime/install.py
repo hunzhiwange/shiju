@@ -633,6 +633,9 @@ elif agent == 'pi':
     run(['npm', 'ci', '--ignore-scripts', '--registry=https://registry.npmjs.org', '--no-audit', '--no-fund'], cwd=source)
     run(['npm', 'run', 'build'], cwd=source)
     shutil.copy2(source / 'dist/index.js', root / 'dist/index.js')
+    shutil.copyfile(assets / 'pi/mcp-extension.mjs', root / 'dist/shiju-mcp-extension.mjs')
+    shutil.copyfile(assets / 'deepagents/mcp.py', root / 'dist/shiju-mcp.py')
+    shutil.copyfile(assets / 'cortex-code/mcp_bridge.py', root / 'dist/shiju-stdio.py')
 check_files(root, contract['files'])
 if agent == 'pi':
     engine = runtime / 'node_modules/@mariozechner/pi-coding-agent/dist/cli.js'

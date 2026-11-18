@@ -71,3 +71,29 @@ Cursor 固定发行版为 `2026.11.11-b912975`，ACP 握手返回协议 v1，声
 严格验收仍为已阻塞。新版网关已验证原生挂载、结果回传和撤除，剩余失败出在同一真实挂载轮。继续验收需要指定模型完成零失败的调查，或等 RustCodeGraph 改善当前漏索引定义的定位能力后复跑。若要接受三工具组中已恢复的探索性读取失败，需由验收负责人调整合同。
 
 本轮复跑 Node 定向测试 6 项通过，复用共享构建，未运行 Cargo。三座私有网关、RustCodeGraph 和转发器均已退出，端口和临时租户配置已清理。三份源码副本的 4109 个文件和符号链接与归档一致，新增图谱索引除外。原始 SSE、回读和诊断仅保存在本机私有目录。
+
+## RustCodeGraph 1.2.11 复验
+
+复用任务 8 与 Pi 验收使用的 `shiju 0.6.0`，SHA-256 `7f8fb6ab97e9e6b00e6694ce48376e2d50a3ce4b2bff3fff93004b98db824916`。对照当前源码验证二进制内嵌的 Cursor 补丁以及两项运行文件摘要，私有实例的系统安装入口验证同一受管 v2 成功。RustCodeGraph 1.2.11 发行二进制 SHA-256 为 `5fab2f2dbf506ddf71d842ef1a7cd6e744c5ec90ff3f5f043ea020e1b3696312`。使用同一 RueJS 提交重建 3478 文件索引，并确认 MCP 查询能直接命中 `createAppRouter`（`app/router/index.ts:787`）。
+
+沿用原提示、模型、租户、权限和服务名。限定目录复用 Goose 的 stdio 转发器，包含分页和默认索引根说明。协议对照确认直连与限定目录的路由符号查询、分页读取和缺失文件响应一致。新版的 `node(file=index.html)` 返回 `No indexed file matches`，即使 SSE 将该调用标为完成，也没有读回源码。第二组仅在工具说明中移除 HTML 入口建议并说明这一限制，实际请求与响应仍原样传递。 [Goose 转发器验收](goose.md) · [Pi 发行构建验收](pi.md)
+
+| 工具说明 | 轮次 | 新会话 | HTTP / curl / 秒 | 终态与结果 |
+| --- | --- | --- | --- | --- |
+| Goose 元数据 | 无挂载 | `ses_1f104110d001zdslX4Z68qzBf1` | 200 / 0 / 14.983 | `chat.done`，仅 `MCP_NOT_AVAILABLE`，零工具 |
+| Goose 元数据 | 挂载 | `ses_1f1044ccf001T4I607w6ha0IUu` | 200 / 0 / 197.746 | 64 次工具完成后 `chat.error`，无完整答复 |
+| Goose 元数据 | 撤除 | `ses_1f107528b001LChiJBosY7o5OE` | 200 / 0 / 14.777 | `chat.done`，仅 `MCP_NOT_AVAILABLE`，零工具 |
+| 仅索引入口 | 无挂载 | `ses_1f1070bc500159y9gSA0WDrlsg` | 200 / 0 / 15.225 | `chat.done`，仅 `MCP_NOT_AVAILABLE`，零工具 |
+| 仅索引入口 | 挂载 | `ses_1f107487b0019SE5DQCeUJUETE` | 200 / 0 / 242.608 | `chat.done`，58 次成功、零工具失败 |
+| 仅索引入口 | 撤除 | `ses_1f10afda20018O23xeUyR9MADx` | 200 / 0 / 14.450 | `chat.done`，仅 `MCP_NOT_AVAILABLE`，零工具 |
+| 仅索引入口再试 | 无挂载 | `ses_1f10c67c1001CXHzHwqppN4QXL` | 200 / 0 / 15.809 | `chat.done`，标记后追加说明，零工具 |
+| 仅索引入口再试 | 挂载 | `ses_1f10ca6c3001QX0yRVkAteLGD2` | 200 / 0 / 270.356 | `chat.done`，57 次成功、1 次失败 |
+| 仅索引入口再试 | 撤除 | `ses_1f110c815001ZuX3QFTenyqZy0` | 200 / 0 / 14.010 | `chat.done`，仅 `MCP_NOT_AVAILABLE`，零工具 |
+
+首组只调用三种指定工具，query `call_5ada794bcb4848598def6021` 返回 `createRueSiteApp`（`app/app.tsx:32`），callers `call_f0f40d86e694425f9db2bff8` 返回 `mountRueSiteApp`（同文件第 39 行），node `call_72a2c1623f1d4f12bc6f291c` 读回 `useApp.ts:4` 对 `_$createApp` 的调用。首次未读到请求文件的调用为 `call_bd87c2f28f4c4f019ce4c7ac`，目标为 `index.html`。挂载轮收到一次停止恢复事件和一次 `chat.error`。
+
+第二组只有三种指定工具，query 18 次、callers 3 次、node 37 次，均有同 ID 开始和完成事件，无文件缺失输出、模型恢复或 `chat.error`。答复的启动链、SSR 守卫、容器判空、插件注册、布局分支与快照追加推断可回对源码。第二个验证场景误称预填 `#app` 且客户端始终未挂载会等待超时。实际 `waitForStaticAppHtml` 会将旧节点视为有效内容，稳定时间达到 `settleMs` 即可返回旧 HTML（`packages/server-renderer/src/static.mjs:715–740`）。该场景的预期需要先约束挂载与快照采样的先后顺序。
+
+第三组复用相同说明复核答复。模型给出有效的 `/design/button` 和 `/settings` 导航场景，仍有一条 query 调用把 `packages/i18n` 当作独立索引根（`call_df2878dfbf01475695c4eb5f`），原服务返回索引未初始化。无挂载轮也多答了解释。模型已完成零工具失败的挂载轮，但没有在同一组三轮中同时满足工具、对照和答复准确性。任务保留已阻塞。恢复条件是指定模型在该真实索引下完成同组严格三轮，并给出两项准确的验证预期。
+
+各组挂载中回读 `client_only`，权限队列采样为空。九轮终态均释放连接，回读保持同一模型来源及完整模型 ID。未运行 Cargo 或修改产品代码。三座私有网关及子进程已退出，端口、租户副本和临时挂载已清理。三个 RueJS 副本各 4109 个文件及链接与归档一致，新增索引除外。原始证据仅保存在本机私有目录。

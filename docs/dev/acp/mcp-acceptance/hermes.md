@@ -1,6 +1,6 @@
 # Hermes Agent 动态挂载 MCP 验收
 
-2026-11-19。Hermes 动态挂载和撤除已实测。严格验收阻塞于额外工具调用及答复中的验证场景。受管安装已补齐原生 MCP SDK。
+2026-11-19。受管安装补齐原生 MCP SDK。共享构建以限定的真实 RustCodeGraph 工具目录通过三轮验收。初验曾出现额外工具调用和不可直接执行的验证场景。
 
 ## 环境与首个失败边界
 
@@ -38,3 +38,29 @@
 三轮 `ui/summary` 均为 HTTP 200，回读 `acp-hermes / hermes` 及 `full_access=true`。`acp-options` 回读原模型和来源 `session_model`。挂载轮进行中为 `connected=true`、`access_status.support=partial`，权限队列为空。原生探针初始模式为 `default`。宿主分别处理 Hermes 编辑审批和终端权限，本次实际只调用了只读图谱工具，未实测编辑或终端审批。三轮结束后各自释放 ACP 连接。网关另有标题生成模型的 HTTP 403，三轮使用的会话模型均返回正文和终态。
 
 仓库的公共转发与会话驱动未改，未运行 llm-runtime 定向测试或 Cargo 构建。验证覆盖 installer 冷安装、契约文件校验、独立 ACP 探针、真实模型对照和 `git diff --check`。私有网关及其 RustCodeGraph 子进程已退出，端口关闭，凭据及租户数据库副本已清理。RueJS 副本源码及符号链接与归档一致，临时挂载配置已撤除。现有网关继续运行，其 Hermes 预设仍停用。原始事件和诊断日志保存在本机私有目录。
+
+## 共享构建复验
+
+复用共享槽位 6 的 shiju 0.6.0 构建副本，SHA-256 为 `6954a2bb76ca26aa39c3b0dd909786c68b85f336648526ef39651b1e3a31f718`。私有网关报告 Hermes 已安装，真实会话启动经校验的 0.19.0 受管 v2 入口。三组均保持原始提示、同一租户和模型、全访问授权，并使用同一 RueJS 提交的独立副本。
+
+复用同批次的临时 stdio 转发方式，只公布 query、callers、node，保持真实请求和图谱结果。协议检查确认符号查询、调用者、从第 787 行开始的分页源码，以及拒绝额外工具和副本外路径。三组分别采用 RustCodeGraph 1.2.10 与分页元数据、1.2.11 与真实入口文件元数据、1.2.10 与同样的入口元数据。1.2.11 能索引 `createAppRouter`，但本组对真实根 `index.html` 的 node 请求返回未索引。
+
+| 工具目录 | 轮次 | 新会话 | HTTP / curl / 秒 | 终态与结果 |
+| --- | --- | --- | --- | --- |
+| 1.2.10 分页 | 无挂载 | `ses_1f036c42b001jHeOu6ATkgF44D` | 200 / 0 / 6.332 | `chat.done`，精确可见标记，零工具 |
+| 1.2.10 分页 | 挂载 | `ses_1f036dd0c001xnF4Lt0pkY50e5` | 200 / 0 / 239.754 | `chat.done`，72 次成功、2 次读取失败 |
+| 1.2.10 分页 | 撤除 | `ses_1f03a85c2001pgnwrSU233Zvcm` | 200 / 0 / 6.177 | `chat.done`，标记附说明，零工具 |
+| 1.2.11 入口 | 无挂载 | `ses_1f03a8a7d001JSEwKw80Y8KFZ0` | 200 / 0 / 5.370 | `chat.done`，标记附说明，零工具 |
+| 1.2.11 入口 | 挂载 | `ses_1f03a9fb3001gN2NbFbwL00Ics` | 200 / 0 / 138.702 | `chat.done`，55 次成功、2 次读取失败 |
+| 1.2.11 入口 | 撤除 | `ses_1f03cbdae001Urt1EUlyF7NzbW` | 200 / 0 / 5.553 | `chat.done`，标记附说明，零工具 |
+| 1.2.10 入口 | 无挂载 | `ses_1f03bfc1b001G5KVsWfVH7CiW6` | 200 / 0 / 5.212 | `chat.done`，精确可见标记，零工具 |
+| 1.2.10 入口 | 挂载 | `ses_1f03c10ad001ay8Y19YCgPuH3h` | 200 / 0 / 161.431 | `chat.done`，59 次成功，零读取失败 |
+| 1.2.10 入口 | 撤除 | `ses_1f03e876d001fSyp7Xd70V40D0` | 200 / 0 / 4.828 | `chat.done`，精确可见标记，零工具 |
+
+九轮均无 `chat.error` 或模型恢复事件。三次挂载只调用指定的三类工具。第一组猜测了不存在的 `app/router.ts` 和 `app/i18n.ts`。第二组的两次读取失败涉及根 `index.html` 及不存在的 `packages/router/src/useRoute.ts`。工具包把这些读取结果标为已完成，输出本身仍保留了读取失败。
+
+第三组通过三轮验收。两个对照的最终可见文本仅为 `MCP_NOT_AVAILABLE`。原始 SSE 仍带现有的 `<think>` 区块，三个会话均完成推理。挂载轮的 query、callers、node 分别成功 19、3、37 次。query `tc-463311068316` 返回 `createRueSiteApp`（`app/app.tsx:32`），callers `tc-b6a2a56981b8` 返回 `mountRueSiteApp`（第 39 行），node `tc-f15884980ba3` 返回实际挂载源码，`tc-7f12f14b40d2` 返回 `useApp` 对运行时工厂的转调。59 个调用均能配对到开始和完成事件，未发现空输出、节点读取错误或额外工具。
+
+答复用行号复原主链、SSR 入口、缺少容器时的抛错、路由和 i18n 安装，以及当前路由表未注册 `/rust-layers` 这一约束。两项场景以实际存在的 `/design/button` 为例，分别检验快照首屏是否只出现一份布局和客户端导航后是否残留旧快照。重复 DOM 是源码推断，两项场景均未执行。答复对旧链接点击的附加预测需要收窄。旧 DOM 的链接仍有原生 `href`，可能触发整页跳转，验证应区分客户端路由接管与浏览器普通导航。
+
+九轮终态回读绑定 `acp-hermes / hermes`、`full_access=true`、原模型和 `session_model`，ACP 连接均已释放。挂载运行中读到 `partial`，第三组期间权限队列为空。私有网关、转发器及 RustCodeGraph 进程已退出。三份副本各 4109 个文件及符号链接与归档一致，临时挂载、私有凭据和 SQLite 副本已清理，原网关健康。此次无运行时代码变更，复用共享构建，未重跑 Cargo。

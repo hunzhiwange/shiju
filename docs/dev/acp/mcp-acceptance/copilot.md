@@ -57,3 +57,21 @@ Copilot 1.0.105 的动态挂载可走原生 HTTP MCP，三种真实工具均完�
 答复覆盖四段调用链、SSR、容器缺失、插件安装和布局绕过，并将快照残留作为源码推断，提出普通文档和布局绕过两项可区分的断言。第二项需要准备带旧布局的 `/rust-layers` 快照夹具，未实际运行。三种传输均已有证据。客户端 stdio 被原生拒绝，两条远程传输均调通真实工具，指定模型仍在两条远程路径产生同类无效输入。保留已阻塞。收尾条件是同一个指定模型在原提示下完成一次无工具失败的挂载轮，或由验收负责人明确允许将已恢复的无效路径调用单列评估。当前证据没有需要修改 Copilot 驱动或受管补丁的转发缺口。
 
 私有网关及桥接均退出 0、端口关闭，临时授权与挂载配置已清理，原网关复查健康。留存私有 SSE、工具回执及会话日志。本次仅更新验收文档，未运行 Cargo。
+
+## RustCodeGraph 1.2.11 与分页声明复验
+
+复用已审 Copilot 1.0.105、Supergateway 4.2.2 的私有鉴权 SSE 入口，以及已有共享 ShiJu 0.6.0 构建（SHA-256 `2e84923a46704187dfd9d56dfc4b45d6ebf9cfc93398a6bb3a82b1cc61a1f935`）。RustCodeGraph 升至已核验发行版 1.2.11（SHA-256 `5fab2f2dbf506ddf71d842ef1a7cd6e744c5ec90ff3f5f043ea020e1b3696312`），以同一 RueJS 提交重建索引，查询命中 `createAppRouter`（`app/router/index.ts:787`）。复用 Goose 已验证的私有目录筛选及真实入口、分页和索引根元数据。使用原名和原生工具参数，既有 `allowedTools` 与桥接目录均只选择三种目标工具。协议对照确认目录从八项缩至三项，同样的 query、callers、分页 node 返回逐字相同，额外工具和副本外读取被拒绝。不存在路径的原生结果是 `No indexed file matches` 文本且无 `isError`，原样转发，验收按失败语义核对。未鉴权的桥接访问返回 HTTP 401。 [共享发行证据](pi.md) · [工具目录与分页证据](goose.md)
+
+首组三轮均为 HTTP 200、curl 0、一个 `chat.done`，无 `chat.error` 或模型恢复。无挂载 `ses_1f0f58f21001nwjuzz0s7lQPbq`（7.267 秒）与撤除 `ses_1f0f887f4001T0FTqdS0HpXjaR`（5.660 秒）均只答 `MCP_NOT_AVAILABLE`，工具事件为零。挂载 `ses_1f0f6ca8c001Bo41ZunG9KbXXs`（113.986 秒）有 49 个完成回执。模型将 `packages/i18n` 误作独立索引根，query 明确失败（`call_fa96d9bc48434d1c975362c4`）。随后读取存在但未收录的 `index.html`，原生返回 `No indexed file matches`（`call_51ed733cdf8c4cb79aeb37d3`）。另有 47 次取得有效工具结果，未出现旧版的猜测路由文件错误。源码显示，首组答复的仅含占位节点夹具可以断言旧节点是否残留，不能据此断言重复的页头或页脚。
+
+第二组在同一私有工具声明中将可选 `projectPath` 的枚举限定为唯一索引根，并说明 1.2.11 索引不包含 HTML。复用原生工具结果和原有范围检查，既不重写实参，也不改错误。协议对照仍通过。
+
+| 轮次 | 会话 ID | HTTP / curl / 秒 | 终态与结果 |
+| --- | --- | --- | --- |
+| 无挂载 | `ses_1f0f8a7bb0019Eb3nS1rHgxXy8` | 200 / 0 / 5.754 | `chat.done`，`MCP_NOT_AVAILABLE`，零工具事件 |
+| 挂载 | `ses_1f0f8c31d00105jW7opKvnh49K` | 200 / 0 / 156.229 | `chat.done`，74 个目标工具和 2 个额外的原生 grep |
+| 撤除 | `ses_1f0fb25a50013F0fk8u7Zx5dMK` | 200 / 0 / 5.657 | `chat.done`，`MCP_NOT_AVAILABLE`，零工具事件 |
+
+前后两组 summary/options 均为 HTTP 200，挂载运行中为 `connected=true`、`client_only`，绑定同一指定模型和 `full_access=true`。第二组 76 个调用的开始与完成逐一匹配。目标工具分别成功 query 28 次、callers 2 次、node 44 次，无工具错误或缺文件结果。`call_615e6c0587384e1984c12b62` 定位 `createRueSiteApp`（`app/app.tsx:32`），`call_9d63391f1e124f8d8377e27b` 返回 `mountRueSiteApp`（同文件第 39 行），`call_3080a30c6f224876aaf81929` 与 `call_60446d7c3e8a47e98a53a221` 回读 `useApp` 与运行时工厂。答复覆盖原要求的链路、分支和两项预测场景，也指出路由表缺少 `/rust-layers`。核对 `install` 时调用了 Copilot 自带 grep 两次（`call_9c7f216552a142af859599fd`、`call_7fa00429b77c49f2aef4e8e1`），违反三工具约束。答复亦明确报告这两次读取。
+
+仅作诊断，用同一受审 Copilot 和真实 SSE 服务对照回环模型的工具声明。默认同时声明原生工具与三个 MCP 工具。进程使用原生 `--available-tools` 精确列出三个会话工具时，模型请求仅声明这三项。该选项探针使用占位模型令牌，未改变真实验收启动参数或审批。现有单服务器 `allowedTools` 约束 MCP 目录，Copilot 启动配置没有经验证的请求级原生工具白名单入口。接入需将现有会话的显式工具策略传到 Copilot 受管启动边界，涉及共享接线，需先取得授权并验证生命周期与撤除。当前两组各有实际合同失败，保留已阻塞。私有网关和桥接均退出 0，授权和临时挂载已清理。未改生产代码或执行 Cargo。

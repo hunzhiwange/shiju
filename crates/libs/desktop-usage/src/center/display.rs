@@ -5,7 +5,7 @@ use rust_decimal::Decimal;
 use super::Outcome;
 
 use desktop_ui_controls::system_settings_common::*;
-use iced::{Element, Task, widget::{button, column, row, text}};
+use iced::{Element, Length, Task, widget::{button, column, row, text}};
 use gateway_usage_price::{Currency, RateMode, UsageDisplayPatch, UsageRatesState};
 use gateway_usage_scan::UsageScanScope;
 
@@ -39,7 +39,7 @@ impl State {
         (self.scope.as_ref() == Some(current)).then_some(())?;
         self.result.as_ref().map(|result| &result.display)
     }
-    fn restore(&mut self) {
+    pub(super) fn restore(&mut self) {
         if let Some(result) = &self.result {
             self.currency = result.settings.currency;
             self.mode = result.settings.mode;
@@ -162,15 +162,95 @@ pub fn status(state: &State, current: Option<Identity>) -> String {
 fn action(label: &'static str, event: Event, enabled: bool) -> Element<'static, Outcome<Event>> {
     button(text(label)).padding([8, 14]).style(rounded_action_btn_style).on_press_maybe(enabled.then(|| message(event))).into()
 }
+#[derive(Clone, Copy, PartialEq, Eq)]
+struct CurrencyOption(Currency);
+
+impl std::fmt::Display for CurrencyOption {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(match self.0 {
+            Currency::USD => "USD · 美元",
+            Currency::CNY => "CNY · 人民币",
+            Currency::EUR => "EUR · 欧元",
+            Currency::JPY => "JPY · 日元",
+            Currency::TWD => "TWD · 新台币",
+            Currency::TRY => "TRY · 土耳其里拉",
+        })
+    }
+}
+
+fn currency_picker(state: &State, enabled: bool) -> Element<'static, Outcome<Event>> {
+    settings_select(
+        [Currency::USD, Currency::CNY, Currency::EUR, Currency::JPY, Currency::TWD, Currency::TRY]
+            .map(CurrencyOption),
+        Some(CurrencyOption(state.currency)),
+        |choice| message(Event::Currency(choice.0)),
+    )
+    .disabled(!enabled)
+    .width(Length::Fill)
+    .into()
+}
+
+pub fn quick_settings<'a>(
+    state: &'a State,
+    current: Option<&Identity>,
+) -> Element<'a, Outcome<Event>> {
+    let enabled = !state.busy && current.is_some() && state.scope.as_ref() == current;
+    let saved = state.result.as_ref().filter(|_| state.scope.as_ref() == current);
+    let currency_changed = saved.is_some_and(|result| result.settings.currency != state.currency);
+    let mut controls = column![
+        quick_row("币种", currency_picker(state, enabled && saved.is_some())),
+        quick_row(
+            "趋势图样式",
+            settings_select(
+                ["柱形图", "折线图"],
+                Some(if state.preferences.area { "折线图" } else { "柱形图" }),
+                |label| message(Event::Trend(label == "折线图")),
+            )
+            .disabled(state.busy)
+            .width(Length::Fill)
+            .into(),
+        ),
+        quick_row("侧栏「今日」", today_controls(state, !state.busy)),
+    ]
+    .spacing(8);
+    if currency_changed {
+        if state.mode == RateMode::Manual && state.currency != Currency::USD {
+            controls = controls.push(quick_row(
+                "手工汇率",
+                settings_text_input("1 USD 对应金额", &state.rate)
+                    .on_input_maybe(enabled.then_some(|v| message(Event::Rate(v))))
+                    .into(),
+            ));
+        }
+        controls = controls.push(action("保存币种", Event::Save, enabled));
+    }
+    if let Some(error) = &state.preferences_error {
+        controls = controls.push(settings_error_banner(error));
+    }
+    if let Some(error) = &state.error {
+        controls = controls.push(settings_error_banner(error));
+    }
+    controls.into()
+}
+
+fn quick_row<'a>(
+    label: &'static str,
+    control: Element<'a, Outcome<Event>>,
+) -> Element<'a, Outcome<Event>> {
+    row![
+        text(label).size(13).width(98).style(text::secondary),
+        iced::widget::container(control).width(Length::Fill),
+    ]
+    .spacing(10)
+    .align_y(iced::Alignment::Center)
+    .into()
+}
+
 pub fn overlay<'a, M: Clone + 'static>(state: &'a State, current: Option<Identity>, base: Element<'a, M>, map: fn(Outcome<Event>) -> M) -> Element<'a, M> {
 
     if !state.open { return base; }
     let enabled = !state.busy;
-    let mut currencies = row![].spacing(8);
-    for currency in [Currency::USD, Currency::CNY, Currency::EUR, Currency::JPY, Currency::TWD, Currency::TRY] {
-        currencies = currencies.push(button(text(format!("{currency:?}"))).padding([8, 14]).style(rounded_action_btn_style).on_press_maybe(enabled.then(|| message(Event::Currency(currency)))));
-    }
-    let mut body = column![text(format!("显示币种：{:?}；汇率模式：{:?}", state.currency, state.mode)), currencies,
+    let mut body = column![quick_row("币种", currency_picker(state, enabled)),
         row![action("自动汇率", Event::Mode(RateMode::Auto), enabled), action("手工汇率", Event::Mode(RateMode::Manual), enabled)].spacing(8),
         text("汇率：1 USD 对应的目标币种金额（自动模式只读）"),
         settings_text_input("有限正数", &state.rate).on_input_maybe((enabled && state.mode == RateMode::Manual && state.currency != Currency::USD).then_some(|v| message(Event::Rate(v)))),
@@ -246,11 +326,11 @@ fn today_controls(state: &State, enabled: bool) -> Element<'static, Outcome<Even
     let mut controls = row![].spacing(8);
     for (item, _, label) in TODAY {
         let selected = state.preferences.today.contains(&item);
-        controls = controls.push(button(text(format!("{} {label}", if selected { "✓" } else { "○" })))
-            .padding([8, 14]).style(rounded_action_btn_style)
+        controls = controls.push(button(text(format!("{} {label}", if selected { "✓" } else { "○" })).size(12))
+            .padding([5, 8]).style(rounded_action_btn_style)
             .on_press_maybe((enabled && (selected || state.preferences.today.len() < 2)).then(|| message(Event::Today(item)))));
     }
-    controls.into()
+    controls.wrap().into()
 }
 
 #[cfg(test)]

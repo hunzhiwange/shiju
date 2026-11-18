@@ -16,6 +16,13 @@ fn map(outcome: Outcome<Event>) -> Message {
     }
 }
 pub fn overlay<'a>(app: &'a App, base: Element<'a, Message>) -> Element<'a, Message> {
-    domain::overlay(&app.usage_center.scan, super::identity(app), base, map)
+    if !app.usage_center.scan.open {
+        return base;
+    }
+    let current = super::identity(app);
+    let display =
+        desktop_usage::center::display::quick_settings(&app.usage_center.display, current.as_ref())
+            .map(super::display::map);
+    domain::overlay(&app.usage_center.scan, current, base, display, map)
 }
 pub use domain::{Action, Reply};

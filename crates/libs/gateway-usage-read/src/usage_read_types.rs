@@ -25,6 +25,9 @@ pub struct UsageLogResult {
     pub counts: UsageRequestCounts,
     /// Multi-source canonical records may appear in more than one group.
     pub sources: Vec<UsageSourceDistribution>,
+    /// Distinct codes under the other filters. Older gateways omit this field.
+    #[serde(default)]
+    pub status_codes: Option<Vec<u16>>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

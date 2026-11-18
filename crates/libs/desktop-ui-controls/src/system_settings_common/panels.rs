@@ -384,27 +384,47 @@ pub fn settings_modal_overlay_with_backdrop_dismiss<'a, Message: Clone + 'a>(
     modal_overlay(Some(base), close_message, card.into(), true)
 }
 
+/// 在页面右边缘显示全高抽屉，关闭后保留页面的滚动位置。
+pub fn settings_right_drawer_overlay<'a, Message: Clone + 'a>(
+    base: Element<'a, Message>,
+    drawer: Option<(Message, Element<'a, Message>)>,
+) -> Element<'a, Message> {
+    let Some((close, drawer)) = drawer else {
+        return stack![base].into();
+    };
+    let drawer = container(opaque(drawer)).align_right(Length::Fill).height(Length::Fill);
+    stack![
+        Element::new(ModalBackground(base)),
+        stack![modal_backdrop(close.clone()), drawer],
+        Element::new(ModalEscape(close)),
+    ]
+    .into()
+}
+
+fn modal_backdrop<'a, Message: Clone + 'a>(close_message: Message) -> Element<'a, Message> {
+    opaque(
+        mouse_area(
+            container(Space::new().width(Length::Fill).height(Length::Fill))
+                .style(settings_modal_backdrop_style),
+        )
+        .on_press(close_message),
+    )
+    .into()
+}
+
 fn modal_overlay<'a, Message: Clone + 'a>(
     base: Option<Element<'a, Message>>,
     close_message: Message,
     card: Element<'a, Message>,
     dismiss_on_backdrop: bool,
 ) -> Element<'a, Message> {
-    let overlay = opaque(
-        mouse_area(
-            container(Space::new().width(Length::Fill).height(Length::Fill))
-                .style(settings_modal_backdrop_style),
-        )
-        .on_press(close_message.clone()),
-    );
-
     let card = if dismiss_on_backdrop { opaque(card) } else { card };
     // 缩放会减少逻辑可用尺寸；先预留窗口边距，再让卡片和内容滚动区收缩。
     let centered = container(card).padding(12).center_x(Length::Fill).center_y(Length::Fill);
     let modal_layer: Element<'_, Message> =
         if dismiss_on_backdrop { centered.into() } else { opaque(centered) };
 
-    let modal_stack: Element<'a, Message> = stack![overlay, modal_layer].into();
+    let modal_stack: Element<'a, Message> = stack![modal_backdrop(close_message), modal_layer].into();
 
     if let Some(base) = base {
         stack![Element::new(ModalBackground(base)), modal_stack].into()

@@ -19,13 +19,14 @@ pub struct State {
     pub(super) job: Option<UsageJobSnapshot>,
     pub(super) error: Option<String>,
     pub(super) confirm_rebuild: bool,
+    pub(super) sources_expanded: bool,
 }
 #[derive(Clone, Debug)]
 pub enum Action { Interval(String, u32), Load, Sync, Cancel, Poll, Pause(bool), Source(String, bool), Rebuild, Rollup, Backfill }
 #[derive(Clone, Debug)]
 pub enum Event {
     Feedback(bool, String),
-    Open, Close, ConfirmRebuild, DismissRebuild, Navigate(Navigation), Run(Action),
+    Open, Close, ToggleSources, ConfirmRebuild, DismissRebuild, Navigate(Navigation), Run(Action),
     ActivityDone(Result<(), String>),
     ScopedActivityDone(u64, Identity, Result<(), String>),
     Done(u64, Identity, Result<Reply, String>),
@@ -73,6 +74,7 @@ pub fn update(state: &mut State, current: Option<Identity>, client: Result<vw_ga
             return update(state, current, client, Event::Run(Action::Load));
         }
         Event::Close => { state.open = false; state.confirm_rebuild = false; }
+        Event::ToggleSources => state.sources_expanded = !state.sources_expanded,
         Event::ConfirmRebuild => {
             if !state.pending && state.scope == current && !state.job.as_ref().is_some_and(|job| !terminal(job)) { state.confirm_rebuild = true; }
         }
@@ -167,8 +169,14 @@ pub fn update(state: &mut State, current: Option<Identity>, client: Result<vw_ga
     }
     Task::none()
 }
-pub fn overlay<'a, M: Clone + 'static>(state: &'a State, current: Option<Identity>, base: Element<'a, M>, map: fn(Outcome<Event>) -> M) -> Element<'a, M> {
-    super::settings_sheet::overlay(state, current, base, map)
+pub fn overlay<'a, M: Clone + 'static>(
+    state: &'a State,
+    current: Option<Identity>,
+    base: Element<'a, M>,
+    display: Element<'a, M>,
+    map: fn(Outcome<Event>) -> M,
+) -> Element<'a, M> {
+    super::settings_sheet::overlay(state, current, base, display, map)
 }
 
 /// Activity only controls the page scheduler, never the persistent source policy.

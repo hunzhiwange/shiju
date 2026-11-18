@@ -96,6 +96,9 @@ fn update_event(input: &mut Input<'_>, event: Event) -> Task<Event> {
                 .map(pricing_outcome)
         }
         Event::Scan(event) => {
+            if matches!(event, scan::Event::Close) && state.scan.open {
+                state.display.restore();
+            }
             let synced_settings = matches!(&event, scan::Event::Done(_, scope, Ok(scan::Reply::Settings(..))) if current.as_ref() == Some(scope));
             let failed_settings = matches!(&event, scan::Event::Done(_, _, Err(_)));
             let task = scan::update(&mut state.scan, current, client(), event).map(scan_outcome);

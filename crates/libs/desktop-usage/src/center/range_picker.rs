@@ -309,10 +309,16 @@ impl State {
                 .style(rounded_action_btn_style)
                 .on_press(event)
         };
-        let trigger = action(
-            format!("{}  ▾", self.preset.map_or("自定义时间", Preset::label)),
-            if self.open { Event::Cancel } else { Event::Open },
-        );
+        let trigger = button(
+            text(format!("{}  ▾", self.preset.map_or("自定义时间", Preset::label)))
+                .size(13)
+                .height(Length::Fill)
+                .align_y(iced::alignment::Vertical::Center),
+        )
+        .height(SETTINGS_CONTROL_HEIGHT)
+        .padding([6, 10])
+        .style(rounded_action_btn_style)
+        .on_press(if self.open { Event::Cancel } else { Event::Open });
         if !self.open {
             return trigger.into();
         }

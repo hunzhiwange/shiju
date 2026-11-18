@@ -1,11 +1,11 @@
 //! Query changes are atomic and always invalidate pagination.
 use desktop_assets::assets::{Icon, get_icon, get_provider_icon};
 use desktop_ui_controls::system_settings_common::{
-    rounded_action_btn_style, settings_pick_list_menu_style, settings_pick_list_style,
+    SETTINGS_CONTROL_HEIGHT, rounded_action_btn_style, settings_select,
 };
 use iced::{
     Element, Length, Theme,
-    widget::{button, column, container, pick_list, row, scrollable, svg, text, tooltip},
+    widget::{button, column, container, row, scrollable, svg, text, tooltip},
 };
 use vw_api_usage::{UsageFilter, UsageProvider, UsageQuery, UsageRange, UsageSourceKind};
 
@@ -84,15 +84,24 @@ pub fn view_with_options<'a>(
     query: &'a UsageQuery,
     options: &[ScopeOption],
 ) -> Element<'a, Change> {
-    let action = |label: &'static str, change, selected| {
-        button(text(label).size(13))
-            .padding([6, 9])
-            .style(move |theme, status| filter_button(theme, status, selected))
-            .on_press(change)
-    };
-    let mut apps = row![action("全部", Change::App(String::new()), query.filter.app.is_none())]
-        .spacing(2)
-        .align_y(iced::Alignment::Center);
+    column![primary_filters(query, options), source_filters(query)].spacing(8).into()
+}
+
+pub(super) fn primary_filters<'a>(
+    query: &'a UsageQuery,
+    options: &[ScopeOption],
+) -> Element<'a, Change> {
+    let mut apps = row![
+        button(
+            text("全部").size(13).height(Length::Fill).align_y(iced::alignment::Vertical::Center)
+        )
+        .height(30)
+        .padding([4, 9])
+        .style(move |theme, status| filter_button(theme, status, query.filter.app.is_none()))
+        .on_press(Change::App(String::new()))
+    ]
+    .spacing(2)
+    .align_y(iced::Alignment::Center);
     for (id, label) in APPS {
         let icon = match id {
             "claude" => get_icon(Icon::AppClaudeCode),
@@ -108,8 +117,9 @@ pub fn view_with_options<'a>(
         };
         let selected = query.filter.app.as_deref() == Some(id);
         apps = apps.push(tooltip(
-            button(svg(icon).width(18).height(18))
-                .padding([6, 7])
+            button(container(svg(icon).width(18).height(18)).center_y(Length::Fill))
+                .height(30)
+                .padding([4, 7])
                 .style(move |theme, status| filter_button(theme, status, selected))
                 .on_press(Change::App(id.into())),
             text(label),
@@ -120,17 +130,36 @@ pub fn view_with_options<'a>(
         .iter()
         .find(|o| o.provider == query.filter.provider && o.model == query.filter.request_model)
         .cloned();
-    let apps = scrollable(container(apps).padding([3, 5]).style(|theme: &Theme| {
+    let apps = scrollable(container(apps).padding([4, 5]).style(|theme: &Theme| {
         container::Style::default().border(iced::Border {
             color: theme.palette().text.scale_alpha(0.14),
             width: 1.0,
             radius: 9.0.into(),
         })
     }))
-    .width(Length::Shrink)
+    .width(Length::Fill)
+    .height(SETTINGS_CONTROL_HEIGHT)
     .direction(scrollable::Direction::Horizontal(
         scrollable::Scrollbar::new().width(4).scroller_width(4),
     ));
+    row![
+        container(apps).width(Length::Fill).max_width(448),
+        settings_select(options.iter().cloned(), selected, |o| Change::Scope(o.provider, o.model))
+            .placeholder("供应商 / 模型")
+            .width(158),
+    ]
+    .spacing(9)
+    .align_y(iced::Alignment::Center)
+    .into()
+}
+
+pub(super) fn source_filters(query: &UsageQuery) -> Element<'_, Change> {
+    let action = |label: &'static str, change, selected| {
+        button(text(label).size(12))
+            .padding([4, 8])
+            .style(move |theme, status| filter_button(theme, status, selected))
+            .on_press(change)
+    };
     let mut sources = row![].spacing(3);
     for (label, source) in [
         ("全部来源", None),
@@ -142,24 +171,7 @@ pub fn view_with_options<'a>(
         sources = sources.push(action(label, Change::Source(source), selected));
     }
     sources = sources.push(action("清除筛选", Change::Clear, false));
-    column![
-        row![
-            pick_list(options.to_vec(), selected, |o| Change::Scope(o.provider, o.model))
-                .placeholder("供应商 / 模型")
-                .text_size(13)
-                .padding([7, 10])
-                .width(156)
-                .style(settings_pick_list_style)
-                .menu_style(settings_pick_list_menu_style),
-            apps,
-        ]
-        .spacing(8)
-        .align_y(iced::Alignment::Center),
-        sources,
-    ]
-    .spacing(6)
-    .width(Length::Fill)
-    .into()
+    sources.wrap().into()
 }
 
 fn filter_button(theme: &Theme, status: button::Status, selected: bool) -> button::Style {

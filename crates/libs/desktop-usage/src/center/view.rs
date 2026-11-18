@@ -1,10 +1,14 @@
 use super::{display, event::Event, overview, pricing, scan, state::DetailTab};
 use crate::models;
 use desktop_assets::assets::{Icon, get_icon};
-use desktop_ui_controls::system_settings_common::rounded_action_btn_style;
+use desktop_ui_controls::system_settings_common::{
+    SETTINGS_CONTROL_HEIGHT, rounded_action_btn_style, settings_right_drawer_overlay,
+};
 use iced::{
     Element, Length, Theme,
-    widget::{Space, button, column, container, row, scrollable, svg, text},
+    widget::{
+        Space, button, column, container, responsive, row, rule, scrollable, svg, text, tooltip,
+    },
 };
 
 pub fn view<'a>(
@@ -22,25 +26,53 @@ pub fn view<'a>(
         return action("第三方智能体用量统计 ›", Event::Load(super::range_picker::Preset::Month))
             .into();
     }
-    let header = row![
+    let header_button = |icon, label, event, show_label| {
+        let mut content = row![
+            svg(get_icon(icon))
+                .width(16)
+                .height(16)
+                .style(|theme: &Theme, _| svg::Style { color: Some(theme.palette().text) })
+        ]
+        .spacing(6)
+        .height(Length::Fill)
+        .align_y(iced::Alignment::Center);
+        if show_label {
+            content = content.push(text(label).size(13));
+        }
+        tooltip(
+            button(content)
+                .height(SETTINGS_CONTROL_HEIGHT)
+                .padding([5, 10])
+                .style(rounded_action_btn_style)
+                .on_press(event),
+            text(label).size(12),
+            tooltip::Position::Bottom,
+        )
+        .snap_within_viewport(true)
+    };
+    let heading = row![
         svg(get_icon(Icon::BarChartFill))
             .width(22)
             .height(22)
             .style(|theme: &Theme, _| svg::Style { color: Some(theme.palette().text) }),
-        text("用量统计").size(25),
-        Space::new().width(Length::Fill),
-        action("刷新", Event::Refresh),
-        action("同步", Event::Sync),
-        action("设置", Event::Scan(scan::Event::Open)),
-        action("返回当前会话", Event::Close),
+        text("用量统计").size(24),
     ]
-    .spacing(8)
+    .spacing(9)
     .align_y(iced::Alignment::Center);
-    let mut options = vec![overview::ScopeOption {
-        label: "全部供应商 / 模型".into(),
-        provider: None,
-        model: None,
-    }];
+    let header = row![
+        heading,
+        Space::new().width(Length::Fill),
+        header_button(Icon::ArrowClockwise, "刷新统计", Event::Refresh, false),
+        header_button(Icon::ArrowCounterClockwise, "同步", Event::Sync, true),
+        header_button(Icon::Sliders, "用量设置", Event::Scan(scan::Event::Open), false),
+        header_button(Icon::ArrowLeft, "返回会话", Event::Close, false),
+    ]
+    .spacing(7)
+    .align_y(iced::Alignment::Center);
+    let mut options =
+        vec![overview::ScopeOption {
+            label: "供应商 / 模型".into(), provider: None, model: None
+        }];
     if let Some(Ok((providers, models))) = &state.groups.result {
         for provider in providers {
             let label = match &provider.provider {
@@ -64,7 +96,7 @@ pub fn view<'a>(
         }
     }
     // Own the option vector in the picker; do not return a borrow of local data.
-    let filters = overview::view_with_options(&state.query, &options).map(Event::Filter);
+    let filters = overview::primary_filters(&state.query, &options).map(Event::Filter);
     let summary = state.result.as_ref().and_then(|r| r.as_ref().ok());
     let hero =
         super::hero::view_with_cost(&state.hero, summary, state.loading, known_cost.as_deref())
@@ -93,13 +125,74 @@ pub fn view<'a>(
         .width(Length::Fill)
         .clip(true)
         .style(panel_style);
+    let tabs: Element<'_, Event> = if state.tab == DetailTab::Logs {
+        responsive(move |size| {
+            let tabs = detail_tabs(state.tab);
+            let filters = container(super::logs::toolbar(&state.logs).map(Event::Logs))
+                .align_right(Length::Fill);
+            if size.width >= 520.0 {
+                row![tabs, filters].spacing(8).align_y(iced::Alignment::Center).into()
+            } else {
+                column![tabs, filters].spacing(8).into()
+            }
+        })
+        .height(Length::Shrink)
+        .into()
+    } else {
+        detail_tabs(state.tab)
+    };
+    let detail = match state.tab {
+        DetailTab::Logs => super::logs::table(&state.logs).map(Event::Logs),
+        DetailTab::Providers => super::groups::provider_view(&state.groups).map(Event::Groups),
+        DetailTab::Models => super::groups::model_view(&state.groups).map(Event::Groups),
+    };
+    let details = container(column![tabs, detail].spacing(12))
+        .padding(20)
+        .width(Length::Fill)
+        .style(panel_style);
+    let tools = row![
+        action("模型同步选择", Event::Models(models::Event::Open)),
+        action("币种与显示", Event::Display(display::Event::Open)),
+        action("模型定价", Event::Pricing(pricing::Event::Open))
+    ]
+    .spacing(8);
+    let filters = column![
+        row![state.range_picker.view().map(Event::Range), filters,]
+            .spacing(12)
+            .align_y(iced::Alignment::Center),
+        overview::source_filters(&state.query).map(Event::Filter),
+    ]
+    .spacing(6)
+    .width(Length::Fill);
+    let body = column![
+        column![header, rule::horizontal(1), filters].spacing(11),
+        overview_card,
+        details,
+        column![tools, text(status).size(12).style(text::secondary)].spacing(8)
+    ]
+    .spacing(16);
+    let page = scrollable(container(body).padding([7, 7]).max_width(1280).center_x(Length::Fill))
+        .direction(scrollable::Direction::Vertical(
+            scrollable::Scrollbar::new().width(4).scroller_width(4),
+        ))
+        .height(Length::Fill);
+    let drawer = if state.tab == DetailTab::Logs {
+        super::logs::detail_drawer(&state.logs)
+            .map(|(close, drawer)| (Event::Logs(close), drawer.map(Event::Logs)))
+    } else {
+        None
+    };
+    settings_right_drawer_overlay(page.into(), drawer)
+}
+
+fn detail_tabs(active: DetailTab) -> Element<'static, Event> {
     let mut tabs = row![].spacing(8);
     for (tab, label) in [
         (DetailTab::Logs, "请求日志"),
         (DetailTab::Providers, "供应商"),
         (DetailTab::Models, "模型"),
     ] {
-        let selected = state.tab == tab;
+        let selected = active == tab;
         tabs = tabs.push(
             button(text(label).size(14))
                 .padding([8, 12])
@@ -115,43 +208,10 @@ pub fn view<'a>(
                 .on_press(Event::Tab(tab)),
         );
     }
-    let detail = match state.tab {
-        DetailTab::Logs => super::logs::view(&state.logs).map(Event::Logs),
-        DetailTab::Providers => super::groups::provider_view(&state.groups).map(Event::Groups),
-        DetailTab::Models => super::groups::model_view(&state.groups).map(Event::Groups),
-    };
-    let details = container(column![tabs, detail].spacing(12))
-        .padding(20)
-        .width(Length::Fill)
-        .style(panel_style);
-    let tools = row![
-        action("模型同步选择", Event::Models(models::Event::Open)),
-        action("币种与显示", Event::Display(display::Event::Open)),
-        action("模型定价", Event::Pricing(pricing::Event::Open))
-    ]
-    .spacing(8);
-    let filter_card = container(
-        row![state.range_picker.view().map(Event::Range), filters]
-            .spacing(16)
-            .align_y(iced::Alignment::Start),
-    )
-    .width(Length::Fill);
-    let body = column![
-        header,
-        filter_card,
-        overview_card,
-        details,
-        column![tools, text(status).size(12).style(text::secondary)].spacing(8)
-    ]
-    .spacing(16);
-    scrollable(container(body).padding([7, 7]).max_width(1280).center_x(Length::Fill))
-        .direction(scrollable::Direction::Vertical(
-            scrollable::Scrollbar::new().width(4).scroller_width(4),
-        ))
-        .into()
+    tabs.into()
 }
 
-fn panel_style(theme: &Theme) -> container::Style {
+pub(super) fn panel_style(theme: &Theme) -> container::Style {
     let palette = theme.palette();
     container::Style::default().background(palette.background).border(iced::Border {
         color: palette.text.scale_alpha(0.14),

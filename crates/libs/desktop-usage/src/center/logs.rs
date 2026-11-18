@@ -1,10 +1,20 @@
 //! Server-paged ledger requests. Column preferences never change the query.
 use crate::Identity;
+use std::collections::BTreeSet;
+
+use desktop_assets::assets::{Icon, get_icon};
+use desktop_ui_controls::system_settings_common::{
+    rounded_action_btn_style, settings_close_button, settings_modal_card_style,
+    settings_modal_header, settings_modal_layout, settings_pick_list_menu_style,
+    settings_pick_list_style, settings_select,
+};
 
 use gateway_usage_read::{UsageLogDetail, UsageLogResult, UsageReadScope};
 use iced::{
-    Element, Length, Task,
-    widget::{button, column, container, row, scrollable, text},
+    Element, Length, Task, Theme,
+    widget::{
+        Space, button, column, container, pick_list, row, rule, scrollable, svg, text, tooltip,
+    },
 };
 use vw_api_usage::*;
 
@@ -23,8 +33,7 @@ pub struct State {
     columns_open: bool,
     preference_error: Option<String>,
     page_size: u32,
-    status_code_draft: String,
-    status_code_error: Option<String>,
+    status_codes: BTreeSet<u16>,
     initialized: bool,
 }
 
@@ -36,8 +45,7 @@ pub enum Event {
     Toggle(usize),
     Columns,
     CloseColumns,
-    StatusCode(String),
-    ApplyStatusCode,
+    StatusCode(Option<u16>),
     Status(Option<UsageRequestStatus>),
     PageSize(u32),
     Open(String),
@@ -59,8 +67,6 @@ pub fn reset(
     client: Result<vw_gateway_client::GatewayClient, String>,
     query: UsageQuery,
 ) -> Task<Event> {
-    state.status_code_draft =
-        query.filter.status_code.map(|code| code.to_string()).unwrap_or_default();
     state.query = Some(query);
     state.cursor = None;
     state.cursor_history.clear();
@@ -87,24 +93,13 @@ pub fn update(
             state.columns.toggle(index);
             state.preference_error = state.columns.save().err();
         }
-        Event::StatusCode(value) => state.status_code_draft = value,
-        Event::ApplyStatusCode => {
-            let value = state.status_code_draft.trim();
-            let code = if value.is_empty() {
-                None
-            } else {
-                match value.parse::<u16>().ok().filter(|code| (100..=599).contains(code)) {
-                    Some(code) => Some(code),
-                    None => {
-                        state.status_code_error = Some("状态码须为100–599，留空查询全部".into());
-                        return Task::none();
-                    }
-                }
-            };
-            state.status_code_error = None;
+        Event::StatusCode(code) => {
             let Some(mut query) = state.query.clone() else {
                 return Task::none();
             };
+            if query.filter.status_code == code {
+                return Task::none();
+            }
             query.filter.status_code = code;
             return reset(state, current, visible, open, generation, client, query);
         }
@@ -139,6 +134,17 @@ pub fn update(
                 && state.query.as_ref() == Some(&query)
             {
                 state.loading = false;
+                if let Ok(logs) = &result {
+                    if let Some(codes) = &logs.status_codes {
+                        state.status_codes = codes.iter().copied().collect();
+                    } else {
+                        // Older gateways only expose the codes on the current page.
+                        state.status_codes.extend([200, 400, 401, 403, 404, 429, 500, 502, 503]);
+                        state.status_codes.extend(logs.page.items.iter().filter_map(|item| {
+                            item.status_code.filter(|code| (100..=599).contains(code))
+                        }));
+                    }
+                }
                 state.result = Some(result);
             }
         }
@@ -289,79 +295,141 @@ pub fn metric(value: Option<&UsageMeasurement>, unit: &str) -> String {
         })
         .unwrap_or_else(|| "—".into())
 }
-fn action(label: impl Into<String>, event: Event) -> Element<'static, Event> {
-    button(text(label.into()).size(13))
-        .padding([6, 10])
-        .style(desktop_ui_controls::system_settings_common::rounded_action_btn_style)
-        .on_press(message(event))
-        .into()
+#[derive(Clone, Copy, PartialEq, Eq)]
+struct RequestStatusOption(Option<UsageRequestStatus>);
+
+impl std::fmt::Display for RequestStatusOption {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(match self.0 {
+            None => "全部状态",
+            Some(UsageRequestStatus::Succeeded) => "成功",
+            Some(UsageRequestStatus::Failed) => "失败",
+            Some(UsageRequestStatus::Cancelled) => "取消",
+            Some(UsageRequestStatus::Unknown) => "未知",
+        })
+    }
 }
-fn scroll<'a>(content: iced::widget::Column<'a, Event>) -> Element<'a, Event> {
-    scrollable(container(content).padding([0, 7]))
-        .direction(scrollable::Direction::Vertical(
-            scrollable::Scrollbar::new().width(4).scroller_width(4),
-        ))
-        .height(Length::Fixed(320.0))
-        .into()
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+struct StatusCodeOption(Option<u16>);
+
+impl std::fmt::Display for StatusCodeOption {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self.0 {
+            Some(code) => write!(f, "{code}"),
+            None => f.write_str("全部状态码"),
+        }
+    }
 }
-pub fn view(state: &State) -> Element<'_, Event> {
+
+pub(super) fn toolbar(state: &State) -> Element<'_, Event> {
     use super::log_columns::COLUMNS;
     let status = state.query.as_ref().and_then(|q| q.filter.status);
-    let statuses = ["全部状态", "成功", "失败", "取消", "未知"];
-    let selected = match status {
-        None => statuses[0],
-        Some(UsageRequestStatus::Succeeded) => statuses[1],
-        Some(UsageRequestStatus::Failed) => statuses[2],
-        Some(UsageRequestStatus::Cancelled) => statuses[3],
-        Some(UsageRequestStatus::Unknown) => statuses[4],
+    let code = state.query.as_ref().and_then(|q| q.filter.status_code);
+    let mut codes = state.status_codes.clone();
+    codes.extend(code);
+    let code_options = std::iter::once(StatusCodeOption(None))
+        .chain(codes.into_iter().map(|code| StatusCodeOption(Some(code))))
+        .collect::<Vec<_>>();
+    let statuses = [
+        None,
+        Some(UsageRequestStatus::Succeeded),
+        Some(UsageRequestStatus::Failed),
+        Some(UsageRequestStatus::Cancelled),
+        Some(UsageRequestStatus::Unknown),
+    ]
+    .map(RequestStatusOption);
+    let icon = |icon| {
+        svg(get_icon(icon))
+            .width(16)
+            .height(16)
+            .style(|theme: &Theme, _| svg::Style { color: Some(theme.palette().text) })
     };
     let mut options = column![].spacing(2);
     for (index, (_, label, _, _)) in COLUMNS.iter().enumerate().skip(1) {
-        options = options.push(action(
-            format!("{}  {label}", if state.columns.visible(index) { "✓" } else { "　" }),
-            Event::Toggle(index),
-        ));
+        let check: Element<'_, Event> = if state.columns.visible(index) {
+            icon(Icon::Check).into()
+        } else {
+            Space::new().width(16).into()
+        };
+        options = options.push(
+            button(row![check, text(*label).size(13)].spacing(9).align_y(iced::Alignment::Center))
+                .width(Length::Fill)
+                .padding([6, 9])
+                .style(|theme, status| {
+                    let mut style = rounded_action_btn_style(theme, status);
+                    style.border = iced::border::rounded(7);
+                    if status == button::Status::Active {
+                        style.background = None;
+                    }
+                    style
+                })
+                .on_press(Event::Toggle(index)),
+        );
     }
-    let columns = desktop_ui_controls::overlays::BelowOverlay::new(
-        action("显示列 ▾", Event::Columns),
-        desktop_ui_controls::system_settings_common::settings_modal_card(scroll(options))
-            .width(220),
+    let menu =
+        container(scrollable(container(options).padding([0, 7]).width(Length::Fill)).direction(
+            scrollable::Direction::Vertical(
+                scrollable::Scrollbar::new().width(4).scroller_width(4),
+            ),
+        ))
+        .padding([5, 0])
+        .width(192)
+        .max_height(458)
+        .style(|theme| {
+            let menu_style = settings_pick_list_menu_style(theme);
+            let mut style = settings_modal_card_style(theme);
+            style.background = Some(menu_style.background);
+            style.border = menu_style.border.rounded(12);
+            style.shadow.offset.y = 4.0;
+            style.shadow.blur_radius = 18.0;
+            style
+        });
+    let trigger = tooltip(
+        button(icon(Icon::Columns))
+            .padding([7, 9])
+            .style(move |theme, status| {
+                let mut style = rounded_action_btn_style(theme, status);
+                if state.columns_open {
+                    style.background =
+                        Some(theme.extended_palette().background.strong.color.into());
+                }
+                style
+            })
+            .on_press(Event::Columns),
+        text("显示列").size(12),
+        tooltip::Position::Top,
     )
-    .show(state.columns_open)
-    .gap(8.0)
-    .on_close(Event::CloseColumns)
-    .capture_outside_click(true);
-    let mut top = column![
-        row![
-            iced::widget::Space::new().width(Length::Fill),
-            iced::widget::pick_list(statuses, Some(selected), |label| Event::Status(match label {
-                "成功" => Some(UsageRequestStatus::Succeeded),
-                "失败" => Some(UsageRequestStatus::Failed),
-                "取消" => Some(UsageRequestStatus::Cancelled),
-                "未知" => Some(UsageRequestStatus::Unknown),
-                _ => None,
-            }))
-            .padding([6, 10]),
-            desktop_ui_controls::system_settings_common::settings_text_input(
-                "状态码",
-                &state.status_code_draft
-            )
-            .on_input(Event::StatusCode)
-            .on_submit(Event::ApplyStatusCode)
-            .width(90),
-            action("筛选", Event::ApplyStatusCode),
-            columns
-        ]
-        .spacing(8)
-        .align_y(iced::Alignment::Center)
+    .snap_within_viewport(true);
+    let columns = desktop_ui_controls::overlays::BelowOverlay::new(trigger, menu)
+        .show(state.columns_open)
+        .gap(5.0)
+        .on_close(Event::CloseColumns)
+        .capture_outside_click(true);
+    row![
+        settings_select(statuses, Some(RequestStatusOption(status)), |option| {
+            Event::Status(option.0)
+        })
+        .width(112),
+        pick_list(code_options, Some(StatusCodeOption(code)), |item| Event::StatusCode(item.0))
+            .width(124)
+            .text_size(13)
+            .padding([6, 10])
+            .style(settings_pick_list_style)
+            .menu_style(settings_pick_list_menu_style),
+        columns
     ]
-    .spacing(8);
-    if let Some(error) = &state.status_code_error {
-        top = top.push(text(error));
-    }
-    if let Some(error) = &state.preference_error {
-        top = top.push(text(format!("列设置保存/加载失败：{error}")));
-    }
+    .spacing(8)
+    .align_y(iced::Alignment::Center)
+    .into()
+}
+
+pub fn view(state: &State) -> Element<'_, Event> {
+    column![container(toolbar(state)).align_right(Length::Fill), table(state)].spacing(8).into()
+}
+
+pub(super) fn table(state: &State) -> Element<'_, Event> {
+    use super::log_columns::COLUMNS;
     let widths: Vec<f32> = COLUMNS
         .iter()
         .enumerate()
@@ -525,34 +593,36 @@ pub fn view(state: &State) -> Element<'_, Event> {
             horizontal: scrollable::Scrollbar::new().width(4).scroller_width(4),
         })
         .height(Length::Fixed(360.0));
-    let base = column![top, table, footer].spacing(8);
-    if !state.detail_open {
-        return base.into();
+    let mut content = column![].spacing(8);
+    if let Some(error) = &state.preference_error {
+        content = content
+            .push(text(format!("列设置保存/加载失败：{error}")).size(12).style(text::danger));
     }
-    use desktop_ui_controls::system_settings_common::{
-        settings_close_button, settings_modal_card, settings_modal_overlay,
-    };
+    content.push(table).push(footer).into()
+}
+
+pub(super) fn detail_drawer(state: &State) -> Option<(Event, Element<'_, Event>)> {
+    if !state.detail_open {
+        return None;
+    }
     let body: Element<'_, Event> = match &state.detail {
-        None => text("正在加载详情…").into(),
-        Some(Err(error)) => text(format!("请求详情加载失败：{error}")).into(),
+        None => text("正在加载详情…").style(text::secondary).into(),
+        Some(Err(error)) => text(format!("请求详情加载失败：{error}")).style(text::danger).into(),
         Some(Ok(detail)) => detail_view(detail),
     };
-    let card = settings_modal_card(
-        column![
-            row![
-                text("请求详情").size(20),
-                iced::widget::Space::new().width(Length::Fill),
-                settings_close_button(message(Event::CloseDetail))
-            ]
-            .spacing(16),
-            scroll(column![body]),
-            action("关闭", Event::CloseDetail)
-        ]
-        .spacing(12),
-    )
-    .width(Length::Fixed(720.0));
-    settings_modal_overlay(Some(base.into()), message(Event::CloseDetail), card)
+    let header = column![
+        settings_modal_header(text("请求详情").size(21), settings_close_button(Event::CloseDetail)),
+        rule::horizontal(1)
+    ]
+    .spacing(12);
+    let drawer = settings_modal_layout(header, body, None).width(500).style(|theme| {
+        let mut style = settings_modal_card_style(theme).background(theme.palette().background);
+        style.border.radius = iced::border::left(18);
+        style
+    });
+    Some((Event::CloseDetail, drawer.into()))
 }
+
 fn detail_view(detail: &UsageLogDetail) -> Element<'_, Event> {
     fn section(
         title: &'static str,
@@ -562,10 +632,11 @@ fn detail_view(detail: &UsageLogDetail) -> Element<'_, Event> {
         for (label, value) in values {
             rows = rows.push(
                 row![
-                    text(label).size(13).style(text::secondary).width(110),
+                    text(label).size(13).style(text::secondary).width(76),
                     text(value)
                         .size(14)
                         .width(Length::Fill)
+                        .wrapping(iced::advanced::text::Wrapping::WordOrGlyph)
                         .align_x(iced::alignment::Horizontal::Right)
                 ]
                 .spacing(16),
@@ -573,7 +644,7 @@ fn detail_view(detail: &UsageLogDetail) -> Element<'_, Event> {
         }
         column![
             text(title).size(17),
-            container(rows).padding(18).width(Length::Fill).style(container::rounded_box)
+            container(rows).padding(14).width(Length::Fill).style(super::view::panel_style)
         ]
         .spacing(10)
         .into()
@@ -626,7 +697,7 @@ fn detail_view(detail: &UsageLogDetail) -> Element<'_, Event> {
             .size(12)
             .style(text::secondary)
     ]
-    .spacing(24);
+    .spacing(18);
     if let Some(error) = &detail.error_message {
         body = body.push(section("错误信息", vec![("详情", error.clone())]));
     }

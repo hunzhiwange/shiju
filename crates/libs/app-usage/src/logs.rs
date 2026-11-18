@@ -1,6 +1,6 @@
 //! Read-only queries over canonical ledger records. Authorization is bound by the
 //! caller's project and host, never by query parameters. Archived detail is absent.
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 
 use rusqlite::{Connection, OptionalExtension};
 use serde::{Deserialize, Serialize};
@@ -53,6 +53,8 @@ pub struct UsageLogResult {
     pub counts: UsageRequestCounts,
     /// Multi-source canonical records may appear in more than one group.
     pub sources: Vec<UsageSourceDistribution>,
+    /// Distinct HTTP codes under the other filters, before pagination.
+    pub status_codes: Vec<u16>,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -167,11 +169,17 @@ pub fn query_usage_logs(
     ).map_err(storage)?;
     let rows = statement.query_map([&scope_key], |row| row.get::<_, String>(0)).map_err(storage)?;
     let mut records = Vec::new();
+    let mut status_codes = BTreeSet::new();
     for row in rows {
         let value: StoredUsageRecord = serde_json::from_str(&row.map_err(storage)?)
             .map_err(|_| UsageLogsError::StorageUnavailable)?;
-        if effective_usage_log_filter(&value.record, &query.filter, &range)
-            && query.filter.status_code.is_none_or(|code| value.status_code == Some(code)) {
+        if !effective_usage_log_filter(&value.record, &query.filter, &range) {
+            continue;
+        }
+        if let Some(code) = value.status_code.filter(|code| (100..=599).contains(code)) {
+            status_codes.insert(code);
+        }
+        if query.filter.status_code.is_none_or(|code| value.status_code == Some(code)) {
             records.push(detail(value));
         }
     }
@@ -227,6 +235,7 @@ pub fn query_usage_logs(
     Ok(UsageLogResult {
         page: UsagePage { items, next_cursor, resolved_range: range, revision },
         counts, sources: groups.into_values().collect(),
+        status_codes: status_codes.into_iter().collect(),
     })
 }
 

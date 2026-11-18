@@ -3,7 +3,7 @@ use crate::app::{App, Message, message::ViewMessage};
 pub use desktop_usage::center::display::{Event, State};
 use desktop_usage::center::{Outcome, display as domain};
 use iced::Element;
-fn map(outcome: Outcome<Event>) -> Message {
+pub(super) fn map(outcome: Outcome<Event>) -> Message {
     match outcome {
         Outcome::Event(event) => {
             Message::View(ViewMessage::UsageCenter(super::Event::Display(event)))

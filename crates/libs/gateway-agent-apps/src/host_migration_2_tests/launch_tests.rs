@@ -211,6 +211,15 @@ fn isolated_identity_test() -> bool {
         ])
         .env(CHILD, "1")
         .env("VIBEWINDOW_TEST_ROOT", &root_path)
+        .env("VIBEWINDOW_CONFIG_DIR", root_path.join("config"))
+        .env("VIBEWINDOW_WORKSPACE", root_path.join("workspace"))
+        .env("HOME", &root_path)
+        .env("XDG_CONFIG_HOME", root_path.join("config"))
+        .env("XDG_DATA_HOME", root_path.join("data"))
+        .env("XDG_STATE_HOME", root_path.join("state"))
+        .env("XDG_CACHE_HOME", root_path.join("cache"))
+        .env("CODEX_HOME", root_path.join("codex-home"))
+        .env("CLAUDE_CONFIG_DIR", root_path.join("claude-home"))
         .env("PATH", fixture_path)
         .env("NO_PROXY", "*")
         .status()
@@ -222,7 +231,7 @@ async fn identity_roundtrip(
     terminal_boundary: fn(Option<&str>, &Path, &LaunchMaterial) -> Result<(), String>,
 ) {
     use gateway_app_settings::{AgentAppsSettingsError, GatewayAppSettingsClient};
-    use gateway_endpoint::GatewayEndpoint;
+    use gateway_endpoint::{GatewayAuth, GatewayEndpoint};
     use vw_api_app_provider_base::AppProviderWrite;
     use vw_api_app_provider_base::ProviderProtocol;
     use vw_api_types::agent_apps::*;
@@ -234,7 +243,7 @@ async fn identity_roundtrip(
         let script = if name == "claude" {
             "#!/bin/sh\nif [ \"$1\" = --version ]; then echo 'claude 1.0.0'; exit 0; fi\ntest -t 0 && test -t 1 || exit 30\ntest \"$ANTHROPIC_API_KEY\" = fixture-private-key || exit 31\nprintf '%s' \"$CLAUDE_CONFIG_DIR\" > private-path\nattempt=0; while [ ! -f release ] && [ \"$attempt\" -lt 300 ]; do attempt=$((attempt + 1)); sleep 0.05; done\ntest -f release || exit 32\n"
         } else {
-            "#!/bin/sh\nif [ \"$1\" = --version ]; then echo 'codex 1.0.0'; exit 0; fi\ntest -t 0 && test -t 1 || exit 30\ntest -z \"$OPENAI_API_KEY\" || exit 31\nprintf '%s' '{\"auth_mode\":\"chatgpt\",\"last_refresh\":\"2026-01-02T00:00:00Z\",\"tokens\":{\"access_token\":\"fixture-new-access\",\"refresh_token\":\"fixture-new-refresh\",\"id_token\":\"eyJhbGciOiJSUzI1NiJ9.eyJzdWIiOiJmaXh0dXJlLXVzZXIifQ.fixture\",\"account_id\":\"fixture-account\"}}' > \"$CODEX_HOME/auth.json\"\nprintf '%s' \"$CODEX_HOME\" > account-path\nattempt=0; while [ ! -f release ] && [ \"$attempt\" -lt 300 ]; do attempt=$((attempt + 1)); sleep 0.05; done\ntest -f release || exit 32\nexit 9\n"
+            "#!/bin/sh\nif [ \"$1\" = --version ]; then echo 'codex 1.0.0'; exit 0; fi\ntest -t 0 && test -t 1 || exit 30\ntest -z \"$OPENAI_API_KEY\" || exit 31\ncase \"$CODEX_HOME\" in /tmp/shiju-account-*) ;; *) exit 33 ;; esac\nprintf '%s' '{\"auth_mode\":\"chatgpt\",\"last_refresh\":\"2026-01-02T00:00:00Z\",\"tokens\":{\"access_token\":\"fixture-new-access\",\"refresh_token\":\"fixture-new-refresh\",\"id_token\":\"eyJhbGciOiJSUzI1NiJ9.eyJzdWIiOiJmaXh0dXJlLXVzZXIifQ.fixture\",\"account_id\":\"fixture-account\"}}' > \"$CODEX_HOME/auth.json\"\nprintf '%s' \"$CODEX_HOME\" > account-path\nattempt=0; while [ ! -f release ] && [ \"$attempt\" -lt 300 ]; do attempt=$((attempt + 1)); sleep 0.05; done\ntest -f release || exit 32\nexit 9\n"
         };
         let path = bin.join(name);
         std::fs::write(&path, script).unwrap();
@@ -272,35 +281,34 @@ async fn identity_roundtrip(
             gateway_types::tenant_scope::tenant_scope_middleware,
         ));
     #[cfg(target_os = "macos")]
-    let router = router.layer(middleware::from_fn(|request, next| async move {
-        agent_gateway::middleware::basic_auth_middleware_with_credentials(
-            request,
-            next,
-            Some("fixture-password"),
-            "fixture-user",
-        )
-        .await
-    }));
+    let router = router.layer(middleware::from_fn_with_state(
+        agent_gateway::gateway_test_fixture::state::<(), (), ()>(
+            Default::default(),
+            true,
+            &[TOKEN.to_owned()],
+        ),
+        agent_gateway::request_policy::skey_auth_middleware::<(), (), ()>,
+    ));
     let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
     let port = listener.local_addr().unwrap().port();
     let server = tokio::spawn(async move {
         axum::serve(listener, router).await.unwrap();
     });
-    #[cfg(target_os = "macos")]
-    let authenticated_host = "fixture-user:fixture-password@127.0.0.1";
-    #[cfg(not(target_os = "macos"))]
-    let authenticated_host = "127.0.0.1";
-    let sdk = |host, scope| {
+    let sdk = |skey: Option<&str>, scope| {
         GatewayAppSettingsClient::new(
             gateway_http::GatewayTransport::new(
-                GatewayEndpoint::new(host, port).with_tenant_scope(scope),
+                GatewayEndpoint::new("127.0.0.1", port)
+                    .with_auth(GatewayAuth {
+                        skey: skey.map(str::to_owned),
+                    })
+                    .with_tenant_scope(scope),
             )
             .unwrap(),
         )
     };
-    let client = sdk(authenticated_host, tenant.clone());
+    let client = sdk(Some(TOKEN), tenant.clone());
     #[cfg(target_os = "macos")]
-    let unauthorized = sdk("127.0.0.1", tenant.clone());
+    let unauthorized = sdk(None, tenant.clone());
     #[cfg(target_os = "macos")]
     assert!(matches!(
         unauthorized
@@ -308,7 +316,7 @@ async fn identity_roundtrip(
             .await,
         Err(AgentAppsSettingsError::Http { status: 401, .. })
     ));
-    let other = sdk(authenticated_host, TenantScope::new("p", "other").unwrap());
+    let other = sdk(Some(TOKEN), TenantScope::new("p", "other").unwrap());
     for (app_id, path_file, expected) in [
         (AppId::Claude, "private-path", LaunchSessionPhase::Completed),
         (AppId::Codex, "account-path", LaunchSessionPhase::Failed),
@@ -446,18 +454,17 @@ async fn identity_roundtrip(
             0o700
         );
         if app_id == AppId::Codex {
+            let duplicate = accounts.prepare_launch(
+                &tenant,
+                local_app_auth::HOST_ID,
+                "selected-account",
+                &request,
+                &observed.installations,
+                &[root.path().into()],
+                Path::new("/tmp"),
+            );
             assert!(
-                accounts
-                    .prepare_launch(
-                        &tenant,
-                        local_app_auth::HOST_ID,
-                        "selected-account",
-                        &request,
-                        &observed.installations,
-                        &[root.path().into()],
-                        Path::new("/tmp")
-                    )
-                    .is_err(),
+                matches!(duplicate, Err(ref error) if error == "official account is in use"),
                 "account lease must remain held while CLI runs"
             );
         }

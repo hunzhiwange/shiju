@@ -101,15 +101,26 @@ async fn cc_route_029_outbound_probe_expected_behavior() {
     const CHILD_ROOT: &str = "SHIJU_OUTBOUND_PROBE_CHILD_ROOT";
     let Some(root) = std::env::var_os(CHILD_ROOT) else {
         let root = tempfile::tempdir().unwrap();
+        let home = root.path().canonicalize().unwrap();
         let output = Command::new(std::env::current_exe().unwrap())
             .args([
                 "--exact",
                 "host_migration_7_tests::outbound_probe_tests::cc_route_029_outbound_probe_expected_behavior",
                 "--nocapture",
             ])
-            .env(CHILD_ROOT, root.path())
-            .env("VIBEWINDOW_TEST_ROOT", root.path())
-            .env_remove("VIBEWINDOW_TEST_HOME")
+            .current_dir(&home)
+            .env_clear()
+            .env(CHILD_ROOT, &home)
+            .env("HOME", &home)
+            .env("XDG_CONFIG_HOME", home.join(".config"))
+            .env("XDG_DATA_HOME", home.join(".local/share"))
+            .env("XDG_STATE_HOME", home.join(".local/state"))
+            .env("XDG_CACHE_HOME", home.join(".cache"))
+            .env("XDG_RUNTIME_DIR", &home)
+            .env("CODEX_HOME", home.join(".codex"))
+            .env("VIBEWINDOW_TEST_ROOT", &home)
+            .env("VIBEWINDOW_CONFIG_DIR", home.join(".config"))
+            .env("TMPDIR", &home)
             .output()
             .unwrap();
         eprint!("{}{}", String::from_utf8_lossy(&output.stdout), String::from_utf8_lossy(&output.stderr));
@@ -118,7 +129,21 @@ async fn cc_route_029_outbound_probe_expected_behavior() {
     };
     let home = PathBuf::from(root);
     assert!(home.is_absolute() && home.is_dir());
-    assert_eq!(std::env::var_os("VIBEWINDOW_TEST_ROOT").as_deref(), Some(home.as_os_str()));
+    assert_eq!(std::env::current_dir().unwrap().canonicalize().unwrap(), home);
+    for (key, relative_path) in [
+        ("HOME", ""),
+        ("XDG_CONFIG_HOME", ".config"),
+        ("XDG_DATA_HOME", ".local/share"),
+        ("XDG_STATE_HOME", ".local/state"),
+        ("XDG_CACHE_HOME", ".cache"),
+        ("XDG_RUNTIME_DIR", ""),
+        ("CODEX_HOME", ".codex"),
+        ("VIBEWINDOW_TEST_ROOT", ""),
+        ("VIBEWINDOW_CONFIG_DIR", ".config"),
+        ("TMPDIR", ""),
+    ] {
+        assert_eq!(PathBuf::from(std::env::var_os(key).unwrap()), home.join(relative_path), "{key}");
+    }
     let paths = agent_paths::paths();
     assert_eq!(paths.home, home);
     assert!(paths.data.starts_with(&home) && paths.config.starts_with(&home) && paths.state.starts_with(&home));

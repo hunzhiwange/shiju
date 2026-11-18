@@ -4,7 +4,7 @@
 
 批次：【批次1】 依赖：无
 
-状态：已阻塞
+状态：待回归
 
 来源：原任务19全量实际执行；证据编号449。
 预计会话范围：仅本测试定义文件中以下失败族及证据证明必要的底层修复，不接管整包。
@@ -67,3 +67,9 @@ python3 scripts/cargo_slot.py cargo test -p gateway-app-routing --lib 'host_migr
 - 旧项目角色 403 和 PEER 固定主体 404 改由实际可区分边界覆盖：使用有效 skey，分别改变租户、主机、项目和受支持应用，查询及取消同一任务均断言 404 `not_found`，随后原范围仍可取消。检验的是任务范围匹配，现行配对身份共用 `desktop-local-user`。保留请求字段校验、取消、超时、传输错误和代理凭据脱敏，新增代理连接头及结果不携带 Gateway skey 的检查。
 - 测试父进程启动带唯一临时 `VIBEWINDOW_TEST_ROOT` 的精确子进程，移除继承的 `VIBEWINDOW_TEST_HOME`。子进程在启动网关前断言根目录及运行时路径，路由、策略、加密密钥和诊断注册器使用同一临时根。代理仅绑定 loopback。无真实 Codex 配置改动。
 - `rustfmt --edition 2024 --emit stdout` 语法解析及 `git diff --check` 通过。当前重型编译窗口由其他会话占用，本轮按调度未运行 Cargo。授权契约已确定，状态仍保留为 `已阻塞`，具体阻塞为等待串行验证窗口。取得窗口后执行上列命令，确认父、子进程各实际运行 1 项并通过，再按公共约定收尾。
+
+## 串行精确验收（2026-11-18）
+
+- 获得唯一重型编译窗口后，通过 `scripts/cargo_slot.py` 的 `run(..., number=9)` 执行上列精确 Cargo 命令。日志 `/tmp/shiju-task232-pairing.log`，退出0，父进程和隔离子进程各 ran=1、passed=1、failed=0。槽位9，`CARGO_TARGET_DIR` 与 `CARGO_BUILD_BUILD_DIR` 均为 `/Users/xiangmin/worker/code/shiju/target/rust-slot-9`。包装器和子进程已退出，槽位锁已释放，缓存保留。
+- 验证入口为父进程设置临时 HOME、XDG、CODEX_HOME 与应用路径。子进程清空继承环境，设置另一临时根及对应变量，在启动网关前逐一断言。临时根由各自持有者清理。未使用真实 Codex 配置。
+- 审查差异：只补强本用例的子进程环境隔离，并记录本任务证据。语法解析与 `git diff --check` 通过。本任务精确验收完成，公共全量回归归任务303，保留本卡为待回归。

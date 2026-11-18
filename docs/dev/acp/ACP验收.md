@@ -1320,3 +1320,18 @@ macOS arm64 的托管安装已实测，指定模型和 Rue.js 落盘验收仍阻
 - 四个写入目标为 `index.html`、`vite.config.ts`、`src/main.tsx`、`README.md`。原生 ACP 在向宿主发出文件写回后仍继续执行原生写入，原生路径被沙箱拒绝，因此同一文件会出现写入失败事件。四项实际文件与工具请求内容逐字节相同，随后由会话读回。页面使用本仓库 `@rue-js/rue` 源码，包含 textarea、基于 computed 的 Unicode 码点计数、localStorage 保存与初始化恢复。README 提供 `pnpm exec vite acpdemo/mimo-code` 启动命令。未运行浏览器或页面构建。[上游 ACP 写回实现](https://github.com/XiaomiMiMo/MiMo-Code/blob/v0.1.17/packages/cli/src/acp/agent.ts)
 - Rue.js 普通文件快照从 6333 项增至 6337 项，摘要差异恰好是上述四个目标文件，目标目录外无变化。私有配置恢复有效停用，除显式 disabled 覆写外与基线一致。私有副本随后删除，原开发配置未收到 PATCH。自有网关退出 0，端口关闭，无残留原生进程。
 - 私有证据 `/tmp/shiju-mimo-code-implementation.wJIgOO/focused-accept/` 保存原始 SSE、会话回读、文件核对、快照及清理结果。未提交 Rue.js 产物、凭据或原始载荷。
+
+
+### aionrs 补丁与真实会话验收（2026-11-18）
+
+结论为通过。aionrs 0.2.11 通过系统安装与内置预设，使用原租户指定模型完成 Rue.js 编辑器的实际文件创建。
+
+- `0183a4ccc` 接入 Darwin arm64 固定源码安装。安装器校验官方 v0.2.11 源码摘要并以锁定依赖构建，将原生引擎和随 ShiJu 打包的桥接一同纳入受管运行时。桥接回归先复现固定版本握手不匹配，再按 `ready.version=0.2.11` 校验审批能力与默认模式。原生探针复现上游空轮次 ID 的提示导致桥接中止，修复只忽略这类信息通知。报告的会话恢复和 MCP 能力与实现一致。
+- 请求级中继使用原租户模型，配置选模必须精确回读。只转发 `Read`、`Write`、`Edit`、`Glob`，禁止原生子命令、目录外写入和回环端口之外的联网。宿主拒绝托管会话的文件及终端回调。合成回环探针验证固定模型、拒绝改绑、批准落盘、取消无产物以及批准后仍阻止越界。实机网关以 `SHIJU_AIONRS_WRITE_ROOT` 限定写入 `acpdemo/aionrs/`。验收脚本预建空目录，目录内文件均由会话写入。
+- 槽位 6 构建 shiju 0.6.0 与独立 `aionrs-acp`，使用共享工作区加本任务补丁，未宣称 clean HEAD 构建。最终 shiju SHA-256 为 `fbe0b5f4c1ed7ec567c0e025a8601e901a5980f936ec1f0efe37bd5da5e0092d`，桥接为 `3e542400ed7128d9aff1fa05a2764fb6ab54d249db5905b4b54113f4f4a75928`。安装探针使用同一桥接及包含相同安装逻辑的首轮网关构建，SHA-256 为 `43c1d76ab7a3941c2a41eb2a8443cbd9af88829fd3ada3c5a9bdf0d08f9bde1d`。
+- 全部请求使用平台 10001、公司 100010005 和 Rue.js 目录头。槽位 9 中系统安装 POST 返回 HTTP 200、curl 退出 0、333.667328 秒，状态从 false 变 true。引擎自报 `aionrs 0.2.11`，SHA-256 为 `aae767bf2d5132d730a77526132fe3c689ff2cf60c81284d0b7a86f97ffa1662`。最终网关复用同一受管运行时，安装幂等重读 HTTP 200、退出 0、0.200541 秒。普通诊断 HTTP 200、退出 0、0.297987 秒，结果 `connected`。模型能力另行确认 `session_model=supported`。内置预设确认 `builtin=true`、后端为 aionrs，临时启用后 GET 重读为 true。
+- 原创建请求只提交一次。首段 HTTP 200、curl 退出 28、300.002287 秒，复查会话仍连接。按同一流请求标识与 Last-Event-ID 续传，HTTP 200、退出 0、17.986331 秒，取得单个 `chat.done`，两段均无 `chat.error`。会话 `ses_1ed25f288001YRMGW4UL1pBX1u` 运行中和结束后核对 `acp-aionrs / aionrs`、`full_access=true`。运行中 `connected=true`、权限状态 `client_only`。两阶段的选模为 `source=session_model`、`provider_id=alibaba-token-plan-cn`、`model=alibaba-token-plan-cn/deepseek-v4.1-flash-1017`。终态连接释放。
+- 会话记录 165 条不同调用标识的工具完成事件，实际生成 `index.html`、`vite.config.mjs`、`src/main.tsx`、`src/App.tsx`、`src/env.d.ts`、`src/style.css` 与 `README.md`。静态确认 Vite 复用本仓库 Rue 源码别名，textarea 更新 `ref`，`computed` 实时统计，localStorage 按输入同步保存并初始化恢复。README 提供运行命令。未运行浏览器、页面构建或创建后的页面回归。
+- 最终 Rue.js 普通文件 SHA-256 快照从 6337 项变为 6344 项，差异仅上述 7 项目标文件。恢复 PATCH 和 GET 确认停用预设与基线一致。临时完整配置仅多出一个 aionrs 显式停用覆写，两轮私有 HOME 和配置副本均已清理。两台自有回环网关退出 0，端口 50349 和 63252 已关闭，宿主服务未重启。
+- 槽位 6 最终桥接定向测试 3 项通过，注册与安装契约 1 项通过，沿用前轮预设 2 项的通过证据。限定受影响库的 `cargo clippy --locked -j 1 --lib --no-deps` 退出 0，保留既有 lint。安装器源码语法与受影响 Shell 脚本语法检查通过，未编译桌面端或执行整仓回归。
+- 原始请求、SSE 续传、构建、快照及清理回执存于本机 0700 私有证据目录 `/tmp/shiju-aionrs-patch-20261118.O3OI9A/`。提交仅含 ShiJu 代码和脱敏验收记录，编辑器保留在 Rue.js 工作区。

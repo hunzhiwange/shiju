@@ -35,6 +35,7 @@ pub enum Event {
     Previous,
     Toggle(usize),
     Columns,
+    CloseColumns,
     StatusCode(String),
     ApplyStatusCode,
     Status(Option<UsageRequestStatus>),
@@ -108,6 +109,7 @@ pub fn update(
             return reset(state, current, visible, open, generation, client, query);
         }
         Event::Columns => state.columns_open = !state.columns_open,
+        Event::CloseColumns => state.columns_open = false,
         Event::Status(status) => {
             let Some(mut query) = state.query.clone() else {
                 return Task::none();
@@ -304,47 +306,58 @@ fn scroll<'a>(content: iced::widget::Column<'a, Event>) -> Element<'a, Event> {
 }
 pub fn view(state: &State) -> Element<'_, Event> {
     use super::log_columns::COLUMNS;
-    let mut controls = row![action("显示列 ▾", Event::Columns)].spacing(8);
     let status = state.query.as_ref().and_then(|q| q.filter.status);
-    for (label, value) in [
-        ("全部状态", None),
-        ("成功", Some(UsageRequestStatus::Succeeded)),
-        ("失败", Some(UsageRequestStatus::Failed)),
-        ("取消", Some(UsageRequestStatus::Cancelled)),
-        ("未知", Some(UsageRequestStatus::Unknown)),
-    ] {
-        controls = controls.push(action(
-            format!("{}{label}", if status == value { "✓ " } else { "" }),
-            Event::Status(value),
+    let statuses = ["全部状态", "成功", "失败", "取消", "未知"];
+    let selected = match status {
+        None => statuses[0],
+        Some(UsageRequestStatus::Succeeded) => statuses[1],
+        Some(UsageRequestStatus::Failed) => statuses[2],
+        Some(UsageRequestStatus::Cancelled) => statuses[3],
+        Some(UsageRequestStatus::Unknown) => statuses[4],
+    };
+    let mut options = column![].spacing(2);
+    for (index, (_, label, _, _)) in COLUMNS.iter().enumerate().skip(1) {
+        options = options.push(action(
+            format!("{}  {label}", if state.columns.visible(index) { "✓" } else { "　" }),
+            Event::Toggle(index),
         ));
     }
+    let columns = desktop_ui_controls::overlays::BelowOverlay::new(
+        action("显示列 ▾", Event::Columns),
+        desktop_ui_controls::system_settings_common::settings_modal_card(scroll(options))
+            .width(220),
+    )
+    .show(state.columns_open)
+    .gap(8.0)
+    .on_close(Event::CloseColumns)
+    .capture_outside_click(true);
     let mut top = column![
-        controls,
         row![
+            iced::widget::Space::new().width(Length::Fill),
+            iced::widget::pick_list(statuses, Some(selected), |label| Event::Status(match label {
+                "成功" => Some(UsageRequestStatus::Succeeded),
+                "失败" => Some(UsageRequestStatus::Failed),
+                "取消" => Some(UsageRequestStatus::Cancelled),
+                "未知" => Some(UsageRequestStatus::Unknown),
+                _ => None,
+            }))
+            .padding([6, 10]),
             desktop_ui_controls::system_settings_common::settings_text_input(
-                "HTTP 状态码（留空为全部）",
+                "状态码",
                 &state.status_code_draft
             )
             .on_input(Event::StatusCode)
             .on_submit(Event::ApplyStatusCode)
-            .width(260),
-            action("筛选状态码", Event::ApplyStatusCode)
+            .width(90),
+            action("筛选", Event::ApplyStatusCode),
+            columns
         ]
         .spacing(8)
+        .align_y(iced::Alignment::Center)
     ]
     .spacing(8);
     if let Some(error) = &state.status_code_error {
         top = top.push(text(error));
-    }
-    if state.columns_open {
-        let mut options = column![text("显示的列（时间列始终显示）").size(13)].spacing(4);
-        for (index, (_, label, _, _)) in COLUMNS.iter().enumerate().skip(1) {
-            options = options.push(action(
-                format!("{} {label}", if state.columns.visible(index) { "✓" } else { "○" }),
-                Event::Toggle(index),
-            ));
-        }
-        top = top.push(scroll(options));
     }
     if let Some(error) = &state.preference_error {
         top = top.push(text(format!("列设置保存/加载失败：{error}")));
@@ -371,18 +384,31 @@ pub fn view(state: &State) -> Element<'_, Event> {
     let mut header = row![].spacing(12);
     for (index, (_, label, _, _)) in COLUMNS.iter().enumerate() {
         if state.columns.visible(index) {
-            let title = text(*label).size(12).width(Length::Fixed(widths[index]));
+            let title = text(if matches!(index, 5 | 9 | 10 | 11 | 12) {
+                format!("{label}  ⓘ")
+            } else {
+                (*label).into()
+            })
+            .size(12)
+            .width(Length::Fixed(widths[index]));
             let help = match index {
                 5 => Some("新增输入按来源语义扣除缓存；缺少必要数据时显示 —"),
                 9 => Some("缓存读取 /（新增输入 + 缓存读取 + 缓存创建）"),
-                10 => Some("输出 token / 秒；≈ 表示来源标记的估算值"),
-                11 | 12 => Some("单位为秒；≈ 表示估算；来源未提供时显示 —"),
+                10 => Some(
+                    "速度怎么算：每秒输出的 token 数。≈ 表示根据会话日志时间戳估算，可能包含等待首字的时间；来源未提供时显示 —。",
+                ),
+                11 | 12 => Some(
+                    "时间怎么算：单位为秒。首字表示开始输出前的等待时间，总耗时表示请求持续时间。≈ 为日志时间戳估算，可能包含客户端准备时间；来源未提供时显示 —。",
+                ),
                 _ => None,
             };
             header = if let Some(help) = help {
                 header.push(iced::widget::tooltip(
                     title,
-                    container(text(help).size(12)).padding(8).style(container::bordered_box),
+                    container(text(help).size(13))
+                        .width(360)
+                        .padding(14)
+                        .style(container::bordered_box),
                     iced::widget::tooltip::Position::Top,
                 ))
             } else {
@@ -469,19 +495,30 @@ pub fn view(state: &State) -> Element<'_, Event> {
         .and_then(|r| r.as_ref().ok())
         .map(|r| r.counts.total_requests.to_string())
         .unwrap_or_else(|| "—".into());
-    let mut footer = row![
-        text(format!("共 {total} 条 · 第 {} 页", state.cursor_history.len() + 1)).size(13),
-        nav("上一页", Event::Previous, !state.loading && !state.cursor_history.is_empty()),
-        nav("下一页", Event::Next, !state.loading && next),
-        nav("刷新 / 重试", Event::Reload, !state.loading)
-    ]
-    .spacing(8);
-    for size in [10, 20, 50, 100] {
-        footer = footer.push(action(
-            format!("{}{size}条", if size == state.page_size { "✓ " } else { "" }),
-            Event::PageSize(size),
-        ));
-    }
+    let page_size = if state.page_size == 0 { 20 } else { state.page_size };
+    let pages = state
+        .result
+        .as_ref()
+        .and_then(|r| r.as_ref().ok())
+        .map(|r| r.counts.total_requests.div_ceil(u64::from(page_size)).max(1))
+        .unwrap_or(1);
+    let footer = container(
+        row![
+            text(format!("共 {total} 条记录")).size(13).style(text::secondary),
+            iced::widget::pick_list(vec![10u32, 20, 50, 100], Some(page_size), Event::PageSize)
+                .padding([6, 10]),
+            text("条 / 页").size(13).style(text::secondary),
+            iced::widget::Space::new().width(Length::Fill),
+            nav("‹", Event::Previous, !state.loading && !state.cursor_history.is_empty()),
+            text(format!("{} / {pages}", state.cursor_history.len() + 1)).size(13),
+            nav("›", Event::Next, !state.loading && next)
+        ]
+        .spacing(12)
+        .align_y(iced::Alignment::Center),
+    )
+    .padding([12, 16])
+    .width(Length::Fill)
+    .style(container::rounded_box);
     let table = scrollable(container(rows).padding([0, 7]))
         .direction(scrollable::Direction::Both {
             vertical: scrollable::Scrollbar::new().width(4).scroller_width(4),
@@ -495,16 +532,20 @@ pub fn view(state: &State) -> Element<'_, Event> {
     use desktop_ui_controls::system_settings_common::{
         settings_close_button, settings_modal_card, settings_modal_overlay,
     };
-    let body = match &state.detail {
-        None => "正在加载详情…".into(),
-        Some(Err(error)) => format!("请求详情加载失败：{error}"),
-        Some(Ok(detail)) => detail_text(detail),
+    let body: Element<'_, Event> = match &state.detail {
+        None => text("正在加载详情…").into(),
+        Some(Err(error)) => text(format!("请求详情加载失败：{error}")).into(),
+        Some(Ok(detail)) => detail_view(detail),
     };
     let card = settings_modal_card(
         column![
-            row![text("请求详情").size(20), settings_close_button(message(Event::CloseDetail))]
-                .spacing(16),
-            scroll(column![text(body)]),
+            row![
+                text("请求详情").size(20),
+                iced::widget::Space::new().width(Length::Fill),
+                settings_close_button(message(Event::CloseDetail))
+            ]
+            .spacing(16),
+            scroll(column![body]),
             action("关闭", Event::CloseDetail)
         ]
         .spacing(12),
@@ -512,34 +553,84 @@ pub fn view(state: &State) -> Element<'_, Event> {
     .width(Length::Fixed(720.0));
     settings_modal_overlay(Some(base.into()), message(Event::CloseDetail), card)
 }
-fn detail_text(detail: &UsageLogDetail) -> String {
+fn detail_view(detail: &UsageLogDetail) -> Element<'_, Event> {
+    fn section(
+        title: &'static str,
+        values: Vec<(&'static str, String)>,
+    ) -> Element<'static, Event> {
+        let mut rows = column![].spacing(12);
+        for (label, value) in values {
+            rows = rows.push(
+                row![
+                    text(label).size(13).style(text::secondary).width(110),
+                    text(value)
+                        .size(14)
+                        .width(Length::Fill)
+                        .align_x(iced::alignment::Horizontal::Right)
+                ]
+                .spacing(16),
+            );
+        }
+        column![
+            text(title).size(17),
+            container(rows).padding(18).width(Length::Fill).style(container::rounded_box)
+        ]
+        .spacing(10)
+        .into()
+    }
     let r = &detail.record;
-    let tokens = r.tokens.as_ref().map(|t| {
-        let count = |v: Option<u64>| v.map(|n| n.to_string()).unwrap_or_else(|| "未知".into());
-        format!("输入 {} · 输出 {} · 推理 {}\n缓存读取 {} · 创建 {} · 创建1h子集 {}\n输入语义 {:?} · 推理语义 {:?}", count(t.input), count(t.output), count(t.reasoning), count(t.cache_read), count(t.cache_creation), count(t.cache_creation_1h), t.input_semantics, t.reasoning_semantics)
-    }).unwrap_or_else(|| "Token 未知".into());
-    format!(
-        "请求 {}\n时间 {}（UTC Unix秒）\n供应商 {:?}\n状态 {:?} · HTTP {} · 计费 {}\n错误 {}\n请求模型 {}\n响应模型 {}\n定价模型 {}\n倍率 {} · 依据 {}\n费用 {}\n{}\n首字 {}\n延迟 {}\n速度 {}\n来源 {:?}\n疑似重复 {}",
-        r.id,
-        r.started_at_unix_seconds.0,
-        r.provider,
-        r.status,
-        detail.status_code.map(|n| n.to_string()).unwrap_or_else(|| "未知".into()),
-        r.billable,
-        unknown(detail.error_message.as_deref()),
-        unknown(r.models.request_model.as_deref()),
-        unknown(r.models.response_model.as_deref()),
-        unknown(r.models.pricing_model.as_deref()),
-        unknown(r.models.pricing_multiplier.as_deref()),
-        unknown(r.models.multiplier_basis.as_deref()),
-        cost(&r.cost),
-        tokens,
-        metric(r.performance.first_token_ms.as_ref(), "ms"),
-        metric(r.performance.latency_ms.as_ref(), "ms"),
-        metric(r.performance.output_tokens_per_second.as_ref(), "token/s"),
-        r.sources,
-        unknown(r.suspected_duplicate_of.as_deref())
-    )
+    let exact = |n: Option<u64>| n.map_or_else(|| "—".into(), |n| n.to_string());
+    let t = r.tokens.as_ref();
+    let time = chrono::DateTime::from_timestamp(r.started_at_unix_seconds.0, 0)
+        .map(|t| t.with_timezone(&chrono::Local).format("%Y/%m/%d %H:%M:%S").to_string())
+        .unwrap_or_else(|| "—".into());
+    let mut body = column![
+        section(
+            "基本信息",
+            vec![
+                ("时间", time),
+                ("应用", cell(detail, 1)),
+                ("供应商", cell(detail, 2)),
+                ("模型", cell(detail, 3)),
+                ("请求 ID", r.id.clone())
+            ]
+        ),
+        section(
+            "Tokens 用量",
+            vec![
+                ("新增输入", exact(t.and_then(fresh))),
+                ("原始输入", exact(t.and_then(|t| t.input))),
+                ("输出", exact(t.and_then(|t| t.output))),
+                ("缓存命中", exact(t.and_then(|t| t.cache_read))),
+                ("缓存写入", exact(t.and_then(|t| t.cache_creation)))
+            ]
+        ),
+        section(
+            "成本（USD）",
+            vec![
+                ("合计", cell(detail, 4)),
+                ("计价说明", cost(&r.cost)),
+                ("定价模型", unknown(r.models.pricing_model.as_deref()))
+            ]
+        ),
+        section(
+            "性能",
+            vec![
+                ("速度", cell(detail, 10)),
+                ("首字", cell(detail, 11)),
+                ("总耗时", cell(detail, 12)),
+                ("状态码", cell(detail, 13))
+            ]
+        ),
+        text("≈ 表示来源提供的估算值；— 表示暂无数据。费用分项尚未由账本提供。")
+            .size(12)
+            .style(text::secondary)
+    ]
+    .spacing(24);
+    if let Some(error) = &detail.error_message {
+        body = body.push(section("错误信息", vec![("详情", error.clone())]));
+    }
+    body.into()
 }
 
 fn count(value: Option<u64>) -> String {

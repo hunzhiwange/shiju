@@ -20,7 +20,7 @@ pub fn overlay<'a, M: Clone + 'static>(state: &'a State, current: Option<Identit
     let mut sources = column![
         row![text("会话日志扫描").size(15), checkbox(!state.paused).label("自动扫描")
             .style(settings_checkbox_style)
-            .on_toggle_maybe(ready.then_some(|enabled| Outcome::Event(Event::Run(Action::Pause(!enabled)))))].spacing(12),
+            .on_toggle_maybe(ready.then_some(|enabled: bool| Outcome::Event(Event::Run(Action::Pause(!enabled)))))].spacing(12),
         text("覆盖 11 个应用：Claude Code、Codex、Gemini CLI、Grok Build、OpenCode、Pi、OMP、MCode、Kimi、Dsh、Antigravity。").size(12),
         text("Hermes / OpenClaw 暂不支持会话用量扫描。").size(12),
         text(format!("上次完整同步（UTC）：{last}")).size(12),

@@ -9,12 +9,12 @@ pub const COLUMNS: [(&str, &str, bool, f32); 14] = [
     ("cost", "成本", true, 130.0),
     ("freshInput", "新增输入", true, 100.0),
     ("output", "输出", true, 90.0),
-    ("cacheRead", "缓存读取", true, 100.0),
+    ("cacheRead", "缓存命中", true, 100.0),
     ("cacheWrite", "缓存写入", false, 100.0),
     ("hitRate", "命中率", false, 90.0),
     ("speed", "速度", true, 120.0),
     ("firstToken", "首字", true, 100.0),
-    ("duration", "耗时", false, 100.0),
+    ("duration", "总耗时", false, 100.0),
     ("statusCode", "状态码", false, 90.0),
 ];
 

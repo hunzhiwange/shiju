@@ -155,7 +155,7 @@ fn performance_label(value: Option<super::metrics::PerformanceValue>, first: boo
     )
 }
 fn cell(value: String, width: u16) -> Element<'static, Event> {
-    text(value).size(13).width(width).into()
+    text(value).size(13).width(f32::from(width)).into()
 }
 fn stats_row<'a>(label: String, stats: &'a GroupStats, state: &State) -> Element<'a, Event> {
     use super::metrics;

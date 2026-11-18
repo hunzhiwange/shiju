@@ -8188,6 +8188,7 @@ dependencies = [
  "model-state",
  "model-types",
  "provider-resolution",
+ "rust_decimal",
  "serde_json",
  "session-info",
  "session-ui-types",

@@ -1,22 +1,37 @@
 use super::*;
-use chrono::{FixedOffset, TimeZone};
 use crate::center::overview::{self, Change};
+use chrono::{FixedOffset, TimeZone};
 
 #[test]
 fn usage_replica_02_custom_validation_and_live_end() {
-    let zone = FixedOffset::east_opt(8*3600).unwrap();
-    let now = zone.with_ymd_and_hms(2026,11,17,12,0,0).unwrap().timestamp();
+    let zone = FixedOffset::east_opt(8 * 3600).unwrap();
+    let now = zone.with_ymd_and_hms(2026, 11, 17, 12, 0, 0).unwrap().timestamp();
     assert!(custom(&zone, "2026-11-17 13:00", "2026-11-17 12:00", false, now).is_err());
     assert!(custom(&zone, "2026-10-01 12:00", "2026-11-17 12:00", false, now).is_err());
     let result = custom(&zone, "2026-11-17 11:00", "invalid", true, now).unwrap();
-    assert_eq!(result, UsageRange::Custom { start_unix_seconds: Some(UsageUnixSeconds(now-3600)), end_unix_seconds: None, live_end_time: true });
+    assert_eq!(
+        result,
+        UsageRange::Custom {
+            start_unix_seconds: Some(UsageUnixSeconds(now - 3600)),
+            end_unix_seconds: None,
+            live_end_time: true
+        }
+    );
 }
 #[test]
 fn usage_replica_02_calendar_midnight_and_rolling() {
-    let zone = FixedOffset::west_opt(5*3600).unwrap();
-    let now = zone.with_ymd_and_hms(2026,11,17,0,15,0).unwrap();
+    let zone = FixedOffset::west_opt(5 * 3600).unwrap();
+    let now = zone.with_ymd_and_hms(2026, 11, 17, 0, 15, 0).unwrap();
     let range = Preset::Week.resolve(now).unwrap();
-    assert_eq!(range, UsageRange::Absolute { start_unix_seconds: UsageUnixSeconds(zone.with_ymd_and_hms(2026,11,11,0,0,0).unwrap().timestamp()), end_unix_seconds: UsageUnixSeconds(now.timestamp()) });
+    assert_eq!(
+        range,
+        UsageRange::Absolute {
+            start_unix_seconds: UsageUnixSeconds(
+                zone.with_ymd_and_hms(2026, 11, 11, 0, 0, 0).unwrap().timestamp()
+            ),
+            end_unix_seconds: UsageUnixSeconds(now.timestamp())
+        }
+    );
     assert_eq!(Preset::Day.resolve(now).unwrap(), UsageRange::Rolling { seconds: 86400 });
 }
 #[test]
@@ -29,9 +44,9 @@ fn usage_replica_02_cancel_does_not_commit_and_month_wraps() {
     assert!(picker.error.is_some());
     assert!(picker.update(Event::Cancel, &range).is_none());
     assert_eq!(picker.preset, Some(Preset::All));
-    picker.month = NaiveDate::from_ymd_opt(2026,1,1).unwrap();
+    picker.month = NaiveDate::from_ymd_opt(2026, 1, 1).unwrap();
     picker.update(Event::Month(-1), &range);
-    assert_eq!(picker.month, NaiveDate::from_ymd_opt(2025,12,1).unwrap());
+    assert_eq!(picker.month, NaiveDate::from_ymd_opt(2025, 12, 1).unwrap());
 }
 #[test]
 fn usage_replica_02_cascade_and_clear_reset_cursor() {

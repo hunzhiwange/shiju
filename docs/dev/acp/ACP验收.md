@@ -1355,7 +1355,6 @@ macOS arm64 的托管安装已实测，指定模型和 Rue.js 落盘验收仍阻
 - 首轮使用私有配置目录但未隔离 HOME，主目录下的数据库仍生效。内置预设启用并成功重读，尝试恢复为缺省条目时接口返回 HTTP 400，禁止删除内置预设。随后经 PATCH 显式设回停用，GET 复查生效，和首轮全局配置相比只剩这一显式停用条目。最终隔离轮再次开启并恢复，GET 的完整配置及预设均与该轮基线相等。
 - 自有网关退出 0、端口关闭，临时配置副本已清理。Rue.js 6351 项普通文件摘要零差异，目标目录不存在。未发送创建请求，未运行 Cargo、页面或浏览器验证。私有证据 `/tmp/shiju-corust-isolated.EENuh1/`、`/tmp/shiju-corust-restore.yWwuic/`、`/tmp/shiju-corust-http.FxSv94/` 及 `/tmp/shiju-corust-http.KdfIEs/`。
 
-
 ### Devin 网关冷安装与新版选模复验（2026-11-18）
 
 固定版网关冷安装和预设回读通过。指定模型仍阻塞。
@@ -1364,6 +1363,7 @@ macOS arm64 的托管安装已实测，指定模型和 Rue.js 落盘验收仍阻
 - 较早的共享构建缺下载重试逻辑，冷安装 HTTP 400、curl 退出 0、120.633345 秒。相同构建在私有配置中放入上轮已校验的托管运行时后，系统安装 POST HTTP 200、退出 0、0.104479 秒，随后重读仍为已安装。此结果只验证复用已存在的入口。
 - 最终确认内置 `acp-devin` 及其后端，启用后 GET 重读成功，结束后恢复初始停用状态，预设完整相等。配置副本仅多出该预设的显式停用覆写，随后整个配置副本及私有 HOME 均删除。三轮网关退出 0，回环端口关闭。最终 Rue.js 前后 6351 项文件 SHA-256 零差异，目标目录仍不存在。
 - 对照官方公开发布清单，独立下载并校验最新版 3000.14.30821，二进制 SHA-256 为 `985a79f99180f081e13781ac88993a10dfe133d4ba415ffb4c95b22dde037935`。隔离 ACP v1 握手和建会话成功，模型仍回退到 `swe-1-6-fast`，显式选择原全限定模型仍返回 `-32602`。将上游描述的 OpenAI 兼容环境变量指向私有回环并使用占位密钥，选模结果相同。未发 prompt。新版随包文档仍注明自定义端点需要获批组织专供构建，普通模型目录需登录。[官方模型说明](https://docs.devin.ai/cli/models)
+- 本轮无代码改动，未执行新 Cargo 构建、页面或浏览器验证。0700 私有证据保存于 `/tmp/shiju-devin-gateway-20261118.gfS8c8/`。获得获授权构建后，先确认实际 ACP 请求可使用 ShiJu 中继并严格绑定原模型，再执行 Rue.js 落盘验收。
 
 
 ### Cortex Code 受管安装补丁与模型端点复查（2026-11-18）
@@ -1377,7 +1377,6 @@ macOS arm64 的托管安装已实测，指定模型和 Rue.js 落盘验收仍阻
 - 最终独立回环网关使用原平台 10001、公司 100010005 和 Rue.js 目录头。篡改缓存的系统安装请求返回 HTTP 400、curl 退出 0、耗时 0.203671 秒，重读仍为未安装。替换为官方归档后系统安装返回 HTTP 200、curl 退出 0、耗时 3.128784 秒，状态从 false 变为 true。重读配置解析到受管原生入口和 `acp serve`。版本为 1.2.46，入口 SHA-256 为 `f9753a0da7a733d4e782dfe633c7bd4fd5faca7b4960352d0aa464b62441178a`。
 - 普通诊断 HTTP 200 和 `connected` 覆盖 ACP 初始化。能力端点 HTTP 200，仍报告 `session_model=unsupported`、`reason=unsupported_cli`、`connected=false`。`acp-cortex-code` 已核实为 builtin、backend=cortex-code。临时启用后 GET 读回为 enabled，恢复后与原有效预设相等。完整配置曾仅差一个显式停用覆写，恢复独立实例启动前的私有配置行并重启后，GET 与基线完全相等。两个自有网关均退出 0，端口关闭，私有租户数据库与授权副本已清理。
 - 最终网关验证前后 Rue.js 各 6351 个文件 SHA-256、Git 状态均相同，`acpdemo/cortex-code/` 始终不存在。较早的长构建窗口观测到 `acpdemo/aionrs/src/{App.tsx,style.css}` 及 `acpdemo/omp/{README.md,index.html,src/App.tsx,src/env.d.ts,src/main.tsx,src/style.css,vite.config.mjs}` 的并发改动。上述路径没有本轮写操作。未发送聊天、未取得指定模型绑定、SSE 或编辑器，未运行页面、桌面或全仓验证。本轮原始响应、快照、构建和清理证据位于 0700 目录 `/tmp/shiju-cortex-patch.zStXYG/`。
-- 本轮无代码改动，未执行新 Cargo 构建、页面或浏览器验证。0700 私有证据保存于 `/tmp/shiju-devin-gateway-20261118.gfS8c8/`。获得获授权构建后，先确认实际 ACP 请求可使用 ShiJu 中继并严格绑定原模型，再执行 Rue.js 落盘验收。
 
 
 ### Devin 本地推理后端复验（2026-11-18）
@@ -1413,6 +1412,7 @@ macOS arm64 的托管安装已实测，指定模型和 Rue.js 落盘验收仍阻
 - 针对读取源码发现的清空草稿错误提示，单独发起收尾请求。真实会话 HTTP 200、curl 0、23.861829 秒，新建 `src/draft.ts`、修改 `src/App.tsx`，SSE 有一个 `chat.done` 且无 `chat.error`。两轮均回读内置预设的 backend 为 `corust-agent`、`full_access=true`，执行中 `connected=true`，模型来源 `session_model`、provider `alibaba-token-plan-cn`、完整 ID `alibaba-token-plan-cn/deepseek-v4.1-flash-1017`。收尾结束时连接关闭，仍能重读同一模型绑定。
 - 最终目录 `acpdemo/corust-agent/` 有 8 个普通文件，分别为 `README.md`、`index.html`、`package.json`、`vite.config.ts`、`src/App.tsx`、`src/draft.ts`、`src/main.tsx`、`src/style.css`。静态核对本仓库 Rue 源码别名、页面挂载、文本输入、实时计数及 localStorage 保存、清空与刷新恢复。README 有运行说明，未运行页面、构建或浏览器验证。
 - 两轮全局配置和预设恢复后与各自基线完全相等，网关退出 0、端口关闭，配置副本已删除。整个 Rue.js 普通文件摘要从 6351 项变为 6359 项，差异全在目标目录。中继鉴权定向测试由 1 项失败转为 1 项通过，受管审批定向测试 1 项通过。受影响库 Clippy 退出 0，有既有告警。原生回环验证获批创建、拒绝不写及禁止写出工作区。Rust 使用槽位 6，未构建桌面。
+- 私有证据见 `/tmp/shiju-corust-provider.2aldun/`、`/tmp/shiju-corust-launch.8l2XP5/` 与 `/tmp/shiju-corust-wire.iX4E3n/`。会话和文件证据分别在 `acceptance-wire/` 与 `acceptance-finish/`，原始请求、日志和供应商文件均留在本机。
 
 
 ### Cortex Code 本地模型与 Rue.js 编辑器验收（2026-11-18）
@@ -1426,7 +1426,6 @@ macOS arm64 的托管安装已实测，指定模型和 Rue.js 落盘验收仍阻
 - 原请求的成功会话 `ses_1ede8fe02001DMLlZQYPMmLGm1` 返回 HTTP 200、curl 退出 0、198.310074 秒，收到一个 `chat.done` 且无 `chat.error`。运行中 summary/options 确认 `acp-cortex-code`、`cortex-code`、`full_access=true`、`connected=true`、`access_status.support=client_only`。运行中与终态重读均为 `source=session_model`、`provider_id=alibaba-token-plan-cn`、`model=alibaba-token-plan-cn/deepseek-v4.1-flash-1017`。完成后连接释放。共 47 条工具完成事件，含 7 个不同写入调用。
 - 在 `acpdemo/cortex-code/` 核对 `index.html`、`package.json`、`tsconfig.json`、`vite.config.ts`、`src/main.tsx`、`src/style.css` 和 `README.md`。Vite 通过工作区链接读取本仓库 `@rue-js/rue` 的现有构建产物，包入口已核实存在。源码用 Rue 的 signal 和 textarea 实现实时 Unicode 字符数，输入即保存到 localStorage，初始化恢复，README 给出启动命令。未运行页面构建、浏览器或桌面验证。
 - 成功轮 Rue.js 摘要从 6359 项增至 6366 项，差异仅以上 7 个文件。预设恢复为原停用值并重新读回，私有完整配置仅多一个显式停用覆写。两个回环网关均退出 0，端口 56147、56489 已关闭，两份私有租户副本均清理。原开发配置未收到 PATCH。原始证据和逐项校验保存于本机 0700 目录 `/tmp/shiju-cortex-local.Pi6oxR/`，Rue.js 产物留在其工作区。
-- 私有证据见 `/tmp/shiju-corust-provider.2aldun/`、`/tmp/shiju-corust-launch.8l2XP5/` 与 `/tmp/shiju-corust-wire.iX4E3n/`。会话和文件证据分别在 `acceptance-wire/` 与 `acceptance-finish/`，原始请求、日志和供应商文件均留在本机。
 
 
 ### Devin 免登录验收暂缓（2026-11-18）

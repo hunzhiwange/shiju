@@ -254,6 +254,13 @@ impl Gateway {
     }
 }
 
+const XDG_DIRS: [(&str, &str); 4] = [
+    ("XDG_CONFIG_HOME", ".config"),
+    ("XDG_DATA_HOME", ".local/share"),
+    ("XDG_CACHE_HOME", ".cache"),
+    ("XDG_STATE_HOME", ".local/state"),
+];
+
 fn run_isolated(postgres: bool, commit: bool) -> anyhow::Result<()> {
     const CHILD_ROOT: &str = "SHIJU_AUTH_BINDING_CHILD_ROOT";
     if let Some(root) = std::env::var_os(CHILD_ROOT) {
@@ -266,7 +273,10 @@ fn run_isolated(postgres: bool, commit: bool) -> anyhow::Result<()> {
                 && std::env::var_os("CODEX_HOME").as_deref()
                     == Some(root.join(".codex").as_os_str())
                 && std::env::var_os("KIMI_HOME").as_deref()
-                    == Some(root.join(".kimi-code").as_os_str()),
+                    == Some(root.join(".kimi-code").as_os_str())
+                && XDG_DIRS.iter().all(|(var, path)| {
+                    std::env::var_os(var).as_deref() == Some(root.join(path).as_os_str())
+                }),
             "binding test requires isolated runtime and Codex paths"
         );
         let paths = agent_paths::paths();
@@ -300,6 +310,7 @@ fn run_isolated(postgres: bool, commit: bool) -> anyhow::Result<()> {
         .env("HOME", &root)
         .env("CODEX_HOME", root.join(".codex"))
         .env("KIMI_HOME", root.join(".kimi-code"))
+        .envs(XDG_DIRS.map(|(var, path)| (var, root.join(path))))
         .status()?;
     anyhow::ensure!(status.success(), "isolated binding test failed: {status}");
     Ok(())

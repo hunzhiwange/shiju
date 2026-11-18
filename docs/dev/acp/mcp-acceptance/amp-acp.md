@@ -1,6 +1,6 @@
 # Amp ACP 动态挂载 RustCodeGraph
 
-2026-11-19，Amp 的挂载轮在 ACP 建会话时被受管入口拒绝。无挂载和撤除轮均通过。任务保留为已阻塞。
+2026-11-19，Amp 受管 v3 通过指定模型的挂载、撤除与无挂载对照。下文保留早期拒绝、修复及最终证据。
 
 ## 环境与请求
 
@@ -62,3 +62,19 @@
 三次未限速挂载均在约 55 至 57 秒收到 `chat.error`。原生 Worker 日志确认指定模型中继返回 HTTP 429。转发记录确认其中两轮的 47 次和 52 次图谱调用均成功。降低私有转发器的结果发送频率后，v2 三轮均收到 `chat.done`。对照会话 `ses_1f07608f90016suUoETKA6yxTv` 和 `ses_1f07a578a001R0iy7ZH4o5Z0Uk` 各只回复 `MCP_NOT_AVAILABLE`，零工具事件。挂载会话 `ses_1f07619ec00172p6ARo0j0E3Zy` 用时 277.760 秒，原始转发记录有 43 次 query、6 次 callers、37 次 node，全部成功。
 
 该轮原生日志仍有线程持久化 HTTP 500。固定版 ThreadWorker 会在内部请求超过 25,600 字节时使用 gzip，受管桥原先直接把压缩体解析为 JSON。v3 在既有认证后的内部控制路由接收原生 gzip，并保留 16 MiB 的请求及解压上限。会话挂载时保留非流式辅助推理的 `set_title` 声明，流式用户回合仍限定为已选 MCP。通过相同原生探针确认 32 KB 线程在 v2 无法保存，在 v3 完整写入，加载后可继续执行，撤除后无 MCP。Node 定向运行 5 项通过，覆盖压缩保存、超限拒绝、普通工具路由拒绝 gzip，以及辅助标题请求仅保留 `set_title`。
+
+### 受管 v3 最终三轮
+
+复用当前共享工作区的槽位 3 构建。标准命令 `python3 scripts/cargo_slot.py cargo build -j 1 --locked -p vw-cli --bin shiju` 等价地由槽位内脚本执行，退出 0，16 分 30 秒，target 与 build 均为仓库的 `target/rust-slot-3`。构建 SHA-256 为 `2e84923a46704187dfd9d56dfc4b45d6ebf9cfc93398a6bb3a82b1cc61a1f935`，包含 `70eeb9569` 的公共策略和 `cd22e094a` 的 Amp gzip 修复。同一共享阶段的宿主策略定向命令实际运行 1 项并通过，未重跑 Amp 原有审批测试。冷安装 HTTP 200，1.727 秒，四个实际 v3 文件摘要均符合受审契约。
+
+| 轮次 | 新会话 | HTTP / curl / 秒 | 终态与结果 |
+| --- | --- | --- | --- |
+| 无挂载 | `ses_1f089d37e001JKkVRcjRsbWIpf` | 200 / 0 / 3.768 | `chat.done`，仅 `MCP_NOT_AVAILABLE`，零工具 |
+| 挂载 | `ses_1f089e337001k9pjFPJm0Pz8m5` | 200 / 28 / 300.012，续传退出 0 | `chat.done`，三种工具共 89 次成功 |
+| 撤除 | `ses_1f08f1c5a001zsJqG1olWHPtpf` | 200 / 0 / 3.733 | `chat.done`，仅 `MCP_NOT_AVAILABLE`，零工具 |
+
+- 挂载初始流断开后使用原请求 ID 与 `Last-Event-ID` 接续，未重复推理。合并后各轮恰有一条 `chat.done`，没有 `chat.error` 或模型恢复。三轮 UI summary 均确认 `acp-amp-acp / amp-acp` 和 `full_access=true`，ACP options 均为原提供商、完整模型 ID 及 `session_model`。运行时权限为 `client_only`，终态释放连接。
+- 私有转发器以原 RustCodeGraph 1.2.10 提供真实 stdio 工具，并对结果间隔限速。query 43 次、callers 5 次、node 41 次成功。128 条 SSE 工具状态与保存后的原生线程轨迹核对，89 个调用全部有对应结果，无额外工具及错误输出。Worker 日志无上传失败，原有遥测请求继续被本地边界拒绝。
+- `call_29e0b17b066e4a499431b25b` 返回 `createRueSiteApp`（`app/app.tsx:32`），`call_31e9153c0f9c404aac31475e` 返回 `mountRueSiteApp`（第 39 行）。`call_a912365e5e4d426ca2d1a01f` 与 `call_385680372d0a43b2884a647d` 读回 `useApp.ts:4` 和 `compiler-runtime/app.ts:57` 的 `_$createApp`。另读回 `app/entry-server.tsx` 和 `app/router/index.ts:787`。
+- 答复按行号复原主链，覆盖 SSR 与浏览器行为、缺少容器时的抛错、路由和 i18n 安装以及布局绕过，指出 `/rust-layers` 当前未注册。快照影响作为源码推断，分别提出已有快照页面的客户端挂载和预填模板的快照生成两项验证，均给出可检验结果，未实际执行页面验证。
+- 私有网关与对应 stdio 子进程已退出，监听关闭，私有挂载、凭据与数据副本已清理。原始验收证据保留于本机 0700 目录。

@@ -93,3 +93,18 @@ Rust 编译资源和会话调度按 `.plans/references/rust.md` 的项目覆盖�
 - 槽位 1 串行定向单测通过 3 项，分别为安装契约 1 项和预设与目录绑定 2 项。未运行协议夹具、Clippy、桌面编译及页面验证。
 - 未 PATCH 或提交聊天请求。会话终态、身份、权限和模型绑定仍待验收，目标目录未创建。全局配置重读相等，自有网关退出且端口已关闭，Rue.js 前后 6303 项普通文件快照零差异。
 - 证据保存在本机 0700 目录 `/tmp/shiju-vtcode-accept-20261118.wwdBSD/`，脱敏记录见 `docs/dev/acp/ACP验收.md`。补齐经审核的系统安装与指定会话模型驱动后完整重跑。
+
+
+### 官方发行与原生 ACP 重试
+
+- 官方 Darwin arm64 0.183.0 通过资产摘要和校验文件核验，隔离运行 ACP v1。现代 `session/set_config_option(model)` 确认了完整 ID 和同名 provider，回环捕获完整 ID 及 5 项工具定义并取得 `end_turn`。取消 `apply_patch` 审批未写入，批准后由原生工具写入私有目录，未触发宿主写回调。
+- 指定租户配置存在原模型，探针进程缺少该 provider 声明的密钥环境变量。ShiJu 复查仍为 `installed=false` 和 `unsupported_cli`。公开兼容端点使用进程默认 provider 和文本消息，未调用真实上游或提交编辑器请求。
+- 保持已阻塞。补齐固定摘要系统安装、原租户已授权的请求级模型中继、现代 ACP 选模确认和原生工具写入边界后完整重跑。
+- 全局配置与首轮基线一致，自有网关和原生探针均已退出，复查的 7 个回环端口已关闭。Rue.js 6303 项文件快照零差异，目标目录不存在。私有证据 `/tmp/shiju-vtcode-retry-20261118.RGuroQ/`，本轮仅执行原生探针、网关只读复查及文档检查。
+
+
+## 扩围实施
+
+用户已授权补齐产品接入。沿用现有托管运行时安装、请求级模型中继与 ACP 客户端配置选项；只发布实测的 Darwin arm64。依次验证固定摘要安装、私有模型配置与精确选模、原生工具边界，再按原请求验收。工具边界必须覆盖直接文件写入、子进程和网络；验证失败时保持会话模型能力门控。
+
+先扩展安装契约测试 `acp_onboarding_vtcode_installer_contract`，运行 `python3 scripts/cargo_slot.py cargo test -j 1 -p config-acp-install --lib acp_onboarding_vtcode -- --test-threads=1`。预期红灯为 Darwin arm64 尚无系统安装支持。通过后使用固定发行物验证安装产物与摘要，再实施会话模型路径。

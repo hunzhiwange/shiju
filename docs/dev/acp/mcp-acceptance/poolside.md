@@ -25,3 +25,30 @@
 - 保留受管 Docker 只读工作区、宿主写入审批和模型中继约束。此次三轮无文件或终端工具请求。复跑需可验证的模型工具入口，并在该入口中保留会话、租户、审批和撤销边界。
 
 网关和探针均已退出，回环端口关闭。本轮两个已退出的沙箱容器按私有工作目录的挂载来源核实后移除。私有挂载已撤除，RueJS 副本的 4108 个普通文件与导出内容相同，私有租户配置及数据库副本已清理。原始 SSE 与脱敏探针摘要保存在本机私有目录。本次只更新文档，生命周期夹具未覆盖受管启动器的拒绝分支，未运行 Cargo 或桌面构建。
+
+## 共享工作区复验
+
+使用更新的 shiju 0.6.0 构建，SHA-256 为 `1a033a19a5c5e2c115e90abbd336f898c0df3ac101a9824ffe8b36f11b0bcc47`。仍使用相同受审 Poolside、RueJS 提交、请求提示、租户和指定模型。
+
+| 轮次 | 新会话 | HTTP / curl / 秒 | SSE 终态与答复 |
+| --- | --- | --- | --- |
+| 无挂载 | `ses_1f048fdf10017Goz22vBo8l292` | 200 / 0 / 52.268240 | `chat.error`，原生选模时代理初始化失败 |
+| 挂载 | `ses_1f049cbb70015GcjLk1KQ8PDLI` | 200 / 0 / 1.374166 | `chat.error`，受管启动器拒绝非空 MCP 列表 |
+| 撤除 | `ses_1f049d1ca0010DnpB94HhR585p` | 200 / 0 / 48.909404 | `chat.done`，仅返回 `MCP_NOT_AVAILABLE` |
+
+三轮均零工具事件，UI summary 回读原后端及 `full_access=true`。挂载轮宿主再次初始化 RustCodeGraph 成功。无挂载和挂载轮的 ACP options 终态都没有选中模型。撤除轮选模回读原提供商、完整模型 ID 和 `session_model`。无挂载轮的新故障发生在模型配置阶段，挂载拒绝在建会话阶段独立复现。
+
+### 原生设置、传输与审批
+
+- 公开发行的最新版仍为 1.0.16。原生 `mcp_servers` 设置支持 stdio 和远程 HTTP。将宿主 stdio 加入原生设置时，Poolside 在 Docker 内解析命令，macOS 可执行文件在容器不可用。另核验并在相同 ARM64 镜像内执行 RustCodeGraph 1.2.10 的 Linux ARM64 发行，成功索引 3478 个文件。宿主绝对路径和工作区相对路径均无法启动 stdio。使用原生沙箱的只读挂载路径后，模型收到图谱工具定义，但首个工具回合在探针预算内未收到审批或返回结果。该路径需要另配 Linux 可执行文件和容器路径。 [Poolside 固定版配置说明](https://github.com/poolsideai/pool/blob/v1.0.16/README.md#mcp-servers) · [RustCodeGraph 1.2.10 发行](https://github.com/hunzhiwange/rustcodegraph/releases/tag/v1.2.10)
+- 私有 Streamable HTTP 诊断使用独立诊断令牌，桥接宿主侧实际 RustCodeGraph。原生 ACP 保留 Docker 沙箱与原模型回环配置。仅在 `initialize` 后、`session/new` 前将 HTTP 条目加入私有设置，原生端仍能向模型声明目标工具。宿主取消审批时收到零次 `tools/call`。逐次批准时，三个原生调用 ID 分别关联以下工具和真实模型续轮输入。诊断模型替身以 `end_turn` 退出，未触发写入。
+
+| 调用 ID | 工具 | 真实结果 |
+| --- | --- | --- |
+| `probe-query` | `rustcodegraph_query` | `createRueSiteApp` 位于 `app/app.tsx:32` |
+| `probe-callers` | `rustcodegraph_callers` | `mountRueSiteApp` 位于 `app/app.tsx:39` |
+| `probe-node` | `rustcodegraph_node` | `packages/runtime/src/hooks/useApp.ts:4` 调用 `_$createApp(factory)` |
+
+HTTP 探针证明原生工具与权限回传可用。正式接入仍依赖经审查的宿主侧会话级 MCP 转发入口，须以宿主的租户、挂载选择、工具策略、单次审批和撤销控制调用。当前通用模型中继仅提供模型协议，Cortex 和 DeepAgents 的受管 stdio 实现使用各自的工具交接，未提供 Poolside 所需的 HTTP 入口。需在公共层协调该入口的归属和契约，随后接入 Poolside 私有设置并复验原模型。诊断入口只在私有探针中存在。
+
+私有网关、HTTP 和 stdio 探针已退出，回环网关端口关闭。根据挂载路径核实并清理本轮自有沙箱容器，已删除临时网关租户配置和数据库。未运行 Cargo。

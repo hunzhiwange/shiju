@@ -1127,3 +1127,18 @@ Rust重型命令经scripts/cargo_slot.py槽位入口串行执行，对应CARGO_T
 - 回环收到带完整 ID 和 5 项工具定义的非流式 `POST /v1/chat/completions`。显式模型配置没有触发 `GET /v1/models`，常规与目录不可用探针均用合成响应取得 `end_turn`。工具探针取消 `apply_patch` 审批后文件不存在，独立批准探针写出预期的 15 字节。批准后没有收到 `fs/write_text_file`，说明该路径由原生工具直接写入，集成时需用外部边界约束原生工具写入。
 - 自有网关按原租户及目录头只读复查，`installed=false`、`session_model=unsupported_cli`。全局租户配置存在原模型条目，探针进程缺少该 provider 声明的密钥环境变量。网关公开 OpenAI 兼容端点使用进程默认 provider，且只转换文本消息，不能作为本次固定租户及工具协议的中继。未替换 provider 或模型，未向真实上游发请求。重跑需在 ShiJu 补齐固定摘要系统安装、使用原租户可用授权的请求级模型中继、现代 ACP 选模确认及原生工具写入边界，再用原创建请求验证。
 - 本轮未写配置或提交编辑器请求。全局配置重读与首轮基线一致。自有网关退出 0，原生探针由自有进程组终止，复查的 7 个回环端口均关闭。Rue.js 前后 6303 项普通文件的 SHA-256 零差异，Git 状态一致，目标目录不存在。无代码变更，未重跑 Cargo 或页面验证。发行校验、ACP 帧、回环请求、审批结果及清理证据保存在本机 0700 目录 `/tmp/shiju-vtcode-retry-20261118.RGuroQ/`。
+
+
+## MiMo Code 验收（2026-11-18）
+
+结论为已阻塞。系统安装器装入了 MiMo Code 0.1.17，网关仍报告未安装。普通 ACP 诊断需要认证，指定的 `session_model` 被当前 ShiJu 能力门控拒绝。
+
+- 前序任务 38 已记录阻塞和环境恢复。从 `6ef10d08d^` 核对来源任务 18，提交 `6ef10d08d` 交付了 MiMo Code 注册、系统安装契约、内置预设和协议夹具。当前缺少 `docs/dev/evidence/acp-onboarding-mimo-code.md`。注册以 `mimo acp` 为本地入口，备用入口为 `npx -y @mimo-ai/cli@0.1.17 acp`。安装白名单固定版本 0.1.17，`llm-runtime` 的模型来源分派尚无 MiMo Code 已验证版本及驱动。
+- 复用 Harn 验收的 shiju 0.6.0 二进制，SHA-256 为 `245d9857ee0005fba1936d1a8bea31719406ef6c550bfe0cc53cb46115ce130e`。构建使用 `f0d2a6d56a43ea6d1ff2673ebea254db698dd2fa` 附近工作区及 Harn 实现，该基线包含 MiMo Code 接入提交。当前相关源码摘要存于私有证据。
+- 按 CLI 帮助使用现有开发配置启动自有回环网关 `127.0.0.1:64943`。所有请求携带平台 10001、公司 100010005 和 Rue.js 目录头。安装、预设、ACP、全局配置基线 GET 均为 HTTP 200。
+- 系统安装 POST 返回 HTTP 200，curl 退出 0，耗时 6.067971 秒，npm 全局安装退出 0。安装前后网关均返回 `installed=false`。包入口位于 `/opt/homebrew/Cellar/node/26.13.0_2/bin/mimo`，当前 PATH 缺少该目录。直接执行该入口的 `--version` 返回 0.1.17，退出 0，入口脚本 SHA-256 为 `1e7ec982f15b2c193497d34b0a70ceecb9af2ceba6c4faf60ed71d49d2c96378`。网关读取的合并配置仍走固定版 `npx`，`gateway-global::acp_command_installed` 对该下载入口返回 false。保留本次系统安装的包。
+- 用网关读出的 ACP 配置执行诊断，HTTP 200，curl 退出 0，耗时 1.616698 秒，返回 `authentication_required`。模型能力 GET 返回 HTTP 200，curl 退出 0，耗时 0.000658 秒，报告 `session_model=unsupported`、`reason=unsupported_cli`、`cli_local=supported`、`connected=false`。
+- 预设 GET 确认 `acp-mimo-code` 的 `builtin=true`、`runtime.kind=acp`、`backend=mimo-code`、`enabled=false`。安装发现和模型来源前置条件未满足，未 PATCH 启用、验证启用持久化或发送指定 `alibaba-token-plan-cn/deepseek-v4.1-flash-1017` 的创建请求。无 SSE、会话 summary/options、权限和选模绑定证据，编辑器产物未生成。
+- 已确认 Rue.js 的 `packages/rue/src` 和 `@rue-js/rue` 包。排除 `.git`、`node_modules`、`target` 后，前后各 6303 项普通文件 SHA-256 零差异，Git 状态一致，`acpdemo/mimo-code/` 始终不存在。结束配置 GET 与基线相等，自有网关退出 0、端口已关闭。
+- 槽位 1 串行执行 `cargo test -j 1 -p config-acp-install --lib acp_onboarding_mimo_code -- --test-threads=1` 和 `cargo test -j 1 -p agent-config --lib acp_onboarding_mimo_code -- --test-threads=1`。安装契约 1 项、预设和目录绑定 2 项通过，均退出 0。仓库缺少旧 `.plans/references/rust.md`，本次使用现行 `scripts/cargo_slot.py`。未重跑协议夹具、Clippy、桌面编译、页面构建或浏览器验证。
+- 原始请求与响应、npm 与运行日志、源码与产物摘要、测试及两次快照存于本机 0700 目录 `/tmp/shiju-mimo-code-accept-20261118.pHdvAm/`。修复安装入口发现并补齐经审核的指定会话模型驱动及接入证据后，按任务 39 完整重跑。

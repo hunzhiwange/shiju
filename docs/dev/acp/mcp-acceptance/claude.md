@@ -43,3 +43,25 @@ RueJS 位于 `main`，基准提交 `14fe287b13549f5183d42fbc45b28e1498ffae1c`。
 答复正确追踪浏览器入口到运行时工厂、SSR 分支、缺少 `#app` 时的异常、路由及 i18n 的安装时机，以及 `/rust-layers` 绕过布局。答复根据运行时追加节点的源码推断静态快照残留，并提出首屏唯一性与卸载后重新挂载两项预期，未实际执行浏览器验证。答复将 `node` 返回前 120 行推断为索引不完整，工具输出只证明展示范围有限。答复还把传给 `useApp` 的 `RootApp` 当成 `createRueSiteApp` 的直接调用，源码表明根工厂在应用挂载时执行。
 
 Claude 动态挂载、调用、结果续轮及撤除隔离已有真实证据。完整合同因模型多调用工具而未通过，保留任务。私有网关退出，两个私有端口关闭，目标 RustCodeGraph 子进程退出，复用槽位释放。私有 Claude 状态和网关凭据副本已清理，SSE 与会话回执留在本机私有目录。
+
+## 当前共享构建复跑
+
+使用与 Snow 验收相同的共享构建，SHA-256 为 `e755e458b4fce6ed045ef10a7c077a0d7dfb98d69637442d9c4449d0d50923ac`。复制已核验产物并启动私有网关。继续使用 `189d22dc1` 的原请求、指定模型和 Claude 0.26.0 的原生 stdio MCP。此次没有额外修改产品代码或运行 Cargo，已有 11 项 Claude 测试仍是实现的定向证据。
+
+| 原生完整工具轮次 | 新会话 | HTTP / curl | 终态与结果 |
+| --- | --- | --- | --- |
+| 无挂载 | `ses_1eff05d98001u2Y3vtbV0mLHo6` | 200 / 0，4.207 秒 | `chat.done`，`MCP_NOT_AVAILABLE`，零工具 |
+| 挂载 | `ses_1eff06ece001RWMd0ZJ3UXjXUP` | 200 / 0，151.408 秒 | `chat.done`，95 次调用，15 次额外调用，2 次 `node` 失败 |
+| 撤除 | `ses_1eff2becd001h0bpf0IRpu703j` | 200 / 0，0.318 秒 | `chat.error`，宿主拒绝与会话工作区不符的 ACP cwd，未进行模型或工具调用 |
+
+另在独立的同提交 RueJS 副本中，通过项目级 `.claude/settings.json` 的 `permissions.deny` 隐藏额外工具和内置工具。回环先确认模型请求只声明 `query`、`callers` 和 `node`。私有配置在三轮保持一致，挂载轮仍通过宿主临时配置启动原 RustCodeGraph stdio 二进制。原提示、模型和 `full_access=true` 保持一致，运行中读回 `connected=true`、`access_status.support=native` 与指定选模。
+
+| 工具限制轮次 | 新会话 | HTTP / curl | 终态与结果 |
+| --- | --- | --- | --- |
+| 无挂载 | `ses_1eff179fe00127rYd0PESDjp5G` | 200 / 0，5.842 秒 | `chat.done`，`MCP_NOT_AVAILABLE`，零工具 |
+| 挂载 | `ses_1eff19131001ktwceW7nShPv9L` | 200 / 0，117.337 秒 | `chat.done`，只调用三种指定工具，4 次错误路径读取 |
+| 撤除 | `ses_1eff35be4001o0pJCZdWhe3T6Y` | 200 / 0，4.589 秒 | `chat.done`，`MCP_NOT_AVAILABLE`，零工具 |
+
+限制工具后的挂载轮有 304 条工具事件，49 次 `query`、4 次 `callers`、20 次 `node` 完成，另有 4 次 `node` 失败。首个失败参数为 `{"file":"app/router.tsx"}`，返回文件不存在。其余失败参数为 `app/i18n.tsx`、`app/router.ts` 和 `app/router/index.tsx`。三种指定工具仍回读了 `createRueSiteApp`、`mountRueSiteApp`、`useApp` 和 `_$createApp`。答复覆盖所需链路和分支，并提出首屏去重与导航后无快照残留两项回归预期。答复明确未能通过 MCP 查证路由工厂默认历史值。宿主独立核对显示，`app/router/index.ts:787` 的工厂存在，RustCodeGraph 1.2.10 在同一索引上查询 `createAppRouter` 仍返回空。
+
+限制工具解决了额外调用，指定模型仍在真实挂载轮发出错误路径，因此完整合同继续阻塞。通过条件是在原合同下模型以现有工具准确读取源文件，或先获得能覆盖上述路由符号的 RustCodeGraph 索引，再复跑三轮。私有权限配置、租户凭据和网关均已清理。

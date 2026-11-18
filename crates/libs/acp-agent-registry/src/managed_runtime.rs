@@ -32,7 +32,10 @@ fn root() -> Result<PathBuf, String> {
 }
 fn installed_directory(agent: &str, contract: &Contract) -> Result<PathBuf, String> {
     // Install revised contracts beside their prior reviewed runtimes.
-    let revision = if matches!(agent, "deepagents" | "corust-agent" | "cortex-code" | "cursor" | "hermes") {
+    let revision = if matches!(
+        agent,
+        "deepagents" | "corust-agent" | "cortex-code" | "cursor" | "hermes" | "snow"
+    ) {
         2
     } else {
         1

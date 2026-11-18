@@ -187,7 +187,7 @@
     "integrity": "sha512-hVawSqfpwqSJgTAPVNp7Lw7gUoBpP89eKIC/lN5f6dvU8HWQtIo0M3BUhqByPmSUM8jZr1bbKF3CbQ9ur0pRaw==",
     "bin": "bundle/cli.mjs",
     "files": {
-      "bundle/cli.mjs": "dea7a6b9b28490a78c7c0f95d294b5c5203c7aa8f4a9f7cedc97720bbdd9d25e"
+      "bundle/cli.mjs": "bb652a8210080da71c20e281217d1e331e840dc2e374c67c64dfbcb75cf26495"
     }
   },
   "copilot": {

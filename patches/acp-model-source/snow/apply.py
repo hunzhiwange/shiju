@@ -1,4 +1,4 @@
-"""Apply the reviewed Snow 0.9.14 session-only native skill scanner."""
+"""Apply the reviewed Snow 0.9.14 session-scoped skill and MCP changes."""
 import hashlib
 import json
 from pathlib import Path

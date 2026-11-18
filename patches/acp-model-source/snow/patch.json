@@ -1,6 +1,6 @@
 {
   "original": "bcc0a6cf468a245729605bcf75fd762fd13cb48553d342b31121cafc3153d905",
-  "patched": "dea7a6b9b28490a78c7c0f95d294b5c5203c7aa8f4a9f7cedc97720bbdd9d25e",
+  "patched": "bb652a8210080da71c20e281217d1e331e840dc2e374c67c64dfbcb75cf26495",
   "changes": [
     {
       "old": "  const home = homedir();\n  const globalAgentsSkillsDir = join29(home, \".agents\", \"skills\");",
@@ -9,6 +9,38 @@
     {
       "old": "        if (entry.isDirectory()) {\n          if (entry.name === \"templates\"",
       "new": "        if (entry.isDirectory() || (currentDir === baseSkillsDir && entry.isSymbolicLink() && process.env.SHIJU_SNOW_SKILL_ROOT === baseSkillsDir)) {\n          if (entry.name === \"templates\""
+    },
+    {
+      "old": "              const stopReason = await this.handlePrompt(session, userContent, imageUrls, controller, conn, () => cancelled);\n              return {\n                stopReason: cancelled ? \"cancelled\" : stopReason\n              };",
+      "new": "              const clients = new Set();\n              try {\n                const mounted = await this.discoverSessionMcp(session, controller.signal, clients);\n                const stopReason = await this.handlePrompt(session, userContent, imageUrls, controller, conn, () => cancelled, mounted);\n                return { stopReason: cancelled ? \"cancelled\" : stopReason };\n              } finally {\n                await this.closeSessionMcp(clients);\n              }"
+    },
+    {
+      "old": "      async handlePrompt(session, userContent, imageUrls, controller, conn, isCancelled) {",
+      "new": "      async discoverSessionMcp(session, signal, clients) {\n        const mounted = new Map();\n        const services = new Set();\n        for (const server of session.mcpServers) {\n          if (!server.command || server.type || services.has(server.name)) {\n            throw new Error(\"Snow ACP requires uniquely named stdio MCP servers\");\n          }\n          services.add(server.name);\n          const client = createMCPClient(server.name);\n          clients.add(client);\n          this.activeMcpClients.add(client);\n          const discoverySignal = AbortSignal.any([signal, AbortSignal.timeout(10000)]);\n          discoverySignal.throwIfAborted();\n          let onAbort;\n          try {\n            await Promise.race([\n              new Promise((_, reject) => {\n                onAbort = () => reject(discoverySignal.reason);\n                discoverySignal.addEventListener(\"abort\", onAbort, { once: true });\n              }),\n              client.connect(new StdioClientTransport({\n                command: server.command,\n                args: server.args,\n                cwd: session.cwd,\n                env: Object.fromEntries(server.env.map(({ name, value }) => [name, value])),\n                stderr: \"ignore\"\n              }))\n            ]);\n          } finally {\n            discoverySignal.removeEventListener(\"abort\", onAbort);\n          }\n          let cursor;\n          do {\n            const page = await client.listTools(cursor ? { cursor } : {}, { signal: discoverySignal });\n            for (const tool of page.tools) {\n              const name = `${server.name}-${tool.name}`;\n              if (mounted.has(name) || !/^[a-zA-Z0-9_-]{1,64}$/.test(name)) {\n                throw new Error(\"Invalid or duplicate Snow ACP MCP tool name: \" + name);\n              }\n              mounted.set(name, {\n                client,\n                toolName: tool.name,\n                definition: {\n                  type: \"function\",\n                  function: { name, description: tool.description, parameters: tool.inputSchema }\n                }\n              });\n            }\n            cursor = page.nextCursor;\n          } while (cursor);\n        }\n        return mounted;\n      }\n      async closeSessionMcp(clients) {\n        await Promise.allSettled(Array.from(clients, async (client) => {\n          if (this.activeMcpClients.delete(client)) {\n            await client.close();\n          }\n        }));\n      }\n      async callSessionMcp(session, conn, call, tool, signal) {\n        const { name, arguments: args } = call.function;\n        const fields = { toolCallId: call.id, title: name };\n        const update = (status, rawOutput, rawInput) => conn.sessionUpdate({\n          sessionId: session.id,\n          update: { sessionUpdate: \"tool_call_update\", ...fields, status, rawOutput, rawInput }\n        });\n        try {\n          const rawInput = JSON.parse(args || \"{}\");\n          const { outcome } = await conn.requestPermission({\n            sessionId: session.id,\n            toolCall: { ...fields, rawInput },\n            options: [\n              { optionId: \"approve_once\", name: \"Approve once\", kind: \"allow_once\" },\n              { optionId: \"reject_once\", name: \"Reject\", kind: \"reject_once\" }\n            ]\n          });\n          signal.throwIfAborted();\n          if (outcome.outcome !== \"selected\" || outcome.optionId !== \"approve_once\") {\n            throw new Error(\"Permission denied by user\");\n          }\n          await update(\"in_progress\", void 0, rawInput);\n          const result = await tool.client.callTool({ name: tool.toolName, arguments: rawInput }, { signal });\n          init_tokenLimiter();\n          const limited = await wrapToolResultWithTokenLimit(result.structuredContent ?? result.content, name);\n          const output = typeof limited === \"string\" ? limited : JSON.stringify(limited);\n          await update(result.isError ? \"failed\" : \"completed\", output);\n          return output;\n        } catch (error) {\n          signal.throwIfAborted();\n          const message = error instanceof Error ? error.message : String(error);\n          await update(\"failed\", message);\n          return message;\n        }\n      }\n      async handlePrompt(session, userContent, imageUrls, controller, conn, isCancelled, mounted) {"
+    },
+    {
+      "old": "        const mcpTools14 = await collectAllMCPTools();",
+      "new": "        const mcpTools14 = [...await collectAllMCPTools()];\n        for (const tool of mcpTools14) {\n          if (mounted.has(tool.function.name)) {\n            throw new Error(\"Snow ACP MCP tool conflicts with an existing tool: \" + tool.function.name);\n          }\n        }\n        mcpTools14.push(...Array.from(mounted.values(), ({ definition }) => definition));"
+    },
+    {
+      "old": "            await this.sendToolCallUpdate(conn, session.id, toolCall, \"pending\", void 0);",
+      "new": "            const mountedTool = mounted.get(toolCall.function.name);\n            if (mountedTool) {\n              const content = await this.callSessionMcp(session, conn, toolCall, mountedTool, controller.signal);\n              session.messages.push({ role: \"tool\", content, tool_call_id: toolCall.id });\n              continue;\n            }\n            await this.sendToolCallUpdate(conn, session.id, toolCall, \"pending\", void 0);"
+    },
+    {
+      "old": "          return this.handlePrompt(session, \"\", [], controller, conn, isCancelled);",
+      "new": "          return this.handlePrompt(session, \"\", [], controller, conn, isCancelled, mounted);"
+    },
+    {
+      "old": "    AcpManager = class {\n      constructor() {",
+      "new": "    AcpManager = class {\n      activeMcpClients = new Set();\n      constructor() {"
+    },
+    {
+      "old": "        this.connection = new AgentSideConnection((conn) => this.createAgentHandler(conn), stream);\n        await this.connection.closed;",
+      "new": "        this.connection = new AgentSideConnection((conn) => this.createAgentHandler(conn), stream);\n        try {\n          await this.connection.closed;\n        } finally {\n          await this.stop();\n        }"
+    },
+    {
+      "old": "        this.sessions.clear();\n        this.connection = null;\n      }\n    };\n    acpManager = new AcpManager();",
+      "new": "        await this.closeSessionMcp(this.activeMcpClients);\n        this.sessions.clear();\n        this.connection = null;\n      }\n    };\n    acpManager = new AcpManager();"
     }
   ]
 }

@@ -59,6 +59,41 @@ fn fixture() -> App {
 }
 
 #[test]
+fn authorization_login_stays_open_until_leaving_the_page() {
+    if !isolated("authorization_login_stays_open_until_leaving_the_page") {
+        return;
+    }
+    use crate::app::{
+        message::agent_apps_auth::{Event, update_at},
+        state::agent_apps_auth::{LoginPhase, LoginTarget},
+    };
+    use gateway_endpoint::GatewayEndpoint;
+
+    let mut app = fixture();
+    app.apps_catalog.third_party_page = ThirdPartyPage::Authorization;
+    assert!(matches!(
+        super::super::apps_usage_cards::input(&mut app).system_settings_tab,
+        desktop_usage::card_update::Tab::Auth
+    ));
+    let task = update_at(
+        &mut app,
+        Event::StartLogin(LoginTarget::CodexBrowser),
+        GatewayEndpoint::new("127.0.0.1", 1),
+    );
+    // Keep the task unpolled and exercise the same cleanup that follows a button message.
+    let _ = app.update(Message::None);
+    assert!(matches!(
+        app.agent_apps_auth.login.as_ref().map(|login| &login.phase),
+        Some(LoginPhase::Starting)
+    ));
+
+    app.apps_catalog.third_party_page = ThirdPartyPage::Agents;
+    let _ = app.update(Message::None);
+    assert!(app.agent_apps_auth.login.is_none());
+    drop(task);
+}
+
+#[test]
 fn third_party_task_08_scope_and_navigation() {
     if !isolated("third_party_task_08_scope_and_navigation") { return; }
     let mut app = fixture();

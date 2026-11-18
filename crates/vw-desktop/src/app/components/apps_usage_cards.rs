@@ -44,6 +44,7 @@ pub(crate) fn account_view<'a>(
 pub(super) fn input(app: &mut App) -> desktop_usage::card_update::Input<'_> {
     use desktop_usage::card_update::{Catalog, Input, Providers, Tab};
     let third_party_visible = super::third_party_settings::is_visible(app);
+    let auth_visible = crate::app::message::agent_apps_auth::is_visible(app);
     Input {
         project_id: &app.workspace_state.project_id,
         project_path: &app.navigation_tabs.project_path,
@@ -60,10 +61,12 @@ pub(super) fn input(app: &mut App) -> desktop_usage::card_update::Input<'_> {
             generation: app.apps_catalog.generation,
         },
         show_system_settings: app.navigation_panels.show_system_settings || third_party_visible,
-        system_settings_tab: match if third_party_visible { SystemTab::Apps } else { app.navigation_panels.system_settings_tab } {
-            SystemTab::Apps => Tab::Apps,
-            SystemTab::Auth => Tab::Auth,
-            _ => Tab::Other,
+        system_settings_tab: if auth_visible {
+            Tab::Auth
+        } else if third_party_visible || app.navigation_panels.system_settings_tab == SystemTab::Apps {
+            Tab::Apps
+        } else {
+            Tab::Other
         },
         endpoint: crate::app::gateway_client_endpoint(),
         error: None,

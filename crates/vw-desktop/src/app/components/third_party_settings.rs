@@ -76,7 +76,15 @@ pub(crate) fn view(app: &App) -> Element<'_, Message> {
         }
         ThirdPartyPage::Sessions => super::third_party_resources::sessions(app),
         #[cfg(not(target_arch = "wasm32"))]
-        ThirdPartyPage::Authorization => super::third_party_resources::authorization(app),
+        ThirdPartyPage::Authorization => {
+            let mut content = column![].spacing(12).height(Length::Fill);
+            if let Some(error) = &state.error {
+                content = content
+                    .push(super::system_settings_common::settings_error_banner(error.clone()));
+            }
+            content = content.push(super::third_party_resources::authorization(app));
+            return workspace(app, container(content).padding(24).into());
+        }
         #[cfg(not(target_arch = "wasm32"))]
         ThirdPartyPage::Usage => match selected {
             Some(id) => super::third_party_resources::usage(app, id),

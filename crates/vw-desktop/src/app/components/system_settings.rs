@@ -273,8 +273,11 @@ fn settings_content(app: &App, active_tab: SystemTab) -> Element<'_, Message> {
                     | crate::app::state::CronSettingsTab::History
             ));
     #[cfg(not(target_arch = "wasm32"))]
-    let owns_scroll =
-        owns_scroll || matches!(active_tab, SystemTab::Auth | SystemTab::ComputerControl);
+    let owns_scroll = owns_scroll
+        || matches!(active_tab, SystemTab::Auth | SystemTab::ComputerControl)
+        || (active_tab == SystemTab::Apps
+            && app.apps_catalog.third_party_page
+                == desktop_ui_controls::settings_navigation::ThirdPartyPage::Authorization);
     let owns_scroll = owns_scroll || active_tab_help_modal_open(app, active_tab);
     desktop_settings_shell::content_page(content_column, active_tab == SystemTab::Cron, owns_scroll)
 }

@@ -407,10 +407,7 @@ impl App {
         }
 
         #[cfg(not(target_arch = "wasm32"))]
-        if !self.navigation_panels.show_system_settings
-            || self.navigation_panels.system_settings_tab
-                != crate::app::components::system_settings::SystemTab::Auth
-        {
+        if !message::agent_apps_auth::is_visible(self) {
             self.agent_apps_auth.login = None;
             self.agent_apps_auth.binding = None;
             if self.agent_apps_auth.account_action.as_ref().is_some_and(|action| {

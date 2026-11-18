@@ -23,6 +23,20 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
     update_at(app, event, endpoint)
 }
 
+pub(in crate::app) fn is_visible(app: &App) -> bool {
+    use desktop_ui_controls::settings_navigation::{SystemTab, ThirdPartyPage};
+
+    let authorization = app.apps_catalog.third_party_page == ThirdPartyPage::Authorization;
+    if app.navigation_panels.show_system_settings {
+        let tab = app.navigation_panels.system_settings_tab;
+        tab == SystemTab::Auth || (tab == SystemTab::Apps && authorization)
+    } else {
+        authorization
+            && crate::app::components::third_party_settings::is_visible(app)
+            && !crate::app::views::usage::center::is_visible(app)
+    }
+}
+
 pub(in crate::app) fn update_at(
     app: &mut App,
     event: Event,
@@ -34,8 +48,7 @@ pub(in crate::app) fn update_at(
     };
     let origin = Origin {
         visible_apps: crate::app::components::third_party_settings::is_visible(app),
-        visible_auth: crate::app::components::third_party_settings::is_visible(app)
-            && app.apps_catalog.third_party_page == desktop_ui_controls::settings_navigation::ThirdPartyPage::Authorization,
+        visible_auth: is_visible(app),
         provider_generation: app.app_providers.generation,
         provider_scope: app.app_providers.scope.as_ref(),
         form: app.app_providers.form.as_ref(),

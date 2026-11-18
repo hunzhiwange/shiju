@@ -81,3 +81,23 @@
 三种工具分别成功 94、5、70 次，另有六次工具失败。模型请求了缺失的路由文件、把目录当文件读取，并传入与既定索引根不同的 `projectPath`。挂载轮还出现原生 `exec`（`echo skip`）和 `progress_card`。答复引用了实际主链、SSR、路由与 i18n 分支、布局判断和两个预期场景。独立无完全访问请求同样被宿主拒绝。终态回读保留指定模型，三个会话已断开。
 
 适配和聚焦验证已完成。严格验收仍取决于指定模型在固定提示下满足答复格式、工具范围和零失败要求。现有实现保留原生工具和宿主权限语义，验收条件保持不变。两个私有 ShiJu 网关退出 0，端口关闭，临时挂载、凭据和 SQLite 副本已清理。RueJS 副本的 5122 个归档条目与基准一致。已授权实例健康接口仍为 HTTP 200。
+
+## RustCodeGraph 1.2.11 与分页元数据复验
+
+沿用已核验的 ShiJu 构建 `f46699dd46d8520d8a7cfc3324132ccd5a2e05857e89fde160052fdcf75add3c`、受管 OpenClaw 2026.10.10 v2、原提示、原租户、原模型及同一 RueJS 提交。切换至 RustCodeGraph 1.2.11，发行 SHA-256 为 `5fab2f2dbf506ddf71d842ef1a7cd6e744c5ec90ff3f5f043ea020e1b3696312`，索引可直接定位 `createAppRouter`（`app/router/index.ts:787`）。
+
+复用已验证的私有 stdio 转发器。原生目录有 8 项，限定目录只公布三种原名工具，描述中标明索引根、已存在的文件和 `node.offset` / `node.limit`。协议对照中，函数查询、调用者查询及 `app/router/index.ts` 从第 780 行开始的分页源码结果均与直连相等。额外工具及越界读取收到拒绝。OpenClaw 当前宿主路径只接收选中的服务，共享 `allowedTools` 投影针对其他受管后端。本轮使用现有私有转发器，未改变公共接口。 [Goose 的转发与目录证据](goose.md) · [Pi 的发行摘要及原生筛选证据](pi.md) · [DeepAgents 的宿主策略证据](deepagents.md) · [Qoder 的直接声明证据](qoder.md)
+
+| 轮次 | 新会话 | HTTP / curl / 秒 | 结果 |
+| --- | --- | --- | --- |
+| 无挂载 | `ses_1f0f756f6001jz7MLP37YiV6ER` | 200 / 0 / 21.398017 | 精确 `MCP_NOT_AVAILABLE`，4 次成功的原生工具目录搜索，目标调用为零 |
+| 挂载 | `ses_1f0f7abb1001ugqNLqyTZCTL2Z` | 200 / 0 / 279.348165 | 55 次 query、4 次 callers、54 次 node，全部成功，额外工具为零 |
+| 撤除 | `ses_1f0fbf2c6001K15idt9ntaIFAy` | 200 / 0 / 27.277170 | 精确 `MCP_NOT_AVAILABLE`，4 次成功的原生工具目录搜索，目标调用为零 |
+
+三轮各一个 `chat.done`，无失败工具、中继恢复或 `chat.error`，无需续传。summary 均读回 `acp-openclaw / openclaw` 与 `full_access=true`，options 均读回指定模型和 `session_model`。在线权限为 `client_only`，终态连接已释放。另发无完全访问请求 `ses_1f0fbefe20012IPZ30i0a5Xhzq`，HTTP 200 / curl 0 / 0.725205 秒，宿主拒绝，目标调用为零。
+
+挂载轮 226 条事件均可按调用 ID 匹配开始和成功完成。`call_57cdf32f6a9d4bb5bb5e66d7` 返回 `createRueSiteApp`（`app/app.tsx:32`），`call_07fbfde71af84393a1f1662e` 返回 `mountRueSiteApp`（同文件第 39 行），`call_5e510f6e09f84c68b9d9f98b` 实际回读挂载函数与 SSR 守卫。`call_9adfed470d10497b87e8efff` 命中新索引的路由工厂。答复追踪到 `useApp.ts:4` 和 `compiler-runtime/app.ts:57`，覆盖缺少容器、插件安装、布局绕过与快照残留，并给出 jsdom 和静态产物预览两个场景。
+
+本轮 1 次新路径复验解决了旧版的额外工具及无效读取问题。严格答复验收仍阻塞在第二个场景。答复要求在已加载首页 `/` 时点击首页链接，并断言 `location.pathname` 发生变化。实际路由为 `/`（`app/router/index.ts:647`），该链接仍指向 `/`（`app/pages/site/components/Layout.tsx:15`），所以这条断言在保留清空的基线也无法成立。场景中的 DOM 去重检查有源码依据，浏览器场景未实际运行。复跑条件为指定模型在固定提示下给出两项预期均与源码相符的场景。
+
+本轮只更新验收文档，未运行 Cargo。私有网关退出 0，端口关闭，挂载、授权和数据副本已清理，RueJS 的 5122 个归档条目与基准一致。原始证据留在本机 0700 私有目录，原授权实例健康接口返回 HTTP 200。

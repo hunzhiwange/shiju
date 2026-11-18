@@ -41,3 +41,19 @@ HTTP 挂载复跑 `ses_1ef85fbd8001fI186hiuSJmQVo` 返回 HTTP 200、curl 0、19
 Copilot 1.0.105 的动态挂载可走原生 HTTP MCP，三种真实工具均完成并返回结果，撤除后新会话恢复无工具。两次挂载均包含工具失败，按计划的零失败合同保留为已阻塞。保留 Copilot 的 stdio 拒绝与现有审批，采用已验证的 HTTP 路径复验时应同时核对工具目录稳定性及两项回归场景。生产侧无改动，未执行 Cargo 或定向单元测试。
 
 私有网关和桥接进程均退出 0，监听端口已关闭，已清理授权副本与临时挂载，并复核原网关仍健康。原始响应、日志和 Copilot 会话记录保存在本机 0700 私有证据目录。
+
+## 共享工作区复查与 SSE 复跑
+
+以共享提交 `76db6b6b7` 复核 Copilot 专属驱动、受管补丁、受管清单的 Copilot 条目及 ACP 转发源文件，均与前一轮相同。复用同一已核验网关二进制与 Copilot 1.0.105，重新从同一个 RueJS 提交提取私有副本并初始化索引。使用相同提示、租户和模型，换用 Copilot 原生声明支持的 SSE 传输。Supergateway 4.2.2 与宿主授权分别使用独立的私有主目录。SSE 桥接仍运行原 RustCodeGraph stdio，限制为同三种只读工具，未鉴权请求返回 HTTP 401。桥接观察到 `rmcp 0.8.5` 和 `copilot-cli 1.0.105` 分别完成初始化。
+
+| 轮次 | 会话 ID | HTTP / 秒 | 终态与结果 |
+| --- | --- | --- | --- |
+| 无挂载 | `ses_1eff077a0001wW7ljtU4cjoaDE` | 200 / 5.464 | `chat.done`，`MCP_NOT_AVAILABLE`，零工具事件 |
+| SSE 挂载 | `ses_1eff0f73b001QxGPq6NcnldkzA` | 200 / 202.738 | `chat.done`，121 个工具完成事件，3 个失败 |
+| 撤除 SSE | `ses_1eff40f5d001cVEthNygcy271j` | 200 / 5.145 | `chat.done`，`MCP_NOT_AVAILABLE`，零工具事件 |
+
+三轮 curl 退出 0，均无 `chat.error`，summary/options 均为 HTTP 200。挂载运行中确认 `full_access=true` 请求对应 `client_only`，原模型和会话绑定正确。撤除轮运行时桥接仍在线。SSE 挂载没有复现 HTTP 复跑的工具目录变化，且所有工具事件均属于指定服务。query 成功 79 次，其代表调用 `call_cba8f03236de4355bba00284` 返回 `createRueSiteApp` 位于 `app/app.tsx:32`。callers 成功 9 次，`call_531de74023014f2a948263f6` 返回 `mountRueSiteApp` 位于 `app/app.tsx:39`。node 成功 30 次，`call_6929df0054834fc4b7f4cb88` 回读 `packages/runtime/src/hooks/useApp.ts:4` 的 `_$createApp(factory)`。三个失败均来自模型读取实际不存在的 `app/router.tsx`、`app/i18n.ts`、`app/router.ts`。同一 RustCodeGraph 索引查询 `createAppRouter` 返回无结果，独立核对真实定义在 `app/router/index.ts:787`。
+
+答复覆盖四段调用链、SSR、容器缺失、插件安装和布局绕过，并将快照残留作为源码推断，提出普通文档和布局绕过两项可区分的断言。第二项需要准备带旧布局的 `/rust-layers` 快照夹具，未实际运行。三种传输均已有证据。客户端 stdio 被原生拒绝，两条远程传输均调通真实工具，指定模型仍在两条远程路径产生同类无效输入。保留已阻塞。收尾条件是同一个指定模型在原提示下完成一次无工具失败的挂载轮，或由验收负责人明确允许将已恢复的无效路径调用单列评估。当前证据没有需要修改 Copilot 驱动或受管补丁的转发缺口。
+
+私有网关及桥接均退出 0、端口关闭，临时授权与挂载配置已清理，原网关复查健康。留存私有 SSE、工具回执及会话日志。本次仅更新验收文档，未运行 Cargo。

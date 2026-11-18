@@ -108,9 +108,42 @@ def install(payload, home):
     return root
 
 
+def shared_chrome_manifest(home):
+    return checked(Path(home).absolute(),
+                   f"Library/Application Support/Google/Chrome/NativeMessagingHosts/{HOST}.json")
+
+
+def register_shared_chrome(home, root):
+    """Register our own host in existing Chrome; preserve all profiles and other hosts."""
+    target = shared_chrome_manifest(home)
+    source = checked(root, f"chrome-profile/NativeMessagingHosts/{HOST}.json")
+    receipt = checked(root, "shared-chrome-host.sha256")
+    data = source.read_bytes()
+    if target.exists():
+        if not receipt.exists() or digest(target.read_bytes()) != receipt.read_text().strip():
+            raise ValueError("shared Chrome host is not owned or has changed")
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_bytes(data)
+    target.chmod(0o600)
+    receipt.write_text(digest(data) + "\n")
+    receipt.chmod(0o600)
+
+
+def unregister_shared_chrome(home, root):
+    target = shared_chrome_manifest(home)
+    receipt = checked(root, "shared-chrome-host.sha256")
+    if receipt.exists():
+        if target.exists():
+            if digest(target.read_bytes()) != receipt.read_text().strip():
+                raise ValueError("shared Chrome host changed; preserve and resolve manually")
+            target.unlink()
+        receipt.unlink()
+
+
 def uninstall(home):
     root = root_for(home)
     owned = inventory(root)
+    unregister_shared_chrome(home, root)
     for name in owned:
         checked(root, name).unlink(missing_ok=True)
     checked(root, RECEIPT).unlink(missing_ok=True)
@@ -139,7 +172,7 @@ def helper_path(payload):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("action", choices=("stage", "install", "helper-path", "uninstall", "status"))
+    parser.add_argument("action", choices=("stage", "install", "connect-chrome", "helper-path", "uninstall", "status"))
     parser.add_argument("--home", type=Path, default=Path.home())
     parser.add_argument("--payload", type=Path, default=Path(__file__).resolve().parent)
     parser.add_argument("--source", type=Path)
@@ -155,6 +188,10 @@ def main():
         if sys.platform != "darwin":
             parser.error("local installation currently supports macOS only")
         print(install(args.payload, args.home))
+    elif args.action == "connect-chrome":
+        if sys.platform != "darwin":
+            parser.error("shared Chrome registration currently supports macOS only")
+        register_shared_chrome(args.home, root_for(args.home))
     elif args.action == "uninstall":
         uninstall(args.home)
     else:

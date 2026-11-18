@@ -25,3 +25,21 @@
 - 受管启动器禁用默认 MCP 发现。JetBrains 支持 ACP 会话传入的服务及显式 `--mcp-location`，两条路径的 stdio 服务都需要启动子进程。现有 Seatbelt 策略只允许执行固定的 Junie 原生入口，并将出站连接限定为会话模型中继端口。 [JetBrains MCP 配置](https://junie.jetbrains.com/docs/junie-cli-mcp-configuration.html)
 - 原生 HTTP 和 SSE 能力已通过握手核实。当前 RustCodeGraph `serve --help` 仅提供 stdio，现有模型中继端口只承载模型协议。仓库中的测试桥接夹具转发原始 stdio 字节。当前缺少能在受管权限与会话范围内转发 RustCodeGraph 的可用 HTTP 或 SSE 入口。
 - 未修改生产代码或审批策略。编号任务给出的生命周期回归未运行，此次失败发生在原生子进程启动边界。私有网关已退出，端口关闭，撤除轮前已删除挂载配置。后续在具备会话级兼容入口后复跑相同三轮。
+
+## 共享工作区复验
+
+复用较新的共享构建 `shiju 0.6.0`，SHA-256 为 `6954a2bb76ca26aa39c3b0dd909786c68b85f336648526ef39651b1e3a31f718`。使用同一受审 Junie、RueJS 提交、指定租户与模型，在新的隔离网关重跑原请求。
+
+| 轮次 | 新会话 | HTTP / curl / 秒 | 结果 |
+| --- | --- | --- | --- |
+| 无挂载 | `ses_1f03a0d75001x2IXsTSYQYLSO6` | 200 / 0 / 14.562266 | `chat.done`，`MCP_NOT_AVAILABLE`，零工具事件 |
+| 挂载 | `ses_1f03a47a2001t1afQs2L7DTJHk` | 200 / 0 / 13.702464 | `chat.done`，`MCP_NOT_AVAILABLE`，一条 `ruejs_graph_probe failed`（`posix_spawn failed`） |
+| 撤除 | `ses_1f03a7ed6001OEPCZYNzbwvl5e` | 200 / 0 / 11.882137 | `chat.done`，`MCP_NOT_AVAILABLE`，零工具事件 |
+
+三轮无 `chat.error`。UI summary 和 ACP options 均读回原后端、`full_access=true` 和原选模绑定，连接在终态释放。独立宿主 stdio 连接实际调用三个工具，分别读回 `createRueSiteApp` 所在的 `app/app.tsx`、调用者 `mountRueSiteApp` 及 `useApp` 对 `_$createApp` 的调用。Junie 挂载轮未读回这些结果。
+
+- 用私有 `--mcp-location` 启动同一已签名原生程序，沿用原 Seatbelt 策略，显式 stdio 配置同样报 `posix_spawn failed`。因此配置来源对这个失败没有影响。
+- 在原 Seatbelt 策略下，用临时回环 HTTP 夹具复验。配置为模型端口时，Junie 完成了 MCP `initialize`、`notifications/initialized` 和 `tools/list`，并向合成模型声明了该工具。配置为其他回环端口时，夹具收到零个 MCP 请求，模型未收到该工具声明。夹具仅用于传输诊断。
+- 同端口夹具用 `brave_mode=off` 复验原生审批。Junie 针对相同参数和调用 ID 发出 `session/request_permission`。选择 `reject_once` 时收到零个 HTTP `tools/call`，原生工具事件为 `failed`。选择 `allow_once` 时收到一个 HTTP `tools/call`，原生工具事件为 `completed`。这些事件属于诊断工具。真实三轮的 RustCodeGraph 执行仍阻塞在 stdio 启动。
+- 复核当前 Cortex 和 DeepAgents 的受管桥。它们分别使用 Cortex 专属 `_meta.clientTools` 与 DeepAgents 受补丁工具入口。独立调用 Cortex 的 stdio 执行组件时，在其私有 HOME 下连接成功但本机 RustCodeGraph 工具目录为空。模型中继当前没有承载 MCP 的路由。官方 ACP 正式发行仍列出 4100.5，较新的 ACP staging 与通用 CLI nightly 未作为受审运行时安装。 [ACP 发行](https://github.com/JetBrains/junie-acp-release/releases) · [CLI nightly](https://github.com/JetBrains/junie/releases/tag/4165.1)
+- 后续需要决定是否扩展现有模型中继，在同一端口提供会话级 HTTP MCP 转换，或提供符合相同约束的受审入口。转换须连接同一个实际 RustCodeGraph，并核验工具策略、审批、撤销和会话销毁。当前网关和诊断监听已关闭，私有预设与凭据没有写入共享实例。

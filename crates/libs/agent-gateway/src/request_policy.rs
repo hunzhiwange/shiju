@@ -31,6 +31,9 @@ pub fn request_timeout_for_path(path: &str) -> Duration {
     } else if path == "/v1/desktop/acp-install/aionrs" {
         // The pinned upstream ships source only; a cold locked build needs the managed deadline.
         Duration::from_secs(910)
+    } else if path == "/v1/desktop/acp-install/cortex-code" {
+        // The full CoCo distribution may need to resume a slow download.
+        Duration::from_secs(610)
     } else if path
         .strip_prefix("/v1/desktop/acp-install/")
         .is_some_and(|agent| !agent.is_empty() && !agent.contains('/'))

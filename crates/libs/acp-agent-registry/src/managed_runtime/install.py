@@ -24,6 +24,43 @@ def check_files(root, files):
         if digest(root / name) != expected:
             raise RuntimeError('Reviewed artifact checksum mismatch: ' + name)
 
+if agent == 'cortex-code':
+    import platform
+    if (platform.system(), platform.machine()) != ('Darwin', 'arm64'):
+        raise RuntimeError('Cortex Code reviewed runtime is Darwin-arm64 only')
+    archive = assets / 'cortex-code.tar.gz'
+    if not archive.is_file():
+        for _ in range(2):
+            result = subprocess.run([
+                '/usr/bin/curl', '--disable', '--fail', '--silent', '--show-error', '--location',
+                '--proto', '=https', '--proto-redir', '=https', '--max-time', '270',
+                '--continue-at', '-', '--output', str(archive), contract['artifact_url'],
+            ], stdin=subprocess.DEVNULL)
+            if result.returncode == 0:
+                break
+        else:
+            raise RuntimeError('Cortex Code fixed archive download failed')
+    if digest(archive) != contract['archive_sha256']:
+        raise RuntimeError('Cortex Code fixed archive checksum mismatch')
+    prefix = f"coco-{contract['version']}-darwin-arm64"
+    runtime.mkdir()
+    with tarfile.open(archive) as package:
+        for member in package:
+            path = Path(member.name)
+            if (path.parts[:1] != (prefix,) or '..' in path.parts
+                    or not (member.isfile() or member.isdir())):
+                raise RuntimeError('Unsafe Cortex Code archive entry')
+            destination = runtime.joinpath(*path.parts[1:])
+            if member.isdir():
+                destination.mkdir(parents=True, exist_ok=True)
+                continue
+            destination.parent.mkdir(parents=True, exist_ok=True)
+            with package.extractfile(member) as source, destination.open('xb') as output:
+                shutil.copyfileobj(source, output)
+            destination.chmod(0o700 if member.mode & 0o111 else 0o600)
+    check_files(runtime, contract['files'])
+    raise SystemExit(0)
+
 if agent == 'omp':
     import platform
     if (platform.system(), platform.machine()) != ('Darwin', 'arm64'):

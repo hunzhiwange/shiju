@@ -146,7 +146,7 @@ pub fn reviewed_agent_command(agent: &str) -> Result<Option<(String, Vec<String>
                 "harn" | "corust-agent" => vec![],
                 "junie" => vec!["--acp=true".into()],
                 "sigit" => vec!["--acp".into()],
-                "trae" => vec!["acp".into(), "serve".into()],
+                "cortex-code" | "trae" => vec!["acp".into(), "serve".into()],
                 "droid" => vec!["exec".into(), "--output-format".into(), "acp".into()],
                 "devin" => vec!["acp".into(), "--process-model".into(), "in-process".into()],
                 _ => vec!["acp".into()],
@@ -418,6 +418,15 @@ pub(super) async fn install(agent: &str) -> Result<bool, String> {
             .map_err(|_| "Cannot create ACP patch directory")?;
         std::fs::write(path, text).map_err(|_| "Cannot write embedded ACP patch")?;
     }
+    if agent == "cortex-code" {
+        let archive = root()?
+            .join("downloads")
+            .join(format!("coco-{}-darwin-arm64.tar.gz", contract.version));
+        if archive.symlink_metadata().is_ok_and(|metadata| metadata.is_file()) {
+            std::fs::copy(archive, assets.join("cortex-code.tar.gz"))
+                .map_err(|_| "Cannot stage cached Cortex Code archive")?;
+        }
+    }
     if agent == "aionrs" {
         let bridge = std::env::current_exe()
             .map_err(|_| "Cannot locate packaged ShiJu binaries")?
@@ -436,6 +445,9 @@ pub(super) async fn install(agent: &str) -> Result<bool, String> {
         String::new()
     };
     let script = assets.join("install.py");
+    // Leave time to resume a slow download of the full Cortex Code distribution
+    // and keep the installer deadline inside the desktop request deadline.
+    let timeout = if agent == "cortex-code" { 600 } else { 900 };
     crate::install::run_installer(
         "python3",
         &[
@@ -445,7 +457,7 @@ pub(super) async fn install(agent: &str) -> Result<bool, String> {
             agent,
             &uv,
         ],
-        tokio::time::Instant::now() + std::time::Duration::from_secs(900),
+        tokio::time::Instant::now() + std::time::Duration::from_secs(timeout),
     )
     .await?;
     verify(&runtime, &contract)?;

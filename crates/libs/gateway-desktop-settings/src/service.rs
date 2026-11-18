@@ -31,7 +31,11 @@ impl GatewayDesktopSettingsClient {
             .post(format!("{}{}", self.transport.endpoint().base_url(), path))
             .json(&serde_json::json!({}));
         #[cfg(not(target_arch = "wasm32"))]
-        let request = request.timeout(std::time::Duration::from_secs(310));
+        let request = request.timeout(std::time::Duration::from_secs(if agent == "cortex-code" {
+            610
+        } else {
+            310
+        }));
         let response = gateway_http::apply_request_context(request, self.transport.endpoint())
             .send()
             .await

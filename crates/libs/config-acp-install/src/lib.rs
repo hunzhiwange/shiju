@@ -53,8 +53,7 @@ pub fn acp_install_command_for_platform(
                 ),
             });
         }
-        // Native Snowflake CLI: discover the host installation. Registry archives
-        // currently have no published checksums; do not execute a download script.
+        // Cortex Code uses the checksum-pinned managed archive on Darwin arm64.
         "cortex-code" => return None,
         // Corust uses a checksum-pinned managed archive on macOS arm64.
         "corust-agent" => return None,
@@ -202,7 +201,7 @@ fn official_installer(
 /// Managed native distributions do not have a shell installation command.
 /// Keep their platform support explicit while using the same system install endpoint.
 pub fn acp_install_supported(agent: &str) -> bool {
-    (matches!(agent, "aionrs" | "devin" | "harn" | "junie" | "vtcode" | "stakpak" | "poolside") && cfg!(all(target_os = "macos", target_arch = "aarch64")))
+    (matches!(agent, "aionrs" | "cortex-code" | "devin" | "harn" | "junie" | "vtcode" | "stakpak" | "poolside") && cfg!(all(target_os = "macos", target_arch = "aarch64")))
         || (agent == "corust-agent" && cfg!(all(target_os = "macos", target_arch = "aarch64")))
         || acp_install_command(agent).is_some()
 }

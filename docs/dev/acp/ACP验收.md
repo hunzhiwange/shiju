@@ -1364,4 +1364,17 @@ macOS arm64 的托管安装已实测，指定模型和 Rue.js 落盘验收仍阻
 - 较早的共享构建缺下载重试逻辑，冷安装 HTTP 400、curl 退出 0、120.633345 秒。相同构建在私有配置中放入上轮已校验的托管运行时后，系统安装 POST HTTP 200、退出 0、0.104479 秒，随后重读仍为已安装。此结果只验证复用已存在的入口。
 - 最终确认内置 `acp-devin` 及其后端，启用后 GET 重读成功，结束后恢复初始停用状态，预设完整相等。配置副本仅多出该预设的显式停用覆写，随后整个配置副本及私有 HOME 均删除。三轮网关退出 0，回环端口关闭。最终 Rue.js 前后 6351 项文件 SHA-256 零差异，目标目录仍不存在。
 - 对照官方公开发布清单，独立下载并校验最新版 3000.14.30821，二进制 SHA-256 为 `985a79f99180f081e13781ac88993a10dfe133d4ba415ffb4c95b22dde037935`。隔离 ACP v1 握手和建会话成功，模型仍回退到 `swe-1-6-fast`，显式选择原全限定模型仍返回 `-32602`。将上游描述的 OpenAI 兼容环境变量指向私有回环并使用占位密钥，选模结果相同。未发 prompt。新版随包文档仍注明自定义端点需要获批组织专供构建，普通模型目录需登录。[官方模型说明](https://docs.devin.ai/cli/models)
+
+
+### Cortex Code 受管安装补丁与模型端点复查（2026-11-18）
+
+任务 31 仍为已阻塞。新增 Darwin arm64 系统安装，将 Snowflake 官方 Cortex Code 1.2.46 固定到发布清单的归档 SHA-256。安装从官方 CDN 下载并允许一次续传，也可使用网关配置目录下 `acp-runtime/downloads/coco-1.2.46+175654.6f8561fd271f-darwin-arm64.tar.gz` 中已取得的官方归档。两条路径均在独立暂存目录校验完整 SHA-256，仅解包普通文件和目录，校验原生入口后原子发布。内置解析使用受管入口和 `acp serve`。Cortex 安装器预算 600 秒，网关与桌面请求预算 610 秒。
+
+- 首次整包下载在 240 秒仅收到 111882708／194985296 字节。官方 CDN 对 Range 返回 HTTP 206，单连接续传在 540 秒内仍未完成，试验性分段下载也发生多次传输超时。正式补丁保留简单的整包续传及离线缓存路径。槽位 9 的白名单单测由 1 项失败转为 1 项通过，缓存冷安装和复用入口的实测通过 1 项（4.00 秒），`config-acp-install` 与 `acp-agent-registry` 的定向 Clippy 退出 0。篡改归档探针退出 1，未创建运行目录。
+- 在 0700 私有目录和 macOS 沙箱内使用固定版原生程序，分别设置通用 OpenAI／Anthropic 端点变量和发行包内发现的 `CORTEX_MODEL_ENDPOINT`／`CORTEX_MODEL_API_KEY`，仅允许访问自有回环端口。两次原生 ACP 探针均收到 v1 `initialize`，ACP 未公布认证方法，随后 `session/new` 因无 Snowflake 连接退出 7。两种设置下回环均没有连接。加测无交互 `--print` 也退出 7。探针使用占位值，未访问真实租户或提交任何模型请求。
+- 固定发行内的专用变量对应 Chat Completions 推理传输。当前版本在进入该传输前要求 Snowflake 连接。下一轮先使用有效的 Snowflake 登录复跑 `session/new`，再检查原指定模型 ID、流式响应和工具调用是否到达回环中继。之后才能接入 ShiJu 的请求级模型驱动并完成原租户落盘验收。官方 ACP 文档也将 Snowflake 连接列为前置条件。 [Snowflake ACP 文档](https://docs.snowflake.com/en/user-guide/cortex-code/cortex-code-acp)
+- 槽位 6 执行 `cargo build -j 1 --locked -p vw-cli --bin shiju` 退出 0。shiju 0.6.0 来自共享工作区，构建起点 `5de167cfff03e9e008ac883bf9de3507ec02e416`，二进制 SHA-256 为 `fac8d324cf0f408d36954963340f886f97286b531e2f11298bf18289efb90dbd`。对 `agent-gateway` 与 `gateway-desktop-settings` 的 `cargo clippy -j 1 --locked --lib --no-deps` 退出 0，保留既有警告。
+- 最终独立回环网关使用原平台 10001、公司 100010005 和 Rue.js 目录头。篡改缓存的系统安装请求返回 HTTP 400、curl 退出 0、耗时 0.203671 秒，重读仍为未安装。替换为官方归档后系统安装返回 HTTP 200、curl 退出 0、耗时 3.128784 秒，状态从 false 变为 true。重读配置解析到受管原生入口和 `acp serve`。版本为 1.2.46，入口 SHA-256 为 `f9753a0da7a733d4e782dfe633c7bd4fd5faca7b4960352d0aa464b62441178a`。
+- 普通诊断 HTTP 200 和 `connected` 覆盖 ACP 初始化。能力端点 HTTP 200，仍报告 `session_model=unsupported`、`reason=unsupported_cli`、`connected=false`。`acp-cortex-code` 已核实为 builtin、backend=cortex-code。临时启用后 GET 读回为 enabled，恢复后与原有效预设相等。完整配置曾仅差一个显式停用覆写，恢复独立实例启动前的私有配置行并重启后，GET 与基线完全相等。两个自有网关均退出 0，端口关闭，私有租户数据库与授权副本已清理。
+- 最终网关验证前后 Rue.js 各 6351 个文件 SHA-256、Git 状态均相同，`acpdemo/cortex-code/` 始终不存在。较早的长构建窗口观测到 `acpdemo/aionrs/src/{App.tsx,style.css}` 及 `acpdemo/omp/{README.md,index.html,src/App.tsx,src/env.d.ts,src/main.tsx,src/style.css,vite.config.mjs}` 的并发改动。上述路径没有本轮写操作。未发送聊天、未取得指定模型绑定、SSE 或编辑器，未运行页面、桌面或全仓验证。本轮原始响应、快照、构建和清理证据位于 0700 目录 `/tmp/shiju-cortex-patch.zStXYG/`。
 - 本轮无代码改动，未执行新 Cargo 构建、页面或浏览器验证。0700 私有证据保存于 `/tmp/shiju-devin-gateway-20261118.gfS8c8/`。获得获授权构建后，先确认实际 ACP 请求可使用 ShiJu 中继并严格绑定原模型，再执行 Rue.js 落盘验收。

@@ -101,6 +101,27 @@ fn harn_reviewed_natural_language_runtime_is_pinned() {
     assert!(super::verify(directory.path(), &contract).is_err());
 }
 
+#[cfg(all(target_os = "macos", target_arch = "aarch64"))]
+#[tokio::test]
+#[ignore = "installs the official Cortex Code release into an isolated directory"]
+async fn cortex_code_managed_install_resolves_native_entry() {
+    let root = std::env::var("VW_ACP_INSTALL_ACCEPTANCE_ROOT").unwrap();
+    assert!(Path::new(&root).is_absolute());
+    let _lock = crate::TEST_HOME_ENV_LOCK.lock().await;
+    assert_eq!(std::env::var("VIBEWINDOW_CONFIG_DIR").as_deref(), Ok(root.as_str()));
+
+    crate::install_builtin_agent("cortex-code").await.unwrap();
+    let registered = crate::resolve_agent_spec("cortex-code").unwrap();
+    assert!(Path::new(&registered.command).starts_with(root));
+    assert_eq!(registered.args, ["acp", "serve"]);
+    verify_reviewed_agent_executable("cortex-code", &registered.command).unwrap();
+    let version =
+        std::process::Command::new(registered.command).arg("--version").output().unwrap();
+    assert!(version.status.success());
+    assert_eq!(String::from_utf8(version.stdout).unwrap().trim(), "Cortex Code v1.2.46");
+    crate::install_builtin_agent("cortex-code").await.unwrap();
+}
+
 #[test]
 fn stakpak_reviewed_runtime_pins_native_and_launcher() {
     let contract = super::contract("stakpak").expect("Stakpak must have a reviewed runtime");

@@ -172,6 +172,10 @@ fn acp_onboarding_amp_acp_installer_contract() {
 #[test]
 fn acp_onboarding_cortex_code_installer_contract() {
     use super::{AcpInstallPlatform, acp_install_command_for_platform};
+    assert_eq!(
+        super::acp_install_supported("cortex-code"),
+        cfg!(all(target_os = "macos", target_arch = "aarch64"))
+    );
     for platform in [AcpInstallPlatform::Unix, AcpInstallPlatform::Windows] {
         assert!(acp_install_command_for_platform("cortex-code", platform).is_none());
     }

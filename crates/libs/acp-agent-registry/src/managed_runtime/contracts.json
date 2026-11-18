@@ -1,4 +1,15 @@
 {
+  "cortex-code": {
+    "layout": "standalone",
+    "package": "cortex-code",
+    "version": "1.2.46+175654.6f8561fd271f",
+    "bin": "cortex",
+    "artifact_url": "https://sfc-repo.snowflakecomputing.com/cortex-code-cli/a4643c4278/1.2.46%2B175654.6f8561fd271f/coco-1.2.46%2B175654.6f8561fd271f-darwin-arm64.tar.gz",
+    "archive_sha256": "76a37a37b432fa0b684d67efdaba0b2753b40d34924836a445f6597b24e665ee",
+    "files": {
+      "cortex": "f9753a0da7a733d4e782dfe633c7bd4fd5faca7b4960352d0aa464b62441178a"
+    }
+  },
   "aionrs": {
     "layout": "native",
     "package": "aion-cli",

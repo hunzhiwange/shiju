@@ -54,8 +54,8 @@ pub fn capabilities(
         agent,
         "nova"
             | "harn"
-            | "junie"
             | "vtcode"
+            | "junie"
             | "poolside"
             | "stakpak"
             | "deepagents"
@@ -124,8 +124,8 @@ pub fn verified_release(agent: &str) -> Option<&'static str> {
         "sigit" => "1.7.10 (reviewed host boundary)",
         "dirac" => "0.5.24",
         "harn" => "0.10.201",
-        "junie" => "26.11.2 (4100.5)",
         "vtcode" => "0.183.0",
+        "junie" => "26.11.2 (4100.5)",
         "poolside" => "1.0.16",
         "stakpak" => "0.3.88",
         "snow" => "0.9.14",

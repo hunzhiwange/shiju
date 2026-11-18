@@ -24,27 +24,6 @@ def check_files(root, files):
         if digest(root / name) != expected:
             raise RuntimeError('Reviewed artifact checksum mismatch: ' + name)
 
-if agent == 'vtcode':
-    import platform
-    if (platform.system(), platform.machine()) != ('Darwin', 'arm64'):
-        raise RuntimeError('VT Code reviewed runtime is Darwin-arm64 only')
-    archive = assets / 'vtcode.tar.gz'
-    run(['/usr/bin/curl', '--fail', '--silent', '--show-error', '--location',
-         '--proto', '=https', '--proto-redir', '=https', '--max-time', '120',
-         '--output', str(archive), contract['artifact_url']])
-    if digest(archive) != contract['archive_sha256']:
-        raise RuntimeError('VT Code fixed archive checksum mismatch')
-    runtime.mkdir()
-    native = runtime / 'vtcode'
-    with tarfile.open(archive) as package:
-        entries = [entry for entry in package.getmembers() if entry.name == './vtcode']
-        if len(entries) != 1 or not entries[0].isfile():
-            raise RuntimeError('Unexpected VT Code executable archive entry')
-        with package.extractfile(entries[0]) as source, native.open('xb') as output:
-            shutil.copyfileobj(source, output)
-    check_files(runtime, contract['files'])
-    native.chmod(0o700)
-    raise SystemExit(0)
 if agent == 'stakpak':
     import platform
     if (platform.system(), platform.machine()) != ('Darwin', 'arm64'):
@@ -69,27 +48,26 @@ if agent == 'stakpak':
     launcher.chmod(0o700)
     check_files(runtime, contract['files'])
     raise SystemExit(0)
-if agent == 'poolside':
+if agent == 'vtcode':
     import platform
     if (platform.system(), platform.machine()) != ('Darwin', 'arm64'):
-        raise RuntimeError('Poolside reviewed runtime is Darwin-arm64 only')
-    archive = assets / 'poolside.tar.gz'
+        raise RuntimeError('VT Code reviewed runtime is Darwin-arm64 only')
+    archive = assets / 'vtcode.tar.gz'
     run(['/usr/bin/curl', '--fail', '--silent', '--show-error', '--location',
          '--proto', '=https', '--proto-redir', '=https', '--max-time', '120',
          '--output', str(archive), contract['artifact_url']])
     if digest(archive) != contract['archive_sha256']:
-        raise RuntimeError('Poolside fixed archive checksum mismatch')
+        raise RuntimeError('VT Code fixed archive checksum mismatch')
     runtime.mkdir()
-    native = runtime / 'pool-native'
+    native = runtime / 'vtcode'
     with tarfile.open(archive) as package:
-        if package.getnames() != ['pool-darwin-arm64'] or not package.getmember('pool-darwin-arm64').isfile():
-            raise RuntimeError('Unexpected Poolside fixed archive layout')
-        with package.extractfile('pool-darwin-arm64') as source, native.open('xb') as output:
+        entries = [entry for entry in package.getmembers() if entry.name == './vtcode']
+        if len(entries) != 1 or not entries[0].isfile():
+            raise RuntimeError('Unexpected VT Code executable archive entry')
+        with package.extractfile(entries[0]) as source, native.open('xb') as output:
             shutil.copyfileobj(source, output)
-    shutil.copy2(assets / 'poolside/launcher.py', runtime / 'pool')
-    for executable in (native, runtime / 'pool'):
-        executable.chmod(0o700)
     check_files(runtime, contract['files'])
+    native.chmod(0o700)
     raise SystemExit(0)
 if agent == 'junie':
     import platform
@@ -120,6 +98,28 @@ if agent == 'junie':
     run(['/usr/bin/codesign', '--verify', '--deep', '--strict', str(runtime / 'Applications/junie.app')])
     shutil.copy2(assets / 'junie/launcher.py', runtime / 'junie')
     (runtime / 'junie').chmod(0o700)
+    check_files(runtime, contract['files'])
+    raise SystemExit(0)
+if agent == 'poolside':
+    import platform
+    if (platform.system(), platform.machine()) != ('Darwin', 'arm64'):
+        raise RuntimeError('Poolside reviewed runtime is Darwin-arm64 only')
+    archive = assets / 'poolside.tar.gz'
+    run(['/usr/bin/curl', '--fail', '--silent', '--show-error', '--location',
+         '--proto', '=https', '--proto-redir', '=https', '--max-time', '120',
+         '--output', str(archive), contract['artifact_url']])
+    if digest(archive) != contract['archive_sha256']:
+        raise RuntimeError('Poolside fixed archive checksum mismatch')
+    runtime.mkdir()
+    native = runtime / 'pool-native'
+    with tarfile.open(archive) as package:
+        if package.getnames() != ['pool-darwin-arm64'] or not package.getmember('pool-darwin-arm64').isfile():
+            raise RuntimeError('Unexpected Poolside fixed archive layout')
+        with package.extractfile('pool-darwin-arm64') as source, native.open('xb') as output:
+            shutil.copyfileobj(source, output)
+    shutil.copy2(assets / 'poolside/launcher.py', runtime / 'pool')
+    for executable in (native, runtime / 'pool'):
+        executable.chmod(0o700)
     check_files(runtime, contract['files'])
     raise SystemExit(0)
 if agent == 'harn':

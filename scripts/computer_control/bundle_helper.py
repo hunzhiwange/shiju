@@ -10,7 +10,8 @@ APP_NAME = "ShiJu Computer Use.app"
 BUNDLE_ID = "com.shiju.computer-use"
 EXECUTABLE = "shiju-computer-use"
 RELATIVE_APP = Path("Contents/Helpers") / APP_NAME
-RECEIPT = ".shiju-bundle-inputs.plist"
+# macOS requires bundle resources to live under Contents for signing.
+RECEIPT = "Contents/Resources/.shiju-bundle-inputs.plist"
 
 
 def executable(app):

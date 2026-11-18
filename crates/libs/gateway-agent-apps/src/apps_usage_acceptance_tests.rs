@@ -1,6 +1,8 @@
 //! Windowless macOS acceptance through the SDK, HTTP router, and scoped storage.
 
-use gateway_app_usage::{AppsUsageOperation, AppsUsageWriteError};
+use gateway_app_usage::{AppsUsageOperation, AppsUsageReadError, AppsUsageWriteError};
+use gateway_endpoint::{GatewayAuth, GatewayEndpoint};
+use vw_gateway_client::GatewayClient;
 use std::time::Instant;
 
 use base64::{Engine as _, engine::general_purpose::STANDARD};
@@ -22,18 +24,47 @@ use vw_api_transport::id::ProjectScope;
 use vw_api_transport::id::TaskId;
 use vw_api_transport::id::TenantScope;
 use vw_api_task::TaskStatus;
-use {gateway_endpoint::{GatewayEndpoint}, {vw_gateway_client::GatewayClient}};
 
 use super::{
     FIXTURE_CA, FIXTURE_CERT, FIXTURE_KEY, Fixture, NativeTransport, OTHER_TOKEN, TOKEN,
-    codex_http_fixture, managed_codex_fixture, router_with_transports,
+    codex_http_fixture, managed_codex_fixture_at, router_with_transports,
 };
-use agent_app_services::usage_settings::UsageSettingsScope;
+use agent_app_services::usage_settings::{UsageSettingsScope, UsageSettingsStore};
 use app_provider_services::AppProviderStore;
 use serde_json::json;
 use std::sync::Arc;
 
-const HOST: &str = "local";
+const HOST: &str = local_app_auth::HOST_ID;
+const PRINCIPAL: &str = "desktop-local-user";
+
+fn isolated_test() -> bool {
+    const ROOT: &str = "SHIJU_USAGE_ACCEPTANCE_ROOT";
+    if let Some(root) = std::env::var_os(ROOT) {
+        let root = std::path::PathBuf::from(root);
+        assert_eq!(std::env::var_os("VIBEWINDOW_TEST_ROOT").as_deref(), Some(root.as_os_str()));
+        assert_eq!(agent_paths::paths().home, root);
+        assert_eq!(std::env::var_os("CODEX_HOME").unwrap(), root.join(".codex").into_os_string());
+        return false;
+    }
+    let root = tempfile::tempdir().unwrap();
+    let path = root.path().canonicalize().unwrap();
+    let status = std::process::Command::new(std::env::current_exe().unwrap())
+        .args(["--exact", std::thread::current().name().unwrap(), "--nocapture"])
+        .env(ROOT, &path)
+        .env("VIBEWINDOW_TEST_ROOT", &path)
+        .env("HOME", &path)
+        .env("CODEX_HOME", path.join(".codex"))
+        .status()
+        .unwrap();
+    assert!(status.success(), "isolated usage acceptance child failed: {status}");
+    true
+}
+
+fn local_policy(fixture: &mut Fixture) {
+    fixture.policy["hosts"][0]["id"] = json!(HOST);
+    fixture.policy["principals"][0]["id"] = json!(PRINCIPAL);
+    fixture.policy["principals"][0]["grants"][0]["host_id"] = json!(HOST);
+}
 const WALLET_ORIGIN: &str = "https://api.deepseek.com";
 const PLAN_ORIGIN: &str = "https://api.kimi.com";
 
@@ -52,12 +83,27 @@ fn selection(provider: &str, kind: UsageQueryKind) -> UsageSnapshotQuery {
     }
 }
 
-async fn sdk(router: axum::Router) -> (GatewayClient, JoinHandle<()>) {
+async fn serve(router: axum::Router) -> (GatewayEndpoint, JoinHandle<()>) {
+    let state = agent_gateway::gateway_test_fixture::state::<(), (), ()>(
+        Default::default(),
+        true,
+        &[TOKEN.to_owned()],
+    );
+    let router = router.layer(axum::middleware::from_fn_with_state(
+        state,
+        agent_gateway::request_policy::skey_auth_middleware::<(), (), ()>,
+    ));
     let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
-    let endpoint = GatewayEndpoint::new("127.0.0.1", listener.local_addr().unwrap().port())
-        .with_tenant_scope(tenant());
+    let endpoint = GatewayEndpoint::new("127.0.0.1", listener.local_addr().unwrap().port());
     let server = tokio::spawn(async move { axum::serve(listener, router).await.unwrap() });
-    (GatewayClient::new(endpoint).unwrap(), server)
+    (endpoint, server)
+}
+
+fn client(endpoint: &GatewayEndpoint, tenant: TenantScope, skey: &str) -> GatewayClient {
+    GatewayClient::new(
+        endpoint.clone().with_tenant_scope(tenant).with_auth(GatewayAuth { skey: Some(skey.into()) }),
+    )
+    .unwrap()
 }
 
 fn seed_provider(fixture: &mut Fixture, provider: &str, base_url: &str) {
@@ -107,7 +153,7 @@ fn grant_refresh(
 async fn terminal(client: &GatewayClient, id: &TaskId) -> AppsUsageOperation {
     tokio::time::timeout(std::time::Duration::from_secs(8), async {
         loop {
-            let event = gateway_app_usage::GatewayAppUsageClient::new(client.transport().clone()).apps_usage_operation_events(HOST, id, TOKEN).await.unwrap();
+            let event = gateway_app_usage::GatewayAppUsageClient::new(client.transport().clone()).apps_usage_operation_events(HOST, id, "").await.unwrap();
             if event.operation.phase == vw_api_app_operations::AppOperationPhase::Terminal {
                 return event;
             }
@@ -118,7 +164,7 @@ async fn terminal(client: &GatewayClient, id: &TaskId) -> AppsUsageOperation {
 }
 
 async fn refresh(client: &GatewayClient, query: &UsageSnapshotQuery) -> AppsUsageOperation {
-    let operation = gateway_app_usage::GatewayAppUsageClient::new(client.transport().clone()).apps_usage_refresh(query, TOKEN).await.unwrap();
+    let operation = gateway_app_usage::GatewayAppUsageClient::new(client.transport().clone()).apps_usage_refresh(query, "").await.unwrap();
     let event = terminal(client, &operation.operation_id).await;
     assert_eq!(event.items.len(), 1);
     assert_eq!(Some(event.items[0].kind), query.kind);
@@ -127,19 +173,37 @@ async fn refresh(client: &GatewayClient, query: &UsageSnapshotQuery) -> AppsUsag
 
 #[tokio::test]
 async fn usage_macos_api_returns_expected_result() {
+    if isolated_test() {
+        return;
+    }
     let mut fixture = Fixture::new().await;
-    let _save = managed_codex_fixture(&mut fixture);
+    local_policy(&mut fixture);
+    let credential_root = local_app_auth::auth_policy_path(
+        &agent_paths::paths().home, "test-platform", "test-company",
+    ).with_file_name("auth-credentials");
+    let _save = managed_codex_fixture_at(&mut fixture, credential_root, PRINCIPAL, HOST);
+    let project = ProjectScope::new(tenant(), "project-a".into()).unwrap();
+    UsageSettingsStore::new(fixture.database.clone()).unwrap().save(
+        UsageSettingsScope {
+            project: &project, principal: PRINCIPAL, target_host: HOST,
+            app: AppId::Codex, provider: "ok", account: None,
+        },
+        &serde_json::from_value(json!({
+            "template": "general", "enabled": true, "refreshIntervalMinutes": 1,
+        })).unwrap(),
+    ).unwrap();
     let (codex_seen, mut codex_requests) = mpsc::unbounded_channel();
     let codex = codex_http_fixture(codex_seen, Arc::new(Semaphore::new(1))).await;
     let native = NativeHttp::start().await;
     let (router, service) =
-        router_with_transports(&mut fixture, Some(codex), Some(native.transport.clone()));
+        router_with_transports(&mut fixture, Some(codex.no_proxy()), Some(native.transport.clone()));
 
     seed_provider(&mut fixture, "wallet", "https://api.deepseek.com/v1");
     seed_provider(&mut fixture, "plan", "https://api.kimi.com/coding/v1");
     grant_refresh(&mut fixture, "wallet", WALLET_ORIGIN, Some(UsageQueryKind::Balance));
     grant_refresh(&mut fixture, "plan", PLAN_ORIGIN, Some(UsageQueryKind::CodingPlan));
-    let (client, server) = sdk(router).await;
+    let (endpoint, server) = serve(router).await;
+    let client = client(&endpoint, tenant(), TOKEN);
     let wallet = selection("wallet", UsageQueryKind::Balance);
     let plan = selection("plan", UsageQueryKind::CodingPlan);
     let script = selection("ok", UsageQueryKind::CustomScript);
@@ -151,7 +215,7 @@ async fn usage_macos_api_returns_expected_result() {
     assert_eq!(codex_requests.try_recv().unwrap(), "Bearer fixture-oauth-original");
 
     let usage = gateway_app_usage::GatewayAppUsageClient::new(client.transport().clone());
-    let read = |query| usage.apps_usage_snapshot(query, TOKEN);
+    let read = |query| usage.apps_usage_snapshot(query, "");
     let wallet_result = read(&wallet).await.unwrap().snapshot.unwrap();
     assert!(matches!(&wallet_result.result.outcome,
         UsageQueryOutcome::Success { data: UsageQueryData::Balance(wallets) }
@@ -178,7 +242,7 @@ async fn usage_macos_api_returns_expected_result() {
         .provider_snapshot(
             UsageSettingsScope {
                 project: &project,
-                principal: "owner",
+                principal: PRINCIPAL,
                 target_host: HOST,
                 app: wallet.app_id,
                 provider: &wallet.provider_id,
@@ -197,25 +261,35 @@ async fn usage_macos_api_returns_expected_result() {
 
 #[tokio::test]
 async fn usage_macos_api_rejects_invalid_input() {
+    if isolated_test() {
+        return;
+    }
     let mut fixture = Fixture::new().await;
+    local_policy(&mut fixture);
     let mut native = NativeHttp::start().await;
     let (router, _) = router_with_transports(&mut fixture, None, Some(native.transport.clone()));
     seed_provider(&mut fixture, "wallet", "https://api.deepseek.com/v1");
     grant_refresh(&mut fixture, "wallet", WALLET_ORIGIN, None);
-    let (client, server) = sdk(router).await;
+    let (endpoint, server) = serve(router).await;
+    let unauthorized = client(&endpoint, tenant(), OTHER_TOKEN);
+    let unauthorized = gateway_app_usage::GatewayAppUsageClient::new(unauthorized.transport().clone());
+    let foreign = client(&endpoint, TenantScope::new("test-platform", "foreign-company").unwrap(), TOKEN);
+    let foreign = gateway_app_usage::GatewayAppUsageClient::new(foreign.transport().clone());
+    let client = client(&endpoint, tenant(), TOKEN);
+    let usage = gateway_app_usage::GatewayAppUsageClient::new(client.transport().clone());
     let wallet = selection("wallet", UsageQueryKind::Balance);
 
-    let denied = gateway_app_usage::GatewayAppUsageClient::new(client.transport().clone()).apps_usage_refresh(&wallet, TOKEN).await;
-    assert!(
-        matches!(denied, Err(AppsUsageWriteError::Http {
+    assert!(matches!(unauthorized.apps_usage_refresh(&wallet, "").await,
+        Err(AppsUsageWriteError::Http { status: 401, .. })));
+    let denied = usage.apps_usage_refresh(&wallet, "").await;
+    assert!(matches!(denied, Err(AppsUsageWriteError::Http {
         status: 403, error: Some(ref error),
-    }) if error.code == AuthErrorCode::Forbidden),
-        "{denied:?}"
-    );
+    }) if error.code == AuthErrorCode::Forbidden), "{denied:?}");
     assert!(native.requests.try_recv().is_err());
+
     grant_refresh(&mut fixture, "wallet", WALLET_ORIGIN, wallet.kind);
     let hold_response = native.release.acquire().await.unwrap();
-    let operation = gateway_app_usage::GatewayAppUsageClient::new(client.transport().clone()).apps_usage_refresh(&wallet, TOKEN).await.unwrap();
+    let operation = usage.apps_usage_refresh(&wallet, "").await.unwrap();
     assert_eq!(
         tokio::time::timeout(std::time::Duration::from_secs(5), native.requests.recv())
             .await
@@ -223,18 +297,22 @@ async fn usage_macos_api_rejects_invalid_input() {
             .as_deref(),
         Some("/user/balance"),
     );
-    let forbidden =
-        gateway_app_usage::GatewayAppUsageClient::new(client.transport().clone()).apps_usage_operation_cancel(HOST, &operation.operation_id, OTHER_TOKEN).await;
-    assert!(matches!(forbidden, Err(AppsUsageWriteError::Http { status: 404, .. })));
-    let cancelled =
-        gateway_app_usage::GatewayAppUsageClient::new(client.transport().clone()).apps_usage_operation_cancel(HOST, &operation.operation_id, TOKEN).await.unwrap();
+    for (sdk, status) in [(&unauthorized, 401), (&foreign, 404)] {
+        assert!(matches!(sdk.apps_usage_operation_cancel(HOST, &operation.operation_id, "").await,
+            Err(AppsUsageWriteError::Http { status: actual, .. }) if actual == status));
+    }
+    let cancelled = usage.apps_usage_operation_cancel(HOST, &operation.operation_id, "").await.unwrap();
     assert_eq!(cancelled.operation.status, TaskStatus::Cancelled);
     drop(hold_response);
-    assert!(gateway_app_usage::GatewayAppUsageClient::new(client.transport().clone()).apps_usage_snapshot(&wallet, TOKEN).await.unwrap().snapshot.is_none());
+    assert!(usage.apps_usage_snapshot(&wallet, "").await.unwrap().snapshot.is_none());
 
     assert_eq!(refresh(&client, &wallet).await.operation.status, TaskStatus::Completed);
-    assert!(gateway_app_usage::GatewayAppUsageClient::new(client.transport().clone()).apps_usage_snapshot(&wallet, TOKEN).await.unwrap().snapshot.is_some());
-    assert!(gateway_app_usage::GatewayAppUsageClient::new(client.transport().clone()).apps_usage_snapshot(&wallet, OTHER_TOKEN).await.unwrap().snapshot.is_none());
+    assert!(usage.apps_usage_snapshot(&wallet, "").await.unwrap().snapshot.is_some());
+    assert!(matches!(unauthorized.apps_usage_snapshot(&wallet, "").await,
+        Err(AppsUsageReadError::Http { status: 401, .. })));
+    assert!(matches!(foreign.apps_usage_snapshot(&wallet, "").await,
+        Err(AppsUsageReadError::Http { status: 404, error: Some(ref error) })
+            if error.code == AuthErrorCode::NotFound));
     server.abort();
 }
 
@@ -274,6 +352,7 @@ impl NativeHttp {
         let transport = Arc::new(move || {
             // Restrict this client to the fixture CA. The shared leaf names chatgpt.com.
             reqwest::Client::builder()
+                .no_proxy()
                 .resolve("api.deepseek.com", addr)
                 .resolve("api.kimi.com", addr)
                 .tls_certs_only([ca.clone()])

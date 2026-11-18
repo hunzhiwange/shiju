@@ -245,6 +245,16 @@ async fn usage_usage_refresh_rechecks_read_permission_before_event_delivery() {
 }
 
 fn managed_codex_fixture(fixture: &mut Fixture) -> impl Fn(&str) + use<> {
+    let root = fixture.path.with_file_name("credentials");
+    managed_codex_fixture_at(fixture, root, "owner", "local")
+}
+
+fn managed_codex_fixture_at(
+    fixture: &mut Fixture,
+    root: std::path::PathBuf,
+    principal: &str,
+    host: &str,
+) -> impl Fn(&str) + use<> {
     use std::os::unix::fs::DirBuilderExt;
 
     use agent_app_services::auth_accounts::{AuthAccountMetadata, AuthAccountScope, AuthAccountStore};
@@ -261,14 +271,13 @@ fn managed_codex_fixture(fixture: &mut Fixture) -> impl Fn(&str) + use<> {
     vw_api_transport::id::TenantScope,
 };
 
-    let root = fixture.path.with_file_name("credentials");
-    std::fs::DirBuilder::new().mode(0o700).create(&root).unwrap();
+    std::fs::DirBuilder::new().recursive(true).mode(0o700).create(&root).unwrap();
     fixture.policy["hosts"][0]["credential_root"] = json!(root);
     let tenant = TenantScope::new("test-platform", "test-company").unwrap();
     let scope = AuthAccountScope {
         tenant: &tenant,
-        principal: "owner",
-        host: "local",
+        principal,
+        host,
         service: AuthService::CodexOauth,
     };
     let accounts = AuthAccountStore::new(fixture.database.clone(), &root).unwrap();
@@ -279,13 +288,14 @@ fn managed_codex_fixture(fixture: &mut Fixture) -> impl Fn(&str) + use<> {
         URL_SAFE_NO_PAD.encode(br#"{"alg":"none"}"#),
         URL_SAFE_NO_PAD.encode(br#"{"sub":"subject","chatgpt_account_id":"workspace"}"#)
     );
-    let credentials = CredentialFileStore::new(&root).unwrap().for_owner("owner").unwrap();
+    let credentials = CredentialFileStore::new(&root).unwrap().for_owner(principal).unwrap();
     let credential_tenant = tenant.clone();
+    let host = host.to_owned();
     let save = move |token: &str| {
         credentials
             .save(
                 &credential_tenant,
-                "local",
+                &host,
                 AppId::Codex,
                 "managed",
                 &AccountCredential::CodexAuth(json!({"auth_mode": "chatgpt",

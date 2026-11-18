@@ -28,6 +28,7 @@ ShiJu 是 Rust 优先的自主代理运行时。本文件适用于整个仓库�
 - 主次及辅助按钮使用 `primary_action_btn_style` / `rounded_action_btn_style`，显式设置内边距与圆角；反馈使用 `toast.rs`。
 - 非 ASCII 文本禁止使用 `Font::MONOSPACE`，可能导致字形缓存溢出与主线程 panic。等宽路径/代码与中文标签拆成独立 `text` 控件。
 - 字体变更须检查实际渲染路径，不能仅凭构建 `Element` 判断安全；运行验证仍遵守上述授权范围。
+- 注意检查，弹窗浮窗不要穿透到背部。
 
 ## 交接
 

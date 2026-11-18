@@ -10,7 +10,7 @@
       "cortex": "3667d32e69765618d35d19485361f4f55b6f0d21d1d1ed060db1cb7b4eae8d28",
       "cortex-native": "f9753a0da7a733d4e782dfe633c7bd4fd5faca7b4960352d0aa464b62441178a",
       "cortex-local": "ed72f2274162d524a7a9e8f7b78ac7e5c863dd92e2ba5894eb9ba78533e47139",
-      "mcp_bridge.py": "74c3cd60ae20ea678f5dddfc9b7c771bb95804a5723737d3025aa3ee0691ab1e"
+      "mcp_bridge.py": "a9dfa40b109b141f7f2b41dee92ed300f762ff1b762561a592e8f55d52884468"
     }
   },
   "aionrs": {

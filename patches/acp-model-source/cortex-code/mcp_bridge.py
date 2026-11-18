@@ -12,6 +12,7 @@ import uuid
 LIMIT = 4 * 1024 * 1024
 TIMEOUT = 15
 PREFIX = 'shiju_mcp_'
+APPROVAL_PREFIX = 'shiju-cortex-approval-'
 NAME = re.compile(r'[a-zA-Z0-9]+(?:_[a-zA-Z0-9]+)*')
 MCP_SANDBOX = """
 (version 1)
@@ -181,9 +182,9 @@ class Bridge:
             method, identifier = message.get('method'), message.get('id')
             params = message.get('params', {})
             session = params.get('sessionId')
-            if not method and identifier in self.pending:
-                waiter = self.pending.pop(identifier)
-                if not waiter.done():
+            if not method and isinstance(identifier, str) and identifier.startswith(APPROVAL_PREFIX):
+                waiter = self.pending.pop(identifier, None)
+                if waiter and not waiter.done():
                     waiter.set_result(message.get('result', {}))
                 continue
             if method == 'session/fork':
@@ -260,7 +261,7 @@ class Bridge:
     async def call(self, identifier, tool, arguments):
         result = {'error': 'Cortex MCP call has no approved active tool'}
         turn = self.turn
-        approval = PREFIX + uuid.uuid4().hex
+        approval = APPROVAL_PREFIX + uuid.uuid4().hex
         try:
             selection = self.sessions.get(turn[1], {}) if turn else {}
             call_id = next((key for key, value in self.calls.items() if value == (tool, arguments)), None)

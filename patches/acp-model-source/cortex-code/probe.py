@@ -19,7 +19,7 @@ TOOLS = (
 PREFIX = 'shiju_mcp_ruejs_graph_probe__rustcodegraph_'
 
 
-def verify(launcher, graph, workspace, mounted, approve):
+def verify(launcher, graph, workspace, mounted, approve, load=False, cancel=False):
     requests, permissions = [], []
 
     class Relay(BaseHTTPRequestHandler):
@@ -80,6 +80,9 @@ def verify(launcher, graph, workspace, mounted, approve):
                     if message.get('method') == 'session/request_permission':
                         tool = message['params']['toolCall']
                         permissions.append(tool['title'])
+                        if cancel:
+                            send({'method': 'session/cancel',
+                                  'params': {'sessionId': message['params']['sessionId']}})
                         send({'id': message['id'], 'result': {'outcome': {'outcome': 'selected',
                               'optionId': 'allow_once' if approve else 'reject_once'}}})
                     elif 'method' not in message and message.get('id') == identifier:
@@ -90,10 +93,19 @@ def verify(launcher, graph, workspace, mounted, approve):
                 rpc(1, 'initialize', {'protocolVersion': 1, 'clientCapabilities': {}})
                 definition = {'name': 'ruejs_graph_probe', 'command': str(graph), 'env': [],
                               'args': ['serve', '--mcp', '--path', str(workspace), '--no-watch']}
-                created = rpc(2, 'session/new', {'cwd': str(workspace), 'mcpServers': [definition] if mounted else []})
-                result = rpc(3, 'session/prompt', {'sessionId': created['sessionId'],
-                             'prompt': [{'type': 'text', 'text': 'Inspect the configured graph.'}]})
-                assert result['stopReason'] == 'end_turn'
+                mount = [definition] if mounted else []
+                created = rpc(2, 'session/new', {'cwd': str(workspace), 'mcpServers': [] if load else mount})
+                session = created['sessionId']
+                if load:
+                    rpc(3, 'session/load', {'sessionId': session, 'cwd': str(workspace), 'mcpServers': mount})
+                prompt = {'sessionId': session, 'prompt': [{'type': 'text', 'text': 'Inspect the configured graph.'}]}
+                expected_stop = 'cancelled' if cancel else 'end_turn'
+                assert rpc(4, 'session/prompt', prompt)['stopReason'] == expected_stop
+                last_request = requests[-1]
+                if load:
+                    rpc(5, 'session/load', {'sessionId': session, 'cwd': str(workspace), 'mcpServers': []})
+                    assert rpc(6, 'session/prompt', prompt)['stopReason'] == 'end_turn'
+                    assert {tool['function']['name'] for tool in requests[-1]['tools']} == {'read', 'write', 'edit'}
             finally:
                 child.stdin.close()
                 try:
@@ -112,8 +124,11 @@ def verify(launcher, graph, workspace, mounted, approve):
         return
     expected_names = [PREFIX + tool for tool, _, _ in TOOLS]
     assert set(expected_names) <= names, 'Mounted tools absent from model input'
+    if cancel:
+        assert len(requests) == 1 and permissions == expected_names[:1]
+        return
     assert permissions == expected_names
-    output = [message['content'] for message in requests[-1]['messages'] if message['role'] == 'tool']
+    output = [message['content'] for message in last_request['messages'] if message['role'] == 'tool']
     expected_text = [text if approve else 'no approved active tool' for _, _, text in TOOLS]
     assert len(output) == len(expected_text) and all(text in result for text, result in zip(expected_text, output))
 
@@ -123,6 +138,9 @@ if __name__ == '__main__':
     for name in ('launcher', 'graph', 'workspace'):
         parser.add_argument(name, type=lambda path: Path(path).resolve(strict=True))
     args = parser.parse_args()
-    for mounted, approve in ((False, False), (True, True), (True, False), (False, False)):
-        verify(args.launcher, args.graph, args.workspace, mounted, approve)
-        print(f'passed mounted={mounted} approve={approve}', flush=True)
+    for mounted, approve, load in ((False, False, False), (True, True, False), (True, False, False),
+                                    (False, False, False), (True, True, True)):
+        verify(args.launcher, args.graph, args.workspace, mounted, approve, load)
+        print(f'passed mounted={mounted} approve={approve} load={load}', flush=True)
+    verify(args.launcher, args.graph, args.workspace, True, True, cancel=True)
+    print('passed cancellation while awaiting approval', flush=True)

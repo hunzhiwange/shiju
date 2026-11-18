@@ -439,8 +439,33 @@ model = "kimi-for-coding"
     Ok(())
 }
 
+// Security.framework resolves its user preferences from the isolated child HOME.
+fn prepare_test_keychain(home: &Path) -> anyhow::Result<()> {
+    anyhow::ensure!(std::env::var_os("HOME").as_deref() == Some(home.as_os_str()));
+    fs::create_dir_all(home.join("Library/Preferences"))?;
+    let keychains = home.join("Library/Keychains");
+    fs::create_dir_all(&keychains)?;
+    let path = keychains.join("logout-test.keychain-db");
+    let path = path.to_str().ok_or_else(|| anyhow::anyhow!("invalid test keychain path"))?;
+    for args in [
+        vec!["create-keychain", "-p", "logout-test", path],
+        vec!["list-keychains", "-s", path],
+        vec!["default-keychain", "-s", path],
+    ] {
+        let result = std::process::Command::new("/usr/bin/security").args(&args).output()?;
+        anyhow::ensure!(
+            result.status.success(),
+            "test keychain {} failed: {}",
+            args[0],
+            String::from_utf8_lossy(&result.stderr),
+        );
+    }
+    Ok(())
+}
+
 async fn assert_claude_cleanup(fixture: &Fixture, gateway: &Gateway) -> anyhow::Result<()> {
     let home = fixture.home.as_path();
+    prepare_test_keychain(home)?;
     let program = home.join("claude");
     fs::write(
         &program,

@@ -43,6 +43,8 @@ pub fn configure(profile: &mut AcpLaunchProfile, endpoint: &str) -> anyhow::Resu
         &serde_json::to_vec(&json!({
             "model": {"name": format!("shiju/{model}")},
             "general": {"enableAutoUpdate": false, "maxAttempts": 1},
+            // Declare the session's selected MCP tools directly to the bound model.
+            "mcp": {"lazyLoad": false},
             "providers": {"shiju": provider}
         }))?,
     )?;

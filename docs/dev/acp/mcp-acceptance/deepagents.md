@@ -37,3 +37,37 @@
 仓库安装脚本在私有目录完成 v3 安装并校验五项受管文件摘要。聚焦命令 `python3 patches/acp-model-source/deepagents/mcp_test.py <受管入口> <RustCodeGraph> <已索引的 RueJS 副本>` 使用真实 RustCodeGraph 和回环模型。v2 在挂载建会话处退出 1。v3 退出 0，覆盖无挂载、批准挂载、拒绝挂载、撤除，以及相同选集加载成功和改变选集加载失败。真实输出含查询定位 `app/app.tsx:32`、调用者 `mountRueSiteApp` 和 `useApp` 源码中的 `_$createApp`，模型续轮收到相同结果。三种工具各自的模型入参、宿主审批和 ACP 完成事件可按调用 ID 对应。批准才执行，拒绝后输出明确错误。原守卫和受管 CLI 审批回归通过。私有测试为 SQLite 索引保留 WAL sidecar，使只读沙箱可以访问原索引。
 
 守卫测试同时覆盖已选 MCP 工具的迟到审批。审批等待期间取消提示后，即使收到批准也不会执行工具。槽位 6 的 `python3 scripts/cargo_slot.py cargo test -j 1 --locked -p acp-agent-registry --lib deepagents_session_mcp_uses_a_separate_reviewed_install` 有效执行 1 项，通过。
+
+## 受管 v3 指定模型复验
+
+同一 RueJS 提交、固定请求、租户、模型与 RustCodeGraph stdio。槽位 6 的 `CARGO_TARGET_DIR` 和 `CARGO_BUILD_BUILD_DIR` 均为仓库的 `target/rust-slot-6`。同一个槽位入口先执行上述定向测试，再执行 `cargo build -j 1 --locked -p vw-cli --bin shiju`，退出 0，耗时 18 分 40 秒，有既有未使用导入告警。网关 SHA-256 为 `6954a2bb76ca26aa39c3b0dd909786c68b85f336648526ef39651b1e3a31f718`。受管安装使用固定 npm 包 0.1.42 v3。
+
+| 轮次 | 新会话 | HTTP / curl / 耗时 | SSE 终态与答复 | 完成调用 |
+| --- | --- | --- | --- | --- |
+| 无挂载 | `ses_1f03493be001BFZ73Poig0C7TR` | 200 / 0 / 4.608904 秒 | 一个 `chat.done`，仅答 `MCP_NOT_AVAILABLE` | 0 |
+| 挂载 | `ses_1f034a6d700141lP6Jkbv9EYIF` | 200 / 28 / 300.008961 秒；原游标续传 200 / 0 / 209.262766 秒 | 一个 `chat.done`，无 `chat.error`，给出完整调查答复 | 252 |
+| 撤除 | `ses_1f03c6f21001HqPz5QUbUwWP1G` | 200 / 0 / 6.544528 秒 | 一个 `chat.done`，仅答 `MCP_NOT_AVAILABLE` | 0 |
+
+三轮 summary 均确认 `acp-deepagents / deepagents`、`full_access=true`。运行中 ACP options 读回原完整模型、`session_model` 和 `client_only`，终态仍显示相同模型且连接关闭。挂载续传保持原会话 ID 和请求标识。代表性开始及完成事件通过同一调用 ID 对应，原始输出均为 MCP 文本块且 `isError=false`。
+
+| 工具 | 调用 ID | 输入与输出 |
+| --- | --- | --- |
+| `rustcodegraph_query` | `call_ea78e6c2d3214af1af268f39` | `search=createRueSiteApp` 命中 `app/app.tsx:32` |
+| `rustcodegraph_callers` | `call_23241e4ae40f4076a2e66480` | `symbol=createRueSiteApp` 返回 `mountRueSiteApp`（`app/app.tsx:39`） |
+| `rustcodegraph_node` | `call_d4c3bc9298934270b62703ab` | 定位 `packages/runtime/src/hooks/useApp.ts:4`，回读转发 `_$createApp` 的源码 |
+
+答复正确串起 `mountRueSiteApp → createRueSiteApp → useApp → _$createApp`，引用 SSR 守卫、缺少 `#app` 时抛错、router 与 i18n 的安装顺序，以及 `/rust-layers` 布局绕过。答复从挂载的追加行为推断快照会残留，提出静态文档避免重复 DOM 和导航至 `/rust-layers` 时无残留布局两项可检验场景，未执行浏览器实测。它记录了顶层调用在调用图缺失、源码仍存在的差异。插件实现的部分细节系由源码片段推断，i18n 的 `install` 在原文件 903–905 行还会为当前容器注入 `I18nContext`。
+
+挂载轮 252 个完成调用均来自 `ruejs_graph_probe`。除三种目标工具外，模型还调用了 `status`、`files`、`explore`、`callees`、`impact` 共 15 次。该轮完成真实工具闭环，未满足仅使用三种目标工具的验收条件。
+
+用同一网关二进制、同一请求和同一工作区，以三个新会话再跑一组。两轮对照均只答 `MCP_NOT_AVAILABLE`，工具事件为零。三轮终态无 `chat.error`，summary 和 ACP options 与首组相符。
+
+| 轮次 | 新会话 | HTTP / curl / 耗时 | SSE 终态 |
+| --- | --- | --- | --- |
+| 无挂载 | `ses_1f03d00fd0017wx8yOZWocYSw2` | 200 / 0 / 4.264233 秒 | 一个 `chat.done` |
+| 挂载 | `ses_1f03d12d1001MI8jLsAPBqjc1W` | 200 / 28 / 300.009013 秒；续传一 200 / 28 / 300.011092 秒；续传二 200 / 0 / 282.218998 秒 | 一个 `chat.done`，两次续传保持同一会话 |
+| 撤除 | `ses_1f04a8b6d001su2waZeyBSxaSm` | 200 / 0 / 5.117841 秒 | 一个 `chat.done` |
+
+第二组挂载三种目标工具都成功，另有 34 次同服务辅助工具成功。4 次查询失败均指定了没有独立索引的子目录为 `projectPath`。绕开 DeepAgents 直接向原 RustCodeGraph stdio 发送同样的四个参数，均复现 `isError=true`。答复仍给出主调用链、SSR、容器错误、插件接入、布局绕过、快照推断与两项验证场景。两组均无其他服务、文件或终端工具事件，严格工具范围回归仍待通过。
+
+两个私有网关及其端口均已关闭，私有挂载配置、授权及租户数据副本已清理。原始 SSE 和探针收据留在本机 0700 私有目录。

@@ -1,6 +1,6 @@
 # Kimi Code CLI 动态挂载 RustCodeGraph
 
-2026-11-19。修复受管模型配置生成。隔离验证确认 Kimi 能使用会话级 stdio MCP 完成模型工具调用，挂载轮超出统一合同规定的工具范围。
+2026-11-19。修复受管模型配置生成。隔离验证确认 Kimi 能使用会话级 stdio MCP 完成模型工具调用，首次隔离对照超出指定工具范围，后续使用共享构建通过三轮验收。
 
 ## 环境与首个失败边界
 
@@ -32,8 +32,28 @@
 
 答复的主调用链、SSR 与浏览器分支、缺少 `#app` 的异常、路由和 i18n 安装、`/rust-layers` 绕过布局均与副本源码吻合。移除清空后可能保留旧 DOM 的分析及两项回归场景属于推断。答复将双份页头必然出现、`/rust-layers` 必然残留旧布局写得过于确定。这些结果取决于原始快照内容和客户端入口。静态快照执行客户端模块的实际调用点是 `packages/server-renderer/src/static.mjs:785`。`static.mjs:747` 是函数入口。
 
-## 定向验证与后续
+## 首次定向验证与待复验项
 
 - 用槽位 3 缓存的原生依赖编译实际驱动、`AcpLaunchProfile` 及同一测试 `kimi_session_model_writes_integer_limits`。旧驱动 1 项失败，退出 101，context 字段解析为非整数。修复后 1 项通过，退出 0。轻量入口命令保存在私有证据目录，`CARGO_TARGET_DIR` 和 `CARGO_BUILD_BUILD_DIR` 均为仓库下的 `target/rust-slot-3`。
 - 工作区已有外部 Cargo 全目标检查在编译。需按槽位规则串行补跑 `python3 scripts/cargo_slot.py cargo test -j 1 -p llm-runtime --lib kimi_session_model_writes_integer_limits` 并构建修复后的 CLI 网关。现有公共转发路径在原生轨迹中已得到验证，本次没有改动该路径。私有网关及 MCP 子进程已退出，端口关闭，已撤除临时工作区挂载。
-- 整体验收仍有两项缺口。需要用修复后的常规产物按相同合同复跑三轮，挂载轮需要仅调用约定的三种工具并准确限定静态快照推断。
+- 首次验收留下两项复验内容。用修复后的常规产物按相同合同运行三轮，并核对挂载轮工具范围与静态快照推断。
+
+## 使用共享构建复验
+
+复用共享槽位 6 已构建的 `shiju 0.6.0` 私有副本，SHA-256 为 `6954a2bb76ca26aa39c3b0dd909786c68b85f336648526ef39651b1e3a31f718`。运行原生 Kimi 2.5.0，网关直接生成包含两个整数限额的 TOML。无需此前改写 TOML 的探针。共享槽位 3 的 `llm-runtime` 原生测试程序按 `kimi_session_model_writes_integer_limits` 过滤，实际执行 1 项，1 项通过、0 项失败、退出 0。测试程序和网关均来自既有构建，此次未启动并行 Cargo。
+
+保持原三轮请求、模型、租户、服务名和权限。挂载轮复用 Kilocode 验收使用的私有 stdio 转发器，只公布约定的三种工具，保留实际 RustCodeGraph 1.2.10 的实现和结果，并在工具元数据中描述源码路径与分页。独立协议对照确认原目录有 8 项，转发目录有 3 项，三种实际调用结果逐项一致，额外工具与副本外路径均被拒绝。
+
+第一组的新会话依次为 `ses_1f03f73b7001ob7yq1cixi72Vo`、`ses_1f03f989a001e1bZrJOVzbROXR` 和 `ses_1f041c8f8001TZofGSVmLnhZJk`。三轮 HTTP 200、curl 0，各收到一次 `chat.done`。挂载轮用时 143.110086 秒，16 次 query、5 次 callers、34 次 node 全部成功。撤除轮用时 5.353692 秒，精确返回 `MCP_NOT_AVAILABLE`，无工具。无挂载轮用时 9.088117 秒，模型在标记之外输出解释并发出一次 Bash `echo probe`，导致对照失败。私有副本的 4109 个档案项复查一致。
+
+同条件独立重试通过。
+
+| 轮次 | ShiJu 会话 | HTTP / curl / 秒 | SSE 终态及可见答复 |
+| --- | --- | --- | --- |
+| 无挂载 | `ses_1f04023740019M37Hpzv4HUxbN` | 200 / 0 / 5.181762 | `chat.done`，仅 `MCP_NOT_AVAILABLE`，零工具 |
+| 挂载 | `ses_1f04038dd0010UrZp8ndcC2Y9r` | 200 / 0 / 238.350567 | `chat.done`，只调用三种指定工具，101 次完成 |
+| 撤除 | `ses_1f043dc9e001QjRlPt3q4yGHLH` | 200 / 0 / 5.051183 | `chat.done`，仅 `MCP_NOT_AVAILABLE`，零工具 |
+
+- 挂载轮有 699 条 SSE 工具事件。按调用 ID 核对开始、完成和输出，35 次 query、4 次 callers、62 次 node 全部成功。`0:call_3e36950ab88f48058944ed99` 命中 `createRueSiteApp`（`app/app.tsx:32`），`0:call_1cee8d0e20e545e8a3e2cd30` 找到 `mountRueSiteApp`（`app/app.tsx:39`）。`0:call_4b7daeaacd564a0c943330f0` 和 `0:call_4788574d65c54638bdbbb5b3` 分别读回 `useApp`（`packages/runtime/src/hooks/useApp.ts:4`）和 `_$createApp`（`packages/runtime/src/compiler-runtime/app.ts:57`）。
+- 答复还原调用链、浏览器与 SSR 分支、缺少 `#app` 时的异常、路由与 i18n 的安装及布局条件，指出 `/rust-layers` 在当前路由表未注册。它从源码区分空模板快照与发布页接管，并给出预填快照模板及已注册的 `/jsx/basic-elements` 发布页两项回归场景。精确的 DOM 计数属于未运行的预期，重复布局以快照已含布局且客户端成功挂载为前提。
+- 三轮均无聊天错误或模型恢复事件。UI summary 与 ACP options 核对了后端、`full_access=true`、指定模型的 `session_model` 绑定、运行中权限 `partial` 和终态释放。独立的后台标题请求有两次 403。两组私有网关及子进程均已退出，端口关闭，临时凭据与挂载文件已清理，两个 RueJS 副本的 4109 个档案项均与基线一致。

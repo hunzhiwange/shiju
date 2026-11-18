@@ -9,7 +9,9 @@ use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant, SystemTime};
 
 pub(super) const STALE_TIME: Duration = Duration::from_secs(60 * 60);
-const REQUEST_TIMEOUT: Duration = Duration::from_secs(10);
+const REQUEST_TIMEOUT: Duration = Duration::from_secs(45);
+const CONNECT_TIMEOUT: Duration = Duration::from_secs(10);
+const READ_TIMEOUT: Duration = Duration::from_secs(10);
 const MAX_RESPONSE_BYTES: usize = 32 * 1024 * 1024;
 
 pub(super) struct ModelsCache {
@@ -206,6 +208,8 @@ fn replace_snapshot(path: &Path, body: &[u8]) -> io::Result<SystemTime> {
 async fn download(api_url: &str) -> Result<Vec<u8>, String> {
     // A configured URL can contain credentials. Keep redirects on its original origin.
     let client = reqwest::Client::builder()
+        .connect_timeout(CONNECT_TIMEOUT)
+        .read_timeout(READ_TIMEOUT)
         .referer(false)
         .redirect(reqwest::redirect::Policy::custom(|attempt| {
             let destination = attempt.url();

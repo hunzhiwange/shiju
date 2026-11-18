@@ -9,10 +9,47 @@ use vw_api_app_provider_profiles::codex_catalog::*;
 use vw_api_transport::id::TenantScope;
 use vw_api_model_catalog::CodexNativeModel;
 use vw_api_model_catalog::SavedCodexCatalog;
-use {gateway_endpoint::{GatewayEndpoint}, gateway_app_provider::{GatewayAppProviderClient}};
+use gateway_app_provider::GatewayAppProviderClient;
+use gateway_endpoint::{GatewayAuth, GatewayEndpoint};
 const TOKEN: &str = "fixture-codex-token-with-at-least-32-chars";
+const HOST: &str = "desktop-local";
+const CHILD: &str = "SHIJU_CODEX_CATALOG_TEST_CHILD";
+
+fn run_in_isolated_home() -> bool {
+    if std::env::var_os(CHILD).is_some() {
+        return false;
+    }
+    let root = tempfile::tempdir().unwrap();
+    let home = root.path().canonicalize().unwrap();
+    let status = std::process::Command::new(std::env::current_exe().unwrap())
+        .args(["--exact", std::thread::current().name().unwrap(), "--nocapture"])
+        .env(CHILD, "1")
+        .env("HOME", &home)
+        .env("VIBEWINDOW_TEST_ROOT", &home)
+        .status()
+        .unwrap();
+    assert!(status.success(), "isolated Codex catalog test failed: {status}");
+    true
+}
+
+async fn require_gateway_pairing(
+    axum::Extension(guard): axum::Extension<gateway_pairing::pairing::PairingGuard>,
+    request: axum::extract::Request,
+    next: middleware::Next,
+) -> axum::response::Response {
+    use axum::response::IntoResponse;
+
+    let key = gateway_types::auth::extract_auth_skey(request.headers()).unwrap_or_default();
+    if !guard.is_authenticated(key) {
+        return axum::http::StatusCode::UNAUTHORIZED.into_response();
+    }
+    next.run(request).await
+}
+
 struct Fixture {
-    root: tempfile::TempDir,
+    root: PathBuf,
+    port: u16,
+    _db_dir: tempfile::TempDir,
     db: GlobalDatabase,
     client: GatewayAppProviderClient,
     server: tokio::task::JoinHandle<()>,
@@ -24,35 +61,49 @@ impl Drop for Fixture {
 }
 impl Fixture {
     async fn new() -> Self {
-        let root = tempfile::tempdir().unwrap();
-        std::fs::set_permissions(root.path(), std::fs::Permissions::from_mode(0o700)).unwrap();
-        let private = root.path().join("private");
-        std::fs::create_dir(&private).unwrap();
-        std::fs::set_permissions(&private, std::fs::Permissions::from_mode(0o700)).unwrap();
-        std::fs::create_dir(root.path().join(".codex")).unwrap();
-        std::fs::write(root.path().join(".codex/config.toml"), "# fixture comment\n").unwrap();
-        let db = GlobalDatabase::for_home(root.path()).unwrap();
-        let policy = root.path().join("access.json");
-        std::fs::write(&policy,json!({"principals":[{"id":"codex","token_sha256":hex::encode(Sha256::digest(TOKEN)),"grants":[{"platform_id":"p","company_id":"a","host_id":"host","provider_config_read":true,"provider_config_write":true}]}],"hosts":[{"id":"host","online":true,"binding":"local","home":root.path(),"credential_root":private,"search_paths":[],"applications":root.path().join("Applications")}]}).to_string()).unwrap();
-        std::fs::set_permissions(&policy, std::fs::Permissions::from_mode(0o600)).unwrap();
-        let router = super::codex_catalog::router_with_policy(Some(policy.clone()), super::publication_control())
+        assert!(std::env::var_os(CHILD).is_some());
+        let root = agent_paths::paths().home.clone();
+        assert_eq!(root, PathBuf::from(std::env::var_os("VIBEWINDOW_TEST_ROOT").unwrap()));
+        std::fs::create_dir(root.join(".codex")).unwrap();
+        std::fs::write(root.join(".codex/config.toml"), "# fixture comment\n").unwrap();
+        let db_dir = tempfile::tempdir_in(&root).unwrap();
+        let db = GlobalDatabase::for_home(db_dir.path()).unwrap();
+        let router = super::codex_catalog::router_with_policy(None, super::publication_control())
             .layer(Extension(db.clone()))
             .layer(middleware::from_fn(super::publication))
-            .layer(middleware::from_fn(gateway_types::tenant_scope::tenant_scope_middleware));
+            .layer(middleware::from_fn(gateway_types::tenant_scope::tenant_scope_middleware))
+            .layer(middleware::from_fn(require_gateway_pairing))
+            .layer(Extension(gateway_pairing::pairing::PairingGuard::new(true, &[TOKEN.into()])));
         let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
         let port = listener.local_addr().unwrap().port();
         let server = tokio::spawn(async move {
             axum::serve(listener, Router::new().nest("/v1", router)).await.unwrap()
         });
-        let client = GatewayAppProviderClient::new(gateway_http::GatewayTransport::new(
+        let client = Self::connect(port, TOKEN);
+        Self { root, port, _db_dir: db_dir, db, client, server }
+    }
+    fn connect(port: u16, key: &str) -> GatewayAppProviderClient {
+        GatewayAppProviderClient::new(gateway_http::GatewayTransport::new(
             GatewayEndpoint::new("127.0.0.1", port)
-                .with_tenant_scope(TenantScope::new("p", "a").unwrap()),
+                .with_tenant_scope(TenantScope::new("p", "a").unwrap())
+                .with_auth(GatewayAuth { skey: Some(key.into()) }),
         )
-        .unwrap());
-        Self { root, db, client, server }
+        .unwrap())
+    }
+    fn client_with_key(&self, key: &str) -> GatewayAppProviderClient {
+        Self::connect(self.port, key)
+    }
+    fn transaction_dir(&self) -> PathBuf {
+        use base64::{Engine as _, engine::general_purpose::URL_SAFE_NO_PAD};
+
+        let scope = serde_json::to_vec(&("p", "a")).unwrap();
+        agent_paths::paths().data.join("apps")
+            .join(hex::encode(Sha256::digest(scope)))
+            .join("provider-live")
+            .join(URL_SAFE_NO_PAD.encode(HOST))
     }
     fn file(&self) -> PathBuf {
-        self.root.path().join(".codex/config.toml")
+        self.root.join(".codex/config.toml")
     }
     fn request(&self, catalog: bool, activation: ClaudeActivation) -> CodexWrite {
         let catalog = catalog.then(|| SavedCodexCatalog {
@@ -69,7 +120,7 @@ impl Fixture {
         });
         let config = "model_provider='vendor'\nmodel='saved'\n[model_providers.vendor]\nbase_url='https://fixture.test/v1'\nwire_api='responses'\n";
         CodexWrite {
-            target_host_id: "host".into(),
+            target_host_id: HOST.into(),
             profile: CodexProfile {
                 name: "Fixture".into(),
                 config: config.into(),
@@ -81,11 +132,11 @@ impl Fixture {
         }
     }
     fn target(&self) -> CodexTarget {
-        CodexTarget { target_host_id: "host".into() }
+        CodexTarget { target_host_id: HOST.into() }
     }
     fn state(&self) -> Value {
         serde_json::from_slice(
-            &std::fs::read(self.root.path().join("private/provider-live/aG9zdA/codex.state.json"))
+            &std::fs::read(self.transaction_dir().join("codex.state.json"))
                 .unwrap(),
         )
         .unwrap()
@@ -104,6 +155,9 @@ impl Fixture {
 
 #[tokio::test]
 async fn cc04_codex_catalog_sdk_api_commits_saved_directory_and_scoped_pointer() {
+    if run_in_isolated_home() {
+        return;
+    }
     let f = Fixture::new().await;
     let r = f
         .client
@@ -116,7 +170,7 @@ async fn cc04_codex_catalog_sdk_api_commits_saved_directory_and_scoped_pointer()
     let config = std::fs::read_to_string(f.file()).unwrap();
     assert!(config.contains("shiju-model-catalog.json"));
     assert!(!config.contains("modelCatalog"));
-    let catalog = f.root.path().join(".codex/shiju-model-catalog.json");
+    let catalog = f.root.join(".codex/shiju-model-catalog.json");
     assert_eq!(
         serde_json::from_slice::<Value>(&std::fs::read(&catalog).unwrap()).unwrap()["models"][0]["slug"],
         "saved"
@@ -143,10 +197,13 @@ async fn cc04_codex_catalog_sdk_api_commits_saved_directory_and_scoped_pointer()
 }
 #[tokio::test]
 async fn cc04_codex_catalog_sdk_api_denial_and_profile_failure_keep_native_files() {
+    if run_in_isolated_home() {
+        return;
+    }
     let f = Fixture::new().await;
     let before = std::fs::read(f.file()).unwrap();
     assert!(
-        f.client
+        f.client_with_key("invalid-token")
             .codex_provider_save(
                 "denied",
                 &f.request(true, ClaudeActivation::Switch),
@@ -166,7 +223,7 @@ async fn cc04_codex_catalog_sdk_api_denial_and_profile_failure_keep_native_files
     let before = std::fs::read(f.file()).unwrap();
     assert!(f.client.codex_provider_switch("one", &f.target(), TOKEN).await.is_err());
     assert_eq!(std::fs::read(f.file()).unwrap(), before);
-    assert!(!f.root.path().join(".codex/shiju-model-catalog.json").exists());
+    assert!(!f.root.join(".codex/shiju-model-catalog.json").exists());
 }
 
 #[test]
@@ -220,9 +277,12 @@ fn cc04_codex_catalog_saved_revisions_are_deployment_and_tenant_scoped() {
 }
 #[tokio::test]
 async fn cc04_codex_catalog_sdk_api_auth_stash_preservation_and_failure() {
+    if run_in_isolated_home() {
+        return;
+    }
     let f = Fixture::new().await;
     let auth = json!({"auth_mode":"chatgpt","tokens":{"id_token":"eyJhbGciOiJub25lIn0.eyJzdWIiOiJhbGljZSJ9.","access_token":"fake-access","refresh_token":"fake-refresh","account_id":"team"}});
-    let auth_path = f.root.path().join(".codex/auth.json");
+    let auth_path = f.root.join(".codex/auth.json");
     std::fs::write(&auth_path, auth.to_string()).unwrap();
     let mut request = f.request(true, ClaudeActivation::Switch);
     request.profile.preserve_login = true;
@@ -238,7 +298,7 @@ async fn cc04_codex_catalog_sdk_api_auth_stash_preservation_and_failure() {
     );
     assert!(!auth_path.exists());
     let stash: Value = serde_json::from_slice(
-        &std::fs::read(f.root.path().join(".codex/shiju-login-stash.json")).unwrap(),
+        &std::fs::read(f.root.join(".codex/shiju-login-stash.json")).unwrap(),
     )
     .unwrap();
     assert_eq!(stash["logins"]["sub:alice|account:team"], auth);
@@ -260,12 +320,15 @@ async fn cc04_codex_catalog_sdk_api_recovers_marked_catalog_and_pointer_before_r
     use base64::{Engine as _, engine::general_purpose::URL_SAFE_NO_PAD};
     use std::os::unix::fs::MetadataExt;
     use vw_agent_apps::providers::live::commit::*;
+    if run_in_isolated_home() {
+        return;
+    }
     let f = Fixture::new().await;
     f.client
         .codex_provider_save("one", &f.request(true, ClaudeActivation::Switch), TOKEN)
         .await
         .unwrap();
-    let directory = f.root.path().join(".codex");
+    let directory = f.root.join(".codex");
     let meta = std::fs::metadata(&directory).unwrap();
     let mut changes = Vec::new();
     for (index, name) in ["config.toml", "shiju-model-catalog.json"].into_iter().enumerate() {
@@ -288,7 +351,7 @@ async fn cc04_codex_catalog_sdk_api_recovers_marked_catalog_and_pointer_before_r
         provider_record: None,
         project_preimage: None,
         version: 1,
-        host: ExecutionHostId::new("host").unwrap(),
+        host: ExecutionHostId::new(HOST).unwrap(),
         app: vw_api_app_identity::AppId::Codex,
         tenant: TenantScope::new("p", "a").unwrap(),
         directory_device: meta.dev(),
@@ -297,7 +360,7 @@ async fn cc04_codex_catalog_sdk_api_recovers_marked_catalog_and_pointer_before_r
         files: changes,
         published: true,
     };
-    let path = f.root.path().join("private/provider-live/aG9zdA/codex.pending.json");
+    let path = f.transaction_dir().join("codex.pending.json");
     std::fs::write(&path, serde_json::to_vec(&pending).unwrap()).unwrap();
     std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o600)).unwrap();
     let result = f.client.codex_provider_switch("one", &f.target(), TOKEN).await.unwrap();
@@ -314,23 +377,21 @@ async fn cc04_codex_catalog_sdk_api_recovers_marked_catalog_and_pointer_before_r
 
 #[tokio::test]
 async fn cc04_codex_catalog_missing_write_grant_and_managed_rows_are_rejected() {
+    if run_in_isolated_home() {
+        return;
+    }
     let f = Fixture::new().await;
-    let path = f.root.path().join("access.json");
-    let mut policy: Value = serde_json::from_slice(&std::fs::read(&path).unwrap()).unwrap();
-    policy["principals"][0]["grants"][0]["provider_config_write"] = json!(false);
-    std::fs::write(&path, policy.to_string()).unwrap();
+    // Pairing owns write authentication now. An unpaired client must not create a record.
     let before = std::fs::read(f.file()).unwrap();
-    assert!(
-        f.client
-            .codex_provider_save("denied", &f.request(true, ClaudeActivation::Switch), TOKEN)
-            .await
-            .is_err()
-    );
+    let denied = f.client_with_key("invalid-token")
+        .codex_provider_save("denied", &f.request(true, ClaudeActivation::Switch), TOKEN)
+        .await;
+    assert!(matches!(denied, Err(gateway_http::AgentAppsReadError::Http {
+        status: 401, body: Value::Null
+    })));
     assert!(f.record("denied").is_none());
     assert_eq!(std::fs::read(f.file()).unwrap(), before);
-    assert_eq!(std::fs::read_dir(f.root.path().join(".codex")).unwrap().count(), 1);
-    policy["principals"][0]["grants"][0]["provider_config_write"] = json!(true);
-    std::fs::write(&path, policy.to_string()).unwrap();
+    assert_eq!(std::fs::read_dir(f.root.join(".codex")).unwrap().count(), 1);
     f.client
         .codex_provider_save("one", &f.request(true, ClaudeActivation::CatalogOnly), TOKEN)
         .await
@@ -348,7 +409,7 @@ async fn cc04_codex_catalog_missing_write_grant_and_managed_rows_are_rejected() 
         .unwrap();
     assert!(f.client.codex_provider_switch("one", &f.target(), TOKEN).await.is_err());
     assert_eq!(std::fs::read(f.file()).unwrap(), before);
-    assert_eq!(std::fs::read_dir(f.root.path().join(".codex")).unwrap().count(), 1);
+    assert_eq!(std::fs::read_dir(f.root.join(".codex")).unwrap().count(), 1);
 }
 
 #[tokio::test]
@@ -356,6 +417,9 @@ async fn cc04_ui_codex_sdk_edits_mapping_and_preserves_inactive_fields_through_n
 {
 use vw_api_app_provider_base::basic::ProviderBasic;
     use vw_api_app_provider_base::create::ProviderSecretWrite;
+    if run_in_isolated_home() {
+        return;
+    }
     let f = Fixture::new().await;
     let mut seed = f.request(true, ClaudeActivation::First);
     seed.profile.config.push_str(
@@ -400,10 +464,11 @@ use vw_api_app_provider_base::basic::ProviderBasic;
             422,
         ),
     ] {
+        let client = f.client_with_key(token);
         let result = if create {
-            f.client.codex_form_create(id, &payload, token).await
+            client.codex_form_create(id, &payload, token).await
         } else {
-            f.client.codex_form_update(id, &payload, token).await
+            client.codex_form_update(id, &payload, token).await
         };
         assert!(
             matches!(result, Err(gateway_http::AgentAppsReadError::Http {
@@ -428,7 +493,7 @@ use vw_api_app_provider_base::basic::ProviderBasic;
     assert!(native.contains("# fixture comment"));
     assert!(!native.contains("fixture-private-command"));
     let catalog: Value = serde_json::from_slice(
-        &std::fs::read(f.root.path().join(".codex/shiju-model-catalog.json")).unwrap(),
+        &std::fs::read(f.root.join(".codex/shiju-model-catalog.json")).unwrap(),
     )
     .unwrap();
     assert_eq!(catalog["models"][0]["display_name"], "中文显示名");
@@ -440,6 +505,12 @@ use vw_api_app_provider_base::basic::ProviderBasic;
     assert_eq!(std::fs::read_to_string(f.file()).unwrap(), native);
     assert_eq!(f.state()["pointer"]["id"], "one");
 
+    // Start the first-provider scenario with fresh native state within this child.
+    let home = f.root.clone();
+    let transactions = f.transaction_dir();
+    drop(f);
+    std::fs::remove_dir_all(home.join(".codex")).unwrap();
+    std::fs::remove_dir_all(transactions).unwrap();
     let g = Fixture::new().await;
     let result = g.client.codex_form_create("first", &request, TOKEN).await.unwrap();
     assert_eq!(result.live, CodexLiveResult::Applied);
@@ -459,8 +530,13 @@ async fn auth6_remove_codex_reference_is_private_and_global_switch_is_rejected()
     vw_api_app_auth::AuthService,
 };
 
+    if run_in_isolated_home() {
+        return;
+    }
     let f = Fixture::new().await;
-    let root = f.root.path().join("private");
+    let root = f.root.join("private");
+    std::fs::create_dir(&root).unwrap();
+    std::fs::set_permissions(&root, std::fs::Permissions::from_mode(0o700)).unwrap();
     let tenant = TenantScope::new("p", "a").unwrap();
     let scope = AuthAccountScope {
         tenant: &tenant,

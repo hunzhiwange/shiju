@@ -1,6 +1,7 @@
 use super::*;
 use crate::channels::wecom::runtime::WeComRuntimeScope;
 use crate::channels::{WeComChannel, traits::Channel};
+use crate::config::Config;
 use futures_util::{SinkExt, StreamExt};
 use serde_json::{Value, json};
 use tokio::time::{Duration, timeout};

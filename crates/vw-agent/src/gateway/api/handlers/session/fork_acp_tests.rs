@@ -1,4 +1,5 @@
 use super::*;
+use crate::session::ui_store;
 #[test]
 #[should_panic(expected = "missing retained-user-1")]
 fn fork_acp_negative_missing_history_is_detected() {

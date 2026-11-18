@@ -62,3 +62,9 @@ python3 scripts/cargo_slot.py cargo test -p gateway-agent-apps --lib 'host_migra
 - 修改后两条精确测试分别1项、0 passed/1 failed、Cargo退出101，同样在264行401断言失败。日志：`/tmp/shiju-214-final-identity.log`、`/tmp/shiju-214-final-native.log`。使用cargo_slot.py的run(number=11)原生入口顺序复用缓存，双路径均为`/Users/xiangmin/worker/code/shiju/target/rust-slot-11`；入口已退出，锁释放。未启动CLI子进程，未取得轮换行为通过证据。
 - 审查diff：仅launch_tests.rs两行夹具变化，保留全部断言；git diff --check通过。未运行全量测试、桌面构建或额外Cargo check。代码与本记录一并提交，任务保留待回归。
 - 提交未完成：git commit --only 指定本任务两文件，多次等待并重试仍退出128，错误为.git/index.lock已存在；未删除共享锁或触碰其他暂存内容。需锁释放后提交本任务差异。
+
+## 11 月 18 日回归准备
+
+- 提交 `c2fd46d05` 仅更新 `launch_tests.rs` 的两个目标用例与共享夹具，继续使用真实 HTTP/SDK/PTY 与账户持久化。macOS 复用真实 Gateway Basic 鉴权，验证匿名请求无法列出身份、启动或查询状态。每个用例以同名精确过滤启动隔离子进程，使用临时执行根和受限 PATH。
+- 两种身份都验证跨租户列表为空、选择不可用及会话不可见，保留脱敏、租约排他、私有目录权限、PTY、轮换写回和退出后清理。过期 kind/id 按现行 422 检查。保留待确认的旧契约：同租户不同主体的 404 及已认证但缺少逐身份 grant 的 403。当前 `execution_context` 将执行主体统一为 `desktop-local-user`，不读取逐身份 grants，现行公开接口无法构造这些状态。
+- `git diff --check` 通过。按调度指令本轮未启动 Cargo，待串行窗口以两条精确命令各跑 1 项，核对父/子结果和槽位双路径。验收前保留本卡。

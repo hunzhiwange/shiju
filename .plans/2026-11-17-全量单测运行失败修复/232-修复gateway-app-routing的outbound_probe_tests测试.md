@@ -54,3 +54,16 @@ python3 scripts/cargo_slot.py cargo test -p gateway-app-routing --lib 'host_migr
 - 两轮均使用槽位1；双缓存路径均为 `/Users/xiangmin/worker/code/shiju/target/rust-slot-1`，包装入口已退出；未运行全量测试。
 - 已排查目录准备、隔离路径及现有泛型RoutingProbe接口：改HOME不能恢复忽略的grants，伪造RoutingProbe授权不能验证真实产品安全行为，恢复旧授权或改403/404断言属于授权契约选择。已请求明确“迁移到当前Gateway配对授权并允许改旧断言”或“保留断言并恢复相应产品授权”。在决定前保留已阻塞；完整用例仍失败，不能标待回归或完成。
 - diff仅本用例新增4行和本编号记录；使用git-commit技能提交，保留其它暂存内容。
+
+## 第三次复核（2026-11-18）
+
+- 复核当前 `a356061dd` 及工作区。目录修复 `31ee8f75c` 已提交，此后相关改动只涉及聚合重同步测试。`5cb8b43dc` 明确移除旧项目及主机授权门槛，`vw-agent::gateway::bootstrap::client_router` 对生产路由应用实际 skey 中间件，认证成功后仅放行，不传递逐凭据主体。`execution_context` 仍固定使用 `desktop-local-user`，诊断注册器仍按完整范围和主体检查任务可见性。
+- 排查替代方案：接入真实中间件可以验证未认证请求，但不能产生旧 grants 的管理权限或主体差异。直接给诊断注册器注入异主体可验证数据隔离，不能验证该 HTTP 路由执行了旧授权契约。现有隔离路径夹具也无法改变授权行为。保留已阻塞，待确定是否按现行 Gateway 契约重写用例及其安全覆盖。无源码差异。
+- 同一原生精确命令重试日志 `/tmp/shiju-task232-resume3.log`。槽位3，`CARGO_TARGET_DIR` 与 `CARGO_BUILD_BUILD_DIR` 均为 `/Users/xiangmin/worker/code/shiju/target/rust-slot-3`。收到串行调度指令后在编译阶段向本任务包装入口发送 TERM，退出130，未执行测试。已确认自身包装入口和构建子进程退出、槽位锁释放，缓存保留，等待主会话安排串行验证。最新实际运行证据仍为上轮 0 通过、1 失败，202≠403。
+
+## Gateway 配对契约迁移（2026-11-18）
+
+- 用户已明确采用现行 Gateway 配对鉴权。复用共享夹具 `spawn_gateway_with_pairing`（`4e9e7bc47`）挂载生产 skey 中间件。有效凭据通过 SDK `GatewayAuth` 或原始 Bearer 请求传递；缺失、错误 skey 和仅旧应用令牌均断言 401，状态查询和取消也验证无 skey 时返回 401。
+- 旧项目角色 403 和 PEER 固定主体 404 改由实际可区分边界覆盖：使用有效 skey，分别改变租户、主机、项目和受支持应用，查询及取消同一任务均断言 404 `not_found`，随后原范围仍可取消。检验的是任务范围匹配，现行配对身份共用 `desktop-local-user`。保留请求字段校验、取消、超时、传输错误和代理凭据脱敏，新增代理连接头及结果不携带 Gateway skey 的检查。
+- 测试父进程启动带唯一临时 `VIBEWINDOW_TEST_ROOT` 的精确子进程，移除继承的 `VIBEWINDOW_TEST_HOME`。子进程在启动网关前断言根目录及运行时路径，路由、策略、加密密钥和诊断注册器使用同一临时根。代理仅绑定 loopback。无真实 Codex 配置改动。
+- `rustfmt --edition 2024 --emit stdout` 语法解析及 `git diff --check` 通过。当前重型编译窗口由其他会话占用，本轮按调度未运行 Cargo。授权契约已确定，状态仍保留为 `已阻塞`，具体阻塞为等待串行验证窗口。取得窗口后执行上列命令，确认父、子进程各实际运行 1 项并通过，再按公共约定收尾。

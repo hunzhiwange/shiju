@@ -105,3 +105,10 @@ Rust 编译资源和会话调度按 `.plans/references/rust.md` 的项目覆盖�
 - 通过 `python3 scripts/cargo_slot.py cargo test -j 1 -p acp-agent-registry --lib corust_managed_install_resolves_and_verifies_native_entry -- --ignored --nocapture` 验证生产安装函数。需将 `VIBEWINDOW_CONFIG_DIR` 和 `VW_ACP_INSTALL_ACCEPTANCE_ROOT` 设为同一私有绝对目录。修复前 1 失败，最终从空配置根真实下载安装、入口校验与重复安装 1 通过。
 - `python3 scripts/cargo_slot.py cargo clippy -j 1 -p acp-agent-registry -p config-acp-install --lib --tests` 退出 0，有既有 Codex 测试告警。未重建网关或桌面，未复验 HTTP 路由及配置保存。
 - 托管入口 ACP v1 握手通过，原指定模型的 `session/new` 仍要求 OAuth。公开资料未提供已验证的外部指定模型入口。未发 prompt、未修改租户配置，Rue.js 6344 项文件摘要零差异。私有证据 `/tmp/shiju-corust-patch.LDrqYV/`。保留已阻塞，待获授权并证明精确模型路由后重跑 HTTP 安装与落盘验收。
+
+### 网关安装与预设复验（2026-11-18）
+
+- 网关实测安装 HTTP 200，客户端退出 0，最终隔离轮 4.427022 秒，状态从未安装变为已安装，固定入口摘要相符。内置预设启用并重读成功。
+- 首轮未隔离 HOME，主数据库生效。删除原本缺省的预设覆盖返回 400，随后显式恢复停用并重读，留下一个停用条目。最终轮使用独立 HOME，与该轮完整配置基线及预设重读完全一致。
+- 网关诊断 `authentication_required`，指定模型仍为 `unsupported_cli`。官方认证地址不可用，公开发行缺少可构建的源码或经验证的指定模型入口。继续保留已阻塞。待获得 Corust 可用授权及原模型接入方式后，重跑真实会话并检查 Rue.js 落盘。
+- 自有网关退出 0，端口关闭，Rue.js 6351 项普通文件零差异。未运行 Cargo、页面或浏览器验证。新证据 `/tmp/shiju-corust-isolated.EENuh1/` 和 `/tmp/shiju-corust-restore.yWwuic/`。

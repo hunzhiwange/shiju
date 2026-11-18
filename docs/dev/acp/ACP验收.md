@@ -1347,3 +1347,10 @@ macOS arm64 的托管安装已实测，指定模型和 Rue.js 落盘验收仍阻
 - 实际产物为 `acpdemo/omp/` 中的 `index.html`、`vite.config.mjs`、`README.md`、`src/App.tsx`、`src/env.d.ts`、`src/main.tsx` 和 `src/style.css`。源码通过共享 Vite 别名引用本仓库 `@rue-js/rue`，实现纯文本输入、实时非空白字符计数和 localStorage 保存与恢复。README 提供运行命令。按计划未运行浏览器或页面构建。
 - 最后一轮 Rue.js 普通文件 SHA-256 快照从 6344 项增至 6351 项，差异恰为上述七个文件。原开发配置未收到 PATCH，私有副本的预设和全局配置恢复基线后移除。自有网关全部退出 0，端口已关闭。私有证据在本机 0700 目录 `/tmp/shiju-omp-implementation.Vo2H1W/`。
 - 槽位 10 的固定发行契约、两项宿主写入边界和现代选模回读共四项通过。槽位 3 的 OMP 驱动两项通过，受影响的三个库执行定向 Clippy 退出 0，保留既有警告。未运行整仓回归、桌面编译或其他 ACP 验收。
+
+### Corust 网关安装与预设复验（2026-11-18）
+
+- 复用包含 Corust 发行资产 ID 419147804 的 OMP 验收网关，构建 SHA-256 `f4fc4393d1fc6783d6d5599d4123161ea68ee249442ad4cea5695e0071465c75`。最终轮隔离 HOME 和配置数据库，按原租户和工作区头请求。安装 HTTP 200、客户端退出 0、耗时 4.427022 秒，安装状态由 false 变 true，托管入口摘要与 v0.6.0 固定值一致。
+- 网关诊断 HTTP 200，业务结果 `authentication_required`。模型来源接口为 `session_model: unsupported_cli`、`connected: false`。官网域名在本机无法解析，厂商网关根路径及二进制中的令牌路径探测曾返回 525，未取得有效 OAuth 回调。官方 CLI 仓库明确只分发安装器和二进制，未找到支持原指定模型的公开接口或可构建源码。待厂商提供可用认证及指定模型接口后重跑会话和文件创建。[官方 CLI 发布仓库](https://github.com/rustingai/corust-cli)
+- 首轮使用私有配置目录但未隔离 HOME，主目录下的数据库仍生效。内置预设启用并成功重读，尝试恢复为缺省条目时接口返回 HTTP 400，禁止删除内置预设。随后经 PATCH 显式设回停用，GET 复查生效，和首轮全局配置相比只剩这一显式停用条目。最终隔离轮再次开启并恢复，GET 的完整配置及预设均与该轮基线相等。
+- 自有网关退出 0、端口关闭，临时配置副本已清理。Rue.js 6351 项普通文件摘要零差异，目标目录不存在。未发送创建请求，未运行 Cargo、页面或浏览器验证。私有证据 `/tmp/shiju-corust-isolated.EENuh1/`、`/tmp/shiju-corust-restore.yWwuic/`、`/tmp/shiju-corust-http.FxSv94/` 及 `/tmp/shiju-corust-http.KdfIEs/`。

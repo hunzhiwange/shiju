@@ -5,7 +5,7 @@ use rust_decimal::Decimal;
 use super::Outcome;
 
 use desktop_ui_controls::system_settings_common::*;
-use iced::{Element, Length, Task, widget::{button, column, row, text}};
+use iced::{Element, Length, Task, widget::{button, column, container, row, text}};
 use gateway_usage_price::{Currency, RateMode, UsageDisplayPatch, UsageRatesState};
 use gateway_usage_scan::UsageScanScope;
 
@@ -216,7 +216,41 @@ pub fn status(state: &State, current: Option<Identity>) -> String {
     format!("{:?} · {:?} · 1 USD = {} {:?} · 来源 {} · 缓存{} · {}{} · 未知费用始终未知", result.settings.currency, result.settings.mode, d.rate, d.currency, d.source, if d.stale { "已过期" } else { "未过期" }, if d.degraded { "已降级" } else { "正常" }, d.error.as_ref().map(|e| format!(" · {e}")).unwrap_or_default())
 }
 fn action(label: &'static str, event: Event, enabled: bool) -> Element<'static, Outcome<Event>> {
-    button(text(label)).padding([8, 14]).style(rounded_action_btn_style).on_press_maybe(enabled.then(|| message(event))).into()
+    button(text(label).size(13))
+        .padding([7, 12])
+        .style(rounded_action_btn_style)
+        .on_press_maybe(enabled.then(|| message(event)))
+        .into()
+}
+
+fn save_button(label: &'static str, enabled: bool) -> Element<'static, Outcome<Event>> {
+    button(text(label).size(14))
+        .padding([9, 16])
+        .style(primary_action_btn_style)
+        .on_press_maybe(enabled.then(|| message(Event::Save)))
+        .into()
+}
+
+fn choice_button(
+    label: &str,
+    event: Option<Event>,
+    selected: bool,
+) -> iced::widget::Button<'static, Outcome<Event>> {
+    let label = if selected {
+        format!("✓ {label}")
+    } else {
+        label.to_owned()
+    };
+    button(text(label).size(13))
+        .padding([7, 12])
+        .style(move |theme, status| {
+            if status == button::Status::Disabled && !selected {
+                rounded_action_btn_style(theme, status)
+            } else {
+                settings_segment_button_style(theme, status, selected)
+            }
+        })
+        .on_press_maybe(event.map(message))
 }
 #[derive(Clone, Copy, PartialEq, Eq)]
 struct CurrencyOption(Currency);
@@ -278,7 +312,7 @@ pub fn quick_settings<'a>(
                     .into(),
             ));
         }
-        controls = controls.push(action("保存币种", Event::Save, enabled));
+        controls = controls.push(save_button("保存币种", enabled));
     }
     if let Some(error) = &state.preferences_error {
         controls = controls.push(settings_error_banner(error));
@@ -302,22 +336,90 @@ fn quick_row<'a>(
     .into()
 }
 
-pub fn overlay<'a, M: Clone + 'static>(state: &'a State, current: Option<Identity>, base: Element<'a, M>, map: fn(Outcome<Event>) -> M) -> Element<'a, M> {
-
-    if !state.open { return base; }
+pub fn overlay<'a, M: Clone + 'static>(
+    state: &'a State,
+    current: Option<Identity>,
+    base: Element<'a, M>,
+    map: fn(Outcome<Event>) -> M,
+) -> Element<'a, M> {
+    if !state.open {
+        return base;
+    }
     let enabled = !state.busy;
-    let mut body = column![quick_row("币种", currency_picker(state, enabled)),
-        row![action("自动汇率", Event::Mode(RateMode::Auto), enabled), action("手工汇率", Event::Mode(RateMode::Manual), enabled)].spacing(8),
-        text("汇率：1 USD 对应的目标币种金额（自动模式只读）"),
-        settings_text_input("有限正数", &state.rate).on_input_maybe((enabled && state.mode == RateMode::Manual && state.currency != Currency::USD).then_some(|v| message(Event::Rate(v)))),
-        row![action("柱形图", Event::Trend(false), enabled && state.preferences.area), action("曲线面积图", Event::Trend(true), enabled && !state.preferences.area)].spacing(8),
-        text("侧栏今日（最多两项；全部取消则隐藏）"),
-        today_controls(state, enabled),
-        text(status(state, current)), text("换算仅供显示，账本仍使用 USD。列表和图表中带 USD 的金额保留原币种。")].spacing(12);
-    if let Some(error) = &state.preferences_error { body = body.push(settings_error_banner(error)); }
-    if let Some(error) = &state.error { body = body.push(settings_error_banner(error)); }
-    let footer = row![action("保存币种与汇率", Event::Save, enabled && state.result.is_some()), action("刷新自动汇率", Event::Refresh, enabled), action("重新加载", Event::Reload, enabled), action("关闭", Event::Close, true)].spacing(8);
-    settings_modal_overlay(Some(base), map(message(Event::Close)), Element::from(settings_modal_layout(column![text("币种与显示设置").size(20)], body, Some(footer.into())).width(780).height(540)).map(map))
+    let auto = state.mode == RateMode::Auto;
+    let area = state.preferences.area;
+    let editable_rate = enabled && !auto && state.currency != Currency::USD;
+    let rate_modes = row![
+        choice_button("自动", (enabled && !auto).then_some(Event::Mode(RateMode::Auto)), auto),
+        choice_button("手工", (enabled && auto).then_some(Event::Mode(RateMode::Manual)), !auto),
+    ]
+    .spacing(6);
+    let chart_styles = row![
+        choice_button("柱形图", (enabled && area).then_some(Event::Trend(false)), !area),
+        choice_button("曲线面积图", (enabled && !area).then_some(Event::Trend(true)), area),
+    ]
+    .spacing(6)
+    .wrap();
+
+    let currency = column![
+        settings_group_heading("币种与汇率", "换算仅供显示，账本及标注 USD 的金额保留原币种。"),
+        quick_row("显示币种", currency_picker(state, enabled)),
+        quick_row("汇率模式", rate_modes.into()),
+        quick_row(
+            "1 USD 对应",
+            settings_text_input("目标币种金额", &state.rate)
+                .on_input_maybe(editable_rate.then_some(|value| message(Event::Rate(value))))
+                .into(),
+        ),
+        text(status(state, current)).size(12).style(settings_muted_text_style),
+        row![
+            action("刷新自动汇率", Event::Refresh, enabled),
+            action("重新加载", Event::Reload, enabled),
+        ]
+        .spacing(8)
+        .wrap(),
+    ]
+    .spacing(10);
+    let display = column![
+        settings_group_heading("用量显示", "图表和侧栏偏好即时生效。"),
+        quick_row("趋势图样式", chart_styles.into()),
+        quick_row(
+            "侧栏「今日」",
+            settings_control_with_hint(
+                today_controls(state, enabled),
+                "最多选两项，全部取消后隐藏。",
+            ),
+        ),
+    ]
+    .spacing(10);
+    let mut body = column![currency, settings_divider(), display].spacing(16);
+    if let Some(error) = &state.preferences_error {
+        body = body.push(settings_error_banner(error));
+    }
+    if let Some(error) = &state.error {
+        body = body.push(settings_error_banner(error));
+    }
+
+    let close = message(Event::Close);
+    let header = settings_modal_header(
+        text("币种与显示设置").size(22),
+        settings_close_button(close.clone()),
+    );
+    let footer = column![
+        settings_divider(),
+        container(save_button("保存币种与汇率", enabled && state.result.is_some()))
+            .align_right(Length::Fill),
+    ]
+    .spacing(12);
+    let card = settings_modal_layout(header, body, Some(footer.into()))
+        .width(580)
+        .height(560)
+        .style(|theme| {
+            let mut style = settings_modal_card_style(theme).background(theme.palette().background);
+            style.border.radius = 16.0.into();
+            style
+        });
+    settings_modal_overlay(Some(base), map(close), Element::from(card).map(map))
 }
 
 fn selected_rate(state: &State) -> Option<f64> {
@@ -382,9 +484,12 @@ fn today_controls(state: &State, enabled: bool) -> Element<'static, Outcome<Even
     let mut controls = row![].spacing(8);
     for (item, _, label) in TODAY {
         let selected = state.preferences.today.contains(&item);
-        controls = controls.push(button(text(format!("{} {label}", if selected { "✓" } else { "○" })).size(12))
-            .padding([5, 8]).style(rounded_action_btn_style)
-            .on_press_maybe((enabled && (selected || state.preferences.today.len() < 2)).then(|| message(Event::Today(item)))));
+        let available = enabled && (selected || state.preferences.today.len() < 2);
+        controls = controls.push(choice_button(
+            label,
+            available.then_some(Event::Today(item)),
+            selected,
+        ));
     }
     controls.wrap().into()
 }

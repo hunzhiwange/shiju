@@ -19,7 +19,7 @@
 | 挂载 | `ses_1efb69790001cPWv1yRl4VkwEm` | 200 / 0 / 257.928441 | `chat.done`，三种目标工具完成，另有四种图谱工具调用 |
 | 撤除 | `ses_1efba875c0011quOTRtzZcQe4g` | 200 / 0 / 4.180166 | `chat.done`，`MCP_NOT_AVAILABLE`，零工具 |
 
-三轮均无 `chat.error` 或模型恢复事件。UI summary 回读 `acp-kimi / kimi`、`full_access=true`，ACP options 运行中为 `connected=true`、`access_status.support=partial`，结束后连接释放，模型绑定仍可回读。原生 ACP 新会话分别收到 0、1、0 项服务。三轮均确认已有的 `mode=yolo` 控制，`model=session-selected` 和 `thinking=on` 保持原值。实际工具调用均属所挂服务，未出现审批回调、Shell 或文件写入事件。本轮覆盖三个新会话。后台标题生成模型另有一次 HTTP 403，聊天选定模型完成三轮推理。
+三轮均无 `chat.error` 或模型恢复事件。UI summary 回读 `acp-kimi / kimi`、`full_access=true`，ACP options 运行中为 `connected=true`、`access_status.support=partial`，结束后连接释放，模型绑定仍可回读。原生 ACP 新会话分别收到 0、1、0 项服务。三轮均确认已有的 `mode=yolo` 控制，`model=session-selected` 和 `thinking=on` 保持原值。实际工具调用均属所挂服务，未出现审批回调、Shell 或文件写入事件。本轮覆盖三个新会话。后台标题生成模型另有两次 HTTP 403，聊天选定模型完成三轮推理。
 
 挂载轮共 861 条 SSE 工具更新。按原生调用 ID 汇总，147 次调用完成，其中 query 73 次、callers 11 次、node 51 次，另有 files 7 次、callees 3 次、status 1 次、explore 1 次。以下各调用均有原生开始、完成和结果。
 

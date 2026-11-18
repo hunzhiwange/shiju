@@ -1,5 +1,6 @@
 """Translate explicit ACP mounts to Cortex client tools without changing its sandbox."""
 import asyncio
+import hashlib
 import json
 import os
 from pathlib import Path
@@ -36,6 +37,17 @@ def encode(message):
 
 def fail(identifier, message):
     return {'id': identifier, 'error': {'code': -32603, 'message': message}}
+
+
+def allowed_tool(definition, server, name):
+    policy = (definition.get('_meta') or {}).get('shiju.cortex.toolPolicy', {})
+    allow, deny = policy.get('allow', []), policy.get('deny', [])
+    tool_id = f'mcp__{server.lower()}__{name.lower()}'
+    if server != server.lower() or name != name.lower() or len(tool_id) > 64:
+        digest = hashlib.sha256(f'{server}\0{name}'.encode()).hexdigest()[:16]
+        tool_id = f'{tool_id[:47]}_{digest}'
+    matches = {name, tool_id}
+    return not matches.intersection(deny) and (not allow or matches.intersection(allow))
 
 
 class Stdio:
@@ -164,7 +176,11 @@ class Bridge:
                 async for tool in peer.list_tools():
                     name = tool['name']
                     public = PREFIX + server + '__' + name
-                    if (not NAME.fullmatch(name) or len(public) > 64 or public in selected
+                    if not NAME.fullmatch(name):
+                        raise ValueError('Invalid Cortex MCP tool name')
+                    if not allowed_tool(definition, server, name):
+                        continue
+                    if (len(public) > 64 or public in selected
                             or len(selected) >= 256 or not isinstance(tool.get('inputSchema'), dict)):
                         raise ValueError('Invalid or duplicate Cortex MCP tool name')
                     selected[public] = (name, peer, {

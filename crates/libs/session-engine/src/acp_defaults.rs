@@ -110,9 +110,23 @@ pub async fn apply_agent_defaults<H: DefaultsHost, S>(
     }
     parsed.mcp_servers = mcp
         .mcp_servers
-        .into_iter()
+        .iter()
         .filter(|server| {
             effective.mcp.iter().any(|id| id == mcp_client::server_name(server))
+        })
+        .map(|server| {
+            let mut selected = server.clone();
+            if backend == "cortex-code" {
+                let policy = mcp_client::management_for_server(&mcp, server);
+                if let acp_types::AcpMcpServer::Stdio(stdio) = &mut selected {
+                    // Cortex's client tool bridge enforces the resolved host policy.
+                    stdio.meta.get_or_insert_with(Default::default).insert(
+                        "shiju.cortex.toolPolicy".into(),
+                        serde_json::json!({"allow": policy.allowed_tools, "deny": policy.denied_tools}),
+                    );
+                }
+            }
+            selected
         })
         .collect();
     let mut messages = messages

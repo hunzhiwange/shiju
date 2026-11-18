@@ -19,7 +19,7 @@ TOOLS = (
 PREFIX = 'shiju_mcp_ruejs_graph_probe__rustcodegraph_'
 
 
-def verify(launcher, graph, workspace, mounted, approve, load=False, cancel=False):
+def verify(launcher, graph, workspace, mounted, approve, load=False, cancel=False, restricted=False):
     requests, permissions = [], []
 
     class Relay(BaseHTTPRequestHandler):
@@ -93,6 +93,11 @@ def verify(launcher, graph, workspace, mounted, approve, load=False, cancel=Fals
                 rpc(1, 'initialize', {'protocolVersion': 1, 'clientCapabilities': {}})
                 definition = {'name': 'ruejs_graph_probe', 'command': str(graph), 'env': [],
                               'args': ['serve', '--mcp', '--path', str(workspace), '--no-watch']}
+                if restricted:
+                    definition['_meta'] = {'shiju.cortex.toolPolicy': {
+                        'allow': [f'rustcodegraph_{tool}' for tool, _, _ in TOOLS] + ['rustcodegraph_status'],
+                        'deny': ['mcp__ruejs_graph_probe__rustcodegraph_status'],
+                    }}
                 mount = [definition] if mounted else []
                 created = rpc(2, 'session/new', {'cwd': str(workspace), 'mcpServers': [] if load else mount})
                 session = created['sessionId']
@@ -124,6 +129,8 @@ def verify(launcher, graph, workspace, mounted, approve, load=False, cancel=Fals
         return
     expected_names = [PREFIX + tool for tool, _, _ in TOOLS]
     assert set(expected_names) <= names, 'Mounted tools absent from model input'
+    if restricted:
+        assert names == set(expected_names), 'Host tool policy leaked an unselected tool'
     if cancel:
         assert len(requests) == 1 and permissions == expected_names[:1]
         return
@@ -144,3 +151,5 @@ if __name__ == '__main__':
         print(f'passed mounted={mounted} approve={approve} load={load}', flush=True)
     verify(args.launcher, args.graph, args.workspace, True, True, cancel=True)
     print('passed cancellation while awaiting approval', flush=True)
+    verify(args.launcher, args.graph, args.workspace, True, True, restricted=True)
+    print('passed three-tool host policy', flush=True)

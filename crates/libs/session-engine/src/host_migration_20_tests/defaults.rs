@@ -71,3 +71,50 @@ async fn agent_config_cleanup_full_access_acp_preserves_false_and_deny() {
     );
     }).await;
 }
+
+#[tokio::test]
+async fn cortex_mcp_mount_carries_resolved_tool_policy() {
+    isolated(async {
+        let workspace = tempfile::tempdir().unwrap();
+        let project = workspace.path().join("project.json");
+        std::fs::write(
+            &project,
+            json!({
+                "mcpServers": [{
+                    "name": "graph",
+                    "command": "/test/graph",
+                    "allowedTools": ["query", "node"],
+                    "deniedTools": ["node"],
+                    "_meta": {"shiju.cortex.toolPolicy": {"allow": ["ambient"], "deny": []}}
+                }]
+            })
+            .to_string(),
+        )
+        .unwrap();
+        let resolved =
+            acp_config::load_resolved_config_from_paths(workspace.path().join("global.json"), project)
+                .await
+                .unwrap();
+        STATE.with(|state| *state.borrow_mut() = resolved);
+        let cfg = config::Config::default();
+        let mut parsed = ParsedAcpOptions::default();
+        apply_agent_defaults(
+            &cfg,
+            &json!({"agent": "acp-cortex-code"}),
+            "cortex-code",
+            workspace.path(),
+            &mut parsed,
+            &json!([]),
+        )
+        .await
+        .unwrap();
+
+        assert_eq!(parsed.mcp_servers.len(), 1);
+        let wire = serde_json::to_value(&parsed.mcp_servers[0]).unwrap();
+        assert_eq!(
+            wire["_meta"]["shiju.cortex.toolPolicy"],
+            json!({"allow": ["query", "node"], "deny": ["node"]})
+        );
+    })
+    .await;
+}

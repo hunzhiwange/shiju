@@ -62,3 +62,18 @@
 - 最终答复复原了调用链及各分支，并把静态 DOM 重复列为预测。第二个场景使用的 `counter-button` 测试标记在该快照的应用源码中不存在，落地该断言需绑定真实交互控件或在测试夹具添加该标记。
 - 三轮结束后选模均保持原绑定，连接已释放。挂载中原生权限回读为 `native`，原生轨迹仍为 `approval_policy=never`、`sandbox_policy=danger-full-access`。临时挂载已撤除，转发器与 RustCodeGraph 进程均退出，副本源码和 Codex 用户配置摘要相等。无运行时改动，未跑 Cargo。
 - 状态仍为已阻塞。直连副本曾实现零工具失败，但使用了额外工具。过滤副本仅调用三种工具，但出现了可复现的真实工具失败。当前严格合同需要同一轮同时满足两项；恢复条件是指定模型在该只读目录完成零失败挂载轮，或验收方明确允许这些已恢复的探索读取失败。RustCodeGraph 若能索引当前遗漏的入口符号，也可在版本更新后原样复跑。
+
+## RustCodeGraph 1.2.11 复验
+
+复用上述 Codex 2.5.0／0.165.0 和同一开发网关、RueJS 提交、提示、模型、租户及权限。RustCodeGraph 1.2.11 发行构建 SHA-256 为 `5fab2f2dbf506ddf71d842ef1a7cd6e744c5ec90ff3f5f043ea020e1b3696312`。新建索引覆盖 3478 文件，查询 `createAppRouter` 命中 `app/router/index.ts:787`。当前宿主向 Cortex、DeepAgents 和 Pi 下发各自的会话工具策略。当前受审 Codex 入口没有接收同类策略的路径，本轮复用已验证的 Goose 私有 stdio 过滤器和该副本的真实入口文件、分页与索引根元数据。直连公开 8 项，过滤目录公开 3 项。三种工具的真实结果逐项相等，额外工具和越界文件请求均被拒绝。[Goose 过滤路径](goose.md) · [Pi 发行构建](pi.md)
+
+| 轮次 | 新会话 | HTTP / curl | 秒 | SSE 与工具 |
+| --- | --- | --- | --- | --- |
+| 无挂载 | `ses_1f0f6a13e001W7zJnQVY6y1D9Z` | 200 / 0 | 24.12 | `chat.done` ×1，零工具 |
+| 挂载 | `ses_1f0f70171001VWV7hbspM9FSyV` | 200 / 0 | 52.80 | `chat.done` ×1，16 次工具成功，终帧解析失败 |
+| 撤除 | `ses_1f0f7d28e001VgeKWrayKKS5ak` | 200 / 0 | 18.81 | `chat.done` ×1，零工具 |
+
+- 对照轮原生最终答复精确为 `MCP_NOT_AVAILABLE`。挂载轮 query 4 次、callers 1 次、node 11 次，零失败、零额外工具，16 个原生调用 ID 均有对应结果。query `call_cc203a3308264f8fb05cef23` 命中 `app/app.tsx:32`，callers `call_2a99bab29da248b49e179fc3` 返回 `app/app.tsx:39`，node `call_2ca6fec070854503b81276de` 读回 `app/app.tsx`，另一次 query 命中 `packages/runtime/src/compiler-runtime/app.ts:57`。
+- 这条新版路径运行一组三轮。挂载轮出现一次 `stream disconnected before completion: failed to parse ResponseCompleted: missing field reasoning_tokens`，错误在 `chat.delta` 内，之后仍有 `chat.step_finish` 和 `chat.done`。最终调查答复未生成，故严格验收仍阻塞。上轮 1.2.10 的无效路径读取在本轮未出现。
+- 当前共享 `responses_stream::finish` 调用 `responses::from_chat` 后发出 `response.completed`。后者原样复制存在的 `completion_tokens_details` 为 `output_tokens_details`，不补其成员，存在产生缺 `reasoning_tokens` 对象的路径。未抓取原始上游帧，尚未确认触发该形状的供应商用量字段。下一步需获准修复共享 Chat → Responses 终帧兼容，或取得该边界已修复的受审构建，以原三轮复验。本轮未改运行时或跑 Cargo。
+- 三轮 UI summary 保持 `acp-codex / codex` 和 `full_access=true`。挂载中权限回读为 `native`，原生审批和沙箱模式仍为 `never` 与 `danger-full-access`。结束后三轮选模仍绑定指定阿里模型，连接均已释放。私有挂载配置、两个子进程已清理，4108 个普通源码文件和 Codex 用户配置摘要与开始时一致。

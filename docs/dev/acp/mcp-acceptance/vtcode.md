@@ -33,3 +33,21 @@
 - 上游 TOML 支持启动期 MCP provider。直接写入 stdio provider 仍受子进程限制，独立 HTTP 端口也不在当前沙箱的网络范围内。仓库未找到可直接复用、同时保留会话授权与撤除的 VT Code MCP 转发入口。本次保留权限边界和现有驱动。复跑需要经审查的后端支持，能消费会话服务列表并在现有权限下把同一 RustCodeGraph 工具的调用结果送回模型。[VT Code MCP 配置](https://github.com/vinhnx/vtcode/blob/main/docs/guides/mcp-integration.md)
 
 私有网关已退出，监听端口已关闭，私有授权文件和副本中的临时挂载配置已清理。原 RueJS 与用户全局配置未写入。原始证据保留于本机 0700 目录。本轮仅提交验收记录。现有 `onboarding_vtcode` 生命周期夹具覆盖建会话、继续和取消，没有改变这些边界，未运行 Cargo。
+
+## 共享构建与三工具转发复验
+
+复用共享槽位 3 的 ShiJu 0.6.0 构建副本，SHA-256 为 `1a033a19a5c5e2c115e90abbd336f898c0df3ac101a9824ffe8b36f11b0bcc47`。受管 VT Code 仍为 0.183.0。固定 RueJS 提交、提示、服务名、租户、指定模型、`session_model` 和 `full_access=true`。挂载轮复用 Goose 的私有 stdio 转发器，仅声明三种真实图谱工具，补齐分页和实际入口元数据，注明 `projectPath` 可省略且仅根目录存在索引。转发保持参数和上游结果。私有网关确认挂载时宿主侧 MCP 初始化成功。[Goose 三工具转发基线](goose.md#通过的三轮)
+
+| 轮次 | 新会话 | HTTP / curl 退出码 / 耗时 | SSE 结果 |
+| --- | --- | --- | --- |
+| 无挂载 | `ses_1f0579fc4001wolHPOEW2VLnNM` | 200 / 0 / 4.488 秒 | `chat.done`，仅 `MCP_NOT_AVAILABLE`，零工具 |
+| 挂载 | `ses_1f057b26e001J5Ku0m9YgFH6a8` | 200 / 0 / 4.038 秒 | `chat.done`，仅 `MCP_NOT_AVAILABLE`，零工具 |
+| 撤除 | `ses_1f057c3b9001qeyaKgLfTe70Nx` | 200 / 0 / 3.561 秒 | `chat.done`，仅 `MCP_NOT_AVAILABLE`，零工具 |
+
+每轮新建会话并收到一个 `chat.done`，均无 `chat.error` 或模型恢复事件。UI summary 回读后端绑定和全访问请求，ACP options 在线时读到 `client_only` 与指定模型，终态三次均释放连接。挂载仍未回传三种工具的结果，答复准确性无法验收。另有自动标题模型请求返回 HTTP 403。
+
+独立诊断沿用 OMP 的同端口办法。在沙箱允许的唯一回环端口提供模型探针和带独立占位令牌的 MCP HTTP 转发。用同一 VT Code 二进制比较三次原生 ACP 初始化及提示，配置分别为空列表、建会话携带 HTTP 服务，以及在建会话携带 HTTP 的同时启用私有 TOML 的 `mcp.providers`。三次 ACP 提示均返回 `end_turn`，模型探针均只收到相同的五种原生工具声明，HTTP 服务没有收到 VT Code 发来的 MCP 请求。模型探针位于生产中继工具过滤之前，使用占位密钥及诊断答复。随后用宿主客户端请求同一 HTTP 路由，成功列出三种限定工具，并收到真实 `query`、`callers` 和 `node` 结果，分别命中 `app/app.tsx:32`、`app/app.tsx:39`、`packages/runtime/src/hooks/useApp.ts:4`。这些控制调用不计入真实会话验收。[OMP 同端口诊断](omp.md#同端口传输和权限诊断)
+
+VT Code 的 ACP 注册表由 `ZedAgent::new` 初始化。启动期 MCP provider 的初始化在交互运行循环中，固定版 ACP 路径未接入。Goose 和 Hermes 的目录转发依赖原生 ACP 接入。OMP 的办法依赖原生 ACP 消费 HTTP 服务。两种前提在 VT Code 固定入口均未满足。Pi、OpenClaw 的受管适配各自依赖已接线的引擎入口，VT Code 没有等效入口。复跑所需条件为可按仓库契约安装的受审 VT Code 原生 ACP 发行，具备会话级 MCP 注册、宿主审批和同一调用 ID 的结果回传。若由本仓库维护该能力，则需要另行确定原生补丁的构建、交付和摘要审查归属。独立转发器和同端口配置的证据已取得，继续调整工具描述无法解决注册边界。[VT Code ACP 注册表](https://github.com/vinhnx/VTCode/blob/0.183.0/crates/codegen/vtcode-acp/src/zed/agent/mod.rs#L88-L118)
+
+本轮只更新验收记录。未修改 Rust 或运行 Cargo。私有网关、原生诊断和图谱进程已退出，临时挂载与私有授权文件已清理。

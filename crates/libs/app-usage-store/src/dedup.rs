@@ -3,13 +3,21 @@ use rusqlite::{Connection, OptionalExtension, params};
 use vw_api_usage::UsageSourceKind;
 use super::store::{StoredUsageRecord, UsageSourceIdentity, UsageStoreError};
 
+const MATCH_WINDOW_SECONDS: i64 = 600;
+
 fn storage(_: rusqlite::Error) -> UsageStoreError { UsageStoreError::StorageUnavailable }
 
 pub(super) fn initialize(connection: &Connection) -> Result<(), UsageStoreError> {
     // Receipts survive detail pruning, preventing late sources from billing twice.
     connection.execute_batch("CREATE TABLE IF NOT EXISTS usage_dedup_receipts (
         scope_key TEXT NOT NULL, identity_key TEXT NOT NULL, record_id TEXT NOT NULL,
-        payload_json TEXT NOT NULL, PRIMARY KEY(scope_key, identity_key));")
+        payload_json TEXT NOT NULL, PRIMARY KEY(scope_key, identity_key));
+        CREATE INDEX IF NOT EXISTS usage_records_dedup_time
+            ON usage_records(scope_key, json_extract(payload_json, '$.record.started_at_unix_seconds'));
+        CREATE INDEX IF NOT EXISTS usage_source_identities_dedup_record
+            ON usage_source_identities(scope_key, record_id);
+        CREATE INDEX IF NOT EXISTS usage_dedup_receipts_time
+            ON usage_dedup_receipts(scope_key, json_extract(payload_json, '$.record.started_at_unix_seconds'));")
         .map_err(storage)
 }
 
@@ -24,7 +32,8 @@ fn same_semantics(a: &StoredUsageRecord, b: &StoredUsageRecord) -> bool {
         && a.models.request_model == b.models.request_model
         && a.models.response_model == b.models.response_model
         && a.status == b.status && a.billable == b.billable
-        && a.started_at_unix_seconds.0.abs_diff(b.started_at_unix_seconds.0) <= 600
+        && a.started_at_unix_seconds.0.abs_diff(b.started_at_unix_seconds.0)
+            <= MATCH_WINDOW_SECONDS as u64
 }
 
 pub(super) struct DedupMatch {
@@ -37,12 +46,21 @@ pub(super) fn find(
     connection: &Connection, scope_key: &str, identity: &UsageSourceIdentity,
     value: &StoredUsageRecord,
 ) -> Result<DedupMatch, UsageStoreError> {
-    let mut statement = connection.prepare("SELECT i.identity_key,r.record_id,r.payload_json
-        FROM usage_source_identities i JOIN usage_records r
-        ON r.scope_key=i.scope_key AND r.record_id=i.record_id WHERE i.scope_key=?1
-        UNION SELECT identity_key,record_id,payload_json FROM usage_dedup_receipts WHERE scope_key=?1
+    let timestamp = value.record.started_at_unix_seconds.0;
+    let mut statement = connection.prepare_cached("SELECT i.identity_key,r.record_id,r.payload_json
+        FROM usage_records r JOIN usage_source_identities i
+        ON i.scope_key=r.scope_key AND i.record_id=r.record_id
+        WHERE r.scope_key=?1
+            AND json_extract(r.payload_json, '$.record.started_at_unix_seconds') BETWEEN ?2 AND ?3
+        UNION SELECT identity_key,record_id,payload_json FROM usage_dedup_receipts
+        WHERE scope_key=?1
+            AND json_extract(payload_json, '$.record.started_at_unix_seconds') BETWEEN ?2 AND ?3
         ORDER BY record_id,identity_key").map_err(storage)?;
-    let mut rows = statement.query([scope_key]).map_err(storage)?;
+    let mut rows = statement.query(params![
+        scope_key,
+        timestamp.saturating_sub(MATCH_WINDOW_SECONDS),
+        timestamp.saturating_add(MATCH_WINDOW_SECONDS),
+    ]).map_err(storage)?;
     let mut result = DedupMatch { canonical: None, suspected: None };
     while let Some(row) = rows.next().map_err(storage)? {
         let key: String = row.get(0).map_err(storage)?;

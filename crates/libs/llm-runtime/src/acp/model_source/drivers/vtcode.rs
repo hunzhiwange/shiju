@@ -25,6 +25,15 @@ pub fn configure(
         workspace.is_dir() && workspace.parent().is_some(),
         "Invalid VT Code workspace"
     );
+    // An operator can narrow a gateway's native VT Code write scope for delegated jobs.
+    let write_root = match std::env::var_os("SHIJU_VTCODE_WRITE_ROOT") {
+        Some(root) => std::fs::canonicalize(root)?,
+        None => workspace.clone(),
+    };
+    anyhow::ensure!(
+        write_root.is_dir() && write_root.starts_with(&workspace),
+        "VT Code write root must be an existing directory within the workspace"
+    );
     for ancestor in workspace.ancestors() {
         for name in ["vtcode.toml", ".vtcode", ".env"] {
             match ancestor.join(name).symlink_metadata() {
@@ -57,7 +66,7 @@ pub fn configure(
          [[custom_providers]]\nname = {provider}\ndisplay_name = {provider}\nbase_url = {url}\n\
          api_key_env = \"SHIJU_VTCODE_RELAY_TOKEN\"\nmodel = {model}\nmodels = [{model}]\n\
          api_format = \"openai-chat\"\nsupports_tools = true\n\
-         [tools.policies]\nexec_command = \"deny\"\nwrite_stdin = \"deny\"\napply_patch = \"prompt\"\n",
+         [permissions]\ndeny = [\"bash\", \"write_stdin\"]\n[tools]\nprofile = \"advanced_vtcode\"\n[tools.policies]\nexec_command = \"deny\"\nwrite_stdin = \"deny\"\napply_patch = \"prompt\"\n",
         provider = quote(provider)?,
         model = quote(&model)?,
         url = quote(url.join("v1")?.as_str())?,
@@ -76,7 +85,7 @@ pub fn configure(
     )?;
     anyhow::ensure!(!home.starts_with(&workspace), "VT Code workspace includes the host home");
     let policy = format!(
-        "(version 1)\n(allow default)\n(deny file-read-data (subpath {}))\n\
+        "(version 1)\n(allow default)\n(deny file-read-data (subpath \"/Users\") (subpath {}))\n\
          (allow file-read-data (subpath {}) (subpath {}) (literal {}) (literal {}))\n\
          (deny file-write*)\n\
          (allow file-write* (subpath {}) (subpath {}) (literal \"/dev/null\"))\n\
@@ -88,7 +97,7 @@ pub fn configure(
         path(&state)?,
         path(&native)?,
         path(&config.canonicalize()?)?,
-        path(&workspace)?,
+        path(&write_root)?,
         path(&state)?,
         path(&forbidden[0])?,
         path(&forbidden[1])?,
@@ -100,6 +109,7 @@ pub fn configure(
         ("SHIJU_VTCODE_CONFIG".into(), config.to_string_lossy().into_owned()),
         ("SHIJU_VTCODE_SANDBOX".into(), policy.to_string_lossy().into_owned()),
         ("SHIJU_VTCODE_HOME".into(), state.to_string_lossy().into_owned()),
+        ("SHIJU_VTCODE_WORKSPACE".into(), workspace.to_string_lossy().into_owned()),
         ("SHIJU_VTCODE_RELAY_TOKEN".into(), profile.binding.bearer_token().into()),
         ("NO_PROXY".into(), "127.0.0.1,localhost".into()),
     ]))?;

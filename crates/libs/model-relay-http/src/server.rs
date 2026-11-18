@@ -313,7 +313,12 @@ async fn handle(State(state): State<Arc<ServerState>>, request: Request) -> Resp
                 object.insert("stream".into(), (path == "/v1beta/streamGenerateContent").into());
             }
         }
-        let body = if gemini || (kiro && path == "/v1/responses") {
+        let vtcode = path == "/v1/chat/completions"
+            && state.binding.identity().session.ends_with(":vtcode");
+        if vtcode {
+            retain_vtcode_tools(&mut json);
+        }
+        let body = if vtcode || gemini || (kiro && path == "/v1/responses") {
             Bytes::from(serde_json::to_vec(&json).map_err(|_| StatusCode::BAD_REQUEST)?)
         } else {
             body
@@ -410,3 +415,20 @@ fn record_acceptance_status(route: &'static str, status: u16) {
         let _ = std::fs::write(path, bytes);
     }
 }
+
+fn retain_vtcode_tools(request: &mut serde_json::Value) {
+    if let Some(tools) = request.get_mut("tools").and_then(serde_json::Value::as_array_mut) {
+        // The native catalog still advertises shell tools when its sandbox denies them.
+        // Expose only the read and patch surfaces supported by the managed launch.
+        tools.retain(|tool| {
+            matches!(
+                tool.pointer("/function/name").and_then(serde_json::Value::as_str),
+                Some("read_file" | "list_files" | "code_search" | "apply_patch")
+            )
+        });
+    }
+}
+
+#[cfg(test)]
+#[path = "vtcode_tests.rs"]
+mod vtcode_tests;

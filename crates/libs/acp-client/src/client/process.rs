@@ -167,9 +167,12 @@ impl AcpClient {
             crate::verify_reviewed_agent_executable("vtcode", executable)
                 .map_err(AcpError::Initialize)?;
             let executable = Path::new(executable).canonicalize().map_err(AcpError::Spawn)?;
-            let [Some(policy), Some(config), Some(home)] =
-                ["SHIJU_VTCODE_SANDBOX", "SHIJU_VTCODE_CONFIG", "SHIJU_VTCODE_HOME"]
-                    .map(|key| env.remove(key))
+            let [Some(policy), Some(config), Some(home), Some(workspace)] = [
+                "SHIJU_VTCODE_SANDBOX",
+                "SHIJU_VTCODE_CONFIG",
+                "SHIJU_VTCODE_HOME",
+                "SHIJU_VTCODE_WORKSPACE",
+            ].map(|key| env.remove(key))
             else {
                 return Err(AcpError::Initialize("VT Code requires private launch files".into()));
             };
@@ -183,7 +186,12 @@ impl AcpClient {
             env.insert("VT_ACP_ENABLED".into(), "1".into());
             env.insert("VT_ACP_ZED_ENABLED".into(), "1".into());
             let mut command = tokio::process::Command::new("/usr/bin/sandbox-exec");
-            command.args(["-f", &policy]).arg(executable).args(["--config", &config]);
+            // VT Code initializes its tool registry from process cwd before session/new.
+            command
+                .current_dir(workspace)
+                .args(["-f", &policy])
+                .arg(executable)
+                .args(["--config", &config]);
             command
         } else {
             build_spawn_command(self.config.command.trim(), &env)
@@ -215,7 +223,7 @@ impl AcpClient {
             shell_command::apply_augmented_path_tokio_command(&mut cmd);
             cmd.envs(&env);
         }
-        if let Some(directory) = directory {
+        if let Some(directory) = directory.filter(|_| !managed_vtcode) {
             cmd.current_dir(directory);
         }
         cmd.args(&args)

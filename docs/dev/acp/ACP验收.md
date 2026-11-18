@@ -1056,3 +1056,16 @@ Rust重型命令经scripts/cargo_slot.py槽位入口串行执行，对应CARGO_T
 - `--sandbox required` 在未配置或仅提供额外设置文件时以“no sandbox is configured”退出 1。改为官方文档指定的隔离 HOME 配置位置并复用本机已有 Docker 镜像后，原生 ACP 启动成功。只读沙箱把允许文件暂存在沙箱，目录外写入报 Permission denied。取消应用和保留在沙箱两种选择均未写入宿主，明确批准 `sandbox-apply` 后仅允许文件写入私有工作区，内容 14 字节，目录外文件仍不存在。未给工具挂载 Docker socket、宿主配置或凭据。[官方沙箱配置](https://docs.poolside.ai/sandboxes)
 - 使用原 shiju 0.6.0 构建启动独立网关，按任务租户及目录头只读复查。安装状态仍为 false，模型来源仍为 `unsupported_cli`。租户配置目录中存在指定模型，当前进程无该供应商的 API key 环境变量。既有公开 OpenAI 兼容处理器使用进程默认 provider，且仅转换 role/content，无法为此次测试保证租户绑定和工具协议。原生回环结果表明 Poolside 登录并非自定义模型入口的必要条件。重跑需交付固定摘要的 ShiJu 系统安装、使用原租户授权凭据的请求级模型中继和经验证的宿主权限边界，再用完整指定模型走原创建请求。仅下载发行、向原生 CLI 设置模型或登录 Poolside 均无法解除当前 ShiJu 阻塞。
 - 本轮未写配置或提交编辑器请求。网关结束配置与本轮及首次验收基线一致，自有网关和原生进程均退出，回环端口已关闭，沙箱重试前后 Docker 容器及网络列表相等。Rue.js 前后各 6303 项普通文件 SHA-256 无变化，目标目录仍不存在。无代码变更，未重跑 Cargo 或页面检查。原始发行核验、协议帧、回环请求、审批结果、配置重读和清理证据保存在本机 0700 目录 `/tmp/shiju-poolside-retry-20261118.7IKBGI/`。
+
+
+## Stakpak 验收（2026-11-18）
+
+结论为已阻塞。前序 Poolside 已记录阻塞并完成环境恢复。历史提交 `137e91a83` 交付了 `stakpak acp` 注册、内置预设和协议夹具。已从提交前的版本核对来源任务 16，当前缺少 `docs/dev/evidence/acp-onboarding-stakpak.md`。
+
+- 当前注册位于 `crates/libs/acp-agent-registry/src/agent_registry.rs`，安装白名单 `crates/libs/config-acp-install/src/lib.rs` 对 Stakpak 返回 `None`。预设由 `crates/libs/agent-config/src/catalog.rs` 派生，模型分派 `crates/libs/llm-runtime/src/acp/model_source/drivers/mod.rs` 无 Stakpak 已验证版本及驱动。复用 Harn 验收产物 shiju 0.6.0，SHA-256 为 `245d9857ee0005fba1936d1a8bea31719406ef6c550bfe0cc53cb46115ce130e`。其构建基线 `f0d2a6d56a43ea6d1ff2673ebea254db698dd2fa` 已包含 Stakpak 注册提交，构建含前序 Harn 实现。当前相关源码摘要另存私有证据。
+- 使用现有开发配置启动自有回环网关 `127.0.0.1:65243`。请求均携带平台 10001、公司 100010005 及 Rue.js 目录头。安装、预设、ACP 和全局配置基线 GET 均为 HTTP 200。系统安装 POST 返回 HTTP 400，curl 退出 0，耗时 0.000609 秒，提示暂无一键安装命令。安装前后均为 `false`，宿主 PATH 无 `stakpak`，未取得可执行入口或版本。
+- 将 GET 返回的 Stakpak ACP 配置用于诊断。诊断 HTTP 200，curl 退出 0，耗时 0.011782 秒，结果为 `startup_failed`。模型能力 GET 返回 HTTP 200，curl 退出 0，耗时 0.000725 秒，报告 `session_model=unsupported`、`reason=unsupported_cli`、`cli_local=supported`、`connected=false`。
+- 预设 GET 确认 `acp-stakpak` 的 `builtin=true`、`runtime.kind=acp`、`backend=stakpak`、`enabled=false`。因安装和模型能力阻塞，未 PATCH 启用或提交指定 `alibaba-token-plan-cn/deepseek-v4.1-flash-1017` 的创建请求。无流终态、会话身份及模型绑定证据，编辑器产物未生成。
+- 已确认 Rue.js 的 `packages/rue/src` 存在。排除 `.git`、`node_modules`、`target` 后，前后各 6303 项普通文件的 SHA-256 零差异，Git 状态一致，`acpdemo/stakpak/` 始终不存在。结束 GET 的全局配置与基线相同，无临时配置需恢复。自有网关退出 0，端口已关闭。
+- 通过 `scripts/cargo_slot.py` 在槽位 1 串行运行定向测试。安装契约 1 项、预设与目录绑定 2 项通过，均退出 0。无代码变更，未重跑协议夹具、Clippy、桌面编译、页面构建或浏览器验证。该任务引用的旧 `.plans/references/rust.md` 不存在，沿用仓库现行槽位入口。
+- 原始响应、诊断请求、网关日志、源码与构建摘要、测试日志及快照存于本机 0700 目录 `/tmp/shiju-stakpak-accept-20261118.BFPoyZ/`。补齐经审核的系统安装、指定会话模型驱动及脱敏接入证据后重跑任务 37。

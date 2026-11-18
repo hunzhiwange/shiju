@@ -10,11 +10,11 @@ use iced::{
     widget::{Space, button, column, container, row, rule, text},
 };
 
-fn action(
+fn action<'a>(
     label: &'static str,
     event: Event,
     enabled: bool,
-) -> iced::widget::Button<'static, Outcome<Event>> {
+) -> iced::widget::Button<'a, Outcome<Event>> {
     button(text(label).size(13))
         .padding([6, 10])
         .style(rounded_action_btn_style)

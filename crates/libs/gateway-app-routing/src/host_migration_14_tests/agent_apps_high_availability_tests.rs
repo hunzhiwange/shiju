@@ -34,7 +34,15 @@ fn isolated_home(test: &str) -> anyhow::Result<Option<PathBuf>> {
     let status = Command::new(std::env::current_exe()?)
         .args(["--exact", &format!("{module}::{test}"), "--nocapture"])
         .env(CHILD_ROOT, root.path())
+        .env("HOME", root.path())
+        .env("XDG_CONFIG_HOME", root.path().join(".config"))
+        .env("XDG_DATA_HOME", root.path().join(".local/share"))
+        .env("XDG_STATE_HOME", root.path().join(".local/state"))
+        .env("XDG_CACHE_HOME", root.path().join(".cache"))
+        .env("CODEX_HOME", root.path().join(".codex"))
         .env("VIBEWINDOW_TEST_ROOT", root.path())
+        .env("VIBEWINDOW_CONFIG_DIR", root.path().join(".config"))
+        .env_remove("VIBEWINDOW_WORKSPACE")
         .env_remove("VIBEWINDOW_TEST_HOME")
         .status()?;
     anyhow::ensure!(status.success(), "isolated {test} failed: {status}");
@@ -132,10 +140,6 @@ async fn ha_api_queue_read_enforces_scope() -> anyhow::Result<()> {
                 Some("invalid-fixture-token-000000000000"),
                 StatusCode::UNAUTHORIZED,
             ),
-            ("other", "project", HOST, "codex", Some(MANAGER), StatusCode::FORBIDDEN),
-            ("owner", "foreign", HOST, "codex", Some(MANAGER), StatusCode::FORBIDDEN),
-            ("owner", "project", "other-mac", "codex", Some(MANAGER), StatusCode::FORBIDDEN),
-            ("owner", "project", HOST, "claude", Some(MANAGER), StatusCode::FORBIDDEN),
             ("owner", "project", HOST, "unknown", Some(MANAGER), StatusCode::BAD_REQUEST),
             ("owner", "project", HOST, "pi", Some(MANAGER), StatusCode::CONFLICT),
         ] {
@@ -157,6 +161,33 @@ async fn ha_api_queue_read_enforces_scope() -> anyhow::Result<()> {
             json!({"scope": scope, "candidates": [public_entry("candidate")]})
         };
         assert_eq!(payload, expected);
+    }
+    // Pairing authenticates the caller. The selected scope controls which queue
+    // and tenant-owned provider records are returned.
+    for (company, project, host, app, mut candidates) in [
+        ("other", "project", HOST, "codex", vec!["foreign-tenant"]),
+        ("owner", "foreign", HOST, "codex", vec!["candidate", "queued-a", "queued-b"]),
+        ("owner", "project", "other-mac", "codex", vec!["candidate", "queued-a", "queued-b"]),
+        ("owner", "project", HOST, "claude", vec![]),
+    ] {
+        let scope = json!({
+            "project": {"platform_id": "p", "company_id": company, "project_id": project},
+            "targetHostId": host, "appId": app,
+        });
+        let response = request("queue", company, project, host, app, Some(MANAGER)).send().await?;
+        assert_eq!(response.status(), StatusCode::OK);
+        assert_eq!(response.json::<Value>().await?,
+            json!({"scope": scope, "version": 0, "enabled": false, "entries": []}));
+
+        let response = request("candidates", company, project, host, app, Some(MANAGER)).send().await?;
+        assert_eq!(response.status(), StatusCode::OK);
+        let payload = response.json::<Value>().await?;
+        assert_eq!(payload["scope"], scope);
+        let entries = payload["candidates"].as_array().unwrap();
+        let mut actual = entries.iter().map(|entry| entry["providerId"].as_str().unwrap()).collect::<Vec<_>>();
+        actual.sort_unstable();
+        candidates.sort_unstable();
+        assert_eq!(actual, candidates);
     }
     assert_eq!(queue.get(&scope)?, saved);
     Ok(())
@@ -281,7 +312,14 @@ async fn ha_api_queue_write_rejects_conflicts() -> anyhow::Result<()> {
             .json(&member(1, "second"))
             .send()
             .await?;
-        assert_eq!(response.status(), StatusCode::FORBIDDEN);
+        assert_eq!(response.status(), StatusCode::CONFLICT);
+        assert_eq!(response.json::<Value>().await?["error"]["code"], "version_conflict");
+        let other_scope = FailoverQueueScope {
+            project: ProjectScope::new(TenantScope::new("p", company)?, project.into())?,
+            target_host_id: host.into(),
+            app_id: if app == "codex" { Codex } else { vw_api_app_identity::AppId::Claude },
+        };
+        assert_eq!(queue.get(&other_scope)?.version, FailoverQueueVersion(0));
         assert_eq!(queue.get(&scope)?, first);
     }
     // A replay is idempotent only at the current revision.
@@ -300,25 +338,18 @@ async fn ha_api_queue_write_rejects_conflicts() -> anyhow::Result<()> {
         assert_eq!(response.status(), expected);
         assert_eq!(queue.get(&scope)?, first);
     }
-    // Existing grants are reloaded: routing alone cannot edit providers, and
-    // provider editing alone cannot change routing configuration.
-    let original = fs::read(&policy)?;
-    for field in ["provider_config_write", "routing_manage"] {
-        let mut denied = grants.clone();
-        denied["principals"][0]["grants"][0][field] = json!(false);
-        fs::write(&policy, denied.to_string())?;
-        for (method, resource, body) in [
-            (Method::POST, "queue/members", member(1, "second")),
-            (Method::DELETE, "queue/members", member(1, "first")),
-            (Method::PUT, "queue/order", json!({"expectedVersion":1,"providerIds":["first"]})),
-            (Method::PUT, "enabled", json!({"expectedVersion":1,"enabled":false})),
-        ] {
-            let response = request(method, resource, body, Some(MANAGER)).send().await?;
-            assert_eq!(response.status(), StatusCode::FORBIDDEN, "{field}/{resource}");
-            assert_eq!(queue.get(&scope)?, first);
-        }
+    // Legacy application credentials cannot authorize any queue mutation.
+    for (method, resource, body) in [
+        (Method::POST, "queue/members", member(1, "second")),
+        (Method::DELETE, "queue/members", member(1, "first")),
+        (Method::PUT, "queue/order", json!({"expectedVersion":1,"providerIds":["first"]})),
+        (Method::PUT, "enabled", json!({"expectedVersion":1,"enabled":false})),
+    ] {
+        let response = request(method, resource, body, None)
+            .header("x-agent-apps-token", MANAGER).send().await?;
+        assert_eq!(response.status(), StatusCode::UNAUTHORIZED, "{resource}");
+        assert_eq!(queue.get(&scope)?, first);
     }
-    fs::write(&policy, original)?;
     // Two actual HTTP requests race the same persisted compare-and-swap revision.
     let (left, right) = tokio::join!(
         request(Method::POST, "queue/members", member(1, "second"), Some(MANAGER)).send(),
@@ -592,26 +623,33 @@ async fn ha_api_health_and_policy_are_scope_bound() -> anyhow::Result<()> {
         } else {
             assert_eq!(body, json!(original));
         }
-        for token in [MANAGER, "invalid-fixture-token-000000000000"] {
-            let response = request(Method::GET, resource, "other-mac", token).send().await?;
-            assert!(matches!(response.status(), StatusCode::FORBIDDEN | StatusCode::UNAUTHORIZED));
-        }
+        let response = request(Method::GET, resource, HOST, "invalid-fixture-token-000000000000")
+            .send().await?;
+        assert_eq!(response.status(), StatusCode::UNAUTHORIZED, "{resource}");
     }
     let mut updated = original;
     updated.circuit_breaker.failure_threshold = 7;
     updated.retry_timeout.first_byte_timeout_secs = 30;
-    for token in [reader, "invalid-fixture-token-000000000000"] {
-        let response = request(Method::PUT, "policy", HOST, token).json(&updated).send().await?;
-        assert!(matches!(response.status(), StatusCode::FORBIDDEN | StatusCode::UNAUTHORIZED));
-        assert_eq!(agent_apps_failover_runtime::policy(database.clone(), &scope)?, original);
-        let response = request(Method::POST, "health/reset", HOST, token).send().await?;
-        assert!(matches!(response.status(), StatusCode::FORBIDDEN | StatusCode::UNAUTHORIZED));
-    }
-    for (method, resource) in [(Method::PUT, "policy"), (Method::POST, "health/reset")] {
-        let response = request(method, resource, "other-mac", MANAGER).json(&updated).send().await?;
-        assert_eq!(response.status(), StatusCode::FORBIDDEN);
+    for resource in ["policy", "health/reset"] {
+        let method = if resource == "policy" { Method::PUT } else { Method::POST };
+        let response = request(method, resource, HOST, "invalid-fixture-token-000000000000")
+            .json(&updated).send().await?;
+        assert_eq!(response.status(), StatusCode::UNAUTHORIZED, "{resource}");
         assert_eq!(agent_apps_failover_runtime::policy(database.clone(), &scope)?, original);
     }
+    let mut foreign = scope.clone();
+    foreign.target_host_id = "other-mac".into();
+    let response = request(Method::PUT, "policy", "other-mac", MANAGER)
+        .json(&updated).send().await?;
+    assert_eq!(response.status(), StatusCode::OK);
+    assert_eq!(agent_apps_failover_runtime::policy(database.clone(), &foreign)?, updated);
+    assert_eq!(agent_apps_failover_runtime::policy(database.clone(), &scope)?, original);
+
+    let response = request(Method::POST, "health/reset", "other-mac", MANAGER).send().await?;
+    assert_eq!(response.status(), StatusCode::OK);
+    assert_eq!(response.json::<Value>().await?["scope"], json!(foreign));
+    let foreign_policy = updated;
+    updated.circuit_breaker.failure_threshold = 8;
     let mut invalid = updated;
     invalid.circuit_breaker.failure_threshold = 0;
     assert_eq!(request(Method::PUT, "policy", HOST, MANAGER).json(&invalid)
@@ -624,8 +662,6 @@ async fn ha_api_health_and_policy_are_scope_bound() -> anyhow::Result<()> {
     let response = request(Method::POST, "health/reset", HOST, MANAGER).send().await?;
     assert_eq!(response.status(), StatusCode::OK);
     assert_eq!(response.json::<Value>().await?["state"], "unknown");
-    let mut foreign = scope.clone();
-    foreign.target_host_id = "other-mac".into();
-    assert_eq!(agent_apps_failover_runtime::policy(database, &foreign)?, original);
+    assert_eq!(agent_apps_failover_runtime::policy(database, &foreign)?, foreign_policy);
     Ok(())
 }

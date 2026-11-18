@@ -128,8 +128,8 @@ pub(crate) async fn spawn_gateway_with_pairing(
     policy: &Path,
     pairing_tokens: Option<&[String]>,
 ) -> (GatewayProcess, u16) {
-    let routing = Arc::new(RoutingListener::default());
     let database = GlobalDatabase::for_home(home).unwrap();
+    let routing = Arc::new(RoutingListener::with_database(database.clone()));
     let app = axum::Router::new().nest("/v1", crate::server::router().merge(crate::server::agent_apps_high_availability::router()));
     let app = configure_with_policy(app, &routing, policy.to_owned(), database.clone(),
         RoutingPaths { home: home.to_owned(), config: home.join(".config/shiju"), state: home.join(".local/state/shiju") },

@@ -1,4 +1,4 @@
-//! Real HTTP, policy, native files and persistent transaction behavior.
+//! Real Gateway pairing, native files and persistent OMO transactions.
 #![cfg(target_os = "macos")]
 use crate::{gateway::settings_store::GatewaySettingsStore, global_database::GlobalDatabase};
 use axum::{
@@ -7,54 +7,100 @@ use axum::{
     http::{Request, StatusCode},
     middleware,
 };
+use base64::{Engine as _, engine::general_purpose::URL_SAFE_NO_PAD};
 use serde_json::{Value, json};
-use sha2::{Digest, Sha256};
-use std::os::unix::fs::PermissionsExt;
+use std::{os::unix::fs::DirBuilderExt, path::PathBuf};
 use tower::ServiceExt;
 use vw_agent_apps::providers::live::{
     commit::{ExecutionHostId, OmoSelection, PendingTarget, ProviderTransactions},
     write_guard::lock_app,
 };
 use {
-    vw_api_app_identity::AppId,
-    vw_api_transport::id::ProjectId,
-    vw_api_transport::id::ProjectScope,
-    vw_api_transport::id::TenantScope,
+    vw_api_app_identity::AppId, vw_api_transport::id::ProjectId,
+    vw_api_transport::id::ProjectScope, vw_api_transport::id::TenantScope,
 };
-const TOKEN: &str = "t47-synthetic-bearer-credential-000000000000";
+const SKEY: &str = "t47-fixture-gateway-skey-000000000000";
+const INVALID_SKEY: &str = "t47-unpaired-gateway-skey";
+const HOST: &str = local_app_auth::HOST_ID;
+const PLATFORM: &str = "platform";
+const COMPANY: &str = "company";
+
+const ISOLATED_DIRS: [(&str, &str); 8] = [
+    ("CODEX_HOME", ".codex"),
+    ("XDG_CONFIG_HOME", ".config"),
+    ("XDG_DATA_HOME", ".local/share"),
+    ("XDG_CACHE_HOME", ".cache"),
+    ("XDG_STATE_HOME", ".local/state"),
+    ("XDG_RUNTIME_DIR", ".runtime"),
+    ("VIBEWINDOW_CONFIG_DIR", ".config"),
+    ("VIBEWINDOW_WORKSPACE", "workspace"),
+];
+
+fn run_in_isolated_process() -> bool {
+    const ROOT: &str = "SHIJU_OMO_ACCEPTANCE_ROOT";
+    if let Some(root) = std::env::var_os(ROOT).map(PathBuf::from) {
+        let temp = std::env::temp_dir().canonicalize().unwrap();
+        assert!(root != temp && root.starts_with(temp));
+        assert_eq!(std::env::current_dir().unwrap(), root);
+        for key in ["HOME", "CFFIXED_USER_HOME", "VIBEWINDOW_TEST_ROOT"] {
+            assert_eq!(std::env::var_os(key).as_deref(), Some(root.as_os_str()));
+        }
+        for (key, suffix) in ISOLATED_DIRS {
+            assert_eq!(std::env::var_os(key).as_deref(), Some(root.join(suffix).as_os_str()));
+        }
+        let paths = agent_paths::paths();
+        assert_eq!(paths.home, root);
+        for path in [&paths.config, &paths.data, &paths.cache, &paths.state] {
+            assert!(path.starts_with(&root));
+        }
+        return false;
+    }
+
+    // The gateway resolves paths once per process. Give each case its own runtime.
+    let root = tempfile::tempdir().unwrap();
+    let path = root.path().canonicalize().unwrap();
+    let status = std::process::Command::new(std::env::current_exe().unwrap())
+        .args(["--exact", std::thread::current().name().unwrap(), "--nocapture"])
+        .current_dir(&path)
+        .env_clear()
+        .env("PATH", "/usr/bin:/bin:/usr/sbin:/sbin")
+        .env("TMPDIR", std::env::temp_dir().canonicalize().unwrap())
+        .env(ROOT, &path)
+        .env("HOME", &path)
+        .env("CFFIXED_USER_HOME", &path)
+        .env("VIBEWINDOW_TEST_ROOT", &path)
+        .envs(ISOLATED_DIRS.map(|(key, suffix)| (key, path.join(suffix))))
+        .status()
+        .unwrap();
+    assert!(status.success(), "isolated OMO acceptance child failed: {status}");
+    true
+}
 fn tenant() -> TenantScope {
-    TenantScope::new("platform", "company").unwrap()
+    TenantScope::new(PLATFORM, COMPANY).unwrap()
 }
 fn scope(project: &str) -> ProjectScope {
     ProjectScope::new(tenant(), ProjectId::from(project)).unwrap()
 }
 struct Fixture {
-    root: tempfile::TempDir,
+    root: PathBuf,
     db: GlobalDatabase,
     tx: ProviderTransactions,
-    policy: std::path::PathBuf,
+    credential_root: PathBuf,
 }
 impl Fixture {
     fn new() -> Self {
-        let root = tempfile::tempdir().unwrap();
-        std::fs::create_dir(root.path().join("private")).unwrap();
-        std::fs::set_permissions(
-            root.path().join("private"),
-            std::fs::Permissions::from_mode(0o700),
-        )
-        .unwrap();
-        let db =
-            GlobalDatabase::new(config_runtime_paths::global_database_path(root.path())).unwrap();
+        let root = agent_paths::paths().home.clone();
+        let credential_root = local_app_auth::auth_policy_path(&root, PLATFORM, COMPANY)
+            .with_file_name("auth-credentials");
+        std::fs::DirBuilder::new().recursive(true).mode(0o700).create(&credential_root).unwrap();
+        let db = GlobalDatabase::new(config_runtime_paths::global_database_path(&root)).unwrap();
         let store = GatewaySettingsStore::new(db.clone()).unwrap();
         for (id, category) in [("standard", "omo"), ("slim", "omo-slim")] {
             store.upsert(&tenant(),"app_providers.records",&format!("\"opencode\":{id}"),&json!({"name":id,"category":category,"settingsConfig":{"agents":{"builder":{"model":"vendor/model"}},"categories":{"quick":{"model":"vendor/fast"}},"user_option":true}}).to_string()).unwrap();
         }
-        let tx = ProviderTransactions::new(
-            &root.path().join("private"),
-            ExecutionHostId::new("host").unwrap(),
-        )
-        .unwrap();
-        let mut guard = lock_app(AppId::OpenCode, root.path()).unwrap();
+        let tx = ProviderTransactions::new(&credential_root, ExecutionHostId::new(HOST).unwrap())
+            .unwrap();
+        let mut guard = lock_app(AppId::OpenCode, &root).unwrap();
         tx.commit_project_checked(
             &scope("project"),
             &mut guard,
@@ -66,49 +112,72 @@ impl Fixture {
         )
         .unwrap();
         drop(guard);
-        std::fs::create_dir(root.path().join(".omo")).unwrap();
+        std::fs::create_dir(root.join(".omo")).unwrap();
         std::fs::write(
-            root.path().join(".omo/omo.jsonc"),
+            root.join(".omo/omo.jsonc"),
             b"{ // preserved\n\"[codex]\": {\"keep\":true}\n}\n",
         )
         .unwrap();
-        let policy = root.path().join("access.json");
-        let f = Self { root, db, tx, policy };
-        f.permissions(true, true, true, true);
-        f
+        Self { root, db, tx, credential_root }
     }
-    fn permissions(&self, read: bool, agg_read: bool, write: bool, agg_write: bool) {
-        let permits = json!([{"project_id":"project","app_id":"opencode"},{"project_id":"other","app_id":"opencode"}]);
-        std::fs::write(&self.policy,json!({"principals":[{"id":"operator","token_sha256":hex::encode(Sha256::digest(TOKEN)),"grants":[{"platform_id":"platform","company_id":"company","host_id":"host","provider_config_read":read,"provider_config_write":write,"aggregation_read":if agg_read{permits.clone()}else{json!([])},"aggregation_write":if agg_write{permits}else{json!([])}}]}],"hosts":[{"id":"host","online":true,"binding":"local","home":self.root.path(),"credential_root":self.root.path().join("private"),"applications":self.root.path().join("Applications"),"search_paths":[]}]}).to_string()).unwrap();
-        std::fs::set_permissions(&self.policy, std::fs::Permissions::from_mode(0o600)).unwrap();
+
+    fn transaction_file(&self, suffix: &str) -> PathBuf {
+        self.credential_root
+            .join("provider-live")
+            .join(URL_SAFE_NO_PAD.encode(HOST))
+            .join(format!("opencode.{suffix}.json"))
     }
+
     fn router(&self) -> Router {
-        super::super::aggregation_omo::router_with_policy(Some(self.policy.clone()))
+        let state = agent_gateway::gateway_test_fixture::state::<(), (), ()>(
+            Default::default(),
+            true,
+            &[SKEY.to_owned()],
+        );
+        super::super::aggregation_omo::router_with_policy(None)
             .layer(Extension(self.db.clone()))
             .layer(middleware::from_fn(crate::gateway::middleware::tenant_scope_middleware))
+            .layer(middleware::from_fn_with_state(
+                state,
+                agent_gateway::request_policy::skey_auth_middleware::<(), (), ()>,
+            ))
     }
     async fn request(
         &self,
         variant: &str,
         action: Option<&str>,
-        token: Option<&str>,
+        skey: Option<&str>,
+        project: &str,
+        extra: Value,
+    ) -> (StatusCode, Value) {
+        self.request_in_company(COMPANY, variant, action, skey, project, extra).await
+    }
+
+    async fn request_in_company(
+        &self,
+        company: &str,
+        variant: &str,
+        action: Option<&str>,
+        skey: Option<&str>,
         project: &str,
         extra: Value,
     ) -> (StatusCode, Value) {
         let path = match action {
             Some(action) => format!("/agent-apps/opencode/{variant}/{action}"),
-            None => format!("/agent-apps/opencode/{variant}?targetHostId=host&projectId={project}"),
+            None => {
+                format!("/agent-apps/opencode/{variant}?targetHostId={HOST}&projectId={project}")
+            }
         };
         let mut request = Request::builder()
             .method(if action.is_some() { "POST" } else { "GET" })
             .uri(path)
-            .header("x-platform-id", "platform")
-            .header("x-company-id", "company");
-        if let Some(token) = token {
-            request = request.header("authorization", format!("Bearer {token}"));
+            .header("x-platform-id", PLATFORM)
+            .header("x-company-id", company);
+        if let Some(skey) = skey {
+            request = request.header("authorization", format!("Bearer {skey}"));
         }
         let body = if action.is_some() {
-            let mut body = json!({"targetHostId":"host","projectId":project});
+            let mut body = json!({"targetHostId":HOST,"projectId":project});
             for (k, v) in extra.as_object().unwrap() {
                 body[k] = v.clone();
             }
@@ -118,14 +187,18 @@ impl Fixture {
             Body::empty()
         };
         let response = self.router().oneshot(request.body(body).unwrap()).await.unwrap();
-        assert_eq!(response.headers().get("cache-control").unwrap(), "no-store");
         let status = response.status();
+        if status != StatusCode::UNAUTHORIZED {
+            assert_eq!(response.headers().get("cache-control").unwrap(), "no-store");
+        }
         let bytes = to_bytes(response.into_body(), 65536).await.unwrap();
-        assert!(!String::from_utf8_lossy(&bytes).contains(TOKEN));
+        let text = String::from_utf8_lossy(&bytes);
+        assert!(!text.contains(SKEY));
+        assert!(!text.contains(INVALID_SKEY));
         (status, serde_json::from_slice(&bytes).unwrap())
     }
     async fn read(&self, variant: &str) -> Value {
-        let (status, value) = self.request(variant, None, Some(TOKEN), "project", json!({})).await;
+        let (status, value) = self.request(variant, None, Some(SKEY), "project", json!({})).await;
         assert_eq!(status, 200, "{value}");
         value
     }
@@ -140,11 +213,14 @@ impl Fixture {
         if let Some(id) = provider {
             body["providerId"] = json!(id);
         }
-        self.request(variant, Some(action), Some(TOKEN), "project", body).await
+        self.request(variant, Some(action), Some(SKEY), "project", body).await
     }
 }
 #[tokio::test]
 async fn aggregation_t47_aggregation_omo_preserves_contract() {
+    if run_in_isolated_process() {
+        return;
+    }
     let f = Fixture::new();
     for variant in ["omo", "omo-slim"] {
         let (status, _) = f.request(variant, None, None, "project", json!({})).await;
@@ -171,7 +247,7 @@ async fn aggregation_t47_aggregation_omo_preserves_contract() {
         assert_eq!(status, 200, "{again}");
         assert_eq!(disabled, again);
     }
-    let raw = std::fs::read_to_string(f.root.path().join(".omo/omo.jsonc")).unwrap();
+    let raw = std::fs::read_to_string(f.root.join(".omo/omo.jsonc")).unwrap();
     assert!(raw.contains("// preserved"));
     assert!(raw.contains("\"[codex]\": {\"keep\":true}"));
     assert_eq!(f.tx.state(AppId::OpenCode).unwrap().omo, Some(OmoSelection::Disabled));
@@ -179,40 +255,65 @@ async fn aggregation_t47_aggregation_omo_preserves_contract() {
 }
 #[tokio::test]
 async fn aggregation_t47_scope_and_permissions_precede_writes() {
+    if run_in_isolated_process() {
+        return;
+    }
     let f = Fixture::new();
-    let state = f.read("omo").await;
-    let before = std::fs::read(f.root.path().join(".omo/omo.jsonc")).unwrap();
+    let tx_before = f.tx.state(AppId::OpenCode).unwrap();
+    let before = std::fs::read(f.root.join(".omo/omo.jsonc")).unwrap();
     for variant in ["omo", "omo-slim"] {
+        let state = f.read(variant).await;
+        let provider = if variant == "omo" { "standard" } else { "slim" };
         for action in ["apply", "disable"] {
             let extra = if action == "apply" {
-                json!({"expectedRevision":state["revision"],"providerId":"standard"})
+                json!({"expectedRevision":state["revision"],"providerId":provider})
             } else {
                 json!({"expectedRevision":state["revision"]})
             };
-            for (project, token, status) in [
+            for (project, skey, status) in [
                 ("project", None, 401),
-                ("other", Some(TOKEN), 403),
-                ("ungranted", Some(TOKEN), 403),
+                ("project", Some(INVALID_SKEY), 401),
+                ("other", Some(SKEY), 403),
+                ("ungranted", Some(SKEY), 403),
             ] {
                 assert_eq!(
-                    f.request(variant, Some(action), token, project, extra.clone()).await.0,
+                    f.request(variant, Some(action), skey, project, extra.clone()).await.0,
                     status
                 );
             }
+            let (status, error) = f
+                .request_in_company(
+                    "other-company",
+                    variant,
+                    Some(action),
+                    Some(SKEY),
+                    "project",
+                    extra,
+                )
+                .await;
+            assert_eq!(status, 409, "{error}");
+            assert_eq!(error["error"]["code"], "revision_conflict");
         }
+        for skey in [None, Some(INVALID_SKEY)] {
+            assert_eq!(f.request(variant, None, skey, "project", json!({})).await.0, 401);
+        }
+        assert_eq!(f.request(variant, None, Some(SKEY), "other", json!({})).await.0, 403);
+        let (status, error) = f
+            .request_in_company("other-company", variant, None, Some(SKEY), "project", json!({}))
+            .await;
+        assert_eq!(status, 409, "{error}");
+        assert_eq!(error["error"]["code"], "revision_conflict");
     }
-    for (read, ar, write, aw) in [(true, true, false, true), (true, true, true, false)] {
-        f.permissions(read, ar, write, aw);
-        assert_eq!(f.mutate("omo", "apply", &state["revision"], Some("standard")).await.0, 403);
-    }
-    for (read, ar) in [(false, true), (true, false)] {
-        f.permissions(read, ar, true, true);
-        assert_eq!(f.request("omo", None, Some(TOKEN), "project", json!({})).await.0, 403);
-    }
-    assert_eq!(std::fs::read(f.root.path().join(".omo/omo.jsonc")).unwrap(), before);
+    assert_eq!(f.tx.state(AppId::OpenCode).unwrap(), tx_before);
+    assert!(f.tx.pending(AppId::OpenCode).unwrap().is_none());
+    assert!(!f.root.join(".config/opencode").exists());
+    assert_eq!(std::fs::read(f.root.join(".omo/omo.jsonc")).unwrap(), before);
 }
 #[tokio::test]
 async fn aggregation_t47_stale_revision_and_variants_are_explicit_conflicts() {
+    if run_in_isolated_process() {
+        return;
+    }
     let f = Fixture::new();
     let initial = f.read("omo").await;
     let slim_revision = f.read("omo-slim").await["revision"].clone();
@@ -231,17 +332,19 @@ async fn aggregation_t47_stale_revision_and_variants_are_explicit_conflicts() {
     assert_eq!(f.read("omo").await["currentProviderId"], "standard");
     assert_eq!(f.mutate("omo", "disable", &initial["revision"], None).await.0, 409);
     let revision = f.read("omo").await["revision"].clone();
-    std::fs::write(f.root.path().join(".omo/omo.jsonc"), b"{\"[codex]\":{\"changed\":true}}")
-        .unwrap();
+    std::fs::write(f.root.join(".omo/omo.jsonc"), b"{\"[codex]\":{\"changed\":true}}").unwrap();
     assert_eq!(f.mutate("omo", "disable", &revision, None).await.0, 409);
 }
 #[tokio::test]
 async fn aggregation_t47_profiles_and_unknown_inputs_are_rejected() {
+    if run_in_isolated_process() {
+        return;
+    }
     let f = Fixture::new();
     let state = f.read("omo").await;
     assert_eq!(f.mutate("omo", "apply", &state["revision"], Some("slim")).await.0, 422);
     assert_eq!(f.mutate("omo", "apply", &state["revision"], Some("missing")).await.0, 404);
-    assert_eq!(f.request("omo",Some("apply"),Some(TOKEN),"project",json!({"expectedRevision":state["revision"],"providerId":"standard","path":"/tmp/untrusted"})).await.0,400);
+    assert_eq!(f.request("omo",Some("apply"),Some(SKEY),"project",json!({"expectedRevision":state["revision"],"providerId":"standard","path":"/tmp/untrusted"})).await.0,400);
     let store = GatewaySettingsStore::new(f.db.clone()).unwrap();
     store
         .upsert(
@@ -257,54 +360,68 @@ async fn aggregation_t47_profiles_and_unknown_inputs_are_rejected() {
 }
 #[tokio::test]
 async fn aggregation_t47_corrupt_and_unsafe_native_inputs_fail_closed() {
+    if run_in_isolated_process() {
+        return;
+    }
     let f = Fixture::new();
     let state = f.read("omo").await;
-    std::fs::write(f.root.path().join(".omo/omo.jsonc"), b"{broken").unwrap();
-    assert_eq!(f.request("omo", None, Some(TOKEN), "project", json!({})).await.0, 422);
+    std::fs::write(f.root.join(".omo/omo.jsonc"), b"{broken").unwrap();
+    assert_eq!(f.request("omo", None, Some(SKEY), "project", json!({})).await.0, 422);
     assert_eq!(f.mutate("omo", "disable", &state["revision"], None).await.0, 422);
-    std::fs::remove_file(f.root.path().join(".omo/omo.jsonc")).unwrap();
-    std::os::unix::fs::symlink(&f.policy, f.root.path().join(".omo/omo.jsonc")).unwrap();
-    assert_eq!(f.request("omo", None, Some(TOKEN), "project", json!({})).await.0, 503);
+    std::fs::remove_file(f.root.join(".omo/omo.jsonc")).unwrap();
+    let external = f.root.join("outside-omo.jsonc");
+    std::fs::write(&external, b"{}").unwrap();
+    std::os::unix::fs::symlink(&external, f.root.join(".omo/omo.jsonc")).unwrap();
+    assert_eq!(f.request("omo", None, Some(SKEY), "project", json!({})).await.0, 503);
 }
 #[tokio::test]
 async fn aggregation_t47_read_is_observational_and_legacy_slots_are_not_claimed() {
+    if run_in_isolated_process() {
+        return;
+    }
     let f = Fixture::new();
-    let path = f.root.path().join("private/provider-live/aG9zdA/opencode.state.json");
+    let path = f.transaction_file("state");
     let before = std::fs::read(&path).unwrap();
-    let native = std::fs::read(f.root.path().join(".omo/omo.jsonc")).unwrap();
+    let native = std::fs::read(f.root.join(".omo/omo.jsonc")).unwrap();
     f.read("omo").await;
     f.read("omo-slim").await;
     assert_eq!(std::fs::read(&path).unwrap(), before);
-    assert_eq!(std::fs::read(f.root.path().join(".omo/omo.jsonc")).unwrap(), native);
-    assert!(!f.root.path().join(".config").exists());
+    assert_eq!(std::fs::read(f.root.join(".omo/omo.jsonc")).unwrap(), native);
+    assert!(!f.root.join(".config/opencode").exists());
     let mut legacy: Value = serde_json::from_slice(&before).unwrap();
     legacy.as_object_mut().unwrap().remove("project_scope");
     std::fs::write(&path, legacy.to_string()).unwrap();
     let before = std::fs::read(&path).unwrap();
     for variant in ["omo", "omo-slim"] {
-        assert_eq!(f.request(variant, None, Some(TOKEN), "project", json!({})).await.0, 409);
+        assert_eq!(f.request(variant, None, Some(SKEY), "project", json!({})).await.0, 409);
     }
     assert_eq!(std::fs::read(&path).unwrap(), before);
 }
 #[tokio::test]
 async fn aggregation_t47_missing_unified_write_is_explicitly_unsupported() {
+    if run_in_isolated_process() {
+        return;
+    }
     let f = Fixture::new();
-    std::fs::remove_file(f.root.path().join(".omo/omo.jsonc")).unwrap();
+    std::fs::remove_file(f.root.join(".omo/omo.jsonc")).unwrap();
     let state = f.read("omo").await;
     let (status, error) = f.mutate("omo", "apply", &state["revision"], Some("standard")).await;
     assert_eq!(status, 422);
     assert_eq!(error["error"]["code"], "unsupported_target");
-    assert!(!f.root.path().join(".omo/omo.jsonc").exists());
+    assert!(!f.root.join(".omo/omo.jsonc").exists());
     assert!(f.tx.state(AppId::OpenCode).unwrap().omo.is_none());
 }
 #[tokio::test]
 async fn aggregation_t47_pending_selection_recovers_with_the_same_native_transaction() {
+    if run_in_isolated_process() {
+        return;
+    }
     use vw_agent_apps::providers::live::{
         stage::{FileChange, WholeFile},
         write_guard::{FilePrivacy, WriteError},
     };
     let f = Fixture::new();
-    let config = f.root.path().join(".omo/omo.jsonc");
+    let config = f.root.join(".omo/omo.jsonc");
     let before = std::fs::read(&config).unwrap();
     let patch = WholeFile::new(Some(&before), Some(b"{\"[opencode]\":{\"agents\":{}}}".to_vec()));
     let changes = [FileChange {
@@ -312,7 +429,7 @@ async fn aggregation_t47_pending_selection_recovers_with_the_same_native_transac
         privacy: FilePrivacy::Shared,
         patch: &patch,
     }];
-    let mut guard = lock_app(AppId::OpenCode, &f.root.path().join(".omo")).unwrap();
+    let mut guard = lock_app(AppId::OpenCode, &f.root.join(".omo")).unwrap();
     let calls = std::cell::Cell::new(0);
     assert_eq!(
         f.tx.commit_project_checked(
@@ -336,16 +453,16 @@ async fn aggregation_t47_pending_selection_recovers_with_the_same_native_transac
     let pending = f.tx.pending(AppId::OpenCode).unwrap().unwrap();
     assert_eq!(pending.version, 9);
     assert!(f.tx.state(AppId::OpenCode).unwrap().omo.is_none());
-    let (status, error) = f.request("omo", None, Some(TOKEN), "project", json!({})).await;
+    let (status, error) = f.request("omo", None, Some(SKEY), "project", json!({})).await;
     assert_eq!(status, 409);
     assert_eq!(error["error"]["code"], "recovery_pending");
     assert_eq!(std::fs::read(&config).unwrap(), before);
     // Simulate a crash immediately after the durable publication mark, before rename.
-    let journal = f.root.path().join("private/provider-live/aG9zdA/opencode.pending.json");
+    let journal = f.transaction_file("pending");
     let mut intent: Value = serde_json::from_slice(&std::fs::read(&journal).unwrap()).unwrap();
     intent["published"] = json!(true);
     std::fs::write(&journal, intent.to_string()).unwrap();
-    let mut guard = lock_app(AppId::OpenCode, &f.root.path().join(".omo")).unwrap();
+    let mut guard = lock_app(AppId::OpenCode, &f.root.join(".omo")).unwrap();
     f.tx.recover_project(&scope("project"), &mut guard).unwrap();
     drop(guard);
     assert_eq!(f.read("omo").await["currentProviderId"], "standard");
@@ -353,31 +470,39 @@ async fn aggregation_t47_pending_selection_recovers_with_the_same_native_transac
 }
 #[tokio::test]
 async fn aggregation_t47_unavailable_targets_are_distinct_from_invalid_configuration() {
+    if run_in_isolated_process() {
+        return;
+    }
     let f = Fixture::new();
     let initial = f.read("omo").await;
-    let before = std::fs::read(f.root.path().join(".omo/omo.jsonc")).unwrap();
-    assert_eq!(f.request("omo",Some("apply"),Some(TOKEN),"project",json!({"targetHostId":"other","expectedRevision":initial["revision"],"providerId":"standard"})).await.0,403);
-    for (binding, online, status, code) in
-        [("remote", true, 422, "unsupported_target"), ("local", false, 503, "target_unavailable")]
+    let before = std::fs::read(f.root.join(".omo/omo.jsonc")).unwrap();
+    for (target, expected, code) in
+        [("other", 409, "revision_conflict"), ("../other", 400, "invalid_input")]
     {
-        f.permissions(true, true, true, true);
-        let mut policy: Value = serde_json::from_slice(&std::fs::read(&f.policy).unwrap()).unwrap();
-        policy["hosts"][0]["binding"] = json!(binding);
-        policy["hosts"][0]["online"] = json!(online);
-        std::fs::write(&f.policy, policy.to_string()).unwrap();
-        let (actual, error) = f.request("omo", None, Some(TOKEN), "project", json!({})).await;
-        assert_eq!(actual, status);
+        let (status, error) = f.request("omo", Some("apply"), Some(SKEY), "project", json!({
+            "targetHostId": target, "expectedRevision": initial["revision"], "providerId": "standard"
+        })).await;
+        assert_eq!(status, expected, "{error}");
         assert_eq!(error["error"]["code"], code);
     }
-    assert_eq!(std::fs::read(f.root.path().join(".omo/omo.jsonc")).unwrap(), before);
+    let backups = f.credential_root.join("backups");
+    std::fs::remove_dir(&backups).unwrap();
+    std::fs::write(&backups, b"fixture blocks backup directory creation").unwrap();
+    let (status, error) = f.request("omo", None, Some(SKEY), "project", json!({})).await;
+    assert_eq!(status, 503, "{error}");
+    assert_eq!(error["error"]["code"], "target_unavailable");
+    assert_eq!(std::fs::read(f.root.join(".omo/omo.jsonc")).unwrap(), before);
 }
 #[tokio::test]
-async fn aggregation_t47_missing_native_file_can_disable_saved_current_but_not_legacy_files() {
+async fn aggregation_t47_missing_native_file_can_disable_saved_current() {
+    if run_in_isolated_process() {
+        return;
+    }
     let f = Fixture::new();
     let initial = f.read("omo").await;
     let (status, applied) = f.mutate("omo", "apply", &initial["revision"], Some("standard")).await;
     assert_eq!(status, 200, "{applied}");
-    let native = f.root.path().join(".omo/omo.jsonc");
+    let native = f.root.join(".omo/omo.jsonc");
     std::fs::remove_file(&native).unwrap();
     let missing = f.read("omo").await;
     assert_eq!(missing["currentProviderId"], "standard");
@@ -388,11 +513,16 @@ async fn aggregation_t47_missing_native_file_can_disable_saved_current_but_not_l
     assert_eq!(f.tx.state(AppId::OpenCode).unwrap().omo, Some(OmoSelection::Disabled));
     let slim = f.read("omo-slim").await;
     assert_eq!(f.mutate("omo-slim", "apply", &slim["revision"], Some("slim")).await.0, 200);
-
+}
+#[tokio::test]
+async fn aggregation_t47_legacy_file_requires_its_own_writer() {
+    if run_in_isolated_process() {
+        return;
+    }
     // An existing legacy file, even an empty one, still needs its own writer.
     let legacy = Fixture::new();
-    std::fs::remove_file(legacy.root.path().join(".omo/omo.jsonc")).unwrap();
-    let directory = legacy.root.path().join(".config/opencode");
+    std::fs::remove_file(legacy.root.join(".omo/omo.jsonc")).unwrap();
+    let directory = legacy.root.join(".config/opencode");
     std::fs::create_dir_all(&directory).unwrap();
     let path = directory.join("oh-my-openagent.jsonc");
     std::fs::write(&path, b"{}").unwrap();
@@ -403,9 +533,12 @@ async fn aggregation_t47_missing_native_file_can_disable_saved_current_but_not_l
     assert_eq!(std::fs::read(path).unwrap(), b"{}");
 }
 #[tokio::test]
-async fn aggregation_t47_untracked_opposite_configuration_requires_explicit_disable() {
+async fn aggregation_t47_untracked_slim_configuration_requires_explicit_disable() {
+    if run_in_isolated_process() {
+        return;
+    }
     let f = Fixture::new();
-    let directory = f.root.path().join(".config/opencode");
+    let directory = f.root.join(".config/opencode");
     std::fs::create_dir_all(&directory).unwrap();
     let slim_path = directory.join("oh-my-opencode-slim.jsonc");
     std::fs::write(&slim_path, b"{}").unwrap();
@@ -419,10 +552,14 @@ async fn aggregation_t47_untracked_opposite_configuration_requires_explicit_disa
     assert!(!slim_path.exists());
     let standard = f.read("omo").await;
     assert_eq!(f.mutate("omo", "apply", &standard["revision"], Some("standard")).await.0, 200);
-
+}
+#[tokio::test]
+async fn aggregation_t47_untracked_standard_configuration_requires_explicit_disable() {
+    if run_in_isolated_process() {
+        return;
+    }
     let f = Fixture::new();
-    std::fs::write(f.root.path().join(".omo/omo.jsonc"), b"{\"[opencode]\":{\"agents\":{}}}")
-        .unwrap();
+    std::fs::write(f.root.join(".omo/omo.jsonc"), b"{\"[opencode]\":{\"agents\":{}}}").unwrap();
     let slim = f.read("omo-slim").await;
     let (status, error) = f.mutate("omo-slim", "apply", &slim["revision"], Some("slim")).await;
     assert_eq!(status, 409, "{error}");

@@ -71,3 +71,17 @@ python3 scripts/cargo_slot.py cargo test -p vw-agent --lib router -- --nocapture
 - 修改前命令退出101，复现本任务E0433，证据 `/tmp/shiju-task310-before.log`。修改后相同命令退出101，本文件E0433消失，但宿主尚有61条其它编译错误（例如历史转换导入、runner_todos、VideoContext约束），证据 `/tmp/shiju-task310-after.log`。实际执行0项，不能记为行为通过；其余任务解除阻塞后仍需运行上述11项。
 - 两次使用槽位1，`CARGO_TARGET_DIR` 与 `CARGO_BUILD_BUILD_DIR` 均为 `/Users/xiangmin/worker/code/shiju/target/rust-slot-1`；入口已退出并释放自有锁，未运行额外check或扩大验证范围。
 - 实现已完成；因同宿主其它任务的编译阻塞保留编号文件，不能删除或标记已完成。
+
+## 公共产物定向复验（2026-11-18）
+
+- 核对提交 `fcbc43be6` 已进入公共构建。任务304凭据为 `/tmp/shiju-host-common-304-LYrH28/receipt.md`、`test-binary.txt`。槽位1产物 `vw_agent-e6b6e74ae78b3318`（vw-agent 0.6.0，构建 HEAD `3382a35f8` 至 `17e53b009`，SHA-256 `5548b4e2c673a564f9d12af91061c0e01e0334f68881fd8cf360a1cbf5933e78`）。
+- 首次直接执行产物，使用 `--exact --nocapture --test-threads=1` 和经 `--list` 核对的 11 个完整测试名。临时 HOME、CODEX_HOME、XDG、CFFIXED_USER_HOME、TMPDIR 和工作目录，macOS sandbox 禁止读取真实用户目录内容或写入真实用户目录，仅允许读取测试产物。退出101，0通过、11失败。证据 `/tmp/shiju-task310-reuse.F3ynFv/{artifact.txt,exact-args.json,list.log,tests.log,tests.exit}`。未重编。
+- 失败均为 HTTP 409 或 `revision_conflict`。现行 `authorize_aggregation` 走 `gateway_host`，从应用运行目录取 home 与凭据根；OMO 夹具仍把事务建在旧策略指定的 `private` 目录，缺少真实网关配对中间件。路由在当前网关根找不到事务时返回409。需按网关配对与应用路径契约迁移夹具并再验证；保留本编号及原安全断言。
+- 核对 macOS 的 `directories::BaseDirs` 实现从显式 HOME 派生应用配置、数据、缓存及状态回退路径，首次执行的这些目录均在临时目录。额外使用 `VIBEWINDOW_TEST_ROOT` 的复跑遇到另一活跃构建占用槽位1，已取消未领取槽位的等待进程（退出130，未新增测试结果）。该构建及其锁保持原状。
+
+## 网关配对夹具迁移（2026-11-18）
+
+- 移除旧策略 JSON 和其中不再生效的四种权限开关。使用启用配对的生产 `skey_auth_middleware`、真实路由及租户中间件。保留缺失凭据的 401，添加错误 skey 的 401，验证错误项目的 403 和未初始化租户事务的 409，检查拒绝后原生文件、选择状态和待处理事务均保持不变。
+- 夹具使用生产网关解析的本地主机及租户凭据根。失效目标改用当前可区分的真实分支，包括无事务的目标（409）、非法目标 ID（400）和应用状态目录无法创建（503）。缺少 OMO 写入目标、错误配置、符号链接拒绝和冲突/恢复等原有行为覆盖保留。
+- 两个复合场景拆成独立测试，合计 13 项。每项用独立进程、空继承环境、当前目录和专用临时 HOME、CODEX_HOME、XDG、应用运行根。子进程在初始化夹具前核对路径。真实 Codex 用户配置未读取或修改。
+- 修改文件的 `rustfmt --edition 2024 --check`、`git diff --check` 通过。本轮有其它任务使用重型编译窗口，未重编，迁移后实际运行 0 项。新公共宿主产物包含本次变更后，用 `--list aggregation_t47_` 确认 13 个完整名称，再在隔离环境传入 `--exact --nocapture --test-threads=1` 和这 13 个名称。验收要求 13 通过、0 失败、退出 0，且记录新产物 HEAD、哈希与日志。

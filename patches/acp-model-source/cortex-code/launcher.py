@@ -1,8 +1,10 @@
 #!/usr/bin/python3 -I
 """Run CLI-local Cortex or its separate, sandboxed session-model composition."""
+import asyncio
 import json
 import os
 from pathlib import Path
+import runpy
 import stat
 import sys
 from urllib.parse import urlsplit
@@ -73,12 +75,14 @@ def main():
     command += ['-p', SANDBOX, str(native), 'acp', 'serve', '--model', model,
                 '--workdir', str(workspace), '--only-explicit-mcp-servers',
                 '--only-explicit-plugins', '--only-explicit-skills']
-    os.execve(command[0], command, {
+    environment = {
         'PATH': '/usr/bin:/bin', 'HOME': str(state), 'TMPDIR': str(state),
         'SNOWFLAKE_HOME': str(state / 'snowflake'), 'NO_PROXY': '127.0.0.1,localhost',
         'SHIJU_CORTEX_LOCAL': '1', 'CORTEX_AGENT_MODEL': model,
         'CORTEX_MODEL_ENDPOINT': settings['endpoint'], 'CORTEX_MODEL_API_KEY': settings['token'],
-    })
+    }
+    bridge = runpy.run_path(str(INSTALL / 'mcp_bridge.py'))
+    raise SystemExit(asyncio.run(bridge['run'](command, environment, workspace)))
 
 
 if __name__ == '__main__':

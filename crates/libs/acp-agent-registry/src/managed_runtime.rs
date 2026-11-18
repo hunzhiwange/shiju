@@ -32,9 +32,11 @@ fn root() -> Result<PathBuf, String> {
 }
 fn installed_directory(agent: &str, contract: &Contract) -> Result<PathBuf, String> {
     // Install revised contracts beside their prior reviewed runtimes.
-    let revision = if matches!(
+    let revision = if agent == "cortex-code" {
+        3
+    } else if matches!(
         agent,
-        "deepagents" | "corust-agent" | "cortex-code" | "cursor" | "hermes" | "snow"
+        "deepagents" | "corust-agent" | "cursor" | "hermes" | "snow"
     ) {
         2
     } else {
@@ -288,6 +290,7 @@ pub(super) async fn install(agent: &str) -> Result<bool, String> {
         ("install.py", include_str!("managed_runtime/install.py")),
         ("cortex-code/apply.py", include_str!("../../../../patches/acp-model-source/cortex-code/apply.py")),
         ("cortex-code/launcher.py", include_str!("../../../../patches/acp-model-source/cortex-code/launcher.py")),
+        ("cortex-code/mcp_bridge.py", include_str!("../../../../patches/acp-model-source/cortex-code/mcp_bridge.py")),
         ("mimo-code/stdio-only.patch", include_str!("../../../../patches/acp-model-source/mimo-code/stdio-only.patch")),
         ("junie/launcher.py", include_str!("../../../../patches/acp-model-source/junie/launcher.py")),
         ("harn/agent.harn", include_str!("../../../../patches/acp-model-source/harn/agent.harn")),

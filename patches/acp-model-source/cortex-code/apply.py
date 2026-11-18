@@ -35,7 +35,13 @@ def patch(source, destination):
             'function shijuLocal(){if(process.env.SHIJU_CORTEX_LOCAL!=="1")return false;'
             'let t=YFp();if(!t||!/^http:\\/\\/127\\.0\\.0\\.1:[0-9]+\\/v1$/.test(t.endpoint)'
             '||!process.env.CORTEX_AGENT_MODEL)throw new Error("Invalid local Cortex model binding");return true}'
-            'function shijuTool(t){return t==="read"||t==="write"||t==="edit"}function YFp(){')
+            'let shijuMcp=new Set;function shijuTool(t){return shijuMcp.size?shijuMcp.has(t):t==="read"||t==="write"||t==="edit"}function YFp(){')
+    # Only names registered by the launcher are visible to managed inference.
+    replace('this.registeredClientTools.push(i),fEp(i)',
+            'this.registeredClientTools.push(i),fEp(i),'
+            'shijuLocal()&&i.startsWith("shiju_mcp_")&&shijuMcp.add(i)')
+    replace('e.unregister(n),mEp(n),Qx.info(`Unregistered client tool:',
+            'e.unregister(n),mEp(n),shijuMcp.delete(n),Qx.info(`Unregistered client tool:')
     # Compose native inference without the hosted connection in local-only mode.
     replace('vCs=class extends TCs{async initialize(){',
             'vCs=class extends TCs{async initialize(){if(shijuLocal())return;')

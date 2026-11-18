@@ -7,9 +7,10 @@
     "artifact_url": "https://sfc-repo.snowflakecomputing.com/cortex-code-cli/a4643c4278/1.2.46%2B175654.6f8561fd271f/coco-1.2.46%2B175654.6f8561fd271f-darwin-arm64.tar.gz",
     "archive_sha256": "76a37a37b432fa0b684d67efdaba0b2753b40d34924836a445f6597b24e665ee",
     "files": {
-      "cortex": "a754308ad656bcc09974720ba13e6a30654d4ca7e6fabcad5bd002c2590883fa",
+      "cortex": "3667d32e69765618d35d19485361f4f55b6f0d21d1d1ed060db1cb7b4eae8d28",
       "cortex-native": "f9753a0da7a733d4e782dfe633c7bd4fd5faca7b4960352d0aa464b62441178a",
-      "cortex-local": "fa4427a02bd10b496797ca0055a277bbbf87a4e02d366cf37a50e33260ab9abf"
+      "cortex-local": "ed72f2274162d524a7a9e8f7b78ac7e5c863dd92e2ba5894eb9ba78533e47139",
+      "mcp_bridge.py": "74c3cd60ae20ea678f5dddfc9b7c771bb95804a5723737d3025aa3ee0691ab1e"
     }
   },
   "aionrs": {

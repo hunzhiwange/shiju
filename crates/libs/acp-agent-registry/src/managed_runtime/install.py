@@ -64,6 +64,7 @@ if agent == 'cortex-code':
     launcher = runtime / 'cortex'
     shutil.copyfile(assets / 'cortex-code/launcher.py', launcher)
     launcher.chmod(0o700)
+    shutil.copyfile(assets / 'cortex-code/mcp_bridge.py', runtime / 'mcp_bridge.py')
     check_files(runtime, contract['files'])
     raise SystemExit(0)
 

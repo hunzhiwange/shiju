@@ -26,3 +26,19 @@
 - `aionrs_acp.rs` 使用 `AionrsBackend`。公共入站解析保留 `mcpServers`，由默认 `create_session_with_mcp` 拒绝非空列表。原生 0.2.11 有第一条消息前的 `AddMcpServer` 入口。原生 stdio 启动会继承引擎环境，受管沙箱同时禁止派生子进程。受管远程传输的网络权限仅限已绑定的模型中继端口，当前驱动没有会话级 MCP 代理。桥接工具审批限定工作区内的 `Read`、`Write`、`Edit`、`Glob`。
 - 保留原有门禁。复验需恢复隔离环境下相同租户的有效模型绑定，并提供保持会话隔离、审批、撤销和进程生命周期的 MCP 转发。两台私有网关均退出 0，监听端口关闭，私有运行状态已清理。
 - 本次提交仅含证据文档。未运行 Cargo 或桌面构建。任务所列 `vw-agent` 测试覆盖 ShiJu 原生会话工具与技能挂载，本次定位的拒绝在独立 aionrs 桥接。
+
+## 共享工作区复验
+
+复用 Snow 验收从共享工作区构建的 shiju 0.6.0，SHA-256 为 `e755e458b4fce6ed045ef10a7c077a0d7dfb98d69637442d9c4449d0d50923ac`，及上列同一受审桥接和引擎。通过本机开发网关读取已授权的模型定义，移除内嵌 API key 后写入私有网关。凭据从现有授权文件经标准输入送入私有网关的授权接口，私有预设单独通过全局配置接口启用。有效配置回读确认同一租户和模型。工作区、提示摘要和请求权限沿用上文。
+
+| 轮次 | 新会话 | HTTP / curl / 秒 | SSE 终态 | 工具事件 |
+| --- | --- | --- | --- | --- |
+| 无挂载 | `ses_1eff957be001t2Yy7e5wTZeoLz` | 200 / 0 / 4.305 | `chat.done` ×1 | 0 |
+| 挂载 | `ses_1eff968d5001XgrFzto3FLHwNl` | 200 / 0 / 1.568 | `chat.error` ×1 | 0 |
+| 撤除 | `ses_1eff96f3d001paGM3esrE7L5C4` | 200 / 0 / 5.611 | `chat.done` ×1 | 0 |
+
+两轮对照均输出 `MCP_NOT_AVAILABLE`，SSE 另带 `<think>` 段。三轮的 UI summary 均回读 `acp-aionrs / aionrs` 和 `full_access=true`，终态 ACP options 均断开。两轮对照回读精确的 `session_model` 绑定。挂载轮在建会话时报 `MCP servers are not supported by this backend`，无已选模型回读，未进入模型生成或工具审批。两轮对照均无 `chat.error`。私有网关退出 0，监听端口已关闭，网关状态和凭据副本已清理。
+
+独立 ACP 探针分别提交 stdio、HTTP、SSE，均收到 `-32602`，相同拒绝理由。原生 JSON Stream 只有消息、审批、控制和挂载等命令，没有可把宿主执行结果注回原生推理的外部工具回调。现有模型中继在请求发送上游前还会过滤 aionrs 的工具表，只保留四个工作区内置工具；中继未注册 MCP HTTP 路由。Snow 的受管实现是该后端自有的工具运行层，未提供 aionrs 可调用的宿主转发。上游最新发布仍为固定版 0.2.11。[aionrs 发行页](https://github.com/iOfficeAI/aionrs/releases/tag/v0.2.11)
+
+当前阻塞是挂载实现缺口。若保持引擎的派生进程和网络边界，需要受审的宿主 MCP 转发，以及中继按该会话已发现的工具名单放行；还需把 ACP 单次批准与实际执行绑定，验证撤销、进程回收和续轮结果。这涉及模型中继和独立桥接的共同改动，需要扩展当前限定的执行范围或提供已审入口。未改 Rust，未运行 Cargo。

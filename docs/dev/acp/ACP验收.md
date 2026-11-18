@@ -1081,3 +1081,17 @@ Rust重型命令经scripts/cargo_slot.py槽位入口串行执行，对应CARGO_T
 - 使用同名 provider 的隔离探针验证文件审批。取消审批时未收到写回调，文件未落盘。批准工具后拒绝 `fs/write_text_file`，原生返回工具错误，文件仍未落盘。独立批准探针由宿主回调写入私有目录中预期的 14 字节。仅验证了受测的原生创建路径，Rue.js 编辑器任务未提交。
 - 原 shiju 0.6.0 构建的自有回环网关复查仍为 `installed=false` 和 `session_model=unsupported_cli`。租户配置目录含指定模型，探针环境无配置声明的供应商密钥。既有公开 OpenAI 兼容处理器使用进程默认 provider，并将消息转换为文本历史，无法保证本任务的租户绑定和工具协议。复跑需要受审查的固定摘要系统安装、使用原租户授权的请求级模型中继，以及由 Stakpak 驱动生成的私有模型目录并验证宿主权限边界。安装发行物或设置原生 profile 本身无法解除 ShiJu 的能力门控。
 - 两轮全局配置重读一致，无 PATCH 或临时配置需恢复。自有网关和原生探针均退出 0，两轮网关端口已关闭。Rue.js 快照前后各 6303 项普通文件零差异，目标目录始终不存在。未重跑 Cargo、页面构建或浏览器验证。发行校验、原生帧、回环请求、审批和清理记录存于本机 0700 目录 `/tmp/shiju-stakpak-retry-20261118.w71m2q/`。
+
+
+## VT Code 验收（2026-11-18）
+
+结论为已阻塞。ShiJu 暂无 VT Code 一键安装，指定的 `session_model` 路径返回 `unsupported_cli`。
+
+- 前序 Stakpak 已记录阻塞和环境恢复。历史提交 `eb8ff9d4a` 交付 VT Code 注册、内置预设和协议夹具。已从提交前版本核对来源任务 17，并阅读脱敏接入记录。当前注册入口为 `vtcode acp`，安装白名单对 `vtcode` 返回 `None`，模型来源分派中缺少 VT Code 的已验证版本及驱动。
+- 复用前序 Harn 验收的 shiju 0.6.0 二进制，SHA-256 为 `245d9857ee0005fba1936d1a8bea31719406ef6c550bfe0cc53cb46115ce130e`。构建基线 `f0d2a6d56a43ea6d1ff2673ebea254db698dd2fa` 包含 VT Code 接入提交，构建还含前序 Harn 实现。当前相关源码摘要另存私有证据。
+- 根据 CLI 帮助使用现有开发配置启动自有网关 `127.0.0.1:55539`。所有请求携带平台 10001、公司 100010005 及 Rue.js 目录头。安装、预设、ACP 和全局配置基线 GET 均为 HTTP 200。系统安装 POST 返回 HTTP 400，curl 退出 0，耗时 0.000583 秒，提示暂无一键安装命令。安装前后均为 `false`，宿主 PATH 无 `vtcode`，没有取得真实入口或版本。
+- 普通诊断使用 GET 读出的 VT Code ACP 配置，返回 HTTP 200，curl 退出 0，耗时 0.008809 秒，结果为 `startup_failed`。独立模型能力 GET 返回 HTTP 200，curl 退出 0，耗时 0.000657 秒，报告 `session_model=unsupported`、`reason=unsupported_cli`、`cli_local=supported`、`connected=false`。
+- GET 确认 `acp-vtcode` 的 `builtin=true`、`runtime.kind=acp`、`backend=vtcode`、`enabled=false`。因安装和模型能力阻塞，未 PATCH 启用或提交指定 `alibaba-token-plan-cn/deepseek-v4.1-flash-1017` 的创建请求。会话终态、权限及模型绑定仍待验证，编辑器产物未生成。
+- 已确认 Rue.js 的 `packages/rue/src` 和 `@rue-js/rue` 包。排除 `.git`、`node_modules`、`target` 后，前后各 6303 项普通文件的 SHA-256 零差异，Git 状态一致，`acpdemo/vtcode/` 始终不存在。结束 GET 的全局配置与基线相等，自有网关退出 0，端口已关闭。
+- 通过 `scripts/cargo_slot.py` 在槽位 1 串行执行 `cargo test -j 1 -p config-acp-install --lib acp_onboarding_vtcode -- --test-threads=1` 和 `cargo test -j 1 -p agent-config --lib acp_onboarding_vtcode -- --test-threads=1`。安装契约 1 项、预设及目录绑定 2 项通过，均退出 0。任务引用的旧 `.plans/references/rust.md` 缺失，沿用仓库现行槽位入口。未运行协议夹具、Clippy、桌面编译、页面构建或浏览器验证。
+- 原始请求、响应、日志、摘要及快照保存在本机 0700 目录 `/tmp/shiju-vtcode-accept-20261118.wwdBSD/`。补齐经审核的系统安装和指定会话模型驱动后重跑任务 38。

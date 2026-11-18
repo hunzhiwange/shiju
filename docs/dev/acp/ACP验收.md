@@ -1222,3 +1222,18 @@ Rust重型命令经scripts/cargo_slot.py槽位入口串行执行，对应CARGO_T
 - 首段 HTTP 200、curl 退出 28、300.005226 秒。查询确认会话仍在线，使用原 stream request ID 和 Last-Event-ID 续传。续传 HTTP 200、curl 退出 28、300.001471 秒。两段共 95 次读取工具调用，无写入调用、`chat.done` 或 `chat.error`。目标目录始终不存在。未重新提交相同创建请求。后续完整验收须在同一模型上取得实际文件写入和成功终态，尚无证据将本次长时间读取归因于模型中继或宿主写入失败。
 - 启用配置只写入临时副本。结束时 PATCH 恢复停用，GET 确认有效预设与基线一致。副本配置多出一个显式停用覆写，退出后临时副本已删除，原开发配置未收到 PATCH。自有网关退出 0，回环端口关闭，无残留 Poolside 容器。Rue.js 前后各 6311 个普通文件摘要相同。
 - 槽位 1 中安装契约 1 项、模型选项及工作目录 1 项、Poolside ACP 协议 3 项均通过。Python 暂存过滤测试 2 项和原生允许/拒绝探针通过。限定四个受影响库的 `cargo clippy --lib --no-deps` 退出 0，已有 lint 仍在。未运行桌面编译、页面构建或浏览器检查。原始请求、SSE、配置、构建与清理证据仅存 0700 私有目录 `/tmp/shiju-poolside-bridge.VUxOmR/`，原生实测另存 `/tmp/shiju-poolside-new-dir.dzL1Tg/`。
+
+
+### aionrs 官方版本与原生 ACP 复验（2026-11-18）
+
+结论仍为已阻塞。官方 CLI 可将完整指定模型 ID 和工具协议发送到回环端点。ShiJu 的系统安装、桥接建会和会话模型绑定仍有独立阻塞，Rue.js 编辑器未生成。
+
+- 官方 v0.2.11 标签指向 `8e61a90329fa9f67c4fdf7e97fe02c24dba33f75`，发行页仅列出两个源码归档，发布 API 的二进制资产列表为空。从该提交归档在槽位 1 执行 `cargo build -j 1 --locked --manifest-path <源码>/Cargo.toml -p aion-cli --bin aionrs`。源码归档 SHA-256 为 `102f0682858a4f02b505b0413578a0de508a1837cd7b93e5626643d63dd06688`，Darwin arm64 本机产物自报 `aionrs 0.2.11`，SHA-256 为 `ab10d73f7a873544b689cb748051e0c8edc727b2aaba4d50b9a5f6e416885fe0`。官方 CLI 提供 JSON Stream，ACP 由 ShiJu 的独立 `aionrs-acp` 提供。AionCore 将 aionrs 作为 Rust 依赖，属于其他宿主的集成路径。 [官方发行](https://github.com/iOfficeAI/aionrs/releases/tag/v0.2.11) · [固定版协议](https://github.com/iOfficeAI/aionrs/blob/8e61a90329fa9f67c4fdf7e97fe02c24dba33f75/docs/json-stream-protocol.md) · [AionCore 依赖清单](https://github.com/iOfficeAI/AionCore/blob/main/Cargo.toml)
+- 在私有 HOME、文件写入受限且只允许指定回环端口联网的沙箱中，使用 OpenAI 兼容启动配置。三个原生 CLI 探针均发送 `stream=true`、10 项工具定义和精确的 `alibaba-token-plan-cn/deepseek-v4.1-flash-1017`，均取得 `stream_end` 并退出 0。批准一次生成预期的 15 字节测试文件，取消审批时文件未生成。批准私有工作目录外的测试写入时，外部沙箱拦截，工具报告错误且无文件。端点使用合成应答。
+- 复用槽位 1 已构建的桥接副本，SHA-256 为 `caa297f11c2de9a784d282249e6d198e029852c488c5fa881bc72754b5205e5f`，二进制含 `acp-server::aionrs` 源路径。三次 ACP v1 `initialize` 成功，`session/new` 均返回 -32603，未到达选模和模型 HTTP。额外记录真实子进程首帧并原样转发，复现同一错误。子进程回报 `ready.version=0.2.11`、`tool_approval=true`、`current_mode=default`，而 `crates/libs/acp-server/src/aionrs/process.rs` 仅接受 `ready.version=0.2.0`。重跑需修正固定版握手契约，并核对初始化公布的会话恢复、MCP 和实际支持一致。
+- 前两次自有网关在 SQLite 配置表初始化报 `database is locked`。配置目录变量之外，底层共享数据库路径还依赖 HOME。最终使用私有 HOME、SQLite 备份和私有配置目录，并由沙箱禁止写入原用户目录。网关复用 Poolside 章节记录的 shiju 0.6.0，构建基线 `5c05e7d46674ce0bb26309bc083619c7967d3db2`，SHA-256 `0b3e616b039ead3877dc087b0324452692585e2c5adc5c48981a68b5d9d3366d`。回环端口 51246，请求均携带原租户和 Rue.js 目录头。
+- 私有网关 PATH 纳入两个已核验入口。安装状态前后为 true，说明入口已被发现。系统安装 POST 仍返回 HTTP 400、curl 退出 0、耗时 0.000643 秒。普通诊断 HTTP 200、退出 0、0.159164 秒，返回 `connected`。它只覆盖初始化，直接 ACP 探针仍无法创建会话。预设读回 `builtin=true`、`backend=aionrs`、`enabled=false`。模型来源 GET 为 HTTP 200、退出 0、0.000818 秒，仍为 `session_model=unsupported`、`reason=unsupported_cli`、`connected=false`。
+- 原租户 `GET /v1/provider` 的目录含指定 provider 和模型。探针的启动环境缺少该 provider 声明的一项授权变量，其他凭据来源未实测。CLI 启动模型来自进程环境，宿主未为 aionrs 注册请求级驱动。现有 OpenAI 兼容入口按进程默认 provider 处理纯文本消息，无法保持原租户的模型和工具绑定。本轮未发真实推理或聊天请求，无 SSE、summary/options 或完整编辑器。
+- 槽位 1 串行执行 `cargo test -j 1 --locked -p acp-server --lib aionrs -- --test-threads=1` 和 `cargo test -j 1 --locked -p vw-acp --test onboarding_aionrs acp_onboarding_aionrs_registry_contract -- --exact --test-threads=1`，桥接协议 2 项、注册与安装契约 1 项通过，均退出 0。沿用首轮 2 项预设测试证据。未运行 Clippy、桌面编译、页面构建或浏览器检查。
+- 所有自有网关端口关闭，最终网关退出 0，私有配置和 HOME 副本已清理。本轮未 PATCH 预设，最终完整配置重读等于基线，对原租户只读复核未发现 aionrs 覆写。最终复验窗口前后 Rue.js 各 6319 项普通文件摘要一致，Git 短状态一致，目标目录始终不存在。其他窗口的快照数量变化发生于本轮各次取样之间，各自窗口内零差异。
+- 私有证据存于 0700 目录 `/tmp/shiju-aionrs-retry-20261118.hfrQSP/`。完整重跑需确认任务 41 环境收尾，交付受管双入口安装、与锁定版本一致的桥接及宿主写入边界、原租户可用授权和请求级模型中继，再按任务 42 验证安装、预设保存恢复、会话绑定和真实文件创建。

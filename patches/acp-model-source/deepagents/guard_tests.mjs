@@ -73,3 +73,27 @@ let continued = false;
 await failureGuard.wrapToolCall(readRequest, async () => { continued = true; return "ok"; });
 assert.ok(continued, "host file failures must allow a later corrected tool call");
 console.log("DeepAgents guard: host file errors are explicit, private, and recoverable");
+
+const mountedName = "ruejs_graph_probe__rustcodegraph_query";
+const mounted = {...request, toolCall: {...request.toolCall, name: mountedName}};
+let releaseApproval;
+let asked;
+const approvalStarted = new Promise(resolve => { asked = resolve; });
+const controller = new AbortController();
+const selectedGuard = hostToolGuard({
+  ...server,
+  sessions: new Map([["fixture", {...session, mcpTools: new Map([[mountedName, {}]])}]]),
+  currentPromptAbortController: controller,
+  requestToolPermission: () => new Promise(resolve => {
+    releaseApproval = resolve;
+    asked();
+  }),
+}, "deepagents");
+const pending = selectedGuard.wrapToolCall(mounted, async () => {
+  assert.fail("cancelled MCP approval must never execute");
+});
+await approvalStarted;
+controller.abort();
+releaseApproval("allow");
+assert.equal((await pending).status, "error");
+console.log("DeepAgents guard: late approval cannot execute a cancelled selected MCP tool");

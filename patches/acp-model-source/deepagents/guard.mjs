@@ -11,31 +11,33 @@ export function hostToolGuard(server, agentName) {
         s => s.agentName === agentName &&
           s.threadId === request.runtime.configurable?.thread_id
       );
-      if (!session || !server.connection ||
-          server.currentPromptAbortController?.signal.aborted) {
+      const prompt = server.currentPromptAbortController;
+      if (!session || !server.connection || prompt?.signal.aborted) {
         throw new Error("No active authorized ACP session");
       }
       // Inherited edit/search/shell backends access local files directly. Only
       // reviewed ACP read/write operations may reach a supplier handler.
-      if (!["read_file", "write_file"].includes(request.toolCall.name)) {
+      const selectedMcp = session.mcpTools?.has(request.toolCall.name);
+      if (selectedMcp && !prompt) throw new Error("No active authorized ACP prompt");
+      if (!selectedMcp && !["read_file", "write_file"].includes(request.toolCall.name)) {
         return new ToolMessage({content: "Tool unavailable in reviewed DeepAgents runtime",
           tool_call_id: request.toolCall.id});
       }
       const decision = await server.requestToolPermission(
         session, server.connection, request.toolCall);
-      if (decision !== "allow" ||
-          server.currentPromptAbortController?.signal.aborted) {
-        return new ToolMessage({content: "Tool execution denied",
+      if (decision !== "allow" || prompt?.signal.aborted ||
+          server.currentPromptAbortController !== prompt) {
+        return new ToolMessage({content: "Tool execution denied", ...(selectedMcp && {status: "error"}),
           tool_call_id: request.toolCall.id});
       }
       try {
         return await handler(request);
       } catch (error) {
-        if (server.currentPromptAbortController?.signal.aborted) throw error;
+        if (prompt?.signal.aborted) throw error;
         // A missing file or denied host RPC is a tool failure, never permission
         // to fall back locally. Do not expose private host error details.
         return new ToolMessage({
-          content: "Host file operation failed or was denied. read_file requires a regular file path, not a directory. No local fallback was attempted.",
+          content: selectedMcp ? "Selected MCP operation failed" : "Host file operation failed or was denied. read_file requires a regular file path, not a directory. No local fallback was attempted.",
           status: "error", tool_call_id: request.toolCall.id
         });
       }

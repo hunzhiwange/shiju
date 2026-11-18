@@ -1,5 +1,7 @@
 # DeepAgents 动态挂载 RustCodeGraph
 
+## 受管 v2 基线
+
 2026-11-19 使用 [可复用的验收请求](../ACP验收.md#可复用的验收请求) 在提交 `189d22dc1` 中的版本。提示 SHA-256 为 `207198f85dcd07b542ad54b77fb4630b4c4d64ca3f9c0ead912454cbd75db4cc`。三轮使用租户 `10001 / 100010005`、`acp-deepagents / deepagents`、`session_model`、`full_access=true`、`alibaba-token-plan-cn/deepseek-v4.1-flash-1017`。
 
 ## 版本和传输
@@ -27,3 +29,11 @@
 - `node patches/acp-model-source/deepagents/guard_tests.mjs <受管包目录>` 退出 0。覆盖 5 类权限结果、5 项取消检查、宿主撤销、7 类未审工具拒绝和宿主文件错误脱敏。
 - `python3 scripts/acp_onboarding_deepagents_acceptance.py <受管入口>` 退出 0。真实受管 CLI 经回环模型夹具验证拒绝、RPC 错误、取消、未知选项、宿主拒写、批准并写入，以及本地编辑拦截、非空 MCP 加载拒绝和取消后继续。夹具使用独立占位令牌，仅用于审批回归。
 - 本次仅提交验收记录。Rust 生命周期用例使用模拟对端，覆盖建会话、复用和取消，未走受管 MCP 拒绝分支。本次未运行 Cargo。私有网关已停止且端口关闭，私有凭据和租户数据副本已清理。原始 SSE 和探针收据保存在本机 0700 私有目录。
+
+## 受管 v3 适配
+
+固定 npm 发行版维持 0.1.42。v3 在 `session/new` 读取显式挂载，复用 Cortex 的受审 macOS stdio 沙箱查询目录和执行工具。支持绝对路径、无额外环境变量的 stdio。发现和执行分别启动短生命周期 MCP 子进程，使用私有临时 HOME，禁止网络和派生子进程。挂载工具以服务名限定名称，绑定创建该工具集的会话。每次执行前沿用宿主审批，并通过 ACP 同一调用 ID 发布参数、状态和结果。加载仅接受会话原有的选集。更换或撤除选集使用新会话，无挂载仍沿用原生守卫。
+
+仓库安装脚本在私有目录完成 v3 安装并校验五项受管文件摘要。聚焦命令 `python3 patches/acp-model-source/deepagents/mcp_test.py <受管入口> <RustCodeGraph> <已索引的 RueJS 副本>` 使用真实 RustCodeGraph 和回环模型。v2 在挂载建会话处退出 1。v3 退出 0，覆盖无挂载、批准挂载、拒绝挂载、撤除，以及相同选集加载成功和改变选集加载失败。真实输出含查询定位 `app/app.tsx:32`、调用者 `mountRueSiteApp` 和 `useApp` 源码中的 `_$createApp`，模型续轮收到相同结果。三种工具各自的模型入参、宿主审批和 ACP 完成事件可按调用 ID 对应。批准才执行，拒绝后输出明确错误。原守卫和受管 CLI 审批回归通过。私有测试为 SQLite 索引保留 WAL sidecar，使只读沙箱可以访问原索引。
+
+守卫测试同时覆盖已选 MCP 工具的迟到审批。审批等待期间取消提示后，即使收到批准也不会执行工具。槽位 6 的 `python3 scripts/cargo_slot.py cargo test -j 1 --locked -p acp-agent-registry --lib deepagents_session_mcp_uses_a_separate_reviewed_install` 有效执行 1 项，通过。

@@ -32,11 +32,11 @@ fn root() -> Result<PathBuf, String> {
 }
 fn installed_directory(agent: &str, contract: &Contract) -> Result<PathBuf, String> {
     // Install revised contracts beside their prior reviewed runtimes.
-    let revision = if agent == "cortex-code" {
+    let revision = if matches!(agent, "cortex-code" | "deepagents") {
         3
     } else if matches!(
         agent,
-        "amp-acp" | "deepagents" | "corust-agent" | "cursor" | "hermes" | "snow" | "openclaw"
+        "amp-acp" | "corust-agent" | "cursor" | "hermes" | "snow" | "openclaw"
     ) {
         2
     } else {
@@ -340,6 +340,8 @@ pub(super) async fn install(agent: &str) -> Result<bool, String> {
         ("amp-acp/apply.py", include_str!("../../../../patches/acp-model-source/amp-acp/apply.py")),
         ("amp-acp/local.mjs", include_str!("../../../../patches/acp-model-source/amp-acp/local.mjs")),
         ("deepagents-lock.json", include_str!("managed_runtime/deepagents-lock.json")),
+        ("deepagents/mcp.mjs", include_str!("../../../../patches/acp-model-source/deepagents/mcp.mjs")),
+        ("deepagents/mcp.py", include_str!("../../../../patches/acp-model-source/deepagents/mcp.py")),
         (
             "deepagents/apply.py",
             include_str!("../../../../patches/acp-model-source/deepagents/apply.py"),

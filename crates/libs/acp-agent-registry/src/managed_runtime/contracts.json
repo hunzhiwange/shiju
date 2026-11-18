@@ -666,8 +666,11 @@
     "integrity": "sha512-RfMrrPr9uBm3SjtwuNl4gI/7b0mLkCz63IaUNjsEx7PFI6QY5j5u4DBSQZJUH8D94vNXjkyf/g082NLkvIs/+A==",
     "bin": "dist/cli.js",
     "files": {
-      "dist/cli.js": "d65ca9295356f90c11402e3ec9f39856324329a8a7acbdfe79592444e471abce",
-      "dist/shiju-guard.mjs": "82e173b8284d3496e2032be5bec1c155241164f2f4c07aeff5d36e6f27e2faff"
+      "dist/cli.js": "99235b0c39283be84bef07a2d3beb908533e93d5697e929eac62b450a01a7f52",
+      "dist/shiju-guard.mjs": "e61e79f6cdce6ccc61186c488d1481b2ad63d8856abf08d008fda6d91b213b1c",
+      "dist/shiju-mcp.mjs": "0fb4c56da5a7fc1c0e6ca08330d7c8b60b95be798c3847e9804ee0aa38ac583f",
+      "dist/shiju-mcp.py": "ede7bf31f0eafe51f6dd0572d0cea482fe3be3eb715534b2f566d87e5c8aa915",
+      "dist/shiju-stdio.py": "a9dfa40b109b141f7f2b41dee92ed300f762ff1b762561a592e8f55d52884468"
     }
   },
   "sigit": {

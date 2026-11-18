@@ -236,7 +236,9 @@ impl Fixture {
     }
     fn listener(&mut self) -> std::sync::Arc<crate::app_routing::RoutingListener> {
         self.policy(true, true, true);
-        let listener = std::sync::Arc::new(crate::app_routing::RoutingListener::default());
+        let listener = std::sync::Arc::new(crate::app_routing::RoutingListener::with_database(
+            self.db.clone(),
+        ));
         listener.start(0).unwrap();
         self.routing = Some(listener.clone());
         listener

@@ -137,3 +137,9 @@ python3 scripts/cargo_slot.py cargo test -p vw-agent --lib aggregation_t19_host_
 - 共用接线仅涉及父文件 `aggregation_publish_tests.rs` 的路径初始化。写入前核对该文件无其他编号写入归属和未提交差异，其他夹具仍使用原有默认路径。
 - 启停使用正式应用路由及生产配对校验，发送有效或无效的 Bearer skey，保留拒绝后仍挂载、恢复原配置、重挂载与重复启动幂等断言。
 - `git diff --check` 通过。按本轮指示未编译或运行更新后的源码。旧公共产物的 1 项失败仍是修复前证据。等待包含此次提交的新公共产物，按上一节精确用例在隔离环境中复验。
+
+## 新公共产物回归
+
+- 公共构建回执 `/tmp/shiju-host-common-310-s0GxHw/receipt.md`，槽位1，开始 HEAD `784724153`，结束 HEAD `e380dd943`。确认构建含 `905348a76`，两端任务源码一致。校验 `vw_agent-e6b6e74ae78b3318` 的 SHA-256 为 `0a610b9520d257082e0b53bfdd6cfaded6ebc56d086f4b3eb2e756d0365df7b2`。
+- 使用隔离 HOME、XDG、CODEX_HOME、应用状态与工作目录，并由 macOS 沙盒拒绝真实 Codex 路径的读写。精确测试报告有效 1 项，失败 1 项，退出 101。日志 `/tmp/shiju-309-paired.srR4un/309-tests.log`，命令 `/tmp/shiju-309-paired.srR4un/command.json`。预览成功，发布进入异步执行后返回 503 `target_unavailable`。
+- 发布的 `RouteAuth::issue_route` 要求监听器持有数据库以创建租户路由配置存储。确认父夹具文件无并行写入后，将默认监听器换成使用夹具数据库的监听器。此修改等待新公共产物复验，未重编。

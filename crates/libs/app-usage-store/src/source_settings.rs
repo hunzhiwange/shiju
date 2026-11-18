@@ -66,11 +66,60 @@ pub fn initialize_source_settings(connection: &Connection) -> Result<(), SourceS
             payload_json TEXT NOT NULL,
             settings_revision INTEGER NOT NULL
         );
+        CREATE TABLE IF NOT EXISTS usage_scan_preferences (
+            scope_key TEXT PRIMARY KEY NOT NULL,
+            enabled INTEGER NOT NULL,
+            refresh_seconds INTEGER NOT NULL
+        );
         CREATE TABLE IF NOT EXISTS usage_statistics_revisions (
             scope_key TEXT PRIMARY KEY NOT NULL,
             revision INTEGER NOT NULL
         );",
     ).map_err(storage)
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct UsageScanPreferences {
+    pub enabled: bool,
+    pub refresh_seconds: u32,
+}
+
+pub fn load_scan_preferences(
+    connection: &Connection,
+    scope: &ProjectScope,
+    host: &str,
+) -> Result<Option<UsageScanPreferences>, SourceSettingsError> {
+    let key = statistics_scope_key(scope, host, "scan")?;
+    connection.query_row(
+        "SELECT enabled,refresh_seconds FROM usage_scan_preferences WHERE scope_key=?1",
+        [&key],
+        |row| Ok(UsageScanPreferences { enabled: row.get(0)?, refresh_seconds: row.get(1)? }),
+    ).optional().map_err(storage)
+}
+
+pub fn save_scan_preferences(
+    connection: &Connection,
+    scope: &ProjectScope,
+    host: &str,
+    preferences: UsageScanPreferences,
+) -> Result<(), SourceSettingsError> {
+    if preferences.refresh_seconds == 0 {
+        return Err(SourceSettingsError::InvalidInput);
+    }
+    let key = statistics_scope_key(scope, host, "scan")?;
+    connection.execute(
+        "INSERT INTO usage_scan_preferences VALUES (?1,?2,?3)
+         ON CONFLICT(scope_key) DO UPDATE SET enabled=excluded.enabled,refresh_seconds=excluded.refresh_seconds",
+        params![key, preferences.enabled, preferences.refresh_seconds],
+    ).map_err(storage)?;
+    Ok(())
+}
+
+pub fn scan_refresh_seconds(sources: impl Iterator<Item = UsageSourceSettings>) -> u32 {
+    sources.filter(|source| source.scan_enabled)
+        .filter_map(|source| source.refresh_seconds.filter(|seconds| *seconds > 0))
+        .min().unwrap_or(60)
 }
 
 pub fn load_source_settings(

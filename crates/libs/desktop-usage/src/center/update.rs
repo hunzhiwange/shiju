@@ -45,7 +45,7 @@ fn update_event(input: &mut Input<'_>, event: Event) -> Task<Event> {
     let visible = input.visible;
     let client = input.client;
     match event {
-        Event::Sync => { state.sync_requested = true; update(input, Event::Scan(scan::Event::Open)) }
+        Event::Sync => update_event(input, Event::Scan(scan::Event::Run(scan::Action::Sync))),
         Event::TodayRefresh => {
             state.today = None;
             state.today_sequence = state.today_sequence.wrapping_add(1);
@@ -99,14 +99,7 @@ fn update_event(input: &mut Input<'_>, event: Event) -> Task<Event> {
             if matches!(event, scan::Event::Close) && state.scan.open {
                 state.display.restore();
             }
-            let synced_settings = matches!(&event, scan::Event::Done(_, scope, Ok(scan::Reply::Settings(..))) if current.as_ref() == Some(scope));
-            let failed_settings = matches!(&event, scan::Event::Done(_, _, Err(_)));
-            let task = scan::update(&mut state.scan, current, client(), event).map(scan_outcome);
-            if failed_settings { state.sync_requested = false; }
-            if synced_settings && state.sync_requested && !state.scan.pending {
-                state.sync_requested = false;
-                Task::batch([task, Task::done(Event::Scan(scan::Event::Run(scan::Action::Sync)))])
-            } else { task }
+            scan::update(&mut state.scan, current, client(), event).map(scan_outcome)
         }
         Event::Models(event) => {
             models::update(&mut state.models, current, client, event).map(Event::Models)
@@ -251,7 +244,7 @@ pub fn update(input: &mut Input<'_>, event: Event) -> Task<Event> {
         input.state.today = None;
         input.state.today_sequence = input.state.today_sequence.wrapping_add(1);
         input.state.scope = input.current.clone();
-        input.state.scan = scan::State::default();
+        input.state.scan.set_scope(input.current.clone());
         input.state.logs = logs::State::default();
         input.state.status_pending = false;
         input.state.last_status = None;
@@ -273,7 +266,6 @@ pub fn update(input: &mut Input<'_>, event: Event) -> Task<Event> {
         else if let Some(scope) = desired { (scope, true) }
         else { return task; };
     input.state.activity_pending = true;
-    let paused = input.state.scan.scope.as_ref() == Some(&scope) && input.state.scan.paused;
     let client = if active {
         let client = (input.client)();
         if let Ok(client) = &client { input.state.activity_client = Some(client.clone()); }
@@ -284,9 +276,9 @@ pub fn update(input: &mut Input<'_>, event: Event) -> Task<Event> {
     let activity = Task::perform(async move {
         let result = async {
             let client = gateway_usage_scan::GatewayUsageScanClient::new(client?.transport().clone());
-            client.usage_activity(&gateway_usage_scan::UsageScanScope {
+            client.usage_page_activity(&gateway_usage_scan::UsageScanScope {
                 project_id: scope.project.clone().into(), target_host: scope.host.clone(),
-            }, active, paused).await.map_err(|error| error.to_string())
+            }, active).await.map_err(|error| error.to_string())
         }.await;
         (scope, result)
     }, move |(scope, result)| Event::ActivitySettled(scope, active, result));

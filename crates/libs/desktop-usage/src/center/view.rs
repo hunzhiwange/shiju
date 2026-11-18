@@ -26,30 +26,43 @@ pub fn view<'a>(
         return action("第三方智能体用量统计 ›", Event::Load(super::range_picker::Preset::Month))
             .into();
     }
-    let header_button = |icon, label, event, show_label| {
-        let mut content = row![
-            svg(get_icon(icon))
-                .width(16)
-                .height(16)
-                .style(|theme: &Theme, _| svg::Style { color: Some(theme.palette().text) })
-        ]
-        .spacing(6)
-        .height(Length::Fill)
-        .align_y(iced::Alignment::Center);
-        if show_label {
-            content = content.push(text(label).size(13));
-        }
-        tooltip(
-            button(content)
-                .height(SETTINGS_CONTROL_HEIGHT)
-                .padding([5, 10])
-                .style(rounded_action_btn_style)
-                .on_press(event),
-            text(label).size(12),
-            tooltip::Position::Bottom,
-        )
-        .snap_within_viewport(true)
+    let sync_active = state.scan.job.as_ref().is_some_and(|job| !scan::terminal(job));
+    let sync_label = if sync_active { "同步中…".into() } else { state.scan.sync_label() };
+    let header_icon = |icon| {
+        svg(get_icon(icon))
+            .width(16)
+            .height(16)
+            .style(|theme: &Theme, _| svg::Style { color: Some(theme.palette().text) })
     };
+    let sync = tooltip(
+        button(row![header_icon(Icon::ArrowRepeat), text(sync_label).size(13)]
+            .spacing(6)
+            .align_y(iced::Alignment::Center))
+            .height(SETTINGS_CONTROL_HEIGHT)
+            .padding([5, 10])
+            .style(|theme, status| header_segment_style(theme, status, true))
+            .on_press_maybe((!state.scan.pending && !sync_active).then_some(Event::Sync)),
+        text("立即同步").size(12),
+        tooltip::Position::Bottom,
+    );
+    let settings = tooltip(
+        button(header_icon(Icon::Sliders))
+            .height(SETTINGS_CONTROL_HEIGHT)
+            .padding([5, 10])
+            .style(|theme, status| header_segment_style(theme, status, false))
+            .on_press(Event::Scan(scan::Event::Open)),
+        text("用量设置").size(12),
+        tooltip::Position::Bottom,
+    );
+    let sync_controls = container(
+        row![sync, rule::vertical(1), settings]
+            .height(SETTINGS_CONTROL_HEIGHT)
+            .align_y(iced::Alignment::Center),
+    )
+    .style(|theme| {
+        let style = rounded_action_btn_style(theme, button::Status::Active);
+        container::Style { background: style.background, border: style.border, ..Default::default() }
+    });
     let heading = row![
         svg(get_icon(Icon::BarChartFill))
             .width(22)
@@ -62,10 +75,7 @@ pub fn view<'a>(
     let header = row![
         heading,
         Space::new().width(Length::Fill),
-        header_button(Icon::ArrowClockwise, "刷新统计", Event::Refresh, false),
-        header_button(Icon::ArrowCounterClockwise, "同步", Event::Sync, true),
-        header_button(Icon::Sliders, "用量设置", Event::Scan(scan::Event::Open), false),
-        header_button(Icon::ArrowLeft, "返回会话", Event::Close, false),
+        sync_controls,
     ]
     .spacing(7)
     .align_y(iced::Alignment::Center);
@@ -183,6 +193,16 @@ pub fn view<'a>(
         None
     };
     settings_right_drawer_overlay(page.into(), drawer)
+}
+
+fn header_segment_style(theme: &Theme, status: button::Status, first: bool) -> button::Style {
+    let mut style = rounded_action_btn_style(theme, status);
+    style.border.width = 0.0;
+    style.border.radius = if first { iced::border::left(10) } else { iced::border::right(10) };
+    if status == button::Status::Active {
+        style.background = None;
+    }
+    style
 }
 
 fn detail_tabs(active: DetailTab) -> Element<'static, Event> {

@@ -6,7 +6,6 @@ pub enum DetailTab { #[default] Logs, Providers, Models }
 pub struct State {
     pub today: Option<(crate::Identity, UsageSummary)>,
     pub today_sequence: u64,
-    pub sync_requested: bool,
     pub tab: DetailTab,
     pub hero: super::hero::State,
     pub range_picker: super::range_picker::State,
@@ -44,7 +43,6 @@ impl State {
         self.loading = false;
         self.result = None;
         self.scan.open = false;
-        self.sync_requested = false;
     }
 
     pub fn begin(&mut self) -> u64 {
@@ -63,7 +61,7 @@ impl State {
 
 impl Default for State {
     fn default() -> Self {
-        Self { today: None, today_sequence: 0, sync_requested: false, tab: DetailTab::default(), hero: super::hero::State::default(), range_picker: super::range_picker::State::default(), scope: None, activity: None, activity_client: None, activity_pending: false, status_pending: false, last_status: None, last_query: None, display: super::display::State::default(), models: crate::models::State::default(), pricing: super::pricing::State::default(), scan: super::scan::State::default(), charts: super::charts::State::default(), logs: super::logs::State::default(), groups: super::groups::State::default(), query: super::overview::default_query(), open: false, sequence: 0, loading: false, result: None }
+        Self { today: None, today_sequence: 0, tab: DetailTab::default(), hero: super::hero::State::default(), range_picker: super::range_picker::State::default(), scope: None, activity: None, activity_client: None, activity_pending: false, status_pending: false, last_status: None, last_query: None, display: super::display::State::default(), models: crate::models::State::default(), pricing: super::pricing::State::default(), scan: super::scan::State::default(), charts: super::charts::State::default(), logs: super::logs::State::default(), groups: super::groups::State::default(), query: super::overview::default_query(), open: false, sequence: 0, loading: false, result: None }
     }
 }
 

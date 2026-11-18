@@ -29,6 +29,11 @@ pub struct UsageSettingsSaved {
     pub settings: UsageSourceSettings,
     pub revision: u64,
 }
+#[derive(Debug, Clone, Copy, Deserialize)]
+pub struct UsageScanPreferences {
+    pub enabled: bool,
+    pub refresh_seconds: u32,
+}
 /// Both scanner and maintenance snapshots retain all host progress/error fields.
 #[derive(Debug, Clone, Deserialize)]
 pub struct UsageJobSnapshot {
@@ -104,6 +109,18 @@ impl GatewayUsageScanClient {
     pub async fn usage_save_source_settings(&self, scope: &UsageScanScope, app: &str, expected_revision: u64, settings: &UsageSourceSettings) -> Result<UsageSettingsSaved, UsageScanError> {
         self.usage_scan_request(reqwest::Method::PUT, &["settings"], scope,
             Some(json!({"app":app,"expected_revision":expected_revision,"settings":settings}))).await
+    }
+    pub async fn usage_scan_preferences(&self, scope: &UsageScanScope) -> Result<UsageScanPreferences, UsageScanError> {
+        self.usage_scan_request(reqwest::Method::GET, &["settings", "scan"], scope, None).await
+    }
+    pub async fn usage_save_scan_preferences(&self, scope: &UsageScanScope, preferences: UsageScanPreferences) -> Result<UsageScanPreferences, UsageScanError> {
+        self.usage_scan_request(reqwest::Method::PUT, &["settings", "scan"], scope,
+            Some(json!({"enabled":preferences.enabled,"refresh_seconds":preferences.refresh_seconds}))).await
+    }
+    pub async fn usage_page_activity(&self, scope: &UsageScanScope, active: bool) -> Result<(), UsageScanError> {
+        let _: Value = self.usage_scan_request(reqwest::Method::POST, &["activity"], scope,
+            Some(json!({"active":active}))).await?;
+        Ok(())
     }
     pub async fn usage_activity(&self, scope: &UsageScanScope, active: bool, paused: bool) -> Result<(), UsageScanError> {
         let _: Value = self.usage_scan_request(reqwest::Method::POST, &["activity"], scope,

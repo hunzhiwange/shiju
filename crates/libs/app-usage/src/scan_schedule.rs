@@ -7,7 +7,7 @@ use std::{collections::HashMap, time::{Duration, Instant, SystemTime}};
 
 use super::{
     scan_jobs::{ScanAdapter, ScanJob, ScanJobError, ScanJobs, ScanOwner, ScanStep},
-    source_settings::UsageSourceSettings,
+    source_settings::{UsageScanPreferences, UsageSourceSettings, scan_refresh_seconds},
 };
 
 pub const BACKGROUND_SCAN_INTERVAL: Duration = Duration::from_secs(600);
@@ -18,6 +18,7 @@ pub struct ScanSchedule {
     owner: ScanOwner,
     sources: HashMap<ScanAdapter, UsageSourceSettings>,
     paused: bool,
+    preferences: Option<UsageScanPreferences>,
     page_active: bool,
     page_due: bool,
     last_background: Option<Instant>,
@@ -29,7 +30,7 @@ impl ScanSchedule {
     pub fn new(jobs: ScanJobs, owner: ScanOwner) -> Self {
         Self {
             jobs, owner, sources: HashMap::new(), paused: false,
-            page_active: false, page_due: false,
+            preferences: None, page_active: false, page_due: false,
             last_background: None, last_page: None, manual: None,
         }
     }
@@ -55,29 +56,37 @@ impl ScanSchedule {
         self.page_active = active;
     }
 
-    fn page_interval(&self) -> Option<Duration> {
-        self.sources.values()
-            .filter(|source| source.scan_enabled)
-            .filter_map(|source| source.refresh_seconds.filter(|seconds| *seconds > 0))
-            .min().map(|seconds| Duration::from_secs(u64::from(seconds)))
+    pub fn set_preferences(&mut self, preferences: Option<UsageScanPreferences>) {
+        if self.preferences.is_some_and(|old| !old.enabled)
+            && preferences.is_none_or(|new| new.enabled)
+        {
+            self.page_due = true;
+        }
+        self.preferences = preferences;
+    }
+
+    fn page_interval(&self) -> Duration {
+        let seconds = self.preferences.map_or_else(
+            || scan_refresh_seconds(self.sources.values().cloned()),
+            |preferences| preferences.refresh_seconds,
+        );
+        Duration::from_secs(u64::from(seconds))
     }
 
     /// Call at gateway startup and on a host timer. Monotonic time is injected
     /// so suspend/recovery and the ten-minute boundary need no real-time waits.
     /// Deadlines advance to now, skipping missed periods rather than replaying.
-    pub fn tick(&mut self, now: Instant) -> Result<Option<ScanJob>, ScanJobError> {
+    pub fn tick(&mut self, now: Instant, has_enabled_source: bool) -> Result<Option<ScanJob>, ScanJobError> {
         if let Some(job) = self.manual.take() { return Ok(Some(job)); }
-        if self.paused || !self.sources.values().any(|source| source.scan_enabled) {
+        if !has_enabled_source || self.paused || self.preferences.is_some_and(|p| !p.enabled) {
             return Ok(None);
         }
         let background_due = self.last_background.is_none_or(|last| {
             now.saturating_duration_since(last) >= BACKGROUND_SCAN_INTERVAL
         });
-        let page_due = self.page_active && self.page_interval().is_some_and(|interval| {
-            self.page_due || self.last_page.is_none_or(|last| {
-                now.saturating_duration_since(last) >= interval
-            })
-        });
+        let page_due = self.page_active && (self.page_due || self.last_page.is_none_or(|last| {
+            now.saturating_duration_since(last) >= self.page_interval()
+        }));
         if !background_due && !page_due { return Ok(None); }
         let job = self.jobs.start(&self.owner)?;
         self.last_background = Some(now);
@@ -125,3 +134,7 @@ impl ScanSchedule {
         self.jobs.last_complete_scan(&self.owner)
     }
 }
+
+#[cfg(test)]
+#[path = "scan_schedule_tests.rs"]
+mod tests;

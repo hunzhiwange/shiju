@@ -27,9 +27,13 @@ fn cycle() {
 }
 
 fn cycle_inner() -> anyhow::Result<()> {
-    let scopes: HashSet<_> = schedules().lock()
+    let mut scopes: HashSet<_> = schedules().lock()
         .map_err(|_| anyhow::anyhow!("usage schedule unavailable"))?
         .keys().map(|owner| owner.scope.clone()).collect();
+    // The gateway owns the local project even before the desktop opens usage.
+    scopes.insert(ProjectScope::new(
+        vw_api_transport::TenantScope::default(), vw_api_transport::local_project_id(),
+    )?);
     let mut targets = Vec::new();
     for scope in scopes {
         targets.extend(app_access_service::access::usage_scan_targets(&scope)
@@ -49,18 +53,31 @@ fn cycle_inner() -> anyhow::Result<()> {
             .or_default().push((home, instance));
     }
     let mut schedules = schedules().lock().map_err(|_| anyhow::anyhow!("usage schedule unavailable"))?;
-    let owners: HashSet<_> = groups.keys().cloned().collect();
-    schedules.retain(|owner, _| owners.contains(owner));
+    // Retain registered owners and job snapshots when no source is installed.
+    for owner in schedules.keys() {
+        if projects.get(&owner.scope)?.is_some() {
+            groups.entry(owner.clone()).or_default();
+        }
+    }
+    schedules.retain(|owner, _| groups.contains_key(owner));
     let mut executions = Vec::new();
     for (owner, instances) in groups {
         let project = projects.get(&owner.scope)?.ok_or_else(|| anyhow::anyhow!("usage project unavailable"))?;
         let schedule = schedules.entry(owner.clone()).or_insert_with(||
             usage::scan_schedule::ScanSchedule::new(ScanJobs::default(), owner.clone()));
-        for (adapter, app, _) in ADAPTERS {
+        schedule.set_preferences(usage::source_settings::load_scan_preferences(
+            &connection, &owner.scope, &host,
+        )?);
+        let mut has_enabled_source = false;
+        for (adapter, app, provider) in ADAPTERS {
             let settings = usage::source_settings::load_source_settings(&connection, &owner.scope, &host, app)?.settings;
+            has_enabled_source |= settings.scan_enabled
+                && instances.iter().any(|(_, source)| source.provider == provider);
             schedule.set_source(adapter, settings);
         }
-        if let Some(job) = schedule.tick(Instant::now()).map_err(|_| anyhow::anyhow!("scan unavailable"))? {
+        if let Some(job) = schedule.tick(Instant::now(), has_enabled_source)
+            .map_err(|_| anyhow::anyhow!("scan unavailable"))?
+        {
             executions.push((owner, instances, project.worktree, schedule.clone(), job));
         }
     }

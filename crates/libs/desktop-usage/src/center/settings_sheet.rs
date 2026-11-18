@@ -4,10 +4,11 @@ use super::{
     scan::{self, Action, Event, Navigation, State},
 };
 use crate::Identity;
+use desktop_assets::assets::Icon;
 use desktop_ui_controls::system_settings_common::*;
 use iced::{
     Element, Length, Theme,
-    widget::{Space, button, column, container, row, rule, text},
+    widget::{Space, button, column, container, row, rule, text, tooltip},
 };
 
 fn action<'a>(
@@ -34,75 +35,59 @@ struct ScanInterval(u32);
 
 impl std::fmt::Display for ScanInterval {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        if self.0 == 0 {
-            return f.write_str("未设置");
-        }
         write!(f, "每 {} 秒扫描", self.0)
     }
 }
 
 fn scan_controls(state: &State, ready: bool) -> Element<'_, Outcome<Event>> {
     let active = state.job.as_ref().is_some_and(|job| !scan::terminal(job));
-    let last = state
-        .last
-        .as_ref()
-        .and_then(|last| last.last_complete_scan)
-        .and_then(|time| time.duration_since(std::time::UNIX_EPOCH).ok())
-        .and_then(|time| chrono::DateTime::from_timestamp(time.as_secs() as i64, 0))
-        .map(|time| time.with_timezone(&chrono::Local).format("%Y/%m/%d %H:%M").to_string())
-        .unwrap_or_else(|| "尚无完整同步".into());
-    let mut scanning = column![
+    let preferences = state.preferences;
+    let enabled = preferences.is_some_and(|preferences| preferences.enabled);
+    let status = if state.last.as_ref().is_some_and(|last| last.last_complete_scan.is_some()) {
+        state.sync_label()
+    } else {
+        "尚未完成同步".into()
+    };
+    let scanning = column![
         row![
-            text("自动扫描会话日志").size(15).width(Length::Fill),
-            settings_toggle(!state.paused).on_toggle_maybe(
-                ready.then_some(|enabled: bool| Outcome::Event(Event::Run(Action::Pause(!enabled))))
+            row![
+                text("自动扫描会话日志").size(15),
+                tooltip(
+                    icon_svg(Icon::QuestionCircle, 14.0),
+                    text("扫描当前主机已授权的本地会话日志").size(12),
+                    tooltip::Position::Bottom,
+                ),
+            ].spacing(6).align_y(iced::Alignment::Center),
+            Space::new().width(Length::Fill),
+            settings_toggle(enabled).on_toggle_maybe(
+                preferences.filter(|_| ready).map(|preferences| move |enabled| {
+                    Outcome::Event(Event::Run(Action::Save(gateway_usage_scan::UsageScanPreferences {
+                        enabled,
+                        ..preferences
+                    })))
+                })
             ),
         ].spacing(12).align_y(iced::Alignment::Center),
-        text("覆盖 Claude Code、Codex、Gemini CLI、Grok Build、OpenCode、Pi、Oh My Pi、MiniMax Code、Kimi Code、DeepSeek Harness 和 Antigravity。")
+        text("支持 Claude Code、Codex、Gemini CLI、Grok Build、OpenCode、Pi、Oh My Pi、MiniMax Code、Kimi Code、DeepSeek Harness 和 Antigravity 的日志格式。")
             .size(12).style(text::secondary),
-        text(format!("上次完整同步  {last}")).size(12).style(text::secondary),
+        text(format!("启动时扫描一次，后台每 10 分钟扫描一次。打开用量页时立即扫描，随后按所选间隔扫描。上次同步：{status}"))
+            .size(12).style(text::secondary),
+        text("Hermes、OpenClaw 暂不支持用量统计").size(12).style(text::secondary),
         row![
-            action(if state.sources_expanded { "收起应用设置 ▴" } else { "按应用设置 ▾" }, Event::ToggleSources, true),
+            settings_select(
+                [5, 10, 30, 60].map(ScanInterval),
+                preferences.map(|preferences| ScanInterval(preferences.refresh_seconds)),
+                move |interval| Outcome::Event(Event::Run(Action::Save(
+                    gateway_usage_scan::UsageScanPreferences { enabled, refresh_seconds: interval.0 },
+                ))),
+            )
+            .placeholder("读取扫描间隔")
+            .width(144)
+            .disabled(!ready || !enabled),
             Space::new().width(Length::Fill),
             action(if active { "任务进行中…" } else { "立即同步" }, Event::Run(Action::Sync), ready && !active),
         ].spacing(8).align_y(iced::Alignment::Center),
     ].spacing(10);
-
-    if state.sources_expanded {
-        let mut sources = column![].spacing(6);
-        for source in &state.sources {
-            let name = source.app.clone();
-            let interval_name = name.clone();
-            sources = sources.push(
-                row![
-                    text(source.app.as_str()).size(13).width(Length::Fill),
-                    settings_select(
-                        [5, 10, 30, 60].map(ScanInterval),
-                        Some(ScanInterval(source.settings.refresh_seconds.unwrap_or(0))),
-                        move |interval| Outcome::Event(Event::Run(Action::Interval(
-                            interval_name.clone(),
-                            interval.0
-                        ))),
-                    )
-                    .width(132)
-                    .disabled(!ready || !source.settings.scan_enabled),
-                    settings_toggle(source.settings.scan_enabled).on_toggle_maybe(ready.then_some(
-                        move |enabled| Outcome::Event(Event::Run(Action::Source(
-                            name.clone(),
-                            enabled
-                        )))
-                    )),
-                ]
-                .spacing(8)
-                .align_y(iced::Alignment::Center),
-            );
-        }
-        scanning = scanning.push(rule::horizontal(1)).push(sources).push(action(
-            "重新读取设置",
-            Event::Run(Action::Load),
-            ready,
-        ));
-    }
 
     let routing = row![
         column![
@@ -118,7 +103,7 @@ fn scan_controls(state: &State, ready: bool) -> Element<'_, Outcome<Event>> {
     let mut maintenance = column![
         row![
             text("Codex 用量维护").size(15).width(Length::Fill),
-            action("重建 Codex…", Event::ConfirmRebuild, ready && !active),
+            action("重建 Codex 用量", Event::ConfirmRebuild, ready && !active),
         ]
         .spacing(12)
         .align_y(iced::Alignment::Center),

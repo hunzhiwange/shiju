@@ -26,6 +26,7 @@ pub(super) fn router(host: crate::Host) -> Router {
         .route("/usage/jobs/{id}", get(job))
         .route("/usage/jobs/{id}/cancel", post(cancel))
         .route("/usage/settings", get(settings).put(save_settings))
+        .route("/usage/settings/scan", get(scan_preferences).put(save_scan_preferences))
         .route("/usage/maintenance/codex-rebuild", post(rebuild))
         .route("/usage/maintenance/rollup", post(rollup))
         .route("/usage/maintenance/backfill", post(backfill))
@@ -109,6 +110,63 @@ async fn save_settings(Extension(p): Extension<Policy>, Extension(t): Extension<
         Ok(Json(json!({"settings":s.settings,"revision":s.settings_revision})))
     }).await.map_err(unavailable)?
 }
+async fn scan_preferences(
+    Extension(p): Extension<Policy>, Extension(t): Extension<TenantScope>,
+    h: HeaderMap, Query(i): Query<Intent>,
+) -> Response {
+    tokio::task::spawn_blocking(move || {
+        let o = owner(&p, t, &h, &i)?;
+        let db = (p.1.database)().map_err(unavailable)?;
+        let c = db.connect_sqlite().map_err(unavailable)?;
+        u::source_settings::initialize_source_settings(&c).map_err(unavailable)?;
+        if let Some(preferences) = u::source_settings::load_scan_preferences(&c, &o.scope, &o.target_host).map_err(unavailable)? {
+            return Ok(Json(json!(preferences)));
+        }
+        let sources = (p.1.apps)().into_iter().map(|app| {
+            u::source_settings::load_source_settings(&c, &o.scope, &o.target_host, app)
+                .map(|state| state.settings).map_err(unavailable)
+        }).collect::<Result<Vec<_>, _>>()?;
+        Ok(Json(json!(u::source_settings::UsageScanPreferences {
+            enabled: true,
+            refresh_seconds: u::source_settings::scan_refresh_seconds(sources.into_iter()),
+        })))
+    }).await.map_err(unavailable)?
+}
+
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct ScanPreferencesUpdate {
+    #[serde(default = "vw_api_transport::local_project_id")]
+    project_id: vw_api_transport::ProjectId,
+    #[serde(default = "vw_api_transport::local_host_id")]
+    target_host: String,
+    enabled: bool,
+    refresh_seconds: u32,
+}
+
+async fn save_scan_preferences(
+    Extension(p): Extension<Policy>, Extension(t): Extension<TenantScope>,
+    h: HeaderMap, Json(update): Json<ScanPreferencesUpdate>,
+) -> Response {
+    tokio::task::spawn_blocking(move || {
+        let i = Intent { project_id: update.project_id, target_host: update.target_host, active: None, paused: None };
+        let preferences = u::source_settings::UsageScanPreferences {
+            enabled: update.enabled, refresh_seconds: update.refresh_seconds,
+        };
+        let o = owner(&p, t, &h, &i)?;
+        (p.1.authorize_maintenance)(p.0.as_deref(), &h, &o.scope, &o.target_host)?;
+        let db = (p.1.database)().map_err(unavailable)?;
+        let c = db.connect_sqlite().map_err(unavailable)?;
+        u::source_settings::initialize_source_settings(&c).map_err(unavailable)?;
+        u::source_settings::save_scan_preferences(&c, &o.scope, &o.target_host, preferences)
+            .map_err(|error| match error {
+                u::source_settings::SourceSettingsError::InvalidInput => StatusCode::BAD_REQUEST,
+                _ => StatusCode::SERVICE_UNAVAILABLE,
+            })?;
+        Ok(Json(json!(preferences)))
+    }).await.map_err(unavailable)?
+}
+
 #[derive(Clone, Copy)]
 enum Maintenance { Rebuild, Rollup, Backfill }
 macro_rules! submit_handler { ($name:ident,$kind:ident) => {

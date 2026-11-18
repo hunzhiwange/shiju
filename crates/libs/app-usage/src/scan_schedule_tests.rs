@@ -1,7 +1,7 @@
 use super::*;
 
 #[test]
-fn startup_and_page_scans_follow_the_selected_interval() {
+fn periodic_scans_follow_the_selected_interval_with_or_without_the_page() {
     let now = Instant::now();
     let owner = ScanOwner {
         scope: vw_api_transport::ProjectScope::new(
@@ -18,26 +18,31 @@ fn startup_and_page_scans_follow_the_selected_interval() {
     let startup = schedule.tick(now, true).unwrap().unwrap();
     schedule.execute(&startup, |_| ScanStep::End).unwrap();
     schedule.set_page_active(true);
-    let page = schedule.tick(now + Duration::from_secs(1), true).unwrap().unwrap();
+    let opened = now + Duration::from_secs(1);
+    let page = schedule.tick(opened, true).unwrap().unwrap();
     schedule.execute(&page, |_| ScanStep::End).unwrap();
-    assert!(schedule.tick(now + Duration::from_secs(60), true).unwrap().is_none());
-    let periodic = schedule.tick(now + Duration::from_secs(61), true).unwrap().unwrap();
+    let second = Duration::from_secs(1);
+    let day = Duration::from_secs(86_400);
+    assert!(schedule.tick(opened + Duration::from_secs(600), true).unwrap().is_none());
+    assert!(schedule.tick(opened + day - second, true).unwrap().is_none());
+    let periodic = schedule.tick(opened + day, true).unwrap().unwrap();
     schedule.execute(&periodic, |_| ScanStep::End).unwrap();
 
-    schedule.set_preferences(Some(UsageScanPreferences { enabled: true, refresh_seconds: 5 }));
-    assert!(schedule.tick(now + Duration::from_secs(65), true).unwrap().is_none());
-    let next = now + Duration::from_secs(66);
+    let hour = Duration::from_secs(3_600);
+    schedule.set_preferences(Some(UsageScanPreferences { enabled: true, refresh_seconds: 3_600 }));
+    let next = opened + day + hour;
+    assert!(schedule.tick(next - second, true).unwrap().is_none());
     let periodic = schedule.tick(next, true).unwrap().unwrap();
     schedule.execute(&periodic, |_| ScanStep::End).unwrap();
 
     schedule.set_page_active(false);
-    let background = next + BACKGROUND_SCAN_INTERVAL;
-    assert!(schedule.tick(background - Duration::from_secs(1), true).unwrap().is_none());
+    let background = next + hour;
+    assert!(schedule.tick(background - second, true).unwrap().is_none());
     let job = schedule.tick(background, true).unwrap().unwrap();
     schedule.execute(&job, |_| ScanStep::End).unwrap();
 
-    schedule.set_preferences(Some(UsageScanPreferences { enabled: false, refresh_seconds: 5 }));
-    let deadline = background + BACKGROUND_SCAN_INTERVAL;
+    schedule.set_preferences(Some(UsageScanPreferences { enabled: false, refresh_seconds: 3_600 }));
+    let deadline = background + hour;
     assert!(schedule.tick(deadline, true).unwrap().is_none());
     let manual = schedule.manual_sync(deadline).unwrap();
     assert_eq!(schedule.tick(deadline, true).unwrap().unwrap().task_id, manual.task_id);

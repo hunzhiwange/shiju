@@ -4,6 +4,9 @@
 
 use serde::{Deserialize, Serialize};
 
+/// Default period between automatic usage log scans, in seconds.
+pub const DEFAULT_USAGE_SCAN_REFRESH_SECONDS: u32 = 86_400;
+
 /// UTC Unix 秒；与通用 TimestampMs 明确区分。
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(transparent)]

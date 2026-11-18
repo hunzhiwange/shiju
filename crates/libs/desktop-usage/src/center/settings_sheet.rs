@@ -33,9 +33,22 @@ fn section<'a, M: 'a>(title: &'static str, content: impl Into<Element<'a, M>>) -
 #[derive(Clone, Copy, PartialEq, Eq)]
 struct ScanInterval(u32);
 
+const HOUR: u32 = 3_600;
+const DAY: u32 = vw_api_usage::DEFAULT_USAGE_SCAN_REFRESH_SECONDS;
+const SCAN_INTERVALS: [u32; 11] = [
+    5, 10, 30, 60, HOUR, 8 * HOUR, 12 * HOUR, DAY, 2 * DAY, 7 * DAY, 30 * DAY,
+];
+
 impl std::fmt::Display for ScanInterval {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "每 {} 秒扫描", self.0)
+        match self.0 {
+            seconds if seconds == 30 * DAY => f.write_str("每 1 月同步（30 天）"),
+            seconds if seconds == 7 * DAY => f.write_str("每 1 星期同步"),
+            seconds if seconds % DAY == 0 => write!(f, "每 {} 天同步", seconds / DAY),
+            seconds if seconds % HOUR == 0 => write!(f, "每 {} 小时同步", seconds / HOUR),
+            seconds if seconds % 60 == 0 => write!(f, "每 {} 分钟同步", seconds / 60),
+            seconds => write!(f, "每 {seconds} 秒同步"),
+        }
     }
 }
 
@@ -69,19 +82,19 @@ fn scan_controls(state: &State, ready: bool) -> Element<'_, Outcome<Event>> {
         ].spacing(12).align_y(iced::Alignment::Center),
         text("支持 Claude Code、Codex、Gemini CLI、Grok Build、OpenCode、Pi、Oh My Pi、MiniMax Code、Kimi Code、DeepSeek Harness 和 Antigravity 的日志格式。")
             .size(12).style(text::secondary),
-        text(format!("启动时扫描一次，后台每 10 分钟扫描一次。打开用量页时立即扫描，随后按所选间隔扫描。上次同步：{status}"))
+        text(format!("启动和打开用量页时各触发一次同步，定时同步按所选间隔执行。上次同步：{status}"))
             .size(12).style(text::secondary),
         text("Hermes、OpenClaw 暂不支持用量统计").size(12).style(text::secondary),
         row![
             settings_select(
-                [5, 10, 30, 60].map(ScanInterval),
+                SCAN_INTERVALS.map(ScanInterval),
                 preferences.map(|preferences| ScanInterval(preferences.refresh_seconds)),
                 move |interval| Outcome::Event(Event::Run(Action::Save(
                     gateway_usage_scan::UsageScanPreferences { enabled, refresh_seconds: interval.0 },
                 ))),
             )
-            .placeholder("每 60 秒扫描")
-            .width(144)
+            .placeholder("每 1 天同步")
+            .width(192)
             .disabled(!ready || !enabled),
             Space::new().width(Length::Fill),
             action(if active { "任务进行中…" } else { "立即同步" }, Event::Run(Action::Sync), ready && !active),

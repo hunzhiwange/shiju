@@ -119,7 +119,7 @@ pub fn save_scan_preferences(
 pub fn scan_refresh_seconds(sources: impl Iterator<Item = UsageSourceSettings>) -> u32 {
     sources.filter(|source| source.scan_enabled)
         .filter_map(|source| source.refresh_seconds.filter(|seconds| *seconds > 0))
-        .min().unwrap_or(60)
+        .min().unwrap_or(vw_api_usage::DEFAULT_USAGE_SCAN_REFRESH_SECONDS)
 }
 
 pub fn load_source_settings(

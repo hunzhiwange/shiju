@@ -90,12 +90,17 @@ pub fn view(app: &App) -> Element<'_, Message> {
         .and_then(|result| result.as_ref().ok())
         .map(|summary| display::amount(app, &summary.known_cost_usd));
     let i18n = crate::app::i18n::I18n::new(app.general_settings.desktop_locale);
-    let content = desktop_usage::center::view::view(&app.usage_center, known_cost, i18n)
-        .map(|event| match event {
-            Event::Logs(event) => logs::map(event),
-            Event::Groups(event) => groups::map(event),
-            event => Message::View(ViewMessage::UsageCenter(event)),
-        });
+    let content = desktop_usage::center::view::view(
+        &app.usage_center,
+        known_cost,
+        i18n,
+        app.status_animation_frame,
+    )
+    .map(|event| match event {
+        Event::Logs(event) => logs::map(event),
+        Event::Groups(event) => groups::map(event),
+        event => Message::View(ViewMessage::UsageCenter(event)),
+    });
     display::overlay(app, pricing::overlay(app, scan::overlay(app, content)))
 }
 

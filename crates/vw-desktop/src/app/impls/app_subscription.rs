@@ -25,6 +25,10 @@ fn cron_history_subscription(app: &App) -> Subscription<Message> {
 }
 
 fn needs_activity_animation_tick(app: &App, startup_transition_active: bool) -> bool {
+    if crate::app::views::usage::center::is_visible(app) && app.usage_center.scan.is_syncing() {
+        return true;
+    }
+
     #[cfg(not(target_arch = "wasm32"))]
     if app.preview_state.installing_lsp.is_some()
         && (app.navigation_panels.show_settings

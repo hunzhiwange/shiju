@@ -17,6 +17,10 @@ pub struct State {
     pub(super) error: Option<String>,
 }
 impl State {
+    pub fn is_syncing(&self) -> bool {
+        self.job.as_ref().is_some_and(|job| !terminal(job))
+    }
+
     pub(super) fn set_scope(&mut self, scope: Option<Identity>) {
         if self.scope != scope {
             *self = Self { sequence: self.sequence.wrapping_add(1), scope, ..Self::default() };

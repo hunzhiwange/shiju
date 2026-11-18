@@ -6,7 +6,7 @@ use desktop_ui_controls::system_settings_common::{
 };
 use desktop_ui_controls::tooltip::tooltip_dark_style;
 use iced::{
-    Element, Length, Theme,
+    Degrees, Element, Length, Theme,
     widget::{
         Space, button, column, container, responsive, row, rule, scrollable, stack, svg, text, tooltip,
     },
@@ -16,6 +16,7 @@ pub fn view<'a>(
     state: &'a super::state::State,
     known_cost: Option<String>,
     i18n: desktop_i18n::I18n,
+    animation_frame: usize,
 ) -> Element<'a, Event> {
     let action = |label: &'static str, event| {
         button(text(label).size(13))
@@ -27,7 +28,7 @@ pub fn view<'a>(
         return action("第三方智能体用量统计 ›", Event::Load(super::range_picker::Preset::Month))
             .into();
     }
-    let sync_active = state.scan.job.as_ref().is_some_and(|job| !scan::terminal(job));
+    let sync_active = state.scan.is_syncing();
     let last_sync = state.scan.last_sync_time();
     let sync_label = if sync_active {
         "同步中…".into()
@@ -51,9 +52,13 @@ pub fn view<'a>(
             .height(16)
             .style(|theme: &Theme, _| svg::Style { color: Some(theme.palette().text) })
     };
+    let mut sync_icon = header_icon(Icon::ArrowRepeat);
+    if sync_active {
+        sync_icon = sync_icon.rotation(Degrees((animation_frame % 12) as f32 * 30.0));
+    }
     let sync = tooltip(
         button(container(
-            row![header_icon(Icon::ArrowRepeat), text(sync_label).size(13)]
+            row![sync_icon, text(sync_label).size(13)]
                 .spacing(6)
                 .align_y(iced::Alignment::Center),
         ).center_y(Length::Fill))

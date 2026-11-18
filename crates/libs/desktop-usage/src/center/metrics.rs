@@ -2,6 +2,18 @@
 use gateway_usage_read::{GroupStats, PerformanceStats, UsageSummary, UsageTokenTotals};
 use vw_api_usage::UsageMeasurementKind;
 
+pub(super) fn format_count(count: u64) -> String {
+    let digits = count.to_string();
+    let mut formatted = String::with_capacity(digits.len() + (digits.len() - 1) / 3);
+    for (index, digit) in digits.chars().enumerate() {
+        if index > 0 && (digits.len() - index) % 3 == 0 {
+            formatted.push(',');
+        }
+        formatted.push(digit);
+    }
+    formatted
+}
+
 #[derive(Clone, Debug)]
 pub struct SummaryMetrics {
     pub requests: u64,

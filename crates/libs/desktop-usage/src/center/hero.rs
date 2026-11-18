@@ -1,10 +1,11 @@
 //! Shared metric selection and summary strip; callers pass the same metric to charts.
-use desktop_ui_controls::system_settings_common::rounded_action_btn_style;
+use desktop_assets::assets::Icon;
+use desktop_ui_controls::system_settings_common::{icon_svg, rounded_action_btn_style};
 use gateway_usage_read::UsageSummary;
 use iced::{
     Element, Font, Length,
     font::Weight,
-    widget::{Space, button, column, container, row, rule, text, tooltip},
+    widget::{Space, button, column, container, row, rule, stack, text, tooltip},
 };
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
@@ -192,7 +193,37 @@ pub fn view_with_cost<'a>(
             .snap_within_viewport(true),
         );
     }
-    let mut body = column![cells, rule::horizontal(1)].spacing(0);
+    let disclosure_icon = if state.expanded { Icon::ChevronUp } else { Icon::ChevronDown };
+    let disclosure = tooltip(
+        button(icon_svg(disclosure_icon, 11.0))
+            .padding(6)
+            .style(|theme, status| {
+                let mut style = rounded_action_btn_style(theme, status);
+                let palette = theme.extended_palette();
+                style.border.radius = 12.0.into();
+                style.background = Some(match status {
+                    button::Status::Hovered | button::Status::Pressed => palette.background.strong,
+                    _ => palette.background.weak,
+                }.color.into());
+                style
+            })
+            .on_press(Event::ToggleDetails),
+        container(text("更多指标").size(12))
+            .padding([6, 12])
+            .style(|theme: &iced::Theme| {
+                let palette = theme.palette();
+                container::Style::default()
+                    .background(palette.text)
+                    .color(palette.background)
+                    .border(iced::border::rounded(16))
+            }),
+        tooltip::Position::Bottom,
+    )
+    .gap(6)
+    .padding(0)
+    .style(|_| container::Style::default())
+    .snap_within_viewport(true);
+    let mut body = column![cells];
     if state.expanded {
         let totals = summary.map(UsageSummary::token_totals).unwrap_or_default();
         let mut details = row![].spacing(0);
@@ -209,21 +240,17 @@ pub fn view_with_cost<'a>(
             };
             details = details.push(
                 container(column![text(label).size(12), text(value).size(16)].spacing(4))
-                    .padding([10, 16])
+                    .padding([10, 14])
                     .width(Length::Fill),
             );
         }
-        body = body.push(details);
+        body = body.push(rule::horizontal(1)).push(details);
     }
-    body.push(
-        container(
-            button(text(if state.expanded { "收起明细 ∧" } else { "展开明细 ∨" }).size(11))
-                .padding([3, 10])
-                .style(rounded_action_btn_style)
-                .on_press(Event::ToggleDetails),
-        )
-        .padding(iced::padding::top(6))
-        .center_x(Length::Fill),
-    )
+    stack![
+        body.push(rule::horizontal(1)).push(Space::new().height(11)),
+        container(disclosure)
+            .align_bottom(Length::Fill)
+            .center_x(Length::Fill),
+    ]
     .into()
 }

@@ -58,6 +58,11 @@ pub(super) fn register_icons(m: &mut HashMap<Icon, svg::Handle>) {
         svg::Handle::from_memory(include_bytes!("../../../../../assets/icons/bootstrap/clock.svg")),
     );
 
+    m.insert(
+        Icon::Calendar,
+        svg::Handle::from_memory(include_bytes!("../../../../../assets/icons/bootstrap/calendar3.svg")),
+    );
+
     // 安全权限图标
     m.insert(
         Icon::ShieldLock,

@@ -37,6 +37,9 @@ impl GatewayUsageReadClient {
     pub async fn usage_logs(&self, scope: &UsageReadScope, query: &UsageQuery) -> Result<UsageLogResult, UsageReadError> {
         self.usage_read(&["logs"], scope, query, None).await
     }
+    pub async fn usage_log_page(&self, scope: &UsageReadScope, query: &UsageQuery, page: u64) -> Result<UsageLogResult, UsageReadError> {
+        self.usage_read(&["logs"], scope, query, Some(("page", page.to_string()))).await
+    }
     pub async fn usage_sources(&self, scope: &UsageReadScope, query: &UsageQuery) -> Result<Vec<UsageSourceDistribution>, UsageReadError> {
         self.usage_read(&["sources"], scope, query, None).await
     }
@@ -68,9 +71,13 @@ impl GatewayUsageReadClient {
         self.usage_read(&["logs", id], scope, query, None).await
     }
     pub async fn usage_trends(&self, scope: &UsageReadScope, query: &UsageQuery, interval: Option<UsageSeriesInterval>) -> Result<UsageSeries, UsageReadError> {
+        let interval = interval.map(|interval| {
+            let value = match interval { UsageSeriesInterval::Hour => "hour", UsageSeriesInterval::Day => "day" };
+            ("interval", value.to_owned())
+        });
         self.usage_read(&["trends"], scope, query, interval).await
     }
-    async fn usage_read<T: DeserializeOwned>(&self, resource: &[&str], scope: &UsageReadScope, query: &UsageQuery, interval: Option<UsageSeriesInterval>) -> Result<T, UsageReadError> {
+    async fn usage_read<T: DeserializeOwned>(&self, resource: &[&str], scope: &UsageReadScope, query: &UsageQuery, parameter: Option<(&str, String)>) -> Result<T, UsageReadError> {
         if scope.project_id.as_ref().trim().is_empty() || scope.target_host.trim().is_empty() || scope.time_zone.trim().is_empty() {
             return Err(UsageReadError::InvalidInput("usage project, host and timezone are required".into()));
         }
@@ -85,9 +92,7 @@ impl GatewayUsageReadClient {
             ("time_zone", scope.time_zone.clone()),
             ("query", serde_json::to_string(query).map_err(|e| UsageReadError::InvalidInput(e.to_string()))?),
         ];
-        if let Some(interval) = interval {
-            pairs.push(("interval", match interval { UsageSeriesInterval::Hour => "hour", UsageSeriesInterval::Day => "day" }.into()));
-        }
+        pairs.extend(parameter);
         let request = self.transport.native_transport().map_err(UsageReadError::Transport)?.get(url).query(&pairs);
         let response = gateway_http::apply_request_context(request, self.transport.endpoint()).send().await
             .map_err(|e| UsageReadError::Transport(e.to_string()))?;

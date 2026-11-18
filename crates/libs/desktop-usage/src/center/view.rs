@@ -1,20 +1,20 @@
-use super::{display, event::Event, overview, pricing, scan, state::DetailTab};
-use crate::models;
+use super::{event::Event, overview, scan, state::DetailTab};
 use desktop_assets::assets::{Icon, get_icon};
 use desktop_ui_controls::system_settings_common::{
-    SETTINGS_CONTROL_HEIGHT, rounded_action_btn_style, settings_right_drawer_overlay,
+    SETTINGS_CONTROL_HEIGHT, rounded_action_btn_style, settings_modal_overlay_with_backdrop_dismiss,
+    settings_right_drawer_overlay,
 };
 use iced::{
     Element, Length, Theme,
     widget::{
-        Space, button, column, container, responsive, row, rule, scrollable, svg, text, tooltip,
+        Space, button, column, container, responsive, row, rule, scrollable, stack, svg, text, tooltip,
     },
 };
 
 pub fn view<'a>(
     state: &'a super::state::State,
-    status: String,
     known_cost: Option<String>,
+    i18n: desktop_i18n::I18n,
 ) -> Element<'a, Event> {
     let action = |label: &'static str, event| {
         button(text(label).size(13))
@@ -27,7 +27,23 @@ pub fn view<'a>(
             .into();
     }
     let sync_active = state.scan.job.as_ref().is_some_and(|job| !scan::terminal(job));
-    let sync_label = if sync_active { "同步中…".into() } else { state.scan.sync_label() };
+    let last_sync = state.scan.last_sync_time();
+    let sync_label = if sync_active {
+        "同步中…".into()
+    } else if let Some(time) = &last_sync {
+        let format = if time.date_naive() == chrono::Local::now().date_naive() {
+            "%H:%M:%S"
+        } else {
+            "%Y-%m-%d %H:%M:%S"
+        };
+        format!("同步于 {}", time.format(format))
+    } else {
+        "同步".into()
+    };
+    let sync_help = last_sync.map_or_else(
+        || "立即同步".into(),
+        |time| format!("立即同步 · 上次同步 {}", time.format("%Y-%m-%d %H:%M:%S")),
+    );
     let header_icon = |icon| {
         svg(get_icon(icon))
             .width(16)
@@ -35,25 +51,29 @@ pub fn view<'a>(
             .style(|theme: &Theme, _| svg::Style { color: Some(theme.palette().text) })
     };
     let sync = tooltip(
-        button(row![header_icon(Icon::ArrowRepeat), text(sync_label).size(13)]
-            .spacing(6)
-            .align_y(iced::Alignment::Center))
+        button(container(
+            row![header_icon(Icon::ArrowRepeat), text(sync_label).size(13)]
+                .spacing(6)
+                .align_y(iced::Alignment::Center),
+        ).center_y(Length::Fill))
             .height(SETTINGS_CONTROL_HEIGHT)
-            .padding([5, 10])
+            .padding([0, 10])
             .style(|theme, status| header_segment_style(theme, status, true))
             .on_press_maybe((!state.scan.pending && !sync_active).then_some(Event::Sync)),
-        text("立即同步").size(12),
+        text(sync_help).size(12),
         tooltip::Position::Bottom,
-    );
+    )
+    .snap_within_viewport(true);
     let settings = tooltip(
-        button(header_icon(Icon::Sliders))
+        button(container(header_icon(Icon::Sliders)).center_y(Length::Fill))
             .height(SETTINGS_CONTROL_HEIGHT)
-            .padding([5, 10])
+            .padding([0, 10])
             .style(|theme, status| header_segment_style(theme, status, false))
             .on_press(Event::Scan(scan::Event::Open)),
         text("用量设置").size(12),
         tooltip::Position::Bottom,
-    );
+    )
+    .snap_within_viewport(true);
     let sync_controls = container(
         row![sync, rule::vertical(1), settings]
             .height(SETTINGS_CONTROL_HEIGHT)
@@ -135,37 +155,39 @@ pub fn view<'a>(
         .width(Length::Fill)
         .clip(true)
         .style(panel_style);
+    let counts = state.groups.result.as_ref().and_then(|result| result.as_ref().ok());
+    let counts = [
+        super::logs::request_count(&state.logs),
+        counts.map(|(providers, _)| providers.len() as u64),
+        counts.map(|(_, models)| models.len() as u64),
+    ];
     let tabs: Element<'_, Event> = if state.tab == DetailTab::Logs {
         responsive(move |size| {
-            let tabs = detail_tabs(state.tab);
+            let tabs = detail_tabs(state.tab, counts);
             let filters = container(super::logs::toolbar(&state.logs).map(Event::Logs))
-                .align_right(Length::Fill);
-            if size.width >= 520.0 {
+                .align_right(Length::Fill)
+                .padding([0, 8]);
+            if size.width >= 500.0 {
                 row![tabs, filters].spacing(8).align_y(iced::Alignment::Center).into()
             } else {
-                column![tabs, filters].spacing(8).into()
+                column![tabs, filters].spacing(4).into()
             }
         })
         .height(Length::Shrink)
         .into()
     } else {
-        detail_tabs(state.tab)
+        detail_tabs(state.tab, counts)
     };
-    let detail = match state.tab {
-        DetailTab::Logs => super::logs::table(&state.logs).map(Event::Logs),
-        DetailTab::Providers => super::groups::provider_view(&state.groups).map(Event::Groups),
-        DetailTab::Models => super::groups::model_view(&state.groups).map(Event::Groups),
+    let detail: Element<'_, Event> = match state.tab {
+        DetailTab::Logs => super::logs::table(&state.logs, i18n).map(Event::Logs),
+        DetailTab::Providers => container(super::groups::provider_view(&state.groups).map(Event::Groups))
+            .padding(14).into(),
+        DetailTab::Models => container(super::groups::model_view(&state.groups).map(Event::Groups))
+            .padding(14).into(),
     };
-    let details = container(column![tabs, detail].spacing(12))
-        .padding(20)
+    let details = container(column![tabs, rule::horizontal(1), detail])
         .width(Length::Fill)
         .style(panel_style);
-    let tools = row![
-        action("模型同步选择", Event::Models(models::Event::Open)),
-        action("币种与显示", Event::Display(display::Event::Open)),
-        action("模型定价", Event::Pricing(pricing::Event::Open))
-    ]
-    .spacing(8);
     let filters = column![
         row![state.range_picker.view().map(Event::Range), filters,]
             .spacing(12)
@@ -178,7 +200,6 @@ pub fn view<'a>(
         column![header, rule::horizontal(1), filters].spacing(11),
         overview_card,
         details,
-        column![tools, text(status).size(12).style(text::secondary)].spacing(8)
     ]
     .spacing(16);
     let page = scrollable(container(body).padding([7, 7]).max_width(1280).center_x(Length::Fill))
@@ -192,7 +213,16 @@ pub fn view<'a>(
     } else {
         None
     };
-    settings_right_drawer_overlay(page.into(), drawer)
+    let page = settings_right_drawer_overlay(page.into(), drawer);
+    // A top-level modal suppresses the underlying chart and filter overlays.
+    match state.range_picker.dialog() {
+        Some(dialog) => settings_modal_overlay_with_backdrop_dismiss(
+            page,
+            Event::Range(super::range_picker::Event::Cancel),
+            dialog.map(Event::Range),
+        ),
+        None => stack![page].into(),
+    }
 }
 
 fn header_segment_style(theme: &Theme, status: button::Status, first: bool) -> button::Style {
@@ -205,24 +235,50 @@ fn header_segment_style(theme: &Theme, status: button::Status, first: bool) -> b
     style
 }
 
-fn detail_tabs(active: DetailTab) -> Element<'static, Event> {
-    let mut tabs = row![].spacing(8);
-    for (tab, label) in [
+fn detail_tabs(active: DetailTab, counts: [Option<u64>; 3]) -> Element<'static, Event> {
+    let mut tabs = row![].spacing(4).padding(iced::padding::left(12));
+    for ((tab, label), count) in [
         (DetailTab::Logs, "请求日志"),
         (DetailTab::Providers, "供应商"),
         (DetailTab::Models, "模型"),
-    ] {
+    ].into_iter().zip(counts) {
         let selected = active == tab;
+        let mut content = row![text(label).size(13)]
+            .spacing(6)
+            .align_y(iced::Alignment::Center);
+        if let Some(count) = count {
+            content = content.push(
+                container(text(super::metrics::format_count(count)).size(12).style(text::secondary))
+                    .padding([2, 6])
+                    .style(|theme: &Theme| {
+                        container::Style::default()
+                            .background(theme.extended_palette().background.weak.color)
+                            .border(iced::border::rounded(5))
+                    }),
+            );
+        }
+        let label = container(content).padding([0, 8]).center_y(SETTINGS_CONTROL_HEIGHT);
+        let indicator = container(Space::new().height(2)).width(Length::Fill).style(move |theme: &Theme| {
+            container::Style::default().background(if selected {
+                theme.palette().text
+            } else {
+                iced::Color::TRANSPARENT
+            }).border(iced::border::rounded(1))
+        });
         tabs = tabs.push(
-            button(text(label).size(14))
-                .padding([8, 12])
+            button(stack![label, container(indicator).align_bottom(Length::Fill)])
+                .padding(0)
                 .style(move |theme, status| {
                     let mut style = rounded_action_btn_style(theme, status);
-                    if selected {
-                        let palette = theme.extended_palette();
-                        style.background = Some(palette.background.strong.color.into());
-                        style.text_color = palette.background.base.text;
-                    }
+                    style.border.width = 0.0;
+                    style.border.radius = iced::border::top(7);
+                    style.background = None;
+                    let alpha = match status {
+                        button::Status::Hovered | button::Status::Pressed => 1.0,
+                        _ if selected => 0.95,
+                        _ => 0.73,
+                    };
+                    style.text_color = theme.palette().text.scale_alpha(alpha);
                     style
                 })
                 .on_press(Event::Tab(tab)),

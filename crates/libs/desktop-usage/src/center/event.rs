@@ -13,7 +13,6 @@ pub enum Event {
     Refresh,
     Display(display::Event),
     Pricing(pricing::Event),
-    Models(crate::models::Event),
     Charts(charts::Event),
     Scan(scan::Event),
     Logs(logs::Event),

@@ -132,6 +132,34 @@ pub fn query_usage_logs(
     time_zone: &str,
     now: UsageUnixSeconds,
 ) -> Result<UsageLogResult, UsageLogsError> {
+    query_usage_logs_inner(connection, scope, host, query, time_zone, now, None)
+}
+
+/// Numbered pages use the same filtered snapshot and ordering as cursor pagination.
+pub fn query_usage_log_page(
+    connection: &Connection,
+    scope: &ProjectScope,
+    host: &str,
+    query: &UsageQuery,
+    time_zone: &str,
+    now: UsageUnixSeconds,
+    page: u64,
+) -> Result<UsageLogResult, UsageLogsError> {
+    if page == 0 || query.cursor.is_some() {
+        return Err(UsageLogsError::InvalidInput);
+    }
+    query_usage_logs_inner(connection, scope, host, query, time_zone, now, Some(page))
+}
+
+fn query_usage_logs_inner(
+    connection: &Connection,
+    scope: &ProjectScope,
+    host: &str,
+    query: &UsageQuery,
+    time_zone: &str,
+    now: UsageUnixSeconds,
+    page: Option<u64>,
+) -> Result<UsageLogResult, UsageLogsError> {
     let scope_key = key(scope, host)?;
     let limit = query.limit.unwrap_or(50);
     if limit == 0 || limit > MAX_USAGE_LOG_PAGE_SIZE {
@@ -221,7 +249,13 @@ pub fn query_usage_logs(
             count(&mut group.counts, &value.record);
         }
     }
-    let mut remaining = records.into_iter().filter(|v| cursor.as_ref().is_none_or(|cursor| {
+    let offset = page.map_or(0, |page| {
+        let limit = u64::from(limit);
+        let last_page = counts.total_requests.div_ceil(limit).max(1);
+        // Clamp after counting the filtered snapshot, in case rows changed since the request.
+        ((page.min(last_page) - 1) * limit) as usize
+    });
+    let mut remaining = records.into_iter().skip(offset).filter(|v| cursor.as_ref().is_none_or(|cursor| {
         (v.record.started_at_unix_seconds.0, v.record.id.as_str()) < (cursor.after_time, cursor.after_id.as_str())
     }));
     let items: Vec<_> = remaining.by_ref().take(limit as usize).collect();

@@ -105,6 +105,8 @@ pub struct GroupStats {
 pub struct ProviderStats {
     #[serde(default)]
     pub app: Option<String>,
+    #[serde(default)]
+    pub session_logs_only: bool,
     pub provider: UsageProvider,
     pub stats: GroupStats,
 }

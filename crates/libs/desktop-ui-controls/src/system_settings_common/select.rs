@@ -34,7 +34,7 @@ pub fn settings_select<'a, Message: Clone + 'a, T: Clone + PartialEq + ToString 
     let labels = options.iter().map(ToString::to_string).collect();
     let label = selected.map(|value| value.to_string());
     let enabled = !options.is_empty();
-    let trigger = trigger(label.clone().unwrap_or_default(), label.is_none(), enabled);
+    let trigger = trigger(label.clone().unwrap_or_default(), label.is_none(), enabled, None);
     let values = Rc::clone(&options);
     SettingsSelect {
         trigger,
@@ -47,6 +47,7 @@ pub fn settings_select<'a, Message: Clone + 'a, T: Clone + PartialEq + ToString 
         on_selected: Box::new(move |index| on_selected(values[index].clone())),
         on_open: None,
         width: Length::Fixed(280.0),
+        toolbar_icon: None,
     }
 }
 
@@ -61,11 +62,19 @@ pub struct SettingsSelect<'a, T, Message> {
     on_selected: Box<dyn Fn(usize) -> Message + 'a>,
     on_open: Option<(String, Message)>,
     width: Length,
+    toolbar_icon: Option<Icon>,
 }
 
 impl<T, Message> SettingsSelect<'_, T, Message> {
     pub fn width(mut self, width: impl Into<Length>) -> Self {
         self.width = width.into();
+        self
+    }
+
+    /// An icon and a compact, borderless trigger for inline toolbar filters.
+    pub fn toolbar_icon(mut self, icon: Icon) -> Self {
+        self.toolbar_icon = Some(icon);
+        self.rebuild_trigger();
         self
     }
 
@@ -90,35 +99,36 @@ impl<T, Message> SettingsSelect<'_, T, Message> {
 
     fn rebuild_trigger(&mut self) {
         let label = self.label.as_ref().unwrap_or(&self.placeholder);
-        self.trigger = trigger(label.clone(), self.label.is_none(), self.enabled);
+        self.trigger = trigger(label.clone(), self.label.is_none(), self.enabled, self.toolbar_icon);
     }
 }
 
-fn trigger(value: String, placeholder: bool, enabled: bool) -> Element<'static, ()> {
-    button(
-        row![
-            label::Label::new(value),
-            icon_svg(Icon::ChevronDown, 12.0).style(move |theme, status| {
-                if enabled {
-                    styles::icon(theme, status)
-                } else {
-                    iced::widget::svg::Style { color: Some(styles::label(theme, false, false)) }
-                }
-            }),
-        ]
-        .spacing(12)
+fn trigger(value: String, placeholder: bool, enabled: bool, toolbar_icon: Option<Icon>) -> Element<'static, ()> {
+    let mut content = row![];
+    if let Some(icon) = toolbar_icon {
+        content = content.push(icon_svg(icon, 14.0).style(styles::icon));
+    }
+    let content = content.push(label::Label::new(value))
+        .push(icon_svg(Icon::ChevronDown, 12.0).style(move |theme, status| {
+            if enabled {
+                styles::icon(theme, status)
+            } else {
+                iced::widget::svg::Style { color: Some(styles::label(theme, false, false)) }
+            }
+        }))
+        .spacing(if toolbar_icon.is_some() { 6 } else { 12 })
         .height(Length::Fill)
-        .align_y(Alignment::Center),
-    )
-    .on_press_maybe(enabled.then_some(()))
-    .padding([9, 12])
-    .width(Length::Fill)
-    .height(SETTINGS_CONTROL_HEIGHT)
-    .style(move |theme: &Theme, _| button::Style {
-        text_color: styles::label(theme, placeholder, enabled),
-        ..Default::default()
-    })
-    .into()
+        .align_y(Alignment::Center);
+    button(content)
+        .on_press_maybe(enabled.then_some(()))
+        .padding(if toolbar_icon.is_some() { [0, 8] } else { [9, 12] })
+        .width(Length::Fill)
+        .height(if toolbar_icon.is_some() { 30.0 } else { SETTINGS_CONTROL_HEIGHT })
+        .style(move |theme: &Theme, _| button::Style {
+            text_color: styles::label(theme, placeholder, enabled),
+            ..Default::default()
+        })
+        .into()
 }
 
 #[derive(Default)]
@@ -316,16 +326,16 @@ impl<T: PartialEq + 'static, Message: Clone> Widget<Message, Theme, Renderer> fo
     ) {
         use iced::advanced::Renderer as _;
         let state = tree.state.downcast_ref::<State<T>>();
-        let style = styles::trigger(
-            theme,
-            self.enabled,
-            state.menu.open,
-            state.focused,
-            cursor.is_over(layout.bounds()) && cursor.is_over(*viewport),
-        );
+        let hovered = cursor.is_over(layout.bounds()) && cursor.is_over(*viewport);
+        let (border, background) = if self.toolbar_icon.is_some() {
+            styles::toolbar_trigger(theme, self.enabled, state.menu.open, state.focused, hovered)
+        } else {
+            let style = styles::trigger(theme, self.enabled, state.menu.open, state.focused, hovered);
+            (style.border, style.background)
+        };
         renderer.fill_quad(
-            renderer::Quad { bounds: layout.bounds(), border: style.border, ..Default::default() },
-            style.background,
+            renderer::Quad { bounds: layout.bounds(), border, ..Default::default() },
+            background,
         );
         self.trigger.as_widget().draw(
             &tree.children[0],

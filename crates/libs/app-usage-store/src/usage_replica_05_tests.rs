@@ -5,10 +5,10 @@ fn scope() -> ProjectScope {
     ProjectScope::for_default_tenant(ProjectId("replica-fixture".into())).unwrap()
 }
 
-fn insert(db: &mut Connection, id: &str, time: i64, first: f64, app: &str) {
+fn insert(db: &mut Connection, id: &str, time: i64, first: f64, app: &str, kind: UsageSourceKind) {
     let record: UsageRecord = serde_json::from_value(serde_json::json!({
         "id":id,"started_at_unix_seconds":time,"provider":{"kind":"unknown"},
-        "sources":[{"source_id":id,"kind":"relay","app":app,
+        "sources":[{"source_id":id,"kind":kind,"app":app,
             "native_request_id":id,"native_session_id":"fixture"}],
         "models":{"request_model":"fixture","response_model":null,"pricing_model":null},
         "status":"succeeded","billable":true,"tokens":null,
@@ -25,7 +25,7 @@ fn insert(db: &mut Connection, id: &str, time: i64, first: f64, app: &str) {
             target_host: "host".into(),
             app: app.into(),
             instance_id: "fixture".into(),
-            kind: UsageSourceKind::Relay,
+            kind,
             file_identity: "fixture".into(),
             native_session_id: Some("fixture".into()),
             native_request_id: id.into(),
@@ -39,8 +39,8 @@ fn insert(db: &mut Connection, id: &str, time: i64, first: f64, app: &str) {
 fn usage_replica_05_provider_application_identity_survives_rollup() {
     let mut db = Connection::open_in_memory().unwrap();
     initialize_usage_store(&mut db).unwrap();
-    insert(&mut db, "one", 1, 100.0, "codex");
-    insert(&mut db, "two", 2, 200.0, "claude");
+    insert(&mut db, "one", 1, 100.0, "codex", UsageSourceKind::Native);
+    insert(&mut db, "two", 2, 200.0, "claude", UsageSourceKind::Relay);
     let range = UsageResolvedRange {
         start_unix_seconds: None,
         end_unix_seconds: UsageUnixSeconds(50 * 86400),
@@ -53,8 +53,16 @@ fn usage_replica_05_provider_application_identity_survives_rollup() {
     assert_eq!(rows.len(), 2);
     assert!(rows.iter().all(|r| r.stats.counts.total_requests == 1));
     assert_ne!(rows[0].app, rows[1].app);
+    assert!(rows.iter().all(|r| r.session_logs_only == (r.app.as_deref() == Some("codex"))));
     crate::retention::rollup_and_prune(&mut db, &scope(), "host", 40 * 86400, || false).unwrap();
     let rows = read(&db);
     assert_eq!(rows.len(), 2);
     assert!(rows.iter().all(|r| r.stats.counts.total_requests == 1));
+    assert!(rows.iter().all(|r| r.session_logs_only == (r.app.as_deref() == Some("codex"))));
+
+    insert(&mut db, "three", 41 * 86400, 300.0, "codex", UsageSourceKind::Relay);
+    let rows = read(&db);
+    let codex = rows.iter().find(|r| r.app.as_deref() == Some("codex")).unwrap();
+    assert_eq!(codex.stats.counts.total_requests, 2);
+    assert!(!codex.session_logs_only);
 }

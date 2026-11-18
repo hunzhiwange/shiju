@@ -1,13 +1,15 @@
 //! Final desktop composition for third-party resources and application details.
-use super::system_settings_common::{rounded_action_btn_style, settings_page_heading};
+use super::system_settings_common::{icon_btn, icon_svg, rounded_action_btn_style, settings_page_heading};
 use crate::app::{
     App, Message,
-    message::{SettingsMessage, settings::AppsCatalogMessage},
+    message::{SettingsMessage, ViewMessage, settings::AppsCatalogMessage},
+    views::usage::center as usage,
 };
-use desktop_ui_controls::settings_navigation::ThirdPartyPage;
+use desktop_assets::assets::Icon;
+use desktop_ui_controls::{settings_navigation::ThirdPartyPage, tooltip::tooltip_dark_style};
 use iced::{
-    Element, Task,
-    widget::{button, column, row, text},
+    Element, Length, Task, Theme,
+    widget::{Space, button, column, container, row, rule, scrollable, text, tooltip},
 };
 
 fn message(event: AppsCatalogMessage) -> Message {
@@ -15,54 +17,12 @@ fn message(event: AppsCatalogMessage) -> Message {
 }
 
 pub(crate) fn view(app: &App) -> Element<'_, Message> {
+    if usage::is_visible(app) {
+        return workspace(app, container(usage::view(app)).padding([12, 16]).into());
+    }
+
     let state = &app.apps_catalog;
     let i18n = crate::app::i18n::I18n::new(app.general_settings.desktop_locale);
-    let mut agents = column![].spacing(6);
-    for entry in &state.rows {
-        let active = state.third_party_page == ThirdPartyPage::Agents
-            && state.expanded == Some(entry.entry.id);
-        agents = agents.push(
-            button(
-                row![
-                    desktop_settings_apps::system_settings_apps::list::brand(entry.entry.id),
-                    text(&entry.entry.name).size(14)
-                ]
-                .spacing(8)
-                .align_y(iced::Alignment::Center),
-            )
-            .width(iced::Length::Fill)
-            .padding([10, 12])
-            .style(move |theme, status| {
-                if active {
-                    iced::widget::button::primary(theme, status)
-                } else {
-                    rounded_action_btn_style(theme, status)
-                }
-            })
-            .on_press(message(AppsCatalogMessage::SelectApp(entry.entry.id))),
-        );
-    }
-    let mut resources = column![].spacing(6);
-    for &(page, label) in ThirdPartyPage::ALL {
-        if page == ThirdPartyPage::Agents {
-            continue;
-        }
-        let active = state.third_party_page == page;
-        resources = resources.push(
-            button(text(i18n.__(label)).size(14))
-                .width(iced::Length::Fill)
-                .padding([10, 12])
-                .style(move |theme, status| {
-                    if active {
-                        iced::widget::button::primary(theme, status)
-                    } else {
-                        rounded_action_btn_style(theme, status)
-                    }
-                })
-                .on_press(message(AppsCatalogMessage::Navigate(page))),
-        );
-    }
-    resources = resources.push(crate::app::views::usage::center::entry(app));
     let selected = state.expanded;
     let body: Element<'_, Message> = match state.third_party_page {
         ThirdPartyPage::Agents => {
@@ -135,29 +95,6 @@ pub(crate) fn view(app: &App) -> Element<'_, Message> {
         .spacing(12)
         .into(),
     };
-    use iced::{
-        Length,
-        widget::{container, scrollable},
-    };
-
-    let sidebar = column![
-        settings_page_heading(i18n.__("第三方智能体"), ""),
-        scrollable(container(agents).padding([0, 7]))
-            .direction(scrollable::Direction::Vertical(
-                scrollable::Scrollbar::new().width(4).scroller_width(4)
-            ))
-            .height(Length::Fill),
-        iced::widget::rule::horizontal(1),
-        resources,
-        button(text("刷新"))
-            .padding([8, 12])
-            .style(rounded_action_btn_style)
-            .on_press(message(AppsCatalogMessage::Refresh)),
-    ]
-    .spacing(12)
-    .padding(16)
-    .width(240)
-    .height(Length::Fill);
     let title = if state.third_party_page == ThirdPartyPage::Agents {
         state
             .rows
@@ -184,13 +121,152 @@ pub(crate) fn view(app: &App) -> Element<'_, Message> {
             ))
             .height(Length::Fill),
     );
+    self::workspace(app, container(workspace).padding(24).into())
+}
+
+fn workspace<'a>(app: &'a App, content: Element<'a, Message>) -> Element<'a, Message> {
     row![
-        sidebar,
-        iced::widget::rule::vertical(1),
-        container(workspace).padding(24).width(Length::Fill).height(Length::Fill)
+        sidebar(app),
+        rule::vertical(1),
+        container(content).width(Length::Fill).height(Length::Fill),
     ]
     .height(Length::Fill)
     .into()
+}
+
+fn sidebar(app: &App) -> Element<'_, Message> {
+    let state = &app.apps_catalog;
+    let i18n = crate::app::i18n::I18n::new(app.general_settings.desktop_locale);
+    let showing_usage = usage::is_visible(app);
+    let mut agents = column![].spacing(2);
+    for row in &state.rows {
+        let entry = &row.entry;
+        let active = !showing_usage
+            && state.third_party_page == ThirdPartyPage::Agents
+            && state.expanded == Some(entry.id);
+        let icon = desktop_settings_apps::system_settings_apps::list::brand_icon(entry.id, 18.0);
+        agents = agents.push(sidebar_action(
+            icon,
+            &entry.name,
+            None,
+            active,
+            message(AppsCatalogMessage::SelectApp(entry.id)),
+        ));
+    }
+
+    let mut resources = column![].spacing(2);
+    for &(page, label) in ThirdPartyPage::ALL {
+        let icon = match page {
+            ThirdPartyPage::Agents => continue,
+            ThirdPartyPage::Mcp => Icon::HddNetwork,
+            ThirdPartyPage::Skills => Icon::Box,
+            ThirdPartyPage::Sessions => Icon::Clock,
+            ThirdPartyPage::Authorization => Icon::ShieldLock,
+            ThirdPartyPage::Usage => Icon::Speedometer2,
+            ThirdPartyPage::ManagementTools => Icon::Wrench,
+        };
+        resources = resources.push(sidebar_action(
+            navigation_icon(icon),
+            i18n.__(label),
+            None,
+            !showing_usage && state.third_party_page == page,
+            message(AppsCatalogMessage::Navigate(page)),
+        ));
+    }
+    let today = usage::today_summary(app);
+    let statistics = sidebar_action(
+        navigation_icon(Icon::BarChartFill),
+        i18n.__("用量统计"),
+        today.as_ref().map(|(summary, _)| summary.clone()),
+        showing_usage,
+        Message::View(ViewMessage::UsageCenter(usage::Event::Load(
+            desktop_usage::center::range_picker::Preset::Month,
+        ))),
+    );
+    let statistics: Element<'_, Message> = match today {
+        Some((_, details)) => tooltip(statistics, text(details).size(13), tooltip::Position::Right)
+            .style(tooltip_dark_style)
+            .gap(6)
+            .snap_within_viewport(true)
+            .into(),
+        None => statistics,
+    };
+
+    let header = row![
+        text(i18n.__("第三方智能体")).size(15).width(Length::Fill),
+        icon_btn(Icon::ArrowClockwise, "刷新目录", Some(message(AppsCatalogMessage::Refresh))),
+    ]
+    .padding([2, 8])
+    .spacing(6)
+    .align_y(iced::Alignment::Center);
+
+    let footer = row![
+        sidebar_action(navigation_icon(Icon::Grid1x2), i18n.__("应用"), None, false, Message::View(ViewMessage::OpenApps)),
+        sidebar_action(navigation_icon(Icon::Gear), i18n.__("设置"), None, false, Message::View(ViewMessage::OpenSystemSettingsTab(
+            desktop_ui_controls::settings_navigation::SystemTab::General,
+        ))),
+    ].spacing(4);
+
+    container(column![
+        header,
+        scrollable(agents)
+            .direction(scrollable::Direction::Vertical(scrollable::Scrollbar::new().width(4).scroller_width(4)))
+            .width(Length::Fill)
+            .height(Length::Fill),
+        rule::horizontal(1),
+        resources.push(statistics),
+        rule::horizontal(1),
+        footer,
+    ].spacing(7).width(Length::Fill))
+    .padding([10, 8])
+    .width(214)
+    .height(Length::Fill)
+    .style(|theme: &Theme| {
+        container::Style::default().background(theme.extended_palette().background.weak.color)
+    })
+    .into()
+}
+
+fn navigation_icon(icon: Icon) -> Element<'static, Message> {
+    icon_svg(icon, 16.0)
+        .style(|theme: &Theme, _| iced::widget::svg::Style {
+            color: Some(theme.palette().text.scale_alpha(0.74)),
+        })
+        .into()
+}
+
+fn sidebar_action<'a>(
+    icon: Element<'a, Message>,
+    label: &'a str,
+    trailing: Option<String>,
+    active: bool,
+    event: Message,
+) -> Element<'a, Message> {
+    let mut content = row![container(icon).center_x(20), text(label).size(13)]
+        .spacing(8)
+        .align_y(iced::Alignment::Center);
+    if let Some(trailing) = trailing {
+        content = content.push(Space::new().width(Length::Fill))
+            .push(text(trailing).size(12).style(text::secondary));
+    }
+    button(container(content).center_y(Length::Fill))
+        .width(Length::Fill)
+        .height(30)
+        .padding([0, 8])
+        .style(move |theme, status| {
+            let colors = theme.extended_palette();
+            let mut style = rounded_action_btn_style(theme, status);
+            style.border = iced::border::rounded(7);
+            style.background = match status {
+                button::Status::Pressed => Some(colors.background.strongest.color.into()),
+                _ if active => Some(colors.background.strong.color.into()),
+                button::Status::Hovered => Some(theme.palette().text.scale_alpha(0.07).into()),
+                _ => None,
+            };
+            style
+        })
+        .on_press(event)
+        .into()
 }
 
 fn mcp_scope(app: &App) -> Option<desktop_settings_mcp::third_party::Scope> {
@@ -227,6 +303,9 @@ fn mcp_view<'a>(
 }
 
 pub(crate) fn navigate(app: &mut App, page: ThirdPartyPage) -> Task<Message> {
+    if app.usage_center.open {
+        app.usage_center.close();
+    }
     invalidate(app);
     app.apps_catalog.third_party_page = page;
     use crate::app::message::settings;
@@ -425,6 +504,9 @@ mod integration_tests;
 
 /// Main-page composition; all configuration dialogs stay attached to this page.
 pub(crate) fn standalone(app: &App) -> Element<'_, Message> {
+    if usage::is_visible(app) {
+        return view(app);
+    }
     let base = overlays(app, view(app));
     let mut base = super::system_settings_apps::view_overlays(
         &app.apps_catalog,

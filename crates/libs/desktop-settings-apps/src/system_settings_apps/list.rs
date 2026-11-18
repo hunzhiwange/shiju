@@ -217,6 +217,16 @@ fn empty<'a, M: 'static>(title: &'a str, description: &'a str, glyph: Icon) -> E
 }
 
 pub fn brand<M: 'static>(app: AppId) -> Element<'static, M> {
+    container(brand_icon(app, 28.0))
+        .width(44.)
+        .height(44.)
+        .center_x(44.)
+        .center_y(44.)
+        .style(settings_icon_tile_style)
+        .into()
+}
+
+pub fn brand_icon<M: 'static>(app: AppId, size: f32) -> Element<'static, M> {
     let (glyph, monochrome) = match app {
         AppId::Claude | AppId::ClaudeDesktop => (Some(Icon::AppClaudeCode), false),
         AppId::Codex | AppId::Gemini => (None, false),
@@ -227,13 +237,13 @@ pub fn brand<M: 'static>(app: AppId) -> Element<'static, M> {
         AppId::Agy => (Some(Icon::AppAntigravity), false),
         _ => (None, false),
     };
-    let content: Element<'static, M> = if let Some(glyph) = glyph {
-        if monochrome { icon(glyph, 28.).into() } else { icon_svg(glyph, 28.).into() }
+    if let Some(glyph) = glyph {
+        if monochrome { icon(glyph, size).into() } else { icon_svg(glyph, size).into() }
     } else {
         match app {
             AppId::Codex => svg::Svg::new(assets::get_provider_icon("openai"))
-                .width(28.)
-                .height(28.)
+                .width(size)
+                .height(size)
                 .style(|theme: &Theme, _| svg::Style { color: Some(theme.palette().text) })
                 .into(),
             AppId::Gemini => {
@@ -243,33 +253,26 @@ pub fn brand<M: 'static>(app: AppId) -> Element<'static, M> {
                             .as_slice(),
                     )
                 });
-                svg::Svg::new(GEMINI.clone()).width(28.).height(28.).into()
+                svg::Svg::new(GEMINI.clone()).width(size).height(size).into()
             }
             AppId::GrokBuild => svg::Svg::new(assets::get_provider_icon("xai"))
-                .width(28.)
-                .height(28.)
+                .width(size)
+                .height(size)
                 .style(|theme: &Theme, _| svg::Style { color: Some(theme.palette().text) })
                 .into(),
             AppId::Mcode => {
-                svg::Svg::new(assets::get_provider_icon("minimax")).width(28.).height(28.).into()
+                svg::Svg::new(assets::get_provider_icon("minimax")).width(size).height(size).into()
             }
             AppId::Dsh => {
-                svg::Svg::new(assets::get_provider_icon("deepseek")).width(28.).height(28.).into()
+                svg::Svg::new(assets::get_provider_icon("deepseek")).width(size).height(size).into()
             }
             AppId::Hermes => iced::widget::image(assets::get_image(Icon::AppHermes))
-                .width(28.)
-                .height(28.)
+                .width(size)
+                .height(size)
                 .into(),
-            _ => icon(Icon::Terminal, 28.).into(),
+            _ => icon(Icon::Terminal, size).into(),
         }
-    };
-    container(content)
-        .width(44.)
-        .height(44.)
-        .center_x(44.)
-        .center_y(44.)
-        .style(settings_icon_tile_style)
-        .into()
+    }
 }
 
 fn card<'a, M: Clone + 'static>(state: &ViewState<'a>, app: &'a CatalogRow, message: impl Fn(Action) -> M + Copy + 'static) -> Element<'a, M> {

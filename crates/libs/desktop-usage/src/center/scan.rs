@@ -25,17 +25,14 @@ impl State {
         }
     }
 
-    pub(super) fn sync_label(&self) -> String {
-        let Some(last) = self.last.as_ref().and_then(|scan| scan.last_complete_scan) else {
-            return "同步".into();
-        };
-        let elapsed = last.elapsed().unwrap_or_default().as_secs();
-        match elapsed {
-            0..=59 => "刚刚同步".into(),
-            60..=3599 => format!("{} 分钟前同步", elapsed / 60),
-            3600..=86399 => format!("{} 小时前同步", elapsed / 3600),
-            _ => format!("{} 天前同步", elapsed / 86400),
-        }
+    pub(super) fn last_sync_time(&self) -> Option<chrono::DateTime<chrono::Local>> {
+        let elapsed = self.last.as_ref()?.last_complete_scan?
+            .duration_since(std::time::UNIX_EPOCH).ok()?;
+        let time = chrono::DateTime::from_timestamp(
+            elapsed.as_secs().try_into().ok()?,
+            elapsed.subsec_nanos(),
+        )?;
+        Some(time.with_timezone(&chrono::Local))
     }
 }
 #[derive(Clone, Debug)]
@@ -83,7 +80,10 @@ pub fn update(state: &mut State, current: Option<Identity>, client: Result<vw_ga
             if !state.pending && state.scope == current && !state.job.as_ref().is_some_and(|job| !terminal(job)) { state.confirm_rebuild = true; }
         }
         Event::DismissRebuild => state.confirm_rebuild = false,
-        Event::Navigate(destination) => { state.open = false; state.navigation = Some(destination); }
+        Event::Navigate(destination) => {
+            if matches!(destination, Navigation::Routing) { state.open = false; }
+            state.navigation = Some(destination);
+        }
         Event::Poll(sequence, scope) => {
             if state.sequence == sequence && current.as_ref() == Some(&scope) {
                 if state.pending { return poll(sequence, scope); }

@@ -171,7 +171,7 @@ impl App {
         ) {
             return Task::none();
         }
-        let usage_was_visible = self.usage_center.open && self.navigation_tabs.screen == crate::app::Screen::Usage;
+        let usage_was_visible = crate::app::views::usage::center::is_visible(self);
         let refresh_pins = self.prepare_session_ui_projection(&message);
         let task = match message {
             Message::SessionDetailsHovered { session_id, project_id, directory } => {
@@ -427,7 +427,7 @@ impl App {
         let tools_cleanup = message::settings::mcp_management_tools::invalidate(self);
         let cron_history = message::settings::cron_history::reconcile(self);
         let leave = crate::app::message::app_providers::leave::resume(self);
-        let usage_is_visible = self.usage_center.open && self.navigation_tabs.screen == crate::app::Screen::Usage;
+        let usage_is_visible = crate::app::views::usage::center::is_visible(self);
         let usage_activity = if usage_was_visible && !usage_is_visible {
             crate::app::views::usage::center::update(self, crate::app::views::usage::center::Event::ActivityChanged)
         } else {

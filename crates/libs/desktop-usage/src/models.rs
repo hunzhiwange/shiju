@@ -3,7 +3,8 @@ use crate::Identity;
 use vw_gateway_client::GatewayClient;
 type Message = Event;
 use desktop_ui_controls::system_settings_common::*;
-use iced::{Element, Task, widget::{button, checkbox, column, row, text}};
+use desktop_assets::assets::Icon;
+use iced::{Element, Length, Task, Theme, widget::{button, checkbox, column, container, row, rule, text}};
 use gateway_usage_price::{ModelsDevEntry, ModelsDevSyncConfig, ModelsDevSyncState};
 use gateway_usage_scan::UsageScanScope;
 
@@ -25,7 +26,7 @@ pub struct State {
 }
 #[derive(Clone, Debug)]
 pub enum Event {
-    SavedNotice, Open, Close, Reload, Picker(bool), Search(String), Auto(bool), Common(bool),
+    SavedNotice, Open, Reload, Picker(bool), Search(String), Auto(bool), Common(bool),
     Continue(u64, Identity),
     Select(String, bool), Exclude(String, bool), Save, Sync, AutoSync, Poll,
     Loaded(u64, Identity, Result<(Vec<ModelsDevEntry>, ModelsDevSyncState), String>),
@@ -42,16 +43,11 @@ fn set_key(keys: &mut Vec<String>, key: String, enabled: bool) {
 impl State {
     pub fn close(&mut self) { self.open = false; self.picker = false; self.sequence = self.sequence.wrapping_add(1); self.busy = false; }
 }
-pub fn update(state: &mut State, current: Option<Identity>, client: fn() -> Result<GatewayClient, String>, event: Event) -> Task<Message> {
-    update_with_client(state, current, client(), event)
-}
-
 pub fn update_with_client(state: &mut State, current: Option<Identity>, client: Result<GatewayClient, String>, event: Event) -> Task<Message> {
     // Every completion is bound to this opening and authenticated destination.
     let valid = |ticket, id: &Identity| state.open && state.sequence == ticket && state.scope.as_ref() == Some(id) && current.as_ref() == Some(id);
     match event {
         Event::SavedNotice => {},
-        Event::Close => state.close(),
         Event::Loaded(ticket, id, result) => {
             if !valid(ticket, &id) { return Task::none(); }
             state.busy = false;
@@ -62,7 +58,10 @@ pub fn update_with_client(state: &mut State, current: Option<Identity>, client: 
             state.busy = false;
             match result {
                 Ok(result) => {
-                    if state.revision == revision { state.draft = Some(result.config.clone()); }
+                    if state.revision == revision {
+                        state.draft = Some(result.config.clone());
+                        state.picker = false;
+                    }
                     state.result = Some(result);
                     return Task::batch([Task::done(Event::SavedNotice), update_with_client(state, current, client, Event::AutoSync)]);
                 }
@@ -80,9 +79,7 @@ pub fn update_with_client(state: &mut State, current: Option<Identity>, client: 
             // Polling never replaces the editable configuration.
             match result {
                 Ok((progress, result)) => {
-                    let terminal = serde_json::from_str::<serde_json::Value>(&progress).ok()
-                        .and_then(|value| value.get("phase").and_then(|v| v.as_str()).map(|phase| phase == "Terminal"))
-                        .unwrap_or(true);
+                    let terminal = sync_finished(&progress);
                     state.progress = if terminal { "同步任务已结束".into() } else { "正在同步模型价格…".into() };
                     state.result = Some(result);
                     if !terminal {
@@ -99,7 +96,17 @@ pub fn update_with_client(state: &mut State, current: Option<Identity>, client: 
             if !valid(ticket, &id) { return Task::none(); }
             return update_with_client(state, current, client, Event::Poll);
         }
-        Event::Picker(value) => state.picker = value,
+        Event::Picker(value) => {
+            if value {
+                if state.busy || state.draft.is_none() { return Task::none(); }
+                state.search.clear();
+            } else if !state.busy {
+                state.draft = state.result.as_ref().map(|result| result.config.clone());
+            } else {
+                return Task::none();
+            }
+            state.picker = value;
+        }
         Event::Search(value) => state.search = value,
         Event::Auto(value) => {
             if state.busy { return Task::none(); }
@@ -172,67 +179,118 @@ pub fn update_with_client(state: &mut State, current: Option<Identity>, client: 
     }
     Task::none()
 }
-fn action(label: &'static str, event: Event, enabled: bool) -> Element<'static, Message> {
-    button(text(label)).style(rounded_action_btn_style).padding([8, 14]).on_press_maybe(enabled.then(|| message(event))).into()
-}
-pub fn overlay<'a>(state: &'a State, base: Element<'a, Message>) -> Element<'a, Message> {
-    overlay_with_base(state, base, |event| event)
-}
-pub fn overlay_with_base<'a, M: Clone + 'static>(state: &'a State, base: Element<'a, M>, map: fn(Event) -> M) -> Element<'a, M> {
-    if !state.open { return base; }
-    let mut body = column![].spacing(10);
-    if let Some(draft) = &state.draft {
-        body = body.push(checkbox(draft.auto_sync_enabled).label("自动同步").style(settings_checkbox_style).on_toggle_maybe((!state.busy).then_some(|v| message(Event::Auto(v)))));
-        body = body.push(action("选择模型…", Event::Picker(!state.picker), !state.busy));
-        if state.picker {
-        body = body.push(checkbox(draft.selection.include_common_models).label("包含常用模型").style(settings_checkbox_style).on_toggle_maybe((!state.busy).then_some(|v| message(Event::Common(v)))));
-        body = body.push(text(format!("显式选择 {} · 排除常用 {}", draft.selection.selected_model_keys.len(), draft.selection.excluded_common_model_keys.len())));
-        body = body.push(settings_text_input("搜索模型或供应商", &state.search).on_input(|v| message(Event::Search(v))));
-        let search = state.search.to_lowercase();
-        for entry in state.candidates.iter().filter(|e| format!("{} {} {} {}", e.key, e.model_name, e.provider_name, e.normalized_id).to_lowercase().contains(&search)).take(if search.is_empty() { 80 } else { 300 }) {
-            let selected = draft.selection.selected_model_keys.contains(&entry.key);
-            let excluded = draft.selection.excluded_common_model_keys.contains(&entry.key);
-            let key = entry.key.clone();
-            let exclude_key = key.clone();
-            body = body.push(column![text(format!("{} · {} · {}", entry.model_name, entry.provider_name, entry.normalized_id)), row![
-                checkbox(selected).label("显式选择").style(settings_checkbox_style).on_toggle_maybe((!state.busy).then_some(move |v| message(Event::Select(key.clone(), v)))),
-                checkbox(excluded).label("排除常用").style(settings_checkbox_style).on_toggle_maybe((!state.busy).then_some(move |v| message(Event::Exclude(exclude_key.clone(), v)))),
-            ].spacing(12)].spacing(4));
-        }
-    }
-        }
-    let mut header = column![text("models.dev 自动同步").size(20)].spacing(8);
-    if state.busy { header = header.push(text("正在请求执行主机…")); }
-    if let Some(result) = &state.result {
-        header = header.push(text(format!("最近同步：{}", sync_time(result.last_sync_at))));
-        if let Some(error) = &result.last_error { header = header.push(settings_error_banner(error)); }
-    }
-    if let Some(error) = &state.error { header = header.push(settings_error_banner(error)); }
-    if !state.progress.is_empty() { body = body.push(text(&state.progress)); }
-    let footer = row![action("重新加载", Event::Reload, !state.busy), action("保存选择", Event::Save, !state.busy && state.draft.is_some()), action("立即同步", Event::Sync, !state.busy && state.draft.is_some()), action("刷新同步结果", Event::Poll, !state.busy && state.job.is_some()), action("关闭", Event::Close, true)].spacing(8);
-    settings_modal_overlay(Some(base), map(Event::Close), iced::Element::from(settings_modal_layout(header, body, Some(footer.into())).width(900).height(680)).map(map))
+
+pub(crate) fn sync_finished(progress: &str) -> bool {
+    serde_json::from_str::<serde_json::Value>(progress).ok()
+        .and_then(|value| value.get("phase").and_then(|phase| phase.as_str()).map(|phase| phase == "Terminal"))
+        .unwrap_or(true)
 }
 
-fn sync_time(value: Option<i64>) -> String {
-    value.and_then(chrono::DateTime::from_timestamp_millis)
-        .map(|time| time.with_timezone(&chrono::Local).format("%Y-%m-%d %H:%M").to_string())
-        .unwrap_or_else(|| "从未同步".into())
+impl State {
+    pub(crate) fn candidates(&self) -> &[ModelsDevEntry] { &self.candidates }
+    pub(crate) fn catalog_ready(&self) -> bool { self.result.is_some() }
 }
 
-pub fn card(state: &State) -> Element<'_, Event> {
-    let mut content = column![text("models.dev 自动同步").size(16),
-        text(format!("最近同步：{}", sync_time(state.result.as_ref().and_then(|s| s.last_sync_at))))].spacing(8);
-    if let Some(result) = &state.result {
-        content = content.push(checkbox(result.config.auto_sync_enabled).label("自动同步")
-            .style(settings_checkbox_style).on_toggle_maybe((!state.busy).then_some(Event::Auto)));
+fn action(label: &'static str, event: Event, enabled: bool) -> iced::widget::Button<'static, Event> {
+    button(text(label).size(13))
+        .padding([8, 12])
+        .style(rounded_action_btn_style)
+        .on_press_maybe(enabled.then_some(event))
+}
+
+pub(crate) fn picker<'a, M: Clone + 'static>(
+    state: &'a State,
+    base: Element<'a, M>,
+    map: impl Fn(Event) -> M + Copy + 'a,
+) -> Element<'a, M> {
+    let Some(draft) = state.draft.as_ref().filter(|_| state.picker) else { return base };
+    let enabled = !state.busy;
+    let cancel = Event::Picker(false);
+    let search = state.search.trim().to_lowercase();
+    let mut body = column![
+        checkbox(draft.selection.include_common_models)
+            .label("包含常用模型")
+            .style(settings_checkbox_style)
+            .on_toggle_maybe(enabled.then_some(Event::Common)),
+        settings_text_input("搜索模型或供应商", &state.search).on_input(Event::Search),
+    ].spacing(10);
+    if let Some(error) = &state.error { body = body.push(settings_error_banner(error)); }
+    for entry in state.candidates.iter()
+        .filter(|entry| format!("{} {} {}", entry.model_name, entry.provider_name, entry.normalized_id).to_lowercase().contains(&search))
+        .take(if search.is_empty() { 80 } else { 300 })
+    {
+        let selected = draft.selection.selected_model_keys.contains(&entry.key);
+        let excluded = draft.selection.excluded_common_model_keys.contains(&entry.key);
+        let key = entry.key.clone();
+        let exclude_key = key.clone();
+        body = body.push(row![
+            column![
+                text(&entry.model_name).size(14),
+                text(format!("{} · {}", entry.provider_name, entry.normalized_id)).size(12).style(text::secondary),
+            ].spacing(3).width(Length::Fill),
+            checkbox(selected).label("选择").style(settings_checkbox_style)
+                .on_toggle_maybe(enabled.then_some(move |value| Event::Select(key.clone(), value))),
+            checkbox(excluded).label("排除常用").style(settings_checkbox_style)
+                .on_toggle_maybe(enabled.then_some(move |value| Event::Exclude(exclude_key.clone(), value))),
+        ].align_y(iced::Alignment::Center).spacing(12)).push(rule::horizontal(1));
     }
-    if let Some(error) = &state.error { content = content.push(settings_error_banner(error)); }
-    if let Some(error) = state.result.as_ref().and_then(|s| s.last_error.as_ref()) { content = content.push(settings_error_banner(error)); }
-    if !state.progress.is_empty() { content = content.push(text(&state.progress)); }
-    content = content.push(row![action("选择模型…", Event::Picker(true), !state.busy),
-        action("立即同步", Event::Sync, !state.busy && state.draft.is_some()),
-        action("刷新同步结果", Event::Poll, !state.busy && state.job.is_some())].spacing(8));
-    settings_modal_card(content).into()
+    let header = settings_modal_header(text("选择同步模型").size(20), settings_close_button(cancel.clone()));
+    let changed = state.result.as_ref().is_some_and(|result| result.config != *draft);
+    let footer = container(row![
+        action("取消", cancel.clone(), enabled),
+        action("保存选择", Event::Save, enabled && changed).style(primary_action_btn_style),
+    ].spacing(8)).align_right(Length::Fill);
+    let card = settings_modal_layout(header, body, Some(footer.into())).width(720).height(590);
+    settings_modal_overlay(Some(base), map(cancel), Element::from(card).map(map))
 }
 
-pub fn picker_open(state: &State) -> bool { state.picker }
+pub(crate) fn sync_card<'a, M: Clone + 'static>(
+    state: &'a State,
+    more: Element<'a, M>,
+    map: fn(Event) -> M,
+) -> Element<'a, M> {
+    let ready = !state.busy && state.catalog_ready();
+    let result = state.result.as_ref();
+    let title = match result {
+        Some(result) if result.config.auto_sync_enabled => "models.dev 同步 · 已开启",
+        Some(_) => "models.dev 同步 · 已关闭",
+        None => "models.dev 同步",
+    };
+    let summary = result.map_or_else(
+        || if state.busy { "正在读取同步设置…".into() } else { "同步设置不可用".into() },
+        |result| {
+            let last = result.last_sync_at
+                .and_then(chrono::DateTime::from_timestamp_millis)
+                .map(|time| time.with_timezone(&chrono::Local).format("%Y-%m-%d %H:%M").to_string())
+                .unwrap_or_else(|| "从未同步".into());
+            let common = if result.config.selection.include_common_models { " · 含常用模型" } else { "" };
+            format!("最近同步 {last}{common}")
+        },
+    );
+    let toggle = settings_toggle(result.is_some_and(|result| result.config.auto_sync_enabled))
+        .on_toggle_maybe(ready.then_some(move |enabled| map(Event::Auto(enabled))));
+    let controls = row![
+        toggle,
+        Element::from(action("选择模型", Event::Picker(true), ready)).map(map),
+        Element::from(action("立即同步", Event::Sync, ready)).map(map),
+        more,
+    ].spacing(8).align_y(iced::Alignment::Center);
+    let mut content = column![row![
+        icon_svg(Icon::ArrowRepeat, 20.0),
+        column![text(title).size(16), text(summary).size(12).style(text::secondary)]
+            .spacing(4).width(Length::Fill),
+        controls,
+    ].spacing(12).align_y(iced::Alignment::Center)].spacing(8);
+    if !state.progress.is_empty() { content = content.push(text(&state.progress).size(12).style(text::secondary)); }
+    if let Some(error) = state.error.as_ref().or_else(|| result.and_then(|result| result.last_error.as_ref())) {
+        content = content.push(settings_error_banner(error));
+    }
+    if !state.busy && state.error.is_some() {
+        let retry = if state.job.is_some() { Event::Poll } else { Event::Reload };
+        content = content.push(Element::from(action("重试", retry, true)).map(map));
+    }
+    container(content).padding([12, 14]).width(Length::Fill).style(|theme: &Theme| {
+        container::Style::default().background(theme.extended_palette().background.weak.color)
+            .border(iced::border::rounded(12))
+    }).into()
+}

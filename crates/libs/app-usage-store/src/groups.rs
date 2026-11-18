@@ -105,6 +105,8 @@ impl Default for GroupStats {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ProviderStats {
     pub app: Option<String>,
+    #[serde(default)]
+    pub session_logs_only: bool,
     pub provider: UsageProvider,
     pub stats: GroupStats,
 }
@@ -116,6 +118,12 @@ pub struct ModelStats {
     pub stats: GroupStats,
 }
 
+#[derive(Default)]
+struct Group {
+    stats: GroupStats,
+    has_non_native_source: bool,
+}
+
 pub fn get_provider_stats(
     connection: &Connection,
     scope: &ProjectScope,
@@ -125,10 +133,15 @@ pub fn get_provider_stats(
 ) -> Result<Vec<ProviderStats>, String> {
     let rows = grouped(connection, scope, host, range, filter, false)?;
     rows.into_iter()
-        .map(|(key, stats)| {
+        .map(|(key, group)| {
             let (app, provider) =
                 serde_json::from_str(&key).map_err(|_| "invalid provider group")?;
-            Ok(ProviderStats { app, provider, stats })
+            Ok(ProviderStats {
+                app,
+                provider,
+                session_logs_only: !group.has_non_native_source,
+                stats: group.stats,
+            })
         })
         .collect()
 }
@@ -142,10 +155,10 @@ pub fn get_model_stats(
 ) -> Result<Vec<ModelStats>, String> {
     let rows = grouped(connection, scope, host, range, filter, true)?;
     rows.into_iter()
-        .map(|(key, stats)| {
+        .map(|(key, group)| {
             Ok(ModelStats {
                 model: serde_json::from_str(&key).map_err(|_| "invalid model group")?,
-                stats,
+                stats: group.stats,
             })
         })
         .collect()
@@ -184,7 +197,7 @@ fn grouped(
     range: &UsageResolvedRange,
     filter: &UsageFilter,
     models: bool,
-) -> Result<BTreeMap<String, GroupStats>, String> {
+) -> Result<BTreeMap<String, Group>, String> {
     if host.trim().is_empty()
         || host.contains('\0')
         || range.start_unix_seconds.is_some_and(|s| s.0 > range.end_unix_seconds.0)
@@ -245,8 +258,8 @@ fn grouped(
             models,
         )?;
     }
-    for stats in groups.values_mut() {
-        for performance in [&mut stats.measured, &mut stats.estimated] {
+    for group in groups.values_mut() {
+        for performance in [&mut group.stats.measured, &mut group.stats.estimated] {
             let values = &mut performance.first_token_values;
             values.sort_by(f64::total_cmp);
             let n = values.len();
@@ -265,7 +278,7 @@ fn grouped(
 
 #[allow(clippy::too_many_arguments)]
 fn accumulate(
-    groups: &mut BTreeMap<String, GroupStats>,
+    groups: &mut BTreeMap<String, Group>,
     r: &UsageRecord,
     count: u64,
     unknown_costs: Option<u64>,
@@ -280,7 +293,7 @@ fn accumulate(
         let model = [&r.models.pricing_model, &r.models.response_model, &r.models.request_model]
             .into_iter()
             .find_map(|v| v.as_ref().filter(|s| !s.is_empty()));
-        vec![serde_json::to_string(&model).map_err(|_| "invalid usage group")?]
+        vec![(serde_json::to_string(&model).map_err(|_| "invalid usage group")?, false)]
     } else {
         let apps: std::collections::BTreeSet<_> = r
             .sources
@@ -291,23 +304,29 @@ fn accumulate(
         let apps = if apps.is_empty() { std::collections::BTreeSet::from([None]) } else { apps };
         apps.into_iter()
             .map(|app| {
-                serde_json::to_string(&(app, &r.provider)).map_err(|_| "invalid usage group")
+                let key = serde_json::to_string(&(app, &r.provider))
+                    .map_err(|_| "invalid usage group")?;
+                let session_logs_only = app.is_some_and(|app| {
+                    r.sources.iter().filter(|source| &source.app == app)
+                        .all(|source| source.kind == UsageSourceKind::Native)
+                });
+                Ok::<_, &str>((key, session_logs_only))
             })
             .collect::<Result<Vec<_>, _>>()?
     };
-    for key in keys {
-        accumulate_group(groups, key, r, count, unknown_costs)?;
+    for (key, session_logs_only) in keys {
+        let group = groups.entry(key).or_default();
+        group.has_non_native_source |= !session_logs_only;
+        accumulate_group(&mut group.stats, r, count, unknown_costs)?;
     }
     Ok(())
 }
 fn accumulate_group(
-    groups: &mut BTreeMap<String, GroupStats>,
-    key: String,
+    stats: &mut GroupStats,
     r: &UsageRecord,
     count: u64,
     unknown_costs: Option<u64>,
 ) -> Result<(), String> {
-    let stats = groups.entry(key).or_default();
     stats.counts.total_requests = add(stats.counts.total_requests, count)?;
     if r.billable {
         stats.counts.billable_requests = add(stats.counts.billable_requests, count)?;

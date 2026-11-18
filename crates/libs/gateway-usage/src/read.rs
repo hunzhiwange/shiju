@@ -27,6 +27,7 @@ struct ReadQuery {
     query: Option<String>,
     time_zone: Option<String>,
     interval: Option<series::UsageSeriesInterval>,
+    page: Option<u64>,
 }
 
 pub(crate) fn router(host: crate::Host) -> Router {
@@ -122,7 +123,8 @@ fn execute(policy: Policy, tenant: TenantScope, headers: HeaderMap, request: Rea
     let range = ranges::resolve_usage_range(&query.range, zone, now).map_err(|_| StatusCode::BAD_REQUEST)?;
     if query.limit.is_some_and(|v| v == 0 || v > logs::MAX_USAGE_LOG_PAGE_SIZE)
         || (!matches!(kind, Read::Logs) && query.cursor.is_some())
-        || (request.interval.is_some() && !matches!(kind, Read::Trends)) {
+        || (request.interval.is_some() && !matches!(kind, Read::Trends))
+        || (request.page.is_some() && (!matches!(kind, Read::Logs) || id.is_some())) {
         return Err(StatusCode::BAD_REQUEST);
     }
     let database = (policy.1.database)().map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?;
@@ -141,7 +143,13 @@ fn execute(policy: Policy, tenant: TenantScope, headers: HeaderMap, request: Rea
         return json(detail);
     }
     match kind {
-        Read::Logs => json(logs::query_usage_logs(&connection, &scope, host, &query, zone, now).map_err(log_error)?),
+        Read::Logs => {
+            let result = match request.page {
+                Some(page) => logs::query_usage_log_page(&connection, &scope, host, &query, zone, now, page),
+                None => logs::query_usage_logs(&connection, &scope, host, &query, zone, now),
+            };
+            json(result.map_err(log_error)?)
+        }
         Read::Sources => json(logs::query_usage_logs(&connection, &scope, host, &query, zone, now).map_err(log_error)?.sources),
         Read::Summary => json(summary::get_usage_summary(&connection, &scope, host, &range, filter).map_err(summary_error)?),
         Read::Apps => json(summary::get_usage_summary_by_app(&connection, &scope, host, &range, filter).map_err(summary_error)?),

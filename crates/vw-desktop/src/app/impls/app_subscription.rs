@@ -281,7 +281,7 @@ impl App {
             iced::time::every(gateway_health_interval).map(|_| Message::GatewayHealthTick);
 
         let usage_center_tick =
-            if self.usage_center.open && self.navigation_tabs.screen == crate::app::Screen::Usage {
+            if crate::app::views::usage::center::is_visible(self) {
                 iced::time::every(std::time::Duration::from_secs(5)).map(|_| {
                     Message::View(message::ViewMessage::UsageCenter(
                         crate::app::views::usage::center::Event::Tick,

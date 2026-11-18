@@ -151,6 +151,62 @@ pub fn amount(state: &State, current: Option<Identity>, usd: &str) -> String {
         None => format!("{usd} USD（换算不可用）"),
     }
 }
+pub fn sidebar_today(
+    state: &State,
+    current: Option<Identity>,
+    today: Option<&(Identity, gateway_usage_read::UsageSummary)>,
+) -> Option<(String, String)> {
+    use super::hero::{Metric, compact_count};
+
+    let items = &state.preferences().today;
+    let (scope, summary) = today?;
+    if items.is_empty() || current.as_ref() != Some(scope) {
+        return None;
+    }
+
+    let mut values = Vec::with_capacity(items.len());
+    for item in items {
+        let (label, short, detail) = match item {
+            TodayItem::Cost => {
+                let total = summary.counts.total_requests;
+                let unknown = summary.counts.unknown_cost_requests;
+                let full = amount(state, current.clone(), &summary.known_cost_usd);
+                let short = if total > 0 && unknown == total {
+                    "—".into()
+                } else if let Some(usd) = full.split('（').next().and_then(|v| v.strip_suffix(" USD")) {
+                    usd.parse::<f64>().ok().filter(|v| v.is_finite())
+                        .map_or_else(|| "—".into(), |v| {
+                            if v >= 1000.0 { format!("${}", compact_count(v)) }
+                            else { format!("${v:.2}") }
+                        })
+                } else {
+                    full.split('（').next().unwrap_or(&full).to_owned()
+                };
+                let detail = if unknown == 0 { full } else { format!("{full} · {unknown} 条请求费用未知") };
+                ("已知费用", short, detail)
+            }
+            TodayItem::Tokens | TodayItem::Requests | TodayItem::HitRate => {
+                let metric = match item {
+                    TodayItem::Tokens => Metric::Tokens,
+                    TodayItem::Requests => Metric::Requests,
+                    _ => Metric::HitRate,
+                };
+                let value = metric.value(summary);
+                let detail = metric.format(value);
+                let short = match metric {
+                    Metric::HitRate => detail.clone(),
+                    _ => value.map_or_else(|| "—".into(), compact_count),
+                };
+                (metric.label(), short, detail)
+            }
+        };
+        values.push((short, format!("{label} {detail}")));
+    }
+    let badge = format!("今日 {}", values.first()?.0);
+    let tooltip = values.into_iter().map(|(_, detail)| detail).collect::<Vec<_>>().join(" · ");
+    Some((badge, format!("今日 · {tooltip}")))
+}
+
 pub fn status(state: &State, current: Option<Identity>) -> String {
 
     if current.as_ref() != state.scope.as_ref() { return "汇率未加载；显示 USD".into(); }

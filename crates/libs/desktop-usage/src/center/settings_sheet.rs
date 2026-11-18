@@ -43,11 +43,10 @@ fn scan_controls(state: &State, ready: bool) -> Element<'_, Outcome<Event>> {
     let active = state.job.as_ref().is_some_and(|job| !scan::terminal(job));
     let preferences = state.preferences;
     let enabled = preferences.is_some_and(|preferences| preferences.enabled);
-    let status = if state.last.as_ref().is_some_and(|last| last.last_complete_scan.is_some()) {
-        state.sync_label()
-    } else {
-        "尚未完成同步".into()
-    };
+    let status = state.last_sync_time().map_or_else(
+        || "尚未完成同步".into(),
+        |time| time.format("%Y-%m-%d %H:%M:%S").to_string(),
+    );
     let scanning = column![
         row![
             row![
@@ -81,7 +80,7 @@ fn scan_controls(state: &State, ready: bool) -> Element<'_, Outcome<Event>> {
                     gateway_usage_scan::UsageScanPreferences { enabled, refresh_seconds: interval.0 },
                 ))),
             )
-            .placeholder("读取扫描间隔")
+            .placeholder("每 60 秒扫描")
             .width(144)
             .disabled(!ready || !enabled),
             Space::new().width(Length::Fill),
@@ -184,7 +183,7 @@ pub fn overlay<'a, M: Clone + 'static>(
         return base;
     }
     let ready = current.is_some() && state.scope == current && !state.pending;
-    let display_settings = action("汇率设置 ›", Event::Navigate(Navigation::Display), true);
+    let display_settings = action("币种与显示 ›", Event::Navigate(Navigation::Display), true);
     let pricing = action("管理定价 ›", Event::Navigate(Navigation::Pricing), true);
     let body = column![
         section("数据来源", scan_controls(state, ready).map(map)),
@@ -203,7 +202,7 @@ pub fn overlay<'a, M: Clone + 'static>(
             "定价",
             container(
                 row![
-                    text("按模型设置每百万 Tokens 的价格。")
+                    text("模型同步、计费规则与模型单价")
                         .size(13)
                         .style(text::secondary)
                         .width(Length::Fill),

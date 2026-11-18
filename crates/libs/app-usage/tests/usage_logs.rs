@@ -98,3 +98,30 @@ fn usage17_logs_rejects_invalid_limits_and_changed_snapshots() {
         assert_eq!(query_usage_logs(&db,&scope("p"),"host",&q,"UTC",UsageUnixSeconds(30)).unwrap_err(),UsageLogsError::InvalidInput);
     }
 }
+
+#[test]
+fn numbered_pages_use_the_filtered_order_and_clamp_to_the_last_page() {
+    let mut db = Connection::open_in_memory().unwrap();
+    initialize_usage_store(&mut db).unwrap();
+    for (id, time, code) in [("a", 11, 500), ("b", 12, 500), ("ignored", 13, 429), ("c", 12, 500)] {
+        insert(&mut db, "p", "host", id, time, code);
+    }
+    let mut q = query();
+    q.filter.status_code = Some(500);
+    let read = |query: &UsageQuery, page| {
+        query_usage_log_page(&db, &scope("p"), "host", query, "UTC", UsageUnixSeconds(30), page)
+    };
+
+    let first = read(&q, 1).unwrap();
+    assert_eq!(first.page.items[0].record.id, "c");
+    let second = read(&q, 2).unwrap();
+    assert_eq!(second.counts.total_requests, 3);
+    assert_eq!(second.page.items[0].record.id, "b");
+    let last = read(&q, u64::MAX).unwrap();
+    assert_eq!(last.page.items[0].record.id, "a");
+    assert!(last.page.next_cursor.is_none());
+    assert_eq!(read(&q, 0).unwrap_err(), UsageLogsError::InvalidInput);
+
+    q.cursor = first.page.next_cursor;
+    assert_eq!(read(&q, 2).unwrap_err(), UsageLogsError::InvalidInput);
+}

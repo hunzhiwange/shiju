@@ -43,6 +43,20 @@ pub(super) fn trigger(
     style
 }
 
+pub(super) fn toolbar_trigger(
+    theme: &Theme, enabled: bool, open: bool, focused: bool, hovered: bool,
+) -> (Border, iced::Background) {
+    let ink = theme.palette().text;
+    let background = if enabled && (open || focused) {
+        ink.scale_alpha(0.10)
+    } else if enabled && hovered {
+        ink.scale_alpha(0.06)
+    } else {
+        Color::TRANSPARENT
+    };
+    (iced::border::rounded(7), background.into())
+}
+
 pub(super) fn card(theme: &Theme) -> container::Style {
     let style = settings_pick_list_menu_style(theme);
     container::Style {

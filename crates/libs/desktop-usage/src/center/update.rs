@@ -5,7 +5,7 @@ use super::{
     groups, logs, pricing, scan,
     state::State,
 };
-use crate::{Identity, models};
+use crate::Identity;
 use iced::Task;
 use vw_gateway_client::GatewayClient;
 pub struct Input<'a> {
@@ -71,8 +71,12 @@ fn update_event(input: &mut Input<'_>, event: Event) -> Task<Event> {
         Event::Tab(tab) => { state.tab = tab; Task::none() }
         Event::Hero(event) => { super::hero::update(&mut state.hero, event); state.charts.metric = state.hero.metric; Task::none() }
         Event::Range(event) => {
+            if matches!(event, super::range_picker::Event::Open) {
+                state.scope_menu_open = false;
+            }
             if let Some(range) = state.range_picker.update(event, &state.query.range) {
                 state.query.range = range;
+                state.logs.first_page();
                 update(input, Event::Refresh)
             } else { Task::none() }
         }
@@ -80,10 +84,6 @@ fn update_event(input: &mut Input<'_>, event: Event) -> Task<Event> {
         | Event::Pricing(pricing::Event::Feedback(success, message))
         | Event::Scan(scan::Event::Feedback(success, message)) => {
             input.feedback = Some((success, message));
-            Task::none()
-        }
-        Event::Models(models::Event::SavedNotice) => {
-            input.feedback = Some((true, "模型同步选择已保存".into()));
             Task::none()
         }
         Event::Display(event) => {
@@ -100,9 +100,6 @@ fn update_event(input: &mut Input<'_>, event: Event) -> Task<Event> {
                 state.display.restore();
             }
             scan::update(&mut state.scan, current, client(), event).map(scan_outcome)
-        }
-        Event::Models(event) => {
-            models::update(&mut state.models, current, client, event).map(Event::Models)
         }
         Event::Charts(event) => {
             if let charts::Event::Metric(metric) = &event { state.hero.metric = *metric; }
@@ -126,13 +123,26 @@ fn update_event(input: &mut Input<'_>, event: Event) -> Task<Event> {
             event,
         )
         .map(Event::Logs),
+        Event::Filter(super::overview::Change::ScopeMenu(open)) => {
+            state.scope_menu_open = open;
+            if open { state.range_picker.open = false; }
+            Task::none()
+        }
         Event::Filter(change) => {
+            state.scope_menu_open = false;
+            if matches!(change, super::overview::Change::Clear) {
+                if let Some(query) = &mut state.logs.query {
+                    query.filter.status = None;
+                }
+            }
             state.filter(change);
+            state.logs.first_page();
             update(input, Event::Refresh)
         }
         Event::Load(preset) => {
             state.open = true;
             state.range_picker.preset = Some(preset);
+            state.logs.first_page();
             update(input, Event::Refresh)
         }
         Event::ActivityChanged => Task::none(),
@@ -151,7 +161,9 @@ fn update_event(input: &mut Input<'_>, event: Event) -> Task<Event> {
                 let previous = state.scan.last.as_ref().and_then(|last| last.last_complete_scan);
                 let changed = last.last_complete_scan != previous;
                 state.scan.last = Some(last);
-                if changed { return update(input, Event::Refresh); }
+                if changed {
+                    return Task::batch([update(input, Event::Refresh), update(input, Event::TodayRefresh)]);
+                }
             }
             Task::none()
         }
@@ -196,14 +208,18 @@ fn update_event(input: &mut Input<'_>, event: Event) -> Task<Event> {
             state.status_pending = false;
             let query = state.query.clone();
             let ticket = state.begin();
-            let logs = logs::reset(
+            let mut log_query = query.clone();
+            if let Some(previous) = &state.logs.query {
+                log_query.filter.status = previous.filter.status;
+            }
+            let logs = logs::refresh(
                 &mut state.logs,
                 current.clone(),
                 visible,
                 state.open,
                 state.sequence,
                 client(),
-                query.clone(),
+                log_query,
             )
             .map(Event::Logs);
             let Some(scope) = current else {

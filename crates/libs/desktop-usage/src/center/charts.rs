@@ -1,5 +1,5 @@
 //! Charts consume server buckets verbatim, preserving empty periods and cost provenance.
-use super::hero::Metric;
+use super::{hero::Metric, metrics::format_count};
 use crate::Identity;
 use desktop_ui_controls::system_settings_common::{rounded_action_btn_style, theme::is_dark_theme};
 use gateway_usage_read::{UsageReadScope, UsageSeries, UsageSeriesBucket, UsageSeriesInterval};
@@ -60,21 +60,6 @@ pub fn update(state: &mut State, current: Option<Identity>, visible: bool, open:
     Task::none()
 }
 
-fn detail(bucket: &UsageSeriesBucket) -> String {
-    let summary = &bucket.summary;
-    let tokens = summary.token_groups.iter().map(|tokens| {
-        let count = |value: Option<u64>| value.map_or_else(|| "—".into(), |v| v.to_string());
-        format!("输入 {} · 输出 {} · 缓存读 {} · 写 {}\n输入 {:?} · 推理 {:?}",
-            count(tokens.input), count(tokens.output), count(tokens.cache_read), count(tokens.cache_creation),
-            tokens.input_semantics, tokens.reasoning_semantics)
-    }).collect::<Vec<_>>().join("\n");
-    format!("{}\n请求 {} · 计费 {}\n成功 {} · 失败 {}\n已知费用 {} USD\n未知费用 {} 请求\n{}\nUTC 秒 [{}，{})",
-        bucket.label, summary.counts.total_requests, summary.counts.billable_requests,
-        summary.succeeded_requests, summary.failed_requests, summary.known_cost_usd,
-        summary.counts.unknown_cost_requests,
-        if tokens.is_empty() { "无 Token 数据" } else { &tokens }, bucket.start_unix_seconds.0, bucket.end_unix_seconds.0)
-}
-
 /// Source heatmap uses quartiles so isolated peaks do not flatten every other day.
 pub fn thresholds(values: &[Option<f64>], metric: Metric) -> [f64; 3] {
     let mut values: Vec<_> = values.iter().flatten().copied().filter(|v| v.is_finite() && (*v > 0.0 || metric == Metric::HitRate)).collect();
@@ -111,16 +96,52 @@ fn bucket_tooltip(
     metric: Metric,
     value: Option<f64>,
 ) -> Element<'static, Event> {
-    let card = container(
-        column![
-            text(format!("{} · {}", metric.label(), metric.format(value))).size(14),
-            text(detail(bucket)).size(12).style(text::secondary),
-        ]
-        .spacing(6),
-    )
-    .padding(12)
-    .style(container::rounded_box);
-    tooltip(mark, card, tooltip::Position::Top).snap_within_viewport(true).into()
+    let summary = &bucket.summary;
+    let (label, amount) = match metric {
+        Metric::Requests => ("请求数", format_count(summary.counts.total_requests)),
+        Metric::Tokens => (
+            "Tokens",
+            summary.token_totals().real_tokens.map_or_else(
+                || metric.format(value),
+                format_count,
+            ),
+        ),
+        Metric::Cost => ("已知费用", format!("{} USD", summary.known_cost_usd)),
+        Metric::HitRate => ("缓存命中率", metric.format(value)),
+    };
+    let swatch = container(Space::new().width(8).height(8)).style(|theme: &Theme| {
+        container::Style::default().background(accent(theme)).border(border::rounded(2))
+    });
+    let content = column![
+        text(bucket.label.replace('-', "/")).size(13),
+        row![swatch, text(label).size(13).style(text::secondary), text(amount).size(14)]
+            .spacing(8)
+            .align_y(iced::Alignment::Center),
+    ]
+    .spacing(7);
+    tooltip(mark, content, tooltip::Position::FollowCursor)
+        .padding(11)
+        .style(|theme: &Theme| {
+            let palette = theme.palette();
+            let surface = if is_dark_theme(theme) { palette.background } else { Color::WHITE };
+            container::Style {
+                background: Some(surface.into()),
+                text_color: Some(palette.text),
+                border: iced::Border {
+                    color: palette.text.scale_alpha(0.12),
+                    width: 1.0,
+                    radius: 9.0.into(),
+                },
+                shadow: iced::Shadow {
+                    color: Color::BLACK.scale_alpha(0.10),
+                    offset: iced::Vector::new(0.0, 2.0),
+                    blur_radius: 7.0,
+                },
+                ..Default::default()
+            }
+        })
+        .snap_within_viewport(true)
+        .into()
 }
 
 struct Trend<'a> {

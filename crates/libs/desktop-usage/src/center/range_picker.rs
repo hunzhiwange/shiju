@@ -1,6 +1,7 @@
 //! Local calendar drafts. Only a returned range commits a query; callers refresh on Some.
 use chrono::{DateTime, Datelike, Duration, Local, Months, NaiveDate, NaiveDateTime, TimeZone};
-use desktop_ui_controls::system_settings_common::*;
+use desktop_assets::assets::Icon;
+use desktop_ui_controls::{overlays::BelowOverlay, system_settings_common::*};
 use iced::{
     Element, Length, Theme,
     widget::{Space, button, checkbox, column, container, row, rule, scrollable, text, text_input},
@@ -303,25 +304,35 @@ impl State {
         None
     }
     pub fn view(&self) -> Element<'_, Event> {
+        let trigger = button(container(row![
+            icon_svg(Icon::Calendar, 15.0),
+            text(self.preset.map_or("自定义时间", Preset::label)).size(13),
+            icon_svg(Icon::ChevronDown, 11.0),
+        ].spacing(7).align_y(iced::Alignment::Center)).center_y(Length::Fill))
+        .height(SETTINGS_CONTROL_HEIGHT)
+        .padding([0, 10])
+        .style(rounded_action_btn_style)
+        .on_press(if self.open { Event::Cancel } else { Event::Open });
+
+        if self.open {
+            BelowOverlay::new(trigger, self.dialog())
+                .show(true)
+                .gap(6.0)
+                .on_close(Event::Cancel)
+                .capture_outside_click(true)
+                .into()
+        } else {
+            trigger.into()
+        }
+    }
+
+    fn dialog(&self) -> Element<'_, Event> {
         let action = |label: String, event| {
             button(text(label).size(13))
                 .padding([6, 10])
                 .style(rounded_action_btn_style)
                 .on_press(event)
         };
-        let trigger = button(
-            text(format!("{}  ▾", self.preset.map_or("自定义时间", Preset::label)))
-                .size(13)
-                .height(Length::Fill)
-                .align_y(iced::alignment::Vertical::Center),
-        )
-        .height(SETTINGS_CONTROL_HEIGHT)
-        .padding([6, 10])
-        .style(rounded_action_btn_style)
-        .on_press(if self.open { Event::Cancel } else { Event::Open });
-        if !self.open {
-            return trigger.into();
-        }
         let mut presets = row![].spacing(5);
         for preset in Preset::ALL {
             let selected = self.preset == Some(preset);
@@ -475,17 +486,24 @@ impl State {
         if let Some(error) = &self.error {
             panel = panel.push(text(error).size(12).style(text::danger));
         }
-        let panel = settings_modal_card(panel.push(footer).height(Length::Fill))
+        settings_modal_card(panel.push(footer).height(Length::Fill))
             .padding([12, 14])
-            .width(610)
-            .max_height(372)
-            .style(|theme| settings_modal_card_style(theme).background(theme.palette().background));
-        desktop_ui_controls::overlays::BelowOverlay::new(trigger, panel)
-            .show(true)
-            .gap(8.0)
-            .on_close(Event::Cancel)
-            .capture_outside_click(true)
-            .snap_within_viewport(true)
+            .width(620)
+            .height(368)
+            .style(|theme| {
+                let palette = theme.palette();
+                let surface = iced::Color { a: 1.0, ..palette.background };
+                let mut style = settings_modal_card_style(theme).background(surface);
+                style.border = iced::Border {
+                    color: palette.text.scale_alpha(0.13),
+                    width: 1.0,
+                    radius: 12.0.into(),
+                };
+                style.shadow.color = iced::Color::BLACK.scale_alpha(0.14);
+                style.shadow.blur_radius = 14.0;
+                style.shadow.offset.y = 4.0;
+                style
+            })
             .into()
     }
 }

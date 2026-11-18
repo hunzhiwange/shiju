@@ -5,13 +5,24 @@ use desktop_usage::panel as domain;
 pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
     let message = match message {
         ViewMessage::UsageCenter(event) => {
-            if matches!(&event, desktop_usage::center::event::Event::Load(_)) {
-                let _ = desktop_navigation::panel::apps::update(desktop_navigation::panel::apps::Context {
-                    open_tabs: &mut app.navigation_tabs.open_tabs, active_tab_id: &mut app.navigation_tabs.active_tab_id,
-                    screen: &mut app.navigation_tabs.screen, apps_search_query: &mut app.navigation_tabs.apps_search_query,
-                }, crate::apps::workflow::WORKFLOW_TOOL_TAB_ID, None, desktop_navigation::panel::apps::Message::OpenUsage);
-            }
-            return crate::app::views::usage::center::update(app, event);
+            let open_workspace = if matches!(&event, desktop_usage::center::event::Event::Load(_)) {
+                if app.navigation_tabs.screen == crate::app::Screen::ThirdPartyAgents
+                    && crate::app::views::usage::center::is_visible(app)
+                {
+                    return Task::none();
+                }
+                crate::app::components::third_party_settings::invalidate(app);
+                if app.navigation_tabs.screen != crate::app::Screen::ThirdPartyAgents
+                    || app.navigation_panels.show_system_settings
+                {
+                    super::apps::update(app, ViewMessage::OpenThirdPartyAgents)
+                } else {
+                    Task::none()
+                }
+            } else {
+                Task::none()
+            };
+            return Task::batch([open_workspace, crate::app::views::usage::center::update(app, event)]);
         }
         ViewMessage::UsageStepToggled(step_index) => domain::Message::UsageStepToggled(step_index),
         ViewMessage::UsageStepRawLoaded(session_id, step_index, result) => domain::Message::UsageStepRawLoaded(session_id, step_index, result),

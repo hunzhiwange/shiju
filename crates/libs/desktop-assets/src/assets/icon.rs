@@ -201,6 +201,8 @@ pub enum Icon {
     GitBranch,
     /// 时钟/历史图标
     Clock,
+    /// 日历图标
+    Calendar,
     /// 盾牌锁定/安全权限图标
     ShieldLock,
     /// Rust 语言文件图标

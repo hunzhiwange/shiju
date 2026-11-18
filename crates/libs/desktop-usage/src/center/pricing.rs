@@ -2,8 +2,7 @@
 use crate::Identity;
 use super::Outcome;
 
-use desktop_ui_controls::system_settings_common::*;
-use iced::{Element, Length, Task, widget::{button, column, row, text, text_editor}};
+use iced::{Task, widget::text_editor};
 use gateway_usage_price::{ModelPricingInfo, StoredModelPricing, BillingDefaults, BillingModelSource, UsagePricingStorage};
 use gateway_usage_scan::UsageScanScope;
 
@@ -20,6 +19,8 @@ pub struct State {
     pending_delete: Option<String>,
     source: String,
     import: text_editor::Content,
+    import_view: Option<ImportView>,
+    import_search: String,
     models: crate::models::State,
     files_open: bool,
     page: usize,
@@ -30,16 +31,20 @@ pub struct State {
     storage_busy: bool,
 }
 
+#[derive(Clone, Copy, Debug)]
+pub enum ImportView { Catalog, Json }
+
 #[derive(Clone, Debug)]
 pub enum Event {
     Feedback(bool, String),
-    Models(crate::models::Event), Files, CancelDelete, Page(usize),
+    Models(crate::models::Event), Files, CloseFiles, CancelDelete, Page(usize),
     BillingEdit, BillingCancel, BillingField(String, BillingModelSource), BillingSave,
     BillingLoaded(u64, Identity, Result<BillingDefaults, String>),
     StorageOpen, StorageReload,
     StorageLoaded(u64, Identity, Result<UsagePricingStorage, String>),
     Open, Close, Reload, RefreshPrices, New, Edit(usize), CancelEdit,
     Field(usize, String), Source(String), ImportEdit(text_editor::Action),
+    ShowImport(Option<ImportView>), ImportSearch(String), ImportModel(String),
     Save, Delete(String), ConfirmDelete(String), Import,
     Loaded(u64, Identity, Result<Vec<StoredModelPricing>, String>),
     Written(u64, Identity, Result<(), String>),
@@ -71,7 +76,12 @@ pub fn update(state: &mut State, current: Option<Identity>, visible: bool, clien
 
     match event {
         Event::Models(event) => {
-            let refresh = matches!(&event, crate::models::Event::Polled(_, id, Ok(_)) if current.as_ref() == Some(id) && state.open && state.scope.as_ref() == Some(id));
+            if matches!(event, crate::models::Event::SavedNotice) {
+                return Task::done(Outcome::Success("模型同步设置已保存".into()));
+            }
+            let refresh = matches!(&event, crate::models::Event::Polled(_, id, Ok((progress, _)))
+                if current.as_ref() == Some(id) && state.open && state.scope.as_ref() == Some(id)
+                    && crate::models::sync_finished(progress));
             let task = crate::models::update_with_client(&mut state.models, current.clone(), client.clone(), event)
                 .map(|event| message(Event::Models(event)));
             if refresh { return Task::batch([task, update(state, current, visible, client, Event::RefreshPrices)]); }
@@ -80,15 +90,29 @@ pub fn update(state: &mut State, current: Option<Identity>, visible: bool, clien
         Event::BillingLoaded(ticket, id, result) => {
             if !state.open || state.sequence != ticket || current.as_ref() != Some(&id) || state.scope.as_ref() != Some(&id) { return Task::none(); }
             state.billing_busy = false;
-            match result { Ok(value) => { state.billing = Some(value); state.billing_draft = None; }, Err(error) => state.error = Some(error) }
+            match result {
+                Ok(value) => {
+                    state.billing = Some(value);
+                    if state.billing_draft.take().is_some() {
+                        return Task::done(Outcome::Success("计费默认配置已保存".into()));
+                    }
+                }
+                Err(error) => state.error = Some(error),
+            }
         }
         Event::StorageLoaded(ticket, id, result) => {
             if !state.open || state.sequence != ticket || current.as_ref() != Some(&id) || state.scope.as_ref() != Some(&id) { return Task::none(); }
             state.storage_busy = false;
             match result { Ok(value) => state.storage = Some(value), Err(error) => state.error = Some(error) }
         }
-        Event::BillingEdit if !state.billing_busy && !state.busy => state.billing_draft = state.billing.clone(),
-        Event::BillingCancel if !state.billing_busy => state.billing_draft = None,
+        Event::BillingEdit if !state.billing_busy && !state.busy => {
+            state.error = None;
+            state.billing_draft = state.billing.clone();
+        }
+        Event::BillingCancel if !state.billing_busy => {
+            state.billing_draft = None;
+            state.error = None;
+        }
         Event::BillingField(app, source) if !state.billing_busy && !state.busy => {
             if let Some(draft) = &mut state.billing_draft { if let Some(value) = draft.get_mut(&app) { *value = source; } }
         }
@@ -101,6 +125,7 @@ pub fn update(state: &mut State, current: Option<Identity>, visible: bool, clien
             let draft = state.billing_draft.clone();
             if billing && draft.is_none() { return Task::none(); }
             if billing { state.billing_busy = true; } else { state.storage_busy = true; }
+            state.error = None;
             let open = matches!(event, Event::StorageOpen);
             return Task::perform(async move {
                 let client = client.map(|client| gateway_usage_price::GatewayUsagePriceClient::new(client.transport().clone()));
@@ -115,10 +140,11 @@ pub fn update(state: &mut State, current: Option<Identity>, visible: bool, clien
             }, message);
         }
         Event::BillingEdit | Event::BillingCancel | Event::BillingField(..) => {},
+        Event::CloseFiles => state.files_open = false,
         Event::CancelDelete => state.pending_delete = None,
         Event::Page(page) => state.page = page.min(state.prices.len().saturating_sub(1) / 20),
         Event::Feedback(..) => {},
-        Event::Close if !state.busy => { state.close(); }
+        Event::Close if !state.busy && !state.billing_busy && !state.storage_busy => { state.close(); }
         Event::Open | Event::Reload | Event::RefreshPrices => {
             if matches!(event, Event::Reload) && (state.billing_busy || state.storage_busy) { return Task::none(); }
             if state.busy { return Task::none(); }
@@ -134,6 +160,9 @@ pub fn update(state: &mut State, current: Option<Identity>, visible: bool, clien
                 state.billing = None; state.billing_draft = None; state.storage = None; state.billing_busy = false; state.storage_busy = false;
                 state.prices.clear();
                 state.import = text_editor::Content::new();
+                state.import_view = None;
+                state.import_search.clear();
+                state.files_open = false;
             }
             state.scope = Some(scope.clone());
             if load_billing { state.sequence = state.sequence.wrapping_add(1); }
@@ -177,6 +206,7 @@ pub fn update(state: &mut State, current: Option<Identity>, visible: bool, clien
                         state.editor = None;
                         state.pending_delete = None;
                         state.import = text_editor::Content::new();
+                        state.import_view = None;
                         return Task::batch([update(state, current, visible, client, Event::Reload), Task::done(Outcome::Refresh), Task::done(Outcome::Success("价格已更新".into()))]);
                     }
                 }
@@ -185,12 +215,42 @@ pub fn update(state: &mut State, current: Option<Identity>, visible: bool, clien
         _ if state.busy => {}
         Event::New => {
             state.creating = true;
+            state.error = None;
             state.editor = Some(ModelPricingInfo { model_id: "".into(), display_name: String::new(), input_cost_per_million: "0".into(), output_cost_per_million: "0".into(), cache_read_cost_per_million: "0".into(), cache_creation_cost_per_million: "0".into() });
         }
         Event::Edit(index) => {
-            if let Some(price) = state.prices.get(index) { state.editor = Some(price.price.clone()); state.creating = false; }
+            if let Some(price) = state.prices.get(index) {
+                state.editor = Some(price.price.clone());
+                state.creating = false;
+                state.error = None;
+            }
         }
-        Event::CancelEdit => state.editor = None,
+        Event::CancelEdit => {
+            state.editor = None;
+            state.error = None;
+        }
+        Event::ShowImport(view) => {
+            state.files_open = false;
+            state.import_view = view;
+            state.import_search.clear();
+            state.error = None;
+        }
+        Event::ImportSearch(value) => state.import_search = value,
+        Event::ImportModel(key) => {
+            let Some(entry) = state.models.candidates().iter().find(|entry| entry.key == key) else {
+                return Task::none();
+            };
+            state.editor = Some(ModelPricingInfo {
+                model_id: entry.normalized_id.clone().into(),
+                display_name: entry.model_name.clone(),
+                input_cost_per_million: entry.input.to_string(),
+                output_cost_per_million: entry.output.to_string(),
+                cache_read_cost_per_million: entry.cache_read.to_string(),
+                cache_creation_cost_per_million: entry.cache_write.to_string(),
+            });
+            state.creating = true;
+            state.import_view = None;
+        }
         Event::Field(field, value) => if let Some(price) = &mut state.editor {
             match field {
                 0 if state.creating => price.model_id = value.into(),
@@ -254,85 +314,11 @@ pub fn update(state: &mut State, current: Option<Identity>, visible: bool, clien
     Task::none()
 }
 
-fn action(label: &'static str, event: Event, enabled: bool) -> Element<'static, Outcome<Event>> {
-    button(text(label)).padding([8, 14]).style(rounded_action_btn_style)
-        .on_press_maybe(enabled.then(|| message(event))).into()
-}
-pub fn overlay<'a, M: Clone + 'static>(state: &'a State, _current: Option<Identity>, base: Element<'a, M>, map: fn(Outcome<Event>) -> M) -> Element<'a, M> {
 
-    if !state.open { return base; }
-    let enabled = !state.busy && !state.billing_busy && !state.storage_busy;
-    let mut body = column![crate::models::card(&state.models).map(|event| message(Event::Models(event))),
-        billing_card(state),
-        row![text(format!("模型定价（{}）", state.prices.len())).size(18), text("USD / 百万 Tokens"), action("新增定价", Event::New, enabled), action("文件…", Event::Files, enabled)].spacing(12),
-        row![text("模型").width(Length::FillPortion(3)), text("输入").width(Length::Fill), text("输出").width(Length::Fill), text("缓存读取").width(Length::Fill), text("缓存写入").width(Length::Fill), text("操作").width(130)].spacing(8)
-    ].spacing(12);
-    if state.files_open {
-        let mut files = column![text("执行主机定价存储（SQLite）"), text("在所选主机打开目录；重新加载会读取该主机数据库中的定价。")].spacing(6);
-        if let Some(storage) = &state.storage {
-            files = files.push(text(&storage.path));
-            if let Some(reason) = &storage.reason { files = files.push(text(reason)); }
-            files = files.push(action("在执行主机打开目录", Event::StorageOpen, !state.storage_busy && storage.can_open));
-        }
-        if state.storage_busy { files = files.push(text("正在请求执行主机…")); }
-        files = files.push(row![action("刷新文件信息", Event::StorageReload, !state.storage_busy), action("重新加载定价", Event::Reload, enabled)].spacing(8));
-        body = body.push(settings_modal_card(files));
-    }
-    if state.prices.is_empty() && !state.busy { body = body.push(text("暂无模型定价")); }
-    for (index, price) in state.prices.iter().enumerate().skip(state.page * 20).take(20) {
-        body = body.push(row![
-            column![text(&price.price.display_name), text(price.price.model_id.as_ref()).size(12), text(if price.is_custom { "自定义" } else { "自动" }).size(12)].width(Length::FillPortion(3)),
-            text(format!("${}", price.price.input_cost_per_million)).width(Length::Fill),
-            text(format!("${}", price.price.output_cost_per_million)).width(Length::Fill),
-            text(format!("${}", price.price.cache_read_cost_per_million)).width(Length::Fill),
-            text(format!("${}", price.price.cache_creation_cost_per_million)).width(Length::Fill),
-            row![action("编辑", Event::Edit(index), enabled), action("删除", Event::Delete(price.price.model_id.0.clone()), enabled)].spacing(6).width(130)
-        ].spacing(8));
-        if state.pending_delete.as_deref() == Some(price.price.model_id.as_ref()) {
-            body = body.push(row![text("确认删除此模型定价？"), action("确认删除", Event::ConfirmDelete(price.price.model_id.0.clone()), enabled), action("取消", Event::CancelDelete, enabled)].spacing(8));
-        }
-    }
-    body = body.push(row![action("上一页", Event::Page(state.page.saturating_sub(1)), enabled && state.page > 0), text(format!("{} / {}", state.page + 1, state.prices.len().saturating_sub(1) / 20 + 1)), action("下一页", Event::Page(state.page + 1), enabled && (state.page + 1) * 20 < state.prices.len())].spacing(10));
-    if let Some(price) = &state.editor {
-        for (index, (label, value)) in [("模型 ID", price.model_id.as_ref()), ("显示名称", price.display_name.as_str()), ("输入", price.input_cost_per_million.as_str()), ("输出", price.output_cost_per_million.as_str()), ("缓存读取", price.cache_read_cost_per_million.as_str()), ("缓存创建", price.cache_creation_cost_per_million.as_str())].into_iter().enumerate() {
-            body = body.push(column![text(label), settings_text_input(label, value).on_input_maybe((enabled && (index != 0 || state.creating)).then_some(move |value| message(Event::Field(index, value))))].spacing(4));
-        }
-        body = body.push(row![action("保存价格", Event::Save, enabled), action("取消编辑", Event::CancelEdit, enabled)].spacing(8));
-    }
-    body = body.push(text("批量导入：ModelPricingInfo JSON 数组（model_id、display_name 和四项 *_cost_per_million 字符串）"))
-        .push(settings_text_input("明确导入来源", &state.source).on_input_maybe(enabled.then_some(|v| message(Event::Source(v)))))
-        .push(settings_text_editor(&state.import).on_action(move |a| message(Event::ImportEdit(a))).height(160))
-        .push(action("批量导入", Event::Import, enabled));
-    let mut header = column![text("模型定价").size(20)].spacing(8);
-    if state.busy { header = header.push(text("正在处理…")); }
-    if let Some(error) = &state.error { header = header.push(settings_error_banner(error)); }
-    let footer = row![action("重新加载", Event::Reload, enabled), action("返回用量统计", Event::Close, enabled)].spacing(8);
-    let panel = settings_modal_overlay(Some(base), map(message(Event::Close)), Element::from(settings_modal_layout(header, body, Some(footer.into())).width(1080).height(720)).map(map));
-    if crate::models::picker_open(&state.models) {
-        // Map after rendering so callers keep their existing Outcome boundary.
-        let picker = crate::models::overlay_with_base(&state.models, iced::widget::Space::new().into(), |event| message(Event::Models(if matches!(event, crate::models::Event::Close) { crate::models::Event::Picker(false) } else { event })));
-        return iced::widget::stack![panel, picker.map(map)].into();
-    }
-    panel
-}
+#[path = "pricing_view.rs"]
+mod view;
+pub use view::overlay;
 
 #[cfg(test)]
 #[path = "../usage_replica_08_tests.rs"]
 mod tests;
-
-fn billing_card(state: &State) -> Element<'_, Outcome<Event>> {
-    let mut body = column![text("计费默认配置").size(16), text("用于后续路由请求；原生会话费用保持来源报告值，历史记录不重新计费。")].spacing(8);
-    if let Some(draft) = &state.billing_draft {
-        for (app, source) in draft {
-            let key = app.clone();
-            let next = if *source == BillingModelSource::Response { BillingModelSource::Request } else { BillingModelSource::Response };
-            body = body.push(row![text(app).width(Length::Fill), text(if *source == BillingModelSource::Response { "按返回模型计价" } else { "按请求模型计价" }),
-                button(text("切换")).style(rounded_action_btn_style).padding([8, 14]).on_press_maybe((!state.billing_busy && !state.busy).then(|| message(Event::BillingField(key, next))))].spacing(8));
-        }
-        body = body.push(row![action("保存配置", Event::BillingSave, !state.billing_busy && !state.busy), action("取消", Event::BillingCancel, !state.billing_busy)].spacing(8));
-    } else if let Some(saved) = &state.billing {
-        for (app, source) in saved { body = body.push(text(format!("{} · {}", app, if *source == BillingModelSource::Response { "按返回模型计价" } else { "按请求模型计价" }))); }
-        body = body.push(action("修改…", Event::BillingEdit, !state.billing_busy && !state.busy));
-    } else { body = body.push(text(if state.billing_busy { "正在加载计费配置…" } else { "计费配置加载失败，请重新加载" })); }
-    settings_modal_card(body).into()
-}

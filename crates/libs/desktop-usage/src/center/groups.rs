@@ -92,8 +92,9 @@ pub fn update(
     Task::none()
 }
 
-fn provider_label(provider: &UsageProvider) -> &str {
+pub(super) fn provider_label(provider: &UsageProvider, session_logs_only: bool) -> &str {
     match provider {
+        UsageProvider::Unknown if session_logs_only => "会话日志",
         UsageProvider::Unknown => "未知供应商",
         UsageProvider::Known { provider_id } if provider_id.trim().is_empty() => "未知供应商",
         UsageProvider::Known { provider_id } => provider_id,
@@ -303,7 +304,7 @@ fn table_view(state: &State, models_only: Option<bool>) -> Element<'_, Event> {
                     rows = rows.push(stats_row(
                         format!(
                             "{} · {}",
-                            provider_label(&provider.provider),
+                            provider_label(&provider.provider, provider.session_logs_only),
                             provider.app.as_deref().unwrap_or("未知应用")
                         ),
                         &provider.stats,
@@ -333,11 +334,12 @@ fn table_view(state: &State, models_only: Option<bool>) -> Element<'_, Event> {
                     ));
                 }
             }
-            let bar = || scrollable::Scrollbar::new().width(4).scroller_width(4);
             body = body.push(
                 scrollable(container(rows).padding([7, 7]))
-                    .height(Length::Fixed(420.0))
-                    .direction(scrollable::Direction::Both { vertical: bar(), horizontal: bar() }),
+                    .direction(scrollable::Direction::Horizontal(
+                        scrollable::Scrollbar::new().width(4).scroller_width(4).spacing(3),
+                    ))
+                    .height(Length::Shrink),
             );
             body.into()
         }

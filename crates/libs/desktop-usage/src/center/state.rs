@@ -9,6 +9,7 @@ pub struct State {
     pub tab: DetailTab,
     pub hero: super::hero::State,
     pub range_picker: super::range_picker::State,
+    pub(super) scope_menu_open: bool,
     pub(super) scope: Option<crate::Identity>,
     pub(super) activity: Option<(crate::Identity, bool)>,
     pub(super) activity_client: Option<vw_gateway_client::GatewayClient>,
@@ -17,7 +18,6 @@ pub struct State {
     pub(super) last_status: Option<std::time::Instant>,
     pub(super) last_query: Option<std::time::Instant>,
     pub display: super::display::State,
-    pub models: crate::models::State,
     pub pricing: super::pricing::State,
     pub scan: super::scan::State,
     pub charts: super::charts::State,
@@ -35,7 +35,6 @@ impl State {
         self.charts = super::charts::State::default();
         self.groups = super::groups::State::default();
         self.pricing.close();
-        self.models.close();
         self.display.close();
         self.status_pending = false;
         self.open = false;
@@ -43,6 +42,8 @@ impl State {
         self.loading = false;
         self.result = None;
         self.scan.open = false;
+        self.range_picker.open = false;
+        self.scope_menu_open = false;
     }
 
     pub fn begin(&mut self) -> u64 {
@@ -61,7 +62,7 @@ impl State {
 
 impl Default for State {
     fn default() -> Self {
-        Self { today: None, today_sequence: 0, tab: DetailTab::default(), hero: super::hero::State::default(), range_picker: super::range_picker::State::default(), scope: None, activity: None, activity_client: None, activity_pending: false, status_pending: false, last_status: None, last_query: None, display: super::display::State::default(), models: crate::models::State::default(), pricing: super::pricing::State::default(), scan: super::scan::State::default(), charts: super::charts::State::default(), logs: super::logs::State::default(), groups: super::groups::State::default(), query: super::overview::default_query(), open: false, sequence: 0, loading: false, result: None }
+        Self { today: None, today_sequence: 0, tab: DetailTab::default(), hero: super::hero::State::default(), range_picker: super::range_picker::State::default(), scope_menu_open: false, scope: None, activity: None, activity_client: None, activity_pending: false, status_pending: false, last_status: None, last_query: None, display: super::display::State::default(), pricing: super::pricing::State::default(), scan: super::scan::State::default(), charts: super::charts::State::default(), logs: super::logs::State::default(), groups: super::groups::State::default(), query: super::overview::default_query(), open: false, sequence: 0, loading: false, result: None }
     }
 }
 

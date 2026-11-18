@@ -23,6 +23,3 @@ pub fn overlay<'a>(app: &'a App, base: Element<'a, Message>) -> Element<'a, Mess
 pub fn amount(app: &App, usd: &str) -> String {
     domain::amount(&app.usage_center.display, super::identity(app), usd)
 }
-pub fn status(app: &App) -> String {
-    domain::status(&app.usage_center.display, super::identity(app))
-}

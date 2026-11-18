@@ -296,11 +296,6 @@ pub fn update(app: &mut TabState<'_>, appearance: Appearance, actions: &mut Vec<
                 (*app.active_preview_path) = Some(path_clone.clone());
                 actions.push(HostAction::FocusPreview);
 
-                #[cfg(not(target_arch = "wasm32"))]
-                {
-                    actions.push(HostAction::SyncLsp(path_clone.clone()));
-                }
-
                 if !instant_preview {
                     load_task = Task::done(Effect::Load(path_clone.clone()));
                 }
@@ -350,6 +345,9 @@ pub fn update(app: &mut TabState<'_>, appearance: Appearance, actions: &mut Vec<
                 editor.set_ui_language(language);
                 editor.set_search_replace_enabled(true);
                 editor.configure_preview_context_menu(appearance.locale, true);
+                // 替换编辑器前关闭旧 LSP 文档，避免同一 URI 重复打开。
+                #[cfg(not(target_arch = "wasm32"))]
+                super::lsp::detach_lsp_for_tab(tab);
                 tab.editor = editor;
                 #[cfg(not(target_arch = "wasm32"))]
                 {

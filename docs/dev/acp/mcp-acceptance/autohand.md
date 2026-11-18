@@ -72,3 +72,47 @@ AutoHand 发行版按显式配置参数、`AUTOHAND_CONFIG`、`AUTOHAND_HOME` �
 
 项目级限制消除了共享构建挂载轮的额外调用，但两种受管构建的限定无挂载轮都返回 DSML 标记。可控回环证明关闭主配置中的 Code Mode 和强制回顾后，三种工具仍可调用并续轮。真实验收还需要受管入口支持这两项设置，以及固定模型使用现有索引准确定位文件，或由 RustCodeGraph 修复相关符号索引。三轮合同当前仍有实际失败，故保留为已阻塞。没有修改产品代码或运行 Cargo。
 三座私有网关、回环端口及工具进程均已关闭。临时工作区、权限配置和租户凭据副本已清理，私有目录保留脱敏检查和原始事件证据。
+
+## RustCodeGraph 1.2.11 和原生直出工具
+
+使用同一 RueJS 干净提交，复用已审验的 RustCodeGraph 1.2.11（SHA-256 `5fab2f2dbf506ddf71d842ef1a7cd6e744c5ec90ff3f5f043ea020e1b3696312`），重建 3478 文件索引，确认 `createAppRouter` 命中 `app/router/index.ts:787`。延续项目级工具范围和宿主 `allowedTools` 三项声明。AutoHand 的原生项目权限负责隐藏内置工具，stdio 转发器只公开指定三个图谱工具并拒绝越界请求。复用 Goose 已验证的分页、真实入口文件和索引根说明，保留原参数和真实返回。固定请求、租户、模型、服务名及 `full_access=true` 不变。[发行构建对照](pi.md) · [元数据对照](goose.md)
+
+新图谱的基线使用已通过 Qoder 验收的网关构建（SHA-256 `2e84923a46704187dfd9d56dfc4b45d6ebf9cfc93398a6bb3a82b1cc61a1f935`）及 AutoHand 0.9.11。
+
+| 轮次 | 新会话 ID | HTTP / curl / 耗时 | 终态 |
+| --- | --- | --- | --- |
+| 无挂载 | `ses_1f0fdb7410017ZXsbcP0UBLGkm` | 200 / 0 / 5.796 秒 | `chat.done`，零工具事件，返回未执行的 DSML 脚本调用标记 |
+| 挂载 | `ses_1f0fdcebd001HabJdNOGyXCkBK` | 200 / 28 / 300.004 秒，续传 200 / 0 / 114.089 秒 | 同一会话收到 `chat.done`，74 次 query、1 次 callers、68 次 node，全部成功 |
+| 撤除 | `ses_1f104226c001JpolaINkBu0n1W` | 200 / 0 / 5.247 秒 | `chat.done`，零工具事件，返回说明及未执行的 DSML 标记 |
+
+挂载轮的 `call_217910ef128c419781ca2ff9` 查询定位 `createRueSiteApp`，`call_623f95de73b04d239f7a64b1` 返回 `mountRueSiteApp`，`call_98049e837e8242128a8dffe3` 读回 `useApp`。分页调用 `call_29d832b1fbb248c5b9c6557b` 读取 `app/router/index.ts:760–791`，包含路由工厂。答复正确走通调用链和各分支，并把快照影响列为静态推断。两项 DOM 场景未经实际执行，布局和标签的精确重复数量取决于夹具。新版图谱和元数据消除了该组错误路径，两个对照的回复仍不符合合同。
+
+用同一 AutoHand 二进制进行独立回环，原生 `--set features.codeMode=false --set ui.completionReportEnabled=false` 移除了不可用的脚本派发指令和强制回顾提示。三轮声明数依次为 0、3、0，挂载的三个调用收到真实续轮输出，均由原生 ACP 返回 `end_turn`。原网关显式配置这组参数时，无挂载实测会话 `ses_1f1046af8001xbb481DtrquZFQ` 在发起推理前返回 `chat.error`，原因为 `Autohand custom launch arguments are not verified`。驱动仅允许这组精确的可选参数追加到两个已验证的原生命令，维持原启动方式、模型绑定、授权和撤销边界，并继续拒绝其他配置覆盖。
+
+定向命令为 `python3 scripts/cargo_slot.py cargo test -j 1 -p llm-runtime --lib autohand_checks_direct_tool_launch_overrides`。槽位 3 的 target 和 build 目录均为仓库的 `target/rust-slot-3`。修复前退出 101，实际 1 项因启动参数门禁失败。修复后实际 1 项通过，退出 0，覆盖两个原生命令接受精确参数组，以及拒绝额外模型端点覆盖。同槽位 `cargo build -j 1 --locked -p vw-cli --bin shiju` 退出 0，耗时 7 分 30 秒，网关 SHA-256 为 `6897d9bc2574f4789f46771eaab82b88335dabb9d6d05ba85ef766fdd9c75861`。公共 ACP 会话转发未改动，未重跑生命周期夹具。
+
+新构建第一组三轮均 HTTP 200、curl 0、一个 `chat.done` 且零 `chat.error` 或模型恢复。
+
+| 轮次 | 新会话 ID | 耗时 | 工具及答复 |
+| --- | --- | --- | --- |
+| 无挂载 | `ses_1f10cbaff001owRNkQiVn5xMcz` | 4.651 秒 | 零工具，精确标记 |
+| 挂载 | `ses_1f10cce20001P0iikpNlZWWpvl` | 278.578 秒 | 36 次 query、2 次 callers、50 次 node，均为完成事件 |
+| 撤除 | `ses_1f1110ef50019rnk3khTmNjV8U` | 4.611 秒 | 零工具，精确标记 |
+
+`call_90a6a7edafd14c52ac5dfe94` 查询定位工厂，`call_47e07da5d6204d2a9e575cea` 返回挂载调用者，`call_1f2f5c32ca9d4cfd9e32aadb` 读回 `useApp` 与后续运行时工厂。答复覆盖源码链路和两个可检验场景，但误称 callers 未挂载，与实际调用和输出矛盾。另有一次 node 原样返回根 `index.html` 未被索引（`call_0af8d627a79b4649ba673d99`），尽管文件存在且 ACP 记录工具已结束。独立直连相同索引确认同一结果。这组只通过工具限制和无挂载、撤除对照，答复准确性需复验。
+
+最后一组复用同一构建和固定请求，仅补充工具目录元数据。标注明确注册的三种工具、单步相关性筛选与既有调用结果的关系，以及根 HTML 存在但未被图谱索引的事实。分页字段继续转发。工具入参与结果未改写。
+
+| 轮次 | 新会话 ID | HTTP / curl / 耗时 | 终态与结果 |
+| --- | --- | --- | --- |
+| 无挂载 | `ses_1f111c89b001bBu3Rf7A71o11r` | 200 / 0 / 5.602 秒 | 一个 `chat.done`，仅 `MCP_NOT_AVAILABLE`，零工具 |
+| 挂载 | `ses_1f111e000001Vr3hw1DPRMo2II` | 200 / 0 / 184.384 秒 | 一个 `chat.done`，42 次 query、3 次 callers、47 次 node，均成功 |
+| 撤除 | `ses_1f114b1840010KMKJdt990zgq8` | 200 / 0 / 4.681 秒 | 一个 `chat.done`，仅 `MCP_NOT_AVAILABLE`，零工具 |
+
+三轮无 `chat.error`、模型恢复或额外调用。挂载的 92 个调用均有同 ID 的开始和完成事件，无失败或索引路径错误。`call_070ffd1dce0e4c8480c52c28` 定位 `app/app.tsx:32`，`call_cc058ce9b65246dcb1dc4976` 返回 `mountRueSiteApp`（同文件第 39 行），`call_95a6b1a234b548ae98f852ac` 读回 `useApp` 调用 `_$createApp`，`call_7139a7e3d79e4fe7b51ba48a` 返回运行时工厂实际源码。
+
+三轮 summary 确认 `acp-autohand / autohand` 和 `full_access=true`。ACP options 确认原定模型及 `session_model`，运行中为 `client_only`，终态连接全部释放。未改宿主审批设置或原生会话模式。
+
+答复正确引用主链与 callers 实际结果，覆盖浏览器和 SSR 分支、容器缺失、路由和 i18n 的安装顺序、布局绕过及快照残留。两项设想分别使用已注册的设计路由检查静态首屏去重，以及检查预填模板的哨兵节点是否被清除。未运行浏览器或快照场景，具体重复数量取决于模板内容。答复正确定位路由的容器级安装路径，但对全局回退有一处表述偏差。独立核对 `packages/router/src/index.tsx:475–480` 确认仅在无容器时设置 `__activeRouter`。
+
+严格三轮的工具、终态和主链行为通过。三座私有网关、端口和工具进程均已退出，临时权限配置、项目副本及租户凭据已清理，原始 SSE 保留在本机私有目录。

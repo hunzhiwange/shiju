@@ -3,9 +3,21 @@ use super::AcpLaunchProfile;
 use std::collections::HashMap;
 
 pub fn configure(profile: &mut AcpLaunchProfile, endpoint: &str) -> anyhow::Result<()> {
+    // A scoped ACP run can opt into direct tool calls and omit the automatic recap.
+    // Match the exact native overrides so other provider or policy settings stay rejected.
+    let args = match profile.config().args.as_slice() {
+        [base @ .., first, code_mode, second, report]
+            if first == "--set"
+                && code_mode == "features.codeMode=false"
+                && second == "--set"
+                && report == "ui.completionReportEnabled=false" =>
+        {
+            base
+        }
+        args => args,
+    };
     anyhow::ensure!(
-        profile.config().args == ["--acp"]
-            || profile.config().args == ["-y", "autohand-cli@0.9.11", "--acp"],
+        args == ["--acp"] || args == ["-y", "autohand-cli@0.9.11", "--acp"],
         "Autohand custom launch arguments are not verified"
     );
     let url = reqwest::Url::parse(endpoint)?;

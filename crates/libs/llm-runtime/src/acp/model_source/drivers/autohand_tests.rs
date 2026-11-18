@@ -1,10 +1,14 @@
 use super::*;
 
 fn profile() -> AcpLaunchProfile {
+    profile_with_args(&["--acp"])
+}
+
+fn profile_with_args(args: &[&str]) -> AcpLaunchProfile {
     let mut profile = AcpLaunchProfile::new(
         &agent_config::schema::AcpAgentConfig {
             command: "autohand".into(),
-            args: vec!["--acp".into()],
+            args: args.iter().map(|arg| (*arg).into()).collect(),
             ..Default::default()
         },
         model_transport::RelayIdentity {
@@ -20,6 +24,28 @@ fn profile() -> AcpLaunchProfile {
     profile.model_supports_tool_call = true;
     profile.model_supports_temperature = true;
     profile
+}
+
+#[test]
+fn autohand_checks_direct_tool_launch_overrides() {
+    let overrides = [
+        "--set",
+        "features.codeMode=false",
+        "--set",
+        "ui.completionReportEnabled=false",
+    ];
+    for prefix in [&["--acp"][..], &["-y", "autohand-cli@0.9.11", "--acp"][..]] {
+        let mut args = prefix.to_vec();
+        args.extend(overrides);
+        let mut direct = profile_with_args(&args);
+        autohand::configure(&mut direct, "http://127.0.0.1:12345").unwrap();
+        assert_eq!(direct.config().args, args);
+
+        args.extend(["--set", "openai.baseUrl=https://example.invalid"]);
+        let mut unrelated = profile_with_args(&args);
+        assert!(autohand::configure(&mut unrelated, "http://127.0.0.1:12345").is_err());
+        assert!(!unrelated.directory().join("config.json").exists());
+    }
 }
 
 #[test]

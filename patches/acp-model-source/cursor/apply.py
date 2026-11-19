@@ -60,6 +60,9 @@ services_end = source.index('}(0,n.h)("shared-services")', services_start) + 1
 managed_services = source[services_start:services_end].replace('async function M(', 'async function shijuCursorShared(', 1)
 native_services = native_services.replace('async function M(e,t,n,M,T){', 'async function M(e,t,n,M,T){if(process.env.SHIJU_CURSOR_MODEL_CONFIG)return shijuCursorShared(e,t,n,M,T);', 1)
 source = source[:services_start] + native_services + managed_services + source[services_end:]
+# Bind the managed shell default to the working directory of the ACP session.
+source = replace(source, 'async initializeSessionState(e){this.sessions.set',
+    'async initializeSessionState(e){if(process.env.SHIJU_CURSOR_MODEL_CONFIG)e.agentStore.setMetadata("workspacePath",e.cwd);this.sessions.set')
 # Upstream ACP normally turns inference failures into successful text responses.
 source = replace(source, 'catch(e){if(this.lastRequestId=M.d.getLastParentAgentRequestId(),e instanceof r.cc||t.canceled)return;',
     'catch(e){if(this.lastRequestId=M.d.getLastParentAgentRequestId(),e instanceof r.cc||t.canceled)return;if(process.env.SHIJU_CURSOR_MODEL_CONFIG)throw new Error("Cursor session model request failed",{cause:e});')

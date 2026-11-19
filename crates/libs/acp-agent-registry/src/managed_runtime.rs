@@ -38,9 +38,9 @@ fn installed_directory(agent: &str, contract: &Contract) -> Result<PathBuf, Stri
         2
     } else if agent == "droid" {
         2
-    } else if agent == "deepagents" {
+    } else if matches!(agent, "cursor" | "deepagents") {
         4
-    } else if matches!(agent, "amp-acp" | "cortex-code" | "cursor" | "snow" | "stakpak") {
+    } else if matches!(agent, "amp-acp" | "cortex-code" | "snow" | "stakpak") {
         3
     } else if agent == "gemini" {
         2

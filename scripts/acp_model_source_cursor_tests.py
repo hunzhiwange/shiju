@@ -1,5 +1,5 @@
 """Exercise the reviewed Cursor runtime's real ACP/file-tool loop against a local HTTP fixture.
-Usage: python3 scripts/acp_model_source_cursor_tests.py /absolute/path/to/cursor-agent [--deny] [--step-limit | --refuse-final-tool]
+Usage: python3 scripts/acp_model_source_cursor_tests.py /absolute/path/to/cursor-agent [--deny] [--past-old-limit | --step-limit | --refuse-final-tool]
 """
 import http.server
 import json
@@ -15,7 +15,8 @@ import time
 entry = Path(sys.argv[1]).resolve(strict=True)
 deny = '--deny' in sys.argv[2:]
 refuse_final_tool = '--refuse-final-tool' in sys.argv[2:]
-tool_count = 64 if refuse_final_tool or '--step-limit' in sys.argv[2:] else 1
+at_step_limit = refuse_final_tool or '--step-limit' in sys.argv[2:]
+tool_count = 256 if at_step_limit else 70 if '--past-old-limit' in sys.argv[2:] else 1
 with tempfile.TemporaryDirectory(prefix='cursor-native-test-') as directory:
     root = Path(directory)
     root.chmod(0o700)
@@ -36,9 +37,10 @@ with tempfile.TemporaryDirectory(prefix='cursor-native-test-') as directory:
             requests.append(body)
             assert self.headers['Authorization'] == 'Bearer fixture'
             assert body['model'] == 'selected'
-            if tool_count == 64 and len(requests) == 65:
-                assert body.get('tool_choice') == 'none'
-                assert sum(m['role'] == 'tool' for m in body['messages']) == 64
+            if len(requests) == tool_count + 1:
+                assert sum(m['role'] == 'tool' for m in body['messages']) == tool_count
+                if at_step_limit:
+                    assert body.get('tool_choice') == 'none'
             if len(requests) <= tool_count or refuse_final_tool:
                 call_id = 'save-fixture' if len(requests) == 1 else f'save-fixture-{len(requests)}'
                 delta = {'reasoning_content': 'fixture reasoning', 'tool_calls': [{'index': 0, 'id': call_id, 'type': 'function', 'function': {
@@ -51,7 +53,7 @@ with tempfile.TemporaryDirectory(prefix='cursor-native-test-') as directory:
             self.end_headers()
             self.wfile.write(('data: ' + json.dumps({'choices': [{'delta': delta, 'finish_reason': reason}]}) +
                               '\n\ndata: [DONE]\n\n').encode())
-            if refuse_final_tool and len(requests) == 65:
+            if refuse_final_tool and len(requests) == tool_count + 1:
                 final_tool_sent.set()
 
     server = http.server.ThreadingHTTPServer(('127.0.0.1', 0), Handler)
@@ -64,7 +66,7 @@ with tempfile.TemporaryDirectory(prefix='cursor-native-test-') as directory:
     env = {k: v for k, v in os.environ.items() if k in ('PATH', 'HOME', 'TMPDIR')}
     env.update(SHIJU_CURSOR_MODEL_CONFIG=str(root / 'model.json'), CURSOR_CONFIG_DIR=str(root / 'config'), CURSOR_DATA_DIR=str(root / 'data'), AGENT_CLI_CREDENTIAL_STORE='memory', CURSOR_AGENT_CLI_AUTHLESS_MODE='true')
     with (root / 'stderr').open('w') as stderr:
-        process = subprocess.Popen([str(entry), 'acp', '--model', 'selected'], cwd=workspace, env=env,
+        process = subprocess.Popen([str(entry), 'acp', '--model', 'selected'], cwd=root, env=env,
                                    stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=stderr, text=True)
         incoming = queue.Queue()
 
@@ -119,13 +121,14 @@ with tempfile.TemporaryDirectory(prefix='cursor-native-test-') as directory:
                     option = next(o for o in message['params']['options'] if o['kind'] == ('reject_once' if deny else 'allow_once'))
                     send({'id': message['id'], 'result': {'outcome': {'outcome': 'selected', 'optionId': option['optionId']}}})
             if refuse_final_tool:
-                assert not completed and len(requests) == 65
+                assert not completed and len(requests) == tool_count + 1
                 assert final_tool_sent.wait(timeout=1)
-                assert sum(u.get('sessionUpdate') == 'tool_call' for u in updates) == 64
+                assert sum(u.get('sessionUpdate') == 'tool_call' for u in updates) == tool_count
                 print('PASS: native ACP rejects tool execution after the step limit')
                 sys.exit(0)
             assert completed, 'Native Cursor did not complete within 60 seconds'
             assert approvals > 0, 'Native shell did not request current client approval'
+            assert not (root / 'created.txt').exists(), 'Shell used the ACP process directory'
             if deny:
                 assert not (workspace / 'created.txt').exists()
             else:

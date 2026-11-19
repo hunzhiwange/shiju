@@ -2,7 +2,8 @@
 'use strict';
 const { readFileSync, lstatSync } = require('node:fs');
 const { createHash } = require('node:crypto');
-const toolStepLimit = 64;
+const { isAbsolute } = require('node:path');
+const toolStepLimit = 256;
 
 function validateConfig(c) {
   const u = new URL(c.endpoint);
@@ -150,7 +151,7 @@ async function run(api, ctx, state, action, model, updates, resources, blobs, ac
     throw new Error('Cursor session model supports agent mode only');
   await api.context(ctx, action, resources, store.getId());
   const requestContext = action.action.value.requestContext;
-  const cwd = store.getMetadata('workspacePath') ?? process.cwd();
+  const cwd = store.getMetadata('workspacePath');
   const mountedTools = mcpTools(mcp);
   const tools = [tool, ...Array.from(mountedTools.values(), entry => entry.definition)];
   const messages = [{ role: 'system', content: [
@@ -207,6 +208,8 @@ async function run(api, ctx, state, action, model, updates, resources, blobs, ac
       if (finalOnly) throw new Error('Cursor model requested a tool after reaching the step limit');
       const call = result.call;
       const mounted = mountedTools.get(call.name);
+      if (!mounted && (typeof cwd !== 'string' || !isAbsolute(cwd)))
+        throw new Error('Cursor ACP session working directory is unavailable');
       const args = mounted ? mcpArgs(call, mounted.target) : shellArgs(call, cwd);
       if (!mounted) {
         const parsed = api.parseShell(args.command);

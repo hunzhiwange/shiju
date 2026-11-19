@@ -101,3 +101,17 @@ async fn mimo_mcp_projects_filters_calls_and_revokes_the_selected_catalog() {
         StatusCode::UNAUTHORIZED
     );
 }
+
+#[test]
+fn vtcode_mcp_approval_is_bound_to_name_and_arguments_and_consumed_once() {
+    let grants = super::VtcodeApproval::default();
+    let tool = "mcp__graph__query";
+    let args = serde_json::json!({"search": "createRueSiteApp"});
+    assert!(!grants.consume(tool, &args));
+    assert!(grants.issue(tool, &args));
+    assert!(!grants.consume(tool, &serde_json::json!({"search":"other"})));
+    assert!(!grants.consume(tool, &args));
+    assert!(grants.issue(tool, &args));
+    assert!(grants.consume(tool, &args));
+    assert!(!grants.consume(tool, &args));
+}

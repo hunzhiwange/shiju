@@ -25,3 +25,6 @@ use acp_agent_registry::{
 #[cfg(all(test, target_os = "macos", target_arch = "aarch64"))]
 #[path = "client/claude_fallback_acceptance.rs"]
 mod claude_fallback_acceptance;
+
+/// Records a host-approved call for the request-owned MCP relay.
+pub type ManagedMcpApproval = std::sync::Arc<dyn Fn(&str, &serde_json::Value) -> bool + Send + Sync>;

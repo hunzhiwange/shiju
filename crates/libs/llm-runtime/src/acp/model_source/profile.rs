@@ -45,6 +45,7 @@ pub struct AcpLaunchProfile {
     pub model_api: Option<model_types::ApiInfo>,
     /// A selected native provider/model that must be applied by ACP RPC before prompt.
     pub session_model_id: Option<String>,
+    pub managed_mcp: Option<(Vec<agent_client_protocol::McpServer>, acp_client::ManagedMcpApproval)>,
 }
 impl AcpLaunchProfile {
     pub fn new(config: &AcpAgentConfig, identity: RelayIdentity) -> anyhow::Result<Self> {
@@ -89,6 +90,7 @@ impl AcpLaunchProfile {
                 state_root: None,
                 model_api: None,
                 session_model_id: None,
+                managed_mcp: None,
             })
         }
     }

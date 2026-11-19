@@ -226,10 +226,16 @@ if agent == 'mimo-code':
     }))
     raise SystemExit(0)
 if agent == 'vtcode':
-    import platform
-    if (platform.system(), platform.machine()) != ('Darwin', 'arm64'):
-        raise RuntimeError(f'{agent} reviewed runtime is Darwin-arm64 only')
-    archive = assets / f'{agent}.tar.gz'
+    native = assets / 'vtcode-acp'
+    if native.is_file():
+        if digest(native) != contract['files'][contract['bin']]:
+            raise RuntimeError('Packaged VT Code ACP checksum mismatch')
+        runtime.mkdir()
+        executable = runtime / contract['bin']
+        shutil.copyfile(native, executable)
+        executable.chmod(0o700)
+        raise SystemExit(0)
+    archive = assets / 'vtcode.tar.gz'
     for _ in range(3):
         result = subprocess.run([
             '/usr/bin/curl', '--disable', '--fail', '--silent', '--show-error', '--location',
@@ -239,23 +245,22 @@ if agent == 'vtcode':
         ], stdin=subprocess.DEVNULL)
         if result.returncode == 0:
             break
-        if result.returncode == 33:  # Some servers refuse partial transfers.
+        if result.returncode == 33:
             archive.unlink(missing_ok=True)
     else:
-        raise RuntimeError(f'{agent} reviewed download failed')
+        raise RuntimeError('VT Code reviewed download failed')
     if digest(archive) != contract['archive_sha256']:
-        raise RuntimeError(f'{agent} fixed archive checksum mismatch')
+        raise RuntimeError('VT Code fixed archive checksum mismatch')
     runtime.mkdir()
-    native = runtime / contract['bin']
-    entry_name = './vtcode'
+    executable = runtime / contract['bin']
     with tarfile.open(archive) as package:
-        entries = [entry for entry in package.getmembers() if entry.name == entry_name]
+        entries = [entry for entry in package if entry.name == './vtcode']
         if len(entries) != 1 or not entries[0].isfile():
-            raise RuntimeError(f'Unexpected {agent} executable archive entry')
-        with package.extractfile(entries[0]) as source, native.open('xb') as output:
+            raise RuntimeError('Unexpected VT Code executable archive entry')
+        with package.extractfile(entries[0]) as source, executable.open('xb') as output:
             shutil.copyfileobj(source, output)
-    check_files(runtime, contract['files'])
-    native.chmod(0o700)
+    check_files(runtime, {contract['bin']: contract['source_sha256']})
+    executable.chmod(0o700)
     raise SystemExit(0)
 if agent == 'corust-agent':
     import platform

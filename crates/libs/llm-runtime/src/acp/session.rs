@@ -173,6 +173,15 @@ pub fn build_cached_acp_client<H: Host>(
     acp_cfg: &config::schema::AcpAgentConfig,
     parsed_options: &ParsedAcpOptions<H::Skills>,
 ) -> Arc<CachedAcpClient> {
+    build_cached_acp_client_with_approval::<H>(acp_agent_name, acp_cfg, parsed_options, None)
+}
+
+fn build_cached_acp_client_with_approval<H: Host>(
+    acp_agent_name: &str,
+    acp_cfg: &config::schema::AcpAgentConfig,
+    parsed_options: &ParsedAcpOptions<H::Skills>,
+    approval: Option<acp_client::ManagedMcpApproval>,
+) -> Arc<CachedAcpClient> {
     let permission_confirmation =
         Arc::new(parking_lot::Mutex::new(None::<acp_host_io::permissions::PermissionConfirmation>));
     let active_confirmation = permission_confirmation.clone();
@@ -220,6 +229,7 @@ pub fn build_cached_acp_client<H: Host>(
     )
     .with_desktop_workspace(parsed_options.desktop_workspace.clone())
     .with_mcp_servers(parsed_options.mcp_servers.clone())
+    .with_managed_mcp_approval(approval)
     .with_permission_mode(parsed_options.permission_mode.unwrap_or(if parsed_options.full_access {
         PermissionMode::ApproveAll
     } else {
@@ -261,6 +271,16 @@ pub fn get_cached_acp_client<H: Host>(
     cwd: &Path,
     parsed_options: &ParsedAcpOptions<H::Skills>,
 ) -> CachedAcpClientEntry {
+    get_cached_acp_client_with_approval::<H>(acp_agent_name, acp_cfg, cwd, parsed_options, None)
+}
+
+pub(super) fn get_cached_acp_client_with_approval<H: Host>(
+    acp_agent_name: &str,
+    acp_cfg: &config::schema::AcpAgentConfig,
+    cwd: &Path,
+    parsed_options: &ParsedAcpOptions<H::Skills>,
+    approval: Option<acp_client::ManagedMcpApproval>,
+) -> CachedAcpClientEntry {
     let key = acp_client_cache_key::<H>(acp_agent_name, acp_cfg, cwd, parsed_options);
     let mut cache = ACP_CLIENT_CACHE.lock();
     if let Some(existing) = cache.get(&key) {
@@ -271,7 +291,7 @@ pub fn get_cached_acp_client<H: Host>(
         };
     }
 
-    let client = build_cached_acp_client::<H>(acp_agent_name, acp_cfg, parsed_options);
+    let client = build_cached_acp_client_with_approval::<H>(acp_agent_name, acp_cfg, parsed_options, approval);
     cache.insert(key.clone(), client.clone());
     CachedAcpClientEntry { request_owned: launch_reference(acp_cfg).is_some(), key, client }
 }

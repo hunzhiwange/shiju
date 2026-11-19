@@ -50,6 +50,7 @@ pub trait RelayHost: Send + Sync + 'static {
 }
 
 struct ServerState {
+    vtcode_catalog: Vec<String>,
     binding: Arc<RelayBinding>,
     backend: Arc<dyn RelayBackend>,
     host: Arc<dyn RelayHost>,
@@ -82,6 +83,18 @@ impl RelayServer {
         host: Arc<dyn RelayHost>,
         private_routes: Router,
     ) -> anyhow::Result<Self> {
+        Self::start_with_routes_and_vtcode_catalog(binding, backend, host, private_routes, Vec::new()).await
+    }
+
+    pub async fn start_with_routes_and_vtcode_catalog(
+        binding: Arc<RelayBinding>,
+        backend: Arc<dyn RelayBackend>,
+        host: Arc<dyn RelayHost>,
+        private_routes: Router,
+        vtcode_catalog: Vec<String>,
+    ) -> anyhow::Result<Self> {
+        anyhow::ensure!(vtcode_catalog.is_empty() || binding.identity().session.ends_with(":vtcode"),
+            "VT Code MCP catalog requires a VT Code relay");
         anyhow::ensure!(
             binding.accepts(binding.bearer_token(), binding.identity()),
             "inactive relay capability"
@@ -90,6 +103,7 @@ impl RelayServer {
         let address = listener.local_addr()?;
         let aionrs_mcp = Arc::new(std::sync::OnceLock::new());
         let state = Arc::new(ServerState {
+            vtcode_catalog,
             aionrs_mcp: aionrs_mcp.clone(),
             binding: binding.clone(),
             backend,
@@ -369,7 +383,7 @@ async fn handle(State(state): State<Arc<ServerState>>, request: Request) -> Resp
         let vtcode = path == "/v1/chat/completions"
             && state.binding.identity().session.ends_with(":vtcode");
         if vtcode {
-            retain_vtcode_tools(&mut json);
+            retain_vtcode_tools(&mut json, &state.vtcode_catalog);
         }
 
         if aionrs {
@@ -497,15 +511,15 @@ fn retain_corust_tools(request: &mut serde_json::Value) {
     }
 }
 
-fn retain_vtcode_tools(request: &mut serde_json::Value) {
+fn retain_vtcode_tools(request: &mut serde_json::Value, catalog: &[String]) {
     if let Some(tools) = request.get_mut("tools").and_then(serde_json::Value::as_array_mut) {
         // The native catalog still advertises shell tools when its sandbox denies them.
         // Expose only the read and patch surfaces supported by the managed launch.
         tools.retain(|tool| {
-            matches!(
-                tool.pointer("/function/name").and_then(serde_json::Value::as_str),
-                Some("read_file" | "list_files" | "code_search" | "apply_patch")
-            )
+            tool.pointer("/function/name").and_then(serde_json::Value::as_str).is_some_and(|name| {
+                matches!(name, "read_file" | "list_files" | "code_search" | "apply_patch")
+                    || catalog.iter().any(|tool| tool == name)
+            })
         });
     }
 }

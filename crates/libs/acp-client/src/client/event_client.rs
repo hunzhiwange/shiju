@@ -147,6 +147,7 @@ impl AcpClient {
             permission_mode,
             non_interactive_permissions: self.non_interactive_permissions,
             permission_confirmation: self.permission_confirmation.clone(),
+            managed_mcp_approval: self.managed_mcp_approval.clone(),
             on_session_update: Some(on_session_update),
             permission_stats: self.permission_stats.clone(),
             cancelling_session_ids: self.cancelling_session_ids.clone(),
@@ -222,7 +223,11 @@ impl acp::Client for AcpEventClient {
         if self.desktop_workspace.is_some() && args.tool_call.fields.kind.is_none() {
             args.tool_call.fields.kind = Some(acp::ToolKind::Other);
         }
+        let managed_mcp = self.managed_mcp_approval.as_ref().zip(
+            args.tool_call.fields.title.as_deref().filter(|name| name.starts_with("mcp__")),
+        );
         let resolve = if gemini_mcp.is_some()
+            || managed_mcp.is_some()
             || self.transient_permissions
             || self.desktop_workspace.is_some()
         {
@@ -261,6 +266,14 @@ impl acp::Client for AcpEventClient {
             resolve(&args, self.permission_mode, self.non_interactive_permissions)
                 .map_err(acp::Error::into_internal_error)?
         };
+        if let Some((grant, title)) = managed_mcp
+            && matches!(classify_permission_decision(&args, &response), PermissionDecision::Approved)
+            && (!self.owns_active_prompt(&args.session_id)
+                || !args.tool_call.fields.raw_input.as_ref().is_some_and(|input| grant(title, input)))
+        {
+            self.permission_stats.lock().cancelled += 1;
+            return Ok(cancelled_permission_response());
+        }
         match classify_permission_decision(&args, &response) {
             PermissionDecision::Approved => self.permission_stats.lock().approved += 1,
             PermissionDecision::Denied => self.permission_stats.lock().denied += 1,

@@ -1,6 +1,6 @@
 # VT Code 动态挂载 RustCodeGraph
 
-2026-11-19，验收已阻塞。VT Code 0.183.0 在 ACP 建会话时忽略 `mcpServers`。宿主已连上 RustCodeGraph，指定模型在挂载轮仍报告 `MCP_NOT_AVAILABLE`。[VT Code 0.183.0 建会话实现](https://github.com/vinhnx/VTCode/blob/0.183.0/crates/codegen/vtcode-acp/src/zed/agent/session_state/mod.rs#L388-L412)
+2026-11-19，Darwin arm64 的受管网关已通过新版三轮验收。原版 VT Code 0.183.0 的 ACP 建会话忽略 `mcpServers`，受管路径使用经摘要校验的 0.183.0 补丁制品接入会话挂载。[受管网关三轮](#受管网关三轮) · [原版建会话实现](https://github.com/vinhnx/VTCode/blob/0.183.0/crates/codegen/vtcode-acp/src/zed/agent/session_state/mod.rs#L388-L412)
 
 ## 真实模型三轮
 
@@ -93,3 +93,29 @@ VT Code 的 ACP 注册表由 `ZedAgent::new` 初始化。启动期 MCP provider 
 按新标准，模型目录同时公布原中继允许的 `read_file`、`list_files`、`code_search`、`apply_patch` 和已挂载的三种图谱工具。官方工具沿用原审批及沙箱。隔离原生 ACP 复用同一补丁产物、指定阿里模型、原提示和只读源码副本。两个对照沿用前次等效证据。
 
 挂载轮 29 个模型请求均为 HTTP 200，收到 `end_turn`。query 33 次、callers 7 次、node 39 次，全部真实执行成功。79 条完成事件的调用 ID 均在后续模型请求中匹配到工具结果。模型本轮选择了图谱工具，答复覆盖调用链、SSR、缺失 `#app`、路由/i18n、布局与快照推断。单独的聚焦批准轮在同一会话先调用原生 `list_files`，获准后返回 `app.tsx`，随后三个挂载调用分别执行并回传。拒绝和撤除对照仍为零图谱调用。复用现有编译产物，探针及转发进程均已回收。受管网关仍需接入，改动未提交。
+
+## 受管网关三轮
+
+Darwin arm64 的私有 ShiJu 网关通过桌面受管安装端点安装 VT Code 0.183.0 v2。网关 SHA-256 为 `1d37a1d46ad916b7671e7d1cb9c2be65d0cf951e7e7fd516b32d7c03afa91ada`，VT Code 摘要与原生探针产物一致。RueJS 副本基于 `14fe287b13549f5183d42fbc45b28e1498ffae1c`。同一网关从 ACP `session/new` 向 VT Code 交付带请求令牌的回环 HTTP 服务，复用模型中继端口。宿主把批准的调用转发给 RustCodeGraph 1.2.10 的真实 stdio 服务 `ruejs_graph_probe`。调用消耗一次与名称及参数匹配的 ACP 批准。
+
+采用新版复用请求，固定 `acp-vtcode`、租户 `10001 / 100010005`、`alibaba-token-plan-cn/deepseek-v4.1-flash-1017`、`session_model` 和 `full_access=true`。
+
+| 轮次 | 新会话 | HTTP / curl 退出码 / 耗时 | 完成的工具和 SSE 终态 |
+| --- | --- | --- | --- |
+| 无挂载 | `ses_1f1c0d83b001Wez1OCMQPJ5r7n` | 200 / 0 / 78.812 秒 | 13 次官方工具，零图谱调用，`chat.done` |
+| 挂载 | `ses_1f1c20db0001ejtDnoETdfgf33` | 200 / 0 / 64.426 秒 | 17 次官方工具，22 次图谱调用，`chat.done` |
+| 撤除 | `ses_1f1c30b56001TcjPrjk76Q7JMy` | 200 / 0 / 25.934 秒 | 9 次官方工具，零图谱调用，`chat.done` |
+
+三轮各一个 `chat.done`，无 `chat.error`。UI summary 回读绑定 `acp-vtcode / vtcode` 和 `full_access=true`。ACP options 在线回读指定模型和 `session_model`，挂载及撤除为 `client_only`。无挂载轮在线读取时权限同步尚未确认，同一受管构建用旧版提示复验时三轮均读到 `client_only`。三轮结束后 ACP options 均为 `connected=false`。两轮对照未配置该服务，未出现对应工具事件或结果。
+
+挂载轮有 query 5 次、callers 2 次和 node 15 次完成事件，均带真实输出。代表性 SSE 结果如下。
+
+| 工具 | 原调用 ID | 返回内容 |
+| --- | --- | --- |
+| `rustcodegraph_query` | `call_b731bdd2a7ac4ab48e71ab6c` | `createRueSiteApp` 位于 `app/app.tsx:32` |
+| `rustcodegraph_callers` | `call_45489494f0af4ee4a3acf8ee` | `mountRueSiteApp` 位于 `app/app.tsx:39` |
+| `rustcodegraph_node` | `call_6c2c5f7bdcb54994a97b9036` | 返回 `mountRueSiteApp` 中查找容器、清空快照和挂载的源码 |
+
+终答引用这三项结果，继续引用 `packages/runtime/src/hooks/useApp.ts:4` 和 `packages/runtime/src/compiler-runtime/app.ts:17–99`，说明从 `useApp` 到 `_$createApp`、插件安装、根块工厂和 DOM 挂载的顺序。`createAppRouter` 的图谱搜索无匹配，模型用已有权限内的官方搜索定位后，通过图谱工具读取源码。此前同一网关的旧版提示挂载轮完成 82 次图谱调用，三次不存在的路径由模型修正。其挂载中的无令牌 `tools/list` 请求返回 HTTP 401。原生探针另外核对了原始请求的工具调用 ID、批准拒绝和已消费授权的重放拒绝。
+
+槽位 6 的定向 `model-relay-http` `vtcode_relay` 测试运行 2 项并通过，`vw-cli --bin shiju` 构建成功。随后补齐缺少制品时的原版安装回退，`acp-agent-registry` 定向编译检查通过，并单独运行安装器验证补丁、原版下载及错误摘要拒绝。Rust 缓存均为 `target/rust-slot-6`。未运行桌面编译或发布打包。分发制品需把经摘要校验的 `vtcode-acp` 放在 ShiJu 同目录。私有网关已停止，挂载配置及授权文件已清理。

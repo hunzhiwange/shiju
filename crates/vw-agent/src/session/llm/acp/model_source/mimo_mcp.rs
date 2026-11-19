@@ -1,4 +1,4 @@
-//! Request-owned stdio MCP projection for the sandboxed MiMo CLI.
+//! Request-owned stdio MCP projection for sandboxed ACP backends.
 use acp_types::AcpMcpServer;
 use axum::{
     Json, Router,
@@ -14,14 +14,15 @@ use serde_json::{Map, Value, json};
 use std::{
     collections::{BTreeMap, BTreeSet},
     path::Path as FsPath,
-    sync::Arc,
-    time::Duration,
+    sync::{Arc, Mutex},
+    time::{Duration, Instant},
 };
 use tokio::{process::Command, sync::Semaphore};
 
 const TIMEOUT: Duration = Duration::from_secs(15);
 const BODY_LIMIT: usize = 4 * 1024 * 1024;
 const PREFIX: &str = "/shiju-mimo-mcp";
+const VTCODE_PREFIX: &str = "/shiju-vtcode-mcp";
 const SANDBOX: &str = r#"
 (version 1)
 (allow default)
@@ -42,9 +43,29 @@ struct Server {
     catalog: BTreeMap<String, Tool>,
     permits: Semaphore,
     _scratch: tempfile::TempDir,
+    graph_root: Option<std::path::PathBuf>,
+}
+
+#[derive(Default)]
+struct VtcodeApproval(Mutex<Option<(String, Value, Instant)>>);
+
+impl VtcodeApproval {
+    fn issue(&self, name: &str, input: &Value) -> bool {
+        let Ok(mut current) = self.0.lock() else { return false };
+        *current = Some((name.to_owned(), input.clone(), Instant::now()));
+        true
+    }
+
+    fn consume(&self, name: &str, input: &Value) -> bool {
+        let Ok(mut current) = self.0.lock() else { return false };
+        current.take().is_some_and(|(tool, arguments, issued)| {
+            tool == name && &arguments == input && issued.elapsed() <= TIMEOUT
+        })
+    }
 }
 
 struct Bridge {
+    approvals: Option<Arc<VtcodeApproval>>,
     launch: Arc<RelayBinding>,
     access: Arc<RelayBinding>,
     servers: BTreeMap<String, Server>,
@@ -55,11 +76,28 @@ pub(super) struct Projection {
     servers: Vec<String>,
     access: Arc<RelayBinding>,
     pub(super) tools: Vec<String>,
+    approvals: Option<Arc<VtcodeApproval>>,
 }
 
 impl Projection {
     pub(super) fn token(&self) -> &str {
         self.access.bearer_token()
+    }
+
+    pub(super) fn vtcode_config(&self, endpoint: &str) -> anyhow::Result<(
+        Vec<AcpMcpServer>, acp_client::ManagedMcpApproval,
+    )> {
+        use agent_client_protocol::{HttpHeader, McpServerHttp};
+        let approvals = self.approvals.clone().ok_or_else(|| anyhow::anyhow!("Missing VT Code MCP approval store"))?;
+        let catalog = self.tools.clone();
+        let approve: acp_client::ManagedMcpApproval = Arc::new(move |name, input| {
+            input.is_object() && catalog.iter().any(|tool| tool == name) && approvals.issue(name, input)
+        });
+        let servers = self.servers.iter().map(|name| {
+            AcpMcpServer::Http(McpServerHttp::new(name.as_str(), format!("{endpoint}{VTCODE_PREFIX}/{name}"))
+                .headers(vec![HttpHeader::new("Authorization", format!("Bearer {}", self.token()))]))
+        }).collect();
+        Ok((servers, approve))
     }
 
     pub(super) fn native_config(&self, endpoint: &str) -> Map<String, Value> {
@@ -89,10 +127,12 @@ pub(super) async fn prepare(
         cfg!(all(target_os = "macos", target_arch = "aarch64")),
         "MiMo MCP requires the reviewed Darwin arm64 runtime"
     );
+    let vtcode = launch.identity().session.ends_with(":vtcode");
     anyhow::ensure!(
-        launch.identity().session.ends_with(":mimo-code"),
-        "MiMo MCP requires a MiMo relay"
+        vtcode || launch.identity().session.ends_with(":mimo-code"),
+        "Managed MCP requires a reviewed relay"
     );
+    let approvals = vtcode.then(|| Arc::new(VtcodeApproval::default()));
     anyhow::ensure!(
         !definitions.is_empty() && definitions.len() <= 16,
         "invalid MiMo MCP service count"
@@ -107,6 +147,7 @@ pub(super) async fn prepare(
     let mut services = BTreeSet::new();
     let mut native_tools = BTreeSet::new();
 
+    let policy_key = if vtcode { "shiju.vtcode.toolPolicy" } else { "shiju.mimo.toolPolicy" };
     for definition in definitions {
         let AcpMcpServer::Stdio(definition) = definition else {
             anyhow::bail!("MiMo managed MCP accepts isolated stdio services");
@@ -122,7 +163,7 @@ pub(super) async fn prepare(
         let policy = definition
             .meta
             .as_ref()
-            .and_then(|meta| meta.get("shiju.mimo.toolPolicy"))
+            .and_then(|meta| meta.get(policy_key))
             .ok_or_else(|| {
                 anyhow::anyhow!("MiMo MCP requires a host-selected service and tool policy")
             })?;
@@ -145,6 +186,20 @@ pub(super) async fn prepare(
             !host_home.starts_with(&workspace),
             "MiMo MCP workspace overlaps host home"
         );
+        let mut args = definition.args.clone();
+        let graph_root = if vtcode && executable.file_name().is_some_and(|name| name == "rustcodegraph") {
+            let [verb, transport, path_flag, root, watch] = args.as_mut_slice() else {
+                anyhow::bail!("VT Code requires read-only RustCodeGraph stdio arguments");
+            };
+            anyhow::ensure!(verb.as_str() == "serve" && transport.as_str() == "--mcp" && path_flag.as_str() == "--path"
+                && watch.as_str() == "--no-watch" && FsPath::new(root.as_str()).canonicalize()? == workspace,
+                "Invalid VT Code RustCodeGraph workspace arguments");
+            prepare_codegraph_workspace(&workspace, &scratch_path)?;
+            *root = scratch_path.to_str().ok_or_else(|| anyhow::anyhow!("Non-UTF-8 graph workspace"))?.to_owned();
+            Some(scratch_path.clone())
+        } else {
+            None
+        };
         let mut command = Command::new("/usr/bin/sandbox-exec");
         for (key, value) in [
             ("command", executable.clone()),
@@ -152,7 +207,7 @@ pub(super) async fn prepare(
             ("scratch", scratch_path.clone()),
             ("host-home", host_home),
             ("git", workspace.join(".git")),
-            ("settings", workspace.join(".mimocode")),
+            ("settings", workspace.join(if vtcode { ".vtcode" } else { ".mimocode" })),
             ("env", workspace.join(".env")),
             ("mount", workspace.join(".vwacprc.json")),
         ] {
@@ -162,8 +217,8 @@ pub(super) async fn prepare(
         command
             .args(["-p", SANDBOX])
             .arg(executable)
-            .args(&definition.args)
-            .current_dir(&workspace)
+            .args(&args)
+            .current_dir(graph_root.as_deref().unwrap_or(&workspace))
             .env_clear()
             .env("HOME", &scratch_path)
             .env("TMPDIR", &scratch_path)
@@ -178,31 +233,78 @@ pub(super) async fn prepare(
         let listed =
             tokio::time::timeout(TIMEOUT, mcp_client::catalog::list_tools(&peer)).await??;
         let mut catalog = BTreeMap::new();
-        for tool in listed {
+        for mut tool in listed {
             let name = tool.name.to_string();
             anyhow::ensure!(valid_name(&name), "invalid MiMo MCP tool name");
             let tool_id = tool_mcp::mcp_tool::mcp_tool_id(&definition.name, &name)?;
             if !mcp_client::mcp_tool_allowed(&management, &name, &tool_id) {
                 continue;
             }
-            let public = format!("{}_{name}", definition.name);
+            let public = if vtcode {
+                format!("mcp__{}__{name}", definition.name)
+            } else {
+                format!("{}_{name}", definition.name)
+            };
             anyhow::ensure!(
                 public.len() <= 64 && native_tools.insert(public),
                 "invalid or colliding MiMo MCP tool name"
             );
+            if graph_root.is_some() {
+                if let Some(properties) = Arc::make_mut(&mut tool.input_schema)
+                    .get_mut("properties").and_then(Value::as_object_mut)
+                {
+                    if let Some(project) = properties.get_mut("projectPath").and_then(Value::as_object_mut) {
+                        project.insert("description".into(), json!("Optional. Omit to use this indexed workspace root. Nested packages are not independently indexed."));
+                        project.insert("enum".into(), json!(["."]));
+                    }
+                    if name == "rustcodegraph_node" {
+                        properties.entry("offset").or_insert_with(|| json!({"type":"integer","description":"Starting line of an existing file (1-based)."}));
+                        properties.entry("limit").or_insert_with(|| json!({"type":"integer","description":"Maximum source lines returned."}));
+                    }
+                }
+            }
             catalog.insert(name, tool);
         }
         if !catalog.is_empty() {
             servers.insert(
                 definition.name.clone(),
-                Server { peer, catalog, permits: Semaphore::new(1), _scratch: scratch },
+                Server { peer, catalog, permits: Semaphore::new(1), _scratch: scratch, graph_root },
             );
         }
     }
+    anyhow::ensure!(!vtcode || !servers.is_empty(), "No tools in the selected VT Code MCP catalog");
     let names = servers.keys().cloned().collect();
-    let state = Arc::new(Bridge { launch, access: access.clone(), servers });
-    let router = Router::new().route("/shiju-mimo-mcp/{service}", post(handle)).with_state(state);
-    Ok(Projection { router, servers: names, access, tools: native_tools.into_iter().collect() })
+    let state = Arc::new(Bridge { launch, access: access.clone(), servers, approvals: approvals.clone() });
+    let route = if vtcode { "/shiju-vtcode-mcp/{service}" } else { "/shiju-mimo-mcp/{service}" };
+    let router = Router::new().route(route, post(handle)).with_state(state);
+    Ok(Projection { router, servers: names, access, tools: native_tools.into_iter().collect(), approvals })
+}
+
+#[cfg(unix)]
+fn prepare_codegraph_workspace(workspace: &FsPath, scratch: &FsPath) -> anyhow::Result<()> {
+    use std::os::unix::fs::{OpenOptionsExt, symlink};
+    let index = workspace.join(".rustcodegraph");
+    anyhow::ensure!(index.canonicalize()? == index
+        && !index.join("rustcodegraph.db-wal").metadata().is_ok_and(|entry| entry.len() != 0),
+        "VT Code requires a checkpointed RustCodeGraph index");
+    let mut database = std::fs::OpenOptions::new().read(true).custom_flags(libc::O_NOFOLLOW)
+        .open(index.join("rustcodegraph.db"))?;
+    anyhow::ensure!(database.metadata()?.is_file(), "Invalid RustCodeGraph database");
+    let private_index = scratch.join(".rustcodegraph");
+    std::fs::create_dir(&private_index)?;
+    std::io::copy(&mut database, &mut std::fs::File::create(private_index.join("rustcodegraph.db"))?)?;
+    for entry in std::fs::read_dir(workspace)? {
+        let entry = entry?;
+        if entry.file_name() != ".rustcodegraph" {
+            symlink(entry.path(), scratch.join(entry.file_name()))?;
+        }
+    }
+    Ok(())
+}
+
+#[cfg(not(unix))]
+fn prepare_codegraph_workspace(_: &FsPath, _: &FsPath) -> anyhow::Result<()> {
+    anyhow::bail!("VT Code MCP requires Darwin arm64")
 }
 
 fn valid_name(name: &str) -> bool {
@@ -236,13 +338,13 @@ async fn handle(
     tokio::select! {
         biased;
         () = state.launch.cancelled().cancelled() => Err(StatusCode::UNAUTHORIZED),
-        response = tokio::time::timeout(TIMEOUT, dispatch(server, request)) => {
+        response = tokio::time::timeout(TIMEOUT, dispatch(server, &service, state.approvals.as_deref(), request)) => {
             response.map_err(|_| StatusCode::GATEWAY_TIMEOUT)?
         }
     }
 }
 
-async fn dispatch(server: &Server, request: Request) -> Result<Response, StatusCode> {
+async fn dispatch(server: &Server, service: &str, approval: Option<&VtcodeApproval>, request: Request) -> Result<Response, StatusCode> {
     let bytes = to_bytes(request.into_body(), BODY_LIMIT)
         .await
         .map_err(|_| StatusCode::PAYLOAD_TOO_LARGE)?;
@@ -266,10 +368,25 @@ async fn dispatch(server: &Server, request: Request) -> Result<Response, StatusC
         }),
         "tools/list" => json!({"tools": server.catalog.values().collect::<Vec<_>>()}),
         "tools/call" => {
-            let params: CallToolRequestParam = serde_json::from_value(message["params"].clone())
+            let mut params: CallToolRequestParam = serde_json::from_value(message["params"].clone())
                 .map_err(|_| StatusCode::BAD_REQUEST)?;
             if !server.catalog.contains_key(params.name.as_ref()) {
                 return Ok(Json(json!({"jsonrpc":"2.0","id":id,"error":{"code":-32602,"message":"Tool is outside the session catalog"}})).into_response());
+            }
+            if let Some(approval) = approval {
+                let input = params.arguments.as_ref().map_or_else(|| json!({}), |args| json!(args));
+                let public = format!("mcp__{service}__{}", params.name);
+                if !approval.consume(&public, &input) {
+                    return Err(StatusCode::FORBIDDEN);
+                }
+                if let Some(root) = &server.graph_root
+                    && let Some(project) = params.arguments.as_mut().and_then(|args| args.get_mut("projectPath"))
+                {
+                    if project.as_str() != Some(".") {
+                        return Err(StatusCode::BAD_REQUEST);
+                    }
+                    *project = json!(root);
+                }
             }
             match server.peer.call_tool(params).await {
                 Ok(result) => serde_json::to_value(result).map_err(|_| StatusCode::BAD_GATEWAY)?,

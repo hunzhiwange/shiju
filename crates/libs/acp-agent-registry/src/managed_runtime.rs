@@ -34,7 +34,7 @@ fn installed_directory(agent: &str, contract: &Contract) -> Result<PathBuf, Stri
     // Install revised contracts beside their prior reviewed runtimes.
     let revision = if agent == "harn" {
         3
-    } else if agent == "aionrs" {
+    } else if matches!(agent, "aionrs" | "vtcode") {
         2
     } else if agent == "droid" {
         2
@@ -56,6 +56,25 @@ fn installed_directory(agent: &str, contract: &Contract) -> Result<PathBuf, Stri
     };
     Ok(root()?.join(format!("{agent}-{}-model-source-v{revision}", contract.version)))
 }
+
+fn original_vtcode_directory(contract: &mut Contract) -> Result<PathBuf, String> {
+    let digest = contract.source_sha256.as_ref().ok_or("Missing original VT Code checksum")?;
+    contract.files.insert(contract.bin.clone(), digest.clone());
+    Ok(root()?.join(format!("vtcode-{}-model-source-v1", contract.version)))
+}
+
+pub fn verify_vtcode_mcp_executable(command: &str) -> Result<(), String> {
+    let executable = Path::new(command).canonicalize().map_err(|_| "VT Code executable is unavailable")?;
+    let contract = contract("vtcode").ok_or("Missing VT Code runtime contract")?;
+    if executable.parent().is_some_and(|directory| {
+        verify(directory, &contract).is_ok_and(|reviewed| reviewed == executable)
+    }) {
+        Ok(())
+    } else {
+        Err("VT Code MCP requires the reviewed patched runtime".into())
+    }
+}
+
 fn verify(directory: &Path, contract: &Contract) -> Result<PathBuf, String> {
     if contract.layout == "standalone" {
         for (name, digest) in &contract.files {
@@ -163,6 +182,9 @@ pub fn reviewed_agent_command(agent: &str) -> Result<Option<(String, Vec<String>
         contract.files.remove(OPENCLAW_MCP_TRANSPORT);
         directory = root()?.join(format!("openclaw-{}-model-source-v1", contract.version));
     }
+    if agent == "vtcode" && !directory.try_exists().map_err(|_| "Cannot inspect VT Code managed runtime")? {
+        directory = original_vtcode_directory(&mut contract)?;
+    }
     // Keep the reviewed original available until the separate patched install succeeds.
     if agent == "droid"
         && !directory.try_exists().map_err(|_| "Cannot inspect Droid managed runtime")?
@@ -252,6 +274,13 @@ pub fn verify_reviewed_agent_executable(agent: &str, command: &str) -> Result<()
     {
         return Ok(());
     }
+    if agent == "vtcode" && executable.file_name().is_some_and(|name| name == contract.bin.as_str())
+        && let Some(source_sha256) = &contract.source_sha256
+        && hex::encode(Sha256::digest(std::fs::read(&executable).map_err(|_| "Missing VT Code executable")?))
+            == *source_sha256
+    {
+        return Ok(());
+    }
     if contract.layout == "native" {
         if let Some(directory) = executable.parent()
             && verify(directory, &contract).is_ok_and(|path| path == executable)
@@ -311,7 +340,7 @@ impl Drop for Stage {
 }
 
 pub(super) async fn install(agent: &str) -> Result<bool, String> {
-    let Some(contract) = contract(agent) else { return Ok(false) };
+    let Some(mut contract) = contract(agent) else { return Ok(false) };
     if agent == "amp-acp" && !cfg!(all(target_os = "macos", target_arch = "aarch64")) {
         return Err("Amp reviewed local runtime is only verified on macOS arm64".into());
     }
@@ -322,10 +351,27 @@ pub(super) async fn install(agent: &str) -> Result<bool, String> {
         // Preserve the existing native installer for CLI-local use on unverified hosts.
         return Ok(false);
     }
-    let destination = installed_directory(agent, &contract)?;
+    let mut destination = installed_directory(agent, &contract)?;
     if destination.exists() {
         verify(&destination, &contract)?;
         return Ok(true);
+    }
+    let mut vtcode_binary = None;
+    if agent == "vtcode" {
+        let binary = std::env::current_exe()
+            .map_err(|_| "Cannot locate packaged ShiJu binaries")?
+            .with_file_name("vtcode-acp");
+        match binary.symlink_metadata() {
+            Ok(metadata) if metadata.is_file() => vtcode_binary = Some(binary),
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+                destination = original_vtcode_directory(&mut contract)?;
+                if destination.exists() {
+                    verify(&destination, &contract)?;
+                    return Ok(true);
+                }
+            }
+            _ => return Err("Packaged vtcode-acp is not a regular file".into()),
+        }
     }
     std::fs::create_dir_all(root()?).map_err(|_| "Cannot create ACP runtime root")?;
     let stage = Stage(root()?.join(format!(
@@ -518,6 +564,10 @@ pub(super) async fn install(agent: &str) -> Result<bool, String> {
             std::fs::copy(archive, assets.join("cortex-code.tar.gz"))
                 .map_err(|_| "Cannot stage cached Cortex Code archive")?;
         }
+    }
+    if let Some(binary) = vtcode_binary {
+        std::fs::copy(binary, assets.join("vtcode-acp"))
+            .map_err(|_| "Cannot stage packaged VT Code ACP runtime")?;
     }
     if agent == "aionrs" {
         let bridge = std::env::current_exe()

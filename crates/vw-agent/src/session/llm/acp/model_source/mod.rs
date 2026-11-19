@@ -24,14 +24,15 @@ pub(super) async fn prepare(
     prepare_with_mounts(agent, config, model, session, openclaw_mcp, None).await
 }
 
-pub(super) async fn prepare_mimo_mcp(
+pub(super) async fn prepare_stdio_mcp(
+    agent: &str,
     config: &AcpAgentConfig,
     model: &provider::Model,
     session: &str,
     cwd: &std::path::Path,
     servers: &[acp_types::AcpMcpServer],
 ) -> anyhow::Result<AcpLaunchProfile> {
-    prepare_with_mounts("mimo-code", config, model, session, &Default::default(), Some((cwd, servers))).await
+    prepare_with_mounts(agent, config, model, session, &Default::default(), Some((cwd, servers))).await
 }
 
 async fn prepare_with_mounts(
@@ -40,7 +41,7 @@ async fn prepare_with_mounts(
     model: &provider::Model,
     session: &str,
     openclaw_mcp: &serde_json::Map<String, serde_json::Value>,
-    mimo_mounts: Option<(&std::path::Path, &[acp_types::AcpMcpServer])>,
+    mounts: Option<(&std::path::Path, &[acp_types::AcpMcpServer])>,
 ) -> anyhow::Result<AcpLaunchProfile> {
     let project = instance::project()
         .ok_or_else(|| anyhow::anyhow!("ACP launch requires project context"))?;
@@ -56,25 +57,34 @@ async fn prepare_with_mounts(
     let state_root = || std::env::var_os("VIBEWINDOW_CONFIG_DIR").map(std::path::PathBuf::from)
         .unwrap_or_else(|| crate::global::paths().state.clone());
     let mut profile = llm_runtime::acp::model_source::prepare_profile(agent, config, &resolved, identity, state_root)?;
-    let directory = match mimo_mounts {
-        Some((cwd, _)) => cwd.to_str().ok_or_else(|| anyhow::anyhow!("Non-UTF-8 MiMo workspace"))?.to_owned(),
+    let directory = match mounts {
+        Some((cwd, _)) => cwd.to_str().ok_or_else(|| anyhow::anyhow!("Non-UTF-8 MCP workspace"))?.to_owned(),
         None => context.directory.clone(),
     };
-    let mimo = match mimo_mounts {
+    if agent == "vtcode" && mounts.is_some() {
+        acp_agent_registry::verify_vtcode_mcp_executable(&config.command).map_err(anyhow::Error::msg)?;
+    }
+    let projection = match mounts {
         Some((_, servers)) => Some(mimo_mcp::prepare(servers, &directory, profile.binding.clone()).await?),
         None => None,
     };
-    let routes = mimo.as_ref().map_or_else(axum::Router::new, |projection| projection.router.clone());
-    let server = RelayServer::start_with_routes(
+    let routes = projection.as_ref().map_or_else(axum::Router::new, |projection| projection.router.clone());
+    let catalog = projection.as_ref().filter(|_| agent == "vtcode")
+        .map(|projection| projection.tools.clone()).unwrap_or_default();
+    let server = RelayServer::start_with_routes_and_vtcode_catalog(
         profile.binding.clone(),
         std::sync::Arc::new(ProviderRelayBackend::new()?),
         context,
         routes,
+        catalog,
     )
     .await?;
     let endpoint = format!("http://{}", server.address());
     profile.attach_server(server);
-    if let Some(mimo) = mimo {
+    if let Some(projection) = projection.as_ref().filter(|_| agent == "vtcode") {
+        llm_runtime::acp::model_source::configure_profile(agent, &mut profile, &endpoint, &directory, openclaw_mcp).await?;
+        profile.managed_mcp = Some(projection.vtcode_config(&endpoint)?);
+    } else if let Some(mimo) = projection {
         llm_runtime::acp::model_source::drivers::launch_route(agent, &profile)?;
         llm_runtime::acp::model_source::drivers::mimo_code::configure_with_mcp(
             &mut profile, &endpoint, &directory, mimo.native_config(&endpoint), &mimo.tools,

@@ -23,7 +23,7 @@ use super::config::{lookup_acp_command, normalize_acp_agent_config, parse_acp_op
 use super::replay::{build_request_prompt, parse_recent_count, parse_replay_strategy};
 use super::session::{
     acp_session_name, close_cached_acp_client_if_unshared, find_or_create_cached_session_record,
-    get_cached_acp_client, should_abort,
+    get_cached_acp_client_with_approval, should_abort,
 };
 use super::updates::{AcpToolUpdates, forward_acp_message};
 use super::{acp_option_error, is_acp_session_changed_error, to_api_error};
@@ -253,6 +253,14 @@ pub async fn do_stream_request_acp<H: Host>(
         None
     };
 
+    let vtcode_mcp = acp_agent_name == "vtcode" && !parsed_options.mcp_servers.is_empty();
+    if vtcode_mcp && (source != vw_api_acp_model::acp_model_source::AcpModelSource::SessionModel
+        || parsed_options.permission_mode == Some(acp_types::PermissionMode::DenyAll)
+        || merged_options.get("disable_tools").and_then(Value::as_bool) == Some(true)
+        || recovered.is_some() || fork_replay.is_some())
+    {
+        return Err(acp_option_error("VT Code MCP requires a new managed session with tools enabled"));
+    }
     let mimo_mcp = acp_agent_name == "mimo-code"
         && source == vw_api_acp_model::acp_model_source::AcpModelSource::SessionModel
         && !parsed_options.mcp_servers.is_empty();
@@ -289,8 +297,8 @@ pub async fn do_stream_request_acp<H: Host>(
                 }
                 std::future::pending::<()>().await;
             };
-            let prepare = if mimo_mcp {
-                H::prepare_mimo_mcp_launch(&normalized_acp_cfg, model, &scoped_session, &cwd, &parsed_options.mcp_servers)
+            let prepare = if mimo_mcp || vtcode_mcp {
+                H::prepare_stdio_mcp_launch(&acp_agent_name, &normalized_acp_cfg, model, &scoped_session, &cwd, &parsed_options.mcp_servers)
             } else if openclaw_mcp.is_empty() {
                 H::prepare_launch(&acp_agent_name, &normalized_acp_cfg, model, &scoped_session)
             } else {
@@ -311,6 +319,9 @@ pub async fn do_stream_request_acp<H: Host>(
     if mimo_mcp || !openclaw_mcp.is_empty() {
         // The request-owned launch now owns the projected MCP connections.
         parsed_options.mcp_servers.clear();
+    }
+    if let Some((servers, _)) = launch_profile.as_ref().and_then(|profile| profile.managed_mcp.as_ref()) {
+        parsed_options.mcp_servers = servers.clone();
     }
     // Managed SessionModel requests are metered by the owned relay. Never bill
     // their ACP session snapshots a second time.
@@ -335,7 +346,7 @@ pub async fn do_stream_request_acp<H: Host>(
     // Server-owned fork anchors and recovered sessions take precedence over desktop rebuild hints.
     let requested_force_new_session = fork_replay.is_none()
         && recovered.is_none()
-        && merged_options.get("acp_force_new_session").and_then(Value::as_bool).unwrap_or(false);
+        && (vtcode_mcp || merged_options.get("acp_force_new_session").and_then(Value::as_bool).unwrap_or(false));
     let replay_strategy = if fork_history_needed {
         AcpReplayStrategy::Full
     } else {
@@ -413,7 +424,10 @@ pub async fn do_stream_request_acp<H: Host>(
         )
         .await?;
         let cached_client_entry =
-            get_cached_acp_client::<H>(&acp_agent_name, &normalized_acp_cfg, &cwd, &parsed_options);
+            get_cached_acp_client_with_approval::<H>(
+                &acp_agent_name, &normalized_acp_cfg, &cwd, &parsed_options,
+                launch_profile.as_ref().and_then(|profile| profile.managed_mcp.as_ref()).map(|(_, approve)| approve.clone()),
+            );
         let _request_cleanup = super::session::RequestClientCleanup::new(&cached_client_entry);
         let cached_client = &cached_client_entry.client;
         if let Some(lease) = &worktree_use {

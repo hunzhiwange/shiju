@@ -3,6 +3,11 @@
 use super::*;
 
 impl AcpClient {
+    pub fn with_managed_mcp_approval(mut self, approval: Option<crate::ManagedMcpApproval>) -> Self {
+        self.managed_mcp_approval = approval;
+        self
+    }
+
     /// Bind desktop permissions to a server-authorized canonical workspace directory.
     pub fn with_desktop_workspace(mut self, workspace: Option<PathBuf>) -> Self {
         if workspace.is_some()
@@ -40,6 +45,7 @@ impl AcpClient {
             full_access: false,
             non_interactive_permissions: None,
             permission_confirmation: None,
+            managed_mcp_approval: None,
             desktop_workspace: None,
             auth_credentials: HashMap::new(),
             auth_policy: AuthPolicy::Skip,

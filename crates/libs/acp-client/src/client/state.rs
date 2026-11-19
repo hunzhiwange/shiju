@@ -41,6 +41,7 @@ pub(super) struct AcpEventClient {
     pub(super) permission_mode: PermissionMode,
     pub(super) non_interactive_permissions: Option<NonInteractivePermissionPolicy>,
     pub(super) permission_confirmation: Option<crate::PermissionConfirmation>,
+    pub(super) managed_mcp_approval: Option<crate::ManagedMcpApproval>,
     pub(super) on_session_update: Option<SessionUpdateCallback>,
     pub(super) permission_stats: Arc<Mutex<PermissionStats>>,
     pub(super) cancelling_session_ids: Arc<Mutex<HashSet<String>>>,

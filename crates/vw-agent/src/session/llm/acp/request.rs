@@ -35,14 +35,15 @@ impl Host for RuntimeHost {
     fn supplier(agent: &str, skills: Option<&Self::Skills>) -> Result<(), Error> { super::skill_mounts::prepare_supplier(agent, skills) }
     fn validate_mounts(agent: &str, selected: bool) -> Result<(), Error> { super::skill_mounts::validate(agent, selected) }
     fn prepare_launch<'a>(agent: &'a str, cfg: &'a config::schema::AcpAgentConfig, model: &'a provider::Model, session: &'a str) -> HostFuture<'a, anyhow::Result<super::model_source::profile::AcpLaunchProfile>> { Box::pin(async move { super::model_source::prepare(agent, cfg, model, session, &Default::default()).await }) }
-    fn prepare_mimo_mcp_launch<'a>(
+    fn prepare_stdio_mcp_launch<'a>(
+        agent: &'a str,
         config: &'a config::schema::AcpAgentConfig,
         model: &'a provider::Model,
         session: &'a str,
         cwd: &'a Path,
         servers: &'a [acp_types::AcpMcpServer],
     ) -> HostFuture<'a, anyhow::Result<super::model_source::profile::AcpLaunchProfile>> {
-        Box::pin(super::model_source::prepare_mimo_mcp(config, model, session, cwd, servers))
+        Box::pin(super::model_source::prepare_stdio_mcp(agent, config, model, session, cwd, servers))
     }
     fn prepare_openclaw_mcp_launch<'a>(
         config: &'a config::schema::AcpAgentConfig,

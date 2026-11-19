@@ -66,3 +66,29 @@
 - 新版网关的独立 `full_access=false` 探针再次返回 HTTP 200 与 `chat.error`，初始化拒绝仍要求当前完全访问授权。全程保留受管门禁。网关及探针退出，端口关闭，私有授权副本清理。导出快照比对 4109 项一致，现有网关 Droid 预设仍停用。未修改应用代码，未运行 Cargo。
 
 仍为已阻塞。复跑需要受审的 ACP 入口能在请求绑定的目录中直接发布并限定会话工具，同时保留原生审批和撤除。若验收负责人决定接受 Droid 的原生搜索及其额外调用，应先更新工具与失败判据，再按更新后的合同验收。
+
+## 固定版补丁原型
+
+在 Darwin arm64 的 Factory Droid 1.9.0 私有二进制副本验证了直接发布 MCP 工具的补丁。产物保留原生 ACP 接口、模型回环中继和审批执行器。补丁脚本校验原版 SHA-256、Bun 模块记录和唯一源码锚点，在单个模块的原字节码空间放置替换源码，保留其他模块的缓存，再对独立产物签名。第一版仅改源码字节时仍观测到旧工具列表。让该模块改为从源码加载后，Droid 首个模型工具目录即包含当前会话的图谱工具。[Bun 独立模块图](https://github.com/oven-sh/bun/blob/bun-v1.4.3/src/standalone_graph/StandaloneModuleGraph.rs)
+
+从仓库根目录运行以下命令，输出路径须位于现有私有目录，且文件尚不存在。
+
+```bash
+python3 patches/acp-model-source/droid/apply.py /path/to/original/droid /private/path/droid-patched
+```
+
+当前脚本再按实际发布的工具定义生成会话清单，提醒模型遵循用户指定的工具范围及缺失时的回退答复。原生回环模型四场景均符合预期。空列表和撤除后的新会话都没有图谱工具。挂载时 `query`、`callers`、`node` 首轮可用，经三次 `allow_once` 后均有真实完成及模型续轮输出，分别得到 `app/app.tsx:32`、`app/app.tsx:39` 与 `packages/runtime/src/hooks/useApp.ts:4`。独立会话使用 `reject_once` 时调用失败、无图谱输出，终态为 `cancelled`。非供应商制品和已有输出路径均被脚本拒绝，签名校验通过。
+
+两次真实复验沿用固定请求和真实 RustCodeGraph。各自在私有网关副本中仅更新嵌入的 Droid 制品摘要，摘要验证仍执行。第一版只直接发布工具，不刷新原生发现提醒。无挂载轮 `ses_1f15b72f9001IP7I1W0QCDxUBZ` 在 14.870 秒返回 `MCP_NOT_AVAILABLE`，有一次失败的搜索。挂载轮 `ses_1f15bb051001hSyrgYu9SWLhcQ` 初次 HTTP 200、curl 28，300.005 秒后用同一会话与游标续传。续传 HTTP 200、curl 0、24.221 秒后收到 `chat.done`。三种必需工具成功，也有内置搜索、其他图谱工具与两次失败。撤除轮 `ses_1f160a5c4001ITSjqX7duLKbX0` 在 11.976 秒收到 `chat.done`，返回 `MCP_NOT_AVAILABLE`，工具调用为零。
+
+带会话清单的最终原型摘要为 `0858a4f7411b0159780246598fc6170a17d695556e4da66ab939bff82b58050b`。用于复验的私有网关摘要为 `2e0046204bf4e5430080117d61cbe0e331c79279c88a2460dfefaf91052affe1`。
+
+| 轮次 | 新会话 | HTTP / curl / 耗时 | SSE 与工具 |
+| --- | --- | --- | --- |
+| 无挂载 | `ses_1f15dbd38001M5baakwpuL8VgY` | 200 / 0 / 15.111 秒 | `chat.done` ×1，`MCP_NOT_AVAILABLE`，工具 0 |
+| 挂载 | `ses_1f15df995001aEI0eHOzMzpdwh` | 200 / 28 / 300.005 秒，续传 200 / 0 / 28.909 秒 | `chat.done` ×1，184 项工具成功，1 项失败 |
+| 撤除 | `ses_1f16301a6001QM5VK0oXLyUAND` | 200 / 0 / 10.565 秒 | `chat.done` ×1，`MCP_NOT_AVAILABLE`，工具 0 |
+
+三轮均无 `chat.error`，回读绑定及 `full_access=true`，运行时权限为 `client_only`，终态连接关闭，模型为固定阿里模型及 `session_model`。挂载轮直接调用 `query` 和 `callers` 得到 `createRueSiteApp` 和 `mountRueSiteApp`，再以 `node` 取得 `useApp` 调用 `_$createApp` 的源码，调用 ID 分别为 `call_904352df0ec978b1_0`、`call_a0dc4c34e9e07a13_0`、`call_7cd743c6d9e3cb69_1`。答复按三部分追踪调用链、浏览器和 SSR、插件与布局分支，给出静态快照首屏及导航回归场景。两项浏览器场景仍属源码推断。挂载轮没有 `ToolSearch`，仍使用额外图谱工具，并因请求未声明的 `rustcodegraph_search` 失败（`call_5bf62f23b5af5fea_1`）。
+
+直接声明与原生审批已验证。严格验收仍需受审入口支持在执行边界限定会话工具，或由验收负责人调整额外工具调用判据。原型未接入受管安装。两次网关均退出，端口已关闭，各自副本的 4109 项导出内容一致，临时授权与工作目录已清理，原版 Droid 摘要一致。未运行 Cargo。SSE 和原生探针证据保存在本机 0700 目录。

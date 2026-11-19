@@ -60,3 +60,7 @@ Poolside v2 使用每个受管进程独有的回环 HTTP 桥，将新 ACP 会话
 在私有目录用仓库安装脚本安装 Poolside 1.0.16 v2，四项受审摘要通过。使用真实 Poolside 和 RustCodeGraph、回环模型完成四个场景。无挂载和撤除只提供原生 `read`、`write`。批准轮只发布策略选中的三种图谱工具，三次单次批准后，续轮读回 `app/app.tsx:32`、`app/app.tsx:39` 与 `_$createApp(factory)`。拒绝轮收到审批请求和拒绝结果，无图谱输出。四个提示均以 `end_turn` 结束。使用私有 RueJS 索引的只读 SQLite 事务保留 WAL 和 SHM，沿用既有沙箱权限。
 
 本地 Python 定向测试 `PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s patches/acp-model-source/poolside -p '*test.py'` 通过 3 项。已验证批准与完整参数绑定、不可重复使用及取消后的迟到批准失效。真实阿里模型仍需携带 v2 安装契约的新网关完成三轮，回环模型证据不计入真实模型验收。
+
+额外原生探针确认允许和拒绝同时命中时只声明剩余的 `rustcodegraph_callers`。审批期间主动取消并发送迟到的批准时，模型只收到首轮请求，未取得图谱结果。Poolside 启动器原有分支仍把终态映射为暂存写入拒绝信息；这次验证的是取消后的工具撤权。
+
+尝试在共享槽位 6 执行 `python3 scripts/cargo_slot.py cargo build -j 1 --locked -p vw-cli --bin shiju`。两项 Cargo 缓存变量均指向 `target/rust-slot-6`。受管注册和相关库已编译，整网关构建退出 101。正在并行修改的 MiMo 宿主接线与本次 Cargo 已编译的 trait 版本签名不一致，`vw-agent` 报 `E0050`。本次私有网关未启动，也未运行随后的 Rust 定向测试。待共享代码与构建统一后，使用新网关复跑原请求的三轮，并运行 `cargo test -j 1 --locked -p session-engine --lib acp_mcp_mount_carries_resolved_tool_policy`。

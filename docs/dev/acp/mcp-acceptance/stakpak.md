@@ -79,3 +79,21 @@ Stakpak 0.3.88 v2 复用已受审的 Poolside 回环桥和 Cortex stdio 沙箱�
 补丁让宿主将受管 Stakpak 启动目录绑定到会话 cwd。v3 在挂载时继续声明原有 `view`、`create`、`str_replace`，官方工具原生审批和文件回调沿用原处理。MCP 调用仍需匹配活动会话、调用 ID 和获批参数，只能领取一次执行。拒绝标题和原生文件工具身份冲突的外部目录。固定安装包验证五项摘要，四个原生夹具场景及两项 Python 聚焦测试通过。
 
 新版提示 SHA-256 为 `18806f1a927d3587ee5c685107c89b5dbaeea09614efe9a327e293b649967f38`。Stakpak v3 原生真实会话 `cdf880b5-a2e2-4b1e-a65c-c7c089711041` 同时声明三个官方工具和三种图谱工具。挂载轮实际完成并回传 query 1 次、callers 1 次和 node 9 次，并以 `end_turn` 结束。答复引用 `app/app.tsx:32` 的工厂、同文件第 39 行的挂载入口、`useApp.ts:4` 对 `_$createApp` 的转调。撤除原生会话 `86b89be4-a6d5-4a07-8301-0fb71b1cd47c` 使用五次官方查看，无图谱注册或调用，正常结束。无挂载原生探针因官方查看尝试读取探针拒绝的路径而终止。该探针为诊断，不代替新版网关三轮。
+
+### 新标准网关验收通过
+
+同一共享槽位 6 产物和受审 Stakpak 0.3.88 v3 入口完成复验。网关 SHA-256 为 `1d37a1d46ad916b7671e7d1cb9c2be65d0cf951e7e7fd516b32d7c03afa91ada`。RustCodeGraph 1.2.11 的 SHA-256 为 `5fab2f2dbf506ddf71d842ef1a7cd6e744c5ec90ff3f5f043ea020e1b3696312`，索引 3478 个文件。原生 Stakpak 通过会话私有 HTTP 桥访问真实 stdio MCP。三轮采用同一新版提示、RueJS 提交、指定租户和模型。无挂载以空服务列表复验，撤除沿用同一二进制、同一私有项目中实际移除配置后的成功会话。
+
+| 轮次 | 网关会话 | HTTP / curl / 秒 | 终态与完成事件 |
+| --- | --- | --- | --- |
+| 无挂载 | `ses_1f1c0b311001ONDU4zdARfgb2J` | 200 / 0 / 16.862370 | `chat.done`，零图谱调用，2 次官方查看 |
+| 挂载 | `ses_1f1c0f68e001PpidsnQpjIn4RC` | 200 / 0 / 42.642177 | `chat.done`，query 3、callers 2、node 7，另有 1 次官方查看 |
+| 撤除 | `ses_1f1bf3b25001jdX6zQgA897851` | 200 / 0 / 80.438226 | `chat.done`，零图谱调用，27 次官方查看 |
+
+图谱只在两组各自的挂载轮初始化。两个对照无目标服务注册、执行或结果。表中三轮没有 `chat.error` 或模型恢复。UI summary 均回读 `acp-stakpak / stakpak` 和 `full_access=true`。ACP options 均回读指定模型和 `session_model`，在线权限为 `client_only`，终态连接释放。
+
+挂载轮 `toolu_867c0c30b19c4cf7843b929707236c53` 查询命中 `createRueSiteApp`（`app/app.tsx:32`），`toolu_24c7e6c1f70140bfb20797e14a4a8707` 回传 `mountRueSiteApp`（第 39 行），`toolu_d117a4648b8a487ab4461e10b5809893` 回传 `useApp` 源码及 `_$createApp(factory)`。模型终答引用三项结果，说明非 SSR 入口、容器清空、插件登记及运行时挂载。答复表格正确引用 `useApp.ts:4`，正文另一次引用偏移了一行。官方查看中的路由片段也正常返回，未观察到写入。
+
+另有无挂载和撤除尝试因官方查看读取不存在的路径并使原生提示终止。这些尝试均零目标 MCP 调用，排除在通过轮次外。受管官方工具继续按原权限执行。
+
+`python3 scripts/cargo_slot.py cargo test --locked -j 1 -p acp-client --lib managed_stakpak_initializes_in_the_session_workspace` 在槽位 3 通过 1 项，322 项被过滤，退出 0。两个缓存变量均指向仓库的 `target/rust-slot-3`。此前共享网关构建受并行接口修改影响，后续槽位 6 产物实际通过本次网关复验。两个私有网关已退出，端口、租户配置、数据库和临时挂载已清理。RueJS 副本的 4109 个文件和符号链接与归档一致。

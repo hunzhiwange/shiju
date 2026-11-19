@@ -25,11 +25,11 @@ fn message(event: domain::Event) -> Message {
         domain::Event::TaskPanel(v) => crate::app::message::settings::device_sync_s3::Event::TaskPanel(v),
     })
 }
-pub(crate) fn view(app: &App) -> Element<'_, Message> {
+pub(crate) fn view(app: &App, inline: bool) -> Element<'_, Message> {
     let s = &app.apps_catalog.device_sync_s3;
     let state = domain::ViewState { busy: s.busy, draft: &s.draft, principal: &s.principal, secret_present: s.secret_present, auto_confirmation: s.auto_confirmation, task_busy: s.task_panel.is_busy(), preview_busy: s.preview.busy, preset: s.preset };
     let editable = state.editable();
     let selection = super::selection::inventory(app);
     let selection = desktop_settings_memory::system_settings_device_sync::selection::view(selection, &s.selection, editable).map(domain::Event::Selection);
-    domain::view(state, selection, s.preview.view().map(domain::Event::Preview), s.task_panel.view().map(domain::Event::TaskPanel)).map(message)
+    domain::view(state, selection, s.preview.view().map(domain::Event::Preview), s.task_panel.view().map(domain::Event::TaskPanel), inline).map(message)
 }

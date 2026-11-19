@@ -1,5 +1,20 @@
 //! Catalog data; cross-domain panels are supplied by the desktop composition.
 use crate::AgentAppsContext;
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum DeviceSyncMethod {
+    WebDav,
+    S3,
+}
+
+impl std::fmt::Display for DeviceSyncMethod {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(match self {
+            Self::WebDav => "WebDAV",
+            Self::S3 => "S3 兼容存储",
+        })
+    }
+}
+
 #[derive(Clone)]
 pub struct AppsCatalogState<
     DeviceSyncWebdav,
@@ -31,6 +46,8 @@ pub struct AppsCatalogState<
 > {
     pub device_sync_webdav: DeviceSyncWebdav,
     pub device_sync_s3: DeviceSyncS3,
+    pub device_sync_inline: Option<DeviceSyncMethod>,
+    pub device_sync_dialog: Option<DeviceSyncMethod>,
     pub migration_preview: MigrationPreview,
     pub data_backups: DataBackups,
     pub recovery: Recovery,
@@ -194,6 +211,8 @@ impl<
     fn default() -> Self { Self {
         device_sync_webdav: Default::default(),
         device_sync_s3: Default::default(),
+        device_sync_inline: None,
+        device_sync_dialog: None,
         migration_preview: Default::default(),
         data_backups: Default::default(),
         recovery: Default::default(),

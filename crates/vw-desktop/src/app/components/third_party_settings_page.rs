@@ -334,13 +334,7 @@ fn data_settings(app: &App) -> Element<'_, Message> {
             ]
             .spacing(12)
         ),
-        settings_panel(
-            column![
-                settings_group_heading("云同步", "使用 WebDAV 或 S3 同步设备配置。"),
-                system_settings_device_sync::entry_points(),
-            ]
-            .spacing(12)
-        ),
+        system_settings_device_sync::inline(app),
     ]
     .spacing(16)
     .into()

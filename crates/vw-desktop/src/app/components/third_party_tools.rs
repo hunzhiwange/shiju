@@ -51,5 +51,9 @@ pub(crate) fn view(app: &App, selected: Option<AppId>) -> Element<'_, Message> {
 pub(crate) fn overlay<'a>(app: &'a App, base: Element<'a, Message>) -> Element<'a, Message> {
     let base = system_settings_data::backup_list_ui::overlay(app, base);
     let base = system_settings_data::recovery_ui::overlay(app, base);
-    system_settings_device_sync::overlay(app, base)
+    if app.apps_catalog.third_party_page == desktop_ui_controls::settings_navigation::ThirdPartyPage::ManagementTools {
+        system_settings_device_sync::overlay(app, base)
+    } else {
+        base
+    }
 }

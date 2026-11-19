@@ -74,3 +74,7 @@ Gemini 0.66.0 v2 对 `session_model` 下原生 MCP 审批携带服务名和工�
 用仓库安装脚本在私有目录从固定 npm 发布安装并校验 v2。三个 ACP 入口通过 `node --check`。真实 RustCodeGraph 的原生 ACP 回环测试中，单次允许 `query`、`callers`、`node` 各触发一次审批，续轮分别收到 `app/app.tsx:32`、`app/app.tsx:39`、`packages/runtime/src/hooks/useApp.ts:4`。拒绝查询时，模型续轮收到取消结果。撤除挂载和移除私有信任分别创建新会话，均无目标工具声明或审批。六个探针均返回 `end_turn`。这六轮使用回环模型，正式 v2 的指定阿里模型三轮需以新网关构建复验。
 
 相同原生探针在 v1 因缺少审批元数据退出 1，v2 六个场景通过。宿主聚焦命令 `python3 scripts/cargo_slot.py cargo test --locked -j 1 -p acp-client --lib acp_full_access_gemini_` 退出 0，槽位 10 的 target 与 build 缓存均为仓库内 `target/rust-slot-10`，11 项通过、零失败。覆盖已挂载服务的单次批准、未挂载或非活动会话拒绝、永久批准不可选、只读模式不误放和原有工作流门禁。
+
+接入提交为 `bc395e03c`。正式网关三轮标记为待回归。槽位 6 的共享构建已编译含 v2 审批代码与摘要的库，随后在同批次 MiMo 的 `vw-agent` trait 签名处报 `E0050` 并退出 101。现有网关产物未同时包含 v2 宿主标识和安装摘要，故未拿旧二进制替代。私有网关未启动，验收授权及凭据副本已清理。[共享构建记录](poolside.md#受管启动器补丁)
+
+复验用 `python3 scripts/cargo_slot.py cargo build -j 1 --locked -p vw-cli --bin shiju` 的新产物及受审 Gemini v2。新网关按 `2b35013ae` 仅移除请求体旧字段 `acp_agent`，由 `agent=acp-gemini` 解析为同一后端，提示、模型、租户和访问级别沿用原值。

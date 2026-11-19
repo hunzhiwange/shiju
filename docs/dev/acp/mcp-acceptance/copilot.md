@@ -1,5 +1,13 @@
 # GitHub Copilot 动态挂载 RustCodeGraph 验收
 
+## 当前验收结论
+
+按更新后的标准，允许 Copilot 原生工具在原权限下共存，并要求挂载工具实际执行和回传结果。以 1.2.11 限定索引根组的真实三轮判定通过。下文保留旧标准下的阻塞记录，供对照。
+
+- 挂载会话 `ses_1f0f8c31d00105jW7opKvnh49K` 中，`rustcodegraph_query` 成功 28 次、`rustcodegraph_callers` 成功 2 次、`rustcodegraph_node` 成功 44 次。74 次均有相同调用 ID 的开始和成功完成回执，答复引用了工具回传的 `mountRueSiteApp`、`useApp` 和 `_$createApp` 源码位置。另有两次原生 grep，沿用原权限。
+- 无挂载与撤除轮均以 `chat.done` 结束，只答 `MCP_NOT_AVAILABLE`，没有工具调用。三轮均无聊天错误或模型恢复。会话绑定为 `acp-copilot / copilot`，运行中读回原指定阿里模型及 `client_only` 权限。
+- 显式工具白名单仍可由已有项目配置选择。通过组使用原生工具默认行为和限制为三项的 MCP 服务目录。本次仅按新标准审核原始回执并更新记录。
+
 日期为 2026-11-19。使用已有 `shiju 0.6.0` 网关构建在私有回环实例上验收，二进制 SHA-256 为 `e61098c0a9a4f5a6c6f658b191741bc880b4591031ef9d7dae3d9257af66882f`。实例只复制了指定阿里提供商的配置及宿主授权，并启用了内置 `acp-copilot`。Copilot 使用私有配置目录内的受管发行版 1.0.105，启动参数为 `--acp --stdio --no-auto-update`。核对了现有受管补丁的 `cli-main.js` SHA-256 `1f8978f33a7a54105087ab9e66313a4b973dd852e198ab85b39c3de44959b502`。会话使用独立的 `COPILOT_HOME`，模型经宿主回环中继走 OpenAI Chat Completions，阿里上游凭据只供网关使用。
 
 RueJS 副本取自 `main` 的已提交源码 `14fe287b13549f5183d42fbc45b28e1498ffae1c`。RustCodeGraph 1.2.10 索引了 3478 个文件，包含 `app/app.tsx:32` 的 `createRueSiteApp`、`app/app.tsx:39` 的 `mountRueSiteApp` 及 `packages/runtime/src/compiler-runtime/app.ts:57` 的 `_$createApp`。

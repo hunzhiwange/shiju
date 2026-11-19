@@ -1,6 +1,6 @@
 # OpenCode 动态挂载 RustCodeGraph
 
-2026-11-19，原生 stdio MCP 的发现、调用、结果续轮和撤除后的新会话隔离均有证据。完整 RueJS 调查合同未通过，首个不符合项发生在模型选工具时。
+2026-11-19，显式说明索引覆盖后，OpenCode 的 RustCodeGraph 动态挂载三轮验收通过。下文保留原生发现、结果续轮、撤除隔离及前序失败回执。
 
 ## 环境与权限
 
@@ -100,3 +100,20 @@ RueJS 位于 `main`，基准提交 `14fe287b13549f5183d42fbc45b28e1498ffae1c`。
 - 第二组的 38 次 query、1 次 callers 和 50 次 node 均返回原生响应。`call_384981932cb443ebadcd51d4` 查询命中 `createRueSiteApp`（`app/app.tsx:32`）。`call_ea99360f401f41fdb47a94b2` 返回 `mountRueSiteApp`（同文件第 39 行）。`call_ac91e425441f452e9e4f4e81` 和 `call_f47a38dd37994374a95147c2` 读回 `useApp` 与 `_$createApp` 源码。两组均无额外工具调用。
 - 第二组又请求 `index.html`（`call_2336d624d87d4dcc9d9319c6`），随后请求 `packages/rue/package.json`（`call_78cdf522955b41cf9b12434f`）。两个受版本跟踪的文件均存在，RustCodeGraph 均原样返回未被索引。新版两次挂载均复现 `index.html` 未命中，第二组另有一次 JSON 未命中。最终答复复原完整启动链、SSR 与浏览器分支、容器缺失、插件安装和当前未注册的 `/rust-layers` 布局分支。静态快照残留是源码推断，两项场景覆盖预置旧节点的 DOM 夹具和静态产物挂载后的去重，未执行浏览器测试。
 - 严格合同仍阻塞在模型请求未索引的文件。目前没有需要修补的 OpenCode 转发断点。复跑条件为固定模型使用已索引文件完成走查，或取得能实际读取这两类跟踪文件且已受审的图谱构建。私有挂载已撤除，专属转发器与图谱进程已退出，4109 个归档项内容一致，原网关仍健康。本轮未修改运行时或运行 Cargo。
+
+## 显式索引覆盖说明复验
+
+复用同一 1.2.11 二进制、已建索引和受审 OpenCode。参考 AutoHand 通过组，为三种工具注明职责及客户端可能按相关性展示子集。此版本的 `node` 说明明确指出根 `index.html` 和 `packages/rue/package.json` 均存在但不在索引内，因此无法读取，并列出实际索引的 `app/app.tsx`、`app/entry-server.tsx`、`packages/runtime/src/hooks/useApp.ts` 等入口。保留原输入字段、分页、索引根提示、越界拒绝和真实返回。独立直连对照确认工具目录为 8 对 3，三类真实查询的结果相等。[AutoHand 通过组](autohand.md)
+
+核对同一发行构建的 `init --help`、`index --help` 以及 `v1.2.11` 的语言说明和发现代码。源文件按内置后缀发现，HTML 和 JSON 不在支持列表。未找到启用这两种类型的受审索引选项。
+
+| 轮次 | 新会话 | HTTP / curl / 秒 | SSE 与结果 |
+| --- | --- | --- | --- |
+| 无挂载 | `ses_1f11cc363001pkZjtJihRVrBdr` | 200 / 0 / 16.191 | 一个 `chat.done`，仅 `MCP_NOT_AVAILABLE`，零工具 |
+| 挂载 | `ses_1f11d02ea001FACw8QlGswhIDs` | 200 / 0 / 203.961 | 一个 `chat.done`，33 次 query、2 次 callers、33 次 node 全部成功 |
+| 撤除 | `ses_1f1202042001hMXNVCsoibhZl7` | 200 / 0 / 16.966 | 一个 `chat.done`，仅 `MCP_NOT_AVAILABLE`，零工具 |
+
+- 三轮无 `chat.error` 或推理和中继错误。挂载的 68 个调用均匹配同 ID 开始、完成和真实结果，无额外工具、失败状态或未索引文件读取。`call_3b8a5643a0fa490891468d80` 定位 `app/app.tsx:32`，`call_73573bac67124e8990634eac` 返回 `mountRueSiteApp`（同文件第 39 行），`call_322a1577f2454bf0ae54b381` 与 `call_8b45860c74644240b5a2dee9` 回读 `useApp` 和运行时工厂。分页调用 `call_8a5ca17cd8f14fb087a5b9a8` 返回路由工厂所在的第 760–791 行。
+- UI summary 三轮均确认 `acp-opencode / opencode` 和 `full_access=true`。ACP options 运行中均为 `client_only`，终态连接全部释放，所选模型仍为 `session_model` 和原定阿里模型。原提示散列复核一致。
+- 答复引用原生结果，覆盖完整调用链、浏览器与 SSR、容器缺失、路由和 i18n 安装、布局绕过及调用图差异。它把静态快照影响列为源码推断，给出空模板的快照基线和非空容器的哨兵节点验证。空模板可用实际注册的 `/design/space`。非空夹具的必要断言是旧节点是否残留，只有旧快照含站点头部时才会出现两个头部。未运行浏览器场景。
+- 严格三轮验收通过。私有挂载已撤除，本轮转发器与图谱进程已退出，4109 个归档项内容逐项一致，现有网关仍健康。原始证据留在本机 0700 私有目录。本轮省略 Cargo，运行时代码未变。

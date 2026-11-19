@@ -1,6 +1,6 @@
 # Snow 0.9.14 原生工具与 MCP 共存回执
 
-2026-11-19，Darwin 27.0.0 arm64、Node.js 24.22.3。受管 v3 的 Chat Completions、Responses、Anthropic 和 Gemini 均通过三轮共存复验。Chat 等待 MCP 审批时的取消阻止了执行，但提示返回 ACP 内部错误，取消验收仍阻塞。
+2026-11-19，Darwin 27.0.0 arm64、Node.js 24.22.3。受管 v3 的 Chat Completions、Responses、Anthropic 和 Gemini 均通过三轮共存复验。Chat 等待 MCP 审批时的取消阻止了执行，但提示返回 ACP 内部错误，受管入口的取消复验待任务 43 更新制品合约。
 
 ## 制品与权限
 
@@ -33,9 +33,19 @@ Chat、Responses、Anthropic 的续轮分别以 `tool_call_id`、`call_id`、`to
 
 - Chat 对撤除会话执行 `session/load` 并重新挂载，`call_loaded_read` 和 `call_loaded_mcp` 均完成，目标服务执行一次，续轮匹配两项 ID。再以空列表加载同一会话，仅有 `call_load_removed_read`，目标调用为零。两次都以 `end_turn` 结束。Snow 提供 load，未声明独立 resume。
 - Chat 拒绝会话 `5dd6c6c3-db01-4e1c-a857-daf1cbb038c4` 中，宿主对审批请求 `7` 回复 `reject_once`。`call_denied_mcp` 发出 `failed`，同 ID 的续轮收到 `Permission denied by user`，服务零调用，提示 `end_turn`。
-- Chat 取消会话 `c8853cc7-1552-4634-8d12-9ed420ce36ec` 中，等待 `call_cancel_mcp` 审批 `8` 时先发 `session/cancel`，再回复迟到的单次批准。两次独立复现均返回内部错误，取证轮记录零服务调用、无工具完成或模型续轮，Snow 自身退出 0。提示返回 `-32603`，详情 `This operation was aborted`，探针因缺少 `cancelled` 退出 1。首个断点在 v3 审批返回后的 `signal.throwIfAborted()`，外层取消分支只识别另两种错误消息。已进入 stdio 执行后的取消未覆盖。此次复验的运行时代码修复范围限于已确认的工具裁剪，取消终态仍需修复后重放。
+- Chat 取消会话 `c8853cc7-1552-4634-8d12-9ed420ce36ec` 中，等待 `call_cancel_mcp` 审批 `8` 时先发 `session/cancel`，再回复迟到的单次批准。两次独立复现均返回内部错误，取证轮记录零服务调用、无工具完成或模型续轮，Snow 自身退出 0。提示返回 `-32603`，详情 `This operation was aborted`，探针因缺少 `cancelled` 退出 1。首个断点在 v3 审批返回后的 `signal.throwIfAborted()`，外层取消分支只识别另两种错误消息。已进入 stdio 执行后的取消未覆盖。下节记录候选修复及受管制品接线证据。
 - 同一归档原件借用已安装依赖后复现历史断点。无挂载官方读取成功；挂载会话 `732b2e59-91d3-4809-96ee-0a3bf6758ebc` 的模型目录缺少 `coexist-lookup`，受控发出的调用只得到原生分派错误，目标服务零调用。原版 ACP 仍可用私有配置选模。macOS arm64 受管入口由安装器核对 v3 摘要，通用入口按命令解析，驱动没有 v3 摘要前置，手装原版仍可能复现。macOS Intel、Linux、Windows 的通用 npm 安装分支及挂载行为本次未实测。[分组审计](../6.md#snow) · [历史验收](../../mcp-acceptance/snow.md)
 - v3 补丁承担逐轮 stdio 发现、单次审批、同 ID 结果入历史及清理，Chat 通过实际发现生成目录提示。没有通用服务内名单投影；本次只读服务本身公布一项工具。四种协议均保留官方目录，未发现无意裁剪，旧回复格式提示与受审入口随原制品保留。本次仅测回环与直接 ACP，未重测网关、真实模型或运行 Cargo。
+
+## 取消修复候选与制品接线
+
+直接 ACP 复跑当前受管入口。收到 `session/cancel` 后，审批分别回迟到的 `approve_once` 和宿主实际使用的 `outcome: cancelled`，两种提示均返回 `-32603`，目标调用均为零。宿主许可回包已正确表达取消，错误在 Snow v3 的提示终态映射内复现。[宿主权限回包](../../../../../crates/libs/acp-client/src/client/event_client.rs#L160-L176)
+
+私有候选在外层提示异常分支读取 `controller.signal.aborted`，保留原有错误映射、单次审批和 `finally` 清理。两种回包重放均返回 `cancelled`，无工具完成、服务调用或模型续轮；两个 Chat 探针均为七项通过、退出 0。候选分别复跑 Responses、Anthropic、Gemini 三轮，均退出 0。测试进程均退出 0。
+
+候选 SHA-256 为 `4a9c72d33bdce84f0ceedf86d3f5b18d8f65683665ddb176da8c61ecc3443b8a`。使用候选补丁规范和仓库 `apply.py` 从固定原件生成逐字节相同产物，`node --check` 通过。执行安装器实际的 `check_files` 函数，现行合约返回 `Reviewed artifact checksum mismatch: bundle/cli.mjs`，同步候选摘要后通过。注册表将补丁和合约嵌入同一受管运行时。正式落地须由任务 43 同步 Snow 补丁、共享安装合约和摘要，安装后复跑现有红绿探针。本卡保留待回归，仓库中的运行时代码及合约仍为当前受审版本。[安装器](../../../../../crates/libs/acp-agent-registry/src/managed_runtime/install.py#L727-L745) · [制品校验](../../../../../crates/libs/acp-agent-registry/src/managed_runtime.rs#L152-L179)
+
+补充轨迹及私有候选位于 `/private/tmp/shiju-snow-task35.z1m19I/cancel-trial.RxbNIk`。使用该目录的 `probe.py chat <入口>` 重放迟到批准，加环境变量 `SNOW_PROBE_CANCELLED_PERMISSION=1` 重放宿主取消回包。
 
 ## 复验入口
 

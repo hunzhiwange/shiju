@@ -9,18 +9,28 @@ use desktop_platform::mcp_link_preview::{parse, pending};
 
 pub(crate) fn handoff(app: &mut App, id: u64) -> Task<Message> {
     let Some(link) = pending().filter(|l| l.id == id) else { return Task::none() };
-    let drafts = match parse(&link.url, &app.apps_catalog.host) {
+    let Some(context) = crate::app::message::settings::mcp_management_list::context(app) else {
+        return app.show_error_toast("请先连接目标网关");
+    };
+    let drafts = match parse(&link.url, &context.host) {
         Ok(drafts) => drafts,
         Err(error) => return app.show_error_toast(error),
     };
+    if app.mcp_settings.import.is_some() {
+        return app.show_error_toast("请先关闭已有 MCP 导入弹窗");
+    }
+    let navigation = crate::app::components::third_party_settings::navigate(
+        app, desktop_ui_controls::settings_navigation::ThirdPartyPage::Mcp);
+    if app.apps_catalog.third_party_page != desktop_ui_controls::settings_navigation::ThirdPartyPage::Mcp {
+        return navigation;
+    }
     if !mcp_management_import::open_link(app, drafts) {
         return app.show_error_toast("请检查网关连接并关闭已有 MCP 导入弹窗");
     }
-    app.navigation_panels.system_settings_tab =
-        crate::app::components::system_settings::SystemTab::Agents;
-    app.agents_settings.active_config_tab = crate::app::state::AgentConfigTab::Mcp;
+    app.navigation_tabs.screen = crate::app::Screen::ThirdPartyAgents;
+    app.navigation_panels.show_system_settings = false;
     let _ = deep_links::acknowledge(id);
-    Task::none()
+    navigation
 }
 
 pub(crate) fn overlay<'a>(app: &App, base: Element<'a, Message>) -> Element<'a, Message> {
@@ -35,7 +45,7 @@ pub(crate) fn overlay<'a>(app: &App, base: Element<'a, Message>) -> Element<'a, 
         base,
         &link.url,
         close,
-        &app.apps_catalog.host,
+        local_app_auth::HOST_ID,
         accept,
     )
 }

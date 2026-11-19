@@ -71,7 +71,7 @@ pub fn catalog(app: &App) -> Vec<SystemSettingsSearchEntry> {
         entries.push(SystemSettingsSearchEntry::new(label, Some("第三方智能体"),
             match page {
                 desktop_ui_controls::settings_navigation::ThirdPartyPage::Mcp =>
-                    &["third-party mcp", "第三方 MCP", "共享 MCP 目录", "受管目录", "导入 MCP", "应用绑定", "重写配置"][..],
+                    &["cc-switch", "third-party agents", "third-party mcp", "第三方 MCP", "共享 MCP 目录", "受管目录", "导入 MCP", "应用绑定", "重写配置"][..],
                 desktop_ui_controls::settings_navigation::ThirdPartyPage::Skills =>
                     &["third-party skills", "第三方技能", "仓库管理", "Claude 配置", "技能市场", "导入技能", "应用绑定", "存储与同步", "备份与恢复"][..],
                 _ => &["cc-switch", "third-party agents"][..],

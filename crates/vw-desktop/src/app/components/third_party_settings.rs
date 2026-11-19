@@ -52,18 +52,13 @@ pub(crate) fn view(app: &App) -> Element<'_, Message> {
             }
         }
         ThirdPartyPage::Mcp => match mcp_scope(app) {
-            Some(scope) => {
-                let installations = state
-                    .rows
-                    .iter()
-                    .find(|r| Some(r.entry.id) == selected)
-                    .and_then(|r| r.observation.as_ref().ok())
-                    .map(|r| r.installations.as_slice())
-                    .unwrap_or(&[]);
+            Some(scope) if state.third_party_mcp_scope.as_ref() == Some(&scope) => {
+                let installations = state.rows.iter().filter_map(|row| row.observation.as_ref().ok())
+                    .flat_map(|observation| observation.installations.iter().cloned()).collect::<Vec<_>>();
                 // The component captures the scope by value in messages, not this projection.
-                mcp_view(app, scope, installations)
+                column![super::system_settings_mcp::third_party_panel(app), mcp_view(app, scope, &installations)].spacing(12).into()
             }
-            None => text("请先在智能体管理中选择当前主机上的应用").into(),
+            _ => text("请连接网关并重新打开 MCP 页面以读取当前目录").into(),
         },
         ThirdPartyPage::Skills => {
             let applications = state
@@ -284,13 +279,9 @@ fn sidebar_action<'a>(
 }
 
 fn mcp_scope(app: &App) -> Option<desktop_settings_mcp::third_party::Scope> {
-    let app_id = app.apps_catalog.expanded?;
-    if app.apps_catalog.loading || !app.apps_catalog.rows.iter().any(|row| row.entry.id == app_id) {
-        return None;
-    }
     Some(desktop_settings_mcp::third_party::Scope {
         context: crate::app::message::settings::mcp_management_list::context(app)?,
-        app_id,
+        app_id: None,
         generation: app.apps_catalog.navigation_generation,
     })
 }
@@ -299,7 +290,7 @@ fn mcp_scope(app: &App) -> Option<desktop_settings_mcp::third_party::Scope> {
 fn mcp_view<'a>(
     app: &'a App,
     scope: desktop_settings_mcp::third_party::Scope,
-    installations: &'a [vw_api_app_identity::AppInstallation],
+    installations: &[vw_api_app_identity::AppInstallation],
 ) -> Element<'a, Message> {
     // Build the scoped projection using the cached scope owned by navigation.
     let Some(current) =
@@ -311,7 +302,7 @@ fn mcp_view<'a>(
         scope: current,
         state: &app.mcp_settings,
         installations,
-        authorized: true,
+        authorized: !app.apps_catalog.loading,
     })
     .map(|event| message(AppsCatalogMessage::ThirdPartyMcp(event)))
 }
@@ -420,8 +411,16 @@ pub(crate) fn mcp_update(
     app: &mut App,
     event: desktop_settings_mcp::third_party::Message,
 ) -> Task<Message> {
-    let Some(current) = mcp_scope(app) else {
-        return Task::none();
+    let completion = matches!(&event.action, desktop_settings_mcp::third_party::Action::Bindings(
+        desktop_settings_mcp::management_bindings::BindingsMessage::Finished { .. }));
+    let current = if completion {
+        event.scope.clone()
+    } else {
+        if !is_visible(app) || app.apps_catalog.third_party_page != ThirdPartyPage::Mcp {
+            return Task::none();
+        }
+        let Some(current) = mcp_scope(app) else { return Task::none() };
+        current
     };
     let mut input = crate::app::message::settings::mcp_management_list::input(app);
     let task = desktop_settings_mcp::third_party::update(&mut input, &current, event)
@@ -517,8 +516,10 @@ pub(crate) fn skills_update(
 
 pub(crate) fn overlays<'a>(app: &'a App, base: Element<'a, Message>) -> Element<'a, Message> {
     let base = match app.apps_catalog.third_party_page {
-        ThirdPartyPage::Mcp => super::system_settings_mcp::view_overlays(app, base),
         ThirdPartyPage::Skills => super::system_settings_skills::third_party_overlays(app, base),
+        ThirdPartyPage::Mcp if app.apps_catalog.third_party_mcp_scope == mcp_scope(app)
+            && app.apps_catalog.third_party_mcp_scope.is_some() =>
+                super::system_settings_mcp::third_party_overlays(app, base),
         _ => base,
     };
     if app.apps_catalog.third_party_page == ThirdPartyPage::ManagementTools {

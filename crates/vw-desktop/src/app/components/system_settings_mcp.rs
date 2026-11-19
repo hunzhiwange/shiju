@@ -97,23 +97,27 @@ fn catalog_event(value: catalog::Message) -> Message {
     }
 }
 pub fn view(app: &App) -> Element<'_, Message> {
-    use crate::app::message::settings::mcp_management_list as list;
     page::view(
         event,
         &app.mcp_settings.page,
         app.general_settings.desktop_locale,
         &app.appearance.app_theme,
-        [
-            catalog::panel(list::visible(app), list::loading(app)).map(catalog_event),
-            bindings::panel(app),
-            resync::panel(app),
-            crate::app::components::agent_apps_diagnostics::mcp_panel::view(app),
-            tools::panel(app),
-        ],
+        std::array::from_fn(|_| iced::widget::Space::new().into()),
         help,
     )
 }
-pub fn view_overlays<'a>(app: &'a App, dialog: Element<'a, Message>) -> Element<'a, Message> {
+/// Managed-directory controls belong exclusively to the third-party workspace.
+pub(crate) fn third_party_panel(app: &App) -> Element<'_, Message> {
+    use crate::app::message::settings::mcp_management_list as list;
+    iced::widget::column![
+        catalog::panel(list::visible(app), list::loading(app)).map(catalog_event),
+        resync::panel(app),
+        crate::app::components::agent_apps_diagnostics::mcp_panel::view(app),
+        tools::panel(app),
+    ].spacing(12).into()
+}
+
+pub(crate) fn third_party_overlays<'a>(app: &'a App, dialog: Element<'a, Message>) -> Element<'a, Message> {
     use desktop_settings_mcp::management_state::Overlay;
     let current = crate::app::message::settings::mcp_management_list::context(app);
     let diagnostics = crate::app::message::agent_apps_diagnostics::context(app);
@@ -152,6 +156,10 @@ pub fn view_overlays<'a>(app: &'a App, dialog: Element<'a, Message>) -> Element<
             container(connection_form_panel(draft)).padding(12),
         );
     }
+    dialog
+}
+
+pub fn view_overlays<'a>(app: &'a App, dialog: Element<'a, Message>) -> Element<'a, Message> {
     page::view_overlays(
         event,
         &app.mcp_settings.page,

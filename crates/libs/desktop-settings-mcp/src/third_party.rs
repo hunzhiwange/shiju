@@ -8,17 +8,18 @@ use iced::{Element, Length, Task};
 use vw_api_app_identity::{AppId, AppInstallation, AppInstallationEnvironment};
 use vw_api_mcp_management::*;
 
-/// Include the host navigation generation so queued actions cannot cross a reopened page.
+/// Catalog context carries credential identity; generation isolates reopened pages.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Scope {
     pub context: Context,
-    pub app_id: AppId,
+    /// None exposes all trusted applications on the current execution host.
+    pub app_id: Option<AppId>,
     pub generation: u64,
 }
 
 impl Scope {
     pub fn contains(&self, target: &McpAppTarget) -> bool {
-        target.app_id == self.app_id && target.target_host_id == self.context.host
+        self.app_id.is_none_or(|app_id| target.app_id == app_id) && target.target_host_id == self.context.host
     }
 }
 
@@ -34,7 +35,7 @@ pub enum Action {
     Bindings(BindingsMessage),
 }
 
-/// Reuses the existing catalog/binding state and effects; never touches runtime selection.
+/// Reuses catalog/binding state without changing runtime selection.
 /// The host must route returned messages here even after navigating away, to settle writes.
 pub fn update(app: &mut Update<'_>, current: &Scope, message: Message) -> Task<Message> {
     let origin = message.scope;
@@ -52,12 +53,12 @@ pub fn update(app: &mut Update<'_>, current: &Scope, message: Message) -> Task<M
         Action::Bindings(binding) => binding,
     };
     match &binding {
-        BindingsMessage::Apply(target, _) if !origin.contains(target) => {
+        BindingsMessage::Apply(target, _) if !origin.contains(target) || !app.authorized || !app.targets.contains(target) => {
             return app.error("发布目标与当前第三方应用或主机不一致");
         }
         BindingsMessage::RetryFailed => {
-            let valid = matches!(app.state.bindings.result.as_ref(), Some(Ok(result))
-                if !result.items.is_empty() && result.items.iter().all(|item| origin.contains(&item.target)));
+            let valid = app.authorized && matches!(app.state.bindings.result.as_ref(), Some(Ok(result))
+                if !result.items.is_empty() && result.items.iter().all(|item| origin.contains(&item.target) && app.targets.contains(&item.target)));
             if !valid {
                 return app.error("请在原目标应用中重试失败项");
             }
@@ -73,15 +74,15 @@ pub fn update(app: &mut Update<'_>, current: &Scope, message: Message) -> Task<M
         .map(move |binding| Message { scope: origin.clone(), action: Action::Bindings(binding) })
 }
 
-pub struct View<'a> {
+pub struct View<'a, 'b> {
     pub scope: &'a Scope,
     pub state: &'a crate::management_state::McpSettingsState,
     /// Trusted installation observations from the existing Apps catalog.
-    pub installations: &'a [AppInstallation],
+    pub installations: &'b [AppInstallation],
     pub authorized: bool,
 }
 
-pub fn view(input: View<'_>) -> Element<'_, Message> {
+pub fn view<'a>(input: View<'a, '_>) -> Element<'a, Message> {
     let scope = input.scope;
     let message = |action| Message { scope: scope.clone(), action };
     let catalog = &input.state.catalog;
@@ -92,7 +93,7 @@ pub fn view(input: View<'_>) -> Element<'_, Message> {
     let running = input.state.bindings.running;
     let mut body = column![
         text("第三方 MCP").size(20),
-        text(format!("目标应用：{:?} · 主机：{}", scope.app_id, scope.context.host)).size(14),
+        text(format!("当前执行主机：{}", scope.context.host)).size(14),
         text("目录为共享连接定义；启用或禁用仅发布到下方指定安装实例。识矩运行时与 ACP 的选择独立管理。")
             .size(12).style(settings_muted_text_style),
         crate::toolbar_button("刷新目录", (!loading).then(|| message(Action::Refresh))),
@@ -137,10 +138,10 @@ pub fn view(input: View<'_>) -> Element<'_, Message> {
                 })),
         );
     }
-    if let Some(reason) = crate::distribution::unsupported_reason(scope.app_id) {
+    if let Some(reason) = scope.app_id.and_then(crate::distribution::unsupported_reason) {
         return settings_panel(body.push(text(reason).style(settings_muted_text_style))).into();
     }
-    let supported = crate::distribution::supported(catalog, selected, scope.app_id);
+    let supported = scope.app_id.is_none_or(|id| crate::distribution::supported(catalog, selected, id));
     let enabled = !running
         && !loading
         && supported
@@ -153,29 +154,29 @@ pub fn view(input: View<'_>) -> Element<'_, Message> {
     }
     let mut found = false;
     for installation in input.installations.iter().filter(|installation| {
-        installation.app_id == scope.app_id
+        scope.app_id.is_none_or(|id| installation.app_id == id)
             && installation.target_host_id == scope.context.host
             && matches!(installation.environment, AppInstallationEnvironment::Macos)
     }) {
         found = true;
         let target = McpAppTarget {
-            app_id: scope.app_id,
+            app_id: installation.app_id,
             installation_id: installation.id.clone(),
             target_host_id: scope.context.host.clone(),
         };
         body = body.push(
             row![
-                text(format!("安装实例：{}", installation.id.0)).size(13),
+                text(format!("{:?} · 安装实例：{}", installation.app_id, installation.id.0)).size(13),
                 crate::toolbar_button(
                     "启用并发布",
-                    enabled.then(|| message(Action::Bindings(BindingsMessage::Apply(
+                    (enabled && input.authorized && crate::distribution::supported(catalog, selected, installation.app_id)).then(|| message(Action::Bindings(BindingsMessage::Apply(
                         target.clone(),
                         true
                     ))))
                 ),
                 crate::toolbar_button(
                     "禁用并发布",
-                    enabled.then(|| message(Action::Bindings(BindingsMessage::Apply(
+                    (enabled && input.authorized && crate::distribution::supported(catalog, selected, installation.app_id)).then(|| message(Action::Bindings(BindingsMessage::Apply(
                         target.clone(),
                         false
                     ))))

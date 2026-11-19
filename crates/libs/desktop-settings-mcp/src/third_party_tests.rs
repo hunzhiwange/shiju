@@ -18,7 +18,7 @@ fn scope() -> Scope {
             host: "host".into(),
             credentials_generation: 1,
         },
-        app_id: AppId::Claude,
+        app_id: Some(AppId::Claude),
         generation: 1,
     }
 }
@@ -69,7 +69,7 @@ fn third_party_task_03_scope_and_navigation() {
 fn third_party_task_03_target_requires_application_and_host() {
     let scope = scope();
     let mut target = McpAppTarget {
-        app_id: scope.app_id,
+        app_id: scope.app_id.unwrap(),
         installation_id: vw_api_app_identity::AppInstallationId("fixture".into()),
         target_host_id: scope.context.host.clone(),
     };

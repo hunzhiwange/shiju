@@ -105,3 +105,23 @@ Nova 继续固定在 npm 1.1.65，受管安装目录升到 v2。宿主只把显�
 对失败轮使用相同沙箱、目录、图谱二进制与索引独立执行 `tools/list`，成功发现 8 个图谱工具。问题在会话 runner 把本地目录 ID 写进 `acp_allowed_tools`，其中没有 Nova 在受管连接中才发现的工具。修复仅对 Nova 保留进入 runner 时已有的显式 ACP 列表，继续通过受管入口执行会话限制和服务级允许与拒绝策略。
 
 槽位 6 构建已编译变更后的 `session-engine`，随后在共享工作区的 `gateway-mcp` 退出 101。目录管理的进行中修改引用了尚未同步的 `McpSafeExportResponse`、`McpCatalogStore::safe_export`、`update_record` 和更新字段。运行时无新增网关可用，修复后三轮等待可构建的共享代码。槽位的两个缓存路径均为仓库 `target/rust-slot-6`，构建命令为 `python3 scripts/cargo_slot.py cargo build -j 1 --locked -p vw-cli --bin shiju`。
+
+### 共存标准网关结果
+
+复用共享槽位 3 恢复后的 ShiJu 构建，SHA-256 为 `5c5210e611790409fe4c3320e5813c0995b8bfbba053e4e6c8b18bb385c8f167`，受管 Nova 1.1.65 v2 六项摘要匹配。RustCodeGraph 1.2.11 使用私有 RueJS 索引及 stdio，项目级允许列表限制为三种验收工具。沿用指定阿里模型、租户和原提示，仅按新版 HTTP 入口省略已移除的 `acp_agent` 字段。三个会话均回读正确 Nova 绑定、`full_access=true` 和指定会话模型。
+
+| 轮次 | 新会话 | HTTP / 终态 | 结果 |
+| --- | --- | --- | --- |
+| 无挂载 | `ses_1f20184ef0018zxcvYrYEJ3Kho` | 200 / `chat.done` | 目标工具零调用，官方 `tool_capabilities` 完成两次。 |
+| 挂载 | `ses_1f201a161001omaIeb93XdBhBB` | 200 / 主动结束诊断 | 217 对工具开始和完成事件，216 次成功，1 次节点查询失败。 |
+| 撤除 | `ses_1f206fff7001lunBPeJrn9rjWn` | 200 / `chat.done` | 同目录移除挂载后新建会话，目标工具零调用，官方 `tool_capabilities` 完成两次。 |
+
+挂载轮的在线权限为 `client_only`。首次流超过 300 秒，按请求 ID 与事件游标续传同一个会话。取得三种真实回执并确认撤除对照后主动结束私有诊断。挂载轮没有 `chat.done` 或最终答复，本次结论依据工具执行与回传证据。
+
+| 工具 | 同 ID 开始与完成 | SSE `payload.output` |
+| --- | --- | --- |
+| `rustcodegraph_query` | `d14869ea-a0d2-45f5-8857-29f9ebbdf5e1` | `createRueSiteApp`，`app/app.tsx:32`。 |
+| `rustcodegraph_callers` | `9f5952a8-fb35-440a-bb4d-8107b134710b` | `mountRueSiteApp`，`app/app.tsx:39`。 |
+| `rustcodegraph_node` | `bacc39e7-d5fe-4b33-86c5-b69d65f33e03` | 返回 `createRueSiteApp` 定义及调用线索。 |
+
+同一受审入口另做挂载会话的官方权限对照。图谱查询获批并回传给续轮，官方 `edit_file` 仍提出相同的单次批准或拒绝选项，选择拒绝后原生终态为 `rejected`，文件内容保持 `before`。共存标准的执行、回传、撤除和权限均已验证。私有网关、临时挂载和授权副本已清理，用户网关健康。未重复执行已有定向 Rust 测试。

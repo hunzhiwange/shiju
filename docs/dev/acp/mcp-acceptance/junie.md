@@ -1,6 +1,6 @@
 # Junie 动态挂载 RustCodeGraph
 
-2026-11-19，受管 v1 的 stdio 挂载因原生进程启动限制验收失败。受管 v2 保留相同的沙箱限制，通过会话级 HTTP 转换完成原生工具链验证。
+2026-11-19，受管 Junie v2 按新版标准通过网关三轮验收。官方工具沿原权限共存。三种挂载工具均实际执行，结果进入模型续轮。
 
 ## 环境
 
@@ -65,3 +65,25 @@
 挂载轮 65 次原生审批和对应的工具完成事件，无其他工具事件。首组 query、callers、node 调用 ID 是 `41509a2e-5a16-48ee-a125-12d974bc3f52`、`ef7b2cb2-109d-487b-b4cb-481de3af210b`、`972bbdcc-df4e-47bb-8547-d003fe5f2109`。模型续轮读回 `app/app.tsx:32`、`mountRueSiteApp`、运行时 `_$createApp` 及 `app/router/index.ts:787`。答复覆盖调用链、浏览器和 SSR、缺少容器时抛错、路由和 i18n、布局分支、快照残留推断及两项复验设想。根组件的 `/rust-layers` 条件属实。该路径未在此提交的路由表中直接注册，第二项场景仍需验证可达性。
 
 定向命令 `python3 scripts/cargo_slot.py cargo test -j 1 -p vw-acp --test onboarding_junie acp_onboarding_junie_session_lifecycle` 在槽位 10 运行，两条缓存路径均为仓库下 `target/rust-slot-10`。退出 0，1 项通过，2 项过滤。同槽位随后开始的重复网关构建已取消并释放。槽位 6 的共享网关构建已编译包含 Junie v2 摘要的受管注册库，随后因同期 MiMo trait 参数不一致在 `vw-agent` 报 `E0050`，退出 101，未生成新网关。旧产物没有 v2 摘要。原生三轮没有网关 SSE、UI summary 或 ACP options，正式网关三轮待回归。[共享构建记录](poolside.md#受管启动器补丁)
+
+## 新版网关三轮验收
+
+复用包含 Junie v2 安装摘要和工具策略投影的共享 `shiju 0.6.0`，二进制 SHA-256 为 `109066ea0b79ce6edfc4399624715f0dafa80d397adabe7a1ae46158407e7cba`。补丁为 `ad5f58fd5`，继续使用签名 Junie 4100.5、RustCodeGraph 1.2.11 及同一 RueJS 提交。原生 HTTP 连接到受管桥，桥使用实际 RustCodeGraph stdio。三轮复用新版提示，SHA-256 为 `18806f1a927d3587ee5c685107c89b5dbaeea09614efe9a327e293b649967f38`。该版本请求通过 `agent=acp-junie` 选择预设。初次复用旧请求体时，已移除的 `acp_agent` 字段触发 HTTP 422，未创建会话。改用新版请求后重新执行完整三轮。
+
+| 轮次 | 网关会话 | HTTP / curl / 秒 | 结果 |
+| --- | --- | --- | --- |
+| 无挂载 | `ses_1f192a3ba001nm8W9GLETrOAFq` | 200 / 0 / 45.222375 | `chat.done`，原生 MCP 目录为空，目标调用和结果为零 |
+| 挂载 | `ses_1f19355b4001OK6TEW4UIrN5qJ` | 200 / 0 / 67.384814 | `chat.done`，query 2、callers 1、node 3 次完成 |
+| 撤除 | `ses_1f1945e4c001NAcvpRpZ9WIvbE` | 200 / 0 / 47.843102 | `chat.done`，原生 MCP 目录为空，目标调用和结果为零 |
+
+三轮均无 `chat.error`。UI summary 均读回 `acp-junie / junie` 与 `full_access=true`。ACP options 在运行中为 `client_only`、`connected=true`，终态连接释放。两阶段均读回 `session_model` 和 `alibaba-token-plan-cn/deepseek-v4.1-flash-1017`。
+
+挂载轮的六个 SSE 调用均有开始和完成事件，服务身份为 `ruejs_graph_probe`。下面的调用结果与 Junie 模型续轮工具内容的原生记录一致。
+
+| 工具 | SSE 调用 ID | 结果 |
+| --- | --- | --- |
+| `rustcodegraph_query` | `62ce35e1-c928-4a0a-9e2e-5c3b7d8d0509` | `createRueSiteApp` 位于 `app/app.tsx:32` |
+| `rustcodegraph_callers` | `67a77162-4f72-46bc-9bf6-493a10d2d08b` | `mountRueSiteApp` 位于 `app/app.tsx:39` |
+| `rustcodegraph_node` | `7fe4426e-342a-44e3-9854-250fde1edf1b` | 读回 `mountRueSiteApp` 节点，后续 node 读回 `useApp.ts:4` 和运行时 `AppFactory` |
+
+挂载答复引用了上述图谱结果，并结合官方文件读取核对了 `mountRueSiteApp → createRueSiteApp → useApp → _$createApp`。挂载轮同时完成四次官方文件读取。对照轮仍使用了官方搜索和文件读取。撤除轮答复记录了尝试启动 CLI 时的 `posix_spawn failed`，未执行目标 MCP 工具。网关退出后端口关闭，私有项目挂载已移除，私有凭据已清理。本轮复用已记录的 Rust 及 Python 定向验证。

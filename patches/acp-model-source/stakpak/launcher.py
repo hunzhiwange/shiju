@@ -39,10 +39,19 @@ def main():
         "TMPDIR": str(root),
         "NO_PROXY": "127.0.0.1,localhost",
     }
-    os.execve(sandbox, [
-        sandbox, "-D", f"runtime={root}", "-D", f"native={NATIVE}",
-        "-p", SANDBOX, str(NATIVE), "acp",
-    ], env)
+    sys.dont_write_bytecode = True
+    from mcp import run
+
+    os.umask(0o077)
+    try:
+        run([
+            sandbox, "-D", f"runtime={root}", "-D", f"native={NATIVE}",
+            "-p", SANDBOX, str(NATIVE), "acp",
+        ], env, root)
+    except EOFError:
+        return
+    except (OSError, ValueError):
+        raise SystemExit("Stakpak managed ACP launch failed") from None
 
 
 if __name__ == "__main__":

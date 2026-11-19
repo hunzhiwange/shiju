@@ -814,7 +814,10 @@
     "archive_sha256": "9c18808f7a3352a5ca2cbb9f123f2b2fafda03a5abef446c20065bb6ec629d1f",
     "files": {
       "stakpak-native": "70c559eff250a5be0dcdb19f31f13dca86847ee57648dba78e531506bb482ebc",
-      "stakpak": "bff6d5b2b49b92ce759be1e00cb6955cc0ec7bf181122ae553544197721aca30"
+      "stakpak": "e23af645b513eae95f62d964ea067aeca76d88bc421a33656eefae7a7f2609c6",
+      "mcp.py": "caff9f41ba008d6e5c51b65c7150cfb9b20b7ccfa22d1f9d456633a438ea16eb",
+      "mcp_bridge.py": "8aea18ecdbc23070a2fc6a9eb5245f095219ac76e9390f4ec2b32e1dd95db136",
+      "shiju-stdio.py": "e6870d58c6c59cb1f1d224a66cdaa8455b34057249912b7bce5b9e21f95a074a"
     }
   }
 }

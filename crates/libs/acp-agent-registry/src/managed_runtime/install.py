@@ -108,6 +108,9 @@ if agent == 'stakpak':
     native.chmod(0o700)
     launcher = runtime / 'stakpak'
     shutil.copy2(assets / 'stakpak/launcher.py', launcher)
+    shutil.copyfile(assets / 'stakpak/mcp.py', runtime / 'mcp.py')
+    shutil.copyfile(assets / 'poolside/mcp_bridge.py', runtime / 'mcp_bridge.py')
+    shutil.copyfile(assets / 'cortex-code/mcp_bridge.py', runtime / 'shiju-stdio.py')
     launcher.chmod(0o700)
     check_files(runtime, contract['files'])
     raise SystemExit(0)

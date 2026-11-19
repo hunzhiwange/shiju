@@ -38,7 +38,7 @@ fn installed_directory(agent: &str, contract: &Contract) -> Result<PathBuf, Stri
         3
     } else if matches!(
         agent,
-        "corust-agent" | "cursor" | "hermes" | "junie" | "openclaw" | "pi" | "poolside" | "vibe"
+        "corust-agent" | "cursor" | "hermes" | "junie" | "openclaw" | "pi" | "poolside" | "stakpak" | "vibe"
     ) {
         2
     } else {
@@ -341,6 +341,7 @@ pub(super) async fn install(agent: &str) -> Result<bool, String> {
         ("harn/launcher.py", include_str!("../../../../patches/acp-model-source/harn/launcher.py")),
         ("corust-agent/launcher.py", include_str!("../../../../patches/acp-model-source/corust-agent/launcher.py")),
         ("stakpak/launcher.py", include_str!("../../../../patches/acp-model-source/stakpak/launcher.py")),
+        ("stakpak/mcp.py", include_str!("../../../../patches/acp-model-source/stakpak/mcp.py")),
         (
             "sigit.patch",
             include_str!("../../../../patches/acp-model-source/sigit/host-boundary.patch"),

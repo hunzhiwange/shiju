@@ -140,6 +140,7 @@ pub async fn apply_agent_defaults<H: DefaultsHost, S>(
                 "pi" => Some("shiju.pi.toolPolicy"),
                 "omp" => Some("shiju.omp.toolPolicy"),
                 "poolside" => Some("shiju.poolside.toolPolicy"),
+                "stakpak" => Some("shiju.stakpak.toolPolicy"),
                 _ => None,
             };
             if let (Some(key), acp_types::AcpMcpServer::Stdio(stdio)) = (policy_key, &mut selected) {

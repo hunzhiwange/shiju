@@ -262,32 +262,48 @@ pub(super) fn view<'a>(state: &'a super::State, reader: &'a State, loopback: boo
                 .then(|| Event::Export(super::export::Event::Start(super::export::Destination::File, false)))),
         icon_btn(Icon::Search, "查找会话内容", Some(Event::ReaderSearch)),
     ].spacing(7).align_y(iced::Alignment::Center);
-    let mut content = column![header, settings_divider(), toolbar].spacing(8);
+    let mut tools = column![toolbar].spacing(8);
     if reader.search_open {
-        content = content.push(find::controls(reader));
+        tools = tools.push(find::controls(reader));
     }
     if reader.failed {
-        content = content.push(settings_error_banner("读取中断，当前内容可能不完整。"));
+        tools = tools.push(settings_error_banner("读取中断，当前内容可能不完整。"));
     } else if reader.loading {
-        content = content.push(text("正在读取会话…").size(12).style(settings_muted_text_style));
+        tools = tools.push(text("正在读取会话…").size(12).style(settings_muted_text_style));
     }
-    content = content.push(settings_divider());
-    let mut workspace = row![
-        scrollable(container(body(reader, i18n)).width(Length::Fill))
-            .id("external-session-reader")
-            .on_scroll(|v| message(Event::ReaderScrolled(v.absolute_offset())))
-            .width(Length::FillPortion(3)).height(Length::Fill)
-            .direction(Direction::Vertical(Scrollbar::new().width(4).scroller_width(4))),
-    ].spacing(0).height(Length::Fill);
-    if reader.outline_open {
-        workspace = workspace.push(container(iced::widget::space::vertical()).width(1)
-            .height(Length::Fill).style(settings_divider_style));
-        workspace = workspace.push(scrollable(container(outline(reader)).width(Length::Fill))
-            .width(Length::FillPortion(1)).height(Length::Fill)
-            .direction(Direction::Vertical(Scrollbar::new().width(4).scroller_width(4))));
-    }
-    let base = content.push(workspace).height(Length::Fill).into();
+    let base = column![
+        container(header).padding([5, 8]),
+        settings_divider(),
+        container(tools).padding([7, 8]),
+        settings_divider(),
+        iced::widget::responsive(move |size| workspace(reader, i18n, size.width < 640.0)),
+    ].height(Length::Fill).into();
     images::overlay(base, reader)
+}
+
+fn workspace(reader: &State, i18n: desktop_i18n::I18n, narrow: bool) -> Element<'_, Message> {
+    let scrollbars = || Direction::Vertical(Scrollbar::new().width(4).scroller_width(4));
+    let transcript = scrollable(container(
+        container(body(reader, i18n, narrow)).width(Length::Fill).max_width(900)
+    ).center_x(Length::Fill).padding([0, 7]))
+        .id("external-session-reader")
+        .on_scroll(|v| Event::ReaderScrolled(v.absolute_offset()))
+        .width(Length::Fill)
+        .height(Length::Fill)
+        .direction(scrollbars());
+    if !reader.outline_open {
+        return transcript.into();
+    }
+    let directory = container(scrollable(outline(reader))
+        .width(Length::Fill).height(Length::Fill).direction(scrollbars()))
+        .style(outline_surface);
+    if narrow {
+        column![directory.height(136).width(Length::Fill), settings_divider(), transcript]
+            .height(Length::Fill).into()
+    } else {
+        row![transcript, iced::widget::rule::vertical(1), directory.width(228).height(Length::Fill)]
+            .height(Length::Fill).into()
+    }
 }
 
 fn timestamp(ms: i64) -> Option<String> {
@@ -295,11 +311,12 @@ fn timestamp(ms: i64) -> Option<String> {
     chrono::Local.timestamp_millis_opt(ms).single().map(|date| date.format("%m月%d日 %H:%M").to_string())
 }
 
-pub(super) fn outline(reader: &State) -> Element<'_, Message> {
-    let mut outline = column![
-        row![text("对话目录").size(14), text(reader.turns.len().to_string()).size(12)
-            .style(settings_muted_text_style)].spacing(8),
-    ].spacing(7).padding([8, 7]);
+fn outline(reader: &State) -> Element<'_, Message> {
+    let mut outline = column![row![
+        text("对话目录").size(13).font(semibold()),
+        text(reader.turns.len().to_string()).size(12).style(settings_muted_text_style),
+    ].spacing(8).align_y(iced::Alignment::Center)]
+        .spacing(8).padding([13, 7]).width(Length::Fill);
     for (i, turn) in reader.turns.iter().enumerate() {
         let title = if turn.question_preview.trim().is_empty() {
             format!("第 {} 轮", i + 1)
@@ -307,74 +324,144 @@ pub(super) fn outline(reader: &State) -> Element<'_, Message> {
             super::list::preview(&turn.question_preview, 120)
         };
         let active = i == reader.active;
-        outline = outline.push(button(column![
-            container(SingleLineLabel::new(title, 13.0)).width(Length::Fill),
-            text(format!("{} 步{}", turn.step_count, if turn.aborted { " · 已中止" } else { "" }))
-                .size(12).style(settings_muted_text_style),
-            container(SingleLineLabel::new(reply_preview(reader, turn), 12.0)).width(Length::Fill),
-        ].spacing(3)).width(Length::Fill).padding([7, 9])
-            .style(move |theme, status| super::list::flat_button(theme, status, active))
-            .on_press(Event::Turn(i)));
+        let preview = container(SingleLineLabel::new(reply_preview(reader, turn), 12.0))
+            .style(muted_content).width(Length::Fill);
+        let mut status = row![text(format!("{} 步", turn.step_count)).size(11)
+            .style(settings_muted_text_style)].spacing(7);
+        if turn.aborted || turn.error_count > 0 {
+            status = status.push(text(if turn.aborted { "已中止" } else { "有错误" })
+                .size(11).style(|theme: &iced::Theme| iced::widget::text::Style {
+                    color: Some(theme.extended_palette().danger.base.color),
+                }));
+        }
+        let item = button(column![
+            container(SingleLineLabel::new(title, 13.0).font(semibold())).width(Length::Fill),
+            preview,
+            status,
+        ].spacing(4)).width(Length::Fill).padding([8, 10])
+            .style(move |theme, status| {
+                let mut style = super::list::flat_button(theme, status, active);
+                style.border = iced::border::rounded(8);
+                if active && status == button::Status::Active {
+                    style.background = Some(theme.palette().text.scale_alpha(0.085).into());
+                    style.border.width = 1.0;
+                    style.border.color = theme.palette().text.scale_alpha(0.13);
+                }
+                style
+            }).on_press(Event::Turn(i));
+        outline = outline.push(item);
     }
     outline.into()
 }
 
-pub(super) fn body(reader: &State, i18n: desktop_i18n::I18n) -> Element<'_, Message> {
+pub(super) fn semibold() -> iced::Font {
+    iced::Font { weight: iced::font::Weight::Semibold, ..iced::Font::DEFAULT }
+}
+
+fn outline_surface(theme: &iced::Theme) -> container::Style {
+    container::Style {
+        background: Some(theme.palette().text.scale_alpha(0.026).into()),
+        ..Default::default()
+    }
+}
+
+pub(super) fn muted_content(theme: &iced::Theme) -> container::Style {
+    container::Style { text_color: settings_muted_text_style(theme).color, ..Default::default() }
+}
+
+fn question_bubble(theme: &iced::Theme) -> container::Style {
+    container::Style {
+        background: Some(theme.palette().text.scale_alpha(0.105).into()),
+        border: iced::Border { radius: iced::border::Radius::new(14).top_right(5), ..Default::default() },
+        ..Default::default()
+    }
+}
+
+fn body(reader: &State, i18n: desktop_i18n::I18n, narrow: bool) -> Element<'_, Message> {
     let query = reader.find.query.trim().to_lowercase();
-    let mut body = column![].spacing(13).padding([10, 7]);
+    let mut body = column![].spacing(16).padding([16, 8]);
     if let Some(hit) = find::focused(reader, i18n) {
         body = body.push(hit);
     }
-    if let Some(turn) = reader.turns.get(reader.active) {
-        // Render only the selected server-defined range; do not regroup turns in the UI.
-        let messages: Vec<_> = reader
-            .messages
-            .iter()
-            .enumerate()
-            .filter(|(i, _)| *i >= turn.first_message_index && *i <= turn.last_message_index)
-            .map(|(_, m)| m)
-            .collect();
-        if reader.find.filter != find::Filter::Changes {
-            for question in messages.iter().filter(|m| m.role == "user" && !m.injected) {
-                body = body.push(row![container(text("")).width(Length::FillPortion(1)), container(settings_group_card(
-                    column![text("提问").size(14), details::message_view(reader, question, &query, i18n)].spacing(6).max_width(640),
-                )).width(Length::FillPortion(4))]);
+    let Some(turn) = reader.turns.get(reader.active) else {
+        if !reader.loading {
+            body = body.push(text("此会话没有可阅读轮次").style(settings_muted_text_style));
+        }
+        return body.into();
+    };
+
+    // Use the host-projected range, including partial streamed turns.
+    let messages: Vec<_> = reader.messages.iter().enumerate()
+        .filter(|(index, message)| !message.injected
+            && *index >= turn.first_message_index && *index <= turn.last_message_index)
+        .collect();
+    let changes_only = reader.find.filter == find::Filter::Changes;
+    let conversation_only = reader.find.filter == find::Filter::Conversation;
+    if !changes_only {
+        for (_, question) in messages.iter().copied().filter(|(_, m)| m.role == "user") {
+            let mut bubble = column![].spacing(5).width(Length::Fill);
+            if let Some(at) = question.ts.or(turn.ts).and_then(timestamp) {
+                bubble = bubble.push(container(text(at).size(11).style(settings_muted_text_style))
+                    .align_right(Length::Fill));
             }
-        }
-        let mut author = row![
-            super::list::provider_icon(reader.identity.provider, 19.0),
-            text(super::list::provider_name(reader.identity.provider)).size(14)
-                .font(iced::Font { weight: iced::font::Weight::Semibold, ..iced::Font::DEFAULT }),
-        ].spacing(8).align_y(iced::Alignment::Center);
-        if let Some(at) = turn.ts.and_then(timestamp) {
-            author = author.push(text(at).size(12).style(settings_muted_text_style));
-        }
-        body = body.push(author);
-        if reader.find.filter != find::Filter::Conversation {
-            body = body.push(details::steps(reader, turn, &query, i18n));
-        }
-        if reader.find.filter != find::Filter::Changes {
-            if turn.has_final_reply {
-                if let Some(reply) = messages.iter().rev().find(|m| {
-                    reader.messages.len() > turn.last_message_index
-                        && m.role == "assistant"
-                        && !m.injected
-                        && (!display_text(m).is_empty()
-                            || m.blocks.iter().any(|b| !images::references(b).is_empty()))
-                }) {
-                    body = body.push(container(details::message_view(reader, reply, &query, i18n))
-                        .width(Length::Fill).padding(iced::Padding { left: 27.0, right: 8.0, ..Default::default() }));
-                } else {
-                    body = body.push(text(if reader.failed { "回复尚未读到，内容不完整" } else { "正在读取回复…" }).style(settings_muted_text_style));
-                }
-            } else {
-                body = body.push(text(if turn.aborted { "本轮已中止，没有最终回复" } else { "本轮没有最终回复" }).style(settings_muted_text_style));
+            bubble = bubble.push(container(details::message_view(reader, question, &query, i18n))
+                .width(Length::Fill).padding([10, 13]).style(question_bubble));
+            let mut line = row![];
+            if !narrow {
+                line = line.push(iced::widget::space::horizontal().width(Length::FillPortion(1)));
             }
+            body = body.push(line.push(container(
+                container(bubble).width(Length::Fill).max_width(530)
+            ).align_right(if narrow { Length::Fill } else { Length::FillPortion(3) })));
         }
-    } else if !reader.loading {
-        body = body.push(text("此会话没有可阅读轮次"));
     }
-    body.into()
+
+    let mut author = row![text(super::list::provider_name(reader.identity.provider)).size(14)
+        .font(semibold())].spacing(8).align_y(iced::Alignment::Center);
+    if let Some(at) = turn.ts.and_then(timestamp) {
+        author = author.push(text(at).size(12).style(settings_muted_text_style));
+    }
+    if let Some(model) = messages.iter().rev().find_map(|(_, message)| {
+        message.meta.as_ref()?.model.as_deref().filter(|model| !model.trim().is_empty())
+    }) {
+        author = author.push(container(SingleLineLabel::new(model.to_owned(), 12.0))
+            .width(Length::Fill).style(muted_content));
+    }
+    let reply = if turn.has_final_reply && reader.messages.len() > turn.last_message_index {
+        messages.iter().rev().copied().find(|(_, m)| m.role == "assistant"
+            && (!display_text(m).is_empty() || m.blocks.iter().any(|b| !images::references(b).is_empty())))
+    } else {
+        None
+    };
+
+    let mut answer = column![container(author).center_y(27)].spacing(7).width(Length::Fill);
+    if !conversation_only {
+        answer = answer.push(details::steps(reader, turn, reply.map(|(index, _)| index), &query, i18n));
+    }
+    if !changes_only {
+        if let Some((_, reply)) = reply {
+            answer = answer.push(container(details::message_view(reader, reply, &query, i18n)).padding([3, 0]));
+        } else {
+            let status = if turn.has_final_reply {
+                if reader.failed { "回复尚未读到，内容不完整" } else { "正在读取回复…" }
+            } else if turn.aborted {
+                "本轮已中止，没有最终回复"
+            } else {
+                "本轮没有最终回复"
+            };
+            answer = answer.push(text(status).size(12).style(settings_muted_text_style));
+        }
+    }
+    let avatar = container(super::list::provider_icon(reader.identity.provider, 17.0))
+        .center_x(27).center_y(27).style(|theme: &iced::Theme| container::Style {
+            border: iced::Border {
+                width: 1.0,
+                color: theme.palette().text.scale_alpha(0.16),
+                radius: 14.0.into(),
+            },
+            ..Default::default()
+        });
+    body.push(row![avatar, answer].spacing(9)).into()
 }
 
 fn reply_preview(reader: &State, turn: &TurnIndex) -> String {

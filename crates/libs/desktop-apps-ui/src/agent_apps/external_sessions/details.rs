@@ -1,6 +1,6 @@
 //! Presentation of host-projected blocks. References are read only through the SDK.
 use gateway_external_session::AgentAppsReadError;
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 use super::{Event as ParentEvent, find, images, message, reader};
 use desktop_ui_controls::system_settings_common::*;
 use desktop_assets::assets::Icon;
@@ -13,7 +13,7 @@ use super::Event as Message;
 use crate::{Connection, Notice, error as notify_error};
 use iced::{
     Element, Length, Task,
-    widget::{button, column, container, row, scrollable, text},
+    widget::{button, column, container, rich_text, row, scrollable, span, text},
 };
 use vw_api_external_session::*;
 
@@ -30,10 +30,8 @@ pub(super) fn update(state: &mut super::State, connection: &Connection, notice: 
     };
     match value {
         Event::Process => reader.details.process_open = !reader.details.process_open,
-        Event::Input(m, b) => {
-            if !reader.details.inputs.remove(&(m, b)) {
-                reader.details.inputs.insert((m, b));
-            }
+        Event::Input(m, b, open) => {
+            reader.details.inputs.insert((m, b), open);
         }
         Event::Toggle(m, b) => {
             if !reader.details.expanded.remove(&(m, b)) {
@@ -174,22 +172,24 @@ fn body<'a>(
             content = content.push(content_text);
         }
     }
-    if let Some(reference) = full {
-        if page.is_none_or(|p| !p.started || p.next.is_some()) {
-            content = content.push(
-                button(text(if page.is_some_and(|p| p.pending) {
-                    "正在读取…"
-                } else {
-                    "读取更多正文"
-                }))
-                .padding([8, 12])
-                .style(rounded_action_btn_style)
-                .on_press_maybe(
-                    (!page.is_some_and(|p| p.pending))
-                        .then(|| event(Event::More(reference.clone()))),
-                ),
+    if let Some(reference) = full.filter(|_| page.is_none_or(|p| !p.started || p.next.is_some())) {
+        let pending = page.is_some_and(|p| p.pending);
+        let mut footer = row![].spacing(5).align_y(iced::Alignment::Center);
+        if pending {
+            footer = footer.push(text(i18n.__("正在读取…")).size(12).style(settings_muted_text_style));
+        } else {
+            if !visible.is_empty() {
+                footer = footer.push(text(i18n.__("还有更多内容")).size(12).style(settings_muted_text_style));
+            }
+            let label = if visible.is_empty() { i18n.__("读取正文") } else { i18n.__("继续读取") };
+            footer = footer.push(
+                button(rich_text([span::<(), iced::Font>(label).underline(true)]).size(12))
+                    .padding([3, 5])
+                    .style(|theme, status| super::list::flat_button(theme, status, false))
+                    .on_press(event(Event::More(reference.clone()))),
             );
         }
+        content = content.push(footer);
     }
     content.width(Length::Fill).into()
 }
@@ -203,18 +203,13 @@ pub(super) fn message_view<'a>(
     if message.blocks.is_empty() {
         return selectable(message.content.as_str(), false, query, i18n);
     }
-    let m = reader.messages.iter().position(|m| std::ptr::eq(m, message)).unwrap_or(0);
-    let mut content = column![].spacing(6);
-    for (b, block) in message.blocks.iter().enumerate() {
+    let mut content = column![].spacing(7);
+    for block in &message.blocks {
         for image in images::references(block) {
             content = content.push(images::view(reader, image));
         }
         if let SessionBlock::Text { text, full } = block {
-            if text.contains("```") {
-                content = content.push(block_view(reader, m, b, block, query, i18n));
-            } else {
-                content = content.push(body(reader, text, full.as_ref(), false, query, i18n));
-            }
+            content = content.push(body(reader, text, full.as_ref(), false, query, i18n));
         }
     }
     content.into()
@@ -227,26 +222,72 @@ fn failure(block: &SessionBlock) -> bool {
             | SessionBlock::Event { kind: EventKind::Error | EventKind::Aborted, .. }
     )
 }
-pub(super) fn steps<'a>(reader: &'a reader::State, turn: &TurnIndex, query: &str, i18n: I18n) -> Element<'a, Message> {
-    let mut blocks: Vec<_> = reader
-        .messages
-        .iter()
-        .enumerate()
-        .filter(|(i, message)| !message.injected && *i >= turn.first_message_index && *i <= turn.last_message_index)
-        .flat_map(|(m, message)| {
-            message.blocks.iter().enumerate().map(move |(b, block)| (m, b, block))
-        })
-        .filter(|(_, _, b)| !matches!(b, SessionBlock::Text { .. } | SessionBlock::Image { .. }))
-        .collect();
-    if reader.find.filter == find::Filter::Changes {
-        blocks.retain(|(_, _, b)| matches!(b, SessionBlock::ToolCall { diff: Some(_), .. }));
+pub(super) fn steps<'a>(
+    reader: &'a reader::State,
+    turn: &TurnIndex,
+    final_reply: Option<usize>,
+    query: &str,
+    i18n: I18n,
+) -> Element<'a, Message> {
+    let changes_only = reader.find.filter == find::Filter::Changes;
+    let open = reader.details.process_open || changes_only;
+    let mut commands = 0;
+    let mut timeline = column![].spacing(3).width(Length::Fill);
+    let mut has_rows = false;
+    let mut has_steps = false;
+
+    // Preserve the host order. Final replies are rendered separately under the timeline.
+    for (m, message) in reader.messages.iter().enumerate()
+        .skip(turn.first_message_index)
+        .take(turn.last_message_index.saturating_sub(turn.first_message_index).saturating_add(1))
+        .filter(|(_, message)| !message.injected)
+    {
+        let commentary = !changes_only && message.role == "assistant" && Some(m) != final_reply;
+        if commentary && message.blocks.is_empty() && !message.content.trim().is_empty() {
+            has_steps = true;
+            if open || find::matches(&message.content, query) {
+                timeline = timeline.push(commentary_row(selectable(message.content.as_str(), false, query, i18n)));
+                has_rows = true;
+            }
+        }
+        for (b, block) in message.blocks.iter().enumerate() {
+            if matches!(block, SessionBlock::ToolCall { kind: ToolKind::Shell, .. }) {
+                commands += 1;
+            }
+            match block {
+                SessionBlock::Text { text, full } if commentary => {
+                    has_steps = true;
+                    if open || find::block_matches(reader, block, query) {
+                        timeline = timeline.push(commentary_row(body(reader, text, full.as_ref(), false, query, i18n)));
+                        has_rows = true;
+                    }
+                }
+                SessionBlock::Text { .. } | SessionBlock::Image { .. } => {}
+                _ if changes_only && !matches!(block, SessionBlock::ToolCall { diff: Some(_), .. }) => {}
+                _ => {
+                    has_steps = true;
+                    if open || failure(block) || find::block_matches(reader, block, query) {
+                        timeline = timeline.push(block_view(reader, m, b, block, query, i18n));
+                        has_rows = true;
+                    }
+                }
+            }
+        }
     }
-    // Preserve the host message and block order, including failures and interruptions.
-    let open = reader.details.process_open || reader.find.filter == find::Filter::Changes;
+
+    if !has_steps && (changes_only || (turn.step_count == 0 && turn.error_count == 0 && !turn.aborted)) {
+        return column![].into();
+    }
     let mut heading = row![
         icon_svg(if open { Icon::ChevronDown } else { Icon::ChevronRight }, 13.0),
-        text(format!("执行过程 · {} 步", turn.step_count)).size(13),
-    ].spacing(7).align_y(iced::Alignment::Center);
+        text("执行过程").size(13).font(super::reader::semibold()),
+    ].spacing(8).align_y(iced::Alignment::Center);
+    if turn.step_count > 0 {
+        heading = heading.push(text(format!("{} 步", turn.step_count)).size(12).style(settings_muted_text_style));
+    }
+    if commands > 0 && !changes_only {
+        heading = heading.push(text(format!("{commands} 条命令")).size(12).style(settings_muted_text_style));
+    }
     if turn.error_count > 0 {
         heading = heading.push(text(format!("{} 个错误", turn.error_count)).size(12)
             .style(|theme: &iced::Theme| iced::widget::text::Style {
@@ -256,20 +297,24 @@ pub(super) fn steps<'a>(reader: &'a reader::State, turn: &TurnIndex, query: &str
     if turn.aborted {
         heading = heading.push(text("已中止").size(12).style(settings_muted_text_style));
     }
-    let summary = button(heading).padding([6, 8])
+    let summary = button(heading).padding([5, 5])
         .style(|theme, status| super::list::flat_button(theme, status, false))
-        .on_press_maybe((reader.find.filter != find::Filter::Changes).then(|| event(Event::Process)));
-    let mut timeline = column![].spacing(2);
-    for (m, b, block) in blocks {
-        if open || failure(block) || find::block_matches(reader, block, query) {
-            timeline = timeline.push(block_view(reader, m, b, block, query, i18n));
-        }
+        .on_press_maybe((!changes_only).then(|| event(Event::Process)));
+    let mut process = column![summary].spacing(5);
+    if has_rows {
+        process = process.push(container(row![
+            iced::widget::rule::vertical(1),
+            timeline,
+        ].spacing(6)).padding(iced::Padding { left: 11.0, ..Default::default() }));
     }
-    let timeline = row![
-        iced::widget::rule::vertical(1),
-        container(timeline).width(Length::Fill),
-    ].spacing(6);
-    column![summary, timeline].padding([0, 8]).spacing(4).into()
+    process.into()
+}
+
+fn commentary_row(content: Element<'_, Message>) -> Element<'_, Message> {
+    container(row![
+        container(text("◦").size(14).style(settings_muted_text_style)).center_x(11),
+        container(content).width(Length::Fill).style(super::reader::muted_content),
+    ].spacing(8)).padding([4, 8]).into()
 }
 
 fn block_view<'a>(
@@ -281,8 +326,7 @@ fn block_view<'a>(
     i18n: I18n,
 ) -> Element<'a, Message> {
     if let SessionBlock::Thinking { redacted: true, .. } = block {
-        return container(text("·  思考内容已隐去").size(12).style(settings_muted_text_style))
-            .padding([4, 9]).into();
+        return commentary_row(text("思考内容已隐去").size(12).style(settings_muted_text_style).into());
     }
     let label = match block {
         SessionBlock::Text { .. } => "代码 / 正文".to_owned(),
@@ -324,12 +368,28 @@ fn block_view<'a>(
                 else { theme.palette().text.scale_alpha(0.55) }),
         }
     });
-    let mut heading = row![
-        container(marker).center_x(11),
-        container(SingleLineLabel::new(label, 13.0)).width(Length::Fill),
-    ].spacing(8).align_y(iced::Alignment::Center);
-    if let SessionBlock::ToolResult { duration_ms: Some(ms), .. } = block {
-        heading = heading.push(text(format!("{ms} ms")).size(12).style(settings_muted_text_style));
+    let mut heading = row![container(marker).center_x(11)]
+        .spacing(8).align_y(iced::Alignment::Center);
+    if let SessionBlock::ToolCall { kind, .. } = block {
+        let action = match kind {
+            ToolKind::Shell => "执行",
+            ToolKind::Read => "读取",
+            ToolKind::Search => "搜索",
+            ToolKind::Edit => "编辑",
+            ToolKind::Write => "写入",
+            ToolKind::Mcp => "调用",
+            _ => "工具",
+        };
+        heading = heading.push(text(action).size(12).font(super::reader::semibold()));
+    }
+    heading = heading.push(container(SingleLineLabel::new(label, 13.0)).width(Length::Fill));
+    if let SessionBlock::ToolResult { line_count, duration_ms, .. } = block {
+        if *line_count > 0 {
+            heading = heading.push(text(format!("{line_count} 行")).size(12).style(settings_muted_text_style));
+        }
+        if let Some(ms) = duration_ms {
+            heading = heading.push(text(format!("{ms} ms")).size(12).style(settings_muted_text_style));
+        }
     }
     heading = heading.push(icon_svg(if expanded { Icon::ChevronDown } else { Icon::ChevronRight }, 12.0));
     let mut content = column![button(heading).width(Length::Fill).padding([4, 8])
@@ -354,14 +414,15 @@ fn block_view<'a>(
                 }
                 if !input_preview.is_empty() || input_full.is_some() {
                     let visible_input = loaded_text(reader, input_full.as_ref()).unwrap_or(input_preview);
-                    let input_open = reader.details.inputs.contains(&(m, b)) || find::matches(visible_input, query);
+                    let input_open = reader.details.inputs.get(&(m, b)).copied()
+                        .unwrap_or_else(|| find::matches(visible_input, query));
                     let disclosure = row![
                         icon_svg(if input_open { Icon::ChevronDown } else { Icon::ChevronRight }, 12.0),
                         text("参数").size(12).style(settings_muted_text_style),
                     ].spacing(5).align_y(iced::Alignment::Center);
                     details = details.push(button(disclosure).padding([4, 5])
                         .style(|theme, status| super::list::flat_button(theme, status, false))
-                        .on_press(event(Event::Input(m, b))));
+                        .on_press(event(Event::Input(m, b, !input_open))));
                     if input_open {
                         details = details.push(nested_output(body(reader, input_preview, input_full.as_ref(), true, query, i18n)));
                     }
@@ -381,7 +442,7 @@ fn block_view<'a>(
                 }
             }
             SessionBlock::ToolResult { preview, full, truncated, .. } => {
-                if *truncated {
+                if *truncated && full.is_none() {
                     details = details.push(text("预览已截断").size(12).style(settings_muted_text_style));
                 }
                 details = details.push(nested_output(body(reader, preview, full.as_ref(), true, query, i18n)));
@@ -425,7 +486,8 @@ pub(super) fn loaded_text<'a>(
 pub struct State {
     pub expanded: BTreeSet<(usize, usize)>,
     pub process_open: bool,
-    pub inputs: BTreeSet<(usize, usize)>,
+    // An explicit choice overrides the default expansion for a search hit.
+    inputs: BTreeMap<(usize, usize), bool>,
     pub pages: Vec<Page>,
 }
 #[derive(Clone)]
@@ -451,7 +513,7 @@ impl State {
 pub enum Event {
     Process,
     Toggle(usize, usize),
-    Input(usize, usize),
+    Input(usize, usize, bool),
     More(ContentRef),
     Loaded(reader::Scope, u64, ContentRef, u32, Result<SessionContentResponse, AgentAppsReadError>),
 }

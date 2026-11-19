@@ -1,4 +1,6 @@
 //! Loopback-only authorized model HTTP service.
+mod aionrs_mcp;
+mod aionrs_stream;
 mod server;
 pub use server::{RelayBackend, RelayHost, RelayRequest, RelayServer};
 

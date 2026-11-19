@@ -61,3 +61,11 @@ python3 patches/acp-model-source/aionrs/probe.py "$reviewed_engine" "$rustcodegr
 ```
 
 这条路径可以复用原生引擎的 MCP 注册能力。正式接入仍需在 ShiJu 的桥接与中继之间绑定会话目录、已发现的工具和一次性审批，限制代理调用参数和进程归属，并在中继撤销时销毁 MCP 客户端。探针只验证固定工具及参数，未接入实际网关和指定阿里模型。未修改 Rust 或运行 Cargo。
+
+## 受管 v2 补丁
+
+`aionrs-acp` 新建会话时消费项目的 stdio MCP 声明，经模型中继的同一个回环端口向固定的 aionrs 0.2.11 提供 Streamable HTTP。引擎沙箱保留现有派生进程禁令和网络范围。桥接与模型中继之间使用私有 Unix socket 和独立能力令牌。模型中继保留原四个内置工具，仅额外放行已发现且通过项目工具策略的名称。
+
+MCP 本地进程在清空环境后启动，网络和派生进程均被禁止。RustCodeGraph 使用无守护进程、无监视模式。已 checkpoint 的 SQLite 索引复制到运行时私有目录，源码在 MCP 进程中保持只读。模型调用先经过现有 ACP 单次审批，工具名和参数都相符的授权只消费一次。受管运行时目录升级为 `aionrs-0.2.11-model-source-v2`，原生引擎版本保持 0.2.11。
+
+聚焦回归使用槽位 3，两个缓存路径均为仓库内 `target/rust-slot-3`。命令为 `python3 scripts/cargo_slot.py cargo test -j 1 --locked -p acp-server --lib aionrs -- --include-ignored --test-threads=1`。通过环境指向已索引 RueJS 副本和已安装的 RustCodeGraph。退出 0，共 5 项通过。真实工具测试覆盖项目允许与拒绝名单、query/callers/node 输出，以及逐个调用的无授权拒绝和授权已消费重放。

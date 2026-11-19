@@ -145,6 +145,7 @@ pub async fn apply_agent_defaults<H: DefaultsHost, S>(
                 }
             }
             let policy_key = match backend {
+                "aionrs" => Some("shiju.aionrs.toolPolicy"),
                 "cortex-code" => Some("shiju.cortex.toolPolicy"),
                 "grok" => Some("shiju.grok.toolPolicy"),
                 "deepagents" => Some("shiju.deepagents.toolPolicy"),

@@ -74,8 +74,15 @@ pub fn configure(
         local_config = path(&workspace.join(".aionrs.toml"))?,
     );
     let policy = profile.write_config("aionrs.sb", policy.as_bytes())?;
+    let mcp_socket = root.join("m");
+    let mut token = [0; 32];
+    getrandom::fill(&mut token).map_err(|_| anyhow::anyhow!("aionrs MCP entropy unavailable"))?;
+    let token = hex::encode(token);
+    profile.bind_aionrs_mcp(mcp_socket.clone(), token.clone())?;
     profile.overlay_environment(HashMap::from([
         ("SHIJU_AIONRS_SANDBOX".into(), policy.to_string_lossy().into_owned()),
+        ("SHIJU_AIONRS_MCP".into(), mcp_socket.to_string_lossy().into_owned()),
+        ("SHIJU_AIONRS_MCP_TOKEN".into(), token),
         ("SHIJU_AIONRS_STATE".into(), state.to_string_lossy().into_owned()),
         ("SHIJU_AIONRS_WORKSPACE".into(), workspace.to_string_lossy().into_owned()),
         ("API_KEY".into(), profile.binding.bearer_token().into()),

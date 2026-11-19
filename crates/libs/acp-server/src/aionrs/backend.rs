@@ -66,6 +66,14 @@ impl BackendCancelHandle for Cancel {
         true
     }
 }
+impl AionrsBackend {
+    async fn insert_session(&self, cwd: PathBuf, process: Process) -> BackendSession {
+        let id = format!("aionrs-{}", self.sequence.fetch_add(1, Ordering::Relaxed));
+        self.sessions.lock().await.insert(id.clone(), Arc::new(Mutex::new(process)));
+        BackendSession { id, cwd, history: vec![] }
+    }
+}
+
 #[async_trait]
 impl SessionBackend for AionrsBackend {
     fn supports_session_load(&self) -> bool {
@@ -102,10 +110,33 @@ impl SessionBackend for AionrsBackend {
 
     async fn create_session(&self, cwd: PathBuf) -> Result<BackendSession, BackendError> {
         let process = Process::spawn(&cwd).await?;
-        let id = format!("aionrs-{}", self.sequence.fetch_add(1, Ordering::Relaxed));
-        self.sessions.lock().await.insert(id.clone(), Arc::new(Mutex::new(process)));
-        Ok(BackendSession { id, cwd, history: vec![] })
+        Ok(self.insert_session(cwd, process).await)
     }
+
+    async fn create_session_with_mcp(
+        &self,
+        cwd: PathBuf,
+        servers: Vec<agent_client_protocol::McpServer>,
+    ) -> Result<BackendSession, BackendError> {
+        if servers.is_empty() {
+            return self.create_session(cwd).await;
+        }
+        #[cfg(unix)]
+        {
+            if std::env::var_os("SHIJU_AIONRS_SANDBOX").is_none() {
+                return Err(BackendError::InvalidRequest("aionrs MCP requires a sandboxed engine".into()));
+            }
+            let mut process = Process::spawn(&cwd).await?;
+            if let Err(error) = process.attach_mcp(servers).await {
+                process.kill().await;
+                return Err(error);
+            }
+            Ok(self.insert_session(cwd, process).await)
+        }
+        #[cfg(not(unix))]
+        Err(BackendError::InvalidRequest("aionrs MCP requires the managed model relay".into()))
+    }
+
     async fn load_session(&self, _: &str, _: PathBuf) -> Result<BackendSession, BackendError> {
         Err(BackendError::InvalidRequest("aionrs session restore is not supported".into()))
     }
@@ -141,12 +172,13 @@ impl SessionBackend for AionrsBackend {
             let result = async {
                 let mut seen = HashSet::new();
                 let mut approved = HashSet::new();
-                let mut pending = HashSet::new();
+                let mut mcp_titles = HashMap::new();
+                let mut pending = HashMap::<String, (String, serde_json::Value, bool)>::new();
                 let (answers, mut responses) = mpsc::unbounded_channel::<(String, bool)>();
                 loop {
                     tokio::select! {
                         _ = cancel.changed() => {
-                            for call in &pending { process.send(json!({"type":"tool_deny","call_id":call,"reason":"Cancelled"})).await?; }
+                            for call in pending.keys() { process.send(json!({"type":"tool_deny","call_id":call,"reason":"Cancelled"})).await?; }
                             process.send(json!({"type":"stop"})).await?;
                             // Retire the process: no old turn can ever enter a later prompt.
                             process.kill().await;
@@ -155,7 +187,14 @@ impl SessionBackend for AionrsBackend {
                         }
                         answer = responses.recv() => {
                             let Some((call, allow)) = answer else { return Err(failure("approval channel")); };
-                            if !pending.remove(&call) { return Err(failure("approval identity")); }
+                            let Some((name, arguments, is_mcp)) = pending.remove(&call) else {
+                                return Err(failure("approval identity"));
+                            };
+                            if allow && is_mcp {
+                                #[cfg(unix)]
+                                process.mcp.as_ref().ok_or_else(|| failure("missing MCP broker"))?
+                                    .approve(name, arguments)?;
+                            }
                             if allow { approved.insert(call.clone()); }
                             process.send(if allow { json!({"type":"tool_approve","call_id":call,"scope":"once"}) }
                                 else { json!({"type":"tool_deny","call_id":call,"reason":"Host denied"}) }).await?;
@@ -176,12 +215,18 @@ impl SessionBackend for AionrsBackend {
                                     let call = frame.call_id.ok_or_else(|| failure("call"))?;
                                     if !seen.insert(call.clone()) { return Err(failure("duplicate call")); }
                                     let tool = frame.tool.ok_or_else(|| failure("tool"))?;
-                                    if !workspace_tool(&process.workspace, &tool.name, &tool.args) {
+                                    let is_mcp = tool.category.as_deref() == Some("mcp");
+                                    #[cfg(unix)]
+                                    let mounted = is_mcp && process.mcp.as_ref().is_some_and(|broker| broker.contains(&tool.name));
+                                    #[cfg(not(unix))]
+                                    let mounted = false;
+                                    if !mounted && (is_mcp || !workspace_tool(&process.workspace, &tool.name, &tool.args)) {
                                         process.send(json!({"type":"tool_deny","call_id":call,"reason":"Only workspace file tools are supported"})).await?;
                                         continue;
                                     }
                                     let title = tool.name;
-                                    pending.insert(call.clone());
+                                    if mounted { mcp_titles.insert(call.clone(), title.clone()); }
+                                    pending.insert(call.clone(), (title.clone(), tool.args, mounted));
                                     let (response, answer) = oneshot::channel();
                                     let request = BackendPermissionRequest { request_id: call.clone(), call_id: call.clone(), title,
                                         raw_input: json!({}), options: vec![
@@ -198,15 +243,19 @@ impl SessionBackend for AionrsBackend {
                                 "tool_running" => {
                                     let call = frame.call_id.ok_or_else(|| failure("call"))?;
                                     if !approved.contains(&call) { return Err(failure("unapproved execution")); }
-                                    let _ = events.send(BackendEvent::ToolStart { call_id: call, title: "aionrs tool".into(), raw_input: json!({}) });
+                                    let title = mcp_titles.get(&call).cloned().unwrap_or_else(|| "aionrs tool".into());
+                                    let _ = events.send(BackendEvent::ToolStart { call_id: call, title, raw_input: json!({}) });
                                 }
                                 "tool_result" | "tool_cancelled" => {
                                     let call = frame.call_id.ok_or_else(|| failure("call"))?;
                                     if !seen.contains(&call) { return Err(failure("unknown call")); }
                                     let status = if frame.status.as_deref() == Some("success") { BackendToolStatus::Completed } else { BackendToolStatus::Failed };
-                                    let _ = events.send(BackendEvent::ToolComplete { call_id: call, status, content: None, raw_output: None });
+                                    let content = mcp_titles.remove(&call).and(frame.output);
+                                    let _ = events.send(BackendEvent::ToolComplete { call_id: call, status, content, raw_output: None });
                                 }
                                 "stream_end" if pending.is_empty() => {
+                                    #[cfg(unix)]
+                                    if let Some(broker) = process.mcp.as_ref() { broker.clear_approvals(); }
                                     let _ = events.send(BackendEvent::Terminal(BackendTermination::EndTurn)); return Ok(());
                                 }
                                 "info" => {},

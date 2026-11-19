@@ -32,7 +32,9 @@ fn root() -> Result<PathBuf, String> {
 }
 fn installed_directory(agent: &str, contract: &Contract) -> Result<PathBuf, String> {
     // Install revised contracts beside their prior reviewed runtimes.
-    let revision = if agent == "droid" {
+    let revision = if agent == "aionrs" {
+        2
+    } else if agent == "droid" {
         2
     } else if agent == "deepagents" {
         4

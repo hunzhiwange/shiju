@@ -56,6 +56,7 @@ struct ServerState {
     capacity: Arc<Semaphore>,
     control_capacity: Arc<Semaphore>,
     rate: parking_lot::Mutex<(Instant, u32)>,
+    aionrs_mcp: Arc<std::sync::OnceLock<crate::aionrs_mcp::Socket>>,
 }
 
 /// A dedicated listener per capability makes tokens unusable against other sessions.
@@ -64,6 +65,7 @@ pub struct RelayServer {
     address: SocketAddr,
     binding: Arc<RelayBinding>,
     task: Option<JoinHandle<std::io::Result<()>>>,
+    aionrs_mcp: Arc<std::sync::OnceLock<crate::aionrs_mcp::Socket>>,
 }
 impl RelayServer {
     pub async fn start(
@@ -86,7 +88,9 @@ impl RelayServer {
         );
         let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let address = listener.local_addr()?;
+        let aionrs_mcp = Arc::new(std::sync::OnceLock::new());
         let state = Arc::new(ServerState {
+            aionrs_mcp: aionrs_mcp.clone(),
             binding: binding.clone(),
             backend,
             host,
@@ -97,6 +101,7 @@ impl RelayServer {
         let router = Router::new()
             .route("/", post(handle))
             .route("/v1/chat/completions", post(handle))
+            .route("/shiju/aionrs/mcp/{mount}", post(handle))
             .route("/v1/onerouter/chat/completions", post(handle))
             .route("/v1/onerouter/models", get(handle))
             .route("/v1/messages", post(handle_messages))
@@ -135,8 +140,13 @@ impl RelayServer {
                 })
                 .await
         });
-        Ok(Self { address, binding, task: Some(task) })
+        Ok(Self { address, binding, task: Some(task), aionrs_mcp })
     }
+    pub fn bind_aionrs_mcp(&self, path: std::path::PathBuf, token: String) -> anyhow::Result<()> {
+        anyhow::ensure!(self.binding.identity().session.ends_with(":aionrs"), "aionrs relay binding required");
+        self.aionrs_mcp.set(crate::aionrs_mcp::Socket { path, token }).map_err(|_| anyhow::anyhow!("aionrs MCP socket already bound"))
+    }
+
     pub fn address(&self) -> SocketAddr {
         self.address
     }
@@ -209,6 +219,21 @@ async fn handle(State(state): State<Arc<ServerState>>, request: Request) -> Resp
     };
     if !state.binding.accepts(token, state.binding.identity()) {
         return StatusCode::UNAUTHORIZED.into_response();
+    }
+    if let Some(mount) = request.uri().path().strip_prefix("/shiju/aionrs/mcp/") {
+        let (Ok(mount), Some(socket)) = (mount.parse::<usize>(), state.aionrs_mcp.get()) else {
+            return StatusCode::NOT_FOUND.into_response();
+        };
+        if !socket.path.exists() {
+            return StatusCode::NOT_FOUND.into_response();
+        }
+        let Ok(_permit) = state.control_capacity.clone().try_acquire_owned() else {
+            return StatusCode::TOO_MANY_REQUESTS.into_response();
+        };
+        return tokio::select! {
+            () = state.binding.cancelled().cancelled() => StatusCode::UNAUTHORIZED.into_response(),
+            response = crate::aionrs_mcp::handle(socket, mount, request) => response,
+        };
     }
     let corust = state.binding.identity().session.ends_with(":corust-agent");
     if corust && request.uri().path() == "/v1/onerouter/models" {
@@ -301,6 +326,8 @@ async fn handle(State(state): State<Arc<ServerState>>, request: Request) -> Resp
     let mut guard = RequestGuard { cancel: cancel.clone(), _permit: permit, usage };
     let deadline = Instant::now() + REQUEST_TIMEOUT;
     let deadline = state.binding.expires().map_or(deadline, |expires| expires.min(deadline));
+    let aionrs = path == "/v1/chat/completions"
+        && state.binding.identity().session.ends_with(":aionrs");
     let response = async {
         let body = to_bytes(request.into_body(), BODY_LIMIT)
             .await
@@ -344,13 +371,9 @@ async fn handle(State(state): State<Arc<ServerState>>, request: Request) -> Resp
         if vtcode {
             retain_vtcode_tools(&mut json);
         }
-        let aionrs = path == "/v1/chat/completions"
-            && state.binding.identity().session.ends_with(":aionrs");
-        if aionrs && let Some(tools) = json.get_mut("tools").and_then(serde_json::Value::as_array_mut) {
-            tools.retain(|tool| matches!(
-                tool.pointer("/function/name").and_then(serde_json::Value::as_str),
-                Some("Read" | "Write" | "Edit" | "Glob")
-            ));
+
+        if aionrs {
+            crate::aionrs_mcp::retain_tools(state.aionrs_mcp.get(), &mut json).await?;
         }
         if corust && let Some(tools) = json.get_mut("tools").and_then(serde_json::Value::as_array_mut) {
             tools.retain(|tool| matches!(
@@ -421,6 +444,13 @@ async fn handle(State(state): State<Arc<ServerState>>, request: Request) -> Resp
     let usage = guard.usage.take();
     let (mut parts, body) = response.into_parts();
     let content_type = parts.headers.get(axum::http::header::CONTENT_TYPE).cloned();
+    let body = if aionrs && content_type.as_ref().and_then(|value| value.to_str().ok())
+        .is_some_and(|value| value.starts_with("text/event-stream"))
+    {
+        crate::aionrs_stream::separate_inline_reasoning(body)
+    } else {
+        body
+    };
     parts.headers.clear();
     if let Some(value) = content_type {
         parts.headers.insert(axum::http::header::CONTENT_TYPE, value);

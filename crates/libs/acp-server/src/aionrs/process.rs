@@ -19,6 +19,8 @@ pub(super) fn reviewed_ready(frame: Frame) -> bool {
 }
 
 pub struct Process {
+    #[cfg(unix)]
+    pub mcp: Option<super::mcp::Broker>,
     pub child: Child,
     pub workspace: std::path::PathBuf,
     input: ChildStdin,
@@ -116,6 +118,8 @@ impl Process {
         let input = child.stdin.take().ok_or_else(|| failure("stdin"))?;
         let output = BufReader::new(child.stdout.take().ok_or_else(|| failure("stdout"))?);
         let mut process = Self {
+            #[cfg(unix)]
+            mcp: None,
             child,
             workspace: cwd.to_path_buf(),
             input,
@@ -160,7 +164,42 @@ impl Process {
         .await
         .map_err(failure)?
     }
+    #[cfg(unix)]
+    pub async fn attach_mcp(
+        &mut self,
+        servers: Vec<agent_client_protocol::McpServer>,
+    ) -> Result<(), BackendError> {
+        let socket = std::env::var_os("SHIJU_AIONRS_MCP")
+            .ok_or_else(|| BackendError::InvalidRequest("aionrs MCP requires the managed model relay".into()))?;
+        let endpoint = std::env::var("BASE_URL").map_err(failure)?;
+        let token = std::env::var("API_KEY").map_err(failure)?;
+        let endpoint = endpoint.strip_suffix("/v1").ok_or_else(|| failure("invalid managed MCP relay"))?;
+        let broker_token = std::env::var("SHIJU_AIONRS_MCP_TOKEN").map_err(failure)?;
+        let count = servers.len();
+        self.mcp = Some(super::mcp::Broker::start(socket.into(), broker_token, &self.workspace, servers)?);
+        for mount in 0..count {
+            let name = format!("mount-{mount}");
+            self.send(serde_json::json!({
+                "type": "add_mcp_server",
+                "name": name,
+                "transport": "streamable-http",
+                "url": format!("{endpoint}/shiju/aionrs/mcp/{mount}"),
+                "headers": { "Authorization": format!("Bearer {token}") },
+            })).await?;
+            let ready = tokio::time::timeout(Duration::from_secs(20), self.read())
+                .await.map_err(failure)??;
+            if ready.kind != "mcp_ready" || ready.name.as_deref() != Some(name.as_str())
+                || ready.tools.as_ref().is_none_or(|tools| tools.is_empty())
+            {
+                return Err(failure("MCP discovery failed"));
+            }
+        }
+        Ok(())
+    }
+
     pub async fn kill(&mut self) {
+        #[cfg(unix)]
+        drop(self.mcp.take());
         self.kill_tree();
         let _ = self.child.kill().await;
         let _ = self.child.wait().await;

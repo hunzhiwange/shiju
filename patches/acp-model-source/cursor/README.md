@@ -6,7 +6,7 @@
 
 本模式公布前台 `shell` 和 Cursor 从当前 ACP 会话发现的 MCP 工具。工具调用使用会话工具目录中的标识，经原生执行器和审批处理。ACP 工具完成事件携带原生 MCP 结果，并报告执行错误及拒绝状态。图片、总结历史、非 agent 模式、未知历史节点、并行工具及非正常流终态仍明确拒绝。原生 CLI-local 路径沿用原实现。加载会话时从原生历史恢复工具 ID、结果与推理，当前工具目录由本次 ACP 会话的挂载决定。
 
-MCP 适配安装在独立的 `model-source-v2` 目录。已有 v1 安装可通过 ACP 系统安装入口安装新版本。
+当前适配安装在独立的 `model-source-v3` 目录，可通过 ACP 系统安装入口取得。每轮最多执行 64 次工具。达到上限时，适配器使用已有工具结果发起一次禁止再调用工具的收尾推理。若模型仍请求执行工具，该轮报错。
 
 `SHIJU_CURSOR_MODEL_CONFIG` 只携带权限为 0600 的私有配置路径。配置包含选定模型、本机会话中继地址、可撤销短期令牌与输出上限；原始上游密钥不会交给 Cursor。Cursor 配置与历史使用独立目录，内存凭据存储避免读取用户登录令牌。受管子进程不继承云认证、Node 注入与代理环境；工具审批继续通过当前 ACP 客户端，未添加 force/yolo 或跳过审批。
 
@@ -16,6 +16,8 @@ MCP 适配安装在独立的 `model-source-v2` 目录。已有 v1 安装可通�
 node --test patches/acp-model-source/cursor/session-model.test.cjs
 python3 scripts/acp_model_source_cursor_tests.py /absolute/path/to/reviewed/cursor-agent
 python3 scripts/acp_model_source_cursor_tests.py /absolute/path/to/reviewed/cursor-agent --deny
+python3 scripts/acp_model_source_cursor_tests.py /absolute/path/to/reviewed/cursor-agent --step-limit
+python3 scripts/acp_model_source_cursor_tests.py /absolute/path/to/reviewed/cursor-agent --refuse-final-tool
 ```
 
 原生回合验证覆盖选定模型、中文 SSE、推理与工具结果续接、会话加载后的历史恢复，以及允许/拒绝审批后的实际文件状态。真实指定模型的编辑器创建证据记于 `docs/dev/acp/ACP验收.md`，不以模拟模型测试代替真实验收。

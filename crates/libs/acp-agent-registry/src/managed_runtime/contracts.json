@@ -652,7 +652,7 @@
       "dist-package/node_modules/node-gyp-build/package.json": "9e8def3fbf123e28aa1ca4b6aa557fba4e66eecf6e86d170b61ec1c7ed51305d",
       "dist-package/node_modules/node-gyp-build/SECURITY.md": "994ea9cf579d2164b7736a6728ba48773ae78b0ae8f20290bee63fc62bb7362e",
       "dist-package/node_modules/node-gyp-build/node-gyp-build.js": "134f0585f7c665db89f332a379158c6f113274422e42aaf54e0aa9d5ac37f577",
-      "dist-package/session-model.cjs": "93232608f3dcd50169fb76fa52493a4e86185bf0063503aa5fdf52ea76ce0545"
+      "dist-package/session-model.cjs": "d99afeab15f835248531d23d56c6842be48bc2f8395d62567fab521b006e5997"
     }
   },
   "droid": {

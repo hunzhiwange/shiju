@@ -2,6 +2,7 @@
 'use strict';
 const { readFileSync, lstatSync } = require('node:fs');
 const { createHash } = require('node:crypto');
+const toolStepLimit = 64;
 
 function validateConfig(c) {
   const u = new URL(c.endpoint);
@@ -152,7 +153,15 @@ async function run(api, ctx, state, action, model, updates, resources, blobs, ac
   const cwd = store.getMetadata('workspacePath') ?? process.cwd();
   const mountedTools = mcpTools(mcp);
   const tools = [tool, ...Array.from(mountedTools.values(), entry => entry.definition)];
-  const messages = [{ role: 'system', content: 'You are Cursor, a coding assistant. Use the available tools as requested. Follow the user write scope. When using the shell tool, run foreground commands only.\nWorkspace and rules:\n' + JSON.stringify(requestContext?.toJson() ?? {}) },
+  const messages = [{ role: 'system', content: [
+    'You are Cursor, a coding assistant. Use the available tools as requested. Follow the user write scope.',
+    'When using the shell tool, run foreground commands only.',
+    'If the user specifies an exact fallback response and its condition is met, return only that response.',
+    'Stop gathering evidence once it answers the request. Prefer existing tool results to redundant lookups.',
+    'For proposed checks, state the setup and what distinguishes each outcome. Report predictions as predictions.',
+    'Workspace and rules:',
+    JSON.stringify(requestContext?.toJson() ?? {}),
+  ].join('\n') },
     ...history(await store.getFullConversation(ctx)), { role: 'user', content: user.text }];
   const make = (name, value) => proto(api.pb, name).fromJson(value);
   const put = async value => {
@@ -169,11 +178,17 @@ async function run(api, ctx, state, action, model, updates, resources, blobs, ac
   const exec = api.exec.fromResources(resources);
   await updates.sendUpdate(ctx, api.updates.userMessageAppended(user));
   try {
-    for (let index = 0; index < 64; index++) {
+    for (let index = 0; index <= toolStepLimit; index++) {
       ctx.signal.throwIfAborted();
+      const finalOnly = index === toolStepLimit;
+      const requestMessages = finalOnly ? [
+        { ...messages[0], content: messages[0].content + '\nThe tool execution limit has been reached. Answer using the results already collected and identify any remaining gaps.' },
+        ...messages.slice(1),
+      ] : messages;
       const response = await fetch(new URL('v1/chat/completions', c.endpoint), {
         method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${c.token}` },
-        body: JSON.stringify({ model: c.model, messages, tools, parallel_tool_calls: false, stream: true, max_tokens: c.outputLimit }),
+        body: JSON.stringify({ model: c.model, messages: requestMessages, tools, parallel_tool_calls: false,
+          ...(finalOnly ? { tool_choice: 'none' } : {}), stream: true, max_tokens: c.outputLimit }),
         signal: ctx.signal, redirect: 'error',
       });
       if (!response.ok) { await response.body?.cancel(); throw new Error(`Cursor model request failed (HTTP ${response.status})`); }
@@ -189,6 +204,7 @@ async function run(api, ctx, state, action, model, updates, resources, blobs, ac
         if (!result.content) throw new Error('Cursor empty assistant completion');
         await save(); await updates.sendUpdate(ctx, api.updates.turnEnded()); return;
       }
+      if (finalOnly) throw new Error('Cursor model requested a tool after reaching the step limit');
       const call = result.call;
       const mounted = mountedTools.get(call.name);
       const args = mounted ? mcpArgs(call, mounted.target) : shellArgs(call, cwd);
@@ -216,7 +232,6 @@ async function run(api, ctx, state, action, model, updates, resources, blobs, ac
         tool_calls: [{ id: call.id, type: 'function', function: { name: call.name, arguments: call.arguments } }] },
       { role: 'tool', tool_call_id: call.id, content: JSON.stringify(toolResult.toJson()) });
     }
-    throw new Error('Cursor session model step limit exceeded');
   } catch (error) { await save(); throw error; }
 }
 

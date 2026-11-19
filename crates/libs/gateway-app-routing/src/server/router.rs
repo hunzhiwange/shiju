@@ -7,18 +7,18 @@ pub fn router() -> axum::Router {
         routing::{get, post},
     };
 
-    use super::{get_client_host, put_client_host, status, health, request_status};
+    use super::{get_client_host, health, put_client_host, request_status};
     use super::lifecycle_api::RoutingControl;
     use axum::{Router, middleware};
     use super::config_api::*;
-    use super::lifecycle_api::{start, stop};
+    use super::lifecycle_api::{start, status, stop};
     use super::outbound_api::*;
     use super::outbound_probe::*;
     use super::outbound_scan::*;
     use super::mode_attach::attach_mode;
     Router::new()
         .route("/app-routing/hosts/{host}/client-host", get(get_client_host::<RoutingControl>).put(put_client_host::<RoutingControl>))
-        .route("/app-routing/hosts/{host}/status", get(status::<RoutingControl>))
+        .route("/app-routing/hosts/{host}/status", get(status))
         .route("/app-routing/hosts/{host}/projects/{project}/apps/{app}/mode", post(attach_mode))
         .route("/app-routing/hosts/{host}/projects/{project}/apps/{app}/requests", get(request_status::<RoutingControl>))
         .route(

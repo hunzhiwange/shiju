@@ -39,6 +39,7 @@ pub struct State {
     value: Option<Value>,
     fields: [String; 3],
     error: Option<String>,
+    logging: bool,
 }
 #[derive(Clone, Debug)]
 pub enum Event {
@@ -54,6 +55,13 @@ pub enum Event {
 type Message = lifecycle::Event;
 fn message(event: Event) -> Message { lifecycle::Event::Config(event) }
 impl State {
+    pub(super) fn is_open(&self) -> bool {
+        self.open
+    }
+    pub(super) fn is_busy(&self) -> bool {
+        self.busy
+    }
+
     pub(super) fn next_serial(&self) -> u64 {
         self.serial.wrapping_add(1)
     }
@@ -72,6 +80,10 @@ impl State {
                 config.listen_address =
                     self.fields[0].trim().parse().map_err(|_| "请输入有效 IP 地址")?;
                 config.listen_port = number(1)?;
+                if (1..1024).contains(&config.listen_port) {
+                    return Err("监听端口须为 0 或 1024–65535".into());
+                }
+                config.logging_enabled = self.logging;
                 Ok(Value::Listener(config))
             }
             Value::ClientHost(mut config) => {
@@ -106,10 +118,40 @@ impl State {
                 c.non_streaming_timeout_secs.to_string(),
             ],
         };
+        if let Value::Listener(config) = &value {
+            self.logging = config.logging_enabled;
+        }
         self.value = Some(value);
     }
 }
 pub fn update(state: &mut State, context: Option<Context>, project: Option<String>, token: &str, client: Option<vw_gateway_client::GatewayClient>, notice: &mut Option<crate::Notice>, event: Event) -> Task<Message> {
+    update_settings(state, context, project, token, client, notice, event, false)
+}
+
+pub(super) fn update_inline(
+    state: &mut State,
+    context: Option<Context>,
+    project: Option<String>,
+    token: &str,
+    client: Option<vw_gateway_client::GatewayClient>,
+    notice: &mut Option<crate::Notice>,
+    event: Event,
+) -> Task<Message> {
+    update_settings(state, context, project, token, client, notice, event, true)
+}
+
+fn update_settings(
+    state: &mut State,
+    context: Option<Context>,
+    project: Option<String>,
+    token: &str,
+    client: Option<vw_gateway_client::GatewayClient>,
+    notice: &mut Option<crate::Notice>,
+    event: Event,
+    inline: bool,
+) -> Task<Message> {
+    let message: fn(Event) -> Message =
+        if inline { lifecycle::Event::Listener } else { lifecycle::Event::Config };
     let project = Some(vw_api_transport::local_settings_project(project.as_deref()).to_owned());
     let Some(context) = context else {
         return Task::none();
@@ -154,16 +196,18 @@ pub fn update(state: &mut State, context: Option<Context>, project: Option<Strin
                 Ok(value) => {
                     state.load(value);
                     state.error = None;
-                    if saving {
+                    if saving && !inline {
                         state.open = false;
-                        if state.target == Target::Listener {
-                            return Task::done(lifecycle::Event::Run(lifecycle::Operation::Refresh));
-                        }
+                    }
+                    if saving && state.target == Target::Listener {
+                        return Task::done(lifecycle::Event::Run(lifecycle::Operation::Refresh));
                     }
                 }
                 Err(error) => {
                     state.error = Some(error.clone());
-                    return crate::error(notice, error);
+                    if !inline {
+                        return crate::error(notice, error);
+                    }
                 }
             }
             return Task::none();
@@ -186,8 +230,8 @@ pub fn update(state: &mut State, context: Option<Context>, project: Option<Strin
                 && state.context.as_ref() == Some(&context)
                 && state.project == project
             {
-                if let Some(Value::Listener(config)) = &mut state.value {
-                    config.logging_enabled = enabled;
+                if matches!(state.value, Some(Value::Listener(_))) {
+                    state.logging = enabled;
                     state.error = None;
                 }
             }
@@ -269,6 +313,97 @@ pub fn update(state: &mut State, context: Option<Context>, project: Option<Strin
         message,
     )
 }
+pub(super) fn listener_fields(
+    state: &State,
+    service: Option<vw_api_app_routing::RoutingState>,
+) -> Element<'_, Message> {
+    use iced::Length;
+
+    let Some(Value::Listener(saved)) = &state.value else {
+        return inline_status(state);
+    };
+    let ready = !state.busy && service.is_some();
+    let bind_changed = state.fields[0] != saved.listen_address.to_string()
+        || state.fields[1] != saved.listen_port.to_string();
+    let changed = bind_changed || state.logging != saved.logging_enabled;
+    let controls = move || {
+        let field = |index: usize, label: &'static str, hint: &'static str| {
+            column![
+                settings_field_label(label),
+                settings_text_input("", &state.fields[index]).on_input_maybe(ready.then_some(
+                    move |value| { lifecycle::Event::Listener(Event::Edit(index, value)) }
+                )),
+                text(hint).size(12).style(settings_muted_text_style),
+            ]
+            .spacing(5)
+            .width(Length::Fill)
+        };
+        let save = button(
+            text(if bind_changed && service == Some(vw_api_app_routing::RoutingState::Running) {
+                "保存并重启"
+            } else {
+                "保存"
+            })
+            .size(SETTINGS_CONTROL_TEXT_SIZE),
+        )
+        .padding([8, 12])
+        .style(rounded_action_btn_style)
+        .on_press_maybe((ready && changed).then_some(lifecycle::Event::Listener(Event::Save)));
+        column![
+            row![field(0, "监听地址", "推荐 127.0.0.1"), field(1, "监听端口", "0 或 1024–65535")]
+                .spacing(10),
+            container(save).align_right(Length::Fill),
+        ]
+        .spacing(8)
+    };
+    let mut fields =
+        column![container(settings_responsive_row("监听设置", "", controls)).padding([12, 0]),];
+    if state.error.is_some() {
+        fields = fields.push(inline_status(state));
+    }
+    fields.into()
+}
+
+pub(super) fn logging_field(state: &State, enabled: bool) -> Element<'_, Message> {
+    settings_row(
+        "记录路由请求",
+        "通过监听设置的「保存」提交",
+        44.0,
+        settings_toggle(state.logging).on_toggle_maybe(
+            (enabled && state.value.is_some() && !state.busy)
+                .then_some(|enabled| lifecycle::Event::Listener(Event::Logging(enabled))),
+        ),
+    )
+}
+
+pub(super) fn client_host_field(state: &State) -> Element<'_, Message> {
+    let host = match &state.value {
+        Some(Value::Listener(config)) => {
+            vw_api_app_routing::routing_client_host_from_bind(config.listen_address)
+        }
+        _ => String::new(),
+    };
+    settings_responsive_row("连接地址", "由保存的监听地址推导", move || {
+        settings_text_input("等待监听设置", &host)
+    })
+}
+
+fn inline_status(state: &State) -> Element<'_, Message> {
+    let mut content = column![].spacing(8);
+    if let Some(error) = &state.error {
+        content = content.push(settings_error_banner(error));
+        content = content.push(
+            button(text("重新读取").size(SETTINGS_CONTROL_TEXT_SIZE))
+                .padding([8, 12])
+                .style(rounded_action_btn_style)
+                .on_press(lifecycle::Event::Listener(Event::Reload)),
+        );
+    } else {
+        content = content.push(text("正在读取…").size(13).style(settings_muted_text_style));
+    }
+    container(content).padding([12, 0]).into()
+}
+
 pub fn timeout_button(id: AppId) -> Element<'static, Message> {
     button(text("应用路由超时"))
         .padding([8, 12])
@@ -318,12 +453,12 @@ pub fn overlay<'a>(
             body = body.push(column![text(*label), input].spacing(6));
         }
     }
-    if let Some(Value::Listener(config)) = &state.value {
+    if matches!(state.value, Some(Value::Listener(_))) {
         body = body.push(settings_row(
             "记录路由请求",
             "将已授权请求写入路由日志。",
             48.0,
-            settings_toggle(config.logging_enabled)
+            settings_toggle(state.logging)
                 .on_toggle_maybe((!state.busy).then_some(|value| message(Event::Logging(value)))),
         ));
     }

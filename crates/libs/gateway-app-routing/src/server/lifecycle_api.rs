@@ -354,6 +354,9 @@ pub async fn status(
     host: Path<String>,
     headers: HeaderMap,
 ) -> Result<Json<RoutingStatus>, ControlError> {
+    if control.is_none() {
+        return Err(ControlError::ControlNotConfigured);
+    }
     super::status(control, tenant, host, headers).await
 }
 

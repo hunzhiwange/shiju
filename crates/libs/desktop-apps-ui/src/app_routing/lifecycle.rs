@@ -21,6 +21,9 @@ pub struct Context {
 pub struct State {
     pub(super) requests: super::requests::State,
     pub(super) config: super::config::State,
+    listener: super::config::State,
+    attached: Option<(Vec<vw_api_app_identity::AppId>, bool)>,
+    unconfigured: bool,
     pub(super) outbound: super::outbound::State,
     context: Option<Context>,
     serial: u64,
@@ -41,9 +44,18 @@ pub enum Operation {
 pub enum Event {
     Requests(super::requests::Event),
     Config(super::config::Event),
+    Listener(super::config::Event),
+    InspectPage,
+    Attached(Context, u64, vw_api_transport::id::ProjectId, Vec<vw_api_app_identity::AppId>, bool),
     Outbound(super::outbound::Event),
     Run(Operation),
-    Loaded(Context, u64, Result<(RoutingStatus, RoutingHealth), String>),
+    Loaded(Context, u64, Result<(RoutingStatus, RoutingHealth), StatusFailure>),
+}
+
+#[derive(Clone, Debug)]
+pub enum StatusFailure {
+    Unconfigured,
+    Request(String),
 }
 
 impl State {
@@ -59,6 +71,7 @@ impl State {
             requests,
             outbound,
             config: super::config::State::with_serial(config_serial),
+            listener: super::config::State::with_serial(self.listener.next_serial()),
             ..Default::default()
         };
     }
@@ -67,12 +80,13 @@ impl State {
         &mut self,
         context: &Context,
         serial: u64,
-        result: Result<(RoutingStatus, RoutingHealth), String>,
+        result: Result<(RoutingStatus, RoutingHealth), StatusFailure>,
     ) -> bool {
         if self.context.as_ref() != Some(context) || self.serial != serial || !self.busy {
             return false;
         }
         self.busy = false;
+        self.unconfigured = matches!(&result, Err(StatusFailure::Unconfigured));
         match result {
             Ok((status, health)) => {
                 self.status = Some(status);
@@ -83,7 +97,10 @@ impl State {
                 // A failed command may have reached the host. Never infer its outcome.
                 self.status = None;
                 self.health = None;
-                self.error = Some(error);
+                self.error = match error {
+                    StatusFailure::Unconfigured => None,
+                    StatusFailure::Request(error) => Some(error),
+                };
             }
         }
         true
@@ -106,6 +123,7 @@ pub(super) fn error_message(error: AppRoutingError) -> String {
         AppRoutingError::Http { status, body } => {
             // Only interpret known codes; never render arbitrary response payloads.
             let reason = match body.as_ref().map(|b| b.error.code.as_str()) {
+                Some("config_not_applied") => "监听设置无法应用，请检查端口占用及应用接入状态",
                 Some("address_in_use") => "监听地址已占用",
                 Some("apps_attached") => "仍有应用接入，请先退出路由模式",
                 Some("transition_in_progress") => "服务正在切换，请稍后刷新",
@@ -125,7 +143,7 @@ async fn request(
     host: String,
     token: String,
     operation: Operation,
-) -> Result<(RoutingStatus, RoutingHealth), String> {
+) -> Result<(RoutingStatus, RoutingHealth), StatusFailure> {
     let client = gateway_app_routing::GatewayAppRoutingClient::new(client.transport().clone());
     // A bound encompasses both status and health, including the command response.
     #[cfg(not(target_arch = "wasm32"))]
@@ -136,7 +154,22 @@ async fn request(
                 Operation::Start => client.app_routing_start(&host, &token).await,
                 Operation::Stop => client.app_routing_stop(&host, &token).await,
             }
-            .map_err(error_message)?;
+            .map_err(|error| match &error {
+                AppRoutingError::Http { status: 503, body: Some(body) }
+                    if matches!(operation, Operation::Refresh)
+                        && body.error.code == "routing_control_not_configured" =>
+                {
+                    StatusFailure::Unconfigured
+                }
+                AppRoutingError::Http { status: 503, .. }
+                    if matches!(operation, Operation::Refresh) =>
+                {
+                    StatusFailure::Request(
+                        "网关暂时无法读取路由状态，请检查路由授权与网关连接后刷新。".into(),
+                    )
+                }
+                _ => StatusFailure::Request(error_message(error)),
+            })?;
             let health = if status.state == RoutingState::Running {
                 match client.app_routing_health(&host, &token).await {
                     Ok(health) => health,
@@ -145,7 +178,7 @@ async fn request(
                     {
                         RoutingHealth { ready: false }
                     }
-                    Err(error) => return Err(error_message(error)),
+                    Err(error) => return Err(StatusFailure::Request(error_message(error))),
                 }
             } else {
                 RoutingHealth { ready: false }
@@ -153,16 +186,25 @@ async fn request(
             Ok((status, health))
         })
         .await
-        .map_err(|_| "服务请求超时，操作结果未知，请刷新确认".to_string())?
+        .map_err(|_| StatusFailure::Request("服务请求超时，请刷新确认".into()))?
     }
     #[cfg(target_arch = "wasm32")]
     {
         let _ = (client, host, token, operation);
-        Err(error_message(AppRoutingError::Transport))
+        Err(StatusFailure::Request(error_message(AppRoutingError::Transport)))
     }
 }
 
-pub fn update(state: &mut State, context: Option<Context>, project: Option<String>, token: &str, client: Option<vw_gateway_client::GatewayClient>, notice: &mut Option<crate::Notice>, event: Event) -> Task<Message> {
+pub fn update(
+    state: &mut State,
+    context: Option<Context>,
+    project: Option<String>,
+    token: &str,
+    client: Option<vw_gateway_client::GatewayClient>,
+    notice: &mut Option<crate::Notice>,
+    event: Event,
+    inline_page: bool,
+) -> Task<Message> {
     if let Event::Requests(event) = event {
         return super::requests::update(&mut state.requests, context, project, token, client, notice, event);
     }
@@ -172,16 +214,65 @@ pub fn update(state: &mut State, context: Option<Context>, project: Option<Strin
     if let Event::Config(event) = event {
         return super::config::update(&mut state.config, context, project, token, client, notice, event);
     }
+    match event {
+        Event::Listener(event) => {
+            return super::config::update_inline(
+                &mut state.listener,
+                context,
+                project,
+                token,
+                client,
+                notice,
+                event,
+            );
+        }
+        _ => {}
+    }
     let Some(context) = context else {
         return Task::none();
     };
     match event {
-        Event::Requests(_) | Event::Config(_) | Event::Outbound(_) => unreachable!(),
+        Event::Requests(_) | Event::Config(_) | Event::Outbound(_) | Event::Listener(_) => {
+            unreachable!()
+        }
+        Event::InspectPage => {
+            if !inline_page || state.context.as_ref() != Some(&context) || state.busy {
+                return Task::none();
+            }
+            let mut tasks = Vec::new();
+            if state.status.is_some() && !state.listener.is_open() {
+                tasks.push(Task::done(Event::Listener(super::config::Event::Open(None))));
+            }
+            if let Some(client) = client {
+                state.attached = None;
+                let scope = vw_api_app_aggregation::AggregationQuery {
+                    target_host_id: context.host.clone(),
+                    project_id: vw_api_transport::local_settings_project(project.as_deref()).into(),
+                };
+                let serial = state.serial;
+                let project = scope.project_id.clone();
+                tasks.push(Task::perform(attached_apps(client, scope), move |(apps, complete)| {
+                    Event::Attached(context.clone(), serial, project.clone(), apps, complete)
+                }));
+            }
+            Task::batch(tasks)
+        }
+        Event::Attached(request, serial, request_project, apps, complete) => {
+            if request == context
+                && state.context.as_ref() == Some(&request)
+                && serial == state.serial
+                && vw_api_transport::local_settings_project(project.as_deref())
+                    == request_project.as_ref()
+            {
+                state.attached = Some((apps, complete));
+            }
+            Task::none()
+        }
         Event::Run(operation) => {
             if state.context.as_ref() != Some(&context) {
                 state.invalidate();
             }
-            if state.busy {
+            if state.busy || (inline_page && state.listener.is_busy()) {
                 return Task::none();
             }
             if !matches!(operation, Operation::Refresh) && !can_control(state, operation) {
@@ -197,6 +288,8 @@ pub fn update(state: &mut State, context: Option<Context>, project: Option<Strin
             state.status = None;
             state.health = None;
             state.error = None;
+            state.unconfigured = false;
+            state.attached = None;
             let serial = state.serial;
             let token = token.to_owned();
             Task::perform(
@@ -212,6 +305,9 @@ pub fn update(state: &mut State, context: Option<Context>, project: Option<Strin
                 return Task::none();
             }
             if state.finish(&request, serial, result) {
+                if inline_page {
+                    return Task::done(Event::InspectPage);
+                }
                 if let Some(error) = state.error.clone() {
                     return crate::error(notice, error);
                 }
@@ -222,7 +318,7 @@ pub fn update(state: &mut State, context: Option<Context>, project: Option<Strin
 }
 
 fn can_control(state: &State, operation: Operation) -> bool {
-    if state.busy {
+    if state.busy || state.listener.is_busy() {
         return false;
     }
     match (operation, state.status.as_ref().map(|s| s.state)) {
@@ -233,85 +329,183 @@ fn can_control(state: &State, operation: Operation) -> bool {
 }
 
 pub fn view(state: &State, context: Option<Context>) -> Element<'_, Message> {
+    service_view(state, context, false)
+}
+
+pub fn page_service(state: &State, context: Option<Context>) -> Element<'_, Message> {
+    service_view(state, context, true)
+}
+
+fn service_view(state: &State, context: Option<Context>, inline: bool) -> Element<'_, Message> {
     let connected = context.is_some();
     let fresh = connected && state.context == context;
     let status = state.status.as_ref().filter(|_| fresh);
-    let label = if fresh && state.busy {
-        "正在请求"
+    let label = if fresh && state.unconfigured {
+        "网关未启用路由管理"
+    } else if fresh && state.busy {
+        "正在处理…"
     } else {
-        match status.map(|s| s.state) {
+        match status.map(|status| status.state) {
             Some(RoutingState::Stopped) => "已停止",
             Some(RoutingState::Starting) => "正在启动",
-            Some(RoutingState::Running) => "运行中",
+            Some(RoutingState::Running) if state.health.is_some_and(|health| health.ready) => {
+                "运行中"
+            }
+            Some(RoutingState::Running) => "运行中 · 尚未就绪",
             Some(RoutingState::Stopping) => "正在停止",
-            Some(RoutingState::Failed) => "失败",
-            None => "未知，请刷新",
+            Some(RoutingState::Failed) => "启动失败",
+            None if !connected => "等待连接执行主机",
+            None => "状态未知",
         }
     };
-    let mut body = column![
-        text("常驻路由服务").size(17),
-        text("关闭桌面窗口后服务继续运行；停止前请先退出应用路由模式。").size(13),
-        text(format!("服务：{label}")),
-        text(match state.health.filter(|_| fresh) {
-            Some(RoutingHealth { ready: true }) => "健康：已就绪",
-            Some(_) => "健康：未就绪",
-            None => "健康：未知",
-        }),
-        text("实际监听地址"),
+    service_card(state, connected, fresh, status, label, inline)
+}
+
+pub fn page_can_configure(state: &State, context: Option<Context>) -> bool {
+    context.is_some() && state.context == context && state.status.is_some()
+}
+
+fn service_card<'a>(
+    state: &'a State,
+    connected: bool,
+    fresh: bool,
+    status: Option<&RoutingStatus>,
+    label: &'static str,
+    inline: bool,
+) -> Element<'a, Message> {
+    use iced::{Alignment, Length, widget::container};
+
+    let mut details = column![
+        text("路由服务").size(15),
+        text(format!("●  {label}")).size(13).style(settings_muted_text_style),
     ]
-    .spacing(8);
+    .width(Length::Fill)
+    .spacing(5);
     if let Some(address) =
         status.and_then(|s| Some(std::net::SocketAddr::new(s.bound_address?, s.bound_port?)))
     {
-        body = body.push(text(address.to_string()).font(iced::Font::MONOSPACE));
-    } else {
-        body = body.push(text("尚未取得实际地址"));
+        details = details.push(text(address.to_string()).size(13).style(settings_muted_text_style));
     }
-    if fresh {
-        if let Some(error) = &state.error {
-            body = body.push(settings_error_banner(error.clone()));
+    let stopping = matches!(status.map(|s| s.state), Some(RoutingState::Running));
+    let operation = if stopping { Operation::Stop } else { Operation::Start };
+    let action =
+        button(text(if stopping { "停止" } else { "启动" }).size(SETTINGS_CONTROL_TEXT_SIZE))
+            .padding([8, 14])
+            .style(rounded_action_btn_style)
+            .on_press_maybe(
+                (fresh && can_control(state, operation)).then_some(Event::Run(operation)),
+            );
+    let refresh = button(text("刷新").size(SETTINGS_CONTROL_TEXT_SIZE))
+        .padding([8, 12])
+        .style(rounded_action_btn_style)
+        .on_press_maybe(
+            (connected && (!fresh || !state.busy && !state.listener.is_busy()))
+                .then_some(Event::Run(Operation::Refresh)),
+        );
+    let mut card = column![
+        container(row![details, refresh, action].spacing(8).align_y(Alignment::Center))
+            .padding([16, 0]),
+    ];
+    if fresh && state.unconfigured {
+        card = card.push(
+            container(
+                text("请检查网关的执行主机策略与路由管理授权，重启网关后刷新。")
+                    .size(13)
+                    .style(settings_muted_text_style),
+            )
+            .padding(iced::padding::bottom(14)),
+        );
+    }
+    if let Some(error) = state.error.as_ref().filter(|_| fresh) {
+        card =
+            card.push(container(settings_error_banner(error)).padding(iced::padding::bottom(14)));
+    }
+    if inline
+        && fresh
+        && !state.unconfigured
+        && (state.status.is_some() || state.busy && state.listener.is_open())
+    {
+        card = card
+            .push(settings_divider())
+            .push(super::config::listener_fields(&state.listener, status.map(|s| s.state)))
+            .push(settings_divider())
+            .push(super::config::client_host_field(&state.listener))
+            .push(settings_divider())
+            .push(super::config::logging_field(&state.listener, status.is_some()));
+    } else if !inline && !state.unconfigured {
+        card = card.push(
+            container(
+                row![
+                    button(text("监听设置"))
+                        .padding([8, 12])
+                        .style(rounded_action_btn_style)
+                        .on_press_maybe(
+                            connected.then_some(Event::Config(super::config::Event::Open(None)))
+                        ),
+                    button(text("连接地址"))
+                        .padding([8, 12])
+                        .style(rounded_action_btn_style)
+                        .on_press_maybe(
+                            connected
+                                .then_some(Event::Config(super::config::Event::OpenClientHost))
+                        ),
+                ]
+                .spacing(8)
+                .wrap(),
+            )
+            .padding(iced::padding::bottom(14)),
+        );
+    }
+    settings_group_card(card).into()
+}
+
+pub fn attached(
+    state: &State,
+    context: Option<Context>,
+) -> Option<(&[vw_api_app_identity::AppId], bool)> {
+    if context.is_none() || state.context != context {
+        return None;
+    }
+    state.attached.as_ref().map(|(apps, complete)| (apps.as_slice(), *complete))
+}
+
+pub const ROUTING_APPS: [vw_api_app_identity::AppId; 4] = {
+    use vw_api_app_identity::AppId::*;
+    [Claude, Codex, Gemini, GrokBuild]
+};
+
+async fn attached_apps(
+    client: GatewayClient,
+    scope: vw_api_app_aggregation::AggregationQuery,
+) -> (Vec<vw_api_app_identity::AppId>, bool) {
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        let [claude, codex, gemini, grok] = ROUTING_APPS;
+        let read = |id| client.aggregation_state(id, &scope);
+        let Ok(results) = tokio::time::timeout(std::time::Duration::from_secs(8), async {
+            let (a, b, c, d) = tokio::join!(read(claude), read(codex), read(gemini), read(grok));
+            [a, b, c, d]
+        })
+        .await
+        else {
+            return (Vec::new(), false);
+        };
+        let mut apps = Vec::new();
+        let mut complete = true;
+        for (id, result) in ROUTING_APPS.into_iter().zip(results) {
+            match result {
+                Ok(state) if state.attached => apps.push(id),
+                Ok(_) => {}
+                _ => complete = false,
+            }
         }
+        (apps, complete)
     }
-    let refresh =
-        button(text("刷新服务")).padding([8, 12]).style(rounded_action_btn_style).on_press_maybe(
-            (connected && (!fresh || !state.busy))
-                .then_some(message(Event::Run(Operation::Refresh))),
-        );
-    let start =
-        button(text("启动服务")).padding([8, 12]).style(primary_action_btn_style).on_press_maybe(
-            (fresh && can_control(state, Operation::Start))
-                .then_some(message(Event::Run(Operation::Start))),
-        );
-    let stop =
-        button(text("停止服务")).padding([8, 12]).style(rounded_action_btn_style).on_press_maybe(
-            (fresh && can_control(state, Operation::Stop))
-                .then_some(message(Event::Run(Operation::Stop))),
-        );
-    settings_panel(
-        body.push(
-            row![
-                refresh,
-                start,
-                stop,
-                button(text("监听设置"))
-                    .padding([8, 12])
-                    .style(rounded_action_btn_style)
-                    .on_press_maybe(
-                        connected
-                            .then_some(message(Event::Config(super::config::Event::Open(None))))
-                    ),
-                button(text("连接地址"))
-                    .padding([8, 12])
-                    .style(rounded_action_btn_style)
-                    .on_press_maybe(
-                        connected.then_some(message(Event::Config(super::config::Event::OpenClientHost)))
-                    )
-            ]
-            .spacing(8)
-            .wrap(),
-        ),
-    )
-    .into()
+    #[cfg(target_arch = "wasm32")]
+    {
+        let _ = (client, scope);
+        (Vec::new(), false)
+    }
 }
 
 #[cfg(test)]

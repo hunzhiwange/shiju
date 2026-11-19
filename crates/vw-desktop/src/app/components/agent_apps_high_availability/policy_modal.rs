@@ -10,17 +10,25 @@ fn message(event: domain::Event) -> Message {
         domain::Event::Reload => policy::Event::Reload,
     })
 }
-pub(crate) fn overlay<'a>(state: &'a State, base: Element<'a, Message>) -> Element<'a, Message> {
-    if !state.open {
-        return base;
-    }
-    let state = domain::State {
+pub(crate) fn inline(state: &State) -> Element<'_, Message> {
+    domain::inline(view_state(state)).map(message)
+}
+
+fn view_state(state: &State) -> domain::State<'_> {
+    domain::State {
         open: state.open,
         busy: state.busy,
         loaded: state.loaded,
         fields: &state.fields,
         error: &state.error,
-    };
+    }
+}
+
+pub(crate) fn overlay<'a>(state: &'a State, base: Element<'a, Message>) -> Element<'a, Message> {
+    if !state.open {
+        return base;
+    }
+    let state = view_state(state);
     iced::widget::stack![
         base,
         domain::overlay(state, iced::widget::Space::new().into()).map(message)

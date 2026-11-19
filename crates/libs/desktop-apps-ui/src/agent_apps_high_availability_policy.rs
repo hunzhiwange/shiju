@@ -16,6 +16,10 @@ pub struct State {
     scope: Option<FailoverQueueQuery>,
 }
 impl State {
+    pub fn selected_app(&self) -> Option<AppId> {
+        self.scope.as_ref().map(|scope| scope.app_id)
+    }
+
     pub fn invalidate(&mut self) {
         *self = Self { generation: self.generation.wrapping_add(1), ..Default::default() };
     }
@@ -95,6 +99,9 @@ pub fn update(input: Input<'_>, event: Event, notice: &mut Option<crate::Notice>
             return Task::none();
         }
         Event::Open(id) => {
+            if state.busy {
+                return Task::none();
+            }
             if !input.requested_app_exists {
                 return crate::error(notice, "请先连接应用管理");
             }

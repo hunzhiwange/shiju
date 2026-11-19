@@ -36,7 +36,7 @@ fn cc_route_088_ui_lifecycle_expected_behavior() {
     assert!(!can_control(&state, Operation::Start));
     state.serial = 2;
     state.busy = true;
-    assert!(state.finish(&context, 2, Err("停止失败，状态未知".into())));
+    assert!(state.finish(&context, 2, Err(StatusFailure::Request("停止失败，状态未知".into()))));
     assert!(state.status.is_none() && state.health.is_none());
     assert_eq!(state.error.as_deref(), Some("停止失败，状态未知"));
     assert!(!can_control(&state, Operation::Stop));
@@ -56,8 +56,8 @@ fn cc_route_088_stale_host_access_and_serial_are_rejected() {
     ));
     other = context.clone();
     other.access += 1;
-    assert!(!state.finish(&other, 9, Err("stale".into())));
-    assert!(!state.finish(&context, 8, Err("stale".into())));
+    assert!(!state.finish(&other, 9, Err(StatusFailure::Request("stale".into()))));
+    assert!(!state.finish(&context, 8, Err(StatusFailure::Request("stale".into()))));
     assert!(state.busy && state.status.is_none() && state.error.is_none());
     state.invalidate();
     assert!(!state.finish(
@@ -85,4 +85,14 @@ fn cc_route_088_errors_do_not_render_server_payloads() {
     });
     assert!(message.contains("监听地址已占用"));
     assert!(!message.contains("fixture-sensitive-payload"));
+}
+
+#[test]
+fn unconfigured_control_has_no_command_error_or_start_action() {
+    let context = context();
+    let mut state = State { context: Some(context.clone()), busy: true, ..Default::default() };
+    assert!(state.finish(&context, 0, Err(StatusFailure::Unconfigured)));
+    assert!(state.unconfigured);
+    assert!(state.error.is_none());
+    assert!(!can_control(&state, Operation::Start));
 }

@@ -232,3 +232,25 @@ async fn cc_route_010_lifecycle_api_expected_behavior() {
     assert_eq!(gateway_app_routing::GatewayAppRoutingClient::new(owner.transport().clone()).app_routing_stop(HOST, MANAGER).await.unwrap(), stopped);
     assert!(tokio::net::TcpStream::connect(address).await.is_err());
 }
+
+#[tokio::test]
+async fn routing_status_identifies_unconfigured_control() {
+    let home = tempfile::TempDir::new().unwrap();
+    let policy = home.path().join("access.json");
+    write_policy(&policy, home.path(), 0);
+    let mut config: Value = serde_json::from_slice(&fs::read(&policy).unwrap()).unwrap();
+    for member in config["principals"].as_array_mut().unwrap() {
+        member["grants"][0]["routing_read"] = json!(false);
+        member["grants"][0]["routing_manage"] = json!(false);
+    }
+    fs::write(&policy, config.to_string()).unwrap();
+
+    let (_gateway, port) = spawn_gateway(home.path(), &policy).await;
+    let gateway = client(port, "owner");
+    let routing = gateway_app_routing::GatewayAppRoutingClient::new(gateway.transport().clone());
+    assert_error(
+        routing.app_routing_status(HOST, MANAGER).await.unwrap_err(),
+        503,
+        "routing_control_not_configured",
+    );
+}

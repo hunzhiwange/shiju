@@ -2,8 +2,9 @@
 use crate::app::{
     App, Message,
     components::{
-        app_routing, openclaw_defaults, openclaw_env, openclaw_model, openclaw_tools,
-        system_settings_apps, system_settings_data as data, system_settings_device_sync,
+        agent_apps_high_availability_policy, app_routing, openclaw_defaults, openclaw_env,
+        openclaw_model, openclaw_tools, system_settings_apps, system_settings_data as data,
+        system_settings_device_sync,
     },
     i18n::I18n,
     message::{ViewMessage, settings::AppsCatalogMessage},
@@ -35,12 +36,17 @@ pub(super) fn view(app: &App, tab: Tab) -> Element<'_, Message> {
             },
         ),
     );
+    let (icon, title) = if tab == Tab::Routing {
+        (Icon::Bezier, "本地路由")
+    } else {
+        (Icon::Sliders, "设置")
+    };
     let heading = row![
-        container(icon_svg(Icon::Sliders, 18.0))
+        container(icon_svg(icon, 18.0))
             .center_x(36)
             .center_y(36)
             .style(settings_content_panel_style),
-        text(i18n.__("设置")).size(25).width(Length::Fill),
+        text(i18n.__(title)).size(25).width(Length::Fill),
     ]
     .spacing(12)
     .align_y(Alignment::Center);
@@ -173,52 +179,131 @@ fn app_heading(id: AppId, name: &str) -> Element<'_, Message> {
 
 fn routing(app: &App) -> Element<'_, Message> {
     let catalog = &app.apps_catalog;
-    let mut entries = column![].spacing(12);
-    let mut routing_apps = catalog
-        .rows
-        .iter()
-        .filter(|row| {
-            matches!(row.entry.id, AppId::Claude | AppId::Codex | AppId::Gemini | AppId::GrokBuild)
-        })
-        .peekable();
-    if routing_apps.peek().is_none() {
-        entries = entries.push(settings_panel(
-            text("应用目录加载后，即可配置支持路由的应用。")
+    column![
+        column![text("服务").size(18), app_routing::lifecycle::inline_service(catalog)].spacing(12),
+        routing_apps(app),
+        failover(app),
+        request_rectification(),
+    ]
+    .spacing(28)
+    .width(Length::Fill)
+    .into()
+}
+
+fn request_rectification() -> Element<'static, Message> {
+    let info = column![
+        text("匹配到以下上游错误时，路由可修复请求并向同一供应商重试一次。")
+            .size(13)
+            .style(settings_muted_text_style),
+        settings_divider(),
+        settings_field_label("Thinking 签名整流"),
+        text("移除不兼容的 Thinking 内容。").size(13).style(settings_muted_text_style),
+        settings_divider(),
+        settings_field_label("Thinking 预算整流"),
+        text("修复预算和输出长度约束。").size(13).style(settings_muted_text_style),
+        settings_divider(),
+        settings_field_label("图片输入降级"),
+        text("用占位文本替换供应商无法接收的图片。").size(13).style(settings_muted_text_style),
+    ]
+    .spacing(9);
+    column![text("请求整流").size(18), settings_group_card(info).padding([16, 22])]
+        .spacing(12)
+        .into()
+}
+
+fn routing_apps(app: &App) -> Element<'_, Message> {
+    let catalog = &app.apps_catalog;
+    let observed = app_routing::lifecycle::attached_apps(catalog);
+    let heading = match observed {
+        Some((apps, true)) => format!("正在使用路由的应用 · {}", apps.len()),
+        _ => "正在使用路由的应用".into(),
+    };
+    let mut list = column![].spacing(10);
+    if let Some((apps, _)) = observed {
+        for &id in apps {
+            let name = catalog
+                .rows
+                .iter()
+                .find(|row| row.entry.id == id)
+                .map(|row| row.entry.name.as_str())
+                .unwrap_or_else(|| routing_app_name(id));
+            list = list.push(
+                button(app_heading(id, name))
+                    .padding([8, 12])
+                    .style(rounded_action_btn_style)
+                    .on_press(super::message(AppsCatalogMessage::SelectApp(id))),
+            );
+        }
+    }
+    let note = match observed {
+        Some(([], true)) => Some("当前项目没有应用接入。可在应用页的「路由」或「聚合」中接入。"),
+        Some((_, false)) => Some("部分应用的接入状态暂不可读。刷新服务后可重试。"),
+        None if catalog.loading => Some("正在读取应用目录…"),
+        None if !catalog.host.is_empty() => {
+            Some("等待当前项目的接入状态。可通过刷新服务重新读取。")
+        }
+        None => Some("连接执行主机后显示当前项目的接入应用。"),
+        _ => None,
+    };
+    if let Some(note) = note {
+        list = list.push(text(note).size(13).style(settings_muted_text_style));
+    }
+    column![text(heading).size(18), settings_group_card(list).padding([14, 22])].spacing(12).into()
+}
+
+fn failover(app: &App) -> Element<'_, Message> {
+    use crate::app::message::agent_apps_high_availability_policy::{self as policy, Event};
+
+    let catalog = &app.apps_catalog;
+    let state = &catalog.high_availability;
+    let available = app_routing::lifecycle::inline_available(catalog);
+    let selected = state.selected_app();
+    let tabs = settings_tab_row(app_routing::lifecycle::ROUTING_APPS.map(|id| {
+        let enabled = available
+            && !state.busy
+            && selected != Some(id)
+            && catalog.rows.iter().any(|row| row.entry.id == id);
+        settings_tab_button(
+            routing_app_name(id),
+            selected == Some(id),
+            enabled.then(|| policy::message(Event::Open(id))),
+        )
+        .into()
+    }));
+    let mut content = column![tabs.wrap()].spacing(14);
+    if state.open && available {
+        content = content.push(agent_apps_high_availability_policy::inline(state));
+    } else if !available {
+        content = content.push(
+            text("路由管理可用后，可按应用调整故障转移策略。")
                 .size(13)
                 .style(settings_muted_text_style),
-        ));
+        );
     }
-    for app in routing_apps {
-        let id = app.entry.id;
-        let policy = button(text("高可用策略").size(SETTINGS_CONTROL_TEXT_SIZE))
-            .padding([8, 12])
-            .style(rounded_action_btn_style)
-            .on_press(crate::app::message::agent_apps_high_availability_policy::message(
-                crate::app::message::agent_apps_high_availability_policy::Event::Open(id),
-            ));
-        entries = entries.push(settings_panel(
-            column![
-                app_heading(id, &app.entry.name),
-                row![
-                    app_routing::config::timeout_button(id),
-                    app_routing::outbound::entry(id),
-                    app_routing::requests::entry(id),
-                    policy,
-                ]
-                .spacing(8)
-                .wrap(),
+    if let Some(id) = selected.filter(|_| available) {
+        content = content.push(
+            row![
+                app_routing::config::timeout_button(id),
+                app_routing::outbound::entry(id),
+                app_routing::requests::entry(id),
             ]
-            .spacing(10),
-        ));
+            .spacing(8)
+            .wrap(),
+        );
     }
+    column![text("自动故障转移").size(18), settings_group_card(content).padding([18, 22]),]
+        .spacing(12)
+        .into()
+}
 
-    column![
-        app_routing::lifecycle::view(catalog),
-        settings_group_heading("应用路由", "按应用调整超时、出站连接和故障转移策略。"),
-        entries,
-    ]
-    .spacing(16)
-    .into()
+fn routing_app_name(id: AppId) -> &'static str {
+    match id {
+        AppId::Claude => "Claude Code",
+        AppId::Codex => "Codex",
+        AppId::Gemini => "Gemini CLI",
+        AppId::GrokBuild => "Grok Build",
+        _ => "应用",
+    }
 }
 
 fn data_settings(app: &App) -> Element<'_, Message> {

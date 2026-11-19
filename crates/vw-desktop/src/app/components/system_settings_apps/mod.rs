@@ -43,7 +43,16 @@ pub(crate) fn view_overlays<'a>(
     let base = crate::app::components::openclaw_defaults::overlay(&state.openclaw_defaults, base);
     let base = crate::app::components::system_settings_prompts::templates::overlay(&state.prompts.templates, base);
     let base = crate::app::components::system_settings_prompts::pi_files::overlay(&state.prompts.pi_files, base);
-    let base = crate::app::components::agent_apps_high_availability_policy::overlay(&state.high_availability, base);
+    use desktop_ui_controls::settings_navigation::{ThirdPartyPage, ThirdPartySettingsTab};
+    let base = if state.third_party_page == ThirdPartyPage::Settings(ThirdPartySettingsTab::Routing)
+    {
+        base
+    } else {
+        crate::app::components::agent_apps_high_availability_policy::overlay(
+            &state.high_availability,
+            base,
+        )
+    };
     let base = commands::overlay(state, base);
     launch::overlay(
         state, i18n, theme,

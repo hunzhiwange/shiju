@@ -23,6 +23,7 @@ pub enum ControlError {
     TransitionInProgress,
     NotReady,
     Unavailable,
+    ControlNotConfigured,
 }
 
 impl From<StatusCode> for ControlError {
@@ -111,6 +112,11 @@ impl IntoResponse for ControlError {
             Self::NotReady => {
                 (StatusCode::SERVICE_UNAVAILABLE, "not_ready", "Routing listener is not running")
             }
+            Self::ControlNotConfigured => (
+                StatusCode::SERVICE_UNAVAILABLE,
+                "routing_control_not_configured",
+                "Application routing control is not configured on this gateway",
+            ),
             Self::Unavailable => (
                 StatusCode::SERVICE_UNAVAILABLE,
                 "unavailable",

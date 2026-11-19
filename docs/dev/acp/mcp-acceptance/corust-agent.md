@@ -69,3 +69,29 @@
 正式网关复验使用共享构建产物，内嵌摘要与当时的四个候选安装文件完全匹配。新版请求 DTO 拒绝旧顶层 `acp_agent`，原请求三轮 HTTP 422。去掉这个字段后，由 `agent=acp-corust-agent` 绑定相同后端，原提示、租户、模型、目录及权限均相同。三轮 HTTP 200，各收到一次 `chat.done`。挂载轮仍无工具，三轮均答 `MCP_NOT_AVAILABLE`。summary 与 ACP options 确认了正确绑定及模型。
 
 用同一网关的私有回环供应商再次定位断点。无挂载与撤除轮的真实出站请求各保留四个原生工具，挂载轮出站工具列表为空。Corust 模型中继的原有白名单过滤了三种新声明。工作区内补上三个受管图谱名称，并保留原生四项白名单及其他工具拒绝。宿主的 `allowedTools` 和 `deniedTools` 经 ACP 元数据转发，受管入口只声明选中的只读工具。正式安装后的七个聚焦场景通过，包括宿主显式拒绝 node 时只向模型声明和执行其余两项。修正后的真实网关挂载轮仍待确认，按用户新标准以执行和结果回传为准。未提交。
+
+包含宿主工具策略的当前四文件安装包，使用相同阿里模型和提示再完成独立 ACP 三轮。会话 `01a1f1ae-acd9-72d1-84c5-264a5af2fedc`、`01a1f1ae-b825-7331-86d7-f75fbb8b9ad8`、`01a1f1af-7ce6-7b90-b191-72a2f1d80374` 均收到 `end_turn`。挂载轮执行 7 次 query、1 次 callers、4 次 node，11 项成功、1 项请求缺失文件失败。实际续轮请求确认模型读回 `app/app.tsx:32` 的 `createRueSiteApp`、第 39 行的 `mountRueSiteApp` 和 `useApp` 转调 `_$createApp` 的源代码。同路径的中继白名单定向测试用共享测试二进制快照执行，1 项通过。修正后的正式网关尚待匹配产物。发现共享分支已有并行提交 `cea8e7061`，本轮未发起该提交。
+
+## 正式网关按更新后的标准通过
+
+使用共享槽位 6 的 `shiju 0.6.0` 构建副本，SHA-256 `1d37a1d46ad916b7671e7d1cb9c2be65d0cf951e7e7fd516b32d7c03afa91ada`。程序内嵌四个受管文件的最终摘要，并包含修正后的中继白名单。按新版 DTO 从 JSON 去掉已废弃的顶层 `acp_agent`，由预设绑定相同后端，提示 SHA-256 及模型均保持一致。
+
+| 轮次 | 新会话 | HTTP / curl / 秒 | 工具结果 |
+| --- | --- | --- | --- |
+| 无挂载 | `ses_1f1bb77ab001qOMKsRoDWYq78f` | 200 / 0 / 4.062 | 0 次，`MCP_NOT_AVAILABLE` 后附说明 |
+| 挂载 | `ses_1f1bb88d7001DeYW3tAjVBZeyJ` | 200 / 0 / 55.093 | 11 次成功、1 次失败，三种目标工具均回传 |
+| 撤除 | `ses_1f1bc612b001XH4901S3Ntblpe` | 200 / 0 / 5.528 | 0 次，仅 `MCP_NOT_AVAILABLE` |
+
+三轮各有一个 `chat.done`，无 `chat.error`。summary 确认 `acp-corust-agent / corust-agent` 和 `full_access=true`。options 读回原提供商、指定模型及 `session_model`，挂载时为 `client_only`，终态均断开。挂载轮 12 个开始 ID 与完成 ID 配对。典型回执如下。
+
+| 工具 | 调用 ID | 实际输出 |
+| --- | --- | --- |
+| `rustcodegraph_query` | `corust-mcp-5e6c88797db6d689403d8a9d972c83d0` | `createRueSiteApp`，`app/app.tsx:32` |
+| `rustcodegraph_callers` | `corust-mcp-f21374ea4e73932b16dc6076e62d58b8` | `mountRueSiteApp`，`app/app.tsx:39` |
+| `rustcodegraph_node` | `corust-mcp-d80c8d61bc50de968a2aad989e3af72b` | `useApp` 源码转调 `_$createApp` |
+
+答复引用了实际图谱证据，覆盖调用链、浏览器与 SSR、`#app`、插件、布局及静态快照。模型曾提交一次不存在的文件路径，SSE 保留真实失败。新标准以挂载工具实际执行并回传为准，允许官方工具按原权限运行。私有网关退出，端口已关闭，挂载和租户配置已清理。槽位 6 的 `model-relay-http` 定向测试通过 1 项。并行代码提交为 `cea8e7061`，验收过程未另作提交。
+
+同一正式制品的宿主策略集成探针通过。项目只允许 query 和 node，再显式拒绝 node。两个回环模型请求的目录都只有 query。会话 `ses_1f1c0282f0010C9Vj76VIDITTL` 的工具开始和完成事件配对，下一次模型请求确实收到 `createRueSiteApp` 位于 `app/app.tsx:32` 的图谱输出，最后收到 `chat.done`。探针使用占位凭据，未访问真实上游，私有配置与端口已清理。
+
+槽位 6 的两个缓存路径均为仓库 `target/rust-slot-6`。经 `scripts/cargo_slot.py` 串行执行 `cargo test -j 1 --locked -p model-relay-http --lib corust_relay_preserves_reviewed_native_and_graph_tool_declarations` 和 `cargo test -j 1 --locked -p session-engine --lib acp_mcp_mount_carries_resolved_tool_policy`，各 1 项通过，0 项失败。正式网关已通过验收，随后排队的重复 `vw-cli` 构建取消，保留共享缓存。

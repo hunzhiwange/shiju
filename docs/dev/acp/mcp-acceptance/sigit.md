@@ -1,6 +1,6 @@
 # siGit Code 动态挂载 RustCodeGraph
 
-2026-11-19，验收已阻塞。受审 siGit 1.7.10 在建会话前被宿主拒绝。原生探针确认，开启显式 stdio MCP 会在审批前启动服务并继承中继环境，获批调用仍缺少受审执行路径。
+2026-11-19，首轮验收阻塞。受审 siGit 1.7.10 在建会话前被宿主拒绝。原生探针确认，开启显式 stdio MCP 会在审批前启动服务并继承中继环境，获批调用仍缺少受审执行路径。
 
 ## 环境与请求
 
@@ -64,4 +64,30 @@
 - RustCodeGraph 1.2.10 的只读索引需要 SQLite WAL/SHM 边车文件。探针在私有索引使用宿主持有的读事务准备边车，不向 MCP 服务授予写权限。
 - `python3 scripts/cargo_slot.py cargo test --locked -j 1 -p acp-client --lib acp_onboarding_sigit_mcp_selection_rejects_before_new_or_load` 退出 0，实际 1 项通过，322 项过滤。无效 HTTP 及未受审 stdio 启动器均在建会话和加载前被拒绝。安装和定向测试复用槽位 3，两个 Cargo 缓存路径均为 `target/rust-slot-3`。
 
-上述结果来自实际安装入口和回环模型。指定真实模型的新版三轮单独验收。
+上述聚焦结果来自实际安装入口和回环模型。
+
+## 指定真实模型网关验收
+
+2026-11-19，受管 v2 按新版共存标准通过三轮。共享工作区定向构建的 ShiJu 0.6.0 二进制 SHA-256 为 `28793fbd08778fb50798533905a8aeb09dea69d4cdfd1589c7f9f76fa5255419`。`cargo build --locked -j 1 -p vw-cli --bin shiju` 使用槽位 3，退出 0，耗时 17 分 28 秒。私有网关使用已核验的 v2 入口、相同 RueJS 提交和 3478 文件索引。宿主持有私有 SQLite 读事务，服务使用原生只读 stdio。
+
+三轮使用新版提示，UTF-8 SHA-256 为 `18806f1a927d3587ee5c685107c89b5dbaeea09614efe9a327e293b649967f38`。三轮均确认 `acp-sigit / sigit`、`full_access=true`、运行时连接、`client_only` 和指定 `session_model` 的 `alibaba-token-plan-cn/deepseek-v4.1-flash-1017`。
+
+| 轮次 | 新会话 | HTTP / curl 退出码 / 秒 | SSE 终态 | 成功工具 |
+| --- | --- | --- | --- | --- |
+| 无挂载 | `ses_1f1d5bea50016iOK9tVa8xCDdJ` | 200 / 0 / 245.129 | 一个 `chat.done` | 26 次官方工具，目标服务零次。 |
+| 挂载 | `ses_1f1d97e73001H7GmtIOYH6RntR` | 200 / 0 / 23.637 | 一个 `chat.done` | 9 次目标服务调用，1 次官方读取。 |
+| 撤除 | `ses_1f1d9dc2d00117ciekmCKxArQ6` | 200 / 0 / 45.386 | 一个 `chat.done` | 8 次官方工具，目标服务零次。 |
+
+全部轮次无 `chat.error`。两轮对照没有提供挂载定义。官方 shell 工具曾在本机配置和历史日志内检索服务名，撤除轮由此读到历史记录。用当前会话调用 ID 和完全匹配的服务工具标题判断本轮执行，两组对照均无目标工具事件。
+
+挂载轮 `ruejs_graph_probe` 的目标调用均有同 ID 的启动和完成事件，`payload.output` 保留返回结果。
+
+| 工具 | 调用 ID | 原始结果 |
+| --- | --- | --- |
+| `rustcodegraph_query` | `call_1555ebaf83644d3685810a51` | `function createRueSiteApp app/app.tsx:32` |
+| `rustcodegraph_callers` | `call_7f7745d90aaf47f59b35db44` | `function mountRueSiteApp app/app.tsx:39` |
+| `rustcodegraph_node` | `call_ad84d9bc618445149bd2c412` | `useApp` 位于 `packages/runtime/src/hooks/useApp.ts:4`，实现转调 `_$createApp`。后续节点调用返回运行时工厂源码。 |
+
+模型答复引用了三个结果及实际行号，追踪了 `mountRueSiteApp → createRueSiteApp → useApp → _$createApp`，并说明了浏览器分支、容器缺失、快照清理和插件安装。挂载轮的官方 `read_file` 调用成功读取 `useApp` 源码，原生聚焦轮验证同一工具也可由宿主拒绝。
+
+私有源文件和符号链接与归档逐项一致。临时挂载和凭据副本已清理，私有网关与目标服务已退出，用户网关健康。原始证据保留在本机 0700 目录，构建槽位已释放。

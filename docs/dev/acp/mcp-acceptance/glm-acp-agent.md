@@ -120,11 +120,9 @@ UI summary 三轮均回读原预设、后端及 `full_access=true`。ACP options
 
 ## 受管接入
 
-ShiJu 的 GLM 受管补丁安装目前仅在 macOS arm64 启用。安装器在该平台安装独立的固定 npm 版本，并校验发行包完整性、补丁前的源码和补丁后的运行文件。Windows 和 Linux 的内置安装走原版 `npm install -g glm-acp-agent@1.17.1`，可按 GLM 自身配置启动普通 ACP 会话。下列能力各有不同的接入条件。
+ShiJu 的 GLM 受管安装代码覆盖 macOS、Linux 和 Windows，使用独立的 `glm-acp-agent-1.17.1-model-source-v2` 目录。安装器校验 npm 包完整性及修改前后的文件摘要。已有 v1 安装需通过一键安装生成 v2。上文是 macOS arm64 历史实测，Windows 和 Linux 的本版运行验收待补。
 
-- **模型选择**。原版 GLM 支持通过 `ACP_GLM_MODEL` 和 `ACP_GLM_BASE_URL` 接收模型及服务地址，上文在 macOS arm64 实测过。当前 ShiJu 的 `session_model` 路径在启动前校验受审补丁产物，原版 npm 入口无法通过。Windows 的 GLM 会话模型驱动还会因状态目录 ACL 未验证而拒绝启动。Linux 有 Unix 驱动，但内置安装只提供原版。
-- **MCP 挂载**。原版 GLM 支持通过 ACP `session/new.params.mcpServers` 挂载 MCP，本页已在 macOS arm64 验证原生 stdio 挂载。带 ShiJu 工具名单的挂载还要求通过受审入口校验，需使用受管补丁。
+- **模型选择**。原版 GLM 通过 `ACP_GLM_MODEL` 和 `ACP_GLM_BASE_URL` 接收模型及服务地址。ShiJu 的 `session_model` 路径校验受审产物。Windows 用 Node 启动已校验的 JS 入口，并在启动前校验私有状态目录访问权限。Linux 使用 Unix 状态目录权限校验。
+- **MCP 挂载**。原版 GLM 支持 ACP `session/new.params.mcpServers`。ShiJu 的[受管补丁](../../../../patches/acp-model-source/glm-acp-agent/glm-acp-agent-1.17.1-managed.patch)执行对应服务的 `allowedTools` 和 `deniedTools`，拒绝名单优先，官方工具可在现有权限内共存。新建、加载和分叉会话均从当前服务声明解析名单。宿主全量拒绝时仍拒绝带策略的挂载。
 
-普通 GLM 会话保留原生工具。对于带工具名单的服务，ShiJu 把已解析的 `allowedTools` 和 `deniedTools` 随 ACP 服务发送。配置的原名或宿主工具 ID 都可匹配，拒绝名单优先。按策略过滤后的目录同时用于声明和执行。只有挂载了服务且每个服务都设了非空 `allowedTools` 时，GLM 才使用 MCP 专用目录。该策略随新建、加载和分叉会话重新解析。带策略的会话要求受审入口，宿主全量拒绝模式下拒绝该挂载。
-
-原私有验收补丁保留供复现，macOS arm64 的受管安装使用 [受管补丁](../../../../patches/acp-model-source/glm-acp-agent/glm-acp-agent-1.17.1-managed.patch)。已在私有目录用仓库安装器完成 npm 安装、打补丁和文件摘要校验，四个修改后的 JavaScript 文件均通过语法检查。上节三轮使用当时的私有原型。
+实机复验从空的私有配置目录开始，依次验证一键安装、指定会话模型、原生只读工具与 MCP 共存、显式拒绝和撤除后的隔离。

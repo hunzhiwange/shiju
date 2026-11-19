@@ -35,15 +35,22 @@ pub fn configure(profile: &mut AcpLaunchProfile, endpoint: &str) -> anyhow::Resu
             home.push(component);
             ensure_private_directory(&home)?;
         }
+        // GLM 1.17.1 resolves credentials under XDG_CONFIG_HOME/glm-acp-agent.
+        #[cfg(windows)]
+        ensure_private_directory(&home.join("glm-acp-agent"))?;
         home
     };
+    let home = home
+        .into_os_string()
+        .into_string()
+        .map_err(|_| anyhow::anyhow!("GLM Agent state path is not valid Unicode"))?;
     let mut env = HashMap::from([
         ("ACP_GLM_AVAILABLE_MODELS".into(), profile.model_alias.clone()),
         ("ACP_GLM_MODEL".into(), profile.model_alias.clone()),
         ("ACP_GLM_BASE_URL".into(), format!("{}/v1", endpoint.trim_end_matches('/'))),
         ("Z_AI_API_KEY".into(), profile.binding.bearer_token().into()),
-        ("XDG_CONFIG_HOME".into(), home.to_string_lossy().into_owned()),
-        ("ACP_GLM_SESSION_DIR".into(), home.to_string_lossy().into_owned()),
+        ("XDG_CONFIG_HOME".into(), home.clone()),
+        ("ACP_GLM_SESSION_DIR".into(), home),
         ("NODE_OPTIONS".into(), String::new()),
     ]);
     for key in ["HTTP_PROXY", "HTTPS_PROXY", "ALL_PROXY", "http_proxy", "https_proxy", "all_proxy"]
@@ -84,3 +91,7 @@ fn ensure_private_directory(path: &std::path::Path) -> anyhow::Result<()> {
 fn ensure_private_directory(path: &std::path::Path) -> anyhow::Result<()> {
     super::super::windows_private_dir::create_or_verify(path)
 }
+
+#[cfg(all(test, any(unix, windows)))]
+#[path = "glm_acp_agent_tests.rs"]
+mod tests;

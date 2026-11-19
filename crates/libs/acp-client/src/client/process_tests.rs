@@ -573,3 +573,71 @@ fn acp_full_access_unconfined_desktop_adapters_require_current_grant() {
         assert!(AcpClient::new(backend, config).launch_args().is_ok());
     }
 }
+
+#[test]
+fn glm_managed_runtime_rejects_unreviewed_npm_shim_before_spawn() {
+    let root = tempfile::tempdir().unwrap();
+    let directory = root.path().join("GLM 受管/node_modules/.bin");
+    std::fs::create_dir_all(&directory).unwrap();
+    let shim = directory.join(if cfg!(windows) { "glm-acp-agent.cmd" } else { "glm-acp-agent" });
+    std::fs::write(&shim, "@echo unreviewed").unwrap();
+    let client = AcpClient::new(
+        "glm-acp-agent",
+        AcpAgentConfig {
+            command: shim.to_str().unwrap().into(),
+            args: Vec::new(),
+            env: HashMap::new(),
+        },
+    );
+    match client.spawn_child() {
+        Err(AcpError::Initialize(error)) => assert!(error.contains("reviewed entry"), "{error}"),
+        Err(error) => panic!("Expected review failure before spawning: {error}"),
+        Ok(_) => panic!("The npm shim was launched"),
+    }
+}
+
+#[tokio::test]
+async fn glm_managed_runtime_probe_executes_only_fixed_node_arguments() {
+    use crate::ConnectionDiagnostic;
+
+    struct RestoreRoot(Option<std::ffi::OsString>);
+    impl Drop for RestoreRoot {
+        fn drop(&mut self) {
+            unsafe {
+                match &self.0 {
+                    Some(value) => std::env::set_var("VIBEWINDOW_CONFIG_DIR", value),
+                    None => std::env::remove_var("VIBEWINDOW_CONFIG_DIR"),
+                }
+            }
+        }
+    }
+    let root = tempfile::tempdir().unwrap();
+    let workspace = root.path().join("GLM 受管");
+    let _restore = RestoreRoot(std::env::var_os("VIBEWINDOW_CONFIG_DIR"));
+    unsafe { std::env::set_var("VIBEWINDOW_CONFIG_DIR", &workspace) };
+    acp_agent_registry::install_builtin_agent("glm-acp-agent").await.unwrap();
+    let spec = acp_agent_registry::resolve_agent_spec("glm-acp-agent").unwrap();
+    let home = workspace.to_str().unwrap();
+    let mut config = AcpAgentConfig {
+        command: spec.command,
+        args: spec.args,
+        env: ["HOME", "USERPROFILE", "APPDATA", "LOCALAPPDATA", "XDG_CONFIG_HOME", "XDG_STATE_HOME"]
+            .into_iter()
+            .map(|key| (key.to_owned(), home.to_owned()))
+            .collect(),
+    };
+    // An invalid preload would fail initialization if the environment were inherited by Node.
+    config.env.insert("NODE_OPTIONS".into(), "--require=missing-glm-fixture".into());
+    let client = AcpClient::new("diagnostic", config.clone());
+    assert!(matches!(
+        client.diagnose_connection(tokio_util::sync::CancellationToken::new()).await,
+        ConnectionDiagnostic::Connected | ConnectionDiagnostic::AuthenticationRequired
+    ));
+    config.args.push("--help".into());
+    let client = AcpClient::new("glm-acp-agent", config);
+    match client.spawn_child() {
+        Err(AcpError::Initialize(error)) => assert!(error.contains("launch arguments"), "{error}"),
+        Err(error) => panic!("Expected argument rejection before spawning: {error}"),
+        Ok(_) => panic!("GLM launched with unreviewed arguments"),
+    }
+}

@@ -210,3 +210,118 @@ async fn corust_managed_install_resolves_and_verifies_native_entry() {
     verify_reviewed_agent_executable("corust-agent", &registered.command).unwrap();
     crate::install_builtin_agent("corust-agent").await.unwrap();
 }
+
+#[tokio::test]
+async fn glm_managed_runtime_cold_install_initializes_and_rejects_redirection() {
+    const AGENT: &str = "glm-acp-agent";
+    let _lock = crate::TEST_HOME_ENV_LOCK.lock().await;
+    struct TestEnv(&'static str, Option<std::ffi::OsString>);
+    impl TestEnv {
+        fn set(name: &'static str, value: impl AsRef<std::ffi::OsStr>) -> Self {
+            let previous = std::env::var_os(name);
+            unsafe { std::env::set_var(name, value) };
+            Self(name, previous)
+        }
+    }
+    impl Drop for TestEnv {
+        fn drop(&mut self) {
+            unsafe {
+                match &self.1 {
+                    Some(value) => std::env::set_var(self.0, value),
+                    None => std::env::remove_var(self.0),
+                }
+            }
+        }
+    }
+    let temp = tempfile::tempdir().unwrap();
+    let config = temp.path().join("GLM 受管");
+    let _root = TestEnv::set("VIBEWINDOW_CONFIG_DIR", &config);
+
+    let contract = contract(AGENT).unwrap();
+    let directory = installed_directory(AGENT, &contract).unwrap();
+    let expected = directory.join("node_modules").join(AGENT).join(&contract.bin);
+    assert!(!directory.exists());
+    {
+        // An empty offline cache guarantees the supplier install fails in the stage.
+        let _cache = TestEnv::set("npm_config_cache", temp.path().join("offline npm cache"));
+        let _offline = TestEnv::set("npm_config_offline", "true");
+        let failure = crate::install_builtin_agent(AGENT).await.unwrap_err();
+        assert!(failure.contains("安装失败"), "{failure}");
+        assert!(!directory.exists());
+        assert_eq!(std::fs::read_dir(root(AGENT).unwrap()).unwrap().count(), 0);
+    }
+    crate::install_builtin_agent(AGENT).await.unwrap();
+    let registered = crate::resolve_agent_spec(AGENT).unwrap();
+    assert_eq!(Path::new(&registered.command), expected);
+    assert!(registered.args.is_empty());
+    crate::install_builtin_agent(AGENT).await.unwrap();
+
+    let node = shell_command::resolve_executable(if cfg!(windows) { "node.exe" } else { "node" })
+        .unwrap();
+    let mut child = tokio::process::Command::new(node)
+        .arg(&registered.command)
+        .current_dir(&config)
+        .env("HOME", &config)
+        .env("USERPROFILE", &config)
+        .env("APPDATA", &config)
+        .env("LOCALAPPDATA", &config)
+        .env("XDG_CONFIG_HOME", &config)
+        .env("XDG_STATE_HOME", &config)
+        .env_remove("NODE_OPTIONS")
+        .env_remove("NODE_PATH")
+        .stdin(std::process::Stdio::piped())
+        .stdout(std::process::Stdio::piped())
+        .stderr(std::process::Stdio::null())
+        .kill_on_drop(true)
+        .spawn()
+        .unwrap();
+    // Keep the input pipe open through initialize and terminate the same Node child.
+    use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
+    let initialized = tokio::time::timeout(std::time::Duration::from_secs(30), async {
+        let mut input = child.stdin.take().unwrap();
+        let mut output = BufReader::new(child.stdout.take().unwrap()).lines();
+        let request = serde_json::json!({
+            "jsonrpc": "2.0", "id": 1, "method": "initialize",
+            "params": {"protocolVersion": 1, "clientCapabilities": {}}
+        });
+        input.write_all(format!("{request}\n").as_bytes()).await.unwrap();
+        while let Some(line) = output.next_line().await.unwrap() {
+            if let Ok(message) = serde_json::from_str::<serde_json::Value>(&line)
+                && message["id"] == 1
+            {
+                return message;
+            }
+        }
+        panic!("GLM closed stdout before initialize");
+    })
+    .await
+    .expect("GLM initialize timed out");
+    assert_eq!(initialized["result"]["protocolVersion"], 1, "{initialized}");
+    let _ = child.kill().await;
+    child.wait().await.unwrap();
+
+    let shim = directory.join(if cfg!(windows) {
+        "node_modules/.bin/glm-acp-agent.cmd"
+    } else {
+        "node_modules/.bin/glm-acp-agent"
+    });
+    if shim.symlink_metadata().is_ok() {
+        std::fs::remove_file(&shim).unwrap();
+    }
+    std::fs::write(&shim, "unreviewed npm shim").unwrap();
+    assert!(verify_reviewed_agent_executable(AGENT, shim.to_str().unwrap()).is_err());
+    assert_eq!(crate::resolve_agent_spec(AGENT).unwrap().command, registered.command);
+
+    #[cfg(unix)]
+    {
+        let copy = config.join("redirected.js");
+        std::fs::rename(&expected, &copy).unwrap();
+        std::os::unix::fs::symlink(&copy, &expected).unwrap();
+        assert!(reviewed_agent_command(AGENT).is_err());
+        std::fs::remove_file(&expected).unwrap();
+        std::fs::rename(copy, &expected).unwrap();
+    }
+    std::fs::write(&expected, "tampered").unwrap();
+    assert!(verify_reviewed_agent_executable(AGENT, &registered.command).is_err());
+    assert!(crate::install_builtin_agent(AGENT).await.is_err());
+}

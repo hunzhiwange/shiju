@@ -632,6 +632,11 @@ if contract.get('layout') == 'native':
 packages = [contract['package'] + '@' + contract['version']]
 if 'engine' in contract:
     packages.append(contract['engine'] + '@' + contract['engine_version'])
+if agent == 'glm-acp-agent':
+    patch = assets / 'glm-acp-agent.patch'
+    # The patch contract pins LF bytes, including on CRLF Git checkouts.
+    if hashlib.sha256(patch.read_bytes().replace(b'\r\n', b'\n')).hexdigest() != contract['patch_sha256']:
+        raise RuntimeError('GLM reviewed patch checksum mismatch')
 runtime.mkdir()
 if agent in ('iflow', 'deepagents'):
     lock_input = json.loads((assets / (agent + '-lock.json')).read_text())
@@ -641,15 +646,17 @@ if agent in ('iflow', 'deepagents'):
 else:
     # Run npm in the stage itself so lockfile keys stay package-relative.
     npm = ['npm']
-    if os.name == 'nt' and agent == 'glm-acp-agent':
-        npm_cmd = shutil.which('npm.cmd')
-        node = shutil.which('node.exe')
-        if not npm_cmd or not node:
-            raise RuntimeError('GLM managed runtime requires Node.js with npm')
-        npm_cli = Path(npm_cmd).parent / 'node_modules/npm/bin/npm-cli.js'
-        if not npm_cli.is_file():
-            raise RuntimeError('Missing npm-cli.js for GLM managed installation')
-        npm = [node, str(npm_cli)]
+    if agent == 'glm-acp-agent':
+        if os.name == 'nt':
+            node = shutil.which('node.exe')
+            if not node or not Path(node).is_absolute():
+                raise RuntimeError('GLM managed runtime requires Node.js with npm')
+            npm_cli = Path(node).resolve().parent / 'node_modules/npm/bin/npm-cli.js'
+            if not npm_cli.is_file():
+                raise RuntimeError('Missing npm-cli.js next to Node.js for GLM managed installation')
+            npm = [node, str(npm_cli)]
+        # User npm defaults cannot turn a managed install into a global install.
+        npm += ['--global=false', '--package-lock=true']
     run([*npm, 'install', '--registry=https://registry.npmjs.org',
          '--ignore-scripts', '--prefer-offline', '--fetch-timeout=20000', '--fetch-retries=2', '--fetch-retry-mintimeout=1000', '--fetch-retry-maxtimeout=5000', '--no-audit', '--no-fund', '--save-exact', *packages], cwd=runtime)
 lock = json.loads((runtime / 'package-lock.json').read_text())['packages']
@@ -706,7 +713,7 @@ if agent == 'copilot':
     link.symlink_to(Path('../@github/copilot/embedded/index.js'))
 if agent == 'glm-acp-agent':
     check_files(root, contract['original'])
-    apply_glm_patch(root, assets / 'glm-acp-agent.patch', contract['original'])
+    apply_glm_patch(root, patch, contract['original'])
 elif agent in ('codex', 'gemini'):
     check_files(root, contract['original'])
     run(['patch', '--batch', '--forward', '-p1', '-d', str(root), '-i', str(assets / (agent + '.patch'))])

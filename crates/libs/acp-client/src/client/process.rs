@@ -134,6 +134,27 @@ impl AcpClient {
                 .to_string(),
             );
         }
+        let path = Path::new(self.config.command.trim());
+        // The connectivity probe receives only a command, without the agent key.
+        let glm_managed_path = path.ends_with("node_modules/glm-acp-agent/dist/index.js")
+            || path.ends_with("node_modules/.bin/glm-acp-agent")
+            || path.ends_with("node_modules/.bin/glm-acp-agent.cmd");
+        let glm_entry = (self.agent_name == "glm-acp-agent" || glm_managed_path)
+            .then(|| {
+                let entry = path.canonicalize().map_err(AcpError::Spawn)?;
+                let path = entry.to_str().ok_or_else(|| {
+                    AcpError::Initialize("Managed GLM entry requires a Unicode path".into())
+                })?;
+                crate::verify_reviewed_agent_executable("glm-acp-agent", path)
+                    .map_err(AcpError::Initialize)?;
+                Ok(entry)
+            })
+            .filter(|review| {
+                review.is_ok()
+                    || glm_managed_path
+                    || env.contains_key("VW_ACP_LAUNCH_REFERENCE")
+                    || (cfg!(windows) && path.extension().is_some_and(|ext| ext.eq_ignore_ascii_case("js")))
+            });
         let managed_vtcode = self.managed_vtcode();
         let managed_grok =
             self.agent_name == "grok" && env.contains_key("VW_ACP_LAUNCH_REFERENCE");
@@ -253,22 +274,18 @@ impl AcpClient {
                 command.current_dir(workspace).args(["-f", &policy]).arg(executable);
                 command
             }
-        } else if cfg!(windows)
-            && self.agent_name == "glm-acp-agent"
-            && Path::new(self.config.command.trim()).extension().is_some_and(|ext| ext == "js")
-        {
-            let executable = self.config.command.trim();
-            crate::verify_reviewed_agent_executable("glm-acp-agent", executable)
-                .map_err(AcpError::Initialize)?;
+        } else if let Some(entry) = glm_entry {
+            let entry = entry?;
             if !args.is_empty() {
                 return Err(AcpError::Initialize("Unsupported managed GLM launch arguments".into()));
             }
-            let node = shell_command::resolve_executable("node.exe")
+            let node_name = if cfg!(windows) { "node.exe" } else { "node" };
+            let node = shell_command::resolve_executable(node_name)
                 .filter(|path| path.is_absolute())
                 .ok_or_else(|| AcpError::Initialize("Managed GLM requires Node.js".into()))?;
-            let mut command = tokio::process::Command::new(node);
-            command.arg(Path::new(executable).canonicalize().map_err(AcpError::Spawn)?);
-            command.envs(&env);
+            let mut command = build_spawn_command(node, &env);
+            command.arg(entry);
+            command.env_remove("NODE_OPTIONS").env_remove("NODE_PATH");
             command
         } else {
             build_spawn_command(self.config.command.trim(), &env)

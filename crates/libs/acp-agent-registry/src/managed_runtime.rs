@@ -142,6 +142,23 @@ fn verify(directory: &Path, contract: &Contract) -> Result<PathBuf, String> {
             .ok_or_else(|| "Missing reviewed Python ACP entry".into());
     }
     let package = directory.join("node_modules").join(&contract.package);
+    if contract.package == "glm-acp-agent" {
+        // Resolve the host's runtime root (e.g. macOS /var), then reject redirects
+        // within the versioned installation, including package junctions on Windows.
+        let parent = directory.parent().ok_or("Missing GLM runtime root")?;
+        let base = parent.canonicalize().map_err(|_| "Missing GLM runtime root")?;
+        let version = directory.file_name().ok_or("Missing GLM runtime directory")?;
+        let expected = base.join(version).join("node_modules").join(&contract.package);
+        if !contract.files.contains_key(&contract.bin) {
+            return Err("GLM entry is missing from the reviewed file contract".into());
+        }
+        for name in contract.files.keys().map(String::as_str).chain(["package.json"]) {
+            let file = package.join(name);
+            if file.canonicalize().ok().as_ref() != Some(&expected.join(name)) {
+                return Err("GLM artifact is missing or redirected".into());
+            }
+        }
+    }
     let metadata: serde_json::Value = serde_json::from_slice(
         &std::fs::read(package.join("package.json"))
             .map_err(|_| "ACP patched runtime is not installed")?,
@@ -204,11 +221,8 @@ pub fn reviewed_agent_command(agent: &str) -> Result<Option<(String, Vec<String>
         directory = root(agent)?.join(format!("droid-{}-model-source-v1", contract.version));
     }
     let path = verify(&directory, &contract)?;
-    if cfg!(windows) && agent == "glm-acp-agent" {
-        // The client launches this verified JS file through Node without a batch shim.
-        if !shell_command::resolve_executable("node.exe").is_some_and(|node| node.is_absolute()) {
-            return Err("Managed GLM requires Node.js".into());
-        }
+    if agent == "glm-acp-agent" {
+        // The client passes the reviewed entry directly to Node on every platform.
         return Ok(Some((path.to_string_lossy().into_owned(), vec![])));
     }
     if !contract.layout.is_empty() {
@@ -290,6 +304,9 @@ pub fn verify_reviewed_agent_executable(agent: &str, command: &str) -> Result<()
         && Path::new(&installed).canonicalize().ok().as_ref() == Some(&executable)
     {
         return Ok(());
+    }
+    if agent == "glm-acp-agent" {
+        return Err("GLM executable must resolve to the installed reviewed entry".into());
     }
     if agent == "vtcode" && executable.file_name().is_some_and(|name| name == contract.bin.as_str())
         && let Some(source_sha256) = &contract.source_sha256
@@ -631,8 +648,11 @@ pub(super) async fn install(agent: &str) -> Result<bool, String> {
     )
     .await?;
     verify(&runtime, &contract)?;
-    std::fs::rename(&runtime, &destination)
-        .map_err(|_| "Cannot atomically publish reviewed ACP runtime")?;
+    if std::fs::rename(&runtime, &destination).is_err()
+        && (agent != "glm-acp-agent" || !destination.is_dir())
+    {
+        return Err("Cannot atomically publish reviewed ACP runtime".into());
+    }
     reviewed_agent_command(agent)?;
     Ok(true)
 }

@@ -27,7 +27,7 @@ if ($env:SHIJU_ACP_NEW_TEMPORARY_DIRECTORY -eq '1') {
     }
     $directory.SetAccessControl($acl)
 } elseif (-not $directory.Exists) {
-    # On Windows PowerShell/.NET Framework this applies the DACL during creation.
+    # .NET Framework applies the DACL at creation and accepts concurrent creation.
     $directory.Create($acl)
 }
 $directory.Refresh()
@@ -35,15 +35,18 @@ if (-not $directory.Exists -or ($directory.Attributes -band [IO.FileAttributes]:
     throw 'Invalid ACP private directory'
 }
 $actual = $directory.GetAccessControl()
-$rules = @($actual.GetAccessRules($true, $true, [Security.Principal.SecurityIdentifier]))
+$descriptor = [Security.AccessControl.RawSecurityDescriptor]::new(
+    $actual.GetSecurityDescriptorBinaryForm(), 0
+)
+# Inspect the full DACL. GetAccessRules projects supported ACEs into file rules.
+$dacl = $descriptor.DiscretionaryAcl
 if (-not $actual.AreAccessRulesProtected -or
-    $actual.GetOwner([Security.Principal.SecurityIdentifier]).Value -ne $user.Value -or
-    $rules.Count -ne 1 -or
-    $rules[0].IdentityReference.Value -ne $user.Value -or
-    $rules[0].AccessControlType -ne 'Allow' -or
-    $rules[0].FileSystemRights -ne 'FullControl' -or
-    $rules[0].InheritanceFlags -ne $inheritance -or
-    $rules[0].PropagationFlags -ne 'None') {
+    $descriptor.Owner.Value -ne $user.Value -or
+    $null -eq $dacl -or $dacl.Count -ne 1 -or
+    $dacl[0].AceType -ne 'AccessAllowed' -or
+    $dacl[0].SecurityIdentifier.Value -ne $user.Value -or
+    $dacl[0].AccessMask -ne [int][Security.AccessControl.FileSystemRights]::FullControl -or
+    $dacl[0].AceFlags -ne [Security.AccessControl.AceFlags]'ContainerInherit,ObjectInherit') {
     throw 'Insecure ACP directory ACL'
 }
 "#;
@@ -58,6 +61,10 @@ pub(super) fn secure_new_temporary_directory(path: &Path) -> anyhow::Result<()> 
 
 fn secure_directory(path: &Path, new_temporary_directory: bool) -> anyhow::Result<()> {
     anyhow::ensure!(path.is_absolute(), "ACP private directory must be absolute");
+    anyhow::ensure!(
+        !path.components().any(|part| part == std::path::Component::ParentDir),
+        "ACP private directory must not contain parent traversal"
+    );
     let system_root = std::env::var_os("SystemRoot")
         .map(PathBuf::from)
         .filter(|root| root.is_absolute())

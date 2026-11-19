@@ -20,7 +20,22 @@ pub struct SkillReposState {
 
 impl Default for SkillReposState {
     fn default() -> Self {
-        Self { schema_version: SCHEMA_VERSION, version: 0, repos: Vec::new() }
+        // Defaults apply only before the project has a saved configuration.
+        let repos = [
+            ("anthropics", "skills", "main"),
+            ("cexll", "myclaude", "master"),
+            ("ComposioHQ", "awesome-claude-skills", "master"),
+            ("JimLiu", "baoyu-skills", "main"),
+        ]
+        .into_iter()
+        .map(|(owner, name, branch)| SkillRepo {
+            owner: owner.into(),
+            name: name.into(),
+            branch: branch.into(),
+            enabled: true,
+        })
+        .collect();
+        Self { schema_version: SCHEMA_VERSION, version: 0, repos }
     }
 }
 

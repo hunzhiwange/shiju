@@ -79,15 +79,16 @@ fn cp12_repos_success() -> Result<()> {
     assert_eq!(added.version, 1);
     assert_eq!(SkillReposStore::new(database.clone())?.get(&project)?, added);
     let disabled = store.set_enabled(&project, 1, "OWNER", "repo", false)?;
-    assert!(!disabled.repos[0].enabled);
-    assert_eq!(disabled.repos[0].branch, "feature/native");
+    let disabled_repo = disabled.repos.iter().find(|repo| repo.owner == "owner").unwrap();
+    assert!(!disabled_repo.enabled);
+    assert_eq!(disabled_repo.branch, "feature/native");
     assert_eq!(store.set_enabled(&project, 2, "owner", "repo", false)?, disabled);
     assert!(
         store.set_enabled(&project, 1, "owner", "repo", true)
             .unwrap_err().is::<SkillReposVersionConflict>()
     );
     let enabled = store.set_enabled(&project, 2, "owner", "repo", true)?;
-    assert!(enabled.repos[0].enabled);
+    assert!(enabled.repos.iter().any(|repo| repo.owner == "owner" && repo.enabled));
     for other in [
         scope("other", "company", "project")?,
         scope("platform", "other", "project")?,
@@ -99,7 +100,7 @@ fn cp12_repos_success() -> Result<()> {
     let settings = GatewaySettingsStore::new(database.clone())?;
     settings.upsert(project.tenant_scope(), "agent_apps.skills.entities", "fixture", "{}")?;
     let removed = store.remove(&project, 3, "owner", "repo")?;
-    assert!(removed.repos.is_empty());
+    assert_eq!(removed.repos, SkillReposState::default().repos);
     assert_eq!(removed.version, 4);
     assert_eq!(SkillReposStore::new(database)?.get(&project)?, removed);
     assert_eq!(

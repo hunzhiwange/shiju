@@ -100,6 +100,7 @@ fn record() -> McpCatalogRecord {
         documentation: None,
         tags: vec![],
         transport: McpTransport::Stdio,
+        public_summary: None,
         connection_revision: 1,
     }
 }

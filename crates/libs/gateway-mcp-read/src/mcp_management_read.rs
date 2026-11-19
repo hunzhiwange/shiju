@@ -74,3 +74,16 @@ impl GatewayMcpReadClient {
         gateway_app_read::GatewayAppReadClient::new(self.transport.clone()).agent_apps_read_request("/v1/agent-apps/mcp/native", &query, Some(token)).await
     }
 }
+
+impl GatewayMcpReadClient {
+    /// Copy all catalog definitions or one ID, skipping every protected definition.
+    pub async fn mcp_management_export(
+        &self, host: &str, id: Option<&str>, token: &str,
+    ) -> Result<vw_api_mcp_management::McpSafeExportResponse, AgentAppsReadError> {
+        let mut query = vec![("targetHostId", host.to_owned())];
+        if let Some(id) = id { query.push(("id", id.to_owned())); }
+        gateway_app_read::GatewayAppReadClient::new(self.transport.clone()).agent_apps_read_request(
+            "/v1/agent-apps/mcp/export", &query, Some(token),
+        ).await
+    }
+}

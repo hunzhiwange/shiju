@@ -7,6 +7,7 @@ use agent_database::GlobalDatabase;
 mod catalog_create;
 mod catalog_delete;
 mod catalog_update;
+mod catalog_projection;
 pub mod credentials;
 pub use catalog_delete::McpRevocation;
 #[cfg(not(target_arch = "wasm32"))]

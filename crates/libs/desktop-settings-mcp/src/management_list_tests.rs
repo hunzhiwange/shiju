@@ -19,6 +19,7 @@ fn fixture() -> McpCatalogResponse {
             documentation: None,
             tags: vec![],
             transport: McpTransport::Stdio,
+            public_summary: None,
             connection_revision: 2,
         }],
         bindings: vec![McpCliBinding {

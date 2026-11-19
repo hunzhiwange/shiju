@@ -46,3 +46,12 @@ impl GatewayClient {
             .mcp_management_native(target, account_id, token).await
     }
 }
+
+impl GatewayClient {
+    pub async fn mcp_management_export(
+        &self, host: &str, id: Option<&str>, token: &str,
+    ) -> Result<vw_api_mcp_management::McpSafeExportResponse, AgentAppsReadError> {
+        gateway_mcp_read::GatewayMcpReadClient::new(self.transport.clone())
+            .mcp_management_export(host, id, token).await
+    }
+}

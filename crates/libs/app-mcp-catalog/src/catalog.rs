@@ -53,6 +53,7 @@ impl McpCatalogDraft {
             documentation: self.documentation,
             tags: self.tags,
             transport,
+            public_summary: None,
             connection_revision: 1,
         };
         Ok((record, self.connection))

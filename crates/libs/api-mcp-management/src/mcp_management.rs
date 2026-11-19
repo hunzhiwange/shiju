@@ -86,7 +86,7 @@ pub struct McpCreateRequest {
     pub connection: McpConnectionDefinition,
 }
 
-/// Replace the private connection definition while preserving display metadata.
+/// Revision-checked partial metadata edits and optional private connection replacement.
 /// A successful save does not imply native distribution or a connection check.
 #[derive(Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
@@ -96,7 +96,12 @@ pub struct McpUpdateRequest {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub project_id: Option<ProjectId>,
     pub expected_revision: u64,
-    pub connection: McpConnectionDefinition,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub connection: Option<McpConnectionDefinition>,
+    #[serde(default)]
+    pub metadata: McpMetadataPatch,
+    #[serde(default)]
+    pub public_summary: McpPublicSummaryEdit,
 }
 
 /// Retire an expected catalog revision. Native cleanup is reported separately per target.
@@ -138,6 +143,8 @@ pub struct McpCatalogRecord {
     pub documentation: Option<String>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub tags: Vec<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub public_summary: Option<String>,
     pub transport: McpTransport,
     /// Remains stable across metadata-only edits.
     pub connection_revision: u64,
@@ -439,3 +446,54 @@ pub struct McpAcpUsageMount {
     pub record: McpRecordRef,
     pub failure: Option<McpFailureCode>,
 }
+
+/// Explicit actions distinguish omission, replacement, and clearing without nullable ambiguity.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(tag = "action", content = "value", rename_all = "snake_case", deny_unknown_fields)]
+pub enum McpTextEdit {
+    #[default]
+    Keep,
+    Set(String),
+    Clear,
+}
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct McpMetadataPatch {
+    #[serde(default)]
+    pub name: McpTextEdit,
+    #[serde(default)]
+    pub description: McpTextEdit,
+    #[serde(default)]
+    pub homepage: McpTextEdit,
+    #[serde(default)]
+    pub documentation: McpTextEdit,
+    /// Omission preserves tags; an empty array clears them.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub tags: Option<Vec<String>>,
+}
+/// The caller explicitly declares this display value public; it is never an export definition.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(tag = "action", content = "value", rename_all = "snake_case", deny_unknown_fields)]
+pub enum McpPublicSummaryEdit {
+    #[default]
+    Keep,
+    Set(String),
+    Clear,
+}
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct McpSafeExportResponse {
+    /// Complete native mcpServers JSON, or None when no selected definition is public.
+    pub json: Option<String>,
+    pub skipped: Vec<McpExportSkipped>,
+    pub reason: Option<McpExportSkipReason>,
+}
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct McpExportSkipped {
+    pub id: McpRecordId,
+    pub reason: McpExportSkipReason,
+}
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum McpExportSkipReason { ProtectedDefinition, NotFound, NoPublicDefinitions }

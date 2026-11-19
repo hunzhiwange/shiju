@@ -67,6 +67,7 @@ pub fn router(additional_routes: Router) -> Router {
         .route("/agent-apps/mcp/bulk", axum::routing::post(super::mcp_management_bindings::bulk))
         .route("/agent-apps/mcp/import", axum::routing::post(super::mcp_management_import::import))
         .route("/agent-apps/mcp/resync", axum::routing::post(super::mcp_management_resync::submit))
+        .route("/agent-apps/mcp/export", get(read_export))
         .route("/agent-apps/mcp/presets", get(read_presets))
         .route("/agent-apps/mcp/native", get(read_native));
     router.merge(additional_routes)
@@ -339,4 +340,29 @@ fn native_preview(
         })
         .collect();
     Ok(McpNativePreview { target, status, entries })
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct ExportQuery {
+    target_host_id: String,
+    #[serde(default)]
+    id: Option<String>,
+}
+
+async fn read_export(
+    Extension(policy): Extension<PolicyFile>,
+    Extension(tenant): Extension<TenantScope>,
+    headers: HeaderMap,
+    query: Result<Query<ExportQuery>, QueryRejection>,
+    database: Option<Extension<GlobalDatabase>>,
+) -> Result<Json<vw_api_mcp_management::McpSafeExportResponse>, McpHttpError> {
+    let Query(query) = query.map_err(|_| access_error(StatusCode::BAD_REQUEST))?;
+    tokio::task::spawn_blocking(move || {
+        agent_apps::authorize_mcp_catalog_read(policy.0.as_deref(), &headers, &tenant, &query.target_host_id)
+            .map_err(access_error)?;
+        let store = McpCatalogStore::new(open_database(database)?).map_err(unavailable)?;
+        store.safe_export(&McpCatalogScope::Tenant { scope: tenant }, query.id.as_deref())
+            .map(Json).map_err(unavailable)
+    }).await.map_err(unavailable)?
 }

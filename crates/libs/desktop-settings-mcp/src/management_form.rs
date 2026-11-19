@@ -252,7 +252,9 @@ pub async fn save(
                     target_host_id: draft.context.host.clone(),
                     project_id,
                     expected_revision: record.record.revision,
-                    connection,
+                    connection: Some(connection),
+                    metadata: Default::default(),
+                    public_summary: Default::default(),
                 },
                 token,
             )

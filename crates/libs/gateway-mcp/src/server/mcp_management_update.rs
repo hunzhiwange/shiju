@@ -40,7 +40,7 @@ pub(super) async fn update_catalog_record(
         failure(status, McpFailureCode::InvalidDefinition)
     })?;
     tokio::task::spawn_blocking(move || {
-        let scope = match request.project_id {
+        let scope = match request.project_id.clone() {
             Some(project_id) => McpCatalogScope::Project {
                 scope: ProjectScope::new(tenant, project_id)
                     .map_err(|_| access_error(StatusCode::BAD_REQUEST))?,
@@ -57,7 +57,7 @@ pub(super) async fn update_catalog_record(
         let store = McpCatalogStore::new(open_database(database)?).map_err(unavailable)?;
         let expected = McpRecordRef { id: McpRecordId(id), revision: request.expected_revision };
         // Saving the desired definition makes no claim about native distribution or connectivity.
-        store.update_connection(&scope, &expected, request.connection).map(Json).map_err(|code| {
+        store.update_record(&scope, &expected, request.connection, request.metadata, request.public_summary).map(Json).map_err(|code| {
             let status = match code {
                 McpFailureCode::InvalidDefinition => StatusCode::BAD_REQUEST,
                 McpFailureCode::StaleRevision | McpFailureCode::Conflict => StatusCode::CONFLICT,

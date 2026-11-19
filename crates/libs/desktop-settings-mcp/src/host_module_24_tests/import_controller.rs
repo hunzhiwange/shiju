@@ -335,6 +335,7 @@ fn cc_mcp_t47_draft_confirmation_creates_definition_only_through_gateway() {
             documentation: None,
             tags: vec![],
             transport: McpTransport::Stdio,
+            public_summary: None,
             connection_revision: 1,
         };
         responses.send(Some(serde_json::to_string(&record).unwrap())).unwrap();

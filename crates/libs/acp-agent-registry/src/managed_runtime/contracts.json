@@ -824,7 +824,7 @@
     "files": {
       "agent.harn": "40ce0f80ad9033a8f72aa22d3228cba9f2068781aefaae7450664f312f335cdd",
       "harn-native": "23c951212c045c56deea491f9ce9505b8298472daa862334b33413ea31dcdcca",
-      "harn": "41868b860c2de4908e48e0edaad00cc2ceb8add08e2c8c29648de079c15db5d6",
+      "harn": "17ad39da24845bb62914b46b748f30d63ebd11ca5f121af42fd8597a0ed94926",
       "shiju_stdio.py": "e6870d58c6c59cb1f1d224a66cdaa8455b34057249912b7bce5b9e21f95a074a"
     }
   },

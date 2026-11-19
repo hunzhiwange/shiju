@@ -101,3 +101,5 @@ v3 只用原生执行更新中的完整参数绑定逐次审批，同一调用 I
 三轮均回读 `acp-harn / harn`、`full_access=true`。执行中 options 确认为 `connected=true`、`client_only` 和指定 `session_model`，终态连接关闭。挂载的 10 个调用都有同 ID 的开始及完成，含查询 2、调用者 1、节点 7。查询 `call_10b3d4559ee24a0eb40bb46e` 返回 `app/app.tsx:32`，调用者 `call_0e665737627e4b9799ada39c` 返回 `mountRueSiteApp`，节点 `call_e5b0ede304af4d5d8d1e0dbb` 返回 `useApp` 实现位置，`call_a15c080c0cfc48c8aadb8a2f` 定位到 `_$createApp`。最终答复结合输出复述了四段链路、客户端守卫、插件安装和静态快照清理。官方读取失败均在两个对照轮，未造成异常终态或图谱越权。
 
 v4 由 Rust 驱动在私有启动环境传递规范化工作目录，launcher 在建会话时仍强制校验该根，并在该根启动原生子进程。原生测试把 launcher 从不同目录启动，合法会话可用，同进程的越界建会话仍被拒绝。v3 在同一用例复现红灯，v4 的 8 个 stdio 场景、3 个宿主保护、2 个安装和 1 个自然语言用例通过。已使用官方归档核验 v4 安装，正常网关启动方式的 v4 三轮待新版链接产物。
+
+宿主默认策略定向检查 `python3 scripts/cargo_slot.py cargo test --locked -j 1 -p session-engine --lib acp_mcp_mount_carries_resolved_tool_policy` 退出 0，1 项通过。槽位 3 的两个缓存路径均为仓库的 `target/rust-slot-3`。另外证实普通 ACP initialize 诊断无需绑定工作目录。有模型中继凭据的受管入口仍要求显式工作目录。

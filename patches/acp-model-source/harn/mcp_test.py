@@ -173,11 +173,38 @@ def verify(launcher, graph, workspace, mounted, approve, restore=None, cancel=Fa
     assert len(output) == len(expected_text) and all(text in result for text, result in zip(expected_text, output))
 
 
+
+def verify_diagnostic(launcher):
+    with TemporaryDirectory() as name:
+        env = {'PATH': os.environ['PATH'], 'XDG_CONFIG_HOME': name,
+               'XDG_DATA_HOME': name, 'XDG_CACHE_HOME': name}
+        with subprocess.Popen([launcher], env=env, cwd=name, text=True,
+                              stdin=subprocess.PIPE, stdout=subprocess.PIPE) as child:
+            try:
+                request = {'jsonrpc': '2.0', 'id': 1, 'method': 'initialize',
+                           'params': {'protocolVersion': 1, 'clientCapabilities': {}}}
+                child.stdin.write(json.dumps(request) + '\n')
+                child.stdin.flush()
+                assert select.select([child.stdout], [], [], 8)[0]
+                response = json.loads(child.stdout.readline())
+                assert response['result']['protocolVersion'] == 1
+            finally:
+                child.stdin.close()
+                try:
+                    assert child.wait(timeout=8) == 0
+                except subprocess.TimeoutExpired:
+                    child.kill()
+                    child.wait()
+                    raise
+
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__)
     for name in ('launcher', 'graph', 'workspace'):
         parser.add_argument(name, type=lambda path: Path(path).resolve(strict=True))
     args = parser.parse_args()
+    verify_diagnostic(args.launcher)
+    print('passed unbound ACP diagnostic', flush=True)
     # Keep SQLite sidecars available to RustCodeGraph under the read-only sandbox.
     with sqlite3.connect(args.workspace / '.rustcodegraph/rustcodegraph.db') as graph_state:
         assert graph_state.execute('PRAGMA journal_mode=WAL').fetchone()[0] == 'wal'

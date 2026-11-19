@@ -217,7 +217,12 @@ def main():
     if len(sys.argv) != 1:
         raise ValueError('Harn managed launcher does not accept custom arguments')
     root = Path(__file__).resolve().parent
-    bound_workspace = Path(os.environ.get('SHIJU_HARN_WORKSPACE', ''))
+    binding = os.environ.get('SHIJU_HARN_WORKSPACE')
+    # Unbound initialization is also used by the standard ACP diagnostic.
+    # A request-owned relay must always have its explicitly bound workspace.
+    if binding is None and os.environ.get('SHIJU_HARN_RELAY_TOKEN'):
+        raise ValueError('Harn requires a host-bound workspace')
+    bound_workspace = Path(binding) if binding is not None else Path.cwd()
     if not bound_workspace.is_absolute() or not bound_workspace.is_dir():
         raise ValueError('Harn requires a host-bound workspace')
     workspace = bound_workspace.resolve(strict=True)

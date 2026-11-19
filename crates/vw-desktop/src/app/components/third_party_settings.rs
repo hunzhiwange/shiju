@@ -1,4 +1,6 @@
 //! Final desktop composition for third-party resources and application details.
+#[path = "third_party_skills_workspace.rs"]
+pub(crate) mod skills_workspace;
 use super::system_settings_common::{icon_btn, icon_svg, rounded_action_btn_style, settings_page_heading};
 use crate::app::{
     App, Message,
@@ -337,7 +339,12 @@ pub(crate) fn navigate(app: &mut App, page: ThirdPartyPage) -> Task<Message> {
                 context, project: input.project, host: input.host, directory: input.directory,
             });
             app.apps_catalog.third_party_skills.sync(scope, app.apps_catalog.navigation_generation);
-            Task::none()
+            let Some(scope) = app.apps_catalog.third_party_skills.scope().cloned() else { return Task::none(); };
+            let catalog = app.apps_catalog.navigation_generation;
+            skills_update(app, desktop_settings_skills::third_party::Message {
+                scope, catalog, action: desktop_settings_skills::third_party::Action::Workspace(
+                    desktop_settings_skills::third_party::workspace::Event::Tab(desktop_settings_skills::third_party::workspace::Tab::Installed)),
+            })
         }
         ThirdPartyPage::Sessions => {
             super::external_sessions::update(app, super::external_sessions::Event::Refresh)
@@ -452,6 +459,7 @@ pub(crate) fn skills_update(
         event,
     ) {
         Effect::None => Task::none(),
+        Effect::Workspace { scope, catalog, effect } => skills_workspace::execute(app, scope, catalog, effect),
         Effect::Binding { scope, catalog, effect } => match effect {
             bindings_view::Effect::None => Task::none(),
             bindings_view::Effect::Error(error) => app.show_error_toast(error),

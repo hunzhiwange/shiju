@@ -5,13 +5,13 @@ use vw_api_app_identity::{
 // Application selection stays separate from the selected application configuration.
 
 
-use super::{catalog::CatalogRow, drag, preferences, presentation::{self, Presence}, styles::{self, Tone}, Action, ViewState};
+use super::{catalog::CatalogRow, drag, presentation::{self, Presence}, styles::{self, Tone}, Action, ViewState};
 use desktop_ui_controls::system_settings_common::*;
 use desktop_assets::assets::{self, Icon};
 use iced::{
     Alignment, Element, Length, Theme,
     widget::{
-        button, column, container, mouse_area, row, svg, text, text::Wrapping, text_input, tooltip,
+        button, column, container, mouse_area, row, svg, text, text::Wrapping, text_input, tooltip, scrollable, rule,
     },
 };
 
@@ -43,7 +43,11 @@ pub(super) fn action<'a, M: Clone + 'static>(
 }
 
 pub fn view<'a, M: Clone + 'static>(state: &ViewState<'a>, help_heading: impl Fn(&'static str, &'static str) -> Element<'a, M>, local_available: bool, domains: Element<'a, M>, routing: Element<'a, M>, details: Option<Element<'a, M>>, message: impl Fn(Action) -> M + Copy + 'static) -> Element<'a, M> {
-    let visible = preferences::visible_rows(state);
+    let mut visible: Vec<_> = state.rows.iter().collect();
+    if let Some(saved) = &state.preferences.saved {
+        visible.sort_by_key(|app| saved.user.app_order.iter()
+            .position(|id| *id == presentation::key(app.entry.id)).unwrap_or(usize::MAX));
+    }
     let installed =
         visible.iter().filter(|a| presentation::presence(a) == Presence::Installed).count();
     let missing = visible.iter().filter(|a| presentation::presence(a) == Presence::Missing).count();
@@ -55,7 +59,7 @@ pub fn view<'a, M: Clone + 'static>(state: &ViewState<'a>, help_heading: impl Fn
         state.host
     };
     let heading = row![
-        container(settings_page_heading("第三方智能体", "选择智能体，管理它的配置与运行环境。"))
+        container(settings_page_heading("应用", "管理执行主机上的第三方应用、配置与运行环境。"))
             .width(Length::Fill),
         action(
             if state.error.is_some() { "重试" } else { "刷新" },
@@ -94,9 +98,8 @@ pub fn view<'a, M: Clone + 'static>(state: &ViewState<'a>, help_heading: impl Fn
     .wrap();
     let filters =
         settings_group_card(container(column![search_row, status].spacing(12)).padding([14, 0]));
-    let mut content = column![
-        heading, domains, filters, routing
-    ].spacing(20);
+    let toolbar = column![heading, domains, filters].spacing(16);
+    let mut content = column![routing].spacing(20);
     if let Some(error) = state.error {
         content = content.push(settings_error_banner(error.clone()));
     }
@@ -110,7 +113,7 @@ pub fn view<'a, M: Clone + 'static>(state: &ViewState<'a>, help_heading: impl Fn
             Icon::ArrowClockwise,
         ));
     } else if state.rows.is_empty() {
-        let mut panel = column![empty(
+        let panel = column![empty(
             "让常用工具触手可及",
             "本机应用会自动发现，无需填写主机或令牌。",
             Icon::Terminal
@@ -158,11 +161,12 @@ pub fn view<'a, M: Clone + 'static>(state: &ViewState<'a>, help_heading: impl Fn
                 row![container(heading).width(Length::Fill), settings_value_badge(apps.len()),]
                     .spacing(8)
                     .align_y(Alignment::Center);
-            let mut cards = column![].spacing(8);
-            for app in apps {
-                cards = cards.push(card(state, app, message));
+            let mut cards = column![];
+            for (index, app) in apps.into_iter().enumerate() {
+                if index > 0 { cards = cards.push(rule::horizontal(1)); }
+                cards = cards.push(card(state, app, local_available, message));
             }
-            let section = column![section_title, cards].spacing(10);
+            let section = column![section_title, settings_group_card(cards)].spacing(10);
             let section: Element<'_, M> =
                 if presence == Presence::Installed && state.drag.source.is_some() {
                     mouse_area(section).on_exit(message(Action::Drag(drag::DragMessage::Cancel))).into()
@@ -196,7 +200,13 @@ pub fn view<'a, M: Clone + 'static>(state: &ViewState<'a>, help_heading: impl Fn
             ));
         }
     }
-    settings_section_content(content).into()
+    settings_section_content(column![
+        toolbar,
+        scrollable(container(content).padding([0, 7]))
+            .direction(scrollable::Direction::Vertical(
+                scrollable::Scrollbar::new().width(4).scroller_width(4)))
+            .height(Length::Fill),
+    ].spacing(20).height(Length::Fill)).height(Length::Fill).into()
 }
 
 fn empty<'a, M: 'static>(title: &'a str, description: &'a str, glyph: Icon) -> Element<'a, M> {
@@ -275,7 +285,7 @@ pub fn brand_icon<M: 'static>(app: AppId, size: f32) -> Element<'static, M> {
     }
 }
 
-fn card<'a, M: Clone + 'static>(state: &ViewState<'a>, app: &'a CatalogRow, message: impl Fn(Action) -> M + Copy + 'static) -> Element<'a, M> {
+fn card<'a, M: Clone + 'static>(state: &ViewState<'a>, app: &'a CatalogRow, local_available: bool, message: impl Fn(Action) -> M + Copy + 'static) -> Element<'a, M> {
     let installed = presentation::presence(app) == Presence::Installed;
     let expanded = state.expanded == Some(app.entry.id);
     let selected =
@@ -350,27 +360,36 @@ fn card<'a, M: Clone + 'static>(state: &ViewState<'a>, app: &'a CatalogRow, mess
     } else {
         let label = match presentation::presence(app) {
             Presence::Installed => "桌面应用 · 已发现",
-            Presence::Missing if app.entry.id == AppId::ClaudeDesktop => "桌面应用",
-            Presence::Missing => "命令行智能体",
+            Presence::Missing => "未安装",
             Presence::Unverified => "暂未确认安装状态",
         };
         meta = meta.push(text(label).size(12).style(settings_muted_text_style));
     }
-    let description =
-        column![text(&app.entry.name).size(16).wrapping(Wrapping::Glyph), meta.wrap(),]
-            .spacing(8)
-            .width(Length::Fill);
-    let select = button(text(if expanded { "已选择" } else { "选择" }).size(SETTINGS_CONTROL_TEXT_SIZE))
+    let mut description = column![text(&app.entry.name).size(16).wrapping(Wrapping::Glyph), meta.wrap()]
+        .spacing(8).width(Length::Fill);
+    if let Some(installation) = presentation::preferred(app) {
+        description = description.push(text(&installation.path).size(12)
+            .wrapping(Wrapping::Glyph).style(settings_muted_text_style));
+    } else if let Ok(observation) = &app.observation {
+        if let Some(paths) = observation.desktop.as_ref().and_then(|desktop| desktop.app_bundles.as_ref()) {
+            for path in paths { description = description.push(text(path).size(12)
+                .wrapping(Wrapping::Glyph).style(settings_muted_text_style)); }
+        }
+    }
+    let select = button(text(if expanded { "收起详情" } else { "详情" }).size(SETTINGS_CONTROL_TEXT_SIZE))
         .padding([8, 12])
         .style(rounded_action_btn_style)
-        .on_press_maybe((!expanded && state.drag.source.is_none())
+        .on_press_maybe((state.drag.source.is_none())
             .then_some(message(Action::ToggleDetails(app.entry.id))));
-    let summary = row![handle, brand(app.entry.id), description, select]
+    let summary = row![handle, brand(app.entry.id), description,
+        column![super::details::actions(state, app, local_available, message), select]
+            .spacing(8).width(Length::FillPortion(1))]
         .spacing(12)
-        .align_y(Alignment::Center);
+        .align_y(Alignment::Center)
+        .wrap();
     let body = container(summary).padding([12, 14]);
     let card =
-        container(body).width(Length::Fill).style(move |theme| styles::card(theme, selected));
+        container(body).width(Length::Fill).style(move |theme| styles::list_row(theme, selected));
     if installed {
         mouse_area(card)
             .on_enter(message(Action::Drag(drag::DragMessage::Hover(app.entry.id))))
@@ -381,9 +400,9 @@ fn card<'a, M: Clone + 'static>(state: &ViewState<'a>, app: &'a CatalogRow, mess
     }
 }
 
-/// Returns the selected application within the current visibility and search scope.
+/// Returns the selected application within the catalog search scope.
 pub fn selected_app<'a>(state: &ViewState<'a>) -> Option<&'a CatalogRow> {
-    preferences::visible_rows(state).into_iter().find(|app| {
+    state.rows.iter().find(|app| {
         Some(app.entry.id) == state.expanded && presentation::matches_query(app, state.query)
     })
 }

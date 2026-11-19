@@ -31,3 +31,11 @@ pub(super) fn badge(theme: &Theme, tone: Tone) -> container::Style {
         ..Default::default()
     }
 }
+
+/// Group rows share the outer card border, retaining a subtle selection highlight.
+pub(super) fn list_row(theme: &Theme, selected: bool) -> container::Style {
+    container::Style {
+        background: selected.then(|| theme.palette().primary.scale_alpha(0.08).into()),
+        ..Default::default()
+    }
+}

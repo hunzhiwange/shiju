@@ -25,6 +25,9 @@ pub(crate) fn view(app: &App) -> Element<'_, Message> {
     let i18n = crate::app::i18n::I18n::new(app.general_settings.desktop_locale);
     let selected = state.expanded;
     let body: Element<'_, Message> = match state.third_party_page {
+        ThirdPartyPage::AppsCatalog => {
+            return workspace(app, super::system_settings_apps::view(state, i18n));
+        }
         ThirdPartyPage::Agents => {
             match state.rows.iter().find(|entry| Some(entry.entry.id) == selected) {
                 Some(entry) => column![
@@ -166,7 +169,7 @@ fn sidebar(app: &App) -> Element<'_, Message> {
     let mut resources = column![].spacing(2);
     for &(page, label) in ThirdPartyPage::ALL {
         let icon = match page {
-            ThirdPartyPage::Agents => continue,
+            ThirdPartyPage::Agents | ThirdPartyPage::AppsCatalog => continue,
             ThirdPartyPage::Mcp => Icon::HddNetwork,
             ThirdPartyPage::Skills => Icon::Box,
             ThirdPartyPage::Prompts => Icon::Box,
@@ -211,7 +214,7 @@ fn sidebar(app: &App) -> Element<'_, Message> {
     .align_y(iced::Alignment::Center);
 
     let footer = row![
-        sidebar_action(navigation_icon(Icon::Grid1x2), i18n.__("应用"), None, false, Message::View(ViewMessage::OpenApps)),
+        sidebar_action(navigation_icon(Icon::Grid1x2), i18n.__("应用"), None, !showing_usage && state.third_party_page == ThirdPartyPage::AppsCatalog, message(AppsCatalogMessage::Navigate(ThirdPartyPage::AppsCatalog))),
         sidebar_action(navigation_icon(Icon::Gear), i18n.__("设置"), None, false, Message::View(ViewMessage::OpenSystemSettingsTab(
             desktop_ui_controls::settings_navigation::SystemTab::General,
         ))),
@@ -324,6 +327,7 @@ pub(crate) fn navigate(app: &mut App, page: ThirdPartyPage) -> Task<Message> {
     app.apps_catalog.third_party_page = page;
     use crate::app::message::settings;
     match page {
+        ThirdPartyPage::AppsCatalog => settings::apps_catalog::update(app, AppsCatalogMessage::EnsureLoaded),
         ThirdPartyPage::Prompts => super::system_settings_prompts::list::open_selected(app),
         ThirdPartyPage::Mcp => {
             app.apps_catalog.third_party_mcp_scope = mcp_scope(app);

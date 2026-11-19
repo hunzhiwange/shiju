@@ -32,3 +32,19 @@
 - 原版握手公布 `qodercli-login`。首次无挂载 `session/new` 返回 `-32000` 与 `Authentication required`，零模型请求、零服务调用。探针退出 2，原版子进程超时后由探针强制结束，信号退出码为 -9。当前没有已授权的供应商登录及模型会话，原版目录、官方读取、批准/拒绝及模型续轮均停在这个前置断点。复验需在获授权的独立供应商会话重复上述步骤。[历史受管验收](../../mcp-acceptance/qoder.md)
 - 本轮走直接 ACP，未启动 ShiJu 网关、调用真实供应商、执行 Cargo 或验证其他平台。旧三工具转发只属于历史验收，本轮用了独立 stdio 服务。当前证据未发现受管适配器裁剪原生目录，现有发现及权限逻辑保留。
 - 私有证据目录为 `/private/tmp/shiju-qoder32.645LLn`。从仓库根目录用 `python3 <证据目录>/probe.py managed new`、`managed load`、`managed resume`、`managed resume-retry` 复验；脚本为每个入口和模式创建独立输出目录，重跑需先移开旧同名目录。受管探针和 `verify.py` 均退出 0。受管子进程在证据采集后由探针以 SIGTERM 收尾，进程退出码为 143。回执空白检查无诊断。
+
+## 原版登录门禁补跑
+
+在相同固定制品和仅回环出站约束下做三组对照，每组依次请求无挂载、挂载和撤除后的新会话。九次均在 `session/new` 返回 `-32000 Authentication required`，模型请求和 stdio 服务启动均为零。
+
+| 入口 | 参数 | 无挂载 / 挂载 / 撤除 |
+| --- | --- | --- |
+| 原版 | 仅 `--acp`，空 HOME | 登录要求 / 登录要求 / 登录要求 |
+| 原版 | `--acp` 加私有配置目录、用户配置源与回环模型 | 登录要求 / 登录要求 / 登录要求 |
+| 受管 bundle 的供应商分支 | 仅 `--acp`，空 HOME，无私有绑定 | 登录要求 / 登录要求 / 登录要求 |
+
+本机执行环境未提供 `QODER_PERSONAL_ACCESS_TOKEN`。官方 ACP 使用 Qoder CLI 的登录状态，也支持个人访问令牌。官方 BYOK 由个人版账号在 Custom 向导中选择受支持 Provider。完成原版比较需要获授权的独立 Qoder 登录和可调用的供应商模型。如需复用同一回环模型，还需确认该环境可通过官方途径配置此 Provider。[Qoder ACP 登录](https://docs.qoder.com/cli/acp#login-and-usage) · [Qoder 自定义模型](https://docs.qoder.com/cli/custom-models)
+
+回看历史证据，原版 1.1.83 只记录了握手及权限字段，受管 1.1.88 的历史网关三轮使用了私有模型绑定。两者均无法补齐当前原版的工具执行和续轮。受管版当前回环证据的复核脚本再次退出 0，任务保留原版登录阻塞。[原版历史权限证据](../../../../shiju/acp-full-access/evidence/qoder.md) · [受管历史验收](../../mcp-acceptance/qoder.md)
+
+私有目录中的 `probe_upstream.py` 支持 `original upstream-default`、`original upstream-explicit`、`managed upstream-no-binding` 三组对照。三次探针均退出 0 并记录每轮协议错误，三个子进程在关闭超时后由探针强制结束，退出码均为 -9。

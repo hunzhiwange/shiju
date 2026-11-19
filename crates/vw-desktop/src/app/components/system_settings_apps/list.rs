@@ -5,8 +5,9 @@ pub(crate) fn view(
     let projection = super::view_state(state);
     let details = desktop_settings_apps::system_settings_apps::list::selected_app(&projection)
         .map(|row| super::details::view(state, row));
-    desktop_settings_apps::system_settings_apps::list::view(
+    desktop_settings_apps::system_settings_apps::list::view_with_updates(
         &projection,
+        Some(&state.updates),
         |title, description| {
             crate::app::components::system_settings_common::settings_group_heading_with_help(
                 i18n, None, i18n.__(title), i18n.__(description),

@@ -103,7 +103,6 @@ impl CatalogInput<'_> {
         *self.generation = self.generation.wrapping_add(1);
         *self.context = Some(value);
         *self.loading = true;
-        self.rows.clear();
         *self.loaded_at = None;
         *self.drag = Default::default();
         *self.expanded = None;

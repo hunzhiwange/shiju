@@ -7525,6 +7525,7 @@ dependencies = [
 name = "desktop-settings-apps"
 version = "0.6.0"
 dependencies = [
+ "app-versions",
  "config-ui",
  "desktop-apps-ui",
  "desktop-assets",
@@ -7548,6 +7549,7 @@ dependencies = [
  "image",
  "local-app-auth",
  "rand 0.8.8",
+ "reqwest 0.13.4",
  "serde_json",
  "tempfile",
  "tokio",

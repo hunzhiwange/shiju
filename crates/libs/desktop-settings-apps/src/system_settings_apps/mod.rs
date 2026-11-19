@@ -15,7 +15,7 @@ use vw_api_app_identity::{AppId, AppInstallationId};
 use vw_api_app_operations::AppActionPreviewRequest;
 #[derive(Clone, Debug)]
 pub enum Action {
-    Refresh, QueryInput(String), ConnectionOpen, LocalConnect,
+    CheckUpdates, Refresh, QueryInput(String), ConnectionOpen, LocalConnect,
     ToggleDetails(AppId), RefreshObservation(AppId),
     CommandsOpen(u8),
     PreferencesOpen, SetVisible(AppId, bool), LaunchOpen(AppId, AppInstallationId),

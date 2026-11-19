@@ -43,6 +43,10 @@ pub(super) fn action<'a, M: Clone + 'static>(
 }
 
 pub fn view<'a, M: Clone + 'static>(state: &ViewState<'a>, help_heading: impl Fn(&'static str, &'static str) -> Element<'a, M>, local_available: bool, domains: Element<'a, M>, routing: Element<'a, M>, details: Option<Element<'a, M>>, message: impl Fn(Action) -> M + Copy + 'static) -> Element<'a, M> {
+    view_with_updates(state, None, help_heading, local_available, domains, routing, details, message)
+}
+
+pub fn view_with_updates<'a, M: Clone + 'static>(state: &ViewState<'a>, updates: Option<&'a desktop_apps_ui::catalog_state::UpdatesState>, help_heading: impl Fn(&'static str, &'static str) -> Element<'a, M>, local_available: bool, domains: Element<'a, M>, routing: Element<'a, M>, details: Option<Element<'a, M>>, message: impl Fn(Action) -> M + Copy + 'static) -> Element<'a, M> {
     let mut visible: Vec<_> = state.rows.iter().collect();
     if let Some(saved) = &state.preferences.saved {
         visible.sort_by_key(|app| saved.user.app_order.iter()
@@ -61,6 +65,9 @@ pub fn view<'a, M: Clone + 'static>(state: &ViewState<'a>, help_heading: impl Fn
     let heading = row![
         container(settings_page_heading("应用", "管理执行主机上的第三方应用、配置与运行环境。"))
             .width(Length::Fill),
+        button(text(if updates.is_some_and(|u| u.checking) { "检查中…" } else { "检查更新" }).size(SETTINGS_CONTROL_TEXT_SIZE))
+            .width(108.).padding([8, 11]).style(rounded_action_btn_style)
+            .on_press_maybe((!state.loading && !updates.is_some_and(|u| u.checking) && state.drag.source.is_none() && !state.rows.is_empty()).then_some(message(Action::CheckUpdates))),
         action(
             if state.error.is_some() { "重试" } else { "刷新" },
             Icon::ArrowClockwise,
@@ -109,7 +116,14 @@ pub fn view<'a, M: Clone + 'static>(state: &ViewState<'a>, help_heading: impl Fn
     .wrap();
     let filters =
         settings_group_card(container(column![search_row, status].spacing(12)).padding([14, 0]));
-    let toolbar = column![heading, domains, filters].spacing(16);
+    let check_status = updates.map(|updates| {
+        if let Some(error) = &updates.error { return error.clone(); }
+        match updates.checked_at.and_then(|at| at.elapsed().ok()) {
+            Some(elapsed) => format!("上次成功检查：{} 分钟前", elapsed.as_secs() / 60),
+            None => "尚未检查更新".into(),
+        }
+    }).unwrap_or_default();
+    let toolbar = column![heading, text(check_status).size(12).style(settings_muted_text_style), domains, filters].spacing(16);
     let mut content = column![routing].spacing(20);
     if let Some(error) = state.error {
         content = content.push(settings_error_banner(error.clone()));
@@ -117,7 +131,7 @@ pub fn view<'a, M: Clone + 'static>(state: &ViewState<'a>, help_heading: impl Fn
     if state.lifecycle.request.is_some() || state.lifecycle.error.is_some() {
         content = content.push(super::lifecycle_view::progress(state.lifecycle, message));
     }
-    if state.loading {
+    if state.loading && state.rows.is_empty() {
         content = content.push(empty(
             "正在读取应用",
             "正在检查安装状态和版本，请稍候。",
@@ -182,7 +196,7 @@ pub fn view<'a, M: Clone + 'static>(state: &ViewState<'a>, help_heading: impl Fn
             ];
             for (index, app) in apps.into_iter().enumerate() {
                 if index > 0 { cards = cards.push(rule::horizontal(1)); }
-                cards = cards.push(card(state, app, local_available, message));
+                cards = cards.push(card(state, updates, app, local_available, message));
             }
             let section = column![section_title, settings_group_card(cards)].spacing(10);
             let section: Element<'_, M> =
@@ -303,7 +317,7 @@ pub fn brand_icon<M: 'static>(app: AppId, size: f32) -> Element<'static, M> {
     }
 }
 
-fn card<'a, M: Clone + 'static>(state: &ViewState<'a>, app: &'a CatalogRow, local_available: bool, message: impl Fn(Action) -> M + Copy + 'static) -> Element<'a, M> {
+fn card<'a, M: Clone + 'static>(state: &ViewState<'a>, updates: Option<&'a desktop_apps_ui::catalog_state::UpdatesState>, app: &'a CatalogRow, local_available: bool, message: impl Fn(Action) -> M + Copy + 'static) -> Element<'a, M> {
     let installed = presentation::presence(app) == Presence::Installed;
     let expanded = state.expanded == Some(app.entry.id);
     let selected =
@@ -383,6 +397,12 @@ fn card<'a, M: Clone + 'static>(state: &ViewState<'a>, app: &'a CatalogRow, loca
         };
         meta = meta.push(text(label).size(12).style(settings_muted_text_style));
     }
+    let candidate = updates.and_then(|u| u.results.iter().find(|candidate|
+        presentation::preferred(app) == Some(&candidate.installation)));
+    if let Some(candidate) = candidate {
+        if let Some(latest) = &candidate.latest { meta = meta.push(pill(format!("最新 {latest}"), Tone::Neutral)); }
+        meta = meta.push(text(candidate.status.clone()).size(12).style(settings_muted_text_style));
+    }
     let mut description = column![text(&app.entry.name).size(16).wrapping(Wrapping::Glyph), meta.wrap()]
         .spacing(8).width(Length::Fill);
     if let Some(installation) = presentation::preferred(app) {
@@ -410,8 +430,19 @@ fn card<'a, M: Clone + 'static>(state: &ViewState<'a>, app: &'a CatalogRow, loca
     let toggle = container(settings_toggle(visible).on_toggle_maybe(
         enabled.then_some(move |visible| message(Action::SetVisible(id, visible))),
     )).width(96.).center_x(96.);
+    let mut actions = column![super::details::actions(state, app, local_available, message)].spacing(8);
+    if let Some(candidate) = candidate.filter(|candidate| candidate.supported) {
+        let request = vw_api_app_operations::AppActionPreviewRequest {
+            app_id: app.entry.id,
+            action: vw_api_app_operations::AppLifecycleAction::Update,
+            target: vw_api_app_operations::AppActionTarget::Installation { installation_id: candidate.installation.id.clone() },
+        };
+        actions = actions.push(button(text("升级").size(SETTINGS_CONTROL_TEXT_SIZE))
+            .padding([8, 12]).style(primary_action_btn_style)
+            .on_press_maybe((!state.loading && !updates.is_some_and(|u| u.checking) && !state.lifecycle.active() && state.lifecycle.preview.is_none() && state.drag.source.is_none()).then_some(message(Action::Preview(request)))));
+    }
     let summary = row![handle, brand(app.entry.id), description,
-        column![super::details::actions(state, app, local_available, message), select]
+        actions.push(select)
             .spacing(8).width(Length::FillPortion(1)), toggle]
         .spacing(12)
         .align_y(Alignment::Center)

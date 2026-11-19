@@ -8,6 +8,8 @@ license = "MIT"
 doctest = false
 
 [dependencies]
+app-versions = { path = "../app-versions", version = "0.6.0" }
+reqwest = { version = "0.13", default-features = false, features = ["json", "rustls"] }
 iced_runtime = "0.14"
 web-time = "1"
 config-ui = { path = "../config-ui", version = "0.6.0" }

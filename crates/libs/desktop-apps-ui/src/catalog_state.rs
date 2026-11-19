@@ -59,6 +59,7 @@ pub struct AppsCatalogState<
     pub navigation_generation: u64,
     pub third_party_skills: ThirdPartySkills,
     pub third_party_mcp_scope: ThirdPartyMcpScope,
+    pub updates: UpdatesState,
     pub commands: CommandsState,
     pub query: String,
     pub hovered: Option<vw_api_app_identity::AppId>,
@@ -221,6 +222,7 @@ impl<
         navigation_generation: 0,
         third_party_skills: Default::default(),
         third_party_mcp_scope: Default::default(),
+        updates: Default::default(),
         commands: Default::default(),
         query: Default::default(),
         hovered: Default::default(),
@@ -262,4 +264,20 @@ impl CommandsState {
         self.sequence = self.sequence.wrapping_add(1);
         self.copied.clear();
     }
+}
+
+/// Metadata is separate from authorized installation observations.
+#[derive(Clone, Debug, Default)]
+pub struct UpdatesState {
+    pub checking: bool,
+    pub checked_at: Option<std::time::SystemTime>,
+    pub error: Option<String>,
+    pub results: Vec<UpdateCandidate>,
+}
+#[derive(Clone, Debug)]
+pub struct UpdateCandidate {
+    pub installation: vw_api_app_identity::AppInstallation,
+    pub latest: Option<String>,
+    pub supported: bool,
+    pub status: String,
 }

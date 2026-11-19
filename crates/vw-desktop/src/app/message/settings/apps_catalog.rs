@@ -50,6 +50,8 @@ pub enum AppsCatalogMessage {
         id: vw_api_app_identity::AppId,
         result: Result<vw_api_app_identity::AppReadResponse, gateway_http::AgentAppsReadError>,
     },
+    CheckUpdates,
+    UpdatesLoaded { context: AgentAppsContext, host: String, generation: u64, results: Vec<desktop_apps_ui::catalog_state::UpdateCandidate> },
     Refresh,
     EnsureLoaded,
     Loaded {
@@ -66,6 +68,30 @@ impl std::fmt::Debug for AppsCatalogMessage {
 }
 pub(super) fn update(app: &mut App, message: AppsCatalogMessage) -> Task<Message> {
     match message {
+        AppsCatalogMessage::CheckUpdates => {
+            let Ok(client) = crate::app::config::gateway_client() else { return app.show_error_toast("网关不可用"); };
+            let context = AgentAppsContext { gateway: client.endpoint().base_url(), tenant: client.endpoint().tenant_scope().clone(), project: app.navigation_tabs.project_path.clone() };
+            let state = &mut app.apps_catalog;
+            if state.loading || state.updates.checking || state.context.as_ref() != Some(&context) { return Task::none(); }
+            state.updates.checking = true;
+            state.updates.error = None;
+            let (host, token, rows, generation) = (state.host.clone(), state.token.clone(), state.rows.clone(), state.generation);
+            return Task::perform(async move {
+                let results = desktop_settings_apps::system_settings_apps::catalog_requests::check_updates(client, host.clone(), token, rows).await;
+                Message::Settings(SettingsMessage::AppsCatalog(AppsCatalogMessage::UpdatesLoaded { context, host, generation, results }))
+            }, |message| message);
+        }
+        AppsCatalogMessage::UpdatesLoaded { context, host, generation, results } => {
+            let current = crate::app::config::gateway_client().ok().map(|client| AgentAppsContext { gateway: client.endpoint().base_url(), tenant: client.endpoint().tenant_scope().clone(), project: app.navigation_tabs.project_path.clone() });
+            let state = &mut app.apps_catalog;
+            if current.as_ref() != Some(&context) || state.context.as_ref() != Some(&context) || state.host != host || state.generation != generation { return Task::none(); }
+            state.updates.checking = false;
+            let failed = results.iter().any(|r| r.status == "检查失败，请重试" || r.status == "升级预检未通过");
+            state.updates.error = failed.then(|| "部分应用检查失败，请重试".into());
+            if !failed { state.updates.checked_at = Some(std::time::SystemTime::now()); }
+            state.updates.results = results;
+        }
+
         AppsCatalogMessage::Commands(event) => return crate::app::components::system_settings_apps::commands::update(app, event),
         AppsCatalogMessage::SelectPromptApp(id) => {
             return crate::app::components::system_settings_prompts::list::select(app, id);
@@ -112,6 +138,7 @@ pub(super) fn update(app: &mut App, message: AppsCatalogMessage) -> Task<Message
                 Ok(None) => return Task::none(),
                 Err(error) => return app.show_error_toast(error),
             };
+            app.apps_catalog.updates.checking = false;
             let desktop_settings_apps::system_settings_apps::catalog_update::ObservationRequest { generation, host, token } = request;
             return Task::perform(async move {
                 let client = gateway_app_read::GatewayAppReadClient::new(client.transport().clone());
@@ -220,6 +247,7 @@ pub(super) fn update(app: &mut App, message: AppsCatalogMessage) -> Task<Message
             app.apps_catalog.hermes_memory.invalidate();
             app.apps_catalog.project_profiles.invalidate();
             app.apps_catalog.model_diagnostics.invalidate_access();
+            app.apps_catalog.updates = Default::default();
             catalog_input(&mut app.apps_catalog).credentials(Some(host), None);
         }
         AppsCatalogMessage::TokenInput(token) => {
@@ -248,6 +276,7 @@ pub(super) fn update(app: &mut App, message: AppsCatalogMessage) -> Task<Message
             app.apps_catalog.hermes_memory.invalidate();
             app.apps_catalog.project_profiles.invalidate();
             app.apps_catalog.model_diagnostics.invalidate_access();
+            app.apps_catalog.updates = Default::default();
             catalog_input(&mut app.apps_catalog).credentials(None, Some(token));
         }
         AppsCatalogMessage::Refresh | AppsCatalogMessage::EnsureLoaded => {

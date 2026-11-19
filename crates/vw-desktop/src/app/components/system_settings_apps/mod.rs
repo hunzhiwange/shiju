@@ -70,6 +70,7 @@ pub(super) fn domain_event(action: desktop_settings_apps::system_settings_apps::
     use crate::app::message::settings::apps_lifecycle::LifecycleMessage;
     let value = match action {
         Action::CommandsOpen(panel) => AppsCatalogMessage::Commands(commands::Event::Open(panel)),
+        Action::CheckUpdates => AppsCatalogMessage::CheckUpdates,
         Action::Refresh => AppsCatalogMessage::Refresh,
         Action::QueryInput(value) => AppsCatalogMessage::QueryInput(value),
         Action::ConnectionOpen => AppsCatalogMessage::ConnectionOpen,

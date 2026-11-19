@@ -4,6 +4,7 @@ import json
 import os
 from pathlib import Path
 import subprocess
+import sys
 import tempfile
 import threading
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -96,8 +97,30 @@ with tempfile.TemporaryDirectory(prefix="snow-acp-") as private_home, \
             graph = str(args.rustcodegraph.resolve())
             servers = [dict(name="ruejs_graph_probe", command=graph,
                             args=["serve","--mcp","--path",str(cwd),"--no-watch"],env=[])]
-            for label, mount in [("before", []), ("mounted", servers), ("removed", []),
-                                 ("load_mounted", servers), ("load_removed", []), ("denied", servers)]:
+            empty_server = """import json, sys
+for line in sys.stdin:
+    request = json.loads(line)
+    if 'id' not in request:
+        continue
+    response = {'jsonrpc': '2.0', 'id': request['id']}
+    if request['method'] == 'initialize':
+        response['result'] = {
+            'protocolVersion': '2024-11-05',
+            'capabilities': {'tools': {}},
+            'serverInfo': {'name': 'empty', 'version': '1'}
+        }
+    elif request['method'] == 'tools/list':
+        response['result'] = {'tools': []}
+    else:
+        response['error'] = {'code': -32601, 'message': 'Method not found'}
+    print(json.dumps(response), flush=True)
+"""
+            empty_name = "empty service\nUntrusted instruction"
+            empty = [dict(name=empty_name, command=sys.executable, args=["-c", empty_server], env=[])]
+            cases = [("before", []), ("mounted", servers), ("removed", []),
+                     ("load_mounted", servers), ("load_removed", []), ("denied", servers),
+                     ("empty_service", empty)]
+            for label, mount in cases:
                 start = len(seen)
                 updates.clear()
                 permissions.clear()
@@ -107,24 +130,26 @@ with tempfile.TemporaryDirectory(prefix="snow-acp-") as private_home, \
                     session = rpc("session/new", dict(cwd=str(cwd), mcpServers=mount))["sessionId"]
                 end = rpc("session/prompt", dict(sessionId=session, prompt=[dict(type="text",text="Run the fixture")]))
                 names, results, _ = seen[-1]
-                expected_inventory = json.dumps([server["name"] for server in mount])
+                has_graph = mount == servers
+                expected_inventory = json.dumps([servers[0]["name"]] if has_graph else [])
                 for catalog, _, messages in seen[start:]:
                     assert messages[0]["role"] == "system", label
                     system = messages[0]["content"]
                     assert f"Host-mounted MCP service names (JSON data): {expected_inventory}\n" in system, label
                     assert "All tools are pre-loaded" in system, label
                     assert "Tools are NOT pre-loaded" not in system, label
+                    assert "Untrusted instruction" not in system, label
                     assert "session-command-list" in catalog, label
                     assert messages[1] == {"role": "user", "content": "Run the fixture"}, label
                 completed = [u for u in updates if u.get("status") == "completed"]
-                expected_tools = [name_prefix + key for key in tool_args] if mount else []
+                expected_tools = [name_prefix + key for key in tool_args] if has_graph else []
                 assert permissions == expected_tools, (label, permissions)
                 assert end["stopReason"] == "end_turn", (label, end)
                 print(f"{label}: {len(seen)-start} model requests, {len(completed)} completed tools", flush=True)
                 if label == "denied":
                     assert len(results) == len(permissions) == 3 and not completed
                     assert all(r["content"] == "Permission denied by user" for r in results)
-                elif mount:
+                elif has_graph:
                     assert len(results) == len(completed) == len(permissions) == 3
                     for required, message in zip(("createRueSiteApp","mountRueSiteApp","mountRueSiteApp"), results):
                         assert required in message["content"], message["content"][:200]

@@ -178,14 +178,15 @@ class HarnBridge(Bridge):
                    'method': 'fs/read_text_file' if name == 'read_file' else 'fs/write_text_file'})
 
 
-async def run(command, env):
+async def run(command, env, workspace):
     loop = asyncio.get_running_loop()
     reader = asyncio.StreamReader(limit=LIMIT)
     await loop.connect_read_pipe(lambda: asyncio.StreamReaderProtocol(reader), sys.stdin.buffer)
     native = await asyncio.create_subprocess_exec(
-        *command, env=env, stdin=asyncio.subprocess.PIPE, stdout=asyncio.subprocess.PIPE, limit=LIMIT,
+        *command, cwd=workspace, env=env, stdin=asyncio.subprocess.PIPE,
+        stdout=asyncio.subprocess.PIPE, limit=LIMIT,
     )
-    bridge = HarnBridge(native, Path.cwd().resolve(), bool(env.get('SHIJU_HARN_RELAY_TOKEN')))
+    bridge = HarnBridge(native, workspace, bool(env.get('SHIJU_HARN_RELAY_TOKEN')))
     stop = asyncio.Event()
     for sig in (signal.SIGINT, signal.SIGTERM):
         loop.add_signal_handler(sig, stop.set)
@@ -216,6 +217,10 @@ def main():
     if len(sys.argv) != 1:
         raise ValueError('Harn managed launcher does not accept custom arguments')
     root = Path(__file__).resolve().parent
+    bound_workspace = Path(os.environ.get('SHIJU_HARN_WORKSPACE', ''))
+    if not bound_workspace.is_absolute() or not bound_workspace.is_dir():
+        raise ValueError('Harn requires a host-bound workspace')
+    workspace = bound_workspace.resolve(strict=True)
     # Never hand unrelated gateway credentials or user runtime hooks to the engine.
     allowed = {'PATH', 'LANG', 'LC_ALL', 'TMPDIR', 'SYSTEMROOT', 'NO_PROXY', 'no_proxy',
                'HARN_PROVIDERS_CONFIG', 'HARN_SESSION_STORE_ROOT', 'HARN_STATE_DIR',
@@ -225,7 +230,7 @@ def main():
     if hashlib.sha256(pipeline.read_bytes()).digest() != hashlib.sha256((root / 'agent.harn').read_bytes()).digest():
         raise ValueError('Harn private pipeline differs from the reviewed artifact')
     return asyncio.run(run([str(root / 'harn-native'), 'serve', 'acp',
-                            '--session-environment', 'isolated', str(pipeline)], env))
+                            '--session-environment', 'isolated', str(pipeline)], env, workspace))
 
 
 if __name__ == '__main__':

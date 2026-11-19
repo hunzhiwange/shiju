@@ -33,7 +33,9 @@ pub fn configure(
         profile.model_supports_tool_call && !profile.model_alias.is_empty(),
         "Harn requires a selected tool-capable model"
     );
-    for ancestor in std::path::Path::new(directory).ancestors() {
+    let workspace = std::fs::canonicalize(directory)?;
+    anyhow::ensure!(workspace.is_dir(), "Harn requires a workspace directory");
+    for ancestor in workspace.ancestors() {
         for name in ["harn.toml", ".env"] {
             match ancestor.join(name).symlink_metadata() {
                 Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
@@ -67,6 +69,7 @@ pub fn configure(
     #[cfg(not(unix))]
     anyhow::bail!("Harn private state ACL is not verified on this platform");
     let mut env = HashMap::from([
+        ("SHIJU_HARN_WORKSPACE".into(), workspace.to_string_lossy().into_owned()),
         ("SHIJU_HARN_PIPELINE".into(), pipeline.to_string_lossy().into_owned()),
         ("HARN_PROVIDERS_CONFIG".into(), file.to_string_lossy().into_owned()),
         ("SHIJU_HARN_RELAY_TOKEN".into(), profile.binding.bearer_token().into()),

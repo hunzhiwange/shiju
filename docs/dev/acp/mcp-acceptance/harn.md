@@ -85,3 +85,19 @@ v3 只用原生执行更新中的完整参数绑定逐次审批，同一调用 I
 17 次调用均有同 ID 的开始、批准及成功完成，并逐项匹配发送给模型的工具回复正文。其中 `call_03414ca4cd97489996d1a81b` 返回 `createRueSiteApp`（`app/app.tsx:32`），`call_34d016bb441e4fbb82e59ded` 返回 `mountRueSiteApp`（`app/app.tsx:39`），`call_9576f7aae9de4bcf9a750b45` 返回 `useApp` 转发给 `_$createApp` 的定义（`packages/runtime/src/hooks/useApp.ts:4`）。最终答复引用三项回传证据，并追到 `packages/runtime/src/compiler-runtime/app.ts:57` 的工厂。两轮对照的模型工具目录和原始 ACP 事件均无图谱服务，也无返回结果。此处是原生真实模型证据，HTTP 网关仍需使用包含 v3 摘要的链接产物。
 
 共享网关构建尝试在 `vw-agent` 的 MiMo 与 VT Code 接口处失败，编译日志包括缺少 `ManagedMcpApproval`、`verify_vtcode_mcp_executable` 及 `start_with_routes_and_vtcode_catalog`。该次未链接出网关。随后共享 Rust 编译连续被其他任务占用，按串行规则未另起重型构建。保留 HTTP 三轮与宿主默认配置定向测试待回归。
+
+## 网关工作目录回归
+
+复用槽位 3 的 shiju 0.6.0，SHA-256 为 `28793fbd08778fb50798533905a8aeb09dea69d4cdfd1589c7f9f76fa5255419`，核实嵌入 v3 摘要和对应 pipeline。网关从仓库根启动时，固定新版请求三轮均 HTTP 200，但 Harn 在 `session/new` 以 `Could not configure explicit Harn MCP tools or session environment` 拒绝。v3 把启动器的当前目录当成受信工作区。聚焦用例以不同启动目录复现该拒绝。
+
+把同一私有网关从 RueJS 副本目录启动以定位根因。三轮同一模型和新版提示均以 `chat.done` 结束，无 `chat.error` 或恢复事件。
+
+| 轮次 | 会话 ID | HTTP / curl / 耗时 | 图谱完成 | 官方读取成功 / 失败 |
+| --- | --- | --- | --- | --- |
+| 无挂载 | `ses_1f1e46761001nFHP39BSG4ZAMA` | 200 / 0 / 48.600 秒 | 0 | 5 / 9 |
+| 挂载 | `ses_1f1e5279e001Y5xuAWMDviXjsf` | 200 / 0 / 36.964 秒 | 10 | 5 / 0 |
+| 撤除 | `ses_1f1e5b995001AExpIx97IYCPi3` | 200 / 0 / 30.192 秒 | 0 | 4 / 12 |
+
+三轮均回读 `acp-harn / harn`、`full_access=true`。执行中 options 确认为 `connected=true`、`client_only` 和指定 `session_model`，终态连接关闭。挂载的 10 个调用都有同 ID 的开始及完成，含查询 2、调用者 1、节点 7。查询 `call_10b3d4559ee24a0eb40bb46e` 返回 `app/app.tsx:32`，调用者 `call_0e665737627e4b9799ada39c` 返回 `mountRueSiteApp`，节点 `call_e5b0ede304af4d5d8d1e0dbb` 返回 `useApp` 实现位置，`call_a15c080c0cfc48c8aadb8a2f` 定位到 `_$createApp`。最终答复结合输出复述了四段链路、客户端守卫、插件安装和静态快照清理。官方读取失败均在两个对照轮，未造成异常终态或图谱越权。
+
+v4 由 Rust 驱动在私有启动环境传递规范化工作目录，launcher 在建会话时仍强制校验该根，并在该根启动原生子进程。原生测试把 launcher 从不同目录启动，合法会话可用，同进程的越界建会话仍被拒绝。v3 在同一用例复现红灯，v4 的 8 个 stdio 场景、3 个宿主保护、2 个安装和 1 个自然语言用例通过。已使用官方归档核验 v4 安装，正常网关启动方式的 v4 三轮待新版链接产物。

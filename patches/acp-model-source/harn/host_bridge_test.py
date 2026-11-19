@@ -71,6 +71,7 @@ class HostBoundary(unittest.TestCase):
                 env = {'PATH': os.environ['PATH'], 'HARN_PROVIDERS_CONFIG': str(config),
                        'SHIJU_HARN_PIPELINE': str(private_pipeline),
                        'SHIJU_HARN_RELAY_TOKEN': 'fixture-only', 'NO_PROXY': '127.0.0.1'}
+                env['SHIJU_HARN_WORKSPACE'] = str(workspace)
                 for key in ['XDG_CONFIG_HOME', 'XDG_DATA_HOME', 'XDG_CACHE_HOME',
                             'HARN_SESSION_STORE_ROOT', 'HARN_STATE_DIR']:
                     env[key] = str(state)

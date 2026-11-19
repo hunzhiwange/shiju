@@ -66,7 +66,8 @@ def verify(launcher, graph, workspace, mounted, approve, restore=None, cancel=Fa
         for key in ('XDG_CONFIG_HOME', 'XDG_DATA_HOME', 'XDG_CACHE_HOME',
                     'HARN_SESSION_STORE_ROOT', 'HARN_STATE_DIR'):
             env[key] = str(state)
-        with subprocess.Popen([launcher], env=env, cwd=workspace,
+        env['SHIJU_HARN_WORKSPACE'] = str(workspace)
+        with subprocess.Popen([launcher], env=env, cwd=state,
                               stdin=subprocess.PIPE, stdout=subprocess.PIPE) as child:
             pending = bytearray()
 
@@ -74,7 +75,7 @@ def verify(launcher, graph, workspace, mounted, approve, restore=None, cancel=Fa
                 child.stdin.write(json.dumps({'jsonrpc': '2.0', **message}).encode() + b'\n')
                 child.stdin.flush()
 
-            def rpc(identifier, method, params):
+            def rpc(identifier, method, params, expected_error=None):
                 send({'id': identifier, 'method': method, 'params': params})
                 while True:
                     if b'\n' not in pending:
@@ -99,6 +100,9 @@ def verify(launcher, graph, workspace, mounted, approve, restore=None, cancel=Fa
                         if update.get('sessionUpdate') == 'agent_message_chunk':
                             visible.append(update['content']['text'])
                     elif 'method' not in message and message.get('id') == identifier:
+                        if expected_error:
+                            assert expected_error in message['error']['message']
+                            return None
                         if method == 'session/prompt' and mounted and not approve and 'error' in message:
                             assert 'completion_unverified' in message['error']['message'], message
                             return {'stopReason': 'denied'}
@@ -117,6 +121,8 @@ def verify(launcher, graph, workspace, mounted, approve, restore=None, cancel=Fa
                         'deny': ['mcp__ruejs_graph_probe__rustcodegraph_status'],
                     }}
                 mount = [definition] if mounted else []
+                rpc(8, 'session/new', {'cwd': str(state), 'mcpServers': mount},
+                    expected_error='Could not configure explicit Harn MCP tools or session environment')
                 created = rpc(2, 'session/new', {'cwd': str(workspace), 'mcpServers': [] if restore else mount})
                 session = created['sessionId']
                 if restore:

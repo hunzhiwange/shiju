@@ -2,6 +2,8 @@
 pub mod profile;
 pub mod gateway;
 pub mod drivers;
+#[cfg(windows)]
+mod windows_private_dir;
 
 /// Process-keyed one-way digest: cache diagnostics cannot disclose or guess credentials.
 pub fn fingerprint(bytes: &[u8]) -> String {
@@ -44,7 +46,7 @@ pub fn prepare_profile(agent: &str, config: &agent_config::schema::AcpAgentConfi
         acp_agent_registry::verify_reviewed_agent_executable(agent, &config.command)
             .map_err(anyhow::Error::msg)?;
     }
-    let mut profile = profile::AcpLaunchProfile::new(config, identity)?;
+    let mut profile = profile::AcpLaunchProfile::new_for_agent(agent, config, identity)?;
     profile.state_root = Some(state_root());
     profile.apply_model(resolved);
     Ok(profile)

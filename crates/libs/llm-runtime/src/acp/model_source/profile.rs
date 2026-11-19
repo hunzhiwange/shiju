@@ -49,17 +49,22 @@ pub struct AcpLaunchProfile {
 }
 impl AcpLaunchProfile {
     pub fn new(config: &AcpAgentConfig, identity: RelayIdentity) -> anyhow::Result<Self> {
+        Self::new_for_agent("", config, identity)
+    }
+
+    pub(super) fn new_for_agent(
+        _agent: &str,
+        config: &AcpAgentConfig,
+        identity: RelayIdentity,
+    ) -> anyhow::Result<Self> {
         anyhow::ensure!(!config.env.contains_key(REFERENCE_ENV), "reserved ACP launch environment");
-        // No Windows launch is allowed until a restrictive DACL can be verified.
-        #[cfg(not(unix))]
+        #[cfg(not(any(unix, windows)))]
         {
             let _ = identity;
-            anyhow::bail!(
-                "private ACP launch directory ACL verification unavailable on this platform"
-            );
+            anyhow::bail!("private ACP launch directory verification unavailable on this platform");
         }
         #[cfg(unix)]
-        {
+        let directory = {
             use std::os::unix::fs::PermissionsExt;
             let directory = tempfile::Builder::new()
                 .prefix("shiju-acp-launch-")
@@ -69,6 +74,26 @@ impl AcpLaunchProfile {
                 directory.path().symlink_metadata()?.permissions().mode() & 0o777 == 0o700,
                 "insecure ACP launch directory"
             );
+            directory
+        };
+        #[cfg(windows)]
+        let directory = {
+            anyhow::ensure!(
+                _agent == "glm-acp-agent",
+                "private ACP launch directory ACL verification unavailable for this adapter"
+            );
+            let local_app_data = std::env::var_os("LOCALAPPDATA")
+                .map(PathBuf::from)
+                .filter(|root| root.is_absolute())
+                .ok_or_else(|| anyhow::anyhow!("Missing Windows local application data directory"))?;
+            let directory = tempfile::Builder::new()
+                .prefix("shiju-acp-launch-")
+                .tempdir_in(local_app_data)?;
+            super::windows_private_dir::secure_new_temporary_directory(directory.path())?;
+            directory
+        };
+        #[cfg(any(unix, windows))]
+        {
             let reference = launch_reference(&identity)?;
             let model_alias = identity.model.clone();
             let binding = RelayBinding::for_prompt(identity)?;

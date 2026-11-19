@@ -8,6 +8,7 @@ import sys
 import tarfile
 import urllib.request
 import os
+import re
 
 assets, runtime, agent = Path(sys.argv[1]), Path(sys.argv[2]), sys.argv[3]
 contracts = json.loads((assets / 'contracts.json').read_text())
@@ -23,6 +24,38 @@ def check_files(root, files):
     for name, expected in files.items():
         if digest(root / name) != expected:
             raise RuntimeError('Reviewed artifact checksum mismatch: ' + name)
+
+def apply_glm_patch(root, patch, reviewed_files):
+    # The pinned inputs and outputs are checked on both sides of an exact patch.
+    # Applying hunks by source line avoids a dependency on a Unix patch binary.
+    for section in re.split(r"(?m)(?=^--- a/)", patch.read_text(encoding="utf-8")):
+        if not section:
+            continue
+        old, new, *lines = section.splitlines(keepends=True)
+        name = old.strip().removeprefix("--- a/")
+        if name not in reviewed_files or new.strip() != "+++ b/" + name:
+            raise RuntimeError("Unexpected GLM patch path")
+        path = root / name
+        source = path.read_bytes().decode("utf-8").splitlines(keepends=True)
+        result = []
+        cursor = 0
+        hunks = re.split(r"(?m)(?=^@@ )", "".join(lines))
+        if not hunks or hunks.pop(0):
+            raise RuntimeError("Malformed GLM patch")
+        for hunk in hunks:
+            header, *changes = hunk.splitlines(keepends=True)
+            match = re.fullmatch(r"@@ -(\d+)(?:,\d+)? \+\d+(?:,\d+)? @@(?: .*)?\n", header)
+            if not match or not changes or any(line[0] not in " +-" for line in changes):
+                raise RuntimeError("Malformed GLM patch hunk")
+            start = int(match[1]) - 1
+            before = [line[1:] for line in changes if line[0] in " -"]
+            if start < cursor or source[start:start + len(before)] != before:
+                raise RuntimeError("GLM patch does not match reviewed source")
+            result.extend(source[cursor:start])
+            result.extend(line[1:] for line in changes if line[0] in " +")
+            cursor = start + len(before)
+        result.extend(source[cursor:])
+        path.write_bytes("".join(result).encode("utf-8"))
 
 if agent == 'dimcode':
     import platform
@@ -607,7 +640,17 @@ if agent in ('iflow', 'deepagents'):
     run(['npm', 'ci', '--registry=https://registry.npmjs.org', '--ignore-scripts', '--prefer-offline', '--no-audit', '--no-fund', '--fetch-timeout=20000', '--fetch-retries=2'], cwd=runtime)
 else:
     # Run npm in the stage itself so lockfile keys stay package-relative.
-    run(['npm', 'install', '--registry=https://registry.npmjs.org',
+    npm = ['npm']
+    if os.name == 'nt' and agent == 'glm-acp-agent':
+        npm_cmd = shutil.which('npm.cmd')
+        node = shutil.which('node.exe')
+        if not npm_cmd or not node:
+            raise RuntimeError('GLM managed runtime requires Node.js with npm')
+        npm_cli = Path(npm_cmd).parent / 'node_modules/npm/bin/npm-cli.js'
+        if not npm_cli.is_file():
+            raise RuntimeError('Missing npm-cli.js for GLM managed installation')
+        npm = [node, str(npm_cli)]
+    run([*npm, 'install', '--registry=https://registry.npmjs.org',
          '--ignore-scripts', '--prefer-offline', '--fetch-timeout=20000', '--fetch-retries=2', '--fetch-retry-mintimeout=1000', '--fetch-retry-maxtimeout=5000', '--no-audit', '--no-fund', '--save-exact', *packages], cwd=runtime)
 lock = json.loads((runtime / 'package-lock.json').read_text())['packages']
 if lock['node_modules/' + contract['package']]['integrity'] != contract['integrity']:
@@ -661,7 +704,10 @@ if agent == 'copilot':
     link = runtime / 'node_modules/.bin/copilot'
     link.unlink()
     link.symlink_to(Path('../@github/copilot/embedded/index.js'))
-if agent in ('codex', 'gemini', 'glm-acp-agent'):
+if agent == 'glm-acp-agent':
+    check_files(root, contract['original'])
+    apply_glm_patch(root, assets / 'glm-acp-agent.patch', contract['original'])
+elif agent in ('codex', 'gemini'):
     check_files(root, contract['original'])
     run(['patch', '--batch', '--forward', '-p1', '-d', str(root), '-i', str(assets / (agent + '.patch'))])
 elif agent == 'dirac':

@@ -46,7 +46,7 @@ pub mod vtcode;
 
 /// This advertises reviewed CLI binding support, not availability for every model.
 /// Each selected model must pass launch_route before private configuration is written.
-/// Only routes with actual Darwin arm64 model-request evidence are published.
+/// Only explicitly supported platforms are published for each route.
 /// Patched adapters stay unavailable until their reviewed artifact is installed.
 pub fn capabilities(
     agent: &str,
@@ -67,6 +67,7 @@ pub fn capabilities(
             | "poolside"
             | "stakpak"
             | "deepagents"
+            | "glm-acp-agent"
             | "amp-acp"
             | "sigit"
             | "auggie"
@@ -85,7 +86,12 @@ pub fn capabilities(
             | "vibe"
             | "hermes"
     );
-    let verified = cfg!(all(target_os = "macos", target_arch = "aarch64"))
+    let platform_supported = if agent == "glm-acp-agent" {
+        cfg!(any(target_os = "linux", target_os = "macos", target_os = "windows"))
+    } else {
+        cfg!(all(target_os = "macos", target_arch = "aarch64"))
+    };
+    let verified = platform_supported
         && verified_release(agent).is_some()
         && (!patched
             || acp_agent_registry::reviewed_agent_command(agent)

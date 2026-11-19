@@ -253,6 +253,23 @@ impl AcpClient {
                 command.current_dir(workspace).args(["-f", &policy]).arg(executable);
                 command
             }
+        } else if cfg!(windows)
+            && self.agent_name == "glm-acp-agent"
+            && Path::new(self.config.command.trim()).extension().is_some_and(|ext| ext == "js")
+        {
+            let executable = self.config.command.trim();
+            crate::verify_reviewed_agent_executable("glm-acp-agent", executable)
+                .map_err(AcpError::Initialize)?;
+            if !args.is_empty() {
+                return Err(AcpError::Initialize("Unsupported managed GLM launch arguments".into()));
+            }
+            let node = shell_command::resolve_executable("node.exe")
+                .filter(|path| path.is_absolute())
+                .ok_or_else(|| AcpError::Initialize("Managed GLM requires Node.js".into()))?;
+            let mut command = tokio::process::Command::new(node);
+            command.arg(Path::new(executable).canonicalize().map_err(AcpError::Spawn)?);
+            command.envs(&env);
+            command
         } else {
             build_spawn_command(self.config.command.trim(), &env)
         };

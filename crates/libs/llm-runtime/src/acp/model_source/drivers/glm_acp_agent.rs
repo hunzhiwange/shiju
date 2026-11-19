@@ -1,9 +1,9 @@
 use super::AcpLaunchProfile;
-#[cfg(unix)]
+#[cfg(any(unix, windows))]
 use std::collections::HashMap;
 
 /// GLM Agent's explicit environment overrides are read without changing CLI defaults.
-#[cfg(unix)]
+#[cfg(any(unix, windows))]
 pub fn configure(profile: &mut AcpLaunchProfile, endpoint: &str) -> anyhow::Result<()> {
     anyhow::ensure!(
         profile.config().args.is_empty() || profile.config().args == ["-y", "glm-acp-agent@1.17.1"],
@@ -26,7 +26,6 @@ pub fn configure(profile: &mut AcpLaunchProfile, endpoint: &str) -> anyhow::Resu
         "GLM Agent requires a selected tool-capable model"
     );
     let home = {
-        use std::os::unix::fs::{DirBuilderExt, MetadataExt, PermissionsExt};
         let root = profile.state_root.as_deref().unwrap_or(profile.directory());
         anyhow::ensure!(root.is_absolute() && root.is_dir(), "invalid GLM Agent state root");
         let reference = super::super::profile::launch_reference(profile.binding.identity())?;
@@ -34,19 +33,7 @@ pub fn configure(profile: &mut AcpLaunchProfile, endpoint: &str) -> anyhow::Resu
         let mut home = root.to_path_buf();
         for component in ["acp-glm-state", reference] {
             home.push(component);
-            match std::fs::DirBuilder::new().mode(0o700).create(&home) {
-                Ok(()) => {}
-                Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => {}
-                Err(e) => return Err(e.into()),
-            }
-            let metadata = home.symlink_metadata()?;
-            anyhow::ensure!(
-                metadata.is_dir()
-                    && !metadata.file_type().is_symlink()
-                    && metadata.permissions().mode() & 0o777 == 0o700
-                    && metadata.uid() == unsafe { libc::geteuid() },
-                "insecure GLM Agent state directory"
-            );
+            ensure_private_directory(&home)?;
         }
         home
     };
@@ -69,7 +56,31 @@ pub fn configure(profile: &mut AcpLaunchProfile, endpoint: &str) -> anyhow::Resu
     Ok(())
 }
 
-#[cfg(not(unix))]
+#[cfg(not(any(unix, windows)))]
 pub fn configure(_profile: &mut AcpLaunchProfile, _endpoint: &str) -> anyhow::Result<()> {
     anyhow::bail!("GLM Agent state ACL is not verified on this platform")
+}
+
+#[cfg(unix)]
+fn ensure_private_directory(path: &std::path::Path) -> anyhow::Result<()> {
+    use std::os::unix::fs::{DirBuilderExt, MetadataExt, PermissionsExt};
+    match std::fs::DirBuilder::new().mode(0o700).create(path) {
+        Ok(()) => {}
+        Err(error) if error.kind() == std::io::ErrorKind::AlreadyExists => {}
+        Err(error) => return Err(error.into()),
+    }
+    let metadata = path.symlink_metadata()?;
+    anyhow::ensure!(
+        metadata.is_dir()
+            && !metadata.file_type().is_symlink()
+            && metadata.permissions().mode() & 0o777 == 0o700
+            && metadata.uid() == unsafe { libc::geteuid() },
+        "insecure GLM Agent state directory"
+    );
+    Ok(())
+}
+
+#[cfg(windows)]
+fn ensure_private_directory(path: &std::path::Path) -> anyhow::Result<()> {
+    super::super::windows_private_dir::create_or_verify(path)
 }

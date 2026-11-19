@@ -22,9 +22,17 @@ fn contract(agent: &str) -> Option<Contract> {
         .ok()?
         .remove(agent)
 }
-fn root() -> Result<PathBuf, String> {
+fn root(_agent: &str) -> Result<PathBuf, String> {
     if let Some(directory) = std::env::var_os("VIBEWINDOW_CONFIG_DIR") {
         return Ok(PathBuf::from(directory).join("acp-runtime"));
+    }
+    #[cfg(windows)]
+    if _agent == "glm-acp-agent" {
+        return std::env::var_os("LOCALAPPDATA")
+            .map(PathBuf::from)
+            .filter(|path| path.is_absolute())
+            .map(|path| path.join("shiju/acp-runtime"))
+            .ok_or_else(|| "GLM runtime installation requires LOCALAPPDATA".into());
     }
     std::env::var_os("HOME")
         .map(|home| PathBuf::from(home).join(".local/share/shiju/acp-runtime"))
@@ -50,19 +58,19 @@ fn installed_directory(agent: &str, contract: &Contract) -> Result<PathBuf, Stri
         2
     } else if matches!(
         agent,
-        "hermes" | "junie" | "nova" | "openclaw" | "pi" | "poolside" | "vibe"
+        "glm-acp-agent" | "hermes" | "junie" | "nova" | "openclaw" | "pi" | "poolside" | "vibe"
     ) {
         2
     } else {
         1
     };
-    Ok(root()?.join(format!("{agent}-{}-model-source-v{revision}", contract.version)))
+    Ok(root(agent)?.join(format!("{agent}-{}-model-source-v{revision}", contract.version)))
 }
 
 fn original_vtcode_directory(contract: &mut Contract) -> Result<PathBuf, String> {
     let digest = contract.source_sha256.as_ref().ok_or("Missing original VT Code checksum")?;
     contract.files.insert(contract.bin.clone(), digest.clone());
-    Ok(root()?.join(format!("vtcode-{}-model-source-v1", contract.version)))
+    Ok(root("vtcode")?.join(format!("vtcode-{}-model-source-v1", contract.version)))
 }
 
 pub fn verify_vtcode_mcp_executable(command: &str) -> Result<(), String> {
@@ -182,7 +190,7 @@ pub fn reviewed_agent_command(agent: &str) -> Result<Option<(String, Vec<String>
     // A previously installed OpenClaw remains available for launches without MCP.
     if agent == "openclaw" && !directory.exists() {
         contract.files.remove(OPENCLAW_MCP_TRANSPORT);
-        directory = root()?.join(format!("openclaw-{}-model-source-v1", contract.version));
+        directory = root(agent)?.join(format!("openclaw-{}-model-source-v1", contract.version));
     }
     if agent == "vtcode" && !directory.try_exists().map_err(|_| "Cannot inspect VT Code managed runtime")? {
         directory = original_vtcode_directory(&mut contract)?;
@@ -193,9 +201,16 @@ pub fn reviewed_agent_command(agent: &str) -> Result<Option<(String, Vec<String>
         && let Some(source_sha256) = &contract.source_sha256
     {
         contract.files.insert(contract.bin.clone(), source_sha256.clone());
-        directory = root()?.join(format!("droid-{}-model-source-v1", contract.version));
+        directory = root(agent)?.join(format!("droid-{}-model-source-v1", contract.version));
     }
     let path = verify(&directory, &contract)?;
+    if cfg!(windows) && agent == "glm-acp-agent" {
+        // The client launches this verified JS file through Node without a batch shim.
+        if !shell_command::resolve_executable("node.exe").is_some_and(|node| node.is_absolute()) {
+            return Err("Managed GLM requires Node.js".into());
+        }
+        return Ok(Some((path.to_string_lossy().into_owned(), vec![])));
+    }
     if !contract.layout.is_empty() {
         return Ok(Some((
             path.to_string_lossy().into_owned(),
@@ -349,13 +364,19 @@ pub(super) async fn install(agent: &str) -> Result<bool, String> {
     if agent == "deepagents" && cfg!(windows) {
         return Err("DeepAgents reviewed runtime is not yet supported on Windows".into());
     }
-    if agent != "deepagents" && !cfg!(all(target_os = "macos", target_arch = "aarch64")) {
+    let glm_platform = agent == "glm-acp-agent"
+        && cfg!(any(target_os = "linux", target_os = "macos", target_os = "windows"));
+    if agent != "deepagents" && !glm_platform && !cfg!(all(target_os = "macos", target_arch = "aarch64")) {
         // Preserve the existing native installer for CLI-local use on unverified hosts.
         return Ok(false);
     }
     let mut destination = installed_directory(agent, &contract)?;
     if destination.exists() {
-        verify(&destination, &contract)?;
+        if agent == "glm-acp-agent" {
+            reviewed_agent_command(agent)?;
+        } else {
+            verify(&destination, &contract)?;
+        }
         return Ok(true);
     }
     let mut vtcode_binary = None;
@@ -375,8 +396,8 @@ pub(super) async fn install(agent: &str) -> Result<bool, String> {
             _ => return Err("Packaged vtcode-acp is not a regular file".into()),
         }
     }
-    std::fs::create_dir_all(root()?).map_err(|_| "Cannot create ACP runtime root")?;
-    let stage = Stage(root()?.join(format!(
+    std::fs::create_dir_all(root(agent)?).map_err(|_| "Cannot create ACP runtime root")?;
+    let stage = Stage(root(agent)?.join(format!(
             ".install-{agent}-{}-{}",
             std::process::id(),
             std::time::SystemTime::now()
@@ -559,7 +580,7 @@ pub(super) async fn install(agent: &str) -> Result<bool, String> {
         std::fs::write(path, text).map_err(|_| "Cannot write embedded ACP patch")?;
     }
     if agent == "cortex-code" {
-        let archive = root()?
+        let archive = root(agent)?
             .join("downloads")
             .join(format!("coco-{}-darwin-arm64.tar.gz", contract.version));
         if archive.symlink_metadata().is_ok_and(|metadata| metadata.is_file()) {
@@ -592,8 +613,13 @@ pub(super) async fn install(agent: &str) -> Result<bool, String> {
     // Leave time to resume a slow download of the full Cortex Code distribution
     // and keep the installer deadline inside the desktop request deadline.
     let timeout = if agent == "cortex-code" { 600 } else { 900 };
+    let python = if cfg!(windows) && agent == "glm-acp-agent" {
+        "python.exe"
+    } else {
+        "python3"
+    };
     crate::install::run_installer(
-        "python3",
+        python,
         &[
             script.to_str().ok_or("Invalid installer path")?,
             assets.to_str().ok_or("Invalid asset path")?,

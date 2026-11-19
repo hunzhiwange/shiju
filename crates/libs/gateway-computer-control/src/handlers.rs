@@ -21,22 +21,26 @@ pub fn router() -> Router {
         .route("/computer-control/status", get(status))
         .route("/computer-control/native-permission", post(request_native_permission))
         .route("/computer-control/native-service", get(native_service))
+        .route("/computer-control/browser-permissions", get(browser_permissions).put(save_browser_permissions))
         .route("/computer-control/settings", axum::routing::put(save))
         .route("/computer-control/approvals", get(approvals).delete(revoke))
         .route("/computer-control/pairing", post(pair))
         .route("/computer-control/stop", post(stop))
-        .layer(DefaultBodyLimit::max(4096))
+        .layer(DefaultBodyLimit::max(128 * 1024))
         .layer(middleware::map_response(async |mut response: Response| {
             response.headers_mut().insert("cache-control", axum::http::HeaderValue::from_static("no-store"));
             response
         }))
 }
-async fn runtime(tenant: &TenantScope, headers: &HeaderMap) -> Result<std::sync::Arc<NativeControlRuntime>, Failure> {
-    let config = agent_config::runtime::get_global_for_tenant(tenant).await.map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?;
+async fn runtime(headers: &HeaderMap) -> Result<std::sync::Arc<NativeControlRuntime>, Failure> {
+    let config = agent_config::runtime::get_global_for_tenant(&TenantScope::default()).await.map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?;
     let guard = gateway_pairing::pairing::PairingGuard::from_skeys(config.gateway.auth_enabled, &config.gateway.skeys);
-    authorize(&guard, headers)?;
-    // Bootstrap owns a default-tenant host; another tenant's credential cannot manage it.
-    if tenant != &TenantScope::default() { return Err(StatusCode::FORBIDDEN); }
+    authorized_runtime(&guard, headers)
+}
+// Host authority uses the same local configuration as gateway bootstrap, regardless
+// of the account tenant carried by a desktop request.
+fn authorized_runtime(guard: &gateway_pairing::pairing::PairingGuard, headers: &HeaderMap) -> Result<std::sync::Arc<NativeControlRuntime>, Failure> {
+    authorize(guard, headers)?;
     NativeControlRuntime::shared().ok_or(StatusCode::SERVICE_UNAVAILABLE)
 }
 // Match the gateway REST policy: credentials are required only when enabled.
@@ -50,8 +54,8 @@ fn authorize(guard: &gateway_pairing::pairing::PairingGuard, headers: &HeaderMap
 fn feature(enabled: bool, readiness: ControlReadiness, authorization: SystemAuthorization, backend: ControlBackend, capabilities: Vec<ControlCapability>) -> ControlFeatureStatus {
     ControlFeatureStatus { enabled, readiness: if enabled { readiness } else { ControlReadiness::Disabled }, system_authorization: authorization, connection: ControlConnection::Disconnected, backend, capabilities }
 }
-async fn status(Extension(t): Extension<TenantScope>, h: HeaderMap) -> Result<Json<ComputerControlStatus>, Failure> {
-    let runtime = runtime(&t, &h).await?;
+async fn status(Extension(_t): Extension<TenantScope>, h: HeaderMap) -> Result<Json<ComputerControlStatus>, Failure> {
+    let runtime = runtime(&h).await?;
     let chrome_connected = runtime.chrome_connected().await;
     let documents = runtime.office_transport().map(|o| o.connected_documents()).unwrap_or_default();
     let permissions = service_permissions("--permissions").await;
@@ -85,8 +89,8 @@ async fn status(Extension(t): Extension<TenantScope>, h: HeaderMap) -> Result<Js
         locked_use: LockedUseStatus { status: feature(config.locked_use, ControlReadiness::Unsupported, SystemAuthorization::NotChecked, ControlBackend::Unsupported, vec![]), probe: LockedUseProbe::Unsupported },
     }))
 }
-async fn approvals(Extension(t): Extension<TenantScope>, h: HeaderMap) -> Result<Json<ControlApprovals>, Failure> {
-    let runtime = runtime(&t, &h).await?;
+async fn approvals(Extension(_t): Extension<TenantScope>, h: HeaderMap) -> Result<Json<ControlApprovals>, Failure> {
+    let runtime = runtime(&h).await?;
     let policy = runtime.control_policy().read();
     let mut approvals = Vec::new();
     if let Some(c) = policy.config().users.get(&user()) {
@@ -102,39 +106,39 @@ fn setting(f: ControlSetting) -> ControlFeature {
 fn scope(s: ControlGrantScope) -> GrantScope {
     match s { ControlGrantScope::Application(id) => GrantScope::Application(id), ControlGrantScope::ChromeOrigin(id) => GrantScope::ChromeOrigin(id), ControlGrantScope::ExcelDocument(id) => GrantScope::ExcelDocument(id), ControlGrantScope::WordDocument(id) => GrantScope::WordDocument(id) }
 }
-async fn publish(t: &TenantScope, runtime: &NativeControlRuntime, next: ComputerControlPolicy) -> Result<Json<ControlVersionResponse>, Failure> {
-    agent_config::runtime::update_global_for_tenant(t, json!({"computer_control":next.config()})).await.map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?;
+async fn publish(runtime: &NativeControlRuntime, next: ComputerControlPolicy) -> Result<Json<ControlVersionResponse>, Failure> {
+    agent_config::runtime::update_global_for_tenant(&TenantScope::default(), json!({"computer_control":next.config()})).await.map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?;
     let version = next.version();
     *runtime.control_policy().write() = next;
     runtime.stop_all().await;
     Ok(Json(ControlVersionResponse { permission_version: version }))
 }
-async fn save(Extension(t): Extension<TenantScope>, h: HeaderMap, Json(q): Json<ControlSettingsUpdate>) -> Result<Json<ControlVersionResponse>, Failure> {
-    let runtime = runtime(&t, &h).await?;
+async fn save(Extension(_t): Extension<TenantScope>, h: HeaderMap, Json(q): Json<ControlSettingsUpdate>) -> Result<Json<ControlVersionResponse>, Failure> {
+    let runtime = runtime(&h).await?;
     let _edit = EDIT.lock().await;
     let mut next = ComputerControlPolicy::new(runtime.control_policy().read().config().clone());
     if next.version() != q.permission_version { return Err(StatusCode::CONFLICT); }
     if q.feature == ControlSetting::LockedUse && q.enabled { return Err(StatusCode::UNPROCESSABLE_ENTITY); }
     next.set_enabled(&user(), setting(q.feature), q.enabled).map_err(|_| StatusCode::BAD_REQUEST)?;
-    publish(&t, &runtime, next).await
+    publish(&runtime, next).await
 }
-async fn revoke(Extension(t): Extension<TenantScope>, h: HeaderMap, Json(q): Json<ControlGrantRevocation>) -> Result<Json<ControlVersionResponse>, Failure> {
-    let runtime = runtime(&t, &h).await?;
+async fn revoke(Extension(_t): Extension<TenantScope>, h: HeaderMap, Json(q): Json<ControlGrantRevocation>) -> Result<Json<ControlVersionResponse>, Failure> {
+    let runtime = runtime(&h).await?;
     let _edit = EDIT.lock().await;
     let mut next = ComputerControlPolicy::new(runtime.control_policy().read().config().clone());
     if next.version() != q.permission_version { return Err(StatusCode::CONFLICT); }
     // Denial also overrides the broad native-app switch; the allow list drops this entry.
     next.set_grant(&user(), scope(q.scope), Some(GrantDecision::Deny)).map_err(|_| StatusCode::BAD_REQUEST)?;
-    publish(&t, &runtime, next).await
+    publish(&runtime, next).await
 }
-async fn stop(Extension(t): Extension<TenantScope>, h: HeaderMap) -> Result<StatusCode, Failure> {
-    let runtime = runtime(&t, &h).await?;
+async fn stop(Extension(_t): Extension<TenantScope>, h: HeaderMap) -> Result<StatusCode, Failure> {
+    let runtime = runtime(&h).await?;
     let _edit = EDIT.lock().await;
     runtime.stop_all().await;
     Ok(StatusCode::NO_CONTENT)
 }
 async fn pair(Extension(t): Extension<TenantScope>, h: HeaderMap, Json(q): Json<ControlPairingConfirmation>) -> Result<Response, Failure> {
-    let runtime = runtime(&t, &h).await?;
+    let runtime = runtime(&h).await?;
     let _edit = EDIT.lock().await;
     if q.session_id.0.trim().is_empty() || q.session_id.0.len() > 256 { return Err(StatusCode::BAD_REQUEST); }
     let surface = match q.feature { ControlSetting::Excel => OfficeSurface::Excel, ControlSetting::Word => OfficeSurface::Word, _ => return Err(StatusCode::UNPROCESSABLE_ENTITY) };
@@ -147,7 +151,7 @@ async fn pair(Extension(t): Extension<TenantScope>, h: HeaderMap, Json(q): Json<
     next.set_grant(&user(), grant, Some(GrantDecision::Allow)).map_err(|_| StatusCode::BAD_REQUEST)?;
     let identity = serde_json::to_vec(&(&t, &q.session_id.0, &q.workspace_root)).map_err(|_| StatusCode::BAD_REQUEST)?;
     let owner = ControlSessionId(hex::encode(Sha256::digest(identity)));
-    let Json(version) = publish(&t, &runtime, next).await?;
+    let Json(version) = publish(&runtime, next).await?;
     let credential = transport.approve_pairing(owner, surface, q.document_id).map_err(|_| StatusCode::BAD_REQUEST)?;
     Ok(Json(ControlPairingResponse { credential, permission_version: version.permission_version }).into_response())
 }
@@ -156,14 +160,29 @@ async fn pair(Extension(t): Extension<TenantScope>, h: HeaderMap, Json(q): Json<
 #[path = "computer_control_tests.rs"]
 mod tests;
 
+async fn browser_permissions(Extension(_t): Extension<TenantScope>, h: HeaderMap) -> Result<Json<BrowserPermissionsSnapshot>, Failure> {
+    let runtime = runtime(&h).await?;
+    let policy = runtime.control_policy().read();
+    let permissions = policy.config().users.get(&user()).map(|u| u.browser_permissions.clone()).unwrap_or_default();
+    Ok(Json(BrowserPermissionsSnapshot { permission_version: policy.version(), permissions }))
+}
+async fn save_browser_permissions(Extension(_t): Extension<TenantScope>, h: HeaderMap, Json(q): Json<BrowserPermissionsSnapshot>) -> Result<Json<ControlVersionResponse>, Failure> {
+    let runtime = runtime(&h).await?;
+    let _edit = EDIT.lock().await;
+    let mut next = ComputerControlPolicy::new(runtime.control_policy().read().config().clone());
+    if next.version() != q.permission_version { return Err(StatusCode::CONFLICT); }
+    next.set_browser_permissions(&user(), q.permissions).map_err(|_| StatusCode::BAD_REQUEST)?;
+    publish(&runtime, next).await
+}
+
 async fn request_native_permission(Extension(_t): Extension<TenantScope>, h: HeaderMap, Json(q): Json<NativePermissionRequest>) -> Result<Json<NativePermissionReport>, Failure> {
-    let _runtime = runtime(&_t, &h).await?;
+    let _runtime = runtime(&h).await?;
     let mode = if q.screen_recording { "--request-screen-recording" } else { "--request-accessibility" };
     Ok(Json(service_permissions(mode).await?))
 }
 
 async fn native_service(Extension(_t): Extension<TenantScope>, h: HeaderMap) -> Result<Json<NativeServiceReport>, Failure> {
-    let _runtime = runtime(&_t, &h).await?;
+    let _runtime = runtime(&h).await?;
     if !cfg!(target_os = "macos") {
         return Ok(Json(NativeServiceReport { state: NativeServiceState::Unsupported, permissions: None }));
     }

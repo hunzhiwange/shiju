@@ -124,6 +124,12 @@ async fn authorize_site_with_lock_check<H: ContextHost>(
         if !config.chrome {
             bail!("Chrome disabled");
         }
+        use config_computer_control::BrowserPermission;
+        match config.browser_permissions.resolve(origin, |p| p.access) {
+            BrowserPermission::Deny => bail!("Chrome site explicitly denied"),
+            BrowserPermission::Allow if config.chrome_origins.get(origin) != Some(&GrantDecision::Deny) => return Ok(()),
+            _ => {}
+        }
         match config.chrome_origins.get(origin) {
             Some(GrantDecision::Allow) => return Ok(()),
             Some(GrantDecision::Deny) => bail!("Chrome site explicitly denied"),
@@ -182,6 +188,9 @@ pub async fn approve_transfer<H: ContextHost>(
         _ => return Ok(()),
     };
     host.recheck(request).map_err(control_error)?;
+    if host.transfer_permission(request) == config_computer_control::BrowserPermission::Allow {
+        return host.approve_transfer(request).map_err(control_error);
+    }
     let context = current_tool_use_context::<H>().context("file transfer requires executor context")?;
     let input = json!({"target":request.target,"request_id":request.request_id,"permission_version":request.permission_version,"transfer":metadata});
     if !tool_context::decision::request_control_scope_approval(scope, input, &context).await {

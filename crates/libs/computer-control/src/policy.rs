@@ -75,7 +75,10 @@ impl ComputerControlPolicy {
             ComputerControlTarget::ChromeTab { origin, .. } => {
                 user.chrome
                     && valid_origin(origin)
-                    && user.chrome_origins.get(origin) == Some(&GrantDecision::Allow)
+                    && user.browser_permissions.resolve(origin, |p| p.access) != config_computer_control::BrowserPermission::Deny
+                    && user.chrome_origins.get(origin) != Some(&GrantDecision::Deny)
+                    && (user.chrome_origins.get(origin) == Some(&GrantDecision::Allow)
+                        || user.browser_permissions.resolve(origin, |p| p.access) == config_computer_control::BrowserPermission::Allow)
             }
             ComputerControlTarget::ExcelWorkbook { document_id } => {
                 user.excel
@@ -145,6 +148,27 @@ impl ComputerControlPolicy {
         }
         self.config.permission_version += 1;
         Ok(self.version())
+    }
+
+    pub fn set_browser_permissions(&mut self, local_user: &str, permissions: config_computer_control::BrowserPermissions) -> Result<(), &'static str> {
+        self.validate_edit(local_user)?;
+        if permissions.origins.len() > 256 || permissions.origins.keys().any(|origin| !valid_origin(origin)) {
+            return Err("invalid browser origins");
+        }
+        use config_computer_control::BrowserPermission;
+        if permissions.history != BrowserPermission::Ask || permissions.website_tools || permissions.full_cdp_access
+            || std::iter::once(&permissions.defaults).chain(permissions.origins.values()).any(|p|
+                p.full_cdp_access.is_some_and(|v| v != BrowserPermission::Deny)
+                || p.website_tools.is_some_and(|v| v != BrowserPermission::Deny)) {
+            return Err("browser capability unavailable");
+        }
+        self.config.users.entry(local_user.to_owned()).or_default().browser_permissions = permissions;
+        self.config.permission_version += 1;
+        Ok(())
+    }
+
+    pub fn browser_permission(&self, local_user: &str, origin: &str, field: fn(&config_computer_control::BrowserOriginPermissions) -> Option<config_computer_control::BrowserPermission>) -> config_computer_control::BrowserPermission {
+        self.config.users.get(local_user).map(|u| u.browser_permissions.resolve(origin, field)).unwrap_or(config_computer_control::BrowserPermission::Deny)
     }
 
     fn validate_edit(&self, local_user: &str) -> Result<(), &'static str> {

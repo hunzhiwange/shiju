@@ -415,6 +415,14 @@ pub struct ControlPairingResponse { pub credential: String, pub permission_versi
 #[cfg(test)]
 mod tests;
 
+pub use config_computer_control::{BrowserPermissions, BrowserOriginPermissions, BrowserPermission};
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct BrowserPermissionsSnapshot {
+    pub permission_version: PermissionVersion,
+    pub permissions: BrowserPermissions,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct NativePermissionRequest { pub screen_recording: bool }

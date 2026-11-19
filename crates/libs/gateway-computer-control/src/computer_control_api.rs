@@ -15,6 +15,12 @@ impl GatewayComputerControlClient {
     pub async fn native_service(&self) -> Result<NativeServiceReport, ComputerControlApiError> {
         self.control_request::<(), _>(reqwest::Method::GET, "native-service", None).await
     }
+    pub async fn browser_permissions(&self) -> Result<BrowserPermissionsSnapshot, ComputerControlApiError> {
+        self.control_request::<(), _>(reqwest::Method::GET, "browser-permissions", None).await
+    }
+    pub async fn save_browser_permissions(&self, body: &BrowserPermissionsSnapshot) -> Result<ControlVersionResponse, ComputerControlApiError> {
+        self.control_request(reqwest::Method::PUT, "browser-permissions", Some(body)).await
+    }
     pub async fn request_native_permission(&self, screen_recording: bool) -> Result<NativePermissionReport, ComputerControlApiError> {
         self.control_request(reqwest::Method::POST, "native-permission", Some(&NativePermissionRequest { screen_recording })).await
     }

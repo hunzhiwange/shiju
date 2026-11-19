@@ -56,6 +56,17 @@ fn cc_control_18_auth_enabled_requires_valid_skey() {
 }
 
 #[test]
+fn cc_control_18_host_runtime_accepts_unkeyed_desktop_and_rejects_invalid_key() {
+    use axum::http::{HeaderMap, StatusCode};
+    let host = tool_computer::NativeControlRuntime::start(Default::default()).unwrap();
+    let open = gateway_pairing::pairing::PairingGuard::new(false, &[]);
+    let resolved = super::authorized_runtime(&open, &HeaderMap::new()).unwrap();
+    assert!(std::sync::Arc::ptr_eq(&host, &resolved));
+    let protected = gateway_pairing::pairing::PairingGuard::new(true, &["host-key".into()]);
+    assert!(matches!(super::authorized_runtime(&protected, &HeaderMap::new()), Err(StatusCode::UNAUTHORIZED)));
+}
+
+#[test]
 fn cc_runtime_06_rejects_gateway_identity_as_executor() {
     let expected = std::env::current_exe().unwrap();
     let other = std::env::current_dir().unwrap();

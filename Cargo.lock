@@ -23066,6 +23066,7 @@ dependencies = [
 name = "vw-api-computer-control"
 version = "0.6.0"
 dependencies = [
+ "config-computer-control",
  "serde",
  "serde_json",
 ]

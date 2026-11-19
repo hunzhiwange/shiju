@@ -3,7 +3,7 @@ use crate::computer_control_state::{ComputerControlSettingsState, ControlIdentit
 use crate::computer_control_update::{Event, message};
 use desktop_ui_controls::system_settings_common::*;
 use iced::widget::scrollable::{Direction, Scrollbar};
-use iced::widget::{button, column, container, row, scrollable, svg, text, text_input};
+use iced::widget::{pick_list, button, column, container, row, scrollable, svg, text, text_input};
 use iced::{Alignment, Element, Length};
 use vw_api_computer_control::*;
 
@@ -132,7 +132,7 @@ pub fn page(state: &ComputerControlSettingsState) -> Element<'_, Event> {
                 );
             }
         }
-        if matches!(feature, ControlSetting::NativeApps) {
+        if matches!(feature, ControlSetting::NativeApps | ControlSetting::Chrome) {
             details = details.push(action("管理权限", Event::Manage(feature), true));
         }
         if matches!(feature, ControlSetting::Excel | ControlSetting::Word) {
@@ -244,6 +244,15 @@ fn management_page(state: &ComputerControlSettingsState, feature: ControlSetting
     if let Some(error) = &state.error {
         content = content.push(settings_error_banner(error));
     }
+    if chrome {
+        content = content.push(browser_permissions_form(state));
+        content = content.push(settings_group_card(column![
+            text("浏览器连接").size(17),
+            text("当前通过 ShiJu Computer Control 扩展连接网关。使用目标网页前，点击扩展授予当前标签页访问权限；导航或打开新标签页后需要重新授权。").size(13),
+            text("Chrome 可以同时供你和 Codex 使用，但 Codex 的扩展连接与授权不会自动授予识矩。请勿卸载 Codex 扩展或清除现有浏览器配置。").size(13),
+            text("历史记录、网站工具和完整 CDP 尚无执行后端；浏览、上传、下载的策略在下方配置并保存。").size(13).style(settings_muted_text_style),
+        ].spacing(12)));
+    } else {
         let mut permissions = column![
             text("系统权限").size(17),
             text("请为 ShiJu Computer Use 执行应用分别授予辅助功能和屏幕录制权限。远程网关需在目标电脑操作；打开设置或发出申请不代表已授权。").size(13),
@@ -275,6 +284,7 @@ fn management_page(state: &ComputerControlSettingsState, feature: ControlSetting
             permissions = permissions.push(text("请在系统授权列表中启用上述进程对应的应用。授权后刷新；屏幕录制仍未生效时，按系统提示退出并重新启动该应用。开发程序重新构建后可能需要重新授权。").size(13));
         }
         content = content.push(settings_group_card(permissions));
+    }
     let mut grants = column![text(if chrome { "已授权网站" } else { "已授权应用" }).size(17)].spacing(12);
     let mut count = 0;
     for scope in &state.approvals {
@@ -297,6 +307,38 @@ fn management_page(state: &ComputerControlSettingsState, feature: ControlSetting
     scrollable(container(content).padding([0, 7]).width(Length::Fill))
         .direction(Direction::Vertical(Scrollbar::new().width(4).scroller_width(4)))
         .height(Length::Fill).into()
+}
+
+fn browser_permissions_form(state: &ComputerControlSettingsState) -> Element<'_, Event> {
+    let Some(snapshot) = &state.browser else { return text("网站权限尚未加载，请刷新状态").size(13).into(); };
+    let mut form = column![text("网站权限").size(17), text("设置默认权限，并为特定网站配置例外。保存后生效，现有操控会话会停止。").size(13)].spacing(14);
+    for (origin, policy) in std::iter::once((None, &snapshot.permissions.defaults))
+        .chain(snapshot.permissions.origins.iter().map(|(o, p)| (Some(o.clone()), p))) {
+        let mut controls = column![text(origin.clone().unwrap_or_else(|| "默认".into())).size(15)].spacing(10);
+        for (field, label, value) in [(0, "浏览", policy.access), (1, "下载", policy.downloads), (2, "上传", policy.uploads), (3, "调试 / CDP（后端尚不支持）", policy.full_cdp_access), (4, "网站工具（后端尚不支持）", policy.website_tools)] {
+            let key = origin.clone();
+            let mut options = vec![BrowserPermission::Ask, BrowserPermission::Allow, BrowserPermission::Deny];
+            if field >= 3 { options = vec![BrowserPermission::Deny]; }
+            let select = pick_list(options, value, move |v| message(Event::BrowserEdit { origin: key.clone(), field, value: Some(v) }))
+                .padding(SETTINGS_CONTROL_PADDING).text_size(SETTINGS_CONTROL_TEXT_SIZE)
+                .style(settings_pick_list_style).menu_style(settings_pick_list_menu_style);
+            let mut control = row![text(label).size(13).width(Length::Fill), select].spacing(10).align_y(Alignment::Center);
+            if origin.is_some() && value.is_some() {
+                let key = origin.clone();
+                control = control.push(action("使用默认设置", Event::BrowserEdit { origin: key, field, value: None }, !state.busy()));
+            }
+            controls = controls.push(control);
+        }
+        if let Some(origin) = origin { controls = controls.push(action("移除网站例外", Event::BrowserRemove(origin), !state.busy())); }
+        form = form.push(settings_group_card(controls));
+    }
+    form = form.push(row![
+        text_input("https://example.com（精确网站 Origin）", &state.browser_origin)
+            .on_input(|v| message(Event::BrowserOrigin(v))).padding(SETTINGS_CONTROL_PADDING)
+            .size(SETTINGS_CONTROL_TEXT_SIZE).style(settings_text_input_style),
+        action("添加网站", Event::BrowserEdit { origin: Some(state.browser_origin.trim().to_owned()), field: 0, value: None }, !state.busy() && !state.browser_origin.trim().is_empty()),
+    ].spacing(10));
+    form.push(action("保存网站权限", Event::BrowserSave, !state.busy())).into()
 }
 
 fn feature_description(feature: ControlSetting) -> &'static str {

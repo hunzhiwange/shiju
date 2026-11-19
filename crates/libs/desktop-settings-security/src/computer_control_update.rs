@@ -9,6 +9,11 @@ pub enum Event {
     Refresh,
     Manage(ControlSetting),
     ManageClose,
+    BrowserLoaded { identity: ControlIdentity, generation: u64, result: Result<BrowserPermissionsSnapshot, String> },
+    BrowserOrigin(String),
+    BrowserEdit { origin: Option<String>, field: u8, value: Option<BrowserPermission> },
+    BrowserRemove(String),
+    BrowserSave,
     OpenSystemPermission { screen_recording: bool },
     NativePermissionRequested { identity: ControlIdentity, generation: u64, result: Result<NativePermissionReport, String> },
     NativeServiceLoaded { identity: ControlIdentity, generation: u64, result: Result<NativeServiceReport, String> },
@@ -44,17 +49,23 @@ fn refresh(state: &mut ComputerControlSettingsState, endpoint: &GatewayEndpoint)
     state.error = None;
     let identity = ControlIdentity::from_endpoint(endpoint);
     state.identity = Some(identity.clone());
+    state.browser = None;
     state.native_service = None;
     state.native_permission_report = None;
     state.target_host = endpoint.base_url();
     let client = gateway_http::GatewayTransport::new(endpoint.clone())
         .map(gateway_computer_control::GatewayComputerControlClient::new);
+    let browser_identity = identity.clone();
+    let browser_client = client.clone();
+    let browser_task = Task::perform(async move {
+        browser_client?.browser_permissions().await.map_err(safe_error)
+    }, move |result| Event::BrowserLoaded { identity: browser_identity.clone(), generation, result });
     let service_identity = identity.clone();
     let service_client = client.clone();
     let service_task = Task::perform(async move {
         service_client?.native_service().await.map_err(safe_error)
     }, move |result| Event::NativeServiceLoaded { identity: service_identity.clone(), generation, result });
-    Task::batch([service_task, Task::perform(async move {
+    Task::batch([service_task, browser_task, Task::perform(async move {
         let client = client?;
         let status = client.computer_control_status().await.map_err(safe_error)?;
         let approvals = client.computer_control_approvals().await.map_err(safe_error)?;
@@ -82,11 +93,41 @@ fn update_inner(state: &mut ComputerControlSettingsState, endpoint: &GatewayEndp
         state.identity = Some(identity.clone());
     }
     match event {
-        Event::Manage(feature @ ControlSetting::NativeApps) => {
+        Event::Manage(feature @ (ControlSetting::NativeApps | ControlSetting::Chrome)) => {
             state.management = Some(feature);
             Task::none()
         }
         Event::Manage(_) => Task::none(),
+        Event::BrowserLoaded { identity: source, generation, result } => {
+            if source != identity || generation != state.generation { return Task::none(); }
+            match result {
+                Ok(snapshot) => { state.browser = Some(snapshot); }
+                Err(error) => return notify(notice, Notice::Error(error)),
+            }
+            Task::none()
+        }
+        Event::BrowserOrigin(value) => { if !state.busy() { state.browser_origin = value; } Task::none() }
+        Event::BrowserEdit { origin, field, value } => {
+            if state.busy() { return Task::none(); }
+            if let Some(snapshot) = &mut state.browser {
+                let p = match origin { Some(origin) => snapshot.permissions.origins.entry(origin).or_default(), None => &mut snapshot.permissions.defaults };
+                match field { 0 => p.access = value, 1 => p.downloads = value, 2 => p.uploads = value, 3 => p.full_cdp_access = value, _ => p.website_tools = value }
+            }
+            Task::none()
+        }
+        Event::BrowserRemove(origin) => {
+            if !state.busy() { if let Some(snapshot) = &mut state.browser { snapshot.permissions.origins.remove(&origin); } }
+            Task::none()
+        }
+        Event::BrowserSave => {
+            if state.busy() { return Task::none(); }
+            let Some(snapshot) = state.browser.clone() else { return Task::none(); };
+            state.generation += 1;
+            let generation = state.generation;
+            state.saving = true;
+            let client = gateway_http::GatewayTransport::new(endpoint.clone()).map(gateway_computer_control::GatewayComputerControlClient::new);
+            Task::perform(async move { client?.save_browser_permissions(&snapshot).await.map_err(safe_error)?; Ok(None) }, move |result| Event::Completed { identity: identity.clone(), generation, result })
+        }
         Event::ManageClose => { state.management = None; Task::none() }
         Event::OpenSystemPermission { screen_recording } => {
             if state.busy() { return Task::none(); }

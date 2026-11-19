@@ -54,6 +54,8 @@ pub struct ComputerControlSettingsState {
     pub requesting_permission: bool,
     pub native_service: Option<NativeServiceReport>,
     pub target_host: String,
+    pub browser: Option<BrowserPermissionsSnapshot>,
+    pub browser_origin: String,
 }
 impl ComputerControlSettingsState {
     pub fn busy(&self) -> bool { self.loading || self.saving || self.requesting_permission }

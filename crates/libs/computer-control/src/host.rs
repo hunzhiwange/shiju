@@ -287,7 +287,20 @@ impl ControlHost {
 
     /// Backend rechecks after each asynchronous Chrome boundary, including before
     /// returning page contents. The model cannot choose the OS user or mint grants.
+    pub fn transfer_permission(&self, request: &ComputerControlRequest) -> config_computer_control::BrowserPermission {
+        use vw_api_computer_control::{ComputerControlAction, ComputerControlTarget, ChromeCommand};
+        let ComputerControlTarget::ChromeTab { origin, .. } = &request.target else { return config_computer_control::BrowserPermission::Ask; };
+        let field: fn(&config_computer_control::BrowserOriginPermissions) -> Option<config_computer_control::BrowserPermission> = match &request.action {
+            ComputerControlAction::Chrome { command: ChromeCommand::Upload { .. } } => |p| p.uploads,
+            ComputerControlAction::Chrome { command: ChromeCommand::Download { .. } } => |p| p.downloads,
+            _ => return config_computer_control::BrowserPermission::Ask,
+        };
+        self.policy.read().browser_permission(&self.local_user, origin, field)
+    }
     pub fn recheck(&self, request: &ComputerControlRequest) -> Result<(), ControlErrorCode> {
+        if self.transfer_permission(request) == config_computer_control::BrowserPermission::Deny {
+            return Err(ControlErrorCode::PermissionDenied);
+        }
         let state = self.refresh_lock();
         locked_session::require_execution(state, &request.target, &request.action)?;
         let sessions = self.sessions.lock();

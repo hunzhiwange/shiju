@@ -13,6 +13,7 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
         Effect::Changed { restored } => {
             let mut tasks = vec![app.show_success_toast("备份操作完成"), update(app, Event::Refresh)];
             if restored {
+                tasks.push(super::refresh_workspace(app));
                 let refresh_inventory = desktop_settings_skills::update::install_view::invalidate_inventory(&mut app.skills_settings.install);
                 if refresh_inventory { tasks.push(super::install_view::update(app, super::install_view::Event::Refresh)); }
                 tasks.push(super::refresh_task(app.navigation_tabs.project_path.clone()));

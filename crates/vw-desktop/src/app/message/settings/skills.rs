@@ -244,3 +244,15 @@ pub(crate) fn update_input(app: &App) -> desktop_settings_skills::update::Input 
 
 #[cfg(test)]
 pub(super) use domain::map_catalog_items;
+
+/// Refresh the visible scoped workspace only after a reducer accepts a completion.
+pub(crate) fn refresh_workspace(app: &mut App) -> Task<Message> {
+    use desktop_settings_skills::third_party::{Action, Message as ScopedMessage, workspace::Event};
+    let Some(scope) = app.apps_catalog.third_party_skills.scope().cloned() else {
+        return Task::none();
+    };
+    let catalog = app.apps_catalog.navigation_generation;
+    crate::app::components::third_party_settings::skills_update(app, ScopedMessage {
+        scope, catalog, action: Action::Workspace(Event::ReloadInventory),
+    })
+}

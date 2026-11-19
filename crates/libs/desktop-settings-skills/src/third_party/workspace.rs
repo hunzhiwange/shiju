@@ -35,6 +35,8 @@ impl Candidate {
 #[derive(Clone, Debug, Default)]
 pub struct State {
     pub tab: Tab,
+    pub add_menu: bool,
+    pub more_menu: bool,
     pub query: String,
     pub market_query: String,
     pub offset: usize,
@@ -54,6 +56,9 @@ pub struct State {
 }
 #[derive(Clone, Debug)]
 pub enum Event {
+    AddMenu,
+    MoreMenu,
+    ReloadInventory,
     Tab(Tab),
     Query(String),
     MarketQuery(String),
@@ -124,7 +129,12 @@ pub fn update(s: &mut State, event: Event, minimum_version: u64) -> Effect {
         return Effect::None;
     }
     match event {
+        Event::AddMenu => { s.add_menu = !s.add_menu; s.more_menu = false; }
+        Event::MoreMenu => { s.more_menu = !s.more_menu; s.add_menu = false; }
+        Event::ReloadInventory if !s.installing => return Effect::Load(s.begin(0)),
         Event::Tab(tab) => {
+            s.add_menu = false;
+            s.more_menu = false;
             s.tab = tab;
             if s.inventory.is_none() && !s.busy[0] {
                 return Effect::Load(s.begin(0));
@@ -261,7 +271,7 @@ fn install(s: &mut State, candidate: Candidate, register: bool) -> Effect {
     }
 }
 
-pub fn view<'a>(page: &'a Page) -> Element<'a, Message> {
+pub fn view<'a>(page: &'a Page, targets: Element<'a, Message>) -> Element<'a, Message> {
     let Some(scope) = page.scope() else {
         return text("请连接执行主机").into();
     };
@@ -285,11 +295,11 @@ pub fn view<'a>(page: &'a Page) -> Element<'a, Message> {
         button("添加 Skill")
             .padding([8, 10])
             .style(primary_action_btn_style)
-            .on_press(directory(DirectoryAction::Import)),
-        button("更多 / 仓库管理")
+            .on_press(send(Event::AddMenu)),
+        button("更多")
             .padding([8, 10])
             .style(rounded_action_btn_style)
-            .on_press(directory(DirectoryAction::Repositories)),
+            .on_press(send(Event::MoreMenu)),
         action("刷新 / 重试", Event::Refresh)
     ]
     .spacing(8);
@@ -558,14 +568,39 @@ pub fn view<'a>(page: &'a Page) -> Element<'a, Message> {
             );
         }
     }
+    let mut menus = column![].spacing(6);
+    if s.add_menu {
+        menus = menus.push(row![
+            action("从仓库发现", Event::Tab(Tab::Repositories)),
+            button("从 ZIP 安装").padding([8, 10]).style(rounded_action_btn_style)
+                .on_press(directory(DirectoryAction::Install)),
+            button("导入已有技能").padding([8, 10]).style(rounded_action_btn_style)
+                .on_press(directory(DirectoryAction::Import)),
+        ].spacing(8));
+    }
+    if s.more_menu {
+        for (label, entry) in [
+            ("仓库管理", DirectoryAction::Repositories),
+            ("存储与同步", DirectoryAction::Storage),
+            ("备份与恢复", DirectoryAction::Backup),
+            ("更新与卸载", DirectoryAction::Updates),
+            ("任务进度", DirectoryAction::Jobs),
+            ("Claude 配置", DirectoryAction::Claude),
+        ] {
+            menus = menus.push(button(label).padding([8, 10]).style(rounded_action_btn_style)
+                .on_press(directory(entry)));
+        }
+    }
     column![
         header,
+        menus,
         row![
             action("已安装", Event::Tab(Tab::Installed)),
             action("仓库目录", Event::Tab(Tab::Repositories)),
             action("skills.sh", Event::Tab(Tab::Market))
         ]
         .spacing(8),
+        targets,
         scrollable(container(body).padding([0, 7]))
             .direction(scrollable::Direction::Vertical(
                 scrollable::Scrollbar::new().width(4).scroller_width(4)

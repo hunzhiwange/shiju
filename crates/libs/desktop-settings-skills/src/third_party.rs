@@ -108,6 +108,8 @@ pub fn update(state: &mut State, input: &Input, message: Message) -> Effect {
         }
         Action::Binding(event) => event,
         Action::Directory(action) => {
+            state.workspace.add_menu = false;
+            state.workspace.more_menu = false;
             return Effect::Directory { scope, catalog: state.catalog, action };
         }
     };
@@ -147,6 +149,13 @@ pub fn update(state: &mut State, input: &Input, message: Message) -> Effect {
             };
         }
     }
+    if let bindings::Event::Select(id) = &event {
+        if !state.bindings.open {
+            let effect = bindings::update(&mut state.bindings, input, bindings::Event::Open);
+            state.bindings.selected = Some(id.clone());
+            return Effect::Binding { scope, catalog: state.catalog, effect };
+        }
+    }
     let effect = bindings::update(&mut state.bindings, input, event);
     Effect::Binding { scope, catalog: state.catalog, effect }
 }
@@ -161,7 +170,7 @@ pub fn view<'a>(
         return settings_error_banner("请打开项目并连接执行主机".to_owned()).into();
     };
     let message = |action| Message { scope: scope.clone(), catalog: state.catalog, action };
-    let mut body = column![workspace::view(state)].spacing(16).width(Length::Fill);
+    let mut body = column![text(format!("安装到 · 已选 {} 个应用实例", state.bindings.targets.len()))].spacing(6).width(Length::Fill);
     let s = &state.bindings;
     body = body.push(
         button("刷新应用绑定").padding([8, 10]).style(rounded_action_btn_style).on_press_maybe(
@@ -244,5 +253,7 @@ pub fn view<'a>(
     if let Some(error) = &s.error {
         body = body.push(settings_error_banner(error.clone()));
     }
-    body.into()
+    workspace::view(state, iced::widget::scrollable(body).height(150)
+        .direction(iced::widget::scrollable::Direction::Vertical(
+            iced::widget::scrollable::Scrollbar::new().width(4).scroller_width(4))).into())
 }

@@ -11,7 +11,13 @@ pub(crate) fn message(event: Event) -> Message {
 pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
     use desktop_settings_skills::update::repo_modal::{Effect, update as reduce};
     let input = super::update_input(app);
-    match reduce(&mut app.skills_settings.repositories, &input, event) {
+    let previous = app.skills_settings.repositories.snapshot.clone();
+    let effect = reduce(&mut app.skills_settings.repositories, &input, event);
+    let changed = app.skills_settings.repositories.snapshot.as_ref().is_some_and(|snapshot| {
+        previous.as_ref().is_none_or(|old| old.scope != snapshot.scope || old.version != snapshot.version)
+    });
+    let refresh = if changed { super::refresh_workspace(app) } else { Task::none() };
+    let task = match effect {
         Effect::OpenSource(url) => crate::app::message::view::update(
             app,
             crate::app::message::view::ViewMessage::OpenUrlExternal(url),
@@ -41,7 +47,8 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
             },
             move |result| message(Event::Completed { generation, added, result }),
         ),
-    }
+    };
+    Task::batch([task, refresh])
 }
 /// A repository selection must belong to the active gateway, project and host.
 pub(crate) fn sync_inventory(app: &App) -> Option<&SkillReposResponse> {

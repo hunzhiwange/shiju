@@ -123,7 +123,7 @@ pub(crate) fn view(app: &App) -> Element<'_, Message> {
         workspace =
             workspace.push(super::system_settings_common::settings_error_banner(error.clone()));
     }
-    if state.third_party_page == ThirdPartyPage::Sessions
+    if matches!(state.third_party_page, ThirdPartyPage::Sessions | ThirdPartyPage::Skills)
         || (state.third_party_page == ThirdPartyPage::Prompts && state.prompts.editor.is_some()) {
         workspace = workspace.push(container(body).padding([0, 7]).height(Length::Fill));
         return self::workspace(app, container(workspace.height(Length::Fill)).padding(24).into());
@@ -527,7 +527,13 @@ pub(crate) fn skills_update(
                     SettingsMessage::SkillsBackups(skills::backup_modal::Event::Open)
                 }
             };
-            skills::update(app, event)
+            let backup = matches!(action, DirectoryAction::Backup);
+            let task = skills::update(app, event);
+            if backup {
+                // The list readback validates these choices against the same scope.
+                app.skills_settings.backups.targets = app.apps_catalog.third_party_skills.bindings.targets.clone();
+            }
+            task
         }
     }
 }

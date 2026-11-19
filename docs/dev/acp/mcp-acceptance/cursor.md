@@ -151,3 +151,19 @@ Cursor 的受管 v2 在第 64 次工具执行结束后直接报错。v3 继续�
 原生 `--past-old-limit` 夹具发起 257 次执行，v4 返回 ACP `-32603`，v5 完成 257 次实际执行并回传全部结果，退出 0。另运行 `--step-limit --deny` 与 `--refuse-final-tool --deny`，分别确认第 2000 次审批拒绝结果后仍可完成正文和历史加载，以及第 2001 个调用不会进入工具执行。两项均退出 0。Node 定向测试 6 项通过，更新后的 351 个受管文件摘要一致。
 
 指定模型的 v5 原生独立诊断会话 `c2323c4e-1db8-4580-b108-6e168f5421b5` 结束于 `end_turn`。模型请求同时公布官方 shell 与八个原生 RustCodeGraph 工具。2 次 query、1 次 callers、5 次 node 成功，并在下一模型请求中按工具调用 ID 核对原生结果一致。诊断客户端另拒绝 status 与 explore 各一次，模型改用目标工具并完成答复。该诊断里没有网关的无挂载和撤除证据。
+
+### 新标准三轮通过
+
+复用槽位 6 已完成的 `shiju 0.6.0`，SHA-256 为 `1d37a1d46ad916b7671e7d1cb9c2be65d0cf951e7e7fd516b32d7c03afa91ada`。核对二进制内嵌的两份补丁和摘要与 v5 源码一致，私有系统安装返回 HTTP 200，校验 351 个受管文件。使用原生 RustCodeGraph 1.2.11 stdio，工作区配置仅在挂载轮出现。网关未设置工具白名单，MCP 完整目录与官方 shell 共存。
+
+| 轮次 | 会话 ID | HTTP / curl / 秒 | 终态与结果 |
+| --- | --- | --- | --- |
+| 无挂载 | `ses_1f1bb9a75001pZw42GWX1tAxCk` | 200 / 0 / 25.212 | `chat.done`，官方 shell 2 次，目标服务零调用 |
+| 挂载 | `ses_1f1bbfe38001UpisIO0VR5XPa7` | 200 / 0 / 49.033 | `chat.done`，9 次 MCP 与 1 次官方 shell 均完成 |
+| 撤除 | `ses_1f1bcbf08001oqN5Ujdzidx7Vk` | 200 / 0 / 23.581 | `chat.done`，官方 shell 1 次，目标服务零调用 |
+
+挂载轮完成 3 次 query、1 次 callers、4 次 node 和 1 次 status，无模型恢复或 `chat.error`。query `call_ac3c8247122a46e2930630f5` 返回 `createRueSiteApp`（`app/app.tsx:32`），callers `call_908def6b4e4145ffb22bf324` 返回 `mountRueSiteApp`（第 39 行），node `call_f887dbe785c94ef18b6c97c6` 读回 `useApp.ts:4`，node `call_311aba4cfc1349c89a599c09` 读回 `_$createApp` 的源码。同 ID 的工具开始、完成事件与真实输出齐全。答复引用这些结果，正确描述启动链、容器校验、插件安装及运行时挂载。官方 shell 使用会话内相对路径读取了 Rue 的类型声明，答复也引用了该行。
+
+v5 另用相同提示完成原生模型三轮。无挂载 `d71fa353-8694-49fc-8787-54c950b278d3` 与撤除 `8ead0b3a-3d23-40a2-b7db-2fe6827e9bdc` 的模型工具目录均只有官方 shell。挂载 `6edc83aa-1032-4cf9-b2ce-ab3cfae9ce13` 的模型目录含官方 shell 与八个原生图谱工具，执行了 2 次 query、1 次 callers、6 次 node，并调用 status、explore 和 shell。三轮都以 `end_turn` 结束，原生结果与模型续轮的同 ID 消息逐项匹配。独立宿主按会话批准工具，实际网关权限另由网关回读验证。
+
+网关日志只在挂载轮观察到 MCP 服务启动。三轮 UI summary 均确认 `acp-cursor / cursor` 和 `full_access=true`。在线权限为 `client_only`，挂载时审批队列采样为空。终态连接释放后，ACP options 仍回读 `session_model` 与指定模型。两座私有网关及诊断子进程均已退出，端口、挂载和租户副本已清理。两个 RueJS 副本各 4109 个文件及链接与原归档一致，新增图谱索引除外。本轮复用共享 CLI 产物，未再启动 Cargo 构建。

@@ -34,11 +34,11 @@ fn installed_directory(agent: &str, contract: &Contract) -> Result<PathBuf, Stri
     // Install revised contracts beside their prior reviewed runtimes.
     let revision = if agent == "deepagents" {
         4
-    } else if matches!(agent, "amp-acp" | "cortex-code") {
+    } else if matches!(agent, "amp-acp" | "cortex-code" | "snow") {
         3
     } else if matches!(
         agent,
-        "corust-agent" | "cursor" | "hermes" | "snow" | "openclaw" | "pi"
+        "corust-agent" | "cursor" | "hermes" | "openclaw" | "pi"
     ) {
         2
     } else {

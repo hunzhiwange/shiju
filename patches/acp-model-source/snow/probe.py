@@ -32,7 +32,7 @@ class Model(BaseHTTPRequestHandler):
         request = json.loads(self.rfile.read(int(self.headers["Content-Length"])))
         names = {t["function"]["name"] for t in request.get("tools", [])}
         results = [m for m in request["messages"] if m["role"] == "tool"]
-        seen.append((names, results))
+        seen.append((names, results, request["messages"]))
         available = all(name_prefix + key in names for key in tool_args)
         keys = list(tool_args)
         if available and len(results) < len(keys):
@@ -106,7 +106,16 @@ with tempfile.TemporaryDirectory(prefix="snow-acp-") as private_home, \
                 else:
                     session = rpc("session/new", dict(cwd=str(cwd), mcpServers=mount))["sessionId"]
                 end = rpc("session/prompt", dict(sessionId=session, prompt=[dict(type="text",text="Run the fixture")]))
-                names, results = seen[-1]
+                names, results, _ = seen[-1]
+                expected_inventory = json.dumps([server["name"] for server in mount])
+                for catalog, _, messages in seen[start:]:
+                    assert messages[0]["role"] == "system", label
+                    system = messages[0]["content"]
+                    assert f"Host-mounted MCP service names (JSON data): {expected_inventory}\n" in system, label
+                    assert "All tools are pre-loaded" in system, label
+                    assert "Tools are NOT pre-loaded" not in system, label
+                    assert "session-command-list" in catalog, label
+                    assert messages[1] == {"role": "user", "content": "Run the fixture"}, label
                 completed = [u for u in updates if u.get("status") == "completed"]
                 expected_tools = [name_prefix + key for key in tool_args] if mount else []
                 assert permissions == expected_tools, (label, permissions)

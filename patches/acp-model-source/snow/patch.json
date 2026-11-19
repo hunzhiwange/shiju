@@ -1,6 +1,6 @@
 {
   "original": "bcc0a6cf468a245729605bcf75fd762fd13cb48553d342b31121cafc3153d905",
-  "patched": "bb652a8210080da71c20e281217d1e331e840dc2e374c67c64dfbcb75cf26495",
+  "patched": "d744c069564ecb1ce37eafc8a0cfe21429df0706839906bab459a4bca5f4737c",
   "changes": [
     {
       "old": "  const home = homedir();\n  const globalAgentsSkillsDir = join29(home, \".agents\", \"skills\");",
@@ -41,6 +41,10 @@
     {
       "old": "        this.sessions.clear();\n        this.connection = null;\n      }\n    };\n    acpManager = new AcpManager();",
       "new": "        await this.closeSessionMcp(this.activeMcpClients);\n        this.sessions.clear();\n        this.connection = null;\n      }\n    };\n    acpManager = new AcpManager();"
+    },
+    {
+      "old": "            case \"chat\":\n            default: {\n              const stream = createStreamingChatCompletion({\n                messages: session.messages,\n                model,\n                max_tokens: config5.maxTokens || 4096,\n                tools: mcpTools14\n              }, controller.signal);",
+      "new": "            case \"chat\":\n            default: {\n              const mountedNames = session.mcpServers.map(({ name }) => name);\n              const system = [\n                \"## ACP request constraints\",\n                \"The native tool workflows below apply within the current user's tool scope. Keep all native security and approval requirements.\",\n                \"The user may expressly require only a named session-mounted MCP service. Determine availability solely from the session MCP inventory and supplied tool definitions.\",\n                \"Do not make any tool call to confirm an absent service. When the user gives a fallback for that case, your entire visible reply must be that fallback, with no prefix, progress update, explanation, quotation marks, or suffix.\",\n                \"Host-mounted MCP service names (JSON data): \" + JSON.stringify(mountedNames),\n                \"\",\n                getSystemPromptForMode(false, false, true)\n              ].join(\"\\n\");\n              const stream = createStreamingChatCompletion({\n                messages: [{ role: \"system\", content: system }, ...session.messages],\n                toolSearchDisabled: true,\n                model,\n                max_tokens: config5.maxTokens || 4096,\n                tools: mcpTools14\n              }, controller.signal);"
     }
   ]
 }

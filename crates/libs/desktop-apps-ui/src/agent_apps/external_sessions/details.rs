@@ -6,8 +6,8 @@ use desktop_ui_controls::system_settings_common::*;
 use super::Event as Message;
 use crate::{Connection, Notice, error as notify_error};
 use iced::{
-    Element, Task,
-    widget::{button, column, text},
+    Element, Length, Task,
+    widget::{button, column, scrollable, text},
 };
 use vw_api_external_session::*;
 
@@ -24,6 +24,11 @@ pub(super) fn update(state: &mut super::State, connection: &Connection, notice: 
     };
     match value {
         Event::Process => reader.details.process_open = !reader.details.process_open,
+        Event::Input(m, b) => {
+            if !reader.details.inputs.remove(&(m, b)) {
+                reader.details.inputs.insert((m, b));
+            }
+        }
         Event::Toggle(m, b) => {
             if !reader.details.expanded.remove(&(m, b)) {
                 reader.details.expanded.insert((m, b));
@@ -153,7 +158,12 @@ fn body<'a>(
             );
         }
     }
-    content.into()
+    scrollable(content.width(Length::Shrink))
+        .direction(iced::widget::scrollable::Direction::Horizontal(
+            iced::widget::scrollable::Scrollbar::new().width(4).scroller_width(4),
+        ))
+        .width(Length::Fill)
+        .into()
 }
 
 pub(super) fn message_view<'a>(
@@ -183,8 +193,8 @@ pub(super) fn message_view<'a>(
 fn failure(block: &SessionBlock) -> bool {
     matches!(
         block,
-        SessionBlock::ToolResult { status: ToolStatus::Error, .. }
-            | SessionBlock::Event { kind: EventKind::Error | EventKind::Hook, .. }
+        SessionBlock::ToolResult { status: ToolStatus::Error | ToolStatus::Interrupted, .. }
+            | SessionBlock::Event { kind: EventKind::Error | EventKind::Aborted, .. }
     )
 }
 pub(super) fn steps<'a>(reader: &'a reader::State, turn: &TurnIndex) -> Element<'a, Message> {
@@ -192,7 +202,7 @@ pub(super) fn steps<'a>(reader: &'a reader::State, turn: &TurnIndex) -> Element<
         .messages
         .iter()
         .enumerate()
-        .filter(|(i, _)| *i >= turn.first_message_index && *i <= turn.last_message_index)
+        .filter(|(i, message)| !message.injected && *i >= turn.first_message_index && *i <= turn.last_message_index)
         .flat_map(|(m, message)| {
             message.blocks.iter().enumerate().map(move |(b, block)| (m, b, block))
         })
@@ -201,14 +211,11 @@ pub(super) fn steps<'a>(reader: &'a reader::State, turn: &TurnIndex) -> Element<
     if reader.find.filter == find::Filter::Changes {
         blocks.retain(|(_, _, b)| matches!(b, SessionBlock::ToolCall { diff: Some(_), .. }));
     }
-    // Stable priority within the execution area, without changing host turn boundaries.
-    blocks.sort_by_key(|(_, _, block)| !failure(block));
+    // Preserve the host message and block order, including failures and interruptions.
     let mut content = column![
-        button(text(if reader.details.process_open {
-            "收起执行过程"
-        } else {
-            "展开执行过程"
-        }))
+        button(text(format!("{} · {} 个步骤 · {} 个错误{}",
+            if reader.details.process_open { "收起执行过程" } else { "展开执行过程" },
+            turn.step_count, turn.error_count, if turn.aborted { " · 已中止" } else { "" })))
         .padding([8, 12])
         .style(rounded_action_btn_style)
         .on_press(event(Event::Process))
@@ -237,10 +244,12 @@ fn block_view<'a>(
     let label = match block {
         SessionBlock::Text { .. } => "代码 / 正文".to_owned(),
         SessionBlock::Thinking { summary, duration_ms, .. } => {
-            format!("思考 · {} · {}ms", summary.as_deref().unwrap_or(""), duration_ms.unwrap_or(0))
+            format!("思考 · {} · {}ms", summary.as_deref().unwrap_or(""), duration_ms.map(|ms| ms.to_string()).unwrap_or_else(|| "未知".into()))
         }
-        SessionBlock::ToolCall { title, raw_name, id, .. } => {
-            format!("工具 · {title} · {raw_name} · {id}")
+        SessionBlock::ToolCall { title, raw_name, detail, diff, .. } => {
+            format!("工具 · {title} · {raw_name}{}{}",
+                detail.as_ref().map(|d| format!(" · {d}")).unwrap_or_default(),
+                diff.as_ref().map(|d| format!(" · {} 个文件 · +{} −{}", d.files.len(), d.added, d.removed)).unwrap_or_default())
         }
         SessionBlock::ToolResult { call_id, status, exit_code, .. } => format!(
             "{}工具结果 · {call_id} · {status:?} · 退出码 {exit_code:?}",
@@ -253,7 +262,6 @@ fn block_view<'a>(
         SessionBlock::Image { .. } => return column![].into(),
     };
     let expanded = reader.details.expanded.contains(&(m, b))
-        || failure(block)
         || reader.find.filter == find::Filter::Changes;
     let mut content = column![
         button(text(format!("{} {label}", if expanded { "▾" } else { "▸" })))
@@ -274,11 +282,13 @@ fn block_view<'a>(
                 if let Some(detail) = detail {
                     content = content.push(text(detail));
                 }
-                content = content.push(text("参数")).push(body(
-                    reader,
-                    input_preview,
-                    input_full.as_ref(),
-                ));
+                let input_open = reader.details.inputs.contains(&(m, b));
+                content = content.push(button(text(if input_open { "收起参数" } else { "展开参数" }))
+                    .padding([8, 12]).style(rounded_action_btn_style)
+                    .on_press(event(Event::Input(m, b))));
+                if input_open {
+                    content = content.push(body(reader, input_preview, input_full.as_ref()));
+                }
                 if let Some(diff) = diff {
                     content =
                         content.push(text(format!("差异 · +{} −{}", diff.added, diff.removed)));
@@ -295,7 +305,7 @@ fn block_view<'a>(
                 content = content
                     .push(text(format!(
                         "耗时 {}ms{}",
-                        duration_ms.unwrap_or(0),
+                        duration_ms.map(|ms| ms.to_string()).unwrap_or_else(|| "未知".into()),
                         if *truncated { " · 预览已截断" } else { "" }
                     )))
                     .push(body(reader, preview, full.as_ref()));
@@ -326,6 +336,7 @@ pub(super) fn loaded_text<'a>(
 pub struct State {
     pub expanded: BTreeSet<(usize, usize)>,
     pub process_open: bool,
+    pub inputs: BTreeSet<(usize, usize)>,
     pub pages: Vec<Page>,
 }
 #[derive(Clone)]
@@ -351,6 +362,7 @@ impl State {
 pub enum Event {
     Process,
     Toggle(usize, usize),
+    Input(usize, usize),
     More(ContentRef),
     Loaded(reader::Scope, u64, ContentRef, u32, Result<SessionContentResponse, AgentAppsReadError>),
 }

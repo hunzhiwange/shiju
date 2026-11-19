@@ -133,7 +133,9 @@ fn start(state: &mut super::State, connection: &Connection, notice: &mut Option<
                     );
                     let result = match chunk {
                         Ok(Some(chunk)) => Ok(chunk),
-                        Ok(None) => break,
+                        Ok(None) => Err(AgentAppsReadError::Transport(
+                            "history stream ended before completion".into(),
+                        )),
                         Err(error) => Err(error),
                     };
                     if output.send(message(Event::Chunk(scope.clone(), result))).await.is_err()
@@ -200,20 +202,64 @@ pub(super) fn view<'a>(state: &'a super::State, reader: &'a State, loopback: boo
     ]
     .spacing(8)
     .wrap();
+    let status = if reader.failed {
+        "读取失败，内容不完整".to_owned()
+    } else if reader.loading {
+        format!("正在读取… {} / {} 条消息", reader.messages.len(), reader.total)
+    } else {
+        format!("已读取 {} 条消息", reader.messages.len())
+    };
+    let base = column![
+        header,
+        super::paths::source_button(),
+        state.page.as_ref().and_then(|page| page.sessions.iter().find(|s| s.identity == reader.identity))
+            .map(|session| super::paths::controls(state, session, loopback))
+            .unwrap_or_else(|| text("来源位置不可用").into()),
+        state.page.as_ref().and_then(|page| page.sessions.iter().find(|s| s.identity == reader.identity))
+            .map(|session| super::resume::control(session, !state.busy && !state.deletion.busy()))
+            .unwrap_or_else(|| text("会话已不在当前目录，请刷新").into()),
+        super::export::controls(state, reader),
+        find::controls(reader),
+        text(status).style(settings_muted_text_style),
+        row![
+            scrollable(container(outline(reader)))
+                .width(Length::FillPortion(1))
+                .height(Length::Fixed(420.0))
+                .direction(Direction::Vertical(Scrollbar::new().width(4).scroller_width(4))),
+            scrollable(container(body(reader)).width(Length::Fill))
+                .id("external-session-reader")
+                .on_scroll(|v| message(Event::ReaderScrolled(v.absolute_offset())))
+                .width(Length::FillPortion(3))
+                .height(Length::Fixed(420.0))
+                .direction(Direction::Vertical(Scrollbar::new().width(4).scroller_width(4))),
+        ]
+        .spacing(12)
+    ]
+    .spacing(10)
+    .into();
+    images::overlay(base, reader)
+}
+
+pub(super) fn outline(reader: &State) -> Element<'_, Message> {
     let mut outline = column![text("轮次目录").size(15)].spacing(8).padding([0, 7]);
     for (i, turn) in reader.turns.iter().enumerate() {
         outline = outline.push(
-            button(text(format!(
+            button(column![text(format!(
                 "{}{}. {}",
                 if i == reader.active { "● " } else { "" },
                 i + 1,
                 turn.question_preview.chars().take(80).collect::<String>()
-            )))
+            )), text(format!("{} 个步骤{}", turn.step_count, if turn.aborted { " · 已中止" } else { "" })).size(12),
+                text(reply_preview(reader, turn)).size(12).style(settings_muted_text_style)])
             .padding([8, 12])
-            .style(rounded_action_btn_style)
+            .style(if i == reader.active { primary_action_btn_style } else { rounded_action_btn_style })
             .on_press(message(Event::Turn(i))),
         );
     }
+    outline.into()
+}
+
+pub(super) fn body(reader: &State) -> Element<'_, Message> {
     let mut body = column![].spacing(12).padding([0, 7]);
     if let Some(hit) = find::focused(reader) {
         body = body.push(hit);
@@ -236,14 +282,19 @@ pub(super) fn view<'a>(state: &'a super::State, reader: &'a State, loopback: boo
             .collect();
         if reader.find.filter != find::Filter::Changes {
             for question in messages.iter().filter(|m| m.role == "user" && !m.injected) {
-                body = body.push(settings_group_card(
-                    column![text("提问").size(14), details::message_view(reader, question)]
-                        .spacing(6),
-                ));
+                body = body.push(row![container(text("")).width(Length::FillPortion(1)), container(settings_group_card(
+                    column![text("提问").size(14), details::message_view(reader, question)].spacing(6).max_width(640),
+                )).width(Length::FillPortion(4))]);
             }
+        }
+        if reader.find.filter != find::Filter::Conversation {
+            body = body.push(details::steps(reader, turn));
+        }
+        if reader.find.filter != find::Filter::Changes {
             if turn.has_final_reply {
                 if let Some(reply) = messages.iter().rev().find(|m| {
-                    m.role == "assistant"
+                    reader.messages.len() > turn.last_message_index
+                        && m.role == "assistant"
                         && !m.injected
                         && (!display_text(m).is_empty()
                             || m.blocks.iter().any(|b| !images::references(b).is_empty()))
@@ -253,54 +304,30 @@ pub(super) fn view<'a>(state: &'a super::State, reader: &'a State, loopback: boo
                             .spacing(6),
                     ));
                 } else {
-                    body = body.push(text("正在读取回复…").style(settings_muted_text_style));
+                    body = body.push(text(if reader.failed { "回复尚未读到，内容不完整" } else { "正在读取回复…" }).style(settings_muted_text_style));
                 }
             } else {
-                body = body.push(text("本轮没有最终回复").style(settings_muted_text_style));
+                body = body.push(text(if turn.aborted { "本轮已中止，没有最终回复" } else { "本轮没有最终回复" }).style(settings_muted_text_style));
             }
-        }
-        if reader.find.filter != find::Filter::Conversation {
-            body = body.push(details::steps(reader, turn));
         }
     } else if !reader.loading {
         body = body.push(text("此会话没有可阅读轮次"));
     }
-    let status = if reader.failed {
-        "读取失败，内容不完整".to_owned()
-    } else if reader.loading {
-        format!("正在读取… {} / {} 条消息", reader.messages.len(), reader.total)
-    } else {
-        format!("已读取 {} 条消息", reader.messages.len())
-    };
-    let base = column![
-        header,
-        super::paths::source_button(),
-        state.page.as_ref().and_then(|page| page.sessions.iter().find(|s| s.identity == reader.identity))
-            .map(|session| super::paths::controls(state, session, loopback))
-            .unwrap_or_else(|| text("来源位置不可用").into()),
-        state.page.as_ref().and_then(|page| page.sessions.iter().find(|s| s.identity == reader.identity))
-            .map(|session| super::resume::control(session, !state.busy && !state.deletion.busy()))
-            .unwrap_or_else(|| text("会话已不在当前目录，请刷新").into()),
-        super::export::controls(state, reader),
-        find::controls(reader),
-        text(status).style(settings_muted_text_style),
-        row![
-            scrollable(container(outline))
-                .width(Length::FillPortion(1))
-                .height(Length::Fixed(420.0))
-                .direction(Direction::Vertical(Scrollbar::new().width(4).scroller_width(4))),
-            scrollable(container(body).width(Length::Fill))
-                .id("external-session-reader")
-                .on_scroll(|v| message(Event::ReaderScrolled(v.absolute_offset())))
-                .width(Length::FillPortion(3))
-                .height(Length::Fixed(420.0))
-                .direction(Direction::Vertical(Scrollbar::new().width(4).scroller_width(4))),
-        ]
-        .spacing(12)
-    ]
-    .spacing(10)
-    .into();
-    images::overlay(base, reader)
+    body.into()
+}
+
+fn reply_preview(reader: &State, turn: &TurnIndex) -> String {
+    if !turn.has_final_reply || reader.messages.len() <= turn.last_message_index {
+        return if reader.failed { "内容不完整" } else if reader.loading { "正在读取…" }
+            else if turn.aborted { "已中止" } else { "暂无回复" }.to_owned();
+    }
+    reader.messages.iter().enumerate().rev()
+        .filter(|(i, m)| *i >= turn.first_message_index && *i <= turn.last_message_index
+            && m.role == "assistant" && !m.injected)
+        .map(|(_, m)| display_text(m))
+        .find(|text| !text.trim().is_empty())
+        .map(|text| text.chars().take(80).collect())
+        .unwrap_or_else(|| if reader.loading { "正在读取…" } else if reader.failed { "内容不完整" } else { "暂无回复" }.to_owned())
 }
 
 fn display_text(message: &SessionMessage) -> String {

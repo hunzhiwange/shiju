@@ -1,6 +1,6 @@
 # aionrs 动态挂载 MCP 验收
 
-2026-11-19，已阻塞。隔离网关在选模阶段停止。独立 ACP 探针另行确认受管桥接拒绝带 stdio MCP 的 `session/new`。[复用请求](../ACP验收.md#可复用的验收请求)
+2026-11-19，受管 v2 已按当前标准通过真实模型三轮验收。旧版的选模及建会话拒绝记录保留在下方。[复用请求](../ACP验收.md#可复用的验收请求)
 
 ## 环境
 
@@ -69,3 +69,25 @@ python3 patches/acp-model-source/aionrs/probe.py "$reviewed_engine" "$rustcodegr
 MCP 本地进程在清空环境后启动，网络和派生进程均被禁止。RustCodeGraph 使用无守护进程、无监视模式。已 checkpoint 的 SQLite 索引复制到运行时私有目录，源码在 MCP 进程中保持只读。模型调用先经过现有 ACP 单次审批，工具名和参数都相符的授权只消费一次。受管运行时目录升级为 `aionrs-0.2.11-model-source-v2`，原生引擎版本保持 0.2.11。
 
 聚焦回归使用槽位 3，两个缓存路径均为仓库内 `target/rust-slot-3`。命令为 `python3 scripts/cargo_slot.py cargo test -j 1 --locked -p acp-server --lib aionrs -- --include-ignored --test-threads=1`。通过环境指向已索引 RueJS 副本和已安装的 RustCodeGraph。退出 0，共 5 项通过。真实工具测试覆盖项目允许与拒绝名单、query/callers/node 输出，以及逐个调用的无授权拒绝和授权已消费重放。
+
+受管桥接的原生 ACP 补充探针覆盖无挂载、批准、拒绝和撤除四轮。使用固定的 aionrs 0.2.11、真实图谱和回环模型。通过 ACP 批准的三个调用分别产生成功工具终态，三个结果均进入模型续轮。拒绝轮消耗一次审批请求，图谱执行数为零，撤除轮的模型工具表无挂载工具。额外用指定模型直连此探针的挂载轮触发 155 秒探针上限，未用于判定网关验收。
+
+正式构建在槽位 10 执行 `cargo build -j 1 --locked -p vw-acp --bin aionrs-acp -p vw-cli --bin shiju`，由仓库槽位脚本持有两个缓存目录至产物复制完成。两目录为仓库内 `target/rust-slot-10`。退出 0，用时 33 分 36 秒。网关 SHA-256 为 `b2a05ed113477712c36de9dd731517d27f151d4e51f7c8096c0e80ae2e27d276`，桥接为 `b2ab720e864645b1b0dc681fcf852873c501d3a8f19de7b9a1ffc2408c9a466a`。隔离实例复用前次受审引擎，配对该桥接并校验私有 v2 安装回执。
+
+当前共享网关在 `2b35013ae` 移除了聊天请求的 `acp_agent` 字段。原字段导致三轮 HTTP 422，均在反序列化阶段结束，未发送模型请求。复验去掉该字段，由 `agent=acp-aionrs` 解析后端，提示、模型、租户、`session_model` 和权限保持相同。
+
+### 指定模型正式网关三轮
+
+按更新后的标准，官方工具可以沿用原权限共存，挂载工具必须实际执行并回传对应结果。本次项目 `allowedTools` 仅选择 `rustcodegraph_query`、`rustcodegraph_callers`、`rustcodegraph_node`。原生引擎仍可见原有工作区工具，本次模型只调用了挂载工具。
+
+| 轮次 | 新会话 | HTTP / curl / 秒 | SSE 终态 | 图谱工具完成 |
+| --- | --- | --- | --- | --- |
+| 无挂载 | `ses_1f194b895001Wa5P9C76nXlVBD` | 200 / 0 / 4.796 | `chat.done` ×1 | 0 |
+| 挂载 | `ses_1f194cbcb001cZAYuXpaJxQ7n7` | 200 / 0 / 201.171 | `chat.done` ×1 | 101 |
+| 撤除 | `ses_1f197ddfb001lCU2h3bqJ9QEtE` | 200 / 0 / 4.734 | `chat.done` ×1 | 0 |
+
+- 三轮均无 `chat.error`。UI summary 回读 `acp-aionrs / aionrs` 且 `full_access=true`。运行中 ACP options 为 `connected=true`、`access_status.support=client_only`，运行中与终态均确认指定模型的 `session_model` 绑定，终态断开。
+- 挂载轮共有 70 个 query、8 个 callers 和 23 个 node 成功完成事件。每个完成事件都有同 ID 的开始事件和非空输出。有些查询正常返回无匹配。首组 query `call_2f59b5c71b3b4ed884b62708` 命中 `createRueSiteApp`（`app/app.tsx:32`），callers `call_804192c06b744592a9c2f5e8` 回传 `mountRueSiteApp`（`app/app.tsx:39`），node `call_6e01f945b7b14f57825c06be` 回传工厂源码。最终答复引用这些结果继续追到 `useApp` 和 `_$createApp`，没有其他工具事件。
+- 按快照源码复核，答复准确覆盖 SSR 与浏览器入口、缺少 `#app` 的抛错、根工厂前安装路由与 i18n、`/rust-layers` 的布局绕过。答复把移除清空后残留 DOM 标为推断，给出首屏唯一性和卸载重挂两项验证。文中直接子节点恰好翻倍的表述取决于快照和新根结构，源码确认的是静态节点可能残留、新应用节点追加。本次未执行浏览器场景。
+- 两轮对照均返回 `MCP_NOT_AVAILABLE`，无工具事件。无挂载轮附带解释，SSE 仍可见带标签的推理文本。网关另有一条后台标题模型 403，指定模型的三个聊天回合均正常完成。
+- 私有网关退出 0、端口关闭，网关运行目录及其授权副本已清理，受管桥接、引擎及验收 MCP 进程均已退出。未运行桌面构建或全仓测试。新增的模型中继分片单测未单独执行，正式网关构建和三轮聊天已运行。

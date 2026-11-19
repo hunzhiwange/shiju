@@ -36,6 +36,5 @@ pipeline default(harness: Harness) {
     max_iterations: 80,
   }
   const result = agent_loop(harness, prompt, "Complete the user's request using the tools authorized for this session. Respect the requested file boundaries. Inspect existing source before editing. Report failures honestly. Do not run tests or commands unless requested.", options)
-  harness.stdio.println(result.visible_text)
   require result.status == "done", "Harn agent did not complete: " + result.status
 }

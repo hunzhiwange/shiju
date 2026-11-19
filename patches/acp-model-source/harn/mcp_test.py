@@ -21,7 +21,7 @@ PREFIX = 'shiju_mcp_ruejs_graph_probe__rustcodegraph_'
 
 
 def verify(launcher, graph, workspace, mounted, approve, restore=None, cancel=False, restricted=False):
-    requests, permissions = [], []
+    requests, permissions, visible = [], [], []
 
     class Relay(BaseHTTPRequestHandler):
         def do_POST(self):
@@ -33,18 +33,23 @@ def verify(launcher, graph, workspace, mounted, approve, restore=None, cancel=Fa
             remaining = len(requests) <= len(TOOLS)
             if mounted and remaining and all(PREFIX + tool in names for tool, _, _ in TOOLS):
                 tool, args, _ = TOOLS[len(requests) - 1]
-                delta = {'tool_calls': [{'index': 0, 'id': 'call_' + tool, 'type': 'function',
-                          'function': {'name': PREFIX + tool, 'arguments': json.dumps(args)}}]}
+                deltas = [
+                    {'tool_calls': [{'index': 0, 'id': 'call_' + tool, 'type': 'function',
+                                     'function': {'name': PREFIX + tool, 'arguments': ''}}]},
+                    {'tool_calls': [{'index': 0, 'function': {'arguments': json.dumps(args)}}]},
+                ]
                 finish = 'tool_calls'
             else:
-                delta, finish = {'content': 'Probe completed.'}, 'stop'
+                deltas, finish = [{'content': 'Probe completed.'}], 'stop'
             self.send_response(200)
             self.send_header('Content-Type', 'text/event-stream')
             self.end_headers()
-            for chunk, reason in (({'role': 'assistant', **delta}, None), ({}, finish)):
+            deltas[0]['role'] = 'assistant'
+            for chunk, reason in [*((delta, None) for delta in deltas), ({}, finish)]:
                 body = {'id': 'chatcmpl-probe', 'object': 'chat.completion.chunk', 'created': 0,
                         'model': MODEL, 'choices': [{'index': 0, 'delta': chunk, 'finish_reason': reason}]}
                 self.wfile.write(b'data: ' + json.dumps(body).encode() + b'\n\n')
+                self.wfile.flush()
             self.wfile.write(b'data: [DONE]\n\n')
 
     with TemporaryDirectory() as name, ThreadingHTTPServer(('127.0.0.1', 0), Relay) as relay:
@@ -89,6 +94,10 @@ def verify(launcher, graph, workspace, mounted, approve, restore=None, cancel=Fa
                                   'params': {'sessionId': message['params']['sessionId']}})
                         send({'id': message['id'], 'result': {'outcome': {'outcome': 'selected',
                               'optionId': 'allow_once' if approve else 'reject_once'}}})
+                    elif message.get('method') == 'session/update':
+                        update = message['params']['update']
+                        if update.get('sessionUpdate') == 'agent_message_chunk':
+                            visible.append(update['content']['text'])
                     elif 'method' not in message and message.get('id') == identifier:
                         if method == 'session/prompt' and mounted and not approve and 'error' in message:
                             assert 'completion_unverified' in message['error']['message'], message
@@ -142,6 +151,7 @@ def verify(launcher, graph, workspace, mounted, approve, restore=None, cancel=Fa
     if not mounted:
         assert {'read_file', 'write_file'} <= names and not any(name.startswith(PREFIX) for name in names)
         assert not permissions
+        assert ''.join(visible).strip() == 'Probe completed.'
         return
     expected_names = [PREFIX + tool for tool, _, _ in TOOLS]
     assert set(expected_names) <= names, 'Mounted tools absent from model input'

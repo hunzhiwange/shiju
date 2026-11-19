@@ -119,7 +119,7 @@ fn harn_reviewed_natural_language_runtime_is_pinned() {
     assert!(
         super::installed_directory("harn", &contract)
             .unwrap()
-            .ends_with("harn-0.10.201-model-source-v2")
+            .ends_with("harn-0.10.201-model-source-v3")
     );
     let directory = tempfile::tempdir().unwrap();
     std::fs::write(directory.path().join("harn"), "tampered").unwrap();

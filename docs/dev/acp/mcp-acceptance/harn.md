@@ -53,3 +53,21 @@
 - 使用官方固定归档执行仓库安装脚本，v2 产物四项摘要一致。负面与许可安装测试 2 项、既有宿主读写和拒绝回归 3 项、自然语言 pipeline 1 项均通过。
 - 安装后的 v2 launcher 与原生 Harn 0.10.201、RustCodeGraph 1.2.11 和隔离回环模型通过 8 个场景，覆盖无挂载、批准、拒绝、撤除、加载、恢复、取消后迟到的批准和允许/拒绝名单。批准轮中的三个调用分别返回 `app/app.tsx:32`、`mountRueSiteApp` 和 `useApp` 源码中的 `_$createApp`。模型续轮收到这些真实工具结果。拒绝轮的续轮收到拒绝反馈，取消轮零图谱结果。
 - `python3 scripts/cargo_slot.py cargo test --locked -j 1 -p acp-agent-registry harn_reviewed_natural_language_runtime_is_pinned` 退出 0，有效测试 1 项。槽位 3 的 `CARGO_TARGET_DIR` 和 `CARGO_BUILD_BUILD_DIR` 均为仓库的 `target/rust-slot-3`。新版网关的指定模型三轮与宿主默认配置 Rust 回归待补。
+
+## v3 流式参数回归
+
+固定模型在 v2 原生 ACP 复验中发送了分片工具调用。原生 `tool_call` 开始事件先带空的 `rawInput`，完整参数在相同 ID 的 `in_progress` 更新出现。v2 以空参数匹配宿主调用，三次工具被误拒，挂载终态为 `completion_unverified`。两轮缺失标记也各重复了一次。
+
+v3 只用原生执行更新中的完整参数绑定逐次审批，同一调用 ID 在本回合只登记一次。完成文本沿用原生流。分片回环用例在 v2 退出 1，v3 的 8 个场景全部通过。官方归档的 v3 安装摘要、安装用例 2 项、已有宿主读写 3 项、自然语言 1 项和注册契约 1 项也通过。注册测试在槽位 3 运行，两条缓存路径均为仓库的 `target/rust-slot-3`。
+
+使用已核验的 Harn 0.10.201、RustCodeGraph 1.2.11、原 RueJS 提交和原提示，经私有回环转发直连指定真实模型。三轮均为原生 ACP `end_turn`，模型凭据只保存在回环转发进程，原生及 MCP 子进程均未接收上游真实凭据。
+
+| 轮次 | 原生会话 ID | 答复与工具 |
+| --- | --- | --- |
+| 无挂载 | `01a1f181-140f-738f-aa8d-2b0cce790d9d` | 只返回一次 `MCP_NOT_AVAILABLE`，工具 0 |
+| 挂载 | `01a1f181-2489-7083-8470-915256661e3e` | 112 个调用均有同 ID 的开始、批准及成功完成，其他工具 0 |
+| 撤除 | `01a1f186-2cdd-77c8-82f0-0ebea7d75936` | 只返回一次 `MCP_NOT_AVAILABLE`，工具 0 |
+
+挂载包括 `query` 51、`callers` 5、`node` 56。调用 `call_ad23e749412246078f52c1a6` 返回 `createRueSiteApp` 所在的 `app/app.tsx:32`。调用 `call_95946064bde248ad8c690073` 返回调用者 `mountRueSiteApp`（`app/app.tsx:39`）。调用 `call_0addb5b5724040caa9a683e3` 返回 `packages/runtime/src/hooks/useApp.ts:4` 的 `_$createApp(factory)` 源码。模型续轮收到同一批结果。答复复核了四段调用链、插件安装在根工厂执行前、SSR 和容器缺失分支、`/rust-layers` 布局分支以及快照清空与挂载的顺序，并提供两项带预期的回归场景。清空逻辑移除后的现象为源码推断，未运行浏览器实验。部分查询成功返回空结果或未索引提示，无协议失败。
+
+上述三轮使用原生直接诊断，HTTP 网关的 SSE、会话回读与宿主策略 Rust 回归仍待构建。

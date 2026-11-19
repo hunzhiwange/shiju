@@ -35,6 +35,7 @@ class HarnBridge(Bridge):
         self.has_binding = has_binding
         self.file_calls = {}
         self.session_directories = {}
+        self.admitted_calls = set()
 
     async def answer(self, identifier, value):
         await self.send({'id': identifier, 'result': value})
@@ -86,6 +87,7 @@ class HarnBridge(Bridge):
                     continue
                 self.turn = (identifier, sid)
                 self.cancelled = False
+                self.admitted_calls.clear()
             if self.turn and (method in ('session/cancel', 'session/close', 'session/stop')
                               and sid == self.turn[1]
                               or method == '$/cancel_request' and params.get('requestId') == self.turn[0]):
@@ -127,9 +129,17 @@ class HarnBridge(Bridge):
                 self.turn = None
             if method == 'session/update' and self.turn and sid == self.turn[1]:
                 update = params['update']
-                title = update.get('title')
-                if update.get('sessionUpdate') == 'tool_call' and title in self.sessions.get(sid, {}):
-                    self.calls[update['toolCallId']] = (title, update.get('rawInput'))
+                title, call_id = update.get('title'), update.get('toolCallId')
+                arguments = update.get('rawInput')
+                # Streamed calls are announced with an empty argument object.
+                # The execution update carries the arguments used by the handler.
+                if (not self.cancelled and update.get('sessionUpdate') == 'tool_call_update'
+                        and update.get('status') == 'in_progress'
+                        and title in self.sessions.get(sid, {})
+                        and isinstance(call_id, str) and isinstance(arguments, dict)
+                        and call_id not in self.admitted_calls):
+                    self.admitted_calls.add(call_id)
+                    self.calls[call_id] = (title, arguments)
             if method == 'builtin_call':
                 await self.handle_builtin(identifier, params)
             else:

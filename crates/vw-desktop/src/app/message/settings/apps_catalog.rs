@@ -68,7 +68,7 @@ impl std::fmt::Debug for AppsCatalogMessage {
         f.write_str("AppsCatalogMessage")
     }
 }
-pub(super) fn update(app: &mut App, message: AppsCatalogMessage) -> Task<Message> {
+pub(in crate::app) fn update(app: &mut App, message: AppsCatalogMessage) -> Task<Message> {
     match message {
         AppsCatalogMessage::BatchUpgrade => {
             if app.apps_catalog.loading || app.apps_catalog.updates.checking { return Task::none(); }

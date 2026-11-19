@@ -1,6 +1,27 @@
 use super::*;
 use serde_json::{Value, json};
 
+#[test]
+fn corust_relay_preserves_reviewed_native_and_graph_tool_declarations() {
+    fn tool(name: &str) -> Value {
+        json!({"type":"function", "function":{"name":name, "parameters":{"type":"object"}}})
+    }
+    let accepted = [
+        "read_file", "write_file", "glob", "grep",
+        "rustcodegraph_query", "rustcodegraph_callers", "rustcodegraph_node",
+    ];
+    let mut request = json!({
+        "tools": accepted.into_iter().chain(["command", "rustcodegraph_explore"]).map(tool)
+            .collect::<Vec<_>>(),
+    });
+    retain_corust_tools(&mut request);
+    assert_eq!(request["tools"], json!(accepted.map(tool)));
+
+    let mut unmounted = json!({"tools": [tool("read_file"), tool("command")]});
+    retain_corust_tools(&mut unmounted);
+    assert_eq!(unmounted["tools"], json!([tool("read_file")]));
+}
+
 struct NoUpstream;
 
 #[async_trait::async_trait]

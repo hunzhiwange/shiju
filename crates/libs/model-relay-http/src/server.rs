@@ -375,11 +375,8 @@ async fn handle(State(state): State<Arc<ServerState>>, request: Request) -> Resp
         if aionrs {
             crate::aionrs_mcp::retain_tools(state.aionrs_mcp.get(), &mut json).await?;
         }
-        if corust && let Some(tools) = json.get_mut("tools").and_then(serde_json::Value::as_array_mut) {
-            tools.retain(|tool| matches!(
-                tool.pointer("/function/name").and_then(serde_json::Value::as_str),
-                Some("read_file" | "write_file" | "glob" | "grep")
-            ));
+        if corust {
+            retain_corust_tools(&mut json);
         }
         let body = if corust || aionrs || vtcode || gemini || (kiro && path == "/v1/responses") {
             Bytes::from(serde_json::to_vec(&json).map_err(|_| StatusCode::BAD_REQUEST)?)
@@ -483,6 +480,20 @@ fn record_acceptance_status(route: &'static str, status: u16) {
     if let Ok(bytes) = serde_json::to_vec(&*observations) {
         let path = std::path::PathBuf::from(path).with_extension("relay.json");
         let _ = std::fs::write(path, bytes);
+    }
+}
+
+fn retain_corust_tools(request: &mut serde_json::Value) {
+    if let Some(tools) = request.get_mut("tools").and_then(serde_json::Value::as_array_mut) {
+        tools.retain(|tool| {
+            matches!(
+                tool.pointer("/function/name").and_then(serde_json::Value::as_str),
+                Some(
+                    "read_file" | "write_file" | "glob" | "grep"
+                        | "rustcodegraph_query" | "rustcodegraph_callers" | "rustcodegraph_node"
+                )
+            )
+        });
     }
 }
 

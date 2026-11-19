@@ -1,9 +1,11 @@
 #!/usr/bin/python3 -I
 """Run native Corust with a request-local model endpoint and workspace sandbox."""
 
+import asyncio
 import json
 import os
 from pathlib import Path
+import runpy
 import stat
 import sys
 from urllib.parse import urlsplit
@@ -57,19 +59,26 @@ def main():
         or not settings["token"]
     ):
         raise SystemExit("Invalid Corust workspace or relay binding")
+    bridge = runpy.run_path(str(NATIVE.with_name("mcp_bridge.py")))
+    launch = lambda port, token: native_command(runtime, workspace, host_home, port, token)
+    raise SystemExit(asyncio.run(bridge["run"](
+        runtime, workspace, endpoint.port, settings["token"], launch,
+    )))
+
+def native_command(runtime, workspace, host_home, endpoint_port, token):
     sandbox = "/usr/bin/sandbox-exec"
-    os.execve(sandbox, [
+    return [
         sandbox, "-D", f"runtime={runtime}", "-D", f"workspace={workspace}",
         "-D", f"host-home={host_home}", "-D", f"native={NATIVE}", "-D", f"git={workspace / '.git'}",
-        "-D", f"relay=localhost:{endpoint.port}", "-p", SANDBOX, str(NATIVE),
+        "-D", f"relay=localhost:{endpoint_port}", "-p", SANDBOX, str(NATIVE),
     ], {
         "PATH": "/usr/bin:/bin",
         "HOME": str(runtime),
         "TMPDIR": str(runtime),
         "CORUST_HOME": str(runtime / "corust"),
-        "CORUST_API_KEY": settings["token"],
+        "CORUST_API_KEY": token,
         "NO_PROXY": "127.0.0.1,localhost",
-    })
+    }
 
 
 if __name__ == "__main__":

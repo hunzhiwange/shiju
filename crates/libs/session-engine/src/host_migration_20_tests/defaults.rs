@@ -102,6 +102,7 @@ async fn acp_mcp_mount_carries_resolved_tool_policy() {
                 .unwrap();
         STATE.with(|state| *state.borrow_mut() = resolved);
         for (backend, key) in [
+            ("corust-agent", "shiju.corust.toolPolicy"),
             ("cortex-code", "shiju.cortex.toolPolicy"),
             ("deepagents", "shiju.deepagents.toolPolicy"),
             ("harn", "shiju.harn.toolPolicy"),

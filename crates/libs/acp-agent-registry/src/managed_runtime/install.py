@@ -278,6 +278,8 @@ if agent == 'corust-agent':
             shutil.copyfileobj(source, output)
     launcher = runtime / contract['bin']
     shutil.copy2(assets / 'corust-agent/launcher.py', launcher)
+    for module in ('mcp_bridge.py', 'mcp_graph.py'):
+        shutil.copy2(assets / 'corust-agent' / module, runtime / module)
     launcher.chmod(0o700)
     check_files(runtime, contract['files'])
     executable.chmod(0o700)

@@ -40,13 +40,13 @@ fn installed_directory(agent: &str, contract: &Contract) -> Result<PathBuf, Stri
         2
     } else if matches!(agent, "cursor" | "deepagents") {
         4
-    } else if matches!(agent, "amp-acp" | "cortex-code" | "snow" | "stakpak") {
+    } else if matches!(agent, "amp-acp" | "corust-agent" | "cortex-code" | "snow" | "stakpak") {
         3
     } else if agent == "gemini" {
         2
     } else if matches!(
         agent,
-        "corust-agent" | "hermes" | "junie" | "nova" | "openclaw" | "pi" | "poolside" | "vibe"
+        "hermes" | "junie" | "nova" | "openclaw" | "pi" | "poolside" | "vibe"
     ) {
         2
     } else {
@@ -359,6 +359,8 @@ pub(super) async fn install(agent: &str) -> Result<bool, String> {
         ("poolside/mcp_bridge.py", include_str!("../../../../patches/acp-model-source/poolside/mcp_bridge.py")),
         ("harn/launcher.py", include_str!("../../../../patches/acp-model-source/harn/launcher.py")),
         ("corust-agent/launcher.py", include_str!("../../../../patches/acp-model-source/corust-agent/launcher.py")),
+        ("corust-agent/mcp_bridge.py", include_str!("../../../../patches/acp-model-source/corust-agent/mcp_bridge.py")),
+        ("corust-agent/mcp_graph.py", include_str!("../../../../patches/acp-model-source/corust-agent/mcp_graph.py")),
         ("stakpak/launcher.py", include_str!("../../../../patches/acp-model-source/stakpak/launcher.py")),
         ("stakpak/mcp.py", include_str!("../../../../patches/acp-model-source/stakpak/mcp.py")),
         (

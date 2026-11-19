@@ -37,3 +37,20 @@ HARN_TEST_BINARY=/absolute/path/to/harn python3 patches/acp-model-source/harn/ho
 These use isolated state and a local provider fixture. They verify natural-language
 parsing, the original model on the wire, successful authorized writing, and host
 write denial. Real supplier/model acceptance is recorded separately in ACP验收.md.
+
+The v2 managed launcher accepts explicit ACP stdio mounts for the current
+workspace. It discovers tools in the same read-only, environment-filtered
+sandbox used by the reviewed Cortex adapter. The host-resolved allow and deny
+lists control tool registration. Harn's pipeline uses the existing host tool
+callback, and the launcher asks the ACP host for one-time permission with the
+original call ID and arguments before dispatch. The Harn engine stays in its
+ordinary permission mode. A new, loaded or resumed session takes its MCP
+selection from that request, and prompt cancellation revokes outstanding
+approvals and closes the tool subprocesses.
+
+For the focused native check, pass the installed v2 launcher, a checksum-verified
+RustCodeGraph and a private indexed RueJS copy:
+
+```sh
+python3 patches/acp-model-source/harn/mcp_test.py /absolute/path/to/harn /absolute/path/to/rustcodegraph /absolute/path/to/ruejs
+```

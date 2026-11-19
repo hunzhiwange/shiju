@@ -341,6 +341,7 @@ if agent == 'harn':
     shutil.copy2(assets / 'harn/launcher.py', runtime / 'harn')
     (runtime / 'harn').chmod(0o700)
     shutil.copy2(assets / 'harn/agent.harn', runtime / 'agent.harn')
+    shutil.copy2(assets / 'cortex-code/mcp_bridge.py', runtime / 'shiju_stdio.py')
     check_files(runtime, contract['files'])
     raise SystemExit(0)
 if agent == 'trae':

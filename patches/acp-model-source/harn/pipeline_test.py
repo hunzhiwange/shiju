@@ -40,7 +40,12 @@ class NaturalLanguagePipeline(unittest.TestCase):
                     response = json.loads(line)
                     events.append(response)
                     if 'method' in response and 'id' in response:
-                        process.stdin.write(json.dumps({'jsonrpc':'2.0','id':response['id'],'error':{'code':-32000,'message':'not authorized by native test'}})+'\n')
+                        reply = {'jsonrpc':'2.0', 'id':response['id']}
+                        if response['method'] == 'builtin_call' and response['params']['name'] == 'shiju_mcp_catalog':
+                            reply['result'] = []
+                        else:
+                            reply['error'] = {'code':-32000,'message':'not authorized by native test'}
+                        process.stdin.write(json.dumps(reply)+'\n')
                         process.stdin.flush()
                     if 'method' not in response and response.get('id') == number:
                         return response

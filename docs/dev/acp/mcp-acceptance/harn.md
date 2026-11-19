@@ -45,3 +45,11 @@
 - 从官方发行下载并按资产摘要验证 Darwin arm64 Harn 0.10.202。压缩包 SHA-256 为 `06730908c8e1778d85c1d1c74bde9f550a8ecc58046aef03ce4306fc39e659bf`，原生文件为 `74f3e9dbac52065979f12dcd0a3e3b262f83c1a3a680fa6ee88b90f3eb717ac7`。受管版本与新版本原生 ACP 都接受空列表，并对 stdio、HTTP、SSE 定义逐一返回相同的 `-32602`。新版本的无 pipeline 入口结果相同。发行物仅用于私有探针。[官方发行](https://github.com/burin-labs/harn/releases/tag/v0.10.202) [版本协议说明](https://github.com/burin-labs/harn/blob/v0.10.202/docs/src/harn-serve.md#acp)
 - 用两版原生引擎分别运行 `AgentSpec.mcp_servers` 聚焦探针。复用原自然语言 pipeline、默认 ACP `ask` 模式、隔离环境和仅进程内可见的模拟中继凭据。两版均由 `tool:mcp:mutate` 拒绝 `harness.tools.mcp_bootstrap`，模型端收到 0 个请求，未执行图谱工具。分别断言真实权限拒绝，每版 1 项通过。`project.mcp_config` 宿主回调同样复现了 `tool:mcp:read` 拒绝，并再次观察到 stdio 子进程无模拟中继变量。原受管 Harn 的宿主写拒绝测试再跑 1 项通过。
 - Harn CLI 当前提供的 `code` 模式同时改变文件写入、进程和外部服务权限，无法作为保留 `ask` 的替代。工作区配置或独立宿主执行也无法沿用现有 Harn ACP 的 MCP 效果检查。当前需要上游入口接收本会话的服务定义，或支持仅授权该会话中指定 MCP 服务且保留审批策略的宿主桥。取得该入口后按固定合同重跑。此次生产实现及 Cargo 范围均无变更，任务继续标记为已阻塞。
+
+## 受管 v2 接入
+
+受管 launcher 复用只读 stdio 沙箱，将当前 ACP 会话明确选中的服务目录交给原生 Harn pipeline。调用使用原生工具 ID 和参数走 ACP 逐次审批。宿主拒绝名单优先于允许名单。取消清理待批调用及子进程，加载和恢复以新的挂载列表为准。Harn 原生 `ask` 与进程内中继凭据策略沿用，MCP 进程由沙箱以最小环境启动。
+
+- 使用官方固定归档执行仓库安装脚本，v2 产物四项摘要一致。负面与许可安装测试 2 项、既有宿主读写和拒绝回归 3 项、自然语言 pipeline 1 项均通过。
+- 安装后的 v2 launcher 与原生 Harn 0.10.201、RustCodeGraph 1.2.11 和隔离回环模型通过 8 个场景，覆盖无挂载、批准、拒绝、撤除、加载、恢复、取消后迟到的批准和允许/拒绝名单。批准轮中的三个调用分别返回 `app/app.tsx:32`、`mountRueSiteApp` 和 `useApp` 源码中的 `_$createApp`。模型续轮收到这些真实工具结果。拒绝轮的续轮收到拒绝反馈，取消轮零图谱结果。
+- `python3 scripts/cargo_slot.py cargo test --locked -j 1 -p acp-agent-registry harn_reviewed_natural_language_runtime_is_pinned` 退出 0，有效测试 1 项。槽位 3 的 `CARGO_TARGET_DIR` 和 `CARGO_BUILD_BUILD_DIR` 均为仓库的 `target/rust-slot-3`。新版网关的指定模型三轮与宿主默认配置 Rust 回归待补。

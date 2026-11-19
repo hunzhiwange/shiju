@@ -96,6 +96,12 @@ fn harn_reviewed_natural_language_runtime_is_pinned() {
     assert_eq!(contract.version, "0.10.201");
     assert!(contract.files.contains_key("harn"));
     assert!(contract.files.contains_key("agent.harn"));
+    assert!(contract.files.contains_key("shiju_stdio.py"));
+    assert!(
+        super::installed_directory("harn", &contract)
+            .unwrap()
+            .ends_with("harn-0.10.201-model-source-v2")
+    );
     let directory = tempfile::tempdir().unwrap();
     std::fs::write(directory.path().join("harn"), "tampered").unwrap();
     assert!(super::verify(directory.path(), &contract).is_err());

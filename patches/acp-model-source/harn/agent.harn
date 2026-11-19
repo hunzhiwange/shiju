@@ -16,6 +16,18 @@ pipeline default(harness: Harness) {
       return "File written"
     },
   })
+  const selected = harness.tools.invoke("shiju_mcp_catalog", {})
+  for descriptor in selected {
+    const name = descriptor.name
+    tools = tool_define(tools, name, descriptor.description, {
+      inputSchema: descriptor.inputSchema,
+      handler: { args ->
+        const reply = harness.tools.invoke("shiju_mcp_call", {name: name, arguments: args})
+        require reply?.error == nil, reply.error
+        return to_string(reply)
+      },
+    })
+  }
   const options: AgentSpec = {
     tools: tools,
     tool_format: "native",
@@ -23,7 +35,7 @@ pipeline default(harness: Harness) {
     loop_until_done: true,
     max_iterations: 80,
   }
-  const result = agent_loop(harness, prompt, "Complete the user's request using workspace file tools. Respect the requested file boundaries. Inspect existing source before editing. Report failures honestly. Do not run tests or commands unless requested.", options)
+  const result = agent_loop(harness, prompt, "Complete the user's request using the tools authorized for this session. Respect the requested file boundaries. Inspect existing source before editing. Report failures honestly. Do not run tests or commands unless requested.", options)
   harness.stdio.println(result.visible_text)
   require result.status == "done", "Harn agent did not complete: " + result.status
 }

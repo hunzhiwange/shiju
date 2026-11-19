@@ -20,6 +20,9 @@ class ArchiveLayout(unittest.TestCase):
             pipeline, launcher, binary = b'pipeline fixture', b'launcher fixture', b'native fixture'
             (assets / 'harn/agent.harn').write_bytes(pipeline)
             (assets / 'harn/launcher.py').write_bytes(launcher)
+            (assets / 'cortex-code').mkdir()
+            stdio = b'stdio fixture'
+            (assets / 'cortex-code/mcp_bridge.py').write_bytes(stdio)
             archive = io.BytesIO()
             with tarfile.open(fileobj=archive, mode='w:gz') as package:
                 for name, data in [('harn', binary), ('LICENSE-MIT', b'license')]:
@@ -36,7 +39,7 @@ class ArchiveLayout(unittest.TestCase):
                 'artifact_url': 'https://example.invalid/pinned-archive',
                 'archive_sha256': digest(data), 'files': {
                     'harn': digest(launcher), 'harn-native': digest(binary),
-                    'agent.harn': digest(pipeline)}}}))
+                    'agent.harn': digest(pipeline), 'shiju_stdio.py': digest(stdio)}}}))
             installer = Path(__file__).resolve().parents[3] / 'crates/libs/acp-agent-registry/src/managed_runtime/install.py'
             with patch.object(sys, 'argv', [str(installer), str(assets), str(runtime), 'harn', '']), \
                     patch('urllib.request.urlopen', return_value=io.BytesIO(data)), \
@@ -47,6 +50,7 @@ class ArchiveLayout(unittest.TestCase):
                 self.assertEqual(result.exception.code, 0)
             self.assertEqual((runtime / 'harn-native').read_bytes(), binary)
             self.assertTrue((runtime / 'LICENSE-MIT').is_file())
+            self.assertEqual((runtime / 'shiju_stdio.py').read_bytes(), stdio)
             self.assertFalse((runtime / link_name).exists())
 
     def test_official_native_alias_is_not_extracted(self):

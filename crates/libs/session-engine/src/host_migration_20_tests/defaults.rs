@@ -88,6 +88,7 @@ async fn acp_mcp_mount_carries_resolved_tool_policy() {
                     "_meta": {
                         "shiju.cortex.toolPolicy": {"allow": ["ambient"], "deny": []},
                         "shiju.deepagents.toolPolicy": {"allow": ["ambient"], "deny": []},
+                        "shiju.harn.toolPolicy": {"allow": ["ambient"], "deny": []},
                         "shiju.pi.toolPolicy": {"allow": ["ambient"], "deny": []}
                     }
                 }]
@@ -103,6 +104,7 @@ async fn acp_mcp_mount_carries_resolved_tool_policy() {
         for (backend, key) in [
             ("cortex-code", "shiju.cortex.toolPolicy"),
             ("deepagents", "shiju.deepagents.toolPolicy"),
+            ("harn", "shiju.harn.toolPolicy"),
             ("pi", "shiju.pi.toolPolicy"),
             ("poolside", "shiju.poolside.toolPolicy"),
         ] {

@@ -800,9 +800,10 @@
     "artifact_url": "https://github.com/burin-labs/harn/releases/download/v0.10.201/harn-aarch64-apple-darwin.tar.gz",
     "archive_sha256": "332a7a94162e8c9d3345bbc34fcc6e1043e952b707f1ba44ba79fceb2c21a414",
     "files": {
-      "agent.harn": "de190de7489ebfdf5928fe76335d10e54c1832e0e0c052b019eb111a5e44df0c",
+      "agent.harn": "64a7780bc86bf28cf75de744b0197d06187aeeb31c46e5644666ee06403cf965",
       "harn-native": "23c951212c045c56deea491f9ce9505b8298472daa862334b33413ea31dcdcca",
-      "harn": "e6b82965c671d0da8aca94f37100da99f1d9589f8f38c871cd6aaf7f5631d9fa"
+      "harn": "bc50135e36493a53ea1ae728f85194ae3fa8f5797ec3f83cc33d6d2543f15662",
+      "shiju_stdio.py": "e6870d58c6c59cb1f1d224a66cdaa8455b34057249912b7bce5b9e21f95a074a"
     }
   },
   "stakpak": {

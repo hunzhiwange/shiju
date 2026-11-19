@@ -56,6 +56,8 @@ class HostBoundary(unittest.TestCase):
                 shutil.copy2(os.environ['HARN_TEST_BINARY'], runtime / 'harn-native')
                 for source, target in [('launcher.py', 'harn'), ('agent.harn', 'agent.harn')]:
                     shutil.copy2(Path(__file__).with_name(source), runtime / target)
+                stdio = Path(__file__).parents[1] / 'cortex-code/mcp_bridge.py'
+                shutil.copy2(stdio, runtime / 'shiju_stdio.py')
                 (runtime / 'harn').chmod(0o700)
                 private_pipeline = state / 'agent.harn'
                 shutil.copy2(runtime / 'agent.harn', private_pipeline)

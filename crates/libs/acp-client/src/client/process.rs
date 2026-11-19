@@ -82,7 +82,7 @@ impl AcpClient {
             return Err(AcpError::EmptyCommand);
         }
 
-        if matches!(self.agent_name.as_str(), "deepagents" | "sigit" | "amp-acp" | "poolside") {
+        if matches!(self.agent_name.as_str(), "deepagents" | "sigit" | "amp-acp") {
             // Local discovery, npx fallback and explicit overrides share this boundary.
             // Never execute the supplier's unpatched permission/file fallbacks.
             crate::verify_reviewed_agent_executable(&self.agent_name, self.config.command.trim())
@@ -158,13 +158,12 @@ impl AcpClient {
         let managed_vtcode = self.managed_vtcode();
         let managed_grok =
             self.agent_name == "grok" && env.contains_key("VW_ACP_LAUNCH_REFERENCE");
-        let managed_private_provider = managed_grok || managed_vtcode
-            || self.managed_workspace_io()
-            || self.managed_aionrs()
-            || self.managed_corust()
-            || self.managed_cortex()
-            || (matches!(self.agent_name.as_str(), "deepagents" | "dimcode" | "junie" | "stakpak")
-                && env.contains_key("VW_ACP_LAUNCH_REFERENCE"));
+        let managed_private_provider = managed_grok || managed_vtcode || self.managed_workspace_io() || self.managed_aionrs()
+            || self.managed_corust() || self.managed_cortex()
+            || (matches!(
+                self.agent_name.as_str(),
+                "deepagents" | "dimcode" | "junie" | "stakpak" | "poolside"
+            ) && env.contains_key("VW_ACP_LAUNCH_REFERENCE"));
         let managed_claude = managed_claude_settings(&self.config).is_some();
         if self.managed_cortex() {
             crate::verify_reviewed_agent_executable("cortex-code", self.config.command.trim())

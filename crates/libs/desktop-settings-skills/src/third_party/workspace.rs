@@ -26,6 +26,8 @@ pub enum Tab {
     Repositories,
     Market,
 }
+const DISCOVERY_BATCH_SIZE: usize = 100;
+
 #[derive(Clone, Debug)]
 pub struct Candidate {
     pub name: String,
@@ -59,6 +61,7 @@ pub struct State {
     pub repositories: Option<SkillReposResponse>,
     pub inventory: Option<SkillInventoryResponse>,
     pub discovery: Option<DiscoverSkillsResponse>,
+    additional_discovery_rows: usize,
     pub market: Option<MarketSearchResponse>,
     pub excluded_repos: Vec<String>,
     pub uninstalled: bool,
@@ -89,6 +92,7 @@ pub enum Event {
     MarketQuery(String),
     Repository(String, bool),
     Uninstalled(bool),
+    LoadMoreDiscovery,
     Refresh,
     Search(usize),
     Loaded(u64, Result<(SkillReposResponse, SkillInventoryResponse), String>),
@@ -201,6 +205,9 @@ pub fn update(s: &mut State, event: Event, minimum_version: u64) -> Effect {
         Event::Tab(tab) => {
             s.close_menus();
             s.detail = None;
+            if s.tab != tab {
+                s.additional_discovery_rows = 0;
+            }
             s.tab = tab;
             if s.inventory.is_none() && !s.busy[0] {
                 return Effect::Load(s.begin(0));
@@ -239,7 +246,10 @@ pub fn update(s: &mut State, event: Event, minimum_version: u64) -> Effect {
                 return Effect::Documentation(url);
             }
         }
-        Event::Query(q) => s.query = q,
+        Event::Query(q) => {
+            s.query = q;
+            s.additional_discovery_rows = 0;
+        }
         Event::InstalledSource(source) => {
             s.installed_source = source;
             s.close_menus();
@@ -252,16 +262,27 @@ pub fn update(s: &mut State, event: Event, minimum_version: u64) -> Effect {
             s.offset = 0;
         }
         Event::Repository(id, enabled) => {
+            s.additional_discovery_rows = 0;
             s.excluded_repos.retain(|r| r != &id);
             if !enabled {
                 s.excluded_repos.push(id);
             }
         }
-        Event::Uninstalled(v) => s.uninstalled = v,
+        Event::Uninstalled(v) => {
+            s.uninstalled = v;
+            s.additional_discovery_rows = 0;
+        }
+        Event::LoadMoreDiscovery if s.tab == Tab::Repositories => {
+            s.additional_discovery_rows =
+                s.additional_discovery_rows.saturating_add(DISCOVERY_BATCH_SIZE);
+        }
         Event::Refresh => {
             return match s.tab {
                 Tab::Installed => Effect::Load(s.begin(0)),
-                Tab::Repositories => Effect::Discover(s.begin(1), true),
+                Tab::Repositories => {
+                    s.additional_discovery_rows = 0;
+                    Effect::Discover(s.begin(1), true)
+                }
                 Tab::Market => return update(s, Event::Search(s.offset), minimum_version),
             };
         }
@@ -891,56 +912,52 @@ pub fn view<'a>(
     )
     .padding([6, 8])
     .width(Length::Fill);
-    let candidates: Vec<Candidate> = if s.tab == Tab::Repositories {
-        s.discovery
-            .as_ref()
-            .map(|data| {
-                data.skills
-                    .iter()
-                    .map(|c| Candidate {
-                        name: c.name.clone(),
-                        description: c.description.clone(),
-                        directory: c.directory.clone(),
-                        owner: c.repo_owner.clone(),
-                        repo: c.repo_name.clone(),
-                        branch: c.repo_branch.clone(),
-                        url: c.readme_url.clone(),
-                    })
-                    .collect()
-            })
-            .unwrap_or_default()
-    } else {
-        s.market
-            .as_ref()
-            .map(|data| {
-                data.skills
-                    .iter()
-                    .map(|c| Candidate {
-                        name: c.name.clone(),
-                        description: format!("{} 次安装", c.installs),
-                        directory: c.directory.clone(),
-                        owner: c.repo_owner.clone(),
-                        repo: c.repo_name.clone(),
-                        branch: c.repo_branch.clone(),
-                        url: c.readme_url.clone(),
-                    })
-                    .collect()
-            })
-            .unwrap_or_default()
-    };
-    for candidate in candidates {
+    let repository_tab = s.tab == Tab::Repositories;
+    let discovery_limit = DISCOVERY_BATCH_SIZE.saturating_add(s.additional_discovery_rows);
+    let repository_candidates = s
+        .discovery
+        .as_ref()
+        .filter(|_| repository_tab)
+        .into_iter()
+        .flat_map(|data| &data.skills)
+        .filter(|skill| {
+            let repo = format!("{}:{}", skill.repo_owner, skill.repo_name);
+            !s.excluded_repos.contains(&repo)
+                && matches_query(&s.query, &[&skill.name, &skill.description, &repo])
+        })
+        .map(|skill| Candidate {
+            name: skill.name.clone(),
+            description: skill.description.clone(),
+            directory: skill.directory.clone(),
+            owner: skill.repo_owner.clone(),
+            repo: skill.repo_name.clone(),
+            branch: skill.repo_branch.clone(),
+            url: skill.readme_url.clone(),
+        });
+    let market_candidates = s
+        .market
+        .as_ref()
+        .filter(|_| !repository_tab)
+        .into_iter()
+        .flat_map(|data| &data.skills)
+        .map(|skill| Candidate {
+            name: skill.name.clone(),
+            description: format!("{} 次安装", skill.installs),
+            directory: skill.directory.clone(),
+            owner: skill.repo_owner.clone(),
+            repo: skill.repo_name.clone(),
+            branch: skill.repo_branch.clone(),
+            url: skill.readme_url.clone(),
+        });
+    let mut has_more = false;
+    for candidate in repository_candidates.chain(market_candidates) {
         let installed = s.installed(&candidate) == Some(true);
         if s.uninstalled && installed {
             continue;
         }
-        if s.tab == Tab::Repositories
-            && (s.excluded_repos.contains(&candidate.repo_id())
-                || !matches_query(
-                    &s.query,
-                    &[&candidate.name, &candidate.description, &candidate.repo_id()],
-                ))
-        {
-            continue;
+        if repository_tab && entries.len() == discovery_limit {
+            has_more = true;
+            break;
         }
         let conflict = s.conflict(&candidate);
         let mut controls = row![
@@ -988,6 +1005,14 @@ pub fn view<'a>(
                     .center_y(Length::Fill),
             )
             .into();
+    }
+    if has_more {
+        entries.push(
+            container(action("加载更多", Event::LoadMoreDiscovery))
+                .center_x(Length::Fill)
+                .padding([10, 0])
+                .into(),
+        );
     }
     if s.tab == Tab::Market {
         entries.push(

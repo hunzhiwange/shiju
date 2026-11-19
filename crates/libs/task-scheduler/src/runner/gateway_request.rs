@@ -123,9 +123,7 @@ pub fn gateway_local_agent_stream_request(
     if let Some(agent) = request.agent.as_deref() {
         options.insert("agent".to_string(), json!(agent));
     }
-    if let Some(acp_agent) = request.acp_agent.as_deref() {
-        options.insert("acp_test".to_string(), json!(true));
-        options.insert("acp_agent".to_string(), json!(acp_agent));
+    if request.acp_agent.is_some() {
         options.insert("acp_force_new_session".to_string(), json!(true));
         options.insert("acp_close_client_after_request".to_string(), json!(true));
         options.insert("acp_history_strategy".to_string(), json!("discard"));
@@ -145,9 +143,10 @@ pub fn gateway_local_agent_stream_request(
         system: None,
         model: request.model.clone(),
         reasoning_effort: request.reasoning_effort,
-        agent: request.agent.clone(),
+        agent: request.agent.clone().or_else(|| {
+            request.acp_agent.as_ref().map(|backend| format!("acp-{backend}"))
+        }),
         allowed_tools: None,
-        acp_agent: request.acp_agent.clone(),
         acp_allowed_tools: None,
         options: Some(Value::Object(options)),
     }

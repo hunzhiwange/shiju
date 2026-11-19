@@ -509,21 +509,14 @@ pub fn merge_gateway_request_options(
     if let Some(acp_agent) = acp_agent {
         merged.insert("acp_test".to_string(), Value::Bool(true));
         merged.insert("acp_agent".to_string(), Value::String(acp_agent));
-    }
-
-    let acp_requested = merged.get("acp_test").and_then(Value::as_bool).unwrap_or(false)
-        || merged
-            .get("acp_agent")
-            .and_then(Value::as_str)
-            .is_some_and(|value| !value.trim().is_empty());
-    let acp_allowed_tools =
-        acp_allowed_tools.or_else(|| if acp_requested { allowed_tools_for_acp } else { None });
-    if let Some(acp_allowed_tools) = acp_allowed_tools {
-        merged.insert("acp_test".to_string(), Value::Bool(true));
-        merged.insert(
-            "acp_allowed_tools".to_string(),
-            Value::Array(acp_allowed_tools.into_iter().map(Value::String).collect()),
-        );
+        if let Some(acp_allowed_tools) = acp_allowed_tools.or(allowed_tools_for_acp) {
+            merged.insert(
+                "acp_allowed_tools".to_string(),
+                Value::Array(acp_allowed_tools.into_iter().map(Value::String).collect()),
+            );
+        }
+    } else {
+        merged.remove("acp_allowed_tools");
     }
 
     merged.remove("reasoning_effort");
@@ -541,6 +534,7 @@ pub fn merge_gateway_request_options(
 
 #[derive(Debug, Clone, Default)]
 pub struct DelegateRequestOverrides {
+    pub acp_backend: Option<String>,
     pub agent: Option<String>,
     pub model: Option<String>,
     pub allowed_tools: Option<Vec<String>>,
@@ -986,6 +980,7 @@ pub fn resolve_delegate_policy(
     });
 
     Ok(DelegateRequestOverrides {
+        acp_backend: None,
         agent: Some(agent_name),
         model,
         allowed_tools: Some(registered_tools),
@@ -1094,7 +1089,20 @@ pub async fn start_gateway_chat_stream<H: StreamHost>(
     Ok(rx)
 }
 
+fn validate_agent_selection_options(options: Option<&Value>) -> Result<(), ApiError> {
+    if options.is_some_and(|options| options.get("agent_binding").is_some()) {
+        return Err(ApiError::bad_request("agent_binding is server-owned"));
+    }
+    if ["acp_agent", "acp_test"].iter().any(|key| {
+        options.is_some_and(|options| options.get(*key).is_some())
+    }) {
+        return Err(ApiError::bad_request("select the ACP backend through agent"));
+    }
+    Ok(())
+}
+
 pub(crate) fn validate_public_acp_chat_options(options: Option<&Value>) -> Result<(), ApiError> {
+    validate_agent_selection_options(options)?;
     let Some(options) = options else { return Ok(()) };
     if options.get("acp_session_mode").is_some() {
         return Err(ApiError::bad_request("acp_session_mode is private; use full_access"));
@@ -1147,15 +1155,7 @@ pub async fn prepare_gateway_agent_request<H: StreamHost>(
 ) -> Result<DelegateRequestOverrides, ApiError> {
     merge_acp_model_source(body)?;
     let options = body.options.as_ref();
-    if options.is_some_and(|options| options.get("agent_binding").is_some()) {
-        return Err(ApiError::bad_request("agent_binding is server-owned"));
-    }
-    let option_backend =
-        options.and_then(|options| options.get("acp_agent")).and_then(Value::as_str);
-    if body.acp_agent.as_deref().zip(option_backend).is_some_and(|(a, b)| a != b) {
-        return Err(ApiError::bad_request("conflicting ACP backend selections"));
-    }
-    let backend = body.acp_agent.as_deref().or(option_backend).map(ToOwned::to_owned);
+    validate_agent_selection_options(options)?;
     let ephemeral =
         options.and_then(|options| options.get("goal_evaluation")).and_then(Value::as_bool)
             == Some(true)
@@ -1171,35 +1171,23 @@ pub async fn prepare_gateway_agent_request<H: StreamHost>(
     let (binding, config) = H::prepare_binding(
         session,
         body.agent.as_deref(),
-        backend.as_deref(),
         body.model.as_deref(),
         Path::new(&instance::directory()),
     )
     .await
     .map_err(|error| ApiError::bad_request(error.to_string()))?;
-    match &binding.runtime {
-        config_agent_profile::AgentRuntime::Native => {
-            if options.and_then(|options| options.get("acp_test")).and_then(Value::as_bool)
-                == Some(true)
-            {
-                return Err(ApiError::bad_request(
-                    "native agent conflicts with ACP runtime options",
-                ));
-            }
-            body.acp_agent = None;
-        }
-        config_agent_profile::AgentRuntime::Acp { backend } => {
-            body.acp_agent = Some(backend.clone())
-        }
-    }
-    let model = session_model::<H>(&body, &binding, session).await?;
+    let acp_backend = match &binding.runtime {
+        config_agent_profile::AgentRuntime::Native => None,
+        config_agent_profile::AgentRuntime::Acp { backend } => Some(backend.clone()),
+    };
+    let model = session_model::<H>(body, &binding, session).await?;
     let explicit_full_access = options
         .and_then(|options| options.get("full_access"))
         .map(|value| {
             value.as_bool().ok_or_else(|| ApiError::bad_request("full_access must be a boolean"))
         })
         .transpose()?;
-    let background_acp_access = background_full_access.filter(|_| body.acp_agent.is_some());
+    let background_acp_access = background_full_access.filter(|_| acp_backend.is_some());
     let full_access = match background_acp_access {
         // The automation grant is for this turn only. Never persist it as a chat preference.
         Some(granted) => granted,
@@ -1224,14 +1212,16 @@ pub async fn prepare_gateway_agent_request<H: StreamHost>(
         .get(&binding.agent)
         .cloned()
         .ok_or_else(|| ApiError::internal("bound agent definition missing"))?;
-    resolve_delegate_overrides_from_config::<H>(
+    let mut overrides = resolve_delegate_overrides_from_config::<H>(
         binding.agent,
         definition,
         &config,
         body.allowed_tools.clone().map(|tools| normalize_tool_ids(tools).unwrap_or_default()),
         model,
     )
-    .await
+    .await?;
+    overrides.acp_backend = acp_backend;
+    Ok(overrides)
 }
 
 pub async fn session_model<H: StreamHost>(
@@ -1250,7 +1240,7 @@ pub async fn session_model<H: StreamHost>(
         None
     };
     let fork_selectable = fork_execution.as_ref().is_some_and(|state| !state.started);
-    let acp = body.acp_agent.is_some();
+    let acp = matches!(&binding.runtime, config_agent_profile::AgentRuntime::Acp { .. });
     let locked = if !fork_selectable
         && acp
         && let Some(locked) =
@@ -1387,14 +1377,13 @@ pub async fn start_gateway_chat_producer<H: StreamHost>(
         reasoning_effort,
         agent: _,
         allowed_tools: _,
-        acp_agent,
         acp_allowed_tools,
         options,
     } = body;
 
     let model = delegate_overrides.model.clone();
     let message_agent = delegate_overrides.agent.clone().unwrap_or_else(|| "gateway".to_string());
-    let preserve_structured_prompt = acp_agent.is_some();
+    let preserve_structured_prompt = delegate_overrides.acp_backend.is_some();
     let background_acp = background_full_access.is_some() && preserve_structured_prompt;
     let options = merge_gateway_request_options(
         options,
@@ -1403,7 +1392,7 @@ pub async fn start_gateway_chat_producer<H: StreamHost>(
         delegate_overrides.chat_system_prompt,
         delegate_overrides.temperature,
         delegate_overrides.top_p,
-        acp_agent,
+        delegate_overrides.acp_backend,
         acp_allowed_tools,
         reasoning_effort,
     );

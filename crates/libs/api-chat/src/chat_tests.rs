@@ -72,3 +72,15 @@ fn reasoning_effort_dto_roundtrips_known_values_and_default() {
         );
     }
 }
+
+#[test]
+fn chat_stream_request_rejects_direct_acp_backend_selection() {
+    let request = json!({"agent": "acp-codex", "messages": []});
+    assert!(serde_json::from_value::<GatewayChatStreamRequest>(request.clone()).is_ok());
+    for (key, value) in [("acp_agent", json!("codex")), ("acp_test", json!(true))] {
+        let mut request = request.clone();
+        request[key] = value;
+        let error = serde_json::from_value::<GatewayChatStreamRequest>(request).unwrap_err();
+        assert!(error.to_string().contains(key));
+    }
+}

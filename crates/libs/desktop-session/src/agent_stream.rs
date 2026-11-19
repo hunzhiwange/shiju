@@ -356,8 +356,6 @@ fn gateway_request_options(
         options.insert("require_agent_tool".to_string(), json!(true));
     }
     if req.acp_test {
-        options.insert("acp_test".to_string(), json!(true));
-        options.insert("acp_agent".to_string(), json!(req.acp_agent));
         if let Some(acp_allowed_tools) = &req.acp_allowed_tools {
             options.insert("acp_allowed_tools".to_string(), json!(acp_allowed_tools));
         }
@@ -465,7 +463,6 @@ fn gateway_agent_stream(req: AgentRequest, config: desktop_config::ConfigAccess,
                 reasoning_effort: req.reasoning_effort,
                 agent: req.agent.clone(),
                 allowed_tools: req.allowed_tools.clone(),
-                acp_agent: req.acp_test.then(|| req.acp_agent.clone()).flatten(),
                 acp_allowed_tools: if req.acp_test { req.acp_allowed_tools.clone() } else { None },
                 options: options.clone(),
             };

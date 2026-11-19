@@ -72,12 +72,11 @@ impl StreamHost for Host {
     async fn prepare_binding(
         session: &str,
         agent: Option<&str>,
-        backend: Option<&str>,
         model: Option<&str>,
         path: &Path,
     ) -> anyhow::Result<(session_engine::agent_binding::AgentBinding, config_aggregate::Config)>
     {
-        crate::session::agent_binding::prepare(session, agent, backend, model, path).await
+        crate::session::agent_binding::prepare(session, agent, None, model, path).await
     }
     async fn resolve_full_access(
         session: &str,

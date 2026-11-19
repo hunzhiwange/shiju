@@ -133,7 +133,8 @@ fn acp_background_approval_scheduler_keeps_session_isolation() -> Result<()> {
     assert_eq!(options["cwd"], "/repo/.vw/worktrees/slot-1");
     assert_eq!(options["full_access"], false);
     assert_eq!(options["agent"], "reviewer");
-    assert_eq!(options["acp_agent"], "codex");
+    assert_eq!(stream.agent.as_deref(), Some("reviewer"));
+    assert!(options.get("acp_agent").is_none());
     assert_eq!(options["acp_force_new_session"], true);
     assert_eq!(options["acp_close_client_after_request"], true);
     assert_eq!(options["acp_history_strategy"], "discard");
@@ -151,7 +152,6 @@ fn gateway_stream_request_without_agent_or_acp_keeps_minimal_options() -> Result
     let options = options.as_object().expect("options object");
 
     assert_eq!(stream.agent, None);
-    assert_eq!(stream.acp_agent, None);
     assert_eq!(stream.reasoning_effort, None);
     assert_eq!(options.len(), 1);
     assert_eq!(options["cwd"], "/repo/.vw/worktrees/slot-1");
@@ -165,7 +165,6 @@ fn gateway_stream_request_preserves_reasoning_effort_without_acp() -> Result<()>
     request.reasoning_effort = Some(vw_api_chat_identity::ReasoningEffortDto::High);
     let stream = gateway_local_agent_stream_request(&request);
     assert_eq!(stream.reasoning_effort, request.reasoning_effort);
-    assert_eq!(stream.acp_agent, None);
     Ok(())
 }
 

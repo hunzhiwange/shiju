@@ -84,7 +84,6 @@ fn gateway_prompt_options_for_mode(
     session_mode: GatewayPromptSessionMode,
 ) -> Map<String, Value> {
     let mut options = Map::new();
-    options.insert("acp_test".to_string(), json!(acp_enabled));
     options.insert("cwd".to_string(), json!(execution_path));
     // A named agent may resolve to ACP at the gateway even without an explicit backend.
     options.insert("acp_background".to_string(), json!(true));
@@ -367,9 +366,6 @@ fn gateway_task_stream_request(
     if agent.is_some() {
         options.insert("agent".to_string(), json!(agent));
     }
-    if acp_enabled {
-        options.insert("acp_agent".to_string(), json!(acp_agent));
-    }
     gateway_chat_stream::GatewayChatStreamRequest {
         acp_model_source:
             vw_api_acp_model::acp_model_source::AcpModelSource::SessionModel,
@@ -378,9 +374,8 @@ fn gateway_task_stream_request(
         system: None,
         model: (model != "auto").then(|| model.to_string()),
         reasoning_effort,
-        agent,
+        agent: agent.or_else(|| acp_agent.map(|backend| format!("acp-{backend}"))),
         allowed_tools: None,
-        acp_agent: acp_enabled.then_some(acp_agent).flatten(),
         acp_allowed_tools: None,
         options: Some(serde_json::Value::Object(options)),
     }

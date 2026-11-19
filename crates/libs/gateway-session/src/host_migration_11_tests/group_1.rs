@@ -352,7 +352,7 @@ fn merge_gateway_request_options_preserves_explicit_options_over_agent_defaults(
         Some("agent system".to_string()),
         Some(0.1),
         Some(0.2),
-        None,
+        Some("codex".to_string()),
         Some(vec!["file_read".to_string()]),
         None,
     );

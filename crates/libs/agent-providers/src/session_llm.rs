@@ -123,7 +123,6 @@ impl SessionLlmProvider {
             reasoning_effort: None,
             agent: None,
             allowed_tools: None,
-            acp_agent: None,
             acp_allowed_tools: None,
             // Provider 调用只负责一次 LLM 推理；工具编排由外层调用方负责。
             options: Some(serde_json::json!({

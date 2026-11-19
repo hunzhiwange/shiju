@@ -67,7 +67,6 @@ fn tui_gateway_bridge_preserves_request_and_terminal_semantics() {
     assert_eq!(request.session_id.as_ref().map(AsRef::as_ref), Some("session-13"));
     assert_eq!(request.model.as_deref(), Some("openai/gpt-5.6"));
     assert_eq!(request.agent.as_deref(), Some("researcher"));
-    assert_eq!(request.acp_agent.as_deref(), Some("codex"));
     assert_eq!(request.allowed_tools, Some(vec!["AgentTool".to_string(), "todowrite".to_string()]));
     assert_eq!(request.acp_allowed_tools, request.allowed_tools);
     let options = request.options.as_ref().expect("ACP and subagent options");

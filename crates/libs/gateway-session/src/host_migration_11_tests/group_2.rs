@@ -143,17 +143,17 @@ fn merge_gateway_request_options_fills_missing_agent_defaults() {
 }
 
 #[test]
-fn merge_gateway_request_options_existing_acp_request_reuses_allowed_tools() {
+fn merge_gateway_request_options_bound_acp_agent_reuses_allowed_tools() {
     use vw_api_chat_identity::ReasoningEffortDto;
 
     let options = merge_gateway_request_options(
-        Some(serde_json::json!({"acp_test": true})),
+        None,
         None,
         Some(vec!["shell".to_string()]),
         None,
         None,
         None,
-        None,
+        Some("codex".into()),
         None,
         Some(ReasoningEffortDto::High),
     );
@@ -189,7 +189,7 @@ fn merge_gateway_request_options_non_acp_removes_reasoning_aliases() {
 }
 
 #[test]
-fn merge_gateway_request_options_explicit_acp_tools_enable_acp() {
+fn merge_gateway_request_options_acp_tools_require_bound_backend() {
     let options = merge_gateway_request_options(
         None,
         None,
@@ -202,8 +202,8 @@ fn merge_gateway_request_options_explicit_acp_tools_enable_acp() {
         None,
     );
 
-    assert_eq!(options.get("acp_test").and_then(Value::as_bool), Some(true));
-    assert_eq!(options.get("acp_allowed_tools"), Some(&serde_json::json!(["file_read"])));
+    assert!(options.get("acp_test").is_none());
+    assert!(options.get("acp_allowed_tools").is_none());
 }
 
 #[test]

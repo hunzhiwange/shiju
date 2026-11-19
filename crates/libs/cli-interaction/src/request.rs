@@ -39,7 +39,7 @@ pub(crate) fn gateway_stream_request_from_state(
     }
     let mut options = acp_agent
         .as_ref()
-        .map(|acp_agent| {
+        .map(|_| {
             let cwd = normalize_optional_str_ref(submission.root.as_deref())
                 .map(ToOwned::to_owned)
                 .or_else(|| {
@@ -47,8 +47,6 @@ pub(crate) fn gateway_stream_request_from_state(
                 })
                 .unwrap_or_default();
             json!({
-                "acp_test": true,
-                "acp_agent": acp_agent,
                 "cwd": cwd,
                 "acp_force_new_session": submission.execution.acp_force_new_session,
                 "acp_permission_mode": acp_permission_mode,
@@ -106,9 +104,10 @@ pub(crate) fn gateway_stream_request_from_state(
                 Some(vw_api_chat_identity::ReasoningEffortDto::Xhigh)
             }
         },
-        agent: submission.execution.delegate_agent.clone(),
+        agent: submission.execution.delegate_agent.clone().or_else(|| {
+            acp_agent.as_ref().map(|backend| format!("acp-{backend}"))
+        }),
         allowed_tools,
-        acp_agent,
         acp_allowed_tools,
         options,
     }

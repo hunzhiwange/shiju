@@ -51,7 +51,6 @@ async fn send<T: StreamHost>(
         Json(vw_api_chat::chat::GatewayChatStreamRequest {
             session_id: Some(branch.id.clone().into()),
             agent: Some(format!("acp-{backend}")),
-            acp_agent: Some(backend.into()),
             model: Some("model-recovery/original".into()),
             options: Some(options),
             messages: vec![

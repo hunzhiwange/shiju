@@ -588,8 +588,7 @@ pub fn cron_gateway_agent_request(
         .as_deref()
         .map(str::trim)
         .filter(|value| !value.is_empty())
-        .unwrap_or("main")
-        .to_string();
+        .map(str::to_string);
     let acp_agent = job
         .acp_agent
         .as_deref()
@@ -599,6 +598,9 @@ pub fn cron_gateway_agent_request(
     let session_id = format!("cron-{}", job.id);
 
     let options = cron_gateway_options(config, job, acp_agent.as_deref());
+    let agent = agent
+        .or_else(|| acp_agent.map(|backend| format!("acp-{backend}")))
+        .unwrap_or_else(|| "main".into());
 
     let request = vw_api_chat::chat::GatewayChatStreamRequest {
         acp_model_source: vw_api_acp_model::acp_model_source::AcpModelSource::SessionModel,
@@ -609,7 +611,6 @@ pub fn cron_gateway_agent_request(
         reasoning_effort: None,
         agent: Some(agent),
         allowed_tools: None,
-        acp_agent,
         acp_allowed_tools: None,
         options: (!options.is_empty()).then_some(serde_json::Value::Object(options)),
     };
@@ -625,10 +626,8 @@ pub fn cron_gateway_options(
 ) -> serde_json::Map<String, serde_json::Value> {
     let mut options = serde_json::Map::new();
     options.insert("full_access".to_string(), serde_json::Value::Bool(job.full_access));
-    if let Some(acp_agent) = acp_agent {
+    if acp_agent.is_some() {
         options.insert("acp_non_interactive_permissions".to_string(), json!("deny"));
-        options.insert("acp_test".to_string(), serde_json::Value::Bool(true));
-        options.insert("acp_agent".to_string(), serde_json::Value::String(acp_agent.to_string()));
         options.insert("acp_force_new_session".to_string(), serde_json::Value::Bool(true));
         options.insert("acp_close_client_after_request".to_string(), serde_json::Value::Bool(true));
         options.insert(

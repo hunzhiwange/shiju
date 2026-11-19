@@ -84,7 +84,6 @@ fn tui_real_gateway_pipeline_preserves_v2_semantics() {
     assert_eq!(request.model.as_deref(), Some("openai/gpt-5.6"));
     assert_eq!(request.reasoning_effort, None);
     assert_eq!(request.agent.as_deref(), Some("researcher"));
-    assert_eq!(request.acp_agent.as_deref(), Some("codex"));
     assert_eq!(request.allowed_tools, Some(vec!["AgentTool".to_string(), "todowrite".to_string()]));
     assert_eq!(request.acp_allowed_tools, request.allowed_tools);
     assert_eq!(

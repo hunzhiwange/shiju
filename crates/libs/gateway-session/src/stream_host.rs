@@ -58,7 +58,6 @@ pub trait StreamHost: crate::message_host::MessageHost {
     fn prepare_binding(
         session: &str,
         agent: Option<&str>,
-        backend: Option<&str>,
         model: Option<&str>,
         path: &Path,
     ) -> impl Future<

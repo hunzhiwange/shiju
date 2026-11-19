@@ -147,6 +147,7 @@ pub struct ChatStreamRequest {
 
 /// 与网关兼容的聊天流请求体。
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
+#[serde(deny_unknown_fields)]
 pub struct GatewayChatStreamRequest {
     /// ACP model origin; missing values select the client session model.
     #[serde(default)]
@@ -168,15 +169,12 @@ pub struct GatewayChatStreamRequest {
     /// 覆盖默认推理强度；缺失时沿用 agent 默认值。
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub reasoning_effort: Option<ReasoningEffortDto>,
-    /// 显式指定委托 agent。
+    /// 新会话的智能体标识。已有会话使用服务端绑定。
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub agent: Option<String>,
     /// 显式指定委托 agent 允许工具列表。
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub allowed_tools: Option<Vec<String>>,
-    /// 显式指定 ACP 代理。
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub acp_agent: Option<String>,
     /// 显式指定 ACP 允许工具列表。
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub acp_allowed_tools: Option<Vec<String>>,

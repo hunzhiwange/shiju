@@ -281,7 +281,7 @@ fn task_pool_desktop_background_execution_inherits_agent_permissions() {
 
     assert_eq!(options.get("cwd").and_then(serde_json::Value::as_str), Some("/tmp/project"));
     assert!(!options.contains_key("full_access"));
-    assert_eq!(options.get("acp_test").and_then(serde_json::Value::as_bool), Some(false));
+    assert!(!options.contains_key("acp_test"));
     assert!(!options.contains_key("acp_permission_mode"));
 }
 
@@ -353,6 +353,7 @@ fn task_reasoning_effort_is_reused_for_plan_execution_review_and_continue() {
             mode,
         );
         assert_eq!(request.reasoning_effort, Some(ReasoningEffortDto::Xhigh), "{stage}");
+        assert_eq!(request.agent.as_deref(), Some("acp-codex"), "{stage}");
     }
 
     let non_acp = super::gateway_task_stream_request(

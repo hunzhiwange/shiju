@@ -5,7 +5,7 @@ curl -sS -N --max-time 180 -H 'Content-Type: application/json' \
   -H 'X-Platform-ID: 10001' \
   -H 'X-Company-ID: 100010005' \
   -H 'X-Directory: /Users/xiangmin/worker/code/ruejs' \
-  --data-binary '{"model":"alibaba-token-plan-cn/deepseek-v4.1-flash-1017","agent":"acp-codex","acp_agent":"codex","acp_model_source":"session_model","options":{"cwd":"/Users/xiangmin/worker/code/ruejs","full_access":true},"messages":[{"role":"user","content":"帮我用 Rue.js 实现一个纯文本编辑器，支持输入、实时显示字数、刷新后恢复内容。只写到 acpdemo/codex/，不修改目录外文件。使用本仓库的 @rue-js/rue；在目标目录内提供可运行页面与运行说明。"}]}' \
+  --data-binary '{"model":"alibaba-token-plan-cn/deepseek-v4.1-flash-1017","agent":"acp-codex","acp_model_source":"session_model","options":{"cwd":"/Users/xiangmin/worker/code/ruejs","full_access":true},"messages":[{"role":"user","content":"帮我用 Rue.js 实现一个纯文本编辑器，支持输入、实时显示字数、刷新后恢复内容。只写到 acpdemo/codex/，不修改目录外文件。使用本仓库的 @rue-js/rue；在目标目录内提供可运行页面与运行说明。"}]}' \
   http://127.0.0.1:42617/v1/chat/stream
 ```
 
@@ -15,9 +15,11 @@ curl -sS -N --max-time 180 -H 'Content-Type: application/json' \
 
 ### 可复用的验收请求
 
-下面的 `curl` 调用 `POST /v1/chat/stream`。这个入口从工作区的宿主配置解析可用 MCP，尚无请求级 MCP 选择字段。要复现外挂，先按下文在 RueJS 的 `.vwacprc.json` 配置服务，再发起聊天。ShiJu 会在发给 Codex 的 ACP `session/new` 请求中携带 `params.mcpServers`。聊天提示里的服务名只约束本次任务用哪个工具。
+下面的 `curl` 调用 `POST /v1/chat/stream`。新会话通过 `agent` 选智能体，服务端从智能体的 `runtime.backend` 解析 ACP 后端。续聊用 `session_id` 读取已保存的绑定。请求体和 `options` 中的 `acp_agent` 与 `acp_test` 均会被拒绝。Rust 网关客户端对 ACP 和原生聊天流使用相同的三小时请求超时。
 
-任务是用动态挂载的 RustCodeGraph 追踪 RueJS 站点从浏览器入口到应用挂载和路由视图的流程，再分析取消清空静态快照的影响。挂载前和挂载后各执行一次下面的完整请求，每次由网关创建新会话。验收其他 ACP 时，把 `agent` 和 `acp_agent` 换成对应的预设名和后端名，继续使用同一个任务和 MCP 服务名。下方多步任务已核对索引覆盖，真实模型验收待跑。此前真实模型实测的是单次符号查询。
+这个入口从工作区的宿主配置解析可用 MCP，尚无请求级 MCP 选择字段。要复现外挂，先按下文在 RueJS 的 `.vwacprc.json` 配置服务，再发起聊天。ShiJu 会在发给 Codex 的 ACP `session/new` 请求中携带 `params.mcpServers`。聊天提示里的服务名只约束本次任务用哪个工具。
+
+任务是用动态挂载的 RustCodeGraph 追踪 RueJS 站点从浏览器入口到应用挂载和路由视图的流程，再分析取消清空静态快照的影响。挂载前和挂载后各执行一次下面的完整请求，每次由网关创建新会话。验收其他 ACP 时，把 `agent` 换成对应的智能体预设名，继续使用同一个任务和 MCP 服务名。下方多步任务已核对索引覆盖，真实模型验收待跑。此前真实模型实测的是单次符号查询。
 
 ```bash
 curl -sS -N --max-time 300 -H 'Content-Type: application/json' \
@@ -28,7 +30,6 @@ curl -sS -N --max-time 300 -H 'Content-Type: application/json' \
 {
   "model": "alibaba-token-plan-cn/deepseek-v4.1-flash-1017",
   "agent": "acp-codex",
-  "acp_agent": "codex",
   "acp_model_source": "session_model",
   "options": {
     "cwd": "/Users/xiangmin/worker/code/ruejs",
@@ -112,7 +113,7 @@ curl -sS -N --max-time 300 -H 'Content-Type: application/json' \
   -H 'X-Platform-ID: 10001' \
   -H 'X-Company-ID: 100010005' \
   -H 'X-Directory: /Users/xiangmin/worker/code/ruejs' \
-  --data-binary '{"model":"alibaba-token-plan-cn/deepseek-v4.1-flash-1017","agent":"acp-opencode","acp_agent":"opencode","acp_model_source":"session_model","options":{"cwd":"/Users/xiangmin/worker/code/ruejs","full_access":true},"messages":[{"role":"user","content":"帮我用 Rue.js 实现一个纯文本编辑器，支持输入、实时显示字数、刷新后恢复内容。只写到 acpdemo/opencode/，不修改目录外文件。使用本仓库的 @rue-js/rue；在目标目录内提供可运行页面与运行说明。"}]}' \
+  --data-binary '{"model":"alibaba-token-plan-cn/deepseek-v4.1-flash-1017","agent":"acp-opencode","acp_model_source":"session_model","options":{"cwd":"/Users/xiangmin/worker/code/ruejs","full_access":true},"messages":[{"role":"user","content":"帮我用 Rue.js 实现一个纯文本编辑器，支持输入、实时显示字数、刷新后恢复内容。只写到 acpdemo/opencode/，不修改目录外文件。使用本仓库的 @rue-js/rue；在目标目录内提供可运行页面与运行说明。"}]}' \
   http://127.0.0.1:42617/v1/chat/stream
 ```
 

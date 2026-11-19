@@ -251,7 +251,6 @@ pub(crate) fn gateway_stream_request_from_processor_request(
         reasoning_effort: None,
         agent: None,
         allowed_tools: None,
-        acp_agent: None,
         acp_allowed_tools: None,
         options: gateway_request_options(&req.options),
     }

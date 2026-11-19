@@ -436,7 +436,7 @@ async fn cron_gateway_options_close_acp_client_after_request() {
     let options = cron_gateway_options(&config, &job, Some("codex"));
 
     assert_eq!(options["acp_non_interactive_permissions"], "deny");
-    assert_eq!(options.get("acp_test").and_then(serde_json::Value::as_bool), Some(true));
+    assert!(!options.contains_key("acp_test"));
     assert_eq!(options.get("full_access").and_then(serde_json::Value::as_bool), Some(true));
     assert_eq!(
         options.get("acp_close_client_after_request").and_then(serde_json::Value::as_bool),
@@ -513,12 +513,11 @@ async fn cron_gateway_agent_request_includes_session_prompt_agent_model_and_acp_
     assert_eq!(session_id, "cron-nightly");
     assert_eq!(request.session_id.as_ref().map(AsRef::as_ref), Some("cron-nightly"));
     assert_eq!(request.agent.as_deref(), Some("reviewer"));
-    assert_eq!(request.acp_agent.as_deref(), Some("codex"));
     assert_eq!(request.model.as_deref(), Some("model-a"));
     assert_eq!(request.messages[0]["role"], "user");
     assert_eq!(request.messages[0]["content"], "do the thing");
     let options = request.options.as_ref().and_then(serde_json::Value::as_object).unwrap();
-    assert_eq!(options.get("acp_agent").and_then(serde_json::Value::as_str), Some("codex"));
+    assert!(!options.contains_key("acp_agent"));
     assert_eq!(
         options.get("acp_force_new_session").and_then(serde_json::Value::as_bool),
         Some(true)

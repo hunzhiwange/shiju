@@ -229,7 +229,7 @@ pub async fn acp_public_permission_options_reject_direct_put_and_chat_over_http<
             .post(format!("http://{address}/chat/stream"))
             .query(&dir)
             .json(&json!({
-                "session_id": id, "acp_agent":"claude", "messages":[],
+                "session_id": id, "messages":[],
                 "reasoning_effort":"high", "options":options
             }))
             .send()

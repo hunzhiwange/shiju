@@ -27,7 +27,7 @@ pub fn task_agent_defaults(agent: &str, resolved: &DelegateRequestOverrides, req
         assert_eq!(binding.allowed_tools, vec!["read"]);
         assert_eq!(request.options.as_ref().unwrap()["full_access"], false);
     } else {
-        assert_eq!(request.acp_agent.as_deref(), Some("codex"));
+        assert_eq!(resolved.acp_backend.as_deref(), Some("codex"));
     }
 }
 

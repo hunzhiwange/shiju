@@ -216,11 +216,22 @@ pub async fn agent_session_identity_derives_backend_and_rejects_conflicts<H: cra
                 GatewayChatStreamRequest { agent: Some("acp-codex".into()), ..Default::default() };
             let overrides = prepare_gateway_agent_request::<H>(&mut request, None).await.unwrap();
             assert_eq!(overrides.agent.as_deref(), Some("acp-codex"));
-            assert_eq!(request.acp_agent.as_deref(), Some("codex"));
+            assert_eq!(overrides.acp_backend.as_deref(), Some("codex"));
+            let mut resumed = GatewayChatStreamRequest {
+                session_id: request.session_id.clone(),
+                ..Default::default()
+            };
+            let resumed = prepare_gateway_agent_request::<H>(&mut resumed, None).await.unwrap();
+            assert_eq!(resumed.acp_backend.as_deref(), Some("codex"));
+
             let mut conflicting = request.clone();
-            conflicting.acp_agent = Some("claude".into());
-            conflicting.options = Some(serde_json::json!({"goal_evaluation":true}));
-            assert!(prepare_gateway_agent_request::<H>(&mut conflicting, None).await.is_err());
+            for private_option in [
+                serde_json::json!({"acp_agent":"codex"}),
+                serde_json::json!({"acp_test":true}),
+            ] {
+                conflicting.options = Some(private_option);
+                assert!(prepare_gateway_agent_request::<H>(&mut conflicting, None).await.is_err());
+            }
             let mut conflicting = request;
             conflicting.agent = Some("acp-claude".into());
             assert!(prepare_gateway_agent_request::<H>(&mut conflicting, None).await.is_err());
@@ -263,7 +274,7 @@ pub async fn agent_model_inheritance_acp_new_and_reopened_sessions_preserve_prio
                             Some(expected),
                             "new/reopened {explicit:?}"
                         );
-                        assert_eq!(request.acp_agent.as_deref(), Some("codex"));
+                        assert_eq!(overrides.acp_backend.as_deref(), Some("codex"));
                     }
                 }
                 let mut inherited = GatewayChatStreamRequest {
@@ -438,8 +449,9 @@ pub async fn background_approval_options<H: crate::stream_host::StreamHost>() ->
                 options: Some(serde_json::json!({"full_access":true})),
                 ..Default::default()
             };
-            crate::stream::prepare_gateway_agent_request::<H>(&mut request, Some(false)).await.unwrap();
-            assert_eq!(request.acp_agent.as_deref(), Some("codex"));
+            let overrides =
+                prepare_gateway_agent_request::<H>(&mut request, Some(false)).await.unwrap();
+            assert_eq!(overrides.acp_backend.as_deref(), Some("codex"));
             let options = request.options.as_ref().unwrap();
             assert_eq!(options["full_access"], false);
             assert_eq!(options["acp_non_interactive_permissions"], "deny");

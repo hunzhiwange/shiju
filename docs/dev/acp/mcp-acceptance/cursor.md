@@ -115,3 +115,21 @@ Cursor 的受管 v2 在第 64 次工具执行结束后直接报错。v3 继续�
 挂载轮共 20 次 query、2 次 callers、36 次 node，无额外工具及模型恢复。query `call_809c6087c72e4a15b214a93d` 命中 `createRueSiteApp`（`app/app.tsx:32`），callers `call_103e36bc03854bcf854bb4a9` 命中 `mountRueSiteApp`（第 39 行），node `call_05c1e875020643c982b7ca08` 回读 `useApp.ts:4`。答复涵盖启动链、SSR 守卫、容器缺失、路由与 i18n、布局绕过和快照追加推断，并给出两项验证设想。仍调用 `node(file=index.html)`（`call_1c3768aa510744e89c2773f7`），原样返回 `No indexed file matches`，SSE 的完成状态不代表读到了源码。快照等待场景还需要明确清空已执行后才开始采样。
 
 真实模型在第 58 次工具调用后自行结束，本轮未触发第 64 次后的收尾分支，该分支的正反验证来自原生夹具。三轮回读均为 `acp-cursor / cursor`、原模型、`session_model` 与 `full_access=true`。挂载运行中权限为 `client_only`，采样审批队列为空，终态连接释放。两座私有网关正常退出，端口、临时挂载和私有租户副本已清理。任务保留已阻塞，仍需指定模型在同一组三轮中完成零失败工具调查及准确答复。
+
+## v3 的真实边界复验
+
+复用同一 v3 网关及 RustCodeGraph 1.2.11。定向目录仍只有三种工具，明确说明 HTML 未索引，并将可选 `projectPath` 的目录元数据限定为真实索引根。转发器原样传递调用与输出。用户提示、预设、租户、模型及权限保持上一组一致。
+
+| 轮次 | 会话 ID | HTTP / curl / 秒 | 终态与结果 |
+| --- | --- | --- | --- |
+| 无挂载 | `ses_1f177518e001R5Oien2KunhgBF` | 200 / 0 / 16.263 | `chat.done`，仅 `MCP_NOT_AVAILABLE`，零工具 |
+| 挂载 | `ses_1f1779262001T8p54Sta4OMKFD` | 200 / 0 / 199.773 | 64 次工具均成功，收尾 `chat.error`，无可见正文 |
+| 撤除 | `ses_1f17aa03a001jGRG9gCbZKhnPU` | 200 / 0 / 15.137 | `chat.done`，仅 `MCP_NOT_AVAILABLE`，零工具 |
+
+挂载轮有 23 次 query、4 次 callers、37 次 node，只有三种指定工具，没有缺失文件或工具错误结果。query `call_9642792c679b4d6d95ae2269` 命中 `createRueSiteApp`，callers `call_d22d39fea1d0449898bacbc0` 命中 `mountRueSiteApp`，node `call_aede7d33c5d1428897dd9ac7` 读到 `useApp` 第 4 行对 `_$createApp` 的调用。运行中权限 `client_only`，审批队列采样为空。三轮回读均确认 Cursor 绑定、`full_access=true`、指定模型和 `session_model`，终态连接均释放。
+
+对同一受审 Cursor v3 启动独立本地诊断中继，使用原提示和实际 RustCodeGraph 复现。第 65 个模型请求携带 64 项真实工具结果及 `tool_choice: none`。阿里上游返回 HTTP 200 和完整 `[DONE]`，终帧却为 `finish_reason: tool_calls`。Cursor 拒绝该调用，并以 ACP `-32603` 结束。将同一收尾请求的工具声明与选择字段移除，保留原结构化工具历史后重放，上游仍返回 `tool_calls`，无正文。微型对照的两种请求形态均可收到正常终帧，当前故障无法归为字段不兼容。
+
+额外诊断把同一批 64 次真实调用及输出整理成文本证据，保留原用户提示，并将证据标为非指令数据。保留默认思考时返回 `length`，无正文。文本证据和 `enable_thinking=false` 组合返回 HTTP 200、`stop`、零工具调用与 6965 字符正文。该组合尚未进入受管实现，也未验证跨模型兼容或严格三轮。任务保留已阻塞，下一处待验证边界是仅在收尾轮使用无工具文本证据并获得准确正文。
+
+本轮仅修改验收记录，未运行 Cargo。私有网关、诊断中继和工具子进程均已退出，端口、挂载与临时配置已清理。保留私有原始请求、终帧及对照结果。

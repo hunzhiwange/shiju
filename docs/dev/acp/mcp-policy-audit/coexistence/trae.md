@@ -54,3 +54,17 @@
 - 原始记录和探针位于 `/private/tmp/shiju-trae37.2lIUUp`。从仓库根目录以 `PROBE_NATIVE=Read PROBE_ARGS='{"file_path":"WORK_FILE"}' python3 <私有目录>/probe.py mounted` 运行单轮。复跑用新的私有目录放置探针、仓库路径标记 `repo` 和经核对的 `runtime`，避免覆盖旧轮次证据。先跑 `before`、`mounted`、`removed`。加载探针的第二、三参数是新挂载会话的 ACP ID 与原工作区路径。原包入口依次用 `official-config`、`official-mounted`、`official-removed`。所有服务只处理临时合成数据。
 - `verify.py` 逐轮核对实际标记、工具归属及 ID 配对，退出 0。现有绑定权限和真实 ACP 模型线路的两项定向 Python 测试均通过。首个探索夹具曾在不含 usage 的模型流上触发原生 panic，后续使用包含 usage 的完整 Chat Completions 流并显式选模。此次没有使用真实供应商模型或运行 Cargo。
 - 受管正向目录与执行未见无意裁剪。原生拒绝回执和取消终态的上述差异已保留，原包完整轨迹仍待授权实测。本轮仅新增回执。
+
+## 当前工作区重试
+
+再次核对合同摘要，在全新私有目录重跑。受管版三轮、拒绝、取消及两种新进程加载重现上述结果，证据校验退出 0。另以挂载轮原会话 ID 实发 `session/resume`，返回 JSON-RPC `-32601 Method not found`，子进程退出 0。
+
+| 轮次 | 受管 ACP 会话 ID | 直启原包 ACP 会话 ID |
+| --- | --- | --- |
+| 无挂载 | `27fa6b6b-c98a-4722-8dc9-191b28141150` | `ac544a19-00e7-465f-84bc-f386226d65b4` |
+| 挂载 | `6555b83f-121d-4f04-9880-b122278dac14` | `b692f226-afe4-41db-aa58-2adb31268100` |
+| 撤除 | `4f60829d-5f39-4086-95de-7de315338a56` | `fadd063c-87ba-4eec-ae4b-199ddd80f1f3` |
+
+原包直接以 `native/trae-cli acp serve` 启动，继续使用独立 HOME 和仅允许回环端口的沙箱。三轮都能选模，挂载轮服务仅握手和列目录。三轮首个提示均报 `-32603` 和 `no value available in memory store`，模型请求与服务执行均为零，进程均退出 0。以同类配置直接运行原包 `--print` 时，令牌存储初始化报 `keyring is not supported on this system`，进程退出 1，模型请求为零。原包 ACP 握手的 `authMethods` 为空。下一次原包复验需要当前测试环境可用的令牌存储和独立获授权的供应商会话。
+
+私有证据位于 `/private/tmp/shiju-trae37-retry.G15GgO`。ACP 复验沿用上节命令，非 ACP 对照使用 `python3 <私有目录>/probe_cli.py official-cli`。两类探针均只访问本地验收服务与回环模型。

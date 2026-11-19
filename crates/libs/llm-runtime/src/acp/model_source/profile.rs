@@ -146,6 +146,11 @@ impl AcpLaunchProfile {
         self.server = Some(server.into());
     }
 
+    pub(super) fn bind_aionrs_mcp(&self, socket: PathBuf, token: String) -> anyhow::Result<()> {
+        self.server.as_ref().ok_or_else(|| anyhow::anyhow!("missing aionrs model relay"))?
+            .bind_aionrs_mcp(socket, token)
+    }
+
     /// The driver must enumerate every key it controls. Conflicting user values fail closed.
     #[allow(dead_code)] // Shared boundary used by the subsequent CLI drivers.
     pub fn overlay_environment(
@@ -179,6 +184,25 @@ impl AcpLaunchProfile {
             "unsafe ACP launch argument"
         );
         self.config.args.extend_from_slice(args);
+        Ok(())
+    }
+
+    /// Run the existing ACP command under an absolute driver-owned executable.
+    #[cfg(unix)]
+    pub(super) fn wrap_command(&mut self, executable: &str, mut args: Vec<String>) -> anyhow::Result<()> {
+        anyhow::ensure!(
+            Path::new(executable).is_absolute() && Path::new(executable).is_file(),
+            "ACP wrapper executable is unavailable"
+        );
+        args.push(self.config.command.clone());
+        args.extend(self.config.args.iter().cloned());
+        anyhow::ensure!(
+            args.iter()
+                .all(|arg| !arg.contains('\0') && !arg.contains(self.binding.bearer_token())),
+            "unsafe ACP wrapper argument"
+        );
+        self.config.command = executable.into();
+        self.config.args = args;
         Ok(())
     }
 

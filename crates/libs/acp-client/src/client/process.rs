@@ -135,7 +135,9 @@ impl AcpClient {
             );
         }
         let managed_vtcode = self.managed_vtcode();
-        let managed_private_provider = managed_vtcode
+        let managed_grok =
+            self.agent_name == "grok" && env.contains_key("VW_ACP_LAUNCH_REFERENCE");
+        let managed_private_provider = managed_grok || managed_vtcode
             || self.managed_workspace_io()
             || self.managed_aionrs()
             || self.managed_corust()

@@ -10,6 +10,15 @@ pub fn configure(profile: &mut AcpLaunchProfile, endpoint: &str) -> anyhow::Resu
             || profile.config().args == ["-y", "@xai-official/grok@1.0.77", "agent", "stdio"],
         "Grok Build custom launch arguments are not verified"
     );
+    let projection = std::path::Path::new("/usr/bin/python3").is_file();
+    if projection {
+        anyhow::ensure!(
+            !profile.config().env.keys().any(|key| {
+                matches!(key.to_ascii_uppercase().as_str(), "GROK_CONFIG" | "GROK_CONFIG_PATH")
+            }),
+            "Grok Build managed projection does not accept configuration overrides"
+        );
+    }
     let url = reqwest::Url::parse(endpoint)?;
     anyhow::ensure!(
         url.scheme() == "http"
@@ -92,16 +101,43 @@ pub fn configure(profile: &mut AcpLaunchProfile, endpoint: &str) -> anyhow::Resu
             "unsafe Grok config"
         );
         let saved: toml::Value = toml::from_str(&std::fs::read_to_string(&config)?)?;
-        for key in ["model", "base_url", "env_key", "api_backend"] {
+        let saved_model = saved.get("model").and_then(|value| value.get("shiju-session"))
+            .ok_or_else(|| anyhow::anyhow!("invalid saved Grok model binding"))?;
+        for key in ["model", "env_key", "api_backend"] {
             anyhow::ensure!(
-                saved["model"]["shiju-session"][key] == model[key],
+                saved_model.get(key) == model.get(key),
                 "Grok session binding changed"
             );
         }
+        let saved_url = saved_model.get("base_url")
+            .and_then(toml::Value::as_str)
+            .and_then(|value| reqwest::Url::parse(value).ok())
+            .ok_or_else(|| anyhow::anyhow!("invalid saved Grok relay"))?;
+        anyhow::ensure!(
+            saved_url.scheme() == "http" && saved_url.host_str() == Some("127.0.0.1")
+                && saved_url.port().is_some() && saved_url.path() == "/v1"
+                && saved_url.username().is_empty() && saved_url.password().is_none()
+                && saved_url.query().is_none() && saved_url.fragment().is_none(),
+            "unsafe saved Grok relay"
+        );
     }
     // Grok writes UI defaults on startup. Republish only our generated settings
     // on restore, retaining the session store and never accepting CLI-written permissions.
-    {
+    if projection {
+        // Pass the reviewed template to the launcher. It publishes the current
+        // proxy port under the native state lock before starting Grok.
+        let template = profile.write_config("grok-model.toml", contents.as_bytes())?;
+        let script = profile.write_config(
+            "grok-projection.py",
+            include_bytes!("../../../../../../../patches/acp-model-source/grok/projection.py"),
+        )?;
+        profile.wrap_command("/usr/bin/python3", vec![
+            "-I".into(),
+            script.to_string_lossy().into_owned(),
+            template.to_string_lossy().into_owned(),
+            url.port().unwrap().to_string(),
+        ])?;
+    } else {
         use std::io::Write;
         let mut file = tempfile::NamedTempFile::new_in(&home)?;
         file.write_all(contents.as_bytes())?;

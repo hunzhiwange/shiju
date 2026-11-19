@@ -26,6 +26,9 @@ def main():
     home = Path(os.environ['HOME'])
     agent = Path(os.environ['PI_CODING_AGENT_DIR'])
     workspace = Path.cwd()
+    if (home != root / 'home' or agent != home / '.omp' / 'agent'
+            or agent.resolve(strict=True) != agent):
+        raise ValueError('Invalid OMP private state directory')
     models = agent / 'models.yml'
     registry = json.loads((root / 'omp-models-source.json').read_text())
     provider = registry['providers']['shiju-session']

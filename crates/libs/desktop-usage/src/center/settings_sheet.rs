@@ -4,11 +4,11 @@ use super::{
     scan::{self, Action, Event, Navigation, State},
 };
 use crate::Identity;
-use desktop_assets::assets::Icon;
+use desktop_ui_controls::system_settings_common::help::settings_hover_help_label;
 use desktop_ui_controls::system_settings_common::*;
 use iced::{
     Element, Length, Theme,
-    widget::{Space, button, column, container, row, rule, text, tooltip},
+    widget::{Space, button, column, container, row, rule, text},
 };
 
 fn action<'a>(
@@ -62,14 +62,10 @@ fn scan_controls(state: &State, ready: bool) -> Element<'_, Outcome<Event>> {
     );
     let mut scanning = column![
         row![
-            row![
+            settings_hover_help_label(
                 text("自动扫描会话日志").size(15),
-                tooltip(
-                    icon_svg(Icon::QuestionCircle, 14.0),
-                    text("扫描可用的本地会话日志").size(12),
-                    tooltip::Position::Bottom,
-                ),
-            ].spacing(6).align_y(iced::Alignment::Center),
+                text("扫描可用的本地会话日志").size(12).into(),
+            ),
             Space::new().width(Length::Fill),
             settings_toggle(enabled).on_toggle_maybe(
                 preferences.filter(|_| ready).map(|preferences| move |enabled| {

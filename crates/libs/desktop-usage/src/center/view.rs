@@ -6,7 +6,7 @@ use desktop_ui_controls::system_settings_common::{
 };
 use desktop_ui_controls::tooltip::tooltip_dark_style;
 use iced::{
-    Degrees, Element, Length, Theme,
+    Degrees, Element, Length, Radians, Theme,
     widget::{
         Space, button, column, container, responsive, row, rule, scrollable, stack, svg, text, tooltip,
     },
@@ -54,7 +54,8 @@ pub fn view<'a>(
     };
     let mut sync_icon = header_icon(Icon::ArrowRepeat);
     if sync_active {
-        sync_icon = sync_icon.rotation(Degrees((animation_frame % 12) as f32 * 30.0));
+        let angle = Degrees((animation_frame % 12) as f32 * 30.0);
+        sync_icon = sync_icon.rotation(Radians::from(angle));
     }
     let sync = tooltip(
         button(container(

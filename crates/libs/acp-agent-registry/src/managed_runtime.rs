@@ -42,7 +42,7 @@ fn installed_directory(agent: &str, contract: &Contract) -> Result<PathBuf, Stri
         2
     } else if matches!(
         agent,
-        "corust-agent" | "harn" | "cursor" | "hermes" | "junie" | "openclaw" | "pi" | "poolside" | "stakpak" | "vibe"
+        "corust-agent" | "harn" | "cursor" | "hermes" | "junie" | "nova" | "openclaw" | "pi" | "poolside" | "stakpak" | "vibe"
     ) {
         2
     } else {
@@ -336,6 +336,7 @@ pub(super) async fn install(agent: &str) -> Result<bool, String> {
     for (name, text) in [
         ("nova/apply.py", include_str!("../../../../patches/acp-model-source/nova/apply.py")),
         ("nova/session-model.mjs", include_str!("../../../../patches/acp-model-source/nova/session-model.mjs")),
+        ("nova/session-mcp.mjs", include_str!("../../../../patches/acp-model-source/nova/session-mcp.mjs")),
         ("install.py", include_str!("managed_runtime/install.py")),
         (
             "glm-acp-agent.patch",

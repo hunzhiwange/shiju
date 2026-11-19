@@ -138,6 +138,7 @@ pub async fn apply_agent_defaults<H: DefaultsHost, S>(
                 "deepagents" => Some("shiju.deepagents.toolPolicy"),
                 "harn" => Some("shiju.harn.toolPolicy"),
                 "junie" => Some("shiju.junie.toolPolicy"),
+                "nova" => Some("shiju.nova.toolPolicy"),
                 "pi" => Some("shiju.pi.toolPolicy"),
                 "omp" => Some("shiju.omp.toolPolicy"),
                 "poolside" => Some("shiju.poolside.toolPolicy"),

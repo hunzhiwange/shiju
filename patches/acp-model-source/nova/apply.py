@@ -16,7 +16,25 @@ replace('function Ns(_0x594918){', 'function Ns(_0x594918){if(shijuNovaBound)ret
 replace('function Q5r(_0x1b44d9,_0x369ca9){', 'function Q5r(_0x1b44d9,_0x369ca9){if(shijuNovaBound && _0x1b44d9.maxTokens===undefined)_0x1b44d9.maxTokens=Math.min(kh,_0x369ca9.maxOutputTokens);')
 replace('function MC(){', 'function MC(){if(shijuNovaBound)return [shijuNovaModel()];')
 replace("async['_doInitialize'](){", "async['_doInitialize'](){if(shijuNovaBound){this.currentModel=shijuNovaBound.model;this.apiKey=process.env.SHIJU_NOVA_RELAY_TOKEN;this.providerApiKeys.set('anthropic',this.apiKey);this.providerBaseUrls.set('anthropic',shijuNovaBound.endpoint);this.initialized=true;return true;}")
+replace(
+    "async function Yhi(_0x2261bf,_0x4df01f,_0x3ed63d,_0x527f17,_0x5861d1){",
+    "async function Yhi(agent,method,params,conn,delegate){"
+    "return shijuNovaDispatchMcp(conn,method,params,next=>shijuNovaDispatch(agent,method,next,conn,delegate));}"
+    "async function shijuNovaDispatch(_0x2261bf,_0x4df01f,_0x3ed63d,_0x527f17,_0x5861d1){",
+)
+replace(
+    "async['requestHostTool'](_0x2604e4){",
+    "async['requestHostTool'](_0x2604e4){"
+    "if(shijuNovaHasSelectedMcp(this))return shijuNovaCallMcp(this,_0x2604e4);",
+)
 source = source.replace("#!/usr/bin/env node\n", "", 1)
 source = "#!/usr/bin/env node\nimport { bound as shijuNovaBound, model as shijuNovaModel, stateDirectory as shijuNovaStateDirectory, projectDirectory as shijuNovaProjectDirectory } from './shiju-session-model.mjs';\n" + source
+source = source.replace(
+    "#!/usr/bin/env node\n",
+    "#!/usr/bin/env node\nimport { dispatchMcp as shijuNovaDispatchMcp, hasSelectedMcp as shijuNovaHasSelectedMcp, callMcp as shijuNovaCallMcp } from './shiju-session-mcp.mjs';\n",
+    1,
+)
 entry.write_text(source)
 shutil.copy2(Path(__file__).with_name('session-model.mjs'), root / 'dist/shiju-session-model.mjs')
+
+shutil.copy2(Path(__file__).with_name('session-mcp.mjs'), root / 'dist/shiju-session-mcp.mjs')

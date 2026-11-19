@@ -633,6 +633,9 @@ if agent in ('codex', 'gemini', 'glm-acp-agent'):
     run(['patch', '--batch', '--forward', '-p1', '-d', str(root), '-i', str(assets / (agent + '.patch'))])
 elif agent in ('nova', 'deepagents', 'iflow', 'qwen', 'codebuddy', 'snow', 'openclaw', 'auggie', 'qoder', 'amp-acp'):
     run([sys.executable, str(assets / agent / 'apply.py'), str(root)])
+    if agent == 'nova':
+        shutil.copyfile(assets / 'deepagents/mcp.py', root / 'dist/shiju-mcp.py')
+        shutil.copyfile(assets / 'cortex-code/mcp_bridge.py', root / 'dist/shiju-stdio.py')
 elif agent == 'pi':
     source = runtime / 'pi-source'
     run(['git', 'clone', '--no-checkout', 'https://github.com/svkozak/pi-acp.git', str(source)])

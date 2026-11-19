@@ -275,9 +275,21 @@ impl AcpClient {
             ));
         }
         if self.agent_name == "nova" && !self.mcp_servers.is_empty() {
-            return Err(AcpError::NewSession(
-                "Nova owner approval mode does not support MCP servers".into(),
-            ));
+            if self.permission_mode == PermissionMode::DenyAll
+                || self.session_options.as_ref()
+                    .is_some_and(|options| options.allowed_tools.is_some())
+                || self.config.args != ["acp"]
+                || !self.config.env.contains_key("VW_ACP_LAUNCH_REFERENCE")
+                || self.mcp_servers.iter().any(|server| {
+                    !matches!(server, acp::McpServer::Stdio(stdio) if stdio.command.is_absolute() && stdio.env.is_empty())
+                })
+            {
+                return Err(AcpError::NewSession(
+                    "Nova MCP requires an approved managed session-model connection and absolute stdio servers without environment overrides".into(),
+                ));
+            }
+            crate::verify_reviewed_agent_executable(&self.agent_name, &self.config.command)
+                .map_err(AcpError::NewSession)?;
         }
         if self.agent_name == "dirac" && !self.mcp_servers.is_empty() {
             return Err(AcpError::Prompt(

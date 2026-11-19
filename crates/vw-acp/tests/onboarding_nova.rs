@@ -13,7 +13,7 @@ fn acp_onboarding_nova_registry_contract() {
     }
 }
 
-async fn run_peer(deny: bool) {
+async fn run_peer(deny: bool, mount_mcp: bool) {
     use vw_acp::{AcpAgentConfig, AcpClient, PromptRequest, SessionStrategy};
     let directory = tempfile::tempdir().unwrap();
     let script = directory.path().join("peer.py");
@@ -62,6 +62,26 @@ for line in sys.stdin:
         },
     )
     .with_permission_mode(vw_acp::PermissionMode::DenyAll);
+    let client = if mount_mcp {
+        client
+            .with_permission_mode(vw_acp::PermissionMode::ApproveAll)
+            .with_mcp_servers(vec![
+                serde_json::from_value(serde_json::json!({
+                    "name": "selected", "command": "/unused-mcp", "args": [], "env": []
+                }))
+                .unwrap(),
+            ])
+    } else {
+        client
+    };
+    if mount_mcp {
+        let error = client.create_session(directory.path()).await.unwrap_err();
+        assert!(error.to_string().contains("Nova MCP requires an approved managed"), "{error}");
+        client.close().await.unwrap();
+        let frames = std::fs::read_to_string(capture).unwrap();
+        assert!(!frames.contains("session/new"), "{frames}");
+        return;
+    }
     tokio::time::timeout(std::time::Duration::from_secs(15), async {
         let session = client.create_session(directory.path()).await.unwrap();
         for _ in 0..2 {
@@ -134,12 +154,17 @@ for line in sys.stdin:
 
 #[tokio::test]
 async fn acp_onboarding_nova_session_lifecycle() {
-    run_peer(false).await;
+    run_peer(false, false).await;
 }
 
 #[tokio::test]
 async fn acp_onboarding_nova_permission_denial() {
-    run_peer(true).await;
+    run_peer(true, false).await;
+}
+
+#[tokio::test]
+async fn acp_onboarding_nova_unmanaged_mcp_is_rejected() {
+    run_peer(false, true).await;
 }
 
 #[tokio::test]

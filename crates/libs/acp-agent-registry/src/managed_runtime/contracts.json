@@ -732,8 +732,11 @@
     "bin": "scripts/bin-wrapper.mjs",
     "files": {
       "scripts/bin-wrapper.mjs": "82f4ea07714bc0227d9c7206420acc1fdb41cd2f4a2886d1146db47af456119b",
-      "dist/cli.js": "23ea8eeb9f3fca0a5fa2a9b1200aa1efa6a0f3a172e6c766b3388991dd135c93",
-      "dist/shiju-session-model.mjs": "21cd7af09568a2a915fedc08d53a576f0df2badf7e7ff5b2979e2a1d47e3c76e"
+      "dist/cli.js": "4138360feaa219ec8d52fae0ee34cc4dddfc6730515b0ed405a144c84ba82e45",
+      "dist/shiju-session-model.mjs": "21cd7af09568a2a915fedc08d53a576f0df2badf7e7ff5b2979e2a1d47e3c76e",
+      "dist/shiju-session-mcp.mjs": "8b802d68d92462ace4402d2e922b014e027e362185afa503fe5825958ba9d870",
+      "dist/shiju-mcp.py": "ede7bf31f0eafe51f6dd0572d0cea482fe3be3eb715534b2f566d87e5c8aa915",
+      "dist/shiju-stdio.py": "e6870d58c6c59cb1f1d224a66cdaa8455b34057249912b7bce5b9e21f95a074a"
     },
     "integrity": "sha512-krb6SLYHdGnafeipKrM7PlHWSv1iiC93g9zEXAcnOC8MKO5kX8NOd1/UCu9omCDXdCCbz3nfr86XDx6pdkAwjw=="
   },

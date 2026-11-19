@@ -76,6 +76,7 @@ pub(super) fn domain_event(action: desktop_settings_apps::system_settings_apps::
         Action::LocalConnect => AppsCatalogMessage::LocalConnect,
         Action::ToggleDetails(id) => AppsCatalogMessage::ToggleDetails(id),
         Action::RefreshObservation(id) => AppsCatalogMessage::RefreshObservation(id),
+        Action::SetVisible(id, visible) => AppsCatalogMessage::Preferences(preferences::PreferencesMessage::SetVisible(id, visible)),
         Action::PreferencesOpen => AppsCatalogMessage::Preferences(preferences::PreferencesMessage::Open),
         Action::LaunchOpen(id, installation) => AppsCatalogMessage::Launch(launch::LaunchMessage::Open(id, installation)),
         Action::Preview(request) => AppsCatalogMessage::Lifecycle(LifecycleMessage::Preview(request)),

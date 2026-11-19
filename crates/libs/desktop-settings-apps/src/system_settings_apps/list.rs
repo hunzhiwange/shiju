@@ -172,7 +172,14 @@ pub fn view<'a, M: Clone + 'static>(state: &ViewState<'a>, help_heading: impl Fn
                 row![container(heading).width(Length::Fill), settings_value_badge(apps.len()),]
                     .spacing(8)
                     .align_y(Alignment::Center);
-            let mut cards = column![];
+            let mut cards = column![
+                container(row![
+                    container(text("应用 / 安装信息").size(12).style(settings_muted_text_style))
+                        .width(Length::Fill),
+                    text("在智能侧栏显示").size(12).style(settings_muted_text_style),
+                ].spacing(12).align_y(Alignment::Center)).padding([8, 14]),
+                rule::horizontal(1),
+            ];
             for (index, app) in apps.into_iter().enumerate() {
                 if index > 0 { cards = cards.push(rule::horizontal(1)); }
                 cards = cards.push(card(state, app, local_available, message));
@@ -392,9 +399,20 @@ fn card<'a, M: Clone + 'static>(state: &ViewState<'a>, app: &'a CatalogRow, loca
         .style(rounded_action_btn_style)
         .on_press_maybe((state.drag.source.is_none())
             .then_some(message(Action::ToggleDetails(app.entry.id))));
+    let saved = state.preferences.saved.as_ref();
+    let visible = saved.is_some_and(|saved| saved.user.visible_apps.contains(&app.entry.id));
+    let enabled = saved.is_some()
+        && !state.preferences.busy
+        && !state.preferences.open
+        && state.drag.source.is_none()
+        && (!visible || saved.is_some_and(|saved| saved.user.visible_apps.len() > 1));
+    let id = app.entry.id;
+    let toggle = container(settings_toggle(visible).on_toggle_maybe(
+        enabled.then_some(move |visible| message(Action::SetVisible(id, visible))),
+    )).width(96.).center_x(96.);
     let summary = row![handle, brand(app.entry.id), description,
         column![super::details::actions(state, app, local_available, message), select]
-            .spacing(8).width(Length::FillPortion(1))]
+            .spacing(8).width(Length::FillPortion(1)), toggle]
         .spacing(12)
         .align_y(Alignment::Center)
         .wrap();

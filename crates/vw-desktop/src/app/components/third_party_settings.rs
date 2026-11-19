@@ -153,7 +153,9 @@ fn sidebar(app: &App) -> Element<'_, Message> {
     let i18n = crate::app::i18n::I18n::new(app.general_settings.desktop_locale);
     let showing_usage = usage::is_visible(app);
     let mut agents = column![].spacing(2);
-    for row in &state.rows {
+    for row in desktop_settings_apps::system_settings_apps::preferences::visible_rows(
+        &super::system_settings_apps::view_state(state),
+    ) {
         let entry = &row.entry;
         let active = !showing_usage
             && state.third_party_page == ThirdPartyPage::Agents

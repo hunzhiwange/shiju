@@ -87,6 +87,7 @@ pub enum PreferencesMessage<C> {
     Load,
     Close,
     Visible(AppId, bool),
+    SetVisible(AppId, bool),
     MoveUp(String),
     Terminal(String),
     Shell(AppId, String),
@@ -151,6 +152,27 @@ pub fn update<C: Clone + PartialEq + Send + 'static>(catalog: &mut Input<'_, C>,
         PreferencesMessage::Visible(id, visible) => {
             state.visible(id, visible);
             return Task::none();
+        }
+        PreferencesMessage::SetVisible(id, visible) => {
+            if state.open {
+                return Task::none();
+            }
+            let Some(saved) = &state.saved else {
+                return Task::none();
+            };
+            let mut user = saved.user.clone();
+            if user.visible_apps.contains(&id) == visible {
+                return Task::none();
+            }
+            if visible {
+                user.visible_apps.push(id);
+            } else {
+                if user.visible_apps.len() <= 1 {
+                    return Task::done(PreferencesMessage::Error("至少保留一项可见应用".into()));
+                }
+                user.visible_apps.retain(|item| *item != id);
+            }
+            Some(AppPreferencesPatch::User(user))
         }
         PreferencesMessage::MoveUp(id) => {
             if let Some(draft) = &mut state.draft

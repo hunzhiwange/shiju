@@ -56,7 +56,7 @@ pub fn can_start(state: &super::ViewState<'_>, id: AppId) -> bool {
         && !state.preferences.open
         && !state.lifecycle.active()
         && state.lifecycle.preview.is_none()
-        && state.preferences.saved.is_some()
+        && state.preferences.saved.as_ref().is_some_and(|saved| saved.user.visible_apps.contains(&id))
         && state.query.trim().is_empty()
         && preferences::visible_rows(state)
             .iter()
@@ -96,7 +96,7 @@ pub fn update(state: &super::ViewState<'_>, value: DragMessage) -> DragUpdate {
             }
             let movable: Vec<_> = preferences::visible_rows(state)
                 .iter()
-                .filter(|a| presentation::presence(a) == Presence::Installed)
+                .filter(|a| can_start(state, a.entry.id))
                 .map(|a| presentation::key(a.entry.id))
                 .collect();
             let Some(saved) = &state.preferences.saved else {

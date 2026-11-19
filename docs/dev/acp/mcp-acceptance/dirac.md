@@ -1,6 +1,6 @@
 # Dirac 动态挂载 RustCodeGraph
 
-2026-11-19，验收已阻塞。Dirac 0.5.24 的 ACP 建会话入口忽略 `mcpServers`。宿主现有门禁在发出 `session/new` 前明确拒绝非空列表。
+2026-11-19，原版验收在建会话阶段阻塞。Dirac 0.5.24 的 ACP 建会话入口忽略 `mcpServers`。宿主现有门禁在发出 `session/new` 前明确拒绝非空列表。
 
 ## 环境与请求
 
@@ -48,7 +48,7 @@
 - 核对仓库内的受管路径。Snow 补丁依赖 Snow 已有的 MCP 客户端、会话字段及调用循环。OpenClaw 转换依赖其私有 Gateway 原生 MCP，且原生调用不回调 ACP 宿主审批。Dirac 的私有中继只绑定模型和状态目录，缺少这两条路径所需的注册和回传接口。沿用私有自定义工具需要新增会话隔离、工具转换、逐次审批及撤销接线，超出任务卡要求先确认原生 Dirac 消费列表的边界。
 - 当前分支及工作区中的 Dirac 驱动、协议门禁和聚焦目标相对前次提交无变化，复用此前 1 项聚焦测试通过证据。本次复验未再编译。私有网关与原生探针均退出，挂载文件及私有授权副本已清理，用户网关健康检查通过。
 
-仍为已阻塞。解除条件为可安装的 Dirac ACP 入口实际消费会话 MCP 定义，并经宿主审批完成调用及撤除验证。若改用新建受管适配器，需先扩展任务卡范围，明确工具注册、宿主审批和会话撤销的交付要求。
+本阶段仍受原版限制。此后的固定版本补丁验证见下节。
 
 ## 0.5.24 补丁原型
 
@@ -121,3 +121,25 @@ python3 patches/acp-model-source/dirac/probe.py \
 网关首次冷装下载在客户端的 180 秒期限内未完成。向私有 npm 缓存补入摘要匹配的 Dirac 官方归档后，生产安装 API 返回 HTTP 200，约 2.86 秒。原验收 JSON 的顶层 `acp_agent` 已被当前 API 移除，初次请求得到 HTTP 422。复跑仅移除该字段，后端由 `agent=acp-dirac` 的绑定推导，提示、租户、模型和访问模式保持原合同。
 
 调整请求后的首次三轮中，两组对照无 MCP 调用且正常结束。挂载轮在宿主门禁前失败。会话运行器总会产生宿主工具目录并写入 `acp_allowed_tools`，原门禁误把它当作 Dirac 原生工具禁用策略。生产修订保留现有 Dirac 原生权限，单独检查 MCP 的入口、传输、环境与宿主许可。仍拒绝无法由该后端强制执行的服务管理过滤。
+
+安装后的受管入口以默认 Dirac 工具配置补跑指定模型直连三轮，三个 ACP 会话 `2cbe3f8d-499a-4def-b917-fc9cfd89fd7b`、`84b3b3d3-e3c7-462f-89b0-a0a646c9dfa4`、`daabe996-b2fa-482e-b82c-435626764253` 均以 `end_turn` 结束。模型请求数分别为 1、31、1。两轮对照返回 `MCP_NOT_AVAILABLE`，只有原生完成事件，目标工具和审批均为零。挂载轮成功 query 29 次、callers 2 次、node 17 次，分别命中站点工厂、挂载调用者和工厂源码。首组三项 ID 分别为 `00c99ff2-dada-4ec3-a87d-6a871cd8fe54`、`d8ded85d-8dfc-4231-9c9f-215d38430c08`、`82e9b00d-24fb-4de6-a6d6-b866a51d2e26`。原生 `respond` 正常完成。6 次 node 请求使用无效参数，直连探针对额外 RustCodeGraph 方法回绝了 6 次。此轮保留官方工具共存，三种目标工具真实执行并回传。
+
+### 生产网关复验通过
+
+复用已包含修订门禁的共享槽位 6 构建，ShiJu 0.6.0 的 SHA-256 为 `1d37a1d46ad916b7671e7d1cb9c2be65d0cf951e7e7fd516b32d7c03afa91ada`。隔离网关安装 API 再次返回 HTTP 200，登记的 Dirac 入口摘要匹配。三轮使用 Dirac 默认工具配置、原生 RustCodeGraph stdio、原提示和指定模型。没有使用工具列表过滤器或纯文本配置。
+
+| 轮次 | 新会话 | HTTP / curl / 秒 | SSE 结果 |
+| --- | --- | --- | --- |
+| 无挂载 | `ses_1f1bb8095001U5iAHouClIKHIW` | 200 / 0 / 5.931 | `chat.done`，`MCP_NOT_AVAILABLE`，目标工具零次。 |
+| 挂载 | `ses_1f1bb989c001VxhzvR36Qufafy` | 200 / 0 / 235.345 | `chat.done`，三种目标工具成功 70 次。 |
+| 撤除 | `ses_1f1bf30e40019IqBotYGdIjaDO` | 200 / 0 / 8.649 | `chat.done`，`MCP_NOT_AVAILABLE`，目标工具零次。 |
+
+三轮均无 `chat.error`，在线及终态 UI summary 显示 `acp-dirac / dirac` 和 `full_access=true`。ACP options 在线为 `connected=true`、`client_only`，终态连接释放，选模持续为 `session_model`、`alibaba-token-plan-cn/deepseek-v4.1-flash-1017`。成功的 MCP 调用均需先经过宿主批准，原生 `respond` 在三轮正常完成。挂载轮另有同一服务的 6 次成功调用，全部工具事件无失败。
+
+| 目标工具 | 成功次数 | 首个完成 ID 及结果 |
+| --- | --- | --- |
+| `rustcodegraph_query` | 40 | `db7b986c-4fec-4de1-b007-7a5293b11a6e` 命中 `createRueSiteApp`（`app/app.tsx:32`）。 |
+| `rustcodegraph_callers` | 4 | `9dcf5420-0feb-4367-ad8f-0484cdd85c47` 返回 `mountRueSiteApp`（`app/app.tsx:39`）。 |
+| `rustcodegraph_node` | 26 | `e8edfa31-2052-4a50-a5c0-1aee4eec0342` 返回 `mountRueSiteApp` 源码。 |
+
+上述调用有相同 ID 的开始与完成事件。最终答复使用了三种工具的证据，给出入口到 `_$createApp` 的调用链、SSR、缺失容器、路由与 i18n、布局绕过，以及快照残留推断和两项有明确预期的验证场景。未运行浏览器场景。私有网关已退出，端口关闭，临时挂载和私有授权文件已清理，现有网关健康检查通过。

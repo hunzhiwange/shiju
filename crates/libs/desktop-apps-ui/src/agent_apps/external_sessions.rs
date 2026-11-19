@@ -8,7 +8,7 @@ pub mod details;
 pub mod export;
 pub mod find;
 pub mod images;
-mod list;
+pub mod list;
 pub mod maintenance;
 pub mod paths;
 pub mod reader;
@@ -17,6 +17,7 @@ pub mod resume;
 pub struct State {
     pub open: bool,
     pub sources_open: bool,
+    pub apps_open: bool,
     pub deletion: delete::State,
     pub maintenance: maintenance::State,
     pub compression: compression::State,
@@ -64,6 +65,7 @@ pub struct Scope {
 #[derive(Clone, Debug)]
 pub enum Event {
     Open,
+    Applications(bool),
     SearchDraft(String),
     Search,
     ClearSearch,
@@ -255,6 +257,7 @@ pub fn close(state: &mut State) {
     state.deletion = delete::State::default();
     state.open = false;
     state.sources_open = false;
+    state.apps_open = false;
     state.busy = false;
     state.generation = state.generation.wrapping_add(1);
 }
@@ -324,6 +327,8 @@ pub fn prepare_host_event(state: &mut State, event: &Event) -> HostDispatch {
         return HostDispatch::Blocked;
     }
     match event {
+        Event::Applications(open) => { state.apps_open = *open; return HostDispatch::Handled; }
+        Event::Provider(_) => { state.apps_open = false; }
         Event::ToggleProject(dir) => {
             if !state.collapsed.remove(dir) { state.collapsed.insert(dir.clone()); }
             return HostDispatch::Handled;

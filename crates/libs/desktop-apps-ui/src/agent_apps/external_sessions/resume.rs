@@ -18,6 +18,19 @@ pub(super) fn control(session: &SessionMeta, enabled: bool) -> Element<'_, Messa
     ].spacing(4).into()
 }
 
+/// Compact actions remain separate from the body read target.
+pub fn quick_controls(session: &SessionMeta, enabled: bool) -> Element<'_, Message> {
+    use iced::widget::{tooltip, tooltip::Position};
+    row![
+        tooltip(button(text("↗")).padding([8, 10]).style(rounded_action_btn_style)
+            .on_press_maybe((enabled && session.capabilities.resume).then(|| msg(Event::Open(session.identity.clone())))),
+            text("在授权主机终端恢复"), Position::Top),
+        tooltip(button(text("⧉")).padding([8, 10]).style(rounded_action_btn_style)
+            .on_press_maybe((enabled && session.capabilities.resume).then(|| msg(Event::CopyFor(session.identity.clone())))),
+            text("复制受控恢复命令"), Position::Top),
+    ].spacing(4).into()
+}
+
 pub(super) fn update(state: &mut super::State, connection: &Connection, notice: &mut Option<Notice>, event: Event) -> Task<Message> {
     let client = connection.client.clone();
     let context = connection.context.clone();
@@ -29,6 +42,7 @@ pub(super) fn update(state: &mut super::State, connection: &Connection, notice: 
         catalog: connection.generation, generation: state.generation, append: false };
     match event {
         Event::Close => {
+            state.resume.preferences = false;
             state.resume.identity = None;
             state.resume.busy = false;
             state.resume.generation = state.resume.generation.wrapping_add(1);
@@ -64,16 +78,30 @@ pub(super) fn update(state: &mut super::State, connection: &Connection, notice: 
             };
         }
         _ if state.resume.busy || state.deletion.busy() || state.busy => return Task::none(),
+        Event::Preferences => {
+            state.resume.preferences = true;
+            state.resume.identity = None;
+            state.resume.terminal = state.resume.preferred.or(Some(SessionTerminal::Terminal));
+        }
+        Event::CopyFor(identity) => {
+            let _ = update(state, connection, notice, Event::Open(identity.clone()));
+            if state.resume.identity.as_ref() != Some(&identity) { return Task::none(); }
+            return update(state, connection, notice, Event::Copy);
+        }
         Event::Open(identity) => {
             if identity.target_host != scope.host || identity.scope.project_id().as_ref() != scope.project.as_str()
                 || !state.page.as_ref().is_some_and(|page| page.sessions.iter()
                     .any(|session| session.identity == identity && session.capabilities.resume)) { return Task::none(); }
             state.resume.generation = state.resume.generation.wrapping_add(1);
             state.resume.identity = Some(identity);
-            state.resume.terminal = Some(SessionTerminal::Terminal);
+            state.resume.preferences = false;
+            state.resume.terminal = state.resume.preferred.or(Some(SessionTerminal::Terminal));
         }
         Event::Terminal(terminal) => {
-            if state.resume.identity.is_some() { state.resume.terminal = Some(terminal); }
+            if state.resume.identity.is_some() || state.resume.preferences {
+                state.resume.terminal = Some(terminal);
+                state.resume.preferred = Some(terminal);
+            }
         }
         Event::Launch | Event::Copy => {
             let copy = matches!(event, Event::Copy);
@@ -100,7 +128,7 @@ pub(super) fn update(state: &mut super::State, connection: &Connection, notice: 
 }
 
 pub(super) fn view<'a>(state: &'a super::State, base: Element<'a, Message>) -> Element<'a, Message> {
-    let Some(identity) = &state.resume.identity else { return base; };
+    if state.resume.identity.is_none() && !state.resume.preferences { return base; }
     let close = msg(Event::Close);
     let mut choices = row![].spacing(8);
     for (terminal, label) in [
@@ -116,23 +144,26 @@ pub(super) fn view<'a>(state: &'a super::State, base: Element<'a, Message>) -> E
             .on_press_maybe((!state.resume.busy).then(|| msg(Event::Terminal(terminal)))));
     }
     let card = settings_modal_card(column![
-        row![text("恢复外部会话").size(18), settings_close_button(close.clone())].spacing(12),
-        text(format!("目标主机：{}", identity.target_host)),
-        text("选择目标主机终端；自定义终端须由主机管理员预先授权。").style(settings_muted_text_style),
+        row![text(if state.resume.preferences { "首选终端" } else { "恢复外部会话" }).size(18), settings_close_button(close.clone())].spacing(12),
+        text(format!("目标主机：{}", state.host)),
+        text("首选终端仅在当前工作区有效；更换授权作用域后重置。").size(12).style(settings_muted_text_style),
+        text("当前主机恢复服务支持 macOS 终端；安装情况由授权主机校验。自定义终端须由主机管理员预先授权。").style(settings_muted_text_style),
         choices.wrap(),
         button(text("复制恢复命令")).padding([8, 12]).style(rounded_action_btn_style)
-            .on_press_maybe((!state.resume.busy).then(|| msg(Event::Copy))),
+            .on_press_maybe((!state.resume.busy && !state.resume.preferences).then(|| msg(Event::Copy))),
         text("命令仅适用于目标主机；依赖账号凭据的恢复不可复制。").style(settings_muted_text_style),
         row![button(text("关闭")).padding([8, 12]).style(rounded_action_btn_style).on_press(close.clone()),
             button(text(if state.resume.busy { "正在恢复…" } else { "在所选终端恢复" }))
                 .padding([8, 12]).style(primary_action_btn_style)
-                .on_press_maybe((!state.resume.busy).then(|| msg(Event::Launch)))].spacing(8),
-    ].spacing(16)).width(Length::Fixed(560.0));
-    settings_modal_overlay(Some(base), close, container(card).padding(12).center(Length::Fill))
+                .on_press_maybe((!state.resume.busy && !state.resume.preferences).then(|| msg(Event::Launch)))].spacing(8),
+    ].spacing(16)).width(Length::Fill).max_width(560);
+    settings_modal_overlay_with_escape_and_backdrop_dismiss(base, close, container(card).max_width(560))
 }
 
 #[derive(Clone, Default)]
 pub struct State {
+    pub preferences: bool,
+    pub preferred: Option<SessionTerminal>,
     pub identity: Option<ExternalSessionIdentity>,
     pub terminal: Option<SessionTerminal>,
     pub busy: bool,
@@ -140,11 +171,13 @@ pub struct State {
 }
 impl State {
     pub fn reset(&mut self) {
-        *self = Self { generation: self.generation.wrapping_add(1), ..Self::default() };
+        *self = Self { preferred: self.preferred, generation: self.generation.wrapping_add(1), ..Self::default() };
     }
 }
 #[derive(Clone, Debug)]
 pub enum Event {
+    Preferences,
+    CopyFor(ExternalSessionIdentity),
     Open(ExternalSessionIdentity),
     Close,
     Terminal(SessionTerminal),

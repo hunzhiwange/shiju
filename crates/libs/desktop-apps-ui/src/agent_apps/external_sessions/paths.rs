@@ -14,6 +14,7 @@ fn location(session: &SessionMeta, kind: Location) -> Option<&str> {
     match kind {
         Location::Source => session.source_path.as_deref(),
         Location::Project => session.project_dir.as_deref(),
+        Location::Identity => Some(&session.identity.session_id.0),
     }.filter(|path| !path.trim().is_empty())
 }
 
@@ -59,7 +60,7 @@ pub(super) fn update(state: &mut super::State, connection: &Connection, notice: 
         .find(|session| session.identity == identity)).and_then(|session| location(session, kind))
         .map(str::to_owned) else { return Task::none(); };
     if !reveal {
-        return Task::batch([iced::clipboard::write(value), notify_success(notice, "已复制来源主机路径")]);
+        return Task::batch([iced::clipboard::write(value), notify_success(notice, "已复制会话信息")]);
     }
     // A loopback gateway can forward to remote hosts. Also verify the private local grant.
     if !cfg!(target_os = "macos")
@@ -125,7 +126,7 @@ pub(super) fn view<'a>(state: &'a State, base: Element<'a, Message>) -> Element<
         ("DSH", "~/.dsh/sessions/<project>/<session>/session.v*.jsonl[.zstd]"),
         ("Antigravity", "~/.gemini/antigravity-cli/brain/<conversation>/.system_generated/logs"),
     ] {
-        locations = locations.push(column![text(app).size(14),
+        locations = locations.push(column![row![desktop_ui_controls::icons::acp_agent_icon(app, 20.0), text(app).size(14)].spacing(8),
             text(paths).size(12).style(settings_muted_text_style)].spacing(4));
     }
     let card = settings_modal_card(column![
@@ -136,12 +137,12 @@ pub(super) fn view<'a>(state: &'a State, base: Element<'a, Message>) -> Element<
         scrollable(container(locations).width(Length::Fill)).height(Length::Fixed(320.0))
             .direction(Direction::Vertical(Scrollbar::new().width(4).scroller_width(4))),
         button(text("关闭")).padding([8, 12]).style(rounded_action_btn_style).on_press(close.clone()),
-    ].spacing(12)).width(Length::Fixed(600.0));
-    settings_modal_overlay(Some(base), close, container(card).padding(12).center(Length::Fill))
+    ].spacing(12)).width(Length::Fill).max_width(600);
+    settings_modal_overlay_with_escape_and_backdrop_dismiss(base, close, container(card).max_width(600))
 }
 
 #[derive(Clone, Copy, Debug)]
-pub enum Location { Source, Project }
+pub enum Location { Source, Project, Identity }
 
 #[derive(Clone, Debug)]
 pub enum Event {

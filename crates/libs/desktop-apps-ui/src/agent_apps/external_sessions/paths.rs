@@ -66,7 +66,7 @@ pub(super) fn update(state: &mut super::State, connection: &Connection, notice: 
     if !cfg!(target_os = "macos")
         || !verified_local
     {
-        return notify_error(notice, "只有已确认属于当前桌面的路径才能在 Finder 中显示；请复制到来源主机使用");
+        return notify_error(notice, "此路径无法在 Finder 中显示，可以复制路径");
     }
     let Some(path) = local_path(&value) else {
         return notify_error(notice, "此来源位置不是可在 Finder 中显示的本机绝对路径");
@@ -80,9 +80,9 @@ pub(super) fn update(state: &mut super::State, connection: &Connection, notice: 
 pub(super) fn controls<'a>(state: &State, session: &'a SessionMeta, loopback: bool) -> Element<'a, Message> {
     let local = cfg!(target_os = "macos") && session.identity.target_host == local_app_auth::HOST_ID
         && loopback;
-    let mut content = column![text(format!("来源应用：{:?} · 实例：{} · 执行主机：{}",
-        session.identity.provider, session.identity.instance_id, session.identity.target_host))
-        .size(12).style(settings_muted_text_style)].spacing(4);
+    let source = format!("来源应用：{:?} · 实例：{}",
+        session.identity.provider, session.identity.instance_id);
+    let mut content = column![text(source).size(12).style(settings_muted_text_style)].spacing(4);
     for (kind, label) in [(Location::Project, "项目位置"), (Location::Source, "会话来源")] {
         let Some(path) = location(session, kind) else { continue; };
         let identity = session.identity.clone();
@@ -96,7 +96,7 @@ pub(super) fn controls<'a>(state: &State, session: &'a SessionMeta, loopback: bo
         ].spacing(8).wrap());
     }
     if !local {
-        content = content.push(text("远程或未确认同机的来源位置仅供展示和复制，请在来源主机使用。")
+        content = content.push(text("此路径可以复制。")
             .size(12).style(settings_muted_text_style));
     }
     content.into()
@@ -129,15 +129,16 @@ pub(super) fn view<'a>(state: &'a State, base: Element<'a, Message>) -> Element<
         locations = locations.push(column![row![desktop_ui_controls::icons::acp_agent_icon(app, 20.0), text(app).size(14)].spacing(8),
             text(paths).size(12).style(settings_muted_text_style)].spacing(4));
     }
-    let card = settings_modal_card(column![
+    let header = column![
         row![text("会话记录在哪里").size(18), settings_close_button(close.clone())].spacing(12),
-        text(format!("当前执行主机：{}", state.host)),
-        text("以下是来源主机上的默认位置；修改过配置或数据目录时，以授权实例及会话实际来源为准。Claude Desktop 使用 Claude Code 的记录。")
-            .style(settings_muted_text_style),
+    ].spacing(12);
+    let card = settings_modal_card(header.extend([
+        text("以下是默认位置。修改过数据目录时，以会话详情中的来源为准。Claude Desktop 使用 Claude Code 的记录。")
+            .style(settings_muted_text_style).into(),
         scrollable(container(locations).width(Length::Fill)).height(Length::Fixed(320.0))
-            .direction(Direction::Vertical(Scrollbar::new().width(4).scroller_width(4))),
-        button(text("关闭")).padding([8, 12]).style(rounded_action_btn_style).on_press(close.clone()),
-    ].spacing(12)).width(Length::Fill).max_width(600);
+            .direction(Direction::Vertical(Scrollbar::new().width(4).scroller_width(4))).into(),
+        button(text("关闭")).padding([8, 12]).style(rounded_action_btn_style).on_press(close.clone()).into(),
+    ])).width(Length::Fill).max_width(600);
     settings_modal_overlay_with_escape_and_backdrop_dismiss(base, close, container(card).max_width(600))
 }
 

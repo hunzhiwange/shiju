@@ -38,9 +38,9 @@ pub(super) fn update(state: &mut super::State, connection: &Connection, notice: 
             if other != scope || !reader.exporting { return Task::none(); }
             let response = match result {
                 Ok(response) => response,
-                Err(_) => {
+                Err(error) => {
                     reader.exporting = false;
-                    return notify_error(notice, "Markdown 获取失败，请检查主机授权并重试");
+                    return notify_error(notice, super::request_error("Markdown 获取", &error));
                 }
             };
             match destination {

@@ -137,7 +137,7 @@ pub(super) fn view<'a>(state: &'a super::State, base: Element<'a, Message>) -> E
     let maintenance = &state.maintenance;
     let Some(target) = &maintenance.target else { return base; };
     let enabled = !maintenance.busy();
-    let mut body = column![text(format!("主机：{} · Codex 实例：{}", target.target_host, target.instance_id)),
+    let mut body = column![text(format!("Codex 实例：{}", target.instance_id)),
         text("先保存设置，再启动维护。关闭统一历史不会自动回滚；迁移与恢复需要单独启动。").style(settings_muted_text_style)].spacing(12);
     if let Some(options) = &maintenance.options {
         let mut unify = checkbox(options.unify_enabled).label("统一 Codex 会话历史").style(settings_checkbox_style);
@@ -153,7 +153,7 @@ pub(super) fn view<'a>(state: &'a super::State, base: Element<'a, Message>) -> E
     if let Some(progress) = &maintenance.progress {
         body = body.push(text(format!("{:?} · {} · {}/{} · 已改会话 {} · 状态行 {}",
             progress.status, progress.phase, progress.completed, progress.total, progress.changed_rollouts, progress.changed_state_rows)));
-        if progress.interrupted { body = body.push(text("主机重启导致任务中断，请核实备份后操作")); }
+        if progress.interrupted { body = body.push(text("服务重启导致任务中断，请核实备份后操作")); }
         if progress.cancellation_requested { body = body.push(text("取消已受理，仍需查询确认任务停止")); }
         body = body.push(row![
             button(text("查询进度")).padding([8, 12]).style(rounded_action_btn_style)
@@ -161,7 +161,7 @@ pub(super) fn view<'a>(state: &'a super::State, base: Element<'a, Message>) -> E
             button(text("取消维护")).padding([8, 12]).style(rounded_action_btn_style)
                 .on_press_maybe((maintenance.busy() && !maintenance.pending && !progress.cancellation_requested).then(|| msg(Event::Cancel)))].spacing(8));
     } else if maintenance.uncertain && !maintenance.pending {
-        body = body.push(settings_error_banner("提交结果未确认，已禁用重复操作。请在主机核实维护记录后重新连接。"));
+        body = body.push(settings_error_banner("提交结果未确认，已禁用重复操作。请重新连接并核实维护记录。"));
     }
     for backup in &maintenance.backups {
         body = body.push(button(text(format!("恢复备份 {}（{} 项）{}", backup.generation_id, backup.entries,

@@ -4,10 +4,13 @@ use desktop_ui_controls::system_settings_common::*;
 use super::Event as Message;
 
 use chrono::{Local, TimeZone};
+use desktop_assets::assets::Icon;
+use desktop_ui_controls::overlays::BelowOverlay;
+use desktop_ui_controls::single_line_label::SingleLineLabel;
 use iced::{Element, Length, widget::{button, column, container, row, scrollable, text, text_input, checkbox, hover}};
 use iced::widget::scrollable::{Direction, Scrollbar};
 use std::collections::BTreeMap;
-use vw_api_external_session::SessionMeta;
+use vw_api_external_session::{SessionMeta, SessionProvider};
 
 pub(super) fn view(state: &State, loopback: bool) -> Element<'_, Message> {
     if !state.open {
@@ -15,86 +18,78 @@ pub(super) fn view(state: &State, loopback: bool) -> Element<'_, Message> {
             .padding([8, 12]).style(rounded_action_btn_style)
             .on_press(message(Event::Open)).into();
     }
-    let mut header = column![
-        row![button(text("返回应用")).padding([8, 12]).style(rounded_action_btn_style)
-                .on_press(message(Event::Close))].spacing(12),
-        row![
-            action_menu(vec![Action::Refresh, Action::Select, Action::Terminal, Action::Sources],
-                "会话菜单", |action| match action {
-                    Action::Refresh => Event::Refresh,
-                    Action::Select => Event::Delete(delete::Event::Enter),
-                    Action::Terminal => Event::Resume(super::resume::Event::Preferences),
-                    _ => Event::Path(super::paths::Event::Sources(true)),
-                }),
-            button(text(if state.by_time { "项目" } else { "项目 ✓" })).padding([8, 12])
-                .style(rounded_action_btn_style).on_press(Event::GroupByTime(false)),
-            button(text(if state.by_time { "时间 ✓" } else { "时间" })).padding([8, 12])
-                .style(rounded_action_btn_style).on_press(Event::GroupByTime(true)),
-        ].spacing(8).wrap(),
-    ].spacing(8);
-    header = header.push(row![
-        text_input("搜索标题、摘要、目录、来源路径或 ID", &state.search_draft)
+    let title = row![
+        icon_btn(Icon::ArrowLeft, "返回应用", Some(Event::Close)),
+        icon_svg(Icon::Clock, 19.0),
+        text("会话").size(21).font(iced::Font { weight: iced::font::Weight::Semibold, ..iced::Font::DEFAULT }),
+        icon_btn(Icon::QuestionCircle, "会话记录在哪里", Some(Event::Path(super::paths::Event::Sources(true)))),
+        iced::widget::space::horizontal(),
+        action_menu(vec![Action::Refresh, Action::Select, Action::Terminal, Action::Sources],
+            "会话菜单", |action| match action {
+                Action::Refresh => Event::Refresh,
+                Action::Select => Event::Delete(delete::Event::Enter),
+                Action::Terminal => Event::Resume(super::resume::Event::Preferences),
+                _ => Event::Path(super::paths::Event::Sources(true)),
+            }),
+    ].spacing(9).align_y(iced::Alignment::Center);
+    let search = row![
+        text_input("搜索标题、摘要、目录、来源路径或会话 ID", &state.search_draft)
             .on_input(Event::SearchDraft).on_submit(Event::Search)
             .font(iced::Font::DEFAULT).style(settings_text_input_style).padding(SETTINGS_CONTROL_PADDING)
-            .size(SETTINGS_CONTROL_TEXT_SIZE),
-        button(text("搜索")).padding([8, 12]).style(primary_action_btn_style).on_press(Event::Search),
-        button(text("清空")).padding([8, 12]).style(rounded_action_btn_style).on_press(Event::ClearSearch),
-    ].spacing(8));
-    let mut apps = column![button(text(if state.provider.is_none() { "全部应用 ✓" } else { "全部应用" }))
-        .padding([8, 12]).style(rounded_action_btn_style).on_press(Event::Provider(None))].spacing(8);
-    let mut providers = vec![vw_api_external_session::SessionProvider::Claude,
-        vw_api_external_session::SessionProvider::Codex, vw_api_external_session::SessionProvider::Opencode,
-        vw_api_external_session::SessionProvider::Hermes, vw_api_external_session::SessionProvider::Pi,
-        vw_api_external_session::SessionProvider::Gemini, vw_api_external_session::SessionProvider::Openclaw,
-        vw_api_external_session::SessionProvider::Grokbuild, vw_api_external_session::SessionProvider::Kimi,
-        vw_api_external_session::SessionProvider::Omp, vw_api_external_session::SessionProvider::Mcode,
-        vw_api_external_session::SessionProvider::Dsh, vw_api_external_session::SessionProvider::Agy];
-    providers.sort_by_key(|provider| std::cmp::Reverse(state.app_counts.as_ref().map(|(groups, _)|
-        groups.iter().filter(|group| group.provider == *provider).map(|group| group.count).sum::<usize>()).unwrap_or(0)));
-    for provider in providers {
-        let count = state.app_counts.as_ref().map(|(groups, truncated)| {
-            let count = groups.iter().filter(|group| group.provider == provider).map(|group| group.count).sum::<usize>();
-            if *truncated { format!("{count}+（扫描截断）") } else { count.to_string() }
-        }).unwrap_or_else(|| "未知".into());
-        apps = apps.push(button(row![provider_icon(provider, 18.0),
-            text(format!("{provider:?}{}", if state.provider == Some(provider) { " ✓" } else { "" })).width(Length::Fill),
-            text(count.clone()).width(Length::Fill).align_x(iced::alignment::Horizontal::Right)
-                .style(move |theme| if count == "0" { settings_muted_text_style(theme) } else { iced::widget::text::default(theme) }),
-        ].spacing(8))
-            .padding([8, 12]).style(rounded_action_btn_style).on_press(Event::Provider(Some(provider))));
+            .size(SETTINGS_CONTROL_TEXT_SIZE).width(Length::Fill),
+        icon_btn(Icon::Search, "搜索会话", Some(Event::Search)),
+    ].spacing(3).align_y(iced::Alignment::Center);
+    let mut search = search;
+    if !state.search_draft.is_empty() || !state.search.is_empty() {
+        search = search.push(icon_btn(Icon::X, "清空搜索", Some(Event::ClearSearch)));
     }
-    header = header.push(button(row![
-        text(state.provider.map(|provider| format!("{provider:?}")).unwrap_or_else(|| "全部应用".into())),
-        text("▾"),
-    ].spacing(12)).padding([8, 12]).style(rounded_action_btn_style).on_press(Event::Applications(true)));
+    let controls = row![
+        applications(state),
+        container(search).width(Length::Fill),
+        container(row![
+            segment("按时间", state.by_time, Event::GroupByTime(true)),
+            segment("按项目", !state.by_time, Event::GroupByTime(false)),
+        ].spacing(2)).padding(3).style(subtle_surface),
+    ].spacing(9).align_y(iced::Alignment::Center);
+    let mut header = column![title, settings_divider(), controls].spacing(10);
     if state.busy { header = header.push(text("正在读取会话…").style(settings_muted_text_style)); }
-    if state.error { header = header.push(settings_error_banner("外部会话读取失败，请刷新重试；已加载内容保留。")); }
+    if let Some(error) = &state.error {
+        header = header.push(settings_error_banner(error.as_str()));
+    }
     let available = !state.busy && !state.deletion.busy();
-    let mut footer = column![].spacing(8);
+    let mut footer = column![].spacing(7);
     if state.deletion.selecting {
-        footer = footer.push(row![
-            text(format!("已选择 {} 项", state.deletion.selected.len())),
-            button(text("全选匹配结果")).padding([8, 12]).style(rounded_action_btn_style)
-                .on_press_maybe(available.then(|| message(Event::Delete(delete::Event::SelectAll)))),
-            button(text("清空")).padding([8, 12]).style(rounded_action_btn_style)
-                .on_press_maybe(available.then(|| message(Event::Delete(delete::Event::Clear)))),
-            button(text("退出选择")).padding([8, 12]).style(rounded_action_btn_style)
-                .on_press_maybe(available.then(|| message(Event::Delete(delete::Event::Exit)))),
-            button(text("删除所选")).padding([8, 12]).style(primary_action_btn_style)
-                .on_press_maybe((available && !state.deletion.selected.is_empty()).then(|| message(Event::Delete(delete::Event::Ask(None))))),
-        ].spacing(8).wrap());
+        header = header.push(row![
+            text(format!("{} 个匹配会话", state.page.as_ref().map_or(0, |page| page.total))).size(12)
+                .style(settings_muted_text_style),
+            button(text("全选匹配结果").size(12)).padding([4, 7])
+                .style(|theme, status| flat_button(theme, status, false))
+                .on_press_maybe(available.then_some(Event::Delete(delete::Event::SelectAll))),
+            button(text("清空选择").size(12)).padding([4, 7])
+                .style(|theme, status| flat_button(theme, status, false))
+                .on_press_maybe(available.then_some(Event::Delete(delete::Event::Clear))),
+        ].spacing(5).align_y(iced::Alignment::Center));
+        let selected = state.deletion.selected.len();
+        footer = footer.push(settings_divider()).push(row![
+            text(format!("已选 {selected} 个会话")).size(13),
+            iced::widget::space::horizontal(),
+            button(text("取消").size(13)).padding([6, 11]).style(rounded_action_btn_style)
+                .on_press_maybe(available.then_some(Event::Delete(delete::Event::Exit))),
+            button(text("删除所选").size(13)).padding([6, 11]).style(danger_action_btn_style)
+                .on_press_maybe((available && selected > 0).then_some(Event::Delete(delete::Event::Ask(None)))),
+        ].spacing(8).align_y(iced::Alignment::Center));
     }
     if state.deletion.busy() {
         header = header.push(text("正在处理所选会话，请稍候…").style(settings_muted_text_style));
     }
-    let mut content = column![].spacing(10).padding([0, 7]);
+    let mut content = column![].padding([4, 7]);
     for (identity, reason) in &state.deletion.failures {
         content = content.push(settings_error_banner(format!("{:?} · {} · {}：{}",
             identity.provider, identity.instance_id, identity.session_id.0, reason)));
     }
     if let Some(page) = &state.page {
-        header = header.push(text(format!("主机：{} · 共 {} 项 · 已加载 {} 项", state.host, page.total, page.sessions.len())));
-        if page.sessions.is_empty() { content = content.push(text(if state.search.is_empty() && state.provider.is_none() { "当前授权范围内没有外部会话" } else { "没有匹配的会话" })); }
+
+        if page.sessions.is_empty() { content = content.push(text(if state.search.is_empty() && state.provider.is_none() { "当前项目没有外部会话" } else { "没有匹配的会话" })); }
         for (dir, label, sessions) in groups(state) {
             let count = if !state.by_time && state.search.is_empty() && !page.groups.is_empty() {
                 Some(page.groups.iter().filter(|group| group.project_dir == dir
@@ -102,25 +97,61 @@ pub(super) fn view(state: &State, loopback: bool) -> Element<'_, Message> {
                     .map(|group| group.count).sum::<usize>())
             } else { None };
             let collapsed = !state.by_time && state.collapsed.contains(&dir);
-            let title = format!("{}{} · 已加载 {} 项{}", if collapsed { "▸ " } else { "▾ " }, label, sessions.len(),
-                count.map(|count| format!(" / {} {count} 项", if page.truncated { "至少" } else { "共" })).unwrap_or_default());
+
             let recent = sessions.first().map(|session| relative_time(session)).unwrap_or_default();
             let project_name = label.rsplit(['/', '\\']).find(|part| !part.is_empty()).unwrap_or(&label);
-            let mut group = column![text(format!("{project_name} · {recent}")).size(14), button(text(title).size(12)).padding([8, 12]).style(rounded_action_btn_style)
-                .on_press_maybe((!state.by_time).then(|| Event::ToggleProject(dir)))].spacing(8);
+            let total = count.unwrap_or(sessions.len());
+            let metadata = format!("{total}{} 个会话 · {recent}", if page.truncated { "+" } else { "" });
+            let mut heading = row![].spacing(9).align_y(iced::Alignment::Center);
+            if !state.by_time {
+                heading = heading.push(icon_svg(if collapsed { Icon::ChevronRight } else { Icon::ChevronDown }, 13.0));
+            }
+            heading = heading.push(text(project_name.to_owned()).size(14)
+                .font(iced::Font { weight: iced::font::Weight::Semibold, ..iced::Font::DEFAULT }));
+            if !state.by_time && dir.is_some() {
+                heading = heading.push(container(SingleLineLabel::new(label.clone(), 12.0)).style(|theme|
+                    container::Style { text_color: settings_muted_text_style(theme).color, ..Default::default() })
+                    .width(Length::Fill));
+            } else {
+                heading = heading.push(iced::widget::space::horizontal());
+            }
+            heading = heading.push(text(metadata).size(12).style(settings_muted_text_style));
+            let heading: Element<'_, Event> = if state.by_time {
+                container(heading).padding([8, 10]).style(subtle_surface).into()
+            } else {
+                button(heading).width(Length::Fill).padding([8, 10])
+                    .style(|theme, status| flat_button(theme, status, true))
+                    .on_press(Event::ToggleProject(dir)).into()
+            };
+            let mut group = column![heading, settings_divider()];
             if collapsed { content = content.push(group); continue; }
             for session in sessions {
                 let mut body = column![row![
-                    text(session.title.as_deref().unwrap_or(&session.identity.session_id.0)).size(15).width(Length::Fill),
+                    container(SingleLineLabel::new(session.title.as_deref()
+                        .unwrap_or(&session.identity.session_id.0).to_owned(), 14.0)).width(Length::Fill),
                     text(relative_time(session)).size(12).style(settings_muted_text_style),
                 ].spacing(8)].spacing(4);
                 let archived = session.source_path.as_deref().is_some_and(|path|
                     path.replace('\\', "/").contains("/archived_sessions/"));
-                body = body.push(text(format!("{}{}", if archived { "已归档 · " } else { "" },
-                    session.summary.as_deref().unwrap_or("暂无摘要"))).size(12).style(settings_muted_text_style));
-                let read = button(body).width(Length::Fill).padding(iced::Padding { top: 8.0, right: if state.deletion.selecting { 12.0 } else { 104.0 }, bottom: 8.0, left: 12.0 }).style(rounded_action_btn_style)
-                    .on_press_maybe((session.capabilities.read && !state.deletion.selecting)
-                        .then(|| Event::Read(session.identity.clone())));
+                let mut summary = row![].spacing(8).align_y(iced::Alignment::Center);
+                if archived { summary = summary.push(text("已归档").size(11).style(settings_muted_text_style)); }
+                if let Some(value) = session.summary.as_deref().filter(|value| !value.trim().is_empty()) {
+                    summary = summary.push(container(SingleLineLabel::new(preview(value, 220), 12.0)).style(|theme|
+                        container::Style { text_color: settings_muted_text_style(theme).color, ..Default::default() }));
+                }
+                if archived || session.summary.as_deref().is_some_and(|value| !value.trim().is_empty()) {
+                    body = body.push(summary);
+                }
+                let selected = state.deletion.selected.iter().any(|item| item.identity == session.identity);
+                let read_event = if state.deletion.selecting {
+                    session.capabilities.delete.then(|| Event::Delete(delete::Event::Toggle(session.identity.clone())))
+                } else {
+                    session.capabilities.read.then(|| Event::Read(session.identity.clone()))
+                };
+                let read = button(body).width(Length::Fill)
+                    .padding(iced::Padding { top: 7.0, right: if state.deletion.selecting { 10.0 } else { 82.0 }, bottom: 7.0, left: 10.0 })
+                    .style(move |theme, status| flat_button(theme, status, selected))
+                    .on_press_maybe(read_event);
                 let mut actions = vec![Action::CopyId, Action::CopyPath];
                 if loopback && cfg!(target_os = "macos") && session.identity.target_host == local_app_auth::HOST_ID {
                     actions.push(Action::Reveal);
@@ -147,7 +178,7 @@ pub(super) fn view(state: &State, loopback: bool) -> Element<'_, Message> {
                 let mut line = row![].spacing(8).align_y(iced::Alignment::Center);
                 if state.deletion.selecting && session.capabilities.delete {
                     let identity = session.identity.clone();
-                    line = line.push(checkbox(state.deletion.selected.iter().any(|selected| selected.identity == identity))
+                    line = line.push(checkbox(selected).style(settings_checkbox_style)
                         .on_toggle(move |_| Event::Delete(delete::Event::Toggle(identity.clone()))));
                 }
                 if state.deletion.selecting {
@@ -158,33 +189,135 @@ pub(super) fn view(state: &State, loopback: bool) -> Element<'_, Message> {
                             .align_right(Length::Fill).center_y(Length::Fill).padding([0, 8])))
                         .push(menu);
                 }
-                group = group.push(line).push(settings_divider());
+                group = group.push(container(line).padding([0, 4])).push(settings_divider());
             }
             content = content.push(group);
         }
         if page.truncated { content = content.push(text("来源扫描已截断，目录可能不完整").style(settings_muted_text_style)); }
-    } else if !state.busy && !state.error {
-        content = content.push(text("点击刷新，读取当前项目和授权主机的外部会话。"));
+    } else if !state.busy && state.error.is_none() {
+        content = content.push(text("点击刷新，读取当前项目的外部会话。"));
     }
     let more = state.page.as_ref().is_some_and(|page| page.next_cursor.is_some());
-    let base = column![header,
-        scrollable(container(content).width(Length::Fill))
+    if more {
+        content = content.push(container(button(text("加载更多").size(13)).padding([7, 12])
+            .style(rounded_action_btn_style)
+            .on_press_maybe(available.then_some(Event::Next)))
+            .width(Length::Fill).align_x(iced::alignment::Horizontal::Center).padding(8));
+    }
+    column![header,
+        container(scrollable(container(content).width(Length::Fill))
             .id("external-session-list")
             .on_scroll(|viewport| message(Event::ListScrolled(viewport.absolute_offset())))
             .height(Length::Fill)
-            .direction(Direction::Vertical(Scrollbar::new().width(4).scroller_width(4))),
+            .direction(Direction::Vertical(Scrollbar::new().width(4).scroller_width(4))))
+            .style(catalog_frame).clip(true),
         footer,
-        button(text("加载更多")).padding([8, 12]).style(rounded_action_btn_style)
-            .on_press_maybe((more && !state.busy && !state.deletion.busy()).then(|| message(Event::Next))),
-    ].spacing(10).height(Length::Fill).into();
-    if !state.apps_open { return base; }
-    let close = Event::Applications(false);
-    let card = settings_modal_card(column![
-        row![text("选择应用").size(18), settings_close_button(close.clone())].spacing(12),
-        scrollable(apps).height(Length::Fixed(340.0))
-            .direction(Direction::Vertical(Scrollbar::new().width(4).scroller_width(4))),
-    ].spacing(12)).max_width(400);
-    settings_modal_overlay_with_escape_and_backdrop_dismiss(base, close, card)
+    ].spacing(10).height(Length::Fill).into()
+}
+
+fn applications(state: &State) -> Element<'_, Event> {
+    use SessionProvider::*;
+    let mut providers = [Codex, Claude, Opencode, Hermes, Pi, Gemini, Openclaw, Grokbuild, Kimi, Omp, Mcode, Dsh, Agy];
+    let count = |provider: Option<SessionProvider>| state.app_counts.as_ref().map(|(groups, truncated)| {
+        let count: usize = groups.iter().filter(|group| provider.is_none_or(|app| group.provider == app))
+            .map(|group| group.count).sum();
+        (count, *truncated)
+    });
+    providers.sort_by_key(|provider| std::cmp::Reverse(count(Some(*provider)).map_or(0, |(count, _)| count)));
+    let count_label = |provider| match count(provider) {
+        Some((0, false)) if provider.is_some() => "无会话".to_owned(),
+        Some((n, truncated)) => format!("{n}{}", if truncated { "+" } else { "" }),
+        None => "—".to_owned(),
+    };
+    let app_icon = |provider| match provider {
+        Some(provider) => provider_icon(provider, 17.0),
+        None => icon_svg(Icon::Grid1x2, 17.0).into(),
+    };
+    let trigger = button(row![
+        app_icon(state.provider),
+        text(state.provider.map_or("全部应用", provider_name)).size(13),
+        text(count_label(state.provider)).size(12).style(settings_muted_text_style),
+        icon_svg(Icon::ChevronDown, 12.0),
+    ].spacing(7).align_y(iced::Alignment::Center))
+        .height(SETTINGS_CONTROL_HEIGHT).padding([0, 9]).style(rounded_action_btn_style)
+        .on_press(Event::Applications(!state.apps_open));
+    let mut menu = column![].spacing(2);
+    for provider in std::iter::once(None).chain(providers.into_iter().map(Some)) {
+        if provider == Some(providers[0]) { menu = menu.push(settings_divider()); }
+        let active = state.provider == provider;
+        let check: Element<'_, Event> = if active {
+            icon_svg(Icon::Check, 13.0).width(16).into()
+        } else {
+            iced::widget::space::horizontal().width(16).into()
+        };
+        menu = menu.push(button(row![
+            app_icon(provider),
+            text(provider.map_or("全部应用", provider_name)).size(13).width(Length::Fill),
+            text(count_label(provider)).size(12).style(settings_muted_text_style),
+            check,
+        ].spacing(8).align_y(iced::Alignment::Center)).width(Length::Fill).padding([6, 8])
+            .style(move |theme, status| flat_button(theme, status, active))
+            .on_press(Event::Provider(provider)));
+    }
+    let menu = container(scrollable(menu.padding([0, 7])).height(Length::Shrink).direction(
+        Direction::Vertical(Scrollbar::new().width(4).scroller_width(4)),
+    )).width(252).max_height(386).padding([6, 0]).style(settings_modal_card_style);
+    BelowOverlay::new(trigger, menu).show(state.apps_open).gap(4.0)
+        .on_close(Event::Applications(false)).dismiss_on_escape().into()
+}
+
+pub(super) fn provider_name(provider: SessionProvider) -> &'static str {
+    use SessionProvider::*;
+    match provider {
+        Codex => "Codex", Claude => "Claude Code", Opencode => "OpenCode", Hermes => "Hermes",
+        Pi => "Pi", Gemini => "Gemini CLI", Openclaw => "OpenClaw", Grokbuild => "Grok Build",
+        Kimi => "Kimi Code", Omp => "Oh My Pi", Mcode => "MiniMax Code",
+        Dsh => "DeepSeek Harness", Agy => "Antigravity",
+    }
+}
+
+pub(super) fn preview(value: &str, limit: usize) -> String {
+    let line = value.split_whitespace().collect::<Vec<_>>().join(" ");
+    let mut chars = line.chars();
+    let mut result: String = chars.by_ref().take(limit).collect();
+    if chars.next().is_some() { result.push('…'); }
+    result
+}
+
+pub(super) fn subtle_surface(theme: &iced::Theme) -> container::Style {
+    container::Style {
+        background: Some(theme.palette().text.scale_alpha(0.055).into()),
+        border: iced::border::rounded(8),
+        ..Default::default()
+    }
+}
+
+fn catalog_frame(theme: &iced::Theme) -> container::Style {
+    container::Style {
+        border: iced::Border { width: 1.0, color: theme.palette().text.scale_alpha(0.13),
+            radius: 9.0.into() },
+        ..Default::default()
+    }
+}
+
+pub(super) fn flat_button(theme: &iced::Theme, status: button::Status, selected: bool) -> button::Style {
+    let mut style = rounded_action_btn_style(theme, status);
+    style.border = iced::border::rounded(5);
+    style.background = match status {
+        button::Status::Hovered | button::Status::Pressed => style.background,
+        _ if selected => Some(theme.palette().text.scale_alpha(0.065).into()),
+        _ => None,
+    };
+    style
+}
+
+pub(super) fn segment(label: &'static str, selected: bool, event: Event) -> iced::widget::Button<'static, Event> {
+    button(text(label).size(13)).padding([5, 10]).on_press(event)
+        .style(move |theme, status| {
+            let mut style = flat_button(theme, status, false);
+            if selected { style.background = Some(theme.palette().background.into()); }
+            style
+        })
 }
 
 fn time_group(session: &SessionMeta) -> &'static str {
@@ -213,11 +346,14 @@ fn groups(state: &State) -> Vec<(Option<String>, String, Vec<&SessionMeta>)> {
         for session in &page.sessions {
             groups.entry(session.project_dir.clone()).or_default().push(session);
         }
-        groups.into_iter().map(|(dir, mut sessions)| {
+        let mut groups: Vec<_> = groups.into_iter().map(|(dir, mut sessions)| {
             sessions.sort_by_key(|session| std::cmp::Reverse(session.last_active_at.or(session.created_at)));
             let label = dir.clone().unwrap_or_else(|| "未知目录".into());
             (dir, label, sessions)
-        }).collect()
+        }).collect();
+        groups.sort_by_key(|(_, _, sessions)| std::cmp::Reverse(
+            sessions[0].last_active_at.or(sessions[0].created_at)));
+        groups
     }
 }
 
@@ -233,21 +369,24 @@ pub fn provider_icon<'a>(provider: vw_api_external_session::SessionProvider, siz
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum Action { CopyMarkdown, ExportMarkdown, Options, Refresh, Select, Terminal, Sources, CopyId, CopyPath, Reveal, Delete, Maintenance, Compression }
+pub enum Action { CopyMarkdown, ExportMarkdown, Options, Reload, Refresh, Select, CopyResume, Terminal, Sources, CopyId, CopyPath, Reveal, Delete, Maintenance, Compression }
 impl std::fmt::Display for Action {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_str(match self {
             Self::CopyMarkdown => "复制整段 Markdown", Self::ExportMarkdown => "导出整段 Markdown", Self::Options => "显示与复制选项",
-            Self::Refresh => "刷新", Self::Select => "多选", Self::Terminal => "首选终端",
-            Self::Sources => "会话记录在哪里", Self::CopyId => "复制会话 ID", Self::CopyPath => "复制来源路径",
+            Self::Reload => "重新读取", Self::Refresh => "刷新列表", Self::Select => "选择多个", Self::Terminal => "首选终端",
+            Self::CopyResume => "复制恢复命令", Self::Sources => "会话记录在哪里", Self::CopyId => "复制会话 ID", Self::CopyPath => "复制来源路径",
             Self::Reveal => "在 Finder 中显示", Self::Delete => "删除…", Self::Maintenance => "历史维护设置",
             Self::Compression => "压缩设置与磁盘统计",
         })
     }
 }
 pub fn action_menu<'a>(actions: Vec<Action>, placeholder: &'a str, on_select: impl Fn(Action) -> Event + 'a) -> Element<'a, Event> {
-    settings_select(actions, None::<Action>, on_select).placeholder(placeholder)
-        .width(Length::Fixed(if placeholder == "更多" { 80.0 } else { 128.0 })).into()
+    iced::widget::tooltip(
+        settings_select(actions, None::<Action>, on_select)
+            .menu_icon(Icon::DotsThreeVertical, 218.0).width(Length::Fixed(30.0)),
+        text(placeholder).size(12), iced::widget::tooltip::Position::Top,
+    ).into()
 }
 pub(super) fn relative_time(session: &SessionMeta) -> String {
     let Some(ms) = session.last_active_at.or(session.created_at) else { return "时间未知".into(); };

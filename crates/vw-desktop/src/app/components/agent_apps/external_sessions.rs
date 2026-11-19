@@ -3,14 +3,20 @@ use crate::app::{App, Message, state::AgentAppsContext};
 pub use desktop_apps_ui::agent_apps::external_sessions::{Event, State};
 use iced::{Element, Task};
 pub(crate) fn message(event: Event) -> Message {
-    Message::Settings(crate::app::message::settings::SettingsMessage::AppsCatalog(
-        crate::app::message::settings::AppsCatalogMessage::ExternalSessions(event),
-    ))
+    match event {
+        Event::TextContext(Some(effect)) => {
+            crate::app::components::text_editor_context_menu::text_context_message(effect)
+        }
+        Event::TextContext(None) => Message::None,
+        event => Message::Settings(crate::app::message::settings::SettingsMessage::AppsCatalog(
+            crate::app::message::settings::AppsCatalogMessage::ExternalSessions(event),
+        )),
+    }
 }
-pub(crate) fn view(state: &State) -> Element<'_, Message> {
+pub(crate) fn view(state: &State, i18n: crate::app::i18n::I18n) -> Element<'_, Message> {
     let loopback =
         crate::app::config::gateway_client().is_ok_and(|client| client.endpoint().is_loopback());
-    desktop_apps_ui::agent_apps::external_sessions::view(state, loopback).map(message)
+    desktop_apps_ui::agent_apps::external_sessions::view(state, loopback, i18n).map(message)
 }
 pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
     if let Event::Compression(event) = event {

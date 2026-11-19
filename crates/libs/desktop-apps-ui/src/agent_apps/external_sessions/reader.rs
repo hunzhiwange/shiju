@@ -2,6 +2,8 @@
 use crate::AgentAppsContext;
 use super::{Event, details, find, images, message};
 use desktop_ui_controls::system_settings_common::*;
+use desktop_assets::assets::Icon;
+use desktop_ui_controls::{overlays::BelowOverlay, single_line_label::SingleLineLabel};
 use gateway_external_session::AgentAppsReadError;
 use super::Event as Message;
 use crate::{Connection, Notice, error as notify_error};
@@ -20,6 +22,7 @@ pub(super) fn handles(event: &Event) -> bool {
             | Event::Read(_)
             | Event::ReaderOutline
             | Event::ReaderOptions
+            | Event::ReaderSearch
             | Event::Back
             | Event::Adjacent(_)
             | Event::Turn(_)
@@ -180,6 +183,7 @@ fn start(state: &mut super::State, connection: &Connection, notice: &mut Option<
         exporting: false,
         outline_open: true,
         options_open: false,
+        search_open: false,
     });
     Task::batch([
         task,
@@ -187,33 +191,36 @@ fn start(state: &mut super::State, connection: &Connection, notice: &mut Option<
     ])
 }
 
-pub(super) fn view<'a>(state: &'a super::State, reader: &'a State, loopback: bool) -> Element<'a, Message> {
+pub(super) fn view<'a>(state: &'a super::State, reader: &'a State, loopback: bool, i18n: desktop_i18n::I18n) -> Element<'a, Message> {
     let sessions = super::list::readable_sessions(state);
     let index = sessions.iter().position(|session| session.identity == reader.identity);
     let count = sessions.len();
     let session = state.page.as_ref().and_then(|page| page.sessions.iter().find(|s| s.identity == reader.identity));
     let mut header = row![
-        button(text("返回列表")).padding([8, 12]).style(rounded_action_btn_style).on_press(Event::Back),
-        super::list::provider_icon(reader.identity.provider, 24.0),
-        container(text(&reader.title).size(18)).width(Length::Fill),
-        button(text("上一个")).padding([8, 12]).style(rounded_action_btn_style)
-            .on_press_maybe(index.filter(|i| *i > 0).map(|_| Event::Adjacent(false))),
-        button(text("下一个")).padding([8, 12]).style(rounded_action_btn_style)
-            .on_press_maybe(index.filter(|i| i + 1 < count).map(|_| Event::Adjacent(true))),
-    ].spacing(8);
+        icon_btn(Icon::ArrowLeft, "返回列表", Some(Event::Back)),
+        super::list::provider_icon(reader.identity.provider, 21.0),
+        container(SingleLineLabel::new(reader.title.clone(), 17.0).font(iced::Font {
+            weight: iced::font::Weight::Semibold, ..iced::Font::DEFAULT
+        })).width(Length::Fill),
+        icon_btn(Icon::ChevronLeft, "上一个会话", index.filter(|i| *i > 0).map(|_| Event::Adjacent(false))),
+        icon_btn(Icon::ChevronRight, "下一个会话", index.filter(|i| i + 1 < count).map(|_| Event::Adjacent(true))),
+    ].spacing(8).align_y(iced::Alignment::Center);
     if let Some(session) = session {
         header = header.push(super::resume::reader_control(session, state));
     }
-    let mut actions = vec![super::list::Action::Refresh, super::list::Action::CopyId,
-        super::list::Action::CopyPath, super::list::Action::CopyMarkdown,
-        super::list::Action::ExportMarkdown, super::list::Action::Options];
+    use super::list::Action;
+    let mut actions = Vec::new();
+    if session.is_some_and(|s| s.capabilities.export_markdown) {
+        actions.extend([Action::CopyMarkdown, Action::ExportMarkdown]);
+    }
+    actions.extend([Action::CopyId, Action::CopyPath, Action::Options, Action::Reload]);
     if session.is_some_and(|s| s.capabilities.delete) { actions.push(super::list::Action::Delete); }
     let identity = reader.identity.clone();
     let generation = state.generation;
     header = header.push(super::list::action_menu(actions, "更多", move |action| {
         use super::list::Action;
         match action {
-            Action::Refresh => Event::Read(identity.clone()),
+            Action::Reload => Event::Read(identity.clone()),
             Action::CopyId => Event::Path(super::paths::Event::Copy(identity.clone(), generation, super::paths::Location::Identity)),
             Action::CopyPath => Event::Path(super::paths::Event::Copy(identity.clone(), generation, super::paths::Location::Source)),
             Action::CopyMarkdown => Event::Export(super::export::Event::Start(super::export::Destination::Clipboard, false)),
@@ -222,43 +229,60 @@ pub(super) fn view<'a>(state: &'a super::State, reader: &'a State, loopback: boo
             _ => Event::ReaderOptions,
         }
     }));
-    let status = if reader.failed {
-        "读取失败，内容不完整".to_owned()
-    } else if reader.loading {
-        format!("正在读取… {} / {} 条消息", reader.messages.len(), reader.total)
-    } else {
-        format!("已读取 {} 条消息", reader.messages.len())
-    };
-    let mut toolbar = row![button(text(if reader.outline_open { "收起目录" } else { "展开目录" }))
-        .padding([8, 12]).style(rounded_action_btn_style).on_press(Event::ReaderOutline),
-        button(text("显示与复制选项")).padding([8, 12]).style(rounded_action_btn_style).on_press(Event::ReaderOptions)].spacing(8);
+    let mut metadata = row![].spacing(7).align_y(iced::Alignment::Center);
     if let Some(session) = session {
-        if let Some(dir) = &session.project_dir { toolbar = toolbar.push(text(dir).size(12)); }
-        if session.last_active_at.or(session.created_at).is_some() {
-            toolbar = toolbar.push(text(super::list::relative_time(session)).size(12));
+        if let Some(dir) = &session.project_dir {
+            metadata = metadata.push(container(row![
+                icon_svg(Icon::FileText, 13.0),
+                container(SingleLineLabel::new(dir.clone(), 12.0)).width(Length::Fill),
+            ].spacing(6).align_y(iced::Alignment::Center)).padding([4, 7])
+                .max_width(280).width(Length::Fill).style(super::list::subtle_surface));
+        }
+        if let Some(at) = session.last_active_at.or(session.created_at).and_then(timestamp) {
+            metadata = metadata.push(text(at).size(12).style(settings_muted_text_style));
         }
     }
-    toolbar = toolbar.push(button(text("导出 Markdown")).padding([8, 12]).style(rounded_action_btn_style)
-        .on_press_maybe((!reader.exporting && session.is_some_and(|s| s.capabilities.export_markdown))
-            .then(|| Event::Export(super::export::Event::Start(super::export::Destination::File, false)))));
-    let mut content = column![header.wrap(), toolbar.wrap(), find::controls(reader),
-        text(status).size(12).style(settings_muted_text_style)].spacing(8);
-    if reader.options_open {
-        content = content.push(button(text(if reader.details.process_open { "收起执行过程" } else { "展开执行过程" }))
-                .padding([8, 12]).style(rounded_action_btn_style).on_press(Event::Details(details::Event::Process)))
-            .push(super::export::controls(state, reader))
-            .push(text("复制和导出不包含思考内容").size(12).style(settings_muted_text_style));
-        if let Some(session) = session { content = content.push(super::paths::controls(state, session, loopback)); }
+    let mut options = column![
+        button(text(if reader.details.process_open { "收起执行过程" } else { "展开执行过程" }).size(13))
+            .padding([6, 9]).style(rounded_action_btn_style).on_press(Event::Details(details::Event::Process)),
+        super::export::controls(state, reader),
+    ].spacing(7);
+    if let Some(session) = session { options = options.push(super::paths::controls(state, session, loopback)); }
+    let options = BelowOverlay::new(
+        icon_btn(Icon::Sliders, "显示与复制选项", Some(Event::ReaderOptions)),
+        container(options).width(320).padding(10).style(settings_modal_card_style),
+    ).show(reader.options_open).gap(5.0).on_close(Event::ReaderOptions).dismiss_on_escape();
+    let toolbar = row![
+        container(metadata).width(Length::Fill),
+        icon_btn(Icon::Columns, if reader.outline_open { "收起对话目录" } else { "展开对话目录" }, Some(Event::ReaderOutline)),
+        find::filters(reader),
+        options,
+        icon_btn(Icon::CloudDownload, "导出为 Markdown 文件",
+            (!reader.exporting && session.is_some_and(|s| s.capabilities.export_markdown))
+                .then(|| Event::Export(super::export::Event::Start(super::export::Destination::File, false)))),
+        icon_btn(Icon::Search, "查找会话内容", Some(Event::ReaderSearch)),
+    ].spacing(7).align_y(iced::Alignment::Center);
+    let mut content = column![header, settings_divider(), toolbar].spacing(8);
+    if reader.search_open {
+        content = content.push(find::controls(reader));
     }
+    if reader.failed {
+        content = content.push(settings_error_banner("读取中断，当前内容可能不完整。"));
+    } else if reader.loading {
+        content = content.push(text("正在读取会话…").size(12).style(settings_muted_text_style));
+    }
+    content = content.push(settings_divider());
     let mut workspace = row![
-        scrollable(container(body(reader)).width(Length::Fill))
+        scrollable(container(body(reader, i18n)).width(Length::Fill))
             .id("external-session-reader")
             .on_scroll(|v| message(Event::ReaderScrolled(v.absolute_offset())))
             .width(Length::FillPortion(3)).height(Length::Fill)
             .direction(Direction::Vertical(Scrollbar::new().width(4).scroller_width(4))),
-    ].spacing(12).height(Length::Fill);
+    ].spacing(0).height(Length::Fill);
     if reader.outline_open {
-        workspace = workspace.push(scrollable(container(outline(reader)))
+        workspace = workspace.push(container(iced::widget::space::vertical()).width(1)
+            .height(Length::Fill).style(settings_divider_style));
+        workspace = workspace.push(scrollable(container(outline(reader)).width(Length::Fill))
             .width(Length::FillPortion(1)).height(Length::Fill)
             .direction(Direction::Vertical(Scrollbar::new().width(4).scroller_width(4))));
     }
@@ -266,38 +290,42 @@ pub(super) fn view<'a>(state: &'a super::State, reader: &'a State, loopback: boo
     images::overlay(base, reader)
 }
 
+fn timestamp(ms: i64) -> Option<String> {
+    use chrono::TimeZone;
+    chrono::Local.timestamp_millis_opt(ms).single().map(|date| date.format("%m月%d日 %H:%M").to_string())
+}
+
 pub(super) fn outline(reader: &State) -> Element<'_, Message> {
-    let mut outline = column![text("轮次目录").size(15)].spacing(8).padding([0, 7]);
+    let mut outline = column![
+        row![text("对话目录").size(14), text(reader.turns.len().to_string()).size(12)
+            .style(settings_muted_text_style)].spacing(8),
+    ].spacing(7).padding([8, 7]);
     for (i, turn) in reader.turns.iter().enumerate() {
-        outline = outline.push(
-            button(column![text(format!(
-                "{}{}. {}",
-                if i == reader.active { "● " } else { "" },
-                i + 1,
-                turn.question_preview.chars().take(80).collect::<String>()
-            )), text(format!("{} 个步骤{}", turn.step_count, if turn.aborted { " · 已中止" } else { "" })).size(12),
-                text(reply_preview(reader, turn)).size(12).style(settings_muted_text_style)])
-            .padding([8, 12])
-            .style(if i == reader.active { primary_action_btn_style } else { rounded_action_btn_style })
-            .on_press(message(Event::Turn(i))),
-        );
+        let title = if turn.question_preview.trim().is_empty() {
+            format!("第 {} 轮", i + 1)
+        } else {
+            super::list::preview(&turn.question_preview, 120)
+        };
+        let active = i == reader.active;
+        outline = outline.push(button(column![
+            container(SingleLineLabel::new(title, 13.0)).width(Length::Fill),
+            text(format!("{} 步{}", turn.step_count, if turn.aborted { " · 已中止" } else { "" }))
+                .size(12).style(settings_muted_text_style),
+            container(SingleLineLabel::new(reply_preview(reader, turn), 12.0)).width(Length::Fill),
+        ].spacing(3)).width(Length::Fill).padding([7, 9])
+            .style(move |theme, status| super::list::flat_button(theme, status, active))
+            .on_press(Event::Turn(i)));
     }
     outline.into()
 }
 
-pub(super) fn body(reader: &State) -> Element<'_, Message> {
-    let mut body = column![].spacing(12).padding([0, 7]);
-    if let Some(hit) = find::focused(reader) {
+pub(super) fn body(reader: &State, i18n: desktop_i18n::I18n) -> Element<'_, Message> {
+    let query = reader.find.query.trim().to_lowercase();
+    let mut body = column![].spacing(13).padding([10, 7]);
+    if let Some(hit) = find::focused(reader, i18n) {
         body = body.push(hit);
     }
     if let Some(turn) = reader.turns.get(reader.active) {
-        body = body.push(text(format!(
-            "第 {} 轮 · {} 个步骤 · {} 个错误{}",
-            reader.active + 1,
-            turn.step_count,
-            turn.error_count,
-            if turn.aborted { " · 已中止" } else { "" }
-        )));
         // Render only the selected server-defined range; do not regroup turns in the UI.
         let messages: Vec<_> = reader
             .messages
@@ -309,12 +337,21 @@ pub(super) fn body(reader: &State) -> Element<'_, Message> {
         if reader.find.filter != find::Filter::Changes {
             for question in messages.iter().filter(|m| m.role == "user" && !m.injected) {
                 body = body.push(row![container(text("")).width(Length::FillPortion(1)), container(settings_group_card(
-                    column![text("提问").size(14), details::message_view(reader, question)].spacing(6).max_width(640),
+                    column![text("提问").size(14), details::message_view(reader, question, &query, i18n)].spacing(6).max_width(640),
                 )).width(Length::FillPortion(4))]);
             }
         }
+        let mut author = row![
+            super::list::provider_icon(reader.identity.provider, 19.0),
+            text(super::list::provider_name(reader.identity.provider)).size(14)
+                .font(iced::Font { weight: iced::font::Weight::Semibold, ..iced::Font::DEFAULT }),
+        ].spacing(8).align_y(iced::Alignment::Center);
+        if let Some(at) = turn.ts.and_then(timestamp) {
+            author = author.push(text(at).size(12).style(settings_muted_text_style));
+        }
+        body = body.push(author);
         if reader.find.filter != find::Filter::Conversation {
-            body = body.push(details::steps(reader, turn));
+            body = body.push(details::steps(reader, turn, &query, i18n));
         }
         if reader.find.filter != find::Filter::Changes {
             if turn.has_final_reply {
@@ -325,10 +362,8 @@ pub(super) fn body(reader: &State) -> Element<'_, Message> {
                         && (!display_text(m).is_empty()
                             || m.blocks.iter().any(|b| !images::references(b).is_empty()))
                 }) {
-                    body = body.push(settings_group_card(
-                        column![text("最终回复").size(14), details::message_view(reader, reply)]
-                            .spacing(6),
-                    ));
+                    body = body.push(container(details::message_view(reader, reply, &query, i18n))
+                        .width(Length::Fill).padding(iced::Padding { left: 27.0, right: 8.0, ..Default::default() }));
                 } else {
                     body = body.push(text(if reader.failed { "回复尚未读到，内容不完整" } else { "正在读取回复…" }).style(settings_muted_text_style));
                 }
@@ -409,6 +444,7 @@ pub struct State {
     pub exporting: bool,
     pub outline_open: bool,
     pub options_open: bool,
+    pub search_open: bool,
 }
 impl State {
     pub fn cancel(&self) {
@@ -428,10 +464,19 @@ pub struct Scope {
 }
 
 pub(super) fn navigate(state: &mut super::State, event: &Event) -> Option<Task<Event>> {
-    if !matches!(event, Event::ReaderOutline | Event::ReaderOptions | Event::Find(_) | Event::ListScrolled(_) | Event::ReaderScrolled(_) | Event::Back | Event::Turn(_)) { return None; }
+    if !matches!(event, Event::ReaderOutline | Event::ReaderOptions | Event::ReaderSearch | Event::Find(_) | Event::ListScrolled(_) | Event::ReaderScrolled(_) | Event::Back | Event::Turn(_)) { return None; }
     match event.clone() {
         Event::ReaderOutline => { if let Some(reader) = &mut state.reader { reader.outline_open = !reader.outline_open; } }
         Event::ReaderOptions => { if let Some(reader) = &mut state.reader { reader.options_open = !reader.options_open; } }
+        Event::ReaderSearch => {
+            if let Some(reader) = &mut state.reader {
+                reader.search_open = !reader.search_open;
+                if reader.search_open {
+                    return Some(iced::widget::operation::focus(find::INPUT_ID));
+                }
+                find::update(reader, find::Event::Query(String::new()));
+            }
+        }
         Event::Find(value) => {
             if let Some(reader) = &mut state.reader {
                 find::update(reader, value);

@@ -5,7 +5,7 @@ use super::Event as Message;
 
 use iced::{
     Element,
-    widget::{button, column, row, text, text_input},
+    widget::{column, row, text, text_input},
 };
 use vw_api_external_session::*;
 
@@ -59,10 +59,57 @@ fn searchable(reader: &reader::State, block: &SessionBlock, filter: Filter) -> S
                 SessionBlock::ToolCall { input_full, .. } => input_full.as_ref(),
                 _ => None,
             };
-            format!("{projected}\n{}", details::loaded_text(reader, reference).unwrap_or_default())
+            let diff = match block {
+                SessionBlock::ToolCall { diff: Some(diff), .. } => details::loaded_text(reader, diff.full.as_ref()),
+                _ => None,
+            };
+            format!("{projected}\n{}\n{}", details::loaded_text(reader, reference).unwrap_or_default(),
+                diff.unwrap_or_default())
         }
     }
 }
+/// Convert case-insensitive matches back to byte ranges in the displayed text.
+pub(super) fn match_ranges(value: &str, query: &str) -> Vec<std::ops::Range<usize>> {
+    if query.is_empty() {
+        return Vec::new();
+    }
+    let folded = value.to_lowercase();
+    let mut matches = folded.match_indices(query).peekable();
+    if matches.peek().is_none() {
+        return Vec::new();
+    }
+    if value.is_ascii() {
+        return matches.map(|(start, hit)| start..start + hit.len()).collect();
+    }
+
+    let mut folded_offset = 0;
+    let offsets: Vec<_> = value.char_indices().map(|(original, ch)| {
+        let start = folded_offset;
+        folded_offset += ch.to_lowercase().map(char::len_utf8).sum::<usize>();
+        (start, original)
+    }).chain(std::iter::once((folded.len(), value.len()))).collect();
+    let mut ranges: Vec<std::ops::Range<usize>> = Vec::new();
+    for (start, hit) in matches {
+        let from = offsets.partition_point(|&(offset, _)| offset <= start) - 1;
+        let to = offsets.partition_point(|&(offset, _)| offset < start + hit.len());
+        let range = offsets[from].1..offsets[to].1;
+        if let Some(last) = ranges.last_mut().filter(|last| last.end > range.start) {
+            last.end = last.end.max(range.end);
+        } else {
+            ranges.push(range);
+        }
+    }
+    ranges
+}
+
+pub(super) fn matches(value: &str, query: &str) -> bool {
+    !query.is_empty() && value.to_lowercase().contains(query)
+}
+
+pub(super) fn block_matches(reader: &reader::State, block: &SessionBlock, query: &str) -> bool {
+    !query.is_empty() && matches(&searchable(reader, block, reader.find.filter), query)
+}
+
 fn hits(reader: &reader::State) -> Vec<Hit> {
     let query = reader.find.query.trim().to_lowercase();
     if query.is_empty() {
@@ -74,13 +121,13 @@ fn hits(reader: &reader::State) -> Vec<Hit> {
             !m.injected && *i >= turn.first_message_index && *i <= turn.last_message_index
         }) {
             if m.blocks.is_empty() && reader.find.filter != Filter::Changes {
-                if m.content.to_lowercase().contains(&query) {
+                if matches(&m.content, &query) {
                     hits.push(Hit { turn: t, text: m.content.clone() });
                 }
             } else {
                 for b in &m.blocks {
                     let value = searchable(reader, b, reader.find.filter);
-                    if value.to_lowercase().contains(&query) {
+                    if matches(&value, &query) {
                         hits.push(Hit { turn: t, text: value });
                     }
                 }
@@ -116,25 +163,24 @@ pub(super) fn update(reader: &mut reader::State, value: Event) {
         reader.active = hit.turn;
     }
 }
-pub(super) fn controls(reader: &reader::State) -> Element<'_, Message> {
-    let count = hits(reader).len();
-    let mut filters = row![].spacing(8);
+pub(super) const INPUT_ID: &str = "external-session-find";
+
+pub(super) fn filters(reader: &reader::State) -> Element<'_, Message> {
+    let mut filters = row![].spacing(2);
     for (filter, label) in
         [(Filter::All, "全部"), (Filter::Conversation, "对话"), (Filter::Changes, "改动")]
     {
-        filters = filters.push(
-            button(text(format!(
-                "{}{label}",
-                if reader.find.filter == filter { "● " } else { "" }
-            )))
-            .padding([8, 12])
-            .style(rounded_action_btn_style)
-            .on_press(event(Event::Filter(filter))),
-        );
+        filters = filters.push(super::list::segment(label, reader.find.filter == filter, event(Event::Filter(filter))));
     }
+    iced::widget::container(filters).padding(3).style(super::list::subtle_surface).into()
+}
+
+pub(super) fn controls(reader: &reader::State) -> Element<'_, Message> {
+    use desktop_assets::assets::Icon;
+    let count = hits(reader).len();
     row![
-        filters,
             text_input("查找已加载内容", &reader.find.query)
+                .id(INPUT_ID)
                 .style(settings_text_input_style)
                 .padding(SETTINGS_CONTROL_PADDING)
                 .size(SETTINGS_CONTROL_TEXT_SIZE)
@@ -144,25 +190,20 @@ pub(super) fn controls(reader: &reader::State) -> Element<'_, Message> {
                 if count == 0 { 0 } else { reader.find.selected.min(count - 1) + 1 },
                 count
             )),
-            button(text("上一处"))
-                .padding([8, 12])
-                .style(rounded_action_btn_style)
-                .on_press_maybe((count > 0).then(|| event(Event::Move(false)))),
-            button(text("下一处"))
-                .padding([8, 12])
-                .style(rounded_action_btn_style)
-                .on_press_maybe((count > 0).then(|| event(Event::Move(true))))
+            icon_btn(Icon::ArrowUp, "上一处", (count > 0).then(|| event(Event::Move(false)))),
+            icon_btn(Icon::ArrowDown, "下一处", (count > 0).then(|| event(Event::Move(true)))),
+            icon_btn(Icon::X, "关闭查找", Some(ParentEvent::ReaderSearch)),
     ]
     .spacing(8)
-    .wrap()
+    .align_y(iced::Alignment::Center)
     .into()
 }
-pub(super) fn focused(reader: &reader::State) -> Option<Element<'_, Message>> {
+pub(super) fn focused(reader: &reader::State, i18n: desktop_i18n::I18n) -> Option<Element<'_, Message>> {
     let hit = hits(reader).into_iter().nth(reader.find.selected)?;
     if hit.turn != reader.active {
         return None;
     }
-    Some(settings_group_card(column![text("当前命中").size(14), text(hit.text)].spacing(6)).into())
+    Some(settings_group_card(column![text("当前命中").size(14), details::selectable(hit.text, false, &reader.find.query.trim().to_lowercase(), i18n)].spacing(6)).into())
 }
 
 #[derive(Clone, Copy, Default, Debug, PartialEq)]

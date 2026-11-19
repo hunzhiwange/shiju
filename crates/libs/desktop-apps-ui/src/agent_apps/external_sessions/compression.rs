@@ -107,7 +107,7 @@ pub fn update(state: &mut super::State, connection: crate::Connection, notice: &
 pub fn view<'a>(state: &'a super::State, base: Element<'a, super::Event>) -> Element<'a, super::Event> {
     let compression = &state.compression;
     let Some(target) = &compression.target else { return base; };
-    let mut body = column![text(format!("主机：{} · Codex 实例：{}", target.target_host, target.instance_id)),
+    let mut body = column![text(format!("Codex 实例：{}", target.instance_id)),
         text("此开关由 Codex 在启动后处理历史压缩；桌面只保存原生配置并查询磁盘占用。")
             .style(settings_muted_text_style)].spacing(12);
     if let Some(value) = &compression.value {

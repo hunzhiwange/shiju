@@ -6,6 +6,14 @@ pub fn text_context_menu<'a, MenuMessage: Clone + 'a>(
     i18n: desktop_i18n::I18n,
     message: impl Fn(TextContextAction) -> MenuMessage,
 ) -> Element<'a, MenuMessage> {
+    selectable_menu(i18n, true, message)
+}
+
+pub(super) fn selectable_menu<'a, MenuMessage: Clone + 'a>(
+    i18n: desktop_i18n::I18n,
+    allow_append: bool,
+    message: impl Fn(TextContextAction) -> MenuMessage,
+) -> Element<'a, MenuMessage> {
     let menu_item = |label: &'static str, action| {
         button(
             container(text(label).size(12))
@@ -19,18 +27,16 @@ pub fn text_context_menu<'a, MenuMessage: Clone + 'a>(
         .on_press(message(action))
     };
 
-    container(
-        column![
-            menu_item(i18n.__("复制"), TextContextAction::Copy),
-            menu_item(i18n.__("添加到对话"), TextContextAction::Append),
-            menu_item(i18n.__("百度搜索"), TextContextAction::Baidu),
-            menu_item(i18n.__("Google 搜索"), TextContextAction::Google),
-            menu_item(i18n.__("Bing 搜索"), TextContextAction::Bing),
-        ]
-        .spacing(0)
-        .width(Length::Fixed(134.0)),
-    )
-    .padding([3, 3])
+    let mut menu = column![menu_item(i18n.__("复制"), TextContextAction::Copy)];
+    if allow_append {
+        menu = menu.push(menu_item(i18n.__("添加到对话"), TextContextAction::Append));
+    }
+    container(menu
+        .push(menu_item(i18n.__("百度搜索"), TextContextAction::Baidu))
+        .push(menu_item(i18n.__("Google 搜索"), TextContextAction::Google))
+        .push(menu_item(i18n.__("Bing 搜索"), TextContextAction::Bing))
+        .width(Length::Fixed(134.0)))
+    .padding(3)
     .style(chat_context_menu_style)
     .into()
 }

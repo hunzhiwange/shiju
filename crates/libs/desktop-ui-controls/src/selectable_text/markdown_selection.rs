@@ -26,7 +26,7 @@ pub trait SelectionMessage: Clone {
 
 
 use super::chat_text_selection_color;
-use super::selection_menu::text_context_menu;
+use super::selection_menu::selectable_menu;
 use super::markdown_links::LinkTarget;
 
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
@@ -58,6 +58,7 @@ struct AreaState {
     press: Option<Point>,
     selected: bool,
     text_menu: TextMenuState,
+    readonly_text: Option<String>,
 }
 
 #[derive(Default)]
@@ -70,6 +71,7 @@ struct TextMenuState {
 struct TextMenu<'a> {
     full_text: std::borrow::Cow<'a, str>,
     i18n: I18n,
+    allow_append: bool,
     content: Option<Element<'static, TextContextAction>>,
 }
 
@@ -113,7 +115,53 @@ pub fn selectable_titled_text<'a, Message: SelectionMessage + 'a>(
         content: column![title, body].spacing(3).into(),
         selection,
         chat: None,
-        text_menu: Some(TextMenu { full_text, i18n, content: None }),
+        text_menu: Some(TextMenu { full_text, i18n, allow_append: true, content: None }),
+    })
+}
+
+/// Select or copy plain text while reusing the chat menu and its search actions.
+pub fn selectable_readonly_text<'a, Message: SelectionMessage + 'a>(
+    value: impl Into<std::borrow::Cow<'a, str>>,
+    width: Length,
+    font: Font,
+    highlights: &[std::ops::Range<usize>],
+    i18n: I18n,
+) -> Element<'a, Message> {
+    let full_text = value.into();
+    let mut spans = Vec::new();
+    let mut cursor = 0;
+    let slice = |range: std::ops::Range<usize>| match &full_text {
+        std::borrow::Cow::Borrowed(text) => std::borrow::Cow::Borrowed(&(*text)[range]),
+        std::borrow::Cow::Owned(text) => std::borrow::Cow::Owned(text[range].to_owned()),
+    };
+    for range in highlights {
+        if range.start < cursor || range.is_empty() || full_text.get(range.clone()).is_none() {
+            continue;
+        }
+        if cursor < range.start {
+            spans.push(span(slice(cursor..range.start)));
+        }
+        spans.push(span(slice(range.clone()))
+            .background(Color::from_rgb8(255, 229, 139))
+            .color(Color::from_rgb8(41, 30, 10)));
+        cursor = range.end;
+    }
+    if cursor < full_text.len() || spans.is_empty() {
+        spans.push(span(slice(cursor..full_text.len())));
+    }
+    let selection = Selection::default();
+    let content = fragment(
+        selection.clone(),
+        FragmentId { section: 0, row: 0, column: 0 },
+        spans,
+        FragmentStyle { size: 13.0, color: None, font, width, align: text::Alignment::Left },
+        |_| Message::none(),
+    );
+    Element::new(Area {
+        content,
+        selection,
+        chat: None,
+        text_menu: Some(TextMenu { full_text, i18n, allow_append: false, content: None }),
     })
 }
 
@@ -172,6 +220,15 @@ impl<Message: SelectionMessage> Widget<Message, Theme, Renderer> for Area<'_, Me
                 state.selected = false;
             }
         }
+        if let Some(menu) = &self.text_menu
+            && !menu.allow_append
+            && state.readonly_text.as_deref() != Some(menu.full_text.as_ref())
+        {
+            *state = AreaState {
+                readonly_text: Some(menu.full_text.to_string()),
+                ..AreaState::default()
+            };
+        }
         self.selection.0.set(state.gesture);
         self.content.as_widget_mut().layout(&mut tree.children[0], renderer, limits)
     }
@@ -213,8 +270,11 @@ impl<Message: SelectionMessage> Widget<Message, Theme, Renderer> for Area<'_, Me
                     || (cfg!(target_os = "macos")
                         && menu_state.modifiers.control()
                         && matches!(event, Event::Mouse(ButtonPressed(Left))));
-            let menu_position =
-                if secondary_click { cursor.position_over(*viewport) } else { None };
+            let menu_position = if secondary_click {
+                viewport.intersection(&layout.bounds()).and_then(|bounds| cursor.position_over(bounds))
+            } else {
+                None
+            };
             let copy_shortcut = matches!(event, Event::Keyboard(keyboard::Event::KeyPressed { key, modifiers, .. })
                 if modifiers.command() && !modifiers.alt()
                     && matches!(key.as_ref(), keyboard::Key::Character("c" | "C")));
@@ -355,9 +415,9 @@ impl<Message: SelectionMessage> Widget<Message, Theme, Renderer> for Area<'_, Me
         if let Some(config) = &mut self.text_menu {
             let state = &mut tree.state.downcast_mut::<AreaState>().text_menu;
             let offset = state.request.as_ref()?.0;
-            let content = config
-                .content
-                .get_or_insert_with(|| text_context_menu(config.i18n, |action| action));
+            let content = config.content.get_or_insert_with(|| {
+                selectable_menu(config.i18n, config.allow_append, |action| action)
+            });
             let tree = state.tree.get_or_insert_with(|| Tree::new(&*content));
             return Some(overlay::Element::new(Box::new(TextMenuOverlay {
                 content,

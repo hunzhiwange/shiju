@@ -3,11 +3,17 @@ use gateway_external_session::AgentAppsReadError;
 use std::collections::BTreeSet;
 use super::{Event as ParentEvent, find, images, message, reader};
 use desktop_ui_controls::system_settings_common::*;
+use desktop_assets::assets::Icon;
+use desktop_i18n::I18n;
+use desktop_ui_controls::{
+    selectable_text::markdown_selection::selectable_readonly_text,
+    single_line_label::SingleLineLabel,
+};
 use super::Event as Message;
 use crate::{Connection, Notice, error as notify_error};
 use iced::{
     Element, Length, Task,
-    widget::{button, column, scrollable, text},
+    widget::{button, column, container, row, scrollable, text},
 };
 use vw_api_external_session::*;
 
@@ -132,15 +138,42 @@ fn references(block: &SessionBlock) -> Vec<&ContentRef> {
         _ => Vec::new(),
     }
 }
+pub(super) fn selectable<'a>(
+    value: impl Into<std::borrow::Cow<'a, str>>,
+    preformatted: bool,
+    query: &str,
+    i18n: I18n,
+) -> Element<'a, Message> {
+    let value = value.into();
+    let font = if preformatted && value.is_ascii() { iced::Font::MONOSPACE } else { iced::Font::DEFAULT };
+    let width = if preformatted { Length::Shrink } else { Length::Fill };
+    let ranges = find::match_ranges(&value, query);
+    selectable_readonly_text(value, width, font, &ranges, i18n)
+}
+
 fn body<'a>(
     reader: &'a reader::State,
     preview: &'a str,
     full: Option<&'a ContentRef>,
+    preformatted: bool,
+    query: &str,
+    i18n: I18n,
 ) -> Element<'a, Message> {
     let page =
         full.and_then(|reference| reader.details.pages.iter().find(|p| &p.reference == reference));
-    let mut content =
-        column![text(page.filter(|p| p.started).map_or(preview, |p| p.text.as_str()))].spacing(6);
+    let visible = page.filter(|p| p.started).map_or(preview, |p| p.text.as_str());
+    let mut content = column![].spacing(6);
+    if !visible.is_empty() {
+        let content_text = selectable(visible, preformatted, query, i18n);
+        if preformatted {
+            content = content.push(container(scrollable(content_text)
+                .direction(iced::widget::scrollable::Direction::Horizontal(
+                    iced::widget::scrollable::Scrollbar::new().width(4).scroller_width(4),
+                )).width(Length::Fill)).padding([7, 10]).style(super::list::subtle_surface));
+        } else {
+            content = content.push(content_text);
+        }
+    }
     if let Some(reference) = full {
         if page.is_none_or(|p| !p.started || p.next.is_some()) {
             content = content.push(
@@ -158,20 +191,17 @@ fn body<'a>(
             );
         }
     }
-    scrollable(content.width(Length::Shrink))
-        .direction(iced::widget::scrollable::Direction::Horizontal(
-            iced::widget::scrollable::Scrollbar::new().width(4).scroller_width(4),
-        ))
-        .width(Length::Fill)
-        .into()
+    content.width(Length::Fill).into()
 }
 
 pub(super) fn message_view<'a>(
     reader: &'a reader::State,
     message: &'a SessionMessage,
+    query: &str,
+    i18n: I18n,
 ) -> Element<'a, Message> {
     if message.blocks.is_empty() {
-        return text(&message.content).into();
+        return selectable(message.content.as_str(), false, query, i18n);
     }
     let m = reader.messages.iter().position(|m| std::ptr::eq(m, message)).unwrap_or(0);
     let mut content = column![].spacing(6);
@@ -181,9 +211,9 @@ pub(super) fn message_view<'a>(
         }
         if let SessionBlock::Text { text, full } = block {
             if text.contains("```") {
-                content = content.push(block_view(reader, m, b, block));
+                content = content.push(block_view(reader, m, b, block, query, i18n));
             } else {
-                content = content.push(body(reader, text, full.as_ref()));
+                content = content.push(body(reader, text, full.as_ref(), false, query, i18n));
             }
         }
     }
@@ -197,7 +227,7 @@ fn failure(block: &SessionBlock) -> bool {
             | SessionBlock::Event { kind: EventKind::Error | EventKind::Aborted, .. }
     )
 }
-pub(super) fn steps<'a>(reader: &'a reader::State, turn: &TurnIndex) -> Element<'a, Message> {
+pub(super) fn steps<'a>(reader: &'a reader::State, turn: &TurnIndex, query: &str, i18n: I18n) -> Element<'a, Message> {
     let mut blocks: Vec<_> = reader
         .messages
         .iter()
@@ -212,24 +242,34 @@ pub(super) fn steps<'a>(reader: &'a reader::State, turn: &TurnIndex) -> Element<
         blocks.retain(|(_, _, b)| matches!(b, SessionBlock::ToolCall { diff: Some(_), .. }));
     }
     // Preserve the host message and block order, including failures and interruptions.
-    let mut content = column![
-        button(text(format!("{} · {} 个步骤 · {} 个错误{}",
-            if reader.details.process_open { "收起执行过程" } else { "展开执行过程" },
-            turn.step_count, turn.error_count, if turn.aborted { " · 已中止" } else { "" })))
-        .padding([8, 12])
-        .style(rounded_action_btn_style)
-        .on_press(event(Event::Process))
-    ]
-    .spacing(8);
+    let open = reader.details.process_open || reader.find.filter == find::Filter::Changes;
+    let mut heading = row![
+        icon_svg(if open { Icon::ChevronDown } else { Icon::ChevronRight }, 13.0),
+        text(format!("执行过程 · {} 步", turn.step_count)).size(13),
+    ].spacing(7).align_y(iced::Alignment::Center);
+    if turn.error_count > 0 {
+        heading = heading.push(text(format!("{} 个错误", turn.error_count)).size(12)
+            .style(|theme: &iced::Theme| iced::widget::text::Style {
+                color: Some(theme.extended_palette().danger.base.color),
+            }));
+    }
+    if turn.aborted {
+        heading = heading.push(text("已中止").size(12).style(settings_muted_text_style));
+    }
+    let summary = button(heading).padding([6, 8])
+        .style(|theme, status| super::list::flat_button(theme, status, false))
+        .on_press_maybe((reader.find.filter != find::Filter::Changes).then(|| event(Event::Process)));
+    let mut timeline = column![].spacing(2);
     for (m, b, block) in blocks {
-        if reader.details.process_open
-            || failure(block)
-            || reader.find.filter == find::Filter::Changes
-        {
-            content = content.push(block_view(reader, m, b, block));
+        if open || failure(block) || find::block_matches(reader, block, query) {
+            timeline = timeline.push(block_view(reader, m, b, block, query, i18n));
         }
     }
-    content.into()
+    let timeline = row![
+        iced::widget::rule::vertical(1),
+        container(timeline).width(Length::Fill),
+    ].spacing(6);
+    column![summary, timeline].padding([0, 8]).spacing(4).into()
 }
 
 fn block_view<'a>(
@@ -237,9 +277,12 @@ fn block_view<'a>(
     m: usize,
     b: usize,
     block: &'a SessionBlock,
+    query: &str,
+    i18n: I18n,
 ) -> Element<'a, Message> {
     if let SessionBlock::Thinking { redacted: true, .. } = block {
-        return text("思考内容已隐去").style(settings_muted_text_style).into();
+        return container(text("·  思考内容已隐去").size(12).style(settings_muted_text_style))
+            .padding([4, 9]).into();
     }
     let label = match block {
         SessionBlock::Text { .. } => "代码 / 正文".to_owned(),
@@ -247,14 +290,21 @@ fn block_view<'a>(
             format!("思考 · {} · {}ms", summary.as_deref().unwrap_or(""), duration_ms.map(|ms| ms.to_string()).unwrap_or_else(|| "未知".into()))
         }
         SessionBlock::ToolCall { title, raw_name, detail, diff, .. } => {
-            format!("工具 · {title} · {raw_name}{}{}",
-                detail.as_ref().map(|d| format!(" · {d}")).unwrap_or_default(),
+            let title = if title.trim().is_empty() { raw_name } else { title };
+            format!("{title}{}{}",
+                detail.as_ref().filter(|value| *value != title)
+                    .map(|d| format!("  ·  {d}")).unwrap_or_default(),
                 diff.as_ref().map(|d| format!(" · {} 个文件 · +{} −{}", d.files.len(), d.added, d.removed)).unwrap_or_default())
         }
-        SessionBlock::ToolResult { call_id, status, exit_code, .. } => format!(
-            "{}工具结果 · {call_id} · {status:?} · 退出码 {exit_code:?}",
-            if failure(block) { "失败 · " } else { "" }
-        ),
+        SessionBlock::ToolResult { status, exit_code, .. } => {
+            let label = match status {
+                ToolStatus::Error => "工具执行失败",
+                ToolStatus::Interrupted => "工具执行中断",
+                ToolStatus::Pending => "工具执行中",
+                _ => "工具输出",
+            };
+            exit_code.map_or_else(|| label.to_owned(), |code| format!("{label} · 退出码 {code}"))
+        }
         SessionBlock::Event { kind, .. } => format!("事件 · {kind:?}"),
         SessionBlock::Step { phase, reason, .. } => {
             format!("步骤 · {phase:?} · {}", reason.as_deref().unwrap_or(""))
@@ -262,61 +312,100 @@ fn block_view<'a>(
         SessionBlock::Image { .. } => return column![].into(),
     };
     let expanded = reader.details.expanded.contains(&(m, b))
-        || reader.find.filter == find::Filter::Changes;
-    let mut content = column![
-        button(text(format!("{} {label}", if expanded { "▾" } else { "▸" })))
-            .padding([8, 12])
-            .style(rounded_action_btn_style)
-            .on_press(event(Event::Toggle(m, b)))
-    ]
-    .spacing(6);
+        || reader.find.filter == find::Filter::Changes
+        || find::block_matches(reader, block, query);
+    let failed = failure(block);
+    let completed = matches!(block, SessionBlock::ToolResult { status: ToolStatus::Success, .. });
+    let marker = text("•").size(14).style(move |theme: &iced::Theme| {
+        let palette = theme.extended_palette();
+        iced::widget::text::Style {
+            color: Some(if failed { palette.danger.base.color }
+                else if completed { palette.success.base.color }
+                else { theme.palette().text.scale_alpha(0.55) }),
+        }
+    });
+    let mut heading = row![
+        container(marker).center_x(11),
+        container(SingleLineLabel::new(label, 13.0)).width(Length::Fill),
+    ].spacing(8).align_y(iced::Alignment::Center);
+    if let SessionBlock::ToolResult { duration_ms: Some(ms), .. } = block {
+        heading = heading.push(text(format!("{ms} ms")).size(12).style(settings_muted_text_style));
+    }
+    heading = heading.push(icon_svg(if expanded { Icon::ChevronDown } else { Icon::ChevronRight }, 12.0));
+    let mut content = column![button(heading).width(Length::Fill).padding([4, 8])
+        .style(|theme, status| super::list::flat_button(theme, status, false))
+        .on_press(event(Event::Toggle(m, b)))].spacing(5);
     if expanded {
+        let mut details = column![].spacing(6).width(Length::Fill);
         for image in images::references(block) {
-            content = content.push(images::view(reader, image));
+            details = details.push(images::view(reader, image));
         }
         match block {
             SessionBlock::Text { text, full } | SessionBlock::Thinking { text, full, .. } => {
-                content = content.push(body(reader, text, full.as_ref()))
+                details = details.push(body(reader, text, full.as_ref(), false, query, i18n));
             }
-            SessionBlock::ToolCall { input_preview, input_full, detail, diff, .. } => {
-                if let Some(detail) = detail {
-                    content = content.push(text(detail));
+            SessionBlock::ToolCall { title, input_preview, input_full, detail, diff, .. } => {
+                let description = detail.as_deref().unwrap_or(title.as_str());
+                if title != description && find::matches(title, query) {
+                    details = details.push(selectable(title.as_str(), false, query, i18n));
                 }
-                let input_open = reader.details.inputs.contains(&(m, b));
-                content = content.push(button(text(if input_open { "收起参数" } else { "展开参数" }))
-                    .padding([8, 12]).style(rounded_action_btn_style)
-                    .on_press(event(Event::Input(m, b))));
-                if input_open {
-                    content = content.push(body(reader, input_preview, input_full.as_ref()));
+                if !description.is_empty() {
+                    details = details.push(selectable(description, false, query, i18n));
+                }
+                if !input_preview.is_empty() || input_full.is_some() {
+                    let visible_input = loaded_text(reader, input_full.as_ref()).unwrap_or(input_preview);
+                    let input_open = reader.details.inputs.contains(&(m, b)) || find::matches(visible_input, query);
+                    let disclosure = row![
+                        icon_svg(if input_open { Icon::ChevronDown } else { Icon::ChevronRight }, 12.0),
+                        text("参数").size(12).style(settings_muted_text_style),
+                    ].spacing(5).align_y(iced::Alignment::Center);
+                    details = details.push(button(disclosure).padding([4, 5])
+                        .style(|theme, status| super::list::flat_button(theme, status, false))
+                        .on_press(event(Event::Input(m, b))));
+                    if input_open {
+                        details = details.push(nested_output(body(reader, input_preview, input_full.as_ref(), true, query, i18n)));
+                    }
                 }
                 if let Some(diff) = diff {
-                    content =
-                        content.push(text(format!("差异 · +{} −{}", diff.added, diff.removed)));
+                    details = details.push(text(format!("改动 · +{} −{}", diff.added, diff.removed))
+                        .size(12).style(settings_muted_text_style));
                     for file in &diff.files {
-                        content = content.push(text(format!(
+                        details = details.push(nested_output(selectable(format!(
                             "{} · {:?} · +{} −{}",
                             file.path, file.op, file.added, file.removed
-                        )));
+                        ), false, query, i18n)));
                     }
-                    content = content.push(body(reader, "", diff.full.as_ref()));
+                    if diff.full.is_some() {
+                        details = details.push(nested_output(body(reader, "", diff.full.as_ref(), true, query, i18n)));
+                    }
                 }
             }
-            SessionBlock::ToolResult { preview, full, duration_ms, truncated, .. } => {
-                content = content
-                    .push(text(format!(
-                        "耗时 {}ms{}",
-                        duration_ms.map(|ms| ms.to_string()).unwrap_or_else(|| "未知".into()),
-                        if *truncated { " · 预览已截断" } else { "" }
-                    )))
-                    .push(body(reader, preview, full.as_ref()));
+            SessionBlock::ToolResult { preview, full, truncated, .. } => {
+                if *truncated {
+                    details = details.push(text("预览已截断").size(12).style(settings_muted_text_style));
+                }
+                details = details.push(nested_output(body(reader, preview, full.as_ref(), true, query, i18n)));
             }
             SessionBlock::Event { text, full, .. } => {
-                content = content.push(body(reader, text.as_deref().unwrap_or(""), full.as_ref()))
+                details = details.push(body(reader, text.as_deref().unwrap_or(""), full.as_ref(), false, query, i18n));
             }
             _ => {}
         }
+        content = content.push(container(details).padding(iced::Padding {
+            left: 27.0,
+            right: 8.0,
+            bottom: 5.0,
+            ..Default::default()
+        }));
     }
-    settings_group_card(content).into()
+    content.into()
+}
+
+fn nested_output(content: Element<'_, Message>) -> Element<'_, Message> {
+    row![
+        text("└").size(12).style(settings_muted_text_style),
+        container(content).width(Length::Fill),
+    ].spacing(7).into()
 }
 
 /// Only already-authorized, loaded text participates in local find.

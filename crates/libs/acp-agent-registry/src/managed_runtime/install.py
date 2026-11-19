@@ -24,6 +24,32 @@ def check_files(root, files):
         if digest(root / name) != expected:
             raise RuntimeError('Reviewed artifact checksum mismatch: ' + name)
 
+if agent == 'dimcode':
+    import platform
+    if (platform.system(), platform.machine()) != ('Darwin', 'arm64'):
+        raise RuntimeError('DimCode reviewed runtime is Darwin-arm64 only')
+    archive = assets / 'dimcode.tgz'
+    run(['/usr/bin/curl', '--disable', '--fail', '--silent', '--show-error', '--location',
+         '--proto', '=https', '--proto-redir', '=https', '--retry', '2',
+         '--max-time', '80', '--output', str(archive), contract['artifact_url']])
+    if digest(archive) != contract['archive_sha256']:
+        raise RuntimeError('DimCode fixed archive checksum mismatch')
+    native = assets / 'dimcode-native'
+    with tarfile.open(archive) as package:
+        member = package.getmember('package/bin/dimcode')
+        if not member.isfile():
+            raise RuntimeError('Unexpected DimCode fixed archive layout')
+        with package.extractfile(member) as source, native.open('xb') as output:
+            shutil.copyfileobj(source, output)
+    runtime.mkdir()
+    executable = runtime / contract['bin']
+    run([sys.executable, str(assets / 'dimcode/apply.py'), str(native), str(executable)])
+    run(['/usr/bin/codesign', '--force', '--sign', '-', '--identifier', 'dim',
+         '--timestamp=none', str(executable)])
+    run(['/usr/bin/codesign', '--verify', '--strict', str(executable)])
+    check_files(runtime, contract['files'])
+    raise SystemExit(0)
+
 if agent == 'cortex-code':
     import platform
     if (platform.system(), platform.machine()) != ('Darwin', 'arm64'):

@@ -216,6 +216,26 @@ pub async fn do_stream_request_acp<H: Host>(
     H::supplier(&acp_agent_name, parsed_options.skill_view.as_ref())?;
     H::validate_mounts(&acp_agent_name, !parsed_options.skill_mounts.is_empty())?;
 
+    if acp_agent_name == "dimcode" && !parsed_options.mcp_servers.is_empty() {
+        if parsed_options.mcp_servers.iter().any(|server| {
+            matches!(server, agent_client_protocol::McpServer::Stdio(_))
+        }) {
+            return Err(acp_option_error(
+                "DimCode does not support ACP stdio MCP; select an HTTP or SSE server",
+            ));
+        }
+        if source != vw_api_acp_model::acp_model_source::AcpModelSource::SessionModel
+            || parsed_options.permission_mode == Some(acp_types::PermissionMode::DenyAll)
+            || merged_options.get("disable_tools").and_then(Value::as_bool) == Some(true)
+        {
+            return Err(acp_option_error(
+                "DimCode MCP requires session_model with enabled tool approvals",
+            ));
+        }
+        acp_agent_registry::verify_reviewed_agent_executable("dimcode", &normalized_acp_cfg.command)
+            .map_err(acp_option_error)?;
+    }
+
     let previous_native = if source == vw_api_acp_model::acp_model_source::AcpModelSource::CliLocal
         && (recovered.is_some() || locked_selection.is_some())
     {

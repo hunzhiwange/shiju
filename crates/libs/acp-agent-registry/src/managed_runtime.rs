@@ -334,6 +334,7 @@ pub(super) async fn install(agent: &str) -> Result<bool, String> {
     std::fs::create_dir(&stage.0).map_err(|_| "Cannot create ACP installation stage")?;
     let assets = stage.0.join("assets");
     for (name, text) in [
+        ("dimcode/apply.py", include_str!("../../../../patches/acp-model-source/dimcode/apply.py")),
         ("nova/apply.py", include_str!("../../../../patches/acp-model-source/nova/apply.py")),
         ("nova/session-model.mjs", include_str!("../../../../patches/acp-model-source/nova/session-model.mjs")),
         ("nova/session-mcp.mjs", include_str!("../../../../patches/acp-model-source/nova/session-mcp.mjs")),

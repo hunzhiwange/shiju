@@ -303,6 +303,21 @@ impl AcpClient {
                 "DimCode does not support ACP stdio MCP; select an HTTP or SSE server".into(),
             ));
         }
+        if self.agent_name == "dimcode" && !self.mcp_servers.is_empty() {
+            if self.permission_mode == PermissionMode::DenyAll
+                || self.config.args != ["acp"]
+                || !self.config.env.contains_key("VW_ACP_LAUNCH_REFERENCE")
+                || self.mcp_servers.iter().any(|server| {
+                    !matches!(server, acp::McpServer::Http(_) | acp::McpServer::Sse(_))
+                })
+            {
+                return Err(AcpError::NewSession(
+                    "DimCode MCP requires an approved managed session-model connection over HTTP or SSE".into(),
+                ));
+            }
+            crate::verify_reviewed_agent_executable(&self.agent_name, &self.config.command)
+                .map_err(AcpError::NewSession)?;
+        }
         Ok(())
     }
 

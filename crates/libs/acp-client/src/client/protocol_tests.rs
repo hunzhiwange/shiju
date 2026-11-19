@@ -813,6 +813,31 @@ async fn acp_skill_mount_lifecycle_failed_restore_never_creates_replacement() {
 }
 
 #[tokio::test]
+async fn dimcode_remote_mcp_rejects_unreviewed_executable_before_wire_request() {
+    let executable = tempfile::NamedTempFile::new().unwrap();
+    let client = AcpClient::new(
+        "dimcode",
+        AcpAgentConfig {
+            command: executable.path().to_string_lossy().into_owned(),
+            args: vec!["acp".into()],
+            env: HashMap::from([("VW_ACP_LAUNCH_REFERENCE".into(), "fixture".into())]),
+        },
+    )
+    .with_permission_mode(crate::PermissionMode::ApproveAll)
+    .with_mcp_servers(vec![acp::McpServer::Http(acp::McpServerHttp::new(
+        "graph",
+        "https://example.test/mcp",
+    ))]);
+    with_connection(TestAgent::with_new_session_ids(["unexpected"]), async |conn, agent| {
+        let cwd = Path::new("/tmp/shiju-dimcode-protocol");
+        let error = client.new_session_info(&conn, cwd).await.unwrap_err();
+        assert!(error.to_string().contains("reviewed patched release"), "{error}");
+        assert!(agent.state.lock().new_session_requests.is_empty());
+    })
+    .await;
+}
+
+#[tokio::test]
 async fn acp_onboarding_sigit_mcp_selection_rejects_before_new_or_load() {
     let mcp =
         vec![acp::McpServer::Http(acp::McpServerHttp::new("selected", "https://example.test/mcp"))];

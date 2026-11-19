@@ -108,6 +108,17 @@ pub async fn apply_agent_defaults<H: DefaultsHost, S>(
     if parsed.permission_mode == Some(PermissionMode::DenyAll) && !effective.skills.is_empty() {
         return Err(acp_option_error("default skill is denied by permission policy"));
     }
+    if backend == "dimcode"
+        && mcp.mcp_servers.iter().any(|server| {
+            if !effective.mcp.iter().any(|id| id == mcp_client::server_name(server)) {
+                return false;
+            }
+            let policy = mcp_client::management_for_server(&mcp, server);
+            !policy.allowed_tools.is_empty() || !policy.denied_tools.is_empty()
+        })
+    {
+        return Err(acp_option_error("DimCode cannot enforce host MCP tool filters"));
+    }
     parsed.mcp_servers = mcp
         .mcp_servers
         .iter()

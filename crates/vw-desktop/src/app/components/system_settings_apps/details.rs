@@ -19,7 +19,8 @@ pub(crate) fn view<'a>(state: &'a AppsCatalogState, app: &'a catalog::CatalogRow
         cross = cross.push(crate::app::components::openclaw_defaults::entry());
         cross = cross.push(crate::app::components::openclaw_catalog::entry());
     }
-    cross = cross.push(crate::app::components::system_settings_prompts::list::view(&state.prompts, app.entry.id));
+    cross = cross.push(button(text("管理提示词")).padding([8, 12]).style(rounded_action_btn_style)
+        .on_press(super::message(crate::app::message::settings::AppsCatalogMessage::SelectPromptApp(app.entry.id))));
     if app.entry.id == vw_api_app_identity::AppId::Hermes {
         cross = cross.push(crate::app::components::hermes_memory::view(&state.hermes_memory));
         cross = cross.push(crate::app::components::hermes_dashboard::view(&state.hermes_dashboard));

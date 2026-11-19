@@ -15,7 +15,7 @@ use crate::app::{
 };
 use iced::{Element, Theme};
 
-fn message(value: AppsCatalogMessage) -> Message {
+pub(super) fn message(value: AppsCatalogMessage) -> Message {
     Message::Settings(SettingsMessage::AppsCatalog(value))
 }
 
@@ -82,7 +82,7 @@ pub(super) fn domain_event(action: desktop_settings_apps::system_settings_apps::
         Action::LifecycleCancel => AppsCatalogMessage::Lifecycle(LifecycleMessage::Cancel),
         Action::Drag(value) => AppsCatalogMessage::Drag(value),
         Action::Providers(id) => return crate::app::message::app_providers::list::message(crate::app::message::app_providers::list::ListMessage::Open(id)),
-        Action::Prompts(id) => AppsCatalogMessage::Prompts(crate::app::message::settings::prompts::Event::Open(id)),
+        Action::Prompts(id) => AppsCatalogMessage::SelectPromptApp(id),
         Action::Download => return Message::View(crate::app::message::ViewMessage::OpenUrlExternal(desktop_settings_apps::system_settings_apps::uninstall::MANUAL_DOWNLOAD_URL.into())),
     };
     message(value)

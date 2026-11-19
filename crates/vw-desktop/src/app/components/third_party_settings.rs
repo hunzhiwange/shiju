@@ -74,6 +74,7 @@ pub(crate) fn view(app: &App) -> Element<'_, Message> {
             desktop_settings_skills::third_party::view(&state.third_party_skills, &applications)
                 .map(|event| message(AppsCatalogMessage::ThirdPartySkills(event)))
         }
+        ThirdPartyPage::Prompts => super::system_settings_prompts::list::page(app),
         ThirdPartyPage::Sessions => super::third_party_resources::sessions(app),
         #[cfg(not(target_arch = "wasm32"))]
         ThirdPartyPage::Authorization => {
@@ -168,6 +169,7 @@ fn sidebar(app: &App) -> Element<'_, Message> {
             ThirdPartyPage::Agents => continue,
             ThirdPartyPage::Mcp => Icon::HddNetwork,
             ThirdPartyPage::Skills => Icon::Box,
+            ThirdPartyPage::Prompts => Icon::Box,
             ThirdPartyPage::Sessions => Icon::Clock,
             ThirdPartyPage::Authorization => Icon::ShieldLock,
             ThirdPartyPage::Usage => Icon::Speedometer2,
@@ -312,6 +314,9 @@ fn mcp_view<'a>(
 }
 
 pub(crate) fn navigate(app: &mut App, page: ThirdPartyPage) -> Task<Message> {
+    if super::system_settings_prompts::list::switch_blocked(&app.apps_catalog.prompts) {
+        return Task::none();
+    }
     if app.usage_center.open {
         app.usage_center.close();
     }
@@ -319,6 +324,7 @@ pub(crate) fn navigate(app: &mut App, page: ThirdPartyPage) -> Task<Message> {
     app.apps_catalog.third_party_page = page;
     use crate::app::message::settings;
     match page {
+        ThirdPartyPage::Prompts => super::system_settings_prompts::list::open_selected(app),
         ThirdPartyPage::Mcp => {
             app.apps_catalog.third_party_mcp_scope = mcp_scope(app);
             settings::mcp_management_list::update(
@@ -327,13 +333,10 @@ pub(crate) fn navigate(app: &mut App, page: ThirdPartyPage) -> Task<Message> {
             )
         }
         ThirdPartyPage::Skills => {
-            let scope = app.apps_catalog.expanded.zip(app.apps_catalog.context.clone()).map(
-                |(id, context)| desktop_provider_apps::Scope {
-                    context,
-                    host: app.apps_catalog.host.clone(),
-                    app: id,
-                },
-            );
+            let input = settings::skills::update_input(app);
+            let scope = input.context.map(|context| desktop_settings_skills::third_party::Scope {
+                context, project: input.project, host: input.host, directory: input.directory,
+            });
             app.apps_catalog.third_party_skills.sync(scope, app.apps_catalog.navigation_generation);
             Task::none()
         }
@@ -354,6 +357,8 @@ pub(crate) fn invalidate(app: &mut App) {
     use crate::app::message::settings::skills;
     for event in [
         SettingsMessage::SkillRepositories(skills::repo_modal::Event::Close),
+        SettingsMessage::SkillsClaudeConfig(skills::claude_view::Event::Close),
+        SettingsMessage::SkillsBindings(skills::bindings_view::Event::Close),
         SettingsMessage::SkillsImport(skills::import_modal::Event::Close),
         SettingsMessage::SkillsInstall(skills::install_view::Event::Close),
         SettingsMessage::SkillsMarket(skills::market_view::Event::Close),
@@ -365,6 +370,19 @@ pub(crate) fn invalidate(app: &mut App) {
         // Close reducers only dismiss presentation; writes keep their original scope.
         let _ = skills::update(app, event);
     }
+    // Busy reducers retain their captured request scope, but no presentation
+    // may survive a navigation or host change.
+    let skills = &mut app.skills_settings;
+    skills.repositories.open = false;
+    skills.claude_config.open = false;
+    skills.bindings.open = false;
+    skills.import.open = false;
+    skills.install.open = false;
+    skills.market.open = false;
+    skills.updates.open = false;
+    skills.jobs.open = false;
+    skills.storage.open = false;
+    skills.backups.open = false;
     let s = &mut app.apps_catalog;
     s.navigation_generation = s.navigation_generation.wrapping_add(1);
     s.third_party_mcp_scope = None;
@@ -412,6 +430,9 @@ pub(crate) fn skills_update(
     app: &mut App,
     event: desktop_settings_skills::third_party::Message,
 ) -> Task<Message> {
+    if !is_visible(app) || app.apps_catalog.third_party_page != ThirdPartyPage::Skills {
+        return Task::none();
+    }
     use desktop_settings_skills::{
         third_party::{Action, DirectoryAction, Effect},
         update::bindings_view,
@@ -457,6 +478,9 @@ pub(crate) fn skills_update(
         Effect::Directory { action, .. } => {
             use crate::app::message::settings::skills;
             let event = match action {
+                DirectoryAction::Claude => {
+                    SettingsMessage::SkillsClaudeConfig(skills::claude_view::Event::Open)
+                }
                 DirectoryAction::Repositories => {
                     SettingsMessage::SkillRepositories(skills::repo_modal::Event::Open)
                 }
@@ -489,8 +513,8 @@ pub(crate) fn skills_update(
 
 pub(crate) fn overlays<'a>(app: &'a App, base: Element<'a, Message>) -> Element<'a, Message> {
     let base = match app.apps_catalog.third_party_page {
-        ThirdPartyPage::Skills => super::system_settings_skills::view_overlays(app, base),
         ThirdPartyPage::Mcp => super::system_settings_mcp::view_overlays(app, base),
+        ThirdPartyPage::Skills => super::system_settings_skills::third_party_overlays(app, base),
         _ => base,
     };
     if app.apps_catalog.third_party_page == ThirdPartyPage::ManagementTools {

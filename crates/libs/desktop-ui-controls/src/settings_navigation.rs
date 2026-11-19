@@ -251,6 +251,7 @@ pub enum ThirdPartyPage {
     Mcp,
     Skills,
     Sessions,
+    Prompts,
     Authorization,
     Usage,
     ManagementTools,
@@ -258,7 +259,7 @@ pub enum ThirdPartyPage {
 impl ThirdPartyPage {
     pub const ALL: &'static [(Self, &'static str)] = &[
         (Self::Agents, "智能体管理"), (Self::Mcp, "MCP"), (Self::Skills, "Skills"),
-        (Self::Sessions, "会话"), (Self::Authorization, "授权中心"),
+        (Self::Prompts, "提示词"), (Self::Sessions, "会话"), (Self::Authorization, "授权中心"),
         (Self::Usage, "用量与额度"), (Self::ManagementTools, "管理工具"),
     ];
 }

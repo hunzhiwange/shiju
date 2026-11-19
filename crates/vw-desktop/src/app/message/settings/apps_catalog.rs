@@ -7,6 +7,7 @@ use iced::Task;
 #[derive(Clone)]
 pub enum AppsCatalogMessage {
     SelectApp(vw_api_app_identity::AppId),
+    SelectPromptApp(vw_api_app_identity::AppId),
     Navigate(desktop_ui_controls::settings_navigation::ThirdPartyPage),
     ThirdPartyMcp(desktop_settings_mcp::third_party::Message),
     ThirdPartySkills(desktop_settings_skills::third_party::Message),
@@ -64,7 +65,11 @@ impl std::fmt::Debug for AppsCatalogMessage {
 }
 pub(super) fn update(app: &mut App, message: AppsCatalogMessage) -> Task<Message> {
     match message {
+        AppsCatalogMessage::SelectPromptApp(id) => {
+            return crate::app::components::system_settings_prompts::list::select(app, id);
+        }
         AppsCatalogMessage::SelectApp(id) => {
+            if crate::app::components::system_settings_prompts::list::switch_blocked(&app.apps_catalog.prompts) { return Task::none(); }
             if !app.apps_catalog.rows.iter().any(|row| row.entry.id == id) { return Task::none(); }
             let page = desktop_ui_controls::settings_navigation::ThirdPartyPage::Agents;
             app.apps_catalog.expanded = Some(id);
@@ -80,6 +85,9 @@ pub(super) fn update(app: &mut App, message: AppsCatalogMessage) -> Task<Message
         AppsCatalogMessage::OpenClawEnv(event) => return crate::app::components::openclaw_env::update(app, event),
         AppsCatalogMessage::OpenClawModel(event) => return crate::app::components::openclaw_model::update(app, event),
         AppsCatalogMessage::OpenClawDefaults(event) => return crate::app::components::openclaw_defaults::update(app, event),
+        AppsCatalogMessage::Prompts(super::prompts::Event::Open(id)) => {
+            return crate::app::components::system_settings_prompts::list::select(app, id);
+        }
         AppsCatalogMessage::Prompts(event) => return super::prompts::update(app, event),
         AppsCatalogMessage::WorkspaceFiles(event) => return crate::app::components::workspace_files::update(app, event),
         AppsCatalogMessage::DailyMemory(event) => return crate::app::components::daily_memory::update(app, event),
@@ -131,6 +139,7 @@ pub(super) fn update(app: &mut App, message: AppsCatalogMessage) -> Task<Message
             catalog_input(&mut app.apps_catalog).query(query);
         }
         AppsCatalogMessage::ToggleDetails(id) => {
+            if crate::app::components::system_settings_prompts::list::switch_blocked(&app.apps_catalog.prompts) { return Task::none(); }
             crate::app::components::third_party_settings::invalidate(app);
             app.apps_catalog.openclaw_tools.invalidate();
             app.apps_catalog.openclaw_env.invalidate();
@@ -142,13 +151,6 @@ pub(super) fn update(app: &mut App, message: AppsCatalogMessage) -> Task<Message
             app.apps_catalog.project_profiles.application = application;
             catalog_input(&mut app.apps_catalog).toggle_details(id);
             app.apps_catalog.prompts.invalidate();
-            if app.apps_catalog.expanded.is_some() && !matches!(id, vw_api_app_identity::AppId::ClaudeDesktop | vw_api_app_identity::AppId::OpenClaw) {
-                let prompts = super::prompts::update(app, super::prompts::Event::Open(id));
-                let profiles = vw_api_project_profiles::ProjectProfileScope::for_app(id)
-                    .map(|scope| crate::app::message::project_profiles::update(app, crate::app::message::project_profiles::Event::Refresh(scope)))
-                    .unwrap_or_else(Task::none);
-                return Task::batch([prompts, profiles]);
-            }
             if app.apps_catalog.expanded == Some(id) {
                 if let Some(scope) = vw_api_project_profiles::ProjectProfileScope::for_app(id) {
                     return crate::app::message::project_profiles::update(app, crate::app::message::project_profiles::Event::Refresh(scope));
@@ -302,7 +304,11 @@ pub(super) fn update(app: &mut App, message: AppsCatalogMessage) -> Task<Message
                 } else {
                     Task::none()
                 };
+                let prompts = if app.apps_catalog.third_party_page == desktop_ui_controls::settings_navigation::ThirdPartyPage::Prompts {
+                    crate::app::components::system_settings_prompts::list::open_selected(app)
+                } else { Task::none() };
                 return Task::batch([
+                    prompts,
                     navigation,
                     crate::app::components::system_settings_apps::preferences::update(
                         app, crate::app::components::system_settings_apps::preferences::PreferencesMessage::Load,

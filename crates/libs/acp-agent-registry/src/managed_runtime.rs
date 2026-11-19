@@ -42,7 +42,7 @@ fn installed_directory(agent: &str, contract: &Contract) -> Result<PathBuf, Stri
     // Install revised contracts beside their prior reviewed runtimes.
     let revision = if matches!(agent, "sigit" | "vibe") {
         3
-    } else if matches!(agent, "amp-acp" | "cortex-code" | "harn") {
+    } else if matches!(agent, "amp-acp" | "corust-agent" | "cortex-code" | "harn") {
         4
     } else if matches!(agent, "aionrs" | "dimcode" | "vtcode") {
         2
@@ -52,7 +52,7 @@ fn installed_directory(agent: &str, contract: &Contract) -> Result<PathBuf, Stri
         5
     } else if agent == "deepagents" {
         4
-    } else if matches!(agent, "corust-agent" | "snow" | "stakpak") {
+    } else if matches!(agent, "snow" | "stakpak") {
         3
     } else if agent == "gemini" {
         2

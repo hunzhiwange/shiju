@@ -14,6 +14,11 @@ NATIVE = Path(__file__).resolve().with_name("corust-agent-native")
 SANDBOX = """
 (version 1)
 (allow default)
+; Keep system credential services outside the managed child boundary.
+(deny mach-lookup mach-register appleevent-send)
+(deny ipc-posix-shm*)
+(deny ipc-posix-sem*)
+(deny file-read* (regex #"/(Keychains|keychains)(/|$)"))
 (deny file-read-data (subpath "/Users") (subpath "/private/tmp")
     (subpath "/private/var/folders") (subpath (param "host-home")))
 (allow file-read-data

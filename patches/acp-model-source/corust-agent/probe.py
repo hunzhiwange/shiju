@@ -4,7 +4,6 @@ import argparse
 from hashlib import sha256
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import json
-import os
 from pathlib import Path
 import select
 import subprocess
@@ -14,6 +13,7 @@ from time import monotonic
 
 
 MODEL = 'corust-mcp-probe'
+NATIVE = {'read_file', 'write_file', 'glob', 'grep'}
 GRAPH = (
     ('rustcodegraph_query', {'search': 'createRueSiteApp'}, 'app/app.tsx:32'),
     ('rustcodegraph_callers', {'symbol': 'createRueSiteApp'}, 'mountRueSiteApp'),
@@ -21,12 +21,18 @@ GRAPH = (
 )
 
 
-def verify(launcher, binary, workspace, mounted, approved, cancelled=False, readonly=False, filtered=False):
+def verify(launcher, binary, workspace, mounted, approved, cancelled=False, readonly=False, filtered=False, coexist=False):
     requests = []
     approvals = []
     events = []
     token = 'corust-probe'
     graph = GRAPH[:2] if filtered else GRAPH
+
+    if coexist:
+        read = ('read_file', None, 'const app = useApp(RootApp).use(router).use(i18n)')
+        batches = [(read,), (graph[0],), (read, graph[1])]
+    else:
+        batches = [(tool,) for tool in graph]
 
     class Relay(BaseHTTPRequestHandler):
         def log_message(self, *_):
@@ -54,12 +60,18 @@ def verify(launcher, binary, workspace, mounted, approved, cancelled=False, read
             assert body['model'] == MODEL
             step = len(requests)
             requests.append(body)
-            if mounted and step < len(graph):
-                name, arguments, _ = graph[step]
-                delta = {'tool_calls': [{
-                    'index': 0, 'id': f'fixture-{step}', 'type': 'function',
-                    'function': {'name': name, 'arguments': json.dumps(arguments)},
-                }]}
+            tools = {item['function']['name']: item['function'] for item in body['tools']}
+            if (mounted and step < len(batches)
+                    and (not coexist or NATIVE.issubset(tools))):
+                delta = {'tool_calls': []}
+                for index, (name, arguments, _) in enumerate(batches[step]):
+                    if name == 'read_file':
+                        field, = tools[name]['parameters']['required']
+                        arguments = {field: str(workspace / 'app/app.tsx')}
+                    delta['tool_calls'].append({
+                        'index': index, 'id': f'fixture-{step}-{index}', 'type': 'function',
+                        'function': {'name': name, 'arguments': json.dumps(arguments)},
+                    })
                 reason = 'tool_calls'
             else:
                 delta = {'content': 'fixture complete' if mounted else 'MCP_NOT_AVAILABLE'}
@@ -93,7 +105,10 @@ def verify(launcher, binary, workspace, mounted, approved, cancelled=False, read
         thread = threading.Thread(target=relay.serve_forever, daemon=True)
         thread.start()
         child = subprocess.Popen(
-            [launcher], env={'HOME': str(Path.home()), 'SHIJU_CORUST_LAUNCH': str(path)},
+            [launcher], env={
+                'HOME': str(Path.home()), 'SHIJU_CORUST_LAUNCH': str(path),
+                'VW_ACP_LAUNCH_REFERENCE': 'corust-probe',
+            },
             cwd=workspace, stdin=subprocess.PIPE, stdout=subprocess.PIPE, bufsize=0,
         )
 
@@ -105,13 +120,17 @@ def verify(launcher, binary, workspace, mounted, approved, cancelled=False, read
             deadline = monotonic() + 30
             while monotonic() < deadline:
                 assert select.select([child.stdout], [], [], max(0, deadline - monotonic()))[0], method
-                frame = json.loads(child.stdout.readline())
+                line = child.stdout.readline()
+                assert line, f'Managed entry disconnected during {method}'
+                frame = json.loads(line)
                 if frame.get('method') == 'session/request_permission':
                     approvals.append(frame['params']['toolCall'])
                     if cancelled:
                         send({'method': 'session/cancel', 'params': {'sessionId': frame['params']['sessionId']}})
+                    kind = 'allow_once' if approved else 'reject_once'
+                    option = next(item['optionId'] for item in frame['params']['options'] if item['kind'] == kind)
                     send({'id': frame['id'], 'result': {'outcome': {
-                        'outcome': 'selected', 'optionId': 'allow_once' if approved else 'reject_once',
+                        'outcome': 'selected', 'optionId': option,
                     }}})
                 if frame.get('method') == 'session/update':
                     events.append(frame['params']['update'])
@@ -160,7 +179,32 @@ def verify(launcher, binary, workspace, mounted, approved, cancelled=False, read
         assert not names.intersection(item[0] for item in GRAPH)
         assert not approvals and not trace and len(requests) == 1
         return
-    assert names == {item[0] for item in graph}
+    assert names == NATIVE | {item[0] for item in graph}, f'Unexpected mounted catalog: {sorted(names)}'
+    if coexist:
+        assert len(requests) == len(batches) + 1
+        assert [call['title'] for call in approvals] == [graph[0][0], graph[1][0]]
+        started, ended = trace[::2], trace[1::2]
+        assert [item['status'] for item in started] == ['in_progress'] * 4
+        assert [item['status'] for item in ended] == ['completed'] * 4
+        assert [item['toolCallId'] for item in started] == [item['toolCallId'] for item in ended]
+        native_title = 'Read ' + str(workspace / 'app/app.tsx')
+        assert [item['title'] for item in started] == [native_title, graph[0][0], graph[1][0], native_title]
+        for step, batch in enumerate(batches):
+            followup = requests[step + 1]
+            assert {tool['function']['name'] for tool in followup['tools']} == names
+            messages = followup['messages']
+            reply, *results = messages[-len(batch) - 1:]
+            expected_ids = [f'fixture-{step}-{index}' for index in range(len(batch))]
+            assert [item['id'] for item in reply['tool_calls']] == expected_ids
+            assert [item['function']['name'] for item in reply['tool_calls']] == [tool[0] for tool in batch]
+            assert [item['tool_call_id'] for item in results] == expected_ids
+            for result, (name, _, expected) in zip(results, batch):
+                assert expected in result['content'], (name, result)
+        for call in approvals:
+            call_id = call['toolCallId']
+            assert any(item['toolCallId'] == call_id and item['status'] == 'completed'
+                       for item in trace), call
+        return
     started, ended = trace[::2], trace[1::2]
     status = 'completed' if approved and not readonly else 'failed'
     assert [item['status'] for item in ended] == [status] * len(graph)
@@ -181,14 +225,17 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__)
     for name in ('launcher', 'binary', 'workspace'):
         parser.add_argument(name, type=lambda value: Path(value).resolve(strict=True))
+    parser.add_argument('--coexist', action='store_true', help='Run only the coexistence acceptance')
     args = parser.parse_args()
     before = sha256((args.workspace / 'app/app.tsx').read_bytes()).digest()
-    for mounted, approved, cancelled, readonly, filtered in (
+    verify(args.launcher, args.binary, args.workspace, True, True, coexist=True)
+    print('passed native-only, MCP-only and mixed calls under one mounted session', flush=True)
+    for mounted, approved, cancelled, readonly, filtered in (() if args.coexist else (
         (False, False, False, False, False), (True, True, False, False, False),
         (True, False, False, False, False), (True, True, True, False, False),
         (True, True, False, True, False), (True, True, False, False, True),
         (False, False, False, False, False),
-    ):
+    )):
         verify(args.launcher, args.binary, args.workspace, mounted, approved, cancelled, readonly, filtered)
         print(f'passed mounted={mounted} approved={approved} cancelled={cancelled} '
               f'readonly={readonly} filtered={filtered}', flush=True)

@@ -75,10 +75,10 @@
     "artifact_url": "https://api.github.com/repos/rustingai/corust-agent-release/releases/assets/419147804",
     "archive_sha256": "6a74d46f645774f0a7e2a95371bad39d63927e231a34d52d2800c79f508f025f",
     "files": {
-      "corust-agent-acp": "bc5e2b4d5a4289930939a7cc1855010d34cc43a38a134aababb95ce23cfd565e",
+      "corust-agent-acp": "c8100fae6241e111ef7e9d6b2db5d9374007f2c1920a0bf4f4a202ab616a6df2",
       "corust-agent-native": "a2a644a851ee03c583ed9f113cc3acbf54d99ff9f8aaaa782535dbd576d97a2e",
-      "mcp_bridge.py": "8a152d5bde38f1706d07038a42a9f796551a1e81003994a072731767dda8c81f",
-      "mcp_graph.py": "aee598220f387369402abac529426a983ca8e9018f27d9200f2a8db92a33e72a"
+      "mcp_bridge.py": "388578cd03cbc3a8c90cb8d3fd48d2d9cdd577541b577c28583bc6e17ac6a3bf",
+      "mcp_graph.py": "7672ec52a85f78d1e5be2c8796e43368a1d1b5716960623ae20e600b9bfe452d"
     }
   },
   "junie": {

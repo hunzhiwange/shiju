@@ -18,6 +18,13 @@ pub(super) fn control(session: &SessionMeta, enabled: bool) -> Element<'_, Messa
     ].spacing(4).into()
 }
 
+pub(super) fn reader_control<'a>(session: &'a SessionMeta, state: &super::State) -> Element<'a, Message> {
+    let terminal = state.resume.preferred.unwrap_or(SessionTerminal::Terminal);
+    button(text(format!("在 {terminal:?} 恢复"))).padding([8, 12]).style(primary_action_btn_style)
+        .on_press_maybe((!state.busy && !state.deletion.busy() && session.capabilities.resume)
+            .then(|| msg(Event::Open(session.identity.clone())))).into()
+}
+
 /// Compact actions remain separate from the body read target.
 pub fn quick_controls(session: &SessionMeta, enabled: bool) -> Element<'_, Message> {
     use iced::widget::{tooltip, tooltip::Position};

@@ -132,9 +132,8 @@ pub(super) fn controls(reader: &reader::State) -> Element<'_, Message> {
             .on_press(event(Event::Filter(filter))),
         );
     }
-    column![
+    row![
         filters,
-        row![
             text_input("查找已加载内容", &reader.find.query)
                 .style(settings_text_input_style)
                 .padding(SETTINGS_CONTROL_PADDING)
@@ -153,12 +152,9 @@ pub(super) fn controls(reader: &reader::State) -> Element<'_, Message> {
                 .padding([8, 12])
                 .style(rounded_action_btn_style)
                 .on_press_maybe((count > 0).then(|| event(Event::Move(true))))
-        ]
-        .spacing(8),
-        text("查找包含已加载正文；每处对应一个内容块，隐去及注入内容不参与")
-            .style(settings_muted_text_style)
     ]
     .spacing(8)
+    .wrap()
     .into()
 }
 pub(super) fn focused(reader: &reader::State) -> Option<Element<'_, Message>> {

@@ -16,8 +16,7 @@ pub(super) fn view(state: &State, loopback: bool) -> Element<'_, Message> {
             .on_press(message(Event::Open)).into();
     }
     let mut header = column![
-        row![text("外部会话").size(18),
-            button(text("返回应用")).padding([8, 12]).style(rounded_action_btn_style)
+        row![button(text("返回应用")).padding([8, 12]).style(rounded_action_btn_style)
                 .on_press(message(Event::Close))].spacing(12),
         row![
             action_menu(vec![Action::Refresh, Action::Select, Action::Terminal, Action::Sources],
@@ -172,12 +171,12 @@ pub(super) fn view(state: &State, loopback: bool) -> Element<'_, Message> {
         scrollable(container(content).width(Length::Fill))
             .id("external-session-list")
             .on_scroll(|viewport| message(Event::ListScrolled(viewport.absolute_offset())))
-            .height(Length::Fixed(420.0))
+            .height(Length::Fill)
             .direction(Direction::Vertical(Scrollbar::new().width(4).scroller_width(4))),
         footer,
         button(text("加载更多")).padding([8, 12]).style(rounded_action_btn_style)
             .on_press_maybe((more && !state.busy && !state.deletion.busy()).then(|| message(Event::Next))),
-    ].spacing(10).into();
+    ].spacing(10).height(Length::Fill).into();
     if !state.apps_open { return base; }
     let close = Event::Applications(false);
     let card = settings_modal_card(column![
@@ -234,10 +233,11 @@ pub fn provider_icon<'a>(provider: vw_api_external_session::SessionProvider, siz
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum Action { Refresh, Select, Terminal, Sources, CopyId, CopyPath, Reveal, Delete, Maintenance, Compression }
+pub enum Action { CopyMarkdown, ExportMarkdown, Options, Refresh, Select, Terminal, Sources, CopyId, CopyPath, Reveal, Delete, Maintenance, Compression }
 impl std::fmt::Display for Action {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_str(match self {
+            Self::CopyMarkdown => "复制整段 Markdown", Self::ExportMarkdown => "导出整段 Markdown", Self::Options => "显示与复制选项",
             Self::Refresh => "刷新", Self::Select => "多选", Self::Terminal => "首选终端",
             Self::Sources => "会话记录在哪里", Self::CopyId => "复制会话 ID", Self::CopyPath => "复制来源路径",
             Self::Reveal => "在 Finder 中显示", Self::Delete => "删除…", Self::Maintenance => "历史维护设置",
@@ -249,7 +249,7 @@ pub fn action_menu<'a>(actions: Vec<Action>, placeholder: &'a str, on_select: im
     settings_select(actions, None::<Action>, on_select).placeholder(placeholder)
         .width(Length::Fixed(if placeholder == "更多" { 80.0 } else { 128.0 })).into()
 }
-fn relative_time(session: &SessionMeta) -> String {
+pub(super) fn relative_time(session: &SessionMeta) -> String {
     let Some(ms) = session.last_active_at.or(session.created_at) else { return "时间未知".into(); };
     let minutes = Local::now().timestamp_millis().saturating_sub(ms).max(0) / 60_000;
     match minutes { 0 => "刚刚".into(), 1..=59 => format!("{minutes} 分钟前"), 60..=1439 => format!("{} 小时前", minutes / 60), _ => format!("{} 天前", minutes / 1440) }

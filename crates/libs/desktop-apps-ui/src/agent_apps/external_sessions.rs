@@ -83,6 +83,8 @@ pub enum Event {
     Find(find::Event),
     Read(ExternalSessionIdentity),
     Back,
+    ReaderOutline,
+    ReaderOptions,
     Adjacent(bool),
     Turn(usize),
     ListScrolled(iced::widget::scrollable::AbsoluteOffset),

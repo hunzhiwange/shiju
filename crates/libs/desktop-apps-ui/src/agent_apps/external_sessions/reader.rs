@@ -17,6 +17,8 @@ pub(super) fn handles(event: &Event) -> bool {
         event,
         Event::Find(_)
             | Event::Read(_)
+            | Event::ReaderOutline
+            | Event::ReaderOptions
             | Event::Back
             | Event::Adjacent(_)
             | Event::Turn(_)
@@ -175,6 +177,8 @@ fn start(state: &mut super::State, connection: &Connection, notice: &mut Option<
         images: images::State::default(),
         find: find::State::default(),
         exporting: false,
+        outline_open: true,
+        options_open: false,
     });
     Task::batch([
         task,
@@ -186,22 +190,37 @@ pub(super) fn view<'a>(state: &'a super::State, reader: &'a State, loopback: boo
     let sessions = super::list::readable_sessions(state);
     let index = sessions.iter().position(|session| session.identity == reader.identity);
     let count = sessions.len();
-    let header = row![
-        button(text("返回列表"))
-            .padding([8, 12])
-            .style(rounded_action_btn_style)
-            .on_press(message(Event::Back)),
-        text(&reader.title).size(18),
-        button(text("上一个"))
-            .padding([8, 12])
-            .style(rounded_action_btn_style)
-            .on_press_maybe(index.filter(|i| *i > 0).map(|_| message(Event::Adjacent(false)))),
-        button(text("下一个")).padding([8, 12]).style(rounded_action_btn_style).on_press_maybe(
-            index.filter(|i| i + 1 < count).map(|_| message(Event::Adjacent(true)))
-        ),
-    ]
-    .spacing(8)
-    .wrap();
+    let session = state.page.as_ref().and_then(|page| page.sessions.iter().find(|s| s.identity == reader.identity));
+    let mut header = row![
+        button(text("返回列表")).padding([8, 12]).style(rounded_action_btn_style).on_press(Event::Back),
+        super::list::provider_icon(reader.identity.provider, 24.0),
+        container(text(&reader.title).size(18)).width(Length::Fill),
+        button(text("上一个")).padding([8, 12]).style(rounded_action_btn_style)
+            .on_press_maybe(index.filter(|i| *i > 0).map(|_| Event::Adjacent(false))),
+        button(text("下一个")).padding([8, 12]).style(rounded_action_btn_style)
+            .on_press_maybe(index.filter(|i| i + 1 < count).map(|_| Event::Adjacent(true))),
+    ].spacing(8);
+    if let Some(session) = session {
+        header = header.push(super::resume::reader_control(session, state));
+    }
+    let mut actions = vec![super::list::Action::Refresh, super::list::Action::CopyId,
+        super::list::Action::CopyPath, super::list::Action::CopyMarkdown,
+        super::list::Action::ExportMarkdown, super::list::Action::Options];
+    if session.is_some_and(|s| s.capabilities.delete) { actions.push(super::list::Action::Delete); }
+    let identity = reader.identity.clone();
+    let generation = state.generation;
+    header = header.push(super::list::action_menu(actions, "更多", move |action| {
+        use super::list::Action;
+        match action {
+            Action::Refresh => Event::Read(identity.clone()),
+            Action::CopyId => Event::Path(super::paths::Event::Copy(identity.clone(), generation, super::paths::Location::Identity)),
+            Action::CopyPath => Event::Path(super::paths::Event::Copy(identity.clone(), generation, super::paths::Location::Source)),
+            Action::CopyMarkdown => Event::Export(super::export::Event::Start(super::export::Destination::Clipboard, false)),
+            Action::ExportMarkdown => Event::Export(super::export::Event::Start(super::export::Destination::File, false)),
+            Action::Delete => Event::Delete(super::delete::Event::Ask(Some(identity.clone()))),
+            _ => Event::ReaderOptions,
+        }
+    }));
     let status = if reader.failed {
         "读取失败，内容不完整".to_owned()
     } else if reader.loading {
@@ -209,34 +228,40 @@ pub(super) fn view<'a>(state: &'a super::State, reader: &'a State, loopback: boo
     } else {
         format!("已读取 {} 条消息", reader.messages.len())
     };
-    let base = column![
-        header,
-        super::paths::source_button(),
-        state.page.as_ref().and_then(|page| page.sessions.iter().find(|s| s.identity == reader.identity))
-            .map(|session| super::paths::controls(state, session, loopback))
-            .unwrap_or_else(|| text("来源位置不可用").into()),
-        state.page.as_ref().and_then(|page| page.sessions.iter().find(|s| s.identity == reader.identity))
-            .map(|session| super::resume::control(session, !state.busy && !state.deletion.busy()))
-            .unwrap_or_else(|| text("会话已不在当前目录，请刷新").into()),
-        super::export::controls(state, reader),
-        find::controls(reader),
-        text(status).style(settings_muted_text_style),
-        row![
-            scrollable(container(outline(reader)))
-                .width(Length::FillPortion(1))
-                .height(Length::Fixed(420.0))
-                .direction(Direction::Vertical(Scrollbar::new().width(4).scroller_width(4))),
-            scrollable(container(body(reader)).width(Length::Fill))
-                .id("external-session-reader")
-                .on_scroll(|v| message(Event::ReaderScrolled(v.absolute_offset())))
-                .width(Length::FillPortion(3))
-                .height(Length::Fixed(420.0))
-                .direction(Direction::Vertical(Scrollbar::new().width(4).scroller_width(4))),
-        ]
-        .spacing(12)
-    ]
-    .spacing(10)
-    .into();
+    let mut toolbar = row![button(text(if reader.outline_open { "收起目录" } else { "展开目录" }))
+        .padding([8, 12]).style(rounded_action_btn_style).on_press(Event::ReaderOutline),
+        button(text("显示与复制选项")).padding([8, 12]).style(rounded_action_btn_style).on_press(Event::ReaderOptions)].spacing(8);
+    if let Some(session) = session {
+        if let Some(dir) = &session.project_dir { toolbar = toolbar.push(text(dir).size(12)); }
+        if session.last_active_at.or(session.created_at).is_some() {
+            toolbar = toolbar.push(text(super::list::relative_time(session)).size(12));
+        }
+    }
+    toolbar = toolbar.push(button(text("导出 Markdown")).padding([8, 12]).style(rounded_action_btn_style)
+        .on_press_maybe((!reader.exporting && session.is_some_and(|s| s.capabilities.export_markdown))
+            .then(|| Event::Export(super::export::Event::Start(super::export::Destination::File, false)))));
+    let mut content = column![header.wrap(), toolbar.wrap(), find::controls(reader),
+        text(status).size(12).style(settings_muted_text_style)].spacing(8);
+    if reader.options_open {
+        content = content.push(button(text(if reader.details.process_open { "收起执行过程" } else { "展开执行过程" }))
+                .padding([8, 12]).style(rounded_action_btn_style).on_press(Event::Details(details::Event::Process)))
+            .push(super::export::controls(state, reader))
+            .push(text("复制和导出不包含思考内容").size(12).style(settings_muted_text_style));
+        if let Some(session) = session { content = content.push(super::paths::controls(state, session, loopback)); }
+    }
+    let mut workspace = row![
+        scrollable(container(body(reader)).width(Length::Fill))
+            .id("external-session-reader")
+            .on_scroll(|v| message(Event::ReaderScrolled(v.absolute_offset())))
+            .width(Length::FillPortion(3)).height(Length::Fill)
+            .direction(Direction::Vertical(Scrollbar::new().width(4).scroller_width(4))),
+    ].spacing(12).height(Length::Fill);
+    if reader.outline_open {
+        workspace = workspace.push(scrollable(container(outline(reader)))
+            .width(Length::FillPortion(1)).height(Length::Fill)
+            .direction(Direction::Vertical(Scrollbar::new().width(4).scroller_width(4))));
+    }
+    let base = content.push(workspace).height(Length::Fill).into();
     images::overlay(base, reader)
 }
 
@@ -381,6 +406,8 @@ pub struct State {
     pub images: images::State,
     pub find: find::State,
     pub exporting: bool,
+    pub outline_open: bool,
+    pub options_open: bool,
 }
 impl State {
     pub fn cancel(&self) {
@@ -400,8 +427,10 @@ pub struct Scope {
 }
 
 pub(super) fn navigate(state: &mut super::State, event: &Event) -> Option<Task<Event>> {
-    if !matches!(event, Event::Find(_) | Event::ListScrolled(_) | Event::ReaderScrolled(_) | Event::Back | Event::Turn(_)) { return None; }
+    if !matches!(event, Event::ReaderOutline | Event::ReaderOptions | Event::Find(_) | Event::ListScrolled(_) | Event::ReaderScrolled(_) | Event::Back | Event::Turn(_)) { return None; }
     match event.clone() {
+        Event::ReaderOutline => { if let Some(reader) = &mut state.reader { reader.outline_open = !reader.outline_open; } }
+        Event::ReaderOptions => { if let Some(reader) = &mut state.reader { reader.options_open = !reader.options_open; } }
         Event::Find(value) => {
             if let Some(reader) = &mut state.reader {
                 find::update(reader, value);

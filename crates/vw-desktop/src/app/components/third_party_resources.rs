@@ -11,7 +11,6 @@ use super::system_settings_common::{
 /// Session identities carry their application identity; this catalog spans applications.
 pub(crate) fn sessions(app: &App) -> Element<'_, Message> {
     column![
-        settings_page_heading("会话", "浏览当前执行主机授权范围内的第三方会话。"),
         super::external_sessions::view(&app.apps_catalog.external_sessions),
     ]
     .spacing(16)

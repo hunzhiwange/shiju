@@ -123,7 +123,8 @@ pub(crate) fn view(app: &App) -> Element<'_, Message> {
         workspace =
             workspace.push(super::system_settings_common::settings_error_banner(error.clone()));
     }
-    if state.third_party_page == ThirdPartyPage::Prompts && state.prompts.editor.is_some() {
+    if state.third_party_page == ThirdPartyPage::Sessions
+        || (state.third_party_page == ThirdPartyPage::Prompts && state.prompts.editor.is_some()) {
         workspace = workspace.push(container(body).padding([0, 7]).height(Length::Fill));
         return self::workspace(app, container(workspace.height(Length::Fill)).padding(24).into());
     }
@@ -347,6 +348,7 @@ pub(crate) fn navigate(app: &mut App, page: ThirdPartyPage) -> Task<Message> {
             })
         }
         ThirdPartyPage::Sessions => {
+            app.apps_catalog.external_sessions.open = true;
             super::external_sessions::update(app, super::external_sessions::Event::Refresh)
         }
         #[cfg(not(target_arch = "wasm32"))]
@@ -464,7 +466,10 @@ pub(crate) fn skills_update(
         Effect::Binding { scope, catalog, effect } => match effect {
             bindings_view::Effect::None => Task::none(),
             bindings_view::Effect::Error(error) => app.show_error_toast(error),
-            bindings_view::Effect::Success(notice) => app.show_success_toast(notice),
+            bindings_view::Effect::Success(notice) => Task::batch([
+                app.show_success_toast(notice),
+                crate::app::message::settings::skills::refresh_workspace(app),
+            ]),
             bindings_view::Effect::Request { generation, scope: request_scope, change } => {
                 let token = app.apps_catalog.token.clone();
                 Task::perform(

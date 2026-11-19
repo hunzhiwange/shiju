@@ -275,7 +275,7 @@ pub fn update(app: &mut Update<'_>, value: ResyncMessage) -> Task<ResyncMessage>
             }
         }
         ResyncMessage::Select(target, checked) => {
-            if locked(&*app.state) || !app.targets.contains(&target) {
+            if locked(&*app.state) || target.target_host_id != context.host || !app.targets.contains(&target) {
                 return Task::none();
             }
             let selected = &mut app.state.selected;
@@ -290,7 +290,9 @@ pub fn update(app: &mut Update<'_>, value: ResyncMessage) -> Task<ResyncMessage>
             }
         }
         ResyncMessage::Start | ResyncMessage::RetryFailed => {
+            if !app.authorized { return app.show_error_toast("当前安装未授权重写应用配置"); }
             let state = &*app.state;
+            if matches!(value, ResyncMessage::Start) && !state.open { return Task::none(); }
             if locked(state) {
                 return Task::none();
             }
@@ -340,7 +342,7 @@ pub fn update(app: &mut Update<'_>, value: ResyncMessage) -> Task<ResyncMessage>
                 || request.targets.iter().any(|t| {
                     !trusted
                         .iter()
-                        .any(|i| i.app_id == t.app_id && i.installation_id == t.installation_id)
+                        .any(|i| i.target_host_id == context.host && i.app_id == t.app_id && i.installation_id == t.installation_id)
                         || t.account_id.as_ref().is_some_and(|id| id.is_empty())
                 })
             {

@@ -20,14 +20,14 @@ pub struct ResyncView<'a> {
     pub selected: &'a [McpAppTarget], pub account: &'a String,
 }
 pub fn panel(state: Option<ResyncView<'_>>) -> Element<'_, Message> {
-    let mut body = column![text("重新同步进度").size(16), text("同步所选应用的全部受管绑定；未选择目录项时使用租户目录，选择后使用其共同作用域。取消保留已完成事务。Claude Desktop、OpenClaw 不支持。").size(12)].spacing(8);
+    let mut body = column![text("应用配置重写进度").size(16), text("同步所选应用的全部受管绑定；未选择目录项时使用租户目录，选择后使用其共同作用域。取消保留已完成事务。Claude Desktop、OpenClaw 不支持。").size(12)].spacing(8);
     let locked = state.is_some_and(|s| s.locked);
     let retry = state.is_some_and(|s| {
         !locked && s.status.as_ref().is_some_and(|r| terminal(r) && r.targets.iter().any(failed))
     });
     body = body.push(
         row![
-            toolbar_button("重新同步", (!locked).then(|| message(ResyncMessage::Open))),
+            toolbar_button("按当前开关重写应用配置", (!locked).then(|| message(ResyncMessage::Open))),
             toolbar_button("仅重试失败目标", retry.then(|| message(ResyncMessage::RetryFailed))),
             toolbar_button(
                 "刷新进度",
@@ -126,7 +126,7 @@ fn batch_label(outcome: McpBatchOutcome) -> &'static str {
 pub fn card<'a>(state: ResyncView<'a>, scope: String, targets: Vec<McpAppTarget>) -> Element<'a, Message> {
     use iced::{Length, widget::button};
     let locked = state.locked;
-    let mut body = column![text("选择可信 macOS 应用实例；每种应用最多一个实例。同步的是当前作用域的全部受管绑定，不只包含勾选的目录项。运行时和 ACP 选择保持独立。")].spacing(10).width(Length::Fill);
+    let mut body = column![text("选择可信 macOS 应用实例；每种应用最多一个实例。按已保存开关重写当前作用域的全部受管绑定，隐藏应用列不会改变已保存期望；保留无关条目。运行时和 ACP 选择保持独立。")].spacing(10).width(Length::Fill);
     body = body.push(text(format!("同步作用域：{scope}")));
     for target in targets {
         let selected = state.selected.contains(&target);
@@ -151,14 +151,14 @@ pub fn card<'a>(state: ResyncView<'a>, scope: String, targets: Vec<McpAppTarget>
     }
 
     let header = row![
-        text("重新同步应用").size(18),
+        text("重写应用配置").size(18),
         iced::widget::Space::new().width(Length::Fill),
         settings_close_button(message(ResyncMessage::Close))
     ]
     .align_y(iced::Alignment::Center);
     let footer = row![
         toolbar_button("取消", (!locked).then(|| message(ResyncMessage::Close))),
-        button(text("确认重新同步"))
+        button(text("确认重写应用配置"))
             .padding([7, 14])
             .style(primary_action_btn_style)
             .on_press_maybe(

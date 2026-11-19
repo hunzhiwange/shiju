@@ -1,5 +1,6 @@
 #[derive(Debug, Clone)]
 pub struct McpSettingsState {
+    pub actions: crate::management_probe::actions::State,
     pub tools: crate::management_tools::ToolsState,
     pub diagnostics: desktop_apps_ui::agent_apps_diagnostics::mcp_state::McpState,
     pub catalog: crate::management_list::CatalogState,
@@ -13,6 +14,7 @@ pub struct McpSettingsState {
 impl Default for McpSettingsState {
     fn default() -> Self {
         Self {
+            actions: Default::default(),
             diagnostics: Default::default(),
             tools: Default::default(),
             catalog: Default::default(),

@@ -15,6 +15,7 @@ pub enum Phase {
     Handshake,
     Succeeded,
     Failed,
+    Unsupported,
     Cancelling,
     Cancelled,
     Unverified,
@@ -25,6 +26,7 @@ impl Phase {
             Self::Queued => "checking · 排队中",
             Self::Handshake => "checking · 握手中",
             Self::Succeeded => "connected · 已连通",
+            Self::Unsupported => "unsupported · 不支持",
             Self::Failed => "error · 检测失败",
             Self::Cancelling => "checking · 正在取消，等待清理",
             Self::Cancelled => "cancelled · 已取消",
@@ -128,12 +130,13 @@ impl McpState {
                 .collect();
             *phase = match matches.as_slice() {
                 [McpConnectionOutcome::Connected { .. }] => Phase::Succeeded,
-                [McpConnectionOutcome::Failed { .. } | McpConnectionOutcome::Unsupported] => {
+                [McpConnectionOutcome::Unsupported] => Phase::Unsupported,
+                [McpConnectionOutcome::Failed { .. }] => {
                     Phase::Failed
                 }
                 [McpConnectionOutcome::Cancelled] => Phase::Cancelled,
                 [McpConnectionOutcome::NotVerified] => Phase::Unverified,
-                [] if matches!(phase, Phase::Succeeded | Phase::Failed | Phase::Cancelled) => {
+                [] if matches!(phase, Phase::Succeeded | Phase::Failed | Phase::Unsupported | Phase::Cancelled) => {
                     *phase
                 }
                 [] => pending,

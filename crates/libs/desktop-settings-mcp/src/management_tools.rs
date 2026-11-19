@@ -227,6 +227,7 @@ pub fn update(app: &mut Update<'_>, event: ToolsMessage) -> Task<ToolsMessage> {
             if let Some(error) = error { app.show_error_toast(error) } else { Task::none() }
         }
         ToolsMessage::Open(record) => {
+            if !app.on_page || app.mutating { return Task::none(); }
             let Some(diagnostics) = app.current.clone() else {
                 return app.show_error_toast("请选择检测应用并刷新目录");
             };

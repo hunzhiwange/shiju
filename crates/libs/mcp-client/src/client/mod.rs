@@ -273,6 +273,19 @@ async fn with_connect_timeout<T>(
 
 pub type RunningMcpPeer = rmcp::service::RunningService<rmcp::RoleClient, NoopClient>;
 
+/// Open a caller-owned stdio command without granting host callbacks.
+pub async fn open_isolated_stdio_peer(
+    command: Command,
+    timeout: Duration,
+    closed: tokio_util::sync::CancellationToken,
+) -> anyhow::Result<RunningMcpPeer> {
+    let client = NoopClient::with_cancellation(closed);
+    let transport = wire_stdio::StdioTransport::new(command, client.raw_responses.clone(), true, None)?;
+    let peer = with_connect_timeout("isolated stdio", timeout, wire_check::serve(client, transport, true)).await?;
+    crate::capabilities::validate_server_protocol(peer.peer_info())?;
+    Ok(peer)
+}
+
 /// Open a durable peer using the caller's trusted host actions and interaction owner.
 pub async fn open_server_peer(
     host: std::sync::Arc<dyn ClientHost>,

@@ -8,9 +8,17 @@ pub use model_relay_http::{RelayBackend, RelayRequest};
 pub struct RelayServer(model_relay_http::RelayServer);
 impl RelayServer {
     pub async fn start(binding: Arc<RelayBinding>, backend: Arc<dyn RelayBackend>, context: crate::project::instance::Context) -> anyhow::Result<Self> {
+        Self::start_with_routes(binding, backend, context, axum::Router::new()).await
+    }
+    pub(crate) async fn start_with_routes(
+        binding: Arc<RelayBinding>,
+        backend: Arc<dyn RelayBackend>,
+        context: crate::project::instance::Context,
+        routes: axum::Router,
+    ) -> anyhow::Result<Self> {
         anyhow::ensure!(context.project.id == binding.identity().project && !context.directory.is_empty(), "relay project mismatch");
         let host = Arc::new(RelayContext { context, backend });
-        model_relay_http::RelayServer::start(binding, host.clone(), host).await.map(Self)
+        model_relay_http::RelayServer::start_with_routes(binding, host.clone(), host, routes).await.map(Self)
     }
     pub fn address(&self) -> std::net::SocketAddr { self.0.address() }
     pub async fn shutdown(self) -> anyhow::Result<()> { self.0.shutdown().await }

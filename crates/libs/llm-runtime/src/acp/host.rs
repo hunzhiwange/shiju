@@ -39,6 +39,16 @@ pub trait Host: Send + Sync + 'static {
     fn supplier(agent: &str, skills: Option<&Self::Skills>) -> Result<(), Error>;
     fn validate_mounts(agent: &str, selected: bool) -> Result<(), Error>;
     fn prepare_launch<'a>(agent: &'a str, cfg: &'a AcpAgentConfig, model: &'a provider::Model, session: &'a str) -> HostFuture<'a, anyhow::Result<AcpLaunchProfile>>;
+    fn prepare_mimo_mcp_launch<'a>(
+        _config: &'a AcpAgentConfig,
+        _model: &'a provider::Model,
+        _session: &'a str,
+        _cwd: &'a Path,
+        _servers: &'a [acp_types::AcpMcpServer],
+    ) -> HostFuture<'a, anyhow::Result<AcpLaunchProfile>> {
+        Box::pin(async { anyhow::bail!("MiMo MCP bridge is unavailable") })
+    }
+
     fn prepare_openclaw_mcp_launch<'a>(
         config: &'a AcpAgentConfig,
         model: &'a provider::Model,

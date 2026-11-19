@@ -10,6 +10,16 @@ pub fn configure(
     endpoint: &str,
     directory: &str,
 ) -> anyhow::Result<()> {
+    configure_with_mcp(profile, endpoint, directory, serde_json::Map::new(), &[])
+}
+
+pub fn configure_with_mcp(
+    profile: &mut AcpLaunchProfile,
+    endpoint: &str,
+    directory: &str,
+    mcp: serde_json::Map<String, serde_json::Value>,
+    tool_names: &[String],
+) -> anyhow::Result<()> {
     let launch = profile.config();
     anyhow::ensure!(
         launch.args == ["acp"] && launch.env.keys().all(|key| key == REFERENCE_ENV),
@@ -53,6 +63,17 @@ pub fn configure(
     let home = root.join("home");
     std::fs::create_dir(&home)?;
     let model = format!("{PROVIDER}/{}", profile.model_alias);
+    let mut build_tools = vec!["read", "edit", "write"];
+    build_tools.extend(tool_names.iter().map(String::as_str));
+    let mut plan_tools = vec!["read"];
+    plan_tools.extend(tool_names.iter().map(String::as_str));
+    let mut permissions = serde_json::Map::new();
+    permissions.insert("*".into(), json!("deny"));
+    permissions.insert("read".into(), json!("allow"));
+    permissions.insert("edit".into(), json!("ask"));
+    for name in tool_names {
+        permissions.insert(name.clone(), json!("ask"));
+    }
     let config = json!({
         "model": model, "small_model": model,
         "enabled_providers": [PROVIDER],
@@ -73,11 +94,12 @@ pub fn configure(
         }},
         // Searches use a child ripgrep process, which the managed profile forbids.
         "agent": {
-            "build": {"tool_allowlist": ["read", "edit", "write"]},
-            "compose": {"tool_allowlist": ["read", "edit", "write"]},
-            "plan": {"tool_allowlist": ["read"]}
+            "build": {"tool_allowlist": build_tools},
+            "compose": {"tool_allowlist": build_tools},
+            "plan": {"tool_allowlist": plan_tools}
         },
-        "permission": {"*": "deny", "read": "allow", "edit": "ask"},
+        "permission": permissions,
+        "mcp": mcp,
         "autoupdate": false, "share": "disabled"
     });
     let config = profile.write_config("mimocode.json", &serde_json::to_vec(&config)?)?;
@@ -106,6 +128,7 @@ pub fn configure(
         ("SHIJU_MIMO_WORKSPACE".into(), workspace.to_string_lossy().into_owned()),
         ("SHIJU_MIMO_RELAY_TOKEN".into(), profile.binding.bearer_token().into()),
         ("MIMOCODE_CONFIG".into(), config.to_string_lossy().into_owned()),
+        ("MIMOCODE_MCP_TOOL_SEARCH".into(), "false".into()),
         ("MIMOCODE_DISABLE_PROJECT_CONFIG".into(), "1".into()),
         ("MIMOCODE_DISABLE_CLAUDE_CODE".into(), "1".into()),
         ("MIMOCODE_DISABLE_CLAUDE_CODE_COMMANDS".into(), "1".into()),

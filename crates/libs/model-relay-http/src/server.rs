@@ -71,6 +71,15 @@ impl RelayServer {
         backend: Arc<dyn RelayBackend>,
         host: Arc<dyn RelayHost>,
     ) -> anyhow::Result<Self> {
+        Self::start_with_routes(binding, backend, host, Router::new()).await
+    }
+
+    pub async fn start_with_routes(
+        binding: Arc<RelayBinding>,
+        backend: Arc<dyn RelayBackend>,
+        host: Arc<dyn RelayHost>,
+        private_routes: Router,
+    ) -> anyhow::Result<Self> {
         anyhow::ensure!(
             binding.accepts(binding.bearer_token(), binding.identity()),
             "inactive relay capability"
@@ -94,7 +103,8 @@ impl RelayServer {
             .route("/v1/responses", post(handle_responses))
             .route("/v1beta/models", get(handle_gemini))
             .route("/v1beta/models/{*resource}", get(handle_gemini).post(handle_gemini))
-            .with_state(state);
+            .with_state(state)
+            .merge(private_routes);
         #[cfg(any(test, feature = "acceptance-diagnostics"))]
         let router = router.layer(axum::middleware::from_fn(
             |request: axum::extract::Request, next: axum::middleware::Next| async move {

@@ -107,6 +107,18 @@ fn cycle_inner() -> anyhow::Result<()> {
                     } };
                 match dispatch(&mut connection, &owner.scope, &key, &work, all) {
                     Ok(imported) => ScanStep::Committed(ScanCounts { imported: imported as u64, files_scanned: 1, ..Default::default() }),
+                    Err(error) if adapter == ScanAdapter::Codex => {
+                        use usage::cursors::UsageCursorError;
+                        match error.downcast_ref::<UsageCursorError>() {
+                            Some(UsageCursorError::Io(_) | UsageCursorError::SourceChangedDuringScan) =>
+                                ScanStep::FileFailed(ScanFailure::SourceUnavailable),
+                            Some(UsageCursorError::InvalidRecord) =>
+                                ScanStep::FileFailed(ScanFailure::InvalidSource),
+                            Some(UsageCursorError::Storage(_)) =>
+                                ScanStep::Failed(ScanFailure::StorageUnavailable),
+                            _ => ScanStep::Failed(ScanFailure::SourceUnavailable),
+                        }
+                    }
                     Err(_) => ScanStep::Failed(ScanFailure::SourceUnavailable),
                 }
             }).map_err(|_| anyhow::anyhow!("scan execution unavailable"))?;

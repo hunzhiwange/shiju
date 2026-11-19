@@ -1,6 +1,40 @@
 use super::*;
 
 #[test]
+fn codex_file_failure_keeps_later_imports_and_reports_partial_scan() {
+    use crate::scan_jobs::{ScanCounts, ScanFailure, ScanPhase};
+
+    let owner = ScanOwner {
+        scope: vw_api_transport::ProjectScope::new(
+            vw_api_transport::TenantScope::default(),
+            vw_api_transport::local_project_id(),
+        )
+        .unwrap(),
+        principal: "desktop-local-user".into(),
+        target_host: vw_api_transport::local_host_id(),
+    };
+    let mut schedule = ScanSchedule::new(ScanJobs::default(), owner);
+    schedule.set_source(ScanAdapter::Codex, UsageSourceSettings::default());
+    let job = schedule.manual_sync(Instant::now()).unwrap();
+    let mut steps = [
+        ScanStep::FileFailed(ScanFailure::SourceUnavailable),
+        ScanStep::FileFailed(ScanFailure::SourceUnavailable),
+        ScanStep::Committed(ScanCounts { imported: 2, files_scanned: 1, ..Default::default() }),
+        ScanStep::End,
+    ].into_iter();
+    let result = schedule.execute(&job, |adapter| {
+        assert_eq!(adapter, ScanAdapter::Codex);
+        steps.next().unwrap()
+    }).unwrap();
+
+    assert_eq!(result.counts.imported, 2);
+    assert_eq!(result.errors, [(ScanAdapter::Codex, ScanFailure::SourceUnavailable)]);
+    assert_eq!(result.phase, ScanPhase::Failed);
+    assert!(schedule.last_complete_scan().unwrap().is_none());
+    assert!(steps.next().is_none());
+}
+
+#[test]
 fn periodic_scans_follow_the_selected_interval_with_or_without_the_page() {
     let now = Instant::now();
     let owner = ScanOwner {

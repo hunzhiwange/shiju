@@ -1,6 +1,31 @@
 use serde_json::{Value, json};
 use app_usage_codex::codex_delta::{CodexDeltaParser, normalize_codex_model, parse_reader};
+use app_usage_codex::codex_lineage::CodexLineage;
 use vw_api_usage::{UsageInputSemantics, UsageReasoningSemantics};
+
+#[test]
+fn idle_codex_fork_projects_without_loading_its_parent() {
+    const CHILD: &str = "00000000-0000-4000-8000-000000000001";
+    const PARENT: &str = "00000000-0000-4000-8000-000000000002";
+    let dir = std::env::temp_dir().join(format!("shiju-idle-codex-fork-{}", std::process::id()));
+    std::fs::create_dir_all(&dir).unwrap();
+    let path = dir.join(format!("rollout-2026-11-08T10-00-00-{CHILD}.jsonl"));
+    let meta = json!({
+        "type": "session_meta",
+        "timestamp": "2026-11-08T10:00:00Z",
+        "payload": { "id": CHILD, "forked_from_id": PARENT }
+    });
+    let mut lineage = CodexLineage::new(vec![path.clone()]).unwrap();
+    std::fs::write(&path, format!("{meta}\n")).unwrap();
+    let idle = lineage.project(&path);
+    std::fs::write(&path, format!("{meta}\n{}\n", snapshot(10, 2))).unwrap();
+    let active = lineage.project(&path);
+    std::fs::remove_file(&path).unwrap();
+    std::fs::remove_dir(&dir).unwrap();
+
+    assert!(idle.unwrap().is_empty());
+    assert_eq!(active.unwrap_err().kind(), std::io::ErrorKind::NotFound);
+}
 
 fn snapshot(input: u64, output: u64) -> Value {
     json!({"type":"event_msg", "payload":{"type":"token_count", "info":{

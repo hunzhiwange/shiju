@@ -40,7 +40,7 @@ impl ScanCounts {
 }
 
 /// Closed error codes prevent native paths or raw log contents reaching clients.
-#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum ScanFailure { PermissionDenied, SourceUnavailable, InvalidSource, StorageUnavailable }
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum ScanPhase { Queued, Running, Completed, Cancelled, Failed }
@@ -77,10 +77,12 @@ pub struct ScanJobs(Arc<Mutex<State>>);
 pub enum ScanJobError { InvalidOwner, NotFound, Unavailable, CapacityExceeded }
 
 /// Adapter dispatch must advance its host-private file iterator even on a file
-/// failure. End ends that adapter; Failed ends it with a public diagnostic.
+/// failure. FileFailed records a diagnostic and continues with the next file.
+/// End and Failed finish the adapter.
 /// Other adapters always continue. No raw source paths belong in this interface.
 pub enum ScanStep {
     Committed(ScanCounts),
+    FileFailed(ScanFailure),
     End,
     Failed(ScanFailure),
 }
@@ -162,6 +164,11 @@ impl ScanJobs {
                 let job = &mut state.jobs.get_mut(id).ok_or(ScanJobError::NotFound)?.snapshot;
                 match result {
                     ScanStep::Committed(counts) => job.counts.merge(counts),
+                    ScanStep::FileFailed(error) => {
+                        if !job.errors.contains(&(adapter, error)) {
+                            job.errors.push((adapter, error));
+                        }
+                    }
                     ScanStep::End => { job.completed_adapters += 1; break; }
                     ScanStep::Failed(error) => {
                         job.errors.push((adapter, error));

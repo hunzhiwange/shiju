@@ -327,6 +327,10 @@ impl CodexLineage {
         let mut replay = Vec::new();
         if !child.continuation {
             if let Some(parent) = &child.parent {
+                // An idle fork has no replay to reconcile until it records usage.
+                if !child.events.iter().any(|event| signature(event).is_some()) {
+                    return Ok(Vec::new());
+                }
                 let cutoff = timestamp(&child.events[child.meta_line])
                     .ok_or_else(|| invalid("fork session_meta lacks valid timestamp"))?;
                 replay = self.parent_signatures(parent, cutoff)?;

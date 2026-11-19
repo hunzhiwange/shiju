@@ -26,10 +26,10 @@ pub fn view<'a, M: Clone + 'static>(
     for backup in s.backups {
         body = body.push(control(
             format!(
-                "{} / {} · 时间戳 {} · {}{}",
+                "{} / {} · {} · {}{}",
                 backup.name,
                 backup.directory,
-                backup.created_at,
+                (s.format_date)(backup.created_at),
                 backup.backup_id,
                 if s.selected.as_ref() == Some(&backup.backup_id) { "（已选择）" } else { "" }
             ),
@@ -37,7 +37,28 @@ pub fn view<'a, M: Clone + 'static>(
         ));
     }
     if s.backups.is_empty() {
-        body = body.push(text("暂无备份；读取失败时可刷新重试。"));
+        body = body.push(text(if s.busy {
+            "正在加载备份…"
+        } else if s.error.is_some() {
+            "备份读取失败，请刷新重试"
+        } else if s.version.is_some() {
+            "当前执行主机没有备份"
+        } else {
+            "尚未读取备份"
+        }));
+    }
+    if let Some(id) = s.delete_pending {
+        if let Some(backup) = s.backups.iter().find(|b| &b.backup_id == id) {
+            body = body
+                .push(text(format!("确认永久删除备份「{}」？此操作不可撤销。", backup.name)))
+                .push(
+                    row![
+                        control("确认删除".into(), Event::ConfirmDelete),
+                        control("取消删除".into(), Event::CancelDelete)
+                    ]
+                    .spacing(8),
+                );
+        }
     }
     body = body.push(settings_field_label("恢复目标确认")).push(text(
         "恢复到当前执行主机的技能主副本；勾选需要重新绑定的 apps。不勾选时只恢复主副本。",
@@ -87,6 +108,8 @@ pub fn view<'a, M: Clone + 'static>(
 }
 #[derive(Clone, Copy)]
 pub struct ViewState<'a> {
+    pub delete_pending: Option<&'a String>,
+    pub format_date: fn(u64) -> String,
     pub open: bool,
     pub busy: bool,
     pub backups: &'a Vec<vw_api_app_skills::backups_api::SkillBackup>,
@@ -104,5 +127,7 @@ pub enum Event {
     Select(String),
     Target(vw_api_app_skills::bindings_api::SkillBindingTarget, bool),
     Delete,
+    ConfirmDelete,
+    CancelDelete,
     Restore,
 }

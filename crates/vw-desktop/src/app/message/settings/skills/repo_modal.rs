@@ -4,7 +4,7 @@ use desktop_session::session_gateway::{gateway_skill_repos_request, gateway_skil
 use iced::Task;
 use vw_api_app_skills::repos_api::SkillReposResponse;
 
-pub(crate) use desktop_settings_skills::repo_modal::{Event};
+pub(crate) use desktop_settings_skills::repo_modal::Event;
 pub(crate) fn message(event: Event) -> Message {
     Message::Settings(SettingsMessage::SkillRepositories(event))
 }
@@ -12,20 +12,43 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
     use desktop_settings_skills::update::repo_modal::{Effect, update as reduce};
     let input = super::update_input(app);
     match reduce(&mut app.skills_settings.repositories, &input, event) {
+        Effect::OpenSource(url) => crate::app::message::view::update(
+            app,
+            crate::app::message::view::ViewMessage::OpenUrlExternal(url),
+        ),
         Effect::None => Task::none(),
         Effect::Error(error) => app.show_error_toast(error),
-        Effect::Request { generation, added, directory, host, snapshot, change } => {
-    Task::perform(async move {
-        let scope = match snapshot.as_ref() {
-            Some(s) => s.scope.clone(),
-            None => gateway_skill_repos_scope(crate::app::config::gateway_client_endpoint(), &directory, host).await?,
-        };
-        gateway_skill_repos_request(crate::app::config::gateway_client_endpoint(), scope, snapshot.map_or(0, |s| s.version), change).await
-    }, move |result| message(Event::Completed { generation, added, result }))
-        }
+        Effect::Request { generation, added, directory, host, snapshot, change } => Task::perform(
+            async move {
+                let scope = match snapshot.as_ref() {
+                    Some(s) => s.scope.clone(),
+                    None => {
+                        gateway_skill_repos_scope(
+                            crate::app::config::gateway_client_endpoint(),
+                            &directory,
+                            host,
+                        )
+                        .await?
+                    }
+                };
+                gateway_skill_repos_request(
+                    crate::app::config::gateway_client_endpoint(),
+                    scope,
+                    snapshot.map_or(0, |s| s.version),
+                    change,
+                )
+                .await
+            },
+            move |result| message(Event::Completed { generation, added, result }),
+        ),
     }
 }
 /// A repository selection must belong to the active gateway, project and host.
 pub(crate) fn sync_inventory(app: &App) -> Option<&SkillReposResponse> {
-    desktop_settings_skills::update::repo_modal::sync_inventory(&app.skills_settings.repositories, &app.apps_catalog.context, app.workspace_state.project_id.as_deref(), &app.apps_catalog.host)
+    desktop_settings_skills::update::repo_modal::sync_inventory(
+        &app.skills_settings.repositories,
+        &app.apps_catalog.context,
+        app.workspace_state.project_id.as_deref(),
+        &app.apps_catalog.host,
+    )
 }

@@ -42,3 +42,22 @@
 独立 ACP 探针分别提交 stdio、HTTP、SSE，均收到 `-32602`，相同拒绝理由。原生 JSON Stream 只有消息、审批、控制和挂载等命令，没有可把宿主执行结果注回原生推理的外部工具回调。现有模型中继在请求发送上游前还会过滤 aionrs 的工具表，只保留四个工作区内置工具；中继未注册 MCP HTTP 路由。Snow 的受管实现是该后端自有的工具运行层，未提供 aionrs 可调用的宿主转发。上游最新发布仍为固定版 0.2.11。[aionrs 发行页](https://github.com/iOfficeAI/aionrs/releases/tag/v0.2.11)
 
 当前阻塞是挂载实现缺口。若保持引擎的派生进程和网络边界，需要受审的宿主 MCP 转发，以及中继按该会话已发现的工具名单放行；还需把 ACP 单次批准与实际执行绑定，验证撤销、进程回收和续轮结果。这涉及模型中继和独立桥接的共同改动，需要扩展当前限定的执行范围或提供已审入口。未改 Rust，未运行 Cargo。
+
+## 同端口转发原型
+
+原型从当前 aionrs 驱动读取原生引擎沙箱模板，保留派生进程禁令和单一回环端口。私有探针在同一端口分别处理 Chat Completions 和 Streamable HTTP MCP。受审原生引擎收到 `AddMcpServer` 后通过 HTTP 发现工具，RustCodeGraph 仍由宿主以 stdio 启动。探针使用临时令牌和本地模拟模型，图谱调用及续轮结果来自真实 RustCodeGraph。
+
+| 场景 | 模型请求 | 原生审批 | 实际图谱调用 |
+| --- | ---: | --- | --- |
+| 无挂载 | 1 | 无 | 0 |
+| 挂载并批准 | 4 | 单次批准 3 次 | query、callers、node 各 1 次 |
+| 挂载并拒绝 | 2 | 拒绝 1 次 | 0 |
+| 撤除后新会话 | 1 | 无 | 0 |
+
+批准轮回传的结果依次命中 `createRueSiteApp`、调用者 `mountRueSiteApp` 和调用链源码。三个结果均出现在对应的模型续轮中。拒绝结果也进入续轮。同一令牌重放已消费的工具调用返回 HTTP 403，错误令牌返回 HTTP 403，无挂载会话的 MCP 路径返回 HTTP 404。四轮均收到原生 `stream_end`。
+
+```bash
+python3 patches/acp-model-source/aionrs/probe.py "$reviewed_engine" "$rustcodegraph" "$indexed_ruejs_copy"
+```
+
+这条路径可以复用原生引擎的 MCP 注册能力。正式接入仍需在 ShiJu 的桥接与中继之间绑定会话目录、已发现的工具和一次性审批，限制代理调用参数和进程归属，并在中继撤销时销毁 MCP 客户端。探针只验证固定工具及参数，未接入实际网关和指定阿里模型。未修改 Rust 或运行 Cargo。

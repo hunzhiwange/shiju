@@ -40,7 +40,7 @@ fn root(_agent: &str) -> Result<PathBuf, String> {
 }
 fn installed_directory(agent: &str, contract: &Contract) -> Result<PathBuf, String> {
     // Install revised contracts beside their prior reviewed runtimes.
-    let revision = if agent == "sigit" {
+    let revision = if matches!(agent, "sigit" | "vibe") {
         3
     } else if agent == "harn" {
         4
@@ -58,7 +58,7 @@ fn installed_directory(agent: &str, contract: &Contract) -> Result<PathBuf, Stri
         2
     } else if matches!(
         agent,
-        "glm-acp-agent" | "hermes" | "junie" | "nova" | "openclaw" | "pi" | "poolside" | "vibe"
+        "glm-acp-agent" | "hermes" | "junie" | "nova" | "openclaw" | "pi" | "poolside"
     ) {
         2
     } else {
@@ -534,12 +534,6 @@ pub(super) async fn install(agent: &str) -> Result<bool, String> {
             "vibe/mistral-vibe-3.0.4-session-binding.patch",
             include_str!(
                 "../../../../docs/shiju/acp-model-source/evidence/vibe/mistral-vibe-3.0.4-session-binding.patch"
-            ),
-        ),
-        (
-            "vibe/mistral-vibe-3.0.4-direct-mcp-experiment.patch",
-            include_str!(
-                "../../../../docs/shiju/acp-model-source/evidence/vibe/mistral-vibe-3.0.4-direct-mcp-experiment.patch"
             ),
         ),
         (

@@ -1,4 +1,5 @@
 //! Reviewed lifecycle recipes and authorized host process execution.
+pub mod manual_commands;
 pub mod npm;
 #[cfg(test)]
 mod npm_tests;

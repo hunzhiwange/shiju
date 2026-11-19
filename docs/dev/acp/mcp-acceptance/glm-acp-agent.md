@@ -4,6 +4,8 @@
 
 ## 环境
 
+本页三轮验收在 macOS arm64 进行，未在 Windows 或 Linux 复跑。各平台的安装路径见下文[受管接入](#受管接入)。
+
 - 在 Darwin arm64 复用已审核的 npm 发行版 `glm-acp-agent@1.17.1`，入口 SHA-256 为 `d0d9237bffcbd5017a0085aa3c4625c29e2b750f87c358fa9c455d3cd4cdbd98`。私有回环网关使用现有 `shiju 0.6.0`，构建 SHA-256 为 `e61098c0a9a4f5a6c6f658b191741bc880b4591031ef9d7dae3d9257af66882f`，健康检查 HTTP 200。
 - 从 `189d22dc1` 提取 [复用请求](../ACP验收.md#可复用的验收请求)，提示 SHA-256 为 `207198f85dcd07b542ad54b77fb4630b4c4d64ca3f9c0ead912454cbd75db4cc`。三轮均使用租户 `10001 / 100010005`、`acp-glm-acp-agent / glm-acp-agent`、`alibaba-token-plan-cn/deepseek-v4.1-flash-1017`、`session_model` 和 `full_access=true`。
 - 从 RueJS 的 `main` 提交 `14fe287b13549f5183d42fbc45b28e1498ffae1c` 导出干净副本。RustCodeGraph 1.2.10 索引 3478 个文件，命中 `createRueSiteApp`（`app/app.tsx:32`）。挂载轮使用原 stdio 二进制、`--no-watch` 和服务名 `ruejs_graph_probe`。
@@ -118,6 +120,11 @@ UI summary 三轮均回读原预设、后端及 `full_access=true`。ACP options
 
 ## 受管接入
 
-ShiJu 内置 GLM 安装器在 macOS arm64 安装独立的固定 npm 版本，并校验发行包完整性、补丁前的源码和补丁后的运行文件。普通 GLM 会话保留原生工具。对于带工具名单的服务，ShiJu 把已解析的 `allowedTools` 和 `deniedTools` 随 ACP 服务发送。配置的原名或宿主工具 ID 都可匹配，拒绝名单优先。按策略过滤后的目录同时用于声明和执行。只有挂载了服务且每个服务都设了非空 `allowedTools` 时，GLM 才使用 MCP 专用目录。该策略随新建、加载和分叉会话重新解析。带策略的会话要求受审入口，宿主全量拒绝模式下拒绝该挂载。
+ShiJu 的 GLM 受管补丁安装目前仅在 macOS arm64 启用。安装器在该平台安装独立的固定 npm 版本，并校验发行包完整性、补丁前的源码和补丁后的运行文件。Windows 和 Linux 的内置安装走原版 `npm install -g glm-acp-agent@1.17.1`，可按 GLM 自身配置启动普通 ACP 会话。下列能力各有不同的接入条件。
 
-原私有验收补丁保留供复现，默认安装使用 [受管补丁](../../../../patches/acp-model-source/glm-acp-agent/glm-acp-agent-1.17.1-managed.patch)。已在私有目录用仓库安装器完成 npm 安装、打补丁和文件摘要校验，四个修改后的 JavaScript 文件均通过语法检查。上节三轮使用当时的私有原型。
+- **模型选择**。原版 GLM 支持通过 `ACP_GLM_MODEL` 和 `ACP_GLM_BASE_URL` 接收模型及服务地址，上文在 macOS arm64 实测过。当前 ShiJu 的 `session_model` 路径在启动前校验受审补丁产物，原版 npm 入口无法通过。Windows 的 GLM 会话模型驱动还会因状态目录 ACL 未验证而拒绝启动。Linux 有 Unix 驱动，但内置安装只提供原版。
+- **MCP 挂载**。原版 GLM 支持通过 ACP `session/new.params.mcpServers` 挂载 MCP，本页已在 macOS arm64 验证原生 stdio 挂载。带 ShiJu 工具名单的挂载还要求通过受审入口校验，需使用受管补丁。
+
+普通 GLM 会话保留原生工具。对于带工具名单的服务，ShiJu 把已解析的 `allowedTools` 和 `deniedTools` 随 ACP 服务发送。配置的原名或宿主工具 ID 都可匹配，拒绝名单优先。按策略过滤后的目录同时用于声明和执行。只有挂载了服务且每个服务都设了非空 `allowedTools` 时，GLM 才使用 MCP 专用目录。该策略随新建、加载和分叉会话重新解析。带策略的会话要求受审入口，宿主全量拒绝模式下拒绝该挂载。
+
+原私有验收补丁保留供复现，macOS arm64 的受管安装使用 [受管补丁](../../../../patches/acp-model-source/glm-acp-agent/glm-acp-agent-1.17.1-managed.patch)。已在私有目录用仓库安装器完成 npm 安装、打补丁和文件摘要校验，四个修改后的 JavaScript 文件均通过语法检查。上节三轮使用当时的私有原型。

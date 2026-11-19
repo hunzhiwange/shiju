@@ -57,6 +57,7 @@ pub(super) fn update(state: &mut super::State, connection: &Connection, notice: 
                 page.total = page.total.saturating_sub(removed.len());
                 // Counts belong to the old catalog snapshot; refresh will rebuild them.
                 page.groups.clear();
+                state.app_counts = None;
                 if !removed.is_empty() { page.next_cursor = None; }
             }
             state.deletion.selected.retain(|session| !removed.contains(&session.identity));
@@ -94,10 +95,12 @@ pub(super) fn update(state: &mut super::State, connection: &Connection, notice: 
             if state.busy || !state.deletion.selecting { return Task::none(); }
             state.deletion.loading = true;
             let token = connection.token.clone();
+            let provider = state.provider;
+            let search = state.search.clone();
             return Task::perform(async move {
                 let result = async {
                     let mut query = SessionCatalogQuery { project_id: project.into(), target_host_id: scope.host.clone(),
-                        provider: None, instance_id: None, project_dir: None, search: String::new(), page_size: 200, cursor: None };
+                        provider, instance_id: None, project_dir: None, search, page_size: 200, cursor: None };
                     let mut sessions: Vec<SessionMeta> = Vec::new();
                     let mut cursors = Vec::new();
                     loop {

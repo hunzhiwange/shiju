@@ -29,6 +29,11 @@ pub struct State {
     pub busy: bool,
     pub page: Option<SessionCatalogPage>,
     pub generation: u64,
+    pub provider: Option<SessionProvider>,
+    pub search_draft: String,
+    pub search: String,
+    pub collapsed: std::collections::HashSet<Option<String>>,
+    pub app_counts: Option<(Vec<SessionCatalogGroup>, bool)>,
 }
 impl State {
     pub fn cancel_reader(&mut self) {
@@ -59,6 +64,12 @@ pub struct Scope {
 #[derive(Clone, Debug)]
 pub enum Event {
     Open,
+    SearchDraft(String),
+    Search,
+    ClearSearch,
+    Provider(Option<SessionProvider>),
+    ToggleProject(Option<String>),
+    CountsLoaded(Scope, Result<SessionCatalogPage, AgentAppsReadError>),
     Maintenance(maintenance::Event),
     Compression(compression::Event),
     Delete(delete::Event),
@@ -92,6 +103,14 @@ pub fn update(
 ) -> Task<Event> {
     let Connection { client, context, catalog_context, project, host, generation, token } =
         connection;
+    if let Event::CountsLoaded(scope, result) = event {
+        if scope.context == context && catalog_context.as_ref() == Some(&context)
+            && scope.host == host && scope.project == project && scope.catalog == generation
+            && scope.generation == state.generation && state.open {
+            state.app_counts = result.ok().map(|page| (page.groups, page.truncated));
+        }
+        return Task::none();
+    }
     if let Event::Loaded(scope, result) = event {
         if scope.context != context
             || catalog_context.as_ref() != Some(&context)
@@ -132,8 +151,15 @@ pub fn update(
         }
         return Task::none();
     }
-    if state.deletion.busy() {
+    if state.deletion.deleting || !state.deletion.pending.is_empty() {
         return Task::none();
+    }
+    match &event {
+        Event::SearchDraft(value) => { state.search_draft = value.clone(); return Task::none(); }
+        Event::Search => state.search = state.search_draft.trim().to_owned(),
+        Event::ClearSearch => { state.search_draft.clear(); state.search.clear(); }
+        Event::Provider(provider) => state.provider = *provider,
+        _ => {}
     }
     if matches!(event, Event::Refresh) {
         state.resume.reset();
@@ -141,7 +167,7 @@ pub fn update(
     if matches!(event, Event::Refresh) {
         state.deletion = delete::State::default();
     }
-    if state.busy && matches!(event, Event::Next) {
+    if (state.busy || state.deletion.loading) && matches!(event, Event::Next) {
         return Task::none();
     }
     if project.trim().is_empty() {
@@ -164,7 +190,12 @@ pub fn update(
     state.host = host.clone();
     let append = cursor.is_some();
     if !append {
+        state.cancel_reader();
         state.page = None;
+        state.app_counts = None;
+        state.collapsed.clear();
+        state.deletion = delete::State::default();
+        state.list_offset = Default::default();
     }
     state.generation = state.generation.wrapping_add(1);
     let scope = Scope {
@@ -178,15 +209,30 @@ pub fn update(
     let query = SessionCatalogQuery {
         project_id: project.into(),
         target_host_id: scope.host.clone(),
-        provider: None,
+        provider: state.provider,
         instance_id: None,
         project_dir: None,
-        search: String::new(),
+        search: state.search.clone(),
         page_size: 20,
         cursor,
     };
 
-    Task::perform(
+    let counts = if state.app_counts.is_none() {
+        let mut counts_query = query.clone();
+        counts_query.cursor = None;
+        counts_query.provider = None;
+        counts_query.search.clear();
+        counts_query.page_size = 1;
+        let counts_scope = scope.clone();
+        let counts_client = client.clone();
+        let counts_token = token.clone();
+        Task::perform(async move {
+            Event::CountsLoaded(counts_scope,
+                gateway_external_session::GatewayExternalSessionClient::new(counts_client.transport().clone())
+                    .external_sessions_catalog(&counts_query, &counts_token).await)
+        }, |event| event)
+    } else { Task::none() };
+    let load = Task::perform(
         async move {
             message(Event::Loaded(
                 scope,
@@ -198,7 +244,10 @@ pub fn update(
             ))
         },
         |message| message,
-    )
+    );
+    Task::batch([counts, load, if append { Task::none() } else {
+        iced::widget::operation::scroll_to("external-session-list", state.list_offset)
+    }])
 }
 
 pub fn close(state: &mut State) {
@@ -270,7 +319,15 @@ pub fn prepare_host_event(state: &mut State, event: &Event) -> HostDispatch {
     if state.maintenance.is_open() && !matches!(event, Event::Maintenance(_)) {
         return HostDispatch::Blocked;
     }
+    if (state.deletion.deleting || !state.deletion.pending.is_empty())
+        && !matches!(event, Event::Delete(_) | Event::Loaded(..) | Event::CountsLoaded(..)) {
+        return HostDispatch::Blocked;
+    }
     match event {
+        Event::ToggleProject(dir) => {
+            if !state.collapsed.remove(dir) { state.collapsed.insert(dir.clone()); }
+            return HostDispatch::Handled;
+        }
         Event::Open => {
             state.open = true;
             return HostDispatch::OpenSettings;

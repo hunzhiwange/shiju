@@ -34,16 +34,14 @@ pub(super) fn update(state: &mut super::State, connection: &Connection, notice: 
             let Some(reader) = &state.reader else {
                 return Task::none();
             };
-            let Some(page) = &state.page else {
-                return Task::none();
-            };
+            let sessions = super::list::readable_sessions(state);
             let Some(index) =
-                page.sessions.iter().position(|session| session.identity == reader.identity)
+                sessions.iter().position(|session| session.identity == reader.identity)
             else {
                 return Task::none();
             };
             let index = if next { index.checked_add(1) } else { index.checked_sub(1) };
-            if let Some(session) = index.and_then(|i| page.sessions.get(i)) {
+            if let Some(session) = index.and_then(|i| sessions.get(i)) {
                 let identity = session.identity.clone();
                 return update(state, connection, notice, Event::Read(identity));
             }
@@ -183,11 +181,9 @@ fn start(state: &mut super::State, connection: &Connection, notice: &mut Option<
 }
 
 pub(super) fn view<'a>(state: &'a super::State, reader: &'a State, loopback: bool) -> Element<'a, Message> {
-    let index = state
-        .page
-        .as_ref()
-        .and_then(|page| page.sessions.iter().position(|s| s.identity == reader.identity));
-    let count = state.page.as_ref().map_or(0, |page| page.sessions.len());
+    let sessions = super::list::readable_sessions(state);
+    let index = sessions.iter().position(|session| session.identity == reader.identity);
+    let count = sessions.len();
     let header = row![
         button(text("返回列表"))
             .padding([8, 12])

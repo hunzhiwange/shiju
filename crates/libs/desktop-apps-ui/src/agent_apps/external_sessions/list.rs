@@ -4,7 +4,7 @@ use desktop_ui_controls::system_settings_common::*;
 use super::Event as Message;
 
 use chrono::{Local, TimeZone};
-use iced::{Element, Length, widget::{button, column, container, row, scrollable, text}};
+use iced::{Element, Length, widget::{button, column, container, row, scrollable, text, text_input}};
 use iced::widget::scrollable::{Direction, Scrollbar};
 use std::collections::BTreeMap;
 use vw_api_external_session::SessionMeta;
@@ -29,6 +29,31 @@ pub(super) fn view(state: &State, loopback: bool) -> Element<'_, Message> {
             super::paths::source_button(),
         ].spacing(8).wrap(),
     ].spacing(8);
+    header = header.push(row![
+        text_input("搜索标题、摘要、目录、来源路径或 ID", &state.search_draft)
+            .on_input(Event::SearchDraft).on_submit(Event::Search)
+            .font(iced::Font::DEFAULT).style(settings_text_input_style).padding(SETTINGS_CONTROL_PADDING)
+            .size(SETTINGS_CONTROL_TEXT_SIZE),
+        button(text("搜索")).padding([8, 12]).style(primary_action_btn_style).on_press(Event::Search),
+        button(text("清空")).padding([8, 12]).style(rounded_action_btn_style).on_press(Event::ClearSearch),
+    ].spacing(8));
+    let mut apps = row![button(text(if state.provider.is_none() { "全部应用 ✓" } else { "全部应用" }))
+        .padding([8, 12]).style(rounded_action_btn_style).on_press(Event::Provider(None))].spacing(8);
+    for provider in [vw_api_external_session::SessionProvider::Claude,
+        vw_api_external_session::SessionProvider::Codex, vw_api_external_session::SessionProvider::Opencode,
+        vw_api_external_session::SessionProvider::Hermes, vw_api_external_session::SessionProvider::Pi,
+        vw_api_external_session::SessionProvider::Gemini, vw_api_external_session::SessionProvider::Openclaw,
+        vw_api_external_session::SessionProvider::Grokbuild, vw_api_external_session::SessionProvider::Kimi,
+        vw_api_external_session::SessionProvider::Omp, vw_api_external_session::SessionProvider::Mcode,
+        vw_api_external_session::SessionProvider::Dsh, vw_api_external_session::SessionProvider::Agy] {
+        let count = state.app_counts.as_ref().map(|(groups, truncated)| {
+            let count = groups.iter().filter(|group| group.provider == provider).map(|group| group.count).sum::<usize>();
+            if *truncated { format!("{count}+（扫描截断）") } else { count.to_string() }
+        }).unwrap_or_else(|| "未知".into());
+        apps = apps.push(button(text(format!("{provider:?} · {count}{}", if state.provider == Some(provider) { " ✓" } else { "" })))
+            .padding([8, 12]).style(rounded_action_btn_style).on_press(Event::Provider(Some(provider))));
+    }
+    header = header.push(apps.wrap());
     if state.busy { header = header.push(text("正在读取会话…").style(settings_muted_text_style)); }
     if state.error { header = header.push(settings_error_banner("外部会话读取失败，请刷新重试；已加载内容保留。")); }
     let available = !state.busy && !state.deletion.busy();
@@ -58,28 +83,19 @@ pub(super) fn view(state: &State, loopback: bool) -> Element<'_, Message> {
     }
     if let Some(page) = &state.page {
         header = header.push(text(format!("主机：{} · 共 {} 项 · 已加载 {} 项", state.host, page.total, page.sessions.len())));
-        if page.sessions.is_empty() { content = content.push(text("当前授权范围内没有外部会话")); }
-        let mut groups: BTreeMap<(u8, String), Vec<&SessionMeta>> = BTreeMap::new();
-        for session in &page.sessions {
-            let key = if state.by_time {
-                format!("{} · {:?} · {} · {}", time_group(session), session.identity.provider,
-                    session.identity.instance_id, session.identity.target_host)
-            } else {
-                format!("{} · {:?} · {} · {}", session.project_dir.as_deref().unwrap_or("未知项目"),
-                    session.identity.provider, session.identity.instance_id, session.identity.target_host)
-            };
-            let order = if state.by_time {
-                match time_group(session) { "今天" => 0, "昨天" => 1, "近七天" => 2, "更早" => 3, _ => 4 }
-            } else { 0 };
-            groups.entry((order, key)).or_default().push(session);
-        }
-        for ((_, label), mut sessions) in groups {
-            sessions.sort_by_key(|session| std::cmp::Reverse(session.last_active_at.or(session.created_at)));
-            let count = page.groups.iter().filter(|group| sessions.first().is_some_and(|session|
-                group.provider == session.identity.provider && group.instance_id == session.identity.instance_id
-                    && group.project_dir == session.project_dir)).map(|group| group.count).sum::<usize>();
-            let mut group = column![text(format!("{} · 已加载 {} 项{}", label, sessions.len(),
-                if !state.by_time && count > 0 { format!(" / 共 {count} 项") } else { String::new() })).size(14)].spacing(8);
+        if page.sessions.is_empty() { content = content.push(text(if state.search.is_empty() && state.provider.is_none() { "当前授权范围内没有外部会话" } else { "没有匹配的会话" })); }
+        for (dir, label, sessions) in groups(state) {
+            let count = if !state.by_time && state.search.is_empty() && !page.groups.is_empty() {
+                Some(page.groups.iter().filter(|group| group.project_dir == dir
+                    && state.provider.is_none_or(|provider| provider == group.provider))
+                    .map(|group| group.count).sum::<usize>())
+            } else { None };
+            let collapsed = !state.by_time && state.collapsed.contains(&dir);
+            let title = format!("{}{} · 已加载 {} 项{}", if collapsed { "▸ " } else { "▾ " }, label, sessions.len(),
+                count.map(|count| format!(" / {} {count} 项", if page.truncated { "至少" } else { "共" })).unwrap_or_default());
+            let mut group = column![button(text(title).size(14)).padding([8, 12]).style(rounded_action_btn_style)
+                .on_press_maybe((!state.by_time).then(|| Event::ToggleProject(dir)))].spacing(8);
+            if collapsed { content = content.push(group); continue; }
             for session in sessions {
                 let mut item = column![text(session.title.as_deref().unwrap_or(&session.identity.session_id.0)).size(15)].spacing(4);
                 if let Some(summary) = &session.summary { item = item.push(text(summary).size(13).style(settings_muted_text_style)); }
@@ -134,7 +150,7 @@ pub(super) fn view(state: &State, loopback: bool) -> Element<'_, Message> {
             .height(Length::Fixed(420.0))
             .direction(Direction::Vertical(Scrollbar::new().width(4).scroller_width(4))),
         button(text("加载更多")).padding([8, 12]).style(rounded_action_btn_style)
-            .on_press_maybe((more && !state.busy).then(|| message(Event::Next))),
+            .on_press_maybe((more && !state.busy && !state.deletion.busy()).then(|| message(Event::Next))),
     ].spacing(10).into()
 }
 
@@ -143,4 +159,37 @@ fn time_group(session: &SessionMeta) -> &'static str {
         .and_then(|ms| Local.timestamp_millis_opt(ms).single()) else { return "时间未知"; };
     let days = Local::now().date_naive().signed_duration_since(date.date_naive()).num_days();
     match days { ..=0 => "今天", 1 => "昨天", 2..=6 => "近七天", _ => "更早" }
+}
+
+// Both presentation and reader navigation consume this order.
+fn groups(state: &State) -> Vec<(Option<String>, String, Vec<&SessionMeta>)> {
+    let Some(page) = &state.page else { return Vec::new(); };
+    if state.by_time {
+        let mut sessions: Vec<_> = page.sessions.iter().collect();
+        sessions.sort_by_key(|session| std::cmp::Reverse(session.last_active_at.or(session.created_at)));
+        let mut groups: Vec<(Option<String>, String, Vec<&SessionMeta>)> = Vec::new();
+        for session in sessions {
+            let label = time_group(session);
+            if let Some(last) = groups.last_mut().filter(|group| group.1 == label) {
+                last.2.push(session);
+            } else { groups.push((None, label.to_owned(), vec![session])); }
+        }
+        groups
+    } else {
+        let mut groups: BTreeMap<Option<String>, Vec<&SessionMeta>> = BTreeMap::new();
+        for session in &page.sessions {
+            groups.entry(session.project_dir.clone()).or_default().push(session);
+        }
+        groups.into_iter().map(|(dir, mut sessions)| {
+            sessions.sort_by_key(|session| std::cmp::Reverse(session.last_active_at.or(session.created_at)));
+            let label = dir.clone().unwrap_or_else(|| "未知目录".into());
+            (dir, label, sessions)
+        }).collect()
+    }
+}
+
+pub(super) fn readable_sessions(state: &State) -> Vec<&SessionMeta> {
+    groups(state).into_iter()
+        .filter(|(dir, _, _)| state.by_time || !state.collapsed.contains(dir))
+        .flat_map(|(_, _, sessions)| sessions).filter(|session| session.capabilities.read).collect()
 }

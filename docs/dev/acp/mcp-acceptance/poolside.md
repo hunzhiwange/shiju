@@ -64,3 +64,27 @@ Poolside v2 使用每个受管进程独有的回环 HTTP 桥，将新 ACP 会话
 额外原生探针确认允许和拒绝同时命中时只声明剩余的 `rustcodegraph_callers`。审批期间主动取消并发送迟到的批准时，模型只收到首轮请求，未取得图谱结果。Poolside 启动器原有分支仍把终态映射为暂存写入拒绝信息；这次验证的是取消后的工具撤权。
 
 尝试在共享槽位 6 执行 `python3 scripts/cargo_slot.py cargo build -j 1 --locked -p vw-cli --bin shiju`。两项 Cargo 缓存变量均指向 `target/rust-slot-6`。受管注册和相关库已编译，整网关构建退出 101。正在并行修改的 MiMo 宿主接线与本次 Cargo 已编译的 trait 版本签名不一致，`vw-agent` 报 `E0050`。本次私有网关未启动，也未运行随后的 Rust 定向测试。待共享代码与构建统一后，使用新网关复跑原请求的三轮，并运行 `cargo test -j 1 --locked -p session-engine --lib acp_mcp_mount_carries_resolved_tool_policy`。
+
+## 新版标准下的真实模型验收
+
+2026-11-19，默认共存路径通过三轮。Darwin arm64 上复用槽位 6 的共享 shiju 0.6.0 构建副本，SHA-256 为 `109066ea0b79ce6edfc4399624715f0dafa80d397adabe7a1ae46158407e7cba`。确认二进制内含 Poolside v2 的四项摘要和宿主工具策略键。独立网关识别 Poolside 1.0.16 v2 为已安装，并从同一受审入口启动三次。RueJS 副本仍为 `14fe287b13549f5183d42fbc45b28e1498ffae1c`，RustCodeGraph 1.2.10 索引 3478 个文件。
+
+三轮使用新版同一提示，SHA-256 为 `18806f1a927d3587ee5c685107c89b5dbaeea09614efe9a327e293b649967f38`。只在挂载轮添加 `ruejs_graph_probe` 原生 stdio 定义。受管启动器通过本次会话私有的 Streamable HTTP 将其交给 Poolside。沿用原生工具权限，未新增服务或全会话白名单。活跃 UI summary 和终态回读为 `acp-poolside / poolside`、`full_access=true`。活跃 ACP options 显示 `connected=true`、`client_only`，终态连接释放。三轮均回读租户 `10001 / 100010005` 下的 `alibaba-token-plan-cn/deepseek-v4.1-flash-1017` 和 `session_model`。
+
+| 轮次 | 新会话 | HTTP / curl / 秒 | SSE 终态 | 实际工具完成情况 |
+| --- | --- | --- | --- | --- |
+| 无挂载 | `ses_1f192fe8c0012ip0k3qlC6bRyY` | 200 / 0 / 62.993024 | `chat.done` ×1 | 0 个 MCP 调用，官方读取 6 成功、25 失败 |
+| 挂载 | `ses_1f193f6c6001E5Q65BwnQj8Izw` | 200 / 0 / 112.180632 | `chat.done` ×1 | 33 个 MCP 调用成功、1 个失败，官方读取 15 成功、2 失败 |
+| 撤除 | `ses_1f195af5e001PoDz01fJyxcfkz` | 200 / 0 / 29.425673 | `chat.done` ×1 | 0 个 MCP 调用，官方读取 2 成功、9 失败 |
+
+无挂载与撤除两轮的 Poolside 原生配置日志均无该服务，无图谱结果。两轮答复对本地索引文件的推断不准确，服务隔离以原生配置和轨迹为准。三轮没有 `chat.error`。挂载轮的一次图谱查询把 `projectPath` 指向单个文件，服务按原路径校验拒绝，模型改用已索引根目录的查询结果继续。辅助官方读取因路径不存在失败。主提示之外的标题生成记录了 HTTP 403。
+
+| 目标工具 | ACP 调用 ID | 原始 MCP 结果及模型回传 |
+| --- | --- | --- |
+| `rustcodegraph_query` | `call_a6219fed7ea1456c8dccaf5c` | `createRueSiteApp` 位于 `app/app.tsx:32`，答复的符号表逐项引用 |
+| `rustcodegraph_callers` | `call_a93db65371f5442cb117ed0e` | `mountRueSiteApp` 位于 `app/app.tsx:39`，答复引用调用边及入口 |
+| `rustcodegraph_node` | `call_b8c23125a1b141b28277ae75` | `packages/runtime/src/hooks/useApp.ts:4` 转发至 `_$createApp(factory)`，答复引用源码并追到 `packages/runtime/src/compiler-runtime/app.ts:57` |
+
+三个调用均有同 ID 的 SSE 开始与完成事件。Poolside 原生轨迹保留了对应的 `mcp_tool_result`，`isError=false`。答复引用上述独立观测和额外节点源码，正确交代浏览器启动条件、`#app` 检查、清除快照以及插件登记和实际挂载顺序。官方读取和图谱辅助调用均在本次原权限下完成。
+
+私有网关退出，回环端口关闭。按挂载路径清理了三个自有沙箱容器，删除私有租户配置与数据库，撤除临时挂载。RueJS 副本的 4108 个普通文件与导出内容一致。Poolside 原生临时日志会记录会话内短期 HTTP 令牌，留存的原生证据已脱敏，令牌随进程退出撤销。本轮复用共享构建和先前的 Python 定向验证，未重新执行 Cargo 测试。

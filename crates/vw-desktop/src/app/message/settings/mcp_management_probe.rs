@@ -19,7 +19,9 @@ pub(crate) fn cleanup(
 /// Called after navigation/context/mutations settle; it never starts a connection check.
 pub(crate) fn invalidate(app: &mut App) -> Task<Message> {
     use crate::app::{components::system_settings::SystemTab, state::AgentConfigTab};
-    let on_page = app.navigation_panels.show_system_settings
+    let on_page = (crate::app::components::third_party_settings::is_visible(app)
+        && app.apps_catalog.third_party_page == desktop_ui_controls::settings_navigation::ThirdPartyPage::Mcp)
+        || app.navigation_panels.show_system_settings
         && app.navigation_panels.system_settings_tab == SystemTab::Agents
         && app.agents_settings.active_config_tab == AgentConfigTab::Mcp;
     let changed =

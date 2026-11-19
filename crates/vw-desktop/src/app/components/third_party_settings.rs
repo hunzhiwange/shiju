@@ -1,6 +1,8 @@
 //! Final desktop composition for third-party resources and application details.
 #[path = "third_party_skills_workspace.rs"]
 pub(crate) mod skills_workspace;
+#[path = "third_party_mcp_workspace.rs"]
+pub(crate) mod mcp_workspace;
 use super::system_settings_common::{icon_btn, icon_svg, rounded_action_btn_style, settings_page_heading};
 use crate::app::{
     App, Message,
@@ -53,15 +55,7 @@ pub(crate) fn view(app: &App) -> Element<'_, Message> {
                 .into(),
             }
         }
-        ThirdPartyPage::Mcp => match mcp_scope(app) {
-            Some(scope) if state.third_party_mcp_scope.as_ref() == Some(&scope) => {
-                let installations = state.rows.iter().filter_map(|row| row.observation.as_ref().ok())
-                    .flat_map(|observation| observation.installations.iter().cloned()).collect::<Vec<_>>();
-                // The component captures the scope by value in messages, not this projection.
-                column![super::system_settings_mcp::third_party_panel(app), mcp_view(app, scope, &installations)].spacing(12).into()
-            }
-            _ => text("请连接网关并重新打开 MCP 页面以读取当前目录").into(),
-        },
+        ThirdPartyPage::Mcp => mcp_workspace::view(app),
         ThirdPartyPage::Skills => {
             let applications = state
                 .rows
@@ -123,7 +117,7 @@ pub(crate) fn view(app: &App) -> Element<'_, Message> {
         workspace =
             workspace.push(super::system_settings_common::settings_error_banner(error.clone()));
     }
-    if matches!(state.third_party_page, ThirdPartyPage::Sessions | ThirdPartyPage::Skills)
+    if matches!(state.third_party_page, ThirdPartyPage::Mcp | ThirdPartyPage::Sessions | ThirdPartyPage::Skills)
         || (state.third_party_page == ThirdPartyPage::Prompts && state.prompts.editor.is_some()) {
         workspace = workspace.push(container(body).padding([0, 7]).height(Length::Fill));
         return self::workspace(app, container(workspace.height(Length::Fill)).padding(24).into());
@@ -287,33 +281,12 @@ fn sidebar_action<'a>(
         .into()
 }
 
-fn mcp_scope(app: &App) -> Option<desktop_settings_mcp::third_party::Scope> {
+pub(crate) fn mcp_scope(app: &App) -> Option<desktop_settings_mcp::third_party::Scope> {
     Some(desktop_settings_mcp::third_party::Scope {
         context: crate::app::message::settings::mcp_management_list::context(app)?,
         app_id: None,
         generation: app.apps_catalog.navigation_generation,
     })
-}
-
-// The scope must live with the host state for the duration of the rendered Element.
-fn mcp_view<'a>(
-    app: &'a App,
-    scope: desktop_settings_mcp::third_party::Scope,
-    installations: &[vw_api_app_identity::AppInstallation],
-) -> Element<'a, Message> {
-    // Build the scoped projection using the cached scope owned by navigation.
-    let Some(current) =
-        app.apps_catalog.third_party_mcp_scope.as_ref().filter(|current| **current == scope)
-    else {
-        return text("请重新打开 MCP 页面以刷新作用域").into();
-    };
-    desktop_settings_mcp::third_party::view(desktop_settings_mcp::third_party::View {
-        scope: current,
-        state: &app.mcp_settings,
-        installations,
-        authorized: !app.apps_catalog.loading,
-    })
-    .map(|event| message(AppsCatalogMessage::ThirdPartyMcp(event)))
 }
 
 pub(crate) fn navigate(app: &mut App, page: ThirdPartyPage) -> Task<Message> {
@@ -330,11 +303,10 @@ pub(crate) fn navigate(app: &mut App, page: ThirdPartyPage) -> Task<Message> {
         ThirdPartyPage::AppsCatalog => settings::apps_catalog::update(app, AppsCatalogMessage::EnsureLoaded),
         ThirdPartyPage::Prompts => super::system_settings_prompts::list::open_selected(app),
         ThirdPartyPage::Mcp => {
-            app.apps_catalog.third_party_mcp_scope = mcp_scope(app);
-            settings::mcp_management_list::update(
-                app,
-                settings::mcp_management_list::CatalogMessage::Refresh,
-            )
+            Task::batch([
+                settings::apps_catalog::update(app, AppsCatalogMessage::EnsureLoaded),
+                mcp_workspace::refresh(app),
+            ])
         }
         ThirdPartyPage::Skills => {
             let input = settings::skills::update_input(app);
@@ -365,6 +337,7 @@ pub(crate) fn navigate(app: &mut App, page: ThirdPartyPage) -> Task<Message> {
 /// Invalidate transient UI and request generations without changing domain targets.
 pub(crate) fn invalidate(app: &mut App) {
     app.apps_catalog.commands.invalidate();
+    desktop_settings_mcp::management_probe::actions::invalidate(&mut app.mcp_settings.actions, None, &[]);
     use crate::app::message::settings::skills;
     for event in [
         SettingsMessage::SkillRepositories(skills::repo_modal::Event::Close),
@@ -428,7 +401,8 @@ pub(crate) fn mcp_update(
     event: desktop_settings_mcp::third_party::Message,
 ) -> Task<Message> {
     let completion = matches!(&event.action, desktop_settings_mcp::third_party::Action::Bindings(
-        desktop_settings_mcp::management_bindings::BindingsMessage::Finished { .. }));
+        desktop_settings_mcp::management_bindings::BindingsMessage::Finished { .. }
+        | desktop_settings_mcp::management_bindings::BindingsMessage::MatrixFinished { .. }));
     let current = if completion {
         event.scope.clone()
     } else {
@@ -545,7 +519,7 @@ pub(crate) fn overlays<'a>(app: &'a App, base: Element<'a, Message>) -> Element<
         ThirdPartyPage::Skills => super::system_settings_skills::third_party_overlays(app, base),
         ThirdPartyPage::Mcp if app.apps_catalog.third_party_mcp_scope == mcp_scope(app)
             && app.apps_catalog.third_party_mcp_scope.is_some() =>
-                super::system_settings_mcp::third_party_overlays(app, base),
+                mcp_workspace::overlays(app, base),
         _ => base,
     };
     if app.apps_catalog.third_party_page == ThirdPartyPage::ManagementTools {

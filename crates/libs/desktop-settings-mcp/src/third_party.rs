@@ -44,7 +44,7 @@ pub fn update(app: &mut Update<'_>, current: &Scope, message: Message) -> Task<M
     }
     // A completed write still settles its original request after app navigation. The
     // existing controller checks context and request generation; the view filters targets.
-    let completion = matches!(&message.action, Action::Bindings(BindingsMessage::Finished { .. }));
+    let completion = matches!(&message.action, Action::Bindings(BindingsMessage::Finished { .. } | BindingsMessage::MatrixFinished { .. }));
     if !completion && &origin != current {
         return Task::none();
     }
@@ -65,6 +65,11 @@ pub fn update(app: &mut Update<'_>, current: &Scope, message: Message) -> Task<M
         }
         BindingsMessage::Finished { result: Ok(result), .. }
             if result.items.iter().any(|item| !origin.contains(&item.target)) =>
+        {
+            return app.error("发布结果目标与请求应用或主机不一致");
+        }
+        BindingsMessage::MatrixFinished { attempts, .. }
+            if attempts.iter().any(|attempt| !origin.contains(&attempt.change.target)) =>
         {
             return app.error("发布结果目标与请求应用或主机不一致");
         }

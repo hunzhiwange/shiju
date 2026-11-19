@@ -23,10 +23,23 @@ pub(crate) fn update(app: &mut App, event: McpDiagnosticMessage) -> Task<Message
     let client = matches!(event, McpDiagnosticMessage::Start(_)).then(crate::app::config::gateway_client);
     let mut notice = None;
     let catalog = catalog_visible.then_some(app.mcp_settings.catalog.result.as_ref()).flatten();
-    let task = desktop_apps_ui::agent_apps_diagnostics::mcp::update(
-        &mut app.mcp_settings.diagnostics, current, catalog, &app.apps_catalog.token,
-        client, &mut notice, event,
-    ).map(message);
+    let on_workspace = crate::app::components::third_party_settings::is_visible(app)
+        && app.apps_catalog.third_party_page == desktop_ui_controls::settings_navigation::ThirdPartyPage::Mcp;
+    let task = if on_workspace {
+        let records = catalog.and_then(|c| c.as_ref().ok()).map(|c| {
+            desktop_settings_mcp::management_bindings::matrix::visible_records(c, &app.mcp_settings.bindings.matrix.query)
+                .into_iter().cloned().collect::<Vec<_>>()
+        }).unwrap_or_default();
+        desktop_settings_mcp::management_probe::actions::probe(
+            &mut app.mcp_settings.diagnostics, current, catalog, &records, &app.apps_catalog.token,
+            crate::app::config::gateway_client().map_err(|e| e.to_string()), &mut notice, event,
+        )
+    } else {
+        desktop_apps_ui::agent_apps_diagnostics::mcp::update(
+            &mut app.mcp_settings.diagnostics, current, catalog, &app.apps_catalog.token,
+            client, &mut notice, event,
+        )
+    }.map(message);
     let toast = match notice {
         Some(desktop_apps_ui::Notice::Error(text)) => app.show_error_toast(text),
         Some(desktop_apps_ui::Notice::Success(text)) => app.show_success_toast(text),

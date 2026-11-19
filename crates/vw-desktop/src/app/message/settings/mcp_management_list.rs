@@ -14,7 +14,7 @@ pub(crate) fn context(app: &App) -> Option<Context> {
             tenant: client.endpoint().tenant_scope().clone(),
             project: app.navigation_tabs.project_path.clone(),
         },
-        host: local_app_auth::HOST_ID.into(),
+        host: app.apps_catalog.host.clone(),
         credentials_generation: app.apps_catalog.generation,
     })
 }

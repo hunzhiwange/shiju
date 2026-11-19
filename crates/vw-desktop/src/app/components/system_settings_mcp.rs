@@ -147,7 +147,7 @@ pub(crate) fn third_party_overlays<'a>(app: &'a App, dialog: Element<'a, Message
         );
     }
     if overlay == Overlay::Form
-        && let Some(draft) = &app.mcp_settings.connection_form
+        && let Some(draft) = app.mcp_settings.connection_form.as_ref().filter(|draft| Some(&draft.context) == current.as_ref())
     {
         use crate::app::message::settings::mcp_management_form::{FormMessage, message};
         return settings_modal_overlay(
@@ -184,7 +184,7 @@ mod bindings;
 pub(crate) mod import;
 
 #[path = "system_settings_mcp_resync.rs"]
-mod resync;
+pub(crate) mod resync;
 
 #[path = "system_settings_mcp_tools.rs"]
 pub(crate) mod tools;

@@ -10,6 +10,7 @@ pub enum AppsCatalogMessage {
     SelectApp(vw_api_app_identity::AppId),
     SelectPromptApp(vw_api_app_identity::AppId),
     Navigate(desktop_ui_controls::settings_navigation::ThirdPartyPage),
+    McpWorkspace(crate::app::components::third_party_settings::mcp_workspace::Event),
     ThirdPartyMcp(desktop_settings_mcp::third_party::Message),
     ThirdPartySkills(desktop_settings_skills::third_party::Message),
     ExternalSessions(crate::app::components::external_sessions::Event),
@@ -113,6 +114,7 @@ pub(super) fn update(app: &mut App, message: AppsCatalogMessage) -> Task<Message
             return crate::app::components::third_party_settings::navigate(app, page);
         }
         AppsCatalogMessage::Navigate(page) => return crate::app::components::third_party_settings::navigate(app, page),
+        AppsCatalogMessage::McpWorkspace(event) => return crate::app::components::third_party_settings::mcp_workspace::update(app, event),
         AppsCatalogMessage::ThirdPartyMcp(event) => return crate::app::components::third_party_settings::mcp_update(app, event),
         AppsCatalogMessage::ThirdPartySkills(event) => return crate::app::components::third_party_settings::skills_update(app, event),
         AppsCatalogMessage::ExternalSessions(event) => return crate::app::components::external_sessions::update(app, event),
@@ -349,6 +351,7 @@ pub(super) fn update(app: &mut App, message: AppsCatalogMessage) -> Task<Message
                 } else { Task::none() };
                 return Task::batch([
                     prompts,
+                    crate::app::components::third_party_settings::mcp_workspace::refresh(app),
                     navigation,
                     crate::app::components::system_settings_apps::preferences::update(
                         app, crate::app::components::system_settings_apps::preferences::PreferencesMessage::Load,

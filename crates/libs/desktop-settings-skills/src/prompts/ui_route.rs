@@ -8,6 +8,8 @@ pub fn ui_route(event: Event) -> UiRoute {
     use super::Event as Ui;
     use super::update::{self as host, Event};
     UiRoute::Update(match event {
+        Ui::Query(v) => Event::Query(v),
+        Ui::Menu(v) => Event::Menu(v),
         Ui::Open(v) => Event::Open(v),
         Ui::Edit(v) => Event::Edit(v),
         Ui::CloseEditor => Event::CloseEditor,

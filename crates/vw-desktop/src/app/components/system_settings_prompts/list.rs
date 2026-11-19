@@ -34,6 +34,8 @@ pub(crate) fn select(app: &mut App, id: AppId) -> Task<Message> {
     if switch_blocked(&app.apps_catalog.prompts) || !available(app, id) {
         return Task::none();
     }
+    app.apps_catalog.prompts.query.clear();
+    app.apps_catalog.prompts.menu = None;
     app.apps_catalog.expanded = Some(id);
     super::super::third_party_settings::navigate(app, ThirdPartyPage::Prompts)
 }

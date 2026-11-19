@@ -9,6 +9,8 @@ pub mod transfer;
 pub use list::State;
 #[derive(Clone, Debug)]
 pub enum Event {
+    Query(String),
+    Menu(Option<list::Menu>),
     Open(vw_api_app_identity::AppId),
     Edit(Option<String>),
     CloseEditor,

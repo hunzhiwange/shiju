@@ -13,6 +13,8 @@ use gateway_app_prompts::{AgentAppPromptCatalog, AgentAppPromptsScope};
 use {vw_api_types::agent_apps::{AppId}};
 #[derive(Clone, Debug)]
 pub enum Event {
+    Query(String),
+    Menu(Option<super::list::Menu>),
     Toast(bool, String),
     Open(AppId),
     SharedImport(shared_import::Event),
@@ -37,12 +39,21 @@ pub fn message(event: Event) -> Event { event }
 pub fn update(app: &mut Input<'_>, event: Event) -> Task<Message> {
     if let Event::SharedImport(event) = event { return shared_import::update(app, event); }
     if app.prompts.shared_import.is_some() { return Task::none(); }
+    if !matches!(&event, Event::Query(_) | Event::Menu(_)) { app.prompts.menu = None; }
     if let Event::Sync(event) = event { return sync::update(app, event); }
     if let Event::Template(event) = event { return templates::update(app, event); }
     if let Event::Transfer(event) = event { return transfer::update(app, event); }
     if let Event::PiFile(event) = event {
         if app.prompts.mutating { return Task::none(); }
         return pi_files::update(app, event);
+    }
+    match &event {
+        Event::Query(value) => { app.prompts.query = value.clone(); app.prompts.menu = None; return Task::none(); }
+        Event::Menu(menu) => {
+            if !app.prompts.loading && !app.prompts.mutating && app.prompts.editor.is_none() { app.prompts.menu = menu.clone(); }
+            return Task::none();
+        }
+        _ => { app.prompts.menu = None; }
     }
     let client = match app.client.clone() {
         Ok(client) => client,
@@ -52,6 +63,7 @@ pub fn update(app: &mut Input<'_>, event: Event) -> Task<Message> {
     let client = gateway_app_prompts::GatewayAppPromptsClient::new(client.transport().clone());
     let catalog_generation = app.generation;
     match event {
+        Event::Query(_) | Event::Menu(_) => Task::none(),
         Event::Toast(..) => Task::none(),
         Event::SharedImport(_) | Event::PiFile(_) | Event::Sync(_) | Event::Transfer(_) | Event::Template(_) => unreachable!(),
         Event::Edit(id) => {

@@ -1,0 +1,295 @@
+--- a/crates/codegen/vtcode-acp/src/zed/agent/handlers.rs
++++ b/crates/codegen/vtcode-acp/src/zed/agent/handlers.rs
+@@ -424,3 +424,13 @@
+-    let mut tool_definitions = agent
+-        .tool_definitions(provider_supports_tools, &enabled_tools, &primary_agent)
+-        .map(Arc::new);
++    let definitions_for = |primary: &str| {
++        let mut definitions = agent.tool_definitions(provider_supports_tools, &enabled_tools, primary);
++        if provider_supports_tools {
++            for (name, tool) in session.mcp_tools.iter() {
++                if agent.allows_session_mcp(primary, name) {
++                    definitions.get_or_insert_with(Vec::new).push(tool.definition.clone());
++                }
++            }
++        }
++        definitions.map(Arc::new)
++    };
++    let mut tool_definitions = definitions_for(&primary_agent);
++    tools_allowed |= tool_definitions.as_ref().is_some_and(|tools| !tools.is_empty());
+@@ -575,3 +585,2 @@
+-                tool_definitions = agent
+-                    .tool_definitions(provider_supports_tools, &enabled_tools, &primary_agent)
+-                    .map(Arc::new);
++                tool_definitions = definitions_for(&primary_agent);
++                tools_allowed |= tool_definitions.as_ref().is_some_and(|tools| !tools.is_empty());
+--- a/crates/codegen/vtcode-acp/src/zed/agent/mod.rs
++++ b/crates/codegen/vtcode-acp/src/zed/agent/mod.rs
+@@ -25,0 +26 @@
++pub(super) mod session_mcp;
+--- /dev/null
++++ b/crates/codegen/vtcode-acp/src/zed/agent/session_mcp.rs
+@@ -0,0 +1,140 @@
++use super::ZedAgent;
++use crate::acp;
++use crate::reports::ToolExecutionReport;
++use std::collections::{BTreeMap, HashSet};
++use std::sync::Arc;
++use std::time::Duration;
++use vtcode_config::mcp::{McpClientConfig, McpProviderConfig};
++use vtcode_core::llm::provider::ToolDefinition;
++use vtcode_core::mcp::{McpClient, render_untrusted_mcp_description};
++use vtcode_core::permissions::{ResolvedPermissionDecision, build_permission_request, evaluate_effective_permissions};
++use vtcode_core::tools::mcp::model_visible_mcp_tool_name;
++use vtcode_core::tools::registry::ToolPermissionDecision;
++
++pub(crate) struct SessionMcpTool {
++    pub(super) definition: ToolDefinition,
++    remote_name: String,
++    client: Arc<McpClient>,
++}
++
++impl SessionMcpTool {
++    pub(super) async fn execute(&self, name: &str, arguments: serde_json::Value) -> ToolExecutionReport {
++        match self.client.execute_tool(&self.remote_name, arguments).await {
++            Ok(output) => {
++                ToolExecutionReport::success(vec![acp::ToolCallContent::from(output.to_string())], Vec::new(), output)
++            }
++            Err(error) => ToolExecutionReport::failure(name, &error.to_string()),
++        }
++    }
++}
++
++pub(crate) type SessionMcpTools = BTreeMap<String, SessionMcpTool>;
++
++fn unavailable(reason: &'static str) -> acp::Error {
++    acp::Error::invalid_params().data(serde_json::json!({ "reason": reason }))
++}
++
++pub(super) async fn connect(servers: Vec<acp::McpServer>) -> Result<SessionMcpTools, acp::Error> {
++    let mut providers = Vec::with_capacity(servers.len());
++    let mut names = HashSet::new();
++    for server in servers {
++        let acp::McpServer::Http(server) = server else {
++            return Err(unavailable("ACP MCP requires a host-provided loopback HTTP endpoint"));
++        };
++        let endpoint = url::Url::parse(&server.url).map_err(|_| unavailable("invalid ACP MCP endpoint"))?;
++        if endpoint.scheme() != "http"
++            || endpoint.host_str() != Some("127.0.0.1")
++            || endpoint.port().is_none()
++            || !endpoint.username().is_empty()
++            || endpoint.password().is_some()
++            || endpoint.query().is_some()
++            || endpoint.fragment().is_some()
++            || !names.insert(server.name.clone())
++        {
++            return Err(unavailable("invalid or duplicated ACP MCP endpoint"));
++        }
++        let mut headers = BTreeMap::new();
++        for header in server.headers {
++            let name = header.name.to_ascii_lowercase();
++            if name != "authorization" || headers.insert(name, header.value).is_some() {
++                return Err(unavailable("unsupported or duplicated ACP MCP header"));
++            }
++        }
++        if !headers.get("authorization").is_some_and(|value| {
++            value
++                .strip_prefix("Bearer ")
++                .is_some_and(|token| !token.is_empty() && token.bytes().all(|byte| byte.is_ascii_graphic()))
++        }) {
++            return Err(unavailable("ACP MCP requires a host-issued bearer token"));
++        }
++        let provider: McpProviderConfig = serde_json::from_value(serde_json::json!({
++            "name": server.name,
++            "endpoint": endpoint.as_str(),
++            "http_headers": headers,
++        }))
++        .map_err(|_| unavailable("invalid ACP MCP provider"))?;
++        providers.push(provider);
++    }
++    let mut tools = BTreeMap::new();
++    for provider in providers {
++        // Separate clients keep same-named tools on different providers from
++        // overwriting the native MCP client's unqualified name lookup.
++        let mut client = McpClient::new(McpClientConfig {
++            enabled: true,
++            providers: vec![provider],
++            ..Default::default()
++        });
++        let definitions = tokio::time::timeout(Duration::from_secs(20), async {
++            client.initialize().await?;
++            client.list_tools().await
++        })
++        .await
++        .map_err(|_| unavailable("ACP MCP discovery timed out"))?
++        .map_err(|_| unavailable("ACP MCP discovery failed"))?;
++        if definitions.is_empty() {
++            return Err(unavailable("ACP MCP did not discover any tools"));
++        }
++        let client = Arc::new(client);
++        for tool in definitions {
++            let name = model_visible_mcp_tool_name(&tool.provider, &tool.name);
++            let description = render_untrusted_mcp_description(&tool.provider, &tool.name, &tool.description);
++            let definition = ToolDefinition::function(name.clone(), description, tool.input_schema);
++            let entry = SessionMcpTool {
++                definition,
++                remote_name: tool.name,
++                client: Arc::clone(&client),
++            };
++            if tools.insert(name, entry).is_some() {
++                return Err(unavailable("duplicated ACP MCP tool name"));
++            }
++        }
++    }
++    Ok(tools)
++}
++
++impl ZedAgent {
++    pub(super) fn allows_session_mcp(&self, primary: &str, name: &str) -> bool {
++        !self.primary_agents.is_read_only_agent(primary)
++            && self.primary_agents.allows_local_tool(primary, name)
++            && self.primary_agents.allows_tool(primary, name, self.workspace_root())
++    }
++
++    pub(super) async fn allows_session_mcp_call(
++        &self,
++        primary: &str,
++        name: &str,
++        arguments: &serde_json::Value,
++    ) -> bool {
++        let workspace = self.workspace_root();
++        let request = build_permission_request(workspace, workspace, name, Some(arguments));
++        self.allows_session_mcp(primary, name)
++            && self.primary_agents.permissions_for(primary).is_some_and(|permissions| {
++                evaluate_effective_permissions(&self.permissions_config, permissions, workspace, workspace, &request)
++                    != ResolvedPermissionDecision::Deny
++            })
++            && matches!(
++                self.local_tool_registry.evaluate_tool_policy(name).await,
++                Ok(ToolPermissionDecision::Allow | ToolPermissionDecision::Prompt)
++            )
++    }
++}
+--- a/crates/codegen/vtcode-acp/src/zed/agent/session_state/mod.rs
++++ b/crates/codegen/vtcode-acp/src/zed/agent/session_state/mod.rs
+@@ -113,3 +113,5 @@
+-        }
+-    }
+-
++            mcp_tools: Arc::default(),
++        }
++    }
++
++    #[cfg(test)]
+@@ -116,0 +119,4 @@
++        self.register_session_with_mcp(Default::default())
++    }
++
++    fn register_session_with_mcp(&self, tools: super::session_mcp::SessionMcpTools) -> acp::SessionId {
+@@ -129 +135,2 @@
+-        let handle = self.build_session_handle(session_id.clone(), thread);
++        let mut handle = self.build_session_handle(session_id.clone(), thread);
++        handle.mcp_tools = Arc::new(tools);
+@@ -399,4 +406,5 @@
+-        if !req.mcp_servers.is_empty() {
+-            warn!("session/new mcpServers ignored (client-managed MCP)");
+-        }
+-        let session_id = self.register_session();
++        if !req.mcp_servers.is_empty() && req.cwd != self.config.workspace {
++            return Err(acp::Error::invalid_params());
++        }
++        let tools = super::session_mcp::connect(req.mcp_servers).await?;
++        let session_id = self.register_session_with_mcp(tools);
+@@ -420,0 +429,9 @@
++        if !args.mcp_servers.is_empty()
++            || self
++                .session_handle(&args.session_id)
++                .is_some_and(|session| !session.mcp_tools.is_empty())
++        {
++            return Err(acp::Error::invalid_params().data(serde_json::json!({
++                "reason": "ACP MCP requires a new session",
++            })));
++        }
+@@ -477,0 +495,9 @@
++        if !args.mcp_servers.is_empty()
++            || self
++                .session_handle(&args.session_id)
++                .is_some_and(|session| !session.mcp_tools.is_empty())
++        {
++            return Err(acp::Error::invalid_params().data(serde_json::json!({
++                "reason": "ACP MCP requires a new session",
++            })));
++        }
+--- a/crates/codegen/vtcode-acp/src/zed/agent/tool_execution.rs
++++ b/crates/codegen/vtcode-acp/src/zed/agent/tool_execution.rs
+@@ -64 +64,6 @@
+-        let tool_descriptor = self.acp_tool_registry.lookup(&func_ref.name);
++        let mcp_tool = session.mcp_tools.get(&func_ref.name);
++        let tool_descriptor = if mcp_tool.is_some() {
++            Some(ToolDescriptor::Local)
++        } else {
++            self.acp_tool_registry.lookup(&func_ref.name)
++        };
+@@ -67,7 +72,11 @@
+-        let title = match (tool_descriptor, args_value_for_input.as_ref()) {
+-            (Some(descriptor), Some(args)) => self.acp_tool_registry.render_title(descriptor, &func_ref.name, args),
+-            (Some(descriptor), None) => {
+-                let null_args = Value::Null;
+-                self.acp_tool_registry.render_title(descriptor, &func_ref.name, &null_args)
+-            }
+-            (None, _) => format!("{} (unsupported)", func_ref.name),
++        let title = if mcp_tool.is_some() {
++            func_ref.name.clone()
++        } else {
++            match (tool_descriptor, args_value_for_input.as_ref()) {
++                (Some(descriptor), Some(args)) => self.acp_tool_registry.render_title(descriptor, &func_ref.name, args),
++                (Some(descriptor), None) => {
++                    let null_args = Value::Null;
++                    self.acp_tool_registry.render_title(descriptor, &func_ref.name, &null_args)
++                }
++                (None, _) => format!("{} (unsupported)", func_ref.name),
++            }
+@@ -129,11 +138,28 @@
+-                    self.execute_descriptor(
+-                        descriptor,
+-                        &func_ref.name,
+-                        client,
+-                        session_id,
+-                        session,
+-                        call.id.as_str(),
+-                        &args_value,
+-                        permission_granted,
+-                    )
+-                    .await
++                    if let Some(tool) = mcp_tool {
++                        let primary_agent = session
++                            .data
++                            .lock()
++                            .map_err(|_| SdkError::internal_error())?
++                            .primary_agent
++                            .clone();
++                        if permission_granted
++                            && self.allows_session_mcp_call(&primary_agent, &func_ref.name, &args_value).await
++                            && !session.cancel_flag.load(Ordering::Relaxed)
++                        {
++                            tool.execute(&func_ref.name, args_value).await
++                        } else {
++                            ToolExecutionReport::failure(&func_ref.name, "ACP MCP tool denied or cancelled")
++                        }
++                    } else {
++                        self.execute_descriptor(
++                            descriptor,
++                            &func_ref.name,
++                            client,
++                            session_id,
++                            session,
++                            call.id.as_str(),
++                            &args_value,
++                            permission_granted,
++                        )
++                        .await
++                    }
+--- a/crates/codegen/vtcode-acp/src/zed/types.rs
++++ b/crates/codegen/vtcode-acp/src/zed/types.rs
+@@ -149,0 +150 @@
++    pub(crate) mcp_tools: Arc<super::agent::session_mcp::SessionMcpTools>,

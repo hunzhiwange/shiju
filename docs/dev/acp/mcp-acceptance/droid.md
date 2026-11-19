@@ -102,3 +102,21 @@ Darwin arm64 的 Droid 安装入口已接入同一补丁。安装器先按原版
 注册表用 `python3 scripts/cargo_slot.py cargo test -j 1 --locked -p acp-agent-registry --lib droid_managed_patch_is_pinned_in_a_separate_install` 验证 v2 路径、原版与补丁摘要分离及篡改拒绝，槽位 10，`CARGO_TARGET_DIR` 与 `CARGO_BUILD_BUILD_DIR` 均指向工作区的 `target/rust-slot-10`，退出 0，1 项通过。
 
 会话工具清单用于模型发现。独立原生白名单探针尝试将 ACP 服务级策略传到 Droid 的 MCP 工具配置，模型仍收到八个图谱工具。未把该实验接入受管入口。严格验收仍阻塞在工具执行限制。
+
+## 再次真实模型复验
+
+复用受管安装冷下载得到且已验签的 v2 Droid，继续使用固定提示、租户、模型、`session_model`、`full_access=true` 和同一 RueJS 导出快照。共享构建尚未产出包含 v2 清单的网关，本轮用原槽位 3 网关的私有兼容副本，制品校验仅替换为同一 v2 摘要，兼容目录指向私有 v2。网关原件摘要 `25988bf02e238fe5450ca7c941015eaed1c067f5c64123c85aeacf1e2454734a`，私有副本摘要 `ca7b0542f0c414b12e8e1c1af898bc9e046a30f0e5673f5f738391c44a806f2e`。本轮验证运行行为。新源码构建的 v2 注册表路径仍由前述定向测试覆盖。
+
+旧请求的 `acp_agent` 在此网关返回 HTTP 422，错误为 `unknown field acp_agent`，无会话也未发起推理。三轮复跑仅移除该字段，保留 `agent=acp-droid`，由预设解析出 `droid`。提示校验摘要保持一致。
+
+| 轮次 | 新会话 | HTTP / curl / 耗时 | SSE 与工具 |
+| --- | --- | --- | --- |
+| 无挂载 | `ses_1f17e268b001uhCCvD9aMp6HOz` | 200 / 0 / 12.342 秒 | `chat.done` ×1，`MCP_NOT_AVAILABLE`，工具 0 |
+| 挂载 | `ses_1f17e579b0012pekzZ2blvLIku` | 200 / 0 / 222.486 秒 | `chat.done` ×1，106 项工具成功，4 项失败 |
+| 撤除 | `ses_1f181be3d001RYffCwzSm73kZg` | 200 / 0 / 11.843 秒 | `chat.done` ×1，`MCP_NOT_AVAILABLE`，工具 0 |
+
+三轮均无 `chat.error`，绑定、模型及 `full_access=true` 回读一致，结束后连接关闭。对照轮运行中权限为 `client_only`。挂载轮采到一次 `access_status.support=failed`，说明为权限同步尚未确认或会话已断开，该次回读未确认权限同步。网关日志另记录了后台会话标题模型 HTTP 403，三轮指定模型的会话均正常结束。
+
+三个目标工具成功输出 `createRueSiteApp`（`app/app.tsx:32`，`call_aa1df6d662f8664a_0`）、调用者 `mountRueSiteApp`（`app/app.tsx:39`，`call_c288b2c193ad7ccd_0`），以及 `useApp` 调用 `_$createApp` 的源码（`packages/runtime/src/hooks/useApp.ts:4`，`call_a616800a8a692c16_0`）。答复覆盖固定提示的调用链、分支、路由和 i18n、布局绕过及两项有预期结果的验证。快照影响仍为源码推断。
+
+挂载轮没有调用 `ToolSearch`，额外运行了 `status`、`explore` 与 `files`。四次 `node` 路径失败分别为 `app/router.tsx`、`app/i18n.ts`、`packages/router/dist/router.esm-bundler.js`、`packages/i18n/dist/i18n.esm-bundler.js`。严格验收仍阻塞。私有网关退出，端口关闭，临时授权与工作目录清理，4109 项导出内容一致。未修改运行时代码或运行 Cargo。

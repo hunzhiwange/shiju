@@ -1,3 +1,109 @@
+# ACP 官方工具与 MCP 共存验收
+
+每个适配器使用同一受审制品、项目、模型和授权模式，在三个独立新会话中依次验证无挂载、挂载和撤除。挂载轮要证明模型实际调用一个该适配器提供的官方只读工具和一个目标 MCP 工具，并在收到结果后继续推理。各轮只读，提示只要求简短确认。获准的辅助工具调用可以出现，按现有授权核对其名称和行为。
+
+## 准备当前环境
+
+- 从[共存矩阵](mcp-policy-audit/README.md)进入对应条目，按[适配器原验收](mcp-acceptance/)和当前任务卡定位受管合约、固定发行及现有探针。在当前执行平台从已授权私有缓存取得制品，或在隔离实例通过适配器受管安装入口取得。按合约核对版本、启动入口、参数和 SHA-256，记录平台架构及网关制品摘要。安装列表、诊断和模型来源能力接口可用于核实环境，但成功初始化只证明可连接。
+- 用 `mktemp -d` 创建私有验收目录作为 `ACP_RUN`，设置 `umask 077`。将 `ACP_WORKSPACE` 指向其下的新建空目录，或从探针要求的固定提交导出一份私有项目副本，按需建立独立索引。示例占用副本中的 `native-probe.txt` 和 `.vwacprc.json`，在无同名文件的目录运行。确认有效配置中没有继承的同名验收服务，并保留源项目和用户配置。
+- `ACP_GATEWAY` 是当前已授权网关的回环基址，包含协议和实际监听端口，不含尾斜杠。将 `ACP_HEADERS` 指向该实例、该租户当前授权的请求头文件，权限设为 `0600`，每行一个头。沿用客户端实际使用的认证头和 `X-Platform-ID`、`X-Company-ID`，让 `X-Directory` 指向私有项目的绝对路径。回执只记授权来源类别和脱敏标识。确认该租户中的 `ACP_AGENT` 预设已启用，且其 `runtime.backend` 对应受审制品。
+- 示例使用 `session_model`。用当前租户的 `GET /v1/models` 和 `GET /v1/acp-model-source/{backend}` 核对模型 ID `ACP_MODEL` 及模型来源能力，然后从会话重读确认实际绑定。按任务卡复用适配器自己的探针及模型协议，例如 Codex Responses、Anthropic Messages 或 Chat Completions。确定性回环应使用实际适配器和 MCP 服务，仅由夹具产生模型响应，并采集实际续轮输入。仅在已有真实模型授权时使用实际供应商端点，分别报告两种证据。若受审入口只支持 `cli_local`，按其原验收配置已授权本地模型，修改来源并按需省略请求的 `model`，记录最终读回的模型。
+- 选定实际目录里的官方只读工具作为 `ACP_NATIVE_TOOL`，以原生权限模式、沙箱和正常审批执行。示例省略 `full_access`，沿用当前有效设置。请求中若已有明确授权的 `options.full_access` 或 `acp_allowed_tools`，三轮按原值重放。维持会话名单、服务的 `allowedTools` / `deniedTools` 和显式授权，拒绝优先。提示文字不授予权限。遇到不能执行的名单或传输，记录明确拒绝和首个断点。
+
+## 发三次独立请求
+
+以下 Bash 示例从仓库根目录运行。先设置上文各变量。以 `scripts/acp_mount_integration.py --mcp-stdio` 提供真实的只读服务，绝对 Python 路径及脚本路径按实际环境取值。每轮分别生成两个随机结果，官方工具读工作区文件，MCP 工具读项目外的独立附件。结果不要放进提示、模型夹具的预置响应或工具描述。服务的审计文件仅在实际处理 `tools/call` 时写入。若受审适配器仅支持 HTTP 或 SSE，则复用其现有回环服务探针，改用相应的 `type`、`url`、`headers` 和独立审计，保留同样的关联判据。
+
+```bash
+(
+  set -eu
+  umask 077
+  ACP_REPO="$PWD"
+  ACP_PYTHON="$(command -v python3)"
+  mcp_rc="$ACP_WORKSPACE/.vwacprc.json"
+  native_file="$ACP_WORKSPACE/native-probe.txt"
+  if [ -e "$mcp_rc" ] || [ -L "$mcp_rc" ] || [ -e "$native_file" ] || [ -L "$native_file" ]; then
+    echo "请选择没有验收同名文件的新工作区" >&2
+    exit 1
+  fi
+
+  for stage in before mounted removed; do
+    ACP_REQUEST="$ACP_RUN/$stage.request.json"
+    ACP_TRACE="$ACP_RUN/$stage.sse"
+    "$ACP_PYTHON" - "$ACP_REPO" "$ACP_PYTHON" "$ACP_RUN" "$ACP_WORKSPACE" \
+      "$ACP_AGENT" "$ACP_MODEL" "$ACP_NATIVE_TOOL" "$stage" "$ACP_REQUEST" <<'PY'
+import json
+from pathlib import Path
+import sys
+import uuid
+
+repo, python, run, workspace, agent, model, native_tool, stage, request = sys.argv[1:]
+cwd = Path(workspace)
+rc = cwd / ".vwacprc.json"
+run = Path(run)
+attachment = run / f"{stage}.mcp-value"
+audit = run / f"{stage}.mcp-audit"
+native_value = f"native-{uuid.uuid4().hex}\n"
+(cwd / "native-probe.txt").write_text(native_value)
+(run / f"{stage}.native-value").write_text(native_value)
+# 同一服务使用固定附件路径，每轮换值。撤除轮也换值以便发现残留访问。
+probe_value = run / "current.mcp-value"
+attachment.write_text(f"mcp-{uuid.uuid4().hex}\n")
+probe_value.write_bytes(attachment.read_bytes())
+if stage == "mounted":
+    rc.write_text(json.dumps({"mcpServers": [{
+        "name": "coexist_probe",
+        "command": python,
+        "args": [str(Path(repo) / "scripts/acp_mount_integration.py"), "--mcp-stdio",
+                 str(probe_value), str(audit)],
+        "env": [],
+        "enabled": True
+    }]}))
+elif stage == "removed":
+    rc.unlink()
+prompt = (
+    f"请用官方只读工具 {native_tool} 读取 native-probe.txt，"
+    "并在 coexist_probe.read_probe 可用且获准时调用它。"
+    "缺少或被拒绝时请简短说明。只读取测试数据并简短确认结果。"
+)
+Path(request).write_text(json.dumps({
+    "model": model,
+    "agent": agent,
+    "acp_model_source": "session_model",
+    "options": {"cwd": workspace},
+    "messages": [{"role": "user", "content": prompt}]
+}, ensure_ascii=False))
+PY
+    curl -fsS -N --max-time 300 -H @"$ACP_HEADERS" -H "Content-Type: application/json" \
+      --data-binary @"$ACP_REQUEST" -D "$ACP_RUN/$stage.response-headers" \
+      "$ACP_GATEWAY/v1/chat/stream" > "$ACP_TRACE"
+  done
+  rm -f "$native_file"
+)
+```
+
+三轮请求均省略 `session_id`，响应头应给出三个不同的 `x-vw-session-id`。若超时，示例停在当轮并保留夹具。保存原请求、`x-vw-stream-request-id` 和最后 SSE 事件 ID，按原请求标识与 `Last-Event-ID` 续传同一流，分段保存证据。重新提交新请求会创建另一轮。撤除前后对比服务审计计数和来源，撤除轮任何对原服务的访问都要纳入检查。验收结束后停止自有探针，清理私有项目中的验收配置及工作区探针文件，保留脱敏摘要及私有原始证据。
+
+## 核对三层信号
+
+1. **宿主和 ACP 转发。** 聊天流由 `agent` 选择预设的 ACP 后端，已有会话使用落盘绑定。挂载例使用工作区 `.vwacprc.json` 的 `mcpServers`，宿主解析当前配置并投影有效服务。请求 JSON 里无需带服务定义，`acp_agent`、`acp_test` 是内部路由字段。对照 `session/new.params.cwd` 和 `params.mcpServers`，目标 stdio 服务有 `name`、`command`、`args`、`env`，`enabled` 属于宿主管理字段。无挂载和撤除轮的有效定义不含测试服务。支持恢复时用同一适配器的独立探针断开重连，以原 **ACP** 会话 ID 和 cwd 调用 `session/load`，检查客户端转交当前 `mcpServers`，分别验证重传和清空目标服务；支持 `session/resume` 时按对应声明和实际路由取证。记录真实恢复身份、目录与新提示的结果，区分恢复、活动连接复用与新建回退。不支持的能力记录协议声明及实际结果。
+2. **服务与模型目录。** 在挂载轮核对真实 MCP `initialize` 和 `tools/list`（或适配器相应发现记录），再核对模型看到的官方工具与目标服务工具标识。延迟发现时保留发现前后的目录。记录模型协议的 namespace、工具名与执行方，不能只凭 UI 名称或 `session/new` 成功判定。对照轮可以执行获准的官方工具，但目标服务不得被声明、访问或返回结果。另用适配器现有探针验证显式拒绝、会话名单、服务名单、同名工具路由及支持的取消。拒绝和撤权用独立样本，核对拒绝后的服务审计和续轮，取消则核对实际终态及停止时点。能在调用阶段发出拒绝的场景，确认拒绝的调用未触达服务；初始化和列目录发生在此前时单独记录。
+3. **执行和续轮。** 按会话、提示轮和调用 ID 核对官方执行轨迹与 MCP `tools/call` 审计，确认真实输出与本轮标记吻合。模型协议内的调用和返回要同 ID，例如 Chat Completions 的 `tool_call_id`、Responses 的 `call_id` 或 Messages 的 `tool_use_id`。ACP、MCP JSON-RPC、模型和 SSE 的 ID 可能分别生成，跨边界用映射、服务名、参数及独有结果交叉确认。随后核对模型请求收到了这两个返回，且本轮正常结束。网关记录 `chat.tool` 的 `call_id`、`name`、`kind`、`status`、`payload`，可用 `start` 与 `complete/completed` 配对，某些适配器的 `name` 只是通用标签。成功的网关流收到一个 `chat.done` 且无 `chat.error`；直接 ACP 正向探针核对 `session/prompt` 对应响应的 `stopReason: end_turn` 和同一会话的工具更新。
+
+回执逐轮记录网关请求标识、网关及 ACP 会话 ID、项目快照、模型来源和协议、权限模式及审批结果、服务目录和工具归属、调用与返回 ID、审计增量和本轮结果匹配情况、续轮、退出码 / HTTP / 终态。另记录撤除、策略拒绝、取消与 load/resume 的证据或首个缺证点。仅公开脱敏字段及原始证据存放位置。会话绑定可用 `GET /v1/session/{session_id}/ui/summary` 和 `GET /v1/session/{session_id}/acp-options` 辅助核实。
+
+| 样例 | 判定 |
+| --- | --- |
+| 挂载轮官方读文件实际返回当轮文件标记，目标服务实收 `read_probe` 并返回独立附件标记；两条结果各按原调用 ID 进入后续模型轮并正常结束。前后新会话都无目标服务，撤除后审计无新增。 | 通过正向三轮；拒绝、取消及恢复结果另附证据。 |
+| 模型直接说出预先写入夹具或提示的结果，或只出现工具完成通知，找不到实际执行记录。 | 失败，缺执行证据。 |
+| 返回来自上一轮的值，或用旧会话、旧调用的完成事件拼接本轮续轮。 | 失败，轮次或关联不符。 |
+| 界面显示拒绝，却有同一请求对应的实际服务调用或成功输出。 | 失败，拒绝未执行。 |
+| 官方和 MCP 目录存在同名工具，请求指向一方，执行或结果却来自另一方。 | 失败，按真实路由和执行方核对，单看工具名不足。 |
+
+历史走查使用下文 2026-11-18 的 Codex 原始 SSE 和隔离模型观测。无挂载与撤除流没有目标工具，挂载流的同一 SSE 调用 ID 从 `running` 到 `completed`；隔离模型记录还证实目标 namespace 只在挂载轮出现，并接到实际输出。当前口径下这证明了挂载、回传和撤除的部分链路。该组缺同轮实际官方只读执行及恢复转发证据，不能作为共存通过回执。
+
+以下保留历次验收当时的请求和判据。现行复验使用本节流程。
+
 # Codex CLI 验收
 
 ```bash

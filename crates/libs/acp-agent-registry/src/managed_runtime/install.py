@@ -85,6 +85,7 @@ if agent == 'dimcode':
 
 if agent == 'cortex-code':
     import platform
+    import runpy
     if (platform.system(), platform.machine()) != ('Darwin', 'arm64'):
         raise RuntimeError('Cortex Code reviewed runtime is Darwin-arm64 only')
     archive = assets / 'cortex-code.tar.gz'
@@ -123,7 +124,10 @@ if agent == 'cortex-code':
     launcher = runtime / 'cortex'
     shutil.copyfile(assets / 'cortex-code/launcher.py', launcher)
     launcher.chmod(0o700)
-    shutil.copyfile(assets / 'cortex-code/mcp_bridge.py', runtime / 'mcp_bridge.py')
+    # Scope Cortex's credential isolation to its installed copy of the shared stdio bridge.
+    denials = runpy.run_path(str(launcher))['CREDENTIAL_DENIALS']
+    bridge = (assets / 'cortex-code/mcp_bridge.py').read_bytes()
+    (runtime / 'mcp_bridge.py').write_bytes(bridge + f'\nMCP_SANDBOX += {denials!r}\n'.encode())
     check_files(runtime, contract['files'])
     raise SystemExit(0)
 

@@ -1,9 +1,11 @@
 """Exercise a reviewed Cortex launcher with a real, indexed RustCodeGraph server."""
 import argparse
+from hashlib import sha256
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import json
 import os
 from pathlib import Path
+import runpy
 import select
 import subprocess
 from tempfile import TemporaryDirectory
@@ -19,8 +21,17 @@ TOOLS = (
 PREFIX = 'shiju_mcp_ruejs_graph_probe__rustcodegraph_'
 
 
-def verify(launcher, graph, workspace, mounted, approve, load=False, cancel=False, restricted=False):
-    requests, permissions = [], []
+def verify(launcher, graph, workspace, mounted, approve, load=False, cancel=False, restricted=False,
+           native_read=None):
+    requests, permissions, updates = [], [], []
+    calls = [(PREFIX + tool, 'call_' + tool, args, text) for tool, args, text in TOOLS]
+    if native_read:
+        path, marker = native_read
+        calls = [
+            ('read', 'call_read', {'file_path': str(path)}, marker),
+            (PREFIX + 'query', 'call_query', {'search': 'createRueSiteApp'}, 'createRueSiteApp'),
+        ]
+    required = {name for name, _, _, _ in calls}
 
     class Relay(BaseHTTPRequestHandler):
         def do_POST(self):
@@ -29,11 +40,10 @@ def verify(launcher, graph, workspace, mounted, approve, load=False, cancel=Fals
             request = json.loads(self.rfile.read(int(self.headers['Content-Length'])))
             requests.append(request)
             names = {tool['function']['name'] for tool in request['tools']}
-            remaining = len(requests) <= len(TOOLS)
-            if mounted and remaining and all(PREFIX + tool in names for tool, _, _ in TOOLS):
-                tool, args, _ = TOOLS[len(requests) - 1]
-                delta = {'tool_calls': [{'index': 0, 'id': 'call_' + tool, 'type': 'function',
-                          'function': {'name': PREFIX + tool, 'arguments': json.dumps(args)}}]}
+            if mounted and len(requests) <= len(calls) and required <= names:
+                tool, call_id, args, _ = calls[len(requests) - 1]
+                delta = {'tool_calls': [{'index': 0, 'id': call_id, 'type': 'function',
+                          'function': {'name': tool, 'arguments': json.dumps(args)}}]}
                 finish = 'tool_calls'
             else:
                 delta, finish = {'content': 'Probe completed.'}, 'stop'
@@ -83,8 +93,13 @@ def verify(launcher, graph, workspace, mounted, approve, load=False, cancel=Fals
                         if cancel:
                             send({'method': 'session/cancel',
                                   'params': {'sessionId': message['params']['sessionId']}})
+                        kind = 'allow_once' if approve else 'reject_once'
+                        option = next(item['optionId'] for item in message['params']['options']
+                                      if item['kind'] == kind)
                         send({'id': message['id'], 'result': {'outcome': {'outcome': 'selected',
-                              'optionId': 'allow_once' if approve else 'reject_once'}}})
+                              'optionId': option}}})
+                    elif message.get('method') == 'session/update':
+                        updates.append(message['params']['update'])
                     elif 'method' not in message and message.get('id') == identifier:
                         assert 'error' not in message, message.get('error')
                         return message['result']
@@ -124,13 +139,28 @@ def verify(launcher, graph, workspace, mounted, approve, load=False, cancel=Fals
                     thread.join()
 
     names = {tool['function']['name'] for tool in requests[0]['tools']}
+    if native_read:
+        assert required | {'write', 'edit'} <= names, f'Mounted model catalog missing native or MCP tools: {names}'
+        assert len(requests) == len(calls) + 1, 'Missing model continuation'
+        expected_mcp = [name for name, _, _, _ in calls if name.startswith(PREFIX)]
+        assert [name for name in permissions if name.startswith(PREFIX)] == expected_mcp, permissions
+        print(f'model directory: {", ".join(sorted(names))}')
+        for request, (name, call_id, _, marker) in zip(requests[1:], calls):
+            result = next((message['content'] for message in request['messages']
+                           if message['role'] == 'tool' and message['tool_call_id'] == call_id), None)
+            assert isinstance(result, str) and marker in result, (name, call_id, result)
+            assert any(update.get('toolCallId') == call_id and update.get('status') == 'completed'
+                       for update in updates), (name, call_id)
+            owner = 'MCP' if name.startswith(PREFIX) else 'Cortex'
+            print(f'{name} {call_id} {owner} completed, model received {marker!r}')
+        return
     if not mounted:
         assert names == {'read', 'write', 'edit'} and not permissions
         return
     expected_names = [PREFIX + tool for tool, _, _ in TOOLS]
     assert set(expected_names) <= names, 'Mounted tools absent from model input'
     if restricted:
-        assert names == set(expected_names), 'Host tool policy leaked an unselected tool'
+        assert names == set(expected_names) | {'read', 'write', 'edit'}, 'Unexpected mounted catalog'
     if cancel:
         assert len(requests) == 1 and permissions == expected_names[:1]
         return
@@ -144,7 +174,28 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__)
     for name in ('launcher', 'graph', 'workspace'):
         parser.add_argument(name, type=lambda path: Path(path).resolve(strict=True))
+    parser.add_argument('--coexistence', action='store_true', help='Run one mounted read and MCP prompt')
     args = parser.parse_args()
+    sources = Path(__file__).resolve().parent
+    contract_path = sources.parents[2] / 'crates/libs/acp-agent-registry/src/managed_runtime/contracts.json'
+    files = json.loads(contract_path.read_text())['cortex-code']['files']
+    for file, digest in files.items():
+        if sha256((args.launcher.parent / file).read_bytes()).hexdigest() != digest:
+            raise SystemExit(f'Unreviewed Cortex artifact: {file}')
+    reviewed_launcher = sources / 'launcher.py'
+    if args.launcher.name != 'cortex' or reviewed_launcher.read_bytes() != args.launcher.read_bytes():
+        raise SystemExit('Expected the managed Cortex launcher with credential isolation')
+    denials = runpy.run_path(str(reviewed_launcher))['CREDENTIAL_DENIALS']
+    bridge = (sources / 'mcp_bridge.py').read_bytes() + f'\nMCP_SANDBOX += {denials!r}\n'.encode()
+    if (args.launcher.parent / 'mcp_bridge.py').read_bytes() != bridge:
+        raise SystemExit('Expected the managed Cortex bridge with credential isolation')
+    if args.coexistence:
+        with TemporaryDirectory(prefix='cortex-probe-', dir=args.workspace) as directory:
+            path = Path(directory) / 'challenge.txt'
+            marker = 'CORTEX_NATIVE_READ_' + os.urandom(12).hex()
+            path.write_text(marker + '\n')
+            verify(args.launcher, args.graph, args.workspace, True, True, native_read=(path, marker))
+        raise SystemExit(0)
     for mounted, approve, load in ((False, False, False), (True, True, False), (True, False, False),
                                     (False, False, False), (True, True, True)):
         verify(args.launcher, args.graph, args.workspace, mounted, approve, load)

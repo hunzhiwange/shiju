@@ -10,6 +10,16 @@ import sys
 from urllib.parse import urlsplit
 
 INSTALL = Path(__file__).resolve().parent
+# Also appended to the stdio profile by the managed Cortex installer.
+CREDENTIAL_DENIALS = """
+(deny mach-lookup)
+(deny mach-register)
+(deny appleevent-send)
+(deny ipc-posix-shm*)
+(deny ipc-posix-sem*)
+(deny file-read* (subpath "/System/Library/Keychains")
+    (regex #"/(Keychains|keychains)(/|$)"))
+"""
 SANDBOX = """
 (version 1)
 (allow default)
@@ -72,7 +82,7 @@ def main():
     command = ['/usr/bin/sandbox-exec']
     for key, value in params.items():
         command += ['-D', f'{key}={value}']
-    command += ['-p', SANDBOX, str(native), 'acp', 'serve', '--model', model,
+    command += ['-p', SANDBOX + CREDENTIAL_DENIALS, str(native), 'acp', 'serve', '--model', model,
                 '--workdir', str(workspace), '--only-explicit-mcp-servers',
                 '--only-explicit-plugins', '--only-explicit-skills']
     environment = {

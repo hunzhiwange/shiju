@@ -51,10 +51,10 @@
     "artifact_url": "https://sfc-repo.snowflakecomputing.com/cortex-code-cli/a4643c4278/1.2.46%2B175654.6f8561fd271f/coco-1.2.46%2B175654.6f8561fd271f-darwin-arm64.tar.gz",
     "archive_sha256": "76a37a37b432fa0b684d67efdaba0b2753b40d34924836a445f6597b24e665ee",
     "files": {
-      "cortex": "3667d32e69765618d35d19485361f4f55b6f0d21d1d1ed060db1cb7b4eae8d28",
+      "cortex": "25fb3388ee0e3d5bd03006c66d274c29ea305b11c4de6c027fb686292c96db76",
       "cortex-native": "f9753a0da7a733d4e782dfe633c7bd4fd5faca7b4960352d0aa464b62441178a",
-      "cortex-local": "ed72f2274162d524a7a9e8f7b78ac7e5c863dd92e2ba5894eb9ba78533e47139",
-      "mcp_bridge.py": "e6870d58c6c59cb1f1d224a66cdaa8455b34057249912b7bce5b9e21f95a074a"
+      "cortex-local": "f3fa0d6736b14d5ef2e4b80cddc0ef192fa3d685bb0378b93d250d4b1d1bc884",
+      "mcp_bridge.py": "3d64a35787047eaf3210ae6187434209e585ce223875200bd4a5e452bfdb6ece"
     }
   },
   "aionrs": {

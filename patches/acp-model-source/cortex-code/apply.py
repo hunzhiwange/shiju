@@ -35,8 +35,8 @@ def patch(source, destination):
             'function shijuLocal(){if(process.env.SHIJU_CORTEX_LOCAL!=="1")return false;'
             'let t=YFp();if(!t||!/^http:\\/\\/127\\.0\\.0\\.1:[0-9]+\\/v1$/.test(t.endpoint)'
             '||!process.env.CORTEX_AGENT_MODEL)throw new Error("Invalid local Cortex model binding");return true}'
-            'let shijuMcp=new Set;function shijuTool(t){return shijuMcp.size?shijuMcp.has(t):t==="read"||t==="write"||t==="edit"}function YFp(){')
-    # Only names registered by the launcher are visible to managed inference.
+            'let shijuMcp=new Set;function shijuTool(t){return t==="read"||t==="write"||t==="edit"||shijuMcp.has(t)}function YFp(){')
+    # Only reviewed native tools and client tools registered by the launcher are visible.
     replace('this.registeredClientTools.push(i),fEp(i)',
             'this.registeredClientTools.push(i),fEp(i),'
             'shijuLocal()&&i.startsWith("shiju_mcp_")&&shijuMcp.add(i)')

@@ -102,3 +102,7 @@ Rust 定向测试和新版网关指定模型三轮仍待复验。
 挂载轮逐次批准了 45 次 query、5 次 callers、39 次 node，三种工具均把真实结果交回模型续轮。答复追踪了调用链、浏览器守卫、容器和插件，达到输出上限时仍缺快照验证场景，因此严格合同未通过。这组原生请求没有 ShiJu HTTP SSE、UI summary 或 ACP options，仍需在新网关复验。
 
 补充原生组将 `thinking` 通过 ACP 显式设置（原生回读为 `low`），沿用同一模型与提示。三轮均为 `end_turn`。挂载轮 `01a1f17b-02c1-72d1-bd4c-3ccab49cd6c2` 在 33 次上游 HTTP 200 中完成 44 次 query、8 次 callers、44 次 node，零失败。答复补齐完整调用链、分支和两项快照验证设想，并指出布局绕过路径的注册位置仍无证据。浏览器和 jsdom 场景均为设想，未实际运行。其中卸载场景需为测试取得 `site` 实例。两个对照均零工具，无挂载为准确标记，撤除为标记及额外说明。低档补测只用了私有会话，生产默认档位沿用。
+
+网关回归状态为待回归。已有共享网关二进制缺少 OMP 启动器及 MCP 策略标识。同批槽位 6 的共享构建因并行 MiMo 宿主 trait 签名不一致而以 E0050 退出 101。后续共享重型 Rust 构建持续运行，串行等待没有获得执行窗口。此次没有启动 OMP Cargo 或新版隔离网关，未占用 Cargo 槽位。 [共享构建记录](poolside.md#受管启动器补丁)
+
+复验先运行 `python3 scripts/cargo_slot.py cargo test -j 1 -p vw-acp --test onboarding_omp acp_onboarding_omp_session_lifecycle`，再使用包含补丁的新网关按原合同跑三轮。跟随 `2b35013ae` 仅去除已弃用的请求字段 `acp_agent`，通过 `agent=acp-omp` 解析原后端。原生探针与其监听均已退出，私有模型配置已清理。

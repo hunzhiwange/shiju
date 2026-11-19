@@ -71,7 +71,7 @@ def verify(binary, session_model_runtime):
                 # The gateway verifies the artifact against its checked-in runtime contract.
                 installed = Path(env["VIBEWINDOW_CONFIG_DIR"]) / "acp-runtime"
                 installed.mkdir()
-                (installed / f"vibe-{entry['distribution']['release']}-model-source-v1").symlink_to(
+                (installed / f"vibe-{entry['distribution']['release']}-model-source-v2").symlink_to(
                     session_model_runtime.resolve(strict=True), target_is_directory=True
                 )
             else:

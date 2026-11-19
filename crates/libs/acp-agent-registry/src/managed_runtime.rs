@@ -38,7 +38,7 @@ fn installed_directory(agent: &str, contract: &Contract) -> Result<PathBuf, Stri
         3
     } else if matches!(
         agent,
-        "corust-agent" | "cursor" | "hermes" | "junie" | "openclaw" | "pi" | "poolside"
+        "corust-agent" | "cursor" | "hermes" | "junie" | "openclaw" | "pi" | "poolside" | "vibe"
     ) {
         2
     } else {
@@ -416,6 +416,12 @@ pub(super) async fn install(agent: &str) -> Result<bool, String> {
             "vibe/mistral-vibe-3.0.4-session-binding.patch",
             include_str!(
                 "../../../../docs/shiju/acp-model-source/evidence/vibe/mistral-vibe-3.0.4-session-binding.patch"
+            ),
+        ),
+        (
+            "vibe/mistral-vibe-3.0.4-direct-mcp-experiment.patch",
+            include_str!(
+                "../../../../docs/shiju/acp-model-source/evidence/vibe/mistral-vibe-3.0.4-direct-mcp-experiment.patch"
             ),
         ),
         (

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Apply the reviewed 3.0.4 patch inside an explicitly selected virtualenv."""
+"""Apply the reviewed 3.0.4 patches inside an explicitly selected virtualenv."""
 import hashlib
 import importlib.metadata
 import json
@@ -20,11 +20,18 @@ def main():
         if (not path.exists() and expected is not None) or (path.exists() and (
                 expected is None or hashlib.sha256(path.read_bytes()).hexdigest() != expected)):
             raise SystemExit("upstream file differs from reviewed 3.0.4: " + name)
-    patch = ROOT / "mistral-vibe-3.0.4-session-binding.patch"
-    command = ["patch", "--batch", "--forward", "-p1", "-d", str(site), "-i", str(patch)]
-    subprocess.run(command + ["--dry-run"], check=True)
-    subprocess.run(command, check=True)
-    print("Applied session binding and isolated skill scanner to mistral-vibe 3.0.4")
+    commands = [
+        ["patch", "--batch", "--forward", "-p1", "-d", str(site), "-i", str(ROOT / name)]
+        for name in (
+            "mistral-vibe-3.0.4-session-binding.patch",
+            "mistral-vibe-3.0.4-direct-mcp-experiment.patch",
+        )
+    ]
+    for command in commands:
+        subprocess.run(command + ["--dry-run"], check=True)
+    for command in commands:
+        subprocess.run(command, check=True)
+    print("Applied session binding, isolated skill scanning and direct MCP to mistral-vibe 3.0.4")
 
 if __name__ == "__main__":
     main()

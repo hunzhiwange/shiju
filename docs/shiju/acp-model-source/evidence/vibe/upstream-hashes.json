@@ -3,5 +3,7 @@
   "vibe/acp/entrypoint.py": "99ee862758ffe0092451b3583d4bdbf45105d8e10f9ec29fd827bc111679d0e0",
   "vibe/core/config/session_model_binding.py": null,
   "vibe/core/skills/manager.py": "1f59f873111250553af9f94341a51b3e9fbbd365b521476a9aa8015544f585e7",
-  "vibe/app_server/_skills.py": "fb3628647da46ddd69979febdfc646b53708d763f7c59b649ea4ca2adc768979"
+  "vibe/app_server/_skills.py": "fb3628647da46ddd69979febdfc646b53708d763f7c59b649ea4ca2adc768979",
+  "vibe/app_server/_runtime.py": "dcad0e4554e92a44adb283b5a8fe4acd4ff9fe16522af49f206c552979730955",
+  "mistralai_vibe_local_harness/vibe/_host.py": "2ab3d6a087ae1422c5845c268cf9549d0cf5740ef163a622286f4b87ace43238"
 }

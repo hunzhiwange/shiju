@@ -87,7 +87,7 @@ pub fn capabilities(
             | "hermes"
     );
     let platform_supported = if agent == "glm-acp-agent" {
-        cfg!(any(target_os = "linux", target_os = "macos", target_os = "windows"))
+        super::verify_glm_launch_host().is_ok()
     } else {
         cfg!(all(target_os = "macos", target_arch = "aarch64"))
     };

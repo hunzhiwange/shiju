@@ -32,6 +32,27 @@ pub fn launch_identity(
     }
 }
 
+fn verify_glm_launch_host() -> anyhow::Result<()> {
+    anyhow::ensure!(
+        cfg!(any(target_os = "linux", target_os = "macos", target_os = "windows")),
+        "GLM managed launch is unavailable on this platform"
+    );
+    #[cfg(windows)]
+    anyhow::ensure!(
+        std::env::var_os("LOCALAPPDATA")
+            .map(std::path::PathBuf::from)
+            .is_some_and(|path| path.is_absolute() && path.is_dir()),
+        "GLM managed launch requires a Windows local application data directory"
+    );
+    // Match the ACP client's Node resolution for the reviewed JavaScript entry.
+    let node_name = if cfg!(windows) { "node.exe" } else { "node" };
+    anyhow::ensure!(
+        shell_command::resolve_executable(node_name).is_some_and(|path| path.is_absolute()),
+        "Managed GLM requires Node.js"
+    );
+    Ok(())
+}
+
 /// Apply launch policy to the freshly resolved catalog model and host-owned identity.
 pub fn prepare_profile(agent: &str, config: &agent_config::schema::AcpAgentConfig, resolved: &model_types::Model, identity: model_transport::RelayIdentity, state_root: impl FnOnce() -> std::path::PathBuf) -> anyhow::Result<profile::AcpLaunchProfile> {
     anyhow::ensure!(
@@ -45,6 +66,10 @@ pub fn prepare_profile(agent: &str, config: &agent_config::schema::AcpAgentConfi
     if !matches!(agent, "claude" | "dimcode" | "dirac") {
         acp_agent_registry::verify_reviewed_agent_executable(agent, &config.command)
             .map_err(anyhow::Error::msg)?;
+    }
+    if agent == "glm-acp-agent" {
+        verify_glm_launch_host()?;
+        anyhow::ensure!(config.args.is_empty(), "Unsupported managed GLM launch arguments");
     }
     let mut profile = profile::AcpLaunchProfile::new_for_agent(agent, config, identity)?;
     profile.state_root = Some(state_root());
@@ -69,3 +94,6 @@ pub async fn configure_profile(
     if let Some(gateway) = profile.gateway.as_mut() { gateway.start().await?; }
     Ok(())
 }
+
+#[cfg(test)]
+mod glm_capability_tests;

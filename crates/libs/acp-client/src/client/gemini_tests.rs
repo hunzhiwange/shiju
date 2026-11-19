@@ -248,3 +248,59 @@ async fn acp_full_access_gemini_workflow_confirmation_is_not_automatic_tool_appr
     })
     .await;
 }
+
+#[tokio::test]
+async fn acp_full_access_gemini_mcp_permission_requires_mounted_server_and_active_prompt() {
+    use acp::Client as _;
+    with_fixture(TestAgent::default(), async |fixture| {
+        fixture.client.agent_name = "gemini".into();
+        fixture.client.permission_mode = crate::PermissionMode::ApproveAll;
+        let (cancel, _) = watch::channel(false);
+        let (_, completed) = watch::channel(false);
+        fixture.client.register_active_prompt("session".into(), cancel, completed);
+        let (tx, _) = mpsc::unbounded_channel();
+        let mut client = fixture.client.build_event_client(
+            Path::new("/tmp"),
+            Arc::new(Mutex::new(Some("session".into()))),
+            tx,
+        );
+        client.gemini_mcp_servers.insert("selected".into());
+        let request = |session: &str, server: &str, option: &str| {
+            serde_json::from_value::<acp::RequestPermissionRequest>(serde_json::json!({
+                "sessionId": session,
+                "_meta": {"shiju.gemini/mcp": {"server": server, "tool": "query"}},
+                "toolCall": {"toolCallId":"call", "kind":"other", "title":"Read index"},
+                "options":[
+                    {"optionId":"once", "name":"Allow", "kind":option},
+                    {"optionId":"forever", "name":"Allow forever", "kind":"allow_always"},
+                    {"optionId":"deny", "name":"Deny", "kind":"reject_once"}
+                ]
+            }))
+            .unwrap()
+        };
+        let response = client.request_permission(request("session", "selected", "allow_once"))
+            .await
+            .unwrap();
+        assert_eq!(serde_json::to_value(response).unwrap()["outcome"]["optionId"], "once");
+        assert!(client.request_permission(request("session", "unmounted", "allow_once")).await.is_err());
+        assert!(client.request_permission(request("foreign", "selected", "allow_once")).await.is_err());
+        let response = client.request_permission(request("session", "selected", "allow_always"))
+            .await
+            .unwrap();
+        assert_eq!(serde_json::to_value(response).unwrap()["outcome"]["outcome"], "cancelled");
+        client.permission_mode = crate::PermissionMode::ApproveReads;
+        client.non_interactive_permissions = Some(crate::NonInteractivePermissionPolicy::Deny);
+        let response = client.request_permission(request("session", "selected", "allow_once"))
+            .await
+            .unwrap();
+        assert_eq!(serde_json::to_value(response).unwrap()["outcome"]["optionId"], "deny");
+        client.permission_mode = crate::PermissionMode::DenyAll;
+        let response = client.request_permission(request("session", "selected", "allow_once"))
+            .await
+            .unwrap();
+        assert_eq!(serde_json::to_value(response).unwrap()["outcome"]["optionId"], "deny");
+        fixture.client.clear_active_prompt("session");
+        assert!(client.request_permission(request("session", "selected", "allow_once")).await.is_err());
+    })
+    .await;
+}

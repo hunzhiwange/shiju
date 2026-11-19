@@ -62,6 +62,21 @@ impl AcpClient {
             }
         });
         let managed_workspace_io = self.managed_workspace_io();
+        let mut gemini_mcp_servers = HashSet::new();
+        if self.agent_name == "gemini"
+            && !self.mcp_servers.is_empty()
+            && self.config.args.iter().any(|arg| arg == "--shiju-model-source")
+            && crate::verify_reviewed_agent_executable("gemini", self.config.command.trim()).is_ok()
+        {
+            gemini_mcp_servers.extend(self.mcp_servers.iter().filter_map(
+                |server| match server {
+                    acp::McpServer::Stdio(server) => Some(server.name.clone()),
+                    acp::McpServer::Http(server) => Some(server.name.clone()),
+                    acp::McpServer::Sse(server) => Some(server.name.clone()),
+                    _ => None,
+                },
+            ));
+        }
         AcpEventClient {
             managed_workspace_io,
             sandboxed_native_io: self.managed_vtcode() || self.managed_aionrs() || self.managed_cortex(),
@@ -88,6 +103,7 @@ impl AcpClient {
                 self.agent_name.as_str(),
                 "gemini" | "qwen"
             ),
+            gemini_mcp_servers,
             expected_session_id,
             desktop_workspace: if managed_workspace_io {
                 Some(cwd.canonicalize().unwrap_or_else(|_| cwd.to_path_buf()))
@@ -159,9 +175,23 @@ impl acp::Client for AcpEventClient {
             return Ok(cancelled_permission_response());
         }
         self.permission_stats.lock().requested += 1;
+        // Only the reviewed Gemini bundle emits this marker for an MCP invocation.
+        let gemini_mcp = args.meta.as_ref().and_then(|meta| meta.get("shiju.gemini/mcp"));
+        if let Some(mcp) = gemini_mcp
+            && (args.tool_call.fields.kind != Some(acp::ToolKind::Other)
+                || !self.owns_active_prompt(&args.session_id)
+                || !mcp["server"]
+                    .as_str()
+                    .is_some_and(|name| self.gemini_mcp_servers.contains(name))
+                || !mcp["tool"].as_str().is_some_and(|name| !name.trim().is_empty()))
+        {
+            return Err(acp::Error::invalid_params()
+                .data("Gemini MCP approval requires a mounted server in the active session"));
+        }
         // Gemini maps plan/question tools to Other without a structured payload.
         // Do not guess from user-controlled titles or answer these as tool approvals.
         if self.reject_untyped_workflow_permissions
+            && gemini_mcp.is_none()
             && matches!(
                 args.tool_call.fields.kind,
                 None | Some(acp::ToolKind::Other | acp::ToolKind::SwitchMode)
@@ -192,7 +222,10 @@ impl acp::Client for AcpEventClient {
         if self.desktop_workspace.is_some() && args.tool_call.fields.kind.is_none() {
             args.tool_call.fields.kind = Some(acp::ToolKind::Other);
         }
-        let resolve = if self.transient_permissions || self.desktop_workspace.is_some() {
+        let resolve = if gemini_mcp.is_some()
+            || self.transient_permissions
+            || self.desktop_workspace.is_some()
+        {
             resolve_transient_permission_request
         } else {
             resolve_permission_request

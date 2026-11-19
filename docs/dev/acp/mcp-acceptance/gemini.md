@@ -66,3 +66,11 @@
 三轮均有一个 `chat.done` 而无 `chat.error`。运行时的模型、后端、`full_access=true` 及 `client_only` 与前轮一致。挂载轮的真实查询定位 `createRueSiteApp`（`app/app.tsx:32`），调用者定位 `mountRueSiteApp`（`app/app.tsx:39`），源码读取给出 `useApp`（`packages/runtime/src/hooks/useApp.ts:4`）与 `_$createApp`（`packages/runtime/src/compiler-runtime/app.ts:57`）。指定模型使用这些结果说明 SSR、挂载点、插件和布局分支，并提出两项验证场景。答复有一处路由路径多写一层 `app/`，且在快照累积方面把待验证行为断定为必然。代码能确认模板中的旧节点可能与客户端新增节点共存，逐轮累积仍取决于输入模板是否复用前一轮输出。
 
 原型证明工作区信任、宿主审批及真实工具结果可同时成立。原型只覆盖受限的 CodeGraph 转发器，不能把任意 MCP 自报的只读属性作为宿主权限依据。产品化仍需让审核版 Gemini 在审批请求里区分 MCP 和工作流，绑定会话已授权的服务及一次性审批，并补拒绝和撤销验证。严格模型对照仍未通过。未运行 Cargo。私有网关已退出，临时信任文件、挂载文件及凭据副本已移除。
+
+## 正式受管入口 v2
+
+Gemini 0.66.0 v2 对 `session_model` 下原生 MCP 审批携带服务名和工具名，并只提供单次允许或拒绝。宿主校验受审安装、活动 ACP 回合及本会话挂载的服务。工具仍标记为 `Other`，因此模型和服务器不能借只读提示套用自动读取权限。未带结构化标识的计划和提问继续按原门禁处理。工作区信任仍由 Gemini 原生处理。
+
+用仓库安装脚本在私有目录从固定 npm 发布安装并校验 v2。三个 ACP 入口通过 `node --check`。真实 RustCodeGraph 的原生 ACP 回环测试中，单次允许 `query`、`callers`、`node` 各触发一次审批，续轮分别收到 `app/app.tsx:32`、`app/app.tsx:39`、`packages/runtime/src/hooks/useApp.ts:4`。拒绝查询时，模型续轮收到取消结果。撤除挂载和移除私有信任分别创建新会话，均无目标工具声明或审批。六个探针均返回 `end_turn`。这六轮使用回环模型，正式 v2 的指定阿里模型三轮需以新网关构建复验。
+
+相同原生探针在 v1 因缺少审批元数据退出 1，v2 六个场景通过。宿主聚焦命令 `python3 scripts/cargo_slot.py cargo test --locked -j 1 -p acp-client --lib acp_full_access_gemini_` 退出 0，槽位 10 的 target 与 build 缓存均为仓库内 `target/rust-slot-10`，11 项通过、零失败。覆盖已挂载服务的单次批准、未挂载或非活动会话拒绝、永久批准不可选、只读模式不误放和原有工作流门禁。

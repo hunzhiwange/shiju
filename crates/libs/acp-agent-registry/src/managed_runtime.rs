@@ -36,6 +36,8 @@ fn installed_directory(agent: &str, contract: &Contract) -> Result<PathBuf, Stri
         4
     } else if matches!(agent, "amp-acp" | "cortex-code" | "snow") {
         3
+    } else if agent == "gemini" {
+        2
     } else if matches!(
         agent,
         "corust-agent" | "harn" | "cursor" | "hermes" | "junie" | "openclaw" | "pi" | "poolside" | "stakpak" | "vibe"

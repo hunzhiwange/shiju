@@ -220,3 +220,66 @@
      await this.discoverBuiltinSkills();
      for (const extension of extensions) {
        if (extension.isActive && extension.skills) {
+--- a/bundle/gemini-B5V54E2S.js
++++ b/bundle/gemini-B5V54E2S.js
+@@ -15618,9 +15618,17 @@
+           locations: invocation.toolLocations(),
+           kind: toAcpToolKind(tool.kind)
+         });
++        const managedMcp = process.argv.includes("--shiju-model-source") &&
++          tool instanceof DiscoveredMCPTool && confirmationDetails.type === "mcp";
+         const params = {
+           sessionId: this.id,
+-          options: toPermissionOptions(
++          ...(managedMcp ? {
++            _meta: {"shiju.gemini/mcp": {
++              server: tool.serverName,
++              tool: tool.serverToolName
++            }}
++          } : {}),
++          options: managedMcp ? basicPermissionOptions : toPermissionOptions(
+             confirmationDetails,
+             this.context.config,
+             this.settings.merged.security.enablePermanentToolApproval
+--- a/bundle/gemini-EOCRFAPZ.js
++++ b/bundle/gemini-EOCRFAPZ.js
+@@ -15618,9 +15618,17 @@
+           locations: invocation.toolLocations(),
+           kind: toAcpToolKind(tool.kind)
+         });
++        const managedMcp = process.argv.includes("--shiju-model-source") &&
++          tool instanceof DiscoveredMCPTool && confirmationDetails.type === "mcp";
+         const params = {
+           sessionId: this.id,
+-          options: toPermissionOptions(
++          ...(managedMcp ? {
++            _meta: {"shiju.gemini/mcp": {
++              server: tool.serverName,
++              tool: tool.serverToolName
++            }}
++          } : {}),
++          options: managedMcp ? basicPermissionOptions : toPermissionOptions(
+             confirmationDetails,
+             this.context.config,
+             this.settings.merged.security.enablePermanentToolApproval
+--- a/bundle/gemini-22EOGL6O.js
++++ b/bundle/gemini-22EOGL6O.js
+@@ -15634,9 +15634,17 @@
+           locations: invocation.toolLocations(),
+           kind: toAcpToolKind(tool.kind)
+         });
++        const managedMcp = process.argv.includes("--shiju-model-source") &&
++          tool instanceof DiscoveredMCPTool && confirmationDetails.type === "mcp";
+         const params = {
+           sessionId: this.id,
+-          options: toPermissionOptions(
++          ...(managedMcp ? {
++            _meta: {"shiju.gemini/mcp": {
++              server: tool.serverName,
++              tool: tool.serverToolName
++            }}
++          } : {}),
++          options: managedMcp ? basicPermissionOptions : toPermissionOptions(
+             confirmationDetails,
+             this.context.config,
+             this.settings.merged.security.enablePermanentToolApproval

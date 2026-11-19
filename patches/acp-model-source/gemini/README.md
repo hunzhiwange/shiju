@@ -37,3 +37,16 @@ absolute request-owned directory, or no directories for an empty selection.
 Builtin, extension, user and project skills are excluded in both model modes.
 Without that environment variable, upstream discovery is unchanged. The
 existing model lock, thought signatures and history root behavior are unchanged.
+
+The managed v2 runtime adds structured ACP permission metadata for native MCP
+tool invocations in `session_model` and offers only single-call allow and reject
+options. ShiJu accepts the metadata only from a verified managed executable, for
+a server mounted in the active session. MCP tools retain their generic ACP tool
+kind, so a tool name or a server-provided read-only hint cannot activate
+read-only auto-approval. Native workflow confirmations keep their existing
+policy.
+
+Gemini must already trust the workspace before its native MCP discovery runs.
+An operator can point the managed process at an explicit native trust file using
+`GEMINI_CLI_TRUSTED_FOLDERS_PATH`. The installer does not create trust entries or
+change a user's existing Gemini settings.

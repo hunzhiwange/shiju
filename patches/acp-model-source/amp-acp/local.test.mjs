@@ -59,8 +59,7 @@ for (const invalidate of ['cancel', 'replace']) {
   });
 }
 
-// The legacy Opus display default is not a preference for the selected model.
-test('Amp removes its native summarized thinking display before the model relay', async () => {
+async function withLocalAmp(run) {
   const { createServer } = await import('node:http');
   const { mkdtemp, rm } = await import('node:fs/promises');
   const { tmpdir } = await import('node:os');
@@ -81,34 +80,25 @@ test('Amp removes its native summarized thinking display before the model relay'
     SHIJU_AMP_MODEL: 'selected-model', SHIJU_AMP_BINDING: 'test-binding',
     SHIJU_AMP_RELAY_TOKEN: 'test-token', SHIJU_AMP_REASONING: 'true', AMP_ACP_STATE_DIR: directory,
   });
-  const local = new LocalAmp({ sessions: new Map([['session', { active: { controller: new AbortController() } }]]) });
+  const session = { cwd: directory, active: { controller: new AbortController() } };
+  const local = new LocalAmp({ sessions: new Map([['session', session]]), client: {} });
   try {
     await local.start();
     const env = local.environment('session');
-    const response = await fetch(`${local.url}/api/provider/anthropic/v1/messages`, {
-      method: 'POST', headers: { authorization: `Bearer ${env.AMP_API_KEY}`, 'content-type': 'application/json' },
-      body: JSON.stringify({ model: 'native-opus', max_tokens: 2048, thinking: { type: 'adaptive', display: 'summarized' }, messages: [] }),
-    });
-    await response.text();
-    assert.equal(response.status, 200);
-    assert.equal(received.model, 'selected-model');
-    assert.deepEqual(received.thinking, { type: 'adaptive' });
-    const unknown = await fetch(`${local.url}/api/provider/anthropic/v1/messages`, {
-      method: 'POST', headers: { authorization: `Bearer ${env.AMP_API_KEY}`, 'content-type': 'application/json' },
-      body: JSON.stringify({ model: 'native-opus', max_tokens: 2048, thinking: { type: 'adaptive', display: 'unknown' }, messages: [] }),
-    });
-    await unknown.text();
-    assert.equal(unknown.status, 422);
-    assert.equal(received.thinking.display, 'unknown');
-    local.agent.sessions.get('session').mcpConfig = { selected_graph: {} };
-    const title = await fetch(`${local.url}/api/provider/anthropic/v1/messages`, {
-      method: 'POST', headers: { authorization: `Bearer ${env.AMP_API_KEY}`, 'content-type': 'application/json' },
-      body: JSON.stringify({ model: 'native-opus', max_tokens: 2048, messages: [],
-        tools: [{ name: 'set_title' }, { name: 'Bash' }] }),
-    });
-    await title.text();
-    assert.equal(title.status, 200);
-    assert.deepEqual(received.tools, [{ name: 'set_title' }]);
+    const post = async (route, body) => {
+      const response = await fetch(`${local.url}${route}`, {
+        method: 'POST', headers: { authorization: `Bearer ${env.AMP_API_KEY}`, 'content-type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      return { status: response.status, body: await response.json() };
+    };
+    const model = async body => {
+      const response = await post('/api/provider/anthropic/v1/messages', {
+        model: 'native-opus', max_tokens: 2048, messages: [], ...body,
+      });
+      return { ...response, received };
+    };
+    await run({ local, session, post, model });
   } finally {
     local.close();
     upstream.closeAllConnections();
@@ -119,4 +109,62 @@ test('Amp removes its native summarized thinking display before the model relay'
     }
     await rm(directory, { recursive: true, force: true });
   }
-});
+}
+
+test('Amp removes its native summarized thinking display before the model relay', () => withLocalAmp(async ({ model }) => {
+  const response = await model({ thinking: { type: 'adaptive', display: 'summarized' } });
+  assert.equal(response.status, 200);
+  assert.equal(response.received.model, 'selected-model');
+  assert.deepEqual(response.received.thinking, { type: 'adaptive' });
+  const unknown = await model({ thinking: { type: 'adaptive', display: 'unknown' } });
+  assert.equal(unknown.status, 422);
+  assert.equal(unknown.received.thinking.display, 'unknown');
+}));
+
+test('Amp advertises routed native tools alongside selected MCP in the streaming catalog', () => withLocalAmp(async ({ session, model }) => {
+  session.mcpConfig = { selected_graph: {} };
+  const selected = { name: 'mcp__selected_graph__query' };
+  const read = { name: 'Read', input_schema: { properties: { path: {}, read_range: {}, unsupported: {} } } };
+  const title = { name: 'set_title' };
+  const tools = [read, title, selected, { name: 'mcp__other_graph__query' }, { name: 'Glob' }];
+  const response = await model({ stream: true, tools });
+  assert.equal(response.status, 200);
+  assert.deepEqual(response.received.tools.map(tool => tool.name), ['Read', selected.name]);
+  assert.deepEqual(response.received.tools[0].input_schema, {
+    properties: { path: {}, read_range: {} }, additionalProperties: false,
+  });
+  const auxiliary = await model({ tools });
+  assert.equal(auxiliary.status, 200);
+  assert.deepEqual(auxiliary.received.tools, [title, selected]);
+}));
+
+test('Amp applies native and MCP permissions independently in a mounted session', () => withLocalAmp(async ({ local, session, post, model }) => {
+  session.mcpConfig = { selected_graph: {} };
+  const approvals = [];
+  const reads = [];
+  local.agent.client.requestPermission = async ({ toolCall }) => {
+    approvals.push(toolCall.toolCallId);
+    return { outcome: { outcome: 'selected', optionId: toolCall.toolCallId.endsWith('allow') ? 'allow_once' : 'reject_once' } };
+  };
+  local.agent.client.readTextFile = async request => {
+    reads.push(request);
+    return { content: 'read by host' };
+  };
+
+  const name = 'mcp__selected_graph__query';
+  assert.equal((await model({ stream: true, tools: [{ name }] })).status, 200);
+  const native = (id, tool = 'Read') => post('/shiju/tool', {
+    sessionId: 'session', id, name: tool, input: { path: 'fixture.txt' },
+  });
+  const mcp = (id, tool = name) => post('/shiju/mcp-permission', {
+    sessionId: 'session', id, name: tool, input: {},
+  });
+  assert.deepEqual(await native('native-allow'), { status: 200, body: { output: '1: read by host' } });
+  assert.equal((await mcp('mcp-deny')).status, 500);
+  assert.equal((await native('native-deny')).status, 500);
+  assert.equal((await mcp('mcp-allow')).status, 200);
+  assert.equal((await native('unrouted-allow', 'Glob')).status, 500);
+  assert.equal((await mcp('undeclared-allow', 'mcp__selected_graph__other')).status, 500);
+  assert.deepEqual(approvals, ['native-allow', 'mcp-deny', 'native-deny', 'mcp-allow']);
+  assert.deepEqual(reads, [{ sessionId: 'session', path: `${session.cwd}/fixture.txt`, line: 1, limit: 1000 }]);
+}));

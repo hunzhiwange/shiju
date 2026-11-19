@@ -143,7 +143,6 @@ export class LocalAmp {
     const selection = Object.keys(this.agent.sessions.get(context.sessionId).mcpConfig || {});
     if (route === '/shiju/tool') {
       if (body.sessionId !== context.sessionId) throw Error('Amp tool session mismatch');
-      if (selection.length) throw Error('Amp session is restricted to selected MCP tools');
       this.json(res, { output: await this.tool(body) }); return;
     }
     if (route === '/shiju/mcp-permission') {
@@ -199,8 +198,8 @@ export class LocalAmp {
     }
     if (body.stream) context.tools.clear();
     if (Array.isArray(body.tools)) body.tools = body.tools.filter(tool => {
-      if (!body.stream && tool.name === 'set_title') return true;
-      if (!selection.length) return Object.hasOwn(HOST_FIELDS, tool.name) || tool.name === 'set_title';
+      if (tool.name === 'set_title') return !body.stream || !selection.length;
+      if (Object.hasOwn(HOST_FIELDS, tool.name)) return body.stream || !selection.length;
       const match = /^mcp__([A-Za-z0-9]+(?:_[A-Za-z0-9]+)*)__[A-Za-z0-9_]+$/.exec(tool.name);
       if (!match || !selection.includes(match[1])) return false;
       if (body.stream) context.tools.add(tool.name);

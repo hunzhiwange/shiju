@@ -1,0 +1,167 @@
+--- a/dist/protocol/agent.js
++++ b/dist/protocol/agent.js
+@@ -290,6 +290,7 @@
+                 content: buildSystemPrompt({
+                     cwd: params.cwd,
+                     tools: toolDefinitions.map((tool) => tool.function.name),
++                    mcpOnly: mcpTools.mcpOnly,
+                     agentsMd,
+                 }),
+             };
+@@ -1202,7 +1203,7 @@
+         const toolDefinitions = this.availableToolDefinitions(mcpTools);
+         const newSessionId = randomUUID();
+         const forkedTitle = persisted.title === null ? null : `${persisted.title} (fork)`;
+-        const forkedMessages = rebuildRestoredMessages(structuredClone(persisted.messages), params.cwd, toolDefinitions, agentsMd);
++        const forkedMessages = rebuildRestoredMessages(structuredClone(persisted.messages), params.cwd, toolDefinitions, agentsMd, mcpTools.mcpOnly);
+         const forkLifecycle = new SessionLifecycle();
+         const forked = {
+             cwd: params.cwd,
+@@ -1323,7 +1324,7 @@
+                 // flight. Prompts are gated, so this second live projection keeps
+                 // those latest settings without reopening the history race.
+                 const restoreSource = original ? this.snapshot(params.sessionId, original) : persisted;
+-                const restoredMessages = rebuildRestoredMessages(restoreSource.messages, params.cwd, toolDefinitions, agentsMd);
++                const restoredMessages = rebuildRestoredMessages(restoreSource.messages, params.cwd, toolDefinitions, agentsMd, provisional.mcpOnly);
+                 const restored = {
+                     cwd: params.cwd,
+                     messages: restoredMessages,
+@@ -2132,6 +2133,8 @@
+         }), "utf8");
+     }
+     availableToolDefinitions(mcpTools = null) {
++        if (mcpTools?.mcpOnly)
++            return mcpTools.toolDefinitions;
+         const names = ["read_file", "write_file", "edit_file", "todowrite", "list_files", "run_command", "web_search", "web_reader"];
+         if (this.visionClientExplicit ? this._visionClient !== null : true) {
+             names.push("image_analysis");
+@@ -2149,13 +2152,14 @@
+  * The returned array is always new so a fork can refresh its prompt without
+  * changing the source session's message history.
+  */
+-function rebuildRestoredMessages(messages, cwd, toolDefinitions, agentsMd) {
++function rebuildRestoredMessages(messages, cwd, toolDefinitions, agentsMd, mcpOnly) {
+     const systemPrompt = {
+         role: "system",
+         content: buildSystemPrompt({
+             cwd,
+             tools: toolDefinitions.map((tool) => tool.function.name),
+             agentsMd,
++            mcpOnly,
+         }),
+     };
+     return messages[0]?.role === "system"
+--- a/dist/protocol/system-prompt.js
++++ b/dist/protocol/system-prompt.js
+@@ -49,7 +49,13 @@
+ </image_handling>`;
+ export function buildSystemPrompt(input) {
+     const { cwd, tools, agentsMd } = input;
+-    const sections = [
++    const sections = input.mcpOnly ? [
++        renderEnvironment(cwd),
++        tools.length ? `Available session tools: ${tools.join(", ")}.` : "No tools are mounted in this session.",
++        FILE_SYSTEM_GUIDELINES,
++        VERSION_CONTROL,
++        "Use only the evidence needed to answer. Once it is sufficient, answer directly. Follow the user's requested output format exactly.",
++    ] : [
+         PERSONA,
+         renderEnvironment(cwd),
+         TOOLS_TEMPLATE.replace("__TOOLS__", tools.join(", ")),
+--- a/dist/tools/executor.js
++++ b/dist/tools/executor.js
+@@ -222,6 +222,11 @@
+      * Returns a plain text result that can be fed back to GLM as a tool message.
+      */
+     async execute(toolCallId, toolName, rawArguments) {
++        if (this.sessionMcpTools?.mcpOnly && !this.sessionMcpTools.hasTool(toolName)) {
++            const message = `Error: tool "${toolName}" is not mounted in this session`;
++            await this.failedToolCall(toolCallId, toolName, {}, message);
++            return { content: message, outcome: "completed" };
++        }
+         const validation = validateToolArguments(toolName, rawArguments);
+         if (!validation.ok) {
+             const message = `Error: ${validation.message}`;
+@@ -1152,6 +1157,10 @@
+         try {
+             const mcpResult = await this.sessionMcpTools.callTool(toolName, args, this.signal);
+             const text = unwrapToolText(mcpResult);
++            if (mcpResult?.isError === true) {
++                await this.markFailed(toolCallId, boundCardText(text));
++                return { content: text };
++            }
+             await this.connection.sessionUpdate({
+                 sessionId: this.sessionId,
+                 update: {
+--- a/dist/tools/session-mcp-client.js
++++ b/dist/tools/session-mcp-client.js
+@@ -1,3 +1,4 @@
++import { createHash } from "node:crypto";
+ import { spawn as nodeSpawn, spawnSync as nodeSpawnSync } from "node:child_process";
+ import { TOOL_DEFINITIONS } from "./definitions.js";
+ import { collectToolPages, assertValidToolPage, DEFAULT_MCP_MAX_PAGES, DEFAULT_MCP_MAX_SCHEMA_BYTES, DEFAULT_MCP_MAX_TOOLS, } from "./mcp-pagination.js";
+@@ -23,7 +24,8 @@
+     bindings = new Map();
+     clients;
+     disposePromise = null;
+-    constructor(bindings, clients = []) {
++    constructor(bindings, clients = [], mcpOnly = false) {
++        this.mcpOnly = mcpOnly;
+         this.clients = new Set(clients);
+         for (const binding of bindings) {
+             this.bindings.set(binding.exposedName, binding);
+@@ -71,7 +73,33 @@
+         catch { /* already closed */ }
+     }
+ }
++function toolPolicy(server) {
++    const policy = server._meta?.["shiju.glm.toolPolicy"];
++    if (policy === undefined)
++        return { allow: [], deny: [] };
++    if (!policy || ![policy.allow, policy.deny].every(list =>
++        Array.isArray(list) && list.every(name => typeof name === "string" && name.length > 0)))
++        throw new Error("Invalid GLM session MCP tool policy");
++    return policy;
++}
++
++function matchesTool(entries, server, name) {
++    const normalize = value => value.replace(/[^A-Za-z0-9]+/g, "_").replace(/^_+|_+$/g, "").toLowerCase();
++    const serverName = normalize(server);
++    const toolName = normalize(name);
++    if (!serverName || !toolName)
++        return entries.includes(name);
++    let id = `mcp__${serverName}__${toolName}`;
++    if (serverName !== server || toolName !== name || id.length > 64) {
++        const digest = createHash("sha256").update(server).update("\0").update(name).digest("hex");
++        id = id.slice(0, 47) + "_" + digest.slice(0, 16);
++    }
++    return entries.includes(name) || entries.includes(id);
++}
++
+ export async function connectSessionMcpServers(servers, signal) {
++    const policies = servers.map(toolPolicy);
++    const mcpOnly = policies.length > 0 && policies.every(policy => policy.allow.length > 0);
+     const usedNames = new Set(TOOL_DEFINITIONS.map((tool) => tool.function.name));
+     const bindings = [];
+     const clients = [];
+@@ -110,7 +138,11 @@
+             const tools = discoveredTools[index];
+             if (!serverClient || !tools)
+                 throw new Error(`MCP server "${server.name}" did not return a tool catalog`);
++            const { allow, deny } = policies[index];
+             for (const tool of tools) {
++                if (matchesTool(deny, server.name, tool.name) ||
++                    (allow.length > 0 && !matchesTool(allow, server.name, tool.name)))
++                    continue;
+                 const exposedName = chooseToolName(tool.name, server.name, usedNames);
+                 usedNames.add(exposedName);
+                 bindings.push({
+@@ -133,7 +165,7 @@
+         await Promise.all(clients.map((client) => client.dispose().catch(() => undefined)));
+         throw err;
+     }
+-    return new SessionMcpTools(bindings, clients);
++    return new SessionMcpTools(bindings, clients, mcpOnly);
+ }
+ function createClient(server) {
+     if ("type" in server && server.type === "http") {

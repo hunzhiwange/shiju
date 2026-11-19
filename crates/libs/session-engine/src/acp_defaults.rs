@@ -116,6 +116,23 @@ pub async fn apply_agent_defaults<H: DefaultsHost, S>(
         })
         .map(|server| {
             let mut selected = server.clone();
+            if backend == "glm-acp-agent" {
+                let policy = mcp_client::management_for_server(&mcp, server);
+                if !policy.allowed_tools.is_empty() || !policy.denied_tools.is_empty() {
+                    let meta = match &mut selected {
+                        acp_types::AcpMcpServer::Stdio(server) => Some(&mut server.meta),
+                        acp_types::AcpMcpServer::Http(server) => Some(&mut server.meta),
+                        acp_types::AcpMcpServer::Sse(server) => Some(&mut server.meta),
+                        _ => None,
+                    };
+                    if let Some(meta) = meta {
+                        meta.get_or_insert_with(Default::default).insert(
+                            "shiju.glm.toolPolicy".into(),
+                            serde_json::json!({"allow": policy.allowed_tools, "deny": policy.denied_tools}),
+                        );
+                    }
+                }
+            }
             let policy_key = match backend {
                 "cortex-code" => Some("shiju.cortex.toolPolicy"),
                 "deepagents" => Some("shiju.deepagents.toolPolicy"),

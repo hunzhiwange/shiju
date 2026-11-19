@@ -1,4 +1,23 @@
 {
+  "glm-acp-agent": {
+    "package": "glm-acp-agent",
+    "version": "1.17.1",
+    "integrity": "sha512-rA/E3e4jRBFAstPh97hSnG5pcgpCn3HNZuIgvKBGCbgTlB8bS0riwPnSdfe0QU4bJfcEw7UUQt5WJbBRS8fsdA==",
+    "bin": "dist/index.js",
+    "files": {
+      "dist/index.js": "d0d9237bffcbd5017a0085aa3c4625c29e2b750f87c358fa9c455d3cd4cdbd98",
+      "dist/protocol/agent.js": "4927e9a412460b1de320d37e03d8638557b116900085d48293afe2fdea1ff543",
+      "dist/protocol/system-prompt.js": "049af670ae8845096c7f0cb537df36511a6dacf26d9f37116f320a64a078bc8e",
+      "dist/tools/executor.js": "66819216a5928686f5506af52faa9fe43a2e1dbbb5d215c36927b92a66491f87",
+      "dist/tools/session-mcp-client.js": "abe5c83cd331aa659eb6c2865ec4dbb732a5a5295c1d23c4ae22ca3b009dd373"
+    },
+    "original": {
+      "dist/protocol/agent.js": "5352ec11b2db683957f5daeb571974863e3f8c3acb1cbcd321cb702b590025f3",
+      "dist/protocol/system-prompt.js": "c0039856d8d3fca585cf28edd628a1c445cca828ef23d880e4688f1371c38cdc",
+      "dist/tools/executor.js": "a3614aaa2e14a841fe2791e31465e50d8691130cc157d4dbe002b74efbac3289",
+      "dist/tools/session-mcp-client.js": "ed52008b69b7531c4ce5b8327539005a9d26d8bf8ecb36dc4e0ed65eb06d078c"
+    }
+  },
   "cortex-code": {
     "layout": "standalone",
     "package": "cortex-code",

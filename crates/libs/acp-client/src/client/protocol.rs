@@ -250,6 +250,25 @@ impl AcpClient {
     }
 
     fn validate_mcp_contract(&self) -> Result<(), AcpError> {
+        if self.agent_name == "glm-acp-agent"
+            && self.mcp_servers.iter().any(|server| {
+                let meta = match server {
+                    acp::McpServer::Stdio(server) => server.meta.as_ref(),
+                    acp::McpServer::Http(server) => server.meta.as_ref(),
+                    acp::McpServer::Sse(server) => server.meta.as_ref(),
+                    _ => None,
+                };
+                meta.is_some_and(|meta| meta.contains_key("shiju.glm.toolPolicy"))
+            })
+        {
+            if self.permission_mode == PermissionMode::DenyAll {
+                return Err(AcpError::NewSession(
+                    "GLM session MCP is denied by the host permission policy".into(),
+                ));
+            }
+            crate::verify_reviewed_agent_executable(&self.agent_name, &self.config.command)
+                .map_err(AcpError::NewSession)?;
+        }
         if self.agent_name == "sigit" && !self.mcp_servers.is_empty() {
             return Err(AcpError::Initialize(
                 "siGit reviewed host-only runtime does not support MCP servers".into(),

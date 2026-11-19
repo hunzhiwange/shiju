@@ -622,7 +622,7 @@ if agent == 'copilot':
     link = runtime / 'node_modules/.bin/copilot'
     link.unlink()
     link.symlink_to(Path('../@github/copilot/embedded/index.js'))
-if agent in ('codex', 'gemini'):
+if agent in ('codex', 'gemini', 'glm-acp-agent'):
     check_files(root, contract['original'])
     run(['patch', '--batch', '--forward', '-p1', '-d', str(root), '-i', str(assets / (agent + '.patch'))])
 elif agent in ('nova', 'deepagents', 'iflow', 'qwen', 'codebuddy', 'snow', 'openclaw', 'auggie', 'qoder', 'amp-acp'):

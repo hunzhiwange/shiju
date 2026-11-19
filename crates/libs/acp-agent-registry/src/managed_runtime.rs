@@ -325,6 +325,10 @@ pub(super) async fn install(agent: &str) -> Result<bool, String> {
         ("nova/apply.py", include_str!("../../../../patches/acp-model-source/nova/apply.py")),
         ("nova/session-model.mjs", include_str!("../../../../patches/acp-model-source/nova/session-model.mjs")),
         ("install.py", include_str!("managed_runtime/install.py")),
+        (
+            "glm-acp-agent.patch",
+            include_str!("../../../../patches/acp-model-source/glm-acp-agent/glm-acp-agent-1.17.1-managed.patch"),
+        ),
         ("cortex-code/apply.py", include_str!("../../../../patches/acp-model-source/cortex-code/apply.py")),
         ("cortex-code/launcher.py", include_str!("../../../../patches/acp-model-source/cortex-code/launcher.py")),
         ("cortex-code/mcp_bridge.py", include_str!("../../../../patches/acp-model-source/cortex-code/mcp_bridge.py")),

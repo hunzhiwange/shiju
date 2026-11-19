@@ -92,3 +92,13 @@ python3 patches/acp-model-source/droid/apply.py /path/to/original/droid /private
 三轮均无 `chat.error`，回读绑定及 `full_access=true`，运行时权限为 `client_only`，终态连接关闭，模型为固定阿里模型及 `session_model`。挂载轮直接调用 `query` 和 `callers` 得到 `createRueSiteApp` 和 `mountRueSiteApp`，再以 `node` 取得 `useApp` 调用 `_$createApp` 的源码，调用 ID 分别为 `call_904352df0ec978b1_0`、`call_a0dc4c34e9e07a13_0`、`call_7cd743c6d9e3cb69_1`。答复按三部分追踪调用链、浏览器和 SSR、插件与布局分支，给出静态快照首屏及导航回归场景。两项浏览器场景仍属源码推断。挂载轮没有 `ToolSearch`，仍使用额外图谱工具，并因请求未声明的 `rustcodegraph_search` 失败（`call_5bf62f23b5af5fea_1`）。
 
 直接声明与原生审批已验证。严格验收仍需受审入口支持在执行边界限定会话工具，或由验收负责人调整额外工具调用判据。原型未接入受管安装。两次网关均退出，端口已关闭，各自副本的 4109 项导出内容一致，临时授权与工作目录已清理，原版 Droid 摘要一致。未运行 Cargo。SSE 和原生探针证据保存在本机 0700 目录。
+
+## 受管安装接入
+
+Darwin arm64 的 Droid 安装入口已接入同一补丁。安装器先按原版摘要校验官方 1.9.0，再应用补丁、校验签名及补丁版摘要，随后由注册表发布到独立 `droid-1.9.0-model-source-v2` 目录。原版 v1 在 v2 缺失时仍可按原版摘要校验后选用。v2 已存在时，摘要校验失败会拒绝其受管启动。现有入口参数、模型中继和权限路径沿用。
+
+在两个私有目录运行受管安装器，分别使用官方地址冷下载和同一官方制品的已校验本地副本，两次均退出 0。安装产物 `--version` 输出 `1.9.0`，签名检查通过，SHA-256 为 `0858a4f7411b0159780246598fc6170a17d695556e4da66ab939bff82b58050b`，与前次指定模型三轮的产物一致。对安装产物运行回环原生 ACP，挂载轮三次逐次批准均成功，续轮收到三项真实输出。拒绝轮无输出，终态 `cancelled`。无挂载与撤除均无图谱声明。未重新运行指定模型三轮。
+
+注册表用 `python3 scripts/cargo_slot.py cargo test -j 1 --locked -p acp-agent-registry --lib droid_managed_patch_is_pinned_in_a_separate_install` 验证 v2 路径、原版与补丁摘要分离及篡改拒绝，槽位 10，`CARGO_TARGET_DIR` 与 `CARGO_BUILD_BUILD_DIR` 均指向工作区的 `target/rust-slot-10`，退出 0，1 项通过。
+
+会话工具清单用于模型发现。独立原生白名单探针尝试将 ACP 服务级策略传到 Droid 的 MCP 工具配置，模型仍收到八个图谱工具。未把该实验接入受管入口。严格验收仍阻塞在工具执行限制。

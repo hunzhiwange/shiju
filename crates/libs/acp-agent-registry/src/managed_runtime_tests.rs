@@ -90,6 +90,25 @@ fn deepagents_session_mcp_uses_a_separate_reviewed_install() {
 }
 
 #[test]
+fn droid_managed_patch_is_pinned_in_a_separate_install() {
+    let contract = super::contract("droid").unwrap();
+    assert_eq!(contract.layout, "standalone");
+    assert_eq!(contract.version, "1.9.0");
+    let original = contract.source_sha256.as_deref().unwrap();
+    let patched = contract.files.get("droid").unwrap();
+    assert_eq!(patched.len(), 64);
+    assert_ne!(original, patched);
+    assert!(
+        super::installed_directory("droid", &contract)
+            .unwrap()
+            .ends_with("droid-1.9.0-model-source-v2")
+    );
+    let directory = tempfile::tempdir().unwrap();
+    std::fs::write(directory.path().join("droid"), "tampered").unwrap();
+    assert!(super::verify(directory.path(), &contract).unwrap_err().contains("checksum"));
+}
+
+#[test]
 fn harn_reviewed_natural_language_runtime_is_pinned() {
     let contract = super::contract("harn").expect("Harn must have a reviewed runtime");
     assert_eq!(contract.layout, "standalone");

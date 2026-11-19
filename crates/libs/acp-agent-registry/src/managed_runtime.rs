@@ -32,7 +32,9 @@ fn root() -> Result<PathBuf, String> {
 }
 fn installed_directory(agent: &str, contract: &Contract) -> Result<PathBuf, String> {
     // Install revised contracts beside their prior reviewed runtimes.
-    let revision = if agent == "deepagents" {
+    let revision = if agent == "droid" {
+        2
+    } else if agent == "deepagents" {
         4
     } else if matches!(agent, "amp-acp" | "cortex-code" | "snow") {
         3
@@ -154,6 +156,14 @@ pub fn reviewed_agent_command(agent: &str) -> Result<Option<(String, Vec<String>
     if agent == "openclaw" && !directory.exists() {
         contract.files.remove(OPENCLAW_MCP_TRANSPORT);
         directory = root()?.join(format!("openclaw-{}-model-source-v1", contract.version));
+    }
+    // Keep the reviewed original available until the separate patched install succeeds.
+    if agent == "droid"
+        && !directory.try_exists().map_err(|_| "Cannot inspect Droid managed runtime")?
+        && let Some(source_sha256) = &contract.source_sha256
+    {
+        contract.files.insert(contract.bin.clone(), source_sha256.clone());
+        directory = root()?.join(format!("droid-{}-model-source-v1", contract.version));
     }
     let path = verify(&directory, &contract)?;
     if !contract.layout.is_empty() {
@@ -331,6 +341,7 @@ pub(super) async fn install(agent: &str) -> Result<bool, String> {
             "glm-acp-agent.patch",
             include_str!("../../../../patches/acp-model-source/glm-acp-agent/glm-acp-agent-1.17.1-managed.patch"),
         ),
+        ("droid/apply.py", include_str!("../../../../patches/acp-model-source/droid/apply.py")),
         ("cortex-code/apply.py", include_str!("../../../../patches/acp-model-source/cortex-code/apply.py")),
         ("cortex-code/launcher.py", include_str!("../../../../patches/acp-model-source/cortex-code/launcher.py")),
         ("cortex-code/mcp_bridge.py", include_str!("../../../../patches/acp-model-source/cortex-code/mcp_bridge.py")),

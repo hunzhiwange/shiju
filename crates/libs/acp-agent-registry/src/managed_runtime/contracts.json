@@ -661,8 +661,9 @@
     "version": "1.9.0",
     "bin": "droid",
     "artifact_url": "https://downloads.factory.ai/factory-cli/releases/1.9.0/darwin/arm64/droid",
+    "source_sha256": "b62ce8de0ed7ffaada1abb2a017fe182021003694e85fe7f3b1136ad43628a5d",
     "files": {
-      "droid": "b62ce8de0ed7ffaada1abb2a017fe182021003694e85fe7f3b1136ad43628a5d"
+      "droid": "0858a4f7411b0159780246598fc6170a17d695556e4da66ab939bff82b58050b"
     }
   },
   "qoder": {

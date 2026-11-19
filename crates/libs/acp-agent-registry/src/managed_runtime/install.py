@@ -370,12 +370,14 @@ if agent == 'droid':
     import platform
     if (platform.system(), platform.machine()) != ('Darwin', 'arm64'):
         raise RuntimeError('Droid reviewed runtime is Darwin-arm64 only')
-    runtime.mkdir()
-    native = runtime / 'droid'
-    with urllib.request.urlopen(contract['artifact_url'], timeout=120) as response, native.open('wb') as output:
+    native = assets / 'droid-original'
+    with urllib.request.urlopen(contract['artifact_url'], timeout=120) as response, native.open('xb') as output:
         shutil.copyfileobj(response, output)
+    if digest(native) != contract['source_sha256']:
+        raise RuntimeError('Droid original executable checksum mismatch')
+    runtime.mkdir()
+    run([sys.executable, str(assets / 'droid/apply.py'), str(native), str(runtime / contract['bin'])])
     check_files(runtime, contract['files'])
-    native.chmod(0o700)
     raise SystemExit(0)
 if agent == 'cursor':
     import platform

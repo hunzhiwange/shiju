@@ -1,4 +1,4 @@
-"""Build a separate Darwin arm64 Droid 1.9.0 ACP diagnostic executable."""
+"""Build the reviewed Darwin arm64 Droid 1.9.0 ACP executable."""
 
 import argparse
 import hashlib

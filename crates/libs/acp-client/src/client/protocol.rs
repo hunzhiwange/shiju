@@ -276,8 +276,6 @@ impl AcpClient {
         }
         if self.agent_name == "nova" && !self.mcp_servers.is_empty() {
             if self.permission_mode == PermissionMode::DenyAll
-                || self.session_options.as_ref()
-                    .is_some_and(|options| options.allowed_tools.is_some())
                 || self.config.args != ["acp"]
                 || !self.config.env.contains_key("VW_ACP_LAUNCH_REFERENCE")
                 || self.mcp_servers.iter().any(|server| {

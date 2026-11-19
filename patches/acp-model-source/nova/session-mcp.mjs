@@ -38,7 +38,7 @@ function operation(request, signal) {
   });
 }
 
-async function discover(servers, workspace, signal) {
+async function discover(servers, workspace, allowed, signal) {
   const names = new Set();
   const tools = new Map();
   for (const definition of servers) {
@@ -59,7 +59,7 @@ async function discover(servers, workspace, signal) {
         const hash = createHash('sha256').update(name + '\0' + descriptor.name).digest('hex').slice(0, 16);
         policyId = policyId.slice(0, 47) + '_' + hash;
       }
-      if (deny.includes(descriptor.name) || deny.includes(policyId) ||
+      if ((allowed && !allowed.has(policyId)) || deny.includes(descriptor.name) || deny.includes(policyId) ||
           (allow.length && !allow.includes(descriptor.name) && !allow.includes(policyId))) continue;
       const tool = 'mcp_shiju_' + id.toLowerCase();
       if (!namePattern.test(descriptor.name) || tool.length > 64 || tools.has(tool) ||
@@ -96,7 +96,11 @@ export async function dispatchMcp(connection, method, params, dispatch) {
     states.set(connection, state);
     try {
       state.workspace = await realpath(params.cwd);
-      state.tools = await discover(servers, state.workspace, AbortSignal.timeout(30000));
+      const allowlist = params._meta['shiju.nova.mcpAllowlist'];
+      if (allowlist !== undefined && (!Array.isArray(allowlist) ||
+          !allowlist.every(tool => typeof tool === 'string'))) throw invalid('Invalid Nova MCP allowlist');
+      state.tools = await discover(servers, state.workspace,
+        allowlist === undefined ? undefined : new Set(allowlist), AbortSignal.timeout(30000));
       await connection.negotiateHostTools({
         version: 1, status: 'ready', tools: [...state.tools.values()].map(tool => tool.descriptor),
       });

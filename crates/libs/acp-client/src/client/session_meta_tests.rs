@@ -90,3 +90,23 @@ fn acp_skill_mount_claude_uses_sdk_plugin_options_without_cli_or_permission_over
         serde_json::json!([])
     );
 }
+
+#[test]
+fn nova_mount_carries_resolved_tool_allowlist() {
+    let client = super::AcpClient::new("nova", Default::default())
+        .with_session_options(Some(super::AcpSessionOptions {
+            allowed_tools: Some(vec!["mcp__graph__query".into()]),
+            ..Default::default()
+        }));
+    assert!(client.mounted_session_meta().unwrap().get("shiju.nova.mcpAllowlist").is_none());
+
+    let mounted = client.with_mcp_servers(vec![
+        serde_json::from_value(serde_json::json!({
+            "name": "graph", "command": "/graph", "args": [], "env": []
+        }))
+        .unwrap(),
+    ]);
+    let meta = mounted.mounted_session_meta().unwrap();
+    assert_eq!(meta["shiju.nova.mcpAllowlist"], serde_json::json!(["mcp__graph__query"]));
+    assert_eq!(meta["compass.owner-approval.v1"], true);
+}

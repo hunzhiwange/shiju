@@ -73,6 +73,12 @@ impl AcpClient {
             let values = meta.get_or_insert_with(Map::new);
             values.insert("compass.owner-approval.v1".into(), json!(true));
             values.insert("compass.peers-disabled".into(), json!(true));
+            if !self.mcp_servers.is_empty()
+                && let Some(allowed) = self.session_options.as_ref()
+                    .and_then(|options| options.allowed_tools.as_ref())
+            {
+                values.insert("shiju.nova.mcpAllowlist".into(), json!(allowed));
+            }
         }
         if self.agent_name == "kiro" {
             // Send the current grant on every open, including an empty preset list

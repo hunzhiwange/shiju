@@ -113,16 +113,24 @@
                      .session_capabilities(
                          SessionCapabilities::new()
                              .fork(SessionForkCapabilities::new())
-@@ -3054,7 +3031,7 @@
+@@ -3031,6 +3008,8 @@
+             state.model_id = model_id;
+         }
+
++        state.mcp_servers = managed_mcp_servers(mcp_servers, cwd).await?;
++
+         // A session boundary: grants and plan mode from the previous life of
+         // this session id must not carry over. Other sessions keep theirs; the
+         // editor may still have them open.
+@@ -3054,7 +3033,6 @@
          }
 
          state.conversation = backend::carryover_history(history);
 -        state.mcp_servers = mcp::connect_session_servers(client_mcp_servers(mcp_servers)).await;
-+        state.mcp_servers = managed_mcp_servers(mcp_servers, cwd).await?;
          log::info!(
              "{method}: restored {restored} message(s), replayed {replayed} update(s) for {session_id}"
          );
-@@ -3070,7 +3047,6 @@
+@@ -3070,7 +3048,6 @@
 
          // Run SessionStart hooks
 
@@ -130,7 +138,7 @@
          Ok(config_options)
      }
 
-@@ -3209,8 +3185,7 @@
+@@ -3209,8 +3186,7 @@
              }
          }
          // A fork gets the servers named on its own request, not the source's.
@@ -140,7 +148,7 @@
          let copied = state.conversation.len();
          let updates = history_replay_updates(&state.conversation);
          let replayed = updates.len();
-@@ -3232,7 +3207,6 @@
+@@ -3232,7 +3208,6 @@
 
          // Run SessionStart hooks
 
@@ -148,7 +156,7 @@
          let modes = build_session_modes(&new_id.to_string());
          Ok(ForkSessionResponse::new(new_id)
              .config_options(config_options)
-@@ -3257,8 +3231,7 @@
+@@ -3257,8 +3232,7 @@
          );
 
          let mut state = self.session_state(&args.cwd, &args.additional_directories);
@@ -158,7 +166,7 @@
          self.open_session(&session_id, state).await;
 
          let config_options = {
-@@ -3269,7 +3242,6 @@
+@@ -3269,7 +3243,6 @@
          self.advertise_commands(cx, session_id.clone());
 
          // Run SessionStart hooks
@@ -166,7 +174,7 @@
 
          let modes = build_session_modes(&session_id.to_string());
          Ok(NewSessionResponse::new(session_id)
-@@ -3321,6 +3293,13 @@
+@@ -3321,6 +3294,13 @@
          if cancellation.cancelled.load(Ordering::Acquire) {
              return Ok(PromptResponse::new(StopReason::Cancelled));
          }
@@ -180,7 +188,7 @@
 
          // log every block so we can debug @ references and file context
          for (i, block) in args.prompt.iter().enumerate() {
-@@ -3781,10 +3760,14 @@
+@@ -3781,10 +3761,14 @@
                  // the user starts out `pending`, everything else is already
                  // running. A repeated call is never run, so never asked about.
                  let decision = (!repeated).then(|| {
@@ -199,7 +207,7 @@
                  });
                  let announced_status = match decision {
                      Some(permissions::Decision::Ask) => ToolCallStatus::Pending,
-@@ -3917,15 +3900,29 @@
+@@ -3917,15 +3901,29 @@
                                          )
                                          .ok();
                                      }

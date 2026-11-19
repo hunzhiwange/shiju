@@ -116,3 +116,18 @@ Snow 0.9.14 的原生 Chat Completions 路径会把工具定义一并提交给�
 三轮均无 `chat.error` 或恢复事件。UI summary 和 ACP options 确认 `acp-snow / snow`、`full_access=true`、原模型及 `session_model`。在线权限为 `client_only`，结束时连接释放。挂载仅调用指定的三个工具，配对的调用 `call_7eec03a4a0c8449ba2aaed43`、`call_f73c970ac13b47a98c643798`、`call_3ce6055069204409a1003682` 分别返回工厂位置、挂载调用者及应用源码。
 
 答复还原了入口、SSR、容器缺失、插件安装、布局绕过及重复 DOM 的推断，给出浏览器首屏唯一性和构建期快照非空两个检查场景。其关于尾斜杠和查询字符串的附带断言忽略路由归一化。加固后另用仓库安装脚本全新安装 Snow v3，复用 npm 下载缓存，退出 0，最终摘要与已通过原生三轮的加固入口逐字节一致。
+
+### 加固版 v3 网关验收
+
+复用槽位 6 的共享构建，CLI 摘要为 `109066ea0b79ce6edfc4399624715f0dafa80d397adabe7a1ae46158407e7cba`。私有网关通过安装端点安装 Snow 0.9.14 v3，入口摘要为 `2a38b3678070cf5d47892ad0c8c43429090b73e5a4000cb3d92edaa5478c4a77`。使用新接口的预设绑定、原提示、原模型与原授权。私有转发服务绑定单一 RueJS 索引根，公开三种真实图谱工具及分页参数，原样转发请求参数和输出。
+
+| 轮次 | 新会话 | HTTP / curl / 秒 | SSE 与结果 |
+| --- | --- | --- | --- |
+| 无挂载 | `ses_1f18ded08001IQj9I4odMdsfBL` | 200 / 0 / 3.465 | `chat.done`，仅 `MCP_NOT_AVAILABLE`，零工具 |
+| 挂载 | `ses_1f18dfb460019Jg6kle3syHsiB` | 200 / 0 / 127.924 | `chat.done`，query 58、callers 1、node 49，全部成功 |
+| 撤除 | `ses_1f18fef78001Yebm2Jyt1F0ro9` | 200 / 0 / 2.616 | `chat.done`，仅 `MCP_NOT_AVAILABLE`，零工具 |
+
+- 三轮无 `chat.error` 或模型恢复事件。挂载轮 108 个调用逐一配对开始与成功完成，结果均非空。`call_40fc28660f97474b849fbad2` 定位 `createRueSiteApp`（`app/app.tsx:32`），`call_0ab2b9a942454bcf948a1faf` 返回 `mountRueSiteApp`（第 39 行），`call_364bd55fcca24ab29e15c301` 回传应用入口源码。
+- 三轮终态确认 `acp-snow / snow`、`full_access=true`、指定的阿里模型和 `session_model`，连接均释放。无挂载及挂载轮采到在线 `client_only`，撤除轮采样时已断开。七个聚焦场景另外验证了原生工具目录保留、单次审批及拒绝。
+- 答复给出调用链、SSR、容器缺失、路由及 i18n 安装、布局条件，区分源码与移除清空后的推断。两项验证涵盖 `/design/button` 等实际路由的首屏重复节点，以及构建快照与首帧的差异。DOM 计数与交互推断未在浏览器独立运行。
+- 按用户明确的新标准，官方工具可按原权限共存，挂载工具须实际执行并回传。此项已通过。复用共享构建与原公共测试，无重复 Cargo 验证。私有网关端口已关闭，挂载条目和私有认证文件已清理。

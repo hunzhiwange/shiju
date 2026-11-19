@@ -522,3 +522,21 @@ fn acp_onboarding_grok_fallback_contract() {
     assert_eq!(entry.local_command_candidates, ["grok"]);
     assert_eq!(entry.local_args, ["agent", "stdio"]);
 }
+
+#[test]
+#[ignore = "requires a private configuration root containing the fixed reviewed CodeBuddy"]
+fn codebuddy_reviewed_default_launches_in_acp_mode() {
+    let _lock = agent_registry_env_test_lock();
+    let root = PathBuf::from(
+        std::env::var_os("VW_ACP_INSTALL_ACCEPTANCE_ROOT").expect("private installation root"),
+    );
+    assert!(root.is_absolute());
+    let _config = EnvGuard::set_os("VIBEWINDOW_CONFIG_DIR", root.as_os_str());
+
+    let spec = resolve_agent_spec("codebuddy").expect("built-in CodeBuddy");
+    let command = Path::new(&spec.command);
+    assert!(command.starts_with(root.join("acp-runtime")));
+    assert!(command.ends_with("node_modules/.bin/codebuddy"));
+    assert_eq!(spec.args, ["--acp"]);
+    println!("CODEBUDDY_RESOLVED={}", serde_json::to_string(&spec).unwrap());
+}

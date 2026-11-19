@@ -242,7 +242,7 @@ pub fn reviewed_agent_command(agent: &str) -> Result<Option<(String, Vec<String>
     let args = match agent {
         "gemini" => vec!["--experimental-acp".into()],
         "iflow" => vec!["--experimental-acp".into()],
-        "auggie" | "dirac" | "qoder" | "qwen" | "snow" => vec!["--acp".into()],
+        "auggie" | "codebuddy" | "dirac" | "qoder" | "qwen" | "snow" => vec!["--acp".into()],
         "copilot" => vec!["--acp".into(), "--stdio".into()],
         "kilocode" => vec!["acp".into(), "--pure".into()],
         "nova" | "opencode" | "openclaw" => vec!["acp".into()],

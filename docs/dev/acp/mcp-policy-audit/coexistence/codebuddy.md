@@ -6,7 +6,7 @@
 
 用仓库受管安装脚本在空私有目录冷装。在线请求下载归档过慢，补入按合约 SHA-512 校验的缓存归档后，以隔离 npm 缓存离线重跑。安装脚本退出 0，应用固定补丁并校验发布文件。冷装和已校验的旧安装副本都由下述默认配置接口复核。
 
-- 私有回环 ShiJu 网关使用已构建的槽位 3 二进制，SHA-256 为 `653d967c267fe9ee1cb68e27109b6bccbbff2584b679c5611ada530bf702e2cb`。`GET /v1/global/config/acp/defaults` 返回 HTTP 200，`codebuddy` 选中已校验的受管绝对路径，序列化结果省略空 `args`。未安装时返回通用 `codebuddy --acp`。向默认空参数入口写入 ACP `initialize`，其按普通 CLI 处理 stdin、输出模型文本并退出 0。以同一入口显式传 `--acp`，返回 ACP v1。`reviewed_agent_command` 的 npm 参数分支可解释这一区别，模型驱动在启动前也要求 `args == ["--acp"]`。首个断点为受管默认命令解析。任务 43 负责共享注册修复及冷装复跑。[注册解析](../../../../../crates/libs/acp-agent-registry/src/managed_runtime.rs) · [模型驱动](../../../../../crates/libs/llm-runtime/src/acp/model_source/drivers/codebuddy.rs)
+- 私有回环 ShiJu 网关使用已构建的槽位 3 二进制，SHA-256 为 `653d967c267fe9ee1cb68e27109b6bccbbff2584b679c5611ada530bf702e2cb`。`GET /v1/global/config/acp/defaults` 返回 HTTP 200，`codebuddy` 选中已校验的受管绝对路径，序列化结果省略空 `args`。未安装时返回通用 `codebuddy --acp`。向默认空参数入口写入 ACP `initialize`，其按普通 CLI 处理 stdin、输出模型文本并退出 0。以同一入口显式传 `--acp`，返回 ACP v1。`reviewed_agent_command` 的 npm 参数分支可解释这一区别，模型驱动在启动前也要求 `args == ["--acp"]`。首个断点为受管默认命令解析。后续修复和冷装复跑见下文。[注册解析](../../../../../crates/libs/acp-agent-registry/src/managed_runtime.rs) · [模型驱动](../../../../../crates/libs/llm-runtime/src/acp/model_source/drivers/codebuddy.rs)
 - 工具轮次显式使用 `--acp`。受管版追加驱动的 `--setting-sources none`，设置私有 CodeBuddy/WorkBuddy 配置目录、空会话技能根及回环模型环境。原版对照用私有配置和原生模型环境，沿用默认设置来源。两组都用一次性回环测试凭据和模型别名 `acp-fixture-primary`。ACP 回读模型别名及 `mode=default`，模型实际请求均发到 `/v1/chat/completions`。没有启用权限旁路，沙箱选项回读为原生默认关闭。官方 `Read` 自动执行，MCP 只对当前会话、完整工具名和空参数做单次同意，其余权限请求默认拒绝。
 - 受管发行补丁隔离技能扫描及配置，并适配宿主 Shell 请求形状。共享驱动另固定模型和回环路由。源码的通用路径保留原生权限与工作流审批，宿主的 CodeBuddy 全权限保障为 `partial`，且启动时拒绝提升权限的参数。受管安装限 macOS arm64，其他平台沿用通用原生安装路径。本次实测覆盖本机受管入口和原版字节对照，通用安装、Shell、ShiJu 聊天流及其权限转发未运行。[宿主访问策略](../../../../../crates/libs/acp-client/src/client/codebuddy_access.rs)
 
@@ -34,4 +34,16 @@
 
 - 用同一默认受管权限模式显式选择 `reject_once`。会话 `01a1f29d-47eb-7f85-a0a9-e48d14c8c37a` 的 `call_mounted_2` 触发审批，服务只有握手和列目录，零 `tools/call`，ACP 终态 `cancelled`，无成功 MCP 结果。原版及直接声明对照同样零工具执行。受管就绪组独立会话 `01a1f2a2-0762-715b-a710-825ef6c19e2a` 在模型请求挂起时发 `session/cancel`，收到 `cancelled`，无工具和服务请求。两个样本在终态后按上述方式回收。
 - ACP 声明 `loadSession=true`。原版、受管就绪及直接声明组均断开后以原挂载 ACP 会话 ID 加载，并分别重传及清空 `mcpServers`。受管就绪组重传后 `call_load_0` 至 `call_load_3` 均完成，MCP 请求 2 对应 `call_load_3`，结果进入续轮。清空后仅执行 `call_load_removed_0` 的原生读取，目标服务零请求。两次提示均为 `end_turn`。初始化未声明 resume 能力，未发独立 resume 请求。MCP HTTP/SSE 有协议声明，本轮实测 stdio。会话和服务名单、同名工具、供应商模型及其他平台未复验。
-- 正向共存三轮通过。共享受管注册空参数缺陷已实测，归任务 43。未修改运行时代码，未运行 Cargo。原始 ACP、模型、服务审计和私有回环夹具保存在本机 `0700` 目录 `shiju-codebuddy-coexist.cMIia6XKmZ`。
+- 初次正向共存三轮通过。当时独立复现了共享受管注册空参数缺陷，未修改运行时代码，也未运行 Cargo。原始 ACP、模型、服务审计和私有回环夹具保存在本机 `0700` 目录 `shiju-codebuddy-coexist.cMIia6XKmZ`。
+
+## 冷装默认受管入口修复
+
+注册表对已校验的 CodeBuddy npm 入口返回 `["--acp"]`。定向测试以空私有配置根中的前次离线冷装为输入，直接读取 `resolve_agent_spec("codebuddy")` 的默认配置。修复前一项测试失败，实际参数为 `[]`，退出 101。修复后一项测试通过，确认受管路径和 `["--acp"]`，退出 0。两次使用槽位 3，`CARGO_TARGET_DIR` 和 `CARGO_BUILD_BUILD_DIR` 均为仓库根下 `target/rust-slot-3` 的绝对路径。
+
+```sh
+VW_ACP_INSTALL_ACCEPTANCE_ROOT="$ACP_PRIVATE_INSTALL" python3 scripts/cargo_slot.py cargo test -j 1 -p acp-agent-registry --lib agent_registry::agent_registry_tests::codebuddy_reviewed_default_launches_in_acp_mode -- --ignored --exact --nocapture
+```
+
+挂载轮直接使用定向测试解析出的默认受管命令，追加现有模型驱动的 `--setting-sources none`，接入私有回环模型及原 stdio MCP 夹具。macOS 沙箱阻断全部 Mach 服务查找、Apple Events、名单外进程执行、钥匙串文件读写及其他网络出站。预检用沙箱查询和虚构文件证实关键凭据服务和路径受限，并实测拒绝名单外进程及其他回环端口。探针将 CodeBuddy 内部 IPC 监听固定在独立回环端口，出站限该端口和模型端口。预加载夹具拒绝非回环监听，并给 Node 的用户信息查询提供虚构身份，宿主目录服务保持阻断。前两类启动停点分别为内置回环监听未获准和宿主身份查询失败。沙箱内后续复跑取得 ACP v1。
+
+会话 `01a1f34d-74ee-79b9-9472-a2b776cf4ced` 在默认权限模式下完成。原生 `Read`（`call_mounted_0`）读回工作区随机标记，`WaitForMcpServers` 和 `ToolSearch` 确认目标服务就绪和完整工具名。`DeferExecuteTool`（`call_mounted_3`）经单次允许后实际转发 `mcp__coexist_probe__read_probe`，服务审计只有一次 `tools/call`，MCP 请求 ID 为 2。两个独立标记均出现在对应的 ACP 完成事件和下一次回环模型请求的原 `tool_call_id` 下。ACP 终态为 `end_turn`，探针超时回收仍存活的进程，退出码为 `-9`。隔离配置、策略和原始证据位于前述本机私有目录的 `fixed-sandbox` 子目录。

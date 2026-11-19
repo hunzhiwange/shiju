@@ -121,6 +121,10 @@ pub(crate) fn view(app: &App) -> Element<'_, Message> {
         workspace =
             workspace.push(super::system_settings_common::settings_error_banner(error.clone()));
     }
+    if state.third_party_page == ThirdPartyPage::Prompts && state.prompts.editor.is_some() {
+        workspace = workspace.push(container(body).padding([0, 7]).height(Length::Fill));
+        return self::workspace(app, container(workspace.height(Length::Fill)).padding(24).into());
+    }
     workspace = workspace.push(
         scrollable(container(body).padding([0, 7]))
             .direction(scrollable::Direction::Vertical(

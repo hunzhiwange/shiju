@@ -37,6 +37,12 @@ pub enum Event {
 }
 pub fn message(event: Event) -> Event { event }
 pub fn update(app: &mut Input<'_>, event: Event) -> Task<Message> {
+    // The editor owns its surface; only draft edits and matching save replies may pass.
+    if app.prompts.editor.is_some() && !matches!(&event,
+        Event::Name(_) | Event::Description(_) | Event::Body(_) | Event::CloseEditor
+        | Event::Save | Event::Saved(..) | Event::Toast(..)) {
+        return Task::none();
+    }
     if let Event::SharedImport(event) = event { return shared_import::update(app, event); }
     if app.prompts.shared_import.is_some() { return Task::none(); }
     if !matches!(&event, Event::Query(_) | Event::Menu(_)) { app.prompts.menu = None; }
@@ -101,6 +107,14 @@ pub fn update(app: &mut Input<'_>, event: Event) -> Task<Message> {
             if scope.target_host_id != app.host || app.project_id.as_deref() != Some(scope.project_id.as_ref()) { return Task::none(); }
             let Some(draft) = state.editor.as_mut().filter(|d| !d.saving) else { return Task::none(); };
             draft.entry.content = draft.body.text();
+            if draft.entry.name.trim().is_empty() {
+                draft.error = Some("请填写提示词名称".into());
+                return Task::none();
+            }
+            if draft.mcode && draft.entry.content.len() > 32768 {
+                draft.error = Some("MCode 正文最多 32768 UTF-8 字节".into());
+                return Task::none();
+            }
             draft.saving = true;
             draft.error = None;
             let entry = draft.entry.clone();
@@ -125,7 +139,10 @@ pub fn update(app: &mut Input<'_>, event: Event) -> Task<Message> {
                 || scope.target_host_id != app.host || app.project_id.as_deref() != Some(scope.project_id.as_ref())
                 || !state.editor.as_ref().is_some_and(|d| d.saving) { return Task::none(); }
             match result {
-                Ok(catalog) => { state.catalog = Some(catalog); state.editor = None; state.undo = None; return crate::prompts::update::Input::show_success_toast("提示词已保存"); }
+                Ok(catalog) => { state.catalog = Some(catalog); state.editor = None; state.undo = None;
+                    // Reload the target snapshot as well as the catalog before enabling writes.
+                    let refresh = update(app, Event::Open(scope.app_id));
+                    return Task::batch([refresh, Input::show_success_toast(format!("提示词已保存。{}", effect(scope.app_id)))]); }
                 Err(error) => { let draft = state.editor.as_mut().expect("saving editor"); draft.saving = false; draft.error = Some(error.clone()); return crate::prompts::update::Input::show_error_toast(error); }
             }
         }

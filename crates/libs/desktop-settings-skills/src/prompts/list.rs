@@ -43,6 +43,9 @@ pub fn view<'a, M: Clone + 'static, C: Clone + 'a>(
 ) -> Element<'a, M> {
     use iced::{Length, widget::{container, row, text_input, mouse_area}};
     use super::transfer::TransferEvent as Transfer;
+    if let Some(draft) = &state.editor {
+        return super::editor::page(draft, &format!("{id:?}"), message);
+    }
     let ready = !state.loading && !state.mutating && state.editor.is_none();
     let loaded = state.scope.as_ref().is_some_and(|s| s.app_id == id) && state.catalog.is_some();
     let action = |label: &str, event: Event, enabled: bool| {
@@ -155,7 +158,7 @@ pub fn view<'a, M: Clone + 'static, C: Clone + 'a>(
     }
     let base = super::sync::overlay(&state.sync, base, message);
     let base = super::shared_import::overlay(state, base, message);
-    match &state.editor { Some(draft) => super::editor::view(draft, base, message), None => base }
+    base
 }
 
 impl<C> Default for State<C> {

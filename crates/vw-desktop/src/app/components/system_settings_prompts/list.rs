@@ -55,6 +55,11 @@ pub(crate) fn page(app: &App) -> Element<'_, Message> {
     let state = &app.apps_catalog;
     if state.loading { return text("正在读取当前主机的应用目录…").into(); }
     if state.error.is_some() { return text("应用目录读取失败，请刷新目录重试。").into(); }
+    if state.prompts.editor.is_some() {
+        if let Some(id) = state.expanded.filter(|_| scope_matches(app)) {
+            return view(&state.prompts, id);
+        }
+    }
     let mut menu = column![].spacing(4);
     let mut count = 0;
     let scope_current = state.prompts.scope.as_ref().is_some_and(|scope| {
@@ -94,5 +99,12 @@ pub(crate) fn page(app: &App) -> Element<'_, Message> {
             .on_press(super::super::system_settings_apps::message(AppsCatalogMessage::SelectPromptApp(id))).into(),
         None => text("请选择应用").into(),
     };
-    column![menu, body].spacing(16).into()
+    column![menu, body].spacing(16).height(Length::Fill).into()
+}
+
+fn scope_matches(app: &App) -> bool {
+    app.apps_catalog.prompts.scope.as_ref().is_some_and(|scope| {
+        scope.target_host_id == app.apps_catalog.host
+            && scope.project_id.as_ref() == vw_api_transport::local_settings_project(app.workspace_state.project_id.as_deref())
+    })
 }

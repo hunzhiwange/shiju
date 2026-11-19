@@ -34,11 +34,11 @@ pub fn parse_arguments(raw: &Value) -> Value {
     }
 }
 
-/// 工具参数预览：字符串原样，其余序列化为紧凑 JSON；空参数为空串。
+/// 工具参数预览：字符串忽略末尾换行，其余序列化为紧凑 JSON；空参数为空串。
 pub fn input_preview(input: &Value) -> Preview {
     match input {
         Value::Null => preview_chars("", INPUT_PREVIEW_CHARS),
-        Value::String(text) => preview_chars(text, INPUT_PREVIEW_CHARS),
+        Value::String(text) => preview_chars(text.trim_end_matches(['\r', '\n']), INPUT_PREVIEW_CHARS),
         other => preview_chars(&other.to_string(), INPUT_PREVIEW_CHARS),
     }
 }

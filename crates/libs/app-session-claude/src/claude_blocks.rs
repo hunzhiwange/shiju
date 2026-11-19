@@ -219,7 +219,7 @@ fn image_ref(source: Option<&RawSource<'_>>, pointer: String, line: JsonlSpan) -
 fn user_bash_blocks(text: &str, uuid: Option<&str>) -> Vec<SessionBlock> {
     let command = tag_content(text, "bash-input").unwrap_or_default();
     let id = format!("user-bash-{}", uuid.unwrap_or_default());
-    let input = preview_chars(command, INPUT_PREVIEW_CHARS);
+    let input = preview_chars(command.trim_end_matches(['\r', '\n']), INPUT_PREVIEW_CHARS);
     let mut blocks = vec![SessionBlock::ToolCall {
         id: id.clone(),
         raw_name: "Bash".to_string(),

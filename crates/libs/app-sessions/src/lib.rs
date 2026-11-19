@@ -21,6 +21,8 @@ pub mod delete_batch;
 pub mod identity;
 pub mod resume;
 pub mod terminal;
+#[cfg(test)]
+mod markdown_tests;
 #[cfg(target_os = "macos")]
 pub mod activity;
 #[cfg(target_os = "macos")]

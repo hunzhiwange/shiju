@@ -1,9 +1,9 @@
 //! Host-side Markdown generation, adapted from reader/exportMarkdown.ts.
 //! Only server-parsed transcripts may be supplied, with the fingerprint captured
 //! when they were loaded. This is not a wire entry point for arbitrary blocks.
-//! Full text/input/diff references are resolved through the existing readers;
-//! errors and missing truncated bodies fail the export rather than silently
-//! exporting a preview. Each body and the complete export are bounded to 32MiB.
+//! Full text/input/diff references are resolved through the existing readers.
+//! Tool blocks recorded without a full reference export an explicitly marked
+//! preview when truncated. Each body and the complete export are bounded to 32MiB.
 //! Images follow upstream's description-only export: no paths, URLs, bytes or
 //! image references are embedded or loaded. Saving/clipboard belongs to clients.
 use vw_api_external_session::{ContentRef, ImageRef, SessionBlock, SessionMessage};
@@ -70,6 +70,16 @@ impl Writer<'_> {
         let fence = "`".repeat(longest.max(2) + 1);
         self.push(&format!("{fence}{language}\n{body}\n{fence}\n\n"))
     }
+    fn tool_body(&mut self, preview: &str, full: Option<&ContentRef>, truncated: bool) -> Result<(), String> {
+        let body = self.body(preview, full)?;
+        if !body.is_empty() {
+            self.fenced(&body, "text")?;
+        }
+        if truncated && full.is_none() {
+            self.push("*工具内容仅保留预览，缺少全文。*\n\n")?;
+        }
+        Ok(())
+    }
     fn image(&mut self, image: &ImageRef) -> Result<(), String> {
         self.push(&format!("[图片：{}]\n\n", one_line(image.alt.as_deref().unwrap_or("图片"))))
     }
@@ -134,11 +144,8 @@ impl Writer<'_> {
             }
             SessionBlock::ToolCall { raw_name, title, input_preview, input_total_len, input_full, diff, .. } => {
                 self.push(&format!("- ⏺ {}({})\n\n", one_line(raw_name), one_line(title)))?;
-                if input_full.is_none() && *input_total_len as usize > input_preview.chars().count() {
-                    return Err("工具输入不完整，无法导出".into());
-                }
-                let input = self.body(input_preview, input_full.as_ref())?;
-                if !input.is_empty() { self.fenced(&input, "text")?; }
+                let truncated = *input_total_len as usize > input_preview.chars().count();
+                self.tool_body(input_preview, input_full.as_ref(), truncated)?;
                 if let Some(diff) = diff {
                     self.push(&format!("- diff: +{} −{}\n", diff.added, diff.removed))?;
                     for file in &diff.files {
@@ -153,13 +160,11 @@ impl Writer<'_> {
                 Ok(())
             }
             SessionBlock::ToolResult { status, preview, truncated, full, exit_code, duration_ms, images, .. } => {
-                if *truncated && full.is_none() { return Err("工具输出不完整，无法导出".into()); }
                 self.push(&format!("- 结果：{status:?}"))?;
                 if let Some(code) = exit_code { self.push(&format!(" · exit {code}"))?; }
                 if let Some(ms) = duration_ms { self.push(&format!(" · {ms} ms"))?; }
                 self.push("\n\n")?;
-                let body = self.body(preview, full.as_ref())?;
-                if !body.is_empty() { self.fenced(&body, "text")?; }
+                self.tool_body(preview, full.as_ref(), *truncated)?;
                 for image in images { self.image(image)?; }
                 Ok(())
             }

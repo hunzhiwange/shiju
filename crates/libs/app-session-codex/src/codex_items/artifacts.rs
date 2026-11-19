@@ -140,7 +140,7 @@ pub(crate) struct CallSpec<'s> {
     pub detail: Option<String>,
     pub server: Option<String>,
     pub input: &'s str,
-    /// 参数全文的引用（只在预览截断时带上）
+    /// 参数全文的引用（预览省略原文时保留）
     pub input_ref: Option<ContentRef>,
     pub diff: Option<DiffSummary>,
     pub by_user: bool,
@@ -171,6 +171,14 @@ impl<'s> CallSpec<'s> {
 
     pub fn into_block(self) -> SessionBlock {
         let input = preview_chars(self.input, INPUT_PREVIEW_CHARS);
+        let preview_len = saturating_u32(input.text.chars().count());
+        // 预览会省略末尾换行，即使其余字符都能完整显示。导出按字符数判断是否需要回读原文。
+        let input_full = self.input_ref.filter(|_| input.total_len > preview_len);
+        let input_total_len = if input_full.is_none() && !input.truncated {
+            preview_len
+        } else {
+            input.total_len
+        };
         SessionBlock::ToolCall {
             id: self.id,
             raw_name: self.raw_name,
@@ -178,13 +186,9 @@ impl<'s> CallSpec<'s> {
             title: self.title,
             detail: self.detail,
             server: self.server,
-            input_full: if input.truncated {
-                self.input_ref
-            } else {
-                None
-            },
+            input_full,
             input_preview: input.text,
-            input_total_len: input.total_len,
+            input_total_len,
             diff: self.diff,
             by_user: self.by_user,
         }

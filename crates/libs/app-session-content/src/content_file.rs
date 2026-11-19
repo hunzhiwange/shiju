@@ -106,7 +106,12 @@ pub(crate) fn read_limited(path: &Path) -> Result<Vec<u8>, String> {
     Ok(bytes)
 }
 fn read_jsonl_line(path: &Path, offset: u64, len: u32) -> Result<Vec<u8>, String> {
-    if len == 0 || u64::from(len) > MAX_TEXT_BYTES { return Err(STALE.into()); }
+    if u64::from(len) > MAX_TEXT_BYTES {
+        return Err("内容超过32MiB".into());
+    }
+    if len == 0 {
+        return Err(STALE.into());
+    }
     let end = offset.checked_add(u64::from(len)).ok_or(STALE)?;
     let start = offset.saturating_sub(1);
     let mut reader: Box<dyn Read> = if path.extension().is_some_and(|s| s == "zstd") {

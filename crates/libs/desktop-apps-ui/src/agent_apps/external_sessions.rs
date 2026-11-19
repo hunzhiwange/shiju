@@ -108,6 +108,12 @@ fn request_error(action: &str, error: &AgentAppsReadError) -> String {
         AgentAppsReadError::Transport(_) => format!("{action}失败，无法连接网关"),
         AgentAppsReadError::Http { status: 401, .. } => format!("{action}失败，网关身份验证失败"),
         AgentAppsReadError::Http { status: 403, .. } => format!("{action}失败，网关拒绝了请求"),
+        AgentAppsReadError::Http { status: 409, body }
+            if body.get("code").and_then(|code| code.as_str()) == Some("source_changed") =>
+        {
+            format!("{action}失败，会话来源已变化或正文引用已失效，请重新读取会话后重试")
+        }
+        AgentAppsReadError::Http { status: 413, .. } => format!("{action}失败，内容超过网关读取上限"),
         AgentAppsReadError::Http { status: 503, .. } => format!("{action}失败，会话服务暂不可用"),
         AgentAppsReadError::Http { status, .. } => format!("{action}失败（HTTP {status}）"),
         AgentAppsReadError::Decode(_) => format!("{action}失败，网关响应格式无效"),

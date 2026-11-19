@@ -47,8 +47,6 @@ fn export_failure(error: String) -> Failure {
             (StatusCode::NOT_IMPLEMENTED, ExternalSessionErrorCode::Unsupported),
         "引用不属于当前会话" => (StatusCode::FORBIDDEN, ExternalSessionErrorCode::Forbidden),
         "会话已更新，请重新读取" => (StatusCode::CONFLICT, ExternalSessionErrorCode::SourceChanged),
-        "工具输入不完整，无法导出" | "工具输出不完整，无法导出" =>
-            (StatusCode::CONFLICT, ExternalSessionErrorCode::Conflict),
         _ => (StatusCode::SERVICE_UNAVAILABLE, ExternalSessionErrorCode::StorageUnavailable),
     };
     failure(status, code)

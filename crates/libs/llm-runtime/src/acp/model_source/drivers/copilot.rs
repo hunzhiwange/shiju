@@ -18,9 +18,24 @@ pub fn configure(profile: &mut AcpLaunchProfile, endpoint: &str) -> anyhow::Resu
     );
     let config = profile.config();
     let program = std::path::Path::new(config.command.trim()).file_name().and_then(|s| s.to_str());
+    let [acp, stdio, tool_filters @ ..] = config.args.as_slice() else {
+        anyhow::bail!("Copilot managed launch requires verified ACP arguments");
+    };
+    // Accept only the native availability filter with literal tool names. It does
+    // not grant approvals, and a launch without filters keeps Copilot's defaults.
     anyhow::ensure!(
         matches!(program, Some("copilot" | "copilot.cmd" | "copilot.exe"))
-            && config.args == ["--acp", "--stdio"],
+            && acp == "--acp"
+            && stdio == "--stdio"
+            && tool_filters.iter().all(|arg| {
+                arg.strip_prefix("--available-tools=").is_some_and(|name| {
+                    !name.is_empty()
+                        && !name.starts_with('-')
+                        && name.bytes().all(|byte| {
+                            byte.is_ascii_alphanumeric() || matches!(byte, b'_' | b'-')
+                        })
+                })
+            }),
         "Copilot managed launch requires verified ACP arguments"
     );
     anyhow::ensure!(

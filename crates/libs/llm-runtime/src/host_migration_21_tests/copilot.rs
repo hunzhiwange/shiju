@@ -9,23 +9,35 @@ use model_transport::RelayIdentity;
 
 #[test]
 fn acp_model_source_copilot_private_byok_launch_and_revocation() {
-    verify_private_byok_launch(false, false);
+    verify_private_byok_launch(false, false, &[]);
 }
 
 #[test]
 fn acp_model_source_copilot_reasoning_capability_preserves_native_model_routing() {
-    verify_private_byok_launch(true, false);
+    verify_private_byok_launch(true, false, &[]);
 }
 
 #[test]
 fn acp_model_source_copilot_selected_effort_preserves_bound_model() {
-    verify_private_byok_launch(true, true);
+    verify_private_byok_launch(true, true, &[]);
 }
 
-fn verify_private_byok_launch(reasoning: bool, declared_effort: bool) {
+#[test]
+fn acp_model_source_copilot_explicit_tool_list_preserves_private_launch() {
+    verify_private_byok_launch(
+        false,
+        false,
+        &[
+            "--available-tools=ruejs_graph_probe-rustcodegraph_query",
+            "--available-tools=ruejs_graph_probe-rustcodegraph_node",
+        ],
+    );
+}
+
+fn verify_private_byok_launch(reasoning: bool, declared_effort: bool, extra_args: &[&str]) {
     let config = agent_config::schema::AcpAgentConfig {
         command: "copilot".into(),
-        args: vec!["--acp".into(), "--stdio".into()],
+        args: ["--acp", "--stdio"].into_iter().chain(extra_args.iter().copied()).map(str::to_owned).collect(),
         ..Default::default()
     };
     let mut profile = AcpLaunchProfile::new(
@@ -33,7 +45,7 @@ fn verify_private_byok_launch(reasoning: bool, declared_effort: bool) {
         RelayIdentity {
             tenant: vw_api_transport::TenantScope::default(),
             project: "p".into(),
-            session: format!("copilot-reasoning-{reasoning}-{declared_effort}"),
+            session: format!("copilot-reasoning-{reasoning}-{declared_effort}-{}", extra_args.len()),
             provider: "provider".into(),
             model: "chosen".into(),
             generation: 0,
@@ -70,7 +82,12 @@ fn verify_private_byok_launch(reasoning: bool, declared_effort: bool) {
     } else {
         assert!(levels.is_null());
     }
-    assert_eq!(profile.config().args, ["--acp", "--stdio", "--no-auto-update"]);
+    let expected_args: Vec<_> = ["--acp", "--stdio"]
+        .into_iter()
+        .chain(extra_args.iter().copied())
+        .chain(["--no-auto-update"])
+        .collect();
+    assert_eq!(profile.config().args, expected_args);
     assert_eq!(env["COPILOT_OFFLINE"], "true");
     assert!(!profile.config().args.iter().any(|a| a.contains(profile.binding.bearer_token())));
     let directory = profile.directory().to_path_buf();
@@ -123,5 +140,45 @@ fn acp_model_source_copilot_conflicting_account_environment_is_rejected() {
         );
         assert!(!profile.directory().join("providers.json").exists());
         assert_eq!(profile.config().env[key], "conflicting");
+    }
+}
+
+
+#[test]
+fn acp_model_source_copilot_rejects_nonexact_tool_filters_and_unreviewed_flags() {
+    for arg in [
+        "--available-tools=",
+        "--available-tools",
+        "--available-tools=*",
+        "--available-tools=grep,view",
+        "--available-tools=--allow-all",
+        "--allow-all",
+        "--excluded-tools=grep",
+    ] {
+        let config = agent_config::schema::AcpAgentConfig {
+            command: "copilot".into(),
+            args: ["--acp", "--stdio", arg].map(str::to_owned).to_vec(),
+            ..Default::default()
+        };
+        let mut profile = AcpLaunchProfile::new(
+            &config,
+            RelayIdentity {
+                tenant: vw_api_transport::TenantScope::default(),
+                project: "p".into(),
+                session: "invalid-copilot-tool-filter".into(),
+                provider: "provider".into(),
+                model: "chosen".into(),
+                generation: 0,
+            },
+        )
+        .unwrap();
+        assert!(
+            configure(&mut profile, "http://127.0.0.1:12345")
+                .unwrap_err()
+                .to_string()
+                .contains("verified ACP arguments"),
+            "{arg}",
+        );
+        assert!(!profile.directory().join("providers.json").exists());
     }
 }

@@ -83,3 +83,27 @@ Copilot 1.0.105 的动态挂载可走原生 HTTP MCP，三种真实工具均完�
 `.vwacprc.json` 的 `allowedTools` 属于单个 MCP 服务的目录策略。把该名单直接作为 Copilot 进程的全会话 `--available-tools` 会额外隐藏原生工具及其他服务的工具，即使调用方没有请求全会话限制。上轮回环已实测这种差异。默认工具表同时有原生工具与三项挂载工具，显式进程参数则只声明三项。该回环证据证明启动参数有效，但不足以授权转换两种策略。
 
 保留已阻塞。下一步需要共享契约明确保留并传递显式会话级限制及其原生工具名称，或者同一指定模型按原请求完成只调用三项工具的挂载轮。只改 Copilot 受管启动不足以提供该来源。本轮未改运行时代码、未运行 Cargo，也未重复发送已有反证的等价验收请求。
+
+## 项目级受管启动补丁
+
+复用现有项目 ACP 启动配置 `acp.copilot.args`。固定入口仍须使用 `--acp --stdio`，只新增对重复 `--available-tools=<字面工具名>` 的识别。工具名由 ASCII 字母、数字、下划线和连字符组成，不能以连字符开头。空值、模式、分隔符及其他 CLI 开关继续拒绝。空过滤表沿用原启动参数。该配置筛选模型可用工具，审批仍沿用原生与宿主现有路径。
+
+在私有项目用现有配置接口设置三项已核验的工具名。原构建读回同一项目覆盖后，原请求 HTTP 200、curl 0，以 `chat.error` 结束，错误为 `Copilot managed launch requires verified ACP arguments`。定向命令 `python3 scripts/cargo_slot.py cargo test -j 1 -p llm-runtime --lib acp_model_source_copilot_` 在槽位 3 中复现一项失败、五项通过，失败正是显式过滤参数被拒。槽位 3 的 target 与 build 目录均为仓库的 `target/rust-slot-3`。
+
+补丁网关复用共享槽位 3 本轮构建的私有副本，SHA-256 `25988bf02e238fe5450ca7c941015eaed1c067f5c64123c85aeacf1e2454734a`。新网关的公开 DTO 拒绝旧请求的 `acp_agent` 字段，实测 HTTP 422，尚未建 ACP 会话。依据当前共享验收入口，后续请求仅删除顶层 `acp_agent`，由 `agent=acp-copilot` 绑定原后端。提示摘要、模型、租户与访问参数一致。
+
+先保留私有项目白名单跨越前后对照。挂载 `ses_1f16a6419001LLA5TDrug4zX0G`（HTTP 200、curl 0、189.082 秒）收到一个 `chat.done`，86 个工具回执均属于目标服务，未复现原生 grep。其中调用 `call_435d95e028a748c592b4ae12` 的返回是 `No indexed file matches`，因为 1.2.11 不索引 `packages/rue/package.json`，按工具失败计。无挂载和撤除均未调用工具，Copilot 将未知白名单工具提示放入可见 SSE，不能算精确标记对照。后续组将私有项目白名单和挂载一起启用，撤除时恢复默认启动参数，并据实际索引元数据说明 HTML 和 JSON 不在索引内。
+
+| 私有项目覆盖 | 会话 ID | HTTP / curl / 秒 | 终态及工具 |
+| --- | --- | --- | --- |
+| 无挂载，默认启动 | `ses_1f16d6e58001dNK6RZe372daf5` | 200 / 0 / 5.779 | `chat.done`，只答 `MCP_NOT_AVAILABLE`，零工具 |
+| SSE 挂载，显式白名单 | `ses_1f16d8805001faaOLJNrj8Yfmu` | 200 / 0 / 178.674 | `chat.done`，71 次成功，2 次目录保护拒绝 |
+| 撤除 SSE 与覆盖 | `ses_1f170450d001AA9aUKpkCX9617` | 200 / 0 / 5.715 | `chat.done`，只答 `MCP_NOT_AVAILABLE`，零工具 |
+
+三轮 summary/options 均为 HTTP 200，网关确认默认与挂载时的参数数目分别为 3 和 6。挂载连线确认 Copilot 1.0.105、同一指定模型、`full_access=true` 及 `client_only`。回执逐一匹配且仅包含三种目标工具。query 成功 30 次，`call_d281e369730f4dd99e05a4c9` 命中 `createRueSiteApp`（`app/app.tsx:32`）；callers 成功 4 次，`call_5bab72852d3143509bb6099f` 命中 `mountRueSiteApp`（同文件第 39 行）；node 成功 37 次，`call_bcc398a8dec943789fefd5e8` 与 `call_b48d80914add41b3bfc2b539` 读回 `useApp` 与运行时工厂。答复覆盖主链、布局分支及快照预测。两个额外预测分别使用旧节点夹具与已注册页面，未执行浏览器验证。
+
+失败调用 `call_b11591fefca946ef96a04b16` 和 `call_112b4bdbdfbf4ac9a6e76a47` 发生在原生调用前，报 MCP 工具目录因服务器指令变化而拒绝。Copilot 进程日志同一时段记录重建工具与提示上下文。拒绝后相同目标查询仍可成功，且未调用原生 grep。本补丁解决工具范围，严格验收仍需要目录稳定的一轮。未改变原生目录校验。两次私有网关均退出，桥接终止，授权及临时配置已清理。4108 个源文件与固定提交一致，原网关保持健康。
+
+另以同一补丁构建进行三项私有项目反向验证。`--available-tools=*`、`--allow-all`、空 `--available-tools=` 均在启动 Copilot 前返回原受管参数错误，无工具事件或成功终态。测试项目覆盖和授权副本随后清理。
+
+补丁后的 `llm-runtime --lib` 测试目标由共享槽位 6 编译，私有副本 SHA-256 为 `105662b97368e9a7d2a4d1dee5b0afd3d65e2acd5f318f8b169fd57c306f909d`。通过槽位入口以原过滤条件运行，同一目标默认并行执行 5 通过、1 失败，原因是两个测试复用了同一历史目录。单线程重跑 6 项全部通过。随后为新增测试分配独立会话标识，仅修改测试夹具。同仓仍有其他重型编译，未再次编译该夹具，运行时补丁已用共享构建完成上述真实正反验证。

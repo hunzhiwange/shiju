@@ -109,6 +109,7 @@ mod browser_detail;
 mod browser_discovery;
 mod browser_widgets;
 
+pub mod third_party_add;
 pub mod import_modal;
 pub mod install_view;
 pub mod jobs_view;

@@ -312,6 +312,7 @@ pub async fn gateway_skills_import_request(endpoint: gateway_endpoint::GatewayEn
     project: String, host: String,
     apps: Vec<vw_api_app_identity::AppId>,
     selected: Vec<vw_api_app_skills::import_api::UnmanagedSkillItem>,
+    targets: Vec<vw_api_app_skills::bindings_api::SkillBindingTarget>,
     token: String,
 ) -> (Vec<(String, Result<(), String>)>, Result<vw_api_app_skills::import_api::UnmanagedSkillsResponse, String>) {
     use vw_api_app_skills::{import_api::*, repos_api::SkillReposQuery};
@@ -326,13 +327,14 @@ pub async fn gateway_skills_import_request(endpoint: gateway_endpoint::GatewayEn
         let query = UnmanagedSkillsQuery { project_id: project.into(), target_host_id: host.clone(),
             apps: app_names.join(",") };
         let mut report = skills.agent_apps_skills_unmanaged(&query, &token).await.map_err(|e| e.to_string())?;
+        if report.scope.project_id != query.project_id || report.scope.target_host_id != host { return Err("扫描响应作用域不匹配".into()); }
         for row in selected {
             if report.scope.project_id != query.project_id || report.scope.target_host_id != host {
                 return Err("扫描响应作用域不匹配".to_owned());
             }
             let result = async {
                 let current = report.skills.iter().find(|s| s.directory == row.directory
-                    && s.content_hash == row.content_hash && !s.managed && !s.conflict && !s.external_link)
+                    && s.content_hash == row.content_hash && desktop_settings_skills::import_modal::eligible(s))
                     .ok_or_else(|| "技能来源已变化，请重新扫描".to_owned())?;
                 let selection_id = current.selection_id.clone().ok_or_else(|| "技能不可导入".to_owned())?;
                 let targets: Vec<_> = apps.iter().copied().filter(|id| current.apps.contains(id)).collect();
@@ -347,9 +349,32 @@ pub async fn gateway_skills_import_request(endpoint: gateway_endpoint::GatewayEn
                 }
                 Ok(())
             }.await;
+            // A successful import must never be retried because distribution failed.
+            if result.is_ok() && !targets.is_empty() {
+                let distribution = async {
+                    use vw_api_app_skills::bindings_api::*;
+                    let inventory = skills.agent_apps_skills_inventory(&report.scope, &token).await.map_err(|e| e.to_string())?;
+                    if inventory.scope != report.scope { return Err("库存作用域不匹配".to_owned()); }
+                    let installed = inventory.skills.iter().find(|s| s.present && s.id == row.directory && s.content_hash == row.content_hash)
+                        .ok_or_else(|| "导入后未回读到权威技能标识".to_owned())?;
+                    let request = SkillBindingsRequest { scope: report.scope.clone(), targets: targets.clone(), enabled: true, mode: SkillBindingMode::Auto };
+                    let response = skills.agent_apps_skills_bindings(&installed.id, &request, &token).await.map_err(|e| e.to_string())?;
+                    if response.scope != report.scope || !desktop_settings_skills::update::bindings_view::complete_success(&response.results, &targets, &installed.id, true) {
+                        return Err("分发未全部成功，请在应用绑定中核对".to_owned());
+                    }
+                    Ok::<(), String>(())
+                }.await;
+                if let Err(error) = distribution {
+                    outcomes.push((row.directory.clone(), Ok(())));
+                    outcomes.push((format!("{}（分发）", row.directory), Err(error)));
+                    report = skills.agent_apps_skills_unmanaged(&query, &token).await.map_err(|e| e.to_string())?;
+                    continue;
+                }
+            }
             outcomes.push((row.directory, result));
             report = skills.agent_apps_skills_unmanaged(&query, &token).await.map_err(|e| e.to_string())?;
         }
+        if report.scope.project_id != query.project_id || report.scope.target_host_id != host { return Err("扫描响应作用域不匹配".into()); }
         Ok(report)
     }.await;
     (outcomes, result)

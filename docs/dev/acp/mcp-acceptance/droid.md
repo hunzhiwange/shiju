@@ -1,6 +1,8 @@
 # Factory Droid 动态挂载 RustCodeGraph
 
-2026-11-19，已阻塞。Factory Droid 1.9.0 原生 ACP 能在会话内发现并调用 RustCodeGraph。统一验收首先在无挂载轮失败，模型为确认工具缺失而调用了 Droid 内置工具搜索。挂载轮成功运行三个必需工具，也运行了额外工具并产生一次工具失败。[复用请求](../ACP验收.md#可复用的验收请求)
+2026-11-19，已按新版共存标准通过。受管 Droid v2 的三轮真实模型证据见文末。以下保留原标准下的历史验收结果。
+
+原标准首轮验收受阻。Factory Droid 1.9.0 原生 ACP 能在会话内发现并调用 RustCodeGraph。统一验收首先在无挂载轮失败，模型为确认工具缺失而调用了 Droid 内置工具搜索。挂载轮成功运行三个必需工具，也运行了额外工具并产生一次工具失败。[复用请求](../ACP验收.md#可复用的验收请求)
 
 ## 环境
 
@@ -120,3 +122,25 @@ Darwin arm64 的 Droid 安装入口已接入同一补丁。安装器先按原版
 三个目标工具成功输出 `createRueSiteApp`（`app/app.tsx:32`，`call_aa1df6d662f8664a_0`）、调用者 `mountRueSiteApp`（`app/app.tsx:39`，`call_c288b2c193ad7ccd_0`），以及 `useApp` 调用 `_$createApp` 的源码（`packages/runtime/src/hooks/useApp.ts:4`，`call_a616800a8a692c16_0`）。答复覆盖固定提示的调用链、分支、路由和 i18n、布局绕过及两项有预期结果的验证。快照影响仍为源码推断。
 
 挂载轮没有调用 `ToolSearch`，额外运行了 `status`、`explore` 与 `files`。四次 `node` 路径失败分别为 `app/router.tsx`、`app/i18n.ts`、`packages/router/dist/router.esm-bundler.js`、`packages/i18n/dist/i18n.esm-bundler.js`。严格验收仍阻塞。私有网关退出，端口关闭，临时授权与工作目录清理，4109 项导出内容一致。未修改运行时代码或运行 Cargo。
+
+## 新版共存标准验收
+
+采用计划中的新版只读提示，SHA-256 为 `18806f1a927d3587ee5c685107c89b5dbaeea09614efe9a327e293b649967f38`。复用已有共享槽位 6 构建的 shiju 0.6.0，私有副本 SHA-256 为 `109066ea0b79ce6edfc4399624715f0dafa80d397adabe7a1ae46158407e7cba`。网关直接解析并启动受管 `droid-1.9.0-model-source-v2/droid`，使用已验签的冷安装制品。三轮使用固定租户、阿里模型及同一 RueJS 只读副本。挂载采用真实 RustCodeGraph stdio，未增加任何工具限制或修改原权限。
+
+| 轮次 | 新会话 | HTTP / curl / 耗时 | SSE 与工具 |
+| --- | --- | --- | --- |
+| 无挂载 | `ses_1f1937d67001mAixC3GPVOtJHG` | 200 / 0 / 16.070 秒 | `chat.done` ×1，答复服务未挂载，工具 0 |
+| 挂载 | `ses_1f193be89001AvSxdmyuw0mjyu` | 200 / 0 / 40.422 秒 | `chat.done` ×1，11 项工具成功，0 项失败 |
+| 撤除 | `ses_1f1945e62001PqNM2yKso5NPtq` | 200 / 0 / 23.438 秒 | `chat.done` ×1，答复服务未挂载，工具 0 |
+
+只有挂载轮出现 RustCodeGraph 的宿主连接和成功工具调用。两次对照均无服务配置、连接、执行或结果事件。三轮无 `chat.error`，运行时 UI summary 与 ACP options 回读 `acp-droid / droid`、`full_access=true`、`client_only`、`session_model` 及完整模型 ID，终态连接关闭。
+
+| 挂载工具 | 调用 ID | 开始及完成事件中的结果 |
+| --- | --- | --- |
+| `rustcodegraph_query` | `call_11103e503edcec21_1` | `createRueSiteApp`，`app/app.tsx:32` |
+| `rustcodegraph_callers` | `call_60f0a9666d24856b_0` | `mountRueSiteApp`，`app/app.tsx:39` |
+| `rustcodegraph_node` | `call_6db2083e19bcf25b_0` | `packages/runtime/src/hooks/useApp.ts:4` 调用 `_$createApp(factory)` |
+
+模型答复引用以上三项真实返回及运行时工厂 `packages/runtime/src/compiler-runtime/app.ts:57`，正文准确说明 `mountRueSiteApp` 调用 `createRueSiteApp`。答复的概览箭头把这两项写反，实际方向以调用结果和正文为准。前述原生回环探针还直接观测到三个真实工具结果进入模型续轮，原权限下逐次批准可执行，拒绝时无工具输出。本轮仅调用当前挂载的图谱工具，额外的 `status` 与 `callees` 同样成功。
+
+按新版合同通过。私有网关退出，端口关闭，无本轮进程残留，私有授权和工作目录已清理，4109 项导出内容一致。复用前述注册表定向验证，未重新运行 Cargo。

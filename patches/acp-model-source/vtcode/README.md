@@ -13,10 +13,12 @@ cargo +1.100.0 build --locked -j 1 -p vtcode --bin vtcode
 
 本地诊断使用和模型共用的沙箱已授权端口转发真实 RustCodeGraph，宿主按工具名及参数消费一次批准。生产接入还需要受管网关将实际选中服务投影到同一中继端口，把独立令牌与租户、会话和调用批准绑定，并在连接释放时撤销。交付前须验证该接线及发布可校验的 Darwin arm64 二进制，再跑指定阿里模型三轮。
 
-运行聚焦探针时传入 VT Code 可执行文件、RustCodeGraph 可执行文件和已建索引的 RueJS 私有副本。探针覆盖无挂载、批准、拒绝、撤除，以及 MCP 令牌错误和重复提交已消费授权。
+运行聚焦探针时传入 VT Code 可执行文件、RustCodeGraph 可执行文件和已建索引的 RueJS 私有副本。探针覆盖无挂载、批准、拒绝、撤除，以及 MCP 令牌错误和重复提交已消费授权。批准轮先获准执行官方 `list_files`，再验证三个挂载工具的实际调用和回传。
 
 ```sh
 python3 probe.py /absolute/path/vtcode /absolute/path/rustcodegraph /absolute/path/indexed-ruejs
 ```
 
 可在末尾加 `allow` 单跑挂载。原版 0.183.0 在首次模型调用缺少三种 MCP 工具声明时失败，无挂载和撤除两个对照通过。
+
+Rust 1.100.0 的 Darwin arm64 本地构建已通过，三类真实图谱工具都完成了原生回传。聚焦的批准、拒绝、无挂载、撤除四项通过。构建产物仅用于隔离试验。受管网关需要用已审构建的摘要校验入口，同时将同端口的 MCP 目录和一次性批准绑定到它拥有的会话。详细轮次见[验收记录](../../../docs/dev/acp/mcp-acceptance/vtcode.md)。

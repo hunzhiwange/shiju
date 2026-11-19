@@ -21,6 +21,7 @@ CASES = (
     ('rustcodegraph_node', {'name': 'useApp'}, '_$createApp'),
 )
 TOOL_NAMES = {f'mcp__{SERVER}__{name}' for name, _, _ in CASES}
+OFFICIAL_CASE = ('list_files', {'path': 'app', 'mode': 'list'}, 'app.tsx')
 
 
 def stop(process):
@@ -38,7 +39,7 @@ def stop(process):
 
 def run(case, engine, graph, workspace, home):
     mounted = case in ('allow', 'deny')
-    approved_count = 3 if case == 'allow' else 0
+    expected_calls = (OFFICIAL_CASE, *CASES) if case == 'allow' else CASES[:1] if case == 'deny' else ()
     model_token, mcp_token = (secrets.token_urlsafe(32) for _ in range(2))
     env = {
         'HOME': str(home), 'TMPDIR': str(home), 'PATH': '/usr/bin:/bin',
@@ -118,6 +119,8 @@ def run(case, engine, graph, workspace, home):
         def model(self, request):
             assert request['model'] == MODEL, request['model']
             tools = {item['function']['name'] for item in request.get('tools', [])}
+            official = {'list_files', 'apply_patch'}
+            assert official <= tools, f'missing official tools: {sorted(official - tools)}'
             offered = {name for name in tools if name.startswith('mcp__')}
             expected = TOOL_NAMES if mounted else set()
             assert offered == expected, f'MCP tool declarations: {sorted(offered)}, expected: {sorted(expected)}'
@@ -126,15 +129,16 @@ def run(case, engine, graph, workspace, home):
             if index:
                 result = [msg for msg in request['messages'] if msg['role'] == 'tool'][-1]
                 assert result['tool_call_id'] == f'probe_{index - 1}'
-                expected = CASES[index - 1][2] if case == 'allow' else 'permission denied'
+                expected = expected_calls[index - 1][2] if case == 'allow' else 'permission denied'
                 assert expected in result['content'], result
             message = {'role': 'assistant', 'content': 'Finished' if mounted else 'MCP_NOT_AVAILABLE'}
             reason = 'stop'
-            if index < (3 if case == 'allow' else 1 if case == 'deny' else 0):
-                name, args, _ = CASES[index]
+            if index < len(expected_calls):
+                name, args, _ = expected_calls[index]
+                function_name = name if name == OFFICIAL_CASE[0] else f'mcp__{SERVER}__{name}'
                 message.update(content=None, tool_calls=[{
                     'id': f'probe_{index}', 'type': 'function',
-                    'function': {'name': f'mcp__{SERVER}__{name}', 'arguments': json.dumps(args)},
+                    'function': {'name': function_name, 'arguments': json.dumps(args)},
                 }])
                 reason = 'tool_calls'
             assert not request.get('stream'), 'tool-capable VT Code probe expects Chat Completions JSON'
@@ -204,12 +208,20 @@ supports_tools = true
                 if message.get('method') == 'session/request_permission':
                     params = message['params']
                     tool = params['toolCall']
-                    assert tool['title'] in TOOL_NAMES, tool
+                    index = len(approvals)
+                    expected_name, arguments, _ = expected_calls[index]
+                    assert tool['toolCallId'] == f'probe_{index}', tool
+                    assert tool['rawInput'] == arguments, tool
+                    is_official = expected_name == OFFICIAL_CASE[0]
+                    if is_official:
+                        assert tool['kind'] == 'search', tool
+                    else:
+                        assert tool['title'] == f'mcp__{SERVER}__{expected_name}', tool
                     approvals.append(tool['toolCallId'])
                     kind = 'allow_once' if case == 'allow' else 'reject_once'
-                    if case == 'allow':
+                    if case == 'allow' and not is_official:
                         with lock:
-                            grants.append((tool['title'].removeprefix(f'mcp__{SERVER}__'), tool['rawInput']))
+                            grants.append((expected_name, tool['rawInput']))
                     option = next(item for item in params['options'] if item['kind'] == kind)
                     send(id=message['id'], result={'outcome': {'outcome': 'selected', 'optionId': option['optionId']}})
                 elif message.get('id') == identifier:
@@ -239,11 +251,19 @@ supports_tools = true
             connection.close()
         assert not errors, errors
         assert result['stopReason'] == 'end_turn', result
-        assert calls == [name for name, _, _ in CASES[:approved_count]], calls
-        assert approvals == [f'probe_{i}' for i in range(3 if case == 'allow' else int(mounted))]
-        for call in approvals:
-            statuses = [update['status'] for update in updates if update.get('toolCallId') == call]
-            assert statuses == (['pending', 'in_progress', 'completed'] if case == 'allow' else ['pending', 'failed']), statuses
+        assert calls == ([name for name, _, _ in CASES] if case == 'allow' else []), calls
+        assert approvals == [f'probe_{i}' for i in range(len(expected_calls))]
+        for index, call in enumerate(approvals):
+            events = [update for update in updates if update.get('toolCallId') == call]
+            assert events[0]['sessionUpdate'] == 'tool_call', events[0]
+            statuses = [events[0].get('status', 'pending')]
+            statuses.extend(event['status'] for event in events[1:] if 'status' in event)
+            assert events[0]['rawInput'] == expected_calls[index][1], events[0]
+            if case == 'allow':
+                assert statuses == ['pending', 'in_progress', 'completed'], statuses
+                assert expected_calls[index][2] in json.dumps(events[-1]['rawOutput']), events[-1]
+            else:
+                assert statuses == ['pending', 'failed'], statuses
         print(case, 'model requests:', len(model_turns), 'MCP calls:', calls, flush=True)
     finally:
         if process is not None:

@@ -51,3 +51,17 @@
 在已签名 Junie 4100.5 与真实 RustCodeGraph 1.2.10 上，以回环模型夹具验证四个新会话。挂载前、撤除后无 MCP 声明或调用。挂载批准轮完成 `query`、`callers`、`node`，Junie 续轮获得 `app/app.tsx:32`、`mountRueSiteApp`、`useApp` 调用 `_$createApp` 的结果。挂载拒绝轮捕获三次原生审批，三个工具状态均为失败。四轮返回 `end_turn`。MCP 只读沙箱需要图谱的 WAL 和 SHM，探针在私有副本保留这两个文件。
 
 `python3 patches/acp-model-source/junie/mcp_bridge_tests.py` 运行 4 项，通过同参一次授权、拒绝优先、迟到审批及活动取消、撤除后的 URL 失效。真实指定模型以新版网关三轮结果为准。
+
+### 指定模型原生三轮
+
+同一受审签名和安装内容，RustCodeGraph 1.2.11，原提示和 `deepseek-v4.1-flash-1017` 通过私有中继直连 ACP。上游凭据由中继持有。受管 Junie 只收到回环令牌，三种工具沿用同一原生审批。三个进程均退出 0。
+
+| 轮次 | 原生会话 | 终态 | 工具 |
+| --- | --- | --- | --- |
+| 无挂载 | `session-261119-091935-14wt` | `end_turn`，`MCP_NOT_AVAILABLE` | 0 |
+| 挂载 | `session-261119-091948-thcl` | `end_turn` | query 25、callers 6、node 34 |
+| 撤除 | `session-261119-092558-1pff` | `end_turn`，`MCP_NOT_AVAILABLE` | 0 |
+
+挂载轮 65 次原生审批和对应的工具完成事件，无其他工具事件。首组 query、callers、node 调用 ID 是 `41509a2e-5a16-48ee-a125-12d974bc3f52`、`ef7b2cb2-109d-487b-b4cb-481de3af210b`、`972bbdcc-df4e-47bb-8547-d003fe5f2109`。模型续轮读回 `app/app.tsx:32`、`mountRueSiteApp`、运行时 `_$createApp` 及 `app/router/index.ts:787`。答复覆盖调用链、浏览器和 SSR、缺少容器时抛错、路由和 i18n、布局分支、快照残留推断及两项复验设想。根组件的 `/rust-layers` 条件属实。该路径未在此提交的路由表中直接注册，第二项场景仍需验证可达性。
+
+定向命令 `python3 scripts/cargo_slot.py cargo test -j 1 -p vw-acp --test onboarding_junie acp_onboarding_junie_session_lifecycle` 在槽位 10 运行，两条缓存路径均为仓库下 `target/rust-slot-10`。退出 0，1 项通过，2 项过滤。同槽位随后开始的重复网关构建已取消并释放，网关验收等待包含补丁的共享产物。原生三轮没有网关 SSE、UI summary 或 ACP options，不能代替公共网关验收。

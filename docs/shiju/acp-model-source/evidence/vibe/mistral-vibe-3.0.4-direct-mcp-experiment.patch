@@ -1,0 +1,48 @@
+--- a/vibe/app_server/_runtime.py
++++ b/vibe/app_server/_runtime.py
+@@ -1143,9 +1143,7 @@
+             RustContextSettings,
+             RustDisabledOutputLimitRecovery,
+             RustDisabledRuntimeToolFeature,
+-            RustEnabledAgentTools,
+             RustEnabledModelWait,
+-            RustEnabledRuntimeToolFeature,
+             RustFilesystemLargeOutputPolicy,
+             RustGitBashCommandEnvironment,
+             RustHarnessCapabilitySet,
+@@ -1682,21 +1680,14 @@
+                             # when subagents or background processes are enabled.
+                             model_wait=RustEnabledModelWait(),
+                             programmatic=RustProgrammaticToolSettings(
++                                mode="disabled",
+                                 max_effects=128,
+                                 max_operations=1024,
+                                 max_elapsed_ms=60_000,
+                                 max_sleep_ms=30_000,
+                             ),
+-                            subagents=(
+-                                RustEnabledAgentTools(conversation_forking=False)
+-                                if config.enable_subagents
+-                                else RustDisabledRuntimeToolFeature()
+-                            ),
+-                            background_processes=(
+-                                RustEnabledRuntimeToolFeature()
+-                                if config.enable_background_processes
+-                                else RustDisabledRuntimeToolFeature()
+-                            ),
++                            subagents=RustDisabledRuntimeToolFeature(),
++                            background_processes=RustDisabledRuntimeToolFeature(),
+                             command_environment=command_environment,
+                             large_output=RustFilesystemLargeOutputPolicy(
+                                 max_output_tokens=_LARGE_OUTPUT_MAX_TOKENS,
+--- a/mistralai_vibe_local_harness/vibe/_host.py
++++ b/mistralai_vibe_local_harness/vibe/_host.py
+@@ -5105,7 +5105,7 @@
+                         description=tool.description,
+                         input_schema=tool.input_schema,
+                         output_schema=tool.output_schema,
+-                        exposure="programmatic",
++                        exposure="direct",
+                     )
+                     for tool in group.tools
+                 ],

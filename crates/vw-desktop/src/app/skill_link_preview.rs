@@ -20,7 +20,19 @@ pub(crate) fn handoff(app: &mut App, id: u64) -> Task<Message> {
         Ok(request) => request,
         Err(error) => return app.show_error_toast(error),
     };
-    let task = repo_modal::update(app, repo_modal::Event::Open);
+    let navigation = crate::app::message::settings::update(app,
+        SettingsMessage::SystemSearchTargetSelected(
+            desktop_settings_shell::search::SystemSettingsSearchTarget::ThirdParty(
+                desktop_ui_controls::settings_navigation::ThirdPartyPage::Skills,
+            ),
+        ),
+    );
+    if !crate::app::components::third_party_settings::is_visible(app)
+        || app.apps_catalog.third_party_page != desktop_ui_controls::settings_navigation::ThirdPartyPage::Skills
+    {
+        return navigation;
+    }
+    let task = Task::batch([navigation, repo_modal::update(app, repo_modal::Event::Open)]);
     if !app.skills_settings.repositories.open {
         return task;
     }

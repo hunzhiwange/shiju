@@ -169,46 +169,6 @@ pub fn view<'a, M: Clone + 'static>(
                 .wrap()
             )
             .width(Length::Fill),
-            iced::widget::button("仓库管理")
-                .padding([8, 10])
-                .style(rounded_action_btn_style)
-                .on_press(map(Message::RepositoriesOpen)),
-            iced::widget::button("Claude 配置")
-                .padding([8, 10])
-                .style(rounded_action_btn_style)
-                .on_press(map(Message::ClaudeOpen)),
-            iced::widget::button("技能市场")
-                .padding([8, 10])
-                .style(rounded_action_btn_style)
-                .on_press(map(Message::MarketOpen)),
-            iced::widget::button("更新与卸载")
-                .padding([8, 10])
-                .style(rounded_action_btn_style)
-                .on_press(map(Message::UpdatesOpen)),
-            iced::widget::button("详情与安装")
-                .padding([8, 10])
-                .style(rounded_action_btn_style)
-                .on_press(map(Message::InstallOpen)),
-            iced::widget::button("导入技能")
-                .padding([8, 10])
-                .style(rounded_action_btn_style)
-                .on_press(map(Message::ImportOpen)),
-            iced::widget::button("任务进度")
-                .padding([8, 10])
-                .style(rounded_action_btn_style)
-                .on_press(map(Message::JobsOpen)),
-            iced::widget::button("应用绑定")
-                .padding([8, 10])
-                .style(rounded_action_btn_style)
-                .on_press(map(Message::BindingsOpen)),
-            iced::widget::button("存储与同步")
-                .padding([8, 10])
-                .style(rounded_action_btn_style)
-                .on_press(map(Message::StorageOpen)),
-            iced::widget::button("备份与恢复")
-                .padding([8, 10])
-                .style(rounded_action_btn_style)
-                .on_press(map(Message::BackupOpen)),
             help_btn,
         ]
         .align_y(Alignment::Start)

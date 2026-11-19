@@ -1,6 +1,13 @@
 //! Third-party skill entry. The host routes scoped directory actions to existing
 //! modals and executes binding effects with the same scope attached to replies.
-use desktop_provider_apps::Scope;
+/// Page identity uses the gateway and real project ID; directory is UI context only.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Scope {
+    pub context: desktop_provider_apps::AgentAppsContext,
+    pub project: Option<String>,
+    pub host: String,
+    pub directory: Option<String>,
+}
 use desktop_ui_controls::system_settings_common::*;
 use iced::{Element, Length, widget::{button, checkbox, column, row, text}};
 use crate::update::{Input, bindings_view as bindings};
@@ -8,6 +15,7 @@ use crate::update::{Input, bindings_view as bindings};
 #[derive(Clone, Copy, Debug)]
 pub enum DirectoryAction {
     Repositories,
+    Claude,
     Import,
     Install,
     Market,
@@ -65,12 +73,13 @@ pub fn update(state: &mut State, input: &Input, message: Message) -> Effect {
         || input.host != message.scope.host
         || state.catalog != message.catalog
         || state.catalog != input.catalog
-        || input.directory != message.scope.context.project
+        || input.project != message.scope.project
+        || input.directory != message.scope.directory
     {
         return Effect::None;
     }
     let scope = message.scope;
-    let mut event = match message.action {
+    let event = match message.action {
         Action::Binding(event) => event,
         Action::Directory(action) => return Effect::Directory { scope, catalog: state.catalog, action },
     };
@@ -82,21 +91,14 @@ pub fn update(state: &mut State, input: &Input, message: Message) -> Effect {
         ) };
     }
     if let bindings::Event::Target(target, _) = &event {
-        if target.app_id != scope.app { return Effect::None; }
+        if !input.targets.contains(target) { return Effect::None; }
     }
-    if let bindings::Event::Completed(_, Ok(data)) = &mut event {
-        if let Some(snapshot) = &mut data.snapshot {
-            snapshot.targets.retain(|target| target.app_id == scope.app);
-            snapshot.capabilities.retain(|capability| capability.app_id == scope.app);
-        }
-        data.results.retain(|item| item.target.app_id == scope.app);
-    }
-    state.bindings.targets.retain(|target| target.app_id == scope.app);
     if matches!(event, bindings::Event::Bind(_) | bindings::Event::Resync) {
         let supported = state.bindings.snapshot.as_ref().is_some_and(|snapshot|
-            snapshot.capabilities.iter().any(|capability|
-                capability.app_id == scope.app && capability.supported));
-        if !supported || state.bindings.targets.iter().any(|target| !input.targets.contains(target)) {
+            state.bindings.targets.iter().all(|target| snapshot.capabilities.iter().any(|capability|
+                capability.app_id == target.app_id && capability.supported)));
+        if !supported || state.bindings.targets.is_empty()
+            || state.bindings.targets.iter().any(|target| !input.targets.contains(target)) {
             return Effect::Binding { scope, catalog: state.catalog, effect: bindings::Effect::Error(
                 "当前应用或安装实例不支持技能绑定，请刷新应用目录".into(),
             ) };
@@ -113,17 +115,17 @@ pub fn view<'a>(
     applications: &[crate::bindings_view::BindingApplication<'_>],
 ) -> Element<'a, Message> {
     let Some(scope) = state.scope.as_ref() else {
-        return settings_error_banner("请选择应用".to_owned()).into();
+        return settings_error_banner("请打开项目并连接执行主机".to_owned()).into();
     };
     let message = |action| Message { scope: scope.clone(), catalog: state.catalog, action };
     let mut body = column![
         text("第三方 Skills").size(28),
-        text(format!("应用：{:?} · 主机：{}", scope.app, scope.host)),
-        text("技能目录由主机共享；绑定操作仅作用于当前应用，不改变原生技能配置。"),
+        text(format!("主机：{}", scope.host)),
+        text("技能目录由主机共享；绑定操作作用于显式选择的应用实例，不改变原生技能配置。"),
     ].spacing(16).width(Length::Fill);
     let mut actions = row![].spacing(8);
     for (label, action) in [
-        ("仓库管理", DirectoryAction::Repositories), ("导入技能", DirectoryAction::Import),
+        ("仓库管理", DirectoryAction::Repositories), ("Claude 配置", DirectoryAction::Claude), ("导入技能", DirectoryAction::Import),
         ("详情与安装", DirectoryAction::Install), ("技能市场", DirectoryAction::Market),
         ("更新与卸载", DirectoryAction::Updates), ("任务进度", DirectoryAction::Jobs),
         ("存储与同步", DirectoryAction::Storage), ("备份与恢复", DirectoryAction::Backup),
@@ -145,30 +147,30 @@ pub fn view<'a>(
                 .on_press_maybe((!s.busy).then(|| message(Action::Binding(bindings::Event::Select(skill.id.clone()))))));
         }
     }
-    let capability = s.snapshot.as_ref().and_then(|snapshot|
-        snapshot.capabilities.iter().find(|item| item.app_id == scope.app));
-    if let Some(capability) = capability {
-        body = body.push(text(capability.reason.clone()));
-        if capability.supported {
-            if let Some(observation) = applications.iter().find(|item| item.entry.id == scope.app)
-                .and_then(|item| item.observation)
-            {
-                for installation in observation.installations.iter().filter(|item| item.target_host_id == scope.host) {
-                    let target = vw_api_app_skills::bindings_api::SkillBindingTarget {
-                        app_id: scope.app, installation_id: installation.id.0.clone(),
-                    };
-                    let selected = s.targets.contains(&target);
-                    let scope = scope.clone();
-                    body = body.push(checkbox(selected).label(installation.id.0.clone())
-                        .text_size(SETTINGS_CONTROL_TEXT_SIZE).style(settings_checkbox_style)
-                        .on_toggle_maybe((!s.busy).then_some(move |enabled| Message {
-                            scope: scope.clone(), catalog: state.catalog, action: Action::Binding(bindings::Event::Target(target.clone(), enabled)),
-                        })));
-                }
-            } else { body = body.push(text("应用实例尚未读取，请在应用设置中刷新")); }
+    for application in applications {
+        let app_id = application.entry.id;
+        let capability = s.snapshot.as_ref().and_then(|snapshot|
+            snapshot.capabilities.iter().find(|item| item.app_id == app_id));
+        if !capability.is_some_and(|item| item.supported) { continue; }
+        body = body.push(text(application.entry.name.clone()));
+        if let Some(observation) = application.observation {
+            for installation in observation.installations.iter().filter(|item| item.target_host_id == scope.host) {
+                let target = vw_api_app_skills::bindings_api::SkillBindingTarget {
+                    app_id, installation_id: installation.id.0.clone(),
+                };
+                let selected = s.targets.contains(&target);
+                let scope = scope.clone();
+                body = body.push(checkbox(selected).label(installation.id.0.clone())
+                    .text_size(SETTINGS_CONTROL_TEXT_SIZE).style(settings_checkbox_style)
+                    .on_toggle_maybe((!s.busy).then_some(move |enabled| Message {
+                        scope: scope.clone(), catalog: state.catalog,
+                        action: Action::Binding(bindings::Event::Target(target.clone(), enabled)),
+                    })));
+            }
         }
     }
-    let supported = capability.is_some_and(|item| item.supported);
+    let supported = s.snapshot.as_ref().is_some_and(|snapshot| s.targets.iter().all(|target|
+        snapshot.capabilities.iter().any(|item| item.app_id == target.app_id && item.supported)));
     let can_bind = supported && !s.busy && !s.targets.is_empty();
     let mut controls = row![].spacing(8);
     for (label, event, enabled) in [

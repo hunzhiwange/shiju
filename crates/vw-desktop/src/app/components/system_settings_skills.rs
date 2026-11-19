@@ -125,6 +125,11 @@ pub fn view(app: &App) -> Element<'_, Message> {
 pub fn view_overlays<'a>(app: &'a App, dialog: Element<'a, Message>) -> Element<'a, Message> {
     let dialog = browser::view_overlays(app, dialog);
     let dialog = help::view_overlays(app, dialog);
+    dialog
+}
+
+/// Third-party dialogs have a separate owner from native help and skill details.
+pub(crate) fn third_party_overlays<'a>(app: &'a App, dialog: Element<'a, Message>) -> Element<'a, Message> {
     let dialog = repo_modal::view(app, dialog);
     let dialog = claude_view::view(app, dialog);
     let dialog = bindings_view::view(app, dialog);

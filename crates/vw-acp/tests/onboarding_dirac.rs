@@ -5,8 +5,12 @@ fn acp_onboarding_dirac_registry_contract() {
     let specs = built_in_agent_specs();
     let spec = specs.get("dirac").expect("Dirac must be registered");
     assert_eq!(spec.display_name, "Dirac");
-    assert_eq!(spec.command, "npx");
-    assert_eq!(spec.args, ["-y", "dirac-cli@0.5.24", "--acp"]);
+    if spec.command == "npx" {
+        assert_eq!(spec.args, ["-y", "dirac-cli@0.5.24", "--acp"]);
+    } else {
+        assert_eq!(std::path::Path::new(&spec.command).file_name().unwrap(), "dirac");
+        assert_eq!(spec.args, ["--acp"]);
+    }
 }
 
 async fn run_peer(deny: bool, mcp: bool) {
@@ -67,6 +71,8 @@ for line in sys.stdin:
         let error = client.create_session(directory.path()).await.unwrap_err();
         assert!(error.to_string().contains("Dirac does not consume ACP MCP servers"), "{error}");
         client.close().await.unwrap();
+        let frames = std::fs::read_to_string(&capture).unwrap_or_default();
+        assert!(!frames.contains("\"session/new\""));
         return;
     }
     tokio::time::timeout(std::time::Duration::from_secs(15), async {

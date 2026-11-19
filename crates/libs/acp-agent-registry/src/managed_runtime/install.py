@@ -659,6 +659,13 @@ if agent == 'copilot':
 if agent in ('codex', 'gemini', 'glm-acp-agent'):
     check_files(root, contract['original'])
     run(['patch', '--batch', '--forward', '-p1', '-d', str(root), '-i', str(assets / (agent + '.patch'))])
+elif agent == 'dirac':
+    if lock['node_modules/' + contract['engine']]['integrity'] != contract['engine_integrity']:
+        raise RuntimeError('Dirac MCP SDK archive integrity mismatch')
+    run([sys.executable, str(assets / 'dirac/apply.py'), str(root / 'dist')])
+    link = runtime / 'node_modules/.bin/dirac'
+    link.unlink()
+    link.symlink_to(Path('../dirac-cli') / contract['bin'])
 elif agent in ('nova', 'deepagents', 'iflow', 'qwen', 'codebuddy', 'snow', 'openclaw', 'auggie', 'qoder', 'amp-acp'):
     run([sys.executable, str(assets / agent / 'apply.py'), str(root)])
     if agent == 'nova':

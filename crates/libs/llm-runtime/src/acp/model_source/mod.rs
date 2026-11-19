@@ -38,9 +38,9 @@ pub fn prepare_profile(agent: &str, config: &agent_config::schema::AcpAgentConfi
     );
     // Claude verifies its native engine when spawning, so reused sessions do
     // not hash the same running executable on every turn.
-    // DimCode keeps its original launcher for sessions with no MCP mount.
-    // The ACP client requires the reviewed DimCode executable for a mount.
-    if !matches!(agent, "claude" | "dimcode") {
+    // DimCode and Dirac keep their original launchers for sessions with no MCP mount.
+    // The ACP client requires their reviewed executables for a mount.
+    if !matches!(agent, "claude" | "dimcode" | "dirac") {
         acp_agent_registry::verify_reviewed_agent_executable(agent, &config.command)
             .map_err(anyhow::Error::msg)?;
     }

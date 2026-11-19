@@ -290,9 +290,32 @@ impl AcpClient {
                 .map_err(AcpError::NewSession)?;
         }
         if self.agent_name == "dirac" && !self.mcp_servers.is_empty() {
-            return Err(AcpError::Prompt(
-                "Dirac does not consume ACP MCP servers; session-scoped MCP is unavailable".into(),
-            ));
+            let [flag, config_flag, directory] = self.config.args.as_slice() else {
+                return Err(AcpError::Prompt(
+                    "Dirac does not consume ACP MCP servers without the reviewed session-model runtime".into(),
+                ));
+            };
+            if flag != "--acp"
+                || config_flag != "--config"
+                || !Path::new(directory).is_absolute()
+                || self.config.env.get("DIRAC_DIR") != Some(directory)
+                || self.config.env.get("DIRAC_DATA_DIR") != Some(directory)
+                || !self.config.env.contains_key("VW_ACP_LAUNCH_REFERENCE")
+                || self.permission_mode == PermissionMode::DenyAll
+            {
+                return Err(AcpError::NewSession(
+                    "Dirac MCP requires an approved managed session-model runtime".into(),
+                ));
+            }
+            if self.mcp_servers.iter().any(|server| {
+                !matches!(server, acp::McpServer::Stdio(stdio) if stdio.command.is_absolute() && stdio.env.is_empty())
+            }) {
+                return Err(AcpError::NewSession(
+                    "Dirac MCP requires absolute stdio servers without environment overrides".into(),
+                ));
+            }
+            crate::verify_reviewed_agent_executable("dirac", &self.config.command)
+                .map_err(AcpError::NewSession)?;
         }
         if self.agent_name == "dimcode"
             && self.mcp_servers.iter().any(|server| matches!(server, acp::McpServer::Stdio(_)))

@@ -58,9 +58,20 @@ pub fn configure(profile: &mut AcpLaunchProfile, endpoint: &str) -> anyhow::Resu
         ("DIRAC_API_KEY".into(), profile.binding.bearer_token().into()),
         ("DIRAC_DIR".into(), home.to_string_lossy().into_owned()),
         ("DIRAC_DATA_DIR".into(), home.to_string_lossy().into_owned()),
-        ("NODE_OPTIONS".into(), String::new()),
     ]);
-    for key in ["HTTP_PROXY", "HTTPS_PROXY", "ALL_PROXY", "http_proxy", "https_proxy", "all_proxy"]
+    for key in [
+        "NODE_OPTIONS",
+        "NODE_PATH",
+        "DYLD_INSERT_LIBRARIES",
+        "DYLD_LIBRARY_PATH",
+        "LD_PRELOAD",
+        "HTTP_PROXY",
+        "HTTPS_PROXY",
+        "ALL_PROXY",
+        "http_proxy",
+        "https_proxy",
+        "all_proxy",
+    ]
     {
         env.insert(key.into(), String::new());
     }

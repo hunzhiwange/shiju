@@ -19,7 +19,7 @@ helper = dist / "session-mcp.mjs"
 if output.exists() or output.is_symlink() or helper.exists() or helper.is_symlink():
     raise RuntimeError("Dirac patch outputs already exist")
 
-s = upstream.decode()
+s = upstream.decode().removeprefix("\n")
 respond_instruction = (
     r"- Use \`respond\` for user-facing communication: \`progress\` for meaningful updates during longer work, "
     r"\`question\` when you need information from the user, \`plan\` for Plan-mode answers or proposals, "
@@ -68,3 +68,4 @@ with helper.open("xb") as stream:
         shutil.copyfileobj(source, stream)
 with output.open("x") as stream:
     stream.write(s)
+output.chmod(0o755)

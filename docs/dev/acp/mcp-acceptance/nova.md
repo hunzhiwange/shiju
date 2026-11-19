@@ -125,3 +125,34 @@ Nova 继续固定在 npm 1.1.65，受管安装目录升到 v2。宿主只把显�
 | `rustcodegraph_node` | `bacc39e7-d5fe-4b33-86c5-b69d65f33e03` | 返回 `createRueSiteApp` 定义及调用线索。 |
 
 同一受审入口另做挂载会话的官方权限对照。图谱查询获批并回传给续轮，官方 `edit_file` 仍提出相同的单次批准或拒绝选项，选择拒绝后原生终态为 `rejected`，文件内容保持 `before`。共存标准的执行、回传、撤除和权限均已验证。私有网关、临时挂载和授权副本已清理，用户网关健康。未重复执行已有定向 Rust 测试。
+
+### 新版提示正式网关三轮通过
+
+复用槽位 3 的 ShiJu 0.6.0 网关，SHA-256 为 `5c5210e611790409fe4c3320e5813c0995b8bfbba053e4e6c8b18bb385c8f167`。私有 Nova 1.1.65 v2 安装的六项摘要与契约一致。使用固定租户、指定阿里模型和新版共存提示，提示 SHA-256 为 `18806f1a927d3587ee5c685107c89b5dbaeea09614efe9a327e293b649967f38`。以 RueJS 提交 `14fe287b13549f5183d42fbc45b28e1498ffae1c` 重建 3478 文件的 RustCodeGraph 1.2.11 索引，经原 stdio 启动。沿用项目级三工具策略和官方工具原权限。
+
+空白私有状态的初次请求未执行工具并收到 `Nova did not complete the requested turn`。复用此前经用户授权、由官方流程生成的最小同意记录到私有目录后重跑。原配置网关端口此时不可用，复用上轮已核验的模型目录快照并使用同一受控凭据来源。用户网关及全局 Nova 设置均未修改。
+
+| 轮次 | 新会话 | HTTP / curl / 耗时 | SSE | 图谱 / 官方工具完成数 |
+| --- | --- | --- | --- | --- |
+| 无挂载 | `ses_1f215532c0018WzW34TGMzQq19` | 200 / 0 / 140.181 秒 | `chat.done` | 0 / 32 |
+| 挂载 | `ses_1f2177784001duVjqMvkYZ2RN7` | 200 / 0 / 15.478 秒 | `chat.done` | 5 / 2 |
+| 撤除 | `ses_1f217b531001hU7ZomZzxcDoMO` | 200 / 0 / 9.078 秒 | `chat.done` | 0 / 6 |
+
+- 三轮均无错误或恢复事件。UI summary 回读 `acp-nova / nova` 和 `full_access=true`，在线 ACP options 确认 `client_only`、指定模型及 `session_model`，终态连接释放且保留模型绑定。无挂载轮通过官方终端执行了只读图谱 CLI 查询，属于官方工具诊断。两个对照均没有该会话挂载服务的调用或结果。
+- 挂载轮五对调用均以同一 ID 开始和成功完成。query `dece0129-2b66-4cfd-8604-9eab0c6d3862` 返回 `createRueSiteApp`（`app/app.tsx:32`），callers `0d636ca4-6b10-431f-a10a-24d00ed8bffd` 返回 `mountRueSiteApp`（`app/app.tsx:39`），node `4cdbcaaa-d4af-4d21-8918-ca64ad6cdb0f` 返回 `useApp` 定义位置（`packages/runtime/src/hooks/useApp.ts:4`）。最终答复引用三项结果及调用线索，串联站点工厂、插件安装和运行时挂载。它把入口调用标为 `app/app.tsx:56`，实际调用在第 55 行。
+- 私有网关、代理和图谱进程均已退出，端口关闭。比对 4108 个普通源码文件均未变化，移除私有挂载、同意和授权副本。保留私有证据，未改运行时代码或重复执行已通过的 Cargo 测试。
+
+### 完全访问挂载轮等待终态
+
+同一网关与受管 Nova 摘要，复用指定模型和原提示，仅执行挂载轮。用户配置源网关当时未监听，隔离实例复用了上一轮保留的提供商定义，凭据仍从获准的本机存储进入隔离网关。会话 `ses_1f2131eb1001Enb0Wqdy00cKRf` 在线 UI summary 显示 `full_access=true`，ACP options 显示指定模型与 `client_only`。官方工具权限沿用原配置。
+
+首次 SSE HTTP 200，300.004 秒断开，curl 退出 28。沿用同一个请求 ID 和事件游标续传，HTTP 200，5.040 秒退出 0，收到一个 `chat.done`（答复 `msg_1f2131f7d001jbKEf8mgJnz5tF`），无 `chat.error`。终态 ACP options 显示连接释放。按事件游标去重后，query 成功 41 次、callers 2 次、node 90 次。另有 5 次查询因传入未索引的 `projectPath` 失败，保留在 SSE 中。
+
+| 实际工具结果 | 调用 ID | 最终答复引用 |
+| --- | --- | --- |
+| query 命中 `createRueSiteApp` | `307e9256-0543-4629-8f60-f8d25043a848` | `app/app.tsx:32` |
+| callers 返回 `mountRueSiteApp` | `e92a1966-d7dc-4275-aa98-7787fb285efb` | `app/app.tsx:39` |
+| node 返回 `useApp` 源码 | `9d36b084-4e22-4c2a-8301-8956f3a43f3e` | `packages/runtime/src/hooks/useApp.ts:4` |
+| node 返回 `_$createApp` 工厂实现 | `3b9b88cb-8d57-4cbd-9774-9734da9f405f` | `packages/runtime/src/compiler-runtime/app.ts:57` |
+
+答复引用了这些实际输出，覆盖 SSR、缺失 `#app`、路由和 i18n 安装、布局绕过及静态快照影响。两处复核差异：模块顶层调用的是 `mountRueSiteApp`，不能用于证明 `createRueSiteApp` 的直接调用者漏报。重复调用 `mountRueSiteApp()` 时会先执行 `app/app.tsx:47` 的 `replaceChildren()`，随后才在运行时 `app.ts:24` 的挂载检查抛错，答复提出的“异常前子节点数不变”断言错误。私有网关、授权副本与挂载均已清理。原始 SSE 与最终答复保存在本机私有验收目录。

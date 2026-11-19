@@ -4,9 +4,11 @@ The fixed upstream source is built separately from the user's native installatio
 `host-boundary.patch` removes failed filesystem/terminal callback fallbacks, asks
 for host authorization on every tool invocation, and removes pre-approval file
 previews, ambient tool/session hooks and automatic project instruction loading.
-Only host-backed read/create/edit/multi-edit and foreground command tools are
-advertised. Native fallback tools and automatic skills/subagents are unavailable;
-ambient MCP discovery is disabled. Never substitute the unmodified npm binary.
+The built-in read/create/edit/multi-edit and foreground command tools use
+host-backed execution. Explicitly selected stdio MCP tools can coexist with
+them under the macOS read-only sandbox. Native fallback tools, automatic
+skills/subagents and ambient MCP discovery stay disabled. Use the pinned
+managed executable.
 
 Build with the repository Cargo slot runner and `MISTRALRS_METAL_PRECOMPILE=0`.
 This is the upstream-supported runtime Metal compilation path, not a disabled
@@ -21,25 +23,16 @@ release. The upstream protocol version remains 1.7.10; the separate source,
 patch and binary digests in the build receipt identify the reviewed derivative.
 Retain the upstream LICENSE and NOTICE when redistributing derived artifacts.
 
-## Explicit stdio MCP prototype
+## Explicit stdio MCP on macOS
 
-`session-mcp.patch` layers on top of `host-boundary.patch` for siGit 1.7.10.
-Apply it with `patch -p1` in the already patched upstream source tree and
-build the `sigit` binary through the repository Cargo slot runner. The
-managed installer still selects the existing reviewed patch.
-
-The prototype confines each explicitly selected stdio service to a macOS
-read-only sandbox, with the requested workspace as its working directory.
-The service starts with a clean environment. Built-in tools retain their
-existing approval and execution paths alongside the mounted tools. Each MCP
-invocation uses siGit's existing ACP host approval, and MCP errors become
-failed tool events. A configured service that exposes no tools fails
+The managed installer keeps this revision beside the previous host-only
+runtime. Built-in tools retain their existing approval and execution paths.
+The explicitly selected service starts in the workspace with a cleared
+environment, read-only access, and no network or subprocess creation.
+Each MCP invocation uses the existing ACP host approval. An MCP error
+becomes a failed tool event, and discovery with an empty tool catalog fails
 session setup.
 
 RustCodeGraph 1.2.10 requires usable SQLite WAL/SHM sidecars to open a
-fresh index under the read-only policy. The private probe uses a host-owned
-SQLite read transaction to prepare those sidecars. The sandbox tests cover
-real RustCodeGraph queries, isolated environment and denied writes, external
-reads, network connections and process creation. Native ACP integration
-requires a separate acceptance run before the managed installer can select
-this patch.
+fresh index under the read-only policy. The private acceptance probe opens
+a host-owned SQLite read transaction to prepare those sidecars.

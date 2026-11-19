@@ -839,35 +839,43 @@ async fn dimcode_remote_mcp_rejects_unreviewed_executable_before_wire_request() 
 
 #[tokio::test]
 async fn acp_onboarding_sigit_mcp_selection_rejects_before_new_or_load() {
-    let mcp =
-        vec![acp::McpServer::Http(acp::McpServerHttp::new("selected", "https://example.test/mcp"))];
+    let http =
+        acp::McpServer::Http(acp::McpServerHttp::new("selected", "https://example.test/mcp"));
+    let stdio = acp::McpServer::Stdio(acp::McpServerStdio::new("selected", "/absolute/mcp-probe"));
     with_connection(TestAgent::with_new_session_ids(["unexpected"]), async |conn, agent| {
-        let client = AcpClient::new(
-            "sigit",
-            AcpAgentConfig {
-                command: "sigit".into(),
-                args: vec!["--acp".into()],
-                env: HashMap::new(),
-            },
-        )
-        .with_mcp_servers(mcp);
-        let cwd = Path::new("/tmp/shiju-sigit-protocol");
-        assert!(
-            client
-                .new_session_info(&conn, cwd)
-                .await
-                .unwrap_err()
-                .to_string()
-                .contains("does not support MCP")
-        );
-        assert!(
-            client
-                .load_session_info(&conn, cwd, "saved".into())
-                .await
-                .unwrap_err()
-                .to_string()
-                .contains("does not support MCP")
-        );
+        for (mcp, error) in [
+            (http, "does not support MCP"),
+            (
+                stdio,
+                if cfg!(target_os = "macos") {
+                    "Reviewed ACP executable is unavailable"
+                } else {
+                    "does not support MCP"
+                },
+            ),
+        ] {
+            let client = AcpClient::new(
+                "sigit",
+                AcpAgentConfig {
+                    command: "/unreviewed-sigit-launcher".into(),
+                    args: vec!["--acp".into()],
+                    env: HashMap::from([("VW_ACP_LAUNCH_REFERENCE".into(), "fixture".into())]),
+                },
+            )
+            .with_mcp_servers(vec![mcp]);
+            let cwd = Path::new("/tmp/shiju-sigit-protocol");
+            assert!(
+                client.new_session_info(&conn, cwd).await.unwrap_err().to_string().contains(error)
+            );
+            assert!(
+                client
+                    .load_session_info(&conn, cwd, "saved".into())
+                    .await
+                    .unwrap_err()
+                    .to_string()
+                    .contains(error)
+            );
+        }
         let state = agent.state.lock();
         assert!(state.new_session_requests.is_empty());
         assert!(state.load_session_requests.is_empty());

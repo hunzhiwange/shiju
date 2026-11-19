@@ -270,9 +270,19 @@ impl AcpClient {
                 .map_err(AcpError::NewSession)?;
         }
         if self.agent_name == "sigit" && !self.mcp_servers.is_empty() {
-            return Err(AcpError::Initialize(
-                "siGit reviewed host-only runtime does not support MCP servers".into(),
-            ));
+            if !cfg!(target_os = "macos")
+                || self.config.args != ["--acp"]
+                || !self.config.env.contains_key("VW_ACP_LAUNCH_REFERENCE")
+                || self.mcp_servers.iter().any(|server| {
+                    !matches!(server, acp::McpServer::Stdio(stdio) if stdio.command.is_absolute() && stdio.env.is_empty())
+                })
+            {
+                return Err(AcpError::Initialize(
+                    "siGit does not support MCP without a managed macOS session-model connection and absolute stdio servers without environment overrides".into(),
+                ));
+            }
+            crate::verify_reviewed_agent_executable(&self.agent_name, &self.config.command)
+                .map_err(AcpError::Initialize)?;
         }
         if self.agent_name == "nova" && !self.mcp_servers.is_empty() {
             if self.permission_mode == PermissionMode::DenyAll

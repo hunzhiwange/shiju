@@ -1,34 +1,47 @@
 --- a/crates/cli/src/main.rs
 +++ b/crates/cli/src/main.rs
-@@ -37,8 +37,10 @@
+@@ -37,8 +37,16 @@
  mod frontmatter;
  mod harness_markup;
  mod headless;
-+#[expect(dead_code, reason = "Host adapter retains schema, not ambient hook execution")]
++#[expect(
++    dead_code,
++    reason = "Host adapter retains schema, not ambient hook execution"
++)]
  mod hooks;
  mod inline_tool_calls;
-+#[expect(dead_code, reason = "Host adapter does not preload project instruction files")]
++#[expect(
++    dead_code,
++    reason = "Host adapter does not preload project instruction files"
++)]
  mod instructions;
  mod mcp;
  mod models;
-@@ -841,7 +843,7 @@
+@@ -840,9 +848,7 @@
+              root before asking."
          )
      };
-     if let Some(project_instructions) =
+-    if let Some(project_instructions) =
 -        instructions::load_workspace_instructions(cwd, additional_roots)
-+        None::<String>
-     {
+-    {
++    if let Some(project_instructions) = None::<String> {
          message.push_str("\n\n");
          message.push_str(&project_instructions);
-@@ -852,6 +854,7 @@
+     }
+@@ -852,6 +858,12 @@
  fn agent_tools_as_specs() -> Vec<ToolSpec> {
      let mut specs: Vec<ToolSpec> = tools::all_tools()
          .into_iter()
-+        .filter(|t| matches!(t.name, "read_file" | "create_file" | "edit_file" | "multi_edit" | "run_command"))
++        .filter(|t| {
++            matches!(
++                t.name,
++                "read_file" | "create_file" | "edit_file" | "multi_edit" | "run_command"
++            )
++        })
          .map(|t| ToolSpec {
              name: t.name.to_string(),
              description: t.description.to_string(),
-@@ -862,7 +865,7 @@
+@@ -862,7 +874,7 @@
      // Advertise the `skill` tool only when skills are present, so models without
      // any skills installed don't see a dangling capability (Agent Skills format,
      // https://agentskills.io). Discovery metadata lives in the tool description.
@@ -37,64 +50,185 @@
      if !discovered.is_empty() {
          specs.push(ToolSpec {
              name: skills::SKILL_TOOL_NAME.to_string(),
-@@ -873,7 +876,7 @@
- 
+@@ -873,7 +885,7 @@
+
      // Delegated research (`task`) is offered only when a subagent backend can
      // actually be built — same conditional pattern as the `skill` tool above.
 -    if tools::subagent_available() {
 +    if false {
          specs.push(tools::task_tool_spec());
      }
- 
-@@ -3066,10 +3069,7 @@
+
+@@ -2125,49 +2137,17 @@
+     )
+ }
+
+-/// The servers out of a session request's `mcpServers` that siGit Code can
+-/// connect to.
+-///
+-/// ACP requires every agent to connect to the stdio ones. Streamable HTTP is
+-/// optional and advertised through `mcpCapabilities.http` in
+-/// `handle_initialize`. SSE is not advertised (the MCP spec deprecated it), so
+-/// a client that sends one anyway is told in the log and the entry is skipped.
+-fn client_mcp_servers(servers: &[McpServer]) -> Vec<mcp::ClientServer> {
+-    servers
+-        .iter()
+-        .filter_map(|server| match server {
+-            McpServer::Stdio(stdio) => Some(mcp::ClientServer {
+-                name: stdio.name.clone(),
+-                transport: mcp::ClientTransport::Stdio {
+-                    command: stdio.command.to_string_lossy().into_owned(),
+-                    args: stdio.args.clone(),
+-                    env: stdio
+-                        .env
+-                        .iter()
+-                        .map(|var| (var.name.clone(), var.value.clone()))
+-                        .collect(),
+-                },
+-            }),
+-            McpServer::Http(http) => Some(mcp::ClientServer {
+-                name: http.name.clone(),
+-                transport: mcp::ClientTransport::Http {
+-                    url: http.url.clone(),
+-                    headers: http
+-                        .headers
+-                        .iter()
+-                        .map(|header| (header.name.clone(), header.value.clone()))
+-                        .collect(),
+-                },
+-            }),
+-            other => {
+-                log::warn!(
+-                    "ignoring an MCP server from the client with an unsupported transport: \
+-                     {other:?}"
+-                );
+-                None
+-            }
++/// Prepare only explicit stdio MCP services under the managed read-only sandbox.
++async fn managed_mcp_servers(
++    servers: &[McpServer],
++    cwd: &std::path::Path,
++) -> agent_client_protocol::Result<mcp::SessionServers> {
++    mcp::managed_stdio_servers(servers, cwd)
++        .await
++        .map_err(|message| {
++            agent_client_protocol::Error::invalid_params()
++                .data(serde_json::json!({ "message": message }))
+         })
+-        .collect()
+ }
+
+ /// Reject session roots that are not absolute paths.
+@@ -2310,7 +2290,7 @@
+                     // Clients only pass HTTP MCP servers in `mcpServers` to an
+                     // agent that says it can reach them. SSE stays off: the
+                     // MCP spec deprecated that transport.
+-                    .mcp_capabilities(McpCapabilities::new().http(true))
++                    .mcp_capabilities(McpCapabilities::new())
+                     .session_capabilities(
+                         SessionCapabilities::new()
+                             .fork(SessionForkCapabilities::new())
+@@ -3028,6 +3008,8 @@
+             state.model_id = model_id;
+         }
+
++        state.mcp_servers = managed_mcp_servers(mcp_servers, cwd).await?;
++
+         // A session boundary: grants and plan mode from the previous life of
+         // this session id must not carry over. Other sessions keep theirs; the
+         // editor may still have them open.
+@@ -3051,7 +3033,6 @@
+         }
+
+         state.conversation = backend::carryover_history(history);
+-        state.mcp_servers = mcp::connect_session_servers(client_mcp_servers(mcp_servers)).await;
+         log::info!(
+             "{method}: restored {restored} message(s), replayed {replayed} update(s) for {session_id}"
+         );
+@@ -3066,10 +3047,6 @@
          self.advertise_commands(cx, session_id.clone());
- 
+
          // Run SessionStart hooks
 -        let hook_settings = settings::load().hooks;
 -        if hook_settings.has_hooks() {
 -            hooks::run_session_start_hooks(&hook_settings, cwd, &session_key);
 -        }
-+
- 
+
          Ok(config_options)
      }
-@@ -3231,10 +3231,7 @@
+@@ -3209,8 +3186,7 @@
+             }
+         }
+         // A fork gets the servers named on its own request, not the source's.
+-        state.mcp_servers =
+-            mcp::connect_session_servers(client_mcp_servers(&args.mcp_servers)).await;
++        state.mcp_servers = managed_mcp_servers(&args.mcp_servers, &args.cwd).await?;
+         let copied = state.conversation.len();
+         let updates = history_replay_updates(&state.conversation);
+         let replayed = updates.len();
+@@ -3231,10 +3207,6 @@
          self.advertise_commands(cx, new_id.clone());
- 
+
          // Run SessionStart hooks
 -        let hook_settings = settings::load().hooks;
 -        if hook_settings.has_hooks() {
 -            hooks::run_session_start_hooks(&hook_settings, &args.cwd, &new_id.to_string());
 -        }
-+
- 
+
          let modes = build_session_modes(&new_id.to_string());
          Ok(ForkSessionResponse::new(new_id)
-@@ -3272,10 +3269,7 @@
+@@ -3260,8 +3232,7 @@
+         );
+
+         let mut state = self.session_state(&args.cwd, &args.additional_directories);
+-        state.mcp_servers =
+-            mcp::connect_session_servers(client_mcp_servers(&args.mcp_servers)).await;
++        state.mcp_servers = managed_mcp_servers(&args.mcp_servers, &args.cwd).await?;
+         self.open_session(&session_id, state).await;
+
+         let config_options = {
+@@ -3272,10 +3243,6 @@
          self.advertise_commands(cx, session_id.clone());
- 
+
          // Run SessionStart hooks
 -        let hook_settings = settings::load().hooks;
 -        if hook_settings.has_hooks() {
 -            hooks::run_session_start_hooks(&hook_settings, &args.cwd, &session_id.to_string());
 -        }
-+
- 
+
          let modes = build_session_modes(&session_id.to_string());
          Ok(NewSessionResponse::new(session_id)
-@@ -3787,7 +3781,10 @@
+@@ -3328,6 +3295,13 @@
+             return Ok(PromptResponse::new(StopReason::Cancelled));
+         }
+
++        mcp::restore_disconnected_session_servers()
++            .await
++            .map_err(|message| {
++                agent_client_protocol::Error::internal_error()
++                    .data(serde_json::json!({ "message": message }))
++            })?;
++
+         // log every block so we can debug @ references and file context
+         for (i, block) in args.prompt.iter().enumerate() {
+             match block {
+@@ -3787,7 +3761,14 @@
                  // the user starts out `pending`, everything else is already
                  // running. A repeated call is never run, so never asked about.
                  let decision = (!repeated).then(|| {
 -                    permissions::decision_for(&session_id.to_string(), &tc.name, &tc.arguments)
-+                    match permissions::decision_for(&session_id.to_string(), &tc.name, &tc.arguments) {
-+ permissions::Decision::Deny(reason) => permissions::Decision::Deny(reason),
-+ _ => permissions::Decision::Ask,
-+ }
++                    match permissions::decision_for(
++                        &session_id.to_string(),
++                        &tc.name,
++                        &tc.arguments,
++                    ) {
++                        permissions::Decision::Deny(reason) => permissions::Decision::Deny(reason),
++                        _ => permissions::Decision::Ask,
++                    }
                  });
                  let announced_status = match decision {
                      Some(permissions::Decision::Ask) => ToolCallStatus::Pending,
-@@ -3870,7 +3867,7 @@
+@@ -3870,7 +3851,7 @@
                              // Worked out while the session still holds the
                              // workspace: a relative path resolves against
                              // its cwd.
@@ -103,6 +237,45 @@
                              // The answer can take as long as the user likes.
                              if release_while_waiting {
                                  workspace.release();
+@@ -3920,15 +3901,29 @@
+                                         )
+                                         .ok();
+                                     }
+-                                    let outcome = tools::execute_tool_with_change(
+-                                        &tc.name,
+-                                        &tc.arguments,
+-                                        Some(&tc.id),
+-                                    )
+-                                    .await;
+-                                    change = outcome.change;
+-                                    terminal = outcome.terminal;
+-                                    (outcome.output, true)
++                                    if mcp::is_mcp_tool(&tc.name) {
++                                        tokio::select! {
++                                            biased;
++                                            _ = cancellation.cancelled() => {
++                                                mcp::disconnect_session_servers().await;
++                                                ("MCP tool cancelled".to_string(), false)
++                                            }
++                                            result = mcp::call_reviewed_tool(&tc.name, &tc.arguments) => match result {
++                                                Ok(output) => (output, true),
++                                                Err(error) => (error, false),
++                                            },
++                                        }
++                                    } else {
++                                        let outcome = tools::execute_tool_with_change(
++                                            &tc.name,
++                                            &tc.arguments,
++                                            Some(&tc.id),
++                                        )
++                                        .await;
++                                        change = outcome.change;
++                                        terminal = outcome.terminal;
++                                        (outcome.output, true)
++                                    }
+                                 }
+                                 PermissionVerdict::Denied(reason) => {
+                                     log::info!("  ✗ {} denied by user", tc.name);
 --- a/crates/cli/src/client_fs.rs
 +++ b/crates/cli/src/client_fs.rs
 @@ -106,41 +106,19 @@
@@ -129,7 +302,7 @@
 +            .await.map_err(|_| std::io::Error::other("Host file read timed out"))?
 +            .map_err(std::io::Error::other)
      }
- 
+
      /// Write the file's text through the client when it can write, and to the
      /// disk when it cannot or the request failed.
      pub async fn write(&self, path: &Path, content: &str) -> std::io::Result<()> {
@@ -154,7 +327,7 @@
 +            .map_err(std::io::Error::other)
      }
  }
- 
+
 --- a/crates/cli/src/tools.rs
 +++ b/crates/cli/src/tools.rs
 @@ -515,27 +515,7 @@
@@ -184,12 +357,12 @@
 -    result
 +    execute_tool_impl(name, arguments, tool_call_id).await
  }
- 
+
  async fn execute_tool_impl(name: &str, arguments: &str, tool_call_id: Option<&str>) -> ToolOutcome {
 @@ -552,6 +532,8 @@
          return exec_run_command_via_client(arguments, &call, &route, tool_call_id).await;
      }
- 
+
 +    return format!("Error: tool {name} requires a verified host route; native fallback is disabled").into();
 +    #[allow(unreachable_code)]
      match name {
@@ -217,11 +390,11 @@
          call.cwd.display()
      );
 -    let commit_watch = CommitWatch::start(&call.command, &call.cwd);
- 
+
      let run = route
          .run(
 @@ -2822,25 +2804,14 @@
- 
+
      let (output, terminal_id) = match run {
          Run::NotStarted(error) => {
 -            log::warn!("client terminal could not start the command: {error}; running it locally");
@@ -259,3 +432,217 @@
      if disabled_by_env() {
          log::info!("mcp: disabled via SIGIT_MCP");
          return Vec::new();
+@@ -769,18 +771,10 @@
+ /// A name already taken by a startup server (or by an earlier entry in the same
+ /// list) is not connected. Its tools would share the `mcp__<server>__` prefix
+ /// with the other server's, and a call could not be routed.
+-pub async fn connect_session_servers(servers: Vec<ClientServer>) -> SessionServers {
++async fn connect_session_servers(servers: Vec<ClientServer>) -> SessionServers {
+     if servers.is_empty() {
+-        return SessionServers::default();
+-    }
+-    if disabled_by_env() {
+-        log::info!(
+-            "mcp: ignoring {} client-supplied server(s), disabled via SIGIT_MCP",
+-            servers.len()
+-        );
+         return SessionServers::default();
+     }
+-
+     let mut taken: Vec<String> = MCP
+         .get()
+         .map(|mcp| mcp.servers.iter().map(|s| s.name.clone()).collect())
+@@ -842,7 +836,165 @@
+
+     SessionServers(Arc::new(connected))
+ }
++
++const MANAGED_STDIO_SANDBOX: &str = r#"
++(version 1)
++(allow default)
++(deny file-read-data (subpath "/Users") (subpath "/private") (subpath "/Volumes") (subpath "/Library")
++    (subpath "/opt") (subpath "/usr/local") (subpath "/System/Volumes/Data")
++    (subpath (param "host-home")))
++(allow file-read-data (literal (param "command")) (subpath (param "workspace")))
++(deny file-read-data (subpath (param "git")) (subpath (param "codex"))
++    (subpath (param "native-config")) (literal (param "mount-config"))
++    (regex #"(^|/)\.env($|\.)"))
++(deny file-write*)
++(allow file-write* (literal "/dev/null"))
++(deny process-fork process-exec network* mach-lookup)
++(allow process-exec (literal (param "command")))
++"#;
+
++pub async fn managed_stdio_servers(
++    servers: &[agent_client_protocol::schema::v1::McpServer],
++    cwd: &std::path::Path,
++) -> Result<SessionServers, &'static str> {
++    if servers.is_empty() {
++        return Ok(SessionServers::default());
++    }
++    if !cfg!(target_os = "macos") {
++        return Err("siGit MCP requires the reviewed macOS sandbox");
++    }
++    let workspace = cwd
++        .canonicalize()
++        .map_err(|_| "Invalid siGit MCP workspace")?;
++    let home = std::env::var_os("HOME")
++        .map(PathBuf::from)
++        .and_then(|path| path.canonicalize().ok())
++        .ok_or("Invalid siGit host home")?;
++    if !workspace.is_dir() || home.starts_with(&workspace) {
++        return Err("Invalid siGit MCP workspace");
++    }
++    let native_config = std::env::var_os("SIGIT_CONFIG_DIR")
++        .map(PathBuf::from)
++        .unwrap_or_else(|| home.join(".config/sigit"));
++    let mut selected = Vec::with_capacity(servers.len());
++    for server in servers {
++        let agent_client_protocol::schema::v1::McpServer::Stdio(server) = server else {
++            return Err("siGit MCP accepts only isolated stdio services");
++        };
++        if !server.command.is_absolute()
++            || !server.env.is_empty()
++            || server.name.is_empty()
++            || !server
++                .name
++                .bytes()
++                .all(|b| b.is_ascii_alphanumeric() || b == b'_' || b == b'-')
++        {
++            return Err("Invalid siGit MCP service definition");
++        }
++        let command = server
++            .command
++            .canonicalize()
++            .map_err(|_| "Invalid siGit MCP command")?;
++        if !command.is_file() {
++            return Err("Invalid siGit MCP command");
++        }
++        let mut args = [
++            "-i",
++            "-C",
++            workspace.to_str().ok_or("Invalid siGit MCP workspace")?,
++            "HOME=/var/empty",
++            "TMPDIR=/var/empty",
++            "LANG=en_US.UTF-8",
++            "/usr/bin/sandbox-exec",
++            "-p",
++            MANAGED_STDIO_SANDBOX,
++        ]
++        .map(str::to_owned)
++        .to_vec();
++        for (name, path) in [
++            ("command", command.clone()),
++            ("workspace", workspace.clone()),
++            ("host-home", home.clone()),
++            ("native-config", native_config.clone()),
++            ("git", workspace.join(".git")),
++            ("codex", workspace.join(".codex")),
++            ("mount-config", workspace.join(".vwacprc.json")),
++        ] {
++            let path = path.to_str().ok_or("Invalid siGit MCP path")?;
++            args.extend(["-D".to_string(), format!("{name}={path}")]);
++        }
++        args.push(
++            command
++                .to_str()
++                .ok_or("Invalid siGit MCP command")?
++                .to_string(),
++        );
++        args.extend(server.args.iter().cloned());
++        selected.push(ClientServer {
++            name: server.name.clone(),
++            transport: ClientTransport::Stdio {
++                command: "/usr/bin/env".into(),
++                args,
++                env: vec![("OPENAI_API_KEY".into(), String::new())],
++            },
++        });
++    }
++    let connected = connect_session_servers(selected).await;
++    if connected.0.iter().any(|server| server.tools().is_empty()) {
++        connected.disconnect().await;
++        return Err("siGit MCP service failed to expose tools in the read-only sandbox");
++    }
++    Ok(connected)
++}
++
++impl SessionServers {
++    async fn disconnect(&self) {
++        for server in self.0.iter() {
++            *server.conn.write().await = None;
++        }
++    }
++}
++
++pub async fn disconnect_session_servers() {
++    session_servers().disconnect().await;
++}
++
++pub async fn restore_disconnected_session_servers() -> Result<(), &'static str> {
++    for server in session_servers().0.iter() {
++        let disconnected = server.conn.read().await.is_none();
++        if disconnected && reconnect(server).await.is_err() {
++            return Err("Could not restore the selected siGit MCP service");
++        }
++    }
++    Ok(())
++}
++
++pub async fn call_reviewed_tool(name: &str, arguments: &str) -> Result<String, String> {
++    let session = session_servers();
++    let (server, remote_name) = session
++        .0
++        .iter()
++        .find_map(|server| {
++            server
++                .tools()
++                .iter()
++                .find(|tool| tool.full_name == name)
++                .map(|tool| (server, tool.remote_name.clone()))
++        })
++        .ok_or_else(|| "Unknown session MCP tool".to_string())?;
++    let args = if arguments.trim().is_empty() {
++        json!({})
++    } else {
++        serde_json::from_str::<Value>(arguments)
++            .ok()
++            .filter(Value::is_object)
++            .ok_or_else(|| "MCP tool arguments must be a JSON object".to_string())?
++    };
++    let (output, failed) = call_server(server, &remote_name, args).await?;
++    let output = truncate(output);
++    if failed { Err(output) } else { Ok(output) }
++}
++
+ /// Make `servers` the live session's set. Called whenever `main.rs` installs a
+ /// session, so a thread never sees another thread's servers.
+ pub fn set_session_servers(servers: SessionServers) {
+@@ -912,7 +1064,7 @@
+     };
+
+     match call_server(server, &remote_name, args).await {
+-        Ok(text) => truncate(text),
++        Ok((text, _)) => truncate(text),
+         Err(error) => format!("Error: {error}"),
+     }
+ }
+@@ -924,7 +1076,7 @@
+     server: &ServerConn,
+     remote_name: &str,
+     args: Value,
+-) -> Result<String, String> {
++) -> Result<(String, bool), String> {
+     let timeout = if server.name == "xcode" {
+         XCODE_CALL_TIMEOUT
+     } else {
+@@ -970,7 +1122,8 @@
+                 .map_err(|error| format!("server '{}': {error:#}", server.name))?
+         }
+     };
+-    Ok(render_tool_result(&result))
++    let failed = result.get("isError").and_then(Value::as_bool) == Some(true);
++    Ok((render_tool_result(&result), failed))
+ }
+
+ impl ServerConn {

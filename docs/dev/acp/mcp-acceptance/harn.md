@@ -103,3 +103,19 @@ v3 只用原生执行更新中的完整参数绑定逐次审批，同一调用 I
 v4 由 Rust 驱动在私有启动环境传递规范化工作目录，launcher 在建会话时仍强制校验该根，并在该根启动原生子进程。原生测试把 launcher 从不同目录启动，合法会话可用，同进程的越界建会话仍被拒绝。v3 在同一用例复现红灯，v4 的 8 个 stdio 场景、3 个宿主保护、2 个安装和 1 个自然语言用例通过。已使用官方归档核验 v4 安装，正常网关启动方式的 v4 三轮待新版链接产物。
 
 宿主默认策略定向检查 `python3 scripts/cargo_slot.py cargo test --locked -j 1 -p session-engine --lib acp_mcp_mount_carries_resolved_tool_policy` 退出 0，1 项通过。槽位 3 的两个缓存路径均为仓库的 `target/rust-slot-3`。另外证实普通 ACP initialize 诊断无需绑定工作目录。有模型中继凭据的受管入口仍要求显式工作目录。
+
+## v4 正式网关验收通过
+
+从仓库根目录启动私有网关，RueJS 副本是独立的会话工作目录。使用 `python3 scripts/cargo_slot.py cargo build -j 1 --locked -p vw-cli --bin shiju` 在槽位 3 构建，两个缓存路径均为仓库的 `target/rust-slot-3`，退出 0。shiju 0.6.0 SHA-256 为 `5c5210e611790409fe4c3320e5813c0995b8bfbba053e4e6c8b18bb385c8f167`，安装入口核验为 Harn 0.10.201 受管 v4。继续使用原租户、指定阿里模型、RustCodeGraph 1.2.11 stdio 和官方工具共存的新版提示。
+
+| 轮次 | 新会话 ID | HTTP / curl / 耗时 | 图谱成功 | 官方读取成功 / 失败 |
+| --- | --- | --- | --- | --- |
+| 无挂载 | `ses_1f200dfc6001VMRNDoIHOyAG30` | 200 / 0 / 33.420 秒 | 0 | 3 / 6 |
+| 挂载 | `ses_1f20163d9001a6BF6XYOHgXuts` | 200 / 0 / 27.846 秒 | 9 | 1 / 0 |
+| 撤除 | `ses_1f201d28d001WCTkzyasUHZg3M` | 200 / 0 / 17.207 秒 | 0 | 2 / 2 |
+
+各轮均恰有一个 `chat.done`，无 `chat.error` 或恢复事件。UI summary 回读原预设 `acp-harn / harn` 和 `full_access=true`。运行中 ACP options 均为 `connected=true`、`client_only`，三轮终态连接释放并继续回读指定 `session_model`。两个对照轮无图谱启动或结果，不成功的调用均是官方读取。
+
+挂载调用为查询 1、调用者 1、节点 7，各有同 ID 的开始和完成。查询 `call_37b5936e82e946ea88dca8e9` 返回 `createRueSiteApp`（`app/app.tsx:32`），调用者 `call_92cc2adc00c64cb3bc1e5f3e` 返回 `mountRueSiteApp`（`app/app.tsx:39`），节点 `call_36f1353efcfd4af8aa9fb88e` 读回挂载定义，后续节点结果包含 `_$createApp`。模型答复引用这些回传内容，准确串起浏览器入口、容器校验、创建站点应用、插件安装和运行时挂载。官方读取与图谱工具在同回合成功执行。
+
+私有网关退出且端口已关闭，验收配置与授权副本已清理。私有 RueJS 副本的 4108 个普通源码文件摘要均与导出提交一致。保留本机私有 SSE 和定向测试记录。

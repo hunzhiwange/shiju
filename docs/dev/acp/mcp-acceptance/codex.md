@@ -1,6 +1,6 @@
 # Codex CLI 动态挂载 MCP 验收
 
-2026-11-19。三类目标工具均能通过动态挂载实际调用并返回结果。严格验收仍阻塞，详见下文。2026-11-18 的 2.5.0 单工具实测仍作为基线。[原始验收和复用请求](../ACP验收.md#可复用的验收请求)
+2026-11-19。修复版通过无挂载、挂载、撤除三轮严格验收。2026-11-18 的 2.5.0 单工具实测仍作为基线。[原始验收和复用请求](../ACP验收.md#可复用的验收请求)
 
 ## 环境和路径
 
@@ -77,3 +77,40 @@
 - 这条新版路径运行一组三轮。挂载轮出现一次 `stream disconnected before completion: failed to parse ResponseCompleted: missing field reasoning_tokens`，错误在 `chat.delta` 内，之后仍有 `chat.step_finish` 和 `chat.done`。最终调查答复未生成，故严格验收仍阻塞。上轮 1.2.10 的无效路径读取在本轮未出现。
 - 当前共享 `responses_stream::finish` 调用 `responses::from_chat` 后发出 `response.completed`。后者原样复制存在的 `completion_tokens_details` 为 `output_tokens_details`，不补其成员，存在产生缺 `reasoning_tokens` 对象的路径。未抓取原始上游帧，尚未确认触发该形状的供应商用量字段。下一步需获准修复共享 Chat → Responses 终帧兼容，或取得该边界已修复的受审构建，以原三轮复验。本轮未改运行时或跑 Cargo。
 - 三轮 UI summary 保持 `acp-codex / codex` 和 `full_access=true`。挂载中权限回读为 `native`，原生审批和沙箱模式仍为 `never` 与 `danger-full-access`。结束后三轮选模仍绑定指定阿里模型，连接均已释放。私有挂载配置、两个子进程已清理，4108 个普通源码文件和 Codex 用户配置摘要与开始时一致。
+
+## Chat → Responses 终帧兼容
+
+独立回环向受管 Codex 0.165.0 依次发送三种合成终帧。用量明细为 `{"accepted_prediction_tokens":0}` 时，Codex 复现缺少 `reasoning_tokens` 的解析错误。省略整项可选的 `output_tokens_details`，或提供显式 `reasoning_tokens` 时，两轮均成功解析。夹具未连接真实供应商。
+
+现有常驻 Chat → Responses 转换生成该终帧。Codex 流路径在明细对象缺少必需字段时省略该对象，保留输入、输出及总 token 数。上游已报告的推理计数（含真实零值）及其同对象统计原样通过。转换不推算推理用量，也没有改变原生 Responses 转发、适配器、权限或错误处理。
+
+聚焦命令为 `python3 scripts/cargo_slot.py cargo test -j 1 -p model-protocol --lib acp_model_source_relay_responses_codex_replays_namespaced_and_custom_tools`。红灯在槽位 6 退出 101，1 项通过、1 项失败，失败断言显示缺字段的明细对象进入终帧。绿灯在槽位 3 退出 0，两项通过，覆盖遗漏、真实零值和非零计数及现有 namespace 续轮。两轮的 `CARGO_TARGET_DIR` 和 `CARGO_BUILD_BUILD_DIR` 均为对应槽位。
+
+修复版网关在同一槽位 3 执行 `cargo build -j 1 --locked -p vw-cli --bin shiju`，退出 0，耗时 8 分 24 秒，有既有构建告警。私有副本 SHA-256 为 `26079d7d3cfa202797e9b31652ea4e9c058d5dcafe522d1da2b6ed3f7882cfe2`。从现有授权来源配置独立回环网关，校验受管入口摘要，使用 RustCodeGraph 1.2.11、同一过滤目录及原请求。
+
+| 修复版首组 | 新会话 | HTTP / curl | 秒 | 工具 |
+| --- | --- | --- | --- | --- |
+| 无挂载 | `ses_1f11c2d05001rBr8qM7awuZomb` | 200 / 0 | 6.16 | 0 |
+| 挂载 | `ses_1f11c48c9001Zwfyku4VCc3s3y` | 200 / 0 | 231.65 | 83 次目标工具成功，另有 2 次原生资源发现 |
+| 撤除 | `ses_1f11fd1d8001wRalSqXudjgRfI` | 200 / 0 | 3.80 | 0 |
+
+首组三轮均收到一个 `chat.done`，无 `chat.error`、模型恢复或终帧解析错误。两个对照原生最终答复精确为 `MCP_NOT_AVAILABLE`。挂载轮形成完整答复并产生 85 个同 ID 原生调用与结果，其中 Codex 自身的 `list_mcp_resources`、`list_mcp_resource_templates` 各一次，均返回空目录。RustCodeGraph 握手只宣告工具能力，因此额外调用自身不由 stdio 目录中转。首组仍超出严格工具范围。
+
+| 修复版第二组 | 新会话 | HTTP / curl | 秒 | 工具 |
+| --- | --- | --- | --- | --- |
+| 无挂载 | `ses_1f12000c7001k7V97pkch2j3pZ` | 200 / 0 | 7.29 | 0 |
+| 挂载 | `ses_1f1202095001Ts1FKDUdjnrsml` | 200 / 0 | 160.88 | 77 次目标工具成功 |
+| 撤除 | `ses_1f1229679001OdeZW5ClWbX6yU` | 200 / 0 | 3.67 | 0 |
+
+第二组三轮原生答复和 SSE 均结束，两个对照仅答 `MCP_NOT_AVAILABLE`。挂载轮 77 次调用全部成功，零额外工具、零终帧解析错误。最终答复主链和分支吻合，但第二个场景预测延迟 300 ms 挂载时会先清空容器。清空实际发生在挂载函数开始处。用该提交的 `waitForStaticAppHtml` 和预填 DOM 夹具实测，延迟挂载时有无清空分别约 105 ms 和 102 ms 返回旧内容，未达到答复描述的差异。该组未计入严格通过。
+
+| 修复版通过组 | 新会话 | HTTP / curl | 秒 | SSE 与工具 |
+| --- | --- | --- | --- | --- |
+| 无挂载 | `ses_1f12325f9001n39DWsfHRVNTFt` | 200 / 0 | 4.93 | `chat.done` ×1，零工具 |
+| 挂载 | `ses_1f12339f60017v9jsGV4sGGU6U` | 200 / 0 | 179.15 | `chat.done` ×1，65 次目标工具成功 |
+| 撤除 | `ses_1f125f69d001N5jHa7aU2jP1KT` | 200 / 0 | 3.63 | `chat.done` ×1，零工具 |
+
+- 两个对照轮的原生最终答复精确为 `MCP_NOT_AVAILABLE`，SSE 保留可区分的模型目录警告及推理文本。三轮没有 `chat.error`、模型恢复或嵌入普通 delta 的解析错误。
+- 16 次 query、1 次 callers、48 次 node 全部成功，SSE 开始与完成事件以及 Codex 原生函数及输出按调用 ID 一一对应，无额外工具。query `call_3775a890dda644318a0e38de` 返回 `createRueSiteApp`（`app/app.tsx:32`），callers `call_883a6b5bc39d46a09ecba868` 返回 `mountRueSiteApp`（`app/app.tsx:39`），node `call_277e607c53bc4423ae1f4bc7` 返回该入口的源码。
+- 最终答复按源码复原四段调用链、浏览器和 SSR 分支、容器缺失、插件安装和布局绕过，并指出 `/rust-layers` 未注册。它区分了图谱同名误连与源码实际调用，将快照残留列为假设，并分别给出预填快照后浏览器接管及快照管道产物的两项可检验预期。本轮核对了预期与源码，未执行浏览器场景。
+- 三轮 UI summary 绑定 `acp-codex / codex`、`full_access=true`；挂载中回读原生权限，原生轨迹保持 `approval_policy=never` 和 `sandbox_policy=danger-full-access`。结束后模型仍锁定原阿里模型与 `session_model`，连接已释放。三座私有网关和本任务工具进程均退出，端口已关闭，临时配置和凭据副本已清理。各组 4108 个普通源码文件与 Codex 用户配置的摘要相等。

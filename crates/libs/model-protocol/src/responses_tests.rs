@@ -64,6 +64,49 @@ fn acp_model_source_relay_responses_codex_replays_namespaced_and_custom_tools() 
     assert_eq!(converted["output"][1]["call_id"], "patch-1");
 }
 
+#[tokio::test]
+async fn acp_model_source_relay_responses_codex_replays_namespaced_and_custom_tools_terminal_usage() {
+    for (details, expected) in [
+        (json!({"accepted_prediction_tokens": 0}), None),
+        (json!({"reasoning_tokens": 0}), Some(json!({"reasoning_tokens": 0}))),
+        (
+            json!({"reasoning_tokens": 2, "accepted_prediction_tokens": 0}),
+            Some(json!({"reasoning_tokens": 2, "accepted_prediction_tokens": 0})),
+        ),
+    ] {
+        let chunk = json!({
+            "id": "upstream",
+            "choices": [{"index": 0, "delta": {"content": "answer"}, "finish_reason": "stop"}],
+            "usage": {
+                "prompt_tokens": 11,
+                "completion_tokens": 4,
+                "total_tokens": 15,
+                "completion_tokens_details": details,
+            },
+        });
+        let wire = format!("data: {chunk}\n\ndata: [DONE]\n\n");
+        let body = crate::responses_stream::resident_chat_body(
+            axum::body::Body::from(wire),
+            "selected".into(),
+            crate::responses::ChatTools::default(),
+            tokio_util::sync::CancellationToken::new(),
+        );
+        let bytes = axum::body::to_bytes(body, 16_384).await.unwrap();
+        let terminal = std::str::from_utf8(&bytes)
+            .unwrap()
+            .lines()
+            .filter_map(|line| line.strip_prefix("data: "))
+            .map(|data| serde_json::from_str::<serde_json::Value>(data).unwrap())
+            .find(|event| event["type"] == "response.completed")
+            .expect("successful Chat turn must emit a Responses terminal event");
+        let usage = &terminal["response"]["usage"];
+        assert_eq!(usage["input_tokens"], 11);
+        assert_eq!(usage["output_tokens"], 4);
+        assert_eq!(usage["total_tokens"], 15);
+        assert_eq!(usage.get("output_tokens_details"), expected.as_ref());
+    }
+}
+
 #[test]
 fn acp_model_source_relay_responses_parallel_tools_roles_and_structured_output() {
     let request = json!({"model":"selected","instructions":"system","input":[

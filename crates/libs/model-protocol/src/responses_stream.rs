@@ -154,6 +154,17 @@ impl Decoder {
             &self.tool_names,
             self.codex_chat && self.resident.is_none(),
         )?;
+        // Codex accepts an absent output breakdown, but requires reasoning_tokens
+        // when the breakdown is present. A Chat-only breakdown cannot express it.
+        if self.codex_chat
+            && let Some(usage) = response["usage"].as_object_mut()
+            && usage
+                .get("output_tokens_details")
+                .and_then(Value::as_object)
+                .is_some_and(|details| !details.contains_key("reasoning_tokens"))
+        {
+            usage.remove("output_tokens_details");
+        }
         let items = response["output"].as_array_mut().ok_or(StatusCode::BAD_GATEWAY)?;
         let reasoning_id = format!("{}_rs", self.id);
         if !self.reasoning.is_empty() {

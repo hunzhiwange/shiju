@@ -12,6 +12,7 @@ parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument("dirac", type=Path)
 parser.add_argument("rustcodegraph", type=Path)
 parser.add_argument("ruejs_copy", type=Path)
+parser.add_argument("--plain-text", action="store_true")
 args = parser.parse_args()
 cwd = args.ruejs_copy.resolve()
 if not (cwd / ".rustcodegraph").is_dir():
@@ -22,6 +23,7 @@ tool_args = {
     "node": {"name": "mountRueSiteApp"},
 }
 seen = []
+truncated_once = False
 name_prefix = "ruejs_graph_probe-rustcodegraph_"
 
 class Model(BaseHTTPRequestHandler):
@@ -29,6 +31,7 @@ class Model(BaseHTTPRequestHandler):
         pass
 
     def do_POST(self):
+        global truncated_once
         request = json.loads(self.rfile.read(int(self.headers["Content-Length"])))
         names = {t["function"]["name"] for t in request.get("tools", [])}
         results = [m for m in request["messages"] if m["role"] == "tool"]
@@ -41,6 +44,14 @@ class Model(BaseHTTPRequestHandler):
                 "name": name_prefix + key, "arguments": json.dumps(tool_args[key])
             }}]}
             reason = "tool_calls"
+        elif label == "truncated" and not truncated_once:
+            truncated_once = True
+            delta = {"content": "RESPONSE_TRUNCATED"}
+            reason = "length"
+        elif args.plain_text:
+            answer = "RESULTS_OBSERVED" if available else "MCP_NOT_AVAILABLE"
+            delta = {"content": answer[:5]}
+            reason = "stop"
         else:
             delta = {"tool_calls": [{"index": 0, "id": "call_respond", "type": "function", "function": {
                 "name": "respond", "arguments": json.dumps({"operation":"complete","text":"RESULTS_OBSERVED" if available else "MCP_NOT_AVAILABLE"})
@@ -49,9 +60,14 @@ class Model(BaseHTTPRequestHandler):
         self.send_response(200)
         self.send_header("Content-Type", "text/event-stream")
         self.end_headers()
-        for part, finish in [(delta, None), ({}, reason)]:
+        parts = [(delta, None)]
+        if reason == "stop":
+            parts.append(({"content": answer[5:]}, None))
+        for part, finish in [*parts, ({}, reason)]:
             chunk = dict(id="fixture", object="chat.completion.chunk", created=0, model="probe",
                          choices=[dict(index=0, delta=part, finish_reason=finish)])
+            if finish:
+                chunk["usage"] = {"prompt_tokens": 20, "completion_tokens": 8, "total_tokens": 28}
             self.wfile.write(f"data: {json.dumps(chunk)}\n\n".encode())
         self.wfile.write(b"data: [DONE]\n\n")
 
@@ -59,6 +75,9 @@ with tempfile.TemporaryDirectory(prefix="dirac-acp-") as private_home, \
         ThreadingHTTPServer(("127.0.0.1", 0), Model) as model:
     config = Path(private_home) / "dirac"
     config.mkdir()
+    if args.plain_text:
+        (config / "data").mkdir()
+        (config / "data/globalState.json").write_text(json.dumps({"toolToggles": {"respond": False}}))
     threading.Thread(target=model.serve_forever, daemon=True).start()
     env = dict(PATH=os.environ["PATH"], HOME=private_home, DIRAC_DIR=str(config), DIRAC_DATA_DIR=str(config), DIRAC_PROVIDER="openai", DIRAC_MODEL="probe", DIRAC_API_KEY="fixture", DIRAC_BASE_URL=f"http://127.0.0.1:{model.server_port}/v1")
     with subprocess.Popen(["node", args.dirac.absolute(), "--acp", "--config", str(config)], cwd=cwd, env=env, text=True,
@@ -97,15 +116,15 @@ with tempfile.TemporaryDirectory(prefix="dirac-acp-") as private_home, \
             graph = str(args.rustcodegraph.resolve())
             servers = [dict(name="ruejs_graph_probe", command=graph,
                             args=["serve","--mcp","--path",str(cwd),"--no-watch"],env=[])]
-            for label, mount in [("before", []), ("mounted", servers), ("removed", []),
-                                 ("denied", servers), ("cancelled", servers)]:
+            scenarios = [("before", []), ("mounted", servers), ("removed", []),
+                         ("denied", servers), ("cancelled", servers)]
+            if args.plain_text:
+                scenarios.append(("truncated", []))
+            for label, mount in scenarios:
                 start = len(seen)
                 updates.clear()
                 permissions.clear()
-                if label.startswith("load_"):
-                    rpc("session/load", dict(sessionId=session, cwd=str(cwd), mcpServers=mount))
-                else:
-                    session = rpc("session/new", dict(cwd=str(cwd), mcpServers=mount))["sessionId"]
+                session = rpc("session/new", dict(cwd=str(cwd), mcpServers=mount))["sessionId"]
                 end = rpc("session/prompt", dict(sessionId=session, prompt=[dict(type="text",text="Run the fixture")]))
                 names, results, _ = seen[-1]
                 completed = [u for u in updates if u.get("status") == "completed" and u.get("title","").startswith(name_prefix)]
@@ -118,6 +137,14 @@ with tempfile.TemporaryDirectory(prefix="dirac-acp-") as private_home, \
                     continue
                 assert permissions == expected_tools, (label, permissions)
                 assert end["stopReason"] == "end_turn", (label, end)
+                if args.plain_text:
+                    expected_text = "RESULTS_OBSERVED" if mount else "MCP_NOT_AVAILABLE"
+                    answer = "".join(u["content"]["text"] for u in updates if u["sessionUpdate"] == "agent_message_chunk")
+                    assert answer == expected_text, (label, answer)
+                    assert all("respond" not in inventory for inventory, _, _ in seen[start:])
+                    assert not any(u.get("title") in {"Task Completed", "Task Error"} for u in updates)
+                    expected_requests = {"truncated": 2}.get(label, 4 if mount else 1)
+                    assert len(seen) - start == expected_requests
                 print(f"{label}: {len(seen)-start} model requests, {len(completed)} completed tools", flush=True)
                 if label == "denied":
                     assert len(results) == len(permissions) == 3 and not completed

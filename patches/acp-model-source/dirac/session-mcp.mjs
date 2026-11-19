@@ -61,7 +61,7 @@ async function discover(server, cwd, signal, clients) {
 
 export async function prompt(session, invoke, requestPermission, emit) {
   const servers = plans.get(session);
-  if (!servers) return invoke();
+  if (!servers) return scope.run({ tools: [], emit }, invoke);
   if (running.has(session)) throw new Error('Dirac MCP session is busy');
   const controller = new AbortController();
   const signal = AbortSignal.any([controller.signal, AbortSignal.timeout(10000)]);
@@ -120,7 +120,7 @@ export async function prompt(session, invoke, requestPermission, emit) {
         }}),
       };
     });
-    return await scope.run({ tools, signal: controller.signal }, invoke);
+    return await scope.run({ tools, emit, signal: controller.signal }, invoke);
   } finally {
     controller.abort();
     running.delete(session);
@@ -131,11 +131,31 @@ export async function prompt(session, invoke, requestPermission, emit) {
 export function expose(existing) {
   const active = scope.getStore();
   if (!active) return existing;
-  active.signal.throwIfAborted();
+  active.signal?.throwIfAborted();
+  active.plainText = !existing.some(tool => tool.spec.name === 'respond');
   const names = new Set(existing.map(tool => tool.spec.name));
   for (const tool of active.tools) {
     if (names.has(tool.name)) throw new Error('Duplicate Dirac MCP tool name: ' + tool.name);
     names.add(tool.name);
   }
   return [...existing, ...active.tools];
+}
+
+export function plainTextMode() {
+  return scope.getStore()?.plainText === true;
+}
+
+export async function completePlainText(context, stopReason, text) {
+  if (!plainTextMode() || (stopReason !== 'stop' && stopReason !== 'end_turn')) return false;
+  const { taskState } = context;
+  const answer = text.trim();
+  if (taskState.abort || !answer) return false;
+  await scope.getStore().emit({
+    sessionUpdate: 'agent_message_chunk',
+    content: { type: 'text', text: answer },
+  });
+  taskState.commitCompletionResponse(answer);
+  taskState.status = 'completed';
+  await context.postStateToWebview();
+  return true;
 }

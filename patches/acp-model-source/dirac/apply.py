@@ -1,6 +1,7 @@
 """Create a patched Dirac entry inside an isolated 0.5.24 dist directory."""
 from pathlib import Path
 import hashlib
+import json
 import shutil
 import sys
 
@@ -19,7 +20,24 @@ if output.exists() or output.is_symlink() or helper.exists() or helper.is_symlin
     raise RuntimeError("Dirac patch outputs already exist")
 
 s = upstream.decode()
+respond_instruction = (
+    r"- Use \`respond\` for user-facing communication: \`progress\` for meaningful updates during longer work, "
+    r"\`question\` when you need information from the user, \`plan\` for Plan-mode answers or proposals, "
+    r"and \`complete\` for final Act-mode results. Do not send plain assistant text; every response must include a tool call."
+)
+respond_default = json.dumps(respond_instruction.replace(r"\`", "`"))
+plain_instruction = json.dumps("- Use plain assistant text for the final answer. Use only the callable tools shown for this turn.")
 pairs = [
+    (respond_instruction, "${shijuMcp.plainTextMode() ? " + plain_instruction + " : " + respond_default + "}"),
+    ('if(t.taskState.didAttemptCompletion)return t.taskState.completionCommitted=!1',
+     'if(!a&&await shijuMcp.completePlainText(t,e.stopReason,e.assistantTextOnly))return !0;'
+     'if(t.taskState.didAttemptCompletion)return t.taskState.completionCommitted=!1'),
+    ('return await Ell(t,{assistantHasContent:K,stopReason:W,',
+     'return await Ell(t,{assistantHasContent:K,assistantTextOnly:$,stopReason:W,'),
+    ('await this.emitSessionUpdate(e,{sessionUpdate:r.content.isReasoning?"agent_thought_chunk":"agent_message_chunk",content:{type:"text",text:i}})',
+     'if(r.content.isReasoning||!shijuMcp.plainTextMode())await this.emitSessionUpdate(e,{sessionUpdate:r.content.isReasoning?"agent_thought_chunk":"agent_message_chunk",content:{type:"text",text:i}})'),
+    ('y&&await this.emitSessionUpdate(e,{sessionUpdate:E,content:{type:"text",text:C?',
+     'y&&(i.content.isReasoning||!shijuMcp.plainTextMode())&&await this.emitSessionUpdate(e,{sessionUpdate:E,content:{type:"text",text:C?'),
     ('const require = _createRequire(import.meta.url);',
      'import * as shijuMcp from "./session-mcp.mjs";\nconst require = _createRequire(import.meta.url);'),
     ('async newSession(e){let r=crypto.randomUUID(),i=this.createStartupSessionOverrides();',

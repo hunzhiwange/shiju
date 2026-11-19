@@ -1,29 +1,63 @@
 //! Confirmation presentation receives redacted labels and explicit trusted targets.
 use crate::toolbar_button;
 use desktop_ui_controls::system_settings_common::*;
-use iced::{Element, Length, widget::{button, column, row, text}};
+use iced::{
+    Element, Length,
+    widget::{button, column, row, text},
+};
 use vw_api_app_identity::AppId;
 use vw_api_mcp_management::*;
 #[derive(Clone)]
-pub enum ImportMessage { Close, Select(McpAppTarget), Account(String), Preview, Paste, Confirm }
+pub enum ImportMessage {
+    Close,
+    Select(McpAppTarget),
+    Account(String),
+    Preview,
+    Paste,
+    Confirm,
+    SelectAll,
+    ToggleSources,
+    Retry,
+}
 type Message = ImportMessage;
-fn message(value: ImportMessage) -> Message { value }
+fn message(value: ImportMessage) -> Message {
+    value
+}
 pub struct ImportView<'a> {
-    pub host: &'a str, pub importing: bool, pub loading: bool,
+    pub host: &'a str,
+    pub importing: bool,
+    pub loading: bool,
     pub link_drafts: &'a [Result<McpCreateRequest, String>],
-    pub draft: &'a Option<McpCreateRequest>, pub source: &'a Option<McpAppTarget>,
-    pub account: &'a str, pub has_preview: bool, pub can_confirm: bool,
+    pub draft: &'a Option<McpCreateRequest>,
+    pub source: &'a Option<McpAppTarget>,
+    pub all: bool,
+    pub show_sources: bool,
+    pub can_retry: bool,
+    pub account: &'a str,
+    pub has_preview: bool,
+    pub can_confirm: bool,
     pub result: &'a Option<Result<Vec<String>, String>>,
 }
-pub fn panel<'a>(state: ImportView<'a>, targets: Vec<McpAppTarget>, preview_labels: Vec<String>) -> Element<'a, Message> {
+pub fn panel<'a>(
+    state: ImportView<'a>,
+    targets: Vec<McpAppTarget>,
+    preview_labels: Vec<String>,
+) -> Element<'a, Message> {
     let idle = !state.importing && !state.loading;
     let mut body = column![text(format!("目标主机：{}", state.host)), text("原生文件由授权目标主机读取；剪贴板只读取本机。取消确认不写入；确认只导入目录，不改写原生文件、不连接服务、不启用运行时或 ACP。").size(12).style(settings_muted_text_style)].spacing(10).width(Length::Fill);
     if !state.link_drafts.is_empty() {
         body = body.push(text(format!("MCP 深链：{} 项", state.link_drafts.len())))
             .push(text("仅保存当前租户目录定义；链接指定的应用与 enabled 不授予执行或分发权限。连接参数已隐藏。"));
         for (index, entry) in state.link_drafts.iter().enumerate() {
-            body = body.push(text(format!("第 {} 项 · {}", index + 1,
-                if entry.is_ok() { "等待确认" } else { "格式不支持，确认后列为失败" })));
+            body = body.push(text(format!(
+                "第 {} 项 · {}",
+                index + 1,
+                if entry.is_ok() {
+                    "等待确认"
+                } else {
+                    "格式不支持，确认后列为失败"
+                }
+            )));
         }
     } else if let Some(draft) = &state.draft {
         let transport = match draft.connection {
@@ -42,8 +76,16 @@ pub fn panel<'a>(state: ImportView<'a>, targets: Vec<McpAppTarget>, preview_labe
             )
             .size(12),
         );
+        body = body.push(toolbar_button(
+            if state.all {
+                "已选择全部可导入来源"
+            } else {
+                "选择全部可导入来源"
+            },
+            idle.then_some(ImportMessage::SelectAll),
+        ));
         for target in targets {
-            let selected = state.source.as_ref() == Some(&target);
+            let selected = state.all || state.source.as_ref() == Some(&target);
             body = body.push(
                 button(text(format!(
                     "{}{:?} · {}",
@@ -60,7 +102,7 @@ pub fn panel<'a>(state: ImportView<'a>, targets: Vec<McpAppTarget>, preview_labe
             text("Claude Desktop 与 OpenClaw 不支持原生导入。没有安装实例时请先在应用管理中刷新。")
                 .size(12),
         );
-        if state.source.as_ref().is_some_and(|t| t.app_id == AppId::Claude) {
+        if state.all || state.source.as_ref().is_some_and(|t| t.app_id == AppId::Claude) {
             body = body
                 .push(text("受管 Claude 官方账号 ID（仅引用）").size(12))
                 .push(settings_text_input("账号 ID", &state.account).on_input_maybe(
@@ -95,9 +137,23 @@ pub fn panel<'a>(state: ImportView<'a>, targets: Vec<McpAppTarget>, preview_labe
             Err(error) => body = body.push(settings_error_banner(error.clone())),
         }
     }
+    if state.result.is_some() {
+        body = body.push(toolbar_button(
+            if state.show_sources { "收起来源明细" } else { "读取了哪些文件" },
+            idle.then_some(ImportMessage::ToggleSources),
+        ));
+        if state.can_retry {
+            body = body.push(toolbar_button(
+                "仅重试失败来源（确认）",
+                idle.then_some(ImportMessage::Retry),
+            ));
+        }
+    }
     let close = message(ImportMessage::Close);
-    let header =
-        settings_modal_header(text("MCP 导入确认").size(20), settings_close_button(close.clone()));
+    let header = settings_modal_header(
+        text(if state.result.is_some() { "导入完成" } else { "从应用导入 · 确认" }).size(20),
+        settings_close_button(close.clone()),
+    );
     let footer = row![
         toolbar_button(
             if state.result.is_some() { "关闭" } else { "取消" },

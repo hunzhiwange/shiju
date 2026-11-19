@@ -5,9 +5,7 @@ use iced::Task;
 use vw_api_app_identity::AppId;
 use vw_api_mcp_management::*;
 fn authorized(app: &Update<'_>, context: &crate::management_context::Context) -> bool {
-    app.context.as_ref() == Some(context)
-        && !context.host.is_empty()
-
+    app.context.as_ref() == Some(context) && !context.host.is_empty()
 }
 /// Decoded clipboard drafts share confirmation; system URI routing has a separate owner.
 pub(crate) fn open_draft(app: &mut Update<'_>, request: McpCreateRequest) -> Task<ImportMessage> {
@@ -61,10 +59,61 @@ pub fn update(app: &mut Update<'_>, event: ImportMessage) -> Task<ImportMessage>
     }
     let context = state.context.clone();
     let generation = state.generation;
-    if state.importing && !matches!(event, ImportMessage::Finished(..)) {
+    if state.importing
+        && !matches!(event, ImportMessage::Finished(..) | ImportMessage::BatchFinished(..))
+    {
         return Task::none();
     }
     match event {
+        ImportMessage::ToggleSources => {
+            let state = app.state.import.as_mut().unwrap();
+            state.show_sources = !state.show_sources;
+        }
+        ImportMessage::SelectAll => {
+            let state = app.state.import.as_mut().unwrap();
+            state.invalidate();
+            state.all = true;
+            state.source = None;
+            state.draft = None;
+        }
+        ImportMessage::BatchPreviewed(request, serial, previews) => {
+            let state = app.state.import.as_mut().unwrap();
+            if request != context || serial != generation || !state.loading {
+                return Task::none();
+            }
+            state.loading = false;
+            state.previews = previews;
+        }
+        ImportMessage::BatchFinished(request, serial, reports) => {
+            let state = app.state.import.as_mut().unwrap();
+            if request != context || serial != generation || !state.importing {
+                return Task::none();
+            }
+            state.importing = false;
+            for report in reports {
+                if let Some(previous) = state.reports.iter_mut().find(|r| r.target == report.target)
+                {
+                    // Preserve prior successful entries when retrying a partially failed source.
+                    let mut report = report;
+                    report.skipped = report
+                        .skipped
+                        .saturating_sub(previous.added + previous.bindings)
+                        .max(previous.skipped);
+                    report.added += previous.added;
+                    report.bindings += previous.bindings;
+                    report.labels.splice(
+                        0..0,
+                        previous.labels.iter().filter(|l| !l.contains("失败")).cloned(),
+                    );
+                    *previous = report;
+                } else {
+                    state.reports.push(report);
+                }
+            }
+            state.result = Some(Ok(report_labels(&state.reports)));
+            return app.refresh();
+        }
+        ImportMessage::Retry => return start_batch_import(app, true),
         ImportMessage::Select(target) => {
             if !app.targets.clone().contains(&target) {
                 return app.error("请选择当前主机的可信安装实例");
@@ -72,6 +121,7 @@ pub fn update(app: &mut Update<'_>, event: ImportMessage) -> Task<ImportMessage>
             let state = app.state.import.as_mut().unwrap();
             state.invalidate();
             state.source = Some(target);
+            state.all = false;
             state.account.clear();
             state.draft = None;
         }
@@ -85,18 +135,15 @@ pub fn update(app: &mut Update<'_>, event: ImportMessage) -> Task<ImportMessage>
             if state.loading {
                 return Task::none();
             }
-            let Some(target) = state.source.clone().filter(|t| app.targets.clone().contains(t))
-            else {
+            let targets = selected_targets(app);
+            if targets.is_empty() {
                 return app.error("请选择可信安装实例");
-            };
-            let account = if target.app_id == AppId::Claude {
-                if state.account.trim().is_empty() {
-                    return app.error("Claude 需要受管官方账号 ID");
-                }
-                Some(state.account.clone())
-            } else {
-                None
-            };
+            }
+            if targets.iter().any(|t| t.app_id == AppId::Claude) && state.account.trim().is_empty()
+            {
+                return app.error("Claude 需要受管官方账号 ID");
+            }
+            let account = state.account.clone();
             let Ok(client) = app.client.clone() else {
                 return app.error("网关不可用");
             };
@@ -107,11 +154,15 @@ pub fn update(app: &mut Update<'_>, event: ImportMessage) -> Task<ImportMessage>
             let token = app.token.clone();
             return Task::perform(
                 async move {
-                    let result =
-                        gateway_mcp_read::GatewayMcpReadClient::new(client.transport().clone())
-                            .mcp_management_native(&target, account.as_deref(), &token)
+                    let reader =
+                        gateway_mcp_read::GatewayMcpReadClient::new(client.transport().clone());
+                    let mut previews = Vec::new();
+                    for target in targets {
+                        let account = (target.app_id == AppId::Claude).then_some(account.as_str());
+                        let preview = reader
+                            .mcp_management_native(&target, account, &token)
                             .await
-                            .map_err(|_| "原生预览失败，请检查主机、账号与权限".into())
+                            .map_err(|_| "原生预览失败".to_owned())
                             .and_then(|p| {
                                 if p.target == target {
                                     Ok(p)
@@ -119,7 +170,9 @@ pub fn update(app: &mut Update<'_>, event: ImportMessage) -> Task<ImportMessage>
                                     Err("预览目标不匹配".into())
                                 }
                             });
-                    ImportMessage::Previewed(context, generation, result)
+                        previews.push((target, preview));
+                    }
+                    ImportMessage::BatchPreviewed(context, generation, previews)
                 },
                 std::convert::identity,
             );
@@ -131,7 +184,10 @@ pub fn update(app: &mut Update<'_>, event: ImportMessage) -> Task<ImportMessage>
             }
             state.loading = false;
             match result {
-                Ok(preview) => state.preview = Some(preview),
+                Ok(preview) => {
+                    state.previews = vec![(preview.target.clone(), Ok(preview.clone()))];
+                    state.preview = Some(preview);
+                }
                 Err(error) => state.result = Some(Err(error)),
             }
         }
@@ -164,6 +220,9 @@ pub fn update(app: &mut Update<'_>, event: ImportMessage) -> Task<ImportMessage>
             let state = app.state.import.as_ref().unwrap();
             if !state.can_confirm() {
                 return Task::none();
+            }
+            if state.link_drafts.is_empty() && state.draft.is_none() {
+                return start_batch_import(app, false);
             }
             let source = state.source.clone();
             if state.link_drafts.is_empty()
@@ -279,4 +338,81 @@ pub fn trusted_targets<'a>(
             target_host_id: i.target_host_id.clone(),
         })
         .collect()
+}
+
+fn selected_targets(app: &Update<'_>) -> Vec<McpAppTarget> {
+    let Some(state) = app.state.import.as_ref() else {
+        return vec![];
+    };
+    app.targets.iter().filter(|t| state.all || state.source.as_ref() == Some(*t)).cloned().collect()
+}
+fn start_batch_import(app: &mut Update<'_>, retry: bool) -> Task<ImportMessage> {
+    let state = app.state.import.as_ref().unwrap();
+    if state.loading || state.importing {
+        return Task::none();
+    }
+    let mut sources = Vec::new();
+    for (target, preview) in &state.previews {
+        let retry_source = retry && state.reports.iter().any(|r| r.target == *target && r.retry);
+        if retry {
+            if !retry_source {
+                continue;
+            }
+        } else if !preview
+            .as_ref()
+            .is_ok_and(|p| p.target == *target && p.status == McpNativeStatus::Present)
+        {
+            continue;
+        }
+        if !app.targets.contains(target) {
+            return app.error("安装实例已变化，请重新预览");
+        }
+        sources.push(McpImportSource {
+            target: target.clone(),
+            account_id: (target.app_id == AppId::Claude).then(|| state.account.clone()),
+        });
+    }
+
+    let Ok(client) = app.client.clone() else {
+        return app.error("网关不可用");
+    };
+    let token = app.token.clone();
+    let state = app.state.import.as_mut().unwrap();
+    let context = state.context.clone();
+    let generation = state.generation;
+    if !retry {
+        state.reports = state
+            .previews
+            .iter()
+            .filter_map(|(target, preview)| match preview {
+                Err(_) => {
+                    let mut r =
+                        SourceReport::failure(target.clone(), "未读到：预览失败，请重新读取预览");
+                    r.retry = false;
+                    Some(r)
+                }
+                Ok(p) if p.status != McpNativeStatus::Present => Some(SourceReport {
+                    target: target.clone(),
+                    labels: vec![format!("未导入：{:?}（无配置、未读到或不支持）", p.status)],
+                    added: 0,
+                    bindings: 0,
+                    skipped: 1,
+                    failed: 0,
+                    retry: false,
+                }),
+                _ => None,
+            })
+            .collect();
+    }
+    state.importing = true;
+    Task::perform(
+        async move {
+            let mut reports = Vec::new();
+            for source in sources {
+                reports.push(import_report(&client, source, &token).await);
+            }
+            ImportMessage::BatchFinished(context, generation, reports)
+        },
+        std::convert::identity,
+    )
 }

@@ -76,13 +76,15 @@ def frames(process):
                     yield key.data, json.loads(line)
 
 
-def bridge(process, workspace):
+def bridge(process, workspace, mounts):
     staged = StagedWrites(workspace)
     active_prompt = None
     review = None
     host_write = None
     counter = 0
     rejected = False
+    mounted_request = None
+    mounted_session = None
 
     def advance_review():
         nonlocal counter, host_write, review
@@ -109,25 +111,62 @@ def bridge(process, workspace):
                 advance_review()
                 continue
             if method in ('session/new', 'session/load', 'session/resume'):
-                if Path(params.get('cwd', '')).resolve() != workspace or params.get('mcpServers'):
-                    send(sys.stdout.buffer, failed(id_, 'Poolside requires the reviewed workspace and no external MCP servers'))
+                if Path(params.get('cwd', '')).resolve() != workspace or mounts.http is not None:
+                    send(sys.stdout.buffer, failed(id_, 'Poolside requires the reviewed workspace and a new MCP process'))
                     continue
+                if params.get('mcpServers'):
+                    if method != 'session/new' or active_prompt is not None:
+                        send(sys.stdout.buffer, failed(id_, 'Poolside MCP requires an idle new session'))
+                        continue
+                    try:
+                        mounts.install(params['mcpServers'])
+                    except Exception:
+                        send(sys.stdout.buffer, failed(id_, 'Poolside could not prepare the selected MCP services'))
+                        continue
+                    mounted_request = id_
+                    params['mcpServers'] = []
                 # Use one canonical path for Docker, tool diffs and host policy.
                 params['cwd'] = str(workspace)
+            if method is None:
+                mounts.decide(id_, frame.get('result', {}))
+            if mounts.http is not None and (
+                (method or '').startswith('_poolside/mcp/')
+                or method == 'session/fork'
+                or (method == 'session/prompt'
+                    and (mounted_session is None or params.get('sessionId') != mounted_session))
+            ):
+                send(sys.stdout.buffer, failed(id_, 'Poolside MCP is bound to the selected session'))
+                continue
             if method == 'session/prompt':
                 if active_prompt is not None:
                     send(sys.stdout.buffer, failed(id_, 'Poolside already has an active prompt'))
                     continue
                 active_prompt = (id_, params.get('sessionId'))
+                if mounted_session is not None:
+                    mounts.begin(mounted_session)
                 rejected = False
                 staged.take()
             if method == 'session/cancel' and active_prompt and params.get('sessionId') == active_prompt[1]:
                 rejected = True
+                mounts.end()
+            if method == 'session/close' and mounted_session == params.get('sessionId'):
+                mounts.revoke()
+                mounted_session = None
             send(process.stdin, frame)
             continue
 
         if method == 'session/update' and active_prompt and params.get('sessionId') == active_prompt[1]:
             staged.observe(params['update'])
+            mounts.observe(params['sessionId'], params['update'])
+        if method is None and id_ is not None and id_ == mounted_request:
+            mounted_request = None
+            mounted_session = frame.get('result', {}).get('sessionId')
+            if mounted_session is None:
+                mounts.revoke()
+        if method == 'session/request_permission' and params.get('toolCall', {}).get('title', '').startswith('mcp:'):
+            if not mounts.permission(id_, params):
+                send(process.stdin, result(id_, dict(outcome=dict(outcome='cancelled'))))
+                continue
         if method == 'session/request_permission' and params.get('toolCall', {}).get('toolCallId') == 'poolside/sandbox_review':
             session = params.get('sessionId')
             options = {option.get('optionId') for option in params.get('options', [])}
@@ -143,6 +182,7 @@ def bridge(process, workspace):
             rejected = True
             continue
         if method is None and active_prompt and id_ == active_prompt[0]:
+            mounts.end()
             if rejected or staged.take() or review is not None:
                 frame = failed(id_, 'Poolside staged writes were not accepted by the host')
             active_prompt = None
@@ -202,6 +242,9 @@ def main():
         os.execve(executable, [str(executable), '--version'], {})
     if sys.argv[1:] != ['acp']:
         raise ValueError('Poolside requires reviewed ACP arguments')
+    sys.dont_write_bytecode = True
+    from mcp_bridge import Mounts
+
     os.umask(0o077)
     workspace = Path.cwd().resolve()
     for parent in (workspace, *workspace.parents):
@@ -216,19 +259,21 @@ def main():
             raise SystemExit(128 + signum)
         for sig in (signal.SIGTERM, signal.SIGINT):
             signal.signal(sig, stop)
-        try:
-            bridge(process, workspace)
-        finally:
-            process.stdin.close()
+        with Mounts(workspace, Path(env['XDG_CONFIG_HOME']) / 'poolside/settings.yaml') as mounts:
             try:
-                process.wait(timeout=5)
-            except subprocess.TimeoutExpired:
-                process.terminate()
+                bridge(process, workspace, mounts)
+            finally:
+                mounts.end()
+                process.stdin.close()
                 try:
                     process.wait(timeout=5)
                 except subprocess.TimeoutExpired:
-                    process.kill()
-                    process.wait()
+                    process.terminate()
+                    try:
+                        process.wait(timeout=5)
+                    except subprocess.TimeoutExpired:
+                        process.kill()
+                        process.wait()
         return process.returncode
 
 

@@ -121,6 +121,7 @@ pub async fn apply_agent_defaults<H: DefaultsHost, S>(
                 "deepagents" => Some("shiju.deepagents.toolPolicy"),
                 "junie" => Some("shiju.junie.toolPolicy"),
                 "pi" => Some("shiju.pi.toolPolicy"),
+                "poolside" => Some("shiju.poolside.toolPolicy"),
                 _ => None,
             };
             if let (Some(key), acp_types::AcpMcpServer::Stdio(stdio)) = (policy_key, &mut selected) {

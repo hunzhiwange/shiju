@@ -304,6 +304,8 @@ if agent == 'poolside':
         with package.extractfile('pool-darwin-arm64') as source, native.open('xb') as output:
             shutil.copyfileobj(source, output)
     shutil.copy2(assets / 'poolside/launcher.py', runtime / 'pool')
+    shutil.copyfile(assets / 'poolside/mcp_bridge.py', runtime / 'mcp_bridge.py')
+    shutil.copyfile(assets / 'cortex-code/mcp_bridge.py', runtime / 'shiju-stdio.py')
     for executable in (native, runtime / 'pool'):
         executable.chmod(0o700)
     check_files(runtime, contract['files'])

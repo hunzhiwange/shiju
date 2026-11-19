@@ -104,6 +104,7 @@ async fn acp_mcp_mount_carries_resolved_tool_policy() {
             ("cortex-code", "shiju.cortex.toolPolicy"),
             ("deepagents", "shiju.deepagents.toolPolicy"),
             ("pi", "shiju.pi.toolPolicy"),
+            ("poolside", "shiju.poolside.toolPolicy"),
         ] {
             let agent_key = format!("acp-{backend}");
             let mut cfg = config::Config::default();

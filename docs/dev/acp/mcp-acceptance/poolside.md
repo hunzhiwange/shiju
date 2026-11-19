@@ -52,3 +52,11 @@
 HTTP 探针证明原生工具与权限回传可用。正式接入仍依赖经审查的宿主侧会话级 MCP 转发入口，须以宿主的租户、挂载选择、工具策略、单次审批和撤销控制调用。当前通用模型中继仅提供模型协议，Cortex 和 DeepAgents 的受管 stdio 实现使用各自的工具交接，未提供 Poolside 所需的 HTTP 入口。需在公共层协调该入口的归属和契约，随后接入 Poolside 私有设置并复验原模型。诊断入口只在私有探针中存在。
 
 私有网关、HTTP 和 stdio 探针已退出，回环网关端口关闭。根据挂载路径核实并清理本轮自有沙箱容器，已删除临时网关租户配置和数据库。未运行 Cargo。
+
+## 受管启动器补丁
+
+Poolside v2 使用每个受管进程独有的回环 HTTP 桥，将新 ACP 会话选中的 stdio 服务交给原生 `mcp_servers`。服务目录按宿主 `allowedTools` 和 `deniedTools` 过滤。stdio 子进程复用受审的只读隔离及空环境，原生 Docker 工作区和模型中继不变。桥只接受宿主对当前会话、工具和完整参数的单次批准。取消、结束或关闭清除授权，完成或取消调用后终止 stdio 子进程。挂载通过新会话，已有挂载进程拒绝加载或接入另一会话。
+
+在私有目录用仓库安装脚本安装 Poolside 1.0.16 v2，四项受审摘要通过。使用真实 Poolside 和 RustCodeGraph、回环模型完成四个场景。无挂载和撤除只提供原生 `read`、`write`。批准轮只发布策略选中的三种图谱工具，三次单次批准后，续轮读回 `app/app.tsx:32`、`app/app.tsx:39` 与 `_$createApp(factory)`。拒绝轮收到审批请求和拒绝结果，无图谱输出。四个提示均以 `end_turn` 结束。使用私有 RueJS 索引的只读 SQLite 事务保留 WAL 和 SHM，沿用既有沙箱权限。
+
+本地 Python 定向测试 `PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s patches/acp-model-source/poolside -p '*test.py'` 通过 3 项。已验证批准与完整参数绑定、不可重复使用及取消后的迟到批准失效。真实阿里模型仍需携带 v2 安装契约的新网关完成三轮，回环模型证据不计入真实模型验收。

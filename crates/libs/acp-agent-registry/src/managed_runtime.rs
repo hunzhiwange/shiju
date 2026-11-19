@@ -38,7 +38,7 @@ fn installed_directory(agent: &str, contract: &Contract) -> Result<PathBuf, Stri
         3
     } else if matches!(
         agent,
-        "corust-agent" | "cursor" | "hermes" | "junie" | "openclaw" | "pi"
+        "corust-agent" | "cursor" | "hermes" | "junie" | "openclaw" | "pi" | "poolside"
     ) {
         2
     } else {
@@ -333,6 +333,7 @@ pub(super) async fn install(agent: &str) -> Result<bool, String> {
         ("junie/mcp_bridge.py", include_str!("../../../../patches/acp-model-source/junie/mcp_bridge.py")),
         ("harn/agent.harn", include_str!("../../../../patches/acp-model-source/harn/agent.harn")),
         ("poolside/launcher.py", include_str!("../../../../patches/acp-model-source/poolside/launcher.py")),
+        ("poolside/mcp_bridge.py", include_str!("../../../../patches/acp-model-source/poolside/mcp_bridge.py")),
         ("harn/launcher.py", include_str!("../../../../patches/acp-model-source/harn/launcher.py")),
         ("corust-agent/launcher.py", include_str!("../../../../patches/acp-model-source/corust-agent/launcher.py")),
         ("stakpak/launcher.py", include_str!("../../../../patches/acp-model-source/stakpak/launcher.py")),

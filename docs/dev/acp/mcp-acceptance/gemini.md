@@ -78,3 +78,19 @@ Gemini 0.66.0 v2 对 `session_model` 下原生 MCP 审批携带服务名和工�
 接入提交为 `bc395e03c`。正式网关三轮标记为待回归。槽位 6 的共享构建已编译含 v2 审批代码与摘要的库，随后在同批次 MiMo 的 `vw-agent` trait 签名处报 `E0050` 并退出 101。现有网关产物未同时包含 v2 宿主标识和安装摘要，故未拿旧二进制替代。私有网关未启动，验收授权及凭据副本已清理。[共享构建记录](poolside.md#受管启动器补丁)
 
 复验用 `python3 scripts/cargo_slot.py cargo build -j 1 --locked -p vw-cli --bin shiju` 的新产物及受审 Gemini v2。新网关按 `2b35013ae` 仅移除请求体旧字段 `acp_agent`，由 `agent=acp-gemini` 解析为同一后端，提示、模型、租户和访问级别沿用原值。
+
+## 正式 v2 网关复验
+
+按新验收标准，官方工具沿用原有权限，验收以真实挂载工具执行和模型读回为准。复用槽位 6 的 shiju 0.6.0，二进制 SHA-256 为 `109066ea0b79ce6edfc4399624715f0dafa80d397adabe7a1ae46158407e7cba`，确认内含 v2 审批标识与安装摘要。使用已校验的 Gemini CLI 0.66.0 v2 和 RustCodeGraph 1.2.10 原生 stdio。只对 RueJS 私有副本授予原生目录信任，保留官方工具和审批。提交、提示哈希、租户、模型、`session_model` 与 `full_access=true` 均沿用基线，按新版网关合同省略旧字段 `acp_agent`。
+
+| 轮次 | 新会话 | HTTP / curl / 秒 | 工具及终态 |
+| --- | --- | --- | --- |
+| 无挂载 | `ses_1f191f70c001K9cBqUSTV3LWyo` | 200 / 0 / 9.439 | 零 CodeGraph 事件，官方主题工具完成一次。答复包含 `MCP_NOT_AVAILABLE` 和说明。 |
+| 挂载 | `ses_1f1921cf7001ZQrhhaWuyLY7WZ` | 200 / 0 / 88.528 | 57 次 CodeGraph 调用成功，官方主题工具完成一次。另有一次查询因模型指定了不存在的索引目录被 CodeGraph 拒绝。 |
+| 撤除 | `ses_1f19377d3001gn4PWpFNmxmHLW` | 200 / 0 / 10.958 | 零 CodeGraph 事件，官方主题工具完成一次。答复包含 `MCP_NOT_AVAILABLE` 和说明。 |
+
+三轮均有一次 `chat.done`，无 `chat.error`。运行中 UI summary 和 ACP options 确认 `acp-gemini / gemini`、`full_access=true`、`client_only` 及 `connected=true`。结束后绑定保留、连接释放。选中模型均为 `session_model`、`alibaba-token-plan-cn/deepseek-v4.1-flash-1017`。独立的会话标题生成另记录过不同模型的 HTTP 403。
+
+挂载轮成功项包括 query 23 次、callers 6 次、node 21 次及同服务的其他只读调用 7 次。对应工具的配对开始和完成事件确认 query 返回 `createRueSiteApp`（`app/app.tsx:32`），callers 返回 `mountRueSiteApp`（`app/app.tsx:39`），node 返回 `useApp`（`packages/runtime/src/hooks/useApp.ts:4`）及 `_$createApp`（`packages/runtime/src/compiler-runtime/app.ts:57`）。指定模型的最终答复使用这些结果解释浏览器和 SSR 分支、缺失容器处理、路由与 i18n 安装、布局绕过，并分析静态快照和提出两项验证场景。答复对尾斜杠和查询字符串的附带推断未考虑路由归一化，路由工厂部分也明确保留了索引覆盖限制。真实工具结果回传达到新标准。
+
+本轮沿用已有网关构建，未重跑 Cargo。独立网关已退出，临时信任文件、挂载和凭据副本已清理。验收副本的 4109 个 Git 跟踪条目内容核对无差异。

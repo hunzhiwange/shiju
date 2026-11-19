@@ -149,7 +149,8 @@ def bridge(process, workspace, mounts):
             if method == 'session/cancel' and active_prompt and params.get('sessionId') == active_prompt[1]:
                 rejected = True
                 mounts.end()
-            if method == 'session/close' and mounted_session == params.get('sessionId'):
+            if (method in ('session/close', 'session/delete') and mounted_session is not None
+                    and mounted_session == params.get('sessionId')):
                 mounts.revoke()
                 mounted_session = None
             send(process.stdin, frame)

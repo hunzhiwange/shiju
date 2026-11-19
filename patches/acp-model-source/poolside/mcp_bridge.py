@@ -167,8 +167,9 @@ class Mounts:
                 'headers': ['Authorization: Bearer ' + self.tokens[name]],
             }}
         config['mcp_servers'] = entries
-        # Poolside watches the private settings file itself.
-        self.settings.write_text(json.dumps(config))
+        replacement = self.settings.with_suffix('.next')
+        replacement.write_text(json.dumps(config))
+        replacement.replace(self.settings)
 
     def begin(self, session):
         with self.lock:

@@ -75,3 +75,7 @@ Nova 继续固定在 npm 1.1.65，受管安装目录升到 v2。宿主只把显�
 每次执行前用原生 `permission/request` 请求 `allow_once`，执行前再次核对活动回合、调用 ID 与会话工具资格。取消和关闭会话撤销操作。直接注册 MCP 的原生门禁继续生效，受管入口只把选中的目录投影到 `compass.host-tools.v1`。HTTP、SSE、未审入口以及带会话工具白名单的路径保留拒绝。
 
 在隔离副本重建 RustCodeGraph 1.2.11 索引。使用宿主 SQLite 读事务维持索引的 WAL / SHM；早先缺少边车文件时，只读沙箱的工具目录为空。当前入口在受控模型上通过三个实时查询、拒绝及撤除五项，查询续轮分别读到 `createRueSiteApp`、`mountRueSiteApp`、`useApp`。允许列表每轮只登记一个目标工具，重复建会话被拒绝。此验证使用系统安装脚本相同的补丁和帮助文件，并逐项匹配受审契约摘要。
+
+冷安装通过仓库受管安装脚本，六项摘要匹配，对冷安装入口复跑五项成功。同一探针在 v1 首个带挂载的建会话请求返回 `-32602`，退出 1。额外探针在批准等待中发送取消，返回 `cancelled`，未获得查询结果。在新连接恢复已有历史时，显式重新挂载对应工具能继续申请审批并查询，空列表恢复仍保留历史且模型目录没有该工具。
+
+定向测试 `python3 scripts/cargo_slot.py cargo test -j 1 -p vw-acp --test onboarding_nova acp_onboarding_nova` 退出 0，7 项通过、3 项需独立 CLI 环境的用例仍为 ignored。缺少必需审批能力和未受管挂载均明确拒绝。槽位 9 的 `CARGO_TARGET_DIR` 与 `CARGO_BUILD_BUILD_DIR` 均为仓库的 `target/rust-slot-9`。

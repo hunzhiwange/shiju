@@ -2,6 +2,7 @@
 use crate::AgentAppsContext;
 use super::{Event, details, find, images, message};
 use desktop_ui_controls::system_settings_common::*;
+use gateway_external_session::AgentAppsReadError;
 use super::Event as Message;
 use crate::{Connection, Notice, error as notify_error};
 use iced::widget::scrollable::{AbsoluteOffset, Direction, Scrollbar};

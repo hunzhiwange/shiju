@@ -14,7 +14,7 @@ fn location(session: &SessionMeta, kind: Location) -> Option<&str> {
     match kind {
         Location::Source => session.source_path.as_deref(),
         Location::Project => session.project_dir.as_deref(),
-        Location::Identity => Some(&session.identity.session_id.0),
+        Location::Identity => Some(session.identity.session_id.0.as_str()),
     }.filter(|path| !path.trim().is_empty())
 }
 

@@ -46,7 +46,9 @@
       "Applications/junie.app/Contents/MacOS/junie": "4be1f51971aa638ebd9c3caa93e63d2a235e3a4bd133011476f6cbbbcfcc565e",
       "Applications/junie.app/Contents/app/junie-release-4100.5-macos-aarch64.jar": "5189185e5050d03e7fce5d46c13a7e2c6457f35c8a64aac1d503ce33cfebae74",
       "Applications/junie.app/Contents/_CodeSignature/CodeResources": "21dee42ad13a17957a6b5ddb1be8ef2aa75087ac5ccd9d51776eea78c1413f9d",
-      "junie": "db3c895af5065c401f7798385d27619e0aa4ef5c227b048b84e0b090c71f2fad"
+      "junie": "bc1feb4a55ca27f6965a82dd3a180c73cbbb7fee04253a3ee274cc3c63b63be7",
+      "mcp_bridge.py": "9f65b11e373ad0330230f4c0316a59b704939b1f968b11e677355a21fcc44420",
+      "mcp_stdio.py": "e6870d58c6c59cb1f1d224a66cdaa8455b34057249912b7bce5b9e21f95a074a"
     }
   },
   "codex": {

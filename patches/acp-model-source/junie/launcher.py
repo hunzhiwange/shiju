@@ -1,10 +1,12 @@
 #!/usr/bin/env -S python3 -I
 """Launch the pinned Junie bundle with a request-owned model and Seatbelt policy."""
+import asyncio
 import json
 import os
 from pathlib import Path
 import re
 import pwd
+import runpy
 import stat
 import subprocess
 import sys
@@ -63,28 +65,37 @@ def main():
     profiles = root / "models"
     state.mkdir(mode=0o700)
     profiles.mkdir(mode=0o700)
-    with os.fdopen(os.open(profiles / "shiju.json", os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600), "w") as file:
-        json.dump({
-            "id": data["model"],
-            "baseUrl": data["endpoint"].rstrip("/") + "/v1/chat/completions",
-            "apiType": "OpenAICompletion",
-            "apiKey": data["token"],
-            "maxContextLength": data["context"],
-        }, file)
+    def configure(port):
+        with os.fdopen(os.open(profiles / "shiju.json", os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600), "w") as file:
+            json.dump({
+                "id": data["model"],
+                "baseUrl": f"http://127.0.0.1:{port}/v1/chat/completions",
+                "apiType": "OpenAICompletion",
+                "apiKey": data["token"],
+                "maxContextLength": data["context"],
+            }, file)
     env = {
         "PATH": "/usr/bin:/bin", "HOME": str(state), "JUNIE_HOME": str(state / "junie"),
         "TMPDIR": str(state), "NO_PROXY": "127.0.0.1",
     }
     os.chdir(workspace)
-    os.execve("/usr/bin/sandbox-exec", [
-        "sandbox-exec", "-p", policy(native, app, root, state, workspace, endpoint.port), str(native),
-        "--acp=true", "--model=custom:shiju", "--model-location=" + str(profiles),
-        "--model-default-locations=false", "--config-default-locations=false",
-        "--mcp-default-locations=false", "--skill-default-locations=false",
-        "--command-default-location=false", "--agent-default-location=false",
-        "--extensions-default-location=" + str(state / "extensions"),
-        "--skip-update-check", "--share-anonymous-statistics=false",
-    ], env)
+    def command(port):
+        return [
+            "/usr/bin/sandbox-exec", "-p", policy(native, app, root, state, workspace, port), str(native),
+            "--acp=true", "--model=custom:shiju", "--model-location=" + str(profiles),
+            "--model-default-locations=false", "--config-default-locations=false",
+            "--mcp-default-locations=false", "--skill-default-locations=false",
+            "--command-default-location=false", "--agent-default-location=false",
+            "--extensions-default-location=" + str(state / "extensions"),
+            "--skip-update-check", "--share-anonymous-statistics=false",
+        ]
+
+    bridge = runpy.run_path(str(app.parent.parent / "mcp_bridge.py"))
+    stdio = runpy.run_path(str(app.parent.parent / "mcp_stdio.py"))
+    raise SystemExit(asyncio.run(bridge["run"](
+        command, env, workspace, endpoint, data["token"], configure,
+        stdio["Stdio"], stdio["allowed_tool"],
+    )))
 
 
 if __name__ == "__main__":

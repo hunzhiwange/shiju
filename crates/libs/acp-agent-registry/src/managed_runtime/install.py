@@ -282,6 +282,8 @@ if agent == 'junie':
     run(['/usr/bin/codesign', '--verify', '--deep', '--strict', str(runtime / 'Applications/junie.app')])
     shutil.copy2(assets / 'junie/launcher.py', runtime / 'junie')
     (runtime / 'junie').chmod(0o700)
+    shutil.copyfile(assets / 'junie/mcp_bridge.py', runtime / 'mcp_bridge.py')
+    shutil.copyfile(assets / 'cortex-code/mcp_bridge.py', runtime / 'mcp_stdio.py')
     check_files(runtime, contract['files'])
     raise SystemExit(0)
 if agent == 'poolside':

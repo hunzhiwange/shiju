@@ -1,6 +1,6 @@
 # Junie 动态挂载 RustCodeGraph
 
-2026-11-19 验收阻塞。Junie 收到会话级 stdio 定义并识别服务名，受管环境内启动 RustCodeGraph 失败。
+2026-11-19，受管 v1 的 stdio 挂载因原生进程启动限制验收失败。受管 v2 保留相同的沙箱限制，通过会话级 HTTP 转换完成原生工具链验证。
 
 ## 环境
 
@@ -43,3 +43,11 @@
 - 同端口夹具用 `brave_mode=off` 复验原生审批。Junie 针对相同参数和调用 ID 发出 `session/request_permission`。选择 `reject_once` 时收到零个 HTTP `tools/call`，原生工具事件为 `failed`。选择 `allow_once` 时收到一个 HTTP `tools/call`，原生工具事件为 `completed`。这些事件属于诊断工具。真实三轮的 RustCodeGraph 执行仍阻塞在 stdio 启动。
 - 复核当前 Cortex 和 DeepAgents 的受管桥。它们分别使用 Cortex 专属 `_meta.clientTools` 与 DeepAgents 受补丁工具入口。独立调用 Cortex 的 stdio 执行组件时，在其私有 HOME 下连接成功但本机 RustCodeGraph 工具目录为空。模型中继当前没有承载 MCP 的路由。官方 ACP 正式发行仍列出 4100.5，较新的 ACP staging 与通用 CLI nightly 未作为受审运行时安装。 [ACP 发行](https://github.com/JetBrains/junie-acp-release/releases) · [CLI nightly](https://github.com/JetBrains/junie/releases/tag/4165.1)
 - 后续需要决定是否扩展现有模型中继，在同一端口提供会话级 HTTP MCP 转换，或提供符合相同约束的受审入口。转换须连接同一个实际 RustCodeGraph，并核验工具策略、审批、撤销和会话销毁。当前网关和诊断监听已关闭，私有预设与凭据没有写入共享实例。
+
+## 受管 v2 补丁
+
+新版启动器把模型请求和显式会话 MCP 放在同一个私有回环监听端口。Junie 原生进程仍只可出站访问一个端口，原生子进程执行限制、默认配置关闭和 Safe 控制沿用。模型请求只转给同一次启动绑定的中继。显式 stdio 工具在独立的只读沙箱执行，保留项目目录边界、宿主工具允许及拒绝规则，并仅接受当前 ACP 提示中同名同参、批准一次的调用。取消、关会话和清空挂载会撤销批准。
+
+在已签名 Junie 4100.5 与真实 RustCodeGraph 1.2.10 上，以回环模型夹具验证四个新会话。挂载前、撤除后无 MCP 声明或调用。挂载批准轮完成 `query`、`callers`、`node`，Junie 续轮获得 `app/app.tsx:32`、`mountRueSiteApp`、`useApp` 调用 `_$createApp` 的结果。挂载拒绝轮捕获三次原生审批，三个工具状态均为失败。四轮返回 `end_turn`。MCP 只读沙箱需要图谱的 WAL 和 SHM，探针在私有副本保留这两个文件。
+
+`python3 patches/acp-model-source/junie/mcp_bridge_tests.py` 运行 4 项，通过同参一次授权、拒绝优先、迟到审批及活动取消、撤除后的 URL 失效。真实指定模型以新版网关三轮结果为准。

@@ -1,3 +1,4 @@
+pub mod matrix;
 use crate::distribution::project;
 use gateway_mcp_distribution::{McpBindingRequest, McpBulkRequest};
 use vw_api_mcp_management::*;
@@ -6,6 +7,7 @@ use vw_gateway_client::GatewayClient;
 pub struct BindingsState {
     pub context: Option<crate::management_context::Context>,
     pub selected: Vec<McpCatalogRecord>,
+    pub matrix: matrix::State,
     pub running: bool,
     pub generation: u64,
     pub result: Option<Result<McpDistributionResult, String>>,
@@ -15,6 +17,12 @@ pub enum BindingsMessage {
     Select(McpCatalogRecord, bool),
     Apply(McpAppTarget, bool),
     RetryFailed,
+    Matrix(matrix::Action),
+    MatrixFinished {
+        context: crate::management_context::Context,
+        generation: u64,
+        attempts: Vec<matrix::Attempt>,
+    },
     Finished {
         context: crate::management_context::Context,
         generation: u64,

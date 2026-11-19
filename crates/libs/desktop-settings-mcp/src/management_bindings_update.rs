@@ -13,6 +13,72 @@ pub fn update(app: &mut Update<'_>, value: BindingsMessage) -> Task<BindingsMess
             BindingsState { context: Some(context.clone()), generation, ..Default::default() };
     }
     match value {
+        BindingsMessage::Matrix(matrix::Action::Search(query)) => {
+            app.state.bindings.matrix.query = query;
+            Task::none()
+        }
+        BindingsMessage::Matrix(action) => {
+            if app.state.bindings.running || scope::loading(app) {
+                return Task::none();
+            }
+            if !app.authorized {
+                return app.error("当前身份无权修改绑定");
+            }
+            let Some(Ok(catalog)) = scope::visible(app) else {
+                return app.error("请先加载目录");
+            };
+            let targets: Vec<_> =
+                app.targets.iter().filter(|t| t.target_host_id == context.host).cloned().collect();
+            let changes = match matrix::plan(catalog, &targets, &app.state.bindings.matrix, &action)
+            {
+                Ok(changes) => changes,
+                Err(error) => return app.error(error),
+            };
+            let client = match app.client.clone() {
+                Ok(client) => client,
+                Err(_) => return app.error("网关不可用"),
+            };
+            let state = &mut app.state.bindings;
+            state.generation = state.generation.wrapping_add(1);
+            let generation = state.generation;
+            state.running = true;
+            state.matrix.pending = changes.clone();
+            let token = app.token.clone();
+            Task::perform(
+                async move {
+                    let attempts = matrix::execute(client, changes, token).await;
+                    BindingsMessage::MatrixFinished { context, generation, attempts }
+                },
+                std::convert::identity,
+            )
+        }
+        BindingsMessage::MatrixFinished { context: request, generation, attempts } => {
+            let state = &mut app.state.bindings;
+            if request != context
+                || state.context.as_ref() != Some(&request)
+                || state.generation != generation
+                || !state.running
+            {
+                return Task::none();
+            }
+            state.running = false;
+            let successful = attempts.iter().all(|a| {
+                a.result.as_ref().is_ok_and(|i| {
+                    i.desired_committed
+                        && matches!(
+                            i.native_outcome,
+                            McpDistributionOutcome::Applied | McpDistributionOutcome::Unchanged
+                        )
+                })
+            });
+            state.matrix.finish(attempts);
+            let feedback = if successful {
+                app.success("全部目标已应用")
+            } else {
+                app.error("存在失败或未验证目标，请查看逐项结果；修订冲突需刷新核实")
+            };
+            Task::batch([feedback, app.refresh()])
+        }
         BindingsMessage::Select(record, selected) => {
             if app.state.bindings.running {
                 return Task::none();

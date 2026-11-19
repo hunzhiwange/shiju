@@ -106,3 +106,25 @@ Rust 定向测试和新版网关指定模型三轮仍待复验。
 网关回归状态为待回归。已有共享网关二进制缺少 OMP 启动器及 MCP 策略标识。同批槽位 6 的共享构建因并行 MiMo 宿主 trait 签名不一致而以 E0050 退出 101。后续共享重型 Rust 构建持续运行，串行等待没有获得执行窗口。此次没有启动 OMP Cargo 或新版隔离网关，未占用 Cargo 槽位。 [共享构建记录](poolside.md#受管启动器补丁)
 
 复验先运行 `python3 scripts/cargo_slot.py cargo test -j 1 -p vw-acp --test onboarding_omp acp_onboarding_omp_session_lifecycle`，再使用包含补丁的新网关按原合同跑三轮。跟随 `2b35013ae` 仅去除已弃用的请求字段 `acp_agent`，通过 `agent=acp-omp` 解析原后端。原生探针与其监听均已退出，私有模型配置已清理。
+
+## 正式网关验收通过
+
+按更新后的标准，OMP 原生工具沿用既有权限，验收以真实挂载工具执行、结果回传及撤除隔离判定。使用共享槽位 6 构建的 shiju 0.6.0，SHA-256 `109066ea0b79ce6edfc4399624715f0dafa80d397adabe7a1ae46158407e7cba`，确认产物包含 OMP 启动器、私有目录校验及宿主工具策略。固定 OMP 18.22.0。RustCodeGraph 1.2.11 自同一 RueJS 提交索引 3478 个文件，使用等价 stdio 描述和现有 `allowedTools` 配置选择三项目标工具。受管入口将其转接为原生 OMP 支持的私有 HTTP MCP。沿用指定租户、模型和提示，按新 API 移除旧 `acp_agent` 请求字段，从 `agent=acp-omp` 解析同一后端。
+
+| 轮次 | 新会话 | HTTP / curl / 秒 | 终态与工具 |
+| --- | --- | --- | --- |
+| 无挂载 | `ses_1f192019e001z2P5krGNMtr4oH` | 200 / 0 / 10.740795 | `chat.done`，目标工具零调用，原生 `read` 探查 `mcp://` 返回服务未配置 |
+| 挂载 | `ses_1f1922de8001EIKcQAElglOzs1` | 200 / 0 / 195.622117 | `chat.done`，80 个成功完成的目标工具调用 |
+| 撤除 | `ses_1f1952baa001R4iZwWpjKCYg6r` | 200 / 0 / 7.973995 | `chat.done`，零工具调用 |
+
+挂载轮的 160 条工具事件可按同一调用 ID 配对。接口用模型提供的标题显示 OMP 工具，以下按结构化输入及真实结果确认工具身份。
+
+| 工具 | 成功次数 | 代表性完成事件 |
+| --- | --- | --- |
+| `rustcodegraph_query` | 36 | `call_0e3e09c686024cf5a71ec978` 输出 `createRueSiteApp`（`app/app.tsx:32`） |
+| `rustcodegraph_callers` | 1 | `call_1f2866643b484b4d9cd3a627` 输出 `mountRueSiteApp`（`app/app.tsx:39`） |
+| `rustcodegraph_node` | 43 | `call_b6abbff6fc94467e97b86975` 读回 `packages/runtime/src/hooks/useApp.ts:4` 调用 `_$createApp` 的源码 |
+
+两个对照的最终正文均为 `MCP_NOT_AVAILABLE`。挂载答复引用了回传源码，覆盖入口、SSR、容器缺失、插件注册及布局分支，并说明如何验证移除清空操作后静态快照与客户端 DOM 共存。第二个验证场景依赖 `/rust-layers` 可导航，本次源码只确认根组件的路径判断，路由表未直接注册该路径。两个场景均未执行。
+
+三轮均以模型 `stop` 结束，无聊天错误或模型恢复。运行中及终态均回读 `acp-omp / omp`、`full_access=true`、指定模型和 `session_model`，运行中为 `client_only`，终态连接已释放。保留原生工具权限与宿主审批，辅助标题模型错误独立于主请求。网关退出后确认端口关闭、挂载和私有租户配置已清理，RueJS 归档 4109 项逐个比对无差异。四项 OMP 转接 Python 用例复跑通过。Rust 生命周期夹具覆盖通用模拟会话，串行编译队列未启动该夹具，本次以更新后的正式网关及实际 OMP 探针验证受管接线。

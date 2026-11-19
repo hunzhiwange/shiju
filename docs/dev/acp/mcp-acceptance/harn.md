@@ -71,3 +71,15 @@ v3 只用原生执行更新中的完整参数绑定逐次审批，同一调用 I
 挂载包括 `query` 51、`callers` 5、`node` 56。调用 `call_ad23e749412246078f52c1a6` 返回 `createRueSiteApp` 所在的 `app/app.tsx:32`。调用 `call_95946064bde248ad8c690073` 返回调用者 `mountRueSiteApp`（`app/app.tsx:39`）。调用 `call_0addb5b5724040caa9a683e3` 返回 `packages/runtime/src/hooks/useApp.ts:4` 的 `_$createApp(factory)` 源码。模型续轮收到同一批结果。答复复核了四段调用链、插件安装在根工厂执行前、SSR 和容器缺失分支、`/rust-layers` 布局分支以及快照清空与挂载的顺序，并提供两项带预期的回归场景。清空逻辑移除后的现象为源码推断，未运行浏览器实验。部分查询成功返回空结果或未索引提示，无协议失败。
 
 上述三轮使用原生直接诊断，HTTP 网关的 SSE、会话回读与宿主策略 Rust 回归仍待构建。
+
+### 新标准下的官方工具共存复验
+
+使用同一受管 v3、Harn 0.10.201、RustCodeGraph 1.2.11 和指定真实模型，按公共计划新版提示进行原生 ACP 三轮。提示 SHA-256 为 `18806f1a927d3587ee5c685107c89b5dbaeea09614efe9a327e293b649967f38`。模型请求中保留 `read_file`、`write_file` 与 `agent_await_resumption`，实验宿主只授权私有工作区内的文本读取，挂载审批按原始工具 ID 一次生效。
+
+| 轮次 | 原生会话 ID | 图谱工具声明 / 成功 / 回传 | 官方读取 | 终态 |
+| --- | --- | --- | --- | --- |
+| 无挂载 | `01a1f195-00b9-7746-b2dd-43279749990f` | 0 / 0 / 0 | 3 | `end_turn` |
+| 挂载 | `01a1f195-473d-7417-a4fe-f5231c0708a1` | 3 / 17 / 17 | 2 | `end_turn` |
+| 撤除 | `01a1f195-bdcb-7463-9508-76433bc8f8a4` | 0 / 0 / 0 | 6 | `end_turn` |
+
+17 次调用均有同 ID 的开始、批准及成功完成，并逐项匹配发送给模型的工具回复正文。其中 `call_03414ca4cd97489996d1a81b` 返回 `createRueSiteApp`（`app/app.tsx:32`），`call_34d016bb441e4fbb82e59ded` 返回 `mountRueSiteApp`（`app/app.tsx:39`），`call_9576f7aae9de4bcf9a750b45` 返回 `useApp` 转发给 `_$createApp` 的定义（`packages/runtime/src/hooks/useApp.ts:4`）。最终答复引用三项回传证据，并追到 `packages/runtime/src/compiler-runtime/app.ts:57` 的工厂。两轮对照的模型工具目录和原始 ACP 事件均无图谱服务，也无返回结果。此处是原生真实模型证据，HTTP 网关仍需使用包含 v3 摘要的链接产物。

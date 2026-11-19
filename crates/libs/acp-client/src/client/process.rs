@@ -241,9 +241,16 @@ impl AcpClient {
             }
             env.insert("HOME".into(), home.clone());
             env.insert("TMPDIR".into(), home);
-            let mut command = tokio::process::Command::new("/usr/bin/sandbox-exec");
-            command.current_dir(workspace).args(["-f", &policy]).arg(executable);
-            command
+            if self.agent_name == "omp" && !self.mcp_servers.is_empty() {
+                let launcher = Path::new(&policy).with_file_name("omp-launcher.py");
+                let mut command = tokio::process::Command::new("/usr/bin/python3");
+                command.current_dir(workspace).arg("-I").arg(launcher).arg(policy).arg(executable);
+                command
+            } else {
+                let mut command = tokio::process::Command::new("/usr/bin/sandbox-exec");
+                command.current_dir(workspace).args(["-f", &policy]).arg(executable);
+                command
+            }
         } else {
             build_spawn_command(self.config.command.trim(), &env)
         };

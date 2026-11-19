@@ -64,10 +64,19 @@ pub fn configure(
             }]
         }}
     });
+    let models = serde_json::to_vec(&models)?;
     std::fs::rename(
-        profile.write_config("models.yml", &serde_json::to_vec(&models)?)?,
+        profile.write_config("models.yml", &models)?,
         agent_dir.join("models.yml"),
     )?;
+    profile.write_config("omp-models-source.json", &models)?;
+    for (name, contents) in [
+        ("omp-launcher.py", include_str!("../../../../../../../patches/acp-model-source/omp/launcher.py")),
+        ("omp-mcp-bridge.py", include_str!("../../../../../../../patches/acp-model-source/omp/mcp_bridge.py")),
+        ("omp-mcp-stdio.py", include_str!("../../../../../../../patches/acp-model-source/cortex-code/mcp_bridge.py")),
+    ] {
+        profile.write_config(name, contents.as_bytes())?;
+    }
     let quote = |path: &Path| -> anyhow::Result<String> {
         Ok(serde_json::to_string(
             path.to_str().ok_or_else(|| anyhow::anyhow!("Non-UTF-8 OMP path"))?,

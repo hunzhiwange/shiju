@@ -64,4 +64,4 @@
 
 挂载轮 65 次原生审批和对应的工具完成事件，无其他工具事件。首组 query、callers、node 调用 ID 是 `41509a2e-5a16-48ee-a125-12d974bc3f52`、`ef7b2cb2-109d-487b-b4cb-481de3af210b`、`972bbdcc-df4e-47bb-8547-d003fe5f2109`。模型续轮读回 `app/app.tsx:32`、`mountRueSiteApp`、运行时 `_$createApp` 及 `app/router/index.ts:787`。答复覆盖调用链、浏览器和 SSR、缺少容器时抛错、路由和 i18n、布局分支、快照残留推断及两项复验设想。根组件的 `/rust-layers` 条件属实。该路径未在此提交的路由表中直接注册，第二项场景仍需验证可达性。
 
-定向命令 `python3 scripts/cargo_slot.py cargo test -j 1 -p vw-acp --test onboarding_junie acp_onboarding_junie_session_lifecycle` 在槽位 10 运行，两条缓存路径均为仓库下 `target/rust-slot-10`。退出 0，1 项通过，2 项过滤。同槽位随后开始的重复网关构建已取消并释放，网关验收等待包含补丁的共享产物。原生三轮没有网关 SSE、UI summary 或 ACP options，不能代替公共网关验收。
+定向命令 `python3 scripts/cargo_slot.py cargo test -j 1 -p vw-acp --test onboarding_junie acp_onboarding_junie_session_lifecycle` 在槽位 10 运行，两条缓存路径均为仓库下 `target/rust-slot-10`。退出 0，1 项通过，2 项过滤。同槽位随后开始的重复网关构建已取消并释放。槽位 6 的共享网关构建已编译包含 Junie v2 摘要的受管注册库，随后因同期 MiMo trait 参数不一致在 `vw-agent` 报 `E0050`，退出 101，未生成新网关。旧产物没有 v2 摘要。原生三轮没有网关 SSE、UI summary 或 ACP options，正式网关三轮待回归。[共享构建记录](poolside.md#受管启动器补丁)

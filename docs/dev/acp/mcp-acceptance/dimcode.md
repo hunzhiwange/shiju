@@ -125,9 +125,35 @@ Darwin arm64 安装器从固定 npm 归档取出 DimCode 0.5.28 的原生程序�
 
 独立运行仓库安装脚本，固定归档下载、二进制补丁、签名校验和 `dim --version` 均通过。受管产物 SHA-256 为 `89a2f42669235390c13036f3fd63f6c454381bb8578b2f06f5fe1d659e2b170b`。用该产物重跑回环模型，挂载目录准确为三项；原审批的允许一次返回 `app/app.tsx:32`，取消产生 `Permission request cancelled`；未声明原生 `exec` 在审批前被拒绝；撤除后的模型目录无目标 MCP。桥接监听和短期密钥已清理。指定阿里模型的三轮仍以先前私有补丁证据为准。
 
+## 受管网关复验
+
+复用包含 `c40f0622f` 安装摘要与启动门禁的共享槽位 6 网关产物。私有副本 SHA-256 为 `109066ea0b79ce6edfc4399624715f0dafa80d397adabe7a1ae46158407e7cba`。验收请求使用当前文档格式，仅以 `agent=acp-dimcode` 选择后端，原提示摘要、模型、租户与访问级别相同。原始证据保存在本机私有目录。RustCodeGraph 1.2.11 仍使用三工具目录和固定索引根，直连对照确认三项实际结果相同，额外工具及越界路径被拒绝。
+
+私有网关的 `POST /v1/desktop/acp-install/dimcode` 冷安装 HTTP 200、16.270 秒，重复安装 HTTP 200、0.063 秒。安装的 DimCode 0.5.28 摘要与受管清单一致，签名验证通过，进程可执行路径确认为私有配置下的受管入口。独立改动发行二进制一个字节后，补丁脚本在生成输出前拒绝了输入。
+
+| 轮次 | 新会话 | HTTP / curl / 秒 | SSE 终态 |
+| --- | --- | --- | --- |
+| 无挂载 | `ses_1f18df59e001NNqGzV94iN1vj5` | 200 / 0 / 7.594 | `chat.done`，仅 `MCP_NOT_AVAILABLE`，零工具 |
+| 挂载 | `ses_1f18e149b001NuEV0HzLyedGLQ` | 首段 200 / 28 / 300.004，原游标续传 200 / 0 / 221.638 | `chat.done`，161 次目标调用全部成功并回传 |
+| 撤除 | `ses_1f1960dad001TcVafwIuZls6D1` | 200 / 0 / 9.568 | `chat.done`，桥接仍在线，仅 `MCP_NOT_AVAILABLE`，零工具 |
+
+三轮均无 `chat.error` 或模型恢复事件。UI summary、ACP options 核对绑定、`full_access=true`、指定会话模型和连接期间的 `client_only`，终态均释放连接。挂载的 query 80 次、callers 7 次、node 74 次，各有同 ID 开始、一次放行、完成和实际结果。当前标准允许官方工具按原权限共存，同时要求挂载工具真实执行和回传。本次挂载仅调用目标 MCP。
+
+| 工具 | 调用 ID | 实际回传 |
+| --- | --- | --- |
+| `rustcodegraph_query` | `call_e8ca9018c5e24d14b9bb181e` | `createRueSiteApp` 位于 `app/app.tsx:32` |
+| `rustcodegraph_callers` | `call_160bdbaad9fb4a2dbb33f1a8` | `mountRueSiteApp` 位于 `app/app.tsx:39` |
+| `rustcodegraph_node` | `call_a250c0c5cba44fc5b0e909aa` | `packages/runtime/src/hooks/useApp.ts:4` 调用 `_$createApp` |
+
+答复引用完整调用链、SSR 和浏览器分支、缺少容器、路由与 i18n 安装和布局条件，并指出 `/rust-layers` 当前未注册。以源码推断快照残留和重复挂载，使用已注册且配置客户端模式的 `/settings` 设计重建快照对照，并提出静态预览与导航时检查旧节点。两项浏览器及快照场景未执行。
+
+复用共享槽位 9 本轮编译的 `acp-client` libtest 私有副本，SHA-256 为 `9cca32b073f5fafdc0c3ddd0f1dad2240483b283bd81ab096011e655f8a5b2ce`。以 `dimcode --test-threads=1` 执行，6 项通过、零失败，包含未校验入口不得发出建会话请求及五项权限测试。未另起重复编译，沿用前轮四项 onboarding 结果。
+
+私有网关、桥接、监听端口、短期凭据与临时挂载均已清理。RueJS 副本 4109 个 Git blob 与原提交一致，原网关健康检查 HTTP 200。
+
 ## 结论与验证
 
-验收已阻塞。DimCode 0.5.28 可经原生 Streamable HTTP 和 SSE 发现、执行并读回三种 RustCodeGraph 工具。两种传输的真实挂载均有额外工具调用及失败结果。保留 stdio 拒绝、现有审批行为及测试断言。原版严格验收依赖指定模型及 ACP 运行时能按原提示选用有效路径，并仅调用会话挂载的工具。受管安装已接入固定产物；完整 Rust 及指定模型正式回归需使用包含该安装接线的新网关。
+受管 DimCode 0.5.28 通过 Streamable HTTP 的正式三轮验收。保留 stdio 拒绝、现有审批行为及测试断言。此前原版的 HTTP、SSE 及私有补丁结果作为对照保留。
 
 定向测试复跑使用槽位 3，`CARGO_TARGET_DIR` 与 `CARGO_BUILD_BUILD_DIR` 均为仓库的 `target/rust-slot-3`。首次中止退出 130、零测试。恢复后原 stdio 过滤命令退出 0，1 项通过。原拒写夹具缺少权限选项，导致 `acp_onboarding_dimcode_permission_denial` 在建会话时提前失败，退出 101，1 项失败。夹具补齐只读权限确认后，审批拒写、stdio 拒绝和会话生命周期均通过。注册断言原先固定要求 `npx`，现按注册表契约同时验证已安装的 `dim acp` 与固定版本回退入口。最终 `python3 scripts/cargo_slot.py cargo test -j 1 -p vw-acp --test onboarding_dimcode acp_onboarding_dimcode_` 退出 0，4 项通过。生产权限、传输门禁与原拒写断言均未修改。
 

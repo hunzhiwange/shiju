@@ -9,7 +9,17 @@ pub(crate) fn message(event: Event) -> Message {
 pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
     use desktop_settings_skills::update::import_modal::{Effect, update as reduce};
     let input = super::update_input(app);
-    match reduce(&mut app.skills_settings.import, &input, event) {
+    let effect = reduce(&mut app.skills_settings.import, &input, event);
+    if matches!(effect, Effect::Refresh)
+        && app.apps_catalog.third_party_skills.scope().is_some_and(|scope| {
+            input.context.as_ref() == Some(&scope.context) && input.host == scope.host
+                && input.project == scope.project && input.directory == scope.directory
+        })
+    {
+        app.apps_catalog.third_party_skills.workspace.importable =
+            desktop_settings_skills::third_party_add::import_count(&app.skills_settings.import, &input);
+    }
+    match effect {
         Effect::None => Task::none(),
         Effect::Error(error) => app.show_error_toast(error),
         Effect::Refresh => Task::batch([super::refresh_workspace(app), super::refresh_task(app.navigation_tabs.project_path.clone())]),

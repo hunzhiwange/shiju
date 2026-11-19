@@ -1,17 +1,20 @@
-use vw_api_app_identity::{
-    AppId,
-    AppInstallationRuntimeStatus,
-};
+use vw_api_app_identity::{AppId, AppInstallationRuntimeStatus};
 // Application selection stays separate from the selected application configuration.
 
-
-use super::{catalog::CatalogRow, drag, presentation::{self, Presence}, styles::{self, Tone}, Action, ViewState};
-use desktop_ui_controls::system_settings_common::*;
+use super::{
+    Action, ViewState,
+    catalog::CatalogRow,
+    drag,
+    presentation::{self, Presence},
+    styles::{self, Tone},
+};
 use desktop_assets::assets::{self, Icon};
+use desktop_ui_controls::system_settings_common::*;
 use iced::{
     Alignment, Element, Length, Theme,
     widget::{
-        button, column, container, mouse_area, row, svg, text, text::Wrapping, text_input, tooltip, scrollable, rule,
+        Space, button, column, container, mouse_area, row, scrollable, svg, text, text::Wrapping,
+        text_input, tooltip,
     },
 };
 
@@ -42,102 +45,184 @@ pub(super) fn action<'a, M: Clone + 'static>(
     .into()
 }
 
-pub fn view<'a, M: Clone + 'static>(state: &ViewState<'a>, help_heading: impl Fn(&'static str, &'static str) -> Element<'a, M>, local_available: bool, domains: Element<'a, M>, routing: Element<'a, M>, details: Option<Element<'a, M>>, message: impl Fn(Action) -> M + Copy + 'static) -> Element<'a, M> {
-    view_with_updates(state, None, help_heading, local_available, domains, routing, details, message)
+pub fn view<'a, M: Clone + 'static>(
+    state: &ViewState<'a>,
+    help_heading: impl Fn(&'static str, &'static str) -> Element<'a, M>,
+    local_available: bool,
+    domains: Element<'a, M>,
+    routing: Element<'a, M>,
+    details: Option<Element<'a, M>>,
+    message: impl Fn(Action) -> M + Copy + 'static,
+) -> Element<'a, M> {
+    view_with_updates(
+        state,
+        None,
+        false,
+        help_heading,
+        local_available,
+        Some(domains),
+        Some(routing),
+        details,
+        message,
+    )
 }
 
-pub fn view_with_updates<'a, M: Clone + 'static>(state: &ViewState<'a>, updates: Option<&'a desktop_apps_ui::catalog_state::UpdatesState>, help_heading: impl Fn(&'static str, &'static str) -> Element<'a, M>, local_available: bool, domains: Element<'a, M>, routing: Element<'a, M>, details: Option<Element<'a, M>>, message: impl Fn(Action) -> M + Copy + 'static) -> Element<'a, M> {
+pub fn view_with_updates<'a, M: Clone + 'static>(
+    state: &ViewState<'a>,
+    updates: Option<&'a desktop_apps_ui::catalog_state::UpdatesState>,
+    compact: bool,
+    help_heading: impl Fn(&'static str, &'static str) -> Element<'a, M>,
+    local_available: bool,
+    domains: Option<Element<'a, M>>,
+    routing: Option<Element<'a, M>>,
+    mut details: Option<Element<'a, M>>,
+    message: impl Fn(Action) -> M + Copy + 'static,
+) -> Element<'a, M> {
     let mut visible: Vec<_> = state.rows.iter().collect();
     if let Some(saved) = &state.preferences.saved {
-        visible.sort_by_key(|app| saved.user.app_order.iter()
-            .position(|id| *id == presentation::key(app.entry.id)).unwrap_or(usize::MAX));
+        visible.sort_by_key(|app| {
+            saved
+                .user
+                .app_order
+                .iter()
+                .position(|id| *id == presentation::key(app.entry.id))
+                .unwrap_or(usize::MAX)
+        });
     }
-    let installed =
-        visible.iter().filter(|a| presentation::presence(a) == Presence::Installed).count();
-    let missing = visible.iter().filter(|a| presentation::presence(a) == Presence::Missing).count();
-    let location = if state.host == local_app_auth::HOST_ID {
-        "本机"
-    } else if state.host.is_empty() {
-        "正在连接"
-    } else {
-        state.host
-    };
-    let upgrade_count = updates.map_or(0, |u| u.results.iter().filter(|candidate|
-        candidate.supported && state.rows.iter().any(|row|
-            presentation::preferred(row) == Some(&candidate.installation))).count());
-    let heading = row![
-        container(settings_page_heading("应用", "管理执行主机上的第三方应用、配置与运行环境。"))
-            .width(Length::Fill),
-        button(text(if updates.is_some_and(|u| u.checking) { "检查中…" } else { "检查更新" }).size(SETTINGS_CONTROL_TEXT_SIZE))
-            .width(108.).padding([8, 11]).style(rounded_action_btn_style)
-            .on_press_maybe((!state.loading && !updates.is_some_and(|u| u.checking) && state.drag.source.is_none() && !state.rows.is_empty()).then_some(message(Action::CheckUpdates))),
-        button(text(format!("全部升级（{upgrade_count}）")).size(SETTINGS_CONTROL_TEXT_SIZE))
-            .padding([8, 11]).style(primary_action_btn_style)
-            .on_press_maybe((upgrade_count > 0 && !state.loading && !updates.is_some_and(|u| u.checking)
-                && !state.lifecycle.active() && state.lifecycle.preview.is_none()
-                && state.lifecycle.batch.as_ref().is_none_or(|b| b.stopped)
-                && state.drag.source.is_none()).then_some(message(Action::BatchUpgrade))),
-        action(
-            if state.error.is_some() { "重试" } else { "刷新" },
-            Icon::ArrowClockwise,
-            Action::Refresh,
-            !state.loading && state.drag.source.is_none(), message
-        ),
-        settings_select(
-            ["诊断安装冲突", "手动安装命令", "手动卸载命令", "应用设置"],
-            None,
-            move |choice| message(match choice {
+    let checking = updates.is_some_and(|updates| updates.checking);
+    let ready = !state.loading && state.drag.source.is_none();
+    let upgrade_count = updates.map_or(0, |updates| {
+        updates
+            .results
+            .iter()
+            .filter(|candidate| {
+                candidate.supported
+                    && state
+                        .rows
+                        .iter()
+                        .any(|app| presentation::preferred(app) == Some(&candidate.installation))
+            })
+            .count()
+    });
+    let more = settings_select(
+        ["刷新目录", "诊断安装冲突", "手动安装命令", "手动卸载命令", "应用设置"],
+        None,
+        move |choice| {
+            message(match choice {
+                "刷新目录" => Action::Refresh,
                 "诊断安装冲突" => Action::CommandsOpen(3),
                 "手动安装命令" => Action::CommandsOpen(1),
                 "手动卸载命令" => Action::CommandsOpen(2),
                 _ => Action::PreferencesOpen,
-            }),
-        ).placeholder("⋯").width(56.)
-            .disabled(state.loading || state.drag.source.is_some()),
-        action(
-            "应用设置",
-            Icon::Sliders,
-            Action::PreferencesOpen,
-            !state.loading && !state.rows.is_empty() && state.drag.source.is_none(), message
+            })
+        },
+    )
+    .menu_icon(Icon::DotsThreeVertical, 168.0)
+    .width(34)
+    .height(34.0)
+    .disabled(!ready);
+    let more = tooltip(
+        more,
+        container(text("更多应用操作").size(12)).padding([6, 8]).style(settings_panel_style),
+        tooltip::Position::Bottom,
+    );
+    let update_buttons = row![
+        button(
+            container(text(if checking { "检查中…" } else { "检查更新" }).size(13))
+                .center_x(Length::Fill),
+        )
+        .width(92)
+        .padding([7, 10])
+        .style(rounded_action_btn_style)
+        .on_press_maybe(
+            (ready && !checking && !state.rows.is_empty()).then_some(message(Action::CheckUpdates))
         ),
     ]
     .spacing(8)
     .align_y(Alignment::Center);
-    let search = text_input("搜索应用名称或命令…", state.query)
+    let update_buttons = if upgrade_count > 0 {
+        update_buttons.push(
+            button(text(format!("全部升级（{upgrade_count}）")).size(13))
+                .padding([7, 10])
+                .style(primary_action_btn_style)
+                .on_press_maybe(
+                    (ready
+                        && !checking
+                        && !state.lifecycle.active()
+                        && state.lifecycle.preview.is_none()
+                        && state.lifecycle.batch.as_ref().is_none_or(|batch| batch.stopped))
+                    .then_some(message(Action::BatchUpgrade)),
+                ),
+        )
+    } else {
+        update_buttons
+    };
+    let title = row![
+        icon(Icon::Grid1x2, 20.0),
+        help_heading("应用", "管理第三方应用。显示开关控制应用是否出现在智能侧栏。"),
+    ]
+    .spacing(9)
+    .align_y(Alignment::Center);
+    let heading = if compact {
+        column![
+            row![title, Space::new().width(Length::Fill), more].align_y(Alignment::Center),
+            update_buttons.wrap(),
+        ]
+        .spacing(8)
+    } else {
+        column![
+            row![title, Space::new().width(Length::Fill), update_buttons, more,]
+                .spacing(8)
+                .align_y(Alignment::Center)
+        ]
+    };
+    let search = text_input("搜索应用名称或命令", state.query)
         .padding(SETTINGS_CONTROL_PADDING)
         .size(SETTINGS_CONTROL_TEXT_SIZE)
         .style(settings_text_input_style)
-        .on_input(move |q| message(Action::QueryInput(q)))
+        .on_input(move |query| message(Action::QueryInput(query)))
         .width(Length::Fill);
-    let search_row = row![
-        icon(Icon::Search, 16.),
-        search,
-    ]
-    .spacing(10)
-    .align_y(Alignment::Center);
-    let status = row![
-        pill(format!("执行主机 · {location}"), Tone::Neutral),
-        pill(format!("已安装 {installed}"), Tone::Success),
-        pill(format!("待安装 {missing}"), Tone::Neutral),
-    ]
-    .spacing(8)
-    .align_y(Alignment::Center)
-    .wrap();
-    let filters =
-        settings_group_card(container(column![search_row, status].spacing(12)).padding([14, 0]));
-    let check_status = updates.map(|updates| {
-        if let Some(error) = &updates.error { return error.clone(); }
-        match updates.checked_at.and_then(|at| at.elapsed().ok()) {
-            Some(elapsed) => format!("上次成功检查：{} 分钟前", elapsed.as_secs() / 60),
-            None => "尚未检查更新".into(),
-        }
-    }).unwrap_or_default();
-    let toolbar = column![heading, text(check_status).size(12).style(settings_muted_text_style), domains, filters].spacing(16);
-    let mut content = column![routing].spacing(20);
+    let search = container(search).max_width(300);
+    let mut context = column![].spacing(3);
+    if let Some(elapsed) =
+        updates.and_then(|updates| updates.checked_at).and_then(|at| at.elapsed().ok())
+    {
+        let minutes = elapsed.as_secs() / 60;
+        let status = if minutes == 0 {
+            "刚刚检查过更新".to_owned()
+        } else {
+            format!("上次检查 · {minutes} 分钟前")
+        };
+        context = context.push(text(status).size(12).style(settings_muted_text_style));
+    }
+    let filters = if compact {
+        column![search, context].spacing(6)
+    } else {
+        column![
+            row![search, Space::new().width(Length::Fill), context]
+                .spacing(12)
+                .align_y(Alignment::Center)
+        ]
+    };
+    let mut toolbar = column![heading, filters].spacing(12);
+    if state.drag.source.is_some() {
+        toolbar = toolbar
+            .push(text("松开鼠标完成排序 · Esc 取消").size(12).style(settings_muted_text_style));
+    }
+    let mut content = column![].spacing(16).width(Length::Fill);
+    if let Some(error) = updates.and_then(|updates| updates.error.as_ref()) {
+        content = content.push(settings_error_banner(error.clone()));
+    }
+    if let Some(domains) = domains {
+        content = content.push(domains);
+    }
     if let Some(error) = state.error {
         content = content.push(settings_error_banner(error.clone()));
     }
-    if state.lifecycle.batch.is_some() || state.lifecycle.request.is_some() || state.lifecycle.error.is_some() {
+    if state.lifecycle.batch.is_some()
+        || state.lifecycle.request.is_some()
+        || state.lifecycle.error.is_some()
+    {
         content = content.push(super::lifecycle_view::progress(state.lifecycle, message));
     }
     if state.loading && state.rows.is_empty() {
@@ -147,14 +232,8 @@ pub fn view_with_updates<'a, M: Clone + 'static>(state: &ViewState<'a>, updates:
             Icon::ArrowClockwise,
         ));
     } else if state.rows.is_empty() {
-        let panel = column![empty(
-            "让常用工具触手可及",
-            "本机应用会自动发现，无需填写主机或令牌。",
-            Icon::Terminal
-        )]
-        .spacing(12)
-        .align_x(Alignment::Center);
-        content = content.push(panel);
+        content =
+            content.push(empty("暂无应用", "请刷新应用目录。", Icon::Terminal));
     } else {
         let mut found = 0;
         for presence in [Presence::Installed, Presence::Missing, Presence::Unverified] {
@@ -170,50 +249,66 @@ pub fn view_with_updates<'a, M: Clone + 'static>(state: &ViewState<'a>, updates:
                 continue;
             }
             found += apps.len();
-            let heading = match presence {
-                Presence::Installed => {
-                    let title = help_heading("已安装", "拖动左侧手柄可调整顺序");
-                    let notice = if state.drag.source.is_some() {
-                        Some("松开鼠标完成排序 · Esc 取消")
-                    } else if state.preferences.busy {
-                        Some("正在同步设置…")
-                    } else {
-                        None
-                    };
-                    if let Some(notice) = notice {
-                        column![title, text(notice).size(13).style(settings_muted_text_style)]
-                            .spacing(6)
-                            .into()
-                    } else {
-                        title
-                    }
-                }
-                Presence::Missing => help_heading("待安装", "发现更多适合你的工具"),
-                Presence::Unverified => settings_group_heading("待确认", "打开详情查看检测结果"),
+            let label = match presence {
+                Presence::Installed => "已安装",
+                Presence::Missing => "未安装",
+                Presence::Unverified => "待确认",
             };
-            let section_title =
-                row![container(heading).width(Length::Fill), settings_value_badge(apps.len()),]
-                    .spacing(8)
-                    .align_y(Alignment::Center);
-            let mut cards = column![
-                container(row![
-                    container(text("应用 / 安装信息").size(12).style(settings_muted_text_style))
-                        .width(Length::Fill),
-                    text("在智能侧栏显示").size(12).style(settings_muted_text_style),
-                ].spacing(12).align_y(Alignment::Center)).padding([8, 14]),
-                rule::horizontal(1),
-            ];
+            let section_title = row![
+                text(label).size(14),
+                text(format!("· {}", apps.len())).size(13).style(settings_muted_text_style),
+            ]
+            .spacing(6)
+            .align_y(Alignment::Center);
+            let header: Element<'_, M> = if compact {
+                section_title.into()
+            } else {
+                row![
+                    container(section_title).width(Length::Fill),
+                    row_columns(
+                        text("版本 / 状态").size(12).style(settings_muted_text_style).into(),
+                        Space::new().into(),
+                        text("侧栏显示").size(12).style(settings_muted_text_style).into(),
+                        Space::new().into(),
+                    )
+                ]
+                .spacing(8)
+                .align_y(Alignment::Center)
+                .into()
+            };
+            let mut cards = column![].width(Length::Fill);
             for (index, app) in apps.into_iter().enumerate() {
-                if index > 0 { cards = cards.push(rule::horizontal(1)); }
-                cards = cards.push(card(state, updates, app, local_available, message));
+                if index > 0 {
+                    cards = cards.push(settings_divider());
+                }
+                cards = cards.push(card(state, updates, app, compact, local_available, message));
+                if !state.loading && state.expanded == Some(app.entry.id) {
+                    let mut panel =
+                        column![super::details::actions(state, app, local_available, message),]
+                            .spacing(10);
+                    if let Some(details) = details.take() {
+                        panel = panel.push(details);
+                    }
+                    cards = cards.push(settings_divider()).push(
+                        container(panel)
+                            .padding([12, 16])
+                            .width(Length::Fill)
+                            .style(styles::detail_surface),
+                    );
+                }
             }
-            let section = column![section_title, settings_group_card(cards)].spacing(10);
-            let section: Element<'_, M> =
-                if presence == Presence::Installed && state.drag.source.is_some() {
-                    mouse_area(section).on_exit(message(Action::Drag(drag::DragMessage::Cancel))).into()
-                } else {
-                    section.into()
-                };
+            let section = column![
+                container(header).padding([0, 12]).width(Length::Fill),
+                container(cards).width(Length::Fill).style(settings_content_panel_style),
+            ]
+            .spacing(7);
+            let section: Element<'_, M> = if presence == Presence::Installed
+                && state.drag.source.is_some()
+            {
+                mouse_area(section).on_exit(message(Action::Drag(drag::DragMessage::Cancel))).into()
+            } else {
+                section.into()
+            };
             content = content.push(section);
         }
         if found == 0 {
@@ -224,30 +319,23 @@ pub fn view_with_updates<'a, M: Clone + 'static>(state: &ViewState<'a>, updates:
             ));
         }
     }
-    if !state.loading {
-        if let Some(app) = selected_app(state) {
-            let mut panel = column![
-                container(super::details::actions(state, app, local_available, message)).padding([16, 18]),
-            ].spacing(10);
-            if let Some(details) = details {
-                panel = panel.push(details);
-            }
-            content = content.push(settings_group_card(panel));
-        } else if !state.rows.is_empty() {
-            content = content.push(empty(
-                "选择一个智能体",
-                "从上方列表选择，查看此智能体的配置与操作。",
-                Icon::Sliders,
-            ));
-        }
+    if let Some(routing) = routing {
+        content = content.push(routing);
     }
-    settings_section_content(column![
-        toolbar,
-        scrollable(container(content).padding([0, 7]))
-            .direction(scrollable::Direction::Vertical(
-                scrollable::Scrollbar::new().width(4).scroller_width(4)))
+    let scroller = scrollable(container(content).width(Length::Fill).padding([4, 7]))
+        .width(Length::Fill)
+        .height(Length::Fill)
+        .direction(scrollable::Direction::Vertical(
+            scrollable::Scrollbar::new().width(4).scroller_width(4),
+        ));
+    settings_section_content(
+        column![container(toolbar).padding([0, 7]).width(Length::Fill), scroller]
+            .spacing(12)
             .height(Length::Fill),
-    ].spacing(20).height(Length::Fill)).height(Length::Fill).into()
+    )
+    .max_width(1080)
+    .height(Length::Fill)
+    .into()
 }
 
 fn empty<'a, M: 'static>(title: &'a str, description: &'a str, glyph: Icon) -> Element<'a, M> {
@@ -260,7 +348,7 @@ fn empty<'a, M: 'static>(title: &'a str, description: &'a str, glyph: Icon) -> E
         .spacing(12)
         .align_x(Alignment::Center),
     )
-    .padding([36, 16])
+    .padding([28, 16])
     .width(Length::Fill)
     .center_x(Length::Fill)
     .style(|theme| styles::card(theme, false))
@@ -326,11 +414,19 @@ pub fn brand_icon<M: 'static>(app: AppId, size: f32) -> Element<'static, M> {
     }
 }
 
-fn card<'a, M: Clone + 'static>(state: &ViewState<'a>, updates: Option<&'a desktop_apps_ui::catalog_state::UpdatesState>, app: &'a CatalogRow, local_available: bool, message: impl Fn(Action) -> M + Copy + 'static) -> Element<'a, M> {
+fn card<'a, M: Clone + 'static>(
+    state: &ViewState<'a>,
+    updates: Option<&'a desktop_apps_ui::catalog_state::UpdatesState>,
+    app: &'a CatalogRow,
+    compact: bool,
+    local_available: bool,
+    message: impl Fn(Action) -> M + Copy + 'static,
+) -> Element<'a, M> {
     let installed = presentation::presence(app) == Presence::Installed;
     let expanded = state.expanded == Some(app.entry.id);
-    let selected =
-        expanded || state.drag.source == Some(app.entry.id) || state.drag.target == Some(app.entry.id);
+    let selected = expanded
+        || state.drag.source == Some(app.entry.id)
+        || state.drag.target == Some(app.entry.id);
     let handle: Element<'_, M> = if installed {
         static GRIP: std::sync::LazyLock<svg::Handle> = std::sync::LazyLock::new(|| {
             svg::Handle::from_memory(br#"<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 12 18" fill="currentColor"><circle cx="3" cy="3" r="1.5"/><circle cx="9" cy="3" r="1.5"/><circle cx="3" cy="9" r="1.5"/><circle cx="9" cy="9" r="1.5"/><circle cx="3" cy="15" r="1.5"/><circle cx="9" cy="15" r="1.5"/></svg>"#.as_slice())
@@ -349,8 +445,8 @@ fn card<'a, M: Clone + 'static>(state: &ViewState<'a>, updates: Option<&'a deskt
                 }),
         )
         .width(14.)
-        .height(44.)
-        .center_y(44.)
+        .height(42.)
+        .center_y(42.)
         .center_x(14.);
         let enabled = drag::can_start(state, app.entry.id);
         let area = mouse_area(handle).interaction(if !enabled {
@@ -383,51 +479,75 @@ fn card<'a, M: Clone + 'static>(state: &ViewState<'a>, updates: Option<&'a deskt
     } else {
         container(text("")).width(14.).into()
     };
-    let mut meta = row![].spacing(6).align_y(Alignment::Center);
-    if let Some(installation) = presentation::preferred(app) {
-        let ready = matches!(installation.runtime_status, AppInstallationRuntimeStatus::Runnable);
-        meta = meta
-            .push(pill(presentation::source_label(installation.source), Tone::Neutral))
-            .push(
-                text(installation.version.as_deref().unwrap_or("版本待确认"))
-                    .size(12)
-                    .wrapping(Wrapping::Glyph)
-                    .style(settings_muted_text_style),
-            )
-            .push(pill(
-                if ready { "可运行" } else { "需要检查" },
-                if ready { Tone::Success } else { Tone::Warning },
-            ));
-    } else {
-        let label = match presentation::presence(app) {
-            Presence::Installed => "桌面应用 · 已发现",
-            Presence::Missing => "未安装",
-            Presence::Unverified => "暂未确认安装状态",
-        };
-        meta = meta.push(text(label).size(12).style(settings_muted_text_style));
+    let presence = presentation::presence(app);
+    let preferred = presentation::preferred(app);
+    let candidate = updates.and_then(|updates| {
+        updates.results.iter().find(|candidate| preferred == Some(&candidate.installation))
+    });
+    let version_label = match (preferred, presence) {
+        (Some(installation), _) => installation.version.as_deref().unwrap_or("版本待确认"),
+        (None, Presence::Installed) => "已发现桌面应用",
+        (None, Presence::Missing) => "未安装",
+        (None, Presence::Unverified) => "安装状态待确认",
+    };
+    let mut version = column![
+        text(version_label).size(12).wrapping(Wrapping::Glyph).style(settings_muted_text_style),
+    ]
+    .spacing(3);
+    if let Some(latest) = candidate
+        .filter(|candidate| candidate.supported)
+        .and_then(|candidate| candidate.latest.as_deref())
+    {
+        version =
+            version.push(text(format!("可升级至 {latest}")).size(12).wrapping(Wrapping::Glyph));
+    } else if preferred.is_some_and(|installation| {
+        !matches!(installation.runtime_status, AppInstallationRuntimeStatus::Runnable)
+    }) {
+        version = version.push(pill("需要检查", Tone::Warning));
     }
-    let candidate = updates.and_then(|u| u.results.iter().find(|candidate|
-        presentation::preferred(app) == Some(&candidate.installation)));
-    if let Some(candidate) = candidate {
-        if let Some(latest) = &candidate.latest { meta = meta.push(pill(format!("最新 {latest}"), Tone::Neutral)); }
-        meta = meta.push(text(candidate.status.clone()).size(12).style(settings_muted_text_style));
+    let toggle_details =
+        (state.drag.source.is_none()).then_some(message(Action::ToggleDetails(app.entry.id)));
+    let select = icon_btn(
+        if expanded { Icon::ChevronUp } else { Icon::ChevronDown },
+        if expanded { "收起应用详情" } else { "展开应用详情" },
+        toggle_details.clone(),
+    );
+    let mut title = row![text(&app.entry.name).size(15).wrapping(Wrapping::Glyph)]
+        .spacing(7)
+        .align_y(Alignment::Center);
+    if let Some(installation) = preferred {
+        title = title.push(pill(presentation::source_label(installation.source), Tone::Neutral));
     }
-    let mut description = column![text(&app.entry.name).size(16).wrapping(Wrapping::Glyph), meta.wrap()]
-        .spacing(8).width(Length::Fill);
-    if let Some(installation) = presentation::preferred(app) {
-        description = description.push(text(&installation.path).size(12)
-            .wrapping(Wrapping::Glyph).style(settings_muted_text_style));
-    } else if let Ok(observation) = &app.observation {
-        if let Some(paths) = observation.desktop.as_ref().and_then(|desktop| desktop.app_bundles.as_ref()) {
-            for path in paths { description = description.push(text(path).size(12)
-                .wrapping(Wrapping::Glyph).style(settings_muted_text_style)); }
-        }
+    let mut description = column![title.wrap()].spacing(4).width(Length::Fill);
+    let path = preferred.map(|installation| installation.path.as_str()).or_else(|| {
+        app.observation
+            .as_ref()
+            .ok()?
+            .desktop
+            .as_ref()?
+            .app_bundles
+            .as_ref()?
+            .first()
+            .map(String::as_str)
+    });
+    if let Some(path) = path {
+        description = description
+            .push(text(path).size(12).wrapping(Wrapping::Glyph).style(settings_muted_text_style));
     }
-    let select = button(text(if expanded { "收起详情" } else { "详情" }).size(SETTINGS_CONTROL_TEXT_SIZE))
-        .padding([8, 12])
-        .style(rounded_action_btn_style)
-        .on_press_maybe((state.drag.source.is_none())
-            .then_some(message(Action::ToggleDetails(app.entry.id))));
+    if let Some(count) = app
+        .observation
+        .as_ref()
+        .ok()
+        .map(|observation| observation.installations.len().saturating_sub(1))
+        .filter(|count| *count > 0)
+    {
+        description = description.push(
+            button(text(format!("另有 {count} 处安装")).size(12))
+                .padding([3, 7])
+                .style(rounded_action_btn_style)
+                .on_press_maybe(toggle_details),
+        );
+    }
     let saved = state.preferences.saved.as_ref();
     let visible = saved.is_some_and(|saved| saved.user.visible_apps.contains(&app.entry.id));
     let enabled = saved.is_some()
@@ -436,27 +556,62 @@ fn card<'a, M: Clone + 'static>(state: &ViewState<'a>, updates: Option<&'a deskt
         && state.drag.source.is_none()
         && (!visible || saved.is_some_and(|saved| saved.user.visible_apps.len() > 1));
     let id = app.entry.id;
-    let toggle = container(settings_toggle(visible).on_toggle_maybe(
+    let toggle = settings_toggle(visible).on_toggle_maybe(
         enabled.then_some(move |visible| message(Action::SetVisible(id, visible))),
-    )).width(96.).center_x(96.);
-    let mut actions = column![super::details::actions(state, app, local_available, message)].spacing(8);
-    if let Some(candidate) = candidate.filter(|candidate| candidate.supported) {
-        let request = vw_api_app_operations::AppActionPreviewRequest {
-            app_id: app.entry.id,
-            action: vw_api_app_operations::AppLifecycleAction::Update,
-            target: vw_api_app_operations::AppActionTarget::Installation { installation_id: candidate.installation.id.clone() },
+    );
+    let toggle = if compact { toggle.label("侧栏显示").text_size(12) } else { toggle };
+    let toggle = tooltip(
+        toggle,
+        container(text("在智能侧栏显示").size(12)).padding([6, 8]).style(settings_panel_style),
+        tooltip::Position::Top,
+    );
+    let primary: Element<'_, M> =
+        if let Some(candidate) = candidate.filter(|candidate| candidate.supported) {
+            let request = vw_api_app_operations::AppActionPreviewRequest {
+                app_id: app.entry.id,
+                action: vw_api_app_operations::AppLifecycleAction::Update,
+                target: vw_api_app_operations::AppActionTarget::Installation {
+                    installation_id: candidate.installation.id.clone(),
+                },
+            };
+            button(text("升级").size(13))
+                .padding([7, 10])
+                .style(primary_action_btn_style)
+                .on_press_maybe(
+                    (!state.loading
+                        && !updates.is_some_and(|updates| updates.checking)
+                        && !state.lifecycle.active()
+                        && state.lifecycle.preview.is_none()
+                        && state.drag.source.is_none())
+                    .then_some(message(Action::Preview(request))),
+                )
+                .into()
+        } else {
+            super::details::install_action(state, app, local_available, message)
+                .unwrap_or_else(|| Space::new().into())
         };
-        actions = actions.push(button(text("升级").size(SETTINGS_CONTROL_TEXT_SIZE))
-            .padding([8, 12]).style(primary_action_btn_style)
-            .on_press_maybe((!state.loading && !updates.is_some_and(|u| u.checking) && !state.lifecycle.active() && state.lifecycle.preview.is_none() && state.drag.source.is_none()).then_some(message(Action::Preview(request)))));
-    }
-    let summary = row![handle, brand(app.entry.id), description,
-        actions.push(select)
-            .spacing(8).width(Length::FillPortion(1)), toggle]
-        .spacing(12)
-        .align_y(Alignment::Center)
-        .wrap();
-    let body = container(summary).padding([12, 14]);
+    let identity = row![
+        handle,
+        container(brand_icon(app.entry.id, 22.0)).center_x(26).center_y(42),
+        description,
+    ]
+    .spacing(8)
+    .align_y(Alignment::Center)
+    .width(Length::Fill);
+    let summary: Element<'_, M> = if compact {
+        column![
+            row![identity, select].spacing(8).align_y(Alignment::Center),
+            row![version, primary, toggle].spacing(10).align_y(Alignment::Center).wrap(),
+        ]
+        .spacing(6)
+        .into()
+    } else {
+        row![identity, row_columns(version.into(), primary, toggle.into(), select)]
+            .spacing(8)
+            .align_y(Alignment::Center)
+            .into()
+    };
+    let body = container(summary).padding([9, 12]).width(Length::Fill).height(Length::Shrink);
     let card =
         container(body).width(Length::Fill).style(move |theme| styles::list_row(theme, selected));
     if installed {
@@ -467,6 +622,22 @@ fn card<'a, M: Clone + 'static>(state: &ViewState<'a>, updates: Option<&'a deskt
     } else {
         card.into()
     }
+}
+
+fn row_columns<'a, M: 'a>(
+    version: Element<'a, M>,
+    action: Element<'a, M>,
+    visibility: Element<'a, M>,
+    details: Element<'a, M>,
+) -> iced::widget::Row<'a, M> {
+    row![
+        container(version).width(112),
+        container(action).center_x(88),
+        container(visibility).center_x(68),
+        container(details).center_x(34),
+    ]
+    .spacing(8)
+    .align_y(Alignment::Center)
 }
 
 /// Returns the selected application within the catalog search scope.

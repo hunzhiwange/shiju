@@ -66,7 +66,7 @@ fn scan_controls(state: &State, ready: bool) -> Element<'_, Outcome<Event>> {
                 text("自动扫描会话日志").size(15),
                 tooltip(
                     icon_svg(Icon::QuestionCircle, 14.0),
-                    text("扫描当前主机已授权的本地会话日志").size(12),
+                    text("扫描可用的本地会话日志").size(12),
                     tooltip::Position::Bottom,
                 ),
             ].spacing(6).align_y(iced::Alignment::Center),
@@ -123,7 +123,7 @@ fn scan_controls(state: &State, ready: bool) -> Element<'_, Outcome<Event>> {
     let routing = row![
         column![
             text("记录请求用量").size(15),
-            text("在当前主机的本地路由设置中查看记录状态。").size(12).style(text::secondary),
+            text("在本地路由设置中查看记录状态。").size(12).style(text::secondary),
         ]
         .spacing(4)
         .width(Length::Fill),

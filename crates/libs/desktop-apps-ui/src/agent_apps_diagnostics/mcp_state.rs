@@ -157,5 +157,5 @@ pub async fn submit(
     gateway_mcp_probe::GatewayMcpProbeClient::new(client.transport().clone())
         .mcp_management_check(&context.query, &ids, generation, token)
         .await
-        .map_err(|_| "MCP 检测请求失败，结果未验证；请检查授权和目标主机".to_owned())
+        .map_err(|_| "MCP 检测请求失败，请检查网关连接后重试".to_owned())
 }

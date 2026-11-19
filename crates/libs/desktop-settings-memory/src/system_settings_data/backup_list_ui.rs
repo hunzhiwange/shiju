@@ -44,15 +44,15 @@ fn action<'a, E: Clone + 'static>(label: &'a str, event: Event, enabled: bool) -
         .on_press_maybe(enabled.then_some(message(event))).into()
 }
 pub fn view(available: bool) -> Element<'static, Event> {
-    button(text("维护执行主机备份")).padding([8, 14]).style(rounded_action_btn_style).on_press_maybe(available.then_some(Event::Open)).into()
+    button(text("维护备份")).padding([8, 14]).style(rounded_action_btn_style).on_press_maybe(available.then_some(Event::Open)).into()
 }
 
 pub fn overlay<'a, E: Clone + 'static>(state: ViewState<'a>, visible: bool, base: Element<'a, E>, locations: Element<'a, E>) -> Element<'a, OverlayEvent<E>> {
     if !visible { return base.map(OverlayEvent::External); }
     let enabled = !state.busy;
-    let header = settings_modal_header(text("执行主机备份维护").size(18), settings_close_button(message(Event::Close)));
+    let header = settings_modal_header(text("备份维护").size(18), settings_close_button(message(Event::Close)));
     let mut body = column![
-        text("本机回退备份仅用于原执行主机；所有操作由网关重新鉴权。"),
+        text("回退备份仅适用于创建备份的环境。"),
         action("刷新列表、分类与策略", Event::Refresh, enabled),
         text("备份名称（创建或重命名）"),
         settings_text_input("备份名称", state.name).on_input_maybe(enabled.then_some(|v| message(Event::Name(v)))),

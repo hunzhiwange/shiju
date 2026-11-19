@@ -201,10 +201,10 @@ fn code_label(code: AuthErrorCode) -> &'static str {
         InvalidInput => "授权登录参数无效",
         Unauthenticated => "管理凭据或主体令牌无效",
         Forbidden => "当前主体没有此服务的登录权限",
-        Unsupported => "执行主机不支持此服务的登录方式",
-        CallbackUnreachable => "当前浏览器无法访问执行主机的授权回调",
-        ExecutionChannelUnavailable => "执行主机没有可用的授权通道",
-        ExecutionHostUnavailable => "授权执行主机不可用",
+        Unsupported => "当前环境不支持此服务的登录方式",
+        CallbackUnreachable => "当前浏览器无法访问授权回调",
+        ExecutionChannelUnavailable => "没有可用的账号登录方式",
+        ExecutionHostUnavailable => "账号服务暂不可用",
         _ => "授权登录失败，请重试",
     }
 }
@@ -212,7 +212,7 @@ fn code_label(code: AuthErrorCode) -> &'static str {
 fn paste_error_label(error: AgentAppsAuthError) -> &'static str {
     match error {
         AgentAppsAuthError::Http { code: Some(AuthErrorCode::InvalidInput), .. } => {
-            "执行主机拒绝了回填，请检查授权码或回调地址"
+            "登录回填被拒绝，请检查授权码或回调地址"
         }
         AgentAppsAuthError::Http {
             code: Some(AuthErrorCode::Conflict | AuthErrorCode::NotFound),

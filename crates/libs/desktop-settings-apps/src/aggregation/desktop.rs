@@ -20,9 +20,9 @@ pub fn error(e: &AgentAppsSettingsError) -> &'static str {
         AgentAppsSettingsError::Http { status: 400 | 422, .. } => {
             "配置不受支持或校验失败，草稿已保留。"
         }
-        AgentAppsSettingsError::Http { status: 501, .. } => "执行主机不支持 Desktop。",
+        AgentAppsSettingsError::Http { status: 501, .. } => "当前环境不支持 Desktop。",
         AgentAppsSettingsError::Http { status: 502, .. } => "目标执行失败，请刷新实际状态。",
-        AgentAppsSettingsError::Http { status: 503, .. } => "目标主机不可用，请恢复连接后刷新。",
+        AgentAppsSettingsError::Http { status: 503, .. } => "服务暂不可用，请重新连接后刷新。",
         AgentAppsSettingsError::Http { status: 504, .. } => {
             "目标超时，结果未知；请刷新，勿重复提交。"
         }

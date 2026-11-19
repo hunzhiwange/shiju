@@ -86,14 +86,13 @@ pub fn entry() -> Element<'static, Message> {
 }
 pub fn overlay<'a>(
     state: &'a State,
-    host: &'a str,
+    _host: &'a str,
     base: Element<'a, Message>,
 ) -> Element<'a, Message> {
     if !state.open {
         return base;
     }
     let mut body = column![
-        text(format!("执行主机：{host}")),
         row![
             button(text("工作区目录"))
                 .padding([8, 12])
@@ -230,9 +229,9 @@ pub fn update(
         }
         Event::DirectoryDone(_, result) => {
             return if result.is_ok() {
-                success(notice, "已在执行主机打开目录")
+                success(notice, "已打开目录")
             } else {
-                notify_error(notice, "执行主机无法打开目录")
+                notify_error(notice, "无法打开目录")
             };
         }
         Event::Edit(action) => {

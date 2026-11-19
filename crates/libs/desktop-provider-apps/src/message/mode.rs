@@ -67,7 +67,7 @@ pub fn update(state: &mut State, connection: Result<(GatewayClient,Scope),String
         Ok(context) => context,
         Err(_) => {
             state.mode = None;
-            return super::provider_update::error("无法连接应用执行主机");
+            return super::provider_update::error("无法连接网关");
         }
     };
     if current != scope {

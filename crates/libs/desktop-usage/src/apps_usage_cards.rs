@@ -73,7 +73,7 @@ impl Failure {
     pub fn label(self) -> &'static str {
         match self {
             Self::Denied => "当前连接没有额度权限",
-            Self::Unsupported => "执行主机暂不支持此额度查询",
+            Self::Unsupported => "当前环境暂不支持此额度查询",
             Self::Changed => "供应商或绑定账号已变化，请重新读取",
             Self::Reauth => "账号需要重新授权",
             Self::Unavailable => "额度服务暂不可用",

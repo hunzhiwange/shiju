@@ -60,6 +60,8 @@ pub struct BelowOverlay<'a, Message, ThemeT = Theme, RendererT = iced::Renderer>
     snap_within_viewport: bool,
     on_close: Option<Message>,
     capture_outside_click: bool,
+    dismiss_on_escape: bool,
+    align_right: bool,
 }
 
 impl<'a, Message, ThemeT, RendererT> BelowOverlay<'a, Message, ThemeT, RendererT> {
@@ -75,6 +77,8 @@ impl<'a, Message, ThemeT, RendererT> BelowOverlay<'a, Message, ThemeT, RendererT
             snap_within_viewport: true,
             on_close: None,
             capture_outside_click: true,
+            dismiss_on_escape: false,
+            align_right: false,
         }
     }
 
@@ -90,6 +94,16 @@ impl<'a, Message, ThemeT, RendererT> BelowOverlay<'a, Message, ThemeT, RendererT
 
     pub fn on_close(mut self, msg: Message) -> Self {
         self.on_close = Some(msg);
+        self
+    }
+
+    pub fn dismiss_on_escape(mut self) -> Self {
+        self.dismiss_on_escape = true;
+        self
+    }
+
+    pub fn align_right(mut self, align: bool) -> Self {
+        self.align_right = align;
         self
     }
 
@@ -246,6 +260,8 @@ where
                 tree: children.next().unwrap(),
                 on_close: self.on_close.clone(),
                 capture_outside_click: self.capture_outside_click,
+                dismiss_on_escape: self.dismiss_on_escape,
+                align_right: self.align_right,
             })))
         } else {
             None
@@ -283,6 +299,8 @@ struct BelowOverlayElement<'a, 'b, Message, ThemeT, RendererT> {
     tree: &'b mut widget::Tree,
     on_close: Option<Message>,
     capture_outside_click: bool,
+    dismiss_on_escape: bool,
+    align_right: bool,
 }
 
 impl<Message, ThemeT, RendererT> overlay::Overlay<Message, ThemeT, RendererT>
@@ -326,9 +344,14 @@ where
             }
         }
 
+        let x = if self.align_right {
+            self.target_bounds.x + self.target_bounds.width - node.size().width
+        } else {
+            self.position.x
+        };
         let overlay_position = compute_overlay_position(
             Rectangle {
-                x: self.position.x,
+                x,
                 y: self.target_bounds.y,
                 width: self.target_bounds.width,
                 height: self.target_bounds.height,
@@ -363,6 +386,17 @@ where
         clipboard: &mut dyn Clipboard,
         shell: &mut Shell<'_, Message>,
     ) {
+        if self.dismiss_on_escape
+            && let Event::Keyboard(iced::keyboard::Event::KeyPressed {
+                key: iced::keyboard::Key::Named(iced::keyboard::key::Named::Escape),
+                ..
+            }) = event
+            && let Some(close) = &self.on_close
+        {
+            shell.publish(close.clone());
+            shell.capture_event();
+            return;
+        }
         let Some(overlay_layout) = layout.children().next() else {
             return;
         };
@@ -399,7 +433,10 @@ where
         }
 
         if matches!(event, Event::Mouse(_))
-            && (is_over_overlay || (self.capture_outside_click && !is_over_target))
+            && (is_over_overlay
+                || (self.capture_outside_click
+                    && (!is_over_target
+                        || matches!(event, Event::Mouse(mouse::Event::WheelScrolled { .. })))))
         {
             shell.capture_event();
         }

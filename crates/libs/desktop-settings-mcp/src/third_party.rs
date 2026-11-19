@@ -98,7 +98,6 @@ pub fn view<'a>(input: View<'a, '_>) -> Element<'a, Message> {
     let running = input.state.bindings.running;
     let mut body = column![
         text("第三方 MCP").size(20),
-        text(format!("当前执行主机：{}", scope.context.host)).size(14),
         text("目录为共享连接定义；启用或禁用仅发布到下方指定安装实例。识矩运行时与 ACP 的选择独立管理。")
             .size(12).style(settings_muted_text_style),
         crate::toolbar_button("刷新目录", (!loading).then(|| message(Action::Refresh))),
@@ -206,7 +205,7 @@ pub fn view<'a>(input: View<'a, '_>) -> Element<'a, Message> {
     }
     if !found {
         body = body.push(
-            text("尚无当前主机的可信 macOS 安装实例；请在应用管理中刷新，其它平台尚不支持发布。")
+            text("尚未发现可信的 macOS 安装实例；请在应用管理中刷新，其它平台尚不支持发布。")
                 .size(12)
                 .style(settings_muted_text_style),
         );

@@ -61,7 +61,7 @@ pub fn view(state: &State) -> Element<'_, Message> {
     ]
     .spacing(8);
     if state.offline && state.operation.is_none() {
-        content = content.push(text("面板离线。是否在执行主机启动 Hermes dashboard？"));
+        content = content.push(text("面板离线。是否启动 Hermes dashboard？"));
         actions = actions.push(
             button(text("确认启动"))
                 .padding([8, 12])

@@ -3,17 +3,26 @@
 pub(crate) mod skills_workspace;
 #[path = "third_party_mcp_workspace.rs"]
 pub(crate) mod mcp_workspace;
-use super::system_settings_common::{icon_btn, icon_svg, rounded_action_btn_style, settings_page_heading};
+#[path = "third_party_settings_page.rs"]
+mod settings_page;
+use super::system_settings_common::{
+    icon_btn, icon_svg, rounded_action_btn_style, settings_divider, settings_muted_text_style,
+    settings_page_heading,
+};
 use crate::app::{
     App, Message,
     message::{SettingsMessage, ViewMessage, settings::AppsCatalogMessage},
     views::usage::center as usage,
 };
 use desktop_assets::assets::Icon;
-use desktop_ui_controls::{settings_navigation::ThirdPartyPage, tooltip::tooltip_dark_style};
+use desktop_ui_controls::{
+    settings_navigation::{ThirdPartyPage, ThirdPartySettingsTab},
+    system_settings_common::settings_content_panel_style,
+    tooltip::tooltip_dark_style,
+};
 use iced::{
-    Element, Length, Task, Theme,
-    widget::{Space, button, column, container, row, rule, scrollable, text, tooltip},
+    Alignment, Element, Length, Task, Theme,
+    widget::{Space, button, column, container, keyed_column, row, rule, scrollable, text, tooltip},
 };
 
 fn message(event: AppsCatalogMessage) -> Message {
@@ -29,32 +38,11 @@ pub(crate) fn view(app: &App) -> Element<'_, Message> {
     let i18n = crate::app::i18n::I18n::new(app.general_settings.desktop_locale);
     let selected = state.expanded;
     let body: Element<'_, Message> = match state.third_party_page {
+        ThirdPartyPage::Settings(tab) => return workspace(app, settings_page::view(app, tab)),
         ThirdPartyPage::AppsCatalog => {
             return workspace(app, super::system_settings_apps::view(state, i18n));
         }
-        ThirdPartyPage::Agents => {
-            match state.rows.iter().find(|entry| Some(entry.entry.id) == selected) {
-                Some(entry) => column![
-                    desktop_settings_apps::system_settings_apps::details::actions(
-                        &super::system_settings_apps::view_state(state),
-                        entry,
-                        super::system_settings_apps::local::available(),
-                        super::system_settings_apps::domain_event
-                    ),
-                    super::system_settings_apps::details::view(state, entry),
-                ]
-                .spacing(16)
-                .into(),
-                None => iced::widget::container(text(if state.loading {
-                    "正在读取智能体…"
-                } else {
-                    "从左侧选择智能体，管理配置与运行环境"
-                }))
-                .center_x(iced::Length::Fill)
-                .center_y(iced::Length::Fill)
-                .into(),
-            }
-        }
+        ThirdPartyPage::Agents => return workspace(app, agent_workspace(app)),
         ThirdPartyPage::Mcp => mcp_workspace::view(app),
         ThirdPartyPage::Skills => {
             let applications = state
@@ -65,10 +53,17 @@ pub(crate) fn view(app: &App) -> Element<'_, Message> {
                     observation: r.observation.as_ref().ok(),
                 })
                 .collect::<Vec<_>>();
-            desktop_settings_skills::third_party::view(&state.third_party_skills, &applications)
-                .map(|event| message(AppsCatalogMessage::ThirdPartySkills(event)))
+            let skills = desktop_settings_skills::third_party::view(
+                &state.third_party_skills,
+                &applications,
+                desktop_settings_apps::system_settings_apps::list::brand_icon,
+            )
+            .map(|event| message(AppsCatalogMessage::ThirdPartySkills(event)));
+            return workspace(app, container(skills).padding([14, 16]).into());
         }
-        ThirdPartyPage::Prompts => super::system_settings_prompts::list::page(app),
+        ThirdPartyPage::Prompts => {
+            return workspace(app, super::system_settings_prompts::list::page(app));
+        }
         ThirdPartyPage::Sessions => super::third_party_resources::sessions(app),
         #[cfg(not(target_arch = "wasm32"))]
         ThirdPartyPage::Authorization => {
@@ -91,34 +86,27 @@ pub(crate) fn view(app: &App) -> Element<'_, Message> {
         }
         ThirdPartyPage::ManagementTools => column![
             super::third_party_tools::view(app, selected),
-            super::system_settings_data::migration_preview_ui::view(app),
+            super::system_settings_data::migration_preview_ui::entry(),
             crate::app::message::settings::backup_inventory::view(app),
             super::system_settings_data::export_ui::view(app),
         ]
         .spacing(12)
         .into(),
     };
-    let title = if state.third_party_page == ThirdPartyPage::Agents {
-        state
-            .rows
-            .iter()
-            .find(|entry| Some(entry.entry.id) == selected)
-            .map(|entry| entry.entry.name.as_str())
-            .unwrap_or(i18n.__("第三方智能体"))
-    } else {
-        ThirdPartyPage::ALL
-            .iter()
-            .find(|(page, _)| *page == state.third_party_page)
-            .map(|(_, label)| i18n.__(label))
-            .unwrap_or("")
-    };
-    let mut workspace = column![settings_page_heading(title, "")].spacing(16);
+    let title = ThirdPartyPage::ALL
+        .iter()
+        .find(|(page, _)| *page == state.third_party_page)
+        .map(|(_, label)| i18n.__(label))
+        .unwrap_or("");
+    let mut workspace = column![].spacing(16);
+    if state.third_party_page != ThirdPartyPage::Mcp {
+        workspace = workspace.push(settings_page_heading(title, ""));
+    }
     if let Some(error) = &state.error {
         workspace =
             workspace.push(super::system_settings_common::settings_error_banner(error.clone()));
     }
-    if matches!(state.third_party_page, ThirdPartyPage::Mcp | ThirdPartyPage::Sessions | ThirdPartyPage::Skills)
-        || (state.third_party_page == ThirdPartyPage::Prompts && state.prompts.editor.is_some()) {
+    if matches!(state.third_party_page, ThirdPartyPage::Mcp | ThirdPartyPage::Sessions) {
         workspace = workspace.push(container(body).padding([0, 7]).height(Length::Fill));
         return self::workspace(app, container(workspace.height(Length::Fill)).padding(24).into());
     }
@@ -130,6 +118,102 @@ pub(crate) fn view(app: &App) -> Element<'_, Message> {
             .height(Length::Fill),
     );
     self::workspace(app, container(workspace).padding(24).into())
+}
+
+fn agent_workspace(app: &App) -> Element<'_, Message> {
+    use super::system_settings_apps;
+    use desktop_settings_apps::system_settings_apps::{details, list, preferences};
+
+    let state = &app.apps_catalog;
+    let projection = system_settings_apps::view_state(state);
+    let selected = state.rows.iter().find(|row| Some(row.entry.id) == state.expanded);
+    let (header, body) = if let Some(agent) = selected {
+        let header = iced::widget::responsive(move |size| {
+            let identity =
+                row![list::brand_icon(agent.entry.id, 24.0), text(&agent.entry.name).size(22),]
+                    .spacing(10)
+                    .align_y(Alignment::Center);
+            let actions = details::actions(
+                &system_settings_apps::view_state(state),
+                agent,
+                system_settings_apps::local::available(),
+                system_settings_apps::domain_event,
+            );
+            if size.width >= 620.0 {
+                row![container(identity).width(Length::Fill), actions]
+                    .spacing(12)
+                    .align_y(Alignment::Center)
+                    .into()
+            } else {
+                column![identity, actions].spacing(10).into()
+            }
+        })
+        .height(Length::Shrink);
+        (Element::from(header), system_settings_apps::details::view(state, agent))
+    } else {
+        let mut choices = column![].width(Length::Fill).spacing(8);
+        let visible = preferences::visible_rows(&projection);
+        if visible.is_empty() {
+            choices = choices.push(
+                text(if state.loading {
+                    "正在读取智能体…"
+                } else {
+                    "没有可选的智能体"
+                })
+                .size(13)
+                .style(settings_muted_text_style),
+            );
+        }
+        for agent in visible {
+            let entry = &agent.entry;
+            choices = choices.push(
+                button(
+                    row![
+                        container(list::brand_icon(entry.id, 22.0)).center_x(36).center_y(36),
+                        text(&entry.name).size(15).width(Length::Fill),
+                        navigation_icon(Icon::ChevronRight),
+                    ]
+                    .spacing(10)
+                    .align_y(Alignment::Center),
+                )
+                .width(Length::Fill)
+                .padding([8, 12])
+                .style(|theme, status| {
+                    let mut style = rounded_action_btn_style(theme, status);
+                    if status == button::Status::Active {
+                        let panel = settings_content_panel_style(theme);
+                        style.background = panel.background;
+                        style.border = panel.border;
+                    }
+                    style
+                })
+                .on_press(message(AppsCatalogMessage::SelectApp(entry.id))),
+            );
+        }
+        (
+            text("选择第三方智能体").size(22).into(),
+            container(choices).width(Length::Fill).max_width(560).into(),
+        )
+    };
+
+    let mut content =
+        column![container(header).padding([0, 7]).width(Length::Fill), settings_divider()]
+            .spacing(12)
+            .width(Length::Fill);
+    if let Some(error) = &state.error {
+        content = content.push(super::system_settings_common::settings_error_banner(error.clone()));
+    }
+    let scroll = scrollable(container(body).width(Length::Fill).padding([0, 7]))
+        .width(Length::Fill)
+        .height(Length::Fill)
+        .direction(scrollable::Direction::Vertical(
+            scrollable::Scrollbar::new().width(4).scroller_width(4),
+        ));
+    content
+        .push(keyed_column([(state.expanded, scroll.into())]).height(Length::Fill))
+        .padding([16, 18])
+        .height(Length::Fill)
+        .into()
 }
 
 fn workspace<'a>(app: &'a App, content: Element<'a, Message>) -> Element<'a, Message> {
@@ -167,7 +251,7 @@ fn sidebar(app: &App) -> Element<'_, Message> {
     let mut resources = column![].spacing(2);
     for &(page, label) in ThirdPartyPage::ALL {
         let icon = match page {
-            ThirdPartyPage::Agents | ThirdPartyPage::AppsCatalog => continue,
+            ThirdPartyPage::Agents | ThirdPartyPage::AppsCatalog | ThirdPartyPage::Settings(_) => continue,
             ThirdPartyPage::Mcp => Icon::HddNetwork,
             ThirdPartyPage::Skills => Icon::Box,
             ThirdPartyPage::Prompts => Icon::Box,
@@ -213,9 +297,15 @@ fn sidebar(app: &App) -> Element<'_, Message> {
 
     let footer = row![
         sidebar_action(navigation_icon(Icon::Grid1x2), i18n.__("应用"), None, !showing_usage && state.third_party_page == ThirdPartyPage::AppsCatalog, message(AppsCatalogMessage::Navigate(ThirdPartyPage::AppsCatalog))),
-        sidebar_action(navigation_icon(Icon::Gear), i18n.__("设置"), None, false, Message::View(ViewMessage::OpenSystemSettingsTab(
-            desktop_ui_controls::settings_navigation::SystemTab::General,
-        ))),
+        sidebar_action(
+            navigation_icon(Icon::Gear),
+            i18n.__("设置"),
+            None,
+            !showing_usage && matches!(state.third_party_page, ThirdPartyPage::Settings(_)),
+            message(AppsCatalogMessage::Navigate(ThirdPartyPage::Settings(
+                ThirdPartySettingsTab::Applications,
+            ))),
+        ),
     ].spacing(4);
 
     container(column![
@@ -301,7 +391,15 @@ pub(crate) fn navigate(app: &mut App, page: ThirdPartyPage) -> Task<Message> {
     use crate::app::message::settings;
     match page {
         ThirdPartyPage::AppsCatalog => settings::apps_catalog::update(app, AppsCatalogMessage::EnsureLoaded),
-        ThirdPartyPage::Prompts => super::system_settings_prompts::list::open_selected(app),
+        ThirdPartyPage::Prompts => settings::apps_catalog::update(app, AppsCatalogMessage::EnsureLoaded),
+        ThirdPartyPage::Settings(tab) => {
+            let load = settings::apps_catalog::update(app, AppsCatalogMessage::EnsureLoaded);
+            if tab != ThirdPartySettingsTab::Routing {
+                return load;
+            }
+            use super::app_routing::lifecycle::{self, Event, Operation};
+            Task::batch([load, lifecycle::update(app, Event::Run(Operation::Refresh))])
+        }
         ThirdPartyPage::Mcp => {
             Task::batch([
                 settings::apps_catalog::update(app, AppsCatalogMessage::EnsureLoaded),
@@ -309,17 +407,24 @@ pub(crate) fn navigate(app: &mut App, page: ThirdPartyPage) -> Task<Message> {
             ])
         }
         ThirdPartyPage::Skills => {
+            use desktop_settings_skills::third_party::{Action, Message as SkillMessage, workspace};
+            use desktop_settings_skills::update::bindings_view;
+            let catalog_load = settings::apps_catalog::update(app, AppsCatalogMessage::EnsureLoaded);
             let input = settings::skills::update_input(app);
             let scope = input.context.map(|context| desktop_settings_skills::third_party::Scope {
                 context, project: input.project, host: input.host, directory: input.directory,
             });
             app.apps_catalog.third_party_skills.sync(scope, app.apps_catalog.navigation_generation);
-            let Some(scope) = app.apps_catalog.third_party_skills.scope().cloned() else { return Task::none(); };
+            let Some(scope) = app.apps_catalog.third_party_skills.scope().cloned() else {
+                return catalog_load;
+            };
             let catalog = app.apps_catalog.navigation_generation;
-            skills_update(app, desktop_settings_skills::third_party::Message {
-                scope, catalog, action: desktop_settings_skills::third_party::Action::Workspace(
-                    desktop_settings_skills::third_party::workspace::Event::Tab(desktop_settings_skills::third_party::workspace::Tab::Installed)),
-            })
+            let scoped = |action| SkillMessage { scope: scope.clone(), catalog, action };
+            let inventory = skills_update(app, scoped(Action::Workspace(
+                workspace::Event::Tab(workspace::Tab::Installed),
+            )));
+            let targets = skills_update(app, scoped(Action::Binding(bindings_view::Event::Open)));
+            Task::batch([catalog_load, inventory, targets])
         }
         ThirdPartyPage::Sessions => {
             app.apps_catalog.external_sessions.open = true;
@@ -370,6 +475,7 @@ pub(crate) fn invalidate(app: &mut App) {
     let s = &mut app.apps_catalog;
     s.navigation_generation = s.navigation_generation.wrapping_add(1);
     s.third_party_mcp_scope = None;
+    app.mcp_settings.bindings.matrix.column_menu = None;
     s.third_party_skills.sync(None, s.generation);
     s.external_sessions.invalidate();
     s.launch.invalidate();
@@ -432,16 +538,57 @@ pub(crate) fn skills_update(
     };
     let mut input = crate::app::message::settings::skills::update_input(app);
     input.catalog = app.apps_catalog.navigation_generation;
+    use desktop_settings_skills::third_party::workspace::Event as WorkspaceEvent;
+    if matches!(&event.action,
+        Action::Workspace(WorkspaceEvent::Install(_) | WorkspaceEvent::ConfirmRepository)
+        | Action::Directory(DirectoryAction::Import)
+    ) {
+        let page = &app.apps_catalog.third_party_skills;
+        if page.awaiting_target_snapshot() || app.apps_catalog.loading {
+            return app.show_error_toast(if page.bindings.busy || app.apps_catalog.loading {
+                "正在读取当前项目的安装目标，请稍候"
+            } else {
+                "安装目标读取失败，请在「安装到」中重试或选择「仅主副本」"
+            });
+        }
+    }
+    let inventory_readback = matches!(&event.action, Action::Workspace(WorkspaceEvent::Loaded(_, Ok(_))));
+    let snapshot_version = app.apps_catalog.third_party_skills.bindings.snapshot.as_ref()
+        .map(|snapshot| snapshot.version);
     match desktop_settings_skills::third_party::update(
         &mut app.apps_catalog.third_party_skills,
         &input,
         event,
     ) {
         Effect::None => Task::none(),
-        Effect::Workspace { scope, catalog, effect } => skills_workspace::execute(app, scope, catalog, effect),
+        Effect::Workspace { scope, catalog, effect } => {
+            let page = &app.apps_catalog.third_party_skills;
+            let reload_bindings = inventory_readback && !page.bindings.busy
+                && page.workspace.inventory.as_ref().zip(page.bindings.snapshot.as_ref())
+                    .is_some_and(|(inventory, snapshot)| inventory.version != snapshot.version);
+            let refresh = reload_bindings.then(|| desktop_settings_skills::third_party::Message {
+                scope: scope.clone(), catalog, action: Action::Binding(bindings_view::Event::Refresh),
+            });
+            let workspace = skills_workspace::execute(app, scope, catalog, effect);
+            if let Some(event) = refresh {
+                return Task::batch([workspace, skills_update(app, event)]);
+            }
+            workspace
+        }
         Effect::Binding { scope, catalog, effect } => match effect {
             bindings_view::Effect::None => Task::none(),
-            bindings_view::Effect::Error(error) => app.show_error_toast(error),
+            bindings_view::Effect::Error(error) => {
+                let toast = app.show_error_toast(error);
+                let versions_changed = app.apps_catalog.third_party_skills.bindings.snapshot.as_ref()
+                    .zip(app.apps_catalog.third_party_skills.workspace.inventory.as_ref())
+                    .is_some_and(|(snapshot, inventory)| {
+                        Some(snapshot.version) != snapshot_version && snapshot.version != inventory.version
+                    });
+                if versions_changed {
+                    return Task::batch([toast, crate::app::message::settings::skills::refresh_workspace(app)]);
+                }
+                toast
+            }
             bindings_view::Effect::Success(notice) => Task::batch([
                 app.show_success_toast(notice),
                 crate::app::message::settings::skills::refresh_workspace(app),
@@ -503,9 +650,30 @@ pub(crate) fn skills_update(
                     SettingsMessage::SkillsBackups(skills::backup_modal::Event::Open)
                 }
             };
-            let backup = matches!(action, DirectoryAction::Backup);
+            let opening_import = matches!(action, DirectoryAction::Import) && !app.skills_settings.import.open;
             let task = skills::update(app, event);
-            if backup {
+            if opening_import && app.skills_settings.import.open {
+                let page = &app.apps_catalog.third_party_skills;
+                let import = &mut app.skills_settings.import;
+                import.available_targets = page.available_targets(&input.targets);
+                import.targets = page.bindings.targets.iter()
+                    .filter(|target| import.available_targets.contains(target))
+                    .cloned()
+                    .collect();
+                let scan_sources = import.targets.iter().map(|target| target.app_id)
+                    .filter(|id| desktop_settings_skills::import_modal::APPS.contains(id));
+                if let Some(source) = scan_sources.clone()
+                    .find(|id| *id == vw_api_types::agent_apps::AppId::Codex)
+                    .or_else(|| scan_sources.into_iter().next())
+                {
+                    import.apps.push(source);
+                    let scan = skills::update(app, SettingsMessage::SkillsImport(
+                        skills::import_modal::Event::Scan,
+                    ));
+                    return Task::batch([task, scan]);
+                }
+            }
+            if matches!(action, DirectoryAction::Backup) {
                 // The list readback validates these choices against the same scope.
                 app.skills_settings.backups.targets = app.apps_catalog.third_party_skills.bindings.targets.clone();
             }
@@ -522,10 +690,16 @@ pub(crate) fn overlays<'a>(app: &'a App, base: Element<'a, Message>) -> Element<
                 mcp_workspace::overlays(app, base),
         _ => base,
     };
-    if app.apps_catalog.third_party_page == ThirdPartyPage::ManagementTools {
-        super::system_settings_data::export_ui::overlay(
+    if matches!(
+        app.apps_catalog.third_party_page,
+        ThirdPartyPage::ManagementTools | ThirdPartyPage::Settings(ThirdPartySettingsTab::Data)
+    ) {
+        super::system_settings_data::migration_preview_ui::overlay(
             app,
-            super::third_party_tools::overlay(app, base),
+            super::system_settings_data::export_ui::overlay(
+                app,
+                super::third_party_tools::overlay(app, base),
+            ),
         )
     } else {
         base

@@ -49,7 +49,7 @@ pub fn update(state: &mut State, current: Option<Identity>, client: Option<vw_ga
         }
         Event::Diagnosed(id, generation, result) if id == current && generation == state.generation && state.busy => {
             state.busy = false;
-            match result { Ok(value) => state.diagnosis = Some(value), Err(()) => state.error = Some("诊断失败，请检查授权与执行主机连接；原数据未修改。".into()) }
+            match result { Ok(value) => state.diagnosis = Some(value), Err(()) => state.error = Some("诊断失败，请检查网关连接后重试。".into()) }
             return Task::none();
         }
         Event::Previewed(id, generation, result) if id == current && generation == state.generation && state.busy => {
@@ -61,7 +61,7 @@ pub fn update(state: &mut State, current: Option<Identity>, client: Option<vw_ga
             state.busy = false;
             match result {
                 Ok(value) => state.progress = Some(value),
-                Err(()) => { state.error = Some("恢复结果暂不可用。请查询已有任务，勿重复恢复；如无任务 ID，请联系执行主机管理员核对。".into()); return notify_error("恢复结果需核对，请勿重复提交"); }
+                Err(()) => { state.error = Some("恢复结果暂不可用。请查询已有任务，勿重复恢复；如无任务 ID，请联系管理员核对。".into()); return notify_error("恢复结果需核对，请勿重复提交"); }
             }
             return Task::none();
         }

@@ -34,7 +34,7 @@ pub fn settings_select<'a, Message: Clone + 'a, T: Clone + PartialEq + ToString 
     let labels = options.iter().map(ToString::to_string).collect();
     let label = selected.map(|value| value.to_string());
     let enabled = !options.is_empty();
-    let trigger = trigger(label.clone().unwrap_or_default(), label.is_none(), enabled, None, None);
+    let trigger = trigger(label.clone().unwrap_or_default(), label.is_none(), enabled, None, None, false);
     let values = Rc::clone(&options);
     SettingsSelect {
         trigger,
@@ -49,6 +49,7 @@ pub fn settings_select<'a, Message: Clone + 'a, T: Clone + PartialEq + ToString 
         width: Length::Fixed(280.0),
         toolbar_icon: None,
         trigger_height: None,
+        menu_min_width: None,
     }
 }
 
@@ -65,6 +66,7 @@ pub struct SettingsSelect<'a, T, Message> {
     width: Length,
     toolbar_icon: Option<Icon>,
     trigger_height: Option<f32>,
+    menu_min_width: Option<f32>,
 }
 
 impl<T, Message> SettingsSelect<'_, T, Message> {
@@ -83,6 +85,14 @@ impl<T, Message> SettingsSelect<'_, T, Message> {
     /// An icon and a compact, borderless trigger for inline toolbar filters.
     pub fn toolbar_icon(mut self, icon: Icon) -> Self {
         self.toolbar_icon = Some(icon);
+        self.rebuild_trigger();
+        self
+    }
+
+    /// Use an icon-only trigger while preserving room for the menu's action labels.
+    pub fn menu_icon(mut self, icon: Icon, menu_min_width: f32) -> Self {
+        self.toolbar_icon = Some(icon);
+        self.menu_min_width = Some(menu_min_width);
         self.rebuild_trigger();
         self
     }
@@ -109,7 +119,7 @@ impl<T, Message> SettingsSelect<'_, T, Message> {
     fn rebuild_trigger(&mut self) {
         let label = self.label.as_ref().unwrap_or(&self.placeholder);
         self.trigger = trigger(
-            label.clone(), self.label.is_none(), self.enabled, self.toolbar_icon, self.trigger_height,
+            label.clone(), self.label.is_none(), self.enabled, self.toolbar_icon, self.trigger_height, self.menu_min_width.is_some(),
         );
     }
 }
@@ -120,20 +130,23 @@ fn trigger(
     enabled: bool,
     toolbar_icon: Option<Icon>,
     trigger_height: Option<f32>,
+    icon_only: bool,
 ) -> Element<'static, ()> {
     let mut content = row![];
     if let Some(icon) = toolbar_icon {
         content = content.push(icon_svg(icon, 14.0).style(styles::icon));
     }
-    let content = content.push(label::Label::new(value))
-        .push(icon_svg(Icon::ChevronDown, 12.0).style(move |theme, status| {
-            if enabled {
-                styles::icon(theme, status)
-            } else {
-                iced::widget::svg::Style { color: Some(styles::label(theme, false, false)) }
-            }
-        }))
-        .spacing(if toolbar_icon.is_some() { 6 } else { 12 })
+    if !icon_only {
+        content = content.push(label::Label::new(value))
+            .push(icon_svg(Icon::ChevronDown, 12.0).style(move |theme, status| {
+                if enabled {
+                    styles::icon(theme, status)
+                } else {
+                    iced::widget::svg::Style { color: Some(styles::label(theme, false, false)) }
+                }
+            }));
+    }
+    let content = content.spacing(if toolbar_icon.is_some() { 6 } else { 12 })
         .height(Length::Fill)
         .align_y(Alignment::Center);
     let custom_height = trigger_height.or(toolbar_icon.map(|_| 30.0));
@@ -144,9 +157,14 @@ fn trigger(
         .padding([vertical_padding, horizontal_padding])
         .width(Length::Fill)
         .height(custom_height.unwrap_or(SETTINGS_CONTROL_HEIGHT))
-        .style(move |theme: &Theme, _| button::Style {
-            text_color: styles::label(theme, placeholder, enabled),
-            ..Default::default()
+        .style(move |theme: &Theme, status| {
+            if icon_only {
+                return super::icons::icon_btn_style(theme, status);
+            }
+            button::Style {
+                text_color: styles::label(theme, placeholder, enabled),
+                ..Default::default()
+            }
         })
         .into()
 }
@@ -406,6 +424,7 @@ impl<T: PartialEq + 'static, Message: Clone> Widget<Message, Theme, Renderer> fo
             state: &mut state.menu,
             focused: &mut state.focused,
             anchor,
+            min_width: self.menu_min_width.unwrap_or_default(),
             viewport: *viewport,
             on_selected: self.on_selected.as_ref(),
             option_count: self.labels.len(),

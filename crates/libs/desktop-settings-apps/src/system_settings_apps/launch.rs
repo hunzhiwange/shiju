@@ -102,7 +102,7 @@ impl LaunchState {
                 self.session_id = value.session_id;
                 self.phase = self.session_id.as_ref().map(|_| LaunchSessionPhase::Running);
             }
-            Ok(_) => self.error = Some("执行主机返回了其他实例，启动未确认".into()),
+            Ok(_) => self.error = Some("返回的安装实例不匹配，启动未确认".into()),
             Err(error) => self.error = Some(error),
         }
         true
@@ -182,7 +182,7 @@ fn poll<C: Clone + Send + 'static>(
             let result = client
                 .agent_apps_launch_session(&scope.host, &id, &token)
                 .await
-                .map_err(|_| "会话状态暂不可用；请检查执行主机，不会重新启动 CLI".to_string());
+                .map_err(|_| "会话状态暂不可用；请检查网关连接".to_string());
             (scope, id, result)
         },
         |(scope, id, result)| event(LaunchMessage::Session { scope, id, result }),
@@ -236,7 +236,7 @@ pub fn update<C: Clone + PartialEq + Send + 'static>(catalog: &mut Input<'_, C>,
                     return if status.phase == LaunchSessionPhase::Completed {
                         iced::Task::done(LaunchMessage::Success(("CLI 已退出且执行端清理完成").into()))
                     } else {
-                        iced::Task::done(LaunchMessage::Error(("CLI 会话失败或终端已关闭；请检查执行主机与账号状态").into()))
+                        iced::Task::done(LaunchMessage::Error(("CLI 会话失败或终端已关闭；请检查网关连接与账号状态").into()))
                     };
                 }
                 Err(error) => {
@@ -260,7 +260,7 @@ pub fn update<C: Clone + PartialEq + Send + 'static>(catalog: &mut Input<'_, C>,
                 if let Some(error) = catalog.launch.error.clone() {
                     return iced::Task::done(LaunchMessage::Error((error).into()));
                 }
-                let toast = iced::Task::done(LaunchMessage::Success(("执行主机已接受终端启动；尚未确认 CLI 完成").into()));
+                let toast = iced::Task::done(LaunchMessage::Success(("终端启动请求已受理；尚未确认 CLI 完成").into()));
                 if let Some(id) = catalog.launch.session_id.clone() {
                     return Task::batch([
                         toast,
@@ -398,11 +398,11 @@ pub fn update<C: Clone + PartialEq + Send + 'static>(catalog: &mut Input<'_, C>,
                             } => "启动未授权；未回退其他主机或账号",
                             gateway_app_settings::AgentAppsSettingsError::Http {
                                 status: 422, ..
-                            } => "执行主机拒绝目录、身份、参数或实例；请关闭后刷新并重新选择",
+                            } => "启动请求被拒绝，请核对目录、账号、参数与安装实例；请关闭后刷新并重新选择",
                             gateway_app_settings::AgentAppsSettingsError::Http {
                                 status: 501, ..
-                            } => "执行主机尚不支持此身份的启动方式",
-                            _ => "未确认启动结果；不会自动重试，请先检查执行主机上的终端",
+                            } => "此账号的启动方式暂不受支持",
+                            _ => "未确认启动结果；不会自动重试，请先检查终端",
                         }
                         .to_string()
                     });

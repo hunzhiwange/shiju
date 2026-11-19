@@ -265,7 +265,7 @@ fn auth6_ui_actions_commits_expected_scoped_result() {
         assert!(scoped_account(&app, code).unwrap().is_default);
 
         let _ = open(&mut app, &endpoint, code, AccountOperation::Logout);
-        complete(&mut app, &endpoint, "账号已在执行主机登出", true);
+        complete(&mut app, &endpoint, "账号已登出", true);
         assert_eq!(
             scoped_account(&app, code).unwrap().credential_state,
             AuthCredentialState::SignedOut
@@ -391,7 +391,7 @@ fn auth6_ui_actions_rejects_invalid_or_stale_input() {
 
         let check = open(&mut app, &endpoint, dsh, AccountOperation::Revoke);
         let _ = drive(&mut app, &endpoint, check);
-        complete(&mut app, &endpoint, "账号已在执行主机登出，上游未确认撤销", false);
+        complete(&mut app, &endpoint, "账号已登出，上游未确认撤销", false);
         server.join().unwrap();
 
         let other_company =

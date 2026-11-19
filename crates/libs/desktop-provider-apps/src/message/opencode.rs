@@ -191,7 +191,7 @@ fn error(error: AgentAppsReadError) -> String {
         AgentAppsReadError::Http { status: 401 | 403, .. } => "无权操作此主机的 OpenCode 配置。",
         AgentAppsReadError::Http { status: 404, .. } => "供应商不存在或缺少原生节点，请刷新列表。",
         AgentAppsReadError::Http { status: 409, .. } => "配置或事务状态已变更，请重新打开后重试。",
-        AgentAppsReadError::Http { status: 501, .. } => "此执行主机不支持 OpenCode 配置。",
+        AgentAppsReadError::Http { status: 501, .. } => "当前环境不支持 OpenCode 配置。",
         _ => "OpenCode 配置请求失败，请检查网关连接后重试。",
     }
     .into()

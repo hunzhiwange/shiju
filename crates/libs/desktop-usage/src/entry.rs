@@ -17,7 +17,7 @@ pub fn external_usage_entry() -> Element<'static, Navigation> {
     };
     container(column![
         text("应用额度与套餐").size(16),
-        text("连接执行主机后，在授权账号中读取额度；供应商用量位于应用的供应商卡片中。查询结果与当前会话统计分别展示。")
+        text("在已登录账号中查询额度。供应商用量显示在应用的供应商卡片中。")
             .size(13)
             .style(settings_muted_text_style),
         row![

@@ -1,9 +1,13 @@
 //! Managed connection form presentation; persistence stays in the update layer.
-use crate::{form_field, toolbar_button};
-use desktop_ui_controls::system_settings_common::*;
+use crate::{form_field, management_bindings::matrix::app_label, toolbar_button};
+use desktop_assets::assets::Icon;
+use desktop_settings_apps::system_settings_apps::list::brand_icon;
+use desktop_ui_controls::system_settings_common::{icons::icon_btn_svg_style, *};
 use iced::{
     Alignment, Element, Length,
-    widget::{Space, button, checkbox, column, row, text, text_editor},
+    widget::{
+        Space, button, checkbox, column, container, row, rule, scrollable, text, text_editor,
+    },
 };
 use vw_api_mcp_management::{McpConfigValue, McpPresetDraftView};
 #[derive(Clone)]
@@ -23,6 +27,7 @@ pub enum FormMessage {
     Field(&'static str, String),
     Json(bool),
     Editor(text_editor::Action),
+    Description(text_editor::Action),
     Preset(usize),
     ValueAdd,
     ValueRemove(String),
@@ -63,43 +68,40 @@ pub fn connection_form_panel(draft: ConnectionDraft<'_>) -> Element<'_, Message>
             ),
         )
     };
-    let mut body = column![
-        text("先保存定义，再发布到勾选的应用；粘贴和编辑不会运行命令。")
-            .size(12)
-            .style(settings_muted_text_style),
-    ]
-    .spacing(12);
-    if draft.editing {
-        body = body.push(text("目录不提供原始连接；请输入替换定义。省略的现有凭据引用由服务端保留；未知遮罩会被拒绝。").size(12));
-    } else {
-        body =
-            body.push(input("目录 ID", "id", &draft.id)).push(input("名称", "name", &draft.name));
+    let mut body = column![].spacing(15).width(Length::Fill);
+    if !draft.editing && !draft.presets.is_empty() {
+        let mut presets = row![].spacing(7);
         for (index, preset) in draft.presets.iter().enumerate() {
-            body = body.push(
-                button(text(format!("预设：{}（未启用草稿）", preset.name)))
-                    .padding([8, 14])
+            presets = presets.push(
+                button(text(preset.name.as_str()).size(13))
+                    .padding([6, 12])
                     .style(rounded_action_btn_style)
-                    .on_press_maybe((!draft.saving).then_some(message(FormMessage::Preset(index)))),
+                    .on_press_maybe((!draft.saving).then_some(FormMessage::Preset(index))),
             );
         }
+        body = body.push(form_field("从模板开始", presets.wrap()));
     }
-    if draft.editing {
-        body = body.push(
-            checkbox(draft.draft.replace_connection)
-                .label("替换私有连接定义")
-                .style(settings_checkbox_style)
-                .on_toggle_maybe((!draft.saving).then_some(FormMessage::Replace)),
-        );
-    }
-    body = body.push(text("粘贴 JSON / Codex TOML / OpenCode 配置").size(14));
     let paste = text_editor(&draft.draft.paste)
-        .height(110)
+        .placeholder("粘贴 JSON、Codex TOML 或 OpenCode 配置")
+        .height(78)
         .padding(SETTINGS_CONTROL_PADDING)
         .size(SETTINGS_CONTROL_TEXT_SIZE)
         .style(settings_text_editor_style);
-    body = body.push(if draft.saving { paste } else { paste.on_action(FormMessage::PasteEditor) });
-    body =
-        body.push(toolbar_button("解析粘贴", (!draft.saving).then_some(FormMessage::ParsePaste)));
+    body = body.push(form_field(
+        "粘贴配置",
+        column![
+            if draft.saving { paste } else { paste.on_action(FormMessage::PasteEditor) },
+            row![
+                Space::new().width(Length::Fill),
+                toolbar_button(
+                    "解析配置",
+                    (!draft.saving && !draft.draft.paste.text().trim().is_empty())
+                        .then_some(FormMessage::ParsePaste)
+                ),
+            ],
+        ]
+        .spacing(6),
+    ));
     for (index, candidate) in draft.draft.candidates.iter().enumerate() {
         let conflict = draft.draft.catalog.iter().any(|r| r.record.id.0 == candidate.id);
         body = body.push(
@@ -125,15 +127,51 @@ pub fn connection_form_panel(draft: ConnectionDraft<'_>) -> Element<'_, Message>
             .spacing(8),
         );
     }
+    body = body.push(rule::horizontal(1)).push(form_field(
+        if draft.editing { "目录 ID" } else { "名称（目录 ID）" },
+        settings_text_input("例如 context7", draft.id).on_input_maybe(
+            (!draft.saving && !draft.editing).then_some(|id| FormMessage::Field("id", id)),
+        ),
+    ));
     if draft.editing {
-        body = body.push(text(format!("目录 ID（锁定）：{}", draft.id)));
+        body = body.push(
+            checkbox(draft.draft.replace_connection)
+                .label("替换私有连接")
+                .style(settings_checkbox_style)
+                .on_toggle_maybe((!draft.saving).then_some(FormMessage::Replace)),
+        );
+        if draft.draft.replace_connection {
+            body = body.push(
+                text("请填写新的连接定义。省略的现有凭据引用会保留。")
+                    .size(12)
+                    .style(settings_muted_text_style),
+            );
+        }
     }
-    body = body.push(input("显示名称", "name", draft.name));
     if draft.draft.replace_connection {
         body = body.push(
-            checkbox(draft.json).label("JSON 编辑").style(settings_checkbox_style).on_toggle_maybe(
-                (!draft.saving).then_some(|value| message(FormMessage::Json(value))),
-            ),
+            row![
+                settings_field_label("连接配置"),
+                Space::new().width(Length::Fill),
+                container(
+                    row![
+                        segment(
+                            "表单",
+                            !draft.json,
+                            (!draft.saving && draft.json).then_some(FormMessage::Json(false))
+                        ),
+                        segment(
+                            "JSON",
+                            draft.json,
+                            (!draft.saving && !draft.json).then_some(FormMessage::Json(true))
+                        ),
+                    ]
+                    .spacing(3)
+                )
+                .padding(3)
+                .style(segment_track),
+            ]
+            .align_y(Alignment::Center),
         );
         if draft.json {
             let editor = text_editor(&draft.editor)
@@ -141,27 +179,41 @@ pub fn connection_form_panel(draft: ConnectionDraft<'_>) -> Element<'_, Message>
                 .size(SETTINGS_CONTROL_TEXT_SIZE)
                 .height(340)
                 .style(settings_text_editor_style);
-            body = body.push(if draft.saving {
-                editor
-            } else {
-                editor.on_action(move |action| message(FormMessage::Editor(action)))
-            });
-        } else {
             body = body.push(form_field(
-                "传输",
-                settings_select(
-                    ["stdio", "streamable_http", "sse"].map(str::to_owned),
-                    Some(draft.transport.to_owned()),
-                    |value| message(FormMessage::Field("transport", value)),
+                "服务器配置",
+                if draft.saving { editor } else { editor.on_action(FormMessage::Editor) },
+            ));
+        } else {
+            let transport = |label: &'static str, kind: &'static str| {
+                segment(
+                    label,
+                    draft.transport == kind,
+                    (!draft.saving && draft.transport != kind)
+                        .then(|| FormMessage::Field("transport", kind.into())),
                 )
-                .disabled(draft.saving),
+            };
+            body = body.push(form_field(
+                "连接方式",
+                container(
+                    row![
+                        transport("本地命令（stdio）", "stdio"),
+                        transport("HTTP", "streamable_http"),
+                        transport("SSE", "sse"),
+                    ]
+                    .spacing(4)
+                    .wrap(),
+                )
+                .padding(3)
+                .style(segment_track),
             ));
             if draft.transport == "stdio" {
-                body = body.push(input("命令", "command", &draft.command)).push(input(
-                    "工作目录（可选）",
-                    "cwd",
-                    &draft.cwd,
+                body = body.push(form_field(
+                    "命令",
+                    settings_text_input("例如 npx 或 uvx", draft.command).on_input_maybe(
+                        (!draft.saving).then_some(|value| FormMessage::Field("command", value)),
+                    ),
                 ));
+                body = body.push(settings_field_label("参数"));
                 let args: Vec<String> = serde_json::from_str(draft.args).unwrap_or_default();
                 for (index, arg) in args.iter().enumerate() {
                     body = body.push(
@@ -171,7 +223,7 @@ pub fn connection_form_panel(draft: ConnectionDraft<'_>) -> Element<'_, Message>
                                     .then_some(move |value| FormMessage::ArgSet(index, value))
                             ),
                             toolbar_button(
-                                "移除",
+                                "×",
                                 (!draft.saving).then_some(FormMessage::ArgRemove(index))
                             )
                         ]
@@ -179,7 +231,7 @@ pub fn connection_form_panel(draft: ConnectionDraft<'_>) -> Element<'_, Message>
                     );
                 }
                 body = body.push(toolbar_button(
-                    "添加参数",
+                    "+ 添加参数",
                     (!draft.saving).then_some(FormMessage::ArgAdd),
                 ));
             } else {
@@ -196,10 +248,12 @@ pub fn connection_form_panel(draft: ConnectionDraft<'_>) -> Element<'_, Message>
                 let kind_key = name.clone();
                 let value_key = name.clone();
                 let credential = matches!(value, McpConfigValue::Credential { .. });
-                let mut fields = column![
-                    settings_text_input("字段名", &name).on_input_maybe((!draft.saving).then_some(
-                        move |value| message(FormMessage::ValueName(key.clone(), value))
-                    )),
+                let mut fields = row![
+                    settings_text_input("字段名", &name)
+                        .width(Length::FillPortion(2))
+                        .on_input_maybe((!draft.saving).then_some(move |value| message(
+                            FormMessage::ValueName(key.clone(), value)
+                        ))),
                     settings_select(
                         ["literal", "credential"],
                         Some(if credential { "credential" } else { "literal" }),
@@ -250,67 +304,128 @@ pub fn connection_form_panel(draft: ConnectionDraft<'_>) -> Element<'_, Message>
                         message(FormMessage::ValueText(value_key.clone(), value))
                     })),
                 );
-                body = body.push(settings_panel(
-                    column![
-                        fields,
-                        button(text("移除字段"))
-                            .padding([8, 14])
-                            .style(rounded_action_btn_style)
-                            .on_press_maybe(
-                                (!draft.saving)
-                                    .then_some(message(FormMessage::ValueRemove(remove)))
-                            )
-                    ]
-                    .spacing(8),
-                ));
+                body = body.push(
+                    fields
+                        .push(toolbar_button(
+                            "×",
+                            (!draft.saving).then_some(FormMessage::ValueRemove(remove)),
+                        ))
+                        .align_y(Alignment::Center)
+                        .wrap(),
+                );
             }
-            body = body.push(
-                button(text("添加字段"))
-                    .padding([8, 14])
-                    .style(rounded_action_btn_style)
-                    .on_press_maybe((!draft.saving).then_some(message(FormMessage::ValueAdd))),
+            body = body.push(toolbar_button(
+                if draft.transport == "stdio" {
+                    "+ 添加环境变量"
+                } else {
+                    "+ 添加请求头"
+                },
+                (!draft.saving).then_some(FormMessage::ValueAdd),
+            ));
+            if draft.transport == "stdio" {
+                body = body.push(input("工作目录（可选）", "cwd", draft.cwd));
+            }
+        }
+    }
+    body = body.push(rule::horizontal(1)).push(settings_field_label("写入到"));
+    if draft.draft.targets.is_empty() {
+        body = body.push(
+            text("未发现可信的安装实例。仍可单独保存定义。")
+                .size(12)
+                .style(settings_muted_text_style),
+        );
+    }
+    if !draft.draft.targets.is_empty() {
+        body = body.push(
+            text(if draft.editing {
+                "保存时应用勾选变更。替换连接会重发到仍勾选的应用。"
+            } else {
+                "添加时写入已勾选的应用，也可取消勾选，仅保存定义。"
+            })
+            .size(12)
+            .style(settings_muted_text_style),
+        );
+    }
+    for (row_index, pair) in draft.draft.targets.chunks(2).enumerate() {
+        let mut targets = row![].spacing(12);
+        for (column_index, (target, selected, _, _)) in pair.iter().enumerate() {
+            let index = row_index * 2 + column_index;
+            let supported = draft.draft.target_supported(target);
+            let repeated = draft
+                .draft
+                .targets
+                .iter()
+                .filter(|(other, _, _, _)| other.app_id == target.app_id)
+                .count()
+                > 1;
+            let mut label = column![text(app_label(target.app_id)).size(13)];
+            if repeated {
+                label = label.push(
+                    text(target.installation_id.0.clone())
+                        .size(11)
+                        .style(settings_muted_text_style),
+                );
+            }
+            if !supported {
+                label =
+                    label.push(text("当前传输不可用").size(11).style(settings_muted_text_style));
+            }
+            targets = targets.push(
+                container(
+                    row![
+                        checkbox(*selected)
+                            .size(17)
+                            .style(settings_checkbox_style)
+                            .on_toggle_maybe(
+                                (!draft.saving && (supported || *selected))
+                                    .then_some(move |value| FormMessage::Target(index, value))
+                            ),
+                        brand_icon(target.app_id, 17.0),
+                        label,
+                    ]
+                    .spacing(8)
+                    .align_y(Alignment::Center),
+                )
+                .width(Length::FillPortion(1)),
             );
         }
-    }
-    body = body.push(text("目标应用").size(14)).push(
-        text("连接替换将重发所有仍勾选的已启用目标；取消勾选会发布禁用。没有目标时仍可保存。")
-            .size(12),
-    );
-    if draft.draft.targets.is_empty() {
-        body = body.push(text("没有可信且可写的安装实例，请在应用管理刷新安装状态。").size(12));
-    }
-    let mut targets = row![].spacing(14);
-    for (index, (target, selected, _, _)) in draft.draft.targets.iter().enumerate() {
-        let supported = draft.draft.target_supported(target);
-        targets = targets.push(
-            checkbox(*selected)
-                .label(format!(
-                    "{:?} · {}{}",
-                    target.app_id,
-                    target.installation_id.0,
-                    if supported { "" } else { "（传输不支持）" }
-                ))
-                .style(settings_checkbox_style)
-                .on_toggle_maybe(
-                    (!draft.saving && (supported || *selected))
-                        .then_some(move |value| FormMessage::Target(index, value)),
-                ),
-        );
-        if index % 2 == 1 {
-            body = body.push(targets);
-            targets = row![].spacing(14);
+        if pair.len() == 1 {
+            targets = targets.push(Space::new().width(Length::FillPortion(1)));
         }
+        body = body.push(targets);
     }
-    body = body.push(targets);
-    body = body.push(
-        checkbox(draft.draft.details)
-            .label("说明与公开摘要")
-            .style(settings_checkbox_style)
-            .on_toggle(FormMessage::Details),
+    body = body.push(rule::horizontal(1)).push(
+        button(
+            row![
+                icon_svg(
+                    if draft.draft.details { Icon::ChevronDown } else { Icon::ChevronRight },
+                    13.0
+                )
+                .style(icon_btn_svg_style),
+                text("说明与链接").size(14),
+            ]
+            .spacing(7)
+            .align_y(Alignment::Center),
+        )
+        .padding([6, 10])
+        .style(rounded_action_btn_style)
+        .on_press(FormMessage::Details(!draft.draft.details)),
     );
     if draft.draft.details {
+        let description = text_editor(&draft.draft.description)
+            .height(64)
+            .size(SETTINGS_CONTROL_TEXT_SIZE)
+            .padding(SETTINGS_CONTROL_PADDING)
+            .style(settings_text_editor_style);
+        body = body.push(input("显示名", "name", &draft.draft.name)).push(form_field(
+            "描述",
+            if draft.saving {
+                description
+            } else {
+                description.on_action(FormMessage::Description)
+            },
+        ));
         for (label, field, value) in [
-            ("描述", "description", &draft.draft.description),
             ("标签（逗号分隔）", "tags", &draft.draft.tags),
             ("主页", "homepage", &draft.draft.homepage),
             ("文档", "documentation", &draft.draft.documentation),
@@ -320,8 +435,6 @@ pub fn connection_form_panel(draft: ConnectionDraft<'_>) -> Element<'_, Message>
         if draft.editing {
             body =
                 body.push(input("公开连接摘要（请勿填写凭据）", "summary", &draft.draft.summary));
-        } else {
-            body = body.push(text("公开连接摘要由网关生成，可在保存后编辑。").size(12));
         }
     }
     for (_, _, result) in &draft.draft.deliveries {
@@ -342,19 +455,60 @@ pub fn connection_form_panel(draft: ConnectionDraft<'_>) -> Element<'_, Message>
         body = body.push(settings_error_banner(error.clone()));
     }
     let close = message(FormMessage::Close);
-    let header =
-        settings_modal_header(text("受管 MCP 连接").size(20), settings_close_button(close.clone()));
-    let footer = row![
-        Space::new().width(Length::Fill),
-        toolbar_button("取消", (!draft.saving).then_some(close)),
-        button(text(if draft.saving { "保存中..." } else { "保存定义" }))
-            .padding([8, 16])
-            .style(primary_action_btn_style)
-            .on_press_maybe((!draft.saving).then_some(message(FormMessage::Save))),
+    let header = row![
+        icon_btn(Icon::ChevronLeft, "返回 MCP 列表", (!draft.saving).then_some(close.clone())),
+        text(if draft.editing { "编辑 MCP" } else { "添加 MCP" }).size(22),
     ]
     .spacing(8)
     .align_y(Alignment::Center);
-    settings_modal_layout(header, body, Some(footer.into())).width(680).height(620).into()
+    let footer = row![
+        Space::new().width(Length::Fill),
+        toolbar_button("取消", (!draft.saving).then_some(close)),
+        button(text(if draft.saving {
+            "保存中…"
+        } else if draft.editing {
+            "保存"
+        } else {
+            "添加 MCP"
+        }))
+        .padding([8, 16])
+        .style(primary_action_btn_style)
+        .on_press_maybe((!draft.saving).then_some(message(FormMessage::Save))),
+    ]
+    .spacing(8)
+    .align_y(Alignment::Center);
+    column![
+        container(header).padding([0, 7]).width(Length::Fill),
+        rule::horizontal(1),
+        scrollable(container(body).padding([0, 7]).width(Length::Fill))
+            .direction(scrollable::Direction::Vertical(
+                scrollable::Scrollbar::new().width(4).scroller_width(4)
+            ))
+            .height(Length::Fill),
+        rule::horizontal(1),
+        container(footer).padding([0, 7]).width(Length::Fill),
+    ]
+    .spacing(12)
+    .height(Length::Fill)
+    .width(Length::Fill)
+    .into()
+}
+
+fn segment_track(theme: &iced::Theme) -> iced::widget::container::Style {
+    iced::widget::container::Style::default()
+        .background(theme.extended_palette().background.weak.color)
+        .border(iced::border::rounded(10))
+}
+
+fn segment(
+    label: &'static str,
+    active: bool,
+    message: Option<FormMessage>,
+) -> iced::widget::Button<'static, FormMessage> {
+    button(text(label).size(13))
+        .padding([7, 12])
+        .style(move |theme, status| settings_segment_button_style(theme, status, active))
+        .on_press_maybe(message)
 }
 
 impl std::fmt::Debug for FormMessage {

@@ -33,8 +33,8 @@ pub fn overlay<'a, E: Clone + 'static>(state: ViewState<'a>, visible: bool, base
     let close = message(Event::Close);
     let header = settings_modal_header(text("导出脱敏配置").size(18), settings_close_button(close.clone()));
     let mut body = column![
-        text("可迁移导出排除凭据、主机绝对路径与系统集成；它不等同于完整本机回退备份。"),
-        text("选择类别；执行主机不支持的类别会明确报错。"),
+        text("可迁移导出排除凭据、绝对路径与系统集成；它不等同于完整本机回退备份。"),
+        text("选择要导出的类别。"),
     ].spacing(12);
     for (category, label) in [
         (DataCategory::Providers, "供应商"), (DataCategory::Mcp, "MCP"),

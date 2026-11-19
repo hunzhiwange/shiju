@@ -7304,6 +7304,7 @@ name = "desktop-provider-apps"
 version = "0.6.0"
 dependencies = [
  "base64 0.22.1",
+ "desktop-assets",
  "desktop-i18n",
  "desktop-settings-account",
  "desktop-ui-controls",
@@ -23424,8 +23425,8 @@ dependencies = [
 name = "vw-desktop"
 version = "0.6.0"
 dependencies = [
- "app-lifecycle",
  "anyhow",
+ "app-lifecycle",
  "arboard",
  "audio-capture",
  "audio-playback",

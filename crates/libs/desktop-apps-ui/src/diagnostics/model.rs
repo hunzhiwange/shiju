@@ -27,7 +27,7 @@ pub enum Event {
 }
 pub fn message(event: Event) -> Event { event }
 fn error(_: impl std::fmt::Debug) -> String {
-    "诊断请求未验证，请检查执行主机、授权和已保存的供应商/模型后重试".into()
+    "模型诊断请求失败，请检查网关连接和已保存的模型配置".into()
 }
 fn current(state: &ModelState, access: &Access<'_>, context: &ModelContext) -> bool {
     state.access_generation == context.credentials_generation

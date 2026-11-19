@@ -8,6 +8,7 @@ use iced::{
 use {
     vw_api_app_identity::AppId,
     vw_api_app_routing::AppRoutingConfig,
+    vw_api_app_routing::{RoutingClientHost, RoutingClientHostUpdate, normalize_routing_client_host},
     vw_api_app_routing::RoutingConfig,
     vw_api_transport::id::ProjectId,
 };
@@ -15,8 +16,18 @@ use {
 #[derive(Clone, Debug)]
 pub enum Value {
     Listener(RoutingConfig),
+    ClientHost(RoutingClientHost),
     App(AppRoutingConfig),
 }
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+enum Target {
+    #[default]
+    Listener,
+    ClientHost,
+    App(AppId),
+}
+
 #[derive(Clone, Debug, Default)]
 pub struct State {
     open: bool,
@@ -24,7 +35,7 @@ pub struct State {
     serial: u64,
     context: Option<Context>,
     project: Option<String>,
-    target: Option<AppId>,
+    target: Target,
     value: Option<Value>,
     fields: [String; 3],
     error: Option<String>,
@@ -32,9 +43,11 @@ pub struct State {
 #[derive(Clone, Debug)]
 pub enum Event {
     Open(Option<AppId>),
+    OpenClientHost,
     Close,
     Reload,
     Edit(usize, String),
+    Logging(bool),
     Save,
     Reply(Context, Option<String>, u64, bool, Result<Value, String>),
 }
@@ -61,6 +74,11 @@ impl State {
                 config.listen_port = number(1)?;
                 Ok(Value::Listener(config))
             }
+            Value::ClientHost(mut config) => {
+                config.host = normalize_routing_client_host(Some(&self.fields[0]))
+                    .map_err(|_| "请输入不带端口的 IP 地址或主机名")?;
+                Ok(Value::ClientHost(config))
+            }
             Value::App(_) => {
                 let config = AppRoutingConfig {
                     first_byte_timeout_secs: number(0)?,
@@ -78,6 +96,9 @@ impl State {
         self.fields = match &value {
             Value::Listener(c) => {
                 [c.listen_address.to_string(), c.listen_port.to_string(), String::new()]
+            }
+            Value::ClientHost(c) => {
+                [c.host.clone().unwrap_or_default(), String::new(), String::new()]
             }
             Value::App(c) => [
                 c.first_byte_timeout_secs.to_string(),
@@ -101,7 +122,7 @@ pub fn update(state: &mut State, context: Option<Context>, project: Option<Strin
             }
             return Task::none();
         }
-        Event::Open(target) => {
+        Event::Open(_) | Event::OpenClientHost => {
             if state.busy {
                 return Task::none();
             }
@@ -110,7 +131,11 @@ pub fn update(state: &mut State, context: Option<Context>, project: Option<Strin
                 serial: state.serial.wrapping_add(1),
                 context: Some(context.clone()),
                 project: project.clone(),
-                target,
+                target: match event {
+                    Event::Open(Some(id)) => Target::App(id),
+                    Event::Open(None) => Target::Listener,
+                    _ => Target::ClientHost,
+                },
                 ..Default::default()
             };
         }
@@ -131,6 +156,9 @@ pub fn update(state: &mut State, context: Option<Context>, project: Option<Strin
                     state.error = None;
                     if saving {
                         state.open = false;
+                        if state.target == Target::Listener {
+                            return Task::done(lifecycle::Event::Run(lifecycle::Operation::Refresh));
+                        }
                     }
                 }
                 Err(error) => {
@@ -149,6 +177,19 @@ pub fn update(state: &mut State, context: Option<Context>, project: Option<Strin
             {
                 state.fields[index] = value;
                 state.error = None;
+            }
+            return Task::none();
+        }
+        Event::Logging(enabled) => {
+            if state.open
+                && !state.busy
+                && state.context.as_ref() == Some(&context)
+                && state.project == project
+            {
+                if let Some(Value::Listener(config)) = &mut state.value {
+                    config.logging_enabled = enabled;
+                    state.error = None;
+                }
             }
             return Task::none();
         }
@@ -187,13 +228,18 @@ pub fn update(state: &mut State, context: Option<Context>, project: Option<Strin
         async move {
             let request = async {
                 match (target, draft) {
-                    (None, None) => {
+                    (Target::Listener, None) => {
                         client.app_routing_config(&context.host, &token).await.map(Value::Listener)
                     }
-                    (None, Some(Value::Listener(c))) => client.app_routing_set_config(&context.host, &token, &c)
+                    (Target::Listener, Some(Value::Listener(c))) => client.app_routing_set_config(&context.host, &token, &c)
                         .await
                         .map(Value::Listener),
-                    (Some(id), value) => {
+                    (Target::ClientHost, None) => client.app_routing_client_host(&context.host, &token)
+                        .await.map(Value::ClientHost),
+                    (Target::ClientHost, Some(Value::ClientHost(c))) => client.app_routing_set_client_host(
+                        &context.host, &token, &RoutingClientHostUpdate { host: c.host },
+                    ).await.map(Value::ClientHost),
+                    (Target::App(id), value) => {
                         let project: ProjectId = project.clone().unwrap_or_default().into();
                         match value {
                             None => client.app_routing_app_config(&context.host, &project, id, &token)
@@ -239,24 +285,47 @@ pub fn overlay<'a>(
     if !state.open {
         return base;
     }
-    let title = if state.target.is_some() { "应用路由超时" } else { "路由监听设置" };
+    let (title, description, labels): (_, _, &[_]) = match state.target {
+        Target::Listener => (
+            "路由监听设置",
+            "修改监听设置可能重新绑定路由服务。",
+            &["监听 IP 地址", "监听端口（0 表示自动分配）"],
+        ),
+        Target::ClientHost => (
+            "路由连接地址",
+            "客户端连接路由时使用的地址。留空时由监听地址推导。",
+            &["IP 地址或主机名"],
+        ),
+        Target::App(_) => (
+            "应用路由超时",
+            "设置连接和请求的超时。",
+            &["首字节超时（秒）", "流式空闲超时（秒，0 表示禁用）", "非流式超时（秒）"],
+        ),
+    };
     let header =
         settings_modal_header(text(title).size(20), settings_close_button(message(Event::Close)));
-    let labels: &[&str] = if state.target.is_some() {
-        &["首字节超时（秒）", "流式空闲超时（秒，0 表示禁用）", "非流式超时（秒）"]
-    } else {
-        &["监听 IP 地址", "监听端口（0 表示自动分配）"]
-    };
-    let mut body =
-        column![text("配置由执行主机保存；监听变更可能需要重启服务后生效。")].spacing(12);
+    let mut body = column![text(description)].spacing(12);
     if state.value.is_some() {
+        let placeholder = match &state.value {
+            Some(Value::ClientHost(config)) => config.effective_host.as_str(),
+            _ => "",
+        };
         for (index, label) in labels.iter().enumerate() {
-            let mut input = settings_text_input("", &state.fields[index]);
+            let mut input = settings_text_input(placeholder, &state.fields[index]);
             if !state.busy {
                 input = input.on_input(move |v| message(Event::Edit(index, v)));
             }
             body = body.push(column![text(*label), input].spacing(6));
         }
+    }
+    if let Some(Value::Listener(config)) = &state.value {
+        body = body.push(settings_row(
+            "记录路由请求",
+            "将已授权请求写入路由日志。",
+            48.0,
+            settings_toggle(config.logging_enabled)
+                .on_toggle_maybe((!state.busy).then_some(|value| message(Event::Logging(value)))),
+        ));
     }
     if let Some(error) = &state.error {
         body = body.push(settings_error_banner(error.clone()));

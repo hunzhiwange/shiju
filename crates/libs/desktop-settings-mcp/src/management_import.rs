@@ -176,7 +176,6 @@ pub fn panel(
 ) -> iced::Element<'_, ImportMessage> {
     ui::panel(
         ui::ImportView {
-            host: &state.context.host,
             importing: state.importing,
             loading: state.loading,
             link_drafts: &state.link_drafts,
@@ -200,12 +199,9 @@ pub fn panel(
                     Err(_) => labels.push("未读到：预览失败，请检查账号与权限".into()),
                 }
             }
-            if state.show_sources {
-                labels.push("来源报告未提供可信文件路径；以下仅列出实际请求的应用与实例。用户级扫描不包含项目配置或插件。".into());
-                for r in &state.reports { labels.push(format!("{:?} · {} · 主机 {}", r.target.app_id, r.target.installation_id.0, r.target.target_host_id)); }
-            }
             labels
         },
+        &state.reports,
     )
     .map(|event| match event {
         ui::ImportMessage::SelectAll => ImportMessage::SelectAll,
@@ -308,7 +304,7 @@ pub async fn import_report(
 }
 pub fn report_labels(reports: &[SourceReport]) -> Vec<String> {
     let mut labels = vec![format!(
-        "导入完成：新增 {} · 绑定变更 {} · 跳过 {} · 失败 {}",
+        "新增 {} · 绑定变更 {} · 跳过 {} · 失败 {}",
         reports.iter().map(|r| r.added).sum::<usize>(),
         reports.iter().map(|r| r.bindings).sum::<usize>(),
         reports.iter().map(|r| r.skipped).sum::<usize>(),

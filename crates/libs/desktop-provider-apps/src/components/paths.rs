@@ -16,7 +16,7 @@ pub fn card<'a>(
 ) -> Element<'a, Message> {
     let close = if form.saving { Message::None } else { message(Event::Close) };
     let header = settings_modal_header(
-        help.heading("配置目录", "查看 Claude Code 在执行主机上的配置文件。", 28),
+        help.heading("配置目录", "查看 Claude Code 的配置文件。", 28),
         settings_close_button(close.clone()),
     );
     let ready = form.pending.is_none();
@@ -48,9 +48,9 @@ pub fn card<'a>(
         text(if form.local_open {
             "取消选择会保留当前输入；选择后点击保存，由网关验证目录。"
         } else {
-            "请填写执行主机上的目录，保存时仅由网关验证；远端主机不会打开本机选择器。"
+            "请填写配置目录。保存时由网关验证。"
         }).size(13).style(settings_muted_text_style),
-        text("目录须位于执行主机的授权用户目录内，且已经存在。存在生效供应商或未完成事务时不可更改。")
+        text("目录须位于用户目录内，且已经存在。存在生效供应商或未完成事务时不可更改。")
             .size(13).style(settings_muted_text_style),
     ].spacing(8)));
     if let Some(paths) = &form.paths {

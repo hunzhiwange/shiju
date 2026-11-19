@@ -85,83 +85,209 @@ impl State {
     }
 }
 // Execution-host storage and synchronization controls.
-use desktop_ui_controls::system_settings_common::*;
-
+use crate::third_party::style;
+use desktop_assets::assets::Icon;
+use desktop_ui_controls::system_settings_common::{icons::icon_btn_svg_style, *};
 use iced::{
-    Element,
-    widget::{button, column, container, row, text},
+    Alignment, Element, Font, Length, Padding,
+    widget::{Space, button, column, container, radio, row, text},
 };
 use vw_api_app_skills::bindings_api::SkillBindingMode;
+
+const OPTION_INDENT: u32 = 26;
+const HEADING: Font = Font { weight: iced::font::Weight::Semibold, ..Font::DEFAULT };
 
 pub fn view<'a, M: Clone + 'static>(
     s: &'a State,
     base: Element<'a, M>,
     message: fn(Event) -> M,
+    skill_count: Option<usize>,
+    can_open_directory: bool,
 ) -> Element<'a, M> {
     if !s.open {
         return base;
     }
-    let control = |label, event| {
-        button(label)
-            .padding([8, 10])
+    let control = |label: &'static str, event, enabled| {
+        button(text(label).size(13))
+            .padding([8, 12])
             .style(rounded_action_btn_style)
-            .on_press_maybe((!s.busy).then_some(message(event)))
+            .on_press_maybe((!s.busy && enabled).then(|| message(event)))
     };
-    let mut body = column![settings_field_label("当前执行主机的技能根路径")].spacing(12);
+    let muted = |label| text(label).size(12).style(settings_muted_text_style);
+    let mut body = column![].spacing(16).width(Length::Fill);
     if let Some(current) = &s.current {
-        body =
-            body.push(text(&current.root)).push(text(format!("当前同步模式：{:?}", current.mode)));
-    } else {
-        body = body.push(text("尚未读取"));
-    }
-    body = body.push(text("运行时目录：ShiJu 管理的技能主副本。通用目录：执行主机 HOME/.agents/skills；部分应用直接读取此目录，迁移会影响这些应用。"))
-        .push(settings_field_label("待选位置"))
-        .push(row![control("运行时目录", Event::Select(SkillStorageLocation::Runtime)),
-            control(".agents 目录", Event::Select(SkillStorageLocation::Agents))].spacing(8))
-        .push(text(match s.pending { Some(SkillStorageLocation::Runtime) => "待迁移到运行时目录",
-            Some(SkillStorageLocation::Agents) => "待迁移到 .agents 目录", None => "请选择迁移目标" }))
-        .push(text("点击移动并切换后开始迁移；失败保留当前位置。"))
-        .push(settings_field_label("同步模式"))
-        .push(row![control("Auto", Event::Mode(SkillBindingMode::Auto)),
-            control("Symlink", Event::Mode(SkillBindingMode::Symlink)),
-            control("Copy", Event::Mode(SkillBindingMode::Copy))].spacing(8))
-        .push(text("重新同步使用已保存的应用绑定目标。远程目标目录不可在本机打开。"));
-    if s.confirm_move {
-        body = body.push(text("确认将当前技能移动到所选位置并切换主副本？")).push(
-            row![control("确认迁移", Event::ConfirmMove), control("取消迁移", Event::CancelMove)]
-                .spacing(8),
+        let current_agents = std::path::Path::new(&current.root).ends_with(".agents/skills");
+        let selected_agents = s
+            .pending
+            .map_or(current_agents, |location| matches!(location, SkillStorageLocation::Agents));
+        let mut locations = column![text("主副本位置").font(HEADING).size(15)].spacing(11);
+        for (agents, location, label) in [
+            (false, SkillStorageLocation::Runtime, "ShiJu 运行时目录"),
+            (true, SkillStorageLocation::Agents, "通用目录"),
+        ] {
+            let mut option = column![
+                radio(label, agents, Some(selected_agents), move |_| message(Event::Select(
+                    location
+                )))
+                .size(16)
+                .text_size(14)
+                .spacing(10)
+                .style(style::radio),
+            ]
+            .spacing(4);
+            if current_agents == agents {
+                let mut path =
+                    row![text(current.root.as_str()).size(12).style(settings_muted_text_style),]
+                        .spacing(5)
+                        .align_y(Alignment::Center);
+                if can_open_directory {
+                    path = path.push(
+                        button(text("打开").size(12))
+                            .padding([3, 5])
+                            .style(|theme, status| settings_tab_style(theme, status, false))
+                            .on_press_maybe((!s.busy).then(|| message(Event::OpenDirectory))),
+                    );
+                }
+                option =
+                    option.push(container(path.wrap()).padding(Padding::ZERO.left(OPTION_INDENT)));
+            }
+            if agents {
+                option = option.push(
+                    container(
+                        text(
+                            "部分应用会直接读取通用目录，单独停用 Skill 可能不会阻止这些应用读取。",
+                        )
+                        .size(12)
+                        .style(|theme: &iced::Theme| text::Style {
+                            color: Some(theme.extended_palette().warning.strong.color),
+                        }),
+                    )
+                    .padding(Padding::ZERO.left(OPTION_INDENT)),
+                );
+            }
+            locations = locations.push(option);
+        }
+        let move_hint = skill_count.map_or_else(
+            || "切换位置会移动现有 Skill。".to_owned(),
+            |count| format!("切换位置会移动 {count} 个 Skill。"),
         );
-    }
-    if !s.results.is_empty() {
-        body = body.push(text(format!("已读取 {} 条执行结果", s.results.len())));
-    }
-    for result in &s.results {
-        body = body.push(text(result));
+        if s.confirm_move {
+            locations = locations.push(
+                row![
+                    text(format!(
+                        "确认移动到{}？",
+                        if selected_agents { "通用目录" } else { "ShiJu 运行时目录" }
+                    ))
+                    .size(13)
+                    .width(Length::Fill),
+                    control("取消", Event::CancelMove, true),
+                    button(text("确认迁移").size(13))
+                        .padding([8, 12])
+                        .style(style::primary)
+                        .on_press_maybe((!s.busy).then(|| message(Event::ConfirmMove))),
+                ]
+                .spacing(8)
+                .align_y(Alignment::Center),
+            );
+        } else {
+            locations = locations.push(
+                row![
+                    muted(move_hint).width(Length::Fill),
+                    control("移动并切换", Event::Move, selected_agents != current_agents),
+                ]
+                .spacing(12)
+                .align_y(Alignment::Center),
+            );
+        }
+        body = body.push(locations).push(settings_divider());
+
+        let selected_mode = match current.mode {
+            SkillBindingMode::Auto => 0,
+            SkillBindingMode::Symlink => 1,
+            SkillBindingMode::Copy => 2,
+        };
+        let mut modes = column![text("同步到应用的方式").font(HEADING).size(15)].spacing(10);
+        for (index, (mode, label, hint)) in [
+            (SkillBindingMode::Auto, "自动", "优先使用软链接，失败时复制"),
+            (SkillBindingMode::Symlink, "只用软链接", "Windows 可能需要开启开发者模式"),
+            (SkillBindingMode::Copy, "只用复制", "占用更多空间，更新时重新复制"),
+        ]
+        .into_iter()
+        .enumerate()
+        {
+            modes = modes.push(
+                row![
+                    radio(label, index, Some(selected_mode), move |_| message(Event::Mode(mode)))
+                        .size(16)
+                        .text_size(14)
+                        .spacing(10)
+                        .style(style::radio),
+                    text(hint).size(12).style(settings_muted_text_style),
+                ]
+                .spacing(9)
+                .align_y(Alignment::Center)
+                .wrap(),
+            );
+        }
+        modes = modes.push(
+            row![
+                text("新方式用于之后启用或更新的 Skill。已启用的 Skill 可立即重新同步。")
+                    .size(12)
+                    .style(settings_muted_text_style)
+                    .width(Length::Fill),
+                button(
+                    row![
+                        icon_svg(Icon::ArrowClockwise, 14.0).style(icon_btn_svg_style),
+                        text("立即重新同步").size(13),
+                    ]
+                    .spacing(6)
+                    .align_y(Alignment::Center)
+                )
+                .padding([8, 12])
+                .style(rounded_action_btn_style)
+                .on_press_maybe((!s.busy).then(|| message(Event::Resync))),
+            ]
+            .spacing(12)
+            .align_y(Alignment::Center),
+        );
+        body = body.push(modes);
+    } else if s.busy {
+        body = body.push(text("正在读取存储设置…").size(13).style(settings_muted_text_style));
     }
     if let Some(error) = &s.error {
         body = body.push(settings_error_banner(error.clone()));
     }
-    if s.busy {
-        body = body.push(text("正在处理，请稍候…"));
+    if !s.results.is_empty() {
+        let mut feedback = column![text("操作结果").size(14).font(HEADING)].spacing(5);
+        for result in &s.results {
+            feedback = feedback.push(text(result).size(12).style(settings_muted_text_style));
+        }
+        body = body.push(settings_divider()).push(feedback);
+    }
+    if s.busy && s.current.is_some() {
+        body = body.push(text("正在处理…").size(12).style(settings_muted_text_style));
     }
     let close = message(Event::Close);
-    let header =
-        settings_modal_header(text("存储与同步").size(20), settings_close_button(close.clone()));
-    let footer = row![
-        control("刷新", Event::Refresh),
-        control("打开目录", Event::OpenDirectory),
-        control("重新同步", Event::Resync),
-        button("移动并切换").padding([8, 10]).style(primary_action_btn_style).on_press_maybe(
-            (!s.busy && s.current.is_some() && s.pending.is_some()).then_some(message(Event::Move))
+    let header = container(text("存储与同步").size(20).font(HEADING)).padding([0, 7]);
+    let mut footer = row![Space::new().width(Length::Fill)].spacing(8).align_y(Alignment::Center);
+    if s.error.is_some() {
+        footer = footer.push(control("刷新状态", Event::Refresh, true));
+    }
+    let footer = container(
+        footer.push(
+            button(text("完成").size(13))
+                .padding([8, 16])
+                .style(style::primary)
+                .on_press_maybe((!s.busy).then_some(close.clone())),
         ),
-        control("关闭", Event::Close)
-    ]
-    .spacing(8);
+    )
+    .padding([0, 7]);
     let card = settings_modal_layout(header, body, Some(footer.into()))
-        .style(super::modal_card_style)
-        .width(760)
-        .height(580);
-    settings_modal_overlay(Some(base), close, container(card).padding(12))
+        .padding([24, 17])
+        .style(style::dialog)
+        .width(530)
+        .height(if s.current.is_some() { 515 } else { 245 });
+    settings_modal_overlay_with_escape_and_backdrop_dismiss(base, close, card)
 }
 
 #[cfg(test)]

@@ -13,9 +13,13 @@ pub fn update(state: &mut State, input: &Input, event: Event) -> Effect {
         if !s.busy { *s = State { generation: s.generation.wrapping_add(1), ..Default::default() }; }
         return Effect::None;
     }
-    if matches!(event, Event::Open) && !s.open {
+    if matches!(event, Event::Open | Event::OpenForUninstall(_)) && !s.open {
+        let uninstall_skill = match &event {
+            Event::OpenForUninstall(id) => Some(id.clone()),
+            _ => None,
+        };
         let project = vw_api_transport::local_settings_project(input.project.as_deref()).to_owned();
-        *s = State { open: true, context: Some(context.clone()), catalog: input.catalog,
+        *s = State { open: true, uninstall_skill, context: Some(context.clone()), catalog: input.catalog,
             scope: Some(SkillReposQuery { project_id: project.into(), target_host_id: input.host.clone() }),
             generation: s.generation.wrapping_add(1), ..Default::default() };
     }

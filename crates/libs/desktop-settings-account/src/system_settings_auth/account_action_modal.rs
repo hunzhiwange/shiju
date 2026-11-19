@@ -18,10 +18,10 @@ pub(super) fn overlay<'a, U: Clone + 'static>(
     let close = message(Event::AccountAction(ActionEvent::Close(generation)));
     let busy = matches!(action.phase, ActionPhase::Saving);
     let description = match action.operation {
-        SetDefault => "在当前执行主机上将此账号设为此服务的默认账号。",
-        Delete => "删除此账号及其托管凭据。执行主机会拒绝删除仍被供应商引用的账号。",
-        Logout => "清除当前执行主机上的登录凭据，保留账号记录与供应商绑定。",
-        Revoke => "先在执行主机登出，再请求上游撤销授权。",
+        SetDefault => "将此账号设为该服务的默认账号。",
+        Delete => "删除此账号及其托管凭据。请先解除供应商对该账号的引用。",
+        Logout => "清除登录凭据，保留账号记录与供应商绑定。",
+        Revoke => "先登出账号，再请求上游撤销授权。",
     };
     let mut body = column![
         settings_field_label("授权账号"),
@@ -37,7 +37,7 @@ pub(super) fn overlay<'a, U: Clone + 'static>(
             text(if action.operation == Delete {
                 "正在检查绑定使用者…"
             } else {
-                "正在检查执行主机能力…"
+                "正在检查可用操作…"
             })
             .style(settings_muted_text_style),
         ),

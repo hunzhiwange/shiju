@@ -133,13 +133,13 @@ fn feedback(error: &AggregationApiError) -> &'static str {
                 Some("unsupported_app" | "unsupported_target")
             ) =>
         {
-            "当前执行主机不支持 Pi 模型目录"
+            "当前环境不支持 Pi 模型目录"
         }
         AggregationApiError::Http { status: 400 | 422, .. } => {
             "目标不支持或模型声明无效，请检查后刷新"
         }
         AggregationApiError::Http { status: 502..=504, .. } => {
-            "执行主机不可用或执行失败，请刷新确认实际状态"
+            "操作失败或服务暂不可用，请刷新确认实际状态"
         }
         _ => "Pi 目录请求失败，请刷新确认实际状态",
     }

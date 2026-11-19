@@ -25,6 +25,7 @@ vw-api-app-provider-terminal = { path = "../api-app-provider-terminal", version 
 vw-api-app-provider-edit = { path = "../api-app-provider-edit", version = "0.6.0" }
 vw-api-app-auth = { path = "../api-app-auth", version = "0.6.0" }
 vw-api-types = { path = "../../vw-api-types", version = "0.6.0" }
+desktop-assets = { path = "../desktop-assets", version = "0.6.0" }
 desktop-ui-controls = { path = "../desktop-ui-controls", version = "0.6.0" }
 desktop-i18n = { path = "../desktop-i18n", version = "0.6.0" }
 vw-api-app-provider-environment = { path = "../api-app-provider-environment", version = "0.6.0" }

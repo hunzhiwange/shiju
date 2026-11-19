@@ -129,7 +129,7 @@ pub fn update(state: &mut State, context: Option<Context>, project: Option<Strin
         Event::Cancel => {
             if let Some(cancel) = &state.cancel {
                 cancel.store(true, Ordering::Relaxed);
-                state.progress = "正在请求取消并等待主机释放资源".into();
+                state.progress = "正在取消，等待释放资源".into();
             }
             return Task::none();
         }
@@ -403,10 +403,10 @@ pub fn overlay<'a>(
         return base;
     }
     let header = settings_modal_header(
-        text("执行主机出口设置").size(20),
+        text("路由出口设置").size(20),
         settings_close_button(message(Event::Close)),
     );
-    let mut body = column![text("出口属于执行主机，影响该主机的常驻路由。检测使用已保存配置；扫描仅检查固定回环端口，不自动保存候选。")].spacing(12);
+    let mut body = column![text("出口设置用于常驻路由。检测读取已保存的配置，扫描可发现预设的回环端口。")].spacing(12);
     if let Some(status) = &state.status {
         body = body.push(text(format!(
             "已保存：{}；实际：{}；包含凭据：{}",

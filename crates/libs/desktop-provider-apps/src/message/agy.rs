@@ -85,7 +85,7 @@ fn error(error: AgentAppsReadError) -> String {
         AgentAppsReadError::Http { status: 401 | 403, .. } => "无权操作此主机的 Agy 档案。",
         AgentAppsReadError::Http { status: 404, .. } => "供应商不存在，请刷新列表。",
         AgentAppsReadError::Http { status: 409, .. } => "档案或运行状态已变更，请重新打开后重试。",
-        AgentAppsReadError::Http { status: 501, .. } => "此执行主机不支持 Agy 配置。",
+        AgentAppsReadError::Http { status: 501, .. } => "当前环境不支持 Agy 配置。",
         _ => "Agy 请求失败，请检查网关连接后重试。",
     }
     .into()

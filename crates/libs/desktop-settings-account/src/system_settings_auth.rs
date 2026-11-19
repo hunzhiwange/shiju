@@ -23,7 +23,7 @@ pub fn view<'a, U: Clone + 'static>(
     if let Some(binding) = state.binding {
         return container(settings_page_heading(
             service_name(binding.service),
-            "在授权中心为供应商选择当前执行主机上的授权账号。",
+            "在授权中心为供应商选择已登录的账号。",
         ))
         .padding([0, 7])
         .width(Length::Fill)
@@ -310,7 +310,7 @@ fn service_summary<U: Clone + 'static>(service: &ServiceAccounts) -> Element<'st
         AuthService::GithubCopilot => {
             "在 GitHub 验证页输入设备码，登录具有 Copilot 访问权限的账号。"
         }
-        AuthService::XaiOauth => "在 xAI 验证页输入设备码，授权当前执行主机。",
+        AuthService::XaiOauth => "在 xAI 验证页输入设备码以完成登录。",
         AuthService::KimiOauth => "请选择与账号匹配的登录地区，再在验证页输入设备码。",
         AuthService::AgyOauth => "前往浏览器完成 Antigravity 登录和授权。",
         AuthService::DshAccount => "在浏览器中登录 DeepSeek 账号并完成授权。",

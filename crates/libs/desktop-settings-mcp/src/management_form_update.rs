@@ -42,6 +42,7 @@ pub fn update(app: &mut Update<'_>, event: FormMessage) -> Task<FormMessage> {
                     })
                     .collect();
             }
+            draft.select_default_target();
             app.state.connection_form = Some(draft);
             if new && let Ok(client) = app.client.clone() {
                 let token = app.token.clone();
@@ -174,16 +175,16 @@ pub fn update(app: &mut Update<'_>, event: FormMessage) -> Task<FormMessage> {
             if !authorized(app, &draft.context) {
                 return app.error("连接上下文已变化，请关闭后重新编辑");
             }
-            if draft.targets.iter().any(|(target, selected, _, _)| {
-                *selected && (!app.targets.contains(target) || !draft.target_supported(target))
-            }) {
-                return app.error("目标不再可写或不支持当前传输，请取消勾选后保存");
-            }
             if let Err(error) =
                 if draft.replace_connection { draft.connection().map(|_| ()) } else { Ok(()) }
             {
                 app.state.connection_form.as_mut().unwrap().error = Some(error);
                 return Task::none();
+            }
+            if draft.targets.iter().any(|(target, selected, _, _)| {
+                *selected && (!app.targets.contains(target) || !draft.target_supported(target))
+            }) {
+                return app.error("目标不再可写或不支持当前传输，请取消勾选后保存");
             }
             let Ok(client) = app.client.clone() else {
                 return app.error("网关不可用");
@@ -228,6 +229,7 @@ pub fn update(app: &mut Update<'_>, event: FormMessage) -> Task<FormMessage> {
                 | FormMessage::ValueKind(..)
                 | FormMessage::ValueText(..)
                 | FormMessage::ValueService(..)
+                | FormMessage::Description(_)
                 | FormMessage::Editor(_)
                 | FormMessage::Json(_)
                 | FormMessage::Preset(_)) => draft.edit(event),
@@ -310,5 +312,6 @@ fn advance(form: &mut Option<Draft>) {
         .into_iter()
         .map(|(target, _, _, _)| (target, false, false, false))
         .collect();
+    next.select_default_target();
     *form = Some(next);
 }

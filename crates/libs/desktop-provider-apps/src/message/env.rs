@@ -84,7 +84,7 @@ pub fn update(state: &mut State, current: Option<(GatewayClient, Scope)>, token:
         Ok(context) => context,
         Err(_) => {
             state.env = None;
-            return super::provider_update::error("无法连接应用执行主机");
+            return super::provider_update::error("无法连接网关");
         }
     };
 
@@ -201,7 +201,7 @@ fn finish(
         }
         result => {
             let error = match result {
-                Err(AgentAppsReadError::Http { status: 401 | 403, .. }) => "执行主机拒绝了此操作。",
+                Err(AgentAppsReadError::Http { status: 401 | 403, .. }) => "操作被拒绝。",
                 Err(AgentAppsReadError::Http { status: 409, .. })
                     if matches!(operation, Some(Operation::Write(Action::Clean))) =>
                 {

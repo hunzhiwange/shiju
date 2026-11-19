@@ -48,7 +48,7 @@ pub fn overlay<'a, Message: Clone + 'static>(
         body = body.push(text("草稿尚未保存，请保存映射后再预览。"));
     }
     if form.busy {
-        body = body.push(text("正在请求执行主机…"));
+        body = body.push(text("正在加载…"));
     }
     if let Some(notice) = &form.notice {
         body = body.push(settings_panel(text(notice)));

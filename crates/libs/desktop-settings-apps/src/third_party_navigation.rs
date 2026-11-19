@@ -62,7 +62,7 @@ impl std::fmt::Display for NavigationError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_str(match self {
             Self::ContextUnavailable => "应用目录上下文尚未就绪",
-            Self::AppUnavailable => "当前主机的应用目录中没有此应用",
+            Self::AppUnavailable => "应用目录中没有此应用",
             Self::UnsupportedPage => "此应用不支持该管理页面",
             Self::NoSelectedApp => "请先选择应用",
         })

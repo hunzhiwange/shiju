@@ -45,6 +45,24 @@ pub struct SkillBindingSnapshot {
     pub version: u64,
     pub targets: Vec<SkillBindingTarget>,
     pub capabilities: Vec<SkillBindingCapability>,
+    /// Recorded managed bindings in this scope. Older gateways omit the projection.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub managed_bindings: Option<Vec<ManagedSkillBinding>>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub native_bindings: Vec<NativeSkillBinding>,
+}
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ManagedSkillBinding {
+    pub target: SkillBindingTarget,
+    pub directory: String,
+}
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct NativeSkillBinding {
+    pub app_id: AppId,
+    pub directory: String,
+    pub enabled: bool,
 }
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]

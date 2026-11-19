@@ -41,13 +41,14 @@ pub enum Event {
 
 // Scoped inventory and explicit installation confirmation, alongside built-in skills.
 
+use crate::third_party::style;
 use desktop_ui_controls::system_settings_common::*;
-use iced::widget::{button, column, container, row, text};
+use iced::widget::{button, column, row, text};
 use iced::{Element, Length};
 
 pub fn view<'a, M: Clone + 'static>(
     s: &'a State,
-    host: &str,
+    _host: &str,
     base: Element<'a, M>,
     message: fn(Event) -> M,
 ) -> Element<'a, M> {
@@ -55,8 +56,7 @@ pub fn view<'a, M: Clone + 'static>(
         return base;
     }
     let mut body = column![
-        text(format!("目标主机：{}", host)),
-        text("从已登记仓库安装。安装只写入该主机技能目录；应用分发需另行选择。"),
+        text("从已登记仓库安装。安装后可选择分发到应用。"),
         settings_field_label("仓库标识（owner:name）"),
         settings_text_input("owner:name", &s.repo).on_input(move |v| message(Event::Repo(v))),
         settings_field_label("仓库内来源目录"),
@@ -70,14 +70,13 @@ pub fn view<'a, M: Clone + 'static>(
     .width(Length::Fill);
     if s.archive {
         body = column![
-            text(format!("执行主机：{}", host)),
-            text("仅接受执行主机已登记的预授权 ZIP 文件标识；不接受客户端路径。"),
+            text("请输入已登记的 ZIP 文件标识。"),
             settings_field_label("预授权文件标识"),
             settings_text_input("file_id", &s.file_id).on_input(move |v| message(Event::FileId(v)))
         ]
         .spacing(10);
         if s.preview {
-            body = body.push(text(format!("确认向此主机提交预授权 ZIP：{}", s.file_id.trim())));
+            body = body.push(text(format!("确认安装 ZIP：{}", s.file_id.trim())));
         }
     }
     if s.busy {
@@ -86,7 +85,7 @@ pub fn view<'a, M: Clone + 'static>(
     if let Some(e) = &s.error {
         body = body.push(settings_error_banner(e.clone()));
     }
-    if let Some(data) = &s.inventory {
+    if let Some(data) = s.inventory.as_ref().filter(|_| !s.archive) {
         body = body.push(text(format!("库存版本：{}", data.version)));
         for skill in &data.skills {
             body = body.push(
@@ -116,7 +115,7 @@ pub fn view<'a, M: Clone + 'static>(
     }
     let close = message(Event::Close);
     let header = settings_modal_header(
-        text("技能详情与安装").size(20),
+        text(if s.archive { "从 ZIP 安装 Skill" } else { "安装技能" }).size(20),
         settings_close_button(close.clone()),
     );
     let footer = row![
@@ -126,7 +125,7 @@ pub fn view<'a, M: Clone + 'static>(
             "确认安装到此主机"
         })
         .padding([8, 10])
-        .style(primary_action_btn_style)
+        .style(style::primary)
         .on_press_maybe((!s.busy && s.inventory.is_some()).then_some(message(
             if s.archive && !s.preview { Event::Preview } else { Event::Install }
         ))),
@@ -141,12 +140,8 @@ pub fn view<'a, M: Clone + 'static>(
     ]
     .spacing(8);
     let card = settings_modal_layout(header, body, Some(footer.into()))
-        .style(super::modal_card_style)
-        .width(760)
-        .height(600);
-    settings_modal_overlay_with_escape_and_backdrop_dismiss(
-        base,
-        close,
-        container(card).padding(12),
-    )
+        .style(style::dialog)
+        .width(560)
+        .height(if s.archive { 340 } else { 560 });
+    settings_modal_overlay_with_escape_and_backdrop_dismiss(base, close, card)
 }

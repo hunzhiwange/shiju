@@ -21,7 +21,7 @@ pub fn overlay<'a>(form: &'a Form, base: Element<'a, Message>) -> Element<'a, Me
         text("OMP 独立模型条目").size(20),
         settings_close_button(close.clone()),
     );
-    let mut body=column![text("活动 profile 与默认模型只读。条目按执行主机当前 profile 保存。登录和 MCP 请使用各自入口。修改已有条目时请提供完整供应商声明。")].spacing(12);
+    let mut body=column![text("活动 profile 与默认模型只读。条目按当前 profile 保存。登录和 MCP 请使用各自入口。修改已有条目时请提供完整供应商声明。")].spacing(12);
     if let Some(error) = &form.error {
         body = body.push(settings_error_banner(error.as_str()));
     }

@@ -256,7 +256,7 @@ pub fn update<C: Clone + PartialEq + Send + 'static>(catalog: &mut Input<'_, C>,
                         status: 401 | 403, ..
                     } => "未授权，设置未保存",
                     gateway_app_settings::AgentAppsSettingsError::Http { status: 422, .. } => {
-                        "设置被执行主机拒绝，已恢复原值"
+                        "设置保存失败，已恢复原值"
                     }
                     _ => "未确认保存结果，已恢复原值；请重新打开设置读取后再保存",
                 }

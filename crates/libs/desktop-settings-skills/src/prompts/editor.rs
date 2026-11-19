@@ -37,20 +37,26 @@ pub fn view<'a, M: Clone + 'static>(
     _base: Element<'a, M>,
     message: fn(super::Event) -> M,
 ) -> Element<'a, M> {
-    page(draft, "提示词", message)
+    page(draft, "提示词", None, message)
 }
 
 pub fn page<'a, M: Clone + 'static>(
     draft: &'a Draft,
     application: &str,
+    target: Option<&str>,
     message: fn(super::Event) -> M,
 ) -> Element<'a, M> {
+    use desktop_assets::assets::Icon;
     use iced::widget::{Space, container};
     let close = message(Event::CloseEditor);
-    let mut name = settings_text_input("名称（必填）", &draft.entry.name);
+    let mut name = settings_text_input("例如 团队编码规范", &draft.entry.name);
     let mut description =
-        settings_text_input("说明（可选）", draft.entry.description.as_deref().unwrap_or(""));
-    let mut body = settings_text_editor(&draft.body).height(Length::Fill);
+        settings_text_input("可选", draft.entry.description.as_deref().unwrap_or(""));
+    let placeholder = target
+        .and_then(|path| path.rsplit(['/', '\\']).find(|part| !part.is_empty()))
+        .map(|filename| format!("# {filename}\n\n用 Markdown 编写给 {application} 的长期说明…"))
+        .unwrap_or_else(|| "用 Markdown 编写提示词…".into());
+    let mut body = settings_text_editor(&draft.body).placeholder(placeholder).height(Length::Fill);
     if !draft.saving {
         name = name.on_input(move |v| message(Event::Name(v)));
         description = description.on_input(move |v| message(Event::Description(v)));
@@ -60,20 +66,47 @@ pub fn page<'a, M: Clone + 'static>(
     let bytes = content.len();
     let characters = content.chars().count();
     let count = if draft.mcode {
-        format!("{characters} 字符 · {bytes} / 32768 UTF-8 字节")
+        format!("{characters} 个字符 · {bytes} / 32768 B")
     } else {
-        format!("{characters} 字符 · {bytes} UTF-8 字节")
+        format!("{characters} 个字符 · {bytes} B")
     };
     let header = row![
-        button(text("返回"))
-            .padding([8, 16]).style(rounded_action_btn_style)
-            .on_press_maybe((!draft.saving).then_some(close.clone())),
-        text(format!("{} · {application}", if draft.updating { "编辑提示词" } else { "新增提示词" })).size(20),
-    ].spacing(12).align_y(iced::Alignment::Center);
-    let mut fields = column![text("名称 *"), name, text("说明"), description,
-        text("正文 · Markdown"), body,
-        row![Space::new().width(Length::Fill), text(count).size(12)],
-    ].spacing(10).height(Length::Fill);
+        icon_btn(Icon::ChevronLeft, "返回提示词", (!draft.saving).then_some(close.clone())),
+        text(format!(
+            "{} · {application}",
+            if draft.updating { "编辑提示词" } else { "添加提示词" }
+        ))
+        .size(19)
+        .font(iced::Font { weight: iced::font::Weight::Semibold, ..iced::Font::DEFAULT }),
+    ]
+    .spacing(12)
+    .align_y(iced::Alignment::Center);
+    let mut fields = column![
+        column![
+            row![
+                text("名称").size(14),
+                text("*").size(14).style(|theme: &iced::Theme| iced::widget::text::Style {
+                    color: Some(theme.extended_palette().danger.base.color),
+                }),
+            ]
+            .spacing(4),
+            name,
+        ]
+        .spacing(6),
+        column![text("说明").size(14), description].spacing(6),
+        column![
+            text("正文").size(14),
+            body,
+            row![
+                Space::new().width(Length::Fill),
+                text(count).size(12).style(settings_muted_text_style)
+            ],
+        ]
+        .spacing(6)
+        .height(Length::Fill),
+    ]
+    .spacing(14)
+    .height(Length::Fill);
     if application == "Pi" {
         fields = fields.push(text("更改后请在 Pi 执行 /reload。"));
     } else if application == "Hermes" {
@@ -83,13 +116,36 @@ pub fn page<'a, M: Clone + 'static>(
     if let Some(error) = &draft.error {
         footer = footer.push(settings_error_banner(error.clone()));
     }
-    footer = footer.push(row![Space::new().width(Length::Fill),
-        button(text("取消")).padding([8, 16]).style(rounded_action_btn_style)
-            .on_press_maybe((!draft.saving).then_some(close)),
-        button(text(if draft.saving { "保存中…" } else { "保存" }))
-            .padding([8, 16]).style(primary_action_btn_style)
-            .on_press_maybe((!draft.saving).then_some(message(Event::Save))),
-    ].spacing(10));
-    container(column![header, fields, footer].spacing(12).height(Length::Fill))
-        .width(Length::Fill).height(Length::Fill).into()
+    let submit = if draft.saving {
+        "保存中…"
+    } else if draft.updating {
+        "保存"
+    } else {
+        "添加"
+    };
+    footer = footer.push(
+        row![
+            Space::new().width(Length::Fill),
+            button(text("取消").size(14))
+                .height(34)
+                .padding([0, 15])
+                .style(rounded_action_btn_style)
+                .on_press_maybe((!draft.saving).then_some(close)),
+            button(text(submit).size(14))
+                .height(34)
+                .padding([0, 15])
+                .style(primary_action_btn_style)
+                .on_press_maybe((!draft.saving).then_some(message(Event::Save))),
+        ]
+        .spacing(10),
+    );
+    column![
+        container(header).padding([10, 18]).width(Length::Fill),
+        settings_divider(),
+        container(fields).padding([16, 18]).width(Length::Fill).height(Length::Fill),
+        settings_divider(),
+        container(footer).padding([10, 18]).width(Length::Fill),
+    ]
+    .height(Length::Fill)
+    .into()
 }

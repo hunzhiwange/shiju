@@ -211,7 +211,7 @@ impl AccountOperation {
         match self {
             Self::SetDefault => "已切换默认授权账号",
             Self::Delete => "已删除授权账号",
-            Self::Logout => "账号已在执行主机登出",
+            Self::Logout => "账号已登出",
             Self::Revoke => "上游已确认撤销授权",
         }
     }
@@ -228,7 +228,7 @@ impl AccountOperation {
             Self::Logout | Self::Revoke
                 if account.credential_state == AuthCredentialState::SignedOut =>
             {
-                Some("此账号已在执行主机登出")
+                Some("此账号已登出")
             }
             _ => None,
         }

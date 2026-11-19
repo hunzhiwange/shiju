@@ -19,14 +19,14 @@ pub fn modal_view<'a>(
 pub fn modal_view_with_base<'a, M: Clone + 'static>(editor: &'a Editor, selection: &UsageSnapshotQuery, base: Element<'a, M>, map: impl Fn(Message) -> M + Copy + 'a) -> Element<'a, M> {
     let close = Message::Close;
     let header = settings_modal_header(
-        settings_page_heading("查询脚本试运行", "在当前执行主机试运行草稿。结果仅在此弹窗显示。"),
+        settings_page_heading("查询脚本试运行", "试运行当前脚本草稿。"),
         settings_close_button(close.clone()),
     );
     let (body, run, running): (Element<'_, Message>, _, _) = match editor {
         Editor::Loading(_) => (text("正在读取脚本模板…").into(), None, false),
         Editor::LoadFailed => (
             column![
-                text("无法读取脚本模板，请检查执行主机连接和额度读取权限"),
+                text("无法读取脚本模板，请检查网关连接和额度读取权限"),
                 button(text("重试"))
                     .padding([8, 14])
                     .style(rounded_action_btn_style)

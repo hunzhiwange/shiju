@@ -96,8 +96,11 @@ fn execute(policy: Option<PathBuf>, tenant: TenantScope, database: Option<Global
     let authorize = || app_access_service::access::authorize_prompts_read(
         policy.as_deref(), &headers, &project, &query.target_host_id, query.app_id,
     );
-    let context = authorize().map_err(|status| (status,
-        if status == StatusCode::UNAUTHORIZED { "unauthenticated" } else { "forbidden" }))?;
+    let context = authorize().map_err(|status| (status, match status {
+        StatusCode::UNAUTHORIZED => "unauthenticated",
+        StatusCode::FORBIDDEN => "forbidden",
+        _ => "target_unavailable",
+    }))?;
     let reauthorize = || {
         let now = authorize().map_err(|_| conflict())?;
         if now != context { return Err(conflict()); }
@@ -110,14 +113,21 @@ fn execute(policy: Option<PathBuf>, tenant: TenantScope, database: Option<Global
     let environment = std::env::vars_os().filter_map(|(k, v)| Some((k.into_string().ok()?, v.into_string().ok()?))).collect();
     let value = match operation {
         Operation::Catalog => {
-            let store = PromptsStore::new(database.ok_or_else(unavailable)?).map_err(|_| unavailable())?;
+            let storage_unavailable = || (StatusCode::SERVICE_UNAVAILABLE, "prompt_storage_unavailable");
+            let store = PromptsStore::new(database.ok_or_else(storage_unavailable)?)
+                .map_err(|_| storage_unavailable())?;
             let mut catalog = store.list_on_first_access(
                 PromptScope { project: &project, host: &query.target_host_id, app: query.app_id },
                 &query.target_host_id, &context.0, override_dir, &environment,
                 || reauthorize().map_err(|_| anyhow::anyhow!("prompt authorization changed")),
             ).map_err(|e| {
-                if e.chain().any(|cause| cause.to_string().contains("revision conflict")) { conflict() }
-                else { (StatusCode::SERVICE_UNAVAILABLE, "prompt_initialization_failed") }
+                if let Some(file_error) = e.downcast_ref::<live_file::LiveFileError>() {
+                    live_file_failure(*file_error)
+                } else if e.chain().any(|cause| cause.to_string().contains("revision conflict")) {
+                    conflict()
+                } else {
+                    (StatusCode::SERVICE_UNAVAILABLE, "prompt_initialization_failed")
+                }
             })?;
             catalog.entries = list_entries(catalog.entries, &query.query);
             serde_json::to_value(catalog)
@@ -125,12 +135,7 @@ fn execute(policy: Option<PathBuf>, tenant: TenantScope, database: Option<Global
         Operation::Current => serde_json::to_value(live_file::read(
             &query.target_host_id, &query.target_host_id, &context.0, query.app_id,
             override_dir, &environment,
-        ).map_err(|e| match e {
-            live_file::LiveFileError::ChangedDuringRead => conflict(),
-            live_file::LiveFileError::InvalidUtf8 => (StatusCode::UNPROCESSABLE_ENTITY, "invalid_utf8"),
-            live_file::LiveFileError::UnsafePath => (StatusCode::UNPROCESSABLE_ENTITY, "invalid_configuration"),
-            _ => unavailable(),
-        })?),
+        ).map_err(live_file_failure)?),
         Operation::Location => {
             let target = targets::resolve(&context.0, query.app_id, override_dir, &environment)
                 .map_err(|_| (StatusCode::UNPROCESSABLE_ENTITY, "invalid_configuration"))?;
@@ -142,4 +147,17 @@ fn execute(policy: Option<PathBuf>, tenant: TenantScope, database: Option<Global
     }.map_err(|_| unavailable())?;
     reauthorize()?;
     Ok(value)
+}
+
+#[cfg(target_os = "macos")]
+fn live_file_failure(error: vw_agent_apps::prompts::live_file::LiveFileError) -> Failure {
+    use vw_agent_apps::prompts::live_file::LiveFileError;
+    match error {
+        LiveFileError::ChangedDuringRead => (StatusCode::CONFLICT, "revision_conflict"),
+        LiveFileError::InvalidUtf8 => (StatusCode::UNPROCESSABLE_ENTITY, "invalid_utf8"),
+        LiveFileError::UnsafePath => (StatusCode::UNPROCESSABLE_ENTITY, "invalid_configuration"),
+        LiveFileError::UnsupportedTarget => (StatusCode::UNPROCESSABLE_ENTITY, "unsupported_target"),
+        LiveFileError::UnauthorizedHost => (StatusCode::FORBIDDEN, "forbidden"),
+        LiveFileError::Io => (StatusCode::SERVICE_UNAVAILABLE, "target_unavailable"),
+    }
 }

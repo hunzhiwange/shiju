@@ -14,7 +14,6 @@ pub(crate) fn view(app: &App, selected: Option<AppId>) -> Element<'_, Message> {
     let target = selected.filter(|id| catalog.rows.iter().any(|row| row.entry.id == *id));
     let mut content = column![
         text("管理工具").size(20),
-        text(format!("执行主机：{}", catalog.host)),
         text("应用工具作用于所选智能体；备份恢复与设备同步使用各自窗口中的身份及资源范围。"),
     ].spacing(12);
 
@@ -31,11 +30,11 @@ pub(crate) fn view(app: &App, selected: Option<AppId>) -> Element<'_, Message> {
                     crate::app::message::agent_apps_high_availability_policy::Event::Open(id),
                 )));
     } else {
-        content = content.push(text("请先选择当前主机目录中的智能体，再管理应用路由与高可用策略。"));
+        content = content.push(text("请先选择一个智能体，再管理应用路由与高可用策略。"));
     }
 
     content = content
-        .push(text("主机路由服务").size(16))
+        .push(text("路由服务").size(16))
         .push(app_routing::lifecycle::view(catalog))
         .push(text("备份与恢复").size(16))
         .push(text("打开窗口后选择身份和备份，恢复前预览并确认；此处不会自动覆盖数据。"))

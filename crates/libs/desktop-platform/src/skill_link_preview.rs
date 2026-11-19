@@ -20,9 +20,9 @@ pub fn body(parsed: Result<deeplink::Request, String>) -> iced::Element<'static,
     let mut body = column![text("外部技能链接需要确认后才保存仓库。保存不会安装技能。")].spacing(12);
     match parsed {
         Ok(request) => {
-            body = body.push(text(format!("仓库：{}/{}\n分支：{}\n项目目录：{}\n目标主机：{}",
+            body = body.push(text(format!("仓库：{}/{}\n分支：{}\n项目目录：{}",
                 request.repo.owner, request.repo.name, request.repo.branch,
-                request.directory, request.host)));
+                request.directory)));
         }
         Err(_) => {},
     }

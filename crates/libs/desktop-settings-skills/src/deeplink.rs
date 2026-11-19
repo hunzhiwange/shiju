@@ -15,9 +15,9 @@ pub fn view<'a, M: Clone + 'static>(s: ViewState<'a>, message: fn(Event) -> M) -
     ]
     .spacing(10);
     if let Some(request) = s.source_preview {
-        content = content.push(text(format!("来源：GitHub {}/{}\n分支：{}\n启用：{}\n项目：{}\n主机：{}",
+        content = content.push(text(format!("来源：GitHub {}/{}\n分支：{}\n启用：{}\n项目：{}",
             request.repo.owner, request.repo.name, request.repo.branch, request.repo.enabled,
-            request.directory, request.host)))
+            request.directory)))
             .push(text("链接来自外部，请核对以上来源。确认只保存仓库，不安装技能。已有同名仓库将更新配置。"))
             .push(row![
                 button("确认添加仓库").padding([8, 10]).style(primary_action_btn_style)

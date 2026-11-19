@@ -194,7 +194,7 @@ pub fn update(state: &mut State, connection: Result<(GatewayClient,Scope),String
                     let choice = save.choice;
                     form.save = None;
                     if progress.status == TaskStatus::Cancelled {
-                        form.notice = Some("执行主机已取消保存。".into());
+                        form.notice = Some("已取消保存。".into());
                         return Task::none();
                     }
                     let result = match progress.editor_outcome {
@@ -226,7 +226,7 @@ pub fn update(state: &mut State, connection: Result<(GatewayClient,Scope),String
                             return update(state, connection.clone(), &token, snapshot, Event::Reload);
                         }
                         SaveOutcome::Rejected => {
-                            form.notice = Some("执行主机拒绝保存，请检查改动和配置权限。".into());
+                            form.notice = Some("保存请求被拒绝，请检查改动和配置权限。".into());
                         }
                     }
                 }
@@ -336,15 +336,15 @@ async fn load(client: GatewayClient, scope: Scope, id: String, token: String) ->
             match reason {
                 UnsupportedApplication => "此应用不支持配置投影。",
                 OfficialLogin => "官方登录配置无法预览。",
-                Ownership => "当前执行主机的配置归属不可用。",
-                PendingTransaction => "执行主机有待恢复的配置事务。",
+                Ownership => "无法确认配置归属。",
+                PendingTransaction => "有待恢复的配置事务。",
                 ManagedProvider => "托管供应商配置无法预览。",
                 ModelCatalog => "模型目录配置无法预览。",
                 InvalidDraft => "已保存的供应商配置无法投影。",
             }
             .into()
         }),
-        Err(_) => Some("无法读取客户端配置，请检查执行主机和配置读取权限。".into()),
+        Err(_) => Some("无法读取客户端配置，请检查网关连接和配置读取权限。".into()),
         _ => None,
     };
     if let Ok(preview) = preview

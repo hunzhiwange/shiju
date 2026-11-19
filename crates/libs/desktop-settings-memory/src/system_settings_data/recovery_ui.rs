@@ -37,7 +37,7 @@ pub fn overlay<'a, E: Clone + 'static>(state: ViewState<'a>, visible: bool, base
     let close = message(Event::Close);
     let header = settings_modal_header(text("恢复与损坏诊断").size(18), settings_close_button(close.clone()));
     let mut body = column![
-        text("诊断不修改数据。恢复前由执行主机校验备份并建立回退点；无法安全保存原数据时拒绝恢复。"),
+        text("恢复前会校验备份并建立回退点。"),
         button(text("诊断 / 刷新备份")).padding([8, 14]).style(rounded_action_btn_style)
             .on_press_maybe((!state.busy && !state.submitted).then_some(message(Event::Diagnose))),
     ].spacing(12);
@@ -46,7 +46,7 @@ pub fn overlay<'a, E: Clone + 'static>(state: ViewState<'a>, visible: bool, base
             DataTargetHealth::Healthy => "目标状态：正常",
             DataTargetHealth::Corrupt => "目标状态：损坏；保留原始数据，选择备份进行安全预览",
             DataTargetHealth::VersionUnsupported => "目标版本不受支持：保留数据，请升级兼容版本；禁止降级恢复",
-            DataTargetHealth::Unavailable => "目标不可用：可预览备份，恢复仍需执行主机安全校验",
+            DataTargetHealth::Unavailable => "当前无法恢复，仍可预览备份",
         }));
         if diagnosis.backups.is_empty() { body = body.push(text("当前边界内没有可用备份")); }
         for backup in &diagnosis.backups {

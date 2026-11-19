@@ -257,7 +257,7 @@ pub fn update<U: Usage>(
                 return Task::none();
             }
             if matches!(update, flow::Update::CancelFailed) {
-                return crate::error(notice, "执行主机未确认取消授权登录");
+                return crate::error(notice, "尚未确认取消登录");
             }
             let action = LinkAction::for_preference(state.copy_login_link);
             let Some(login) = state.login_mut(generation) else { return Task::none() };
@@ -297,7 +297,7 @@ pub fn update<U: Usage>(
                 flow::Update::PasteFinished(result) => {
                     login.paste_submitting = false;
                     return match result {
-                        Ok(()) => crate::success(notice, "已提交回填，正在等待执行主机确认登录"),
+                        Ok(()) => crate::success(notice, "已提交回填，正在等待确认登录"),
                         Err(error) => crate::error(notice, error),
                     };
                 }

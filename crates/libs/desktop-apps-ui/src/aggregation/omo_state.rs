@@ -98,14 +98,14 @@ pub fn failure(error: &AggregationOmoError) -> String {
                 Some("unsupported_app" | "unsupported_target")
             ) =>
         {
-            "目标不支持此 OMO 变体，请检查安装与执行主机。"
+            "目标不支持此 OMO 变体，请检查应用安装状态。"
         }
         AggregationOmoError::Http { status: 422, .. } => {
             "档案与变体不匹配，或 JSONC 配置损坏/无法安全编辑：检查档案与目标配置后刷新重试。"
         }
         AggregationOmoError::Http { status: 404, .. } => "供应商不存在，请刷新目录后重试。",
         AggregationOmoError::Http { status: 502, .. } => "目标执行失败；请刷新实际状态后重试。",
-        AggregationOmoError::Http { status: 503, .. } => "目标主机不可用，请恢复连接后刷新重试。",
+        AggregationOmoError::Http { status: 503, .. } => "服务暂不可用，请重新连接后刷新重试。",
         AggregationOmoError::Http { status: 504, .. } => {
             "目标执行超时，结果未确定；请刷新实际状态后重试。"
         }

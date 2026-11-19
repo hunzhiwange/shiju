@@ -99,7 +99,7 @@ pub fn overlay<'a, M: Clone + 'static>(
         body = body.push(text(error));
     }
     if file.busy {
-        body = body.push(text("正在请求目标主机…"));
+        body = body.push(text("正在加载…"));
     }
     let mut editor = settings_text_editor(&file.draft).height(260);
     if !busy && file.base.is_some() {

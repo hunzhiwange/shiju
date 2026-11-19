@@ -21,7 +21,7 @@ pub fn card<'a>(
     let ready = form.busy.is_none() && form.confirmation.is_none();
     let close = if form.writing() { Message::None } else { message(Event::Close) };
     let header = settings_modal_header(
-        help.heading("环境诊断", "检查执行主机上的静态 Shell 定义和继承环境。", 28),
+        help.heading("环境诊断", "检查静态 Shell 定义和继承环境。", 28),
         settings_close_button(close.clone()),
     );
 

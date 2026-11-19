@@ -33,7 +33,8 @@ pub enum Event {
     Undo,
     Mutated(AgentAppsContext, u64, u64, AgentAppPromptsScope,
         Result<(AgentAppPromptCatalog, Result<PromptTargetPreview, String>, Option<Action>), String>),
-    Reply(AgentAppsContext, u64, u64, AgentAppPromptsScope, Result<(AgentAppPromptCatalog, PromptTargetPreview), String>),
+    Reply(AgentAppsContext, u64, u64, AgentAppPromptsScope,
+        Result<AgentAppPromptCatalog, String>, Result<PromptTargetPreview, String>),
 }
 pub fn message(event: Event) -> Event { event }
 pub fn update(app: &mut Input<'_>, event: Event) -> Task<Message> {
@@ -56,7 +57,10 @@ pub fn update(app: &mut Input<'_>, event: Event) -> Task<Message> {
     match &event {
         Event::Query(value) => { app.prompts.query = value.clone(); app.prompts.menu = None; return Task::none(); }
         Event::Menu(menu) => {
-            if !app.prompts.loading && !app.prompts.mutating && app.prompts.editor.is_none() { app.prompts.menu = menu.clone(); }
+            if menu.is_none() || (!app.prompts.mutating && (!app.prompts.loading
+                || matches!(menu, Some(super::list::Menu::Apps | super::list::Menu::Help)))) {
+                app.prompts.menu = menu.clone();
+            }
             return Task::none();
         }
         _ => { app.prompts.menu = None; }
@@ -167,11 +171,12 @@ pub fn update(app: &mut Input<'_>, event: Event) -> Task<Message> {
                         Ok(preview) => {
                             state.undo = safe_reverse.map(|action| Undo { revision: catalog.revision, content: preview.snapshot.content.clone(), action });
                             state.preview = Some(preview);
+                            state.preview_error = None;
                             crate::prompts::update::Input::show_success_toast(effect(scope.app_id))
                         }
                         Err(error) => {
                             state.preview = None;
-                            state.error = Some(error);
+                            state.preview_error = Some(error);
                             crate::prompts::update::Input::show_error_toast("操作已保存，但目标快照刷新失败；请刷新后继续。")
                         }
                     }
@@ -179,15 +184,19 @@ pub fn update(app: &mut Input<'_>, event: Event) -> Task<Message> {
             }
         }
         Event::Open(_) if app.prompts.mutating => Task::none(),
-        Event::Reply(request, catalog, generation, scope, result) => {
+        Event::Reply(request, catalog, generation, scope, library, preview) => {
             let state = &mut app.prompts;
             let same_scope = state.scope.as_ref().is_some_and(|current| current.app_id == scope.app_id && current.project_id == scope.project_id && current.target_host_id == scope.target_host_id);
             if request != context || catalog != catalog_generation || generation != state.generation || !same_scope || !state.loading
                 || scope.target_host_id != app.host || app.project_id.as_deref() != Some(scope.project_id.as_ref()) { return Task::none(); }
             state.loading = false;
-            match result {
-                Ok((catalog, preview)) => { state.catalog = Some(catalog); state.preview = Some(preview); }
-                Err(error) => { state.error = Some(error.clone()); return crate::prompts::update::Input::show_error_toast(error); }
+            match library {
+                Ok(catalog) => state.catalog = Some(catalog),
+                Err(error) => state.error = Some(error),
+            }
+            match preview {
+                Ok(preview) => state.preview = Some(preview),
+                Err(error) => state.preview_error = Some(error),
             }
             Task::none()
         }
@@ -204,15 +213,38 @@ pub fn update(app: &mut Input<'_>, event: Event) -> Task<Message> {
             let generation = state.generation;
             let token = app.token.clone();
             Task::perform(async move {
-                let result = async {
-                    let catalog = client.agent_app_prompts(&scope, "", &token).await.map_err(|e| e.to_string())?;
-                    let preview = client.agent_app_prompts_current(&scope, &token).await.map_err(|e| e.to_string())?;
-                    Ok((catalog, preview))
-                }.await;
-                Event::Reply(context, catalog_generation, generation, scope, result)
+                let library = client.agent_app_prompts(&scope, "", &token).await
+                    .map_err(|error| read_error("提示词库", error));
+                let preview = client.agent_app_prompts_current(&scope, &token).await
+                    .map_err(|error| read_error("目标文件", error));
+                Event::Reply(context, catalog_generation, generation, scope, library, preview)
             }, message)
         }
     }
+}
+
+fn read_error(subject: &str, error: gateway_app_prompts::AgentAppPromptsError) -> String {
+    use gateway_app_prompts::AgentAppPromptsError as Error;
+    let reason = match error {
+        Error::Http { status: 401 | 403, .. } => "网关未授权".into(),
+        Error::Http { status: 422, body } => match body["error"]["code"].as_str() {
+            Some("invalid_utf8") => "文件编码不是 UTF-8".into(),
+            Some("invalid_configuration") => "文件路径不可访问或配置无效".into(),
+            Some("unsupported_target") => "当前主机不支持此应用".into(),
+            _ => "网关拒绝读取".into(),
+        },
+        Error::Http { status: 409, .. } => "读取期间发生了变化".into(),
+        Error::Http { status: 503, body } => match body["error"]["code"].as_str() {
+            Some("prompt_storage_unavailable") => "网关的提示词存储暂不可用（503）".into(),
+            Some("prompt_initialization_failed") => "网关未能初始化提示词库（503）".into(),
+            _ => "网关暂时无法完成读取（503）".into(),
+        },
+        Error::Http { status, .. } => format!("网关返回 HTTP {status}"),
+        Error::Transport => "无法连接网关".into(),
+        Error::Decode => "网关返回的数据格式无效".into(),
+        Error::InvalidInput => "请求参数无效".into(),
+    };
+    format!("{subject}读取失败 · {reason}")
 }
 
 fn mutate(app: &mut Input<'_>, client: gateway_app_prompts::GatewayAppPromptsClient, context: AgentAppsContext,
@@ -256,7 +288,8 @@ fn mutate(app: &mut Input<'_>, client: gateway_app_prompts::GatewayAppPromptsCli
             let expected_after = if let Some(id) = activation_id {
                 catalog.entries.iter().find(|e| e.id == id).map(|e| e.content.clone())
             } else { expected_after };
-            let preview = client.agent_app_prompts_current(&scope, &token).await.map_err(error_text);
+            let preview = client.agent_app_prompts_current(&scope, &token).await
+                .map_err(|error| read_error("目标文件", error));
             // A file changed after the write must never become the baseline for undo.
             let reverse = reverse.filter(|_| preview.as_ref().is_ok_and(|p| p.snapshot.content == expected_after));
             Ok((catalog, preview, reverse))

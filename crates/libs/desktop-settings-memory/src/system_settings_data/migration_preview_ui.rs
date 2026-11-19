@@ -82,12 +82,21 @@ pub fn update(state: &mut State, event: Event, current: Option<DataManagementTar
     }
     Task::none()
 }
-pub fn view<'a>(state: &'a State, current: Option<DataManagementTarget>, context: Option<(String, u64)>) -> Element<'a, Event> {
-    let base = button(text("选择迁入来源与预览")).padding([8, 14])
-        .style(rounded_action_btn_style).on_press(message(Event::Open));
-    if !state.open { return base.into(); }
+pub fn entry() -> Element<'static, Event> {
+    button(text("选择迁入来源与预览")).padding([8, 14])
+        .style(rounded_action_btn_style).on_press(message(Event::Open)).into()
+}
+
+pub fn overlay<'a, M: Clone + 'a>(
+    state: &'a State,
+    current: Option<DataManagementTarget>,
+    context: Option<(String, u64)>,
+    base: Element<'a, M>,
+    map: impl Fn(Event) -> M + 'a,
+) -> Element<'a, M> {
+    if !state.open { return base; }
     let mut body = column![
-        text("目标主机已授权来源；本机文件上传尚未提供。请勿填写文件路径。"),
+        text("请选择可用的迁移来源。"),
         text("已授权来源句柄"),
         settings_text_input("来源句柄", &state.source).on_input(|v| message(Event::Source(v))),
         text("当前可预览供应商类别；凭据、绝对路径与系统集成仅显示排除计数。"),
@@ -117,5 +126,6 @@ pub fn view<'a>(state: &'a State, current: Option<DataManagementTarget>, context
         settings_modal_header(text("迁入来源预览"), settings_close_button(message(Event::Close))),
         body, Some(footer.into()),
     ).width(640).height(520);
-    settings_modal_overlay(Some(base.into()), message(Event::Close), card)
+    let close = map(Event::Close);
+    settings_modal_overlay(Some(base), close, Element::from(card).map(map))
 }

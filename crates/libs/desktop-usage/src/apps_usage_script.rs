@@ -111,7 +111,7 @@ impl Draft {
         &self,
         selection: &UsageSnapshotQuery,
     ) -> Result<AppsUsageScriptTrial, &'static str> {
-        let kind = self.selected.ok_or("执行主机未提供可试运行的脚本模板")?;
+        let kind = self.selected.ok_or("没有可试运行的脚本模板")?;
         let timeout = self
             .timeout
             .trim()
@@ -172,7 +172,7 @@ impl Failure {
             Self::InvalidInput => "脚本试运行输入无效，请检查脚本和参数",
             Self::Denied => "脚本试运行权限不足，或目标地址未获授权",
             Self::Changed => "供应商或试运行授权已变化，请重新打开设置",
-            Self::Unsupported => "执行主机不支持此模板的试运行",
+            Self::Unsupported => "当前环境不支持此模板的试运行",
             Self::Timeout => "脚本试运行超时",
             Self::Credential => "试运行所需凭据不可用或已失效",
             Self::InvalidResponse => "脚本未返回有效的套餐结果",

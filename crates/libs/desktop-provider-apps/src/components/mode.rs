@@ -19,7 +19,7 @@ pub fn card<'a>(
 ) -> Element<'a, Message> {
     let close = if form.writing() { Message::None } else { message(Event::Close) };
     let header = settings_modal_header(
-        help.heading("供应商模式", "查看执行主机的直连、路由和聚合状态。", 28),
+        help.heading("供应商模式", "查看直连、路由和聚合状态。", 28),
         settings_close_button(close.clone()),
     );
     let ready = form.pending.is_none();
@@ -29,7 +29,7 @@ pub fn card<'a>(
     }
     if form.confirming_direct && !form.needs_refresh {
         body = body.push(settings_panel(text(format!(
-            "确认恢复已保存的直连供应商「{}」？执行主机将校验配置并更新客户端。",
+            "确认恢复已保存的直连供应商「{}」？保存时将校验配置并更新客户端。",
             provider_name(snapshot, form.status.as_ref().and_then(|s| s.direct_provider.as_deref())),
         ))));
     }
@@ -93,7 +93,7 @@ fn summary<'a>(snapshot: Option<&'a crate::state::list::Snapshot>, status: &'a P
         ProviderMode::Proxy => "路由",
     };
     let runtime = match status.route_runtime {
-        RouteRuntimeStatus::Unavailable => "执行主机的路由服务不可用，无法切换到路由。",
+        RouteRuntimeStatus::Unavailable => "路由服务不可用，无法切换到路由。",
     };
     settings_panel(
         column![

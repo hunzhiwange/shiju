@@ -16,8 +16,8 @@ pub const APPS: [AppId; 12] = [
     AppId::Agy,
     AppId::Omp,
 ];
-pub const NAME_WIDTH: f32 = 260.0;
-pub const CELL_WIDTH: f32 = 190.0;
+pub const NAME_WIDTH: f32 = 208.0;
+pub const CELL_WIDTH: f32 = 42.0;
 
 #[derive(Debug, Clone)]
 pub enum Action {
@@ -43,6 +43,7 @@ pub struct Attempt {
 #[derive(Debug, Clone, Default)]
 pub struct State {
     pub query: String,
+    pub column_menu: Option<McpAppTarget>,
     pub pending: Vec<Change>,
     pub attempts: Vec<Attempt>,
     pub undo: Vec<Change>,
@@ -241,6 +242,8 @@ pub enum ViewMessage {
     Binding(Action),
     Edit(McpRecordRef),
     Menu(McpRecordRef),
+    MenuAction(crate::management_probe::actions::MenuMessage),
+    ColumnMenu(Option<McpAppTarget>),
 }
 pub fn panel<'a>(
     catalog: Option<&'a Result<McpCatalogResponse, String>>,
@@ -250,185 +253,417 @@ pub fn panel<'a>(
     host: &str,
     loading: bool,
     running: bool,
+    menu: Option<&'a crate::management_probe::actions::State>,
 ) -> iced::Element<'a, ViewMessage> {
-    use desktop_ui_controls::system_settings_common::*;
-    use iced::{
-        Length,
-        widget::{column, container, row, scrollable, text, text_input},
+    use desktop_assets::assets::Icon;
+    use desktop_settings_apps::system_settings_apps::list::brand_icon;
+    use desktop_ui_controls::system_settings_common::{
+        icons::{icon_btn_style, icon_btn_svg_style},
+        *,
     };
-    let search = text_input("搜索 ID、名称、命令或地址摘要", &state.query)
-        .on_input(|q| ViewMessage::Binding(Action::Search(q)))
-        .style(settings_text_input_style)
-        .padding(SETTINGS_CONTROL_PADDING)
-        .size(SETTINGS_CONTROL_TEXT_SIZE);
-    let mut body = column![search].spacing(10);
+    use iced::{
+        Alignment, Length,
+        widget::{Space, checkbox, column, container, row, rule, scrollable, text, text_input},
+    };
+
+    let count = catalog.and_then(|c| c.as_ref().ok()).map(|c| {
+        let visible = visible_records(c, &state.query).len();
+        if state.query.trim().is_empty() {
+            format!("{visible} 个 MCP")
+        } else {
+            format!("{visible} / {} 个 MCP", c.records.len())
+        }
+    });
+    let search = container(
+        row![
+            icon_svg(Icon::Search, 16.0).style(icon_btn_svg_style),
+            text_input("搜索名称、命令或地址", &state.query)
+                .on_input(|q| ViewMessage::Binding(Action::Search(q)))
+                .style(|theme, status| {
+                    let mut style = settings_text_input_style(theme, status);
+                    style.background = iced::Color::TRANSPARENT.into();
+                    if !matches!(status, iced::widget::text_input::Status::Focused { .. }) {
+                        style.border = iced::Border::default();
+                    }
+                    style
+                })
+                .padding(SETTINGS_CONTROL_PADDING)
+                .size(SETTINGS_CONTROL_TEXT_SIZE)
+                .width(Length::Fill),
+        ]
+        .align_y(Alignment::Center),
+    )
+    .padding(iced::Padding::ZERO.left(10))
+    .style(table_frame);
+    let mut toolbar = row![container(search).width(Length::Fill).max_width(332)].spacing(12);
+    if let Some(count) = count {
+        toolbar = toolbar.push(text(count).size(13).style(settings_muted_text_style));
+    }
+    let mut body = column![toolbar.align_y(Alignment::Center)].spacing(12).width(Length::Fill);
     if loading {
-        return body.push(text("正在加载目录…")).into();
+        return body.push(empty("正在加载目录…")).into();
     }
     let catalog = match catalog {
         Some(Ok(c)) => c,
         Some(Err(e)) => return body.push(settings_error_banner(e.clone())).into(),
-        None => return body.push(text("尚未加载目录")).into(),
+        None => return body.push(empty("尚未加载目录")).into(),
     };
     let records = visible_records(catalog, &state.query);
-    body = body.push(text(format!("显示 {} / {} 项", records.len(), catalog.records.len())));
-    if records.is_empty() {
-        return body
-            .push(text(if catalog.records.is_empty() {
-                "目录为空，请添加 MCP"
-            } else {
-                "没有匹配的 MCP"
-            }))
-            .into();
-    }
     let columns = columns(targets, shown, host);
-    let mut header = row![text("MCP 名称 / 连接摘要").width(NAME_WIDTH)].spacing(8);
+    let mut header =
+        row![container(text("名称").size(13)).width(NAME_WIDTH)].align_y(Alignment::Center);
     for (app, target) in &columns {
-        let count = target
-            .as_ref()
-            .map(|t| {
-                records
-                    .iter()
-                    .filter(|r| {
-                        catalog
-                            .bindings
-                            .iter()
-                            .any(|b| b.record.id == r.record.id && b.target == *t && b.enabled)
-                    })
-                    .count()
-            })
-            .unwrap_or(0);
-        let mut cell = column![text(format!("{app:?} · {count}"))].spacing(4);
-        if let Some(target) = target {
-            cell = cell.push(text(target.installation_id.0.clone()).size(11));
-            for (label, enabled) in [("启用筛选项", true), ("关闭筛选项", false)] {
-                cell = cell.push(crate::toolbar_button(
-                    label,
-                    (!running).then(|| {
-                        ViewMessage::Binding(Action::Column { target: target.clone(), enabled })
-                    }),
-                ));
-            }
-        } else {
-            cell = cell.push(text("无当前主机可信实例").size(12));
-        }
-        header = header.push(cell.width(CELL_WIDTH));
-    }
-    header = header.push(text("操作").width(260));
-    let mut grid = column![header].spacing(8);
-    for record in records {
-        let mut line = row![
-            column![
-                text(record.name.clone()),
-                text(record.record.id.0.clone()).size(11),
-                text(record.public_summary.clone().unwrap_or_default()).size(12)
-            ]
-            .width(NAME_WIDTH)
+        let count = target.as_ref().map_or(0, |t| {
+            records.iter().filter(|r| binding(catalog, r, t).is_some_and(|b| b.enabled)).count()
+        });
+        let label = target.as_ref().map_or_else(
+            || format!("{} · 无可信安装", app_label(*app)),
+            |t| format!("{} · {}", app_label(*app), t.installation_id.0),
+        );
+        let content = column![
+            brand_icon(*app, 17.0),
+            text(count.to_string()).size(12).style(settings_muted_text_style),
         ]
-        .spacing(8);
-        for (_, target) in &columns {
-            let mut cell = column![].spacing(4).width(CELL_WIDTH);
-            if let Some(target) = target {
-                let observed = catalog
-                    .bindings
-                    .iter()
-                    .find(|b| b.record.id == record.record.id && b.target == *target);
-                let enabled = observed.is_some_and(|b| b.enabled);
-                cell = cell
-                    .push(text(format!("期望{}", if enabled { "启用" } else { "关闭" })).size(12));
-                cell = cell.push(
-                    text(
-                        observed
-                            .map(|b| format!("上次观察：{:?}", b.native_status))
-                            .unwrap_or_else(|| "上次观察：未验证".into()),
-                    )
-                    .size(11),
+        .spacing(3)
+        .align_x(Alignment::Center);
+        let cell = match target {
+            Some(target) if !running && !records.is_empty() => {
+                let trigger = hint(
+                    iced::widget::button(content)
+                        .padding([3, 5])
+                        .style(icon_btn_style)
+                        .on_press(ViewMessage::ColumnMenu(Some(target.clone()))),
+                    label,
                 );
-                if state
-                    .pending
-                    .iter()
-                    .any(|c| c.record.record.id == record.record.id && c.target == *target)
-                    && running
-                {
-                    cell = cell.push(text("原生写入中…").size(12));
-                } else if let Some(attempt) = state.attempts.iter().rev().find(|a| {
-                    a.change.record.record.id == record.record.id && a.change.target == *target
-                }) {
-                    cell = cell.push(
-                        text(match &attempt.result {
-                            Ok(i) => crate::distribution::item_label(i),
-                            Err(e) => e.clone(),
-                        })
-                        .size(11),
-                    );
+                if state.column_menu.as_ref() == Some(target) {
+                    let items = column![
+                        text(app_label(*app)).size(12).style(settings_muted_text_style),
+                        crate::toolbar_button(
+                            "启用筛选项",
+                            Some(ViewMessage::Binding(Action::Column {
+                                target: target.clone(),
+                                enabled: true,
+                            }))
+                        ),
+                        crate::toolbar_button(
+                            "关闭筛选项",
+                            Some(ViewMessage::Binding(Action::Column {
+                                target: target.clone(),
+                                enabled: false,
+                            }))
+                        ),
+                    ]
+                    .spacing(4);
+                    desktop_ui_controls::overlays::BelowOverlay::new(
+                        trigger,
+                        container(items).padding(8).width(170).style(settings_modal_card_style),
+                    )
+                    .show(true)
+                    .gap(5.0)
+                    .dismiss_on_escape()
+                    .on_close(ViewMessage::ColumnMenu(None))
+                    .into()
+                } else {
+                    trigger
                 }
+            }
+            _ => hint(content, label),
+        };
+        header = header.push(center_cell(cell));
+    }
+    header = header.push(Space::new().width(66));
+    let mut grid =
+        column![container(header).padding([8, 12]).width(Length::Fill).style(table_header),];
+    if records.is_empty() {
+        grid = grid.push(rule::horizontal(1)).push(empty(if catalog.records.is_empty() {
+            "还没有 MCP，点击「添加 MCP」或从应用导入"
+        } else {
+            "没有匹配的 MCP"
+        }));
+    }
+    for record in records {
+        let summary = record.public_summary.as_deref().filter(|s| !s.is_empty()).unwrap_or(
+            match record.transport {
+                vw_api_mcp_management::McpTransport::Stdio => "本地命令 · stdio",
+                vw_api_mcp_management::McpTransport::StreamableHttp => "HTTP",
+                vw_api_mcp_management::McpTransport::Sse => "SSE",
+            },
+        );
+        let mut line = row![
+            container(
+                column![
+                    hint(
+                        text(short(&record.name, 25)).size(14),
+                        if record.name == record.record.id.0 {
+                            record.name.clone()
+                        } else {
+                            format!("{} · {}", record.name, record.record.id.0)
+                        },
+                    ),
+                    hint(
+                        text(short(summary, 29)).size(12).style(settings_muted_text_style),
+                        summary.to_owned()
+                    ),
+                ]
+                .spacing(3)
+            )
+            .width(NAME_WIDTH)
+            .clip(true),
+        ]
+        .align_y(Alignment::Center);
+        for (app, target) in &columns {
+            let mut label = app_label(*app).to_owned();
+            let mut failed = false;
+            let control: iced::Element<'_, ViewMessage> = if let Some(target) = target {
+                let observed = binding(catalog, record, target);
+                let enabled = observed.is_some_and(|b| b.enabled);
                 let supported = crate::distribution::supported(
                     catalog,
                     std::slice::from_ref(record),
                     target.app_id,
                 );
-                cell = cell.push(crate::toolbar_button(
-                    if enabled { "关闭" } else { "启用" },
-                    (!running && supported).then(|| {
-                        ViewMessage::Binding(Action::Cell {
-                            record: record.record.clone(),
-                            target: target.clone(),
-                            enabled: !enabled,
-                        })
-                    }),
-                ));
+                let pending = running
+                    && state
+                        .pending
+                        .iter()
+                        .any(|c| c.record.record.id == record.record.id && c.target == *target);
+                let result = state.attempts.iter().rev().find(|a| {
+                    a.change.record.record.id == record.record.id && a.change.target == *target
+                });
+                label = format!(
+                    "{label} · {}\n{}",
+                    target.installation_id.0,
+                    if enabled { "期望启用" } else { "期望关闭" }
+                );
                 if !supported {
-                    cell = cell.push(text("传输不支持或能力未验证").size(11));
+                    label.push_str("\n传输不支持或能力未验证");
+                }
+                if pending {
+                    label.push_str("\n正在写入应用配置");
+                } else if let Some(attempt) = result {
+                    failed = match &attempt.result {
+                        Ok(item) => {
+                            matches!(item.native_outcome, McpDistributionOutcome::Failed { .. })
+                        }
+                        Err(_) => true,
+                    };
+                    label.push('\n');
+                    label.push_str(&match &attempt.result {
+                        Ok(item) => crate::distribution::item_label(item),
+                        Err(error) => error.clone(),
+                    });
+                }
+                if let Some(binding) = observed {
+                    use vw_api_mcp_management::McpNativeStatus::*;
+                    label.push_str(match binding.native_status {
+                        Present => "\n上次观察：已存在",
+                        Missing => "\n上次观察：未找到",
+                        Unreadable => "\n上次观察：无法读取",
+                        NotVerified => "\n上次观察：未验证",
+                        Unsupported => "\n上次观察：不支持",
+                    });
+                }
+                if pending {
+                    text("…").size(16).style(settings_muted_text_style).into()
+                } else {
+                    let target = target.clone();
+                    let record = record.record.clone();
+                    checkbox(enabled)
+                        .size(17)
+                        .style(settings_checkbox_style)
+                        .on_toggle_maybe((!running && supported).then_some(move |enabled| {
+                            ViewMessage::Binding(Action::Cell {
+                                record: record.clone(),
+                                target: target.clone(),
+                                enabled,
+                            })
+                        }))
+                        .into()
                 }
             } else {
-                cell = cell.push(text("无可信安装实例").size(12));
-            }
-            line = line.push(cell);
+                label.push_str("\n无可信安装");
+                checkbox(false).size(17).style(settings_checkbox_style).into()
+            };
+            let control = if failed {
+                row![
+                    control,
+                    text("•").size(14).style(|theme: &iced::Theme| iced::widget::text::Style {
+                        color: Some(theme.extended_palette().danger.base.color),
+                    }),
+                ]
+                .spacing(2)
+                .align_y(Alignment::Center)
+                .into()
+            } else {
+                control
+            };
+            line = line.push(center_cell(hint(control, label)));
         }
-        let actions = column![
-            crate::toolbar_button(
-                "编辑",
-                (!running).then(|| ViewMessage::Edit(record.record.clone()))
-            ),
-            crate::toolbar_button(
-                "更多",
-                (!running).then(|| ViewMessage::Menu(record.record.clone()))
-            ),
-            crate::toolbar_button(
-                "整行启用",
-                (!running).then(|| ViewMessage::Binding(Action::Row {
-                    record: record.record.clone(),
-                    enabled: true
-                }))
-            ),
-            crate::toolbar_button(
-                "整行关闭",
-                (!running).then(|| ViewMessage::Binding(Action::Row {
-                    record: record.record.clone(),
-                    enabled: false
-                }))
+        use crate::management_probe::actions::{self, MenuMessage};
+        let trigger = icon_btn(
+            Icon::DotsThreeVertical,
+            "MCP 操作",
+            (!running).then(|| ViewMessage::Menu(record.record.clone())),
+        );
+        let trigger = if let Some(state) = menu.filter(|s| s.row.as_ref() == Some(record)) {
+            let reference = record.record.clone();
+            let content = column![
+                crate::toolbar_button(
+                    "启用整行",
+                    (!running).then_some(ViewMessage::Binding(Action::Row {
+                        record: reference.clone(),
+                        enabled: true,
+                    }))
+                ),
+                crate::toolbar_button(
+                    "关闭整行",
+                    (!running).then_some(ViewMessage::Binding(Action::Row {
+                        record: reference,
+                        enabled: false,
+                    }))
+                ),
+                rule::horizontal(1),
+                actions::menu(state).map(ViewMessage::MenuAction),
+            ]
+            .spacing(4);
+            desktop_ui_controls::overlays::BelowOverlay::new(
+                trigger,
+                container(content).width(238).padding(7).style(settings_modal_card_style),
             )
-        ]
-        .spacing(4)
-        .width(260);
-        grid = grid.push(line.push(actions));
+            .show(true)
+            .gap(5.0)
+            .dismiss_on_escape()
+            .on_close(ViewMessage::MenuAction(MenuMessage::Action(actions::Message::Close)))
+            .into()
+        } else {
+            trigger
+        };
+        line = line.push(
+            row![
+                icon_btn(
+                    Icon::Pencil,
+                    "编辑 MCP",
+                    (!running).then(|| ViewMessage::Edit(record.record.clone()))
+                ),
+                trigger,
+            ]
+            .width(66)
+            .align_y(Alignment::Center),
+        );
+        grid = grid
+            .push(rule::horizontal(1))
+            .push(container(line).padding([10, 12]).width(Length::Fill));
     }
-    let scroll = scrollable(container(grid).padding([0, 7])).direction(
+    let width = NAME_WIDTH + CELL_WIDTH * columns.len() as f32 + 66.0 + 24.0;
+    let scroll = scrollable(container(grid).width(width)).direction(
         scrollable::Direction::Horizontal(scrollable::Scrollbar::new().width(4).scroller_width(4)),
     );
-    body = body.push(scroll.width(Length::Fill)).push(
-        row![
-            crate::toolbar_button(
-                "重试失败项",
-                (!running && !state.attempts.is_empty())
-                    .then_some(ViewMessage::Binding(Action::Retry))
-            ),
-            crate::toolbar_button(
-                "撤销已提交差量",
-                (!running && !state.undo.is_empty()).then_some(ViewMessage::Binding(Action::Undo))
-            )
-        ]
-        .spacing(8),
-    );
+    body = body.push(container(scroll.width(Length::Fill)).width(Length::Fill).style(table_frame));
+    let failures = state
+        .attempts
+        .iter()
+        .filter(|a| match &a.result {
+            Ok(item) => matches!(item.native_outcome, McpDistributionOutcome::Failed { .. }),
+            Err(_) => true,
+        })
+        .count();
+    if failures > 0 || !state.undo.is_empty() {
+        let mut feedback = row![].spacing(8).align_y(Alignment::Center);
+        if failures > 0 {
+            feedback = feedback.push(text(format!("{failures} 项写入失败")).size(13)).push(
+                crate::toolbar_button(
+                    "重试失败项",
+                    (!running
+                        && state.attempts.iter().any(|a| {
+                            a.result.as_ref().is_ok_and(|i| {
+                                matches!(i.native_outcome, McpDistributionOutcome::Failed { .. })
+                            })
+                        }))
+                    .then_some(ViewMessage::Binding(Action::Retry)),
+                ),
+            );
+        }
+        if !state.undo.is_empty() {
+            feedback = feedback.push(crate::toolbar_button(
+                "撤销本次改动",
+                (!running).then_some(ViewMessage::Binding(Action::Undo)),
+            ));
+        }
+        body = body.push(feedback);
+    }
     body.into()
+}
+
+fn binding<'a>(
+    catalog: &'a McpCatalogResponse,
+    record: &McpCatalogRecord,
+    target: &McpAppTarget,
+) -> Option<&'a vw_api_mcp_management::McpCliBinding> {
+    catalog.bindings.iter().find(|b| b.record.id == record.record.id && b.target == *target)
+}
+
+fn center_cell<'a>(
+    content: impl Into<iced::Element<'a, ViewMessage>>,
+) -> iced::Element<'a, ViewMessage> {
+    iced::widget::container(content).center_x(CELL_WIDTH).into()
+}
+
+fn hint<'a>(
+    content: impl Into<iced::Element<'a, ViewMessage>>,
+    label: String,
+) -> iced::Element<'a, ViewMessage> {
+    use desktop_ui_controls::system_settings_common::icons::icon_btn_tooltip_style;
+    use iced::widget::{text, tooltip};
+    tooltip(content, text(label).size(12), tooltip::Position::Top)
+        .style(icon_btn_tooltip_style)
+        .padding(8)
+        .into()
+}
+
+fn empty(label: &'static str) -> iced::Element<'static, ViewMessage> {
+    use desktop_ui_controls::system_settings_common::settings_muted_text_style;
+    iced::widget::container(iced::widget::text(label).size(13).style(settings_muted_text_style))
+        .padding([16, 12])
+        .into()
+}
+
+fn short(value: &str, max: usize) -> String {
+    let mut chars = value.chars();
+    let mut shown: String = chars.by_ref().take(max).collect();
+    if chars.next().is_some() {
+        shown.push('…');
+    }
+    shown
+}
+
+fn table_frame(theme: &iced::Theme) -> iced::widget::container::Style {
+    let palette = theme.extended_palette();
+    iced::widget::container::Style::default().background(palette.background.base.color).border(
+        iced::Border { color: palette.background.strong.color, width: 1.0, radius: 9.0.into() },
+    )
+}
+
+fn table_header(theme: &iced::Theme) -> iced::widget::container::Style {
+    iced::widget::container::Style::default()
+        .background(theme.extended_palette().background.weak.color)
+        .border(iced::Border { radius: iced::border::top(8), ..iced::Border::default() })
+}
+
+pub(crate) fn app_label(app: AppId) -> &'static str {
+    match app {
+        AppId::Claude => "Claude Code",
+        AppId::Codex => "Codex",
+        AppId::Gemini => "Gemini CLI",
+        AppId::GrokBuild => "Grok Build",
+        AppId::OpenCode => "OpenCode",
+        AppId::Hermes => "Hermes",
+        AppId::Pi => "Pi",
+        AppId::Mcode => "MiniMax Code",
+        AppId::Kimi => "Kimi Code",
+        AppId::Dsh => "DeepSeek Harness",
+        AppId::Agy => "Antigravity",
+        AppId::Omp => "Oh My Pi",
+        AppId::ClaudeDesktop => "Claude Desktop",
+        AppId::OpenClaw => "OpenClaw",
+    }
 }

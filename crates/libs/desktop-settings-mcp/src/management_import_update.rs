@@ -13,7 +13,7 @@ pub(crate) fn open_draft(app: &mut Update<'_>, request: McpCreateRequest) -> Tas
         return app.error("网关不可用，请检查连接");
     };
     if request.target_host_id != context.host {
-        return app.error("草稿目标主机与当前主机不匹配");
+        return app.error("连接已切换，请重新打开导入草稿");
     }
     let mut state = ImportState::new(context);
     state.draft = Some(request);
@@ -110,13 +110,16 @@ pub fn update(app: &mut Update<'_>, event: ImportMessage) -> Task<ImportMessage>
                     state.reports.push(report);
                 }
             }
+            if state.result.is_none() {
+                state.show_sources = true;
+            }
             state.result = Some(Ok(report_labels(&state.reports)));
             return app.refresh();
         }
         ImportMessage::Retry => return start_batch_import(app, true),
         ImportMessage::Select(target) => {
             if !app.targets.clone().contains(&target) {
-                return app.error("请选择当前主机的可信安装实例");
+                return app.error("请选择可信的安装实例");
             }
             let state = app.state.import.as_mut().unwrap();
             state.invalidate();

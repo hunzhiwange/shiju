@@ -39,9 +39,9 @@ pub(super) fn overlay<'a, U: Clone + 'static>(
     let body: Element<'_, Event<U>> = match &login.phase {
         LoginPhase::Starting => {
             let detail = if is_device {
-                "正在向执行主机请求设备码。"
+                "正在请求设备码。"
             } else {
-                "正在向执行主机请求授权链接。"
+                "正在请求授权链接。"
             };
             status_panel(
                 column![

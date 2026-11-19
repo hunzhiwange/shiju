@@ -42,7 +42,8 @@ pub fn error_label(error: &AgentAppsReadError) -> &'static str {
     match error {
         AgentAppsReadError::Http { status: 503, .. } => "远端离线或服务不可用",
         AgentAppsReadError::Http { status: 501, .. } => "不支持",
-        AgentAppsReadError::Http { status: 401 | 403, .. } => "未授权，请检查主机与应用管理令牌",
+        AgentAppsReadError::Http { status: 401, .. } => "网关身份验证失败",
+        AgentAppsReadError::Http { status: 403, .. } => "网关拒绝读取应用目录",
         AgentAppsReadError::Decode(_) => "响应无效，未验证",
         _ => "加载失败，请重试",
     }

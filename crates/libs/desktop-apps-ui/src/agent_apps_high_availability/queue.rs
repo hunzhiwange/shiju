@@ -40,12 +40,12 @@ pub fn overlay<'a>(state: State<'a>, base: Element<'a, Message>) -> Element<'a, 
         Some(settings_close_button(close.clone())),
     );
     let mut body = column![
-        text("队列资格与顺序由执行主机确认；官方账号不能加入备用队列。"),
+        text("队列资格与顺序需经验证。官方账号无法加入备用队列。"),
         action("刷新", Event::Run(Operation::Refresh), !state.busy),
     ]
     .spacing(12);
     if state.busy {
-        body = body.push(text("正在等待执行主机确认…"));
+        body = body.push(text("正在等待确认…"));
     }
     if let Some(error) = state.error {
         body = body.push(settings_error_banner(error));

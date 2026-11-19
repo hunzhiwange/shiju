@@ -30,14 +30,14 @@ impl Form {
             }
             Err(error) => {
                 self.error = Some(match error {
-                    AgentAppsReadError::Http { status: 401 | 403, .. } => "执行主机拒绝了此操作。",
+                    AgentAppsReadError::Http { status: 401 | 403, .. } => "操作被拒绝。",
                     AgentAppsReadError::Http { status: 409, .. } => {
                         "目录正在被使用，或有未完成的供应商事务。"
                     }
                     AgentAppsReadError::Http { status: 400 | 422, .. } => {
-                        "执行主机无法验证此目录。请选择授权用户目录下已有的私有文件夹。"
+                        "无法验证此目录。请选择授权用户目录下已有的私有文件夹。"
                     }
-                    _ => "无法确认执行主机的配置目录。请重新读取。",
+                    _ => "无法确认配置目录。请重新读取。",
                 });
             }
         }

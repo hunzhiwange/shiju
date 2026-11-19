@@ -32,6 +32,18 @@ pub enum Event {
     Import,
     Completed(u64, Vec<(String, Result<(), String>)>, Result<UnmanagedSkillsResponse, String>),
 }
+#[derive(Clone, PartialEq)]
+struct ScanSource {
+    id: AppId,
+    label: String,
+}
+
+impl std::fmt::Display for ScanSource {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(&self.label)
+    }
+}
+
 pub const APPS: &[AppId] = &[
     AppId::Claude,
     AppId::Codex,
@@ -64,8 +76,9 @@ pub fn matches_query(row: &UnmanagedSkillItem, query: &str) -> bool {
 
 // Theme-aware unmanaged import confirmation; source paths are read-only.
 
+use crate::third_party::style;
 use desktop_ui_controls::system_settings_common::*;
-use iced::widget::{button, checkbox, column, container, row, text};
+use iced::widget::{Space, button, checkbox, column, container, row, rule, scrollable, text};
 use iced::{Element, Length};
 pub fn view<'a, M: Clone + 'static>(
     s: &'a State,
@@ -81,91 +94,189 @@ pub fn view_with_icons<'a, M: Clone + 'static>(
     message: fn(Event) -> M,
     icon: fn(AppId, f32) -> Element<'static, M>,
 ) -> Element<'a, M> {
+    view_with_app_names(s, base, message, icon, |id| format!("{id:?}"))
+}
+
+pub fn view_with_app_names<'a, M: Clone + 'static>(
+    s: &'a State,
+    base: Element<'a, M>,
+    message: fn(Event) -> M,
+    icon: fn(AppId, f32) -> Element<'static, M>,
+    name: impl Fn(AppId) -> String,
+) -> Element<'a, M> {
     if !s.open {
         return base;
     }
-    let mut body = column![text("选择来源应用，扫描后勾选需要导入的技能。")].spacing(10);
-    body = body.push(text(format!("扫描来源主机：{}（保留源文件）", s.host)));
-    let mut sources = row![].spacing(12);
-    for (index, &id) in APPS.iter().enumerate() {
-        sources = sources.push(
-            row![
-                icon(id, 20.0),
-                checkbox(s.apps.contains(&id))
-                    .label(format!("{id:?}"))
-                    .text_size(SETTINGS_CONTROL_TEXT_SIZE)
-                    .style(settings_checkbox_style)
-                    .on_toggle_maybe((!s.busy).then_some(move |v| message(Event::App(id, v))))
-            ]
-            .spacing(6)
-            .width(Length::Fill),
-        );
-        if index % 2 == 1 {
-            body = body.push(sources);
-            sources = row![].spacing(12);
-        }
-    }
-    body = body.push(sources);
-    body = body.push(
-        settings_text_input("按名称或来源搜索", &s.query)
-            .on_input(move |v| message(Event::Query(v))),
-    );
-    body = body.push(
-        row![
-            button("全选筛选结果")
-                .on_press_maybe((!s.busy).then_some(message(Event::SelectVisible(true)))),
-            button("全不选筛选结果")
-                .on_press_maybe((!s.busy).then_some(message(Event::SelectVisible(false))))
-        ]
-        .spacing(8),
-    );
-    body = body.push(text(format!("已选择 {} 项（包含隐藏项）", s.selected.len())));
-    body = body.push(text("导入后启用目标（独立于扫描来源）"));
-    for target in &s.available_targets {
-        let target = target.clone();
-        body = body.push(
-            checkbox(s.targets.contains(&target))
-                .label(format!("{:?} / {}", target.app_id, target.installation_id))
-                .style(settings_checkbox_style)
-                .on_toggle_maybe(
-                    (!s.busy).then_some(move |v| message(Event::Target(target.clone(), v))),
-                ),
-        );
-    }
+    let search = settings_text_input("搜索名称或来源", &s.query)
+        .style(style::input)
+        .on_input(move |v| message(Event::Query(v)));
+    let selection = |label, value| {
+        button(text(label).size(13))
+            .padding([6, 10])
+            .style(rounded_action_btn_style)
+            .on_press_maybe((!s.busy).then_some(message(Event::SelectVisible(value))))
+    };
+    let mut body = column![
+        text("导入会复制技能，保留来源文件。").size(13).style(settings_muted_text_style),
+        row![style::search(search), selection("全选", true), selection("全不选", false)]
+            .spacing(8)
+            .align_y(iced::Alignment::Center),
+    ]
+    .spacing(12);
+    let mut candidates = column![];
     if let Some(report) = &s.report {
         for skill in report.skills.iter().filter(|skill| matches_query(skill, &s.query)) {
             let id = skill.directory.clone();
             let reason = if skill.managed {
-                "已托管，跳过"
+                " · 已托管"
             } else if skill.conflict {
-                "来源冲突，跳过"
+                " · 来源冲突"
             } else if skill.external_link {
-                "外部链接，跳过"
+                " · 外部链接"
             } else if !eligible(skill) {
-                "缺少可用扫描令牌，跳过"
+                " · 无法导入"
             } else {
-                "可导入"
+                ""
             };
-            body = body.push(
-                column![
-                    checkbox(s.selected.contains(&id))
-                        .label(skill.name.clone())
-                        .text_size(SETTINGS_CONTROL_TEXT_SIZE)
-                        .style(settings_checkbox_style)
-                        .on_toggle_maybe(
-                            (!s.busy && eligible(skill))
-                                .then_some(move |v| message(Event::Select(id.clone(), v)))
-                        ),
-                    text(format!("来源目录：{}", skill.directory)),
-                    text(format!("foundIn: {:?} · {}", skill.apps, reason)),
-                ]
-                .spacing(5),
+            let source = skill.apps.iter().copied().map(&name).collect::<Vec<_>>().join("、");
+            candidates = candidates
+                .push(
+                    row![
+                        checkbox(s.selected.contains(&id))
+                            .size(15)
+                            .style(style::checkbox)
+                            .on_toggle_maybe(
+                                (!s.busy && eligible(skill)).then_some(move |value| message(
+                                    Event::Select(id.clone(), value)
+                                ))
+                            ),
+                        column![
+                            text(skill.name.clone()).size(14),
+                            text(format!(
+                                "来源 · {}{reason}",
+                                if source.is_empty() { skill.directory.as_str() } else { &source }
+                            ))
+                            .size(12)
+                            .style(settings_muted_text_style),
+                        ]
+                        .spacing(3),
+                    ]
+                    .spacing(9)
+                    .padding([8, 10])
+                    .align_y(iced::Alignment::Center),
+                )
+                .push(rule::horizontal(1));
+        }
+        if !report.skills.iter().any(|skill| matches_query(skill, &s.query)) {
+            candidates = candidates.push(
+                container(
+                    text(if report.skills.is_empty() {
+                        "未发现可导入的技能"
+                    } else {
+                        "没有匹配的技能"
+                    })
+                    .size(13)
+                    .style(settings_muted_text_style),
+                )
+                .center_x(Length::Fill)
+                .padding(18),
             );
         }
-        if report.skills.is_empty() {
-            body = body.push(text("未发现未托管技能"));
-        }
+    } else {
+        candidates = candidates.push(
+            container(
+                text(if s.busy { "正在扫描技能…" } else { "选择来源后扫描技能" })
+                    .size(13)
+                    .style(settings_muted_text_style),
+            )
+            .center_x(Length::Fill)
+            .padding(18),
+        );
     }
+    body = body.push(
+        container(
+            scrollable(container(candidates).padding([0, 7]))
+                .direction(scrollable::Direction::Vertical(
+                    scrollable::Scrollbar::new().width(4).scroller_width(4),
+                ))
+                .height(Length::Shrink),
+        )
+        .width(Length::Fill)
+        .max_height(192)
+        .style(style::table),
+    );
+    body = body.push(settings_field_label("导入后启用的应用"));
+    if s.available_targets.is_empty() {
+        body = body.push(
+            text("没有可选应用，只导入主副本。").size(12).style(settings_muted_text_style),
+        );
+    }
+    for pair in s.available_targets.chunks(2) {
+        let mut choices = row![].spacing(10);
+        for target in pair {
+            let target = target.clone();
+            let app = target.app_id;
+            let label =
+                if s.available_targets.iter().filter(|entry| entry.app_id == app).count() > 1 {
+                    format!("{} · {}", name(app), target.installation_id)
+                } else {
+                    name(app)
+                };
+            choices = choices.push(
+                row![
+                    checkbox(s.targets.contains(&target))
+                        .size(15)
+                        .style(style::checkbox)
+                        .on_toggle_maybe(
+                            (!s.busy).then_some(move |v| message(Event::Target(target.clone(), v)))
+                        ),
+                    icon(app, 17.0),
+                    text(label).size(13),
+                ]
+                .spacing(7)
+                .align_y(iced::Alignment::Center)
+                .width(Length::Fill),
+            );
+        }
+        if pair.len() == 1 {
+            choices = choices.push(Space::new().width(Length::Fill));
+        }
+        body = body.push(choices);
+    }
+    let sources = settings_select(
+        APPS.iter().copied().map(|id| ScanSource {
+            id,
+            label: format!("{}{}", if s.apps.contains(&id) { "✓  " } else { "" }, name(id)),
+        }),
+        None,
+        move |source| message(Event::App(source.id, !s.apps.contains(&source.id))),
+    )
+    .placeholder("切换扫描来源")
+    .disabled(s.busy);
+    let source_names = s.apps.iter().copied().map(&name).collect::<Vec<_>>().join("、");
+    body = body.push(rule::horizontal(1)).push(
+        row![
+            column![
+                text("扫描来源").size(13),
+                text(if source_names.is_empty() {
+                    s.host.clone()
+                } else {
+                    format!("{} · {source_names}", s.host)
+                })
+                .size(12)
+                .style(settings_muted_text_style),
+            ]
+            .spacing(3)
+            .width(Length::Fill),
+            sources,
+            button(text("扫描").size(13))
+                .padding([6, 10])
+                .style(rounded_action_btn_style)
+                .on_press_maybe((!s.busy && !s.apps.is_empty()).then_some(message(Event::Scan))),
+        ]
+        .spacing(8)
+        .align_y(iced::Alignment::Center),
+    );
     for (id, result) in &s.outcomes {
         body = body.push(text(format!(
             "{}：{}",
@@ -184,27 +295,24 @@ pub fn view_with_icons<'a, M: Clone + 'static>(
     }
     let close = message(Event::Close);
     let header = settings_modal_header(
-        text("导入未托管技能").size(20),
+        text("导入已有 Skill").size(20),
         settings_close_button(close.clone()),
     );
     let footer = row![
-        button("扫描 / 刷新")
-            .padding([8, 10])
-            .style(rounded_action_btn_style)
-            .on_press_maybe((!s.busy && !s.apps.is_empty()).then_some(message(Event::Scan))),
-        button(text(format!("导入所选（{}）", s.selected.len())))
-            .padding([8, 10])
-            .style(primary_action_btn_style)
-            .on_press_maybe((!s.busy && !s.selected.is_empty()).then_some(message(Event::Import))),
-        button("关闭")
-            .padding([8, 10])
+        Space::new().width(Length::Fill),
+        button("取消")
+            .padding([8, 12])
             .style(rounded_action_btn_style)
             .on_press_maybe((!s.busy).then_some(close.clone())),
+        button(text(format!("导入 {} 个", s.selected.len())))
+            .padding([8, 12])
+            .style(style::primary)
+            .on_press_maybe((!s.busy && !s.selected.is_empty()).then_some(message(Event::Import))),
     ]
     .spacing(8);
     let card = settings_modal_layout(header, body.width(Length::Fill), Some(footer.into()))
-        .style(super::modal_card_style)
-        .width(760)
+        .style(style::dialog)
+        .width(600)
         .height(620);
     settings_modal_overlay_with_escape_and_backdrop_dismiss(
         base,

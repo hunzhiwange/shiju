@@ -50,7 +50,7 @@ pub(super) fn view<'a>(form: &'a CatalogForm, i18n: I18n, style: CatalogStyle<'a
     }
     let label = i18n.__("发现模型");
     let mut content = column![
-        style.help_label(label, settings_field_label(label), i18n.__("使用执行主机上已保存的供应商配置或 CLI。"))
+        style.help_label(label, settings_field_label(label), i18n.__("使用已保存的供应商配置或 CLI。"))
         .wrap(),
         text(i18n.__("勾选结果后可保存到此部署。"))
             .size(13)
@@ -78,7 +78,7 @@ pub(super) fn view<'a>(form: &'a CatalogForm, i18n: I18n, style: CatalogStyle<'a
     let failure = match phase {
         CancelUnconfirmed => Some("已停止等待结果，未能确认网关是否取消了任务。"),
         ServiceFailed(reason) => Some(match reason {
-            ModelDiscoveryFailure::Unavailable => "发现源不可用，请检查执行主机或供应商后重试。",
+            ModelDiscoveryFailure::Unavailable => "发现源不可用，请检查服务连接或供应商配置后重试。",
             ModelDiscoveryFailure::Unauthorized => "发现授权失败，请检查已保存的凭据或 CLI 登录。",
             ModelDiscoveryFailure::TimedOut => "模型发现超时，请重试。",
             ModelDiscoveryFailure::InvalidResponse => "发现源返回了无法解析的模型，请重试。",

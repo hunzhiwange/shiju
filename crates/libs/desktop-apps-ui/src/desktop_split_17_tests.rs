@@ -117,7 +117,7 @@ async fn auth6_ui_list_commits_expected_scoped_result() {
     assert_eq!(accounts[0].credential_state, AuthCredentialState::Ready);
     assert_eq!(accounts[1].credential_state, AuthCredentialState::ReauthRequired);
     let agy = rows.iter().find(|row| row.service == AuthService::AgyOauth).unwrap();
-    assert_eq!(agy.accounts, Err("执行主机没有可用的授权通道"));
+    assert_eq!(agy.accounts, Err("没有可用的账号登录方式"));
     assert!(rows[0].accounts.as_ref().unwrap().is_empty());
     assert_eq!(server.join().unwrap().len(), 7);
 }

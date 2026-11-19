@@ -26,7 +26,7 @@ pub fn overlay<'a>(form: &'a Form, base: Element<'a, Message>) -> Element<'a, Me
         text_input("已保存的供应商标识", &form.provider).padding(SETTINGS_CONTROL_PADDING).size(SETTINGS_CONTROL_TEXT_SIZE).style(settings_text_input_style).on_input_maybe(active.then_some(|v| message(Event::Provider(v)))),
     ].spacing(12).width(Length::Fill);
     if form.busy {
-        body = body.push(text("正在请求执行主机…").style(settings_muted_text_style));
+        body = body.push(text("正在加载…").style(settings_muted_text_style));
     }
     if let Some(error) = &form.error {
         body = body.push(settings_error_banner(error));

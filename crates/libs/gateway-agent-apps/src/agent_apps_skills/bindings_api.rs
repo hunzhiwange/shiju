@@ -115,7 +115,7 @@ async fn binding_settings(tenant: TenantScope, db: Option<Extension<GlobalDataba
         let policy = std::env::var_os("SHIJU_AGENT_APPS_ACCESS_FILE").map(std::path::PathBuf::from);
         #[cfg(target_os = "macos")]
         {
-            let (_env, root) = app_access_service::access::authorize_skill_bindings(
+            let (env, root) = app_access_service::access::authorize_skill_bindings(
                 policy.as_deref(), &headers, &project, &scope.target_host_id)?;
             use vw_agent_apps::skills::{app_paths::{distribution, SkillDistribution}, bulk_sync::SkillInstallTarget};
             use app_settings_store::agent_apps_skills_store::SkillInstallsStore;
@@ -124,7 +124,7 @@ async fn binding_settings(tenant: TenantScope, db: Option<Extension<GlobalDataba
             let store = SkillInstallsStore::new(db).map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?;
             let state = if let Some((version, targets)) = change {
                 for target in &targets {
-                    if !vw_agent_apps::apps::discovery::read::resolve_cli_installation(target.app_id, &_env,
+                    if !vw_agent_apps::apps::discovery::read::resolve_cli_installation(target.app_id, &env,
                         &vw_api_app_identity::AppInstallationId(target.installation_id.clone()))
                         .map_err(|_| StatusCode::CONFLICT)? { return Err(StatusCode::NOT_FOUND); }
                 }
@@ -142,8 +142,35 @@ async fn binding_settings(tenant: TenantScope, db: Option<Extension<GlobalDataba
                     };
                     SkillBindingCapability { app_id, supported, reason: reason.into() }
                 }).collect();
+            let managed_bindings = state.copy_bindings.iter().filter_map(|(key, binding)| {
+                let (installation_id, app_id, directory) =
+                    serde_json::from_str::<(String, vw_api_app_identity::AppId, String)>(key).ok()?;
+                if directory != binding.directory
+                    || distribution(app_id) != SkillDistribution::ManagedBinding
+                {
+                    return None;
+                }
+                Some(ManagedSkillBinding { target: SkillBindingTarget { installation_id, app_id }, directory })
+            }).collect();
+            let mut native_bindings = Vec::new();
+            for app_id in [Pi, Omp] {
+                use vw_agent_apps::skills::app_paths;
+                let Ok(path) = app_paths::resolve(&env.home, app_id, None, &Default::default(), &[&root]) else {
+                    continue;
+                };
+                for skill in &state.skills {
+                    if let Ok(enabled) = app_paths::native_enabled(&env.home, &path, &skill.directory) {
+                        native_bindings.push(NativeSkillBinding {
+                            app_id, directory: skill.directory.clone(), enabled,
+                        });
+                    }
+                }
+            }
             Ok(SkillBindingSnapshot { scope, version: state.version, capabilities,
-                targets: state.install_targets.into_iter().map(|t| SkillBindingTarget { installation_id: t.installation_id, app_id: t.app_id }).collect() })
+                targets: state.install_targets.into_iter().map(|t| SkillBindingTarget { installation_id: t.installation_id, app_id: t.app_id }).collect(),
+                managed_bindings: Some(managed_bindings),
+                native_bindings,
+            })
         }
         #[cfg(not(target_os = "macos"))]
         {

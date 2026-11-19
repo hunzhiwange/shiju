@@ -28,7 +28,7 @@ fn valid_identity(context: &Context, job: &DiagnosticJobIdentity) -> bool {
         && job.scope.project.tenant_scope() == &context.tenant
 }
 fn safe_error(_: impl std::fmt::Debug) -> String {
-    "MCP 检测请求失败，结果未验证；请检查授权和目标主机".into()
+    "MCP 检测请求失败，请检查网关连接后重试".into()
 }
 fn poll(state: &mut McpState, context: Context, cancel: bool) -> Task<Message> {
     let Some(transport) = state.transport.clone() else {

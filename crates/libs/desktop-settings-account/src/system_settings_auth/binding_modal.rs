@@ -20,10 +20,6 @@ pub(crate) fn overlay<'a, U: Clone + 'static>(
     let mut body = column![
         settings_field_label("供应商"),
         text(&binding.provider_name).wrapping(Wrapping::WordOrGlyph),
-        text(format!("执行主机：{}", binding.host))
-            .size(13)
-            .style(settings_muted_text_style)
-            .wrapping(Wrapping::WordOrGlyph),
     ]
     .spacing(8)
     .width(Length::Fill);

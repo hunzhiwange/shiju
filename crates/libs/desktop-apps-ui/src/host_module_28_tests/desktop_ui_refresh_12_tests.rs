@@ -548,7 +548,7 @@ async fn help_rollout_06_renders_utility_overlays() {
             "paths" => {
                 state.paths = Some(paths::Form {
                     draft: "/fixture/private-path".into(),
-                    error: Some("无法确认执行主机的配置目录。请重新读取。"),
+                    error: Some("无法确认配置目录。请重新读取。"),
                     ..Default::default()
                 });
                 1

@@ -21,20 +21,19 @@ pub fn overlay<'a, C: Clone + 'a, M: Clone + 'static>(
     let close = event(LaunchMessage::Close);
     let editable = !state.busy && !state.accepted;
     let mut body = column![
-        text(format!("执行主机：{}", host)).size(14),
         text(format!("应用：{:?} · 实例：{}", request.app_id, request.installation_id.0))
             .size(13)
             .style(settings_muted_text_style),
     ]
     .spacing(12);
     if state.busy {
-        body = body.push(text("等待执行主机确认；不会自动重试…").size(13));
+        body = body.push(text("正在等待确认…").size(13));
     }
     if state.accepted {
         body = body.push(
             text(match state.phase {
                 Some(LaunchSessionPhase::Completed) => "CLI 已退出，执行端回写与清理完成",
-                Some(LaunchSessionPhase::Failed) => "CLI 会话失败；请检查执行主机与账号状态",
+                Some(LaunchSessionPhase::Failed) => "CLI 会话失败；请检查网关连接与账号状态",
                 Some(LaunchSessionPhase::Starting | LaunchSessionPhase::Running) => {
                     "CLI 会话运行中；关闭终端将终止并回收进程"
                 }
@@ -96,7 +95,7 @@ pub fn overlay<'a, C: Clone + 'a, M: Clone + 'static>(
             .on_press_maybe(editable.then_some(event(LaunchMessage::AddArg))),
     );
     let cwd = column![
-        settings_field_label("工作目录（由执行主机验证）"),
+        settings_field_label("工作目录"),
         settings_text_input("所选主机上的绝对目录", &request.cwd)
             .on_input_maybe(editable.then_some(move |v| event(LaunchMessage::Cwd(v)))),
     ]

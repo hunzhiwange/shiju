@@ -42,7 +42,7 @@ pub fn card<'a>(
         body = body.push(settings_panel(text(notice).size(14)));
     }
     if form.busy {
-        body = body.push(text("正在请求执行主机…").style(settings_muted_text_style));
+        body = body.push(text("正在加载…").style(settings_muted_text_style));
     }
 
     let mut direct = column![].spacing(8);

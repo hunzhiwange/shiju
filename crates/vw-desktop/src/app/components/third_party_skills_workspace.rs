@@ -33,6 +33,48 @@ pub(crate) fn execute(
             app.show_error_toast("文档地址无效")
         };
     }
+    if let Effect::Error(error) = &effect {
+        return app.show_error_toast(error.clone());
+    }
+    if let Effect::Uninstall(id) = &effect {
+        return crate::app::message::settings::skills::update(
+            app,
+            SettingsMessage::SkillsUpdates(
+                desktop_settings_skills::updates_view::Event::OpenForUninstall(id.clone()),
+            ),
+        );
+    }
+    if let Effect::OpenDirectory(id) = &effect {
+        let query = SkillReposQuery {
+            project_id: vw_api_transport::local_settings_project(scope.project.as_deref()).into(),
+            target_host_id: scope.host.clone(),
+        };
+        let token = app.apps_catalog.token.clone();
+        let change =
+            desktop_settings_skills::update::storage_modal::Change::OpenSkillDirectory(id.clone());
+        return Task::perform(
+            async move {
+                desktop_session::session_gateway::gateway_skill_storage_request(
+                    crate::app::config::gateway_client_endpoint(),
+                    query,
+                    token,
+                    change,
+                )
+                .await
+            },
+            move |result| {
+                Message::Settings(SettingsMessage::AppsCatalog(
+                    AppsCatalogMessage::ThirdPartySkills(third_party::Message {
+                        scope: scope.clone(),
+                        catalog,
+                        action: third_party::Action::Workspace(Event::DirectoryOpened(
+                            result.map(|_| ()),
+                        )),
+                    }),
+                ))
+            },
+        );
+    }
     if matches!(effect, Effect::None) {
         return Task::none();
     }
@@ -214,7 +256,11 @@ pub(crate) fn execute(
                     }
                     .await,
                 ),
-                Effect::None | Effect::Documentation(_) => unreachable!(),
+                Effect::None
+                | Effect::Documentation(_)
+                | Effect::OpenDirectory(_)
+                | Effect::Uninstall(_)
+                | Effect::Error(_) => unreachable!(),
             }
         },
         move |event| {

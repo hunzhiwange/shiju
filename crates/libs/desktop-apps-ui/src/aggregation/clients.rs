@@ -152,7 +152,7 @@ pub fn feedback(e: &AgentAppsSettingsError) -> &'static str {
             "目标执行失败，请重新探测，勿重复提交。"
         }
         AgentAppsSettingsError::Http { status: 503, .. } => {
-            "执行主机不可用，请恢复连接后重新探测。"
+            "服务暂不可用，请重新连接后再检测。"
         }
         _ => "结果未知或超时，请重新探测实际状态，勿重复提交。",
     }

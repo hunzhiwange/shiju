@@ -288,13 +288,13 @@ fn save_error(error: AgentAppsAuthError) -> &'static str {
                 Unauthenticated | Forbidden => "保存失败：当前管理连接没有账号绑定权限",
                 NotFound => "保存失败：供应商或账号已不在当前范围",
                 ReauthRequired => "保存失败：所选账号需要重新授权",
-                Unsupported => "保存失败：执行主机不支持此供应商绑定",
+                Unsupported => "保存失败：当前环境不支持此供应商绑定",
                 IdentityMismatch => "保存失败：账号与供应商的地区或身份不兼容",
                 Conflict | AccountInUse => "保存失败：账号或供应商状态已变化，请刷新后重试",
                 ExecutionHostUnavailable | ExecutionChannelUnavailable => {
-                    "保存失败：无法连接授权执行主机"
+                    "保存失败：无法连接账号服务"
                 }
-                _ => "保存失败：执行主机拒绝绑定，请重试",
+                _ => "保存失败：绑定请求被拒绝，请重试",
             }
         }
         AgentAppsAuthError::Http { status: 401 | 403, .. }

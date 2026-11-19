@@ -223,7 +223,15 @@ pub fn card<'a>(
                 form.request().is_ok()
             });
     let cancel = message(EditMessage::Cancel);
-    let header = settings_modal_header(text(title).size(20), settings_close_button(cancel.clone()));
+    let mut heading = column![text(title).size(20)].spacing(4);
+    if matches!(form.mode, Mode::Update) && !form.fields.name.trim().is_empty() {
+        heading = heading.push(text(&form.fields.name).size(13).style(settings_muted_text_style));
+    }
+    let header = column![
+        settings_modal_header(heading, settings_close_button(cancel.clone())),
+        settings_divider(),
+    ]
+    .spacing(12);
     let actions = row![
         button(text("取消"))
             .padding([8, 16])
@@ -242,7 +250,10 @@ pub fn card<'a>(
     ]
     .spacing(12)
     .align_y(Alignment::Center);
-    let card = settings_modal_layout(header, fields, Some(actions.into()))
+    let footer = container(
+        column![settings_divider(), container(actions).align_right(Length::Fill),].spacing(12),
+    );
+    let card = settings_modal_layout(header, fields, Some(footer.into()))
         .width(620)
         .height(if delete { 300 } else { 620 });
     container(card).padding(12).into()

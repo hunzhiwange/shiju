@@ -5,6 +5,7 @@ use vw_api_app_skills::{bindings_api::*, repos_api::SkillReposQuery, storage_api
 pub use crate::storage_modal::{Event, Readback, State};
 pub enum Change {
     OpenDirectory(String),
+    OpenSkillDirectory(String),
     Read,
     Mode(SkillStoragePatch),
     Move(SkillStorageMoveRequest),

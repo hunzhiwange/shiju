@@ -9,6 +9,7 @@ doctest = false
 
 [dependencies]
 desktop-apps-ui = { path = "../desktop-apps-ui", version = "0.6.0" }
+desktop-assets = { path = "../desktop-assets", version = "0.6.0" }
 iced = { version = "0.14", features = ["advanced"] }
 serde_json = "1"
 toml = "0.9"
@@ -44,7 +45,6 @@ js-sys = "0.3"
 web-sys = { version = "0.3", features = ["Window"] }
 
 [dev-dependencies]
-desktop-assets = { path = "../desktop-assets", version = "0.6.0" }
 iced_runtime = "0.14"
 
 gateway-endpoint = { path = "../gateway-endpoint", version = "0.6.0" }

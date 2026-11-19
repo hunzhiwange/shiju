@@ -104,7 +104,7 @@ pub fn view(state: &State) -> Element<'_, Message> {
     column![
         tabs,
         super::hermes_memory_limits::view(&state.limits, state.active, &draft.editor.text()),
-        text(draft.path.as_deref().unwrap_or("执行主机路径尚未返回")),
+        text(draft.path.as_deref().unwrap_or("路径暂不可用")),
         editor,
         row![
             button(text(if draft.saving.is_some() { "保存中" } else { "保存" }))

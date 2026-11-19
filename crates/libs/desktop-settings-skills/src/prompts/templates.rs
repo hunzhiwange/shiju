@@ -55,7 +55,7 @@ pub fn overlay<'a, M: Clone + 'static>(
         body = body.push(text(error));
     }
     if state.busy {
-        body = body.push(text("正在请求目标主机…"));
+        body = body.push(text("正在加载…"));
     }
     let mut footer = row![].spacing(10);
     if let Some(draft) = &state.draft {

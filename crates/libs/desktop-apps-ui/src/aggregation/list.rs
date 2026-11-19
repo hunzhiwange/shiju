@@ -41,7 +41,7 @@ impl Form {
             self.publish = None;
             self.clients = None;
             self.snapshot = None;
-            self.error = Some("项目或执行主机上下文已改变，请刷新目录");
+            self.error = Some("项目或连接已切换，请刷新目录");
         }
     }
     pub fn finish(
@@ -97,7 +97,7 @@ pub fn error_label(error: &AggregationApiError) -> &'static str {
         AggregationApiError::Http { status: 422, .. } => "聚合目录配置无效，请检查执行目标后重试",
         AggregationApiError::Http { status: 501, .. } => "此应用或执行目标不支持聚合目录",
         AggregationApiError::Http { status: 502, .. } => "执行目标读取失败，请重试",
-        AggregationApiError::Http { status: 503, .. } => "执行主机离线或不可用",
+        AggregationApiError::Http { status: 503, .. } => "服务暂不可用",
         AggregationApiError::Http { status: 504, .. } => "执行目标读取超时，请重试",
         AggregationApiError::Decode(_) => "目录响应无效，请刷新",
         _ => "无法加载聚合目录，请重试",

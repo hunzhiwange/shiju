@@ -47,7 +47,7 @@ pub enum Event {
     Cleaned(Result<DiagnosticJobSnapshot, String>),
 }
 fn error(_: impl std::fmt::Debug) -> String {
-    "端点测速请求未验证，请检查授权与目标主机后重试".into()
+    "端点测速请求失败，请检查网关连接后重试".into()
 }
 fn current(app: &Host<'_>, context: &ModelContext, generation: u64) -> bool {
     *app.generation == generation
@@ -359,7 +359,7 @@ pub fn update(app: &mut Host<'_>, event: Event) -> Task<Message> {
         }
         Event::Cleaned(result) => {
             if result.is_err() {
-                return notify_error(app.notice, "旧测速取消未确认，请检查执行主机任务");
+                return notify_error(app.notice, "旧测速取消未确认，请刷新任务状态");
             }
         }
     }

@@ -23,11 +23,11 @@ pub fn overlay<'a>(
     let mut body =
         column![text("请核对默认供应商、发布模型和限制。聚合不支持故障转移。")].spacing(12);
     if let Some(state) = &session.exit_state {
-        body = column![text("恢复执行主机保存的直连配置，保留聚合名单与稳定标识。请在恢复后按提示重选模型或重启客户端。")].spacing(12);
+        body = column![text("恢复已保存的直连配置，保留聚合名单与稳定标识。请在恢复后按提示重选模型或重启客户端。")].spacing(12);
         body = body.push(text(format!("聚合名单保留：{} 项", state.members.len())));
     }
     if session.busy {
-        body = body.push(text("正在请求执行主机…"));
+        body = body.push(text("正在加载…"));
     }
     if let Some(error) = session.error {
         body = body.push(settings_error_banner(error));
@@ -110,7 +110,7 @@ pub fn overlay<'a>(
             .spacing(6),
         ));
         if op.cancellation_requested {
-            body = body.push(text("已请求取消，等待执行主机确认；发布阶段可能无法取消。"));
+            body = body.push(text("已请求取消，等待确认；发布阶段可能无法取消。"));
         }
         match &op.aggregation_outcome {
             Some(AggregationOutcome::Published { state })

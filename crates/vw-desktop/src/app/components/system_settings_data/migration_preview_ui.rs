@@ -20,8 +20,15 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
     domain::update(&mut app.apps_catalog.migration_preview, event, target, crate::app::config::gateway_client().ok(), app.apps_catalog.generation, app.apps_catalog.token.clone())
         .map(|event| Message::Settings(SettingsMessage::MigrationPreview(event)))
 }
-pub(crate) fn view(app: &App) -> Element<'_, Message> {
+fn message(event: Event) -> Message {
+    Message::Settings(SettingsMessage::MigrationPreview(event))
+}
+
+pub(crate) fn entry() -> Element<'static, Message> {
+    domain::entry().map(message)
+}
+
+pub(crate) fn overlay<'a>(app: &'a App, base: Element<'a, Message>) -> Element<'a, Message> {
     let context = crate::app::config::gateway_client().ok().map(|c| (c.endpoint().base_url(), app.apps_catalog.generation));
-    domain::view(&app.apps_catalog.migration_preview, target(app), context)
-        .map(|event| Message::Settings(SettingsMessage::MigrationPreview(event)))
+    domain::overlay(&app.apps_catalog.migration_preview, target(app), context, base, message)
 }

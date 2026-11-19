@@ -41,9 +41,10 @@ pub enum Event {
 
 // Repository settings share the standard theme-aware, scrollable modal layout.
 
+use crate::third_party::style;
 use desktop_ui_controls::system_settings_common::*;
-use iced::Element;
-use iced::widget::{button, column, container, row, text};
+use iced::widget::{Space, button, checkbox, column, container, row, rule, text};
+use iced::{Element, Length};
 pub fn view<'a, M: Clone + 'static>(
     s: &'a State,
     base: Element<'a, M>,
@@ -62,36 +63,33 @@ pub fn view_with_discovery<'a, M: Clone + 'static>(
         return base;
     }
     let mut body = column![
-        settings_field_label("仓库（owner/name 或 GitHub URL）"),
+        text("添加仓库").size(15),
+        settings_field_label("仓库 URL"),
         settings_text_input("owner/name 或 https://github.com/owner/name", &s.identity)
+            .style(style::input)
             .on_input_maybe((!s.busy).then_some(move |v| message(Event::Identity(v)))),
-        settings_field_label("分支（留空使用默认分支）"),
-        settings_text_input("", &s.branch)
-            .on_input_maybe((!s.busy).then_some(move |v| message(Event::Branch(v)))),
-        button("添加仓库")
-            .padding([8, 10])
-            .style(primary_action_btn_style)
-            .on_press_maybe((!s.busy && s.snapshot.is_some()).then_some(message(Event::Add))),
-        crate::deeplink::view(
-            crate::deeplink::ViewState {
-                source_link: &s.source_link,
-                busy: s.busy,
-                source_preview: &s.source_preview,
-                snapshot: &s.snapshot
-            },
-            |e| e
-        )
-        .map(move_deeplink)
-        .map(message),
     ]
     .spacing(10);
     if let Some(error) = &s.identity_error {
         body = body.push(settings_error_banner(error.clone()));
     }
+    body = body.push(settings_field_label("分支")).push(
+        settings_text_input("使用默认分支", &s.branch)
+            .style(style::input)
+            .on_input_maybe((!s.busy).then_some(move |v| message(Event::Branch(v)))),
+    );
     if let Some(error) = &s.branch_error {
         body = body.push(settings_error_banner(error.clone()));
     }
+    body = body.push(
+        button("＋ 添加仓库")
+            .padding([8, 10])
+            .style(style::primary)
+            .on_press_maybe((!s.busy && s.snapshot.is_some()).then_some(message(Event::Add))),
+    );
+    body = body.push(rule::horizontal(1)).push(text("已添加的仓库").size(15));
     if let Some(snapshot) = &s.snapshot {
+        let mut entries = column![];
         for (index, repo) in snapshot.repos.iter().enumerate() {
             let status = match discovery.filter(|report| report.version == snapshot.version) {
                 Some(report)
@@ -115,31 +113,45 @@ pub fn view_with_discovery<'a, M: Clone + 'static>(
                 ),
                 None => "数量未读取".to_owned(),
             };
-            body = body.push(text(status));
-
-            body = body.push(
+            entries = entries.push(
                 row![
-                    container(text(format!("{}/{} · {}", repo.owner, repo.name, repo.branch)))
-                        .width(iced::Length::Fill),
-                    button("打开来源")
-                        .padding([8, 10])
+                    checkbox(repo.enabled).size(15).style(style::checkbox).on_toggle_maybe(
+                        (!s.busy).then_some(move |_| message(Event::Toggle(index)))
+                    ),
+                    container(
+                        column![
+                            text(format!("{}/{}", repo.owner, repo.name))
+                                .size(13)
+                                .wrapping(text::Wrapping::None),
+                            text(format!("{} · {status}", repo.branch))
+                                .size(12)
+                                .style(settings_muted_text_style),
+                        ]
+                        .spacing(3)
+                    )
+                    .width(Length::Fill)
+                    .clip(true),
+                    button(text("打开").size(12))
+                        .padding([5, 7])
                         .style(rounded_action_btn_style)
                         .on_press_maybe((!s.busy).then_some(message(Event::OpenSource(index)))),
-                    button(if repo.enabled { "停用" } else { "启用" })
-                        .padding([8, 10])
-                        .style(rounded_action_btn_style)
-                        .on_press_maybe((!s.busy).then_some(message(Event::Toggle(index)))),
-                    button("删除")
-                        .padding([8, 10])
+                    button(text("删除").size(12))
+                        .padding([5, 7])
                         .style(rounded_action_btn_style)
                         .on_press_maybe((!s.busy).then_some(message(Event::Remove(index)))),
                 ]
-                .spacing(8)
+                .spacing(7)
+                .padding([8, 10])
                 .align_y(iced::Alignment::Center),
             );
+            if index + 1 < snapshot.repos.len() {
+                entries = entries.push(rule::horizontal(1));
+            }
         }
         if snapshot.repos.is_empty() {
-            body = body.push(text("尚未配置仓库"));
+            body = body.push(text("尚未配置仓库").size(13).style(settings_muted_text_style));
+        } else {
+            body = body.push(container(entries).width(Length::Fill).style(style::table));
         }
     }
     if let Some(index) = s.remove_pending {
@@ -153,7 +165,7 @@ pub fn view_with_discovery<'a, M: Clone + 'static>(
                     row![
                         button("确认删除")
                             .padding([8, 10])
-                            .style(primary_action_btn_style)
+                            .style(style::primary)
                             .on_press(message(Event::ConfirmRemove)),
                         button("取消")
                             .padding([8, 10])
@@ -171,10 +183,24 @@ pub fn view_with_discovery<'a, M: Clone + 'static>(
     if let Some(error) = &s.error {
         body = body.push(settings_error_banner(error.clone()));
     }
+    body = body.push(
+        crate::deeplink::view(
+            crate::deeplink::ViewState {
+                source_link: &s.source_link,
+                busy: s.busy,
+                source_preview: &s.source_preview,
+                snapshot: &s.snapshot,
+            },
+            |event| event,
+        )
+        .map(move_deeplink)
+        .map(message),
+    );
     let close = message(Event::Close);
     let header =
-        settings_modal_header(text("仓库管理").size(20), settings_close_button(close.clone()));
+        settings_modal_header(text("管理技能仓库").size(20), settings_close_button(close.clone()));
     let footer = row![
+        Space::new().width(Length::Fill),
         button("刷新")
             .padding([8, 10])
             .style(rounded_action_btn_style)
@@ -186,14 +212,10 @@ pub fn view_with_discovery<'a, M: Clone + 'static>(
     ]
     .spacing(8);
     let card = settings_modal_layout(header, body, Some(footer.into()))
-        .style(super::modal_card_style)
-        .width(760)
-        .height(580);
-    settings_modal_overlay(
-        Some(base),
-        close,
-        container(container(card).padding(12)).align_right(iced::Length::Fill),
-    )
+        .style(style::dialog)
+        .width(440)
+        .height(Length::Fill);
+    settings_right_drawer_overlay(base, Some((close, container(card).padding(12).into())))
 }
 
 fn move_deeplink(e: crate::deeplink::Event) -> Event {

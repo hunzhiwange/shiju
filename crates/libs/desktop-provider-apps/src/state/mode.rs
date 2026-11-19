@@ -60,10 +60,10 @@ impl Form {
                 return Some(result);
             }
             (_, Err(AgentAppsReadError::Http { status: 401 | 403, .. })) => {
-                self.error = Some("执行主机拒绝了此操作。");
+                self.error = Some("操作被拒绝。");
             }
             (Operation::RestoreDirect, Err(AgentAppsReadError::Http { status: 422, .. })) => {
-                self.error = Some("执行主机未通过直连配置校验，请检查供应商后重试。");
+                self.error = Some("直连配置校验失败，请检查供应商后重试。");
             }
             (Operation::RestoreDirect, _) => {
                 // A conflict can also mean a pending file transaction was recovered.

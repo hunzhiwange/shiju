@@ -107,7 +107,7 @@ pub fn panel<'a>(catalog: Option<&'a Result<McpCatalogResponse, String>>, state:
         }
         if !found {
             body = body.push(
-                text("尚无当前主机的可信 macOS 安装实例，请在应用管理中刷新")
+                text("尚未发现可信的 macOS 安装实例，请在应用管理中刷新")
                     .size(12)
                     .style(settings_muted_text_style),
             );

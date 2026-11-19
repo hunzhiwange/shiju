@@ -99,7 +99,7 @@ fn error(error: AgentAppsReadError) -> String {
         }
         AgentAppsReadError::Http { status: 404, .. } => "供应商不存在，请刷新列表。",
         AgentAppsReadError::Http { status: 409, .. } => "配置或事务状态已变更，请刷新后重试。",
-        AgentAppsReadError::Http { status: 501, .. } => "此执行主机不支持 Gemini 配置。",
+        AgentAppsReadError::Http { status: 501, .. } => "当前环境不支持 Gemini 配置。",
         _ => "Gemini 配置请求失败，请检查网关连接后重试。",
     }
     .into()

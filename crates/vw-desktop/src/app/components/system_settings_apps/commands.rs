@@ -158,9 +158,9 @@ pub(crate) fn update(app: &mut App, value: Event) -> Task<Message> {
 pub(crate) fn overlay<'a>(state: &'a AppsCatalogState, base: Element<'a, Message>) -> Element<'a, Message> {
     let Some(panel) = state.commands.panel else { return base; };
     let title = match panel { 1 => "手动安装命令", 2 => "手动卸载命令", _ => "诊断安装冲突" };
-    let mut body = column![text(format!("执行主机：{}", state.host)).size(13)].spacing(14);
+    let mut body = column![].spacing(14);
     if panel == 3 {
-        if state.commands.diagnostics_loading { body = body.push(text("正在重新读取授权主机的安装观察…")); }
+        if state.commands.diagnostics_loading { body = body.push(text("正在重新检查安装状态…")); }
         else if let Some(error) = &state.commands.diagnostics_error { body = body.push(settings_error_banner(error.clone())); }
         else {
             if state.commands.diagnostics.is_empty() { body = body.push(text("未知：尚无安装观察")); }

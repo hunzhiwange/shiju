@@ -218,10 +218,10 @@ async fn review(
     }
     Ok(match operation {
         AccountOperation::SetDefault if !status.capabilities.can_set_default => {
-            ActionPhase::Blocked("当前执行主机或主体无法切换此服务的默认账号")
+            ActionPhase::Blocked("无法切换此服务的默认账号")
         }
         AccountOperation::Revoke if !status.capabilities.can_revoke => {
-            ActionPhase::Blocked("当前执行主机或主体无法执行上游撤销，可单独尝试本地登出")
+            ActionPhase::Blocked("无法向上游撤销授权，可单独尝试本地登出")
         }
         _ => ActionPhase::Ready(Vec::new()),
     })
@@ -333,7 +333,7 @@ fn saved<U: Usage>(
         match result {
             Outcome::Confirmed => success(notice, operation.success()),
             Outcome::RemoteUnconfirmed => {
-                error(notice, "账号已在执行主机登出，上游未确认撤销")
+                error(notice, "账号已登出，上游未确认撤销")
             }
             Outcome::Unconfirmed => error(notice, format!(
                 "未收到{}的确认，请查看刷新后的账号状态",
@@ -364,15 +364,15 @@ fn error_label(error: AgentAppsAuthError) -> &'static str {
                 Unauthenticated => "管理凭据或主体令牌无效",
                 Forbidden => "当前主体没有执行此操作的权限",
                 NotFound => "找不到所选账号，请刷新授权账号",
-                Unsupported => "执行主机不支持此操作",
+                Unsupported => "当前环境不支持此操作",
                 AccountInUse => "账号仍被供应商引用，请解除绑定后重试",
                 Conflict => "账号状态已变化，请刷新后重试",
                 ReauthRequired => "账号需要重新授权",
-                ExecutionChannelUnavailable => "执行主机没有可用的授权通道",
-                ExecutionHostUnavailable => "授权执行主机不可用",
-                KeychainUnavailable => "执行主机的钥匙串不可用",
-                StorageUnavailable => "执行主机的授权存储不可用",
-                _ => "执行主机未确认操作，请重试",
+                ExecutionChannelUnavailable => "没有可用的账号登录方式",
+                ExecutionHostUnavailable => "账号服务暂不可用",
+                KeychainUnavailable => "钥匙串不可用",
+                StorageUnavailable => "凭据存储不可用",
+                _ => "操作结果待确认，请重试",
             }
         }
         AgentAppsAuthError::Http { status: 401 | 403, .. } => "管理认证被拒绝，请检查连接凭据",

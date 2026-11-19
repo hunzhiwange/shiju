@@ -62,7 +62,7 @@ pub(crate) fn normalize(model: &mut OpenClawDefaultModel) {
 pub fn overlay<'a>(state: &'a State, base: Element<'a, Message>) -> Element<'a, Message> {
     if !state.open { return base; }
     let close = message(Event::Close);
-    let mut body = column![text("模型选项来自执行主机的模型白名单；未配置的当前值仍保留。")].spacing(12);
+    let mut body = column![text("模型选项来自已配置的模型白名单；未配置的当前值仍保留。")].spacing(12);
     if state.busy { body = body.push(text("正在处理…")); }
     for warning in &state.warnings {
         body = body.push(text(format!("{}{}", warning.message, warning.path.as_ref().map(|p| format!(" ({p})")).unwrap_or_default())));

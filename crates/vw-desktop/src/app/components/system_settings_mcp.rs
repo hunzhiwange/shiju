@@ -146,16 +146,6 @@ pub(crate) fn third_party_overlays<'a>(app: &'a App, dialog: Element<'a, Message
             import::panel(app, state),
         );
     }
-    if overlay == Overlay::Form
-        && let Some(draft) = app.mcp_settings.connection_form.as_ref().filter(|draft| Some(&draft.context) == current.as_ref())
-    {
-        use crate::app::message::settings::mcp_management_form::{FormMessage, message};
-        return settings_modal_overlay(
-            Some(dialog),
-            message(FormMessage::Close),
-            container(connection_form_panel(draft)).padding(12),
-        );
-    }
     dialog
 }
 

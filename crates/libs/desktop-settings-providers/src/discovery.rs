@@ -225,10 +225,10 @@ impl Worker {
 fn request_failed(error: AgentAppsReadError) -> DiscoveryPhase {
     let label = match error {
         AgentAppsReadError::Http { status: 401 | 403, .. } => {
-            "发现请求被拒绝，请检查执行主机授权和供应商保存的端点。".into()
+            "网关拒绝了模型发现请求。".into()
         }
         AgentAppsReadError::Http { status: 422, .. } => {
-            "此部署无法使用所选发现方式，请检查已保存配置或执行主机的应用。".into()
+            "此部署无法使用所选发现方式，请检查已保存的配置或应用安装状态。".into()
         }
         AgentAppsReadError::Http { status, .. } => format!("发现请求失败（HTTP {status}）。"),
         _ => "发现请求失败，请检查网关连接后重试。".into(),

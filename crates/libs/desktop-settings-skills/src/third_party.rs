@@ -8,13 +8,16 @@ pub struct Scope {
     pub host: String,
     pub directory: Option<String>,
 }
+pub(crate) mod style;
 pub mod workspace;
 use crate::update::{Input, bindings_view as bindings};
 use desktop_ui_controls::system_settings_common::*;
 use iced::{
     Element, Length,
-    widget::{button, checkbox, column, row, text},
+    widget::{Space, button, checkbox, column, container, row, scrollable, text},
 };
+use vw_api_app_skills::bindings_api::SkillBindingTarget;
+use vw_api_types::agent_apps::AppId;
 
 #[derive(Clone, Copy, Debug)]
 pub enum DirectoryAction {
@@ -34,6 +37,7 @@ pub enum Action {
     Directory(DirectoryAction),
     Binding(bindings::Event),
     Workspace(workspace::Event),
+    SelectAllTargets(bool),
 }
 
 /// Carry this envelope through asynchronous completion; never rebuild its scope
@@ -51,6 +55,7 @@ pub struct State {
     catalog: u64,
     pub bindings: bindings::State,
     pub workspace: workspace::State,
+    custom_targets: bool,
 }
 
 pub enum Effect {
@@ -67,9 +72,69 @@ impl State {
         if self.scope != scope || self.catalog != catalog {
             self.bindings = bindings::State::default();
             self.workspace = workspace::State::default();
+            self.custom_targets = false;
             self.scope = scope;
             self.catalog = catalog;
         }
+    }
+
+    pub fn available_targets(&self, targets: &[SkillBindingTarget]) -> Vec<SkillBindingTarget> {
+        let Some(snapshot) = &self.bindings.snapshot else {
+            return Vec::new();
+        };
+        let mut available = Vec::new();
+        for target in targets {
+            if !available.contains(target)
+                && snapshot
+                    .capabilities
+                    .iter()
+                    .any(|capability| capability.app_id == target.app_id && capability.supported)
+            {
+                available.push(target.clone());
+            }
+        }
+        available
+    }
+
+    pub fn awaiting_target_snapshot(&self) -> bool {
+        !self.custom_targets && self.bindings.snapshot.is_none()
+    }
+
+    pub fn reconcile_targets(&mut self, targets: &[SkillBindingTarget]) {
+        if self.bindings.snapshot.is_none() {
+            return;
+        }
+        let available = self.available_targets(targets);
+        if self.custom_targets {
+            self.bindings.targets.retain(|target| available.contains(target));
+        } else {
+            self.bindings.targets = available;
+        }
+    }
+
+    pub(super) fn binding_status(
+        &self,
+        target: &SkillBindingTarget,
+        directory: &str,
+    ) -> Option<bool> {
+        let snapshot = self.bindings.snapshot.as_ref()?;
+        let inventory = self.workspace.inventory.as_ref()?;
+        if snapshot.scope != inventory.scope || snapshot.version != inventory.version {
+            return None;
+        }
+        if matches!(target.app_id, AppId::Pi | AppId::Omp) {
+            return snapshot
+                .native_bindings
+                .iter()
+                .find(|binding| binding.app_id == target.app_id && binding.directory == directory)
+                .map(|binding| binding.enabled);
+        }
+        let bindings = snapshot.managed_bindings.as_ref()?;
+        Some(
+            bindings
+                .iter()
+                .any(|binding| binding.target == *target && binding.directory == directory),
+        )
     }
 
     pub fn scope(&self) -> Option<&Scope> {
@@ -107,9 +172,16 @@ pub fn update(state: &mut State, input: &Input, message: Message) -> Effect {
             };
         }
         Action::Binding(event) => event,
+        Action::SelectAllTargets(all) => {
+            if !state.bindings.busy {
+                state.custom_targets = !all;
+                state.bindings.targets.clear();
+                state.reconcile_targets(&input.targets);
+            }
+            return Effect::None;
+        }
         Action::Directory(action) => {
-            state.workspace.add_menu = false;
-            state.workspace.more_menu = false;
+            state.workspace.close_menus();
             return Effect::Directory { scope, catalog: state.catalog, action };
         }
     };
@@ -123,9 +195,10 @@ pub fn update(state: &mut State, input: &Input, message: Message) -> Effect {
         };
     }
     if let bindings::Event::Target(target, _) = &event {
-        if !input.targets.contains(target) {
+        if state.bindings.busy || !state.available_targets(&input.targets).contains(target) {
             return Effect::None;
         }
+        state.custom_targets = true;
     }
     if matches!(event, bindings::Event::Bind(_) | bindings::Event::Resync) {
         let supported = state.bindings.snapshot.as_ref().is_some_and(|snapshot| {
@@ -149,111 +222,226 @@ pub fn update(state: &mut State, input: &Input, message: Message) -> Effect {
             };
         }
     }
+    if let bindings::Event::BindTarget(id, target, enabled) = &event {
+        if state.binding_status(target, id) != Some(!enabled) {
+            return Effect::None;
+        }
+    }
     if let bindings::Event::Select(id) = &event {
+        state.workspace.close_menus();
         if !state.bindings.open {
             let effect = bindings::update(&mut state.bindings, input, bindings::Event::Open);
             state.bindings.selected = Some(id.clone());
             return Effect::Binding { scope, catalog: state.catalog, effect };
         }
     }
+    if matches!(event, bindings::Event::Close) {
+        if !state.bindings.busy {
+            state.bindings.selected = None;
+            state.bindings.results.clear();
+        }
+        return Effect::None;
+    }
+    let preserve_targets = state.custom_targets && matches!(event, bindings::Event::Completed(..));
+    let previous = preserve_targets.then(|| state.bindings.targets.clone());
     let effect = bindings::update(&mut state.bindings, input, event);
+    if let Some(previous) = previous {
+        state.bindings.targets = previous;
+    }
+    state.reconcile_targets(&input.targets);
     Effect::Binding { scope, catalog: state.catalog, effect }
 }
 
-/// Explicit application target plus shared host directory controls. Installation
-/// remains a host-directory operation; it does not implicitly enable a binding.
 pub fn view<'a>(
     state: &'a State,
     applications: &[crate::bindings_view::BindingApplication<'_>],
+    icon: fn(AppId, f32) -> Element<'static, Message>,
 ) -> Element<'a, Message> {
     let Some(scope) = state.scope.as_ref() else {
-        return settings_error_banner("请打开项目并连接执行主机".to_owned()).into();
+        return container(text("请打开项目后重试"))
+            .center_x(Length::Fill)
+            .center_y(Length::Fill)
+            .into();
     };
-    let message = |action| Message { scope: scope.clone(), catalog: state.catalog, action };
-    let mut body = column![text(format!("安装到 · 已选 {} 个应用实例", state.bindings.targets.len()))].spacing(6).width(Length::Fill);
+    let send = |event| Message {
+        scope: scope.clone(),
+        catalog: state.catalog,
+        action: Action::Binding(event),
+    };
     let s = &state.bindings;
-    body = body.push(
-        button("刷新应用绑定").padding([8, 10]).style(rounded_action_btn_style).on_press_maybe(
-            (!s.busy).then(|| {
-                message(Action::Binding(if s.open {
-                    bindings::Event::Refresh
-                } else {
-                    bindings::Event::Open
-                }))
-            }),
-        ),
-    );
+    let mut options: Vec<(SkillBindingTarget, String)> = Vec::new();
+    let mut selected_names = Vec::new();
     for application in applications {
         let app_id = application.entry.id;
-        let capability = s
-            .snapshot
-            .as_ref()
-            .and_then(|snapshot| snapshot.capabilities.iter().find(|item| item.app_id == app_id));
-        if !capability.is_some_and(|item| item.supported) {
+        if !s.snapshot.as_ref().is_some_and(|snapshot| {
+            snapshot
+                .capabilities
+                .iter()
+                .any(|capability| capability.app_id == app_id && capability.supported)
+        }) {
             continue;
         }
-        body = body.push(text(application.entry.name.clone()));
-        if let Some(observation) = application.observation {
-            for installation in
-                observation.installations.iter().filter(|item| item.target_host_id == scope.host)
-            {
-                let target = vw_api_app_skills::bindings_api::SkillBindingTarget {
-                    app_id,
-                    installation_id: installation.id.0.clone(),
-                };
-                let selected = s.targets.contains(&target);
-                let scope = scope.clone();
-                body = body.push(
-                    checkbox(selected)
-                        .label(installation.id.0.clone())
-                        .text_size(SETTINGS_CONTROL_TEXT_SIZE)
-                        .style(settings_checkbox_style)
-                        .on_toggle_maybe((!s.busy).then_some(move |enabled| Message {
-                            scope: scope.clone(),
-                            catalog: state.catalog,
-                            action: Action::Binding(bindings::Event::Target(
-                                target.clone(),
-                                enabled,
-                            )),
-                        })),
-                );
+        let Some(observation) = application.observation else {
+            continue;
+        };
+        let installations = observation
+            .installations
+            .iter()
+            .filter(|item| item.target_host_id == scope.host && item.app_id == app_id);
+        let multiple = installations.clone().count() > 1;
+        for installation in installations {
+            let target = SkillBindingTarget { app_id, installation_id: installation.id.0.clone() };
+            if options.iter().any(|(existing, _)| existing == &target) {
+                continue;
             }
+            let name = if multiple {
+                format!("{} · {}", application.entry.name, installation.id.0)
+            } else {
+                application.entry.name.clone()
+            };
+            if s.targets.contains(&target) {
+                selected_names.push(application.entry.name.clone());
+            }
+            options.push((target, name));
         }
     }
-    let supported = s.snapshot.as_ref().is_some_and(|snapshot| {
-        s.targets.iter().all(|target| {
-            snapshot.capabilities.iter().any(|item| item.app_id == target.app_id && item.supported)
-        })
-    });
-    let can_bind = supported && !s.busy && !s.targets.is_empty();
-    let mut controls = row![].spacing(8);
-    for (label, event, enabled) in [
-        ("启用所选", bindings::Event::Bind(true), can_bind && s.selected.is_some()),
-        ("停用所选", bindings::Event::Bind(false), can_bind && s.selected.is_some()),
-        ("重新同步", bindings::Event::Resync, can_bind),
-        ("取消选择", bindings::Event::Close, !s.busy),
-    ] {
-        controls = controls.push(
-            button(label)
-                .padding([8, 10])
+    let label = match selected_names.as_slice() {
+        [] if s.busy => "安装到 · 正在读取".to_owned(),
+        [] if state.awaiting_target_snapshot() => "安装到 · 待读取".to_owned(),
+        [] => "安装到 · 主副本".to_owned(),
+        names if names.len() == options.len() => format!("安装到 · 全部（{}）", names.len()),
+        [name] => format!("安装到 · {name}"),
+        [first, second] => format!("安装到 · {first}、{second}"),
+        [name, others @ ..] => format!("安装到 · {name} +{}", others.len()),
+    };
+    let picker = || {
+        let choose = |label, all, enabled: bool| {
+            button(text(label).size(12))
+                .padding([5, 7])
                 .style(rounded_action_btn_style)
-                .on_press_maybe(enabled.then(|| message(Action::Binding(event)))),
-        );
+                .on_press_maybe((!s.busy && enabled).then(|| Message {
+                    scope: scope.clone(),
+                    catalog: state.catalog,
+                    action: Action::SelectAllTargets(all),
+                }))
+        };
+        let mut panel = column![
+            row![
+                text("在这些应用中启用技能").size(13).width(Length::Fill),
+                choose(
+                    "全选",
+                    true,
+                    !options.is_empty()
+                        && (state.custom_targets || selected_names.len() != options.len())
+                ),
+                choose(
+                    "仅主副本",
+                    false,
+                    !selected_names.is_empty() || state.awaiting_target_snapshot()
+                ),
+            ]
+            .spacing(5)
+            .align_y(iced::Alignment::Center)
+        ]
+        .spacing(8)
+        .padding(6);
+        let mut choices = column![].spacing(3);
+        for pair in options.chunks(2) {
+            let mut line = row![].spacing(8);
+            for (target, name) in pair {
+                let target = target.clone();
+                let selected = s.targets.contains(&target);
+                let app_id = target.app_id;
+                line = line.push(
+                    row![
+                        icon(app_id, 16.0),
+                        checkbox(selected)
+                            .label(name.clone())
+                            .text_size(13)
+                            .size(15)
+                            .style(style::checkbox)
+                            .on_toggle_maybe((!s.busy).then_some(move |enabled| {
+                                send(bindings::Event::Target(target.clone(), enabled))
+                            })),
+                    ]
+                    .spacing(6)
+                    .align_y(iced::Alignment::Center)
+                    .width(Length::Fill)
+                    .clip(true),
+                );
+            }
+            if pair.len() == 1 {
+                line = line.push(Space::new().width(Length::Fill));
+            }
+            choices = choices.push(line);
+        }
+        if options.is_empty() {
+            panel = panel.push(
+                text(if s.busy { "正在读取应用…" } else { "没有可选应用" })
+                    .size(12)
+                    .style(settings_muted_text_style),
+            );
+        } else {
+            panel = panel.push(scrollable(choices).height(Length::Shrink).direction(
+                scrollable::Direction::Vertical(
+                    scrollable::Scrollbar::new().width(4).scroller_width(4),
+                ),
+            ));
+        }
+        if let Some(error) = &s.error {
+            panel = panel.push(settings_error_banner(error.clone())).push(
+                button(text("重试").size(13))
+                    .padding([6, 10])
+                    .style(rounded_action_btn_style)
+                    .on_press(send(bindings::Event::Refresh)),
+            );
+        }
+        panel
+    };
+    let bindings = s.selected.as_ref().map(|id| {
+        let skill_name = state
+            .workspace
+            .inventory
+            .as_ref()
+            .and_then(|inventory| inventory.skills.iter().find(|skill| &skill.id == id))
+            .map_or(id.as_str(), |skill| skill.name.as_str());
+        let mut panel = column![
+            settings_modal_header(
+                text(format!("{skill_name} · 应用绑定")).size(15),
+                settings_close_button(send(bindings::Event::Close))
+            ),
+            picker(),
+        ]
+        .spacing(6);
+        let mut controls = row![].spacing(8);
+        for (label, event) in [
+            ("启用所选", bindings::Event::Bind(true)),
+            ("停用所选", bindings::Event::Bind(false)),
+            ("重新同步", bindings::Event::Resync),
+        ] {
+            controls = controls.push(
+                button(text(label).size(13))
+                    .padding([6, 10])
+                    .style(rounded_action_btn_style)
+                    .on_press_maybe((!s.busy && !s.targets.is_empty()).then(|| send(event))),
+            );
+        }
+        panel = panel.push(controls);
+        for result in &s.results {
+            panel = panel.push(
+                text(format!("{}：{:?}", result.target.installation_id, result.status)).size(12),
+            );
+        }
+        container(panel).padding(10).width(Length::Fill).style(settings_section_card_style).into()
+    });
+    let mut columns = Vec::new();
+    for (target, name) in &options {
+        if !columns
+            .iter()
+            .any(|(column, _): &(SkillBindingTarget, String)| column.app_id == target.app_id)
+        {
+            columns.push((target.clone(), name.clone()));
+        }
     }
-    body = body.push(controls);
-    if s.busy {
-        body = body.push(text("正在读取或写入，请稍候…"));
-    }
-    for result in &s.results {
-        body = body.push(text(format!(
-            "{} / {}：{:?}",
-            result.target.installation_id, result.directory, result.status
-        )));
-    }
-    if let Some(error) = &s.error {
-        body = body.push(settings_error_banner(error.clone()));
-    }
-    workspace::view(state, iced::widget::scrollable(body).height(150)
-        .direction(iced::widget::scrollable::Direction::Vertical(
-            iced::widget::scrollable::Scrollbar::new().width(4).scroller_width(4))).into())
+    workspace::view(state, label, picker().into(), bindings, &columns, icon)
 }

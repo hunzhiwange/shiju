@@ -518,11 +518,37 @@ pub async fn gateway_skill_storage_request(endpoint: gateway_endpoint::GatewayEn
         Change::OpenDirectory(path) => {
             tokio::task::spawn_blocking(move || {
                 let home = desktop_settings_apps::system_settings_apps::local::launch_directory(&client, &scope.target_host_id, &token, None)
-                    .ok_or_else(|| "目标主机与本机授权不匹配".to_string())?;
+                    .ok_or_else(|| "无法在本机打开此目录".to_string())?;
                 desktop_settings_skills::update::storage_modal::open_local(&home, &path)
                     .map_err(|_| "无法打开主副本目录".to_string())?;
                 Ok(Readback::Opened)
             }).await.map_err(|_| "打开目录任务失败".to_string())?
+        }
+        Change::OpenSkillDirectory(id) => {
+            let path = std::path::Path::new(&id);
+            if id.contains(['\\', '/']) || id.chars().any(char::is_control)
+                || !matches!(path.components().next(), Some(std::path::Component::Normal(_)))
+            {
+                return Err("技能目录标识无效".into());
+            }
+            if !endpoint.is_loopback() {
+                return Err("只能打开本机的技能目录".into());
+            }
+            let storage = skills.agent_apps_skills_storage(&scope, &token).await
+                .map_err(|_| "无法读取技能存储位置".to_owned())?;
+            if storage.scope != scope {
+                return Err("存储响应作用域不匹配".into());
+            }
+            let path = std::path::Path::new(&storage.root).join(id);
+            tokio::task::spawn_blocking(move || {
+                let home = desktop_settings_apps::system_settings_apps::local::launch_directory(
+                    &client, &scope.target_host_id, &token, None,
+                ).ok_or_else(|| "无法在本机打开此目录".to_owned())?;
+                let path = path.to_str().ok_or_else(|| "技能目录无效".to_owned())?;
+                desktop_settings_skills::update::storage_modal::open_local(&home, path)
+                    .map_err(|_| "无法打开技能目录".to_owned())?;
+                Ok(Readback::Opened)
+            }).await.map_err(|_| "打开目录任务失败".to_owned())?
         }
         Change::Read => skills.agent_apps_skills_storage(&scope, &token).await.map(Readback::Storage).map_err(|e| e.to_string()),
         Change::Mode(request) => skills.agent_apps_skills_storage_patch(&request, &token).await.map(Readback::Storage).map_err(|e| e.to_string()),

@@ -111,7 +111,7 @@ pub fn overlay<'a>(form: &'a Form, base: Element<'a, Message>) -> Element<'a, Me
         body = body.push(settings_field_label("自动审批模型")).push(
             settings_select(reviewers, reviewer, |v| message(Event::Review(v.id)))
                 .width(Length::Fill).disabled(!editable),
-        ).push(text("默认审批模型由 Codex 与执行主机目录决定。外部账号额度、模型访问权限及计费限制仍适用；此处不能绕过。")
+        ).push(text("默认审批模型由 Codex 与可用模型目录决定。外部账号额度、模型访问权限及计费限制仍适用；此处不能绕过。")
             .size(13).style(settings_muted_text_style))
         .push(checkbox(form.draft.classic_tools).label("经典工具（默认开启）")
             .style(settings_checkbox_style)
@@ -136,13 +136,13 @@ pub fn overlay<'a>(form: &'a Form, base: Element<'a, Message>) -> Element<'a, Me
                     "经典工具：未生效"
                 }),
                 text(format!("推理强度：{}", EffortOption(state.effective.subagent_effort))),
-                text("此处显示执行主机返回的已保存状态；草稿需保存后生效。").size(13)
+                text("草稿保存后生效。").size(13)
             ]
             .spacing(6),
         ));
         if state.notices.contains(&AggregationNotice::MultiAgentV2Forced) {
             body = body.push(settings_error_banner(
-                "Codex 强制启用了 multi_agent_v2，经典工具设置无法覆盖此配置；请在执行主机中确认客户端配置。",
+                "Codex 强制启用了 multi_agent_v2，经典工具设置无法覆盖此配置；请检查 Codex 客户端配置。",
             ));
         }
         if state.notices.contains(&AggregationNotice::EncryptedTaskCrossProvider)
@@ -155,13 +155,13 @@ pub fn overlay<'a>(form: &'a Form, base: Element<'a, Message>) -> Element<'a, Me
         if state.notices.contains(&AggregationNotice::RestartDesktop)
             || state.notices.contains(&AggregationNotice::RestartEditor)
         {
-            body = body.push(text("执行主机提醒：请完全退出并重开桌面或编辑器客户端。"));
+            body = body.push(text("请完全退出并重开桌面或编辑器客户端。"));
         }
     } else {
         body = body.push(text(if ready {
             "请刷新已发布目录后再编辑。"
         } else {
-            "正在读取或保存执行主机设置…"
+            "正在读取或保存设置…"
         }));
     }
     if form.saved {

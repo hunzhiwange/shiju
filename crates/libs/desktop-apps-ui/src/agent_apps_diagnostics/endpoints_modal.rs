@@ -79,7 +79,7 @@ pub fn overlay<'a>(state: State<'a>, base: Element<'a, Message>) -> Element<'a, 
         )));
     }
     if state.cancelling {
-        body = body.push(text("正在取消测速，等待执行主机确认清理…"));
+        body = body.push(text("正在取消测速，等待清理完成…"));
     }
     for candidate in state.candidates.iter().copied() {
         let sources = candidate

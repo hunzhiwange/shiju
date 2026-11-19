@@ -4,7 +4,6 @@ use iced::{Border, Color, Theme, widget::container};
 #[derive(Clone, Copy)]
 pub(super) enum Tone {
     Neutral,
-    Success,
     Warning,
 }
 
@@ -19,8 +18,6 @@ pub(super) fn card(theme: &Theme, selected: bool) -> container::Style {
 pub(super) fn badge(theme: &Theme, tone: Tone) -> container::Style {
     let color = match tone {
         Tone::Neutral => theme.palette().text.scale_alpha(0.66),
-        Tone::Success if theme.extended_palette().is_dark => Color::from_rgb8(117, 221, 176),
-        Tone::Success => Color::from_rgb8(22, 109, 75),
         Tone::Warning if theme.extended_palette().is_dark => Color::from_rgb8(239, 196, 114),
         Tone::Warning => Color::from_rgb8(139, 83, 14),
     };
@@ -36,6 +33,13 @@ pub(super) fn badge(theme: &Theme, tone: Tone) -> container::Style {
 pub(super) fn list_row(theme: &Theme, selected: bool) -> container::Style {
     container::Style {
         background: selected.then(|| theme.palette().primary.scale_alpha(0.08).into()),
+        ..Default::default()
+    }
+}
+
+pub(super) fn detail_surface(theme: &Theme) -> container::Style {
+    container::Style {
+        background: Some(theme.palette().text.scale_alpha(0.035).into()),
         ..Default::default()
     }
 }

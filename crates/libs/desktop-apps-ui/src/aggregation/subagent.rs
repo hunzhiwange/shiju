@@ -142,7 +142,7 @@ pub fn feedback(e: &AgentAppsSettingsError) -> &'static str {
         AgentAppsSettingsError::Http { status: 429, .. } => {
             "外部账号额度或请求频率受限，请检查账号限制后刷新；客户端不能绕过。"
         }
-        AgentAppsSettingsError::Http { status: 501, .. } => "当前执行主机不支持此 Codex 设置。",
+        AgentAppsSettingsError::Http { status: 501, .. } => "当前环境不支持此 Codex 设置。",
         AgentAppsSettingsError::Http { status: 502..=504, .. } => {
             "目标不可用、超时或执行失败；请刷新确认实际状态，勿重复提交。"
         }

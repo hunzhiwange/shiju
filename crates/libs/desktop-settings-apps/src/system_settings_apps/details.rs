@@ -151,7 +151,7 @@ pub fn view<'a, M: Clone + 'static>(
     }
     if app.entry.id == vw_api_app_identity::AppId::ClaudeDesktop {
         details = details
-            .push(text("请从 Claude 官网手动下载安装到目标主机的 Applications 文件夹，然后刷新应用列表。下载页将在当前客户端浏览器打开；远程主机需在该主机上安装。")
+            .push(text("请从 Claude 官网下载并安装到 Applications 文件夹，然后刷新应用列表。")
                 .size(12).style(settings_muted_text_style))
             .push(text("https://claude.com/download").size(13).wrapping(Wrapping::Glyph))
             .push(button(text("打开 Claude 官方下载页").size(SETTINGS_CONTROL_TEXT_SIZE))
@@ -203,28 +203,8 @@ pub fn actions<'a, M: Clone + 'static>(
             message(Action::LaunchOpen(app.entry.id, installation.id.clone()))
         }))
         .into()
-    } else if presentation::presence(app) == Presence::Missing
-        && app.entry.runtime_kinds.contains(&AppRuntimeKind::NativeCli)
-        && state.host == local_app_auth::HOST_ID
-        && local_available
-    {
-        let environment = if cfg!(target_os = "macos") {
-            AppInstallationEnvironment::Macos
-        } else {
-            AppInstallationEnvironment::Linux
-        };
-        action(
-            "安装",
-            Icon::CloudDownload,
-            Action::Preview(
-                    AppActionPreviewRequest {
-                        app_id: app.entry.id,
-                        action: AppLifecycleAction::Install,
-                        target: AppActionTarget::Environment { environment },
-                    },
-            ),
-            !busy, message,
-        )
+    } else if let Some(install) = install_action(state, app, local_available, message) {
+        install
     } else {
         action(
             if installed { "检查" } else { "详情" },
@@ -249,4 +229,39 @@ pub fn actions<'a, M: Clone + 'static>(
         );
     }
     actions.push(primary).wrap().into()
+}
+
+
+/// Inline installation uses the same authorized preview as the details panel.
+pub(super) fn install_action<'a, M: Clone + 'static>(
+    state: &ViewState<'a>,
+    app: &CatalogRow,
+    local_available: bool,
+    message: impl Fn(Action) -> M + Copy + 'static,
+) -> Option<Element<'a, M>> {
+    if presentation::presence(app) != Presence::Missing
+        || !app.entry.runtime_kinds.contains(&AppRuntimeKind::NativeCli)
+        || state.host != local_app_auth::HOST_ID
+        || !local_available
+    {
+        return None;
+    }
+    let environment = if cfg!(target_os = "macos") {
+        AppInstallationEnvironment::Macos
+    } else {
+        AppInstallationEnvironment::Linux
+    };
+    let enabled = !state.loading && !state.lifecycle.active()
+        && state.lifecycle.preview.is_none() && state.drag.source.is_none();
+    Some(action(
+        "安装",
+        Icon::CloudDownload,
+        Action::Preview(AppActionPreviewRequest {
+            app_id: app.entry.id,
+            action: AppLifecycleAction::Install,
+            target: AppActionTarget::Environment { environment },
+        }),
+        enabled,
+        message,
+    ))
 }

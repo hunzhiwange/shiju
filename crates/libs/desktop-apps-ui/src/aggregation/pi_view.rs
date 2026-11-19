@@ -54,7 +54,7 @@ pub fn overlay<'a>(form: &'a Form, base: Element<'a, Message>) -> Element<'a, Me
         body = body.push(text(if ready {
             "请刷新目录后再保存。"
         } else {
-            "正在读取或更新执行主机…"
+            "正在读取或更新配置…"
         }));
     }
     let input = |hint: &'static str, value: &'a str, event: fn(String) -> Event| {

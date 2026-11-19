@@ -219,7 +219,7 @@ pub fn deployments<'a>(
         settings_modal_header(
             column![
                 text(format!("服务模型目录 · {:?}", form.context.scope.app)).size(20),
-                text(format!("供应商 {} · 执行主机 {}", form.provider_id, form.context.scope.host))
+                text(format!("供应商 {}", form.provider_id))
                     .size(13)
                     .style(settings_muted_text_style),
             ]

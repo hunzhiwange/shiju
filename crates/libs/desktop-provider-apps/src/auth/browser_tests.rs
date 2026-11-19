@@ -147,7 +147,7 @@ async fn auth6_ui_browser_rejects_invalid_or_stale_input() {
     submit_paste(state.login_mut(generation)).unwrap();
     assert!(matches!(
         next(&mut updates).await,
-        Update::PasteFinished(Err("执行主机拒绝了回填，请检查授权码或回调地址"))
+        Update::PasteFinished(Err("登录回填被拒绝，请检查授权码或回调地址"))
     ));
     let different =
         Scope { gateway: "http://127.0.0.1:1".into(), ..Scope::from(client.endpoint()) };

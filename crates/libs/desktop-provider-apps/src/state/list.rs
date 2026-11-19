@@ -181,7 +181,7 @@ impl<L, F, A, S, P, D, O, M, U> ListState<L, F, A, S, P, D, O, M, U> {
                     }
                 };
                 if scope.host.is_empty() {
-                    *error = Some("请先连接应用执行主机".into());
+                    *error = Some("请先刷新应用目录".into());
                     return Task::none();
                 }
                 if self.scope.as_ref() == Some(&scope)

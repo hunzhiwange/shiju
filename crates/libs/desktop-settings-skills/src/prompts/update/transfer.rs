@@ -12,7 +12,7 @@ pub enum Event {
     Finished(AgentAppsContext, u64, u64, AgentAppPromptsScope, Result<Outcome, String>),
 }
 #[derive(Clone, Debug)]
-pub enum Outcome { Copies(AgentAppPromptCopies), Imported(AgentAppPromptCatalog), Cancelled, Revealed }
+pub enum Outcome { Copies(AgentAppPromptCopies), Imported(AgentAppPromptCatalog), Cancelled }
 fn send(event: Event) -> Message { message(PromptEvent::Transfer(event)) }
 pub fn update(app: &mut Input<'_>, event: Event) -> Task<Message> {
     let client = match app.client.clone() { Ok(c) => c, Err(e) => return crate::prompts::update::Input::show_error_toast(e) };
@@ -29,7 +29,7 @@ pub fn update(app: &mut Input<'_>, event: Event) -> Task<Message> {
         state.mutating = false;
         return match result {
             Err(error) => crate::prompts::update::Input::show_error_toast(error),
-            Ok(Outcome::Cancelled | Outcome::Revealed) => Task::none(),
+            Ok(Outcome::Cancelled) => Task::none(),
             Ok(Outcome::Imported(catalog)) => { state.catalog = Some(catalog); state.undo = None; crate::prompts::update::Input::show_success_toast("已导入为停用条目") },
             Ok(Outcome::Copies(copies)) => {
                 state.transfer.results = copies.results.into_iter().map(|copy| match copy.outcome {
@@ -62,15 +62,22 @@ pub fn update(app: &mut Input<'_>, event: Event) -> Task<Message> {
         Event::Path => return state.preview.as_ref().and_then(|p| p.display_path.clone()).map(iced::clipboard::write).unwrap_or_else(Task::none),
         _ => {}
     }
+    let path = state.preview.as_ref().and_then(|preview| preview.display_path.clone());
+    if matches!(event, Event::Reveal) {
+        let Some(path) = path else { return Task::none(); };
+        if !client.endpoint().is_loopback() || scope.target_host_id != local_app_auth::HOST_ID {
+            return iced::clipboard::write(path);
+        }
+        return Task::perform(open_prompt_folder(path), |result| match result {
+            Ok(()) => PromptEvent::Toast(false, "已打开所在文件夹".into()),
+            Err(error) => PromptEvent::Toast(true, error.into()),
+        });
+    }
     let Some(catalog) = state.catalog.as_ref() else { return Task::none(); };
     let revision = catalog.revision;
     let id = state.transfer.entry.clone();
     let targets = state.transfer.targets.clone();
     if matches!(event, Event::Copy) && (id.is_none() || targets.is_empty()) { return Task::none(); }
-    let path = state.preview.as_ref().and_then(|p| p.display_path.clone());
-    if matches!(event, Event::Reveal) && (!client.endpoint().is_loopback() || scope.target_host_id != local_app_auth::HOST_ID) {
-        return path.map(iced::clipboard::write).unwrap_or_else(Task::none);
-    }
     state.mutating = true;
     state.generation = state.generation.wrapping_add(1);
     let generation = state.generation;
@@ -95,20 +102,29 @@ pub fn update(app: &mut Input<'_>, event: Event) -> Task<Message> {
                     };
                     prompts_client.agent_app_prompts_import(&scope, revision, &source, &token).await.map(Outcome::Imported).map_err(|e| e.to_string())
                 }
-                Event::Reveal => {
-                    let path = path.filter(|p| std::path::Path::new(p).is_absolute()).ok_or("目标路径不可用")?;
-                    #[cfg(target_os = "macos")]
-                    {
-                        let status = tokio::task::spawn_blocking(move || std::process::Command::new("/usr/bin/open").arg("-R").arg(path).status()).await.map_err(|_| "Finder 定位任务失败")?.map_err(|_| "无法在 Finder 定位")?;
-                        if !status.success() { return Err("无法在 Finder 定位".to_owned()); }
-                        Ok(Outcome::Revealed)
-                    }
-                    #[cfg(not(target_os = "macos"))]
-                    { let _ = path; Err("仅支持 macOS Finder 定位".to_owned()) }
-                }
                 _ => Ok(Outcome::Cancelled),
             }
         }.await;
         Event::Finished(context, catalog_generation, generation, scope, result)
     }, send)
+}
+
+async fn open_prompt_folder(path: String) -> Result<(), &'static str> {
+    tokio::task::spawn_blocking(move || {
+        use std::path::{Component, Path};
+
+        let home = std::env::var("HOME").map_err(|_| "无法确定本机用户目录")?;
+        let path = if let Some(relative) = path.strip_prefix("~/") {
+            Path::new(&home).join(relative)
+        } else {
+            Path::new(&path).to_path_buf()
+        };
+        let relative = path.strip_prefix(&home).map_err(|_| "目标路径不可用")?;
+        if !relative.components().all(|part| matches!(part, Component::Normal(_))) {
+            return Err("目标路径不可用");
+        }
+        let folder = path.parent().filter(|folder| folder.is_dir())
+            .and_then(Path::to_str).ok_or("所在文件夹不存在")?;
+        crate::update::storage_modal::open_local(&home, folder).map_err(|_| "无法打开所在文件夹")
+    }).await.map_err(|_| "打开文件夹任务失败")?
 }

@@ -61,6 +61,7 @@ pub(super) struct SelectMenu<'a, Message> {
     pub state: &'a mut MenuState,
     pub focused: &'a mut bool,
     pub anchor: Rectangle,
+    pub min_width: f32,
     pub viewport: Rectangle,
     pub on_selected: &'a dyn Fn(usize) -> Message,
     pub option_count: usize,
@@ -87,7 +88,7 @@ impl<Message> overlay::Overlay<Message, Theme, Renderer> for SelectMenu<'_, Mess
             .min(320.0);
         let upwards = below < wanted && above > below;
         let height = wanted.min(if upwards { above } else { below });
-        let width = self.anchor.width.min((viewport.width - EDGE * 2.0).max(0.0));
+        let width = self.anchor.width.max(self.min_width).min((viewport.width - EDGE * 2.0).max(0.0));
         let node = self.content.as_widget_mut().layout(
             self.tree,
             renderer,

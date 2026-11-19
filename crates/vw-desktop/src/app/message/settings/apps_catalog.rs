@@ -307,11 +307,21 @@ pub(in crate::app) fn update(app: &mut App, message: AppsCatalogMessage) -> Task
             crate::app::state::agent_apps::reset_if_context_changed(&mut app.apps_catalog, &context);
             use desktop_settings_apps::system_settings_apps::catalog_update::RefreshDecision;
             match catalog_input(&mut app.apps_catalog).refresh_decision(use_cache, client.endpoint().is_loopback()) {
+                RefreshDecision::Skip
+                    if app.apps_catalog.third_party_page == desktop_ui_controls::settings_navigation::ThirdPartyPage::Prompts =>
+                {
+                    return crate::app::components::system_settings_prompts::list::open_selected(app);
+                }
                 RefreshDecision::Skip | RefreshDecision::OpenConnection => return Task::none(),
                 RefreshDecision::ConnectLocal => return update(app, AppsCatalogMessage::LocalConnect),
                 RefreshDecision::Load => {}
             }
+            let selected_prompt_app = app.apps_catalog.expanded
+                .filter(|_| app.apps_catalog.third_party_page == desktop_ui_controls::settings_navigation::ThirdPartyPage::Prompts);
             let generation = crate::app::state::agent_apps::begin(&mut app.apps_catalog, context.clone());
+            if let Some(id) = selected_prompt_app {
+                app.apps_catalog.expanded = Some(id);
+            }
             let host = app.apps_catalog.host.clone();
             let token = app.apps_catalog.token.clone();
             app.apps_catalog.connection_open = false;
@@ -334,6 +344,14 @@ pub(in crate::app) fn update(app: &mut App, message: AppsCatalogMessage) -> Task
             if crate::app::state::agent_apps::finish(&mut app.apps_catalog, &context, generation, result) {
                 if let Some(error) = app.apps_catalog.error.clone() {
                     return app.show_error_toast(error);
+                }
+                if app.apps_catalog.third_party_page == desktop_ui_controls::settings_navigation::ThirdPartyPage::Skills
+                    && app.apps_catalog.third_party_skills.scope().is_some_and(|scope| {
+                        scope.context == context && scope.host == host
+                    })
+                {
+                    let input = super::skills::update_input(app);
+                    app.apps_catalog.third_party_skills.reconcile_targets(&input.targets);
                 }
                 let navigation = if let Some(id) = app.apps_catalog.pending_tray_app.take() {
                     if app.apps_catalog.rows.iter().any(|row| row.entry.id == id)

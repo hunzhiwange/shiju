@@ -395,7 +395,7 @@ pub fn update(state: &mut State, current: Option<(GatewayClient, Scope)>, token:
             let Some(scope) = state.scope.clone() else { return Task::none() };
             let Ok((client, now)) = current.clone().ok_or(()) else { return Task::none() };
             if scope != now {
-                return crate::message::provider_update::error("执行主机或工作区已切换，请重新打开");
+                return crate::message::provider_update::error("连接或工作区已切换，请重新打开");
             }
             let Some(form) = state.form.as_mut() else { return Task::none() };
             if form.saving {

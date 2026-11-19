@@ -79,7 +79,7 @@ fn identity(context: &Context, job: &DiagnosticJobIdentity) -> bool {
         && job.scope.app_id == context.diagnostics.query.app_id
 }
 fn safe_error(_: impl std::fmt::Debug) -> String {
-    "工具详情未验证，请检查目标主机、目录修订与授权后重试".into()
+    "无法读取工具详情，请刷新 MCP 目录后重试".into()
 }
 fn close(app: &mut Update<'_>) -> Task<ToolsMessage> {
     let state = &mut *app.state;

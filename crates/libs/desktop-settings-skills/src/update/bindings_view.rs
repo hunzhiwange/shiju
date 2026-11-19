@@ -21,7 +21,7 @@ pub struct State {
 #[derive(Debug, Clone)]
 pub enum Event {
     Open, Close, Refresh, Select(String), Target(SkillBindingTarget, bool), Save,
-    Bind(bool), Resync,
+    Bind(bool), BindTarget(String, SkillBindingTarget, bool), Resync,
     Completed(u64, Result<Readback, String>),
 }
 #[derive(Debug, Clone)]
@@ -103,6 +103,19 @@ pub fn update(state: &mut State, input: &Input, event: Event) -> Effect {
         Event::Bind(enabled) => { let Some(id) = &s.selected else { return Effect::None; };
             if s.targets.is_empty() { return Effect::None; }
             Some(Change::Bind(id.clone(), SkillBindingsRequest { scope: scope.clone(), targets: s.targets.clone(), enabled, mode: SkillBindingMode::Auto })) }
+        Event::BindTarget(id, target, enabled) => {
+            if !input.targets.contains(&target)
+                || !s.snapshot.as_ref().is_some_and(|snapshot| snapshot.capabilities
+                    .iter().any(|capability| capability.app_id == target.app_id && capability.supported))
+                || !s.inventory.as_ref().is_some_and(|inventory| inventory.skills.iter()
+                    .any(|skill| skill.id == id && skill.present))
+            {
+                return Effect::None;
+            }
+            Some(Change::Bind(id, SkillBindingsRequest {
+                scope: scope.clone(), targets: vec![target], enabled, mode: SkillBindingMode::Auto,
+            }))
+        }
         Event::Resync => { if s.targets.is_empty() { return Effect::None; }
             Some(Change::Resync(SkillResyncRequest { scope: scope.clone(), targets: s.targets.clone() })) }
         Event::Open | Event::Refresh => None,

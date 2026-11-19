@@ -31,12 +31,12 @@ pub fn overlay<'a>(
         settings_close_button(close.clone()),
     );
     let mut body = column![
-        text(format!("执行主机：{} · 应用：{:?} · 供应商：{}", context.scope.host, context.scope.app, context.provider.as_ref())).size(13),
+        text(format!("应用：{:?} · 供应商：{}", context.scope.app, context.provider.as_ref())).size(13),
         text("网络可达仅表示收到 HTTP 响应，不代表鉴权、模型或流式正确。"),
         action("检查网络可达性", Event::Start(DiagnosticProbeKind::Reachability), true),
         settings_field_label("已保存的模型 ID"),
-        settings_text_input("输入执行主机已保存的模型 ID", &state.model).on_input(|v| model::message(Event::Model(v))),
-        text("模型与流式检查将使用执行主机的真实授权发送最小请求，可能产生费用。点击下方按钮即开始检查。"),
+        settings_text_input("输入已保存的模型 ID", &state.model).on_input(|v| model::message(Event::Model(v))),
+        text("模型与流式检查会发送实际请求，可能产生费用。"),
         row![action("发送最小模型请求", Event::Start(DiagnosticProbeKind::Model), !state.model.trim().is_empty()),
             action("发送最小流式请求", Event::Start(DiagnosticProbeKind::Streaming), !state.model.trim().is_empty())].spacing(8).wrap(),
     ].spacing(12);
@@ -94,7 +94,7 @@ fn status(run: &ModelRun) -> String {
         return "正在提交，尚未取得任务 ID".into();
     }
     if run.cancelling && !run.terminal() {
-        return "正在取消，等待执行主机确认清理".into();
+        return "正在取消，等待清理完成".into();
     }
     match run.snapshot.as_ref().map(|s| s.state) {
         None => "等待查询，尚未验证".into(),

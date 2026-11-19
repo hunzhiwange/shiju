@@ -265,7 +265,11 @@ fn settings_content(app: &App, active_tab: SystemTab) -> Element<'_, Message> {
         content_column = content_column.push(settings_error_banner(localized));
     }
     let content_column = content_column.push(content);
-    let owns_scroll = matches!(active_tab, SystemTab::Agents | SystemTab::ArchivedChats)
+    let prompts_page = active_tab == SystemTab::Apps
+        && app.apps_catalog.third_party_page
+            == desktop_ui_controls::settings_navigation::ThirdPartyPage::Prompts;
+    let owns_scroll = prompts_page
+        || matches!(active_tab, SystemTab::Agents | SystemTab::ArchivedChats)
         || (active_tab == SystemTab::Cron
             && matches!(
                 app.cron_settings.active_tab,
@@ -279,7 +283,11 @@ fn settings_content(app: &App, active_tab: SystemTab) -> Element<'_, Message> {
             && app.apps_catalog.third_party_page
                 == desktop_ui_controls::settings_navigation::ThirdPartyPage::Authorization);
     let owns_scroll = owns_scroll || active_tab_help_modal_open(app, active_tab);
-    desktop_settings_shell::content_page(content_column, active_tab == SystemTab::Cron, owns_scroll)
+    desktop_settings_shell::content_page(
+        content_column,
+        prompts_page || active_tab == SystemTab::Cron,
+        owns_scroll,
+    )
 }
 
 fn settings_shell(

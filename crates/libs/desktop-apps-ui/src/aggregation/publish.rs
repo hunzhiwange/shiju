@@ -124,19 +124,19 @@ pub enum Event {
 fn message(event: Event) -> super::list::Event { super::list::Event::Publish(event) }
 fn exit_error_label(e: &AggregationApiError) -> &'static str {
     match e {
-        AggregationApiError::Http { status: 401 | 403, .. } => "无权恢复直连，请检查项目和主机授权",
+        AggregationApiError::Http { status: 401 | 403, .. } => "网关拒绝恢复直连请求",
         AggregationApiError::Http { status: 409, .. } => "恢复版本冲突，请刷新实际状态后重新确认",
         AggregationApiError::Http { status: 422 | 501, .. } => "此应用或执行目标不支持直连恢复",
         AggregationApiError::Http { status: 502, .. } => {
             "目标恢复失败，请刷新实际状态并检查恢复情况"
         }
-        AggregationApiError::Http { status: 503, .. } => "执行主机不可用，请恢复连接后刷新实际状态",
+        AggregationApiError::Http { status: 503, .. } => "服务暂不可用，请重新连接后刷新状态",
         _ => "恢复结果未知，请刷新实际状态，勿重复提交",
     }
 }
 fn error_label(e: &AggregationApiError) -> &'static str {
     match e {
-        AggregationApiError::Http { status: 401 | 403, .. } => "无权发布聚合，请检查项目和主机授权",
+        AggregationApiError::Http { status: 401 | 403, .. } => "网关拒绝发布聚合请求",
         AggregationApiError::Http { status: 409, .. } => {
             "预览版本或操作冲突，请关闭并刷新目录后重新预览"
         }
@@ -146,7 +146,7 @@ fn error_label(e: &AggregationApiError) -> &'static str {
         AggregationApiError::Http { status: 502, .. } => {
             "目标发布失败，请刷新实际状态并检查恢复情况"
         }
-        AggregationApiError::Http { status: 503, .. } => "执行主机不可用，请恢复连接后刷新实际状态",
+        AggregationApiError::Http { status: 503, .. } => "服务暂不可用，请重新连接后刷新状态",
         AggregationApiError::Http { status: 504, .. } => {
             "目标超时，结果未知，请刷新实际状态，勿重复提交"
         }

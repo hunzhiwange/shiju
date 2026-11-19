@@ -256,7 +256,16 @@ pub enum ThirdPartyPage {
     Authorization,
     Usage,
     ManagementTools,
+    Settings(ThirdPartySettingsTab),
 }
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ThirdPartySettingsTab {
+    Applications,
+    Routing,
+    Data,
+}
+
 impl ThirdPartyPage {
     pub const ALL: &'static [(Self, &'static str)] = &[
         (Self::AppsCatalog, "应用"), (Self::Agents, "智能体管理"), (Self::Mcp, "MCP"), (Self::Skills, "Skills"),

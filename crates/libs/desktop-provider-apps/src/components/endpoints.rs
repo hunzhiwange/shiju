@@ -95,7 +95,7 @@ pub fn card<'a>(
                 .push(input("User-Agent（留空移除）", value, Event::UserAgent))
                 .push(text("此字段替换上方覆盖 JSON 中的 User-Agent；整个代理覆盖组一起保存，请同时填写需要保留的头和请求体。"));
         }
-        body = body.push(text("头名称、受保护头、请求体协议字段及 User-Agent 合法性由执行主机校验；失败保留草稿。"));
+        body = body.push(text("保存时会校验请求头、请求体协议字段与 User-Agent。失败时保留草稿。"));
     }
     if let Some(notice) = &form.notice {
         body = body.push(text(notice));

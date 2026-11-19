@@ -34,7 +34,7 @@ pub fn card<'a>(
     let close = if can_close { message(Event::Close) } else { Message::None };
     let header = settings_modal_header(
         column![
-            help.heading("配置预览与冲突确认", "预览由执行主机生成，显示内容已脱敏。", 28),
+            help.heading("配置预览与冲突确认", "预览内容已脱敏。", 28),
             text(&form.name).size(14).style(settings_muted_text_style),
         ]
         .spacing(4),
@@ -67,7 +67,7 @@ pub fn card<'a>(
         body = body.push(settings_panel(column![
             text(summary),
             text(if save.cancel_requested {
-                "已请求取消，等待执行主机确认。"
+                "已请求取消，等待确认。"
             } else {
                 ""
             })

@@ -63,14 +63,14 @@ fn error(error: AggregationApiError) -> String {
         _ => return "OMP 目录请求失败，请检查连接".into(),
     };
     if matches!(code, Some("unsupported_app" | "unsupported_target")) {
-        return "此执行主机不支持 OMP 目录".into();
+        return "当前环境不支持 OMP 目录".into();
     }
     match status {
         409 => "目录修订已变更或事务待恢复，请保留草稿并刷新后核对",
         401 | 403 => "无权访问此项目的 OMP 目录",
         404 => "OMP 条目不存在，请刷新目录后核对",
         400 | 422 => "OMP YAML 无法安全编辑或模型声明无效，草稿已保留",
-        502..=504 => "OMP 执行主机失败或不可用，草稿已保留",
+        502..=504 => "OMP 服务暂不可用，草稿已保留",
         _ => "OMP 目录请求失败，请检查连接",
     }
     .into()

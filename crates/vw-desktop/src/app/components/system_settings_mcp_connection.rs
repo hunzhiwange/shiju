@@ -21,6 +21,7 @@ pub(crate) fn connection_form_panel(draft: &Draft) -> Element<'_, Message> {
             ui::FormMessage::Field(field, value) => FormMessage::Field(field, value),
             ui::FormMessage::Json(value) => FormMessage::Json(value),
             ui::FormMessage::Editor(value) => FormMessage::Editor(value),
+            ui::FormMessage::Description(value) => FormMessage::Description(value),
             ui::FormMessage::Preset(value) => FormMessage::Preset(value),
             ui::FormMessage::ValueAdd => FormMessage::ValueAdd,
             ui::FormMessage::ValueRemove(value) => FormMessage::ValueRemove(value),

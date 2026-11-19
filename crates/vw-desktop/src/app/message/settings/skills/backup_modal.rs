@@ -5,8 +5,25 @@ pub(crate) use desktop_settings_skills::update::backup_modal::Event;
 pub(crate) fn message(event: Event) -> Message { Message::Settings(SettingsMessage::SkillsBackups(event)) }
 
 pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
-    use desktop_settings_skills::update::backup_modal::{Effect, update as reduce};
+    use desktop_settings_skills::update::backup_modal::{Effect, Readback, update as reduce};
     let input = super::update_input(app);
+    let event = match event {
+        Event::Completed(generation, Ok(Readback::List(list, version, saved)))
+            if app.apps_catalog.third_party_skills.scope().is_some_and(|scope| {
+                input.context.as_ref() == Some(&scope.context) && input.host == scope.host
+                    && input.project == scope.project && input.directory == scope.directory
+            }) =>
+        {
+            let page = &app.apps_catalog.third_party_skills;
+            let available = if page.bindings.snapshot.is_some() {
+                page.available_targets(&input.targets)
+            } else {
+                saved.into_iter().filter(|target| input.targets.contains(target)).collect()
+            };
+            Event::Completed(generation, Ok(Readback::List(list, version, available)))
+        }
+        event => event,
+    };
     match reduce(&mut app.skills_settings.backups, &input, event) {
         Effect::None => Task::none(),
         Effect::Error(error) => app.show_error_toast(error),

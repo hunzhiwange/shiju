@@ -1,4 +1,3 @@
-use vw_api_app_identity::{AppId, AppInstallationEnvironment};
 use super::preferences::{PreferencesMessage};
 
 use desktop_ui_controls::system_settings_common::*;
@@ -10,18 +9,9 @@ use iced::{
 
 const ACTION_PADDING: [u16; 2] = [8, 12];
 
-#[derive(Clone, PartialEq)]
-struct TerminalChoice(String);
-
-impl std::fmt::Display for TerminalChoice {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        if self.0.is_empty() { f.write_str("主机默认终端") } else { f.write_str(&self.0) }
-    }
-}
-
 pub fn overlay<'a, C: Clone + 'a, M: Clone + 'static>(
     state: &'a PreferencesState,
-    host_id: &'a str,
+    _host_id: &'a str,
     rows: &'a [super::catalog::CatalogRow],
     base: Element<'a, M>,
     heading: impl Fn(&'static str, &'static str, u16) -> Element<'a, M>,
@@ -32,7 +22,7 @@ pub fn overlay<'a, C: Clone + 'a, M: Clone + 'static>(
     }
     let close = event(PreferencesMessage::Close);
     let editable = !state.busy;
-    let mut body = column![text(format!("执行主机：{}", host_id)).size(13)].spacing(14);
+    let mut body = column![].spacing(14);
     if let Some(error) = &state.error {
         body = body.push(settings_error_banner(error.clone()));
     }
@@ -80,104 +70,10 @@ pub fn overlay<'a, C: Clone + 'a, M: Clone + 'static>(
                     );
             }
         }
-        body = body.push(visibility).push(settings_divider());
-
-        let mut host =
-            column![group_heading("主机终端设置", "这些偏好仅用于所选执行主机。")].spacing(10);
-        if let Some(capabilities) = &draft.capabilities {
-            let options = std::iter::once(String::new())
-                .chain(capabilities.terminals.iter().cloned())
-                .map(TerminalChoice);
-            let selected =
-                TerminalChoice(draft.host.preferred_terminal.clone().unwrap_or_default());
-            host = host.push(
-                row![
-                    settings_field_label("首选终端").width(Length::Fill),
-                    settings_select(options, Some(selected), move |v| event(
-                        PreferencesMessage::Terminal(v.0)
-                    ))
-                    .disabled(!state.host_editable())
-                    .width(Length::FillPortion(2)),
-                ]
-                .align_y(Alignment::Center)
-                .spacing(24),
-            );
-            if capabilities.wsl_preferences {
-                host = host.push(group_heading(
-                    "WSL",
-                    "发行版由所选安装实例决定；只保存各应用的 shell 与 flag。留空表示自动。",
-                ));
-                for app in rows {
-                    if app.entry.id == AppId::ClaudeDesktop {
-                        continue;
-                    }
-                    let id = app.entry.id;
-                    let distributions: Vec<_> = app
-                        .observation
-                        .as_ref()
-                        .ok()
-                        .into_iter()
-                        .flat_map(|o| &o.installations)
-                        .filter_map(|i| match &i.environment {
-                            AppInstallationEnvironment::Wsl { distribution } => {
-                                Some(distribution.as_str())
-                            }
-                            _ => None,
-                        })
-                        .collect();
-                    let entry = draft.host.wsl_shells.iter().find(|e| e.app_id == id);
-                    let shell = entry.and_then(|e| e.shell.as_deref()).unwrap_or("");
-                    let flag = entry.and_then(|e| e.flag.as_deref()).unwrap_or("");
-                    let description = if distributions.is_empty() {
-                        "发行版：尚未发现".to_owned()
-                    } else {
-                        format!("发行版：{}", distributions.join("、"))
-                    };
-                    host = host.push(settings_panel(
-                        column![
-                            column![
-                                settings_field_label(&app.entry.name),
-                                text(description).size(12).style(settings_muted_text_style),
-                            ]
-                            .spacing(4),
-                            column![
-                                settings_field_label("Shell"),
-                                settings_text_input("自动或主机支持的 shell", shell)
-                                    .on_input_maybe(editable.then_some(move |v| {
-                                        event(PreferencesMessage::Shell(id, v))
-                                    })),
-                            ]
-                            .spacing(6),
-                            column![
-                                settings_field_label("Flag"),
-                                settings_text_input("自动或 -c / -ic / -lc / -lic", flag)
-                                    .on_input_maybe(editable.then_some(move |v| {
-                                        event(PreferencesMessage::Flag(id, v))
-                                    })),
-                            ]
-                            .spacing(6),
-                        ]
-                        .spacing(10),
-                    ));
-                }
-            }
-        } else {
-            host = host.push(
-                text("网关未提供主机能力，终端与 WSL 设置暂不可编辑。")
-                    .size(12)
-                    .style(settings_muted_text_style),
-            );
-        }
-        body = body.push(host);
-        if state.saved.as_ref().is_some_and(|v| v.restart_required) {
-            body = body.push(settings_success_banner(format!(
-                "已保存。请手动重启执行主机「{}」上使用新设置的应用终端会话；现有会话不会自动重启。",
-                host_id
-            )));
-        }
+        body = body.push(visibility);
     }
     let header = settings_modal_header(
-        heading("应用设置", "分别保存用户偏好和主机设置。", 28),
+        heading("应用设置", "设置应用可见性与顺序。", 28),
         settings_close_button(close.clone()),
     );
     let actions = row![
@@ -192,10 +88,6 @@ pub fn overlay<'a, C: Clone + 'a, M: Clone + 'static>(
             .on_press_maybe(
                 (editable && state.draft.is_some()).then_some(event(PreferencesMessage::SaveUser))
             ),
-        button(text("保存主机设置").size(SETTINGS_CONTROL_TEXT_SIZE))
-            .padding(ACTION_PADDING)
-            .style(primary_action_btn_style)
-            .on_press_maybe(state.host_editable().then_some(event(PreferencesMessage::SaveHost))),
     ]
     .align_y(Alignment::Center)
     .spacing(8);

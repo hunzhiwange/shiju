@@ -14,7 +14,7 @@ pub fn overlay<'a>(s: &'a Session, base: Element<'a, Message>) -> Element<'a, Me
     );
     let mut body = column![].spacing(12);
     if s.pending {
-        body = body.push(text("正在请求执行主机…"));
+        body = body.push(text("正在加载…"));
     }
     if let Some(error) = s.error {
         body = body.push(settings_error_banner(error));

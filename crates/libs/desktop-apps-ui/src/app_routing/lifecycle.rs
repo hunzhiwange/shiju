@@ -101,7 +101,7 @@ pub fn context(gateway: Option<&AgentAppsContext>, host: &str, generation: u64, 
 pub(super) fn error_message(error: AppRoutingError) -> String {
     match error {
         AppRoutingError::Http { status: 401 | 403, .. } => {
-            "无服务操作授权，请重新连接执行主机".into()
+            "网关拒绝了路由服务请求".into()
         }
         AppRoutingError::Http { status, body } => {
             // Only interpret known codes; never render arbitrary response payloads.
@@ -109,10 +109,10 @@ pub(super) fn error_message(error: AppRoutingError) -> String {
                 Some("address_in_use") => "监听地址已占用",
                 Some("apps_attached") => "仍有应用接入，请先退出路由模式",
                 Some("transition_in_progress") => "服务正在切换，请稍后刷新",
-                Some("unsupported_host") => "执行主机不支持此操作",
+                Some("unsupported_host") => "当前环境不支持此操作",
                 Some("revision_conflict") => "应用配置已变化或需要恢复",
                 Some("target_failed") => "应用配置恢复失败",
-                _ => "请检查主机连接与服务配置后刷新",
+                _ => "请检查网关连接与服务配置后刷新",
             };
             format!("服务操作失败（HTTP {status}）：{reason}")
         }
@@ -189,7 +189,7 @@ pub fn update(state: &mut State, context: Option<Context>, project: Option<Strin
             }
             let client = match client {
                 Some(client) => client,
-                None => return crate::error(notice, "无法连接网关，请重新连接执行主机"),
+                None => return crate::error(notice, "无法连接网关，请重试"),
             };
             state.context = Some(context.clone());
             state.serial = state.serial.wrapping_add(1);
@@ -299,6 +299,12 @@ pub fn view(state: &State, context: Option<Context>) -> Element<'_, Message> {
                     .on_press_maybe(
                         connected
                             .then_some(message(Event::Config(super::config::Event::Open(None))))
+                    ),
+                button(text("连接地址"))
+                    .padding([8, 12])
+                    .style(rounded_action_btn_style)
+                    .on_press_maybe(
+                        connected.then_some(message(Event::Config(super::config::Event::OpenClientHost)))
                     )
             ]
             .spacing(8)

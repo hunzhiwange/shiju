@@ -23,7 +23,7 @@ pub struct Draft {
     pub saving: bool,
     pub error: Option<String>,
     pub presets: Vec<McpPresetDraftView>,
-    pub description: String,
+    pub description: text_editor::Content,
     pub homepage: String,
     pub documentation: String,
     pub tags: String,
@@ -33,6 +33,7 @@ pub struct Draft {
     pub candidates: Vec<paste::Candidate>,
     pub catalog: Vec<McpCatalogRecord>,
     pub targets: Vec<(McpAppTarget, bool, bool, bool)>,
+    targets_customized: bool,
     pub capabilities: Vec<McpAppCapability>,
     pub bindings: Vec<McpCliBinding>,
     pub deliveries: Vec<(McpAppTarget, bool, Result<McpDistributionResult, String>)>,
@@ -49,6 +50,7 @@ pub enum FormMessage {
     Field(&'static str, String),
     Json(bool),
     Editor(text_editor::Action),
+    Description(text_editor::Action),
     Presets(crate::management_context::Context, u64, Result<McpPresetsResponse, String>),
     Preset(usize),
     ValueAdd,
@@ -108,7 +110,9 @@ impl Draft {
             context,
             id: record.as_ref().map(|r| r.record.id.0.clone()).unwrap_or_default(),
             name: record.as_ref().map(|r| r.name.clone()).unwrap_or_default(),
-            description: record.as_ref().and_then(|r| r.description.clone()).unwrap_or_default(),
+            description: text_editor::Content::with_text(
+                record.as_ref().and_then(|r| r.description.as_deref()).unwrap_or_default(),
+            ),
             homepage: record.as_ref().and_then(|r| r.homepage.clone()).unwrap_or_default(),
             documentation: record
                 .as_ref()
@@ -121,6 +125,7 @@ impl Draft {
             candidates: vec![],
             catalog: vec![],
             targets: vec![],
+            targets_customized: false,
             capabilities: vec![],
             bindings: vec![],
             deliveries: vec![],
@@ -278,7 +283,6 @@ impl Draft {
             self.set_connection(preset.connection);
             self.json = false;
             self.error = None;
-            // Saving creates an unbound catalog definition; presets never enable consumers.
         }
     }
     pub fn finish(&mut self, result: &Result<McpCatalogRecord, String>) {
@@ -309,7 +313,7 @@ pub async fn save(
                     connection,
                     metadata: McpMetadataPatch {
                         name: McpTextEdit::Set(draft.name.clone()),
-                        description: text_edit(&draft.description),
+                        description: text_edit(&draft.description.text()),
                         homepage: text_edit(&draft.homepage),
                         documentation: text_edit(&draft.documentation),
                         tags: Some(
@@ -338,8 +342,8 @@ pub async fn save(
                     target_host_id: draft.context.host.clone(),
                     project_id: None,
                     id: draft.id.clone(),
-                    name: Some(draft.name.clone()),
-                    description: optional(&draft.description),
+                    name: optional(&draft.name),
+                    description: optional(&draft.description.text()),
                     homepage: optional(&draft.homepage),
                     documentation: optional(&draft.documentation),
                     tags: draft
@@ -379,7 +383,10 @@ impl Draft {
                 }
                 let target = match field {
                     "id" if self.record.is_none() => &mut self.id,
-                    "description" => &mut self.description,
+                    "description" => {
+                        self.description = text_editor::Content::with_text(&value);
+                        return;
+                    }
                     "homepage" => &mut self.homepage,
                     "documentation" => &mut self.documentation,
                     "tags" => &mut self.tags,
@@ -453,13 +460,16 @@ impl Draft {
                                                 && binding.enabled
                                         })
                                     });
-                                    *selected = enabled;
-                                    *original = enabled;
+                                    if existing.is_some() {
+                                        *selected = enabled;
+                                        *original = enabled;
+                                    }
                                 }
                                 if let Some(record) = &existing {
                                     self.name = record.name.clone();
-                                    self.description =
-                                        record.description.clone().unwrap_or_default();
+                                    self.description = text_editor::Content::with_text(
+                                        record.description.as_deref().unwrap_or_default(),
+                                    );
                                     self.homepage = record.homepage.clone().unwrap_or_default();
                                     self.documentation =
                                         record.documentation.clone().unwrap_or_default();
@@ -485,9 +495,11 @@ impl Draft {
             FormMessage::Target(index, value) => {
                 if let Some(target) = self.targets.get_mut(index) {
                     target.1 = value;
+                    self.targets_customized = true;
                 }
             }
             FormMessage::Editor(action) => self.editor.perform(action),
+            FormMessage::Description(action) => self.description.perform(action),
             FormMessage::Json(json) => {
                 self.error = self.toggle_json(json).err();
             }
@@ -498,6 +510,7 @@ impl Draft {
             }
             _ => {}
         }
+        self.select_default_target();
     }
 }
 
@@ -528,23 +541,55 @@ fn text_edit(value: &str) -> McpTextEdit {
     optional(value).map(McpTextEdit::Set).unwrap_or(McpTextEdit::Clear)
 }
 impl Draft {
+    pub(crate) fn select_default_target(&mut self) {
+        if self.record.is_some() || self.targets_customized || self.target_transport().is_none() {
+            return;
+        }
+        let first = crate::management_bindings::matrix::APPS.iter().find_map(|app| {
+            let mut candidates =
+                self.targets.iter().enumerate().filter(|(_, (target, _, _, _))| {
+                    target.app_id == *app && self.target_supported(target)
+                });
+            let (index, _) = candidates.next()?;
+            // Multiple installs of one app require an explicit choice.
+            candidates.next().is_none().then_some(index)
+        });
+        for (index, (_, selected, _, _)) in self.targets.iter_mut().enumerate() {
+            *selected = first == Some(index);
+        }
+    }
+
+    fn target_transport(&self) -> Option<McpTransport> {
+        if !self.replace_connection {
+            return self.record.as_ref().map(|r| r.transport);
+        }
+        if self.json {
+            return self.connection().ok().map(|c| match c {
+                McpConnectionDefinition::Stdio { .. } => McpTransport::Stdio,
+                McpConnectionDefinition::Sse { .. } => McpTransport::Sse,
+                McpConnectionDefinition::StreamableHttp { .. } => McpTransport::StreamableHttp,
+            });
+        }
+        match self.transport.as_str() {
+            "stdio" => Some(McpTransport::Stdio),
+            "sse" => Some(McpTransport::Sse),
+            "streamable_http" => Some(McpTransport::StreamableHttp),
+            _ => None,
+        }
+    }
+
     pub fn target_supported(&self, target: &McpAppTarget) -> bool {
-        self.capabilities.iter().any(|cap| {
-            cap.app_id == target.app_id
-                && match if self.replace_connection {
-                    self.connection().map(|c| match c {
-                        McpConnectionDefinition::Stdio { .. } => McpTransport::Stdio,
-                        McpConnectionDefinition::Sse { .. } => McpTransport::Sse,
-                        _ => McpTransport::StreamableHttp,
-                    })
-                } else {
-                    self.record.as_ref().map(|r| r.transport).ok_or_else(|| "缺少连接".to_string())
-                } {
-                    Ok(McpTransport::Stdio) => cap.stdio,
-                    Ok(McpTransport::Sse) => cap.sse,
-                    Ok(McpTransport::StreamableHttp) => cap.streamable_http,
-                    Err(_) => return false,
-                } == McpSupport::Supported
-        }) && crate::distribution::unsupported_reason(target.app_id).is_none()
+        let Some(transport) = self.target_transport() else {
+            return false;
+        };
+        crate::distribution::unsupported_reason(target.app_id).is_none()
+            && self.capabilities.iter().any(|cap| {
+                cap.app_id == target.app_id
+                    && match transport {
+                        McpTransport::Stdio => cap.stdio,
+                        McpTransport::Sse => cap.sse,
+                        McpTransport::StreamableHttp => cap.streamable_http,
+                    } == McpSupport::Supported
+            })
     }
 }

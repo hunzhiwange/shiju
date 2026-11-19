@@ -11,7 +11,10 @@ use super::system_settings_common::{
 /// Session identities carry their application identity; this catalog spans applications.
 pub(crate) fn sessions(app: &App) -> Element<'_, Message> {
     column![
-        super::external_sessions::view(&app.apps_catalog.external_sessions),
+        super::external_sessions::view(
+            &app.apps_catalog.external_sessions,
+            crate::app::i18n::I18n::new(app.general_settings.desktop_locale),
+        ),
     ]
     .spacing(16)
     .width(Length::Fill)
@@ -37,7 +40,7 @@ pub(crate) fn usage(app: &App, selected: AppId) -> Element<'_, Message> {
     let account_scope = apps_usage_cards::current_scope(app, true);
     let mut content = column![
         settings_page_heading("用量与额度", "按应用、供应商和授权账号查看真实查询结果。"),
-        text(format!("应用：{selected:?} · 执行主机：{}", app.apps_catalog.host)),
+        text(format!("应用：{selected:?}")),
         text("暂不支持跨应用或跨账号汇总；尚未读取的数据不计为零。")
             .style(settings_muted_text_style),
     ].spacing(12).width(Length::Fill);
@@ -54,7 +57,7 @@ pub(crate) fn usage(app: &App, selected: AppId) -> Element<'_, Message> {
         .padding([8, 12]).style(rounded_action_btn_style)
         .on_press(message(ListMessage::Open(selected)));
     if !providers_match {
-        content = content.push(text("尚未读取此应用在当前主机上的供应商。"))
+        content = content.push(text("尚未读取此应用的供应商。"))
             .push(open());
     } else {
         content = content.push(button(text("刷新供应商"))

@@ -88,7 +88,7 @@ pub fn progress<'a, M: Clone + 'static>(state: &'a LifecycleState, event: impl F
 }
 pub fn overlay<'a, M: Clone + 'static>(
     state: &'a LifecycleState,
-    host: &'a str,
+    _host: &'a str,
     base: Element<'a, M>,
     guidance: &'a str,
     event: impl Fn(Action) -> M + Copy + 'static,
@@ -99,7 +99,7 @@ pub fn overlay<'a, M: Clone + 'static>(
             settings_page_heading("确认全部升级", "逐项预检并串行执行；失败、目标变化或取消时停止。"),
             settings_close_button(close.clone()),
         );
-        let mut body = column![text(format!("执行主机：{host}"))].spacing(12);
+        let mut body = column![].spacing(12);
         for item in &batch.items {
             body = body.push(text(format!("{:?} · {}\n实例：{} · {:?}", item.app_id, item.path, item.id.0, item.source))
                 .size(13).wrapping(iced::widget::text::Wrapping::WordOrGlyph));
@@ -131,11 +131,10 @@ pub fn overlay<'a, M: Clone + 'static>(
     };
     let uninstalling = preview.request.action == AppLifecycleAction::Uninstall;
     let header = settings_modal_header(
-        settings_page_heading(title, "请核对执行主机和预检目标。"),
+        settings_page_heading(title, "请核对所选安装实例。"),
         settings_close_button(close.clone()),
     );
     let mut body = column![
-        text(format!("执行主机：{host}")).size(14),
         text(format!("来源：{:?}", preview.source)).size(13).style(settings_muted_text_style),
         text(&state.target_label).size(14).wrapping(iced::widget::text::Wrapping::WordOrGlyph),
         settings_divider(),

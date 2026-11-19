@@ -1,3 +1,5 @@
+#[path = "management_form_paste.rs"]
+pub mod paste;
 use iced::widget::text_editor;
 use std::collections::BTreeMap;
 use vw_api_mcp_management::*;
@@ -17,9 +19,23 @@ pub struct Draft {
     pub url: String,
     pub editor: text_editor::Content,
     pub json: bool,
+    pub replace_connection: bool,
     pub saving: bool,
     pub error: Option<String>,
     pub presets: Vec<McpPresetDraftView>,
+    pub description: String,
+    pub homepage: String,
+    pub documentation: String,
+    pub tags: String,
+    pub summary: String,
+    pub details: bool,
+    pub paste: text_editor::Content,
+    pub candidates: Vec<paste::Candidate>,
+    pub catalog: Vec<McpCatalogRecord>,
+    pub targets: Vec<(McpAppTarget, bool, bool, bool)>,
+    pub capabilities: Vec<McpAppCapability>,
+    pub bindings: Vec<McpCliBinding>,
+    pub deliveries: Vec<(McpAppTarget, bool, Result<McpDistributionResult, String>)>,
 }
 impl std::fmt::Debug for Draft {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -41,6 +57,22 @@ pub enum FormMessage {
     ValueKind(String, bool),
     ValueText(String, String),
     ValueService(String, String),
+    Replace(bool),
+    ArgAdd,
+    ArgRemove(usize),
+    ArgSet(usize, String),
+    PasteEditor(text_editor::Action),
+    ParsePaste,
+    ChoosePaste(usize),
+    SkipPaste(usize),
+    Details(bool),
+    Target(usize, bool),
+    Retry,
+    Distributed(
+        crate::management_context::Context,
+        u64,
+        Vec<(McpAppTarget, bool, Result<McpDistributionResult, String>)>,
+    ),
     Save,
     Saved(crate::management_context::Context, Result<McpCatalogRecord, String>),
 }
@@ -76,6 +108,23 @@ impl Draft {
             context,
             id: record.as_ref().map(|r| r.record.id.0.clone()).unwrap_or_default(),
             name: record.as_ref().map(|r| r.name.clone()).unwrap_or_default(),
+            description: record.as_ref().and_then(|r| r.description.clone()).unwrap_or_default(),
+            homepage: record.as_ref().and_then(|r| r.homepage.clone()).unwrap_or_default(),
+            documentation: record
+                .as_ref()
+                .and_then(|r| r.documentation.clone())
+                .unwrap_or_default(),
+            tags: record.as_ref().map(|r| r.tags.join(",")).unwrap_or_default(),
+            summary: record.as_ref().and_then(|r| r.public_summary.clone()).unwrap_or_default(),
+            details: false,
+            paste: text_editor::Content::new(),
+            candidates: vec![],
+            catalog: vec![],
+            targets: vec![],
+            capabilities: vec![],
+            bindings: vec![],
+            deliveries: vec![],
+            replace_connection: record.is_none(),
             record,
             transport: transport.into(),
             command: String::new(),
@@ -183,6 +232,7 @@ impl Draft {
         Ok(())
     }
     pub fn set_connection(&mut self, connection: McpConnectionDefinition) {
+        self.replace_connection = true;
         match connection {
             McpConnectionDefinition::Stdio { command, args, env, cwd } => {
                 self.transport = "stdio".into();
@@ -207,9 +257,13 @@ impl Draft {
         if json != self.json {
             let connection = self.connection()?;
             if json {
-                self.editor = text_editor::Content::with_text(
-                    &serde_json::to_string_pretty(&connection).expect("DTO"),
-                );
+                if parse::<McpConnectionDefinition>(&self.editor.text()).ok().as_ref()
+                    != Some(&connection)
+                {
+                    self.editor = text_editor::Content::with_text(
+                        &serde_json::to_string_pretty(&connection).expect("DTO"),
+                    );
+                }
             } else {
                 self.set_connection(connection);
             }
@@ -239,7 +293,7 @@ pub async fn save(
     draft: Draft,
 ) -> Result<McpCatalogRecord, String> {
     let client = gateway_mcp_write::GatewayMcpWriteClient::new(client.transport().clone());
-    let connection = draft.connection()?;
+    let connection = if draft.replace_connection { Some(draft.connection()?) } else { None };
     let project_id = match draft.record.as_ref().map(|r| &r.scope) {
         Some(McpCatalogScope::Project { scope }) => Some(scope.project_id().clone()),
         _ => None,
@@ -252,9 +306,27 @@ pub async fn save(
                     target_host_id: draft.context.host.clone(),
                     project_id,
                     expected_revision: record.record.revision,
-                    connection: Some(connection),
-                    metadata: Default::default(),
-                    public_summary: Default::default(),
+                    connection,
+                    metadata: McpMetadataPatch {
+                        name: McpTextEdit::Set(draft.name.clone()),
+                        description: text_edit(&draft.description),
+                        homepage: text_edit(&draft.homepage),
+                        documentation: text_edit(&draft.documentation),
+                        tags: Some(
+                            draft
+                                .tags
+                                .split(',')
+                                .map(str::trim)
+                                .filter(|s| !s.is_empty())
+                                .map(str::to_owned)
+                                .collect(),
+                        ),
+                    },
+                    public_summary: if draft.summary.is_empty() {
+                        McpPublicSummaryEdit::Clear
+                    } else {
+                        McpPublicSummaryEdit::Set(draft.summary.clone())
+                    },
                 },
                 token,
             )
@@ -267,11 +339,17 @@ pub async fn save(
                     project_id: None,
                     id: draft.id.clone(),
                     name: Some(draft.name.clone()),
-                    description: None,
-                    homepage: None,
-                    documentation: None,
-                    tags: vec![],
-                    connection,
+                    description: optional(&draft.description),
+                    homepage: optional(&draft.homepage),
+                    documentation: optional(&draft.documentation),
+                    tags: draft
+                        .tags
+                        .split(',')
+                        .map(str::trim)
+                        .filter(|s| !s.is_empty())
+                        .map(str::to_owned)
+                        .collect(),
+                    connection: connection.ok_or("请填写连接定义")?,
                 },
                 token,
             )
@@ -300,7 +378,12 @@ impl Draft {
                     self.values = "{}".into();
                 }
                 let target = match field {
-                    "id" => &mut self.id,
+                    "id" if self.record.is_none() => &mut self.id,
+                    "description" => &mut self.description,
+                    "homepage" => &mut self.homepage,
+                    "documentation" => &mut self.documentation,
+                    "tags" => &mut self.tags,
+                    "summary" => &mut self.summary,
                     "name" => &mut self.name,
                     "command" => &mut self.command,
                     "args" => &mut self.args,
@@ -319,6 +402,91 @@ impl Draft {
             | FormMessage::ValueService(_, _)) => {
                 self.error = self.edit_values(event).err();
             }
+            FormMessage::Replace(value) => self.replace_connection = value,
+            FormMessage::ArgAdd | FormMessage::ArgRemove(_) | FormMessage::ArgSet(..) => {
+                let mut args: Vec<String> = parse(&self.args).unwrap_or_default();
+                match event {
+                    FormMessage::ArgAdd => args.push(String::new()),
+                    FormMessage::ArgRemove(index) if index < args.len() => {
+                        args.remove(index);
+                    }
+                    FormMessage::ArgSet(index, value) if index < args.len() => args[index] = value,
+                    _ => {}
+                }
+                self.args = serde_json::to_string(&args).expect("strings");
+            }
+            FormMessage::PasteEditor(action) => {
+                self.paste.perform(action);
+                self.candidates.clear();
+            }
+            FormMessage::ParsePaste => match paste::parse(&self.paste.text()) {
+                Ok(items) => {
+                    self.candidates = items;
+                    self.error = None;
+                    if self.candidates.len() == 1
+                        && !self.catalog.iter().any(|r| r.record.id.0 == self.candidates[0].id)
+                    {
+                        self.edit(FormMessage::ChoosePaste(0));
+                    }
+                }
+                Err(error) => self.error = Some(error),
+            },
+            FormMessage::SkipPaste(index) => {
+                if index < self.candidates.len() {
+                    self.candidates.remove(index);
+                }
+            }
+            FormMessage::ChoosePaste(index) => {
+                if let Some(item) = self.candidates.get(index).cloned() {
+                    match item.connection {
+                        Ok(connection) => {
+                            let existing =
+                                self.catalog.iter().find(|r| r.record.id.0 == item.id).cloned();
+                            if self.record.as_ref().is_some_and(|r| r.record.id.0 != item.id) {
+                                self.error = Some("编辑 ID 已锁定，请关闭后添加其它目录项".into());
+                            } else {
+                                for (target, selected, original, _) in &mut self.targets {
+                                    let enabled = existing.as_ref().is_some_and(|record| {
+                                        self.bindings.iter().any(|binding| {
+                                            binding.record.id == record.record.id
+                                                && binding.target == *target
+                                                && binding.enabled
+                                        })
+                                    });
+                                    *selected = enabled;
+                                    *original = enabled;
+                                }
+                                if let Some(record) = &existing {
+                                    self.name = record.name.clone();
+                                    self.description =
+                                        record.description.clone().unwrap_or_default();
+                                    self.homepage = record.homepage.clone().unwrap_or_default();
+                                    self.documentation =
+                                        record.documentation.clone().unwrap_or_default();
+                                    self.tags = record.tags.join(",");
+                                    self.summary =
+                                        record.public_summary.clone().unwrap_or_default();
+                                } else {
+                                    self.name = item.id.clone();
+                                }
+                                self.record = existing;
+                                self.id = item.id;
+                                self.set_connection(connection);
+                                self.json = false;
+                                self.error = None;
+                                self.candidates.remove(index);
+                            }
+                        }
+                        Err(error) => self.error = Some(error),
+                    }
+                }
+            }
+            FormMessage::Details(value) => self.details = value,
+            FormMessage::Target(index, value) => {
+                if let Some(target) = self.targets.get_mut(index) {
+                    target.1 = value;
+                }
+            }
             FormMessage::Editor(action) => self.editor.perform(action),
             FormMessage::Json(json) => {
                 self.error = self.toggle_json(json).err();
@@ -335,9 +503,48 @@ impl Draft {
 
 pub fn panel(draft: &Draft) -> iced::Element<'_, crate::connection::FormMessage> {
     crate::connection::connection_form_panel(crate::connection::ConnectionDraft {
-        editing: draft.record.is_some(), json: draft.json, saving: draft.saving,
-        id: &draft.id, name: &draft.name, transport: &draft.transport, command: &draft.command,
-        args: &draft.args, values: &draft.values, cwd: &draft.cwd, url: &draft.url,
-        editor: &draft.editor, error: &draft.error, presets: &draft.presets,
+        draft,
+        editing: draft.record.is_some(),
+        json: draft.json,
+        saving: draft.saving,
+        id: &draft.id,
+        name: &draft.name,
+        transport: &draft.transport,
+        command: &draft.command,
+        args: &draft.args,
+        values: &draft.values,
+        cwd: &draft.cwd,
+        url: &draft.url,
+        editor: &draft.editor,
+        error: &draft.error,
+        presets: &draft.presets,
     })
+}
+
+fn optional(value: &str) -> Option<String> {
+    (!value.is_empty()).then(|| value.to_owned())
+}
+fn text_edit(value: &str) -> McpTextEdit {
+    optional(value).map(McpTextEdit::Set).unwrap_or(McpTextEdit::Clear)
+}
+impl Draft {
+    pub fn target_supported(&self, target: &McpAppTarget) -> bool {
+        self.capabilities.iter().any(|cap| {
+            cap.app_id == target.app_id
+                && match if self.replace_connection {
+                    self.connection().map(|c| match c {
+                        McpConnectionDefinition::Stdio { .. } => McpTransport::Stdio,
+                        McpConnectionDefinition::Sse { .. } => McpTransport::Sse,
+                        _ => McpTransport::StreamableHttp,
+                    })
+                } else {
+                    self.record.as_ref().map(|r| r.transport).ok_or_else(|| "缺少连接".to_string())
+                } {
+                    Ok(McpTransport::Stdio) => cap.stdio,
+                    Ok(McpTransport::Sse) => cap.sse,
+                    Ok(McpTransport::StreamableHttp) => cap.streamable_http,
+                    Err(_) => return false,
+                } == McpSupport::Supported
+        }) && crate::distribution::unsupported_reason(target.app_id).is_none()
+    }
 }

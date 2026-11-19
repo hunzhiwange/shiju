@@ -1,6 +1,6 @@
 # MiMo Code 动态挂载 RustCodeGraph
 
-2026-11-19，验收阻塞于受管 MiMo Code 启动 stdio 服务。宿主成功连接 RustCodeGraph，原生 ACP 执行 `posix_spawn` 时收到 `EPERM`。
+2026-11-19，MiMo Code 已通过新标准的隔离网关三轮验收。挂载的三种工具实际执行并回传，原生工具沿用原审批规则。早期 stdio 启动失败及原型记录保留如下。
 
 ## 环境
 
@@ -68,3 +68,31 @@
 继续用摘要为 `5fab2f2dbf506ddf71d842ef1a7cd6e744c5ec90ff3f5f043ea020e1b3696312` 的 RustCodeGraph 1.2.11 重建 3478 文件索引，复用 OpenCode 的窄目录说明，保持原提示、模型与工具执行语义。三轮均原生 `end_turn` 且进程退出 0。无挂载只出现 `MCP_NOT_AVAILABLE` 和额外正文，撤除只有标记，两轮均无工具调用。挂载收到 54 次获批图谱调用，53 次成功。唯一的图谱错误将源码文件当作 `projectPath`。模型续轮分别收到 query、callers、node 的真实输出。原生记录还出现未声明的文件工具尝试，均失败。答复覆盖调用链、SSR、容器缺失、路由和 i18n、布局条件及两项快照验证设想，且将当前路由表中的布局入口标为尚未确认。
 
 核对三份 RueJS 副本各 4109 项归档条目，排除索引后均无差异，探针及其监听全部退出。三组已证明同端口方案能将三种工具交给指定真实模型，也保留了撤除隔离。本轮未达严格模型合同，且尚缺生产会话绑定、撤销与隔离网关回归。未修改受管二进制、沙箱、生产 Rust 代码或租户配置，未运行 Cargo。
+
+## 生产接入与新标准验收
+
+`32a353dc8` 将宿主选中的 stdio 服务接到受管 MiMo 的模型中继端口。每个请求独立启动受沙箱限制的 stdio 进程，先按宿主允许和拒绝规则过滤目录，调用时复核目录。模型和 MCP 使用各自的本地凭证，共享请求撤销边界。MiMo 从会话私有配置读取工具，继续走原生逐次审批。原有文件工具的目录及权限沿用既有配置。
+
+使用包含该接线的共享构建 shiju 0.6.0，SHA-256 为 `109066ea0b79ce6edfc4399624715f0dafa80d397adabe7a1ae46158407e7cba`。MiMo 仍为 0.1.17。重新索引同一 RueJS 提交的 3478 个文件，RustCodeGraph 使用以上 1.2.11，宿主保留私有索引的 SQLite WAL 和 SHM 供只读进程打开。项目 MCP 策略只发布三种目标工具。保留原始提示、模型、租户、`session_model` 和 `full_access=true`。旧请求第一次收到 HTTP 422，新聊天接口 `2b35013ae` 从 `agent` 绑定推导后端。移除旧的 `acp_agent` 字段后复跑，三轮均回读到 `acp-mimo-code / mimo-code`。
+
+| 轮次 | 新会话 | HTTP / curl / 秒 | 终态与工具 |
+| --- | --- | --- | --- |
+| 无挂载 | `ses_1f18e3f55001LtmKFE8q8MdaZJ` | 200 / 0 / 5.503467 | `chat.done`，`MCP_NOT_AVAILABLE`，零调用 |
+| 挂载 | `ses_1f18e55c6001uG5LBIKTmu2IZ6` | 200 / 0 / 162.719668 | `chat.done`，59 次调用均有开始和成功完成 |
+| 撤除 | `ses_1f190d2e7001ZnJQgCdrc2poFw` | 200 / 0 / 5.371489 | `chat.done`，`MCP_NOT_AVAILABLE`，零调用 |
+
+三轮零 `chat.error`。UI summary 与 ACP options 回读指定后端、访问请求和原选模绑定，挂载时 `connected=true`、`access_status.support=client_only`，终态连接均释放。
+
+| 图谱工具 | 成功次数 | 代表性调用 ID | 实际回传 |
+| --- | --- | --- | --- |
+| `rustcodegraph_query` | 32 | `call_d3c2e5443d594c62be868a19` | `createRueSiteApp` 位于 `app/app.tsx:32` |
+| `rustcodegraph_callers` | 6 | `call_becb9d9fa6b14a9c9bd5f0b9` | `mountRueSiteApp` 位于 `app/app.tsx:39` |
+| `rustcodegraph_node` | 21 | `call_253a54e335404eb3bf963eb2` | `packages/runtime/src/hooks/useApp.ts:4` 调用 `_$createApp(factory)` |
+
+答复用真实输出追踪调用链，覆盖浏览器和 SSR、`#app` 异常、路由和 i18n、布局及快照影响。它提出两项验证设想，其中直接访问 `/rust-layers` 的前提在当前路由表中缺少支持。验收采用新标准，判断实际调用、结果回传和撤除隔离，原生官方工具可按原权限共存。
+
+同一受审 MiMo 从私有文件发现 MCP 的独立探针通过三项。批准轮得到三个真实工具结果，拒绝轮收到一次审批且零转发，空目录轮只声明原文件工具。
+
+生产权限探针在活跃挂载会话中验证，未携带令牌或使用模型中继令牌均为 HTTP 401，MCP 令牌只能列出三种获准工具，调用目录外工具返回 JSON-RPC -32602。会话结束后独立中继端口关闭。额外复验的首次挂载因验收脚本把二进制路径错误解析到结果目录而终止。修正路径后单独复跑，HTTP 200、curl 0、238.632610 秒，会话 `ses_1f193be42001J1VL5wJfUMQtZd` 有一条 `chat.done`。共有 86 次成功的目标工具调用，其中 query 52、callers 3、node 31，三种代表结果再次回传。
+
+行为验证采用生产网关三轮和实际端口正反探针。补充的 Rust 用例用槽位 6 开始编译，`CARGO_TARGET_DIR` 与 `CARGO_BUILD_BUILD_DIR` 均为该槽位。生产探针覆盖相应边界后停止重复编译，退出 130，Rust 用例执行数为零。私有监听、网关和 ACP 进程已退出，私有凭据及租户配置已清理。比对 4108 项非索引归档条目无变化，挂载条目已撤除。

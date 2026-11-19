@@ -21,6 +21,16 @@ pub fn action_button<'a, M: Clone + 'static>(
 }
 pub fn progress<'a, M: Clone + 'static>(state: &'a LifecycleState, event: impl Fn(Action) -> M + Copy + 'static) -> Element<'a, M> {
     let mut content = column![].spacing(8);
+    if let Some(batch) = &state.batch {
+        content = content.push(text(format!("批量升级：成功 {} · 失败 {} · 取消 {} · {} {}",
+            batch.completed, batch.failed, batch.cancelled,
+            if batch.stopped { "跳过 / 未执行" } else { "等待" }, batch.pending())).size(13));
+        if !batch.stopped {
+            content = content.push(button(text("停止批量升级"))
+                .padding([8, 16]).style(rounded_action_btn_style)
+                .on_press(event(Action::LifecycleCancel)));
+        }
+    }
     if let Some(request) = &state.request {
         content = content.push(
             text(format!(
@@ -83,6 +93,27 @@ pub fn overlay<'a, M: Clone + 'static>(
     guidance: &'a str,
     event: impl Fn(Action) -> M + Copy + 'static,
 ) -> Element<'a, M> {
+    if let Some(batch) = state.batch.as_ref().filter(|b| !b.confirmed && !b.stopped) {
+        let close = event(Action::LifecycleClose);
+        let header = settings_modal_header(
+            settings_page_heading("确认全部升级", "逐项预检并串行执行；失败、目标变化或取消时停止。"),
+            settings_close_button(close.clone()),
+        );
+        let mut body = column![text(format!("执行主机：{host}"))].spacing(12);
+        for item in &batch.items {
+            body = body.push(text(format!("{:?} · {}\n实例：{} · {:?}", item.app_id, item.path, item.id.0, item.source))
+                .size(13).wrapping(iced::widget::text::Wrapping::WordOrGlyph));
+        }
+        let footer = row![
+            Space::new().width(Length::Fill),
+            button(text("取消")).padding([8, 16]).style(rounded_action_btn_style).on_press(close.clone()),
+            button(text("确认全部升级")).padding([8, 16]).style(primary_action_btn_style)
+                .on_press(event(Action::LifecycleConfirm)),
+        ].spacing(10);
+        let card = settings_modal_layout(header, body, Some(footer.into()))
+            .width(Length::Fill).max_width(520.0).max_height(484.0);
+        return settings_modal_overlay(Some(base), close, container(card).padding(12).center(Length::Fill));
+    }
     let Some(preview) = &state.preview else {
         return base;
     };

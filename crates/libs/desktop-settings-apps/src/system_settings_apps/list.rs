@@ -62,12 +62,21 @@ pub fn view_with_updates<'a, M: Clone + 'static>(state: &ViewState<'a>, updates:
     } else {
         state.host
     };
+    let upgrade_count = updates.map_or(0, |u| u.results.iter().filter(|candidate|
+        candidate.supported && state.rows.iter().any(|row|
+            presentation::preferred(row) == Some(&candidate.installation))).count());
     let heading = row![
         container(settings_page_heading("应用", "管理执行主机上的第三方应用、配置与运行环境。"))
             .width(Length::Fill),
         button(text(if updates.is_some_and(|u| u.checking) { "检查中…" } else { "检查更新" }).size(SETTINGS_CONTROL_TEXT_SIZE))
             .width(108.).padding([8, 11]).style(rounded_action_btn_style)
             .on_press_maybe((!state.loading && !updates.is_some_and(|u| u.checking) && state.drag.source.is_none() && !state.rows.is_empty()).then_some(message(Action::CheckUpdates))),
+        button(text(format!("全部升级（{upgrade_count}）")).size(SETTINGS_CONTROL_TEXT_SIZE))
+            .padding([8, 11]).style(primary_action_btn_style)
+            .on_press_maybe((upgrade_count > 0 && !state.loading && !updates.is_some_and(|u| u.checking)
+                && !state.lifecycle.active() && state.lifecycle.preview.is_none()
+                && state.lifecycle.batch.as_ref().is_none_or(|b| b.stopped)
+                && state.drag.source.is_none()).then_some(message(Action::BatchUpgrade))),
         action(
             if state.error.is_some() { "重试" } else { "刷新" },
             Icon::ArrowClockwise,
@@ -128,7 +137,7 @@ pub fn view_with_updates<'a, M: Clone + 'static>(state: &ViewState<'a>, updates:
     if let Some(error) = state.error {
         content = content.push(settings_error_banner(error.clone()));
     }
-    if state.lifecycle.request.is_some() || state.lifecycle.error.is_some() {
+    if state.lifecycle.batch.is_some() || state.lifecycle.request.is_some() || state.lifecycle.error.is_some() {
         content = content.push(super::lifecycle_view::progress(state.lifecycle, message));
     }
     if state.loading && state.rows.is_empty() {

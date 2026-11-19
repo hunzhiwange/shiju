@@ -50,6 +50,7 @@ pub enum AppsCatalogMessage {
         id: vw_api_app_identity::AppId,
         result: Result<vw_api_app_identity::AppReadResponse, gateway_http::AgentAppsReadError>,
     },
+    BatchUpgrade,
     CheckUpdates,
     UpdatesLoaded { context: AgentAppsContext, host: String, generation: u64, results: Vec<desktop_apps_ui::catalog_state::UpdateCandidate> },
     Refresh,
@@ -68,6 +69,14 @@ impl std::fmt::Debug for AppsCatalogMessage {
 }
 pub(super) fn update(app: &mut App, message: AppsCatalogMessage) -> Task<Message> {
     match message {
+        AppsCatalogMessage::BatchUpgrade => {
+            if app.apps_catalog.loading || app.apps_catalog.updates.checking { return Task::none(); }
+            let items = app.apps_catalog.updates.results.iter()
+                .filter(|candidate| candidate.supported && app.apps_catalog.rows.iter().any(|row|
+                    desktop_settings_apps::system_settings_apps::presentation::preferred(row) == Some(&candidate.installation)))
+                .map(|candidate| candidate.installation.clone()).collect();
+            return super::apps_lifecycle::update(app, super::apps_lifecycle::LifecycleMessage::Batch(items));
+        }
         AppsCatalogMessage::CheckUpdates => {
             let Ok(client) = crate::app::config::gateway_client() else { return app.show_error_toast("网关不可用"); };
             let context = AgentAppsContext { gateway: client.endpoint().base_url(), tenant: client.endpoint().tenant_scope().clone(), project: app.navigation_tabs.project_path.clone() };

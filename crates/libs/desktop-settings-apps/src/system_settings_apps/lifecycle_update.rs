@@ -11,6 +11,8 @@ use vw_api_task::TaskStatus;
 
 #[derive(Clone, Debug)]
 pub enum LifecycleMessage {
+    Batch(Vec<vw_api_app_identity::AppInstallation>),
+    BatchNext,
     Preview(AppActionPreviewRequest),
     Confirm,
     Close,
@@ -105,6 +107,44 @@ pub fn update(
     notice: &mut Option<Notice>,
     invalidate: &mut bool,
 ) -> Task<LifecycleMessage> {
+    let mut message = message;
+    if let LifecycleMessage::Batch(items) = &message {
+        if items.is_empty() || state.active() || state.preview.is_some()
+            || state.batch.as_ref().is_some_and(|b| !b.stopped) { return Task::none(); }
+        state.invalidate();
+        state.batch = Some(super::lifecycle::BatchUpgrade { items: items.clone(), ..Default::default() });
+        return Task::none();
+    }
+    if matches!(message, LifecycleMessage::Confirm)
+        && state.batch.as_ref().is_some_and(|b| !b.confirmed && !b.stopped) {
+        state.batch.as_mut().unwrap().confirmed = true;
+        message = LifecycleMessage::BatchNext;
+    }
+    let internal_preview = matches!(message, LifecycleMessage::BatchNext);
+    if internal_preview {
+        let Some(batch) = &state.batch else { return Task::none(); };
+        if batch.stopped || !batch.confirmed || state.active() { return Task::none(); }
+        let Some(item) = batch.items.get(batch.completed) else { return Task::none(); };
+        if !rows.iter().any(|row| super::presentation::preferred(row) == Some(item)) {
+            state.batch.as_mut().unwrap().stopped = true;
+            return notify_error(notice, "批量升级目标已变化，已停止，请重新检查更新");
+        }
+        message = LifecycleMessage::Preview(AppActionPreviewRequest {
+            app_id: item.app_id, action: AppLifecycleAction::Update,
+            target: AppActionTarget::Installation { installation_id: item.id.clone() },
+        });
+        state.operation = None;
+        state.preview = None;
+    }
+    if matches!(message, LifecycleMessage::Preview(_)) && !internal_preview
+        && state.batch.as_ref().is_some_and(|b| !b.stopped) { return Task::none(); }
+    if matches!(message, LifecycleMessage::Close | LifecycleMessage::Cancel) {
+        if let Some(batch) = &mut state.batch { batch.stopped = true; }
+    }
+    if matches!(message, LifecycleMessage::Preview(_)) && !internal_preview
+        && !state.active() && state.preview.is_none() {
+        state.batch = None;
+    }
     let target_label = if let LifecycleMessage::Preview(request) = &message {
         match &request.target {
             AppActionTarget::Environment { environment } => {
@@ -146,6 +186,7 @@ pub fn update(
         String::new()
     };
     let work = match message {
+        LifecycleMessage::Batch(_) | LifecycleMessage::BatchNext => return Task::none(),
         LifecycleMessage::Preview(request) => {
             if state.active() || state.preview.is_some() {
                 return Task::none();
@@ -159,6 +200,14 @@ pub fn update(
         LifecycleMessage::Confirm => {
             if state.busy || state.uncertain || state.operation.is_some() {
                 return Task::none();
+            }
+            if let Some(batch) = &mut state.batch {
+                if batch.stopped { return Task::none(); }
+                if !batch.items.get(batch.completed).is_some_and(|item|
+                    rows.iter().any(|row| super::presentation::preferred(row) == Some(item))) {
+                    batch.stopped = true;
+                    return notify_error(notice, "批量升级目标已变化，拒绝提交");
+                }
             }
             let Some(preview) = state.preview.take() else {
                 return Task::none();
@@ -202,8 +251,20 @@ pub fn update(
                         || preview.source == AppInstallationSource::Unknown
                     {
                         state.error = Some("预检目标或来源不匹配，拒绝提交".into());
+                        if let Some(batch) = &mut state.batch { batch.stopped = true; batch.failed += 1; }
                     } else {
+                        if let Some(batch) = &mut state.batch {
+                            if batch.stopped { return Task::none(); }
+                            if !batch.items.get(batch.completed).is_some_and(|item| item.source == preview.source) {
+                                batch.stopped = true;
+                                batch.failed += 1;
+                                return notify_error(notice, "批量升级预检来源已变化，已停止");
+                            }
+                        }
                         state.preview = Some(preview);
+                        if state.batch.as_ref().is_some_and(|b| b.confirmed && !b.stopped) {
+                            return update(state, rows, client, current, host, token, LifecycleMessage::Confirm, notice, invalidate);
+                        }
                     }
                     return state
                         .error
@@ -213,12 +274,25 @@ pub fn update(
                 Ok(LifecycleResult::Status(status)) => {
                     if !state.accept_status(status) {
                         state.cancel_requested = false;
+                        if let Some(batch) = &mut state.batch { batch.stopped = true; }
                         return notify_error(notice, "操作响应不匹配，拒绝覆盖当前状态");
                     }
                     state.error = None;
                     let operation = state.operation.as_ref().unwrap();
                     if operation.phase == AppOperationPhase::Terminal {
                         *invalidate = true;
+                        if let Some(batch) = &mut state.batch {
+                            match operation.status {
+                                TaskStatus::Completed => batch.completed += 1,
+                                TaskStatus::Failed => { batch.failed += 1; batch.stopped = true; }
+                                TaskStatus::Cancelled => { batch.cancelled += 1; batch.stopped = true; }
+                                _ => batch.stopped = true,
+                            }
+                            if batch.completed == batch.items.len() { batch.stopped = true; }
+                            if !batch.stopped {
+                                return update(state, rows, client, current, host, token, LifecycleMessage::BatchNext, notice, invalidate);
+                            }
+                        }
                         return if operation.status == TaskStatus::Failed {
                             notify_error(notice, "应用操作失败，请刷新应用诊断")
                         } else {
@@ -230,6 +304,7 @@ pub fn update(
                 Err(error) => {
                     state.cancel_requested = false;
                     state.uncertain |= error.uncertain;
+                    if let Some(batch) = &mut state.batch { batch.stopped = true; }
                     state.error = Some(error.label.clone());
                     return notify_error(notice, error.label);
                 }

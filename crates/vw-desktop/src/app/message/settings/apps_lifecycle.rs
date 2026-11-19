@@ -17,13 +17,27 @@ pub(super) fn update(app: &mut App, message: LifecycleMessage) -> Task<Message> 
     let host = app.apps_catalog.host.clone();
     let token = app.apps_catalog.token.clone();
     if host.is_empty() { return Task::none(); }
+    let starting_batch = matches!(&message, LifecycleMessage::Batch(_));
+    if let Some(batch) = &mut app.apps_catalog.lifecycle.batch {
+        if batch.catalog_generation.is_some_and(|generation| generation != app.apps_catalog.generation) {
+            batch.stopped = true;
+        }
+    }
     let mut notice = None;
     let mut invalidate = false;
     let task = desktop_settings_apps::system_settings_apps::lifecycle_update::update(
         &mut app.apps_catalog.lifecycle, &app.apps_catalog.rows,
         client, current, host, token, message, &mut notice, &mut invalidate,
     ).map(|event| Message::Settings(SettingsMessage::AppsCatalog(AppsCatalogMessage::Lifecycle(event))));
-    if invalidate { app.apps_catalog.loaded_at = None; }
+    if starting_batch {
+        if let Some(batch) = &mut app.apps_catalog.lifecycle.batch {
+            batch.catalog_generation = Some(app.apps_catalog.generation);
+        }
+    }
+    if invalidate {
+        app.apps_catalog.loaded_at = None;
+        app.apps_catalog.updates = Default::default();
+    }
     let feedback = match notice {
         Some(desktop_settings_apps::aggregation::Notice::Error(error)) => app.show_error_toast(error),
         _ => Task::none(),

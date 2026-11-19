@@ -4,6 +4,7 @@ use vw_api_task::TaskStatus;
 
 #[derive(Clone, Debug, Default)]
 pub struct LifecycleState {
+    pub batch: Option<BatchUpgrade>,
     pub target_label: String,
     pub request: Option<AppActionPreviewRequest>,
     pub preview: Option<AppActionPreview>,
@@ -41,5 +42,22 @@ impl LifecycleState {
                 .operation
                 .as_ref()
                 .is_some_and(|s| matches!(s.status, TaskStatus::Queued | TaskStatus::Running))
+    }
+}
+
+/// A fixed, explicitly confirmed selection; never recompute candidates while running.
+#[derive(Clone, Debug, Default)]
+pub struct BatchUpgrade {
+    pub items: Vec<vw_api_app_identity::AppInstallation>,
+    pub catalog_generation: Option<u64>,
+    pub confirmed: bool,
+    pub stopped: bool,
+    pub completed: usize,
+    pub failed: usize,
+    pub cancelled: usize,
+}
+impl BatchUpgrade {
+    pub fn pending(&self) -> usize {
+        self.items.len().saturating_sub(self.completed + self.failed + self.cancelled)
     }
 }

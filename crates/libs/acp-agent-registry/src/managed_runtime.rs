@@ -40,13 +40,13 @@ fn installed_directory(agent: &str, contract: &Contract) -> Result<PathBuf, Stri
         2
     } else if agent == "deepagents" {
         4
-    } else if matches!(agent, "amp-acp" | "cortex-code" | "cursor" | "snow") {
+    } else if matches!(agent, "amp-acp" | "cortex-code" | "cursor" | "snow" | "stakpak") {
         3
     } else if agent == "gemini" {
         2
     } else if matches!(
         agent,
-        "corust-agent" | "hermes" | "junie" | "nova" | "openclaw" | "pi" | "poolside" | "stakpak" | "vibe"
+        "corust-agent" | "hermes" | "junie" | "nova" | "openclaw" | "pi" | "poolside" | "vibe"
     ) {
         2
     } else {

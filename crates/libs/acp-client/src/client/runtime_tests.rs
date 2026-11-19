@@ -238,3 +238,43 @@ async fn prepare_actor_runtime_cleans_up_when_initialize_connection_fails() {
         })
         .await;
 }
+
+#[cfg(unix)]
+#[tokio::test]
+async fn managed_stakpak_initializes_in_the_session_workspace() {
+    let local = tokio::task::LocalSet::new();
+    local
+        .run_until(async {
+            let workspace = tempfile::tempdir().expect("workspace directory");
+            let cwd = workspace.path().canonicalize().expect("absolute workspace");
+            let client = AcpClient::new(
+                "stakpak".to_owned(),
+                AcpAgentConfig {
+                    command: "/bin/sh".to_owned(),
+                    args: vec![
+                        "-c".to_owned(),
+                        r#"test "$(pwd -P)" = "$1" || exit 1
+IFS= read -r _ || exit 1
+printf '%s\n' '{"jsonrpc":"2.0","id":0,"result":{"protocolVersion":1,"agentCapabilities":{},"authMethods":[]}}'
+while IFS= read -r _; do :; done"#
+                            .to_owned(),
+                        "fixture".to_owned(),
+                        cwd.to_string_lossy().into_owned(),
+                    ],
+                    env: HashMap::from([(
+                        "VW_ACP_LAUNCH_REFERENCE".to_owned(),
+                        "fixture".to_owned(),
+                    )]),
+                },
+            );
+            let mut runtime = None;
+            client
+                .prepare_actor_runtime(&mut runtime, cwd)
+                .await
+                .expect("initialize should run from the session workspace");
+            client
+                .shutdown_actor_runtime(runtime.take().expect("initialized runtime"), None, false)
+                .await;
+        })
+        .await;
+}

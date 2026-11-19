@@ -833,7 +833,7 @@
     "files": {
       "stakpak-native": "70c559eff250a5be0dcdb19f31f13dca86847ee57648dba78e531506bb482ebc",
       "stakpak": "e23af645b513eae95f62d964ea067aeca76d88bc421a33656eefae7a7f2609c6",
-      "mcp.py": "caff9f41ba008d6e5c51b65c7150cfb9b20b7ccfa22d1f9d456633a438ea16eb",
+      "mcp.py": "2ec797054b0c9dfb8fb41db19ed15de98363f613e745be26afa29677d22ef580",
       "mcp_bridge.py": "8aea18ecdbc23070a2fc6a9eb5245f095219ac76e9390f4ec2b32e1dd95db136",
       "shiju-stdio.py": "e6870d58c6c59cb1f1d224a66cdaa8455b34057249912b7bce5b9e21f95a074a"
     }

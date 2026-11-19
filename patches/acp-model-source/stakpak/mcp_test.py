@@ -40,5 +40,23 @@ class StakpakApprovalTest(unittest.TestCase):
             self.assertIsNone(mounts.claim('graph', 'graph_query', arguments))
 
 
+    def test_native_permission_uses_the_original_options_and_grants_no_mcp_call(self):
+        with TemporaryDirectory() as tmp, StakpakMounts(Path(tmp), Path(tmp)) as mounts:
+            arguments = {'path': 'docs/a.md', 'file_text': 'fixture'}
+            title = 'Creating docs/a.md'
+            options = [{'kind': 'allow_once', 'optionId': 'once'},
+                       {'kind': 'reject_once', 'optionId': 'reject'}]
+            update = {'sessionUpdate': 'tool_call', 'toolCallId': 'native', 'title': title,
+                      'rawInput': {**arguments, 'abs_path': '/workspace/docs/a.md'}}
+            permission = {'sessionId': 'session', 'toolCall': {
+                'toolCallId': 'native', 'title': title, 'rawInput': arguments}, 'options': options}
+            mounts.begin('session')
+            mounts.observe('session', update)
+            self.assertTrue(mounts.permission(1, permission))
+            self.assertIs(permission['options'], options)
+            mounts.decide(1, {'outcome': {'outcome': 'selected', 'optionId': 'once'}})
+            self.assertIsNone(mounts.claim('graph', 'create', arguments))
+
+
 if __name__ == '__main__':
     unittest.main()

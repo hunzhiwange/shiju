@@ -11,7 +11,10 @@ import sys
 from mcp_bridge import Mounts, POLICY, arguments_key
 
 
-BUILTIN_TOOLS = 'allowed_tools = ["stakpak__view", "stakpak__create", "stakpak__str_replace"]'
+BUILTIN_NAMES = ('stakpak__view', 'stakpak__create', 'stakpak__str_replace')
+BUILTIN_TOOLS = 'allowed_tools = ' + json.dumps(BUILTIN_NAMES)
+BUILTIN_TITLES = {'Read', 'Creating', 'Editing'}
+RESERVED_MCP_TOOLS = {'view', 'create', 'create_file', 'str_replace', 'edit_file'}
 POLICY_KEY = 'shiju.stakpak.toolPolicy'
 LIMIT = 4 * 1024 * 1024
 
@@ -91,17 +94,18 @@ class StakpakMounts(Mounts):
             selected.append({**definition, '_meta': {POLICY: policy}})
         self.install(selected)
         entries = {}
-        tools = []
+        tools = list(BUILTIN_NAMES)
         for server, catalog in self.catalogs.items():
             entries[server] = dict(url=f'http://127.0.0.1:{self.http.server_port}/{server}',
                                    headers={'Authorization': 'Bearer ' + self.tokens[server]})
             for tool in catalog:
                 title = native_title(tool)
-                if title in self.titles or title in {'View', 'Create', 'Str Replace'}:
+                if (title in self.titles or title in BUILTIN_TITLES
+                        or tool.lower() in RESERVED_MCP_TOOLS):
                     raise ValueError('Stakpak MCP tool titles must be unambiguous')
                 self.titles[title] = (server, tool)
                 tools.append(server + '__' + tool)
-        if not tools:
+        if not self.titles:
             raise ValueError('Stakpak MCP selection has no permitted tools')
         config_file = config_dir / 'mcp.json'
         with config_file.open('x') as output:
@@ -138,9 +142,13 @@ class StakpakMounts(Mounts):
                     or arguments_key({**observed[1], 'abs_path': displayed.get('abs_path')})
                     != arguments_key({**displayed, 'abs_path': displayed.get('abs_path')})):
                 return False
-            if (pair is None or not isinstance(arguments, dict) or self.turn is None
-                    or self.turn != params.get('sessionId') or len(allow) != 1
-                    or identifier in self.pending):
+            if (not isinstance(arguments, dict) or self.turn is None
+                    or self.turn != params.get('sessionId') or identifier in self.pending):
+                return False
+            if pair is None:
+                # Native tools retain their existing ACP permission and filesystem paths.
+                return title in BUILTIN_TITLES
+            if len(allow) != 1:
                 return False
             self.pending[identifier] = (allow[0]['optionId'], (*pair, arguments_key(arguments)))
             params['options'] = allow + [option for option in options if option.get('kind') == 'reject_once']

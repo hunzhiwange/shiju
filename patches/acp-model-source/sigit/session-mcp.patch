@@ -30,13 +30,8 @@
          message.push_str("\n\n");
          message.push_str(&project_instructions);
      }
-@@ -852,9 +856,17 @@
- }
-
+@@ -854,7 +858,12 @@
  fn agent_tools_as_specs() -> Vec<ToolSpec> {
-+    if mcp::has_session_servers() {
-+        return mcp::tool_specs();
-+    }
      let mut specs: Vec<ToolSpec> = tools::all_tools()
          .into_iter()
 -        .filter(|t| matches!(t.name, "read_file" | "create_file" | "edit_file" | "multi_edit" | "run_command"))
@@ -49,7 +44,7 @@
          .map(|t| ToolSpec {
              name: t.name.to_string(),
              description: t.description.to_string(),
-@@ -2128,49 +2140,17 @@
+@@ -2128,49 +2137,17 @@
      )
  }
 
@@ -109,7 +104,7 @@
  }
 
  /// Reject session roots that are not absolute paths.
-@@ -2313,7 +2293,7 @@
+@@ -2313,7 +2290,7 @@
                      // Clients only pass HTTP MCP servers in `mcpServers` to an
                      // agent that says it can reach them. SSE stays off: the
                      // MCP spec deprecated that transport.
@@ -118,7 +113,7 @@
                      .session_capabilities(
                          SessionCapabilities::new()
                              .fork(SessionForkCapabilities::new())
-@@ -3054,7 +3034,7 @@
+@@ -3054,7 +3031,7 @@
          }
 
          state.conversation = backend::carryover_history(history);
@@ -127,7 +122,7 @@
          log::info!(
              "{method}: restored {restored} message(s), replayed {replayed} update(s) for {session_id}"
          );
-@@ -3070,7 +3050,6 @@
+@@ -3070,7 +3047,6 @@
 
          // Run SessionStart hooks
 
@@ -135,7 +130,7 @@
          Ok(config_options)
      }
 
-@@ -3209,8 +3188,7 @@
+@@ -3209,8 +3185,7 @@
              }
          }
          // A fork gets the servers named on its own request, not the source's.
@@ -145,7 +140,7 @@
          let copied = state.conversation.len();
          let updates = history_replay_updates(&state.conversation);
          let replayed = updates.len();
-@@ -3232,7 +3210,6 @@
+@@ -3232,7 +3207,6 @@
 
          // Run SessionStart hooks
 
@@ -153,7 +148,7 @@
          let modes = build_session_modes(&new_id.to_string());
          Ok(ForkSessionResponse::new(new_id)
              .config_options(config_options)
-@@ -3257,8 +3234,7 @@
+@@ -3257,8 +3231,7 @@
          );
 
          let mut state = self.session_state(&args.cwd, &args.additional_directories);
@@ -163,15 +158,15 @@
          self.open_session(&session_id, state).await;
 
          let config_options = {
-@@ -3270,7 +3246,6 @@
+@@ -3269,7 +3242,6 @@
+         self.advertise_commands(cx, session_id.clone());
 
          // Run SessionStart hooks
-
 -
+
          let modes = build_session_modes(&session_id.to_string());
          Ok(NewSessionResponse::new(session_id)
-             .config_options(config_options)
-@@ -3321,6 +3296,13 @@
+@@ -3321,6 +3293,13 @@
          if cancellation.cancelled.load(Ordering::Acquire) {
              return Ok(PromptResponse::new(StopReason::Cancelled));
          }
@@ -185,7 +180,7 @@
 
          // log every block so we can debug @ references and file context
          for (i, block) in args.prompt.iter().enumerate() {
-@@ -3781,10 +3763,19 @@
+@@ -3781,10 +3760,14 @@
                  // the user starts out `pending`, everything else is already
                  // running. A repeated call is never run, so never asked about.
                  let decision = (!repeated).then(|| {
@@ -193,11 +188,6 @@
 - permissions::Decision::Deny(reason) => permissions::Decision::Deny(reason),
 - _ => permissions::Decision::Ask,
 - }
-+                    if mcp::has_session_servers() && !mcp::is_mcp_tool(&tc.name) {
-+                        return permissions::Decision::Deny(
-+                            "This session exposes only its selected MCP tools".to_string(),
-+                        );
-+                    }
 +                    match permissions::decision_for(
 +                        &session_id.to_string(),
 +                        &tc.name,
@@ -209,7 +199,7 @@
                  });
                  let announced_status = match decision {
                      Some(permissions::Decision::Ask) => ToolCallStatus::Pending,
-@@ -3917,15 +3908,29 @@
+@@ -3917,15 +3900,29 @@
                                          )
                                          .ok();
                                      }
@@ -257,24 +247,23 @@
 -pub async fn connect_session_servers(servers: Vec<ClientServer>) -> SessionServers {
 +async fn connect_session_servers(servers: Vec<ClientServer>) -> SessionServers {
      if servers.is_empty() {
-         return SessionServers::default();
-     }
+-        return SessionServers::default();
+-    }
 -    if disabled_by_env() {
 -        log::info!(
 -            "mcp: ignoring {} client-supplied server(s), disabled via SIGIT_MCP",
 -            servers.len()
 -        );
--        return SessionServers::default();
--    }
+         return SessionServers::default();
+     }
 -
      let mut taken: Vec<String> = MCP
          .get()
          .map(|mcp| mcp.servers.iter().map(|s| s.name.clone()).collect())
-@@ -844,7 +836,169 @@
-
+@@ -845,6 +837,164 @@
      SessionServers(Arc::new(connected))
  }
-+
+
 +const MANAGED_STDIO_SANDBOX: &str = r#"
 +(version 1)
 +(allow default)
@@ -290,7 +279,7 @@
 +(deny process-fork process-exec network* mach-lookup)
 +(allow process-exec (literal (param "command")))
 +"#;
-
++
 +pub async fn managed_stdio_servers(
 +    servers: &[agent_client_protocol::McpServer],
 +    cwd: &std::path::Path,
@@ -385,10 +374,6 @@
 +    Ok(connected)
 +}
 +
-+pub fn has_session_servers() -> bool {
-+    !session_servers().0.is_empty()
-+}
-+
 +impl SessionServers {
 +    async fn disconnect(&self) {
 +        for server in self.0.iter() {
@@ -440,7 +425,7 @@
  /// Make `servers` the live session's set. Called whenever `main.rs` installs a
  /// session, so a thread never sees another thread's servers.
  pub fn set_session_servers(servers: SessionServers) {
-@@ -914,7 +1068,7 @@
+@@ -914,7 +1064,7 @@
      };
 
      match call_server(server, &remote_name, args).await {
@@ -449,7 +434,7 @@
          Err(error) => format!("Error: {error}"),
      }
  }
-@@ -926,7 +1080,7 @@
+@@ -926,7 +1076,7 @@
      server: &ServerConn,
      remote_name: &str,
      args: Value,
@@ -458,7 +443,7 @@
      let timeout = if server.name == "xcode" {
          XCODE_CALL_TIMEOUT
      } else {
-@@ -972,7 +1126,8 @@
+@@ -972,7 +1122,8 @@
                  .map_err(|error| format!("server '{}': {error:#}", server.name))?
          }
      };

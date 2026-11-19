@@ -30,9 +30,11 @@ managed installer still selects the existing reviewed patch.
 
 The prototype confines each explicitly selected stdio service to a macOS
 read-only sandbox, with the requested workspace as its working directory.
-The service starts with a clean environment. Each invocation uses siGit's
-existing ACP host approval, and MCP errors are reported as failed tool
-events. A configured service that exposes no tools fails session setup.
+The service starts with a clean environment. Built-in tools retain their
+existing approval and execution paths alongside the mounted tools. Each MCP
+invocation uses siGit's existing ACP host approval, and MCP errors become
+failed tool events. A configured service that exposes no tools fails
+session setup.
 
 RustCodeGraph 1.2.10 requires usable SQLite WAL/SHM sidecars to open a
 fresh index under the read-only policy. The private probe uses a host-owned

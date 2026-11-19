@@ -20,7 +20,7 @@
     "artifact_url": "https://registry.npmjs.org/dimcode-darwin-arm64/-/dimcode-darwin-arm64-0.5.28.tgz",
     "archive_sha256": "71634686a50bf9510862ec18a8381c49f5caf8df510c67085f2efac1773f04de",
     "files": {
-      "dim": "89a2f42669235390c13036f3fd63f6c454381bb8578b2f06f5fe1d659e2b170b"
+      "dim": "ca470dad0e7663b669769ff8d22bc260339eb46fbff08b9dd7fc553ea225f746"
     }
   },
   "glm-acp-agent": {

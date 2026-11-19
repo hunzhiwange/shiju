@@ -93,3 +93,7 @@ Nova 继续固定在 npm 1.1.65，受管安装目录升到 v2。宿主只把显�
 允许列表修订后，定向测试 `cargo test -j 1 -p acp-client --lib nova_mount_carries_resolved_tool_allowlist` 经槽位脚本在槽位 9 退出 0，1 项通过、321 项过滤。两个缓存路径均为仓库的 `target/rust-slot-9`。受控模型与真工具五项对照再次通过。指定阿里模型通过新的目录策略挂载时，三种目标工具均进行了实际调用并回传内容。记录的首个查询、调用者和节点调用分别为 `44f27f95-acf3-4901-a84e-6a2de061bfb4`、`98068baa-3ae4-466c-a8e1-df3adff1fd06` 和 `da9ff134-ee4b-4a8b-afc1-088be875530c`。此证据来自受管入口的原生 ACP 事件，网关 SSE 需复验。
 
 另做了结果回传探针，使用同一提示、模型、受审摘要和宿主工具允许列表。挂载会话 `cbe086fe-80ed-432d-9059-139e954c0f26` 的 query 2 次、callers 1 次、node 3 次均逐次获批并成功。实际发往指定模型的续轮请求包含三种真实输出。探针收到所需回传证据后主动取消该轮。撤除对照 `c068f13e-4fdc-4049-ace7-8641f968912d` 在新连接结束，答复为 `MCP_NOT_AVAILABLE`，模型工具表无该服务声明且目标事件为零。此项已验证新标准的执行与回传，独立于网关 SSE 验收。
+
+### 网关回归状态
+
+最新源码的 `cargo build -j 1 --locked -p vw-cli --bin shiju` 在槽位 9 退出 101。Nova 对应注册、协议和定向测试已编译。共享工作区的 `vw-agent` 同时读到 MiMo 与 VT Code 的新调用和旧版依赖产物，报缺少 `ManagedMcpApproval`、`prepare_stdio_mcp_launch`、`verify_vtcode_mcp_executable` 等六处编译错误。本次构建未产出更新后的网关，修订后的 SSE 三轮待回归。现有网关和用户全局 Nova 配置未改，探针和临时网关均已退出。

@@ -5,11 +5,11 @@
 | 目标 | 当前结果 | 缺失证据 |
 | --- | --- | --- |
 | macOS arm64 (`aarch64-apple-darwin`) | 通过 | 已保存冷装、启动、三轮 SSE、拒绝及清理证据 |
-| macOS x86_64 (`x86_64-apple-darwin`) | 待回归 | 缺少 x86_64 macOS 原生验证机 |
-| Linux arm64 (`aarch64-unknown-linux-gnu`) | 待回归 | 缺少搭载当前 ShiJu CLI、RustCodeGraph 和已授权指定模型的目标验证环境 |
-| Linux x86_64 (`x86_64-unknown-linux-gnu`) | 待回归 | 缺少 x86_64 Linux 原生验证机 |
-| Windows arm64 (`aarch64-pc-windows-msvc`) | 待回归 | 缺少 arm64 Windows 原生验证机，待补 ACL、重解析点、npm shim 与端到端回执 |
-| Windows x86_64 (`x86_64-pc-windows-msvc`) | 待回归 | 缺少 x86_64 Windows 原生验证机，待补 ACL、重解析点、npm shim 与端到端回执 |
+| macOS x86_64 (`x86_64-apple-darwin`) | 已阻塞 | 缺少 x86_64 macOS 原生验证机 |
+| Linux arm64 (`aarch64-unknown-linux-gnu`) | 已阻塞 | 缺少搭载当前 ShiJu CLI、RustCodeGraph 和已授权指定模型的目标验证环境 |
+| Linux x86_64 (`x86_64-unknown-linux-gnu`) | 已阻塞 | 缺少 x86_64 Linux 原生验证机 |
+| Windows arm64 (`aarch64-pc-windows-msvc`) | 已阻塞 | 缺少 arm64 Windows 原生验证机，待补 ACL、重解析点、npm shim 与端到端回执 |
+| Windows x86_64 (`x86_64-pc-windows-msvc`) | 已阻塞 | 缺少 x86_64 Windows 原生验证机，待补 ACL、重解析点、npm shim 与端到端回执 |
 
 ## 固定输入
 
@@ -58,6 +58,13 @@
 Docker Desktop 的 arm64 Linux 容器使用 `node:22-bookworm`、Node 22.23.4、npm 10.9.9、Python 3.11.2。首次执行 `node --test patches/acp-model-source/glm-acp-agent/managed-coexistence.test.mjs` 退出 1，npm 安装达到夹具的 80 秒时限。另起同架构容器，从空运行目录用生产 `install.py` 冷装。npm 拉取固定包时曾出现 `ECONNRESET`，重试后安装退出 0。沿用这一容器的 npm 缓存再执行原命令，退出 0，1 项通过、0 项失败。
 
 夹具通过受管入口启动实际 GLM ACP，使用本地模型与 MCP 替身，核对官方只读工具、会话级工具名单及拒绝优先、工具结果进入续轮，以及加载和分叉时按当前名单处理。两个容器均已退出并由 `--rm` 删除。Linux arm64 的 ShiJu 一键安装及指定真实模型的三轮 SSE 仍待验证。[回环夹具](../../../../patches/acp-model-source/glm-acp-agent/managed-coexistence.test.mjs)
+
+## 公共回归的环境核查
+
+- 复核原生 macOS arm64 的 CLI 和补丁摘要、三轮 SSE、拒绝回执及进程和端口清理记录。已提交的 GLM 路径自该版起没有变化，工作区 ACP 进程改动涉及 Poolside 分支。复用 macOS arm64 的通过证据。
+- 本机 `uname -sm` 为 `Darwin arm64`，现有 CLI 制品均为 Mach-O arm64。SSH 配置未列出可用的目标验收主机。无影云电脑客户端停在登录界面，无法确认有已分配且已授权的目标环境。
+- `limactl list` 仅列出已停止的 Linux arm64 虚拟机。VirtualBox 注册配置仅有 Ubuntu arm64，`VBoxManage list vms` 因应用可执行文件缺失而失败。Docker 当前环境为 Linux arm64，已有的容器证据见上节。Linux 双架构仍缺已授权原生运行环境。
+- GitHub Actions 连接器返回未登录。用只读 `git ls-remote --heads origin refs/heads/shiju` 核对，远端分支不包含 `2bb92f0d1c`。仓库现有 CI 流程用于测试或打包，未配置本计划的真实模型验收。其余五个目标需要可运行当前代码、RustCodeGraph 和已授权指定模型的原生环境。
 
 ## 已有定向证据
 

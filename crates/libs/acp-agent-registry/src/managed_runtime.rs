@@ -180,7 +180,6 @@ pub fn reviewed_agent_command(agent: &str) -> Result<Option<(String, Vec<String>
                 "sigit" => vec!["--acp".into()],
                 "cortex-code" | "trae" => vec!["acp".into(), "serve".into()],
                 "droid" => vec!["exec".into(), "--output-format".into(), "acp".into()],
-                "devin" => vec!["acp".into(), "--process-model".into(), "in-process".into()],
                 _ => vec!["acp".into()],
             },
         )));

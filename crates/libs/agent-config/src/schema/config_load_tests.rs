@@ -27,6 +27,41 @@ fn retired_agent_tool_policy_matches_only_removed_nested_key() {
     assert!(!is_retired_agent_tool_policy("tools.main.tool_policy"));
 }
 
+#[test]
+fn saved_retired_acp_bindings_do_not_prevent_config_load() {
+    let temp = tempfile::tempdir().unwrap();
+    let config = crate::schema::config_load::decode_json_config_with_environment(
+        json!({
+            "agents": {
+                "acp-devin": {
+                    "builtin": true, "provider": "", "model": "",
+                    "runtime": {"kind": "acp", "backend": "devin"}
+                },
+                "custom-retired": {
+                    "provider": "", "model": "",
+                    "runtime": {"kind": "acp", "backend": "devin"}
+                },
+                "custom-codex": {
+                    "provider": "", "model": "",
+                    "runtime": {"kind": "acp", "backend": "codex"}
+                }
+            },
+            "acp": {"devin": {"command": "devin"}, "codex": {"command": "codex-acp"}}
+        }),
+        &config_json_path(temp.path()),
+        temp.path().to_path_buf(),
+        temp.path(),
+        |_| {},
+    )
+    .unwrap();
+
+    assert!(!config.agents.contains_key("acp-devin"));
+    assert!(!config.agents.contains_key("custom-retired"));
+    assert!(config.agents.contains_key("custom-codex"));
+    assert!(!config.acp.contains_key("devin"));
+    assert_eq!(config.acp["codex"].command, "codex-acp");
+}
+
 // 错误路径还要确认原配置或存储保持不变，防止校验失败后留下部分更新。
 #[tokio::test]
 async fn load_config_from_json_root_returns_none_for_missing_or_empty_file() {

@@ -6,7 +6,10 @@ use config_aggregate::Config;
 use vw_api_transport::id::TenantScope;
 #[cfg(not(target_arch = "wasm32"))]
 use tokio::fs;
-use super::config_io::{extract_config_payload, merge_config_payload, normalize_legacy_alias_conflicts, normalize_top_level_table_aliases, read_config_root_json};
+use super::config_io::{
+    extract_config_payload, merge_config_payload, normalize_legacy_alias_conflicts,
+    normalize_top_level_table_aliases, read_config_root_json, remove_retired_acp_bindings,
+};
 use super::config_secrets::{decrypt_config_secrets, encrypt_config_secrets};
 use super::config_validate::validate_config;
 use super::resolve_telegram_allowed_users_env_refs;
@@ -82,6 +85,7 @@ pub async fn load_config_from_toml_path(
         }
         config.config_path = config_path.to_path_buf();
         config.workspace_dir = workspace_dir;
+        remove_retired_acp_bindings(&mut config);
         decrypt_config_secrets(&mut config, vibewindow_dir)?;
         resolve_telegram_allowed_users_env_refs(&mut config.channels_config)?;
         apply_env_overrides(&mut config);
@@ -123,6 +127,7 @@ pub fn decode_json_config_with_environment(
     }
     config.config_path = config_path.to_path_buf();
     config.workspace_dir = workspace_dir;
+    remove_retired_acp_bindings(&mut config);
     decrypt_config_secrets(&mut config, vibewindow_dir)?;
     resolve_telegram_allowed_users_env_refs(&mut config.channels_config)?;
     apply_environment(&mut config);

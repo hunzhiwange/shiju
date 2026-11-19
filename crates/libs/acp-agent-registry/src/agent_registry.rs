@@ -334,15 +334,6 @@ const BUILT_IN_AGENT_DEFINITIONS: &[BuiltInAgentDefinition] = &[
     },
     // Official v0.6.0 extension launches the host-local ACP binary without arguments.
     BuiltInAgentDefinition {
-        name: "devin",
-        display_name: "Devin",
-        command: "devin",
-        args: &["acp"],
-        env: &[],
-        local_command_candidates: &["devin"],
-        local_args: &["acp"],
-    },
-    BuiltInAgentDefinition {
         name: "corust-agent",
         display_name: "Corust Agent",
         command: "corust-agent-acp",

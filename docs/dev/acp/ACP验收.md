@@ -1046,31 +1046,6 @@ Rust重型命令经scripts/cargo_slot.py槽位入口串行执行，对应CARGO_T
 - 自有原生探针已退出，未启动新网关、未PATCH配置、未系统安装；旧自有网关端口仍关闭。Rue.js与前轮结束快照比较6297项零差异，未创建目标目录。仅文档轻量检查，无代码变更，不运行Cargo、单测、Clippy或页面验证。私有证据 `/tmp/shiju-corust-retry-20261118/`（0700）保存官方manifest、release API、校验包、原生协议请求/响应、退出指标、边界及清理记录；供应商二进制与原始载荷不提交。任务仍已阻塞，待有效认证与模型入口证据后继续。
 
 
-## Devin 验收（2026-11-18）
-
-结论：已阻塞，未通过。任务32已有明确阻塞及环境恢复记录；来源任务 `12-Devin.md` 和 `docs/dev/evidence/acp-onboarding-devin.md` 均不存在，不以缺失推定接入通过。
-
-- 当前注册与安装代码已迁移到 `crates/libs/acp-agent-registry/src/agent_registry.rs`、`crates/libs/config-acp-install/src/lib.rs`；注册为 `devin acp`，安装策略明确返回None。`agent-config/src/catalog.rs` 派生builtin预设；`llm-runtime/src/acp/model_source/drivers/mod.rs` 无Devin verified_release及驱动。现有onboarding测试含协议fixture，不能证明真实供应商会话通过。
-- 复用任务30正式shiju 0.6.0产物 `/tmp/shiju-amp-complete-20261118/shiju`，SHA-256 `c01a466afc21a06e643db6341457e404981f06833833c6c327e7a02774758b78`。构建来源沿用任务30的df9f114345adf4f843a0929e88750cb48122ba22加工作区修复，不宣称当前clean HEAD构建；另存当前相关源码摘要，当前源码与拒绝行为一致，不单凭旧产物判定失败。
-- 自有回环网关127.0.0.1:50568，现有开发配置；所有请求携带规定平台10001、公司100010005及Rue.js目录头。installed、agents、ACP及全局配置基线GET均200；安装前后Devin均未安装。POST系统安装HTTP400、客户端退出0、0.000575秒，明确“该 ACP 暂无一键安装命令，请使用官方安装器”；无真实入口及CLI版本可核验，未使用任意脚本替代系统链路。
-- 传入当前对应ACP配置的诊断HTTP200、客户端退出0、0.009044秒，结果startup_failed。模型能力GET HTTP200、客户端退出0、0.000645秒，session_model=unsupported、reason=unsupported_cli，cli_local=supported、connected=false；未改用默认模型冒充指定 `alibaba-token-plan-cn/deepseek-v4.1-flash-1017`。
-- GET确认内置预设acp-devin、builtin=true、runtime.kind=acp、backend=devin、enabled=false。前置安装及模型能力阻塞后未PATCH启用、未发送chat/stream，无SSE、chat.done、会话summary/options或selected_model/full_access绑定证据，未创建编辑器文件。
-- Rue.js `packages/rue/src` 存在；目标acpdemo/devin初始不存在，结束未创建。排除.git、node_modules、target的普通文件SHA-256快照前后6297项零差异。结束GET完整配置与基线相等，无临时配置需要恢复；自有网关已停止、端口关闭，未重启用户服务、未占用Cargo槽位。
-- 未运行Cargo、定向单测、Clippy、桌面编译、浏览器或页面构建：本次无代码修复，复用既有产物，遇到明确能力阻塞后仅完成独立检查与文档轻量检查；不宣称单测或真实会话成功。旧 `.plans/references/rust.md` 不存在，本次无需编译。
-- 本机0700私有证据 `/tmp/shiju-devin-accept-20261118/` 保存原始请求/响应、指标、配置基线与重读、构建与源码摘要、快照、网关日志及清理记录，不提交敏感载荷或供应商二进制。任务33保留已阻塞，待交付系统安装、真实session_model驱动和脱敏接入证据后完整重跑。
-
-
-### Devin 扩大范围重试（2026-11-18）
-
-- 重查共享源码，系统安装仍显式None，session_model驱动仍无Devin已验证版本。进一步核对官方[安装说明](https://docs.devin.ai/cli)、[模型说明](https://docs.devin.ai/cli/models)、[配置格式](https://docs.devin.ai/cli/reference/configuration/config-file)及[认证说明](https://docs.devin.ai/cli/enterprise/devin-auth)。官方支持选模，但上述文档未提供已确认的任意外部供应商base URL配置路径；不把未找到入口夸大为永久不支持。
-- 已安全突破“无已校验发行物”的调查限制：只读取官方install.sh，未执行；按官方current/manifest.json下载3000.13.4 Darwin arm64包，SHA-256 `24b52c2bb312f8ab3d71545a173a69446901b27da5a44300bd03464ab066525b` 与manifest一致。仅将普通文件解出到0700私有目录，未系统安装或写入宿主PATH。初次解压因本机Python不支持tarfile filter参数停止，随后改为逐项校验路径并只提取普通文件成功。
-- 原生--version、--help、acp --help均退出0，版本3000.13.4 (d9a56503ce88)。ACP支持--model/DEVIN_MODEL以及in-process执行。使用隔离HOME/XDG目录、Rue.js cwd、完整原指定模型启动原生ACP，无权限绕过或云引擎替换。initialize成功，protocolVersion=1、agentInfo为affogato/Devin Agent 3000.13.4，认证方式devin-browser。
-- session/new可返回本地会话，但stderr明确报告指定模型未解析并回退默认；响应model.currentValue为swe-1-6-fast、options为空。因此没有提交prompt或把该会话视为成功。继续显式调用session/set_config_option，设置完整原模型，得到-32602 Invalid params（Invalid value for config option model）。第二次探针退出0、耗时0.232574459秒；协议成功或进程退出0不等于指定模型调用成功。
-- auth status退出0但明确Not logged in，models list退出1并要求devin auth login；宿主默认~/.config/devin、~/.local/share/devin、~/.devin不存在，DEVIN_/WINDSURF_/COGNITION_环境变量数量0。当前真实外部前置是有效且获授权的Devin认证；补齐后仍须确认该原模型的可用路由，不能使用默认模型冒充。没有自动开启登录、注册账号、伪造认证或重定向身份服务。未在缺认证及模型绑定证据时发布伪支持驱动。
-- 两次原生探针均已退出（in-process，无共享daemon），未新增网关、未PATCH全局配置、未系统安装或修改权限策略；原自有网关50568端口仍关闭。Rue.js与前轮结束快照比较6297项零差异，目标目录未创建。无代码修复，未运行Cargo、单测、Clippy或页面验证，仅文档轻量检查。任务保持已阻塞，待有效认证及原模型接入条件具备后继续。
-- 新私有证据 `/tmp/shiju-devin-retry-20261118/`（0700）：官方脚本、manifest、校验包、原生帮助、认证状态、模型列表错误、ACP请求/响应/退出指标、边界及清理记录。供应商二进制和原始敏感载荷不提交。
-
-
 ## Harn 验收（2026-11-18）
 
 结论：已阻塞，未通过。任务33已明确阻塞并恢复环境；来源任务 `13-Harn.md` 与 `docs/dev/evidence/acp-onboarding-harn.md` 均不存在，缺失不视为已交付。
@@ -1377,16 +1352,6 @@ Poolside 以原指定模型完成 Rue.js 编辑器落盘验收。保留前次请
 - 私有证据位于 0700 目录 `/tmp/shiju-mimo-code-implementation.wJIgOO/`，包含源码构建、补丁原生探针及真实会话回读。
 - 已缩小受管模式的工具目录。原生回环确认主提示仍有 read、edit、write，且不提供 shell、glob 或 grep，批准写回仍可创建嵌套文件。两项驱动定向单测和 Clippy 重跑退出 0。若需重新创建，先确认旧会话已停止及目录仍为空，再单独授权发起新请求。
 
-### Devin 固定版本安装复验（2026-11-18）
-
-macOS arm64 的一键安装接入已补齐。指定会话模型和 Rue.js 落盘仍阻塞。
-
-- 托管安装固定官方 Devin 3000.13.4 的 HTTPS 下载地址，同时校验压缩包和解包后的二进制 SHA-256。仅提取普通文件 `bin/devin`，复用现有临时目录校验和原子发布。已安装入口解析为 `devin acp --process-model in-process`。本机供应商二进制摘要为 `62e08b13df72b4626a69669d536c460f45e77f0f58ffc82762436dac5dc8f272`。
-- 槽位 3 的安装白名单回归先复现失败，补丁后槽位 10 的同一用例通过。首次冷下载及重复安装通过，耗时 15.30 秒。第二次冷下载在 120 秒超时后失败，随后加入有界重试与断点续传。最终在槽位 3 使用空配置根重跑，1 项通过，耗时 96.76 秒。两个受影响包的 Clippy 退出 0。 共享安装分支也完成 VT Code 0.183.0 官方归档下载、版本及二进制校验。未构建桌面或新网关，未重测 HTTP 安装端点。
-- 新安装的入口在隔离 HOME 和临时工作目录完成 ACP v1 握手和 `session/new`。公开版回退到 `swe-1-6-fast`，显式选择 `alibaba-token-plan-cn/deepseek-v4.1-flash-1017` 返回 `-32602`。认证状态为未登录，模型目录要求先登录。未发送 prompt。
-- 官方固定版随包的 `share/devin/docs/reference/partner-builds.mdx` 说明 OpenAI 兼容自定义端点仅由合作伙伴版提供，获取需要获批 Devin 组织凭据。未携带凭据请求官方安装端点得到 HTTP 403，公开版实测也拒绝合作伙伴专用的 `--disable-tools` 参数。合作伙伴版能否通过 ACP 使用该端点及工具边界尚待验证。
-- 未修改租户或系统默认安装，未启用预设，未启动网关或写入 Rue.js，目标目录仍不存在。原始测试和探针证据在本机 0700 目录 `/tmp/shiju-devin-managed-20261118.tSB9VH/`。取得获授权的合作伙伴版后，先在隔离环境验证真实模型中继、精确选模及工具权限，再重跑原租户的文件落盘验收。
-
 ### Corust 固定版本安装复验（2026-11-18）
 
 macOS arm64 的托管安装已实测，指定模型和 Rue.js 落盘验收仍阻塞。
@@ -1441,17 +1406,6 @@ macOS arm64 的托管安装已实测，指定模型和 Rue.js 落盘验收仍阻
 - 首轮使用私有配置目录但未隔离 HOME，主目录下的数据库仍生效。内置预设启用并成功重读，尝试恢复为缺省条目时接口返回 HTTP 400，禁止删除内置预设。随后经 PATCH 显式设回停用，GET 复查生效，和首轮全局配置相比只剩这一显式停用条目。最终隔离轮再次开启并恢复，GET 的完整配置及预设均与该轮基线相等。
 - 自有网关退出 0、端口关闭，临时配置副本已清理。Rue.js 6351 项普通文件摘要零差异，目标目录不存在。未发送创建请求，未运行 Cargo、页面或浏览器验证。私有证据 `/tmp/shiju-corust-isolated.EENuh1/`、`/tmp/shiju-corust-restore.yWwuic/`、`/tmp/shiju-corust-http.FxSv94/` 及 `/tmp/shiju-corust-http.KdfIEs/`。
 
-### Devin 网关冷安装与新版选模复验（2026-11-18）
-
-固定版网关冷安装和预设回读通过。指定模型仍阻塞。
-
-- 复用包含最终下载重试逻辑的 shiju 0.6.0 共享工作区构建，二进制 SHA-256 为 `fac8d324cf0f408d36954963340f886f97286b531e2f11298bf18289efb90dbd`，核对嵌入的 Devin 安装逻辑与固定归档地址。原平台 10001、公司 100010005 和 Rue.js 目录头下，空配置根冷安装 POST 返回 HTTP 200、curl 退出 0，耗时 88.981082 秒。安装状态 false → true，产物版本和摘要与固定契约一致。普通诊断 HTTP 200，结果 `authentication_required`；能力 GET 返回 `session_model=unsupported`，原因为 `unsupported_cli`。
-- 较早的共享构建缺下载重试逻辑，冷安装 HTTP 400、curl 退出 0、120.633345 秒。相同构建在私有配置中放入上轮已校验的托管运行时后，系统安装 POST HTTP 200、退出 0、0.104479 秒，随后重读仍为已安装。此结果只验证复用已存在的入口。
-- 最终确认内置 `acp-devin` 及其后端，启用后 GET 重读成功，结束后恢复初始停用状态，预设完整相等。配置副本仅多出该预设的显式停用覆写，随后整个配置副本及私有 HOME 均删除。三轮网关退出 0，回环端口关闭。最终 Rue.js 前后 6351 项文件 SHA-256 零差异，目标目录仍不存在。
-- 对照官方公开发布清单，独立下载并校验最新版 3000.14.30821，二进制 SHA-256 为 `985a79f99180f081e13781ac88993a10dfe133d4ba415ffb4c95b22dde037935`。隔离 ACP v1 握手和建会话成功，模型仍回退到 `swe-1-6-fast`，显式选择原全限定模型仍返回 `-32602`。将上游描述的 OpenAI 兼容环境变量指向私有回环并使用占位密钥，选模结果相同。未发 prompt。新版随包文档仍注明自定义端点需要获批组织专供构建，普通模型目录需登录。[官方模型说明](https://docs.devin.ai/cli/models)
-- 本轮无代码改动，未执行新 Cargo 构建、页面或浏览器验证。0700 私有证据保存于 `/tmp/shiju-devin-gateway-20261118.gfS8c8/`。获得获授权构建后，先确认实际 ACP 请求可使用 ShiJu 中继并严格绑定原模型，再执行 Rue.js 落盘验收。
-
-
 ### Cortex Code 受管安装补丁与模型端点复查（2026-11-18）
 
 任务 31 仍为已阻塞。新增 Darwin arm64 系统安装，将 Snowflake 官方 Cortex Code 1.2.46 固定到发布清单的归档 SHA-256。安装从官方 CDN 下载并允许一次续传，也可使用网关配置目录下 `acp-runtime/downloads/coco-1.2.46+175654.6f8561fd271f-darwin-arm64.tar.gz` 中已取得的官方归档。两条路径均在独立暂存目录校验完整 SHA-256，仅解包普通文件和目录，校验原生入口后原子发布。内置解析使用受管入口和 `acp serve`。Cortex 安装器预算 600 秒，网关与桌面请求预算 610 秒。
@@ -1464,28 +1418,6 @@ macOS arm64 的托管安装已实测，指定模型和 Rue.js 落盘验收仍阻
 - 普通诊断 HTTP 200 和 `connected` 覆盖 ACP 初始化。能力端点 HTTP 200，仍报告 `session_model=unsupported`、`reason=unsupported_cli`、`connected=false`。`acp-cortex-code` 已核实为 builtin、backend=cortex-code。临时启用后 GET 读回为 enabled，恢复后与原有效预设相等。完整配置曾仅差一个显式停用覆写，恢复独立实例启动前的私有配置行并重启后，GET 与基线完全相等。两个自有网关均退出 0，端口关闭，私有租户数据库与授权副本已清理。
 - 最终网关验证前后 Rue.js 各 6351 个文件 SHA-256、Git 状态均相同，`acpdemo/cortex-code/` 始终不存在。较早的长构建窗口观测到 `acpdemo/aionrs/src/{App.tsx,style.css}` 及 `acpdemo/omp/{README.md,index.html,src/App.tsx,src/env.d.ts,src/main.tsx,src/style.css,vite.config.mjs}` 的并发改动。上述路径没有本轮写操作。未发送聊天、未取得指定模型绑定、SSE 或编辑器，未运行页面、桌面或全仓验证。本轮原始响应、快照、构建和清理证据位于 0700 目录 `/tmp/shiju-cortex-patch.zStXYG/`。
 
-
-### Devin 本地推理后端复验（2026-11-18）
-
-已确认需求是让 Devin 复用 ShiJu 的阿里模型中继。阻塞点在 Devin 公开二进制的推理入口。
-
-- 对照 Cursor 的固定包补丁，Cursor 的 JavaScript 发行包提供可直接替换的原生代理推理循环入口。Devin 公开发行提供无内部符号的原生 Mach-O 二进制。Cognition 的公开仓库提供发行自动化。[官方发行仓库说明](https://github.com/CognitionAI/devin-cli/blob/main/DEVELOPMENT.md)
-- 从发行二进制找到自带的 `ACP_BACKEND=openai` 使用说明。使用实时回环监听分别启动已安装的 3000.13.4 和官方 3000.14.30821。两个公开版都在处理 ACP initialize 前退出，明确返回 `Invalid ACP_BACKEND: Unknown backend type: openai`。在最新版分别尝试 `DEVIN_MODEL_BACKEND=openai` 与 `DEVIN_DEV_API_PROVIDER=openai`，ACP 建会话成功，精确选择原模型仍返回 `-32602`。四个探针期间回环监听累计收到 0 个请求，停在模型选择前置步骤，未发送推理提示。
-- 保留 `session_model` 能力门控。下一项技术前置是能通过回环验证的 Devin 推理入口，然后才能接入现有阿里中继。本轮未改代码或执行 Cargo，目标目录仍不存在，未删除验收任务。原始探针和脱敏监听计数位于 0700 私有目录 `/tmp/shiju-devin-acp-backend.zr3wmu/`。
-
-
-### Devin 原生推理调用边界（2026-11-18）
-
-- 对校验过的公开版 3000.14.30821 做只读 ARM64 交叉引用检查。确认两处原生代码引用 `/exa.api_server_pb.ApiServerService/GetChatMessage`，另有 `AssignModel` 和模型配置 RPC。二进制中 `OPENAI_API_BASE` 的可定位代码引用出现在批量环境变量字符串表，另一次出现在后端错误提示。未发现 `chat/completions` 或 `/v1/responses` 字面量。静态结果定位了候选调用边界，实际推理和工具续接仍待验证。
-- 使用私有 HOME、临时工作目录及仅允许私有回环出站的 macOS 沙箱运行原版。将 Devin 和 Windsurf 的 URL 指向同一个只记录路径并返回 404 的本地监听器。ACP initialize 和 session/new 成功。无工具的固定文本探针在 session/prompt 返回 `-32000 Authentication required`，没有任何请求抵达监听器。原生进程正常退出。此结果表明仅更换网络地址仍无法到达候选调用。
-- 未修改发行二进制、认证或工具权限，未运行 Cargo，未发 Rue.js 编辑器请求。阿里模型和 ShiJu 中继仍沿用原验收合同。现有公开版尚无已验证的等效注入点，任务保留已阻塞。原始反汇编、回环探针和回执保存在本机 0700 私有目录 `/tmp/shiju-devin-native-call.EFyccs/`。
-
-
-### Devin Linux 及公开发行渠道复验（2026-11-18）
-
-- 官方 stable、Windsurf 和 enterprise 清单均返回 HTTP 200，版本同为 3000.14.30821，macOS arm64 和 Linux arm64 的归档摘要分别完全一致。联邦渠道和 ACP 注册表历史版本 3000.2.17、3000.11.3 的清单请求最终均为 HTTP 403。npm 构建流程使用同一 stable 清单。[官方发行流程](https://github.com/CognitionAI/devin-cli/blob/main/DEVELOPMENT.md)
-- 校验并提取 Linux arm64 公开归档，二进制 SHA-256 为 `02b5ca13f932d5d6537435bbe09acbf836b227e1aded7a875cfa773223b5e23d`。在无外网、只读根文件系统的原生 ARM Linux 容器中运行，同一私有回环提供 OpenAI 端点和默认 API 地址。显式 `ACP_BACKEND=openai` 在 initialize 前退出 1，报 `Unknown backend type: openai`。默认后端握手和建会话成功，无工具短提示仍返回 -32000。回环收到两条分析上报，未收到模型目录或推理请求。
-- 探针容器已退出并自动删除，未挂载原工作区或使用租户凭据。未改代码、未执行 Cargo、未发 Rue.js 创建请求。原始日志位于 0700 私有目录 `/tmp/shiju-devin-linux.KdDN4r/`。仍需可实际执行指定模型推理的 Devin 构建或注入点。
 
 ### Corust 指定模型与 Rue.js 编辑器验收（2026-11-18）
 
@@ -1512,12 +1444,3 @@ macOS arm64 的托管安装已实测，指定模型和 Rue.js 落盘验收仍阻
 - 原请求的成功会话 `ses_1ede8fe02001DMLlZQYPMmLGm1` 返回 HTTP 200、curl 退出 0、198.310074 秒，收到一个 `chat.done` 且无 `chat.error`。运行中 summary/options 确认 `acp-cortex-code`、`cortex-code`、`full_access=true`、`connected=true`、`access_status.support=client_only`。运行中与终态重读均为 `source=session_model`、`provider_id=alibaba-token-plan-cn`、`model=alibaba-token-plan-cn/deepseek-v4.1-flash-1017`。完成后连接释放。共 47 条工具完成事件，含 7 个不同写入调用。
 - 在 `acpdemo/cortex-code/` 核对 `index.html`、`package.json`、`tsconfig.json`、`vite.config.ts`、`src/main.tsx`、`src/style.css` 和 `README.md`。Vite 通过工作区链接读取本仓库 `@rue-js/rue` 的现有构建产物，包入口已核实存在。源码用 Rue 的 signal 和 textarea 实现实时 Unicode 字符数，输入即保存到 localStorage，初始化恢复，README 给出启动命令。未运行页面构建、浏览器或桌面验证。
 - 成功轮 Rue.js 摘要从 6359 项增至 6366 项，差异仅以上 7 个文件。预设恢复为原停用值并重新读回，私有完整配置仅多一个显式停用覆写。两个回环网关均退出 0，端口 56147、56489 已关闭，两份私有租户副本均清理。原开发配置未收到 PATCH。原始证据和逐项校验保存于本机 0700 目录 `/tmp/shiju-cortex-local.Pi6oxR/`，Rue.js 产物留在其工作区。
-
-
-### Devin 免登录验收暂缓（2026-11-18）
-
-用户要求保留原生 `devin acp`，免 Devin 登录，继续选用现有 ShiJu 阿里中继中的 `alibaba-token-plan-cn/deepseek-v4.1-flash-1017`。目前该组合仍阻塞，保留任务 33。
-
-- `jev-gateway` 的公开实测证明正常登录后的 Devin CLI 3000.11.3 可以把 `GetChatMessage` 导向回环代理，并接收工具调用继续下一轮。已按其协议准备只回复固定标记的私有探针，1 项 Connect 帧格式模拟检查通过。官方登录流程已结束，未产生本机登录凭据，未运行认证后的原生探针。[Jev 的原生 CLI 实测](https://github.com/vinilana/jev-gateway#using-it-with-devin)
-- `devin-byok` 的公开源码包含桌面扩展启动的 ACP 子进程包装器，以及由桌面环境提供的本地虚拟身份和兼容服务。尚未验证当前固定版独立 `devin acp` 能否以同样方式使用本地模型并保留原审批边界。Cortex Code 的免登录补丁依赖其发行包内置 Chat Completions 传输，已测 Devin 公开版在握手前拒绝 `ACP_BACKEND=openai`。[桌面 BYOK 说明](https://github.com/cyberlieflife/devin-byok#新电脑安装与本地账户) · [ACP 包装器源码](https://github.com/cyberlieflife/devin-byok/blob/master/cmd/devin-wrapper/main.go)
-- 复跑条件是取得可在隔离环境验证的 Devin 本地推理入口，并确认原生会话、工具权限和模型绑定。独立 CLI 仍未发送指定模型的真实推理请求，Rue.js 目标目录仍不存在。本记录为文档更新，未运行 Cargo。前轮模拟探针位于 0700 私有目录 `/tmp/shiju-devin-auth-relay.ULKCLY/`，没有服务保持运行。

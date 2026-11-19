@@ -30,7 +30,6 @@ static LOGOS: LazyLock<HashMap<&'static str, AcpLogo>> = LazyLock::new(|| {
         svg_logo!("cortex-code", Monochrome),
         svg_logo!("corust-agent", Monochrome),
         svg_logo!("deepagents", Monochrome),
-        svg_logo!("devin", Monochrome),
         svg_logo!("dimcode", Monochrome),
         svg_logo!("dirac", Monochrome),
         svg_logo!("glm-acp-agent", Monochrome),

@@ -181,12 +181,24 @@ pub fn parse_config_contents(contents: &str) -> Result<Config> {
     }
 }
 
+/// Remove saved bindings to the retired ACP backend before validating existing config.
+pub(super) fn remove_retired_acp_bindings(config: &mut Config) {
+    const BACKEND: &str = "devin";
+    config.agents.retain(|_, agent| {
+        !matches!(
+            &agent.runtime,
+            config_agent_profile::AgentRuntime::Acp { backend } if backend == BACKEND
+        )
+    });
+    config.acp.remove(BACKEND);
+}
+
 fn deserialize_config<'de, D>(deserializer: D, format: &str) -> Result<Config>
 where
     D: serde::Deserializer<'de>,
 {
     let mut ignored_paths = Vec::new();
-    let config = serde_ignored::deserialize(deserializer, |path| {
+    let mut config = serde_ignored::deserialize(deserializer, |path| {
         ignored_paths.push(path.to_string());
     })
     .map_err(|error| anyhow::anyhow!("Failed to deserialize {format} config: {error}"))?;
@@ -194,5 +206,6 @@ where
     for path in ignored_paths {
         tracing::warn!(key = %path, format, "Unknown config key ignored during migration");
     }
+    remove_retired_acp_bindings(&mut config);
     Ok(config)
 }

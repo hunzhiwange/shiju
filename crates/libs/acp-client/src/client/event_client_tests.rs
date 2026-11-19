@@ -1144,7 +1144,6 @@ async fn acp_desktop_approval_backend_matrix() {
             "corust-agent",
             "cursor",
             "deepagents",
-            "devin",
             "dimcode",
             "dirac",
             "droid",

@@ -225,7 +225,7 @@ if agent == 'mimo-code':
         'patch_sha256': contract['patch_sha256'], 'sha256': digest(native),
     }))
     raise SystemExit(0)
-if agent in ('devin', 'vtcode'):
+if agent == 'vtcode':
     import platform
     if (platform.system(), platform.machine()) != ('Darwin', 'arm64'):
         raise RuntimeError(f'{agent} reviewed runtime is Darwin-arm64 only')
@@ -247,7 +247,7 @@ if agent in ('devin', 'vtcode'):
         raise RuntimeError(f'{agent} fixed archive checksum mismatch')
     runtime.mkdir()
     native = runtime / contract['bin']
-    entry_name = {'devin': 'bin/devin', 'vtcode': './vtcode'}[agent]
+    entry_name = './vtcode'
     with tarfile.open(archive) as package:
         entries = [entry for entry in package.getmembers() if entry.name == entry_name]
         if len(entries) != 1 or not entries[0].isfile():

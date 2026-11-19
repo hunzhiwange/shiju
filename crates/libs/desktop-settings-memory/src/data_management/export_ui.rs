@@ -16,7 +16,7 @@ pub struct Identity {
 #[derive(Clone, Debug)]
 pub enum Event {
     Feedback(bool, String),
-    Open, Close, Principal(String), Select(DataCategory, bool), Export,
+    Open, Close, Export,
     Downloaded(Identity, u64, Result<Vec<u8>, String>),
     Finished(Identity, u64, Result<bool, String>),
 }
@@ -24,8 +24,6 @@ pub enum Event {
 pub struct State {
     pub open: bool,
     pub busy: bool,
-    pub principal: String,
-    pub categories: Vec<DataCategory>,
     identity: Option<Identity>,
     generation: u64,
 }
@@ -50,12 +48,7 @@ pub fn update(state: &mut State, current: Option<Identity>, client: Option<vw_ga
     if state.identity.as_ref() != Some(&current) || !state.open { return Task::none(); }
     match event {
         Event::Close if !state.busy => state.open = false,
-        Event::Principal(value) if !state.busy => state.principal = value,
-        Event::Select(category, selected) if !state.busy => {
-            state.categories.retain(|entry| *entry != category);
-            if selected { state.categories.push(category); }
-        }
-        Event::Export if !state.busy && !state.categories.is_empty() => {
+        Event::Export if !state.busy => {
             let Ok(client) = client.clone().ok_or(()) else { return Task::none(); };
             let Ok(scope) = ProjectScope::new(current.context.tenant.clone(), current.project.clone().into()) else { return Task::none(); };
             state.busy = true;
@@ -63,8 +56,8 @@ pub fn update(state: &mut State, current: Option<Identity>, client: Option<vw_ga
             let generation = state.generation;
             let request = ExportDataRequest {
                 target: DataManagementTarget { scope, target_host_id: current.host.clone(), principal_id: "desktop-local-user".into() },
-                selections: state.categories.iter().map(|category| DataSelection { category: *category, entries: DataEntrySelection::All }).collect(),
-                format: DataArchiveFormat::Json,
+                selections: vec![DataSelection { category: DataCategory::Preferences, entries: DataEntrySelection::All }],
+                format: DataArchiveFormat::NativePackage,
                 idempotency_key: format!("desktop-export-{}-{generation}", std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap_or_default().as_nanos()),
             };
             let token = token.clone();
@@ -83,7 +76,7 @@ pub fn update(state: &mut State, current: Option<Identity>, client: Option<vw_ga
             };
             return Task::perform(async move {
                 let destination = rfd::AsyncFileDialog::new().set_title("保存脱敏配置导出")
-                    .set_file_name("识矩配置导出.json").add_filter("JSON", &["json"]).save_file().await;
+                    .set_file_name("识矩偏好.shiju-package").add_filter("识矩配置包", &["shiju-package"]).save_file().await;
                 let result = tokio::task::spawn_blocking(move || save_download(destination.map(|f| f.path().to_owned()), &bytes))
                     .await.unwrap_or_else(|_| Err("保存任务失败".into()));
                 message(Event::Finished(current, generation, result))

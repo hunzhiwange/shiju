@@ -32,7 +32,9 @@ fn root() -> Result<PathBuf, String> {
 }
 fn installed_directory(agent: &str, contract: &Contract) -> Result<PathBuf, String> {
     // Install revised contracts beside their prior reviewed runtimes.
-    let revision = if agent == "harn" {
+    let revision = if agent == "sigit" {
+        3
+    } else if agent == "harn" {
         4
     } else if matches!(agent, "aionrs" | "vtcode") {
         2
@@ -48,7 +50,7 @@ fn installed_directory(agent: &str, contract: &Contract) -> Result<PathBuf, Stri
         2
     } else if matches!(
         agent,
-        "hermes" | "junie" | "nova" | "openclaw" | "pi" | "poolside" | "sigit" | "vibe"
+        "hermes" | "junie" | "nova" | "openclaw" | "pi" | "poolside" | "vibe"
     ) {
         2
     } else {

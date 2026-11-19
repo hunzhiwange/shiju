@@ -439,23 +439,24 @@
 -pub async fn connect_session_servers(servers: Vec<ClientServer>) -> SessionServers {
 +async fn connect_session_servers(servers: Vec<ClientServer>) -> SessionServers {
      if servers.is_empty() {
--        return SessionServers::default();
--    }
+         return SessionServers::default();
+     }
 -    if disabled_by_env() {
 -        log::info!(
 -            "mcp: ignoring {} client-supplied server(s), disabled via SIGIT_MCP",
 -            servers.len()
 -        );
-         return SessionServers::default();
-     }
+-        return SessionServers::default();
+-    }
 -
      let mut taken: Vec<String> = MCP
          .get()
          .map(|mcp| mcp.servers.iter().map(|s| s.name.clone()).collect())
-@@ -842,7 +836,165 @@
+@@ -841,8 +835,267 @@
+     }
 
      SessionServers(Arc::new(connected))
- }
++}
 +
 +const MANAGED_STDIO_SANDBOX: &str = r#"
 +(version 1)
@@ -472,7 +473,99 @@
 +(deny process-fork process-exec network* mach-lookup)
 +(allow process-exec (literal (param "command")))
 +"#;
-
++
++/// Find the index that an explicit RustCodeGraph MCP command will open.
++fn rustcodegraph_index(
++    command: &std::path::Path,
++    args: &[String],
++    workspace: &std::path::Path,
++) -> Option<PathBuf> {
++    if command.file_name()? != "rustcodegraph"
++        || args.first()?.as_str() != "serve"
++        || !args.iter().any(|arg| arg == "--mcp")
++    {
++        return None;
++    }
++    let path = args
++        .iter()
++        .enumerate()
++        .find_map(|(position, arg)| match arg.as_str() {
++            "--path" | "-p" => args.get(position + 1).map(String::as_str),
++            _ => arg
++                .strip_prefix("--path=")
++                .or_else(|| arg.strip_prefix("-p=")),
++        });
++    let root = path
++        .map(|path| workspace.join(path))
++        .unwrap_or_else(|| workspace.to_owned());
++    let root = root.canonicalize().ok()?;
++    root.ancestors()
++        .take_while(|root| root.starts_with(workspace))
++        .map(|root| root.join(".rustcodegraph/rustcodegraph.db"))
++        .find(|index| index.is_file() && index.canonicalize().is_ok_and(|real| real == *index))
++}
++
++const INDEX_PREPARATION_SANDBOX: &str = r#"
++(version 1)
++(allow default)
++(deny file-read-data (subpath "/Users") (subpath "/private") (subpath "/Volumes")
++    (subpath "/Library") (subpath "/opt") (subpath "/usr/local") (subpath "/System/Volumes/Data"))
++(allow file-read-data (literal (param "index")) (literal (param "wal"))
++    (literal (param "shm")) (literal "/dev/null"))
++(deny file-write*)
++(allow file-write* (literal (param "wal")) (literal (param "shm")) (literal "/dev/null"))
++(deny process-fork process-exec network* mach-lookup)
++(allow process-exec (literal "/usr/bin/sqlite3"))
++"#;
++
++/// SQLite can leave its WAL sidecars in place after a query-only connection closes.
++/// Prepare them with the system SQLite CLI so the MCP service stays read-only.
++async fn prepare_rustcodegraph_index(index: &std::path::Path) -> Result<(), &'static str> {
++    let index = index.to_str().ok_or("Invalid RustCodeGraph index path")?;
++    let wal = format!("{index}-wal");
++    let shm = format!("{index}-shm");
++    let regular = |path: &str| match std::fs::symlink_metadata(path) {
++        Ok(meta) if meta.is_file() => Ok(true),
++        Ok(_) => Err("Invalid RustCodeGraph SQLite sidecar"),
++        Err(err) if err.kind() == std::io::ErrorKind::NotFound => Ok(false),
++        Err(_) => Err("Could not inspect RustCodeGraph SQLite sidecar"),
++    };
++    let wal_exists = regular(&wal)?;
++    let shm_exists = regular(&shm)?;
++    if wal_exists && shm_exists {
++        return Ok(());
++    }
++
++    let mut command = tokio::process::Command::new("/usr/bin/sandbox-exec");
++    command
++        .env_clear()
++        .kill_on_drop(true)
++        .args(["-p", INDEX_PREPARATION_SANDBOX]);
++    for (name, path) in [("index", index), ("wal", &wal), ("shm", &shm)] {
++        command.args(["-D", &format!("{name}={path}")]);
++    }
++    command
++        .args([
++            "/usr/bin/sqlite3",
++            "-batch",
++            "-bail",
++            "-safe",
++            "-init",
++            "/dev/null",
++            index,
++            ".filectrl persist_wal 1",
++            "PRAGMA busy_timeout=1000; PRAGMA trusted_schema=OFF; PRAGMA query_only=ON; SELECT count(*) FROM sqlite_schema;",
++        ])
++        .stdin(std::process::Stdio::null())
++        .stdout(std::process::Stdio::null())
++        .stderr(std::process::Stdio::null());
++    let status = tokio::time::timeout(HANDSHAKE_TIMEOUT, command.status()).await;
++    if !matches!(status, Ok(Ok(status)) if status.success()) {
++        return Err("Could not prepare the RustCodeGraph index for read-only MCP");
++    }
++    Ok(())
++}
++
 +pub async fn managed_stdio_servers(
 +    servers: &[agent_client_protocol::schema::v1::McpServer],
 +    cwd: &std::path::Path,
@@ -497,6 +590,7 @@
 +        .map(PathBuf::from)
 +        .unwrap_or_else(|| home.join(".config/sigit"));
 +    let mut selected = Vec::with_capacity(servers.len());
++    let mut indexes = std::collections::BTreeSet::new();
 +    for server in servers {
 +        let agent_client_protocol::schema::v1::McpServer::Stdio(server) = server else {
 +            return Err("siGit MCP accepts only isolated stdio services");
@@ -550,6 +644,11 @@
 +                .to_string(),
 +        );
 +        args.extend(server.args.iter().cloned());
++        indexes.extend(rustcodegraph_index(
++            &server.command,
++            &server.args,
++            &workspace,
++        ));
 +        selected.push(ClientServer {
 +            name: server.name.clone(),
 +            transport: ClientTransport::Stdio {
@@ -558,6 +657,9 @@
 +                env: vec![("OPENAI_API_KEY".into(), String::new())],
 +            },
 +        });
++    }
++    for index in indexes {
++        prepare_rustcodegraph_index(&index).await?;
 +    }
 +    let connected = connect_session_servers(selected).await;
 +    if connected.0.iter().any(|server| server.tools().is_empty()) {
@@ -587,8 +689,8 @@
 +        }
 +    }
 +    Ok(())
-+}
-+
+ }
+
 +pub async fn call_reviewed_tool(name: &str, arguments: &str) -> Result<String, String> {
 +    let session = session_servers();
 +    let (server, remote_name) = session
@@ -618,7 +720,7 @@
  /// Make `servers` the live session's set. Called whenever `main.rs` installs a
  /// session, so a thread never sees another thread's servers.
  pub fn set_session_servers(servers: SessionServers) {
-@@ -912,7 +1064,7 @@
+@@ -912,7 +1165,7 @@
      };
 
      match call_server(server, &remote_name, args).await {
@@ -627,7 +729,7 @@
          Err(error) => format!("Error: {error}"),
      }
  }
-@@ -924,7 +1076,7 @@
+@@ -924,7 +1177,7 @@
      server: &ServerConn,
      remote_name: &str,
      args: Value,
@@ -636,7 +738,7 @@
      let timeout = if server.name == "xcode" {
          XCODE_CALL_TIMEOUT
      } else {
-@@ -970,7 +1122,8 @@
+@@ -970,7 +1223,8 @@
                  .map_err(|error| format!("server '{}': {error:#}", server.name))?
          }
      };

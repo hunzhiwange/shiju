@@ -33,6 +33,7 @@ Each MCP invocation uses the existing ACP host approval. An MCP error
 becomes a failed tool event, and discovery with an empty tool catalog fails
 session setup.
 
-RustCodeGraph 1.2.10 requires usable SQLite WAL/SHM sidecars to open a
-fresh index under the read-only policy. The private acceptance probe opens
-a host-owned SQLite read transaction to prepare those sidecars.
+For an indexed workspace, siGit automatically prepares missing SQLite
+sidecars before launching an explicit RustCodeGraph stdio service. The
+macOS system SQLite helper can write only the sidecars and exits before the
+read-only service starts. Existing workspace MCP configuration is enough.

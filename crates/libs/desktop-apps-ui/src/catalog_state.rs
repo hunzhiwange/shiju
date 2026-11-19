@@ -59,6 +59,7 @@ pub struct AppsCatalogState<
     pub navigation_generation: u64,
     pub third_party_skills: ThirdPartySkills,
     pub third_party_mcp_scope: ThirdPartyMcpScope,
+    pub commands: CommandsState,
     pub query: String,
     pub hovered: Option<vw_api_app_identity::AppId>,
     pub pending_tray_app: Option<vw_api_app_identity::AppId>,
@@ -220,6 +221,7 @@ impl<
         navigation_generation: 0,
         third_party_skills: Default::default(),
         third_party_mcp_scope: Default::default(),
+        commands: Default::default(),
         query: Default::default(),
         hovered: Default::default(),
         pending_tray_app: Default::default(),
@@ -235,4 +237,29 @@ impl<
         generation: Default::default(),
         loaded_at: Default::default(),
     } }
+}
+
+/// Transient copy feedback uses a monotonically increasing request identity.
+#[derive(Clone, Debug, Default)]
+pub struct CommandsState {
+    /// 1: install, 2: uninstall, 3: installation diagnostics.
+    pub panel: Option<u8>,
+    pub platform: usize,
+    pub method: usize,
+    pub inferred: bool,
+    pub diagnostics_loading: bool,
+    pub diagnostics_error: Option<String>,
+    pub diagnostics: Vec<(String, Vec<String>)>,
+    pub sequence: u64,
+    pub copied: std::collections::BTreeMap<usize, u64>,
+}
+impl CommandsState {
+    pub fn invalidate(&mut self) {
+        self.panel = None;
+        self.clear_feedback();
+    }
+    pub fn clear_feedback(&mut self) {
+        self.sequence = self.sequence.wrapping_add(1);
+        self.copied.clear();
+    }
 }

@@ -17,6 +17,7 @@ use vw_api_app_operations::AppActionPreviewRequest;
 pub enum Action {
     Refresh, QueryInput(String), ConnectionOpen, LocalConnect,
     ToggleDetails(AppId), RefreshObservation(AppId),
+    CommandsOpen(u8),
     PreferencesOpen, LaunchOpen(AppId, AppInstallationId),
     Preview(AppActionPreviewRequest), LifecycleClose, LifecycleConfirm, LifecycleRefresh, LifecycleCancel,
     Drag(drag::DragMessage), Providers(AppId), Prompts(AppId), Download,

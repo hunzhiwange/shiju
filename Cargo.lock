@@ -23420,6 +23420,7 @@ dependencies = [
 name = "vw-desktop"
 version = "0.6.0"
 dependencies = [
+ "app-lifecycle",
  "anyhow",
  "arboard",
  "audio-capture",

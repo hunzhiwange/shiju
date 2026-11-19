@@ -1,4 +1,5 @@
 pub(crate) mod catalog;
+pub(crate) mod commands;
 pub(super) mod details;
 pub(crate) mod drag;
 pub(crate) mod lifecycle;
@@ -43,6 +44,7 @@ pub(crate) fn view_overlays<'a>(
     let base = crate::app::components::system_settings_prompts::templates::overlay(&state.prompts.templates, base);
     let base = crate::app::components::system_settings_prompts::pi_files::overlay(&state.prompts.pi_files, base);
     let base = crate::app::components::agent_apps_high_availability_policy::overlay(&state.high_availability, base);
+    let base = commands::overlay(state, base);
     launch::overlay(
         state, i18n, theme,
         preferences::overlay(state, i18n, theme,
@@ -67,6 +69,7 @@ pub(super) fn domain_event(action: desktop_settings_apps::system_settings_apps::
     use desktop_settings_apps::system_settings_apps::Action;
     use crate::app::message::settings::apps_lifecycle::LifecycleMessage;
     let value = match action {
+        Action::CommandsOpen(panel) => AppsCatalogMessage::Commands(commands::Event::Open(panel)),
         Action::Refresh => AppsCatalogMessage::Refresh,
         Action::QueryInput(value) => AppsCatalogMessage::QueryInput(value),
         Action::ConnectionOpen => AppsCatalogMessage::ConnectionOpen,

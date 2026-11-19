@@ -32,6 +32,7 @@ pub(crate) type AppsCatalogState = desktop_apps_ui::catalog_state::AppsCatalogSt
 >;
 pub fn reset_if_context_changed(state: &mut AppsCatalogState, context: &AgentAppsContext) -> bool {
     if !crate::app::message::settings::apps_catalog::catalog_input(state).reset_if_context_changed(context) { return false; }
+    state.commands.invalidate();
     state.model_diagnostics.invalidate_access();
     state.external_sessions.invalidate();
     state.routing.invalidate();

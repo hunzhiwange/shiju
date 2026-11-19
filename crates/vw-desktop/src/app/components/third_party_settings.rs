@@ -360,6 +360,7 @@ pub(crate) fn navigate(app: &mut App, page: ThirdPartyPage) -> Task<Message> {
 
 /// Invalidate transient UI and request generations without changing domain targets.
 pub(crate) fn invalidate(app: &mut App) {
+    app.apps_catalog.commands.invalidate();
     use crate::app::message::settings::skills;
     for event in [
         SettingsMessage::SkillRepositories(skills::repo_modal::Event::Close),

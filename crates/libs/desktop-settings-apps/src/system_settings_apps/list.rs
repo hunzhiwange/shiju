@@ -67,6 +67,17 @@ pub fn view<'a, M: Clone + 'static>(state: &ViewState<'a>, help_heading: impl Fn
             Action::Refresh,
             !state.loading && state.drag.source.is_none(), message
         ),
+        settings_select(
+            ["诊断安装冲突", "手动安装命令", "手动卸载命令", "应用设置"],
+            None,
+            move |choice| message(match choice {
+                "诊断安装冲突" => Action::CommandsOpen(3),
+                "手动安装命令" => Action::CommandsOpen(1),
+                "手动卸载命令" => Action::CommandsOpen(2),
+                _ => Action::PreferencesOpen,
+            }),
+        ).placeholder("⋯").width(56.)
+            .disabled(state.loading || state.drag.source.is_some()),
         action(
             "应用设置",
             Icon::Sliders,

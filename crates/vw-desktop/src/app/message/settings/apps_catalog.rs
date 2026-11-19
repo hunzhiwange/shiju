@@ -6,6 +6,7 @@ use iced::Task;
 
 #[derive(Clone)]
 pub enum AppsCatalogMessage {
+    Commands(crate::app::components::system_settings_apps::commands::Event),
     SelectApp(vw_api_app_identity::AppId),
     SelectPromptApp(vw_api_app_identity::AppId),
     Navigate(desktop_ui_controls::settings_navigation::ThirdPartyPage),
@@ -65,6 +66,7 @@ impl std::fmt::Debug for AppsCatalogMessage {
 }
 pub(super) fn update(app: &mut App, message: AppsCatalogMessage) -> Task<Message> {
     match message {
+        AppsCatalogMessage::Commands(event) => return crate::app::components::system_settings_apps::commands::update(app, event),
         AppsCatalogMessage::SelectPromptApp(id) => {
             return crate::app::components::system_settings_prompts::list::select(app, id);
         }

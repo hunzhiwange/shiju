@@ -100,3 +100,9 @@ siGit 启动显式挂载的 RustCodeGraph 前，会自动检查所选工作区�
 
 - v2 对照使用刚生成、没有 SQLite 辅助文件的索引。无挂载通过，挂载在 `session/new` 返回 `siGit MCP service failed to expose tools in the read-only sandbox`。本轮夹具没有打开 SQLite 读事务。
 - 使用同一索引和夹具，实装 v3 自动准备后，三个工具均获批、执行并把真实符号和源码返回给模型。无挂载、拒绝挂载、撤除、空列表及挂载列表重载、官方读取拒绝均通过。额外验证将 WAL 路径替换为指向工作区外文件的符号链接时，建会话拒绝，目标文件内容保持一致。运行前后主索引 SHA-256 一致。
+
+使用 SHA-256 为 `9ea5a8de5662277e808c8331b7f5f11f0d542b3af4c2b19f6c135cee5382b233` 的新网关补跑受影响的真实模型挂载轮。网关通过槽位 3 定向构建，退出 0。仍使用上一节的提示、模型、租户及 `full_access=true`。私有副本使用同一工作区 MCP 配置，启动前不存在辅助文件，测试脚本未连接 SQLite。
+
+会话 `ses_1f212ff88001Nq85YgI2MFuM1c` 返回 HTTP 200，curl 退出 0，耗时 23.690 秒。SSE 收到一个 `chat.done`，无 `chat.error`。查询 `call_cf2d0cb079024ae8b3ac604d` 返回 `createRueSiteApp`（`app/app.tsx:32`），调用方 `call_13d51bd662a34467877fc506` 返回 `mountRueSiteApp`（`app/app.tsx:39`），节点 `call_9f21e39bb7a041628ebdde76` 返回 `useApp` 转调 `_$createApp` 的真实源码。会话回读确认 `acp-sigit / sigit`、指定 session model 和 `client_only`。启动后出现两个辅助文件，主索引 SHA-256 保持一致。
+
+已确认私有网关和目标工具进程退出，临时挂载与凭据副本已清理。

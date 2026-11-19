@@ -1,0 +1,64 @@
+--- a/dist/protocol/agent.js
++++ b/dist/protocol/agent.js
+@@ -2132,15 +2132,7 @@
+         }), "utf8");
+     }
+     availableToolDefinitions(mcpTools = null) {
+-        const names = ["read_file", "write_file", "edit_file", "todowrite", "list_files", "run_command", "web_search", "web_reader"];
+-        if (this.visionClientExplicit ? this._visionClient !== null : true) {
+-            names.push("image_analysis");
+-        }
+-        const allowed = new Set(names);
+-        return [
+-            ...TOOL_DEFINITIONS.filter((tool) => allowed.has(tool.function.name)),
+-            ...(mcpTools?.toolDefinitions ?? []),
+-        ];
++        return mcpTools?.toolDefinitions ?? [];
+     }
+ }
+ /**
+--- a/dist/protocol/system-prompt.js
++++ b/dist/protocol/system-prompt.js
+@@ -50,15 +50,11 @@
+ export function buildSystemPrompt(input) {
+     const { cwd, tools, agentsMd } = input;
+     const sections = [
+-        PERSONA,
+         renderEnvironment(cwd),
+-        TOOLS_TEMPLATE.replace("__TOOLS__", tools.join(", ")),
++        tools.length ? `Available session tools: ${tools.join(", ")}.` : "No tools are mounted in this session.",
+         FILE_SYSTEM_GUIDELINES,
+         VERSION_CONTROL,
+-        CODE_QUALITY,
+-        TONE,
+-        WORKFLOW,
+-        IMAGE_HANDLING,
++        "Use only the evidence needed to answer. Once it is sufficient, answer directly. Follow the user's requested output format exactly.",
+     ];
+     if (agentsMd !== undefined && agentsMd.trim().length > 0) {
+         sections.push(renderProjectContext(agentsMd));
+--- a/dist/tools/executor.js
++++ b/dist/tools/executor.js
+@@ -222,6 +222,11 @@
+      * Returns a plain text result that can be fed back to GLM as a tool message.
+      */
+     async execute(toolCallId, toolName, rawArguments) {
++        if (!this.sessionMcpTools?.hasTool(toolName)) {
++            const message = `Error: tool "${toolName}" is not mounted in this session`;
++            await this.failedToolCall(toolCallId, toolName, {}, message);
++            return { content: message, outcome: "completed" };
++        }
+         const validation = validateToolArguments(toolName, rawArguments);
+         if (!validation.ok) {
+             const message = `Error: ${validation.message}`;
+@@ -1152,6 +1157,10 @@
+         try {
+             const mcpResult = await this.sessionMcpTools.callTool(toolName, args, this.signal);
+             const text = unwrapToolText(mcpResult);
++            if (mcpResult?.isError === true) {
++                await this.markFailed(toolCallId, boundCardText(text));
++                return { content: text };
++            }
+             await this.connection.sessionUpdate({
+                 sessionId: this.sessionId,
+                 update: {

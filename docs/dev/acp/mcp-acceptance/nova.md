@@ -97,3 +97,11 @@ Nova 继续固定在 npm 1.1.65，受管安装目录升到 v2。宿主只把显�
 ### 网关回归状态
 
 最新源码的 `cargo build -j 1 --locked -p vw-cli --bin shiju` 在槽位 9 退出 101。Nova 对应注册、协议和定向测试已编译。共享工作区的 `vw-agent` 同时读到 MiMo 与 VT Code 的新调用和旧版依赖产物，报缺少 `ManagedMcpApproval`、`prepare_stdio_mcp_launch`、`verify_vtcode_mcp_executable` 等六处编译错误。本次构建未产出更新后的网关，修订后的 SSE 三轮待回归。现有网关和用户全局 Nova 配置未改，探针和临时网关均已退出。
+
+## 新标准网关回归
+
+共享构建 SHA-256 为 `28793fbd08778fb50798533905a8aeb09dea69d4cdfd1589c7f9f76fa5255419`，包含前次 Nova 允许列表修复，隔离安装的六个文件均匹配契约。无挂载 `ses_1f1e33067001tl0MO0TtL1PcHR` 与撤除 `ses_1f1e36c5e001LFUIIA3egp9nYz` 均收到 `chat.done`，官方能力查询保持可用。挂载会话 `ses_1f1e363a6001OpuAhtXpUOhUhz` 在投影目录时收到 `Selected Nova MCP servers have no permitted tools`。三轮 HTTP 均 200。
+
+对失败轮使用相同沙箱、目录、图谱二进制与索引独立执行 `tools/list`，成功发现 8 个图谱工具。问题在会话 runner 把本地目录 ID 写进 `acp_allowed_tools`，其中没有 Nova 在受管连接中才发现的工具。修复仅对 Nova 保留进入 runner 时已有的显式 ACP 列表，继续通过受管入口执行会话限制和服务级允许与拒绝策略。
+
+槽位 6 构建已编译变更后的 `session-engine`，随后在共享工作区的 `gateway-mcp` 退出 101。目录管理的进行中修改引用了尚未同步的 `McpSafeExportResponse`、`McpCatalogStore::safe_export`、`update_record` 和更新字段。运行时无新增网关可用，修复后三轮等待可构建的共享代码。槽位的两个缓存路径均为仓库 `target/rust-slot-6`，构建命令为 `python3 scripts/cargo_slot.py cargo build -j 1 --locked -p vw-cli --bin shiju`。

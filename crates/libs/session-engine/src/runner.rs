@@ -342,7 +342,9 @@ pub fn run<H: RunnerHost>(
         &prompt_tool_ids,
         &req.options,
     );
-    if is_acp {
+    // Nova discovers its selected MCP tools in the managed ACP connection. The local
+    // tool catalog can omit them, so keep only the explicit ACP list for Nova.
+    if is_acp && req.options.get("acp_agent").and_then(Value::as_str) != Some("nova") {
         req.options["acp_allowed_tools"] =
             serde_json::json!(allowed_tools.iter().cloned().collect::<Vec<_>>());
     }

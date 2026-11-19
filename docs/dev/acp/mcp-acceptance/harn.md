@@ -83,3 +83,5 @@ v3 只用原生执行更新中的完整参数绑定逐次审批，同一调用 I
 | 撤除 | `01a1f195-bdcb-7463-9508-76433bc8f8a4` | 0 / 0 / 0 | 6 | `end_turn` |
 
 17 次调用均有同 ID 的开始、批准及成功完成，并逐项匹配发送给模型的工具回复正文。其中 `call_03414ca4cd97489996d1a81b` 返回 `createRueSiteApp`（`app/app.tsx:32`），`call_34d016bb441e4fbb82e59ded` 返回 `mountRueSiteApp`（`app/app.tsx:39`），`call_9576f7aae9de4bcf9a750b45` 返回 `useApp` 转发给 `_$createApp` 的定义（`packages/runtime/src/hooks/useApp.ts:4`）。最终答复引用三项回传证据，并追到 `packages/runtime/src/compiler-runtime/app.ts:57` 的工厂。两轮对照的模型工具目录和原始 ACP 事件均无图谱服务，也无返回结果。此处是原生真实模型证据，HTTP 网关仍需使用包含 v3 摘要的链接产物。
+
+共享网关构建尝试在 `vw-agent` 的 MiMo 与 VT Code 接口处失败，编译日志包括缺少 `ManagedMcpApproval`、`verify_vtcode_mcp_executable` 及 `start_with_routes_and_vtcode_catalog`。该次未链接出网关。随后共享 Rust 编译连续被其他任务占用，按串行规则未另起重型构建。保留 HTTP 三轮与宿主默认配置定向测试待回归。

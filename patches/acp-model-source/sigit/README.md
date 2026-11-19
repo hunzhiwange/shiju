@@ -20,3 +20,24 @@ This is a modified, locally built managed artifact, not an unmodified official
 release. The upstream protocol version remains 1.7.10; the separate source,
 patch and binary digests in the build receipt identify the reviewed derivative.
 Retain the upstream LICENSE and NOTICE when redistributing derived artifacts.
+
+## Explicit stdio MCP prototype
+
+`session-mcp.patch` layers on top of `host-boundary.patch` for siGit 1.7.10.
+Apply it with `patch -p1` in the already patched upstream source tree and
+build the `sigit` binary through the repository Cargo slot runner. The
+managed installer still selects the existing reviewed patch.
+
+The prototype confines each explicitly selected stdio service to a macOS
+read-only sandbox, with the requested workspace as its working directory.
+The service starts with a clean environment. Each invocation uses siGit's
+existing ACP host approval, and MCP errors are reported as failed tool
+events. A configured service that exposes no tools fails session setup.
+
+RustCodeGraph 1.2.10 requires usable SQLite WAL/SHM sidecars to open a
+fresh index under the read-only policy. The private probe uses a host-owned
+SQLite read transaction to prepare those sidecars. The sandbox tests cover
+real RustCodeGraph queries, isolated environment and denied writes, external
+reads, network connections and process creation. Native ACP integration
+requires a separate acceptance run before the managed installer can select
+this patch.

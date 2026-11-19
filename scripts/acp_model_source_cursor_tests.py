@@ -16,11 +16,13 @@ entry = Path(sys.argv[1]).resolve(strict=True)
 deny = '--deny' in sys.argv[2:]
 refuse_final_tool = '--refuse-final-tool' in sys.argv[2:]
 at_step_limit = refuse_final_tool or '--step-limit' in sys.argv[2:]
-tool_count = 256 if at_step_limit else 70 if '--past-old-limit' in sys.argv[2:] else 1
+tool_count = 2000 if at_step_limit else 257 if '--past-old-limit' in sys.argv[2:] else 1
 with tempfile.TemporaryDirectory(prefix='cursor-native-test-') as directory:
     root = Path(directory)
     root.chmod(0o700)
-    requests = []
+    request_count = 0
+    first_followup = None
+    latest_request = None
     final_tool_sent = threading.Event()
 
     class Handler(http.server.BaseHTTPRequestHandler):
@@ -28,21 +30,25 @@ with tempfile.TemporaryDirectory(prefix='cursor-native-test-') as directory:
             pass
 
         def do_POST(self):
+            global request_count, first_followup, latest_request
             body = json.loads(self.rfile.read(int(self.headers['content-length'])))
             if self.path != '/v1/chat/completions':
                 self.send_response(404)
                 self.end_headers()
                 self.wfile.write(b'{}')
                 return
-            requests.append(body)
+            request_count += 1
+            if request_count == 2:
+                first_followup = body
+            latest_request = body
             assert self.headers['Authorization'] == 'Bearer fixture'
             assert body['model'] == 'selected'
-            if len(requests) == tool_count + 1:
+            if request_count == tool_count + 1:
                 assert sum(m['role'] == 'tool' for m in body['messages']) == tool_count
                 if at_step_limit:
                     assert body.get('tool_choice') == 'none'
-            if len(requests) <= tool_count or refuse_final_tool:
-                call_id = 'save-fixture' if len(requests) == 1 else f'save-fixture-{len(requests)}'
+            if request_count <= tool_count or refuse_final_tool:
+                call_id = 'save-fixture' if request_count == 1 else f'save-fixture-{request_count}'
                 delta = {'reasoning_content': 'fixture reasoning', 'tool_calls': [{'index': 0, 'id': call_id, 'type': 'function', 'function': {
                     'name': 'shell', 'arguments': json.dumps({'command': "printf 'native tool result' > created.txt"})}}]}
                 reason = 'tool_calls'
@@ -53,7 +59,7 @@ with tempfile.TemporaryDirectory(prefix='cursor-native-test-') as directory:
             self.end_headers()
             self.wfile.write(('data: ' + json.dumps({'choices': [{'delta': delta, 'finish_reason': reason}]}) +
                               '\n\ndata: [DONE]\n\n').encode())
-            if refuse_final_tool and len(requests) == tool_count + 1:
+            if refuse_final_tool and request_count == tool_count + 1:
                 final_tool_sent.set()
 
     server = http.server.ThreadingHTTPServer(('127.0.0.1', 0), Handler)
@@ -85,7 +91,7 @@ with tempfile.TemporaryDirectory(prefix='cursor-native-test-') as directory:
         updates = []
         approvals = 0
         try:
-            deadline = time.monotonic() + 60
+            deadline = time.monotonic() + (600 if at_step_limit else 60)
             while time.monotonic() < deadline:
                 try:
                     message = incoming.get(timeout=1)
@@ -105,7 +111,7 @@ with tempfile.TemporaryDirectory(prefix='cursor-native-test-') as directory:
                           'prompt': [{'type': 'text', 'text': 'Create created.txt using save-file then finish.'}]}})
                 elif message.get('id') == 3 and 'result' in message:
                     assert message['result']['stopReason'] == 'end_turn'
-                    if len(requests) == tool_count + 1:
+                    if request_count == tool_count + 1:
                         session_id = json.loads((root / 'session-id').read_text())
                         send({'id': 4, 'method': 'session/load', 'params': {'sessionId': session_id, 'cwd': str(workspace), 'mcpServers': []}})
                     else:
@@ -121,27 +127,27 @@ with tempfile.TemporaryDirectory(prefix='cursor-native-test-') as directory:
                     option = next(o for o in message['params']['options'] if o['kind'] == ('reject_once' if deny else 'allow_once'))
                     send({'id': message['id'], 'result': {'outcome': {'outcome': 'selected', 'optionId': option['optionId']}}})
             if refuse_final_tool:
-                assert not completed and len(requests) == tool_count + 1
+                assert not completed and request_count == tool_count + 1
                 assert final_tool_sent.wait(timeout=1)
                 assert sum(u.get('sessionUpdate') == 'tool_call' for u in updates) == tool_count
                 print('PASS: native ACP rejects tool execution after the step limit')
                 sys.exit(0)
-            assert completed, 'Native Cursor did not complete within 60 seconds'
+            assert completed, 'Native Cursor did not complete before the test deadline'
             assert approvals > 0, 'Native shell did not request current client approval'
             assert not (root / 'created.txt').exists(), 'Shell used the ACP process directory'
             if deny:
                 assert not (workspace / 'created.txt').exists()
             else:
                 assert (workspace / 'created.txt').read_text().strip() == 'native tool result'
-            assert len(requests) == tool_count + 2
-            assistant = next(m for m in requests[1]['messages'] if m['role'] == 'assistant')
+            assert request_count == tool_count + 2
+            assistant = next(m for m in first_followup['messages'] if m['role'] == 'assistant')
             assert assistant['reasoning_content'] == 'fixture reasoning'
-            results = [m for m in requests[1]['messages'] if m['role'] == 'tool']
+            results = [m for m in first_followup['messages'] if m['role'] == 'tool']
             assert len(results) == 1 and results[0]['tool_call_id'] == 'save-fixture'
             assert ('rejected' if deny else 'success') in results[0]['content']
             assert any(u.get('status') == 'completed' and u.get('toolCallId') == 'save-fixture' for u in updates)
             assert any(u.get('sessionUpdate') == 'agent_message_chunk' and u['content'].get('text') == '工具已完成' for u in updates)
-            restored = requests[-1]['messages']
+            restored = latest_request['messages']
             assert any(m.get('reasoning_content') == 'fixture reasoning' for m in restored)
             assert any(m.get('tool_call_id') == 'save-fixture' and ('rejected' if deny else 'success') in m['content'] for m in restored)
             print('PASS: native ACP model selection, permission ' + ('rejection' if deny else 'approval') + ', shell execution, resumed history, reasoning and Chinese stream')

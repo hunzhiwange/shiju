@@ -3,7 +3,7 @@
 const { readFileSync, lstatSync } = require('node:fs');
 const { createHash } = require('node:crypto');
 const { isAbsolute } = require('node:path');
-const toolStepLimit = 256;
+const toolStepLimit = 2000;
 
 function validateConfig(c) {
   const u = new URL(c.endpoint);

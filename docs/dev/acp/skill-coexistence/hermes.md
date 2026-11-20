@@ -9,3 +9,25 @@
 - 挂载、撤除及 MCP 拒绝对照均未进入。模型和权限回读、调用 ID、三轮终态及 `0/1/0` 仍待验。Cargo 槽位 6 仅等待编译锁，复用网关取得基线后退出排队。生产 Rust 和制品配置未改动，未运行 Rust 单测。
 
 复验需要能约束 Hermes 原生工具的受审启动方式，或为隔离验收会话明确提供适用授权。还需确认原生技能的受信来源及逐次 MCP 拒绝如何传递到下游。当前仍沿用现有技能和权限门禁。
+
+## 受限沙箱原型
+
+Darwin-arm64 上对经过 v2 合约校验的私有副本应用 [候选补丁](../../../../scripts/acp_skill_coexistence/hermes_sandbox.patch)，并校验补丁涉及的全部输入和输出文件摘要。原型保留私有 `HERMES_HOME/skills` 的原生优先级，将受信会话视图追加为外部根。调用方发出原生 `skill_view` 请求，供应商照常发现、激活和读取技能目录内附件。MCP 在 Hermes 发出实际调用前通过 ACP 请求单次批准。沙箱只连接本次模型和 MCP 回环端口，MCP 回环中继将调用交给独立的真实 stdio 进程。
+
+| 新会话 | ACP 终态 | 相关模型请求 | MCP 批准 | 下游调用 |
+| --- | --- | ---: | --- | ---: |
+| 基线 | `end_turn` | 3 | 无 | 0 |
+| 挂载 | `end_turn` | 6 | 单次批准 | 1 |
+| 撤除 | `end_turn` | 3 | 无 | 0 |
+| 拒绝 | `end_turn` | 6 | 拒绝 | 0 |
+
+四轮均验证原生正文及附件调用 ID，挂载和拒绝轮另验证选中技能调用 ID。挂载轮模型收到真实 MCP 附件，拒绝轮模型收到对应调用的拒绝结果。未选技能未进入目录，初始模型请求仅包含技能元数据。每轮额外检查沙箱拒绝同级私有文件读取、工作区写入、启动 shell 和连接非白名单端口。复验退出 0，独立会话 ID、调用 ID 和补丁摘要位于 `target/acp-skill-coexistence/hermes-sandbox.json`。
+
+从仓库根运行，将 `HERMES_COEXISTENCE_RUNTIME` 指向已有 v2 合约副本：
+
+```sh
+PYTHONPATH="$PWD/scripts" python3 -m acp_skill_coexistence.hermes_sandbox \
+  --output target/acp-skill-coexistence/hermes-sandbox.json
+```
+
+该证据覆盖直接 ACP 会话。正式网关仍需接入受信沙箱启动配置、按租户绑定的原生目录及消费单次 MCP 批准的生产中继。网关 `chat.done`、模型与权限回读、历史恢复及撤销仍待复验。

@@ -56,3 +56,34 @@ PYTHONPATH=scripts python3 -c 'import sys; from cargo_slot import run; sys.exit(
 | 选中技能附件读取 | `toolu_d6a628fe64bec0686b88d7f6` |
 | 批准的 MCP 调用 | `toolu_ad2912b3c57e2ad7337b52e3` |
 | 拒绝的 MCP 调用 | `toolu_2cc0094c843a68f3c9c9885c` |
+
+### 生产网关
+
+复用槽位 3 的共享网关产物，已确认包含 v5 Worker 合约和 Amp 宿主接线。目标与构建目录均为 `/Users/xiangmin/worker/code/shiju/target/rust-slot-3`。网关 SHA-256 为 `678f33a3799c31376b6f3f215214d3474507bcb3bb86bdd34a06678dd46885d2`。复用后取消槽位 11 的重复构建，已核对进程和槽位锁均退出。
+
+```sh
+python3 -c 'from scripts.cargo_slot import run; import sys; sys.exit(run(sys.argv[1:], number=3))' \
+  sh -c 'python3 scripts/verify_acp_skill_coexistence.py --agent amp-acp --gateway-bin "$CARGO_TARGET_DIR/debug/shiju" --output target/acp-skill-coexistence/amp-acp.json'
+```
+
+本次以 `SHIJU_AMP_PROBE_RUNTIME` 指向核验后的私有 v5 制品，复用共享只读 MCP 夹具。命令退出 0。四次独立网关会话均回读 `amp-acp`、`session_model` 和 `coexistence-fixture/deepseek-v4.1-flash-1017`，`full_access=false`，访问能力报告为 `unavailable`。每轮均收到一个 `chat.done`，`chat.error` 为零。
+
+| 轮次 | 网关会话 | 模型流 | 下游 MCP | MCP 审批 |
+| --- | --- | --- | --- | --- |
+| 无挂载 | `ses_e064845f9ffeIjNGOA9mt1rfRZ` | 3 | 0 | 无 |
+| 挂载 | `ses_e06483911ffex4vIxRtmPGvuc3` | 6 | 1 | 批准一次 |
+| 撤除 | `ses_e06482974ffeTcajimQCMD6sjl` | 3 | 0 | 无 |
+| 拒绝 | `ses_e06481e76ffeu9TFKzcGN8XyyE` | 6 | 0 | 拒绝 |
+
+首个模型请求仅见当轮技能目录。正文、附件及 MCP 返回值均在工具执行后按调用 ID 进入续轮。选集和 MCP 工具在撤除轮均未出现。正式结构化证据为 `target/acp-skill-coexistence/amp-acp.json`。
+
+### Rust 定向单测
+
+在槽位 3 串行执行 `cargo test --locked -j 1 -p llm-runtime --lib acp_skill_coexistence_amp_acp -- --test-threads=1`，由 `scripts/cargo_slot.py` 持有目标与构建目录。退出 101，实际运行 0 项。同批在途的 `dimcode.rs:24` 与 `dimcode_tests.rs:21` 在 `acp_option_error` 入参的 `.into()` 处各有一个 E0283，编译在运行测试前终止。DimCode 修复该问题后，复用槽位 9 中由同一 Cargo lib-test 目标生成的共享测试产物，避免重复编译。
+
+```sh
+python3 -c 'from scripts.cargo_slot import run; import sys; sys.exit(run(sys.argv[1:], number=9))' \
+  sh -c 'exec "$CARGO_TARGET_DIR/debug/deps/llm_runtime-85f23fc8970681f8" acp_skill_coexistence_amp_acp --test-threads=1'
+```
+
+目标与构建目录均为仓库的 `target/rust-slot-9`，lib-test SHA-256 为 `333ad5b390bafe16c48793d98ff13873c191958d6c070867044ba6786c9fba33`。复验退出 0，实际运行 1 项并通过，529 项被过滤。两个定向验证槽位均已释放。

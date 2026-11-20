@@ -243,7 +243,23 @@ pub fn view<'a, M: Clone + 'static, C: Clone + 'a>(
         tools = tools.push(search);
     }
     let mut workspace = column![container(tools).padding([0, 7])].spacing(12).height(Length::Fill);
-    for error in [&state.error, &state.preview_error].into_iter().flatten() {
+    let library_read_error = if loaded { None } else { state.error.as_deref() };
+    let preview_read_error = state.preview_error.as_deref();
+    if library_read_error.is_some() || preview_read_error.is_some() {
+        let mut read_errors = column![].spacing(3).width(Length::Fill);
+        for error in [library_read_error, preview_read_error].into_iter().flatten() {
+            read_errors = read_errors.push(text(error).size(13).style(settings_muted_text_style));
+        }
+        let retry = button(text("重试").size(13))
+            .padding([5, 10])
+            .style(rounded_action_btn_style)
+            .on_press_maybe(ready.then(|| message(Event::Open(id))));
+        workspace = workspace.push(
+            container(row![read_errors, retry].spacing(10).align_y(Alignment::Center))
+                .padding([0, 7]),
+        );
+    }
+    if loaded && let Some(error) = &state.error {
         workspace = workspace.push(container(settings_error_banner(error.clone())).padding([0, 7]));
     }
     if let Some(hint) = match id {
@@ -389,7 +405,7 @@ pub fn view<'a, M: Clone + 'static, C: Clone + 'a>(
         } else {
             let empty = catalog.entries.is_empty();
             let title = if empty {
-                format!("{application} 暂无提示词")
+                format!("{application} 还没有提示词")
             } else {
                 "没有匹配的提示词".to_owned()
             };

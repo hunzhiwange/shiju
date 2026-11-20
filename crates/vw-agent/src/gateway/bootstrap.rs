@@ -66,6 +66,12 @@ async fn serve_gateway(
         .await
         .context("provider startup recovery task failed")?
         .map_err(anyhow::Error::msg)?;
+    let database = tokio::task::spawn_blocking(|| {
+        crate::global_database::GlobalDatabase::for_home(&crate::global::paths().home)
+    })
+    .await
+    .context("gateway settings database initialization task failed")?
+    .context("gateway settings database unavailable")?;
     let config_state = Arc::new(Mutex::new(config.clone()));
 
     let hook_runtime = crate::app::agent::hooks::build_hook_runtime(&config)
@@ -208,6 +214,7 @@ async fn serve_gateway(
         .merge(super::router::management_auth_router()
             .layer(from_fn_with_state(state.clone(), skey_auth_middleware)))
         .layer(cors)
+        .layer(axum::Extension(database))
         .layer(axum::Extension(sync));
 
     #[cfg(target_os = "macos")]

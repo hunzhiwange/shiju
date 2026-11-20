@@ -1,11 +1,11 @@
 [package]
 name = "vw-api-app-provider-terminal"
-version = "0.7.0"
+version.workspace = true
 edition = "2024"
 license = "MIT"
 
 [dependencies]
-vw-api-app-provider-base = { path = "../api-app-provider-base", version = "0.7.0" }
-vw-api-app-auth = { path = "../api-app-auth", version = "0.7.0" }
+vw-api-app-provider-base = { path = "../api-app-provider-base" }
+vw-api-app-auth = { path = "../api-app-auth" }
 serde = { version = "1", features = ["derive"] }
 serde_json = { version = "1", features = ["float_roundtrip"] }

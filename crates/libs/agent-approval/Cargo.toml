@@ -1,6 +1,6 @@
 [package]
 name = "agent-approval"
-version = "0.7.0"
+version.workspace = true
 edition = "2024"
 license = "MIT"
 
@@ -11,8 +11,8 @@ doctest = false
 test-support = []
 
 [dependencies]
-config-security = { path = "../config-security", version = "0.7.0" }
-tool-context = { path = "../tool-context", version = "0.7.0" }
+config-security = { path = "../config-security" }
+tool-context = { path = "../tool-context" }
 chrono = { version = "0.4", features = ["serde"] }
 parking_lot = "0.12"
 serde = { version = "1", features = ["derive"] }

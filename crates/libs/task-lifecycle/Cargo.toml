@@ -1,6 +1,6 @@
 [package]
 name = "task-lifecycle"
-version = "0.7.0"
+version.workspace = true
 edition = "2024"
 license = "MIT"
 
@@ -8,13 +8,13 @@ license = "MIT"
 doctest = false
 
 [dependencies]
-agent-database = { path = "../agent-database", version = "0.7.0" }
+agent-database = { path = "../agent-database" }
 anyhow = "1"
 postgres = { version = "0.19.12", features = ["with-chrono-0_4"] }
 serde_json = "1"
 tokio = { version = "1", features = ["rt"] }
-vw-api-task-lifecycle = { path = "../api-task-lifecycle", version = "0.7.0" }
-vw-api-transport = { path = "../api-transport", version = "0.7.0" }
+vw-api-task-lifecycle = { path = "../api-task-lifecycle" }
+vw-api-transport = { path = "../api-transport" }
 
 [target.'cfg(all(not(target_arch = "wasm32"), target_os = "windows"))'.dependencies]
 rusqlite = { version = "0.37.0", features = ["bundled"] }
@@ -23,7 +23,7 @@ rusqlite = { version = "0.37.0", features = ["bundled"] }
 rusqlite = "0.37.0"
 
 [dev-dependencies]
-agent-database = { path = "../agent-database", version = "0.7.0", features = ["test-support"] }
-config-runtime-paths = { path = "../config-runtime-paths", version = "0.7.0" }
+agent-database = { path = "../agent-database", features = ["test-support"] }
+config-runtime-paths = { path = "../config-runtime-paths" }
 tempfile = "3"
 tokio = { version = "1", features = ["rt-multi-thread", "macros"] }

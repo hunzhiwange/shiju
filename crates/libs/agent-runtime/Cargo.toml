@@ -1,6 +1,6 @@
 [package]
 name = "agent-runtime"
-version = "0.7.0"
+version.workspace = true
 edition = "2024"
 license = "MIT"
 
@@ -13,9 +13,9 @@ test-support = []
 
 [dependencies]
 anyhow = "1"
-config-runtime = { path = "../config-runtime", version = "0.7.0" }
-config-runtime-paths = { path = "../config-runtime-paths", version = "0.7.0" }
-runtime-types = { path = "../runtime-types", version = "0.7.0" }
+config-runtime = { path = "../config-runtime" }
+config-runtime-paths = { path = "../config-runtime-paths" }
+runtime-types = { path = "../runtime-types" }
 directories = "5"
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]

@@ -1,6 +1,6 @@
 [package]
 name = "tool-cron"
-version = "0.7.0"
+version.workspace = true
 edition = "2024"
 license = "MIT"
 
@@ -8,10 +8,10 @@ license = "MIT"
 doctest = false
 
 [dependencies]
-agent-config = { path = "../agent-config", version = "0.7.0" }
-agent-cron = { path = "../agent-cron", version = "0.7.0" }
-agent-security = { path = "../agent-security", version = "0.7.0" }
-tool-types = { path = "../tool-types", version = "0.7.0" }
+agent-config = { path = "../agent-config" }
+agent-cron = { path = "../agent-cron" }
+agent-security = { path = "../agent-security" }
+tool-types = { path = "../tool-types" }
 anyhow = "1"
 async-trait = "0.1.89"
 chrono = { version = "0.4", features = ["serde"] }

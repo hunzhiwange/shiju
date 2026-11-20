@@ -1,6 +1,6 @@
 [package]
 name = "agent-paths"
-version = "0.7.0"
+version.workspace = true
 edition = "2024"
 license = "MIT"
 
@@ -8,7 +8,7 @@ license = "MIT"
 doctest = false
 
 [dependencies]
-config-runtime-paths = { path = "../config-runtime-paths", version = "0.7.0" }
+config-runtime-paths = { path = "../config-runtime-paths" }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 directories = "5"

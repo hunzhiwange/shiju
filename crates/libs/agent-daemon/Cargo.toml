@@ -1,6 +1,6 @@
 [package]
 name = "agent-daemon"
-version = "0.7.0"
+version.workspace = true
 edition = "2024"
 license = "MIT"
 
@@ -11,10 +11,10 @@ doctest = false
 observability-otel = ["agent-observability/observability-otel"]
 
 [dependencies]
-agent-heartbeat = { path = "../agent-heartbeat", version = "0.7.0" }
-agent-observability = { path = "../agent-observability", version = "0.7.0" }
-agent-config = { path = "../agent-config", version = "0.7.0" }
-agent-health = { path = "../agent-health", version = "0.7.0" }
+agent-heartbeat = { path = "../agent-heartbeat" }
+agent-observability = { path = "../agent-observability" }
+agent-config = { path = "../agent-config" }
+agent-health = { path = "../agent-health" }
 anyhow = "1"
 async-trait = "0.1"
 chrono = "0.4"
@@ -25,6 +25,6 @@ tokio-util = { version = "0.7", features = ["rt"] }
 reqwest = { version = "0.13", default-features = false, features = ["json", "rustls"] }
 
 [dev-dependencies]
-config-channel-types = { path = "../config-channel-types", version = "0.7.0" }
+config-channel-types = { path = "../config-channel-types" }
 tempfile = "3"
-config-channel-services = { path = "../config-channel-services", version = "0.7.0" }
+config-channel-services = { path = "../config-channel-services" }

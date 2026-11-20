@@ -1,6 +1,6 @@
 [package]
 name = "gateway-app-providers"
-version = "0.7.0"
+version.workspace = true
 edition = "2024"
 license = "MIT"
 
@@ -8,53 +8,52 @@ license = "MIT"
 doctest = false
 
 [dependencies]
-vw-api-task = { path = "../api-task", version = "0.7.0" }
-vw-api-app-provider-extended = { path = "../api-app-provider-extended", version = "0.7.0" }
+vw-api-task = { path = "../api-task" }
+vw-api-app-provider-extended = { path = "../api-app-provider-extended" }
 axum = { version = "0.8.8", features = ["json"] }
 tokio = { version = "1", features = ["rt"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 sha2 = "0.11"
 uuid = { version = "1", features = ["v4"] }
-vw-api-app-provider-terminal = { path = "../api-app-provider-terminal", version = "0.7.0" }
-vw-api-app-provider-environment = { path = "../api-app-provider-environment", version = "0.7.0" }
-agent-paths = { path = "../agent-paths", version = "0.7.0" }
-agent-database = { path = "../agent-database", version = "0.7.0" }
-app-access-service = { path = "../app-access-service", version = "0.7.0" }
-app-provider-services = { path = "../app-provider-services", version = "0.7.0" }
-agent-app-services = { path = "../agent-app-services", version = "0.7.0" }
-model-catalog = { path = "../model-catalog", version = "0.7.0" }
-vw-api-app-identity = { path = "../api-app-identity", version = "0.7.0" }
-vw-api-app-provider-base = { path = "../api-app-provider-base", version = "0.7.0" }
-vw-api-app-provider-edit = { path = "../api-app-provider-edit", version = "0.7.0" }
-vw-api-app-provider-profiles = { path = "../api-app-provider-profiles", version = "0.7.0" }
-vw-api-app-aggregation = { path = "../api-app-aggregation", version = "0.7.0" }
-vw-api-app-auth = { path = "../api-app-auth", version = "0.7.0" }
-vw-api-app-operations = { path = "../api-app-operations", version = "0.7.0" }
-vw-api-transport = { path = "../api-transport", version = "0.7.0" }
-vw-agent-apps = { path = "../../vw-agent-apps", version = "0.7.0" }
+vw-api-app-provider-terminal = { path = "../api-app-provider-terminal" }
+vw-api-app-provider-environment = { path = "../api-app-provider-environment" }
+agent-paths = { path = "../agent-paths" }
+agent-database = { path = "../agent-database" }
+app-access-service = { path = "../app-access-service" }
+app-provider-services = { path = "../app-provider-services" }
+agent-app-services = { path = "../agent-app-services" }
+model-catalog = { path = "../model-catalog" }
+vw-api-app-identity = { path = "../api-app-identity" }
+vw-api-app-provider-base = { path = "../api-app-provider-base" }
+vw-api-app-provider-edit = { path = "../api-app-provider-edit" }
+vw-api-app-provider-profiles = { path = "../api-app-provider-profiles" }
+vw-api-app-aggregation = { path = "../api-app-aggregation" }
+vw-api-app-auth = { path = "../api-app-auth" }
+vw-api-app-operations = { path = "../api-app-operations" }
+vw-api-transport = { path = "../api-transport" }
+vw-agent-apps = { path = "../../vw-agent-apps" }
 
 [dev-dependencies]
 rusqlite = "0.37"
-gateway-aggregation = { path = "../gateway-aggregation", version = "0.7.0" }
-gateway-types = { path = "../gateway-types", version = "0.7.0" }
+gateway-aggregation = { path = "../gateway-aggregation" }
+gateway-types = { path = "../gateway-types" }
 hex = "0.4"
 tempfile = "3"
 tower = { version = "0.5", features = ["util"] }
 tokio = { version = "1", features = ["rt", "macros", "sync"] }
 
-app-settings-store = { path = "../app-settings-store", version = "0.7.0" }
-gateway-app-routing = { path = "../gateway-app-routing", version = "0.7.0" }
-gateway-endpoint = { path = "../gateway-endpoint", version = "0.7.0" }
-gateway-app-provider = { path = "../gateway-app-provider", version = "0.7.0" }
-gateway-http = { path = "../gateway-http", version = "0.7.0" }
-vw-gateway-client = { path = "../../vw-gateway-client", version = "0.7.0" }
-vw-api-model-catalog = { path = "../api-model-catalog", version = "0.7.0" }
+app-settings-store = { path = "../app-settings-store" }
+gateway-app-routing = { path = "../gateway-app-routing" }
+gateway-endpoint = { path = "../gateway-endpoint" }
+gateway-app-provider = { path = "../gateway-app-provider" }
+gateway-http = { path = "../gateway-http" }
+vw-gateway-client = { path = "../../vw-gateway-client" }
+vw-api-model-catalog = { path = "../api-model-catalog" }
 base64 = "0.22"
-agent-gateway = { path = "../agent-gateway", version = "0.7.0" }
+agent-gateway = { path = "../agent-gateway" }
 tracing = "0.1"
 reqwest = { version = "0.13", default-features = false, features = ["json"] }
 
 [dev-dependencies.gateway-pairing]
 path = "../gateway-pairing"
-version = "0.7.0"

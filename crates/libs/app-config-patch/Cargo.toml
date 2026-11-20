@@ -1,6 +1,6 @@
 [package]
 name = "app-config-patch"
-version = "0.7.0"
+version.workspace = true
 edition = "2024"
 license = "MIT"
 
@@ -8,7 +8,7 @@ license = "MIT"
 doctest = false
 
 [dependencies]
-vw-api-hermes-memory = { path = "../api-hermes-memory", version = "0.7.0" }
+vw-api-hermes-memory = { path = "../api-hermes-memory" }
 serde_json = { version = "1", features = ["arbitrary_precision"] }
 serde_yaml = "0.9"
 toml_edit = "0.22"

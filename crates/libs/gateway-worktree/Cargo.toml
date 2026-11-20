@@ -1,6 +1,6 @@
 [package]
 name = "gateway-worktree"
-version = "0.7.0"
+version.workspace = true
 edition = "2024"
 license = "MIT"
 
@@ -9,27 +9,27 @@ doctest = false
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 axum = { version = "0.8.8", features = ["json"] }
-gateway-types = { path = "../gateway-types", version = "0.7.0" }
-worktree-core = { path = "../worktree-core", version = "0.7.0" }
-config-worktree = { path = "../config-worktree", version = "0.7.0" }
-vw-api-transport = { path = "../api-transport", version = "0.7.0" }
-vw-api-worktree = { path = "../api-worktree", version = "0.7.0" }
+gateway-types = { path = "../gateway-types" }
+worktree-core = { path = "../worktree-core" }
+config-worktree = { path = "../config-worktree" }
+vw-api-transport = { path = "../api-transport" }
+vw-api-worktree = { path = "../api-worktree" }
 
-gateway-project = { path = "../gateway-project", version = "0.7.0" }
-agent-config = { path = "../agent-config", version = "0.7.0" }
+gateway-project = { path = "../gateway-project" }
+agent-config = { path = "../agent-config" }
 
 [dev-dependencies]
-worktree-core = { path = "../worktree-core", version = "0.7.0", features = ["test-support"] }
-session-info = { path = "../session-info", version = "0.7.0" }
-agent-paths = { path = "../agent-paths", version = "0.7.0" }
-agent-storage = { path = "../agent-storage", version = "0.7.0" }
-config-runtime-paths = { path = "../config-runtime-paths", version = "0.7.0" }
+worktree-core = { path = "../worktree-core", features = ["test-support"] }
+session-info = { path = "../session-info" }
+agent-paths = { path = "../agent-paths" }
+agent-storage = { path = "../agent-storage" }
+config-runtime-paths = { path = "../config-runtime-paths" }
 tokio-util = { version = "0.7.18", features = ["rt"] }
-agent-project = { path = "../agent-project", version = "0.7.0", features = ["test-support"] }
-agent-database = { path = "../agent-database", version = "0.7.0", features = ["test-support"] }
-session-store = { path = "../session-store", version = "0.7.0" }
-session-engine = { path = "../session-engine", version = "0.7.0" }
-tool-shell = { path = "../tool-shell", version = "0.7.0" }
+agent-project = { path = "../agent-project", features = ["test-support"] }
+agent-database = { path = "../agent-database", features = ["test-support"] }
+session-store = { path = "../session-store" }
+session-engine = { path = "../session-engine" }
+tool-shell = { path = "../tool-shell" }
 anyhow = "1"
 tempfile = "3"
 serde_json = "1"

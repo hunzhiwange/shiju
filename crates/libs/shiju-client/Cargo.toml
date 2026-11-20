@@ -1,6 +1,6 @@
 [package]
 name = "shiju-client"
-version = "0.7.0"
+version.workspace = true
 edition = "2024"
 license = "MIT"
 
@@ -16,10 +16,10 @@ chrono = "0.4"
 reqwest = { version = "0.13", default-features = false, features = ["json", "gzip", "brotli", "deflate", "zstd", "http2", "rustls"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
-gateway-shiju-account = { path = "../gateway-shiju-account", version = "0.7.0" }
-gateway-shiju-app = { path = "../gateway-shiju-app", version = "0.7.0" }
-gateway-shiju-connector = { path = "../gateway-shiju-connector", version = "0.7.0" }
-gateway-shiju-knowledge = { path = "../gateway-shiju-knowledge", version = "0.7.0" }
+gateway-shiju-account = { path = "../gateway-shiju-account" }
+gateway-shiju-app = { path = "../gateway-shiju-app" }
+gateway-shiju-connector = { path = "../gateway-shiju-connector" }
+gateway-shiju-knowledge = { path = "../gateway-shiju-knowledge" }
 
 [dev-dependencies]
 tokio = { version = "1", features = ["rt-multi-thread", "macros", "time"] }

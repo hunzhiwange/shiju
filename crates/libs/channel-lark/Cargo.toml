@@ -1,6 +1,6 @@
 [package]
 name = "channel-lark"
-version = "0.7.0"
+version.workspace = true
 edition = "2024"
 license = "MIT"
 
@@ -10,14 +10,14 @@ doctest = false
 [dependencies]
 rand = "0.10.3"
 serde_json = "1"
-agent-providers = { path = "../agent-providers", version = "0.7.0" }
+agent-providers = { path = "../agent-providers" }
 anyhow = "1"
 async-trait = "0.1.89"
 axum = { version = "0.8.8", features = ["json"] }
 base64 = "0.23"
-channel-support = { path = "../channel-support", version = "0.7.0" }
-channel-types = { path = "../channel-types", version = "0.7.0" }
-config-channel-services = { path = "../config-channel-services", version = "0.7.0" }
+channel-support = { path = "../channel-support" }
+channel-types = { path = "../channel-types" }
+config-channel-services = { path = "../config-channel-services" }
 futures-util = "0.3.32"
 prost = "0.14.3"
 pulldown-cmark = "0.13"
@@ -29,7 +29,7 @@ tracing = "0.1"
 uuid = { version = "1.11", features = ["v4", "js"] }
 
 [dev-dependencies]
-agent-config = { path = "../agent-config", version = "0.7.0" }
+agent-config = { path = "../agent-config" }
 tokio = { version = "1", features = ["io-util", "test-util", "rt-multi-thread"] }
 toml = "0.9"
 tower = { version = "0.5", features = ["util"] }

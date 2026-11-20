@@ -200,7 +200,7 @@ EOF
 }
 
 read -r DEB_ARCH RPM_ARCH <<< "$(target_arch)"
-VERSION="$(read_cargo_field version)"
+VERSION="$(bash "$(dirname "${BASH_SOURCE[0]}")/switch_version.sh" --current)"
 DESCRIPTION="$(read_cargo_field description)"
 LICENSE="$(read_cargo_field license)"
 HOMEPAGE="$(read_cargo_field homepage)"

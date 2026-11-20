@@ -1,6 +1,6 @@
 [package]
 name = "tui-transcript"
-version = "0.7.0"
+version.workspace = true
 edition = "2024"
 license = "Apache-2.0"
 
@@ -12,9 +12,9 @@ doctest = false
 test-support = []
 
 [dependencies]
-tui-cells = { path = "../tui-cells", version = "0.7.0" }
-tui-contracts = { path = "../tui-contracts", version = "0.7.0" }
-tui-highlight = { path = "../tui-highlight", version = "0.7.0" }
+tui-cells = { path = "../tui-cells" }
+tui-contracts = { path = "../tui-contracts" }
+tui-highlight = { path = "../tui-highlight" }
 crossterm = { git = "https://github.com/openai-oss-forks/crossterm", rev = "45fecb9508105988f42fe6ff0441783ed3717f92" }
 ratatui = { version = "0.30.2", features = [
     "unstable-backend-writer",

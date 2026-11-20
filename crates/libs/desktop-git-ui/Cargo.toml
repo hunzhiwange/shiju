@@ -1,6 +1,6 @@
 [package]
 name = "desktop-git-ui"
-version = "0.7.0"
+version.workspace = true
 edition = "2024"
 license = "MIT"
 
@@ -9,34 +9,34 @@ doctest = false
 
 [dependencies]
 serde_json = "1"
-desktop-chat-view = { path = "../desktop-chat-view", version = "0.7.0" }
+desktop-chat-view = { path = "../desktop-chat-view" }
 iced = { version = "0.14", features = ["advanced", "svg"] }
 similar = "2"
-desktop-i18n = { path = "../desktop-i18n", version = "0.7.0" }
-config-ui = { path = "../config-ui", version = "0.7.0" }
-desktop-ui-controls = { path = "../desktop-ui-controls", version = "0.7.0" }
-desktop-assets = { path = "../desktop-assets", version = "0.7.0" }
-desktop-git = { path = "../desktop-git", version = "0.7.0" }
-vw-api-git = { path = "../api-git", version = "0.7.0" }
+desktop-i18n = { path = "../desktop-i18n" }
+config-ui = { path = "../config-ui" }
+desktop-ui-controls = { path = "../desktop-ui-controls" }
+desktop-assets = { path = "../desktop-assets" }
+desktop-git = { path = "../desktop-git" }
+vw-api-git = { path = "../api-git" }
 
 chrono = "0.4"
 unicode-width = "0.2"
 
 iced-code-editor = { git = "https://github.com/doyouhaobaby/iced-code-editor.git", tag = "v0.5.6", features = ["lsp-process"] }
 web-time = "1.1.0"
-desktop-workspace = { path = "../desktop-workspace", version = "0.7.0" }
-gateway-project = { path = "../gateway-project", version = "0.7.0" }
-vw-gateway-client = { path = "../../vw-gateway-client", version = "0.7.0" }
-vw-api-project = { path = "../api-project", version = "0.7.0" }
+desktop-workspace = { path = "../desktop-workspace" }
+gateway-project = { path = "../gateway-project" }
+vw-gateway-client = { path = "../../vw-gateway-client" }
+vw-api-project = { path = "../api-project" }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 git2 = { version = "0.21.0", default-features = false, features = ["https", "ssh", "vendored-libgit2", "vendored-openssl"] }
 
 [dev-dependencies]
 urlencoding = "2"
-session-info = { path = "../session-info", version = "0.7.0" }
+session-info = { path = "../session-info" }
 iced_runtime = "0.14"
 image = "0.25.9"
 tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
 tempfile = "3"
-desktop-chat-tools = { path = "../desktop-chat-tools", version = "0.7.0" }
+desktop-chat-tools = { path = "../desktop-chat-tools" }

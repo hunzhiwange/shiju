@@ -297,7 +297,7 @@ jobs:
                 x86_64-unknown-linux-gnu) deb_arch=amd64; rpm_arch=x86_64 ;;
                 *) echo "Unsupported Linux package target: $target" >&2; exit 1 ;;
               esac
-              version=$(awk -F '"' '/^version = / { print $2; exit }' crates/vw-desktop/Cargo.toml | tr '-' '~')
+              version=$(scripts/switch_version.sh --current | tr '-' '~')
               deb="target/distrib/shiju_${version}_${deb_arch}.deb"
               rpm="target/distrib/shiju-${version}-1.${rpm_arch}.rpm"
               test -s "$deb" && test -s "$rpm"

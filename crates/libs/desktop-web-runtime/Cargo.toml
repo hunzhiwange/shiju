@@ -1,6 +1,6 @@
 [package]
 name = "desktop-web-runtime"
-version = "0.7.0"
+version.workspace = true
 edition = "2024"
 license = "MIT"
 
@@ -8,32 +8,32 @@ license = "MIT"
 doctest = false
 
 [dependencies]
-question-types = { path = "../question-types", version = "0.7.0" }
+question-types = { path = "../question-types" }
 serde_json = "1"
 
 iced = { version = "0.14", features = ["advanced", "image", "svg"] }
-desktop-assets = { path = "../desktop-assets", version = "0.7.0" }
-desktop-i18n = { path = "../desktop-i18n", version = "0.7.0" }
-desktop-ui-controls = { path = "../desktop-ui-controls", version = "0.7.0" }
-config-ui = { path = "../config-ui", version = "0.7.0" }
+desktop-assets = { path = "../desktop-assets" }
+desktop-i18n = { path = "../desktop-i18n" }
+desktop-ui-controls = { path = "../desktop-ui-controls" }
+config-ui = { path = "../config-ui" }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 anyhow = "1"
 base64 = "0.22"
-gateway-mcp = { path = "../gateway-mcp", version = "0.7.0" }
+gateway-mcp = { path = "../gateway-mcp" }
 rand = "0.10.3"
 reqwest = { version = "0.13", default-features = false, features = ["stream", "json", "rustls"] }
 rfd = { version = "0.17", features = ["file-handle-inner"] }
 tempfile = "3"
 tokio = { version = "1", default-features = false, features = ["rt", "macros", "sync", "time", "net"] }
 urlencoding = "2.1"
-vw-api-mcp-network = { path = "../api-mcp-network", version = "0.7.0" }
-vw-gateway-client = { path = "../../vw-gateway-client", version = "0.7.0" }
+vw-api-mcp-network = { path = "../api-mcp-network" }
+vw-gateway-client = { path = "../../vw-gateway-client" }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
 sha2 = "0.11"
 hex = "0.4"
-gateway-endpoint = { path = "../gateway-endpoint", version = "0.7.0" }
+gateway-endpoint = { path = "../gateway-endpoint" }
 tokio = { version = "1", features = ["rt-multi-thread", "io-util"] }
 
 [target.'cfg(all(not(target_arch = "wasm32"), not(windows)))'.dependencies]

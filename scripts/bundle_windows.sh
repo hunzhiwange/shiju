@@ -120,26 +120,23 @@ render_wix_template() {
     exit 1
   fi
 
-  "$(python_bin)" - "$template" "$dst" <<'PY'
-import re
+  local version
+  version="$(bash "$(dirname "${BASH_SOURCE[0]}")/switch_version.sh" --current)"
+  "$(python_bin)" - "$template" "$dst" "$version" <<'PY'
 import sys
 from pathlib import Path
 
 template = Path(sys.argv[1])
 dst = Path(sys.argv[2])
-root = Path.cwd()
-cargo = (root / "crates" / "vw-desktop" / "Cargo.toml").read_text(encoding="utf-8")
-match = re.search(r'^version\s*=\s*"([^"]+)"', cargo, re.MULTILINE)
-if not match:
-    raise SystemExit("failed to read vw-desktop package version")
+version = sys.argv[3]
 
 text = template.read_text(encoding="utf-8")
-text = text.replace("{{ .Version }}", match.group(1))
+text = text.replace("{{ .Version }}", version)
 text = text.replace("{{ .Binary }}", "shi-ju")
 dst.write_text(text, encoding="utf-8")
 
 # WixUI ships a placeholder EULA; display the repository's actual license instead.
-license_text = (root / "LICENSE").read_text(encoding="utf-8")
+license_text = Path("LICENSE").read_text(encoding="utf-8")
 license_text = license_text.replace("\\", "\\\\").replace("{", "\\{").replace("}", "\\}")
 license_rtf = "{\\rtf1\\ansi\\deff0{\\fonttbl{\\f0 Segoe UI;}}\\f0\\fs18\n"
 license_rtf += license_text.replace("\n", "\\par\n") + "}"

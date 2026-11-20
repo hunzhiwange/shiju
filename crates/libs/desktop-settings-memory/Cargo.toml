@@ -1,6 +1,6 @@
 [package]
 name = "desktop-settings-memory"
-version = "0.7.0"
+version.workspace = true
 edition = "2024"
 license = "MIT"
 
@@ -8,34 +8,34 @@ license = "MIT"
 doctest = false
 
 [dependencies]
-config-aggregate = { path = "../config-aggregate", version = "0.7.0" }
+config-aggregate = { path = "../config-aggregate" }
 iced = { version = "0.14", features = ["advanced"] }
-desktop-ui-controls = { path = "../desktop-ui-controls", version = "0.7.0" }
-gateway-device-sync = { path = "../gateway-device-sync", version = "0.7.0" }
-vw-api-transport = { path = "../api-transport", version = "0.7.0" }
-vw-api-app-operations = { path = "../api-app-operations", version = "0.7.0" }
-vw-api-device-sync = { path = "../api-device-sync", version = "0.7.0" }
-vw-api-app-identity = { path = "../api-app-identity", version = "0.7.0" }
-vw-api-project-profiles = { path = "../api-project-profiles", version = "0.7.0" }
+desktop-ui-controls = { path = "../desktop-ui-controls" }
+gateway-device-sync = { path = "../gateway-device-sync" }
+vw-api-transport = { path = "../api-transport" }
+vw-api-app-operations = { path = "../api-app-operations" }
+vw-api-device-sync = { path = "../api-device-sync" }
+vw-api-app-identity = { path = "../api-app-identity" }
+vw-api-project-profiles = { path = "../api-project-profiles" }
 tokio = { version = "1", features = ["time"] }
-desktop-i18n = { path = "../desktop-i18n", version = "0.7.0" }
-config-ui = { path = "../config-ui", version = "0.7.0" }
-vw-gateway-client = { path = "../../vw-gateway-client", version = "0.7.0" }
-gateway-app-data = { path = "../gateway-app-data", version = "0.7.0" }
-gateway-http = { path = "../gateway-http", version = "0.7.0" }
+desktop-i18n = { path = "../desktop-i18n" }
+config-ui = { path = "../config-ui" }
+vw-gateway-client = { path = "../../vw-gateway-client" }
+gateway-app-data = { path = "../gateway-app-data" }
+gateway-http = { path = "../gateway-http" }
 serde_json = "1"
-local-app-auth = { path = "../local-app-auth", version = "0.7.0" }
-desktop-provider-apps = { path = "../desktop-provider-apps", version = "0.7.0" }
-desktop-config = { path = "../desktop-config", version = "0.7.0" }
+local-app-auth = { path = "../local-app-auth" }
+desktop-provider-apps = { path = "../desktop-provider-apps" }
+desktop-config = { path = "../desktop-config" }
 rfd = { version = "0.17", features = ["file-handle-inner"] }
 
-config-memory = { path = "../config-memory", version = "0.7.0" }
+config-memory = { path = "../config-memory" }
 
 [dev-dependencies]
 tempfile = "3"
 iced_runtime = "0.14"
 image = "0.25.9"
-desktop-assets = { path = "../desktop-assets", version = "0.7.0" }
-desktop-settings-providers = { path = "../desktop-settings-providers", version = "0.7.0" }
-desktop-chat-view = { path = "../desktop-chat-view", version = "0.7.0" }
+desktop-assets = { path = "../desktop-assets" }
+desktop-settings-providers = { path = "../desktop-settings-providers" }
+desktop-chat-view = { path = "../desktop-chat-view" }
 tokio = { version = "1", features = ["rt-multi-thread", "macros"] }

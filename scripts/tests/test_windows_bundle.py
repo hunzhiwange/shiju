@@ -128,7 +128,8 @@ for index, argument in enumerate(args):
         ):
             with self.subTest(target=target), tempfile.TemporaryDirectory() as temp:
                 root = Path(temp)
-                for name in ("release/windows/vibewindow.wxs", "crates/vw-desktop/Cargo.toml", "LICENSE"):
+                (root / "Cargo.toml").write_text('[workspace.package]\nversion = "1.2.3"\n')
+                for name in ("release/windows/vibewindow.wxs", "LICENSE"):
                     destination = root / name
                     destination.parent.mkdir(parents=True, exist_ok=True)
                     shutil.copyfile(REPO / name, destination)
@@ -170,6 +171,7 @@ Path(sys.argv[sys.argv.index('-out') + 1]).write_text('fixture MSI')
                 self.assertTrue((output / f"ShiJu-{target}-dist.msi").is_file())
                 document = ET.parse(output / arguments[1])
                 namespaces = {"w": "http://wixtoolset.org/schemas/v4/wxs", "ui": "http://wixtoolset.org/schemas/v4/wxs/ui"}
+                self.assertEqual(document.find("w:Package", namespaces).attrib["Version"], "1.2.3")
                 ui = document.find("w:Package/ui:WixUI", namespaces)
                 folder = ui.attrib["InstallDirectory"]
                 files = document.findall(f".//w:Directory[@Id='{folder}']/w:Component/w:File", namespaces)

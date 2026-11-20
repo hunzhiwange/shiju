@@ -1,6 +1,6 @@
 [package]
 name = "acp-server"
-version = "0.7.0"
+version.workspace = true
 edition = "2024"
 license = "MIT"
 
@@ -8,7 +8,7 @@ license = "MIT"
 doctest = false
 
 [dependencies]
-acp-types = { path = "../acp-types", version = "0.7.0" }
+acp-types = { path = "../acp-types" }
 agent-client-protocol = { version = "0.10.4", features = ["unstable_session_model", "unstable_boolean_config"] }
 async-trait = "0.1.89"
 parking_lot = "0.12"

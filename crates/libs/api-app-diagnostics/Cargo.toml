@@ -1,14 +1,14 @@
 [package]
 name = "vw-api-app-diagnostics"
-version = "0.7.0"
+version.workspace = true
 edition = "2024"
 license = "MIT"
 
 [dependencies]
-vw-api-app-identity = { path = "../api-app-identity", version = "0.7.0" }
-vw-api-transport = { path = "../api-transport", version = "0.7.0" }
-vw-api-mcp-management = { path = "../api-mcp-management", version = "0.7.0" }
-vw-api-app-routing = { path = "../api-app-routing", version = "0.7.0" }
+vw-api-app-identity = { path = "../api-app-identity" }
+vw-api-transport = { path = "../api-transport" }
+vw-api-mcp-management = { path = "../api-mcp-management" }
+vw-api-app-routing = { path = "../api-app-routing" }
 serde = { version = "1", features = ["derive"] }
 
 [dev-dependencies]

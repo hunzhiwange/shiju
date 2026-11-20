@@ -1,6 +1,6 @@
 [package]
 name = "vw-shared"
-version = "0.7.0"
+version.workspace = true
 edition = "2024"
 repository = "https://github.com/hunzhiwange/shiju"
 homepage = "https://github.com/hunzhiwange/shiju"
@@ -8,38 +8,38 @@ description = "Shared utilities for VibeWindow crates"
 license = "MIT"
 
 [dependencies]
-app-self-update = { path = "../libs/app-self-update", version = "0.7.0" }
-desktop-release = { path = "../libs/desktop-release", version = "0.7.0" }
-shell-command = { path = "../libs/shell-command", version = "0.7.0" }
-local-app-auth = { path = "../libs/local-app-auth", version = "0.7.0" }
-runtime-log = { path = "../libs/runtime-log", version = "0.7.0" }
-pasted-text-cache = { path = "../libs/pasted-text-cache", version = "0.7.0" }
-task-file-store = { path = "../libs/task-file-store", version = "0.7.0" }
-session-artifact-store = { path = "../libs/session-artifact-store", version = "0.7.0" }
-task-types = { path = "../libs/task-types", version = "0.7.0" }
-ordered-id = { path = "../libs/ordered-id", version = "0.7.0" }
-session-text = { path = "../libs/session-text", version = "0.7.0" }
-session-ui-types = { path = "../libs/session-ui-types", version = "0.7.0" }
-session-info = { path = "../libs/session-info", version = "0.7.0" }
-message-types = { path = "../libs/message-types", version = "0.7.0" }
-auth-file-store = { path = "../libs/auth-file-store", version = "0.7.0" }
-auth-types = { path = "../libs/auth-types", version = "0.7.0" }
-model-state = { path = "../libs/model-state", version = "0.7.0" }
-model-types = { path = "../libs/model-types", version = "0.7.0" }
-model-catalog-types = { path = "../libs/model-catalog-types", version = "0.7.0" }
-model-reasoning = { path = "../libs/model-reasoning", version = "0.7.0" }
-model-protocols = { path = "../libs/model-protocols", version = "0.7.0" }
-session-paths = { path = "../libs/session-paths", version = "0.7.0" }
-build-identity = { path = "../libs/build-identity", version = "0.7.0" }
-runtime-time = { path = "../libs/runtime-time", version = "0.7.0" }
-display-format = { path = "../libs/display-format", version = "0.7.0" }
-json-extract = { path = "../libs/json-extract", version = "0.7.0" }
-todo-types = { path = "../libs/todo-types", version = "0.7.0" }
-project-types = { path = "../libs/project-types", version = "0.7.0" }
-question-types = { path = "../libs/question-types", version = "0.7.0" }
-permission-types = { path = "../libs/permission-types", version = "0.7.0" }
-snapshot-types = { path = "../libs/snapshot-types", version = "0.7.0" }
-patch = { path = "../libs/patch", version = "0.7.0" }
+app-self-update = { path = "../libs/app-self-update" }
+desktop-release = { path = "../libs/desktop-release" }
+shell-command = { path = "../libs/shell-command" }
+local-app-auth = { path = "../libs/local-app-auth" }
+runtime-log = { path = "../libs/runtime-log" }
+pasted-text-cache = { path = "../libs/pasted-text-cache" }
+task-file-store = { path = "../libs/task-file-store" }
+session-artifact-store = { path = "../libs/session-artifact-store" }
+task-types = { path = "../libs/task-types" }
+ordered-id = { path = "../libs/ordered-id" }
+session-text = { path = "../libs/session-text" }
+session-ui-types = { path = "../libs/session-ui-types" }
+session-info = { path = "../libs/session-info" }
+message-types = { path = "../libs/message-types" }
+auth-file-store = { path = "../libs/auth-file-store" }
+auth-types = { path = "../libs/auth-types" }
+model-state = { path = "../libs/model-state" }
+model-types = { path = "../libs/model-types" }
+model-catalog-types = { path = "../libs/model-catalog-types" }
+model-reasoning = { path = "../libs/model-reasoning" }
+model-protocols = { path = "../libs/model-protocols" }
+session-paths = { path = "../libs/session-paths" }
+build-identity = { path = "../libs/build-identity" }
+runtime-time = { path = "../libs/runtime-time" }
+display-format = { path = "../libs/display-format" }
+json-extract = { path = "../libs/json-extract" }
+todo-types = { path = "../libs/todo-types" }
+project-types = { path = "../libs/project-types" }
+question-types = { path = "../libs/question-types" }
+permission-types = { path = "../libs/permission-types" }
+snapshot-types = { path = "../libs/snapshot-types" }
+patch = { path = "../libs/patch" }
 
 [features]
 shell-tokio = ["shell-command/shell-tokio"]

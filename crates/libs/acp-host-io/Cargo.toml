@@ -1,6 +1,6 @@
 [package]
 name = "acp-host-io"
-version = "0.7.0"
+version.workspace = true
 edition = "2024"
 license = "MIT"
 
@@ -8,8 +8,8 @@ license = "MIT"
 doctest = false
 
 [dependencies]
-shell-command = { path = "../shell-command", version = "0.7.0", features = ["shell-tokio"] }
-acp-types = { path = "../acp-types", version = "0.7.0" }
+shell-command = { path = "../shell-command", features = ["shell-tokio"] }
+acp-types = { path = "../acp-types" }
 agent-client-protocol = "0.10.4"
 parking_lot = "0.12"
 serde = { version = "1", features = ["derive"] }

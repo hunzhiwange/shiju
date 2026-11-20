@@ -1,6 +1,6 @@
 [package]
 name = "gateway-dynamic-tools"
-version = "0.7.0"
+version.workspace = true
 edition = "2024"
 license = "MIT"
 
@@ -8,23 +8,20 @@ license = "MIT"
 doctest = false
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-gateway-types = { path = "../gateway-types", version = "0.7.0" }
-session-port = { path = "../session-port", version = "0.7.0" }
-session-info = { path = "../session-info", version = "0.7.0" }
-vw-api-transport = { path = "../api-transport", version = "0.7.0" }
-vw-api-tools = { path = "../api-tools", version = "0.7.0" }
+gateway-types = { path = "../gateway-types" }
+session-port = { path = "../session-port" }
+session-info = { path = "../session-info" }
+vw-api-transport = { path = "../api-transport" }
+vw-api-tools = { path = "../api-tools" }
 axum = { version = "0.8.8", features = ["json"] }
 futures-util = "0.3.32"
 serde = { version = "1", features = ["derive"] }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies.session-engine]
 path = "../session-engine"
-version = "0.7.0"
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies.session-store]
 path = "../session-store"
-version = "0.7.0"
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies.agent-gateway]
 path = "../agent-gateway"
-version = "0.7.0"

@@ -1,21 +1,21 @@
 [package]
 name = "cli-gateway-commands"
-version = "0.7.0"
+version.workspace = true
 edition = "2024"
 license = "MIT"
 
 [dependencies]
-cli-api-system = { path = "../cli-api-system", version = "0.7.0" }
-cli-api-automation = { path = "../cli-api-automation", version = "0.7.0" }
-cli-api-session = { path = "../cli-api-session", version = "0.7.0" }
-cli-api-workspace = { path = "../cli-api-workspace", version = "0.7.0" }
-cli-api-core = { path = "../cli-api-core", version = "0.7.0" }
-vw-api-transport = { path = "../api-transport", version = "0.7.0" }
+cli-api-system = { path = "../cli-api-system" }
+cli-api-automation = { path = "../cli-api-automation" }
+cli-api-session = { path = "../cli-api-session" }
+cli-api-workspace = { path = "../cli-api-workspace" }
+cli-api-core = { path = "../cli-api-core" }
+vw-api-transport = { path = "../api-transport" }
 anyhow = "1"
 clap = { version = "4.5", features = ["derive"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
-vw-gateway-client = { path = "../../vw-gateway-client", version = "0.7.0" }
+vw-gateway-client = { path = "../../vw-gateway-client" }
 
 [dev-dependencies]
 tempfile = "3"

@@ -1,34 +1,28 @@
 [package]
 name = "agent-gateway"
-version = "0.7.0"
+version.workspace = true
 edition = "2024"
 license = "MIT"
 [dependencies.agent-config]
 path = "../agent-config"
-version = "0.7.0"
 
 [dependencies.agent-approval]
 path = "../agent-approval"
-version = "0.7.0"
 
 [dependencies.agent-project]
 path = "../agent-project"
-version = "0.7.0"
 
 [dependencies.hex]
 version = "0.4"
 
 [dev-dependencies.config-channel-services]
 path = "../config-channel-services"
-version = "0.7.0"
 
 [dev-dependencies.gateway-pairing]
 path = "../gateway-pairing"
-version = "0.7.0"
 
 [dev-dependencies.observer-backends]
 path = "../observer-backends"
-version = "0.7.0"
 
 [dev-dependencies.async-trait]
 version = "0.1"
@@ -42,31 +36,24 @@ doctest = false
 
 [dependencies.agent-multimodal]
 path = "../agent-multimodal"
-version = "0.7.0"
 
 [dependencies.agent-util]
 path = "../agent-util"
-version = "0.7.0"
 
 [dependencies.session-info]
 path = "../session-info"
-version = "0.7.0"
 
 [dependencies.session-ui-types]
 path = "../session-ui-types"
-version = "0.7.0"
 
 [dependencies.session-engine]
 path = "../session-engine"
-version = "0.7.0"
 
 [dependencies.agent-loop]
 path = "../agent-loop"
-version = "0.7.0"
 
 [dependencies.gateway-pairing]
 path = "../gateway-pairing"
-version = "0.7.0"
 
 [dependencies.async-trait]
 version = "0.1"
@@ -74,62 +61,54 @@ version = "0.1"
 
 [dependencies.channel-linq]
 path = "../channel-linq"
-version = "0.7.0"
 
 [dependencies.channel-nextcloud-talk]
 path = "../channel-nextcloud-talk"
-version = "0.7.0"
 
 [dependencies.channel-qq]
 path = "../channel-qq"
-version = "0.7.0"
 
 [dependencies.channel-wati]
 path = "../channel-wati"
-version = "0.7.0"
 
 [dependencies.channel-whatsapp]
 path = "../channel-whatsapp"
-version = "0.7.0"
 
 [dependencies.channel-support]
 path = "../channel-support"
-version = "0.7.0"
 
 [dependencies.channel-runtime]
 path = "../channel-runtime"
-version = "0.7.0"
 
 [dependencies.agent-hooks]
 path = "../agent-hooks"
-version = "0.7.0"
 
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 tokio-stream = { version = "0.1.18", features = ["sync"] }
 tower-http = { version = "0.6", features = ["cors"] }
-device-sync = { path = "../device-sync", version = "0.7.0" }
+device-sync = { path = "../device-sync" }
 tokio = { version = "1", features = ["net", "signal"] }
 
 [dependencies]
-agent-health = { path = "../agent-health", version = "0.7.0" }
-observer-prometheus = { path = "../observer-prometheus", version = "0.7.0" }
-runtime-flags = { path = "../runtime-flags", version = "0.7.0" }
+agent-health = { path = "../agent-health" }
+observer-prometheus = { path = "../observer-prometheus" }
+runtime-flags = { path = "../runtime-flags" }
 base64 = "0.22"
 hmac = "0.13"
-channel-types = { path = "../channel-types", version = "0.7.0" }
-gateway-task = { path = "../gateway-task", version = "0.7.0" }
-app-diagnostics-runtime = { path = "../app-diagnostics-runtime", version = "0.7.0" }
-gateway-project = { path = "../gateway-project", version = "0.7.0" }
-agent-database = { path = "../agent-database", version = "0.7.0" }
-app-settings-store = { path = "../app-settings-store", version = "0.7.0" }
-app-project-profiles = { path = "../app-project-profiles", version = "0.7.0" }
-app-operations = { path = "../app-operations", version = "0.7.0" }
-app-data-format = { path = "../app-data-format", version = "0.7.0" }
-app-data-projection = { path = "../app-data-projection", version = "0.7.0" }
-vw-api-transport = { path = "../api-transport", version = "0.7.0" }
-vw-api-project-profiles = { path = "../api-project-profiles", version = "0.7.0" }
-vw-api-app-provider-environment = { path = "../api-app-provider-environment", version = "0.7.0" }
+channel-types = { path = "../channel-types" }
+gateway-task = { path = "../gateway-task" }
+app-diagnostics-runtime = { path = "../app-diagnostics-runtime" }
+gateway-project = { path = "../gateway-project" }
+agent-database = { path = "../agent-database" }
+app-settings-store = { path = "../app-settings-store" }
+app-project-profiles = { path = "../app-project-profiles" }
+app-operations = { path = "../app-operations" }
+app-data-format = { path = "../app-data-format" }
+app-data-projection = { path = "../app-data-projection" }
+vw-api-transport = { path = "../api-transport" }
+vw-api-project-profiles = { path = "../api-project-profiles" }
+vw-api-app-provider-environment = { path = "../api-app-provider-environment" }
 anyhow = "1"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
@@ -138,19 +117,16 @@ uuid = { version = "1.11", features = ["v4", "serde"] }
 tokio = { version = "1", features = ["sync", "rt", "macros", "time"] }
 
 [target.'cfg(target_os = "macos")'.dependencies]
-app-skills = { path = "../app-skills", version = "0.7.0" }
+app-skills = { path = "../app-skills" }
 
 [dependencies.vw-agent-apps]
 path = "../../vw-agent-apps"
-version = "0.7.0"
 
 [dependencies.vw-api-app-diagnostics]
 path = "../api-app-diagnostics"
-version = "0.7.0"
 
 [dependencies.vw-api-app-identity]
 path = "../api-app-identity"
-version = "0.7.0"
 
 [dependencies.futures-util]
 version = "0.3"
@@ -169,9 +145,9 @@ version = "0.1"
 version = "0.2"
 
 [dev-dependencies]
-acp-agent-registry = { path = "../acp-agent-registry", version = "0.7.0" }
+acp-agent-registry = { path = "../acp-agent-registry" }
 rand = "0.10.3"
-agent-config = { path = "../agent-config", version = "0.7.0", features = ["test-support"] }
+agent-config = { path = "../agent-config", features = ["test-support"] }
 axum = "0.8"
 tempfile = "3"
 tokio = { version = "1", features = ["full", "test-util"] }
@@ -182,42 +158,31 @@ features = ["ws"]
 
 [dependencies.gateway-types]
 path = "../gateway-types"
-version = "0.7.0"
 
 [dependencies.memory-types]
 path = "../memory-types"
-version = "0.7.0"
 
 [dependencies.observer-types]
 path = "../observer-types"
-version = "0.7.0"
 
 [dependencies.tool-types]
 path = "../tool-types"
-version = "0.7.0"
 
 [dependencies.agent-providers]
 path = "../agent-providers"
-version = "0.7.0"
 
 [dependencies.agent-app-services]
 path = "../agent-app-services"
-version = "0.7.0"
 [dependencies.app-provider-services]
 path = "../app-provider-services"
-version = "0.7.0"
 [dependencies.model-transport]
 path = "../model-transport"
-version = "0.7.0"
 [dependencies.vw-api-app-auth]
 path = "../api-app-auth"
-version = "0.7.0"
 [dev-dependencies.vw-api-app-provider-base]
 path = "../api-app-provider-base"
-version = "0.7.0"
 [dev-dependencies.vw-api-app-failover]
 path = "../api-app-failover"
-version = "0.7.0"
 [dependencies.reqwest]
 version = "0.13"
 default-features = false
@@ -225,37 +190,27 @@ features = ["json", "rustls", "stream"]
 
 [dependencies.model-types]
 path = "../model-types"
-version = "0.7.0"
 [dependencies.model-protocol]
 path = "../model-protocol"
-version = "0.7.0"
 [dependencies.model-protocols]
 path = "../model-protocols"
-version = "0.7.0"
 [dependencies.model-catalog]
 path = "../model-catalog"
-version = "0.7.0"
 [dependencies.provider-protocol-routes]
 path = "../provider-protocol-routes"
-version = "0.7.0"
 [dependencies.vw-api-model-catalog]
 path = "../api-model-catalog"
-version = "0.7.0"
 [dependencies.sha2]
 version = "0.11"
 [dependencies.vw-api-app-provider-profiles]
 path = "../api-app-provider-profiles"
-version = "0.7.0"
 
 [dependencies.app-routing-services]
 path = "../app-routing-services"
-version = "0.7.0"
 [target.'cfg(target_os = "macos")'.dependencies.gateway-aggregation]
 path = "../gateway-aggregation"
-version = "0.7.0"
 [target.'cfg(target_os = "macos")'.dependencies.vw-api-app-aggregation]
 path = "../api-app-aggregation"
-version = "0.7.0"
 [target.'cfg(target_os = "macos")'.dependencies.hex]
 version = "0.4"
 [target.'cfg(target_os = "macos")'.dependencies.toml_edit]
@@ -263,16 +218,12 @@ version = "0.22"
 
 [dependencies.app-access-service]
 path = "../app-access-service"
-version = "0.7.0"
 [dependencies.vw-api-app-failover]
 path = "../api-app-failover"
-version = "0.7.0"
 [dependencies.agent-security]
 path = "../agent-security"
-version = "0.7.0"
 [dependencies.vw-api-tools]
 path = "../api-tools"
-version = "0.7.0"
 [dependencies.thiserror]
 version = "2"
 [dependencies.toml]
@@ -284,27 +235,21 @@ features = ["util"]
 
 [dev-dependencies.gateway-global]
 path = "../gateway-global"
-version = "0.7.0"
 
 [dev-dependencies.gateway-integrations]
 path = "../gateway-integrations"
-version = "0.7.0"
 
 [dev-dependencies.agent-bus]
 path = "../agent-bus"
-version = "0.7.0"
 
 [dev-dependencies.secret-store]
 path = "../secret-store"
-version = "0.7.0"
 
 [dev-dependencies.config-runtime-paths]
 path = "../config-runtime-paths"
-version = "0.7.0"
 
 [dev-dependencies.config-gateway]
 path = "../config-gateway"
-version = "0.7.0"
 
 [dev-dependencies.rusqlite]
 version = "0.37.0"
@@ -312,46 +257,36 @@ features = ["bundled"]
 
 [dev-dependencies.vw-api-hermes-memory]
 path = "../api-hermes-memory"
-version = "0.7.0"
 
 [dev-dependencies.gateway-misc]
 path = "../gateway-misc"
-version = "0.7.0"
 
 [dev-dependencies.gateway-status]
 path = "../gateway-status"
-version = "0.7.0"
 
 [dependencies.gateway-tools]
 path = "../gateway-tools"
-version = "0.7.0"
 
 [dev-dependencies.agent-memory]
 path = "../agent-memory"
-version = "0.7.0"
 
 [dependencies.agent-doctor]
 path = "../agent-doctor"
-version = "0.7.0"
 
 [dependencies.gateway-files]
 path = "../gateway-files"
-version = "0.7.0"
 optional = true
 
 [dependencies.gateway-http]
 path = "../gateway-http"
-version = "0.7.0"
 optional = true
 
 [dependencies.gateway-endpoint]
 path = "../gateway-endpoint"
-version = "0.7.0"
 optional = true
 
 [dependencies.vw-api-file]
 path = "../api-file"
-version = "0.7.0"
 optional = true
 
 [dependencies.tempfile]
@@ -360,35 +295,26 @@ optional = true
 
 [dev-dependencies.agent-commands]
 path = "../agent-commands"
-version = "0.7.0"
 
 [dev-dependencies.gateway-permission]
 path = "../gateway-permission"
-version = "0.7.0"
 [dev-dependencies.session-store]
 path = "../session-store"
-version = "0.7.0"
 [dev-dependencies.permission-runtime]
 path = "../permission-runtime"
-version = "0.7.0"
 
 [dependencies.observer-backends]
 path = "../observer-backends"
-version = "0.7.0"
 optional = true
 
 [dependencies.gateway-cron]
 path = "../gateway-cron"
-version = "0.7.0"
 
 [dependencies.gateway-memory]
 path = "../gateway-memory"
-version = "0.7.0"
 
 [dependencies.gateway-integrations]
 path = "../gateway-integrations"
-version = "0.7.0"
 
 [dependencies.agent-integrations]
 path = "../agent-integrations"
-version = "0.7.0"

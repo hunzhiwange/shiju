@@ -1,6 +1,6 @@
 [package]
 name = "gateway-mcp"
-version = "0.7.0"
+version.workspace = true
 edition = "2024"
 license = "MIT"
 
@@ -8,33 +8,33 @@ license = "MIT"
 doctest = false
 
 [dependencies]
-gateway-http = { path = "../gateway-http", version = "0.7.0" }
-vw-api-mcp-inspect = { path = "../api-mcp-inspect", version = "0.7.0" }
+gateway-http = { path = "../gateway-http" }
+vw-api-mcp-inspect = { path = "../api-mcp-inspect" }
 serde_json = "1"
 
 [dev-dependencies]
-gateway-endpoint = { path = "../gateway-endpoint", version = "0.7.0" }
-vw-api-transport = { path = "../api-transport", version = "0.7.0" }
+gateway-endpoint = { path = "../gateway-endpoint" }
+vw-api-transport = { path = "../api-transport" }
 tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-agent-app-services = { path = "../agent-app-services", version = "0.7.0" }
-agent-database = { path = "../agent-database", version = "0.7.0" }
-agent-paths = { path = "../agent-paths", version = "0.7.0" }
-app-access-service = { path = "../app-access-service", version = "0.7.0" }
+agent-app-services = { path = "../agent-app-services" }
+agent-database = { path = "../agent-database" }
+agent-paths = { path = "../agent-paths" }
+app-access-service = { path = "../app-access-service" }
 axum = { version = "0.8.8", features = ["json", "query"] }
 serde = { version = "1", features = ["derive"] }
 tokio = { version = "1", features = ["rt", "sync"] }
 uuid = { version = "1.11", features = ["v4", "js"] }
-vw-api-app-identity = { path = "../api-app-identity", version = "0.7.0" }
-vw-api-app-operations = { path = "../api-app-operations", version = "0.7.0" }
-vw-api-mcp-management = { path = "../api-mcp-management", version = "0.7.0" }
-vw-api-transport = { path = "../api-transport", version = "0.7.0" }
-vw-api-task = { path = "../api-task", version = "0.7.0" }
-vw-agent-apps = { path = "../../vw-agent-apps", version = "0.7.0" }
+vw-api-app-identity = { path = "../api-app-identity" }
+vw-api-app-operations = { path = "../api-app-operations" }
+vw-api-mcp-management = { path = "../api-mcp-management" }
+vw-api-transport = { path = "../api-transport" }
+vw-api-task = { path = "../api-task" }
+vw-agent-apps = { path = "../../vw-agent-apps" }
 anyhow = "1"
-gateway-types = { path = "../gateway-types", version = "0.7.0" }
-vw-api-app-diagnostics = { path = "../api-app-diagnostics", version = "0.7.0" }
+gateway-types = { path = "../gateway-types" }
+vw-api-app-diagnostics = { path = "../api-app-diagnostics" }
 
 [target.'cfg(target_os = "macos")'.dependencies]
-vw-api-app-auth = { path = "../api-app-auth", version = "0.7.0" }
+vw-api-app-auth = { path = "../api-app-auth" }

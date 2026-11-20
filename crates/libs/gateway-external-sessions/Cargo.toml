@@ -1,6 +1,6 @@
 [package]
 name = "gateway-external-sessions"
-version = "0.7.0"
+version.workspace = true
 edition = "2024"
 license = "MIT"
 
@@ -9,15 +9,15 @@ doctest = false
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 hex = "0.4"
-app-access-service = { path = "../app-access-service", version = "0.7.0" }
-agent-database = { path = "../agent-database", version = "0.7.0" }
-agent-paths = { path = "../agent-paths", version = "0.7.0" }
-agent-project = { path = "../agent-project", version = "0.7.0" }
-agent-usage = { path = "../agent-usage", version = "0.7.0" }
-vw-api-external-session = { path = "../api-external-session", version = "0.7.0" }
-vw-api-transport = { path = "../api-transport", version = "0.7.0" }
-vw-api-app-identity = { path = "../api-app-identity", version = "0.7.0" }
-vw-agent-apps = { path = "../../vw-agent-apps", version = "0.7.0" }
+app-access-service = { path = "../app-access-service" }
+agent-database = { path = "../agent-database" }
+agent-paths = { path = "../agent-paths" }
+agent-project = { path = "../agent-project" }
+agent-usage = { path = "../agent-usage" }
+vw-api-external-session = { path = "../api-external-session" }
+vw-api-transport = { path = "../api-transport" }
+vw-api-app-identity = { path = "../api-app-identity" }
+vw-agent-apps = { path = "../../vw-agent-apps" }
 anyhow = "1"
 axum = { version = "0.8.8", features = ["json"] }
 chrono = "0.4"
@@ -29,11 +29,11 @@ tracing = "0.1"
 uuid = { version = "1.11", features = ["v4", "js"] }
 
 [target.'cfg(all(not(target_arch = "wasm32"), target_os = "macos"))'.dependencies]
-app-settings-store = { path = "../app-settings-store", version = "0.7.0" }
-app-provider-services = { path = "../app-provider-services", version = "0.7.0" }
-agent-app-services = { path = "../agent-app-services", version = "0.7.0" }
-vw-api-app-auth = { path = "../api-app-auth", version = "0.7.0" }
-vw-api-task = { path = "../api-task", version = "0.7.0" }
+app-settings-store = { path = "../app-settings-store" }
+app-provider-services = { path = "../app-provider-services" }
+agent-app-services = { path = "../agent-app-services" }
+vw-api-app-auth = { path = "../api-app-auth" }
+vw-api-task = { path = "../api-task" }
 sha2 = "0.11"
 libc = "0.2"
 

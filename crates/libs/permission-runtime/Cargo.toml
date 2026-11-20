@@ -1,6 +1,6 @@
 [package]
 name = "permission-runtime"
-version = "0.7.0"
+version.workspace = true
 edition = "2024"
 license = "MIT"
 
@@ -8,9 +8,9 @@ license = "MIT"
 doctest = false
 
 [dependencies]
-agent-paths = { path = "../agent-paths", version = "0.7.0" }
-ordered-id = { path = "../ordered-id", version = "0.7.0" }
-permission-engine = { path = "../permission-engine", version = "0.7.0" }
-permission-types = { path = "../permission-types", version = "0.7.0" }
+agent-paths = { path = "../agent-paths" }
+ordered-id = { path = "../ordered-id" }
+permission-engine = { path = "../permission-engine" }
+permission-types = { path = "../permission-types" }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"

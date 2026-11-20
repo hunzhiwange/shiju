@@ -1,6 +1,6 @@
 [package]
 name = "vw-gateway-client"
-version = "0.7.0"
+version.workspace = true
 edition = "2024"
 repository = "https://github.com/hunzhiwange/shiju"
 homepage = "https://github.com/hunzhiwange/shiju"
@@ -8,119 +8,119 @@ description = "Gateway client types and helpers for VibeWindow"
 license = "MIT"
 
 [dependencies]
-gateway-desktop-settings = { path = "../libs/gateway-desktop-settings", version = "0.7.0" }
-gateway-skill-market = { path = "../libs/gateway-skill-market", version = "0.7.0" }
-gateway-shiju-skill = { path = "../libs/gateway-shiju-skill", version = "0.7.0" }
-gateway-shiju-knowledge = { path = "../libs/gateway-shiju-knowledge", version = "0.7.0" }
-gateway-shiju-connector = { path = "../libs/gateway-shiju-connector", version = "0.7.0" }
-gateway-shiju-app = { path = "../libs/gateway-shiju-app", version = "0.7.0" }
-gateway-shiju-account = { path = "../libs/gateway-shiju-account", version = "0.7.0" }
-gateway-channel-qr = { path = "../libs/gateway-channel-qr", version = "0.7.0" }
-gateway-system = { path = "../libs/gateway-system", version = "0.7.0" }
-gateway-computer-control = { path = "../libs/gateway-computer-control", version = "0.7.0" }
-gateway-host-tools = { path = "../libs/gateway-host-tools", version = "0.7.0" }
-gateway-interaction = { path = "../libs/gateway-interaction", version = "0.7.0" }
-gateway-cron = { path = "../libs/gateway-cron", version = "0.7.0" }
-gateway-task-pool = { path = "../libs/gateway-task-pool", version = "0.7.0" }
-gateway-task-lifecycle = { path = "../libs/gateway-task-lifecycle", version = "0.7.0" }
-gateway-scheduler = { path = "../libs/gateway-scheduler", version = "0.7.0" }
-gateway-knowledge = { path = "../libs/gateway-knowledge", version = "0.7.0" }
-gateway-workflow = { path = "../libs/gateway-workflow", version = "0.7.0" }
-gateway-voice = { path = "../libs/gateway-voice", version = "0.7.0" }
-gateway-pty = { path = "../libs/gateway-pty", version = "0.7.0" }
-gateway-inference = { path = "../libs/gateway-inference", version = "0.7.0" }
-gateway-mcp-distribution = { path = "../libs/gateway-mcp-distribution", version = "0.7.0" }
-gateway-mcp-read = { path = "../libs/gateway-mcp-read", version = "0.7.0" }
-gateway-mcp-write = { path = "../libs/gateway-mcp-write", version = "0.7.0" }
-gateway-mcp-probe = { path = "../libs/gateway-mcp-probe", version = "0.7.0" }
-gateway-mcp = { path = "../libs/gateway-mcp", version = "0.7.0" }
-gateway-aggregation-native = { path = "../libs/gateway-aggregation-native", version = "0.7.0" }
-gateway-aggregation-codex = { path = "../libs/gateway-aggregation-codex", version = "0.7.0" }
-gateway-aggregation-desktop = { path = "../libs/gateway-aggregation-desktop", version = "0.7.0" }
-gateway-aggregation = { path = "../libs/gateway-aggregation", version = "0.7.0" }
-gateway-aggregation-omo = { path = "../libs/gateway-aggregation-omo", version = "0.7.0" }
-gateway-device-sync = { path = "../libs/gateway-device-sync", version = "0.7.0" }
-gateway-usage-read = { path = "../libs/gateway-usage-read", version = "0.7.0" }
-gateway-usage-scan = { path = "../libs/gateway-usage-scan", version = "0.7.0" }
-gateway-usage-price = { path = "../libs/gateway-usage-price", version = "0.7.0" }
-vw-api-hermes-dashboard = { path = "../libs/api-hermes-dashboard", version = "0.7.0" }
-vw-api-project-profiles = { path = "../libs/api-project-profiles", version = "0.7.0" }
-gateway-app-usage = { path = "../libs/gateway-app-usage", version = "0.7.0" }
-vw-api-openclaw-settings = { path = "../libs/api-openclaw-settings", version = "0.7.0" }
-gateway-openclaw-settings = { path = "../libs/gateway-openclaw-settings", version = "0.7.0" }
-vw-api-hermes-memory = { path = "../libs/api-hermes-memory", version = "0.7.0" }
-vw-api-workspace-memory = { path = "../libs/api-workspace-memory", version = "0.7.0" }
-vw-api-computer-control = { path = "../libs/api-computer-control", version = "0.7.0" }
-gateway-external-session = { path = "../libs/gateway-external-session", version = "0.7.0" }
-gateway-workspace-memory = { path = "../libs/gateway-workspace-memory", version = "0.7.0" }
-gateway-hermes-memory = { path = "../libs/gateway-hermes-memory", version = "0.7.0" }
-vw-api-voice = { path = "../libs/api-voice", version = "0.7.0" }
-vw-api-apps-usage = { path = "../libs/api-apps-usage", version = "0.7.0" }
-vw-api-usage = { path = "../libs/api-usage", version = "0.7.0" }
-gateway-app-skills = { path = "../libs/gateway-app-skills", version = "0.7.0" }
-gateway-app-prompts = { path = "../libs/gateway-app-prompts", version = "0.7.0" }
-gateway-app-prompt-resources = { path = "../libs/gateway-app-prompt-resources", version = "0.7.0" }
-vw-api-external-session = { path = "../libs/api-external-session", version = "0.7.0" }
-vw-api-device-sync = { path = "../libs/api-device-sync", version = "0.7.0" }
-gateway-app-data = { path = "../libs/gateway-app-data", version = "0.7.0" }
-vw-api-app-skills = { path = "../libs/api-app-skills", version = "0.7.0" }
-vw-api-app-failover = { path = "../libs/api-app-failover", version = "0.7.0" }
-vw-api-app-diagnostics = { path = "../libs/api-app-diagnostics", version = "0.7.0" }
-vw-api-mcp-management = { path = "../libs/api-mcp-management", version = "0.7.0" }
-vw-api-mcp-inspect = { path = "../libs/api-mcp-inspect", version = "0.7.0" }
-vw-api-app-routing = { path = "../libs/api-app-routing", version = "0.7.0" }
-vw-api-app-aggregation = { path = "../libs/api-app-aggregation", version = "0.7.0" }
-vw-api-app-operations = { path = "../libs/api-app-operations", version = "0.7.0" }
-vw-api-app-provider-environment = { path = "../libs/api-app-provider-environment", version = "0.7.0" }
-gateway-app-routing = { path = "../libs/gateway-app-routing", version = "0.7.0" }
-vw-api-app-provider-edit = { path = "../libs/api-app-provider-edit", version = "0.7.0" }
-vw-api-app-provider-extended = { path = "../libs/api-app-provider-extended", version = "0.7.0" }
-vw-api-app-provider-terminal = { path = "../libs/api-app-provider-terminal", version = "0.7.0" }
-vw-api-app-provider-profiles = { path = "../libs/api-app-provider-profiles", version = "0.7.0" }
-vw-api-app-provider-base = { path = "../libs/api-app-provider-base", version = "0.7.0" }
-session-ui-types = { path = "../libs/session-ui-types", version = "0.7.0" }
-vw-api-model-catalog = { path = "../libs/api-model-catalog", version = "0.7.0" }
-vw-api-app-auth = { path = "../libs/api-app-auth", version = "0.7.0" }
-vw-api-knowledge = { path = "../libs/api-knowledge", version = "0.7.0" }
-vw-api-workflow = { path = "../libs/api-workflow", version = "0.7.0" }
-vw-api-agent-scheduler = { path = "../libs/api-agent-scheduler", version = "0.7.0" }
-gateway-app-provider = { path = "../libs/gateway-app-provider", version = "0.7.0" }
-vw-api-task = { path = "../libs/api-task", version = "0.7.0" }
-vw-api-task-lifecycle = { path = "../libs/api-task-lifecycle", version = "0.7.0" }
-gateway-app-settings = { path = "../libs/gateway-app-settings", version = "0.7.0" }
-gateway-app-failover = { path = "../libs/gateway-app-failover", version = "0.7.0" }
-gateway-app-diagnostics = { path = "../libs/gateway-app-diagnostics", version = "0.7.0" }
-vw-api-project = { path = "../libs/api-project", version = "0.7.0" }
-vw-api-worktree = { path = "../libs/api-worktree", version = "0.7.0" }
-gateway-app-lifecycle = { path = "../libs/gateway-app-lifecycle", version = "0.7.0" }
-gateway-app-auth = { path = "../libs/gateway-app-auth", version = "0.7.0" }
-vw-api-git = { path = "../libs/api-git", version = "0.7.0" }
-gateway-app-read = { path = "../libs/gateway-app-read", version = "0.7.0" }
-vw-api-file = { path = "../libs/api-file", version = "0.7.0" }
-gateway-model-provider = { path = "../libs/gateway-model-provider", version = "0.7.0" }
-gateway-model-catalog = { path = "../libs/gateway-model-catalog", version = "0.7.0" }
-todo-types = { path = "../libs/todo-types", version = "0.7.0" }
-gateway-session = { path = "../libs/gateway-session", version = "0.7.0" }
-question-types = { path = "../libs/question-types", version = "0.7.0" }
-vw-api-session = { path = "../libs/api-session", version = "0.7.0" }
-gateway-project-profile = { path = "../libs/gateway-project-profile", version = "0.7.0" }
-vw-api-todo = { path = "../libs/api-todo", version = "0.7.0" }
-gateway-files = { path = "../libs/gateway-files", version = "0.7.0" }
-vw-api-acp-model = { path = "../libs/api-acp-model", version = "0.7.0" }
-gateway-project = { path = "../libs/gateway-project", version = "0.7.0" }
-vw-api-tools = { path = "../libs/api-tools", version = "0.7.0" }
-gateway-config = { path = "../libs/gateway-config", version = "0.7.0" }
-gateway-chat-stream = { path = "../libs/gateway-chat-stream", version = "0.7.0" }
-vw-api-app-identity = { path = "../libs/api-app-identity", version = "0.7.0" }
-vw-api-chat-identity = { path = "../libs/api-chat-identity", version = "0.7.0" }
-gateway-http = { path = "../libs/gateway-http", version = "0.7.0" }
-gateway-endpoint = { path = "../libs/gateway-endpoint", version = "0.7.0" }
-vw-api-transport = { path = "../libs/api-transport", version = "0.7.0" }
+gateway-desktop-settings = { path = "../libs/gateway-desktop-settings" }
+gateway-skill-market = { path = "../libs/gateway-skill-market" }
+gateway-shiju-skill = { path = "../libs/gateway-shiju-skill" }
+gateway-shiju-knowledge = { path = "../libs/gateway-shiju-knowledge" }
+gateway-shiju-connector = { path = "../libs/gateway-shiju-connector" }
+gateway-shiju-app = { path = "../libs/gateway-shiju-app" }
+gateway-shiju-account = { path = "../libs/gateway-shiju-account" }
+gateway-channel-qr = { path = "../libs/gateway-channel-qr" }
+gateway-system = { path = "../libs/gateway-system" }
+gateway-computer-control = { path = "../libs/gateway-computer-control" }
+gateway-host-tools = { path = "../libs/gateway-host-tools" }
+gateway-interaction = { path = "../libs/gateway-interaction" }
+gateway-cron = { path = "../libs/gateway-cron" }
+gateway-task-pool = { path = "../libs/gateway-task-pool" }
+gateway-task-lifecycle = { path = "../libs/gateway-task-lifecycle" }
+gateway-scheduler = { path = "../libs/gateway-scheduler" }
+gateway-knowledge = { path = "../libs/gateway-knowledge" }
+gateway-workflow = { path = "../libs/gateway-workflow" }
+gateway-voice = { path = "../libs/gateway-voice" }
+gateway-pty = { path = "../libs/gateway-pty" }
+gateway-inference = { path = "../libs/gateway-inference" }
+gateway-mcp-distribution = { path = "../libs/gateway-mcp-distribution" }
+gateway-mcp-read = { path = "../libs/gateway-mcp-read" }
+gateway-mcp-write = { path = "../libs/gateway-mcp-write" }
+gateway-mcp-probe = { path = "../libs/gateway-mcp-probe" }
+gateway-mcp = { path = "../libs/gateway-mcp" }
+gateway-aggregation-native = { path = "../libs/gateway-aggregation-native" }
+gateway-aggregation-codex = { path = "../libs/gateway-aggregation-codex" }
+gateway-aggregation-desktop = { path = "../libs/gateway-aggregation-desktop" }
+gateway-aggregation = { path = "../libs/gateway-aggregation" }
+gateway-aggregation-omo = { path = "../libs/gateway-aggregation-omo" }
+gateway-device-sync = { path = "../libs/gateway-device-sync" }
+gateway-usage-read = { path = "../libs/gateway-usage-read" }
+gateway-usage-scan = { path = "../libs/gateway-usage-scan" }
+gateway-usage-price = { path = "../libs/gateway-usage-price" }
+vw-api-hermes-dashboard = { path = "../libs/api-hermes-dashboard" }
+vw-api-project-profiles = { path = "../libs/api-project-profiles" }
+gateway-app-usage = { path = "../libs/gateway-app-usage" }
+vw-api-openclaw-settings = { path = "../libs/api-openclaw-settings" }
+gateway-openclaw-settings = { path = "../libs/gateway-openclaw-settings" }
+vw-api-hermes-memory = { path = "../libs/api-hermes-memory" }
+vw-api-workspace-memory = { path = "../libs/api-workspace-memory" }
+vw-api-computer-control = { path = "../libs/api-computer-control" }
+gateway-external-session = { path = "../libs/gateway-external-session" }
+gateway-workspace-memory = { path = "../libs/gateway-workspace-memory" }
+gateway-hermes-memory = { path = "../libs/gateway-hermes-memory" }
+vw-api-voice = { path = "../libs/api-voice" }
+vw-api-apps-usage = { path = "../libs/api-apps-usage" }
+vw-api-usage = { path = "../libs/api-usage" }
+gateway-app-skills = { path = "../libs/gateway-app-skills" }
+gateway-app-prompts = { path = "../libs/gateway-app-prompts" }
+gateway-app-prompt-resources = { path = "../libs/gateway-app-prompt-resources" }
+vw-api-external-session = { path = "../libs/api-external-session" }
+vw-api-device-sync = { path = "../libs/api-device-sync" }
+gateway-app-data = { path = "../libs/gateway-app-data" }
+vw-api-app-skills = { path = "../libs/api-app-skills" }
+vw-api-app-failover = { path = "../libs/api-app-failover" }
+vw-api-app-diagnostics = { path = "../libs/api-app-diagnostics" }
+vw-api-mcp-management = { path = "../libs/api-mcp-management" }
+vw-api-mcp-inspect = { path = "../libs/api-mcp-inspect" }
+vw-api-app-routing = { path = "../libs/api-app-routing" }
+vw-api-app-aggregation = { path = "../libs/api-app-aggregation" }
+vw-api-app-operations = { path = "../libs/api-app-operations" }
+vw-api-app-provider-environment = { path = "../libs/api-app-provider-environment" }
+gateway-app-routing = { path = "../libs/gateway-app-routing" }
+vw-api-app-provider-edit = { path = "../libs/api-app-provider-edit" }
+vw-api-app-provider-extended = { path = "../libs/api-app-provider-extended" }
+vw-api-app-provider-terminal = { path = "../libs/api-app-provider-terminal" }
+vw-api-app-provider-profiles = { path = "../libs/api-app-provider-profiles" }
+vw-api-app-provider-base = { path = "../libs/api-app-provider-base" }
+session-ui-types = { path = "../libs/session-ui-types" }
+vw-api-model-catalog = { path = "../libs/api-model-catalog" }
+vw-api-app-auth = { path = "../libs/api-app-auth" }
+vw-api-knowledge = { path = "../libs/api-knowledge" }
+vw-api-workflow = { path = "../libs/api-workflow" }
+vw-api-agent-scheduler = { path = "../libs/api-agent-scheduler" }
+gateway-app-provider = { path = "../libs/gateway-app-provider" }
+vw-api-task = { path = "../libs/api-task" }
+vw-api-task-lifecycle = { path = "../libs/api-task-lifecycle" }
+gateway-app-settings = { path = "../libs/gateway-app-settings" }
+gateway-app-failover = { path = "../libs/gateway-app-failover" }
+gateway-app-diagnostics = { path = "../libs/gateway-app-diagnostics" }
+vw-api-project = { path = "../libs/api-project" }
+vw-api-worktree = { path = "../libs/api-worktree" }
+gateway-app-lifecycle = { path = "../libs/gateway-app-lifecycle" }
+gateway-app-auth = { path = "../libs/gateway-app-auth" }
+vw-api-git = { path = "../libs/api-git" }
+gateway-app-read = { path = "../libs/gateway-app-read" }
+vw-api-file = { path = "../libs/api-file" }
+gateway-model-provider = { path = "../libs/gateway-model-provider" }
+gateway-model-catalog = { path = "../libs/gateway-model-catalog" }
+todo-types = { path = "../libs/todo-types" }
+gateway-session = { path = "../libs/gateway-session" }
+question-types = { path = "../libs/question-types" }
+vw-api-session = { path = "../libs/api-session" }
+gateway-project-profile = { path = "../libs/gateway-project-profile" }
+vw-api-todo = { path = "../libs/api-todo" }
+gateway-files = { path = "../libs/gateway-files" }
+vw-api-acp-model = { path = "../libs/api-acp-model" }
+gateway-project = { path = "../libs/gateway-project" }
+vw-api-tools = { path = "../libs/api-tools" }
+gateway-config = { path = "../libs/gateway-config" }
+gateway-chat-stream = { path = "../libs/gateway-chat-stream" }
+vw-api-app-identity = { path = "../libs/api-app-identity" }
+vw-api-chat-identity = { path = "../libs/api-chat-identity" }
+gateway-http = { path = "../libs/gateway-http" }
+gateway-endpoint = { path = "../libs/gateway-endpoint" }
+vw-api-transport = { path = "../libs/api-transport" }
 futures-util = "0.3"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 tracing = "0.1"
-vw-api-types = { path = "../vw-api-types", version = "0.7.0" }
+vw-api-types = { path = "../vw-api-types" }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 reqwest = { version = "0.13", default-features = false, features = ["blocking", "multipart", "json", "query", "stream", "rustls"] }

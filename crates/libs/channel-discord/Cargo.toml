@@ -1,6 +1,6 @@
 [package]
 name = "channel-discord"
-version = "0.7.0"
+version.workspace = true
 edition = "2024"
 license = "MIT"
 
@@ -8,11 +8,11 @@ license = "MIT"
 doctest = false
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-agent-providers = { path = "../agent-providers", version = "0.7.0" }
+agent-providers = { path = "../agent-providers" }
 anyhow = "1"
 async-trait = "0.1.89"
-channel-types = { path = "../channel-types", version = "0.7.0" }
-channel-support = { path = "../channel-support", version = "0.7.0" }
+channel-types = { path = "../channel-types" }
+channel-support = { path = "../channel-support" }
 parking_lot = "0.12"
 uuid = { version = "1.11", features = ["v4"] }
 futures-util = "0.3.32"

@@ -1,17 +1,17 @@
 [package]
 name = "gateway-files"
-version = "0.7.0"
+version.workspace = true
 edition = "2024"
 license = "MIT"
 
 [dependencies]
-vw-api-file = { path = "../api-file", version = "0.7.0" }
-gateway-http = { path = "../gateway-http", version = "0.7.0" }
-vw-api-transport = { path = "../api-transport", version = "0.7.0" }
-gateway-project = { path = "../gateway-project", version = "0.7.0" }
+vw-api-file = { path = "../api-file" }
+gateway-http = { path = "../gateway-http" }
+vw-api-transport = { path = "../api-transport" }
+gateway-project = { path = "../gateway-project" }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 
 [dev-dependencies]
-gateway-endpoint = { path = "../gateway-endpoint", version = "0.7.0" }
+gateway-endpoint = { path = "../gateway-endpoint" }
 tokio = { version = "1", features = ["macros", "rt-multi-thread"] }

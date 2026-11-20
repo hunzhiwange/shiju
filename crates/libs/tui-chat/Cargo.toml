@@ -1,6 +1,6 @@
 [package]
 name = "tui-chat"
-version = "0.7.0"
+version.workspace = true
 edition = "2024"
 license = "Apache-2.0"
 
@@ -8,18 +8,18 @@ license = "Apache-2.0"
 doctest = false
 
 [dependencies]
-tui-exec-state = { path = "../tui-exec-state", version = "0.7.0" }
-tui-chat-state = { path = "../tui-chat-state", version = "0.7.0" }
-tui-transcript = { path = "../tui-transcript", version = "0.7.0" }
-tui-bottom-pane = { path = "../tui-bottom-pane", version = "0.7.0" }
-tui-user-input = { path = "../tui-user-input", version = "0.7.0" }
-tui-approval = { path = "../tui-approval", version = "0.7.0" }
-tui-widgets = { path = "../tui-widgets", version = "0.7.0" }
-tui-cells = { path = "../tui-cells", version = "0.7.0" }
-tui-render = { path = "../tui-render", version = "0.7.0" }
-tui-text = { path = "../tui-text", version = "0.7.0" }
-tui-contracts = { path = "../tui-contracts", version = "0.7.0" }
-tui-clipboard = { path = "../tui-clipboard", version = "0.7.0" }
+tui-exec-state = { path = "../tui-exec-state" }
+tui-chat-state = { path = "../tui-chat-state" }
+tui-transcript = { path = "../tui-transcript" }
+tui-bottom-pane = { path = "../tui-bottom-pane" }
+tui-user-input = { path = "../tui-user-input" }
+tui-approval = { path = "../tui-approval" }
+tui-widgets = { path = "../tui-widgets" }
+tui-cells = { path = "../tui-cells" }
+tui-render = { path = "../tui-render" }
+tui-text = { path = "../tui-text" }
+tui-contracts = { path = "../tui-contracts" }
+tui-clipboard = { path = "../tui-clipboard" }
 crossterm = { git = "https://github.com/openai-oss-forks/crossterm", rev = "45fecb9508105988f42fe6ff0441783ed3717f92" }
 ratatui = { version = "0.30.2", features = [
     "unstable-backend-writer",
@@ -28,5 +28,5 @@ ratatui = { version = "0.30.2", features = [
 ] }
 
 [dev-dependencies]
-tui-transcript = { path = "../tui-transcript", version = "0.7.0", features = ["test-support"] }
+tui-transcript = { path = "../tui-transcript", features = ["test-support"] }
 insta = "1.46.3"

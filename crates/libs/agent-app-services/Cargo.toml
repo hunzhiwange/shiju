@@ -1,6 +1,6 @@
 [package]
 name = "agent-app-services"
-version = "0.7.0"
+version.workspace = true
 edition = "2024"
 license = "MIT"
 
@@ -11,57 +11,57 @@ doctest = false
 test-support = ["dep:plugin-mcp", "dep:tool-types", "dep:tool-catalog"]
 
 [dependencies]
-vw-api-app-provider-base = { path = "../api-app-provider-base", version = "0.7.0" }
-vw-api-app-operations = { path = "../api-app-operations", version = "0.7.0" }
-plugin-mcp = { path = "../plugin-mcp", version = "0.7.0", optional = true }
-tool-types = { path = "../tool-types", version = "0.7.0", optional = true }
-tool-catalog = { path = "../tool-catalog", version = "0.7.0", optional = true }
+vw-api-app-provider-base = { path = "../api-app-provider-base" }
+vw-api-app-operations = { path = "../api-app-operations" }
+plugin-mcp = { path = "../plugin-mcp", optional = true }
+tool-types = { path = "../tool-types", optional = true }
+tool-catalog = { path = "../tool-catalog", optional = true }
 postgres = { version = "0.19.12", features = ["with-chrono-0_4"] }
 tracing = "0.1"
 thiserror = "2.0.18"
-vw-api-apps-usage = { path = "../api-apps-usage", version = "0.7.0" }
+vw-api-apps-usage = { path = "../api-apps-usage" }
 anyhow = "1"
 agent-client-protocol = { version = "0.10.4", features = ["unstable_session_usage", "unstable_session_resume"] }
-acp-types = { path = "../acp-types", version = "0.7.0" }
-acp-server = { path = "../acp-server", version = "0.7.0" }
-session-port = { path = "../session-port", version = "0.7.0" }
-vw-api-mcp-management = { path = "../api-mcp-management", version = "0.7.0" }
-vw-api-project-profiles = { path = "../api-project-profiles", version = "0.7.0" }
+acp-types = { path = "../acp-types" }
+acp-server = { path = "../acp-server" }
+session-port = { path = "../session-port" }
+vw-api-mcp-management = { path = "../api-mcp-management" }
+vw-api-project-profiles = { path = "../api-project-profiles" }
 reqwest_012 = { package = "reqwest", version = "0.12", default-features = false, features = ["json", "rustls-tls-webpki-roots"] }
-agent-database = { path = "../agent-database", version = "0.7.0" }
-app-settings-store = { path = "../app-settings-store", version = "0.7.0" }
+agent-database = { path = "../agent-database" }
+app-settings-store = { path = "../app-settings-store" }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 sha2 = "0.11"
-vw-agent-apps = { path = "../../vw-agent-apps", version = "0.7.0" }
-vw-api-app-auth = { path = "../api-app-auth", version = "0.7.0" }
-vw-api-app-identity = { path = "../api-app-identity", version = "0.7.0" }
-vw-api-transport = { path = "../api-transport", version = "0.7.0" }
+vw-agent-apps = { path = "../../vw-agent-apps" }
+vw-api-app-auth = { path = "../api-app-auth" }
+vw-api-app-identity = { path = "../api-app-identity" }
+vw-api-transport = { path = "../api-transport" }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-mcp-client = { path = "../mcp-client", version = "0.7.0" }
+mcp-client = { path = "../mcp-client" }
 tokio = { version = "1", features = ["rt", "macros", "time"] }
 tokio-util = { version = "0.7.18", features = ["rt"] }
-vw-api-app-diagnostics = { path = "../api-app-diagnostics", version = "0.7.0" }
+vw-api-app-diagnostics = { path = "../api-app-diagnostics" }
 
 [target.'cfg(target_os = "macos")'.dependencies]
 axum = { version = "0.8.8", default-features = false }
-vw-api-tools = { path = "../api-tools", version = "0.7.0" }
+vw-api-tools = { path = "../api-tools" }
 hex = "0.4"
 libc = "0.2"
 uuid = { version = "1.11", features = ["v4", "js"] }
 
 [dev-dependencies]
 base64 = "0.22"
-vw-api-task = { path = "../api-task", version = "0.7.0" }
+vw-api-task = { path = "../api-task" }
 futures-util = "0.3"
 rmcp = { version = "0.8.0", features = ["client"] }
 axum = { version = "0.8.8", features = ["json", "http1", "tokio"] }
-agent-database = { path = "../agent-database", version = "0.7.0", features = ["test-support"] }
+agent-database = { path = "../agent-database", features = ["test-support"] }
 tempfile = "3"
 tokio = { version = "1", features = ["rt", "time", "net", "io-util", "sync", "macros", "test-util"] }
 uuid = { version = "1.11", features = ["v4", "js"] }
-vw-api-types = { path = "../../vw-api-types", version = "0.7.0" }
+vw-api-types = { path = "../../vw-api-types" }
 
 [target.'cfg(all(not(target_arch = "wasm32"), target_os = "windows"))'.dependencies]
 rusqlite = { version = "0.37.0", features = ["bundled"] }

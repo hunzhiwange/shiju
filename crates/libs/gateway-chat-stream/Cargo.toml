@@ -1,13 +1,13 @@
 [package]
 name = "gateway-chat-stream"
-version = "0.7.0"
+version.workspace = true
 edition = "2024"
 license = "MIT"
 
 [dependencies]
-vw-api-chat = { path = "../api-chat", version = "0.7.0" }
-gateway-endpoint = { path = "../gateway-endpoint", version = "0.7.0" }
-gateway-http = { path = "../gateway-http", version = "0.7.0" }
+vw-api-chat = { path = "../api-chat" }
+gateway-endpoint = { path = "../gateway-endpoint" }
+gateway-http = { path = "../gateway-http" }
 futures-util = "0.3"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
@@ -21,5 +21,5 @@ tokio = { version = "1", default-features = false, features = ["rt", "time"] }
 reqwest = { version = "0.13", features = ["json", "query", "stream"] }
 
 [dev-dependencies]
-vw-api-transport = { path = "../api-transport", version = "0.7.0" }
+vw-api-transport = { path = "../api-transport" }
 tokio = { version = "1", features = ["macros", "rt-multi-thread"] }

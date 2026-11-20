@@ -1,6 +1,6 @@
 [package]
 name = "observer-otel"
-version = "0.7.0"
+version.workspace = true
 edition = "2024"
 license = "MIT"
 
@@ -11,7 +11,7 @@ doctest = false
 observability-otel = ["dep:opentelemetry", "dep:opentelemetry_sdk", "dep:opentelemetry-otlp"]
 
 [dependencies]
-observer-types = { path = "../observer-types", version = "0.7.0" }
+observer-types = { path = "../observer-types" }
 tracing = "0.1"
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]

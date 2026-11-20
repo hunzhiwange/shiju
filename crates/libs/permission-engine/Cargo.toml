@@ -1,6 +1,6 @@
 [package]
 name = "permission-engine"
-version = "0.7.0"
+version.workspace = true
 edition = "2024"
 license = "MIT"
 
@@ -8,6 +8,6 @@ license = "MIT"
 doctest = false
 
 [dependencies]
-permission-types = { path = "../permission-types", version = "0.7.0" }
+permission-types = { path = "../permission-types" }
 glob = "0.3"
 serde_json = "1"

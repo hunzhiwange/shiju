@@ -1,6 +1,6 @@
 [package]
 name = "vw-webview"
-version = "0.7.0"
+version.workspace = true
 edition = "2024"
 repository = "https://github.com/hunzhiwange/shiju"
 homepage = "https://github.com/hunzhiwange/shiju"
@@ -16,8 +16,8 @@ name = "vw-webview"
 path = "src/main.rs"
 
 [dependencies]
-webview-browser-runtime = { path = "../libs/webview-browser-runtime", version = "0.7.0" }
-webview-mcp-runtime = { path = "../libs/webview-mcp-runtime", version = "0.7.0" }
+webview-browser-runtime = { path = "../libs/webview-browser-runtime" }
+webview-mcp-runtime = { path = "../libs/webview-mcp-runtime" }
 
 [features]
 default = ["desktop-webview"]

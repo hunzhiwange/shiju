@@ -1,6 +1,6 @@
 [package]
 name = "plugin-install"
-version = "0.7.0"
+version.workspace = true
 edition = "2024"
 license = "MIT"
 
@@ -8,13 +8,13 @@ license = "MIT"
 doctest = false
 
 [dependencies]
-agent-skills = { path = "../agent-skills", version = "0.7.0" }
-plugin-mcp = { path = "../plugin-mcp", version = "0.7.0" }
+agent-skills = { path = "../agent-skills" }
+plugin-mcp = { path = "../plugin-mcp" }
 agent-client-protocol = { version = "0.10.4", features = ["unstable_session_usage", "unstable_session_resume"] }
-plugin-types = { path = "../plugin-types", version = "0.7.0" }
+plugin-types = { path = "../plugin-types" }
 anyhow = "1"
 regex = "1"
-config-skills = { path = "../config-skills", version = "0.7.0" }
+config-skills = { path = "../config-skills" }
 sha2 = "0.10"
 hex = "0.4"
 walkdir = "2"

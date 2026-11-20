@@ -1,6 +1,6 @@
 [package]
 name = "app-providers"
-version = "0.7.0"
+version.workspace = true
 edition = "2024"
 license = "MIT"
 
@@ -15,16 +15,16 @@ app-provider-login = { path = "../app-provider-login" }
 app-auth = { path = "../app-auth" }
 app-auth-codex = { path = "../app-auth-codex" }
 app-provider-core = { path = "../app-provider-core" }
-vw-api-app-provider-environment = { path = "../api-app-provider-environment", version = "0.7.0" }
-vw-api-app-provider-edit = { path = "../api-app-provider-edit", version = "0.7.0" }
-vw-api-app-provider-extended = { path = "../api-app-provider-extended", version = "0.7.0" }
-vw-api-app-provider-terminal = { path = "../api-app-provider-terminal", version = "0.7.0" }
-vw-api-app-provider-profiles = { path = "../api-app-provider-profiles", version = "0.7.0" }
-vw-api-app-provider-base = { path = "../api-app-provider-base", version = "0.7.0" }
-vw-api-model-catalog = { path = "../api-model-catalog", version = "0.7.0" }
-vw-api-app-auth = { path = "../api-app-auth", version = "0.7.0" }
-vw-api-app-identity = { path = "../api-app-identity", version = "0.7.0" }
-vw-api-transport = { path = "../api-transport", version = "0.7.0" }
+vw-api-app-provider-environment = { path = "../api-app-provider-environment" }
+vw-api-app-provider-edit = { path = "../api-app-provider-edit" }
+vw-api-app-provider-extended = { path = "../api-app-provider-extended" }
+vw-api-app-provider-terminal = { path = "../api-app-provider-terminal" }
+vw-api-app-provider-profiles = { path = "../api-app-provider-profiles" }
+vw-api-app-provider-base = { path = "../api-app-provider-base" }
+vw-api-model-catalog = { path = "../api-model-catalog" }
+vw-api-app-auth = { path = "../api-app-auth" }
+vw-api-app-identity = { path = "../api-app-identity" }
+vw-api-transport = { path = "../api-transport" }
 app-model-catalog = { path = "../app-model-catalog" }
 app-provider-validation = { path = "../app-provider-validation" }
 app-provider-projection = { path = "../app-provider-projection" }

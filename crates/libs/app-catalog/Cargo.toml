@@ -1,6 +1,6 @@
 [package]
 name = "app-catalog"
-version = "0.7.0"
+version.workspace = true
 edition = "2024"
 license = "MIT"
 
@@ -8,6 +8,6 @@ license = "MIT"
 doctest = false
 
 [dependencies]
-vw-api-app-identity = { path = "../api-app-identity", version = "0.7.0" }
+vw-api-app-identity = { path = "../api-app-identity" }
 serde_json = { version = "1", features = ["arbitrary_precision"] }
-acp-agent-registry = { path = "../acp-agent-registry", version = "0.7.0" }
+acp-agent-registry = { path = "../acp-agent-registry" }

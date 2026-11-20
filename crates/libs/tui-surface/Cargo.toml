@@ -1,6 +1,6 @@
 [package]
 name = "tui-surface"
-version = "0.7.0"
+version.workspace = true
 edition = "2024"
 license = "Apache-2.0"
 
@@ -8,4 +8,4 @@ license = "Apache-2.0"
 doctest = false
 
 [dependencies]
-tui-contracts = { path = "../tui-contracts", version = "0.7.0" }
+tui-contracts = { path = "../tui-contracts" }

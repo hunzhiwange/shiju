@@ -1,6 +1,6 @@
 [package]
 name = "agent-auth"
-version = "0.7.0"
+version.workspace = true
 edition = "2024"
 license = "MIT"
 
@@ -8,10 +8,10 @@ license = "MIT"
 doctest = false
 
 [dependencies]
-agent-paths = { path = "../agent-paths", version = "0.7.0" }
-auth-file-store = { path = "../auth-file-store", version = "0.7.0" }
-auth-types = { path = "../auth-types", version = "0.7.0" }
-config-aggregate = { path = "../config-aggregate", version = "0.7.0" }
+agent-paths = { path = "../agent-paths" }
+auth-file-store = { path = "../auth-file-store" }
+auth-types = { path = "../auth-types" }
+config-aggregate = { path = "../config-aggregate" }
 anyhow = "1"
 reqwest = { version = "0.13", default-features = false }
 serde = { version = "1", features = ["derive"] }

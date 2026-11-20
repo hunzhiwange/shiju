@@ -1,84 +1,84 @@
 [package]
 name = "desktop-apps-ui"
-version = "0.7.0"
+version.workspace = true
 edition = "2024"
 license = "MIT"
 [lib]
 doctest = false
 [dependencies]
-gateway-aggregation-codex = { path = "../gateway-aggregation-codex", version = "0.7.0" }
+gateway-aggregation-codex = { path = "../gateway-aggregation-codex" }
 serde_yaml = "0.9"
-gateway-app-provider = { path = "../gateway-app-provider", version = "0.7.0" }
-gateway-http = { path = "../gateway-http", version = "0.7.0" }
-vw-api-app-provider-terminal = { path = "../api-app-provider-terminal", version = "0.7.0" }
+gateway-app-provider = { path = "../gateway-app-provider" }
+gateway-http = { path = "../gateway-http" }
+vw-api-app-provider-terminal = { path = "../api-app-provider-terminal" }
 serde = { version = "1", features = ["derive"] }
-desktop-assets = { path = "../desktop-assets", version = "0.7.0" }
-desktop-provider-apps = { path = "../desktop-provider-apps", version = "0.7.0" }
+desktop-assets = { path = "../desktop-assets" }
+desktop-provider-apps = { path = "../desktop-provider-apps" }
 iced = { version = "0.14", features = ["image", "svg", "advanced", "tokio"] }
 chrono = { version = "0.4", features = ["serde"] }
 tokio = { version = "1", default-features = false, features = ["rt", "macros", "sync", "time", "fs"] }
-gateway-openclaw-settings = { path = "../gateway-openclaw-settings", version = "0.7.0" }
-gateway-workspace-memory = { path = "../gateway-workspace-memory", version = "0.7.0" }
-vw-api-openclaw-settings = { path = "../api-openclaw-settings", version = "0.7.0" }
-vw-api-workspace-memory = { path = "../api-workspace-memory", version = "0.7.0" }
-vw-api-task = { path = "../api-task", version = "0.7.0" }
-vw-api-transport = { path = "../api-transport", version = "0.7.0" }
-vw-gateway-client = { path = "../../vw-gateway-client", version = "0.7.0" }
-desktop-ui-controls = { path = "../desktop-ui-controls", version = "0.7.0" }
-vw-api-app-identity = { path = "../api-app-identity", version = "0.7.0" }
-vw-api-app-aggregation = { path = "../api-app-aggregation", version = "0.7.0" }
-gateway-aggregation-native = { path = "../gateway-aggregation-native", version = "0.7.0" }
-gateway-app-settings = { path = "../gateway-app-settings", version = "0.7.0" }
-gateway-aggregation-omo = { path = "../gateway-aggregation-omo", version = "0.7.0" }
-vw-api-chat-identity = { path = "../api-chat-identity", version = "0.7.0" }
+gateway-openclaw-settings = { path = "../gateway-openclaw-settings" }
+gateway-workspace-memory = { path = "../gateway-workspace-memory" }
+vw-api-openclaw-settings = { path = "../api-openclaw-settings" }
+vw-api-workspace-memory = { path = "../api-workspace-memory" }
+vw-api-task = { path = "../api-task" }
+vw-api-transport = { path = "../api-transport" }
+vw-gateway-client = { path = "../../vw-gateway-client" }
+desktop-ui-controls = { path = "../desktop-ui-controls" }
+vw-api-app-identity = { path = "../api-app-identity" }
+vw-api-app-aggregation = { path = "../api-app-aggregation" }
+gateway-aggregation-native = { path = "../gateway-aggregation-native" }
+gateway-app-settings = { path = "../gateway-app-settings" }
+gateway-aggregation-omo = { path = "../gateway-aggregation-omo" }
+vw-api-chat-identity = { path = "../api-chat-identity" }
 serde_json = "1"
-gateway-external-session = { path = "../gateway-external-session", version = "0.7.0" }
-vw-api-external-session = { path = "../api-external-session", version = "0.7.0" }
-vw-api-app-diagnostics = { path = "../api-app-diagnostics", version = "0.7.0" }
-vw-api-app-provider-edit = { path = "../api-app-provider-edit", version = "0.7.0" }
-gateway-app-diagnostics = { path = "../gateway-app-diagnostics", version = "0.7.0" }
+gateway-external-session = { path = "../gateway-external-session" }
+vw-api-external-session = { path = "../api-external-session" }
+vw-api-app-diagnostics = { path = "../api-app-diagnostics" }
+vw-api-app-provider-edit = { path = "../api-app-provider-edit" }
+gateway-app-diagnostics = { path = "../gateway-app-diagnostics" }
 rand = "0.10.3"
 rfd = { version = "0.17", features = ["file-handle-inner"] }
 url = "2"
-local-app-auth = { path = "../local-app-auth", version = "0.7.0" }
-desktop-config = { path = "../desktop-config", version = "0.7.0" }
+local-app-auth = { path = "../local-app-auth" }
+desktop-config = { path = "../desktop-config" }
 image = "0.25.9"
-gateway-hermes-memory = { path = "../gateway-hermes-memory", version = "0.7.0" }
-vw-api-hermes-memory = { path = "../api-hermes-memory", version = "0.7.0" }
-vw-api-hermes-dashboard = { path = "../api-hermes-dashboard", version = "0.7.0" }
-vw-api-app-failover = { path = "../api-app-failover", version = "0.7.0" }
-vw-api-mcp-management = { path = "../api-mcp-management", version = "0.7.0" }
-desktop-settings-account = { path = "../desktop-settings-account", version = "0.7.0" }
-gateway-app-auth = { path = "../gateway-app-auth", version = "0.7.0" }
-gateway-app-routing = { path = "../gateway-app-routing", version = "0.7.0" }
-vw-api-app-routing = { path = "../api-app-routing", version = "0.7.0" }
-vw-api-app-auth = { path = "../api-app-auth", version = "0.7.0" }
-gateway-aggregation = { path = "../gateway-aggregation", version = "0.7.0" }
-vw-api-app-provider-base = { path = "../api-app-provider-base", version = "0.7.0" }
-gateway-endpoint = { path = "../gateway-endpoint", version = "0.7.0" }
+gateway-hermes-memory = { path = "../gateway-hermes-memory" }
+vw-api-hermes-memory = { path = "../api-hermes-memory" }
+vw-api-hermes-dashboard = { path = "../api-hermes-dashboard" }
+vw-api-app-failover = { path = "../api-app-failover" }
+vw-api-mcp-management = { path = "../api-mcp-management" }
+desktop-settings-account = { path = "../desktop-settings-account" }
+gateway-app-auth = { path = "../gateway-app-auth" }
+gateway-app-routing = { path = "../gateway-app-routing" }
+vw-api-app-routing = { path = "../api-app-routing" }
+vw-api-app-auth = { path = "../api-app-auth" }
+gateway-aggregation = { path = "../gateway-aggregation" }
+vw-api-app-provider-base = { path = "../api-app-provider-base" }
+gateway-endpoint = { path = "../gateway-endpoint" }
 toml_edit = "0.22"
 tempfile = "3"
 reqwest = { version = "0.13", default-features = false, features = ["json"] }
-gateway-mcp-probe = { path = "../gateway-mcp-probe", version = "0.7.0" }
-gateway-app-failover = { path = "../gateway-app-failover", version = "0.7.0" }
-desktop-app-launch = { path = "../desktop-app-launch", version = "0.7.0" }
-desktop-account = { path = "../desktop-account", version = "0.7.0" }
-desktop-skill-hub = { path = "../desktop-skill-hub", version = "0.7.0" }
-desktop-i18n = { path = "../desktop-i18n", version = "0.7.0" }
-gateway-shiju-app = { path = "../gateway-shiju-app", version = "0.7.0" }
-gateway-shiju-account = { path = "../gateway-shiju-account", version = "0.7.0" }
+gateway-mcp-probe = { path = "../gateway-mcp-probe" }
+gateway-app-failover = { path = "../gateway-app-failover" }
+desktop-app-launch = { path = "../desktop-app-launch" }
+desktop-account = { path = "../desktop-account" }
+desktop-skill-hub = { path = "../desktop-skill-hub" }
+desktop-i18n = { path = "../desktop-i18n" }
+gateway-shiju-app = { path = "../gateway-shiju-app" }
+gateway-shiju-account = { path = "../gateway-shiju-account" }
 web-time = "1"
 [dev-dependencies]
-desktop-account = { path = "../desktop-account", version = "0.7.0", features = ["test-support"] }
+desktop-account = { path = "../desktop-account", features = ["test-support"] }
 urlencoding = "2"
-vw-api-app-provider-profiles = { path = "../api-app-provider-profiles", version = "0.7.0" }
-vw-api-app-provider-extended = { path = "../api-app-provider-extended", version = "0.7.0" }
-vw-api-model-catalog = { path = "../api-model-catalog", version = "0.7.0" }
+vw-api-app-provider-profiles = { path = "../api-app-provider-profiles" }
+vw-api-app-provider-extended = { path = "../api-app-provider-extended" }
+vw-api-model-catalog = { path = "../api-model-catalog" }
 
 toml = "0.9"
-desktop-chat-view = { path = "../desktop-chat-view", version = "0.7.0" }
-desktop-settings-providers = { path = "../desktop-settings-providers", version = "0.7.0" }
-config-ui = { path = "../config-ui", version = "0.7.0" }
+desktop-chat-view = { path = "../desktop-chat-view" }
+desktop-settings-providers = { path = "../desktop-settings-providers" }
+config-ui = { path = "../config-ui" }
 
 iced = { version = "0.14", features = ["tiny-skia"] }
 serde_json = "1"
@@ -92,7 +92,7 @@ wasm-bindgen-futures = "0.4"
 web-sys = { version = "0.3", features = ["Window"] }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-desktop-web-runtime = { path = "../desktop-web-runtime", version = "0.7.0" }
+desktop-web-runtime = { path = "../desktop-web-runtime" }
 
 [target.'cfg(all(not(target_arch = "wasm32"), not(windows)))'.dependencies]
 open = "5"

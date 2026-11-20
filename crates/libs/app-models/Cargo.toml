@@ -1,22 +1,22 @@
 [package]
 name = "app-models"
-version = "0.7.0"
+version.workspace = true
 edition = "2024"
 license = "MIT"
 
 [dependencies]
 app-model-catalog = { path = "../app-model-catalog" }
 app-provider-validation = { path = "../app-provider-validation" }
-vw-api-app-identity = { path = "../api-app-identity", version = "0.7.0" }
-vw-api-app-provider-base = { path = "../api-app-provider-base", version = "0.7.0" }
-vw-api-app-provider-edit = { path = "../api-app-provider-edit", version = "0.7.0" }
-vw-api-app-provider-terminal = { path = "../api-app-provider-terminal", version = "0.7.0" }
-vw-api-model-catalog = { path = "../api-model-catalog", version = "0.7.0" }
-vw-api-transport = { path = "../api-transport", version = "0.7.0" }
-model-reasoning = { path = "../model-reasoning", version = "0.7.0" }
-provider-model-cache = { path = "../provider-model-cache", version = "0.7.0" }
-provider-model-catalog = { path = "../provider-model-catalog", version = "0.7.0" }
-provider-model-discovery = { path = "../provider-model-discovery", version = "0.7.0" }
+vw-api-app-identity = { path = "../api-app-identity" }
+vw-api-app-provider-base = { path = "../api-app-provider-base" }
+vw-api-app-provider-edit = { path = "../api-app-provider-edit" }
+vw-api-app-provider-terminal = { path = "../api-app-provider-terminal" }
+vw-api-model-catalog = { path = "../api-model-catalog" }
+vw-api-transport = { path = "../api-transport" }
+model-reasoning = { path = "../model-reasoning" }
+provider-model-cache = { path = "../provider-model-cache" }
+provider-model-catalog = { path = "../provider-model-catalog" }
+provider-model-discovery = { path = "../provider-model-discovery" }
 reqwest = { version = "0.13", default-features = false, features = ["form", "json", "rustls"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = { version = "1", features = ["arbitrary_precision"] }

@@ -1,6 +1,6 @@
 [package]
 name = "tool-services"
-version = "0.7.0"
+version.workspace = true
 edition = "2024"
 license = "MIT"
 
@@ -11,34 +11,34 @@ doctest = false
 directories = "6"
 
 [dev-dependencies]
-config-security = { path = "../config-security", version = "0.7.0" }
+config-security = { path = "../config-security" }
 tempfile = "3"
 tokio = { version = "1", features = ["macros", "rt-multi-thread", "time"] }
-agent-config = { path = "../agent-config", version = "0.7.0", features = ["test-support"] }
+agent-config = { path = "../agent-config", features = ["test-support"] }
 
 [dependencies]
-session-store = { path = "../session-store", version = "0.7.0" }
-agent-skills = { path = "../agent-skills", version = "0.7.0" }
-permission-runtime = { path = "../permission-runtime", version = "0.7.0" }
-question-types = { path = "../question-types", version = "0.7.0" }
-todo-types = { path = "../todo-types", version = "0.7.0" }
-session-artifact-store = { path = "../session-artifact-store", version = "0.7.0" }
-session-ui-types = { path = "../session-ui-types", version = "0.7.0" }
-agent-project = { path = "../agent-project", version = "0.7.0" }
-agent-cron = { path = "../agent-cron", version = "0.7.0" }
+session-store = { path = "../session-store" }
+agent-skills = { path = "../agent-skills" }
+permission-runtime = { path = "../permission-runtime" }
+question-types = { path = "../question-types" }
+todo-types = { path = "../todo-types" }
+session-artifact-store = { path = "../session-artifact-store" }
+session-ui-types = { path = "../session-ui-types" }
+agent-project = { path = "../agent-project" }
+agent-cron = { path = "../agent-cron" }
 chrono = { version = "0.4", features = ["serde"] }
-agent-config = { path = "../agent-config", version = "0.7.0" }
-config-agent = { path = "../config-agent", version = "0.7.0" }
-config-tools = { path = "../config-tools", version = "0.7.0" }
-tool-types = { path = "../tool-types", version = "0.7.0" }
-tool-context = { path = "../tool-context", version = "0.7.0" }
-tool-files = { path = "../tool-files", version = "0.7.0" }
-agent-security = { path = "../agent-security", version = "0.7.0" }
-agent-files = { path = "../agent-files", version = "0.7.0" }
-patch = { path = "../patch", version = "0.7.0" }
-plugin-install = { path = "../plugin-install", version = "0.7.0" }
-vw-api-tools = { path = "../api-tools", version = "0.7.0" }
-vw-api-transport = { path = "../api-transport", version = "0.7.0" }
+agent-config = { path = "../agent-config" }
+config-agent = { path = "../config-agent" }
+config-tools = { path = "../config-tools" }
+tool-types = { path = "../tool-types" }
+tool-context = { path = "../tool-context" }
+tool-files = { path = "../tool-files" }
+agent-security = { path = "../agent-security" }
+agent-files = { path = "../agent-files" }
+patch = { path = "../patch" }
+plugin-install = { path = "../plugin-install" }
+vw-api-tools = { path = "../api-tools" }
+vw-api-transport = { path = "../api-transport" }
 anyhow = "1"
 async-trait = "0.1.89"
 serde = { version = "1", features = ["derive"] }
@@ -48,8 +48,8 @@ tokio = { version = "1", features = ["fs", "sync", "time"] }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 tokio = { version = "1", features = ["rt-multi-thread"] }
-agent-question = { path = "../agent-question", version = "0.7.0" }
-shell-command = { path = "../shell-command", version = "0.7.0", features = ["shell-tokio"] }
-agent-util = { path = "../agent-util", version = "0.7.0" }
+agent-question = { path = "../agent-question" }
+shell-command = { path = "../shell-command", features = ["shell-tokio"] }
+agent-util = { path = "../agent-util" }
 base64 = "0.23"
 image = "0.25.9"

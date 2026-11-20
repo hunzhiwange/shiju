@@ -1,6 +1,6 @@
 [package]
 name = "desktop-settings-agents"
-version = "0.7.0"
+version.workspace = true
 edition = "2024"
 license = "MIT"
 
@@ -8,45 +8,45 @@ license = "MIT"
 doctest = false
 
 [dependencies]
-acp-agent-registry = { path = "../acp-agent-registry", version = "0.7.0" }
-config-agent-profile = { path = "../config-agent-profile", version = "0.7.0" }
-config-aggregate = { path = "../config-aggregate", version = "0.7.0" }
-config-runtime-paths = { path = "../config-runtime-paths", version = "0.7.0" }
-config-ui = { path = "../config-ui", version = "0.7.0" }
-desktop-i18n = { path = "../desktop-i18n", version = "0.7.0" }
+acp-agent-registry = { path = "../acp-agent-registry" }
+config-agent-profile = { path = "../config-agent-profile" }
+config-aggregate = { path = "../config-aggregate" }
+config-runtime-paths = { path = "../config-runtime-paths" }
+config-ui = { path = "../config-ui" }
+desktop-i18n = { path = "../desktop-i18n" }
 serde_json = "1"
-config-agent = { path = "../config-agent", version = "0.7.0" }
-desktop-ui-controls = { path = "../desktop-ui-controls", version = "0.7.0" }
-desktop-assets = { path = "../desktop-assets", version = "0.7.0" }
-config-acp-install = { path = "../config-acp-install", version = "0.7.0" }
+config-agent = { path = "../config-agent" }
+desktop-ui-controls = { path = "../desktop-ui-controls" }
+desktop-assets = { path = "../desktop-assets" }
+config-acp-install = { path = "../config-acp-install" }
 iced = { version = "0.14", features = ["image", "svg", "advanced", "canvas"] }
-vw-api-mcp-inspect = { path = "../api-mcp-inspect", version = "0.7.0" }
-vw-api-acp-model = { path = "../api-acp-model", version = "0.7.0" }
-config-tools = { path = "../config-tools", version = "0.7.0" }
-desktop-settings-skills = { path = "../desktop-settings-skills", version = "0.7.0" }
-desktop-settings-security = { path = "../desktop-settings-security", version = "0.7.0" }
-desktop-config = { path = "../desktop-config", version = "0.7.0" }
-gateway-desktop-settings = { path = "../gateway-desktop-settings", version = "0.7.0" }
-vw-gateway-client = { path = "../../vw-gateway-client", version = "0.7.0" }
-config-security = { path = "../config-security", version = "0.7.0" }
+vw-api-mcp-inspect = { path = "../api-mcp-inspect" }
+vw-api-acp-model = { path = "../api-acp-model" }
+config-tools = { path = "../config-tools" }
+desktop-settings-skills = { path = "../desktop-settings-skills" }
+desktop-settings-security = { path = "../desktop-settings-security" }
+desktop-config = { path = "../desktop-config" }
+gateway-desktop-settings = { path = "../gateway-desktop-settings" }
+vw-gateway-client = { path = "../../vw-gateway-client" }
+config-security = { path = "../config-security" }
 tokio = { version = "1", features = ["time", "rt"] }
 
-model-types = { path = "../model-types", version = "0.7.0" }
-gateway-interaction = { path = "../gateway-interaction", version = "0.7.0" }
-gateway-model-provider = { path = "../gateway-model-provider", version = "0.7.0" }
-gateway-config = { path = "../gateway-config", version = "0.7.0" }
-gateway-files = { path = "../gateway-files", version = "0.7.0" }
-desktop-settings-providers = { path = "../desktop-settings-providers", version = "0.7.0" }
+model-types = { path = "../model-types" }
+gateway-interaction = { path = "../gateway-interaction" }
+gateway-model-provider = { path = "../gateway-model-provider" }
+gateway-config = { path = "../gateway-config" }
+gateway-files = { path = "../gateway-files" }
+desktop-settings-providers = { path = "../desktop-settings-providers" }
 serde = { version = "1", features = ["derive"] }
 
-gateway-endpoint = { path = "../gateway-endpoint", version = "0.7.0" }
+gateway-endpoint = { path = "../gateway-endpoint" }
 
 [dev-dependencies]
 tempfile = "3"
 iced_runtime = "0.14"
 tokio = { version = "1", features = ["rt-multi-thread", "macros", "net", "io-util"] }
-desktop-chat-view = { path = "../desktop-chat-view", version = "0.7.0" }
+desktop-chat-view = { path = "../desktop-chat-view" }
 image = "0.25.9"
 urlencoding = "2"
-desktop-settings-appearance = { path = "../desktop-settings-appearance", version = "0.7.0" }
-desktop-settings-mcp = { path = "../desktop-settings-mcp", version = "0.7.0" }
+desktop-settings-appearance = { path = "../desktop-settings-appearance" }
+desktop-settings-mcp = { path = "../desktop-settings-mcp" }

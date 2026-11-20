@@ -1,11 +1,11 @@
 [package]
 name = "memory-snapshot"
-version = "0.7.0"
+version.workspace = true
 edition = "2024"
 license = "MIT"
 
 [dependencies]
-project-storage-paths = { path = "../project-storage-paths", version = "0.7.0" }
+project-storage-paths = { path = "../project-storage-paths" }
 anyhow = "1"
 chrono = { version = "0.4", features = ["serde"] }
 tracing = "0.1"

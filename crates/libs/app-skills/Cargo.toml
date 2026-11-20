@@ -1,6 +1,6 @@
 [package]
 name = "app-skills"
-version = "0.7.0"
+version.workspace = true
 edition = "2024"
 license = "MIT"
 
@@ -14,9 +14,9 @@ app-skill-catalog = { path = "../app-skill-catalog" }
 [target.'cfg(target_os = "macos")'.dependencies]
 app-auth = { path = "../app-auth" }
 app-config-paths = { path = "../app-config-paths" }
-vw-api-app-identity = { path = "../api-app-identity", version = "0.7.0" }
-vw-api-app-provider-environment = { path = "../api-app-provider-environment", version = "0.7.0" }
-vw-api-transport = { path = "../api-transport", version = "0.7.0" }
+vw-api-app-identity = { path = "../api-app-identity" }
+vw-api-app-provider-environment = { path = "../api-app-provider-environment" }
+vw-api-transport = { path = "../api-transport" }
 libc = "0.2"
 reqwest = { version = "0.13", default-features = false, features = ["form", "json", "rustls"] }
 serde = { version = "1", features = ["derive"] }

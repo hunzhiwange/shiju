@@ -1,6 +1,6 @@
 [package]
 name = "acp-types"
-version = "0.7.0"
+version.workspace = true
 edition = "2024"
 license = "MIT"
 
@@ -8,9 +8,9 @@ license = "MIT"
 doctest = false
 
 [dependencies]
-vw-api-mcp-management = { path = "../api-mcp-management", version = "0.7.0" }
-vw-api-tools = { path = "../api-tools", version = "0.7.0" }
-acp-paths = { path = "../acp-paths", version = "0.7.0" }
+vw-api-mcp-management = { path = "../api-mcp-management" }
+vw-api-tools = { path = "../api-tools" }
+acp-paths = { path = "../acp-paths" }
 agent-client-protocol = { version = "0.10.4", features = ["unstable_session_usage", "unstable_session_resume", "unstable_session_model", "unstable_boolean_config"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = { version = "1", features = ["raw_value"] }
@@ -18,4 +18,4 @@ thiserror = "2.0.18"
 
 [dev-dependencies]
 tokio = { version = "1", features = ["macros", "rt", "sync"] }
-config-runtime-paths = { path = "../config-runtime-paths", version = "0.7.0" }
+config-runtime-paths = { path = "../config-runtime-paths" }

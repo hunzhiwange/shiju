@@ -1,15 +1,15 @@
 [package]
 name = "gateway-mcp-probe"
-version = "0.7.0"
+version.workspace = true
 edition = "2024"
 license = "MIT"
 
 [dependencies]
-vw-api-app-diagnostics = { path = "../api-app-diagnostics", version = "0.7.0" }
-vw-api-transport = { path = "../api-transport", version = "0.7.0" }
-gateway-http = { path = "../gateway-http", version = "0.7.0" }
-gateway-app-settings = { path = "../gateway-app-settings", version = "0.7.0" }
-vw-api-mcp-management = { path = "../api-mcp-management", version = "0.7.0" }
+vw-api-app-diagnostics = { path = "../api-app-diagnostics" }
+vw-api-transport = { path = "../api-transport" }
+gateway-http = { path = "../gateway-http" }
+gateway-app-settings = { path = "../gateway-app-settings" }
+vw-api-mcp-management = { path = "../api-mcp-management" }
 serde_json = "1"
 serde = { version = "1", features = ["derive"] }
 
@@ -20,5 +20,5 @@ reqwest = { version = "0.13", default-features = false, features = ["json", "que
 reqwest = { version = "0.13", features = ["json", "query"] }
 
 [dev-dependencies]
-gateway-endpoint = { path = "../gateway-endpoint", version = "0.7.0" }
+gateway-endpoint = { path = "../gateway-endpoint" }
 tokio = { version = "1", features = ["macros", "rt-multi-thread"] }

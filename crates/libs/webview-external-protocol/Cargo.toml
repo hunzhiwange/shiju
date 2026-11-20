@@ -1,6 +1,6 @@
 [package]
 name = "webview-external-protocol"
-version = "0.7.0"
+version.workspace = true
 edition = "2024"
 license = "MIT"
 
@@ -11,7 +11,7 @@ doctest = false
 unexpected_cfgs = { level = "warn", check-cfg = ['cfg(coverage)'] }
 
 [dependencies]
-webview-core = { path = "../webview-core", version = "0.7.0" }
+webview-core = { path = "../webview-core" }
 
 [target.'cfg(all(not(target_arch = "wasm32"), not(target_env = "musl")))'.dependencies]
 tao = { version = "0.34" }

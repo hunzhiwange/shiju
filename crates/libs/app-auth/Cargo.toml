@@ -1,6 +1,6 @@
 [package]
 name = "app-auth"
-version = "0.7.0"
+version.workspace = true
 edition = "2024"
 license = "MIT"
 
@@ -18,10 +18,10 @@ app-auth-core = { path = "../app-auth-core" }
 app-auth-dsh = { path = "../app-auth-dsh" }
 app-auth-gemini = { path = "../app-auth-gemini" }
 app-provider-core = { path = "../app-provider-core" }
-vw-api-app-auth = { path = "../api-app-auth", version = "0.7.0" }
-vw-api-task = { path = "../api-task", version = "0.7.0" }
-vw-api-app-identity = { path = "../api-app-identity", version = "0.7.0" }
-vw-api-transport = { path = "../api-transport", version = "0.7.0" }
+vw-api-app-auth = { path = "../api-app-auth" }
+vw-api-task = { path = "../api-task" }
+vw-api-app-identity = { path = "../api-app-identity" }
+vw-api-transport = { path = "../api-transport" }
 app-catalog = { path = "../app-catalog" }
 app-config-patch = { path = "../app-config-patch" }
 app-provider-validation = { path = "../app-provider-validation" }
@@ -37,13 +37,13 @@ uuid = { version = "1.11", features = ["v4", "js"] }
 tempfile = "3"
 vw-api-app-aggregation = { path = "../api-app-aggregation" }
 app-config-paths = { path = "../app-config-paths" }
-vw-api-app-provider-edit = { path = "../api-app-provider-edit", version = "0.7.0" }
-vw-api-app-provider-base = { path = "../api-app-provider-base", version = "0.7.0" }
+vw-api-app-provider-edit = { path = "../api-app-provider-edit" }
+vw-api-app-provider-base = { path = "../api-app-provider-base" }
 
 [target.'cfg(target_os = "macos")'.dependencies]
 app-config-write = { path = "../app-config-write" }
-vw-api-app-provider-environment = { path = "../api-app-provider-environment", version = "0.7.0" }
-vw-api-app-provider-terminal = { path = "../api-app-provider-terminal", version = "0.7.0" }
+vw-api-app-provider-environment = { path = "../api-app-provider-environment" }
+vw-api-app-provider-terminal = { path = "../api-app-provider-terminal" }
 serde_yaml = "0.9"
 toml = "0.9"
 toml_edit = "0.22"

@@ -1,14 +1,14 @@
 [package]
 name = "provider-model-cache"
-version = "0.7.0"
+version.workspace = true
 edition = "2024"
 license = "MIT"
 
 [dependencies]
-model-reasoning = { path = "../model-reasoning", version = "0.7.0" }
-provider-model-catalog = { path = "../provider-model-catalog", version = "0.7.0" }
-provider-request-identity = { path = "../provider-request-identity", version = "0.7.0" }
-provider-runtime-paths = { path = "../provider-runtime-paths", version = "0.7.0" }
+model-reasoning = { path = "../model-reasoning" }
+provider-model-catalog = { path = "../provider-model-catalog" }
+provider-request-identity = { path = "../provider-request-identity" }
+provider-runtime-paths = { path = "../provider-runtime-paths" }
 once_cell = "1"
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
@@ -18,5 +18,5 @@ tempfile = "3"
 tracing = "0.1"
 
 [dev-dependencies]
-model-state = { path = "../model-state", version = "0.7.0" }
+model-state = { path = "../model-state" }
 serde_json = "1"

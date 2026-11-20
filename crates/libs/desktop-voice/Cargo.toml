@@ -1,6 +1,6 @@
 [package]
 name = "desktop-voice"
-version = "0.7.0"
+version.workspace = true
 edition = "2024"
 license = "MIT"
 
@@ -11,16 +11,16 @@ doctest = false
 acceptance-fixture = ["dep:tokio-tungstenite"]
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-audio-capture = { path = "../audio-capture", version = "0.7.0" }
-voice-recordings = { path = "../voice-recordings", version = "0.7.0" }
+audio-capture = { path = "../audio-capture" }
+voice-recordings = { path = "../voice-recordings" }
 image = "0.25.9"
-audio-playback = { path = "../audio-playback", version = "0.7.0" }
-voice-permissions = { path = "../voice-permissions", version = "0.7.0" }
-config-voice = { path = "../config-voice", version = "0.7.0" }
-gateway-endpoint = { path = "../gateway-endpoint", version = "0.7.0" }
-gateway-http = { path = "../gateway-http", version = "0.7.0" }
-gateway-voice = { path = "../gateway-voice", version = "0.7.0" }
-vw-api-voice = { path = "../api-voice", version = "0.7.0" }
+audio-playback = { path = "../audio-playback" }
+voice-permissions = { path = "../voice-permissions" }
+config-voice = { path = "../config-voice" }
+gateway-endpoint = { path = "../gateway-endpoint" }
+gateway-http = { path = "../gateway-http" }
+gateway-voice = { path = "../gateway-voice" }
+vw-api-voice = { path = "../api-voice" }
 base64 = "0.23"
 cpal = { version = "0.18.2", default-features = false }
 iced = { version = "0.14", features = ["tokio"] }

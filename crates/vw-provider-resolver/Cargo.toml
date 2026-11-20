@@ -1,6 +1,6 @@
 [package]
 name = "vw-provider-resolver"
-version = "0.7.0"
+version.workspace = true
 edition = "2024"
 repository = "https://github.com/hunzhiwange/shiju"
 homepage = "https://github.com/hunzhiwange/shiju"
@@ -8,20 +8,20 @@ description = "Provider and model resolver for VibeWindow"
 license = "MIT"
 
 [dependencies]
-model-protocols = { path = "../libs/model-protocols", version = "0.7.0" }
-provider-resolution = { path = "../libs/provider-resolution", version = "0.7.0" }
-provider-auth-reader = { path = "../libs/provider-auth-reader", version = "0.7.0" }
-provider-config-reader = { path = "../libs/provider-config-reader", version = "0.7.0" }
-provider-model-cache = { path = "../libs/provider-model-cache", version = "0.7.0" }
-provider-request-identity = { path = "../libs/provider-request-identity", version = "0.7.0" }
-provider-state-cache = { path = "../libs/provider-state-cache", version = "0.7.0" }
-provider-runtime-paths = { path = "../libs/provider-runtime-paths", version = "0.7.0" }
-provider-protocol-routes = { path = "../libs/provider-protocol-routes", version = "0.7.0" }
-provider-errors = { path = "../libs/provider-errors", version = "0.7.0" }
+model-protocols = { path = "../libs/model-protocols" }
+provider-resolution = { path = "../libs/provider-resolution" }
+provider-auth-reader = { path = "../libs/provider-auth-reader" }
+provider-config-reader = { path = "../libs/provider-config-reader" }
+provider-model-cache = { path = "../libs/provider-model-cache" }
+provider-request-identity = { path = "../libs/provider-request-identity" }
+provider-state-cache = { path = "../libs/provider-state-cache" }
+provider-runtime-paths = { path = "../libs/provider-runtime-paths" }
+provider-protocol-routes = { path = "../libs/provider-protocol-routes" }
+provider-errors = { path = "../libs/provider-errors" }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-provider-model-discovery = { path = "../libs/provider-model-discovery", version = "0.7.0" }
+provider-model-discovery = { path = "../libs/provider-model-discovery" }
 
 [dev-dependencies]
-provider-model-catalog = { path = "../libs/provider-model-catalog", version = "0.7.0" }
+provider-model-catalog = { path = "../libs/provider-model-catalog" }
 serde_json = "1"

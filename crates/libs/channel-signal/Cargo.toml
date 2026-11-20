@@ -1,6 +1,6 @@
 [package]
 name = "channel-signal"
-version = "0.7.0"
+version.workspace = true
 edition = "2024"
 license = "MIT"
 
@@ -8,11 +8,11 @@ license = "MIT"
 doctest = false
 
 [dependencies]
-agent-config = { path = "../agent-config", version = "0.7.0" }
-agent-providers = { path = "../agent-providers", version = "0.7.0" }
+agent-config = { path = "../agent-config" }
+agent-providers = { path = "../agent-providers" }
 anyhow = "1"
 async-trait = "0.1.89"
-channel-types = { path = "../channel-types", version = "0.7.0" }
+channel-types = { path = "../channel-types" }
 futures-util = "0.3.32"
 reqwest = { version = "0.13", default-features = false, features = ["json", "stream", "rustls", "socks"] }
 serde = { version = "1", features = ["derive"] }

@@ -1,21 +1,21 @@
 [package]
 name = "cli-api-workspace"
-version = "0.7.0"
+version.workspace = true
 edition = "2024"
 license = "MIT"
 
 [dependencies]
-gateway-knowledge = { path = "../gateway-knowledge", version = "0.7.0" }
-vw-api-knowledge = { path = "../api-knowledge", version = "0.7.0" }
-vw-api-project = { path = "../api-project", version = "0.7.0" }
-vw-api-worktree = { path = "../api-worktree", version = "0.7.0" }
-vw-api-git = { path = "../api-git", version = "0.7.0" }
-vw-api-file = { path = "../api-file", version = "0.7.0" }
-gateway-project = { path = "../gateway-project", version = "0.7.0" }
-cli-api-core = { path = "../cli-api-core", version = "0.7.0" }
-vw-api-transport = { path = "../api-transport", version = "0.7.0" }
+gateway-knowledge = { path = "../gateway-knowledge" }
+vw-api-knowledge = { path = "../api-knowledge" }
+vw-api-project = { path = "../api-project" }
+vw-api-worktree = { path = "../api-worktree" }
+vw-api-git = { path = "../api-git" }
+vw-api-file = { path = "../api-file" }
+gateway-project = { path = "../gateway-project" }
+cli-api-core = { path = "../cli-api-core" }
+vw-api-transport = { path = "../api-transport" }
 anyhow = "1"
 clap = { version = "4.5", features = ["derive"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
-vw-gateway-client = { path = "../../vw-gateway-client", version = "0.7.0" }
+vw-gateway-client = { path = "../../vw-gateway-client" }

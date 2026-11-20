@@ -1,6 +1,6 @@
 [package]
 name = "gateway-config"
-version = "0.7.0"
+version.workspace = true
 edition = "2024"
 license = "MIT"
 
@@ -8,38 +8,37 @@ license = "MIT"
 doctest = false
 
 [dependencies]
-gateway-http = { path = "../gateway-http", version = "0.7.0" }
-vw-api-transport = { path = "../api-transport", version = "0.7.0" }
+gateway-http = { path = "../gateway-http" }
+vw-api-transport = { path = "../api-transport" }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 
 [dev-dependencies]
 tempfile = "3"
-gateway-endpoint = { path = "../gateway-endpoint", version = "0.7.0" }
+gateway-endpoint = { path = "../gateway-endpoint" }
 serde = { version = "1", features = ["derive"] }
 tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-agent-config = { path = "../agent-config", version = "0.7.0" }
-agent-provider = { path = "../agent-provider", version = "0.7.0" }
-gateway-types = { path = "../gateway-types", version = "0.7.0" }
-gateway-pairing = { path = "../gateway-pairing", version = "0.7.0" }
+agent-config = { path = "../agent-config" }
+agent-provider = { path = "../agent-provider" }
+gateway-types = { path = "../gateway-types" }
+gateway-pairing = { path = "../gateway-pairing" }
 axum = "0.8"
 parking_lot = "0.12"
 toml = "0.9"
-config-agent = { path = "../config-agent", version = "0.7.0" }
-acp-agent-registry = { path = "../acp-agent-registry", version = "0.7.0" }
+config-agent = { path = "../config-agent" }
+acp-agent-registry = { path = "../acp-agent-registry" }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
-agent-database = { path = "../agent-database", version = "0.7.0" }
-agent-gateway = { path = "../agent-gateway", version = "0.7.0" }
-config-agent-profile = { path = "../config-agent-profile", version = "0.7.0" }
-config-gateway = { path = "../config-gateway", version = "0.7.0" }
+agent-database = { path = "../agent-database" }
+agent-gateway = { path = "../agent-gateway" }
+config-agent-profile = { path = "../config-agent-profile" }
+config-gateway = { path = "../config-gateway" }
 
 [features]
 host-test-support = ["dep:agent-database"]
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies.agent-database]
 path = "../agent-database"
-version = "0.7.0"
 optional = true

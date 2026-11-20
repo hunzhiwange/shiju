@@ -1,6 +1,6 @@
 [package]
 name = "cli-transcript"
-version = "0.7.0"
+version.workspace = true
 edition = "2024"
 license = "MIT"
 
@@ -9,6 +9,6 @@ doctest = false
 
 [dependencies]
 chrono = { version = "0.4", features = ["serde"] }
-cli-terminal = { path = "../cli-terminal", version = "0.7.0" }
+cli-terminal = { path = "../cli-terminal" }
 ratatui = "0.30.0"
 serde_json = "1"

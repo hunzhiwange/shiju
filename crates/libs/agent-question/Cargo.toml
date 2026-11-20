@@ -1,6 +1,6 @@
 [package]
 name = "agent-question"
-version = "0.7.0"
+version.workspace = true
 edition = "2024"
 license = "MIT"
 
@@ -8,11 +8,11 @@ license = "MIT"
 doctest = false
 
 [dependencies]
-agent-bus = { path = "../agent-bus", version = "0.7.0" }
-agent-log = { path = "../agent-log", version = "0.7.0" }
-ordered-id = { path = "../ordered-id", version = "0.7.0" }
-question-types = { path = "../question-types", version = "0.7.0" }
-vw-api-transport = { path = "../api-transport", version = "0.7.0" }
+agent-bus = { path = "../agent-bus" }
+agent-log = { path = "../agent-log" }
+ordered-id = { path = "../ordered-id" }
+question-types = { path = "../question-types" }
+vw-api-transport = { path = "../api-transport" }
 serde_json = "1"
 tokio = { version = "1", features = ["sync"] }
 

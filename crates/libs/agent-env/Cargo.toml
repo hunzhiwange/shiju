@@ -1,6 +1,6 @@
 [package]
 name = "agent-env"
-version = "0.7.0"
+version.workspace = true
 edition = "2024"
 license = "MIT"
 
@@ -8,4 +8,4 @@ license = "MIT"
 doctest = false
 
 [dependencies]
-agent-context = { path = "../agent-context", version = "0.7.0" }
+agent-context = { path = "../agent-context" }

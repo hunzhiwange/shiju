@@ -1,6 +1,6 @@
 [package]
 name = "channel-telegram"
-version = "0.7.0"
+version.workspace = true
 edition = "2024"
 license = "MIT"
 
@@ -19,19 +19,19 @@ serde_json = "1"
 tokio = { version = "1", features = ["fs", "io-util", "rt", "sync", "time"] }
 tracing = "0.1"
 reqwest = { version = "0.13", default-features = false, features = ["multipart", "stream", "socks", "json", "gzip", "brotli", "deflate", "zstd", "http2", "rustls"] }
-agent-config = { path = "../agent-config", version = "0.7.0" }
-agent-providers = { path = "../agent-providers", version = "0.7.0" }
-channel-support = { path = "../channel-support", version = "0.7.0" }
-channel-types = { path = "../channel-types", version = "0.7.0" }
-gateway-pairing = { path = "../gateway-pairing", version = "0.7.0" }
-vw-api-transport = { path = "../api-transport", version = "0.7.0" }
+agent-config = { path = "../agent-config" }
+agent-providers = { path = "../agent-providers" }
+channel-support = { path = "../channel-support" }
+channel-types = { path = "../channel-types" }
+gateway-pairing = { path = "../gateway-pairing" }
+vw-api-transport = { path = "../api-transport" }
 
 [dev-dependencies]
-config-runtime-paths = { path = "../config-runtime-paths", version = "0.7.0" }
-model-types = { path = "../model-types", version = "0.7.0" }
-agent-database = { path = "../agent-database", version = "0.7.0", features = ["test-support"] }
-agent-config = { path = "../agent-config", version = "0.7.0", features = ["test-support"] }
-agent-multimodal = { path = "../agent-multimodal", version = "0.7.0" }
+config-runtime-paths = { path = "../config-runtime-paths" }
+model-types = { path = "../model-types" }
+agent-database = { path = "../agent-database", features = ["test-support"] }
+agent-config = { path = "../agent-config", features = ["test-support"] }
+agent-multimodal = { path = "../agent-multimodal" }
 axum = { version = "0.8.8", features = ["json"] }
 tempfile = "3"
 tokio = { version = "1", features = ["rt-multi-thread", "macros", "net", "test-util"] }

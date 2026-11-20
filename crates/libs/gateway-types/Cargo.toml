@@ -1,6 +1,6 @@
 [package]
 name = "gateway-types"
-version = "0.7.0"
+version.workspace = true
 edition = "2024"
 license = "MIT"
 
@@ -8,26 +8,26 @@ license = "MIT"
 doctest = false
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-agent-config = { path = "../agent-config", version = "0.7.0" }
-gateway-error = { path = "../gateway-error", version = "0.7.0" }
-memory-types = { path = "../memory-types", version = "0.7.0" }
-observer-types = { path = "../observer-types", version = "0.7.0" }
-model-types = { path = "../model-types", version = "0.7.0" }
-gateway-pairing = { path = "../gateway-pairing", version = "0.7.0" }
-tool-types = { path = "../tool-types", version = "0.7.0" }
-channel-linq = { path = "../channel-linq", version = "0.7.0" }
-channel-nextcloud-talk = { path = "../channel-nextcloud-talk", version = "0.7.0" }
-channel-qq = { path = "../channel-qq", version = "0.7.0" }
-channel-wati = { path = "../channel-wati", version = "0.7.0" }
-channel-whatsapp = { path = "../channel-whatsapp", version = "0.7.0" }
+agent-config = { path = "../agent-config" }
+gateway-error = { path = "../gateway-error" }
+memory-types = { path = "../memory-types" }
+observer-types = { path = "../observer-types" }
+model-types = { path = "../model-types" }
+gateway-pairing = { path = "../gateway-pairing" }
+tool-types = { path = "../tool-types" }
+channel-linq = { path = "../channel-linq" }
+channel-nextcloud-talk = { path = "../channel-nextcloud-talk" }
+channel-qq = { path = "../channel-qq" }
+channel-wati = { path = "../channel-wati" }
+channel-whatsapp = { path = "../channel-whatsapp" }
 axum = { version = "0.8.8", features = ["json"] }
 parking_lot = "0.12"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 tokio = { version = "1", features = ["sync"] }
 
-vw-agent-apps = { path = "../../vw-agent-apps", version = "0.7.0" }
-vw-api-transport = { path = "../api-transport", version = "0.7.0" }
+vw-agent-apps = { path = "../../vw-agent-apps" }
+vw-api-transport = { path = "../api-transport" }
 
 [dev-dependencies]
 tokio = { version = "1", features = ["macros", "rt-multi-thread"] }

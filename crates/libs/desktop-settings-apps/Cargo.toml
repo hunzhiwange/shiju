@@ -1,6 +1,6 @@
 [package]
 name = "desktop-settings-apps"
-version = "0.7.0"
+version.workspace = true
 edition = "2024"
 license = "MIT"
 
@@ -8,43 +8,43 @@ license = "MIT"
 doctest = false
 
 [dependencies]
-app-versions = { path = "../app-versions", version = "0.7.0" }
+app-versions = { path = "../app-versions" }
 reqwest = { version = "0.13", default-features = false, features = ["json", "rustls"] }
 iced_runtime = "0.14"
 web-time = "1"
-config-ui = { path = "../config-ui", version = "0.7.0" }
-desktop-i18n = { path = "../desktop-i18n", version = "0.7.0" }
+config-ui = { path = "../config-ui" }
+desktop-i18n = { path = "../desktop-i18n" }
 image = "0.25"
-gateway-app-lifecycle = { path = "../gateway-app-lifecycle", version = "0.7.0" }
-gateway-endpoint = { path = "../gateway-endpoint", version = "0.7.0" }
+gateway-app-lifecycle = { path = "../gateway-app-lifecycle" }
+gateway-endpoint = { path = "../gateway-endpoint" }
 rand = "0.8"
-desktop-apps-ui = { path = "../desktop-apps-ui", version = "0.7.0" }
-desktop-provider-apps = { path = "../desktop-provider-apps", version = "0.7.0" }
-gateway-aggregation = { path = "../gateway-aggregation", version = "0.7.0" }
-gateway-aggregation-desktop = { path = "../gateway-aggregation-desktop", version = "0.7.0" }
-gateway-aggregation-native = { path = "../gateway-aggregation-native", version = "0.7.0" }
-gateway-aggregation-omo = { path = "../gateway-aggregation-omo", version = "0.7.0" }
-gateway-aggregation-codex = { path = "../gateway-aggregation-codex", version = "0.7.0" }
-gateway-app-provider = { path = "../gateway-app-provider", version = "0.7.0" }
-vw-api-app-aggregation = { path = "../api-app-aggregation", version = "0.7.0" }
-vw-api-app-provider-base = { path = "../api-app-provider-base", version = "0.7.0" }
-vw-api-app-identity = { path = "../api-app-identity", version = "0.7.0" }
-vw-api-app-operations = { path = "../api-app-operations", version = "0.7.0" }
-vw-api-task = { path = "../api-task", version = "0.7.0" }
-gateway-http = { path = "../gateway-http", version = "0.7.0" }
-gateway-app-read = { path = "../gateway-app-read", version = "0.7.0" }
-gateway-app-settings = { path = "../gateway-app-settings", version = "0.7.0" }
-local-app-auth = { path = "../local-app-auth", version = "0.7.0" }
-vw-gateway-client = { path = "../../vw-gateway-client", version = "0.7.0" }
-vw-api-transport = { path = "../api-transport", version = "0.7.0" }
-desktop-ui-controls = { path = "../desktop-ui-controls", version = "0.7.0" }
-desktop-assets = { path = "../desktop-assets", version = "0.7.0" }
+desktop-apps-ui = { path = "../desktop-apps-ui" }
+desktop-provider-apps = { path = "../desktop-provider-apps" }
+gateway-aggregation = { path = "../gateway-aggregation" }
+gateway-aggregation-desktop = { path = "../gateway-aggregation-desktop" }
+gateway-aggregation-native = { path = "../gateway-aggregation-native" }
+gateway-aggregation-omo = { path = "../gateway-aggregation-omo" }
+gateway-aggregation-codex = { path = "../gateway-aggregation-codex" }
+gateway-app-provider = { path = "../gateway-app-provider" }
+vw-api-app-aggregation = { path = "../api-app-aggregation" }
+vw-api-app-provider-base = { path = "../api-app-provider-base" }
+vw-api-app-identity = { path = "../api-app-identity" }
+vw-api-app-operations = { path = "../api-app-operations" }
+vw-api-task = { path = "../api-task" }
+gateway-http = { path = "../gateway-http" }
+gateway-app-read = { path = "../gateway-app-read" }
+gateway-app-settings = { path = "../gateway-app-settings" }
+local-app-auth = { path = "../local-app-auth" }
+vw-gateway-client = { path = "../../vw-gateway-client" }
+vw-api-transport = { path = "../api-transport" }
+desktop-ui-controls = { path = "../desktop-ui-controls" }
+desktop-assets = { path = "../desktop-assets" }
 serde_json = "1"
 directories = "5"
 tokio = { version = "1", default-features = false, features = ["rt", "macros", "sync", "time"] }
 iced = { version = "0.14", features = ["image", "svg", "advanced", "tokio"] }
 
 [dev-dependencies]
-vw-api-chat-identity = { path = "../api-chat-identity", version = "0.7.0" }
-vw-api-app-provider-profiles = { path = "../api-app-provider-profiles", version = "0.7.0" }
+vw-api-chat-identity = { path = "../api-chat-identity" }
+vw-api-app-provider-profiles = { path = "../api-app-provider-profiles" }
 tempfile = "3"

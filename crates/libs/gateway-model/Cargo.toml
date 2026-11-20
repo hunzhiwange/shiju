@@ -1,6 +1,6 @@
 [package]
 name = "gateway-model"
-version = "0.7.0"
+version.workspace = true
 edition = "2024"
 license = "MIT"
 
@@ -8,18 +8,18 @@ license = "MIT"
 doctest = false
 
 [dependencies]
-agent-database = { path = "../agent-database", version = "0.7.0" }
-agent-project = { path = "../agent-project", version = "0.7.0" }
-agent-paths = { path = "../agent-paths", version = "0.7.0" }
-app-provider-services = { path = "../app-provider-services", version = "0.7.0" }
-provider-model-cache = { path = "../provider-model-cache", version = "0.7.0" }
-vw-agent-apps = { path = "../../vw-agent-apps", version = "0.7.0" }
-vw-api-app-identity = { path = "../api-app-identity", version = "0.7.0" }
-vw-api-transport = { path = "../api-transport", version = "0.7.0" }
-vw-api-model-catalog = { path = "../api-model-catalog", version = "0.7.0" }
-vw-api-app-provider-edit = { path = "../api-app-provider-edit", version = "0.7.0" }
-vw-api-app-provider-base = { path = "../api-app-provider-base", version = "0.7.0" }
-vw-api-app-provider-profiles = { path = "../api-app-provider-profiles", version = "0.7.0" }
+agent-database = { path = "../agent-database" }
+agent-project = { path = "../agent-project" }
+agent-paths = { path = "../agent-paths" }
+app-provider-services = { path = "../app-provider-services" }
+provider-model-cache = { path = "../provider-model-cache" }
+vw-agent-apps = { path = "../../vw-agent-apps" }
+vw-api-app-identity = { path = "../api-app-identity" }
+vw-api-transport = { path = "../api-transport" }
+vw-api-model-catalog = { path = "../api-model-catalog" }
+vw-api-app-provider-edit = { path = "../api-app-provider-edit" }
+vw-api-app-provider-base = { path = "../api-app-provider-base" }
+vw-api-app-provider-profiles = { path = "../api-app-provider-profiles" }
 axum = { version = "0.8.8", features = ["json"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
@@ -33,14 +33,14 @@ uuid = { version = "1.11", features = ["v4", "js"] }
 [dev-dependencies]
 reqwest = { version = "0.13", default-features = false, features = ["json", "rustls"] }
 libc = "0.2"
-agent-gateway = { path = "../agent-gateway", version = "0.7.0" }
-gateway-agent-apps = { path = "../gateway-agent-apps", version = "0.7.0" }
-gateway-model-catalog = { path = "../gateway-model-catalog", version = "0.7.0" }
-gateway-endpoint = { path = "../gateway-endpoint", version = "0.7.0" }
-vw-api-app-provider-extended = { path = "../api-app-provider-extended", version = "0.7.0" }
+agent-gateway = { path = "../agent-gateway" }
+gateway-agent-apps = { path = "../gateway-agent-apps" }
+gateway-model-catalog = { path = "../gateway-model-catalog" }
+gateway-endpoint = { path = "../gateway-endpoint" }
+vw-api-app-provider-extended = { path = "../api-app-provider-extended" }
 sha2 = "0.11"
 hex = "0.4"
 tempfile = "3"
 tokio = { version = "1", features = ["full"] }
-gateway-http = { path = "../gateway-http", version = "0.7.0" }
-provider-runtime-paths = { path = "../provider-runtime-paths", version = "0.7.0" }
+gateway-http = { path = "../gateway-http" }
+provider-runtime-paths = { path = "../provider-runtime-paths" }

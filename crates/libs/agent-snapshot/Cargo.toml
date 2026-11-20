@@ -1,6 +1,6 @@
 [package]
 name = "agent-snapshot"
-version = "0.7.0"
+version.workspace = true
 edition = "2024"
 license = "MIT"
 
@@ -10,12 +10,12 @@ doctest = false
 [dependencies]
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
-snapshot-types = { path = "../snapshot-types", version = "0.7.0" }
+snapshot-types = { path = "../snapshot-types" }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-agent-log = { path = "../agent-log", version = "0.7.0" }
-agent-paths = { path = "../agent-paths", version = "0.7.0" }
-shell-command = { path = "../shell-command", version = "0.7.0" }
+agent-log = { path = "../agent-log" }
+agent-paths = { path = "../agent-paths" }
+shell-command = { path = "../shell-command" }
 git2 = { version = "0.21.0", default-features = false, features = ["https", "ssh", "vendored-libgit2", "vendored-openssl"] }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]

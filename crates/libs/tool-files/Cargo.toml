@@ -1,6 +1,6 @@
 [package]
 name = "tool-files"
-version = "0.7.0"
+version.workspace = true
 edition = "2024"
 license = "MIT"
 
@@ -13,7 +13,7 @@ rag-pdf = []
 [dependencies]
 tracing = "0.1"
 glob = "0.3"
-agent-multimodal = { path = "../agent-multimodal", version = "0.7.0" }
+agent-multimodal = { path = "../agent-multimodal" }
 base64 = "0.23"
 image = "0.25.9"
 pdf-extract = "0.12.0"
@@ -24,14 +24,14 @@ serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 similar = "2"
 tokio = { version = "1", features = ["fs", "process", "time", "rt", "sync", "macros"] }
-agent-security = { path = "../agent-security", version = "0.7.0" }
-agent-paths = { path = "../agent-paths", version = "0.7.0" }
-agent-util = { path = "../agent-util", version = "0.7.0" }
-agent-files = { path = "../agent-files", version = "0.7.0" }
-shell-command = { path = "../shell-command", version = "0.7.0" }
-tool-types = { path = "../tool-types", version = "0.7.0" }
-tool-context = { path = "../tool-context", version = "0.7.0" }
-vw-api-tools = { path = "../api-tools", version = "0.7.0" }
+agent-security = { path = "../agent-security" }
+agent-paths = { path = "../agent-paths" }
+agent-util = { path = "../agent-util" }
+agent-files = { path = "../agent-files" }
+shell-command = { path = "../shell-command" }
+tool-types = { path = "../tool-types" }
+tool-context = { path = "../tool-context" }
+vw-api-tools = { path = "../api-tools" }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 which = "6.0"
@@ -39,6 +39,6 @@ tempfile = "3"
 
 [dev-dependencies]
 tempfile = "3"
-permission-types = { path = "../permission-types", version = "0.7.0" }
-vw-api-transport = { path = "../api-transport", version = "0.7.0" }
+permission-types = { path = "../permission-types" }
+vw-api-transport = { path = "../api-transport" }
 tokio-util = "0.7"

@@ -1,12 +1,12 @@
 [package]
 name = "vw-api-apps-usage"
-version = "0.7.0"
+version.workspace = true
 edition = "2024"
 license = "MIT"
 
 [dependencies]
-vw-api-transport = { path = "../api-transport", version = "0.7.0" }
-vw-api-app-identity = { path = "../api-app-identity", version = "0.7.0" }
+vw-api-transport = { path = "../api-transport" }
+vw-api-app-identity = { path = "../api-app-identity" }
 chrono = { version = "0.4", default-features = false, features = ["std"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"

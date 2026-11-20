@@ -1,6 +1,6 @@
 [package]
 name = "app-session-codex"
-version = "0.7.0"
+version.workspace = true
 edition = "2024"
 license = "MIT"
 
@@ -9,7 +9,7 @@ doctest = false
 
 [dependencies]
 app-session-core = { path = "../app-session-core" }
-vw-api-external-session = { path = "../api-external-session", version = "0.7.0" }
+vw-api-external-session = { path = "../api-external-session" }
 chrono = { version = "0.4", default-features = false, features = ["std"] }
 regex = "1"
 serde = { version = "1", features = ["derive"] }

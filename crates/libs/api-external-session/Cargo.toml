@@ -1,10 +1,10 @@
 [package]
 name = "vw-api-external-session"
-version = "0.7.0"
+version.workspace = true
 edition = "2024"
 license = "MIT"
 
 [dependencies]
-vw-api-transport = { path = "../api-transport", version = "0.7.0" }
-vw-api-task = { path = "../api-task", version = "0.7.0" }
+vw-api-transport = { path = "../api-transport" }
+vw-api-task = { path = "../api-task" }
 serde = { version = "1", features = ["derive"] }

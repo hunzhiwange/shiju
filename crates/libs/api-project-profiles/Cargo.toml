@@ -1,11 +1,11 @@
 [package]
 name = "vw-api-project-profiles"
-version = "0.7.0"
+version.workspace = true
 edition = "2024"
 license = "MIT"
 
 [dependencies]
-vw-api-app-identity = { path = "../api-app-identity", version = "0.7.0" }
+vw-api-app-identity = { path = "../api-app-identity" }
 serde = { version = "1", features = ["derive"] }
 
 [dev-dependencies]

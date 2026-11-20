@@ -1,6 +1,6 @@
 [package]
 name = "agent-plugins"
-version = "0.7.0"
+version.workspace = true
 edition = "2024"
 license = "MIT"
 
@@ -9,16 +9,16 @@ doctest = false
 
 [dependencies]
 tokio-util = "0.7.18"
-model-types = { path = "../model-types", version = "0.7.0" }
+model-types = { path = "../model-types" }
 anyhow = "1"
-vw-api-transport = { path = "../api-transport", version = "0.7.0" }
-plugin-types = { path = "../plugin-types", version = "0.7.0" }
+vw-api-transport = { path = "../api-transport" }
+plugin-types = { path = "../plugin-types" }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 
-plugin-hooks = { path = "../plugin-hooks", version = "0.7.0" }
-plugin-install = { path = "../plugin-install", version = "0.7.0" }
-config-plugins = { path = "../config-plugins", version = "0.7.0" }
+plugin-hooks = { path = "../plugin-hooks" }
+plugin-install = { path = "../plugin-install" }
+config-plugins = { path = "../config-plugins" }
 sha2 = "0.10"
 hex = "0.4"
 tracing = "0.1"
@@ -27,20 +27,20 @@ tempfile = "3"
 flate2 = "1"
 tar = "0.4"
 
-plugin-mcp = { path = "../plugin-mcp", version = "0.7.0" }
+plugin-mcp = { path = "../plugin-mcp" }
 url = "2"
 base64 = "0.23"
 reqwest_012 = { package = "reqwest", version = "0.12", default-features = false, features = ["json", "rustls-tls-webpki-roots"] }
 tokio = { version = "1", features = ["rt", "net", "time", "macros", "process", "io-util"] }
 
-agent-config = { path = "../agent-config", version = "0.7.0" }
-agent-skills = { path = "../agent-skills", version = "0.7.0" }
-agent-cli-types = { path = "../agent-cli-types", version = "0.7.0" }
+agent-config = { path = "../agent-config" }
+agent-skills = { path = "../agent-skills" }
+agent-cli-types = { path = "../agent-cli-types" }
 
-agent-hooks = { path = "../agent-hooks", version = "0.7.0" }
-tool-types = { path = "../tool-types", version = "0.7.0" }
-tool-context = { path = "../tool-context", version = "0.7.0" }
-tool-shell = { path = "../tool-shell", version = "0.7.0" }
+agent-hooks = { path = "../agent-hooks" }
+tool-types = { path = "../tool-types" }
+tool-context = { path = "../tool-context" }
+tool-shell = { path = "../tool-shell" }
 async-trait = "0.1"
 
 agent-client-protocol = { version = "0.10.4", features = ["unstable_session_usage", "unstable_session_resume"] }
@@ -49,35 +49,35 @@ agent-client-protocol = { version = "0.10.4", features = ["unstable_session_usag
 libc = "0.2"
 
 [dev-dependencies]
-vw-api-tools = { path = "../api-tools", version = "0.7.0" }
-plugin-mcp = { path = "../plugin-mcp", version = "0.7.0", features = ["test-support"] }
+vw-api-tools = { path = "../api-tools" }
+plugin-mcp = { path = "../plugin-mcp", features = ["test-support"] }
 clap = { version = "4.5", features = ["derive"] }
-acp-config = { path = "../acp-config", version = "0.7.0" }
+acp-config = { path = "../acp-config" }
 git2 = { version = "0.21.0", default-features = false, features = ["https", "ssh", "vendored-libgit2", "vendored-openssl"] }
 
-mcp-client = { path = "../mcp-client", version = "0.7.0" }
+mcp-client = { path = "../mcp-client" }
 rmcp = { version = "0.8.0", features = ["client"] }
 tokio-util = "0.7.18"
-agent-question = { path = "../agent-question", version = "0.7.0" }
+agent-question = { path = "../agent-question" }
 
-tool-services = { path = "../tool-services", version = "0.7.0" }
+tool-services = { path = "../tool-services" }
 
-agent-security = { path = "../agent-security", version = "0.7.0" }
+agent-security = { path = "../agent-security" }
 
-agent-multimodal = { path = "../agent-multimodal", version = "0.7.0" }
+agent-multimodal = { path = "../agent-multimodal" }
 
-permission-types = { path = "../permission-types", version = "0.7.0" }
+permission-types = { path = "../permission-types" }
 
-permission-runtime = { path = "../permission-runtime", version = "0.7.0" }
+permission-runtime = { path = "../permission-runtime" }
 
-question-types = { path = "../question-types", version = "0.7.0" }
+question-types = { path = "../question-types" }
 
-config-agent = { path = "../config-agent", version = "0.7.0" }
+config-agent = { path = "../config-agent" }
 
 walkdir = "2"
 
-tool-mcp = { path = "../tool-mcp", version = "0.7.0" }
+tool-mcp = { path = "../tool-mcp" }
 
-acp-types = { path = "../acp-types", version = "0.7.0" }
-agent-bus = { path = "../agent-bus", version = "0.7.0" }
+acp-types = { path = "../acp-types" }
+agent-bus = { path = "../agent-bus" }
 tokio = { version = "1", features = ["test-util", "rt-multi-thread"] }

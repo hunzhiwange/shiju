@@ -9,6 +9,7 @@ import unittest
 
 
 REPO = Path(__file__).resolve().parents[2]
+WORKSPACE_MANIFEST = '[workspace.package]\nversion = "1.2.3"\n'
 
 
 class LinuxBundleTests(unittest.TestCase):
@@ -17,6 +18,7 @@ class LinuxBundleTests(unittest.TestCase):
         for target, arch in [("aarch64-unknown-linux-gnu", "arm64"), ("x86_64-unknown-linux-gnu", "amd64")]:
             with self.subTest(target=target), tempfile.TemporaryDirectory() as temp:
                 root = Path(temp)
+                (root / "Cargo.toml").write_text(WORKSPACE_MANIFEST)
                 manifest = root / "crates/vw-desktop/Cargo.toml"
                 manifest.parent.mkdir(parents=True)
                 shutil.copyfile(REPO / "crates/vw-desktop/Cargo.toml", manifest)
@@ -32,6 +34,7 @@ class LinuxBundleTests(unittest.TestCase):
                 subprocess.run(["bash", str(REPO / "scripts/bundle_linux.sh")], cwd=root, env=env, check=True, capture_output=True)
                 packages = list((root / "output").glob("*.deb"))
                 self.assertEqual(len(packages), 1)
+                self.assertEqual(packages[0].name, f"shiju_1.2.3_{arch}.deb")
                 package = packages[0]
                 metadata = subprocess.check_output(["dpkg-deb", "-W", "--showformat=${Package}\n${Architecture}", str(package)], text=True)
                 self.assertEqual(metadata, f"shiju\n{arch}")
@@ -49,6 +52,7 @@ class LinuxBundleTests(unittest.TestCase):
             for override in (None, "relative", "absolute"):
                 with self.subTest(target=target, override=override), tempfile.TemporaryDirectory() as temp:
                     root = Path(temp)
+                    (root / "Cargo.toml").write_text(WORKSPACE_MANIFEST)
                     manifest = root / "crates/vw-desktop/Cargo.toml"
                     manifest.parent.mkdir(parents=True)
                     shutil.copyfile(REPO / "crates/vw-desktop/Cargo.toml", manifest)
@@ -91,7 +95,9 @@ class LinuxBundleTests(unittest.TestCase):
                     for name in binaries:
                         self.assertEqual((root / "captured" / name).read_text(), name)
                     arch = "arm64" if target.startswith("aarch64") else "amd64"
-                    self.assertIn(f"Architecture: {arch}\n", (root / "captured/control").read_text())
+                    control = (root / "captured/control").read_text()
+                    self.assertIn(f"Architecture: {arch}\n", control)
+                    self.assertIn("Version: 1.2.3\n", control)
                     self.assertEqual(len(list((root / "output").glob("*.deb"))), 1)
 
 

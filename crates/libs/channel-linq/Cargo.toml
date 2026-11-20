@@ -1,6 +1,6 @@
 [package]
 name = "channel-linq"
-version = "0.7.0"
+version.workspace = true
 edition = "2024"
 license = "MIT"
 
@@ -8,11 +8,11 @@ license = "MIT"
 doctest = false
 
 [dependencies]
-agent-providers = { path = "../agent-providers", version = "0.7.0" }
+agent-providers = { path = "../agent-providers" }
 anyhow = "1"
 async-trait = "0.1.89"
-channel-support = { path = "../channel-support", version = "0.7.0" }
-channel-types = { path = "../channel-types", version = "0.7.0" }
+channel-support = { path = "../channel-support" }
+channel-types = { path = "../channel-types" }
 chrono = "0.4"
 hex = "0.4"
 hmac = "0.13.0"

@@ -1,6 +1,6 @@
 [package]
 name = "app-routing-services"
-version = "0.7.0"
+version.workspace = true
 edition = "2024"
 license = "MIT"
 
@@ -16,20 +16,20 @@ serde_json = "1"
 tokio = { version = "1", features = ["io-util", "net", "sync", "time", "rt", "macros"] }
 anyhow = "1"
 serde = { version = "1", features = ["derive"] }
-model-relay-state = { path = "../model-relay-state", version = "0.7.0" }
+model-relay-state = { path = "../model-relay-state" }
 
-model-protocol = { path = "../model-protocol", version = "0.7.0" }
+model-protocol = { path = "../model-protocol" }
 
 
-vw-agent-apps = { path = "../../vw-agent-apps", version = "0.7.0" }
-model-transport = { path = "../model-transport", version = "0.7.0" }
+vw-agent-apps = { path = "../../vw-agent-apps" }
+model-transport = { path = "../model-transport" }
 reqwest = { version = "0.13", default-features = false, features = ["stream", "socks", "gzip", "brotli", "deflate", "zstd", "http2", "rustls"] }
-vw-api-transport = { path = "../api-transport", version = "0.7.0" }
-agent-database = { path = "../agent-database", version = "0.7.0" }
-agent-usage = { path = "../agent-usage", version = "0.7.0" }
-vw-api-app-identity = { path = "../api-app-identity", version = "0.7.0" }
-vw-api-app-routing = { path = "../api-app-routing", version = "0.7.0" }
-vw-api-app-provider-base = { path = "../api-app-provider-base", version = "0.7.0" }
+vw-api-transport = { path = "../api-transport" }
+agent-database = { path = "../agent-database" }
+agent-usage = { path = "../agent-usage" }
+vw-api-app-identity = { path = "../api-app-identity" }
+vw-api-app-routing = { path = "../api-app-routing" }
+vw-api-app-provider-base = { path = "../api-app-provider-base" }
 getrandom = "0.4"
 hex = "0.4"
 sha2 = "0.11"
@@ -50,34 +50,33 @@ url = "2"
 
 [target.'cfg(target_os = "macos")'.dependencies]
 
-agent-app-services = { path = "../agent-app-services", version = "0.7.0" }
-vw-api-app-auth = { path = "../api-app-auth", version = "0.7.0" }
+agent-app-services = { path = "../agent-app-services" }
+vw-api-app-auth = { path = "../api-app-auth" }
 
-app-settings-store = { path = "../app-settings-store", version = "0.7.0" }
-vw-api-app-failover = { path = "../api-app-failover", version = "0.7.0" }
+app-settings-store = { path = "../app-settings-store" }
+vw-api-app-failover = { path = "../api-app-failover" }
 
-app-provider-services = { path = "../app-provider-services", version = "0.7.0" }
-vw-api-model-catalog = { path = "../api-model-catalog", version = "0.7.0" }
-secret-store = { path = "../secret-store", version = "0.7.0" }
-vw-api-app-provider-environment = { path = "../api-app-provider-environment", version = "0.7.0" }
+app-provider-services = { path = "../app-provider-services" }
+vw-api-model-catalog = { path = "../api-model-catalog" }
+secret-store = { path = "../secret-store" }
+vw-api-app-provider-environment = { path = "../api-app-provider-environment" }
 chrono = { version = "0.4", features = ["serde"] }
 system-configuration = "0.7"
 glob = "0.3"
 
 [dev-dependencies]
-gateway-http = { path = "../gateway-http", version = "0.7.0" }
+gateway-http = { path = "../gateway-http" }
 rusqlite = "0.37"
 postgres = "0.19"
 tokio = { version = "1", features = ["macros", "test-util", "rt-multi-thread", "process"] }
 tempfile = "3"
 flate2 = "1"
-agent-database = { path = "../agent-database", version = "0.7.0", features = ["test-support"] }
-gateway-endpoint = { path = "../gateway-endpoint", version = "0.7.0" }
-gateway-inference = { path = "../gateway-inference", version = "0.7.0" }
+agent-database = { path = "../agent-database", features = ["test-support"] }
+gateway-endpoint = { path = "../gateway-endpoint" }
+gateway-inference = { path = "../gateway-inference" }
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 getrandom = { version = "0.4", features = ["wasm_js"] }
 
 [dev-dependencies.agent-config]
 path = "../agent-config"
-version = "0.7.0"

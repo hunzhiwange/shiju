@@ -1,6 +1,6 @@
 [package]
 name = "workflow-template-contract"
-version = "0.7.0"
+version.workspace = true
 edition = "2024"
 license = "MIT"
 
@@ -11,4 +11,4 @@ doctest = false
 anyhow = "1"
 serde_json = "1"
 serde_yaml = "0.9"
-vw-api-workflow = { path = "../api-workflow", version = "0.7.0" }
+vw-api-workflow = { path = "../api-workflow" }

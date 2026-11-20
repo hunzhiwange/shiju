@@ -1,6 +1,6 @@
 [package]
 name = "desktop-editor"
-version = "0.7.0"
+version.workspace = true
 edition = "2024"
 license = "MIT"
 
@@ -8,26 +8,26 @@ license = "MIT"
 doctest = false
 
 [dependencies]
-gateway-files = { path = "../gateway-files", version = "0.7.0" }
-preview-content = { path = "../preview-content", version = "0.7.0" }
+gateway-files = { path = "../gateway-files" }
+preview-content = { path = "../preview-content" }
 iced = { version = "0.14", features = ["svg", "image", "advanced", "highlighter", "markdown"] }
 iced-code-editor = { git = "https://github.com/doyouhaobaby/iced-code-editor.git", tag = "v0.5.6", features = ["two-face"] }
-config-ui = { path = "../config-ui", version = "0.7.0" }
-desktop-i18n = { path = "../desktop-i18n", version = "0.7.0" }
-desktop-assets = { path = "../desktop-assets", version = "0.7.0" }
-desktop-ui-controls = { path = "../desktop-ui-controls", version = "0.7.0" }
+config-ui = { path = "../config-ui" }
+desktop-i18n = { path = "../desktop-i18n" }
+desktop-assets = { path = "../desktop-assets" }
+desktop-ui-controls = { path = "../desktop-ui-controls" }
 serde_json = "1"
 unicode-width = "0.2"
 tracing = "0.1"
 
 serde = { version = "1", features = ["derive"] }
-desktop-config = { path = "../desktop-config", version = "0.7.0" }
-gateway-endpoint = { path = "../gateway-endpoint", version = "0.7.0" }
-gateway-desktop-settings = { path = "../gateway-desktop-settings", version = "0.7.0" }
-vw-gateway-client = { path = "../../vw-gateway-client", version = "0.7.0" }
+desktop-config = { path = "../desktop-config" }
+gateway-endpoint = { path = "../gateway-endpoint" }
+gateway-desktop-settings = { path = "../gateway-desktop-settings" }
+vw-gateway-client = { path = "../../vw-gateway-client" }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-desktop-lsp = { path = "../desktop-lsp", version = "0.7.0" }
+desktop-lsp = { path = "../desktop-lsp" }
 tokio = { version = "1", default-features = false, features = ["sync"] }
 
 [dev-dependencies]

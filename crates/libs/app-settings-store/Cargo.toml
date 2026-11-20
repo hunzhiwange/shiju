@@ -1,6 +1,6 @@
 [package]
 name = "app-settings-store"
-version = "0.7.0"
+version.workspace = true
 edition = "2024"
 license = "MIT"
 
@@ -9,21 +9,21 @@ doctest = false
 
 [dependencies]
 hex = "0.4"
-app-skills = { path = "../app-skills", version = "0.7.0" }
-app-availability = { path = "../app-availability", version = "0.7.0" }
-app-provider-validation = { path = "../app-provider-validation", version = "0.7.0" }
-app-routing-policy = { path = "../app-routing-policy", version = "0.7.0" }
-agent-database = { path = "../agent-database", version = "0.7.0" }
+app-skills = { path = "../app-skills" }
+app-availability = { path = "../app-availability" }
+app-provider-validation = { path = "../app-provider-validation" }
+app-routing-policy = { path = "../app-routing-policy" }
+agent-database = { path = "../agent-database" }
 anyhow = "1"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 thiserror = "2"
 postgres = { version = "0.19.12", features = ["with-chrono-0_4"] }
 tokio = { version = "1", features = ["rt-multi-thread", "sync", "macros", "time"] }
-vw-api-transport = { path = "../api-transport", version = "0.7.0" }
-vw-api-app-failover = { path = "../api-app-failover", version = "0.7.0" }
-vw-api-app-identity = { path = "../api-app-identity", version = "0.7.0" }
-vw-agent-apps = { path = "../../vw-agent-apps", version = "0.7.0" }
+vw-api-transport = { path = "../api-transport" }
+vw-api-app-failover = { path = "../api-app-failover" }
+vw-api-app-identity = { path = "../api-app-identity" }
+vw-agent-apps = { path = "../../vw-agent-apps" }
 
 [target.'cfg(target_os = "macos")'.dependencies]
 reqwest = { version = "0.13", default-features = false }
@@ -38,7 +38,7 @@ rusqlite = "0.37.0"
 
 [dev-dependencies]
 zip = { version = "8.6", default-features = false, features = ["deflate-flate2-zlib-rs"] }
-app-providers = { path = "../app-providers", version = "0.7.0" }
-agent-database = { path = "../agent-database", version = "0.7.0", features = ["test-support"] }
+app-providers = { path = "../app-providers" }
+agent-database = { path = "../agent-database", features = ["test-support"] }
 tempfile = "3"
-vw-api-app-provider-base = { path = "../api-app-provider-base", version = "0.7.0" }
+vw-api-app-provider-base = { path = "../api-app-provider-base" }

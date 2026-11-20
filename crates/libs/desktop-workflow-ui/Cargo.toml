@@ -1,6 +1,6 @@
 [package]
 name = "desktop-workflow-ui"
-version = "0.7.0"
+version.workspace = true
 edition = "2024"
 license = "MIT"
 
@@ -9,19 +9,19 @@ doctest = false
 
 [dependencies]
 anyhow = "1"
-desktop-workflow-canvas = { path = "../desktop-workflow-canvas", version = "0.7.0" }
-desktop-task-model = { path = "../desktop-task-model", version = "0.7.0" }
-desktop-chat-view = { path = "../desktop-chat-view", version = "0.7.0" }
-vw-api-task-lifecycle = { path = "../api-task-lifecycle", version = "0.7.0" }
-gateway-task-lifecycle = { path = "../gateway-task-lifecycle", version = "0.7.0" }
-desktop-assets = { path = "../desktop-assets", version = "0.7.0" }
-desktop-workflow-state = { path = "../desktop-workflow-state", version = "0.7.0" }
-desktop-workflow-model = { path = "../desktop-workflow-model", version = "0.7.0" }
-desktop-ui-controls = { path = "../desktop-ui-controls", version = "0.7.0" }
-desktop-i18n = { path = "../desktop-i18n", version = "0.7.0" }
-vw-api-workflow = { path = "../api-workflow", version = "0.7.0" }
-vw-api-transport = { path = "../api-transport", version = "0.7.0" }
-gateway-workflow = { path = "../gateway-workflow", version = "0.7.0" }
+desktop-workflow-canvas = { path = "../desktop-workflow-canvas" }
+desktop-task-model = { path = "../desktop-task-model" }
+desktop-chat-view = { path = "../desktop-chat-view" }
+vw-api-task-lifecycle = { path = "../api-task-lifecycle" }
+gateway-task-lifecycle = { path = "../gateway-task-lifecycle" }
+desktop-assets = { path = "../desktop-assets" }
+desktop-workflow-state = { path = "../desktop-workflow-state" }
+desktop-workflow-model = { path = "../desktop-workflow-model" }
+desktop-ui-controls = { path = "../desktop-ui-controls" }
+desktop-i18n = { path = "../desktop-i18n" }
+vw-api-workflow = { path = "../api-workflow" }
+vw-api-transport = { path = "../api-transport" }
+gateway-workflow = { path = "../gateway-workflow" }
 iced = { version = "0.14", features = ["advanced", "svg", "canvas"] }
 serde_json = "1"
 chrono = "0.4"
@@ -36,7 +36,7 @@ open = { version = "5", features = ["shellexecute-on-windows"] }
 
 [dev-dependencies]
 urlencoding = "2"
-config-ui = { path = "../config-ui", version = "0.7.0" }
+config-ui = { path = "../config-ui" }
 iced_runtime = "0.14"
 tokio = { version = "1", default-features = false, features = ["rt", "rt-multi-thread", "macros"] }
 image = "0.25.9"

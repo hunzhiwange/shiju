@@ -1,21 +1,21 @@
 [package]
 name = "cli-api-system"
-version = "0.7.0"
+version.workspace = true
 edition = "2024"
 license = "MIT"
 
 [dependencies]
-gateway-skill-market = { path = "../gateway-skill-market", version = "0.7.0" }
-gateway-shiju-skill = { path = "../gateway-shiju-skill", version = "0.7.0" }
-gateway-shiju-app = { path = "../gateway-shiju-app", version = "0.7.0" }
-gateway-system = { path = "../gateway-system", version = "0.7.0" }
-gateway-interaction = { path = "../gateway-interaction", version = "0.7.0" }
-gateway-cron = { path = "../gateway-cron", version = "0.7.0" }
-gateway-model-provider = { path = "../gateway-model-provider", version = "0.7.0" }
-gateway-config = { path = "../gateway-config", version = "0.7.0" }
-cli-api-core = { path = "../cli-api-core", version = "0.7.0" }
+gateway-skill-market = { path = "../gateway-skill-market" }
+gateway-shiju-skill = { path = "../gateway-shiju-skill" }
+gateway-shiju-app = { path = "../gateway-shiju-app" }
+gateway-system = { path = "../gateway-system" }
+gateway-interaction = { path = "../gateway-interaction" }
+gateway-cron = { path = "../gateway-cron" }
+gateway-model-provider = { path = "../gateway-model-provider" }
+gateway-config = { path = "../gateway-config" }
+cli-api-core = { path = "../cli-api-core" }
 anyhow = "1"
 clap = { version = "4.5", features = ["derive"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
-vw-gateway-client = { path = "../../vw-gateway-client", version = "0.7.0" }
+vw-gateway-client = { path = "../../vw-gateway-client" }

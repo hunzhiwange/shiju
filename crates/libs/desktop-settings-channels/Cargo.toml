@@ -1,6 +1,6 @@
 [package]
 name = "desktop-settings-channels"
-version = "0.7.0"
+version.workspace = true
 edition = "2024"
 license = "MIT"
 
@@ -8,37 +8,37 @@ license = "MIT"
 doctest = false
 
 [dependencies]
-desktop-chat-view = { path = "../desktop-chat-view", version = "0.7.0" }
+desktop-chat-view = { path = "../desktop-chat-view" }
 iced = { version = "0.14", features = ["advanced", "svg", "image"] }
-desktop-i18n = { path = "../desktop-i18n", version = "0.7.0" }
-desktop-ui-controls = { path = "../desktop-ui-controls", version = "0.7.0" }
-desktop-settings-security = { path = "../desktop-settings-security", version = "0.7.0" }
-config-ui = { path = "../config-ui", version = "0.7.0" }
-config-channel-types = { path = "../config-channel-types", version = "0.7.0" }
-config-channel-services = { path = "../config-channel-services", version = "0.7.0" }
-config-channels = { path = "../config-channels", version = "0.7.0" }
-config-agent-profile = { path = "../config-agent-profile", version = "0.7.0" }
-gateway-channel-qr = { path = "../gateway-channel-qr", version = "0.7.0" }
+desktop-i18n = { path = "../desktop-i18n" }
+desktop-ui-controls = { path = "../desktop-ui-controls" }
+desktop-settings-security = { path = "../desktop-settings-security" }
+config-ui = { path = "../config-ui" }
+config-channel-types = { path = "../config-channel-types" }
+config-channel-services = { path = "../config-channel-services" }
+config-channels = { path = "../config-channels" }
+config-agent-profile = { path = "../config-agent-profile" }
+gateway-channel-qr = { path = "../gateway-channel-qr" }
 
-desktop-config = { path = "../desktop-config", version = "0.7.0" }
+desktop-config = { path = "../desktop-config" }
 base64 = "0.23"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
-vw-gateway-client = { path = "../../vw-gateway-client", version = "0.7.0" }
-vw-api-transport = { path = "../api-transport", version = "0.7.0" }
-vw-api-project = { path = "../api-project", version = "0.7.0" }
-config-agent = { path = "../config-agent", version = "0.7.0" }
-gateway-project = { path = "../gateway-project", version = "0.7.0" }
-gateway-config = { path = "../gateway-config", version = "0.7.0" }
-gateway-model-provider = { path = "../gateway-model-provider", version = "0.7.0" }
+vw-gateway-client = { path = "../../vw-gateway-client" }
+vw-api-transport = { path = "../api-transport" }
+vw-api-project = { path = "../api-project" }
+config-agent = { path = "../config-agent" }
+gateway-project = { path = "../gateway-project" }
+gateway-config = { path = "../gateway-config" }
+gateway-model-provider = { path = "../gateway-model-provider" }
 
 url = "2"
 
 [dev-dependencies]
-gateway-endpoint = { path = "../gateway-endpoint", version = "0.7.0" }
+gateway-endpoint = { path = "../gateway-endpoint" }
 tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
 
 iced_runtime = "0.14"
-desktop-assets = { path = "../desktop-assets", version = "0.7.0" }
+desktop-assets = { path = "../desktop-assets" }
 tempfile = "3"
 image = "0.25.9"

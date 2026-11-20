@@ -1,6 +1,6 @@
 [package]
 name = "gateway-pairing"
-version = "0.7.0"
+version.workspace = true
 edition = "2024"
 license = "MIT"
 
@@ -8,7 +8,7 @@ license = "MIT"
 doctest = false
 
 [dependencies]
-config-gateway = { path = "../config-gateway", version = "0.7.0" }
+config-gateway = { path = "../config-gateway" }
 chrono = { version = "0.4", features = ["serde"] }
 hex = "0.4"
 parking_lot = "0.12"

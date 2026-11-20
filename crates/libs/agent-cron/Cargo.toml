@@ -1,6 +1,6 @@
 [package]
 name = "agent-cron"
-version = "0.7.0"
+version.workspace = true
 edition = "2024"
 license = "MIT"
 
@@ -8,17 +8,17 @@ license = "MIT"
 doctest = false
 
 [dependencies]
-task-file-store = { path = "../task-file-store", version = "0.7.0" }
+task-file-store = { path = "../task-file-store" }
 clap = { version = "4.5", features = ["derive"] }
-session-port = { path = "../session-port", version = "0.7.0" }
+session-port = { path = "../session-port" }
 async-trait = "0.1"
 futures-util = "0.3.32"
-agent-security = { path = "../agent-security", version = "0.7.0" }
-agent-health = { path = "../agent-health", version = "0.7.0" }
-channel-support = { path = "../channel-support", version = "0.7.0" }
-vw-api-chat = { path = "../api-chat", version = "0.7.0" }
-vw-api-acp-model = { path = "../api-acp-model", version = "0.7.0" }
-agent-config = { path = "../agent-config", version = "0.7.0" }
+agent-security = { path = "../agent-security" }
+agent-health = { path = "../agent-health" }
+channel-support = { path = "../channel-support" }
+vw-api-chat = { path = "../api-chat" }
+vw-api-acp-model = { path = "../api-acp-model" }
+agent-config = { path = "../agent-config" }
 anyhow = "1"
 chrono = { version = "0.4", features = ["serde"] }
 chrono-tz = "0.10.4"
@@ -31,8 +31,8 @@ serde_json = "1"
 tracing = "0.1"
 
 [dev-dependencies]
-config-runtime-paths = { path = "../config-runtime-paths", version = "0.7.0" }
-config-channel-types = { path = "../config-channel-types", version = "0.7.0" }
+config-runtime-paths = { path = "../config-runtime-paths" }
+config-channel-types = { path = "../config-channel-types" }
 tempfile = "3"
 tokio = { version = "1", features = ["fs", "net", "io-util"] }
 
@@ -43,14 +43,13 @@ rusqlite = { version = "0.37.0", features = ["bundled"] }
 rusqlite = "0.37.0"
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-channel-types = { path = "../channel-types", version = "0.7.0" }
-channel-telegram = { path = "../channel-telegram", version = "0.7.0" }
-channel-discord = { path = "../channel-discord", version = "0.7.0" }
-channel-email-channel = { path = "../channel-email-channel", version = "0.7.0" }
-channel-mattermost = { path = "../channel-mattermost", version = "0.7.0" }
-channel-qq = { path = "../channel-qq", version = "0.7.0" }
-channel-slack = { path = "../channel-slack", version = "0.7.0" }
+channel-types = { path = "../channel-types" }
+channel-telegram = { path = "../channel-telegram" }
+channel-discord = { path = "../channel-discord" }
+channel-email-channel = { path = "../channel-email-channel" }
+channel-mattermost = { path = "../channel-mattermost" }
+channel-qq = { path = "../channel-qq" }
+channel-slack = { path = "../channel-slack" }
 
 [dependencies.agent-cli-types]
 path = "../agent-cli-types"
-version = "0.7.0"

@@ -1,6 +1,6 @@
 [package]
 name = "channel-nostr"
-version = "0.7.0"
+version.workspace = true
 edition = "2024"
 license = "MIT"
 
@@ -10,7 +10,7 @@ doctest = false
 [dependencies]
 anyhow = "1"
 async-trait = "0.1.89"
-channel-types = { path = "../channel-types", version = "0.7.0" }
+channel-types = { path = "../channel-types" }
 nostr-sdk = { version = "0.37", features = ["nip04", "nip59"] }
 tokio = { version = "1", features = ["sync"] }
 tracing = "0.1"

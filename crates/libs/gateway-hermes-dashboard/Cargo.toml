@@ -1,6 +1,6 @@
 [package]
 name = "gateway-hermes-dashboard"
-version = "0.7.0"
+version.workspace = true
 edition = "2024"
 license = "MIT"
 
@@ -12,12 +12,12 @@ axum = { version = "0.8.8", features = ["json"] }
 tokio = { version = "1", features = ["rt", "macros", "process", "sync"] }
 uuid = { version = "1.11", features = ["v4"] }
 libc = "0.2"
-app-access-service = { path = "../app-access-service", version = "0.7.0" }
-app-lifecycle = { path = "../app-lifecycle", version = "0.7.0" }
-app-discovery = { path = "../app-discovery", version = "0.7.0" }
-app-launch = { path = "../app-launch", version = "0.7.0" }
-app-workspace-memory = { path = "../app-workspace-memory", version = "0.7.0" }
-vw-api-hermes-dashboard = { path = "../api-hermes-dashboard", version = "0.7.0" }
-vw-api-app-identity = { path = "../api-app-identity", version = "0.7.0" }
-vw-api-app-operations = { path = "../api-app-operations", version = "0.7.0" }
-vw-api-transport = { path = "../api-transport", version = "0.7.0" }
+app-access-service = { path = "../app-access-service" }
+app-lifecycle = { path = "../app-lifecycle" }
+app-discovery = { path = "../app-discovery" }
+app-launch = { path = "../app-launch" }
+app-workspace-memory = { path = "../app-workspace-memory" }
+vw-api-hermes-dashboard = { path = "../api-hermes-dashboard" }
+vw-api-app-identity = { path = "../api-app-identity" }
+vw-api-app-operations = { path = "../api-app-operations" }
+vw-api-transport = { path = "../api-transport" }

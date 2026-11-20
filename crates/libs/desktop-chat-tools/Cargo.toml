@@ -1,6 +1,6 @@
 [package]
 name = "desktop-chat-tools"
-version = "0.7.0"
+version.workspace = true
 edition = "2024"
 license = "MIT"
 
@@ -8,25 +8,25 @@ license = "MIT"
 doctest = false
 
 [dependencies]
-vw-api-workflow = { path = "../api-workflow", version = "0.7.0" }
-todo-types = { path = "../todo-types", version = "0.7.0" }
-question-types = { path = "../question-types", version = "0.7.0" }
-diff-text = { path = "../diff-text", version = "0.7.0" }
+vw-api-workflow = { path = "../api-workflow" }
+todo-types = { path = "../todo-types" }
+question-types = { path = "../question-types" }
+diff-text = { path = "../diff-text" }
 serde_json = "1"
 
 iced = { version = "0.14", features = ["image", "svg", "advanced", "highlighter", "canvas"] }
-desktop-assets = { path = "../desktop-assets", version = "0.7.0" }
-desktop-ui-controls = { path = "../desktop-ui-controls", version = "0.7.0" }
-desktop-i18n = { path = "../desktop-i18n", version = "0.7.0" }
-desktop-settings-skills = { path = "../desktop-settings-skills", version = "0.7.0" }
-desktop-settings-agents = { path = "../desktop-settings-agents", version = "0.7.0" }
-config-agent-profile = { path = "../config-agent-profile", version = "0.7.0" }
-gateway-interaction = { path = "../gateway-interaction", version = "0.7.0" }
+desktop-assets = { path = "../desktop-assets" }
+desktop-ui-controls = { path = "../desktop-ui-controls" }
+desktop-i18n = { path = "../desktop-i18n" }
+desktop-settings-skills = { path = "../desktop-settings-skills" }
+desktop-settings-agents = { path = "../desktop-settings-agents" }
+config-agent-profile = { path = "../config-agent-profile" }
+gateway-interaction = { path = "../gateway-interaction" }
 
-config-ui = { path = "../config-ui", version = "0.7.0" }
+config-ui = { path = "../config-ui" }
 
 serde = { version = "1", features = ["derive"] }
-patch = { path = "../patch", version = "0.7.0" }
+patch = { path = "../patch" }
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 git2 = { version = "0.21.0", default-features = false, features = ["https", "ssh", "vendored-libgit2", "vendored-openssl"] }
 

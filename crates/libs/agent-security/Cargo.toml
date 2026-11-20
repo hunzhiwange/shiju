@@ -1,6 +1,6 @@
 [package]
 name = "agent-security"
-version = "0.7.0"
+version.workspace = true
 edition = "2024"
 license = "MIT"
 
@@ -9,9 +9,9 @@ doctest = false
 
 [dependencies]
 shellexpand = "3"
-canary-guard = { path = "../canary-guard", version = "0.7.0" }
-agent-config = { path = "../agent-config", version = "0.7.0" }
-agent-memory = { path = "../agent-memory", version = "0.7.0" }
+canary-guard = { path = "../canary-guard" }
+agent-config = { path = "../agent-config" }
+agent-memory = { path = "../agent-memory" }
 sha2 = "0.11"
 hex = "0.4"
 directories = "5"
@@ -21,12 +21,12 @@ shell-words = "1.1"
 thiserror = "2.0.18"
 tree-sitter = { version = "0.26.10", optional = true }
 tree-sitter-bash = { version = "0.23", optional = true }
-config-security = { path = "../config-security", version = "0.7.0" }
-process-sandbox = { path = "../process-sandbox", version = "0.7.0" }
-domain-matcher = { path = "../domain-matcher", version = "0.7.0" }
-content-guard = { path = "../content-guard", version = "0.7.0" }
-gateway-pairing = { path = "../gateway-pairing", version = "0.7.0" }
-secret-store = { path = "../secret-store", version = "0.7.0" }
+config-security = { path = "../config-security" }
+process-sandbox = { path = "../process-sandbox" }
+domain-matcher = { path = "../domain-matcher" }
+content-guard = { path = "../content-guard" }
+gateway-pairing = { path = "../gateway-pairing" }
+secret-store = { path = "../secret-store" }
 anyhow = "1"
 parking_lot = "0.12"
 serde = { version = "1", features = ["derive"] }

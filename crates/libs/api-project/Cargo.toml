@@ -1,12 +1,12 @@
 [package]
 name = "vw-api-project"
-version = "0.7.0"
+version.workspace = true
 edition = "2024"
 license = "MIT"
 
 [dependencies]
-vw-api-transport = { path = "../api-transport", version = "0.7.0" }
-vw-api-session = { path = "../api-session", version = "0.7.0" }
+vw-api-transport = { path = "../api-transport" }
+vw-api-session = { path = "../api-session" }
 serde = { version = "1", features = ["derive"] }
 
 [dev-dependencies]

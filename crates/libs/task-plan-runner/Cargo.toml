@@ -1,6 +1,6 @@
 [package]
 name = "task-plan-runner"
-version = "0.7.0"
+version.workspace = true
 edition = "2024"
 license = "MIT"
 

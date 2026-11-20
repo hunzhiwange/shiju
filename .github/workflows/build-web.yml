@@ -55,10 +55,10 @@ jobs:
           lock = tomllib.loads(pathlib.Path('Cargo.lock').read_text())
           versions = {p['version'] for p in lock['package'] if p['name'] == 'wasm-bindgen'}
           assert len(versions) == 1, 'Expected one wasm-bindgen version in Cargo.lock'
-          app = tomllib.loads(pathlib.Path('crates/vw-desktop/Cargo.toml').read_text())
+          app = tomllib.loads(pathlib.Path('Cargo.toml').read_text())['workspace']['package']
           with open(os.environ['GITHUB_OUTPUT'], 'a') as out:
               print('bindgen=' + versions.pop(), file=out)
-              print('app=' + app['package']['version'], file=out)
+              print('app=' + app['version'], file=out)
           PY
       - name: Cache wasm-bindgen CLI
         id: bindgen-cache

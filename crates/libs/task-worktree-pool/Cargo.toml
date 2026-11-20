@@ -1,6 +1,6 @@
 [package]
 name = "task-worktree-pool"
-version = "0.7.0"
+version.workspace = true
 edition = "2024"
 license = "MIT"
 
@@ -13,9 +13,9 @@ test-support = []
 
 [dependencies]
 anyhow = "1"
-project-types = { path = "../project-types", version = "0.7.0" }
-vw-api-transport = { path = "../api-transport", version = "0.7.0" }
-vw-api-task = { path = "../api-task", version = "0.7.0" }
+project-types = { path = "../project-types" }
+vw-api-transport = { path = "../api-transport" }
+vw-api-task = { path = "../api-task" }
 
 [dev-dependencies]
 tempfile = "3"

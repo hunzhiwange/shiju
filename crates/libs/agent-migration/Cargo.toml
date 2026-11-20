@@ -1,6 +1,6 @@
 [package]
 name = "agent-migration"
-version = "0.7.0"
+version.workspace = true
 edition = "2024"
 license = "MIT"
 
@@ -8,9 +8,9 @@ license = "MIT"
 doctest = false
 
 [dependencies]
-agent-config = { path = "../agent-config", version = "0.7.0" }
-agent-cli-types = { path = "../agent-cli-types", version = "0.7.0" }
-agent-memory = { path = "../agent-memory", version = "0.7.0" }
+agent-config = { path = "../agent-config" }
+agent-cli-types = { path = "../agent-cli-types" }
+agent-memory = { path = "../agent-memory" }
 anyhow = "1"
 chrono = { version = "0.4", features = ["serde"] }
 
@@ -21,6 +21,6 @@ rusqlite = "0.37.0"
 rusqlite = { version = "0.37.0", features = ["bundled"] }
 
 [dev-dependencies]
-agent-config = { path = "../agent-config", version = "0.7.0", features = ["test-support"] }
+agent-config = { path = "../agent-config", features = ["test-support"] }
 tempfile = "3"
 tokio = { version = "1", features = ["rt-multi-thread", "macros"] }

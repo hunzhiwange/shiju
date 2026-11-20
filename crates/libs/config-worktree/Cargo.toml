@@ -1,11 +1,11 @@
 [package]
 name = "config-worktree"
-version = "0.7.0"
+version.workspace = true
 edition = "2024"
 license = "MIT"
 
 [dependencies]
-config-runtime-paths = { path = "../config-runtime-paths", version = "0.7.0" }
+config-runtime-paths = { path = "../config-runtime-paths" }
 schemars = "1.2"
 serde = { version = "1", features = ["derive"] }
 

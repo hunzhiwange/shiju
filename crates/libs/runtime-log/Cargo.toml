@@ -1,12 +1,12 @@
 [package]
 name = "runtime-log"
-version = "0.7.0"
+version.workspace = true
 edition = "2024"
 license = "MIT"
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 chrono = "0.4"
-config-runtime-paths = { path = "../config-runtime-paths", version = "0.7.0" }
+config-runtime-paths = { path = "../config-runtime-paths" }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["fmt"] }
 

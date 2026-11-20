@@ -1,6 +1,6 @@
 [package]
 name = "gateway-integrations"
-version = "0.7.0"
+version.workspace = true
 edition = "2024"
 license = "MIT"
 
@@ -8,8 +8,8 @@ license = "MIT"
 doctest = false
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-agent-config = { path = "../agent-config", version = "0.7.0" }
-agent-integrations = { path = "../agent-integrations", version = "0.7.0" }
+agent-config = { path = "../agent-config" }
+agent-integrations = { path = "../agent-integrations" }
 axum = { version = "0.8.8", features = ["json"] }
 parking_lot = "0.12"
 serde = { version = "1", features = ["derive"] }

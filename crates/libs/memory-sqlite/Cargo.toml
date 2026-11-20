@@ -1,13 +1,13 @@
 [package]
 name = "memory-sqlite"
-version = "0.7.0"
+version.workspace = true
 edition = "2024"
 license = "MIT"
 
 [dependencies]
-memory-types = { path = "../memory-types", version = "0.7.0" }
-project-storage-paths = { path = "../project-storage-paths", version = "0.7.0" }
-memory-algorithms = { path = "../memory-algorithms", version = "0.7.0" }
+memory-types = { path = "../memory-types" }
+project-storage-paths = { path = "../project-storage-paths" }
+memory-algorithms = { path = "../memory-algorithms" }
 parking_lot = "0.12"
 uuid = { version = "1.11", features = ["v4", "js"] }
 sha2 = "0.11"

@@ -1,11 +1,11 @@
 [package]
 name = "vw-api-git"
-version = "0.7.0"
+version.workspace = true
 edition = "2024"
 license = "MIT"
 
 [dependencies]
-vw-api-transport = { path = "../api-transport", version = "0.7.0" }
+vw-api-transport = { path = "../api-transport" }
 serde = { version = "1", features = ["derive"] }
 
 [dev-dependencies]

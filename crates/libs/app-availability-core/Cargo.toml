@@ -1,6 +1,6 @@
 [package]
 name = "app-availability-core"
-version = "0.7.0"
+version.workspace = true
 edition = "2024"
 license = "MIT"
 
@@ -8,9 +8,9 @@ license = "MIT"
 doctest = false
 
 [dependencies]
-vw-api-app-failover = { path = "../api-app-failover", version = "0.7.0" }
-vw-api-app-identity = { path = "../api-app-identity", version = "0.7.0" }
-vw-api-transport = { path = "../api-transport", version = "0.7.0" }
+vw-api-app-failover = { path = "../api-app-failover" }
+vw-api-app-identity = { path = "../api-app-identity" }
+vw-api-transport = { path = "../api-transport" }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 tokio = { version = "1", features = ["macros", "rt", "time"] }

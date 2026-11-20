@@ -1,24 +1,24 @@
 [package]
 name = "cli-bootstrap"
-version = "0.7.0"
+version.workspace = true
 edition = "2024"
 license = "MIT"
 description = "CLI process initialization and command dispatch"
 
 [dependencies]
-agent-service = { path = "../agent-service", version = "0.7.0" }
-agent-migration = { path = "../agent-migration", version = "0.7.0" }
-agent-integrations = { path = "../agent-integrations", version = "0.7.0" }
-app-self-update = { path = "../app-self-update", version = "0.7.0" }
-runtime-log = { path = "../runtime-log", version = "0.7.0" }
-config-agent = { path = "../config-agent", version = "0.7.0" }
-cli-runtime-status = { path = "../cli-runtime-status", version = "0.7.0" }
-cli-security-commands = { path = "../cli-security-commands", version = "0.7.0" }
-cli-task-commands = { path = "../cli-task-commands", version = "0.7.0" }
-cli-command-schema = { path = "../cli-command-schema", version = "0.7.0" }
-cli-gateway-process = { path = "../cli-gateway-process", version = "0.7.0" }
-cli-agent-session = { path = "../cli-agent-session", version = "0.7.0" }
-cli-gateway-commands = { path = "../cli-gateway-commands", version = "0.7.0" }
+agent-service = { path = "../agent-service" }
+agent-migration = { path = "../agent-migration" }
+agent-integrations = { path = "../agent-integrations" }
+app-self-update = { path = "../app-self-update" }
+runtime-log = { path = "../runtime-log" }
+config-agent = { path = "../config-agent" }
+cli-runtime-status = { path = "../cli-runtime-status" }
+cli-security-commands = { path = "../cli-security-commands" }
+cli-task-commands = { path = "../cli-task-commands" }
+cli-command-schema = { path = "../cli-command-schema" }
+cli-gateway-process = { path = "../cli-gateway-process" }
+cli-agent-session = { path = "../cli-agent-session" }
+cli-gateway-commands = { path = "../cli-gateway-commands" }
 anyhow = "1"
 clap = { version = "4.5", features = ["derive"] }
 schemars = "1.2"
@@ -27,8 +27,8 @@ tokio = { version = "1", features = ["io-std", "io-util", "rt", "rt-multi-thread
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter", "chrono", "fmt", "ansi"] }
 rustls = { version = "0.23.37", default-features = false, features = ["ring", "logging", "std", "tls12"] }
-vw-agent = { path = "../../vw-agent", version = "0.7.0", default-features = false }
-acp-server = { path = "../acp-server", version = "0.7.0" }
+vw-agent = { path = "../../vw-agent", default-features = false }
+acp-server = { path = "../acp-server" }
 
 [dev-dependencies]
 async-trait = "0.1.89"

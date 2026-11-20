@@ -1,6 +1,6 @@
 [package]
 name = "cli-security-commands"
-version = "0.7.0"
+version.workspace = true
 edition = "2024"
 license = "MIT"
 
@@ -8,12 +8,12 @@ license = "MIT"
 doctest = false
 
 [dependencies]
-agent-config = { path = "../agent-config", version = "0.7.0" }
-agent-security = { path = "../agent-security", version = "0.7.0" }
+agent-config = { path = "../agent-config" }
+agent-security = { path = "../agent-security" }
 anyhow = "1"
-cli-command-schema = { path = "../cli-command-schema", version = "0.7.0" }
+cli-command-schema = { path = "../cli-command-schema" }
 dialoguer = "0.11"
-vw-agent = { path = "../../vw-agent", version = "0.7.0", default-features = false }
+vw-agent = { path = "../../vw-agent", default-features = false }
 
 [dev-dependencies]
 tokio = { version = "1", features = ["macros", "rt-multi-thread"] }

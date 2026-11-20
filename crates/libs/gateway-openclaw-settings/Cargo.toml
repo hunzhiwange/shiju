@@ -1,13 +1,13 @@
 [package]
 name = "gateway-openclaw-settings"
-version = "0.7.0"
+version.workspace = true
 edition = "2024"
 license = "MIT"
 
 [dependencies]
-vw-api-openclaw-settings = { path = "../api-openclaw-settings", version = "0.7.0" }
-gateway-http = { path = "../gateway-http", version = "0.7.0" }
-vw-api-transport = { path = "../api-transport", version = "0.7.0" }
+vw-api-openclaw-settings = { path = "../api-openclaw-settings" }
+gateway-http = { path = "../gateway-http" }
+vw-api-transport = { path = "../api-transport" }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 
@@ -18,7 +18,7 @@ reqwest = { version = "0.13", default-features = false, features = ["json", "que
 reqwest = { version = "0.13", features = ["json", "query", "stream"] }
 
 [dev-dependencies]
-gateway-endpoint = { path = "../gateway-endpoint", version = "0.7.0" }
+gateway-endpoint = { path = "../gateway-endpoint" }
 tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
 
 [lib]
@@ -27,11 +27,11 @@ doctest = false
 [target.'cfg(target_os = "macos")'.dependencies]
 axum = { version = "0.8.8", features = ["json"] }
 tokio = { version = "1", features = ["rt"] }
-vw-api-app-identity = { path = "../api-app-identity", version = "0.7.0" }
-app-openclaw-config-rules = { path = "../app-openclaw-config-rules", version = "0.7.0" }
-vw-agent-apps = { path = "../../vw-agent-apps", version = "0.7.0" }
+vw-api-app-identity = { path = "../api-app-identity" }
+app-openclaw-config-rules = { path = "../app-openclaw-config-rules" }
+vw-agent-apps = { path = "../../vw-agent-apps" }
 
-app-access-service = { path = "../app-access-service", version = "0.7.0" }
+app-access-service = { path = "../app-access-service" }
 [target.'cfg(target_os = "macos")'.dev-dependencies]
 sha2 = "0.11"
 hex = "0.4"

@@ -1,6 +1,6 @@
 [package]
 name = "desktop-account"
-version = "0.7.0"
+version.workspace = true
 edition = "2024"
 license = "MIT"
 
@@ -12,8 +12,8 @@ doctest = false
 test-support = []
 
 [dependencies]
-desktop-i18n = { path = "../desktop-i18n", version = "0.7.0" }
-vw-gateway-client = { path = "../../vw-gateway-client", version = "0.7.0" }
+desktop-i18n = { path = "../desktop-i18n" }
+vw-gateway-client = { path = "../../vw-gateway-client" }
 reqwest = { version = "0.13", default-features = false }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"

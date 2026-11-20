@@ -1,6 +1,6 @@
 [package]
 name = "desktop-settings-mcp"
-version = "0.7.0"
+version.workspace = true
 edition = "2024"
 license = "MIT"
 
@@ -8,34 +8,34 @@ license = "MIT"
 doctest = false
 
 [dependencies]
-desktop-apps-ui = { path = "../desktop-apps-ui", version = "0.7.0" }
-desktop-assets = { path = "../desktop-assets", version = "0.7.0" }
+desktop-apps-ui = { path = "../desktop-apps-ui" }
+desktop-assets = { path = "../desktop-assets" }
 iced = { version = "0.14", features = ["advanced"] }
 serde_json = "1"
 toml = "0.9"
-config-ui = { path = "../config-ui", version = "0.7.0" }
-desktop-i18n = { path = "../desktop-i18n", version = "0.7.0" }
-desktop-ui-controls = { path = "../desktop-ui-controls", version = "0.7.0" }
-vw-api-mcp-inspect = { path = "../api-mcp-inspect", version = "0.7.0" }
-vw-api-tools = { path = "../api-tools", version = "0.7.0" }
-vw-api-mcp-management = { path = "../api-mcp-management", version = "0.7.0" }
-vw-api-app-identity = { path = "../api-app-identity", version = "0.7.0" }
-vw-api-app-operations = { path = "../api-app-operations", version = "0.7.0" }
-vw-api-task = { path = "../api-task", version = "0.7.0" }
-vw-api-transport = { path = "../api-transport", version = "0.7.0" }
-desktop-provider-apps = { path = "../desktop-provider-apps", version = "0.7.0" }
-vw-gateway-client = { path = "../../vw-gateway-client", version = "0.7.0" }
-gateway-mcp-write = { path = "../gateway-mcp-write", version = "0.7.0" }
-gateway-mcp-distribution = { path = "../gateway-mcp-distribution", version = "0.7.0" }
+config-ui = { path = "../config-ui" }
+desktop-i18n = { path = "../desktop-i18n" }
+desktop-ui-controls = { path = "../desktop-ui-controls" }
+vw-api-mcp-inspect = { path = "../api-mcp-inspect" }
+vw-api-tools = { path = "../api-tools" }
+vw-api-mcp-management = { path = "../api-mcp-management" }
+vw-api-app-identity = { path = "../api-app-identity" }
+vw-api-app-operations = { path = "../api-app-operations" }
+vw-api-task = { path = "../api-task" }
+vw-api-transport = { path = "../api-transport" }
+desktop-provider-apps = { path = "../desktop-provider-apps" }
+vw-gateway-client = { path = "../../vw-gateway-client" }
+gateway-mcp-write = { path = "../gateway-mcp-write" }
+gateway-mcp-distribution = { path = "../gateway-mcp-distribution" }
 serde = "1"
-vw-api-app-auth = { path = "../api-app-auth", version = "0.7.0" }
+vw-api-app-auth = { path = "../api-app-auth" }
 
-gateway-mcp-read = { path = "../gateway-mcp-read", version = "0.7.0" }
-gateway-mcp-probe = { path = "../gateway-mcp-probe", version = "0.7.0" }
-gateway-http = { path = "../gateway-http", version = "0.7.0" }
-gateway-app-settings = { path = "../gateway-app-settings", version = "0.7.0" }
-vw-api-app-diagnostics = { path = "../api-app-diagnostics", version = "0.7.0" }
-desktop-settings-apps = { path = "../desktop-settings-apps", version = "0.7.0" }
+gateway-mcp-read = { path = "../gateway-mcp-read" }
+gateway-mcp-probe = { path = "../gateway-mcp-probe" }
+gateway-http = { path = "../gateway-http" }
+gateway-app-settings = { path = "../gateway-app-settings" }
+vw-api-app-diagnostics = { path = "../api-app-diagnostics" }
+desktop-settings-apps = { path = "../desktop-settings-apps" }
 tokio = { version = "1", features = ["time"] }
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
@@ -47,5 +47,5 @@ web-sys = { version = "0.3", features = ["Window"] }
 [dev-dependencies]
 iced_runtime = "0.14"
 
-gateway-endpoint = { path = "../gateway-endpoint", version = "0.7.0" }
+gateway-endpoint = { path = "../gateway-endpoint" }
 tokio = { version = "1", features = ["macros", "rt-multi-thread", "time"] }

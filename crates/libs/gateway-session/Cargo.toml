@@ -1,6 +1,6 @@
 [package]
 name = "gateway-session"
-version = "0.7.0"
+version.workspace = true
 edition = "2024"
 license = "MIT"
 
@@ -11,17 +11,17 @@ test-support = ["dep:acp-agent-registry", "tokio/process", "tokio/rt-multi-threa
 doctest = false
 
 [dependencies]
-acp-agent-registry = { path = "../acp-agent-registry", version = "0.7.0", optional = true }
+acp-agent-registry = { path = "../acp-agent-registry", optional = true }
 anyhow = "1"
-session-info = { path = "../session-info", version = "0.7.0" }
-session-ui-types = { path = "../session-ui-types", version = "0.7.0" }
-vw-api-session = { path = "../api-session", version = "0.7.0" }
-todo-types = { path = "../todo-types", version = "0.7.0" }
-gateway-http = { path = "../gateway-http", version = "0.7.0" }
-gateway-chat-stream = { path = "../gateway-chat-stream", version = "0.7.0" }
-vw-api-transport = { path = "../api-transport", version = "0.7.0" }
-vw-api-acp-model = { path = "../api-acp-model", version = "0.7.0" }
-vw-api-chat-identity = { path = "../api-chat-identity", version = "0.7.0" }
+session-info = { path = "../session-info" }
+session-ui-types = { path = "../session-ui-types" }
+vw-api-session = { path = "../api-session" }
+todo-types = { path = "../todo-types" }
+gateway-http = { path = "../gateway-http" }
+gateway-chat-stream = { path = "../gateway-chat-stream" }
+vw-api-transport = { path = "../api-transport" }
+vw-api-acp-model = { path = "../api-acp-model" }
+vw-api-chat-identity = { path = "../api-chat-identity" }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 
@@ -29,50 +29,50 @@ serde_json = "1"
 url = { version = "2", optional = true }
 reqwest = { version = "0.13", default-features = false, features = ["json", "query", "rustls"], optional = true }
 parking_lot = { version = "0.12", optional = true }
-llm-runtime = { path = "../llm-runtime", version = "0.7.0", optional = true }
+llm-runtime = { path = "../llm-runtime", optional = true }
 uuid = { version = "1", features = ["v4"], optional = true }
 sha2 = { version = "0.10", optional = true }
 hex = { version = "0.4", optional = true }
 futures-util = { version = "0.3", optional = true }
 tower = { version = "0.5", features = ["util"], optional = true }
-agent-storage = { path = "../agent-storage", version = "0.7.0", optional = true }
-agent-env = { path = "../agent-env", version = "0.7.0", optional = true }
-agent-config = { path = "../agent-config", version = "0.7.0", optional = true }
-model-types = { path = "../model-types", version = "0.7.0", optional = true }
+agent-storage = { path = "../agent-storage", optional = true }
+agent-env = { path = "../agent-env", optional = true }
+agent-config = { path = "../agent-config", optional = true }
+model-types = { path = "../model-types", optional = true }
 async-trait = { version = "0.1", optional = true }
-agent-paths = { path = "../agent-paths", version = "0.7.0" }
+agent-paths = { path = "../agent-paths" }
 tempfile = { version = "3", optional = true }
-vw-api-todo = { path = "../api-todo", version = "0.7.0", optional = true }
-tool-context = { path = "../tool-context", version = "0.7.0" }
-tool-assembly = { path = "../tool-assembly", version = "0.7.0" }
-ordered-id = { path = "../ordered-id", version = "0.7.0" }
-agent-provider = { path = "../agent-provider", version = "0.7.0" }
-agent-snapshot = { path = "../agent-snapshot", version = "0.7.0" }
-agent-installation = { path = "../agent-installation", version = "0.7.0" }
-session-text = { path = "../session-text", version = "0.7.0" }
-config-aggregate = { path = "../config-aggregate", version = "0.7.0" }
-config-reliability = { path = "../config-reliability", version = "0.7.0" }
-config-agent-profile = { path = "../config-agent-profile", version = "0.7.0" }
-vw-api-chat = { path = "../api-chat", version = "0.7.0" }
-gateway-resumable-stream = { path = "../gateway-resumable-stream", version = "0.7.0" }
-runtime-time = { path = "../runtime-time", version = "0.7.0" }
+vw-api-todo = { path = "../api-todo", optional = true }
+tool-context = { path = "../tool-context" }
+tool-assembly = { path = "../tool-assembly" }
+ordered-id = { path = "../ordered-id" }
+agent-provider = { path = "../agent-provider" }
+agent-snapshot = { path = "../agent-snapshot" }
+agent-installation = { path = "../agent-installation" }
+session-text = { path = "../session-text" }
+config-aggregate = { path = "../config-aggregate" }
+config-reliability = { path = "../config-reliability" }
+config-agent-profile = { path = "../config-agent-profile" }
+vw-api-chat = { path = "../api-chat" }
+gateway-resumable-stream = { path = "../gateway-resumable-stream" }
+runtime-time = { path = "../runtime-time" }
 web-time = "1"
 tokio-util = { version = "0.7", features = ["rt"] }
-agent-project = { path = "../agent-project", version = "0.7.0" }
-agent-database = { path = "../agent-database", version = "0.7.0" }
-snapshot-types = { path = "../snapshot-types", version = "0.7.0" }
-permission-types = { path = "../permission-types", version = "0.7.0" }
-storage-types = { path = "../storage-types", version = "0.7.0" }
-worktree-core = { path = "../worktree-core", version = "0.7.0" }
+agent-project = { path = "../agent-project" }
+agent-database = { path = "../agent-database" }
+snapshot-types = { path = "../snapshot-types" }
+permission-types = { path = "../permission-types" }
+storage-types = { path = "../storage-types" }
+worktree-core = { path = "../worktree-core" }
 tokio = { version = "1", features = ["rt", "sync", "fs"] }
 tracing = "0.1"
-config-agent = { path = "../config-agent", version = "0.7.0" }
-gateway-types = { path = "../gateway-types", version = "0.7.0" }
-gateway-instance = { path = "../gateway-instance", version = "0.7.0" }
-session-engine = { path = "../session-engine", version = "0.7.0" }
+config-agent = { path = "../config-agent" }
+gateway-types = { path = "../gateway-types" }
+gateway-instance = { path = "../gateway-instance" }
+session-engine = { path = "../session-engine" }
 axum = "0.8"
-session-port = { path = "../session-port", version = "0.7.0" }
-session-store = { path = "../session-store", version = "0.7.0" }
+session-port = { path = "../session-port" }
+session-store = { path = "../session-store" }
 
 [target.'cfg(all(not(target_arch = "wasm32"), target_os = "windows"))'.dev-dependencies]
 rusqlite = { version = "0.37.0", features = ["bundled"] }
@@ -81,17 +81,17 @@ rusqlite = { version = "0.37.0", features = ["bundled"] }
 rusqlite = "0.37.0"
 
 [dev-dependencies]
-gateway-endpoint = { path = "../gateway-endpoint", version = "0.7.0" }
-vw-api-todo = { path = "../api-todo", version = "0.7.0" }
+gateway-endpoint = { path = "../gateway-endpoint" }
+vw-api-todo = { path = "../api-todo" }
 tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
-agent-gateway = { path = "../agent-gateway", version = "0.7.0" }
-agent-storage = { path = "../agent-storage", version = "0.7.0" }
+agent-gateway = { path = "../agent-gateway" }
+agent-storage = { path = "../agent-storage" }
 tempfile = "3"
 uuid = { version = "1", features = ["v4"] }
-config-runtime-paths = { path = "../config-runtime-paths", version = "0.7.0" }
-session-paths = { path = "../session-paths", version = "0.7.0" }
+config-runtime-paths = { path = "../config-runtime-paths" }
+session-paths = { path = "../session-paths" }
 tower = { version = "0.5", features = ["util"] }
 
 [target.'cfg(all(not(target_arch = "wasm32"), target_os = "windows"))'.dependencies]

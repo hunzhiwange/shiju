@@ -1,11 +1,11 @@
 [package]
 name = "config-channel-services"
-version = "0.7.0"
+version.workspace = true
 edition = "2024"
 license = "MIT"
 
 [dependencies]
-config-channel-types = { path = "../config-channel-types", version = "0.7.0" }
+config-channel-types = { path = "../config-channel-types" }
 schemars = "1.2"
 serde = { version = "1", features = ["derive"] }
 

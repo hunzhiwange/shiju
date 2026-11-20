@@ -1,6 +1,6 @@
 [package]
 name = "webview-media-permissions"
-version = "0.7.0"
+version.workspace = true
 edition = "2024"
 license = "MIT"
 

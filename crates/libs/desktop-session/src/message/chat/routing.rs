@@ -108,12 +108,6 @@ impl<M, P, V, D, T, G> ChatMessage<M, P, V, D, T, G> {
             | ChatMessage::TaskModeReasoningEffortChanged(_)
             | ChatMessage::TaskModeModelChanged(_)
             | ChatMessage::TaskModeTaskSplitModeChanged(_)
-            | ChatMessage::TaskModeSubtaskChanged { .. }
-            | ChatMessage::TaskModeSubtaskEditorAction { .. }
-            | ChatMessage::TaskModeAddSubtask
-            | ChatMessage::TaskModeRemoveSubtask(_)
-            | ChatMessage::TaskModeMoveSubtaskUp(_)
-            | ChatMessage::TaskModeMoveSubtaskDown(_)
             | ChatMessage::OpenForkSessionDialog(_)
             | ChatMessage::CloseForkSessionDialog
             | ChatMessage::ToggleResetMenu(_)

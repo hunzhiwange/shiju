@@ -181,10 +181,6 @@ impl Labels {
             .unwrap_or_else(|| panic!("missing {label}: {:?}", self.text))
             .1
     }
-    fn input(&self, value: &str) -> Rectangle {
-        self.inputs.iter().find(|(text, _)| text == value).expect("fixture input").1
-    }
-
     fn scroll(&self, id: &str) -> (Rectangle, iced::Vector) {
         let id = Id::from(id.to_owned());
         self.scrolls
@@ -222,7 +218,6 @@ async fn ui_refresh_35_layout_and_interaction() {
     };
     task.subtasks.push(SubTask::new("子任务 / 子任務 / Subtask".into()));
     app.task_board_viewing_logs = Some(task);
-    app.task_board_new_subtask_content = "新增 / New fixture".into();
     app.task_board_draft.priority = "42".into();
     app.task_board_draft.acp_agent = Some("codex".into());
     app.acp_agents = (0..16).map(|index| format!("fixture-{index}")).collect();
@@ -264,9 +259,6 @@ async fn ui_refresh_35_layout_and_interaction() {
             assert!(offset.y > 0.0);
             assert_eq!(scrolled.bounds(i18n.__("任务详情")), title);
             assert_eq!(scrolled.bounds(i18n.__("保存修改")), submit);
-            let input = scrolled.input("新增 / New fixture");
-            let add = scrolled.bounds(i18n.__("添加"));
-            assert!((input.center_y() - add.center_y()).abs() < 0.5);
             capture(
                 &mut ui,
                 &mut renderer,
@@ -275,14 +267,6 @@ async fn ui_refresh_35_layout_and_interaction() {
                 &format!("{language}-{mode}-subtasks"),
                 mouse::Cursor::Unavailable,
             );
-            let up = scrolled.bounds("↑").center() - offset;
-            assert!(viewport.contains(up));
-            assert!(click(&mut ui, &mut renderer, up).is_empty());
-            assert!(matches!(
-                click(&mut ui, &mut renderer, add.center() - offset).as_slice(),
-                [Message::TaskBoard(TaskBoardMessage::AddSubTask { task_id, content })]
-                    if task_id == "fixture-任务" && content == "新增 / New fixture"
-            ));
             assert!(matches!(
                 click(&mut ui, &mut renderer, submit.center()).as_slice(),
                 [Message::TaskBoard(TaskBoardMessage::SaveEditingTask)]

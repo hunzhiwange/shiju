@@ -41,24 +41,6 @@ fn agent_scheduler_gateway_unavailable(error: &str) -> bool {
     gateway_http::is_gateway_unavailable_error(error)
 }
 
-fn persist_task_metadata_patch_task(
-    app: &crate::app::App,
-    task: Task,
-    action_label: &'static str,
-) -> iced::Task<crate::app::Message> {
-    let Some(project_path) = app.navigation_tabs.project_path.clone() else {
-        return iced::Task::none();
-    };
-    let workflow_id = app.task_board.task_board_settings.workflow_id.clone();
-    iced::Task::perform(
-        async move {
-            persist_updated_tasks_via_gateway(&project_path, &[task], action_label, &workflow_id)
-                .await
-        },
-        |result| Message::TaskBoard(TaskBoardMessage::BulkActionCompleted(result)),
-    )
-}
-
 fn apply_agent_scheduler_status(
     app: &mut crate::app::App,
     response: vw_api_agent_scheduler::AgentSchedulerTaskBoardStatusResponse,
@@ -300,21 +282,6 @@ pub fn update(
         Err(message) => message,
     };
 
-    let message = match taskboard::update::subtasks::update_subtasks(
-        &mut app.task_board.task_board_tasks,
-        message,
-        crate::app::time::now_ms(),
-    ) {
-        Ok(changed_task) => {
-            if let Some(task) = changed_task {
-                sync_viewing_logs(app, &task.id);
-                return persist_task_metadata_patch_task(app, task, "保存子任务");
-            }
-            return iced::Task::none();
-        }
-        Err(message) => message,
-    };
-
     let message = match taskboard::update::local::update_local(
         taskboard::update::local::LocalState {
             worktree_panel_expanded: &mut app.task_board.task_board_worktree_panel_expanded,
@@ -354,7 +321,6 @@ pub fn update(
             last_acp_agent: &mut app.task_board.task_board_last_acp_agent,
             logs_context_menu_open: &mut app.task_board.task_board_logs_context_menu_open,
             logs_context_menu_pos: &mut app.task_board.task_board_logs_context_menu_pos,
-            new_subtask_content: &mut app.task_board.task_board_new_subtask_content,
             prompt_editor: &mut app.task_board.task_board_prompt_editor,
             selected_task: &mut app.task_board.task_board_selected_task,
             selected_tasks: &mut app.task_board.task_board_selected_tasks,
@@ -643,7 +609,6 @@ pub fn update(
             model,
             reasoning_effort,
             task_split_mode,
-            subtasks,
         } => {
             let task = {
                 let runtime = app.current_session_runtime();
@@ -662,7 +627,6 @@ pub fn update(
                         model,
                         reasoning_effort,
                         task_split_mode,
-                        subtasks,
                     }),
                 )
             };
@@ -677,12 +641,6 @@ pub fn update(
                 let workflow_id = app.task_board.task_board_settings.workflow_id.clone();
                 let runtime = app.current_session_runtime_mut();
                 runtime.input_editor = iced::widget::text_editor::Content::new();
-                runtime.task_mode_subtasks = vec![String::new(), String::new(), String::new()];
-                runtime.task_mode_subtask_editors = runtime
-                    .task_mode_subtasks
-                    .iter()
-                    .map(|value| iced::widget::text_editor::Content::with_text(value))
-                    .collect();
                 if app.session_state.active_session_id.is_none() {
                     let runtime = app.current_session_runtime();
                     app.session_state.input_editor = runtime.input_editor;
@@ -1003,6 +961,55 @@ pub fn update(
             ),
             Err(error) => app.show_error_toast(format!("任务拆分失败，请重试: {error}")),
         },
+        TaskBoardMessage::ResplitLegacyWorkPlan { project_path, task_id } => {
+            if !task_board_project_matches(app, &project_path) {
+                return iced::Task::none();
+            }
+            let Some(workflow) = app.task_board.task_board_settings.workflow() else {
+                return app.show_error_toast("找不到当前任务工作流".to_owned());
+            };
+            let Some(source) = app.task_board.task_board_tasks.iter().find(|task| task.id == task_id)
+                .filter(|task| taskboard::work_views::can_resplit_legacy_work_plan(task, &workflow))
+                .cloned()
+            else {
+                return iced::Task::none();
+            };
+            let Some(status) = workflow.statuses.iter().find(|status| {
+                status.enabled && status.role == desktop_task_model::workflow::StatusRole::Queued
+            }) else {
+                return app.show_error_toast("当前工作流没有可用的排队状态".to_owned());
+            };
+            if !app.task_board.work_plan.publishing.insert(task_id.clone()) {
+                return iced::Task::none();
+            }
+            let task = taskboard::update::forms::resplit_legacy_task(source, status.status);
+            let workflow_id = workflow.id().to_owned();
+            let result_project = project_path.clone();
+            iced::Task::perform(
+                async move { create_task_via_agent_scheduler(project_path, task, workflow_id).await.map(|_| ()) },
+                move |result| Message::TaskBoard(TaskBoardMessage::LegacyWorkPlanResplit {
+                    project_path: result_project.clone(), task_id: task_id.clone(), result,
+                }),
+            )
+        }
+        TaskBoardMessage::LegacyWorkPlanResplit { project_path, task_id, result } => {
+            if !task_board_project_matches(app, &project_path) {
+                return iced::Task::none();
+            }
+            app.task_board.work_plan.publishing.remove(&task_id);
+            match result {
+                Ok(()) => iced::Task::batch([
+                    sync_agent_scheduler_status(project_path),
+                    iced::Task::done(Message::TaskBoard(TaskBoardMessage::ExecutionTick)),
+                    app.show_localized_toast(
+                        crate::app::state::ToastKind::Success,
+                        "已将新任务加入拆分队列",
+                        vec![],
+                    ),
+                ]),
+                Err(error) => app.show_error_toast(format!("重新拆分失败: {error}")),
+            }
+        }
         TaskBoardMessage::StartWorkPlan { project_path, task_id } => {
             if !task_board_project_matches(app, &project_path)
                 || !app.task_board.work_plan.publishing.insert(task_id.clone())

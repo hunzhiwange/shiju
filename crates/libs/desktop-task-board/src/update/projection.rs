@@ -203,6 +203,11 @@ fn apply_agent_scheduler_task_snapshot(
     task.acp_agent = snapshot.acp_agent.clone();
     task.reasoning_effort = snapshot.reasoning_effort;
     task.prompt = snapshot.prompt.clone();
+    if let Some(subtasks) = &snapshot.read_model.legacy_subtasks
+        && let Ok(subtasks) = serde_json::from_value(subtasks.clone())
+    {
+        task.subtasks = subtasks;
+    }
     task.task_split_mode = snapshot.read_model.task_split_mode.as_deref()
         .and_then(desktop_task_model::TaskSplitMode::parse_key)
         .unwrap_or_default();

@@ -1,5 +1,4 @@
 use crate::app::{App, Message, message};
-use crate::app::state::SessionRuntimeState;
 use crate::app::task::TaskSplitMode;
 use vw_api_chat_identity::ReasoningEffortDto;
 use iced::Element;
@@ -15,12 +14,6 @@ fn map_message(value: domain::Message) -> Message {
  Local::PriorityChanged(v) => Message::Chat(message::ChatMessage::TaskModePriorityChanged(v)),
  Local::ModelChanged(v) => Message::Chat(message::ChatMessage::TaskModeModelChanged(v)),
  Local::TaskSplitModeChanged(v) => Message::Chat(message::ChatMessage::TaskModeTaskSplitModeChanged(v)),
- Local::SubtaskEditorAction { index, action } => Message::Chat(message::ChatMessage::TaskModeSubtaskEditorAction { index, action }),
- Local::SubtaskChanged { index, value } => Message::Chat(message::ChatMessage::TaskModeSubtaskChanged { index, value }),
- Local::MoveSubtaskUp(v) => Message::Chat(message::ChatMessage::TaskModeMoveSubtaskUp(v)),
- Local::MoveSubtaskDown(v) => Message::Chat(message::ChatMessage::TaskModeMoveSubtaskDown(v)),
- Local::RemoveSubtask(v) => Message::Chat(message::ChatMessage::TaskModeRemoveSubtask(v)),
- Local::AddSubtask => Message::Chat(message::ChatMessage::TaskModeAddSubtask),
  Local::ExecutorChanged(v) => Message::Chat(message::ChatMessage::TaskModeExecutorChanged(v)),
  Local::ReasoningEffortChanged(v) => Message::Chat(message::ChatMessage::TaskModeReasoningEffortChanged(v)),
  Local::ToggleExecutorPopover => Message::View(message::ViewMessage::ToggleExecutorPopover),
@@ -29,18 +22,16 @@ fn map_message(value: domain::Message) -> Message {
 }
 pub fn task_mode_form<'a>(
     app: &'a App,
-    runtime: Option<&'a SessionRuntimeState>,
     task_mode_enabled: bool,
     task_mode_priority: &str,
     task_mode_model: &str,
     task_mode_task_split_mode: TaskSplitMode,
     task_mode_executor: Option<String>,
     task_mode_reasoning_effort: Option<ReasoningEffortDto>,
-    task_mode_subtasks: &'a [String],
 ) -> Element<'a, Message> {
 domain::task_mode_form(domain::Input {
  i18n: crate::app::i18n::I18n::new(app.general_settings.desktop_locale), theme: &app.appearance.app_theme,
  providers: &app.model_settings.providers, agents: &app.session_state.acp_agents, expanded: app.popover_visibility.executor,
-}, runtime.map(|r| r.task_mode_subtask_editors.as_slice()), task_mode_enabled, task_mode_priority,
- task_mode_model, task_mode_task_split_mode, task_mode_executor, task_mode_reasoning_effort, task_mode_subtasks).map(map_message)
+}, task_mode_enabled, task_mode_priority,
+ task_mode_model, task_mode_task_split_mode, task_mode_executor, task_mode_reasoning_effort).map(map_message)
 }

@@ -67,9 +67,6 @@ fn fixture() -> Fixture {
     ];
     runtime.model = format!("fixture/{}", "long-path/".repeat(12));
     runtime.auto_model = false;
-    runtime.task_mode_subtasks = vec!["多行任務\nSecond line".into(), "Fallback editor".into()];
-    runtime.task_mode_subtask_editors =
-        vec![iced::widget::text_editor::Content::with_text(&runtime.task_mode_subtasks[0])];
     runtime.acp_options_state.options.options = vec![AcpSessionOption {
         kind: AcpOptionKind::Config { id: CONFIG_ID.into() },
         name: "動態配置項目與較長的後端顯示名稱".into(),

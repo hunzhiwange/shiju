@@ -93,10 +93,6 @@ pub struct SessionRuntimeState<RenderState> {
         Option<vw_api_chat_identity::ReasoningEffortDto>,
     /// 任务模式的任务拆分策略
     pub task_mode_task_split_mode: desktop_task_model::TaskSplitMode,
-    /// 任务模式的子任务列表
-    pub task_mode_subtasks: Vec<String>,
-    /// 子任务的编辑器内容列表
-    pub task_mode_subtask_editors: Vec<text_editor::Content>,
     pub agent: Option<String>,
     pub agent_label: Option<String>,
     pub acp_agent: Option<String>,
@@ -141,10 +137,6 @@ impl<RenderState: Default> SessionRuntimeState<RenderState> {
     ///
     /// 返回初始化后的 `SessionRuntimeState` 实例
     pub fn with_defaults(model: String, auto_model: bool) -> Self {
-        let task_mode_subtasks = vec![String::new(), String::new(), String::new()];
-        let task_mode_subtask_editors =
-            task_mode_subtasks.iter().map(|value| text_editor::Content::with_text(value)).collect();
-        let task_mode_model = model.clone();
         Self {
             request_lifecycle: Default::default(),
             draft: None,
@@ -176,8 +168,6 @@ impl<RenderState: Default> SessionRuntimeState<RenderState> {
             task_mode_executor: None,
             task_mode_reasoning_effort: None,
             task_mode_task_split_mode: desktop_task_model::TaskSplitMode::FollowSystem,
-            task_mode_subtasks,
-            task_mode_subtask_editors,
             agent: None,
             agent_label: None,
             acp_agent: None,

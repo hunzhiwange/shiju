@@ -877,16 +877,9 @@ const CREATE_TASK_PLANS_SKILL: &str = include_str!(
     "../../../../vw-agent/assets/runtime-skills/create-task-plans-runtime/SKILL.md"
 );
 
-/// 框架运行时 do-task-plans 执行规范的来源。
-///
-/// 子任务执行不依赖用户项目安装技能，直接注入打包的运行时规范，
-/// 让执行者按统一流程执行单个子任务并保留审查检查点。
 #[cfg(not(target_arch = "wasm32"))]
 const DO_TASK_PLANS_SKILL_SOURCE: &str =
     "crates/vw-agent/assets/runtime-skills/do-task-plans-runtime/SKILL.md";
-#[cfg(not(target_arch = "wasm32"))]
-const DO_TASK_PLANS_SKILL: &str =
-    include_str!("../../../../vw-agent/assets/runtime-skills/do-task-plans-runtime/SKILL.md");
 
 /// 任务拆分使用的确定性计划目录名。
 ///
@@ -1161,190 +1154,6 @@ fn execute_gateway_git_merge_with_retry(
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-fn read_plan_context(
-    home: &std::path::Path,
-    task: &Task,
-    subtask: &SubTask,
-    index: usize,
-    total: usize,
-) -> (String, String) {
-    let plan = std::fs::read_to_string(task_plan_file_path(home, &task.id))
-        .unwrap_or_else(|_| build_task_plan_markdown(task));
-    let subtask_plan =
-        std::fs::read_to_string(subtask_plan_file_path(home, &task.id, index, subtask))
-            .unwrap_or_else(|_| build_subtask_plan_markdown(task, subtask, index, total));
-    (plan, subtask_plan)
-}
-
-#[cfg(not(target_arch = "wasm32"))]
-fn persist_subtask_status(
-    home: &std::path::Path,
-    task: &mut Task,
-    subtask_id: &str,
-    update: impl FnOnce(&mut SubTask),
-    sender: Option<&Sender<TaskLogStream>>,
-) {
-    if let Some(subtask) = task.subtasks.iter_mut().find(|item| item.id == subtask_id) {
-        update(subtask);
-        if let Err(error) = write_task_plan_files_in_home(home, task) {
-            emit_stderr_log(sender, format!("[PLAN] 子任务状态写入失败: {}", error));
-        }
-    }
-}
-
-#[cfg(not(target_arch = "wasm32"))]
-fn build_subtask_execution_prompt(
-    task: &Task,
-    subtask: &SubTask,
-    plan_markdown: &str,
-    subtask_markdown: &str,
-) -> String {
-    let depends_on = format_subtask_depends_on_batches(&subtask.depends_on_batches);
-    format!(
-        "请按下面由框架运行时注入的 do-task-plans 执行流程，单独执行当前子任务.md 中定义的子任务。不要开始后续子任务，也不要重新拆分任务。\
-\n\n## 任务池自动化执行规则\
-\n\n- 这是自动化执行，用户无法实时干预；不要询问用户、不要等待澄清。先用仓库上下文、现有模块、相邻测试和搜索自行查证、自行排障并继续。\
-\n- 能自行解决的小问题就直接解决，不要因为可以自行排障的小障碍立即停下来询问用户。\
-\n- 只有遇到外部凭据缺失、权限不足、安全风险、破坏性操作或连续验证始终无法推进时，才在对应编号任务文件中标记 `已阻塞` 并记录具体原因和已运行的检查；不要把阻塞原因写进 plan.md。\
-\n- `plan.md` 为只读整体架构指南，任何情况下都不要修改、清理或往其中记录进度。\
-\n- 子任务获得所需验证证据后，在最终回复中报告完成证据；被阻塞时只在对应编号任务文件中更新为 `已阻塞`。\
-\n- 本流程由框架运行时直接注入，无需安装 do-task-plans 技能（不依赖用户项目安装该技能）即可执行。\
-\n- {}\
-\n\n## 当前批次上下文\
-\n\n- 当前批次: {}\
-\n- 依赖批次: {}\
-\n- 同批次内的子任务可并发执行；依赖批次必须全部完成后，当前批次才会开始。\
-\n\n## 框架运行时 do-task-plans 执行规范\
-\n\n来源: {}\
-\n\n{}\
-\n\n# plan.md\n{}\
-\n\n# 子任务.md\n{}\
-\n\n# 原始需求\n{}",
-        TASK_AUTOMATION_TOOL_GUARDRAIL,
-        subtask.batch,
-        depends_on,
-        DO_TASK_PLANS_SKILL_SOURCE,
-        DO_TASK_PLANS_SKILL.trim(),
-        plan_markdown.trim(),
-        subtask_markdown.trim(),
-        task.prompt.trim()
-    )
-}
-
-/// 子任务执行会话 ID 规则：基于任务 ID 与子任务 ID 生成确定性会话。
-///
-/// 同批子任务并发执行时各自需要独立会话，复用任务级会话会导致并发请求互相污染
-/// 历史与状态。这里以任务级会话作前缀，再追加经过净化的子任务 ID，保证：同任务的不
-/// 同子任务得到不同会话；同一子任务始终得到同一会话；ID 中的不安全字符不会破坏会话名。
-#[cfg(not(target_arch = "wasm32"))]
-fn subtask_session_id(task_id: &str, subtask_id: &str) -> String {
-    format!("{}-sub-{}", task_session_id(task_id), sanitize_task_plan_file_part(subtask_id))
-}
-
-/// 按批次构造并发执行阶段，返回每个阶段包含的子任务下标列表（按批次号升序）。
-///
-/// 调度语义：
-/// - 同一批次内的子任务彼此无依赖、可并发执行，归入同一个阶段。
-/// - 后批次依赖前批次完成；依赖批次必须严格小于当前批次（升序推进天然无环）。
-///
-/// 拒绝无法证明可安全并发的拓扑并返回明确错误：
-/// - 空子任务集合；
-/// - 自依赖或前向依赖（依赖的批次号 >= 当前批次号）；
-/// - 依赖了不存在的批次；
-/// - 同批次内显式声明了同一个目标文件（会争用文件，不能并发）。
-#[cfg(not(target_arch = "wasm32"))]
-fn build_batch_execution_stages(subtasks: &[SubTask]) -> Result<Vec<Vec<usize>>, String> {
-    if subtasks.is_empty() {
-        return Err("批次调度失败: 子任务集合为空".to_string());
-    }
-
-    let existing_batches: std::collections::BTreeSet<u32> =
-        subtasks.iter().map(|subtask| subtask.batch).collect();
-
-    let mut stages: std::collections::BTreeMap<u32, Vec<usize>> = std::collections::BTreeMap::new();
-    for (index, subtask) in subtasks.iter().enumerate() {
-        let batch = subtask.batch;
-        for dependency in &subtask.depends_on_batches {
-            if *dependency >= batch {
-                return Err(format!(
-                    "批次调度失败: 子任务 {} 的批次 {} 依赖了非更早批次 {}（不允许自依赖或前向依赖）",
-                    subtask.id, batch, dependency
-                ));
-            }
-            if !existing_batches.contains(dependency) {
-                return Err(format!(
-                    "批次调度失败: 子任务 {} 依赖了不存在的批次 {}",
-                    subtask.id, dependency
-                ));
-            }
-        }
-        stages.entry(batch).or_default().push(index);
-    }
-
-    for indices in stages.values() {
-        let mut seen_files: std::collections::HashSet<&str> = std::collections::HashSet::new();
-        for &index in indices {
-            for file in &subtasks[index].target_files {
-                let normalized = file.trim();
-                if normalized.is_empty() {
-                    continue;
-                }
-                if !seen_files.insert(normalized) {
-                    return Err(format!(
-                        "批次调度失败: 批次 {} 内多个子任务争用同一目标文件 {}，无法并发",
-                        subtasks[index].batch, normalized
-                    ));
-                }
-            }
-        }
-    }
-
-    Ok(stages.into_values().collect())
-}
-
-/// 在独立子任务会话中执行单个子任务的网关调用，仅做执行与重试，不触碰共享计划文件。
-///
-/// 该函数被同批并发线程各自调用：每个子任务拥有独立会话（见 [`subtask_session_id`]），
-/// 因此可以安全并发，不会复用同一个网关会话。计划文件持久化与日志事件由调度方在主线程
-/// 串行处理，避免并发写入同一份 `plan.md`。
-#[cfg(not(target_arch = "wasm32"))]
-fn execute_single_subtask(endpoint: fn() -> vw_gateway_client::GatewayEndpoint,
-    task: &Task,
-    subtask: &SubTask,
-    execution_path: &str,
-    model: &str,
-    plan_markdown: &str,
-    subtask_markdown: &str,
-    initial_session_mode: GatewayPromptSessionMode,
-    sender: Option<&Sender<TaskLogStream>>,
-) -> Result<String, String> {
-    let subtask_session = subtask_session_id(&task.id, &subtask.id);
-    let subtask_prompt =
-        build_subtask_execution_prompt(task, subtask, plan_markdown, subtask_markdown);
-    let model_prompt = build_model_prompt(task, &subtask_prompt);
-    let retry_scope = format!("subtask={}", subtask.id);
-    execute_prompt_with_continue_retry_on_timeout_in_mode(
-        &subtask_session,
-        &retry_scope,
-        &model_prompt,
-        initial_session_mode,
-        resolve_task_execution_acp_agent(task).is_some(),
-        sender,
-        |prompt, session_mode| {
-            execute_task_with_selected_backend_in_session(endpoint,
-                task,
-                &subtask_session,
-                execution_path,
-                model,
-                prompt,
-                sender,
-                session_mode,
-            )
-        },
-    )
-}
-
-#[cfg(not(target_arch = "wasm32"))]
 pub fn execute_task_blocking_in_mode(endpoint: fn() -> vw_gateway_client::GatewayEndpoint,
     execution_path: String,
     task: Task,
@@ -1352,155 +1161,27 @@ pub fn execute_task_blocking_in_mode(endpoint: fn() -> vw_gateway_client::Gatewa
     log_sender: Option<Sender<TaskLogStream>>,
     initial_session_mode: GatewayPromptSessionMode,
 ) -> (String, Result<String, String>) {
-    let sender_ref = log_sender.as_ref();
-    let home = match resolve_task_plan_home() {
-        Ok(home) => home,
-        Err(error) => return (task.id, Err(error)),
-    };
-
-    let model = if task.model == "auto" { "auto".to_string() } else { task.model.clone() };
-    let subtasks = if task.subtasks.is_empty() {
-        vec![SubTask::new(task.prompt.clone())]
-    } else {
-        task.subtasks.clone()
-    };
-    let mut task_snapshot = task.clone();
-    if task_snapshot.subtasks.is_empty() {
-        task_snapshot.subtasks = subtasks.clone();
+    if !task.subtasks.is_empty() {
+        return (task.id, Err(vw_api_agent_scheduler::LEGACY_WORK_PLAN_RESPLIT_REASON.into()));
     }
-
-    let stages = match build_batch_execution_stages(&subtasks) {
-        Ok(stages) => stages,
-        Err(error) => return (task.id, Err(error)),
-    };
-
-    let total = subtasks.len();
-    let mut execution_output = String::new();
-    let mut execution_result: Result<String, String> = Ok(String::new());
-
-    'stages: for stage in stages {
-        // 阶段启动：先在主线程串行登记开始状态、发送 SubTaskStarted，并读取计划上下文，
-        // 避免并发线程争用同一份 plan.md。
-        let mut launches: Vec<(usize, String, String)> = Vec::with_capacity(stage.len());
-        for &index in &stage {
-            let subtask = &subtasks[index];
-            let started_at_ms = runtime_time::now_ms();
-            persist_subtask_status(
-                &home,
-                &mut task_snapshot,
-                &subtask.id,
-                |subtask| subtask.start_execution_at(started_at_ms),
-                sender_ref,
-            );
-            if let Some(sender) = sender_ref {
-                let _ = sender.send(TaskLogStream::SubTaskStarted {
-                    subtask_id: subtask.id.clone(),
-                    content: subtask.content.clone(),
-                    timestamp_ms: started_at_ms,
-                });
-            }
-            let (plan_markdown, subtask_markdown) =
-                read_plan_context(&home, &task_snapshot, subtask, index, total);
-            launches.push((index, plan_markdown, subtask_markdown));
-        }
-
-        // 同阶段（同批次）的子任务并发执行：每个子任务用独立会话，互不复用。
-        // 线程只做网关调用，不写计划文件；结果回收后再在主线程串行持久化。
-        let results: Vec<(usize, Result<String, String>)> = std::thread::scope(|scope| {
-            let handles = launches
-                .into_iter()
-                .map(|(index, plan_markdown, subtask_markdown)| {
-                    let task = &task;
-                    let subtask = &subtasks[index];
-                    let execution_path = execution_path.as_str();
-                    let model = model.as_str();
-                    let thread_sender = log_sender.clone();
-                    scope.spawn(move || {
-                        let result = execute_single_subtask(endpoint,
-                            task,
-                            subtask,
-                            execution_path,
-                            model,
-                            &plan_markdown,
-                            &subtask_markdown,
-                            initial_session_mode,
-                            thread_sender.as_ref(),
-                        );
-                        (index, result)
-                    })
-                })
-                .collect::<Vec<_>>();
-            handles
-                .into_iter()
-                .map(|handle| {
-                    handle.join().unwrap_or((usize::MAX, Err("子任务线程异常".to_string())))
-                })
-                .collect()
-        });
-
-        // 主线程串行处理结果：保留阶段内启动顺序，便于日志稳定。
-        let mut ordered = results;
-        ordered.sort_by_key(|(index, _)| *index);
-        let mut stage_failed: Option<String> = None;
-        for (index, result) in ordered {
-            // 线程 join 失败时 index 为 usize::MAX，没有对应子任务，直接记为阶段失败。
-            let Some(subtask) = subtasks.get(index) else {
-                stage_failed.get_or_insert_with(|| "子任务线程异常".to_string());
-                continue;
-            };
-            match result {
-                Ok(output) => {
-                    let completed_at_ms = runtime_time::now_ms();
-                    persist_subtask_status(
-                        &home,
-                        &mut task_snapshot,
-                        &subtask.id,
-                        |subtask| subtask.mark_completed_at(completed_at_ms),
-                        sender_ref,
-                    );
-                    if let Some(sender) = sender_ref {
-                        let _ = sender.send(TaskLogStream::SubTaskCompleted {
-                            subtask_id: subtask.id.clone(),
-                            timestamp_ms: completed_at_ms,
-                        });
-                    }
-                    if !execution_output.is_empty() {
-                        execution_output.push_str("\n\n");
-                    }
-                    execution_output.push_str(&output);
-                }
-                Err(error) => {
-                    let failed_at_ms = runtime_time::now_ms();
-                    persist_subtask_status(
-                        &home,
-                        &mut task_snapshot,
-                        &subtask.id,
-                        |subtask| subtask.mark_failed_at(failed_at_ms),
-                        sender_ref,
-                    );
-                    if let Some(sender) = sender_ref {
-                        let _ = sender.send(TaskLogStream::SubTaskFailed {
-                            subtask_id: subtask.id.clone(),
-                            error: error.clone(),
-                            timestamp_ms: failed_at_ms,
-                        });
-                    }
-                    stage_failed.get_or_insert(error);
-                }
-            }
-        }
-
-        // 阶段内任一子任务失败：保留已完成子任务状态，停止启动依赖它的后续批次。
-        if let Some(error) = stage_failed {
-            execution_result = Err(error);
-            break 'stages;
-        }
-    }
-    if execution_result.is_ok() {
-        execution_result = Ok(execution_output);
-    }
-
-    (task.id, execution_result)
+    let prompt = build_model_prompt(&task, &task.prompt);
+    let session_id = task_session_id(&task.id);
+    let sender = log_sender.as_ref();
+    let result = execute_prompt_with_continue_retry_on_timeout_in_mode(
+        &session_id,
+        "task",
+        &prompt,
+        initial_session_mode,
+        resolve_task_execution_acp_agent(&task).is_some(),
+        sender,
+        |retry_prompt, session_mode| {
+            execute_task_with_selected_backend_in_session(
+                endpoint, &task, &session_id, &execution_path, &task.model,
+                retry_prompt, sender, session_mode,
+            )
+        },
+    );
+    (task.id, result)
 }
 
 #[cfg(not(target_arch = "wasm32"))]

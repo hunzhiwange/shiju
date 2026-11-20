@@ -1197,7 +1197,6 @@ pub struct TaskDraft {
     pub reasoning_effort: Option<ReasoningEffortDto>,
     pub description: String,
     pub prompt: String,
-    pub subtasks: Vec<String>,
     pub task_split_mode: TaskSplitMode,
     pub auto_promote_delay_seconds: String,
 }
@@ -1215,7 +1214,6 @@ impl Default for TaskDraft {
             reasoning_effort: None,
             description: String::new(),
             prompt: String::new(),
-            subtasks: vec![String::new(), String::new(), String::new()],
             task_split_mode: TaskSplitMode::FollowSystem,
             auto_promote_delay_seconds: "0".to_string(),
         }

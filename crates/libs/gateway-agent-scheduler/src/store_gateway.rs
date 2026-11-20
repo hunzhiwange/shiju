@@ -274,6 +274,12 @@ impl<H: GatewayExecutorHost> StoreBackedAgentSchedulerGateway<H> {
         max_concurrent: Option<u32>,
         now_ms: TimestampMs,
     ) -> Result<Option<StoredAgentRun>, ApiError> {
+        if matches!(command, AgentSchedulerCommandKindDto::Start
+            | AgentSchedulerCommandKindDto::Promote | AgentSchedulerCommandKindDto::Retry)
+            && vw_api_agent_scheduler::has_legacy_work_plan(&task.metadata)
+        {
+            return Err(ApiError::bad_request(vw_api_agent_scheduler::LEGACY_WORK_PLAN_RESPLIT_REASON));
+        }
         match command {
             AgentSchedulerCommandKindDto::Start | AgentSchedulerCommandKindDto::Promote => {
                 if task.status == AgentTaskStatus::Blocked

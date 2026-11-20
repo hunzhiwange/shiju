@@ -69,9 +69,6 @@ fn fixture() -> Fixture {
     ];
     runtime.model = format!("fixture/{}", "long-path/".repeat(12));
     runtime.auto_model = false;
-    runtime.task_mode_subtasks = vec!["多行任務\nSecond line".into(), "Fallback editor".into()];
-    runtime.task_mode_subtask_editors =
-        vec![iced::widget::text_editor::Content::with_text(&runtime.task_mode_subtasks[0])];
     runtime.acp_options_state.options.options = vec![AcpSessionOption {
         kind: AcpOptionKind::Config { id: CONFIG_ID.into() },
         name: "動態配置項目與較長的後端顯示名稱".into(),
@@ -118,7 +115,6 @@ async fn ui_refresh_42_layout_and_interaction() {
         app.desktop_locale = locale;
         let i18n = I18n::new(locale);
         let size = Size::new(viewport_width, 560);
-        let runtime = app.current_session_runtime_ref().unwrap();
         let form = task_mode::task_mode_form(
             task_mode::Input {
                 i18n,
@@ -127,14 +123,12 @@ async fn ui_refresh_42_layout_and_interaction() {
                 agents: &[],
                 expanded: false,
             },
-            Some(&runtime.task_mode_subtask_editors),
             true,
             "10",
             "fixture/model-00",
             TaskSplitMode::FollowSystem,
             Some("codex".into()),
             None,
-            &runtime.task_mode_subtasks,
         )
         .map(Message::Task);
         let mut ui = scene(container(form).padding(12).into(), &mut renderer, size);

@@ -13,7 +13,7 @@ fn desktop_gettext_area_12_catalog_covers_display_calls() {
         include_str!("../../../../vw-desktop/src/app/views/task_board/mod.rs"),
         include_str!("../../../../vw-desktop/src/app/views/task_board/modals.rs"),
         include_str!("../../../../vw-desktop/src/app/views/task_board/common.rs"),
-        include_str!("../../../desktop-task-board/src/panel/subtask_editor.rs"),
+        include_str!("../../../desktop-task-board/src/panel/task_logs.rs"),
         include_str!("../../../../vw-desktop/src/app/views/task_board/panel/reasoning_selector.rs"),
         include_str!("../../../../vw-desktop/src/app/views/task_board/panel/mod.rs"),
         include_str!("../../../../vw-desktop/src/app/views/task_board/panel/model_selector.rs"),

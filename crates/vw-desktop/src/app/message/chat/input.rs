@@ -570,22 +570,6 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
         ChatMessage::TaskModeReasoningEffortChanged(reasoning_effort) => {
             task_mode::handle_task_mode_reasoning_effort_changed(app, reasoning_effort)
         }
-        ChatMessage::TaskModeSubtaskChanged { index, value } => {
-            task_mode::handle_task_mode_subtask_changed(app, index, value)
-        }
-        ChatMessage::TaskModeSubtaskEditorAction { index, action } => {
-            task_mode::handle_task_mode_subtask_editor_action(app, index, action)
-        }
-        ChatMessage::TaskModeAddSubtask => task_mode::handle_task_mode_add_subtask(app),
-        ChatMessage::TaskModeRemoveSubtask(index) => {
-            task_mode::handle_task_mode_remove_subtask(app, index)
-        }
-        ChatMessage::TaskModeMoveSubtaskUp(index) => {
-            task_mode::handle_task_mode_move_subtask_up(app, index)
-        }
-        ChatMessage::TaskModeMoveSubtaskDown(index) => {
-            task_mode::handle_task_mode_move_subtask_down(app, index)
-        }
         ChatMessage::InputAreaDragDrop => file_search::handle_input_area_drag_drop(app),
         ChatMessage::InputAreaDragHoverChanged(value) => {
             app.file_tree_interaction.input_drop_hovered = value;

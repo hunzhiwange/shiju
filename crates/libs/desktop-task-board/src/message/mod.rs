@@ -3,7 +3,7 @@
 //! 注释说明当前文件的职责边界，帮助调用方理解数据流与错误传播，
 //! 不改变任何运行时行为。
 
-use desktop_task_model::{SubTask, Task, TaskBoardSettings, TaskImportPromptFormat, TaskSplitMode, TaskStatus};
+use desktop_task_model::{Task, TaskBoardSettings, TaskImportPromptFormat, TaskSplitMode, TaskStatus};
 use desktop_task_executor::executor::state::WorktreePoolSnapshot;
 use desktop_task_executor::executor::runner::TaskPlanGenerationOutcome;
 
@@ -89,7 +89,6 @@ pub enum TaskBoardMessage {
         model: String,
         reasoning_effort: Option<vw_api_chat_identity::ReasoningEffortDto>,
         task_split_mode: TaskSplitMode,
-        subtasks: Vec<String>,
     },
     CreateTaskCancelled,
     OpenSettingsModal,
@@ -104,14 +103,6 @@ pub enum TaskBoardMessage {
     UpdateDraftTaskSplitMode(TaskSplitMode),
     UpdateDraftDescription(String),
     UpdateDraftPrompt(String),
-    UpdateDraftSubtask {
-        index: usize,
-        value: String,
-    },
-    AddDraftSubtask,
-    RemoveDraftSubtask(usize),
-    MoveDraftSubtaskUp(usize),
-    MoveDraftSubtaskDown(usize),
     UpdateDraftAutoPromoteDelay(String),
     TaskCreated {
         project_path: String,
@@ -267,6 +258,12 @@ pub enum TaskBoardMessage {
         planning_attempt_id: String,
         result: Result<TaskPlanGenerationOutcome, String>,
     },
+    ResplitLegacyWorkPlan { project_path: String, task_id: String },
+    LegacyWorkPlanResplit {
+        project_path: String,
+        task_id: String,
+        result: Result<(), String>,
+    },
     StartWorkPlan {
         project_path: String,
         task_id: String,
@@ -330,35 +327,6 @@ pub enum TaskBoardMessage {
     },
     ContextMenuClosed,
     SetAutoPromoteDelay(u64),
-    AddSubTask {
-        task_id: String,
-        content: String,
-    },
-    RemoveSubTask {
-        task_id: String,
-        subtask_id: String,
-    },
-    MoveSubTaskUp {
-        task_id: String,
-        subtask_id: String,
-    },
-    MoveSubTaskDown {
-        task_id: String,
-        subtask_id: String,
-    },
-    ToggleSubTaskCompleted {
-        task_id: String,
-        subtask_id: String,
-    },
-    UpdateSubTaskContent {
-        task_id: String,
-        subtask_id: String,
-        content: String,
-    },
-    SubTaskUpdated {
-        task_id: String,
-        subtasks: Vec<SubTask>,
-    },
     PromotePoolTasksTick,
     AgentSchedulerPoolWakeCompleted(
         Result<
@@ -404,7 +372,6 @@ pub enum TaskBoardMessage {
             String,
         >,
     ),
-    UpdateNewSubtaskContent(String),
     DescEditorAction(iced::widget::text_editor::Action),
     PromptEditorAction(iced::widget::text_editor::Action),
     LogsViewerEditorAction(iced::widget::text_editor::Action),

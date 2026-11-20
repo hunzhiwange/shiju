@@ -190,7 +190,8 @@ pub(super) const SELECT_DISPATCH_MEMBERS: &str =
       AND summary.project_id = task.project_id AND summary.key = 'task_plan.summary:' || task.id
      WHERE task.platform_id = $1 AND task.company_id = $2 AND task.project_id = $3
        AND (
-           (CAST($4 AS TEXT) IS NULL AND (plan.task_id IS NOT NULL OR publication.parent_task_id IS NOT NULL))
+           (CAST($4 AS TEXT) IS NULL AND (plan.task_id IS NOT NULL OR publication.parent_task_id IS NOT NULL
+               OR task.metadata_json LIKE '%\"subtasks\"%'))
            OR task.id = $4 OR plan.parent_task_id = $4
            OR EXISTS (
                SELECT 1 FROM target
@@ -238,6 +239,7 @@ pub enum TaskPlanDispatchBlocker {
     EarlierBatchFailed { task_ids: Vec<TaskId> },
     ParentNotReleased { parent_task_id: TaskId },
     WorkPlanNotPublished,
+    LegacyWorkPlanRequiresResplit,
     WorkPlanChildrenIncomplete { children: Vec<(TaskId, String, String)> },
     WorkPlanSummaryUnavailable,
 }
@@ -287,6 +289,9 @@ impl PlanDispatchSnapshot {
         workflow: &TaskPoolWorkflowSnapshotDto,
     ) -> Option<TaskPlanDispatchBlocker> {
         let member = self.members.get(task_id.as_str());
+        if member.is_some_and(|member| vw_api_agent_scheduler::has_legacy_work_plan(&member.task.metadata)) {
+            return Some(TaskPlanDispatchBlocker::LegacyWorkPlanRequiresResplit);
+        }
         if self.children.contains_key(task_id.as_str()) && !member.is_some_and(|member| member.publication_attempt.is_some()) {
             return Some(TaskPlanDispatchBlocker::WorkPlanNotPublished);
         }

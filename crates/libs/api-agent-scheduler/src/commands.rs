@@ -281,6 +281,8 @@ pub struct AgentSchedulerTaskBoardTaskDto {
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct AgentSchedulerTaskBoardTaskReadModelDto {
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub legacy_subtasks: Option<Value>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub dispatch_blocker: Option<AgentSchedulerDispatchBlockerDto>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub task_split_mode: Option<String>,
@@ -309,6 +311,7 @@ pub enum AgentSchedulerDispatchBlockerDto {
     EarlierBatchFailed { task_ids: Vec<String> },
     ParentNotReleased { parent_task_id: String },
     WorkPlanNotPublished,
+    LegacyWorkPlanRequiresResplit,
     WorkPlanChildrenIncomplete { children: Vec<AgentSchedulerWorkPlanChildBlockerDto> },
     WorkPlanSummaryUnavailable,
     ExplicitDependency { task_ids: Vec<String> },

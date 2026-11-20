@@ -402,3 +402,32 @@ fn test_panel(app: &App, edit: bool) -> Element<'_, Message> {
  let executor = executor_selector::ExecutorView { task_board_draft: &app.task_board_draft, task_board_bulk_acp_agent: &None, task_board_executor_popover: false, task_board_bulk_executor_popover: false, desktop_locale: app.desktop_locale, acp_agents: &[] };
  build_task_panel(app.view(), edit, PanelSlots { model: Some(crate::model_selector::build_model_selector(selector, edit).map(Message::Model)), executor: Some(executor_selector::build_executor_selector(executor, edit).map(Message::TaskBoard)), reasoning: reasoning_selector::build_reasoning_effort_selector(reasoning_selector::ReasoningView { draft: &app.task_board_draft, bulk_agent: None, bulk_effort: None, model_options: &[None], desktop_locale: app.desktop_locale }, edit).map(|e| e.map(Message::TaskBoard)) })
 }
+
+#[test]
+fn work_plan_legacy_detail_is_read_only() {
+    let mut task = Task::new(1);
+    let mut completed = desktop_task_model::SubTask::new("已完成的旧子任务".into());
+    completed.mark_completed_at(2);
+    task.subtasks.push(completed);
+
+    let history: Element<'_, Message> = super::logs_modal::build_subtasks_section(
+        I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
+        &task,
+        iced::widget::column![],
+    ).into();
+    let children = history.as_widget().children();
+    let [_, _, rows, _] = children.as_slice() else {
+        panic!("expected heading, historical rows and spacing");
+    };
+    let [record] = rows.children.as_slice() else {
+        panic!("expected one historical record");
+    };
+    let [card] = record.children.as_slice() else {
+        panic!("expected read-only historical card");
+    };
+    let [summary, _timing] = card.children.as_slice() else {
+        panic!("expected record summary and timing");
+    };
+    assert_eq!(summary.children.len(), 3);
+    assert!(task.subtasks[0].completed);
+}

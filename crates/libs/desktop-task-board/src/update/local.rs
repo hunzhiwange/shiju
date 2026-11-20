@@ -42,7 +42,6 @@ pub struct LocalState<'a> {
     pub last_acp_agent: &'a mut Option<String>,
     pub logs_context_menu_open: &'a mut bool,
     pub logs_context_menu_pos: &'a mut Option<(f32, f32)>,
-    pub new_subtask_content: &'a mut String,
     pub prompt_editor: &'a mut text_editor::Content,
     pub selected_task: &'a mut Option<String>,
     pub selected_tasks: &'a mut HashSet<String>,
@@ -366,31 +365,6 @@ pub fn update_local(
         TaskBoardMessage::UpdateDraftPrompt(v) => {
             (*state.draft).prompt = v;
         }
-        TaskBoardMessage::UpdateDraftSubtask { index, value } => {
-            if let Some(subtask) = (*state.draft).subtasks.get_mut(index) {
-                *subtask = value;
-            }
-        }
-        TaskBoardMessage::AddDraftSubtask => {
-            (*state.draft).subtasks.push(String::new());
-        }
-        TaskBoardMessage::RemoveDraftSubtask(index) => {
-            if (*state.draft).subtasks.len() > 1 && index < (*state.draft).subtasks.len() {
-                (*state.draft).subtasks.remove(index);
-            } else if let Some(subtask) = (*state.draft).subtasks.get_mut(index) {
-                subtask.clear();
-            }
-        }
-        TaskBoardMessage::MoveDraftSubtaskUp(index) => {
-            if index > 0 && index < (*state.draft).subtasks.len() {
-                (*state.draft).subtasks.swap(index, index - 1);
-            }
-        }
-        TaskBoardMessage::MoveDraftSubtaskDown(index) => {
-            if index + 1 < (*state.draft).subtasks.len() {
-                (*state.draft).subtasks.swap(index, index + 1);
-            }
-        }
         TaskBoardMessage::UpdateDraftAutoPromoteDelay(v) => {
             (*state.draft).auto_promote_delay_seconds = v;
         }
@@ -414,9 +388,6 @@ pub fn update_local(
         }
         TaskBoardMessage::ClearEditSubmitSuccess => {
             (*state.edit_submit_success) = false;
-        }
-        TaskBoardMessage::UpdateNewSubtaskContent(content) => {
-            (*state.new_subtask_content) = content;
         }
         TaskBoardMessage::DescEditorAction(action) => {
             (*state.desc_editor).perform(action);
@@ -549,7 +520,6 @@ fn open_detail(
     *state.detail_tab = tab;
     *state.edit_submit_success = false;
     *state.context_menu = None;
-    state.new_subtask_content.clear();
     crate::update::forms::draft_from_task(state.draft, &task, main_agent_key);
     *state.prompt_editor = text_editor::Content::with_text(&state.draft.prompt);
     LocalEffect::OpenDetail(task)
@@ -560,7 +530,6 @@ fn close_detail(state: &mut LocalState<'_>) -> LocalEffect {
     *state.logs_auto_scroll = true;
     *state.editing_task_id = None;
     *state.edit_submit_success = false;
-    state.new_subtask_content.clear();
     LocalEffect::CloseDetail
 }
 

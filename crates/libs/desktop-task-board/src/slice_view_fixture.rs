@@ -13,7 +13,6 @@ pub struct Fixture {
  pub task_board_tasks: Vec<Task>,
  pub cursor_position: iced::Point,
  pub window_size: (f32, f32),
- pub task_board_new_subtask_content: String,
  pub task_board_settings: TaskBoardSettings,
  pub task_board_settings_modal_tab: TaskBoardSettingsModalTab,
  pub app_theme: iced::Theme,
@@ -27,5 +26,5 @@ impl Fixture {
 }
 
 impl Default for Fixture {
- fn default() -> Self { Self { task_board_draft: Default::default(), task_board_bulk_acp_agent: None, task_board_bulk_reasoning_effort: None, task_board_executor_popover: false, task_board_bulk_executor_popover: false, desktop_locale: config_ui::DesktopLocale::SimplifiedChinese, acp_agents: vec![], task_board_dragging: None, task_board_tasks: vec![], cursor_position: iced::Point::ORIGIN, window_size: (1200.,800.), task_board_new_subtask_content: String::new(), task_board_settings: Default::default(), task_board_settings_modal_tab: Default::default(), app_theme: iced::Theme::Dark } }
+ fn default() -> Self { Self { task_board_draft: Default::default(), task_board_bulk_acp_agent: None, task_board_bulk_reasoning_effort: None, task_board_executor_popover: false, task_board_bulk_executor_popover: false, desktop_locale: config_ui::DesktopLocale::SimplifiedChinese, acp_agents: vec![], task_board_dragging: None, task_board_tasks: vec![], cursor_position: iced::Point::ORIGIN, window_size: (1200.,800.), task_board_settings: Default::default(), task_board_settings_modal_tab: Default::default(), app_theme: iced::Theme::Dark } }
 }

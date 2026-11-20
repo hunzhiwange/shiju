@@ -6,7 +6,6 @@
 //!
 //! - 任务优先级配置：允许用户设置任务的执行优先级
 //! - ACP 智能体选择：支持选择不同的 ACP 智能体
-//! - 子任务管理：提供完整的子任务增删改查和排序功能
 //!
 //! # 架构位置
 //!
@@ -17,7 +16,7 @@ use std::fmt;
 use iced::widget::scrollable;
 use iced::widget::scrollable::{Direction, Scrollbar};
 use iced::widget::svg;
-use iced::widget::{Space, button, column, container, row, text, text_editor, text_input};
+use iced::widget::{Space, button, column, container, row, text, text_input};
 use iced::{Alignment, Background, Border, Element, Length, Theme};
 
 use desktop_assets::assets::Icon;
@@ -35,9 +34,7 @@ use desktop_task_model::TaskSplitMode;
 #[derive(Debug, Clone)]
 pub enum Message {
  PriorityChanged(String), ModelChanged(String), TaskSplitModeChanged(TaskSplitMode),
- SubtaskEditorAction { index: usize, action: text_editor::Action },
- SubtaskChanged { index: usize, value: String }, MoveSubtaskUp(usize), MoveSubtaskDown(usize),
- RemoveSubtask(usize), AddSubtask, ExecutorChanged(Option<String>), ReasoningEffortChanged(Option<ReasoningEffortDto>),
+ ExecutorChanged(Option<String>), ReasoningEffortChanged(Option<ReasoningEffortDto>),
  ToggleExecutorPopover, CloseExecutorPopover,
  None, Copy(String), Append(String), OpenUrl(String),
  Selection { session_id: String, message_idx: usize, text_idx: usize, text: Option<String> },
@@ -62,9 +59,9 @@ use vw_api_chat_identity::ReasoningEffortDto;
 
 use desktop_ui_controls::system_settings_common::help::settings_hover_help_label;
 use desktop_ui_controls::system_settings_common::{
-    SETTINGS_CONTROL_PADDING, SETTINGS_CONTROL_TEXT_SIZE, rounded_action_btn_style,
+    SETTINGS_CONTROL_PADDING, SETTINGS_CONTROL_TEXT_SIZE,
     settings_field_label, settings_panel_style, settings_select,
-    settings_text_editor_style, settings_text_input_style,
+    settings_text_input_style,
 };
 
 const ACP_SELECTOR_MAX_HEIGHT: f32 = 240.0;
@@ -103,18 +100,16 @@ pub fn task_mode_reasoning_effort_options(
 
 /// 构建任务模式配置表单
 ///
-/// 该函数创建一个包含任务优先级、执行器选择和子任务管理的完整表单界面。
+/// 该函数创建一个包含任务优先级和执行器选择的完整表单界面。
 /// 当任务模式未启用时，返回一个空白占位符。
 ///
 /// # 参数
 ///
 /// - `input`: 任务表单的只读投影
-/// - `editors`: 可选的子任务编辑器切片
 /// - `task_mode_enabled`: 任务模式是否启用的标志
 /// - `task_mode_priority`: 当前任务的优先级字符串（数字越小优先级越高）
 /// - `task_mode_model`: 当前任务模式使用的模型标识符
 /// - `task_mode_executor`: 当前选中的 ACP 智能体
-/// - `task_mode_subtasks`: 子任务列表的切片引用
 ///
 /// # 返回值
 ///
@@ -122,14 +117,12 @@ pub fn task_mode_reasoning_effort_options(
 ///
 pub fn task_mode_form<'a>(
     input: Input<'a>,
-    editors: Option<&'a [text_editor::Content]>,
     task_mode_enabled: bool,
     task_mode_priority: &str,
     task_mode_model: &str,
     task_mode_task_split_mode: TaskSplitMode,
     task_mode_executor: Option<String>,
     task_mode_reasoning_effort: Option<ReasoningEffortDto>,
-    task_mode_subtasks: &'a [String],
 ) -> Element<'a, Message> {
     // 如果任务模式未启用，返回空白占位符
     if !task_mode_enabled {
@@ -196,124 +189,6 @@ pub fn task_mode_form<'a>(
     ]
     .align_y(Alignment::Center)
     .spacing(10);
-
-    // 构建子任务列表容器
-    // 遍历所有子任务，为每个子任务创建编辑卡片
-    let mut subtask_rows = column![].spacing(6);
-    for (idx, subtask) in task_mode_subtasks.iter().enumerate() {
-        // 创建子任务序号徽章
-        // 显示当前子任务的序号（从1开始计数）
-        let index_badge = container(text(format!("{}", idx + 1)).size(11))
-            .width(Length::Fixed(20.0))
-            .height(Length::Fixed(20.0))
-            .align_x(iced::alignment::Horizontal::Center)
-            .align_y(iced::alignment::Vertical::Center)
-            .style(|theme: &Theme| {
-                let p = theme.extended_palette();
-                iced::widget::container::Style {
-                    background: Some(Background::Color(p.background.weak.color)),
-                    border: Border {
-                        width: 1.0,
-                        color: p.background.strong.color,
-                        radius: 999.0.into(),
-                    },
-                    ..Default::default()
-                }
-            });
-
-        // 构建子任务输入框
-        // 优先使用富文本编辑器（如果运行时状态中存在该子任务的编辑器实例）
-        // 否则使用普通文本输入框
-        let subtask_input: Element<'_, Message> = if let Some(subtask_editor) =
-            editors.and_then(|editors| editors.get(idx))
-        {
-            // 计算富文本编辑器高度：根据文本行数动态调整（1-3行）
-            let subtask_line_count = subtask_editor.text().split('\n').count().clamp(1, 3) as f32;
-            let padding = iced::Padding::from(SETTINGS_CONTROL_PADDING);
-            let subtask_editor_height = subtask_line_count * 18.0 + padding.y();
-
-            // 富文本编辑器模式：支持多行文本编辑
-            container(
-                text_editor(subtask_editor)
-                    .placeholder(
-                        input.i18n.__("输入子任务内容..."),
-                    )
-                    .on_action(move |action| {
-                        Message::SubtaskEditorAction {
-                            index: idx,
-                            action,
-                        }
-                    })
-                    .size(SETTINGS_CONTROL_TEXT_SIZE)
-                    .padding(padding)
-                    .height(subtask_editor_height)
-                    .style(settings_text_editor_style),
-            )
-            .width(Length::Fill)
-            .into()
-        } else {
-            // 普通文本输入模式：单行文本编辑
-            text_input(
-                input.i18n.__("输入子任务内容..."),
-                subtask,
-            )
-            .on_input(move |v| {
-                Message::SubtaskChanged { index: idx, value: v }
-            })
-            .padding(SETTINGS_CONTROL_PADDING)
-            .size(SETTINGS_CONTROL_TEXT_SIZE)
-            .style(settings_text_input_style)
-            .width(Length::Fill)
-            .into()
-        };
-
-        let up_btn = button(text("↑").size(13))
-            .on_press_maybe(
-                (idx > 0)
-                    .then_some(Message::MoveSubtaskUp(idx)),
-            )
-            .padding([4, 8])
-            .style(rounded_action_btn_style);
-        let down_btn = button(text("↓").size(13))
-            .on_press_maybe(
-                (idx + 1 < task_mode_subtasks.len())
-                    .then_some(Message::MoveSubtaskDown(idx)),
-            )
-            .padding([4, 8])
-            .style(rounded_action_btn_style);
-        let delete_btn = button(text("×").size(13))
-            .on_press(Message::RemoveSubtask(idx))
-            .padding([4, 8])
-            .style(rounded_action_btn_style);
-
-        // 组装子任务行：序号徽章 + 输入框 + 上移按钮 + 下移按钮 + 删除按钮
-        let subtask_row = row![index_badge, subtask_input, up_btn, down_btn, delete_btn]
-            .spacing(6)
-            .align_y(Alignment::Center);
-
-        // 将子任务行包装为卡片样式
-        let subtask_card =
-            container(subtask_row).padding([6, 10]).width(Length::Fill).style(|theme: &Theme| {
-                let p = theme.extended_palette();
-                iced::widget::container::Style {
-                    background: Some(Background::Color(p.background.base.color)),
-                    border: Border {
-                        width: 1.0,
-                        color: p.background.strong.color,
-                        radius: 12.0.into(),
-                    },
-                    ..Default::default()
-                }
-            });
-        subtask_rows = subtask_rows.push(subtask_card);
-    }
-
-    // 新增子任务按钮：允许用户添加新的子任务项
-    let add_subtask_btn =
-        button(text(input.i18n.__("新增子任务")).size(11))
-            .on_press(Message::AddSubtask)
-            .padding([6, 10])
-            .style(rounded_action_btn_style);
 
     let effective_acp_agent = task_mode_executor.clone();
     let selected_for_default = effective_acp_agent.is_none();
@@ -491,17 +366,8 @@ pub fn task_mode_form<'a>(
     .spacing(10);
 
     // 组装完整的表单布局
-    // 包含优先级配置、执行器选择、子任务列表和新增按钮
     let form = column![priority_row, model_row, task_split_row, executor_row,]
         .extend(show_effort.then_some(reasoning_effort_row.into()))
-        .push(
-            column![
-                settings_field_label(input.i18n.__("子任务")),
-                subtask_rows,
-                row![add_subtask_btn, Space::new().width(Length::Fill)].align_y(Alignment::Center)
-            ]
-            .spacing(6),
-        )
         .spacing(6)
         .width(Length::Fill);
 

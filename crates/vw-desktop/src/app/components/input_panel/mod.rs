@@ -228,7 +228,6 @@ pub fn view<'a>(app: &'a App) -> Element<'a, Message> {
         .unwrap_or(crate::app::task::TaskSplitMode::FollowSystem);
     let task_mode_executor = runtime.and_then(|r| r.task_mode_executor.clone());
     let task_mode_reasoning_effort = runtime.and_then(|r| r.task_mode_reasoning_effort);
-    let task_mode_subtasks = runtime.map(|r| r.task_mode_subtasks.clone()).unwrap_or_default();
     let has_permission_context = send_controls::has_permission_context(app);
 
     // ========== 构建模型选择按钮和弹出框 ==========
@@ -307,7 +306,6 @@ pub fn view<'a>(app: &'a App) -> Element<'a, Message> {
             task_mode_model.to_string(),
             task_mode_reasoning_effort,
             task_mode_task_split_mode,
-            task_mode_subtasks,
         ))
     } else {
         None
@@ -339,17 +337,15 @@ pub fn view<'a>(app: &'a App) -> Element<'a, Message> {
     let divider = Space::new().height(Length::Fixed(0.0));
 
     // 构建任务模式配置表单（仅在任务模式启用且有运行时时显示）
-    let task_mode_form: Element<'_, Message> = if let Some(runtime) = runtime {
+    let task_mode_form: Element<'_, Message> = if runtime.is_some() {
         task_mode_form(
             app,
-            Some(runtime),
             task_mode_enabled,
             task_mode_priority,
             task_mode_model,
             task_mode_task_split_mode,
             task_mode_executor,
             task_mode_reasoning_effort,
-            runtime.task_mode_subtasks.as_slice(),
         )
     } else {
         Space::new().into()

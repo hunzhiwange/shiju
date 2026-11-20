@@ -141,7 +141,6 @@ pub fn task_metadata_patch_for_gateway(
         metadata_merge: Some(serde_json::json!({
             "assignee": &task.assignee,
             "description": &task.description,
-            "subtasks": &task.subtasks,
             "auto_promote_delay_ms": task.auto_promote_delay_ms,
             "task_split_mode": task.task_split_mode.to_string_key(),
         })),

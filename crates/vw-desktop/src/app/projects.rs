@@ -230,7 +230,6 @@ impl App {
         self.task_board.task_board_worktree_snapshot = None;
         self.task_board.task_board_last_worktree_snapshot_at_ms = 0;
         self.task_board.task_board_context_menu = None;
-        self.task_board.task_board_new_subtask_content.clear();
         self.task_board.task_board_logs_editor = iced::widget::text_editor::Content::new();
         self.task_board.task_board_logs_auto_scroll = true;
         self.task_board.task_board_logs_context_menu_open = false;

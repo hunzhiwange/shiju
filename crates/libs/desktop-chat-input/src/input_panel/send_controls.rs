@@ -256,7 +256,6 @@ pub fn send_behavior_popover<'a>(
 /// * `input_text` - 用户输入的文本内容
 /// * `task_mode_priority` - 任务模式的优先级设置
 /// * `task_mode_model` - 任务模式的大模型标识符
-/// * `task_mode_subtasks` - 任务模式的子任务列表
 ///
 /// # 返回值
 ///
@@ -277,7 +276,6 @@ pub fn pool_button(
     task_mode_model: String,
     task_mode_reasoning_effort: Option<ReasoningEffortDto>,
     task_mode_task_split_mode: TaskSplitMode,
-    task_mode_subtasks: Vec<String>,
 ) -> Element<'static, Message> {
     let pool_icon: Element<'_, Message> = icon_svg(Icon::Grid1x2, SECONDARY_ICON_SIZE)
         .style(move |theme: &Theme, _| svg::Style {
@@ -310,7 +308,6 @@ pub fn pool_button(
                 model: task_mode_model,
                 reasoning_effort: task_mode_reasoning_effort,
                 task_split_mode: task_mode_task_split_mode,
-                subtasks: task_mode_subtasks,
             })
         } else {
             // 任务模式未启用：发送简单的添加任务消息

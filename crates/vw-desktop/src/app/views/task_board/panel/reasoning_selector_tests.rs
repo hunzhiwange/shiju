@@ -70,7 +70,6 @@ fn task_reasoning_effort_selector_updates_draft_edit_bulk_and_task_mode() {
         model: "auto".to_string(),
         reasoning_effort: app.current_session_runtime().task_mode_reasoning_effort,
         task_split_mode: Default::default(),
-        subtasks: Vec::new(),
     };
     match message {
         TaskBoardMessage::AddTaskFromInputWithOptions { reasoning_effort, .. } => {

@@ -80,7 +80,7 @@ fn panel_popover_and_tooltip_styles_set_expected_surfaces() {
 }
 
 #[test]
-fn icon_and_arrow_buttons_apply_enabled_and_disabled_contracts() {
+fn icon_buttons_apply_enabled_and_disabled_contracts() {
     let theme = Theme::Dark;
     let palette = theme.extended_palette();
 
@@ -90,17 +90,10 @@ fn icon_and_arrow_buttons_apply_enabled_and_disabled_contracts() {
     let disabled = square_icon_button_style(&theme, button::Status::Pressed, false);
     assert_close(disabled.border.radius.top_left, 12.0);
     assert_color_close(disabled.text_color, palette.background.weak.text);
-
-    let arrow = disabled_arrow_button_style(&theme);
-    assert!(arrow.background.is_none());
-    assert_close(arrow.border.radius.top_left, 4.0);
-    assert_close(arrow.border.width, 0.0);
-    assert_color_close(arrow.border.color, Color::TRANSPARENT);
-    assert_color_close(arrow.text_color, palette.background.weak.text);
 }
 
 #[test]
-fn subtask_card_and_generic_badge_styles_follow_theme_palette() {
+fn subtask_card_style_follows_theme_palette() {
     let dark_palette = Theme::Dark.extended_palette();
 
     let dark_card = subtask_card_style(&Theme::Dark);
@@ -117,17 +110,6 @@ fn subtask_card_and_generic_badge_styles_follow_theme_palette() {
 
     let light_card = subtask_card_style(&Theme::Light);
     assert_color_close(color_background(light_card.background), Color::WHITE.scale_alpha(0.82));
-
-    let badge = subtask_badge_style(&Theme::Light, button::Status::Hovered);
-    let palette = Theme::Light.extended_palette();
-    assert_color_close(
-        color_background(badge.background),
-        palette.background.weak.color.scale_alpha(0.55),
-    );
-    assert_color_close(badge.border.color, palette.background.strong.color.scale_alpha(0.78));
-    assert_close(badge.border.radius.top_left, 999.0);
-    assert_close(badge.border.width, 1.0);
-    assert_color_close(badge.text_color, Theme::Light.palette().text);
 }
 
 #[test]
@@ -213,31 +195,4 @@ fn subtask_status_colors_cover_light_and_dark_branches() {
     let (failed_bg, _, failed_text) = subtask_status_colors(&Theme::Dark, SubTaskStatus::Failed);
     assert_color_close(failed_bg, Color::from_rgba8(239, 68, 68, 0.18));
     assert_color_close(failed_text, Color::from_rgb8(254, 202, 202));
-}
-
-#[test]
-fn subtask_status_badge_style_dims_interactive_backgrounds() {
-    let active =
-        subtask_status_badge_style(&Theme::Light, button::Status::Active, SubTaskStatus::Completed);
-    assert_color_close(color_background(active.background), Color::from_rgb8(220, 252, 231));
-    assert_color_close(active.border.color, Color::from_rgb8(74, 222, 128));
-    assert_color_close(active.text_color, Color::from_rgb8(22, 101, 52));
-    assert_close(active.border.radius.top_left, 999.0);
-    assert_close(active.border.width, 1.0);
-
-    let hovered =
-        subtask_status_badge_style(&Theme::Light, button::Status::Hovered, SubTaskStatus::Failed);
-    assert_color_close(
-        color_background(hovered.background),
-        Color::from_rgb8(254, 226, 226).scale_alpha(0.86),
-    );
-    assert_color_close(hovered.border.color, Color::from_rgb8(248, 113, 113));
-    assert_color_close(hovered.text_color, Color::from_rgb8(185, 28, 28));
-
-    let pressed =
-        subtask_status_badge_style(&Theme::Dark, button::Status::Pressed, SubTaskStatus::Running);
-    assert_color_close(
-        color_background(pressed.background),
-        Color::from_rgba8(168, 85, 247, 0.22).scale_alpha(0.86),
-    );
 }

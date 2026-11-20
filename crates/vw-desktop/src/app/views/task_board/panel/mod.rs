@@ -25,7 +25,6 @@ fn input(app: &App) -> desktop_task_board::panel::PanelView<'_> {
  task_board_logs_context_menu_pos: app.task_board.task_board_logs_context_menu_pos,
  current_line_height: app.preview_state.current_line_height,
  task_board_logs_scroll_top_line: app.task_board.task_board_logs_scroll_top_line,
- task_board_new_subtask_content: &app.task_board.task_board_new_subtask_content,
  task_board_import_editor: &app.task_board.task_board_import_editor,
  task_board_prompt_editor: &app.task_board.task_board_prompt_editor,
  task_board_logs_editor: &app.task_board.task_board_logs_editor,

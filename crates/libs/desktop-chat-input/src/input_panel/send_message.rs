@@ -8,5 +8,5 @@ pub enum Message {
  #[cfg(not(target_arch = "wasm32"))]
  VoiceChatStart,
  AddTaskFromInput(String),
- AddTaskFromInputWithOptions { content: String, priority: String, model: String, reasoning_effort: Option<ReasoningEffortDto>, task_split_mode: TaskSplitMode, subtasks: Vec<String> },
+ AddTaskFromInputWithOptions { content: String, priority: String, model: String, reasoning_effort: Option<ReasoningEffortDto>, task_split_mode: TaskSplitMode },
 }

@@ -373,6 +373,13 @@ where
         run_id: &RunId,
         request: &LocalAgentRunnerRequest,
     ) -> Result<StoredAgentRun> {
+        // A claim obtained before the old execution path was removed may still arrive here.
+        if vw_api_agent_scheduler::has_legacy_work_plan(&task.metadata) {
+            return self.fail_running_task(
+                project_path, task, run_id, request, None,
+                vw_api_agent_scheduler::LEGACY_WORK_PLAN_RESPLIT_REASON.into(),
+            );
+        }
         let planning = execution_metadata_string(task, "task_split_mode").as_deref() == Some("enabled")
             && !self.store.work_plan_is_published(project_path, &task.id)?
             && self.store.load_task_placement(project_path, &task.id)?

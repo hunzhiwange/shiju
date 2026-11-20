@@ -29,12 +29,12 @@ pub mod executor_selector;
 pub mod logs_modal;
 pub mod reasoning_selector;
 pub mod styles;
-mod subtask_editor;
+mod task_logs;
 mod forms;
 use forms::*;
 pub use forms::{build_bulk_agent_selector, build_bulk_task_split_selector};
 use styles::{editor_style, input_label, input_style, panel_container_style};
-use subtask_editor::{build_draft_mode_subtasks, build_edit_mode_subtasks, build_task_logs};
+use task_logs::build_task_logs;
 
 const TASK_PANEL_SCROLLBAR_WIDTH: f32 = 4.0;
 const TASK_PANEL_SCROLLBAR_GUTTER: f32 = 12.0;
@@ -615,22 +615,12 @@ fn build_edit_mode_content<'a>(
     mut main_col: iced::widget::Column<'a, Message>,
 ) -> iced::widget::Column<'a, Message> {
     if !task.subtasks.is_empty() {
-        let subtasks_title = text(desktop_i18n::I18n::new(app.desktop_locale).__("子任务"))
-            .size(13)
-            .font(iced::Font { weight: iced::font::Weight::Bold, ..Default::default() });
-        main_col = main_col
-            .push(Space::new().height(12.0))
-            .push(subtasks_title)
-            .push(Space::new().height(8.0));
-
-        let (subtasks_col, add_section) = build_edit_mode_subtasks(app, task);
-        main_col = main_col.push(subtasks_col).push(Space::new().height(8.0));
-        main_col = main_col.push(add_section);
-    } else {
-        let (_, add_section) = build_edit_mode_subtasks(app, task);
-        main_col = main_col.push(Space::new().height(12.0)).push(add_section);
+        main_col = logs_modal::build_subtasks_section(
+            desktop_i18n::I18n::new(app.desktop_locale),
+            task,
+            main_col.push(Space::new().height(12.0)),
+        );
     }
-
     main_col.push(Space::new().height(16.0)).push(build_edit_options_row(app))
 }
 
@@ -644,8 +634,6 @@ fn build_draft_mode_content<'a>(
         main_col
             .push(Space::new().height(12.0))
             .push(build_create_options_row(app))
-            .push(Space::new().height(8.0))
-            .push(build_draft_mode_subtasks(app))
     }
 }
 
@@ -670,7 +658,6 @@ pub struct PanelView<'a> {
     pub task_board_logs_context_menu_pos: Option<(f32, f32)>,
     pub current_line_height: f32,
     pub task_board_logs_scroll_top_line: f32,
-    pub task_board_new_subtask_content: &'a String,
     pub task_board_import_editor: &'a iced::widget::text_editor::Content,
     pub task_board_prompt_editor: &'a iced::widget::text_editor::Content,
     pub task_board_logs_editor: &'a iced::widget::text_editor::Content,

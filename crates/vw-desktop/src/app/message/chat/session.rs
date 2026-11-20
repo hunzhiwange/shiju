@@ -633,14 +633,12 @@ fn send_current_session_input_checked(app: &mut App) -> Task<Message> {
             model,
             reasoning_effort,
             task_split_mode,
-            subtasks,
         } => Task::done(Message::TaskBoard(TaskBoardMessage::AddTaskFromInputWithOptions {
             content,
             priority,
             model,
             reasoning_effort,
             task_split_mode,
-            subtasks,
         })),
         SendInputEffect::Send(item) => dispatch_queue_item(app, item),
     }

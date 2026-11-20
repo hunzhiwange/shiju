@@ -151,7 +151,6 @@ pub struct State {
     /// 任务看板上下文菜单（任务 ID，X，Y）
     pub task_board_context_menu: Option<(String, f32, f32)>,
     /// 任务看板新建子任务内容
-    pub task_board_new_subtask_content: String,
     /// 任务看板描述编辑器
     pub task_board_desc_editor: text_editor::Content,
     /// 任务看板提示词编辑器
@@ -316,7 +315,6 @@ impl State {
                 .and_then(|v: &serde_json::Value| v.as_bool())
                 .unwrap_or(false),
             task_board_context_menu: None,
-            task_board_new_subtask_content: String::new(),
             task_board_desc_editor: iced::widget::text_editor::Content::new(),
             task_board_prompt_editor: iced::widget::text_editor::Content::new(),
             task_board_logs_editor: iced::widget::text_editor::Content::new(),

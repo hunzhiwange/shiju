@@ -399,7 +399,6 @@ fn task_draft_defaults_match_task_creation_defaults() {
     assert_eq!(draft.assignee, "VibeWindow");
     assert_eq!(draft.model, super::TASK_MODEL_AUTO);
     assert_eq!(draft.agent.as_deref(), Some(super::TASK_AGENT_MAIN));
-    assert_eq!(draft.subtasks.len(), 3);
     assert_eq!(draft.task_split_mode, super::TaskSplitMode::FollowSystem);
     assert_eq!(draft.auto_promote_delay_seconds, "0");
 }

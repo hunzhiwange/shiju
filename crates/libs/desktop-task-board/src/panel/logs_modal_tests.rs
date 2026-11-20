@@ -1,9 +1,7 @@
 //! 任务日志弹窗的测试，覆盖空日志、过滤结果、自动滚动与关闭交互。
 //! 长行和不同日志级别用于验证预览截断及主题样式的绘制边界。
-use iced::widget::button;
 use iced::{Background, Color, Element, Length, Theme};
 
-use crate::message::TaskBoardMessage;
 use desktop_task_model::{SubTask, SubTaskStatus, Task, TaskLogEntry};
 use crate::slice_view_fixture::Fixture;
 use crate::message::TaskBoardMessage as Message;
@@ -73,8 +71,7 @@ fn test_module_is_wired() {
 
 #[test]
 fn task_logs_modal_builds_public_and_content_entries() {
-    let (mut app, _task) = Fixture::new();
-    app.task_board_new_subtask_content = "下一步".to_string();
+    let (app, _task) = Fixture::new();
 
     let mut task = task_with_logs();
     task.subtasks = vec![
@@ -83,14 +80,13 @@ fn task_logs_modal_builds_public_and_content_entries() {
         subtask("sub-3", "验收", SubTaskStatus::Completed, 7_200_000),
     ];
 
-    let public_modal = build_task_logs_modal_content(desktop_i18n::I18n::new(app.desktop_locale), &app.task_board_new_subtask_content, &task);
+    let public_modal = build_task_logs_modal_content(desktop_i18n::I18n::new(app.desktop_locale), &task);
     assert_eq!(public_modal.as_widget().size().width, Length::FillPortion(1));
     assert_eq!(public_modal.as_widget().size().height, Length::Fill);
     keep_element(public_modal);
 
     let content_modal = build_task_logs_modal_content(
         desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
-        "另一条子任务",
         &task,
     );
     assert_eq!(content_modal.as_widget().size().width, Length::FillPortion(1));
@@ -104,7 +100,6 @@ fn task_logs_modal_omits_subtask_section_when_empty() {
 
     let modal = build_task_logs_modal_content(
         desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
-        "",
         &task,
     );
 
@@ -113,7 +108,7 @@ fn task_logs_modal_omits_subtask_section_when_empty() {
 }
 
 #[test]
-fn subtask_section_covers_move_button_edges() {
+fn subtask_section_renders_historical_statuses() {
     let mut task = Task { id: "task-subtasks".to_string(), ..Task::default() };
     task.subtasks = vec![
         subtask("first", "first item", SubTaskStatus::Pending, 0),
@@ -129,35 +124,6 @@ fn subtask_section_covers_move_button_edges() {
     .into();
 
     assert_eq!(column.as_widget().children().len(), 4);
-}
-
-#[test]
-fn add_subtask_section_uses_current_input_value_for_messages() {
-    let task = Task { id: "task-add".to_string(), ..Task::default() };
-
-    let column: Element<'_, Message> = build_add_subtask_section(
-        desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
-        "新的子任务",
-        &task,
-        iced::widget::column![],
-    )
-    .into();
-    assert_eq!(column.as_widget().children().len(), 4);
-
-    match update_new_subtask_content_message("typed".to_string()) {
-        TaskBoardMessage::UpdateNewSubtaskContent(content) => {
-            assert_eq!(content, "typed");
-        }
-        other => panic!("unexpected message: {other:?}"),
-    }
-
-    match add_subtask_message("task-add".to_string(), "新的子任务".to_string()) {
-        TaskBoardMessage::AddSubTask { task_id, content } => {
-            assert_eq!(task_id, "task-add");
-            assert_eq!(content, "新的子任务");
-        }
-        other => panic!("unexpected message: {other:?}"),
-    }
 }
 
 #[test]
@@ -209,7 +175,7 @@ fn log_formatter_handles_minute_boundary_and_preserves_message_text() {
 }
 
 #[test]
-fn style_helpers_cover_modal_log_and_disabled_arrow_surfaces() {
+fn style_helpers_cover_modal_and_log_surfaces() {
     let theme = Theme::Dark;
     let palette = theme.extended_palette();
 
@@ -222,12 +188,6 @@ fn style_helpers_cover_modal_log_and_disabled_arrow_surfaces() {
         Color::from_rgb8(156, 163, 175),
     );
 
-    let disabled_arrow = disabled_arrow_button_style(&theme, button::Status::Hovered);
-    assert!(disabled_arrow.background.is_none());
-    assert_close(disabled_arrow.border.radius.top_left, 4.0);
-    assert_close(disabled_arrow.border.width, 0.0);
-    assert_color_close(disabled_arrow.border.color, Color::TRANSPARENT);
-    assert_color_close(disabled_arrow.text_color, palette.background.weak.text);
 
     let logs = logs_container_style(&theme);
     assert_color_close(

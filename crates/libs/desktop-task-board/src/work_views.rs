@@ -297,3 +297,13 @@ pub struct RunHistory {
     pub include_children: bool,
     pub result: Option<Result<Vec<AgentSchedulerTaskBoardEventDto>, String>>,
 }
+
+/// An active run keeps ownership of its completion. Resplitting is for tasks that can be started again.
+pub fn can_resplit_legacy_work_plan(task: &desktop_task_model::Task, workflow: &desktop_task_model::TaskWorkflow) -> bool {
+    use desktop_task_model::workflow::StatusRole;
+    !task.subtasks.is_empty() && !task.archived && !task.deleted
+        && matches!(
+            workflow.status_role(task.status),
+            Some(StatusRole::Backlog | StatusRole::Queued | StatusRole::Failed | StatusRole::Paused)
+        )
+}

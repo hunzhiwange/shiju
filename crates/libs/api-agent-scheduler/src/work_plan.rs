@@ -222,3 +222,11 @@ pub struct WorkPlanPublishRequest {
 pub struct WorkPlanPublishResponse {
     pub child_task_ids: Vec<String>,
 }
+
+/// 旧任务池将子任务列表写入任务元数据。
+pub fn has_legacy_work_plan(metadata: &serde_json::Value) -> bool {
+    metadata.get("subtasks").and_then(serde_json::Value::as_array)
+        .is_some_and(|subtasks| !subtasks.is_empty())
+}
+
+pub const LEGACY_WORK_PLAN_RESPLIT_REASON: &str = "旧子任务计划无法继续执行，请重新拆分";

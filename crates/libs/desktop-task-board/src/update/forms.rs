@@ -1,5 +1,5 @@
 //! 创建、复制及编辑任务的表单转换。
-use desktop_task_model::{Task, TaskDraft, TaskStatus, SubTask};
+use desktop_task_model::{Task, TaskDraft, TaskStatus};
 use crate::draft::{normalize_task_model, set_task_executor_selection, set_draft_executor_selection};
 use desktop_task_model::{TaskImportRecord, normalize_task_acp_agent_input};
 
@@ -13,13 +13,20 @@ pub fn duplicate_task(source_task: Task, initial_status: TaskStatus) -> Task {
     copied_task.prompt = source_task.prompt;
     copied_task.status = initial_status;
     copied_task.auto_promote_delay_ms = source_task.auto_promote_delay_ms;
-    copied_task.task_split_mode = source_task.task_split_mode;
-    copied_task.subtasks = source_task
-        .subtasks
-        .iter()
-        .map(|subtask| SubTask::new(subtask.content.clone()))
-        .collect();
+    copied_task.task_split_mode = if source_task.subtasks.is_empty() {
+        source_task.task_split_mode
+    } else {
+        desktop_task_model::TaskSplitMode::Enabled
+    };
     copied_task
+}
+
+pub fn resplit_legacy_task(source: Task, queued_status: TaskStatus) -> Task {
+    let agent = source.agent.clone();
+    let mut task = duplicate_task(source, queued_status);
+    task.agent = agent;
+    task.auto_promote_delay_ms = None;
+    task
 }
 
 pub fn task_from_draft(draft: &TaskDraft, initial_status: TaskStatus, main_agent_key: &str) -> Option<Task> {
@@ -39,13 +46,6 @@ pub fn task_from_draft(draft: &TaskDraft, initial_status: TaskStatus, main_agent
     task.reasoning_effort = draft.reasoning_effort;
     task.task_split_mode = draft.task_split_mode;
     task.prompt = draft.prompt.clone();
-    task.subtasks = draft
-        .subtasks
-        .iter()
-        .map(|line| line.trim().to_string())
-        .filter(|line| !line.is_empty())
-        .map(SubTask::new)
-        .collect::<Vec<_>>();
     task.auto_promote_delay_ms =
         if auto_promote_delay_ms > 0 { Some(auto_promote_delay_ms) } else { None };
     Some(task)
@@ -111,11 +111,6 @@ pub fn draft_from_task(draft: &mut TaskDraft, task: &Task, main_agent_key: &str)
         task.task_split_mode;
     draft.prompt =
         task.prompt.clone();
-    draft.subtasks = task
-        .subtasks
-        .iter()
-        .map(|subtask| subtask.content.clone())
-        .collect();
 }
 
 /// 从当前会话只读投影输入任务实际需要的模型选择。
@@ -130,7 +125,6 @@ pub struct InputTaskOptions {
     pub model: String,
     pub reasoning_effort: Option<vw_api_chat_identity::ReasoningEffortDto>,
     pub task_split_mode: desktop_task_model::TaskSplitMode,
-    pub subtasks: Vec<String>,
 }
 pub fn task_from_input(
     content: &str, default_priority: u32, initial_status: TaskStatus,
@@ -143,12 +137,8 @@ pub fn task_from_input(
         .unwrap_or(default_priority);
     let mut task = Task::new(priority);
     task.status = initial_status;
+    task.prompt = crate::helpers::review::build_task_prompt_from_input(raw, Some(priority), &[]);
     if let Some(options) = options {
-        let subtasks = options.subtasks.into_iter()
-            .map(|line| line.trim().to_string()).filter(|line| !line.is_empty())
-            .collect::<Vec<_>>();
-        task.prompt = crate::helpers::review::build_task_prompt_from_input(raw, Some(priority), &subtasks);
-        task.subtasks = subtasks.into_iter().map(SubTask::new).collect();
         task.reasoning_effort = options.reasoning_effort;
         task.task_split_mode = options.task_split_mode;
         if selection.task_mode_enabled {
@@ -158,7 +148,6 @@ pub fn task_from_input(
         }
         set_task_executor_selection(&mut task, selection.executor);
     } else {
-        task.prompt = crate::helpers::review::build_task_prompt_from_input(raw, Some(priority), &[]);
         if !selection.auto_model && !selection.model.trim().is_empty() {
             task.model = selection.model.trim().to_string();
         }

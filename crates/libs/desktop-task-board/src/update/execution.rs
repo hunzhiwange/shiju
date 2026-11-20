@@ -225,6 +225,9 @@ pub fn update(
         },
         TaskBoardMessage::ExecuteTask { task_id } => {
             if let Some(task) = (*app.task_board_tasks).iter().find(|t| t.id == task_id).cloned() {
+                if !task.subtasks.is_empty() {
+                    return error_toast(vw_api_agent_scheduler::LEGACY_WORK_PLAN_RESPLIT_REASON.to_owned());
+                }
                 if let Some(project_path) = &(*app.project_path) {
                     let path = project_path.clone();
                     if (*app.task_board_executor).is_running(&task_id) {

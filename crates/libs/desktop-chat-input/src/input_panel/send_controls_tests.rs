@@ -293,7 +293,6 @@ fn pool_button_constructs_disabled_simple_and_task_mode_branches() {
         "auto".into(),
         None,
         TaskSplitMode::FollowSystem,
-        Vec::new(),
     );
     let disabled = pool_button(
         desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
@@ -304,7 +303,6 @@ fn pool_button_constructs_disabled_simple_and_task_mode_branches() {
         "auto".into(),
         None,
         TaskSplitMode::FollowSystem,
-        Vec::new(),
     );
     let simple = pool_button(
         desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
@@ -315,7 +313,6 @@ fn pool_button_constructs_disabled_simple_and_task_mode_branches() {
         "auto".into(),
         None,
         TaskSplitMode::FollowSystem,
-        Vec::new(),
     );
     let task_mode = pool_button(
         desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
@@ -326,7 +323,6 @@ fn pool_button_constructs_disabled_simple_and_task_mode_branches() {
         "provider/model".into(),
         Some(vw_api_chat_identity::ReasoningEffortDto::High),
         TaskSplitMode::Enabled,
-        vec!["sub".into()],
     );
 
     assert_eq!(disabled_without_task_mode.as_widget().children().len(), 2);

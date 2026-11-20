@@ -981,3 +981,54 @@ fn work_plan_claim_manual_local_path_respects_batches() -> Result<()> {
     assert!(executor.requests.lock().unwrap().is_empty());
     Ok(())
 }
+
+#[test]
+fn work_plan_legacy_execution_releases_preexisting_claim_without_replay() -> Result<()> {
+    use super::store::tasks::AgentTaskBoardUpdate;
+
+    let project = tempfile::tempdir()?;
+    let store = AgentSchedulerStore::new();
+    let task_id = TaskId::new("legacy-work-plan")?;
+    let executor = RecordingExecutor::succeeding("unexpected replay");
+    let runner = LocalAgentRunner::new(&store, &executor);
+    let request = LocalAgentRunnerRequest { task_id: task_id.clone(), now_ms: TimestampMs(1_000) };
+
+    store.initialize_project(project.path())?;
+    store.create_task(project.path(), finite_task(&task_id)?)?;
+    let started = runner.start_once(project.path(), request.clone())?
+        .expect("run claimed before legacy metadata was loaded");
+
+    let task = store.load_task(project.path(), &task_id)?.unwrap();
+    let mut metadata = task.metadata;
+    let history = json!([{"id": "old-child", "content": "already done", "completed": true}]);
+    metadata["subtasks"] = history.clone();
+    store.update_task_board_task(project.path(), &task_id, AgentTaskBoardUpdate {
+        title: None, status: None, metadata, updated_at_ms: TimestampMs(1_001),
+    })?;
+
+    let outcome = runner.finish_started_run(project.path(), &task_id, &started.run.id, request)?
+        .expect("previously claimed run reaches terminal state");
+    assert_eq!(outcome.run.status, AgentRunStatus::Failed);
+    assert_eq!(outcome.run.error_message.as_deref(), Some(vw_api_agent_scheduler::LEGACY_WORK_PLAN_RESPLIT_REASON));
+    assert!(executor.requests.lock().unwrap().is_empty());
+    assert!(executor.workspace_requests.lock().unwrap().is_empty());
+    let task = store.load_task(project.path(), &task_id)?.unwrap();
+    assert_eq!(task.metadata["subtasks"], history);
+    store.update_task_board_task(project.path(), &task_id, AgentTaskBoardUpdate {
+        title: None,
+        status: Some(AgentTaskStatus::Queued),
+        metadata: task.metadata,
+        updated_at_ms: TimestampMs(1_010),
+    })?;
+    assert!(runner.start_once(project.path(), LocalAgentRunnerRequest {
+        task_id: task_id.clone(), now_ms: TimestampMs(2_000),
+    })?.is_none());
+
+    let fresh_id = TaskId::new("ordinary-after-legacy-claim")?;
+    store.create_task(project.path(), finite_task(&fresh_id)?)?;
+    let ordinary = runner.run_once(project.path(), LocalAgentRunnerRequest {
+        task_id: fresh_id, now_ms: TimestampMs(3_000),
+    })?.expect("ordinary task can use the released workspace");
+    assert_eq!(ordinary.run.status, AgentRunStatus::Succeeded);
+    Ok(())
+}

@@ -365,6 +365,30 @@ fn create_task_request_with_workflow(
         .map(status_role_metadata_key)
         .unwrap_or("custom");
     let status_key_map = agent_scheduler_status_key_map(workflow_ref, task.status);
+    let mut metadata = serde_json::json!({
+        "priority": task.priority,
+        "order_no": task.order,
+        "model": task.model,
+        "agent": task.agent,
+        "acp_agent": task.acp_agent,
+        "reasoning_effort": task.reasoning_effort,
+        "prompt": task.prompt,
+        "task_split_mode": task.task_split_mode.to_string_key(),
+        "last_error": task.last_error,
+        "pause_reason": task.pause_reason,
+        "merge_source_branch": task.merge_source_branch,
+        "merge_target_branch": task.merge_target_branch,
+        "selected_worktree_path": task.selected_worktree_path,
+        "selected_worktree_slot_id": task.selected_worktree_slot_id,
+        "selected_worktree_branch": task.selected_worktree_branch,
+        "task_board.workflow_id": workflow_metadata_id,
+        "task_board.status_key": status_key,
+        "task_board.status_role": status_role,
+        "task_board.status_key_map": status_key_map,
+    });
+    if !task.subtasks.is_empty() {
+        metadata["subtasks"] = serde_json::json!(task.subtasks);
+    }
     vw_api_agent_scheduler::AgentSchedulerCreateTaskRequest {
         placement: None,
         task_id: task_id.clone(),
@@ -382,27 +406,7 @@ fn create_task_request_with_workflow(
         timezone: None,
         next_scheduled_at: None,
         last_executed_at: None,
-        metadata: serde_json::json!({
-            "priority": task.priority,
-            "order_no": task.order,
-            "model": task.model,
-            "agent": task.agent,
-            "acp_agent": task.acp_agent,
-            "reasoning_effort": task.reasoning_effort,
-            "prompt": task.prompt,
-            "task_split_mode": task.task_split_mode.to_string_key(),
-            "last_error": task.last_error,
-            "pause_reason": task.pause_reason,
-            "merge_source_branch": task.merge_source_branch,
-            "merge_target_branch": task.merge_target_branch,
-            "selected_worktree_path": task.selected_worktree_path,
-            "selected_worktree_slot_id": task.selected_worktree_slot_id,
-            "selected_worktree_branch": task.selected_worktree_branch,
-            "task_board.workflow_id": workflow_metadata_id,
-            "task_board.status_key": status_key,
-            "task_board.status_role": status_role,
-            "task_board.status_key_map": status_key_map,
-        }),
+        metadata,
         created_at_ms: vw_api_transport::TimestampMs(
             i64::try_from(task.created_at_ms).unwrap_or(i64::MAX),
         ),

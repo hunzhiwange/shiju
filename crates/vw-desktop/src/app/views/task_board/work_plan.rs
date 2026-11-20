@@ -79,6 +79,7 @@ fn blocker_label(blocker: &Blocker) -> String {
         Blocker::ParentNotReleased { parent_task_id } => {
             format!("等待父任务放行 · {parent_task_id}")
         }
+        Blocker::LegacyWorkPlanRequiresResplit => vw_api_agent_scheduler::LEGACY_WORK_PLAN_RESPLIT_REASON.to_owned(),
         Blocker::WorkPlanNotPublished => "等待启动工作计划".to_owned(),
         Blocker::ExplicitDependency { task_ids } => {
             format!("等待任务依赖 · {}", task_ids.join("、"))
@@ -225,6 +226,24 @@ pub(super) fn project_view(app: &App) -> Element<'_, Message> {
 }
 
 pub(super) fn detail<'a>(app: &'a App, task: &Task) -> Option<Element<'a, Message>> {
+    if !task.subtasks.is_empty() {
+        let project = app.navigation_tabs.project_path.as_deref()?;
+        if !desktop_task_board::work_views::can_resplit_legacy_work_plan(task, &workflow(app)) {
+            return None;
+        }
+        let i18n = I18n::new(app.general_settings.desktop_locale);
+        return Some(column![
+            text(i18n.__(vw_api_agent_scheduler::LEGACY_WORK_PLAN_RESPLIT_REASON)).size(13),
+            action(i18n.__("重新拆分")).style(primary_action_btn_style).on_press_maybe(
+                (!app.task_board.work_plan.publishing.contains(&task.id)).then(|| {
+                    message(TaskBoardMessage::ResplitLegacyWorkPlan {
+                        project_path: project.to_owned(),
+                        task_id: task.id.clone(),
+                    })
+                })
+            ),
+        ].spacing(8).into());
+    }
     let (project, plan) = current(app)?;
     let snapshot = plan.tasks.get(&task.id)?;
     let mut body = column![].spacing(8);

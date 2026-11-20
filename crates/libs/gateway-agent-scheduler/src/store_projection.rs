@@ -357,6 +357,9 @@ pub(super) fn task_board_task_read_model(
 ) -> AgentSchedulerTaskBoardTaskReadModelDto {
     AgentSchedulerTaskBoardTaskReadModelDto {
         dispatch_blocker: None,
+        legacy_subtasks: metadata.get("subtasks")
+            .filter(|value| value.as_array().is_some_and(|items| !items.is_empty()))
+            .cloned(),
         task_split_mode: string_field(metadata, "task_split_mode"),
         title: Some(task.title.clone()),
         workflow_id: string_field(metadata, "task_board.workflow_id"),
@@ -560,6 +563,9 @@ pub(super) fn dispatch_blocker_to_dto(blocker: DispatchBlocker) -> AgentSchedule
             AgentSchedulerDispatchBlockerDto::ParentNotReleased {
                 parent_task_id: parent_task_id.as_str().to_owned(),
             }
+        }
+        DispatchBlocker::TaskPlan(TaskPlanDispatchBlocker::LegacyWorkPlanRequiresResplit) => {
+            AgentSchedulerDispatchBlockerDto::LegacyWorkPlanRequiresResplit
         }
         DispatchBlocker::TaskPlan(TaskPlanDispatchBlocker::WorkPlanNotPublished) => {
             AgentSchedulerDispatchBlockerDto::WorkPlanNotPublished

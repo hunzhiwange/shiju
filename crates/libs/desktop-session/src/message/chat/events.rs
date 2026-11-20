@@ -234,46 +234,6 @@ pub enum ChatMessage<Measurement, PreparedOpen, PanelMode, DetailsTab, TodoPlace
     /// 控制当前任务是否跟随系统设置、强制开启或关闭任务拆分
     TaskModeTaskSplitModeChanged(desktop_task_model::TaskSplitMode),
 
-    /// 任务模式子任务内容变化
-    ///
-    /// 修改指定索引的子任务描述
-    TaskModeSubtaskChanged {
-        /// 子任务索引
-        index: usize,
-        /// 新的子任务内容
-        value: String,
-    },
-
-    /// 任务模式子任务编辑器动作
-    ///
-    /// 对子任务文本编辑器执行的操作（如光标移动、选择等）
-    TaskModeSubtaskEditorAction {
-        /// 子任务索引
-        index: usize,
-        /// 编辑器动作
-        action: text_editor::Action,
-    },
-
-    /// 添加子任务
-    ///
-    /// 在任务列表中添加新的子任务
-    TaskModeAddSubtask,
-
-    /// 移除子任务
-    ///
-    /// 删除指定索引的子任务
-    TaskModeRemoveSubtask(usize),
-
-    /// 上移子任务
-    ///
-    /// 将指定索引的子任务向上移动一位
-    TaskModeMoveSubtaskUp(usize),
-
-    /// 下移子任务
-    ///
-    /// 将指定索引的子任务向下移动一位
-    TaskModeMoveSubtaskDown(usize),
-
     /// 从队列中移除消息
     ///
     /// 删除待发送队列中指定索引的消息

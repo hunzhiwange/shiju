@@ -45,7 +45,6 @@ fn task_metadata_patch_trims_workflow_and_copies_task_fields() {
         Some(serde_json::json!({
             "assignee": "Alice",
             "description": "description",
-            "subtasks": [],
             "auto_promote_delay_ms": 5_000,
             "task_split_mode": "enabled",
         }))

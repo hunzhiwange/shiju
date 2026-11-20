@@ -16,7 +16,6 @@ pub enum SendInputEffect {
         model: String,
         reasoning_effort: Option<vw_api_chat_identity::ReasoningEffortDto>,
         task_split_mode: desktop_task_model::TaskSplitMode,
-        subtasks: Vec<String>,
     },
     Send(QueueItem),
 }
@@ -71,7 +70,6 @@ pub fn prepare_send_input<R>(
             model: runtime.task_mode_model.clone(),
             reasoning_effort: runtime.task_mode_reasoning_effort,
             task_split_mode: runtime.task_mode_task_split_mode,
-            subtasks: runtime.task_mode_subtasks.clone(),
         };
     }
     let acp_model_source = runtime.acp_model_source;

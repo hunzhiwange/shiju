@@ -2,21 +2,18 @@
 //!
 //! 本模块只负责视图组合与样式适配，不持有业务状态，也不扩大外部能力边界。
 
-use iced::widget::{Space, button, column, container, row, scrollable, text, text_input};
+use iced::widget::{Space, column, container, row, scrollable, text};
 use iced::{Alignment, Color, Element, Length, Theme};
 
-use desktop_ui_controls::system_settings_common::{
-    settings_close_button, settings_text_input_style,
-};
+use desktop_ui_controls::system_settings_common::settings_close_button;
 use crate::message::TaskBoardMessage;
 use desktop_task_model::Task;
 #[cfg(test)]
 use desktop_task_model::TaskLogEntry;
 use crate::message::TaskBoardMessage as Message;
 
-use super::super::common::{button_style_danger, button_style_primary, button_style_secondary};
 use super::styles::{
-    panel_container_style, subtask_status_badge_style, subtask_status_icon, subtask_status_label,
+    panel_container_style, subtask_card_style, subtask_status_icon, subtask_status_label,
     subtask_status_pill_style, subtask_status_text_style,
 };
 
@@ -34,7 +31,6 @@ use super::styles::{
 #[allow(dead_code)]
 pub fn build_task_logs_modal_content<'a>(
     i18n: desktop_i18n::I18n,
-    new_subtask_content: &'a str,
     task: &'a Task,
 ) -> Element<'a, Message> {
     let close_btn = settings_close_button(TaskBoardMessage::CloseTaskLogs);
@@ -52,8 +48,6 @@ pub fn build_task_logs_modal_content<'a>(
     if !task.subtasks.is_empty() {
         main_col = build_subtasks_section(i18n, task, main_col);
     }
-
-    main_col = build_add_subtask_section(i18n, new_subtask_content, task, main_col);
 
     main_col = build_logs_section(i18n, task, main_col);
 
@@ -81,19 +75,19 @@ fn modal_panel_style(theme: &Theme) -> iced::widget::container::Style {
     style
 }
 
-fn build_subtasks_section<'a>(
+pub(super) fn build_subtasks_section<'a, M: 'a>(
     i18n: desktop_i18n::I18n,
     task: &'a Task,
-    mut main_col: iced::widget::Column<'a, Message>,
-) -> iced::widget::Column<'a, Message> {
-    let subtasks_title = text(i18n.__("子任务"))
+    mut main_col: iced::widget::Column<'a, M>,
+) -> iced::widget::Column<'a, M> {
+    let subtasks_title = text(i18n.__("旧子任务记录"))
         .size(13)
         .font(iced::Font { weight: iced::font::Weight::Bold, ..Default::default() });
     main_col = main_col.push(subtasks_title).push(Space::new().height(8.0));
 
     let mut subtasks_col = column![].spacing(4);
     let now_ms = runtime_time::now_ms();
-    for (idx, subtask) in task.subtasks.iter().enumerate() {
+    for subtask in &task.subtasks {
         let status = subtask.status;
         let created_date = format_subtask_created_date(subtask.created_at_ms);
 
@@ -113,74 +107,26 @@ fn build_subtasks_section<'a>(
         )
         .padding([2, 6])
         .style(move |theme: &Theme| subtask_status_pill_style(theme, status));
-        let toggle_btn = button(
-            row![status_icon, text(&subtask.content).size(11), status_label]
-                .spacing(6)
-                .align_y(Alignment::Center),
-        )
-        .on_press(TaskBoardMessage::ToggleSubTaskCompleted {
-            task_id: task.id.clone(),
-            subtask_id: subtask.id.clone(),
-        })
-        .padding([4, 8])
-        .style(move |theme, button_status| {
-            subtask_status_badge_style(theme, button_status, status)
+        let started = subtask.execution_started_at_ms.and_then(|ms| {
+            let seconds = i64::try_from(ms / 1000).ok()?;
+            let date = time::OffsetDateTime::from_unix_timestamp(seconds).ok()?;
+            i18n.format("开始 %s", &[date.to_string().into()]).ok()
         });
-
-        let mut subtask_row =
-            row![toggle_btn, Space::new().width(4.0)].spacing(4).align_y(Alignment::Center);
-
-        if idx > 0 {
-            let up_btn: Element<'_, Message> = button(text("↑").size(10))
-                .on_press(TaskBoardMessage::MoveSubTaskUp {
-                    task_id: task.id.clone(),
-                    subtask_id: subtask.id.clone(),
-                })
-                .padding([2, 6])
-                .style(button_style_secondary)
-                .into();
-            subtask_row = subtask_row.push(up_btn);
-        } else {
-            let up_btn: Element<'_, Message> = button(text("↑").size(10))
-                .padding([2, 6])
-                .style(disabled_arrow_button_style)
-                .into();
-            subtask_row = subtask_row.push(up_btn);
-        }
-
-        if idx < task.subtasks.len() - 1 {
-            let down_btn: Element<'_, Message> = button(text("↓").size(10))
-                .on_press(TaskBoardMessage::MoveSubTaskDown {
-                    task_id: task.id.clone(),
-                    subtask_id: subtask.id.clone(),
-                })
-                .padding([2, 6])
-                .style(button_style_secondary)
-                .into();
-            subtask_row = subtask_row.push(down_btn);
-        } else {
-            let down_btn: Element<'_, Message> = button(text("↓").size(10))
-                .padding([2, 6])
-                .style(disabled_arrow_button_style)
-                .into();
-            subtask_row = subtask_row.push(down_btn);
-        }
-
-        let delete_btn: Element<'_, Message> = button(text("×").size(10))
-            .on_press(TaskBoardMessage::RemoveSubTask {
-                task_id: task.id.clone(),
-                subtask_id: subtask.id.clone(),
-            })
-            .padding([2, 6])
-            .style(button_style_danger)
-            .into();
-
-        subtask_row = subtask_row
-            .push(delete_btn)
-            .push(Space::new().width(8.0))
-            .push(text(created_date).size(9).style(subtask_created_at_text_style));
-
-        subtasks_col = subtasks_col.push(subtask_row);
+        let duration = subtask.last_execution_duration_ms
+            .and_then(|ms| i18n.format("耗时 %us", &[(ms / 1000).into()]).ok());
+        let summary = row![status_icon, text(&subtask.content).size(11).width(Length::Fill), status_label]
+            .spacing(6)
+            .align_y(Alignment::Center);
+        let timing = row![text(created_date).size(9).style(subtask_created_at_text_style)]
+            .extend(started.into_iter().chain(duration).map(|value| text(value).size(10).into()))
+            .spacing(8)
+            .wrap();
+        subtasks_col = subtasks_col.push(
+            container(column![summary, timing].spacing(4))
+                .padding([6, 10])
+                .width(Length::Fill)
+                .style(subtask_card_style),
+        );
     }
     main_col.push(subtasks_col).push(Space::new().height(12.0))
 }
@@ -196,58 +142,8 @@ fn format_subtask_created_date(created_at_ms: u64) -> String {
     )
 }
 
-fn disabled_arrow_button_style(
-    theme: &Theme,
-    _status: iced::widget::button::Status,
-) -> iced::widget::button::Style {
-    let p = theme.extended_palette();
-    iced::widget::button::Style {
-        background: None,
-        border: iced::Border { radius: 4.0.into(), width: 0.0, color: Color::TRANSPARENT },
-        text_color: p.background.weak.text,
-        ..Default::default()
-    }
-}
-
 fn subtask_created_at_text_style(_theme: &Theme) -> iced::widget::text::Style {
     iced::widget::text::Style { color: Some(Color::from_rgb8(156, 163, 175)) }
-}
-
-fn build_add_subtask_section<'a>(
-    i18n: desktop_i18n::I18n,
-    new_subtask_content: &'a str,
-    task: &'a Task,
-    main_col: iced::widget::Column<'a, Message>,
-) -> iced::widget::Column<'a, Message> {
-    let add_subtask_title = text(i18n.__("添加子任务")).size(12);
-    let add_subtask_input = text_input(i18n.__("输入子任务内容..."), new_subtask_content)
-        .on_input(update_new_subtask_content_message)
-        .padding(8)
-        .width(Length::Fill)
-        .style(settings_text_input_style);
-
-    let content_for_add = new_subtask_content.to_string();
-    let task_id_for_add = task.id.clone();
-    let add_subtask_btn = button(text(i18n.__("添加")).size(11))
-        .on_press(add_subtask_message(task_id_for_add, content_for_add))
-        .padding([8, 12])
-        .style(button_style_primary);
-
-    let add_subtask_row = row![add_subtask_input, add_subtask_btn].spacing(8).width(Length::Fill);
-
-    main_col
-        .push(add_subtask_title)
-        .push(Space::new().height(4.0))
-        .push(add_subtask_row)
-        .push(Space::new().height(12.0))
-}
-
-fn update_new_subtask_content_message(content: String) -> Message {
-    TaskBoardMessage::UpdateNewSubtaskContent(content)
-}
-
-fn add_subtask_message(task_id: String, content: String) -> Message {
-    TaskBoardMessage::AddSubTask { task_id, content }
 }
 
 fn build_logs_section<'a>(

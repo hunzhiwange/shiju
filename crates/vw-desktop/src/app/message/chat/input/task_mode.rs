@@ -1,5 +1,4 @@
 use crate::app::{App, Message};
-use iced::{Task, widget::text_editor};
 use desktop_session::message::chat::input::task_mode as domain;
 pub(super) fn handle_task_mode_toggled(app: &mut App, enabled: bool) -> Task<Message> {
 
@@ -60,49 +59,5 @@ pub(super) fn handle_task_mode_reasoning_effort_changed(
 
  let runtime = app.current_session_runtime_mut();
  domain::handle_task_mode_reasoning_effort_changed(&mut runtime.task_mode_reasoning_effort, reasoning_effort);
- Task::none()
-}
-pub(super) fn handle_task_mode_subtask_changed(
-    app: &mut App,
-    index: usize,
-    value: String,
-) -> Task<Message> {
-
- let runtime = app.current_session_runtime_mut();
- domain::handle_task_mode_subtask_changed(&mut runtime.task_mode_subtasks, &mut runtime.task_mode_subtask_editors, index, value);
- Task::none()
-}
-pub(super) fn handle_task_mode_subtask_editor_action(
-    app: &mut App,
-    index: usize,
-    action: text_editor::Action,
-) -> Task<Message> {
-
- let runtime = app.current_session_runtime_mut();
- domain::handle_task_mode_subtask_editor_action(&mut runtime.task_mode_subtasks, &mut runtime.task_mode_subtask_editors, index, action);
- Task::none()
-}
-pub(super) fn handle_task_mode_add_subtask(app: &mut App) -> Task<Message> {
-
- let runtime = app.current_session_runtime_mut();
- domain::handle_task_mode_add_subtask(&mut runtime.task_mode_subtasks, &mut runtime.task_mode_subtask_editors);
- Task::none()
-}
-pub(super) fn handle_task_mode_remove_subtask(app: &mut App, index: usize) -> Task<Message> {
-
- let runtime = app.current_session_runtime_mut();
- domain::handle_task_mode_remove_subtask(&mut runtime.task_mode_subtasks, &mut runtime.task_mode_subtask_editors, index);
- Task::none()
-}
-pub(super) fn handle_task_mode_move_subtask_up(app: &mut App, index: usize) -> Task<Message> {
-
- let runtime = app.current_session_runtime_mut();
- domain::handle_task_mode_move_subtask_up(&mut runtime.task_mode_subtasks, &mut runtime.task_mode_subtask_editors, index);
- Task::none()
-}
-pub(super) fn handle_task_mode_move_subtask_down(app: &mut App, index: usize) -> Task<Message> {
-
- let runtime = app.current_session_runtime_mut();
- domain::handle_task_mode_move_subtask_down(&mut runtime.task_mode_subtasks, &mut runtime.task_mode_subtask_editors, index);
  Task::none()
 }

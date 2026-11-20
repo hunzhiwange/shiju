@@ -259,3 +259,43 @@ async fn work_plan_publish_desktop_uses_gateway_handoff() {
             && body["plan"]["subtasks"][0]["acceptance_criteria"] == serde_json::json!(["通过检查"])
     }));
 }
+
+#[cfg(not(target_arch = "wasm32"))]
+#[test]
+fn work_plan_legacy_execution_never_replays_old_children() {
+    use crate::app::task::{SubTask, Task, TaskSplitMode, TaskStatus};
+    use desktop_task_board::{update::forms, work_views};
+    use desktop_task_executor::executor::runner::{GatewayPromptSessionMode, execute_task_blocking_in_mode};
+
+    fn unexpected_gateway() -> vw_gateway_client::GatewayEndpoint {
+        panic!("legacy execution must stop before opening a gateway session")
+    }
+
+    let workflow = desktop_task_model::TaskWorkflow::from(desktop_task_model::default_task_workflow());
+    let mut task = Task::new(1);
+    task.status = TaskStatus::Pending;
+    task.prompt = "原始需求".into();
+    let mut completed = SubTask::new("已完成的历史记录".into());
+    completed.mark_completed_at(2);
+    task.subtasks.push(completed);
+    task.subtasks.push(SubTask::new("旧批次中的未完成任务".into()));
+    for mode in [GatewayPromptSessionMode::Fresh, GatewayPromptSessionMode::ContinueExisting] {
+        let (id, result) = execute_task_blocking_in_mode(
+            unexpected_gateway, "/unused".into(), task.clone(), "/unused".into(), None, mode,
+        );
+        assert_eq!(id, task.id);
+        assert_eq!(result.unwrap_err(), vw_api_agent_scheduler::LEGACY_WORK_PLAN_RESPLIT_REASON);
+    }
+
+    assert!(work_views::can_resplit_legacy_work_plan(&task, &workflow));
+    task.status = TaskStatus::Running;
+    assert!(!work_views::can_resplit_legacy_work_plan(&task, &workflow));
+    task.status = TaskStatus::Failed;
+    assert!(work_views::can_resplit_legacy_work_plan(&task, &workflow));
+    let new_task = forms::resplit_legacy_task(task.clone(), TaskStatus::Pending);
+    assert_ne!(new_task.id, task.id);
+    assert_eq!(new_task.prompt, task.prompt);
+    assert_eq!(new_task.task_split_mode, TaskSplitMode::Enabled);
+    assert!(new_task.subtasks.is_empty());
+    assert!(task.subtasks[0].completed);
+}

@@ -96,26 +96,6 @@ pub fn subtask_card_style(theme: &Theme) -> container::Style {
     }
 }
 
-/// 构建或更新 subtask badge style 相关行为。
-///
-/// 参数由调用方提供，返回值直接交给上层视图或状态处理；本函数不执行额外错误恢复。
-pub fn subtask_badge_style(
-    theme: &Theme,
-    _status: iced::widget::button::Status,
-) -> iced::widget::button::Style {
-    let p = theme.extended_palette();
-    iced::widget::button::Style {
-        background: Some(Background::Color(p.background.weak.color.scale_alpha(0.55))),
-        border: Border {
-            width: 1.0,
-            color: p.background.strong.color.scale_alpha(0.78),
-            radius: 999.0.into(),
-        },
-        text_color: theme.palette().text,
-        ..Default::default()
-    }
-}
-
 /// 构建子任务状态图标文本。
 ///
 /// 参数由调用方提供，返回值直接交给上层视图或状态处理；本函数不执行额外错误恢复。
@@ -218,26 +198,6 @@ pub fn subtask_status_text_style(theme: &Theme, status: SubTaskStatus) -> text::
     text::Style { color: Some(text_color) }
 }
 
-/// 构建子任务状态徽章样式。
-///
-/// 参数由调用方提供，返回值直接交给上层视图或状态处理；本函数不执行额外错误恢复。
-pub fn subtask_status_badge_style(
-    theme: &Theme,
-    status: button::Status,
-    subtask_status: SubTaskStatus,
-) -> button::Style {
-    let (mut background, border, text_color) = subtask_status_colors(theme, subtask_status);
-    if matches!(status, button::Status::Hovered | button::Status::Pressed) {
-        background = background.scale_alpha(0.86);
-    }
-    button::Style {
-        background: Some(Background::Color(background)),
-        border: Border { width: 1.0, color: border, radius: 999.0.into() },
-        text_color,
-        ..Default::default()
-    }
-}
-
 /// 构建子任务状态标签容器样式。
 ///
 /// 参数由调用方提供，返回值直接交给上层视图或状态处理；本函数不执行额外错误恢复。
@@ -247,19 +207,6 @@ pub fn subtask_status_pill_style(theme: &Theme, status: SubTaskStatus) -> contai
         background: Some(Background::Color(background)),
         text_color: Some(text_color),
         border: Border { width: 1.0, color: border, radius: 999.0.into() },
-        ..Default::default()
-    }
-}
-
-/// 构建或更新 disabled arrow button style 相关行为。
-///
-/// 参数由调用方提供，返回值直接交给上层视图或状态处理；本函数不执行额外错误恢复。
-pub fn disabled_arrow_button_style(theme: &Theme) -> iced::widget::button::Style {
-    let p = theme.extended_palette();
-    iced::widget::button::Style {
-        background: None,
-        border: Border { radius: 4.0.into(), width: 0.0, color: Color::TRANSPARENT },
-        text_color: p.background.weak.text,
         ..Default::default()
     }
 }

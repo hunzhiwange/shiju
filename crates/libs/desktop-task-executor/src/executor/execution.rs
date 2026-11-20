@@ -78,17 +78,6 @@ fn execute_task_in_workspace(
     log_sender: Option<Sender<TaskLogStream>>,
     mode: GatewayPromptSessionMode,
 ) -> (String, Result<String, String>) {
-    // Preserve home validation before acquiring the worktree claim.
-    if super::programs::user_home_dir().is_none() {
-        return super::runner::execute_task_blocking_in_mode(
-            endpoint,
-            project_path.clone(),
-            task,
-            project_path,
-            log_sender,
-            mode,
-        );
-    }
     let (workspace, _claim_guard) = match super::worktree_admin::resolve_task_execution_workspace(
         gateway_client,
         &task,

@@ -22,8 +22,6 @@ mod help_rollout {
         };
         let mut renderer = renderer().await;
         app.task_board.task_board_draft.priority = "173".into();
-        app.task_board.task_board_draft.subtasks = vec!["draft fixture subtask".into()];
-        app.task_board.task_board_new_subtask_content = "new fixture subtask".into();
         for (locale, theme, width) in LAYOUTS {
             app.general_settings.desktop_locale = locale;
             app.appearance.app_theme = theme;
@@ -45,23 +43,6 @@ mod help_rollout {
             }
             let bounds = geometry(&mut ui, &renderer);
             locate(&bounds.inputs, "173");
-            locate(&bounds.inputs, "draft fixture subtask");
-            for arrow in ["↑", "↓"] {
-                assert!(
-                    click(&mut ui, &mut renderer, locate(&bounds.labels, arrow).center())
-                        .is_empty(),
-                    "a single subtask cannot be reordered"
-                );
-            }
-            assert!(matches!(
-                click(
-                    &mut ui,
-                    &mut renderer,
-                    locate(&bounds.labels, i18n.__("新增子任务")).center(),
-                )
-                .as_slice(),
-                [Message::TaskBoard(TaskBoardMessage::AddDraftSubtask)]
-            ));
             assert!(matches!(
                 click(&mut ui, &mut renderer, locate(&bounds.labels, i18n.__("创建任务")).center())
                     .as_slice(),
@@ -126,15 +107,11 @@ mod help_rollout {
             assert!(
                 bounds.labels.iter().any(|(label, _)| label.contains("fixture execution error"))
             );
-            locate(&bounds.inputs, "new fixture subtask");
+            let history = locate(&bounds.labels, "现有子任务 / Existing subtask");
+            assert!(click(&mut ui, &mut renderer, history.center()).is_empty());
             let click_label = |ui: &mut Ui<'_>, renderer: &mut iced::Renderer, label| {
                 click(ui, renderer, locate(&bounds.labels, i18n.__(label)).center())
             };
-            assert!(matches!(
-                click_label(&mut ui, &mut renderer, "添加").as_slice(),
-                [Message::TaskBoard(TaskBoardMessage::AddSubTask { task_id, content })]
-                    if task_id == "fixture-task" && content == "new fixture subtask"
-            ));
             assert!(matches!(
                 click_label(&mut ui, &mut renderer, "保存修改").as_slice(),
                 [Message::TaskBoard(TaskBoardMessage::SaveEditingTask)]

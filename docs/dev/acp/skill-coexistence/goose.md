@@ -30,4 +30,17 @@
 
 `llm-runtime` 定向过滤 `acp_skill_coexistence_goose` 运行 2 项且全部通过。Python 定向目录测试运行 1 项并通过。本轮网关构建使用 Cargo 槽位 10，`CARGO_TARGET_DIR` 和 `CARGO_BUILD_BUILD_DIR` 均指向该槽位的绝对路径。PlanMember.id 的两处私有字段访问使 `task-scheduler` 编译返回 `E0616`，网关构建退出 101。断点位于 `crates/libs/task-scheduler/src/store/postgres/task_plan.rs:247` 及第 249 行。本次 Goose 改动未涉及该包。
 
-最终 v2 的生产网关四轮、MCP 计数和终态 UI 回读待复验。阻塞结果在 `target/acp-skill-coexistence/goose.json`，首次 v2 网关诊断在 `target/acp-skill-coexistence/goose-first-v2.json`。构建恢复后，按任务卡命令从同一槽位构建并运行探针，使用环境变量 `ACP_COEXISTENCE_GOOSE_BIN` 指向 `target/acp-skill-coexistence/goose-source/v2/runtime/goose`。
+## 2026-11-21 最终网关回归
+
+共享网关在 Cargo 槽位 6 构建并退出 0。构建 HEAD 为 `03e5fc747ed4571184fbb6a156bb48d093b9fee0`，网关 SHA-256 为 `c59878516f6a88bb8f60ce78955654b9859bca9b82af6711fc14c83d0a572eba`。构建前后源码一致，源码差异与双缓存路径见 `target/acp-skill-coexistence/final-regression-gateway.json`。复用此前通过的两项 Rust 定向测试。
+
+四轮均绑定 Goose 与 `session_model`，选用 `coexistence-fixture/deepseek-v4.1-flash-1017`，回读确认完全访问关闭。网关探针退出 0。
+
+| 场景 | 独立会话 | `chat.done` / `chat.error` | 模型请求 | MCP 调用 | MCP 审批 |
+| --- | --- | --- | --- | --- | --- |
+| 基线 | `ses_e05fed978ffeKysvfSWa2BEqyz` | 1 / 0 | 3 | 0 | 无 |
+| 挂载 | `ses_e05feb5bcffeB0uaoe551rjIBg` | 1 / 0 | 6 | 1 | once |
+| 撤除 | `ses_e05fe8bacffeUixfCGVhjvZdrB` | 1 / 0 | 3 | 0 | 无 |
+| 拒绝 | `ses_e05fe6903ffeY9CRR6aY95zlKM` | 1 / 0 | 6 | 0 | reject |
+
+挂载轮按原生正文、原生附件、所选正文、所选附件和只读 MCP 的顺序，回传调用 ID `call_ecbc6768b2830171628b3393`、`call_e5db4e1a1c556f072d7d05fd`、`call_cc7bb2708f14eb212b2604f2`、`call_77b4882adbdeb8688a62498a`、`call_ae8705d14f55d74461c758e2`。拒绝轮的 `call_94eca3c1a6b6a2d5cb78ba37` 回传原生拒绝，服务端执行零次。四轮的调用 ID、模型和权限回读见 `target/acp-skill-coexistence/goose.json`。

@@ -235,6 +235,12 @@ pub async fn do_stream_request_acp<H: Host>(
             "Cursor skill mounts require session_model with native tools enabled",
         ));
     }
+    if acp_agent_name == "qoder"
+        && parsed_options.skill_view.is_some()
+        && source != vw_api_acp_model::acp_model_source::AcpModelSource::SessionModel
+    {
+        return Err(acp_option_error("Qoder skill mounts require session_model"));
+    }
     H::supplier(&acp_agent_name, parsed_options.skill_view.as_ref())?;
     H::validate_mounts(&acp_agent_name, !parsed_options.skill_mounts.is_empty())?;
 
@@ -338,6 +344,9 @@ pub async fn do_stream_request_acp<H: Host>(
         }
         vw_api_acp_model::acp_model_source::AcpModelSource::CliLocal => None,
     };
+    if acp_agent_name == "qoder" && let Some(profile) = launch_profile.as_ref() {
+        super::skill_mounts::qoder::publish(profile.directory(), parsed_options.skill_view.as_ref())?;
+    }
     if mimo_mcp || !openclaw_mcp.is_empty() {
         // The request-owned launch now owns the projected MCP connections.
         parsed_options.mcp_servers.clear();

@@ -20,6 +20,16 @@ replacement = 'case"acp":{let{QoderAcpAppFramework:t}=await Promise.resolve().th
 if source.count(anchor) != 1:
     raise RuntimeError('Qoder local ACP factory anchor mismatch')
 source = source.replace(anchor, replacement)
+# Limit execution metadata only for documents opened from the projected view.
+skill_anchors = {
+    'n=r5A(g[1]??"",A))': 'n=shijuQoder.restrictMountedSkill(A,r5A(g[1]??"",A)))',
+    'A.isSkillShellExecutionDisabled()&&!e.isBuiltin?YUl(s)':
+        '(shijuQoder.isMountedSkill(e.location)||A.isSkillShellExecutionDisabled()&&!e.isBuiltin)?YUl(s)',
+}
+for before, after in skill_anchors.items():
+    if source.count(before) != 1:
+        raise RuntimeError('Qoder native skill anchor mismatch')
+    source = source.replace(before, after)
 newline = source.index('\n') + 1
 source = source[:newline] + 'import * as shijuQoder from "./shiju-session-model.mjs";\n' + source[newline:]
 entry.write_text(source)

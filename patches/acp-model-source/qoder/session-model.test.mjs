@@ -62,3 +62,26 @@ test('revoked launch material cannot prepare another prompt', options, () => {
   `);
   assert.equal(result.status, 0, result.stderr);
 });
+test('only selected skills lose executable frontmatter', options, () => {
+  const result = probe(({root}) => {
+    const view = path.join(root, 'view');
+    fs.mkdirSync(view);
+    fs.symlinkSync(view, path.join(root, 'skills'));
+  }, `
+    import assert from 'node:assert/strict';
+    import path from 'node:path';
+    const root = path.dirname(process.env.SHIJU_QODER_MODEL_CONFIG);
+    const selected = path.join(root, 'skills/example/SKILL.md');
+    const native = path.join(root, '.agents/skills/example/SKILL.md');
+    const metadata = {description: 'example', disableModelInvocation: true,
+      allowedTools: ['Bash'], hooks: {}, context: 'fork', agent: 'general',
+      model: 'other-model', effort: 'high'};
+    assert.equal(m.isMountedSkill(selected), true);
+    assert.equal(m.isMountedSkill(native), false);
+    assert.equal(m.isMountedSkill(path.join(root, 'skills-other/SKILL.md')), false);
+    assert.deepEqual(m.restrictMountedSkill(selected, metadata),
+      {description: 'example', disableModelInvocation: true});
+    assert.equal(m.restrictMountedSkill(native, metadata), metadata);
+  `);
+  assert.equal(result.status, 0, result.stderr);
+});

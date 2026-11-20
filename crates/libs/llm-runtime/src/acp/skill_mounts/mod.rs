@@ -17,7 +17,7 @@ mod kiro;
 mod openclaw;
 mod opencode;
 mod pi;
-mod qoder;
+pub(super) mod qoder;
 mod qwen;
 mod snow;
 mod trae;
@@ -47,7 +47,7 @@ pub fn validate(agent: &str, selected: bool) -> Result<(), Error> {
         "auggie" => auggie::rejection(),
         "cursor" => return Ok(()),
         "droid" => droid::rejection(),
-        "qoder" => qoder::rejection(),
+        "qoder" if cfg!(all(target_os = "macos", target_arch = "aarch64")) => return Ok(()),
         "trae" => trae::rejection(),
         "iflow" => return Ok(()),
         _ => "no verified skill directory mount branch",

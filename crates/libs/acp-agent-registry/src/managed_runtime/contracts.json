@@ -700,8 +700,8 @@
     "bin": "bundle/qodercli.js",
     "integrity": "sha512-3UkODiq9eNtbQPzE1DN6UbcwCjNcY5XKeO0htxzzm5ZZjs2gE2yY8xzTjwEU6Hb8Dhyiy7XdcqSyKwWudxmh+w==",
     "files": {
-      "bundle/qodercli.js": "e812bfd63431758a96d7888fefc7e67a02735e0bf69edf6b5e531a261c7a7ed1",
-      "bundle/shiju-session-model.mjs": "27753aa78105ebe8fe19a9ed09b34069c5ca6efaa9388da3c8e699a03169c53c"
+      "bundle/qodercli.js": "a1f407619fbc3fcf771a2512c385ec318680b407dd1c113d45ec713cd20bd225",
+      "bundle/shiju-session-model.mjs": "f9381ff8c6870ba7d45a3b59116e978a37c50c41fdfc9806920d8d1ad7c811de"
     }
   },
   "trae": {

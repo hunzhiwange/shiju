@@ -30,3 +30,7 @@ node --test patches/acp-model-source/qoder/session-model.test.mjs
 
 真实 ACP initialize/session/new 和真实模型 HTTP 请求证据独立于这些边界测试；
 探针的 HTTP 503 只验证到达本机端点，不作为指定模型成功或编辑器产物证据。
+
+修订 v2 使用请求私有配置的原生 `skills` 目录。ShiJu 只在此目录发布经过校验的会话视图，原生用户技能继续从 `~/.agents/skills` 发现。Qoder 按原生优先级解析同名技能，私有配置中的技能优先于兼容目录中的同名用户技能。
+
+挂载的技能保留原生元数据、激活和文件读取。挂载范围内的内联命令禁用，钩子、工具授权、子代理和技能级选模声明不参与执行。原生技能、ACL 和 MCP 延迟加载沿用已有配置。

@@ -2386,53 +2386,51 @@
     },
     {
       "key": "qoder",
-      "version": "1.1.82",
+      "version": "1.1.88",
       "status": "unverified",
       "platform": {
         "review_host": "Darwin-arm64",
-        "artifact_scope": "本机固定发行物静态审查；源码/通用 JS 的跨平台执行未验证",
+        "artifact_scope": "Darwin-arm64 固定 Qoder 1.1.88 受管修订 v2，网关验收见回执。",
         "linux": "unverified",
         "windows": "unverified"
       },
       "distribution": {
         "package": "@qoder-ai/qodercli",
-        "version": "1.1.82",
-        "upstream_url": "https://registry.npmjs.org/%40qoder-ai%2Fqodercli/1.1.82",
-        "upstream_integrity": "sha512-Vac4oHtL4F5oUbn51e3OD+CnHFQbMbqqO4a1cy0AnGGzELzvfHXCExgfhqwXUlTUatZbbKq45oMt8Od/GPPtBw==",
+        "version": "1.1.88",
+        "upstream_url": "https://registry.npmjs.org/%40qoder-ai%2Fqodercli/1.1.88",
+        "upstream_integrity": "sha512-3UkODiq9eNtbQPzE1DN6UbcwCjNcY5XKeO0htxzzm5ZZjs2gE2yY8xzTjwEU6Hb8Dhyiy7XdcqSyKwWudxmh+w==",
         "engine": {
           "kind": "same_distribution",
-          "release": "1.1.82"
+          "release": "1.1.88"
         },
-        "local_identity": "package.json 固定版本匹配；执行文件另有 SHA-256。"
+        "local_identity": "安装时核对 npm 归档完整性及补丁后入口、绑定模块摘要。"
       },
       "acp_entry": {
         "argv": [
           "qodercli",
-          "--acp",
-          "--permission-mode",
-          "bypass_permissions"
+          "--acp"
         ],
-        "binding": "crates/vw-acp/src/agent_registry.rs::BUILT_IN_AGENT_DEFINITIONS",
-        "runtime_executed": false,
-        "note": "固定发行物候选入口；注册器含 latest/range，不保证用户当前命令已固定到此版本。"
+        "binding": "crates/libs/acp-agent-registry/src/managed_runtime/contracts.json#qoder",
+        "runtime_executed": true,
+        "note": "受管 session_model 使用每次请求的私有配置及默认权限。"
       },
       "mount": {
         "candidate_paths": [
-          ".agents/skills（固定包可读字符串）",
-          ".qoder/skills（当前官方文档线索）"
+          "~/.agents/skills",
+          "<私有配置>/skills"
         ],
-        "discovery": "1.1.82 bundle 有 SKILL.md scanner，但路径解码与 ACP 传参契约未完全核实；不能从 SDK 或 TUI 文档推定 ACP 支持。",
-        "activation": "当前 SDK selected_skills/CLI reload 的语义与 ACP 激活不同，均待版本绑定验收。",
-        "session_isolation": "unverified：额外根/专属配置根不自动排除内建、用户、项目及插件技能；不得修改 HOME 或写用户全局目录。"
+        "discovery": "原生用户扫描器保留 ~/.agents/skills，并从请求私有配置读取 ShiJu 会话视图。",
+        "activation": "Qoder 原生 Skill 按需激活，原生 Read 读取附件。",
+        "session_isolation": "无选集时保留原生扫描，视图仅存在于本次私有请求。"
       },
       "permissions": {
-        "status": "unverified",
+        "status": "沿用原生工具权限与 MCP 审批，具体结果见回执。",
         "requirements": "执行端重新审核目录、租户/项目/会话权限、路径逃逸与符号链接；支持文件/脚本/MCP 仍受各自授权限制，不扩大 full_access。",
-        "agent_specific": "固定 ACP 的目录/工具授权条件须后续真实验证；未因模型来源受限推定技能不支持。"
+        "agent_specific": "挂载技能的内联命令、钩子及工具授权声明受限。仅支持审定的 session_model 入口。"
       },
       "update": {
         "native": "unverified：本任务未执行热更新或原子完整替换；静态刷新函数/文档 reload 不作成功承诺。",
-        "candidate": "在不打断运行请求的前提下评估空闲重建；尚未确认固定发行物原生更新入口。"
+        "candidate": "选集变更后重新创建私有请求。"
       },
       "recovery": {
         "status": "unverified",
@@ -2440,7 +2438,7 @@
       },
       "independent_sources": {
         "local_configuration": {
-          "candidate": "未有独立配置根证据；需审查项目/用户配置",
+          "candidate": "未审定 cli_local 技能挂载。",
           "static_review_only": true,
           "runtime_verified_this_task": false
         },
@@ -2448,38 +2446,22 @@
           "prior_report_status": "unsupported",
           "reference": "../../shiju/acp-model-source/cli-versions.json#qoder",
           "runtime_verified_this_task": false,
-          "note": "只保留旧报告定位；不复制其通过/不支持结论到技能能力。"
+          "note": "现行受管回环证据见独立回执。"
         }
       },
       "evidence": [
         {
-          "path": "target/qoder-investigation/package/bundle/qodercli.js",
-          "sha256": "723550e7f3d746b2074140e995083f6646b721f4f870b00a31e82d0af0e26eaf",
-          "kind": "source",
-          "bytes": 35168647,
+          "path": "patches/acp-model-source/qoder/session-model.mjs",
+          "sha256": "f9381ff8c6870ba7d45a3b59116e978a37c50c41fdfc9806920d8d1ad7c811de",
+          "kind": "reviewed_skill_mount_patch",
           "observations": [
-            {
-              "pattern": "\\.agents/skills",
-              "byte_offset": 30772802,
-              "line": 427,
-              "excerpt": "kF6FF4AHCoESgYuCFYSFVoEMSESCh4yLVsmAlYdHzQOSgYgC1c4\")]:\"从 .agents/skills 加载技能\",[_$d1(\"AyMDEAMvDkF6FF4AHCoESgYuCFYSFVoEMSESCh4yLVsmAlYdHzQOSg4kGlEmDkUdGSkZ\")]:_$d1(\"lP35gv3mjrvcRxsIFyMZEBluGlk9C1kaUKPy2I/v0NXPydDU5aP9xIL81NTe593qzanL/47+x9TA3tD5/q/r5IPG5NfEyBUqPA+U"
-            },
-            {
-              "pattern": "\"SKILL.md\"",
-              "byte_offset": 197248,
-              "line": 2,
-              "excerpt": "sDirectory())return[];let r=TLa(i,e.scanLimits),o=g0.join(t,\"SKILL.md\");try{if(!(await r.limit(()=>My.stat(o))).isFile())throw new Error(_$d1(\"NC8FAQk1SUE/DlkFUDYWEAJhAEF0CVodUCdXAgMtDA==\"));if(e.allowDirectSkill){let A=g0.basename(t),{skill:i,reportedLoadFailure:n}=awa"
-            }
-          ]
+            "挂载技能使用请求私有目录，原生技能保留原有加载策略。"
+          ],
+          "contract": "crates/libs/acp-agent-registry/src/managed_runtime/contracts.json#qoder"
         },
         {
-          "path": "target/qoder-investigation/package/package.json",
-          "sha256": "84f5bf3900ae4316410b5c9e25dbac2f8cdfcd4f87c22f306ef81675c010974c",
-          "kind": "package_identity",
-          "bytes": 1177,
-          "observations": [],
-          "package": "@qoder-ai/qodercli",
-          "version": "1.1.82"
+          "path": "../../dev/acp/skill-coexistence/qoder.md",
+          "kind": "skill_coexistence"
         }
       ],
       "supplemental_official_docs": [
@@ -2489,13 +2471,9 @@
           "scope": "当前文档补充线索；未绑定固定发行物/ACP；不用于提升支持状态。"
         }
       ],
-      "next_validation": "固定版本真实 ACP：发现元数据 → 按需激活 → 支持文件/脚本工具回合 → 隔离/删除/更新失败保旧 → 跨进程恢复；只替代外部模型 HTTP。未安装/缺账号则保留 unverified。",
-      "delivery_acceptance": {
-        "status": "user_waived",
-        "reason": "用户明确决定免登录、免验证并接受本项；未实际运行，不计实测 verified。",
-        "evidence": "evidence/regression.json"
-      }
+      "next_validation": "网关三轮与拒绝对照见独立回执。"
     },
+
     {
       "key": "qwen",
       "version": "0.26.7",

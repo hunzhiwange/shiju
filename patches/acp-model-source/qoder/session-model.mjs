@@ -7,6 +7,7 @@ import dns from 'node:dns';
 
 export const active = !!process.env.SHIJU_QODER_MODEL_CONFIG;
 let binding;
+let mountedSkillRoot;
 function privatePath(file, directory = false) {
   const s = fs.lstatSync(file);
   if (s.isSymbolicLink() || s.uid !== process.getuid() ||
@@ -46,8 +47,25 @@ export function settings() {
         contextWindow: c.contextLimit, capabilities: {tools: true, vision: false}}]}}};
 }
 
+export function isMountedSkill(file) {
+  if (!mountedSkillRoot || typeof file !== 'string') return false;
+  const relative = path.relative(mountedSkillRoot, file);
+  return relative.split(path.sep).length >= 2 && !path.isAbsolute(relative) &&
+    !relative.startsWith('..' + path.sep);
+}
+
+export function restrictMountedSkill(file, skill) {
+  if (!skill || !isMountedSkill(file)) return skill;
+  const {allowedTools, hooks, context, agent, model, effort, ...metadata} = skill;
+  return metadata;
+}
+
 if (active) {
   const c = validate();
+  // The host publishes only a link to its validated view inside this private directory.
+  // Keep recognizing its skills if the link disappears after initial discovery.
+  const skills = path.join(path.dirname(process.env.SHIJU_QODER_MODEL_CONFIG), 'skills');
+  if (fs.lstatSync(skills, {throwIfNoEntry: false})?.isSymbolicLink()) mountedSkillRoot = skills;
   const allowedPort = Number(new URL(c.endpoint).port);
   // Block Qoder's background cloud services before the supplier module initializes.
   // The selected provider can only reach the exact request-owned relay listener.

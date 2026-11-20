@@ -34,6 +34,22 @@ pub struct TaskPlanEntry {
     pub placement: TaskPlanPlacement,
 }
 
+#[derive(Debug, thiserror::Error)]
+pub enum TaskPlanError {
+    #[error("{0}")]
+    Invalid(String),
+    #[error("{0}")]
+    NotFound(String),
+    #[error("{0}")]
+    Conflict(String),
+}
+
+pub(super) enum TaskPlanEdit {
+    Preserve,
+    Metadata,
+    Replace(Option<TaskPlanPlacement>),
+}
+
 impl AgentSchedulerStore {
     pub(crate) fn load_plan_dispatch_snapshot(
         &self,
@@ -52,7 +68,7 @@ impl AgentSchedulerStore {
         &self,
         context: &(impl AgentSchedulerStorageContext + ?Sized),
     ) -> Result<Vec<TaskPlanEntry>> {
-        self.list_task_plan_entries(context, None)
+        self.list_task_plan_entries(context, None, None)
     }
 
     pub fn list_task_plan_children(
@@ -60,23 +76,33 @@ impl AgentSchedulerStore {
         context: &(impl AgentSchedulerStorageContext + ?Sized),
         parent_task_id: &TaskId,
     ) -> Result<Vec<TaskPlanEntry>> {
-        self.list_task_plan_entries(context, Some(parent_task_id))
+        self.list_task_plan_entries(context, Some(parent_task_id), None)
+    }
+
+    pub fn load_task_placement(
+        &self,
+        context: &(impl AgentSchedulerStorageContext + ?Sized),
+        task_id: &TaskId,
+    ) -> Result<Option<TaskPlanPlacement>> {
+        Ok(self.list_task_plan_entries(context, None, Some(task_id))?
+            .into_iter().next().map(|entry| entry.placement))
     }
 
     fn list_task_plan_entries(
         &self,
         context: &(impl AgentSchedulerStorageContext + ?Sized),
         parent_task_id: Option<&TaskId>,
+        task_id: Option<&TaskId>,
     ) -> Result<Vec<TaskPlanEntry>> {
         let scope = context.storage_scope()?;
         if let Some(store) = postgres_provider(self, context)? {
-            return store.list_task_plan(&scope, parent_task_id);
+            return store.list_task_plan(&scope, parent_task_id, task_id);
         }
         let conn = open_initialized_connection(self, context)?;
         let (platform, company, project) = scope_params(&scope);
         let mut stmt = conn.prepare(SELECT_PLAN)?;
         let rows = stmt.query_map(
-            params![platform, company, project, parent_task_id.map(TaskId::as_str)],
+            params![platform, company, project, parent_task_id.map(TaskId::as_str), task_id.map(TaskId::as_str)],
             |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?)),
         )?;
         rows.map(|row| {
@@ -103,7 +129,7 @@ impl AgentSchedulerStore {
         property_changes: AgentSchedulerTaskPropertyChanges,
         edit: impl FnOnce(&StoredAgentTask) -> Result<AgentTaskBoardUpdate> + Send,
     ) -> Result<Option<(StoredAgentTask, StoredAgentTask)>> {
-        self.edit_task_with_placement(context, task_id, property_changes, Some(placement), edit)
+        self.edit_task_with_placement(context, task_id, property_changes, TaskPlanEdit::Replace(placement), edit)
     }
 }
 
@@ -112,6 +138,7 @@ pub(super) const SELECT_PLAN: &str =
      FROM scheduler_task_plans
      WHERE platform_id = $1 AND company_id = $2 AND project_id = $3
        AND (CAST($4 AS TEXT) IS NULL OR parent_task_id = $4)
+       AND (CAST($5 AS TEXT) IS NULL OR task_id = $5)
      ORDER BY CASE WHEN parent_task_id IS NULL THEN 0 ELSE 1 END,
               parent_task_id, outer_batch, batch, task_id";
 
@@ -378,18 +405,36 @@ pub(super) fn became_hidden(
             && bool_metadata_field(metadata, "task_board.deleted"))
 }
 
+pub(super) fn validate_metadata_completion(
+    members: &[PlanMember],
+    task_id: &TaskId,
+) -> Result<()> {
+    if members.iter().any(|member| {
+        member.is_child_of(task_id) || (&member.id == task_id && member.placement.is_some())
+    }) {
+        return Err(TaskPlanError::Conflict(format!(
+            "cannot complete work plan task {} through metadata", task_id.as_str(),
+        )).into());
+    }
+    Ok(())
+}
+
 pub(super) fn validate_hiding(members: &[PlanMember], task_id: &TaskId) -> Result<()> {
     let placement = members.iter().find(|member| &member.id == task_id)
         .and_then(|member| member.placement.as_ref());
     // A child is also a prerequisite of its parent's completion, even in the last batch.
     if let Some(TaskPlanPlacement::Child { parent_task_id, .. }) = placement {
-        bail!("cannot hide task {} because of parent {}", task_id.as_str(), parent_task_id.as_str());
+        return Err(TaskPlanError::Conflict(format!(
+            "cannot hide task {} because of parent {}", task_id.as_str(), parent_task_id.as_str(),
+        )).into());
     }
     for member in members {
         if member.is_child_of(task_id)
             || placement.zip(member.placement.as_ref()).is_some_and(|(old, other)| old.precedes(other))
         {
-            bail!("cannot hide task {} because of task {}", task_id.as_str(), member.id.as_str());
+            return Err(TaskPlanError::Conflict(format!(
+                "cannot hide task {} because of task {}", task_id.as_str(), member.id.as_str(),
+            )).into());
         }
     }
     Ok(())
@@ -418,15 +463,17 @@ pub(super) fn validate_placement(
     }
     let id = task.id.as_str();
     if mode == PlacementWrite::RetryCreate {
-        bail!("task {id} already exists with a different placement");
+        return Err(TaskPlanError::Conflict(format!(
+            "task {id} already exists with a different placement"
+        )).into());
     }
     if task.kind != AgentTaskKind::Finite || hidden(task.status, &task.metadata) || target.started() {
-        bail!("cannot change placement of task {id}");
+        return Err(TaskPlanError::Conflict(format!("cannot change placement of task {id}")).into());
     }
     if let Some(replacement) = replacement {
         let (_, outer, batch) = replacement.columns();
         if outer == Some(0) || batch == 0 {
-            bail!("task {id} batches must be positive");
+            return Err(TaskPlanError::Invalid(format!("task {id} batches must be positive")).into());
         }
     }
     match (previous, replacement) {
@@ -434,16 +481,23 @@ pub(super) fn validate_placement(
          Some(TaskPlanPlacement::Child { parent_task_id: next_parent, .. }))
             if parent_task_id == next_parent => {}
         (Some(TaskPlanPlacement::Child { .. }), _) =>
-            bail!("cannot change the parent of task {id}"),
+            return Err(TaskPlanError::Conflict(format!("cannot change the parent of task {id}")).into()),
         (_, Some(TaskPlanPlacement::Child { parent_task_id, .. })) => {
             let parent_id = parent_task_id.as_str();
-            if mode != PlacementWrite::Create || parent_task_id == &task.id
-                || parent.is_none_or(|parent| parent.kind != AgentTaskKind::Finite
-                    || hidden(parent.status, &parent.metadata))
+            if mode != PlacementWrite::Create {
+                return Err(TaskPlanError::Conflict(format!(
+                    "cannot assign a parent to existing task {id}"
+                )).into());
+            }
+            let parent = parent.filter(|parent| !hidden(parent.status, &parent.metadata))
+                .ok_or_else(|| TaskPlanError::NotFound(format!("parent task {parent_id} not found")))?;
+            if parent.id == task.id || parent.kind != AgentTaskKind::Finite
                 || members.iter().any(|member| &member.id == parent_task_id
                     && matches!(member.placement, Some(TaskPlanPlacement::Child { .. })))
             {
-                bail!("invalid parent {parent_id} for task {id}");
+                return Err(TaskPlanError::Invalid(format!(
+                    "invalid parent {parent_id} for task {id}"
+                )).into());
             }
         }
         _ => {}
@@ -460,7 +514,9 @@ pub(super) fn validate_placement(
         let was_before = previous.is_some_and(|old| old.precedes(other));
         let will_be_before = replacement.is_some_and(|new| new.precedes(other));
         if incomplete && !was_before && will_be_before && member.started() {
-            bail!("task {id} placement conflicts with task {}", member.id.as_str());
+            return Err(TaskPlanError::Conflict(format!(
+                "task {id} placement conflicts with task {}", member.id.as_str(),
+            )).into());
         }
     }
     Ok(true)
@@ -512,22 +568,33 @@ pub(super) fn load_plan_members(
 pub(super) fn placement_event(
     task: &StoredAgentTask, placement: Option<&TaskPlanPlacement>, creating: bool,
 ) -> AppendAgentEventRequest {
-    let payload = placement.map(|placement| {
+    let plan = placement.map(|placement| {
         let (parent_task_id, outer_batch, batch) = placement.columns();
         json!({ "parent_task_id": parent_task_id, "outer_batch": outer_batch, "batch": batch })
     });
+    let payload = if creating {
+        json!({
+            "task_plan": plan,
+            "task_id": task.id.as_str(),
+            "title": task.title,
+            "kind": "finite",
+            "status": task.status.as_str(),
+        })
+    } else {
+        json!({ "task_plan": plan })
+    };
     AppendAgentEventRequest {
         task_id: Some(task.id.clone()),
         run_id: None,
-        worker_id: None,
-        team_id: None,
+        worker_id: task.assigned_to.clone(),
+        team_id: task.team_id.clone(),
         kind: if creating { AgentEventKind::TaskCreated } else { AgentEventKind::HumanIntervened },
         from_status: None,
         to_status: Some(task.status),
         from_status_key: None,
         to_status_key: Some(crate::task_board::task_board_status_key(task)),
         message: "task plan placement changed".to_string(),
-        payload: json!({ "task_plan": payload }),
+        payload,
         created_at_ms: task.updated_at_ms,
     }
 }

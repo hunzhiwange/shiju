@@ -26,11 +26,13 @@ impl PostgresAgentSchedulerStore {
         &self,
         scope: &AgentSchedulerScope,
         parent_task_id: Option<&TaskId>,
+        task_id: Option<&TaskId>,
     ) -> Result<Vec<TaskPlanEntry>> {
         agent_database::run_sync_database(|| {
             let (platform, company, project) = scope_params(scope);
             self.database.connect_postgres()?.query(
-                SELECT_PLAN, &[&platform, &company, &project, &parent_task_id.map(TaskId::as_str)],
+                SELECT_PLAN,
+                &[&platform, &company, &project, &parent_task_id.map(TaskId::as_str), &task_id.map(TaskId::as_str)],
             )?.into_iter().map(|row| {
                 decode_entry(row.try_get(0)?, row.try_get(1)?, row.try_get(2)?, row.try_get(3)?)
             }).collect()

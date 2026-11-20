@@ -70,11 +70,29 @@ pub struct TaskDependencyNodeDto {
     pub status: AgentTaskStatusDto,
 }
 
+/// 批次编排来自项目任务关系表。
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
+pub enum AgentSchedulerTaskPlanPlacementDto {
+    Root { outer_batch: u32, inner_batch: u32 },
+    Child {
+        parent_task_id: String,
+        #[serde(default = "first_child_batch")]
+        batch: u32,
+    },
+}
+
+fn first_child_batch() -> u32 {
+    1
+}
+
 /// Agent Scheduler 任务快照。
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct AgentTaskDto {
     pub id: String,
     pub title: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub placement: Option<AgentSchedulerTaskPlanPlacementDto>,
     pub kind: AgentTaskKindDto,
     pub status: AgentTaskStatusDto,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -108,6 +126,8 @@ pub struct AgentTaskDto {
 pub struct AgentSchedulerCreateTaskRequest {
     pub task_id: String,
     pub title: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub placement: Option<AgentSchedulerTaskPlanPlacementDto>,
     pub kind: AgentTaskKindDto,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub status: Option<AgentTaskStatusDto>,

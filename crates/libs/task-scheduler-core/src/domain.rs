@@ -265,6 +265,7 @@ impl TryFrom<AgentTaskDto> for AgentTask {
 
     fn try_from(value: AgentTaskDto) -> Result<Self> {
         let AgentTaskDto {
+            placement: _,
             id,
             title,
             kind,

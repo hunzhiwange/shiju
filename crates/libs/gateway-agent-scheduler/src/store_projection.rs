@@ -39,6 +39,52 @@ pub fn task_board_write_command(command: AgentSchedulerCommandKindDto) -> bool {
     )
 }
 
+pub(super) fn placement_from_dto(
+    dto: AgentSchedulerTaskPlanPlacementDto,
+) -> Result<TaskPlanPlacement, ApiError> {
+    Ok(match dto {
+        AgentSchedulerTaskPlanPlacementDto::Root { outer_batch, inner_batch } => {
+            TaskPlanPlacement::Root { outer_batch, inner_batch }
+        }
+        AgentSchedulerTaskPlanPlacementDto::Child { parent_task_id, batch } => {
+            let parent_task_id = TaskId::new(parent_task_id).map_err(map_bad_request)?;
+            TaskPlanPlacement::Child { parent_task_id, batch }
+        }
+    })
+}
+
+pub(super) fn placement_to_dto(placement: TaskPlanPlacement) -> AgentSchedulerTaskPlanPlacementDto {
+    match placement {
+        TaskPlanPlacement::Root { outer_batch, inner_batch } => {
+            AgentSchedulerTaskPlanPlacementDto::Root { outer_batch, inner_batch }
+        }
+        TaskPlanPlacement::Child { parent_task_id, batch } => {
+            AgentSchedulerTaskPlanPlacementDto::Child {
+                parent_task_id: parent_task_id.as_str().to_owned(),
+                batch,
+            }
+        }
+    }
+}
+
+pub(super) fn load_placement_dto(
+    store: &AgentSchedulerStore,
+    context: &(impl AgentSchedulerStorageContext + ?Sized),
+    task_id: &TaskId,
+) -> Result<Option<AgentSchedulerTaskPlanPlacementDto>, ApiError> {
+    Ok(store.load_task_placement(context, task_id).map_err(map_scheduler_error)?
+        .map(placement_to_dto))
+}
+
+pub(super) fn project_placements(
+    store: &AgentSchedulerStore,
+    context: &(impl AgentSchedulerStorageContext + ?Sized),
+) -> Result<HashMap<TaskId, AgentSchedulerTaskPlanPlacementDto>, ApiError> {
+    Ok(store.list_task_plan(context).map_err(map_scheduler_error)?.into_iter()
+        .map(|entry| (entry.task_id, placement_to_dto(entry.placement)))
+        .collect())
+}
+
 pub(super) fn new_task_from_request(
     request: AgentSchedulerCreateTaskRequest,
 ) -> Result<NewAgentTask, ApiError> {
@@ -239,7 +285,8 @@ pub(super) fn task_board_task_to_dto_with_latest_run(
 ) -> Result<AgentSchedulerTaskBoardTaskDto, ApiError> {
     let run =
         store.load_latest_run_for_task(project_path, &task.id).map_err(map_scheduler_error)?;
-    task_board_task_to_dto(store, project_id, project_path, task, run.as_ref())
+    let placement = load_placement_dto(store, project_path, &task.id)?;
+    task_board_task_to_dto(store, project_id, project_path, task, run.as_ref(), placement)
 }
 
 pub(super) fn task_board_task_to_dto(
@@ -248,6 +295,7 @@ pub(super) fn task_board_task_to_dto(
     project_path: &(impl AgentSchedulerStorageContext + ?Sized),
     task: StoredAgentTask,
     run: Option<&StoredAgentRun>,
+    placement: Option<AgentSchedulerTaskPlanPlacementDto>,
 ) -> Result<AgentSchedulerTaskBoardTaskDto, ApiError> {
     let metadata = &task.metadata;
     let workspace = run
@@ -274,6 +322,7 @@ pub(super) fn task_board_task_to_dto(
     let read_model = task_board_task_read_model(&task, metadata, &status_key);
 
     Ok(AgentSchedulerTaskBoardTaskDto {
+        placement,
         project_id: project_id.into(),
         task_id: task.id.as_str().into(),
         status_key,
@@ -565,8 +614,12 @@ pub(super) fn task_graph_task_to_dto(
     })
 }
 
-pub(super) fn task_to_dto(task: StoredAgentTask) -> AgentTaskDto {
+pub(super) fn task_to_dto(
+    task: StoredAgentTask,
+    placement: Option<AgentSchedulerTaskPlanPlacementDto>,
+) -> AgentTaskDto {
     AgentTaskDto {
+        placement,
         id: task.id.as_str().to_string(),
         title: task.title,
         kind: task_kind_to_dto(task.kind),
@@ -972,7 +1025,12 @@ pub fn map_bad_request(error: anyhow::Error) -> ApiError {
 }
 
 pub(super) fn map_scheduler_error(error: anyhow::Error) -> ApiError {
-    ApiError::internal(error.to_string())
+    match error.downcast_ref::<TaskPlanError>() {
+        Some(TaskPlanError::Invalid(message)) => ApiError::bad_request(message.clone()),
+        Some(TaskPlanError::NotFound(message)) => ApiError::not_found(message.clone()),
+        Some(TaskPlanError::Conflict(message)) => ApiError::conflict(message.clone()),
+        None => ApiError::internal(error.to_string()),
+    }
 }
 
 pub fn map_scheduler_command_error(error: anyhow::Error) -> ApiError {
@@ -980,9 +1038,12 @@ pub fn map_scheduler_command_error(error: anyhow::Error) -> ApiError {
     if message.contains("unsupported agent task transition") {
         return ApiError::bad_request(message);
     }
-    ApiError::internal(message)
+    map_scheduler_error(error)
 }
 
 pub fn map_task_board_error(error: anyhow::Error) -> ApiError {
+    if error.is::<TaskPlanError>() {
+        return map_scheduler_error(error);
+    }
     ApiError::bad_request(error.to_string())
 }

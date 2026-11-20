@@ -157,6 +157,7 @@ async fn agent_scheduler_client_creates_tasks_with_native_scheduler_path() {
         }),
     )]);
     let request = AgentSchedulerCreateTaskRequest {
+        placement: None,
         task_id: "task/create".to_string(),
         title: "Create through Agent Scheduler".to_string(),
         kind: AgentTaskKindDto::Finite,

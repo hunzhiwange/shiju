@@ -366,6 +366,7 @@ fn create_task_request_with_workflow(
         .unwrap_or("custom");
     let status_key_map = agent_scheduler_status_key_map(workflow_ref, task.status);
     vw_api_agent_scheduler::AgentSchedulerCreateTaskRequest {
+        placement: None,
         task_id: task_id.clone(),
         title: task_title_for_agent_scheduler(task),
         kind: vw_api_agent_scheduler::AgentTaskKindDto::Finite,

@@ -25,7 +25,8 @@ use crate::store::tasks::{
 use super::events::insert_event_with_client;
 use super::task_plan::{load_plan_members, lock_task_plan_project, write_placement};
 use crate::store::task_plan::{
-    PlacementWrite, TaskPlanPlacement, became_hidden, placement_event, validate_hiding,
+    PlacementWrite, TaskPlanEdit, TaskPlanPlacement, became_hidden, placement_event, validate_hiding,
+    validate_metadata_completion,
 };
 
 const TASK_COLUMNS: &str = "id, kind, status, title, spec_uri, meta_uri, assigned_to, team_id, \
@@ -166,7 +167,7 @@ impl PostgresAgentSchedulerStore {
         context: &(impl AgentSchedulerStorageContext + ?Sized),
         task_id: &TaskId,
         property_changes: AgentSchedulerTaskPropertyChanges,
-        placement: Option<Option<TaskPlanPlacement>>,
+        plan_edit: TaskPlanEdit,
         edit: impl FnOnce(&StoredAgentTask) -> Result<AgentTaskBoardUpdate> + Send,
     ) -> Result<Option<(StoredAgentTask, StoredAgentTask)>> {
         agent_database::run_sync_database(|| {
@@ -196,7 +197,15 @@ impl PostgresAgentSchedulerStore {
             if hiding {
                 validate_hiding(&load_plan_members(&mut transaction, &scope, task_id)?, task_id)?;
             }
-            let placement_changed = if let Some(replacement) = placement.as_ref() {
+            if matches!(&plan_edit, TaskPlanEdit::Metadata)
+                && status == AgentTaskStatus::Completed
+                && (current.status != status
+                    || crate::task_board::task_board_status_key(&current)
+                        != crate::task_board::task_board_status_key_for(status, &update.metadata))
+            {
+                validate_metadata_completion(&load_plan_members(&mut transaction, &scope, task_id)?, task_id)?;
+            }
+            let placement_changed = if let TaskPlanEdit::Replace(replacement) = &plan_edit {
                 let changed = write_placement(
                     &mut transaction,
                     &scope,
@@ -237,12 +246,11 @@ impl PostgresAgentSchedulerStore {
                 load_task_with_client(&mut transaction, &scope, task_id)?.with_context(|| {
                     format!("PostgreSQL task disappeared after board update: {}", task_id.as_str())
                 })?;
-            if placement_changed {
-                let replacement = placement.as_ref().and_then(Option::as_ref);
+            if placement_changed && let TaskPlanEdit::Replace(replacement) = &plan_edit {
                 insert_event_with_client(
                     &mut transaction,
                     &scope,
-                    placement_event(&updated, replacement, false),
+                    placement_event(&updated, replacement.as_ref(), false),
                 )?;
             }
             transaction.commit().context("commit PostgreSQL task board update")?;

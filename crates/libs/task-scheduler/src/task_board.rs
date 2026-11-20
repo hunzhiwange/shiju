@@ -362,7 +362,7 @@ impl<'a> AgentTaskBoardService<'a> {
             Vec::new()
         };
         let property_changes = std::mem::take(&mut patch.property_changes);
-        let outcome = self.store.edit_task_board_task(project_path, task_id, property_changes, |current| {
+        let outcome = self.store.edit_task_board_metadata(project_path, task_id, property_changes, |current| {
             let from_status_key = task_board_status_key(current);
             let title = optional_required_text(patch.title.clone(), "task title")?;
             let mut status = patch.status.clone().map(task_status_from_dto);
@@ -803,6 +803,15 @@ pub fn apply_workflow_status(
     Ok(runtime_status)
 }
 
+pub(crate) fn validate_task_plan_metadata_key(key: &str) -> Result<()> {
+    if key == "task_plan" || key.starts_with("task_plan.") {
+        return Err(crate::store::task_plan::TaskPlanError::Invalid(
+            "use the placement API to update work plan data".to_owned(),
+        ).into());
+    }
+    Ok(())
+}
+
 pub(super) fn apply_metadata_patch(
     metadata: &mut Map<String, Value>,
     patch: AgentSchedulerTaskMetadataPatchDto,
@@ -833,6 +842,7 @@ pub(super) fn apply_metadata_patch(
             bail!("metadata_merge must be a JSON object");
         };
         for (key, value) in merge {
+            validate_task_plan_metadata_key(&key)?;
             if key == TASK_LABEL_IDS_METADATA_KEY {
                 bail!("use label_ids to update task labels");
             }
@@ -843,6 +853,7 @@ pub(super) fn apply_metadata_patch(
         }
     }
     for key in patch.metadata_remove_keys {
+        validate_task_plan_metadata_key(&key)?;
         if key == TASK_LABEL_IDS_METADATA_KEY {
             bail!("use label_ids to clear task labels");
         }

@@ -1,4 +1,4 @@
-use crate::{AgentTaskStatusDto, AgentEventKindDto, AgentOutboxMessageDto};
+use crate::{AgentSchedulerTaskPlanPlacementDto, AgentTaskStatusDto, AgentEventKindDto, AgentOutboxMessageDto};
 use vw_api_chat_identity::ReasoningEffortDto;
 use vw_api_transport::{common::TimestampMs, id::{ProjectId, TaskId}};
 use vw_api_task::{TaskPoolWorkflowSnapshotDto, TaskPoolWorkflowStatusRoleDto};
@@ -233,6 +233,8 @@ pub struct AgentSchedulerWorkspaceContextDto {
 /// Agent Scheduler 桌面任务板任务快照。
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct AgentSchedulerTaskBoardTaskDto {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub placement: Option<AgentSchedulerTaskPlanPlacementDto>,
     pub project_id: ProjectId,
     pub task_id: TaskId,
     #[serde(default, skip_serializing_if = "String::is_empty")]
@@ -547,6 +549,23 @@ pub struct AgentSchedulerBulkCommandResponse {
     pub accepted: u32,
     pub rejected: u32,
     pub results: Vec<AgentSchedulerCommandResponse>,
+}
+
+/// 对任务批次执行显式编辑。缺省操作保留现有编排。
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct AgentSchedulerTaskPlanUpdateRequest {
+    #[serde(default)]
+    pub placement: AgentSchedulerTaskPlanChangeDto,
+}
+
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(tag = "op", rename_all = "snake_case", deny_unknown_fields)]
+pub enum AgentSchedulerTaskPlanChangeDto {
+    #[default]
+    Keep,
+    Set { placement: AgentSchedulerTaskPlanPlacementDto },
+    Clear,
 }
 
 /// Agent Scheduler 任务元数据更新请求。

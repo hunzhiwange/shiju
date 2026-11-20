@@ -28,8 +28,8 @@ use super::{
 
 use super::events::insert_event_with_conn;
 use super::task_plan::{
-    PlacementWrite, TaskPlanPlacement, became_hidden, load_plan_members, placement_event,
-    validate_hiding, write_placement,
+    PlacementWrite, TaskPlanEdit, TaskPlanPlacement, became_hidden, load_plan_members, placement_event,
+    validate_hiding, validate_metadata_completion, write_placement,
 };
 
 const TASK_COLUMNS: &str = "id, kind, status, title, spec_uri, meta_uri, assigned_to, team_id, \
@@ -170,6 +170,11 @@ impl AgentSchedulerStore {
         placement: Option<TaskPlanPlacement>,
     ) -> Result<StoredAgentTask> {
         validate_new_task(&task)?;
+        if let Some(metadata) = task.metadata.as_object() {
+            for key in metadata.keys() {
+                crate::task_board::validate_task_plan_metadata_key(key)?;
+            }
+        }
         if task.metadata.get(TASK_PROPERTY_VALUES_METADATA_KEY).is_some() {
             bail!("use property_changes to set task properties");
         }
@@ -398,7 +403,17 @@ impl AgentSchedulerStore {
         property_changes: AgentSchedulerTaskPropertyChanges,
         edit: impl FnOnce(&StoredAgentTask) -> Result<AgentTaskBoardUpdate> + Send,
     ) -> Result<Option<(StoredAgentTask, StoredAgentTask)>> {
-        self.edit_task_with_placement(context, task_id, property_changes, None, edit)
+        self.edit_task_with_placement(context, task_id, property_changes, TaskPlanEdit::Preserve, edit)
+    }
+
+    pub(crate) fn edit_task_board_metadata(
+        &self,
+        context: &(impl AgentSchedulerStorageContext + ?Sized),
+        task_id: &TaskId,
+        property_changes: AgentSchedulerTaskPropertyChanges,
+        edit: impl FnOnce(&StoredAgentTask) -> Result<AgentTaskBoardUpdate> + Send,
+    ) -> Result<Option<(StoredAgentTask, StoredAgentTask)>> {
+        self.edit_task_with_placement(context, task_id, property_changes, TaskPlanEdit::Metadata, edit)
     }
 
     pub(super) fn edit_task_with_placement(
@@ -406,11 +421,11 @@ impl AgentSchedulerStore {
         context: &(impl AgentSchedulerStorageContext + ?Sized),
         task_id: &TaskId,
         property_changes: AgentSchedulerTaskPropertyChanges,
-        placement: Option<Option<TaskPlanPlacement>>,
+        plan_edit: TaskPlanEdit,
         edit: impl FnOnce(&StoredAgentTask) -> Result<AgentTaskBoardUpdate> + Send,
     ) -> Result<Option<(StoredAgentTask, StoredAgentTask)>> {
         if let Some(store) = postgres_provider(self, context)? {
-            return store.edit_task_with_placement(context, task_id, property_changes, placement, edit);
+            return store.edit_task_with_placement(context, task_id, property_changes, plan_edit, edit);
         }
         let scope = context.storage_scope()?;
         let (platform_id, company_id, project_id) = scope_params(&scope);
@@ -436,7 +451,15 @@ impl AgentSchedulerStore {
         if hiding {
             validate_hiding(&load_plan_members(&tx, &scope, task_id)?, task_id)?;
         }
-        let placement_changed = if let Some(replacement) = placement.as_ref() {
+        if matches!(&plan_edit, TaskPlanEdit::Metadata)
+            && status == AgentTaskStatus::Completed
+            && (current.status != status
+                || crate::task_board::task_board_status_key(&current)
+                    != crate::task_board::task_board_status_key_for(status, &update.metadata))
+        {
+            validate_metadata_completion(&load_plan_members(&tx, &scope, task_id)?, task_id)?;
+        }
+        let placement_changed = if let TaskPlanEdit::Replace(replacement) = &plan_edit {
             let changed = write_placement(
                 &tx,
                 context,
@@ -472,12 +495,11 @@ impl AgentSchedulerStore {
         let updated = load_task_with_conn(&tx, context, task_id)?.with_context(|| {
             format!("task disappeared after task board update: {}", task_id.as_str())
         })?;
-        if placement_changed {
-            let replacement = placement.as_ref().and_then(Option::as_ref);
+        if placement_changed && let TaskPlanEdit::Replace(replacement) = &plan_edit {
             insert_event_with_conn(
                 &tx,
                 &scope,
-                placement_event(&updated, replacement, false),
+                placement_event(&updated, replacement.as_ref(), false),
             )?;
         }
         tx.commit()?;

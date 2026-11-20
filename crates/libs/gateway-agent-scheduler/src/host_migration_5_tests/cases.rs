@@ -93,6 +93,7 @@ async fn agent_scheduler_api_creates_task_and_wakes_dispatch_engine() {
     let created = agent_scheduler_create_task_with_gateway(
         &gateway,
         AgentSchedulerCreateTaskRequest {
+            placement: None,
             task_id: "task-api-1".to_string(),
             title: "Implement API route".to_string(),
             kind: AgentTaskKindDto::Finite,
@@ -2146,6 +2147,7 @@ fn default_context() -> AgentSchedulerContext {
 
 fn create_task_request(task_id: &str) -> AgentSchedulerCreateTaskRequest {
     AgentSchedulerCreateTaskRequest {
+        placement: None,
         task_id: task_id.to_string(),
         title: "Create through gateway".to_string(),
         kind: AgentTaskKindDto::Finite,
@@ -2750,4 +2752,132 @@ async fn task_pool_schedule_status_named_merge_does_not_execute_git() {
             .any(|l| l.message.contains("explicit workflow"))
     );
     cleanup_merge_test_project(&project_id).await;
+}
+
+#[tokio::test]
+async fn work_plan_gateway_placement_create_edit_and_snapshot() {
+    let project = tempfile::tempdir().expect("project");
+    let project_id = scheduler_project_id(project.path());
+    let app = router_with_gateway::<()>(Arc::new(StoreBackedAgentSchedulerGateway::default()))
+        .with_state(());
+    let tasks = format!("/agent-scheduler/projects/{project_id}/tasks");
+    let parent = serde_json::to_value(create_task_request("plan-parent")).expect("request");
+    assert!(parent.get("placement").is_none());
+    let response = post_json_response(app.clone(), &tasks, &parent).await;
+    assert_eq!(response.status(), StatusCode::OK);
+    assert!(response_json(response).await["task"].get("placement").is_none());
+
+    let mut child = serde_json::to_value(create_task_request("plan-child")).expect("request");
+    child["placement"] = json!({"kind": "child", "parent_task_id": "plan-parent"});
+    child["status"] = json!("completed");
+    child["metadata"] = json!({"prompt": "Implement child task", "acp_agent": "codex"});
+    let response = post_json_response(app.clone(), &tasks, &child).await;
+    assert_eq!(response.status(), StatusCode::OK);
+    let created = response_json(response).await;
+    assert_eq!(created["task"]["placement"]["batch"], 1);
+    assert_ne!(created["task"]["status"], "completed");
+
+    let parent_plan = format!("{tasks}/plan-parent/placement");
+    let set_root = json!({
+        "placement": {"op": "set", "placement": {"kind": "root", "outer_batch": 2, "inner_batch": 3}}
+    });
+    let response = put_json_response(app.clone(), &parent_plan, &set_root).await;
+    assert_eq!(response.status(), StatusCode::OK);
+    let response = put_json_response(app.clone(), &parent_plan, &json!({})).await;
+    assert_eq!(response.status(), StatusCode::OK);
+    assert_eq!(response_json(response).await["placement"]["inner_batch"], 3);
+    let response =
+        put_json_response(app.clone(), &parent_plan, &json!({"placement": {"op": "clear"}})).await;
+    assert_eq!(response.status(), StatusCode::OK);
+    assert!(response_json(response).await.get("placement").is_none());
+
+    let child_plan = format!("{tasks}/plan-child/placement");
+    let response = put_json_response(app.clone(), &child_plan, &json!({
+        "placement": {"op": "set", "placement": {
+            "kind": "child", "parent_task_id": "plan-parent", "batch": 4
+        }}
+    })).await;
+    assert_eq!(response.status(), StatusCode::OK);
+    let metadata_uri = format!("{tasks}/plan-child/metadata");
+    for (patch, expected_status) in [
+        (json!({"status_key": "completed", "status": "completed"}), StatusCode::CONFLICT),
+        (json!({"metadata_merge": {"task_plan.waiting": true}}), StatusCode::BAD_REQUEST),
+    ] {
+        let response = app.clone().oneshot(
+            Request::builder()
+                .method(Method::PATCH)
+                .uri(&metadata_uri)
+                .header(header::CONTENT_TYPE, "application/json")
+                .body(Body::from(json!({"patch": patch}).to_string()))
+                .expect("patch request"),
+        ).await.expect("patch response");
+        assert_eq!(response.status(), expected_status);
+    }
+
+    let project_uri = format!("/agent-scheduler/projects/{project_id}");
+    let response = post_json_response(
+        app.clone(),
+        &format!("{project_uri}/commands/bulk"),
+        &json!({"commands": [
+            {"task_id": "plan-child", "command": "archive"},
+            {"task_id": "plan-parent", "command": "soft_delete"}
+        ]}),
+    ).await;
+    assert_eq!(response.status(), StatusCode::OK);
+    assert_eq!(response_json(response).await["rejected"], 2);
+
+    let events = get_json(app.clone(), &format!("{project_uri}/events")).await;
+    let child_events: Vec<_> = events["events"].as_array().expect("events").iter()
+        .filter(|event| event["task_id"] == "plan-child").collect();
+    assert_eq!(child_events.len(), 2);
+    assert_eq!(child_events[0]["kind"], "task_created");
+    assert_eq!(child_events[1]["payload"]["task_plan"]["batch"], 4);
+    let snapshot = get_json(app, &tasks).await;
+    let child = snapshot["tasks"].as_array().expect("tasks").iter()
+        .find(|task| task["task_id"] == "plan-child").expect("child");
+    assert_eq!(child["placement"], json!({"kind": "child", "parent_task_id": "plan-parent", "batch": 4}));
+    assert_eq!(child["prompt"], "Implement child task");
+    assert_eq!(child["acp_agent"], "codex");
+}
+
+#[tokio::test]
+async fn work_plan_gateway_placement_scope_and_retry() {
+    let first = tempfile::tempdir().expect("first project");
+    let second = tempfile::tempdir().expect("second project");
+    let first_id = scheduler_project_id(first.path());
+    let second_id = scheduler_project_id(second.path());
+    let app = router_with_gateway::<()>(Arc::new(StoreBackedAgentSchedulerGateway::default()))
+        .with_state(());
+    let first_tasks = format!("/agent-scheduler/projects/{first_id}/tasks");
+    let second_tasks = format!("/agent-scheduler/projects/{second_id}/tasks");
+    let response = post_json_response(app.clone(), &first_tasks, &create_task_request("plan-parent")).await;
+    assert_eq!(response.status(), StatusCode::OK);
+    let mut child = serde_json::to_value(create_task_request("plan-child")).expect("request");
+    child["placement"] = json!({"kind": "child", "parent_task_id": "plan-parent", "batch": 2});
+
+    let response = post_json_response(app.clone(), &second_tasks, &child).await;
+    assert_eq!(response.status(), StatusCode::NOT_FOUND);
+    let second_board = get_json(app.clone(), &second_tasks).await;
+    assert_eq!(second_board["tasks"], json!([]));
+    let response = put_json_response(
+        app.clone(), &format!("{second_tasks}/plan-parent/placement"), &json!({})
+    ).await;
+    assert_eq!(response.status(), StatusCode::NOT_FOUND);
+
+    for _ in 0..2 {
+        let response = post_json_response(app.clone(), &first_tasks, &child).await;
+        assert_eq!(response.status(), StatusCode::OK);
+        assert_eq!(response_json(response).await["task"]["placement"], child["placement"]);
+    }
+    child["placement"]["batch"] = json!(3);
+    let response = post_json_response(app.clone(), &first_tasks, &child).await;
+    assert_eq!(response.status(), StatusCode::CONFLICT);
+    let response = post_json_response(app.clone(), &first_tasks, &create_task_request("plan-child")).await;
+    assert_eq!(response.status(), StatusCode::OK);
+    assert_eq!(response_json(response).await["task"]["placement"]["batch"], 2);
+    let snapshot = get_json(app, &first_tasks).await;
+    let tasks = snapshot["tasks"].as_array().expect("tasks");
+    assert_eq!(tasks.len(), 2);
+    let child = tasks.iter().find(|task| task["task_id"] == "plan-child").expect("child");
+    assert_eq!(child["placement"]["batch"], 2);
 }

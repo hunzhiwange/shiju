@@ -83,6 +83,7 @@ fn agent_domain_rejects_empty_resource_lease_identifiers() {
 
 fn task_dto() -> AgentTaskDto {
     AgentTaskDto {
+        placement: None,
         id: "task-20260702-100003".to_string(),
         title: "Ship team project".to_string(),
         kind: AgentTaskKindDto::DependencyGraph,

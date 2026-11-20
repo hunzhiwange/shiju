@@ -12,15 +12,37 @@ impl<H: GatewayExecutorHost> AgentSchedulerGateway for StoreBackedAgentScheduler
     async fn create_task_scoped(
         &self,
         context: AgentSchedulerContext,
-        request: AgentSchedulerCreateTaskRequest,
+        mut request: AgentSchedulerCreateTaskRequest,
     ) -> Result<AgentSchedulerCreateTaskResponse, ApiError> {
         let dispatch_lock = self.project_dispatch_lock(&context);
         let _dispatch_guard = dispatch_lock.lock().await;
+        let placement = request.placement.take().map(placement_from_dto).transpose()?;
         let mut task = new_task_from_request(request)?;
         let task_id = task.id.clone();
         let existed =
             self.store.load_task(&context, &task_id).map_err(map_scheduler_error)?.is_some();
-        if !existed
+        if !existed && placement.is_some() {
+            if task.kind != AgentTaskKind::Finite {
+                return Err(ApiError::bad_request("only finite tasks can be placed in a work plan"));
+            }
+            let workflow =
+                load_dispatch_workflow(&self.store, &context).map_err(map_scheduler_error)?;
+            let initial = workflow.statuses.first()
+                .ok_or_else(|| ApiError::internal("project workflow has no initial status"))?;
+            let mut metadata = task_metadata_object(task.metadata)?;
+            for key in [
+                "task_board.status_key_map",
+                "task_board.status_label",
+                "task_board.stage_id",
+                "task_board.stage_label",
+            ] {
+                metadata.remove(key);
+            }
+            task.status = task_scheduler::task_board::apply_workflow_status(
+                &workflow, &initial.key, &mut metadata,
+            ).map_err(map_bad_request)?;
+            task.metadata = Value::Object(metadata);
+        } else if !existed
             && task.kind == AgentTaskKind::Finite
             && let Some(key) = string_field(&task.metadata, "task_board.status_key")
             && let Some(workflow) = self.store.load_task_board_workflow(&context).map_err(map_scheduler_error)?
@@ -29,14 +51,26 @@ impl<H: GatewayExecutorHost> AgentSchedulerGateway for StoreBackedAgentScheduler
             task.status = task_scheduler::task_board::apply_workflow_status(&workflow, &key, metadata)
                 .map_err(map_bad_request)?;
         }
-        let stored = self.store.create_task(&context, task).map_err(map_scheduler_error)?;
-        if !existed {
-            append_task_created_event(&self.store, &context, &stored)?;
-        }
+        let (stored, placement) = if let Some(placement) = placement {
+            let stored = self.store.create_task_with_plan(&context, task, placement.clone())
+                .map_err(map_scheduler_error)?;
+            (stored, Some(placement_to_dto(placement)))
+        } else {
+            let stored = self.store.create_task(&context, task).map_err(map_scheduler_error)?;
+            if !existed {
+                append_task_created_event(&self.store, &context, &stored)?;
+            }
+            let placement = if existed {
+                load_placement_dto(&self.store, &context, &stored.id)?
+            } else {
+                None
+            };
+            (stored, placement)
+        };
 
         Ok(AgentSchedulerCreateTaskResponse {
             task_id: stored.id.as_str().to_string(),
-            task: task_to_dto(stored),
+            task: task_to_dto(stored, placement),
         })
     }
 
@@ -45,12 +79,16 @@ impl<H: GatewayExecutorHost> AgentSchedulerGateway for StoreBackedAgentScheduler
         query: AgentSchedulerTasksQuery,
     ) -> Result<AgentSchedulerTasksResponse, ApiError> {
         let project_path = parse_project_path(&query.project_path)?;
+        let mut placements = project_placements(&self.store, &project_path)?;
         let tasks = self
             .store
             .list_active_tasks(&project_path, AgentTaskFilter::default())
             .map_err(map_scheduler_error)?
             .into_iter()
-            .map(task_to_dto)
+            .map(|task| {
+                let placement = placements.remove(&task.id);
+                task_to_dto(task, placement)
+            })
             .collect();
         Ok(AgentSchedulerTasksResponse { tasks })
     }
@@ -184,12 +222,14 @@ impl<H: GatewayExecutorHost> AgentSchedulerGateway for StoreBackedAgentScheduler
             request.reason.as_deref(),
             now_ms,
         )?;
+        let placement = load_placement_dto(&self.store, &project_path, &task_after.id)?;
         let task = task_board_task_to_dto(
             &self.store,
             &project_id,
             &project_path,
             task_after,
             outcome.as_ref(),
+            placement,
         )?;
         let event = task_board_event_to_dto(&project_id, event)?;
         Ok(AgentSchedulerProjectCommandResponse {
@@ -333,6 +373,7 @@ impl<H: GatewayExecutorHost> AgentSchedulerGateway for StoreBackedAgentScheduler
         let _dispatch_guard = dispatch_lock.lock().await;
         self.store.initialize_project(&project_path).map_err(map_scheduler_error)?;
         let workflow = load_dispatch_workflow(&self.store, &project_path).map_err(map_scheduler_error)?;
+        let mut placements = project_placements(&self.store, &project_path)?;
         let tasks = self
             .store
             .list_task_board_tasks(&project_path, AgentTaskFilter::default())
@@ -340,11 +381,11 @@ impl<H: GatewayExecutorHost> AgentSchedulerGateway for StoreBackedAgentScheduler
             .into_iter()
             .map(|task| {
                 let status_key = task_scheduler::task_board::task_board_status_key(&task);
-                let mut dto = task_board_task_to_dto_with_latest_run(
-                    &self.store,
-                    &project_id,
-                    &project_path,
-                    task,
+                let placement = placements.remove(&task.id);
+                let run = self.store.load_latest_run_for_task(&project_path, &task.id)
+                    .map_err(map_scheduler_error)?;
+                let mut dto = task_board_task_to_dto(
+                    &self.store, &project_id, &project_path, task, run.as_ref(), placement,
                 )?;
                 if let Some(status) = workflow.statuses.iter().find(|status| status.key == status_key) {
                     if dto.read_model.stage_id.as_deref() == Some(dto.status_key.as_str()) {
@@ -398,6 +439,44 @@ impl<H: GatewayExecutorHost> AgentSchedulerGateway for StoreBackedAgentScheduler
             .replace_task_dependencies(&project_path, dependencies)
             .map_err(map_bad_request)?;
         self.task_graph_snapshot(project_id, &project_path)
+    }
+
+    async fn update_task_plan(
+        &self,
+        project_id: String,
+        context: AgentSchedulerContext,
+        task_id: String,
+        request: AgentSchedulerTaskPlanUpdateRequest,
+    ) -> Result<AgentSchedulerTaskBoardTaskDto, ApiError> {
+        let dispatch_lock = self.project_dispatch_lock(&context);
+        let _dispatch_guard = dispatch_lock.lock().await;
+        self.store.initialize_project(&context).map_err(map_scheduler_error)?;
+        let task_id = TaskId::new(task_id).map_err(map_bad_request)?;
+        let placement = match request.placement {
+            AgentSchedulerTaskPlanChangeDto::Keep => None,
+            AgentSchedulerTaskPlanChangeDto::Set { placement } => {
+                Some(Some(placement_from_dto(placement)?))
+            }
+            AgentSchedulerTaskPlanChangeDto::Clear => Some(None),
+        };
+        let task = if let Some(placement) = placement {
+            self.store.edit_task_with_plan(
+                &context,
+                &task_id,
+                placement,
+                Default::default(),
+                |current| Ok(AgentTaskBoardUpdate {
+                    title: None,
+                    status: None,
+                    metadata: current.metadata.clone(),
+                    updated_at_ms: current_timestamp_ms(),
+                }),
+            ).map_err(map_scheduler_error)?.map(|(_, updated)| updated)
+        } else {
+            self.store.load_task(&context, &task_id).map_err(map_scheduler_error)?
+        }.ok_or_else(|| ApiError::not_found("task not found"))?;
+
+        task_board_task_to_dto_with_latest_run(&self.store, &project_id, &context, task)
     }
 
     async fn update_task_metadata(

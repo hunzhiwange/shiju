@@ -12,6 +12,8 @@ use serde_json::{Value, json};
 use serde_json::{Map, Value, json};
 use tokio::sync::Mutex as AsyncMutex;
 use vw_api_agent_scheduler::{
+    AgentSchedulerTaskPlanChangeDto, AgentSchedulerTaskPlanPlacementDto,
+    AgentSchedulerTaskPlanUpdateRequest,
     AgentSchedulerSelectWorkflowRequest, AgentSchedulerTaskLabelDto, AgentSchedulerTaskLabelMutation,
     AgentSchedulerTaskPropertyDto, AgentSchedulerTaskPropertyKind, AgentSchedulerTaskPropertyMutation,
     AgentSchedulerTaskPropertyOption, TASK_LABEL_IDS_METADATA_KEY, TASK_PROPERTY_VALUES_METADATA_KEY,
@@ -110,8 +112,9 @@ use task_scheduler::store::logs::{
 };
 use task_scheduler::store::outbox::{OutboxMessageStatus, StoredOutboxMessage};
 use task_scheduler::store::runs::StoredAgentRun;
+use task_scheduler::store::task_plan::{TaskPlanError, TaskPlanPlacement};
 use task_scheduler::store::tasks::{
-    AgentTaskDagNode, AgentTaskFilter, NewAgentTask, StoredAgentTask,
+    AgentTaskBoardUpdate, AgentTaskDagNode, AgentTaskFilter, NewAgentTask, StoredAgentTask,
 };
 use task_scheduler::store::{AgentSchedulerStorageContext, AgentSchedulerStore};
 use task_scheduler::task_board::AgentTaskBoardService;

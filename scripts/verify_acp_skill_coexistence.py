@@ -35,6 +35,7 @@ AGENTS += ("poolside",)
 AGENTS += ("mimo-code",)
 AGENTS += ("nova",)
 AGENTS += ("vtcode",)
+AGENTS += ("stakpak",)
 PHASES = ("baseline", "mounted", "removed", "rejected")
 
 

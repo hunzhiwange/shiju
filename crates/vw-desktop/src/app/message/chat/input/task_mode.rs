@@ -1,5 +1,7 @@
 use crate::app::{App, Message};
 use desktop_session::message::chat::input::task_mode as domain;
+use iced::Task;
+
 pub(super) fn handle_task_mode_toggled(app: &mut App, enabled: bool) -> Task<Message> {
 
  let runtime = app.current_session_runtime_mut();

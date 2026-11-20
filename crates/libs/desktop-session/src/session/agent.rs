@@ -137,6 +137,7 @@ impl<RenderState: Default> SessionRuntimeState<RenderState> {
     ///
     /// 返回初始化后的 `SessionRuntimeState` 实例
     pub fn with_defaults(model: String, auto_model: bool) -> Self {
+        let task_mode_model = model.clone();
         Self {
             request_lifecycle: Default::default(),
             draft: None,

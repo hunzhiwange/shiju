@@ -28,7 +28,6 @@ pub use desktop_file_tree::state::FindInFolderMatch;
 pub use desktop_file_tree::state::FindInFolderTab;
 #[cfg(test)]
 pub use desktop_file_tree::state::find_results_page_bounds;
-#[cfg(test)]
 pub use desktop_task_board::message::TaskBoardDetailTab;
 #[cfg(test)]
 pub use desktop_task_board::message::TaskBoardSettingsModalTab;

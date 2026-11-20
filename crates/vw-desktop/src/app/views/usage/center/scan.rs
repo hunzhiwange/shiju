@@ -19,7 +19,7 @@ pub fn overlay<'a>(app: &'a App, base: Element<'a, Message>) -> Element<'a, Mess
     if !app.usage_center.scan.open {
         return base;
     }
-    let current = super::identity(app);
+    let current = super::identity();
     let display =
         desktop_usage::center::display::quick_settings(&app.usage_center.display, current.as_ref())
             .map(super::display::map);

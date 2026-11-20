@@ -812,6 +812,8 @@ impl Task {
         let now = now_ms();
         Self {
             id: generate_task_id(),
+            label_ids: Vec::new(),
+            properties: Default::default(),
             priority,
             assignee: "VibeWindow".to_string(),
             model: TASK_MODEL_AUTO.to_string(),

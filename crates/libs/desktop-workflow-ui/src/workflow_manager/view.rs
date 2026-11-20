@@ -324,7 +324,7 @@ fn build_status_catalog<'a>(
                 i18n.__("状态库"),
                 text(i18n.__("状态库")).size(18),
                 i18n.__("状态按任务进展分为未开始、已开始、已完成和已关闭。例如暂停属于已开始，恢复前不会自动继续。停用的状态仍可查看和编辑。"),
-            ],
+            ),
             Space::new().width(Length::Fill),
             button(
                 text(if state.show_catalog_advanced { i18n.__("收起") } else { i18n.__("高级") })

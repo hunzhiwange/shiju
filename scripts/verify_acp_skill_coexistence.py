@@ -2,7 +2,7 @@
 """Run native ACP skill coexistence through an isolated production gateway."""
 import argparse
 from concurrent.futures import ThreadPoolExecutor
-from contextlib import contextmanager
+from contextlib import ExitStack, contextmanager
 import hashlib
 from http.server import ThreadingHTTPServer
 from importlib import import_module
@@ -17,13 +17,14 @@ import threading
 import time
 from urllib.parse import urlencode
 
+from acp_mount_integration import McpHandler
 from acp_skill_coexistence import verify_turn
 from verify_acp_approval import environment, gateway, request, stream_failure_categories
 from verify_acp_integration import require
 from verify_acp_model_source import ROOT, Unavailable
 
 # Add a key only once its supplier module implements the reviewed probe interface.
-AGENTS = ("claude", "qwen", "gemini", "codebuddy", "hermes", "kilocode")
+AGENTS = ("claude", "qwen", "gemini", "codebuddy", "hermes", "kilocode", "copilot")
 AGENT_PROFILE = "acp-coexistence"
 PROVIDER = "coexistence-fixture"
 PHASES = ("baseline", "mounted", "removed", "rejected")
@@ -40,6 +41,45 @@ def model_server(handler, key):
         finally:
             server.shutdown()
             thread.join()
+
+
+class SseMcpHandler(McpHandler):
+    def do_GET(self):
+        if self.authorized():
+            super().do_GET()
+
+    def do_POST(self):
+        if self.authorized():
+            super().do_POST()
+
+    def authorized(self):
+        if self.headers.get("Authorization") == "Bearer " + self.server.key:
+            return True
+        self.close_connection = True
+        self.reply(401)
+        return False
+
+
+@contextmanager
+def mcp_server(transport, attachment, audit):
+    if transport == "stdio":
+        yield {"name": "coexistence", "command": sys.executable,
+               "args": [str(ROOT / "scripts/acp_mount_integration.py"), "--mcp-stdio",
+                        str(attachment), str(audit)], "env": []}
+        return
+    require(transport == "sse", "unimplemented reviewed MCP transport")
+    key = secrets.token_hex(24)
+    with model_server(SseMcpHandler, key) as server:
+        server.attachment = attachment
+        server.audit = audit
+        server.channels = {}
+        server.stopping = threading.Event()
+        try:
+            yield {"name": "coexistence", "type": "sse",
+                   "url": f"http://127.0.0.1:{server.server_port}/sse",
+                   "headers": [{"name": "Authorization", "value": "Bearer " + key}]}
+        finally:
+            server.stopping.set()
 
 
 def make_skill(parent, kind):
@@ -123,21 +163,17 @@ def run(agent, binary, report):
         attachment = root / "mcp.txt"
         attachment.write_text(fixtures["mcp"])
         audit = root / "mcp-audit.txt"
-        require(supplier.TRANSPORT == "stdio", "unimplemented reviewed MCP transport")
         config_path = workspace / ".vwacprc.json"
-        config_path.write_text(json.dumps({"mcpServers": [{
-            "name": "coexistence", "command": sys.executable,
-            "args": [str(ROOT / "scripts/acp_mount_integration.py"), "--mcp-stdio",
-                     str(attachment), str(audit)], "env": [],
-        }]}))
         env["ACP_COEXISTENCE_KEY"] = secrets.token_hex(24)
         query = "?" + urlencode({"directory": str(workspace)})
         model_id = PROVIDER + "/" + supplier.MODEL
         selected = fixtures["skills"]["selected"]["name"]
         report["stage"] = "gateway"
-        with model_server(supplier.Handler, env["ACP_COEXISTENCE_KEY"]) as model, gateway(
-            str(binary), root, env
-        ) as url:
+        with ExitStack() as stack:
+            mcp = stack.enter_context(mcp_server(supplier.TRANSPORT, attachment, audit))
+            config_path.write_text(json.dumps({"mcpServers": [mcp]}))
+            model = stack.enter_context(model_server(supplier.Handler, env["ACP_COEXISTENCE_KEY"]))
+            url = stack.enter_context(gateway(str(binary), root, env))
             endpoint = f"http://127.0.0.1:{model.server_port}{supplier.API_PATH}"
             config = {"workspace_dir": str(workspace), "acp": {agent: spec},
                       "providers": {PROVIDER: {"name": "Private coexistence fixture", "api": endpoint,
@@ -166,8 +202,8 @@ def run(agent, binary, report):
                 after = audit.read_text().splitlines() if audit.exists() else []
                 events = [json.loads(line[6:]) for line in stream.splitlines() if line.startswith("data: {")]
                 observe_terminal = getattr(probe, "observe_terminal", None)
-                if observe_terminal is not None:
-                    observe_terminal(events)
+                if observe_terminal is not None and observe_terminal(events):
+                    row["terminal_mcp_rejection"] = True
                 types = [event.get("type") for event in events]
                 row.update(done=types.count("chat.done"), errors=types.count("chat.error"),
                            mcp_calls=len(after) - len(before), mcp_decisions=decisions,

@@ -23,7 +23,9 @@ def verify_turn(evidence, mounted, rejected):
     calls = evidence["calls"]
     require(set(calls) == expected and all(calls.values()) and len(set(calls.values())) == len(calls),
             "required correlated calls did not complete")
-    require(evidence["model_requests"] > len(calls), "model did not receive all tool continuations")
+    # A supplier may terminate on refusal after a correlated native failure.
+    continuations = len(calls) - int(rejected and evidence.get("terminal_mcp_rejection") is True)
+    require(evidence["model_requests"] > continuations, "model did not receive all tool continuations")
     require(evidence["done"] == 1 and evidence["errors"] == 0, "unexpected gateway terminal events")
     require(evidence["mcp_calls"] == int(mounted and not rejected), "unexpected downstream MCP count")
     require(evidence["mcp_decisions"] == (["reject" if rejected else "once"] if mounted else []),

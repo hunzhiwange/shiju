@@ -29,12 +29,27 @@ v5 独立 ACP 对照四轮均以 `end_turn` 结束。基线、挂载、撤除、
 
 `python3 scripts/cargo_slot.py cargo test --locked -j 1 -p llm-runtime --lib acp_skill_coexistence_cortex_code -- --test-threads=1` 的等价命令在共享编译锁内运行。槽位 6 的 `CARGO_TARGET_DIR` 与 `CARGO_BUILD_BUILD_DIR` 均为仓库绝对路径下的 `target/rust-slot-6`。退出 0，2 项通过，0 项失败。测试覆盖无选择时保留启动配置、仅发布选中目录以及拒绝工作区外来源。
 
-## 网关复验待恢复
+## 首次网关构建阻塞
 
-同工作区的同目标构建在共享槽位 3 退出 101。编译器在 `crates/libs/task-scheduler/src/store/postgres/task_plan.rs` 第 247、249 行报告 E0616，两处访问了私有字段 `PlanMember.id`。已核对该包相对于记录失败的提交 `06a31ab1ba` 无差异，失败文件 Git blob 为 `5ed7fbe7255fc1f2a8a40c0243d1f2ba4bdd4eb6`。取消本卡的重复构建排队并释放槽位 6，槽位进程退出 130。当前网关四轮均待运行，尚无对应的 `chat.done`、模型与权限回读。状态记录见 `target/acp-skill-coexistence/cortex-code.json`。 [同工作区构建回执](deepagents.md#网关复验)
+同工作区的同目标构建在共享槽位 3 退出 101。编译器在 `crates/libs/task-scheduler/src/store/postgres/task_plan.rs` 第 247、249 行报告 E0616，两处访问了私有字段 `PlanMember.id`。已核对该包相对于记录失败的提交 `06a31ab1ba` 无差异，失败文件 Git blob 为 `5ed7fbe7255fc1f2a8a40c0243d1f2ba4bdd4eb6`。取消本卡的重复构建排队并释放槽位 6，槽位进程退出 130。当时的网关四轮均未运行。 [同工作区构建回执](deepagents.md#网关复验)
 
-共享构建恢复后将 `ACP_CORTEX_REVIEWED_DIR` 指向摘要匹配的 v5 目录，在仓库根运行下列命令。编译阶段按计划获取共享编译锁，探针复用同一槽位。
+复验时将 `ACP_CORTEX_REVIEWED_DIR` 指向摘要匹配的 v5 目录，在仓库根运行下列命令。编译阶段按计划获取共享编译锁，探针复用同一槽位。
 
 ```sh
 python3 scripts/cargo_slot.py sh -c 'cargo build --locked -j 1 -p vw-cli --bin shiju && python3 scripts/verify_acp_skill_coexistence.py --agent cortex-code --gateway-bin "$CARGO_TARGET_DIR/debug/shiju" --output target/acp-skill-coexistence/cortex-code.json'
 ```
+
+## 生产网关回归
+
+在 Darwin arm64 持有槽位 6 复用任务 5 构建的网关。核对构建基线 `03e5fc747ed4571184fbb6a156bb48d093b9fee0` 的树、构建范围内的工作区差异摘要、嵌入的 Cortex 补丁和 v5 制品合约。网关 SHA-256 为 `c59878516f6a88bb8f60ce78955654b9859bca9b82af6711fc14c83d0a572eba`。探针在持有的同一槽位执行，两个 Cargo 缓存路径均为仓库的绝对 `target/rust-slot-6` 路径。探针退出 0，共四个独立会话。
+
+| 轮次 | 会话 ID | `chat.done` / `chat.error` | 模型请求 | MCP 审批 | 下游调用 |
+| --- | --- | --- | --- | --- | --- |
+| 基线 | `ses_e05f97b76ffeaFQ7rOx3FofUYr` | 1 / 0 | 3 | 无 | 0 |
+| 挂载 | `ses_e05f9540effefk3i9SZXnfTER7` | 1 / 0 | 6 | 单次允许 | 1 |
+| 撤除 | `ses_e05f92662ffeP2xTL166vdWqwV` | 1 / 0 | 3 | 无 | 0 |
+| 拒绝 | `ses_e05f90128ffeyjJPBs2YyxdEtt` | 1 / 0 | 6 | 拒绝 | 0 |
+
+四轮均通过调用 ID 读回原生正文与附件，只有挂载和拒绝轮读回选中技能正文与附件。挂载轮的原生正文、选中正文及 MCP 调用 ID 分别为 `call_94e42d8033e249e4396c586c`、`call_89f2103feaf6b4fb4df6a191` 和 `call_a3b6f9a3cb09f3eb660fb726`。拒绝调用 `call_17ed35e37859e44d9209ffec` 将拒绝结果送回模型续轮。首次模型请求无技能正文或附件，四轮目录均排除未选中和禁用技能。
+
+会话读回绑定 `acp-coexistence / cortex-code`、`session_model`、`coexistence-fixture/deepseek-v4.1-flash-1017`，`full_access` 与权限请求状态均为 `false`。结构化证据保存在 `target/acp-skill-coexistence/cortex-code.json`，其中记录了全部调用 ID。共享网关构建证据为 `target/acp-skill-coexistence/final-regression-gateway.json`。

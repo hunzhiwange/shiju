@@ -13,7 +13,7 @@ import { promisify } from 'node:util';
 
 const exec = promisify(execFile);
 const installer = new URL('../../../crates/libs/acp-agent-registry/src/managed_runtime/', import.meta.url);
-const patch = new URL('./glm-acp-agent-1.17.1-managed.patch', import.meta.url);
+const patch = new URL('./glm-acp-agent-1.17.1-skills.patch', import.meta.url);
 const packageName = 'glm-acp-agent';
 const tools = ['fixture_lookup', 'fixture_error', 'fixture_denied', 'fixture_other'];
 const toolSchema = { type: 'object', properties: {} };

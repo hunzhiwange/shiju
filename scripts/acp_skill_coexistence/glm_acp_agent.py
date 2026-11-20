@@ -15,15 +15,14 @@ from verify_acp_model_source import ROOT
 
 AGENT = "glm-acp-agent"
 VERSION = "1.17.1"
-REVISION = f"{AGENT}-{VERSION}-model-source-v2"
+REVISION = f"{AGENT}-{VERSION}-model-source-v3"
 MODEL = "deepseek-v4.1-flash-1017"
 MODEL_OUTPUT_LIMIT = 32_768
 ADAPTER = "openai"
 API_PATH = "/v1"
 TRANSPORT = "stdio"
 NATIVE_DIR = ".claude/skills"
-SLASH_SCANNER = "dist/protocol/slash-commands.js"
-SLASH_SHA256 = "14acef1c5378785fffabf5783c46cbd517fe3c12de721684fd749ab6af8e2a96"
+CATALOG = "Available skills. Use the native read_file tool on a listed path to load instructions when needed.\n"
 
 
 def launch(env):
@@ -37,7 +36,7 @@ def launch(env):
     assets = config / "glm-install-assets"
     assets.mkdir(mode=0o700)
     shutil.copyfile(contracts, assets / "contracts.json")
-    patch = ROOT / "patches/acp-model-source" / AGENT / f"{AGENT}-{VERSION}-managed.patch"
+    patch = ROOT / "patches/acp-model-source" / AGENT / f"{AGENT}-{VERSION}-skills.patch"
     shutil.copyfile(patch, assets / f"{AGENT}.patch")
     runtime = config / "acp-runtime" / REVISION
     runtime.parent.mkdir(mode=0o700)
@@ -46,7 +45,7 @@ def launch(env):
                                env=env, capture_output=True, timeout=100)
     require(installed.returncode == 0, "reviewed GLM private installation failed")
     package = runtime / "node_modules" / AGENT
-    hashes = {**contract["files"], SLASH_SCANNER: SLASH_SHA256}
+    hashes = contract["files"]
     for name, digest in hashes.items():
         require(hashlib.sha256((package / name).read_bytes()).hexdigest() == digest,
                 f"reviewed GLM checksum mismatch: {name}")
@@ -65,6 +64,7 @@ class Probe:
         self.pending = None
         self.completed = {}
         self.failure = None
+        self.paths = {}
 
     def response(self, body):
         tools = {row["function"]["name"]: row["function"] for row in body.get("tools", [])}
@@ -84,10 +84,23 @@ class Probe:
             require(self.fixtures["mcp"] not in wire, "GLM included the MCP result before invocation")
             require("read_file" in tools, "GLM omitted its native file reader")
             if not self.slash:
-                require(all(skill["name"] not in wire for skill in self.fixtures["skills"].values()),
-                        "GLM model catalog changed; re-audit the loader")
-                self.failure = "GLM exposes native skills as client slash commands only"
-                return {"content": "GLM model discovery control finished"}, "stop"
+                catalogs = [row["content"].split(CATALOG, 1)[1] for row in messages
+                            if row["role"] == "system" and CATALOG in row["content"]]
+                require(len(catalogs) == 1, "missing or ambiguous GLM model skill catalog")
+                entries = json.loads(catalogs[0])
+                expected = ("native", "selected") if self.mounted else ("native",)
+                skills = self.fixtures["skills"]
+                paths = {row["name"]: Path(row["path"]) for row in entries}
+                require(len(entries) == len(paths) == len(expected)
+                        and paths.keys() == {skills[kind]["name"] for kind in expected},
+                        "GLM catalog differs from the trusted selection")
+                for kind in expected:
+                    path = paths[skills[kind]["name"]]
+                    require(path == (skills[kind]["path"] / "SKILL.md").resolve(),
+                            f"unexpected GLM {kind} skill path")
+                    self.paths[kind] = path
+                require(("read_probe" in tools) == self.mounted, "unexpected GLM stdio MCP directory")
+                return self.read(tools, "native")
             source = native["path"] / "SKILL.md"
             require(any(row["role"] == "user" and native["body"] in row["content"]
                         and f'source="{source}"' in row["content"] for row in messages),
@@ -100,20 +113,36 @@ class Probe:
         step, call_id = self.pending
         results = [row["content"] for row in messages
                    if row.get("role") == "tool" and row.get("tool_call_id") == call_id]
-        value = native["attachment"] if step == "native_read" else self.fixtures["mcp"]
+        if step == "mcp":
+            value = self.fixtures["mcp"]
+        else:
+            skill = self.fixtures["skills"][step.removesuffix("_read")]
+            value = skill["attachment" if step.endswith("_read") else "body"]
+        require(len(results) == 1, f"missing GLM {step} continuation")
         if step == "mcp" and self.rejected:
-            require(len(results) == 1 and value not in results[0] and "unknown tool" in results[0],
+            reason = "unknown tool" if self.slash else "rejected by user"
+            require(value not in results[0] and reason in results[0],
                     "denied GLM MCP call did not fail locally")
         else:
-            require(len(results) == 1 and value in results[0], f"missing GLM {step} result")
+            require(value in results[0], f"missing GLM {step} result")
         self.completed[step] = call_id
-        if self.mounted and step == "native_read":
-            # The policy control intentionally tries the excluded tool.
+        if step in ("native", "selected"):
+            return self.read(tools, step + "_read")
+        if self.mounted and step == "native_read" and not self.slash:
+            return self.read(tools, "selected")
+        if self.mounted and step in ("native_read", "selected_read"):
+            # The direct policy control intentionally tries the excluded tool.
             return self.call(tools, "mcp", "read_probe", {})
-        return {"content": "GLM native slash control finished"}, "stop"
+        return {"content": "GLM skill coexistence fixture finished"}, "stop"
+
+    def read(self, tools, step):
+        path = self.paths[step.removesuffix("_read")]
+        if step.endswith("_read"):
+            path = path.parent / "references/value.txt"
+        return self.call(tools, step, "read_file", {"path": str(path)})
 
     def call(self, tools, step, name, arguments):
-        if not (step == "mcp" and self.rejected):
+        if not (step == "mcp" and self.slash and self.rejected):
             schema = tools[name]["parameters"]
             require(set(schema.get("required", ())) <= arguments.keys() <= schema["properties"].keys(),
                     f"unexpected GLM {name} schema")
@@ -172,13 +201,6 @@ def direct_control():
             try:
                 info, _ = process.call("initialize", {"protocolVersion": 1, "clientCapabilities": {}})
                 require(info["agentInfo"]["version"] == VERSION, "unexpected GLM ACP version")
-                ordinary, _ = process.call("session/new", {"cwd": str(workspace), "mcpServers": []})
-                model.probe = plain = Probe(fixtures, False, False)
-                prompt, _ = process.call("session/prompt", {"sessionId": ordinary["sessionId"],
-                    "prompt": [{"type": "text", "text": "Check the available read-only fixture resources."}]})
-                require(prompt["stopReason"] == "end_turn" and plain.requests == 1
-                        and plain.failure == "GLM exposes native skills as client slash commands only",
-                        "ordinary GLM model discovery control changed")
                 denied = {**mcp, "_meta": {"shiju.glm.toolPolicy": {"allow": [], "deny": ["read_probe"]}}}
                 for phase, servers in (("baseline", []), ("mounted", [mcp]),
                                        ("removed", []), ("policy_denied", [denied])):
@@ -212,9 +234,7 @@ def direct_control():
                 process.close()
             require(process.child.returncode == 0, "GLM ACP process did not exit cleanly")
             require(len({row["session"] for row in rows}) == len(rows), "GLM reused an ACP session")
-            return {"artifact": artifact, "model": MODEL, "turns": rows,
-                    "ordinary_prompt": {"stop": prompt["stopReason"], "model_requests": plain.requests,
-                                        "failure": plain.failure}}
+            return {"artifact": artifact, "model": MODEL, "turns": rows}
 
 
 if __name__ == "__main__":

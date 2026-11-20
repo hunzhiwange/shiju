@@ -1,0 +1,203 @@
+--- a/dist/protocol/agent.js
++++ b/dist/protocol/agent.js
+@@ -12,7 +12,7 @@
+ import { SessionLifecycle } from "./session-lifecycle.js";
+ import { checkModelTransition } from "./model-transition.js";
+ import { buildSystemPrompt } from "./system-prompt.js";
+-import { discoverSlashCommands, parseSlashCommand, renderSlashCommand, } from "./slash-commands.js";
++import { discoverSlashCommands, modelSkillCatalog, parseSlashCommand, renderSlashCommand, } from "./slash-commands.js";
+ import { preprocessImageBlocks, buildPromptBlockDiagnosticLines } from "./image-preprocessor.js";
+ import { StdioVisionMcpClient } from "../tools/vision-mcp-client.js";
+ import { resolveApiKey } from "../llm/credentials.js";
+@@ -1742,6 +1742,14 @@
+             if (ownsPrompt())
+                 this.sessionTodos.set(sessionId, todos);
+         }, undefined, processSupervisor);
++        const skills = modelSkillCatalog(session.cwd, session.commands);
++        const withSkillCatalog = messages => {
++            if (skills.length === 0)
++                return messages;
++            const [system, ...history] = messages;
++            const catalog = "Available skills. Use the native read_file tool on a listed path to load instructions when needed.\n";
++            return [{ ...system, content: system.content + "\n\n" + catalog + JSON.stringify(skills) }, ...history];
++        };
+         let totalUsage;
+         let overflowRetryCount = 0;
+         const addUsage = (usage) => {
+@@ -1785,7 +1793,7 @@
+             try {
+                 // Stream the GLM response. The session's currently-selected model wins;
+                 // it's mutated by `unstable_setSessionModel` between turns.
+-                for await (const chunk of this.glm.streamChat(session.messages, signal, {
++                for await (const chunk of this.glm.streamChat(withSkillCatalog(session.messages), signal, {
+                     model: session.model,
+                     tools: session.toolDefinitions,
+                     reasoningEffort: session.thoughtLevel,
+--- a/dist/protocol/slash-commands.js
++++ b/dist/protocol/slash-commands.js
+@@ -20,9 +20,9 @@
+  * All I/O errors are swallowed: having no commands at all is the common case,
+  * and a broken command file should never fail `session/new`.
+  */
+-import { closeSync, openSync, readSync, readdirSync } from "node:fs";
++import { closeSync, openSync, readSync, readdirSync, realpathSync } from "node:fs";
+ import { homedir } from "node:os";
+-import { join as pathJoin } from "node:path";
++import { isAbsolute, relative, sep, join as pathJoin } from "node:path";
+ /**
+  * Cap on a single command body embedded into a prompt. Command files are
+  * usually a screenful of instructions; this bounds the worst case for a project
+@@ -71,6 +71,43 @@
+         collectSkillFiles(pathJoin(root, "skills"), found);
+     }
+     return [...found.values()].sort((a, b) => a.name.localeCompare(b.name));
++}
++/**
++ * The managed host registers the verified session links and their exact targets.
++ * Only files the workspace-confined native reader can open enter the model menu.
++ */
++export function modelSkillCatalog(cwd, commands) {
++    const view = process.env.SHIJU_GLM_SKILL_VIEW;
++    if (view === undefined)
++        return [];
++    const workspace = realpathSync(cwd);
++    const within = (root, file) => {
++        const path = relative(root, file);
++        return path !== "" && !isAbsolute(path) && path !== ".." && !path.startsWith(".." + sep);
++    };
++    const native = new Map(commands.map(command => [command.name, command]));
++    const skills = [];
++    for (const command of native.values()) {
++        if (!command.skill)
++            continue;
++        try {
++            const source = realpathSync(command.source);
++            if (within(workspace, source))
++                skills.push({ name: command.name, path: source });
++        }
++        catch { /* A removed project skill is no longer discoverable. */ }
++    }
++    for (const [name, link, target] of JSON.parse(view)) {
++        if (native.has(name))
++            continue;
++        if (realpathSync(link) !== target || !within(workspace, target))
++            throw new Error("Invalid GLM session skill link");
++        const source = realpathSync(pathJoin(link, "SKILL.md"));
++        if (source !== pathJoin(target, "SKILL.md"))
++            throw new Error("Invalid GLM session skill file");
++        skills.push({ name, path: source });
++    }
++    return skills;
+ }
+ /**
+  * Recursively read `*.md` files under a `commands/` directory. Nested files are
+@@ -102,7 +139,7 @@
+             return;
+         if (!entry.isDirectory())
+             continue;
+-        addCommand(found, entry.name, pathJoin(dir, entry.name, "SKILL.md"));
++        addCommand(found, entry.name, pathJoin(dir, entry.name, "SKILL.md"), true);
+     }
+ }
+ function readDirSafe(dir) {
+@@ -135,7 +172,7 @@
+             closeSync(fd);
+     }
+ }
+-function addCommand(found, name, path) {
++function addCommand(found, name, path, skill = false) {
+     if (!COMMAND_NAME_PATTERN.test(name) || found.has(name))
+         return;
+     const contents = readCappedFile(path);
+@@ -149,6 +186,7 @@
+         ...(argumentHint !== undefined ? { argumentHint } : {}),
+         body: body.slice(0, COMMAND_BODY_CAP_CHARS).trim(),
+         source: path,
++        skill,
+     });
+ }
+ /**
+--- a/dist/tools/executor.js
++++ b/dist/tools/executor.js
+@@ -1149,9 +1149,20 @@
+         });
+         if (this.signal?.aborted)
+             throw new ToolCallCancelledBeforeExecutionError();
++        if (process.env.SHIJU_GLM_SKILL_VIEW !== undefined) {
++            const decision = await this.maybeRequestPermission({
++                toolCallId, kind: "execute", title: toolName, rawInput: args, requireApproval: true,
++            });
++            if (decision.type !== "allow")
++                return this.permissionDenialResult(toolCallId, "MCP tool", decision);
++        }
+         try {
+             const mcpResult = await this.sessionMcpTools.callTool(toolName, args, this.signal);
+             const text = unwrapToolText(mcpResult);
++            if (mcpResult?.isError === true) {
++                await this.markFailed(toolCallId, boundCardText(text));
++                return { content: text };
++            }
+             await this.connection.sessionUpdate({
+                 sessionId: this.sessionId,
+                 update: {
+@@ -1183,7 +1194,7 @@
+             return { type: "aborted" };
+         }
+         // bypass_permissions: allow everything without prompting
+-        if (mode === "bypass_permissions") {
++        if (!args.requireApproval && mode === "bypass_permissions") {
+             return { type: "allow" };
+         }
+         // accept_edits: allow writes without prompting, still prompt for commands
+--- a/dist/tools/session-mcp-client.js
++++ b/dist/tools/session-mcp-client.js
+@@ -1,3 +1,4 @@
++import { createHash } from "node:crypto";
+ import { spawn as nodeSpawn, spawnSync as nodeSpawnSync } from "node:child_process";
+ import { TOOL_DEFINITIONS } from "./definitions.js";
+ import { collectToolPages, assertValidToolPage, DEFAULT_MCP_MAX_PAGES, DEFAULT_MCP_MAX_SCHEMA_BYTES, DEFAULT_MCP_MAX_TOOLS, } from "./mcp-pagination.js";
+@@ -71,7 +72,32 @@
+         catch { /* already closed */ }
+     }
+ }
++function toolPolicy(server) {
++    const policy = server._meta?.["shiju.glm.toolPolicy"];
++    if (policy === undefined)
++        return { allow: [], deny: [] };
++    if (!policy || ![policy.allow, policy.deny].every(list =>
++        Array.isArray(list) && list.every(name => typeof name === "string" && name.length > 0)))
++        throw new Error("Invalid GLM session MCP tool policy");
++    return policy;
++}
++
++function matchesTool(entries, server, name) {
++    const normalize = value => value.replace(/[^A-Za-z0-9]+/g, "_").replace(/^_+|_+$/g, "").toLowerCase();
++    const serverName = normalize(server);
++    const toolName = normalize(name);
++    if (!serverName || !toolName)
++        return entries.includes(name);
++    let id = `mcp__${serverName}__${toolName}`;
++    if (serverName !== server || toolName !== name || id.length > 64) {
++        const digest = createHash("sha256").update(server).update("\0").update(name).digest("hex");
++        id = id.slice(0, 47) + "_" + digest.slice(0, 16);
++    }
++    return entries.includes(name) || entries.includes(id);
++}
++
+ export async function connectSessionMcpServers(servers, signal) {
++    const policies = servers.map(toolPolicy);
+     const usedNames = new Set(TOOL_DEFINITIONS.map((tool) => tool.function.name));
+     const bindings = [];
+     const clients = [];
+@@ -110,7 +136,11 @@
+             const tools = discoveredTools[index];
+             if (!serverClient || !tools)
+                 throw new Error(`MCP server "${server.name}" did not return a tool catalog`);
++            const { allow, deny } = policies[index];
+             for (const tool of tools) {
++                if (matchesTool(deny, server.name, tool.name) ||
++                    (allow.length > 0 && !matchesTool(allow, server.name, tool.name)))
++                    continue;
+                 const exposedName = chooseToolName(tool.name, server.name, usedNames);
+                 usedNames.add(exposedName);
+                 bindings.push({

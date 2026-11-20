@@ -40,7 +40,7 @@ fn root(_agent: &str) -> Result<PathBuf, String> {
 }
 fn installed_directory(agent: &str, contract: &Contract) -> Result<PathBuf, String> {
     // Install revised contracts beside their prior reviewed runtimes.
-    let revision = if matches!(agent, "gemini" | "nova") {
+    let revision = if matches!(agent, "gemini" | "nova" | "glm-acp-agent") {
         3
     } else if agent == "pi" {
         3
@@ -70,7 +70,7 @@ fn installed_directory(agent: &str, contract: &Contract) -> Result<PathBuf, Stri
         3
     } else if matches!(
         agent,
-        "glm-acp-agent" | "openclaw" | "poolside"
+        "openclaw" | "poolside"
     ) {
         2
     } else {
@@ -447,7 +447,7 @@ pub(super) async fn install(agent: &str) -> Result<bool, String> {
         ("install.py", include_str!("managed_runtime/install.py")),
         (
             "glm-acp-agent.patch",
-            include_str!("../../../../patches/acp-model-source/glm-acp-agent/glm-acp-agent-1.17.1-managed.patch"),
+            include_str!("../../../../patches/acp-model-source/glm-acp-agent/glm-acp-agent-1.17.1-skills.patch"),
         ),
         ("droid/apply.py", include_str!("../../../../patches/acp-model-source/droid/apply.py")),
         ("cortex-code/apply.py", include_str!("../../../../patches/acp-model-source/cortex-code/apply.py")),

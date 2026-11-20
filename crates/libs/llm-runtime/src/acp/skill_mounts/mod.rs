@@ -14,6 +14,7 @@ mod droid;
 #[cfg(test)]
 mod deepagents_tests;
 mod gemini;
+pub(super) mod glm_acp_agent;
 mod goose;
 mod grok;
 pub(super) mod hermes;
@@ -44,6 +45,7 @@ pub fn validate(agent: &str, selected: bool) -> Result<(), Error> {
         "claude" | "claude code" => return Ok(()),
         "qwen" => return Ok(()),
         "gemini" => return Ok(()),
+        "glm-acp-agent" if cfg!(all(target_os = "macos", target_arch = "aarch64")) => return Ok(()),
         "codebuddy" => return Ok(()),
         "goose" => return Ok(()),
         "grok" if cfg!(all(target_os = "macos", target_arch = "aarch64")) => return Ok(()),

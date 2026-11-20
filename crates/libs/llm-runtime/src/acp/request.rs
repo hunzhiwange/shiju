@@ -307,6 +307,14 @@ pub async fn do_stream_request_acp<H: Host>(
             "siGit skill mounts require session_model with native tools enabled",
         ));
     }
+    if acp_agent_name == "glm-acp-agent"
+        && parsed_options.skill_view.is_some()
+        && (source != vw_api_acp_model::acp_model_source::AcpModelSource::SessionModel
+            || parsed_options.permission_mode == Some(acp_types::PermissionMode::DenyAll)
+            || merged_options.get("disable_tools").and_then(Value::as_bool) == Some(true))
+    {
+        return Err(acp_option_error("GLM skill mounts require session_model with native tools enabled"));
+    }
     H::supplier(&acp_agent_name, parsed_options.skill_view.as_ref())?;
     if acp_agent_name == "deepagents"
         && parsed_options.skill_view.is_some()
@@ -514,6 +522,16 @@ pub async fn do_stream_request_acp<H: Host>(
     // Managed SessionModel requests are metered by the owned relay. Never bill
     // their ACP session snapshots a second time.
     let mut request_usage = std::collections::HashMap::new();
+    if cfg!(all(target_os = "macos", target_arch = "aarch64"))
+        && acp_agent_name == "glm-acp-agent"
+        && let Some(profile) = launch_profile.as_mut()
+    {
+        super::skill_mounts::glm_acp_agent::configure(
+            profile,
+            &cwd,
+            parsed_options.skill_view.as_ref(),
+        )?;
+    }
     let mut normalized_acp_cfg = launch_profile
         .as_ref()
         .map(|profile| profile.config().clone())

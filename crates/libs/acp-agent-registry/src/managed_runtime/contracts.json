@@ -27,20 +27,22 @@
     "package": "glm-acp-agent",
     "version": "1.17.1",
     "integrity": "sha512-rA/E3e4jRBFAstPh97hSnG5pcgpCn3HNZuIgvKBGCbgTlB8bS0riwPnSdfe0QU4bJfcEw7UUQt5WJbBRS8fsdA==",
-    "patch_sha256": "e0a9e4a02b4e3e939dc39edb8133a6f6d30ff50365df124d91d22445d90f0fdc",
+    "patch_sha256": "e2db663f36df65fc742dc51d02f1566360dd7306f21619ae3ecf498ecb927c01",
     "bin": "dist/index.js",
     "files": {
       "dist/index.js": "d0d9237bffcbd5017a0085aa3c4625c29e2b750f87c358fa9c455d3cd4cdbd98",
-      "dist/protocol/agent.js": "5352ec11b2db683957f5daeb571974863e3f8c3acb1cbcd321cb702b590025f3",
+      "dist/protocol/agent.js": "d32402a3bba21c16c3bcd24e0ddcd2e214012c1a942d3b511c8bfe73c43438fc",
       "dist/protocol/system-prompt.js": "c0039856d8d3fca585cf28edd628a1c445cca828ef23d880e4688f1371c38cdc",
-      "dist/tools/executor.js": "c775d1418f84f2978ec421da50fa335f8334599afcbe47d8987882a4735e4bd6",
-      "dist/tools/session-mcp-client.js": "45bf201cd76da3418ee7557a7f49e11c3acc6d98ad3bfc7784c5eb88ef75d935"
+      "dist/tools/executor.js": "3658c392441de35a8acf1e43af642442047e226689400501422b91c5607670e9",
+      "dist/tools/session-mcp-client.js": "45bf201cd76da3418ee7557a7f49e11c3acc6d98ad3bfc7784c5eb88ef75d935",
+      "dist/protocol/slash-commands.js": "88835adbd360e77dc9beddbdc94d783279611c1018ded9f8f86c542fc751e447"
     },
     "original": {
       "dist/protocol/agent.js": "5352ec11b2db683957f5daeb571974863e3f8c3acb1cbcd321cb702b590025f3",
       "dist/protocol/system-prompt.js": "c0039856d8d3fca585cf28edd628a1c445cca828ef23d880e4688f1371c38cdc",
       "dist/tools/executor.js": "a3614aaa2e14a841fe2791e31465e50d8691130cc157d4dbe002b74efbac3289",
-      "dist/tools/session-mcp-client.js": "ed52008b69b7531c4ce5b8327539005a9d26d8bf8ecb36dc4e0ed65eb06d078c"
+      "dist/tools/session-mcp-client.js": "ed52008b69b7531c4ce5b8327539005a9d26d8bf8ecb36dc4e0ed65eb06d078c",
+      "dist/protocol/slash-commands.js": "14acef1c5378785fffabf5783c46cbd517fe3c12de721684fd749ab6af8e2a96"
     }
   },
   "cortex-code": {

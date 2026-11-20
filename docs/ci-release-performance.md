@@ -16,6 +16,7 @@
 | 目标 | runner | 主机与目标差异 |
 | --- | --- | --- |
 | x86_64-apple-darwin | macos-15-intel | Intel 原生构建 |
+| aarch64-apple-darwin | macos-15 | Apple Silicon 原生构建 |
 | aarch64-pc-windows-msvc | windows-2022 | x86_64 主机交叉编译 ARM64 |
 
 runner 安装 Rust 目标后执行：

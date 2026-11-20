@@ -11,6 +11,7 @@ pub enum TaskBoardViewMode {
 
 pub struct State {
     pub work_prefs_project: Option<String>,
+    pub work_plan: crate::work_views::WorkPlanView,
     pub saved_work_views: Vec<crate::work_views::SavedWorkView>,
     pub selected_work_view: Option<String>,
     pub work_filter: crate::work_views::WorkViewFilter,
@@ -205,6 +206,7 @@ impl State {
         Self {
             // ========== 任务板基础状态 ==========
             work_prefs_project: None,
+            work_plan: Default::default(),
             saved_work_views: Vec::new(),
             selected_work_view: None,
             work_filter: Default::default(),

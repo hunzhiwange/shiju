@@ -1,23 +1,53 @@
-use crate::app::{App, Message};
 use crate::app::message::TaskBoardMessage;
 use crate::app::state::TaskBoardViewMode;
+use crate::app::{App, Message};
 mod board;
-mod work_sidebar;
-mod work_view_editor;
-mod properties;
 mod common;
 mod control;
 mod drag;
 pub(in crate::app) mod modals;
 mod panel;
+mod properties;
+mod work_plan;
+mod work_sidebar;
+mod work_view_editor;
 pub fn view(app: &App) -> iced::Element<'_, Message> {
- let input = desktop_task_board::page::PageView { task_board_create_modal_open: app.task_board.task_board_create_modal_open, task_board_worktree_pixel_office: app.task_board.task_board_worktree_pixel_office, kanban: app.task_board.task_board_view_mode == TaskBoardViewMode::Kanban, viewing_logs: app.task_board.task_board_viewing_logs.is_some(), task_board_settings_modal_open: app.task_board.task_board_settings_modal_open };
- desktop_task_board::page::assemble(input, desktop_task_board::page::PageBuilders {
- header: Box::new(|| control::build_control_buttons(app)),
- board: Box::new(|| iced::widget::row![work_sidebar::view(app), iced::widget::column![work_view_editor::view(app), board::build_kanban_board(app)].width(iced::Length::Fill).height(iced::Length::Fill)].spacing(12).height(iced::Length::Fill).into()),
- drag: Box::new(|| drag::build_drag_preview_layer(app)),
- panel: Box::new(|edit| panel::build_task_panel(app, edit)),
- settings: Box::new(|| modals::build_task_settings_modal(app)),
- context_closed: Message::TaskBoard(TaskBoardMessage::ContextMenuClosed), close_logs: Message::TaskBoard(TaskBoardMessage::CloseTaskLogs), close_settings: Message::TaskBoard(TaskBoardMessage::CloseSettingsModal),
- })
+    let input = desktop_task_board::page::PageView {
+        task_board_create_modal_open: app.task_board.task_board_create_modal_open,
+        task_board_worktree_pixel_office: app.task_board.task_board_worktree_pixel_office,
+        kanban: app.task_board.task_board_view_mode == TaskBoardViewMode::Kanban,
+        viewing_logs: app.task_board.task_board_viewing_logs.is_some(),
+        task_board_settings_modal_open: app.task_board.task_board_settings_modal_open,
+    };
+    let page = desktop_task_board::page::assemble(
+        input,
+        desktop_task_board::page::PageBuilders {
+            header: Box::new(|| control::build_control_buttons(app)),
+            board: Box::new(|| {
+                iced::widget::row![
+                    work_sidebar::view(app),
+                    iced::widget::column![
+                        work_view_editor::view(app),
+                        if work_plan::current(app).is_some_and(|(_, plan)| plan.open) {
+                            work_plan::project_view(app)
+                        } else {
+                            board::build_kanban_board(app)
+                        }
+                    ]
+                    .width(iced::Length::Fill)
+                    .height(iced::Length::Fill)
+                ]
+                .spacing(12)
+                .height(iced::Length::Fill)
+                .into()
+            }),
+            drag: Box::new(|| drag::build_drag_preview_layer(app)),
+            panel: Box::new(|edit| panel::build_task_panel(app, edit)),
+            settings: Box::new(|| modals::build_task_settings_modal(app)),
+            context_closed: Message::TaskBoard(TaskBoardMessage::ContextMenuClosed),
+            close_logs: Message::TaskBoard(TaskBoardMessage::CloseTaskLogs),
+            close_settings: Message::TaskBoard(TaskBoardMessage::CloseSettingsModal),
+        },
+    );
+    work_plan::with_child_modal(app, page)
 }

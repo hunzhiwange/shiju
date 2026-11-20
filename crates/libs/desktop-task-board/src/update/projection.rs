@@ -82,6 +82,17 @@ fn task_status_from_agent_scheduler_snapshot(
     agent_status.unwrap_or(TaskStatus::Pool)
 }
 
+pub fn work_plan_task(
+    snapshot: &vw_api_agent_scheduler::AgentSchedulerTaskBoardTaskDto,
+) -> crate::work_views::WorkPlanTask {
+    crate::work_views::WorkPlanTask {
+        placement: snapshot.placement.clone(),
+        status: task_status_from_agent_scheduler_snapshot(snapshot),
+        status_label: snapshot.read_model.status_label.clone(),
+        blocker: snapshot.read_model.dispatch_blocker.clone(),
+    }
+}
+
 fn task_status_from_agent_scheduler_log(
     status_key: Option<&str>,
     status: Option<vw_api_agent_scheduler::AgentTaskStatusDto>,
@@ -180,6 +191,9 @@ fn apply_agent_scheduler_task_snapshot(
         task.set_status(next_status);
     }
 
+    if let Some(title) = snapshot.read_model.title.as_ref().filter(|title| !title.trim().is_empty()) {
+        task.description.clone_from(title);
+    }
     task.priority = snapshot.priority;
     task.label_ids.clone_from(&snapshot.read_model.label_ids);
     task.properties.clone_from(&snapshot.read_model.properties);

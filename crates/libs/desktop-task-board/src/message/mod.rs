@@ -33,6 +33,35 @@ pub struct WorktreePoolMaintenanceOutcome {
 /// 描述 TaskBoardMessage 支持的离散状态或消息分支。
 pub enum TaskBoardMessage {
     OpenWorkViewEditor,
+    OpenWorkPlanView,
+    WorkPlanSearchChanged(String),
+    ToggleWorkPlanGroup(crate::work_views::WorkPlanGroupKey),
+    EditWorkPlanBatch,
+    WorkPlanBatchChanged { outer: bool, value: String },
+    SaveWorkPlanBatch { clear: bool },
+    WorkPlanBatchSaved {
+        project_path: String,
+        task_id: String,
+        request: u64,
+        result: Result<vw_api_agent_scheduler::AgentSchedulerTaskBoardTaskDto, String>,
+    },
+    OpenWorkPlanChild,
+    CloseWorkPlanChild,
+    WorkPlanChildPromptEdited(iced::widget::text_editor::Action),
+    WorkPlanChildBatchChanged(String),
+    CreateWorkPlanChild,
+    WorkPlanChildCreated {
+        project_path: String,
+        task: Task,
+        placement: vw_api_agent_scheduler::AgentSchedulerTaskPlanPlacementDto,
+        result: Result<(), String>,
+    },
+    LoadWorkPlanHistory { include_children: bool },
+    WorkPlanHistoryLoaded {
+        project_path: String,
+        request: u64,
+        result: Result<Vec<vw_api_agent_scheduler::AgentSchedulerTaskBoardEventDto>, String>,
+    },
     WorkViewFieldChanged(u8, String),
     ToggleWorkViewLabel(String),
     WorkViewPropertyChanged(String, Option<AgentSchedulerTaskPropertyValue>),
@@ -244,6 +273,7 @@ pub enum TaskBoardMessage {
     },
     WorkPlanPublished {
         project_path: String,
+        task_id: String,
         result: Result<vw_api_agent_scheduler::WorkPlanPublishResponse, String>,
     },
     TaskCodeReviewCompleted {

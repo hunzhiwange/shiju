@@ -48,31 +48,38 @@ fn map(message: desktop_task_board::panel::PanelMessage) -> Message {
  desktop_task_board::panel::PanelMessage::Selection { session_id, message_idx, text_idx, text } => Message::ChatMarkdownSelectionChanged { session_id, message_idx, text_idx, text } }
 }
 pub fn build_task_panel(app: &App, edit: bool) -> iced::Element<'_, Message> {
- let panel = desktop_task_board::panel::build_with_controls(
- input(app), edit, model_selector::view(app), executor_selector::input(app),
- || reasoning_selector::domain_build(app, edit, false),
- ).map(map);
- if let Some(task) = app.task_board.task_board_viewing_logs.as_ref() {
-     let labels = (edit && app.task_board.task_board_editing_task_id.as_ref() == Some(&task.id))
-         .then(|| task_labels(app, task));
-     let personal = app.navigation_tabs.project_path.as_ref()
-         .and_then(|path| app.task_board.personal_tasks.get(path))
-         .is_some_and(|ids| ids.contains(&task.id));
-     let i18n = crate::app::i18n::I18n::new(app.general_settings.desktop_locale);
-     let actions = iced::widget::row![
-         iced::widget::button(iced::widget::text(i18n.__(if personal { "移出我的任务" } else { "加入我的任务" })))
-             .padding([8, 12])
-             .style(crate::app::components::system_settings_common::rounded_action_btn_style)
-             .on_press(Message::TaskBoard(crate::app::message::TaskBoardMessage::TogglePersonalTask(task.id.clone()))),
-     ].spacing(8);
-     #[cfg(not(target_arch = "wasm32"))]
-     let actions = actions.extend(super::modals::quick_actions::entry(app, &task.id));
-     let body = iced::widget::column![actions.wrap()].spacing(8);
-     let properties = (edit && app.task_board.task_board_editing_task_id.as_ref() == Some(&task.id))
-         .then(|| super::properties::task_editor(app, task))
-         .flatten();
-     body.extend(labels).extend(properties).push(panel).into()
- } else { panel }
+    use crate::app::components::system_settings_common::rounded_action_btn_style;
+    use crate::app::message::TaskBoardMessage;
+    use crate::app::state::TaskBoardDetailTab;
+    use iced::widget::{button, column, row, text};
+
+    let detail = app.task_board.task_board_viewing_logs.as_ref().filter(|task| {
+        edit && app.task_board.task_board_editing_task_id.as_ref() == Some(&task.id)
+    }).and_then(|task| {
+        if app.task_board.task_board_detail_tab == TaskBoardDetailTab::Logs {
+            return super::work_plan::history(app, task);
+        }
+        let personal = app.navigation_tabs.project_path.as_ref()
+            .and_then(|path| app.task_board.personal_tasks.get(path))
+            .is_some_and(|ids| ids.contains(&task.id));
+        let i18n = crate::app::i18n::I18n::new(app.general_settings.desktop_locale);
+        let actions = row![
+            button(text(i18n.__(if personal { "移出我的任务" } else { "加入我的任务" })))
+                .padding([8, 12])
+                .style(rounded_action_btn_style)
+                .on_press(Message::TaskBoard(TaskBoardMessage::TogglePersonalTask(task.id.clone()))),
+        ].spacing(8);
+        #[cfg(not(target_arch = "wasm32"))]
+        let actions = actions.extend(super::modals::quick_actions::entry(app, &task.id));
+        Some(column![actions.wrap(), task_labels(app, task)]
+            .extend(super::properties::task_editor(app, task))
+            .extend(super::work_plan::detail(app, task))
+            .spacing(12).into())
+    });
+    desktop_task_board::panel::build_with_controls_and_content(
+        input(app), edit, model_selector::view(app), executor_selector::input(app),
+        || reasoning_selector::domain_build(app, edit, false), map, detail,
+    )
 }
 fn task_labels<'a>(app: &'a App, task: &'a desktop_task_model::Task) -> iced::Element<'a, Message> {
     use crate::app::components::system_settings_common::*;

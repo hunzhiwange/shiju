@@ -1,6 +1,8 @@
-use iced::widget::{column, container, mouse_area, responsive, row, scrollable, stack};
+use iced::widget::{column, container, responsive, row, scrollable, stack};
 use iced::{Background, Color, Element, Length, Theme};
-use desktop_ui_controls::system_settings_common::settings_modal_overlay;
+use desktop_ui_controls::system_settings_common::{
+    panels::settings_right_drawer_overlay, settings_modal_overlay,
+};
 #[derive(Clone, Copy)]
 pub struct PageView { pub task_board_create_modal_open: bool, pub task_board_worktree_pixel_office: bool, pub kanban: bool, pub viewing_logs: bool, pub task_board_settings_modal_open: bool }
 pub struct PageSlots<'a, M> { pub header: Element<'a, M>, pub board: Option<Element<'a, M>>, pub drag: Element<'a, M>, pub create_panel: Option<Element<'a, M>>, pub detail_panel: Option<Element<'a, M>>, pub settings: Option<Element<'a, M>>, pub context_closed: M, pub close_logs: M, pub close_settings: M }
@@ -84,18 +86,10 @@ pub fn build_view<'a, M: Clone + 'static>(app: PageView, create_width: Option<Le
         }
     } else if app.viewing_logs {
         let detail_panel = slots.detail_panel.expect("visible detail_panel slot");
-        let main_content = stack![base, drag_preview_layer];
-        let dismiss_layer = mouse_area(
-            container(iced::widget::Space::new().width(Length::Fill).height(Length::Fill))
-                .width(Length::Fill)
-                .height(Length::Fill),
+        settings_right_drawer_overlay(
+            stack![base, drag_preview_layer].into(),
+            Some((slots.close_logs, container(detail_panel).padding(16).into())),
         )
-        .on_press(slots.close_logs);
-        let detail_layer = row![iced::widget::Space::new().width(Length::Fill), detail_panel]
-            .padding(16)
-            .width(Length::Fill)
-            .height(Length::Fill);
-        stack![main_content, dismiss_layer, detail_layer].into()
     } else {
         stack![base, drag_preview_layer].into()
     };

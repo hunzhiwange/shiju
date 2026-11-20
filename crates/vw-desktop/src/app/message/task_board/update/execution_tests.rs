@@ -242,7 +242,7 @@ async fn work_plan_publish_desktop_uses_gateway_handoff() {
     let completed = tokio::time::timeout(std::time::Duration::from_secs(10), stream.next())
         .await.unwrap();
     let Some(iced_runtime::Action::Output(crate::app::Message::TaskBoard(
-        super::TaskBoardMessage::WorkPlanPublished { project_path, result },
+        super::TaskBoardMessage::WorkPlanPublished { project_path, result, .. },
     ))) = completed else {
         panic!("expected gateway publication response");
     };

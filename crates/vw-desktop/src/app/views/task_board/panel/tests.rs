@@ -273,3 +273,45 @@ fn work_plan_detail_entry_clears_selection_on_project_switch() {
     assert!(app.task_board.task_board_viewing_logs.is_none());
     assert!(app.task_board.task_board_editing_task_id.is_none());
 }
+
+#[cfg(not(target_arch = "wasm32"))]
+#[test]
+fn work_plan_detail_panel_creates_and_opens_independent_child() {
+    use desktop_task_board::work_views::ChildTaskDraft;
+    use vw_api_agent_scheduler::AgentSchedulerTaskPlanPlacementDto::Child;
+
+    let mut parent = Task::new(17);
+    parent.model = "parent-model".into();
+    parent.prompt = "parent prompt".into();
+    parent.label_ids.push("parent label".into());
+    parent.add_log("parent log".to_owned());
+    let mut draft = ChildTaskDraft::new("/project".into(), &parent, TaskStatus::Pool);
+    draft.prompt = iced::widget::text_editor::Content::with_text("child prompt");
+    let (child, placement) = draft.build().unwrap();
+    assert_ne!(child.id, parent.id);
+    assert_eq!(child.model, parent.model);
+    assert_eq!(child.prompt, "child prompt");
+    assert!(child.label_ids.is_empty());
+    assert!(child.logs.iter().all(|log| log.message != "parent log"));
+    assert_eq!(placement, Child { parent_task_id: parent.id.clone(), batch: 1 });
+
+    let Some(mut app) = super::super::modals::modals_tests::help_rollout::isolated_fixture(
+        module_path!(), "work_plan_detail_panel_creates_and_opens_independent_child",
+    ) else {
+        return;
+    };
+    app.navigation_tabs.project_path = Some("/project".into());
+    app.task_board.task_board_tasks = vec![parent.clone(), child.clone()];
+    for task in [&parent, &child] {
+        let message = super::super::work_plan::open_detail("/project", &task.id);
+        let Message::TaskBoard(message) = message else { panic!("expected task navigation") };
+        let _ = crate::app::message::task_board::update(&mut app, message);
+        let opened = app.task_board.task_board_viewing_logs.as_ref().unwrap();
+        assert_eq!(opened.id, task.id);
+        assert_eq!(opened.prompt, task.prompt);
+        assert_eq!(
+            opened.logs.iter().any(|log| log.message == "parent log"),
+            task.id == parent.id,
+        );
+    }
+}

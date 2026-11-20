@@ -149,6 +149,16 @@ fn section_block<'a>(
 /// # 错误
 /// 此函数不返回 `Result`；不可用状态会通过空视图、禁用控件或回退文案表达。
 pub fn build_task_panel<'a>(app: PanelView<'a>, is_edit_mode: bool, slots: PanelSlots<'a>) -> Element<'a, Message> {
+    build_task_panel_with_content(app, is_edit_mode, slots, |message| message, None)
+}
+
+fn build_task_panel_with_content<'a, M: Clone + 'a>(
+    app: PanelView<'a>,
+    is_edit_mode: bool,
+    slots: PanelSlots<'a>,
+    map: impl Fn(Message) -> M + Copy + 'a,
+    detail: Option<Element<'a, M>>,
+) -> Element<'a, M> {
     let current_task = if is_edit_mode { app.task_board_viewing_logs.as_ref() } else { None };
     let (panel_title, panel_description, task_id_text, close_msg) = if is_edit_mode {
         let title = "任务详情";
@@ -291,7 +301,10 @@ pub fn build_task_panel<'a>(app: PanelView<'a>, is_edit_mode: bool, slots: Panel
     }
 
     let showing_logs = is_edit_mode && app.task_board_detail_tab == TaskBoardDetailTab::Logs;
-    let content: Element<'_, Message> = if showing_logs {
+    let panel_body: Element<'_, Message> = main_col.into();
+    let panel_header: Element<'_, Message> = header.into();
+    let main_col = column![].extend(detail).push(panel_body.map(map)).spacing(12).width(Length::Fill);
+    let content: Element<'_, M> = if showing_logs {
         main_col.height(Length::Fill).into()
     } else {
         scrollable(container(main_col).width(Length::Fill).padding(iced::Padding {
@@ -308,9 +321,9 @@ pub fn build_task_panel<'a>(app: PanelView<'a>, is_edit_mode: bool, slots: Panel
         .height(Length::Fill)
         .into()
     };
-    let mut content = column![header, content].spacing(12).height(Length::Fill);
+    let mut content = column![panel_header.map(map), content].spacing(12).height(Length::Fill);
     if !showing_logs && (!is_edit_mode || current_task.is_some()) {
-        content = content.push(build_action_buttons(app, is_edit_mode));
+        content = content.push(build_action_buttons(app, is_edit_mode).map(map));
     }
     let panel_width = if is_edit_mode { Length::Fixed(560.0) } else { Length::Fill };
 
@@ -702,6 +715,18 @@ pub fn build_with_controls<'a>(
     executor: executor_selector::ExecutorView<'a>,
     reasoning: impl FnOnce() -> Option<Element<'a, TaskBoardMessage>>,
 ) -> Element<'a, PanelMessage> {
+    build_with_controls_and_content(input, edit, model, executor, reasoning, |message| message, None)
+}
+
+pub fn build_with_controls_and_content<'a, M: Clone + 'a>(
+    input: PanelView<'a>,
+    edit: bool,
+    model: crate::model_selector::SelectorView<'a>,
+    executor: executor_selector::ExecutorView<'a>,
+    reasoning: impl FnOnce() -> Option<Element<'a, TaskBoardMessage>>,
+    map: impl Fn(PanelMessage) -> M + Copy + 'a,
+    detail: Option<Element<'a, M>>,
+) -> Element<'a, M> {
     let controls = if edit {
         input.task_board_detail_tab != TaskBoardDetailTab::Logs
     } else {
@@ -716,5 +741,5 @@ pub fn build_with_controls<'a>(
         }),
         reasoning: controls.then(reasoning).flatten().map(|view| view.map(PanelMessage::TaskBoard)),
     };
-    build_task_panel(input, edit, slots)
+    build_task_panel_with_content(input, edit, slots, map, detail)
 }

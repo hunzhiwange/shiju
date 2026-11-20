@@ -11,6 +11,8 @@ use super::*;
 mod execution_results_update;
 #[path = "update/execution.rs"]
 mod execution_update;
+#[path = "update/work_plan.rs"]
+mod work_plan_update;
 
 fn task_board_project_matches(app: &crate::app::App, project_path: &str) -> bool {
     taskboard::update::projection::task_board_project_matches(
@@ -98,6 +100,9 @@ pub fn update(
     app: &mut crate::app::App,
     message: TaskBoardMessage,
 ) -> iced::Task<crate::app::Message> {
+    if let Some(task) = work_plan_update::update(app, &message) {
+        return task;
+    }
     if let Some(task) = super::work_view_prefs::update(app, &message) {
         return task;
     }
@@ -912,6 +917,19 @@ pub fn update(
                 app.task_board.task_properties_generation = generation;
                 app.task_board.task_properties.clone_from(&response.read_model.properties);
             }
+            let board = &mut app.task_board;
+            let mut placements = response.tasks.iter().map(|snapshot| (
+                snapshot.task_id.as_ref().to_owned(),
+                taskboard::update::projection::work_plan_task(snapshot),
+            )).collect::<std::collections::BTreeMap<_, _>>();
+            for id in &board.task_board_tasks_pending_persistence {
+                if !placements.contains_key(id)
+                    && let Some(previous) = board.work_plan.tasks.remove(id)
+                {
+                    placements.insert(id.clone(), previous);
+                }
+            }
+            board.work_plan.tasks = placements;
             let updated_tasks = apply_agent_scheduler_status(app, response);
             let task_ids = updated_tasks.iter().map(|task| task.id.clone()).collect::<Vec<_>>();
             let followup_ticks =
@@ -986,17 +1004,34 @@ pub fn update(
             Err(error) => app.show_error_toast(format!("任务拆分失败，请重试: {error}")),
         },
         TaskBoardMessage::StartWorkPlan { project_path, task_id } => {
+            if !task_board_project_matches(app, &project_path)
+                || !app.task_board.work_plan.publishing.insert(task_id.clone())
+            {
+                return iced::Task::none();
+            }
             publish_work_plan(app, project_path, task_id, vw_api_agent_scheduler::WorkPlanPublication::Manual)
         }
-        TaskBoardMessage::WorkPlanPublished { project_path, result } => {
-            if let Err(error) = result {
-                return app.show_error_toast(format!("发布工作计划失败，请重试: {error}"));
-            }
+        TaskBoardMessage::WorkPlanPublished { project_path, task_id, result } => {
             if !task_board_project_matches(app, &project_path) {
                 return iced::Task::none();
             }
-            app.task_board.task_board_workflow_generation = next_agent_scheduler_status_generation();
-            sync_agent_scheduler_status(project_path)
+            let manual = app.task_board.work_plan.publishing.remove(&task_id);
+            match result {
+                Err(error) => app.show_error_toast(format!("发布工作计划失败，请重试: {error}")),
+                Ok(result) => {
+                    app.task_board.task_board_workflow_generation = next_agent_scheduler_status_generation();
+                    let sync = sync_agent_scheduler_status(project_path);
+                    if manual {
+                        iced::Task::batch([sync, app.show_localized_toast(
+                            crate::app::state::ToastKind::Success,
+                            "工作计划已启动，已安排 %s 个子任务",
+                            vec![result.child_task_ids.len().to_string().into()],
+                        )])
+                    } else {
+                        sync
+                    }
+                }
+            }
         }
 
         TaskBoardMessage::ImportFilePick => {
@@ -1060,6 +1095,7 @@ fn apply_local_effect(
             }))
         }
         LocalEffect::OpenDetail(task) => {
+            app.task_board.work_plan.close_detail();
             #[cfg(not(target_arch = "wasm32"))]
             app.task_quick_actions.board.close();
             app.task_board.task_board_draft.label_ids = None;
@@ -1109,6 +1145,7 @@ fn apply_local_effect(
         },
         LocalEffect::None => iced::Task::none(),
         LocalEffect::CloseDetail => {
+            app.task_board.work_plan.close_detail();
             #[cfg(not(target_arch = "wasm32"))]
             app.task_quick_actions.board.close();
             app.task_board.task_board_draft.label_ids = None;
@@ -1297,6 +1334,7 @@ fn publish_work_plan(
         max_concurrent: Some(app.task_board.task_board_settings.max_concurrent),
     };
     let result_path = project_path.clone();
+    let result_task_id = task_id.clone();
     iced::Task::perform(
         async move {
             let scope = resolve_task_board_scheduler_scope(&project_path).await?;
@@ -1307,6 +1345,7 @@ fn publish_work_plan(
         },
         move |result| Message::TaskBoard(TaskBoardMessage::WorkPlanPublished {
             project_path: result_path.clone(),
+            task_id: result_task_id.clone(),
             result,
         }),
     )

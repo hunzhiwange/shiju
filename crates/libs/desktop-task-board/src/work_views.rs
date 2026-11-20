@@ -100,3 +100,200 @@ impl SavedWorkView {
         self.filter.matches(task, workflow)
     }
 }
+
+use std::collections::{BTreeMap, BTreeSet};
+use vw_api_agent_scheduler::{
+    AgentSchedulerDispatchBlockerDto, AgentSchedulerTaskBoardEventDto,
+    AgentSchedulerTaskPlanPlacementDto as Placement,
+};
+
+#[derive(Debug)]
+pub struct WorkPlanTask {
+    pub placement: Option<Placement>,
+    pub status: desktop_task_model::TaskStatus,
+    pub status_label: Option<String>,
+    pub blocker: Option<AgentSchedulerDispatchBlockerDto>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+pub enum WorkPlanGroupKey {
+    Ordinary,
+    Outer(u32),
+    Root(u32, u32),
+    Child(String, u32),
+}
+
+#[derive(Debug, Default)]
+pub struct WorkPlanView {
+    pub project: Option<String>,
+    pub open: bool,
+    pub search: String,
+    pub tasks: BTreeMap<String, WorkPlanTask>,
+    pub collapsed: BTreeSet<WorkPlanGroupKey>,
+    pub batch_draft: Option<BatchDraft>,
+    pub pending_batches: BTreeMap<String, u64>,
+    pub child_draft: Option<ChildTaskDraft>,
+    pub history: Option<RunHistory>,
+    pub publishing: BTreeSet<String>,
+}
+
+impl WorkPlanView {
+    pub fn placement(&self, task_id: &str) -> Option<&Placement> {
+        self.tasks.get(task_id)?.placement.as_ref()
+    }
+
+    pub fn roots<'a>(
+        &self,
+        tasks: &'a [Task],
+        workflow: &TaskWorkflow,
+        visible: impl Fn(&Task) -> bool,
+    ) -> BTreeMap<Option<(u32, u32)>, WorkPlanGroup<'a>> {
+        let mut groups = BTreeMap::<_, WorkPlanGroup>::new();
+        for task in tasks.iter().filter(|task| !task.deleted) {
+            let key = match self.placement(&task.id) {
+                Some(Placement::Root { outer_batch, inner_batch }) => {
+                    Some((*outer_batch, *inner_batch))
+                }
+                Some(Placement::Child { .. }) => continue,
+                None => None,
+            };
+            groups.entry(key).or_default().add(
+                task,
+                self.tasks.get(&task.id),
+                workflow,
+                visible(task),
+            );
+        }
+        groups
+    }
+
+    pub fn children<'a>(
+        &self,
+        tasks: &'a [Task],
+        workflow: &TaskWorkflow,
+        parent: &str,
+    ) -> BTreeMap<u32, WorkPlanGroup<'a>> {
+        let mut groups = BTreeMap::<_, WorkPlanGroup>::new();
+        for task in tasks.iter().filter(|task| !task.deleted) {
+            if let Some(Placement::Child { parent_task_id, batch }) = self.placement(&task.id)
+                && parent_task_id == parent
+            {
+                groups.entry(*batch).or_default().add(
+                    task,
+                    self.tasks.get(&task.id),
+                    workflow,
+                    true,
+                );
+            }
+        }
+        groups
+    }
+
+    pub fn close_detail(&mut self) {
+        self.batch_draft = None;
+        self.child_draft = None;
+        self.history = None;
+    }
+}
+
+#[derive(Debug, Default)]
+pub struct WorkPlanGroup<'a> {
+    pub rows: Vec<&'a Task>,
+    pub progress: WorkPlanProgress,
+}
+
+#[derive(Debug, Default)]
+pub struct WorkPlanProgress {
+    pub total: usize,
+    pub completed: usize,
+    pub executing: usize,
+    pub waiting: usize,
+}
+
+impl<'a> WorkPlanGroup<'a> {
+    fn add(
+        &mut self,
+        task: &'a Task,
+        snapshot: Option<&WorkPlanTask>,
+        workflow: &TaskWorkflow,
+        visible: bool,
+    ) {
+        let status = snapshot.map_or(task.status, |snapshot| snapshot.status);
+        let role = workflow.status_role(status);
+        self.progress.total += 1;
+        self.progress.completed += usize::from(role == Some(StatusRole::Done) && !task.archived);
+        self.progress.executing += usize::from(role == Some(StatusRole::Executing));
+        self.progress.waiting +=
+            usize::from(snapshot.is_some_and(|snapshot| snapshot.blocker.is_some()));
+        if visible {
+            self.rows.push(task);
+        }
+    }
+}
+
+#[derive(Debug)]
+pub struct BatchDraft {
+    pub task_id: String,
+    pub original: Option<Placement>,
+    pub outer: String,
+    pub inner: String,
+    pub pending: Option<u64>,
+    pub feedback: Option<Result<(), String>>,
+}
+
+pub fn positive_batch(value: &str) -> Option<u32> {
+    value.trim().parse::<u32>().ok().filter(|value| *value > 0)
+}
+
+#[derive(Debug)]
+pub struct ChildTaskDraft {
+    pub project: String,
+    pub parent_id: String,
+    pub prompt: iced::widget::text_editor::Content,
+    pub batch: String,
+    pub pending: bool,
+    pub error: Option<String>,
+    pub task: Task,
+}
+
+impl ChildTaskDraft {
+    pub fn new(project: String, parent: &Task, status: desktop_task_model::TaskStatus) -> Self {
+        let mut task = Task::new(parent.priority);
+        task.status = status;
+        task.model.clone_from(&parent.model);
+        task.agent.clone_from(&parent.agent);
+        task.acp_agent.clone_from(&parent.acp_agent);
+        task.reasoning_effort = parent.reasoning_effort;
+        task.task_split_mode = desktop_task_model::TaskSplitMode::Disabled;
+        Self {
+            project,
+            parent_id: parent.id.clone(),
+            prompt: iced::widget::text_editor::Content::new(),
+            batch: "1".into(),
+            pending: false,
+            error: None,
+            task,
+        }
+    }
+
+    pub fn build(&self) -> Option<(Task, Placement)> {
+        let batch = positive_batch(&self.batch)?;
+        let prompt = self.prompt.text();
+        let prompt = prompt.trim();
+        if prompt.is_empty() {
+            return None;
+        }
+        let mut task = self.task.clone();
+        task.prompt = prompt.to_owned();
+        task.description = prompt.lines().next()?.chars().take(120).collect();
+        Some((task, Placement::Child { parent_task_id: self.parent_id.clone(), batch }))
+    }
+}
+
+#[derive(Debug)]
+pub struct RunHistory {
+    pub task_id: String,
+    pub request: u64,
+    pub include_children: bool,
+    pub result: Option<Result<Vec<AgentSchedulerTaskBoardEventDto>, String>>,
+}

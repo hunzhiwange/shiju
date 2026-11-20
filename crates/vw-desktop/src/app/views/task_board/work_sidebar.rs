@@ -15,6 +15,12 @@ pub fn view(app: &App) -> Element<'_, Message> {
     if board.task_board_loading {
         content = content.push(text(i18n.__("正在加载任务…")).size(12));
     }
+    let plan_open = super::work_plan::current(app).is_some_and(|(_, plan)| plan.open);
+    content = content.push(
+        button(text(if plan_open { "• 工作计划" } else { "工作计划" }).size(14))
+            .padding([8, 10]).style(rounded_action_btn_style).width(Length::Fill)
+            .on_press_maybe((!project.is_empty()).then_some(Message::TaskBoard(TaskBoardMessage::OpenWorkPlanView))),
+    );
     for (view, label) in [
         (BuiltinWorkView::MyTasks, "我的任务"),
         (BuiltinWorkView::AgentExecuting, "我的智能体在做"),
@@ -26,7 +32,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
             .iter()
             .filter(|task| app.task_board.work_task_matches(project, view, task))
             .collect();
-        let selected = if app.task_board.work_view == view && app.task_board.selected_work_view.is_none() { "• " } else { "" };
+        let selected = if !plan_open && app.task_board.work_view == view && app.task_board.selected_work_view.is_none() { "• " } else { "" };
         content = content.push(
             button(text(format!("{selected}{label}  {}", tasks.len())).size(14))
                 .padding([8, 10])
@@ -87,7 +93,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
         content = content.push(text("暂无保存视图").size(12));
     }
     for view in &app.task_board.saved_work_views {
-        let selected = if app.task_board.selected_work_view.as_ref() == Some(&view.id) { "• " } else { "" };
+        let selected = if !plan_open && app.task_board.selected_work_view.as_ref() == Some(&view.id) { "• " } else { "" };
         content = content.push(
             button(text(format!("{selected}{}", view.name)).size(13))
                 .padding([8, 10]).style(rounded_action_btn_style).width(Length::Fill)

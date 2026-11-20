@@ -8,6 +8,8 @@ use include_dir::{Dir, include_dir};
 
 static BUNDLED_PRESETS: Dir<'_> = include_dir!("$CARGO_MANIFEST_DIR/assets/presets");
 
+pub const SHIJU_THEME_ID: &str = "shiju";
+
 /// ensure 结果：本次新写入与因已存在而跳过的预设 id。
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct EnsurePresetsReport {

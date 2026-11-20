@@ -3,8 +3,8 @@ use super::gallery::{
     gallery_page_count, gallery_page_range, palette_hex_from_theme,
 };
 use desktop_theme::{
-    ThemeAssets, ThemeChrome, ThemeDefinition, ThemePaletteHex, ThemeStore, ensure_bundled_presets,
-    list_bundled_preset_ids, set_test_themes_root,
+    SHIJU_THEME_ID, ThemeAssets, ThemeChrome, ThemeDefinition, ThemePaletteHex, ThemeStore,
+    ensure_bundled_presets, list_bundled_preset_ids, set_test_themes_root,
 };
 use iced::Theme;
 
@@ -79,6 +79,11 @@ fn build_gallery_entries_marks_bundled_presets_and_cover() {
     set_test_themes_root(Some(themes_root));
     let entries = build_gallery_entries(Some(&store)).expect("build gallery");
 
+    let default_preset = entries.first().expect("default preset on the first page");
+    assert_eq!(default_preset.id, SHIJU_THEME_ID);
+    assert_eq!(default_preset.source, ThemeGallerySource::Preset);
+    assert!(default_preset.cover_path.is_some());
+
     let preset = entries
         .iter()
         .find(|entry| entry.id == sample_id)
@@ -107,7 +112,7 @@ fn build_gallery_entries_marks_bundled_presets_and_cover() {
         .expect("builtins present");
     let first_preset = entries
         .iter()
-        .position(|entry| entry.source == ThemeGallerySource::Preset)
+        .position(|entry| entry.source == ThemeGallerySource::Preset && entry.id != SHIJU_THEME_ID)
         .expect("presets present");
     let first_custom = entries
         .iter()

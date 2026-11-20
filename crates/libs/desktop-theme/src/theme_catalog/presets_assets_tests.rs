@@ -1,7 +1,7 @@
 //! 随附主题预设资产测试，验证每个包定义合法且引用文件真实存在。
 //! 该检查守护发布资源的完整性，避免运行时只能加载到缺图的预设。
 
-use super::ThemeDefinition;
+use super::{SHIJU_THEME_ID, ThemeDefinition};
 use std::collections::BTreeSet;
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -23,6 +23,7 @@ const EXPECTED_PRESET_IDS: &[&str] = &[
     "peach-blush",
     "potion-workshop",
     "shanhai-nexus",
+    SHIJU_THEME_ID,
     "soft-moss",
     "starcap-teemo",
     "tahoe-beach-dawn",
@@ -80,7 +81,9 @@ fn bundled_preset_packages_validate_and_assets_exist() {
         assert_asset_exists(&entry.path(), "background", definition.assets.background.as_deref());
         assert_asset_exists(&entry.path(), "chat_header", definition.assets.chat_header.as_deref());
         assert!(definition.assets.cover.is_some(), "preset `{id}` must declare cover");
-        assert!(definition.assets.background.is_some(), "preset `{id}` must declare background");
+        if id != SHIJU_THEME_ID {
+            assert!(definition.assets.background.is_some(), "preset `{id}` must declare background");
+        }
 
         found.insert(id);
     }

@@ -97,10 +97,27 @@ impl App {
     /// }
     /// ```
     pub fn view(&self) -> Element<'_, Message> {
-        // 构建顶部栏组件
-        let top = components::top_bar::view(self);
-        // 构建标签栏组件
-        let tab_bar = components::tab_bar::view(self);
+        let mut top = components::top_bar::view(self);
+        let mut tab_bar = components::tab_bar::view(self);
+        let theme = &self.appearance.app_theme;
+        if self.appearance.active_custom_theme_id.as_deref() == Some(desktop_theme::SHIJU_THEME_ID)
+            && !theme.extended_palette().is_dark
+        {
+            // 识矩导航用深色底与浅色字，沿用桌面顶栏与标签的交互样式。
+            let palette = theme.palette();
+            let navigation_theme = iced::Theme::custom(
+                "ShiJu Navigation",
+                iced::theme::Palette {
+                    background: palette.text,
+                    text: palette.background,
+                    ..palette
+                },
+            );
+            top = iced::widget::themer(Some(navigation_theme.clone()), top)
+                .background(|theme| theme.palette().background.into())
+                .into();
+            tab_bar = iced::widget::themer(Some(navigation_theme), tab_bar).into();
+        }
 
         // 根据当前屏幕状态选择对应的内容视图
         let content: Element<'_, Message> = match self.navigation_tabs.screen {

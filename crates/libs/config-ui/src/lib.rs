@@ -41,7 +41,7 @@ pub struct AppSystemSettingsConfig {
     /// Desktop gateway client connection settings.
     #[serde(default)]
     pub gateway_client: GatewayClientSystemSettingsConfig,
-    /// Iced theme name (`Theme::to_string()`).
+    /// Iced theme name or a custom theme key (`custom:<id>`).
     #[serde(default = "default_app_theme_name")]
     pub app_theme: String,
     /// IANA timezone used for chat date and time context.
@@ -66,7 +66,7 @@ pub struct AppSystemSettingsConfig {
     #[serde(default = "default_true")]
     pub editor_follow_system_theme: bool,
     /// Iced editor theme name (`Theme::to_string()`).
-    #[serde(default = "default_app_theme_name")]
+    #[serde(default = "default_editor_theme_name")]
     pub editor_theme: String,
     /// Per-project worktree toggle map.
     #[serde(default)]
@@ -104,6 +104,10 @@ pub struct AppSystemSettingsConfig {
 }
 
 fn default_app_theme_name() -> String {
+    "custom:shiju".to_string()
+}
+
+fn default_editor_theme_name() -> String {
     "Light".to_string()
 }
 
@@ -152,7 +156,7 @@ impl Default for AppSystemSettingsConfig {
             terminal_font_family: default_terminal_font_family(),
             terminal_font_size: default_terminal_font_size(),
             editor_follow_system_theme: default_true(),
-            editor_theme: default_app_theme_name(),
+            editor_theme: default_editor_theme_name(),
             project_worktree_enabled: HashMap::new(),
             editor_font_size: default_editor_font_size(),
             editor_line_height: default_editor_line_height(),

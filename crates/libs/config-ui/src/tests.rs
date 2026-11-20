@@ -10,7 +10,7 @@ fn app_system_settings_default_matches_desktop_contract() {
 
     assert_eq!(settings.gateway_client.host, "127.0.0.1");
     assert_eq!(settings.gateway_client.port, config_gateway::DEFAULT_GATEWAY_PORT);
-    assert_eq!(settings.app_theme, "Light");
+    assert_eq!(settings.app_theme, "custom:shiju");
     assert_eq!(settings.terminal_shell, "zsh");
     assert_eq!(settings.terminal_theme, "system");
     assert_eq!(settings.terminal_font_family, "JetBrains Mono");
@@ -26,6 +26,16 @@ fn app_system_settings_default_matches_desktop_contract() {
     assert!(!settings.dialogue_flow_expand_edit_tool_section);
     assert!(settings.tui_keybindings.is_empty());
     assert_eq!(settings.preview_auto_save, PreviewAutoSaveMode::OnFocusChange);
+
+    let missing: AppSystemSettingsConfig =
+        serde_json::from_value(serde_json::json!({})).expect("missing theme should use default");
+    assert_eq!(missing.app_theme, settings.app_theme);
+    assert_eq!(missing.editor_theme, settings.editor_theme);
+
+    let saved: AppSystemSettingsConfig =
+        serde_json::from_value(serde_json::json!({"app_theme": "Light"}))
+            .expect("saved theme should deserialize");
+    assert_eq!(saved.app_theme, "Light");
 }
 
 // 时区既要提供稳定默认，也只接受有效 IANA 标识，选项列表不得重复。

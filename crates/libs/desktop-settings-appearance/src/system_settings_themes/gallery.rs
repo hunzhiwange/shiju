@@ -9,7 +9,7 @@ use desktop_ui_controls::system_settings_common::{
 };
 use super::messages::{ThemesMessage};
 use desktop_theme::{
-    ThemePaletteHex, ThemeStore, builtin_overlay_exists, bundled_preset_is_modified,
+    SHIJU_THEME_ID, ThemePaletteHex, ThemeStore, builtin_overlay_exists, bundled_preset_is_modified,
     current_themes_root, is_bundled_preset_id, theme_store_from_home,
 };
 use super::View;
@@ -103,7 +103,7 @@ fn cover_path_for(store: &ThemeStore, id: &str, relative: Option<&str>) -> Optio
     path.is_file().then(|| path.to_string_lossy().into_owned())
 }
 
-/// 构建内置 + 预设 + 自定义主题画廊条目（顺序：Builtin → Preset → Custom）。
+/// 构建主题画廊条目（识矩预设置首，其余按内置、预设、自定义排列）。
 pub fn build_gallery_entries(store: Option<&ThemeStore>) -> Result<Vec<ThemeGalleryEntry>, String> {
     let themes_root = current_themes_root();
     let mut entries = Vec::with_capacity(Theme::ALL.len());
@@ -159,6 +159,9 @@ pub fn build_gallery_entries(store: Option<&ThemeStore>) -> Result<Vec<ThemeGall
                 modified,
             };
             match entry.source {
+                ThemeGallerySource::Preset if entry.id == SHIJU_THEME_ID => {
+                    entries.insert(0, entry);
+                }
                 ThemeGallerySource::Preset => presets.push(entry),
                 ThemeGallerySource::Custom => customs.push(entry),
                 ThemeGallerySource::Builtin => unreachable!("store themes are never Builtin"),

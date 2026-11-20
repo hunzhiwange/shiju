@@ -34,8 +34,8 @@ pub use pack::{
 };
 pub use panel_surface::{PanelImageFit, with_panel_background};
 pub use presets::{
-    EnsurePresetsReport, bundled_preset_is_modified, ensure_bundled_presets, is_bundled_preset_id,
-    list_bundled_preset_ids, restore_bundled_preset,
+    EnsurePresetsReport, SHIJU_THEME_ID, bundled_preset_is_modified, ensure_bundled_presets,
+    is_bundled_preset_id, list_bundled_preset_ids, restore_bundled_preset,
 };
 pub use resolve::{
     CUSTOM_THEME_PREFIX, config_value_for_theme, current_themes_root, custom_theme_id_from_config,

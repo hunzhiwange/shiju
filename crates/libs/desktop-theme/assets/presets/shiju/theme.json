@@ -1,0 +1,25 @@
+{
+  "id": "shiju",
+  "name": "识矩 ShiJu",
+  "palette": {
+    "background": "#f8f7f3",
+    "text": "#182a4a",
+    "primary": "#bc4d2b",
+    "success": "#53753a",
+    "warning": "#9b7138",
+    "danger": "#a53d39"
+  },
+  "assets": {
+    "cover": "cover.png"
+  },
+  "appearance": {
+    "panel_bg": "#ffffff",
+    "panel_border": "#e7e1d7",
+    "input_bg": "#ffffff",
+    "input_border": "#e7e1d7",
+    "input_text": "#182a4a",
+    "button_bg": "#bc4d2b",
+    "button_text": "#ffffff",
+    "radius_px": 10
+  }
+}

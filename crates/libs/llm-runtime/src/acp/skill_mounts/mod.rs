@@ -23,6 +23,7 @@ mod kimi;
 mod kiro;
 pub(super) mod mimo_code;
 mod nova;
+pub(super) mod omp;
 mod openclaw;
 mod opencode;
 mod pi;
@@ -56,6 +57,7 @@ pub fn validate(agent: &str, selected: bool) -> Result<(), Error> {
         "opencode" => return Ok(()),
         "mimo-code" if cfg!(all(target_os = "macos", target_arch = "aarch64")) => return Ok(()),
         "nova" if cfg!(all(target_os = "macos", target_arch = "aarch64")) => return Ok(()),
+        "omp" if cfg!(all(target_os = "macos", target_arch = "aarch64")) => return Ok(()),
         "openclaw" => return Ok(()),
         "pi" => return Ok(()),
         "auggie" => auggie::rejection(),

@@ -1,5 +1,6 @@
 //! Bind the fixed OMP release to a private model relay and host-owned file writes.
 use super::{super::profile::REFERENCE_ENV, AcpLaunchProfile};
+use crate::acp::skill_mounts::omp::{POLICY_FILE, SANDBOX_ENV, SETTINGS_ENV, settings};
 use serde_json::json;
 use std::{collections::HashMap, path::Path};
 
@@ -82,20 +83,24 @@ pub fn configure(
             path.to_str().ok_or_else(|| anyhow::anyhow!("Non-UTF-8 OMP path"))?,
         )?)
     };
+    let skill_settings = profile.write_config("omp-native-skills.yml", &settings(None)?)?;
+    let skill_settings = skill_settings.canonicalize()?;
     let policy = format!(
         "(version 1)\n(allow default)\n\
          (deny file-read-data (subpath \"/Users\") (subpath \"/Volumes\") (subpath \"/private/tmp\") (subpath \"/private/var/folders\"))\n\
-         (allow file-read-data (subpath {workspace}) (subpath {home}) (literal {executable}))\n\
+         (allow file-read-data (subpath {workspace}) (subpath {home}) (literal {executable}) (literal {skill_settings}))\n\
          (deny file-write*)\n(allow file-write* (subpath {home}) (literal \"/dev/null\"))\n\
          (deny process-fork process-exec)\n(allow process-exec (literal {executable}))\n\
          (deny network*)\n(allow network-outbound (remote ip \"localhost:{port}\"))\n",
         workspace = quote(&workspace)?,
         home = quote(&home)?,
         executable = quote(&executable)?,
+        skill_settings = quote(&skill_settings)?,
     );
-    let policy = profile.write_config("omp.sb", policy.as_bytes())?;
+    let policy = profile.write_config(POLICY_FILE, policy.as_bytes())?;
     profile.overlay_environment(HashMap::from([
-        ("SHIJU_OMP_SANDBOX".into(), policy.to_string_lossy().into_owned()),
+        (SANDBOX_ENV.into(), policy.to_string_lossy().into_owned()),
+        (SETTINGS_ENV.into(), skill_settings.to_string_lossy().into_owned()),
         ("SHIJU_OMP_HOME".into(), home.to_string_lossy().into_owned()),
         ("SHIJU_OMP_WORKSPACE".into(), workspace.to_string_lossy().into_owned()),
         ("PI_CODING_AGENT_DIR".into(), agent_dir.to_string_lossy().into_owned()),

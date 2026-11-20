@@ -1,5 +1,6 @@
 //! Explicit supplier gates. Unverified directory contracts must fail closed.
 use super::{Error, acp_option_error};
+pub(super) mod aionrs;
 pub(super) mod amp_acp;
 mod auggie;
 mod claude;
@@ -54,6 +55,7 @@ pub fn validate(agent: &str, selected: bool) -> Result<(), Error> {
         "vibe" => return Ok(()),
         "hermes" => return Ok(()),
         "snow" => return Ok(()),
+        "aionrs" if cfg!(all(target_os = "macos", target_arch = "aarch64")) => return Ok(()),
         "sigit" if cfg!(all(target_os = "macos", target_arch = "aarch64")) => return Ok(()),
         "copilot" => return Ok(()),
         "corust-agent" if cfg!(all(target_os = "macos", target_arch = "aarch64")) => return Ok(()),

@@ -60,7 +60,7 @@ pub fn configure(
     let policy = format!(
         "(version 1)\n(allow default)\n(deny file-read-data (subpath \"/Users\") (subpath \"/Volumes\") (subpath \"/private/tmp\") (subpath \"/private/var/folders\"))\n\
          (allow file-read-data (subpath \"/System\") (subpath \"/usr/lib\") (subpath \"/usr/share\")\n\
-          (subpath \"/dev\") (subpath {workspace}) (subpath {state}) (literal {engine}))\n\
+          (subpath \"/dev\") (subpath {workspace}) (subpath {state}) (subpath {skills}) (literal {engine}))\n\
          (deny file-write*)\n\
          (allow file-write* (subpath {state}) (subpath {write_root}) (literal \"/dev/null\"))\n\
          (deny file-write* (subpath {git}) (literal {local_config}))\n\
@@ -69,6 +69,7 @@ pub fn configure(
         workspace = path(&workspace)?,
         state = path(&state)?,
         engine = path(&engine)?,
+        skills = path(&root.join(".aionrs/skills"))?,
         write_root = path(&write_root)?,
         git = path(&workspace.join(".git"))?,
         local_config = path(&workspace.join(".aionrs.toml"))?,
@@ -84,6 +85,7 @@ pub fn configure(
         ("SHIJU_AIONRS_MCP".into(), mcp_socket.to_string_lossy().into_owned()),
         ("SHIJU_AIONRS_MCP_TOKEN".into(), token),
         ("SHIJU_AIONRS_STATE".into(), state.to_string_lossy().into_owned()),
+        ("SHIJU_AIONRS_SKILL_ROOT".into(), root.to_string_lossy().into_owned()),
         ("SHIJU_AIONRS_WORKSPACE".into(), workspace.to_string_lossy().into_owned()),
         ("API_KEY".into(), profile.binding.bearer_token().into()),
         ("BASE_URL".into(), url.join("v1")?.to_string()),

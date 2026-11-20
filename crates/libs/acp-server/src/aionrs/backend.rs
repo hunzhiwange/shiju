@@ -48,6 +48,79 @@ pub(super) fn workspace_tool(workspace: &Path, name: &str, args: &serde_json::Va
     false
 }
 
+fn managed_skill_tool(process: &Process, name: &str, args: &serde_json::Value) -> bool {
+    if !process.managed_skills {
+        return false;
+    }
+    if name == "Skill" {
+        return args.as_object().is_some_and(|args| {
+            args.len() == 1
+                && args
+                    .get("skill")
+                    .and_then(serde_json::Value::as_str)
+                    .is_some_and(|skill| !skill.is_empty() && skill.len() <= 256)
+        });
+    }
+    if name != "Read" {
+        return false;
+    }
+    let Some(root) = &process.skill_root else {
+        return false;
+    };
+    let Some(target) = args
+        .get("file_path")
+        .and_then(serde_json::Value::as_str)
+        .map(Path::new)
+    else {
+        return false;
+    };
+    if !target.starts_with(root) || target.components().any(|part| part == Component::ParentDir) {
+        return false;
+    }
+    target
+        .canonicalize()
+        .is_ok_and(|file| file.starts_with(&process.workspace) && file.is_file())
+}
+
+fn verify_projected_skills(
+    root: &Path,
+    workspace: &Path,
+    selection: &[acp_types::SessionSkillMount],
+) -> Result<Vec<String>, BackendError> {
+    let invalid = || BackendError::InvalidRequest(
+        "aionrs skill mounts do not match the workspace-bound launch selection".into(),
+    );
+    let root = root.join(".aionrs/skills");
+    let entries = match std::fs::read_dir(&root) {
+        Ok(entries) => entries,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound && selection.is_empty() => {
+            return Ok(Vec::new());
+        }
+        Err(_) => return Err(invalid()),
+    };
+    let entries = entries.collect::<std::io::Result<Vec<_>>>().map_err(|_| invalid())?;
+    if entries.len() != selection.len() {
+        return Err(invalid());
+    }
+    selection
+        .iter()
+        .map(|mount| {
+            let projected = root.join(&mount.name);
+            let expected = std::fs::read_link(&projected).map_err(|_| invalid())?;
+            // The wire selection only verifies the host projection. Neither its
+            // path nor its name can add an entry to the engine's scanner.
+            if expected == workspace || !expected.starts_with(workspace)
+                || projected.canonicalize().ok().as_ref() != Some(&expected)
+                || Path::new(&mount.path).canonicalize().ok().as_ref() != Some(&expected)
+                || !expected.is_dir()
+            {
+                return Err(invalid());
+            }
+            Ok(mount.name.clone())
+        })
+        .collect()
+}
+
 #[derive(Default)]
 pub struct AionrsBackend {
     sessions: Mutex<HashMap<String, Arc<Mutex<Process>>>>,
@@ -82,6 +155,29 @@ impl SessionBackend for AionrsBackend {
 
     fn supports_mcp_servers(&self) -> bool {
         false
+    }
+
+    fn supports_skill_mounts(&self) -> bool {
+        std::env::var_os("SHIJU_AIONRS_SANDBOX").is_some()
+            && std::env::var_os("SHIJU_AIONRS_SKILL_ROOT").is_some()
+    }
+
+    async fn create_session_with_mounts(
+        &self,
+        cwd: PathBuf,
+        request: BackendMountRequest,
+    ) -> Result<BackendMountedSession, BackendError> {
+        let mut mounts = request.legacy_response()?;
+        if let Some(root) = std::env::var_os("SHIJU_AIONRS_SKILL_ROOT")
+            .filter(|_| self.supports_skill_mounts())
+        {
+            let skills = request.skills.as_ref().map_or(&[][..], |selection| &selection.skills);
+            mounts.skills = verify_projected_skills(Path::new(&root), &cwd, skills)?;
+        } else {
+            request.reject_unsupported_skills()?;
+        }
+        let session = self.create_session_with_mcp(cwd, request.mcp_servers).await?;
+        Ok(BackendMountedSession { session, mounts })
     }
 
     async fn session_models(&self, id: &str) -> Result<Option<SessionModelState>, BackendError> {
@@ -220,16 +316,20 @@ impl SessionBackend for AionrsBackend {
                                     let mounted = is_mcp && process.mcp.as_ref().is_some_and(|broker| broker.contains(&tool.name));
                                     #[cfg(not(unix))]
                                     let mounted = false;
-                                    if !mounted && (is_mcp || !workspace_tool(&process.workspace, &tool.name, &tool.args)) {
+                                    if !mounted && (is_mcp
+                                        || (!workspace_tool(&process.workspace, &tool.name, &tool.args)
+                                            && !managed_skill_tool(&process, &tool.name, &tool.args)))
+                                    {
                                         process.send(json!({"type":"tool_deny","call_id":call,"reason":"Only workspace file tools are supported"})).await?;
                                         continue;
                                     }
                                     let title = tool.name;
                                     if mounted { mcp_titles.insert(call.clone(), title.clone()); }
+                                    let raw_input = if title == "Skill" { tool.args.clone() } else { json!({}) };
                                     pending.insert(call.clone(), (title.clone(), tool.args, mounted));
                                     let (response, answer) = oneshot::channel();
                                     let request = BackendPermissionRequest { request_id: call.clone(), call_id: call.clone(), title,
-                                        raw_input: json!({}), options: vec![
+                                        raw_input, options: vec![
                                             BackendPermissionOption { id: "allow".into(), name: "Allow once".into(), kind: BackendPermissionOptionKind::AllowOnce },
                                             BackendPermissionOption { id: "deny".into(), name: "Deny".into(), kind: BackendPermissionOptionKind::RejectOnce }], response };
                                     let _ = permissions.send(request);

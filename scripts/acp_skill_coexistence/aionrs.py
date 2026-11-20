@@ -1,5 +1,6 @@
-"""Probe the fixed Darwin aionrs v2 bridge through the production gateway."""
+"""Probe the fixed Darwin aionrs bridge through the production gateway."""
 
+from contextlib import contextmanager
 import hashlib
 import json
 import os
@@ -9,6 +10,7 @@ import re
 import secrets
 import shutil
 import subprocess
+import threading
 
 from verify_acp_integration import ProviderHandler, require
 from verify_acp_model_source import ROOT
@@ -19,15 +21,13 @@ MODEL = "deepseek-v4.1-flash-1017"
 ADAPTER = "openai"
 API_PATH = "/v1"
 TRANSPORT = "stdio"
+# Leave room for the gateway’s nested Unix socket path on Darwin.
+TEMP_PARENT = "/tmp"
 NATIVE_DIR = ".aionrs/skills"
 VERSION = "0.2.11"
-REVISION = f"aionrs-{VERSION}-model-source-v2"
+REVISION = f"aionrs-{VERSION}-model-source-v3"
 SOURCE_SHA256 = "102f0682858a4f02b505b0413578a0de508a1837cd7b93e5626643d63dd06688"
 MCP_TOOL = "mcp__coexistence__read_probe"
-DIGESTS = {
-    "aionrs": "aae767bf2d5132d730a77526132fe3c689ff2cf60c81284d0b7a86f97ffa1662",
-    "aionrs-acp": "b2ab720e864645b1b0dc681fcf852873c501d3a8f19de7b9a1ffc2408c9a466a",
-}
 
 
 def launch(env):
@@ -42,23 +42,63 @@ def launch(env):
                                  Path.home() / ".local/share/shiju/acp-runtime" / REVISION))
     target = Path(env["VIBEWINDOW_CONFIG_DIR"]) / "acp-runtime" / REVISION
     target.mkdir(parents=True, mode=0o700)
-    for name, expected in DIGESTS.items():
+    receipt = json.loads((source / "build-receipt.json").read_text())
+    require(receipt["version"] == VERSION and receipt["source_sha256"] == SOURCE_SHA256
+            and receipt["patch_sha256"] == contract["patch_sha256"],
+            "unreviewed aionrs build receipt")
+    digests = {}
+    for name, field in (("aionrs", "engine_sha256"), ("aionrs-acp", "sha256")):
         artifact = target / name
         shutil.copy2(source / name, artifact)
-        require(hashlib.sha256(artifact.read_bytes()).hexdigest() == expected,
-                f"reviewed {name} artifact digest mismatch")
-    (target / "build-receipt.json").write_text(json.dumps({
-        "version": VERSION, "source_sha256": contract["source_sha256"],
-        "sha256": DIGESTS["aionrs-acp"], "engine_sha256": DIGESTS["aionrs"],
-    }))
+        digests[name] = hashlib.sha256(artifact.read_bytes()).hexdigest()
+        require(digests[name] == receipt[field], f"reviewed {name} artifact digest mismatch")
+    shutil.copyfile(source / "build-receipt.json", target / "build-receipt.json")
     version = subprocess.run([str(target / "aionrs"), "--version"], env=env,
                              capture_output=True, timeout=15)
     require(version.returncode == 0 and version.stdout.strip() == b"aionrs 0.2.11",
             "unexpected aionrs engine version")
     return {"command": str(target / "aionrs-acp"), "args": []}, {
         "version": VERSION, "revision": REVISION, "platform": "Darwin-arm64",
-        "source_sha256": contract["source_sha256"], "sha256": DIGESTS,
+        "source_sha256": SOURCE_SHA256, "patch_sha256": receipt["patch_sha256"],
+        "sha256": digests,
     }
+
+
+@contextmanager
+def mcp_server(workspace, attachment, audit):
+    fixture = workspace / "coexistence-mcp.rb"
+    shutil.copyfile(Path(__file__).with_name("aionrs_mcp.rb"), fixture)
+    value = workspace / "coexistence-mcp.txt"
+    shutil.copyfile(attachment, value)
+    scratch = workspace.parent / "tmp"
+    seen = {}
+    stopped = threading.Event()
+
+    def mirror_audit():
+        while not stopped.wait(0.01):
+            for journal in scratch.glob("shiju-acp-launch-*/.tmp*/coexistence.audit"):
+                try:
+                    lines = journal.read_text().splitlines(keepends=True)
+                    new_lines = lines[seen.get(journal, 0):]
+                    if not new_lines or new_lines[-1] != "stdio\n":
+                        continue
+                    with audit.open("a") as output:
+                        output.writelines(new_lines)
+                    seen[journal] = len(lines)
+                    ack = journal.with_suffix(".ack")
+                    ack.write_text(str(len(lines)))
+                except FileNotFoundError:
+                    # A broker may remove its private scratch on session teardown.
+                    continue
+
+    watcher = threading.Thread(target=mirror_audit, daemon=True)
+    watcher.start()
+    try:
+        yield {"name": "coexistence", "command": "/usr/bin/ruby",
+               "args": ["--disable-gems", str(fixture), str(value)], "env": []}
+    finally:
+        stopped.set()
+        watcher.join()
 
 
 class Probe:
@@ -109,13 +149,17 @@ class Probe:
         self.completed[step] = call_id
 
         if step in ("native", "selected"):
-            base = skills[step]["path"]
-            if step == "selected":
-                match = re.search(r"Base directory for this skill: ([^\r\n]+)", result)
-                require(match is not None, "aionrs selected activation omitted the private path")
-                base = Path(match[1].strip())
+            match = re.search(r"Base directory for this skill: ([^\r\n]+)", result)
+            require(match is not None, "aionrs activation omitted the skill path")
+            base = Path(match[1].strip())
+            if step == "native":
+                require(base == skills[step]["path"], "aionrs did not use the native skill directory")
+            else:
                 require(base.is_absolute() and base.name == skills[step]["name"]
-                        and base != skills[step]["path"], "aionrs did not use a private skill view")
+                        and base.parent.name == "skills" and base.parent.parent.name == ".aionrs"
+                        and base.parents[2].name.startswith("shiju-acp-launch-")
+                        and base.resolve() == skills[step]["path"],
+                        "aionrs did not use the private view of the selected skill")
             return self.call(tools, step + "_read", "Read", {"file_path": str(base / "references/value.txt")})
         if self.mounted and step == "native_read":
             return self.activate(tools, "selected", skills["selected"])
@@ -144,7 +188,9 @@ class Probe:
     def approves_skill(self, metadata):
         if self.pending is not None:
             step, name, _ = self.pending
-            if step != "mcp" and metadata.get("title") == name and metadata.get("arguments") == {}:
+            kind = step.removesuffix("_read")
+            expected = {"skill": self.fixtures["skills"][kind]["name"]} if name == "Skill" else {}
+            if step != "mcp" and metadata.get("title") == name and metadata.get("arguments") == expected:
                 return step
 
     def expected_skill_approvals(self):

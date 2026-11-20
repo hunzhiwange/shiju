@@ -1,0 +1,199 @@
+--- a/crates/aion-agent/src/bootstrap.rs
++++ b/crates/aion-agent/src/bootstrap.rs
+@@ -63,6 +63,7 @@
+     config: Config,
+     workspace: PathBuf,
+     extra_skill_dirs: Vec<PathBuf>,
++    read_only_skills: bool,
+
+     // Output integration.
+     output: Arc<dyn OutputSink>,
+@@ -104,6 +105,7 @@
+             config,
+             workspace: PathBuf::from(workspace.into()),
+             extra_skill_dirs: Vec::new(),
++            read_only_skills: false,
+             output,
+             provider: None,
+             resume_session: None,
+@@ -139,6 +141,11 @@
+     /// Add extra directories to scan for skills.
+     pub fn extra_skill_dirs(mut self, dirs: Vec<PathBuf>) -> Self {
+         self.extra_skill_dirs = dirs;
++        self
++    }
++
++    pub fn read_only_skills(mut self) -> Self {
++        self.read_only_skills = true;
+         self
+     }
+
+@@ -269,7 +276,14 @@
+     }
+
+     async fn load_skills(&self, workspace: &Path, mcp_manager: Option<&McpManager>) -> Vec<SkillMetadata> {
+-        load_all_skills(workspace, &self.extra_skill_dirs, false, mcp_manager).await
++        if self.read_only_skills {
++            // Keep the native filesystem precedence and exclude remote skill sources.
++            let mut skills = load_all_skills(workspace, &self.extra_skill_dirs, false, None).await;
++            skills.retain(SkillTool::is_read_only);
++            skills
++        } else {
++            load_all_skills(workspace, &self.extra_skill_dirs, false, mcp_manager).await
++        }
+     }
+
+     fn configure_system_prompt(&mut self, environment: &BootstrapEnvironment, skills: &[SkillMetadata]) -> PromptUsage {
+@@ -330,11 +344,16 @@
+             self.config.tools.skills.allow.clone(),
+             self.config.tools.auto_approve,
+         );
+-        registry.register(Box::new(SkillTool::new(
++        let skill_tool = SkillTool::new(
+             Arc::new(skills),
+             self.workspace.to_path_buf(),
+             skill_checker,
+-        )));
++        );
++        registry.register(Box::new(if self.read_only_skills {
++            skill_tool.read_only()
++        } else {
++            skill_tool
++        }));
+
+         let spawner = AgentSpawner::new_with_env(
+             Arc::clone(provider),
+--- a/crates/aion-agent/src/skill_tool.rs
++++ b/crates/aion-agent/src/skill_tool.rs
+@@ -24,6 +24,7 @@
+ /// system prompt in Phase 9; this tool's `description()` returns a fixed string.
+ pub struct SkillTool {
+     skills: Arc<Vec<SkillMetadata>>,
++    read_only: bool,
+     /// Working directory for shell command execution inside skill content.
+     cwd: PathBuf,
+     /// Permission checker for skill-level deny/allow rules.
+@@ -39,6 +40,7 @@
+     pub fn new(skills: Arc<Vec<SkillMetadata>>, cwd: PathBuf, checker: SkillPermissionChecker) -> Self {
+         Self {
+             skills,
++            read_only: false,
+             cwd,
+             checker,
+             session_id: None,
+@@ -55,6 +57,7 @@
+     ) -> Self {
+         Self {
+             skills,
++            read_only: false,
+             cwd,
+             checker,
+             session_id,
+@@ -72,11 +75,27 @@
+     ) -> Self {
+         Self {
+             skills,
++            read_only: false,
+             cwd,
+             checker,
+             session_id,
+             spawner,
+         }
++    }
++
++    pub(crate) fn read_only(mut self) -> Self {
++        self.read_only = true;
++        self
++    }
++
++    pub(crate) fn is_read_only(skill: &SkillMetadata) -> bool {
++        !skill.disable_model_invocation
++            && skill.execution_context == ExecutionContext::Inline
++            && skill.hooks_raw.is_none()
++            && skill.allowed_tools.is_empty()
++            && skill.model.is_none()
++            && skill.effort.is_none()
++            && skill.shell.is_none()
+     }
+
+     /// Find a skill by exact name (case-sensitive, leading `/` stripped).
+@@ -102,12 +121,25 @@
+     }
+
+     fn description(&self) -> &str {
++        if self.read_only {
++            return "Read a named skill exactly as listed in the system prompt.";
++        }
+         "Invoke a named skill by name. \
+          Use the skill name exactly as listed in the system prompt. \
+          Optionally pass arguments as a single string."
+     }
+
+     fn input_schema(&self) -> JsonSchema {
++        if self.read_only {
++            return json!({
++                "type": "object",
++                "properties": {
++                    "skill": {"type": "string", "description": "The listed skill name"}
++                },
++                "required": ["skill"],
++                "additionalProperties": false
++            });
++        }
+         json!({
+             "type": "object",
+             "properties": {
+@@ -170,6 +202,15 @@
+             SkillPermission::Allow => {}
+         }
+
++        if self.read_only {
++            // Do not run executable substitutions or change tool/model state.
++            let content = match &skill.skill_root {
++                Some(root) => format!("Base directory for this skill: {root}\n\n{}", skill.content),
++                None => skill.content.clone(),
++            };
++            return ToolResult { content, is_error: false };
++        }
++
+         let args = input["args"].as_str();
+
+         match skill.execution_context {
+@@ -215,6 +256,9 @@
+     }
+
+     fn context_modifier_for(&self, input: &serde_json::Value) -> Option<ContextModifier> {
++        if self.read_only {
++            return None;
++        }
+         let skill_name = input["skill"].as_str()?;
+         let skill = self.find_skill(skill_name)?;
+         // Fork skills run in their own sub-agent context; modifiers must not
+@@ -226,6 +270,9 @@
+     }
+
+     fn skill_hooks_for(&self, input: &serde_json::Value) -> Option<HooksConfig> {
++        if self.read_only {
++            return None;
++        }
+         let skill_name = input["skill"].as_str()?;
+         let skill = self.find_skill(skill_name)?;
+         let config = parse_skill_hooks(skill.hooks_raw.as_ref(), &skill.name, skill.source)?;
+--- a/crates/aion-cli/src/bootstrap.rs
++++ b/crates/aion-cli/src/bootstrap.rs
+@@ -99,6 +99,15 @@
+ ) -> anyhow::Result<BootstrapResult> {
+     let mut agent_bootstrap = AgentBootstrap::new(config, cwd, output);
+
++    if std::env::var_os("SHIJU_AIONRS_READ_ONLY_SKILLS").as_deref() == Some(std::ffi::OsStr::new("1")) {
++        agent_bootstrap = agent_bootstrap.read_only_skills().extra_skill_dirs(
++            std::env::var_os("SHIJU_AIONRS_SKILL_ROOT")
++                .map(std::path::PathBuf::from)
++                .into_iter()
++                .collect(),
++        );
++    }
++
+     if let Some(resume_id) = resume_id {
+         let cfg = agent_bootstrap.config();
+         let session_mgr = SessionManager::new(cfg.session.directory.clone().into(), cfg.session.max_sessions);

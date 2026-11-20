@@ -498,6 +498,28 @@ pub async fn do_stream_request_acp<H: Host>(
     {
         super::skill_mounts::dimcode::configure(profile, parsed_options.skill_view.as_ref())?;
     }
+    if acp_agent_name == "aionrs" && parsed_options.skill_view.is_some() {
+        let profile = launch_profile.as_ref().ok_or_else(|| {
+            acp_option_error("aionrs selected skills require the reviewed session-model launch")
+        })?;
+        if parsed_options.permission_mode == Some(acp_types::PermissionMode::DenyAll)
+            || merged_options.get("disable_tools").and_then(Value::as_bool) == Some(true)
+        {
+            return Err(acp_option_error("aionrs selected skills require tool approval"));
+        }
+        super::skill_mounts::aionrs::publish(
+            profile.directory(),
+            &cwd,
+            parsed_options.skill_view.as_ref(),
+        )?;
+    }
+    if acp_agent_name == "dimcode"
+        && parsed_options.permission_mode != Some(acp_types::PermissionMode::DenyAll)
+        && merged_options.get("disable_tools").and_then(Value::as_bool) != Some(true)
+        && let Some(profile) = launch_profile.as_mut()
+    {
+        super::skill_mounts::dimcode::configure(profile, parsed_options.skill_view.as_ref())?;
+    }
     if acp_agent_name == "sigit" && let Some(profile) = launch_profile.as_mut() {
         super::skill_mounts::sigit::configure(profile, parsed_options.skill_view.as_ref())?;
     }

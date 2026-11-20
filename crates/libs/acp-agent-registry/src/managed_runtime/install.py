@@ -581,6 +581,10 @@ if agent == 'aionrs':
             raise RuntimeError('Unexpected aionrs source archive layout')
         tar.extractall(source, members=members)
     source = source / roots.pop()
+    patch = assets / 'aionrs.patch'
+    if digest(patch) != contract['patch_sha256']:
+        raise RuntimeError('aionrs fixed patch checksum mismatch')
+    run(['patch', '--batch', '--forward', '-p1', '-d', str(source), '-i', str(patch)])
     target = Path(os.environ.get('CARGO_TARGET_DIR', str(assets / 'cargo-target'))).absolute()
     build_env = dict(os.environ, CARGO_TARGET_DIR=str(target), CARGO_BUILD_BUILD_DIR=str(target))
     subprocess.run(
@@ -594,6 +598,7 @@ if agent == 'aionrs':
     shutil.copy2(assets / 'aionrs-acp', bridge)
     (runtime / 'build-receipt.json').write_text(json.dumps({
         'version': contract['version'], 'source_sha256': contract['source_sha256'],
+        'patch_sha256': contract['patch_sha256'],
         'engine_sha256': digest(engine), 'sha256': digest(bridge),
     }))
     raise SystemExit(0)

@@ -52,9 +52,11 @@ fn installed_directory(agent: &str, contract: &Contract) -> Result<PathBuf, Stri
         5
     } else if matches!(agent, "corust-agent" | "harn" | "sigit") {
         4
+    } else if agent == "aionrs" {
+        3
     } else if agent == "dimcode" {
         3
-    } else if matches!(agent, "aionrs" | "goose" | "vtcode") {
+    } else if matches!(agent, "goose" | "vtcode") {
         2
     } else if matches!(agent, "droid" | "kiro") {
         2
@@ -464,6 +466,10 @@ pub(super) async fn install(agent: &str) -> Result<bool, String> {
         ("corust-agent/mcp_graph.py", include_str!("../../../../patches/acp-model-source/corust-agent/mcp_graph.py")),
         ("stakpak/launcher.py", include_str!("../../../../patches/acp-model-source/stakpak/launcher.py")),
         ("stakpak/mcp.py", include_str!("../../../../patches/acp-model-source/stakpak/mcp.py")),
+        (
+            "aionrs.patch",
+            include_str!("../../../../patches/acp-model-source/aionrs/read-only-skills.patch"),
+        ),
         (
             "sigit.patch",
             include_str!("../../../../patches/acp-model-source/sigit/host-boundary.patch"),

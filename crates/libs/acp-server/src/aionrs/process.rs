@@ -23,6 +23,8 @@ pub struct Process {
     pub mcp: Option<super::mcp::Broker>,
     pub child: Child,
     pub workspace: std::path::PathBuf,
+    pub managed_skills: bool,
+    pub skill_root: Option<std::path::PathBuf>,
     input: ChildStdin,
     output: BufReader<ChildStdout>,
     buffer: Vec<u8>,
@@ -56,6 +58,9 @@ impl Process {
             std::fs::write(dir.join("config.toml"), config).map_err(failure)?;
         }
         let sibling = std::env::current_exe().map_err(failure)?.with_file_name("aionrs");
+        let skill_root = managed.as_ref().and_then(|_| {
+            std::env::var_os("SHIJU_AIONRS_SKILL_ROOT").map(std::path::PathBuf::from)
+        });
         let mut command = if let Some(policy) = managed {
             if !sibling.is_file() || !cfg!(all(target_os = "macos", target_arch = "aarch64")) {
                 return Err(failure("missing managed engine"));
@@ -68,6 +73,10 @@ impl Process {
                     key,
                     std::env::var_os(key).ok_or_else(|| failure("missing relay binding"))?,
                 );
+            }
+            if let Some(root) = &skill_root {
+                command.env("SHIJU_AIONRS_READ_ONLY_SKILLS", "1")
+                    .env("SHIJU_AIONRS_SKILL_ROOT", root);
             }
             command.env("PATH", "/usr/bin:/bin").env("NO_PROXY", "127.0.0.1,localhost");
             command
@@ -122,6 +131,8 @@ impl Process {
             mcp: None,
             child,
             workspace: cwd.to_path_buf(),
+            managed_skills: skill_root.is_some(),
+            skill_root: skill_root.map(|root| root.join(".aionrs/skills")).filter(|root| root.is_dir()),
             input,
             output,
             buffer: Vec::new(),

@@ -78,6 +78,7 @@ pub async fn retain_tools(channel: Option<&Socket>, request: &mut Value) -> Resu
             return false;
         };
         matches!(name, "Read" | "Write" | "Edit" | "Glob")
+            || (name == "Skill" && channel.is_some())
             || catalog
                 .as_array()
                 .is_some_and(|names| names.iter().any(|item| item.as_str() == Some(name)))

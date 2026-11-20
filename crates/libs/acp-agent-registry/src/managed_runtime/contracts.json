@@ -67,7 +67,8 @@
     "files": {},
     "engine": "aionrs",
     "source_url": "https://codeload.github.com/iOfficeAI/aionrs/tar.gz/8e61a90329fa9f67c4fdf7e97fe02c24dba33f75",
-    "source_sha256": "102f0682858a4f02b505b0413578a0de508a1837cd7b93e5626643d63dd06688"
+    "source_sha256": "102f0682858a4f02b505b0413578a0de508a1837cd7b93e5626643d63dd06688",
+    "patch_sha256": "4c56c494fdddbb82eebe47481c79048b5abafa7135db388532bd117af150a0f1"
   },
   "corust-agent": {
     "layout": "standalone",

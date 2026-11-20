@@ -23,7 +23,7 @@ impl BackendMountRequest {
         Ok(Self { skills, mcp_servers })
     }
 
-    pub(super) fn reject_unsupported_skills(&self) -> std::result::Result<(), super::BackendError> {
+    pub(crate) fn reject_unsupported_skills(&self) -> std::result::Result<(), super::BackendError> {
         if self.skills.as_ref().is_some_and(|selection| !selection.skills.is_empty()) {
             return Err(super::BackendError::InvalidRequest(
                 "skill directory mounts are not supported by this backend".into(),
@@ -32,7 +32,7 @@ impl BackendMountRequest {
         Ok(())
     }
 
-    pub(super) fn legacy_response(
+    pub(crate) fn legacy_response(
         &self,
     ) -> std::result::Result<SetSessionMountsResponse, super::BackendError> {
         let mut names = Vec::new();

@@ -56,9 +56,7 @@ fn update_event(input: &mut Input<'_>, event: Event) -> Task<Event> {
                 let result = async {
                     let range = super::range_picker::Preset::Today.resolve(chrono::Local::now())?;
                     let client = gateway_usage_read::GatewayUsageReadClient::new(client()?.transport().clone());
-                    client.usage_summary(&gateway_usage_read::UsageReadScope {
-                        project_id: scope.project.clone().into(), target_host: scope.host.clone(), time_zone: "UTC".into(),
-                    }, &vw_api_usage::UsageQuery { range, ..super::overview::default_query() }).await.map_err(|e| e.to_string())
+                    client.usage_summary("UTC", &vw_api_usage::UsageQuery { range, ..super::overview::default_query() }).await.map_err(|e| e.to_string())
                 }.await;
                 (scope, result)
             }, move |(scope, result)| Event::TodayLoaded(ticket, scope, result))
@@ -196,9 +194,7 @@ fn update_event(input: &mut Input<'_>, event: Event) -> Task<Event> {
             Task::perform(async move {
                 let result = async {
                     let client = gateway_usage_scan::GatewayUsageScanClient::new(client()?.transport().clone());
-                    client.usage_last_scan(&gateway_usage_scan::UsageScanScope {
-                        project_id: scope.project.clone().into(), target_host: scope.host.clone(),
-                    }).await.map_err(|error| error.to_string())
+                    client.usage_last_scan().await.map_err(|error| error.to_string())
                 }.await;
                 (scope, result)
             }, move |(scope, result)| Event::SyncStatus(ticket, scope, result))
@@ -290,7 +286,7 @@ pub fn update(input: &mut Input<'_>, event: Event) -> Task<Event> {
     let desired = if input.state.open && input.visible { input.current.clone() } else { None };
     let previous = input.state.activity.as_ref().map(|(scope, _)| scope.clone());
     if previous == desired { return task; }
-    // Retain the original authenticated transport when retiring an old host.
+    // Retain the original authenticated transport when retiring an old connection.
     let (scope, active) = if let Some(old) = previous { (old, false) }
         else if let Some(scope) = desired { (scope, true) }
         else { return task; };
@@ -305,9 +301,7 @@ pub fn update(input: &mut Input<'_>, event: Event) -> Task<Event> {
     let activity = Task::perform(async move {
         let result = async {
             let client = gateway_usage_scan::GatewayUsageScanClient::new(client?.transport().clone());
-            client.usage_page_activity(&gateway_usage_scan::UsageScanScope {
-                project_id: scope.project.clone().into(), target_host: scope.host.clone(),
-            }, active).await.map_err(|error| error.to_string())
+            client.usage_page_activity(active).await.map_err(|error| error.to_string())
         }.await;
         (scope, result)
     }, move |(scope, result)| Event::ActivitySettled(scope, active, result));

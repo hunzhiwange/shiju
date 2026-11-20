@@ -12,5 +12,5 @@ impl GatewayUsageReadClient {
 
 mod usage_read_api;
 mod usage_read_types;
-pub use usage_read_api::{UsageReadError, UsageReadScope};
+pub use usage_read_api::UsageReadError;
 pub use usage_read_types::*;

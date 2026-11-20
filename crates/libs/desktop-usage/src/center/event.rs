@@ -35,10 +35,7 @@ pub fn load(client: Result<vw_gateway_client::GatewayClient, String>, ticket: u6
     iced::Task::perform(async move {
         let result = async {
             let client = client?;
-            client.usage_summary(&gateway_usage_read::UsageReadScope {
-                project_id: scope.project.clone().into(), target_host: scope.host.clone(),
-                time_zone: "UTC".into(),
-            }, &query).await.map_err(|e| e.to_string())
+            client.usage_summary("UTC", &query).await.map_err(|e| e.to_string())
         }.await;
         (scope, result)
     }, move |(scope, result)| Event::Loaded(ticket, scope, result))

@@ -12,7 +12,6 @@ hex = "0.4"
 app-access-service = { path = "../app-access-service" }
 agent-database = { path = "../agent-database" }
 agent-paths = { path = "../agent-paths" }
-agent-project = { path = "../agent-project" }
 agent-usage = { path = "../agent-usage" }
 vw-api-external-session = { path = "../api-external-session" }
 vw-api-transport = { path = "../api-transport" }

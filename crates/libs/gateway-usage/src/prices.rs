@@ -1,6 +1,6 @@
 //! Scoped price and display operations over the host-owned usage database.
 use std::{collections::BTreeMap, path::PathBuf, sync::{Arc, Mutex}};
-use axum::{Extension, Json, Router, extract::{Path, Query}, http::{HeaderMap, StatusCode}, routing::{get, post}};
+use axum::{Extension, Json, Router, extract::Path, http::{HeaderMap, StatusCode}, routing::{get, post}};
 use serde::Deserialize;
 use serde_json::{Value, json};
 use crate::usage as u;
@@ -9,7 +9,6 @@ use {
     vw_api_transport::TenantScope,
     vw_api_transport::id::ModelId,
 };
-use crate::host::Intent;
 
 #[derive(Clone)]
 struct Policy(Option<PathBuf>, crate::Host);
@@ -37,10 +36,11 @@ pub(super) fn router(host: crate::Host) -> Router {
         .route("/usage/rates", get(display))
         .route("/usage/rates/refresh", post(refresh))
         .route("/usage/display", get(display).put(save_display))
+        .route_layer(axum::middleware::from_fn(crate::without_query))
         .layer(Extension(Policy(std::env::var_os("SHIJU_AGENT_APPS_ACCESS_FILE").map(PathBuf::from), host)))
 }
-fn authorize(p: &Policy, t: TenantScope, h: &HeaderMap, i: &Intent, write: bool) -> Result<u::scan_jobs::ScanOwner, StatusCode> {
-    let owner = (p.1.authorized_owner)(p.0.as_deref(), t, h, i)?;
+fn authorize(p: &Policy, t: TenantScope, h: &HeaderMap, write: bool) -> Result<u::scan_jobs::ScanOwner, StatusCode> {
+    let owner = (p.1.authorized_owner)(p.0.as_deref(), t, h)?;
     if write {
         (p.1.authorize_maintenance)(p.0.as_deref(),h,&owner.scope,&owner.target_host)?;
     }
@@ -68,9 +68,9 @@ struct DisplayBody {
 }
 #[derive(Clone, Copy)]
 enum Read { Prices, Config, Display, Billing }
-async fn read(p: Policy,t: TenantScope,h: HeaderMap,i: Intent,kind: Read) -> Response {
+async fn read(p: Policy,t: TenantScope,h: HeaderMap,kind: Read) -> Response {
     tokio::task::spawn_blocking(move || {
-        let o = authorize(&p,t,&h,&i,false)?;
+        let o = authorize(&p,t,&h,false)?;
         let c = connection(p.1)?;
         match kind {
             Read::Billing => output(u::pricing::load_billing_defaults(&c,&o.scope,&o.target_host).map_err(domain)?),
@@ -84,16 +84,16 @@ async fn read(p: Policy,t: TenantScope,h: HeaderMap,i: Intent,kind: Read) -> Res
     }).await.map_err(unavailable)?
 }
 macro_rules! read_handler { ($name:ident,$kind:ident) => {
-    async fn $name(Extension(p): Extension<Policy>,Extension(t): Extension<TenantScope>,h: HeaderMap,Query(i): Query<Intent>) -> Response { read(p,t,h,i,Read::$kind).await }
+    async fn $name(Extension(p): Extension<Policy>,Extension(t): Extension<TenantScope>,h: HeaderMap) -> Response { read(p,t,h,Read::$kind).await }
 }; }
 read_handler!(list,Prices);
 read_handler!(billing,Billing);
 read_handler!(config,Config);
 read_handler!(display,Display);
 enum Write { Billing(u::pricing::BillingDefaults), Price(u::pricing::ModelPricingInfo,Option<String>), Delete(String), Import(ImportBody), Config(u::models_sync::ModelsDevSyncConfig), Display(DisplayBody) }
-async fn write(p: Policy,t: TenantScope,h: HeaderMap,i: Intent,kind: Write) -> Response {
+async fn write(p: Policy,t: TenantScope,h: HeaderMap,kind: Write) -> Response {
     tokio::task::spawn_blocking(move || {
-        let o = authorize(&p,t,&h,&i,true)?;
+        let o = authorize(&p,t,&h,true)?;
         let mut c = connection(p.1)?;
         match kind {
             Write::Billing(defaults) => output(u::pricing::save_billing_defaults(&mut c,&o.scope,&o.target_host,defaults).map_err(domain)?),
@@ -119,19 +119,19 @@ async fn write(p: Policy,t: TenantScope,h: HeaderMap,i: Intent,kind: Write) -> R
         }
     }).await.map_err(unavailable)?
 }
-async fn create(Extension(p): Extension<Policy>,Extension(t): Extension<TenantScope>,h: HeaderMap,Query(i): Query<Intent>,Json(r): Json<PriceBody>) -> Response { write(p,t,h,i,Write::Price(r.price,None)).await }
-async fn replace(Extension(p): Extension<Policy>,Extension(t): Extension<TenantScope>,h: HeaderMap,Path(id): Path<String>,Query(i): Query<Intent>,Json(r): Json<PriceBody>) -> Response { write(p,t,h,i,Write::Price(r.price,Some(id))).await }
-async fn delete(Extension(p): Extension<Policy>,Extension(t): Extension<TenantScope>,h: HeaderMap,Path(id): Path<String>,Query(i): Query<Intent>) -> Response { write(p,t,h,i,Write::Delete(id)).await }
-async fn import(Extension(p): Extension<Policy>,Extension(t): Extension<TenantScope>,h: HeaderMap,Query(i): Query<Intent>,Json(r): Json<ImportBody>) -> Response { write(p,t,h,i,Write::Import(r)).await }
-async fn save_config(Extension(p): Extension<Policy>,Extension(t): Extension<TenantScope>,h: HeaderMap,Query(i): Query<Intent>,Json(r): Json<u::models_sync::ModelsDevSyncConfig>) -> Response { write(p,t,h,i,Write::Config(r)).await }
-async fn save_display(Extension(p): Extension<Policy>,Extension(t): Extension<TenantScope>,h: HeaderMap,Query(i): Query<Intent>,Json(r): Json<DisplayBody>) -> Response { write(p,t,h,i,Write::Display(r)).await }
-async fn candidates(Extension(p): Extension<Policy>,Extension(t): Extension<TenantScope>,h: HeaderMap,Query(i): Query<Intent>) -> Response {
-    tokio::task::spawn_blocking(move || authorize(&p,t,&h,&i,false)).await.map_err(unavailable)??;
+async fn create(Extension(p): Extension<Policy>,Extension(t): Extension<TenantScope>,h: HeaderMap,Json(r): Json<PriceBody>) -> Response { write(p,t,h,Write::Price(r.price,None)).await }
+async fn replace(Extension(p): Extension<Policy>,Extension(t): Extension<TenantScope>,h: HeaderMap,Path(id): Path<String>,Json(r): Json<PriceBody>) -> Response { write(p,t,h,Write::Price(r.price,Some(id))).await }
+async fn delete(Extension(p): Extension<Policy>,Extension(t): Extension<TenantScope>,h: HeaderMap,Path(id): Path<String>) -> Response { write(p,t,h,Write::Delete(id)).await }
+async fn import(Extension(p): Extension<Policy>,Extension(t): Extension<TenantScope>,h: HeaderMap,Json(r): Json<ImportBody>) -> Response { write(p,t,h,Write::Import(r)).await }
+async fn save_config(Extension(p): Extension<Policy>,Extension(t): Extension<TenantScope>,h: HeaderMap,Json(r): Json<u::models_sync::ModelsDevSyncConfig>) -> Response { write(p,t,h,Write::Config(r)).await }
+async fn save_display(Extension(p): Extension<Policy>,Extension(t): Extension<TenantScope>,h: HeaderMap,Json(r): Json<DisplayBody>) -> Response { write(p,t,h,Write::Display(r)).await }
+async fn candidates(Extension(p): Extension<Policy>,Extension(t): Extension<TenantScope>,h: HeaderMap) -> Response {
+    tokio::task::spawn_blocking(move || authorize(&p,t,&h,false)).await.map_err(unavailable)??;
     output(u::models_selection::flatten_models(&provider_model_cache::snapshot().await.providers))
 }
-async fn refresh(Extension(p): Extension<Policy>,Extension(t): Extension<TenantScope>,h: HeaderMap,Query(i): Query<Intent>) -> Response {
+async fn refresh(Extension(p): Extension<Policy>,Extension(t): Extension<TenantScope>,h: HeaderMap) -> Response {
     let host_context = p.1;
-    let o = tokio::task::spawn_blocking(move || authorize(&p,t,&h,&i,true)).await.map_err(unavailable)??;
+    let o = tokio::task::spawn_blocking(move || authorize(&p,t,&h,true)).await.map_err(unavailable)??;
     let client = reqwest::Client::builder().redirect(reqwest::redirect::Policy::none()).build().map_err(unavailable)?;
     let result = u::exchange::fetch_usd_rates(&client,chrono::Utc::now().timestamp_millis()).await;
     tokio::task::spawn_blocking(move || {
@@ -139,15 +139,15 @@ async fn refresh(Extension(p): Extension<Policy>,Extension(t): Extension<TenantS
         output(json!({"display":s.resolve(chrono::Utc::now().timestamp_millis()),"settings":s}))
     }).await.map_err(unavailable)?
 }
-async fn sync(Extension(p): Extension<Policy>,Extension(t): Extension<TenantScope>,h: HeaderMap,Query(i): Query<Intent>) -> Result<(StatusCode,Json<Value>),StatusCode> {
-    sync_request(p, t, h, i, true).await
+async fn sync(Extension(p): Extension<Policy>,Extension(t): Extension<TenantScope>,h: HeaderMap) -> Result<(StatusCode,Json<Value>),StatusCode> {
+    sync_request(p, t, h, true).await
 }
-async fn sync_auto(Extension(p): Extension<Policy>,Extension(t): Extension<TenantScope>,h: HeaderMap,Query(i): Query<Intent>) -> Result<(StatusCode,Json<Value>),StatusCode> {
-    sync_request(p, t, h, i, false).await
+async fn sync_auto(Extension(p): Extension<Policy>,Extension(t): Extension<TenantScope>,h: HeaderMap) -> Result<(StatusCode,Json<Value>),StatusCode> {
+    sync_request(p, t, h, false).await
 }
-async fn sync_request(p: Policy, t: TenantScope, h: HeaderMap, i: Intent, force: bool) -> Result<(StatusCode,Json<Value>),StatusCode> {
+async fn sync_request(p: Policy, t: TenantScope, h: HeaderMap, force: bool) -> Result<(StatusCode,Json<Value>),StatusCode> {
     let host_context = p.1;
-    let o = tokio::task::spawn_blocking(move || authorize(&p,t,&h,&i,true)).await.map_err(unavailable)??;
+    let o = tokio::task::spawn_blocking(move || authorize(&p,t,&h,true)).await.map_err(unavailable)??;
     let sync = tokio::task::spawn_blocking({ let o=o.clone(); move || {
         u::models_sync::ModelsSync::new(Arc::new(Mutex::new(connection(host_context)?)),o.scope,o.target_host).map_err(unavailable)
     }}).await.map_err(unavailable)??;
@@ -178,15 +178,15 @@ async fn sync_request(p: Policy, t: TenantScope, h: HeaderMap, i: Intent, force:
     Ok((StatusCode::ACCEPTED,Json(json!({"task_id":id,"status":"queued"}))))
 }
 
-async fn save_billing(Extension(p): Extension<Policy>,Extension(t): Extension<TenantScope>,h: HeaderMap,Query(i): Query<Intent>,Json(r): Json<u::pricing::BillingDefaults>) -> Response { write(p,t,h,i,Write::Billing(r)).await }
+async fn save_billing(Extension(p): Extension<Policy>,Extension(t): Extension<TenantScope>,h: HeaderMap,Json(r): Json<u::pricing::BillingDefaults>) -> Response { write(p,t,h,Write::Billing(r)).await }
 
-async fn storage_info(Extension(p): Extension<Policy>,Extension(t): Extension<TenantScope>,h: HeaderMap,Query(i): Query<Intent>) -> Response { storage_action(p,t,h,i,false).await }
-async fn open_storage(Extension(p): Extension<Policy>,Extension(t): Extension<TenantScope>,h: HeaderMap,Query(i): Query<Intent>) -> Response { storage_action(p,t,h,i,true).await }
-async fn storage_action(p: Policy,t: TenantScope,h: HeaderMap,i: Intent,open: bool) -> Response {
+async fn storage_info(Extension(p): Extension<Policy>,Extension(t): Extension<TenantScope>,h: HeaderMap) -> Response { storage_action(p,t,h,false).await }
+async fn open_storage(Extension(p): Extension<Policy>,Extension(t): Extension<TenantScope>,h: HeaderMap) -> Response { storage_action(p,t,h,true).await }
+async fn storage_action(p: Policy,t: TenantScope,h: HeaderMap,open: bool) -> Response {
     tokio::task::spawn_blocking(move || {
-        // Paths are resolved only after local executor/project maintenance authorization.
+        // Paths are resolved only after local maintenance authorization.
         // The request never supplies a path, and the desktop never opens this path itself.
-        authorize(&p,t,&h,&i,true)?;
+        authorize(&p,t,&h,true)?;
         let db = (p.1.database)().map_err(unavailable)?;
         let path = db.sqlite_path().map_err(|_| StatusCode::NOT_IMPLEMENTED)?.canonicalize().map_err(unavailable)?;
         let directory = path.parent().ok_or(StatusCode::SERVICE_UNAVAILABLE)?;

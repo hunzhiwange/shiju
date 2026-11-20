@@ -1,6 +1,6 @@
 //! Named host operations. All target access follows authenticated scope checks.
 use std::{collections::HashMap, path::PathBuf, sync::{Mutex, OnceLock}};
-use axum::{Extension, Json, Router, extract::{Path, Query}, http::{HeaderMap, StatusCode}, routing::{get, post}};
+use axum::{Extension, Json, Router, extract::Path, http::{HeaderMap, StatusCode}, routing::{get, post}};
 use serde::Deserialize;
 use serde_json::{Value, json};
 use crate::usage as u;
@@ -9,7 +9,7 @@ use {
     vw_api_transport::TenantScope,
     vw_api_transport::id::TaskId,
 };
-use crate::host::{self, Intent};
+use crate::host;
 use u::scan_jobs::ScanOwner;
 
 #[derive(Clone)]
@@ -30,28 +30,29 @@ pub(super) fn router(host: crate::Host) -> Router {
         .route("/usage/maintenance/codex-rebuild", post(rebuild))
         .route("/usage/maintenance/rollup", post(rollup))
         .route("/usage/maintenance/backfill", post(backfill))
+        .route_layer(axum::middleware::from_fn(crate::without_query))
         .layer(Extension(Policy(std::env::var_os("SHIJU_AGENT_APPS_ACCESS_FILE").map(PathBuf::from), host)))
 }
-fn owner(policy: &Policy, tenant: TenantScope, headers: &HeaderMap, intent: &Intent) -> Result<ScanOwner, StatusCode> {
-    (policy.1.authorized_owner)(policy.0.as_deref(), tenant, headers, intent)
+fn owner(policy: &Policy, tenant: TenantScope, headers: &HeaderMap) -> Result<ScanOwner, StatusCode> {
+    (policy.1.authorized_owner)(policy.0.as_deref(), tenant, headers)
 }
-async fn last(Extension(p): Extension<Policy>, Extension(t): Extension<TenantScope>, h: HeaderMap, Query(i): Query<Intent>) -> Response {
+async fn last(Extension(p): Extension<Policy>, Extension(t): Extension<TenantScope>, h: HeaderMap) -> Response {
     tokio::task::spawn_blocking(move || {
-        let o = owner(&p,t,&h,&i)?;
+        let o = owner(&p,t,&h)?;
         let schedules = (p.1.schedules)().lock().map_err(unavailable)?;
         let timestamp = schedules.get(&o).map(|s| s.last_complete_scan()).transpose().map_err(unavailable)?.flatten();
         Ok(Json(json!({"last_complete_scan": timestamp})))
     }).await.map_err(unavailable)?
 }
-async fn job(Extension(p): Extension<Policy>, Extension(t): Extension<TenantScope>, h: HeaderMap, Path(id): Path<String>, Query(i): Query<Intent>) -> Response {
-    lookup(p,t,h,i,id,false).await
+async fn job(Extension(p): Extension<Policy>, Extension(t): Extension<TenantScope>, h: HeaderMap, Path(id): Path<String>) -> Response {
+    lookup(p,t,h,id,false).await
 }
-async fn cancel(Extension(p): Extension<Policy>, Extension(t): Extension<TenantScope>, h: HeaderMap, Path(id): Path<String>, Json(i): Json<Intent>) -> Response {
-    lookup(p,t,h,i,id,true).await
+async fn cancel(Extension(p): Extension<Policy>, Extension(t): Extension<TenantScope>, h: HeaderMap, Path(id): Path<String>, Json(_): Json<JobRequest>) -> Response {
+    lookup(p,t,h,id,true).await
 }
-async fn lookup(p: Policy,t: TenantScope,h: HeaderMap,i: Intent,id: String,cancel: bool) -> Response {
+async fn lookup(p: Policy,t: TenantScope,h: HeaderMap,id: String,cancel: bool) -> Response {
     tokio::task::spawn_blocking(move || {
-        let o = owner(&p,t,&h,&i)?;
+        let o = owner(&p,t,&h)?;
         let map = jobs().lock().map_err(unavailable)?;
         if let Some(j) = map.get(&id).filter(|j| j.owner == o) {
             (p.1.authorize_maintenance)(p.0.as_deref(),&h,&o.scope,&o.target_host)?;
@@ -70,17 +71,13 @@ async fn lookup(p: Policy,t: TenantScope,h: HeaderMap,i: Intent,id: String,cance
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
 struct SettingsUpdate {
-    #[serde(default = "vw_api_transport::local_project_id")]
-    project_id: vw_api_transport::ProjectId,
-    #[serde(default = "vw_api_transport::local_host_id")]
-    target_host: String,
     app: String,
     expected_revision: u64,
     settings: u::source_settings::UsageSourceSettings
 }
-async fn settings(Extension(p): Extension<Policy>, Extension(t): Extension<TenantScope>, h: HeaderMap, Query(i): Query<Intent>) -> Response {
+async fn settings(Extension(p): Extension<Policy>, Extension(t): Extension<TenantScope>, h: HeaderMap) -> Response {
     tokio::task::spawn_blocking(move || {
-        let o = owner(&p,t,&h,&i)?;
+        let o = owner(&p,t,&h)?;
         let db = (p.1.database)().map_err(unavailable)?;
         let connection = db.connect_sqlite().map_err(unavailable)?;
         u::source_settings::initialize_source_settings(&connection).map_err(unavailable)?;
@@ -94,8 +91,7 @@ async fn settings(Extension(p): Extension<Policy>, Extension(t): Extension<Tenan
 }
 async fn save_settings(Extension(p): Extension<Policy>, Extension(t): Extension<TenantScope>, h: HeaderMap, Json(r): Json<SettingsUpdate>) -> Response {
     tokio::task::spawn_blocking(move || {
-        let i = Intent {project_id:r.project_id,target_host:r.target_host,active:None,paused:None};
-        let o = owner(&p,t,&h,&i)?;
+        let o = owner(&p,t,&h)?;
         // Writing settings requires the explicit maintenance grant as well.
         (p.1.authorize_maintenance)(p.0.as_deref(),&h,&o.scope,&o.target_host)?;
         if !(p.1.apps)().iter().any(|app| *app == r.app) { return Err(StatusCode::BAD_REQUEST); }
@@ -112,10 +108,10 @@ async fn save_settings(Extension(p): Extension<Policy>, Extension(t): Extension<
 }
 async fn scan_preferences(
     Extension(p): Extension<Policy>, Extension(t): Extension<TenantScope>,
-    h: HeaderMap, Query(i): Query<Intent>,
+    h: HeaderMap,
 ) -> Response {
     tokio::task::spawn_blocking(move || {
-        let o = owner(&p, t, &h, &i)?;
+        let o = owner(&p, t, &h)?;
         let db = (p.1.database)().map_err(unavailable)?;
         let c = db.connect_sqlite().map_err(unavailable)?;
         u::source_settings::initialize_source_settings(&c).map_err(unavailable)?;
@@ -136,10 +132,6 @@ async fn scan_preferences(
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
 struct ScanPreferencesUpdate {
-    #[serde(default = "vw_api_transport::local_project_id")]
-    project_id: vw_api_transport::ProjectId,
-    #[serde(default = "vw_api_transport::local_host_id")]
-    target_host: String,
     enabled: bool,
     refresh_seconds: u32,
 }
@@ -149,11 +141,10 @@ async fn save_scan_preferences(
     h: HeaderMap, Json(update): Json<ScanPreferencesUpdate>,
 ) -> Response {
     tokio::task::spawn_blocking(move || {
-        let i = Intent { project_id: update.project_id, target_host: update.target_host, active: None, paused: None };
         let preferences = u::source_settings::UsageScanPreferences {
             enabled: update.enabled, refresh_seconds: update.refresh_seconds,
         };
-        let o = owner(&p, t, &h, &i)?;
+        let o = owner(&p, t, &h)?;
         (p.1.authorize_maintenance)(p.0.as_deref(), &h, &o.scope, &o.target_host)?;
         let db = (p.1.database)().map_err(unavailable)?;
         let c = db.connect_sqlite().map_err(unavailable)?;
@@ -169,18 +160,28 @@ async fn save_scan_preferences(
 
 #[derive(Clone, Copy)]
 enum Maintenance { Rebuild, Rollup, Backfill }
-macro_rules! submit_handler { ($name:ident,$kind:ident) => {
-    async fn $name(Extension(p): Extension<Policy>,Extension(t): Extension<TenantScope>,h: HeaderMap,Json(i): Json<Intent>) -> Result<(StatusCode,Json<Value>),StatusCode> {
-        submit(p,t,h,i,Maintenance::$kind).await
-    }
-}; }
-submit_handler!(rebuild,Rebuild);
-submit_handler!(rollup,Rollup);
-submit_handler!(backfill,Backfill);
-async fn submit(p: Policy,t: TenantScope,h: HeaderMap,i: Intent,kind: Maintenance) -> Result<(StatusCode,Json<Value>),StatusCode> {
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct JobRequest {}
+macro_rules! submit_handler {
+    ($name:ident, $kind:ident) => {
+        async fn $name(
+            Extension(p): Extension<Policy>,
+            Extension(t): Extension<TenantScope>,
+            h: HeaderMap,
+            Json(_): Json<JobRequest>,
+        ) -> Result<(StatusCode, Json<Value>), StatusCode> {
+            submit(p, t, h, Maintenance::$kind).await
+        }
+    };
+}
+submit_handler!(rebuild, Rebuild);
+submit_handler!(rollup, Rollup);
+submit_handler!(backfill, Backfill);
+async fn submit(p: Policy,t: TenantScope,h: HeaderMap,kind: Maintenance) -> Result<(StatusCode,Json<Value>),StatusCode> {
     let host_context = p.1;
     let (o,home,instances) = tokio::task::spawn_blocking(move || {
-        let o = owner(&p,t,&h,&i)?;
+        let o = owner(&p,t,&h)?;
         let (_,home,instances,_) = (p.1.authorize_maintenance)(p.0.as_deref(),&h,&o.scope,&o.target_host)?;
         Ok::<_,StatusCode>((o,home,instances))
     }).await.map_err(unavailable)??;
@@ -220,7 +221,6 @@ fn execute(host_context: crate::Host, o: &ScanOwner, home: &std::path::Path, ins
         Maintenance::Rebuild => {
             let settings = u::source_settings::load_source_settings(&c,&o.scope,&o.target_host,"codex")?;
             anyhow::ensure!(settings.settings.scan_enabled,"scan disabled");
-            let project = agent_project::store::ProjectStore::new(db)?.get(&o.scope)?.ok_or_else(|| anyhow::anyhow!("project unavailable"))?;
             anyhow::ensure!(instances.iter().any(|i| i.provider == vw_api_external_session::SessionProvider::Codex),"Codex source not authorized");
             // Rebuild replaces all native Codex rows for this host/scope. Reject
             // partial instance authority before entering that destructive transaction.
@@ -235,7 +235,7 @@ fn execute(host_context: crate::Host, o: &ScanOwner, home: &std::path::Path, ins
                 }
             }
             let instances = instances.into_iter().map(|i| (home.to_path_buf(),i)).collect::<Vec<_>>();
-            let files = (host_context.discover)(&o.scope,&o.target_host,vw_api_external_session::SessionProvider::Codex,&instances,&project.worktree)?;
+            let files = (host_context.discover)(&o.scope,&o.target_host,vw_api_external_session::SessionProvider::Codex,&instances)?;
             let mut lineage = u::codex_lineage::CodexLineage::new(files.iter().map(|f| f.path.clone()).collect())?;
             u::codex_rebuild::rebuild_codex_usage(&mut c,&o.scope,&o.target_host,&mut lineage,operation,|writer,lineage| {
                 for file in files {

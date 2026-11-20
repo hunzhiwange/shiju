@@ -1,6 +1,5 @@
 //! Named SDK operations connected to the gateway's host-owned price service.
 use super::{GatewayUsagePriceClient, usage_price_types::*};
-use gateway_usage_scan::UsageScanScope;
 use serde::de::DeserializeOwned;
 use serde_json::{Value, json};
 
@@ -22,80 +21,76 @@ impl std::fmt::Display for UsagePriceError {
 impl std::error::Error for UsagePriceError {}
 
 impl GatewayUsagePriceClient {
-    pub async fn usage_billing_defaults(&self, scope: &UsageScanScope) -> Result<BillingDefaults, UsagePriceError> {
-        self.usage_price_request(reqwest::Method::GET, &["prices", "billing-defaults"], scope, None).await
+    pub async fn usage_billing_defaults(&self) -> Result<BillingDefaults, UsagePriceError> {
+        self.usage_price_request(reqwest::Method::GET, &["prices", "billing-defaults"], None).await
     }
-    pub async fn usage_save_billing_defaults(&self, scope: &UsageScanScope, defaults: &BillingDefaults) -> Result<BillingDefaults, UsagePriceError> {
-        self.usage_price_request(reqwest::Method::PUT, &["prices", "billing-defaults"], scope, Some(json!(defaults))).await
+    pub async fn usage_save_billing_defaults(&self, defaults: &BillingDefaults) -> Result<BillingDefaults, UsagePriceError> {
+        self.usage_price_request(reqwest::Method::PUT, &["prices", "billing-defaults"], Some(json!(defaults))).await
     }
-    pub async fn usage_pricing_storage(&self, scope: &UsageScanScope, open: bool) -> Result<UsagePricingStorage, UsagePriceError> {
-        if open { self.usage_price_request(reqwest::Method::POST, &["prices", "storage", "open"], scope, None).await }
-        else { self.usage_price_request(reqwest::Method::GET, &["prices", "storage"], scope, None).await }
+    pub async fn usage_pricing_storage(&self, open: bool) -> Result<UsagePricingStorage, UsagePriceError> {
+        if open { self.usage_price_request(reqwest::Method::POST, &["prices", "storage", "open"], None).await }
+        else { self.usage_price_request(reqwest::Method::GET, &["prices", "storage"], None).await }
     }
-    pub async fn usage_prices(&self, scope: &UsageScanScope) -> Result<Vec<StoredModelPricing>, UsagePriceError> {
-        self.usage_price_request(reqwest::Method::GET, &["prices"], scope, None).await
+    pub async fn usage_prices(&self) -> Result<Vec<StoredModelPricing>, UsagePriceError> {
+        self.usage_price_request(reqwest::Method::GET, &["prices"], None).await
     }
-    pub async fn usage_create_price(&self, scope: &UsageScanScope, price: &ModelPricingInfo) -> Result<StoredModelPricing, UsagePriceError> {
-        self.usage_price_request(reqwest::Method::POST, &["prices"], scope, Some(json!({"price":price}))).await
+    pub async fn usage_create_price(&self, price: &ModelPricingInfo) -> Result<StoredModelPricing, UsagePriceError> {
+        self.usage_price_request(reqwest::Method::POST, &["prices"], Some(json!({"price":price}))).await
     }
-    pub async fn usage_update_price(&self, scope: &UsageScanScope, price: &ModelPricingInfo) -> Result<StoredModelPricing, UsagePriceError> {
+    pub async fn usage_update_price(&self, price: &ModelPricingInfo) -> Result<StoredModelPricing, UsagePriceError> {
         validate_id(price.model_id.as_ref())?;
-        self.usage_price_request(reqwest::Method::PUT, &["prices", price.model_id.as_ref()], scope, Some(json!({"price":price}))).await
+        self.usage_price_request(reqwest::Method::PUT, &["prices", price.model_id.as_ref()], Some(json!({"price":price}))).await
     }
-    pub async fn usage_delete_price(&self, scope: &UsageScanScope, model_id: &str) -> Result<UsagePriceDeleted, UsagePriceError> {
+    pub async fn usage_delete_price(&self, model_id: &str) -> Result<UsagePriceDeleted, UsagePriceError> {
         validate_id(model_id)?;
-        self.usage_price_request(reqwest::Method::DELETE, &["prices", model_id], scope, None).await
+        self.usage_price_request(reqwest::Method::DELETE, &["prices", model_id], None).await
     }
-    pub async fn usage_import_prices(&self, scope: &UsageScanScope, source: &str, prices: &[ModelPricingInfo]) -> Result<UsagePriceImportResult, UsagePriceError> {
+    pub async fn usage_import_prices(&self, source: &str, prices: &[ModelPricingInfo]) -> Result<UsagePriceImportResult, UsagePriceError> {
         if source.trim().is_empty() || source.len() > 256 || prices.is_empty() || prices.len() > 256 {
             return Err(UsagePriceError::InvalidInput("explicit source and 1–256 prices required".into()));
         }
-        self.usage_price_request(reqwest::Method::POST, &["prices", "import"], scope, Some(json!({"source":source,"prices":prices}))).await
+        self.usage_price_request(reqwest::Method::POST, &["prices", "import"], Some(json!({"source":source,"prices":prices}))).await
     }
-    pub async fn usage_models_dev_candidates(&self, scope: &UsageScanScope) -> Result<Vec<ModelsDevEntry>, UsagePriceError> {
-        self.usage_price_request(reqwest::Method::GET, &["models-dev", "candidates"], scope, None).await
+    pub async fn usage_models_dev_candidates(&self) -> Result<Vec<ModelsDevEntry>, UsagePriceError> {
+        self.usage_price_request(reqwest::Method::GET, &["models-dev", "candidates"], None).await
     }
-    pub async fn usage_models_dev_config(&self, scope: &UsageScanScope) -> Result<ModelsDevSyncState, UsagePriceError> {
-        self.usage_price_request(reqwest::Method::GET, &["models-dev", "config"], scope, None).await
+    pub async fn usage_models_dev_config(&self) -> Result<ModelsDevSyncState, UsagePriceError> {
+        self.usage_price_request(reqwest::Method::GET, &["models-dev", "config"], None).await
     }
-    pub async fn usage_save_models_dev_config(&self, scope: &UsageScanScope, config: &ModelsDevSyncConfig) -> Result<ModelsDevSyncState, UsagePriceError> {
+    pub async fn usage_save_models_dev_config(&self, config: &ModelsDevSyncConfig) -> Result<ModelsDevSyncState, UsagePriceError> {
         let body = serde_json::to_value(config).map_err(|e| UsagePriceError::InvalidInput(e.to_string()))?;
-        self.usage_price_request(reqwest::Method::PUT, &["models-dev", "config"], scope, Some(body)).await
+        self.usage_price_request(reqwest::Method::PUT, &["models-dev", "config"], Some(body)).await
     }
-    pub async fn usage_sync_models_dev(&self, scope: &UsageScanScope) -> Result<UsagePriceSyncAccepted, UsagePriceError> {
-        self.usage_price_request(reqwest::Method::POST, &["models-dev", "sync"], scope, None).await
+    pub async fn usage_sync_models_dev(&self) -> Result<UsagePriceSyncAccepted, UsagePriceError> {
+        self.usage_price_request(reqwest::Method::POST, &["models-dev", "sync"], None).await
     }
     /// The host checks the enabled flag and persisted interval before fetching.
-    pub async fn usage_auto_sync_models_dev(&self, scope: &UsageScanScope) -> Result<UsagePriceSyncAccepted, UsagePriceError> {
-        self.usage_price_request(reqwest::Method::POST, &["models-dev", "sync", "auto"], scope, None).await
+    pub async fn usage_auto_sync_models_dev(&self) -> Result<UsagePriceSyncAccepted, UsagePriceError> {
+        self.usage_price_request(reqwest::Method::POST, &["models-dev", "sync", "auto"], None).await
     }
-    pub async fn usage_rates(&self, scope: &UsageScanScope) -> Result<UsageRatesState, UsagePriceError> {
-        self.usage_price_request(reqwest::Method::GET, &["rates"], scope, None).await
+    pub async fn usage_rates(&self) -> Result<UsageRatesState, UsagePriceError> {
+        self.usage_price_request(reqwest::Method::GET, &["rates"], None).await
     }
     /// A successful HTTP response may contain a retained stale cache and refresh_error.
-    pub async fn usage_refresh_rates(&self, scope: &UsageScanScope) -> Result<UsageRatesState, UsagePriceError> {
-        self.usage_price_request(reqwest::Method::POST, &["rates", "refresh"], scope, None).await
+    pub async fn usage_refresh_rates(&self) -> Result<UsageRatesState, UsagePriceError> {
+        self.usage_price_request(reqwest::Method::POST, &["rates", "refresh"], None).await
     }
-    pub async fn usage_display(&self, scope: &UsageScanScope) -> Result<UsageRatesState, UsagePriceError> {
-        self.usage_price_request(reqwest::Method::GET, &["display"], scope, None).await
+    pub async fn usage_display(&self) -> Result<UsageRatesState, UsagePriceError> {
+        self.usage_price_request(reqwest::Method::GET, &["display"], None).await
     }
     /// The write endpoint returns settings; read usage_display for resolved conversion.
-    pub async fn usage_save_display(&self, scope: &UsageScanScope, patch: &UsageDisplayPatch) -> Result<ExchangeSettings, UsagePriceError> {
+    pub async fn usage_save_display(&self, patch: &UsageDisplayPatch) -> Result<ExchangeSettings, UsagePriceError> {
         if patch.manual_rates.values().any(|r| !r.is_finite() || *r <= 0.0) {
             return Err(UsagePriceError::InvalidInput("manual rates must be finite and positive".into()));
         }
         let body = serde_json::to_value(patch).map_err(|e| UsagePriceError::InvalidInput(e.to_string()))?;
-        self.usage_price_request(reqwest::Method::PUT, &["display"], scope, Some(body)).await
+        self.usage_price_request(reqwest::Method::PUT, &["display"], Some(body)).await
     }
-    async fn usage_price_request<T: DeserializeOwned>(&self, method: reqwest::Method, path: &[&str], scope: &UsageScanScope, body: Option<Value>) -> Result<T, UsagePriceError> {
-        if scope.project_id.as_ref().trim().is_empty() || scope.target_host.trim().is_empty() {
-            return Err(UsagePriceError::InvalidInput("usage project and host required".into()));
-        }
+    async fn usage_price_request<T: DeserializeOwned>(&self, method: reqwest::Method, path: &[&str], body: Option<Value>) -> Result<T, UsagePriceError> {
         let mut url = reqwest::Url::parse(&self.transport.endpoint().base_url()).map_err(|e| UsagePriceError::InvalidInput(e.to_string()))?;
         url.path_segments_mut().map_err(|_| UsagePriceError::InvalidInput("invalid gateway URL".into()))?
             .pop_if_empty().extend(["v1", "usage"]).extend(path.iter().copied());
-        // Price handlers authorize scope from query parameters for every HTTP method.
-        let mut request = self.transport.native_transport().map_err(UsagePriceError::Transport)?.request(method, url).query(scope);
+        let mut request = self.transport.native_transport().map_err(UsagePriceError::Transport)?.request(method, url);
         if let Some(body) = body { request = request.json(&body); }
         let response = gateway_http::apply_request_context(request, self.transport.endpoint()).send().await.map_err(|e| UsagePriceError::Transport(e.to_string()))?;
         let status = response.status();

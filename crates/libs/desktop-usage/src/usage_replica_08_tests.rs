@@ -34,7 +34,7 @@ fn usage_replica_08_delete_requires_matching_confirmation() {
 }
 
 fn identity() -> Identity {
-    Identity { endpoint: desktop_settings_account::types::Scope { gateway: "http://example.invalid".into(), tenant: Default::default() }, project: "project".into(), host: "remote".into() }
+    desktop_settings_account::types::Scope { gateway: "http://example.invalid".into(), tenant: Default::default() }
 }
 
 #[test]

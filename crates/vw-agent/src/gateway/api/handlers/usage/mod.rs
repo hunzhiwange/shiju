@@ -15,15 +15,10 @@ pub(crate) fn router() -> axum::Router {
                 instance_id: i.instance_id, provider: i.provider, root: i.root,
             }).collect(), worktree))
         },
-        authorized_owner: |policy, tenant, headers, intent| {
-            usage_scan::authorized_owner(policy, tenant, headers, &usage_scan::Intent {
-                project_id: intent.project_id.clone(), target_host: intent.target_host.clone(),
-                active: intent.active, paused: intent.paused,
-            })
-        },
+        authorized_owner: usage_scan::authorized_owner,
         apps: || usage_scan::ADAPTERS.iter().map(|(_, app, _)| *app).collect(),
         schedules: usage_scan::schedules,
-        discover: |scope, host, provider, instances, worktree| {
+        discover: |scope, host, provider, instances| {
             let instances = instances.iter().map(|(home, i)| (home.clone(),
                 agent_apps::ExternalHistoryInstance {
                     instance_id: i.instance_id.clone(), provider: i.provider,
@@ -31,7 +26,7 @@ pub(crate) fn router() -> axum::Router {
                 })).collect::<Vec<_>>();
             // Discovery consumes source identity/root only; resume configuration
             // belongs to the separate native-session launch path.
-            Ok(usage_scan::discover(scope, host, provider, &instances, worktree)?
+            Ok(usage_scan::discover(scope, host, provider, &instances)?
                 .into_iter().map(|f| File { path: f.path, identity: f.identity }).collect())
         },
     })

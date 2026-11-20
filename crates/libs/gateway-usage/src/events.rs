@@ -1,44 +1,29 @@
 //! Authenticated SSE invalidations. Clients requery the named usage APIs.
 use std::{collections::BTreeMap, convert::Infallible, path::PathBuf, time::Duration};
-use axum::{Extension, Router, extract::Query, http::{HeaderMap, StatusCode},
+use axum::{Extension, Router, http::{HeaderMap, StatusCode},
     response::{IntoResponse, sse::{Event, KeepAlive, Sse}}, routing::get};
-use {
-    vw_api_transport::ProjectScope,
-    vw_api_transport::TenantScope,
-    vw_api_transport::id::ProjectId,
-};
+use vw_api_transport::TenantScope;
 use agent_usage::events as bridge;
 
-#[derive(serde::Deserialize)]
-#[serde(deny_unknown_fields)]
-struct Selector {
-    #[serde(default = "vw_api_transport::local_project_id")]
-    project_id: ProjectId,
-    #[serde(default = "vw_api_transport::local_host_id")]
-    target_host: String
-}
-
 pub(super) fn router(host: crate::Host) -> Router {
-    Router::new().route("/usage/events", get(subscribe)).layer(Extension(host))
+    Router::new()
+        .route("/usage/events", get(subscribe))
+        .route_layer(axum::middleware::from_fn(crate::without_query))
+        .layer(Extension(host))
 }
 
 async fn subscribe(
     Extension(host_context): Extension<crate::Host>,
     Extension(tenant): Extension<TenantScope>, headers: HeaderMap,
-    Query(selector): Query<Selector>,
 ) -> Result<axum::response::Response, StatusCode> {
-    let scope = ProjectScope::new(tenant, selector.project_id).map_err(|_| StatusCode::BAD_REQUEST)?;
+    let scope = agent_usage::context::local_scope(tenant);
     let policy = std::env::var_os("SHIJU_AGENT_APPS_ACCESS_FILE").map(PathBuf::from);
-    let host = selector.target_host;
+    let host = agent_usage::context::local_host().map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?;
     let authorization_scope = scope.clone();
     let authorization_host = host.clone();
     let authorize = move || -> Result<String, StatusCode> {
-        let principal = (host_context.authorize_events)(
-            policy.as_deref(), &headers, &authorization_scope, &authorization_host)?;
-        if agent_usage::context::local_host().map_err(|_| StatusCode::SERVICE_UNAVAILABLE)? != authorization_host {
-            return Err(StatusCode::FORBIDDEN);
-        }
-        Ok(principal)
+        (host_context.authorize_events)(
+            policy.as_deref(), &headers, &authorization_scope, &authorization_host)
     };
     let principal = authorize()?;
     let receiver = bridge::cache_channel().subscribe();
@@ -71,7 +56,7 @@ async fn subscribe(
                 }
                 if !recover && previous.as_ref() == Some(&current) && caches.is_empty() { continue; }
                 let payload = serde_json::json!({
-                    "type": "usage-revision", "scope": scope, "target_host": host,
+                    "type": "usage-revision", "tenant": scope.tenant_scope(),
                     "statistics_revisions": current,
                     "cache_updates": caches.into_iter().map(|((app, provider), revision)|
                         serde_json::json!({"app": app, "provider_id": provider, "revision": revision}))

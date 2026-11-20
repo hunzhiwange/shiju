@@ -10240,7 +10240,6 @@ dependencies = [
  "agent-app-services",
  "agent-database",
  "agent-paths",
- "agent-project",
  "agent-usage",
  "anyhow",
  "app-access-service",
@@ -11226,7 +11225,6 @@ name = "gateway-usage"
 version = "0.7.3"
 dependencies = [
  "agent-database",
- "agent-project",
  "agent-usage",
  "anyhow",
  "app-lifecycle",
@@ -11254,7 +11252,6 @@ name = "gateway-usage-price"
 version = "0.7.3"
 dependencies = [
  "gateway-http",
- "gateway-usage-scan",
  "reqwest 0.13.4",
  "serde",
  "serde_json",

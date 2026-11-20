@@ -252,9 +252,9 @@ pub use client::{DataBackupLocation, DataBackupLocationDeletion, DeleteDataBacku
 
 pub use client::{DeviceSyncOperationsError, DeviceSyncSelection, DeviceSyncUploadRequest, DeviceSyncDownloadRequest};
 
-pub use client::{UsageScanScope, UsageSourceSettings, UsageSourceSettingsState, UsageSettingsSaved, UsageJobSnapshot, UsageLastScan, UsageCacheRevision, UsageRevisionEvent, UsageScanError};
+pub use client::{UsageSourceSettings, UsageSourceSettingsState, UsageSettingsSaved, UsageJobSnapshot, UsageLastScan, UsageCacheRevision, UsageRevisionEvent, UsageScanError};
 
-pub use client::{UsageReadScope, UsageReadError, UsageSummary};
+pub use client::{UsageReadError, UsageSummary};
 
 pub use gateway_task_lifecycle::GatewayTaskLifecycleClient;
 

@@ -139,9 +139,11 @@ impl AuthorizedRoute {
         let provider = None;
         let app = serde_json::to_value(self.binding.app).ok()
             .and_then(|v| v.as_str().map(str::to_owned)).ok_or(StatusCode::SERVICE_UNAVAILABLE)?;
+        let scope = agent_usage::context::local_scope(self.binding.project.tenant_scope().clone());
+        let host = agent_usage::context::local_host().map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?;
         agent_usage::relay::RequestUsage::new(
             self.database.clone().ok_or(StatusCode::SERVICE_UNAVAILABLE)?,
-            self.binding.project.clone(), self.binding.host.clone(), app, provider, model, None, protocol, Box::new(UsageObserver(model_protocol::stream_observer::StreamObserver::new(protocol))),
+            scope, host, app, provider, model, None, protocol, Box::new(UsageObserver(model_protocol::stream_observer::StreamObserver::new(protocol))),
         ).map_err(|_| StatusCode::SERVICE_UNAVAILABLE)
     }
 

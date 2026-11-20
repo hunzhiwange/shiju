@@ -2,7 +2,7 @@
 use super::{hero::Metric, metrics::format_count};
 use crate::Identity;
 use desktop_ui_controls::system_settings_common::{rounded_action_btn_style, theme::is_dark_theme};
-use gateway_usage_read::{UsageReadScope, UsageSeries, UsageSeriesBucket, UsageSeriesInterval};
+use gateway_usage_read::{UsageSeries, UsageSeriesBucket, UsageSeriesInterval};
 use iced::{
     Color, Element, Length, Pixels, Point, Rectangle, Renderer, Size, Task, Theme,
     advanced::text::Alignment,
@@ -32,13 +32,8 @@ pub fn load(client: Result<vw_gateway_client::GatewayClient, String>, ticket: u6
     Task::perform(async move {
         let result = async {
             let client = client?;
-            let read_scope = UsageReadScope {
-                project_id: scope.project.clone().into(),
-                target_host: scope.host.clone(),
-                time_zone: "UTC".into(),
-            };
-            let trend = client.usage_trends(&read_scope, &query, None).await.map_err(|e| e.to_string())?;
-            let heatmap = client.usage_heatmap(&read_scope, &query).await.map_err(|e| e.to_string())?;
+            let trend = client.usage_trends("UTC", &query, None).await.map_err(|e| e.to_string())?;
+            let heatmap = client.usage_heatmap("UTC", &query).await.map_err(|e| e.to_string())?;
             Ok((trend, heatmap))
         }.await;
         (scope, result)

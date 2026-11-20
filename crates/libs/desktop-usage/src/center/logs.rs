@@ -19,7 +19,7 @@ use desktop_ui_controls::system_settings_common::{
     settings_select, settings_text_input_style,
 };
 
-use gateway_usage_read::{UsageLogDetail, UsageLogResult, UsageReadScope};
+use gateway_usage_read::{UsageLogDetail, UsageLogResult};
 use iced::{
     Color, Element, Font, Length, Task, Theme, font,
     widget::{Space, button, column, container, responsive, row, rule, scrollable, text, text_input},
@@ -300,7 +300,7 @@ pub fn update(
                 async move {
                     let result = match client {
                         Ok(client) => client
-                            .usage_log_detail(&read_scope(&scope), &query, &id)
+                            .usage_log_detail("UTC", &query, &id)
                             .await
                             .map_err(|e| e.to_string()),
                         Err(error) => Err(error),
@@ -376,11 +376,11 @@ pub fn update(
                 async move {
                     let result = match client {
                         Ok(client) if page == 1 => client
-                            .usage_logs(&read_scope(&scope), &page_query)
+                            .usage_logs("UTC", &page_query)
                             .await
                             .map_err(|e| e.to_string()),
                         Ok(client) => client
-                            .usage_log_page(&read_scope(&scope), &page_query, page)
+                            .usage_log_page("UTC", &page_query, page)
                             .await
                             .map_err(|e| e.to_string()),
                         Err(error) => Err(error),
@@ -394,13 +394,6 @@ pub fn update(
         }
     }
     Task::none()
-}
-fn read_scope(scope: &Identity) -> UsageReadScope {
-    UsageReadScope {
-        project_id: scope.project.clone().into(),
-        target_host: scope.host.clone(),
-        time_zone: "UTC".into(),
-    }
 }
 fn unknown(value: Option<&str>) -> String {
     value.unwrap_or("未知").to_owned()

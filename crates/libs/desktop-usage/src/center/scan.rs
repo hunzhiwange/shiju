@@ -1,7 +1,7 @@
 //! Scan controls send intents to the authorized host; closing the dialog never cancels work.
 use super::Outcome;
 use crate::Identity;
-use gateway_usage_scan::{UsageJobSnapshot, UsageLastScan, UsageScanPreferences, UsageScanScope};
+use gateway_usage_scan::{UsageJobSnapshot, UsageLastScan, UsageScanPreferences};
 use iced::{Element, Task};
 
 #[derive(Default)]
@@ -156,18 +156,17 @@ pub fn update(state: &mut State, current: Option<Identity>, client: Result<vw_ga
             state.error = None;
             let sequence = state.sequence;
 
-            let target = UsageScanScope { project_id: scope.project.clone().into(), target_host: scope.host.clone() };
             return Task::perform(async move {
                 let result = async {
                     let client = gateway_usage_scan::GatewayUsageScanClient::new(client?.transport().clone());
                     let result = match action {
-                        Action::Load => Ok(Reply::Settings(client.usage_scan_preferences(&target).await.map_err(|e| e.to_string())?, client.usage_last_scan(&target).await.map_err(|e| e.to_string())?)),
-                        Action::Sync => client.usage_start_scan(&target).await.map(Reply::Job),
-                        Action::Cancel => client.usage_cancel_job(&target, job_id.as_deref().unwrap_or_default()).await.map(Reply::Job),
-                        Action::Poll => client.usage_job(&target, job_id.as_deref().unwrap_or_default()).await.map(Reply::Job),
-                        Action::Save(preferences) => client.usage_save_scan_preferences(&target, preferences).await.map(Reply::Saved),
-                        Action::Rollup => client.usage_rollup(&target).await.map(Reply::Job),
-                        Action::Backfill => client.usage_backfill(&target).await.map(Reply::Job),
+                        Action::Load => Ok(Reply::Settings(client.usage_scan_preferences().await.map_err(|e| e.to_string())?, client.usage_last_scan().await.map_err(|e| e.to_string())?)),
+                        Action::Sync => client.usage_start_scan().await.map(Reply::Job),
+                        Action::Cancel => client.usage_cancel_job(job_id.as_deref().unwrap_or_default()).await.map(Reply::Job),
+                        Action::Poll => client.usage_job(job_id.as_deref().unwrap_or_default()).await.map(Reply::Job),
+                        Action::Save(preferences) => client.usage_save_scan_preferences(preferences).await.map(Reply::Saved),
+                        Action::Rollup => client.usage_rollup().await.map(Reply::Job),
+                        Action::Backfill => client.usage_backfill().await.map(Reply::Job),
                     };
                     result.map_err(|e: gateway_usage_scan::UsageScanError| e.to_string())
                 }.await;

@@ -13,14 +13,8 @@ use iced::{Element, Task};
 
 pub use desktop_usage::Identity;
 
-fn identity(app: &App) -> Option<Identity> {
-    let project = vw_api_transport::local_settings_project(app.workspace_state.project_id.as_deref()).to_owned();
-    let host = local_app_auth::HOST_ID.to_owned();
-    Some(Identity {
-        endpoint: Scope::from(&crate::app::config::gateway_client_endpoint()),
-        project,
-        host,
-    })
+fn identity() -> Option<Identity> {
+    Some(Scope::from(&crate::app::config::gateway_client_endpoint()))
 }
 
 pub use desktop_usage::center::event::Event;
@@ -35,7 +29,7 @@ pub(crate) fn is_visible(app: &App) -> bool {
 }
 
 pub fn update(app: &mut App, event: Event) -> Task<Message> {
-    let current = identity(app);
+    let current = identity();
     let visible = is_usage_screen(app);
     let event = match event {
         Event::Scan(scan::Event::Completed(scope, success, summary)) => {
@@ -106,7 +100,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
 
 /// The sidebar snapshot covers the local day independently of dashboard filters.
 pub(crate) fn today_summary(app: &App) -> Option<(String, String)> {
-    let current = identity(app);
+    let current = identity();
     desktop_usage::center::display::sidebar_today(
         &app.usage_center.display, current, app.usage_center.today.as_ref(),
     )

@@ -39,7 +39,7 @@ struct RelayContext {
 #[async_trait::async_trait]
 impl model_relay_http::RelayHost for RelayContext {
     fn usage(&self, identity: &RelayIdentity, protocol: GenerationProtocol) -> anyhow::Result<agent_usage::relay::RequestUsage> {
-        let scope = vw_api_transport::ProjectScope::new(identity.tenant.clone(), identity.project.clone().into())?;
+        let scope = agent_usage::context::local_scope(identity.tenant.clone());
         agent_usage::relay::RequestUsage::new(crate::usage_bridge::context::database()?, scope,
             crate::usage_bridge::context::local_host()?, "shiju-relay".into(), Some(identity.provider.clone()),
             Some(identity.model.clone()), Some(identity.session.clone()), protocol,

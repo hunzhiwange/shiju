@@ -7,7 +7,6 @@ use super::Outcome;
 use desktop_ui_controls::system_settings_common::*;
 use iced::{Element, Length, Task, widget::{button, column, container, row, text}};
 use gateway_usage_price::{Currency, RateMode, UsageDisplayPatch, UsageRatesState};
-use gateway_usage_scan::UsageScanScope;
 
 #[derive(Default)]
 pub struct State {
@@ -123,9 +122,8 @@ pub fn update(state: &mut State, current: Option<Identity>, visible: bool, clien
             return Task::perform(async move {
                 let result = async {
                     let client = gateway_usage_price::GatewayUsagePriceClient::new(client?.transport().clone());
-                    let request = UsageScanScope { project_id: scope.project.clone().into(), target_host: scope.host.clone() };
-                    if saving { client.usage_save_display(&request, &patch).await.map_err(|e| e.to_string())?; }
-                    if refresh { client.usage_refresh_rates(&request).await } else { client.usage_display(&request).await }.map_err(|e| e.to_string())
+                    if saving { client.usage_save_display(&patch).await.map_err(|e| e.to_string())?; }
+                    if refresh { client.usage_refresh_rates().await } else { client.usage_display().await }.map_err(|e| e.to_string())
                 }.await;
                 (scope, result)
             }, move |(scope, result)| message(Event::Loaded(ticket, scope, result)));

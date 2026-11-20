@@ -3,15 +3,7 @@ use super::GatewayUsageScanClient;
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
 use serde_json::{Value, json};
 use std::collections::BTreeMap;
-use vw_api_transport::id::ProjectId;
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct UsageScanScope {
-    #[serde(default = "vw_api_transport::local_project_id")]
-    pub project_id: ProjectId,
-    #[serde(default = "vw_api_transport::local_host_id")]
-    pub target_host: String,
-}
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct UsageSourceSettings {
     pub scan_enabled: bool,
@@ -57,8 +49,7 @@ pub struct UsageCacheRevision {
 pub struct UsageRevisionEvent {
     #[serde(rename = "type")]
     pub event_type: String,
-    pub scope: vw_api_transport::ProjectScope,
-    pub target_host: String,
+    pub tenant: vw_api_transport::TenantScope,
     pub statistics_revisions: BTreeMap<String, u64>,
     pub cache_updates: Vec<UsageCacheRevision>,
     pub recover: bool,
@@ -80,69 +71,64 @@ impl std::fmt::Display for UsageScanError {
 }
 impl std::error::Error for UsageScanError {}
 impl GatewayUsageScanClient {
-    pub async fn usage_start_scan(&self, scope: &UsageScanScope) -> Result<UsageJobSnapshot, UsageScanError> {
-        self.usage_scan_request(reqwest::Method::POST, &["scans"], scope, None).await
+    pub async fn usage_start_scan(&self) -> Result<UsageJobSnapshot, UsageScanError> {
+        self.usage_scan_request(reqwest::Method::POST, &["scans"], None).await
     }
-    pub async fn usage_last_scan(&self, scope: &UsageScanScope) -> Result<UsageLastScan, UsageScanError> {
-        self.usage_scan_request(reqwest::Method::GET, &["scans", "last"], scope, None).await
+    pub async fn usage_last_scan(&self) -> Result<UsageLastScan, UsageScanError> {
+        self.usage_scan_request(reqwest::Method::GET, &["scans", "last"], None).await
     }
-    pub async fn usage_job(&self, scope: &UsageScanScope, id: &str) -> Result<UsageJobSnapshot, UsageScanError> {
+    pub async fn usage_job(&self, id: &str) -> Result<UsageJobSnapshot, UsageScanError> {
         validate_id(id)?;
-        self.usage_scan_request(reqwest::Method::GET, &["jobs", id], scope, None).await
+        self.usage_scan_request(reqwest::Method::GET, &["jobs", id], None).await
     }
-    pub async fn usage_cancel_job(&self, scope: &UsageScanScope, id: &str) -> Result<UsageJobSnapshot, UsageScanError> {
+    pub async fn usage_cancel_job(&self, id: &str) -> Result<UsageJobSnapshot, UsageScanError> {
         validate_id(id)?;
-        self.usage_scan_request(reqwest::Method::POST, &["jobs", id, "cancel"], scope, None).await
+        self.usage_scan_request(reqwest::Method::POST, &["jobs", id, "cancel"], None).await
     }
-    pub async fn usage_rebuild_codex(&self, scope: &UsageScanScope) -> Result<UsageJobSnapshot, UsageScanError> {
-        self.usage_scan_request(reqwest::Method::POST, &["maintenance", "codex-rebuild"], scope, None).await
+    pub async fn usage_rebuild_codex(&self) -> Result<UsageJobSnapshot, UsageScanError> {
+        self.usage_scan_request(reqwest::Method::POST, &["maintenance", "codex-rebuild"], None).await
     }
-    pub async fn usage_rollup(&self, scope: &UsageScanScope) -> Result<UsageJobSnapshot, UsageScanError> {
-        self.usage_scan_request(reqwest::Method::POST, &["maintenance", "rollup"], scope, None).await
+    pub async fn usage_rollup(&self) -> Result<UsageJobSnapshot, UsageScanError> {
+        self.usage_scan_request(reqwest::Method::POST, &["maintenance", "rollup"], None).await
     }
-    pub async fn usage_backfill(&self, scope: &UsageScanScope) -> Result<UsageJobSnapshot, UsageScanError> {
-        self.usage_scan_request(reqwest::Method::POST, &["maintenance", "backfill"], scope, None).await
+    pub async fn usage_backfill(&self) -> Result<UsageJobSnapshot, UsageScanError> {
+        self.usage_scan_request(reqwest::Method::POST, &["maintenance", "backfill"], None).await
     }
-    pub async fn usage_source_settings(&self, scope: &UsageScanScope) -> Result<Vec<UsageSourceSettingsState>, UsageScanError> {
-        self.usage_scan_request(reqwest::Method::GET, &["settings"], scope, None).await
+    pub async fn usage_source_settings(&self) -> Result<Vec<UsageSourceSettingsState>, UsageScanError> {
+        self.usage_scan_request(reqwest::Method::GET, &["settings"], None).await
     }
-    pub async fn usage_save_source_settings(&self, scope: &UsageScanScope, app: &str, expected_revision: u64, settings: &UsageSourceSettings) -> Result<UsageSettingsSaved, UsageScanError> {
-        self.usage_scan_request(reqwest::Method::PUT, &["settings"], scope,
+    pub async fn usage_save_source_settings(&self, app: &str, expected_revision: u64, settings: &UsageSourceSettings) -> Result<UsageSettingsSaved, UsageScanError> {
+        self.usage_scan_request(reqwest::Method::PUT, &["settings"],
             Some(json!({"app":app,"expected_revision":expected_revision,"settings":settings}))).await
     }
-    pub async fn usage_scan_preferences(&self, scope: &UsageScanScope) -> Result<UsageScanPreferences, UsageScanError> {
-        self.usage_scan_request(reqwest::Method::GET, &["settings", "scan"], scope, None).await
+    pub async fn usage_scan_preferences(&self) -> Result<UsageScanPreferences, UsageScanError> {
+        self.usage_scan_request(reqwest::Method::GET, &["settings", "scan"], None).await
     }
-    pub async fn usage_save_scan_preferences(&self, scope: &UsageScanScope, preferences: UsageScanPreferences) -> Result<UsageScanPreferences, UsageScanError> {
-        self.usage_scan_request(reqwest::Method::PUT, &["settings", "scan"], scope,
+    pub async fn usage_save_scan_preferences(&self, preferences: UsageScanPreferences) -> Result<UsageScanPreferences, UsageScanError> {
+        self.usage_scan_request(reqwest::Method::PUT, &["settings", "scan"],
             Some(json!({"enabled":preferences.enabled,"refresh_seconds":preferences.refresh_seconds}))).await
     }
-    pub async fn usage_page_activity(&self, scope: &UsageScanScope, active: bool) -> Result<(), UsageScanError> {
-        let _: Value = self.usage_scan_request(reqwest::Method::POST, &["activity"], scope,
+    pub async fn usage_page_activity(&self, active: bool) -> Result<(), UsageScanError> {
+        let _: Value = self.usage_scan_request(reqwest::Method::POST, &["activity"],
             Some(json!({"active":active}))).await?;
         Ok(())
     }
-    pub async fn usage_activity(&self, scope: &UsageScanScope, active: bool, paused: bool) -> Result<(), UsageScanError> {
-        let _: Value = self.usage_scan_request(reqwest::Method::POST, &["activity"], scope,
+    pub async fn usage_activity(&self, active: bool, paused: bool) -> Result<(), UsageScanError> {
+        let _: Value = self.usage_scan_request(reqwest::Method::POST, &["activity"],
             Some(json!({"active":active,"paused":paused}))).await?;
         Ok(())
     }
     /// A new connection receives a recovery snapshot; progress is queried with
     /// usage_job. HTTP/stream failures require reconnect and a fresh query.
-    pub async fn stream_usage_revisions(&self, scope: &UsageScanScope, mut on_event: impl FnMut(Result<UsageRevisionEvent, UsageScanError>) -> bool) -> Result<gateway_chat_stream::GatewayStreamAttemptResult, UsageScanError> {
-        self.validate_usage_scan_scope(scope)?;
+    pub async fn stream_usage_revisions(&self, mut on_event: impl FnMut(Result<UsageRevisionEvent, UsageScanError>) -> bool) -> Result<gateway_chat_stream::GatewayStreamAttemptResult, UsageScanError> {
         self.transport.native_transport().map_err(UsageScanError::Transport)?;
-        let project: &str = scope.project_id.as_ref();
-        let query = vec![("project_id".into(), project.into()), ("target_host".into(), scope.target_host.clone())];
-        gateway_chat_stream::stream_json_sse(self.transport.endpoint(), "/v1/usage/events", &query, |event| {
+        gateway_chat_stream::stream_json_sse(self.transport.endpoint(), "/v1/usage/events", &[], |event| {
             let decoded = serde_json::from_value::<UsageRevisionEvent>(event.data)
                 .map_err(|e| UsageScanError::Decode(e.to_string()))
                 .and_then(|event| {
                     if event.event_type != "usage-revision"
-                        || event.scope.project_id() != &scope.project_id
-                        || event.scope.tenant_scope() != self.transport.endpoint().tenant_scope()
-                        || event.target_host != scope.target_host {
-                        return Err(UsageScanError::Decode("usage event scope or type mismatch".into()));
+                        || &event.tenant != self.transport.endpoint().tenant_scope() {
+                        return Err(UsageScanError::Decode("usage event tenant or type mismatch".into()));
                     }
                     Ok(event)
                 });
@@ -151,24 +137,14 @@ impl GatewayUsageScanClient {
             keep_reading && !invalid
         }).await.map_err(UsageScanError::Transport)
     }
-    fn validate_usage_scan_scope(&self, scope: &UsageScanScope) -> Result<(), UsageScanError> {
-        if scope.project_id.as_ref().trim().is_empty() || scope.target_host.trim().is_empty() {
-            return Err(UsageScanError::InvalidInput("usage project and host are required".into()));
-        }
-        Ok(())
-    }
-    async fn usage_scan_request<T: DeserializeOwned>(&self, method: reqwest::Method, path: &[&str], scope: &UsageScanScope, extra: Option<Value>) -> Result<T, UsageScanError> {
-        self.validate_usage_scan_scope(scope)?;
+    async fn usage_scan_request<T: DeserializeOwned>(&self, method: reqwest::Method, path: &[&str], extra: Option<Value>) -> Result<T, UsageScanError> {
         let mut url = reqwest::Url::parse(&self.transport.endpoint().base_url()).map_err(|e| UsageScanError::InvalidInput(e.to_string()))?;
         url.path_segments_mut().map_err(|_| UsageScanError::InvalidInput("invalid gateway URL".into()))?
             .pop_if_empty().extend(["v1", "usage"]).extend(path.iter().copied());
-        let mut request = self.transport.native_transport().map_err(UsageScanError::Transport)?.request(method.clone(), url);
-        if method == reqwest::Method::GET {
-            request = request.query(scope);
-        } else {
-            let mut body = serde_json::to_value(scope).map_err(|e| UsageScanError::InvalidInput(e.to_string()))?;
-            if let Some(Value::Object(fields)) = extra { body.as_object_mut().expect("scope object").extend(fields); }
-            request = request.json(&body);
+        let with_body = method != reqwest::Method::GET;
+        let mut request = self.transport.native_transport().map_err(UsageScanError::Transport)?.request(method, url);
+        if with_body {
+            request = request.json(&extra.unwrap_or_else(|| json!({})));
         }
         let response = gateway_http::apply_request_context(request, self.transport.endpoint()).send().await.map_err(|e| UsageScanError::Transport(e.to_string()))?;
         let status = response.status();

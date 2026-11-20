@@ -1,20 +1,8 @@
-//! Read-only usage queries. The gateway authorizes project/host selectors against
-//! the endpoint identity; selectors never grant access by themselves.
+//! Read-only queries for the gateway’s local usage ledger.
 use crate::{GatewayUsageReadClient, usage_read_types::*};
 use serde::de::DeserializeOwned;
-use {
-    vw_api_transport::id::ProjectId,
-    vw_api_usage::*,
-};
+use vw_api_usage::*;
 use std::collections::BTreeMap;
-
-/// Explicit target and timezone for every read; no implicit host or project.
-#[derive(Debug, Clone)]
-pub struct UsageReadScope {
-    pub project_id: ProjectId,
-    pub target_host: String,
-    pub time_zone: String,
-}
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum UsageReadError {
@@ -34,62 +22,59 @@ impl std::fmt::Display for UsageReadError {
 impl std::error::Error for UsageReadError {}
 
 impl GatewayUsageReadClient {
-    pub async fn usage_logs(&self, scope: &UsageReadScope, query: &UsageQuery) -> Result<UsageLogResult, UsageReadError> {
-        self.usage_read(&["logs"], scope, query, None).await
+    pub async fn usage_logs(&self, time_zone: &str, query: &UsageQuery) -> Result<UsageLogResult, UsageReadError> {
+        self.usage_read(&["logs"], time_zone, query, None).await
     }
-    pub async fn usage_log_page(&self, scope: &UsageReadScope, query: &UsageQuery, page: u64) -> Result<UsageLogResult, UsageReadError> {
-        self.usage_read(&["logs"], scope, query, Some(("page", page.to_string()))).await
+    pub async fn usage_log_page(&self, time_zone: &str, query: &UsageQuery, page: u64) -> Result<UsageLogResult, UsageReadError> {
+        self.usage_read(&["logs"], time_zone, query, Some(("page", page.to_string()))).await
     }
-    pub async fn usage_sources(&self, scope: &UsageReadScope, query: &UsageQuery) -> Result<Vec<UsageSourceDistribution>, UsageReadError> {
-        self.usage_read(&["sources"], scope, query, None).await
+    pub async fn usage_sources(&self, time_zone: &str, query: &UsageQuery) -> Result<Vec<UsageSourceDistribution>, UsageReadError> {
+        self.usage_read(&["sources"], time_zone, query, None).await
     }
-    pub async fn usage_summary(&self, scope: &UsageReadScope, query: &UsageQuery) -> Result<UsageSummary, UsageReadError> {
-        self.usage_read(&["summary"], scope, query, None).await
+    pub async fn usage_summary(&self, time_zone: &str, query: &UsageQuery) -> Result<UsageSummary, UsageReadError> {
+        self.usage_read(&["summary"], time_zone, query, None).await
     }
-    pub async fn usage_summary_apps(&self, scope: &UsageReadScope, query: &UsageQuery) -> Result<BTreeMap<String, UsageSummary>, UsageReadError> {
-        self.usage_read(&["summary", "apps"], scope, query, None).await
+    pub async fn usage_summary_apps(&self, time_zone: &str, query: &UsageQuery) -> Result<BTreeMap<String, UsageSummary>, UsageReadError> {
+        self.usage_read(&["summary", "apps"], time_zone, query, None).await
     }
-    pub async fn usage_summary_sessions(&self, scope: &UsageReadScope, query: &UsageQuery) -> Result<Vec<UsageSessionSummary>, UsageReadError> {
-        self.usage_read(&["summary", "sessions"], scope, query, None).await
+    pub async fn usage_summary_sessions(&self, time_zone: &str, query: &UsageQuery) -> Result<Vec<UsageSessionSummary>, UsageReadError> {
+        self.usage_read(&["summary", "sessions"], time_zone, query, None).await
     }
-    pub async fn usage_first_date(&self, scope: &UsageReadScope, query: &UsageQuery) -> Result<Option<UsageUnixSeconds>, UsageReadError> {
-        self.usage_read(&["first-date"], scope, query, None).await
+    pub async fn usage_first_date(&self, time_zone: &str, query: &UsageQuery) -> Result<Option<UsageUnixSeconds>, UsageReadError> {
+        self.usage_read(&["first-date"], time_zone, query, None).await
     }
-    pub async fn usage_provider_stats(&self, scope: &UsageReadScope, query: &UsageQuery) -> Result<Vec<ProviderStats>, UsageReadError> {
-        self.usage_read(&["stats", "providers"], scope, query, None).await
+    pub async fn usage_provider_stats(&self, time_zone: &str, query: &UsageQuery) -> Result<Vec<ProviderStats>, UsageReadError> {
+        self.usage_read(&["stats", "providers"], time_zone, query, None).await
     }
-    pub async fn usage_model_stats(&self, scope: &UsageReadScope, query: &UsageQuery) -> Result<Vec<ModelStats>, UsageReadError> {
-        self.usage_read(&["stats", "models"], scope, query, None).await
+    pub async fn usage_model_stats(&self, time_zone: &str, query: &UsageQuery) -> Result<Vec<ModelStats>, UsageReadError> {
+        self.usage_read(&["stats", "models"], time_zone, query, None).await
     }
-    pub async fn usage_heatmap(&self, scope: &UsageReadScope, query: &UsageQuery) -> Result<UsageSeries, UsageReadError> {
-        self.usage_read(&["heatmap"], scope, query, None).await
+    pub async fn usage_heatmap(&self, time_zone: &str, query: &UsageQuery) -> Result<UsageSeries, UsageReadError> {
+        self.usage_read(&["heatmap"], time_zone, query, None).await
     }
-    pub async fn usage_log_detail(&self, scope: &UsageReadScope, query: &UsageQuery, id: &str) -> Result<UsageLogDetail, UsageReadError> {
+    pub async fn usage_log_detail(&self, time_zone: &str, query: &UsageQuery, id: &str) -> Result<UsageLogDetail, UsageReadError> {
         if id.is_empty() || id == "." || id == ".." {
             return Err(UsageReadError::InvalidInput("invalid usage record id".into()));
         }
-        self.usage_read(&["logs", id], scope, query, None).await
+        self.usage_read(&["logs", id], time_zone, query, None).await
     }
-    pub async fn usage_trends(&self, scope: &UsageReadScope, query: &UsageQuery, interval: Option<UsageSeriesInterval>) -> Result<UsageSeries, UsageReadError> {
+    pub async fn usage_trends(&self, time_zone: &str, query: &UsageQuery, interval: Option<UsageSeriesInterval>) -> Result<UsageSeries, UsageReadError> {
         let interval = interval.map(|interval| {
             let value = match interval { UsageSeriesInterval::Hour => "hour", UsageSeriesInterval::Day => "day" };
             ("interval", value.to_owned())
         });
-        self.usage_read(&["trends"], scope, query, interval).await
+        self.usage_read(&["trends"], time_zone, query, interval).await
     }
-    async fn usage_read<T: DeserializeOwned>(&self, resource: &[&str], scope: &UsageReadScope, query: &UsageQuery, parameter: Option<(&str, String)>) -> Result<T, UsageReadError> {
-        if scope.project_id.as_ref().trim().is_empty() || scope.target_host.trim().is_empty() || scope.time_zone.trim().is_empty() {
-            return Err(UsageReadError::InvalidInput("usage project, host and timezone are required".into()));
+    async fn usage_read<T: DeserializeOwned>(&self, resource: &[&str], time_zone: &str, query: &UsageQuery, parameter: Option<(&str, String)>) -> Result<T, UsageReadError> {
+        if time_zone.trim().is_empty() {
+            return Err(UsageReadError::InvalidInput("usage timezone is required".into()));
         }
         let mut url = reqwest::Url::parse(&self.transport.endpoint().base_url())
             .map_err(|e| UsageReadError::InvalidInput(e.to_string()))?;
         url.path_segments_mut().map_err(|_| UsageReadError::InvalidInput("invalid gateway URL".into()))?
             .pop_if_empty().extend(["v1", "usage"]).extend(resource.iter().copied());
-        let project: &str = scope.project_id.as_ref();
         let mut pairs = vec![
-            ("project_id", project.to_owned()),
-            ("target_host", scope.target_host.clone()),
-            ("time_zone", scope.time_zone.clone()),
+            ("time_zone", time_zone.to_owned()),
             ("query", serde_json::to_string(query).map_err(|e| UsageReadError::InvalidInput(e.to_string()))?),
         ];
         pairs.extend(parameter);

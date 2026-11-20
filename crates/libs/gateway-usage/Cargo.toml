@@ -10,7 +10,6 @@ doctest = false
 [dependencies]
 agent-usage = { path = "../agent-usage" }
 agent-database = { path = "../agent-database" }
-agent-project = { path = "../agent-project" }
 vw-api-transport = { path = "../api-transport" }
 vw-api-usage = { path = "../api-usage" }
 vw-api-external-session = { path = "../api-external-session" }

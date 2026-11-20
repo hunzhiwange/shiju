@@ -10,7 +10,6 @@ use desktop_ui_controls::{
 use desktop_assets::assets::Icon;
 use iced::{Element, Length, Task, Theme, widget::{button, checkbox, column, container, row, rule, text}};
 use gateway_usage_price::{ModelsDevEntry, ModelsDevSyncConfig, ModelsDevSyncState};
-use gateway_usage_scan::UsageScanScope;
 
 #[derive(Default)]
 pub struct State {
@@ -39,7 +38,6 @@ pub enum Event {
     Polled(u64, Identity, Result<(String, ModelsDevSyncState), String>),
 }
 fn message(event: Event) -> Message { event }
-fn scope(id: &Identity) -> UsageScanScope { UsageScanScope { project_id: id.project.clone().into(), target_host: id.host.clone() } }
 fn set_key(keys: &mut Vec<String>, key: String, enabled: bool) {
     keys.retain(|value| value != &key);
     if enabled { keys.push(key); }
@@ -144,7 +142,6 @@ pub fn update_with_client(state: &mut State, current: Option<Identity>, client: 
             state.error = None;
 
             return Task::perform(async move {
-                let request_scope = scope(&id);
                 let response = match client {
                     Err(e) => Event::Synced(ticket, id, Err(e)),
                     Ok(client) => {
@@ -153,23 +150,23 @@ pub fn update_with_client(state: &mut State, current: Option<Identity>, client: 
                         match event {
                             Event::Open | Event::Reload => {
                                 let result = async {
-                                    let config = client.usage_models_dev_config(&request_scope).await.map_err(|e| e.to_string())?;
-                                    let entries = client.usage_models_dev_candidates(&request_scope).await.map_err(|e| e.to_string())?;
+                                    let config = client.usage_models_dev_config().await.map_err(|e| e.to_string())?;
+                                    let entries = client.usage_models_dev_candidates().await.map_err(|e| e.to_string())?;
                                     Ok((entries, config))
                                 }.await;
                                 Event::Loaded(ticket, id, result)
                             }
                             Event::Save => {
-                                let result = match draft { Some(config) => client.usage_save_models_dev_config(&request_scope, &config).await.map_err(|e| e.to_string()), None => Err("请先加载配置".into()) };
+                                let result = match draft { Some(config) => client.usage_save_models_dev_config(&config).await.map_err(|e| e.to_string()), None => Err("请先加载配置".into()) };
                                 Event::Saved(ticket, revision, id, result)
                             }
-                            Event::AutoSync => Event::Synced(ticket, id, client.usage_auto_sync_models_dev(&request_scope).await.map(|r| r.task_id).map_err(|e| e.to_string())),
-                            Event::Sync => Event::Synced(ticket, id, client.usage_sync_models_dev(&request_scope).await.map(|r| r.task_id).map_err(|e| e.to_string())),
+                            Event::AutoSync => Event::Synced(ticket, id, client.usage_auto_sync_models_dev().await.map(|r| r.task_id).map_err(|e| e.to_string())),
+                            Event::Sync => Event::Synced(ticket, id, client.usage_sync_models_dev().await.map(|r| r.task_id).map_err(|e| e.to_string())),
                             _ => {
                                 let result = async {
                                     let job = job.ok_or_else(|| "尚无同步任务".to_string())?;
-                                    let snapshot = scan.usage_job(&request_scope, &job).await.map_err(|e| e.to_string())?;
-                                    let config = client.usage_models_dev_config(&request_scope).await.map_err(|e| e.to_string())?;
+                                    let snapshot = scan.usage_job(&job).await.map_err(|e| e.to_string())?;
+                                    let config = client.usage_models_dev_config().await.map_err(|e| e.to_string())?;
                                     Ok((serde_json::to_string(&snapshot.progress).map_err(|e| e.to_string())?, config))
                                 }.await;
                                 Event::Polled(ticket, id, result)

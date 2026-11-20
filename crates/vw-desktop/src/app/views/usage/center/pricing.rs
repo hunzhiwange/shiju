@@ -23,5 +23,5 @@ fn map(outcome: Outcome<Event>) -> Message {
 }
 pub fn overlay<'a>(app: &'a App, base: Element<'a, Message>) -> Element<'a, Message> {
     let i18n = crate::app::i18n::I18n::new(app.general_settings.desktop_locale);
-    domain::overlay(&app.usage_center.pricing, super::identity(app), base, i18n, map)
+    domain::overlay(&app.usage_center.pricing, super::identity(), base, i18n, map)
 }

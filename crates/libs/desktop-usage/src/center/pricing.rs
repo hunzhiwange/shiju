@@ -8,7 +8,6 @@ use desktop_ui_controls::{
 };
 use iced::{Task, widget::text_editor};
 use gateway_usage_price::{ModelPricingInfo, StoredModelPricing, BillingDefaults, BillingModelSource, UsagePricingStorage};
-use gateway_usage_scan::UsageScanScope;
 
 #[derive(Default)]
 pub struct State {
@@ -154,12 +153,11 @@ pub fn update(state: &mut State, current: Option<Identity>, visible: bool, clien
             let open = matches!(event, Event::StorageOpen);
             return Task::perform(async move {
                 let client = client.map(|client| gateway_usage_price::GatewayUsagePriceClient::new(client.transport().clone()));
-                let scope = UsageScanScope { project_id: id.project.clone().into(), target_host: id.host.clone() };
                 if billing {
-                    let result = async { client?.usage_save_billing_defaults(&scope, &draft.ok_or("请先编辑计费配置")?).await.map_err(|error| error.to_string()) }.await;
+                    let result = async { client?.usage_save_billing_defaults(&draft.ok_or("请先编辑计费配置")?).await.map_err(|error| error.to_string()) }.await;
                     Event::BillingLoaded(ticket, id, result)
                 } else {
-                    let result = async { client?.usage_pricing_storage(&scope, open).await.map_err(|error| error.to_string()) }.await;
+                    let result = async { client?.usage_pricing_storage(open).await.map_err(|error| error.to_string()) }.await;
                     Event::StorageLoaded(ticket, id, result)
                 }
             }, message);
@@ -202,13 +200,12 @@ pub fn update(state: &mut State, current: Option<Identity>, visible: bool, clien
             let billing_scope = scope.clone();
             let billing = if load_billing { Task::perform(async move {
                 let id = billing_scope;
-                let scope = UsageScanScope { project_id: id.project.clone().into(), target_host: id.host.clone() };
-                let result = async { gateway_usage_price::GatewayUsagePriceClient::new(billing_client?.transport().clone()).usage_billing_defaults(&scope).await.map_err(|error| error.to_string()) }.await;
+                let result = async { gateway_usage_price::GatewayUsagePriceClient::new(billing_client?.transport().clone()).usage_billing_defaults().await.map_err(|error| error.to_string()) }.await;
                 Event::BillingLoaded(ticket, id, result)
             }, message) } else { Task::none() };
             let prices = Task::perform(async move {
                 let result = async {
-                    gateway_usage_price::GatewayUsagePriceClient::new(client?.transport().clone()).usage_prices(&UsageScanScope { project_id: scope.project.clone().into(), target_host: scope.host.clone() }).await.map_err(|e| e.to_string())
+                    gateway_usage_price::GatewayUsagePriceClient::new(client?.transport().clone()).usage_prices().await.map_err(|e| e.to_string())
                 }.await;
                 (scope, result)
             }, move |(scope, result)| message(Event::Loaded(ticket, scope, result)));
@@ -320,15 +317,14 @@ pub fn update(state: &mut State, current: Option<Identity>, visible: bool, clien
             return Task::perform(async move {
                 let result = async {
                     let client = gateway_usage_price::GatewayUsagePriceClient::new(client?.transport().clone());
-                    let scope = UsageScanScope { project_id: scope.project.clone().into(), target_host: scope.host.clone() };
                     match operation {
-                        Write::Save(price, true) => client.usage_create_price(&scope, &price).await.map(|_| ()).map_err(|e| e.to_string()),
-                        Write::Save(price, false) => client.usage_update_price(&scope, &price).await.map(|_| ()).map_err(|e| e.to_string()),
+                        Write::Save(price, true) => client.usage_create_price(&price).await.map(|_| ()).map_err(|e| e.to_string()),
+                        Write::Save(price, false) => client.usage_update_price(&price).await.map(|_| ()).map_err(|e| e.to_string()),
                         Write::Delete(id) => {
-                            let result = client.usage_delete_price(&scope, &id).await.map_err(|e| e.to_string())?;
+                            let result = client.usage_delete_price(&id).await.map_err(|e| e.to_string())?;
                             if result.deleted { Ok(()) } else { Err("价格不存在，未删除".into()) }
                         }
-                        Write::Import(source, prices) => client.usage_import_prices(&scope, &source, &prices).await.map(|_| ()).map_err(|e| e.to_string()),
+                        Write::Import(source, prices) => client.usage_import_prices(&source, &prices).await.map(|_| ()).map_err(|e| e.to_string()),
                     }
                 }.await;
                 (scope, result)

@@ -13,7 +13,7 @@ use desktop_ui_controls::{
     text_editor_context_menu::TextContextEffect,
 };
 
-use gateway_usage_read::{GroupStats, ModelStats, ProviderStats, UsageReadScope};
+use gateway_usage_read::{GroupStats, ModelStats, ProviderStats};
 use iced::{
     Element, Length, Task,
     widget::{button, column, container, mouse_area, responsive, row, rule, scrollable, text},
@@ -156,17 +156,12 @@ pub fn load(
         async move {
             let result = async {
                 let client = client?;
-                let read_scope = UsageReadScope {
-                    project_id: scope.project.clone().into(),
-                    target_host: scope.host.clone(),
-                    time_zone,
-                };
                 let providers = client
-                    .usage_provider_stats(&read_scope, &query)
+                    .usage_provider_stats(&time_zone, &query)
                     .await
                     .map_err(|e| e.to_string())?;
                 let models = client
-                    .usage_model_stats(&read_scope, &query)
+                    .usage_model_stats(&time_zone, &query)
                     .await
                     .map_err(|e| e.to_string())?;
                 Ok((providers, models))

@@ -2637,10 +2637,10 @@
     {
       "key": "trae",
       "version": "0.121.3",
-      "status": "unverified",
+      "status": "verified",
       "platform": {
         "review_host": "Darwin-arm64",
-        "artifact_scope": "本机固定发行物静态审查；源码/通用 JS 的跨平台执行未验证",
+        "artifact_scope": "Darwin arm64，受管 0.121.3 v1，session_model 受限权限下真实网关验收。",
         "linux": "unverified",
         "windows": "unverified"
       },
@@ -2648,12 +2648,12 @@
         "package": "trae",
         "version": "0.121.3",
         "upstream_url": "https://lf-cdn.trae.com.cn/obj/trae-com-cn/trae-cli/trae-cli_0.121.3_darwin_arm64.tar.gz",
-        "upstream_integrity": "见本项 evidence 文件 SHA-256；不得将其等同完整发行物签名",
+        "upstream_integrity": "受管合约以 SHA-256 校验固定 Darwin arm64 归档及入口文件。",
         "engine": {
           "kind": "same_distribution",
           "release": "0.121.3"
         },
-        "local_identity": "固定版本来自版本清单/本机隔离发行物路径；仅记录静态文件散列，不把路径命名当作运行身份验证。"
+        "local_identity": "trae-0.121.3-model-source-v1，构建提交 72fe00ff52f56b0eb11a37bd561d4f10a4a44354。"
       },
       "acp_entry": {
         "argv": [
@@ -2661,22 +2661,23 @@
           "acp",
           "serve"
         ],
-        "binding": "crates/vw-acp/src/agent_registry.rs::BUILT_IN_AGENT_DEFINITIONS",
-        "runtime_executed": false,
-        "note": "固定发行物候选入口；注册器含 latest/range，不保证用户当前命令已固定到此版本。"
+        "binding": "crates/libs/acp-agent-registry/src/managed_runtime.rs::reviewed_agent_command",
+        "runtime_executed": true,
+        "note": "沿用既有启动器及原生 ACP，受管会话须通过固定制品校验。"
       },
       "mount": {
         "candidate_paths": [
-          "未核实：固定 0.121.3 CLI 的技能目录入口"
+          "<private-launch>/skills",
+          "$HOME/.agents/skills"
         ],
-        "discovery": "0.121.3 二进制仅有 SKILL.md/docs/skills.md 等符号，无法据此确认目录契约。当前 CLI/IDE 文档与固定发行物代际和产品面不一致，禁止据 IDE 路径推断。",
-        "activation": "目录发现、默认选择与按需激活全部未核实；非 unsupported。",
-        "session_isolation": "unverified：额外根/专属配置根不自动排除内建、用户、项目及插件技能；不得修改 HOME 或写用户全局目录。"
+        "discovery": "TRAE 原生 Skill 枚举同时发现私有选集与用户级原生技能。",
+        "activation": "按调用 ID 验证原生 Skill 加载正文、Read 读取附件。",
+        "session_isolation": "私有启动目录链接到已验证的会话视图。撤除选集后，新会话仅发现原生夹具。"
       },
       "permissions": {
-        "status": "unverified",
+        "status": "verified",
         "requirements": "执行端重新审核目录、租户/项目/会话权限、路径逃逸与符号链接；支持文件/脚本/MCP 仍受各自授权限制，不扩大 full_access。",
-        "agent_specific": "固定 ACP 的目录/工具授权条件须后续真实验证；未因模型来源受限推定技能不支持。"
+        "agent_specific": "受限模式下原生读取和 stdio MCP 单次批准通过。同一 MCP 拒绝对照零下游调用。"
       },
       "update": {
         "native": "unverified：本任务未执行热更新或原子完整替换；静态刷新函数/文档 reload 不作成功承诺。",
@@ -2713,6 +2714,10 @@
               "excerpt": "ednil contextmodel_retry__pycache__pre_compact<id>%s</id>**/SKILL.mdHTTP %d: %s %s Submit Plan saved. [2J [3J [Hswitch modeswitch_modestream_tickstatus_tickplaceholderThinking...for newlinechat_detailtest-value-http-serverhttp2serverhttp2clientEND_HEADERSENABLE_PUSHCo"
             }
           ]
+        },
+        {
+          "path": "../../dev/acp/skill-coexistence/trae.md",
+          "kind": "skill_coexistence"
         }
       ],
       "supplemental_official_docs": [
@@ -2722,10 +2727,10 @@
           "scope": "当前文档补充线索；未绑定固定发行物/ACP；不用于提升支持状态。"
         }
       ],
-      "next_validation": "固定版本真实 ACP：发现元数据 → 按需激活 → 支持文件/脚本工具回合 → 隔离/删除/更新失败保旧 → 跨进程恢复；只替代外部模型 HTTP。未安装/缺账号则保留 unverified。",
+      "next_validation": "热更新、跨进程恢复和其他平台仍需独立验收。",
       "delivery_acceptance": {
         "status": "user_waived",
-        "reason": "用户明确决定免登录、免验证并接受本项；未实际运行，不计实测 verified。",
+        "reason": "2026-11-06 历史回归采用用户豁免。本项当前受管能力见最终共存回执。",
         "evidence": "evidence/regression.json"
       }
     }

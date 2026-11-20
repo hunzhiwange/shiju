@@ -16,7 +16,7 @@
 - 无挂载轮有一个 `chat.done`、零个 `chat.error`，三次有效模型请求，MCP 调用及审批均为零。原生正文和附件分别通过 `call_grok_bdf3f89ffd89f5b9b6068c05` 和 `call_grok_5bfbd9efcfd8212409c94d48` 回传，绑定和权限回读符合预期。
 - 挂载轮在模型请求前被 `grok: no verified skill directory mount branch` 拒绝，零 `chat.done`、一次 `chat.error`，无 MCP 审批和调用。探针退出 1。证据位于 `target/acp-skill-coexistence/grok-before.json`。
 
-## 修复后与正式回归状态
+## 修复后及初次构建
 
 槽位 3 的 Cargo 双缓存路径均为仓库的 `target/rust-slot-3`。定向 `cargo test --locked -j 1 -p llm-runtime --lib acp_skill_coexistence_grok -- --test-threads=1` 退出 0，实际运行 2 项并全部通过。Python 探针语法检查通过。
 
@@ -33,4 +33,19 @@
 
 直接 ACP 证据位于 `target/acp-skill-coexistence/grok-direct.json`。旧网关独立检查了原生技能与只读 MCP，取得四轮各一个 `chat.done` 和零 `chat.error`，审批与调用计数相同。证据位于 `target/acp-skill-coexistence/grok-mcp-control.json`。
 
-正式 `cargo build --locked -j 1 -p vw-cli --bin shiju` 因既有的 `task-scheduler` 编译错误退出 101。PostgreSQL 工作计划的 `store/postgres/task_plan.rs:247,249` 从相邻模块访问私有字段 `PlanMember.id`，产生两处 E0616。目标依赖该 crate，标准构建有待其恢复。新网关的四轮 SSE、绑定与权限回读以及 `target/acp-skill-coexistence/grok.json` 尚待正式回归。支持范围限定为 Darwin arm64 上摘要相符的原生入口。
+正式 `cargo build --locked -j 1 -p vw-cli --bin shiju` 因既有的 `task-scheduler` 编译错误退出 101。PostgreSQL 工作计划的 `store/postgres/task_plan.rs:247,249` 从相邻模块访问私有字段 `PlanMember.id`，产生两处 E0616。该错误随共享网关构建恢复。支持范围限定为 Darwin arm64 上摘要相符的原生入口。
+
+## 正式网关回归
+
+复用 Cargo 槽位 6 的共享网关。两个 Cargo 缓存路径均指向仓库的 `target/rust-slot-6`。构建源码版本为 `03e5fc747ed4571184fbb6a156bb48d093b9fee0`，网关 SHA-256 为 `c59878516f6a88bb8f60ce78955654b9859bca9b82af6711fc14c83d0a572eba`。构建收据与当前源码的差异仅涉及模块声明及匹配顺序、Kimi 只读分派及其测试。Grok 主机逻辑一致。二进制内的 Grok 投影脚本与该源码版本逐字节一致，脚本 SHA-256 为 `7fee75938f5b3f13f7d9da935150337aa6c3743411d8b9c02036fbf18b03bfc4`。探针重新核对原生 Grok 入口的版本与摘要。
+
+`verify_acp_skill_coexistence.py --agent grok` 退出 0。四轮各有一个 `chat.done` 和零个 `chat.error`，并回读 `grok`、`session_model`、`coexistence-fixture/deepseek-v4.1-flash-1017` 与 `full_access=false`。拒绝对照由原生终止通知关联到被拒的调用 ID。
+
+| 轮次 | 新会话 | 有效模型请求 | MCP 审批 | 下游调用 |
+| --- | --- | --- | --- | --- |
+| 基线 | `ses_e05f7640bffeTl2CeVc6Vz6C9k` | 3 | 无 | 0 |
+| 挂载 | `ses_e05f6e721ffevRlKZBpYeaa3QR` | 6 | once | 1 |
+| 撤除 | `ses_e05f6bcb0ffeYYLXGx4dO5SHQS` | 3 | 无 | 0 |
+| 拒绝 | `ses_e05f684faffesGAX5blEhBM7O3` | 5 | reject | 0 |
+
+挂载轮按调用 ID 回传原生技能正文 `call_grok_b26e63cb80f36484db8abb39`、附件 `call_grok_b5eeb4aad1cc28daac25d473`、选中技能正文 `call_grok_a49e2706b7f846626cc209f1`、附件 `call_grok_5802907017210ead3f698420` 和 MCP 结果 `call_grok_201d3f30d8b56f5744e3ab59`。拒绝调用 `call_grok_f92e455a5c91738892df3929` 的下游调用为零。基线和撤除轮均未发现选中技能。结构化证据位于 `target/acp-skill-coexistence/grok.json`，共享构建证据位于 `target/acp-skill-coexistence/final-regression-gateway.json`。两项 Rust 定向单测沿用此前通过的结果。

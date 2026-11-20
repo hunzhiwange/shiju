@@ -593,8 +593,8 @@ fn schedules<'a>(center: &'a Center, plans: &'a task_api::Schedules) -> Item<'a>
             ]
             .spacing(12)
             .align_y(Alignment::Center)
-            .wrap()
-            .padding(14),
+            .padding(14)
+            .wrap(),
         ));
     }
     let total =
@@ -955,8 +955,8 @@ fn results(record: &Record) -> Item<'_> {
                 artifact.byte_size.map(|size| label(format!("{size} 字节"), 12, Tone::Muted)),
             ]
             .spacing(10)
-            .wrap()
-            .padding(12),
+            .padding(12)
+            .wrap(),
         ));
     }
     match &record.handoff {

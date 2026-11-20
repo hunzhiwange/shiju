@@ -319,11 +319,13 @@ pub(super) async fn detail(
 ) -> Result<Record, String> {
     let client = Client::new(key)?;
     let detail: Detail = client.task(id, None).await?;
+    let events_path = ["tasks", id, "events"];
+    let trace_path = ["tasks", id, "trace"];
     let (collaboration, handoff, events, trace, creator) = tokio::join!(
         client.task(id, Some("collaboration")),
         client.task(id, Some("handoff")),
-        client.get_path(&["tasks", id, "events"], &[("limit", "50")]),
-        client.get_path(&["tasks", id, "trace"], &[("limit", "50")]),
+        client.get_path(&events_path, &[("limit", "50")]),
+        client.get_path(&trace_path, &[("limit", "50")]),
         async {
             let user = detail.task.created_by.as_deref()?;
             if let Some(record) =

@@ -33,3 +33,23 @@
 `session_model` 使用会话私有 `COPILOT_HOME`；当前启动合同没有租户和项目绑定的 Copilot 技能设置来源。应先确定可授权的配置来源，并只投影技能目录和排除项。直接恢复全量配置发现或引入用户全局配置会跨出现有隔离边界。探针支持按调用 ID 校验明确的拒绝终态，完整网关复验仍待受信配置接入。
 
 共享验收判定的 Python 定向测试通过 5 项。此次未修改 Rust 技能配置、受管摘要或安装修订，排队的新网关构建在获得编译锁前取消，复用了同槽位已验产物。未运行 Rust 单测或桌面构建。
+
+## 共享工作区复查
+
+在 `2127c62f6b` 上逐项比较首次回执提交后的 Copilot 驱动、技能挂载模块、固定补丁和受管合约，Copilot 条目没有差异。新一轮替代路径诊断使用私有目录、同一 SHA-256 校验的原始和受管入口及回环模型。项目根、候选技能目录及模型凭据均为临时夹具。
+
+| 固定入口与配置 | 显式目录 | 未登记的项目技能 |
+| --- | --- | --- |
+| 原版启动，仅传 ACP `session/new` 参数及 `_meta` | 不可见 | 可见 |
+| 原版启动，`COPILOT_SKILLS_DIRS` | 可见 | 可见 |
+| 原版启动，`--plugin-dir` | 可见 | 可见 |
+| 受管 v1，空选择 | 不可见 | 不可见 |
+| 私有窄补丁，`enableConfigDiscovery=false`，只投影技能设置 | 可见 | 不可见 |
+| 私有窄补丁，技能名在 `disabledSkills` 中 | 不可见 | 不可见 |
+| 私有窄补丁，技能目录在 `ignoredSkillsLocations` 中 | 不可见 | 不可见 |
+
+私有窄补丁另用带 `allowed-tools` 声明的原生技能复验只读 SSE 工具。四轮的 `allow_all` 均为 `off`，MCP 仍向 ACP 客户端请求单次审批。批准轮调用下游一次，拒绝轮下游为零，收到同调用 ID 的 `code=rejected`。此对照只覆盖固定版和本次声明的 SSE 工具。目录和审批补测均退出 0，脱敏日志分别位于 `target/acp-skill-coexistence/copilot-alternatives.log` 和 `target/acp-skill-coexistence/copilot-direct-allowed-tools.log`。
+
+共享 `.vwacprc.json` 中的进程覆盖由全局层和项目文件合并，现有字段没有明确授予原生技能读取范围的来源标识。租约的 `state_root` 也是网关级目录。原生 Copilot 工作区信任查询使用其配置目录，而模型驱动使用当前会话的私有 `COPILOT_HOME`。已有项目工具白名单仅限制已声明工具的可见性。上述入口均未提供可直接复用的租户及项目级技能授权。独立的 `cli_local` 也无法验证任务指定的 `session_model`。
+
+继续接线所需的输入是租户管理员认可的项目级原生 Copilot 设置来源，以及允许投影的目录范围和排除项。例如授权一个按租户及项目登记、只投影 `skillDirectories`、`disabledSkills` 和 `ignoredSkillsLocations` 的配置来源。确认之前保留门禁和原制品。本轮重用已有网关失败证据，未重建网关或重跑相同探针。

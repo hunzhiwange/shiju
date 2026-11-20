@@ -434,22 +434,32 @@ async fn load_config_from_store_normalizes_legacy_model_aliases_without_overridi
 }
 
 #[tokio::test]
-async fn load_config_from_store_rejects_malformed_and_non_object_base_payloads() {
+async fn load_config_from_store_rejects_corrupt_sections() {
     let temp_home = tempfile::tempdir().unwrap();
     let config_dir = temp_home.path().join("config");
     tokio::fs::create_dir_all(&config_dir).await.unwrap();
-    let store = SystemConfigStore::new(
-        GlobalDatabase::new(temp_home.path().join("database/_index.sqlite3")).unwrap(),
-    )
-    .unwrap();
-    let malformed_tenant = TenantScope::new("platform", "malformed-company").unwrap();
-    let array_tenant = TenantScope::new("platform", "array-company").unwrap();
-    store.upsert(&malformed_tenant, "{").unwrap();
-    store.upsert(&array_tenant, "[]").unwrap();
+    let database = GlobalDatabase::new(temp_home.path().join("database/_index.sqlite3")).unwrap();
+    let store = SystemConfigStore::new(database.clone()).unwrap();
+    let tenant = TenantScope::new("platform", "company").unwrap();
+    for payload in ["{", "[]"] {
+        assert!(store.upsert(&tenant, payload).is_err());
+        assert!(store.get(&tenant).unwrap().is_none());
+    }
 
-    let malformed_error = load_config_for_tenant_from_store(
+    store.upsert(&tenant, r#"{"runtime":{}}"#).unwrap();
+    database
+        .connect_sqlite()
+        .unwrap()
+        .execute(
+            "UPDATE system_config_sections SET payload_json = '{'
+             WHERE platform_id = 'platform' AND company_id = 'company' AND section_key = 'runtime'",
+            [],
+        )
+        .unwrap();
+
+    let error = load_config_for_tenant_from_store(
         &store,
-        &malformed_tenant,
+        &tenant,
         None,
         &config_dir,
         config_dir.join("workspace"),
@@ -458,22 +468,7 @@ async fn load_config_from_store_rejects_malformed_and_non_object_base_payloads()
     )
     .await
     .unwrap_err();
-    assert!(malformed_error.to_string().contains("Failed to parse tenant system config payload"));
-
-    let array_error = load_config_for_tenant_from_store(
-        &store,
-        &array_tenant,
-        None,
-        &config_dir,
-        config_dir.join("workspace"),
-        ConfigResolutionSource::DefaultConfigDir,
-        |_| {},
-    )
-    .await
-    .unwrap_err();
-    assert!(
-        array_error.to_string().contains("tenant system config payload root must be an object")
-    );
+    assert!(format!("{error:#}").contains("decode config section"));
 }
 
 #[tokio::test]

@@ -8,6 +8,7 @@ import unittest
 from unittest.mock import MagicMock, patch
 
 import verify_model_protocol_routes as audit
+from system_config_fixture import seed_system_config
 
 
 def result(fields=None):
@@ -219,8 +220,11 @@ class ServiceAuditTests(unittest.TestCase):
             root = Path(directory); (root / 'database').mkdir()
             (root / 'auth.json').write_text(json.dumps({'p': {'type': 'api', 'key': 'fixture-file'}}))
             with sqlite3.connect(str(root / 'database/vibe-window.sqlite3')) as connection:
-                connection.execute('CREATE TABLE system_configs(platform_id TEXT,company_id TEXT,payload_json TEXT)')
-                connection.execute('INSERT INTO system_configs VALUES(?,?,?)', ('p', 'c', json.dumps({'providers': {'p': {'api': 'https://example.com/v1', 'env': ['SHIJU_PROTOCOL_FIXTURE_KEY'], 'models': {'m': {'status': 'active'}}}}})))
+                seed_system_config(connection, {'providers': {'p': {
+                    'api': 'https://example.com/v1',
+                    'env': ['SHIJU_PROTOCOL_FIXTURE_KEY'],
+                    'models': {'m': {'status': 'active'}},
+                }}}, platform='p', company='c')
             with patch.dict(os.environ, {'SHIJU_PROTOCOL_FIXTURE_KEY': 'fixture-environment'}):
                 account = audit.configured_accounts([root])[0]
             self.assertEqual(account['credential'], 'fixture-environment')

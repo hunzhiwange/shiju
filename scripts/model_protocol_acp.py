@@ -3,7 +3,9 @@ from contextlib import contextmanager
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import hashlib
 import http.client
+from itertools import groupby
 import json
+from operator import itemgetter
 import os
 from pathlib import Path
 import secrets
@@ -355,6 +357,22 @@ def turn(binary, entry, account, root, thinking_mode="request_default", upstream
         return evidence
 
 
+def stored_system_configs(connection):
+    """Read each tenant's system configuration sections."""
+    rows = connection.execute("""
+        SELECT tenant.platform_id, tenant.company_id, section.section_key, section.payload_json
+        FROM system_config_tenants AS tenant
+        LEFT JOIN system_config_sections AS section USING (platform_id, company_id)
+        ORDER BY tenant.platform_id, tenant.company_id, section.section_key
+    """)
+    for (platform, company), sections in groupby(rows, key=itemgetter(0, 1)):
+        yield platform, company, {
+            section: json.loads(payload)
+            for _, _, section, payload in sections
+            if section is not None
+        }
+
+
 def stored_deepseek_diagnostic(roots, records, accounts):
     """Use saved credentials only in the explicitly requested isolated diagnostic."""
     if any(a['provider_id'] == 'deepseek' for a in accounts): return []
@@ -367,8 +385,8 @@ def stored_deepseek_diagnostic(roots, records, accounts):
         credential = json.loads(auth.read_text()).get('deepseek', {})
         if credential.get('type') != 'api' or not credential.get('key'): continue
         with sqlite3.connect('file:' + str(database) + '?mode=ro', uri=True) as connection:
-            for platform, company, payload in connection.execute('SELECT platform_id,company_id,payload_json FROM system_configs'):
-                provider = json.loads(payload).get('providers', {}).get('deepseek', {})
+            for platform, company, config in stored_system_configs(connection):
+                provider = config.get('providers', {}).get('deepseek', {})
                 if not provider.get('api'): continue
                 return [dict(provider_id='deepseek', model_key=row['model_key'], model_api_id=row['model_api_id'],
                              endpoint=provider['api'], adapter=provider.get('adapter') or 'openai-compatible',

@@ -5,27 +5,12 @@
 use anyhow::{Context, Result, bail};
 use vw_api_transport::id::TenantScope;
 
-use secret_store::gateway_skey_store::GatewaySkeyReplacement;
 use agent_database::GlobalDatabase;
+use secret_store::gateway_skey_store::GatewaySkeyReplacement;
 
-const SYSTEM_CONFIGS_SCHEMA: &str = r#"
-CREATE TABLE IF NOT EXISTS system_configs (
-    platform_id TEXT NOT NULL CHECK (trim(platform_id) <> ''),
-    company_id TEXT NOT NULL CHECK (trim(company_id) <> ''),
-    payload_json TEXT NOT NULL,
-    updated_at_ms BIGINT NOT NULL,
-    PRIMARY KEY (platform_id, company_id)
-);
+use super::sections::{ConfigSnapshot, DELETE_SECTION, INSERT_TENANT, READ_CONFIG, UPSERT_SECTION};
 
-CREATE TABLE IF NOT EXISTS project_configs (
-    platform_id TEXT NOT NULL CHECK (trim(platform_id) <> ''),
-    company_id TEXT NOT NULL CHECK (trim(company_id) <> ''),
-    project_path TEXT NOT NULL CHECK (trim(project_path) <> ''),
-    payload_json TEXT NOT NULL,
-    updated_at_ms BIGINT NOT NULL,
-    PRIMARY KEY (platform_id, company_id, project_path)
-);
-"#;
+const SYSTEM_CONFIGS_SCHEMA: &str = include_str!("schema.sql");
 
 #[derive(Debug, Clone)]
 /// `SystemConfigStore` 的 PostgreSQL 后端。
@@ -45,86 +30,62 @@ impl PostgresSystemConfigStore {
         Ok(Self { database })
     }
 
-    /// 读取租户全局配置 JSON。
-    pub(super) fn get(&self, tenant: &TenantScope) -> Result<Option<String>> {
+    pub(super) fn read_snapshot(&self, tenant: &TenantScope) -> Result<ConfigSnapshot> {
         let mut connection = self.database.connect_postgres()?;
-        connection
-            .query_opt(
-                "SELECT payload_json
-                 FROM system_configs
-                 WHERE platform_id = $1 AND company_id = $2",
-                &[&tenant.platform_id().as_ref(), &tenant.company_id().as_ref()],
-            )
-            .context("read tenant PostgreSQL system config")?
-            .map(|row| row.try_get(0))
-            .transpose()
-            .context("decode tenant PostgreSQL system config")
+        let rows = connection
+            .query(READ_CONFIG, &[&tenant.platform_id().as_ref(), &tenant.company_id().as_ref()])?;
+        ConfigSnapshot::from_rows(rows.iter().map(|row| {
+            let key = row.try_get(0)?;
+            row.try_get(1).map(|payload| (key, payload))
+        }))
+        .context("read tenant PostgreSQL system config")
     }
 
-    /// 按租户主键写入全局配置。
-    pub(super) fn upsert(
+    pub(super) fn edit(
         &self,
         tenant: &TenantScope,
         payload_json: &str,
         updated_at_ms: i64,
-    ) -> Result<()> {
-        let mut connection = self.database.connect_postgres()?;
-        let changed = connection
-            .execute(
-                "INSERT INTO system_configs (
-                     platform_id, company_id, payload_json, updated_at_ms
-                 ) VALUES ($1, $2, $3, $4)
-                 ON CONFLICT (platform_id, company_id) DO UPDATE SET
-                     payload_json = excluded.payload_json,
-                     updated_at_ms = excluded.updated_at_ms",
-                &[
-                    &tenant.platform_id().as_ref(),
-                    &tenant.company_id().as_ref(),
-                    &payload_json,
-                    &updated_at_ms,
-                ],
-            )
-            .context("upsert tenant PostgreSQL system config")?;
-        if changed != 1 {
-            bail!("PostgreSQL system config upsert affected an unexpected row count");
-        }
-        Ok(())
-    }
-
-    pub(super) fn compare_and_swap(
-        &self,
-        tenant: &TenantScope,
-        expected: Option<&str>,
-        payload_json: &str,
+        can_write: impl FnOnce(&ConfigSnapshot) -> Result<bool>,
         skeys: Option<&GatewaySkeyReplacement>,
-        updated_at_ms: i64,
     ) -> Result<bool> {
         let mut connection = self.database.connect_postgres()?;
         let mut transaction = connection.transaction().context("begin PostgreSQL config write")?;
         let platform = tenant.platform_id().as_ref();
         let company = tenant.company_id().as_ref();
-        let changed = match expected {
-            Some(expected) => transaction.execute(
-                "UPDATE system_configs SET payload_json = $3, updated_at_ms = $4
-                 WHERE platform_id = $1 AND company_id = $2 AND payload_json = $5",
-                &[&platform, &company, &payload_json, &updated_at_ms, &expected],
-            ),
-            None => transaction.execute(
-                "INSERT INTO system_configs (
-                     platform_id, company_id, payload_json, updated_at_ms
-                 ) VALUES ($1, $2, $3, $4)
-                 ON CONFLICT (platform_id, company_id) DO NOTHING",
-                &[&platform, &company, &payload_json, &updated_at_ms],
-            ),
+        transaction.batch_execute("SET TRANSACTION ISOLATION LEVEL READ COMMITTED")?;
+        // Serialize tenant writes even before its first section exists. At READ COMMITTED
+        // the next statement sees any writes committed by the previous lock holder.
+        transaction.query_one(
+            "SELECT pg_advisory_xact_lock(hashtextextended(
+                json_build_array('system_config_sections', current_schema(), $1::text, $2::text)::text, 0
+            ))",
+            &[&platform, &company],
+        ).context("lock tenant PostgreSQL system config")?;
+        let rows = transaction.query(READ_CONFIG, &[&platform, &company])?;
+        let snapshot = ConfigSnapshot::from_rows(rows.iter().map(|row| {
+            let key = row.try_get(0)?;
+            row.try_get(1).map(|payload| (key, payload))
+        }))?;
+        if !can_write(&snapshot)? {
+            return Ok(false);
         }
-        .context("conditionally write tenant PostgreSQL system config")?;
-        if changed == 1
-            && let Some(skeys) = skeys
-        {
+        let changes = snapshot.changes(payload_json)?;
+        if changes.initialize {
+            transaction.execute(INSERT_TENANT, &[&platform, &company])?;
+        }
+        for (key, value) in changes.upsert {
+            transaction
+                .execute(UPSERT_SECTION, &[&platform, &company, &key, &value, &updated_at_ms])?;
+        }
+        for key in changes.delete {
+            transaction.execute(DELETE_SECTION, &[&platform, &company, &key])?;
+        }
+        if let Some(skeys) = skeys {
             skeys.write_postgres(&mut transaction, tenant, updated_at_ms)?;
         }
         transaction.commit().context("commit PostgreSQL config write")?;
-        Ok(changed == 1)
+        Ok(true)
     }
 
     /// 读取指定租户和项目路径的覆盖 JSON。

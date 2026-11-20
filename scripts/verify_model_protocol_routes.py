@@ -23,7 +23,8 @@ import urllib.error
 import urllib.parse
 import urllib.request
 
-from model_protocol_acp import acp_result, run_acp
+from model_protocol_acp import acp_result, run_acp, stored_system_configs
+from system_config_fixture import seed_system_config
 
 ROOT = Path(__file__).resolve().parents[1]
 PROTOCOLS = ('chat', 'messages', 'responses', 'gemini')
@@ -143,8 +144,7 @@ def configured_accounts(roots):
         auth_path = root / 'auth.json'
         auth = json.loads(auth_path.read_text()) if auth_path.exists() else {}
         with sqlite3.connect('file:' + str(database) + '?mode=ro', uri=True) as connection:
-            for platform, company, payload in connection.execute('SELECT platform_id,company_id,payload_json FROM system_configs'):
-                configuration = json.loads(payload)
+            for platform, company, configuration in stored_system_configs(connection):
                 for model in enabled_models(configuration):
                     credential = auth.get(model['provider_id'], {})
                     provider = configuration['providers'][model['provider_id']]
@@ -220,8 +220,7 @@ def gateway(binary, private, accounts):
     db = config / 'database/vibe-window.sqlite3'
     with sqlite3.connect(str(db)) as connection:
         connection.execute('CREATE TABLE gateway_settings (platform_id TEXT NOT NULL, company_id TEXT NOT NULL, namespace TEXT NOT NULL, config_key TEXT NOT NULL, payload_json TEXT NOT NULL, updated_at_ms INTEGER NOT NULL, PRIMARY KEY(platform_id,company_id,namespace,config_key))')
-        connection.execute('CREATE TABLE system_configs (platform_id TEXT NOT NULL, company_id TEXT NOT NULL, payload_json TEXT NOT NULL, updated_at_ms INTEGER NOT NULL, PRIMARY KEY(platform_id,company_id))')
-        connection.execute('INSERT INTO system_configs VALUES (?,?,?,?)', ('10000', '100000000', json.dumps({'gateway': {'host': '127.0.0.1', 'port': 0, 'auth_enabled': False}}), int(time.time() * 1000)))
+        seed_system_config(connection, {'gateway': {'host': '127.0.0.1', 'port': 0, 'auth_enabled': False}})
         for index, account in enumerate(accounts):
             # Explicit snapshot of the configured destination, never an inferred URL.
             row = {'name': 'Private audit', 'protocol': 'anthropic', 'baseUrl': account['endpoint'],

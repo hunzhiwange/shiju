@@ -21,6 +21,7 @@ from urllib.request import ProxyHandler, Request, build_opener
 
 from acp_approval_model import CONTENTS as CONTENT, DONE, matches_workspace_edit, model_fixture
 from acp_skill_mount_codex import locate_codex
+from system_config_fixture import seed_system_config
 from verify_acp_model_source import (
     ROOT, Unavailable, cargo_slot, isolated_environment, locate, openclaw_native_gateway,
 )
@@ -245,10 +246,7 @@ def gateway(binary, root, env, *, cwd=None):
     db = Path(env["VIBEWINDOW_CONFIG_DIR"]) / "database/vibe-window.sqlite3"
     db.parent.mkdir()
     with sqlite3.connect(db) as conn:
-        conn.execute("CREATE TABLE system_configs (platform_id TEXT, company_id TEXT, "
-                     "payload_json TEXT, updated_at_ms INTEGER, PRIMARY KEY(platform_id,company_id))")
-        conn.execute("INSERT INTO system_configs VALUES ('10000','100000000',?,1)",
-                     (json.dumps({"gateway": {"auth_enabled": False}}),))
+        seed_system_config(conn, {"gateway": {"auth_enabled": False}})
     with socket.socket() as listener:
         listener.bind(("127.0.0.1", 0))
         port = listener.getsockname()[1]

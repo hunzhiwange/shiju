@@ -9,6 +9,8 @@ import urllib.error
 import urllib.parse
 import urllib.request
 
+from system_config_fixture import seed_system_config
+
 
 class NoRedirect(urllib.request.HTTPRedirectHandler):
     def redirect_request(self, req, fp, code, msg, headers, newurl):
@@ -217,8 +219,7 @@ def relay_host(binary, root, account, catalog, private_json):
     payload = {'providers': {account['provider_id']: {'api': account['endpoint'], 'adapter': 'openai-compatible', 'env': [], 'models': {account['model_key']: model}}}}
     database = config / 'database/vibe-window.sqlite3'
     with sqlite3.connect(str(database)) as connection:
-        connection.execute('CREATE TABLE system_configs(platform_id TEXT NOT NULL,company_id TEXT NOT NULL,payload_json TEXT NOT NULL,updated_at_ms INTEGER NOT NULL,PRIMARY KEY(platform_id,company_id))')
-        connection.execute('INSERT INTO system_configs VALUES(?,?,?,?)', ('10000', '100000000', json.dumps(payload), int(time.time() * 1000)))
+        seed_system_config(connection, payload)
     os.chmod(database, 0o600)
     private_json(root / 'seed.json', {k: account[k] for k in ('provider_id', 'model_key', 'credential')})
     environment = os.environ.copy(); environment.update(VIBEWINDOW_TEST_ROOT=str(root), VIBEWINDOW_CONFIG_DIR=str(config))

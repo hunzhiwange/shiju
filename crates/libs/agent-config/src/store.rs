@@ -5,39 +5,21 @@
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use anyhow::{Context, Result, bail};
-use rusqlite::{OptionalExtension, TransactionBehavior, params};
+use rusqlite::{Connection, OptionalExtension, TransactionBehavior, params};
 use vw_api_transport::id::TenantScope;
 
-use secret_store::gateway_skey_store::GatewaySkeyReplacement;
 use agent_database::GlobalDatabase;
 use agent_database::config::DatabaseProvider;
+use secret_store::gateway_skey_store::GatewaySkeyReplacement;
 
 mod postgres;
+mod sections;
 
 use postgres::PostgresSystemConfigStore;
+use sections::{ConfigSnapshot, DELETE_SECTION, INSERT_TENANT, READ_CONFIG, UPSERT_SECTION};
 
-const SYSTEM_CONFIGS_SCHEMA: &str = r#"
-BEGIN IMMEDIATE;
-
-CREATE TABLE IF NOT EXISTS system_configs (
-    platform_id TEXT NOT NULL CHECK (trim(platform_id) <> ''),
-    company_id TEXT NOT NULL CHECK (trim(company_id) <> ''),
-    payload_json TEXT NOT NULL,
-    updated_at_ms INTEGER NOT NULL,
-    PRIMARY KEY (platform_id, company_id)
-);
-
-CREATE TABLE IF NOT EXISTS project_configs (
-    platform_id TEXT NOT NULL CHECK (trim(platform_id) <> ''),
-    company_id TEXT NOT NULL CHECK (trim(company_id) <> ''),
-    project_path TEXT NOT NULL CHECK (trim(project_path) <> ''),
-    payload_json TEXT NOT NULL,
-    updated_at_ms INTEGER NOT NULL,
-    PRIMARY KEY (platform_id, company_id, project_path)
-);
-
-COMMIT;
-"#;
+const SYSTEM_CONFIGS_SCHEMA: &str =
+    concat!("BEGIN IMMEDIATE;\n", include_str!("store/schema.sql"), "\nCOMMIT;");
 
 #[derive(Debug, Clone)]
 /// 系统配置的后端无关存储入口。
@@ -71,58 +53,25 @@ impl SystemConfigStore {
         Ok(Self { provider })
     }
 
-    /// 读取租户全局配置的原始 JSON；记录不存在时返回 `None`。
+    /// 按租户读取并组装系统配置分组。
     pub fn get(&self, tenant: &TenantScope) -> Result<Option<String>> {
-        match &self.provider {
+        let snapshot = match &self.provider {
             SystemConfigStoreProvider::Sqlite(database) => {
-                let connection = database.connect_sqlite()?;
-                connection
-                    .query_row(
-                        "SELECT payload_json
-                         FROM system_configs
-                         WHERE platform_id = ?1 AND company_id = ?2",
-                        params![tenant.platform_id().as_ref(), tenant.company_id().as_ref()],
-                        |row| row.get(0),
-                    )
-                    .optional()
-                    .context("read tenant SQLite system config")
+                read_sqlite_snapshot(&database.connect_sqlite()?, tenant)?
             }
-            SystemConfigStoreProvider::Postgres(store) => store.get(tenant),
-        }
+            SystemConfigStoreProvider::Postgres(store) => store.read_snapshot(tenant)?,
+        };
+        snapshot.payload()
     }
 
-    /// 新增或覆盖租户全局配置，并刷新更新时间。
+    /// 新增或覆盖租户全局配置。
     pub fn upsert(&self, tenant: &TenantScope, payload_json: &str) -> Result<()> {
-        let updated_at_ms = current_timestamp_ms()?;
-        match &self.provider {
-            SystemConfigStoreProvider::Sqlite(database) => {
-                let connection = database.connect_sqlite()?;
-                connection
-                    .execute(
-                        "INSERT INTO system_configs (
-                             platform_id, company_id, payload_json, updated_at_ms
-                         ) VALUES (?1, ?2, ?3, ?4)
-                         ON CONFLICT (platform_id, company_id) DO UPDATE SET
-                             payload_json = excluded.payload_json,
-                             updated_at_ms = excluded.updated_at_ms",
-                        params![
-                            tenant.platform_id().as_ref(),
-                            tenant.company_id().as_ref(),
-                            payload_json,
-                            updated_at_ms,
-                        ],
-                    )
-                    .context("upsert tenant SQLite system config")?;
-                Ok(())
-            }
-            SystemConfigStoreProvider::Postgres(store) => {
-                store.upsert(tenant, payload_json, updated_at_ms)
-            }
-        }
+        self.edit(tenant, payload_json, |_| Ok(true), None)?;
+        Ok(())
     }
 
-    /// 仅当租户记录仍匹配读取的原始 JSON（或仍不存在）时写入。
-    /// 同时更新网关密钥时，两项写入在同一事务提交。
+    /// 仅当租户配置仍匹配读取的快照（或仍不存在）时写入。
+    /// 网关密钥更新和配置分组写入在同一事务提交。
     pub(crate) fn compare_and_swap(
         &self,
         tenant: &TenantScope,
@@ -130,39 +79,54 @@ impl SystemConfigStore {
         payload_json: &str,
         skeys: Option<&GatewaySkeyReplacement>,
     ) -> Result<bool> {
+        self.edit(
+            tenant,
+            payload_json,
+            |snapshot| Ok(snapshot.payload()?.as_deref() == expected),
+            skeys,
+        )
+    }
+
+    fn edit(
+        &self,
+        tenant: &TenantScope,
+        payload_json: &str,
+        can_write: impl FnOnce(&ConfigSnapshot) -> Result<bool>,
+        skeys: Option<&GatewaySkeyReplacement>,
+    ) -> Result<bool> {
         let updated_at_ms = current_timestamp_ms()?;
         match &self.provider {
-            SystemConfigStoreProvider::Sqlite(database) => {
-                database.with_sqlite_transaction(TransactionBehavior::Immediate, |transaction| {
+            SystemConfigStoreProvider::Sqlite(database) => database
+                .with_sqlite_transaction(TransactionBehavior::Immediate, |transaction| {
                     let platform = tenant.platform_id().as_ref();
                     let company = tenant.company_id().as_ref();
-                    let changed = match expected {
-                        Some(expected) => transaction.execute(
-                            "UPDATE system_configs SET payload_json = ?3, updated_at_ms = ?4
-                             WHERE platform_id = ?1 AND company_id = ?2 AND payload_json = ?5",
-                            params![platform, company, payload_json, updated_at_ms, expected],
-                        ),
-                        None => transaction.execute(
-                            "INSERT INTO system_configs (
-                                 platform_id, company_id, payload_json, updated_at_ms
-                             ) VALUES (?1, ?2, ?3, ?4)
-                             ON CONFLICT (platform_id, company_id) DO NOTHING",
-                            params![platform, company, payload_json, updated_at_ms],
-                        ),
+                    let snapshot = read_sqlite_snapshot(transaction, tenant)?;
+                    if !can_write(&snapshot)? {
+                        return Ok(false);
                     }
-                    .context("conditionally write tenant SQLite system config")?;
-                    if changed == 1
-                        && let Some(skeys) = skeys
-                    {
+                    let changes = snapshot.changes(payload_json)?;
+                    if changes.initialize {
+                        transaction.execute(INSERT_TENANT, params![platform, company])?;
+                    }
+                    for (key, value) in changes.upsert {
+                        transaction.execute(
+                            UPSERT_SECTION,
+                            params![platform, company, key, value, updated_at_ms],
+                        )?;
+                    }
+                    for key in changes.delete {
+                        transaction.execute(DELETE_SECTION, params![platform, company, key])?;
+                    }
+                    if let Some(skeys) = skeys {
                         skeys
                             .write_sqlite(transaction, tenant, updated_at_ms)
                             .context("replace tenant gateway skeys")?;
                     }
-                    Ok(changed == 1)
+                    Ok(true)
                 })
-            }
+                .context("write tenant SQLite system config sections"),
             SystemConfigStoreProvider::Postgres(store) => {
-                store.compare_and_swap(tenant, expected, payload_json, skeys, updated_at_ms)
+                store.edit(tenant, payload_json, updated_at_ms, can_write, skeys)
             }
         }
     }
@@ -230,6 +194,15 @@ impl SystemConfigStore {
     }
 }
 
+fn read_sqlite_snapshot(connection: &Connection, tenant: &TenantScope) -> Result<ConfigSnapshot> {
+    let mut statement = connection.prepare(READ_CONFIG)?;
+    let rows = statement
+        .query_map(params![tenant.platform_id().as_ref(), tenant.company_id().as_ref()], |row| {
+            Ok((row.get(0)?, row.get(1)?))
+        })?;
+    ConfigSnapshot::from_rows(rows).context("read tenant SQLite system config")
+}
+
 fn validate_project_path(project_path: &str) -> Result<()> {
     if project_path.trim().is_empty() {
         bail!("project config path must not be empty");
@@ -245,7 +218,9 @@ fn current_timestamp_ms() -> Result<i64> {
 }
 
 impl crate::schema::channel_reload::ChannelConfigStore for SystemConfigStore {
-    fn get(&self, tenant: &TenantScope) -> Result<Option<String>> { SystemConfigStore::get(self, tenant) }
+    fn get(&self, tenant: &TenantScope) -> Result<Option<String>> {
+        SystemConfigStore::get(self, tenant)
+    }
     fn get_project(&self, tenant: &TenantScope, project: &str) -> Result<Option<String>> {
         SystemConfigStore::get_project(self, tenant, project)
     }

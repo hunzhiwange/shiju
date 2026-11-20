@@ -143,6 +143,8 @@ def text_updates(frames):
 
 
 def prepare(output, port):
+    from system_config_fixture import seed_system_config
+
     home, cwd = output / "home", output / "cwd"
     home.mkdir()
     cwd.mkdir()
@@ -159,10 +161,7 @@ def prepare(output, port):
     database = home / ".shiju-harness-dev/database/vibe-window.sqlite3"
     database.parent.mkdir(parents=True)
     with sqlite3.connect(database) as connection:
-        connection.execute("CREATE TABLE system_configs (platform_id TEXT, company_id TEXT, "
-                           "payload_json TEXT, updated_at_ms INTEGER, PRIMARY KEY(platform_id,company_id))")
-        connection.execute("INSERT INTO system_configs VALUES (?,?,?,?)",
-                           ("10000", "100000000", json.dumps(config), 1))
+        seed_system_config(connection, config)
     return env, cwd
 
 

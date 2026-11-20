@@ -4,9 +4,9 @@ use anyhow::Result;
 use vw_api_transport::id::TenantScope;
 
 use super::SystemConfigStore;
-use secret_store::gateway_skey_store::{GatewaySkeyReplacement, GatewaySkeyStore};
 use agent_database::GlobalDatabase;
 use agent_database::test_support::PostgresTestDatabase;
+use secret_store::gateway_skey_store::{GatewaySkeyReplacement, GatewaySkeyStore};
 
 // 正常值、缺省值与非法输入成组验证，用于固定配置兼容边界和失败语义。
 #[test]
@@ -145,6 +145,70 @@ fn system_config_store_conditional_write_preserves_winner_and_rolls_back_skeys()
         assert_eq!(skey_store.load(&tenant)?, original_skeys);
         assert_eq!(store.get(&other)?, None);
         assert!(skey_store.load(&other)?.is_empty());
+        Ok(())
+    })
+}
+
+#[test]
+fn system_config_store_updates_only_changed_rows() -> Result<()> {
+    use agent_database::config::DatabaseProvider;
+
+    for_each_system_config_store_provider(|store, database| {
+        let tenant = TenantScope::new("platform", "company")?;
+        let initial = r#"{"app_ui":{"system_settings":{"editor_font_size":14}},"model":null,"unknown":[1,true]}"#;
+        store.upsert(&tenant, initial)?;
+        let set_timestamp = "UPDATE system_config_sections SET updated_at_ms = 7
+                             WHERE platform_id = 'platform' AND company_id = 'company'";
+        match database.provider() {
+            DatabaseProvider::Sqlite => {
+                database.connect_sqlite()?.execute(set_timestamp, [])?;
+            }
+            DatabaseProvider::Postgres => {
+                database.connect_postgres()?.execute(set_timestamp, &[])?;
+            }
+        }
+
+        let read_sections = || -> Result<Vec<(String, i64)>> {
+            let sql = "SELECT section_key, updated_at_ms FROM system_config_sections
+                       WHERE platform_id = 'platform' AND company_id = 'company' ORDER BY section_key";
+            match database.provider() {
+                DatabaseProvider::Sqlite => {
+                    let connection = database.connect_sqlite()?;
+                    let mut statement = connection.prepare(sql)?;
+                    let rows = statement.query_map([], |row| Ok((row.get(0)?, row.get(1)?)))?;
+                    Ok(rows.collect::<rusqlite::Result<_>>()?)
+                }
+                DatabaseProvider::Postgres => database
+                    .connect_postgres()?
+                    .query(sql, &[])?
+                    .iter()
+                    .map(|row| Ok((row.try_get(0)?, row.try_get(1)?)))
+                    .collect(),
+            }
+        };
+
+        let snapshot = store.get(&tenant)?.expect("allocated tenant config");
+        assert_eq!(snapshot, initial);
+        assert_eq!(
+            read_sections()?,
+            vec![("app_ui".into(), 7), ("model".into(), 7), ("unknown".into(), 7)],
+        );
+
+        let next = r#"{"app_ui":{"system_settings":{"editor_font_size":16}},"model":null}"#;
+        assert!(store.compare_and_swap(&tenant, Some(&snapshot), next, None)?);
+        let rows = read_sections()?;
+        assert_eq!(rows.len(), 2);
+        assert_eq!(rows[0].0, "app_ui");
+        assert_ne!(rows[0].1, 7);
+        assert_eq!(rows[1], ("model".into(), 7));
+        assert_eq!(store.get(&tenant)?.as_deref(), Some(next));
+
+        // An empty config remains present even after reopening.
+        store.upsert(&tenant, "{}")?;
+        assert!(read_sections()?.is_empty());
+        let reopened = SystemConfigStore::new(database.clone())?;
+        assert_eq!(reopened.get(&tenant)?.as_deref(), Some("{}"));
+        assert!(!reopened.compare_and_swap(&tenant, None, next, None)?);
         Ok(())
     })
 }

@@ -631,7 +631,7 @@ pub async fn update_global_for_tenant(tenant: &TenantScope, mut patch: Value) ->
             .transpose()
             .map_err(|error| Error::Invalid(error.to_string()))?
             .map(std::sync::Arc::new);
-        let source = schema::TenantConfigSource::open(tenant, None)
+        let source = schema::TenantConfigSource::open(None)
             .await
             .map_err(|error| Error::Invalid(error.to_string()))?;
         let read_snapshot = || async {

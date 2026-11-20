@@ -761,9 +761,9 @@
     "bin": "scripts/bin-wrapper.mjs",
     "files": {
       "scripts/bin-wrapper.mjs": "82f4ea07714bc0227d9c7206420acc1fdb41cd2f4a2886d1146db47af456119b",
-      "dist/cli.js": "4138360feaa219ec8d52fae0ee34cc4dddfc6730515b0ed405a144c84ba82e45",
+      "dist/cli.js": "ee96b92927b6c1e524b6c20a25f00428b5579692ba298b254725aa66f5dabf5f",
       "dist/shiju-session-model.mjs": "21cd7af09568a2a915fedc08d53a576f0df2badf7e7ff5b2979e2a1d47e3c76e",
-      "dist/shiju-session-mcp.mjs": "c833d184bc15858ce11f0cf75783a1dfecbbd93243d6a2b0576372692784f83b",
+      "dist/shiju-session-mcp.mjs": "4dc6b7a014f47022e6915e0790cc0ae859863d3c1039d64727d4abe0992a4202",
       "dist/shiju-mcp.py": "ede7bf31f0eafe51f6dd0572d0cea482fe3be3eb715534b2f566d87e5c8aa915",
       "dist/shiju-stdio.py": "e6870d58c6c59cb1f1d224a66cdaa8455b34057249912b7bce5b9e21f95a074a"
     },

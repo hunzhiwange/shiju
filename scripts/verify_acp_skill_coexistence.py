@@ -32,6 +32,7 @@ PROVIDER = "coexistence-fixture"
 AGENTS += ("harn",)
 AGENTS += ("poolside",)
 AGENTS += ("mimo-code",)
+AGENTS += ("nova",)
 PHASES = ("baseline", "mounted", "removed", "rejected")
 
 

@@ -19,7 +19,7 @@ replace("async['_doInitialize'](){", "async['_doInitialize'](){if(shijuNovaBound
 replace(
     "async function Yhi(_0x2261bf,_0x4df01f,_0x3ed63d,_0x527f17,_0x5861d1){",
     "async function Yhi(agent,method,params,conn,delegate){"
-    "return shijuNovaDispatchMcp(conn,method,params,next=>shijuNovaDispatch(agent,method,next,conn,delegate));}"
+    "return shijuNovaDispatchSkills(conn,method,params,current=>shijuNovaDispatchMcp(conn,method,current,next=>shijuNovaDispatch(agent,method,next,conn,delegate)));}"
     "async function shijuNovaDispatch(_0x2261bf,_0x4df01f,_0x3ed63d,_0x527f17,_0x5861d1){",
 )
 replace(
@@ -27,11 +27,32 @@ replace(
     "async['requestHostTool'](_0x2604e4){"
     "if(shijuNovaHasSelectedMcp(this))return shijuNovaCallMcp(this,_0x2604e4);",
 )
+# Extend the native invocation catalog after its normal precedence and scope filters.
+replace(
+    "return _0x2ce5f9===_0x44ec67['all']?_0x44ec67['active']:IDr(_0x2ce5f9['map'](_0x2d187f=>({..._0x2d187f})))['active'];",
+    "return shijuNovaAppendSkills(B7,yd()?.sessionId,_0x2ce5f9===_0x44ec67['all']?_0x44ec67['active']:IDr(_0x2ce5f9['map'](_0x2d187f=>({..._0x2d187f})))['active'],osn);",
+)
+# Mounted content is read inline. Nova's shell substitutions run outside the
+# tool approval loop, and its fork context creates a separate execution scope.
+replace(
+    "async function dwe(_0x5d5232,_0x23679c){",
+    "async function dwe(_0x5d5232,_0x23679c){"
+    "if(shijuNovaIsMountedSkill(_0x5d5232) && (_0x5d5232.frontmatter.context??'inline')!=='inline')"
+    "throw new Error('Mounted Nova skills require inline context');",
+)
+replace(
+    "_0x2265ff=await csn(_0x2265ff,_0x5d5232['frontmatter']['allowed-tools'])",
+    "_0x2265ff=shijuNovaIsMountedSkill(_0x5d5232)?_0x2265ff:await csn(_0x2265ff,_0x5d5232['frontmatter']['allowed-tools'])",
+)
+replace(
+    "'mode':'inline','content':_0x10f39b['processedContent']",
+    "'mode':'inline',...(shijuNovaIsMountedSkill(_0x448d80)?{directory:_0x448d80.directoryPath}:{}),'content':_0x10f39b['processedContent']",
+)
 source = source.replace("#!/usr/bin/env node\n", "", 1)
 source = "#!/usr/bin/env node\nimport { bound as shijuNovaBound, model as shijuNovaModel, stateDirectory as shijuNovaStateDirectory, projectDirectory as shijuNovaProjectDirectory } from './shiju-session-model.mjs';\n" + source
 source = source.replace(
     "#!/usr/bin/env node\n",
-    "#!/usr/bin/env node\nimport { dispatchMcp as shijuNovaDispatchMcp, hasSelectedMcp as shijuNovaHasSelectedMcp, callMcp as shijuNovaCallMcp } from './shiju-session-mcp.mjs';\n",
+    "#!/usr/bin/env node\nimport { dispatchSkills as shijuNovaDispatchSkills, appendSkills as shijuNovaAppendSkills, isMountedSkill as shijuNovaIsMountedSkill, dispatchMcp as shijuNovaDispatchMcp, hasSelectedMcp as shijuNovaHasSelectedMcp, callMcp as shijuNovaCallMcp } from './shiju-session-mcp.mjs';\n",
     1,
 )
 entry.write_text(source)

@@ -48,7 +48,14 @@ impl SessionSkillView {
         );
         binding.project = binding.project.canonicalize()?;
         ensure!(binding.project.is_dir(), "project must be a directory");
-        let directory = tempfile::Builder::new().prefix("shiju-session-skills-").tempdir()?;
+        let mut builder = tempfile::Builder::new();
+        builder.prefix("shiju-session-skills-");
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            builder.permissions(fs::Permissions::from_mode(0o700));
+        }
+        let directory = builder.tempdir()?;
         let stage = directory.path().join("staging");
         fs::create_dir(&stage)?;
         let mut names = HashSet::new();

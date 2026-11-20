@@ -1,8 +1,10 @@
 // Keep a selected catalog on one ACP connection and execute through the reviewed stdio sandbox.
+import { AsyncLocalStorage } from 'node:async_hooks';
 import { execFile } from 'node:child_process';
 import { createHash } from 'node:crypto';
+import { lstatSync, realpathSync } from 'node:fs';
 import { realpath } from 'node:fs/promises';
-import { isAbsolute } from 'node:path';
+import { basename, dirname, isAbsolute, normalize } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { bound } from './shiju-session-model.mjs';
 
@@ -15,6 +17,110 @@ const sessionMethods = new Set(['session/new', 'newSession', 'session/load', 'lo
 const namePattern = /^[a-zA-Z0-9]+(?:_[a-zA-Z0-9]+)*$/;
 const object = value => value !== null && typeof value === 'object' && !Array.isArray(value);
 const invalid = message => Object.assign(new Error(message), { code: -32602 });
+
+const skillSessions = new WeakMap();
+const skillScope = new AsyncLocalStorage();
+const mountedSkills = new WeakSet();
+
+export function isMountedSkill(skill) {
+  return mountedSkills.has(skill);
+}
+
+function skillSelection(connection, method, params) {
+  const meta = params?._meta;
+  if (!Object.hasOwn(meta ?? {}, 'shiju.skillMounts')) return;
+  const selection = meta['shiju.skillMounts'];
+  if (selection?.version !== 1 || !Array.isArray(selection.skills)) {
+    throw invalid('Invalid Nova skill selection');
+  }
+  if (!selection.skills.length) return;
+  if (!bound || process.platform !== 'darwin' || process.arch !== 'arm64' ||
+      !['session/new', 'session/load'].includes(method) ||
+      meta[ownerApproval] !== true || !connection.ownerApprovalRequired) {
+    throw invalid('Nova skills require an owned session-model connection with owner approval');
+  }
+
+  const names = new Set();
+  const root = dirname(selection.skills[0]?.path ?? '');
+  const lease = dirname(root);
+  if (basename(root) !== 'skills' || !basename(lease).startsWith('shiju-session-skills-')) {
+    throw invalid('Invalid Nova session skill view');
+  }
+  const owner = lstatSync(lease);
+  if (!owner.isDirectory() || owner.uid !== process.getuid() || (owner.mode & 0o777) !== 0o700 ||
+      !lstatSync(root).isDirectory()) {
+    throw invalid('Nova session skill view must be private');
+  }
+  for (const { name, path } of selection.skills) {
+    if (typeof name !== 'string' || name.trim() === '' || name.includes('..') || name.includes('\\') ||
+        typeof path !== 'string' || !isAbsolute(path) || normalize(path) !== path ||
+        dirname(path) !== root || basename(path) !== name || names.has(name.toLowerCase()) ||
+        !lstatSync(path).isSymbolicLink()) {
+      throw invalid('Invalid Nova session skill entry');
+    }
+    names.add(name.toLowerCase());
+  }
+  return { workspace: realpathSync(params.cwd), skills: selection.skills };
+}
+
+export async function dispatchSkills(connection, method, params, dispatch) {
+  const state = skillSessions.get(connection);
+  if (method === 'initialize' && state?.selection) {
+    throw invalid('Nova skills require an initialized exclusive ACP connection');
+  }
+  if (sessionMethods.has(method)) {
+    const selection = skillSelection(connection, method, params);
+    if (state && (state.selection || selection)) {
+      throw invalid('Nova skills require an exclusive ACP connection');
+    }
+    if (!selection) {
+      skillSessions.set(connection, {});
+      return dispatch(params);
+    }
+    const next = { selection, session: undefined, closed: false };
+    skillSessions.set(connection, next);
+    const response = await dispatch(params);
+    next.session = response?.sessionId ?? params.sessionId;
+    if (typeof next.session !== 'string') throw invalid('Nova did not identify the selected skill session');
+    return response;
+  }
+  if (state?.selection && params?.sessionId === state.session) {
+    if (['session/close', 'session/delete'].includes(method)) state.closed = true;
+    if (state.turn && (state.closed || ['session/cancel', 'cancel'].includes(method))) {
+      state.turn.active = false;
+    }
+    if (['session/prompt', 'prompt'].includes(method)) {
+      if (state.closed || state.turn) throw invalid('Nova skills require an idle selected session');
+      const turn = { ...state.selection, session: state.session, active: true };
+      state.turn = turn;
+      try { return await skillScope.run(turn, () => dispatch(params)); }
+      finally {
+        turn.active = false;
+        state.turn = undefined;
+      }
+    }
+  }
+  return dispatch(params);
+}
+
+export async function appendSkills(cwd, nativeSession, native, scan) {
+  const selection = skillScope.getStore();
+  if (!selection?.active || (nativeSession && nativeSession !== selection.session) ||
+      await realpath(cwd) !== selection.workspace) return native;
+  const existing = new Set(native.map(skill => skill.name.toLowerCase()));
+  const mounted = [];
+  for (const { name, path } of selection.skills) {
+    const skill = await scan(path, 'project');
+    if (!skill || skill.name.toLowerCase() !== name.toLowerCase()) {
+      throw invalid('Nova could not discover the selected skill');
+    }
+    if (!existing.has(name.toLowerCase())) {
+      mountedSkills.add(skill);
+      mounted.push(skill);
+    }
+  }
+  return [...native, ...mounted];
+}
 
 function operation(request, signal) {
   signal.throwIfAborted();

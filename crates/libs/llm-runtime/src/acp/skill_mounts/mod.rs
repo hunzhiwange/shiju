@@ -22,6 +22,7 @@ mod kilocode;
 mod kimi;
 mod kiro;
 pub(super) mod mimo_code;
+mod nova;
 mod openclaw;
 mod opencode;
 mod pi;
@@ -54,6 +55,7 @@ pub fn validate(agent: &str, selected: bool) -> Result<(), Error> {
         "kiro" => return Ok(()),
         "opencode" => return Ok(()),
         "mimo-code" if cfg!(all(target_os = "macos", target_arch = "aarch64")) => return Ok(()),
+        "nova" if cfg!(all(target_os = "macos", target_arch = "aarch64")) => return Ok(()),
         "openclaw" => return Ok(()),
         "pi" => return Ok(()),
         "auggie" => auggie::rejection(),
@@ -165,6 +167,8 @@ pub fn configure_native_scanner(
         iflow::configure(config, view)?;
     } else if agent == "pi" {
         pi::configure(config, view)?;
+    } else if agent == "nova" {
+        nova::configure(config, view)?;
     } else if agent == "openclaw" {
         openclaw::configure(config, view)?;
     } else if agent == "opencode" {

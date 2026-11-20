@@ -19,15 +19,17 @@ replace('F=Z&&!Q.takeMeBack;if(Q.showWelcome', 'F=!1;if(Q.showWelcome')
 replace('let D=gA($.serverStatus)&&at($.serverStatus.features,TB.THREAD_ACTORS_TUI)&&!A.takeMeBack,G;', 'let D=!1,G;')
 # Runs before hooks, native argument processing, filesystem or command tool bodies.
 replace('async invokeTool(A,Q){if(this.runningTools.has(A.id))', '''async invokeTool(A,Q){
+const nativeSkill = A.name === "skill";
 const selectedMcp = typeof A.name === "string" && A.name.startsWith("mcp__");
 try {
-  const response = await fetch(new URL(selectedMcp ? '/shiju/mcp-permission' : '/shiju/tool', process.env.AMP_URL), {
+  if (nativeSkill && !shijuSkillNames.has(A.input?.name)) throw Error('Amp skill is not available');
+  const response = await fetch(new URL(nativeSkill ? '/shiju/skill-permission' : selectedMcp ? '/shiju/mcp-permission' : '/shiju/tool', process.env.AMP_URL), {
     method: 'POST',
     headers: {'content-type': 'application/json', authorization: 'Bearer ' + process.env.AMP_API_KEY},
     body: JSON.stringify({sessionId: process.env.SHIJU_AMP_SESSION, id: A.id, name: A.name, input: A.input})
   });
   if (!response.ok) throw Error('Host rejected Amp tool');
-  if (!selectedMcp) {
+  if (!selectedMcp && !nativeSkill) {
     const hostResult = await response.json();
     if (typeof hostResult.output !== 'string') throw Error('Invalid Amp host tool output');
     await this.callbacks.handle({type:'tool:data',toolUse:A.id,data:{status:'done',result:hostResult.output,isFinal:!1}});
@@ -37,10 +39,17 @@ try {
   this.resolveToolCompletion(A.id, true);
   return;
 }
-if (!selectedMcp) { this.resolveToolCompletion(A.id, true); return; }
+if (!selectedMcp && !nativeSkill) { this.resolveToolCompletion(A.id, true); return; }
 if(this.runningTools.has(A.id))''')
 # Disable ambient discovery before scanning files or starting plugin/MCP processes.
-replace('async function s70(A,Q,B,$){', 'async function s70(A,Q,B,$){return {skills:[],errors:[],warnings:[]};')
+start = s.index('async function s70(A,Q,B,$){')
+end = s.index('function t70(A)', start)
+s = s[:start] + '''async function s70(A,Q,B,$){
+const skills = await scanSkills(cu0, B);
+shijuSkillNames = new Set(skills.map(skill => skill.name));
+return {skills,errors:[],warnings:[]};
+}
+''' + s[end:]
 replace('async function kq(A,Q,B){', 'async function kq(A,Q,B){return [];')
 replace('function qk6({filesystem:A,configService:Q},B){', 'function qk6({filesystem:A,configService:Q},B){return u0.of([]);')
 replace('function Nk6({filesystem:A,configService:Q},B){', 'function Nk6({filesystem:A,configService:Q},B){return u0.of([]);')
@@ -58,7 +67,9 @@ replace('getHooks:async()=>(await this.getConfig()).settings?.hooks', 'getHooks:
 replace('trackFilesFromHistory(){', 'trackFilesFromHistory(){return;')
 replace('async restoreFileChangesFromBackups(){', 'async restoreFileChangesFromBackups(){return;')
 replace('async function tM4(A,{configService:Q,filesystem:B,previousUserState:$}){', 'async function tM4(A,{configService:Q,filesystem:B,previousUserState:$}){return {message:{role:"user",messageId:0,content:A.content,source:A.source,agentMode:A.agentMode,meta:{sentAt:Date.now()}}};')
-guard = """let shijuSelectedMcp = {};
+guard = """import { scanSkills } from '../../../amp-acp/dist/shiju-local.mjs';
+let shijuSkillNames = new Set();
+let shijuSelectedMcp = {};
 const shijuOrigin = new URL(process.env.AMP_URL);
 if (shijuOrigin.protocol !== 'http:' || shijuOrigin.hostname !== '127.0.0.1' || !shijuOrigin.port || shijuOrigin.username || shijuOrigin.password || !process.env.SHIJU_AMP_SESSION) throw Error('Amp local control boundary is required');
 const shijuFetch = globalThis.fetch.bind(globalThis);

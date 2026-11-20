@@ -101,6 +101,11 @@ impl AcpClient {
         }
         let mut env = self.config.env.clone();
         if self.agent_name == "amp-acp" {
+            if env.contains_key("VW_ACP_LAUNCH_REFERENCE") {
+                env.entry("SHIJU_AMP_SKILL_VIEW".into()).or_insert_with(|| "null".into());
+            } else {
+                env.insert("SHIJU_AMP_SKILL_VIEW".into(), "null".into());
+            }
             for key in [
                 "NODE_OPTIONS",
                 "NODE_PATH",

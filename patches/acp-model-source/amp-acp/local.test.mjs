@@ -168,3 +168,81 @@ test('Amp applies native and MCP permissions independently in a mounted session'
   assert.deepEqual(approvals, ['native-allow', 'mcp-deny', 'native-deny', 'mcp-allow']);
   assert.deepEqual(reads, [{ sessionId: 'session', path: `${session.cwd}/fixture.txt`, line: 1, limit: 1000 }]);
 }));
+
+test('Amp scans project packages and only the validated session links', async () => {
+  const { mkdtemp, mkdir, writeFile, symlink, realpath, rm } = await import('node:fs/promises');
+  const { tmpdir } = await import('node:os');
+  const { join } = await import('node:path');
+  const { scanSkills } = await import('./local.mjs');
+  const root = await realpath(await mkdtemp(join(tmpdir(), 'amp-skills-')));
+  const cwd = process.cwd();
+  const previous = process.env.SHIJU_AMP_SKILL_VIEW;
+  const project = join(root, 'project');
+  const native = join(project, '.agents/skills');
+  const sources = join(root, 'sources');
+  const view = join(root, 'view');
+  const add = async (parent, name, disabled = false) => {
+    const dir = join(parent, name);
+    await mkdir(dir, { recursive: true });
+    await writeFile(join(dir, 'SKILL.md'), JSON.stringify({
+      frontmatter: { name, description: 'fixture', 'disable-model-invocation': disabled },
+      body: 'local fixture',
+    }));
+    return dir;
+  };
+
+  try {
+    await add(native, 'native');
+    await add(native, 'disabled', true);
+    const selected = await add(sources, 'selected');
+    const other = await add(sources, 'other');
+    await add(root, 'ancestor');
+    await mkdir(view);
+    const link = join(view, 'selected');
+    await symlink(selected, link);
+    await symlink(other, join(native, 'other'));
+    await mkdir(join(native, 'external'));
+    await symlink(join(other, 'SKILL.md'), join(native, 'external', 'SKILL.md'));
+    process.chdir(project);
+    process.env.SHIJU_AMP_SKILL_VIEW = JSON.stringify([[link, selected]]);
+    assert.deepEqual((await scanSkills(JSON.parse)).map(({ name, baseDir }) => [name, baseDir]), [
+      ['native', join(native, 'native')], ['selected', link],
+    ]);
+    await rm(link);
+    await symlink(other, link);
+    assert.deepEqual((await scanSkills(JSON.parse)).map(({ name }) => name), ['native']);
+    process.env.SHIJU_AMP_SKILL_VIEW = 'null';
+    assert.deepEqual(await scanSkills(JSON.parse), []);
+  } finally {
+    process.chdir(cwd);
+    await rm(root, { recursive: true, force: true });
+    if (previous === undefined) delete process.env.SHIJU_AMP_SKILL_VIEW;
+    else process.env.SHIJU_AMP_SKILL_VIEW = previous;
+  }
+});
+
+test('Amp skill activation needs a declared tool and separate host approval', () => withLocalAmp(async ({ local, post, model }) => {
+  const previous = process.env.SHIJU_AMP_SKILL_VIEW;
+  process.env.SHIJU_AMP_SKILL_VIEW = '[]';
+  const decisions = [];
+  local.agent.client.requestPermission = async ({ toolCall }) => {
+    decisions.push(toolCall.toolCallId);
+    return { outcome: { outcome: 'selected',
+      optionId: toolCall.toolCallId === 'allowed' ? 'allow_once' : 'reject_once' } };
+  };
+  const skill = (id, input = { name: 'native' }) => post('/shiju/skill-permission', {
+    sessionId: 'session', id, name: 'skill', input,
+  });
+  try {
+    assert.equal((await skill('unadvertised')).status, 500);
+    const response = await model({ stream: true, tools: [{ name: 'skill' }] });
+    assert.deepEqual(response.received.tools, [{ name: 'skill' }]);
+    assert.equal((await skill('forged', { name: '../outside' })).status, 500);
+    assert.equal((await skill('denied')).status, 500);
+    assert.equal((await skill('allowed')).status, 200);
+    assert.deepEqual(decisions, ['denied', 'allowed']);
+  } finally {
+    if (previous === undefined) delete process.env.SHIJU_AMP_SKILL_VIEW;
+    else process.env.SHIJU_AMP_SKILL_VIEW = previous;
+  }
+}));

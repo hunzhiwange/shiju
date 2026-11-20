@@ -1,7 +1,8 @@
 // Owned loopback control plane for the pinned Amp local ThreadWorker.
 import { createServer } from 'node:http';
 import { randomBytes } from 'node:crypto';
-import { readFile, writeFile, mkdir, rename, lstat } from 'node:fs/promises';
+import { constants } from 'node:fs';
+import { readFile, writeFile, mkdir, rename, lstat, open, readdir, realpath } from 'node:fs/promises';
 import { gunzipSync } from 'node:zlib';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -24,6 +25,65 @@ export function selectedStdio(servers = []) {
   }
   return selected;
 }
+const SKILL_ENABLE = 'SHIJU_AMP_SKILL_VIEW';
+const SKILL_NAME = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
+const SKILL_LIMIT = 256 * 1024;
+
+// Use Amp's parser and activation tool. Limit discovery to immediate project
+// packages and the host-validated links from this request. Asset reads continue
+// to use the host's Read route.
+export async function scanSkills(parse, signal) {
+  const selection = JSON.parse(process.env[SKILL_ENABLE] ?? 'null');
+  if (!Array.isArray(selection)) return [];
+  const project = path.join(await realpath(process.cwd()), '.agents', 'skills');
+  let names = [];
+  try {
+    if (await realpath(project) === project) names = await readdir(project);
+  } catch (error) {
+    if (error.code !== 'ENOENT' && error.code !== 'ENOTDIR') throw error;
+  }
+  const catalog = new Map();
+  const candidates = [
+    ...names.sort().map(name => [path.join(project, name), path.join(project, name)]),
+    ...selection,
+  ];
+  for (const [baseDir, directory] of candidates) {
+    signal?.throwIfAborted();
+    const name = path.basename(baseDir);
+    if (!SKILL_NAME.test(name) || catalog.has(name)) continue;
+    try {
+      if (await realpath(baseDir) !== directory) continue;
+      const file = path.join(directory, 'SKILL.md');
+      const before = await lstat(file, { bigint: true });
+      if (!before.isFile() || before.nlink !== 1n || before.size > SKILL_LIMIT) continue;
+      if (await realpath(file) !== file) continue;
+      const handle = await open(file, constants.O_RDONLY | constants.O_NOFOLLOW | constants.O_NONBLOCK);
+      try {
+        const opened = await handle.stat({ bigint: true });
+        if (!opened.isFile() || opened.dev !== before.dev || opened.ino !== before.ino
+            || opened.nlink !== 1n || opened.size > SKILL_LIMIT) continue;
+        const current = await lstat(file, { bigint: true });
+        if (await realpath(file) !== file || opened.dev !== current.dev || opened.ino !== current.ino) continue;
+        const buffer = Buffer.alloc(Number(opened.size) + 1);
+        const { bytesRead } = await handle.read(buffer);
+        if (bytesRead !== Number(opened.size)) continue;
+        const { frontmatter, body } = parse(new TextDecoder('utf-8', { fatal: true }).decode(buffer.subarray(0, bytesRead)));
+        if (frontmatter.name !== name || typeof frontmatter.description !== 'string') continue;
+        // Reserve disabled names too, so a mounted namesake cannot bypass
+        // the native package's explicit disable setting.
+        catalog.set(name, frontmatter.isolatedContext || frontmatter['disable-model-invocation']
+          ? null : { name, description: frontmatter.description, frontmatter: { name }, content: body,
+            baseDir, source: baseDir === directory ? 'workspace-agents' : 'custom-path' });
+      } finally {
+        await handle.close();
+      }
+    } catch {
+      // Broken or concurrently removed packages are unavailable for this scan.
+    }
+  }
+  return [...catalog.values()].filter(Boolean);
+}
+
 const HOST_FIELDS = { Read: ['path', 'read_range'], create_file: ['path', 'content'], edit_file: ['path', 'old_str', 'new_str'], Bash: ['cmd'] };
 export class LocalAmp {
   constructor(agent) {
@@ -71,6 +131,7 @@ export class LocalAmp {
       AMP_URL: this.url, AMP_API_KEY: context.token,
       AMP_CLI_PATH: path.join(path.dirname(fileURLToPath(import.meta.url)), 'amp-cli'),
       SHIJU_AMP_SESSION: sessionId,
+      [SKILL_ENABLE]: process.env[SKILL_ENABLE] ?? 'null',
       SHIJU_AMP_MCP_SERVERS: JSON.stringify(this.agent.sessions.get(sessionId).mcpConfig || {}),
       AMP_SKIP_UPDATE_CHECK: '1', AMP_DISABLE_PLUGINS: '1',
       AMP_ACP_DISABLE_PLUGIN_LIST: '1', PLUGINS: 'permissions',
@@ -145,8 +206,19 @@ export class LocalAmp {
       if (body.sessionId !== context.sessionId) throw Error('Amp tool session mismatch');
       this.json(res, { output: await this.tool(body) }); return;
     }
+    if (route === '/shiju/skill-permission') {
+      if (body.sessionId !== context.sessionId || !context.tools.has('skill') || body.name !== 'skill'
+          || typeof body.input?.name !== 'string' || !SKILL_NAME.test(body.input.name)
+          || Object.keys(body.input).some(key => key !== 'name' && key !== 'arguments')
+          || (body.input.arguments !== undefined && typeof body.input.arguments !== 'string')) {
+        throw Error('Amp skill is not available');
+      }
+      await this.approveTool(body, 'other');
+      if (this.tokens.get(context.token) !== context) throw Error('Amp control context was revoked');
+      this.json(res, {}); return;
+    }
     if (route === '/shiju/mcp-permission') {
-      if (body.sessionId !== context.sessionId || !context.tools.has(body.name)) throw Error('Amp MCP tool is not selected');
+      if (body.sessionId !== context.sessionId || !body.name?.startsWith('mcp__') || !context.tools.has(body.name)) throw Error('Amp MCP tool is not selected');
       await this.approveTool(body, 'other');
       if (this.tokens.get(context.token) !== context) throw Error('Amp control context was revoked');
       this.json(res, {}); return;
@@ -198,6 +270,11 @@ export class LocalAmp {
     }
     if (body.stream) context.tools.clear();
     if (Array.isArray(body.tools)) body.tools = body.tools.filter(tool => {
+      if (tool.name === 'skill') {
+        if (!body.stream || (process.env[SKILL_ENABLE] ?? 'null') === 'null') return false;
+        context.tools.add('skill');
+        return true;
+      }
       if (tool.name === 'set_title') return !body.stream || !selection.length;
       if (Object.hasOwn(HOST_FIELDS, tool.name)) return body.stream || !selection.length;
       const match = /^mcp__([A-Za-z0-9]+(?:_[A-Za-z0-9]+)*)__[A-Za-z0-9_]+$/.exec(tool.name);

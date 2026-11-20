@@ -26,7 +26,7 @@ MCP_TOOL = "mcp__coexistence__read_probe"
 MANAGED = ROOT / "crates/libs/acp-agent-registry/src/managed_runtime"
 VERSION = "0.12.0"
 ENGINE = "0.0.1778732631-gc5875c"
-REVISION = f"amp-acp-{VERSION}-model-source-v4"
+REVISION = f"amp-acp-{VERSION}-model-source-v5"
 
 
 def launch(env):
@@ -124,6 +124,10 @@ class Probe:
             content = result["content"]
             if isinstance(content, list):
                 content = "\n".join(block["text"] for block in content if block["type"] == "text")
+            require(content.startswith("<content>") and content.endswith("</content>"),
+                    "Amp activation lacks its native content envelope")
+            blocks = json.loads(content.removeprefix("<content>").removesuffix("</content>"))
+            content = "\n".join(block["text"] for block in blocks if block["type"] == "text")
             prefix = "Base directory for this skill: "
             base = next((Path(line[len(prefix):]) for line in content.splitlines()
                          if line.startswith(prefix)), None)

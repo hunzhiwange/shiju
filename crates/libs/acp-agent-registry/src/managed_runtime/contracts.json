@@ -750,9 +750,9 @@
     "engine_version": "0.0.1778732631-gc5875c",
     "files": {
       "dist/index.js": "d56eae64eb5cf820fd6ea982e8298cedca182a1b52fe104965ee89fa19ed40c9",
-      "dist/shiju-local.mjs": "8abbb35b9ef50e087f328c1aca06aec25e4878bec902e94213857759eefb8845",
+      "dist/shiju-local.mjs": "1d9ca86954f98dc40c789eefdc42966612049b106dca79337e36c232ef858ac6",
       "dist/amp-cli": "f3076f4f083423e1215e366e18ec7808a4405e973cfe66d0135b1bd10592a1d5",
-      "../@sourcegraph/amp/dist/main.js": "e726b67e5a1d6d1332b3726a220e2e619e5408e3922755cfd999d37fe6abd987"
+      "../@sourcegraph/amp/dist/main.js": "d1b64661b5fc170f1650a29bc2ffba398710656e345df56bea16adf1d4f4b02a"
     }
   },
   "nova": {

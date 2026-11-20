@@ -1904,7 +1904,7 @@
       "status": "verified",
       "platform": {
         "review_host": "Darwin-arm64",
-        "artifact_scope": "Darwin-arm64 fixed native 3.0.0 plus hash-verified private V3 source patch; two-source real ACP lifecycle passed. Other platforms remain unverified.",
+        "artifact_scope": "Darwin-arm64 fixed native 3.0.0 and hash-verified private V3 revision v2. The earlier two-source lifecycle evidence used revision v1.",
         "linux": "unverified",
         "windows": "unverified"
       },
@@ -1917,7 +1917,7 @@
           "kind": "same_distribution",
           "release": "3.0.0"
         },
-        "local_identity": "Official ZIP, unchanged universal native binary, extracted ARM64 engine, bundled Node and private launcher hashes are pinned in managed_runtime/contracts.json; see evidence/kiro.json."
+        "local_identity": "The current ZIP, universal binary, bundled Node, engine and launcher hashes are pinned in managed_runtime/contracts.json. Revision v1 hashes are recorded in evidence/kiro.json."
       },
       "acp_entry": {
         "argv": [
@@ -1933,9 +1933,9 @@
           "SHIJU_KIRO_SKILL_ROOT (internal reviewed adapter; absolute request-owned SessionSkillView)",
           "Native skill resource parser over the selected view SKILL.md glob, projected into the session registry"
         ],
-        "discovery": "Reviewed private V3 patch suppresses default user/cloud/project scanning and filters all skill catalog contributions to the selected view. Empty selection yields no native skills.",
+        "discovery": "Managed revision v2 retains native directory scanning, help documents and profile skills, then appends selected skills through the session registry. Native entries retain priority on name collisions. Empty selection keeps native discovery.",
         "activation": "Native disclose_context(name) loads the body on demand. Actual read_file and execute_bash read a random attachment and execute its script; first prompt contains no skill body.",
-        "session_isolation": "Verified project/native decoys, empty selection, separate session, selected-directory read-only callbacks and no foreign-file/symlink escape access; HOME/cwd/full_access unchanged."
+        "session_isolation": "Native directories retain Kiro's own configuration and scopes. Selected entries come from the validated session view. Selected-source callbacks remain read-only."
       },
       "permissions": {
         "status": "verified_release_only",
@@ -1980,9 +1980,9 @@
         },
         {
           "path": "patches/acp-model-source/kiro/launcher.py",
-          "sha256": "5728781bd5d77735d912467b15ba37c67220830952c17cf2e3066005044ee8e6",
+          "sha256": "184699ab81f2df5649a89f8036678ff682fbf881689e6273c09afecdfabd29e8",
           "kind": "reviewed_private_launcher",
-          "scope": "Private reviewed launcher verified with complete native V3 lifecycles in both model sources; engine/source pins in managed_runtime/contracts.json."
+          "scope": "Current v2 launcher and engine pins are in managed_runtime/contracts.json. See ../../dev/acp/skill-coexistence/kiro.md for v2 coexistence evidence."
         }
       ],
       "supplemental_official_docs": [

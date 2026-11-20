@@ -11,7 +11,7 @@ for key in ('KIRO_KAS_SERVER_PATH', 'KIRO_KAS_NODE_PATH', 'KAS_BUNDLE_PATH'):
     if key in os.environ:
         raise SystemExit('Conflicting Kiro engine override')
 server = root / 'runtime/3.0.0-96d7248d901e42e1/kas/node_modules/@kiro/agent/dist/server/acp-server.js'
-if hashlib.sha256(server.read_bytes()).hexdigest() != '26907b1f2895cf28a850d7720b340cb206965d8ffbc17cb62dd78276f2dbd02d':
+if hashlib.sha256(server.read_bytes()).hexdigest() != '25726b5cf5b69c1cca0aa7685627db5dca37afde52e148d5af8f1a8b0c3083f9':
     raise SystemExit('Kiro reviewed engine checksum mismatch')
 env = dict(os.environ, KIRO_KAS_SERVER_PATH=str(server),
            KIRO_KAS_NODE_PATH=str(root / 'runtime/3.0.0-96d7248d901e42e1/node'))

@@ -48,7 +48,7 @@ fn installed_directory(agent: &str, contract: &Contract) -> Result<PathBuf, Stri
         4
     } else if matches!(agent, "aionrs" | "dimcode" | "vtcode") {
         2
-    } else if agent == "droid" {
+    } else if matches!(agent, "droid" | "kiro") {
         2
     } else if agent == "cursor" {
         5

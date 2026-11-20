@@ -29,6 +29,7 @@ AGENTS += ("grok",)
 AGENT_PROFILE = "acp-coexistence"
 PROVIDER = "coexistence-fixture"
 AGENTS += ("harn",)
+AGENTS += ("poolside",)
 PHASES = ("baseline", "mounted", "removed", "rejected")
 
 
@@ -147,7 +148,8 @@ def readback(url, query, sid, backend, model, live_access):
 
 def run(agent, binary, report):
     supplier = import_module("acp_skill_coexistence." + agent.replace("-", "_"))
-    with tempfile.TemporaryDirectory(prefix="shiju-acp-coexistence-") as directory:
+    temp_parent = getattr(supplier, "TEMP_PARENT", None)
+    with tempfile.TemporaryDirectory(prefix="shiju-acp-coexistence-", dir=temp_parent) as directory:
         root = Path(directory).resolve()
         env = environment(root)
         report["stage"] = "artifact"

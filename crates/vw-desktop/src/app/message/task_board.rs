@@ -29,7 +29,9 @@ mod message;
 mod update;
 mod work_view_prefs;
 
-pub(crate) use helpers::sync_task_logs_editor;
+pub(crate) use helpers::{
+    next_agent_scheduler_status_generation, resolve_task_board_scheduler_scope, sync_task_logs_editor,
+};
 pub use message::TaskBoardMessage;
 pub(crate) use message::WorktreePoolMaintenanceOutcome;
 pub use update::update;

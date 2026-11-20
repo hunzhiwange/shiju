@@ -159,7 +159,11 @@ pub fn load_dispatch_workflow(
     store: &AgentSchedulerStore,
     project_path: &(impl AgentSchedulerStorageContext + ?Sized),
 ) -> Result<TaskPoolWorkflowSnapshotDto> {
-    Ok(store.load_task_board_workflow(project_path)?.unwrap_or_else(builtin_task_workflow_snapshot))
+    let workflow = store.load_task_board_workflow(project_path)?
+        .unwrap_or_else(builtin_task_workflow_snapshot);
+    workflow.validate_for_schedule().map_err(anyhow::Error::msg)
+        .with_context(|| format!("invalid project workflow `{}`", workflow.id))?;
+    Ok(workflow)
 }
 
 pub fn task_lifecycle_allows_dispatch(
@@ -226,6 +230,7 @@ fn metadata_status_key_map_value(metadata: &Value, status: AgentTaskStatus) -> O
 
 pub fn legacy_dispatch_status_key(status: AgentTaskStatus) -> &'static str {
     match status {
+        AgentTaskStatus::Draft => "pool",
         AgentTaskStatus::Queued => "pending",
         AgentTaskStatus::Submitted => "code_complete",
         _ => status.as_str(),

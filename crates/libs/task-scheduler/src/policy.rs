@@ -35,9 +35,6 @@ struct ScopedPolicyHost<'a, C: AgentSchedulerStorageContext + ?Sized> {
 }
 
 impl<C: AgentSchedulerStorageContext + ?Sized> PolicyHost for ScopedPolicyHost<'_, C> {
-    fn load_task_board_workflow(&self) -> Result<Option<TaskPoolWorkflowSnapshotDto>> {
-        self.store.load_task_board_workflow(self.context)
-    }
     fn load_dispatch_workflow(&self) -> Result<TaskPoolWorkflowSnapshotDto> {
         super::engine::dispatch::load_dispatch_workflow(self.store, self.context)
     }

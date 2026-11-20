@@ -9,16 +9,17 @@ fn wake_agent_scheduler_after_registering_pending(
     let Some(project_path) = app.navigation_tabs.project_path.clone() else {
         return iced::Task::none();
     };
-    if let Some(error) = taskboard::update::execution::agent_scheduler_lifecycle_error(&app.task_board.task_board_settings.workflow_id) {
-        tracing::warn!(error = %error, "agent scheduler pending registration skipped");
+    let Some(workflow) = app.task_board.task_board_settings.workflow() else {
+        tracing::warn!(workflow_id = %app.task_board.task_board_settings.workflow_id,
+            "agent scheduler pending registration skipped because workflow could not be resolved");
         return iced::Task::none();
-    }
+    };
     let now_ms = crate::app::time::now_ms();
     let dispatch_mode = app.task_board.task_board_settings.agent_scheduler_dispatch_mode;
     let max_concurrent = Some(app.task_board.task_board_settings.max_concurrent.clamp(1, 10));
-    let workflow_id = app.task_board.task_board_settings.workflow_id.clone();
-    let pending_create_requests =
-        agent_scheduler_wake_create_task_requests(&app.task_board.task_board_tasks, &workflow_id);
+    let pending_create_requests = taskboard::helpers::execution::scheduler_pending_task_requests(
+        &app.task_board.task_board_tasks, &workflow,
+    );
     iced::Task::perform(
         async move {
             let scope = resolve_task_board_scheduler_scope(&project_path).await?;

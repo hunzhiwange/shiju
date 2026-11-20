@@ -370,18 +370,16 @@ pub fn apply_agent_scheduler_logs(
     (updated_tasks, updated_task_ids)
 }
 
-pub fn scheduler_followup_ticks(workflow_id: &str, updated_tasks: &[Task]) -> (bool, bool) {
-    let workflow = desktop_task_model::task_workflow_by_id(workflow_id);
+fn scheduler_followup_ticks(
+    workflow: &desktop_task_model::TaskWorkflow,
+    updated_tasks: &[Task],
+) -> (bool, bool) {
     let should_schedule_review = updated_tasks.iter().any(|task| {
-        workflow
-            .as_ref()
-            .and_then(|workflow| workflow.status_role(task.status))
+        workflow.status_role(task.status)
             .is_some_and(|role| matches!(role, StatusRole::ReviewReady | StatusRole::Review))
     });
     let should_schedule_merge = updated_tasks.iter().any(|task| {
-        workflow
-            .as_ref()
-            .and_then(|workflow| workflow.status_role(task.status))
+        workflow.status_role(task.status)
             .is_some_and(|role| matches!(role, StatusRole::Merging))
     });
     (should_schedule_review, should_schedule_merge)
@@ -405,6 +403,7 @@ impl BoardProjection<'_> {
         &mut self,
         response: vw_api_agent_scheduler::AgentSchedulerTaskBoardStatusResponse,
     ) -> Vec<Task> {
+        self.settings.apply_workflow_snapshot(response.read_model.workflow.clone());
         let (updated, ids) = apply_agent_scheduler_status(
             self.logs.task_board_tasks,
             self.pending,
@@ -448,9 +447,13 @@ impl BoardProjection<'_> {
 }
 
 pub fn scheduler_followups_for_runtime(
-    workflow_id: &str,
+    settings: &desktop_task_model::TaskBoardSettings,
     tasks: &[Task],
     running: bool,
 ) -> (bool, bool) {
-    if running { scheduler_followup_ticks(workflow_id, tasks) } else { (false, false) }
+    if running && let Some(workflow) = settings.workflow() {
+        scheduler_followup_ticks(&workflow, tasks)
+    } else {
+        (false, false)
+    }
 }

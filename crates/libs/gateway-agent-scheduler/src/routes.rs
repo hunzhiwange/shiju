@@ -17,6 +17,7 @@ use vw_api_agent_scheduler::{
     AgentSchedulerTaskBoardEventsResponse,
     AgentSchedulerTaskBoardStatusResponse,
     AgentSchedulerTaskBoardWorkflowResponse,
+    AgentSchedulerSelectWorkflowRequest,
     AgentSchedulerTaskGraphResponse,
     AgentSchedulerTaskLogsResponse,
     AgentSchedulerTaskMetadataUpdateRequest,
@@ -58,7 +59,8 @@ where
         )
         .route(
             "/agent-scheduler/projects/{project_id}/workflow",
-            axum::routing::get(agent_scheduler_project_workflow),
+            axum::routing::get(agent_scheduler_project_workflow)
+                .put(agent_scheduler_project_select_workflow),
         )
         .route(
             "/agent-scheduler/projects/{project_id}/tasks",
@@ -131,6 +133,16 @@ async fn agent_scheduler_project_workflow(
 ) -> Result<Json<AgentSchedulerTaskBoardWorkflowResponse>, ApiError> {
     let project_path = resolve_project_context(tenant, &project_id).await?;
     gateway.task_board_workflow(project_id, project_path).await.map(Json)
+}
+
+async fn agent_scheduler_project_select_workflow(
+    AxumPath(project_id): AxumPath<String>,
+    Extension(tenant): Extension<TenantScope>,
+    Extension(gateway): Extension<SharedAgentSchedulerGateway>,
+    Json(body): Json<AgentSchedulerSelectWorkflowRequest>,
+) -> Result<Json<AgentSchedulerTaskBoardWorkflowResponse>, ApiError> {
+    let context = resolve_project_context(tenant, &project_id).await?;
+    gateway.select_task_board_workflow(project_id, context, body).await.map(Json)
 }
 
 async fn agent_scheduler_project_tasks(

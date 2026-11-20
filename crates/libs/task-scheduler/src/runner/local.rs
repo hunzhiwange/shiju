@@ -10,7 +10,8 @@ use vw_api_chat_identity::ReasoningEffortDto;
 use vw_api_transport::common::TimestampMs;
 
 use crate::domain::{RunId, TaskId};
-use crate::engine::dispatch::ready_queued_finite_task;
+use crate::engine::dispatch::{dispatch_status_key, load_dispatch_workflow, ready_queued_finite_task};
+use crate::lifecycle_bridge::LifecycleBridge;
 use crate::events::AgentEventKind;
 use crate::state_machine::{AgentTaskKind, AgentTaskStatus};
 use crate::store::artifacts::RecordTaskArtifactRequest;
@@ -171,6 +172,11 @@ where
             return Ok(None);
         };
 
+        let workflow = load_dispatch_workflow(self.store, project_path)?;
+        let bridge = LifecycleBridge::new(&workflow);
+        let status_key = bridge.execution_status_key(&dispatch_status_key(&task))?;
+        let projection = bridge.projection_metadata(status_key)?;
+
         // Do not consume a run or its lease while the physical directory is busy.
         // All project registrations use the same per-user lock namespace.
         let lock_root = super::workspace_claim::lock_root()?;
@@ -205,7 +211,7 @@ where
             request.now_ms,
         )?;
 
-        self.advance_to_running(project_path, &task.id, &run.id, &request)?;
+        self.advance_to_running(project_path, &task.id, &run.id, &request, projection)?;
         let started_run = self.store.load_run(project_path, &run.id)?.unwrap_or(run);
         claim.retain(project_path.storage_project_path())?;
         Ok(Some(LocalAgentRunnerOutcome { task_id: task.id, run: started_run }))
@@ -272,6 +278,7 @@ where
         task_id: &TaskId,
         run_id: &RunId,
         request: &LocalAgentRunnerRequest,
+        projection: Map<String, Value>,
     ) -> Result<()> {
         let dispatched_at_ms = add_ms(request.now_ms, 1)?;
         self.transition_and_log(
@@ -296,8 +303,13 @@ where
         )?;
 
         let running_at_ms = add_ms(request.now_ms, 3)?;
-        self.store
-            .transition_task_status(project_path, task_id, AgentTaskStatus::Running, running_at_ms)?
+        let current = self.store.load_task(project_path, task_id)?
+            .context("task disappeared before local start")?;
+        let mut metadata = object_metadata(current.metadata)?;
+        metadata.extend(projection);
+        self.store.transition_task_status_with_metadata(
+            project_path, task_id, AgentTaskStatus::Running, Value::Object(metadata), running_at_ms,
+        )?
             .with_context(|| {
                 format!("task disappeared before local start: {}", task_id.as_str())
             })?;
@@ -479,32 +491,10 @@ where
     ) -> Result<StoredAgentRun> {
         let submitted_at_ms = add_ms(request.now_ms, 5)?;
         self.sync_task_workspace_metadata(project_path, task, workspace, submitted_at_ms)?;
-        let workflow = crate::engine::dispatch::load_dispatch_workflow(
-            self.store,
-            project_path,
-        )?;
-        let bridge = crate::lifecycle_bridge::LifecycleBridge::new(&workflow);
-        let mut executing = workflow.statuses.iter().filter(|s| {
-            s.enabled && s.role == vw_api_task::TaskPoolWorkflowStatusRoleDto::Executing
-        });
-        let source_key = execution_metadata_string(task, "task_board.status_key").filter(|key| {
-            workflow.statuses.iter().any(|s| {
-                s.enabled
-                    && s.key == *key
-                    && s.role == vw_api_task::TaskPoolWorkflowStatusRoleDto::Executing
-            })
-        });
-        let source_key = match source_key {
-            Some(key) => key,
-            None => {
-                let source = executing.next().context("workflow has no executing status")?;
-                if executing.next().is_some() {
-                    bail!("workflow has ambiguous executing statuses");
-                }
-                source.key.clone()
-            }
-        };
-        let target = bridge.resolve_outcome(&source_key, "success")?;
+        let workflow = load_dispatch_workflow(self.store, project_path)?;
+        let bridge = LifecycleBridge::new(&workflow);
+        let source_key = bridge.execution_status_key(&dispatch_status_key(task))?;
+        let target = bridge.resolve_outcome(source_key, "success")?;
         let current = self
             .store
             .load_task(project_path, &task.id)?
@@ -601,6 +591,20 @@ where
         error_message: String,
     ) -> Result<StoredAgentRun> {
         let failed_at_ms = add_ms(request.now_ms, 5)?;
+        let workflow = load_dispatch_workflow(self.store, project_path)?;
+        let bridge = LifecycleBridge::new(&workflow);
+        let source_key = dispatch_status_key(task);
+        let failure = bridge.execution_status_key(&source_key)
+            .and_then(|source| bridge.resolve_outcome(source, "failure"))
+            .and_then(|target| {
+                crate::state_machine::ensure_transition(task.kind, AgentTaskStatus::Running, target.runtime_status)?;
+                Ok(target)
+            });
+        let (to_status, to_status_key, projection_error) = match failure {
+            Ok(target) => (target.runtime_status, target.status_key, None),
+            Err(error) => (AgentTaskStatus::Failed, "failed".to_string(), Some(error.to_string())),
+        };
+
         self.record_execution_artifact(
             project_path,
             &task.id,
@@ -611,38 +615,60 @@ where
             Some(error_message.as_str()),
             failed_at_ms,
         )?;
-        let finished = self
-            .store
-            .finish_run(
-                project_path,
-                run_id,
-                AgentRunFinishStatus::Failed,
-                failed_at_ms,
-                Some(error_message.clone()),
-            )?
-            .with_context(|| {
-                format!("run disappeared before local failure: {}", run_id.as_str())
-            })?;
-        self.transition_and_log(
+        let finished = self.store.finish_run(
             project_path,
-            &task.id,
             run_id,
-            AgentTaskStatus::Running,
-            AgentTaskStatus::Failed,
+            AgentRunFinishStatus::Failed,
             failed_at_ms,
-            format!("local execution failed: {error_message}"),
-        )?;
-        self.append_event(
+            Some(error_message.clone()),
+        )?.context("run disappeared before local failure")?;
+
+        let current = self.store.load_task(project_path, &task.id)?
+            .context("task disappeared before local failure")?;
+        let mut metadata = object_metadata(current.metadata)?;
+        match &projection_error {
+            None => metadata.extend(bridge.projection_metadata(&to_status_key)?),
+            Some(_) => {
+                metadata.insert("task_board.status_key".to_string(), json!(to_status_key));
+                metadata.insert("task_board.status_role".to_string(), json!("failed"));
+            }
+        }
+        self.store.transition_task_status_with_metadata(
             project_path,
             &task.id,
-            Some(run_id),
-            AgentEventKind::RunFailed,
-            Some(AgentTaskStatus::Running),
-            Some(AgentTaskStatus::Failed),
-            format!("local execution failed: {error_message}"),
-            json!({"dispatch_target": "local", "error": error_message}),
+            to_status,
+            Value::Object(metadata),
             failed_at_ms,
-        )?;
+        )?.context("task disappeared before local failure transition")?;
+
+        let mut message = format!("local execution failed: {error_message}");
+        if let Some(error) = projection_error {
+            message.push_str(&format!(" (workflow failure transition unavailable: {error})"));
+        }
+        self.store.append_task_log(project_path, AppendAgentTaskLogRequest {
+            task_id: task.id.clone(),
+            run_id: Some(run_id.clone()),
+            timestamp_ms: failed_at_ms,
+            from_status: Some(AgentTaskStatus::Running),
+            to_status: Some(to_status),
+            from_status_key: Some(source_key.clone()),
+            to_status_key: Some(to_status_key.clone()),
+            message: message.clone(),
+        })?;
+        self.store.append_event(project_path, AppendAgentEventRequest {
+            task_id: Some(task.id.clone()),
+            run_id: Some(run_id.clone()),
+            worker_id: None,
+            team_id: None,
+            kind: AgentEventKind::RunFailed,
+            from_status: Some(AgentTaskStatus::Running),
+            to_status: Some(to_status),
+            from_status_key: Some(source_key),
+            to_status_key: Some(to_status_key),
+            message,
+            payload: json!({"dispatch_target": "local", "error": error_message}),
+            created_at_ms: failed_at_ms,
+        })?;
         Ok(finished)
     }
 

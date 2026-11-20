@@ -320,7 +320,10 @@ impl<'a> AgentTaskBoardService<'a> {
         if let Some(order_no) = payload.order_no {
             metadata.insert("order_no".to_string(), json!(order_no));
         }
-        let status = payload.to_status.map(task_status_from_dto);
+        let status = match self.store.load_task_board_workflow(project_path)? {
+            Some(workflow) => Some(apply_workflow_status(&workflow, &to_status_key, &mut metadata)?),
+            None => payload.to_status.map(task_status_from_dto),
+        };
         let updated = self.update_task(
             project_path,
             &current,
@@ -356,9 +359,16 @@ impl<'a> AgentTaskBoardService<'a> {
         };
         let from_status_key = task_board_status_key(&current);
         let title = optional_required_text(patch.title.clone(), "task title")?;
-        let status = patch.status.clone().map(task_status_from_dto);
+        let mut status = patch.status.clone().map(task_status_from_dto);
         let mut metadata = object_metadata(current.metadata.clone())?;
         apply_metadata_patch(&mut metadata, patch)?;
+        if let Some(workflow) = self.store.load_task_board_workflow(project_path)? {
+            let status_key = metadata.get("task_board.status_key").and_then(Value::as_str)
+                .unwrap_or(&from_status_key).to_string();
+            if status_key != from_status_key || status.is_some_and(|value| value != current.status) {
+                status = Some(apply_workflow_status(&workflow, &status_key, &mut metadata)?);
+            }
+        }
         let updated = self.update_task(
             project_path,
             &current,
@@ -519,12 +529,18 @@ impl<'a> AgentTaskBoardService<'a> {
         dry_run: bool,
         now_ms: TimestampMs,
     ) -> Result<AgentTaskBoardLegacyImportOutcome> {
-        if let Some(workflow) = workflow.as_ref() {
-            workflow.validate_for_schedule().map_err(anyhow::Error::msg)?;
-            if !dry_run {
-                self.store.save_task_board_workflow(project_path, workflow)?;
+        let current = self.store.load_task_board_workflow(project_path)?;
+        if let Some(candidate) = workflow.as_ref() {
+            candidate.validate_for_schedule().map_err(anyhow::Error::msg)?;
+            if !dry_run && current.is_none() {
+                if let Some(conflict) =
+                    self.store.replace_task_board_workflow(project_path, None, candidate)?
+                {
+                    anyhow::bail!("{conflict}");
+                }
             }
         }
+        let workflow = current.or(workflow);
 
         let mut imported = 0;
         let mut skipped = 0;
@@ -754,6 +770,24 @@ impl<'a> AgentTaskBoardService<'a> {
     }
 }
 
+pub fn apply_workflow_status(
+    workflow: &TaskPoolWorkflowSnapshotDto,
+    key: &str,
+    metadata: &mut Map<String, Value>,
+) -> Result<AgentTaskStatus> {
+    let bridge = crate::lifecycle_bridge::LifecycleBridge::new(workflow);
+    let definition = bridge.status(key)?;
+    let runtime_status = if definition.role == vw_api_task::TaskPoolWorkflowStatusRoleDto::Custom {
+        AgentTaskStatus::Queued
+    } else {
+        crate::lifecycle_bridge::runtime_status_for_role(definition.role)?
+    };
+    metadata.insert("task_board.status_key".to_string(), json!(definition.key));
+    metadata.insert("task_board.status_role".to_string(), json!(status_role_key(definition.role)));
+    metadata.insert("task_board.workflow_id".to_string(), json!(workflow.id));
+    Ok(runtime_status)
+}
+
 pub(super) fn apply_metadata_patch(
     metadata: &mut Map<String, Value>,
     patch: AgentSchedulerTaskMetadataPatchDto,
@@ -882,10 +916,7 @@ fn task_board_status_key_from_map(status: AgentTaskStatus, metadata: &Value) -> 
 }
 
 fn legacy_task_board_status_key(status: AgentTaskStatus) -> &'static str {
-    match status {
-        AgentTaskStatus::Submitted => "code_complete",
-        _ => status.as_str(),
-    }
+    crate::engine::dispatch::legacy_dispatch_status_key(status)
 }
 
 fn agent_scheduler_control_status(status: AgentTaskStatus) -> bool {

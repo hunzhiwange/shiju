@@ -76,6 +76,8 @@ pub enum ProjectMessage<PreparedOpen, HistoryPage, UiPhase> {
     ProjectEditPrSubmittedStallTimeoutSecondsChanged(u32),
     ProjectEditRecycleWorktreeOnTaskFinishToggled(bool),
     ProjectEditWorkflowIdChanged(String),
+    ProjectEditWorkflowLoaded(u64, Result<Option<desktop_task_model::workflow::TaskPoolWorkflowSnapshotDto>, String>),
+    ProjectEditWorkflowSaved(u64, Result<desktop_task_model::workflow::TaskPoolWorkflowSnapshotDto, String>),
     ProjectEditSaved,
     ProjectEditRuntimeSaved(Result<(), String>),
     ProjectEditCanceled,

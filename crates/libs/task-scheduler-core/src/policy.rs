@@ -85,7 +85,7 @@ impl<'a, H: PolicyHost> AgentSchedulerPolicyService<'a, H> {
         config: &AgentSchedulerPolicyConfig,
     ) -> Result<AgentSchedulerPolicyOutcome> {
         let config = config.sanitized();
-        let workflow = self.store.load_task_board_workflow()?;
+        let workflow = self.store.load_dispatch_workflow()?;
         let mut outcome = AgentSchedulerPolicyOutcome::default();
         let tasks = self.store.list_active_tasks()?;
 
@@ -98,7 +98,7 @@ impl<'a, H: PolicyHost> AgentSchedulerPolicyService<'a, H> {
 
             match task.status {
                 AgentTaskStatus::Draft => {
-                    self.apply_pool_policy(&task, now_ms, &config, &mut outcome)?;
+                    self.apply_pool_policy(&task, now_ms, &config, &workflow, &mut outcome)?;
                 }
                 AgentTaskStatus::Assigned
                 | AgentTaskStatus::Dispatched
@@ -108,7 +108,7 @@ impl<'a, H: PolicyHost> AgentSchedulerPolicyService<'a, H> {
                         &task,
                         now_ms,
                         &config,
-                        workflow.as_ref(),
+                        &workflow,
                         &mut outcome,
                     )?;
                 }
@@ -117,7 +117,7 @@ impl<'a, H: PolicyHost> AgentSchedulerPolicyService<'a, H> {
                         &task,
                         now_ms,
                         &config,
-                        workflow.as_ref(),
+                        &workflow,
                         &mut outcome,
                     )?;
                 }
@@ -141,6 +141,7 @@ impl<'a, H: PolicyHost> AgentSchedulerPolicyService<'a, H> {
         task: &StoredAgentTask,
         now_ms: TimestampMs,
         config: &AgentSchedulerPolicyConfig,
+        workflow: &TaskPoolWorkflowSnapshotDto,
         outcome: &mut AgentSchedulerPolicyOutcome,
     ) -> Result<()> {
         if !config.auto_promote_pool_tasks || !is_backlog_task(task, &self.store.task_board_status_key(task)) {
@@ -154,8 +155,7 @@ impl<'a, H: PolicyHost> AgentSchedulerPolicyService<'a, H> {
         }
 
         let from_status_key = self.store.task_board_status_key(task);
-        let workflow = self.store.load_dispatch_workflow()?;
-        let target = self.store.resolve_outcome(&workflow, &from_status_key, "success")?;
+        let target = self.store.resolve_outcome(workflow, &from_status_key, "success")?;
         if target.runtime_status != AgentTaskStatus::Queued {
             bail!("pool promotion requires a queued lifecycle target, got {}", target.status_key);
         }
@@ -205,7 +205,7 @@ impl<'a, H: PolicyHost> AgentSchedulerPolicyService<'a, H> {
         task: &StoredAgentTask,
         now_ms: TimestampMs,
         config: &AgentSchedulerPolicyConfig,
-        workflow: Option<&TaskPoolWorkflowSnapshotDto>,
+        workflow: &TaskPoolWorkflowSnapshotDto,
         outcome: &mut AgentSchedulerPolicyOutcome,
     ) -> Result<()> {
         if config.failed_retry_max_attempts == 0 {
@@ -276,7 +276,7 @@ impl<'a, H: PolicyHost> AgentSchedulerPolicyService<'a, H> {
         task: &StoredAgentTask,
         now_ms: TimestampMs,
         config: &AgentSchedulerPolicyConfig,
-        workflow: Option<&TaskPoolWorkflowSnapshotDto>,
+        workflow: &TaskPoolWorkflowSnapshotDto,
         outcome: &mut AgentSchedulerPolicyOutcome,
     ) -> Result<()> {
         let latest_run = self.store.load_latest_run_for_task(&task.id)?;
@@ -352,7 +352,7 @@ impl<'a, H: PolicyHost> AgentSchedulerPolicyService<'a, H> {
     fn transition_task_with_lifecycle_outcome(
         &self,
         task: &StoredAgentTask,
-        workflow: Option<&TaskPoolWorkflowSnapshotDto>,
+        workflow: &TaskPoolWorkflowSnapshotDto,
         lifecycle_outcome: &str,
         now_ms: TimestampMs,
         message: impl Into<String>,
@@ -417,22 +417,11 @@ impl<'a, H: PolicyHost> AgentSchedulerPolicyService<'a, H> {
     fn resolve_lifecycle_outcome_target(
         &self,
         task: &StoredAgentTask,
-        workflow: Option<&TaskPoolWorkflowSnapshotDto>,
+        workflow: &TaskPoolWorkflowSnapshotDto,
         lifecycle_outcome: &str,
         now_ms: TimestampMs,
     ) -> Result<Option<(String, PolicyStatusProjection)>> {
         let from_status_key = self.store.task_board_status_key(task);
-        let Some(workflow) = workflow else {
-            self.append_lifecycle_outcome_skip_log(
-                &task.id,
-                task.status,
-                from_status_key.clone(),
-                lifecycle_outcome,
-                "task board workflow is required",
-                now_ms,
-            )?;
-            return Ok(None);
-        };
         match self.store.resolve_outcome(workflow, &from_status_key, lifecycle_outcome) {
             Ok(target) => Ok(Some((from_status_key, target))),
             Err(error) => {
@@ -441,7 +430,7 @@ impl<'a, H: PolicyHost> AgentSchedulerPolicyService<'a, H> {
                     task.status,
                     from_status_key,
                     lifecycle_outcome,
-                    error.to_string(),
+                    format!("matching task board workflow is required: {error}"),
                     now_ms,
                 )?;
                 Ok(None)

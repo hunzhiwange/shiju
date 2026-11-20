@@ -16,6 +16,7 @@ use vw_api_agent_scheduler::{
     AgentSchedulerTaskBoardEventsResponse,
     AgentSchedulerTaskBoardStatusResponse,
     AgentSchedulerTaskBoardWorkflowResponse,
+    AgentSchedulerSelectWorkflowRequest,
     AgentSchedulerTaskGraphResponse,
     AgentSchedulerTaskLogsResponse,
     AgentSchedulerTaskMetadataUpdateRequest,
@@ -99,6 +100,15 @@ pub trait AgentSchedulerGateway: Send + Sync {
         _project_path: AgentSchedulerContext,
     ) -> Result<AgentSchedulerTaskBoardWorkflowResponse, ApiError> {
         Err(ApiError::internal("agent scheduler task board workflow gateway is not configured"))
+    }
+
+    async fn select_task_board_workflow(
+        &self,
+        _project_id: String,
+        _context: AgentSchedulerContext,
+        _request: AgentSchedulerSelectWorkflowRequest,
+    ) -> Result<AgentSchedulerTaskBoardWorkflowResponse, ApiError> {
+        Err(ApiError::not_implemented("agent scheduler workflow selection is not configured"))
     }
 
     async fn task_board_status(

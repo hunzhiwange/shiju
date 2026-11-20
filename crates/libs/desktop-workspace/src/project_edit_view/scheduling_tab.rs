@@ -44,17 +44,32 @@ pub(super) fn scheduling_tab<'a>(app: &View<'a>) -> Element<'a, Message> {
     let pr_submitted_stall_timeout_seconds =
         settings.pr_submitted_stall_timeout_seconds.clamp(5, 3600);
 
-    let workflow_options: Vec<WorkflowOption> = desktop_task_model::all_task_workflows()
+    let mut workflow_options: Vec<WorkflowOption> = desktop_task_model::all_task_workflows()
         .into_iter()
         .map(|workflow| WorkflowOption { id: workflow.id, label: workflow.label })
         .collect();
-    let selected_workflow = workflow_options
-        .iter()
-        .find(|option| option.id == settings.workflow_id)
-        .cloned()
-        .or_else(|| workflow_options.first().cloned());
+    let selected_workflow = if !app.project_editor.project_edit_workflow_dirty
+        && let Some(snapshot) = &settings.workflow_snapshot
+    {
+        Some(WorkflowOption { id: snapshot.id.clone(), label: snapshot.label.clone() })
+    } else {
+        workflow_options.iter().find(|option| option.id == settings.workflow_id).cloned()
+    };
+    if app.project_editor.project_edit_workflow_baseline.is_none()
+        || app.project_editor.project_edit_workflow_saving
+    {
+        workflow_options.clear();
+    }
+    let workflow_title = i18n.__("任务工作流");
     let mut workflow_controls = column![
-        settings_field_label(i18n.__("任务工作流")),
+        settings_hover_help_label(
+            app.help,
+            i18n,
+            app.app_theme,
+            workflow_title,
+            settings_field_label(workflow_title),
+            i18n.__("保存后，看板和调度使用所选流程。例如通用流程成功后进入已完成，执行失败后进入失败，满足重试条件时回到待执行。"),
+        ).wrap(),
         row![
             settings_select(workflow_options, selected_workflow, |option| {
                 Message::Project(ProjectMessage::ProjectEditWorkflowIdChanged(option.id))
@@ -69,6 +84,11 @@ pub(super) fn scheduling_tab<'a>(app: &View<'a>) -> Element<'a, Message> {
         .align_y(iced::Alignment::Center),
     ]
     .spacing(8);
+    if app.project_editor.project_edit_workflow_saving {
+        workflow_controls = workflow_controls.push(
+            text(i18n.__("正在保存任务工作流…")).size(13).style(settings_muted_text_style),
+        );
+    }
     if let Some(hint) = workflow_cache_hint(&app) {
         workflow_controls =
             workflow_controls.push(text(hint).size(13).style(settings_muted_text_style));

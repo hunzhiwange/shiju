@@ -26,6 +26,7 @@ pub struct State {
     pub show_task_board: bool,
     /// 任务看板是否正在加载
     pub task_board_loading: bool,
+    pub task_board_workflow_generation: u64,
     /// 任务看板当前视图模式
     pub task_board_view_mode: TaskBoardViewMode,
     /// 任务看板任务列表
@@ -209,6 +210,7 @@ impl State {
             personal_tasks: HashMap::new(),
             show_task_board: false,
             task_board_loading: false,
+            task_board_workflow_generation: 0,
             task_board_view_mode: TaskBoardViewMode::default(),
             task_board_tasks: Vec::new(),
             task_board_tasks_pending_persistence: std::collections::HashSet::new(),
@@ -349,12 +351,12 @@ impl State {
 impl State {
     pub fn work_task_visible(&self, project: &str, task: &desktop_task_model::Task) -> bool {
         self.work_task_matches(project, self.work_view, task)
-            && desktop_task_model::task_workflow_by_id(&self.task_board_settings.workflow_id)
+            && self.task_board_settings.workflow()
                 .or_else(|| desktop_task_model::task_workflow_by_id(desktop_task_model::DEFAULT_TASK_WORKFLOW_ID))
                 .is_some_and(|workflow| self.work_filter.matches(task, &workflow))
     }
     pub fn work_task_matches(&self, project: &str, view: crate::work_views::BuiltinWorkView, task: &desktop_task_model::Task) -> bool {
-        let workflow = desktop_task_model::task_workflow_by_id(&self.task_board_settings.workflow_id)
+        let workflow = self.task_board_settings.workflow()
             .or_else(|| desktop_task_model::task_workflow_by_id(desktop_task_model::DEFAULT_TASK_WORKFLOW_ID));
         workflow.is_some_and(|workflow| view.matches(task, &workflow, self.personal_tasks.get(project).map(Vec::as_slice).unwrap_or(&[])))
     }

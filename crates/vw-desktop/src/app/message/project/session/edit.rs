@@ -3,12 +3,103 @@ use crate::app::{App, Message};
 use crate::app::message::project::ProjectMessage;
 use crate::app::projects::{save_recent_projects_background, save_recent_projects_meta_background};
 use desktop_workspace::project_message::edit::{self, Event, Effect, State};
+use crate::app::message::task_board::{
+    next_agent_scheduler_status_generation, resolve_task_board_scheduler_scope,
+};
+use vw_api_agent_scheduler::AgentSchedulerSelectWorkflowRequest;
 pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Task<Message>> {
+    let mut workflow_task = iced::Task::none();
     let event = match message {
+        ProjectMessage::ProjectEditWorkflowLoaded(generation, result) => {
+            let editor = &mut app.project_editor;
+            if editor.project_edit_workflow_generation != generation || editor.project_edit_path.is_none() {
+                return Some(iced::Task::none());
+            }
+            return Some(match result {
+                Ok(snapshot) => {
+                    editor.project_edit_task_board_settings.apply_workflow_snapshot(snapshot.clone());
+                    editor.project_edit_workflow_baseline = Some(snapshot);
+                    iced::Task::none()
+                }
+                Err(error) => app.show_error_toast(format!("读取项目工作流失败：{error}")),
+            });
+        }
+        ProjectMessage::ProjectEditWorkflowSaved(generation, result) => {
+            let editor = &mut app.project_editor;
+            if editor.project_edit_workflow_generation != generation || !editor.project_edit_workflow_saving {
+                return Some(iced::Task::none());
+            }
+            editor.project_edit_workflow_saving = false;
+            match result {
+                Ok(snapshot) => {
+                    editor.project_edit_task_board_settings.apply_workflow_snapshot(Some(snapshot));
+                    editor.project_edit_workflow_dirty = false;
+                    if let Some(path) = editor.project_edit_path.as_ref()
+                        && app.navigation_tabs.project_path.as_ref() == Some(path)
+                    {
+                        app.task_board.task_board_workflow_generation =
+                            next_agent_scheduler_status_generation();
+                    }
+                    Event::ProjectEditSaved
+                }
+                Err(error) => return Some(app.show_error_toast(format!("保存项目工作流失败：{error}"))),
+            }
+        }
+        ProjectMessage::ProjectEditSaved if app.project_editor.project_edit_workflow_dirty => {
+            let editor = &mut app.project_editor;
+            let (Some(path), Some(expected_workflow)) =
+                (editor.project_edit_path.clone(), editor.project_edit_workflow_baseline.clone())
+            else {
+                return Some(iced::Task::none());
+            };
+            if editor.project_edit_workflow_saving {
+                return Some(iced::Task::none());
+            }
+            editor.project_edit_workflow_saving = true;
+            let generation = editor.project_edit_workflow_generation;
+            let request = AgentSchedulerSelectWorkflowRequest {
+                workflow_id: editor.project_edit_task_board_settings.workflow_id.clone(),
+                expected_workflow,
+            };
+            return Some(iced::Task::perform(async move {
+                let scope = resolve_task_board_scheduler_scope(&path).await?;
+                let client = crate::app::gateway_client()?;
+                let response = gateway_scheduler::GatewaySchedulerClient::new(client.transport().clone())
+                    .agent_scheduler_select_workflow(&scope, &request)
+                    .await?;
+                if &response.project_id != scope.project_scope().project_id() {
+                    return Err("网关返回了其他项目的工作流".to_string());
+                }
+                response.workflow
+                    .filter(|workflow| workflow.id == request.workflow_id)
+                    .ok_or_else(|| "网关未确认所选项目工作流".to_string())
+            }, move |result| Message::Project(ProjectMessage::ProjectEditWorkflowSaved(generation, result))));
+        }
         ProjectMessage::ProjectToolsMenuToggled(value) => Event::ProjectToolsMenuToggled(value),
         ProjectMessage::CurrentProjectMenuToggled(value) => Event::CurrentProjectMenuToggled(value),
         ProjectMessage::ProjectToolsMenuClosed => Event::ProjectToolsMenuClosed,
-        ProjectMessage::ProjectEditOpened(value) => Event::ProjectEditOpened(value),
+        ProjectMessage::ProjectEditOpened(path) => {
+            let editor = &mut app.project_editor;
+            if editor.project_edit_workflow_saving {
+                return Some(iced::Task::none());
+            }
+            editor.project_edit_workflow_generation = editor.project_edit_workflow_generation.wrapping_add(1);
+            editor.project_edit_workflow_baseline = None;
+            editor.project_edit_workflow_dirty = false;
+            let generation = editor.project_edit_workflow_generation;
+            let workflow_path = path.clone();
+            workflow_task = iced::Task::perform(async move {
+                let scope = resolve_task_board_scheduler_scope(&workflow_path).await?;
+                let client = crate::app::gateway_client()?;
+                let response = gateway_scheduler::GatewaySchedulerClient::new(client.transport().clone())
+                    .agent_scheduler_workflow(&scope).await?;
+                if &response.project_id != scope.project_scope().project_id() {
+                    return Err("网关返回了其他项目的工作流".to_string());
+                }
+                Ok(response.workflow)
+            }, move |result| Message::Project(ProjectMessage::ProjectEditWorkflowLoaded(generation, result)));
+            Event::ProjectEditOpened(path)
+        }
         ProjectMessage::ProjectEditTabSelected(value) => Event::ProjectEditTabSelected(value),
         ProjectMessage::ProjectEditNameChanged(value) => Event::ProjectEditNameChanged(value),
         ProjectMessage::ProjectEditIconChanged(value) => Event::ProjectEditIconChanged(value),
@@ -44,8 +135,27 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
         ProjectMessage::ProjectEditRunningTimeoutMinutesChanged(value) => Event::ProjectEditRunningTimeoutMinutesChanged(value),
         ProjectMessage::ProjectEditPrSubmittedStallTimeoutSecondsChanged(value) => Event::ProjectEditPrSubmittedStallTimeoutSecondsChanged(value),
         ProjectMessage::ProjectEditRecycleWorktreeOnTaskFinishToggled(value) => Event::ProjectEditRecycleWorktreeOnTaskFinishToggled(value),
-        ProjectMessage::ProjectEditWorkflowIdChanged(value) => Event::ProjectEditWorkflowIdChanged(value),
-        ProjectMessage::ProjectEditSaved => Event::ProjectEditSaved,
+        ProjectMessage::ProjectEditWorkflowIdChanged(value) => {
+            let editor = &mut app.project_editor;
+            if editor.project_edit_workflow_baseline.is_none() || editor.project_edit_workflow_saving
+                || desktop_task_model::task_workflow_by_id(&value).is_none()
+            {
+                return Some(iced::Task::none());
+            }
+            editor.project_edit_workflow_dirty = true;
+            Event::ProjectEditWorkflowIdChanged(value)
+        }
+        ProjectMessage::ProjectEditSaved => {
+            let editor = &mut app.project_editor;
+            if editor.project_edit_path.is_some()
+                && editor.project_edit_path == app.navigation_tabs.project_path
+            {
+                let active = &app.task_board.task_board_settings;
+                editor.project_edit_task_board_settings.workflow_id = active.workflow_id.clone();
+                editor.project_edit_task_board_settings.workflow_snapshot = active.workflow_snapshot.clone();
+            }
+            Event::ProjectEditSaved
+        }
         ProjectMessage::ProjectEditRuntimeSaved(value) => Event::ProjectEditRuntimeSaved(value),
         ProjectMessage::ProjectEditCanceled => Event::ProjectEditCanceled,
         ProjectMessage::RecentRevealPressed(value) => Event::RecentRevealPressed(value),
@@ -54,6 +164,9 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
         ProjectMessage::RecentRemoveConfirmed(value) => Event::RecentRemoveConfirmed(value),
         _ => return None,
     };
+    if app.project_editor.project_edit_workflow_saving {
+        return Some(iced::Task::none());
+    }
     let effects = edit::handle(&mut State {
         editor: &mut app.project_editor,
         hovered_recent_project: &mut app.workspace_state.hovered_recent_project,
@@ -69,7 +182,7 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
         task_board_settings: &mut app.task_board.task_board_settings,
         work_current_project_menu: &mut app.navigation_mode.work_current_project_menu,
     }, event);
-    let mut tasks = Vec::new();
+    let mut tasks = vec![workflow_task];
     for effect in effects {
         match effect {
             Effect::PickIcon => tasks.push(iced::Task::perform(async {

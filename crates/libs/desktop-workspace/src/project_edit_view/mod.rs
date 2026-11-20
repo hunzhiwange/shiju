@@ -82,7 +82,8 @@ pub fn with_project_edit<'a, M: Clone + 'static>(
             .padding([9, 14])
             .style(rounded_action_btn_style),
         button(text(i18n.__("保存")).size(13))
-            .on_press(Message::Project(ProjectMessage::ProjectEditSaved))
+            .on_press_maybe((!app.project_editor.project_edit_workflow_saving)
+                .then_some(Message::Project(ProjectMessage::ProjectEditSaved)))
             .padding([9, 14])
             .style(primary_action_btn_style),
     ]

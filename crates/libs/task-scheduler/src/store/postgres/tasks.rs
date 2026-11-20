@@ -11,12 +11,14 @@ use vw_api_task::TaskPoolWorkflowSnapshotDto;
 
 use super::PostgresAgentSchedulerStore;
 use crate::domain::{AssigneeId, TaskId, TeamId};
+use crate::lifecycle_bridge::normalize_workflow_transitions;
 use crate::state_machine::{AgentTaskKind, AgentTaskStatus, ensure_transition};
 use crate::store::AgentSchedulerStorageContext;
 use crate::store::tasks::{
     AgentTaskBoardUpdate, AgentTaskFilter, NewAgentTask, StoredAgentTask, bool_metadata_field,
-    ensure_non_empty, normalize_failed_retry_transitions, parse_dag_value, serialize_dag,
-    task_board_sort_key, task_kind_key,
+    ensure_non_empty, parse_dag_value, serialize_dag,
+    parse_saved_workflow, task_board_sort_key, task_kind_key, workflow_changed,
+    workflow_task_conflicts,
 };
 
 const TASK_COLUMNS: &str = "id, kind, status, title, spec_uri, meta_uri, assigned_to, team_id, \
@@ -344,9 +346,16 @@ impl PostgresAgentSchedulerStore {
     ) -> Result<()> {
         let scope = context.storage_scope()?;
         let workflow_json =
-            serde_json::to_string(&normalize_failed_retry_transitions(workflow.clone()))
+            serde_json::to_string(&normalize_workflow_transitions(workflow.clone()))
                 .context("serialize PostgreSQL task board workflow")?;
-        self.upsert_meta(&scope, TASK_BOARD_WORKFLOW_META_KEY, &workflow_json)
+        agent_database::run_sync_database(|| {
+            upsert_meta(
+                &mut *self.database.connect_postgres()?,
+                &scope,
+                TASK_BOARD_WORKFLOW_META_KEY,
+                &workflow_json,
+            )
+        })
     }
 
     pub(in crate::store) fn load_task_board_workflow(
@@ -354,13 +363,58 @@ impl PostgresAgentSchedulerStore {
         context: &(impl AgentSchedulerStorageContext + ?Sized),
     ) -> Result<Option<TaskPoolWorkflowSnapshotDto>> {
         let scope = context.storage_scope()?;
-        self.load_meta(&scope, TASK_BOARD_WORKFLOW_META_KEY)?
-            .map(|value| {
-                serde_json::from_str(&value)
-                    .map(normalize_failed_retry_transitions)
-                    .context("parse PostgreSQL task board workflow")
-            })
-            .transpose()
+        parse_saved_workflow(self.load_meta(&scope, TASK_BOARD_WORKFLOW_META_KEY)?)
+    }
+
+    pub(in crate::store) fn replace_task_board_workflow(
+        &self,
+        context: &(impl AgentSchedulerStorageContext + ?Sized),
+        expected: Option<&TaskPoolWorkflowSnapshotDto>,
+        workflow: &TaskPoolWorkflowSnapshotDto,
+    ) -> Result<Option<String>> {
+        let scope = context.storage_scope()?;
+        let project = scope.project_scope();
+        agent_database::run_sync_database(|| {
+            let mut connection = self.database.connect_postgres()?;
+            let mut tx = connection.transaction()?;
+            let platform_id = project.platform_id().as_ref();
+            let company_id = project.company_id().as_ref();
+            let project_id = project.project_id().as_ref();
+            let project_params: &[&(dyn ToSql + Sync)] = &[&platform_id, &company_id, &project_id];
+            // Serialize workflow changes for this project, including when no snapshot exists.
+            tx.query_one(
+                "SELECT project_id FROM projects
+                 WHERE platform_id = $1 AND company_id = $2 AND project_id = $3 FOR UPDATE",
+                project_params,
+            )?;
+            let current = parse_saved_workflow(tx.query_opt(
+                "SELECT value FROM scheduler_meta
+                 WHERE platform_id = $1 AND company_id = $2 AND project_id = $3
+                   AND key = 'task_board.workflow' FOR UPDATE",
+                project_params,
+            )?.map(|row| row.get(0)))?;
+            if let Some(conflict) = workflow_changed(current.as_ref(), expected) {
+                return Ok(Some(conflict));
+            }
+            if current.as_ref() == Some(workflow) {
+                return Ok(None);
+            }
+
+            let tasks = tx.query(
+                &format!("SELECT {TASK_COLUMNS} FROM scheduler_tasks
+                 WHERE platform_id = $1 AND company_id = $2 AND project_id = $3
+                   AND status NOT IN ('cancelled', 'archived') ORDER BY id FOR UPDATE"),
+                project_params,
+            )?.iter().map(map_task_row).collect::<Result<Vec<_>>>()?;
+            if let Some(conflict) = workflow_task_conflicts(&tasks, workflow) {
+                return Ok(Some(conflict));
+            }
+
+            let workflow_json = serde_json::to_string(workflow)?;
+            upsert_meta(&mut tx, &scope, TASK_BOARD_WORKFLOW_META_KEY, &workflow_json)?;
+            tx.commit()?;
+            Ok(None)
+        })
     }
 
     fn list_tasks_matching(
@@ -403,29 +457,6 @@ impl PostgresAgentSchedulerStore {
         })
     }
 
-    fn upsert_meta(&self, scope: &AgentSchedulerScope, key: &str, value: &str) -> Result<()> {
-        agent_database::run_sync_database(|| {
-            let project = scope.project_scope();
-            self.database
-                .connect_postgres()?
-                .execute(
-                    "INSERT INTO scheduler_meta (platform_id, company_id, project_id, key, value)
-                 VALUES ($1, $2, $3, $4, $5)
-                 ON CONFLICT (platform_id, company_id, project_id, key)
-                 DO UPDATE SET value = excluded.value",
-                    &[
-                        &project.platform_id().as_ref(),
-                        &project.company_id().as_ref(),
-                        &project.project_id().as_ref(),
-                        &key,
-                        &value,
-                    ],
-                )
-                .context("save scoped PostgreSQL agent scheduler metadata")?;
-            Ok(())
-        })
-    }
-
     fn load_meta(&self, scope: &AgentSchedulerScope, key: &str) -> Result<Option<String>> {
         agent_database::run_sync_database(|| {
             let project = scope.project_scope();
@@ -446,6 +477,29 @@ impl PostgresAgentSchedulerStore {
                 .transpose()
         })
     }
+}
+
+fn upsert_meta(
+    client: &mut impl GenericClient,
+    scope: &AgentSchedulerScope,
+    key: &str,
+    value: &str,
+) -> Result<()> {
+    let project = scope.project_scope();
+    client.execute(
+        "INSERT INTO scheduler_meta (platform_id, company_id, project_id, key, value)
+         VALUES ($1, $2, $3, $4, $5)
+         ON CONFLICT (platform_id, company_id, project_id, key)
+         DO UPDATE SET value = excluded.value",
+        &[
+            &project.platform_id().as_ref(),
+            &project.company_id().as_ref(),
+            &project.project_id().as_ref(),
+            &key,
+            &value,
+        ],
+    ).context("save scoped PostgreSQL agent scheduler metadata")?;
+    Ok(())
 }
 
 fn load_task_with_client(

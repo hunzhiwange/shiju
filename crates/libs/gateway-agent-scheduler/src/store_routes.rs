@@ -14,10 +14,21 @@ impl<H: GatewayExecutorHost> AgentSchedulerGateway for StoreBackedAgentScheduler
         context: AgentSchedulerContext,
         request: AgentSchedulerCreateTaskRequest,
     ) -> Result<AgentSchedulerCreateTaskResponse, ApiError> {
-        let task = new_task_from_request(request)?;
+        let dispatch_lock = self.project_dispatch_lock(&context);
+        let _dispatch_guard = dispatch_lock.lock().await;
+        let mut task = new_task_from_request(request)?;
         let task_id = task.id.clone();
         let existed =
             self.store.load_task(&context, &task_id).map_err(map_scheduler_error)?.is_some();
+        if !existed
+            && task.kind == AgentTaskKind::Finite
+            && let Some(key) = string_field(&task.metadata, "task_board.status_key")
+            && let Some(workflow) = self.store.load_task_board_workflow(&context).map_err(map_scheduler_error)?
+            && let Some(metadata) = task.metadata.as_object_mut()
+        {
+            task.status = task_scheduler::task_board::apply_workflow_status(&workflow, &key, metadata)
+                .map_err(map_bad_request)?;
+        }
         let stored = self.store.create_task(&context, task).map_err(map_scheduler_error)?;
         if !existed {
             append_task_created_event(&self.store, &context, &stored)?;
@@ -50,9 +61,9 @@ impl<H: GatewayExecutorHost> AgentSchedulerGateway for StoreBackedAgentScheduler
     ) -> Result<AgentSchedulerWakeResponse, ApiError> {
         let project_path = parse_project_path(&request.project_path)?;
         self.store.initialize_project(&project_path).map_err(map_scheduler_error)?;
-        self.apply_policy_tick(None, &project_path, request.now_ms, false).await?;
         let dispatch_lock = self.project_dispatch_lock(&project_path);
         let _dispatch_guard = dispatch_lock.lock().await;
+        self.apply_policy_tick(None, &project_path, request.now_ms, false).await?;
         let max_concurrent = normalize_project_wake_max_concurrent(request.max_concurrent);
         let active_count =
             self.active_dispatch_finite_task_count(&project_path, request.dispatch_mode)?;
@@ -136,6 +147,8 @@ impl<H: GatewayExecutorHost> AgentSchedulerGateway for StoreBackedAgentScheduler
         let task_id = task_id_from_api(&request.task_id)?;
         let now_ms = current_timestamp_ms();
         if task_board_write_command(request.command) {
+            let dispatch_lock = self.project_dispatch_lock(&project_path);
+            let _dispatch_guard = dispatch_lock.lock().await;
             return self
                 .apply_task_board_command(&project_id, &project_path, &task_id, request, now_ms)
                 .await;
@@ -238,31 +251,70 @@ impl<H: GatewayExecutorHost> AgentSchedulerGateway for StoreBackedAgentScheduler
         Ok(AgentSchedulerTaskBoardWorkflowResponse { project_id: project_id.into(), workflow })
     }
 
+    async fn select_task_board_workflow(
+        &self,
+        project_id: String,
+        context: AgentSchedulerContext,
+        request: AgentSchedulerSelectWorkflowRequest,
+    ) -> Result<AgentSchedulerTaskBoardWorkflowResponse, ApiError> {
+        use task_scheduler::store::tasks::WorkflowSelectionError;
+
+        let dispatch_lock = self.project_dispatch_lock(&context);
+        let _dispatch_guard = dispatch_lock.lock().await;
+        self.store.initialize_project(&context).map_err(map_scheduler_error)?;
+        let workflow = self.store.select_task_board_workflow(
+            &context,
+            request.workflow_id,
+            request.expected_workflow,
+        ).await.map_err(|error| match error {
+            WorkflowSelectionError::Invalid(message) => ApiError::bad_request(message),
+            WorkflowSelectionError::NotFound(message) => ApiError::not_found(message),
+            WorkflowSelectionError::Conflict(message) => ApiError::conflict(message),
+            WorkflowSelectionError::Storage(error) => map_scheduler_error(error),
+        })?;
+        Ok(AgentSchedulerTaskBoardWorkflowResponse {
+            project_id: project_id.into(),
+            workflow: Some(workflow),
+        })
+    }
+
     async fn task_board_status(
         &self,
         project_id: String,
         project_path: AgentSchedulerContext,
     ) -> Result<AgentSchedulerTaskBoardStatusResponse, ApiError> {
+        let dispatch_lock = self.project_dispatch_lock(&project_path);
+        let _dispatch_guard = dispatch_lock.lock().await;
         self.store.initialize_project(&project_path).map_err(map_scheduler_error)?;
+        let workflow = load_dispatch_workflow(&self.store, &project_path).map_err(map_scheduler_error)?;
         let tasks = self
             .store
             .list_task_board_tasks(&project_path, AgentTaskFilter::default())
             .map_err(map_scheduler_error)?
             .into_iter()
             .map(|task| {
-                task_board_task_to_dto_with_latest_run(
+                let status_key = task_scheduler::task_board::task_board_status_key(&task);
+                let mut dto = task_board_task_to_dto_with_latest_run(
                     &self.store,
                     &project_id,
                     &project_path,
                     task,
-                )
+                )?;
+                if let Some(status) = workflow.statuses.iter().find(|status| status.key == status_key) {
+                    if dto.read_model.stage_id.as_deref() == Some(dto.status_key.as_str()) {
+                        dto.read_model.stage_id = Some(status_key.clone());
+                    }
+                    dto.status_key = status_key;
+                    dto.read_model.workflow_id = Some(workflow.id.clone());
+                    dto.read_model.status_label = Some(status.label.clone());
+                    dto.read_model.status_role = Some(status.role);
+                }
+                Ok(dto)
             })
-            .collect::<Result<Vec<_>, _>>()?;
-        let workflow =
-            self.store.load_task_board_workflow(&project_path).map_err(map_scheduler_error)?;
+            .collect::<Result<Vec<_>, ApiError>>()?;
         Ok(AgentSchedulerTaskBoardStatusResponse {
             project_id: project_id.into(),
-            read_model: AgentSchedulerTaskBoardSnapshotReadModelDto { workflow },
+            read_model: AgentSchedulerTaskBoardSnapshotReadModelDto { workflow: Some(workflow) },
             tasks,
         })
     }
@@ -305,6 +357,8 @@ impl<H: GatewayExecutorHost> AgentSchedulerGateway for StoreBackedAgentScheduler
         task_id: String,
         request: AgentSchedulerTaskMetadataUpdateRequest,
     ) -> Result<AgentSchedulerTaskMetadataUpdateResponse, ApiError> {
+        let dispatch_lock = self.project_dispatch_lock(&project_path);
+        let _dispatch_guard = dispatch_lock.lock().await;
         self.store.initialize_project(&project_path).map_err(map_scheduler_error)?;
         let task_id = TaskId::new(task_id).map_err(map_bad_request)?;
         let outcome = AgentTaskBoardService::new(&self.store)
@@ -333,6 +387,8 @@ impl<H: GatewayExecutorHost> AgentSchedulerGateway for StoreBackedAgentScheduler
         project_path: AgentSchedulerContext,
         request: AgentSchedulerLegacyImportRequest,
     ) -> Result<AgentSchedulerLegacyImportResponse, ApiError> {
+        let dispatch_lock = self.project_dispatch_lock(&project_path);
+        let _dispatch_guard = dispatch_lock.lock().await;
         self.store.initialize_project(&project_path).map_err(map_scheduler_error)?;
         let outcome = AgentTaskBoardService::new(&self.store)
             .import_legacy_tasks(
@@ -432,6 +488,8 @@ impl<H: GatewayExecutorHost> AgentSchedulerGateway for StoreBackedAgentScheduler
             "agent scheduler project wake requested"
         );
         self.store.initialize_project(&project_path).map_err(map_scheduler_error)?;
+        let dispatch_lock = self.project_dispatch_lock(&project_path);
+        let _dispatch_guard = dispatch_lock.lock().await;
         self.apply_policy_tick(
             Some(project_id.as_str()),
             &project_path,
@@ -439,8 +497,6 @@ impl<H: GatewayExecutorHost> AgentSchedulerGateway for StoreBackedAgentScheduler
             request.auto_promote_pool_tasks,
         )
         .await?;
-        let dispatch_lock = self.project_dispatch_lock(&project_path);
-        let _dispatch_guard = dispatch_lock.lock().await;
         let max_concurrent = normalize_project_wake_max_concurrent(request.max_concurrent);
         let active_count =
             self.active_dispatch_finite_task_count(&project_path, request.dispatch_mode)?;

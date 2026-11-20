@@ -146,7 +146,9 @@ pub fn update(
             }
         }
             app.effects.push(ExecutionEffect::SyncLogs(app.task_board_tasks.iter().find(|task| task.id == task_id).cloned()));
-            if let Some(error) = agent_scheduler_lifecycle_error(&app.task_board_settings.workflow_id) {
+            if app.task_board_settings.workflow().is_none()
+                && let Some(error) = agent_scheduler_lifecycle_error(&app.task_board_settings.workflow_id)
+            {
                 if let Some(task) = (*app.task_board_tasks).iter_mut().find(|t| t.id == task_id) {
                     task.mark_paused(error.clone());
                 }
@@ -252,7 +254,10 @@ pub fn update(
                         } else {
                             AgentSchedulerCommandKindDto::Start
                         };
-                    if let Some(error) = agent_scheduler_lifecycle_error(&app.task_board_settings.workflow_id) {
+                    if app.task_board_settings.workflow().is_none()
+                        && let Some(error) =
+                            agent_scheduler_lifecycle_error(&app.task_board_settings.workflow_id)
+                    {
                         if let Some(task_in_list) =
                             (*app.task_board_tasks).iter_mut().find(|t| t.id == task_id)
                         {

@@ -11,6 +11,7 @@ use serde_json::{Value, json};
 #[cfg(any(test, target_arch = "wasm32"))]
 use serde_json::{Map, Value, json};
 use tokio::sync::Mutex as AsyncMutex;
+use vw_api_agent_scheduler::AgentSchedulerSelectWorkflowRequest;
 use vw_api_chat_identity::ReasoningEffortDto;
 #[cfg(all(not(test), not(target_arch = "wasm32")))]
 use vw_api_agent_scheduler::{
@@ -282,7 +283,11 @@ impl<H: GatewayExecutorHost> StoreBackedAgentSchedulerGateway<H> {
                 if start_command_is_idempotent_for_status(task.status) {
                     return Ok(None);
                 }
-                self.ensure_queued_for_local_run(project_path, task, now_ms)?;
+                if task.status != AgentTaskStatus::Queued {
+                    let lock = self.project_dispatch_lock(project_path);
+                    let _guard = lock.lock().await;
+                    self.queue_task_for_command(project_path, task, "success", now_ms)?;
+                }
                 self.run_or_dispatch_project_task(
                     project_path,
                     &task.id,
@@ -296,10 +301,11 @@ impl<H: GatewayExecutorHost> StoreBackedAgentSchedulerGateway<H> {
                 if task.status != AgentTaskStatus::Failed {
                     return Err(ApiError::bad_request("retry requires a failed task"));
                 }
-                self.store
-                    .transition_task_status(project_path, &task.id, AgentTaskStatus::Queued, now_ms)
-                    .map_err(map_scheduler_command_error)?
-                    .ok_or_else(|| ApiError::not_found("task not found"))?;
+                {
+                    let lock = self.project_dispatch_lock(project_path);
+                    let _guard = lock.lock().await;
+                    self.queue_task_for_command(project_path, task, "retry", now_ms)?;
+                }
                 self.run_or_dispatch_project_task(
                     project_path,
                     &task.id,
@@ -605,26 +611,41 @@ impl<H: GatewayExecutorHost> StoreBackedAgentSchedulerGateway<H> {
             .map_err(map_scheduler_error)
     }
 
-    fn ensure_queued_for_local_run(
+    fn queue_task_for_command(
         &self,
         project_path: &(impl AgentSchedulerStorageContext + ?Sized),
         task: &StoredAgentTask,
+        outcome: &str,
         now_ms: TimestampMs,
     ) -> Result<(), ApiError> {
-        match task.status {
-            AgentTaskStatus::Queued => Ok(()),
-            AgentTaskStatus::Draft => {
-                self.store
-                    .transition_task_status(project_path, &task.id, AgentTaskStatus::Queued, now_ms)
-                    .map_err(map_scheduler_command_error)?
-                    .ok_or_else(|| ApiError::not_found("task not found"))?;
-                Ok(())
-            }
-            _ => Err(ApiError::bad_request(format!(
-                "command requires queued task, got {}",
-                task.status.as_str()
-            ))),
+        let current = self.store.load_task(project_path, &task.id)
+            .map_err(map_scheduler_error)?
+            .ok_or_else(|| ApiError::not_found("task not found"))?;
+        if current.status == AgentTaskStatus::Queued {
+            return Ok(());
         }
+        let expected = if outcome == "retry" { AgentTaskStatus::Failed } else { AgentTaskStatus::Draft };
+        if current.status != expected {
+            return Err(ApiError::bad_request(format!(
+                "command requires {} task, got {}", expected.as_str(), current.status.as_str()
+            )));
+        }
+        let workflow = load_dispatch_workflow(&self.store, project_path).map_err(map_scheduler_error)?;
+        let source = task_scheduler::task_board::task_board_status_key(&current);
+        let bridge = task_scheduler::lifecycle_bridge::LifecycleBridge::new(&workflow);
+        let target = bridge.resolve_outcome(&source, outcome).map_err(map_bad_request)?;
+        if target.runtime_status != AgentTaskStatus::Queued {
+            return Err(ApiError::bad_request(format!(
+                "workflow {outcome} requires a queued target, got {}", target.status_key
+            )));
+        }
+        let mut metadata = current.metadata.as_object().cloned().unwrap_or_default();
+        metadata.extend(bridge.projection_metadata(&target.status_key).map_err(map_bad_request)?);
+        self.store.transition_task_status_with_metadata(
+            project_path, &task.id, target.runtime_status, Value::Object(metadata), now_ms,
+        ).map_err(map_scheduler_command_error)?
+            .ok_or_else(|| ApiError::not_found("task not found"))?;
+        Ok(())
     }
 
     fn transition_for_command(

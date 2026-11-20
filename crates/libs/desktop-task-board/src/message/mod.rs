@@ -319,6 +319,7 @@ pub enum TaskBoardMessage {
     },
     AgentSchedulerStatusLoaded {
         project_path: String,
+        generation: u64,
         result: Result<
             vw_api_agent_scheduler::AgentSchedulerTaskBoardStatusResponse,
             String,

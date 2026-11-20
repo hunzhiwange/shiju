@@ -26,8 +26,9 @@ pub use registry::{
     register_runtime_task_workflow, replace_runtime_task_lifecycle_workflows_for_tests,
     reset_runtime_task_lifecycle_cache, runtime_task_lifecycle_cache_test_lock,
 };
+pub use vw_api_task::TaskPoolWorkflowSnapshotDto;
 use vw_api_task::{
-    TaskPoolWorkflowSnapshotDto, TaskPoolWorkflowStatusDto, TaskPoolWorkflowStatusRoleDto,
+    TaskPoolWorkflowStatusDto, TaskPoolWorkflowStatusRoleDto,
     TaskPoolWorkflowTransitionDto,
 };
 
@@ -194,6 +195,51 @@ pub fn task_workflow_snapshot_for_gateway(workflow: &TaskWorkflow) -> TaskPoolWo
             })
             .collect(),
     }
+}
+
+/// Reconstruct the board definition from the project's applied scheduler snapshot.
+pub fn task_workflow_from_snapshot(snapshot: &TaskPoolWorkflowSnapshotDto) -> Option<TaskWorkflow> {
+    let statuses = snapshot.statuses.iter().map(|definition| {
+        use TaskPoolWorkflowStatusRoleDto as Role;
+        let role = match definition.role {
+            Role::Backlog => StatusRole::Backlog,
+            Role::Queued => StatusRole::Queued,
+            Role::Planning => StatusRole::Planning,
+            Role::Executing => StatusRole::Executing,
+            Role::Failed => StatusRole::Failed,
+            Role::Paused => StatusRole::Paused,
+            Role::ReviewReady => StatusRole::ReviewReady,
+            Role::Review => StatusRole::Review,
+            Role::Merging => StatusRole::Merging,
+            Role::Done => StatusRole::Done,
+            Role::Archived => StatusRole::Archived,
+            Role::Custom => StatusRole::Custom,
+        };
+        let transitions = definition.transitions.iter().map(|transition| {
+            Some(OwnedStatusTransition {
+                outcome: StatusOutcome::new(&transition.outcome),
+                label: transition.label.clone(),
+                target: TaskStatus::parse_key(&transition.target)?,
+            })
+        }).collect::<Option<Vec<_>>>()?;
+        Some(OwnedStatusDefinition {
+            status: TaskStatus::parse_key(&definition.key)?,
+            key: definition.key.clone(),
+            label: definition.label.clone(),
+            role,
+            enabled: definition.enabled,
+            is_terminal: definition.terminal,
+            auto_execution_candidate: matches!(
+                role, StatusRole::Backlog | StatusRole::Queued | StatusRole::Planning
+                    | StatusRole::Executing | StatusRole::ReviewReady | StatusRole::Review | StatusRole::Merging
+            ),
+            occupies_execution_slot: matches!(role, StatusRole::Executing | StatusRole::Planning),
+            is_scheduling_backlog: matches!(role, StatusRole::Backlog | StatusRole::Queued | StatusRole::Planning),
+            next: definition.next.as_deref().and_then(TaskStatus::parse_key),
+            transitions,
+        })
+    }).collect::<Option<Vec<_>>>()?;
+    Some(TaskWorkflow { id: snapshot.id.clone(), label: snapshot.label.clone(), statuses })
 }
 
 fn status_role_for_gateway(role: StatusRole) -> TaskPoolWorkflowStatusRoleDto {

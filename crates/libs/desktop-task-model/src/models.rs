@@ -1065,9 +1065,29 @@ pub struct TaskBoardSettings {
     /// 项目选用的任务工作流 id，默认 `generic_task`；旧配置缺字段时落默认。
     #[serde(default = "default_task_workflow_id")]
     pub workflow_id: String,
+    #[serde(skip)]
+    pub workflow_snapshot: Option<crate::workflow::TaskPoolWorkflowSnapshotDto>,
 }
 
 impl TaskBoardSettings {
+    pub fn apply_workflow_snapshot(
+        &mut self,
+        snapshot: Option<crate::workflow::TaskPoolWorkflowSnapshotDto>,
+    ) {
+        self.workflow_id = snapshot.as_ref().map_or_else(default_task_workflow_id, |workflow| workflow.id.clone());
+        self.workflow_snapshot = snapshot;
+    }
+
+    pub fn workflow(&self) -> Option<crate::workflow::TaskWorkflow> {
+        match &self.workflow_snapshot {
+            Some(snapshot) => crate::workflow::task_workflow_from_snapshot(snapshot),
+            None if self.workflow_id == crate::workflow::DEFAULT_TASK_WORKFLOW_ID => {
+                Some(crate::workflow::default_task_workflow().into())
+            }
+            None => crate::workflow::task_workflow_by_id(&self.workflow_id),
+        }
+    }
+
     /// 公开的 new 函数。
     ///
     /// 参数由调用方提供，返回值表达该步骤的计算结果；遇到不可恢复的外部状态时通过现有返回类型向上层传播错误或空结果。
@@ -1087,6 +1107,7 @@ impl TaskBoardSettings {
             pr_submitted_stall_timeout_seconds: default_pr_submitted_stall_timeout_seconds(),
             agent_scheduler_dispatch_mode: AgentSchedulerDispatchModeDto::Local,
             workflow_id: default_task_workflow_id(),
+            workflow_snapshot: None,
         }
     }
 
@@ -1104,7 +1125,7 @@ impl TaskBoardSettings {
         self.running_timeout_minutes = self.running_timeout_minutes.clamp(1, 1440);
         self.pr_submitted_stall_timeout_seconds =
             self.pr_submitted_stall_timeout_seconds.clamp(5, 3600);
-        if crate::workflow::task_workflow_by_id(&self.workflow_id).is_none() {
+        if self.workflow_snapshot.is_none() && crate::workflow::task_workflow_by_id(&self.workflow_id).is_none() {
             self.workflow_id = default_task_workflow_id();
         }
         self

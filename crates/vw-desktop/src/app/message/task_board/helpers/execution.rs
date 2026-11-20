@@ -70,8 +70,16 @@ pub(crate) async fn resolve_task_board_scheduler_scope(
     desktop_session::session_gateway::active_agent_scheduler_scope(crate::app::config::gateway_client_endpoint(), project_id)
 }
 
+pub(crate) fn next_agent_scheduler_status_generation() -> u64 {
+    use std::sync::atomic::{AtomicU64, Ordering};
+
+    static GENERATION: AtomicU64 = AtomicU64::new(0);
+    GENERATION.fetch_add(1, Ordering::Relaxed).wrapping_add(1)
+}
+
 pub(crate) fn sync_agent_scheduler_status(project_path: String) -> iced::Task<crate::app::Message> {
     let result_project_path = project_path.clone();
+    let generation = next_agent_scheduler_status_generation();
     iced::Task::perform(
         async move {
             let scope = resolve_task_board_scheduler_scope(&project_path).await?;
@@ -83,6 +91,7 @@ pub(crate) fn sync_agent_scheduler_status(project_path: String) -> iced::Task<cr
         move |result| {
             crate::app::Message::TaskBoard(TaskBoardMessage::AgentSchedulerStatusLoaded {
                 project_path: result_project_path.clone(),
+                generation,
                 result,
             })
         },
@@ -167,6 +176,7 @@ pub(crate) fn sync_task_board_gateway_snapshot(
     project_path: String,
 ) -> iced::Task<crate::app::Message> {
     let result_project_path = project_path.clone();
+    let generation = next_agent_scheduler_status_generation();
     iced::Task::perform(
         async move {
             let scope = resolve_task_board_scheduler_scope(&project_path).await?;
@@ -178,6 +188,7 @@ pub(crate) fn sync_task_board_gateway_snapshot(
         move |result| {
             crate::app::Message::TaskBoard(TaskBoardMessage::AgentSchedulerStatusLoaded {
                 project_path: result_project_path.clone(),
+                generation,
                 result,
             })
         },
@@ -221,6 +232,7 @@ pub(crate) fn send_agent_scheduler_command(
     reason: Option<String>,
 ) -> iced::Task<crate::app::Message> {
     let result_project_path = project_path.clone();
+    let generation = next_agent_scheduler_status_generation();
     iced::Task::perform(
         async move {
             let task_id = task.id.clone();
@@ -275,6 +287,7 @@ pub(crate) fn send_agent_scheduler_command(
         move |result| {
             crate::app::Message::TaskBoard(TaskBoardMessage::AgentSchedulerStatusLoaded {
                 project_path: result_project_path.clone(),
+                generation,
                 result,
             })
         },

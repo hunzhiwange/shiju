@@ -20,7 +20,9 @@ fn task_board_project_matches(app: &crate::app::App, project_path: &str) -> bool
 }
 
 fn initial_task_status_for_app(app: &crate::app::App) -> TaskStatus {
-    initial_task_status_for_workflow_id(&app.task_board.task_board_settings.workflow_id)
+    app.task_board.task_board_settings.workflow()
+        .and_then(|workflow| workflow.statuses.into_iter().find(|status| status.enabled))
+        .map_or(TaskStatus::Pool, |status| status.status)
 }
 
 fn sync_agent_scheduler_status_for_current_project(
@@ -74,7 +76,7 @@ fn schedule_agent_scheduler_status_followup_ticks(
 ) -> iced::Task<crate::app::Message> {
     let (should_schedule_review, should_schedule_merge) =
         taskboard::update::projection::scheduler_followups_for_runtime(
-            &app.task_board.task_board_settings.workflow_id,
+            &app.task_board.task_board_settings,
             updated_tasks,
             app.task_board.task_board_executor_running,
         );
@@ -712,8 +714,10 @@ pub fn update(
             maybe_schedule_worktree_snapshot_refresh(app, true)
         }
 
-        TaskBoardMessage::AgentSchedulerStatusLoaded { project_path, result } => {
-            if !task_board_project_matches(app, &project_path) {
+        TaskBoardMessage::AgentSchedulerStatusLoaded { project_path, generation, result } => {
+            if !task_board_project_matches(app, &project_path)
+                || generation < app.task_board.task_board_workflow_generation
+            {
                 return iced::Task::none();
             }
             let response = match result {

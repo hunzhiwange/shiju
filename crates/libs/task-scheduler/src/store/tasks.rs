@@ -1,16 +1,19 @@
 //! 实现 SQLite 任务与看板数据的创建、读取、筛选和受状态机约束的更新。
 
+use std::collections::BTreeMap;
+
 use anyhow::{Context, Result, bail};
 use rusqlite::types::Type;
 use rusqlite::{Connection, OptionalExtension, Row, TransactionBehavior, params, params_from_iter};
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value, json};
 use vw_api_transport::common::TimestampMs;
-use vw_api_task::{
-    TaskPoolWorkflowSnapshotDto, TaskPoolWorkflowStatusRoleDto, TaskPoolWorkflowTransitionDto,
-};
+use vw_api_task::{TaskPoolWorkflowSnapshotDto, TaskPoolWorkflowStatusRoleDto};
 
 use crate::domain::{AssigneeId, TaskId, TeamId};
+use crate::lifecycle_bridge::{
+    LifecycleBridge, normalize_workflow_transitions, runtime_status_for_role, task_workflow_snapshot,
+};
 use crate::state_machine::{AgentTaskKind, AgentTaskStatus, ensure_transition};
 
 use super::{
@@ -59,7 +62,85 @@ impl AgentTaskFilter {
     }
 }
 
+#[derive(Debug)]
+pub enum WorkflowSelectionError {
+    Invalid(String),
+    NotFound(String),
+    Conflict(String),
+    Storage(anyhow::Error),
+}
+
 impl AgentSchedulerStore {
+    /// 将租户预设固定为项目快照，保留注册表后续编辑前的已生效定义。
+    pub async fn select_task_board_workflow(
+        &self,
+        context: &crate::domain::AgentSchedulerContext,
+        workflow_id: String,
+        expected: Option<TaskPoolWorkflowSnapshotDto>,
+    ) -> std::result::Result<TaskPoolWorkflowSnapshotDto, WorkflowSelectionError> {
+        let tenant = context.scope().project_scope().tenant_scope().clone();
+        let workflow = task_lifecycle::store::workflow_by_id(
+            self.database().map_err(WorkflowSelectionError::Storage)?,
+            tenant,
+            workflow_id,
+        )
+        .await
+        .map_err(|error| match error {
+            task_lifecycle::TaskLifecycleError::BadRequest(message) => WorkflowSelectionError::Invalid(message),
+            task_lifecycle::TaskLifecycleError::NotFound(message) => WorkflowSelectionError::NotFound(message),
+            task_lifecycle::TaskLifecycleError::Internal(message) => WorkflowSelectionError::Storage(anyhow::anyhow!(message)),
+        })?;
+        let workflow = normalize_workflow_transitions(task_workflow_snapshot(workflow));
+        workflow.validate_for_schedule().map_err(WorkflowSelectionError::Invalid)?;
+        let conflict = self
+            .replace_task_board_workflow(context, expected.as_ref(), &workflow)
+            .map_err(WorkflowSelectionError::Storage)?;
+        if let Some(message) = conflict {
+            return Err(WorkflowSelectionError::Conflict(message));
+        }
+        Ok(workflow)
+    }
+
+    pub(crate) fn replace_task_board_workflow(
+        &self,
+        context: &(impl AgentSchedulerStorageContext + ?Sized),
+        expected: Option<&TaskPoolWorkflowSnapshotDto>,
+        workflow: &TaskPoolWorkflowSnapshotDto,
+    ) -> Result<Option<String>> {
+        let workflow = normalize_workflow_transitions(workflow.clone());
+        if let Some(store) = postgres_provider(self, context)? {
+            return store.replace_task_board_workflow(context, expected, &workflow);
+        }
+        let scope = context.storage_scope()?;
+        let (_guard, mut conn) = open_locked_initialized_connection(self, context)?;
+        let tx = conn.transaction_with_behavior(TransactionBehavior::Immediate)?;
+        let current = load_workflow_with_conn(&tx, &scope)?;
+        if let Some(conflict) = workflow_changed(current.as_ref(), expected) {
+            return Ok(Some(conflict));
+        }
+        if current.as_ref() == Some(&workflow) {
+            return Ok(None);
+        }
+
+        let (platform_id, company_id, project_id) = scope_params(&scope);
+        let tasks = {
+            let mut statement = tx.prepare(&format!(
+                "SELECT {TASK_COLUMNS} FROM scheduler_tasks
+                 WHERE platform_id = ?1 AND company_id = ?2 AND project_id = ?3
+                   AND status NOT IN ('cancelled', 'archived')"
+            ))?;
+            let rows = statement.query_map(params![platform_id, company_id, project_id], map_task_row)?;
+            rows.collect::<rusqlite::Result<Vec<_>>>()?
+        };
+        if let Some(conflict) = workflow_task_conflicts(&tasks, &workflow) {
+            return Ok(Some(conflict));
+        }
+
+        upsert_workflow_with_conn(&tx, &scope, &workflow)?;
+        tx.commit()?;
+        Ok(None)
+    }
+
     /// 在作用域内创建唯一任务，并返回规范化后的持久化快照。
     pub fn create_task(
         &self,
@@ -451,27 +532,9 @@ impl AgentSchedulerStore {
             return store.save_task_board_workflow(context, workflow);
         }
         let scope = context.storage_scope()?;
-        let (platform_id, company_id, project_id) = scope_params(&scope);
-        let (_guard, mut conn) = open_locked_initialized_connection(self, context)?;
-        let workflow = normalize_failed_retry_transitions(workflow.clone());
-        let workflow_json =
-            serde_json::to_string(&workflow).context("serialize task board workflow")?;
-        let tx = conn.transaction_with_behavior(TransactionBehavior::Immediate)?;
-        tx.execute(
-            "INSERT INTO scheduler_meta (platform_id, company_id, project_id, key, value)
-             VALUES (?1, ?2, ?3, ?4, ?5)
-             ON CONFLICT(platform_id, company_id, project_id, key)
-             DO UPDATE SET value = excluded.value",
-            params![
-                platform_id,
-                company_id,
-                project_id,
-                TASK_BOARD_WORKFLOW_META_KEY,
-                workflow_json
-            ],
-        )?;
-        tx.commit()?;
-        Ok(())
+        let (_guard, conn) = open_locked_initialized_connection(self, context)?;
+        let workflow = normalize_workflow_transitions(workflow.clone());
+        upsert_workflow_with_conn(&conn, &scope, &workflow)
     }
 
     pub fn load_task_board_workflow(
@@ -482,48 +545,91 @@ impl AgentSchedulerStore {
             return store.load_task_board_workflow(context);
         }
         let conn = open_initialized_connection(self, context)?;
-        let scope = context.storage_scope()?;
-        let (platform_id, company_id, project_id) = scope_params(&scope);
-        let workflow_json = conn
-            .query_row(
-                "SELECT value FROM scheduler_meta
-                 WHERE platform_id = ?1 AND company_id = ?2 AND project_id = ?3 AND key = ?4",
-                params![platform_id, company_id, project_id, TASK_BOARD_WORKFLOW_META_KEY],
-                |row| row.get::<_, String>(0),
-            )
-            .optional()?;
-        workflow_json
-            .map(|value| {
-                serde_json::from_str(&value)
-                    .map(normalize_failed_retry_transitions)
-                    .context("parse task board workflow")
-            })
-            .transpose()
+        load_workflow_with_conn(&conn, &context.storage_scope()?)
     }
 }
 
-pub(super) fn normalize_failed_retry_transitions(
-    mut workflow: TaskPoolWorkflowSnapshotDto,
-) -> TaskPoolWorkflowSnapshotDto {
-    for status in &mut workflow.statuses {
-        if status.role != TaskPoolWorkflowStatusRoleDto::Failed
-            || status
-                .transitions
-                .iter()
-                .any(|transition| transition.outcome.trim().eq_ignore_ascii_case("retry"))
+fn upsert_workflow_with_conn(
+    conn: &Connection,
+    scope: &vw_api_agent_scheduler::AgentSchedulerScope,
+    workflow: &TaskPoolWorkflowSnapshotDto,
+) -> Result<()> {
+    let (platform_id, company_id, project_id) = scope_params(scope);
+    let workflow_json = serde_json::to_string(workflow).context("serialize task board workflow")?;
+    conn.execute(
+        "INSERT INTO scheduler_meta (platform_id, company_id, project_id, key, value)
+         VALUES (?1, ?2, ?3, ?4, ?5)
+         ON CONFLICT(platform_id, company_id, project_id, key)
+         DO UPDATE SET value = excluded.value",
+        params![platform_id, company_id, project_id, TASK_BOARD_WORKFLOW_META_KEY, workflow_json],
+    )?;
+    Ok(())
+}
+
+fn load_workflow_with_conn(
+    conn: &Connection,
+    scope: &vw_api_agent_scheduler::AgentSchedulerScope,
+) -> Result<Option<TaskPoolWorkflowSnapshotDto>> {
+    let (platform_id, company_id, project_id) = scope_params(scope);
+    let value = conn.query_row(
+        "SELECT value FROM scheduler_meta
+         WHERE platform_id = ?1 AND company_id = ?2 AND project_id = ?3 AND key = ?4",
+        params![platform_id, company_id, project_id, TASK_BOARD_WORKFLOW_META_KEY],
+        |row| row.get::<_, String>(0),
+    ).optional()?;
+    parse_saved_workflow(value)
+}
+
+pub(super) fn parse_saved_workflow(value: Option<String>) -> Result<Option<TaskPoolWorkflowSnapshotDto>> {
+    value.map(|value| {
+        let workflow: TaskPoolWorkflowSnapshotDto =
+            serde_json::from_str(&value).context("parse task board workflow")?;
+        Ok(normalize_workflow_transitions(workflow))
+    }).transpose()
+}
+
+pub(super) fn workflow_changed(
+    current: Option<&TaskPoolWorkflowSnapshotDto>,
+    expected: Option<&TaskPoolWorkflowSnapshotDto>,
+) -> Option<String> {
+    (current != expected).then(|| "项目工作流已被修改，请重新打开项目设置后再保存".to_string())
+}
+
+pub(super) fn workflow_task_conflicts(
+    tasks: &[StoredAgentTask],
+    workflow: &TaskPoolWorkflowSnapshotDto,
+) -> Option<String> {
+    let bridge = LifecycleBridge::new(workflow);
+    let mut incompatible = BTreeMap::new();
+    let mut executing = BTreeMap::new();
+    for task in tasks {
+        if bool_metadata_field(&task.metadata, "task_board.deleted")
+            || bool_metadata_field(&task.metadata, "task_board.archived")
         {
             continue;
         }
-        let Some(target) = status.next.clone() else {
-            continue;
-        };
-        status.transitions.push(TaskPoolWorkflowTransitionDto {
-            outcome: "retry".to_string(),
-            label: Some("重试".to_string()),
-            target,
-        });
+        let key = crate::task_board::task_board_status_key(task);
+        if agent_scheduler_control_status(task.status) || task.status == AgentTaskStatus::Running {
+            *executing.entry(key).or_insert(0) += 1;
+        } else if bridge.status(&key).map_or(true, |status| {
+            status.role != TaskPoolWorkflowStatusRoleDto::Custom
+                && runtime_status_for_role(status.role).is_ok_and(|runtime| runtime != task.status)
+        }) {
+            *incompatible.entry(key).or_insert(0) += 1;
+        }
     }
-    workflow
+    let describe = |counts: BTreeMap<String, usize>| {
+        counts.into_iter().map(|(key, count)| format!("{key}（{count} 项）"))
+            .collect::<Vec<_>>().join("、")
+    };
+    let mut conflicts = Vec::new();
+    if !incompatible.is_empty() {
+        conflicts.push(format!("新工作流无法识别的任务状态：{}", describe(incompatible)));
+    }
+    if !executing.is_empty() {
+        conflicts.push(format!("正在执行的任务状态：{}", describe(executing)));
+    }
+    (!conflicts.is_empty()).then(|| conflicts.join("。"))
 }
 
 fn validate_new_task(task: &NewAgentTask) -> Result<()> {

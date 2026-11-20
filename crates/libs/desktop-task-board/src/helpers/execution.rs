@@ -341,9 +341,16 @@ pub fn agent_scheduler_create_task_request(
     task: &Task,
     workflow_id: &str,
 ) -> vw_api_agent_scheduler::AgentSchedulerCreateTaskRequest {
-    let task_id = task.id.clone();
     let workflow = task_workflow_for_agent_scheduler(workflow_id);
-    let workflow_ref = workflow.as_ref();
+    create_task_request_with_workflow(task, workflow_id, workflow.as_ref())
+}
+
+fn create_task_request_with_workflow(
+    task: &Task,
+    workflow_id: &str,
+    workflow_ref: Option<&TaskWorkflow>,
+) -> vw_api_agent_scheduler::AgentSchedulerCreateTaskRequest {
+    let task_id = task.id.clone();
     let workflow_metadata_id =
         workflow_ref.map(|workflow| workflow.id().to_string()).unwrap_or_else(|| {
             if workflow_id.trim().is_empty() {
@@ -405,16 +412,23 @@ pub fn agent_scheduler_wake_create_task_requests(
     workflow_id: &str,
 ) -> Vec<vw_api_agent_scheduler::AgentSchedulerCreateTaskRequest> {
     let workflow = task_workflow_for_agent_scheduler(workflow_id);
+    workflow.map_or_else(Vec::new, |workflow| scheduler_pending_task_requests(tasks, &workflow))
+}
+
+pub fn scheduler_pending_task_requests(
+    tasks: &[Task],
+    workflow: &TaskWorkflow,
+) -> Vec<vw_api_agent_scheduler::AgentSchedulerCreateTaskRequest> {
     tasks
         .iter()
         .filter(|task| {
-            workflow.as_ref().and_then(|workflow| workflow.status_role(task.status)).is_some_and(
+            workflow.status_enabled(task.status) && workflow.status_role(task.status).is_some_and(
                 |role| {
                     matches!(role, StatusRole::Backlog | StatusRole::Queued | StatusRole::Planning)
                 },
             )
         })
-        .map(|task| agent_scheduler_create_task_request(task, workflow_id))
+        .map(|task| create_task_request_with_workflow(task, workflow.id(), Some(workflow)))
         .collect()
 }
 

@@ -318,6 +318,13 @@ impl AgentSchedulerTaskBoardSnapshotReadModelDto {
     }
 }
 
+/// 选用租户生命周期预设，要求当前已保存的快照仍与编辑时一致。
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct AgentSchedulerSelectWorkflowRequest {
+    pub workflow_id: String,
+    pub expected_workflow: Option<TaskPoolWorkflowSnapshotDto>,
+}
+
 /// Agent Scheduler 项目 workflow 快照响应。
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct AgentSchedulerTaskBoardWorkflowResponse {

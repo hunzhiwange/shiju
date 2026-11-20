@@ -17,6 +17,12 @@ pub fn builtin_task_workflow_snapshot() -> TaskPoolWorkflowSnapshotDto {
         task_lifecycle::DEFAULT_TASK_LIFECYCLE_WORKFLOW_ID,
     )
     .expect("default lifecycle is registered");
+    normalize_workflow_transitions(task_workflow_snapshot(workflow))
+}
+
+pub(crate) fn task_workflow_snapshot(
+    workflow: vw_api_task_lifecycle::TaskLifecycleWorkflowDto,
+) -> TaskPoolWorkflowSnapshotDto {
     TaskPoolWorkflowSnapshotDto {
         id: workflow.id,
         label: workflow.label,
@@ -157,6 +163,28 @@ impl<'a> LifecycleBridge<'a> {
         self.next_enabled_status(target)
     }
 
+    /// Resolve the executing state for a queued task, honoring its explicit path.
+    pub fn execution_status_key(&self, from_status_key: &str) -> Result<&str> {
+        let source = self.status(from_status_key)?;
+        let is_executing = |status: &&TaskPoolWorkflowStatusDto| {
+            status.enabled && status.role == TaskPoolWorkflowStatusRoleDto::Executing
+        };
+        if is_executing(&source) {
+            return Ok(&source.key);
+        }
+        if let Ok(target) = self.resolve_outcome_target_status_key(from_status_key, "success")
+            && let Some(status) = self.find_status(&target).filter(is_executing)
+        {
+            return Ok(&status.key);
+        }
+        let mut executing = self.workflow.statuses.iter().filter(is_executing);
+        let status = executing.next().ok_or_else(|| anyhow::anyhow!("workflow has no executing status"))?;
+        if executing.next().is_some() {
+            bail!("workflow has ambiguous executing statuses for `{from_status_key}`");
+        }
+        Ok(&status.key)
+    }
+
     /// 判断状态角色是否属于可派发阶段，并保留投影供审计。
     pub fn dispatch_eligibility(&self, status_key: &str) -> Result<LifecycleDispatchEligibility> {
         let status = self.resolve_status(status_key)?;
@@ -241,6 +269,49 @@ pub fn status_role_key(role: TaskPoolWorkflowStatusRoleDto) -> &'static str {
         TaskPoolWorkflowStatusRoleDto::Archived => "archived",
         TaskPoolWorkflowStatusRoleDto::Custom => "custom",
     }
+}
+
+pub(crate) fn normalize_workflow_transitions(
+    mut workflow: TaskPoolWorkflowSnapshotDto,
+) -> TaskPoolWorkflowSnapshotDto {
+    let failed_key = {
+        let mut failed = workflow.statuses.iter().filter(|status| {
+            status.enabled && status.role == TaskPoolWorkflowStatusRoleDto::Failed
+        });
+        let first = failed.next();
+        first.filter(|_| failed.next().is_none()).map(|status| status.key.clone())
+    };
+    for status in &mut workflow.statuses {
+        if status.role == TaskPoolWorkflowStatusRoleDto::Executing
+            && let Some(target) = &failed_key
+            && !status.transitions.iter().any(|transition| {
+                workflow_transition_matches_outcome(&transition.outcome, "failure")
+            })
+        {
+            status.transitions.push(TaskPoolWorkflowTransitionDto {
+                outcome: "failure".to_string(),
+                label: Some("执行失败".to_string()),
+                target: target.clone(),
+            });
+        }
+        if status.role != TaskPoolWorkflowStatusRoleDto::Failed
+            || status
+                .transitions
+                .iter()
+                .any(|transition| transition.outcome.trim().eq_ignore_ascii_case("retry"))
+        {
+            continue;
+        }
+        let Some(target) = status.next.clone() else {
+            continue;
+        };
+        status.transitions.push(TaskPoolWorkflowTransitionDto {
+            outcome: "retry".to_string(),
+            label: Some("重试".to_string()),
+            target,
+        });
+    }
+    workflow
 }
 
 fn success_target_or_next(status: &TaskPoolWorkflowStatusDto) -> Option<&str> {

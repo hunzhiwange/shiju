@@ -64,7 +64,6 @@ pub struct PolicyLogSnapshot {
 /// 实现必须保留原存储校验与错误，不跨作用域回退；两个工作流加载入口
 /// 分别保留可选已保存工作流和派发默认工作流的原有语义。
 pub trait PolicyHost {
-    fn load_task_board_workflow(&self) -> Result<Option<TaskPoolWorkflowSnapshotDto>>;
     fn load_dispatch_workflow(&self) -> Result<TaskPoolWorkflowSnapshotDto>;
     fn list_active_tasks(&self) -> Result<Vec<StoredAgentTask>>;
     fn task_board_status_key(&self, task: &StoredAgentTask) -> String;

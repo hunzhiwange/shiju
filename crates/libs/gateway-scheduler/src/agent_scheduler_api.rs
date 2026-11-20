@@ -4,7 +4,7 @@ use vw_api_agent_scheduler::{
     AgentSchedulerCreateTaskResponse, AgentSchedulerLegacyImportRequest,
     AgentSchedulerLegacyImportResponse, AgentSchedulerOutboxDrainRequest,
     AgentSchedulerOutboxDrainResponse, AgentSchedulerReplaceTaskGraphRequest,
-    AgentSchedulerScopeDto, AgentSchedulerTaskArtifactsResponse,
+    AgentSchedulerScopeDto, AgentSchedulerSelectWorkflowRequest, AgentSchedulerTaskArtifactsResponse,
     AgentSchedulerTaskBoardEventsResponse, AgentSchedulerTaskBoardStatusResponse,
     AgentSchedulerTaskBoardWorkflowResponse, AgentSchedulerTaskGraphResponse,
     AgentSchedulerTaskLogsResponse, AgentSchedulerTaskMetadataUpdateRequest,
@@ -87,6 +87,17 @@ impl GatewaySchedulerClient {
         self.ensure_scheduler_tenant_scope(scope)?;
         let path = agent_scheduler_workflow_path(scope);
         self.transport.get_json(&path, &[]).await
+    }
+
+    /// 选用项目工作流并返回实际保存的调度快照。
+    pub async fn agent_scheduler_select_workflow(
+        &self,
+        scope: &AgentSchedulerScopeDto,
+        request: &AgentSchedulerSelectWorkflowRequest,
+    ) -> Result<AgentSchedulerTaskBoardWorkflowResponse, String> {
+        self.ensure_scheduler_tenant_scope(scope)?;
+        let path = agent_scheduler_workflow_path(scope);
+        self.transport.put_json(&path, &[], request).await
     }
 
     /// 更新 Agent Scheduler 任务板任务元数据投影。

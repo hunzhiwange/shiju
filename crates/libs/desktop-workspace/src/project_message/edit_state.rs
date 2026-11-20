@@ -38,6 +38,10 @@ pub struct Editor {
     pub project_edit_worktree_dirty: bool,
     /// 项目任务看板设置
     pub project_edit_task_board_settings: desktop_task_model::TaskBoardSettings,
+    pub project_edit_workflow_generation: u64,
+    pub project_edit_workflow_baseline: Option<Option<desktop_task_model::workflow::TaskPoolWorkflowSnapshotDto>>,
+    pub project_edit_workflow_dirty: bool,
+    pub project_edit_workflow_saving: bool,
     /// 项目最大并发数输入
     pub project_edit_max_concurrent_input: String,
     /// 项目任务看板自动刷新开关
@@ -78,6 +82,10 @@ impl Default for Editor {
             #[cfg(not(target_arch = "wasm32"))]
             project_edit_worktree_dirty: false,
             project_edit_task_board_settings: desktop_task_model::TaskBoardSettings::new(),
+            project_edit_workflow_generation: 0,
+            project_edit_workflow_baseline: None,
+            project_edit_workflow_dirty: false,
+            project_edit_workflow_saving: false,
             project_edit_max_concurrent_input: String::new(),
             project_edit_task_board_auto_refresh: true,
             project_edit_session_auto_refresh:

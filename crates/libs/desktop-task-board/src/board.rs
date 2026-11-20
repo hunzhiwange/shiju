@@ -123,17 +123,21 @@ fn sort_task_cards(tasks: &mut [&Task]) {
 }
 
 fn kanban_columns<M: Clone + From<TaskBoardMessage>>(app: &BoardView<'_, M>) -> Vec<KanbanColumn> {
-    let workflow_id = app.task_board_settings.workflow_id.as_str();
-    TaskStatus::all_for_workflow_id(workflow_id)
-        .into_iter()
-        .filter(|status| *status != TaskStatus::Archived)
-        .map(|status| KanbanColumn { status, label: status.label_for_workflow_id(workflow_id) })
+    app.task_board_settings.workflow()
+        .unwrap_or_else(|| desktop_task_model::workflow::default_task_workflow().into())
+        .statuses.into_iter()
+        .filter(|definition| {
+            definition.enabled && definition.role != desktop_task_model::workflow::StatusRole::Archived
+        })
+        .map(|definition| KanbanColumn { status: definition.status, label: definition.label })
         .collect()
 }
 
 fn task_status_label<M: Clone + From<TaskBoardMessage>>(app: &BoardView<'_, M>, status: TaskStatus) -> String {
     {
-        let source = status.label_for_workflow_id(&app.task_board_settings.workflow_id);
+        let source = app.task_board_settings.workflow()
+            .and_then(|workflow| workflow.status_definition(status).map(|definition| definition.label.clone()))
+            .unwrap_or_else(|| status.label().to_string());
         if matches!(status, TaskStatus::Custom(_)) {
             source
         } else {
@@ -476,9 +480,9 @@ fn build_status_column<'a, M: Clone + From<TaskBoardMessage> + 'a>(app: &BoardVi
         .align_y(Alignment::Center);
         header = header.push(Space::new().height(6.0)).push(action_row);
 
-        let move_targets = TaskStatus::all_for_workflow_id(&app.task_board_settings.workflow_id)
-            .into_iter()
-            .filter(|candidate| *candidate != status && *candidate != TaskStatus::Archived)
+        let move_targets = kanban_columns(app).into_iter()
+            .map(|column| column.status)
+            .filter(|candidate| *candidate != status)
             .collect::<Vec<_>>();
         let mut move_rows = column![].spacing(6).width(Length::Fill);
         for chunk in move_targets.chunks(2) {

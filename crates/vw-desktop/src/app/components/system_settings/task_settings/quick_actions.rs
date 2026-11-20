@@ -11,12 +11,12 @@ use crate::app::state::AgentConfigTab;
 use crate::app::{App, Message};
 use desktop_settings_shell::SystemTab;
 use desktop_ui_controls::system_settings_common::panels::settings_modal_overlay_with_escape;
-use iced::widget::{button, column, row, scrollable, text, text_editor};
-use iced::widget::scrollable::{Direction, Scrollbar};
+use iced::widget::{button, column, operation, row, text, text_editor};
 use iced::{Alignment, Element, Length, Task};
 use task_file_store::task_quick_actions::{self as catalog, TaskQuickAction};
 
 const TITLE: &str = "任务快捷操作";
+const NAME_INPUT: &str = "task-quick-action-name";
 const HELP: &str = "模板保存在当前项目。在任务详情选择「总结进展」等操作，预览后会打开可编辑的会话草稿。只有你主动发送，才会发出请求。聊天快捷消息在「智能体」设置中单独管理，其中部分操作可以直接发送。";
 const EXAMPLES: [(&str, &str); 2] = [
     ("总结进展", "请总结这项任务的当前进展、剩余工作和已知阻碍。"),
@@ -147,16 +147,21 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
         return Task::none();
     }
     match event {
-        Event::New => state.editor = Some(Editor::new(None, "", "")),
+        Event::New => {
+            state.editor = Some(Editor::new(None, "", ""));
+            return operation::focus(NAME_INPUT);
+        }
         Event::Example(index) => {
             if let Some(&(name, prompt)) = EXAMPLES.get(index) {
                 let i18n = I18n::new(locale);
                 state.editor = Some(Editor::new(None, i18n.__(name), i18n.__(prompt)));
+                return operation::focus(NAME_INPUT);
             }
         }
         Event::Edit(id) => {
             if let Some(action) = state.actions.iter().find(|action| action.id == id) {
                 state.editor = Some(Editor::new(Some(action.clone()), &action.name, &action.prompt));
+                return operation::focus(NAME_INPUT);
             }
         }
         Event::Archive(id) => {
@@ -216,14 +221,20 @@ pub(crate) fn view(app: &App) -> Element<'_, Message> {
         page = page.push(text(i18n.__("请先选择项目")));
     }
 
-    let base = scrollable(desktop_settings_shell::centered_content(page))
-        .direction(Direction::Vertical(Scrollbar::new().width(4).scroller_width(4)))
-        .height(Length::Fill)
-        .into();
+    page.into()
+}
+
+pub(crate) fn overlay<'a>(app: &'a App, base: Element<'a, Message>) -> Element<'a, Message> {
+    let state = &app.task_quick_actions.settings;
     if state.help {
-        return with_settings_help_modal(app, base, i18n.__(TITLE), i18n.__(HELP), message(Event::Help(false)));
+        let close = message(Event::Help(false));
+        let modal = with_settings_help_modal(app, base, TITLE, HELP, close.clone());
+        return desktop_ui_controls::system_settings_common::panels::with_settings_modal_escape(modal, close);
     }
-    if current && let Some(editor) = &state.editor {
+    if state.origin.as_ref().is_some_and(|origin| origin.visible_in(app, super::project_path(app)))
+        && let Some(editor) = &state.editor
+    {
+        let i18n = I18n::new(app.general_settings.desktop_locale);
         return editor_modal(i18n, base, editor, !state.busy);
     }
     base
@@ -281,7 +292,10 @@ fn editor_modal<'a>(
     );
     let body = column![
         settings_field_label(i18n.__("操作名称")),
-        settings_text_input(i18n.__("例如：总结进展"), &editor.name).on_input(|name| message(Event::Name(name))),
+        settings_text_input(i18n.__("例如：总结进展"), &editor.name)
+            .id(NAME_INPUT)
+            .on_input(|name| message(Event::Name(name)))
+            .on_submit_maybe(enabled.then_some(message(Event::Save))),
         settings_field_label(i18n.__("提示词")),
         settings_text_editor(&editor.prompt).height(180).on_action(|action| message(Event::Prompt(action))),
     ].spacing(8);

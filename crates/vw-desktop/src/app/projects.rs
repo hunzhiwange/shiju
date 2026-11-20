@@ -179,6 +179,8 @@ impl App {
     }
 
     pub(crate) fn reset_task_board_project_state(&mut self) {
+        #[cfg(not(target_arch = "wasm32"))]
+        self.task_quick_actions.board.close();
         self.workspace_state.project_is_git_repo = false;
         self.task_board.task_board_loading = false;
         self.task_board.task_board_workflow_generation =

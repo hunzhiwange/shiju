@@ -20,7 +20,11 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
                     editor.project_edit_workflow_baseline = Some(snapshot);
                     iced::Task::none()
                 }
-                Err(error) => app.show_error_toast(format!("读取项目工作流失败：{error}")),
+                Err(error) => app.show_localized_toast(
+                    crate::app::state::ToastKind::Error,
+                    "读取项目工作流失败：%s",
+                    vec![error.into()],
+                ),
             });
         }
         ProjectMessage::ProjectEditWorkflowSaved(generation, result) => {
@@ -41,7 +45,11 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
                     }
                     Event::ProjectEditSaved
                 }
-                Err(error) => return Some(app.show_error_toast(format!("保存项目工作流失败：{error}"))),
+                Err(error) => return Some(app.show_localized_toast(
+                    crate::app::state::ToastKind::Error,
+                    "保存项目工作流失败：%s",
+                    vec![error.into()],
+                )),
             }
         }
         ProjectMessage::ProjectEditSaved if app.project_editor.project_edit_workflow_dirty => {

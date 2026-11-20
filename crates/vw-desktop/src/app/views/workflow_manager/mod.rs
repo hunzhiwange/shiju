@@ -39,6 +39,25 @@ pub fn view(app: &App) -> Element<'_, Message> {
     ).map(map_message)
 }
 
+pub(crate) fn settings_content(app: &App) -> Element<'_, Message> {
+    domain::view_content(
+        &app.workflow_manager,
+        desktop_i18n::I18n::new(app.general_settings.desktop_locale),
+        &app.appearance.app_theme,
+        project_path(app),
+    ).map(map_message)
+}
+
+pub(crate) fn settings_overlay<'a>(app: &App, base: Element<'a, Message>) -> Element<'a, Message> {
+    domain::with_dialog(
+        &app.workflow_manager,
+        desktop_i18n::I18n::new(app.general_settings.desktop_locale),
+        app.clipboard_state.last_copied_code_hash,
+        base,
+        map_message,
+    )
+}
+
 /// 读取与项目编辑器、看板共用的调度工作流快照。
 pub(crate) async fn load_project_workflow(path: &str) -> domain::ProjectWorkflowResult {
     let scope = resolve_task_board_scheduler_scope(path).await?;

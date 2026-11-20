@@ -98,16 +98,10 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
                     );
                 }
             }
-            if tab == SystemTab::TaskProperties {
-                use crate::app::components::system_settings::task_settings::properties;
-                return properties::update(app, properties::Event::Refresh);
-            }
-            if tab == SystemTab::TaskLabels {
-                use crate::app::components::system_settings::task_settings::labels;
-                return labels::update(app, labels::Event::Refresh);
-            }
-            if tab == SystemTab::TaskWorkflow {
-                crate::app::components::system_settings::task_settings::load_workflows(app)
+            if matches!(tab, SystemTab::TaskWorkflow | SystemTab::TaskLabels
+                | SystemTab::TaskProperties | SystemTab::TaskQuickActions)
+            {
+                crate::app::components::system_settings::task_settings::load(app, tab)
             } else if tab == SystemTab::Worktrees {
                 super::worktrees::update(app, super::worktrees::WorktreeSettingsMessage::Refresh)
             } else if tab == SystemTab::ArchivedChats {

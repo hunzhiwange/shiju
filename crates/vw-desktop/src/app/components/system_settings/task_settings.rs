@@ -24,38 +24,42 @@ pub(in crate::app) fn project_path(app: &App) -> Option<&str> {
         .or(app.navigation_tabs.project_path.as_deref())
 }
 
-pub(in crate::app) fn load_workflows(app: &mut App) -> Task<Message> {
-    if project_path(app).is_some() {
-        workflow_manager::update_app(app, WorkflowManagerMessage::RefreshLifecycles)
-    } else {
-        Task::none()
+pub(in crate::app) fn load(app: &mut App, tab: SystemTab) -> Task<Message> {
+    match tab {
+        SystemTab::TaskWorkflow => {
+            app.workflow_manager.dismiss_dialogs();
+            workflow_manager::update_app(app, WorkflowManagerMessage::RefreshLifecycles)
+        }
+        SystemTab::TaskLabels => labels::update(app, labels::Event::Refresh),
+        SystemTab::TaskProperties => properties::update(app, properties::Event::Refresh),
+        #[cfg(not(target_arch = "wasm32"))]
+        SystemTab::TaskQuickActions => quick_actions::load(app),
+        _ => Task::none(),
     }
 }
 
 pub(super) fn view(app: &App, tab: SystemTab) -> Element<'_, Message> {
-    if tab == SystemTab::TaskLabels {
-        return labels::view(app);
-    }
-    if tab == SystemTab::TaskProperties {
-        return properties::view(app);
-    }
-    if tab == SystemTab::TaskWorkflow {
-        workflow(app)
-    } else {
-        unavailable(app, tab)
+    match tab {
+        SystemTab::TaskWorkflow => workflow(app),
+        SystemTab::TaskLabels => labels::view(app),
+        SystemTab::TaskProperties => properties::view(app),
+        #[cfg(not(target_arch = "wasm32"))]
+        SystemTab::TaskQuickActions => quick_actions::view(app),
+        #[cfg(target_arch = "wasm32")]
+        SystemTab::TaskQuickActions => {
+            let i18n = I18n::new(app.general_settings.desktop_locale);
+            settings_page_heading(
+                i18n.__(tab.label()),
+                i18n.__("请在桌面客户端管理项目目录中的快捷操作。"),
+            ).into()
+        }
+        _ => unreachable!("task settings tab"),
     }
 }
 
 fn workflow(app: &App) -> Element<'_, Message> {
     let i18n = I18n::new(app.general_settings.desktop_locale);
     let title = i18n.__(SystemTab::TaskWorkflow.label());
-    let Some(project_path) = project_path(app) else {
-        return desktop_settings_shell::centered_content(settings_page_heading(
-            title,
-            i18n.__("请先选择项目"),
-        ))
-        .into();
-    };
     let state = &app.workflow_manager;
     if let Some(error) = state.lifecycles_error() {
         let retry = button(text(i18n.__("重试")).size(13))
@@ -65,7 +69,7 @@ fn workflow(app: &App) -> Element<'_, Message> {
         return desktop_settings_shell::centered_content(
             column![
                 settings_page_heading(title, i18n.__("工作流加载失败")),
-                settings_error_banner(error),
+                settings_error_banner(i18n.__(error)),
                 retry,
             ]
             .spacing(12),
@@ -79,23 +83,14 @@ fn workflow(app: &App) -> Element<'_, Message> {
         ))
         .into();
     }
-    let project = row![
-        text(i18n.__("当前项目")).size(12),
-        text(project_path).size(12).style(settings_muted_text_style),
-    ]
-    .spacing(8);
-    column![container(project).padding([0, 24]), workflow_manager::view(app)]
+    let project = match project_path(app) {
+        Some(path) => row![
+            text(i18n.__("当前项目")).size(12),
+            text(path).size(12).style(settings_muted_text_style),
+        ].spacing(8),
+        None => row![text(i18n.__("选择项目后可为该项目应用工作流。")).size(12)],
+    };
+    column![container(project).padding([0, 24]), workflow_manager::settings_content(app)]
         .height(Length::Fill)
         .into()
-}
-
-fn unavailable(app: &App, tab: SystemTab) -> Element<'_, Message> {
-    let i18n = I18n::new(app.general_settings.desktop_locale);
-    let title = settings_page_heading(i18n.__(tab.label()), i18n.__("此设置暂不可用"));
-    let mut content = column![title].spacing(8);
-    if project_path(app).is_none() {
-        content =
-            content.push(text(i18n.__("请先选择项目")).size(13).style(settings_muted_text_style));
-    }
-    content.into()
 }

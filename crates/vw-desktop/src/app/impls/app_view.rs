@@ -237,6 +237,8 @@ impl App {
         let root_content = app_view_modals::with_file_tree_delete_confirm(self, root_content);
         // 会话重命名模态框
         let root_content = app_view_modals::with_session_rename(self, root_content);
+        #[cfg(not(target_arch = "wasm32"))]
+        let root_content = views::task_board::modals::with_quick_actions(self, root_content);
         // 项目编辑模态框
         let root_content = app_view_modals::with_project_edit(self, root_content);
         let root_content = app_view_modals::with_git_diff_overlays(self, root_content);

@@ -565,7 +565,8 @@ fn update_navigation(
                 }
             }
             if visible {
-                Task::none()
+                let tab = app.navigation_panels.system_settings_tab;
+                crate::app::components::system_settings::task_settings::load(app, tab)
             } else {
                 crate::app::message::editor::metrics::commit(app, None)
             }

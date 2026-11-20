@@ -503,11 +503,18 @@ pub fn view(app: &App) -> Element<'_, Message> {
         dialog = super::system_settings_voice::overlay(app, dialog);
     }
 
+    if active_tab == SystemTab::TaskWorkflow {
+        dialog = crate::app::views::workflow_manager::settings_overlay(app, dialog);
+    }
     if active_tab == SystemTab::TaskLabels {
         dialog = task_settings::labels::overlay(app, dialog);
     }
     if active_tab == SystemTab::TaskProperties {
         dialog = task_settings::properties::overlay(app, dialog);
+    }
+    #[cfg(not(target_arch = "wasm32"))]
+    if active_tab == SystemTab::TaskQuickActions {
+        dialog = task_settings::quick_actions::overlay(app, dialog);
     }
 
     dialog = crate::app::components::system_settings_help::with_help_modal(

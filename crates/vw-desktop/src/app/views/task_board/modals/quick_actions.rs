@@ -1,13 +1,15 @@
 use crate::app::components::system_settings_common::{
     primary_action_btn_style, rounded_action_btn_style, settings_close_button,
-    settings_modal_header, settings_modal_layout, settings_muted_text_style,
+    settings_modal_header, settings_muted_text_style,
 };
 use crate::app::i18n::I18n;
 use crate::app::message::task_quick_actions::{self as domain, Origin};
 use crate::app::{App, Message, Screen};
 use desktop_chat_input::input_panel::quick_actions::task_quick_action_draft;
-use desktop_ui_controls::system_settings_common::panels::settings_modal_overlay_with_escape;
-use iced::widget::{button, column, row, text};
+use desktop_ui_controls::system_settings_common::panels::{
+    settings_modal_layout_with_scroll_id, settings_modal_overlay_with_escape,
+};
+use iced::widget::{button, column, operation, row, scrollable, text};
 use iced::{Element, Length, Task};
 use task_file_store::task_quick_actions::{self as catalog, TaskQuickAction};
 use vw_api_project::ProjectDto;
@@ -15,6 +17,7 @@ use vw_api_transport::ProjectId;
 
 const TITLE: &str = "任务快捷操作";
 const TASK_UNAVAILABLE: &str = "任务已不可访问，未打开快捷操作草稿";
+const BODY_SCROLL: &str = "task-quick-action-preview";
 
 #[derive(Clone, Debug)]
 pub enum Event {
@@ -30,6 +33,12 @@ pub enum Event {
 pub(crate) struct State {
     request: u64,
     dialog: Option<Dialog>,
+}
+
+impl State {
+    pub(crate) fn close(&mut self) {
+        self.dialog = None;
+    }
 }
 
 struct Dialog {
@@ -66,8 +75,16 @@ fn message(event: Event) -> Message {
     Message::TaskQuickActions(domain::Event::Board(event))
 }
 
-fn current(dialog: &Dialog, app: &App) -> bool {
+fn detail_open(app: &App, task_id: &str) -> bool {
     app.navigation_tabs.screen == Screen::TaskBoard
+        && !app.navigation_panels.show_system_settings
+        && !app.task_board.task_board_create_modal_open
+        && !app.task_board.task_board_settings_modal_open
+        && app.task_board.task_board_viewing_logs.as_ref().is_some_and(|task| task.id == task_id)
+}
+
+fn current(dialog: &Dialog, app: &App) -> bool {
+    detail_open(app, &dialog.task_id)
         && dialog.origin.matches(app, app.navigation_tabs.project_path.as_deref())
 }
 
@@ -118,7 +135,7 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
     match event {
         Event::Open { project_path, task_id } => return open(app, project_path, task_id),
         Event::Close => {
-            app.task_quick_actions.board.dialog = None;
+            app.task_quick_actions.board.close();
             return Task::none();
         }
         Event::Loaded(request, _) | Event::Confirmed(request, _)
@@ -130,7 +147,7 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
         return Task::none();
     };
     if !current(dialog, app) {
-        app.task_quick_actions.board.dialog = None;
+        app.task_quick_actions.board.close();
         return domain::warning(app, "项目或页面已切换，未打开快捷操作草稿");
     }
 
@@ -164,6 +181,7 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
                     draft,
                     verifying: false,
                 };
+                return operation::snap_to(BODY_SCROLL, scrollable::RelativeOffset::START);
             }
         }
         Event::Confirm => {
@@ -212,6 +230,9 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
 }
 
 pub(crate) fn entry<'a>(app: &App, task_id: &str) -> Option<Element<'a, Message>> {
+    if !detail_open(app, task_id) {
+        return None;
+    }
     let project_path = app.navigation_tabs.project_path.clone()?;
     let i18n = I18n::new(app.general_settings.desktop_locale);
     Some(button(text(i18n.__(TITLE)).size(13))
@@ -225,7 +246,9 @@ pub(crate) fn view_overlay<'a>(app: &'a App, base: Element<'a, Message>) -> Elem
     let Some(dialog) = app.task_quick_actions.board.dialog.as_ref() else {
         return base;
     };
-    if !dialog.origin.visible_in(app, app.navigation_tabs.project_path.as_deref()) {
+    if !detail_open(app, &dialog.task_id)
+        || !dialog.origin.visible_in(app, app.navigation_tabs.project_path.as_deref())
+    {
         return base;
     }
     let i18n = I18n::new(app.general_settings.desktop_locale);
@@ -268,7 +291,7 @@ pub(crate) fn view_overlay<'a>(app: &'a App, base: Element<'a, Message>) -> Elem
             );
         }
     }
-    let card = settings_modal_layout(header, body, Some(footer.into()))
+    let card = settings_modal_layout_with_scroll_id(header, body, Some(footer.into()), Some(BODY_SCROLL))
         .width(Length::Fill)
         .max_width(640)
         .height(Length::Fill)

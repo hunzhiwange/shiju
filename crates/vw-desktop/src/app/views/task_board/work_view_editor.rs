@@ -7,37 +7,36 @@ use iced::{Element, Length};
 
 pub fn view(app: &App) -> Element<'_, Message> {
     let board = &app.task_board;
+    let i18n = crate::app::i18n::I18n::new(app.general_settings.desktop_locale);
     let action = |label: &'static str, message| {
-        button(text(label).size(13))
+        button(text(i18n.__(label)).size(13))
             .padding([7, 10])
             .style(rounded_action_btn_style)
             .on_press(Message::TaskBoard(message))
     };
+    let priority = |value: Option<u32>| {
+        value.map_or_else(|| i18n.__("不限").to_owned(), |value| value.to_string())
+    };
+    let agents = board.work_filter.agents.iter().map(|agent| match agent {
+        desktop_task_board::work_views::ExecutionAgent::Builtin { id } => format!("builtin:{id}"),
+        desktop_task_board::work_views::ExecutionAgent::Acp { id } => format!("acp:{id}"),
+    }).collect::<Vec<_>>().join(", ");
+    let summary = i18n.format(
+        "状态 [%s] · 优先级 %s 至 %s · 智能体 [%s]",
+        &[
+            board.work_filter.status_keys.join(", ").into(),
+            priority(board.work_filter.priority_min).into(),
+            priority(board.work_filter.priority_max).into(),
+            agents.into(),
+        ],
+    ).expect("valid work view summary template");
     let mut content = column![
         row![
             action("添加筛选 / 收起", TaskBoardMessage::OpenWorkViewEditor),
             action("清除条件", TaskBoardMessage::ClearWorkFilter),
         ]
         .spacing(8),
-        text(format!(
-            "已启用：状态 [{}] · 优先级 {} 至 {} · 智能体 [{}]",
-            board.work_filter.status_keys.join(", "),
-            board.work_filter.priority_min.map(|n| n.to_string()).unwrap_or_else(|| "不限".into()),
-            board.work_filter.priority_max.map(|n| n.to_string()).unwrap_or_else(|| "不限".into()),
-            board
-                .work_filter
-                .agents
-                .iter()
-                .map(|a| match a {
-                    desktop_task_board::work_views::ExecutionAgent::Builtin { id } =>
-                        format!("builtin:{id}"),
-                    desktop_task_board::work_views::ExecutionAgent::Acp { id } =>
-                        format!("acp:{id}"),
-                })
-                .collect::<Vec<_>>()
-                .join(", ")
-        ))
-        .size(12),
+        text(summary).size(12),
     ]
     .spacing(8);
     if !board.work_filter.label_ids.is_empty() {
@@ -52,7 +51,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
     }
     if board.work_editor_open {
         let field = |label: &'static str, value: &str, index| {
-            text_input(label, value)
+            text_input(i18n.__(label), value)
                 .on_input(move |value| {
                     Message::TaskBoard(TaskBoardMessage::WorkViewFieldChanged(index, value))
                 })
@@ -60,9 +59,8 @@ pub fn view(app: &App) -> Element<'_, Message> {
                 .padding(SETTINGS_CONTROL_PADDING)
                 .size(SETTINGS_CONTROL_TEXT_SIZE)
         };
-        let i18n = crate::app::i18n::I18n::new(app.general_settings.desktop_locale);
         let mut fields = column![
-            text("同字段多项用英文逗号分隔；不同字段同时满足").size(12),
+            text(i18n.__("多项状态或智能体用英文逗号分隔。若选中多个标签，匹配任一即可。所有属性条件须同时满足。")).size(12),
             field("状态 key（空值不限）", &board.work_status_input, 1),
             field("最低优先级", &board.work_min_input, 2),
             field("最高优先级", &board.work_max_input, 3),
@@ -94,7 +92,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
         }
         let mut actions = row![
             action("应用筛选", TaskBoardMessage::ApplyWorkFilter),
-            button(text("另存视图").size(13))
+            button(text(i18n.__("另存视图")).size(13))
                 .padding([7, 10])
                 .style(primary_action_btn_style)
                 .on_press(Message::TaskBoard(TaskBoardMessage::SaveWorkView(true))),

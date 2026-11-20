@@ -3,6 +3,14 @@ use crate::app::task::Task;
 #[cfg(not(target_arch = "wasm32"))]
 pub(in crate::app) mod quick_actions;
 
+#[cfg(not(target_arch = "wasm32"))]
+pub(in crate::app) fn with_quick_actions<'a>(
+    app: &'a App,
+    base: iced::Element<'a, Message>,
+) -> iced::Element<'a, Message> {
+    quick_actions::view_overlay(app, base)
+}
+
 pub fn build_task_settings_modal(app: &App) -> iced::Element<'_, Message> {
  desktop_task_board::modals::build_task_settings_modal(desktop_task_board::modals::SettingsView {
  task_board_settings: &app.task_board.task_board_settings, task_board_settings_modal_tab: app.task_board.task_board_settings_modal_tab,

@@ -483,6 +483,8 @@ pub fn update(
             let board_is_open = app.navigation_tabs.screen == crate::app::Screen::TaskBoard;
 
             if board_is_open {
+                #[cfg(not(target_arch = "wasm32"))]
+                app.task_quick_actions.board.close();
                 app.task_board.show_task_board = false;
                 app.navigation_tabs.screen = if app.navigation_tabs.project_path.is_some() {
                     crate::app::Screen::Project
@@ -510,6 +512,8 @@ pub fn update(
             iced::Task::none()
         }
         TaskBoardMessage::CloseBoard => {
+            #[cfg(not(target_arch = "wasm32"))]
+            app.task_quick_actions.board.close();
             app.task_board.show_task_board = false;
             app.navigation_tabs.screen = if app.navigation_tabs.project_path.is_some() {
                 crate::app::Screen::Project
@@ -1077,6 +1081,8 @@ fn apply_local_effect(
             }))
         }
         LocalEffect::OpenLogs(task) => {
+            #[cfg(not(target_arch = "wasm32"))]
+            app.task_quick_actions.board.close();
             let id = task.id.clone();
             set_viewing_logs(app, Some(task));
             flush_running_task_logs_throttled(app, true, web_time::Instant::now());
@@ -1125,6 +1131,8 @@ fn apply_local_effect(
         },
         LocalEffect::None => iced::Task::none(),
         LocalEffect::ViewLogs(task) => {
+            #[cfg(not(target_arch = "wasm32"))]
+            app.task_quick_actions.board.close();
             app.task_board.task_board_draft.label_ids = None;
             app.task_board.task_board_draft.property_changes.clear();
             set_viewing_logs(app, task);

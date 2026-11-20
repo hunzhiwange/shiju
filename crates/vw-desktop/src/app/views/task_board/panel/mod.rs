@@ -58,12 +58,16 @@ pub fn build_task_panel(app: &App, edit: bool) -> iced::Element<'_, Message> {
      let personal = app.navigation_tabs.project_path.as_ref()
          .and_then(|path| app.task_board.personal_tasks.get(path))
          .is_some_and(|ids| ids.contains(&task.id));
-     let body = iced::widget::column![
-         iced::widget::button(iced::widget::text(if personal { "移出我的任务" } else { "加入我的任务" }))
+     let i18n = crate::app::i18n::I18n::new(app.general_settings.desktop_locale);
+     let actions = iced::widget::row![
+         iced::widget::button(iced::widget::text(i18n.__(if personal { "移出我的任务" } else { "加入我的任务" })))
              .padding([8, 12])
              .style(crate::app::components::system_settings_common::rounded_action_btn_style)
              .on_press(Message::TaskBoard(crate::app::message::TaskBoardMessage::TogglePersonalTask(task.id.clone()))),
      ].spacing(8);
+     #[cfg(not(target_arch = "wasm32"))]
+     let actions = actions.extend(super::modals::quick_actions::entry(app, &task.id));
+     let body = iced::widget::column![actions.wrap()].spacing(8);
      let properties = (edit && app.task_board.task_board_editing_task_id.as_ref() == Some(&task.id))
          .then(|| super::properties::task_editor(app, task))
          .flatten();

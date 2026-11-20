@@ -232,6 +232,11 @@ impl WorkflowManagerState {
         self.show_status_role_help
     }
 
+    pub fn dismiss_dialogs(&mut self) {
+        self.pending_confirmation = None;
+        self.show_status_role_help = false;
+    }
+
     pub fn active_tab(&self) -> WorkflowManagerTab {
         self.active_tab
     }
@@ -1503,7 +1508,7 @@ fn settings_hover_help_label<'a, 'theme>(
 }
 
 mod view;
-pub use view::view;
+pub use view::{view, view_content, with_dialog};
 
 mod effects;
 pub use effects::{load_lifecycle_workflows_task, workflow_manager_effect_task};

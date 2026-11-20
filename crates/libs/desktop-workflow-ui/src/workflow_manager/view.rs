@@ -1,7 +1,9 @@
 use super::status_catalog::{StatusCatalogRow, status_behavior, status_catalog};
 use super::*;
+use desktop_assets::assets::Icon;
 use desktop_ui_controls::system_settings_common::{
-    help::{settings_help_button, settings_help_copy_state, with_settings_help_modal},
+    help::{settings_help_copy_state, with_settings_help_modal},
+    icons::icon_btn,
     panels::{settings_inactive_view, with_settings_modal_escape},
 };
 use iced::widget::column;
@@ -17,6 +19,16 @@ pub fn view<'a>(
     theme: &Theme,
     project_path: Option<&'a str>,
     copied_help: Option<u64>,
+) -> Element<'a, Message> {
+    let page = view_content(state, i18n, theme, project_path);
+    with_dialog(state, i18n, copied_help, page, |message| message)
+}
+
+pub fn view_content<'a>(
+    state: &'a WorkflowManagerState,
+    i18n: desktop_i18n::I18n,
+    theme: &Theme,
+    project_path: Option<&'a str>,
 ) -> Element<'a, Message> {
     let project = state.project_workflow(project_path);
     let body: Element<'_, Message> = match state.active_tab {
@@ -61,9 +73,11 @@ pub fn view<'a>(
             column![
                 row![
                     text(i18n.__("工作流")).size(20),
-                    settings_help_button(Message::WorkflowManager(
-                        WorkflowManagerMessage::ToggleStatusRoleHelp,
-                    )),
+                    icon_btn(
+                        Icon::QuestionCircle,
+                        i18n.__("帮助"),
+                        Some(Message::WorkflowManager(WorkflowManagerMessage::ToggleStatusRoleHelp)),
+                    ),
                     Space::new().width(Length::Fill),
                     header_actions,
                 ]
@@ -80,7 +94,7 @@ pub fn view<'a>(
     .width(Length::Fill)
     .height(Length::Fill);
 
-    let page: Element<'_, Message> = container(content)
+    container(content)
         .width(Length::Fill)
         .height(Length::Fill)
         .center_x(Length::Fill)
@@ -92,18 +106,27 @@ pub fn view<'a>(
                 ..Default::default()
             }
         })
-        .into();
+        .into()
+}
 
+pub fn with_dialog<'a, M: Clone + 'static>(
+    state: &WorkflowManagerState,
+    i18n: desktop_i18n::I18n,
+    copied_help: Option<u64>,
+    page: Element<'a, M>,
+    map: impl Fn(Message) -> M + 'static,
+) -> Element<'a, M> {
     if let Some(confirmation) = &state.pending_confirmation {
+        let close = map(Message::WorkflowManager(WorkflowManagerMessage::CancelPendingConfirmation));
         with_settings_modal_escape(
             iced::widget::stack![
                 settings_inactive_view(page),
-                workflow_confirmation_dialog(i18n, confirmation),
+                workflow_confirmation_dialog(i18n, confirmation).map(map),
             ].into(),
-            Message::WorkflowManager(WorkflowManagerMessage::CancelPendingConfirmation),
+            close,
         )
     } else if state.show_status_role_help {
-        let close = Message::WorkflowManager(WorkflowManagerMessage::ToggleStatusRoleHelp);
+        let close = map(Message::WorkflowManager(WorkflowManagerMessage::ToggleStatusRoleHelp));
         let help = [
             i18n.__("任务进入：新任务从任务池开始。排队后，符合项目调度条件的任务会被派发。"),
             i18n.__("人工审核：例如执行成功后进入「待审核」，由审核人员确认结果。业务退回是审核决定，可以按配置退回处理；执行失败是运行时发生异常。"),
@@ -117,7 +140,7 @@ pub fn view<'a>(
             help.clone(),
             copy_icon,
             i18n.__(copy_tip),
-            Message::CopyCode(help),
+            map(Message::CopyCode(help)),
             close.clone(),
         );
         with_settings_modal_escape(modal, close)

@@ -51,6 +51,7 @@ pub enum Event {
 
 pub(in crate::app) fn update(app: &mut App, event: Event) -> Task<Message> {
     if let Event::Loaded { project_path, request_id, changed, result } = event {
+        let selected = super::project_path(app) == Some(project_path.as_str());
         let state = &mut app.task_label_settings;
         if state.pending != Some(request_id) || state.project_path.as_deref() != Some(project_path.as_str()) {
             return Task::none();
@@ -73,7 +74,7 @@ pub(in crate::app) fn update(app: &mut App, event: Event) -> Task<Message> {
                     app.task_board.task_labels.clone_from(&state.labels);
                     app.task_board.task_labels_generation = catalog_generation;
                 }
-                if changed {
+                if changed && selected {
                     return app.show_localized_toast(
                         crate::app::state::ToastKind::Success, "标签目录已保存", vec![],
                     );
@@ -81,7 +82,7 @@ pub(in crate::app) fn update(app: &mut App, event: Event) -> Task<Message> {
             }
             Err(error) => {
                 state.error = Some(error.clone());
-                if changed {
+                if changed && selected {
                     return app.show_error_toast(error);
                 }
             }

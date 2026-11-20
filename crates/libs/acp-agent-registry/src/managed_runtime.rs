@@ -58,13 +58,13 @@ fn installed_directory(agent: &str, contract: &Contract) -> Result<PathBuf, Stri
         5
     } else if agent == "snow" {
         4
-    } else if agent == "stakpak" {
+    } else if matches!(agent, "junie" | "stakpak") {
         3
     } else if matches!(agent, "codebuddy" | "codex" | "dirac" | "iflow" | "qoder" | "qwen") {
         2
     } else if matches!(
         agent,
-        "glm-acp-agent" | "hermes" | "junie" | "nova" | "openclaw" | "pi" | "poolside"
+        "glm-acp-agent" | "hermes" | "nova" | "openclaw" | "pi" | "poolside"
     ) {
         2
     } else {

@@ -19,9 +19,10 @@ def private(path, kind, mode):
         raise ValueError("Insecure private Junie path")
 
 
-def policy(native, app, root, state, workspace, port):
+def policy(native, app, root, state, workspace, port, skill_reads):
     quote = json.dumps
     user_home = Path(pwd.getpwuid(os.geteuid()).pw_dir).resolve()
+    skill_paths = " ".join(f'(subpath {quote(str(path))})' for path in skill_reads)
     return (
         '(version 1)(allow default)'
         '(deny network*)(deny file-write*)(deny process-exec)'
@@ -31,7 +32,8 @@ def policy(native, app, root, state, workspace, port):
         f'(allow network-outbound (remote tcp "localhost:{port}"))'
         f'(allow process-exec (literal {quote(str(native))}))'
         f'(allow file-write* (subpath {quote(str(state))}) (subpath {quote(str(workspace))}))'
-        '(deny file-write* (regex #"/[.]git(/|$)"))'
+        + (f'(allow file-read-data {skill_paths})(deny file-write* {skill_paths})' if skill_paths else '')
+        + '(deny file-write* (regex #"/[.]git(/|$)"))'
     )
 
 
@@ -61,6 +63,33 @@ def main():
             or endpoint.scheme != "http" or endpoint.netloc != f"127.0.0.1:{endpoint.port}"
             or not endpoint.port or endpoint.path not in ("", "/") or endpoint.query or endpoint.fragment):
         raise ValueError("Invalid Junie workspace or relay")
+    skill_locations = []
+    project_skills = workspace / ".junie/skills"
+    if project_skills.is_dir() and project_skills.resolve() == project_skills:
+        skill_locations.append(project_skills)
+    skill_reads = []
+    selection = root / "junie-skills.json"
+    if selection.exists() or selection.is_symlink():
+        private(selection, stat.S_ISREG, 0o600)
+        selected = json.loads(selection.read_text())
+        view = Path(selected["root"])
+        if view != view.resolve(strict=True):
+            raise ValueError("Noncanonical Junie skill view")
+        private(view.parent, stat.S_ISDIR, 0o700)
+        if view.name != "skills" or not view.parent.name.startswith("shiju-session-skills-"):
+            raise ValueError("Invalid Junie skill view")
+        sources = selected["sources"]
+        if not isinstance(sources, dict) or not sources or set(sources) != {p.name for p in view.iterdir()}:
+            raise ValueError("Invalid Junie skill view entries")
+        skill_reads.append(view)
+        for name, path in sources.items():
+            link = view / name
+            source = Path(path)
+            if (not link.is_symlink() or source != link.resolve(strict=True)
+                    or not source.is_dir() or source == source.parent):
+                raise ValueError("Invalid Junie skill source")
+            skill_reads.append(source)
+        skill_locations.append(view)
     state = root / "state"
     profiles = root / "models"
     state.mkdir(mode=0o700)
@@ -81,13 +110,14 @@ def main():
     os.chdir(workspace)
     def command(port):
         return [
-            "/usr/bin/sandbox-exec", "-p", policy(native, app, root, state, workspace, port), str(native),
+            "/usr/bin/sandbox-exec", "-p", policy(native, app, root, state, workspace, port, skill_reads), str(native),
             "--acp=true", "--model=custom:shiju", "--model-location=" + str(profiles),
             "--model-default-locations=false", "--config-default-locations=false",
             "--mcp-default-locations=false", "--skill-default-locations=false",
             "--command-default-location=false", "--agent-default-location=false",
             "--extensions-default-location=" + str(state / "extensions"),
             "--skip-update-check", "--share-anonymous-statistics=false",
+            *("--skill-location=" + str(path) for path in skill_locations),
         ]
 
     bridge = runpy.run_path(str(app.parent.parent / "mcp_bridge.py"))

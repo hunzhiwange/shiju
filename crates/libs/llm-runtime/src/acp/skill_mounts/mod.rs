@@ -17,6 +17,7 @@ mod goose;
 mod grok;
 mod hermes;
 mod iflow;
+pub(super) mod junie;
 mod kilocode;
 mod kimi;
 mod kiro;
@@ -46,6 +47,7 @@ pub fn validate(agent: &str, selected: bool) -> Result<(), Error> {
         "snow" => return Ok(()),
         "copilot" => return Ok(()),
         "corust-agent" if cfg!(all(target_os = "macos", target_arch = "aarch64")) => return Ok(()),
+        "junie" if cfg!(all(target_os = "macos", target_arch = "aarch64")) => return Ok(()),
         "kilocode" => return Ok(()),
         "kimi" => return Ok(()),
         "kiro" => return Ok(()),

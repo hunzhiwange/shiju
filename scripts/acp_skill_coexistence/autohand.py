@@ -14,6 +14,8 @@ from verify_acp_integration import ProviderHandler, require
 from . import correlated_result
 
 MODEL = "deepseek-v4.1-flash-1017"
+# The pinned OpenAI client requests this budget even for a short tool turn.
+MODEL_OUTPUT_LIMIT = 16_000
 ADAPTER = "openai"
 API_PATH = "/v1"
 TRANSPORT = "stdio"
@@ -107,7 +109,8 @@ class Probe:
                     and path.is_absolute() and path.resolve() == expected.resolve(),
                     f"unexpected AutoHand {kind} skill location")
             if kind == "selected":
-                require(any(part.startswith("shiju-session-skills-") for part in (*path.parts, *path.resolve().parts)),
+                view_parts = (*path.parts, *path.parent.resolve().parts)
+                require(any(part.startswith("shiju-session-skills-") for part in view_parts),
                         "AutoHand selected skill bypassed the session view")
             self.locations[kind] = path
             return self.skill_call(tools, kind, "activate")
@@ -128,7 +131,7 @@ class Probe:
             return self.call(tools, "mcp", MCP_TOOL, {})
         if step == "mcp":
             token = self.fixtures["mcp"]
-            require((token not in result and re.search(r"reject|denied|cancel", result, re.I))
+            require((token not in result and "Tool execution skipped by user." in result)
                     if self.rejected else token in result, "unexpected AutoHand MCP continuation")
         else:
             kind = step.removesuffix("_read")
@@ -177,8 +180,11 @@ class Probe:
         return False
 
     def approves(self, metadata):
+        arguments = metadata.get("arguments")
         return (self.pending is not None and self.pending[0] == "mcp"
-                and metadata.get("title") == MCP_TOOL and metadata.get("arguments") == {})
+                and metadata.get("title") == f"MCP: coexistence/read_probe: Allow tool {MCP_TOOL}?"
+                and isinstance(arguments, dict) and arguments.get("tool") == MCP_TOOL
+                and arguments.get("args") in (None, {}))
 
 
 class Handler(ProviderHandler):

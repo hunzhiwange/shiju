@@ -31,6 +31,7 @@ AGENT_PROFILE = "acp-coexistence"
 PROVIDER = "coexistence-fixture"
 AGENTS += ("harn",)
 AGENTS += ("poolside",)
+AGENTS += ("mimo-code",)
 PHASES = ("baseline", "mounted", "removed", "rejected")
 
 

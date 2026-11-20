@@ -70,6 +70,9 @@ pub fn configure_with_mcp(
     let mut permissions = serde_json::Map::new();
     permissions.insert("*".into(), json!("deny"));
     permissions.insert("read".into(), json!("allow"));
+    // Expose native catalog locations for the existing read tool. The skill
+    // tool itself samples files via a subprocess, which Seatbelt forbids.
+    permissions.insert("skill".into(), json!("allow"));
     permissions.insert("edit".into(), json!("ask"));
     for name in tool_names {
         permissions.insert(name.clone(), json!("ask"));
@@ -121,7 +124,7 @@ pub fn configure_with_mcp(
         executable = quote(&executable)?,
         config = quote(&config.canonicalize()?)?,
     );
-    let policy = profile.write_config("mimo-code.sb", policy.as_bytes())?;
+    let policy = profile.write_config(crate::acp::skill_mounts::mimo_code::POLICY_FILE, policy.as_bytes())?;
     profile.overlay_environment(HashMap::from([
         ("SHIJU_MIMO_SANDBOX".into(), policy.to_string_lossy().into_owned()),
         ("SHIJU_MIMO_HOME".into(), home.to_string_lossy().into_owned()),

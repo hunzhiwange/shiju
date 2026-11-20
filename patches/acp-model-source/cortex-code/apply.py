@@ -58,6 +58,26 @@ def patch(source, destination):
     replace('let o=fY(),s=n.getPlanMode()?', 'let o=!shijuLocal()&&fY(),s=n.getPlanMode()?')
     replace('setDangerouslyAllowAll(e){this.permissionManager&&',
             'setDangerouslyAllowAll(e){if(shijuLocal()&&e)throw new Error("Local Cortex requires tool approval");this.permissionManager&&')
+    # Use Cortex's native session registry and the native read-based catalog
+    # formatter. Chat Completions otherwise omits the discovered skill metadata.
+    replace('for(let i of M9i)e.push([i,"session"]);',
+            'for(let i of M9i)e.push([i,"session"]);'
+            'if(shijuLocal()&&process.env.SHIJU_CORTEX_SKILLS)'
+            'e.push([process.env.SHIJU_CORTEX_SKILLS,"session"]);')
+    replace('tools:A1g(l.tools||l["allowed-tools"])}',
+            'tools:A1g(l.tools||l["allowed-tools"]),'
+            'disableModelInvocation:l["disable-model-invocation"]===true}')
+    replace('case"name":e.name=r;break;case"description":if(r===',
+            'case"name":e.name=r;break;'
+            'case"disable-model-invocation":e.disableModelInvocation=/^true(?:\\s+#.*)?$/i.test(r);break;'
+            'case"description":if(r===')
+    replace('location:e,instructions:p,basePath:t,tools:f',
+            'location:e,instructions:p,basePath:t,tools:f,'
+            'disableModelInvocation:s.disableModelInvocation')
+    replace('toolSnippets:e,appendSystemPrompt:t.appendSystemPrompt})',
+            'toolSnippets:e,appendSystemPrompt:t.appendSystemPrompt,'
+            'skills:shijuLocal()?Tg().list().map(s=>({name:s.name,description:s.description,'
+            'filePath:s.basePath+"/SKILL.md",disableModelInvocation:s.disableModelInvocation})):void 0})')
     # The native terminal probe would start osascript. Managed contexts forbid
     # all child processes and use ACP for permission prompts.
     replace('function Ej_(){if(', 'function Ej_(){if(shijuLocal()||')

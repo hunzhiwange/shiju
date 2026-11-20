@@ -6,6 +6,7 @@ mod codebuddy;
 mod codex;
 mod copilot;
 pub(super) mod corust_agent;
+pub(super) mod cortex_code;
 mod cursor;
 mod droid;
 #[cfg(test)]
@@ -51,6 +52,7 @@ pub fn validate(agent: &str, selected: bool) -> Result<(), Error> {
         "auggie" => auggie::rejection(),
         "cursor" => return Ok(()),
         "deepagents" if cfg!(all(target_os = "macos", target_arch = "aarch64")) => return Ok(()),
+        "cortex-code" if cfg!(all(target_os = "macos", target_arch = "aarch64")) => return Ok(()),
         "droid" => droid::rejection(),
         "qoder" if cfg!(all(target_os = "macos", target_arch = "aarch64")) => return Ok(()),
         "trae" if cfg!(all(target_os = "macos", target_arch = "aarch64")) => return Ok(()),

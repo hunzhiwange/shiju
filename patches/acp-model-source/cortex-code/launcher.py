@@ -30,6 +30,7 @@ SANDBOX = """
 (deny file-write*)
 (allow file-write* (subpath (param "write-root")) (subpath (param "state"))
     (literal "/dev/null"))
+(deny file-write* (subpath (param "skills")))
 (deny file-read-data file-write* (subpath (param "git")) (subpath (param "env-file"))
     (subpath (param "project-settings")))
 (deny process-fork process-exec)
@@ -71,13 +72,16 @@ def main():
             or endpoint.path != '/v1' or endpoint.query or endpoint.fragment
             or not model or model == 'auto' or not settings['token']):
         raise SystemExit('Invalid Cortex workspace or relay binding')
+    skills = state / "session-skills"
+    if skills.exists() and (skills.is_symlink() or not skills.is_dir()):
+        raise SystemExit("Invalid Cortex session skills directory")
     native = INSTALL / 'cortex-local'
     os.chdir(workspace)
     params = {
         'install': INSTALL, 'native': native, 'state': state, 'workspace': workspace,
         'write-root': write_root, 'host-home': host_home, 'git': workspace / '.git',
         'env-file': workspace / '.env', 'project-settings': workspace / '.cortex',
-        'relay': f'localhost:{endpoint.port}',
+        'skills': skills, 'relay': f'localhost:{endpoint.port}',
     }
     command = ['/usr/bin/sandbox-exec']
     for key, value in params.items():
@@ -91,6 +95,8 @@ def main():
         'SHIJU_CORTEX_LOCAL': '1', 'CORTEX_AGENT_MODEL': model,
         'CORTEX_MODEL_ENDPOINT': settings['endpoint'], 'CORTEX_MODEL_API_KEY': settings['token'],
     }
+    if skills.is_dir():
+        environment["SHIJU_CORTEX_SKILLS"] = str(skills)
     bridge = runpy.run_path(str(INSTALL / 'mcp_bridge.py'))
     raise SystemExit(asyncio.run(bridge['run'](command, environment, workspace)))
 

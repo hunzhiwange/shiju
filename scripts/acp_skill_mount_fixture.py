@@ -342,7 +342,9 @@ class SkillMountFixture:
                     for message in messages:
                         if message.get("role") == "tool" and self.calls.get(message.get("tool_call_id")) == "missing":
                             content = str(message.get("content", ""))
-                            if not (("Unknown skill: " + qualified in content) or (((getattr(self, "codebuddy_native", False) or getattr(self, "snow_native", False)) or (getattr(self, "qwen_native", False) or getattr(self, "copilot_native", False)) or getattr(self, "gemini_native", False) or (getattr(self, "goose_native", False) or ((getattr(self, "vibe_native", False) or (getattr(self, "kilocode_native", False) or getattr(self, "opencode_native", False))) or getattr(self, "hermes_native", False)))) and qualified in content and ("not found" in content or "not available to this runtime" in content))):
+                            iflow_missing = (getattr(self, "iflow_native", False)
+                                             and f'Skill "{qualified}" not found.' in content)
+                            if not (iflow_missing or ("Unknown skill: " + qualified in content) or (((getattr(self, "codebuddy_native", False) or getattr(self, "snow_native", False)) or (getattr(self, "qwen_native", False) or getattr(self, "copilot_native", False)) or getattr(self, "gemini_native", False) or (getattr(self, "goose_native", False) or ((getattr(self, "vibe_native", False) or (getattr(self, "kilocode_native", False) or getattr(self, "opencode_native", False))) or getattr(self, "hermes_native", False)))) and qualified in content and ("not found" in content or "not available to this runtime" in content))):
                                 raise ValueError("removed or other-session skill leaked")
                             event = self.call_events[message["tool_call_id"]]
                             if not event["result_received"]:

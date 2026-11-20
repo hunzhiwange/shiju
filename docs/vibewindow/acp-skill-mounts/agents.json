@@ -1602,9 +1602,9 @@
           "Tn()/skills（配置根）",
           "<cwd>/.iflow/skills"
         ],
-        "discovery": "Reviewed scanner reads only SHIJU_IFLOW_SKILL_ROOT using native SKILL.md parser.",
+        "discovery": "Reviewed v2 scans native global and project roots in their original order, then appends SHIJU_IFLOW_SKILL_ROOT using the native SKILL.md parser.",
         "activation": "Native Skill(skill) discovers metadata and reads the body on demand; first prompt contains no body.",
-        "session_isolation": "Verified selected-only view; global/project decoys excluded; plugin registry fallback disabled; empty selection unregisters Skill."
+        "session_isolation": "Native names take precedence on collision. The selected view remains session-bound and the process-global registry fallback stays disabled for managed mounts. An empty selection keeps native discovery and Skill active."
       },
       "permissions": {
         "status": "verified",
@@ -1668,13 +1668,17 @@
           "kind": "reviewed_launch"
         },
         {
-          "path": "crates/vw-acp/src/managed_runtime/contracts.json#iflow",
-          "sha256": "3f485f9ca61edd2d1594cc6b5374a8108002ab0ee3488f03bdbcfc4bef89ef66",
+          "path": "crates/libs/acp-agent-registry/src/managed_runtime/contracts.json#iflow",
+          "sha256": "e8590e0e5923809928c2c831272fe4d05f917a13e95dfd862fb1c52c4634cd57",
           "kind": "reviewed_engine"
         },
         {
           "path": "evidence/iflow.json",
           "kind": "real_production_skill_lifecycle"
+        },
+        {
+          "path": "../../dev/acp/skill-coexistence/iflow.md",
+          "kind": "skill_coexistence"
         }
       ],
       "supplemental_official_docs": [],

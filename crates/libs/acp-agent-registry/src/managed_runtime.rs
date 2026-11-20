@@ -58,7 +58,7 @@ fn installed_directory(agent: &str, contract: &Contract) -> Result<PathBuf, Stri
         4
     } else if agent == "stakpak" {
         3
-    } else if matches!(agent, "codebuddy" | "codex" | "qwen") {
+    } else if matches!(agent, "codebuddy" | "codex" | "iflow" | "qwen") {
         2
     } else if matches!(
         agent,

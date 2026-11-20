@@ -1,4 +1,4 @@
-//! iFlow's reviewed native scanner reads only the request-owned skill view.
+//! Add a reviewed request-owned view to iFlow's native skill discovery.
 use agent_config::schema::AcpAgentConfig;
 
 const ROOT_ENV: &str = "SHIJU_IFLOW_SKILL_ROOT";
@@ -18,7 +18,7 @@ pub(super) fn configure(
             .map_err(super::super::to_api_error)?;
         view.0.root().to_string_lossy().into_owned()
     } else {
-        // An empty selection disables all native skill levels in the reviewed scanner.
+        // An explicit empty value masks inherited views while preserving native roots.
         String::new()
     };
     config.env.insert(ROOT_ENV.into(), root);

@@ -29,9 +29,18 @@ class SkillMountHarnessTests(unittest.TestCase):
             fixture = SkillMountFixture(Path(directory))
             fixture.iflow_native = True
             fixture.mode = "absent"
-            message, finish = fixture.response({"messages": [{"role": "user", "content":
+            request = {"messages": [{"role": "user", "content":
                 "<available_skills><skill><name>" + fixture.name +
-                "</name></skill></available_skills>"}], "tools": []})
+                "</name></skill></available_skills>"}], "tools": [{"function": {
+                    "name": "Skill", "description": "<available_skills></available_skills>",
+                    "parameters": {"properties": {"skill": {"type": "string"}}}}}]}
+            message, finish = fixture.response(request)
+            self.assertEqual(finish, "tool_calls")
+            call = message["tool_calls"][0]
+            self.assertEqual(json.loads(call["function"]["arguments"]), {"skill": fixture.name})
+            request["messages"].append({"role": "tool", "tool_call_id": call["id"],
+                                        "content": f'Error: Skill "{fixture.name}" not found.'})
+            message, finish = fixture.response(request)
             self.assertEqual((message["content"], finish), ("SKILL_ABSENT", "stop"))
             self.assertEqual(fixture.snapshot()["discovery_events"], 0)
 

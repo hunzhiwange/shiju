@@ -365,6 +365,17 @@ impl GatewayShijuAccountClient {
         Ok(())
     }
 
+    pub async fn shiju_bytes_sensitive_request(
+        &self,
+        path: &str,
+        credential: &ShijuCredential,
+    ) -> Result<Vec<u8>, String> {
+        let response = self.shiju_sensitive_request::<()>(
+            reqwest::Method::GET, path, &[], None, Some(credential),
+        ).await?;
+        response.bytes().await.map(|bytes| bytes.to_vec()).map_err(|_| "读取应用下载失败".into())
+    }
+
     async fn shiju_sensitive_request<B>(
         &self,
         method: reqwest::Method,

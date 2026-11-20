@@ -101,6 +101,8 @@ fn ready_app() -> ShijuInstalledAppDto {
         runtime_url: "https://app.shiju.cloud/app/01K1APP0000000000000000001/".to_string(),
         created_at: None,
         updated_at: None,
+        presentation: Default::default(),
+        status: String::new(),
     }
 }
 

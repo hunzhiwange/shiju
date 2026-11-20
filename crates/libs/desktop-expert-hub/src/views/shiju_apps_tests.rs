@@ -31,6 +31,7 @@ fn catalog_app(installed: bool) -> ShijuCatalogAppDto {
         user_id: installed.then(|| "user-01".to_string()),
         installed_at: installed.then(|| "2026-07-30T09:00:00Z".to_string()),
         permissions: vec!["documents:read".to_string(), "notes:write".to_string()],
+        presentation: Default::default(),
     }
 }
 
@@ -48,6 +49,8 @@ fn installed_app(ready: bool) -> ShijuInstalledAppDto {
         runtime_url: "https://app.shiju.cloud/app/install-01/".to_string(),
         created_at: Some("2026-07-30T09:00:00Z".to_string()),
         updated_at: Some("2026-07-30T10:00:00Z".to_string()),
+        presentation: Default::default(),
+        status: String::new(),
     }
 }
 
@@ -80,7 +83,12 @@ fn shiju_apps_view_builds_store_mine_and_details() {
     let mut app = app_with_lists();
     assert_eq!(
         shiju_apps::tab_specs(),
-        &[("我的应用", ShijuAppsTab::Mine), ("应用商店", ShijuAppsTab::Store),]
+        &[
+            ("应用广场", ShijuAppsTab::Mine),
+            ("我收藏的应用", ShijuAppsTab::Favorites),
+            ("应用商店", ShijuAppsTab::Store),
+            ("我创建的应用", ShijuAppsTab::Created),
+        ]
     );
 
     keep_element(view(&app));
@@ -118,32 +126,7 @@ fn shiju_apps_cards_surface_runtime_readiness() {
     assert!(shiju_apps::mine::open_action_message(&installed_app(true)).is_some());
     assert!(shiju_apps::mine::open_action_message(&installed_app(false)).is_none());
     assert_eq!(shiju_apps::styles::SCROLLBAR_WIDTH, 4);
-    assert_eq!(
-        shiju_apps::styles::SCROLLABLE_SIDE_PADDING,
-        shiju_apps::styles::SCROLLBAR_WIDTH as u16
-    );
-}
-
-#[test]
-fn shiju_apps_grid_limits_each_row_to_four_cards() {
-    let cards = (0..9)
-        .map(|index| iced::widget::text(index.to_string()).into())
-        .collect::<Vec<iced::Element<'static, Message>>>();
-
-    let row_sizes = shiju_apps::card_grid(cards)
-        .as_widget()
-        .children()
-        .into_iter()
-        .map(|row| row.children.len())
-        .collect::<Vec<_>>();
-
-    assert_eq!(row_sizes, vec![4, 4, 1]);
-}
-
-#[test]
-fn shiju_apps_title_uses_single_line_ellipsis_when_too_long() {
-    assert_eq!(shiju_apps::app_title("会议纪要助手"), "会议纪要助手");
-    assert_eq!(shiju_apps::app_title("AI 智能托管数据日志查询"), "AI 智能托管数据日志...");
+    assert_eq!(shiju_apps::styles::SCROLLABLE_SIDE_PADDING, 7);
 }
 
 #[test]

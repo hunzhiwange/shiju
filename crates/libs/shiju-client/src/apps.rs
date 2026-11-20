@@ -3,11 +3,19 @@
 use std::fmt;
 use std::time::Duration;
 
-use reqwest::Url;
+use gateway_shiju_app::{
+    ShijuAppCategory, ShijuAppCopyRequest, ShijuAppItems, ShijuCreatedApp, ShijuFeaturedApp,
+    valid_catalog_id,
+};
 use reqwest::header::{HeaderValue, SET_COOKIE};
+use reqwest::{Method, Url};
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
-use {gateway_shiju_app::ShijuAppApiKeyBindingDto, gateway_shiju_app::ShijuAppCatalogDto, gateway_shiju_app::ShijuAppLaunchDto, gateway_shiju_app::ShijuAppListDto, gateway_shiju_app::ShijuIamApiKeyDto, gateway_shiju_app::ShijuIamApiKeyListDto};
+use {
+    gateway_shiju_app::ShijuAppApiKeyBindingDto, gateway_shiju_app::ShijuAppCatalogDto,
+    gateway_shiju_app::ShijuAppLaunchDto, gateway_shiju_app::ShijuAppListDto,
+    gateway_shiju_app::ShijuIamApiKeyDto, gateway_shiju_app::ShijuIamApiKeyListDto,
+};
 
 const PRODUCTION_APP_BASE_URL: &str = "https://gateway.shiju.cloud/sj/app-platform/api/";
 const PRODUCTION_IAM_BASE_URL: &str = "https://gateway.shiju.cloud/sj/iam/api/v1/";
@@ -18,7 +26,6 @@ const BROWSER_SESSION_PATH: &str = "runtime/browser-session";
 const API_KEY_HEADER: &str = "X-Api-Key";
 const RUNTIME_SESSION_COOKIE_NAME: &str = "app_runtime_session";
 const RUNTIME_HOST: &str = "app.shiju.cloud";
-const MAX_INSTALLATION_ID_BYTES: usize = 64;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 /// SHIJU 应用接口错误的稳定分类。
@@ -73,10 +80,7 @@ impl ShijuAppClient {
 
     #[cfg(any(test, feature = "test-support"))]
     /// 使用显式应用与 IAM 基础地址创建客户端。
-    pub fn with_base_urls(
-        app_base_url: &str,
-        iam_base_url: &str,
-    ) -> Result<Self, ShijuAppError> {
+    pub fn with_base_urls(app_base_url: &str, iam_base_url: &str) -> Result<Self, ShijuAppError> {
         Self::new(app_base_url, iam_base_url)
     }
 
@@ -91,19 +95,158 @@ impl ShijuAppClient {
     }
 
     /// 读取当前凭证可见的应用目录。
-    pub async fn catalog(
-        &self,
-        credential: &str,
-    ) -> Result<ShijuAppCatalogDto, ShijuAppError> {
+    pub async fn catalog(&self, credential: &str) -> Result<ShijuAppCatalogDto, ShijuAppError> {
         self.get_json(CATALOG_PATH, credential).await
     }
 
     /// 读取当前凭证已安装的应用。
-    pub async fn installed(
+    pub async fn installed(&self, credential: &str) -> Result<ShijuAppListDto, ShijuAppError> {
+        self.get_json(APPS_PATH, credential).await
+    }
+
+    pub async fn categories(
         &self,
         credential: &str,
-    ) -> Result<ShijuAppListDto, ShijuAppError> {
-        self.get_json(APPS_PATH, credential).await
+    ) -> Result<ShijuAppItems<ShijuAppCategory>, ShijuAppError> {
+        self.get_json("marketplace/categories", credential).await
+    }
+
+    pub async fn featured(
+        &self,
+        credential: &str,
+    ) -> Result<ShijuAppItems<ShijuFeaturedApp>, ShijuAppError> {
+        self.get_json("marketplace/featured?limit=4", credential).await
+    }
+
+    pub async fn created(
+        &self,
+        credential: &str,
+    ) -> Result<ShijuAppItems<ShijuCreatedApp>, ShijuAppError> {
+        self.get_json("apps/development?managedOnly=true", credential).await
+    }
+
+    pub async fn set_favorite(
+        &self,
+        credential: &str,
+        id: &str,
+        favorite: bool,
+    ) -> Result<(), ShijuAppError> {
+        validate_installation_id(id)?;
+        let method = if favorite { Method::PUT } else { Method::DELETE };
+        self.write(method, &format!("installations/{id}/favorite"), credential).await
+    }
+
+    pub async fn install_catalog(&self, credential: &str, id: &str) -> Result<(), ShijuAppError> {
+        if !valid_catalog_id(id) {
+            return Err(ShijuAppError::invalid_input("SHIJU catalog app ID is invalid"));
+        }
+        self.write(Method::POST, &format!("tenant/catalog/{id}/install"), credential).await
+    }
+
+    pub async fn development_detail(
+        &self,
+        credential: &str,
+        app_zid: &str,
+    ) -> Result<gateway_shiju_app::ShijuDevelopmentDetail, ShijuAppError> {
+        validate_installation_id(app_zid)?;
+        self.get_json(&format!("apps/{app_zid}"), credential).await
+    }
+
+    pub async fn installation_detail(
+        &self,
+        credential: &str,
+        installation_id: &str,
+    ) -> Result<gateway_shiju_app::ShijuInstalledAppDto, ShijuAppError> {
+        validate_installation_id(installation_id)?;
+        let app: gateway_shiju_app::ShijuInstalledAppDto =
+            self.get_json(&format!("tenant/installations/{installation_id}"), credential).await?;
+        if app.installation_id != installation_id {
+            return Err(ShijuAppError::upstream(
+                "SHIJU installation detail does not match the requested ID",
+            ));
+        }
+        Ok(app)
+    }
+
+    pub async fn copy_installation(
+        &self,
+        credential: &str,
+        id: &str,
+        request: &ShijuAppCopyRequest,
+    ) -> Result<(), ShijuAppError> {
+        validate_installation_id(id)?;
+        let endpoint = self
+            .app_base_url
+            .join(&format!("tenant/installations/{id}/copy"))
+            .map_err(|_| ShijuAppError::upstream("SHIJU application upstream URL is invalid"))?;
+        let response = self
+            .http
+            .post(endpoint)
+            .header(API_KEY_HEADER, credential_header(credential)?)
+            .json(request)
+            .send()
+            .await
+            .map_err(|_| ShijuAppError::upstream("SHIJU application copy failed"))?;
+        if !response.status().is_success() {
+            return Err(ShijuAppError::upstream("SHIJU application copy failed"));
+        }
+        Ok(())
+    }
+
+    pub async fn download_companion_skill(
+        &self,
+        credential: &str,
+        id: &str,
+    ) -> Result<Vec<u8>, ShijuAppError> {
+        const MAX_BYTES: usize = 32 * 1024 * 1024;
+        validate_installation_id(id)?;
+        let mut response =
+            self.get(&format!("tenant/installations/{id}/companion-skill"), credential).await?;
+        if response.content_length().is_some_and(|length| length > MAX_BYTES as u64) {
+            return Err(ShijuAppError::upstream(
+                "SHIJU companion skill archive exceeds the download limit",
+            ));
+        }
+        let mut bytes = Vec::new();
+        while let Some(chunk) = response
+            .chunk()
+            .await
+            .map_err(|_| ShijuAppError::upstream("SHIJU companion skill download failed"))?
+        {
+            if bytes.len() + chunk.len() > MAX_BYTES {
+                return Err(ShijuAppError::upstream(
+                    "SHIJU companion skill archive exceeds the download limit",
+                ));
+            }
+            bytes.extend_from_slice(&chunk);
+        }
+        if !bytes.starts_with(b"PK\x03\x04") {
+            return Err(ShijuAppError::upstream("SHIJU companion skill archive is invalid"));
+        }
+        Ok(bytes)
+    }
+
+    async fn write(
+        &self,
+        method: Method,
+        path: &str,
+        credential: &str,
+    ) -> Result<(), ShijuAppError> {
+        let endpoint = self
+            .app_base_url
+            .join(path)
+            .map_err(|_| ShijuAppError::upstream("SHIJU application upstream URL is invalid"))?;
+        let response = self
+            .http
+            .request(method, endpoint)
+            .header(API_KEY_HEADER, credential_header(credential)?)
+            .send()
+            .await
+            .map_err(|_| ShijuAppError::upstream("SHIJU application upstream request failed"))?;
+        if !response.status().is_success() {
+            return Err(ShijuAppError::upstream("SHIJU application upstream request failed"));
+        }
+        Ok(())
     }
 
     /// 读取指定安装实例绑定的 API 密钥。
@@ -118,10 +261,7 @@ impl ShijuAppClient {
     }
 
     /// 列出当前账户可用的 IAM API 密钥。
-    pub async fn api_keys(
-        &self,
-        credential: &str,
-    ) -> Result<ShijuIamApiKeyListDto, ShijuAppError> {
+    pub async fn api_keys(&self, credential: &str) -> Result<ShijuIamApiKeyListDto, ShijuAppError> {
         let response = self.get_from(&self.iam_base_url, IAM_API_KEYS_PATH, credential).await?;
         let envelope = response
             .json::<IamApiKeyEnvelope>()
@@ -203,7 +343,7 @@ impl ShijuAppClient {
             .ok_or_else(|| {
                 ShijuAppError::invalid_input("SHIJU application installation is not owned")
             })?;
-        if app.reconcile_status != "ready" || app.runtime_status != "ready" {
+        if !app.runtime_ready() {
             return Err(ShijuAppError::invalid_input("SHIJU application runtime is not ready"));
         }
         validate_runtime_url(&app.runtime_url, installation_id)?;
@@ -364,11 +504,8 @@ fn validate_installation_id(installation_id: &str) -> Result<(), ShijuAppError> 
     Ok(())
 }
 
-/// 判断安装标识是否满足长度与字符集约束。
 fn is_valid_installation_id(installation_id: &str) -> bool {
-    !installation_id.is_empty()
-        && installation_id.len() <= MAX_INSTALLATION_ID_BYTES
-        && installation_id.bytes().all(|byte| byte.is_ascii_uppercase() || byte.is_ascii_digit())
+    gateway_shiju_app::valid_installation_id(installation_id)
 }
 
 fn parse_base_url(raw: &str) -> Result<Url, ShijuAppError> {

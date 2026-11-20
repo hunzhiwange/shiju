@@ -1,147 +1,169 @@
-//! 展示识矩应用目录及应用安装状态。
+//! 应用商店和广场精选共用封面卡片。
+use desktop_app_launch::{
+    ShijuAppDetailTarget, ShijuAppsLoadState, ShijuAppsState, ShijuMarketplaceAction,
+};
+use desktop_assets::assets::Icon;
+use desktop_i18n::I18n;
+use iced::widget::{button, column, container, row, text};
+use iced::{Alignment, Element, Length};
 
-use iced::widget::scrollable::{Direction, Scrollbar};
-use iced::widget::{button, column, container, row, scrollable, text};
-use iced::{Alignment, Element, Font, Length};
-use gateway_shiju_app::{ShijuAppCatalogDto, ShijuCatalogAppDto};
+use super::{
+    Event, Message, action, card_grid, columns, heading, icon_svg, list_feedback, matches_query,
+    muted, page_range, pagination, search, styles, title,
+};
 
-use super::{app_title, card_grid, styles};
-use super::Message;
-use desktop_apps_ui::shiju_apps::ShijuAppsMessage;
-use desktop_app_launch::{ShijuAppDetailTarget, ShijuAppsLoadState};
-
-fn catalog_card(
-    i18n: desktop_i18n::I18n,
-    index: usize,
-    app: &ShijuCatalogAppDto,
-) -> Element<'static, Message> {
-    let installed = app.installed;
-    let initial = app
-        .name
-        .chars()
-        .next()
-        .unwrap_or_else(|| i18n.__("应用").chars().next().unwrap_or('A'))
-        .to_string();
-    let badge = container(text(initial).size(18))
-        .width(Length::Fixed(44.0))
-        .height(Length::Fixed(44.0))
-        .center(Length::Fixed(44.0))
-        .style(styles::badge_style);
-    let status = if installed { i18n.__("已安装") } else { i18n.__("未安装") };
-    let title = row![
-        badge,
-        column![
-            text(app_title(&app.name))
-                .size(16)
-                .width(Length::Fill)
-                .wrapping(iced::widget::text::Wrapping::None),
-            text(app.app_id.clone()).size(11).font(if app.app_id.is_ascii() {
-                Font::MONOSPACE
-            } else {
-                Font::default()
-            }),
-        ]
-        .spacing(3)
-        .width(Length::Fill),
-        container(text(i18n.__(status)).size(11))
-            .padding([4, 8])
-            .style(move |theme| styles::status_style(theme, installed)),
+pub fn view(i18n: I18n, state: &ShijuAppsState, width: f32) -> Element<'static, Message> {
+    let mut body = column![
+        heading(i18n.__("应用商店"), i18n.__("浏览平台已上架、可安装的应用。")),
+        search(i18n, &state.browse, width.min(288.0)),
     ]
-    .spacing(10)
-    .align_y(Alignment::Center);
-    let description =
-        app.description.clone().unwrap_or_else(|| i18n.__("暂无应用说明").to_string());
-    let permissions = if app.permissions.is_empty() {
-        i18n.__("无").to_string()
-    } else {
-        app.permissions.len().to_string()
+    .spacing(24);
+    let ShijuAppsLoadState::Loaded(catalog) = &state.store else {
+        return body.push(list_feedback(i18n, &state.store)).into();
     };
-    let metadata = i18n
-        .format("版本 %s · 权限 %s", &[app.version.clone().into(), permissions.into()])
-        .expect("valid catalog metadata");
-    let card = column![
-        title,
-        text(description).size(13).height(Length::Fixed(42.0)),
-        text(metadata).size(11).style(styles::muted_text_style),
-        row![
-            iced::widget::Space::new().width(Length::Fill),
-            button(text(i18n.__("查看")).size(12))
-                .padding([6, 12])
-                .style(styles::quiet_button_style)
-                .on_press(Message::ShijuApps(ShijuAppsMessage::OpenDetail(
-                    ShijuAppDetailTarget::Store(index),
-                ))),
-        ],
-    ]
-    .spacing(10);
-    container(card)
-        .padding(16)
-        .width(Length::Fixed(310.0))
-        .height(Length::Shrink)
-        .style(styles::card_style)
-        .into()
+    let query = state.browse.query.trim().to_lowercase();
+    let entries: Vec<_> = catalog
+        .apps
+        .iter()
+        .enumerate()
+        .filter(|(_, app)| {
+            matches_query(
+                &query,
+                &[
+                    &app.name,
+                    &app.app_id,
+                    app.description.as_deref().unwrap_or_default(),
+                    app.presentation.created_by_user_name.as_deref().unwrap_or_default(),
+                    app.presentation.created_by_user_id.as_deref().unwrap_or_default(),
+                ],
+            )
+        })
+        .collect();
+    let total = entries.len();
+    let cards = entries[page_range(total, &state.browse)]
+        .iter()
+        .map(|&(index, app)| {
+            let install = (!app.installed && state.action.is_none()).then(|| {
+                Event::MarketplaceAction(ShijuMarketplaceAction::Install(app.app_id.clone()))
+            });
+            cover_card(
+                i18n,
+                &app.name,
+                app.description.as_deref(),
+                state
+                    .artwork(app.presentation.cover_url.as_deref())
+                    .or_else(|| state.artwork(app.presentation.background_url.as_deref())),
+                Event::OpenDetail(ShijuAppDetailTarget::Store(index)),
+                action(i18n.__(if app.installed { "已安装" } else { "安装" }), install).into(),
+            )
+        })
+        .collect();
+    body = if total == 0 {
+        body.push(list_feedback(i18n, &state.store))
+    } else {
+        body.push(card_grid(cards, columns(width, 4, 228.0)))
+    };
+    body.push(pagination(i18n, total, &state.browse)).into()
 }
 
-fn feedback(
-    i18n: desktop_i18n::I18n,
-    message: String,
-    action: Option<(&'static str, Message)>,
+pub(super) fn featured(
+    i18n: I18n,
+    state: &ShijuAppsState,
+    width: f32,
 ) -> Element<'static, Message> {
-    let mut content = column![text(message).size(14)].spacing(12).align_x(Alignment::Center);
-    if let Some((label, message)) = action {
-        content = content.push(
-            button(text(i18n.__(label)).size(13))
-                .padding([7, 12])
-                .style(styles::quiet_button_style)
-                .on_press(message),
-        );
-    }
-    container(content).width(Length::Fill).height(Length::Fill).center(Length::Fill).into()
-}
-
-/// 按登录、加载、错误或成功状态展示应用商店。
-pub fn view(
-    i18n: desktop_i18n::I18n,
-    state: &ShijuAppsLoadState<ShijuAppCatalogDto>,
-) -> Element<'static, Message> {
-    match state {
-        ShijuAppsLoadState::Idle => feedback(i18n, i18n.__("应用目录尚未加载").to_string(), None),
-        ShijuAppsLoadState::NeedsLogin => feedback(
-            i18n,
-            i18n.__("登录识矩账户后可浏览应用商店").to_string(),
-            Some((i18n.__("登录"), Message::StartBrowserLogin)),
-        ),
-        ShijuAppsLoadState::Loading { .. } => {
-            feedback(i18n, i18n.__("正在加载应用商店…").to_string(), None)
-        }
-        ShijuAppsLoadState::Error(error) => feedback(
-            i18n,
-            i18n.format("应用商店加载失败：%s", &[error.clone().into()])
-                .expect("valid store error"),
-            Some((i18n.__("重试"), Message::ShijuApps(ShijuAppsMessage::Retry))),
-        ),
-        ShijuAppsLoadState::Loaded(catalog) if catalog.apps.is_empty() => {
-            feedback(i18n, i18n.__("应用商店暂时为空").to_string(), None)
-        }
-        ShijuAppsLoadState::Loaded(catalog) => {
-            let cards = catalog
-                .apps
+    let mut body = column![title(i18n.__("精选应用"), 18)].spacing(16);
+    match &state.featured {
+        ShijuAppsLoadState::Loaded(apps) if !apps.is_empty() => {
+            let cards = apps
                 .iter()
                 .enumerate()
-                .map(|(index, app)| catalog_card(i18n, index, app))
-                .collect::<Vec<_>>();
-            scrollable(
-                container(card_grid(cards))
-                    .padding([0, styles::SCROLLABLE_SIDE_PADDING])
-                    .width(Length::Fill),
-            )
-            .direction(Direction::Vertical(
-                Scrollbar::new()
-                    .width(styles::SCROLLBAR_WIDTH)
-                    .scroller_width(styles::SCROLLBAR_WIDTH),
-            ))
-            .height(Length::Fill)
-            .into()
+                .map(|(index, entry)| {
+                    let event = Event::OpenDetail(ShijuAppDetailTarget::Featured(index));
+                    cover_card(
+                        i18n,
+                        &entry.app.name,
+                        entry.app.description.as_deref(),
+                        state
+                            .artwork(Some(&entry.cover_url))
+                            .or_else(|| state.artwork(entry.background_url.as_deref())),
+                        event.clone(),
+                        action(i18n.__("详情"), Some(event)).into(),
+                    )
+                })
+                .collect();
+            body = body.push(card_grid(cards, columns(width, 4, 228.0)));
         }
+        ShijuAppsLoadState::Error(_) => {
+            body = body.push(super::feedback(
+                i18n,
+                i18n.__("精选应用加载失败"),
+                Some(("重试", Event::Retry.into())),
+            ))
+        }
+        ShijuAppsLoadState::Loading { .. } => body = body.push(muted(i18n.__("正在加载应用…"), 14)),
+        _ => return column![].into(),
     }
+    body.into()
+}
+
+pub(super) fn cover_card(
+    i18n: I18n,
+    name: &str,
+    description: Option<&str>,
+    artwork: Option<iced::widget::image::Handle>,
+    detail: Event,
+    cta: Element<'static, Message>,
+) -> Element<'static, Message> {
+    let cover: Element<'static, Message> = match artwork {
+        Some(image) => iced::widget::image(image)
+            .width(Length::Fill)
+            .height(Length::Fill)
+            .content_fit(iced::ContentFit::Cover)
+            .into(),
+        None => container(icon_svg(Icon::Star, 34.0).style(styles::accent_icon))
+            .center(Length::Fill)
+            .style(styles::cover_placeholder)
+            .into(),
+    };
+    let cover = button(container(cover).width(Length::Fill).height(Length::Fill).clip(true))
+        .on_press(detail.clone().into())
+        .padding(iced::Padding { top: 22.0, right: 30.0, bottom: 0.0, left: 30.0 })
+        .width(Length::Fill)
+        .height(148)
+        .style(|theme, status| {
+            let ground = styles::cover_ground(theme);
+            button::Style { background: ground.background, ..button::text(theme, status) }
+        });
+    let heading = button(title(name.to_owned(), 17).wrapping(text::Wrapping::None))
+        .width(Length::Fill)
+        .clip(true)
+        .padding(0)
+        .style(styles::text_button_style)
+        .on_press(detail.into());
+    let details = column![
+        row![heading, cta].spacing(8).align_y(Alignment::Center),
+        container(muted(
+            description
+                .filter(|value| !value.is_empty())
+                .unwrap_or(i18n.__("暂无应用说明"))
+                .to_owned(),
+            14
+        ))
+        .height(44)
+        .clip(true),
+    ]
+    .spacing(10);
+    container(column![
+        cover,
+        container(details).padding(iced::Padding {
+            top: 12.0,
+            right: 16.0,
+            bottom: 12.0,
+            left: 16.0
+        }),
+    ])
+    .width(Length::FillPortion(1))
+    .clip(true)
+    .style(styles::card_style)
+    .into()
 }

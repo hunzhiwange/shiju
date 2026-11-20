@@ -1,6 +1,9 @@
 //! 定义识矩应用目录、已安装列表、密钥绑定与启动过程的状态模型。
 
-use gateway_shiju_app::{ShijuAppCatalogDto, ShijuAppListDto, ShijuIamApiKeyDto};
+use gateway_shiju_app::{
+    ShijuAppApiKeyBindingDto, ShijuAppCatalogDto, ShijuAppCategory, ShijuAppCopyRequest,
+    ShijuAppListDto, ShijuCreatedApp, ShijuFeaturedApp, ShijuIamApiKeyDto,
+};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 /// 识矩应用页面的商店与已安装页签。
@@ -8,6 +11,8 @@ pub enum ShijuAppsTab {
     Store,
     #[default]
     Mine,
+    Favorites,
+    Created,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
@@ -28,6 +33,8 @@ pub enum ShijuAppsLoadState<T> {
 pub enum ShijuAppDetailTarget {
     Store(usize),
     Mine(usize),
+    Featured(usize),
+    Created(usize),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
@@ -87,19 +94,109 @@ impl ShijuAppLaunchState {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ShijuAppsBrowse {
+    pub query: String,
+    pub category: String,
+    pub source: String,
+    pub recent: bool,
+    pub lifecycle: String,
+    pub page: usize,
+    pub page_size: usize,
+}
+
+impl Default for ShijuAppsBrowse {
+    fn default() -> Self {
+        Self {
+            query: String::new(),
+            category: String::new(),
+            source: String::new(),
+            recent: false,
+            lifecycle: String::new(),
+            page: 0,
+            page_size: 20,
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ShijuDetailMetadata {
+    Development(gateway_shiju_app::ShijuDevelopmentDetail),
+    Installation(gateway_shiju_app::ShijuInstalledAppDto),
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ShijuMarketplaceAction {
+    Favorite(String, bool),
+    Install(String),
+    Copy(String, ShijuAppCopyRequest),
+    Download(String),
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
 /// 识矩应用页面的账号范围状态与独立请求代次。
 pub struct ShijuAppsState {
     pub tab: ShijuAppsTab,
     pub store: ShijuAppsLoadState<ShijuAppCatalogDto>,
     pub mine: ShijuAppsLoadState<ShijuAppListDto>,
+    pub created: ShijuAppsLoadState<Vec<ShijuCreatedApp>>,
+    pub featured: ShijuAppsLoadState<Vec<ShijuFeaturedApp>>,
+    pub featured_generation: u64,
+    pub artwork: std::collections::HashMap<u64, Option<iced_core::image::Handle>>,
+    pub categories: Vec<ShijuAppCategory>,
+    pub browse: ShijuAppsBrowse,
+    pub action: Option<(u64, ShijuMarketplaceAction)>,
+    pub copy_form: Option<ShijuAppCopyRequest>,
+    pub binding: ShijuAppsLoadState<ShijuAppApiKeyBindingDto>,
+    pub changing_binding: bool,
     pub account_id: Option<String>,
     pub generation: u64,
     pub detail: Option<ShijuAppDetailTarget>,
+    pub detail_metadata: ShijuAppsLoadState<ShijuDetailMetadata>,
     pub launch: ShijuAppLaunchState,
     pub launch_feedback: Option<(u64, String, desktop_skill_hub::SkillHubError)>,
 }
 
 impl ShijuAppsState {
+    pub fn artwork(&self, url: Option<&str>) -> Option<iced_core::image::Handle> {
+        let key = Self::artwork_key(url?);
+        self.artwork.get(&key)?.clone()
+    }
+
+    pub fn artwork_key(url: &str) -> u64 {
+        use std::hash::{Hash, Hasher};
+        let mut key = std::collections::hash_map::DefaultHasher::new();
+        url.hash(&mut key);
+        key.finish()
+    }
+
+    pub fn installed_detail(&self) -> Option<&gateway_shiju_app::ShijuInstalledAppDto> {
+        let id = self.detail_installation()?;
+        let ShijuAppsLoadState::Loaded(mine) = &self.mine else { return None };
+        mine.apps.iter().find(|item| item.installation_id == id)
+    }
+
+    pub fn detail_installation(&self) -> Option<&str> {
+        let id = match self.detail? {
+            ShijuAppDetailTarget::Store(index) => {
+                let ShijuAppsLoadState::Loaded(store) = &self.store else { return None };
+                store.apps.get(index)?.installation_id.as_deref()?
+            }
+            ShijuAppDetailTarget::Mine(index) => {
+                let ShijuAppsLoadState::Loaded(mine) = &self.mine else { return None };
+                &mine.apps.get(index)?.installation_id
+            }
+            ShijuAppDetailTarget::Featured(index) => {
+                let ShijuAppsLoadState::Loaded(featured) = &self.featured else { return None };
+                &featured.get(index)?.app.installation_id
+            }
+            ShijuAppDetailTarget::Created(index) => {
+                let ShijuAppsLoadState::Loaded(created) = &self.created else { return None };
+                created.get(index)?.installation_id.as_deref()?
+            }
+        };
+        (!id.is_empty()).then_some(id)
+    }
+
     pub fn render_launch_error(&self, source: &str, i18n: desktop_i18n::I18n) -> String {
         if let Some((generation, original, error)) = &self.launch_feedback {
             if original == source
@@ -117,7 +214,18 @@ impl ShijuAppsState {
         self.account_id = account_id;
         self.store = ShijuAppsLoadState::Idle;
         self.mine = ShijuAppsLoadState::Idle;
+        self.created = ShijuAppsLoadState::Idle;
+        self.featured = ShijuAppsLoadState::Idle;
+        self.featured_generation = self.generation;
+        self.artwork.clear();
+        self.categories.clear();
+        self.browse = Default::default();
+        self.action = None;
+        self.copy_form = None;
+        self.binding = ShijuAppsLoadState::Idle;
+        self.changing_binding = false;
         self.detail = None;
+        self.detail_metadata = ShijuAppsLoadState::Idle;
         self.launch = ShijuAppLaunchState::Idle;
         self.launch_feedback = None;
     }
@@ -139,7 +247,7 @@ impl ShijuAppsState {
         account_id: &str,
         installation_id: &str,
     ) -> bool {
-        self.response_is_current(generation, account_id)
+        self.account_id.as_deref() == Some(account_id)
             && self.launch.request_identity() == Some((generation, installation_id))
     }
 }
@@ -150,9 +258,20 @@ impl Default for ShijuAppsState {
             tab: ShijuAppsTab::Mine,
             store: ShijuAppsLoadState::Idle,
             mine: ShijuAppsLoadState::Idle,
+            created: ShijuAppsLoadState::Idle,
+            featured: ShijuAppsLoadState::Idle,
+            featured_generation: 0,
+            artwork: Default::default(),
+            categories: Vec::new(),
+            browse: ShijuAppsBrowse::default(),
+            action: None,
+            binding: ShijuAppsLoadState::Idle,
+            copy_form: None,
+            changing_binding: false,
             account_id: None,
             generation: 0,
             detail: None,
+            detail_metadata: ShijuAppsLoadState::Idle,
             launch: ShijuAppLaunchState::Idle,
             launch_feedback: None,
         }

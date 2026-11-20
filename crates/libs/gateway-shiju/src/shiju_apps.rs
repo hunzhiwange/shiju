@@ -10,8 +10,17 @@ use axum::extract::{Extension, Path};
 use axum::http::{HeaderMap, StatusCode};
 use axum::routing::{get, post};
 use axum::{Json, Router};
-use {gateway_shiju_account::SHIJU_CREDENTIAL_HEADER, gateway_shiju_app::ShijuAppApiKeyBindingDto, gateway_shiju_app::ShijuAppApiKeyBindingSaveRequest, gateway_shiju_app::ShijuAppCatalogDto, gateway_shiju_app::ShijuAppLaunchDto, gateway_shiju_app::ShijuAppListDto, gateway_shiju_account::ShijuCredential, gateway_shiju_app::ShijuIamApiKeyListDto};
+use {
+    gateway_shiju_account::SHIJU_CREDENTIAL_HEADER, gateway_shiju_account::ShijuCredential,
+    gateway_shiju_app::ShijuAppApiKeyBindingDto,
+    gateway_shiju_app::ShijuAppApiKeyBindingSaveRequest, gateway_shiju_app::ShijuAppCatalogDto,
+    gateway_shiju_app::ShijuAppLaunchDto, gateway_shiju_app::ShijuAppListDto,
+    gateway_shiju_app::ShijuIamApiKeyListDto,
+};
 
+use gateway_shiju_app::{
+    ShijuAppCategory, ShijuAppCopyRequest, ShijuAppItems, ShijuCreatedApp, ShijuFeaturedApp,
+};
 use gateway_types::ApiError;
 use shiju_client::apps::{ShijuAppClient, ShijuAppError, ShijuAppErrorKind};
 
@@ -33,6 +42,18 @@ where
     Router::new()
         .route("/shiju/apps/catalog", get(catalog_get))
         .route("/shiju/apps", get(installed_get))
+        .route("/shiju/apps/categories", get(categories_get))
+        .route("/shiju/apps/featured", get(featured_get))
+        .route("/shiju/apps/created", get(created_get))
+        .route("/shiju/apps/created/{app_zid}", get(development_detail_get))
+        .route("/shiju/apps/installations/{installation_id}", get(installation_detail_get))
+        .route("/shiju/apps/catalog/{catalog_id}/install", post(install_post))
+        .route(
+            "/shiju/apps/{installation_id}/favorite",
+            axum::routing::put(favorite_put).delete(favorite_delete),
+        )
+        .route("/shiju/apps/{installation_id}/copy", post(copy_post))
+        .route("/shiju/apps/{installation_id}/companion-skill", get(companion_skill_get))
         .route("/shiju/apps/api-keys", get(api_keys_get))
         .route(
             "/shiju/apps/{installation_id}/api-key-binding",
@@ -56,6 +77,103 @@ async fn installed_get(
 ) -> Result<Json<ShijuAppListDto>, ApiError> {
     let credential = credential(&headers)?;
     client.installed(credential.expose()).await.map(Json).map_err(map_error)
+}
+
+async fn categories_get(
+    Extension(client): Extension<Arc<ShijuAppClient>>,
+    headers: HeaderMap,
+) -> Result<Json<ShijuAppItems<ShijuAppCategory>>, ApiError> {
+    client.categories(credential(&headers)?.expose()).await.map(Json).map_err(map_error)
+}
+
+async fn featured_get(
+    Extension(client): Extension<Arc<ShijuAppClient>>,
+    headers: HeaderMap,
+) -> Result<Json<ShijuAppItems<ShijuFeaturedApp>>, ApiError> {
+    client.featured(credential(&headers)?.expose()).await.map(Json).map_err(map_error)
+}
+
+async fn created_get(
+    Extension(client): Extension<Arc<ShijuAppClient>>,
+    headers: HeaderMap,
+) -> Result<Json<ShijuAppItems<ShijuCreatedApp>>, ApiError> {
+    client.created(credential(&headers)?.expose()).await.map(Json).map_err(map_error)
+}
+
+async fn development_detail_get(
+    Extension(client): Extension<Arc<ShijuAppClient>>,
+    headers: HeaderMap,
+    Path(app_zid): Path<String>,
+) -> Result<Json<gateway_shiju_app::ShijuDevelopmentDetail>, ApiError> {
+    client
+        .development_detail(credential(&headers)?.expose(), &app_zid)
+        .await
+        .map(Json)
+        .map_err(map_error)
+}
+
+async fn installation_detail_get(
+    Extension(client): Extension<Arc<ShijuAppClient>>,
+    headers: HeaderMap,
+    Path(id): Path<String>,
+) -> Result<Json<gateway_shiju_app::ShijuInstalledAppDto>, ApiError> {
+    client
+        .installation_detail(credential(&headers)?.expose(), &id)
+        .await
+        .map(Json)
+        .map_err(map_error)
+}
+
+async fn install_post(
+    Extension(client): Extension<Arc<ShijuAppClient>>,
+    headers: HeaderMap,
+    Path(id): Path<String>,
+) -> Result<StatusCode, ApiError> {
+    client.install_catalog(credential(&headers)?.expose(), &id).await.map_err(map_error)?;
+    Ok(StatusCode::NO_CONTENT)
+}
+
+async fn favorite_put(
+    Extension(client): Extension<Arc<ShijuAppClient>>,
+    headers: HeaderMap,
+    Path(id): Path<String>,
+) -> Result<StatusCode, ApiError> {
+    client.set_favorite(credential(&headers)?.expose(), &id, true).await.map_err(map_error)?;
+    Ok(StatusCode::NO_CONTENT)
+}
+
+async fn favorite_delete(
+    Extension(client): Extension<Arc<ShijuAppClient>>,
+    headers: HeaderMap,
+    Path(id): Path<String>,
+) -> Result<StatusCode, ApiError> {
+    client.set_favorite(credential(&headers)?.expose(), &id, false).await.map_err(map_error)?;
+    Ok(StatusCode::NO_CONTENT)
+}
+
+async fn copy_post(
+    Extension(client): Extension<Arc<ShijuAppClient>>,
+    headers: HeaderMap,
+    Path(id): Path<String>,
+    Json(request): Json<ShijuAppCopyRequest>,
+) -> Result<StatusCode, ApiError> {
+    client
+        .copy_installation(credential(&headers)?.expose(), &id, &request)
+        .await
+        .map_err(map_error)?;
+    Ok(StatusCode::NO_CONTENT)
+}
+
+async fn companion_skill_get(
+    Extension(client): Extension<Arc<ShijuAppClient>>,
+    headers: HeaderMap,
+    Path(id): Path<String>,
+) -> Result<impl axum::response::IntoResponse, ApiError> {
+    let archive = client
+        .download_companion_skill(credential(&headers)?.expose(), &id)
+        .await
+        .map_err(map_error)?;
+    Ok(([(axum::http::header::CONTENT_TYPE, "application/zip")], archive))
 }
 
 async fn api_keys_get(

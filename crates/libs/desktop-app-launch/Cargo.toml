@@ -10,6 +10,7 @@ doctest = false
 [dependencies]
 gateway-shiju-app = { path = "../gateway-shiju-app" }
 desktop-skill-hub = { path = "../desktop-skill-hub" }
+iced_core = "0.14"
 desktop-i18n = { path = "../desktop-i18n" }
 vw-gateway-client = { path = "../../vw-gateway-client" }
 reqwest = { version = "0.13", default-features = false }

@@ -6840,6 +6840,7 @@ dependencies = [
  "desktop-i18n",
  "desktop-skill-hub",
  "gateway-shiju-app",
+ "iced_core",
  "reqwest 0.13.4",
  "vw-gateway-client",
 ]
@@ -6899,6 +6900,7 @@ dependencies = [
  "toml_edit 0.22.27",
  "url",
  "urlencoding",
+ "uuid",
  "vw-api-app-aggregation",
  "vw-api-app-auth",
  "vw-api-app-diagnostics",

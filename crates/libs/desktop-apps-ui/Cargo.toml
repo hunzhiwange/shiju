@@ -68,6 +68,7 @@ desktop-i18n = { path = "../desktop-i18n" }
 gateway-shiju-app = { path = "../gateway-shiju-app" }
 gateway-shiju-account = { path = "../gateway-shiju-account" }
 web-time = "1"
+uuid = { version = "1.11", features = ["v4", "js"] }
 [dev-dependencies]
 desktop-account = { path = "../desktop-account", features = ["test-support"] }
 urlencoding = "2"
@@ -94,6 +95,7 @@ web-sys = { version = "0.3", features = ["Window"] }
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 tokio = { version = "1", default-features = false, features = ["fs"] }
 desktop-web-runtime = { path = "../desktop-web-runtime" }
+reqwest = { version = "0.13", default-features = false, features = ["rustls"] }
 
 [target.'cfg(all(not(target_arch = "wasm32"), not(windows)))'.dependencies]
 open = "5"

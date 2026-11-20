@@ -8,6 +8,7 @@ mod copilot;
 pub(super) mod corust_agent;
 pub(super) mod cortex_code;
 mod cursor;
+mod dirac;
 mod droid;
 #[cfg(test)]
 mod deepagents_tests;
@@ -55,6 +56,7 @@ pub fn validate(agent: &str, selected: bool) -> Result<(), Error> {
         "cursor" => return Ok(()),
         "deepagents" if cfg!(all(target_os = "macos", target_arch = "aarch64")) => return Ok(()),
         "cortex-code" if cfg!(all(target_os = "macos", target_arch = "aarch64")) => return Ok(()),
+        "dirac" if cfg!(all(target_os = "macos", target_arch = "aarch64")) => return Ok(()),
         "droid" => droid::rejection(),
         "qoder" if cfg!(all(target_os = "macos", target_arch = "aarch64")) => return Ok(()),
         "trae" if cfg!(all(target_os = "macos", target_arch = "aarch64")) => return Ok(()),
@@ -151,6 +153,8 @@ pub fn configure_native_scanner(
         grok::configure(config, view)?;
     } else if agent == "kimi" {
         kimi::configure(config, view)?;
+    } else if agent == "dirac" {
+        dirac::configure(config, view)?;
     } else if agent == "cursor" {
         cursor::configure(config, view)?;
     } else if agent == "iflow" {

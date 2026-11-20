@@ -8,8 +8,8 @@
     "engine_integrity": "sha512-SWsVtH/0vULSQStoZ6xxH2K09Li8fXYTMC64ZeogCdpZ3XSi1eCPOByV1OpuJxuI3OcmHhosDWYyii07tpPsLw==",
     "bin": "dist/shiju-dirac.mjs",
     "files": {
-      "dist/shiju-dirac.mjs": "330dc9f7ad7bd68b2255bea99410daab3b22ed70605e9177001fd1cbfd09797d",
-      "dist/session-mcp.mjs": "ce75315c4182d34bcdb39d1a70b5fe3c7a72539677c317fe85a41229957127aa"
+      "dist/shiju-dirac.mjs": "abbc5f72264b5bf4da8692a93bdcc27e4490d95a9a230632885d77da8fed2096",
+      "dist/session-mcp.mjs": "4e2362bfa6661564693b06ddd0eb85bc4d5edc1e6720ea758589c1234e6455ad"
     }
   },
   "dimcode": {

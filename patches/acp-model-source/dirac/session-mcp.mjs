@@ -1,6 +1,6 @@
 import { AsyncLocalStorage } from 'node:async_hooks';
 import { randomUUID } from 'node:crypto';
-import { isAbsolute } from 'node:path';
+import { basename, dirname, isAbsolute, normalize } from 'node:path';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
 
@@ -8,6 +8,66 @@ const scope = new AsyncLocalStorage();
 const plans = new WeakMap();
 const running = new WeakMap();
 const key = /^[A-Za-z0-9_-]+$/;
+
+const skillScope = new AsyncLocalStorage();
+const skillSelections = new WeakMap();
+
+export function validateSkills(meta) {
+  if (!Object.hasOwn(meta ?? {}, 'shiju.skillMounts')) return;
+  const selection = meta['shiju.skillMounts'];
+  if (selection?.version !== 1 || !Array.isArray(selection.skills)) {
+    throw new Error('Invalid Dirac skill mount selection');
+  }
+  if (!selection.skills.length) return;
+  const root = dirname(selection.skills[0].path);
+  const names = new Set();
+  for (const skill of selection.skills) {
+    const name = skill.name?.toLowerCase();
+    if (!name || !isAbsolute(skill.path) || normalize(skill.path) !== skill.path ||
+        dirname(skill.path) !== root || basename(skill.path) !== skill.name || names.has(name)) {
+      throw new Error('Invalid Dirac skill mount entry');
+    }
+    names.add(name);
+  }
+  if (basename(root) !== 'skills' || !basename(dirname(root)).startsWith('shiju-session-skills-')) {
+    throw new Error('Invalid Dirac session skill view');
+  }
+  return { root, names };
+}
+
+export function saveSkills(session, selection) {
+  if (selection) skillSelections.set(session, { ...selection, cacheId: randomUUID() });
+}
+
+export function rejectSkillRestore(session, meta) {
+  if (skillSelections.has(session) || validateSkills(meta)) {
+    throw new Error('Dirac skill mounts require a new ACP session');
+  }
+}
+
+export function withSkills(session, invoke) {
+  const selection = skillSelections.get(session);
+  return selection ? skillScope.run({ ...selection, cwd: session.cwd }, invoke) : invoke();
+}
+
+export function skillPromptCacheKey() {
+  // Dirac's global prompt cache otherwise keys the skill inventory only by count.
+  return skillScope.getStore()?.cacheId ?? '';
+}
+
+export async function appendSkills(cwd, native, scan) {
+  const selection = skillScope.getStore();
+  if (!selection || selection.cwd !== cwd) return native;
+  const selected = await scan(selection.root, 'project');
+  if (selected.length !== selection.names.size ||
+      selected.some(skill => !selection.names.has(skill.name.toLowerCase()))) {
+    throw new Error('Dirac could not discover the selected skill view');
+  }
+  if (native.some(skill => selection.names.has(skill.name.toLowerCase()))) {
+    throw new Error('Dirac selected skill conflicts with a native skill');
+  }
+  return [...native, ...selected];
+}
 
 export function validate(servers = []) {
   const names = new Set();

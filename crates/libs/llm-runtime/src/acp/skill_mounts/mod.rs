@@ -20,7 +20,7 @@ mod pi;
 pub(super) mod qoder;
 mod qwen;
 mod snow;
-mod trae;
+pub(super) mod trae;
 mod vibe;
 
 pub fn validate(agent: &str, selected: bool) -> Result<(), Error> {
@@ -48,7 +48,7 @@ pub fn validate(agent: &str, selected: bool) -> Result<(), Error> {
         "cursor" => return Ok(()),
         "droid" => droid::rejection(),
         "qoder" if cfg!(all(target_os = "macos", target_arch = "aarch64")) => return Ok(()),
-        "trae" => trae::rejection(),
+        "trae" if cfg!(all(target_os = "macos", target_arch = "aarch64")) => return Ok(()),
         "iflow" => return Ok(()),
         _ => "no verified skill directory mount branch",
     };

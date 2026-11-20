@@ -1,5 +1,6 @@
 //! 定义技能市场、安装记录、版本详情与下载地址等传输模型。
 
+use gateway_shiju_skill::{ShijuSkillSource, ShijuSkillVisibilityDto};
 use serde::Deserialize;
 use std::fmt;
 
@@ -32,6 +33,16 @@ pub struct MarketplaceSkill {
     pub deleted_at: Option<i64>,
     pub is_installed: bool,
     pub tags: Vec<SkillTag>,
+    #[serde(default)]
+    pub icon_url: Option<String>,
+    #[serde(default)]
+    pub developer_display_name: Option<String>,
+    #[serde(default)]
+    pub distribution_source: Option<ShijuSkillSource>,
+    #[serde(default)]
+    pub marketplace_version: Option<String>,
+    #[serde(default)]
+    pub company_tags: Vec<SkillTag>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
@@ -45,6 +56,16 @@ pub struct InstalledSkill {
     pub current_version: String,
     pub format: String,
     pub upgrade_available: bool,
+    #[serde(default)]
+    pub icon_url: Option<String>,
+    #[serde(default)]
+    pub developer_display_name: Option<String>,
+    #[serde(default)]
+    pub distribution_source: Option<ShijuSkillSource>,
+    #[serde(default)]
+    pub updated_at: Option<String>,
+    #[serde(default)]
+    pub force_upgrade_required: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
@@ -70,6 +91,10 @@ pub struct TenantSkill {
     pub has_pending_review: bool,
     pub pending_review_version_id: Option<u64>,
     pub tags: Vec<SkillTag>,
+    #[serde(default)]
+    pub company_tags: Vec<SkillTag>,
+    #[serde(default)]
+    pub tenant_visibility: Option<ShijuSkillVisibilityDto>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
@@ -116,6 +141,11 @@ impl From<gateway_shiju_skill::ShijuMarketplaceSkillDto> for MarketplaceSkill {
             deleted_at: dto.deleted_at,
             is_installed: dto.is_installed,
             tags: dto.tags.into_iter().map(SkillTag::from).collect(),
+            icon_url: dto.icon_url,
+            developer_display_name: dto.developer_display_name,
+            distribution_source: dto.distribution_source,
+            marketplace_version: dto.marketplace_version,
+            company_tags: dto.company_tags.into_iter().map(SkillTag::from).collect(),
         }
     }
 }
@@ -141,6 +171,11 @@ impl From<gateway_shiju_skill::ShijuInstalledSkillDto> for InstalledSkill {
             current_version: dto.current_version,
             format: dto.format,
             upgrade_available: dto.upgrade_available,
+            icon_url: dto.icon_url,
+            developer_display_name: dto.developer_display_name,
+            distribution_source: dto.distribution_source,
+            updated_at: dto.updated_at,
+            force_upgrade_required: dto.force_upgrade_required,
         }
     }
 }
@@ -170,6 +205,8 @@ impl From<gateway_shiju_skill::ShijuTenantSkillDto> for TenantSkill {
             has_pending_review: dto.has_pending_review,
             pending_review_version_id: dto.pending_review_version_id,
             tags: dto.tags.into_iter().map(SkillTag::from).collect(),
+            company_tags: dto.company_tags.into_iter().map(SkillTag::from).collect(),
+            tenant_visibility: dto.tenant_visibility,
         }
     }
 }

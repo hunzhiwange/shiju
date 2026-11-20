@@ -108,7 +108,21 @@ impl ShijuSkillClient {
         push_text_filter(&mut parameters, "cursor", query.cursor.as_deref());
         push_optional_u64_filter(&mut parameters, "tag_ids", query.tag_ids);
         push_optional_u64_filter(&mut parameters, "company_tag_ids", query.company_tag_ids);
-        self.get("marketplace/skills", &parameters, credential).await
+        push_text_filter(&mut parameters, "distribution_source", query.distribution_source.map(|source| source.as_str()));
+        #[derive(Deserialize)]
+        #[serde(untagged)]
+        enum SearchResponse {
+            Page(ShijuSkillCursorPageDto),
+            Items(Vec<gateway_shiju_skill::ShijuMarketplaceSkillDto>),
+        }
+        match self.get("marketplace/skills", &parameters, credential).await? {
+            SearchResponse::Page(page) => Ok(page),
+            SearchResponse::Items(items) => Ok(ShijuSkillCursorPageDto {
+                items,
+                next_cursor: None,
+                has_more: false,
+            }),
+        }
     }
 
     /// 列出当前租户已安装技能。
@@ -116,7 +130,7 @@ impl ShijuSkillClient {
         &self,
         credential: &ShijuCredential,
     ) -> Result<Vec<ShijuInstalledSkillDto>, ShijuSkillError> {
-        self.get("me/skills", &[], credential).await
+        self.get("me/skills", &[("include_card_metadata", "true".into())], credential).await
     }
 
     /// 列出完整的平台标签目录。
@@ -205,10 +219,24 @@ impl ShijuSkillClient {
         credential: &ShijuCredential,
         skill_id: u64,
     ) -> Result<(), ShijuSkillError> {
+        self.remote_install_from(credential, skill_id, None).await
+    }
+
+    pub async fn remote_install_from(
+        &self,
+        credential: &ShijuCredential,
+        skill_id: u64,
+        source: Option<gateway_shiju_skill::ShijuSkillSource>,
+    ) -> Result<(), ShijuSkillError> {
         validate_skill_id(skill_id)?;
+        let collection = if source == Some(gateway_shiju_skill::ShijuSkillSource::Marketplace) {
+            "marketplace/skills"
+        } else {
+            "skills"
+        };
         self.mutate::<ShijuSkillInstallRequest>(
             Method::POST,
-            &format!("skills/{skill_id}/install"),
+            &format!("{collection}/{skill_id}/install"),
             credential,
             None,
         )
@@ -239,10 +267,24 @@ impl ShijuSkillClient {
         credential: &ShijuCredential,
         skill_id: u64,
     ) -> Result<(), ShijuSkillError> {
+        self.remote_uninstall_from(credential, skill_id, None).await
+    }
+
+    pub async fn remote_uninstall_from(
+        &self,
+        credential: &ShijuCredential,
+        skill_id: u64,
+        source: Option<gateway_shiju_skill::ShijuSkillSource>,
+    ) -> Result<(), ShijuSkillError> {
         validate_skill_id(skill_id)?;
+        let collection = if source == Some(gateway_shiju_skill::ShijuSkillSource::Marketplace) {
+            "marketplace/skills"
+        } else {
+            "skills"
+        };
         self.mutate::<ShijuSkillInstallRequest>(
             Method::DELETE,
-            &format!("skills/{skill_id}/install"),
+            &format!("{collection}/{skill_id}/install"),
             credential,
             None,
         )

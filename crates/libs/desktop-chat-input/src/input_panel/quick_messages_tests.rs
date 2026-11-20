@@ -19,6 +19,11 @@ fn config(text: &str, group: QuickMessageGroup, kind: QuickMessageKind) -> Quick
 
 fn installed_skill(skill_id: u64, slug: &str, name: &str) -> InstalledSkill {
     InstalledSkill {
+        icon_url: None,
+        developer_display_name: None,
+        distribution_source: None,
+        updated_at: None,
+        force_upgrade_required: false,
         skill_id,
         slug: slug.to_string(),
         name: name.to_string(),

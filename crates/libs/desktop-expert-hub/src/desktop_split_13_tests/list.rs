@@ -94,6 +94,11 @@ fn market_tag_rows_show_full_catalogs() {
 #[test]
 fn business_skill_list_actions_use_installed_server_state() {
     let market = MarketplaceSkill {
+        icon_url: None,
+        developer_display_name: None,
+        distribution_source: None,
+        marketplace_version: None,
+        company_tags: Vec::new(),
         id: 7,
         slug: "safe-skill".to_string(),
         name: "安全技能".to_string(),
@@ -114,6 +119,11 @@ fn business_skill_list_actions_use_installed_server_state() {
         tags: Vec::new(),
     };
     let mut installed = InstalledSkill {
+        icon_url: None,
+        developer_display_name: None,
+        distribution_source: None,
+        updated_at: None,
+        force_upgrade_required: false,
         skill_id: 7,
         slug: "safe-skill".to_string(),
         name: "安全技能".to_string(),

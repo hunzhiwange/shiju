@@ -99,10 +99,11 @@ pub(super) async fn gateway_shiju_skill_remote_install_async(
     gateway: crate::GatewayFactory,
     credential: &ShijuCredential,
     skill_id: u64,
+    source: Option<ShijuSkillSource>,
 ) -> Result<(), String> {
     let client = gateway()?;
     gateway_shiju_skill::GatewayShijuSkillClient::new(client)
-        .shiju_skill_remote_install(credential, skill_id)
+        .shiju_skill_remote_install_from(credential, skill_id, source)
         .await
 }
 
@@ -123,9 +124,10 @@ pub(super) async fn gateway_shiju_skill_remote_uninstall_async(
     gateway: crate::GatewayFactory,
     credential: &ShijuCredential,
     skill_id: u64,
+    source: Option<ShijuSkillSource>,
 ) -> Result<(), String> {
     let client = gateway()?;
     gateway_shiju_skill::GatewayShijuSkillClient::new(client)
-        .shiju_skill_remote_uninstall(credential, skill_id)
+        .shiju_skill_remote_uninstall_from(credential, skill_id, source)
         .await
 }

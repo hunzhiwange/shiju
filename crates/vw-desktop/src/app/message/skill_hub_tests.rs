@@ -80,6 +80,11 @@ fn business_skill_version_actions_use_server_upgrade_flag_and_immutable_version_
         has_more: false,
     });
     app.expert_hub.installed = LoadState::Loaded(vec![InstalledSkill {
+        icon_url: None,
+        developer_display_name: None,
+        distribution_source: None,
+        updated_at: None,
+        force_upgrade_required: false,
         skill_id: 7,
         slug: "safe-skill".to_string(),
         name: "安全技能".to_string(),
@@ -376,6 +381,11 @@ fn skill_hub_message_routes_tabs_search_pages_and_account_changes() {
 
 fn marketplace_skill(skill_id: u64, installed: bool) -> MarketplaceSkill {
     MarketplaceSkill {
+        icon_url: None,
+        developer_display_name: None,
+        distribution_source: None,
+        marketplace_version: None,
+        company_tags: Vec::new(),
         id: skill_id,
         slug: "safe-skill".to_string(),
         name: "安全技能".to_string(),

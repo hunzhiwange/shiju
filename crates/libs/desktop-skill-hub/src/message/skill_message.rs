@@ -98,6 +98,7 @@ pub enum SkillHubMessage {
     SelectSkillTab(SkillTab),
     SearchDraftChanged(String),
     SearchSubmitted,
+    Catalog(SkillCatalogMessage),
     MarketTagSelected(Option<u64>),
     MarketCompanyTagSelected(Option<u64>),
     FilterKeywordChanged(String),
@@ -194,5 +195,41 @@ pub enum SkillHubMessage {
         generation: u64,
         account_id: String,
         result: Result<Vec<SkillTag>, SkillHubError>,
+    },
+}
+
+#[derive(Debug, Clone)]
+pub enum SkillCatalogMessage {
+    SearchReady { tab: SkillTab, generation: u64 },
+    InstalledSearchChanged(String),
+    MarketSourceSelected(Option<gateway_shiju_skill::ShijuSkillSource>),
+    RefreshFeatured,
+    LoadMoreMarketplace,
+    MineStatusSelected(Option<MineSkillStatus>),
+    MinePageSizeSelected(u32),
+    MarketCategoriesReset,
+    EditMaintainedSkill(u64),
+    OpenMaintainedSkillAction(u64, MaintainedSkillAction),
+    CloseMaintainedSkillAction,
+    MaintainedVisibilityAllChanged(bool),
+    MaintainedVisibilityDepartmentsChanged(String),
+    MaintainedVisibilityUsersChanged(String),
+    ConfirmMaintainedSkillAction,
+    MaintainedSkillActionFinished {
+        generation: u64,
+        account_id: String,
+        skill_id: u64,
+        result: Result<(), SkillHubError>,
+    },
+    MarketplaceAppended {
+        generation: u64,
+        account_id: String,
+        result: Result<CursorPage<MarketplaceSkill>, SkillHubError>,
+    },
+    FeaturedLoaded {
+        generation: u64,
+        account_id: String,
+        refresh: bool,
+        result: Result<Vec<MarketplaceSkill>, SkillHubError>,
     },
 }

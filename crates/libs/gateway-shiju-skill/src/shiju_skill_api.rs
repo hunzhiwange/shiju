@@ -35,6 +35,7 @@ impl GatewayShijuSkillClient {
         push_text_filter(&mut query_pairs, "cursor", query.cursor.as_deref());
         push_optional_u64_filter(&mut query_pairs, "tag_ids", query.tag_ids);
         push_optional_u64_filter(&mut query_pairs, "company_tag_ids", query.company_tag_ids);
+        push_text_filter(&mut query_pairs, "distribution_source", query.distribution_source.map(ShijuSkillSource::as_str));
         self.shiju_skill_get(&format!("{SHIJU_SKILLS_PATH}/search"), &query_pairs, credential).await
     }
 
@@ -110,10 +111,20 @@ impl GatewayShijuSkillClient {
         credential: &ShijuCredential,
         skill_id: u64,
     ) -> Result<(), String> {
+        self.shiju_skill_remote_install_from(credential, skill_id, None).await
+    }
+
+    pub async fn shiju_skill_remote_install_from(
+        &self,
+        credential: &ShijuCredential,
+        skill_id: u64,
+        source: Option<ShijuSkillSource>,
+    ) -> Result<(), String> {
+        let query = source.map(|source| ("distribution_source".to_string(), source.as_str().to_string()));
         gateway_shiju_account::GatewayShijuAccountClient::new(self.transport.clone()).shiju_empty_sensitive_request::<EmptyRequest>(
             reqwest::Method::POST,
             &format!("{SHIJU_SKILLS_PATH}/{skill_id}/install"),
-            &[],
+            query.as_slice(),
             None,
             Some(credential),
         )
@@ -147,10 +158,20 @@ impl GatewayShijuSkillClient {
         credential: &ShijuCredential,
         skill_id: u64,
     ) -> Result<(), String> {
+        self.shiju_skill_remote_uninstall_from(credential, skill_id, None).await
+    }
+
+    pub async fn shiju_skill_remote_uninstall_from(
+        &self,
+        credential: &ShijuCredential,
+        skill_id: u64,
+        source: Option<ShijuSkillSource>,
+    ) -> Result<(), String> {
+        let query = source.map(|source| ("distribution_source".to_string(), source.as_str().to_string()));
         gateway_shiju_account::GatewayShijuAccountClient::new(self.transport.clone()).shiju_empty_sensitive_request::<EmptyRequest>(
             reqwest::Method::DELETE,
             &format!("{SHIJU_SKILLS_PATH}/{skill_id}/install"),
-            &[],
+            query.as_slice(),
             None,
             Some(credential),
         )

@@ -362,6 +362,11 @@ async fn shiju_skill_selection_validates_catalog_and_toggles_multiple_items() {
     let (mut app, _) = crate::app::App::new();
     app.expert_hub.installed = LoadState::Loaded(vec![
         InstalledSkill {
+            icon_url: None,
+            developer_display_name: None,
+            distribution_source: None,
+            updated_at: None,
+            force_upgrade_required: false,
             skill_id: 42,
             slug: "document-review".to_string(),
             name: "文档审查".to_string(),
@@ -372,6 +377,11 @@ async fn shiju_skill_selection_validates_catalog_and_toggles_multiple_items() {
             upgrade_available: false,
         },
         InstalledSkill {
+            icon_url: None,
+            developer_display_name: None,
+            distribution_source: None,
+            updated_at: None,
+            force_upgrade_required: false,
             skill_id: 43,
             slug: "meeting-notes".to_string(),
             name: "会议纪要".to_string(),

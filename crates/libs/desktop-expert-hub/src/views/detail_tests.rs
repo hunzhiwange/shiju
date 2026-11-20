@@ -173,6 +173,11 @@ fn business_skill_detail_labels_current_upgrade_rollback_and_unknown_versions() 
 
     let mut state = desktop_skill_hub::skill_hub::ExpertHubState::default();
     state.installed = LoadState::Loaded(vec![InstalledSkill {
+        icon_url: None,
+        developer_display_name: None,
+        distribution_source: None,
+        updated_at: None,
+        force_upgrade_required: false,
         skill_id: 7,
         slug: "safe-skill".to_string(),
         name: "安全技能".to_string(),

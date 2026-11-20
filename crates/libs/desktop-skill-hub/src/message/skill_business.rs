@@ -131,18 +131,30 @@ pub(super) fn start_skill_action(
     let Some(generation) = app.expert_hub.start_action(skill_id, action.clone()) else {
         return Task::none();
     };
+    let installed = match &app.expert_hub.installed {
+        LoadState::Loaded(items) => items.iter().find(|item| item.skill_id == skill_id)
+            .and_then(|item| item.distribution_source),
+        _ => None,
+    };
+    let market = match &app.expert_hub.marketplace {
+        LoadState::Loaded(page) => page.items.as_slice(),
+        _ => &[],
+    };
+    let market = market.iter().chain(&app.expert_hub.featured_skills)
+        .find(|item| item.id == skill_id).and_then(|item| item.distribution_source);
+    let source = if action == SkillActionKind::Uninstall { installed.or(market) } else { market };
     let request_action = action.clone();
     Task::perform(
         async move {
             let credential = credential.gateway_credential().map_err(|error| error.to_string())?;
             match request_action {
                 SkillActionKind::Install => {
-                    gateway_shiju_skill_remote_install_async(gateway, &credential, skill_id)
+                    gateway_shiju_skill_remote_install_async(gateway, &credential, skill_id, source)
                         .await
                         .map_err(SkillHubError::from)
                 }
                 SkillActionKind::Uninstall => {
-                    gateway_shiju_skill_remote_uninstall_async(gateway, &credential, skill_id)
+                    gateway_shiju_skill_remote_uninstall_async(gateway, &credential, skill_id, source)
                         .await
                         .map_err(SkillHubError::from)
                 }
@@ -352,6 +364,17 @@ pub(super) fn finish_skill_action(
         return Task::none();
     }
     app.expert_hub.action = None;
+    if result.is_ok() {
+        let installed = action != SkillActionKind::Uninstall;
+        if let LoadState::Loaded(page) = &mut app.expert_hub.marketplace {
+            for skill in page.items.iter_mut().filter(|skill| skill.id == skill_id) {
+                skill.is_installed = installed;
+            }
+        }
+        for skill in app.expert_hub.featured_skills.iter_mut().filter(|skill| skill.id == skill_id) {
+            skill.is_installed = installed;
+        }
+    }
     match result {
         Ok(()) if matches!(action, SkillActionKind::Install | SkillActionKind::Version(_)) => {
             Task::batch([
@@ -363,10 +386,15 @@ pub(super) fn finish_skill_action(
                 ),
             ])
         }
-        Ok(()) => Task::batch([
-            app.show_localized_toast(ToastKind::Success, "技能卸载成功", vec![]),
-            load_current_tab(app),
-        ]),
+        Ok(()) => {
+            if let LoadState::Loaded(skills) = &mut app.expert_hub.installed {
+                skills.retain(|skill| skill.skill_id != skill_id);
+            }
+            Task::batch([
+                app.show_localized_toast(ToastKind::Success, "技能卸载成功", vec![]),
+                load_current_tab(app),
+            ])
+        },
         Err(error) => {
             let label = match &action {
                 SkillActionKind::Install => "技能安装失败：%s",
@@ -477,7 +505,7 @@ pub(super) fn refresh_skill_cache_views(
     if refresh_detail {
         return refresh_version_action_views(app, skill_id);
     }
-    Task::batch([load_marketplace_skills(app), load_installed_skills(app, true)])
+    Task::batch([load_marketplace_skills(app, None), load_installed_skills(app, true)])
 }
 
 pub(super) fn refresh_version_action_views(
@@ -490,7 +518,7 @@ pub(super) fn refresh_version_action_views(
         } else {
             Task::none()
         };
-    Task::batch([load_marketplace_skills(app), load_installed_skills(app, true), detail_task])
+    Task::batch([load_marketplace_skills(app, None), load_installed_skills(app, true), detail_task])
 }
 
 /// 下载技能版本到临时文件，并将完成结果映射回技能消息。

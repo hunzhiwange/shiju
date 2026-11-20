@@ -101,6 +101,7 @@ pub enum SkillHubMessage {
     SelectSkillTab(SkillTab),
     SearchDraftChanged(String),
     SearchSubmitted,
+    Catalog(SkillCatalogMessage),
     MarketTagSelected(Option<u64>),
     MarketCompanyTagSelected(Option<u64>),
     FilterKeywordChanged(String),

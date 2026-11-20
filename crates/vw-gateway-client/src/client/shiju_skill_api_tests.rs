@@ -50,6 +50,7 @@ async fn shiju_skill_client_uses_private_gateway_paths() {
     let credential = credential();
 
     let search = ShijuSkillSearchQuery {
+        distribution_source: None,
         query: Some("visual guide".to_string()),
         cursor: Some("cursor/next".to_string()),
         page_size: 20,
@@ -121,6 +122,7 @@ async fn shiju_skill_client_omits_unselected_market_filters() {
             .shiju_skill_search(
                 &credential,
                 &ShijuSkillSearchQuery {
+                    distribution_source: None,
                     query: None,
                     cursor: None,
                     page_size: 20,

@@ -78,7 +78,7 @@ pub enum MineSkillStatus {
 impl MineSkillStatus {
     pub const ALL: [Self; 4] =
         [Self::Draft, Self::PendingReview, Self::Published, Self::Unpublished];
-    pub const DEFAULT: [Self; 3] = [Self::Draft, Self::PendingReview, Self::Published];
+    pub const DEFAULT: [Self; 4] = Self::ALL;
 
     pub const fn as_str(self) -> &'static str {
         match self {
@@ -162,6 +162,35 @@ impl SkillCacheSyncState {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum MaintainedSkillAction {
+    Visibility,
+    Unpublish,
+    Delete,
+}
+
+impl MaintainedSkillAction {
+    pub const fn label(self) -> &'static str {
+        match self {
+            Self::Visibility => "设置可见范围",
+            Self::Unpublish => "下架技能",
+            Self::Delete => "删除技能",
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct MaintainedSkillActionState {
+    pub skill_id: u64,
+    pub name: String,
+    pub kind: MaintainedSkillAction,
+    pub all: bool,
+    pub department_ids: String,
+    pub user_ids: String,
+    pub pending: Option<u64>,
+    pub error: Option<super::SkillHubError>,
+}
+
 #[derive(Debug, Clone)]
 /// 专家中心全部页签、筛选器、请求代次与操作状态的聚合。
 pub struct ExpertHubState {
@@ -169,6 +198,16 @@ pub struct ExpertHubState {
     pub skill_tab: SkillTab,
     pub search_draft: String,
     pub submitted_search: String,
+    pub installed_search: String,
+    pub catalog_search_generation: u64,
+    pub market_source: Option<gateway_shiju_skill::ShijuSkillSource>,
+    pub featured_skills: Vec<super::MarketplaceSkill>,
+    pub featured_generation: u64,
+    pub featured_loading: bool,
+    pub market_loading_more: bool,
+    pub market_more_error: Option<super::SkillHubError>,
+    pub mine_page_size: u32,
+    pub maintained_action: Option<MaintainedSkillActionState>,
     pub market_tag_id: Option<u64>,
     pub market_company_tag_id: Option<u64>,
     pub system_filter: SkillListFilter,
@@ -294,6 +333,16 @@ impl ExpertHubState {
 
     /// 账号切换时清除账号范围数据并递增代次，使旧响应全部失效。
     pub fn clear_for_account(&mut self, account_id: Option<String>) {
+        self.installed_search.clear();
+        self.catalog_search_generation = self.catalog_search_generation.wrapping_add(1);
+        self.market_source = None;
+        self.featured_skills.clear();
+        self.featured_generation = self.featured_generation.wrapping_add(1);
+        self.featured_loading = false;
+        self.market_loading_more = false;
+        self.market_more_error = None;
+        self.mine_page_size = 20;
+        self.maintained_action = None;
         self.search_draft.clear();
         self.submitted_search.clear();
         self.market_tag_id = None;
@@ -440,6 +489,16 @@ impl Default for ExpertHubState {
             section: ExpertHubSection::default(),
             skill_tab: SkillTab::default(),
             search_draft: String::new(),
+            installed_search: String::new(),
+            catalog_search_generation: 0,
+            market_source: None,
+            featured_skills: Vec::new(),
+            featured_generation: 0,
+            featured_loading: false,
+            market_loading_more: false,
+            market_more_error: None,
+            mine_page_size: 20,
+            maintained_action: None,
             submitted_search: String::new(),
             market_tag_id: None,
             market_company_tag_id: None,

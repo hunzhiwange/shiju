@@ -4,7 +4,7 @@ use super::skill_gateway::*;
 use super::{Effect, HubPage, Message, SkillUpdate, ToastKind};
 use crate::skill_hub::{
     CursorPage, ExpertHubSection, InstalledSkill, LoadState, MarketplaceSkill, MineFilterMenu,
-    MineSkillStatus, PackageVersionCacheEntry, Page, PublicDetailMode, ShijuDirectInstallState,
+    MaintainedSkillAction, MaintainedSkillActionState, MineSkillStatus, PackageVersionCacheEntry, Page, PublicDetailMode, ShijuDirectInstallState,
     ShijuInstallationsReport, ShijuKeySyncOutcome, ShijuKeySyncReport, ShijuMultiInstallReport,
     ShijuPackageId, ShijuPackageRelease, ShijuUninstallReport, SkillActionKind,
     SkillCacheSyncReport, SkillDetail, SkillDetailState, SkillHubClient, SkillHubError,
@@ -30,6 +30,8 @@ mod business;
 mod guide;
 #[path = "skill_installation.rs"]
 mod installation;
+#[path = "skill_maintained.rs"]
+mod maintained;
 #[path = "skill_lists.rs"]
 mod lists;
 pub use business::dispatch_download_with;
@@ -57,7 +59,7 @@ pub use crate::skill_operations::*;
 
 #[path = "skill_message.rs"]
 mod skill_message;
-pub use skill_message::SkillHubMessage;
+pub use skill_message::{SkillCatalogMessage, SkillHubMessage};
 
 /// 归约技能中心消息，并用请求代次与账号 ID 屏蔽迟到的异步响应。
 pub fn update(app: &mut SkillUpdate<'_>, message: SkillHubMessage) -> Task<Message> {
@@ -245,7 +247,7 @@ pub fn update(app: &mut SkillUpdate<'_>, message: SkillHubMessage) -> Task<Messa
         }
         SkillHubMessage::SearchDraftChanged(query) => {
             app.expert_hub.search_draft = query;
-            Task::none()
+            defer_catalog_search(app, SkillTab::Marketplace)
         }
         SkillHubMessage::SearchSubmitted => {
             app.expert_hub.install_guide.close();
@@ -254,6 +256,7 @@ pub fn update(app: &mut SkillUpdate<'_>, message: SkillHubMessage) -> Task<Messa
             app.expert_hub.submitted_search = app.expert_hub.search_draft.trim().to_string();
             load_current_tab(app)
         }
+        SkillHubMessage::Catalog(message) => update_catalog(app, message),
         SkillHubMessage::MarketTagSelected(tag_id) => {
             if app.expert_hub.skill_tab != SkillTab::Marketplace {
                 return Task::none();
@@ -271,7 +274,10 @@ pub fn update(app: &mut SkillUpdate<'_>, message: SkillHubMessage) -> Task<Messa
         SkillHubMessage::FilterKeywordChanged(keyword) => {
             match app.expert_hub.skill_tab {
                 SkillTab::System => app.expert_hub.system_filter.keyword_draft = keyword,
-                SkillTab::Mine => app.expert_hub.mine_filter.keyword_draft = keyword,
+                SkillTab::Mine => {
+                    app.expert_hub.mine_filter.keyword_draft = keyword;
+                    return defer_catalog_search(app, SkillTab::Mine);
+                }
                 SkillTab::Marketplace | SkillTab::Installed | SkillTab::Install => {}
             }
             Task::none()
@@ -345,6 +351,7 @@ pub fn update(app: &mut SkillUpdate<'_>, message: SkillHubMessage) -> Task<Messa
         SkillHubMessage::FiltersReset => {
             match app.expert_hub.skill_tab {
                 SkillTab::Marketplace => {
+                    app.expert_hub.market_source = None;
                     app.expert_hub.search_draft.clear();
                     app.expert_hub.submitted_search.clear();
                     app.expert_hub.select_market_tag(None);
@@ -548,6 +555,11 @@ pub fn update(app: &mut SkillUpdate<'_>, message: SkillHubMessage) -> Task<Messa
         }
         SkillHubMessage::InstalledLoaded { generation, account_id, result } => {
             if installed_response_is_current(app, generation, &account_id) {
+                if let Ok(installed) = &result {
+                    for skill in &mut app.expert_hub.featured_skills {
+                        skill.is_installed = installed.iter().any(|item| item.skill_id == skill.id);
+                    }
+                }
                 app.expert_hub.installed =
                     result.map(LoadState::Loaded).unwrap_or_else(|error| LoadState::Error(error));
             }

@@ -31,6 +31,22 @@ pub(super) fn view<'a>(app: &WorkspaceInput<'a>) -> Element<'a, Message> {
     )
     .map(map)
 }
+pub(super) fn with_maintained_action<'a>(
+    app: &WorkspaceInput<'_>,
+    base: Element<'a, Message>,
+) -> Element<'a, Message> {
+    let input = views::ViewInput {
+        expert_hub: app.expert_hub,
+        desktop_locale: app.desktop_locale,
+        app_theme: app.app_theme,
+    };
+    let Some((close, card)) = domain::maintained_action_dialog(&input) else {
+        return base;
+    };
+    desktop_ui_controls::system_settings_common::settings_modal_overlay_with_escape(
+        base, map(close), card.map(map),
+    )
+}
 #[cfg(test)]
 pub(super) fn market_search_messages(value: String) -> (Message, Message) {
     {

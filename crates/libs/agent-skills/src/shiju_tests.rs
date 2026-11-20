@@ -176,6 +176,7 @@ async fn shiju_skill_adapter_maps_all_private_catalog_paths() {
         .search(
             &credential,
             &ShijuSkillSearchQuery {
+                distribution_source: Some(gateway_shiju_skill::ShijuSkillSource::Marketplace),
                 query: Some("视觉 & 分析".to_string()),
                 cursor: Some("cursor/next".to_string()),
                 page_size: 20,
@@ -224,8 +225,8 @@ async fn shiju_skill_adapter_maps_all_private_catalog_paths() {
     assert_eq!(detail.name, "视觉技能");
     let requests = requests.join().expect("join fixture");
     let expected = [
-        "GET /marketplace/skills?page_size=20&q=%E8%A7%86%E8%A7%89+%26+%E5%88%86%E6%9E%90&cursor=cursor%2Fnext&tag_ids=2&company_tag_ids=5 ",
-        "GET /me/skills ",
+        "GET /marketplace/skills?page_size=20&q=%E8%A7%86%E8%A7%89+%26+%E5%88%86%E6%9E%90&cursor=cursor%2Fnext&tag_ids=2&company_tag_ids=5&distribution_source=marketplace ",
+        "GET /me/skills?include_card_metadata=true ",
         "GET /tenant/system-skills?page=2&page_size=20&name=%E8%A7%86%E8%A7%89&tag_id=2 ",
         "GET /me/maintained-skills?page=4&page_size=20&keyword=%E4%B8%AA%E4%BA%BA&tag_ids=2%2C1&company_tag_ids=5&statuses=draft%2Cpending_review%2Cpublished%2Cunpublished ",
         "GET /skills/31 ",
@@ -294,6 +295,7 @@ async fn shiju_skill_adapter_uses_current_default_catalog_contracts() {
         .search(
             &credential,
             &ShijuSkillSearchQuery {
+                distribution_source: None,
                 query: None,
                 cursor: None,
                 page_size: 20,

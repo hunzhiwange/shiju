@@ -9,7 +9,7 @@ use super::{ViewInput, Message};
 use iced::widget::{button, column, row, text};
 use iced::{Alignment, Element};
 
-pub fn view<'a>(app: &ViewInput<'a>) -> Element<'a, Message> {
+pub fn view(app: &ViewInput<'_>) -> Element<'static, Message> {
     let i18n = desktop_i18n::I18n::new(app.desktop_locale);
     let state = &app.expert_hub;
     let busy = state.skill_operations_busy();

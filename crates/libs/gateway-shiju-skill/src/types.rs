@@ -18,6 +18,25 @@ pub struct ShijuSkillSearchQuery {
     pub page_size: u32,
     pub tag_ids: Option<u64>,
     pub company_tag_ids: Option<u64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub distribution_source: Option<ShijuSkillSource>,
+}
+
+/// Distribution channel used by Skill Hub for search and installation.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ShijuSkillSource {
+    Marketplace,
+    Tenant,
+}
+
+impl ShijuSkillSource {
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Marketplace => "marketplace",
+            Self::Tenant => "tenant",
+        }
+    }
 }
 
 /// Query for system skills visible to the active SHIJU account.
@@ -92,7 +111,7 @@ pub struct ShijuMarketplaceSkillDto {
     pub current_version_id: u64,
     #[serde(default)]
     pub created_at: String,
-    #[serde(default)]
+    #[serde(default, deserialize_with = "deserialize_string_or_default")]
     pub updated_at: String,
     #[serde(default)]
     pub deleted_at: Option<i64>,
@@ -100,6 +119,16 @@ pub struct ShijuMarketplaceSkillDto {
     pub is_installed: bool,
     #[serde(default, deserialize_with = "deserialize_vec_or_default")]
     pub tags: Vec<ShijuSkillTagDto>,
+    #[serde(default)]
+    pub icon_url: Option<String>,
+    #[serde(default)]
+    pub developer_display_name: Option<String>,
+    #[serde(default)]
+    pub distribution_source: Option<ShijuSkillSource>,
+    #[serde(default)]
+    pub marketplace_version: Option<String>,
+    #[serde(default, deserialize_with = "deserialize_vec_or_default")]
+    pub company_tags: Vec<ShijuSkillTagDto>,
 }
 
 /// Cursor page returned by the SHIJU private marketplace.
@@ -139,6 +168,16 @@ pub struct ShijuInstalledSkillDto {
     pub current_version: String,
     pub format: String,
     pub upgrade_available: bool,
+    #[serde(default)]
+    pub icon_url: Option<String>,
+    #[serde(default)]
+    pub developer_display_name: Option<String>,
+    #[serde(default)]
+    pub distribution_source: Option<ShijuSkillSource>,
+    #[serde(default)]
+    pub updated_at: Option<String>,
+    #[serde(default)]
+    pub force_upgrade_required: bool,
 }
 
 /// Tenant visibility scope returned with system and company skill rows.
@@ -152,7 +191,7 @@ pub struct ShijuSkillVisibilityScopeDto {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ShijuSkillVisibilityDto {
     pub effective_mode: String,
-    pub scope_row: ShijuSkillVisibilityScopeDto,
+    pub scope_row: Option<ShijuSkillVisibilityScopeDto>,
 }
 
 /// SHIJU system skill summary.
@@ -174,12 +213,16 @@ pub struct ShijuTenantSkillDto {
     pub slug: String,
     pub name: String,
     pub description: String,
+    #[serde(default)]
     pub status: String,
     #[serde(default)]
     pub is_all_company_accessible: u8,
     pub has_pending_review: bool,
     pub pending_review_version_id: Option<u64>,
+    #[serde(default, deserialize_with = "deserialize_vec_or_default")]
     pub tags: Vec<ShijuSkillTagDto>,
+    #[serde(default, deserialize_with = "deserialize_vec_or_default")]
+    pub company_tags: Vec<ShijuSkillTagDto>,
     pub tenant_visibility: Option<ShijuSkillVisibilityDto>,
 }
 

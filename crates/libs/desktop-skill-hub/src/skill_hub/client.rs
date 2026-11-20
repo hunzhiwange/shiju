@@ -1,9 +1,10 @@
 //! 封装带账号凭据的技能中心 HTTP 请求与响应错误。
 
-use super::models::{ShijuPackageId, ShijuPackageRelease};
+use super::models::{MarketplaceSkill, ShijuPackageId, ShijuPackageRelease};
+use gateway_shiju_skill::ShijuMarketplaceSkillDto;
 use desktop_account::SecretSkey;
-use reqwest::{StatusCode, Url};
-use serde::Deserialize;
+use reqwest::{Method, StatusCode, Url};
+use serde::{Deserialize, Serialize};
 use serde::de::DeserializeOwned;
 use std::error::Error;
 use std::fmt;
@@ -38,7 +39,10 @@ impl SkillHubClient {
         let base_url = Url::parse(base_url).map_err(|error| {
             SkillHubError::localized("技能中心地址无效: %s", vec![error.to_string()])
         })?;
-        let http = reqwest::Client::builder().timeout(Duration::from_secs(20)).build().map_err(
+        let builder = reqwest::Client::builder().timeout(Duration::from_secs(20));
+        #[cfg(not(target_arch = "wasm32"))]
+        let builder = builder.redirect(reqwest::redirect::Policy::none());
+        let http = builder.build().map_err(
             |error| SkillHubError::localized("无法创建技能中心客户端: %s", vec![error.to_string()]),
         )?;
         Ok(Self { http, base_url, credential })
@@ -52,22 +56,94 @@ impl SkillHubClient {
         self.get("skills/hub/latest", &[("package_id", package_id.as_str().to_string())]).await
     }
 
+    pub async fn recommendations(
+        &self,
+        exclude_ids: Vec<u64>,
+    ) -> Result<Vec<MarketplaceSkill>, SkillHubError> {
+        #[derive(Deserialize)]
+        struct Batch {
+            items: Vec<ShijuMarketplaceSkillDto>,
+        }
+
+        let mut query = vec![("limit", "4".into())];
+        if !exclude_ids.is_empty() {
+            let ids = exclude_ids.iter().map(u64::to_string).collect::<Vec<_>>().join(",");
+            query.push(("exclude_ids", ids));
+        }
+        let batch: Batch = self.get("skills/recommendations", &query).await?;
+        Ok(batch.items.into_iter().map(MarketplaceSkill::from).collect())
+    }
+
+    pub async fn mutate_maintained_skill(
+        &self,
+        id: u64,
+        action: super::MaintainedSkillAction,
+        all: bool,
+        department_ids: Vec<String>,
+        user_ids: Vec<String>,
+    ) -> Result<(), SkillHubError> {
+        #[derive(Serialize)]
+        struct Scope {
+            department_ids: Option<Vec<String>>,
+            user_ids: Option<Vec<String>>,
+        }
+        let path = format!("me/maintained-skills/{id}");
+        let data: serde_json::Value = match action {
+            super::MaintainedSkillAction::Visibility => self.request(
+                Method::PATCH,
+                &format!("{path}/visibility"),
+                &[],
+                Some(&Scope {
+                    department_ids: (!all).then_some(department_ids),
+                    user_ids: (!all).then_some(user_ids),
+                }),
+            ).await?,
+            super::MaintainedSkillAction::Unpublish => self.request(
+                Method::POST, &format!("{path}/unpublish"), &[], None::<&()>,
+            ).await?,
+            super::MaintainedSkillAction::Delete => self.request(
+                Method::DELETE, &path, &[], None::<&()>,
+            ).await?,
+        };
+        if action == super::MaintainedSkillAction::Delete
+            && data.get("deleted").and_then(serde_json::Value::as_bool) != Some(true)
+        {
+            return Err(SkillHubError::localized("技能删除未完成", vec![]));
+        }
+        Ok(())
+    }
+
     async fn get<T>(&self, path: &str, query: &[(&str, String)]) -> Result<T, SkillHubError>
     where
         T: DeserializeOwned,
     {
+        self.request(Method::GET, path, query, None::<&()>).await
+    }
+
+    async fn request<T, B>(
+        &self,
+        method: Method,
+        path: &str,
+        query: &[(&str, String)],
+        body: Option<&B>,
+    ) -> Result<T, SkillHubError>
+    where
+        T: DeserializeOwned,
+        B: Serialize,
+    {
         let url = self.base_url.join(path).map_err(|error| {
             SkillHubError::localized("技能中心请求地址无效: %s", vec![error.to_string()])
         })?;
-        let response = self
+        let request = self
             .http
-            .get(url)
+            .request(method, url)
             .header("X-Api-Key", self.credential.expose())
-            .query(query)
-            .send()
+            .query(query);
+        let request = if let Some(body) = body { request.json(body) } else { request };
+        let response = request.send()
             .await
             .map_err(|error| {
-                SkillHubError::localized("技能中心请求失败: %s", vec![error.to_string()])
+                SkillHubError::localized("技能中心请求失败: %s", vec![error.without_url().to_string()])
             })?;
         let status = response.status();
         if !status.is_success() {

@@ -20,6 +20,11 @@ fn app_with_skills() -> App {
     app.account.replace_repository(repository);
     app.expert_hub.account_id = app.account.active_account().map(|account| account.id().to_owned());
     app.expert_hub.installed = LoadState::Loaded(vec![InstalledSkill {
+        icon_url: None,
+        developer_display_name: None,
+        distribution_source: None,
+        updated_at: None,
+        force_upgrade_required: false,
         skill_id: 7,
         slug: "example".into(),
         name: "示例功能".into(),

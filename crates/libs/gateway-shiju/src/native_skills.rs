@@ -58,8 +58,9 @@ impl super::shiju_skills::ShijuSkillService for NativeSkillClient {
     }
     async fn remote_install(&self,
         credential: &ShijuCredential,
-        skill_id: u64) -> Result<(), ApiError> {
-        ShijuSkillClient::remote_install(&self.0, credential, skill_id).await.map_err(map_error)
+        skill_id: u64,
+        source: Option<ShijuSkillSource>) -> Result<(), ApiError> {
+        ShijuSkillClient::remote_install_from(&self.0, credential, skill_id, source).await.map_err(map_error)
     }
     async fn remote_install_version(&self,
         credential: &ShijuCredential,
@@ -69,8 +70,9 @@ impl super::shiju_skills::ShijuSkillService for NativeSkillClient {
     }
     async fn remote_uninstall(&self,
         credential: &ShijuCredential,
-        skill_id: u64) -> Result<(), ApiError> {
-        ShijuSkillClient::remote_uninstall(&self.0, credential, skill_id).await.map_err(map_error)
+        skill_id: u64,
+        source: Option<ShijuSkillSource>) -> Result<(), ApiError> {
+        ShijuSkillClient::remote_uninstall_from(&self.0, credential, skill_id, source).await.map_err(map_error)
     }
 }
 

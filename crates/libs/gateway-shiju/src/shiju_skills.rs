@@ -44,14 +44,21 @@ pub trait ShijuSkillService: Send + Sync + 'static {
         skill_id: u64) -> impl std::future::Future<Output = Result<Vec<ShijuSkillVersionDto>, ApiError>> + Send;
     fn remote_install(&self,
         credential: &ShijuCredential,
-        skill_id: u64) -> impl std::future::Future<Output = Result<(), ApiError>> + Send;
+        skill_id: u64,
+        source: Option<gateway_shiju_skill::ShijuSkillSource>) -> impl std::future::Future<Output = Result<(), ApiError>> + Send;
     fn remote_install_version(&self,
         credential: &ShijuCredential,
         skill_id: u64,
         version_id: u64) -> impl std::future::Future<Output = Result<(), ApiError>> + Send;
     fn remote_uninstall(&self,
         credential: &ShijuCredential,
-        skill_id: u64) -> impl std::future::Future<Output = Result<(), ApiError>> + Send;
+        skill_id: u64,
+        source: Option<gateway_shiju_skill::ShijuSkillSource>) -> impl std::future::Future<Output = Result<(), ApiError>> + Send;
+}
+
+#[derive(Deserialize)]
+struct DistributionParams {
+    distribution_source: Option<gateway_shiju_skill::ShijuSkillSource>,
 }
 
 #[derive(Deserialize)]
@@ -82,6 +89,7 @@ struct SearchParams {
     page_size: u32,
     tag_ids: Option<u64>,
     company_tag_ids: Option<u64>,
+    distribution_source: Option<gateway_shiju_skill::ShijuSkillSource>,
 }
 
 #[derive(Deserialize)]
@@ -114,6 +122,7 @@ async fn search_get<C: ShijuSkillService>(
         page_size: params.page_size,
         tag_ids: params.tag_ids,
         company_tag_ids: params.company_tag_ids,
+        distribution_source: params.distribution_source,
     };
     client.search(&credential, &query).await.map(Json)
 }
@@ -205,6 +214,7 @@ async fn install_post<C: ShijuSkillService>(
     Extension(client): Extension<Arc<C>>,
     headers: HeaderMap,
     Path(skill_id): Path<u64>,
+    Query(params): Query<DistributionParams>,
     body: Option<Json<InstallRequest>>,
 ) -> Result<(), ApiError> {
     let credential = credential(&headers)?;
@@ -212,7 +222,7 @@ async fn install_post<C: ShijuSkillService>(
         Some(Json(body)) => {
             client.remote_install_version(&credential, skill_id, body.version_id).await
         }
-        None => client.remote_install(&credential, skill_id).await,
+        None => client.remote_install(&credential, skill_id, params.distribution_source).await,
     }
 
 }
@@ -221,9 +231,10 @@ async fn install_delete<C: ShijuSkillService>(
     Extension(client): Extension<Arc<C>>,
     headers: HeaderMap,
     Path(skill_id): Path<u64>,
+    Query(params): Query<DistributionParams>,
 ) -> Result<(), ApiError> {
     let credential = credential(&headers)?;
-    client.remote_uninstall(&credential, skill_id).await
+    client.remote_uninstall(&credential, skill_id, params.distribution_source).await
 }
 
 fn credential(headers: &HeaderMap) -> Result<ShijuCredential, ApiError> {

@@ -66,6 +66,11 @@ fn repository_with_account(secret: &str, company_id: &str) -> AccountRepository 
 
 fn marketplace_skill(skill_id: u64, installed: bool) -> MarketplaceSkill {
     MarketplaceSkill {
+        icon_url: None,
+        developer_display_name: None,
+        distribution_source: None,
+        marketplace_version: None,
+        company_tags: Vec::new(),
         id: skill_id,
         slug: "safe-skill".to_string(),
         name: "安全技能".to_string(),
@@ -189,6 +194,11 @@ fn business_skill_quick_upgrade_resolves_version_id_and_rollback_requires_confir
     app.expert_hub.account_id =
         app.account.active_account().map(|account| account.id().to_string());
     app.expert_hub.installed = LoadState::Loaded(vec![InstalledSkill {
+        icon_url: None,
+        developer_display_name: None,
+        distribution_source: None,
+        updated_at: None,
+        force_upgrade_required: false,
         skill_id: 7,
         slug: "safe-skill".to_string(),
         name: "安全技能".to_string(),
@@ -308,7 +318,7 @@ fn mine_query_uses_only_submitted_multi_value_filters() {
     app.expert_hub.reset_mine_filters();
     let reset_query = mine_query(&app);
     assert!(reset_query.company_tag_ids.is_empty());
-    assert_eq!(reset_query.statuses, vec!["draft", "pending_review", "published"]);
+    assert_eq!(reset_query.statuses, vec!["draft", "pending_review", "published", "unpublished"]);
 }
 
 #[test]
@@ -847,6 +857,11 @@ mod upgrade_scenarios {
         app.expert_hub.account_id =
             app.account.active_account().map(|account| account.id().to_owned());
         app.expert_hub.installed = LoadState::Loaded(vec![InstalledSkill {
+            icon_url: None,
+            developer_display_name: None,
+            distribution_source: None,
+            updated_at: None,
+            force_upgrade_required: false,
             skill_id: 7,
             slug: "example".into(),
             name: "示例功能".into(),

@@ -163,7 +163,7 @@ pub fn mine_query(state: &crate::skill_hub::ExpertHubState) -> ShijuMaintainedSk
     let keyword = state.mine_filter.submitted_keyword.clone();
     ShijuMaintainedSkillQuery {
         page: state.mine_page,
-        page_size: SHIJU_PAGE_SIZE,
+        page_size: state.mine_page_size,
         keyword: (!keyword.is_empty()).then_some(keyword),
         tag_ids: state.submitted_mine_tag_ids.clone(),
         company_tag_ids: state.submitted_mine_company_tag_ids.clone(),
@@ -182,7 +182,8 @@ pub(super) fn load_current_tab(app: &mut SkillUpdate<'_>) -> Task<Message> {
     }
     if app.expert_hub.skill_tab == SkillTab::Marketplace {
         return Task::batch([
-            load_marketplace_skills(app),
+            load_marketplace_skills(app, None),
+            load_featured_skills(app, false),
             load_installed_skills(app, false),
             load_mine_tag_catalogs(app),
         ]);
@@ -322,7 +323,7 @@ pub(super) fn load_mine_tag_catalogs(app: &mut SkillUpdate<'_>) -> Task<Message>
     Task::batch([platform, company])
 }
 
-pub(super) fn load_marketplace_skills(app: &mut SkillUpdate<'_>) -> Task<Message> {
+pub(super) fn load_marketplace_skills(app: &mut SkillUpdate<'_>, cursor: Option<String>) -> Task<Message> {
     let gateway = app.gateway;
     let active = app
         .active_account
@@ -338,8 +339,14 @@ pub(super) fn load_marketplace_skills(app: &mut SkillUpdate<'_>) -> Task<Message
         app.clear_expert_hub_account(Some(account_id.clone()));
     }
     let generation = app.expert_hub.next_request_generation();
-    app.expert_hub.marketplace = LoadState::Loading { generation };
-    let query = marketplace_query(app.expert_hub);
+    let append = cursor.is_some();
+    app.expert_hub.market_loading_more = append;
+    app.expert_hub.market_more_error = None;
+    if !append {
+        app.expert_hub.marketplace = LoadState::Loading { generation };
+    }
+    let mut query = marketplace_query(app.expert_hub);
+    query.cursor = cursor;
     Task::perform(
         async move {
             let credential = credential
@@ -351,8 +358,34 @@ pub(super) fn load_marketplace_skills(app: &mut SkillUpdate<'_>) -> Task<Message
                 .map_err(SkillHubError::from)
         },
         move |result| {
-            Message::SkillHub(SkillHubMessage::MarketplaceLoaded { generation, account_id, result })
+            Message::SkillHub(if append {
+                SkillHubMessage::Catalog(SkillCatalogMessage::MarketplaceAppended { generation, account_id, result })
+            } else {
+                SkillHubMessage::MarketplaceLoaded { generation, account_id, result }
+            })
         },
+    )
+}
+
+pub(super) fn load_featured_skills(app: &mut SkillUpdate<'_>, refresh: bool) -> Task<Message> {
+    let state = &mut app.expert_hub;
+    if state.featured_loading || (!refresh && !state.featured_skills.is_empty()) {
+        return Task::none();
+    }
+    let Some(account) = app.active_account else {
+        return Task::none();
+    };
+    let account_id = account.id().to_string();
+    let credential = account.skill_hub_credential();
+    let exclude_ids = state.featured_skills.iter().map(|skill| skill.id).collect();
+    state.featured_generation = state.featured_generation.wrapping_add(1);
+    let generation = state.featured_generation;
+    state.featured_loading = true;
+    Task::perform(
+        async move { SkillHubClient::new(credential)?.recommendations(exclude_ids).await },
+        move |result| Message::SkillHub(SkillHubMessage::Catalog(SkillCatalogMessage::FeaturedLoaded {
+            generation, account_id, refresh, result,
+        })),
     )
 }
 
@@ -365,6 +398,7 @@ pub fn marketplace_query(state: &crate::skill_hub::ExpertHubState) -> ShijuSkill
         page_size: SHIJU_PAGE_SIZE,
         tag_ids: state.market_tag_id,
         company_tag_ids: state.market_company_tag_id,
+        distribution_source: state.market_source,
     }
 }
 
@@ -406,4 +440,150 @@ pub fn load_installed_skills(app: &mut SkillUpdate<'_>, force: bool) -> Task<Mes
             Message::SkillHub(SkillHubMessage::InstalledLoaded { generation, account_id, result })
         },
     )
+}
+
+pub(super) fn defer_catalog_search(app: &mut SkillUpdate<'_>, tab: SkillTab) -> Task<Message> {
+    let state = &mut app.expert_hub;
+    state.catalog_search_generation = state.catalog_search_generation.wrapping_add(1);
+    let generation = state.catalog_search_generation;
+    Task::perform(
+        async { tokio::time::sleep(Duration::from_millis(300)).await },
+        move |()| Message::SkillHub(SkillHubMessage::Catalog(SkillCatalogMessage::SearchReady {
+            tab, generation,
+        })),
+    )
+}
+
+pub(super) fn update_catalog(app: &mut SkillUpdate<'_>, message: SkillCatalogMessage) -> Task<Message> {
+    match message {
+        SkillCatalogMessage::SearchReady { tab, generation } => {
+            let state = &app.expert_hub;
+            if app.screen != HubPage::ShijuSkills || state.skill_tab != tab
+                || state.catalog_search_generation != generation
+            {
+                return Task::none();
+            }
+            match tab {
+                SkillTab::Marketplace if state.search_draft.trim() != state.submitted_search => {
+                    update(app, SkillHubMessage::SearchSubmitted)
+                }
+                SkillTab::Mine if state.mine_filter.keyword_draft.trim()
+                    != state.mine_filter.submitted_keyword =>
+                {
+                    app.expert_hub.mine_filter.submit();
+                    app.expert_hub.mine_page = 1;
+                    load_current_tab(app)
+                }
+                _ => Task::none(),
+            }
+        }
+        SkillCatalogMessage::InstalledSearchChanged(value) => {
+            app.expert_hub.installed_search = value;
+            Task::none()
+        }
+        SkillCatalogMessage::MarketSourceSelected(source) => {
+            if app.expert_hub.skill_tab != SkillTab::Marketplace {
+                return Task::none();
+            }
+            app.expert_hub.market_source = source;
+            load_marketplace_skills(app, None)
+        }
+        SkillCatalogMessage::RefreshFeatured => load_featured_skills(app, true),
+        SkillCatalogMessage::LoadMoreMarketplace => {
+            let state = &app.expert_hub;
+            if state.skill_tab != SkillTab::Marketplace || state.market_loading_more {
+                return Task::none();
+            }
+            let LoadState::Loaded(page) = &state.marketplace else {
+                return Task::none();
+            };
+            match page.next_cursor.clone().filter(|_| page.has_more) {
+                Some(cursor) => load_marketplace_skills(app, Some(cursor)),
+                None => Task::none(),
+            }
+        }
+        SkillCatalogMessage::EditMaintainedSkill(id) => maintained::edit(app, id),
+        SkillCatalogMessage::OpenMaintainedSkillAction(id, kind) => maintained::open(app, id, kind),
+        SkillCatalogMessage::CloseMaintainedSkillAction => maintained::close(app),
+        SkillCatalogMessage::MaintainedVisibilityAllChanged(value) => {
+            maintained::change(app, |state| state.all = value)
+        }
+        SkillCatalogMessage::MaintainedVisibilityDepartmentsChanged(value) => {
+            maintained::change(app, |state| state.department_ids = value)
+        }
+        SkillCatalogMessage::MaintainedVisibilityUsersChanged(value) => {
+            maintained::change(app, |state| state.user_ids = value)
+        }
+        SkillCatalogMessage::ConfirmMaintainedSkillAction => maintained::submit(app),
+        SkillCatalogMessage::MaintainedSkillActionFinished { generation, account_id, skill_id, result } => {
+            maintained::finish(app, generation, &account_id, skill_id, result)
+        }
+        SkillCatalogMessage::MarketCategoriesReset => {
+            if app.expert_hub.skill_tab != SkillTab::Marketplace {
+                return Task::none();
+            }
+            app.expert_hub.select_market_tag(None);
+            app.expert_hub.select_market_company_tag(None);
+            load_marketplace_skills(app, None)
+        }
+        SkillCatalogMessage::MineStatusSelected(status) => {
+            if app.expert_hub.skill_tab != SkillTab::Mine {
+                return Task::none();
+            }
+            app.expert_hub.mine_statuses_draft =
+                status.map(|status| vec![status]).unwrap_or_else(|| MineSkillStatus::ALL.to_vec());
+            app.expert_hub.submit_mine_filters();
+            app.expert_hub.mine_page = 1;
+            load_current_tab(app)
+        }
+        SkillCatalogMessage::MinePageSizeSelected(size) => {
+            if app.expert_hub.skill_tab != SkillTab::Mine
+                || !matches!(size, 10 | 20 | 50 | 100)
+                || app.expert_hub.mine_page_size == size
+            {
+                return Task::none();
+            }
+            app.expert_hub.mine_page_size = size;
+            app.expert_hub.mine_page = 1;
+            load_current_tab(app)
+        }
+        SkillCatalogMessage::FeaturedLoaded { generation, account_id, refresh, result } => {
+            let state = &mut app.expert_hub;
+            if state.featured_generation != generation
+                || state.account_id.as_deref() != Some(account_id.as_str())
+            {
+                return Task::none();
+            }
+            state.featured_loading = false;
+            match result {
+                Ok(items) if !items.is_empty() => {
+                    state.featured_skills = items;
+                }
+                Ok(_) if refresh => return app.feedback(ToastKind::Info,
+                    desktop_i18n::format::Message::new("暂无更多精选技能", vec![])),
+
+                Err(error) if refresh => return app.feedback(ToastKind::Error, error.message()),
+                _ => {}
+            }
+            Task::none()
+        }
+        SkillCatalogMessage::MarketplaceAppended { generation, account_id, result } => {
+            if response_is_current(app, generation, &account_id) {
+                app.expert_hub.market_loading_more = false;
+                match result {
+                    Ok(next) => {
+                        if let LoadState::Loaded(page) = &mut app.expert_hub.marketplace {
+                            let mut known: std::collections::HashSet<_> =
+                                page.items.iter().map(|item| item.id).collect();
+                            page.items.extend(next.items.into_iter().filter(|item| known.insert(item.id)));
+                            page.has_more = next.has_more && next.next_cursor != page.next_cursor;
+                            page.next_cursor = next.next_cursor;
+                        }
+                    }
+                    Err(error) => app.expert_hub.market_more_error = Some(error),
+                }
+            }
+            Task::none()
+        }
+    }
 }

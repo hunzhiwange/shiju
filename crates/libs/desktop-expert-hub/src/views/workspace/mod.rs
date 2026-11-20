@@ -61,6 +61,7 @@ pub fn view<'a>(app: &WorkspaceInput<'a>) -> Element<'a, Message> {
 pub fn shiju_skills_view<'a>(app: &WorkspaceInput<'a>) -> Element<'a, Message> {
     let body = if app.expert_hub.detail.is_some() { detail::view(app) } else { list::view(app) };
     let base = crate::views::shell::view(section_tabs(app), body);
+    let base = list::with_maintained_action(app, base);
     install_guide::with_uninstall_confirmation(app, base)
 }
 

@@ -10,8 +10,8 @@ use iced::Theme;
 use iced::widget::{button, text_input};
 
 #[test]
-fn shiju_install_is_the_last_skill_tab() {
-    assert_eq!(skill_tab_specs().last(), Some(&("安装识矩技能", SkillTab::Install)));
+fn shiju_install_is_a_marketplace_action() {
+    assert!(!skill_tab_specs().iter().any(|(_, tab)| *tab == SkillTab::Install));
 }
 
 #[test]

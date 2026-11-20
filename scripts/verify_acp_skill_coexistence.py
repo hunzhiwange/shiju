@@ -34,6 +34,7 @@ AGENTS += ("harn",)
 AGENTS += ("poolside",)
 AGENTS += ("mimo-code",)
 AGENTS += ("nova",)
+AGENTS += ("vtcode",)
 PHASES = ("baseline", "mounted", "removed", "rejected")
 
 

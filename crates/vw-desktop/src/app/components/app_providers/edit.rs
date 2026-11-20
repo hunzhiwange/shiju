@@ -32,9 +32,9 @@ pub(super) fn render_help<'a>(title: &'a str, body: std::borrow::Cow<'a,str>, co
         _ => desktop_provider_apps::Message::None,
     })
 }
-pub(super) fn overlay_with_binding<'a>(form:&'a EditForm,help:Help<'_>,base:Element<'a,Message>,binding:Option<Message>)->Element<'a,Message>{
+pub(super) fn overlay_with_binding<'a>(form:&'a EditForm,help:Help<'_>,base:Element<'a,Message>,binding:Option<Message>, current: bool)->Element<'a,Message>{
     let diagnostics=crate::app::message::agent_apps_diagnostics::endpoint_state::editable(form);
-    let card=desktop_provider_apps::components::edit::card(form,help.provider_help(),binding.is_some(),diagnostics).map(move |event| match event {
+    let card=desktop_provider_apps::components::edit::card_with_selection(form,help.provider_help(),binding.is_some(),diagnostics,current).map(move |event| match event {
         desktop_provider_apps::Message::Binding=>binding.clone().unwrap_or(Message::None),
         event=>map(event),
     });

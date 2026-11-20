@@ -54,10 +54,11 @@ pub(super) fn modal_view<'a, M: Clone + 'static>(
     };
     let close_button =
         if saving { Space::new().into() } else { settings_close_button(close.clone()) };
-    let header = settings_modal_header(
-        settings_page_heading("原生额度查询设置", "为当前供应商选择查询类型、自动刷新和显示方式。"),
-        close_button,
-    );
+    let header = column![
+        settings_modal_header(text("配置用量查询").size(20), close_button),
+        settings_divider(),
+    ]
+    .spacing(12);
     let footer = row![
         button(text("试运行脚本")).padding([8, 14]).style(rounded_action_btn_style).on_press_maybe(
             (!saving && !matches!(phase, Phase::Loading)).then(|| send(Event::OpenScript)),
@@ -74,6 +75,7 @@ pub(super) fn modal_view<'a, M: Clone + 'static>(
     ]
     .spacing(10)
     .align_y(Alignment::Center);
+    let footer = column![settings_divider(), footer].spacing(12);
     let card = settings_modal_layout(header, content, Some(footer.into()))
         .width(Length::Fill)
         .max_width(560)
@@ -91,7 +93,7 @@ fn fields(draft: &Draft, saving: bool) -> iced::widget::Column<'_, Message> {
         }
         column![settings_field_label(label), input].spacing(6)
     };
-    let mut enabled = checkbox(draft.enabled).label("启用额度查询").style(settings_checkbox_style);
+    let mut enabled = settings_toggle(draft.enabled).label("启用额度查询");
     let mut display = checkbox(draft.display == AppsUsageDisplay::Used)
         .label("显示已用额度")
         .style(settings_checkbox_style);
@@ -100,6 +102,7 @@ fn fields(draft: &Draft, saving: bool) -> iced::widget::Column<'_, Message> {
         display = display.on_toggle(|value| send(Event::DisplayUsed(value)));
     }
     let mut fields = column![
+        settings_panel(enabled),
         column![
             settings_field_label("查询类型"),
             settings_select(
@@ -118,7 +121,6 @@ fn fields(draft: &Draft, saving: bool) -> iced::widget::Column<'_, Message> {
             .width(Length::Fill),
         ]
         .spacing(6),
-        enabled,
     ]
     .spacing(12);
     match draft.kind {

@@ -15,6 +15,15 @@ impl std::fmt::Display for DeviceSyncMethod {
     }
 }
 
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum AgentWorkspaceTab {
+    #[default]
+    Direct,
+    Routing,
+    Aggregation,
+    Configuration,
+}
+
 #[derive(Clone)]
 pub struct AppsCatalogState<
     DeviceSyncWebdav,
@@ -72,6 +81,8 @@ pub struct AppsCatalogState<
     pub lifecycle: Lifecycle,
     pub model_diagnostics: crate::diagnostics::model_state::ModelState,
     pub high_availability: crate::agent_apps_high_availability_policy::State,
+    pub agent_workspace_tab: AgentWorkspaceTab,
+    pub agent_provider_search_open: bool,
     pub third_party_page: desktop_ui_controls::settings_navigation::ThirdPartyPage,
     pub navigation_generation: u64,
     pub third_party_skills: ThirdPartySkills,
@@ -237,6 +248,8 @@ impl<
         lifecycle: Default::default(),
         model_diagnostics: Default::default(),
         high_availability: Default::default(),
+        agent_workspace_tab: Default::default(),
+        agent_provider_search_open: false,
         third_party_page: Default::default(),
         navigation_generation: 0,
         third_party_skills: Default::default(),

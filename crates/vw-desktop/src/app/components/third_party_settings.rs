@@ -7,7 +7,7 @@ pub(crate) mod mcp_workspace;
 mod settings_page;
 use super::system_settings_common::{
     icon_btn, icon_svg, rounded_action_btn_style, settings_divider, settings_muted_text_style,
-    settings_page_heading,
+    settings_page_heading, settings_tab_button, settings_tab_row,
 };
 use crate::app::{
     App, Message,
@@ -128,28 +128,238 @@ fn agent_workspace(app: &App) -> Element<'_, Message> {
     let projection = system_settings_apps::view_state(state);
     let selected = state.rows.iter().find(|row| Some(row.entry.id) == state.expanded);
     let (header, body) = if let Some(agent) = selected {
-        let header = iced::widget::responsive(move |size| {
-            let identity =
-                row![list::brand_icon(agent.entry.id, 24.0), text(&agent.entry.name).size(22),]
+        use super::app_routing::lifecycle as routing;
+        use super::system_settings_common::{settings_panel, settings_value_badge};
+        use crate::app::message::settings::aggregation_list;
+        use desktop_apps_ui::catalog_state::AgentWorkspaceTab as Tab;
+        use desktop_settings_apps::system_settings_apps::Action;
+
+        let id = agent.entry.id;
+        let tab = state.agent_workspace_tab;
+        let configuration = tab == Tab::Configuration;
+        let aggregation = app.app_providers.aggregation.as_ref();
+        use vw_api_app_aggregation::AggregationMode;
+        let aggregation_mode =
+            aggregation.and_then(|form| form.snapshot.as_ref()).map(|snapshot| snapshot.state.mode);
+        let routing_attached =
+            routing::attached_apps(state).is_some_and(|(apps, _)| apps.contains(&id));
+        let intercepted = routing_attached
+            || aggregation_mode.is_some_and(|mode| mode != AggregationMode::Direct);
+        let title = || {
+            let mut title = row![list::brand_icon(id, 22.0), text(&agent.entry.name).size(21)]
+                .spacing(10)
+                .align_y(Alignment::Center);
+            if let Some(snapshot) =
+                app.app_providers.snapshot.as_ref().filter(|_| has_inline_providers(app))
+            {
+                use vw_api_app_provider_edit::catalog::ProviderSelection;
+                if let ProviderSelection::Selected { id } = &snapshot.catalog.in_use {
+                    let label = snapshot
+                        .catalog
+                        .rows
+                        .iter()
+                        .find(|row| row.provider.id == *id)
+                        .map_or(id.as_str(), |row| row.provider.name.as_str());
+                    let mode = match aggregation_mode {
+                        Some(AggregationMode::Aggregation) => "聚合",
+                        Some(AggregationMode::Routing) => "路由",
+                        _ if routing_attached => "路由",
+                        Some(AggregationMode::Direct) => "直连",
+                        None => "当前",
+                    };
+                    title = title.push(settings_value_badge(format!("{mode} · {label}")));
+                }
+            }
+            title.wrap()
+        };
+        let select = |target| message(AppsCatalogMessage::AgentWorkspaceTab(target));
+        let tabs = || {
+            use desktop_ui_controls::system_settings_common::help::settings_hover_help_label;
+            let modes: [(Tab, &str, bool); 3] = [
+                (Tab::Direct, "直连", true),
+                (Tab::Routing, "路由", routing::ROUTING_APPS.contains(&id)),
+                (Tab::Aggregation, "聚合", aggregation_list::supported(id)),
+            ];
+            let buttons = settings_tab_row(
+                modes.into_iter().filter(|(_, _, supported)| *supported).map(|(target, label)| {
+                    settings_tab_button(
+                        label,
+                        tab == target,
+                        (tab != target).then(|| select(target)),
+                    )
+                    .into()
+                }),
+            )
+            .spacing(2);
+            let segmented = container(buttons).padding(3).style(settings_content_panel_style);
+            let help = settings_hover_help_label(
+                text("").size(1),
+                column![
+                    text("连接模式").size(14),
+                    text("直连 · 智能体直接连接供应商。").size(13),
+                    text("路由 · 请求由路由服务转发，可配置备用队列。").size(13),
+                    text("聚合 · 将已添加供应商的模型发布到客户端目录。").size(13),
+                ]
+                .spacing(6)
+                .into(),
+            );
+            row![segmented, help].spacing(6).align_y(Alignment::Center).wrap()
+        };
+        if !configuration && has_inline_providers(app) {
+            let lead = match tab {
+                Tab::Routing => Some(
+                    column![
+                        routing::view(state),
+                        settings_panel(
+                            row![
+                        super::app_routing::config::timeout_button(id),
+                        super::app_routing::outbound::entry(id),
+                        super::app_routing::requests::entry(id),
+                        button(text("备用队列").size(13)).padding([8, 12])
+                            .style(rounded_action_btn_style)
+                            .on_press(super::app_providers::list::map(
+                                desktop_provider_apps::components::list::ListMessage::Failover)),
+                    ]
+                            .spacing(8)
+                            .wrap()
+                        ),
+                    ]
                     .spacing(10)
-                    .align_y(Alignment::Center);
-            let actions = details::actions(
-                &system_settings_apps::view_state(state),
+                    .into(),
+                ),
+                Tab::Aggregation => Some(match aggregation {
+                    Some(form) => desktop_apps_ui::aggregation::list_view::page(
+                        form,
+                        &app.app_providers.query,
+                    )
+                    .map(aggregation_list::message),
+                    None if app.app_providers.loading => text("正在读取供应商…").into(),
+                    None => settings_panel(
+                        button(text("读取聚合目录").size(13))
+                            .padding([8, 12])
+                            .style(rounded_action_btn_style)
+                            .on_press(aggregation_list::message(aggregation_list::Event::Open)),
+                    )
+                    .into(),
+                }),
+                Tab::Direct if intercepted => {
+                    let can_preview_exit =
+                        aggregation_mode.is_some_and(|mode| mode != AggregationMode::Direct);
+                    let next = if can_preview_exit {
+                        aggregation_list::message(aggregation_list::Event::Publish(
+                            aggregation_list::publish::Event::OpenExit,
+                        ))
+                    } else {
+                        select(Tab::Routing)
+                    };
+                    Some(
+                        settings_panel(
+                            row![
+                                text("当前连接仍由路由或聚合服务管理").size(13).width(Length::Fill),
+                                button(
+                                    text(if can_preview_exit {
+                                        "预览恢复直连"
+                                    } else {
+                                        "查看路由"
+                                    })
+                                    .size(13)
+                                )
+                                .padding([8, 12])
+                                .style(rounded_action_btn_style)
+                                .on_press(next),
+                            ]
+                            .spacing(8)
+                            .align_y(Alignment::Center),
+                        )
+                        .into(),
+                    )
+                }
+                _ => None,
+            };
+            let mut tools = vec![
+                ("查看会话", message(AppsCatalogMessage::Navigate(ThirdPartyPage::Sessions))),
+                (
+                    "配置目录",
+                    message(AppsCatalogMessage::Navigate(ThirdPartyPage::Settings(
+                        ThirdPartySettingsTab::Applications,
+                    ))),
+                ),
+                ("安装与升级", select(Tab::Configuration)),
+                ("侧栏应用设置", system_settings_apps::domain_event(Action::PreferencesOpen)),
+            ];
+            #[cfg(not(target_arch = "wasm32"))]
+            tools.insert(
+                1,
+                ("查看用量", message(AppsCatalogMessage::Navigate(ThirdPartyPage::Usage))),
+            );
+            let can_launch =
+                desktop_settings_apps::system_settings_apps::presentation::preferred(agent)
+                    .is_some_and(|installation| {
+                        matches!(
+                            installation.runtime_status,
+                            vw_api_app_identity::AppInstallationRuntimeStatus::Runnable
+                        )
+                    });
+            let page = super::app_providers::list::page(
+                &app.app_providers,
+                provider_help(app),
+                id,
+                title().into(),
+                desktop_provider_apps::components::list::Page {
+                    tabs: tabs().into(),
+                    lead,
+                    replace_rows: tab == Tab::Aggregation,
+                    can_launch,
+                    can_switch: tab == Tab::Direct && !intercepted,
+                    tools,
+                    search: Some((
+                        state.agent_provider_search_open || !app.app_providers.query.is_empty(),
+                        message(AppsCatalogMessage::ToggleAgentProviderSearch),
+                    )),
+                },
+            );
+            return container(keyed_column([(id, page)]).height(Length::Fill))
+                .padding([16, 18])
+                .width(Length::Fill)
+                .height(Length::Fill)
+                .into();
+        }
+        if !configuration {
+            use crate::app::message::app_providers::list::{self as providers, ListMessage};
+            let empty = column![
+                text("供应商列表尚未加载").size(15),
+                button(text("加载供应商").size(13))
+                    .padding([8, 12])
+                    .style(rounded_action_btn_style)
+                    .on_press(providers::message(ListMessage::Open(agent.entry.id))),
+            ]
+            .spacing(10);
+            (column![title(), tabs()].spacing(12).into(), empty.into())
+        } else {
+            let actions = details::workspace_actions(
+                &projection,
                 agent,
                 system_settings_apps::local::available(),
                 system_settings_apps::domain_event,
             );
-            if size.width >= 620.0 {
-                row![container(identity).width(Length::Fill), actions]
-                    .spacing(12)
-                    .align_y(Alignment::Center)
-                    .into()
-            } else {
-                column![identity, actions].spacing(10).into()
-            }
-        })
-        .height(Length::Shrink);
-        (Element::from(header), system_settings_apps::details::view(state, agent))
+            (
+                column![
+                    title(),
+                    row![
+                        button(text("返回供应商").size(13))
+                            .padding([8, 12])
+                            .style(rounded_action_btn_style)
+                            .on_press(select(Tab::Direct)),
+                        actions,
+                    ]
+                    .spacing(8)
+                    .wrap()
+                ]
+                .spacing(12)
+                .into(),
+                system_settings_apps::details::view(state, agent),
+            )
+        }
     } else {
         let mut choices = column![].width(Length::Fill).spacing(8);
         let visible = preferences::visible_rows(&projection);
@@ -386,10 +596,20 @@ pub(crate) fn navigate(app: &mut App, page: ThirdPartyPage) -> Task<Message> {
     if app.usage_center.open {
         app.usage_center.close();
     }
+    let provider_scope = if page == ThirdPartyPage::Usage && has_inline_providers(app) {
+        app.app_providers.scope.take()
+    } else {
+        None
+    };
     invalidate(app);
+    if provider_scope.is_some() {
+        app.app_providers.scope = provider_scope;
+        app.app_providers.aggregation = None;
+    }
     app.apps_catalog.third_party_page = page;
     use crate::app::message::settings;
     match page {
+        ThirdPartyPage::Agents => ensure_agent_providers(app),
         ThirdPartyPage::AppsCatalog => settings::apps_catalog::update(app, AppsCatalogMessage::EnsureLoaded),
         ThirdPartyPage::Prompts => settings::apps_catalog::update(app, AppsCatalogMessage::EnsureLoaded),
         ThirdPartyPage::Settings(tab) => {
@@ -474,6 +694,8 @@ pub(crate) fn invalidate(app: &mut App) {
     skills.backups.open = false;
     let s = &mut app.apps_catalog;
     s.navigation_generation = s.navigation_generation.wrapping_add(1);
+    s.agent_workspace_tab = Default::default();
+    s.agent_provider_search_open = false;
     s.third_party_mcp_scope = None;
     app.mcp_settings.bindings.matrix.column_menu = None;
     s.third_party_skills.sync(None, s.generation);
@@ -726,13 +948,12 @@ pub(crate) fn standalone(app: &App) -> Element<'_, Message> {
         &app.appearance.app_theme,
         base,
     );
-    let provider_help = super::app_providers::list::Help::new(
-        crate::app::i18n::I18n::new(app.general_settings.desktop_locale),
-        &app.appearance.app_theme,
+    base = super::app_providers::list::overlay_with_list(
+        &app.app_providers,
+        provider_help(app),
+        base,
+        !has_inline_providers(app) && app.apps_catalog.third_party_page != ThirdPartyPage::Usage,
     );
-    #[cfg(not(target_arch = "wasm32"))]
-    let provider_help = provider_help.with_usage(app);
-    base = super::app_providers::list::overlay(&app.app_providers, provider_help, base);
     if crate::app::message::agent_apps_high_availability::can_show(app) {
         base =
             super::agent_apps_high_availability::queue::overlay(&app.app_providers.failover, base);
@@ -752,6 +973,43 @@ pub(crate) fn standalone(app: &App) -> Element<'_, Message> {
         base = super::system_settings_auth::overlay(&app.agent_apps_auth, base);
     }
     base
+}
+
+fn provider_help(app: &App) -> super::app_providers::list::Help<'_> {
+    let help = super::app_providers::list::Help::new(
+        crate::app::i18n::I18n::new(app.general_settings.desktop_locale),
+        &app.appearance.app_theme,
+    );
+    #[cfg(not(target_arch = "wasm32"))]
+    let help = help.with_usage(app);
+    help
+}
+
+fn has_inline_providers(app: &App) -> bool {
+    app.apps_catalog.third_party_page == ThirdPartyPage::Agents
+        && app.app_providers.scope.as_ref().is_some_and(|scope| {
+            Some(scope.app) == app.apps_catalog.expanded
+                && scope.host == app.apps_catalog.host
+                && app.apps_catalog.context.as_ref() == Some(&scope.context)
+        })
+}
+
+pub(crate) fn ensure_agent_providers(app: &mut App) -> Task<Message> {
+    if !is_visible(app)
+        || app.apps_catalog.third_party_page != ThirdPartyPage::Agents
+        || has_inline_providers(app)
+    {
+        return Task::none();
+    }
+    let Some(id) = app
+        .apps_catalog
+        .expanded
+        .filter(|id| app.apps_catalog.rows.iter().any(|row| row.entry.id == *id))
+    else {
+        return Task::none();
+    };
+    use crate::app::message::app_providers::list::{self, ListMessage};
+    list::update(app, ListMessage::Open(id))
 }
 
 /// Whether third-party resource operations currently belong to the visible page.

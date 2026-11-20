@@ -3,20 +3,74 @@ use super::list::{Action, Event, Form};
 type Message = Event;
 fn message(event: Event) -> Event { event }
 use iced::{
-    Element,
+    Alignment, Element, Length,
     widget::{button, column, container, row, text},
 };
 
 pub fn overlay<'a>(form: &'a Form, base: Element<'a, Message>) -> Element<'a, Message> {
-    if let Some(session) = &form.clients {
-        return iced::widget::stack![base, super::clients_view::overlay(session, iced::widget::Space::new().into()).map(Event::Clients)].into();
-    }
-    if let Some(session) = &form.publish {
-        return iced::widget::stack![base, super::publish_view::overlay(session, iced::widget::Space::new().into()).map(Event::Publish)].into();
+    if form.clients.is_some() || form.publish.is_some() {
+        return iced::widget::stack![settings_inactive_view(base), dialogs(form)].into();
     }
     let close = message(Event::Close);
-    let header =
-        settings_modal_header(text("聚合目录").size(20), settings_close_button(close.clone()));
+    let header = column![
+        settings_modal_header(text("聚合目录").size(20), settings_close_button(close.clone())),
+        settings_divider(),
+    ]
+    .spacing(12);
+    let footer =
+        column![settings_divider(), container(actions(form)).align_right(Length::Fill)].spacing(12);
+    let card = settings_modal_layout(header, sections(form, "", false), Some(footer.into()))
+        .width(760)
+        .height(620);
+    settings_modal_overlay(Some(base), close, container(card).padding(12))
+}
+
+pub fn dialogs(form: &Form) -> Element<'_, Event> {
+    if let Some(session) = &form.clients {
+        return super::clients_view::overlay(session, iced::widget::Space::new().into())
+            .map(Event::Clients);
+    }
+    if let Some(session) = &form.publish {
+        return super::publish_view::overlay(session, iced::widget::Space::new().into())
+            .map(Event::Publish);
+    }
+    iced::widget::Space::new().into()
+}
+
+pub fn page<'a>(form: &'a Form, query: &str) -> Element<'a, Event> {
+    sections(form, query, true)
+}
+
+fn actions(form: &Form) -> Element<'_, Event> {
+    row![
+        button(text("预览发布")).padding([8, 14]).style(primary_action_btn_style).on_press_maybe(
+            (!form.loading && form.snapshot.is_some())
+                .then(|| message(Event::Publish(super::publish::Event::Open)))
+        ),
+        button(text("回到直连")).padding([8, 14]).style(rounded_action_btn_style).on_press_maybe(
+            (!form.loading
+                && form.snapshot.as_ref().is_some_and(
+                    |s| s.state.mode != vw_api_app_aggregation::AggregationMode::Direct
+                ))
+            .then(|| message(Event::Publish(super::publish::Event::OpenExit)))
+        ),
+        button(text("刷新"))
+            .padding([8, 14])
+            .style(rounded_action_btn_style)
+            .on_press_maybe((!form.loading).then(|| message(Event::Refresh))),
+    ]
+    .spacing(8)
+    .wrap()
+    .into()
+}
+
+fn sections<'a>(form: &'a Form, query: &str, inline: bool) -> Element<'a, Event> {
+    let query = query.trim().to_lowercase();
+    let matches = |name: &str, id: &str| {
+        query.is_empty()
+            || name.to_lowercase().contains(&query)
+            || id.to_lowercase().contains(&query)
+    };
     let mut body = column![].spacing(12);
     if form.selection.scope.app == vw_api_app_identity::AppId::Codex {
         body = body.push(
@@ -63,21 +117,46 @@ use vw_api_app_aggregation::RecoveryState;
                     .unwrap_or(id)
             })
             .unwrap_or("未设置");
-        body = body.push(settings_panel(
-            column![
-                text(format!("默认供应商：{default}")),
-                text(format!(
-                    "模式：{mode} · {} · {recovery}",
-                    if state.attached { "目录已发布" } else { "目录未发布" }
-                ))
-            ]
-            .spacing(8),
-        ));
-        body = body.push(settings_field_label("已添加"));
-        if state.members.is_empty() {
-            body = body.push(text("尚无聚合成员").style(settings_muted_text_style));
+        let summary = column![
+            text(format!("当前连接 · {mode}")).size(15),
+            text(format!(
+                "{} · {recovery}",
+                if state.attached { "目录已发布" } else { "目录未发布" }
+            ))
+            .size(12)
+            .style(settings_muted_text_style),
+        ]
+        .spacing(5)
+        .width(Length::Fill);
+        let mut status = row![summary].spacing(10).align_y(Alignment::Center);
+        if inline {
+            status = status.push(actions(form));
         }
-        for member in &state.members {
+        body = body.push(settings_panel(status));
+        body = body.push(settings_panel(
+            column![settings_field_label("默认供应商"), text(default).size(15),].spacing(5),
+        ));
+        let added = state
+            .members
+            .iter()
+            .filter(|member| {
+                state.default_provider_id.as_deref() != Some(member.provider_id.as_str())
+                    && matches(&member.name, &member.provider_id)
+            })
+            .collect::<Vec<_>>();
+        body = body.push(text(format!("已添加 · {}", added.len())).size(14));
+        if added.is_empty() {
+            body = body.push(settings_panel(
+                text(if query.is_empty() {
+                    "尚无其他聚合成员"
+                } else {
+                    "没有匹配的聚合成员"
+                })
+                .size(13)
+                .style(settings_muted_text_style),
+            ));
+        }
+        for member in added {
             let role = if state.default_provider_id.as_deref() == Some(&member.provider_id) {
                 "默认 · 已添加"
             } else {
@@ -89,9 +168,13 @@ use vw_api_app_aggregation::RecoveryState;
                 "模型数待发布后确认".into()
             };
             body = body.push(settings_panel(
-                column![
-                    text(&member.name).size(17),
-                    text(format!("{role} · {count}")),
+                row![
+                    column![
+                        text(&member.name).size(15),
+                        text(format!("{role} · {count}")).size(12).style(settings_muted_text_style),
+                    ]
+                    .spacing(4)
+                    .width(Length::Fill),
                     row![
                         button(text("设为默认"))
                             .padding([8, 14])
@@ -117,24 +200,34 @@ use vw_api_app_aggregation::RecoveryState;
                                 })))
                             ),
                     ]
-                    .spacing(12),
+                    .spacing(8)
+                    .wrap(),
                 ]
-                .spacing(6),
+                .spacing(10)
+                .align_y(Alignment::Center),
             ));
         }
-        body = body.push(settings_field_label("可添加候选"));
-        body = body.push(
-            text("以下为未加入的已保存供应商；资格与模型数待网关校验。")
+        let candidates = snapshot
+            .candidates
+            .iter()
+            .filter(|provider| matches(&provider.name, &provider.id))
+            .collect::<Vec<_>>();
+        body = body.push(text(format!("可添加 · {}", candidates.len())).size(14));
+        if candidates.is_empty() {
+            body = body.push(settings_panel(
+                text(if query.is_empty() {
+                    "没有可添加的供应商"
+                } else {
+                    "没有匹配的供应商"
+                })
                 .size(13)
                 .style(settings_muted_text_style),
-        );
-        if snapshot.candidates.is_empty() {
-            body = body.push(text("没有可添加候选").style(settings_muted_text_style));
+            ));
         }
-        for provider in &snapshot.candidates {
+        for provider in candidates {
             body = body.push(settings_panel(
-                column![
-                    text(&provider.name),
+                row![
+                    text(&provider.name).size(15).width(Length::Fill),
                     row![
                         button(text("添加"))
                             .padding([8, 14])
@@ -149,38 +242,20 @@ use vw_api_app_aggregation::RecoveryState;
                                 Action::Default { provider_id: provider.id.clone() }
                             )))),
                     ]
-                    .spacing(12),
+                    .spacing(8)
+                    .wrap(),
                 ]
-                .spacing(6),
+                .spacing(10)
+                .align_y(Alignment::Center),
             ));
         }
         for notice in &state.notices {
             body = body.push(text(notice_label(*notice)).style(settings_muted_text_style));
         }
+    } else if inline && !form.loading {
+        body = body.push(actions(form));
     }
-    let footer = row![
-        button(text("预览发布")).padding([8, 14]).style(primary_action_btn_style).on_press_maybe(
-            (!form.loading && form.snapshot.is_some()).then(|| message(Event::Publish(
-                super::publish::Event::Open
-            )))
-        ),
-        button(text("回到直连"))
-            .padding([8, 14]).style(rounded_action_btn_style)
-            .on_press_maybe((!form.loading && form.snapshot.as_ref().is_some_and(|s|
-                s.state.mode != vw_api_app_aggregation::AggregationMode::Direct))
-                .then(|| message(Event::Publish(super::publish::Event::OpenExit)))),
-        button(text("刷新"))
-            .padding([8, 14])
-            .style(rounded_action_btn_style)
-            .on_press_maybe((!form.loading).then(|| message(Event::Refresh))),
-        button(text("关闭"))
-            .padding([8, 14])
-            .style(rounded_action_btn_style)
-            .on_press(close.clone())
-    ]
-    .spacing(12);
-    let card = settings_modal_layout(header, body, Some(footer.into())).width(700).height(600);
-    settings_modal_overlay(Some(base), close, container(card).padding(12))
+    body.into()
 }
 
 pub(super) fn notice_label(

@@ -18,10 +18,14 @@ pub fn card<'a>(
     help: Help<'_>,
 ) -> Element<'a, Message> {
     let close = if form.writing() { Message::None } else { message(Event::Close) };
-    let header = settings_modal_header(
-        help.heading("供应商模式", "查看直连、路由和聚合状态。", 28),
-        settings_close_button(close.clone()),
-    );
+    let header = column![
+        settings_modal_header(
+            help.heading("供应商模式", "查看直连、路由和聚合状态。", 20),
+            settings_close_button(close.clone()),
+        ),
+        settings_divider(),
+    ]
+    .spacing(12);
     let ready = form.pending.is_none();
     let mut body = column![].spacing(12).width(Length::Fill);
     if let Some(error) = form.error {
@@ -79,7 +83,14 @@ pub fn card<'a>(
     let card = settings_modal_layout_with_scroll_id(
         header,
         body,
-        Some(footer.spacing(10).into()),
+        Some(
+            column![
+                settings_divider(),
+                iced::widget::container(footer.spacing(10)).align_right(Length::Fill)
+            ]
+            .spacing(12)
+            .into(),
+        ),
         Some(SCROLL_ID),
     )
     .width(640)

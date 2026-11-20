@@ -6,7 +6,7 @@ use desktop_assets::assets::Icon;
 use desktop_ui_controls::system_settings_common::*;
 use iced::{
     Alignment, Element, Length,
-    widget::{button, column, container, row, text, text::Wrapping},
+    widget::{button, column, row, text, text::Wrapping},
 };
 
 pub fn view<'a, M: Clone + 'static>(
@@ -16,16 +16,19 @@ pub fn view<'a, M: Clone + 'static>(
     manual_guidance: &'a str,
     message: impl Fn(Action) -> M + Copy + 'static,
 ) -> Element<'a, M> {
+    let refresh = button(text("重新探测").size(SETTINGS_CONTROL_TEXT_SIZE))
+        .padding([8, 12])
+        .style(rounded_action_btn_style)
+        .on_press_maybe(
+            (!state.loading && state.drag.source.is_none())
+                .then(move || message(Action::RefreshObservation(app.entry.id))),
+        );
     let mut details = column![
-        settings_group_heading(&app.entry.name, "配置和操作仅作用于此智能体"),
-        text("运行状态").size(15),
-        button(text("重新探测此应用").size(SETTINGS_CONTROL_TEXT_SIZE))
-            .padding([8, 12])
-            .style(rounded_action_btn_style)
-            .on_press_maybe((!state.loading && state.drag.source.is_none()).then(move ||
-                message(Action::RefreshObservation(app.entry.id)))),
-    ].spacing(10);
-    details = details.push(cross_domain);
+        row![text("运行状态").size(16).width(Length::Fill), refresh]
+            .spacing(12)
+            .align_y(Alignment::Center),
+    ]
+    .spacing(10);
     for kind in &app.entry.runtime_kinds {
         details = details.push(
             text(format!(
@@ -159,7 +162,7 @@ pub fn view<'a, M: Clone + 'static>(
                 .style(rounded_action_btn_style)
                 .on_press(message(Action::Download)));
     }
-    container(details).padding([16, 18]).width(Length::Fill).into()
+    column![settings_panel(details), cross_domain].spacing(12).width(Length::Fill).into()
 }
 
 fn path_field<'a, M: 'a>(label: &'a str, path: &'a str) -> Element<'a, M> {
@@ -176,6 +179,25 @@ pub fn actions<'a, M: Clone + 'static>(
     app: &'a CatalogRow,
     local_available: bool,
     message: impl Fn(Action) -> M + Copy + 'static,
+) -> Element<'a, M> {
+    action_row(state, app, local_available, message, true)
+}
+
+pub fn workspace_actions<'a, M: Clone + 'static>(
+    state: &ViewState<'a>,
+    app: &'a CatalogRow,
+    local_available: bool,
+    message: impl Fn(Action) -> M + Copy + 'static,
+) -> Element<'a, M> {
+    action_row(state, app, local_available, message, false)
+}
+
+fn action_row<'a, M: Clone + 'static>(
+    state: &ViewState<'a>,
+    app: &'a CatalogRow,
+    local_available: bool,
+    message: impl Fn(Action) -> M + Copy + 'static,
+    show_providers: bool,
 ) -> Element<'a, M> {
     let installed = presentation::presence(app) == Presence::Installed;
     let ready = presentation::preferred(app).is_some_and(|installation|
@@ -213,11 +235,15 @@ pub fn actions<'a, M: Clone + 'static>(
             !busy, message,
         )
     };
-    let providers = button(text("供应商").size(SETTINGS_CONTROL_TEXT_SIZE))
-        .padding([8, 11])
-        .style(rounded_action_btn_style)
-        .on_press_maybe((!busy).then_some(message(Action::Providers(app.entry.id))));
-    let mut actions = row![providers].spacing(8).align_y(Alignment::Center);
+    let mut actions = row![].spacing(8).align_y(Alignment::Center);
+    if show_providers {
+        actions = actions.push(
+            button(text("供应商").size(SETTINGS_CONTROL_TEXT_SIZE))
+                .padding([8, 11])
+                .style(rounded_action_btn_style)
+                .on_press_maybe((!busy).then_some(message(Action::Providers(app.entry.id)))),
+        );
+    }
     // Dedicated applications retain their workspace / explicit Claude Code entry.
     if !matches!(app.entry.id, AppId::ClaudeDesktop | AppId::OpenClaw) {
         let event = Action::Prompts(app.entry.id);

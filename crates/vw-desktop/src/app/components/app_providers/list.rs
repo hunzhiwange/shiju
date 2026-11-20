@@ -35,14 +35,11 @@ impl<'a> Help<'a> {
     }
 }
 
-pub(crate) fn overlay<'a>(
+fn supplements<'a>(
     state: &'a ListState,
     help: Help<'a>,
-    base: Element<'a, Message>,
-) -> Element<'a, Message> {
-    let Some(scope) = &state.scope else {
-        return base;
-    };
+    app_id: vw_api_app_identity::AppId,
+) -> Vec<(&'a str, Option<Element<'a, Message>>, Element<'a, Message>)> {
     let mut supplements: Vec<(&'a str, Option<Element<'a, Message>>, Element<'a, Message>)> =
         Vec::new();
     #[cfg(not(target_arch = "wasm32"))]
@@ -56,27 +53,70 @@ pub(crate) fn overlay<'a>(
                 let usage = super::super::apps_usage_cards::provider_view(
                     usage_scope.as_ref(),
                     &state.usage,
-                    scope.app,
+                    app_id,
                     id,
                 );
                 supplements.push((id.as_str(), health, usage));
             }
         }
     }
-    // Host-owned usage and health elements keep their messages while provider card messages map locally.
-    let card = desktop_provider_apps::components::list::card(
+    supplements
+}
+
+fn list_state(state: &ListState) -> desktop_provider_apps::components::list::View<'_> {
+    desktop_provider_apps::components::list::View {
+        scope: state.scope.as_ref(),
+        query: &state.query,
+        loading: state.loading,
+        error: state.error.as_ref(),
+        snapshot: state.snapshot.as_ref(),
+        editing: state.form.is_some() || state.editor.is_some() || state.tray_switch.is_some(),
+    }
+}
+
+pub(crate) fn page<'a>(
+    state: &'a ListState,
+    help: Help<'a>,
+    app_id: vw_api_app_identity::AppId,
+    title: Element<'a, Message>,
+    page: desktop_provider_apps::components::list::Page<'a, Message>,
+) -> Element<'a, Message> {
+    desktop_provider_apps::components::list::page(
         map,
-        desktop_provider_apps::components::list::View {
-            scope: state.scope.as_ref(),
-            query: &state.query,
-            loading: state.loading,
-            error: state.error.as_ref(),
-            snapshot: state.snapshot.as_ref(),
-            editing: state.form.is_some() || state.editor.is_some(),
-        },
-        supplements,
-    );
-    let list = settings_modal_overlay(Some(base), message(ListMessage::Close), card);
+        list_state(state),
+        supplements(state, help, app_id),
+        title,
+        page,
+    )
+}
+
+pub(crate) fn overlay<'a>(
+    state: &'a ListState,
+    help: Help<'a>,
+    base: Element<'a, Message>,
+) -> Element<'a, Message> {
+    overlay_with_list(state, help, base, true)
+}
+
+pub(crate) fn overlay_with_list<'a>(
+    state: &'a ListState,
+    help: Help<'a>,
+    base: Element<'a, Message>,
+    show_list: bool,
+) -> Element<'a, Message> {
+    let Some(scope) = &state.scope else {
+        return base;
+    };
+    let list = if show_list {
+        let card = desktop_provider_apps::components::list::card(
+            map,
+            list_state(state),
+            supplements(state, help, scope.app),
+        );
+        settings_modal_overlay(Some(base), message(ListMessage::Close), card)
+    } else {
+        base
+    };
     if let Some(form) = &state.omo {
         return crate::app::components::aggregation_omo::overlay(form, list);
     }
@@ -99,7 +139,14 @@ pub(crate) fn overlay<'a>(
         );
     }
     if let Some(form) = &state.aggregation {
-        return super::super::aggregation_list::overlay(form, list);
+        if show_list {
+            return super::super::aggregation_list::overlay(form, list);
+        }
+        if form.clients.is_some() || form.publish.is_some() {
+            let dialogs = desktop_apps_ui::aggregation::list_view::dialogs(form)
+                .map(crate::app::message::settings::aggregation_list::message);
+            return iced::widget::stack![settings_inactive_view(list), dialogs].into();
+        }
     }
     if let Some((close, card)) =
         desktop_provider_apps::components::list::local_card(state, help.provider_help())
@@ -124,7 +171,11 @@ pub(crate) fn overlay<'a>(
             crate::app::message::agent_apps_auth::binding::entry(form, scope.app, state.generation);
         #[cfg(target_arch = "wasm32")]
         let binding = None;
-        return super::edit::overlay_with_binding(form, help, list, binding);
+        let current = state.snapshot.as_ref().is_some_and(|snapshot| {
+            matches!(&snapshot.catalog.in_use,
+                vw_api_app_provider_edit::catalog::ProviderSelection::Selected { id } if *id == form.id)
+        });
+        return super::edit::overlay_with_binding(form, help, list, binding, current);
     }
     if let Some(form) = &state.editor {
         let card = desktop_provider_apps::components::list::editor_card(
@@ -139,7 +190,7 @@ pub(crate) fn overlay<'a>(
     list
 }
 
-pub(super) fn map(value: desktop_provider_apps::components::list::ListMessage) -> Message {
+pub(crate) fn map(value: desktop_provider_apps::components::list::ListMessage) -> Message {
     use crate::app::message::{app_providers as events, settings};
     use desktop_provider_apps::components::list::ListMessage as V;
     message(match value {
@@ -148,6 +199,12 @@ pub(super) fn map(value: desktop_provider_apps::components::list::ListMessage) -
             return events::edit::message(events::edit::EditMessage::Open { id, copy, delete });
         }
         V::Close => ListMessage::Close,
+        V::Terminal(id) => ListMessage::Terminal(id),
+        V::UseProvider(id) => ListMessage::UseProvider(id),
+        #[cfg(not(target_arch = "wasm32"))]
+        V::UsageSettings(app, id) => {
+            ListMessage::UsageSettings(super::super::apps_usage_settings::Event::Open(app, id))
+        }
         V::Refresh => ListMessage::Refresh,
         V::Universal => ListMessage::Universal(events::universal::Event::Open),
         V::Snippets => ListMessage::Snippets(events::snippets::Event::Open),

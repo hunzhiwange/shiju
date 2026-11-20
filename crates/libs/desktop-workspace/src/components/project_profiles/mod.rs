@@ -3,24 +3,46 @@ use crate::project_profiles::{State, Action};
 use desktop_ui_controls::system_settings_common::*;
 #[path = "management.rs"]
 mod management;
-#[path = "apply.rs"]
-mod apply;
-use iced::{Element, widget::{button, column, text}};
+use iced::{
+    Alignment, Element, Length,
+    widget::{button, column, row, text},
+};
 use vw_api_project_profiles::ProjectProfileScope;
 pub fn view<Identity>(state: &State<Identity>, scope: ProjectProfileScope) -> Element<'_, Event> {
     let group = state.groups.get(scope);
-    let mut content = column![text("项目配置组合").size(15),
-        settings_text_input("按组合名称搜索", &group.query).on_input(move |query| Event::Query(scope, query)),
-        button(text(if group.loading { "读取中" } else { "刷新组合" })).padding([8,12]).style(rounded_action_btn_style)
-            .on_press_maybe((!group.loading).then(|| Event::Refresh(scope)))].spacing(8);
     let enabled = !group.loading && state.management.is_none() && state.application.is_none();
-    content = content.push(button(text("创建组合")).padding([8, 12]).style(rounded_action_btn_style)
-        .on_press_maybe(enabled.then(|| Event::Open(scope, Action::Create))));
+    let mut actions = row![
+        button(
+            text(if group.loading { "读取中…" } else { "刷新" }).size(SETTINGS_CONTROL_TEXT_SIZE)
+        )
+        .padding([8, 12])
+        .style(rounded_action_btn_style)
+        .on_press_maybe((!group.loading).then(|| Event::Refresh(scope))),
+        button(text("创建组合").size(SETTINGS_CONTROL_TEXT_SIZE))
+            .padding([8, 12])
+            .style(rounded_action_btn_style)
+            .on_press_maybe(enabled.then(|| Event::Open(scope, Action::Create))),
+    ]
+    .spacing(8);
     if group.current.is_some() {
-        content = content.push(button(text("清除当前标记")).padding([8, 12]).style(rounded_action_btn_style)
-            .on_press_maybe(enabled.then(|| Event::Open(scope, Action::Clear))));
+        actions = actions.push(
+            button(text("清除当前标记").size(SETTINGS_CONTROL_TEXT_SIZE))
+                .padding([8, 12])
+                .style(rounded_action_btn_style)
+                .on_press_maybe(enabled.then(|| Event::Open(scope, Action::Clear))),
+        );
     }
-    if group.error { content = content.push(text("读取失败，请重试").style(settings_muted_text_style)); }
+    let mut content = column![
+        row![text("项目配置组合").size(16).width(Length::Fill), actions.wrap()]
+            .spacing(10)
+            .align_y(Alignment::Center),
+        settings_text_input("按组合名称搜索", &group.query)
+            .on_input(move |query| Event::Query(scope, query)),
+    ]
+    .spacing(10);
+    if group.error {
+        content = content.push(text("读取失败，请重试").style(settings_muted_text_style));
+    }
     if group.loaded {
         let current = group.current.as_ref().and_then(|id| group.profiles.iter().find(|p| &p.id == id));
         content = content.push(text(match (current, &group.current) {

@@ -15,13 +15,23 @@ pub fn card<'a>(
     binding: bool,
     diagnostics: bool,
 ) -> Element<'a, Message> {
+    card_with_selection(form, help, binding, diagnostics, false)
+}
+
+pub fn card_with_selection<'a>(
+    form: &'a EditForm,
+    help: Help<'_>,
+    binding: bool,
+    diagnostics: bool,
+    current: bool,
+) -> Element<'a, Message> {
     let title = match form.mode {
         Mode::Create => "新增供应商",
         Mode::Update => "编辑供应商",
         Mode::Copy { .. } => "复制供应商",
         Mode::Delete => "删除供应商",
     };
-    let input = |label: &'static str, value: &'a str, event: fn(String) -> EditMessage| {
+    let input = move |label: &'static str, value: &'a str, event: fn(String) -> EditMessage| {
         text_input(label, value)
             .padding(SETTINGS_CONTROL_PADDING)
             .size(SETTINGS_CONTROL_TEXT_SIZE)
@@ -30,6 +40,11 @@ pub fn card<'a>(
     };
     let mut fields = column![].spacing(12).width(Length::Fill);
     let delete = matches!(form.mode, Mode::Delete);
+    if current && matches!(form.mode, Mode::Update) {
+        fields = fields.push(settings_panel(
+            text("当前客户端配置指向此供应商。保存前请核对登录方式和连接配置。").size(13),
+        ));
+    }
     if delete {
         fields = fields.push(settings_panel(text(format!(
             "确认删除「{}」？执行端会检查当前选择与引用，失败时保留此选择。",
@@ -43,11 +58,32 @@ pub fn card<'a>(
                 "ASCII 字母、数字、短横线或下划线",
             ));
         }
-        basic = basic.push(settings_field_label("名称")).push(input(
-            "名称",
-            &form.fields.name,
-            EditMessage::Name,
-        ));
+        let name = move || {
+            column![
+                settings_field_label("名称"),
+                input("供应商名称", &form.fields.name, EditMessage::Name),
+            ]
+            .spacing(6)
+            .width(Length::Fill)
+        };
+        let notes = move || {
+            column![
+                settings_field_label("备注"),
+                input("可选", form.fields.notes.as_deref().unwrap_or(""), EditMessage::Notes),
+            ]
+            .spacing(6)
+            .width(Length::Fill)
+        };
+        basic = basic.push(
+            iced::widget::responsive(move |size| {
+                if size.width >= 480.0 {
+                    row![name(), notes()].spacing(14).into()
+                } else {
+                    column![name(), notes()].spacing(10).into()
+                }
+            })
+            .height(Length::Shrink),
+        );
         if !form.claude_editable() {
             basic = basic.push(settings_field_label("分类")).push(input(
                 "分类",
@@ -55,15 +91,11 @@ pub fn card<'a>(
                 EditMessage::Category,
             ));
         }
-        basic = basic
-            .push(settings_field_label("备注"))
-            .push(input("备注", form.fields.notes.as_deref().unwrap_or(""), EditMessage::Notes))
-            .push(help.field("网址", "展示网址，与 API 地址分开保存"))
-            .push(input(
-                "https://…",
-                form.fields.website_url.as_deref().unwrap_or(""),
-                EditMessage::Website,
-            ));
+        basic = basic.push(help.field("网址", "展示网址，与 API 地址分开保存")).push(input(
+            "https://…",
+            form.fields.website_url.as_deref().unwrap_or(""),
+            EditMessage::Website,
+        ));
         fields = fields.push(text("基础资料").size(17)).push(settings_panel(basic));
         if diagnostics {
             fields = fields.push(
@@ -228,7 +260,19 @@ pub fn card<'a>(
         heading = heading.push(text(&form.fields.name).size(13).style(settings_muted_text_style));
     }
     let header = column![
-        settings_modal_header(heading, settings_close_button(cancel.clone())),
+        settings_modal_header(
+            row![
+                desktop_ui_controls::system_settings_common::icon_btn(
+                    desktop_assets::assets::Icon::ArrowLeft,
+                    "返回供应商",
+                    (!form.saving).then_some(cancel.clone()),
+                ),
+                heading
+            ]
+            .spacing(8)
+            .align_y(Alignment::Center),
+            iced::widget::Space::new(),
+        ),
         settings_divider(),
     ]
     .spacing(12);
@@ -254,7 +298,7 @@ pub fn card<'a>(
         column![settings_divider(), container(actions).align_right(Length::Fill),].spacing(12),
     );
     let card = settings_modal_layout(header, fields, Some(footer.into()))
-        .width(620)
+        .width(if delete { 480 } else { 790 })
         .height(if delete { 300 } else { 620 });
     container(card).padding(12).into()
 }

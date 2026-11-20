@@ -35,6 +35,7 @@ pub struct LaunchState {
     pub request: Option<LaunchRequest>,
     pub args: Vec<String>,
     pub identities: Vec<LaunchIdentity>,
+    pub requested_provider: Option<String>,
     pub identities_loading: bool,
     pub identities_ready: bool,
     pub selected: Option<LaunchChoice>,
@@ -118,6 +119,7 @@ pub enum LaunchMessage<C> {
     Error(String),
     Success(String),
     Open(AppId, AppInstallationId),
+    OpenProvider(AppId, AppInstallationId, String),
     Close,
     Cwd(String),
     Args(usize, String),
@@ -208,6 +210,14 @@ pub fn update<C: Clone + PartialEq + Send + 'static>(catalog: &mut Input<'_, C>,
             state.identities_loading = false;
             match result {
                 Ok(values) => {
+                    if let Some(id) = state.requested_provider.take() {
+                        state.selected = values.iter()
+                            .find(|identity| identity.kind == LaunchIdentityKind::Provider && identity.id == id)
+                            .cloned().map(LaunchChoice::Identity);
+                        if state.selected.is_none() {
+                            state.error = Some("此供应商当前不可用于终端启动".into());
+                        }
+                    }
                     state.identities = values;
                     state.identities_ready = true;
                 }
@@ -277,6 +287,12 @@ pub fn update<C: Clone + PartialEq + Send + 'static>(catalog: &mut Input<'_, C>,
     if catalog.launch.busy {
         return Task::none();
     }
+    let (message, provider) = match message {
+        LaunchMessage::OpenProvider(id, installation, provider) => {
+            (LaunchMessage::Open(id, installation), Some(provider))
+        }
+        other => (other, None),
+    };
     match message {
         LaunchMessage::Open(id, installation_id) => {
 
@@ -300,7 +316,10 @@ pub fn update<C: Clone + PartialEq + Send + 'static>(catalog: &mut Input<'_, C>,
                 &catalog.token,
                 project_path.as_deref(),
             );
-            catalog.launch.selected = cwd.as_ref().map(|_| LaunchChoice::ExistingConfiguration);
+            if provider.is_none() {
+                catalog.launch.selected = cwd.as_ref().map(|_| LaunchChoice::ExistingConfiguration);
+            }
+            catalog.launch.requested_provider = provider;
             catalog.launch.request = Some(LaunchRequest {
                 app_id: id,
                 installation_id,
@@ -420,7 +439,8 @@ pub fn update<C: Clone + PartialEq + Send + 'static>(catalog: &mut Input<'_, C>,
             );
         }
         LaunchMessage::Error(_) | LaunchMessage::Success(_) => return Task::none(),
-        LaunchMessage::Identities { .. }
+        LaunchMessage::OpenProvider(..)
+        | LaunchMessage::Identities { .. }
         | LaunchMessage::Session { .. }
         | LaunchMessage::Reply { .. } => unreachable!(),
     }

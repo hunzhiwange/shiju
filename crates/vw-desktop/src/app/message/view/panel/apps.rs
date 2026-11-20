@@ -30,7 +30,19 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
         None => Task::none(),
         Some(domain::Effect::OpenThirdPartyAgents) => {
             app.navigation_panels.show_system_settings = false;
-            Task::batch([crate::app::message::settings::update(app, crate::app::message::SettingsMessage::AppsCatalog(crate::app::message::settings::AppsCatalogMessage::EnsureLoaded)), crate::app::views::usage::center::update(app, desktop_usage::center::event::Event::TodayRefresh)])
+            Task::batch([
+                crate::app::message::settings::update(
+                    app,
+                    crate::app::message::SettingsMessage::AppsCatalog(
+                        crate::app::message::settings::AppsCatalogMessage::EnsureLoaded,
+                    ),
+                ),
+                crate::app::components::third_party_settings::ensure_agent_providers(app),
+                crate::app::views::usage::center::update(
+                    app,
+                    desktop_usage::center::event::Event::TodayRefresh,
+                ),
+            ])
         }
         Some(domain::Effect::OpenUsage) => {
             app.usage_center.close();

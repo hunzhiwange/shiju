@@ -3,7 +3,7 @@ use desktop_assets::assets::Icon;
 use desktop_ui_controls::system_settings_common::*;
 use iced::{
     Alignment, Element, Length,
-    widget::{button, column, container, keyed_column, row, text, text_input, tooltip},
+    widget::{button, column, container, keyed_column, row, scrollable, text, text_input, tooltip},
 };
 use std::hash::{DefaultHasher, Hash, Hasher};
 use vw_api_app_identity::AppId;
@@ -15,6 +15,10 @@ pub enum ListMessage {
     Close,
     Refresh,
     QueryInput(String),
+    Terminal(String),
+    UseProvider(String),
+    #[cfg(not(target_arch = "wasm32"))]
+    UsageSettings(AppId, String),
     Edit(String),
     Endpoints(String),
     ModelDiagnostics(String),
@@ -53,24 +57,28 @@ pub struct View<'a> {
     pub snapshot: Option<&'a Snapshot>,
     pub editing: bool,
 }
-fn selection(value: &ProviderSelection) -> String {
+fn selection(snapshot: &Snapshot, value: &ProviderSelection) -> String {
     match value {
-        ProviderSelection::Selected { id } => id.clone(),
+        ProviderSelection::Selected { id } => snapshot
+            .catalog
+            .rows
+            .iter()
+            .find(|row| row.provider.id == *id)
+            .map_or_else(|| id.clone(), |row| row.provider.name.clone()),
         ProviderSelection::Unconfigured => "未配置".into(),
         ProviderSelection::NotApplicable => "不适用".into(),
         ProviderSelection::Unavailable { reason } => format!("不可读取：{reason:?}"),
     }
 }
 fn menu<M: Clone + 'static>(
-    message: fn(ListMessage) -> M,
-    items: Vec<(&'static str, ListMessage)>,
+    items: Vec<(&'static str, M)>,
     label: &'static str,
     enabled: bool,
 ) -> Element<'static, M> {
     let labels = items.iter().map(|(label, _)| *label).collect::<Vec<_>>();
     let select = settings_select(labels, None, move |choice| {
         let (_, event) = items.iter().find(|(label, _)| *label == choice).expect("menu option");
-        message(event.clone())
+        event.clone()
     })
     .menu_icon(Icon::DotsThreeVertical, 184.0)
     .placeholder(label)
@@ -91,10 +99,70 @@ fn selected(value: &ProviderSelection, provider_id: &str) -> bool {
 pub fn card<'a, M: Clone + 'static>(
     message: fn(ListMessage) -> M,
     state: View<'a>,
-    mut supplements: Vec<(&'a str, Option<Element<'a, M>>, Element<'a, M>)>,
+    supplements: Vec<(&'a str, Option<Element<'a, M>>, Element<'a, M>)>,
 ) -> Element<'a, M> {
     let Some(scope) = state.scope else {
         return iced::widget::Space::new().into();
+    };
+    let (header, body) = content(
+        message,
+        state,
+        supplements,
+        text(format!("{:?} 供应商", scope.app)).size(21).into(),
+        None,
+    );
+    settings_modal_layout(header, body, None).width(880).height(680).into()
+}
+
+pub struct Page<'a, M> {
+    pub tabs: Element<'a, M>,
+    pub lead: Option<Element<'a, M>>,
+    pub replace_rows: bool,
+    pub can_launch: bool,
+    pub can_switch: bool,
+    pub tools: Vec<(&'static str, M)>,
+    pub search: Option<(bool, M)>,
+}
+
+pub fn page<'a, M: Clone + 'static>(
+    message: fn(ListMessage) -> M,
+    state: View<'a>,
+    supplements: Vec<(&'a str, Option<Element<'a, M>>, Element<'a, M>)>,
+    title: Element<'a, M>,
+    page: Page<'a, M>,
+) -> Element<'a, M> {
+    let (header, body) = content(message, state, supplements, title, Some(page));
+    let list = scrollable(container(body).padding([0, 7]).width(Length::Fill))
+        .direction(scrollable::Direction::Vertical(
+            scrollable::Scrollbar::new().width(4).scroller_width(4),
+        ))
+        .width(Length::Fill)
+        .height(Length::Fill);
+    column![header, list].spacing(12).width(Length::Fill).height(Length::Fill).into()
+}
+
+fn content<'a, M: Clone + 'static>(
+    message: fn(ListMessage) -> M,
+    state: View<'a>,
+    mut supplements: Vec<(&'a str, Option<Element<'a, M>>, Element<'a, M>)>,
+    title: Element<'a, M>,
+    page: Option<Page<'a, M>>,
+) -> (Element<'a, M>, Element<'a, M>) {
+    let Some(scope) = state.scope else {
+        return (title, iced::widget::Space::new().into());
+    };
+    let inline = page.is_some();
+    let (tabs, lead, replace_rows, can_launch, can_switch, page_tools, search_toggle) = match page {
+        Some(page) => (
+            Some(page.tabs),
+            page.lead,
+            page.replace_rows,
+            page.can_launch,
+            page.can_switch,
+            page.tools,
+            page.search,
+        ),
+        None => (None, None, false, false, false, Vec::new(), None),
     };
     let mut body = column![].spacing(10).width(Length::Fill);
     if state.loading {
@@ -103,29 +171,33 @@ pub fn card<'a, M: Clone + 'static>(
     if let Some(error) = state.error {
         body = body.push(settings_error_banner(error.as_str()));
     }
-    if let Some(snapshot) = state.snapshot {
-        let mut status = column![
-            row![
-                settings_value_badge(format!("直连 · {}", selection(&snapshot.catalog.direct))),
-                settings_value_badge(format!("原生当前 · {}", selection(&snapshot.catalog.in_use))),
-            ]
-            .spacing(8)
-            .wrap()
-        ]
-        .spacing(8);
+    if let Some(lead) = lead {
+        body = body.push(lead);
+    }
+    if let Some(snapshot) = state.snapshot.filter(|_| !replace_rows) {
+        if !inline {
+            body = body.push(settings_panel(
+                row![
+                    settings_value_badge(format!(
+                        "直连 · {}",
+                        selection(snapshot, &snapshot.catalog.direct)
+                    )),
+                    settings_value_badge(format!(
+                        "原生当前 · {}",
+                        selection(snapshot, &snapshot.catalog.in_use)
+                    )),
+                ]
+                .spacing(8)
+                .wrap(),
+            ));
+        }
         if let Some(reason) = snapshot.catalog.native_read {
-            status = status.push(
+            body = body.push(
                 text(format!("原生状态不可用：{reason:?}"))
                     .size(13)
                     .style(settings_muted_text_style),
             );
         }
-        body = body.push(
-            container(status)
-                .width(Length::Fill)
-                .padding([10, 12])
-                .style(settings_content_panel_style),
-        );
         let query = state.query.trim().to_lowercase();
         let rows = snapshot
             .catalog
@@ -169,6 +241,8 @@ pub fn card<'a, M: Clone + 'static>(
             if scope.app != AppId::Agy {
                 items.push(("复制", open(true, false)));
             }
+            #[cfg(not(target_arch = "wasm32"))]
+            items.push(("配置用量查询", ListMessage::UsageSettings(scope.app, id.clone())));
             items.push(("端点与请求选项", ListMessage::Endpoints(id.clone())));
             if matches!(scope.app, AppId::Claude | AppId::Codex | AppId::Gemini) {
                 items.extend([
@@ -206,14 +280,14 @@ pub fn card<'a, M: Clone + 'static>(
                 ("图标", ListMessage::Icons(id.clone())),
                 ("排序与备注", ListMessage::Edit(id.clone())),
                 ("模型目录", ListMessage::ModelCatalog(id.clone())),
-                ("删除", open(false, true)),
             ]);
 
-            let mut identity =
-                row![text(&provider.name).size(16)].spacing(8).align_y(Alignment::Center);
-            if active {
-                identity = identity.push(settings_value_badge("原生当前"));
+            if !active && !direct {
+                items.push(("删除", open(false, true)));
             }
+            let items = items.into_iter().map(|(label, event)| (label, message(event))).collect();
+            let mut identity =
+                row![text(&provider.name).size(15)].spacing(8).align_y(Alignment::Center);
             if direct {
                 identity = identity.push(settings_value_badge("直连"));
             }
@@ -249,20 +323,47 @@ pub fn card<'a, M: Clone + 'static>(
                 .unwrap_or('?')
                 .to_uppercase()
                 .to_string();
-            let avatar = container(text(initial).size(15))
+            let avatar_glyph: Element<'_, M> =
+                if matches!(id.as_str(), "openai" | "openai-official" | "codex-official") {
+                    provider_logo_svg("openai", 21.0).into()
+                } else {
+                    text(initial).size(14).into()
+                };
+            let avatar = container(avatar_glyph)
                 .center_x(36)
                 .center_y(36)
                 .style(settings_content_panel_style);
+            let mut controls = row![].spacing(6).align_y(Alignment::Center);
+            if active {
+                controls = controls.push(text("● 当前").size(12).style(|theme: &iced::Theme| {
+                    text::Style { color: Some(theme.extended_palette().primary.strong.color) }
+                }));
+            }
+            if !active && can_switch && crate::tray_switch::supports(scope.app) {
+                controls = controls.push(icon_btn(
+                    Icon::ArrowRight,
+                    "切换到此供应商",
+                    enabled.then(|| message(ListMessage::UseProvider(id.clone()))),
+                ));
+            }
+            if can_launch {
+                controls = controls.push(icon_btn(
+                    Icon::Terminal,
+                    "用此供应商打开终端",
+                    enabled.then(|| message(ListMessage::Terminal(id.clone()))),
+                ));
+            }
             let mut details = column![
                 row![
                     avatar,
                     summary,
+                    controls,
                     icon_btn(
                         Icon::Pencil,
                         "编辑供应商",
                         enabled.then(|| message(open(false, false)))
                     ),
-                    menu(message, items, "更多供应商操作", enabled),
+                    menu(items, "更多供应商操作", enabled),
                 ]
                 .spacing(8)
                 .align_y(Alignment::Center)
@@ -312,9 +413,11 @@ pub fn card<'a, M: Clone + 'static>(
     let mut tools = vec![
         ("刷新", ListMessage::Refresh),
         ("统一供应商投影", ListMessage::Universal),
-        ("聚合目录", ListMessage::Aggregation),
         ("备用队列", ListMessage::Failover),
     ];
+    if !inline {
+        tools.push(("聚合目录", ListMessage::Aggregation));
+    }
     if crate::state::snippets::available(scope.app) {
         tools.push(("公共配置片段", ListMessage::Snippets));
     }
@@ -334,31 +437,45 @@ pub fn card<'a, M: Clone + 'static>(
         AppId::Omp => tools.push(("OMP 独立模型条目", ListMessage::OmpDirectory)),
         _ => {}
     }
-    let toolbar = row![
-        button(text("＋ 添加供应商").size(SETTINGS_CONTROL_TEXT_SIZE))
-            .padding([8, 12])
-            .style(primary_action_btn_style)
-            .on_press_maybe(ready.then(|| message(create))),
-        menu(message, tools, "供应商工具", ready),
-        settings_close_button(message(ListMessage::Close)),
-    ]
-    .spacing(6)
-    .align_y(Alignment::Center);
-    let search = settings_text_input("搜索供应商名称、标识或备注", state.query)
-        .on_input(move |query| message(ListMessage::QueryInput(query)))
-        .width(Length::Fill);
-    let mut filters = row![
-        icon_svg(Icon::Search, 15.0)
-            .style(desktop_ui_controls::system_settings_common::icons::icon_btn_svg_style),
-        search,
-        icon_btn(
-            Icon::X,
-            "清空搜索",
-            (!state.query.is_empty()).then(|| message(ListMessage::QueryInput(String::new())))
-        ),
-    ]
-    .spacing(8)
-    .align_y(Alignment::Center);
+    let tools = page_tools
+        .into_iter()
+        .chain(tools.into_iter().map(|(label, event)| (label, message(event))))
+        .collect();
+    let show_search = search_toggle.as_ref().is_none_or(|(open, _)| *open);
+    let mut toolbar = row![].spacing(6).align_y(Alignment::Center);
+    if let Some((open, toggle)) = search_toggle {
+        toolbar = toolbar.push(icon_btn(
+            if open { Icon::X } else { Icon::Search },
+            if open { "收起搜索" } else { "搜索供应商" },
+            Some(toggle),
+        ));
+    }
+    toolbar = toolbar
+        .push(
+            button(text("＋ 添加供应商").size(SETTINGS_CONTROL_TEXT_SIZE))
+                .padding([8, 12])
+                .style(primary_action_btn_style)
+                .on_press_maybe(ready.then(|| message(create))),
+        )
+        .push(menu(tools, "供应商工具", ready));
+    if !inline {
+        toolbar = toolbar.push(settings_close_button(message(ListMessage::Close)));
+    }
+    let mut filters = row![].spacing(8).align_y(Alignment::Center);
+    if show_search {
+        filters = filters.push(
+            settings_text_input("搜索供应商名称、标识或备注", state.query)
+                .on_input(move |query| message(ListMessage::QueryInput(query)))
+                .width(Length::Fill),
+        );
+        if !inline {
+            filters = filters.push(icon_btn(
+                Icon::X,
+                "清空搜索",
+                (!state.query.is_empty()).then(|| message(ListMessage::QueryInput(String::new()))),
+            ));
+        }
+    }
     if cfg!(target_os = "macos") && scope.app == AppId::Claude {
         filters = filters.push(
             button(text("供应商模式").size(SETTINGS_CONTROL_TEXT_SIZE))
@@ -367,13 +484,19 @@ pub fn card<'a, M: Clone + 'static>(
                 .on_press_maybe(ready.then(|| message(ListMessage::Mode))),
         );
     }
-    let header = column![
-        settings_modal_header(text(format!("{:?} 供应商", scope.app)).size(21), toolbar),
-        container(filters).padding([0, 7]),
-        settings_divider(),
-    ]
-    .spacing(12);
-    settings_modal_layout(header, body, None).width(880).height(680).into()
+    let heading = settings_modal_header(title, toolbar);
+    let mut header = column![container(heading).padding([0, 7]), settings_divider()].spacing(12);
+    let filters: Element<'a, M> = if let Some(tabs) = tabs {
+        row![tabs, container(filters).width(Length::Fill).max_width(420),]
+            .spacing(14)
+            .align_y(Alignment::Center)
+            .wrap()
+            .into()
+    } else {
+        filters.into()
+    };
+    header = header.push(container(filters).padding([0, 7]));
+    (header.into(), body.into())
 }
 
 #[derive(Clone)]

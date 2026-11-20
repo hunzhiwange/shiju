@@ -8,6 +8,8 @@ use iced::Task;
 pub enum AppsCatalogMessage {
     Commands(crate::app::components::system_settings_apps::commands::Event),
     SelectApp(vw_api_app_identity::AppId),
+    AgentWorkspaceTab(desktop_apps_ui::catalog_state::AgentWorkspaceTab),
+    ToggleAgentProviderSearch,
     SelectPromptApp(vw_api_app_identity::AppId),
     SelectDeviceSync(desktop_apps_ui::catalog_state::DeviceSyncMethod, bool),
     Navigate(desktop_ui_controls::settings_navigation::ThirdPartyPage),
@@ -113,6 +115,54 @@ pub(in crate::app) fn update(app: &mut App, message: AppsCatalogMessage) -> Task
             let page = desktop_ui_controls::settings_navigation::ThirdPartyPage::Agents;
             app.apps_catalog.expanded = Some(id);
             return crate::app::components::third_party_settings::navigate(app, page);
+        }
+        AppsCatalogMessage::ToggleAgentProviderSearch => {
+            if crate::app::components::third_party_settings::is_visible(app)
+                && app.apps_catalog.third_party_page
+                    == desktop_ui_controls::settings_navigation::ThirdPartyPage::Agents
+            {
+                app.apps_catalog.agent_provider_search_open =
+                    !app.apps_catalog.agent_provider_search_open
+                        && app.app_providers.query.is_empty();
+                if !app.apps_catalog.agent_provider_search_open {
+                    app.app_providers.query.clear();
+                }
+            }
+        }
+        AppsCatalogMessage::AgentWorkspaceTab(tab) => {
+            use crate::app::components::third_party_settings as workspace;
+            use desktop_apps_ui::catalog_state::AgentWorkspaceTab as Tab;
+            if !workspace::is_visible(app)
+                || app.apps_catalog.third_party_page
+                    != desktop_ui_controls::settings_navigation::ThirdPartyPage::Agents
+            {
+                return Task::none();
+            }
+            app.apps_catalog.agent_workspace_tab = tab;
+            let load = workspace::ensure_agent_providers(app);
+            let open = match tab {
+                Tab::Direct => Task::none(),
+                Tab::Routing => crate::app::components::app_routing::lifecycle::update(
+                    app,
+                    desktop_apps_ui::app_routing::lifecycle::Event::Run(
+                        desktop_apps_ui::app_routing::lifecycle::Operation::Refresh,
+                    ),
+                ),
+                Tab::Aggregation => {
+                    super::aggregation_list::update(app, super::aggregation_list::Event::Open)
+                }
+                Tab::Configuration => app
+                    .apps_catalog
+                    .expanded
+                    .and_then(vw_api_project_profiles::ProjectProfileScope::for_app)
+                    .map_or_else(Task::none, |scope| {
+                        crate::app::message::project_profiles::update(
+                            app,
+                            crate::app::message::project_profiles::Event::Refresh(scope),
+                        )
+                    }),
+            };
+            return Task::batch([load, open]);
         }
         AppsCatalogMessage::SelectDeviceSync(method, inline) => {
             return crate::app::components::system_settings_device_sync::select(app, method, inline);
@@ -308,7 +358,14 @@ pub(in crate::app) fn update(app: &mut App, message: AppsCatalogMessage) -> Task
                 tenant: client.endpoint().tenant_scope().clone(),
                 project: app.navigation_tabs.project_path.clone(),
             };
-            crate::app::state::agent_apps::reset_if_context_changed(&mut app.apps_catalog, &context);
+            if crate::app::state::agent_apps::reset_if_context_changed(
+                &mut app.apps_catalog,
+                &context,
+            ) {
+                app.app_providers.scope = None;
+                app.apps_catalog.agent_workspace_tab = Default::default();
+                app.apps_catalog.agent_provider_search_open = false;
+            }
             use desktop_settings_apps::system_settings_apps::catalog_update::RefreshDecision;
             match catalog_input(&mut app.apps_catalog).refresh_decision(use_cache, client.endpoint().is_loopback()) {
                 RefreshDecision::Skip
@@ -320,10 +377,16 @@ pub(in crate::app) fn update(app: &mut App, message: AppsCatalogMessage) -> Task
                 RefreshDecision::ConnectLocal => return update(app, AppsCatalogMessage::LocalConnect),
                 RefreshDecision::Load => {}
             }
-            let selected_prompt_app = app.apps_catalog.expanded
-                .filter(|_| app.apps_catalog.third_party_page == desktop_ui_controls::settings_navigation::ThirdPartyPage::Prompts);
-            let generation = crate::app::state::agent_apps::begin(&mut app.apps_catalog, context.clone());
-            if let Some(id) = selected_prompt_app {
+            use desktop_ui_controls::settings_navigation::ThirdPartyPage;
+            let selected_app = app.apps_catalog.expanded.filter(|_| {
+                matches!(
+                    app.apps_catalog.third_party_page,
+                    ThirdPartyPage::Agents | ThirdPartyPage::Prompts,
+                )
+            });
+            let generation =
+                crate::app::state::agent_apps::begin(&mut app.apps_catalog, context.clone());
+            if let Some(id) = selected_app {
                 app.apps_catalog.expanded = Some(id);
             }
             let host = app.apps_catalog.host.clone();
@@ -373,6 +436,7 @@ pub(in crate::app) fn update(app: &mut App, message: AppsCatalogMessage) -> Task
                 } else { Task::none() };
                 return Task::batch([
                     prompts,
+                    crate::app::components::third_party_settings::ensure_agent_providers(app),
                     crate::app::components::third_party_settings::mcp_workspace::refresh(app),
                     navigation,
                     crate::app::components::system_settings_apps::preferences::update(

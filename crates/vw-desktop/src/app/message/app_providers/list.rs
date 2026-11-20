@@ -45,6 +45,8 @@ pub enum ListMessage {
     Close,
     Refresh,
     QueryInput(String),
+    Terminal(String),
+    UseProvider(String),
     Loaded {
         scope: Scope,
         generation: u64,
@@ -211,6 +213,48 @@ pub(crate) fn update(app: &mut App, value: ListMessage) -> Task<Message> {
             return crate::app::message::agent_apps_diagnostics::model::update(app, event);
         }
         ListMessage::Desktop(event) => return super::desktop::update(app, event),
+        ListMessage::UseProvider(id) => {
+            return crate::app::desktop_lifecycle::tray_switch::start(app, id);
+        }
+        ListMessage::Terminal(id) => {
+            let Some(scope) = app.app_providers.scope.as_ref() else {
+                return Task::none();
+            };
+            let app_id = scope.app;
+            if !current(app, app_id).is_ok_and(|(_, now)| &now == scope)
+                || !app.app_providers.snapshot.as_ref().is_some_and(|snapshot| {
+                    snapshot
+                        .catalog
+                        .rows
+                        .iter()
+                        .any(|row| row.provider.app_id == app_id && row.provider.id == id)
+                })
+            {
+                return Task::none();
+            }
+            let Some(installation) = app
+                .apps_catalog
+                .rows
+                .iter()
+                .find(|row| row.entry.id == app_id)
+                .and_then(desktop_settings_apps::system_settings_apps::presentation::preferred)
+                .filter(|installation| {
+                    matches!(
+                        installation.runtime_status,
+                        vw_api_app_identity::AppInstallationRuntimeStatus::Runnable
+                    )
+                })
+            else {
+                return app.show_info_toast("请先安装或刷新此应用");
+            };
+            return crate::app::message::settings::apps_catalog::update(
+                app, crate::app::message::settings::AppsCatalogMessage::Launch(
+                    desktop_settings_apps::system_settings_apps::launch::LaunchMessage::OpenProvider(
+                        app_id, installation.id.clone(), id,
+                    ),
+                ),
+            );
+        }
         ListMessage::Close => {
             return catalog(app, None, desktop_provider_apps::state::list::CatalogEvent::Close);
         }
@@ -225,6 +269,9 @@ pub(crate) fn update(app: &mut App, value: ListMessage) -> Task<Message> {
             );
         }
         ListMessage::Refresh => {
+            if app.app_providers.tray_switch.is_some() {
+                return Task::none();
+            }
             if let Some(scope) = &app.app_providers.scope {
                 return catalog(
                     app,

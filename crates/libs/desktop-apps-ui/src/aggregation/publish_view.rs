@@ -4,7 +4,7 @@ use super::publish::{Action, Event, Session};
 type Message = Event;
 fn message(event: Event) -> Event { event }
 use iced::{
-    Element,
+    Element, Length,
     widget::{button, column, container, row, text},
 };
 use vw_api_app_aggregation::*;
@@ -16,10 +16,14 @@ pub fn overlay<'a>(
 ) -> Element<'a, Message> {
     let exiting = session.exit_state.is_some();
     let close = message(Event::Dismiss);
-    let header = settings_modal_header(
-        text(if exiting { "回到直连" } else { "确认聚合发布" }).size(20),
-        settings_close_button(close.clone()),
-    );
+    let header = column![
+        settings_modal_header(
+            text(if exiting { "回到直连" } else { "切换到聚合模式" }).size(20),
+            settings_close_button(close.clone()),
+        ),
+        settings_divider(),
+    ]
+    .spacing(12);
     let mut body =
         column![text("请核对默认供应商、发布模型和限制。聚合不支持故障转移。")].spacing(12);
     if let Some(state) = &session.exit_state {
@@ -40,7 +44,10 @@ pub fn overlay<'a>(
             .find(|m| m.provider_id == default)
             .map(|m| m.name.as_str())
             .unwrap_or(default);
-        body = body.push(settings_panel(text(format!("默认供应商：{default_name}"))));
+        body = body.push(settings_panel(
+            column![settings_field_label("默认供应商"), text(default_name.to_owned()).size(15),]
+                .spacing(6),
+        ));
         for member in &preview.members {
             let mut models =
                 column![text(format!("{} · {} 个模型", member.name, member.models.len()))]
@@ -164,7 +171,7 @@ pub fn overlay<'a>(
         );
     } else {
         footer = footer.push(
-            button(text(if exiting { "确认回到直连" } else { "确认发布" }))
+            button(text(if exiting { "确认回到直连" } else { "发布聚合目录" }))
                 .padding([8, 14])
                 .style(primary_action_btn_style)
                 .on_press_maybe(
@@ -180,7 +187,9 @@ pub fn overlay<'a>(
                 .on_press(message(Event::RetryExit)),
         );
     }
-    let card = settings_modal_layout(header, body, Some(footer.into())).width(720).height(620);
+    let footer =
+        column![settings_divider(), container(footer.wrap()).align_right(Length::Fill)].spacing(12);
+    let card = settings_modal_layout(header, body, Some(footer.into())).width(620).height(620);
     settings_modal_overlay(Some(base), close, container(card).padding(12))
 }
 

@@ -77,3 +77,20 @@
 +            mcp_approval_token = _acp_tool_approval.set(approve_mcp)
 @@ -1523,0 +1547 @@
 +                _acp_tool_approval.reset(mcp_approval_token)
+--- a/acp_adapter/session_model_state.py
++++ b/acp_adapter/session_model_state.py
+@@ -22,3 +22,11 @@
+-    root = Path(tempfile.gettempdir()) / f"shiju-hermes-state-{os.getuid()}"
+-    directory = root / match.group(1)
+-    for path in (root, directory):
++    managed_history = os.environ.get("SHIJU_HERMES_HISTORY")
++    if managed_history:
++        directory = Path(managed_history)
++        if not directory.is_absolute() or directory.name != match.group(1):
++            raise ValueError("Hermes private history does not match the launch reference")
++        directories = (directory,)
++    else:
++        root = Path(tempfile.gettempdir()) / f"shiju-hermes-state-{os.getuid()}"
++        directory = root / match.group(1)
++        directories = (root, directory)
++    for path in directories:

@@ -66,9 +66,11 @@ fn installed_directory(agent: &str, contract: &Contract) -> Result<PathBuf, Stri
         3
     } else if matches!(agent, "codebuddy" | "codex" | "dirac" | "iflow" | "qoder" | "qwen") {
         2
+    } else if agent == "hermes" {
+        3
     } else if matches!(
         agent,
-        "glm-acp-agent" | "hermes" | "openclaw" | "poolside"
+        "glm-acp-agent" | "openclaw" | "poolside"
     ) {
         2
     } else {
@@ -537,6 +539,9 @@ pub(super) async fn install(agent: &str) -> Result<bool, String> {
         ("kiro/apply.py", include_str!("../../../../patches/acp-model-source/kiro/apply.py")),
         ("kiro/patch.json", include_str!("../../../../patches/acp-model-source/kiro/patch.json")),
         ("kiro/launcher.py", include_str!("../../../../patches/acp-model-source/kiro/launcher.py")),
+        ("hermes/coexistence/apply_patch.py", include_str!("../../../../docs/shiju/acp-model-source/evidence/hermes/apply_patch.py")),
+        ("hermes/coexistence/patch.json", include_str!("../../../../patches/acp-model-source/hermes/patch.json")),
+        ("hermes/coexistence/coexistence.patch", include_str!("../../../../patches/acp-model-source/hermes/coexistence.patch")),
         ("contracts.json", CONTRACTS),
         ("iflow-lock.json", include_str!("managed_runtime/iflow-lock.json")),
         (

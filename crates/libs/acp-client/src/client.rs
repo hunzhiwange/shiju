@@ -84,6 +84,8 @@ mod message_io;
 mod nova_io;
 #[path = "client/process.rs"]
 mod process;
+mod hermes_sandbox;
+pub use hermes_sandbox::HermesSandbox;
 #[path = "client/process_signals.rs"]
 mod process_signals;
 #[path = "client/prompt_controls.rs"]
@@ -190,6 +192,7 @@ impl<T: Send + Sync> SkillMountLease for T {}
 /// 该类型是上层与 ACP 代理交互的主要入口。它持有启动配置、权限策略、
 /// 回调和后台 actor 状态；克隆句柄会共享同一个 actor 状态和当前提示词控制。
 pub struct AcpClient {
+    hermes_sandbox: Option<HermesSandbox>,
     agent_name: String,
     config: AcpAgentConfig,
     client_name: String,

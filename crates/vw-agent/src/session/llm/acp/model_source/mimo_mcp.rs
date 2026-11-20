@@ -41,6 +41,7 @@ const SANDBOX: &str = r#"
 struct Server {
     peer: mcp_client::RunningMcpPeer,
     catalog: BTreeMap<String, Tool>,
+    approval_names: BTreeMap<String, String>,
     permits: Semaphore,
     _scratch: tempfile::TempDir,
     graph_root: Option<std::path::PathBuf>,
@@ -84,11 +85,11 @@ impl Projection {
         self.access.bearer_token()
     }
 
-    pub(super) fn vtcode_config(&self, endpoint: &str) -> anyhow::Result<(
+    pub(super) fn approval_config(&self, endpoint: &str) -> anyhow::Result<(
         Vec<AcpMcpServer>, acp_client::ManagedMcpApproval,
     )> {
         use agent_client_protocol::{HttpHeader, McpServerHttp};
-        let approvals = self.approvals.clone().ok_or_else(|| anyhow::anyhow!("Missing VT Code MCP approval store"))?;
+        let approvals = self.approvals.clone().ok_or_else(|| anyhow::anyhow!("Missing managed MCP approval store"))?;
         let catalog = self.tools.clone();
         let approve: acp_client::ManagedMcpApproval = Arc::new(move |name, input| {
             input.is_object() && catalog.iter().any(|tool| tool == name) && approvals.issue(name, input)
@@ -128,11 +129,13 @@ pub(super) async fn prepare(
         "MiMo MCP requires the reviewed Darwin arm64 runtime"
     );
     let vtcode = launch.identity().session.ends_with(":vtcode");
+    let hermes = launch.identity().session.ends_with(":hermes");
+    let requires_approval = vtcode || hermes;
     anyhow::ensure!(
-        vtcode || launch.identity().session.ends_with(":mimo-code"),
+        requires_approval || launch.identity().session.ends_with(":mimo-code"),
         "Managed MCP requires a reviewed relay"
     );
-    let approvals = vtcode.then(|| Arc::new(VtcodeApproval::default()));
+    let approvals = requires_approval.then(|| Arc::new(VtcodeApproval::default()));
     anyhow::ensure!(
         !definitions.is_empty() && definitions.len() <= 16,
         "invalid MiMo MCP service count"
@@ -147,7 +150,11 @@ pub(super) async fn prepare(
     let mut services = BTreeSet::new();
     let mut native_tools = BTreeSet::new();
 
-    let policy_key = if vtcode { "shiju.vtcode.toolPolicy" } else { "shiju.mimo.toolPolicy" };
+    let policy_key = match (hermes, vtcode) {
+        (true, _) => "shiju.hermes.toolPolicy",
+        (_, true) => "shiju.vtcode.toolPolicy",
+        _ => "shiju.mimo.toolPolicy",
+    };
     for definition in definitions {
         let AcpMcpServer::Stdio(definition) = definition else {
             anyhow::bail!("MiMo managed MCP accepts isolated stdio services");
@@ -207,7 +214,7 @@ pub(super) async fn prepare(
             ("scratch", scratch_path.clone()),
             ("host-home", host_home),
             ("git", workspace.join(".git")),
-            ("settings", workspace.join(if vtcode { ".vtcode" } else { ".mimocode" })),
+            ("settings", workspace.join(if hermes { ".hermes" } else if vtcode { ".vtcode" } else { ".mimocode" })),
             ("env", workspace.join(".env")),
             ("mount", workspace.join(".vwacprc.json")),
         ] {
@@ -233,6 +240,7 @@ pub(super) async fn prepare(
         let listed =
             tokio::time::timeout(TIMEOUT, mcp_client::catalog::list_tools(&peer)).await??;
         let mut catalog = BTreeMap::new();
+        let mut approval_names = BTreeMap::new();
         for mut tool in listed {
             let name = tool.name.to_string();
             anyhow::ensure!(valid_name(&name), "invalid MiMo MCP tool name");
@@ -240,11 +248,16 @@ pub(super) async fn prepare(
             if !mcp_client::mcp_tool_allowed(&management, &name, &tool_id) {
                 continue;
             }
-            let public = if vtcode {
+            let public = if hermes {
+                format!("mcp__{}__{name}", definition.name).replace('-', "_")
+            } else if vtcode {
                 format!("mcp__{}__{name}", definition.name)
             } else {
                 format!("{}_{name}", definition.name)
             };
+            if requires_approval {
+                approval_names.insert(name.clone(), public.clone());
+            }
             anyhow::ensure!(
                 public.len() <= 64 && native_tools.insert(public),
                 "invalid or colliding MiMo MCP tool name"
@@ -268,14 +281,14 @@ pub(super) async fn prepare(
         if !catalog.is_empty() {
             servers.insert(
                 definition.name.clone(),
-                Server { peer, catalog, permits: Semaphore::new(1), _scratch: scratch, graph_root },
+                Server { peer, catalog, approval_names, permits: Semaphore::new(1), _scratch: scratch, graph_root },
             );
         }
     }
-    anyhow::ensure!(!vtcode || !servers.is_empty(), "No tools in the selected VT Code MCP catalog");
+    anyhow::ensure!(!requires_approval || !servers.is_empty(), "No tools in the selected ACP MCP catalog");
     let names = servers.keys().cloned().collect();
     let state = Arc::new(Bridge { launch, access: access.clone(), servers, approvals: approvals.clone() });
-    let route = if vtcode { "/shiju-vtcode-mcp/{service}" } else { "/shiju-mimo-mcp/{service}" };
+    let route = if requires_approval { "/shiju-vtcode-mcp/{service}" } else { "/shiju-mimo-mcp/{service}" };
     let router = Router::new().route(route, post(handle)).with_state(state);
     Ok(Projection { router, servers: names, access, tools: native_tools.into_iter().collect(), approvals })
 }
@@ -338,13 +351,13 @@ async fn handle(
     tokio::select! {
         biased;
         () = state.launch.cancelled().cancelled() => Err(StatusCode::UNAUTHORIZED),
-        response = tokio::time::timeout(TIMEOUT, dispatch(server, &service, state.approvals.as_deref(), request)) => {
+        response = tokio::time::timeout(TIMEOUT, dispatch(server, state.approvals.as_deref(), request)) => {
             response.map_err(|_| StatusCode::GATEWAY_TIMEOUT)?
         }
     }
 }
 
-async fn dispatch(server: &Server, service: &str, approval: Option<&VtcodeApproval>, request: Request) -> Result<Response, StatusCode> {
+async fn dispatch(server: &Server, approval: Option<&VtcodeApproval>, request: Request) -> Result<Response, StatusCode> {
     let bytes = to_bytes(request.into_body(), BODY_LIMIT)
         .await
         .map_err(|_| StatusCode::PAYLOAD_TOO_LARGE)?;
@@ -375,8 +388,8 @@ async fn dispatch(server: &Server, service: &str, approval: Option<&VtcodeApprov
             }
             if let Some(approval) = approval {
                 let input = params.arguments.as_ref().map_or_else(|| json!({}), |args| json!(args));
-                let public = format!("mcp__{service}__{}", params.name);
-                if !approval.consume(&public, &input) {
+                let public = server.approval_names.get(params.name.as_ref()).ok_or(StatusCode::FORBIDDEN)?;
+                if !approval.consume(public, &input) {
                     return Err(StatusCode::FORBIDDEN);
                 }
                 if let Some(root) = &server.graph_root

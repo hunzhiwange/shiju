@@ -862,7 +862,7 @@
       "status": "verified",
       "platform": {
         "review_host": "Darwin-arm64",
-        "artifact_scope": "Reviewed patched Hermes 0.19.0 real ACP on Darwin-arm64 only; other versions/platforms unverified.",
+        "artifact_scope": "Reviewed Hermes 0.19.0 runtime revision v3 for restricted session_model coexistence on Darwin arm64.",
         "linux": "unverified",
         "windows": "unverified"
       },
@@ -888,11 +888,11 @@
       },
       "mount": {
         "candidate_paths": [
-          "SHIJU_HERMES_SKILL_ROOT (reviewed patch, process-owned session directory)"
+          "Private HERMES_HOME/skills from the authorized workspace .hermes/skills, plus SHIJU_HERMES_SKILL_ROOT for selected skills"
         ],
-        "discovery": "Actual Hermes native system catalog contains exactly selected names; native skill_view supplies body and mounted directory; real read_file/terminal tools read a newly randomized attachment and execute the script.",
+        "discovery": "Hermes retains the native home catalog and appends the selected skill view. Native skill_view reads both bodies and their attachments.",
         "activation": "Native skill_view reads the body on demand; initial model prompt has no body or random attachment.",
-        "session_isolation": "External directories and namespaced plugin activation are excluded. Owned project/user decoys never appear. Invalid roots fail closed."
+        "session_isolation": "The restricted runtime admits only the approved native root, selected view and private state. Invalid roots fail closed."
       },
       "permissions": {
         "status": "verified on Darwin-arm64: audited view, executable hash guard and default-skill permission denial before model request",
@@ -964,7 +964,7 @@
         }
       ],
       "supplemental_official_docs": [],
-      "next_validation": "Re-run the two real source entries after any reviewed package/patch/scanner change; other platforms need independent acceptance.",
+      "next_validation": "Current v3 contract hashes are in managed_runtime/contracts.json. See ../../dev/acp/skill-coexistence/hermes.md for restricted gateway evidence and remaining platform checks.",
       "runtime_acceptance": {
         "evidence": "evidence/hermes.json",
         "model_sources": {

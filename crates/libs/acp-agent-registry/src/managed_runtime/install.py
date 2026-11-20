@@ -518,6 +518,7 @@ if contract.get('layout') == 'python':
         run([str(python), str(assets / 'vibe/apply_patch.py')])
     else:
         run([str(python), str(assets / 'hermes/apply_patch.py'), '--package-dir', str(site)])
+        run([str(python), str(assets / 'hermes/coexistence/apply_patch.py'), '--package-dir', str(site)])
     check_files(site, contract['files'])
     raise SystemExit(0)
 if agent == 'sigit':

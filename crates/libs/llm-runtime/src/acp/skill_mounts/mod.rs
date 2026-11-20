@@ -16,7 +16,7 @@ mod deepagents_tests;
 mod gemini;
 mod goose;
 mod grok;
-mod hermes;
+pub(super) mod hermes;
 mod iflow;
 pub(super) mod junie;
 mod kilocode;

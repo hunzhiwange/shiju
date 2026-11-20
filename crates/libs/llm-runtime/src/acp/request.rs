@@ -184,13 +184,21 @@ pub async fn do_stream_request_acp<H: Host>(
         chat_messages,
     )
     .await?;
+    let mut restricted_hermes = false;
     if let Some((root, full_grant)) = desktop_access {
         super::session::bind_desktop_access(&mut parsed_options, root, full_grant);
-        acp_client::AcpClient::ensure_desktop_native_access(
-            &acp_agent_name,
-            parsed_options.full_access,
-        )
-        .map_err(to_api_error)?;
+        restricted_hermes = acp_agent_name == "hermes"
+            && parsed_options.permission_mode == Some(acp_types::PermissionMode::ApproveReads)
+            && merged_options.get("disable_tools").and_then(Value::as_bool) != Some(true)
+            && cfg!(all(target_os = "macos", target_arch = "aarch64"))
+            && source == vw_api_acp_model::acp_model_source::AcpModelSource::SessionModel;
+        if !restricted_hermes {
+            acp_client::AcpClient::ensure_desktop_native_access(
+                &acp_agent_name,
+                parsed_options.full_access,
+            )
+            .map_err(to_api_error)?;
+        }
     }
     parsed_options.runtime_identity = Some(scoped_session.clone());
     parsed_options.skill_view = H::prepare_skills(
@@ -401,6 +409,7 @@ pub async fn do_stream_request_acp<H: Host>(
     {
         return Err(acp_option_error("MiMo managed MCP requires enabled tool approvals"));
     }
+    let hermes_mcp = restricted_hermes && !parsed_options.mcp_servers.is_empty();
     let openclaw_mcp = if acp_agent_name == "openclaw" {
         if !parsed_options.mcp_servers.is_empty()
             && merged_options.get("disable_tools").and_then(Value::as_bool) == Some(true)
@@ -429,7 +438,7 @@ pub async fn do_stream_request_acp<H: Host>(
                 }
                 std::future::pending::<()>().await;
             };
-            let prepare = if mimo_mcp || vtcode_mcp {
+            let prepare = if mimo_mcp || vtcode_mcp || hermes_mcp {
                 H::prepare_stdio_mcp_launch(&acp_agent_name, &normalized_acp_cfg, model, &scoped_session, &cwd, &parsed_options.mcp_servers)
             } else if openclaw_mcp.is_empty() {
                 H::prepare_launch(&acp_agent_name, &normalized_acp_cfg, model, &scoped_session)
@@ -457,6 +466,12 @@ pub async fn do_stream_request_acp<H: Host>(
             return Err(acp_option_error("Amp selected skills require the reviewed session-model launch"));
         }
     }
+    let hermes_sandbox = if restricted_hermes {
+        let profile = launch_profile.as_ref().ok_or_else(|| acp_option_error("Missing restricted Hermes launch"))?;
+        Some(super::skill_mounts::hermes::sandbox(profile, &cwd, parsed_options.skill_view.as_ref()).map_err(to_api_error)?)
+    } else {
+        None
+    };
     if acp_agent_name == "sigit" && let Some(profile) = launch_profile.as_mut() {
         super::skill_mounts::sigit::configure(profile, parsed_options.skill_view.as_ref())?;
     }
@@ -617,7 +632,7 @@ pub async fn do_stream_request_acp<H: Host>(
         .await?;
         let cached_client_entry =
             get_cached_acp_client_with_approval::<H>(
-                &acp_agent_name, &normalized_acp_cfg, &cwd, &parsed_options,
+                &acp_agent_name, &normalized_acp_cfg, &cwd, &parsed_options, hermes_sandbox.clone(),
                 launch_profile.as_ref().and_then(|profile| profile.managed_mcp.as_ref()).map(|(_, approve)| approve.clone()),
             );
         let _request_cleanup = super::session::RequestClientCleanup::new(&cached_client_entry);

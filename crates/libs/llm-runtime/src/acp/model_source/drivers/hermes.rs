@@ -72,6 +72,7 @@ pub fn configure(profile: &mut AcpLaunchProfile, endpoint: &str) -> anyhow::Resu
                     | "HERMES_CONFIG"
                     | "HERMES_ENV"
                     | "HERMES_MANAGED_DIR"
+                    | "SHIJU_HERMES_HISTORY"
                     | "CUSTOM_BASE_URL"
             ),
             "conflicting Hermes model-source environment"
@@ -97,6 +98,9 @@ pub fn configure(profile: &mut AcpLaunchProfile, endpoint: &str) -> anyhow::Resu
     } else {
         profile.model_output_limit
     });
+    if profile.model_context_limit > 0 {
+        main["context_length"] = serde_json::json!(profile.model_context_limit);
+    }
     let mut delegation = route;
     delegation["model"] = serde_json::json!(profile.model_alias);
     let config = serde_json::json!({

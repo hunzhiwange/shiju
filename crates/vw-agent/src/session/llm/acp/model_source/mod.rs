@@ -81,9 +81,9 @@ async fn prepare_with_mounts(
     .await?;
     let endpoint = format!("http://{}", server.address());
     profile.attach_server(server);
-    if let Some(projection) = projection.as_ref().filter(|_| agent == "vtcode") {
+    if let Some(projection) = projection.as_ref().filter(|_| matches!(agent, "vtcode" | "hermes")) {
         llm_runtime::acp::model_source::configure_profile(agent, &mut profile, &endpoint, &directory, openclaw_mcp).await?;
-        profile.managed_mcp = Some(projection.vtcode_config(&endpoint)?);
+        profile.managed_mcp = Some(projection.approval_config(&endpoint)?);
     } else if let Some(mimo) = projection {
         llm_runtime::acp::model_source::drivers::launch_route(agent, &profile)?;
         llm_runtime::acp::model_source::drivers::mimo_code::configure_with_mcp(

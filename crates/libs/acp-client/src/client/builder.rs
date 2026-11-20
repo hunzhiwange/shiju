@@ -3,6 +3,11 @@
 use super::*;
 
 impl AcpClient {
+    pub fn with_hermes_sandbox(mut self, sandbox: Option<super::HermesSandbox>) -> Self {
+        self.hermes_sandbox = sandbox;
+        self
+    }
+
     pub fn with_managed_mcp_approval(mut self, approval: Option<crate::ManagedMcpApproval>) -> Self {
         self.managed_mcp_approval = approval;
         self
@@ -36,6 +41,7 @@ impl AcpClient {
     /// 返回的客户端尚未启动代理进程；首次会话或提示词请求会按需启动。
     pub fn new(agent_name: impl Into<String>, config: AcpAgentConfig) -> Self {
         Self {
+            hermes_sandbox: None,
             agent_name: agent_name.into(),
             config,
             client_name: "vibewindow-acp-client".to_string(),

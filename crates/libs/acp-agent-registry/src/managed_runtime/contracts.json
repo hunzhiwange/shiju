@@ -197,16 +197,18 @@
     "version": "0.19.0",
     "bin": "hermes",
     "files": {
-      "acp_adapter/session_model_state.py": "c3addec1baac1ae16bf70078edfb42efd479d7834afb0305e9dbc4575fba57ee",
+      "acp_adapter/session_model_state.py": "af78edb2e5eda2baae5362fc70ddd05b78642c82d64c210d4f6cad06c3de37df",
       "mcp/__init__.py": "f66ae17959a1420edb67624dcd79da20860543e1d513b7d5c86ec0250cf8af72",
       "acp_adapter/session.py": "3e8d2e86ca33be43c1daf96b6a39001de97287bd1b96fbb4adaf0f3aa8a4d410",
       "acp_adapter/entry.py": "611eab6b93ed0f97a9e079b5cbde771a0dc9223122cf2c9fb963af408106658b",
       "hermes_cli/main.py": "7e1c678f2584928b863565f99d3bca1d9a530a716838d23766e1449ffa9bca67",
       "hermes_cli/subcommands/acp.py": "83980efbd56f31d64f35df8615ba3a86beb96760a3f3cb3b2cc5996ed99626d4",
-      "agent/skill_utils.py": "6c5712130d1c9a25c962e002092e2fc3e99f678a35d8b93828ea4b28cdb6bf68",
-      "agent/prompt_builder.py": "0ddb00ebb67bf61b11446227a97059a0f425879963f45e0736801d117b473d8e",
-      "tools/skills_tool.py": "dd94beff43de5c28af79505a55aa728c95875651225e7bec68674576c2c8ee2e",
-      "agent/conversation_loop.py": "70d332baabc102c69d30a7416986e29cf320449b6714611640fb6a1ff70768fd"
+      "agent/skill_utils.py": "b388417c6339b1cb138105395429a28f50b2c6f3f72b699bdc6926e03787db75",
+      "agent/prompt_builder.py": "bef52d0b47708f18532e3447bb0748491a1fcb73a8087b790adc62483ff15b4a",
+      "tools/skills_tool.py": "fccaff108b9d850d84087f506d04d53aea9dc75e767796ea64348cb8b8bff275",
+      "agent/conversation_loop.py": "70d332baabc102c69d30a7416986e29cf320449b6714611640fb6a1ff70768fd",
+      "tools/mcp_tool.py": "703923450ccbb18a6736015c90423599b25d65b9038bc50a707ff8eb38c918d0",
+      "acp_adapter/server.py": "402d2f5ae4041889d970e338eaa34a4c31cf4b394335ce31b79bfc55dbb9dff7"
     },
     "wheel_sha256": "bd0bac012aee38a60894781f4597dc29ee7bedb3448540249921f10d3bef327f"
   },

@@ -2,7 +2,6 @@
 
 import argparse
 from contextlib import contextmanager
-import hashlib
 from http.server import BaseHTTPRequestHandler
 import json
 from pathlib import Path
@@ -20,34 +19,20 @@ from verify_acp_integration import Process, require, text_updates
 from verify_acp_model_source import ROOT
 from verify_acp_skill_coexistence import PHASES, make_skill, model_server
 
-PATCH = Path(__file__).with_suffix(".patch")
-# These two upstream files are outside the existing v2 patch contract.
-EXTRA_V2_FILES = {
-    "tools/mcp_tool.py": "a7328f3f3762ae43f6a9426646b0c28c17ec8663aa391506f48d628035ad5460",
-    "acp_adapter/server.py": "e780061d47fa6c874f89676afc75ab386b50f79bb269fdef38095245e8f32145",
-}
-PATCHED_FILES = {
-    "agent/skill_utils.py": "b388417c6339b1cb138105395429a28f50b2c6f3f72b699bdc6926e03787db75",
-    "agent/prompt_builder.py": "bef52d0b47708f18532e3447bb0748491a1fcb73a8087b790adc62483ff15b4a",
-    "tools/skills_tool.py": "fccaff108b9d850d84087f506d04d53aea9dc75e767796ea64348cb8b8bff275",
-    "tools/mcp_tool.py": "703923450ccbb18a6736015c90423599b25d65b9038bc50a707ff8eb38c918d0",
-    "acp_adapter/server.py": "402d2f5ae4041889d970e338eaa34a4c31cf4b394335ce31b79bfc55dbb9dff7",
-}
-
-
-def patch_runtime(entry):
+def patch_runtime(entry, root):
+    source = ROOT / "patches/acp-model-source/hermes"
+    assets = root / "patch"
+    assets.mkdir()
+    for name in ("patch.json", "coexistence.patch"):
+        (assets / name).write_bytes((source / name).read_bytes())
+    apply = assets / "apply_patch.py"
+    reviewed = ROOT / "docs/shiju/acp-model-source/evidence/hermes/apply_patch.py"
+    apply.write_bytes(reviewed.read_bytes())
     site = entry.parents[1] / "lib/python3.12/site-packages"
-    for name in PATCHED_FILES:
-        file = site / name
-        require(file.resolve(strict=True) == file, "candidate patch target is a symlink")
-    for name, digest in EXTRA_V2_FILES.items():
-        require(hashlib.sha256((site / name).read_bytes()).hexdigest() == digest,
-                "unexpected Hermes candidate input: " + name)
-    subprocess.run(["/usr/bin/patch", "-s", "-f", "-F0", "-p1", "-i", str(PATCH.resolve())],
-                   cwd=site, check=True, timeout=10)
-    for name, digest in PATCHED_FILES.items():
-        require(hashlib.sha256((site / name).read_bytes()).hexdigest() == digest,
-                "unexpected Hermes candidate output: " + name)
+    subprocess.run([sys.executable, str(apply), "--package-dir", str(site)],
+                   check=True, timeout=10, capture_output=True)
+    files = json.loads((assets / "patch.json").read_text())["files"]
+    return {name: row["patched_sha256"] for name, row in files.items()}
 
 
 class StdioRelayHandler(BaseHTTPRequestHandler):
@@ -106,9 +91,9 @@ def stdio_relay(attachment, audit):
                 peer.wait()
 
 
-def sandbox(python, home, workspace, view, model_port, mcp_port):
+def sandbox(python, home, workspace, history, skill_roots, model_port, mcp_port):
     real_python = python.resolve(strict=True)
-    paths = (python.parents[1], real_python.parents[1], home, workspace, view)
+    paths = (python.parents[1], real_python.parents[1], home, history, *skill_roots)
     reads = " ".join(f"(subpath {json.dumps(str(path))})" for path in paths)
     return f"""(version 1)
 (allow default)
@@ -116,9 +101,10 @@ def sandbox(python, home, workspace, view, model_port, mcp_port):
 (allow file-read-data (literal "/") (subpath "/System") (subpath "/usr/lib") (subpath "/usr/share"))
 (deny file-read-data (subpath "/System/Volumes/Data"))
 (allow file-read-data (literal "/dev/null") (literal "/dev/urandom")
-    (literal "/private/etc/hosts") (literal "/private/etc/localtime") {reads})
+    (literal "/private/etc/hosts") (literal "/private/etc/localtime")
+    (literal {json.dumps(str(workspace))}) {reads})
 (deny file-write*)
-(allow file-write* (subpath {json.dumps(str(home))}) (literal "/dev/null"))
+(allow file-write* (subpath {json.dumps(str(home))}) (subpath {json.dumps(str(history))}) (literal "/dev/null"))
 (deny process-fork process-exec)
 (allow process-exec (literal {json.dumps(str(python))}) (literal {json.dumps(str(real_python))}))
 (deny network*)
@@ -133,6 +119,8 @@ for operation in (
     lambda: pathlib.Path(sys.argv[2]).write_text("unexpected"),
     lambda: subprocess.run(["/bin/sh", "-c", "exit"], check=True),
     lambda: socket.create_connection(("127.0.0.1", 1), timeout=1),
+    lambda: pathlib.Path(sys.argv[3]).write_text("unexpected"),
+    lambda: pathlib.Path(sys.argv[4]).read_bytes(),
 ):
     try:
         operation()
@@ -148,35 +136,48 @@ def run_phase(phase, root, entry, model, mcp, value, audit, saved_probe, foreign
         folder.mkdir(parents=True, mode=0o700)
     mounted = phase in ("mounted", "rejected")
     rejected = phase == "rejected"
+    native = workspace / ".hermes/skills"
     fixtures = {"skills": {
-        "native": make_skill(home / "skills", "native"),
+        "native": make_skill(native, "native"),
         "selected": make_skill(workspace / ".shiju/skills", "selected"),
         "unselected": make_skill(workspace / ".shiju/skills", "unselected"),
     }, "mcp": value}
+    (home / "skills").symlink_to(native, target_is_directory=True)
+    history = root / secrets.token_hex(32)
+    history.mkdir(mode=0o700)
     skill = fixtures["skills"]["selected"]
+    skill_roots = [native]
     if mounted:
+        skill_roots.extend((view, skill["path"]))
         (view / skill["name"]).symlink_to(skill["path"], target_is_directory=True)
     env = {"PATH": "/usr/bin:/bin", "HOME": str(home), "HERMES_HOME": str(home),
            "TMPDIR": str(home), "NO_PROXY": "*", "no_proxy": "*",
-           "VW_ACP_LAUNCH_REFERENCE": "vw-session-model:" + secrets.token_hex(32),
+           "VW_ACP_LAUNCH_REFERENCE": "vw-session-model:" + history.name,
+           "SHIJU_HERMES_HISTORY": str(history),
            "SHIJU_HERMES_SKILL_ROOT": str(view) if mounted else ""}
-    model.probe = probe = Probe(fixtures, mounted, rejected)
+    model.probe = probe = Probe(fixtures, mounted, rejected, observe_stdio=False)
     model_port = model.server_port
     route = {"provider": "custom", "base_url": f"http://127.0.0.1:{model_port}/v1",
              "api_key": model.key, "api_mode": "chat_completions",
              "default": MODEL, "context_length": 100000}
     (home / "config.yaml").write_text(json.dumps({"model": route}))
     (home / ".env").touch()
+    (home / "workspace-link").symlink_to(workspace, target_is_directory=True)
     python = entry.with_name("python")
     policy = root / "hermes.sb"
-    policy.write_text(sandbox(python, home, workspace, view, model_port, urlsplit(mcp["url"]).port))
+    policy.write_text(sandbox(python, home, workspace, history, skill_roots, model_port,
+                              urlsplit(mcp["url"]).port))
     command = ["/usr/bin/sandbox-exec", "-f", str(policy), str(python), "-IB"]
-    subprocess.run(command + ["-c", DENIAL_PROBE, str(foreign), str(workspace / "denied-write")],
+    workspace_decoy = workspace / "unrelated.txt"
+    workspace_decoy.write_text(secrets.token_hex(24))
+    subprocess.run(command + ["-c", DENIAL_PROBE, str(foreign), str(workspace / "denied-write"),
+                              str(home / "workspace-link/denied-link-write"), str(workspace_decoy)],
                    env=env, cwd=workspace, check=True, timeout=10)
     before = audit.read_text().splitlines() if audit.exists() else []
-    client = Process(command + [str(entry), "acp", "--session-model-binding"],
-                     workspace, env, root / "hermes.log")
+    command += [str(entry), "acp", "--session-model-binding"]
+    client = Process(command, workspace, env, root / "hermes.log")
     decisions = []
+    prompt = "Check the available read-only fixture resources."
 
     def respond(frame):
         if frame.get("method") != "session/request_permission":
@@ -197,7 +198,7 @@ def run_phase(phase, root, entry, model, mcp, value, audit, saved_probe, foreign
                                                  "mcpServers": [mcp] if mounted else []})
         sid = created["sessionId"]
         result, updates = client.call("session/prompt", {"sessionId": sid, "prompt": [
-            {"type": "text", "text": "Check the available read-only fixture resources."}]},
+            {"type": "text", "text": prompt}]},
             on_frame=respond)
         require(probe.failure is None, probe.failure)
         require(result["stopReason"] == "end_turn"
@@ -210,10 +211,23 @@ def run_phase(phase, root, entry, model, mcp, value, audit, saved_probe, foreign
             "phase": phase, "session": sid, "stop_reason": result["stopReason"],
             "model_requests": probe.requests, "calls": probe.completed,
             "mcp_decisions": decisions, "mcp_calls": len(after) - len(before),
-            "sandbox_denied": ["sibling_read", "workspace_write", "shell_spawn", "unlisted_port"],
+            "sandbox_denied": ["sibling_read", "workspace_write", "shell_spawn", "unlisted_port", "linked_workspace_write",
+                               "unselected_workspace_read"],
         })
     finally:
         client.close()
+
+    if phase == "baseline":
+        require((history / "state.db").is_file(), "Hermes did not write its bound history")
+        restored = Process(command, workspace, env, root / "restore.log")
+        try:
+            restored.call("initialize", {"protocolVersion": 1, "clientCapabilities": {}})
+            _, frames = restored.call("session/load", {"sessionId": sid, "cwd": str(workspace),
+                                                       "mcpServers": []})
+            require(prompt in json.dumps(frames), "Hermes did not replay its bound history")
+            saved_probe[-1]["history_restored"] = True
+        finally:
+            restored.close()
 
 
 def main():
@@ -224,10 +238,9 @@ def main():
     try:
         with TemporaryDirectory(prefix="shiju-hermes-sandbox-") as directory:
             root = Path(directory).resolve()
-            spec, report["artifact"] = launch(environment(root))
+            spec, report["artifact"] = launch(environment(root), prototype=True)
             entry = Path(spec["command"])
-            patch_runtime(entry)
-            report["candidate_files"] = PATCHED_FILES
+            report["candidate_files"] = patch_runtime(entry, root)
             attachment, audit, foreign = (root / name for name in ("mcp.txt", "audit.txt", "foreign.txt"))
             value = secrets.token_hex(24)
             attachment.write_text(value)

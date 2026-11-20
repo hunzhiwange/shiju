@@ -88,7 +88,7 @@ impl AcpClient {
         }
         AcpEventClient {
             managed_workspace_io,
-            sandboxed_native_io: self.managed_vtcode() || self.managed_aionrs() || self.managed_cortex(),
+            sandboxed_native_io: self.sandboxed_native_io(),
             claude_permissions: self.agent_name == "claude",
             kimi_permissions: self.agent_name == "kimi",
             codebuddy_permissions: self.agent_name == "codebuddy",

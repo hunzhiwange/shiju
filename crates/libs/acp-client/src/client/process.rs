@@ -24,6 +24,10 @@ impl AcpClient {
         self.agent_name == "corust-agent" && self.config.env.contains_key("VW_ACP_LAUNCH_REFERENCE")
     }
 
+    pub(super) fn sandboxed_native_io(&self) -> bool {
+        self.hermes_sandbox.is_some() || self.managed_vtcode() || self.managed_aionrs() || self.managed_cortex()
+    }
+
     pub(super) fn managed_workspace_io(&self) -> bool {
         matches!(self.agent_name.as_str(), "mimo-code" | "omp")
             && self.config.env.contains_key("VW_ACP_LAUNCH_REFERENCE")
@@ -211,13 +215,20 @@ impl AcpClient {
                 ));
             }
         }
-        if !managed_claude && !managed_auggie && !managed_cursor && !managed_droid && !managed_private_provider {
+        if self.hermes_sandbox.is_none() && !managed_claude && !managed_auggie && !managed_cursor && !managed_droid && !managed_private_provider {
             for (key, value) in build_agent_environment(&self.auth_credentials) {
                 insert_auth_env_if_missing(&mut env, key, value);
             }
         }
 
-        let mut cmd = if managed_vtcode {
+        let mut cmd = if let Some(sandbox) = &self.hermes_sandbox {
+            if self.agent_name != "hermes" {
+                return Err(AcpError::Initialize("Hermes sandbox requires the Hermes backend".into()));
+            }
+            let mut command = sandbox.command(self.config.command.trim(), &args)?;
+            command.envs(&env);
+            command
+        } else if managed_vtcode {
             let executable = self.config.command.trim();
             crate::verify_reviewed_agent_executable("vtcode", executable)
                 .map_err(AcpError::Initialize)?;
@@ -324,7 +335,7 @@ impl AcpClient {
             cmd.env_remove("VW_ACP_LAUNCH_REFERENCE")
                 .env_remove("SIGIT_MANAGED_SKILL_DIRS");
         }
-        if let Some(directory) = directory.filter(|_| !managed_vtcode && !self.managed_workspace_io()) {
+        if let Some(directory) = directory.filter(|_| self.hermes_sandbox.is_none() && !managed_vtcode && !self.managed_workspace_io()) {
             cmd.current_dir(directory);
         }
         cmd.args(&args);
@@ -387,7 +398,9 @@ impl AcpClient {
     /// Materialize only known official launch shapes; custom argv stays byte-for-byte intact.
     pub(super) fn launch_args(&self) -> Result<Vec<String>, AcpError> {
         let unrestricted = self.full_access && self.permission_mode == PermissionMode::ApproveAll;
-        if self.desktop_workspace.is_some() {
+        if self.desktop_workspace.is_some()
+            && !(self.agent_name == "hermes" && self.hermes_sandbox.is_some())
+        {
             Self::ensure_desktop_native_access(&self.agent_name, unrestricted)?;
         }
         if self.agent_name == "copilot" {

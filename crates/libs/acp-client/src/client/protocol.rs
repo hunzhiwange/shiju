@@ -10,7 +10,7 @@ impl AcpClient {
         &self,
         conn: &acp::ClientSideConnection,
     ) -> Result<(), AcpError> {
-        let native_io = !self.managed_vtcode() && !self.managed_aionrs() && !self.managed_cortex();
+        let native_io = !self.sandboxed_native_io();
         let mut capabilities = acp::ClientCapabilities::new()
             .fs(acp::FileSystemCapabilities::new()
                 .read_text_file(native_io && !self.managed_workspace_io())

@@ -158,6 +158,7 @@ pub async fn apply_agent_defaults<H: DefaultsHost, S>(
                 "harn" => Some("shiju.harn.toolPolicy"),
                 "mimo-code" => Some("shiju.mimo.toolPolicy"),
                 "vtcode" => Some("shiju.vtcode.toolPolicy"),
+                "hermes" => Some("shiju.hermes.toolPolicy"),
                 "junie" => Some("shiju.junie.toolPolicy"),
                 "nova" => Some("shiju.nova.toolPolicy"),
                 "pi" => Some("shiju.pi.toolPolicy"),

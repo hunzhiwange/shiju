@@ -11,6 +11,7 @@ import secrets
 import shutil
 import subprocess
 
+from acp_skill_coexistence.mimo_code import mcp_server
 from verify_acp_integration import require
 from verify_acp_model_source import ROOT
 
@@ -18,17 +19,22 @@ MODEL = "hermes-coexistence"
 ADAPTER = "openai"
 API_PATH = "/v1"
 TRANSPORT = "stdio"
-NATIVE_DIR = "../home/.hermes/skills"
+NATIVE_DIR = ".hermes/skills"
 MCP_TOOL = "mcp__coexistence__read_probe"
 
 
-def launch(env):
+def launch(env, prototype=False):
     require((platform.system(), platform.machine()) == ("Darwin", "arm64"),
             "unreviewed Hermes platform")
     contracts = ROOT / "crates/libs/acp-agent-registry/src/managed_runtime/contracts.json"
     contract = json.loads(contracts.read_text())["hermes"]
     require(contract["version"] == "0.19.0", "Hermes version differs from coexistence pin")
-    revision = "hermes-0.19.0-model-source-v2"
+    revision = "hermes-0.19.0-model-source-v2" if prototype else "hermes-0.19.0-model-source-v3"
+    if prototype:
+        metadata = ROOT / "docs/shiju/acp-model-source/evidence/hermes/patch.json"
+        contract["files"] = {name: row["patched_sha256"]
+                             for name, row in json.loads(metadata.read_text())["files"].items()
+                             } | {"mcp/__init__.py": contract["files"]["mcp/__init__.py"]}
     config = Path(os.getenv("VIBEWINDOW_CONFIG_DIR") or Path.home() / ".local/share/shiju")
     source = Path(os.getenv("HERMES_COEXISTENCE_RUNTIME") or config / "acp-runtime" / revision)
     require(source.is_dir(), "reviewed Hermes runtime is unavailable")
@@ -53,7 +59,7 @@ def launch(env):
 
 
 class Probe:
-    def __init__(self, fixtures, mounted, rejected):
+    def __init__(self, fixtures, mounted, rejected, *, observe_stdio=True):
         self.fixtures = fixtures
         self.mounted = mounted
         self.rejected = rejected
@@ -61,6 +67,8 @@ class Probe:
         self.calls = {}
         self.completed = {}
         self.failure = None
+        self.audit = None
+        self.observe_stdio = observe_stdio
 
     def response(self, body):
         require(body["model"] == MODEL, "unexpected upstream model")
@@ -82,6 +90,13 @@ class Probe:
                         "skill content appeared before activation")
             require((MCP_TOOL in tools) == self.mounted, "unexpected Hermes MCP declaration")
             require(self.fixtures["mcp"] not in raw, "MCP value appeared before invocation")
+            if self.mounted and self.observe_stdio:
+                root = self.fixtures["skills"]["native"]["path"].parents[3]
+                audits = list((root / "tmp").glob("shiju-mimo-mcp-*/mimo-fixture-audit"))
+                require(len(audits) == 1, "missing or ambiguous Hermes stdio audit")
+                self.audit = root / ("hermes-rejected-audit" if self.rejected else "hermes-mounted-audit")
+                os.link(audits[0], self.audit)
+                require(not self.audit.read_text(), "Hermes MCP ran before the model requested it")
 
         for kind in ("native", "selected") if self.mounted else ("native",):
             skill = self.fixtures["skills"][kind]
@@ -131,6 +146,9 @@ class Probe:
             "id": call_id, "type": "function",
             "function": {"name": name, "arguments": json.dumps(arguments)},
         }]}, "tool_calls"
+
+    def mcp_trace(self, _events):
+        return self.audit.read_text().splitlines() if self.audit else [], self.completed.get("mcp")
 
     def approves(self, metadata):
         return ("mcp" in self.calls and "mcp" not in self.completed

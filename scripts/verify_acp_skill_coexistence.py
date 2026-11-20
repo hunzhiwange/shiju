@@ -24,7 +24,7 @@ from verify_acp_integration import require
 from verify_acp_model_source import ROOT, Unavailable
 
 # Add a key only once its supplier module implements the reviewed probe interface.
-AGENTS = ("claude", "qwen", "gemini", "codebuddy", "hermes", "kilocode", "copilot", "snow", "openclaw", "opencode")
+AGENTS = ("claude", "qwen", "gemini", "codebuddy", "hermes", "kilocode", "copilot", "snow", "openclaw", "opencode", "pi")
 AGENT_PROFILE = "acp-coexistence"
 PROVIDER = "coexistence-fixture"
 PHASES = ("baseline", "mounted", "removed", "rejected")
@@ -170,7 +170,9 @@ def run(agent, binary, report):
         selected = fixtures["skills"]["selected"]["name"]
         report["stage"] = "gateway"
         with ExitStack() as stack:
-            mcp = stack.enter_context(mcp_server(supplier.TRANSPORT, attachment, audit))
+            supplier_mcp = getattr(supplier, "mcp_server", None)
+            mcp = stack.enter_context(supplier_mcp(workspace, attachment, audit) if supplier_mcp
+                                      else mcp_server(supplier.TRANSPORT, attachment, audit))
             config_path.write_text(json.dumps({"mcpServers": [mcp]}))
             model = stack.enter_context(model_server(supplier.Handler, env["ACP_COEXISTENCE_KEY"]))
             url = stack.enter_context(gateway(str(binary), root, env))

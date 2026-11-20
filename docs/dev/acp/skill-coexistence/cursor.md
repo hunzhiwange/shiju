@@ -27,4 +27,4 @@ v6 将 ShiJu 会话视图追加到 Cursor Agent Store 的原生扫描路径，�
 
 ## 当前网关验证状态
 
-槽位 3 中的 v6 网关构建退出 101。共享工作区的 Qoder 请求接线调用了私有函数，并传入与其签名不符的泛型技能视图，触发 E0603 和 E0308。构建在启动探针前结束。保留 `target/acp-skill-coexistence/cursor-build-qoder-failure.log`，待 Qoder 接线恢复后复跑网关与 Rust 定向检查。
+槽位 3 中的 v6 网关构建退出 101。共享工作区的 Qoder 请求接线调用了私有函数，并传入与其签名不符的泛型技能视图，触发 E0603 和 E0308。构建在启动探针前结束。首次构建日志保留在 `target/acp-skill-coexistence/cursor-build-qoder-failure.log`。Qoder 接线修复后，在槽位 3 运行 `cargo test --locked -j 1 -p llm-runtime --lib acp_skill_coexistence_cursor -- --test-threads=1`，退出 0，2 项通过。并行的同目标构建随后在 `task-scheduler` 报 E0616。PostgreSQL 工作计划发布代码访问了私有的 `PlanMember.id`，当前源码仍有此访问。Cursor 槽位内的第二次构建尚在等待锁，已取消该等待并核实清理。保留 `target/acp-skill-coexistence/cursor-shared-scheduler-blocker.log`。网关的三轮及拒绝对照等待共享目标恢复后复验。

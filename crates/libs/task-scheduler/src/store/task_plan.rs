@@ -1,5 +1,7 @@
 //! Sparse, project-scoped task placement and shared validation for both stores.
 
+use std::collections::BTreeMap;
+
 use anyhow::{Context, Result, bail};
 use rusqlite::{Connection, params};
 use serde_json::{Value, json};
@@ -33,6 +35,18 @@ pub struct TaskPlanEntry {
 }
 
 impl AgentSchedulerStore {
+    pub(crate) fn load_plan_dispatch_snapshot(
+        &self,
+        context: &(impl AgentSchedulerStorageContext + ?Sized),
+    ) -> Result<PlanDispatchSnapshot> {
+        let scope = context.storage_scope()?;
+        if let Some(store) = postgres_provider(self, context)? {
+            return store.load_plan_dispatch_snapshot(&scope);
+        }
+        let conn = open_initialized_connection(self, context)?;
+        load_plan_dispatch_snapshot(&conn, &scope, None)
+    }
+
     /// Read the sparse project snapshot in one query, keyed by each entry's task ID.
     pub fn list_task_plan(
         &self,
@@ -107,6 +121,10 @@ pub(super) const SELECT_MEMBERS: &str =
                 SELECT 1 FROM scheduler_runs AS run
                 WHERE run.platform_id = task.platform_id AND run.company_id = task.company_id
                   AND run.project_id = task.project_id AND run.task_id = task.id
+            ) OR EXISTS (
+                SELECT 1 FROM scheduler_task_plan_publications AS publication
+                WHERE publication.platform_id = task.platform_id AND publication.company_id = task.company_id
+                  AND publication.project_id = task.project_id AND publication.parent_task_id = task.id
             )
      FROM scheduler_tasks AS task
      LEFT JOIN scheduler_task_plans AS plan
@@ -115,6 +133,141 @@ pub(super) const SELECT_MEMBERS: &str =
      WHERE task.platform_id = $1 AND task.company_id = $2 AND task.project_id = $3
        AND (task.id = $4 OR plan.task_id IS NOT NULL)
      ORDER BY task.id";
+
+// Include unbatched parents. At claim time restrict the read to the target's root
+// batches and, for a child, its own parent and siblings.
+pub(super) const SELECT_DISPATCH_MEMBERS: &str =
+    "WITH target AS (
+         SELECT parent_task_id FROM scheduler_task_plans
+         WHERE platform_id = $1 AND company_id = $2 AND project_id = $3 AND task_id = $4
+     )
+     SELECT task.id, plan.parent_task_id, plan.outer_batch, plan.batch, task.status,
+            task.metadata_json, publication.parent_task_id IS NOT NULL
+     FROM scheduler_tasks AS task
+     LEFT JOIN scheduler_task_plans AS plan
+       ON plan.platform_id = task.platform_id AND plan.company_id = task.company_id
+      AND plan.project_id = task.project_id AND plan.task_id = task.id
+     LEFT JOIN scheduler_task_plan_publications AS publication
+       ON publication.platform_id = task.platform_id AND publication.company_id = task.company_id
+      AND publication.project_id = task.project_id AND publication.parent_task_id = task.id
+     WHERE task.platform_id = $1 AND task.company_id = $2 AND task.project_id = $3
+       AND (
+           (CAST($4 AS TEXT) IS NULL AND (plan.task_id IS NOT NULL OR publication.parent_task_id IS NOT NULL))
+           OR EXISTS (
+               SELECT 1 FROM target
+               WHERE plan.outer_batch IS NOT NULL
+                  OR task.id = target.parent_task_id
+                  OR plan.parent_task_id = target.parent_task_id
+           )
+       )
+     ORDER BY task.id";
+
+pub(super) fn load_plan_dispatch_snapshot(
+    conn: &Connection,
+    scope: &AgentSchedulerScope,
+    task_id: Option<&TaskId>,
+) -> Result<PlanDispatchSnapshot> {
+    let (platform, company, project) = scope_params(scope);
+    let mut stmt = conn.prepare(SELECT_DISPATCH_MEMBERS)?;
+    let rows = stmt.query_map(
+        params![platform, company, project, task_id.map(TaskId::as_str)],
+        |row| {
+            Ok((
+                row.get(0)?,
+                row.get(1)?,
+                row.get(2)?,
+                row.get(3)?,
+                row.get(4)?,
+                row.get(5)?,
+                row.get(6)?,
+            ))
+        },
+    )?;
+    PlanDispatchSnapshot::from_rows(rows.map(|row| row.map_err(Into::into)))
+}
+
+pub(super) type DispatchRow = (String, Option<String>, Option<i64>, Option<i64>, String, String, bool);
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum TaskPlanDispatchBlocker {
+    WaitingForEarlierBatch { task_ids: Vec<TaskId> },
+    EarlierBatchFailed { task_ids: Vec<TaskId> },
+    ParentNotReleased { parent_task_id: TaskId },
+}
+
+pub(crate) struct PlanDispatchSnapshot {
+    members: BTreeMap<String, (PlanMember, bool)>,
+}
+
+impl PlanDispatchSnapshot {
+    pub(super) fn from_rows(rows: impl Iterator<Item = Result<DispatchRow>>) -> Result<Self> {
+        let members = rows.map(|row| {
+            let (id, parent, outer, batch, status, metadata, published) = row?;
+            let member = PlanMember::decode(id, parent, outer, batch, status, metadata, false)?;
+            Ok((member.id.as_str().to_owned(), (member, published)))
+        }).collect::<Result<_>>()?;
+        Ok(Self { members })
+    }
+
+    pub(crate) fn blocker_for(
+        &self,
+        task_id: &TaskId,
+        workflow: &TaskPoolWorkflowSnapshotDto,
+    ) -> Option<TaskPlanDispatchBlocker> {
+        let placement = self.members.get(task_id.as_str())?.0.placement.as_ref()?;
+        let bridge = LifecycleBridge::new(workflow);
+        if let TaskPlanPlacement::Child { parent_task_id, .. } = placement {
+            let Some((parent, true)) = self.members.get(parent_task_id.as_str()) else {
+                return Some(TaskPlanDispatchBlocker::ParentNotReleased {
+                    parent_task_id: parent_task_id.clone(),
+                });
+            };
+            if let Some(blocker) = parent.placement.as_ref()
+                .and_then(|parent_placement| self.earlier_batch_blocker(parent_placement, &bridge))
+            {
+                return Some(blocker);
+            }
+            // The publishing transaction parks the parent until its children finish.
+            if parent.status != AgentTaskStatus::Blocked || hidden(parent.status, &parent.metadata)
+            {
+                return Some(TaskPlanDispatchBlocker::ParentNotReleased {
+                    parent_task_id: parent_task_id.clone(),
+                });
+            }
+        }
+        self.earlier_batch_blocker(placement, &bridge)
+    }
+
+    fn earlier_batch_blocker(
+        &self,
+        placement: &TaskPlanPlacement,
+        bridge: &LifecycleBridge<'_>,
+    ) -> Option<TaskPlanDispatchBlocker> {
+        let mut waiting = Vec::new();
+        let mut failed = Vec::new();
+        for (member, _) in self.members.values() {
+            if !member.placement.as_ref().is_some_and(|earlier| earlier.precedes(placement))
+                || member.done(bridge)
+            {
+                continue;
+            }
+            if matches!(member.status, AgentTaskStatus::Failed | AgentTaskStatus::Cancelled)
+                || hidden(member.status, &member.metadata)
+            {
+                failed.push(member.id.clone());
+            } else {
+                waiting.push(member.id.clone());
+            }
+        }
+        if !failed.is_empty() {
+            Some(TaskPlanDispatchBlocker::EarlierBatchFailed { task_ids: failed })
+        } else if !waiting.is_empty() {
+            Some(TaskPlanDispatchBlocker::WaitingForEarlierBatch { task_ids: waiting })
+        } else {
+            None
+        }
+    }
+}
 
 pub(super) const UPSERT_PLAN: &str =
     "INSERT INTO scheduler_task_plans
@@ -167,7 +320,7 @@ pub(super) struct PlanMember {
     placement: Option<TaskPlanPlacement>,
     status: AgentTaskStatus,
     metadata: Value,
-    has_run: bool,
+    execution_started: bool,
 }
 
 impl PlanMember {
@@ -178,7 +331,7 @@ impl PlanMember {
         batch: Option<i64>,
         status: String,
         metadata: String,
-        has_run: bool,
+        execution_started: bool,
     ) -> Result<Self> {
         Ok(Self {
             placement: batch.map(|batch| decode_entry(id.clone(), parent, outer, batch))
@@ -186,12 +339,12 @@ impl PlanMember {
             id: TaskId::new(id)?,
             status: AgentTaskStatus::parse(&status)?,
             metadata: serde_json::from_str(&metadata)?,
-            has_run,
+            execution_started,
         })
     }
 
     fn started(&self) -> bool {
-        self.has_run || !matches!(
+        self.execution_started || !matches!(
             self.status,
             AgentTaskStatus::Draft | AgentTaskStatus::Queued
                 | AgentTaskStatus::Paused | AgentTaskStatus::Blocked
@@ -210,7 +363,7 @@ impl PlanMember {
     }
 }
 
-fn hidden(status: AgentTaskStatus, metadata: &Value) -> bool {
+pub(crate) fn hidden(status: AgentTaskStatus, metadata: &Value) -> bool {
     status == AgentTaskStatus::Archived
         || bool_metadata_field(metadata, "task_board.archived")
         || bool_metadata_field(metadata, "task_board.deleted")

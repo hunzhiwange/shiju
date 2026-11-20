@@ -624,3 +624,173 @@ pub(crate) fn scheduler_store_fixture(
     )?;
     Ok((AgentSchedulerStore::from_database(database), context))
 }
+
+#[test]
+fn work_plan_claim_root_batches_and_unbatched() -> Result<()> {
+    for_each_run_store_provider(|store, context| {
+        use super::store::task_plan::TaskPlanPlacement::Root;
+        let first = TaskId::new("first")?;
+        let same_batch = TaskId::new("same-batch")?;
+        let later = TaskId::new("later")?;
+        let ordinary = TaskId::new("ordinary")?;
+        for (id, outer_batch, inner_batch) in [
+            (&first, 1, 5),
+            (&same_batch, 1, 5),
+            (&later, 2, 1),
+        ] {
+            store.create_task_with_plan(
+                context,
+                finite_task_with_status(id, AgentTaskStatus::Queued)?,
+                Root { outer_batch, inner_batch },
+            )?;
+        }
+        store.create_task(context, finite_task_with_status(&ordinary, AgentTaskStatus::Queued)?)?;
+        for id in [&first, &same_batch, &ordinary] {
+            assert!(store.claim_ready_task_run(context, ready_claim_request(id.as_str(), id, ""))?.is_some());
+        }
+        use crate::engine::dispatch::{DispatchBlocker, DispatchReadinessSnapshot};
+        use super::store::task_plan::TaskPlanDispatchBlocker::{
+            EarlierBatchFailed, WaitingForEarlierBatch,
+        };
+        for (status, expected) in [
+            (AgentTaskStatus::Submitted, WaitingForEarlierBatch {
+                task_ids: vec![first.clone(), same_batch.clone()],
+            }),
+            (AgentTaskStatus::Failed, EarlierBatchFailed { task_ids: vec![first.clone()] }),
+            (AgentTaskStatus::Completed, WaitingForEarlierBatch {
+                task_ids: vec![same_batch.clone()],
+            }),
+        ] {
+            set_plan_task_status(store, context, &first, status)?;
+            let snapshot = DispatchReadinessSnapshot::load(store, context)?;
+            assert_eq!(snapshot.blocker_for(&later)?, Some(DispatchBlocker::TaskPlan(expected)));
+            let request = ready_claim_request("later-run", &later, "");
+            assert!(store.claim_ready_task_run(context, request.clone())?.is_none());
+            assert!(store.load_run(context, &request.run_id)?.is_none());
+        }
+        set_plan_task_status(store, context, &same_batch, AgentTaskStatus::Completed)?;
+        assert!(store.claim_ready_task_run(context, ready_claim_request("later-run", &later, ""))?.is_some());
+        Ok(())
+    })
+}
+
+#[test]
+fn work_plan_claim_child_batches_are_parent_local() -> Result<()> {
+    use super::store::task_plan::TaskPlanPlacement::{Child, Root};
+    let home = tempfile::tempdir()?;
+    let database = GlobalDatabase::for_home(home.path())?;
+    let (store, context) = scheduler_store_fixture(database.clone(), &home.path().join("project"))?;
+    let predecessor = TaskId::new("earlier-root")?;
+    let first_parent = TaskId::new("first-parent")?;
+    let other_parent = TaskId::new("other-parent")?;
+    for (id, inner_batch, status) in [
+        (&predecessor, 1, AgentTaskStatus::Queued),
+        (&first_parent, 2, AgentTaskStatus::Blocked),
+    ] {
+        store.create_task_with_plan(
+            &context,
+            finite_task_with_status(id, status)?,
+            Root { outer_batch: 1, inner_batch },
+        )?;
+    }
+    store.create_task(&context, finite_task_with_status(&other_parent, AgentTaskStatus::Blocked)?)?;
+    let first = TaskId::new("first-child")?;
+    let later = TaskId::new("later-child")?;
+    let independent = TaskId::new("independent-child")?;
+    for (id, parent, batch) in [(&first, &first_parent, 1), (&later, &first_parent, 5), (&independent, &other_parent, 5)] {
+        store.create_task_with_plan(
+            &context,
+            finite_task_with_status(id, AgentTaskStatus::Queued)?,
+            Child { parent_task_id: parent.clone(), batch },
+        )?;
+    }
+    let claim = |id: &TaskId| store.claim_ready_task_run(&context, ready_claim_request(id.as_str(), id, ""));
+    assert!(claim(&first)?.is_none());
+    let connection = database.connect_sqlite()?;
+    for parent in [&first_parent, &other_parent] {
+        connection.execute(
+            "INSERT INTO scheduler_task_plan_publications
+             (platform_id, company_id, project_id, parent_task_id, planning_attempt_id)
+             SELECT platform_id, company_id, project_id, id, 'attempt-1'
+             FROM scheduler_tasks WHERE id = ?1",
+            params![parent.as_str()],
+        )?;
+    }
+    assert!(claim(&first)?.is_none(), "child inherits the parent's root batch");
+    assert!(claim(&independent)?.is_some());
+    set_plan_task_status(&store, &context, &predecessor, AgentTaskStatus::Completed)?;
+    assert!(claim(&later)?.is_none());
+    assert!(store.load_latest_run_for_task(&context, &later)?.is_none());
+    assert!(claim(&first)?.is_some());
+    set_plan_task_status(&store, &context, &first, AgentTaskStatus::Completed)?;
+    assert!(claim(&later)?.is_some());
+    Ok(())
+}
+
+#[test]
+fn work_plan_claim_rechecks_at_lease_time() -> Result<()> {
+    use crate::engine::dispatch::ready_queued_finite_task;
+    use super::store::task_plan::TaskPlanPlacement::Root;
+    for_each_run_store_provider(|store, context| {
+        let first = TaskId::new("reopened")?;
+        let later = TaskId::new("queued-later")?;
+        for (id, inner_batch) in [(&first, 1), (&later, 5)] {
+            store.create_task_with_plan(
+                context,
+                finite_task_with_status(id, AgentTaskStatus::Queued)?,
+                Root { outer_batch: 1, inner_batch },
+            )?;
+        }
+        set_plan_task_status(store, context, &first, AgentTaskStatus::Completed)?;
+        assert!(ready_queued_finite_task(store, context, Some(&later))?.is_some());
+        set_plan_task_status(store, context, &first, AgentTaskStatus::Queued)?;
+        let gate = Barrier::new(2);
+        let claim = |name| {
+            gate.wait();
+            store.claim_ready_task_run(context, ready_claim_request(name, &later, ""))
+        };
+        std::thread::scope(|threads| -> Result<()> {
+            let first = threads.spawn(|| claim("stale-1"));
+            let second = threads.spawn(|| claim("stale-2"));
+            assert!(first.join().unwrap()?.is_none());
+            assert!(second.join().unwrap()?.is_none());
+            Ok(())
+        })?;
+        set_plan_task_status(store, context, &later, AgentTaskStatus::Assigned)?;
+        assert!(store.claim_task_run(context, claim_request("direct-later", &later, ""))?.is_none());
+        assert!(store.load_latest_run_for_task(context, &later)?.is_none());
+        set_plan_task_status(store, context, &later, AgentTaskStatus::Queued)?;
+
+        set_plan_task_status(store, context, &first, AgentTaskStatus::Completed)?;
+        let explicit = TaskId::new("explicit")?;
+        store.create_task(context, finite_task_with_status(&explicit, AgentTaskStatus::Queued)?)?;
+        store.replace_task_dependencies(context, vec![AgentTaskDependency {
+            predecessor: explicit.clone(),
+            successor: later.clone(),
+        }])?;
+        use crate::engine::dispatch::{DispatchBlocker, DispatchReadinessSnapshot};
+        assert_eq!(
+            DispatchReadinessSnapshot::load(store, context)?.blocker_for(&later)?,
+            Some(DispatchBlocker::ExplicitDependency { task_ids: vec![explicit] }),
+        );
+        assert!(store.claim_ready_task_run(context, ready_claim_request("explicit-run", &later, ""))?.is_none());
+        assert!(store.load_latest_run_for_task(context, &later)?.is_none());
+        Ok(())
+    })
+}
+
+fn set_plan_task_status(
+    store: &AgentSchedulerStore,
+    context: &AgentSchedulerContext,
+    task_id: &TaskId,
+    status: AgentTaskStatus,
+) -> Result<()> {
+    use super::store::tasks::AgentTaskBoardUpdate;
+    store.update_task_board_task(context, task_id, AgentTaskBoardUpdate {
+        title: None,
+        status: Some(status),
+        metadata: json!({}),
+        updated_at_ms: TimestampMs(3_000),
+    })?.expect("fixture task exists");
+    Ok(())
+}

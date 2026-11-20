@@ -630,7 +630,7 @@ pub(super) fn load_task_with_client(
         .transpose()
 }
 
-fn load_task_for_update(
+pub(super) fn load_task_for_update(
     client: &mut impl GenericClient,
     scope: &AgentSchedulerScope,
     task_id: &TaskId,

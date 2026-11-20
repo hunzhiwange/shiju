@@ -1,5 +1,5 @@
 //! 实现 PostgreSQL 运行记录的原子认领、心跳与收尾，并检查任务依赖和活动租约。
-//! 就绪认领会锁定任务及前驱快照，避免检查通过后被另一事务改写依赖状态。
+//! 认领先锁定项目，再锁定任务，串行复核编排、工作流与依赖。
 
 use ::postgres::{GenericClient, Row};
 use anyhow::{Context, Result};
@@ -7,7 +7,10 @@ use vw_api_agent_scheduler::AgentSchedulerScope;
 use vw_api_transport::common::TimestampMs;
 
 use super::PostgresAgentSchedulerStore;
+use super::task_plan::{load_plan_dispatch_snapshot, lock_task_plan_project};
+use super::tasks::{load_task_for_update, load_workflow_with_client};
 use crate::domain::{AgentRunStatus, RunId, TaskId};
+use crate::engine::dispatch::{effective_dispatch_workflow, task_lifecycle_allows_dispatch};
 use crate::state_machine::{AgentTaskKind, AgentTaskStatus};
 use crate::store::AgentSchedulerStorageContext;
 use crate::store::runs::{
@@ -77,7 +80,7 @@ impl PostgresAgentSchedulerStore {
             let project = scope.project_scope();
             let mut connection = self.database.connect_postgres()?;
             let mut transaction = connection.transaction().context("begin PostgreSQL run claim")?;
-            super::task_plan::lock_task_plan_project(&mut transaction, &scope)?;
+            lock_task_plan_project(&mut transaction, &scope)?;
             let task_status = transaction
                 .query_opt(
                     "SELECT status FROM scheduler_tasks
@@ -119,6 +122,18 @@ impl PostgresAgentSchedulerStore {
                 .context("inspect active PostgreSQL task runs")?
                 .try_get(0)?;
             if active_runs > 0 {
+                return Ok(None);
+            }
+
+            if has_unsatisfied_dependencies(&mut transaction, &scope, &request.task_id)? {
+                return Ok(None);
+            }
+            let workflow =
+                effective_dispatch_workflow(load_workflow_with_client(&mut transaction, &scope)?)?;
+            if load_plan_dispatch_snapshot(&mut transaction, &scope, Some(&request.task_id))?
+                .blocker_for(&request.task_id, &workflow)
+                .is_some()
+            {
                 return Ok(None);
             }
 
@@ -181,38 +196,23 @@ impl PostgresAgentSchedulerStore {
             let mut connection = self.database.connect_postgres()?;
             let mut transaction =
                 connection.transaction().context("begin PostgreSQL ready task run claim")?;
-            super::task_plan::lock_task_plan_project(&mut transaction, &scope)?;
-            let task = transaction
-                .query_opt(
-                    "SELECT kind, status FROM scheduler_tasks
-                     WHERE platform_id = $1 AND company_id = $2 AND project_id = $3 AND id = $4
-                     FOR UPDATE",
-                    &[
-                        &project.platform_id().as_ref(),
-                        &project.company_id().as_ref(),
-                        &project.project_id().as_ref(),
-                        &request.task_id.as_str(),
-                    ],
-                )
-                .with_context(|| {
-                    format!(
-                        "lock PostgreSQL task for ready run claim: {}",
-                        request.task_id.as_str()
-                    )
-                })?;
-            let Some(task) = task else {
+            lock_task_plan_project(&mut transaction, &scope)?;
+            let Some(task) = load_task_for_update(&mut transaction, &scope, &request.task_id)? else {
                 return Ok(None);
             };
-            let kind: String = task.try_get(0).context("read PostgreSQL ready claim task kind")?;
-            let status: String =
-                task.try_get(1).context("read PostgreSQL ready claim task status")?;
-            if AgentTaskKind::parse(&kind).context("parse PostgreSQL ready claim task kind")?
-                != AgentTaskKind::Finite
-                || AgentTaskStatus::parse(&status)
-                    .context("parse PostgreSQL ready claim task status")?
-                    != AgentTaskStatus::Queued
+            if task.kind != AgentTaskKind::Finite
+                || task.status != AgentTaskStatus::Queued
                 || active_run_exists(&mut transaction, &scope, &request.task_id)?
                 || has_unsatisfied_dependencies(&mut transaction, &scope, &request.task_id)?
+            {
+                return Ok(None);
+            }
+            let workflow =
+                effective_dispatch_workflow(load_workflow_with_client(&mut transaction, &scope)?)?;
+            if !task_lifecycle_allows_dispatch(context, &task, &workflow)
+                || load_plan_dispatch_snapshot(&mut transaction, &scope, Some(&request.task_id))?
+                    .blocker_for(&request.task_id, &workflow)
+                    .is_some()
             {
                 return Ok(None);
             }

@@ -6,8 +6,11 @@ use rusqlite::{Connection, OptionalExtension, Row, TransactionBehavior, params};
 use vw_api_transport::common::TimestampMs;
 
 use crate::domain::{AgentRunStatus, RunId, TaskId};
+use crate::engine::dispatch::{effective_dispatch_workflow, task_lifecycle_allows_dispatch};
 use crate::state_machine::{AgentTaskKind, AgentTaskStatus};
 
+use super::task_plan::load_plan_dispatch_snapshot;
+use super::tasks::{load_task_with_conn, load_workflow_with_conn};
 use super::{
     AgentSchedulerStorageContext, AgentSchedulerStore, open_initialized_connection,
     open_locked_initialized_connection, postgres_provider, scope_params,
@@ -116,6 +119,15 @@ impl AgentSchedulerStore {
         };
         if !task_status_allows_run(task_status)
             || active_run_exists(&tx, context, &request.task_id)?
+            || has_unsatisfied_dependencies(&tx, context, &request.task_id)?
+        {
+            return Ok(None);
+        }
+
+        let workflow = effective_dispatch_workflow(load_workflow_with_conn(&tx, &scope)?)?;
+        if load_plan_dispatch_snapshot(&tx, &scope, Some(&request.task_id))?
+            .blocker_for(&request.task_id, &workflow)
+            .is_some()
         {
             return Ok(None);
         }
@@ -161,14 +173,21 @@ impl AgentSchedulerStore {
         let (platform_id, company_id, project_id) = scope_params(&scope);
         let (_guard, mut conn) = open_locked_initialized_connection(self, context)?;
         let tx = conn.transaction_with_behavior(TransactionBehavior::Immediate)?;
-        let Some((kind, status)) = load_task_kind_and_status(&tx, context, &request.task_id)?
-        else {
+        let Some(task) = load_task_with_conn(&tx, context, &request.task_id)? else {
             return Ok(None);
         };
-        if kind != AgentTaskKind::Finite
-            || status != AgentTaskStatus::Queued
+        if task.kind != AgentTaskKind::Finite
+            || task.status != AgentTaskStatus::Queued
             || active_run_exists(&tx, context, &request.task_id)?
             || has_unsatisfied_dependencies(&tx, context, &request.task_id)?
+        {
+            return Ok(None);
+        }
+        let workflow = effective_dispatch_workflow(load_workflow_with_conn(&tx, &scope)?)?;
+        if !task_lifecycle_allows_dispatch(context, &task, &workflow)
+            || load_plan_dispatch_snapshot(&tx, &scope, Some(&request.task_id))?
+                .blocker_for(&request.task_id, &workflow)
+                .is_some()
         {
             return Ok(None);
         }
@@ -355,31 +374,6 @@ fn validate_lease_times(
         bail!("run lease expiry must not be before lease acquisition time");
     }
     Ok(())
-}
-
-fn load_task_kind_and_status(
-    conn: &Connection,
-    context: &(impl AgentSchedulerStorageContext + ?Sized),
-    task_id: &TaskId,
-) -> Result<Option<(AgentTaskKind, AgentTaskStatus)>> {
-    let scope = context.storage_scope()?;
-    let (platform_id, company_id, project_id) = scope_params(&scope);
-    let task = conn
-        .query_row(
-            "SELECT kind, status FROM scheduler_tasks
-             WHERE platform_id = ?1 AND company_id = ?2 AND project_id = ?3 AND id = ?4",
-            params![platform_id, company_id, project_id, task_id.as_str()],
-            |row| Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?)),
-        )
-        .optional()
-        .with_context(|| format!("load task for ready run claim: {}", task_id.as_str()))?;
-    task.map(|(kind, status)| {
-        Ok((
-            AgentTaskKind::parse(&kind).context("parse task kind for ready run claim")?,
-            AgentTaskStatus::parse(&status).context("parse task status for ready run claim")?,
-        ))
-    })
-    .transpose()
 }
 
 fn load_task_status(

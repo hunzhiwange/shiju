@@ -56,11 +56,12 @@ pub(super) const LEGACY_SCHEDULER_TABLES: [&str; 8] = [
     "resource_leases",
 ];
 
-pub(super) const SCHEDULER_TABLES: [&str; 11] = [
+pub(super) const SCHEDULER_TABLES: [&str; 12] = [
     "scheduler_meta",
     "scheduler_tasks",
     "scheduler_task_dependencies",
     "scheduler_task_plans",
+    "scheduler_task_plan_publications",
     "scheduler_runs",
     "scheduler_task_logs",
     "scheduler_task_artifacts",
@@ -361,4 +362,16 @@ CREATE TABLE IF NOT EXISTS scheduler_task_plans (
 
 CREATE INDEX IF NOT EXISTS idx_scheduler_task_plans_parent
 ON scheduler_task_plans(platform_id, company_id, project_id, parent_task_id, batch, task_id);
+
+-- Plan publication records are written with the children and the parent handoff.
+CREATE TABLE IF NOT EXISTS scheduler_task_plan_publications (
+    platform_id TEXT NOT NULL,
+    company_id TEXT NOT NULL,
+    project_id TEXT NOT NULL,
+    parent_task_id TEXT NOT NULL,
+    planning_attempt_id TEXT NOT NULL CHECK (length(trim(planning_attempt_id)) > 0),
+    PRIMARY KEY (platform_id, company_id, project_id, parent_task_id),
+    FOREIGN KEY (platform_id, company_id, project_id, parent_task_id)
+        REFERENCES scheduler_tasks(platform_id, company_id, project_id, id) ON DELETE RESTRICT
+);
 "#;

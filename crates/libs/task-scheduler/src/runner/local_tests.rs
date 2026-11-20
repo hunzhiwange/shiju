@@ -959,3 +959,25 @@ fn task_pool_schedule_explicit_development_success_waits_for_review() -> Result<
     assert!(!directory.path().join(".git").exists());
     Ok(())
 }
+
+#[test]
+fn work_plan_claim_manual_local_path_respects_batches() -> Result<()> {
+    use super::store::task_plan::TaskPlanPlacement::Root;
+
+    let home = tempfile::tempdir()?;
+    let project = home.path();
+    let store = AgentSchedulerStore::new();
+    store.initialize_project(project)?;
+    let early = TaskId::new("early-batch")?;
+    let late = TaskId::new("late-batch")?;
+    store.create_task_with_plan(project, finite_task(&early)?, Root { outer_batch: 1, inner_batch: 5 })?;
+    store.create_task_with_plan(project, finite_task(&late)?, Root { outer_batch: 2, inner_batch: 1 })?;
+
+    let executor = RecordingExecutor::succeeding("completed");
+    let runner = LocalAgentRunner::new(&store, &executor);
+    let request = LocalAgentRunnerRequest { task_id: late.clone(), now_ms: TimestampMs(1_000) };
+    assert!(runner.start_once(project, request)?.is_none());
+    assert!(store.load_latest_run_for_task(project, &late)?.is_none());
+    assert!(executor.requests.lock().unwrap().is_empty());
+    Ok(())
+}

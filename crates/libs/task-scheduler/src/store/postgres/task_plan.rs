@@ -8,11 +8,20 @@ use crate::domain::TaskId;
 use crate::store::scope_params;
 use crate::store::task_plan::{
     DELETE_PLAN, PlacementWrite, PlanMember, SELECT_MEMBERS, SELECT_PLAN, TaskPlanEntry, TaskPlanPlacement,
-    UPSERT_PLAN, decode_entry, validate_placement,
+    PlanDispatchSnapshot, SELECT_DISPATCH_MEMBERS, UPSERT_PLAN, decode_entry, validate_placement,
 };
 use crate::store::tasks::StoredAgentTask;
 
 impl PostgresAgentSchedulerStore {
+    pub(in crate::store) fn load_plan_dispatch_snapshot(
+        &self,
+        scope: &AgentSchedulerScope,
+    ) -> Result<PlanDispatchSnapshot> {
+        agent_database::run_sync_database(|| {
+            load_plan_dispatch_snapshot(&mut *self.database.connect_postgres()?, scope, None)
+        })
+    }
+
     pub(in crate::store) fn list_task_plan(
         &self,
         scope: &AgentSchedulerScope,
@@ -52,6 +61,29 @@ pub(super) fn load_plan_members(
                 row.try_get(4)?, row.try_get(5)?, row.try_get(6)?,
             )
         }).collect()
+}
+
+pub(super) fn load_plan_dispatch_snapshot(
+    client: &mut impl GenericClient,
+    scope: &AgentSchedulerScope,
+    task_id: Option<&TaskId>,
+) -> Result<PlanDispatchSnapshot> {
+    let (platform, company, project) = scope_params(scope);
+    let rows = client.query(
+        SELECT_DISPATCH_MEMBERS,
+        &[&platform, &company, &project, &task_id.map(TaskId::as_str)],
+    )?;
+    PlanDispatchSnapshot::from_rows(rows.into_iter().map(|row| {
+        Ok((
+            row.try_get(0)?,
+            row.try_get(1)?,
+            row.try_get(2)?,
+            row.try_get(3)?,
+            row.try_get(4)?,
+            row.try_get(5)?,
+            row.try_get(6)?,
+        ))
+    }))
 }
 
 pub(super) fn write_placement(

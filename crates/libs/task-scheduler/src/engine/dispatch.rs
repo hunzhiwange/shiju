@@ -11,6 +11,7 @@ use crate::lifecycle_bridge::builtin_task_workflow_snapshot;
 use crate::lifecycle_bridge::{LifecycleBridge, LifecycleDispatchEligibility};
 use crate::state_machine::{AgentTaskKind, AgentTaskStatus};
 use crate::store::runs::{ClaimReadyTaskRunRequest, StoredAgentRun};
+use crate::store::task_plan::{PlanDispatchSnapshot, TaskPlanDispatchBlocker, hidden};
 use crate::store::tasks::{AgentTaskFilter, StoredAgentTask};
 use crate::store::{AgentSchedulerStorageContext, AgentSchedulerStore};
 use crate::task_graph::{TaskGraph, TaskGraphReadiness};
@@ -159,8 +160,13 @@ pub fn load_dispatch_workflow(
     store: &AgentSchedulerStore,
     project_path: &(impl AgentSchedulerStorageContext + ?Sized),
 ) -> Result<TaskPoolWorkflowSnapshotDto> {
-    let workflow = store.load_task_board_workflow(project_path)?
-        .unwrap_or_else(builtin_task_workflow_snapshot);
+    effective_dispatch_workflow(store.load_task_board_workflow(project_path)?)
+}
+
+pub(crate) fn effective_dispatch_workflow(
+    workflow: Option<TaskPoolWorkflowSnapshotDto>,
+) -> Result<TaskPoolWorkflowSnapshotDto> {
+    let workflow = workflow.unwrap_or_else(builtin_task_workflow_snapshot);
     workflow.validate_for_schedule().map_err(anyhow::Error::msg)
         .with_context(|| format!("invalid project workflow `{}`", workflow.id))?;
     Ok(workflow)
@@ -189,7 +195,7 @@ pub fn task_lifecycle_dispatch_eligibility(
     workflow: &TaskPoolWorkflowSnapshotDto,
 ) -> Result<LifecycleDispatchEligibility> {
     let status_key = dispatch_status_key(task);
-    let eligibility = LifecycleBridge::new(workflow).dispatch_eligibility(&status_key)?;
+    let mut eligibility = LifecycleBridge::new(workflow).dispatch_eligibility(&status_key)?;
     if eligibility.status.runtime_status != task.status {
         bail!(
             "workflow status `{}` maps to runtime `{}`, task {} has runtime `{}`",
@@ -199,6 +205,7 @@ pub fn task_lifecycle_dispatch_eligibility(
             task.status.as_str()
         );
     }
+    eligibility.eligible &= !hidden(task.status, &task.metadata);
     Ok(eligibility)
 }
 
@@ -237,13 +244,54 @@ pub fn legacy_dispatch_status_key(status: AgentTaskStatus) -> &'static str {
     }
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum DispatchBlocker {
+    TaskPlan(TaskPlanDispatchBlocker),
+    ExplicitDependency { task_ids: Vec<TaskId> },
+}
+
+/// Read model for explaining what blocks new dispatches of queued tasks.
+pub struct DispatchReadinessSnapshot {
+    workflow: TaskPoolWorkflowSnapshotDto,
+    plan: PlanDispatchSnapshot,
+    graph: TaskGraph,
+}
+
+impl DispatchReadinessSnapshot {
+    pub fn load(
+        store: &AgentSchedulerStore,
+        context: &(impl AgentSchedulerStorageContext + ?Sized),
+    ) -> Result<Self> {
+        Ok(Self {
+            workflow: load_dispatch_workflow(store, context)?,
+            plan: store.load_plan_dispatch_snapshot(context)?,
+            graph: store.load_task_graph(context)?,
+        })
+    }
+
+    pub fn blocker_for(&self, task_id: &TaskId) -> Result<Option<DispatchBlocker>> {
+        if let Some(blocker) = self.plan.blocker_for(task_id, &self.workflow) {
+            return Ok(Some(DispatchBlocker::TaskPlan(blocker)));
+        }
+        if !self.graph.dependencies().iter().any(|edge| &edge.successor == task_id) {
+            return Ok(None);
+        }
+        match self.graph.readiness_for(task_id)? {
+            TaskGraphReadiness::WaitingDependencies { task_ids }
+            | TaskGraphReadiness::BlockedByDependency { task_ids } => {
+                Ok(Some(DispatchBlocker::ExplicitDependency { task_ids }))
+            }
+            TaskGraphReadiness::Ready | TaskGraphReadiness::NotQueued => Ok(None),
+        }
+    }
+}
+
 pub fn ready_queued_finite_task(
     store: &AgentSchedulerStore,
     project_path: &(impl AgentSchedulerStorageContext + ?Sized),
     task_id: Option<&TaskId>,
 ) -> Result<Option<StoredAgentTask>> {
-    let workflow = load_dispatch_workflow(store, project_path)?;
-    let graph = load_task_graph(store, project_path)?;
+    let snapshot = DispatchReadinessSnapshot::load(store, project_path)?;
     let filter = AgentTaskFilter {
         task_id: task_id.cloned(),
         status: Some(AgentTaskStatus::Queued),
@@ -252,28 +300,14 @@ pub fn ready_queued_finite_task(
     let tasks = store.list_active_tasks(project_path, filter)?;
     for task in tasks {
         if task.kind != AgentTaskKind::Finite
-            || !task_lifecycle_allows_dispatch(project_path, &task, &workflow)
-            || !task_graph_allows_dispatch(&graph, &task)?
+            || !task_lifecycle_allows_dispatch(project_path, &task, &snapshot.workflow)
+            || snapshot.blocker_for(&task.id)?.is_some()
         {
             continue;
         }
         return Ok(Some(task));
     }
     Ok(None)
-}
-
-fn load_task_graph(
-    store: &AgentSchedulerStore,
-    project_path: &(impl AgentSchedulerStorageContext + ?Sized),
-) -> Result<TaskGraph> {
-    store.load_task_graph(project_path)
-}
-
-fn task_graph_allows_dispatch(graph: &TaskGraph, task: &StoredAgentTask) -> Result<bool> {
-    if !graph.dependencies().iter().any(|dependency| dependency.successor == task.id) {
-        return Ok(true);
-    }
-    Ok(matches!(graph.readiness_for(&task.id)?, TaskGraphReadiness::Ready))
 }
 
 pub fn dispatch_model(task: &StoredAgentTask) -> Option<String> {

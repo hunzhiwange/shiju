@@ -69,4 +69,4 @@ Experts,
 Knowledge,
 }
 #[derive(Debug, Clone)]
-pub enum Message { Batch(Vec<Message>), Project(ProjectMessage), View(ViewMessage), #[cfg(not(target_arch = "wasm32"))] SkillHub(SkillHubMessage), #[cfg(not(target_arch = "wasm32"))] ShijuApps(ShijuAppsMessage), Search(SearchMessage), TaskBoard(TaskBoardMessage), Session(super::super::super::components::sessions_panel::Message) }
+pub enum Message { Batch(Vec<Message>), Project(ProjectMessage), View(ViewMessage), #[cfg(not(target_arch = "wasm32"))] SkillHub(SkillHubMessage), #[cfg(not(target_arch = "wasm32"))] ShijuApps(ShijuAppsMessage), #[cfg(not(target_arch = "wasm32"))] DigitalEmployees, Search(SearchMessage), TaskBoard(TaskBoardMessage), Session(super::super::super::components::sessions_panel::Message) }

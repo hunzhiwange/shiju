@@ -58,6 +58,8 @@ pub mod session;
 /// session_gateway 子模块，拆分当前领域的局部职责。
 pub mod session_gateway;
 #[cfg(not(target_arch = "wasm32"))]
+pub(crate) mod digital_employees;
+#[cfg(not(target_arch = "wasm32"))]
 pub(crate) mod shiju_apps;
 #[cfg(not(target_arch = "wasm32"))]
 #[allow(dead_code, unused_imports)]

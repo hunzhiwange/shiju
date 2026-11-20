@@ -132,6 +132,8 @@ impl App {
             Screen::ThirdPartyAgents => components::third_party_settings::standalone(self),
             Screen::TaskBoard => views::task_board::view(self),
             #[cfg(not(target_arch = "wasm32"))]
+            Screen::DigitalEmployees => crate::app::digital_employees::view(self),
+            #[cfg(not(target_arch = "wasm32"))]
             Screen::ShijuApps => views::expert_hub::shiju_apps::view(self),
             #[cfg(not(target_arch = "wasm32"))]
             Screen::ShijuSkills => views::expert_hub::shiju_skills_view(self),

@@ -173,6 +173,13 @@ pub(super) fn navigation_section(app: &ViewInput<'_>) -> Element<'static, Messag
             specs[1].2,
         ))
         .push(project_navigation_control(app))
+        .push(navigation_button(
+            desktop_i18n::I18n::new(app.desktop_locale),
+            "数字员工",
+            Icon::Robot,
+            Message::DigitalEmployees,
+            None,
+        ))
         .push(shiju_apps_button(desktop_i18n::I18n::new(app.desktop_locale)))
         .push(shiju_skills_button(desktop_i18n::I18n::new(app.desktop_locale)))
         .push(expert_hub_button(desktop_i18n::I18n::new(app.desktop_locale)));

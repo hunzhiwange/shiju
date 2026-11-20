@@ -331,6 +331,8 @@ impl App {
 
             account: crate::app::state::AccountState::default(),
             #[cfg(not(target_arch = "wasm32"))]
+            digital_employees: crate::app::digital_employees::State::default(),
+            #[cfg(not(target_arch = "wasm32"))]
             shiju_apps: crate::app::shiju_apps::ShijuAppsState::default(),
             #[cfg(not(target_arch = "wasm32"))]
             expert_hub: {

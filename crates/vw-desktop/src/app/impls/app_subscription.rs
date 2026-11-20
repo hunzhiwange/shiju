@@ -323,6 +323,7 @@ impl App {
                 Subscription::none()
             };
         Subscription::batch(vec![
+            crate::app::digital_employees::subscription(self),
             usage_center_tick,
             cron_history_subscription(self),
             #[cfg(not(target_arch = "wasm32"))]

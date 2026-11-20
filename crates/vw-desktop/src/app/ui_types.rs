@@ -56,6 +56,9 @@ pub enum Message {
     Account(message::AccountMessage),
     #[cfg(not(target_arch = "wasm32"))]
     #[allow(private_interfaces)]
+    DigitalEmployees(crate::app::digital_employees::Event),
+    #[cfg(not(target_arch = "wasm32"))]
+    #[allow(private_interfaces)]
     ShijuApps(message::ShijuAppsMessage),
     #[cfg(not(target_arch = "wasm32"))]
     #[allow(private_interfaces)]

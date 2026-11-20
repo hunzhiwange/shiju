@@ -39,6 +39,10 @@ pub(super) fn view(app: &ViewInput<'_>) -> Element<'static, Message> {
         Icon::Robot,
         Some(Message::View(ViewMessage::OpenSystemSettingsTab(SystemTab::Agents))),
     ));
+    #[cfg(not(target_arch = "wasm32"))]
+    let navigation = navigation.push(control(
+        i18n, "数字员工", Icon::Robot, Some(Message::DigitalEmployees),
+    ));
     let controls = navigation
         .push(control(
             i18n,

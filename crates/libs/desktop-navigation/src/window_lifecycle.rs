@@ -113,6 +113,8 @@ pub fn title(screen: crate::ui_types::Screen, locale: config_ui::DesktopLocale) 
         Screen::ThirdPartyAgents => format!("{} - {}", desktop_i18n::I18n::new(locale).__("识矩"), desktop_i18n::I18n::new(locale).__("第三方智能体")),
         Screen::TaskBoard => desktop_i18n::I18n::new(locale).__("识矩 - 任务看板").to_string(),
         #[cfg(not(target_arch = "wasm32"))]
+        Screen::DigitalEmployees => desktop_i18n::I18n::new(locale).__("识矩 - 数字员工").to_string(),
+        #[cfg(not(target_arch = "wasm32"))]
         Screen::ShijuApps => desktop_i18n::I18n::new(locale).__("识矩 - 识矩应用").to_string(),
         #[cfg(not(target_arch = "wasm32"))]
         Screen::ShijuSkills => desktop_i18n::I18n::new(locale).__("识矩 - 识矩技能").to_string(),

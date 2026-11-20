@@ -3106,6 +3106,8 @@
   "确定从列表中移除「%s」吗？这不会删除磁盘上的文件。": "Remove “%s” from the list? Files on disk will be retained.",
   "新建任务": "New task",
   "识矩应用": "ShiJu apps",
+  "数字员工": "Digital employees",
+  "识矩 - 数字员工": "ShiJu - Digital employees",
   "识矩技能": "ShiJu skills",
   "专家 · 技能 · 连接器": "Experts · Skills · Connectors",
   "知识库 · 应用": "Knowledge · Apps",

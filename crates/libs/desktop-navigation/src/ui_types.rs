@@ -62,6 +62,8 @@ pub enum Screen {
     ThirdPartyAgents,
     TaskBoard,
     #[cfg(not(target_arch = "wasm32"))]
+    DigitalEmployees,
+    #[cfg(not(target_arch = "wasm32"))]
     ShijuApps,
     #[cfg(not(target_arch = "wasm32"))]
     ShijuSkills,

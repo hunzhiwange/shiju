@@ -63,6 +63,8 @@ e::SkillHubMessage::SelectSection(v0) => crate::app::message::SkillHubMessage::S
 e::Message::ShijuApps(event) => Message::ShijuApps(match event {
 e::ShijuAppsMessage::Open => crate::app::message::ShijuAppsMessage::Open,
 }),
+#[cfg(not(target_arch = "wasm32"))]
+e::Message::DigitalEmployees => Message::DigitalEmployees(crate::app::digital_employees::Event::Open),
 e::Message::Search(event) => Message::Search(match event {
 e::SearchMessage::Open => crate::app::message::SearchMessage::Open,
 }),

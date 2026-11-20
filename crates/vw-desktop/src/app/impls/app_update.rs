@@ -246,6 +246,8 @@ impl App {
             }
             Message::Account(msg) => message::account::update(self, msg),
             #[cfg(not(target_arch = "wasm32"))]
+            Message::DigitalEmployees(event) => crate::app::digital_employees::update(self, event),
+            #[cfg(not(target_arch = "wasm32"))]
             Message::ShijuApps(msg) => message::shiju_apps::update(self, msg),
             #[cfg(not(target_arch = "wasm32"))]
             Message::SkillHub(msg) => message::skill_hub::update(self, msg),

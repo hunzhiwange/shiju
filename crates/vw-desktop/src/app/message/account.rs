@@ -51,6 +51,8 @@ pub(crate) fn update(app: &mut App, message: AccountMessage) -> Task<Message> {
         }
         _ => {}
     }
+    #[cfg(not(target_arch = "wasm32"))]
+    let previous_account = app.account.repository().active_account_id().map(str::to_owned);
     let mut effects = Vec::new();
     let task =
         desktop_account_ui::update::update(&mut app.account, message, &services(), &mut effects)
@@ -71,6 +73,10 @@ pub(crate) fn update(app: &mut App, message: AccountMessage) -> Task<Message> {
             #[cfg(not(target_arch = "wasm32"))]
             Effect::PrepareSkill => shiju_skill::start(app),
         });
+    }
+    #[cfg(not(target_arch = "wasm32"))]
+    if previous_account.as_deref() != app.account.repository().active_account_id() {
+        tasks.push(crate::app::digital_employees::account_changed(app));
     }
     Task::batch(tasks)
 }

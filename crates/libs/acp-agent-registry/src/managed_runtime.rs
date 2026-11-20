@@ -53,7 +53,7 @@ fn installed_directory(agent: &str, contract: &Contract) -> Result<PathBuf, Stri
     } else if agent == "cursor" {
         6
     } else if agent == "deepagents" {
-        4
+        5
     } else if agent == "snow" {
         4
     } else if agent == "stakpak" {
@@ -473,6 +473,10 @@ pub(super) async fn install(agent: &str) -> Result<bool, String> {
         (
             "deepagents/guard.mjs",
             include_str!("../../../../patches/acp-model-source/deepagents/guard.mjs"),
+        ),
+        (
+            "deepagents/skills.mjs",
+            include_str!("../../../../patches/acp-model-source/deepagents/skills.mjs"),
         ),
         ("trae/apply.py", include_str!("../../../../patches/acp-model-source/trae/apply.py")),
         ("trae/launcher.py", include_str!("../../../../patches/acp-model-source/trae/launcher.py")),

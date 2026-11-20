@@ -135,7 +135,10 @@ impl AcpClient {
                 if matches!(
                     self.agent_name.as_str(),
                     "claude" | "claude code" | "qwen" | "gemini" | "codebuddy" | "kiro"
-                ) {
+                ) || (self.agent_name == "deepagents"
+                    && self.skill_mount_lease.is_some()
+                    && self.config.env.contains_key("VW_ACP_LAUNCH_REFERENCE"))
+                {
                     self.skill_mounts
                         .as_ref()
                         .into_iter()

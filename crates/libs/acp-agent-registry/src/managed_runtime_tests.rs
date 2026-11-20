@@ -80,12 +80,12 @@ async fn acp_onboarding_deepagents_reviewed_install_and_discovery() {
 }
 
 #[test]
-fn deepagents_session_mcp_uses_a_separate_reviewed_install() {
+fn deepagents_session_skills_use_a_separate_reviewed_install() {
     let contract = super::contract("deepagents").unwrap();
     assert!(
         super::installed_directory("deepagents", &contract)
             .unwrap()
-            .ends_with("deepagents-0.1.42-model-source-v4")
+            .ends_with("deepagents-0.1.42-model-source-v5")
     );
 }
 

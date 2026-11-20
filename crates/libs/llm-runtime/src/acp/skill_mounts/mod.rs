@@ -8,6 +8,8 @@ mod copilot;
 pub(super) mod corust_agent;
 mod cursor;
 mod droid;
+#[cfg(test)]
+mod deepagents_tests;
 mod gemini;
 mod goose;
 mod hermes;
@@ -48,6 +50,7 @@ pub fn validate(agent: &str, selected: bool) -> Result<(), Error> {
         "pi" => return Ok(()),
         "auggie" => auggie::rejection(),
         "cursor" => return Ok(()),
+        "deepagents" if cfg!(all(target_os = "macos", target_arch = "aarch64")) => return Ok(()),
         "droid" => droid::rejection(),
         "qoder" if cfg!(all(target_os = "macos", target_arch = "aarch64")) => return Ok(()),
         "trae" if cfg!(all(target_os = "macos", target_arch = "aarch64")) => return Ok(()),

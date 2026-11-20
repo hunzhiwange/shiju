@@ -22,11 +22,11 @@ replace('import path from "node:path";',
 replace('return super.read(filePath, offset, limit);', 'throw new Error("Host file read unavailable or denied");', 2)
 replace('return super.write(filePath, content);', 'throw new Error("Host file write unavailable or denied");', 2)
 replace('import { hostToolGuard } from "./shiju-guard.mjs";',
-        'import { hostToolGuard } from "./shiju-guard.mjs";\nimport { discoverMcp, mcpSelection } from "./shiju-mcp.mjs";\nimport { ChatOpenAI } from "@langchain/openai";')
+        'import { hostToolGuard } from "./shiju-guard.mjs";\nimport { discoverMcp, mcpSelection } from "./shiju-mcp.mjs";\nimport { ChatOpenAI } from "@langchain/openai";\nimport { nativeSkills, skillMounts } from "./shiju-skills.mjs";')
 replace('model: config.model,',
         'model: config.model?.startsWith("openai:") ? new ChatOpenAI({model: config.model.slice(7), useResponsesApi: false}) : config.model,')
 replace('middleware: config.middleware,',
-        'middleware: [...(config.middleware ?? []), hostToolGuard(this, agentName)],')
+        'middleware: [...(config.middleware ?? []), ...skillMiddleware, hostToolGuard(this, agentName)],')
 replace('const decision = await this.requestToolPermission(session, conn, toolCall);',
         'const decision = "allow";') # Actual authorization occurs inside wrapToolCall.
 replace('if (optionId === "reject-once") return "reject";\n\t\t\treturn "allow";',
@@ -42,22 +42,27 @@ replace('async handleNewSession(params, conn) {',
         '\t\tif (this.sessions.size) throw new Error("One workspace identity per ACP process");\n'
         '\t\tif (fs.realpathSync(params.cwd) !== this.workspaceRoot) throw new Error("ACP workspace differs from launch workspace");')
 replace('this.sessions.set(sessionId, session);',
-        'session.mcpSelection = mcpSelection(params.mcpServers);\n'
+        'session.skillMounts = skillMounts(params._meta);\n\t\tsession.mcpSelection = mcpSelection(params.mcpServers);\n'
         '\t\tthis.sessions.set(sessionId, session);')
 replace('if (!this.agents.has(agentName)) this.createAgent(agentName);',
         'try {\n'
         '\t\t\tsession.mcpTools = await discoverMcp(session.mcpSelection, this.workspaceRoot);\n'
-        '\t\t\tif (!this.agents.has(agentName)) this.createAgent(agentName, session.mcpTools);\n'
+        '\t\t\tconst skillMiddleware = await nativeSkills(this.workspaceRoot, this.agentConfigs.get(agentName).skills, session.skillMounts,\n'
+        '\t\t\t\tasync (path) => (await conn.readTextFile({sessionId, path})).content);\n'
+        '\t\t\tif (!this.agents.has(agentName)) this.createAgent(agentName, session.mcpTools, skillMiddleware);\n'
         '\t\t} catch (error) {\n'
         '\t\t\tthis.sessions.delete(sessionId);\n'
         '\t\t\tthrow error;\n'
         '\t\t}')
 replace('this.log("Loading session:", {',
-        'if (JSON.stringify(mcpSelection(params.mcpServers)) !== JSON.stringify(session.mcpSelection)) {\n'
+        'if (JSON.stringify(skillMounts(params._meta)) !== JSON.stringify(session.skillMounts)) {\n'
+        '\t\t\tthrow new Error("DeepAgents skill selection differs from current session");\n'
+        '\t\t}\n'
+        '\t\tif (JSON.stringify(mcpSelection(params.mcpServers)) !== JSON.stringify(session.mcpSelection)) {\n'
         '\t\t\tthrow new Error("DeepAgents MCP selection differs from current session");\n'
         '\t\t}\n'
         '\t\tthis.log("Loading session:", {')
-replace('createAgent(agentName) {', 'createAgent(agentName, mcpTools) {')
+replace('createAgent(agentName) {', 'createAgent(agentName, mcpTools, skillMiddleware) {')
 replace('tools: config.tools,',
         'tools: [...(config.tools ?? []), ...mcpTools.values()],')
 replace('const isError = message.status === "error" || typeof message.content',
@@ -80,14 +85,13 @@ replace('this.workspaceRoot = options.workspaceRoot ?? process.cwd();',
         'this.workspaceRoot = fs.realpathSync(options.workspaceRoot ?? process.cwd());')
 replace('const defaultMemoryPaths = [path.join(workspaceRoot, ".deepagents", "AGENTS.md"), path.join(workspaceRoot, "AGENTS.md")];',
         'const defaultMemoryPaths = [];')
-replace('const defaultSkillPaths = [path.join(workspaceRoot, ".deepagents", "skills"), path.join(workspaceRoot, "skills")];',
-        'const defaultSkillPaths = [];')
+replace('skills: config.skills,', 'skills: [],')
 replace('return new FilesystemBackend({ rootDir: this.workspaceRoot });',
         'throw new Error("DeepAgents requires host-mediated filesystem capabilities");')
 entry.write_text(source)
 shutil.copy2(Path(__file__).with_name('guard.mjs'), root / 'dist/shiju-guard.mjs')
 
-for name in ('mcp.mjs', 'mcp.py'):
+for name in ('mcp.mjs', 'mcp.py', 'skills.mjs'):
     shutil.copy2(Path(__file__).with_name(name), root / ('dist/shiju-' + name))
 # Reuse the stdio transport without incorporating the Cortex ACP bridge.
 bridge = (Path(__file__).parents[1] / 'cortex-code/mcp_bridge.py').read_text()

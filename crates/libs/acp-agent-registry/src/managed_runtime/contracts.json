@@ -723,10 +723,11 @@
     "integrity": "sha512-RfMrrPr9uBm3SjtwuNl4gI/7b0mLkCz63IaUNjsEx7PFI6QY5j5u4DBSQZJUH8D94vNXjkyf/g082NLkvIs/+A==",
     "bin": "dist/cli.js",
     "files": {
-      "dist/cli.js": "99235b0c39283be84bef07a2d3beb908533e93d5697e929eac62b450a01a7f52",
+      "dist/cli.js": "55aace3a7b5eb077e8cb6314465f6fb965d8ee844d134e7f361bbca6f5396d4c",
       "dist/shiju-guard.mjs": "e61e79f6cdce6ccc61186c488d1481b2ad63d8856abf08d008fda6d91b213b1c",
       "dist/shiju-mcp.mjs": "c3ca54774614df9574ad064bda29c02e6185b0823283022f44dd8d02d4cd11cf",
       "dist/shiju-mcp.py": "ede7bf31f0eafe51f6dd0572d0cea482fe3be3eb715534b2f566d87e5c8aa915",
+      "dist/shiju-skills.mjs": "ede7dd841c8817bf931a245aa94d992289249fea242a0cb21ead7d12e72365bf",
       "dist/shiju-stdio.py": "ae5ab81d5d9857c8dfa29a17d3fdfb1df223150a572156a0c2f190af420901d8"
     }
   },

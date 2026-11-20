@@ -24,3 +24,9 @@
 额外执行了两轮仅选 MCP 的诊断。受管启动器在 `session/new` 返回 `Stakpak could not mount the selected MCP tools`，两轮均无模型请求、审批或下游调用。用同制品的 stdio 桥直接运行共享夹具复现了 `MCP server disconnected`。该桥限制脚本读取至私有工作区及临时目录，并限制写入至子进程临时目录。共享探针从工作区外启动仓库脚本并在子进程临时目录外写审计文件。后续共存回归需要适配这条沙箱边界的夹具。[受管 MCP 历史回执](../mcp-acceptance/stakpak.md#新标准网关验收通过)
 
 主探针退出 1，证据位于 `target/acp-skill-coexistence/stakpak.json`，独立诊断在同目录的 `stakpak-*.json`。Python 语法检查通过。复用了已有网关，未重新运行 Cargo 构建或 Rust 单测。当前未取得原生激活、选中技能读取、挂载后撤除、同轮 MCP 批准或拒绝证据。继续接入需要受审 Stakpak ACP 制品提供原生扫描与注册入口，并验证激活和附件访问只覆盖会话允许的目录。
+
+## 2026-11-21 补充验证
+
+- 私有 TOML 单独允许原生 `stakpak__view` 和 `stakpak__load_skill`，使用同摘要启动器及原生程序，绕开网关以隔离供应商行为。首次带工具的模型请求声明了 `load_skill`，但项目和私有 HOME 的 `.stakpak/skills` 均无目录元数据，正文和附件也未提前出现。随后以已知 URI 调用该工具，项目和 HOME 正文分别由 `call_2d466ee27e79ef5f9416cd8a`、`call_ae783c3bd3bbd606c02c36fe` 回传，目录外 URI 由 `call_dde9e1177a19be47bc0cd852` 返回 `LOAD_SKILL_ERROR`。模型回读 `deepseek-v4.1-flash-1017`，四个带工具模型请求后以 `end_turn` 结束。可从仓库根以 `PYTHONPATH=scripts python3 -c 'import json; from acp_skill_coexistence.stakpak import native_control; print(json.dumps(native_control()))'` 复现。也可设置 `ACP_STAKPAK_REVIEWED_DIR` 指向另一份摘要匹配的受管 v3。脱敏证据为 `target/acp-skill-coexistence/stakpak-native-toml.json`。
+- 探针现复用 Cortex 的同沙箱 stdio 夹具。夹具在私有工作区通过只读 FIFO 供值，父进程记审计，受管桥仍执行原有工具名单及逐次审批。复用槽位 11 网关，在不选技能的两个独立会话单独复验 MCP。批准和拒绝各有一个 `chat.done`、零 `chat.error`，均回读 `session_model`、指定模型和 `full_access=false`。批准由 `call_f3fd2a18bdfc2b3b88b1c627` 回传随机值，下游执行一次。拒绝由 `call_82df7c10fd0939396273b58a` 回传 `TOOL_CALL_REJECTED`，下游执行零次。记录于 `target/acp-skill-coexistence/stakpak-mcp-only.json` 和 `stakpak-mcp-reject-only.json`。诊断回合缺少技能共存证据，主验收仍未通过。
+- 当前共享变更未给 Stakpak 增加原生注册入口。固定源码的 `session/load` 只回填会话 ID 和模型状态。供应商系统提示文件只接受调用方准备的文本，无法调用技能扫描器。受管 Python 启动器可调整启动 TOML 和 MCP 目录，安装合约仍从固定归档校验并解出原生二进制。技能扫描接入 ACP 会话需要供应商新版或可审计的补丁制品，提供会话根注册以及发现和读取的路径约束。保留现行宿主门禁，无需为相同边界重建网关。此次通过 Python 语法检查，未运行 Cargo。

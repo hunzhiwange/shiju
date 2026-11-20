@@ -3,9 +3,8 @@ use crate::app::{App, Message};
 use crate::app::message::project::ProjectMessage;
 use crate::app::projects::{save_recent_projects_background, save_recent_projects_meta_background};
 use desktop_workspace::project_message::edit::{self, Event, Effect, State};
-use crate::app::message::task_board::{
-    next_agent_scheduler_status_generation, resolve_task_board_scheduler_scope,
-};
+use crate::app::message::task_board::next_agent_scheduler_status_generation;
+use crate::app::views::workflow_manager::{load_project_workflow, select_project_workflow};
 use vw_api_agent_scheduler::AgentSchedulerSelectWorkflowRequest;
 pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Task<Message>> {
     let mut workflow_task = iced::Task::none();
@@ -61,19 +60,10 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
                 workflow_id: editor.project_edit_task_board_settings.workflow_id.clone(),
                 expected_workflow,
             };
-            return Some(iced::Task::perform(async move {
-                let scope = resolve_task_board_scheduler_scope(&path).await?;
-                let client = crate::app::gateway_client()?;
-                let response = gateway_scheduler::GatewaySchedulerClient::new(client.transport().clone())
-                    .agent_scheduler_select_workflow(&scope, &request)
-                    .await?;
-                if &response.project_id != scope.project_scope().project_id() {
-                    return Err("网关返回了其他项目的工作流".to_string());
-                }
-                response.workflow
-                    .filter(|workflow| workflow.id == request.workflow_id)
-                    .ok_or_else(|| "网关未确认所选项目工作流".to_string())
-            }, move |result| Message::Project(ProjectMessage::ProjectEditWorkflowSaved(generation, result))));
+            return Some(iced::Task::perform(
+                async move { select_project_workflow(&path, request).await },
+                move |result| Message::Project(ProjectMessage::ProjectEditWorkflowSaved(generation, result)),
+            ));
         }
         ProjectMessage::ProjectToolsMenuToggled(value) => Event::ProjectToolsMenuToggled(value),
         ProjectMessage::CurrentProjectMenuToggled(value) => Event::CurrentProjectMenuToggled(value),
@@ -88,16 +78,10 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
             editor.project_edit_workflow_dirty = false;
             let generation = editor.project_edit_workflow_generation;
             let workflow_path = path.clone();
-            workflow_task = iced::Task::perform(async move {
-                let scope = resolve_task_board_scheduler_scope(&workflow_path).await?;
-                let client = crate::app::gateway_client()?;
-                let response = gateway_scheduler::GatewaySchedulerClient::new(client.transport().clone())
-                    .agent_scheduler_workflow(&scope).await?;
-                if &response.project_id != scope.project_scope().project_id() {
-                    return Err("网关返回了其他项目的工作流".to_string());
-                }
-                Ok(response.workflow)
-            }, move |result| Message::Project(ProjectMessage::ProjectEditWorkflowLoaded(generation, result)));
+            workflow_task = iced::Task::perform(
+                async move { load_project_workflow(&workflow_path).await },
+                move |result| Message::Project(ProjectMessage::ProjectEditWorkflowLoaded(generation, result)),
+            );
             Event::ProjectEditOpened(path)
         }
         ProjectMessage::ProjectEditTabSelected(value) => Event::ProjectEditTabSelected(value),

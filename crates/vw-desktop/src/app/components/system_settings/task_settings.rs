@@ -24,7 +24,7 @@ pub(in crate::app) fn project_path(app: &App) -> Option<&str> {
 }
 
 pub(in crate::app) fn load_workflows(app: &mut App) -> Task<Message> {
-    if project_path(app).is_some() && !app.workflow_manager.lifecycles_loading() {
+    if project_path(app).is_some() {
         workflow_manager::update_app(app, WorkflowManagerMessage::RefreshLifecycles)
     } else {
         Task::none()

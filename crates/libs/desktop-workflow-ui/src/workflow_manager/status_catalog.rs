@@ -71,7 +71,7 @@ pub(super) fn status_catalog(workflow: &TaskWorkflow) -> [(StatusGroup, Vec<Stat
     })
 }
 
-fn status_behavior(workflow: &TaskWorkflow, status: &OwnedStatusDefinition) -> StatusBehavior {
+pub(super) fn status_behavior(workflow: &TaskWorkflow, status: &OwnedStatusDefinition) -> StatusBehavior {
     if !status.enabled {
         return StatusBehavior {
             summary: "已停用",

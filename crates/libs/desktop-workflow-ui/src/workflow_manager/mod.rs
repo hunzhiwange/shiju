@@ -14,7 +14,10 @@ use desktop_ui_controls::system_settings_common::{
     settings_text_input, settings_value_badge,
 };
 use desktop_ui_controls::toast::confirm_dialog;
-use desktop_task_model::workflow::TaskWorkflowRegistry;
+use desktop_task_model::workflow::{
+    TaskPoolWorkflowSnapshotDto, TaskWorkflowRegistry, default_task_workflow,
+    task_workflow_from_snapshot,
+};
 use desktop_task_model::{
     OwnedStatusDefinition, OwnedStatusTransition, OwnedTaskWorkflow, StatusOutcome, StatusRole,
     TaskStatus, TaskWorkflow, all_task_workflows, is_builtin_task_workflow_id,
@@ -26,8 +29,7 @@ use vw_api_task_lifecycle::{
     TaskLifecycleWorkflowDto, TaskLifecycleWorkflowUpsertBody,
 };
 
-const WORKFLOW_SCROLL_RIGHT_GUTTER: f32 = 12.0;
-const WORKFLOW_STATUS_INDEX_WIDTH: f32 = 20.0;
+const WORKFLOW_SCROLL_RIGHT_GUTTER: f32 = 7.0;
 
 /// 网关生命周期列表请求的统一结果类型。
 pub type LifecycleWorkflowListResult = std::result::Result<Vec<TaskLifecycleWorkflowDto>, String>;
@@ -45,6 +47,12 @@ pub enum WorkflowManagerMessage {
     CopyWorkflow(String),
     SelectTab(WorkflowManagerTab),
     ToggleStatusRoleHelp,
+    ViewProjectWorkflow,
+    RequestProjectWorkflow { path: String, workflow_id: String },
+    ApplyProjectWorkflow { path: String, workflow_id: String },
+    ProjectWorkflowLoaded { path: String, generation: u64, result: ProjectWorkflowResult },
+    ProjectWorkflowApplied { path: String, generation: u64, result: ProjectWorkflowResult },
+    ToggleDraftAdvanced,
     SelectCatalogPreset(Option<String>),
     ToggleCatalogAdvanced,
     EditCatalogStatus { workflow_id: String, status_key: String },
@@ -105,6 +113,20 @@ pub struct WorkflowManagerState {
     show_status_role_help: bool,
     catalog_preset_id: Option<String>,
     show_catalog_advanced: bool,
+    project_workflow: Option<ProjectWorkflow>,
+    project_generation: u64,
+    show_project_workflow: bool,
+}
+
+pub type ProjectWorkflowResult = std::result::Result<Option<TaskPoolWorkflowSnapshotDto>, String>;
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct ProjectWorkflow {
+    path: String,
+    busy: bool,
+    snapshot: Option<TaskPoolWorkflowSnapshotDto>,
+    definition: Option<TaskWorkflow>,
+    error: Option<String>,
 }
 
 impl Default for WorkflowManagerState {
@@ -150,6 +172,9 @@ impl WorkflowManagerState {
             show_status_role_help: false,
             catalog_preset_id: None,
             show_catalog_advanced: false,
+            project_workflow: None,
+            project_generation: 0,
+            show_project_workflow: true,
         }
     }
 
@@ -219,6 +244,82 @@ impl WorkflowManagerState {
     pub fn take_pending_effect(&mut self) -> Option<WorkflowManagerEffect> {
         self.pending_effect.take()
     }
+
+    fn project_workflow(&self, path: Option<&str>) -> Option<&ProjectWorkflow> {
+        self.project_workflow.as_ref().filter(|project| Some(project.path.as_str()) == path)
+    }
+
+    pub fn begin_project_workflow_load(&mut self, path: &str) -> Option<u64> {
+        if self.project_workflow(Some(path)).is_some_and(|project| project.busy) {
+            return None;
+        }
+        if self.project_workflow(Some(path)).is_none() {
+            self.show_project_workflow = true;
+            if matches!(&self.pending_confirmation,
+                Some(WorkflowManagerConfirmation::ApplyProjectWorkflow { .. }))
+            {
+                self.pending_confirmation = None;
+            }
+        }
+        self.project_generation = self.project_generation.wrapping_add(1);
+        self.project_workflow = Some(ProjectWorkflow {
+            path: path.to_string(), busy: true, snapshot: None, definition: None, error: None,
+        });
+        Some(self.project_generation)
+    }
+
+    pub fn begin_project_workflow_apply(
+        &mut self,
+        path: &str,
+        workflow_id: &str,
+    ) -> Option<(u64, Option<TaskPoolWorkflowSnapshotDto>)> {
+        if !matches!(&self.pending_confirmation,
+            Some(WorkflowManagerConfirmation::ApplyProjectWorkflow { path: pending_path, workflow_id: id, .. })
+            if pending_path == path && id == workflow_id)
+        {
+            return None;
+        }
+        self.pending_confirmation = None;
+        let project = self.project_workflow.as_mut().filter(|project| {
+            project.path == path && !project.busy && project.definition.is_some()
+                && project.error.is_none()
+        })?;
+        project.busy = true;
+        self.project_generation = self.project_generation.wrapping_add(1);
+        Some((self.project_generation, project.snapshot.clone()))
+    }
+
+    pub fn finish_project_workflow(
+        &mut self,
+        path: &str,
+        generation: u64,
+        result: ProjectWorkflowResult,
+        applied: bool,
+    ) -> bool {
+        if self.project_generation != generation {
+            return false;
+        }
+        let Some(project) = self.project_workflow.as_mut().filter(|project| project.path == path)
+        else {
+            return false;
+        };
+        project.busy = false;
+        match result {
+            Ok(snapshot) => {
+                project.definition = match &snapshot {
+                    Some(snapshot) => task_workflow_from_snapshot(snapshot),
+                    None => Some(default_task_workflow().into()),
+                };
+                project.error = project.definition.is_none().then(|| "无法读取项目工作流定义".into());
+                project.snapshot = snapshot;
+                if applied {
+                    self.show_project_workflow = true;
+                }
+            }
+            Err(error) => project.error = Some(error),
+        }
+        true
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -226,6 +327,7 @@ enum WorkflowManagerConfirmation {
     ResetWorkflow { workflow_id: String, workflow_label: String },
     DeleteWorkflow { workflow_id: String, workflow_label: String },
     DeleteStatus { index: usize, key: String, label: String },
+    ApplyProjectWorkflow { path: String, workflow_id: String, workflow_label: String },
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -235,6 +337,7 @@ struct WorkflowDraft {
     label: String,
     statuses: Vec<WorkflowDraftStatus>,
     focused_status: Option<usize>,
+    show_advanced: bool,
 }
 
 impl WorkflowDraft {
@@ -245,6 +348,7 @@ impl WorkflowDraft {
             label: String::new(),
             statuses: Vec::new(),
             focused_status: None,
+            show_advanced: false,
         }
     }
 
@@ -259,6 +363,7 @@ impl WorkflowDraft {
                 .map(WorkflowDraftStatus::from_definition)
                 .collect(),
             focused_status: None,
+            show_advanced: false,
         }
     }
 }
@@ -526,6 +631,7 @@ pub fn update(
         WorkflowManagerMessage::SelectWorkflow(id) => {
             if state.workflows.iter().any(|workflow| workflow.definition.id == id) {
                 state.selected_workflow_id = Some(id);
+                state.show_project_workflow = false;
                 state.feedback = None;
             }
             false
@@ -533,6 +639,7 @@ pub fn update(
         WorkflowManagerMessage::ViewWorkflow(id) => {
             if state.workflows.iter().any(|workflow| workflow.definition.id == id) {
                 state.selected_workflow_id = Some(id);
+                state.show_project_workflow = false;
                 state.draft = None;
                 state.feedback = None;
             }
@@ -546,6 +653,36 @@ pub fn update(
         }
         WorkflowManagerMessage::ToggleStatusRoleHelp => {
             state.show_status_role_help = !state.show_status_role_help;
+            false
+        }
+        WorkflowManagerMessage::ViewProjectWorkflow => {
+            state.show_project_workflow = true;
+            false
+        }
+        WorkflowManagerMessage::RequestProjectWorkflow { path, workflow_id } => {
+            if state.draft.is_none()
+                && !state.lifecycles_loading
+                && state.project_workflow(Some(&path)).is_some_and(|project| {
+                    !project.busy && project.definition.is_some() && project.error.is_none()
+                })
+                && let Some(item) = state.workflows.iter().find(|item| item.definition.id == workflow_id)
+            {
+                state.pending_confirmation = Some(WorkflowManagerConfirmation::ApplyProjectWorkflow {
+                    path,
+                    workflow_id,
+                    workflow_label: item.definition.label.clone(),
+                });
+                state.feedback = None;
+            }
+            false
+        }
+        WorkflowManagerMessage::ApplyProjectWorkflow { .. }
+        | WorkflowManagerMessage::ProjectWorkflowLoaded { .. }
+        | WorkflowManagerMessage::ProjectWorkflowApplied { .. } => false,
+        WorkflowManagerMessage::ToggleDraftAdvanced => {
+            if let Some(draft) = &mut state.draft {
+                draft.show_advanced = !draft.show_advanced;
+            }
             false
         }
         WorkflowManagerMessage::SelectCatalogPreset(id) => {
@@ -568,6 +705,7 @@ pub fn update(
                 let mut draft = WorkflowDraft::from_workflow(item.definition.clone());
                 draft.focused_status = Some(index);
                 state.selected_workflow_id = Some(workflow_id);
+                state.show_project_workflow = false;
                 state.active_tab = WorkflowManagerTab::LifecycleDefinition;
                 state.show_status_role_help = false;
                 state.draft = Some(draft);
@@ -583,7 +721,9 @@ pub fn update(
         }
         WorkflowManagerMessage::StartNew => {
             state.active_tab = WorkflowManagerTab::LifecycleDefinition;
-            state.draft = Some(WorkflowDraft::empty());
+            let mut draft = WorkflowDraft::empty();
+            draft.show_advanced = true;
+            state.draft = Some(draft);
             state.feedback = None;
             false
         }
@@ -639,6 +779,7 @@ pub fn update(
             if let Some(draft) = &mut state.draft {
                 draft.statuses.push(WorkflowDraftStatus::blank());
                 draft.focused_status = None;
+                draft.show_advanced = true;
             }
             false
         }
@@ -845,6 +986,7 @@ fn confirm_pending_action(state: &mut WorkflowManagerState) -> bool {
         return false;
     };
     match confirmation {
+        WorkflowManagerConfirmation::ApplyProjectWorkflow { .. } => {}
         WorkflowManagerConfirmation::ResetWorkflow { workflow_id, .. } => {
             state.lifecycles_loading = true;
             state.feedback = None;
@@ -1214,6 +1356,7 @@ fn apply_lifecycle_workflow_saved(
             match apply_lifecycle_workflow_cache(state, workflows, Some(workflow_id)) {
                 Ok(()) => {
                     state.draft = None;
+                    state.show_project_workflow = false;
                     state.feedback = Some(WorkflowManagerFeedback::localized(
                         WorkflowManagerFeedbackKind::Success,
                         desktop_i18n::workflow::Feedback::new("工作流已保存", vec![]),
@@ -1226,7 +1369,6 @@ fn apply_lifecycle_workflow_saved(
         }
         Err(error) => {
             state.lifecycles_loading = false;
-            state.lifecycles_error = Some(error.clone());
             state.feedback = Some(WorkflowManagerFeedback::localized(
                 WorkflowManagerFeedbackKind::Error,
                 desktop_i18n::workflow::Feedback::new(

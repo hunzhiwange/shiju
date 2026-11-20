@@ -1,44 +1,53 @@
 diff --git a/src/acp/agent.ts b/src/acp/agent.ts
-index 8f4e8b8..ccaf26c 100644
+index 8f4e8b8..b3931a9 100644
 --- a/src/acp/agent.ts
 +++ b/src/acp/agent.ts
 @@ -22,0 +23 @@ import { getAuthMethods } from './auth.js'
 +import { discoverMcp } from './session-mcp.js'
-@@ -808 +808,0 @@ export class PiAcpAgent implements ACPAgent {
+@@ -234 +235,6 @@ export class PiAcpAgent implements ACPAgent {
+-          updateNotice
++          updateNotice,
++          managedSkills: process.env.SHIJU_PI_SKILL_ROOT === undefined ? undefined :
++            ((await session.proc.getCommands()) as {
++              commands: Array<{ source: string; sourceInfo?: { path?: string } }>
++            }).commands.flatMap(command =>
++              command.source === 'skill' && command.sourceInfo?.path ? [command.sourceInfo.path] : [])
+@@ -808 +813,0 @@ export class PiAcpAgent implements ACPAgent {
 -    // MVP: ignore mcpServers.
-@@ -823 +823,2 @@ export class PiAcpAgent implements ACPAgent {
+@@ -823 +828,2 @@ export class PiAcpAgent implements ACPAgent {
 -        piCommand: process.env.PI_ACP_PI_COMMAND
 +        piCommand: process.env.PI_ACP_PI_COMMAND,
 +        mcp: await discoverMcp(params.mcpServers, params.cwd)
-@@ -1270,4 +1271,9 @@ function buildStartupInfo(opts: {
+@@ -1183,0 +1190 @@ function buildStartupInfo(opts: {
++  managedSkills?: string[]
+@@ -1270,12 +1277,16 @@ function buildStartupInfo(opts: {
 -  // Global skills
 -  // Use getAgentDir() so this respects PI_CODING_AGENT_DIR overrides.
 -  const globalSkillsDir = join(getAgentDir(), 'skills')
 -  pushSkillFromRoot(globalSkillsDir)
-+  const skillRoot = process.env.SHIJU_PI_SKILL_ROOT
-+  if (skillRoot !== undefined) {
-+    if (skillRoot && !isAbsolute(skillRoot)) throw new Error('SHIJU_PI_SKILL_ROOT must be absolute')
-+    if (skillRoot) pushSkillFromRoot(skillRoot)
+-
+-  // Also support ~/.agents/skills (pi skill discovery)
+-  const legacyAgentsSkillsDir = join(process.env.HOME ?? '', '.agents', 'skills')
+-  pushSkillFromRoot(legacyAgentsSkillsDir)
+-
+-  // Project skills (.pi/skills)
+-  const projectSkillsDir = join(opts.cwd, '.pi', 'skills')
+-  pushSkillFromRoot(projectSkillsDir)
++  if (opts.managedSkills !== undefined) {
++    skillsItems.push(...opts.managedSkills)
 +  } else {
 +    // Global skills
 +    // Use getAgentDir() so this respects PI_CODING_AGENT_DIR overrides.
 +    const globalSkillsDir = join(getAgentDir(), 'skills')
 +    pushSkillFromRoot(globalSkillsDir)
-@@ -1275,3 +1281,3 @@ function buildStartupInfo(opts: {
--  // Also support ~/.agents/skills (pi skill discovery)
--  const legacyAgentsSkillsDir = join(process.env.HOME ?? '', '.agents', 'skills')
--  pushSkillFromRoot(legacyAgentsSkillsDir)
++
 +    // Also support ~/.agents/skills (pi skill discovery)
 +    const legacyAgentsSkillsDir = join(process.env.HOME ?? '', '.agents', 'skills')
 +    pushSkillFromRoot(legacyAgentsSkillsDir)
-@@ -1279,3 +1285,5 @@ function buildStartupInfo(opts: {
--  // Project skills (.pi/skills)
--  const projectSkillsDir = join(opts.cwd, '.pi', 'skills')
--  pushSkillFromRoot(projectSkillsDir)
++
 +    // Project skills (.pi/skills)
 +    const projectSkillsDir = join(opts.cwd, '.pi', 'skills')
 +    pushSkillFromRoot(projectSkillsDir)
-+
 +  }
 diff --git a/src/acp/paths.ts b/src/acp/paths.ts
 index 4f55af3..1d2c7fb 100644
@@ -227,29 +236,68 @@ index 57bd99e..a42ae89 100644
 @@ -530,0 +586 @@ export class PiAcpSession {
 +        this.mcpCalls.delete(toolCallId)
 diff --git a/src/pi-rpc/process.ts b/src/pi-rpc/process.ts
-index d62018d..d288679 100644
+index d62018d..ff1a377 100644
 --- a/src/pi-rpc/process.ts
 +++ b/src/pi-rpc/process.ts
-@@ -0,0 +1,2 @@
-+import { isAbsolute } from 'node:path'
+@@ -0,0 +1,5 @@
++import { realpath } from 'node:fs/promises'
++import { dirname, isAbsolute, join, relative, sep } from 'node:path'
++import { pathToFileURL } from 'node:url'
++import { getAgentDir } from '../acp/pi-settings.js'
 +import { extension, type SessionMcp } from '../acp/session-mcp.js'
-@@ -70,0 +73 @@ type SpawnParams = {
+@@ -3,0 +9,31 @@ import * as readline from 'node:readline'
++// Use the pinned Pi resolver for project skill overrides and .gitignore rules.
++async function projectSkillFiles(cwd: string, engine: string): Promise<string[]> {
++  const workspace = await realpath(cwd)
++  const root = join(workspace, '.pi', 'skills')
++  const resolvedRoot = await realpath(root).catch((error: NodeJS.ErrnoException) => {
++    if (error.code === 'ENOENT') return undefined
++    throw error
++  })
++  // A native root or skill symlink cannot introduce files from another tree.
++  if (resolvedRoot !== root) return []
++  const agentDir = getAgentDir()
++  const { DefaultPackageManager, SettingsManager } = await import(pathToFileURL(join(dirname(engine), 'index.js')).href)
++  const settings = SettingsManager.create(workspace, agentDir)
++  const skillPatterns = settings.getProjectSettings().skills
++  const resolver = new DefaultPackageManager({
++    cwd: workspace, agentDir,
++    settingsManager: { getGlobalSettings: () => ({}), getProjectSettings: () => ({ skills: skillPatterns }) }
++  })
++  const files: string[] = []
++  const within = (path: string) => {
++    const suffix = relative(root, path)
++    return suffix !== '' && suffix !== '..' && !suffix.startsWith('..' + sep) && !isAbsolute(suffix)
++  }
++  for (const skill of (await resolver.resolve()).skills) {
++    if (!skill.enabled || !within(skill.path)) continue
++    const target = await realpath(skill.path)
++    if (within(target)) files.push(skill.path)
++  }
++  return files
++}
++
+@@ -70,0 +107 @@ type SpawnParams = {
 +  mcp?: SessionMcp
-@@ -74,0 +78,3 @@ export class PiRpcProcess {
+@@ -74,0 +112,3 @@ export class PiRpcProcess {
 +  readonly mcp?: SessionMcp
 +  private readonly lifetime = new AbortController()
 +  get signal(): AbortSignal { return this.lifetime.signal }
-@@ -79 +85 @@ export class PiRpcProcess {
+@@ -79 +119 @@ export class PiRpcProcess {
 -  private constructor(child: ChildProcessWithoutNullStreams) {
 +  private constructor(child: ChildProcessWithoutNullStreams, mcp?: SessionMcp) {
-@@ -80,0 +87,2 @@ export class PiRpcProcess {
+@@ -80,0 +121,2 @@ export class PiRpcProcess {
 +    this.mcp = mcp
 +    child.once('close', () => this.lifetime.abort())
-@@ -130,0 +139,12 @@ export class PiRpcProcess {
+@@ -130,0 +173,16 @@ export class PiRpcProcess {
 +    const skillRoot = process.env.SHIJU_PI_SKILL_ROOT
 +    if (skillRoot !== undefined) {
 +      if (skillRoot && !isAbsolute(skillRoot)) throw new Error('SHIJU_PI_SKILL_ROOT must be absolute')
 +      args.push('--no-skills', '--no-extensions')
++      // Only the session-model launcher binds the native engine to a reviewed path.
++      if (process.env.VW_PI_RELAY_TOKEN && params.piCommand && isAbsolute(params.piCommand)) {
++        for (const path of await projectSkillFiles(params.cwd, params.piCommand)) args.push('--skill', path)
++      }
 +      if (skillRoot) args.push('--skill', skillRoot)
 +    }
 +    const env = { ...process.env }
@@ -258,13 +306,13 @@ index d62018d..d288679 100644
 +      args.push('--extension', extension)
 +      env.VW_PI_MCP_CATALOG = JSON.stringify(params.mcp.catalog)
 +    }
-@@ -136 +156 @@ export class PiRpcProcess {
+@@ -136 +194 @@ export class PiRpcProcess {
 -      env: process.env
 +      env
-@@ -179 +199 @@ export class PiRpcProcess {
+@@ -179 +237 @@ export class PiRpcProcess {
 -    const proc = new PiRpcProcess(child)
 +    const proc = new PiRpcProcess(child, params.mcp)
-@@ -196,0 +217,11 @@ export class PiRpcProcess {
+@@ -196,0 +255,11 @@ export class PiRpcProcess {
 +    if (params.mcp?.catalog.length) {
 +      try {
 +        const result = await proc.getCommands() as { commands?: Array<{ name: string; source: string }> }
@@ -276,7 +324,7 @@ index d62018d..d288679 100644
 +        throw error
 +      }
 +    }
-@@ -206,0 +238,8 @@ export class PiRpcProcess {
+@@ -206,0 +276,8 @@ export class PiRpcProcess {
 +  respondMcp(id: string, value?: string): void {
 +    if (this.signal.aborted) return
 +    const reply = value === undefined ? { cancelled: true } : { value }
@@ -285,5 +333,5 @@ index d62018d..d288679 100644
 +    })
 +  }
 +
-@@ -207,0 +247 @@ export class PiRpcProcess {
+@@ -207,0 +285 @@ export class PiRpcProcess {
 +    this.lifetime.abort()

@@ -2251,7 +2251,7 @@
       "status": "verified",
       "platform": {
         "review_host": "Darwin-arm64",
-        "artifact_scope": "仅 Darwin-arm64、受审 pi-acp 0.0.22 补丁及 Pi 0.73.1；session_model/cli_local 实测，其他平台和版本未验证。",
+        "artifact_scope": "Darwin-arm64，受管 v3 固定 pi-acp 0.0.22 / Pi 0.73.1；session_model 直连验证，网关验收待授权。",
         "linux": "unverified",
         "windows": "unverified"
       },
@@ -2291,9 +2291,9 @@
         "candidate_paths": [
           "SHIJU_PI_SKILL_ROOT（受审 adapter 传入原生 --no-skills --no-extensions --skill）"
         ],
-        "discovery": "ACP 清单与原生 Pi 共用会话视图；模型只收到原生目录元数据，read 按需读取正文及随机附件，bash 执行脚本。",
+        "discovery": "ACP 能力目录来自 Pi RPC；受审 session_model 追加当前项目 .pi/skills，再追加经校验的会话视图，原生 read 按需读取。",
         "activation": "首次 prompt 无技能全文；不拼接正文，不替代原生工具。",
-        "session_isolation": "两种来源均排除用户/项目/扩展默认技能；完整原生清单与选中集合精确相等；空选择禁用技能。"
+        "session_isolation": "受审 session_model 保留当前项目原生匹配及禁用规则、排除其它目录和自动扩展；空选集仍保留项目原生技能。同名采用 Pi 原生优先。"
       },
       "permissions": {
         "status": "verified on Darwin-arm64 for both model sources",
@@ -2366,14 +2366,14 @@
           "version": "0.0.22"
         },
         {
-          "path": "crates/vw-acp/src/managed_runtime/contracts.json#pi",
-          "sha256": "5132b90b8244ef8ab8ddbda77a812b5e477501baafb25862d1c0c0d1623f9dc6",
+          "path": "crates/libs/acp-agent-registry/src/managed_runtime/contracts.json#pi",
+          "sha256": "625fb0af3d7170a000c9ce763355091c64ce67ad6be00abd548e49f1dcf05001",
           "kind": "reviewed_patched_adapter",
           "version": "0.0.22"
         }
       ],
       "supplemental_official_docs": [],
-      "next_validation": "继续下一个独立 agent；整体回归使用此固定补丁发行物。",
+      "next_validation": "受管 v3 直连三轮及拒绝、恢复通过；保留完全访问门禁，待通过合规入口复验真实网关。",
       "acceptance": {
         "status": "verified",
         "evidence": "evidence/pi.json",

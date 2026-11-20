@@ -41,4 +41,24 @@
 - 批准轮以 `probe51f34ce7bc200706954a8e35` 关联 ACP 审批及模型结果。拒绝轮以 `probe5f32c5bc6607a44444935c6f` 关联 ACP 审批及拒绝结果，下游无调用。非选中技能始终未出现在目录中。
 - 现行补丁以会话根替换 ACP 目录，在 RPC 侧以 `--no-skills --no-extensions` 配合单个显式 `--skill` 根。直接对照定位了两个目录共同缺少原生技能的断点。结果保存在 `target/acp-skill-coexistence/pi-direct.json`。[固定补丁](../../../../patches/acp-model-source/pi/pi-acp-0.0.22-state-dir.patch) · [Pi 0.73.1 技能加载源码](https://github.com/earendil-works/pi/blob/781152fc24841dc54b22284514604048ebe5e2c9/packages/coding-agent/src/core/skills.ts)
 
-本项保留受限启动门禁和 v2 制品。继续需要符合现有授权的验证入口，以及能在保留扩展隔离与技能禁用边界的前提下合并两类根的供应商接线。复验使用任务卡原命令，`VIBEWINDOW_CONFIG_DIR` 指向持有受审 Pi 制品的私有配置目录。
+## 受管 v3 聚焦验证
+
+固定 Pi 0.73.1 的 `DefaultPackageManager` 解析当前项目技能设置。适配器只将词法路径和实际目标均位于项目 `.pi/skills` 的已启用文件作为显式 `--skill` 参数，随后追加宿主验证的会话根。Pi 原生规则决定同名优先级，ACP 启动及命令目录读取实际 RPC 结果。受管启动保留 `--no-skills --no-extensions`，按需加载既有会话 MCP 扩展。普通 CLI 本地模型延续会话视图行为。
+
+从同一固定源码提交和锁文件构建受管 v3。TypeScript 检查和构建退出 0，重新解包源码、应用仓库补丁后得到相同的 `dist/index.js` 字节，SHA-256 为 `625fb0af3d7170a000c9ce763355091c64ce67ad6be00abd548e49f1dcf05001`。引擎和三个 MCP 组件沿用上表的摘要。直连探针先校验制品版本和全部摘要，再通过私有回环请求验证：
+
+| 轮次 | ACP 会话 | 终态 | 同 ID 续轮结果 | 下游调用 |
+| --- | --- | --- | --- | ---: |
+| 基线 | `01a1f990-333d-710a-b9fc-e46f36f1344b` | `end_turn` | 原生正文与附件 | 0 |
+| 挂载 | `01a1f990-382c-702e-8c99-17ae03f14b38` | `end_turn` | 两类正文与附件、MCP | 1 |
+| 撤除 | `01a1f990-3d50-726e-9be4-930dd8f5b22e` | `end_turn` | 原生正文与附件 | 0 |
+| 拒绝 | `01a1f990-423d-715c-b29f-d4b0e00abf66` | `end_turn` | 两类正文与附件、MCP 拒绝 | 0 |
+| 撤除后重载 | `01a1f990-382c-702e-8c99-17ae03f14b38` | `end_turn` | 原生正文与附件 | 0 |
+
+挂载与拒绝轮分别以 `probea09648165e2bad2c83759e8f`、`probea06f1719139d6dc0518542ae` 关联 ACP 审批和模型续轮。全部新会话首条模型请求均只有目录元数据。原生显式禁用技能、视图外来源和越界符号链接均未入目录，冲突时读取原生定义，工作区自动扩展未执行。重载保留既有历史，新目录只显示原生技能。
+
+```sh
+VIBEWINDOW_CONFIG_DIR=<私有制品目录> PYTHONPATH=scripts python3 -m acp_skill_coexistence.pi_direct
+```
+
+结构化结果见 `target/acp-skill-coexistence/pi-v3-direct.json`。当前共享代码的请求和启动检查仍对 Pi 要求完全访问。仅用 `--tools read` 约束模型工具表仍可由原生读工具读取工作区外文件，现有 stdio 沙箱只约束 MCP 子进程。直连探针覆盖供应商路径，桌面网关仍需受审的受限 Pi 启动契约。该契约应约束原生文件读取和启动扩展，保留活动会话的逐次 MCP 审批，并在拒绝时禁止下游执行。当前审批档下的网关断点未变化，本轮复用这些失败证据，未重复构建网关或运行 Rust 单测。[启动检查](../../../../crates/libs/acp-client/src/client/process.rs#L33)

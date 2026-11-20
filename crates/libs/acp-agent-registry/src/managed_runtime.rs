@@ -42,6 +42,8 @@ fn installed_directory(agent: &str, contract: &Contract) -> Result<PathBuf, Stri
     // Install revised contracts beside their prior reviewed runtimes.
     let revision = if matches!(agent, "gemini" | "nova") {
         3
+    } else if agent == "pi" {
+        3
     } else if agent == "vibe" {
         4
     } else if agent == "cortex-code" {
@@ -64,7 +66,7 @@ fn installed_directory(agent: &str, contract: &Contract) -> Result<PathBuf, Stri
         2
     } else if matches!(
         agent,
-        "glm-acp-agent" | "hermes" | "openclaw" | "pi" | "poolside"
+        "glm-acp-agent" | "hermes" | "openclaw" | "poolside"
     ) {
         2
     } else {

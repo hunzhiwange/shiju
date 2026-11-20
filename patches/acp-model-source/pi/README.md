@@ -4,9 +4,12 @@ Upstream: https://github.com/svkozak/pi-acp commit
 `8be5f22769f71d759aa48d798416c56e8be101ef` (v0.0.22, MIT).
 The patch adds absolute `PI_ACP_STATE_DIR` to `getPiAcpDir()` and an owned
 `SHIJU_PI_SKILL_ROOT` directory contract shared by the ACP catalog and native RPC spawn.
-An empty skill root disables skills; an absolute root is passed through native
-`--no-skills --no-extensions --skill <root>` so defaults and extension skills cannot leak.
-An unset skill root preserves upstream skill discovery.
+An unset skill root preserves upstream discovery. Managed launches keep
+`--no-skills --no-extensions`. The v3 session-model launch uses Pi's pinned
+resolver to add enabled files from the project's `.pi/skills`, then adds the
+explicit ShiJu session root when present. Native files take precedence on name
+collisions. The ACP startup catalog uses the resulting native RPC inventory.
+CLI-local launches without a bound relay retain the explicit-view behavior.
 An unset `PI_ACP_STATE_DIR` preserves `homedir()/.pi/pi-acp`, including cli_local;
 relative or empty state-directory overrides fail explicitly. Pi itself is unchanged.
 
@@ -30,9 +33,9 @@ npm run build
 Pinned upstream package-lock SHA256:
 `e257ee4cbe345ee0de44714d34401ed2ed14de41abc2c6ed7511b1a3d923c606`.
 Patch SHA256:
-`61cf81d5a737e55cde753266ef0e3ebaae978eeef63560deb6e2e0b66c8560d8`.
+`e860e7597343eef5c47af62cac90e4ce1e036efcb4968a4ea60786b03a834ad0`.
 Built dist/index.js SHA256 (Darwin arm64):
-`579df420c0a8d19f72bf34343e592174ff50d40776fda6311c04f488a44dad60`.
+`625fb0af3d7170a000c9ce763355091c64ce67ad6be00abd548e49f1dcf05001`.
 The session_model driver checks the adapter and installed companion file hashes against the managed registry before launch;
 launch the executable dist/index.js directly (no npx wrapper or extra arguments).
 The native engine used for acceptance is the real published

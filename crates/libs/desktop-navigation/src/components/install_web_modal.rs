@@ -27,8 +27,7 @@ pub fn with_modal<'a>(app: Input<'a>, help: HelpRenderer) -> (Message, Element<'
             help,
             i18n,
             app.app_theme,
-            i18n.__("
-                "),
+            "",
             text(i18n.__("安装 Web 版本")).size(20),
             [
                 i18n.__("从所选来源下载最新正式版 ZIP 并安装。"),

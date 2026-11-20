@@ -91,7 +91,7 @@ pub fn area<'a, Message: SelectionMessage + 'a>(
     })
 }
 
-/// Reuses Markdown hit testing and highlights for plain text with a bold title.
+/// Reuses Markdown hit testing and highlights for plain text with an optional bold title.
 pub fn selectable_titled_text<'a, Message: SelectionMessage + 'a>(
     title: &'a str,
     body: impl Into<std::borrow::Cow<'a, str>>,
@@ -108,11 +108,16 @@ pub fn selectable_titled_text<'a, Message: SelectionMessage + 'a>(
             |_| Message::none(),
         )
     };
-    let title = render(0, title.into(), 14.0, Font { weight: font::Weight::Bold, ..Font::DEFAULT });
     let full_text = body.into();
     let body = render(1, full_text.clone(), 13.0, Font::DEFAULT);
+    let content = if title.trim().is_empty() {
+        body
+    } else {
+        let title = render(0, title.into(), 14.0, Font { weight: font::Weight::Bold, ..Font::DEFAULT });
+        column![title, body].spacing(3).into()
+    };
     Element::new(Area {
-        content: column![title, body].spacing(3).into(),
+        content,
         selection,
         chat: None,
         text_menu: Some(TextMenu { full_text, i18n, allow_append: true, content: None }),

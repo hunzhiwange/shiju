@@ -2,7 +2,7 @@ import unittest
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
-from launcher import StagedWrites
+from launcher import StagedWrites, project_skills
 
 
 class StagedWritesTest(unittest.TestCase):
@@ -37,6 +37,34 @@ class StagedWritesTest(unittest.TestCase):
                     content=[dict(type="diff", path=str(path), newText=text)],
                 ))
             self.assertEqual(staged.take(), {str(root / "file"): ""})
+
+
+class SkillProjectionTest(unittest.TestCase):
+    def test_projects_only_selected_files_without_following_nested_links(self):
+        with TemporaryDirectory() as directory:
+            root = Path(directory).resolve()
+            lease = root / "shiju-session-skills-fixture"
+            lease.mkdir(mode=0o700)
+            view = lease / "skills"
+            view.mkdir()
+            for name in ("selected", "other"):
+                skill = root / name
+                skill.mkdir()
+                (skill / "SKILL.md").write_text(name)
+            (view / "selected").symlink_to(root / "selected")
+            destination = root / "projected"
+            project_skills(str(view), destination)
+            self.assertEqual(list(destination.iterdir()), [destination / "selected"])
+            self.assertEqual((destination / "selected/SKILL.md").read_text(), "selected")
+            (root / "selected/escape").symlink_to(root / "other/SKILL.md")
+            with self.assertRaises(OSError):
+                project_skills(str(view), root / "rejected")
+
+    def test_empty_selection_needs_no_private_mapping(self):
+        with TemporaryDirectory() as directory:
+            destination = Path(directory) / "projected"
+            project_skills("", destination)
+            self.assertFalse(destination.exists())
 
 
 if __name__ == "__main__":

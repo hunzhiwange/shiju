@@ -30,6 +30,7 @@ pub(super) mod omp;
 mod openclaw;
 mod opencode;
 mod pi;
+pub(super) mod poolside;
 pub(super) mod qoder;
 mod qwen;
 pub(super) mod sigit;
@@ -66,6 +67,7 @@ pub fn validate(agent: &str, selected: bool) -> Result<(), Error> {
         "omp" if cfg!(all(target_os = "macos", target_arch = "aarch64")) => return Ok(()),
         "openclaw" => return Ok(()),
         "pi" => return Ok(()),
+        "poolside" if cfg!(all(target_os = "macos", target_arch = "aarch64")) => return Ok(()),
         "amp-acp" if cfg!(all(target_os = "macos", target_arch = "aarch64")) => return Ok(()),
         "auggie" => auggie::rejection(),
         "cursor" => return Ok(()),

@@ -476,6 +476,15 @@ pub async fn do_stream_request_acp<H: Host>(
             return Err(acp_option_error("Amp selected skills require the reviewed session-model launch"));
         }
     }
+    if acp_agent_name == "poolside" {
+        let enabled = parsed_options.permission_mode != Some(acp_types::PermissionMode::DenyAll)
+            && merged_options.get("disable_tools").and_then(Value::as_bool) != Some(true);
+        if let Some(profile) = launch_profile.as_mut() {
+            super::skill_mounts::poolside::configure(profile, enabled, parsed_options.skill_view.as_ref())?;
+        } else if parsed_options.skill_view.is_some() {
+            return Err(acp_option_error("Poolside skills require the reviewed session-model launch"));
+        }
+    }
     let hermes_sandbox = if restricted_hermes {
         let profile = launch_profile.as_ref().ok_or_else(|| acp_option_error("Missing restricted Hermes launch"))?;
         Some(super::skill_mounts::hermes::sandbox(profile, &cwd, parsed_options.skill_view.as_ref()).map_err(to_api_error)?)

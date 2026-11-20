@@ -5,6 +5,8 @@ import json
 import os
 from pathlib import Path
 import selectors
+import shutil
+import stat
 import signal
 import subprocess
 import sys
@@ -190,7 +192,90 @@ def bridge(process, workspace, mounts):
         send(sys.stdout.buffer, frame)
 
 
-def managed_environment(directory, workspace):
+def copy_skill_directory(source, destination):
+    destination.mkdir(mode=0o700)
+    for name in os.listdir(source):
+        fd = os.open(name, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK, dir_fd=source)
+        try:
+            mode = os.fstat(fd).st_mode
+            if stat.S_ISDIR(mode):
+                copy_skill_directory(fd, destination / name)
+            elif stat.S_ISREG(mode):
+                with os.fdopen(os.dup(fd), 'rb') as stream, (destination / name).open('xb') as output:
+                    shutil.copyfileobj(stream, output)
+            else:
+                raise ValueError('Poolside skill projections require ordinary files and directories')
+        finally:
+            os.close(fd)
+
+
+def open_directory(path):
+    """Walk the canonical path without following replacements."""
+    flags = os.O_DIRECTORY | os.O_RDONLY | os.O_NOFOLLOW
+    fd = os.open('/', flags)
+    try:
+        for name in path.parts[1:]:
+            child = os.open(name, flags, dir_fd=fd)
+            os.close(fd)
+            fd = child
+        return os.dup(fd)
+    finally:
+        os.close(fd)
+
+
+def project_skills(selection, destination):
+    if selection == '':
+        return
+    root = Path(selection)
+    if (not root.is_absolute() or root.resolve(strict=True) != root or root.name != 'skills'
+            or not root.parent.name.startswith('shiju-session-skills-')
+            or stat.S_IMODE(root.parent.stat().st_mode) != 0o700
+            or root.parent.stat().st_uid != os.geteuid()):
+        raise ValueError('Poolside requires a private session skills view')
+    destination.mkdir(parents=True, mode=0o700)
+    view = open_directory(root)
+    try:
+        for name in os.listdir(view):
+            target = Path(os.readlink(name, dir_fd=view))
+            if not target.is_absolute() or target == target.parent or '..' in target.parts:
+                raise ValueError('Poolside requires canonical skill sources')
+            source = open_directory(target)
+            try:
+                copy_skill_directory(source, destination / name)
+            finally:
+                os.close(source)
+            if not (destination / name / 'SKILL.md').is_file():
+                raise ValueError('Poolside skill requires an ordinary SKILL.md')
+    finally:
+        os.close(view)
+
+
+def sandboxed_engine(executable, directory, workspace, docker, skills):
+    # Discovery and activation are host-side. Docker only contains the file tool.
+    # Seatbelt blocks native discovery through project links to private host data.
+    def rule(kind, path):
+        return f'({kind} {json.dumps(str(path), ensure_ascii=False)})'
+
+    private_state = rule('subpath', directory)
+    readable = ' '.join([
+        private_state, rule('subpath', workspace), '(subpath "/System")', '(subpath "/usr/lib")',
+        '(literal "/")', rule('literal', executable), rule('literal', docker),
+        '(literal "/dev/null")', '(literal "/dev/urandom")',
+    ])
+    policy = (
+        '(version 1)(allow default)(deny file-read-data)(deny file-write*)(deny network*)(deny process-exec)'
+        f'(allow process-exec {rule("literal", executable)})'
+        f'(allow file-read-data {readable})'
+        f'(allow file-write* {private_state} (literal "/dev/null"))'
+        '(deny file-read-data (regex #"/([.]git|[.]poolside|[.]env|[.]vwacprc[.]json)(/|$)"))'
+        f'(deny file-write* {rule("subpath", skills)})'
+        '(allow network-outbound (remote ip "localhost:*")'
+        f' (remote unix-socket {rule("path", docker)}))'
+    )
+    return ['/usr/bin/sandbox-exec', '-p', policy, str(executable)]
+
+
+def managed_environment(directory, workspace, executable):
     home = directory / 'home'
     config = home / '.config' / 'poolside'
     config.mkdir(parents=True)
@@ -201,6 +286,11 @@ def managed_environment(directory, workspace):
         docker = Path('/var/run/docker.sock')
     if not docker.is_socket():
         raise ValueError('Poolside requires a running local Docker engine')
+    docker = docker.resolve(strict=True)
+    skills = home / '.agents/skills'
+    selection = os.environ.get('SHIJU_POOLSIDE_SKILL_VIEW') if 'VW_ACP_LAUNCH_REFERENCE' in os.environ else None
+    if selection is not None:
+        project_skills(selection, skills)
     tools = {'todo_action', 'question', 'shell', 'shell_list', 'shell_tail', 'shell_status',
              'shell_kill', 'shell_send', 'shell_wait', 'skill', 'subagent', 'switch_mode',
              'list_secrets', 'web_fetch', 'edit'}
@@ -215,6 +305,15 @@ def managed_environment(directory, workspace):
             'filesystem': {'workspaces': {'access': 'read-only'}},
         },
     }
+    command = [str(executable)]
+    if selection is not None:
+        del settings['tools']['skill']
+        command = sandboxed_engine(executable, directory, workspace, docker, skills)
+        if selection:
+            settings['paths']['allow'].append({'path': skills.as_posix() + '/**'})
+            settings['sandbox']['filesystem']['mounts'] = [
+                {'host': str(skills), 'sandbox': str(skills), 'access': 'read-only'}
+            ]
     with (config / 'settings.yaml').open('x') as stream:
         json.dump(settings, stream)
     env = {
@@ -234,7 +333,7 @@ def managed_environment(directory, workspace):
             raise ValueError('Poolside requires a private loopback model binding')
         env.update(POOLSIDE_STANDALONE_BASE_URL=endpoint,
                    POOLSIDE_STANDALONE_MODEL=model, POOLSIDE_API_KEY=token)
-    return env
+    return env, command
 
 
 def main():
@@ -253,8 +352,8 @@ def main():
             if os.path.lexists(parent / name):
                 raise ValueError('Poolside project configuration overrides are not verified')
     with TemporaryDirectory(prefix='shiju-poolside-') as temp:
-        env = managed_environment(Path(temp), workspace)
-        process = subprocess.Popen([str(executable), 'acp', '--sandbox', 'required'],
+        env, command = managed_environment(Path(temp).resolve(), workspace, executable)
+        process = subprocess.Popen([*command, 'acp', '--sandbox', 'required'],
                                    env=env, stdin=subprocess.PIPE, stdout=subprocess.PIPE)
         def stop(signum, _frame):
             raise SystemExit(128 + signum)

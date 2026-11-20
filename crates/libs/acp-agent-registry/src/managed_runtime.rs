@@ -68,12 +68,9 @@ fn installed_directory(agent: &str, contract: &Contract) -> Result<PathBuf, Stri
         3
     } else if matches!(agent, "codebuddy" | "codex" | "dirac" | "iflow" | "qoder" | "qwen") {
         2
-    } else if agent == "hermes" {
+    } else if matches!(agent, "hermes" | "poolside") {
         3
-    } else if matches!(
-        agent,
-        "openclaw" | "poolside"
-    ) {
+    } else if agent == "openclaw" {
         2
     } else {
         1

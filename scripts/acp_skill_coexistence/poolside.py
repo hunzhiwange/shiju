@@ -1,10 +1,11 @@
-"""Probe the Poolside 1.0.16 managed Docker skill boundary."""
+"""Verify Poolside skills and approved MCP through the managed Docker entry."""
 from contextlib import contextmanager
 import hashlib
 import json
 import os
 from pathlib import Path
 import platform
+import re
 import shutil
 import subprocess
 
@@ -12,10 +13,11 @@ from verify_acp_integration import require
 from verify_acp_model_source import ROOT
 
 from . import correlated_result
+from .cortex_code import mcp_server as sandboxed_stdio
 from .opencode import Handler, Probe as ChatProbe
 
 VERSION = "1.0.16"
-REVISION = f"poolside-{VERSION}-model-source-v2"
+REVISION = f"poolside-{VERSION}-model-source-v3"
 MODEL = "selected-model"
 ADAPTER = "openai"
 API_PATH = "/v1"
@@ -76,9 +78,7 @@ def launch(env):
 
 @contextmanager
 def mcp_server(workspace, attachment, audit):
-    from verify_acp_skill_coexistence import mcp_server as private_mcp
-
-    with private_mcp(TRANSPORT, attachment, audit) as server:
+    with sandboxed_stdio(workspace, attachment, audit) as server:
         try:
             yield server
         finally:
@@ -96,6 +96,14 @@ def mcp_server(workspace, attachment, audit):
                             "could not remove a Poolside probe container")
 
 
+def prepare_workspace(workspace):
+    outside = workspace.parent / "outside"
+    outside.mkdir()
+    (outside / "SKILL.md").write_text(
+        "---\nname: outside-poolside-probe\ndescription: Outside sentinel\n---\nignored\n")
+    (workspace / NATIVE_DIR / "outside-poolside-probe").symlink_to(outside)
+
+
 class Probe(ChatProbe):
     def response(self, body):
         tools = {item["function"]["name"]: item["function"] for item in body.get("tools", [])}
@@ -103,37 +111,82 @@ class Probe(ChatProbe):
             return {"content": "Poolside fixture session"}, "stop"
         require(body["model"] == MODEL, "unexpected Poolside model")
         self.requests += 1
-        native = self.fixtures["skills"]["native"]
+        require(tools.keys() <= {"read", "write", "skill", MCP_TOOL},
+                "Poolside exposed a tool outside the reviewed catalog")
+        skills = self.fixtures["skills"]
         if self.requests == 1:
             envelope = json.dumps(body)
-            for skill in self.fixtures["skills"].values():
+            catalog = tools.get("skill", {}).get("description", "")
+            require("outside-poolside-probe" not in catalog, "Poolside discovered a skill outside the workspace")
+            for kind, skill in skills.items():
+                visible = kind == "native" or (kind == "selected" and self.mounted)
+                require((skill["name"] in catalog) == visible, f"unexpected Poolside {kind} skill catalog")
                 require(skill["body"] not in envelope and skill["attachment"] not in envelope,
                         "Poolside exposed skill content before activation")
             require(self.fixtures["mcp"] not in envelope, "Poolside exposed MCP data before invocation")
             require((MCP_TOOL in tools) == self.mounted, "unexpected Poolside MCP catalog")
-            require("skill" not in tools, "Poolside now publishes a skill tool and needs a new review")
-            require(native["name"] not in envelope, "Poolside now publishes native skill metadata")
-            # Establish a real read baseline while keeping it separate from
-            # skill activation. The path comes from the private fixture.
-            return self.call(tools, "ordinary_read", "read",
-                             {"path": str(native["path"] / "references/value.txt")})
+            return self.activate(tools, "native")
+
         step, _, _, call_id = self.pending
         results = [dict(row, tool_use_id=row["tool_call_id"])
                    for row in body["messages"] if row["role"] == "tool"]
-        correlated_result(results, call_id, native["attachment"])
+        result = correlated_result(results, call_id)["content"]
         self.completed[step] = call_id
-        self.failure = "Poolside managed model request has no native skill catalog or activation tool"
+        if step in ("native", "selected"):
+            skill = skills[step]
+            require(skill["body"] in str(result) and skill["attachment"] not in str(result),
+                    f"unexpected Poolside {step} activation body")
+            text = result if isinstance(result, str) else "\n".join(block["text"] for block in result)
+            path_match = re.search(r"^Directory: (.+)$", text, re.M)
+            require(path_match is not None, "Poolside activation omitted the directory")
+            directory = Path(path_match[1])
+            require(directory.is_absolute() and directory.name == skill["name"],
+                    "Poolside activated an unexpected skill path")
+            if step == "native":
+                require(directory.resolve() == skill["path"].resolve(),
+                        "Poolside activated an unexpected native directory")
+            else:
+                home = directory.parent.parent.parent
+                require(home.name == "home" and home.parent.name.startswith("shiju-poolside-")
+                        and directory.parent == home / NATIVE_DIR and directory != skill["path"],
+                        "Poolside selected skill bypassed the private session view")
+            return self.call(tools, step + "_read", "read",
+                             {"path": str(directory / "references/value.txt")})
+        if step == "mcp":
+            value = self.fixtures["mcp"]
+            require((value not in str(result) and re.search(r"reject|denied|cancel", str(result), re.I))
+                    if self.rejected else value in str(result), "unexpected Poolside MCP continuation")
+        else:
+            require(skills[step.removesuffix("_read")]["attachment"] in str(result),
+                    f"Poolside {step} did not return the fixture attachment")
+        if self.mounted and step == "native_read":
+            return self.activate(tools, "selected")
+        if self.mounted and step == "selected_read":
+            delta, finish = self.call(tools, "mcp", MCP_TOOL, {})
+            # Poolside ends the turn immediately on refusal, with no model continuation.
+            return dict(delta, content="Checking the read-only service."), finish
         self.pending = None
-        return {"content": "POOLSIDE_READ_BASELINE_DONE"}, "stop"
+        return {"content": "COEXISTENCE_DONE"}, "stop"
 
     def observe_terminal(self, events):
-        if self.mounted and any(
-            row.get("type") == "chat.error"
-            and "poolside: no verified skill directory mount branch" in str(row.get("error", ""))
-            for row in events
+        if not self.rejected or self.pending is None or self.pending[0] != "mcp":
+            return False
+        _, name, _, call_id = self.pending
+        completion = [row for row in events if row.get("type") == "chat.tool"
+                      and row.get("kind") == "complete" and row.get("call_id") == call_id]
+        if len(completion) != 1 or completion[0].get("status") != "failed":
+            return False
+        payload = completion[0].get("payload", {})
+        error = str(payload.get("error"))
+        if payload.get("title") != name or (
+            error != "Permission denied" and "user denied MCP tool" not in error
         ):
-            self.failure = "Poolside host rejected the unverified skill mount before model inference"
-        return False
+            return False
+        self.completed["mcp"] = call_id
+        self.pending = None
+        return True
 
-    def approves(self, _metadata):
-        return False
+    def approves(self, metadata):
+        return (self.pending is not None and self.pending[0] == "mcp"
+                and metadata.get("title") == "mcp:coexistence:read_probe"
+                and metadata.get("arguments") == {})

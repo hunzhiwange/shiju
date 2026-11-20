@@ -34,40 +34,41 @@ pub(super) fn space_tools_menu_action(
 }
 
 pub(super) fn space_tools_menu(i18n: desktop_i18n::I18n, path: String) -> Element<'static, Message> {
-    container(
-        column![
-            space_tools_menu_action(
-                i18n,
-                i18n.__("刷新任务"),
-                Icon::ArrowRepeat,
-                Message::Project(ProjectMessage::ProjectLoadSessions(path.clone())),
-            ),
-            space_tools_menu_action(
-                i18n,
-                i18n.__("编辑项目"),
-                Icon::Sliders,
-                Message::Project(ProjectMessage::ProjectEditOpened(path.clone())),
-            ),
-            more_menu_divider(),
-            space_tools_menu_action(
-                i18n,
-                i18n.__("打开文件夹"),
-                Icon::FolderOpen,
-                Message::Project(ProjectMessage::RecentRevealPressed(path.clone())),
-            ),
-            space_tools_menu_action(
-                i18n,
-                i18n.__("从列表中移除"),
-                Icon::Trash,
-                Message::Project(ProjectMessage::RecentRemovePressed(path)),
-            ),
-        ]
-        .spacing(3),
-    )
-    .padding([10, 12])
-    .width(Length::Fixed(220.0))
-    .style(more_menu_style)
-    .into()
+    let mut menu = column![
+        space_tools_menu_action(
+            i18n,
+            i18n.__("刷新任务"),
+            Icon::ArrowRepeat,
+            Message::Project(ProjectMessage::ProjectLoadSessions(path.clone())),
+        ),
+        space_tools_menu_action(
+            i18n,
+            i18n.__("编辑项目"),
+            Icon::Sliders,
+            Message::Project(ProjectMessage::ProjectEditOpened(path.clone())),
+        ),
+        more_menu_divider(),
+        space_tools_menu_action(
+            i18n,
+            i18n.__("打开文件夹"),
+            Icon::FolderOpen,
+            Message::Project(ProjectMessage::RecentRevealPressed(path.clone())),
+        ),
+    ]
+    .spacing(3);
+    if !crate::projects::is_builtin_workspace_project(&path) {
+        menu = menu.push(space_tools_menu_action(
+            i18n,
+            i18n.__("从列表中移除"),
+            Icon::Trash,
+            Message::Project(ProjectMessage::RecentRemovePressed(path)),
+        ));
+    }
+    container(menu)
+        .padding([10, 12])
+        .width(Length::Fixed(220.0))
+        .style(more_menu_style)
+        .into()
 }
 
 pub(super) fn space_row_style(selected: bool) -> impl Fn(&Theme) -> container::Style + Copy {

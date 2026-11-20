@@ -99,6 +99,7 @@ pub fn runtime_store() -> Result<store::ProjectStore, Error> {
         let home = &agent_paths::paths().home;
         let store = store::ProjectStore::new(GlobalDatabase::for_home(home)?)?;
         migrate_project_registry(home, &store)?;
+        core::ensure_builtin_workspace_project(&store, home)?;
         store
     };
     *cached = Some(store.clone());

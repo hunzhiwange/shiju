@@ -196,6 +196,7 @@ pub(super) fn general_tab<'a>(app: &View<'a>, path: &'a str) -> Element<'a, Mess
     let app = *app;
     let i18n = I18n::new(app.desktop_locale);
     let name_label = i18n.__("项目名称");
+    let builtin_workspace = crate::projects::is_builtin_workspace_project(path);
     let icon_label = i18n.__("图标文本或图片路径");
     let icon_help = i18n.__("支持 file:/// 或本地绝对路径。");
     let icon_row = responsive(move |size| {
@@ -239,9 +240,12 @@ pub(super) fn general_tab<'a>(app: &View<'a>, path: &'a str) -> Element<'a, Mess
         settings_panel(
             column![
                 settings_responsive_row(name_label, "", move || {
-                    settings_text_input(name_label, &app.project_editor.project_edit_name).on_input(|value| {
-                        Message::Project(ProjectMessage::ProjectEditNameChanged(value))
-                    })
+                    let input = settings_text_input(name_label, &app.project_editor.project_edit_name);
+                    if builtin_workspace {
+                        input
+                    } else {
+                        input.on_input(|value| Message::Project(ProjectMessage::ProjectEditNameChanged(value)))
+                    }
                 }),
                 settings_divider(),
                 icon_row,

@@ -245,6 +245,11 @@ impl ProjectStore {
 
     /// 删除单个作用域项目，并报告是否实际删除。
     pub fn delete(&self, scope: &ProjectScope) -> Result<bool> {
+        if self.get(scope)?.is_some_and(|project| {
+            super::core::is_builtin_workspace_project(std::path::Path::new(&project.worktree))
+        }) {
+            bail!("the built-in workspace project cannot be deleted");
+        }
         match &self.provider {
             ProjectStoreProvider::Sqlite(database) => {
                 let connection = database.connect_sqlite()?;

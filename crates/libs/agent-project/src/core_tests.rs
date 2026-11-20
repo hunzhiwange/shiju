@@ -501,3 +501,33 @@ async fn git2_project_discovery_works_without_git_executable() {
     let _ = crate::remove_local_test_project(&empty_first.id);
     let _ = crate::remove_local_test_project(&linked_info.id);
 }
+
+#[test]
+fn builtin_workspace_registration_preserves_existing_project_identity() -> anyhow::Result<()> {
+    let home = tempfile::tempdir()?;
+    let store = crate::store::ProjectStore::new(agent_database::GlobalDatabase::new(
+        home.path().join("projects.sqlite3"),
+    )?)?;
+    let tenant = TenantScope::default();
+    let directory = config_runtime_paths::builtin_workspace_project_dir(home.path());
+
+    ensure_builtin_workspace_project(&store, home.path())?;
+    assert!(directory.is_dir());
+    let projects = store.list(&tenant)?;
+    assert_eq!(projects.len(), 1);
+    let mut existing = projects.into_iter().next().unwrap();
+    assert_eq!(Path::new(&existing.worktree), directory.as_path());
+    assert_eq!(existing.name.as_deref(), Some("workspace"));
+
+    store.delete(&ProjectScope::new(tenant.clone(), ProjectId::from(existing.id.as_str()))?)?;
+    existing.id = "existing-git-project".to_owned();
+    existing.name = Some("Old name".to_owned());
+    existing.vcs = Some(Vcs::Git);
+    store.create(&tenant, &existing)?;
+
+    ensure_builtin_workspace_project(&store, home.path())?;
+    ensure_builtin_workspace_project(&store, home.path())?;
+    existing.name = Some("workspace".to_owned());
+    assert_eq!(store.list(&tenant)?, vec![existing]);
+    Ok(())
+}

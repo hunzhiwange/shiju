@@ -26,12 +26,16 @@ pub fn apply(state: State<'_>, event: Event, current_path: Option<&str>) -> Opti
         }
         Event::DeleteRequested(index) => {
             *state.tools_menu_path = None;
-            *state.delete_confirm_idx = Some(index);
+            *state.delete_confirm_idx = state.paths.get(index)
+                .filter(|path| !desktop_workspace::projects::is_builtin_workspace_project(path))
+                .map(|_| index);
         }
         Event::DeleteCanceled => *state.delete_confirm_idx = None,
         Event::DeleteConfirmed(index) => {
             *state.delete_confirm_idx = None;
-            if index < state.paths.len() {
+            if state.paths.get(index)
+                .is_some_and(|path| !desktop_workspace::projects::is_builtin_workspace_project(path))
+            {
                 let path = state.paths.remove(index);
                 if index < state.edits.len() {
                     state.edits.remove(index);
@@ -52,22 +56,7 @@ pub fn reconcile_deleted(
     path: &str,
 ) {
     metadata.retain(|meta| meta.path != path);
-    *edits = paths
-        .iter()
-        .map(|path| {
-            metadata
-                .iter()
-                .find(|meta| &meta.path == path)
-                .map(|meta| meta.name.clone())
-                .unwrap_or_else(|| {
-                    std::path::Path::new(path)
-                        .file_name()
-                        .and_then(|name| name.to_str())
-                        .unwrap_or(path)
-                        .to_string()
-                })
-        })
-        .collect();
+    *edits = desktop_workspace::projects::recent_project_labels(paths, metadata);
 }
 pub fn set_worktree_enabled(
     settings: &mut std::collections::HashMap<String, bool>,

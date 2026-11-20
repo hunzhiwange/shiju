@@ -379,7 +379,8 @@ pub fn handle(app: &mut State<'_>, message: Event) -> Vec<Effect> {
         Event::RecentRemovePressed(path) => {
             (*app.project_tools_menu_path) = None;
             (*app.work_current_project_menu) = None;
-            (*app.recent_project_remove_confirm_path) = Some(path);
+            (*app.recent_project_remove_confirm_path) =
+                (!crate::projects::is_builtin_workspace_project(&path)).then_some(path);
             Vec::new()
         }
         Event::RecentRemoveCanceled => {
@@ -387,9 +388,12 @@ pub fn handle(app: &mut State<'_>, message: Event) -> Vec<Effect> {
             Vec::new()
         }
         Event::RecentRemoveConfirmed(path) => {
+            (*app.recent_project_remove_confirm_path) = None;
+            if crate::projects::is_builtin_workspace_project(&path) {
+                return Vec::new();
+            }
             let deleting_current = (*app.project_path).as_ref() == Some(&path);
             remove_recent_project(app, &path);
-            (*app.recent_project_remove_confirm_path) = None;
             if deleting_current {
                 vec![Effect::SaveRecent, Effect::OpenFirst]
             } else {
@@ -434,20 +438,8 @@ fn remove_recent_project(app: &mut State<'_>, path: &str) {
         app.editor.project_edit_running_timeout_minutes_input.clear();
     }
 
-    (*app.recent_projects_edits) = (*app.recent_projects)
-        .iter()
-        .map(|p| {
-            if let Some(m) = (*app.recent_projects_meta).iter().find(|m| &m.path == p) {
-                m.name.clone()
-            } else {
-                std::path::Path::new(p)
-                    .file_name()
-                    .and_then(|s| s.to_str())
-                    .unwrap_or(p)
-                    .to_string()
-            }
-        })
-        .collect();
+    (*app.recent_projects_edits) =
+        crate::projects::recent_project_labels(app.recent_projects, app.recent_projects_meta);
 }
 
 #[cfg(test)]

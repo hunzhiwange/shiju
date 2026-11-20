@@ -44,6 +44,13 @@ pub fn home_config_dir(home: impl AsRef<Path>) -> PathBuf {
     home.as_ref().join(HOME_CONFIG_DIR_NAME)
 }
 
+pub const BUILTIN_WORKSPACE_PROJECT_NAME: &str = "workspace";
+
+/// 当前构建的内置项目目录。
+pub fn builtin_workspace_project_dir(home: impl AsRef<Path>) -> PathBuf {
+    home_config_dir(home).join("workspace").join("project")
+}
+
 /// 返回共享 SQLite 数据库文件路径，不保证父目录已经存在。
 pub fn global_database_path(home: impl AsRef<Path>) -> PathBuf {
     home_config_dir(home).join("database").join("vibe-window.sqlite3")

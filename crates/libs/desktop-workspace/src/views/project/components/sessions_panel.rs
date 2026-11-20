@@ -324,7 +324,7 @@ pub fn build_project_tools_menu<'a>(
             .into()
     };
 
-    let content = column![
+    let mut content = column![
         session_menu_button(
             i18n.__("编辑项目"),
             Message::Project(message::ProjectMessage::ProjectEditOpened(path.clone())),
@@ -334,12 +334,14 @@ pub fn build_project_tools_menu<'a>(
             i18n.__("在访达中显示"),
             Message::Project(message::ProjectMessage::RecentRevealPressed(path.clone())),
         ),
-        session_menu_button(
-            i18n.__("移除项目"),
-            Message::Project(message::ProjectMessage::RecentRemovePressed(path)),
-        )
     ]
     .spacing(4);
+    if !crate::projects::is_builtin_workspace_project(&path) {
+        content = content.push(session_menu_button(
+            i18n.__("移除项目"),
+            Message::Project(message::ProjectMessage::RecentRemovePressed(path)),
+        ));
+    }
 
     container(content)
         .padding([6, 8])

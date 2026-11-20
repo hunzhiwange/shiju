@@ -127,26 +127,25 @@ fn project_row<'a, Host: Clone + 'static>(
         i18n.__("项目操作"),
         Some(map(Event::ProjectToolsMenuToggled(path.to_owned()))),
     );
+    let removable = !desktop_workspace::projects::is_builtin_workspace_project(path);
     let actions = if is_menu_open {
-        let menu = container(
-            column![
-                menu_item(
-                    Icon::Pencil,
-                    i18n.__("编辑项目"),
-                    map(Event::ProjectEditOpened(path.to_owned())),
-                ),
-                settings_divider(),
-                menu_item(
-                    Icon::Trash,
-                    i18n.__("删除"),
-                    map(Event::RecentProjectDeleteRequested(index)),
-                ),
-            ]
-            .spacing(3),
-        )
-        .width(168)
-        .padding(5)
-        .style(settings_panel_style);
+        let mut items = column![menu_item(
+            Icon::Pencil,
+            i18n.__("编辑项目"),
+            map(Event::ProjectEditOpened(path.to_owned())),
+        )]
+        .spacing(3);
+        if removable {
+            items = items.push(settings_divider()).push(menu_item(
+                Icon::Trash,
+                i18n.__("删除"),
+                map(Event::RecentProjectDeleteRequested(index)),
+            ));
+        }
+        let menu = container(items)
+            .width(168)
+            .padding(5)
+            .style(settings_panel_style);
         Element::from(
             BelowOverlay::new(trigger, menu)
                 .show(true)
@@ -162,7 +161,7 @@ fn project_row<'a, Host: Clone + 'static>(
         .spacing(6);
     let mut entry = column![line];
 
-    if app.recent_project_delete_confirm_idx == Some(index) {
+    if removable && app.recent_project_delete_confirm_idx == Some(index) {
         entry = entry.push(settings_divider()).push(
             container(
                 row![

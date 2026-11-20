@@ -5,7 +5,9 @@ pub(super) fn save(app: &mut State<'_>) -> Vec<Effect> {
         return Vec::new();
     };
     let name = app.editor.project_edit_name.trim();
-    let final_name = if name.is_empty() {
+    let final_name = if crate::projects::is_builtin_workspace_project(&path) {
+        crate::projects::BUILTIN_WORKSPACE_PROJECT_NAME.to_owned()
+    } else if name.is_empty() {
         std::path::Path::new(&path)
             .file_name()
             .and_then(|s| s.to_str())

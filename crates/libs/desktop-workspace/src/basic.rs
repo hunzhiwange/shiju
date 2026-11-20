@@ -36,6 +36,9 @@ pub fn file_mention(root: &str, path: &str, line: usize, column: usize) -> Optio
 }
 
 pub fn display_name_for_path(meta: &[crate::project_message::edit_meta::RecentProjectMeta], path: &str) -> String {
+    if crate::projects::is_builtin_workspace_project(path) {
+        return crate::projects::BUILTIN_WORKSPACE_PROJECT_NAME.to_owned();
+    }
     if let Some(item) = meta.iter().find(|item| item.path == path) {
         return item.name.clone();
     }

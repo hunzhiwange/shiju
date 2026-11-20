@@ -246,3 +246,18 @@ fn refresh_branches_leaves_snapshot_unchanged_without_project() {
     assert_eq!(branches, vec!["main".to_string()]);
     assert_eq!(project_updated_at_ms, Some(456));
 }
+
+#[cfg(not(target_arch = "wasm32"))]
+#[test]
+fn built_in_workspace_survives_recent_project_limit_and_keeps_its_name() {
+    let directory = super::builtin_workspace_project_dir().expect("home directory");
+    let path = directory.to_string_lossy().into_owned();
+    let mut recent = vec![path.clone()];
+    for index in 0..12 {
+        super::push_recent_project(None, &mut recent, format!("/repo/project-{index}"));
+    }
+    assert_eq!(recent.len(), 11);
+    assert!(recent.contains(&path));
+    assert_eq!(super::project_tab(&path).1, "workspace");
+    assert_eq!(super::recent_project_labels(&[path.clone()], &[recent_meta(&path)]), ["workspace"]);
+}

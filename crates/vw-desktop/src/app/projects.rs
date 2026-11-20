@@ -27,7 +27,26 @@ use iced::Task;
 pub use desktop_workspace::projects::ProjectBranchSnapshot;
 pub fn save_recent_projects_background(recent: Vec<String>) { desktop_workspace::projects::save_recent_projects_background(project_dirs(), recent) }
 pub fn save_recent_projects_meta_background(v: Vec<RecentProjectMeta>) { desktop_workspace::projects::save_recent_projects_meta_background(project_dirs(), v) }
-pub fn load_recent_projects() -> Vec<String> { desktop_workspace::projects::load_recent_projects(project_dirs()) }
+pub fn load_recent_projects() -> Vec<String> {
+    let recent = desktop_workspace::projects::load_recent_projects(project_dirs());
+    #[cfg(not(target_arch = "wasm32"))]
+    let recent = {
+        let mut recent = recent;
+        if let Some(directory) = desktop_workspace::projects::builtin_workspace_project_dir() {
+            match std::fs::create_dir_all(&directory) {
+                Ok(()) => {
+                    let path = directory.to_string_lossy().into_owned();
+                    if !recent.contains(&path) {
+                        recent.push(path);
+                    }
+                }
+                Err(error) => tracing::warn!(%error, "failed to create built-in workspace project"),
+            }
+        }
+        recent
+    };
+    recent
+}
 pub fn save_recent_projects(recent: &Vec<String>) { desktop_workspace::projects::save_recent_projects(project_dirs(), recent) }
 pub fn push_recent_project(recent: &mut Vec<String>, path: String) { desktop_workspace::projects::push_recent_project(project_dirs(), recent, path) }
 pub fn ensure_recent_project(recent: &mut Vec<String>, path: String) { desktop_workspace::projects::ensure_recent_project(project_dirs(), recent, path) }

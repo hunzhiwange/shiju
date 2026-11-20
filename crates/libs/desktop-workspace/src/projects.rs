@@ -1,4 +1,36 @@
 use crate::project_message::edit_meta::RecentProjectMeta;
+pub use config_runtime_paths::BUILTIN_WORKSPACE_PROJECT_NAME;
+
+#[cfg(not(target_arch = "wasm32"))]
+pub fn builtin_workspace_project_dir() -> Option<std::path::PathBuf> {
+    let dirs = directories::BaseDirs::new()?;
+    Some(config_runtime_paths::builtin_workspace_project_dir(dirs.home_dir()))
+}
+
+pub fn is_builtin_workspace_project(path: &str) -> bool {
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        builtin_workspace_project_dir()
+            .is_some_and(|directory| directory.as_path() == std::path::Path::new(path))
+    }
+    #[cfg(target_arch = "wasm32")]
+    {
+        let _ = path;
+        false
+    }
+}
+
+fn limit_recent_projects(recent: &mut Vec<String>) {
+    let mut ordinary_count = 0;
+    recent.retain(|path| {
+        if is_builtin_workspace_project(path) {
+            return true;
+        }
+        ordinary_count += 1;
+        ordinary_count <= 10
+    });
+}
+
 #[derive(Debug, Clone)]
 pub struct ProjectBranchSnapshot {
     pub project_path: String,
@@ -247,7 +279,7 @@ fn normalize_recent_projects_meta(recent: Vec<RecentProjectMeta>) -> Vec<RecentP
 /// 操作步骤：
 /// 1. 如果路径已存在，先移除旧位置
 /// 2. 将路径插入到列表头部
-/// 3. 截断列表至最多 10 项
+/// 3. 保留内置项目及最多 10 个普通项目
 /// 4. 持久化到磁盘
 ///
 /// # 参数
@@ -261,8 +293,8 @@ pub fn push_recent_project(dirs: Option<directories::ProjectDirs>, recent: &mut 
     }
     // 插入到头部
     recent.insert(0, path);
-    // 限制列表长度为 10
-    recent.truncate(10);
+    // 内置项目不占用普通项目名额
+    limit_recent_projects(recent);
     // 后台持久化，避免切换项目时阻塞 UI
     save_recent_projects_background(dirs.clone(), recent.clone());
 }
@@ -275,7 +307,7 @@ pub fn ensure_recent_project(dirs: Option<directories::ProjectDirs>, recent: &mu
         return;
     }
     recent.insert(0, path);
-    recent.truncate(10);
+    limit_recent_projects(recent);
     save_recent_projects_background(dirs.clone(), recent.clone());
 }
 
@@ -371,14 +403,11 @@ mod projects_tests;
 
 /// Stable tab identity and display title for a project path.
 pub fn project_tab(path: &str) -> (String, String) {
-    let title = std::path::Path::new(path).file_name().and_then(|s| s.to_str()).unwrap_or(path).to_string();
+    let title = crate::basic::display_name_for_path(&[], path);
     (format!("project_{}", path), title)
 }
 pub fn recent_project_labels(recent: &[String], meta: &[RecentProjectMeta]) -> Vec<String> {
-    recent.iter().map(|path| {
-        if let Some(meta) = meta.iter().find(|meta| &meta.path == path) { meta.name.clone() }
-        else { std::path::Path::new(path).file_name().and_then(|s| s.to_str()).unwrap_or(path).to_string() }
-    }).collect()
+    recent.iter().map(|path| crate::basic::display_name_for_path(meta, path)).collect()
 }
 pub fn project_board_settings(meta: &[RecentProjectMeta], path: &str) -> desktop_task_model::models::TaskBoardSettings {
     meta.iter().find(|meta| meta.path == path).and_then(|meta| meta.task_board_settings.clone())

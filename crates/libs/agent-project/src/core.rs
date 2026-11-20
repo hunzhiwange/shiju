@@ -67,6 +67,73 @@ fn find_git_entry(start: &Path) -> Option<(PathBuf, PathBuf)> {
     None
 }
 
+#[cfg(not(target_arch = "wasm32"))]
+pub(crate) fn is_builtin_workspace_project(path: &Path) -> bool {
+    let directory = config_runtime_paths::builtin_workspace_project_dir(&agent_paths::paths().home);
+    path == directory.as_path()
+}
+
+#[cfg(all(not(target_arch = "wasm32"), any(test, not(feature = "test-support"))))]
+pub(crate) fn ensure_builtin_workspace_project(
+    store: &crate::store::ProjectStore,
+    home: &Path,
+) -> Result<(), Error> {
+    let directory = config_runtime_paths::builtin_workspace_project_dir(home);
+    std::fs::create_dir_all(&directory)?;
+    let tenant = TenantScope::default();
+    let id = registered_workspace_project(store, &tenant, &directory)?
+        .map_or_else(|| local_project_id_from_path(&directory), |project| project.id);
+    let scope = ProjectScope::new(tenant.clone(), ProjectId::from(id.as_str()))?;
+    let name = config_runtime_paths::BUILTIN_WORKSPACE_PROJECT_NAME;
+    if store.get(&scope)?.is_none() {
+        let now = now_ms();
+        let info = Info {
+            id,
+            worktree: directory.to_string_lossy().into_owned(),
+            vcs: None,
+            name: Some(name.to_owned()),
+            icon: None,
+            commands: None,
+            time: TimeInfo { created: now, updated: now, initialized: None },
+            sandboxes: Vec::new(),
+        };
+        match store.create(&tenant, &info) {
+            Ok(()) => return Ok(()),
+            Err(error) if store.get(&scope)?.is_none() => return Err(error.into()),
+            Err(_) => {} // Another process registered the project after our lookup.
+        }
+    }
+
+    let existing = store
+        .get(&scope)?
+        .ok_or_else(|| anyhow::anyhow!("workspace project disappeared"))?;
+    if Path::new(&existing.worktree) != directory.as_path() {
+        return Err(anyhow::anyhow!("workspace project id conflicts with a registered project").into());
+    }
+    if existing.name.as_deref() != Some(name) {
+        store.mutate(&scope, |draft| draft.name = Some(name.to_owned()))?;
+    }
+    Ok(())
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+fn registered_workspace_project(
+    store: &crate::store::ProjectStore,
+    tenant: &TenantScope,
+    directory: &Path,
+) -> Result<Option<Info>, Error> {
+    let id = local_project_id_from_path(directory);
+    let scope = ProjectScope::new(tenant.clone(), ProjectId::from(id))?;
+    if let Some(info) = store.get(&scope)?
+        && Path::new(&info.worktree) == directory
+    {
+        return Ok(Some(info));
+    }
+
+    // Older installs may have registered this directory using its Git repository ID.
+    Ok(store.list(tenant)?.into_iter().find(|info| Path::new(&info.worktree) == directory))
+}
+
 fn read_cached_id(git_entry: &Path) -> Option<String> {
     std::fs::read_to_string(git_entry.join("vibewindow"))
         .ok()
@@ -146,18 +213,28 @@ pub async fn from_directory(
 ) -> Result<(Info, String), Error> {
     let directory = directory.as_ref().to_path_buf();
     let local_project_id = local_project_id_from_path(&directory);
+    let builtin_workspace = is_builtin_workspace_project(&directory);
     LOGGER.debug(
         "from_directory",
         Some(extra([("directory", Value::String(directory.to_string_lossy().to_string()))])),
     );
 
+    let discovery_tenant = tenant.clone();
     let (id, sandbox, worktree, vcs) = tokio::task::spawn_blocking(move || {
         let mut id = local_project_id;
         let mut sandbox = directory.clone();
         let mut worktree = directory.clone();
         let mut vcs = fake_vcs();
+        if builtin_workspace {
+            let store = super::runtime_store()?;
+            if let Some(project) = registered_workspace_project(&store, &discovery_tenant, &directory)? {
+                id = project.id;
+            }
+        }
 
-        if let Some(discovered) = git_repository::discover(&directory) {
+        if let Some(discovered) = git_repository::discover(&directory)
+            .filter(|repo| !builtin_workspace || repo.common_root == directory)
+        {
             sandbox = discovered.workdir.clone();
             worktree = discovered.common_root.clone();
 
@@ -165,7 +242,11 @@ pub async fn from_directory(
             let cached_non_global =
                 cached.as_deref().filter(|c| *c != "global").map(str::to_string);
 
-            if let Some(cached) = cached_non_global {
+            if builtin_workspace {
+                if cached_non_global.as_deref() != Some(id.as_str()) {
+                    write_cached_id(&discovered.common_dir, &id);
+                }
+            } else if let Some(cached) = cached_non_global {
                 id = cached;
             } else if let Some(root) = discovered.root_commit_ids.first() {
                 // 多根历史的仓库按字典序取稳定首项，避免项目 ID 随遍历顺序漂移。
@@ -179,10 +260,10 @@ pub async fn from_directory(
             }
             vcs = Some(Vcs::Git);
         }
-        (id, sandbox, worktree, vcs)
+        Ok::<_, Error>((id, sandbox, worktree, vcs))
     })
     .await
-    .map_err(Error::Join)?;
+    .map_err(Error::Join)??;
 
     let tenant = tenant.clone();
     let (mut result, scope, sandbox_s, changed) = run_storage_operation(move || {
@@ -214,6 +295,9 @@ pub async fn from_directory(
         result.sandboxes = result.sandboxes.into_iter().filter(|p| Path::new(p).is_dir()).collect();
         result.worktree = worktree_s;
         result.vcs = vcs;
+        if is_builtin_workspace_project(Path::new(&result.worktree)) {
+            result.name = Some(config_runtime_paths::BUILTIN_WORKSPACE_PROJECT_NAME.to_owned());
+        }
         let changed = is_new_project || project_discovery_changed(&previous, &result);
         if changed {
             result.time.updated = now_ms();
@@ -313,7 +397,9 @@ pub async fn update(scope: &ProjectScope, input: UpdateInput) -> Result<Info, Er
         let store = super::runtime_store()?;
         store
             .mutate(&scope, |draft| {
-                if let Some(name) = input.name {
+                if !is_builtin_workspace_project(Path::new(&draft.worktree))
+                    && let Some(name) = input.name
+                {
                     draft.name = name;
                 }
 

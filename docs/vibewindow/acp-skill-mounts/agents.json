@@ -2404,7 +2404,7 @@
     {
       "key": "qoder",
       "version": "1.1.88",
-      "status": "unverified",
+      "status": "verified",
       "platform": {
         "review_host": "Darwin-arm64",
         "artifact_scope": "Darwin-arm64 固定 Qoder 1.1.88 受管修订 v2，网关验收见回执。",
@@ -2462,8 +2462,8 @@
         "client_model_source": {
           "prior_report_status": "unsupported",
           "reference": "../../shiju/acp-model-source/cli-versions.json#qoder",
-          "runtime_verified_this_task": false,
-          "note": "现行受管回环证据见独立回执。"
+          "runtime_verified_this_task": true,
+          "note": "现行受管网关四轮回环验收通过。"
         }
       },
       "evidence": [

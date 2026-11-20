@@ -23,4 +23,19 @@
 
 槽位 10 的 `CARGO_TARGET_DIR` 与 `CARGO_BUILD_BUILD_DIR` 均为仓库下的 `target/rust-slot-10`。本次 `cargo build --locked -j 1 -p vw-cli --bin shiju` 已编过 `acp-agent-registry` 与 `llm-runtime`。共享的 `task-scheduler` PostgreSQL 工作计划代码随后报告 E0271（调度记录从 7 列改为 9 列）和 E0616（`PlanMember.id` 的可见性），构建退出 101。网关绿测的实际会话数为 0，首个断点在构建。日志见 `target/acp-skill-coexistence/qoder-build.log`。
 
-在线安装器尝试超时。已核对原始 npm 归档与候选制品摘要，可用 `QODER_COEXISTENCE_PACKAGE` 向探针提供核验后的私有副本。Rust 定向验证在槽位 3 执行任务指定的 `cargo test --locked -j 1 -p llm-runtime --lib acp_skill_coexistence_qoder -- --test-threads=1`，退出 0，2 项通过，日志见 `target/acp-skill-coexistence/qoder-test.log`。排队期间从同槽位复用已编译的 lib-test 二进制，按同一过滤条件也通过 2 项。两次的 `CARGO_TARGET_DIR` 和 `CARGO_BUILD_BUILD_DIR` 都是仓库下的 `target/rust-slot-3`。网关复验应生成 `target/acp-skill-coexistence/qoder.json`。本项覆盖新会话、撤除及拒绝对照。跨进程恢复和热更新留待各自验收。
+在线安装器尝试超时。已核对原始 npm 归档与候选制品摘要，可用 `QODER_COEXISTENCE_PACKAGE` 向探针提供核验后的私有副本。Rust 定向验证在槽位 3 执行任务指定的 `cargo test --locked -j 1 -p llm-runtime --lib acp_skill_coexistence_qoder -- --test-threads=1`，退出 0，2 项通过，日志见 `target/acp-skill-coexistence/qoder-test.log`。排队期间从同槽位复用已编译的 lib-test 二进制，按同一过滤条件也通过 2 项。两次的 `CARGO_TARGET_DIR` 和 `CARGO_BUILD_BUILD_DIR` 都是仓库下的 `target/rust-slot-3`。本项覆盖新会话、撤除及拒绝对照。跨进程恢复和热更新留待各自验收。
+
+### 最终回归
+
+2026-11-21 在 Darwin arm64 持有槽位 6 时复用任务 5 的共享网关。构建来源为 `03e5fc747ed4571184fbb6a156bb48d093b9fee0`，源差异及嵌入合约与构建回执一致。共享源码差异仅涉及其他适配器的声明排序。网关 SHA-256 为 `c59878516f6a88bb8f60ce78955654b9859bca9b82af6711fc14c83d0a572eba`，两个缓存路径均指向仓库下的 `target/rust-slot-6`。本次按现行合约校验了 Qoder 1.1.88 v2 的入口和绑定模块，再用私有制品副本运行 `scripts/verify_acp_skill_coexistence.py --agent qoder`，退出 0。结构化证据见 `target/acp-skill-coexistence/qoder.json`。
+
+| 轮次 | 新会话 | 模型请求 | 原生 Skill / Read | 挂载 Skill / Read | MCP 调用 ID | 下游执行 |
+| --- | --- | ---: | --- | --- | --- | ---: |
+| 无挂载 | `ses_e05fb9102ffedyqd8t2rh0lprX` | 3 | `call_101353d646d0af86f1b9d3b2` / `call_385743c01d627600c0ff2e94` | 无 | 无 | 0 |
+| 挂载 | `ses_e05fb7753ffeRitvpdyeTyWpQU` | 6 | `call_7e00c3bd8f253c4b57bac83c` / `call_b502e383fbe6b4ccf4554f1e` | `call_1ed4fef1604c131bab035f0e` / `call_7b6c0f5347a121bc1c1acf7e` | `call_fe1ce5c31504f7ff6f56883f` | 1 |
+| 撤除 | `ses_e05fb59dcffebKgv5U6KOT0wU1` | 3 | `call_f718f626587ddc166c6c93e9` / `call_d47cab00fb1577c216a551d2` | 无 | 无 | 0 |
+| 拒绝 | `ses_e05fb415dffe2LuAJcZA7czG1k` | 6 | `call_18ee6874c84b45e0c61dca5d` / `call_612a977520d1b6d879d2f30a` | `call_977856bdca1e6f6a597114a4` / `call_5242e2c50d5003c6a22146fc` | `call_e736f35e172ce5076fd6c137` | 0 |
+
+每个新会话各收到一个 `chat.done` 和零 `chat.error`。模型目录仅在挂载与拒绝轮公布选中的 ShiJu 技能，四轮均保留原生用户技能。首个模型请求没有夹具正文和附件，随后按调用 ID 回读实际文件和 MCP 输出。挂载轮单次批准并执行，拒绝轮回传拒绝且服务零执行。
+
+四轮网关均回读 `acp-coexistence / qoder`、`session_model`、`coexistence-fixture/deepseek-v4.1-flash-1017` 与 `full_access=false`。权限状态报告 `requested=false` 和 `support=unavailable`，实际 MCP 决策由单次批准与拒绝对照证实。复用先前通过的 2 项 Rust 定向测试和 4 项 Node 边界测试。

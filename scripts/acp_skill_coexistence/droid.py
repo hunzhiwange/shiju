@@ -144,7 +144,13 @@ class Probe:
                 require(path.resolve() == (skill["path"] / "SKILL.md").resolve(),
                         "unexpected Droid native skill path")
             else:
-                require(any(part.startswith("shiju-session-skills-") for part in path.resolve().parts),
+                home = path.parent.parent.parent.parent
+                require(home.name.startswith("shiju-acp-launch-")
+                        and path == home / NATIVE_DIR / skill["name"] / "SKILL.md",
+                        "Droid selected skill did not use the isolated Factory root")
+                view = (home / NATIVE_DIR).resolve()
+                require(view.parent.name.startswith("shiju-session-skills-") and view.name == "skills"
+                        and path.resolve() == (skill["path"] / "SKILL.md").resolve(),
                         "Droid selected skill bypassed its session view")
             return self.call(tools, step + "_read", "Read",
                              {"file_path": str(path.parent / "references/value.txt")})

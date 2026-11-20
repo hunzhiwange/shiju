@@ -30,3 +30,28 @@
 ```sh
 python3 scripts/cargo_slot.py sh -c 'cargo build --locked -j 1 -p vw-cli --bin shiju && python3 scripts/verify_acp_skill_coexistence.py --agent opencode --gateway-bin "$CARGO_TARGET_DIR/debug/shiju" --output target/acp-skill-coexistence/opencode.json'
 ```
+
+## 受限传输复查
+
+共享工作区新增了 OMP 的逐次审批中继及 Cortex 的隔离 stdio 夹具。当前 OpenCode 的桌面门禁、受管入口和技能扫描仍与基线相同。首个正式网关断点与并行构建无关，本次复用已有失败证据。
+
+使用同一固定上游 1.19.5、固定并验签的 Darwin arm64 `rg` 和私有 Seatbelt 对照。OpenCode ACP 启动时会监听自己的 HTTP 端口。禁止监听时在握手前返回 `ServeError`。限定为一个认证回环端口后可以握手。禁止启动文件枚举程序时，原生 `skill` 激活在 `posix_spawn rg` 返回 `EPERM`。最终对照只允许执行两个按摘要和码签核对的二进制，保留工作区只读、私有状态可写，并将出站连接限制在本轮回环端口。
+
+原生 stdio 控制轮仍向 OpenCode 传入宿主定义的绝对 stdio 命令。模型收到首轮技能目录，但目标 MCP 工具缺席。没有审批或下游调用。另一路复用现有 OMP 中继，由 OpenCode 通过原生 Streamable HTTP 连接中继，后者在收到宿主单次许可后调用同一个隔离 stdio 服务。
+
+| 中继对照 | ACP 终态 | 模型请求 | 审批 | stdio 调用 |
+| --- | --- | ---: | --- | ---: |
+| 基线 | `end_turn` | 3 | 无 | 0 |
+| 挂载 | `end_turn` | 6 | 单次批准 | 1 |
+| 撤除 | `end_turn` | 3 | 无 | 0 |
+| 拒绝 | `end_turn` | 6 | 拒绝 | 0 |
+
+挂载及拒绝结果均按调用 ID 回到模型。新会话 ID、技能和 MCP 调用 ID、入口及 `rg` 摘要记录在 `target/acp-skill-coexistence/opencode-sandbox.json`。以下命令复跑私有对照，使用原版 OpenCode 二进制及摘要匹配的 `rg`。
+
+```sh
+PYTHONPATH=scripts python3 -m acp_skill_coexistence.opencode_sandbox \
+  --upstream "$HOME/.local/share/shiju/acp-runtime/opencode-1.19.5-model-source-v1/node_modules/opencode-darwin-arm64/bin/opencode" \
+  --rg "$(command -v rg)" --output target/acp-skill-coexistence/opencode-sandbox.json
+```
+
+本卡以 OpenCode 已受审的原生 stdio 路径为验收条件。继续生产接线需要确认能否采用上述受限 HTTP 中继及入包 `rg` 的审定方式，或取得支持受限原生 stdio 的受审 OpenCode 制品。现有全访问门禁继续保护未受限入口。私有中继对照不产生正式网关 SSE 或模型和权限回读。

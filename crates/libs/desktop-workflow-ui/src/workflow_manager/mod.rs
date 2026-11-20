@@ -45,6 +45,10 @@ pub enum WorkflowManagerMessage {
     CopyWorkflow(String),
     SelectTab(WorkflowManagerTab),
     ToggleStatusRoleHelp,
+    SelectCatalogPreset(Option<String>),
+    ToggleCatalogAdvanced,
+    EditCatalogStatus { workflow_id: String, status_key: String },
+    ShowAllDraftStatuses,
     StartNew,
     StartEditSelected,
     DeleteSelected,
@@ -72,16 +76,16 @@ pub enum WorkflowManagerMessage {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
-/// 工作流管理器的生命周期、阶段动作与能力页签。
+/// 工作流管理器的生命周期定义与状态库页签。
 pub enum WorkflowManagerTab {
     #[default]
     LifecycleDefinition,
+    StatusCatalog,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 struct WorkflowListItem {
-    id: String,
-    label: String,
+    definition: TaskWorkflow,
     is_builtin: bool,
 }
 
@@ -99,6 +103,8 @@ pub struct WorkflowManagerState {
     pending_confirmation: Option<WorkflowManagerConfirmation>,
     active_tab: WorkflowManagerTab,
     show_status_role_help: bool,
+    catalog_preset_id: Option<String>,
+    show_catalog_advanced: bool,
 }
 
 impl Default for WorkflowManagerState {
@@ -122,15 +128,14 @@ impl WorkflowManagerState {
             .into_iter()
             .map(|workflow| WorkflowListItem {
                 is_builtin: is_builtin_task_workflow_id(&workflow.id),
-                id: workflow.id,
-                label: workflow.label,
+                definition: workflow,
             })
             .collect();
         let selected_workflow_id = workflows
             .iter()
             .find(|workflow| !workflow.is_builtin)
             .or_else(|| workflows.first())
-            .map(|workflow| workflow.id.clone());
+            .map(|workflow| workflow.definition.id.clone());
         Self {
             workflows,
             selected_workflow_id,
@@ -143,6 +148,8 @@ impl WorkflowManagerState {
             pending_confirmation: None,
             active_tab: WorkflowManagerTab::LifecycleDefinition,
             show_status_role_help: false,
+            catalog_preset_id: None,
+            show_catalog_advanced: false,
         }
     }
 
@@ -155,12 +162,15 @@ impl WorkflowManagerState {
         let refreshed = Self::from_workflows(workflows, self.lifecycles_loaded);
         self.workflows = refreshed.workflows;
         self.selected_workflow_id = selected
-            .filter(|id| self.workflows.iter().any(|workflow| workflow.id == *id))
+            .filter(|id| self.workflows.iter().any(|workflow| workflow.definition.id == *id))
             .or(refreshed.selected_workflow_id);
+        self.catalog_preset_id = self.catalog_preset_id.take().filter(|id| {
+            self.workflows.iter().any(|item| item.is_builtin && item.definition.id == *id)
+        });
     }
 
     pub fn workflow_ids(&self) -> Vec<String> {
-        self.workflows.iter().map(|workflow| workflow.id.clone()).collect()
+        self.workflows.iter().map(|workflow| workflow.definition.id.clone()).collect()
     }
 
     pub fn selected_workflow_id(&self) -> Option<&str> {
@@ -193,7 +203,7 @@ impl WorkflowManagerState {
 
     fn selected_item(&self) -> Option<&WorkflowListItem> {
         let selected = self.selected_workflow_id.as_deref()?;
-        self.workflows.iter().find(|workflow| workflow.id == selected)
+        self.workflows.iter().find(|workflow| workflow.definition.id == selected)
     }
 
     pub fn take_pending_effect(&mut self) -> Option<WorkflowManagerEffect> {
@@ -214,11 +224,18 @@ struct WorkflowDraft {
     id: String,
     label: String,
     statuses: Vec<WorkflowDraftStatus>,
+    focused_status: Option<usize>,
 }
 
 impl WorkflowDraft {
     fn empty() -> Self {
-        Self { original_id: None, id: String::new(), label: String::new(), statuses: Vec::new() }
+        Self {
+            original_id: None,
+            id: String::new(),
+            label: String::new(),
+            statuses: Vec::new(),
+            focused_status: None,
+        }
     }
 
     fn from_workflow(workflow: TaskWorkflow) -> Self {
@@ -231,6 +248,7 @@ impl WorkflowDraft {
                 .into_iter()
                 .map(WorkflowDraftStatus::from_definition)
                 .collect(),
+            focused_status: None,
         }
     }
 }
@@ -496,14 +514,14 @@ pub fn update(
             false
         }
         WorkflowManagerMessage::SelectWorkflow(id) => {
-            if state.workflows.iter().any(|workflow| workflow.id == id) {
+            if state.workflows.iter().any(|workflow| workflow.definition.id == id) {
                 state.selected_workflow_id = Some(id);
                 state.feedback = None;
             }
             false
         }
         WorkflowManagerMessage::ViewWorkflow(id) => {
-            if state.workflows.iter().any(|workflow| workflow.id == id) {
+            if state.workflows.iter().any(|workflow| workflow.definition.id == id) {
                 state.selected_workflow_id = Some(id);
                 state.draft = None;
                 state.feedback = None;
@@ -520,6 +538,39 @@ pub fn update(
             state.show_status_role_help = !state.show_status_role_help;
             false
         }
+        WorkflowManagerMessage::SelectCatalogPreset(id) => {
+            state.catalog_preset_id = id.filter(|id| {
+                state.workflows.iter().any(|item| item.is_builtin && item.definition.id == *id)
+            });
+            false
+        }
+        WorkflowManagerMessage::ToggleCatalogAdvanced => {
+            state.show_catalog_advanced = !state.show_catalog_advanced;
+            false
+        }
+        WorkflowManagerMessage::EditCatalogStatus { workflow_id, status_key } => {
+            if state.draft.is_none()
+                && let Some(item) =
+                    state.workflows.iter().find(|item| item.definition.id == workflow_id)
+                && let Some(index) =
+                    item.definition.statuses.iter().position(|status| status.key == status_key)
+            {
+                let mut draft = WorkflowDraft::from_workflow(item.definition.clone());
+                draft.focused_status = Some(index);
+                state.selected_workflow_id = Some(workflow_id);
+                state.active_tab = WorkflowManagerTab::LifecycleDefinition;
+                state.show_status_role_help = false;
+                state.draft = Some(draft);
+                state.feedback = None;
+            }
+            false
+        }
+        WorkflowManagerMessage::ShowAllDraftStatuses => {
+            if let Some(draft) = &mut state.draft {
+                draft.focused_status = None;
+            }
+            false
+        }
         WorkflowManagerMessage::StartNew => {
             state.active_tab = WorkflowManagerTab::LifecycleDefinition;
             state.draft = Some(WorkflowDraft::empty());
@@ -534,7 +585,7 @@ pub fn update(
                 ));
                 return false;
             };
-            match registry.workflow_by_id(&selected.id) {
+            match registry.workflow_by_id(&selected.definition.id) {
                 Some(workflow) => {
                     state.active_tab = WorkflowManagerTab::LifecycleDefinition;
                     state.draft = Some(WorkflowDraft::from_workflow(workflow));
@@ -577,12 +628,14 @@ pub fn update(
         WorkflowManagerMessage::AddBlankStatus => {
             if let Some(draft) = &mut state.draft {
                 draft.statuses.push(WorkflowDraftStatus::blank());
+                draft.focused_status = None;
             }
             false
         }
         WorkflowManagerMessage::AddDraftStatus(status) => {
             if let Some(draft) = &mut state.draft {
                 draft.statuses.push(status);
+                draft.focused_status = None;
             }
             false
         }
@@ -595,6 +648,7 @@ pub fn update(
                 && index < draft.statuses.len()
             {
                 draft.statuses.swap(index - 1, index);
+                draft.focused_status = None;
             }
             false
         }
@@ -603,6 +657,7 @@ pub fn update(
                 && index + 1 < draft.statuses.len()
             {
                 draft.statuses.swap(index, index + 1);
+                draft.focused_status = None;
             }
             false
         }
@@ -725,8 +780,8 @@ fn request_delete_selected_workflow(state: &mut WorkflowManagerState) -> bool {
         ));
         return false;
     }
-    let workflow_id = selected.id.clone();
-    let workflow_label = selected.label.clone();
+    let workflow_id = selected.definition.id.clone();
+    let workflow_label = selected.definition.label.clone();
 
     state.pending_confirmation =
         Some(WorkflowManagerConfirmation::DeleteWorkflow { workflow_id, workflow_label });
@@ -749,8 +804,8 @@ fn request_reset_selected_workflow(state: &mut WorkflowManagerState) -> bool {
         ));
         return false;
     }
-    let workflow_id = selected.id.clone();
-    let workflow_label = selected.label.clone();
+    let workflow_id = selected.definition.id.clone();
+    let workflow_label = selected.definition.label.clone();
 
     state.pending_confirmation =
         Some(WorkflowManagerConfirmation::ResetWorkflow { workflow_id, workflow_label });
@@ -814,6 +869,7 @@ fn confirm_pending_action(state: &mut WorkflowManagerState) -> bool {
                 return false;
             };
             draft.statuses.remove(remove_index);
+            draft.focused_status = None;
             state.feedback = None;
         }
     }
@@ -1180,8 +1236,10 @@ fn apply_lifecycle_workflow_deleted(
         Ok(workflows) => match apply_lifecycle_workflow_cache(state, workflows, None) {
             Ok(()) => {
                 if state.selected_workflow_id.as_deref() == Some(workflow_id.as_str()) {
-                    state.selected_workflow_id =
-                        state.workflows.first().map(|workflow| workflow.id.clone());
+                    state.selected_workflow_id = state
+                        .workflows
+                        .first()
+                        .map(|workflow| workflow.definition.id.clone());
                 }
                 state.draft = None;
                 state.feedback = Some(WorkflowManagerFeedback::localized(
@@ -1252,7 +1310,7 @@ fn apply_lifecycle_workflow_cache(
     state.lifecycles_error = None;
     state.refresh_from_runtime_cache();
     if let Some(selected_workflow_id) = selected_workflow_id
-        && state.workflows.iter().any(|workflow| workflow.id == selected_workflow_id)
+        && state.workflows.iter().any(|workflow| workflow.definition.id == selected_workflow_id)
     {
         state.selected_workflow_id = Some(selected_workflow_id);
     }
@@ -1296,3 +1354,5 @@ pub use view::view;
 
 mod effects;
 pub use effects::{load_lifecycle_workflows_task, workflow_manager_effect_task};
+
+mod status_catalog;

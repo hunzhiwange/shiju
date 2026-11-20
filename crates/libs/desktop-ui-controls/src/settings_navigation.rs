@@ -57,6 +57,10 @@ pub enum SystemTab {
     ArchivedChats,
     /// Gateway-owned worktree settings.
     Worktrees,
+    TaskWorkflow,
+    TaskLabels,
+    TaskProperties,
+    TaskQuickActions,
     /// 提供商设置标签页
     Providers,
     /// 模型设置标签页
@@ -111,6 +115,10 @@ impl SystemTab {
             SystemTab::Projects => "项目管理",
             SystemTab::ArchivedChats => "已归档的聊天",
             SystemTab::Worktrees => "工作树",
+            SystemTab::TaskWorkflow => "工作流",
+            SystemTab::TaskLabels => "标签",
+            SystemTab::TaskProperties => "属性",
+            SystemTab::TaskQuickActions => "快捷操作",
             SystemTab::Providers => "提供商",
             SystemTab::Models => "模型",
             SystemTab::Cron => "定时任务",
@@ -180,6 +188,18 @@ pub fn system_tab_keywords(tab: SystemTab) -> &'static [&'static str] {
         SystemTab::Editor => &["editor", "code", "编辑", "主题与显示", "字体大小", "行高"],
         SystemTab::Projects => &["projects", "workspace", "工作区", "Worktree", "历史项目"],
         SystemTab::Worktrees => &["worktree", "工作树", "清理", "环境"],
+        SystemTab::TaskWorkflow => &[
+            "workflow",
+            "task workflow",
+            "lifecycle",
+            "任务与工作流",
+            "任务工作流",
+            "任务编排",
+            "生命周期",
+        ],
+        SystemTab::TaskLabels => &["task labels", "任务标签"],
+        SystemTab::TaskProperties => &["task properties", "任务属性"],
+        SystemTab::TaskQuickActions => &["task quick actions", "任务快捷操作"],
         SystemTab::ArchivedChats => &["archived", "chats", "归档", "聊天", "历史项目"],
         SystemTab::Providers => {
             &["providers", "api key", "model", "模型", "密钥", "base url", "catalog"]
@@ -223,6 +243,10 @@ pub const GROUPS: &[(&str, &[SystemTab])] = {
                 Worktrees,
                 ArchivedChats,
             ],
+        ),
+        (
+            "任务与工作流",
+            &[TaskWorkflow, TaskLabels, TaskProperties, TaskQuickActions],
         ),
         ("模型与智能体", &[Models, Providers, Agents, Memory]),
         ("网络与集成", &[GatewayClient, Gateway, WebSearch]),

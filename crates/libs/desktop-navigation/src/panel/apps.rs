@@ -5,7 +5,6 @@ pub enum Message {
     OpenUsage,
     OpenKnowledge,
     OpenWorkflowTool,
-    OpenWorkflowManager,
     OpenThirdPartyAgents,
     AppsOpenMostRecent,
     AppsSearchChanged(String),
@@ -14,7 +13,6 @@ pub enum Effect {
     OpenUsage,
     OpenKnowledge,
     OpenWorkflowTool,
-    OpenWorkflowManager,
     OpenThirdPartyAgents,
     OpenRecent(String),
 }
@@ -113,23 +111,6 @@ pub fn update(
             *app.active_tab_id = Some(id);
             *app.screen = Screen::ThirdPartyAgents;
             Some(Effect::OpenThirdPartyAgents)
-        }
-        Message::OpenWorkflowManager => {
-            let id = "workflow_manager".to_string();
-            if let Some(pos) = (*app.open_tabs).iter().position(|t| t.id == "apps") {
-                (*app.open_tabs).remove(pos);
-            }
-            if !(*app.open_tabs).iter().any(|t| t.id == id) {
-                (*app.open_tabs).push(AppTab {
-                    id: id.clone(),
-                    title: "任务编排".to_string(),
-                    screen: Screen::WorkflowManager,
-                    project_path: None,
-                });
-            }
-            (*app.active_tab_id) = Some(id);
-            (*app.screen) = Screen::WorkflowManager;
-            Some(Effect::OpenWorkflowManager)
         }
         Message::AppsOpenMostRecent => {
             if let Some(path) = recent_project.map(str::to_owned) {

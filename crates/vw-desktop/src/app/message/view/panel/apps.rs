@@ -10,7 +10,12 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
         ViewMessage::OpenKnowledge => domain::Message::OpenKnowledge,
         ViewMessage::OpenWorkflowTool => domain::Message::OpenWorkflowTool,
         ViewMessage::OpenThirdPartyAgents => domain::Message::OpenThirdPartyAgents,
-        ViewMessage::OpenWorkflowManager => domain::Message::OpenWorkflowManager,
+        ViewMessage::OpenWorkflowManager => {
+            return super::super::update(
+                app,
+                ViewMessage::OpenSystemSettingsTab(desktop_settings_shell::SystemTab::TaskWorkflow),
+            );
+        }
         ViewMessage::AppsOpenMostRecent => domain::Message::AppsOpenMostRecent,
         ViewMessage::AppsSearchChanged(value) => domain::Message::AppsSearchChanged(value),
         _ => return Task::none(),
@@ -60,11 +65,6 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
             crate::app::message::knowledge_tool::ensure_loaded(app)
         }
         Some(domain::Effect::OpenWorkflowTool) => crate::apps::workflow::ensure_initialized(app),
-        Some(domain::Effect::OpenWorkflowManager) => {
-            app.workflow_manager =
-                crate::app::views::workflow_manager::WorkflowManagerState::default();
-            crate::app::views::workflow_manager::load_lifecycle_workflows_task(true)
-        }
         Some(domain::Effect::OpenRecent(path)) => Task::perform(async {}, move |_| {
             Message::Project(crate::app::message::project::ProjectMessage::OpenRecentPressed(path))
         }),

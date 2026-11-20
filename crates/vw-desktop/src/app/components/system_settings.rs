@@ -13,6 +13,7 @@ use iced::{Alignment, Element, Length, Theme};
 
 pub(super) mod general_fields;
 mod navigation;
+pub(in crate::app) mod task_settings;
 
 pub(crate) use desktop_settings_shell::reveal_field;
 
@@ -189,6 +190,10 @@ pub(super) fn active_tab_save_error(app: &App, active_tab: SystemTab) -> Option<
         | SystemTab::Editor
         | SystemTab::General
         | SystemTab::Projects
+        | SystemTab::TaskWorkflow
+        | SystemTab::TaskLabels
+        | SystemTab::TaskProperties
+        | SystemTab::TaskQuickActions
         | SystemTab::ArchivedChats
         | SystemTab::Worktrees
         | SystemTab::Themes => None,
@@ -214,6 +219,10 @@ fn settings_content(app: &App, active_tab: SystemTab) -> Element<'_, Message> {
         SystemTab::Themes => crate::app::components::system_settings_themes::view(app),
         SystemTab::Editor => crate::app::components::system_settings_editor::view(app),
         SystemTab::Projects => crate::app::components::system_settings_projects::view(app),
+        SystemTab::TaskWorkflow
+        | SystemTab::TaskLabels
+        | SystemTab::TaskProperties
+        | SystemTab::TaskQuickActions => task_settings::view(app, active_tab),
         SystemTab::ArchivedChats => super::system_settings_archived_chats::view(app),
         SystemTab::Worktrees => super::system_settings_worktrees::view(app),
         SystemTab::Providers => super::system_settings_providers::connected::view(app),
@@ -269,7 +278,10 @@ fn settings_content(app: &App, active_tab: SystemTab) -> Element<'_, Message> {
         && app.apps_catalog.third_party_page
             == desktop_ui_controls::settings_navigation::ThirdPartyPage::Prompts;
     let owns_scroll = prompts_page
-        || matches!(active_tab, SystemTab::Agents | SystemTab::ArchivedChats)
+        || matches!(
+            active_tab,
+            SystemTab::Agents | SystemTab::ArchivedChats | SystemTab::TaskWorkflow
+        )
         || (active_tab == SystemTab::Cron
             && matches!(
                 app.cron_settings.active_tab,
@@ -285,7 +297,7 @@ fn settings_content(app: &App, active_tab: SystemTab) -> Element<'_, Message> {
     let owns_scroll = owns_scroll || active_tab_help_modal_open(app, active_tab);
     desktop_settings_shell::content_page(
         content_column,
-        prompts_page || active_tab == SystemTab::Cron,
+        prompts_page || matches!(active_tab, SystemTab::Cron | SystemTab::TaskWorkflow),
         owns_scroll,
     )
 }

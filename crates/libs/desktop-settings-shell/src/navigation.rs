@@ -166,6 +166,10 @@ fn tab_icon(tab: SystemTab) -> Icon {
         #[cfg(not(target_arch = "wasm32"))]
         SystemTab::Auth => Icon::ShieldLock,
         SystemTab::Projects | SystemTab::Worktrees => Icon::FolderOpen,
+        SystemTab::TaskWorkflow => Icon::GitBranch,
+        SystemTab::TaskLabels => Icon::Capsule,
+        SystemTab::TaskProperties => Icon::ListUl,
+        SystemTab::TaskQuickActions => Icon::HandIndex,
         SystemTab::ArchivedChats => Icon::ChatTextFill,
         SystemTab::Providers => Icon::Box,
         SystemTab::Models => Icon::Hexagon,

@@ -98,7 +98,9 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
                     );
                 }
             }
-            if tab == SystemTab::Worktrees {
+            if tab == SystemTab::TaskWorkflow {
+                crate::app::components::system_settings::task_settings::load_workflows(app)
+            } else if tab == SystemTab::Worktrees {
                 super::worktrees::update(app, super::worktrees::WorktreeSettingsMessage::Refresh)
             } else if tab == SystemTab::ArchivedChats {
                 super::archived_chats::update(

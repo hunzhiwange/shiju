@@ -369,7 +369,7 @@ impl App {
 
         let startup_task = Task::batch(vec![
             startup::build_startup_task(&mut app),
-            crate::app::views::workflow_manager::load_lifecycle_workflows_task(false),
+            crate::app::views::workflow_manager::preload(&mut app),
         ]);
 
         (app, startup_task)

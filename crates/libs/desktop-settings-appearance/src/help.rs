@@ -1,5 +1,6 @@
 use desktop_ui_controls::settings_navigation::SystemTab;
 use desktop_ui_controls::system_settings_common::help::{settings_help_button_with_locale, settings_help_copy_state, with_settings_help_modal};
+use desktop_ui_controls::system_settings_common::panels::with_settings_modal_escape;
 use iced::Element;
 const GENERAL_HELP: &str = r#"常规设置说明
 
@@ -320,11 +321,14 @@ Linux 若缺少浏览器系统库，运行 agent-browser install --with-deps；�
 需要单独部署兼容 ShiJu 动作协议的 Sidecar 服务，再填写操作端点和访问密钥。当前没有统一的官方安装包，暂不提供一键安装。不要填入普通 WebDriver 地址。macOS 可能需要授予 Sidecar 辅助功能与屏幕录制权限，Linux 需要可用桌面会话，Windows 需要交互式桌面。默认保持远程端点关闭。
 "#;
 
+const TASK_WORKFLOW_HELP: &str = "工作流定义任务有哪些阶段，以及每个阶段结束后任务去哪里。\n\n例如，执行成功后可进入待审核；执行失败和重试的去向由所用工作流的规则决定。";
+
 fn help_content(tab: SystemTab) -> Option<(&'static str, &'static str)> {
     match tab {
         SystemTab::General => Some(("常规设置帮助", GENERAL_HELP)),
         SystemTab::Editor => Some(("编辑器设置帮助", EDITOR_HELP)),
         SystemTab::Projects => Some(("项目设置帮助", PROJECTS_HELP)),
+        SystemTab::TaskWorkflow => Some(("任务工作流帮助", TASK_WORKFLOW_HELP)),
         SystemTab::Providers => Some(("模型提供商帮助", PROVIDERS_HELP)),
         SystemTab::Models => Some(("模型设置帮助", MODELS_HELP)),
         SystemTab::Agents => Some(("智能体配置帮助", AGENTS_HELP)),
@@ -397,5 +401,18 @@ pub fn with_help_modal<'a, Message: Clone + 'static>(
     let help_text = i18n.__(help_text).to_string();
     let (icon, tip) = settings_help_copy_state(copied_hash, &help_text);
     let tip = desktop_i18n::settings_runtime::text(locale, tip);
-    with_settings_help_modal(base, i18n.__(title).to_string(), help_text.clone(), icon, tip, copy(help_text), close)
+    let modal = with_settings_help_modal(
+        base,
+        i18n.__(title).to_string(),
+        help_text.clone(),
+        icon,
+        tip,
+        copy(help_text),
+        close.clone(),
+    );
+    if active_tab == SystemTab::TaskWorkflow {
+        with_settings_modal_escape(modal, close)
+    } else {
+        modal
+    }
 }

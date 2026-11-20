@@ -306,11 +306,18 @@ pub fn settings_modal_overlay_with_escape<'a, Message: Clone + 'a>(
     close_message: Message,
     card: impl Into<Element<'a, Message>>,
 ) -> Element<'a, Message> {
-    stack![
+    with_settings_modal_escape(
         settings_modal_overlay(Some(base), close_message.clone(), card),
-        Element::new(ModalEscape(close_message)),
-    ]
-    .into()
+        close_message,
+    )
+}
+
+/// 为已装配的设置弹窗添加 Escape 关闭行为。
+pub fn with_settings_modal_escape<'a, Message: Clone + 'a>(
+    modal: Element<'a, Message>,
+    close_message: Message,
+) -> Element<'a, Message> {
+    stack![modal, Element::new(ModalEscape(close_message))].into()
 }
 
 /// 同时支持遮罩点击和 Escape 取消，底层表单不接收事件。

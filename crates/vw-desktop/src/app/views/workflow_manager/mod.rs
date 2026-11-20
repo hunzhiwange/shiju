@@ -15,8 +15,12 @@ fn map_message(message: domain::Message) -> Message {
         domain::Message::None => Message::None,
     }
 }
-pub(crate) fn load_lifecycle_workflows_task(notify_error: bool) -> Task<Message> {
-    domain::load_lifecycle_workflows_task(notify_error, client()).map(map_message)
+pub(crate) fn preload(app: &mut App) -> Task<Message> {
+    if app.workflow_manager.begin_lifecycle_refresh() {
+        domain::load_lifecycle_workflows_task(false, client()).map(map_message)
+    } else {
+        Task::none()
+    }
 }
 pub fn view(app: &App) -> Element<'_, Message> {
     domain::view(&app.workflow_manager, desktop_i18n::I18n::new(app.general_settings.desktop_locale), &app.appearance.app_theme).map(map_message)

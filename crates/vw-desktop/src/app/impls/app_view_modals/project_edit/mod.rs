@@ -72,6 +72,9 @@ impl desktop_chat_view::message_view::markdown_selection::SelectionMessage for H
     fn selection(_: String, _: usize, _: usize, _: Option<String>) -> Self { Self::none() }
 }
 pub(crate) fn with_project_edit<'a>(app: &'a App, root: Element<'a, Message>) -> Element<'a, Message> {
+    if app.navigation_panels.show_system_settings {
+        return root;
+    }
     // The domain owns rendering; only the borrowed input projection lives in the shell.
     domain::with_project_edit(domain_view(app), root, map)
 }

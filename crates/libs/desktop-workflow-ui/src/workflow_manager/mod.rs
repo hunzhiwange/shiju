@@ -185,6 +185,16 @@ impl WorkflowManagerState {
         self.lifecycles_loading
     }
 
+    pub fn begin_lifecycle_refresh(&mut self) -> bool {
+        if self.lifecycles_loading {
+            return false;
+        }
+        self.lifecycles_loading = true;
+        self.lifecycles_error = None;
+        self.feedback = None;
+        true
+    }
+
     pub fn lifecycles_loaded(&self) -> bool {
         self.lifecycles_loaded
     }
@@ -491,10 +501,10 @@ pub fn update(
 ) -> bool {
     match message {
         WorkflowManagerMessage::RefreshLifecycles => {
-            state.lifecycles_loading = true;
-            state.feedback = None;
-            state.pending_effect =
-                Some(WorkflowManagerEffect::LoadLifecycles { notify_error: true });
+            if state.begin_lifecycle_refresh() {
+                state.pending_effect =
+                    Some(WorkflowManagerEffect::LoadLifecycles { notify_error: true });
+            }
             false
         }
         WorkflowManagerMessage::LifecycleWorkflowsLoaded { result, notify_error } => {
@@ -1162,12 +1172,14 @@ fn apply_lifecycle_workflows_loaded(
     result: LifecycleWorkflowListResult,
     notify_error: bool,
 ) {
+    state.lifecycles_loading = false;
     match result {
         Ok(workflows) => match apply_lifecycle_workflow_cache(state, workflows, None) {
             Ok(()) => {
                 state.feedback = None;
             }
             Err(err) if notify_error => {
+                state.lifecycles_error = Some(err.to_string());
                 state.feedback = Some(WorkflowManagerFeedback::from_error(err));
             }
             Err(err) => {
@@ -1176,7 +1188,6 @@ fn apply_lifecycle_workflows_loaded(
             }
         },
         Err(error) => {
-            state.lifecycles_loading = false;
             state.lifecycles_error = Some(error.clone());
             if notify_error {
                 state.feedback = Some(WorkflowManagerFeedback::localized(

@@ -25,7 +25,7 @@ desktop-platform = { path = "../desktop-platform" }
 desktop-provider-apps = { path = "../desktop-provider-apps" }
 vw-gateway-client = { path = "../../vw-gateway-client" }
 local-app-auth = { path = "../local-app-auth" }
-tokio = { version = "1", features = ["rt", "fs"] }
+tokio = { version = "1", features = ["rt"] }
 rfd = { version = "0.17", features = ["file-handle-inner"] }
 
 vw-api-transport = { path = "../api-transport" }

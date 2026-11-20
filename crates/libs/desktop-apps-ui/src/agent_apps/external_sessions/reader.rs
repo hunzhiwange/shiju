@@ -211,7 +211,9 @@ pub(super) fn view<'a>(state: &'a super::State, reader: &'a State, loopback: boo
     use super::list::Action;
     let mut actions = Vec::new();
     if session.is_some_and(|s| s.capabilities.export_markdown) {
-        actions.extend([Action::CopyMarkdown, Action::ExportMarkdown]);
+        actions.push(Action::CopyMarkdown);
+        #[cfg(not(target_arch = "wasm32"))]
+        actions.push(Action::ExportMarkdown);
     }
     actions.extend([Action::CopyId, Action::CopyPath, Action::Options, Action::Reload]);
     if session.is_some_and(|s| s.capabilities.delete) { actions.push(super::list::Action::Delete); }
@@ -224,6 +226,7 @@ pub(super) fn view<'a>(state: &'a super::State, reader: &'a State, loopback: boo
             Action::CopyId => Event::Path(super::paths::Event::Copy(identity.clone(), generation, super::paths::Location::Identity)),
             Action::CopyPath => Event::Path(super::paths::Event::Copy(identity.clone(), generation, super::paths::Location::Source)),
             Action::CopyMarkdown => Event::Export(super::export::Event::Start(super::export::Destination::Clipboard, false)),
+            #[cfg(not(target_arch = "wasm32"))]
             Action::ExportMarkdown => Event::Export(super::export::Event::Start(super::export::Destination::File, false)),
             Action::Delete => Event::Delete(super::delete::Event::Ask(Some(identity.clone()))),
             _ => Event::ReaderOptions,
@@ -257,11 +260,13 @@ pub(super) fn view<'a>(state: &'a super::State, reader: &'a State, loopback: boo
         icon_btn(Icon::Columns, if reader.outline_open { "收起对话目录" } else { "展开对话目录" }, Some(Event::ReaderOutline)),
         find::filters(reader),
         options,
-        icon_btn(Icon::CloudDownload, "导出为 Markdown 文件",
-            (!reader.exporting && session.is_some_and(|s| s.capabilities.export_markdown))
-                .then(|| Event::Export(super::export::Event::Start(super::export::Destination::File, false)))),
-        icon_btn(Icon::Search, "查找会话内容", Some(Event::ReaderSearch)),
-    ].spacing(7).align_y(iced::Alignment::Center);
+    ];
+    #[cfg(not(target_arch = "wasm32"))]
+    let toolbar = toolbar.push(icon_btn(Icon::CloudDownload, "导出为 Markdown 文件",
+        (!reader.exporting && session.is_some_and(|s| s.capabilities.export_markdown))
+            .then(|| Event::Export(super::export::Event::Start(super::export::Destination::File, false)))));
+    let toolbar = toolbar.push(icon_btn(Icon::Search, "查找会话内容", Some(Event::ReaderSearch)))
+        .spacing(7).align_y(iced::Alignment::Center);
     let mut tools = column![toolbar].spacing(8);
     if reader.search_open {
         tools = tools.push(find::controls(reader));

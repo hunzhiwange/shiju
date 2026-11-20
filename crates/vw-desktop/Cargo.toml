@@ -82,7 +82,6 @@ desktop-web-runtime = { path = "../libs/desktop-web-runtime" }
 update-types = { path = "../libs/update-types" }
 gateway-task-pool = { path = "../libs/gateway-task-pool" }
 desktop-platform = { path = "../libs/desktop-platform" }
-shell-command = { path = "../libs/shell-command", features = ["shell-tokio"] }
 gateway-task-lifecycle = { path = "../libs/gateway-task-lifecycle" }
 gateway-scheduler = { path = "../libs/gateway-scheduler" }
 gateway-knowledge = { path = "../libs/gateway-knowledge" }
@@ -279,6 +278,7 @@ vw-config-types = { path = "../vw-config-types" }
 vw-gateway-client = { path = "../vw-gateway-client" }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+shell-command = { path = "../libs/shell-command", features = ["shell-tokio"] }
 desktop-settings-voice = { path = "../libs/desktop-settings-voice" }
 desktop-voice = { path = "../libs/desktop-voice" }
 desktop-voice-ui = { path = "../libs/desktop-voice-ui" }

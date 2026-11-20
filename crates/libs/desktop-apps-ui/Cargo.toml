@@ -16,7 +16,7 @@ desktop-assets = { path = "../desktop-assets" }
 desktop-provider-apps = { path = "../desktop-provider-apps" }
 iced = { version = "0.14", features = ["image", "svg", "advanced", "tokio"] }
 chrono = { version = "0.4", features = ["serde"] }
-tokio = { version = "1", default-features = false, features = ["rt", "macros", "sync", "time", "fs"] }
+tokio = { version = "1", default-features = false, features = ["rt", "macros", "sync", "time"] }
 gateway-openclaw-settings = { path = "../gateway-openclaw-settings" }
 gateway-workspace-memory = { path = "../gateway-workspace-memory" }
 vw-api-openclaw-settings = { path = "../api-openclaw-settings" }
@@ -92,6 +92,7 @@ wasm-bindgen-futures = "0.4"
 web-sys = { version = "0.3", features = ["Window"] }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+tokio = { version = "1", default-features = false, features = ["fs"] }
 desktop-web-runtime = { path = "../desktop-web-runtime" }
 
 [target.'cfg(all(not(target_arch = "wasm32"), not(windows)))'.dependencies]

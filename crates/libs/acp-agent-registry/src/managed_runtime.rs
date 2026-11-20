@@ -366,13 +366,16 @@ pub fn verify_reviewed_agent_executable(agent: &str, command: &str) -> Result<()
         .into())
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 struct Stage(PathBuf);
+#[cfg(not(target_arch = "wasm32"))]
 impl Drop for Stage {
     fn drop(&mut self) {
         let _ = std::fs::remove_dir_all(&self.0);
     }
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 pub(super) async fn install(agent: &str) -> Result<bool, String> {
     let Some(mut contract) = contract(agent) else { return Ok(false) };
     if agent == "amp-acp" && !cfg!(all(target_os = "macos", target_arch = "aarch64")) {
@@ -651,6 +654,6 @@ pub(super) async fn install(agent: &str) -> Result<bool, String> {
     Ok(true)
 }
 
-#[cfg(test)]
+#[cfg(all(test, not(target_arch = "wasm32")))]
 #[path = "managed_runtime_tests.rs"]
 mod tests;

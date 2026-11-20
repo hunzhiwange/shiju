@@ -369,11 +369,17 @@ pub fn provider_icon<'a>(provider: vw_api_external_session::SessionProvider, siz
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum Action { CopyMarkdown, ExportMarkdown, Options, Reload, Refresh, Select, CopyResume, Terminal, Sources, CopyId, CopyPath, Reveal, Delete, Maintenance, Compression }
+pub enum Action { CopyMarkdown,
+    #[cfg(not(target_arch = "wasm32"))]
+    ExportMarkdown,
+    Options, Reload, Refresh, Select, CopyResume, Terminal, Sources, CopyId, CopyPath, Reveal, Delete, Maintenance, Compression }
 impl std::fmt::Display for Action {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_str(match self {
-            Self::CopyMarkdown => "复制整段 Markdown", Self::ExportMarkdown => "导出整段 Markdown", Self::Options => "显示与复制选项",
+            Self::CopyMarkdown => "复制整段 Markdown",
+            #[cfg(not(target_arch = "wasm32"))]
+            Self::ExportMarkdown => "导出整段 Markdown",
+            Self::Options => "显示与复制选项",
             Self::Reload => "重新读取", Self::Refresh => "刷新列表", Self::Select => "选择多个", Self::Terminal => "首选终端",
             Self::CopyResume => "复制恢复命令", Self::Sources => "会话记录在哪里", Self::CopyId => "复制会话 ID", Self::CopyPath => "复制来源路径",
             Self::Reveal => "在 Finder 中显示", Self::Delete => "删除…", Self::Maintenance => "历史维护设置",

@@ -7549,7 +7549,7 @@ dependencies = [
  "iced_runtime",
  "image",
  "local-app-auth",
- "rand 0.8.8",
+ "rand 0.10.3",
  "reqwest 0.13.4",
  "serde_json",
  "tempfile",

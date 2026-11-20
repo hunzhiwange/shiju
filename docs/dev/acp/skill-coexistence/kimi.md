@@ -25,7 +25,11 @@ Kimi 的 `ExtraFileSkillSource` 从私有 `KIMI_CODE_HOME/config.toml` 读取 `e
 
 ## 网关复验状态
 
-槽位 9 的 `CARGO_TARGET_DIR` 与 `CARGO_BUILD_BUILD_DIR` 均为仓库内的 `target/rust-slot-9`。本次网关构建已通过 `llm-runtime` 编译，随后在并行开发的 `task-scheduler` 退出 101。错误包括 `E0432`（构建时 API 缺少 `TaskPlanSubTask`、`WorkPlanPublication`）和 `E0616`（PostgreSQL 存储访问私有 `PlanMember.id`）。网关挂载、撤除和拒绝对照尚待复验。原生 ACP 四轮诊断仅覆盖供应商行为。
+槽位 9 的 `CARGO_TARGET_DIR` 与 `CARGO_BUILD_BUILD_DIR` 均为仓库内的 `target/rust-slot-9`。本次网关构建已通过 `llm-runtime` 编译，随后在并行开发的 `task-scheduler` 退出 101。错误包括 `E0432`（构建时 API 缺少 `TaskPlanSubTask`、`WorkPlanPublication`）和 `E0616`（PostgreSQL 存储访问私有 `PlanMember.id`）。后续共享构建越过 API 导出错误，仍在同一私有字段失败。网关挂载、撤除和拒绝对照尚待复验。
+
+槽位 10 的旧网关另通过 MCP 隔离对照。四个会话均有一次 `chat.done`、零错误，并回读受限模式与指定模型。MCP 实际调用为 0/1/0/0，挂载轮允许一次，拒绝轮拒绝一次。此对照使用原生技能与 MCP，选中技能挂载由新网关复验。证据位于 `target/acp-skill-coexistence/kimi-mcp-only.json`。
+
+定向单测复用槽位 3 已编译的 `llm_runtime-85f23fc8970681f8`，在持有槽位期间按 `acp_skill_coexistence_kimi --test-threads=1` 过滤，退出 0，实际执行 2 项且全部通过。两项缓存路径均为仓库内的 `target/rust-slot-3`。槽位 9 的重复单测编译随后停止，槽位租约已释放。
 
 ## 复验入口
 

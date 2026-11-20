@@ -30,3 +30,13 @@ PYTHONPATH=scripts python3 -c 'import sys; from cargo_slot import run; sys.exit(
 标准入口在基线的技能断言处退出 1。单独挂载对照临时只运行 `mounted`，同样退出 1，结果见 `target/acp-skill-coexistence/harn-mount-gate.json`。基线回读确认 `acp-coexistence / harn`、`session_model` 和 `full_access=false`，后端能力回读为 `unavailable`。首次模型请求没有预置技能正文、参考附件或 MCP 结果。两轮均没有可供核对的技能激活或 MCP 调用 ID。撤除和逐次审批拒绝对照缺少通过条件。
 
 槽位 9 的新构建在复用网关取证后取消，退出 130，子进程已退出且槽位已释放。Python 语法和 Git 空白检查通过。Rust 和受管制品没有变更，未运行 Rust 单测。继续接入需要受审 ACP 制品在每个会话安装原生延迟技能注册表，并允许追加受信选择目录。
+
+## 2026-11-21 受审替代路径复核
+
+共享工作区仍使用 0.10.201 受管 v4 合同及原 Harn pipeline、启动器和中继驱动，Harn 选集仍落入宿主默认拒绝分支。上一轮回执中的网关与直接对照已将阻塞定位到供应商 ACP 初始化。这次没有重复构建或运行网关四轮。
+
+- 扩展上述独立对照，使用同一摘要的原生二进制。CLI `harn run` 通过 `harness.agent.load_skill` 成功读取两份夹具正文；`HARN_SKILLS_PATH` 已设置且目录实际存在时，`serve acp` 中对包含 `name` 和真实 `skill_dir` 的元数据调用 `harness.agent.skill_render` 返回空串。随后 `load_skill` 仍以未绑定注册表失败。扩展对照退出 0，新增证据字段为 `cli_loaded_bodies=2` 与 `acp_metadata_only_render=empty`。
+- Harn 的 `AgentSpec.skills` 能传入元数据，但标准库的回退需要已绑定的延迟读取器或预置正文。后者无法满足私有回环对首次模型请求和按需读取的约束，也无法替代原生签名检查。Harn 的 `HostSkillSource` 是 Rust 嵌入接口。固定版 ACP 没有对应的 RPC 注册入口，现有文件和 stdio MCP 回调无法为其安装读取器。[原生注册与渲染](https://github.com/burin-labs/harn/blob/v0.10.201/crates/harn-vm/src/stdlib/skills.rs) [标准库回退](https://github.com/burin-labs/harn/blob/v0.10.201/crates/harn-stdlib/src/stdlib/agent/skills.harn)
+- 官方后续发行 v0.10.202 的 ACP 初始化仍未绑定技能注册表。以 0.10.201 标签提交 `4914194ae9f56b0046210ca90ef6f927988e727e` 测得 `cargo +1.99.1 metadata --locked --format-version 1` 在线解析退出 0，未编译供应商。源码级接入会生成与现有合同摘要不同的新原生可执行文件，现有脚本补丁和官方归档均无法提供该入口。[后续版 ACP 初始化](https://github.com/burin-labs/harn/blob/v0.10.202/crates/harn-serve/src/adapters/acp/execute.rs) [官方后续发行](https://github.com/burin-labs/harn/releases/tag/v0.10.202)
+
+继续所需输入为带可核验摘要的受审 Darwin arm64 Harn ACP 制品，或经审定的固定源码补丁与可复现构建契约。该入口需在每个 ACP 会话绑定原生延迟读取器，支持当前工作区与受信选集，保留禁用与签名语义，并沿用 v4 的模型中继、MCP 沙箱及逐次审批。然后再接入宿主选集分派并运行三轮与拒绝对照。

@@ -138,7 +138,11 @@ def native_control():
             (skill / "SKILL.md").write_text(
                 f"---\nname: {name}\ndescription: Private fixture\n---\nFixture body\n")
         pipeline = workspace / "probe.harn"
+        skill_path = json.dumps(str(Path(env["HOME"]) / NATIVE_DIR / "native-probe"))
         pipeline.write_text('pipeline default(harness: Harness) {\n'
+                            f'  const entry = {{name: "native-probe", skill_dir: {skill_path}}}\n'
+                            '  const rendered = harness.agent.skill_render(entry, [], {})\n'
+                            '  require rendered == "", "metadata-only rendering loaded the body"\n'
                             '  const result = harness.agent.load_skill("native-probe")\n'
                             '  require result != "", "missing body"\n'
                             '}\n')
@@ -148,6 +152,16 @@ def native_control():
         layers = {row["id"]: row["layer"] for row in map(json.loads, resolved.stdout.splitlines())}
         require(layers.get("native-probe") == "user" and layers.get("selected-probe") == "env",
                 "Harn CLI did not resolve both fixture skill layers")
+        script = workspace / "cli-probe.harn"
+        script.write_text('fn main(harness: Harness) {\n'
+                          '  for name in ["native-probe", "selected-probe"] {\n'
+                          '    const body = harness.agent.load_skill(name)\n'
+                          '    require contains(body, "Fixture body"), "missing CLI skill body"\n'
+                          '  }\n'
+                          '}\n')
+        loaded = subprocess.run([str(binary), "run", str(script)], cwd=workspace, env=env,
+                                capture_output=True, timeout=15)
+        require(loaded.returncode == 0, "Harn CLI could not lazily load both fixture skills")
         process = Process([str(binary), "serve", "acp", "--session-environment", "isolated", str(pipeline)],
                           workspace, env, root / "native.stderr")
         try:
@@ -164,6 +178,7 @@ def native_control():
                     require(failure in json.dumps(frame.get("error")), "unexpected Harn ACP loader outcome")
                     return {"artifact": artifact, "cli_layers": {
                         "native": layers["native-probe"], "selected": layers["selected-probe"]},
+                        "cli_loaded_bodies": 2, "acp_metadata_only_render": "empty",
                         "acp_call": "harness.agent.load_skill", "acp_error": failure}
                 if "id" in frame and "method" in frame:
                     response = {"jsonrpc": "2.0", "id": frame["id"],

@@ -305,9 +305,7 @@ fn settings_shell(
         );
     }
     let close_message = Message::View(message::ViewMessage::ToggleSystemSettings);
-    let mut actions = row![super::system_settings_device_sync::entry_points()]
-        .spacing(6)
-        .align_y(Alignment::Center);
+    let mut actions = row![].spacing(6).align_y(Alignment::Center);
     if let Some(help) = system_settings_help::help_button(app.general_settings.desktop_locale, help_tab) {
         actions = actions.push(help);
     }

@@ -1249,7 +1249,7 @@
     {
       "key": "cursor",
       "version": "2026.11.11-b912975",
-      "status": "candidate",
+      "status": "verified",
       "platform": {
         "review_host": "Darwin-arm64",
         "artifact_scope": "Darwin arm64 官方固定归档及受管 model-source-v6。",
@@ -1286,7 +1286,7 @@
         "session_isolation": "无选集时保留原生目录。同名目录拒绝歧义。"
       },
       "permissions": {
-        "status": "原生进程使用现有文件检查与 MCP 审批，网关验收见回执。",
+        "status": "受管 session_model 的只读技能与 MCP 单次允许、拒绝对照已通过。",
         "requirements": "执行端重新审核目录、租户/项目/会话权限、路径逃逸与符号链接；支持文件/脚本/MCP 仍受各自授权限制，不扩大 full_access。",
         "agent_specific": "挂载仅限受管 session_model 和启用工具的会话。"
       },
@@ -1323,7 +1323,17 @@
         }
       ],
       "supplemental_official_docs": [],
-      "next_validation": "定向网关验收和支持范围见 docs/dev/acp/skill-coexistence/cursor.md"
+      "next_validation": "受管制品或技能接线变更后复跑同一验收。其他平台暂未验证。",
+      "runtime_acceptance": {
+        "path": "target/acp-skill-coexistence/cursor.json",
+        "receipt": "../../dev/acp/skill-coexistence/cursor.md",
+        "sha256": "3ab58359b9df7ff33ea51f54dbe49128833f2acfd59f58101c3f7bb23a5ecfed",
+        "platform": "Darwin-arm64",
+        "sources": [
+          "session-model"
+        ],
+        "effective_turns": 4
+      }
     },
     {
       "key": "droid",

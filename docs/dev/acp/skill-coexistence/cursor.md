@@ -25,6 +25,15 @@ v6 将 ShiJu 会话视图追加到 Cursor Agent Store 的原生扫描路径，�
 
 网关结构化证据保存至 `target/acp-skill-coexistence/cursor.json`。
 
-## 当前网关验证状态
+## 网关验证
 
-槽位 3 中的 v6 网关构建退出 101。共享工作区的 Qoder 请求接线调用了私有函数，并传入与其签名不符的泛型技能视图，触发 E0603 和 E0308。构建在启动探针前结束。首次构建日志保留在 `target/acp-skill-coexistence/cursor-build-qoder-failure.log`。Qoder 接线修复后，在槽位 3 运行 `cargo test --locked -j 1 -p llm-runtime --lib acp_skill_coexistence_cursor -- --test-threads=1`，退出 0，2 项通过。并行的同目标构建随后在 `task-scheduler` 报 E0616。PostgreSQL 工作计划发布代码访问了私有的 `PlanMember.id`，当前源码仍有此访问。Cursor 槽位内的第二次构建尚在等待锁，已取消该等待并核实清理。保留 `target/acp-skill-coexistence/cursor-shared-scheduler-blocker.log`。网关的三轮及拒绝对照等待共享目标恢复后复验。
+2026-11-21 在 Cargo 槽位 6 复用共享 `vw-cli --bin shiju`。两个 Cargo 路径均为 `/Users/xiangmin/worker/code/shiju/target/rust-slot-6`。网关 SHA-256 为 `c59878516f6a88bb8f60ce78955654b9859bca9b82af6711fc14c83d0a572eba`。
+
+构建源码为 `03e5fc747ed4571184fbb6a156bb48d093b9fee0` 及共享构建记录中的在途差异。持有同一槽位时核对源码树和差异摘要、内嵌 Cursor v6 补丁及制品摘要。共享构建与本卡探针均退出 0，本次复跑仅执行网关探针。四轮绑定都为 `acp-coexistence / cursor`，模型为 `coexistence-fixture/deepseek-v4.1-flash-1017`，来源为 `session_model`。权限意图为 `full_access=false`，回读状态为 `unavailable`。
+
+- `baseline` 会话 `ses_e05fae84cffe7fJNRHMCnHese0` 有 3 次模型请求、1 个 `chat.done`、0 个 `chat.error`。原生正文 `cursor_probe_ed94e1f320a7c848f2bf335f`、原生附件 `cursor_probe_e63815d4bb676243b5a4ff61`。
+- `mounted` 会话 `ses_e05fada0fffeBcO19TJ5RevXNg` 有 6 次模型请求、1 个 `chat.done`、0 个 `chat.error`。原生正文 `cursor_probe_338ba67135e7fcabf3731ca4`、原生附件 `cursor_probe_66213e921242919abd4ecf62`、选中正文 `cursor_probe_67bda05dae8649086b43406c`、选中附件 `cursor_probe_146ddddaafd6262a04d67afa`、MCP `cursor_probe_aef8892fc075f2ebd81b5646`。
+- `removed` 会话 `ses_e05fac9c2ffehsyTIx0zRWie3f` 有 3 次模型请求、1 个 `chat.done`、0 个 `chat.error`。原生正文 `cursor_probe_403fcc9b4c3b24e45f942141`、原生附件 `cursor_probe_e06c9b713668278522dae85f`。
+- `rejected` 会话 `ses_e05fabccdffe2wCP5sior1oC24` 有 6 次模型请求、1 个 `chat.done`、0 个 `chat.error`。原生正文 `cursor_probe_6dba19113613b6c3d0c8c074`、原生附件 `cursor_probe_d96cb761de0984ed5da4eb74`、选中正文 `cursor_probe_7dfe7391d760c51f0d0d29bb`、选中附件 `cursor_probe_990b82c3f0a68fe4b5fff77f`、MCP `cursor_probe_246b02a25eb0aff72bd34cfe`。
+
+MCP 下游计数为 `0/1/0/0`，挂载轮批准一次，拒绝对照无下游执行。定向 Rust 测试 `cargo test --locked -j 1 -p llm-runtime --lib acp_skill_coexistence_cursor -- --test-threads=1` 退出 0，2 项通过。

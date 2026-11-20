@@ -364,7 +364,9 @@ pub async fn do_stream_request_acp<H: Host>(
     }
     H::validate_mounts(&acp_agent_name, !parsed_options.skill_mounts.is_empty())?;
 
-    if acp_agent_name == "dimcode" && !parsed_options.mcp_servers.is_empty() {
+    if acp_agent_name == "dimcode"
+        && (!parsed_options.mcp_servers.is_empty() || parsed_options.skill_view.is_some())
+    {
         if parsed_options.mcp_servers.iter().any(|server| {
             matches!(server, agent_client_protocol::McpServer::Stdio(_))
         }) {
@@ -377,7 +379,7 @@ pub async fn do_stream_request_acp<H: Host>(
             || merged_options.get("disable_tools").and_then(Value::as_bool) == Some(true)
         {
             return Err(acp_option_error(
-                "DimCode MCP requires session_model with enabled tool approvals",
+                "DimCode skills and MCP require session_model with enabled tool approvals",
             ));
         }
         acp_agent_registry::verify_reviewed_agent_executable("dimcode", &normalized_acp_cfg.command)
@@ -480,6 +482,13 @@ pub async fn do_stream_request_acp<H: Host>(
     } else {
         None
     };
+    if acp_agent_name == "dimcode"
+        && parsed_options.permission_mode != Some(acp_types::PermissionMode::DenyAll)
+        && merged_options.get("disable_tools").and_then(Value::as_bool) != Some(true)
+        && let Some(profile) = launch_profile.as_mut()
+    {
+        super::skill_mounts::dimcode::configure(profile, parsed_options.skill_view.as_ref())?;
+    }
     if acp_agent_name == "sigit" && let Some(profile) = launch_profile.as_mut() {
         super::skill_mounts::sigit::configure(profile, parsed_options.skill_view.as_ref())?;
     }

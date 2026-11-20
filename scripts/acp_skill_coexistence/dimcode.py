@@ -18,11 +18,13 @@ from . import correlated_result
 from .opencode import Handler, Probe as OpenCodeProbe
 
 MODEL = "selected-model"
+# The native client requests this budget for tool turns.
+MODEL_OUTPUT_LIMIT = 16_384
 ADAPTER = "openai"
 API_PATH = "/v1"
 TRANSPORT = "http"
 NATIVE_DIR = ".agents/skills"
-REVISION = "dimcode-0.5.28-model-source-v2"
+REVISION = "dimcode-0.5.28-model-source-v3"
 MCP_TOOL = "coexistence__read_probe"
 
 
@@ -117,7 +119,8 @@ class Probe(OpenCodeProbe):
             require(path.is_absolute() and path.resolve() == skill["path"].resolve() / "SKILL.md",
                     f"unexpected DimCode {step} activation path")
             if step == "selected":
-                require(path.parent.parent.name.startswith("shiju-session-skills-"),
+                require(path.parent.is_symlink() and path.parents[1].name == "skills"
+                        and path.parents[2].name.startswith("shiju-session-skills-"),
                         "DimCode selected skill bypassed the session view")
             self.completed[step] = call_id
             return self.call(tools, step + "_read", "read",

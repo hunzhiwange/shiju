@@ -9,6 +9,7 @@ mod copilot;
 pub(super) mod corust_agent;
 pub(super) mod cortex_code;
 mod cursor;
+pub(super) mod dimcode;
 mod dirac;
 mod droid;
 #[cfg(test)]
@@ -71,6 +72,7 @@ pub fn validate(agent: &str, selected: bool) -> Result<(), Error> {
         "deepagents" if cfg!(all(target_os = "macos", target_arch = "aarch64")) => return Ok(()),
         "cortex-code" if cfg!(all(target_os = "macos", target_arch = "aarch64")) => return Ok(()),
         "dirac" if cfg!(all(target_os = "macos", target_arch = "aarch64")) => return Ok(()),
+        "dimcode" if cfg!(all(target_os = "macos", target_arch = "aarch64")) => return Ok(()),
         "droid" => droid::rejection(),
         "qoder" if cfg!(all(target_os = "macos", target_arch = "aarch64")) => return Ok(()),
         "trae" if cfg!(all(target_os = "macos", target_arch = "aarch64")) => return Ok(()),

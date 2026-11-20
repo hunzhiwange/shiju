@@ -52,7 +52,9 @@ fn installed_directory(agent: &str, contract: &Contract) -> Result<PathBuf, Stri
         5
     } else if matches!(agent, "corust-agent" | "harn" | "sigit") {
         4
-    } else if matches!(agent, "aionrs" | "dimcode" | "goose" | "vtcode") {
+    } else if agent == "dimcode" {
+        3
+    } else if matches!(agent, "aionrs" | "goose" | "vtcode") {
         2
     } else if matches!(agent, "droid" | "kiro") {
         2

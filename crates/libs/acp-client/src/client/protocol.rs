@@ -334,7 +334,15 @@ impl AcpClient {
                 "DimCode does not support ACP stdio MCP; select an HTTP or SSE server".into(),
             ));
         }
-        if self.agent_name == "dimcode" && !self.mcp_servers.is_empty() {
+        if self.agent_name == "dimcode"
+            && (!self.mcp_servers.is_empty() || self.config.env.contains_key("SHIJU_ACP_DIMCODE_SKILL_ROOT"))
+        {
+            if self.config.env.contains_key("SHIJU_ACP_DIMCODE_SKILL_ROOT")
+                && (self.skill_mount_lease.is_none()
+                    || self.skill_mounts.as_ref().is_none_or(|selection| selection.skills.is_empty()))
+            {
+                return Err(AcpError::NewSession("DimCode skill mount requires a live host selection".into()));
+            }
             if self.permission_mode == PermissionMode::DenyAll
                 || self.config.args != ["acp"]
                 || !self.config.env.contains_key("VW_ACP_LAUNCH_REFERENCE")

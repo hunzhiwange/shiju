@@ -78,10 +78,23 @@ impl AcpClient {
         let (completed_tx, completed_rx) = watch::channel(false);
         self.register_active_prompt(session_id.clone(), cancel_tx, completed_rx);
 
-        let prompt_future = runtime.conn.prompt(acp::PromptRequest::new(
+        let mut prompt_request = acp::PromptRequest::new(
             acp::SessionId::new(session_id.clone()),
             request.prompt,
-        ));
+        );
+        if self.agent_name == "dimcode"
+            && self.permission_mode != PermissionMode::DenyAll
+            && self.config.args == ["acp"]
+            && self.config.env.contains_key("VW_ACP_LAUNCH_REFERENCE")
+            && self.config.env.get("SHIJU_ACP_DIMCODE_COEXISTENCE").is_some_and(|value| value == "1")
+            && crate::verify_reviewed_agent_executable("dimcode", &self.config.command).is_ok()
+        {
+            prompt_request = prompt_request.meta(Map::from_iter([(
+                "shiju.dimcode".into(),
+                serde_json::json!({"version": 1, "root": self.config.env.get("SHIJU_ACP_DIMCODE_SKILL_ROOT")}),
+            )]));
+        }
+        let prompt_future = runtime.conn.prompt(prompt_request);
         tokio::pin!(prompt_future);
 
         let mut deltas = Vec::new();

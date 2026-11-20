@@ -1,0 +1,221 @@
+"""Probe GLM 1.17.1's model and ACP slash-command discovery paths."""
+import hashlib
+import json
+from pathlib import Path
+import platform
+import secrets
+import shutil
+import subprocess
+import sys
+import tempfile
+
+from verify_acp_approval import environment
+from verify_acp_integration import Process, ProviderHandler, require
+from verify_acp_model_source import ROOT
+
+AGENT = "glm-acp-agent"
+VERSION = "1.17.1"
+REVISION = f"{AGENT}-{VERSION}-model-source-v2"
+MODEL = "deepseek-v4.1-flash-1017"
+MODEL_OUTPUT_LIMIT = 32_768
+ADAPTER = "openai"
+API_PATH = "/v1"
+TRANSPORT = "stdio"
+NATIVE_DIR = ".claude/skills"
+SLASH_SCANNER = "dist/protocol/slash-commands.js"
+SLASH_SHA256 = "14acef1c5378785fffabf5783c46cbd517fe3c12de721684fd749ab6af8e2a96"
+
+
+def launch(env):
+    require((platform.system(), platform.machine()) == ("Darwin", "arm64"),
+            "unreviewed GLM coexistence platform")
+    installer = ROOT / "crates/libs/acp-agent-registry/src/managed_runtime"
+    contracts = installer / "contracts.json"
+    contract = json.loads(contracts.read_text())[AGENT]
+    require(contract["version"] == VERSION, "unexpected GLM package version")
+    config = Path(env["VIBEWINDOW_CONFIG_DIR"])
+    assets = config / "glm-install-assets"
+    assets.mkdir(mode=0o700)
+    shutil.copyfile(contracts, assets / "contracts.json")
+    patch = ROOT / "patches/acp-model-source" / AGENT / f"{AGENT}-{VERSION}-managed.patch"
+    shutil.copyfile(patch, assets / f"{AGENT}.patch")
+    runtime = config / "acp-runtime" / REVISION
+    runtime.parent.mkdir(mode=0o700)
+    installed = subprocess.run([sys.executable, str(installer / "install.py"),
+                                str(assets), str(runtime), AGENT],
+                               env=env, capture_output=True, timeout=100)
+    require(installed.returncode == 0, "reviewed GLM private installation failed")
+    package = runtime / "node_modules" / AGENT
+    hashes = {**contract["files"], SLASH_SCANNER: SLASH_SHA256}
+    for name, digest in hashes.items():
+        require(hashlib.sha256((package / name).read_bytes()).hexdigest() == digest,
+                f"reviewed GLM checksum mismatch: {name}")
+    return {"command": str(package / contract["bin"]), "args": []}, {
+        "version": VERSION, "revision": REVISION, "integrity": contract["integrity"], "sha256": hashes,
+    }
+
+
+class Probe:
+    def __init__(self, fixtures, mounted, rejected, *, slash=False):
+        self.fixtures = fixtures
+        self.mounted = mounted
+        self.rejected = rejected
+        self.slash = slash
+        self.requests = 0
+        self.pending = None
+        self.completed = {}
+        self.failure = None
+
+    def response(self, body):
+        tools = {row["function"]["name"]: row["function"] for row in body.get("tools", [])}
+        if not tools:
+            return {"content": "GLM fixture session"}, "stop"
+        require(body["model"] == MODEL and body.get("stream") is True,
+                "unexpected GLM Chat Completions request")
+        self.requests += 1
+        native = self.fixtures["skills"]["native"]
+        messages = body["messages"]
+        wire = json.dumps(body)
+        if self.requests == 1:
+            for kind, skill in self.fixtures["skills"].items():
+                if not (self.slash and kind == "native"):
+                    require(skill["body"] not in wire, "GLM included a skill body before activation")
+                require(skill["attachment"] not in wire, "GLM included a skill attachment before reading")
+            require(self.fixtures["mcp"] not in wire, "GLM included the MCP result before invocation")
+            require("read_file" in tools, "GLM omitted its native file reader")
+            if not self.slash:
+                require(all(skill["name"] not in wire for skill in self.fixtures["skills"].values()),
+                        "GLM model catalog changed; re-audit the loader")
+                self.failure = "GLM exposes native skills as client slash commands only"
+                return {"content": "GLM model discovery control finished"}, "stop"
+            source = native["path"] / "SKILL.md"
+            require(any(row["role"] == "user" and native["body"] in row["content"]
+                        and f'source="{source}"' in row["content"] for row in messages),
+                    "GLM did not expand the advertised native slash command")
+            require(("read_probe" in tools) == (self.mounted and not self.rejected),
+                    "unexpected GLM stdio MCP directory")
+            return self.call(tools, "native_read", "read_file",
+                             {"path": str(source.parent / "references/value.txt")})
+
+        step, call_id = self.pending
+        results = [row["content"] for row in messages
+                   if row.get("role") == "tool" and row.get("tool_call_id") == call_id]
+        value = native["attachment"] if step == "native_read" else self.fixtures["mcp"]
+        if step == "mcp" and self.rejected:
+            require(len(results) == 1 and value not in results[0] and "unknown tool" in results[0],
+                    "denied GLM MCP call did not fail locally")
+        else:
+            require(len(results) == 1 and value in results[0], f"missing GLM {step} result")
+        self.completed[step] = call_id
+        if self.mounted and step == "native_read":
+            # The policy control intentionally tries the excluded tool.
+            return self.call(tools, "mcp", "read_probe", {})
+        return {"content": "GLM native slash control finished"}, "stop"
+
+    def call(self, tools, step, name, arguments):
+        if not (step == "mcp" and self.rejected):
+            schema = tools[name]["parameters"]
+            require(set(schema.get("required", ())) <= arguments.keys() <= schema["properties"].keys(),
+                    f"unexpected GLM {name} schema")
+        call_id = "call_" + secrets.token_hex(12)
+        self.pending = step, call_id
+        return {"tool_calls": [{"index": 0, "id": call_id, "type": "function",
+                                "function": {"name": name, "arguments": json.dumps(arguments)}}]}, "tool_calls"
+
+    def approves(self, metadata):
+        return (self.pending is not None and self.pending[0] == "mcp"
+                and metadata.get("title") == "read_probe" and metadata.get("arguments") == {})
+
+
+class Handler(ProviderHandler):
+    def do_POST(self):
+        probe = self.server.probe
+        try:
+            require(self.path == "/v1/chat/completions", "unexpected GLM model endpoint")
+            require(self.headers.get("Authorization") == "Bearer " + self.server.key,
+                    "unauthenticated GLM model request")
+            delta, finish = probe.response(json.loads(self.rfile.read(int(self.headers["Content-Length"]))))
+        except (AssertionError, KeyError, TypeError, ValueError) as error:
+            probe.failure = str(error) if isinstance(error, AssertionError) else "invalid GLM model request"
+            self.send_error(422, "GLM probe failed")
+            return
+        self.send_response(200)
+        self.send_header("Content-Type", "text/event-stream")
+        self.end_headers()
+        self.chunk(MODEL, dict(delta, role="assistant"), None)
+        self.chunk(MODEL, {}, finish)
+        self.wfile.write(b"data: [DONE]\n\n")
+
+
+def direct_control():
+    """Observe the provider's client-only menu and the managed stdio dispatch."""
+    from verify_acp_skill_coexistence import make_skill, mcp_server, model_server
+
+    with tempfile.TemporaryDirectory(prefix="shiju-glm-slash-") as directory:
+        root = Path(directory).resolve()
+        env = environment(root)
+        spec, artifact = launch(env)
+        workspace = root / "workspace"
+        native = make_skill(workspace / NATIVE_DIR, "native")
+        attachment = root / "mcp.txt"
+        attachment.write_text(secrets.token_hex(24))
+        fixtures = {"skills": {"native": native}, "mcp": attachment.read_text()}
+        audit = root / "audit.txt"
+        key = secrets.token_hex(24)
+        with model_server(Handler, key) as model, mcp_server(TRANSPORT, attachment, audit) as mcp:
+            env.update(ACP_GLM_MODEL=MODEL, ACP_GLM_AVAILABLE_MODELS=MODEL,
+                       ACP_GLM_BASE_URL=f"http://127.0.0.1:{model.server_port}{API_PATH}",
+                       Z_AI_API_KEY=key, XDG_CONFIG_HOME=env["VIBEWINDOW_CONFIG_DIR"],
+                       ACP_GLM_SESSION_DIR=str(root / "sessions"))
+            process = Process(["node", spec["command"]], workspace, env, root / "agent.log")
+            rows = []
+            try:
+                info, _ = process.call("initialize", {"protocolVersion": 1, "clientCapabilities": {}})
+                require(info["agentInfo"]["version"] == VERSION, "unexpected GLM ACP version")
+                ordinary, _ = process.call("session/new", {"cwd": str(workspace), "mcpServers": []})
+                model.probe = plain = Probe(fixtures, False, False)
+                prompt, _ = process.call("session/prompt", {"sessionId": ordinary["sessionId"],
+                    "prompt": [{"type": "text", "text": "Check the available read-only fixture resources."}]})
+                require(prompt["stopReason"] == "end_turn" and plain.requests == 1
+                        and plain.failure == "GLM exposes native skills as client slash commands only",
+                        "ordinary GLM model discovery control changed")
+                denied = {**mcp, "_meta": {"shiju.glm.toolPolicy": {"allow": [], "deny": ["read_probe"]}}}
+                for phase, servers in (("baseline", []), ("mounted", [mcp]),
+                                       ("removed", []), ("policy_denied", [denied])):
+                    session, updates = process.call("session/new", {"cwd": str(workspace), "mcpServers": servers})
+                    model.probe = probe = Probe(fixtures, bool(servers), phase == "policy_denied", slash=True)
+                    before = audit.read_text().splitlines() if audit.exists() else []
+                    result, events = process.call("session/prompt", {"sessionId": session["sessionId"],
+                        "prompt": [{"type": "text", "text": "/" + native["name"]}]})
+                    require(not probe.failure, probe.failure)
+                    require(result["stopReason"] == "end_turn", "GLM slash prompt did not finish")
+                    require(any(update.get("sessionUpdate") == "available_commands_update"
+                                and any(row["name"] == native["name"] for row in update["availableCommands"])
+                                for event in updates + events
+                                if (update := event.get("params", {}).get("update"))),
+                            "GLM ACP omitted the native slash menu entry")
+                    expected_calls = {"native_read", "mcp"} if servers else {"native_read"}
+                    require(set(probe.completed) == expected_calls
+                            and probe.requests == len(expected_calls) + 1,
+                            "incomplete GLM slash control continuation")
+                    approvals = sum(event.get("method") == "session/request_permission"
+                                    for event in updates + events)
+                    require(approvals == 0, "GLM sent an unexpected permission request")
+                    after = audit.read_text().splitlines() if audit.exists() else []
+                    require(after == before + ([TRANSPORT] if phase == "mounted" else []),
+                            "incorrect direct GLM MCP audit count")
+                    rows.append({"phase": phase, "session": session["sessionId"], "stop": result["stopReason"],
+                                 "model_requests": probe.requests, "native_slash_discovered": True,
+                                 "calls": probe.completed, "approval_requests": approvals,
+                                 "mcp_calls": len(after) - len(before)})
+            finally:
+                process.close()
+            require(process.child.returncode == 0, "GLM ACP process did not exit cleanly")
+            require(len({row["session"] for row in rows}) == len(rows), "GLM reused an ACP session")
+            return {"artifact": artifact, "model": MODEL, "turns": rows,
+                    "ordinary_prompt": {"stop": prompt["stopReason"], "model_requests": plain.requests,
+                                        "failure": plain.failure}}
+
+
+if __name__ == "__main__":
+    print(json.dumps(direct_control(), indent=2))

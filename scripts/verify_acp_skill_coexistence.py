@@ -24,7 +24,7 @@ from verify_acp_integration import require
 from verify_acp_model_source import ROOT, Unavailable
 
 # Add a key only once its supplier module implements the reviewed probe interface.
-AGENTS = ("claude", "qwen", "gemini", "codebuddy", "vibe", "snow", "goose", "hermes", "copilot", "kilocode", "kiro", "opencode", "openclaw", "pi", "iflow", "auggie", "cursor", "droid", "kimi", "qoder", "trae", "amp-acp", "aionrs", "autohand", "corust-agent", "dimcode", "deepagents")
+AGENTS = ("claude", "qwen", "gemini", "codebuddy", "vibe", "snow", "goose", "hermes", "copilot", "kilocode", "kiro", "opencode", "openclaw", "pi", "iflow", "auggie", "cursor", "droid", "kimi", "qoder", "trae", "amp-acp", "aionrs", "autohand", "corust-agent", "dimcode", "deepagents", "glm-acp-agent")
 AGENT_PROFILE = "acp-coexistence"
 PROVIDER = "coexistence-fixture"
 PHASES = ("baseline", "mounted", "removed", "rejected")
@@ -182,7 +182,8 @@ def run(agent, binary, report):
                       "providers": {PROVIDER: {"name": "Private coexistence fixture", "api": endpoint,
                           "adapter": supplier.ADAPTER, "env": ["ACP_COEXISTENCE_KEY"],
                           "models": {supplier.MODEL: {"status": "active", "temperature": True,
-                              "tool_call": True, "limit": {"context": 100000, "output": 1024}}}}}}
+                              "tool_call": True, "limit": {"context": 100000,
+                                  "output": getattr(supplier, "MODEL_OUTPUT_LIMIT", 1024)}}}}}}
             request(url, "/global/config", config, method="PATCH")
             for phase in PHASES:
                 report["stage"] = phase

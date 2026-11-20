@@ -241,7 +241,7 @@ def stop_gateway_children(session_id):
 
 
 @contextmanager
-def gateway(binary, root, env):
+def gateway(binary, root, env, *, cwd=None):
     db = Path(env["VIBEWINDOW_CONFIG_DIR"]) / "database/vibe-window.sqlite3"
     db.parent.mkdir()
     with sqlite3.connect(db) as conn:
@@ -255,7 +255,7 @@ def gateway(binary, root, env):
     url = f"http://127.0.0.1:{port}/v1"
     with (root / "gateway.log").open("wb") as log:
         child = subprocess.Popen([binary, "gateway", "--host", "127.0.0.1", "-p", str(port)],
-                                 cwd=root, env=env, stdout=log, stderr=log, start_new_session=True)
+                                 cwd=cwd or root, env=env, stdout=log, stderr=log, start_new_session=True)
         try:
             for _ in range(120):
                 if child.poll() is not None:

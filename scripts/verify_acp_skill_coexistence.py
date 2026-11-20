@@ -24,7 +24,7 @@ from verify_acp_integration import require
 from verify_acp_model_source import ROOT, Unavailable
 
 # Add a key only once its supplier module implements the reviewed probe interface.
-AGENTS = ("claude", "qwen", "gemini", "codebuddy", "vibe", "hermes", "kilocode", "copilot", "snow", "openclaw", "opencode", "pi", "auggie", "droid", "kiro", "iflow", "cursor", "kimi", "qoder", "trae", "amp-acp", "aionrs")
+AGENTS = ("claude", "qwen", "gemini", "codebuddy", "vibe", "hermes", "kilocode", "copilot", "snow", "openclaw", "opencode", "pi", "auggie", "droid", "kiro", "iflow", "cursor", "kimi", "qoder", "trae", "amp-acp", "aionrs", "autohand")
 AGENT_PROFILE = "acp-coexistence"
 PROVIDER = "coexistence-fixture"
 PHASES = ("baseline", "mounted", "removed", "rejected")
@@ -175,7 +175,8 @@ def run(agent, binary, report):
                                       else mcp_server(supplier.TRANSPORT, attachment, audit))
             config_path.write_text(json.dumps({"mcpServers": [mcp]}))
             model = stack.enter_context(model_server(supplier.Handler, env["ACP_COEXISTENCE_KEY"]))
-            url = stack.enter_context(gateway(str(binary), root, env))
+            gateway_options = {"cwd": workspace} if getattr(supplier, "GATEWAY_WORKSPACE_CWD", False) else {}
+            url = stack.enter_context(gateway(str(binary), root, env, **gateway_options))
             endpoint = f"http://127.0.0.1:{model.server_port}{supplier.API_PATH}"
             config = {"workspace_dir": str(workspace), "acp": {agent: spec},
                       "providers": {PROVIDER: {"name": "Private coexistence fixture", "api": endpoint,
@@ -198,7 +199,8 @@ def run(agent, binary, report):
                 model.probe = probe = supplier.Probe(fixtures, mounted, rejected)
                 body = {"session_id": sid, "agent": AGENT_PROFILE, "acp_model_source": "session_model",
                         "model": model_id, "options": {"full_access": False, "cwd": str(workspace)},
-                        "messages": [{"role": "user", "content": "Check the available read-only fixture resources."}]}
+                        "messages": [{"role": "user", "content": getattr(supplier, "PROMPT",
+                            "Check the available read-only fixture resources.")}]}
                 before = audit.read_text().splitlines() if audit.exists() else []
                 stream, decisions, skill_approvals, live_access = interactive_turn(url, query, body, probe, rejected)
                 after = audit.read_text().splitlines() if audit.exists() else []

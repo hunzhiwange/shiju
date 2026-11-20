@@ -57,7 +57,7 @@ impl AcpClient {
         // These engines initialize project state before their first session/new RPC.
         let ProcessHandles { mut child, stderr_task } =
             if self.managed_corust()
-                || matches!(self.agent_name.as_str(), "nova" | "poolside")
+                || matches!(self.agent_name.as_str(), "codebuddy" | "nova" | "poolside")
                 || (self.agent_name == "stakpak"
                     && self.config.env.contains_key("VW_ACP_LAUNCH_REFERENCE"))
             {

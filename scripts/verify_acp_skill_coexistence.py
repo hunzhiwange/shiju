@@ -23,7 +23,7 @@ from verify_acp_integration import require
 from verify_acp_model_source import ROOT, Unavailable
 
 # Add a key only once its supplier module implements the reviewed probe interface.
-AGENTS = ("claude", "qwen", "gemini")
+AGENTS = ("claude", "qwen", "gemini", "codebuddy")
 AGENT_PROFILE = "acp-coexistence"
 PROVIDER = "coexistence-fixture"
 PHASES = ("baseline", "mounted", "removed", "rejected")
@@ -63,7 +63,7 @@ def interactive_turn(url, query, body, probe, rejected):
     with ThreadPoolExecutor(max_workers=1) as pool:
         stream = pool.submit(request, url, "/chat/stream" + query, body)
         while not stream.done():
-            if live_access is None:
+            if live_access is None or live_access.get("support") == "failed":
                 controls = json.loads(request(url, f"/session/{sid}/acp-options" + query))
                 if controls.get("connected"):
                     live_access = controls.get("access_status")
@@ -181,9 +181,15 @@ def run(agent, binary, report):
                         "MCP audit transport mismatch")
                 verify_turn(row, mounted, rejected)
                 if "skill_approvals" in row:
-                    require(skill_approvals == (["native", "selected"] if mounted else ["native"]),
-                            "missing or unexpected skill approval")
+                    expected = ["native", "selected"] if mounted else ["native"]
+                    if hasattr(probe, "expected_skill_approvals"):
+                        expected = probe.expected_skill_approvals()
+                    require(skill_approvals == expected, "missing or unexpected skill approval")
                 row.update(readback(url, query, sid, agent, model_id, live_access))
+            verify_native_plugins = getattr(supplier, "verify_native_plugins", None)
+            if verify_native_plugins is not None:
+                report["stage"] = "native_plugins"
+                report["native_plugins"] = verify_native_plugins(spec, root, env, model, make_skill)
         require(len({row["session"] for row in report["turns"]}) == len(PHASES), "sessions reused across phases")
 
 

@@ -429,7 +429,7 @@
       "status": "verified",
       "platform": {
         "review_host": "Darwin-arm64",
-        "artifact_scope": "Darwin-arm64 fixed reviewed 2.179.3: production ACP, native Skill/Read/Bash and both model-source lifecycles verified. Other platforms and versions remain unverified.",
+        "artifact_scope": "Darwin-arm64 fixed CodeBuddy 2.179.3. The v2 coexistence receipt and the historical v1 lifecycle receipt cover their respective managed artifacts.",
         "linux": "unverified",
         "windows": "unverified"
       },
@@ -451,15 +451,15 @@
         ],
         "binding": "crates/vw-acp/src/agent_registry.rs::BUILT_IN_AGENT_DEFINITIONS",
         "runtime_executed": true,
-        "note": "Fixed reviewed repository-private runtime; five file hashes checked before selected mounts. Both sources exercised real ACP and native tools."
+        "note": "Five hashes identify the current managed artifact before selected mounts. The historical v1 receipt covers both model sources."
       },
       "mount": {
         "candidate_paths": [
           "SHIJU_CODEBUDDY_SKILL_ROOT (reviewed owned session view)"
         ],
-        "discovery": "Reviewed scanner and final configuration/session merge filters expose exactly selected skills; implicit builtin, plugin, user and project roots are excluded.",
+        "discovery": "The v2 scanner appends the owned selection after the native scan. CodeBuddy retains native configuration and session merge precedence.",
         "activation": "First model prompt is body-free; actual native Skill result reads the body and identifies the resource directory before Read/Bash.",
-        "session_isolation": "Both-source empty selection, removal and independent session probes passed. cli_local also excludes a real loaded plugin; source default roots are not written."
+        "session_isolation": "An empty selection appends no ShiJu view. CodeBuddy retains native discovery and disabled plugin handling."
       },
       "permissions": {
         "status": "verified for reviewed Darwin-arm64 2.179.3 runtime",
@@ -520,23 +520,23 @@
         },
         {
           "path": "target/codebuddy-skill-runtime/node_modules/@tencent-ai/codebuddy-code/dist/codebuddy-headless.js",
-          "sha256": "ed13e21d8ba4f629c11887c5cdc0a4c4fb19dcd1e3d291c92b8a1edc01f25322",
+          "sha256": "fa53e4207ccd339b4235759270e3db530ecc4379f64bf040df0a2d7fcce00c9f",
           "kind": "reviewed_patched_source",
-          "bytes": 28347308,
+          "bytes": 28346490,
           "observations": []
         },
         {
           "path": "target/codebuddy-skill-runtime/node_modules/@tencent-ai/codebuddy-code/dist/codebuddy.js",
-          "sha256": "e0da6bd95a4c9dae0bc3aca159a296c4c20540f0125740f12b4eaf6bd2836880",
+          "sha256": "f9bdd59643067ffe91c70d52ccc058221556363556fef2ce8495429d0dbbe6c8",
           "kind": "reviewed_patched_source",
-          "bytes": 32793602,
+          "bytes": 32792784,
           "observations": []
         },
         {
           "path": "target/codebuddy-skill-runtime/node_modules/@tencent-ai/codebuddy-code/dist-server/codebuddy.js",
-          "sha256": "51fac8c2ae74c580e3eb4d281da9fd7762b88654c99df649cc8807fec7d25a6c",
+          "sha256": "60dd275cda7026b50a036e371616fb6e8dd7324ba92c423abeed89192ebf58e2",
           "kind": "reviewed_patched_source",
-          "bytes": 11708335,
+          "bytes": 11707522,
           "observations": []
         },
         {
@@ -564,7 +564,8 @@
           "session_model",
           "cli_local"
         ],
-        "limitation": "Reviewed patched CodeBuddy 2.179.3 only. Other versions/platforms and REPL tool presentation remain unverified; real acceptance used native direct tools with CODEBUDDY_REPL_ENABLED=0 and CODEBUDDY_DEFER_TOOL_LOADING=false."
+        "limitation": "Historical v1 lifecycle acceptance used native direct tool presentation. See the v2 coexistence receipt for current coverage.",
+        "coexistence": "../../dev/acp/skill-coexistence/codebuddy.md"
       },
       "delivery_acceptance": {
         "status": "verified",

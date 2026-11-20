@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Apply reviewed skill scanner isolation to exact CodeBuddy 2.179.3."""
+"""Apply reviewed session skill scan to exact CodeBuddy 2.179.3."""
 import hashlib
 import json
 from pathlib import Path

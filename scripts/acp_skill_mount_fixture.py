@@ -256,8 +256,9 @@ class SkillMountFixture:
                         expected = set() if self.mode == "absent" else {self.name}
                         if self.mode == "added":
                             expected.add(self.name + "-added")
-                        if names != expected:
-                            raise ValueError("Snow native catalog does not equal selected skills")
+                        mounted_ids = names & {self.name, self.name + "-added"}
+                        if mounted_ids != expected:
+                            raise ValueError("Snow catalog has incorrect mounted skills")
                     if getattr(self, "hermes_native", False):
                         self.discovered_dir = None
                         catalog = "\n".join(str(m.get("content", "")) for m in messages if m.get("role") == "system")

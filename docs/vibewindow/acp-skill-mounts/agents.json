@@ -1015,11 +1015,11 @@
       },
       "mount": {
         "candidate_paths": [
-          "SHIJU_SNOW_SKILL_ROOT (reviewed session-only scanner)"
+          "SHIJU_SNOW_SKILL_ROOT (reviewed additive session view)"
         ],
-        "discovery": "Native skill-execute advertises only selected metadata. First request contains no skill body; native activation loads the body on demand.",
+        "discovery": "Managed v4 skill-execute advertises native and selected metadata. Native activation returns the skill body on demand.",
         "activation": "Both model sources executed real skill-execute, filesystem-read and terminal-execute for the body, random attachment and script.",
-        "session_isolation": "Reviewed scanner excludes builtin/user/project roots. Only audited view-root skill links are followed. Empty selection disables discovery. Unselected project probes, removal and second-session isolation passed."
+        "session_isolation": "Snow keeps native builtin/user/project roots and their order. The reviewed scanner adds only the audited session view. Native IDs keep priority on collisions. An empty selection preserves native discovery."
       },
       "permissions": {
         "status": "verified for reviewed Darwin-arm64 0.9.14 runtime",
@@ -1080,6 +1080,11 @@
         {
           "path": "target/snow-skill-runtime/node_modules/snow-ai/bundle/cli.mjs",
           "sha256": "dea7a6b9b28490a78c7c0f95d294b5c5203c7aa8f4a9f7cedc97720bbdd9d25e",
+          "kind": "reviewed_patched_source"
+        },
+        {
+          "path": "target/acp-skill-coexistence/snow-source/v4/node_modules/snow-ai/bundle/cli.mjs",
+          "sha256": "b3fb29de76fe1e89ab229b0954bca728589948940e2f203d0ca7ab56ea8702dd",
           "kind": "reviewed_patched_source"
         }
       ],

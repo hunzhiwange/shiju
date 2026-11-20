@@ -1,4 +1,4 @@
-//! Snow' reviewed native scanner reads only the request-owned skill view.
+//! Snow's reviewed native scanner appends the request-owned skill view.
 use agent_config::schema::AcpAgentConfig;
 
 const ROOT_ENV: &str = "SHIJU_SNOW_SKILL_ROOT";
@@ -16,7 +16,7 @@ pub(super) fn configure(
             .map_err(super::super::to_api_error)?;
         view.0.root().to_string_lossy().into_owned()
     } else {
-        // An empty selection disables all native skill levels in the reviewed scanner.
+        // An empty selection leaves the reviewed scanner with native roots only.
         String::new()
     };
     config.env.insert(ROOT_ENV.into(), root);

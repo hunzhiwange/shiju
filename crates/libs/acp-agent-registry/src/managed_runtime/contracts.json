@@ -243,7 +243,7 @@
     "integrity": "sha512-hVawSqfpwqSJgTAPVNp7Lw7gUoBpP89eKIC/lN5f6dvU8HWQtIo0M3BUhqByPmSUM8jZr1bbKF3CbQ9ur0pRaw==",
     "bin": "bundle/cli.mjs",
     "files": {
-      "bundle/cli.mjs": "2a38b3678070cf5d47892ad0c8c43429090b73e5a4000cb3d92edaa5478c4a77"
+      "bundle/cli.mjs": "b3fb29de76fe1e89ab229b0954bca728589948940e2f203d0ca7ab56ea8702dd"
     }
   },
   "copilot": {

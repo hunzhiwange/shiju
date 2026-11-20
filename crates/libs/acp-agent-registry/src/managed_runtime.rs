@@ -52,7 +52,9 @@ fn installed_directory(agent: &str, contract: &Contract) -> Result<PathBuf, Stri
         5
     } else if agent == "deepagents" {
         4
-    } else if matches!(agent, "snow" | "stakpak") {
+    } else if agent == "snow" {
+        4
+    } else if agent == "stakpak" {
         3
     } else if matches!(agent, "codebuddy" | "codex" | "qwen") {
         2

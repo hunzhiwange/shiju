@@ -1,10 +1,10 @@
 {
   "original": "bcc0a6cf468a245729605bcf75fd762fd13cb48553d342b31121cafc3153d905",
-  "patched": "2a38b3678070cf5d47892ad0c8c43429090b73e5a4000cb3d92edaa5478c4a77",
+  "patched": "b3fb29de76fe1e89ab229b0954bca728589948940e2f203d0ca7ab56ea8702dd",
   "changes": [
     {
-      "old": "  const home = homedir();\n  const globalAgentsSkillsDir = join29(home, \".agents\", \"skills\");",
-      "new": "  if (Object.prototype.hasOwnProperty.call(process.env, \"SHIJU_SNOW_SKILL_ROOT\")) {\n    const root = process.env.SHIJU_SNOW_SKILL_ROOT;\n    if (root) {\n      await loadSkillsFromDirectory(skills, root, \"project\", \"snow\");\n    }\n    return skills;\n  }\n  const home = homedir();\n  const globalAgentsSkillsDir = join29(home, \".agents\", \"skills\");"
+      "old": "  if (projectSnowSkillsDir) {\n    await loadSkillsFromDirectory(skills, projectSnowSkillsDir, \"project\", \"snow\");\n  }\n  return skills;",
+      "new": "  if (projectSnowSkillsDir) {\n    await loadSkillsFromDirectory(skills, projectSnowSkillsDir, \"project\", \"snow\");\n  }\n  const sessionRoot = process.env.SHIJU_SNOW_SKILL_ROOT;\n  if (sessionRoot) {\n    const sessionSkills = new Map();\n    await loadSkillsFromDirectory(sessionSkills, sessionRoot, \"project\", \"snow\");\n    for (const [id, skill] of sessionSkills) {\n      if (!skills.has(id)) {\n        skills.set(id, skill);\n      }\n    }\n  }\n  return skills;"
     },
     {
       "old": "        if (entry.isDirectory()) {\n          if (entry.name === \"templates\"",

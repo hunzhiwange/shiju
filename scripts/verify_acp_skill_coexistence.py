@@ -23,7 +23,7 @@ from verify_acp_integration import require
 from verify_acp_model_source import ROOT, Unavailable
 
 # Add a key only once its supplier module implements the reviewed probe interface.
-AGENTS = ("claude", "qwen", "gemini", "codebuddy")
+AGENTS = ("claude", "qwen", "gemini", "codebuddy", "hermes")
 AGENT_PROFILE = "acp-coexistence"
 PROVIDER = "coexistence-fixture"
 PHASES = ("baseline", "mounted", "removed", "rejected")

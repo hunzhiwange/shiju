@@ -67,3 +67,35 @@ impl task_scheduler::runner::gateway_executor::GatewayChatStreamClient for Close
         Box::pin(async { anyhow::bail!("real gateway chat stream client is disabled in tests") })
     }
 }
+
+pub(super) struct GatedLocalExecutor {
+    pub started: std::sync::mpsc::Sender<task_scheduler::domain::TaskId>,
+    pub releases: std::sync::Mutex<std::sync::mpsc::Receiver<()>>,
+}
+
+impl task_scheduler::runner::local::LocalAgentExecutor for GatedLocalExecutor {
+    fn lease_workspace(
+        &self,
+        request: task_scheduler::runner::local::LocalAgentWorkspaceRequest,
+    ) -> anyhow::Result<task_scheduler::runner::local::LocalAgentWorkspace> {
+        Ok(task_scheduler::runner::local::LocalAgentWorkspace {
+            path: request.project_path.to_string_lossy().into_owned(),
+            slot_id: None,
+            branch: None,
+        })
+    }
+
+    fn execute(
+        &self,
+        request: task_scheduler::runner::local::LocalAgentExecutionRequest,
+    ) -> anyhow::Result<task_scheduler::runner::local::LocalAgentExecutionOutput> {
+        self.started.send(request.task_id)?;
+        self.releases
+            .lock()
+            .expect("execution gate")
+            .recv_timeout(std::time::Duration::from_secs(10))?;
+        Ok(task_scheduler::runner::local::LocalAgentExecutionOutput {
+            raw_output: "finished".into(),
+        })
+    }
+}

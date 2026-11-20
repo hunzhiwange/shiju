@@ -14,7 +14,8 @@ use crate::engine::dispatch::{effective_dispatch_workflow, task_lifecycle_allows
 use crate::state_machine::{AgentTaskKind, AgentTaskStatus};
 use crate::store::AgentSchedulerStorageContext;
 use crate::store::runs::{
-    AgentRunFinishStatus, ClaimReadyTaskRunRequest, ClaimTaskRunRequest, StoredAgentRun,
+    AgentRunFinishStatus, ClaimReadyTaskRunRequest, ClaimTaskRunRequest,
+    FINITE_EXECUTION_SLOT_COUNT_SQL, StoredAgentRun,
     finish_status_key, parse_run_status, run_status_key, task_status_allows_run,
 };
 
@@ -189,6 +190,7 @@ impl PostgresAgentSchedulerStore {
         &self,
         context: &(impl AgentSchedulerStorageContext + ?Sized),
         request: ClaimReadyTaskRunRequest,
+        max_concurrent: Option<usize>,
     ) -> Result<Option<StoredAgentRun>> {
         agent_database::run_sync_database(|| {
             let scope = context.storage_scope()?;
@@ -197,6 +199,20 @@ impl PostgresAgentSchedulerStore {
             let mut transaction =
                 connection.transaction().context("begin PostgreSQL ready task run claim")?;
             lock_task_plan_project(&mut transaction, &scope)?;
+            if let Some(limit) = max_concurrent {
+                let active: i64 = transaction.query_one(
+                    &format!("{FINITE_EXECUTION_SLOT_COUNT_SQL} AND t.platform_id = $1
+                              AND t.company_id = $2 AND t.project_id = $3"),
+                    &[
+                        &project.platform_id().as_ref(),
+                        &project.company_id().as_ref(),
+                        &project.project_id().as_ref(),
+                    ],
+                )?.try_get(0)?;
+                if active as usize >= limit {
+                    return Ok(None);
+                }
+            }
             let Some(task) = load_task_for_update(&mut transaction, &scope, &request.task_id)? else {
                 return Ok(None);
             };

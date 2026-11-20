@@ -794,3 +794,47 @@ fn set_plan_task_status(
     })?.expect("fixture task exists");
     Ok(())
 }
+
+#[test]
+fn work_plan_rolling_capacity_is_shared_by_distinct_claims() -> Result<()> {
+    for_each_run_store_provider(|store, context| {
+        let first_id = TaskId::new("capacity-first")?;
+        let second_id = TaskId::new("capacity-second")?;
+        for id in [&first_id, &second_id] {
+            store.create_task(context, finite_task_with_status(id, AgentTaskStatus::Queued)?)?;
+        }
+        let barrier = Barrier::new(2);
+        let second_store = store.clone();
+        let [first, second] = std::thread::scope(|scope| {
+            let first = scope.spawn(|| {
+                barrier.wait();
+                store.claim_ready_task_run_with_limit(
+                    context, ready_claim_request("capacity-run-first", &first_id, ""), Some(1),
+                )
+            });
+            let second = scope.spawn(|| {
+                barrier.wait();
+                second_store.claim_ready_task_run_with_limit(
+                    context, ready_claim_request("capacity-run-second", &second_id, ""), Some(1),
+                )
+            });
+            Ok::<_, anyhow::Error>([
+                first.join().expect("first claimant")?,
+                second.join().expect("second claimant")?,
+            ])
+        })?;
+        assert_ne!(first.is_some(), second.is_some());
+
+        let (winner, pending) = if let Some(first) = first {
+            (first, second_id)
+        } else {
+            (second.expect("one lease"), first_id)
+        };
+        store.transition_task_status(context, &winner.task_id, AgentTaskStatus::Cancelled, TimestampMs(1_001))?;
+        let next = ready_claim_request("capacity-next", &pending, "");
+        assert!(store.claim_ready_task_run_with_limit(context, next.clone(), Some(1))?.is_none());
+        store.finish_run(context, &winner.id, AgentRunFinishStatus::Cancelled, TimestampMs(1_002), None)?;
+        assert!(store.claim_ready_task_run_with_limit(context, next, Some(1))?.is_some());
+        Ok(())
+    })
+}

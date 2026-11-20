@@ -12,7 +12,7 @@ use crate::lifecycle_bridge::{LifecycleBridge, LifecycleDispatchEligibility};
 use crate::state_machine::{AgentTaskKind, AgentTaskStatus};
 use crate::store::runs::{ClaimReadyTaskRunRequest, StoredAgentRun};
 use crate::store::task_plan::{PlanDispatchSnapshot, TaskPlanDispatchBlocker, hidden};
-use crate::store::tasks::{AgentTaskFilter, StoredAgentTask};
+use crate::store::tasks::{AgentTaskFilter, StoredAgentTask, task_dispatch_sort_key};
 use crate::store::{AgentSchedulerStorageContext, AgentSchedulerStore};
 use crate::task_graph::{TaskGraph, TaskGraphReadiness};
 
@@ -55,6 +55,7 @@ pub struct DispatchEngine<'a> {
     store: &'a AgentSchedulerStore,
     lease_duration_ms: i64,
     dispatch_mode: DispatchMode,
+    max_concurrent: Option<usize>,
 }
 
 impl<'a> DispatchEngine<'a> {
@@ -63,11 +64,17 @@ impl<'a> DispatchEngine<'a> {
             store,
             lease_duration_ms: DEFAULT_RUN_LEASE_DURATION_MS,
             dispatch_mode: DispatchMode::default(),
+            max_concurrent: None,
         }
     }
 
     pub fn with_dispatch_mode(mut self, dispatch_mode: DispatchMode) -> Self {
         self.dispatch_mode = dispatch_mode;
+        self
+    }
+
+    pub fn with_max_concurrent(mut self, max_concurrent: usize) -> Self {
+        self.max_concurrent = Some(max_concurrent);
         self
     }
 
@@ -144,7 +151,7 @@ impl<'a> DispatchEngine<'a> {
                 .context("run lease expiry timestamp overflow")?,
         );
         let run_id = RunId::new(format!("run-{}-{}", task.id.as_str(), now_ms.0))?;
-        self.store.claim_ready_task_run(
+        self.store.claim_ready_task_run_with_limit(
             project_path,
             ClaimReadyTaskRunRequest {
                 run_id,
@@ -152,6 +159,7 @@ impl<'a> DispatchEngine<'a> {
                 lease_acquired_at_ms: now_ms,
                 lease_expires_at_ms: Some(lease_expires_at_ms),
             },
+            self.max_concurrent,
         )
     }
 }
@@ -297,7 +305,8 @@ pub fn ready_queued_finite_task(
         status: Some(AgentTaskStatus::Queued),
         assigned_to: None,
     };
-    let tasks = store.list_active_tasks(project_path, filter)?;
+    let mut tasks = store.list_active_tasks(project_path, filter)?;
+    tasks.sort_by_cached_key(task_dispatch_sort_key);
     for task in tasks {
         if task.kind != AgentTaskKind::Finite
             || !task_lifecycle_allows_dispatch(project_path, &task, &snapshot.workflow)

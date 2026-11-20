@@ -302,6 +302,7 @@ fn agent_scheduler_wake_response_does_not_reserve_desktop_running_slot() {
     *app.task_board_tasks = vec![first, second];
 
     let response = AgentSchedulerWakeResponse {
+        dispatched_runs: Vec::new(),
         dispatched: true,
         task_id: Some("T-first".to_string()),
         run_id: Some("run-1".to_string()),

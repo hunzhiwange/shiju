@@ -281,6 +281,8 @@ pub struct AgentSchedulerTaskBoardTaskDto {
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct AgentSchedulerTaskBoardTaskReadModelDto {
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub dispatch_blocker: Option<AgentSchedulerDispatchBlockerDto>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub title: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub workflow_id: Option<String>,
@@ -296,6 +298,15 @@ pub struct AgentSchedulerTaskBoardTaskReadModelDto {
     pub label_ids: Vec<String>,
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     pub properties: AgentSchedulerTaskPropertyValues,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(tag = "kind", rename_all = "snake_case")]
+pub enum AgentSchedulerDispatchBlockerDto {
+    WaitingForEarlierBatch { task_ids: Vec<String> },
+    EarlierBatchFailed { task_ids: Vec<String> },
+    ParentNotReleased { parent_task_id: String },
+    ExplicitDependency { task_ids: Vec<String> },
 }
 
 impl AgentSchedulerTaskBoardTaskReadModelDto {
@@ -628,6 +639,8 @@ fn is_false(value: &bool) -> bool {
 /// Agent Scheduler 唤醒响应。
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct AgentSchedulerWakeResponse {
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub dispatched_runs: Vec<AgentSchedulerDispatchedRunDto>,
     pub dispatched: bool,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub task_id: Option<String>,
@@ -635,6 +648,14 @@ pub struct AgentSchedulerWakeResponse {
     pub run_id: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub worker_id: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub outbox_message_id: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct AgentSchedulerDispatchedRunDto {
+    pub task_id: String,
+    pub run_id: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub outbox_message_id: Option<String>,
 }

@@ -26,6 +26,8 @@ pub use vw_api_agent_scheduler::{
     AgentOutboxMessageDto,
     AgentSchedulerCommandKindDto,
     AgentSchedulerDispatchModeDto,
+    AgentSchedulerDispatchBlockerDto,
+    AgentSchedulerDispatchedRunDto,
     AgentSchedulerCommandRequest,
     AgentSchedulerCommandPayloadDto,
     AgentSchedulerMoveTaskPayloadDto,

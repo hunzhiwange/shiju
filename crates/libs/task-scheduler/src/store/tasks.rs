@@ -1032,8 +1032,12 @@ pub(super) fn ensure_non_empty(value: &str, field_name: &str) -> Result<()> {
 pub(super) fn task_board_sort_key(
     task: &StoredAgentTask,
 ) -> (String, u32, i64, TimestampMs, String) {
+    let (priority, order, updated_at, id) = task_dispatch_sort_key(task);
+    (task_board_status_key(task), priority, order, updated_at, id)
+}
+
+pub(crate) fn task_dispatch_sort_key(task: &StoredAgentTask) -> (u32, i64, TimestampMs, String) {
     (
-        task_board_status_key(task),
         u32_metadata_field(&task.metadata, "priority").unwrap_or_default(),
         i64_metadata_field(&task.metadata, "order_no").unwrap_or_default(),
         task.updated_at_ms,

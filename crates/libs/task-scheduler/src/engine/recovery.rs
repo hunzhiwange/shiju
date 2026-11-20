@@ -168,21 +168,32 @@ impl<'a> RecoveryEngine<'a> {
             .store
             .load_task(project_path, &run.task_id)?
             .with_context(|| format!("stale run task missing: {}", run.task_id.as_str()))?;
-        let to_status = self.policy.stale_run_resolution.task_status();
+        let to_status = if crate::store::runs::task_status_allows_run(task.status) {
+            self.policy.stale_run_resolution.task_status()
+        } else {
+            task.status
+        };
+        let finish_status = if task.status == AgentTaskStatus::Cancelled {
+            AgentRunFinishStatus::Cancelled
+        } else {
+            AgentRunFinishStatus::Failed
+        };
         let reason = format!(
             "run {} stale for two recovery cycles; recovery marked task {}",
             run.id.as_str(),
             to_status.as_str()
         );
-        self.store
-            .transition_task_status(project_path, &task.id, to_status, now_ms)?
-            .with_context(|| format!("stale run task disappeared: {}", task.id.as_str()))?;
+        if to_status != task.status {
+            self.store
+                .transition_task_status(project_path, &task.id, to_status, now_ms)?
+                .with_context(|| format!("stale run task disappeared: {}", task.id.as_str()))?;
+        }
         let finished = self
             .store
             .finish_run(
                 project_path,
                 &run.id,
-                AgentRunFinishStatus::Failed,
+                finish_status,
                 now_ms,
                 Some(reason.clone()),
             )?

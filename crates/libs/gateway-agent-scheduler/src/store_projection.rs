@@ -356,6 +356,7 @@ pub(super) fn task_board_task_read_model(
     status_key: &str,
 ) -> AgentSchedulerTaskBoardTaskReadModelDto {
     AgentSchedulerTaskBoardTaskReadModelDto {
+        dispatch_blocker: None,
         title: Some(task.title.clone()),
         workflow_id: string_field(metadata, "task_board.workflow_id"),
         status_label: string_field(metadata, "task_board.status_label"),
@@ -529,56 +530,39 @@ pub(super) fn task_board_event_to_dto(
     })
 }
 
-pub(super) fn project_wake_response_from_local_outcome(
-    outcome: Option<LocalAgentRunnerOutcome>,
+pub(super) fn project_wake_response(
+    dispatched_runs: Vec<AgentSchedulerDispatchedRunDto>,
 ) -> AgentSchedulerProjectWakeResponse {
-    match outcome {
-        Some(outcome) => AgentSchedulerProjectWakeResponse {
-            dispatched: true,
-            task_id: Some(outcome.task_id.as_str().to_string()),
-            run_id: Some(outcome.run.id.as_str().to_string()),
-            worker_id: None,
-            outbox_message_id: None,
-        },
-        None => AgentSchedulerProjectWakeResponse {
-            dispatched: false,
-            task_id: None,
-            run_id: None,
-            worker_id: None,
-            outbox_message_id: None,
-        },
-    }
-}
-
-#[cfg(test)]
-pub(super) fn empty_project_wake_response() -> AgentSchedulerProjectWakeResponse {
+    let first = dispatched_runs.first();
     AgentSchedulerProjectWakeResponse {
-        dispatched: false,
-        task_id: None,
-        run_id: None,
+        dispatched: first.is_some(),
+        task_id: first.map(|run| run.task_id.clone()),
+        run_id: first.map(|run| run.run_id.clone()),
         worker_id: None,
-        outbox_message_id: None,
+        outbox_message_id: first.and_then(|run| run.outbox_message_id.clone()),
+        dispatched_runs,
     }
 }
 
-pub(super) fn project_wake_response_from_dispatch_outcome(
-    outcome: Option<DispatchOutcome>,
-) -> AgentSchedulerProjectWakeResponse {
-    match outcome {
-        Some(outcome) => AgentSchedulerProjectWakeResponse {
-            dispatched: true,
-            task_id: Some(outcome.task_id.as_str().to_string()),
-            run_id: Some(outcome.run_id.as_str().to_string()),
-            worker_id: None,
-            outbox_message_id: outcome.outbox_message_id,
-        },
-        None => AgentSchedulerProjectWakeResponse {
-            dispatched: false,
-            task_id: None,
-            run_id: None,
-            worker_id: None,
-            outbox_message_id: None,
-        },
+pub(super) fn dispatch_blocker_to_dto(blocker: DispatchBlocker) -> AgentSchedulerDispatchBlockerDto {
+    let ids = |task_ids: Vec<TaskId>| {
+        task_ids.into_iter().map(|id| id.as_str().to_owned()).collect()
+    };
+    match blocker {
+        DispatchBlocker::TaskPlan(TaskPlanDispatchBlocker::WaitingForEarlierBatch { task_ids }) => {
+            AgentSchedulerDispatchBlockerDto::WaitingForEarlierBatch { task_ids: ids(task_ids) }
+        }
+        DispatchBlocker::TaskPlan(TaskPlanDispatchBlocker::EarlierBatchFailed { task_ids }) => {
+            AgentSchedulerDispatchBlockerDto::EarlierBatchFailed { task_ids: ids(task_ids) }
+        }
+        DispatchBlocker::TaskPlan(TaskPlanDispatchBlocker::ParentNotReleased { parent_task_id }) => {
+            AgentSchedulerDispatchBlockerDto::ParentNotReleased {
+                parent_task_id: parent_task_id.as_str().to_owned(),
+            }
+        }
+        DispatchBlocker::ExplicitDependency { task_ids } => {
+            AgentSchedulerDispatchBlockerDto::ExplicitDependency { task_ids: ids(task_ids) }
+        }
     }
 }
 

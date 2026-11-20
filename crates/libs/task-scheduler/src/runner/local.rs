@@ -160,6 +160,15 @@ where
         project_path: &(impl AgentSchedulerStorageContext + ?Sized),
         request: LocalAgentRunnerRequest,
     ) -> Result<Option<LocalAgentRunnerOutcome>> {
+        self.start_once_with_limit(project_path, request, None)
+    }
+
+    pub fn start_once_with_limit(
+        &self,
+        project_path: &(impl AgentSchedulerStorageContext + ?Sized),
+        request: LocalAgentRunnerRequest,
+        max_concurrent: Option<usize>,
+    ) -> Result<Option<LocalAgentRunnerOutcome>> {
         let Some(task) = self.store.load_task(project_path, &request.task_id)? else {
             return Ok(None);
         };
@@ -187,7 +196,7 @@ where
             return Ok(None);
         };
 
-        let Some(run) = self.claim_ready_run(project_path, &task, &request)? else {
+        let Some(run) = self.claim_ready_run(project_path, &task, &request, max_concurrent)? else {
             return Ok(None);
         };
         self.append_log(
@@ -237,6 +246,16 @@ where
         else {
             return Ok(None);
         };
+        if task.status == AgentTaskStatus::Cancelled {
+            self.store.finish_run(
+                project_path,
+                run_id,
+                AgentRunFinishStatus::Cancelled,
+                TimestampMs(chrono::Utc::now().timestamp_millis().max(0)),
+                None,
+            )?;
+            return Ok(None);
+        }
         if task.status != AgentTaskStatus::Running {
             return Ok(None);
         }
@@ -257,11 +276,12 @@ where
         project_path: &(impl AgentSchedulerStorageContext + ?Sized),
         task: &StoredAgentTask,
         request: &LocalAgentRunnerRequest,
+        max_concurrent: Option<usize>,
     ) -> Result<Option<StoredAgentRun>> {
         let lease_expires_at_ms = add_ms(request.now_ms, self.lease_duration_ms)
             .context("local run lease expiry timestamp overflow")?;
         let run_id = RunId::new(format!("local-run-{}-{}", task.id.as_str(), request.now_ms.0))?;
-        self.store.claim_ready_task_run(
+        self.store.claim_ready_task_run_with_limit(
             project_path,
             ClaimReadyTaskRunRequest {
                 run_id,
@@ -269,6 +289,7 @@ where
                 lease_acquired_at_ms: request.now_ms,
                 lease_expires_at_ms: Some(lease_expires_at_ms),
             },
+            max_concurrent,
         )
     }
 

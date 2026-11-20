@@ -164,15 +164,35 @@ impl AgentSchedulerStore {
         context: &(impl AgentSchedulerStorageContext + ?Sized),
         request: ClaimReadyTaskRunRequest,
     ) -> Result<Option<StoredAgentRun>> {
+        self.claim_ready_task_run_with_limit(context, request, None)
+    }
+
+    pub fn claim_ready_task_run_with_limit(
+        &self,
+        context: &(impl AgentSchedulerStorageContext + ?Sized),
+        request: ClaimReadyTaskRunRequest,
+        max_concurrent: Option<usize>,
+    ) -> Result<Option<StoredAgentRun>> {
         validate_ready_claim_request(&request)?;
         if let Some(store) = postgres_provider(self, context)? {
-            return store.claim_ready_task_run(context, request);
+            return store.claim_ready_task_run(context, request, max_concurrent);
         }
 
         let scope = context.storage_scope()?;
         let (platform_id, company_id, project_id) = scope_params(&scope);
         let (_guard, mut conn) = open_locked_initialized_connection(self, context)?;
         let tx = conn.transaction_with_behavior(TransactionBehavior::Immediate)?;
+        if let Some(limit) = max_concurrent {
+            let active: i64 = tx.query_row(
+                &format!("{FINITE_EXECUTION_SLOT_COUNT_SQL} AND t.platform_id = ?1
+                         AND t.company_id = ?2 AND t.project_id = ?3"),
+                params![platform_id, company_id, project_id],
+                |row| row.get(0),
+            )?;
+            if active as usize >= limit {
+                return Ok(None);
+            }
+        }
         let Some(task) = load_task_with_conn(&tx, context, &request.task_id)? else {
             return Ok(None);
         };
@@ -398,7 +418,20 @@ fn load_task_status(
         .with_context(|| format!("parse task status for run claim: {}", task_id.as_str()))
 }
 
-pub(super) fn task_status_allows_run(status: AgentTaskStatus) -> bool {
+// Keep the slot occupied until both the execution state and its lease have ended.
+pub(super) const FINITE_EXECUTION_SLOT_COUNT_SQL: &str =
+    "SELECT COUNT(*) FROM scheduler_tasks t
+     WHERE t.kind = 'finite' AND (
+         t.status IN ('assigned', 'dispatched', 'acknowledged', 'active', 'running')
+         OR EXISTS (
+             SELECT 1 FROM scheduler_runs r
+             WHERE r.platform_id = t.platform_id AND r.company_id = t.company_id
+               AND r.project_id = t.project_id AND r.task_id = t.id
+               AND r.finished_at_ms IS NULL AND r.status IN ('leased', 'running')
+         )
+     )";
+
+pub(crate) fn task_status_allows_run(status: AgentTaskStatus) -> bool {
     matches!(
         status,
         AgentTaskStatus::Assigned

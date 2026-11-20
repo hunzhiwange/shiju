@@ -2881,3 +2881,190 @@ async fn work_plan_gateway_placement_scope_and_retry() {
     let child = tasks.iter().find(|task| task["task_id"] == "plan-child").expect("child");
     assert_eq!(child["placement"]["batch"], 2);
 }
+
+fn seed_rolling_tasks(
+    store: &AgentSchedulerStore,
+    context: &AgentSchedulerContext,
+    tasks: &[(&str, u32, AgentTaskStatus)],
+) -> Result<()> {
+    use task_scheduler::store::task_plan::TaskPlanPlacement;
+
+    for (index, &(id, batch, status)) in tasks.iter().enumerate() {
+        store.create_task_with_plan(
+            context,
+            NewAgentTask {
+                id: TaskId::new(id)?,
+                title: id.into(),
+                kind: AgentTaskKind::Finite,
+                status,
+                spec_uri: format!("shared/tasks/{id}/spec.md"),
+                meta_uri: format!("shared/tasks/{id}/meta.json"),
+                assigned_to: None,
+                team_id: None,
+                room_id: None,
+                project_room_id: None,
+                delegated_to_team: None,
+                schedule: None,
+                timezone: None,
+                next_scheduled_at: None,
+                last_executed_at: None,
+                dag: Vec::new(),
+                metadata: json!({"order_no": index}),
+                created_at_ms: TimestampMs(1),
+            },
+            TaskPlanPlacement::Root { outer_batch: 1, inner_batch: batch },
+        )?;
+    }
+    Ok(())
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn work_plan_rolling_refills_before_sibling_finishes() -> Result<()> {
+    use task_scheduler::domain::AgentRunStatus;
+    use task_scheduler::store::runs::{AgentRunFinishStatus, ClaimReadyTaskRunRequest};
+
+    let project = tempfile::tempdir()?;
+    let context = owned_scheduler_context(project.path())?;
+    let project_id = scheduler_project_id(project.path());
+    let (started_tx, started_rx) = mpsc::channel();
+    let (release_tx, release_rx) = mpsc::channel();
+    let gateway = StoreBackedAgentSchedulerGateway::with_executor(super::host::GatedLocalExecutor {
+        started: started_tx,
+        releases: Mutex::new(release_rx),
+    });
+    let store = &gateway.store;
+    seed_rolling_tasks(store, &context, &[
+        ("slow-sibling", 1, AgentTaskStatus::Queued),
+        ("fast-first", 1, AgentTaskStatus::Queued),
+        ("same-batch-refill", 1, AgentTaskStatus::Queued),
+        ("next-batch", 2, AgentTaskStatus::Queued),
+    ])?;
+    // Hold the sibling's lease separately so the local writer keeps the directory exclusive.
+    let slow = store.claim_ready_task_run(&context, ClaimReadyTaskRunRequest {
+        run_id: RunId::new("slow-sibling-run")?,
+        task_id: TaskId::new("slow-sibling")?,
+        lease_acquired_at_ms: TimestampMs(1),
+        lease_expires_at_ms: None,
+    })?.expect("sibling leased");
+    let wake = gateway.wake_project(project_id.clone(), context.clone(), AgentSchedulerProjectWakeRequest {
+        now_ms: TimestampMs(2),
+        dispatch_mode: AgentSchedulerDispatchModeDto::Local,
+        max_concurrent: Some(2),
+        auto_promote_pool_tasks: false,
+    }).await?;
+    assert_eq!(wake.task_id.as_deref(), Some("fast-first"));
+    assert_eq!(wake.dispatched_runs.len(), 1);
+    assert_eq!(started_rx.recv_timeout(Duration::from_secs(10))?.as_str(), "fast-first");
+    release_tx.send(())?;
+    assert_eq!(started_rx.recv_timeout(Duration::from_secs(10))?.as_str(), "same-batch-refill");
+
+    let board = gateway.task_board_status(project_id, context.clone()).await?;
+    let board_task = |id: &str| board.tasks.iter().find(|task| task.task_id.as_ref() == id).unwrap();
+    assert_eq!(board_task("fast-first").status, Some(AgentTaskStatusDto::Completed));
+    assert_eq!(board_task("next-batch").status, Some(AgentTaskStatusDto::Queued));
+    assert!(matches!(
+        &board_task("next-batch").read_model.dispatch_blocker,
+        Some(vw_api_agent_scheduler::AgentSchedulerDispatchBlockerDto::WaitingForEarlierBatch { task_ids })
+            if task_ids.iter().any(|id| id == "slow-sibling")
+                && task_ids.iter().any(|id| id == "same-batch-refill")
+    ));
+    assert_eq!(store.load_run(&context, &slow.id)?.unwrap().status, AgentRunStatus::Leased);
+    assert!(store.load_latest_run_for_task(&context, &TaskId::new("next-batch")?)?.is_none());
+    for status in [
+        AgentTaskStatus::Dispatched,
+        AgentTaskStatus::Acknowledged,
+        AgentTaskStatus::Running,
+        AgentTaskStatus::Completed,
+    ] {
+        store.transition_task_status(&context, &slow.task_id, status, TimestampMs(3))?;
+    }
+    store.finish_run(&context, &slow.id, AgentRunFinishStatus::Succeeded, TimestampMs(4), None)?
+        .expect("sibling run completed");
+    release_tx.send(())?;
+    assert_eq!(started_rx.recv_timeout(Duration::from_secs(10))?.as_str(), "next-batch");
+    release_tx.send(())?;
+    Ok(())
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn work_plan_rolling_concurrent_wakes_respect_capacity() -> Result<()> {
+    let project = tempfile::tempdir()?;
+    let context = owned_scheduler_context(project.path())?;
+    let project_id = scheduler_project_id(project.path());
+    let first = StoreBackedAgentSchedulerGateway::default();
+    let second = StoreBackedAgentSchedulerGateway::default();
+    let ids = ["concurrent-a", "concurrent-b", "concurrent-c", "concurrent-d"];
+    let tasks = ids.map(|id| (id, 1, AgentTaskStatus::Queued));
+    seed_rolling_tasks(&first.store, &context, &tasks)?;
+    let barrier = Arc::new(tokio::sync::Barrier::new(2));
+    let wake = |gateway: StoreBackedAgentSchedulerGateway| {
+        let context = context.clone();
+        let project_id = project_id.clone();
+        let barrier = Arc::clone(&barrier);
+        tokio::spawn(async move {
+            barrier.wait().await;
+            gateway.wake_project(project_id, context, AgentSchedulerProjectWakeRequest {
+                now_ms: TimestampMs(2),
+                dispatch_mode: AgentSchedulerDispatchModeDto::Auto,
+                max_concurrent: Some(2),
+                auto_promote_pool_tasks: false,
+            }).await
+        })
+    };
+    let (left, right) = tokio::join!(wake(first.clone()), wake(second));
+    let responses = [left??, right??];
+    for response in &responses {
+        assert_eq!(response.task_id.as_ref(), response.dispatched_runs.first().map(|run| &run.task_id));
+        assert_eq!(response.run_id.as_ref(), response.dispatched_runs.first().map(|run| &run.run_id));
+    }
+    assert_eq!(responses.iter().map(|response| response.dispatched_runs.len()).sum::<usize>(), 2);
+    for (index, id) in ids.into_iter().enumerate() {
+        let run = first.store.load_latest_run_for_task(&context, &TaskId::new(id)?)?;
+        if index < 2 {
+            assert_eq!(run.expect("run in available slot").status, task_scheduler::domain::AgentRunStatus::Leased);
+        } else {
+            assert!(run.is_none());
+        }
+    }
+    Ok(())
+}
+
+#[tokio::test]
+async fn work_plan_rolling_periodic_wake_refills_after_cancelled_lease_recovery() -> Result<()> {
+    use task_scheduler::domain::AgentRunStatus;
+    use task_scheduler::engine::recovery::DEFAULT_RECOVERY_GRACE_MS;
+    use task_scheduler::store::runs::ClaimReadyTaskRunRequest;
+
+    let project = tempfile::tempdir()?;
+    let context = owned_scheduler_context(project.path())?;
+    let project_id = scheduler_project_id(project.path());
+    let gateway = StoreBackedAgentSchedulerGateway::default();
+    let store = &gateway.store;
+    seed_rolling_tasks(store, &context, &[
+        ("cancelled-owner", 1, AgentTaskStatus::Queued),
+        ("same-batch-ready", 1, AgentTaskStatus::Queued),
+    ])?;
+    let task_id = TaskId::new("cancelled-owner")?;
+    let run_id = RunId::new("cancelled-owner-run")?;
+    store.claim_ready_task_run(&context, ClaimReadyTaskRunRequest {
+        run_id: run_id.clone(),
+        task_id: task_id.clone(),
+        lease_acquired_at_ms: TimestampMs(2),
+        lease_expires_at_ms: Some(TimestampMs(3)),
+    })?.expect("initial lease");
+    store.transition_task_status(&context, &task_id, AgentTaskStatus::Cancelled, TimestampMs(3))?;
+
+    let wake = |now_ms| gateway.wake_project(
+        project_id.clone(), context.clone(), AgentSchedulerProjectWakeRequest {
+            now_ms: TimestampMs(now_ms),
+            dispatch_mode: AgentSchedulerDispatchModeDto::Auto,
+            max_concurrent: Some(1),
+            auto_promote_pool_tasks: false,
+        },
+    );
+    assert!(!wake(4).await?.dispatched);
+    let response = wake(5 + DEFAULT_RECOVERY_GRACE_MS).await?;
+    assert_eq!(response.task_id.as_deref(), Some("same-batch-ready"));
+    assert_eq!(store.load_run(&context, &run_id)?.unwrap().status, AgentRunStatus::Cancelled);
+    Ok(())
+}

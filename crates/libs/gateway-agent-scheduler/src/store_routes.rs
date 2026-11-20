@@ -103,26 +103,9 @@ impl<H: GatewayExecutorHost> AgentSchedulerGateway for StoreBackedAgentScheduler
         let _dispatch_guard = dispatch_lock.lock().await;
         self.apply_policy_tick(None, &project_path, request.now_ms, false).await?;
         let max_concurrent = normalize_project_wake_max_concurrent(request.max_concurrent);
-        let active_count =
-            self.active_dispatch_finite_task_count(&project_path, request.dispatch_mode)?;
-        if active_count >= max_concurrent {
-            tracing::info!(
-                project_path = %project_path.storage_project_path().display(),
-                dispatch_mode = ?request.dispatch_mode,
-                active_count,
-                max_concurrent,
-                "agent scheduler wake skipped because concurrency limit is reached"
-            );
-            return Ok(AgentSchedulerWakeResponse {
-                dispatched: false,
-                task_id: None,
-                run_id: None,
-                worker_id: None,
-                outbox_message_id: None,
-            });
-        }
         let engine = DispatchEngine::new(&self.store)
-            .with_dispatch_mode(dispatch_mode_from_dto(request.dispatch_mode));
+            .with_dispatch_mode(dispatch_mode_from_dto(request.dispatch_mode))
+            .with_max_concurrent(max_concurrent);
         let outcome = engine
             .dispatch_once(&project_path, request.now_ms)
             .await
@@ -373,6 +356,8 @@ impl<H: GatewayExecutorHost> AgentSchedulerGateway for StoreBackedAgentScheduler
         let _dispatch_guard = dispatch_lock.lock().await;
         self.store.initialize_project(&project_path).map_err(map_scheduler_error)?;
         let workflow = load_dispatch_workflow(&self.store, &project_path).map_err(map_scheduler_error)?;
+        let readiness = DispatchReadinessSnapshot::load(&self.store, &project_path)
+            .map_err(map_scheduler_error)?;
         let mut placements = project_placements(&self.store, &project_path)?;
         let tasks = self
             .store
@@ -384,9 +369,17 @@ impl<H: GatewayExecutorHost> AgentSchedulerGateway for StoreBackedAgentScheduler
                 let placement = placements.remove(&task.id);
                 let run = self.store.load_latest_run_for_task(&project_path, &task.id)
                     .map_err(map_scheduler_error)?;
+                let blocker = if task.kind == AgentTaskKind::Finite
+                    && matches!(task.status, AgentTaskStatus::Draft | AgentTaskStatus::Queued)
+                {
+                    readiness.blocker_for(&task.id).map_err(map_scheduler_error)?
+                } else {
+                    None
+                };
                 let mut dto = task_board_task_to_dto(
                     &self.store, &project_id, &project_path, task, run.as_ref(), placement,
                 )?;
+                dto.read_model.dispatch_blocker = blocker.map(dispatch_blocker_to_dto);
                 if let Some(status) = workflow.statuses.iter().find(|status| status.key == status_key) {
                     if dto.read_model.stage_id.as_deref() == Some(dto.status_key.as_str()) {
                         dto.read_model.stage_id = Some(status_key.clone());
@@ -610,82 +603,30 @@ impl<H: GatewayExecutorHost> AgentSchedulerGateway for StoreBackedAgentScheduler
         project_path: AgentSchedulerContext,
         request: AgentSchedulerProjectWakeRequest,
     ) -> Result<AgentSchedulerProjectWakeResponse, ApiError> {
-        tracing::info!(
-            project_path = %project_path.storage_project_path().display(),
-            dispatch_mode = ?request.dispatch_mode,
-            now_ms = request.now_ms.0,
-            "agent scheduler project wake requested"
-        );
         self.store.initialize_project(&project_path).map_err(map_scheduler_error)?;
-        let dispatch_lock = self.project_dispatch_lock(&project_path);
-        let _dispatch_guard = dispatch_lock.lock().await;
-        self.apply_policy_tick(
-            Some(project_id.as_str()),
+        {
+            let dispatch_lock = self.project_dispatch_lock(&project_path);
+            let _dispatch_guard = dispatch_lock.lock().await;
+            if let Err(error) = RecoveryEngine::new(&self.store)
+                .reconcile_once(&project_path, request.now_ms)
+                .await
+            {
+                tracing::warn!(%error, "scheduler periodic recovery failed");
+            }
+            self.apply_policy_tick(
+                Some(project_id.as_str()),
+                &project_path,
+                request.now_ms,
+                request.auto_promote_pool_tasks,
+            ).await?;
+        }
+        let runs = self.fill_project_slots(
             &project_path,
             request.now_ms,
-            request.auto_promote_pool_tasks,
-        )
-        .await?;
-        let max_concurrent = normalize_project_wake_max_concurrent(request.max_concurrent);
-        let active_count =
-            self.active_dispatch_finite_task_count(&project_path, request.dispatch_mode)?;
-        if active_count >= max_concurrent {
-            tracing::info!(
-                project_path = %project_path.storage_project_path().display(),
-                dispatch_mode = ?request.dispatch_mode,
-                active_count,
-                max_concurrent,
-                "agent scheduler project wake skipped because concurrency limit is reached"
-            );
-            return Ok(AgentSchedulerProjectWakeResponse {
-                dispatched: false,
-                task_id: None,
-                run_id: None,
-                worker_id: None,
-                outbox_message_id: None,
-            });
-        }
-        if request.dispatch_mode != AgentSchedulerDispatchModeDto::Local {
-            let outcome = self
-                .dispatch_project_once(&project_path, request.now_ms, request.dispatch_mode)
-                .await?;
-            tracing::info!(
-                project_path = %project_path.storage_project_path().display(),
-                dispatch_mode = ?request.dispatch_mode,
-                dispatched = outcome.is_some(),
-                task_id = ?outcome.as_ref().map(|outcome| outcome.task_id.as_str()),
-                run_id = ?outcome.as_ref().map(|outcome| outcome.run_id.as_str()),
-                outbox_message_id = ?outcome.as_ref().and_then(|outcome| outcome.outbox_message_id.as_deref()),
-                "agent scheduler project wake dispatch finished"
-            );
-            return Ok(project_wake_response_from_dispatch_outcome(outcome));
-        }
-        let Some(task) = ready_queued_finite_task(&self.store, &project_path, None)
-            .map_err(map_scheduler_error)?
-        else {
-            tracing::info!(
-                project_path = %project_path.storage_project_path().display(),
-                dispatch_mode = ?request.dispatch_mode,
-                "agent scheduler local project wake found no queued finite task"
-            );
-            return Ok(AgentSchedulerProjectWakeResponse {
-                dispatched: false,
-                task_id: None,
-                run_id: None,
-                worker_id: None,
-                outbox_message_id: None,
-            });
-        };
-        let outcome = self
-            .run_local_task(owned_scheduler_context(&project_path)?, task.id, request.now_ms)
-            .await?;
-        tracing::info!(
-            dispatched = outcome.is_some(),
-            task_id = ?outcome.as_ref().map(|outcome| outcome.task_id.as_str()),
-            run_id = ?outcome.as_ref().map(|outcome| outcome.run.id.as_str()),
-            "agent scheduler local project wake started task"
-        );
-        Ok(project_wake_response_from_local_outcome(outcome))
+            request.dispatch_mode,
+            normalize_project_wake_max_concurrent(request.max_concurrent),
+        ).await?;
+        Ok(project_wake_response(runs))
     }
 
     async fn drain_project_outbox(

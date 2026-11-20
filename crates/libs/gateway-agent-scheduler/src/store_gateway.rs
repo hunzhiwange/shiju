@@ -1,6 +1,8 @@
 //! Agent Scheduler API 路由。
 
 use std::collections::HashMap;
+use std::future::Future;
+use std::pin::Pin;
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 
@@ -12,6 +14,7 @@ use serde_json::{Value, json};
 use serde_json::{Map, Value, json};
 use tokio::sync::Mutex as AsyncMutex;
 use vw_api_agent_scheduler::{
+    AgentSchedulerDispatchBlockerDto, AgentSchedulerDispatchedRunDto,
     AgentSchedulerTaskPlanChangeDto, AgentSchedulerTaskPlanPlacementDto,
     AgentSchedulerTaskPlanUpdateRequest,
     AgentSchedulerSelectWorkflowRequest, AgentSchedulerTaskLabelDto, AgentSchedulerTaskLabelMutation,
@@ -87,7 +90,8 @@ use task_scheduler::domain::{
     AgentCapabilityKind, AgentRunStatus, AgentSchedulerContext, AssigneeId, RunId, TaskId, TeamId,
 };
 use task_scheduler::engine::dispatch::{
-    DispatchEngine, DispatchMode, DispatchOutcome, load_dispatch_workflow,
+    DispatchBlocker, DispatchEngine, DispatchMode, DispatchOutcome, DispatchReadinessSnapshot,
+    load_dispatch_workflow,
     ready_queued_finite_task, task_lifecycle_allows_dispatch,
 };
 use task_scheduler::engine::recovery::{RecoveryEngine, RecoveryOutcome};
@@ -112,7 +116,7 @@ use task_scheduler::store::logs::{
 };
 use task_scheduler::store::outbox::{OutboxMessageStatus, StoredOutboxMessage};
 use task_scheduler::store::runs::StoredAgentRun;
-use task_scheduler::store::task_plan::{TaskPlanError, TaskPlanPlacement};
+use task_scheduler::store::task_plan::{TaskPlanDispatchBlocker, TaskPlanError, TaskPlanPlacement};
 use task_scheduler::store::tasks::{
     AgentTaskBoardUpdate, AgentTaskDagNode, AgentTaskFilter, NewAgentTask, StoredAgentTask,
 };
@@ -200,21 +204,6 @@ impl<H: GatewayExecutorHost> StoreBackedAgentSchedulerGateway<H> {
         project_path: &(impl AgentSchedulerStorageContext + ?Sized),
     ) -> ProjectDispatchLock {
         self.dispatch_locks.lock_for(project_path)
-    }
-
-    fn active_dispatch_finite_task_count(
-        &self,
-        project_path: &(impl AgentSchedulerStorageContext + ?Sized),
-        _dispatch_mode: AgentSchedulerDispatchModeDto,
-    ) -> Result<usize, ApiError> {
-        let tasks = self
-            .store
-            .list_active_tasks(project_path, AgentTaskFilter::default())
-            .map_err(map_scheduler_error)?;
-        Ok(tasks
-            .into_iter()
-            .filter(|task| task.kind == AgentTaskKind::Finite && execution_slot_status(task.status))
-            .count())
     }
 }
 
@@ -524,18 +513,6 @@ impl<H: GatewayExecutorHost> StoreBackedAgentSchedulerGateway<H> {
         let dispatch_lock = self.project_dispatch_lock(project_path);
         let _dispatch_guard = dispatch_lock.lock().await;
         let max_concurrent = normalize_project_wake_max_concurrent(max_concurrent);
-        let active_count = self.active_dispatch_finite_task_count(project_path, dispatch_mode)?;
-        if active_count >= max_concurrent {
-            tracing::info!(
-                project_path = %project_path.storage_project_path().display(),
-                task_id = task_id.as_str(),
-                dispatch_mode = ?dispatch_mode,
-                active_count,
-                max_concurrent,
-                "agent scheduler project command skipped because concurrency limit is reached"
-            );
-            return Ok(None);
-        }
         let task = self
             .store
             .load_task(project_path, task_id)
@@ -548,13 +525,18 @@ impl<H: GatewayExecutorHost> StoreBackedAgentSchedulerGateway<H> {
         }
         if dispatch_mode == AgentSchedulerDispatchModeDto::Local {
             return self
-                .run_local_task(owned_scheduler_context(project_path)?, task_id.clone(), now_ms)
+                .run_local_task(
+                    owned_scheduler_context(project_path)?,
+                    task_id.clone(),
+                    now_ms,
+                    max_concurrent,
+                )
                 .await
                 .map(|outcome| outcome.map(|outcome| outcome.run));
         }
 
         let outcome =
-            self.dispatch_project_task_once(project_path, task_id, now_ms, dispatch_mode).await?;
+            self.dispatch_project_task_once(project_path, task_id, now_ms, dispatch_mode, max_concurrent).await?;
         match outcome {
             Some(outcome) => {
                 tracing::info!(
@@ -578,23 +560,59 @@ impl<H: GatewayExecutorHost> StoreBackedAgentSchedulerGateway<H> {
         }
     }
 
-    async fn dispatch_project_once(
+    async fn fill_project_slots(
         &self,
-        project_path: &(impl AgentSchedulerStorageContext + ?Sized),
+        context: &AgentSchedulerContext,
         now_ms: TimestampMs,
         dispatch_mode: AgentSchedulerDispatchModeDto,
-    ) -> Result<Option<DispatchOutcome>, ApiError> {
-        tracing::info!(
-            project_path = %project_path.storage_project_path().display(),
-            dispatch_mode = ?dispatch_mode,
-            now_ms = now_ms.0,
-            "agent scheduler dispatch project once"
-        );
-        DispatchEngine::new(&self.store)
-            .with_dispatch_mode(dispatch_mode_from_dto(dispatch_mode))
-            .dispatch_once(project_path, now_ms)
-            .await
-            .map_err(map_scheduler_error)
+        max_concurrent: usize,
+    ) -> Result<Vec<AgentSchedulerDispatchedRunDto>, ApiError> {
+        let lock = self.project_dispatch_lock(context);
+        let _guard = lock.lock().await;
+        let mut runs = Vec::new();
+        let mut missed = false;
+        while runs.len() < max_concurrent {
+            let task = match ready_queued_finite_task(&self.store, context, None) {
+                Ok(Some(task)) => task,
+                Ok(None) => break,
+                Err(error) if !runs.is_empty() => {
+                    tracing::warn!(%error, "scheduler refill could not refresh candidates");
+                    break;
+                }
+                Err(error) => return Err(map_scheduler_error(error)),
+            };
+            let run = if dispatch_mode == AgentSchedulerDispatchModeDto::Local {
+                self.run_local_task(context.clone(), task.id, now_ms, max_concurrent)
+                    .await
+                    .map(|outcome| outcome.map(|outcome| AgentSchedulerDispatchedRunDto {
+                        task_id: outcome.task_id.as_str().to_owned(),
+                        run_id: outcome.run.id.as_str().to_owned(),
+                        outbox_message_id: None,
+                    }))
+            } else {
+                self.dispatch_project_task_once(context, &task.id, now_ms, dispatch_mode, max_concurrent)
+                    .await
+                    .map(|outcome| outcome.map(|outcome| AgentSchedulerDispatchedRunDto {
+                        task_id: outcome.task_id.as_str().to_owned(),
+                        run_id: outcome.run_id.as_str().to_owned(),
+                        outbox_message_id: outcome.outbox_message_id,
+                    }))
+            };
+            match run {
+                Ok(Some(run)) => {
+                    runs.push(run);
+                    missed = false;
+                }
+                Ok(None) if !missed => missed = true,
+                Ok(None) => break,
+                Err(error) if !runs.is_empty() => {
+                    tracing::warn!(%error, "scheduler refill stopped after partial dispatch");
+                    break;
+                }
+                Err(error) => return Err(error),
+            }
+        }
+        Ok(runs)
     }
 
     async fn dispatch_project_task_once(
@@ -603,6 +621,7 @@ impl<H: GatewayExecutorHost> StoreBackedAgentSchedulerGateway<H> {
         task_id: &TaskId,
         now_ms: TimestampMs,
         dispatch_mode: AgentSchedulerDispatchModeDto,
+        max_concurrent: usize,
     ) -> Result<Option<DispatchOutcome>, ApiError> {
         tracing::info!(
             project_path = %project_path.storage_project_path().display(),
@@ -613,6 +632,7 @@ impl<H: GatewayExecutorHost> StoreBackedAgentSchedulerGateway<H> {
         );
         DispatchEngine::new(&self.store)
             .with_dispatch_mode(dispatch_mode_from_dto(dispatch_mode))
+            .with_max_concurrent(max_concurrent)
             .dispatch_task_once(project_path, task_id, now_ms)
             .await
             .map_err(map_scheduler_error)
@@ -674,6 +694,7 @@ impl<H: GatewayExecutorHost> StoreBackedAgentSchedulerGateway<H> {
         project_path: AgentSchedulerContext,
         task_id: TaskId,
         now_ms: TimestampMs,
+        max_concurrent: usize,
     ) -> Result<Option<LocalAgentRunnerOutcome>, ApiError> {
         tracing::info!(
             project_path = %project_path.storage_project_path().display(),
@@ -688,7 +709,7 @@ impl<H: GatewayExecutorHost> StoreBackedAgentSchedulerGateway<H> {
         let start_request = request.clone();
         let started = tokio::task::spawn_blocking(move || {
             let runner = LocalAgentRunner::new(&start_store, start_executor.as_ref());
-            runner.start_once(&start_project_path, start_request)
+            runner.start_once_with_limit(&start_project_path, start_request, Some(max_concurrent))
         })
         .await
         .map_err(|error| {
@@ -705,11 +726,11 @@ impl<H: GatewayExecutorHost> StoreBackedAgentSchedulerGateway<H> {
             );
             let finish_store = self.store.clone();
             let finish_executor = Arc::clone(&self.executor);
-            let finish_project_path = project_path;
+            let finish_project_path = project_path.clone();
             let finish_task_id = started_run.task_id.clone();
             let finish_run_id = started_run.run.id.clone();
             let finish_request = request;
-            let _background = tokio::task::spawn_blocking(move || {
+            let finish = tokio::task::spawn_blocking(move || {
                 let runner = LocalAgentRunner::new(&finish_store, finish_executor.as_ref());
                 if let Err(error) = runner.finish_started_run(
                     &finish_project_path,
@@ -725,6 +746,7 @@ impl<H: GatewayExecutorHost> StoreBackedAgentSchedulerGateway<H> {
                     );
                 }
             });
+            tokio::spawn(self.refill_after_local_run(project_path, max_concurrent, finish));
         } else {
             tracing::info!(
                 project_path = %project_path.storage_project_path().display(),
@@ -734,6 +756,29 @@ impl<H: GatewayExecutorHost> StoreBackedAgentSchedulerGateway<H> {
         }
 
         Ok(started)
+    }
+
+    // Box the callback future since a refill can schedule another local run.
+    fn refill_after_local_run(
+        &self,
+        context: AgentSchedulerContext,
+        max_concurrent: usize,
+        finish: tokio::task::JoinHandle<()>,
+    ) -> Pin<Box<dyn Future<Output = ()> + Send + 'static>> {
+        let gateway = self.clone();
+        Box::pin(async move {
+            if let Err(error) = finish.await {
+                tracing::warn!(%error, "scheduler local finish could not be joined");
+            }
+            if let Err(error) = gateway.fill_project_slots(
+                &context,
+                current_timestamp_ms(),
+                AgentSchedulerDispatchModeDto::Local,
+                max_concurrent,
+            ).await {
+                tracing::warn!(%error, "scheduler local completion refill failed");
+            }
+        })
     }
 }
 

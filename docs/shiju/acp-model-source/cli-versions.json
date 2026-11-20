@@ -433,7 +433,7 @@
         }
       },
       "model_source_patch": {
-        "bundle_sha256": "730bff93eddd77ad1ea1c3ff941ee5fa4fe2b9cb940449e6ee82712295846136",
+        "bundle_sha256": "e0dfd526b28929c04500f2706e5b4fbfab9b3243eb4233463171985e54e1f263",
         "marker": "codex-acp 2.5.0 shiju-model-source-v1"
       },
       "model_source_verification": {

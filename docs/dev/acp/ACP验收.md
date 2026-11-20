@@ -201,6 +201,36 @@ JSON
 
 隔离网关另用回环 Responses 端点完成无挂载、挂载、移除三轮，新会话的模型请求仅在挂载一轮收到 MCP namespace，并在续轮收到真实工具输出。本次范围为新会话挂载、调用与移除后的新会话，未验证同一已连接会话热切换。未重新执行上方编辑器创建请求，也未运行 Cargo。SSE、会话重读与回环观测保存在本机私有目录 `/tmp/shiju-codex-mcp.ESCb9U/`。
 
+## Codex ACP 技能与 MCP 共存
+
+使用受管 Codex ACP 2.5.0（Codex CLI 0.165.0）。升级网关后，通过 `POST /v1/desktop/acp-install/codex` 安装 `codex-2.5.0-model-source-v2`。该版本通过 Codex 的原生发现接口追加会话技能目录，保留主工作区和附加工作区中的原生技能目录。技能目录只用于发现，文件读取沿用现有沙箱和审批。
+
+1. 按本文开头准备隔离工作区、回环网关和本地模型。在工作区创建 `.agents/skills/codex-native-probe/SKILL.md` 作为 Codex 原生技能，再创建 `skills/shiju-mounted-probe/SKILL.md` 作为 ShiJu 技能。两份文件分别使用与目录匹配的 `name`、有效的 `description` 和不同的随机正文。按开头的配置准备只读 stdio 服务 `coexist_probe` 及其独立附件。
+2. 在隔离网关的有效 `acp-codex` 预设中配置挂载轮的默认选择。MCP 服务定义仍来自工作区 `.vwacprc.json`。基线轮和撤除轮将下列两个 `value` 设置为 `[]`，并移除临时 MCP 服务定义。
+
+   ```json
+   {
+     "agents": {
+       "acp-codex": {
+         "enabled": true,
+         "defaults": {
+           "skills": {"mode": "fixed", "value": ["shiju-mounted-probe"]},
+           "mcp": {"mode": "fixed", "value": ["coexist_probe"]}
+         }
+       }
+     }
+   }
+   ```
+
+3. 三轮分别向 `/v1/chat/stream` 发起新会话。每轮使用 `agent: "acp-codex"`、`acp_model_source: "session_model"`、同一个 `model` 和工作区。提示要求用原生只读工具读取发现的试验技能，并在已授权时调用 `coexist_probe.read_probe`。保持原权限模式。若触发审批，核对会话、调用及工具后单次批准。
+4. 核对 `session/new` 同时携带标准 `params.mcpServers` 和 `params._meta["shiju.skillMounts"]`。技能元数据为 `{"version":1,"skills":[{"name":"shiju-mounted-probe","path":"<会话视图绝对目录>"}]}`。技能在首次模型请求中以元数据出现，正文由 Codex 按需读取。按调用 ID 比对工具输出，确认三轮都读到原生技能，只有挂载轮读到 ShiJu 技能和 MCP 附件。撤除轮检查原服务的调用计数无增长。三轮须各有一个 `chat.done`，无 `chat.error`，并从会话重读验证 `session_model` 绑定。
+
+2026-11-20，Darwin arm64 直接 ACP 回环复验通过。通过 `session/new._meta.additionalRoots` 指定独立的附加工作区，在三轮中用 Codex 原生 `exec_command` 执行只读 `cat`，均从主工作区和附加工作区读回各自的技能标记。仅挂载轮读回 ShiJu 技能和 MCP 附件，MCP 审计调用数为 0、1、0。旧版桥接在显式空选择和非空选择下均丢失附加工作区技能。
+
+新版隔离网关也通过三轮 `/v1/chat/stream` 回环验收。三轮各有一个 `chat.done`，均无 `chat.error`，重读确认 `session_model` 绑定和 `full_access=false`。三轮均实际读取主工作区的 Codex 原生技能。挂载轮另读回 ShiJu 技能正文，并通过网关单次审批调用 MCP，模型续轮按调用 ID 收到三项结果。撤除轮只读到原生技能。模型响应由回环夹具生成，Codex、MCP 服务及只读工具均实际运行。
+
+槽位 3 定向构建 `vw-cli` 的 `shiju` 成功。适配器从本机已验原包应用补丁，入口摘要与受管合约一致，隔离网关安装接口复验返回 HTTP 200。独立冷下载因传输缓慢终止。未运行 Rust 单测或桌面构建。
+
 # OpenCode 验收
 
 2026-11-12：**真实 ACP 与浏览器验收通过**。最新指定租户 `10001 / 100010005`，模型 `alibaba-token-plan-cn/deepseek-v4.1-flash-1017`。

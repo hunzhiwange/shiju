@@ -103,7 +103,7 @@
     "integrity": "sha512-7e/4OhJwpvSTqsjiokoVYRV7O1XGem1CAsQgO1opmGYbRD5LvmydwDlJrldzQYO5TcPWueGzQ2Jdvyvp6l3qDw==",
     "bin": "dist/index.js",
     "files": {
-      "dist/index.js": "730bff93eddd77ad1ea1c3ff941ee5fa4fe2b9cb940449e6ee82712295846136"
+      "dist/index.js": "e0dfd526b28929c04500f2706e5b4fbfab9b3243eb4233463171985e54e1f263"
     },
     "engine": "@openai/codex",
     "engine_version": "0.165.0",

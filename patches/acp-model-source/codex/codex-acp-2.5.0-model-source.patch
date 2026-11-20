@@ -117,13 +117,13 @@
        return;
      }
 -    const skillExtraRoots = additionalRoots.map((root) => path10.join(root, ".agents", "skills"));
-+    // Register only native discovery roots; never add mounts to writableRoots.
-+    const skillExtraRoots = this.shijuSkillRoots ?? additionalRoots.map((root) => path10.join(root, ".agents", "skills"));
++    // Keep native discovery roots and add session mounts without changing writableRoots.
++    const skillExtraRoots = uniqueStrings(additionalRoots.map((root) => path10.join(root, ".agents", "skills")).concat(this.shijuSkillRoots ?? []));
      if (!arraysEqual(this.skillExtraRoots, skillExtraRoots)) {
        await this.codexClient.skillsExtraRootsSet({ extraRoots: skillExtraRoots });
        this.skillExtraRoots = skillExtraRoots;
 +    }
-+    if (this.shijuSkillSelection && selection !== void 0) {
++    if (this.shijuSkillSelection?.length && selection !== void 0) {
 +      const listed = await this.codexClient.listSkills({ cwds: [cwd], forceReload: true });
 +      const discovered = (listed.data ?? []).flatMap((entry) => entry.skills ?? []);
 +      const catalog = this.shijuSkillSelection.map((mount) => {

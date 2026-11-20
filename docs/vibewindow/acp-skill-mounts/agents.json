@@ -393,12 +393,12 @@
         },
         {
           "path": "target/acp-codex-inspection/runtime/node_modules/@agentclientprotocol/codex-acp/dist/index.js",
-          "sha256": "730bff93eddd77ad1ea1c3ff941ee5fa4fe2b9cb940449e6ee82712295846136",
+          "sha256": "e0dfd526b28929c04500f2706e5b4fbfab9b3243eb4233463171985e54e1f263",
           "kind": "reviewed_skill_mount_patch",
           "observations": [
-            "shiju.skillMounts registers exact native roots without writableRoots; initialization capability version 1; process scoped selection"
+            "shiju.skillMounts adds the process-scoped mount alongside native discovery roots without changing writableRoots; initialization capability version 1"
           ],
-          "contract": "crates/vw-acp/src/managed_runtime/contracts.json#codex"
+          "contract": "crates/libs/acp-agent-registry/src/managed_runtime/contracts.json#codex"
         }
       ],
       "supplemental_official_docs": [],

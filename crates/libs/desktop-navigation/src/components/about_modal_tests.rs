@@ -2,6 +2,8 @@
 //! 已复制状态以内容哈希而非布尔值判定，fixture 因此同时覆盖内容变化后的失效路径。
 
 use super::*;
+use config_ui::DesktopLocale::SimplifiedChinese;
+use desktop_i18n::I18n;
 
 fn keep_element(element: Element<'_, Message>) {
     std::hint::black_box(element);
@@ -9,20 +11,20 @@ fn keep_element(element: Element<'_, Message>) {
 
 #[test]
 fn copied_app_info_preserves_visible_metadata_and_layout() {
-    let copy_text = about_copy_text();
+    let copy_text = about_copy_text(I18n::new(SimplifiedChinese));
 
     assert_eq!(
         copy_text,
-        format!("{APP_NAME} v{APP_VERSION}\n{ABOUT_SUBTITLE}\n\n{ABOUT_DESCRIPTION}\n{AUTHOR_INFO}")
+        format!("ShiJu v{APP_VERSION}\n{ABOUT_SUBTITLE}\n\n{ABOUT_DESCRIPTION}")
     );
-    assert_eq!(copy_text.lines().count(), 5);
+    assert_eq!(copy_text.lines().count(), 4);
     assert_eq!(copy_text.lines().nth(2), Some(""));
     assert!(!copy_text.contains(ABOUT_TITLE));
 }
 
 #[test]
 fn copy_text_hash_is_deterministic_and_content_sensitive() {
-    let copy_text = about_copy_text();
+    let copy_text = about_copy_text(I18n::new(SimplifiedChinese));
 
     assert_eq!(hash_copy_text(&copy_text), hash_copy_text(&copy_text));
     assert_ne!(hash_copy_text(&copy_text), hash_copy_text(APP_NAME));
@@ -41,7 +43,8 @@ fn view_builds_with_copy_action_for_uncopied_content() {
 #[test]
 fn view_builds_with_confirmation_for_matching_copy_hash() {
     let mut app = Input { desktop_locale: config_ui::DesktopLocale::SimplifiedChinese, last_copied_code_hash: None };
-    app.last_copied_code_hash = Some(hash_copy_text(&about_copy_text()));
+    let copy_text = about_copy_text(I18n::new(SimplifiedChinese));
+    app.last_copied_code_hash = Some(hash_copy_text(&copy_text));
 
     keep_element(view(&app));
 }

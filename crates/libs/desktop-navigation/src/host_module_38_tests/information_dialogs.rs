@@ -41,13 +41,12 @@ mod install_cli_modal {
     }
 }
 type Ui<'a> = UserInterface<'a, Message, Theme, Renderer>;
-const APP_NAME: &str = "VibeWindow";
+const APP_NAME: &str = "ShiJu";
 const APP_VERSION: &str = env!("CARGO_PKG_VERSION");
 const ABOUT_TITLE: &str = "关于识矩";
 const ABOUT_SUBTITLE: &str =
-    "Rust-first 的自主代理运行时，连接桌面端、CLI、网关服务和长驻守护进程。";
+    "自主代理运行时，连接桌面端、CLI、网关服务和长驻守护进程。";
 const ABOUT_DESCRIPTION: &str = "项目包含桌面应用、命令行入口、HTTP/WebSocket 网关、任务与记忆管理、通信通道、模型/提供商解析、ACP 桥接和跨平台 WebView helper。";
-const AUTHOR_INFO: &str = "开发者：刘祥敏。";
 
 async fn renderer() -> Renderer {
     {
@@ -266,14 +265,18 @@ async fn ui_refresh_41_layout_and_interaction() {
         capture(&mut ui, &mut renderer, &theme, size, &format!("about-{name}"), Point::ORIGIN);
         let controls = bounds(&mut ui, &renderer);
         let title = position(&controls.labels, i18n.__(ABOUT_TITLE));
+        let version = format!("{APP_NAME} v{APP_VERSION}");
+        assert_inside(position(&controls.labels, &version), viewport(size));
+        assert!(!controls.labels.iter().any(|(label, _)| {
+            label == i18n.__("查看此版本发行说明") || label == i18n.__("开发者：刘祥敏。")
+        }));
         let copy = position(&controls.labels, i18n.__("复制应用信息"));
         let close = position(&controls.labels, i18n.__("关闭"));
         assert_fixed_controls(title, controls.body.unwrap().0, copy, size);
         let expected = format!(
-            "{APP_NAME} v{APP_VERSION}\n{}\n\n{}\n{}",
+            "{version}\n{}\n\n{}",
             i18n.__(ABOUT_SUBTITLE),
-            i18n.__(ABOUT_DESCRIPTION),
-            i18n.__(AUTHOR_INFO)
+            i18n.__(ABOUT_DESCRIPTION)
         );
         assert!(matches!(
             click(&mut ui, &mut renderer, copy.center()).as_slice(),

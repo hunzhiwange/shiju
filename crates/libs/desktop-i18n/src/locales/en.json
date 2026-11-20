@@ -5103,7 +5103,7 @@
   "修改中…": "Updating…",
   "关于识矩": "About ShiJu",
   "跳过版本未保存：%s": "Skipped version was not saved: %s",
-  "Rust-first 的自主代理运行时，连接桌面端、CLI、网关服务和长驻守护进程。": "A Rust-first autonomous agent runtime connecting desktop, CLI, gateway services and persistent daemons.",
+  "自主代理运行时，连接桌面端、CLI、网关服务和长驻守护进程。": "An autonomous agent runtime connecting desktop, CLI, gateway services and persistent daemons.",
   "项目包含桌面应用、命令行入口、HTTP/WebSocket 网关、任务与记忆管理、通信通道、模型/提供商解析、ACP 桥接和跨平台 WebView helper。": "Includes desktop and CLI applications, HTTP/WebSocket gateway, task and memory management, communication channels, model/provider resolution, ACP bridging and cross-platform WebView helpers.",
   "开发者：刘祥敏。": "Developer: Liu Xiangmin.",
   "检测中...": "Checking...",

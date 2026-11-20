@@ -33,6 +33,7 @@ task-scheduler-core = { path = "../task-scheduler-core" }
 uuid = { version = "1", features = ["v4"] }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
+agent-database = { path = "../agent-database", features = ["test-support"] }
 gateway-task = { path = "../gateway-task" }
 agent-project = { path = "../agent-project", features = ["test-support"] }
 tempfile = "3"

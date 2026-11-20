@@ -292,3 +292,246 @@ fn work_plan_detail_panel_creates_and_opens_independent_child() {
         );
     }
 }
+
+#[cfg(not(target_arch = "wasm32"))]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn work_plan_e2e_desktop_open_plan_and_child_details() {
+    use super::super::{modals::modals_tests::help_rollout::*, work_plan, work_sidebar};
+    use crate::app::i18n::I18n;
+    use crate::app::message::task_board::update;
+    use crate::app::task::SubTask;
+    use desktop_task_board::work_views::{BuiltinWorkView, WorkPlanGroupKey};
+    use iced::keyboard::Key;
+    use iced::{Element, Renderer, Size, Theme};
+    use serde_json::json;
+    use vw_api_agent_scheduler::AgentSchedulerTaskBoardStatusResponse;
+
+    let Some(mut app) =
+        isolated_fixture(module_path!(), "work_plan_e2e_desktop_open_plan_and_child_details")
+    else {
+        return;
+    };
+    let projects = tempfile::tempdir().unwrap();
+    for name in ["plan-alpha", "plan-beta"] {
+        std::fs::create_dir(projects.path().join(name)).unwrap();
+    }
+    let alpha = projects.path().join("plan-alpha").to_string_lossy().into_owned();
+    let beta = projects.path().join("plan-beta").to_string_lossy().into_owned();
+    let _ = app.open_project(alpha.clone());
+    app.navigation_tabs.screen = crate::app::Screen::TaskBoard;
+    app.task_board.show_task_board = true;
+    app.workspace_state.recent_projects = vec![alpha.clone(), beta.clone()];
+    app.workspace_state.recent_projects_meta.clear();
+    app.task_board.switch_work_view(BuiltinWorkView::MyTasks);
+
+    let snapshot = |project: &str, id: &str, title: &str, placement: serde_json::Value| {
+        json!({
+            "project_id": project, "task_id": id, "placement": placement,
+            "status": "queued", "status_key": "pending", "priority": 1, "order_no": 0,
+            "model": "fixture", "prompt": title, "retry_count": 0, "updated_at_ms": 1
+        })
+    };
+    let mut child = snapshot(
+        "alpha",
+        "child",
+        "Child details",
+        json!({
+            "kind": "child", "parent_task_id": "parent", "batch": 2
+        }),
+    );
+    child["read_model"]["dispatch_blocker"] =
+        json!({"kind": "waiting_for_earlier_batch", "task_ids": ["child-first"]});
+    let mut legacy = snapshot("alpha", "legacy", "Legacy plan", json!(null));
+    legacy["status"] = json!("completed");
+    legacy["status_key"] = json!("completed");
+    legacy["read_model"]["legacy_subtasks"] =
+        json!([SubTask::new("Saved legacy checklist".into())]);
+    let alpha_snapshot: AgentSchedulerTaskBoardStatusResponse = serde_json::from_value(json!({
+        "project_id": "alpha",
+        "tasks": [
+            snapshot("alpha", "parent", "Parent details", json!({"kind":"root","outer_batch":1,"inner_batch":2})),
+            snapshot("alpha", "later", "Later group", json!({"kind":"root","outer_batch":2,"inner_batch":1})),
+            snapshot("alpha", "child-first", "First child", json!({"kind":"child","parent_task_id":"parent","batch":1})),
+            child, legacy
+        ]
+    })).unwrap();
+    let load = |app: &mut crate::app::App, path: &str, response| {
+        let generation = app.task_board.task_board_workflow_generation;
+        let _ = update(
+            app,
+            TaskBoardMessage::AgentSchedulerStatusLoaded {
+                project_path: path.into(),
+                generation,
+                result: Ok(response),
+            },
+        );
+    };
+    load(&mut app, &alpha, alpha_snapshot.clone());
+
+    let mut renderer = renderer().await;
+    let size = Size::new(1000, 1600);
+    let click_label = |view: Element<'_, Message>, renderer: &mut Renderer, label: &str| {
+        let mut ui = scene(view, renderer, size);
+        let position = locate(&geometry(&mut ui, renderer).labels, label).center();
+        click(&mut ui, renderer, position)
+    };
+    let apply = |app: &mut crate::app::App, messages: Vec<Message>| {
+        let [message]: [Message; 1] = messages.try_into().ok().expect("one board message");
+        let Message::TaskBoard(message) = message else {
+            panic!("expected task board message");
+        };
+        let _ = update(app, message);
+    };
+
+    let messages = click_label(work_sidebar::view(&app), &mut renderer, "工作计划");
+    assert!(matches!(
+        messages.as_slice(),
+        [Message::TaskBoard(TaskBoardMessage::OpenWorkPlanView)]
+    ));
+    apply(&mut app, messages);
+    assert!(app.task_board.work_plan.open);
+    for theme in [Theme::Dark, Theme::Light] {
+        app.appearance.app_theme = theme;
+        let mut ui = scene(work_plan::project_view(&app), &mut renderer, size);
+        ui.draw(
+            &mut renderer,
+            &app.appearance.app_theme,
+            &iced::advanced::renderer::Style { text_color: app.appearance.app_theme.palette().text },
+            iced::mouse::Cursor::Unavailable,
+        );
+        let bounds = geometry(&mut ui, &renderer);
+        locate(&bounds.labels, "▾ 外层批次 1 · 完成 0/1 · 进行中 0 · 等待 0");
+        locate(&bounds.labels, "▾ 1.2 · 完成 0/1 · 进行中 0 · 等待 0");
+        locate(&bounds.labels, "▾ 2.1 · 完成 0/1 · 进行中 0 · 等待 0");
+        assert!(!bounds.labels.iter().any(|(label, _)| label == "Child details"));
+    }
+    let messages = click_label(
+        work_plan::project_view(&app),
+        &mut renderer,
+        "▾ 外层批次 1 · 完成 0/1 · 进行中 0 · 等待 0",
+    );
+    apply(&mut app, messages);
+    assert!(app.task_board.work_plan.collapsed.contains(&WorkPlanGroupKey::Outer(1)));
+    let messages = click_label(
+        work_plan::project_view(&app),
+        &mut renderer,
+        "▸ 外层批次 1 · 完成 0/1 · 进行中 0 · 等待 0",
+    );
+    apply(&mut app, messages);
+    let messages = click_label(work_plan::project_view(&app), &mut renderer, "Parent details");
+    apply(&mut app, messages);
+    assert_eq!(app.task_board.task_board_editing_task_id.as_deref(), Some("parent"));
+
+    {
+        let mut ui = scene(super::build_task_panel(&app, true), &mut renderer, size);
+        let bounds = geometry(&mut ui, &renderer);
+        let i18n = I18n::new(app.general_settings.desktop_locale);
+        locate(&bounds.labels, i18n.__("任务快捷操作"));
+        locate(&bounds.labels, i18n.__("属性"));
+        locate(&bounds.labels, "已保存批次 1.2");
+        locate(&bounds.labels, "安排批次");
+        locate(&bounds.labels, "新增子任务");
+    }
+    let parent = app.task_board.task_board_viewing_logs.as_ref().unwrap();
+    let messages =
+        click_label(work_plan::detail(&app, parent).unwrap(), &mut renderer, "新增子任务");
+    apply(&mut app, messages);
+    assert!(app.task_board.work_plan.child_draft.is_some());
+    {
+        let background = iced::widget::button("Background control")
+            .on_press(Message::TaskBoard(TaskBoardMessage::CloseTaskLogs));
+        let mut ui =
+            scene(work_plan::with_child_modal(&app, background.into()), &mut renderer, size);
+        assert!(click(&mut ui, &mut renderer, iced::Point::new(20.0, 12.0)).is_empty());
+        let messages =
+            key(&mut ui, &mut renderer, Key::Named(iced::keyboard::key::Named::Escape), None);
+        assert!(matches!(
+            messages.as_slice(),
+            [Message::TaskBoard(TaskBoardMessage::CloseWorkPlanChild)]
+        ));
+        drop(ui);
+        apply(&mut app, messages);
+    }
+    let parent = app.task_board.task_board_viewing_logs.as_ref().unwrap();
+    let messages =
+        click_label(work_plan::detail(&app, parent).unwrap(), &mut renderer, "Child details");
+    let stale_child_click = match messages.as_slice() {
+        [
+            Message::TaskBoard(
+                message @ TaskBoardMessage::OpenTaskDetail { project_path, task_id },
+            ),
+        ] if project_path == &alpha && task_id == "child" => message.clone(),
+        _ => panic!("expected a child detail click scoped to alpha"),
+    };
+    apply(&mut app, messages);
+    let child = app.task_board.task_board_viewing_logs.as_ref().unwrap();
+    assert_eq!(child.id, "child");
+    let mut ui = scene(work_plan::detail(&app, child).unwrap(), &mut renderer, size);
+    let bounds = geometry(&mut ui, &renderer);
+    locate(&bounds.labels, "子任务批次 2");
+    locate(&bounds.labels, "等待前序批次 · child-first");
+    let back = click(&mut ui, &mut renderer, locate(&bounds.labels, "返回父任务 parent").center());
+    drop(ui);
+    apply(&mut app, back);
+    assert_eq!(app.task_board.task_board_editing_task_id.as_deref(), Some("parent"));
+
+    let _ = update(&mut app, TaskBoardMessage::SelectDetailTab(TaskBoardDetailTab::Logs));
+    let parent = app.task_board.task_board_viewing_logs.as_ref().unwrap();
+    let messages =
+        click_label(work_plan::history(&app, parent).unwrap(), &mut renderer, "包含子任务");
+    apply(&mut app, messages);
+    let request = app.task_board.work_plan.history.as_ref().unwrap().request;
+    let _ =
+        update(
+            &mut app,
+            TaskBoardMessage::WorkPlanHistoryLoaded {
+                project_path: alpha.clone(),
+                request,
+                result: Ok(vec![serde_json::from_value(json!({
+            "cursor": 2, "project_id": "alpha", "task_id": "child", "run_id": "child-run",
+            "kind": "run_completed", "message": "Child execution result", "created_at_ms": 1
+        })).unwrap()]),
+            },
+        );
+    {
+        let mut ui = scene(super::build_task_panel(&app, true), &mut renderer, size);
+        let bounds = geometry(&mut ui, &renderer);
+        locate(&bounds.labels, "子任务 child · 运行 child-run");
+        assert!(bounds.labels.iter().any(|(label, _)| label.ends_with("Child execution result")));
+    }
+
+    let _ = update(&mut app, TaskBoardMessage::SelectDetailTab(TaskBoardDetailTab::Basic));
+    let messages = click_label(work_plan::project_view(&app), &mut renderer, "Legacy plan");
+    apply(&mut app, messages);
+    {
+        let mut ui = scene(super::build_task_panel(&app, true), &mut renderer, size);
+        let bounds = geometry(&mut ui, &renderer);
+        let checklist = locate(&bounds.labels, "Saved legacy checklist");
+        assert!(click(&mut ui, &mut renderer, checklist.center()).is_empty());
+        assert!(!bounds.labels.iter().any(|(label, _)| label == "开始执行计划"));
+    }
+
+    let messages = click_label(work_sidebar::view(&app), &mut renderer, "plan-beta");
+    apply(&mut app, messages);
+    assert_eq!(app.navigation_tabs.project_path.as_deref(), Some(beta.as_str()));
+    assert!(app.task_board.task_board_viewing_logs.is_none());
+    let beta_snapshot = serde_json::from_value(json!({
+        "project_id": "beta",
+        "tasks": [snapshot("beta", "child", "Beta task with the same ID", json!(null))]
+    }))
+    .unwrap();
+    load(&mut app, &beta, beta_snapshot);
+    load(&mut app, &alpha, alpha_snapshot);
+    let _ = update(&mut app, stale_child_click);
+    assert!(app.task_board.task_board_viewing_logs.is_none());
+    let messages = click_label(work_sidebar::view(&app), &mut renderer, "工作计划");
+    apply(&mut app, messages);
+    let messages =
+        click_label(work_plan::project_view(&app), &mut renderer, "Beta task with the same ID");
+    apply(&mut app, messages);
+    assert_eq!(
+        app.task_board.task_board_viewing_logs.as_ref().unwrap().prompt,
+        "Beta task with the same ID"
+    );
+    assert!(app.task_board.work_plan.history.is_none());
+}

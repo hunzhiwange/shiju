@@ -9544,6 +9544,7 @@ dependencies = [
 name = "gateway-agent-scheduler"
 version = "0.7.3"
 dependencies = [
+ "agent-database",
  "agent-project",
  "anyhow",
  "async-trait",

@@ -3357,3 +3357,479 @@ fn set_parent_completion_child(
     })?.expect("child task");
     Ok(())
 }
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn work_plan_e2e_two_level_root_batches_and_children() -> Result<()> {
+    let home = tempfile::tempdir()?;
+    let path = home.path().join("scheduler.sqlite");
+    exercise_persisted_work_plan(|| agent_database::GlobalDatabase::new(&path)).await?;
+
+    let postgres = agent_database::test_support::postgres_test_database!();
+    let result = exercise_persisted_work_plan(|| postgres.reopen()).await;
+    postgres.cleanup()?;
+    result
+}
+
+async fn exercise_persisted_work_plan(
+    open_database: impl Fn() -> Result<agent_database::GlobalDatabase>,
+) -> Result<()> {
+    use task_scheduler::domain::AgentRunStatus;
+    use task_scheduler::store::runs::AgentRunFinishStatus;
+    use vw_api_agent_scheduler::{
+        AgentSchedulerDispatchBlockerDto as Blocker, AgentSchedulerTaskBoardStatusResponse,
+        AgentSchedulerTaskBoardTaskDto, AgentSchedulerTaskPlanPlacementDto as Placement,
+        AgentSchedulerWakeResponse,
+    };
+
+    let project = tempfile::tempdir()?;
+    let project_id = scheduler_project_id(project.path());
+    let context = owned_scheduler_context(project.path())?;
+    let scope = context.scope().project_scope();
+    let database = open_database()?;
+    project::store::ProjectStore::new(database.clone())?.create(
+        scope.tenant_scope(),
+        &project::read_local_test_project(&project_id)?.expect("registered project"),
+    )?;
+
+    let (started_tx, started_rx) = mpsc::channel();
+    let (release_tx, release_rx) = mpsc::channel();
+    let executor = WorkPlanGate { started: started_tx, releases: Arc::new(Mutex::new(release_rx)) };
+    let mut gateway = StoreBackedAgentSchedulerGateway::with_executor(executor.clone());
+    gateway.store = AgentSchedulerStore::from_database(database);
+    let app = router_with_gateway::<()>(Arc::new(gateway.clone())).with_state(());
+    let route = format!("/agent-scheduler/projects/{project_id}");
+    let tasks = format!("{route}/tasks");
+    let commands = format!("{route}/commands");
+    let wake_route = format!("{route}/wake");
+    let now = || TimestampMs(chrono::Utc::now().timestamp_millis());
+
+    let builtin = task_scheduler::lifecycle_bridge::builtin_task_workflow_snapshot();
+    gateway.store.save_task_board_workflow(&context, &builtin)?;
+
+    let mut root_batches =
+        vec![("slow".into(), 1, 1), ("fast".into(), 1, 1), ("refill".into(), 1, 1)];
+    for (outer, last_inner) in [(1, 5), (2, 4)] {
+        let first_inner = if outer == 1 { 2 } else { 1 };
+        for inner in first_inner..=last_inner {
+            root_batches.push((format!("root-{outer}-{inner}"), outer, inner));
+        }
+    }
+    let parents = [
+        ("parent-a", Some(Placement::Root { outer_batch: 1, inner_batch: 1 })),
+        ("parent-b", Some(Placement::Root { outer_batch: 1, inner_batch: 1 })),
+        ("parent-ordinary", None),
+    ];
+    let children = [
+        ("a-first", "parent-a", 1),
+        ("b-first", "parent-b", 1),
+        ("a-refill", "parent-a", 1),
+        ("b-later", "parent-b", 3),
+        ("a-later", "parent-a", 2),
+        ("ordinary-first", "parent-ordinary", 1),
+        ("ordinary-later", "parent-ordinary", 4),
+    ];
+
+    let definitions = std::iter::once(("ordinary", None))
+        .chain(root_batches.iter().map(|(id, outer, inner)| {
+            (id.as_str(), Some(Placement::Root { outer_batch: *outer, inner_batch: *inner }))
+        }))
+        .chain(parents.iter().cloned())
+        .chain(children.iter().map(|&(id, parent, batch)| {
+            (id, Some(Placement::Child { parent_task_id: parent.to_owned(), batch }))
+        }));
+    for (order, (id, placement)) in definitions.enumerate() {
+        let mut request = create_task_request(id);
+        request.placement = placement.clone();
+        let order = if id.starts_with("parent-") { order + 100 } else { order };
+        request.metadata = json!({"prompt": id, "order_no": order});
+        let created = post_json(app.clone(), &tasks, &request).await;
+        assert_eq!(created["task_id"], id);
+        assert_eq!(created["task"]["placement"], serde_json::to_value(placement)?);
+    }
+
+    let legacy_steps = json!([{"id": "old", "content": "historical checklist entry"}]);
+    let mut legacy = create_task_request("legacy");
+    legacy.status = Some(AgentTaskStatusDto::Completed);
+    legacy.metadata = json!({"subtasks": legacy_steps});
+    post_json(app.clone(), &tasks, &legacy).await;
+    let legacy_start = post_json_response(
+        app.clone(),
+        &commands,
+        &json!({"task_id": "legacy", "command": "start"}),
+    )
+    .await;
+    assert_eq!(legacy_start.status(), StatusCode::BAD_REQUEST);
+
+    let move_to = |app: axum::Router, id: &str, status: &str| {
+        let commands = commands.clone();
+        let request = json!({
+            "task_id": id, "command": "move", "payload": {"move_task": {"to_status_key": status}}
+        });
+        async move {
+            let response = post_json(app, &commands, &request).await;
+            assert_eq!(response["accepted"], true);
+        }
+    };
+    move_to(app.clone(), "slow", "pending").await;
+    let wake: AgentSchedulerWakeResponse = serde_json::from_value(
+        post_json(
+            app.clone(),
+            &wake_route,
+            &json!({"dispatch_mode": "auto", "max_concurrent": 2, "now_ms": now()}),
+        )
+        .await,
+    )?;
+    assert_eq!(
+        wake.dispatched_runs.iter().map(|run| run.task_id.as_str()).collect::<Vec<_>>(),
+        ["ordinary", "slow"]
+    );
+
+    for (id, _, _) in root_batches.iter().skip(1) {
+        move_to(app.clone(), id, "pending").await;
+    }
+    for (parent, _) in &parents {
+        let receipt = post_json(
+            app.clone(),
+            &format!("{tasks}/{parent}/work-plan"),
+            &json!({"plan": {"source": "manual"}, "dispatch_mode": "auto", "max_concurrent": 1}),
+        )
+        .await;
+        let mut expected: Vec<_> =
+            children.iter().filter(|child| child.1 == *parent).map(|child| child.0).collect();
+        let mut published: Vec<String> = serde_json::from_value(receipt["child_task_ids"].clone())?;
+        published.sort();
+        expected.sort();
+        assert!(published.iter().map(String::as_str).eq(expected));
+    }
+
+    let start = |app: axum::Router, id: &str| {
+        let commands = commands.clone();
+        let request = json!({"task_id": id, "command": "start", "max_concurrent": 3});
+        async move { post_json(app, &commands, &request).await }
+    };
+    let board = |app: axum::Router| {
+        let tasks = tasks.clone();
+        async move {
+            serde_json::from_value::<AgentSchedulerTaskBoardStatusResponse>(
+                get_json(app, &tasks).await,
+            )
+            .expect("project task board")
+            .tasks
+        }
+    };
+    fn row<'a>(
+        tasks: &'a [AgentSchedulerTaskBoardTaskDto],
+        id: &str,
+    ) -> &'a AgentSchedulerTaskBoardTaskDto {
+        tasks.iter().find(|task| task.task_id.as_ref() == id).expect(id)
+    }
+    let started = |expected: &str| -> Result<()> {
+        let request: LocalAgentExecutionRequest =
+            started_rx.recv_timeout(Duration::from_secs(10))?;
+        assert_eq!(request.task_id.as_str(), expected);
+        if expected == "parent-a" {
+            assert!(
+                request.prompt.contains("a-later") && request.prompt.contains("work plan result")
+            );
+        }
+        Ok(())
+    };
+
+    assert_eq!(start(app.clone(), "fast").await["accepted"], true);
+    for id in [
+        "fast",
+        "refill",
+        "a-first",
+        "b-first",
+        "a-refill",
+        "b-later",
+        "a-later",
+        "ordinary-first",
+        "ordinary-later",
+        "parent-a",
+        "parent-b",
+        "parent-ordinary",
+    ] {
+        started(id)?;
+        if id == "b-first" {
+            let snapshot = board(app.clone()).await;
+            assert!(row(&snapshot, "a-refill").run_id.is_none());
+            assert!(matches!(&row(&snapshot, "a-later").read_model.dispatch_blocker,
+                Some(Blocker::WaitingForEarlierBatch { task_ids })
+                    if task_ids.iter().map(String::as_str).eq(["a-refill"])));
+        }
+        if id == "b-later" {
+            let snapshot = board(app.clone()).await;
+            assert_eq!(
+                row(&snapshot, "slow").run_id.as_deref(),
+                Some(wake.dispatched_runs[1].run_id.as_str())
+            );
+            assert_eq!(row(&snapshot, "a-refill").status, Some(AgentTaskStatusDto::Completed));
+            assert_eq!(row(&snapshot, "b-later").status, Some(AgentTaskStatusDto::Running));
+            assert!(row(&snapshot, "a-later").run_id.is_none());
+            assert!(matches!(&row(&snapshot, "root-1-2").read_model.dispatch_blocker,
+                Some(Blocker::WaitingForEarlierBatch { task_ids }) if task_ids.iter().any(|id| id == "slow")));
+        }
+        release_tx.send(true)?;
+    }
+
+    let slow_id = TaskId::new("slow")?;
+    for status in [
+        AgentTaskStatus::Dispatched,
+        AgentTaskStatus::Acknowledged,
+        AgentTaskStatus::Running,
+        AgentTaskStatus::Completed,
+    ] {
+        gateway.store.transition_task_status(&context, &slow_id, status, now())?;
+    }
+    gateway
+        .store
+        .finish_run(
+            &context,
+            &RunId::new(wake.dispatched_runs[1].run_id.clone())?,
+            AgentRunFinishStatus::Succeeded,
+            now(),
+            None,
+        )?
+        .expect("slow sibling run");
+
+    // The final child/summary callback can already have refilled the slot.
+    post_json(app.clone(), &wake_route, &json!({"max_concurrent": 3, "now_ms": now()})).await;
+    for id in ["root-1-2", "root-1-3", "root-1-4"] {
+        started(id)?;
+        release_tx.send(true)?;
+    }
+    started("root-1-5")?;
+    assert_eq!(start(app.clone(), "root-2-1").await["accepted"], true);
+    assert!(row(&board(app.clone()).await, "root-2-1").run_id.is_none());
+
+    release_tx.send(false)?;
+    let failed =
+        wait_for_work_plan_run(&gateway.store, &context, "root-1-5", 1, AgentTaskStatus::Failed)
+            .await?;
+    assert_eq!(failed.status, AgentRunStatus::Failed);
+    let snapshot = board(app.clone()).await;
+    assert_eq!(row(&snapshot, "root-1-5").status, Some(AgentTaskStatusDto::Failed));
+    assert!(matches!(&row(&snapshot, "root-2-1").read_model.dispatch_blocker,
+        Some(Blocker::EarlierBatchFailed { task_ids }) if task_ids.iter().map(String::as_str).eq(["root-1-5"])));
+
+    let mut review_workflow = builtin;
+    review_workflow.statuses.push(TaskPoolWorkflowStatusDto {
+        key: "review".into(),
+        label: "Review result".into(),
+        role: TaskPoolWorkflowStatusRoleDto::ReviewReady,
+        enabled: true,
+        terminal: false,
+        next: Some("completed".into()),
+        transitions: Vec::new(),
+    });
+    let running =
+        review_workflow.statuses.iter_mut().find(|status| status.key == "running").unwrap();
+    running.next = Some("review".into());
+    running.transitions.retain(|transition| transition.outcome != "success");
+    running.transitions.push(TaskPoolWorkflowTransitionDto {
+        outcome: "success".into(),
+        label: Some("Submit".into()),
+        target: "review".into(),
+    });
+    gateway.store.save_task_board_workflow(&context, &review_workflow)?;
+
+    drop(app);
+    drop(gateway);
+    let mut reopened = StoreBackedAgentSchedulerGateway::with_executor(executor);
+    reopened.store = AgentSchedulerStore::from_database(open_database()?);
+    let resumed_app = router_with_gateway::<()>(Arc::new(reopened.clone())).with_state(());
+    let persisted = board(resumed_app.clone()).await;
+    assert_eq!(row(&persisted, "root-1-5").run_id.as_deref(), Some(failed.id.as_str()));
+    assert_eq!(row(&persisted, "legacy").read_model.legacy_subtasks.as_ref(), Some(&legacy_steps));
+    assert!(row(&persisted, "legacy").run_id.is_none());
+    assert_eq!(
+        row(&persisted, "ordinary-later").placement,
+        Some(Placement::Child { parent_task_id: "parent-ordinary".into(), batch: 4 })
+    );
+
+    // The release of the physical workspace can lag the committed failure.
+    tokio::time::timeout(Duration::from_secs(10), async {
+        loop {
+            let wake = post_json(
+                resumed_app.clone(),
+                &wake_route,
+                &json!({"max_concurrent": 3, "now_ms": now()}),
+            )
+            .await;
+            if wake["dispatched"] == true {
+                assert_eq!(wake["task_id"], "root-1-5");
+            }
+            let run =
+                reopened.store.load_latest_run_for_task(&context, &TaskId::new("root-1-5")?)?;
+            if run.is_some_and(|run| run.attempt == 2) {
+                return Ok::<_, anyhow::Error>(());
+            }
+            tokio::time::sleep(Duration::from_millis(10)).await;
+        }
+    })
+    .await??;
+    started("root-1-5")?;
+    release_tx.send(true)?;
+    let retry = wait_for_work_plan_run(
+        &reopened.store,
+        &context,
+        "root-1-5",
+        2,
+        AgentTaskStatus::Submitted,
+    )
+    .await?;
+    assert_eq!(retry.status, AgentRunStatus::Succeeded);
+    assert_ne!(retry.id, failed.id);
+    let snapshot = board(resumed_app.clone()).await;
+    assert_eq!(row(&snapshot, "root-1-5").status_key, "review");
+    assert!(matches!(&row(&snapshot, "root-2-1").read_model.dispatch_blocker,
+        Some(Blocker::WaitingForEarlierBatch { task_ids }) if task_ids.iter().map(String::as_str).eq(["root-1-5"])));
+    assert_eq!(start(resumed_app.clone(), "root-2-1").await["accepted"], true);
+    assert!(row(&board(resumed_app.clone()).await, "root-2-1").run_id.is_none());
+
+    move_to(resumed_app.clone(), "root-1-5", "completed").await;
+    for id in ["root-2-1", "root-2-2", "root-2-3", "root-2-4"] {
+        // Each successful run waits for review before the next batch can start.
+        let task_id = TaskId::new(id)?;
+        tokio::time::timeout(Duration::from_secs(10), async {
+            loop {
+                assert_eq!(start(resumed_app.clone(), id).await["accepted"], true);
+                if reopened.store.load_latest_run_for_task(&context, &task_id)?.is_some() {
+                    return Ok::<_, anyhow::Error>(());
+                }
+                tokio::time::sleep(Duration::from_millis(10)).await;
+            }
+        })
+        .await??;
+        started(id)?;
+        release_tx.send(true)?;
+        assert_eq!(
+            wait_for_work_plan_run(&reopened.store, &context, id, 1, AgentTaskStatus::Submitted)
+                .await?
+                .status,
+            AgentRunStatus::Succeeded
+        );
+        move_to(resumed_app.clone(), id, "completed").await;
+    }
+
+    let final_board = board(resumed_app.clone()).await;
+    for task in final_board.iter().filter(|task| task.task_id.as_ref() != "ordinary") {
+        assert_eq!(task.status, Some(AgentTaskStatusDto::Completed), "{}", task.task_id);
+    }
+    assert_eq!(
+        reopened
+            .store
+            .load_run(&context, &RunId::new(wake.dispatched_runs[0].run_id.clone())?)?
+            .expect("ordinary run")
+            .status,
+        AgentRunStatus::Leased
+    );
+
+    let events = get_json(resumed_app.clone(), &format!("{route}/events?limit=1000")).await;
+    let events = events["events"].as_array().expect("project events");
+    for (parent, _) in &parents {
+        assert_eq!(
+            events
+                .iter()
+                .filter(|event| {
+                    event["task_id"] == *parent && event["message"] == "work plan summary queued"
+                })
+                .count(),
+            1
+        );
+    }
+    let attempts = |id: &str, kind: &str| {
+        events
+            .iter()
+            .filter(|event| event["task_id"] == id && event["kind"] == kind)
+            .map(|event| event["cursor"].as_i64().expect("event cursor"))
+            .collect::<Vec<_>>()
+    };
+    let starts = attempts("root-1-5", "run_started");
+    assert_eq!(starts.len(), 2);
+    let retry_queued = events
+        .iter()
+        .find(|event| {
+            event["task_id"] == "root-1-5"
+                && event["payload"]["policy_action"] == "retry_failed_task"
+        })
+        .expect("automatic retry event")["cursor"]
+        .as_i64()
+        .unwrap();
+    assert!(starts[0] < attempts("root-1-5", "run_failed")[0]);
+    assert!(retry_queued < starts[1]);
+    assert!(starts[1] < attempts("root-1-5", "run_submitted")[0]);
+    assert!(attempts("root-1-5", "run_submitted")[0] < attempts("root-2-1", "run_started")[0]);
+    for id in ["fast", "refill"]
+        .into_iter()
+        .chain(children.iter().map(|child| child.0))
+        .chain(parents.iter().map(|parent| parent.0))
+        .chain(["root-1-2", "root-1-3", "root-1-4", "root-2-1", "root-2-2", "root-2-3", "root-2-4"])
+    {
+        assert_eq!(attempts(id, "run_started").len(), 1, "{id}");
+    }
+    for (parent, _) in &parents {
+        assert_eq!(attempts(parent, "run_completed").len(), 1);
+    }
+    let logs = get_json(resumed_app.clone(), &format!("{tasks}/root-1-5/logs")).await;
+    for run in [&failed, &retry] {
+        assert!(logs["logs"].as_array().expect("task logs").iter().any(|entry| {
+            entry["run_id"] == run.id.as_str() && entry["message"] == "local execution started"
+        }));
+    }
+    let artifacts = get_json(resumed_app, &format!("{tasks}/root-1-5/artifacts")).await;
+    assert!(artifacts["artifacts"].as_array().expect("task artifacts").iter().any(|artifact| {
+        artifact["run_id"] == retry.id.as_str() && artifact["payload"]["success"] == true
+    }));
+    project::remove_local_test_project(&project_id)?;
+    Ok(())
+}
+
+async fn wait_for_work_plan_run(
+    store: &AgentSchedulerStore,
+    context: &AgentSchedulerContext,
+    id: &str,
+    attempt: u32,
+    task_status: AgentTaskStatus,
+) -> Result<task_scheduler::store::runs::StoredAgentRun> {
+    let id = TaskId::new(id)?;
+    tokio::time::timeout(Duration::from_secs(10), async {
+        loop {
+            if let Some(run) = store.load_latest_run_for_task(context, &id)?
+                && run.attempt == attempt
+                && run.finished_at_ms.is_some()
+                && store.load_task(context, &id)?.is_some_and(|task| task.status == task_status)
+            {
+                return Ok(run);
+            }
+            tokio::time::sleep(Duration::from_millis(10)).await;
+        }
+    })
+    .await?
+}
+
+#[derive(Clone)]
+struct WorkPlanGate {
+    started: mpsc::Sender<LocalAgentExecutionRequest>,
+    releases: Arc<Mutex<mpsc::Receiver<bool>>>,
+}
+
+impl LocalAgentExecutor for WorkPlanGate {
+    fn lease_workspace(&self, request: LocalAgentWorkspaceRequest) -> Result<LocalAgentWorkspace> {
+        Ok(LocalAgentWorkspace {
+            path: request.project_path.to_string_lossy().into_owned(),
+            slot_id: None,
+            branch: None,
+        })
+    }
+
+    fn execute(&self, request: LocalAgentExecutionRequest) -> Result<LocalAgentExecutionOutput> {
+        self.started.send(request)?;
+        anyhow::ensure!(
+            self.releases.lock().expect("work plan gate").recv_timeout(Duration::from_secs(10))?,
+            "fixture execution failure"
+        );
+        Ok(LocalAgentExecutionOutput { raw_output: "work plan result".into() })
+    }
+}

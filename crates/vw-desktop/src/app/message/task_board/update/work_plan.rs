@@ -24,7 +24,12 @@ pub(super) fn update(
     let project = project?;
     let selected = board.task_board_editing_task_id.as_deref();
     match message {
-        TaskBoardMessage::OpenWorkPlanView => plan.open = true,
+        TaskBoardMessage::OpenWorkPlanView => {
+            if !plan.open {
+                plan.open = true;
+                board.switch_work_view(taskboard::work_views::BuiltinWorkView::AllTasks);
+            }
+        }
         TaskBoardMessage::OpenSavedWorkView(_) | TaskBoardMessage::SelectWorkView(_) => {
             plan.open = false;
             return None;

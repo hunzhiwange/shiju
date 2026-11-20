@@ -26,7 +26,7 @@ def main():
     ]
     subprocess.run(command + ["--dry-run"], check=True)
     subprocess.run(command, check=True)
-    print("Applied session binding and isolated skill scanning to mistral-vibe 3.0.4")
+    print("Applied session binding and additive skill discovery to mistral-vibe 3.0.4")
 
 if __name__ == "__main__":
     main()

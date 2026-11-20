@@ -234,11 +234,11 @@ class SkillMountFixture:
                         expected = set() if self.mode == "absent" else {self.name}
                         if self.mode == "added":
                             expected.add(self.name + "-added")
-                        if names != expected:
+                        if names & {self.name, self.name + "-added"} != expected:
                             self.native_catalog = {"phase": self.mode, "observed_count": len(names), "expected_count": len(expected),
                                 "selected_present": self.name in names, "observed_names": sorted(names),
                                 "tool_names": [t.get("function", t).get("name") for t in body.get("tools", [])]}
-                            raise ValueError("Vibe native catalog does not equal selected skills")
+                            raise ValueError("Vibe native catalog contains incorrect mounted skills")
                     if getattr(self, "copilot_native", False):
                         self.discovered_dir = None
                         catalog = "\n".join(str(m.get("content", "")) for m in messages if m.get("role") == "system")

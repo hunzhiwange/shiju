@@ -181,9 +181,10 @@
     "files": {
       "vibe/core/config/builder.py": "f5af00e1a37bdbfaff3b3801ed76b2728fc47f41a181f83cee9cdd82bca2514f",
       "vibe/acp/entrypoint.py": "b1c5cde955970b60bec336b0a31f2a460617f59dce0d74baa24e6dc698eed5aa",
+      "vibe/acp/agent.py": "abb400ee2d07b0cebc046df604d563272a0be7e02494b8f08f81ff92f1dfe09f",
       "vibe/core/config/session_model_binding.py": "bc0d7c44ca16badcc25a8185d6eb0b8a23c63256a346c75176928a085d944ee3",
-      "vibe/core/skills/manager.py": "183ab1f5bc297977d20c89401f18de526ba732fa830464f87ff7420af47dc900",
-      "vibe/app_server/_skills.py": "d7894986bec3b12183f1df4d4e6a7be192a86b01077e9ea7e27a001ae84fc02e",
+      "vibe/core/skills/manager.py": "f6e38c0eaddf22f862630a5dcb75c9a57059f3ed6df5a7a0cd1a55f78af0e854",
+      "vibe/app_server/_skills.py": "6c3ddfb51792fee4dc630fa0c72395785c87d6235805f27483cefa450de8af3a",
       "vibe/app_server/_runtime.py": "dcad0e4554e92a44adb283b5a8fe4acd4ff9fe16522af49f206c552979730955",
       "mistralai_vibe_local_harness/vibe/_host.py": "2ab3d6a087ae1422c5845c268cf9549d0cf5740ef163a622286f4b87ace43238"
     },

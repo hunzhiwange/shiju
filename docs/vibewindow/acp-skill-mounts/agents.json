@@ -698,7 +698,7 @@
       "status": "verified",
       "platform": {
         "review_host": "Darwin-arm64",
-        "artifact_scope": "Darwin-arm64 受审固定 3.0.4 补丁发行物：两种模型来源完整原生技能生命周期通过；其他平台未验证。",
+        "artifact_scope": "Darwin-arm64 受管 mistral-vibe 3.0.4 model-source-v4，使用 Vibe 原生技能和程序化 MCP。",
         "linux": "unverified",
         "windows": "unverified"
       },
@@ -706,7 +706,7 @@
         "package": "mistral-vibe",
         "version": "3.0.4",
         "upstream_url": "https://pypi.org/pypi/mistral-vibe/3.0.4/json",
-        "upstream_integrity": "见本项 evidence 文件 SHA-256；不得将其等同完整发行物签名",
+        "upstream_integrity": "固定 wheel 和补丁文件摘要按 acp-agent-registry 的受管契约校验。",
         "engine": {
           "kind": "same_distribution",
           "release": "3.0.4"
@@ -719,15 +719,15 @@
         ],
         "binding": "crates/vw-acp/src/agent_registry.rs::BUILT_IN_AGENT_DEFINITIONS",
         "runtime_executed": true,
-        "note": "受审固定发行物两种模型来源真实运行，选中挂载前验证五个受审文件散列。"
+        "note": "安装或升级到受管 v4，启动前验证八项制品摘要。"
       },
       "mount": {
         "candidate_paths": [
           "SHIJU_VIBE_SKILL_ROOT（受审补丁中的会话专属视图）"
         ],
-        "discovery": "SkillManager 独占扫描选中目录，禁用环境中的项目、用户及注册表技能；原生插件注册与载荷投影同时隔离。",
-        "activation": "实际原生 skill(name) 返回挂载视图目录，随后真实 read_file/bash 完成随机附件读取与脚本执行；首次模型请求无技能正文。",
-        "session_isolation": "两来源原生目录均严格等于选中集合；项目/VIBE_HOME 未选中探针、内置插件、空选择、移除及第二会话隔离均通过。"
+        "discovery": "SkillManager 在 Vibe 已有本地根之后追加校验过的会话视图，应用原生去重、过滤、项目授权和插件投影。",
+        "activation": "Vibe 的原生 skill 和 read_file 从原生目录或会话视图读取正文与附件。首次模型请求只公布目录。",
+        "session_isolation": "会话视图只包含 ShiJu 选中项。原生来源按 Vibe 自身规则发现。撤除选择后保留原生目录。"
       },
       "permissions": {
         "status": "verified for reviewed Darwin-arm64 3.0.4 runtime",
@@ -736,10 +736,10 @@
       },
       "update": {
         "native": "无原生热更新承诺，空闲时完整替换视图并退休旧进程后重建。",
-        "candidate": "两种来源的添加、移除、V2 内容和空闲更新已真实验证，见 evidence/vibe.json。"
+        "candidate": "v4 共存证据见 docs/dev/acp/skill-coexistence/vibe.md。两种模型来源的历史生命周期见 evidence/vibe.json。"
       },
       "recovery": {
-        "status": "两来源真实进程关闭/重启后重新发现当前目录并读取正文、附件及脚本；cli_local 原生会话锁通过复用现有串行退休逻辑解决。",
+        "status": "v3 之前的关闭、重启与两种模型来源证据保存在 evidence/vibe.json。",
         "requirements": "重建 new/load/resume 后重新发布同 revision 目录并核实发现、删除和支持文件访问；不能把已有模型来源恢复证据当技能恢复证据。"
       },
       "independent_sources": {

@@ -1,4 +1,4 @@
-//! Vibe's reviewed native scanner reads only the request-owned skill view.
+//! Vibe's reviewed native scanner appends the request-owned view to native discovery.
 use agent_config::schema::AcpAgentConfig;
 
 const ROOT_ENV: &str = "SHIJU_VIBE_SKILL_ROOT";
@@ -16,7 +16,7 @@ pub(super) fn configure(
             .map_err(super::super::to_api_error)?;
         view.0.root().to_string_lossy().into_owned()
     } else {
-        // An empty selection disables all native skill levels in the reviewed scanner.
+        // An empty selection contributes no host skill directory.
         String::new()
     };
     config.env.insert(ROOT_ENV.into(), root);

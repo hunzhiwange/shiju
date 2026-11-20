@@ -80,7 +80,7 @@ def run(args):
                 native.mkdir(mode=0o700)
                 if args.agent in ("iflow", "qwen", "gemini", "codebuddy", "goose", "vibe", "hermes", "snow", "copilot", "kilocode", "kiro", "opencode", "pi"):
                     fixture.forbidden_skill = "unselected-" + fixture.name
-                    if args.agent in ("qwen", "snow"):
+                    if args.agent in ("qwen", "snow", "vibe"):
                         # These adapters discover native roots alongside the selected view.
                         decoy_roots = (root / ".shiju/skills",)
                     else:

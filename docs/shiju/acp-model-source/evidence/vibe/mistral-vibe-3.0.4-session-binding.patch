@@ -99,35 +99,61 @@
 +        os.environ[ENV] = args.session_model_config
 --- a/vibe/core/skills/manager.py
 +++ b/vibe/core/skills/manager.py
-@@ -164,0 +165,11 @@
-+        import os
+@@ -4,0 +5 @@
++import os
+@@ -124,0 +126 @@
++        self._mounted_root = self._read_mounted_root()
+@@ -174,0 +177,4 @@
++        # Preserve the native root order and its duplicate resolution.
++        if mounted := self._mounted_root:
++            paths.append((mounted, SkillScope.GLOBAL))
 +
-+        override = os.environ.get("SHIJU_VIBE_SKILL_ROOT")
-+        if override is not None:
-+            if not override:
-+                return []
-+            root = Path(override)
-+            if not root.is_absolute() or not root.is_dir():
-+                raise ValueError("invalid private skill directory")
-+            return [(root, SkillScope.GLOBAL)]
+@@ -191,0 +198,10 @@
 +
-@@ -241,0 +253,4 @@
-+        import os
-+
-+        if "SHIJU_VIBE_SKILL_ROOT" in os.environ:
-+            return []
++    @staticmethod
++    def _read_mounted_root() -> Path | None:
++        mounted = os.environ.get("SHIJU_VIBE_SKILL_ROOT")
++        if not mounted:
++            return None
++        root = Path(mounted)
++        if not root.is_absolute() or not root.is_dir():
++            raise ValueError("invalid private skill directory")
++        return root.resolve()
+@@ -374 +390 @@
+-            return SkillInfo.from_metadata(
++            info = SkillInfo.from_metadata(
+@@ -382,0 +399,4 @@
++            if skill_file.parent.parent == self._mounted_root:
++                # Keep the session view location through native projection.
++                return info.model_copy(update={"skill_path": skill_file})
++            return info
 --- a/vibe/app_server/_skills.py
 +++ b/vibe/app_server/_skills.py
-@@ -162,0 +163,5 @@
-+    import os
-+
-+    if "SHIJU_VIBE_SKILL_ROOT" in os.environ:
-+        return tuple(_without_skills(context) for context in contexts)
-+
-@@ -205,0 +211,6 @@
-+    import os
-+
-+    if "SHIJU_VIBE_SKILL_ROOT" in os.environ:
-+        plugin_skills = {}
-+        plugin_contexts = tuple(_without_skills(context) for context in plugin_contexts)
-+
+@@ -18,0 +19 @@
++import os
+@@ -190,0 +192,7 @@
++    mounted = os.environ.get("SHIJU_VIBE_SKILL_ROOT")
++    if mounted and skill.skill_path is not None:
++        directory = skill.skill_path.parent
++        if directory.parent == Path(mounted).resolve():
++            return render_skill_result(
++                skill, sample_skill_files(directory), base_dir=str(directory)
++            ).content
+--- a/vibe/acp/agent.py
++++ b/vibe/acp/agent.py
+@@ -125,0 +126 @@
++from vibe.app_server._effect_models import effect_input_json
+@@ -900,0 +902,8 @@
++        name = detail.effect.tool_name
++        tool_call = ToolCallUpdate(tool_call_id=detail.related_entry_id or name)
++        # Preserve the effect identity in the existing approval, even for calls
++        # made inside a program. Keep the native options and decision intact.
++        if name == "file_system.read_file" or name.startswith("mcp_"):
++            tool_call.kind = "other"
++            tool_call.title = name
++            tool_call.raw_input = effect_input_json(detail.effect)
+@@ -903,3 +912 @@
+-            tool_call=ToolCallUpdate(
+-                tool_call_id=detail.related_entry_id or detail.effect.tool_name
+-            ),
++            tool_call=tool_call,

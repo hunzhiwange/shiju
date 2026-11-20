@@ -162,7 +162,7 @@ impl AcpClient {
             || self.managed_corust() || self.managed_cortex()
             || (matches!(
                 self.agent_name.as_str(),
-                "deepagents" | "dimcode" | "junie" | "sigit" | "stakpak" | "poolside"
+                "deepagents" | "dimcode" | "junie" | "stakpak" | "poolside"
             ) && env.contains_key("VW_ACP_LAUNCH_REFERENCE"));
         let managed_claude = managed_claude_settings(&self.config).is_some();
         if self.managed_cortex() {
@@ -315,9 +315,6 @@ impl AcpClient {
             #[cfg(not(windows))]
             shell_command::apply_augmented_path_tokio_command(&mut cmd);
             cmd.envs(&env);
-        } else if self.agent_name == "sigit" {
-            cmd.env_remove("VW_ACP_LAUNCH_REFERENCE")
-                .env_remove("SIGIT_MANAGED_SKILL_DIRS");
         }
         if let Some(directory) = directory.filter(|_| !managed_vtcode && !self.managed_workspace_io()) {
             cmd.current_dir(directory);

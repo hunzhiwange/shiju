@@ -1241,54 +1241,54 @@
     },
     {
       "key": "cursor",
-      "version": "2026.10.22-27dcf5f",
+      "version": "2026.11.11-b912975",
       "status": "candidate",
       "platform": {
         "review_host": "Darwin-arm64",
-        "artifact_scope": "本机固定发行物静态审查；源码/通用 JS 的跨平台执行未验证",
+        "artifact_scope": "Darwin arm64 官方固定归档及受管 model-source-v6。",
         "linux": "unverified",
         "windows": "unverified"
       },
       "distribution": {
-        "package": "cursor",
-        "version": "2026.10.22-27dcf5f",
-        "upstream_url": "https://downloads.cursor.com/lab/2026.10.22-27dcf5f/darwin/arm64/agent-cli-package.tar.gz",
-        "upstream_integrity": "见本项 evidence 文件 SHA-256；不得将其等同完整发行物签名",
+        "package": "@anysphere/agent-cli-runtime",
+        "version": "2026.11.11-b912975",
+        "upstream_url": "https://downloads.cursor.com/lab/2026.11.11-b912975/darwin/arm64/agent-cli-package.tar.gz",
+        "upstream_integrity": "SHA-256 2c60b58fb7d9a54c7cb9460f0cbb10d451d4af025d4451f252e5f1d956f8c66f",
         "engine": {
           "kind": "same_distribution",
-          "release": "2026.10.22-27dcf5f"
+          "release": "2026.11.11-b912975"
         },
-        "local_identity": "固定版本来自版本清单/本机隔离发行物路径；仅记录静态文件散列，不把路径命名当作运行身份验证。"
+        "local_identity": "受管 v6 校验全部 351 个运行文件。"
       },
       "acp_entry": {
         "argv": [
           "cursor-agent",
           "acp"
         ],
-        "binding": "crates/vw-acp/src/agent_registry.rs::BUILT_IN_AGENT_DEFINITIONS",
-        "runtime_executed": false,
-        "note": "固定发行物候选入口；注册器含 latest/range，不保证用户当前命令已固定到此版本。"
+        "binding": "crates/libs/acp-agent-registry/src/managed_runtime/contracts.json#cursor",
+        "runtime_executed": true,
+        "note": "受管 session_model 按会话工作目录启动。"
       },
       "mount": {
         "candidate_paths": [
-          ".cursor/skills（固定包路径分类）",
-          ".agents/skills（固定包路径分类）"
+          ".cursor/skills",
+          "SHIJU_ACP_CURSOR_SKILL_ROOT"
         ],
-        "discovery": "固定 2026.10.22-27dcf5f bundle 存在扫描子目录 SKILL.md 的实现与技能路径工具；隔离额外根、忽略全局和 ACP 路径仍未验证。",
-        "activation": "扫描与路径分类只是发现线索；未证明 ACP 内按需激活。",
-        "session_isolation": "unverified：额外根/专属配置根不自动排除内建、用户、项目及插件技能；不得修改 HOME 或写用户全局目录。"
+        "discovery": "Cursor Agent Store 扫描器在原生目录之外追加 ShiJu 的私有会话视图。",
+        "activation": "私有模型桥公布技能元数据，原生读文件执行器按需读取正文及附件。",
+        "session_isolation": "无选集时保留原生目录。同名目录拒绝歧义。"
       },
       "permissions": {
-        "status": "unverified",
+        "status": "原生进程使用现有文件检查与 MCP 审批，网关验收见回执。",
         "requirements": "执行端重新审核目录、租户/项目/会话权限、路径逃逸与符号链接；支持文件/脚本/MCP 仍受各自授权限制，不扩大 full_access。",
-        "agent_specific": "固定 ACP 的目录/工具授权条件须后续真实验证；未因模型来源受限推定技能不支持。"
+        "agent_specific": "挂载仅限受管 session_model 和启用工具的会话。"
       },
       "update": {
         "native": "unverified：本任务未执行热更新或原子完整替换；静态刷新函数/文档 reload 不作成功承诺。",
-        "candidate": "在不打断运行请求的前提下评估空闲重建；尚未确认固定发行物原生更新入口。"
+        "candidate": "选集变更通过重新创建受管进程生效。"
       },
       "recovery": {
-        "status": "unverified",
+        "status": "原生跨进程恢复见回执。",
         "requirements": "重建 new/load/resume 后重新发布同 revision 目录并核实发现、删除和支持文件访问；不能把已有模型来源恢复证据当技能恢复证据。"
       },
       "independent_sources": {
@@ -1300,39 +1300,23 @@
         "client_model_source": {
           "prior_report_status": "unsupported",
           "reference": "../../shiju/acp-model-source/cli-versions.json#cursor",
-          "runtime_verified_this_task": false,
-          "note": "只保留旧报告定位；不复制其通过/不支持结论到技能能力。"
+          "runtime_verified_this_task": true,
+          "note": "验证受管 session_model。"
         }
       },
       "evidence": [
         {
-          "path": "target/acp-model-source-tools/cursor-2026.10.22-27dcf5f/dist-package/8008.index.js",
-          "sha256": "448a22d3908279dbfd7ac47c014979643add4d73b63f2bd880dce6501abec678",
-          "kind": "source",
-          "bytes": 1020941,
+          "path": "patches/acp-model-source/cursor/session-model.cjs",
+          "sha256": "136c5f321b0228c0091cc4e1cc81eb56a310711510773dcb04a9875d5d93a82b",
+          "kind": "reviewed_skill_mount_patch",
           "observations": [
-            {
-              "pattern": "\\.cursor/skills/",
-              "byte_offset": 973870,
-              "line": 1,
-              "excerpt": "ils/skill-path-utils.ts\"(e,t,n){n.d(t,{BN:()=>o});const r=[\".cursor/skills/\",\".cursor/skills-cursor/\",\".cursor/cloud-skills/\",\".cursor/plugins/\",\".claude/skills/\",\".claude/plugins/\",\".codex/skills/\",\".grok/skills/\",\".agents/skills/\"];function s(e){return e.replace(/\\\\/g,\"/\")"
-            },
-            {
-              "pattern": "const r=\\(0,a.join\\)\\(e,s.name,\"SKILL.md\"\\)",
-              "byte_offset": 165834,
-              "line": 1,
-              "excerpt": "c)((0,a.join)(e,s.name)).isDirectory()}catch{continue}if(r){const r=(0,a.join)(e,s.name,\"SKILL.md\");(0,o.existsSync)(r)&&!(0,l.hCu)(r)&&t.push({id:r,name:s.name,path:r,scope:n})}}}catch{}};for(const t of(0,l.x7$)(e,!0))s(t.dirPath,t.scope);for(const e of(0,l.Dct)(n,!0))s(e.dirPath,e.scope);return s"
-            }
-          ]
+            "Agent Store 追加扫描，原生读文件执行器及会话工具结果续接。"
+          ],
+          "contract": "crates/libs/acp-agent-registry/src/managed_runtime/contracts.json#cursor"
         }
       ],
       "supplemental_official_docs": [],
-      "next_validation": "固定版本真实 ACP：发现元数据 → 按需激活 → 支持文件/脚本工具回合 → 隔离/删除/更新失败保旧 → 跨进程恢复；只替代外部模型 HTTP。未安装/缺账号则保留 unverified。",
-      "delivery_acceptance": {
-        "status": "user_waived",
-        "reason": "用户明确决定免登录、免验证并接受本项；未实际运行，不计实测 verified。",
-        "evidence": "evidence/regression.json"
-      }
+      "next_validation": "定向网关验收和支持范围见 docs/dev/acp/skill-coexistence/cursor.md"
     },
     {
       "key": "droid",

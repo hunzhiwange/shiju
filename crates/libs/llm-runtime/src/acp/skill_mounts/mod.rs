@@ -45,7 +45,7 @@ pub fn validate(agent: &str, selected: bool) -> Result<(), Error> {
         "openclaw" => return Ok(()),
         "pi" => return Ok(()),
         "auggie" => auggie::rejection(),
-        "cursor" => cursor::rejection(),
+        "cursor" => return Ok(()),
         "droid" => droid::rejection(),
         "qoder" => qoder::rejection(),
         "trae" => trae::rejection(),
@@ -138,7 +138,9 @@ pub fn configure_native_scanner(
     config: &mut agent_config::schema::AcpAgentConfig,
     view: Option<&MountedSkills>,
 ) -> Result<(), Error> {
-    if agent == "iflow" {
+    if agent == "cursor" {
+        cursor::configure(config, view)?;
+    } else if agent == "iflow" {
         iflow::configure(config, view)?;
     } else if agent == "pi" {
         pi::configure(config, view)?;

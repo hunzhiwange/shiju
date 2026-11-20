@@ -55,9 +55,14 @@ source = source[:start] + 'X=s("./src/shared/resources.ts").cn()' + source[end:]
 source = replace(source, 'se=await w.P3.init(U,{configProvider:n.configProvider,initialModel:k}),ae=await ee.load(e)',
     'se=shijuCursor.modelManager(w.P3,s("../proto/dist/generated/agent/v1/agent_pb.js"),n.configProvider),ae=new d.i9({})')
 source = replace(source, 'ce=(0,g.Np)(j)', 'ce=shijuCursor.unavailableServices()')
+# The Agent Store scanner accepts additional roots without changing project rule discovery.
+source = replace(source, 'D,B,void 0,W,void 0,"cli"),K=',
+    'D,B,void 0,W,void 0,"cli",void 0,shijuCursor.skillRoots),K=')
 services_start = source.index('async function M(e,t,n,M,T){')
 services_end = source.index('}(0,n.h)("shared-services")', services_start) + 1
 managed_services = source[services_start:services_end].replace('async function M(', 'async function shijuCursorShared(', 1)
+managed_services = replace(managed_services, 'return{aiServerClient:U',
+    'await z.agentStoreSkillsSettled();return{aiServerClient:U')
 native_services = native_services.replace('async function M(e,t,n,M,T){', 'async function M(e,t,n,M,T){if(process.env.SHIJU_CURSOR_MODEL_CONFIG)return shijuCursorShared(e,t,n,M,T);', 1)
 source = source[:services_start] + native_services + managed_services + source[services_end:]
 # Bind the managed shell default to the working directory of the ACP session.

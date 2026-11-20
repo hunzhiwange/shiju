@@ -58,7 +58,7 @@ impl AcpClient {
         let ProcessHandles { mut child, stderr_task } =
             if self.managed_corust()
                 || matches!(self.agent_name.as_str(), "codebuddy" | "nova" | "poolside")
-                || (self.agent_name == "stakpak"
+                || (matches!(self.agent_name.as_str(), "stakpak" | "cursor")
                     && self.config.env.contains_key("VW_ACP_LAUNCH_REFERENCE"))
             {
                 self.spawn_child_at(false, Some(cwd))?

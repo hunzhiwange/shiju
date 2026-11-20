@@ -213,6 +213,18 @@ pub async fn do_stream_request_acp<H: Host>(
             ));
         }
     }
+    let cursor_skill_reads_disabled = acp_agent_name == "cursor"
+        && (parsed_options.permission_mode == Some(acp_types::PermissionMode::DenyAll)
+            || merged_options.get("disable_tools").and_then(Value::as_bool) == Some(true));
+    if acp_agent_name == "cursor"
+        && parsed_options.skill_view.is_some()
+        && (source != vw_api_acp_model::acp_model_source::AcpModelSource::SessionModel
+            || cursor_skill_reads_disabled)
+    {
+        return Err(acp_option_error(
+            "Cursor skill mounts require session_model with native tools enabled",
+        ));
+    }
     H::supplier(&acp_agent_name, parsed_options.skill_view.as_ref())?;
     H::validate_mounts(&acp_agent_name, !parsed_options.skill_mounts.is_empty())?;
 
@@ -330,6 +342,11 @@ pub async fn do_stream_request_acp<H: Host>(
         .as_ref()
         .map(|profile| profile.config().clone())
         .unwrap_or(normalized_acp_cfg);
+    if cursor_skill_reads_disabled && launch_profile.is_some() {
+        normalized_acp_cfg
+            .env
+            .insert("SHIJU_ACP_CURSOR_DISABLE_SKILL_READS".into(), "1".into());
+    }
     let command = normalized_acp_cfg.command.trim();
     if command.is_empty() {
         tracing::warn!(

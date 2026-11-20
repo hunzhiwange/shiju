@@ -1,8 +1,8 @@
 // Fixed Cursor ACP runtime: Chat inference with native shell and MCP execution and blob history.
 'use strict';
-const { readFileSync, lstatSync } = require('node:fs');
+const { readFileSync, lstatSync, realpathSync } = require('node:fs');
 const { createHash } = require('node:crypto');
-const { isAbsolute } = require('node:path');
+const { isAbsolute, basename, dirname, relative, sep } = require('node:path');
 const toolStepLimit = 2000;
 
 function validateConfig(c) {
@@ -30,6 +30,45 @@ const tool = { type: 'function', function: {
   parameters: { type: 'object', properties: { command: { type: 'string' } }, required: ['command'], additionalProperties: false },
 } };
 
+const readTool = { type: 'function', function: {
+  name: 'read', description: 'Read a discovered skill or a supporting file in its directory.',
+  parameters: { type: 'object', properties: { path: { type: 'string' } }, required: ['path'], additionalProperties: false },
+} };
+
+function skillRoots() {
+  const root = process.env.SHIJU_ACP_CURSOR_SKILL_ROOT;
+  return root ? [root] : [];
+}
+
+function within(directory, file) {
+  const path = relative(directory, file);
+  return path !== '' && path !== '..' && !path.startsWith('..' + sep) && !isAbsolute(path);
+}
+
+function visibleSkills(context) {
+  const skills = (context.agentSkills ?? []).filter(skill => !skill.parseError && !skill.disableModelInvocation);
+  const [root] = skillRoots();
+  if (root) {
+    const native = new Set(skills.filter(skill => !within(root, skill.fullPath))
+      .map(skill => basename(dirname(skill.fullPath)).toLowerCase()));
+    for (const skill of skills) {
+      if (within(root, skill.fullPath) && native.has(basename(dirname(skill.fullPath)).toLowerCase()))
+        throw new Error('Cursor mounted skill conflicts with a native skill');
+    }
+  }
+  return skills;
+}
+
+function readArgs(call, skills) {
+  const args = JSON.parse(call.arguments);
+  if (!args || Object.keys(args).length !== 1 || typeof args.path !== 'string' || !isAbsolute(args.path))
+    throw new Error('Cursor invalid skill read arguments');
+  const skill = skills.find(skill => within(dirname(skill.fullPath), args.path));
+  if (!skill || !within(realpathSync(dirname(skill.fullPath)), realpathSync(args.path)))
+    throw new Error('Cursor read path outside discovered skills');
+  return { path: args.path, toolCallId: call.id };
+}
+
 function shellArgs(call, cwd) {
   if (call.name !== 'shell') throw new Error('Cursor unsupported returned tool');
   let a;
@@ -43,7 +82,7 @@ function mcpTools(descriptors) {
   const tools = new Map();
   for (const descriptor of descriptors) {
     const { name, providerIdentifier, toolName, clientKey, description, inputSchema } = descriptor;
-    if (!/^[a-zA-Z0-9_-]{1,64}$/.test(name) || name === 'shell' || tools.has(name)
+    if (!/^[a-zA-Z0-9_-]{1,64}$/.test(name) || ['shell', 'read'].includes(name) || tools.has(name)
         || !providerIdentifier || !toolName || !clientKey || inputSchema?.type !== 'object')
       throw new Error('Cursor unsupported or ambiguous MCP tool descriptor');
     tools.set(name, {
@@ -62,7 +101,7 @@ function mcpArgs(call, target) {
   return { ...target, args, toolCallId: call.id };
 }
 
-async function* parseStream(body, tools = new Map()) {
+async function* parseStream(body, tools = new Map(), skills = []) {
   const decoder = new TextDecoder(); let buffer = '', done = false, finish, call, content = '', reasoning = '';
   function consume(line) {
     if (!line.startsWith('data:')) return;
@@ -100,6 +139,7 @@ async function* parseStream(body, tools = new Map()) {
   if (!done || !['stop', 'tool_calls'].includes(finish) || (finish === 'tool_calls') !== !!call || call && !call.id)
     throw new Error('Cursor incomplete or unsupported model completion');
   if (call && tools.has(call.name)) mcpArgs(call, tools.get(call.name).target);
+  else if (call?.name === 'read') readArgs(call, skills);
   else if (call) shellArgs(call, '/');
   yield { completed: true, content, reasoning, call };
 }
@@ -123,6 +163,8 @@ function history(conversation) {
         let name, parameters;
         if (tc.tool.case === 'shellToolCall') {
           name = 'shell'; parameters = { command: args.command };
+        } else if (tc.tool.case === 'readToolCall') {
+          name = 'read'; parameters = { path: args.path };
         } else if (tc.tool.case === 'mcpToolCall') {
           ({ name, args: parameters = {} } = args.toJson());
           if (!name) throw new Error('Cursor incomplete MCP history tool');
@@ -150,10 +192,13 @@ async function run(api, ctx, state, action, model, updates, resources, blobs, ac
   if (store.getMetadata('mode') && store.getMetadata('mode') !== 'default')
     throw new Error('Cursor session model supports agent mode only');
   await api.context(ctx, action, resources, store.getId());
-  const requestContext = action.action.value.requestContext;
+  const requestContext = action.action.value.requestContext?.toJson() ?? {};
   const cwd = store.getMetadata('workspacePath');
   const mountedTools = mcpTools(mcp);
-  const tools = [tool, ...Array.from(mountedTools.values(), entry => entry.definition)];
+  const skills = process.env.SHIJU_ACP_CURSOR_DISABLE_SKILL_READS === '1'
+    ? [] : visibleSkills(requestContext);
+  if (requestContext.agentSkills) requestContext.agentSkills = skills;
+  const tools = [tool, ...(skills.length ? [readTool] : []), ...Array.from(mountedTools.values(), entry => entry.definition)];
   const messages = [{ role: 'system', content: [
     'You are Cursor, a coding assistant. Use the available tools as requested. Follow the user write scope.',
     'When using the shell tool, run foreground commands only.',
@@ -161,7 +206,7 @@ async function run(api, ctx, state, action, model, updates, resources, blobs, ac
     'Stop gathering evidence once it answers the request. Prefer existing tool results to redundant lookups.',
     'For proposed checks, state the setup and what distinguishes each outcome. Report predictions as predictions.',
     'Workspace and rules:',
-    JSON.stringify(requestContext?.toJson() ?? {}),
+    JSON.stringify(requestContext),
   ].join('\n') },
     ...history(await store.getFullConversation(ctx)), { role: 'user', content: user.text }];
   const make = (name, value) => proto(api.pb, name).fromJson(value);
@@ -194,7 +239,7 @@ async function run(api, ctx, state, action, model, updates, resources, blobs, ac
       });
       if (!response.ok) { await response.body?.cancel(); throw new Error(`Cursor model request failed (HTTP ${response.status})`); }
       let result;
-      for await (const delta of parseStream(response.body, mountedTools)) {
+      for await (const delta of parseStream(response.body, mountedTools, skills)) {
         if (delta.text) await updates.sendUpdate(ctx, api.updates.textDelta(delta.text));
         if (delta.reasoning) await updates.sendUpdate(ctx, api.updates.thinkingDelta(delta.reasoning));
         if (delta.completed) result = delta;
@@ -208,17 +253,18 @@ async function run(api, ctx, state, action, model, updates, resources, blobs, ac
       if (finalOnly) throw new Error('Cursor model requested a tool after reaching the step limit');
       const call = result.call;
       const mounted = mountedTools.get(call.name);
-      if (!mounted && (typeof cwd !== 'string' || !isAbsolute(cwd)))
+      const read = call.name === 'read';
+      if (!mounted && !read && (typeof cwd !== 'string' || !isAbsolute(cwd)))
         throw new Error('Cursor ACP session working directory is unavailable');
-      const args = mounted ? mcpArgs(call, mounted.target) : shellArgs(call, cwd);
-      if (!mounted) {
+      const args = mounted ? mcpArgs(call, mounted.target) : read ? readArgs(call, skills) : shellArgs(call, cwd);
+      if (!mounted && !read) {
         const parsed = api.parseShell(args.command);
         Object.assign(args, parsed.legacy, { parsingResult: parsed.structured });
       }
-      const toolCase = mounted ? 'mcpToolCall' : 'shellToolCall';
-      const argsCase = mounted ? 'mcpArgs' : 'shellArgs';
-      const resultCase = mounted ? 'mcpResult' : 'shellResult';
-      const tc = make('ToolCall', { toolCallId: call.id, [toolCase]: { args } });
+      const toolCase = mounted ? 'mcpToolCall' : read ? 'readToolCall' : 'shellToolCall';
+      const argsCase = mounted ? 'mcpArgs' : read ? 'readArgs' : 'shellArgs';
+      const resultCase = mounted ? 'mcpResult' : read ? 'readResult' : 'shellResult';
+      const tc = make('ToolCall', { toolCallId: call.id, [toolCase]: { args: read ? { path: args.path } : args } });
       await updates.sendUpdate(ctx, api.updates.toolCallStarted(call.id, tc));
       const request = api.ExecServerMessage.fromJson({ id: index + 1, execId: call.id, [argsCase]: args });
       let toolResult;
@@ -228,12 +274,23 @@ async function run(api, ctx, state, action, model, updates, resources, blobs, ac
         toolResult = reply.message.value;
       }
       if (!toolResult?.result.case) throw new Error('Cursor missing native tool result');
-      tc.tool.value.result = toolResult;
+      if (read) {
+        // The native file executor and the conversation use distinct read result messages.
+        const result = toolResult.result;
+        const readResult = result.case === 'success' && typeof result.value.output.value === 'string'
+          ? { success: { path: result.value.path, content: result.value.output.value,
+            totalLines: result.value.totalLines, exceededLimit: result.value.truncated } }
+          : { error: { errorMessage: 'Cursor native read returned ' + result.case } };
+        tc.tool.value.result = make('ToolCall', { toolCallId: call.id, readToolCall: { result: readResult } })
+          .tool.value.result;
+      } else {
+        tc.tool.value.result = toolResult;
+      }
       await step({ toolCall: tc.toJson() }); await save();
       await updates.sendUpdate(ctx, api.updates.toolCallCompleted(call.id, tc));
       messages.push({ role: 'assistant', content: result.content || null, ...(result.reasoning ? { reasoning_content: result.reasoning } : {}),
         tool_calls: [{ id: call.id, type: 'function', function: { name: call.name, arguments: call.arguments } }] },
-      { role: 'tool', tool_call_id: call.id, content: JSON.stringify(toolResult.toJson()) });
+      { role: 'tool', tool_call_id: call.id, content: JSON.stringify(tc.tool.value.result.toJson()) });
     }
   } catch (error) { await save(); throw error; }
 }
@@ -253,8 +310,10 @@ function unavailableServices() {
   return new Proxy({}, { get: (_, name) => async () => { throw new Error(`Cursor remote service unavailable in session model mode: ${String(name)}`); } });
 }
 function toolCallStatus(call) {
-  if (!process.env.SHIJU_CURSOR_MODEL_CONFIG || call.tool.case !== 'mcpToolCall') return 'completed';
+  if (!process.env.SHIJU_CURSOR_MODEL_CONFIG) return 'completed';
   const result = call.tool.value.result?.result;
+  if (call.tool.case === 'readToolCall') return result?.case === 'success' ? 'completed' : 'failed';
+  if (call.tool.case !== 'mcpToolCall') return 'completed';
   return result?.case === 'success' && !result.value.isError ? 'completed' : 'failed';
 }
-module.exports = { validateConfig, parseStream, shellArgs, history, run, modelManager, config, unavailableServices, toolCallStatus };
+module.exports = { validateConfig, parseStream, shellArgs, history, run, modelManager, config, unavailableServices, toolCallStatus, skillRoots };

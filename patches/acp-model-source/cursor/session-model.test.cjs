@@ -1,12 +1,15 @@
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const os = require('node:os');
+const path = require('node:path');
 const { validateConfig, parseStream, history, shellArgs } = require('./session-model.cjs');
 const config = { endpoint: 'http://127.0.0.1:1234/', model: 'selected', token: 'fixture', outputLimit: 1000 };
 const event = (delta, finish_reason) => 'data: ' + JSON.stringify({ choices: [{ delta, finish_reason }] }) + '\n\n';
-async function collect(text, tools) {
+async function collect(text, tools, skills) {
   // Byte-wise delivery includes split UTF-8 and SSE boundaries.
   const body = (async function* () { for (const byte of Buffer.from(text)) yield Buffer.from([byte]); })();
-  const result = []; for await (const item of parseStream(body, tools)) result.push(item); return result;
+  const result = []; for await (const item of parseStream(body, tools, skills)) result.push(item); return result;
 }
 test('binding rejects non-loopback and credential-bearing endpoints', () => {
   assert.equal(validateConfig(config), config);
@@ -68,4 +71,25 @@ test('stream accepts only mounted MCP tools with object arguments', async () => 
   assert.equal((await collect(completion(args), mounted)).at(-1).call.name, name);
   await assert.rejects(collect(completion(args)), /unsupported returned tool/);
   await assert.rejects(collect(completion('[]'), mounted), /invalid MCP tool arguments/);
+});
+
+test('skill reads accept discovered paths and reject symlink escapes', async t => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'cursor-skill-test-'));
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  const skill = path.join(root, 'skill');
+  fs.mkdirSync(skill);
+  const fullPath = path.join(skill, 'SKILL.md');
+  fs.writeFileSync(fullPath, 'body');
+  const outside = path.join(root, 'outside.md');
+  fs.writeFileSync(outside, 'outside');
+  const link = path.join(skill, 'escape.md');
+  fs.symlinkSync(outside, link);
+
+  const read = file => event({ tool_calls: [{
+    index: 0, id: 'read-1', type: 'function',
+    function: { name: 'read', arguments: JSON.stringify({ path: file }) },
+  }] }, 'tool_calls') + 'data: [DONE]\n\n';
+  assert.equal((await collect(read(fullPath), undefined, [{ fullPath }])).at(-1).call.id, 'read-1');
+  await assert.rejects(collect(read(link), undefined, [{ fullPath }]), /outside discovered skills/);
+  await assert.rejects(collect(read(fullPath)), /outside discovered skills/);
 });

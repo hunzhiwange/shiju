@@ -276,6 +276,16 @@ impl<H: GatewayExecutorHost> StoreBackedAgentSchedulerGateway<H> {
     ) -> Result<Option<StoredAgentRun>, ApiError> {
         match command {
             AgentSchedulerCommandKindDto::Start | AgentSchedulerCommandKindDto::Promote => {
+                if task.status == AgentTaskStatus::Blocked
+                    && self.store.work_plan_is_published(project_path, &task.id)
+                        .map_err(map_scheduler_error)?
+                {
+                    self.store.queue_completed_work_plans(project_path, now_ms)
+                        .map_err(map_scheduler_error)?;
+                    return self.run_or_dispatch_project_task(
+                        project_path, &task.id, now_ms, dispatch_mode, max_concurrent,
+                    ).await;
+                }
                 if start_command_is_idempotent_for_status(task.status) {
                     return Ok(None);
                 }
@@ -439,6 +449,12 @@ impl<H: GatewayExecutorHost> StoreBackedAgentSchedulerGateway<H> {
             }
         }
         .ok_or_else(|| ApiError::not_found("task not found"))?;
+        if command == AgentSchedulerCommandKindDto::Move
+            && outcome.task.status == AgentTaskStatus::Completed
+            && let Err(error) = self.store.queue_completed_work_plans(project_path, now_ms)
+        {
+            tracing::warn!(%error, "work plan completion scan will be retried on project wake");
+        }
         let task = task_board_task_to_dto_with_latest_run(
             &self.store,
             project_id,
@@ -569,6 +585,7 @@ impl<H: GatewayExecutorHost> StoreBackedAgentSchedulerGateway<H> {
     ) -> Result<Vec<AgentSchedulerDispatchedRunDto>, ApiError> {
         let lock = self.project_dispatch_lock(context);
         let _guard = lock.lock().await;
+        self.store.queue_completed_work_plans(context, now_ms).map_err(map_scheduler_error)?;
         let mut runs = Vec::new();
         let mut missed = false;
         while runs.len() < max_concurrent {

@@ -309,7 +309,16 @@ pub enum AgentSchedulerDispatchBlockerDto {
     EarlierBatchFailed { task_ids: Vec<String> },
     ParentNotReleased { parent_task_id: String },
     WorkPlanNotPublished,
+    WorkPlanChildrenIncomplete { children: Vec<AgentSchedulerWorkPlanChildBlockerDto> },
+    WorkPlanSummaryUnavailable,
     ExplicitDependency { task_ids: Vec<String> },
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct AgentSchedulerWorkPlanChildBlockerDto {
+    pub task_id: String,
+    pub status: String,
+    pub status_key: String,
 }
 
 impl AgentSchedulerTaskBoardTaskReadModelDto {

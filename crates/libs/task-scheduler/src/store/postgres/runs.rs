@@ -7,7 +7,7 @@ use vw_api_agent_scheduler::AgentSchedulerScope;
 use vw_api_transport::common::TimestampMs;
 
 use super::PostgresAgentSchedulerStore;
-use super::task_plan::{load_plan_dispatch_snapshot, lock_task_plan_project};
+use super::task_plan::{claim_summary, load_plan_dispatch_snapshot, lock_task_plan_project};
 use super::tasks::{load_task_for_update, load_workflow_with_client};
 use crate::domain::{AgentRunStatus, RunId, TaskId};
 use crate::engine::dispatch::{effective_dispatch_workflow, task_lifecycle_allows_dispatch};
@@ -294,6 +294,7 @@ impl PostgresAgentSchedulerStore {
                 .with_context(|| {
                     format!("insert scoped PostgreSQL ready run claim: {}", request.run_id.as_str())
                 })?;
+            claim_summary(&mut transaction, &scope, &request.task_id, &request.run_id)?;
             let stored = load_run_with_client(&mut transaction, &scope, &request.run_id)?
                 .with_context(|| {
                     format!(

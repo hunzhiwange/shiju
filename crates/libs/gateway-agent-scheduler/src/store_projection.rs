@@ -564,6 +564,20 @@ pub(super) fn dispatch_blocker_to_dto(blocker: DispatchBlocker) -> AgentSchedule
         DispatchBlocker::TaskPlan(TaskPlanDispatchBlocker::WorkPlanNotPublished) => {
             AgentSchedulerDispatchBlockerDto::WorkPlanNotPublished
         }
+        DispatchBlocker::TaskPlan(TaskPlanDispatchBlocker::WorkPlanChildrenIncomplete { children }) => {
+            AgentSchedulerDispatchBlockerDto::WorkPlanChildrenIncomplete {
+                children: children.into_iter().map(|(task_id, status, status_key)| {
+                    vw_api_agent_scheduler::AgentSchedulerWorkPlanChildBlockerDto {
+                        task_id: task_id.as_str().to_owned(),
+                        status,
+                        status_key,
+                    }
+                }).collect(),
+            }
+        }
+        DispatchBlocker::TaskPlan(TaskPlanDispatchBlocker::WorkPlanSummaryUnavailable) => {
+            AgentSchedulerDispatchBlockerDto::WorkPlanSummaryUnavailable
+        }
         DispatchBlocker::ExplicitDependency { task_ids } => {
             AgentSchedulerDispatchBlockerDto::ExplicitDependency { task_ids: ids(task_ids) }
         }

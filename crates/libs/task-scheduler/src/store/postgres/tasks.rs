@@ -23,7 +23,7 @@ use crate::store::tasks::{
 };
 
 use super::events::insert_event_with_client;
-use super::task_plan::{load_plan_members, lock_task_plan_project, write_placement};
+use super::task_plan::{load_plan_members, lock_task_plan_project, postgres_publication_exists, validate_summary_child_update, write_placement};
 use crate::store::task_plan::{
     PlacementWrite, TaskPlanEdit, TaskPlanPlacement, became_hidden, placement_event, validate_hiding,
     validate_metadata_completion,
@@ -193,9 +193,15 @@ impl PostgresAgentSchedulerStore {
                 None => current.title.clone(),
             };
             let status = update.status.unwrap_or(current.status);
+            validate_summary_child_update(&mut transaction, &scope, &current, status, &update.metadata)?;
             let hiding = became_hidden(&current, status, &update.metadata);
             if hiding {
-                validate_hiding(&load_plan_members(&mut transaction, &scope, task_id)?, task_id)?;
+                let archived_published_parent = status == AgentTaskStatus::Archived
+                    && !bool_metadata_field(&update.metadata, "task_board.deleted")
+                    && postgres_publication_exists(&mut transaction, &scope, task_id)?;
+                validate_hiding(
+                    &load_plan_members(&mut transaction, &scope, task_id)?, task_id, archived_published_parent,
+                )?;
             }
             if matches!(&plan_edit, TaskPlanEdit::Metadata)
                 && status == AgentTaskStatus::Completed
@@ -275,11 +281,22 @@ impl PostgresAgentSchedulerStore {
             let Some(current) = load_task_for_update(&mut transaction, &scope, task_id)? else {
                 return Ok(None);
             };
-            ensure_transition(current.kind, current.status, to_status)?;
+            let pausing_plan = to_status == AgentTaskStatus::Paused
+                && matches!(current.status, AgentTaskStatus::Blocked | AgentTaskStatus::Queued)
+                && postgres_publication_exists(&mut transaction, &scope, task_id)?;
+            if !pausing_plan {
+                ensure_transition(current.kind, current.status, to_status)?;
+            }
             let metadata =
                 super::super::tasks::task_board_projection_metadata(current.metadata.clone(), to_status);
+            validate_summary_child_update(&mut transaction, &scope, &current, to_status, &metadata)?;
             if became_hidden(&current, to_status, &metadata) {
-                validate_hiding(&load_plan_members(&mut transaction, &scope, task_id)?, task_id)?;
+                let archived_published_parent = to_status == AgentTaskStatus::Archived
+                    && !bool_metadata_field(&metadata, "task_board.deleted")
+                    && postgres_publication_exists(&mut transaction, &scope, task_id)?;
+                validate_hiding(
+                    &load_plan_members(&mut transaction, &scope, task_id)?, task_id, archived_published_parent,
+                )?;
             }
             let metadata_json =
                 serde_json::to_string(&metadata).context("serialize PostgreSQL task metadata")?;
@@ -331,8 +348,14 @@ impl PostgresAgentSchedulerStore {
             };
             ensure_transition(current.kind, current.status, to_status)?;
             preserve_task_board_fields(&current.metadata, &mut metadata);
+            validate_summary_child_update(&mut transaction, &scope, &current, to_status, &metadata)?;
             if became_hidden(&current, to_status, &metadata) {
-                validate_hiding(&load_plan_members(&mut transaction, &scope, task_id)?, task_id)?;
+                let archived_published_parent = to_status == AgentTaskStatus::Archived
+                    && !bool_metadata_field(&metadata, "task_board.deleted")
+                    && postgres_publication_exists(&mut transaction, &scope, task_id)?;
+                validate_hiding(
+                    &load_plan_members(&mut transaction, &scope, task_id)?, task_id, archived_published_parent,
+                )?;
             }
             let metadata_json =
                 serde_json::to_string(&metadata).context("serialize PostgreSQL task metadata")?;

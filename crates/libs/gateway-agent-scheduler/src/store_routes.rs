@@ -102,6 +102,7 @@ impl<H: GatewayExecutorHost> AgentSchedulerGateway for StoreBackedAgentScheduler
         let dispatch_lock = self.project_dispatch_lock(&project_path);
         let _dispatch_guard = dispatch_lock.lock().await;
         self.apply_policy_tick(None, &project_path, request.now_ms, false).await?;
+        self.store.queue_completed_work_plans(&project_path, request.now_ms).map_err(map_scheduler_error)?;
         let max_concurrent = normalize_project_wake_max_concurrent(request.max_concurrent);
         let engine = DispatchEngine::new(&self.store)
             .with_dispatch_mode(dispatch_mode_from_dto(request.dispatch_mode))
@@ -124,6 +125,7 @@ impl<H: GatewayExecutorHost> AgentSchedulerGateway for StoreBackedAgentScheduler
             .reconcile_once(&project_path, request.now_ms)
             .await
             .map_err(map_scheduler_error)?;
+        self.store.queue_completed_work_plans(&project_path, request.now_ms).map_err(map_scheduler_error)?;
         Ok(recovery_response_from_outcome(outcome))
     }
 
@@ -370,7 +372,7 @@ impl<H: GatewayExecutorHost> AgentSchedulerGateway for StoreBackedAgentScheduler
                 let run = self.store.load_latest_run_for_task(&project_path, &task.id)
                     .map_err(map_scheduler_error)?;
                 let blocker = if task.kind == AgentTaskKind::Finite
-                    && matches!(task.status, AgentTaskStatus::Draft | AgentTaskStatus::Queued)
+                    && matches!(task.status, AgentTaskStatus::Draft | AgentTaskStatus::Queued | AgentTaskStatus::Blocked)
                 {
                     readiness.blocker_for(&task.id).map_err(map_scheduler_error)?
                 } else {

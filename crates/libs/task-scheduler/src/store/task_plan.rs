@@ -171,7 +171,13 @@ pub(super) const SELECT_DISPATCH_MEMBERS: &str =
          WHERE platform_id = $1 AND company_id = $2 AND project_id = $3 AND task_id = $4
      )
      SELECT task.id, plan.parent_task_id, plan.outer_batch, plan.batch, task.status,
-            task.metadata_json, publication.parent_task_id IS NOT NULL
+            task.metadata_json, publication.planning_attempt_id, summary.value,
+            EXISTS (
+                SELECT 1 FROM scheduler_runs AS run
+                WHERE run.platform_id = task.platform_id AND run.company_id = task.company_id
+                  AND run.project_id = task.project_id AND run.task_id = task.id
+                  AND run.finished_at_ms IS NULL AND run.status IN ('leased', 'running')
+            )
      FROM scheduler_tasks AS task
      LEFT JOIN scheduler_task_plans AS plan
        ON plan.platform_id = task.platform_id AND plan.company_id = task.company_id
@@ -179,6 +185,9 @@ pub(super) const SELECT_DISPATCH_MEMBERS: &str =
      LEFT JOIN scheduler_task_plan_publications AS publication
        ON publication.platform_id = task.platform_id AND publication.company_id = task.company_id
       AND publication.project_id = task.project_id AND publication.parent_task_id = task.id
+     LEFT JOIN scheduler_meta AS summary
+       ON summary.platform_id = task.platform_id AND summary.company_id = task.company_id
+      AND summary.project_id = task.project_id AND summary.key = 'task_plan.summary:' || task.id
      WHERE task.platform_id = $1 AND task.company_id = $2 AND task.project_id = $3
        AND (
            (CAST($4 AS TEXT) IS NULL AND (plan.task_id IS NOT NULL OR publication.parent_task_id IS NOT NULL))
@@ -210,13 +219,18 @@ pub(super) fn load_plan_dispatch_snapshot(
                 row.get(4)?,
                 row.get(5)?,
                 row.get(6)?,
+                row.get(7)?,
+                row.get(8)?,
             ))
         },
     )?;
     PlanDispatchSnapshot::from_rows(rows.map(|row| row.map_err(Into::into)))
 }
 
-pub(super) type DispatchRow = (String, Option<String>, Option<i64>, Option<i64>, String, String, bool);
+pub(super) type DispatchRow = (
+    String, Option<String>, Option<i64>, Option<i64>, String, String,
+    Option<String>, Option<String>, bool,
+);
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum TaskPlanDispatchBlocker {
@@ -224,25 +238,47 @@ pub enum TaskPlanDispatchBlocker {
     EarlierBatchFailed { task_ids: Vec<TaskId> },
     ParentNotReleased { parent_task_id: TaskId },
     WorkPlanNotPublished,
+    WorkPlanChildrenIncomplete { children: Vec<(TaskId, String, String)> },
+    WorkPlanSummaryUnavailable,
+}
+
+#[derive(PartialEq, Eq)]
+enum SummaryState {
+    Waiting,
+    Queued,
+    Claimed,
+}
+
+struct DispatchMember {
+    task: PlanMember,
+    publication_attempt: Option<String>,
+    summary: SummaryState,
+    active_run: bool,
 }
 
 pub(crate) struct PlanDispatchSnapshot {
-    members: BTreeMap<String, (PlanMember, bool)>,
-    parents: BTreeSet<String>,
+    members: BTreeMap<String, DispatchMember>,
+    children: BTreeMap<String, Vec<String>>,
 }
 
 impl PlanDispatchSnapshot {
     pub(super) fn from_rows(rows: impl Iterator<Item = Result<DispatchRow>>) -> Result<Self> {
-        let mut parents = BTreeSet::new();
+        let mut children = BTreeMap::<String, Vec<String>>::new();
         let members = rows.map(|row| {
-            let (id, parent, outer, batch, status, metadata, published) = row?;
+            let (id, parent, outer, batch, status, metadata, publication_attempt, summary, active_run) = row?;
             if let Some(parent_id) = &parent {
-                parents.insert(parent_id.clone());
+                children.entry(parent_id.clone()).or_default().push(id.clone());
             }
-            let member = PlanMember::decode(id, parent, outer, batch, status, metadata, false)?;
-            Ok((member.id.as_str().to_owned(), (member, published)))
+            let task = PlanMember::decode(id, parent, outer, batch, status, metadata, false)?;
+            let summary = match summary.as_deref() {
+                None => SummaryState::Waiting,
+                Some(value) if publication_attempt.as_ref().is_some_and(|attempt| value == format!("pending:{attempt}")) =>
+                    SummaryState::Queued,
+                Some(_) => SummaryState::Claimed,
+            };
+            Ok((task.id.as_str().to_owned(), DispatchMember { task, publication_attempt, summary, active_run }))
         }).collect::<Result<_>>()?;
-        Ok(Self { members, parents })
+        Ok(Self { members, children })
     }
 
     pub(crate) fn blocker_for(
@@ -251,31 +287,83 @@ impl PlanDispatchSnapshot {
         workflow: &TaskPoolWorkflowSnapshotDto,
     ) -> Option<TaskPlanDispatchBlocker> {
         let member = self.members.get(task_id.as_str());
-        if self.parents.contains(task_id.as_str()) && !member.is_some_and(|(_, published)| *published) {
+        if self.children.contains_key(task_id.as_str()) && !member.is_some_and(|member| member.publication_attempt.is_some()) {
             return Some(TaskPlanDispatchBlocker::WorkPlanNotPublished);
         }
-        let placement = member?.0.placement.as_ref()?;
+        let member = member?;
         let bridge = LifecycleBridge::new(workflow);
+        if member.publication_attempt.is_some() {
+            if member.summary == SummaryState::Claimed {
+                return Some(TaskPlanDispatchBlocker::WorkPlanSummaryUnavailable);
+            }
+            let children = self.incomplete_children(task_id, &bridge);
+            if !children.is_empty() {
+                return Some(TaskPlanDispatchBlocker::WorkPlanChildrenIncomplete { children });
+            }
+            if member.summary != SummaryState::Queued
+                || member.task.status != AgentTaskStatus::Queued
+                || !self.children.contains_key(task_id.as_str())
+            {
+                return Some(TaskPlanDispatchBlocker::WorkPlanSummaryUnavailable);
+            }
+        }
+        let placement = member.task.placement.as_ref()?;
         if let TaskPlanPlacement::Child { parent_task_id, .. } = placement {
-            let Some((parent, true)) = self.members.get(parent_task_id.as_str()) else {
-                return Some(TaskPlanDispatchBlocker::ParentNotReleased {
-                    parent_task_id: parent_task_id.clone(),
-                });
+            let blocker = TaskPlanDispatchBlocker::ParentNotReleased {
+                parent_task_id: parent_task_id.clone(),
             };
-            if let Some(blocker) = parent.placement.as_ref()
+            let Some(parent) = self.members.get(parent_task_id.as_str()) else {
+                return Some(blocker);
+            };
+            if parent.publication_attempt.is_none()
+                || parent.summary == SummaryState::Claimed
+                || !parent.task.waits_for_children(&bridge)
+            {
+                return Some(blocker);
+            }
+            if let Some(blocker) = parent.task.placement.as_ref()
                 .and_then(|parent_placement| self.earlier_batch_blocker(parent_placement, &bridge))
             {
                 return Some(blocker);
             }
-            // The publishing transaction parks the parent until its children finish.
-            if parent.status != AgentTaskStatus::Blocked || hidden(parent.status, &parent.metadata)
-            {
-                return Some(TaskPlanDispatchBlocker::ParentNotReleased {
-                    parent_task_id: parent_task_id.clone(),
-                });
-            }
         }
         self.earlier_batch_blocker(placement, &bridge)
+    }
+
+    fn incomplete_children(
+        &self,
+        parent: &TaskId,
+        bridge: &LifecycleBridge<'_>,
+    ) -> Vec<(TaskId, String, String)> {
+        self.children.get(parent.as_str()).into_iter().flatten()
+            .map(|id| &self.members[id])
+            .filter(|child| child.active_run || !child.task.done(bridge))
+            .map(|child| (
+                child.task.id.clone(),
+                child.task.status.as_str().to_owned(),
+                crate::task_board::task_board_status_key_for(child.task.status, &child.task.metadata),
+            ))
+            .collect()
+    }
+
+    pub(super) fn summaries_to_queue(
+        &self,
+        workflow: &TaskPoolWorkflowSnapshotDto,
+    ) -> Vec<(&TaskId, &str)> {
+        let bridge = LifecycleBridge::new(workflow);
+        self.members.values().filter_map(|member| {
+            let attempt = member.publication_attempt.as_deref()?;
+            let task = &member.task;
+            if member.summary != SummaryState::Waiting
+                || !task.waits_for_children(&bridge)
+                || member.active_run
+                || !self.children.contains_key(task.id.as_str())
+                || !self.incomplete_children(&task.id, &bridge).is_empty()
+            {
+                return None;
+            }
+            Some((&task.id, attempt))
+        }).collect()
     }
 
     fn earlier_batch_blocker(
@@ -285,7 +373,7 @@ impl PlanDispatchSnapshot {
     ) -> Option<TaskPlanDispatchBlocker> {
         let mut waiting = Vec::new();
         let mut failed = Vec::new();
-        for (member, _) in self.members.values() {
+        for member in self.members.values().map(|member| &member.task) {
             if !member.placement.as_ref().is_some_and(|earlier| earlier.precedes(placement))
                 || member.done(bridge)
             {
@@ -398,6 +486,19 @@ impl PlanMember {
                 .is_ok_and(|status| status.role == TaskPoolWorkflowStatusRoleDto::Done)
     }
 
+    fn waits_for_children(&self, bridge: &LifecycleBridge<'_>) -> bool {
+        if hidden(self.status, &self.metadata) {
+            return false;
+        }
+        let status_key = crate::task_board::task_board_status_key_for(self.status, &self.metadata);
+        match self.status {
+            AgentTaskStatus::Blocked => status_key == "blocked",
+            AgentTaskStatus::Queued => bridge.dispatch_eligibility(&status_key)
+                .is_ok_and(|eligibility| eligibility.eligible),
+            _ => false,
+        }
+    }
+
     pub(super) fn is_child_of(&self, id: &TaskId) -> bool {
         matches!(&self.placement, Some(TaskPlanPlacement::Child { parent_task_id, .. }) if parent_task_id == id)
     }
@@ -432,7 +533,9 @@ pub(super) fn validate_metadata_completion(
     Ok(())
 }
 
-pub(super) fn validate_hiding(members: &[PlanMember], task_id: &TaskId) -> Result<()> {
+pub(super) fn validate_hiding(
+    members: &[PlanMember], task_id: &TaskId, archived_published_parent: bool,
+) -> Result<()> {
     let placement = members.iter().find(|member| &member.id == task_id)
         .and_then(|member| member.placement.as_ref());
     // A child is also a prerequisite of its parent's completion, even in the last batch.
@@ -442,7 +545,7 @@ pub(super) fn validate_hiding(members: &[PlanMember], task_id: &TaskId) -> Resul
         )).into());
     }
     for member in members {
-        if member.is_child_of(task_id)
+        if (member.is_child_of(task_id) && !archived_published_parent)
             || placement.zip(member.placement.as_ref()).is_some_and(|(old, other)| old.precedes(other))
         {
             return Err(TaskPlanError::Conflict(format!(
@@ -891,6 +994,61 @@ pub(super) fn publication_event(
 }
 
 impl AgentSchedulerStore {
+    /// Recover completion notifications from committed task and run state.
+    pub fn queue_completed_work_plans(
+        &self,
+        context: &(impl AgentSchedulerStorageContext + ?Sized),
+        now: TimestampMs,
+    ) -> Result<usize> {
+        let scope = context.storage_scope()?;
+        if let Some(store) = postgres_provider(self, context)? {
+            return store.queue_completed_work_plans(&scope, now);
+        }
+        let mut conn = open_initialized_connection(self, context)?;
+        let tx = conn.transaction_with_behavior(TransactionBehavior::Immediate)?;
+        let workflow = crate::engine::dispatch::effective_dispatch_workflow(
+            load_workflow_with_conn(&tx, &scope)?,
+        )?;
+        let snapshot = load_plan_dispatch_snapshot(&tx, &scope, None)?;
+        let (platform, company, project) = scope_params(&scope);
+        let mut queued = 0;
+        for (id, attempt) in snapshot.summaries_to_queue(&workflow) {
+            let parent = load_task_with_conn(&tx, context, id)?.context("work plan parent disappeared")?;
+            let Some((metadata, event)) = prepare_summary(&parent, &workflow, attempt, now)? else {
+                continue;
+            };
+            tx.execute(INSERT_RECEIPT, params![
+                platform, company, project, summary_key(id), format!("pending:{attempt}")
+            ])?;
+            tx.execute(&UPDATE_PLAN_TASK.replace('$', "?"), params![
+                platform, company, project, id.as_str(), "queued", metadata, now.0
+            ])?;
+            insert_event_with_conn(&tx, &scope, event)?;
+            queued += 1;
+        }
+        tx.commit()?;
+        Ok(queued)
+    }
+
+    pub(crate) fn is_work_plan_summary_run(
+        &self,
+        context: &(impl AgentSchedulerStorageContext + ?Sized),
+        parent: &TaskId,
+        run: &RunId,
+    ) -> Result<bool> {
+        let scope = context.storage_scope()?;
+        let receipt = if let Some(store) = postgres_provider(self, context)? {
+            store.summary_receipt(&scope, parent)?
+        } else {
+            let conn = open_initialized_connection(self, context)?;
+            let (platform, company, project) = scope_params(&scope);
+            conn.query_row(SELECT_RECEIPT, params![platform, company, project, summary_key(parent)], |row| {
+                row.get::<_, String>(0)
+            }).optional()?
+        };
+        Ok(receipt.as_deref().and_then(|value| value.strip_prefix("run:")) == Some(run.as_str()))
+    }
+
     pub fn work_plan_is_published(
         &self,
         context: &(impl AgentSchedulerStorageContext + ?Sized),
@@ -987,9 +1145,99 @@ impl AgentSchedulerStore {
     }
 }
 
-fn sqlite_publication_exists(conn: &Connection, scope: &AgentSchedulerScope, parent: &TaskId) -> Result<bool> {
+pub(super) fn sqlite_publication_exists(conn: &Connection, scope: &AgentSchedulerScope, parent: &TaskId) -> Result<bool> {
     let (platform, company, project) = scope_params(scope);
     Ok(conn.query_row(SELECT_PUBLICATION, params![platform, company, project, parent.as_str()], |row| {
         row.get::<_, String>(0)
     }).optional()?.is_some())
+}
+
+
+pub(super) fn summary_key(parent: &TaskId) -> String {
+    format!("task_plan.summary:{}", parent.as_str())
+}
+
+pub(super) const CLAIM_SUMMARY: &str =
+    "UPDATE scheduler_meta SET value = $5
+     WHERE platform_id = $1 AND company_id = $2 AND project_id = $3 AND key = $4
+       AND value LIKE 'pending:%'";
+
+pub(super) fn claim_summary(
+    conn: &Connection, scope: &AgentSchedulerScope, task: &TaskId, run: &RunId,
+) -> Result<()> {
+    let (platform, company, project) = scope_params(scope);
+    conn.execute(&CLAIM_SUMMARY.replace('$', "?"), params![
+        platform, company, project, summary_key(task), format!("run:{}", run.as_str())
+    ])?;
+    Ok(())
+}
+
+// Relationship and summary lease are project-scoped. Check in the same writer
+// transaction as status updates, so reopening and claiming cannot race.
+pub(super) const SELECT_CLAIMED_PARENT: &str =
+    "SELECT plan.parent_task_id FROM scheduler_task_plans AS plan
+     JOIN scheduler_meta AS summary
+       ON summary.platform_id = plan.platform_id AND summary.company_id = plan.company_id
+      AND summary.project_id = plan.project_id AND summary.key = 'task_plan.summary:' || plan.parent_task_id
+     WHERE plan.platform_id = $1 AND plan.company_id = $2 AND plan.project_id = $3
+       AND plan.task_id = $4 AND summary.value LIKE 'run:%'";
+
+pub(super) fn changes_completion(
+    current: &StoredAgentTask, status: AgentTaskStatus, metadata: &Value,
+) -> bool {
+    current.status == AgentTaskStatus::Completed
+        && (status != current.status || hidden(status, metadata)
+            || crate::task_board::task_board_status_key(current)
+                != crate::task_board::task_board_status_key_for(status, metadata))
+}
+
+pub(super) fn validate_summary_child_update(
+    conn: &Connection, scope: &AgentSchedulerScope, current: &StoredAgentTask,
+    status: AgentTaskStatus, metadata: &Value,
+) -> Result<()> {
+    if changes_completion(current, status, metadata) {
+        let (platform, company, project) = scope_params(scope);
+        let parent = conn.query_row(
+            SELECT_CLAIMED_PARENT, params![platform, company, project, current.id.as_str()],
+            |row| row.get::<_, String>(0),
+        ).optional()?;
+        reject_claimed_child_update(parent)?;
+    }
+    Ok(())
+}
+
+pub(super) fn reject_claimed_child_update(parent: Option<String>) -> Result<()> {
+    if let Some(parent) = parent {
+        return Err(conflict(&format!("parent {parent} already claimed its work plan summary")));
+    }
+    Ok(())
+}
+
+pub(super) fn prepare_summary(
+    parent: &StoredAgentTask, workflow: &TaskPoolWorkflowSnapshotDto, attempt: &str, now: TimestampMs,
+) -> Result<Option<(String, AppendAgentEventRequest)>> {
+    let bridge = LifecycleBridge::new(workflow);
+    let Ok(queued_key) = queued_status_key(workflow) else {
+        return Ok(None);
+    };
+    if bridge.execution_status_key(queued_key).is_err() {
+        return Ok(None);
+    }
+    let mut metadata = parent.metadata.as_object().cloned().unwrap_or_default();
+    crate::task_board::apply_workflow_status(workflow, queued_key, &mut metadata)?;
+    let event = AppendAgentEventRequest {
+        task_id: Some(parent.id.clone()),
+        run_id: None,
+        worker_id: parent.assigned_to.clone(),
+        team_id: parent.team_id.clone(),
+        kind: AgentEventKind::TaskResumed,
+        from_status: Some(parent.status),
+        to_status: Some(AgentTaskStatus::Queued),
+        from_status_key: Some(crate::task_board::task_board_status_key(parent)),
+        to_status_key: Some(queued_key.into()),
+        message: "work plan summary queued".into(),
+        payload: json!({"planning_attempt_id": attempt}),
+        created_at_ms: now,
+    };
+    Ok(Some((serde_json::to_string(&metadata)?, event)))
 }

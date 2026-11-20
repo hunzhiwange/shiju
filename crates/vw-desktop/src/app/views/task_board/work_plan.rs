@@ -69,7 +69,6 @@ fn scroll<'a>(body: Column<'a, Message>) -> scrollable::Scrollable<'a, Message> 
 }
 
 fn blocker_label(blocker: &Blocker) -> String {
-    #[allow(unreachable_patterns)]
     match blocker {
         Blocker::WaitingForEarlierBatch { task_ids } => {
             format!("等待前序批次 · {}", task_ids.join("、"))
@@ -84,7 +83,21 @@ fn blocker_label(blocker: &Blocker) -> String {
         Blocker::ExplicitDependency { task_ids } => {
             format!("等待任务依赖 · {}", task_ids.join("、"))
         }
-        _ => "等待工作计划推进".into(),
+        Blocker::WorkPlanChildrenIncomplete { children } => {
+            let reasons = children.iter().map(|child| {
+                let status = match child.status.as_str() {
+                    "submitted" => "待审核或合并",
+                    "failed" => "失败",
+                    "cancelled" => "已取消",
+                    "paused" => "已暂停",
+                    "archived" => "已归档",
+                    _ => &child.status_key,
+                };
+                format!("{}（{status}）", child.task_id)
+            }).collect::<Vec<_>>();
+            format!("等待子任务完成 · {}", reasons.join("、"))
+        }
+        Blocker::WorkPlanSummaryUnavailable => "汇总暂不可派发".into(),
     }
 }
 

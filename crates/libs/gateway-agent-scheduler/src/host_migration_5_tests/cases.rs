@@ -3149,3 +3149,211 @@ async fn work_plan_publish_atomic_and_idempotent() -> Result<()> {
     )?.is_none());
     Ok(())
 }
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn work_plan_parent_completion_enqueues_summary_once() -> Result<()> {
+    let project = tempfile::tempdir()?;
+    let context = owned_scheduler_context(project.path())?;
+    let gateway = StoreBackedAgentSchedulerGateway::default();
+    let (parent, children) = seed_parent_completion_plan(&gateway.store, &context)?;
+    let mut completions = Vec::new();
+    for child in children {
+        let store = gateway.store.clone();
+        let context = context.clone();
+        completions.push(tokio::task::spawn_blocking(move || -> Result<usize> {
+            set_parent_completion_child(&store, &context, &child, AgentTaskStatus::Completed, "completed")?;
+            store.queue_completed_work_plans(&context, TimestampMs(2))
+        }));
+    }
+    let mut queued = 0;
+    for completion in completions {
+        queued += completion.await??;
+    }
+    assert_eq!(queued, 1);
+    let wake = |now| gateway.wake_project(scheduler_project_id(project.path()), context.clone(),
+        AgentSchedulerProjectWakeRequest {
+            now_ms: TimestampMs(now),
+            dispatch_mode: AgentSchedulerDispatchModeDto::Auto,
+            max_concurrent: Some(1),
+            auto_promote_pool_tasks: false,
+        });
+    let first = wake(3).await?;
+    assert_eq!(first.task_id.as_deref(), Some(parent.as_str()));
+    assert!(wake(4).await?.dispatched_runs.is_empty());
+    let run = gateway.store.load_latest_run_for_task(&context, &parent)?.unwrap();
+    assert_eq!(run.attempt, 1);
+    let events = gateway.store.list_events_after(&context, None, 50)?;
+    assert_eq!(events.iter().filter(|event| event.message == "work plan summary queued").count(), 1);
+    Ok(())
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn work_plan_parent_completion_waits_for_success_and_recovers() -> Result<()> {
+    let project = tempfile::tempdir()?;
+    let context = owned_scheduler_context(project.path())?;
+    let project_id = scheduler_project_id(project.path());
+    let gateway = StoreBackedAgentSchedulerGateway::default();
+    let (parent, children) = seed_parent_completion_plan(&gateway.store, &context)?;
+    let wake = gateway.wake_project(project_id.clone(), context.clone(), AgentSchedulerProjectWakeRequest {
+        now_ms: TimestampMs(2),
+        dispatch_mode: AgentSchedulerDispatchModeDto::Auto,
+        max_concurrent: Some(1),
+        auto_promote_pool_tasks: false,
+    }).await?;
+    assert_eq!(wake.dispatched_runs.len(), 1);
+    let child_id = TaskId::new(wake.task_id.unwrap())?;
+    assert!(children.contains(&child_id));
+    let child_run = gateway.store.load_latest_run_for_task(&context, &child_id)?.unwrap();
+    let artifact = gateway.store.record_task_artifact(
+        &context,
+        task_scheduler::store::artifacts::RecordTaskArtifactRequest {
+            task_id: child_id.clone(),
+            run_id: Some(child_run.id.clone()),
+            kind: "execution_result".into(),
+            name: "execution-result.json".into(),
+            path: Some("/private/other-worktree/artifact".into()),
+            payload: json!({"success": true, "output": "child report for summary"}),
+            created_at_ms: TimestampMs(3),
+        },
+    )?;
+    gateway.store.finish_run(
+        &context, &child_run.id, task_scheduler::store::runs::AgentRunFinishStatus::Succeeded,
+        TimestampMs(3), None,
+    )?;
+    for child in &children {
+        set_parent_completion_child(&gateway.store, &context, child, AgentTaskStatus::Submitted, "code_complete")?;
+    }
+    assert_eq!(gateway.store.queue_completed_work_plans(&context, TimestampMs(4))?, 0);
+    let board = gateway.task_board_status(project_id.clone(), context.clone()).await?;
+    let parent_row = board.tasks.iter().find(|task| task.task_id.as_ref() == parent.as_str()).unwrap();
+    assert!(matches!(
+        &parent_row.read_model.dispatch_blocker,
+        Some(vw_api_agent_scheduler::AgentSchedulerDispatchBlockerDto::WorkPlanChildrenIncomplete { children })
+            if children.len() == 2 && children.iter().all(|child| child.status_key == "code_complete")
+    ));
+
+    // The parent uses the current project's review transition when it summarizes.
+    let mut workflow = task_scheduler::lifecycle_bridge::builtin_task_workflow_snapshot();
+    let review = TaskPoolWorkflowStatusDto {
+        key: "summary_review".into(),
+        label: "Summary review".into(),
+        role: TaskPoolWorkflowStatusRoleDto::ReviewReady,
+        enabled: true,
+        terminal: false,
+        next: Some("completed".into()),
+        transitions: Vec::new(),
+    };
+    let running = workflow.statuses.iter_mut().find(|status| status.key == "running").unwrap();
+    running.next = Some(review.key.clone());
+    running.transitions.retain(|transition| transition.outcome != "success");
+    running.transitions.push(TaskPoolWorkflowTransitionDto {
+        outcome: "success".into(), label: Some("Submit".into()), target: review.key.clone(),
+    });
+    workflow.statuses.push(review);
+    gateway.store.save_task_board_workflow(&context, &workflow)?;
+    for child in &children {
+        set_parent_completion_child(&gateway.store, &context, child, AgentTaskStatus::Completed, "completed")?;
+    }
+    assert_eq!(gateway.store.load_task(&context, &parent)?.unwrap().status, AgentTaskStatus::Blocked);
+
+    let (request_tx, request_rx) = mpsc::channel();
+    let reloaded = StoreBackedAgentSchedulerGateway::with_executor(ParentSummaryExecutor(request_tx));
+    let wake = reloaded.wake_project(project_id, context.clone(), AgentSchedulerProjectWakeRequest {
+        now_ms: TimestampMs(5),
+        dispatch_mode: AgentSchedulerDispatchModeDto::Local,
+        max_concurrent: Some(1),
+        auto_promote_pool_tasks: false,
+    }).await?;
+    assert_eq!(wake.task_id.as_deref(), Some(parent.as_str()));
+    let request = request_rx.recv_timeout(Duration::from_secs(10))?;
+    assert_eq!(request.task_id, parent);
+    assert!(request.prompt.contains(child_id.as_str()));
+    assert!(request.prompt.contains("child report for summary"));
+    assert!(request.prompt.contains(&format!(r#""artifact_id":{}"#, artifact.id)));
+    assert!(!request.prompt.contains("/private/other-worktree"));
+
+    let run = tokio::time::timeout(Duration::from_secs(10), async {
+        loop {
+            let run = reloaded.store.load_latest_run_for_task(&context, &parent)?.unwrap();
+            if run.finished_at_ms.is_some() {
+                break Ok::<_, anyhow::Error>(run);
+            }
+            tokio::time::sleep(Duration::from_millis(10)).await;
+        }
+    }).await??;
+    assert_eq!(run.status, task_scheduler::domain::AgentRunStatus::Succeeded);
+    let task = reloaded.store.load_task(&context, &parent)?.unwrap();
+    assert_eq!(task.status, AgentTaskStatus::Submitted);
+    assert_eq!(task.metadata["task_board.status_key"], "summary_review");
+    Ok(())
+}
+
+struct ParentSummaryExecutor(mpsc::Sender<LocalAgentExecutionRequest>);
+
+impl LocalAgentExecutor for ParentSummaryExecutor {
+    fn lease_workspace(&self, request: LocalAgentWorkspaceRequest) -> Result<LocalAgentWorkspace> {
+        Ok(LocalAgentWorkspace {
+            path: request.project_path.to_string_lossy().into_owned(),
+            slot_id: None,
+            branch: None,
+        })
+    }
+
+    fn execute(&self, request: LocalAgentExecutionRequest) -> Result<LocalAgentExecutionOutput> {
+        self.0.send(request)?;
+        Ok(LocalAgentExecutionOutput { raw_output: "summary ready for review".into() })
+    }
+}
+
+fn seed_parent_completion_plan(
+    store: &AgentSchedulerStore,
+    context: &AgentSchedulerContext,
+) -> Result<(TaskId, [TaskId; 2])> {
+    use task_scheduler::store::task_plan::TaskPlanPlacement;
+    use vw_api_agent_scheduler::WorkPlanPublication;
+
+    seed_rolling_tasks(store, context, &[("summary-parent", 1, AgentTaskStatus::Queued)])?;
+    let parent = TaskId::new("summary-parent")?;
+    let parent_task = store.load_task(context, &parent)?.unwrap();
+    let children = [TaskId::new("summary-first")?, TaskId::new("summary-second")?];
+    for child in &children {
+        store.create_task_with_plan(context, NewAgentTask {
+            id: child.clone(),
+            title: child.as_str().to_owned(),
+            kind: AgentTaskKind::Finite,
+            status: AgentTaskStatus::Queued,
+            spec_uri: format!("shared/tasks/{}/spec.md", child.as_str()),
+            meta_uri: format!("shared/tasks/{}/meta.json", child.as_str()),
+            assigned_to: None,
+            team_id: None,
+            room_id: None,
+            project_room_id: None,
+            delegated_to_team: None,
+            schedule: None,
+            timezone: None,
+            next_scheduled_at: None,
+            last_executed_at: None,
+            dag: Vec::new(),
+            metadata: parent_task.metadata.clone(),
+            created_at_ms: TimestampMs(1),
+        }, TaskPlanPlacement::Child { parent_task_id: parent.clone(), batch: 1 })?;
+    }
+    store.publish_work_plan(context, &parent, &WorkPlanPublication::Manual, TimestampMs(1))?;
+    Ok((parent, children))
+}
+
+fn set_parent_completion_child(
+    store: &AgentSchedulerStore,
+    context: &AgentSchedulerContext,
+    child: &TaskId,
+    status: AgentTaskStatus,
+    status_key: &str,
+) -> Result<()> {
+    store.update_task_board_task(context, child, task_scheduler::store::tasks::AgentTaskBoardUpdate {
+        title: None,
+        status: Some(status),
+        metadata: json!({"task_board.status_key": status_key}),
+        updated_at_ms: TimestampMs(2),
+    })?.expect("child task");
+    Ok(())
+}

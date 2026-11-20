@@ -320,3 +320,63 @@ fn task_plan_store_manual_publication_freezes_children() -> Result<()> {
         Ok(())
     })
 }
+
+#[test]
+fn work_plan_parent_completion_claim_rechecks_after_reopen() -> Result<()> {
+    use crate::domain::RunId;
+    use crate::store::runs::ClaimReadyTaskRunRequest;
+    use vw_api_agent_scheduler::WorkPlanPublication;
+
+    for_each_provider(|store, context, database| {
+        let parent = TaskId::new("summary-parent")?;
+        let child = TaskId::new("summary-child")?;
+        store.create_task(context, finite_task_with_status(&parent, AgentTaskStatus::Queued)?)?;
+        store.create_task_with_plan(
+            context,
+            finite_task_with_status(&child, AgentTaskStatus::Queued)?,
+            child_batch(&parent, 1),
+        )?;
+        store.publish_work_plan(context, &parent, &WorkPlanPublication::Manual, TimestampMs(1))?;
+        let set_child = |status, key| store.update_task_board_task(context, &child, AgentTaskBoardUpdate {
+            title: None,
+            status: Some(status),
+            metadata: json!({"task_board.status_key": key}),
+            updated_at_ms: TimestampMs(2),
+        });
+        // Runtime completion alone cannot override the workflow's Done role.
+        set_child(AgentTaskStatus::Completed, "running")?;
+        assert_eq!(store.queue_completed_work_plans(context, TimestampMs(3))?, 0);
+        set_child(AgentTaskStatus::Completed, "completed")?;
+        store.transition_task_status(context, &parent, AgentTaskStatus::Paused, TimestampMs(3))?;
+        assert_eq!(store.queue_completed_work_plans(context, TimestampMs(4))?, 0);
+        let board = crate::task_board::AgentTaskBoardService::new(store);
+        board.archive_task(context, &parent, None, TimestampMs(4))?.expect("archive plan parent");
+        assert_eq!(store.queue_completed_work_plans(context, TimestampMs(4))?, 0);
+        board.restore_task(context, &parent, None, TimestampMs(4))?.expect("restore plan parent");
+        store.update_task_board_task(context, &parent, AgentTaskBoardUpdate {
+            title: None,
+            status: Some(AgentTaskStatus::Queued),
+            metadata: json!({"task_board.status_key": "pending"}),
+            updated_at_ms: TimestampMs(4),
+        })?;
+        assert_eq!(store.queue_completed_work_plans(context, TimestampMs(4))?, 1);
+
+        let reopened = AgentSchedulerStore::from_database(database.clone());
+        let run_id = RunId::new("summary-run")?;
+        let request = ClaimReadyTaskRunRequest {
+            run_id: run_id.clone(),
+            task_id: parent.clone(),
+            lease_acquired_at_ms: TimestampMs(5),
+            lease_expires_at_ms: None,
+        };
+        set_child(AgentTaskStatus::Queued, "pending")?;
+        assert!(reopened.claim_ready_task_run(context, request.clone())?.is_none());
+        set_child(AgentTaskStatus::Completed, "completed")?;
+        assert_eq!(reopened.queue_completed_work_plans(context, TimestampMs(5))?, 0);
+        assert!(reopened.claim_ready_task_run(context, request)?.is_some());
+        assert!(reopened.is_work_plan_summary_run(context, &parent, &run_id)?);
+        assert!(set_child(AgentTaskStatus::Queued, "pending").is_err());
+        assert_eq!(reopened.load_task(context, &child)?.unwrap().status, AgentTaskStatus::Completed);
+        Ok(())
+    })
+}

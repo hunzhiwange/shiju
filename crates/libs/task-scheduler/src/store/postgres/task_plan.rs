@@ -8,7 +8,9 @@ use crate::engine::dispatch::effective_dispatch_workflow;
 
 use super::PostgresAgentSchedulerStore;
 use super::tasks::{load_task_for_update, load_task_with_client, load_workflow_with_client};
-use crate::domain::TaskId;
+use crate::domain::{RunId, TaskId};
+use crate::state_machine::AgentTaskStatus;
+use serde_json::Value;
 use crate::store::scope_params;
 use crate::store::task_plan::{
     DELETE_PLAN, PlacementWrite, PlanMember, SELECT_MEMBERS, SELECT_PLAN, TaskPlanEntry, TaskPlanPlacement,
@@ -17,7 +19,8 @@ use crate::store::task_plan::{
     PublicationReceipt, SELECT_PLANNING_RUNS, SELECT_PUBLICATION, SELECT_RECEIPT, UPDATE_PLAN_TASK,
     conflict, generated_child, manual_child_metadata, missing_parent, placement_event,
     publication_attempt, publication_event, publication_key, queued_status_key, validate_publication,
-    waiting_parent_metadata,
+    waiting_parent_metadata, CLAIM_SUMMARY, SELECT_CLAIMED_PARENT, changes_completion,
+    prepare_summary, reject_claimed_child_update, summary_key,
 };
 use crate::store::tasks::StoredAgentTask;
 
@@ -93,6 +96,8 @@ pub(super) fn load_plan_dispatch_snapshot(
             row.try_get(4)?,
             row.try_get(5)?,
             row.try_get(6)?,
+            row.try_get(7)?,
+            row.try_get(8)?,
         ))
     }))
 }
@@ -131,6 +136,47 @@ pub(super) fn write_placement(
 }
 
 impl PostgresAgentSchedulerStore {
+    pub(in crate::store) fn queue_completed_work_plans(
+        &self, scope: &AgentSchedulerScope, now: TimestampMs,
+    ) -> Result<usize> {
+        agent_database::run_sync_database(|| {
+            let mut conn = self.database.connect_postgres()?;
+            let mut tx = conn.transaction()?;
+            lock_task_plan_project(&mut tx, scope)?;
+            let workflow = effective_dispatch_workflow(load_workflow_with_client(&mut tx, scope)?)?;
+            let snapshot = load_plan_dispatch_snapshot(&mut tx, scope, None)?;
+            let (platform, company, project) = scope_params(scope);
+            let mut queued = 0;
+            for (id, attempt) in snapshot.summaries_to_queue(&workflow) {
+                let parent = load_task_for_update(&mut tx, scope, id)?.context("work plan parent disappeared")?;
+                let Some((metadata, event)) = prepare_summary(&parent, &workflow, attempt, now)? else {
+                    continue;
+                };
+                tx.execute(INSERT_RECEIPT, &[
+                    &platform, &company, &project, &summary_key(id), &format!("pending:{attempt}"),
+                ])?;
+                tx.execute(UPDATE_PLAN_TASK, &[
+                    &platform, &company, &project, &id.as_str(), &"queued", &metadata, &now.0,
+                ])?;
+                insert_event_with_client(&mut tx, scope, event)?;
+                queued += 1;
+            }
+            tx.commit()?;
+            Ok(queued)
+        })
+    }
+
+    pub(in crate::store) fn summary_receipt(
+        &self, scope: &AgentSchedulerScope, parent: &TaskId,
+    ) -> Result<Option<String>> {
+        agent_database::run_sync_database(|| {
+            let (platform, company, project) = scope_params(scope);
+            self.database.connect_postgres()?.query_opt(
+                SELECT_RECEIPT, &[&platform, &company, &project, &summary_key(parent)],
+            )?.map(|row| row.try_get(0)).transpose().map_err(Into::into)
+        })
+    }
+
     pub(in crate::store) fn work_plan_is_published(
         &self,
         scope: &AgentSchedulerScope,
@@ -218,11 +264,35 @@ impl PostgresAgentSchedulerStore {
     }
 }
 
-fn postgres_publication_exists(
+pub(super) fn postgres_publication_exists(
     client: &mut impl GenericClient,
     scope: &AgentSchedulerScope,
     parent: &TaskId,
 ) -> Result<bool> {
     let (platform, company, project) = scope_params(scope);
     Ok(client.query_opt(SELECT_PUBLICATION, &[&platform, &company, &project, &parent.as_str()])?.is_some())
+}
+
+pub(super) fn claim_summary(
+    tx: &mut Transaction<'_>, scope: &AgentSchedulerScope, task: &TaskId, run: &RunId,
+) -> Result<()> {
+    let (platform, company, project) = scope_params(scope);
+    tx.execute(CLAIM_SUMMARY, &[
+        &platform, &company, &project, &summary_key(task), &format!("run:{}", run.as_str()),
+    ])?;
+    Ok(())
+}
+
+pub(super) fn validate_summary_child_update(
+    tx: &mut Transaction<'_>, scope: &AgentSchedulerScope, current: &StoredAgentTask,
+    status: AgentTaskStatus, metadata: &Value,
+) -> Result<()> {
+    if changes_completion(current, status, metadata) {
+        let (platform, company, project) = scope_params(scope);
+        let parent = tx.query_opt(
+            SELECT_CLAIMED_PARENT, &[&platform, &company, &project, &current.id.as_str()],
+        )?.map(|row| row.try_get(0)).transpose()?;
+        reject_claimed_child_update(parent)?;
+    }
+    Ok(())
 }

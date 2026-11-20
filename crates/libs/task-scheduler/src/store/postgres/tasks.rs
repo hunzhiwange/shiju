@@ -22,6 +22,12 @@ use crate::store::tasks::{
     workflow_task_conflicts,
 };
 
+use super::events::insert_event_with_client;
+use super::task_plan::{load_plan_members, lock_task_plan_project, write_placement};
+use crate::store::task_plan::{
+    PlacementWrite, TaskPlanPlacement, became_hidden, placement_event, validate_hiding,
+};
+
 const TASK_COLUMNS: &str = "id, kind, status, title, spec_uri, meta_uri, assigned_to, team_id, \
 room_id, project_room_id, delegated_to_team, schedule, timezone, next_scheduled_at, \
 last_executed_at, dag_json, metadata_json, created_at_ms, updated_at_ms";
@@ -32,6 +38,7 @@ impl PostgresAgentSchedulerStore {
         &self,
         context: &(impl AgentSchedulerStorageContext + ?Sized),
         task: NewAgentTask,
+        placement: Option<TaskPlanPlacement>,
     ) -> Result<StoredAgentTask> {
         agent_database::run_sync_database(|| {
             let scope = context.storage_scope()?;
@@ -42,7 +49,10 @@ impl PostgresAgentSchedulerStore {
             let mut connection = self.database.connect_postgres()?;
             let mut transaction =
                 connection.transaction().context("begin PostgreSQL agent task create")?;
-            transaction
+            if placement.is_some() {
+                lock_task_plan_project(&mut transaction, &scope)?;
+            }
+            let inserted = transaction
                 .execute(
                     "INSERT INTO scheduler_tasks (
                      platform_id, company_id, project_id, id, kind, status, title, spec_uri,
@@ -84,6 +94,20 @@ impl PostgresAgentSchedulerStore {
                 load_task_with_client(&mut transaction, &scope, &task.id)?.with_context(|| {
                     format!("PostgreSQL task disappeared after create: {}", task.id.as_str())
                 })?;
+            if let Some(placement) = placement.as_ref() {
+                let mode = if inserted == 0 {
+                    PlacementWrite::RetryCreate
+                } else {
+                    PlacementWrite::Create
+                };
+                if write_placement(&mut transaction, &scope, &stored, Some(placement), mode)? {
+                    insert_event_with_client(
+                        &mut transaction,
+                        &scope,
+                        placement_event(&stored, Some(placement), true),
+                    )?;
+                }
+            }
             transaction.commit().context("commit PostgreSQL agent task create")?;
             Ok(stored)
         })
@@ -137,11 +161,12 @@ impl PostgresAgentSchedulerStore {
         Ok(tasks)
     }
 
-    pub(in crate::store) fn edit_task_board_task(
+    pub(in crate::store) fn edit_task_with_placement(
         &self,
         context: &(impl AgentSchedulerStorageContext + ?Sized),
         task_id: &TaskId,
         property_changes: AgentSchedulerTaskPropertyChanges,
+        placement: Option<Option<TaskPlanPlacement>>,
         edit: impl FnOnce(&StoredAgentTask) -> Result<AgentTaskBoardUpdate> + Send,
     ) -> Result<Option<(StoredAgentTask, StoredAgentTask)>> {
         agent_database::run_sync_database(|| {
@@ -150,9 +175,7 @@ impl PostgresAgentSchedulerStore {
             let mut connection = self.database.connect_postgres()?;
             let mut transaction =
                 connection.transaction().context("begin PostgreSQL task board update")?;
-            if !property_changes.is_empty() {
-                lock_task_directory(&mut transaction, &scope)?;
-            }
+            lock_task_plan_project(&mut transaction, &scope)?;
             let Some(current) = load_task_for_update(&mut transaction, &scope, task_id)? else {
                 return Ok(None);
             };
@@ -169,6 +192,25 @@ impl PostgresAgentSchedulerStore {
                 None => current.title.clone(),
             };
             let status = update.status.unwrap_or(current.status);
+            let hiding = became_hidden(&current, status, &update.metadata);
+            if hiding {
+                validate_hiding(&load_plan_members(&mut transaction, &scope, task_id)?, task_id)?;
+            }
+            let placement_changed = if let Some(replacement) = placement.as_ref() {
+                let changed = write_placement(
+                    &mut transaction,
+                    &scope,
+                    &current,
+                    replacement.as_ref(),
+                    PlacementWrite::Edit,
+                )?;
+                if changed && hiding {
+                    bail!("cannot change placement while hiding task {}", task_id.as_str());
+                }
+                changed
+            } else {
+                false
+            };
             let metadata_json = serde_json::to_string(&update.metadata)
                 .context("serialize PostgreSQL task metadata")?;
             let changed = transaction
@@ -195,6 +237,14 @@ impl PostgresAgentSchedulerStore {
                 load_task_with_client(&mut transaction, &scope, task_id)?.with_context(|| {
                     format!("PostgreSQL task disappeared after board update: {}", task_id.as_str())
                 })?;
+            if placement_changed {
+                let replacement = placement.as_ref().and_then(Option::as_ref);
+                insert_event_with_client(
+                    &mut transaction,
+                    &scope,
+                    placement_event(&updated, replacement, false),
+                )?;
+            }
             transaction.commit().context("commit PostgreSQL task board update")?;
             Ok(Some((current, updated)))
         })
@@ -213,12 +263,16 @@ impl PostgresAgentSchedulerStore {
             let mut connection = self.database.connect_postgres()?;
             let mut transaction =
                 connection.transaction().context("begin PostgreSQL task status transition")?;
+            lock_task_plan_project(&mut transaction, &scope)?;
             let Some(current) = load_task_for_update(&mut transaction, &scope, task_id)? else {
                 return Ok(None);
             };
             ensure_transition(current.kind, current.status, to_status)?;
             let metadata =
-                super::super::tasks::task_board_projection_metadata(current.metadata, to_status);
+                super::super::tasks::task_board_projection_metadata(current.metadata.clone(), to_status);
+            if became_hidden(&current, to_status, &metadata) {
+                validate_hiding(&load_plan_members(&mut transaction, &scope, task_id)?, task_id)?;
+            }
             let metadata_json =
                 serde_json::to_string(&metadata).context("serialize PostgreSQL task metadata")?;
             let changed = transaction
@@ -263,11 +317,15 @@ impl PostgresAgentSchedulerStore {
             let mut connection = self.database.connect_postgres()?;
             let mut transaction =
                 connection.transaction().context("begin PostgreSQL task metadata transition")?;
+            lock_task_plan_project(&mut transaction, &scope)?;
             let Some(current) = load_task_for_update(&mut transaction, &scope, task_id)? else {
                 return Ok(None);
             };
             ensure_transition(current.kind, current.status, to_status)?;
             preserve_task_board_fields(&current.metadata, &mut metadata);
+            if became_hidden(&current, to_status, &metadata) {
+                validate_hiding(&load_plan_members(&mut transaction, &scope, task_id)?, task_id)?;
+            }
             let metadata_json =
                 serde_json::to_string(&metadata).context("serialize PostgreSQL task metadata")?;
             let changed = transaction
@@ -360,12 +418,12 @@ impl PostgresAgentSchedulerStore {
             serde_json::to_string(&normalize_workflow_transitions(workflow.clone()))
                 .context("serialize PostgreSQL task board workflow")?;
         agent_database::run_sync_database(|| {
-            upsert_meta(
-                &mut *self.database.connect_postgres()?,
-                &scope,
-                TASK_BOARD_WORKFLOW_META_KEY,
-                &workflow_json,
-            )
+            let mut connection = self.database.connect_postgres()?;
+            let mut tx = connection.transaction()?;
+            lock_task_plan_project(&mut tx, &scope)?;
+            upsert_meta(&mut tx, &scope, TASK_BOARD_WORKFLOW_META_KEY, &workflow_json)?;
+            tx.commit()?;
+            Ok(())
         })
     }
 
@@ -392,12 +450,7 @@ impl PostgresAgentSchedulerStore {
             let company_id = project.company_id().as_ref();
             let project_id = project.project_id().as_ref();
             let project_params: &[&(dyn ToSql + Sync)] = &[&platform_id, &company_id, &project_id];
-            // Serialize workflow changes for this project, including when no snapshot exists.
-            tx.query_one(
-                "SELECT project_id FROM projects
-                 WHERE platform_id = $1 AND company_id = $2 AND project_id = $3 FOR UPDATE",
-                project_params,
-            )?;
+            lock_task_plan_project(&mut tx, &scope)?;
             let current = parse_saved_workflow(tx.query_opt(
                 "SELECT value FROM scheduler_meta
                  WHERE platform_id = $1 AND company_id = $2 AND project_id = $3
@@ -485,7 +538,7 @@ impl PostgresAgentSchedulerStore {
         agent_database::run_sync_database(|| {
             let mut connection = self.database.connect_postgres()?;
             let mut tx = connection.transaction()?;
-            lock_task_directory(&mut tx, scope)?;
+            lock_task_plan_project(&mut tx, scope)?;
             let mut directory = parse_directory(load_meta(&mut tx, scope, key)?)?;
             edit(&mut directory)?;
             upsert_meta(&mut tx, scope, key, &serde_json::to_string(&directory)?)?;
@@ -501,19 +554,11 @@ impl PostgresAgentSchedulerStore {
     }
 }
 
-fn lock_task_directory(tx: &mut ::postgres::Transaction<'_>, scope: &AgentSchedulerScope) -> Result<()> {
-    // Lock the project even before its scheduler_meta row exists.
-    let project = scope.project_scope();
-    tx.query_one(
-        "SELECT project_id FROM projects
-         WHERE platform_id = $1 AND company_id = $2 AND project_id = $3 FOR UPDATE",
-        &[
-            &project.platform_id().as_ref(),
-            &project.company_id().as_ref(),
-            &project.project_id().as_ref(),
-        ],
-    )?;
-    Ok(())
+pub(super) fn load_workflow_with_client(
+    client: &mut impl GenericClient,
+    scope: &AgentSchedulerScope,
+) -> Result<Option<TaskPoolWorkflowSnapshotDto>> {
+    parse_saved_workflow(load_meta(client, scope, TASK_BOARD_WORKFLOW_META_KEY)?)
 }
 
 fn load_meta(
@@ -560,7 +605,7 @@ fn upsert_meta(
     Ok(())
 }
 
-fn load_task_with_client(
+pub(super) fn load_task_with_client(
     client: &mut impl GenericClient,
     scope: &AgentSchedulerScope,
     task_id: &TaskId,

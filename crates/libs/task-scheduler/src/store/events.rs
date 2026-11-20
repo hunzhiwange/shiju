@@ -63,45 +63,10 @@ impl AgentSchedulerStore {
         if let Some(store) = postgres_provider(self, context)? {
             return store.append_event(context, event);
         }
-        let payload_json =
-            serde_json::to_string(&event.payload).context("serialize event payload")?;
-        let from_status_key = event
-            .from_status_key
-            .clone()
-            .or_else(|| event.from_status.map(AgentTaskStatus::as_str).map(str::to_string));
-        let to_status_key = event
-            .to_status_key
-            .clone()
-            .or_else(|| event.to_status.map(AgentTaskStatus::as_str).map(str::to_string));
         let scope = context.storage_scope()?;
-        let (platform_id, company_id, project_id) = scope_params(&scope);
         let (_guard, mut conn) = open_locked_initialized_connection(self, context)?;
         let tx = conn.transaction_with_behavior(TransactionBehavior::Immediate)?;
-        tx.execute(
-            "INSERT INTO scheduler_events (
-                 platform_id, company_id, project_id, task_id, run_id, worker_id, team_id, kind,
-                 from_status, to_status, from_status_key, to_status_key, message, payload_json,
-                 created_at_ms
-             ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15)",
-            params![
-                platform_id,
-                company_id,
-                project_id,
-                event.task_id.as_ref().map(TaskId::as_str),
-                event.run_id.as_ref().map(RunId::as_str),
-                event.worker_id.as_ref().map(AssigneeId::as_str),
-                event.team_id.as_ref().map(TeamId::as_str),
-                event.kind.as_str(),
-                event.from_status.map(AgentTaskStatus::as_str),
-                event.to_status.map(AgentTaskStatus::as_str),
-                from_status_key.as_deref(),
-                to_status_key.as_deref(),
-                event.message,
-                payload_json,
-                event.created_at_ms.0,
-            ],
-        )?;
-        let cursor = tx.last_insert_rowid();
+        let cursor = insert_event_with_conn(&tx, &scope, event)?;
         let stored = load_event_with_conn(&tx, context, cursor)?
             .with_context(|| format!("event disappeared after append: {cursor}"))?;
         tx.commit()?;
@@ -137,6 +102,49 @@ impl AgentSchedulerStore {
         )?;
         rows.collect::<rusqlite::Result<Vec<_>>>().context("list agent events")
     }
+}
+
+pub(super) fn insert_event_with_conn(
+    conn: &Connection,
+    scope: &vw_api_agent_scheduler::AgentSchedulerScope,
+    event: AppendAgentEventRequest,
+) -> Result<i64> {
+    let payload_json =
+        serde_json::to_string(&event.payload).context("serialize event payload")?;
+    let from_status_key = event
+        .from_status_key
+        .clone()
+        .or_else(|| event.from_status.map(AgentTaskStatus::as_str).map(str::to_string));
+    let to_status_key = event
+        .to_status_key
+        .clone()
+        .or_else(|| event.to_status.map(AgentTaskStatus::as_str).map(str::to_string));
+    let (platform_id, company_id, project_id) = scope_params(scope);
+    conn.execute(
+        "INSERT INTO scheduler_events (
+             platform_id, company_id, project_id, task_id, run_id, worker_id, team_id, kind,
+             from_status, to_status, from_status_key, to_status_key, message, payload_json,
+             created_at_ms
+         ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15)",
+        params![
+            platform_id,
+            company_id,
+            project_id,
+            event.task_id.as_ref().map(TaskId::as_str),
+            event.run_id.as_ref().map(RunId::as_str),
+            event.worker_id.as_ref().map(AssigneeId::as_str),
+            event.team_id.as_ref().map(TeamId::as_str),
+            event.kind.as_str(),
+            event.from_status.map(AgentTaskStatus::as_str),
+            event.to_status.map(AgentTaskStatus::as_str),
+            from_status_key.as_deref(),
+            to_status_key.as_deref(),
+            event.message,
+            payload_json,
+            event.created_at_ms.0,
+        ],
+    )?;
+    Ok(conn.last_insert_rowid())
 }
 
 fn load_event_with_conn(

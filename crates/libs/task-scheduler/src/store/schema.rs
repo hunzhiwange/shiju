@@ -23,6 +23,7 @@ fn initialize_current_schema(conn: &Connection) -> Result<()> {
     reject_unprefixed_scheduler_tables(conn)?;
     conn.execute_batch(TASK_EXECUTION_SCHEMA)?;
     conn.execute_batch(TASK_DEPENDENCY_SCHEMA)?;
+    conn.execute_batch(TASK_PLAN_SCHEMA)?;
     conn.execute_batch(RESOURCE_SCHEMA)?;
     conn.execute_batch(TASK_EXECUTION_INDEXES)?;
     conn.execute_batch(TASK_DEPENDENCY_INDEXES)?;
@@ -55,10 +56,11 @@ pub(super) const LEGACY_SCHEDULER_TABLES: [&str; 8] = [
     "resource_leases",
 ];
 
-pub(super) const SCHEDULER_TABLES: [&str; 10] = [
+pub(super) const SCHEDULER_TABLES: [&str; 11] = [
     "scheduler_meta",
     "scheduler_tasks",
     "scheduler_task_dependencies",
+    "scheduler_task_plans",
     "scheduler_runs",
     "scheduler_task_logs",
     "scheduler_task_artifacts",
@@ -332,4 +334,31 @@ CREATE INDEX IF NOT EXISTS idx_scheduler_resource_leases_holder
 ON scheduler_resource_leases(platform_id, company_id, project_id, holder_id, status);
 CREATE INDEX IF NOT EXISTS idx_scheduler_resource_leases_expiry
 ON scheduler_resource_leases(platform_id, company_id, project_id, status, expires_at_ms, id);
+"#;
+
+pub(super) const TASK_PLAN_SCHEMA: &str = r#"
+CREATE TABLE IF NOT EXISTS scheduler_task_plans (
+    platform_id TEXT NOT NULL,
+    company_id TEXT NOT NULL,
+    project_id TEXT NOT NULL,
+    task_id TEXT NOT NULL,
+    parent_task_id TEXT,
+    outer_batch BIGINT,
+    batch BIGINT NOT NULL CHECK (batch BETWEEN 1 AND 4294967295 AND batch = CAST(batch AS BIGINT)),
+    PRIMARY KEY (platform_id, company_id, project_id, task_id),
+    CHECK (
+        (parent_task_id IS NULL AND outer_batch IS NOT NULL
+            AND outer_batch BETWEEN 1 AND 4294967295 AND outer_batch = CAST(outer_batch AS BIGINT))
+        OR (parent_task_id IS NOT NULL AND parent_task_id <> task_id AND outer_batch IS NULL)
+    ),
+    FOREIGN KEY (platform_id, company_id, project_id)
+        REFERENCES projects(platform_id, company_id, project_id) ON DELETE RESTRICT,
+    FOREIGN KEY (platform_id, company_id, project_id, task_id)
+        REFERENCES scheduler_tasks(platform_id, company_id, project_id, id) ON DELETE RESTRICT,
+    FOREIGN KEY (platform_id, company_id, project_id, parent_task_id)
+        REFERENCES scheduler_tasks(platform_id, company_id, project_id, id) ON DELETE RESTRICT
+);
+
+CREATE INDEX IF NOT EXISTS idx_scheduler_task_plans_parent
+ON scheduler_task_plans(platform_id, company_id, project_id, parent_task_id, batch, task_id);
 "#;

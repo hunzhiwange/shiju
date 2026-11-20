@@ -23,6 +23,7 @@ mod postgres;
 pub mod resources;
 pub mod runs;
 pub(super) mod schema;
+pub mod task_plan;
 pub mod tasks;
 
 #[derive(Debug, Clone)]
@@ -334,3 +335,6 @@ mod dependencies_tests;
 #[cfg(test)]
 #[path = "mod_tests.rs"]
 mod tests;
+
+#[cfg(test)]
+mod task_plan_tests;

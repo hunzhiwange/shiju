@@ -23,52 +23,11 @@ impl PostgresAgentSchedulerStore {
         event: AppendAgentEventRequest,
     ) -> Result<StoredAgentEvent> {
         agent_database::run_sync_database(|| {
-            let payload_json =
-                serde_json::to_string(&event.payload).context("serialize event payload")?;
-            let from_status_key = event
-                .from_status_key
-                .clone()
-                .or_else(|| event.from_status.map(AgentTaskStatus::as_str).map(str::to_string));
-            let to_status_key = event
-                .to_status_key
-                .clone()
-                .or_else(|| event.to_status.map(AgentTaskStatus::as_str).map(str::to_string));
             let scope = context.storage_scope()?;
-            let project = scope.project_scope();
             let mut connection = self.database.connect_postgres()?;
             let mut transaction =
                 connection.transaction().context("begin PostgreSQL scheduler event append")?;
-            let cursor: i64 = transaction
-                .query_one(
-                    "INSERT INTO scheduler_events (
-                     platform_id, company_id, project_id, task_id, run_id, worker_id, team_id, kind,
-                     from_status, to_status, from_status_key, to_status_key, message, payload_json,
-                     created_at_ms
-                 ) VALUES (
-                     $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15
-                 )
-                 RETURNING id",
-                    &[
-                        &project.platform_id().as_ref(),
-                        &project.company_id().as_ref(),
-                        &project.project_id().as_ref(),
-                        &event.task_id.as_ref().map(TaskId::as_str),
-                        &event.run_id.as_ref().map(RunId::as_str),
-                        &event.worker_id.as_ref().map(AssigneeId::as_str),
-                        &event.team_id.as_ref().map(TeamId::as_str),
-                        &event.kind.as_str(),
-                        &event.from_status.map(AgentTaskStatus::as_str),
-                        &event.to_status.map(AgentTaskStatus::as_str),
-                        &from_status_key.as_deref(),
-                        &to_status_key.as_deref(),
-                        &event.message,
-                        &payload_json,
-                        &event.created_at_ms.0,
-                    ],
-                )
-                .context("insert scoped PostgreSQL scheduler event")?
-                .try_get(0)
-                .context("read inserted PostgreSQL scheduler event cursor")?;
+            let cursor = insert_event_with_client(&mut transaction, &scope, event)?;
             let stored =
                 load_event_with_client(&mut transaction, &scope, cursor)?.with_context(|| {
                     format!("PostgreSQL scheduler event disappeared after append: {cursor}")
@@ -110,6 +69,55 @@ impl PostgresAgentSchedulerStore {
                 .collect()
         })
     }
+}
+
+pub(super) fn insert_event_with_client(
+    connection: &mut impl GenericClient,
+    scope: &AgentSchedulerScope,
+    event: AppendAgentEventRequest,
+) -> Result<i64> {
+    let payload_json =
+        serde_json::to_string(&event.payload).context("serialize event payload")?;
+    let from_status_key = event
+        .from_status_key
+        .clone()
+        .or_else(|| event.from_status.map(AgentTaskStatus::as_str).map(str::to_string));
+    let to_status_key = event
+        .to_status_key
+        .clone()
+        .or_else(|| event.to_status.map(AgentTaskStatus::as_str).map(str::to_string));
+    let project = scope.project_scope();
+    connection
+        .query_one(
+            "INSERT INTO scheduler_events (
+             platform_id, company_id, project_id, task_id, run_id, worker_id, team_id, kind,
+             from_status, to_status, from_status_key, to_status_key, message, payload_json,
+             created_at_ms
+         ) VALUES (
+             $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15
+         )
+         RETURNING id",
+            &[
+                &project.platform_id().as_ref(),
+                &project.company_id().as_ref(),
+                &project.project_id().as_ref(),
+                &event.task_id.as_ref().map(TaskId::as_str),
+                &event.run_id.as_ref().map(RunId::as_str),
+                &event.worker_id.as_ref().map(AssigneeId::as_str),
+                &event.team_id.as_ref().map(TeamId::as_str),
+                &event.kind.as_str(),
+                &event.from_status.map(AgentTaskStatus::as_str),
+                &event.to_status.map(AgentTaskStatus::as_str),
+                &from_status_key.as_deref(),
+                &to_status_key.as_deref(),
+                &event.message,
+                &payload_json,
+                &event.created_at_ms.0,
+            ],
+        )
+        .context("insert scoped PostgreSQL scheduler event")?
+        .try_get(0)
+        .context("read inserted PostgreSQL scheduler event cursor")
 }
 
 fn load_event_with_client(

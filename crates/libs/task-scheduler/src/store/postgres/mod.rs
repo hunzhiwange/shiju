@@ -14,6 +14,7 @@ mod outbox;
 mod resources;
 mod runs;
 mod schema;
+mod task_plan;
 mod tasks;
 
 #[derive(Debug)]

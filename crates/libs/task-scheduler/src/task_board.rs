@@ -923,17 +923,21 @@ pub(super) fn new_task_from_legacy_import(
 }
 
 pub fn task_board_status_key(task: &StoredAgentTask) -> String {
-    if agent_scheduler_control_status(task.status) {
-        return task_board_status_key_from_map(AgentTaskStatus::Queued, &task.metadata)
+    task_board_status_key_for(task.status, &task.metadata)
+}
+
+pub(crate) fn task_board_status_key_for(status: AgentTaskStatus, metadata: &Value) -> String {
+    if agent_scheduler_control_status(status) {
+        return task_board_status_key_from_map(AgentTaskStatus::Queued, metadata)
             .unwrap_or_else(|| legacy_task_board_status_key(AgentTaskStatus::Queued).to_string());
     }
-    task.metadata
+    metadata
         .get("task_board.status_key")
         .and_then(Value::as_str)
         .and_then(non_empty_str)
         .map(str::to_string)
-        .or_else(|| task_board_status_key_from_map(task.status, &task.metadata))
-        .unwrap_or_else(|| legacy_task_board_status_key(task.status).to_string())
+        .or_else(|| task_board_status_key_from_map(status, metadata))
+        .unwrap_or_else(|| legacy_task_board_status_key(status).to_string())
 }
 
 fn task_board_status_key_from_map(status: AgentTaskStatus, metadata: &Value) -> Option<String> {

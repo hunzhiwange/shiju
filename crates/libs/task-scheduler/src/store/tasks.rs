@@ -26,6 +26,12 @@ use super::{
     open_locked_initialized_connection, postgres_provider, scope_params,
 };
 
+use super::events::insert_event_with_conn;
+use super::task_plan::{
+    PlacementWrite, TaskPlanPlacement, became_hidden, load_plan_members, placement_event,
+    validate_hiding, write_placement,
+};
+
 const TASK_COLUMNS: &str = "id, kind, status, title, spec_uri, meta_uri, assigned_to, team_id, \
 room_id, project_room_id, delegated_to_team, schedule, timezone, next_scheduled_at, \
 last_executed_at, dag_json, metadata_json, created_at_ms, updated_at_ms";
@@ -152,7 +158,16 @@ impl AgentSchedulerStore {
     pub fn create_task(
         &self,
         context: &(impl AgentSchedulerStorageContext + ?Sized),
+        task: NewAgentTask,
+    ) -> Result<StoredAgentTask> {
+        self.create_task_with_placement(context, task, None)
+    }
+
+    pub(super) fn create_task_with_placement(
+        &self,
+        context: &(impl AgentSchedulerStorageContext + ?Sized),
         mut task: NewAgentTask,
+        placement: Option<TaskPlanPlacement>,
     ) -> Result<StoredAgentTask> {
         validate_new_task(&task)?;
         if task.metadata.get(TASK_PROPERTY_VALUES_METADATA_KEY).is_some() {
@@ -165,7 +180,7 @@ impl AgentSchedulerStore {
             task.metadata[TASK_LABEL_IDS_METADATA_KEY] = json!(ids);
         }
         if let Some(store) = postgres_provider(self, context)? {
-            return store.create_task(context, task);
+            return store.create_task(context, task, placement);
         }
         let scope = context.storage_scope()?;
         let (platform_id, company_id, project_id) = scope_params(&scope);
@@ -211,11 +226,22 @@ impl AgentSchedulerStore {
         )?;
         let stored = load_task_with_conn(&tx, context, &task.id)?
             .with_context(|| format!("task disappeared after create: {}", task.id.as_str()))?;
+        if let Some(placement) = placement.as_ref() {
+            let mode = if inserted == 0 {
+                PlacementWrite::RetryCreate
+            } else {
+                PlacementWrite::Create
+            };
+            if write_placement(&tx, context, &scope, &stored, Some(placement), mode)? {
+                insert_event_with_conn(
+                    &tx,
+                    &scope,
+                    placement_event(&stored, Some(placement), true),
+                )?;
+            }
+        }
         tx.commit()?;
 
-        if inserted == 0 {
-            return Ok(stored);
-        }
         Ok(stored)
     }
 
@@ -372,8 +398,19 @@ impl AgentSchedulerStore {
         property_changes: AgentSchedulerTaskPropertyChanges,
         edit: impl FnOnce(&StoredAgentTask) -> Result<AgentTaskBoardUpdate> + Send,
     ) -> Result<Option<(StoredAgentTask, StoredAgentTask)>> {
+        self.edit_task_with_placement(context, task_id, property_changes, None, edit)
+    }
+
+    pub(super) fn edit_task_with_placement(
+        &self,
+        context: &(impl AgentSchedulerStorageContext + ?Sized),
+        task_id: &TaskId,
+        property_changes: AgentSchedulerTaskPropertyChanges,
+        placement: Option<Option<TaskPlanPlacement>>,
+        edit: impl FnOnce(&StoredAgentTask) -> Result<AgentTaskBoardUpdate> + Send,
+    ) -> Result<Option<(StoredAgentTask, StoredAgentTask)>> {
         if let Some(store) = postgres_provider(self, context)? {
-            return store.edit_task_board_task(context, task_id, property_changes, edit);
+            return store.edit_task_with_placement(context, task_id, property_changes, placement, edit);
         }
         let scope = context.storage_scope()?;
         let (platform_id, company_id, project_id) = scope_params(&scope);
@@ -395,6 +432,26 @@ impl AgentSchedulerStore {
             None => current.title.clone(),
         };
         let status = update.status.unwrap_or(current.status);
+        let hiding = became_hidden(&current, status, &update.metadata);
+        if hiding {
+            validate_hiding(&load_plan_members(&tx, &scope, task_id)?, task_id)?;
+        }
+        let placement_changed = if let Some(replacement) = placement.as_ref() {
+            let changed = write_placement(
+                &tx,
+                context,
+                &scope,
+                &current,
+                replacement.as_ref(),
+                PlacementWrite::Edit,
+            )?;
+            if changed && hiding {
+                bail!("cannot change placement while hiding task {}", task_id.as_str());
+            }
+            changed
+        } else {
+            false
+        };
         let metadata_json =
             serde_json::to_string(&update.metadata).context("serialize task metadata")?;
         tx.execute(
@@ -415,6 +472,14 @@ impl AgentSchedulerStore {
         let updated = load_task_with_conn(&tx, context, task_id)?.with_context(|| {
             format!("task disappeared after task board update: {}", task_id.as_str())
         })?;
+        if placement_changed {
+            let replacement = placement.as_ref().and_then(Option::as_ref);
+            insert_event_with_conn(
+                &tx,
+                &scope,
+                placement_event(&updated, replacement, false),
+            )?;
+        }
         tx.commit()?;
         Ok(Some((current, updated)))
     }
@@ -438,7 +503,10 @@ impl AgentSchedulerStore {
             return Ok(None);
         };
         ensure_transition(current.kind, current.status, to_status)?;
-        let metadata = task_board_projection_metadata(current.metadata, to_status);
+        let metadata = task_board_projection_metadata(current.metadata.clone(), to_status);
+        if became_hidden(&current, to_status, &metadata) {
+            validate_hiding(&load_plan_members(&tx, &scope, task_id)?, task_id)?;
+        }
         let metadata_json = serde_json::to_string(&metadata).context("serialize task metadata")?;
         tx.execute(
             "UPDATE scheduler_tasks SET status = ?1, metadata_json = ?2, updated_at_ms = ?3
@@ -487,6 +555,9 @@ impl AgentSchedulerStore {
         };
         ensure_transition(current.kind, current.status, to_status)?;
         preserve_task_board_fields(&current.metadata, &mut metadata);
+        if became_hidden(&current, to_status, &metadata) {
+            validate_hiding(&load_plan_members(&tx, &scope, task_id)?, task_id)?;
+        }
         let metadata_json = serde_json::to_string(&metadata).context("serialize task metadata")?;
         tx.execute(
             "UPDATE scheduler_tasks SET status = ?1, metadata_json = ?2, updated_at_ms = ?3
@@ -766,7 +837,7 @@ fn upsert_meta(
     Ok(())
 }
 
-fn load_workflow_with_conn(
+pub(super) fn load_workflow_with_conn(
     conn: &Connection,
     scope: &vw_api_agent_scheduler::AgentSchedulerScope,
 ) -> Result<Option<TaskPoolWorkflowSnapshotDto>> {
@@ -846,7 +917,7 @@ fn validate_new_task(task: &NewAgentTask) -> Result<()> {
     Ok(())
 }
 
-fn load_task_with_conn(
+pub(super) fn load_task_with_conn(
     conn: &Connection,
     context: &(impl AgentSchedulerStorageContext + ?Sized),
     task_id: &TaskId,

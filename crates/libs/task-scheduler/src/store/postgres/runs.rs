@@ -77,6 +77,7 @@ impl PostgresAgentSchedulerStore {
             let project = scope.project_scope();
             let mut connection = self.database.connect_postgres()?;
             let mut transaction = connection.transaction().context("begin PostgreSQL run claim")?;
+            super::task_plan::lock_task_plan_project(&mut transaction, &scope)?;
             let task_status = transaction
                 .query_opt(
                     "SELECT status FROM scheduler_tasks
@@ -180,6 +181,7 @@ impl PostgresAgentSchedulerStore {
             let mut connection = self.database.connect_postgres()?;
             let mut transaction =
                 connection.transaction().context("begin PostgreSQL ready task run claim")?;
+            super::task_plan::lock_task_plan_project(&mut transaction, &scope)?;
             let task = transaction
                 .query_opt(
                     "SELECT kind, status FROM scheduler_tasks

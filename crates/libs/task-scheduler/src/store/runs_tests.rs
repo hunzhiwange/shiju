@@ -533,7 +533,7 @@ fn finite_task(task_id: &TaskId) -> Result<NewAgentTask> {
     finite_task_with_status(task_id, AgentTaskStatus::Dispatched)
 }
 
-fn finite_task_with_status(task_id: &TaskId, status: AgentTaskStatus) -> Result<NewAgentTask> {
+pub(crate) fn finite_task_with_status(task_id: &TaskId, status: AgentTaskStatus) -> Result<NewAgentTask> {
     Ok(NewAgentTask {
         id: task_id.clone(),
         title: "Run lease storage".to_string(),
@@ -560,7 +560,7 @@ fn run_ids(runs: &[super::store::runs::StoredAgentRun]) -> Vec<&str> {
     runs.iter().map(|run| run.id.as_str()).collect()
 }
 
-fn claim_request(run_id: &str, task_id: &TaskId, _worker_id: &str) -> ClaimTaskRunRequest {
+pub(crate) fn claim_request(run_id: &str, task_id: &TaskId, _worker_id: &str) -> ClaimTaskRunRequest {
     ClaimTaskRunRequest {
         run_id: RunId::new(run_id).expect("valid run id"),
         task_id: task_id.clone(),
@@ -600,7 +600,7 @@ fn for_each_run_store_provider(
     postgres_fixture.cleanup()
 }
 
-fn scheduler_store_fixture(
+pub(crate) fn scheduler_store_fixture(
     database: GlobalDatabase,
     project_path: &std::path::Path,
 ) -> Result<(AgentSchedulerStore, AgentSchedulerContext)> {

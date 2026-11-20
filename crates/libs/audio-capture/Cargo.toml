@@ -1,6 +1,6 @@
 [package]
 name = "audio-capture"
-version = "0.6.0"
+version = "0.7.0"
 edition = "2024"
 license = "MIT"
 
@@ -10,4 +10,4 @@ doctest = false
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 anyhow = "1"
 cpal = { version = "0.18.2", default-features = false }
-voice-permissions = { path = "../voice-permissions", version = "0.6.0" }
+voice-permissions = { path = "../voice-permissions", version = "0.7.0" }

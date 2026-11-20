@@ -1,14 +1,14 @@
 [package]
 name = "cli-command-schema"
-version = "0.6.0"
+version = "0.7.0"
 edition = "2024"
 license = "MIT"
 
 [dependencies]
-agent-cli-types = { path = "../agent-cli-types", version = "0.6.0" }
-config-security = { path = "../config-security", version = "0.6.0" }
+agent-cli-types = { path = "../agent-cli-types", version = "0.7.0" }
+config-security = { path = "../config-security", version = "0.7.0" }
 anyhow = "1"
 clap = { version = "4.5", features = ["derive"] }
 clap_complete = "4.5"
-cli-gateway-commands = { path = "../cli-gateway-commands", version = "0.6.0" }
-vw-agent = { path = "../../vw-agent", version = "0.6.0", default-features = false }
+cli-gateway-commands = { path = "../cli-gateway-commands", version = "0.7.0" }
+vw-agent = { path = "../../vw-agent", version = "0.7.0", default-features = false }

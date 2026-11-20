@@ -1,6 +1,6 @@
 [package]
 name = "tui-theme"
-version = "0.6.0"
+version = "0.7.0"
 edition = "2024"
 license = "Apache-2.0"
 
@@ -14,7 +14,7 @@ ratatui = { version = "0.30.2", features = [
     "unstable-widget-ref",
 ] }
 supports-color = "3.0.2"
-tui-terminal = { path = "../tui-terminal", version = "0.6.0" }
+tui-terminal = { path = "../tui-terminal", version = "0.7.0" }
 
 [dev-dependencies]
 pretty_assertions = "1.4.1"

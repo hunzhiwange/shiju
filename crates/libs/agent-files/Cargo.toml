@@ -1,6 +1,6 @@
 [package]
 name = "agent-files"
-version = "0.6.0"
+version = "0.7.0"
 edition = "2024"
 license = "MIT"
 
@@ -8,9 +8,9 @@ license = "MIT"
 doctest = false
 
 [dependencies]
-agent-bus = { path = "../agent-bus", version = "0.6.0" }
-agent-log = { path = "../agent-log", version = "0.6.0" }
-runtime-flags = { path = "../runtime-flags", version = "0.6.0" }
+agent-bus = { path = "../agent-bus", version = "0.7.0" }
+agent-log = { path = "../agent-log", version = "0.7.0" }
+runtime-flags = { path = "../runtime-flags", version = "0.7.0" }
 base64 = "0.23"
 chardetng = "1"
 encoding_rs = "0.8"

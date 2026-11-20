@@ -1,6 +1,6 @@
 [package]
 name = "app-icons"
-version = "0.6.0"
+version = "0.7.0"
 edition = "2024"
 license = "MIT"
 
@@ -8,6 +8,6 @@ license = "MIT"
 doctest = false
 
 [dependencies]
-vw-api-app-identity = { path = "../api-app-identity", version = "0.6.0" }
+vw-api-app-identity = { path = "../api-app-identity", version = "0.7.0" }
 base64 = "0.23"
 png = "0.18"

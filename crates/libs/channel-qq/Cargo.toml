@@ -1,6 +1,6 @@
 [package]
 name = "channel-qq"
-version = "0.6.0"
+version = "0.7.0"
 edition = "2024"
 license = "MIT"
 
@@ -11,9 +11,9 @@ doctest = false
 test-support = []
 
 [dependencies]
-agent-providers = { path = "../agent-providers", version = "0.6.0" }
-channel-support = { path = "../channel-support", version = "0.6.0" }
-channel-types = { path = "../channel-types", version = "0.6.0" }
+agent-providers = { path = "../agent-providers", version = "0.7.0" }
+channel-support = { path = "../channel-support", version = "0.7.0" }
+channel-types = { path = "../channel-types", version = "0.7.0" }
 anyhow = "1"
 async-trait = "0.1.89"
 futures-util = "0.3.32"
@@ -28,8 +28,8 @@ tracing = "0.1"
 uuid = { version = "1.11", features = ["v4", "js"] }
 
 [dev-dependencies]
-agent-config = { path = "../agent-config", version = "0.6.0" }
-config-channel-services = { path = "../config-channel-services", version = "0.6.0" }
+agent-config = { path = "../agent-config", version = "0.7.0" }
+config-channel-services = { path = "../config-channel-services", version = "0.7.0" }
 rustls = { version = "0.23.37", default-features = false, features = ["ring", "logging", "std", "tls12"] }
 rustls-pki-types = "1.14.0"
 tokio = { version = "1", features = ["io-util", "net", "rt-multi-thread"] }

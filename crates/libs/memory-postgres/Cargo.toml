@@ -1,11 +1,11 @@
 [package]
 name = "memory-postgres"
-version = "0.6.0"
+version = "0.7.0"
 edition = "2024"
 license = "MIT"
 
 [dependencies]
-memory-types = { path = "../memory-types", version = "0.6.0" }
+memory-types = { path = "../memory-types", version = "0.7.0" }
 anyhow = "1"
 async-trait = "0.1.89"
 parking_lot = "0.12"

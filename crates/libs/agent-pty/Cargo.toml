@@ -1,6 +1,6 @@
 [package]
 name = "agent-pty"
-version = "0.6.0"
+version = "0.7.0"
 edition = "2024"
 license = "MIT"
 
@@ -8,10 +8,10 @@ license = "MIT"
 doctest = false
 
 [dependencies]
-agent-bus = { path = "../agent-bus", version = "0.6.0" }
-agent-log = { path = "../agent-log", version = "0.6.0" }
-ordered-id = { path = "../ordered-id", version = "0.6.0" }
-shell-command = { path = "../shell-command", version = "0.6.0" }
+agent-bus = { path = "../agent-bus", version = "0.7.0" }
+agent-log = { path = "../agent-log", version = "0.7.0" }
+ordered-id = { path = "../ordered-id", version = "0.7.0" }
+shell-command = { path = "../shell-command", version = "0.7.0" }
 portable-pty = "0.9"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"

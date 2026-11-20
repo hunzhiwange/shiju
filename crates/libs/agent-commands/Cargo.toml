@@ -1,6 +1,6 @@
 [package]
 name = "agent-commands"
-version = "0.6.0"
+version = "0.7.0"
 edition = "2024"
 license = "MIT"
 
@@ -8,7 +8,7 @@ license = "MIT"
 doctest = false
 
 [dependencies]
-agent-bus = { path = "../agent-bus", version = "0.6.0" }
+agent-bus = { path = "../agent-bus", version = "0.7.0" }
 regex = "1"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"

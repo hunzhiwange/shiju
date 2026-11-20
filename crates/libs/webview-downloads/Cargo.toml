@@ -1,6 +1,6 @@
 [package]
 name = "webview-downloads"
-version = "0.6.0"
+version = "0.7.0"
 edition = "2024"
 license = "MIT"
 
@@ -11,7 +11,7 @@ doctest = false
 unexpected_cfgs = { level = "warn", check-cfg = ['cfg(coverage)'] }
 
 [target.'cfg(unix)'.dependencies]
-webview-storage = { path = "../webview-storage", version = "0.6.0" }
+webview-storage = { path = "../webview-storage", version = "0.7.0" }
 
 [target.'cfg(all(not(target_arch = "wasm32"), not(target_env = "musl")))'.dependencies]
 wry = { version = "=0.56.1" }

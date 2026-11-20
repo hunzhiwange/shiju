@@ -1,21 +1,21 @@
 [package]
 name = "desktop-settings-appearance"
-version = "0.6.0"
+version = "0.7.0"
 edition = "2024"
 license = "MIT"
 [lib]
 doctest = false
 [dependencies]
-desktop-editor = { path = "../desktop-editor", version = "0.6.0" }
+desktop-editor = { path = "../desktop-editor", version = "0.7.0" }
 iced = { version = "0.14", features = ["advanced"] }
-config-ui = { path = "../config-ui", version = "0.6.0" }
-desktop-i18n = { path = "../desktop-i18n", version = "0.6.0" }
-desktop-ui-controls = { path = "../desktop-ui-controls", version = "0.6.0" }
-desktop-theme = { path = "../desktop-theme", version = "0.6.0" }
+config-ui = { path = "../config-ui", version = "0.7.0" }
+desktop-i18n = { path = "../desktop-i18n", version = "0.7.0" }
+desktop-ui-controls = { path = "../desktop-ui-controls", version = "0.7.0" }
+desktop-theme = { path = "../desktop-theme", version = "0.7.0" }
 tracing = "0.1"
-desktop-settings-security = { path = "../desktop-settings-security", version = "0.6.0" }
+desktop-settings-security = { path = "../desktop-settings-security", version = "0.7.0" }
 
-desktop-config = { path = "../desktop-config", version = "0.6.0" }
+desktop-config = { path = "../desktop-config", version = "0.7.0" }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 rfd = { version = "0.17", features = ["file-handle-inner"] }
@@ -23,22 +23,22 @@ rfd = { version = "0.17", features = ["file-handle-inner"] }
 [dev-dependencies]
 urlencoding = "2"
 serde_json = "1"
-desktop-terminal = { path = "../desktop-terminal", version = "0.6.0" }
+desktop-terminal = { path = "../desktop-terminal", version = "0.7.0" }
 iced_runtime = "0.14"
-desktop-editor = { path = "../desktop-editor", version = "0.6.0" }
-desktop-chat-view = { path = "../desktop-chat-view", version = "0.6.0" }
-desktop-assets = { path = "../desktop-assets", version = "0.6.0" }
+desktop-editor = { path = "../desktop-editor", version = "0.7.0" }
+desktop-chat-view = { path = "../desktop-chat-view", version = "0.7.0" }
+desktop-assets = { path = "../desktop-assets", version = "0.7.0" }
 iced-code-editor = { git = "https://github.com/doyouhaobaby/iced-code-editor.git", tag = "v0.5.6" }
 tokio = { version = "1", features = ["rt-multi-thread", "macros"] }
 image = "0.25"
 
 tempfile = "3"
-desktop-theme = { path = "../desktop-theme", version = "0.6.0", features = ["test-support"] }
+desktop-theme = { path = "../desktop-theme", version = "0.7.0", features = ["test-support"] }
 
 [dependencies.desktop-provider-apps]
 path = "../desktop-provider-apps"
-version = "0.6.0"
+version = "0.7.0"
 
 [dependencies.vw-api-app-identity]
 path = "../api-app-identity"
-version = "0.6.0"
+version = "0.7.0"

@@ -1,6 +1,6 @@
 [package]
 name = "gateway-aggregation"
-version = "0.6.0"
+version = "0.7.0"
 edition = "2024"
 license = "MIT"
 
@@ -8,33 +8,33 @@ license = "MIT"
 doctest = false
 
 [dependencies]
-gateway-http = { path = "../gateway-http", version = "0.6.0" }
-vw-api-app-aggregation = { path = "../api-app-aggregation", version = "0.6.0" }
-vw-api-app-identity = { path = "../api-app-identity", version = "0.6.0" }
+gateway-http = { path = "../gateway-http", version = "0.7.0" }
+vw-api-app-aggregation = { path = "../api-app-aggregation", version = "0.7.0" }
+vw-api-app-identity = { path = "../api-app-identity", version = "0.7.0" }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-app-provider-services = { path = "../app-provider-services", version = "0.6.0" }
-vw-api-app-auth = { path = "../api-app-auth", version = "0.6.0" }
-vw-api-app-provider-environment = { path = "../api-app-provider-environment", version = "0.6.0" }
-app-settings-store = { path = "../app-settings-store", version = "0.6.0" }
-model-catalog = { path = "../model-catalog", version = "0.6.0" }
-vw-api-model-catalog = { path = "../api-model-catalog", version = "0.6.0" }
-vw-api-app-failover = { path = "../api-app-failover", version = "0.6.0" }
-vw-api-app-provider-terminal = { path = "../api-app-provider-terminal", version = "0.6.0" }
+app-provider-services = { path = "../app-provider-services", version = "0.7.0" }
+vw-api-app-auth = { path = "../api-app-auth", version = "0.7.0" }
+vw-api-app-provider-environment = { path = "../api-app-provider-environment", version = "0.7.0" }
+app-settings-store = { path = "../app-settings-store", version = "0.7.0" }
+model-catalog = { path = "../model-catalog", version = "0.7.0" }
+vw-api-model-catalog = { path = "../api-model-catalog", version = "0.7.0" }
+vw-api-app-failover = { path = "../api-app-failover", version = "0.7.0" }
+vw-api-app-provider-terminal = { path = "../api-app-provider-terminal", version = "0.7.0" }
 ring = "0.17.14"
 hex = "0.4"
 base64 = "0.23"
 getrandom = "0.4"
 chrono = { version = "0.4", features = ["serde"] }
-vw-api-app-provider-edit = { path = "../api-app-provider-edit", version = "0.6.0" }
-vw-api-app-provider-profiles = { path = "../api-app-provider-profiles", version = "0.6.0" }
+vw-api-app-provider-edit = { path = "../api-app-provider-edit", version = "0.7.0" }
+vw-api-app-provider-profiles = { path = "../api-app-provider-profiles", version = "0.7.0" }
 sha2 = "0.11"
-agent-database = { path = "../agent-database", version = "0.6.0" }
-app-access-service = { path = "../app-access-service", version = "0.6.0" }
-vw-api-transport = { path = "../api-transport", version = "0.6.0" }
-vw-agent-apps = { path = "../../vw-agent-apps", version = "0.6.0" }
+agent-database = { path = "../agent-database", version = "0.7.0" }
+app-access-service = { path = "../app-access-service", version = "0.7.0" }
+vw-api-transport = { path = "../api-transport", version = "0.7.0" }
+vw-agent-apps = { path = "../../vw-agent-apps", version = "0.7.0" }
 axum = { version = "0.8.8", features = ["json"] }
 tokio = { version = "1", features = ["rt"] }
 reqwest = { version = "0.13", default-features = false, features = ["json", "query", "rustls"] }
@@ -47,7 +47,7 @@ libc = "0.2"
 reqwest = { version = "0.13", features = ["json", "query"] }
 
 [dev-dependencies]
-gateway-endpoint = { path = "../gateway-endpoint", version = "0.6.0" }
-gateway-app-provider = { path = "../gateway-app-provider", version = "0.6.0" }
-vw-api-transport = { path = "../api-transport", version = "0.6.0" }
+gateway-endpoint = { path = "../gateway-endpoint", version = "0.7.0" }
+gateway-app-provider = { path = "../gateway-app-provider", version = "0.7.0" }
+vw-api-transport = { path = "../api-transport", version = "0.7.0" }
 tokio = { version = "1", features = ["macros", "rt-multi-thread"] }

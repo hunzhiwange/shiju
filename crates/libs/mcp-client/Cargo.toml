@@ -1,6 +1,6 @@
 [package]
 name = "mcp-client"
-version = "0.6.0"
+version = "0.7.0"
 edition = "2024"
 license = "MIT"
 
@@ -8,7 +8,7 @@ license = "MIT"
 doctest = false
 
 [dependencies]
-acp-config = { path = "../acp-config", version = "0.6.0" }
+acp-config = { path = "../acp-config", version = "0.7.0" }
 agent-client-protocol = { version = "0.10.4", features = ["unstable_session_usage", "unstable_session_resume"] }
 anyhow = "1"
 # rmcp 0.8.x model types require its default base64/macros/server features.
@@ -17,11 +17,11 @@ serde_json = "1"
 tracing = "0.1"
 tokio = { version = "1", features = ["sync", "time", "macros", "rt", "process", "io-util"] }
 tokio-util = { version = "0.7.18", features = ["codec"] }
-vw-api-transport = { path = "../api-transport", version = "0.6.0" }
+vw-api-transport = { path = "../api-transport", version = "0.7.0" }
 futures-util = "0.3.32"
 reqwest_012 = { package = "reqwest", version = "0.12", default-features = false, features = ["json", "rustls-tls-webpki-roots", "stream"] }
 sse-stream = "0.2.1"
 url = "2"
 axum = { version = "0.8.8", default-features = false }
 libc = "0.2"
-shell-command = { path = "../shell-command", version = "0.6.0", features = ["shell-tokio"] }
+shell-command = { path = "../shell-command", version = "0.7.0", features = ["shell-tokio"] }

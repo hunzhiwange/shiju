@@ -1,16 +1,16 @@
 [package]
 name = "app-model-catalog"
-version = "0.6.0"
+version = "0.7.0"
 edition = "2024"
 license = "MIT"
 
 [dependencies]
-vw-api-app-provider-edit = { path = "../api-app-provider-edit", version = "0.6.0" }
-vw-api-app-provider-profiles = { path = "../api-app-provider-profiles", version = "0.6.0" }
-vw-api-app-provider-base = { path = "../api-app-provider-base", version = "0.6.0" }
-vw-api-model-catalog = { path = "../api-model-catalog", version = "0.6.0" }
-vw-api-app-identity = { path = "../api-app-identity", version = "0.6.0" }
-vw-api-transport = { path = "../api-transport", version = "0.6.0" }
+vw-api-app-provider-edit = { path = "../api-app-provider-edit", version = "0.7.0" }
+vw-api-app-provider-profiles = { path = "../api-app-provider-profiles", version = "0.7.0" }
+vw-api-app-provider-base = { path = "../api-app-provider-base", version = "0.7.0" }
+vw-api-model-catalog = { path = "../api-model-catalog", version = "0.7.0" }
+vw-api-app-identity = { path = "../api-app-identity", version = "0.7.0" }
+vw-api-transport = { path = "../api-transport", version = "0.7.0" }
 app-provider-validation = { path = "../app-provider-validation" }
 app-routing-policy = { path = "../app-routing-policy" }
 reqwest = { version = "0.13", default-features = false }

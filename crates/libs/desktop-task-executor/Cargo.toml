@@ -1,6 +1,6 @@
 [package]
 name = "desktop-task-executor"
-version = "0.6.0"
+version = "0.7.0"
 edition = "2024"
 license = "MIT"
 
@@ -11,25 +11,25 @@ doctest = false
 test-support = []
 
 [dependencies]
-vw-api-acp-model = { path = "../api-acp-model", version = "0.6.0" }
-session-text = { path = "../session-text", version = "0.6.0" }
-gateway-session = { path = "../gateway-session", version = "0.6.0" }
-config-runtime-paths = { path = "../config-runtime-paths", version = "0.6.0" }
+vw-api-acp-model = { path = "../api-acp-model", version = "0.7.0" }
+session-text = { path = "../session-text", version = "0.7.0" }
+gateway-session = { path = "../gateway-session", version = "0.7.0" }
+config-runtime-paths = { path = "../config-runtime-paths", version = "0.7.0" }
 once_cell = "1"
 time = { version = "0.3", features = ["formatting"] }
-vw-api-chat-identity = { path = "../api-chat-identity", version = "0.6.0" }
-vw-api-transport = { path = "../api-transport", version = "0.6.0" }
-vw-api-task = { path = "../api-task", version = "0.6.0" }
-vw-api-project = { path = "../api-project", version = "0.6.0" }
-gateway-task-pool = { path = "../gateway-task-pool", version = "0.6.0" }
-gateway-project = { path = "../gateway-project", version = "0.6.0" }
-gateway-chat-stream = { path = "../gateway-chat-stream", version = "0.6.0" }
-runtime-time = { path = "../runtime-time", version = "0.6.0" }
-desktop-task-store = { path = "../desktop-task-store", version = "0.6.0" }
-desktop-task-model = { path = "../desktop-task-model", version = "0.6.0" }
-shell-command = { path = "../shell-command", version = "0.6.0" }
-vw-api-git = { path = "../api-git", version = "0.6.0" }
-vw-gateway-client = { path = "../../vw-gateway-client", version = "0.6.0" }
+vw-api-chat-identity = { path = "../api-chat-identity", version = "0.7.0" }
+vw-api-transport = { path = "../api-transport", version = "0.7.0" }
+vw-api-task = { path = "../api-task", version = "0.7.0" }
+vw-api-project = { path = "../api-project", version = "0.7.0" }
+gateway-task-pool = { path = "../gateway-task-pool", version = "0.7.0" }
+gateway-project = { path = "../gateway-project", version = "0.7.0" }
+gateway-chat-stream = { path = "../gateway-chat-stream", version = "0.7.0" }
+runtime-time = { path = "../runtime-time", version = "0.7.0" }
+desktop-task-store = { path = "../desktop-task-store", version = "0.7.0" }
+desktop-task-model = { path = "../desktop-task-model", version = "0.7.0" }
+shell-command = { path = "../shell-command", version = "0.7.0" }
+vw-api-git = { path = "../api-git", version = "0.7.0" }
+vw-gateway-client = { path = "../../vw-gateway-client", version = "0.7.0" }
 serde_json = "1"
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
@@ -38,5 +38,5 @@ tokio = { version = "1", features = ["rt-multi-thread"] }
 [dev-dependencies]
 tempfile = "3"
 
-desktop-config = { path = "../desktop-config", version = "0.6.0" }
-config-ui = { path = "../config-ui", version = "0.6.0" }
+desktop-config = { path = "../desktop-config", version = "0.7.0" }
+config-ui = { path = "../config-ui", version = "0.7.0" }

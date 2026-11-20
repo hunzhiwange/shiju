@@ -1,6 +1,6 @@
 [package]
 name = "app-diagnostics"
-version = "0.6.0"
+version = "0.7.0"
 edition = "2024"
 license = "MIT"
 
@@ -10,11 +10,11 @@ doctest = false
 [dependencies]
 app-model-catalog = { path = "../app-model-catalog" }
 app-provider-validation = { path = "../app-provider-validation" }
-vw-api-app-diagnostics = { path = "../api-app-diagnostics", version = "0.6.0" }
-vw-api-app-identity = { path = "../api-app-identity", version = "0.6.0" }
+vw-api-app-diagnostics = { path = "../api-app-diagnostics", version = "0.7.0" }
+vw-api-app-identity = { path = "../api-app-identity", version = "0.7.0" }
 serde_json = { version = "1", features = ["arbitrary_precision"] }
 toml_edit = "0.22"
 
 [dev-dependencies]
-vw-api-app-provider-edit = { path = "../api-app-provider-edit", version = "0.6.0" }
+vw-api-app-provider-edit = { path = "../api-app-provider-edit", version = "0.7.0" }
 tempfile = "3"

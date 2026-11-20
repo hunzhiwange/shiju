@@ -1,6 +1,6 @@
 [package]
 name = "acp-agent-registry"
-version = "0.6.0"
+version = "0.7.0"
 edition = "2024"
 license = "MIT"
 
@@ -8,11 +8,11 @@ license = "MIT"
 doctest = false
 
 [dependencies]
-shell-command = { path = "../shell-command", version = "0.6.0", features = ["shell-tokio"] }
-acp-types = { path = "../acp-types", version = "0.6.0" }
-acp-access-policy = { path = "../acp-access-policy", version = "0.6.0" }
-acp-host-io = { path = "../acp-host-io", version = "0.6.0" }
-config-acp-install = { path = "../config-acp-install", version = "0.6.0" }
+shell-command = { path = "../shell-command", version = "0.7.0", features = ["shell-tokio"] }
+acp-types = { path = "../acp-types", version = "0.7.0" }
+acp-access-policy = { path = "../acp-access-policy", version = "0.7.0" }
+acp-host-io = { path = "../acp-host-io", version = "0.7.0" }
+config-acp-install = { path = "../config-acp-install", version = "0.7.0" }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 sha2 = "0.11"

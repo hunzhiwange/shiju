@@ -1,28 +1,28 @@
 [package]
 name = "cli-interaction"
-version = "0.6.0"
+version = "0.7.0"
 edition = "2024"
 license = "MIT"
 
 [dependencies]
-gateway-cron = { path = "../gateway-cron", version = "0.6.0" }
-ordered-id = { path = "../ordered-id", version = "0.6.0" }
-session-text = { path = "../session-text", version = "0.6.0" }
-session-ui-types = { path = "../session-ui-types", version = "0.6.0" }
-vw-api-workflow = { path = "../api-workflow", version = "0.6.0" }
-vw-api-agent-scheduler = { path = "../api-agent-scheduler", version = "0.6.0" }
-vw-api-task = { path = "../api-task", version = "0.6.0" }
-cli-gateway-workspace = { path = "../cli-gateway-workspace", version = "0.6.0" }
-cli-gateway-automation = { path = "../cli-gateway-automation", version = "0.6.0" }
-vw-api-acp-model = { path = "../api-acp-model", version = "0.6.0" }
-cli-gateway-session = { path = "../cli-gateway-session", version = "0.6.0" }
-cli-gateway-transport = { path = "../cli-gateway-transport", version = "0.6.0" }
-vw-api-tools = { path = "../api-tools", version = "0.6.0" }
-vw-api-chat-identity = { path = "../api-chat-identity", version = "0.6.0" }
-vw-api-transport = { path = "../api-transport", version = "0.6.0" }
-cli-gateway-capabilities = { path = "../cli-gateway-capabilities", version = "0.6.0" }
-cli-interaction-state = { path = "../cli-interaction-state", version = "0.6.0" }
-cli-interaction-model = { path = "../cli-interaction-model", version = "0.6.0" }
+gateway-cron = { path = "../gateway-cron", version = "0.7.0" }
+ordered-id = { path = "../ordered-id", version = "0.7.0" }
+session-text = { path = "../session-text", version = "0.7.0" }
+session-ui-types = { path = "../session-ui-types", version = "0.7.0" }
+vw-api-workflow = { path = "../api-workflow", version = "0.7.0" }
+vw-api-agent-scheduler = { path = "../api-agent-scheduler", version = "0.7.0" }
+vw-api-task = { path = "../api-task", version = "0.7.0" }
+cli-gateway-workspace = { path = "../cli-gateway-workspace", version = "0.7.0" }
+cli-gateway-automation = { path = "../cli-gateway-automation", version = "0.7.0" }
+vw-api-acp-model = { path = "../api-acp-model", version = "0.7.0" }
+cli-gateway-session = { path = "../cli-gateway-session", version = "0.7.0" }
+cli-gateway-transport = { path = "../cli-gateway-transport", version = "0.7.0" }
+vw-api-tools = { path = "../api-tools", version = "0.7.0" }
+vw-api-chat-identity = { path = "../api-chat-identity", version = "0.7.0" }
+vw-api-transport = { path = "../api-transport", version = "0.7.0" }
+cli-gateway-capabilities = { path = "../cli-gateway-capabilities", version = "0.7.0" }
+cli-interaction-state = { path = "../cli-interaction-state", version = "0.7.0" }
+cli-interaction-model = { path = "../cli-interaction-model", version = "0.7.0" }
 pulldown-cmark = "0.13.4"
 anyhow = "1"
 base64 = "0.23"
@@ -30,8 +30,8 @@ crossterm = { git = "https://github.com/openai-oss-forks/crossterm", rev = "45fe
 dialoguer = "0.11"
 ratatui = "0.30.0"
 serde_json = "1"
-vw-gateway-client = { path = "../../vw-gateway-client", version = "0.6.0" }
-vw-tui = { path = "../../vw-tui", version = "0.6.0" }
+vw-gateway-client = { path = "../../vw-gateway-client", version = "0.7.0" }
+vw-tui = { path = "../../vw-tui", version = "0.7.0" }
 
 [dev-dependencies]
 tempfile = "3"

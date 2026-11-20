@@ -1,6 +1,6 @@
 [package]
 name = "agent-scheduler-core"
-version = "0.6.0"
+version = "0.7.0"
 edition = "2024"
 license = "MIT"
 
@@ -8,7 +8,7 @@ license = "MIT"
 doctest = false
 
 [dependencies]
-agent-log = { path = "../agent-log", version = "0.6.0" }
+agent-log = { path = "../agent-log", version = "0.7.0" }
 serde_json = "1"
 tokio = { version = "1", features = ["rt", "sync", "time"] }
 

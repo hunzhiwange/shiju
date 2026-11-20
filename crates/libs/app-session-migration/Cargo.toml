@@ -1,6 +1,6 @@
 [package]
 name = "app-session-migration"
-version = "0.6.0"
+version = "0.7.0"
 edition = "2024"
 license = "MIT"
 
@@ -14,10 +14,10 @@ app-config-write = { path = "../app-config-write" }
 app-provider-validation = { path = "../app-provider-validation" }
 app-session-core = { path = "../app-session-core" }
 app-session-codex = { path = "../app-session-codex" }
-vw-api-app-identity = { path = "../api-app-identity", version = "0.6.0" }
-vw-api-app-provider-environment = { path = "../api-app-provider-environment", version = "0.6.0" }
-vw-api-external-session = { path = "../api-external-session", version = "0.6.0" }
-vw-api-transport = { path = "../api-transport", version = "0.6.0" }
+vw-api-app-identity = { path = "../api-app-identity", version = "0.7.0" }
+vw-api-app-provider-environment = { path = "../api-app-provider-environment", version = "0.7.0" }
+vw-api-external-session = { path = "../api-external-session", version = "0.7.0" }
+vw-api-transport = { path = "../api-transport", version = "0.7.0" }
 libc = "0.2"
 rusqlite = { version = "0.37.0", features = ["bundled", "hooks", "limits"] }
 serde = { version = "1", features = ["derive"] }

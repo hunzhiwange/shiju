@@ -1,6 +1,6 @@
 [package]
 name = "tool-browser"
-version = "0.6.0"
+version = "0.7.0"
 edition = "2024"
 license = "MIT"
 
@@ -11,7 +11,7 @@ doctest = false
 browser-native = ["dep:fantoccini", "dep:base64"]
 
 [dependencies]
-network-policy = { path = "../network-policy", version = "0.6.0" }
+network-policy = { path = "../network-policy", version = "0.7.0" }
 anyhow = "1"
 async-trait = "0.1.89"
 serde = { version = "1", features = ["derive"] }
@@ -22,12 +22,12 @@ tokio = { version = "1", features = ["rt", "sync", "time", "process", "fs", "net
 directories = "5"
 fantoccini = { version = "0.22.1", optional = true, default-features = false, features = ["rustls-tls"] }
 base64 = { version = "0.23", optional = true }
-agent-security = { path = "../agent-security", version = "0.6.0" }
-agent-config = { path = "../agent-config", version = "0.6.0" }
-tool-types = { path = "../tool-types", version = "0.6.0" }
-vw-api-tools = { path = "../api-tools", version = "0.6.0" }
-shell-command = { path = "../shell-command", version = "0.6.0", features = ["shell-tokio"] }
-config-runtime-paths = { path = "../config-runtime-paths", version = "0.6.0" }
+agent-security = { path = "../agent-security", version = "0.7.0" }
+agent-config = { path = "../agent-config", version = "0.7.0" }
+tool-types = { path = "../tool-types", version = "0.7.0" }
+vw-api-tools = { path = "../api-tools", version = "0.7.0" }
+shell-command = { path = "../shell-command", version = "0.7.0", features = ["shell-tokio"] }
+config-runtime-paths = { path = "../config-runtime-paths", version = "0.7.0" }
 
 [target.'cfg(unix)'.dependencies]
 libc = "0.2"

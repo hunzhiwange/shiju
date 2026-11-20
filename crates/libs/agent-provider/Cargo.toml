@@ -1,6 +1,6 @@
 [package]
 name = "agent-provider"
-version = "0.6.0"
+version = "0.7.0"
 edition = "2024"
 license = "MIT"
 
@@ -14,29 +14,29 @@ test-support = []
 app-provider-validation = { path = "../app-provider-validation" }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
-app-model-catalog = { path = "../app-model-catalog", version = "0.6.0" }
+app-model-catalog = { path = "../app-model-catalog", version = "0.7.0" }
 thiserror = "2"
 strsim = "0.11"
 tokio = { version = "1", features = ["sync", "rt"] }
-agent-auth = { path = "../agent-auth", version = "0.6.0" }
-agent-env = { path = "../agent-env", version = "0.6.0" }
-agent-config = { path = "../agent-config", version = "0.6.0" }
-agent-project = { path = "../agent-project", version = "0.6.0" }
-agent-log = { path = "../agent-log", version = "0.6.0" }
-model-state = { path = "../model-state", version = "0.6.0" }
-model-types = { path = "../model-types", version = "0.6.0" }
-model-reasoning = { path = "../model-reasoning", version = "0.6.0" }
-provider-errors = { path = "../provider-errors", version = "0.6.0" }
-provider-model-cache = { path = "../provider-model-cache", version = "0.6.0" }
-runtime-flags = { path = "../runtime-flags", version = "0.6.0" }
-vw-api-transport = { path = "../api-transport", version = "0.6.0" }
-vw-api-model-catalog = { path = "../api-model-catalog", version = "0.6.0" }
+agent-auth = { path = "../agent-auth", version = "0.7.0" }
+agent-env = { path = "../agent-env", version = "0.7.0" }
+agent-config = { path = "../agent-config", version = "0.7.0" }
+agent-project = { path = "../agent-project", version = "0.7.0" }
+agent-log = { path = "../agent-log", version = "0.7.0" }
+model-state = { path = "../model-state", version = "0.7.0" }
+model-types = { path = "../model-types", version = "0.7.0" }
+model-reasoning = { path = "../model-reasoning", version = "0.7.0" }
+provider-errors = { path = "../provider-errors", version = "0.7.0" }
+provider-model-cache = { path = "../provider-model-cache", version = "0.7.0" }
+runtime-flags = { path = "../runtime-flags", version = "0.7.0" }
+vw-api-transport = { path = "../api-transport", version = "0.7.0" }
+vw-api-model-catalog = { path = "../api-model-catalog", version = "0.7.0" }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-provider-model-discovery = { path = "../provider-model-discovery", version = "0.6.0" }
-model-http-client = { path = "../model-http-client", version = "0.6.0" }
-config-voice = { path = "../config-voice", version = "0.6.0" }
-vw-api-voice = { path = "../api-voice", version = "0.6.0" }
+provider-model-discovery = { path = "../provider-model-discovery", version = "0.7.0" }
+model-http-client = { path = "../model-http-client", version = "0.7.0" }
+config-voice = { path = "../config-voice", version = "0.7.0" }
+vw-api-voice = { path = "../api-voice", version = "0.7.0" }
 base64 = "0.23"
 futures-util = "0.3.32"
 image = "0.25.9"

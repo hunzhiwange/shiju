@@ -1,6 +1,6 @@
 [package]
 name = "gateway-agent-app"
-version = "0.6.0"
+version = "0.7.0"
 edition = "2024"
 license = "MIT"
 
@@ -8,14 +8,14 @@ license = "MIT"
 doctest = false
 
 [dependencies]
-vw-api-types = { path = "../../vw-api-types", version = "0.6.0" }
-agent-database = { path = "../agent-database", version = "0.6.0" }
-agent-app-services = { path = "../agent-app-services", version = "0.6.0" }
-app-access-service = { path = "../app-access-service", version = "0.6.0" }
-vw-agent-apps = { path = "../../vw-agent-apps", version = "0.6.0" }
-vw-api-transport = { path = "../api-transport", version = "0.6.0" }
-vw-api-app-identity = { path = "../api-app-identity", version = "0.6.0" }
-vw-api-app-operations = { path = "../api-app-operations", version = "0.6.0" }
+vw-api-types = { path = "../../vw-api-types", version = "0.7.0" }
+agent-database = { path = "../agent-database", version = "0.7.0" }
+agent-app-services = { path = "../agent-app-services", version = "0.7.0" }
+app-access-service = { path = "../app-access-service", version = "0.7.0" }
+vw-agent-apps = { path = "../../vw-agent-apps", version = "0.7.0" }
+vw-api-transport = { path = "../api-transport", version = "0.7.0" }
+vw-api-app-identity = { path = "../api-app-identity", version = "0.7.0" }
+vw-api-app-operations = { path = "../api-app-operations", version = "0.7.0" }
 anyhow = "1"
 axum = { version = "0.8.8", features = ["json"] }
 serde = { version = "1", features = ["derive"] }

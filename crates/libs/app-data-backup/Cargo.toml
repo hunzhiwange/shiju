@@ -1,6 +1,6 @@
 [package]
 name = "app-data-backup"
-version = "0.6.0"
+version = "0.7.0"
 edition = "2024"
 license = "MIT"
 
@@ -17,8 +17,8 @@ sha2 = "0.11"
 tempfile = "3"
 uuid = { version = "1.11", features = ["v4", "js"] }
 zip = { version = "8.6", default-features = false, features = ["deflate-flate2-zlib-rs"] }
-vw-api-app-operations = { path = "../api-app-operations", version = "0.6.0" }
-vw-api-transport = { path = "../api-transport", version = "0.6.0" }
+vw-api-app-operations = { path = "../api-app-operations", version = "0.7.0" }
+vw-api-transport = { path = "../api-transport", version = "0.7.0" }
 
 [target.'cfg(target_os = "macos")'.dev-dependencies]
 app-usage-store = { path = "../app-usage-store" }

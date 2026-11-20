@@ -1,6 +1,6 @@
 [package]
 name = "webview-toolbar"
-version = "0.6.0"
+version = "0.7.0"
 edition = "2024"
 license = "MIT"
 
@@ -8,6 +8,6 @@ license = "MIT"
 doctest = false
 
 [dependencies]
-webview-core = { path = "../webview-core", version = "0.6.0" }
+webview-core = { path = "../webview-core", version = "0.7.0" }
 serde_json = "1"
 url = "2"

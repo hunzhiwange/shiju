@@ -1,6 +1,6 @@
 [package]
 name = "agent-database"
-version = "0.6.0"
+version = "0.7.0"
 edition = "2024"
 license = "MIT"
 
@@ -13,7 +13,7 @@ test-support = ["dep:tempfile", "dep:uuid"]
 
 [dependencies]
 anyhow = "1"
-config-runtime-paths = { path = "../config-runtime-paths", version = "0.6.0" }
+config-runtime-paths = { path = "../config-runtime-paths", version = "0.7.0" }
 postgres = { version = "0.19.12", features = ["with-chrono-0_4"] }
 r2d2 = "0.8.10"
 r2d2_postgres = "0.18.2"

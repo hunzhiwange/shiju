@@ -1,6 +1,6 @@
 [package]
 name = "app-provider-environment"
-version = "0.6.0"
+version = "0.7.0"
 edition = "2024"
 license = "MIT"
 
@@ -8,8 +8,8 @@ license = "MIT"
 doctest = false
 
 [dependencies]
-vw-api-app-identity = { path = "../api-app-identity", version = "0.6.0" }
-vw-api-app-provider-environment = { path = "../api-app-provider-environment", version = "0.6.0" }
+vw-api-app-identity = { path = "../api-app-identity", version = "0.7.0" }
+vw-api-app-provider-environment = { path = "../api-app-provider-environment", version = "0.7.0" }
 
 [target.'cfg(target_os = "macos")'.dependencies]
 app-config-write = { path = "../app-config-write" }

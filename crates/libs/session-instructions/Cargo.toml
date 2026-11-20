@@ -1,6 +1,6 @@
 [package]
 name = "session-instructions"
-version = "0.6.0"
+version = "0.7.0"
 edition = "2024"
 license = "MIT"
 
@@ -8,9 +8,9 @@ license = "MIT"
 doctest = false
 
 [dependencies]
-agent-security = { path = "../agent-security", version = "0.6.0" }
-agent-util = { path = "../agent-util", version = "0.6.0" }
-config-runtime-paths = { path = "../config-runtime-paths", version = "0.6.0" }
+agent-security = { path = "../agent-security", version = "0.7.0" }
+agent-util = { path = "../agent-util", version = "0.7.0" }
+config-runtime-paths = { path = "../config-runtime-paths", version = "0.7.0" }
 glob = "0.3"
 serde = { version = "1", features = ["derive"] }
 serde_yaml = "0.9"

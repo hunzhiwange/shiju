@@ -1,6 +1,6 @@
 [package]
 name = "vw-cli"
-version = "0.6.0"
+version = "0.7.0"
 edition = "2024"
 repository = "https://github.com/hunzhiwange/shiju"
 homepage = "https://github.com/hunzhiwange/shiju"
@@ -18,7 +18,7 @@ name = "vibe-agent"
 path = "src/bin/vibe-agent.rs"
 
 [dependencies]
-cli-bootstrap = { path = "../libs/cli-bootstrap", version = "0.6.0", default-features = false }
+cli-bootstrap = { path = "../libs/cli-bootstrap", version = "0.7.0", default-features = false }
 anyhow = "1"
 tokio = { version = "1", features = ["rt-multi-thread", "macros"] }
 

@@ -1,6 +1,6 @@
 [package]
 name = "gateway-app-routing"
-version = "0.6.0"
+version = "0.7.0"
 edition = "2024"
 license = "MIT"
 
@@ -8,12 +8,12 @@ license = "MIT"
 doctest = false
 
 [dependencies]
-vw-api-app-diagnostics = { path = "../api-app-diagnostics", version = "0.6.0" }
-vw-api-app-routing = { path = "../api-app-routing", version = "0.6.0" }
-gateway-http = { path = "../gateway-http", version = "0.6.0" }
-gateway-endpoint = { path = "../gateway-endpoint", version = "0.6.0" }
-vw-api-app-identity = { path = "../api-app-identity", version = "0.6.0" }
-vw-api-transport = { path = "../api-transport", version = "0.6.0" }
+vw-api-app-diagnostics = { path = "../api-app-diagnostics", version = "0.7.0" }
+vw-api-app-routing = { path = "../api-app-routing", version = "0.7.0" }
+gateway-http = { path = "../gateway-http", version = "0.7.0" }
+gateway-endpoint = { path = "../gateway-endpoint", version = "0.7.0" }
+vw-api-app-identity = { path = "../api-app-identity", version = "0.7.0" }
+vw-api-transport = { path = "../api-transport", version = "0.7.0" }
 serde = "1"
 serde_json = { version = "1", features = ["raw_value"] }
 
@@ -24,44 +24,44 @@ reqwest = { version = "0.13", default-features = false, features = ["json", "rus
 reqwest = { version = "0.13", features = ["json"] }
 
 [dev-dependencies]
-gateway-app-failover = { path = "../gateway-app-failover", version = "0.6.0" }
-vw-api-app-provider-edit = { path = "../api-app-provider-edit", version = "0.6.0" }
+gateway-app-failover = { path = "../gateway-app-failover", version = "0.7.0" }
+vw-api-app-provider-edit = { path = "../api-app-provider-edit", version = "0.7.0" }
 tempfile = "3"
 hex = "0.4"
-model-http-client = { path = "../model-http-client", version = "0.6.0" }
+model-http-client = { path = "../model-http-client", version = "0.7.0" }
 tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
 
 [target.'cfg(target_os = "macos")'.dev-dependencies]
-agent-gateway = { path = "../agent-gateway", version = "0.6.0", features = ["test-support"] }
+agent-gateway = { path = "../agent-gateway", version = "0.7.0", features = ["test-support"] }
 
 [target.'cfg(target_os = "macos")'.dependencies]
 sha2 = "0.11"
-gateway-agent-apps = { path = "../gateway-agent-apps", version = "0.6.0" }
-gateway-app-providers = { path = "../gateway-app-providers", version = "0.6.0" }
-gateway-device-sync = { path = "../gateway-device-sync", version = "0.6.0" }
-gateway-aggregation = { path = "../gateway-aggregation", version = "0.6.0" }
-gateway-mcp = { path = "../gateway-mcp", version = "0.6.0" }
-agent-app-services = { path = "../agent-app-services", version = "0.6.0" }
-vw-api-app-operations = { path = "../api-app-operations", version = "0.6.0" }
-vw-api-app-provider-environment = { path = "../api-app-provider-environment", version = "0.6.0" }
-vw-api-app-aggregation = { path = "../api-app-aggregation", version = "0.6.0" }
-vw-api-app-auth = { path = "../api-app-auth", version = "0.6.0" }
-agent-paths = { path = "../agent-paths", version = "0.6.0" }
+gateway-agent-apps = { path = "../gateway-agent-apps", version = "0.7.0" }
+gateway-app-providers = { path = "../gateway-app-providers", version = "0.7.0" }
+gateway-device-sync = { path = "../gateway-device-sync", version = "0.7.0" }
+gateway-aggregation = { path = "../gateway-aggregation", version = "0.7.0" }
+gateway-mcp = { path = "../gateway-mcp", version = "0.7.0" }
+agent-app-services = { path = "../agent-app-services", version = "0.7.0" }
+vw-api-app-operations = { path = "../api-app-operations", version = "0.7.0" }
+vw-api-app-provider-environment = { path = "../api-app-provider-environment", version = "0.7.0" }
+vw-api-app-aggregation = { path = "../api-app-aggregation", version = "0.7.0" }
+vw-api-app-auth = { path = "../api-app-auth", version = "0.7.0" }
+agent-paths = { path = "../agent-paths", version = "0.7.0" }
 axum = { version = "0.8.8", default-features = false, features = ["json"] }
-agent-gateway = { path = "../agent-gateway", version = "0.6.0" }
-app-routing-policy = { path = "../app-routing-policy", version = "0.6.0" }
+agent-gateway = { path = "../agent-gateway", version = "0.7.0" }
+app-routing-policy = { path = "../app-routing-policy", version = "0.7.0" }
 tokio = { version = "1", features = ["rt", "net", "time", "macros"] }
 tokio-util = { version = "0.7", features = ["rt"] }
-desktop-release = { path = "../desktop-release", version = "0.6.0" }
-app-routing-services = { path = "../app-routing-services", version = "0.6.0" }
-app-access-service = { path = "../app-access-service", version = "0.6.0" }
-agent-database = { path = "../agent-database", version = "0.6.0" }
-vw-agent-apps = { path = "../../vw-agent-apps", version = "0.6.0" }
-vw-api-app-failover = { path = "../api-app-failover", version = "0.6.0" }
-app-provider-services = { path = "../app-provider-services", version = "0.6.0" }
-app-settings-store = { path = "../app-settings-store", version = "0.6.0" }
+desktop-release = { path = "../desktop-release", version = "0.7.0" }
+app-routing-services = { path = "../app-routing-services", version = "0.7.0" }
+app-access-service = { path = "../app-access-service", version = "0.7.0" }
+agent-database = { path = "../agent-database", version = "0.7.0" }
+vw-agent-apps = { path = "../../vw-agent-apps", version = "0.7.0" }
+vw-api-app-failover = { path = "../api-app-failover", version = "0.7.0" }
+app-provider-services = { path = "../app-provider-services", version = "0.7.0" }
+app-settings-store = { path = "../app-settings-store", version = "0.7.0" }
 uuid = { version = "1.11", features = ["v4", "js"] }
-secret-store = { path = "../secret-store", version = "0.6.0" }
+secret-store = { path = "../secret-store", version = "0.7.0" }
 anyhow = "1"
 tracing = "0.1"
 
@@ -70,7 +70,7 @@ version = "0.5"
 features = ["util"]
 [dev-dependencies.vw-api-app-provider-base]
 path = "../api-app-provider-base"
-version = "0.6.0"
+version = "0.7.0"
 [dev-dependencies.vw-api-app-provider-profiles]
 path = "../api-app-provider-profiles"
-version = "0.6.0"
+version = "0.7.0"

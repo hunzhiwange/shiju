@@ -1,6 +1,6 @@
 [package]
 name = "tool-shell"
-version = "0.6.0"
+version = "0.7.0"
 edition = "2024"
 license = "MIT"
 
@@ -13,13 +13,13 @@ anyhow = "1"
 async-trait = "0.1"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
-agent-security = { path = "../agent-security", version = "0.6.0" }
-agent-runtime = { path = "../agent-runtime", version = "0.6.0" }
-runtime-types = { path = "../runtime-types", version = "0.6.0" }
-tool-types = { path = "../tool-types", version = "0.6.0" }
-tool-context = { path = "../tool-context", version = "0.6.0" }
-syscall-anomaly = { path = "../syscall-anomaly", version = "0.6.0" }
-shell-command = { path = "../shell-command", version = "0.6.0" }
+agent-security = { path = "../agent-security", version = "0.7.0" }
+agent-runtime = { path = "../agent-runtime", version = "0.7.0" }
+runtime-types = { path = "../runtime-types", version = "0.7.0" }
+tool-types = { path = "../tool-types", version = "0.7.0" }
+tool-context = { path = "../tool-context", version = "0.7.0" }
+syscall-anomaly = { path = "../syscall-anomaly", version = "0.7.0" }
+shell-command = { path = "../shell-command", version = "0.7.0" }
 tokio = { version = "1", features = ["rt", "time", "process", "io-util", "sync", "macros"] }
 tokio-util = { version = "0.7", features = ["rt"] }
 parking_lot = "0.12"
@@ -33,9 +33,9 @@ libc = "0.2"
 windows-sys = { version = "0.61.2", features = ["Win32_Foundation", "Win32_Security", "Win32_System_JobObjects", "Win32_System_Threading"] }
 
 [dev-dependencies]
-config-security = { path = "../config-security", version = "0.6.0" }
-permission-types = { path = "../permission-types", version = "0.6.0" }
-vw-api-transport = { path = "../api-transport", version = "0.6.0" }
+config-security = { path = "../config-security", version = "0.7.0" }
+permission-types = { path = "../permission-types", version = "0.7.0" }
+vw-api-transport = { path = "../api-transport", version = "0.7.0" }
 tokio = { version = "1", features = ["rt-multi-thread", "fs"] }
 tempfile = "3"
 

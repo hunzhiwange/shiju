@@ -10,24 +10,9 @@ Usage:
 
 Batch update VibeWindow package versions.
 
-This follows the version bump shape from task/commit:
-  82fbe7b177a340a0024128130120e191884dd41d
-
-It updates these package manifests:
-  crates/vw-acp/Cargo.toml
-  crates/vw-agent/Cargo.toml
-  crates/vw-api-types/Cargo.toml
-  crates/vw-cli/Cargo.toml
-  crates/vw-config-types/Cargo.toml
-  crates/vw-desktop/Cargo.toml
-  crates/vw-gateway-client/Cargo.toml
-  crates/vw-provider-resolver/Cargo.toml
-  crates/vw-shared/Cargo.toml
-  crates/vw-tui/Cargo.toml
-  crates/vw-webview/Cargo.toml
-  crates/libs/webview-*/Cargo.toml (discovered automatically)
-  crates/libs/api-*/Cargo.toml (discovered automatically)
-  Shared responsibility libraries listed below
+Package manifests are discovered automatically:
+  crates/*/Cargo.toml
+  crates/libs/*/Cargo.toml
 
 It also updates matching package entries in Cargo.lock.
 It also updates local path dependency version constraints between VibeWindow crates.
@@ -68,7 +53,11 @@ write_tmp() {
   local tmp_file="$1"
   local target_file="$2"
 
-  mv "$tmp_file" "$target_file"
+  if cmp -s "$tmp_file" "$target_file"; then
+    rm -f "$tmp_file"
+  else
+    mv "$tmp_file" "$target_file"
+  fi
 }
 
 update_manifest_version() {
@@ -118,14 +107,77 @@ update_manifest_version() {
 update_local_path_dependency_versions() {
   local file="$1"
   local version="$2"
+  local manifests_csv="$3"
   local tmp_file
   tmp_file="$(mktemp)"
 
-  if awk -v version="$version" '
-    /^[[:alnum:]_-]+[[:space:]]*=[[:space:]]*\{[^\n]*path[[:space:]]*=[[:space:]]*"\.\.\/[^"]+"[^\n]*version[[:space:]]*=/ {
-      sub(/version[[:space:]]*=[[:space:]]*"[^"]+"/, "version = \"" version "\"")
+  if awk -v version="$version" -v manifests_csv="$manifests_csv" '
+    BEGIN {
+      count = split(manifests_csv, manifests, ",")
+      for (idx = 1; idx <= count; idx++) {
+        targets[manifests[idx]] = 1
+      }
+    }
+
+    function is_local_path(path,    dir, parts, count, idx, resolved) {
+      if (path == "" || path ~ /^\//) {
+        return 0
+      }
+      dir = FILENAME
+      sub(/[^\/]+$/, "", dir)
+      count = split(dir path, parts, "/")
+      for (idx = 1; idx <= count; idx++) {
+        if (parts[idx] == "..") {
+          sub(/[^\/]+\/$/, "", resolved)
+        } else if (parts[idx] != "." && parts[idx] != "") {
+          resolved = resolved parts[idx] "/"
+        }
+      }
+      return (resolved "Cargo.toml") in targets
+    }
+
+    function flush_dependency_table(    idx) {
+      if (version_line && is_local_path(table_path)) {
+        sub(/"[^"]*"/, "\"" version "\"", table[version_line])
+      }
+      for (idx = 1; idx <= table_size; idx++) {
+        print table[idx]
+        delete table[idx]
+      }
+      table_size = version_line = 0
+      table_path = ""
+    }
+
+    /^[[:space:]]*\[/ {
+      flush_dependency_table()
+      dependency_table = ($0 ~ /^[[:space:]]*\[(target\..*\.)?(dependencies|dev-dependencies|build-dependencies)\./)
+      inline_dependencies = ($0 ~ /^[[:space:]]*\[(target\..*\.)?(dependencies|dev-dependencies|build-dependencies)\]/)
+    }
+    dependency_table {
+      table[++table_size] = $0
+      if ($0 ~ /^[[:space:]]*path[[:space:]]*=[[:space:]]*"/) {
+        table_path = $0
+        sub(/^[^"]*"/, "", table_path)
+        sub(/".*$/, "", table_path)
+      }
+      if ($0 ~ /^[[:space:]]*version[[:space:]]*=[[:space:]]*"/) {
+        version_line = table_size
+      }
+      next
+    }
+    inline_dependencies && /^[[:space:]]*[[:alnum:]_-]+[[:space:]]*=[[:space:]]*\{/ &&
+        match($0, /[{,][[:space:]]*path[[:space:]]*=[[:space:]]*"[^"]+"/) {
+      path = substr($0, RSTART, RLENGTH)
+      sub(/^[^"]*"/, "", path)
+      sub(/"$/, "", path)
+      if (is_local_path(path) && match($0, /[{,][[:space:]]*version[[:space:]]*=[[:space:]]*"[^"]*"/)) {
+        constraint = substr($0, RSTART, RLENGTH)
+        sub(/"[^"]*"/, "\"" version "\"", constraint)
+        $0 = substr($0, 1, RSTART - 1) constraint substr($0, RSTART + RLENGTH)
+      }
     }
     { print }
+    END { flush_dependency_table() }
   ' "$file" > "$tmp_file"; then
     write_tmp "$tmp_file" "$file"
   else
@@ -204,6 +256,7 @@ if [[ $# -ne 1 || "$1" == "-h" || "$1" == "--help" ]]; then
 fi
 
 require_cmd awk
+require_cmd cmp
 require_cmd git
 
 if ! git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
@@ -216,124 +269,13 @@ cd "$REPO_ROOT"
 VERSION="$(normalize_version "$1")"
 validate_version "$VERSION"
 
-MANIFEST_FILES=(
-  "crates/vw-acp/Cargo.toml"
-  "crates/vw-agent/Cargo.toml"
-  "crates/vw-api-types/Cargo.toml"
-  "crates/vw-cli/Cargo.toml"
-  "crates/libs/config-runtime-paths/Cargo.toml"
-  "crates/libs/config-acp-install/Cargo.toml"
-  "crates/libs/config-provider/Cargo.toml"
-  "crates/libs/config-routing/Cargo.toml"
-  "crates/libs/config-automation/Cargo.toml"
-  "crates/libs/config-reliability/Cargo.toml"
-  "crates/libs/config-gateway/Cargo.toml"
-  "crates/libs/config-memory/Cargo.toml"
-  "crates/libs/config-skills/Cargo.toml"
-  "crates/libs/config-proxy/Cargo.toml"
-  "crates/libs/config-runtime/Cargo.toml"
-  "crates/libs/config-observability/Cargo.toml"
-  "crates/libs/config-hooks/Cargo.toml"
-  "crates/libs/config-computer-control/Cargo.toml"
-  "crates/libs/config-aggregate/Cargo.toml"
-  "crates/libs/config-ui/Cargo.toml"
-  "crates/libs/config-voice/Cargo.toml"
-  "crates/libs/config-plugins/Cargo.toml"
-  "crates/libs/config-tools/Cargo.toml"
-  "crates/libs/config-agent-profile/Cargo.toml"
-  "crates/libs/config-agent/Cargo.toml"
-  "crates/libs/config-worktree/Cargo.toml"
-  "crates/libs/config-security/Cargo.toml"
-  "crates/libs/config-channel-services/Cargo.toml"
-  "crates/libs/config-channels/Cargo.toml"
-  "crates/libs/config-channel-types/Cargo.toml"
-  "crates/vw-config-types/Cargo.toml"
-  "crates/vw-desktop/Cargo.toml"
-  "crates/vw-gateway-client/Cargo.toml"
-  "crates/vw-provider-resolver/Cargo.toml"
-  "crates/vw-shared/Cargo.toml"
-  "crates/vw-tui/Cargo.toml"
-  "crates/vw-webview/Cargo.toml"
-)
+shopt -s nullglob
+MANIFEST_FILES=(crates/*/Cargo.toml crates/libs/*/Cargo.toml)
+shopt -u nullglob
+[[ ${#MANIFEST_FILES[@]} -gt 0 ]] || die "No package manifests found under crates"
 
-LOCK_PACKAGE_NAMES=(
-  "vw-acp"
-  "vw-agent"
-  "vw-api-types"
-  "vw-cli"
-  "config-runtime-paths"
-  "config-acp-install"
-  "config-provider"
-  "config-routing"
-  "config-automation"
-  "config-reliability"
-  "config-gateway"
-  "config-memory"
-  "config-skills"
-  "config-proxy"
-  "config-runtime"
-  "config-observability"
-  "config-hooks"
-  "config-computer-control"
-  "config-aggregate"
-  "config-ui"
-  "config-voice"
-  "config-plugins"
-  "config-tools"
-  "config-agent-profile"
-  "config-agent"
-  "config-worktree"
-  "config-security"
-  "config-channel-services"
-  "config-channels"
-  "config-channel-types"
-  "vw-config-types"
-  "vw-desktop"
-  "vw-gateway-client"
-  "vw-provider-resolver"
-  "vw-shared"
-  "vw-tui"
-  "vw-webview"
-)
-
-# Version extracted responsibilities together with their consumers.
-# Discover the WebView and API families; enumerate the shared libraries explicitly.
-for manifest in \
-  crates/libs/app-self-update/Cargo.toml \
-  crates/libs/desktop-release/Cargo.toml \
-  crates/libs/update-types/Cargo.toml \
-  crates/libs/shell-command/Cargo.toml \
-  crates/libs/local-app-auth/Cargo.toml \
-  crates/libs/runtime-log/Cargo.toml \
-  crates/libs/pasted-text-cache/Cargo.toml \
-  crates/libs/task-file-store/Cargo.toml \
-  crates/libs/session-artifact-store/Cargo.toml \
-  crates/libs/task-types/Cargo.toml \
-  crates/libs/ordered-id/Cargo.toml \
-  crates/libs/session-text/Cargo.toml \
-  crates/libs/session-ui-types/Cargo.toml \
-  crates/libs/session-info/Cargo.toml \
-  crates/libs/message-types/Cargo.toml \
-  crates/libs/auth-file-store/Cargo.toml \
-  crates/libs/auth-types/Cargo.toml \
-  crates/libs/model-state/Cargo.toml \
-  crates/libs/model-types/Cargo.toml \
-  crates/libs/model-catalog-types/Cargo.toml \
-  crates/libs/model-reasoning/Cargo.toml \
-  crates/libs/model-protocols/Cargo.toml \
-  crates/libs/session-paths/Cargo.toml \
-  crates/libs/build-identity/Cargo.toml \
-  crates/libs/runtime-time/Cargo.toml \
-  crates/libs/display-format/Cargo.toml \
-  crates/libs/json-extract/Cargo.toml \
-  crates/libs/todo-types/Cargo.toml \
-  crates/libs/project-types/Cargo.toml \
-  crates/libs/question-types/Cargo.toml \
-  crates/libs/permission-types/Cargo.toml \
-  crates/libs/snapshot-types/Cargo.toml \
-  crates/libs/patch/Cargo.toml \
-  crates/libs/webview-*/Cargo.toml crates/libs/api-*/Cargo.toml; do
-  [[ -f "$manifest" ]] || die "Missing responsibility library manifests"
+LOCK_PACKAGE_NAMES=()
+for manifest in "${MANIFEST_FILES[@]}"; do
   package_name="$(awk '
     /^\[package\][[:space:]]*$/ { in_package = 1; next }
     /^\[/ { in_package = 0 }
@@ -345,14 +287,13 @@ for manifest in \
     }
   ' "$manifest")"
   [[ -n "$package_name" ]] || die "Missing package name: $manifest"
-  MANIFEST_FILES+=("$manifest")
   LOCK_PACKAGE_NAMES+=("$package_name")
 done
 
+MANIFESTS_CSV="$(IFS=,; printf '%s' "${MANIFEST_FILES[*]}")"
 for manifest in "${MANIFEST_FILES[@]}"; do
-  [[ -f "$manifest" ]] || die "Missing manifest: $manifest"
   update_manifest_version "$manifest" "$VERSION"
-  update_local_path_dependency_versions "$manifest" "$VERSION"
+  update_local_path_dependency_versions "$manifest" "$VERSION" "$MANIFESTS_CSV"
   echo "[$SCRIPT_NAME] Updated $manifest -> $VERSION"
 done
 

@@ -20,7 +20,7 @@ checksum = "366ffbaa4442f4684d91e2cd7c5ea7c4ed8add41959a31447066e279e432b618"
 
 [[package]]
 name = "acp-access-policy"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "acp-types",
  "agent-client-protocol",
@@ -31,7 +31,7 @@ dependencies = [
 
 [[package]]
 name = "acp-agent-registry"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "acp-access-policy",
  "acp-host-io",
@@ -49,7 +49,7 @@ dependencies = [
 
 [[package]]
 name = "acp-async-control"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "libc",
  "thiserror 2.0.21",
@@ -58,7 +58,7 @@ dependencies = [
 
 [[package]]
 name = "acp-cli-app"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "acp-cli-commands",
  "acp-cli-model",
@@ -74,7 +74,7 @@ dependencies = [
 
 [[package]]
 name = "acp-cli-commands"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "acp-cli-model",
  "acp-cli-render",
@@ -92,7 +92,7 @@ dependencies = [
 
 [[package]]
 name = "acp-cli-model"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "acp-access-policy",
  "acp-agent-registry",
@@ -106,7 +106,7 @@ dependencies = [
 
 [[package]]
 name = "acp-cli-render"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "acp-queue",
  "acp-types",
@@ -118,7 +118,7 @@ dependencies = [
 
 [[package]]
 name = "acp-client"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "acp-access-policy",
  "acp-agent-registry",
@@ -140,7 +140,7 @@ dependencies = [
 
 [[package]]
 name = "acp-config"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "acp-agent-registry",
  "acp-types",
@@ -154,7 +154,7 @@ dependencies = [
 
 [[package]]
 name = "acp-host-io"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "acp-types",
  "agent-client-protocol",
@@ -170,7 +170,7 @@ dependencies = [
 
 [[package]]
 name = "acp-lease"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "acp-paths",
  "libc",
@@ -182,7 +182,7 @@ dependencies = [
 
 [[package]]
 name = "acp-lifecycle"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "acp-types",
  "serde_json",
@@ -190,7 +190,7 @@ dependencies = [
 
 [[package]]
 name = "acp-metrics"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "acp-types",
  "libc",
@@ -202,7 +202,7 @@ dependencies = [
 
 [[package]]
 name = "acp-output"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "acp-types",
  "serde_json",
@@ -210,7 +210,7 @@ dependencies = [
 
 [[package]]
 name = "acp-owner-process"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "acp-types",
  "agent-client-protocol",
@@ -222,7 +222,7 @@ dependencies = [
 
 [[package]]
 name = "acp-paths"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "config-runtime-paths",
  "hex",
@@ -232,7 +232,7 @@ dependencies = [
 
 [[package]]
 name = "acp-prompt-runner"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "acp-access-policy",
  "acp-async-control",
@@ -250,7 +250,7 @@ dependencies = [
 
 [[package]]
 name = "acp-queue"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "acp-lease",
  "acp-metrics",
@@ -267,7 +267,7 @@ dependencies = [
 
 [[package]]
 name = "acp-server"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "acp-types",
  "agent-client-protocol",
@@ -284,7 +284,7 @@ dependencies = [
 
 [[package]]
 name = "acp-session-connect"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "acp-access-policy",
  "acp-async-control",
@@ -303,7 +303,7 @@ dependencies = [
 
 [[package]]
 name = "acp-session-runtime"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "acp-access-policy",
  "acp-async-control",
@@ -328,7 +328,7 @@ dependencies = [
 
 [[package]]
 name = "acp-storage"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "acp-lease",
  "acp-metrics",
@@ -347,7 +347,7 @@ dependencies = [
 
 [[package]]
 name = "acp-types"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "acp-paths",
  "agent-client-protocol",
@@ -412,7 +412,7 @@ dependencies = [
 
 [[package]]
 name = "agent-acp"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "acp-config",
  "acp-server",
@@ -455,7 +455,7 @@ dependencies = [
 
 [[package]]
 name = "agent-app-services"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "acp-server",
  "acp-types",
@@ -503,7 +503,7 @@ dependencies = [
 
 [[package]]
 name = "agent-approval"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "chrono",
  "config-security",
@@ -516,7 +516,7 @@ dependencies = [
 
 [[package]]
 name = "agent-async"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "futures-util",
  "tokio",
@@ -525,7 +525,7 @@ dependencies = [
 
 [[package]]
 name = "agent-auth"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "agent-paths",
  "anyhow",
@@ -541,7 +541,7 @@ dependencies = [
 
 [[package]]
 name = "agent-bus"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "agent-log",
  "serde",
@@ -550,7 +550,7 @@ dependencies = [
 
 [[package]]
 name = "agent-cli-types"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "clap",
  "serde",
@@ -590,7 +590,7 @@ dependencies = [
 
 [[package]]
 name = "agent-commands"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "agent-bus",
  "regex",
@@ -600,7 +600,7 @@ dependencies = [
 
 [[package]]
 name = "agent-config"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "acp-agent-registry",
  "agent-database",
@@ -648,14 +648,14 @@ dependencies = [
 
 [[package]]
 name = "agent-context"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "web-time",
 ]
 
 [[package]]
 name = "agent-cron"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "agent-cli-types",
  "agent-config",
@@ -693,7 +693,7 @@ dependencies = [
 
 [[package]]
 name = "agent-daemon"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "agent-config",
  "agent-health",
@@ -714,7 +714,7 @@ dependencies = [
 
 [[package]]
 name = "agent-database"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "anyhow",
  "config-runtime-paths",
@@ -736,7 +736,7 @@ dependencies = [
 
 [[package]]
 name = "agent-defaults"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "anyhow",
  "config-agent",
@@ -747,7 +747,7 @@ dependencies = [
 
 [[package]]
 name = "agent-doctor"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "agent-config",
  "agent-daemon",
@@ -765,14 +765,14 @@ dependencies = [
 
 [[package]]
 name = "agent-env"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "agent-context",
 ]
 
 [[package]]
 name = "agent-files"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "agent-bus",
  "agent-log",
@@ -793,7 +793,7 @@ dependencies = [
 
 [[package]]
 name = "agent-format"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "agent-bus",
  "agent-config",
@@ -809,7 +809,7 @@ dependencies = [
 
 [[package]]
 name = "agent-gateway"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "acp-agent-registry",
  "agent-app-services",
@@ -931,7 +931,7 @@ dependencies = [
 
 [[package]]
 name = "agent-health"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "build-identity",
  "serde",
@@ -941,7 +941,7 @@ dependencies = [
 
 [[package]]
 name = "agent-heartbeat"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "agent-observability",
  "anyhow",
@@ -954,7 +954,7 @@ dependencies = [
 
 [[package]]
 name = "agent-hooks"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -972,7 +972,7 @@ dependencies = [
 
 [[package]]
 name = "agent-identity"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "serde",
  "serde_json",
@@ -980,7 +980,7 @@ dependencies = [
 
 [[package]]
 name = "agent-identity-loader"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "agent-identity",
  "anyhow",
@@ -991,7 +991,7 @@ dependencies = [
 
 [[package]]
 name = "agent-installation"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "agent-bus",
  "agent-log",
@@ -1005,7 +1005,7 @@ dependencies = [
 
 [[package]]
 name = "agent-integrations"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "agent-cli-types",
  "agent-config",
@@ -1020,7 +1020,7 @@ dependencies = [
 
 [[package]]
 name = "agent-knowledge"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "agent-config",
  "agent-database",
@@ -1051,7 +1051,7 @@ dependencies = [
 
 [[package]]
 name = "agent-log"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "agent-paths",
  "serde_json",
@@ -1060,7 +1060,7 @@ dependencies = [
 
 [[package]]
 name = "agent-loop"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "agent-approval",
  "agent-config",
@@ -1118,7 +1118,7 @@ dependencies = [
 
 [[package]]
 name = "agent-mcp"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "rmcp",
  "serde_json",
@@ -1129,7 +1129,7 @@ dependencies = [
 
 [[package]]
 name = "agent-memory"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "agent-cli-types",
  "agent-config",
@@ -1167,7 +1167,7 @@ dependencies = [
 
 [[package]]
 name = "agent-migration"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "agent-cli-types",
  "agent-config",
@@ -1181,7 +1181,7 @@ dependencies = [
 
 [[package]]
 name = "agent-multimodal"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "agent-config",
  "agent-paths",
@@ -1205,7 +1205,7 @@ dependencies = [
 
 [[package]]
 name = "agent-observability"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "anyhow",
  "chrono",
@@ -1223,7 +1223,7 @@ dependencies = [
 
 [[package]]
 name = "agent-paths"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "config-runtime-paths",
  "directories 5.0.1",
@@ -1232,7 +1232,7 @@ dependencies = [
 
 [[package]]
 name = "agent-plugins"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "acp-config",
  "acp-types",
@@ -1287,7 +1287,7 @@ dependencies = [
 
 [[package]]
 name = "agent-project"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "agent-bus",
  "agent-database",
@@ -1315,7 +1315,7 @@ dependencies = [
 
 [[package]]
 name = "agent-provider"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "agent-auth",
  "agent-config",
@@ -1359,7 +1359,7 @@ dependencies = [
 
 [[package]]
 name = "agent-providers"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "agent-config",
  "agent-multimodal",
@@ -1385,7 +1385,7 @@ dependencies = [
 
 [[package]]
 name = "agent-pty"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "agent-bus",
  "agent-log",
@@ -1399,7 +1399,7 @@ dependencies = [
 
 [[package]]
 name = "agent-question"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "agent-bus",
  "agent-log",
@@ -1413,7 +1413,7 @@ dependencies = [
 
 [[package]]
 name = "agent-runtime"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "anyhow",
  "config-runtime",
@@ -1427,7 +1427,7 @@ dependencies = [
 
 [[package]]
 name = "agent-scheduler-core"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "agent-log",
  "serde_json",
@@ -1438,7 +1438,7 @@ dependencies = [
 
 [[package]]
 name = "agent-security"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "agent-config",
  "agent-memory",
@@ -1476,7 +1476,7 @@ dependencies = [
 
 [[package]]
 name = "agent-service"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "agent-cli-types",
  "agent-config",
@@ -1492,7 +1492,7 @@ dependencies = [
 
 [[package]]
 name = "agent-skills"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "acp-types",
  "anyhow",
@@ -1530,7 +1530,7 @@ dependencies = [
 
 [[package]]
 name = "agent-snapshot"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "agent-log",
  "agent-paths",
@@ -1544,7 +1544,7 @@ dependencies = [
 
 [[package]]
 name = "agent-storage"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "agent-async",
  "agent-log",
@@ -1562,14 +1562,14 @@ dependencies = [
 
 [[package]]
 name = "agent-text"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "regex",
 ]
 
 [[package]]
 name = "agent-tunnel"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "agent-config",
  "anyhow",
@@ -1584,7 +1584,7 @@ dependencies = [
 
 [[package]]
 name = "agent-usage"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "agent-database",
  "anyhow",
@@ -1607,7 +1607,7 @@ dependencies = [
 
 [[package]]
 name = "agent-util"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "anyhow",
  "chrono",
@@ -1851,7 +1851,7 @@ checksum = "330a5ed07fa54e4702c9d6c4174f74427fc0ef6e214bbd677ae50a5099946470"
 
 [[package]]
 name = "app-access-service"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "agent-app-services",
  "agent-database",
@@ -1883,7 +1883,7 @@ dependencies = [
 
 [[package]]
 name = "app-aggregation"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "app-aggregation-catalog",
  "app-auth",
@@ -1904,7 +1904,7 @@ dependencies = [
 
 [[package]]
 name = "app-aggregation-catalog"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "app-config-patch",
  "app-config-paths",
@@ -1923,7 +1923,7 @@ dependencies = [
 
 [[package]]
 name = "app-auth"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "app-auth-agy",
  "app-auth-claude",
@@ -1967,7 +1967,7 @@ dependencies = [
 
 [[package]]
 name = "app-auth-agy"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "app-auth-core",
  "app-config-paths",
@@ -1988,7 +1988,7 @@ dependencies = [
 
 [[package]]
 name = "app-auth-claude"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "app-auth-core",
  "app-config-write",
@@ -2000,7 +2000,7 @@ dependencies = [
 
 [[package]]
 name = "app-auth-codex"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "base64 0.23.1",
  "chrono",
@@ -2009,7 +2009,7 @@ dependencies = [
 
 [[package]]
 name = "app-auth-copilot"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "reqwest 0.13.4",
  "serde",
@@ -2018,7 +2018,7 @@ dependencies = [
 
 [[package]]
 name = "app-auth-core"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "app-provider-validation",
  "base64 0.23.1",
@@ -2035,7 +2035,7 @@ dependencies = [
 
 [[package]]
 name = "app-auth-dsh"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "app-auth-core",
  "base64 0.23.1",
@@ -2052,7 +2052,7 @@ dependencies = [
 
 [[package]]
 name = "app-auth-gemini"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "app-auth-core",
  "reqwest 0.13.4",
@@ -2063,7 +2063,7 @@ dependencies = [
 
 [[package]]
 name = "app-auth-kimi"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "app-auth-core",
  "reqwest 0.13.4",
@@ -2073,7 +2073,7 @@ dependencies = [
 
 [[package]]
 name = "app-auth-xai"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "app-auth-core",
  "reqwest 0.13.4",
@@ -2083,7 +2083,7 @@ dependencies = [
 
 [[package]]
 name = "app-availability"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "app-aggregation",
  "app-auth",
@@ -2098,7 +2098,7 @@ dependencies = [
 
 [[package]]
 name = "app-availability-core"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "reqwest 0.13.4",
  "tokio",
@@ -2109,7 +2109,7 @@ dependencies = [
 
 [[package]]
 name = "app-catalog"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "acp-agent-registry",
  "serde_json",
@@ -2118,7 +2118,7 @@ dependencies = [
 
 [[package]]
 name = "app-config-patch"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "json-five",
  "serde_json",
@@ -2131,7 +2131,7 @@ dependencies = [
 
 [[package]]
 name = "app-config-paths"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "base64 0.23.1",
  "libc",
@@ -2145,7 +2145,7 @@ dependencies = [
 
 [[package]]
 name = "app-config-write"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "base64 0.23.1",
  "libc",
@@ -2157,7 +2157,7 @@ dependencies = [
 
 [[package]]
 name = "app-data-backup"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "app-config-paths",
  "app-data-format",
@@ -2176,7 +2176,7 @@ dependencies = [
 
 [[package]]
 name = "app-data-format"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "libc",
  "reqwest 0.13.4",
@@ -2193,7 +2193,7 @@ dependencies = [
 
 [[package]]
 name = "app-data-management"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "app-auth",
  "app-data-backup",
@@ -2210,7 +2210,7 @@ dependencies = [
 
 [[package]]
 name = "app-data-projection"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "app-catalog",
  "app-data-format",
@@ -2242,7 +2242,7 @@ dependencies = [
 
 [[package]]
 name = "app-device-sync"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "app-config-paths",
  "app-skills",
@@ -2258,7 +2258,7 @@ dependencies = [
 
 [[package]]
 name = "app-diagnostics"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "app-model-catalog",
  "app-provider-validation",
@@ -2272,7 +2272,7 @@ dependencies = [
 
 [[package]]
 name = "app-diagnostics-runtime"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "agent-app-services",
  "agent-database",
@@ -2313,7 +2313,7 @@ dependencies = [
 
 [[package]]
 name = "app-discovery"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "app-catalog",
  "app-providers",
@@ -2327,7 +2327,7 @@ dependencies = [
 
 [[package]]
 name = "app-icons"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "base64 0.23.1",
  "png 0.18.1",
@@ -2336,7 +2336,7 @@ dependencies = [
 
 [[package]]
 name = "app-launch"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "app-auth",
  "app-catalog",
@@ -2356,7 +2356,7 @@ dependencies = [
 
 [[package]]
 name = "app-lifecycle"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "app-auth",
  "app-catalog",
@@ -2373,7 +2373,7 @@ dependencies = [
 
 [[package]]
 name = "app-mcp"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "app-auth",
  "app-config-paths",
@@ -2395,7 +2395,7 @@ dependencies = [
 
 [[package]]
 name = "app-mcp-catalog"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "reqwest 0.13.4",
  "serde_json",
@@ -2405,7 +2405,7 @@ dependencies = [
 
 [[package]]
 name = "app-model-catalog"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "app-provider-validation",
  "app-routing-policy",
@@ -2423,7 +2423,7 @@ dependencies = [
 
 [[package]]
 name = "app-model-discovery"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "app-config-patch",
  "app-config-paths",
@@ -2440,7 +2440,7 @@ dependencies = [
 
 [[package]]
 name = "app-models"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "app-model-catalog",
  "app-provider-validation",
@@ -2465,7 +2465,7 @@ dependencies = [
 
 [[package]]
 name = "app-openclaw"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "app-openclaw-config-rules",
  "app-provider-native",
@@ -2477,7 +2477,7 @@ dependencies = [
 
 [[package]]
 name = "app-openclaw-config-rules"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "app-config-patch",
  "app-config-write",
@@ -2487,7 +2487,7 @@ dependencies = [
 
 [[package]]
 name = "app-operations"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "app-catalog",
  "app-discovery",
@@ -2499,7 +2499,7 @@ dependencies = [
 
 [[package]]
 name = "app-project-profiles"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "anyhow",
  "app-provider-validation",
@@ -2512,7 +2512,7 @@ dependencies = [
 
 [[package]]
 name = "app-prompts"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "app-auth",
  "app-config-paths",
@@ -2533,7 +2533,7 @@ dependencies = [
 
 [[package]]
 name = "app-provider-core"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "app-config-patch",
  "app-icons",
@@ -2552,7 +2552,7 @@ dependencies = [
 
 [[package]]
 name = "app-provider-environment"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "app-config-write",
  "libc",
@@ -2566,7 +2566,7 @@ dependencies = [
 
 [[package]]
 name = "app-provider-login"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "app-auth",
  "app-auth-codex",
@@ -2582,7 +2582,7 @@ dependencies = [
 
 [[package]]
 name = "app-provider-native"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "app-auth",
  "app-provider-core",
@@ -2606,7 +2606,7 @@ dependencies = [
 
 [[package]]
 name = "app-provider-projection"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "app-config-patch",
  "app-provider-validation",
@@ -2619,7 +2619,7 @@ dependencies = [
 
 [[package]]
 name = "app-provider-services"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "agent-app-services",
  "agent-database",
@@ -2653,7 +2653,7 @@ dependencies = [
 
 [[package]]
 name = "app-provider-validation"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "reqwest 0.13.4",
  "serde_json",
@@ -2666,7 +2666,7 @@ dependencies = [
 
 [[package]]
 name = "app-providers"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "app-aggregation",
  "app-aggregation-catalog",
@@ -2707,7 +2707,7 @@ dependencies = [
 
 [[package]]
 name = "app-routing-policy"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "app-provider-validation",
  "base64 0.23.1",
@@ -2720,7 +2720,7 @@ dependencies = [
 
 [[package]]
 name = "app-routing-services"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "agent-app-services",
  "agent-config",
@@ -2780,7 +2780,7 @@ dependencies = [
 
 [[package]]
 name = "app-self-update"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "anyhow",
  "reqwest 0.13.4",
@@ -2793,7 +2793,7 @@ dependencies = [
 
 [[package]]
 name = "app-session-claude"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "app-session-core",
  "chrono",
@@ -2804,7 +2804,7 @@ dependencies = [
 
 [[package]]
 name = "app-session-codex"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "app-session-core",
  "chrono",
@@ -2819,7 +2819,7 @@ dependencies = [
 
 [[package]]
 name = "app-session-content"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "app-session-codex",
  "app-session-core",
@@ -2835,7 +2835,7 @@ dependencies = [
 
 [[package]]
 name = "app-session-core"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "chrono",
  "serde_json",
@@ -2846,7 +2846,7 @@ dependencies = [
 
 [[package]]
 name = "app-session-gemini"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "app-session-core",
  "serde_json",
@@ -2855,7 +2855,7 @@ dependencies = [
 
 [[package]]
 name = "app-session-migration"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "app-auth",
  "app-config-paths",
@@ -2881,7 +2881,7 @@ dependencies = [
 
 [[package]]
 name = "app-session-native"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "app-session-core",
  "app-session-pi",
@@ -2896,7 +2896,7 @@ dependencies = [
 
 [[package]]
 name = "app-session-pi"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "app-session-core",
  "serde",
@@ -2906,7 +2906,7 @@ dependencies = [
 
 [[package]]
 name = "app-session-sqlite"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "app-session-core",
  "chrono",
@@ -2917,14 +2917,14 @@ dependencies = [
 
 [[package]]
 name = "app-session-terminal"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "app-launch",
 ]
 
 [[package]]
 name = "app-sessions"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "app-launch",
  "app-operations",
@@ -2953,7 +2953,7 @@ dependencies = [
 
 [[package]]
 name = "app-settings-store"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "agent-database",
  "anyhow",
@@ -2983,7 +2983,7 @@ dependencies = [
 
 [[package]]
 name = "app-skill-catalog"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "app-catalog",
  "app-config-paths",
@@ -3002,7 +3002,7 @@ dependencies = [
 
 [[package]]
 name = "app-skills"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "app-auth",
  "app-config-paths",
@@ -3026,7 +3026,7 @@ dependencies = [
 
 [[package]]
 name = "app-sync-core"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "chrono",
  "hex",
@@ -3042,7 +3042,7 @@ dependencies = [
 
 [[package]]
 name = "app-uninstall"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "app-discovery",
  "app-lifecycle",
@@ -3059,7 +3059,7 @@ dependencies = [
 
 [[package]]
 name = "app-usage"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "app-usage-codex",
  "app-usage-core",
@@ -3081,7 +3081,7 @@ dependencies = [
 
 [[package]]
 name = "app-usage-balances"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "app-provider-validation",
  "app-usage-core",
@@ -3095,7 +3095,7 @@ dependencies = [
 
 [[package]]
 name = "app-usage-codex"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "app-auth",
  "app-session-codex",
@@ -3111,7 +3111,7 @@ dependencies = [
 
 [[package]]
 name = "app-usage-coding"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "app-provider-validation",
  "app-usage-core",
@@ -3130,7 +3130,7 @@ dependencies = [
 
 [[package]]
 name = "app-usage-core"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "app-auth",
  "app-auth-core",
@@ -3152,7 +3152,7 @@ dependencies = [
 
 [[package]]
 name = "app-usage-import"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "app-session-claude",
  "app-session-core",
@@ -3179,7 +3179,7 @@ dependencies = [
 
 [[package]]
 name = "app-usage-scripts"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "app-lifecycle",
  "app-provider-validation",
@@ -3195,7 +3195,7 @@ dependencies = [
 
 [[package]]
 name = "app-usage-store"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "app-models",
  "app-usage-core",
@@ -3215,7 +3215,7 @@ dependencies = [
 
 [[package]]
 name = "app-usage-subscriptions"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "app-auth",
  "app-config-paths",
@@ -3245,7 +3245,7 @@ dependencies = [
 
 [[package]]
 name = "app-versions"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "reqwest 0.13.4",
  "semver",
@@ -3256,7 +3256,7 @@ dependencies = [
 
 [[package]]
 name = "app-workspace-memory"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "app-auth",
  "app-config-patch",
@@ -3275,7 +3275,7 @@ dependencies = [
 
 [[package]]
 name = "app-workspace-paths"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "app-config-paths",
  "app-config-write",
@@ -3638,7 +3638,7 @@ checksum = "1505bd5d3d116872e7271a6d4e16d81d0c8570876c8de68093a09ac269d8aac0"
 
 [[package]]
 name = "audio-capture"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "anyhow",
  "cpal",
@@ -3647,7 +3647,7 @@ dependencies = [
 
 [[package]]
 name = "audio-playback"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "cpal",
  "parking_lot",
@@ -3655,7 +3655,7 @@ dependencies = [
 
 [[package]]
 name = "auth-file-store"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "auth-types",
  "config-runtime-paths",
@@ -3665,7 +3665,7 @@ dependencies = [
 
 [[package]]
 name = "auth-types"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "serde",
 ]
@@ -4199,7 +4199,7 @@ checksum = "40e38929add23cdf8a366df9b0e088953150724bcbe5fc330b0d8eb3b328eec8"
 
 [[package]]
 name = "build-identity"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "hex",
  "sha2 0.11.0",
@@ -4343,7 +4343,7 @@ dependencies = [
 
 [[package]]
 name = "canary-guard"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "uuid",
 ]
@@ -4455,7 +4455,7 @@ dependencies = [
 
 [[package]]
 name = "channel-clawdtalk"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "agent-config",
  "anyhow",
@@ -4472,7 +4472,7 @@ dependencies = [
 
 [[package]]
 name = "channel-cli"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -4483,7 +4483,7 @@ dependencies = [
 
 [[package]]
 name = "channel-dingtalk"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "agent-config",
  "agent-providers",
@@ -4506,7 +4506,7 @@ dependencies = [
 
 [[package]]
 name = "channel-discord"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "agent-providers",
  "anyhow",
@@ -4527,7 +4527,7 @@ dependencies = [
 
 [[package]]
 name = "channel-email-channel"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "anyhow",
  "async-imap",
@@ -4550,7 +4550,7 @@ dependencies = [
 
 [[package]]
 name = "channel-imessage"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -4564,7 +4564,7 @@ dependencies = [
 
 [[package]]
 name = "channel-irc"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -4581,7 +4581,7 @@ dependencies = [
 
 [[package]]
 name = "channel-lark"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "agent-config",
  "agent-providers",
@@ -4609,7 +4609,7 @@ dependencies = [
 
 [[package]]
 name = "channel-linq"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "agent-providers",
  "anyhow",
@@ -4629,7 +4629,7 @@ dependencies = [
 
 [[package]]
 name = "channel-mattermost"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "agent-providers",
  "anyhow",
@@ -4645,7 +4645,7 @@ dependencies = [
 
 [[package]]
 name = "channel-nextcloud-talk"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "agent-providers",
  "anyhow",
@@ -4665,7 +4665,7 @@ dependencies = [
 
 [[package]]
 name = "channel-nostr"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -4677,7 +4677,7 @@ dependencies = [
 
 [[package]]
 name = "channel-qq"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "agent-config",
  "agent-providers",
@@ -4704,7 +4704,7 @@ dependencies = [
 
 [[package]]
 name = "channel-runtime"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "agent-approval",
  "agent-async",
@@ -4780,7 +4780,7 @@ dependencies = [
 
 [[package]]
 name = "channel-signal"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "agent-config",
  "agent-providers",
@@ -4799,7 +4799,7 @@ dependencies = [
 
 [[package]]
 name = "channel-slack"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "agent-providers",
  "anyhow",
@@ -4814,7 +4814,7 @@ dependencies = [
 
 [[package]]
 name = "channel-support"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "agent-approval",
  "agent-config",
@@ -4861,7 +4861,7 @@ dependencies = [
 
 [[package]]
 name = "channel-telegram"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "agent-config",
  "agent-database",
@@ -4890,7 +4890,7 @@ dependencies = [
 
 [[package]]
 name = "channel-types"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -4900,7 +4900,7 @@ dependencies = [
 
 [[package]]
 name = "channel-wati"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "agent-providers",
  "anyhow",
@@ -4918,7 +4918,7 @@ dependencies = [
 
 [[package]]
 name = "channel-wechat"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -4936,7 +4936,7 @@ dependencies = [
 
 [[package]]
 name = "channel-wecom"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "agent-config",
  "agent-paths",
@@ -4960,7 +4960,7 @@ dependencies = [
 
 [[package]]
 name = "channel-whatsapp"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "agent-config",
  "agent-providers",
@@ -4977,7 +4977,7 @@ dependencies = [
 
 [[package]]
 name = "channel-whatsapp-storage"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -4995,7 +4995,7 @@ dependencies = [
 
 [[package]]
 name = "channel-whatsapp-web"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -5134,7 +5134,7 @@ checksum = "c8d4a3bb8b1e0c1050499d1815f5ab16d04f0959b233085fb31653fbfc9d98f9"
 
 [[package]]
 name = "cli-agent-session"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -5160,7 +5160,7 @@ dependencies = [
 
 [[package]]
 name = "cli-api-automation"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "anyhow",
  "clap",
@@ -5180,7 +5180,7 @@ dependencies = [
 
 [[package]]
 name = "cli-api-core"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "anyhow",
  "clap",
@@ -5193,7 +5193,7 @@ dependencies = [
 
 [[package]]
 name = "cli-api-session"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "anyhow",
  "clap",
@@ -5216,7 +5216,7 @@ dependencies = [
 
 [[package]]
 name = "cli-api-system"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "anyhow",
  "clap",
@@ -5236,7 +5236,7 @@ dependencies = [
 
 [[package]]
 name = "cli-api-workspace"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "anyhow",
  "clap",
@@ -5256,7 +5256,7 @@ dependencies = [
 
 [[package]]
 name = "cli-bootstrap"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "acp-server",
  "agent-integrations",
@@ -5287,7 +5287,7 @@ dependencies = [
 
 [[package]]
 name = "cli-command-schema"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "agent-cli-types",
  "anyhow",
@@ -5300,7 +5300,7 @@ dependencies = [
 
 [[package]]
 name = "cli-gateway-automation"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "cli-gateway-transport",
  "cli-interaction-model",
@@ -5316,7 +5316,7 @@ dependencies = [
 
 [[package]]
 name = "cli-gateway-capabilities"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "cli-gateway-transport",
  "cli-interaction-model",
@@ -5336,7 +5336,7 @@ dependencies = [
 
 [[package]]
 name = "cli-gateway-commands"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "anyhow",
  "clap",
@@ -5357,7 +5357,7 @@ dependencies = [
 
 [[package]]
 name = "cli-gateway-process"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "anyhow",
  "libc",
@@ -5367,7 +5367,7 @@ dependencies = [
 
 [[package]]
 name = "cli-gateway-session"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "cli-gateway-transport",
  "cli-interaction-model",
@@ -5382,7 +5382,7 @@ dependencies = [
 
 [[package]]
 name = "cli-gateway-transport"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "cli-interaction-model",
  "config-aggregate",
@@ -5410,7 +5410,7 @@ dependencies = [
 
 [[package]]
 name = "cli-gateway-workspace"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "cli-gateway-transport",
  "serde",
@@ -5421,7 +5421,7 @@ dependencies = [
 
 [[package]]
 name = "cli-interaction"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "anyhow",
  "base64 0.23.1",
@@ -5456,7 +5456,7 @@ dependencies = [
 
 [[package]]
 name = "cli-interaction-model"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "config-skills",
  "crossterm 0.29.0 (git+https://github.com/openai-oss-forks/crossterm?rev=45fecb9508105988f42fe6ff0441783ed3717f92)",
@@ -5475,7 +5475,7 @@ dependencies = [
 
 [[package]]
 name = "cli-interaction-state"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "cli-interaction-model",
  "serde_json",
@@ -5486,7 +5486,7 @@ dependencies = [
 
 [[package]]
 name = "cli-runtime-status"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "anyhow",
  "vw-agent",
@@ -5494,7 +5494,7 @@ dependencies = [
 
 [[package]]
 name = "cli-security-commands"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "agent-config",
  "agent-security",
@@ -5507,7 +5507,7 @@ dependencies = [
 
 [[package]]
 name = "cli-stdio"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "anyhow",
  "libc",
@@ -5515,7 +5515,7 @@ dependencies = [
 
 [[package]]
 name = "cli-task-commands"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "anyhow",
  "cli-command-schema",
@@ -5526,7 +5526,7 @@ dependencies = [
 
 [[package]]
 name = "cli-terminal"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "ratatui",
  "unicode-width 0.2.2",
@@ -5534,7 +5534,7 @@ dependencies = [
 
 [[package]]
 name = "cli-transcript"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "chrono",
  "cli-terminal",
@@ -5544,7 +5544,7 @@ dependencies = [
 
 [[package]]
 name = "cli-workspace-git"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "cli-interaction-model",
  "shell-command",
@@ -5649,7 +5649,7 @@ dependencies = [
 
 [[package]]
 name = "command-arity"
-version = "0.6.0"
+version = "0.7.0"
 
 [[package]]
 name = "compact_str"
@@ -5687,7 +5687,7 @@ checksum = "cc14f565cf027a105f7a44ccf9e5b424348421a1d8952a8fc9d499d313107789"
 
 [[package]]
 name = "computer-control"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -5726,11 +5726,11 @@ dependencies = [
 
 [[package]]
 name = "config-acp-install"
-version = "0.6.0"
+version = "0.7.0"
 
 [[package]]
 name = "config-agent"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "config-agent-profile",
  "config-tools",
@@ -5742,7 +5742,7 @@ dependencies = [
 
 [[package]]
 name = "config-agent-profile"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "schemars",
  "serde",
@@ -5751,7 +5751,7 @@ dependencies = [
 
 [[package]]
 name = "config-aggregate"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "config-agent",
  "config-automation",
@@ -5782,7 +5782,7 @@ dependencies = [
 
 [[package]]
 name = "config-automation"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "schemars",
  "serde",
@@ -5791,7 +5791,7 @@ dependencies = [
 
 [[package]]
 name = "config-channel-services"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "config-channel-types",
  "schemars",
@@ -5801,7 +5801,7 @@ dependencies = [
 
 [[package]]
 name = "config-channel-types"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "schemars",
  "serde",
@@ -5810,7 +5810,7 @@ dependencies = [
 
 [[package]]
 name = "config-channels"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "config-agent-profile",
  "config-channel-services",
@@ -5822,7 +5822,7 @@ dependencies = [
 
 [[package]]
 name = "config-computer-control"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "schemars",
  "serde",
@@ -5831,7 +5831,7 @@ dependencies = [
 
 [[package]]
 name = "config-gateway"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "schemars",
  "serde",
@@ -5840,7 +5840,7 @@ dependencies = [
 
 [[package]]
 name = "config-hooks"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "schemars",
  "serde",
@@ -5849,7 +5849,7 @@ dependencies = [
 
 [[package]]
 name = "config-memory"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "schemars",
  "serde",
@@ -5858,7 +5858,7 @@ dependencies = [
 
 [[package]]
 name = "config-observability"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "schemars",
  "serde",
@@ -5867,7 +5867,7 @@ dependencies = [
 
 [[package]]
 name = "config-plugins"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "schemars",
  "serde",
@@ -5876,7 +5876,7 @@ dependencies = [
 
 [[package]]
 name = "config-provider"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "schemars",
  "serde",
@@ -5885,7 +5885,7 @@ dependencies = [
 
 [[package]]
 name = "config-proxy"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "schemars",
  "serde",
@@ -5893,7 +5893,7 @@ dependencies = [
 
 [[package]]
 name = "config-reliability"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "schemars",
  "serde",
@@ -5902,7 +5902,7 @@ dependencies = [
 
 [[package]]
 name = "config-routing"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "schemars",
  "serde",
@@ -5910,7 +5910,7 @@ dependencies = [
 
 [[package]]
 name = "config-runtime"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "schemars",
  "serde",
@@ -5919,11 +5919,11 @@ dependencies = [
 
 [[package]]
 name = "config-runtime-paths"
-version = "0.6.0"
+version = "0.7.0"
 
 [[package]]
 name = "config-security"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "config-runtime-paths",
  "schemars",
@@ -5933,7 +5933,7 @@ dependencies = [
 
 [[package]]
 name = "config-skills"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "schemars",
  "serde",
@@ -5942,7 +5942,7 @@ dependencies = [
 
 [[package]]
 name = "config-tools"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "schemars",
  "serde",
@@ -5951,7 +5951,7 @@ dependencies = [
 
 [[package]]
 name = "config-ui"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "chrono-tz 0.10.4",
  "config-gateway",
@@ -5963,7 +5963,7 @@ dependencies = [
 
 [[package]]
 name = "config-voice"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "schemars",
  "serde",
@@ -5972,7 +5972,7 @@ dependencies = [
 
 [[package]]
 name = "config-worktree"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "config-runtime-paths",
  "schemars",
@@ -6040,7 +6040,7 @@ checksum = "a6ef517f0926dd24a1582492c791b6a4818a4d94e789a334894aa15b0d12f55c"
 
 [[package]]
 name = "content-guard"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "regex",
  "serde",
@@ -6790,7 +6790,7 @@ dependencies = [
 
 [[package]]
 name = "desktop-account"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "desktop-i18n",
  "hex",
@@ -6807,7 +6807,7 @@ dependencies = [
 
 [[package]]
 name = "desktop-account-ui"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "chrono",
  "config-ui",
@@ -6835,7 +6835,7 @@ dependencies = [
 
 [[package]]
 name = "desktop-app-launch"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "desktop-i18n",
  "desktop-skill-hub",
@@ -6846,7 +6846,7 @@ dependencies = [
 
 [[package]]
 name = "desktop-apps-ui"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "chrono",
  "config-ui",
@@ -6929,7 +6929,7 @@ dependencies = [
 
 [[package]]
 name = "desktop-assets"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "iced",
  "include_dir",
@@ -6943,7 +6943,7 @@ dependencies = [
 
 [[package]]
 name = "desktop-chat-input"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "config-ui",
  "desktop-assets",
@@ -6975,7 +6975,7 @@ dependencies = [
 
 [[package]]
 name = "desktop-chat-tools"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "config-agent-profile",
  "config-ui",
@@ -6999,7 +6999,7 @@ dependencies = [
 
 [[package]]
 name = "desktop-chat-view"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "config-agent",
  "config-agent-profile",
@@ -7039,7 +7039,7 @@ dependencies = [
 
 [[package]]
 name = "desktop-config"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "build-identity",
  "config-agent",
@@ -7079,7 +7079,7 @@ dependencies = [
 
 [[package]]
 name = "desktop-editor"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "config-ui",
  "desktop-assets",
@@ -7105,7 +7105,7 @@ dependencies = [
 
 [[package]]
 name = "desktop-expert-hub"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "base64 0.23.1",
  "chrono",
@@ -7151,7 +7151,7 @@ dependencies = [
 
 [[package]]
 name = "desktop-file-tree"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "config-ui",
  "desktop-assets",
@@ -7168,7 +7168,7 @@ dependencies = [
 
 [[package]]
 name = "desktop-git"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "git2",
  "similar",
@@ -7177,7 +7177,7 @@ dependencies = [
 
 [[package]]
 name = "desktop-git-ui"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "chrono",
  "config-ui",
@@ -7209,7 +7209,7 @@ dependencies = [
 
 [[package]]
 name = "desktop-i18n"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "chrono",
  "config-ui",
@@ -7224,7 +7224,7 @@ dependencies = [
 
 [[package]]
 name = "desktop-lsp"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "iced-code-editor",
  "preview-content",
@@ -7237,7 +7237,7 @@ dependencies = [
 
 [[package]]
 name = "desktop-navigation"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "config-ui",
  "desktop-assets",
@@ -7268,7 +7268,7 @@ dependencies = [
 
 [[package]]
 name = "desktop-platform"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "auto-launch",
  "base64 0.22.1",
@@ -7301,7 +7301,7 @@ dependencies = [
 
 [[package]]
 name = "desktop-provider-apps"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "base64 0.22.1",
  "desktop-assets",
@@ -7346,7 +7346,7 @@ dependencies = [
 
 [[package]]
 name = "desktop-release"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "anyhow",
  "hex",
@@ -7361,7 +7361,7 @@ dependencies = [
 
 [[package]]
 name = "desktop-search"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "iced",
  "session-info",
@@ -7369,7 +7369,7 @@ dependencies = [
 
 [[package]]
 name = "desktop-session"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "anyhow",
  "arboard",
@@ -7438,7 +7438,7 @@ dependencies = [
 
 [[package]]
 name = "desktop-settings-account"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "desktop-assets",
  "desktop-ui-controls",
@@ -7453,7 +7453,7 @@ dependencies = [
 
 [[package]]
 name = "desktop-settings-agents"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "acp-agent-registry",
  "config-acp-install",
@@ -7496,7 +7496,7 @@ dependencies = [
 
 [[package]]
 name = "desktop-settings-appearance"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "config-ui",
  "desktop-assets",
@@ -7524,7 +7524,7 @@ dependencies = [
 
 [[package]]
 name = "desktop-settings-apps"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "app-versions",
  "config-ui",
@@ -7568,7 +7568,7 @@ dependencies = [
 
 [[package]]
 name = "desktop-settings-channels"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "base64 0.23.1",
  "config-agent",
@@ -7603,7 +7603,7 @@ dependencies = [
 
 [[package]]
 name = "desktop-settings-cron"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "chrono",
  "chrono-tz 0.10.4",
@@ -7628,7 +7628,7 @@ dependencies = [
 
 [[package]]
 name = "desktop-settings-mcp"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "config-ui",
  "desktop-apps-ui",
@@ -7668,7 +7668,7 @@ dependencies = [
 
 [[package]]
 name = "desktop-settings-memory"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "config-aggregate",
  "config-memory",
@@ -7701,7 +7701,7 @@ dependencies = [
 
 [[package]]
 name = "desktop-settings-network"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "chrono",
  "config-aggregate",
@@ -7741,7 +7741,7 @@ dependencies = [
 
 [[package]]
 name = "desktop-settings-providers"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "auth-file-store",
  "auth-types",
@@ -7781,7 +7781,7 @@ dependencies = [
 
 [[package]]
 name = "desktop-settings-runtime"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "config-aggregate",
  "config-observability",
@@ -7806,7 +7806,7 @@ dependencies = [
 
 [[package]]
 name = "desktop-settings-security"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "config-aggregate",
  "config-runtime-paths",
@@ -7826,7 +7826,7 @@ dependencies = [
 
 [[package]]
 name = "desktop-settings-sessions"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "config-ui",
  "desktop-assets",
@@ -7849,7 +7849,7 @@ dependencies = [
 
 [[package]]
 name = "desktop-settings-shell"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "chrono",
  "config-security",
@@ -7887,7 +7887,7 @@ dependencies = [
 
 [[package]]
 name = "desktop-settings-skills"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "config-runtime-paths",
  "config-skills",
@@ -7920,7 +7920,7 @@ dependencies = [
 
 [[package]]
 name = "desktop-settings-voice"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "audio-capture",
  "config-ui",
@@ -7940,7 +7940,7 @@ dependencies = [
 
 [[package]]
 name = "desktop-settings-workspace"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "config-ui",
  "config-worktree",
@@ -7971,7 +7971,7 @@ dependencies = [
 
 [[package]]
 name = "desktop-skill-hub"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "anyhow",
  "config-runtime-paths",
@@ -7998,7 +7998,7 @@ dependencies = [
 
 [[package]]
 name = "desktop-task-board"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "config-agent",
  "config-ui",
@@ -8034,7 +8034,7 @@ dependencies = [
 
 [[package]]
 name = "desktop-task-executor"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "config-runtime-paths",
  "config-ui",
@@ -8064,7 +8064,7 @@ dependencies = [
 
 [[package]]
 name = "desktop-task-model"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "anyhow",
  "config-agent",
@@ -8083,7 +8083,7 @@ dependencies = [
 
 [[package]]
 name = "desktop-task-store"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "config-runtime-paths",
  "desktop-task-model",
@@ -8095,7 +8095,7 @@ dependencies = [
 
 [[package]]
 name = "desktop-terminal"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "arboard",
  "config-ui",
@@ -8115,7 +8115,7 @@ dependencies = [
 
 [[package]]
 name = "desktop-theme"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "anyhow",
  "config-runtime-paths",
@@ -8131,7 +8131,7 @@ dependencies = [
 
 [[package]]
 name = "desktop-ui-controls"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "config-ui",
  "desktop-assets",
@@ -8147,7 +8147,7 @@ dependencies = [
 
 [[package]]
 name = "desktop-update"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "anyhow",
  "config-runtime-paths",
@@ -8172,7 +8172,7 @@ dependencies = [
 
 [[package]]
 name = "desktop-usage"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "chrono",
  "config-runtime-paths",
@@ -8211,7 +8211,7 @@ dependencies = [
 
 [[package]]
 name = "desktop-voice"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "anyhow",
  "audio-capture",
@@ -8241,7 +8241,7 @@ dependencies = [
 
 [[package]]
 name = "desktop-voice-ui"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "audio-capture",
  "base64 0.23.1",
@@ -8268,7 +8268,7 @@ dependencies = [
 
 [[package]]
 name = "desktop-web-install"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "anyhow",
  "config-runtime-paths",
@@ -8287,7 +8287,7 @@ dependencies = [
 
 [[package]]
 name = "desktop-web-runtime"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "anyhow",
  "base64 0.22.1",
@@ -8319,7 +8319,7 @@ dependencies = [
 
 [[package]]
 name = "desktop-workflow-canvas"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "desktop-assets",
  "desktop-i18n",
@@ -8333,7 +8333,7 @@ dependencies = [
 
 [[package]]
 name = "desktop-workflow-model"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "desktop-i18n",
  "iced",
@@ -8345,7 +8345,7 @@ dependencies = [
 
 [[package]]
 name = "desktop-workflow-state"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "config-ui",
  "desktop-i18n",
@@ -8362,7 +8362,7 @@ dependencies = [
 
 [[package]]
 name = "desktop-workflow-ui"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "anyhow",
  "chrono",
@@ -8395,7 +8395,7 @@ dependencies = [
 
 [[package]]
 name = "desktop-workspace"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "chrono",
  "config-runtime-paths",
@@ -8448,7 +8448,7 @@ checksum = "abd57806937c9cc163efc8ea3910e00a62e2aeb0b8119f1793a978088f8f6b04"
 
 [[package]]
 name = "device-sync"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "agent-app-services",
  "agent-database",
@@ -8492,7 +8492,7 @@ checksum = "56254986775e3233ffa9c4d7d3faaf6d36a2c09d30b20687e9f88bc8bafc16c8"
 
 [[package]]
 name = "diff-text"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "serde_json",
 ]
@@ -8591,7 +8591,7 @@ dependencies = [
 
 [[package]]
 name = "display-format"
-version = "0.6.0"
+version = "0.7.0"
 
 [[package]]
 name = "displaydoc"
@@ -8682,7 +8682,7 @@ dependencies = [
 
 [[package]]
 name = "domain-matcher"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "anyhow",
 ]
@@ -9132,7 +9132,7 @@ dependencies = [
 
 [[package]]
 name = "file-index"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "glob",
  "serde",
@@ -9441,7 +9441,7 @@ dependencies = [
 
 [[package]]
 name = "gateway-agent-app"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "agent-app-services",
  "agent-database",
@@ -9461,7 +9461,7 @@ dependencies = [
 
 [[package]]
 name = "gateway-agent-apps"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "agent-app-services",
  "agent-client-protocol",
@@ -9539,7 +9539,7 @@ dependencies = [
 
 [[package]]
 name = "gateway-agent-scheduler"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "agent-project",
  "anyhow",
@@ -9573,7 +9573,7 @@ dependencies = [
 
 [[package]]
 name = "gateway-aggregation"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "agent-database",
  "app-access-service",
@@ -9610,7 +9610,7 @@ dependencies = [
 
 [[package]]
 name = "gateway-aggregation-codex"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "gateway-app-provider",
  "gateway-app-settings",
@@ -9626,7 +9626,7 @@ dependencies = [
 
 [[package]]
 name = "gateway-aggregation-desktop"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "gateway-app-provider",
  "gateway-app-read",
@@ -9643,7 +9643,7 @@ dependencies = [
 
 [[package]]
 name = "gateway-aggregation-native"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "gateway-aggregation",
  "gateway-endpoint",
@@ -9659,7 +9659,7 @@ dependencies = [
 
 [[package]]
 name = "gateway-aggregation-omo"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "gateway-endpoint",
  "gateway-http",
@@ -9673,7 +9673,7 @@ dependencies = [
 
 [[package]]
 name = "gateway-app-auth"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "gateway-endpoint",
  "gateway-http",
@@ -9688,7 +9688,7 @@ dependencies = [
 
 [[package]]
 name = "gateway-app-data"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "gateway-endpoint",
  "gateway-http",
@@ -9702,7 +9702,7 @@ dependencies = [
 
 [[package]]
 name = "gateway-app-diagnostics"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "gateway-app-settings",
  "gateway-endpoint",
@@ -9719,7 +9719,7 @@ dependencies = [
 
 [[package]]
 name = "gateway-app-failover"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "gateway-endpoint",
  "gateway-http",
@@ -9735,7 +9735,7 @@ dependencies = [
 
 [[package]]
 name = "gateway-app-lifecycle"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "gateway-endpoint",
  "gateway-http",
@@ -9750,7 +9750,7 @@ dependencies = [
 
 [[package]]
 name = "gateway-app-prompt-resources"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "gateway-app-lifecycle",
  "gateway-app-prompts",
@@ -9765,7 +9765,7 @@ dependencies = [
 
 [[package]]
 name = "gateway-app-prompts"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "gateway-http",
  "reqwest 0.13.4",
@@ -9778,7 +9778,7 @@ dependencies = [
 
 [[package]]
 name = "gateway-app-provider"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "gateway-app-read",
  "gateway-endpoint",
@@ -9801,7 +9801,7 @@ dependencies = [
 
 [[package]]
 name = "gateway-app-providers"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "agent-app-services",
  "agent-database",
@@ -9850,7 +9850,7 @@ dependencies = [
 
 [[package]]
 name = "gateway-app-read"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "gateway-endpoint",
  "gateway-http",
@@ -9864,7 +9864,7 @@ dependencies = [
 
 [[package]]
 name = "gateway-app-routing"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "agent-app-services",
  "agent-database",
@@ -9916,7 +9916,7 @@ dependencies = [
 
 [[package]]
 name = "gateway-app-settings"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "gateway-endpoint",
  "gateway-http",
@@ -9930,7 +9930,7 @@ dependencies = [
 
 [[package]]
 name = "gateway-app-skills"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "gateway-endpoint",
  "gateway-http",
@@ -9944,7 +9944,7 @@ dependencies = [
 
 [[package]]
 name = "gateway-app-usage"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "gateway-app-lifecycle",
  "gateway-endpoint",
@@ -9963,7 +9963,7 @@ dependencies = [
 
 [[package]]
 name = "gateway-auth"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "agent-auth",
  "agent-paths",
@@ -9978,7 +9978,7 @@ dependencies = [
 
 [[package]]
 name = "gateway-backup-inventory"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "app-data-backup",
  "axum",
@@ -9990,7 +9990,7 @@ dependencies = [
 
 [[package]]
 name = "gateway-channel"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "axum",
  "base64 0.23.1",
@@ -10013,7 +10013,7 @@ dependencies = [
 
 [[package]]
 name = "gateway-channel-qr"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "gateway-endpoint",
  "gateway-http",
@@ -10025,7 +10025,7 @@ dependencies = [
 
 [[package]]
 name = "gateway-chat-stream"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "futures-util",
  "gateway-endpoint",
@@ -10041,7 +10041,7 @@ dependencies = [
 
 [[package]]
 name = "gateway-computer-control"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "agent-config",
  "axum",
@@ -10066,7 +10066,7 @@ dependencies = [
 
 [[package]]
 name = "gateway-config"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "acp-agent-registry",
  "agent-config",
@@ -10092,7 +10092,7 @@ dependencies = [
 
 [[package]]
 name = "gateway-cron"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "agent-config",
  "agent-cron",
@@ -10115,7 +10115,7 @@ dependencies = [
 
 [[package]]
 name = "gateway-desktop"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "acp-agent-registry",
  "acp-client",
@@ -10150,7 +10150,7 @@ dependencies = [
 
 [[package]]
 name = "gateway-desktop-settings"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "gateway-config",
  "gateway-endpoint",
@@ -10164,7 +10164,7 @@ dependencies = [
 
 [[package]]
 name = "gateway-device-sync"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "agent-app-services",
  "agent-database",
@@ -10190,7 +10190,7 @@ dependencies = [
 
 [[package]]
 name = "gateway-dynamic-tools"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "agent-gateway",
  "axum",
@@ -10207,14 +10207,14 @@ dependencies = [
 
 [[package]]
 name = "gateway-endpoint"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "vw-api-transport",
 ]
 
 [[package]]
 name = "gateway-error"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "axum",
  "serde_json",
@@ -10222,7 +10222,7 @@ dependencies = [
 
 [[package]]
 name = "gateway-external-session"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "gateway-app-read",
  "gateway-http",
@@ -10233,7 +10233,7 @@ dependencies = [
 
 [[package]]
 name = "gateway-external-sessions"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "agent-app-services",
  "agent-database",
@@ -10266,7 +10266,7 @@ dependencies = [
 
 [[package]]
 name = "gateway-file"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "agent-files",
  "agent-project",
@@ -10292,7 +10292,7 @@ dependencies = [
 
 [[package]]
 name = "gateway-files"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "gateway-endpoint",
  "gateway-http",
@@ -10306,7 +10306,7 @@ dependencies = [
 
 [[package]]
 name = "gateway-git"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "agent-files",
  "agent-project",
@@ -10328,7 +10328,7 @@ dependencies = [
 
 [[package]]
 name = "gateway-global"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "acp-agent-registry",
  "agent-bus",
@@ -10347,7 +10347,7 @@ dependencies = [
 
 [[package]]
 name = "gateway-hermes-dashboard"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "app-access-service",
  "app-discovery",
@@ -10366,7 +10366,7 @@ dependencies = [
 
 [[package]]
 name = "gateway-hermes-memory"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "app-auth",
  "app-config-write",
@@ -10388,7 +10388,7 @@ dependencies = [
 
 [[package]]
 name = "gateway-hooks"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "agent-config",
  "agent-hooks",
@@ -10403,7 +10403,7 @@ dependencies = [
 
 [[package]]
 name = "gateway-host-tools"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "futures-util",
  "gateway-chat-stream",
@@ -10418,7 +10418,7 @@ dependencies = [
 
 [[package]]
 name = "gateway-http"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "gateway-endpoint",
  "reqwest 0.13.4",
@@ -10431,7 +10431,7 @@ dependencies = [
 
 [[package]]
 name = "gateway-inference"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "futures-util",
  "gateway-chat-stream",
@@ -10447,7 +10447,7 @@ dependencies = [
 
 [[package]]
 name = "gateway-instance"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "agent-bus",
  "agent-paths",
@@ -10465,7 +10465,7 @@ dependencies = [
 
 [[package]]
 name = "gateway-integrations"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "agent-config",
  "agent-integrations",
@@ -10477,7 +10477,7 @@ dependencies = [
 
 [[package]]
 name = "gateway-interaction"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "gateway-endpoint",
  "gateway-http",
@@ -10491,7 +10491,7 @@ dependencies = [
 
 [[package]]
 name = "gateway-knowledge"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "agent-config",
  "agent-database",
@@ -10522,7 +10522,7 @@ dependencies = [
 
 [[package]]
 name = "gateway-mcp"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "agent-app-services",
  "agent-database",
@@ -10550,7 +10550,7 @@ dependencies = [
 
 [[package]]
 name = "gateway-mcp-distribution"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "gateway-app-lifecycle",
  "gateway-app-settings",
@@ -10569,7 +10569,7 @@ dependencies = [
 
 [[package]]
 name = "gateway-mcp-probe"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "gateway-app-settings",
  "gateway-endpoint",
@@ -10585,7 +10585,7 @@ dependencies = [
 
 [[package]]
 name = "gateway-mcp-read"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "gateway-app-read",
  "gateway-endpoint",
@@ -10598,7 +10598,7 @@ dependencies = [
 
 [[package]]
 name = "gateway-mcp-write"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "gateway-app-settings",
  "gateway-endpoint",
@@ -10613,7 +10613,7 @@ dependencies = [
 
 [[package]]
 name = "gateway-memory"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "agent-config",
  "anyhow",
@@ -10632,7 +10632,7 @@ dependencies = [
 
 [[package]]
 name = "gateway-misc"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "agent-commands",
  "agent-config",
@@ -10649,7 +10649,7 @@ dependencies = [
 
 [[package]]
 name = "gateway-model"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "agent-database",
  "agent-gateway",
@@ -10686,7 +10686,7 @@ dependencies = [
 
 [[package]]
 name = "gateway-model-catalog"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "gateway-endpoint",
  "gateway-http",
@@ -10702,7 +10702,7 @@ dependencies = [
 
 [[package]]
 name = "gateway-model-provider"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "gateway-endpoint",
  "gateway-http",
@@ -10715,7 +10715,7 @@ dependencies = [
 
 [[package]]
 name = "gateway-openclaw-settings"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "app-access-service",
  "app-openclaw-config-rules",
@@ -10738,7 +10738,7 @@ dependencies = [
 
 [[package]]
 name = "gateway-pairing"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "chrono",
  "config-gateway",
@@ -10753,7 +10753,7 @@ dependencies = [
 
 [[package]]
 name = "gateway-permission"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "agent-approval",
  "agent-config",
@@ -10770,7 +10770,7 @@ dependencies = [
 
 [[package]]
 name = "gateway-plugins"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "agent-config",
  "agent-plugins",
@@ -10794,7 +10794,7 @@ dependencies = [
 
 [[package]]
 name = "gateway-project"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "agent-database",
  "agent-files",
@@ -10830,7 +10830,7 @@ dependencies = [
 
 [[package]]
 name = "gateway-project-profile"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "gateway-http",
  "gateway-project",
@@ -10843,7 +10843,7 @@ dependencies = [
 
 [[package]]
 name = "gateway-provider"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "agent-provider",
  "axum",
@@ -10856,7 +10856,7 @@ dependencies = [
 
 [[package]]
 name = "gateway-pty"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "agent-pty",
  "axum",
@@ -10874,7 +10874,7 @@ dependencies = [
 
 [[package]]
 name = "gateway-question"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "agent-question",
  "axum",
@@ -10889,7 +10889,7 @@ dependencies = [
 
 [[package]]
 name = "gateway-resumable-stream"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "axum",
  "futures-util",
@@ -10904,7 +10904,7 @@ dependencies = [
 
 [[package]]
 name = "gateway-scheduler"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "gateway-endpoint",
  "gateway-http",
@@ -10917,7 +10917,7 @@ dependencies = [
 
 [[package]]
 name = "gateway-session"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "acp-agent-registry",
  "agent-config",
@@ -10988,7 +10988,7 @@ dependencies = [
 
 [[package]]
 name = "gateway-shiju"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "agent-skills",
  "axum",
@@ -11008,7 +11008,7 @@ dependencies = [
 
 [[package]]
 name = "gateway-shiju-account"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "gateway-endpoint",
  "gateway-http",
@@ -11022,7 +11022,7 @@ dependencies = [
 
 [[package]]
 name = "gateway-shiju-app"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "gateway-endpoint",
  "gateway-http",
@@ -11036,7 +11036,7 @@ dependencies = [
 
 [[package]]
 name = "gateway-shiju-connector"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "gateway-endpoint",
  "gateway-http",
@@ -11050,7 +11050,7 @@ dependencies = [
 
 [[package]]
 name = "gateway-shiju-knowledge"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "gateway-endpoint",
  "gateway-http",
@@ -11064,7 +11064,7 @@ dependencies = [
 
 [[package]]
 name = "gateway-shiju-skill"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "gateway-endpoint",
  "gateway-http",
@@ -11078,7 +11078,7 @@ dependencies = [
 
 [[package]]
 name = "gateway-skill-market"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "agent-skills",
  "async-trait",
@@ -11106,7 +11106,7 @@ dependencies = [
 
 [[package]]
 name = "gateway-status"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "agent-config",
  "agent-health",
@@ -11117,7 +11117,7 @@ dependencies = [
 
 [[package]]
 name = "gateway-system"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "gateway-endpoint",
  "gateway-http",
@@ -11128,7 +11128,7 @@ dependencies = [
 
 [[package]]
 name = "gateway-task"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "agent-database",
  "agent-paths",
@@ -11155,7 +11155,7 @@ dependencies = [
 
 [[package]]
 name = "gateway-task-lifecycle"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "gateway-endpoint",
  "gateway-http",
@@ -11167,7 +11167,7 @@ dependencies = [
 
 [[package]]
 name = "gateway-task-pool"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "futures-util",
  "gateway-chat-stream",
@@ -11183,7 +11183,7 @@ dependencies = [
 
 [[package]]
 name = "gateway-tools"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "agent-config",
  "axum",
@@ -11195,7 +11195,7 @@ dependencies = [
 
 [[package]]
 name = "gateway-types"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "agent-config",
  "axum",
@@ -11221,7 +11221,7 @@ dependencies = [
 
 [[package]]
 name = "gateway-usage"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "agent-database",
  "agent-project",
@@ -11249,7 +11249,7 @@ dependencies = [
 
 [[package]]
 name = "gateway-usage-price"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "gateway-http",
  "gateway-usage-scan",
@@ -11261,7 +11261,7 @@ dependencies = [
 
 [[package]]
 name = "gateway-usage-read"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "app-usage-store",
  "gateway-http",
@@ -11275,7 +11275,7 @@ dependencies = [
 
 [[package]]
 name = "gateway-usage-scan"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "gateway-chat-stream",
  "gateway-http",
@@ -11287,7 +11287,7 @@ dependencies = [
 
 [[package]]
 name = "gateway-voice"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "agent-approval",
  "agent-config",
@@ -11319,7 +11319,7 @@ dependencies = [
 
 [[package]]
 name = "gateway-workflow"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "agent-database",
  "agent-paths",
@@ -11352,7 +11352,7 @@ dependencies = [
 
 [[package]]
 name = "gateway-workspace"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "app-access-service",
  "app-lifecycle",
@@ -11374,7 +11374,7 @@ dependencies = [
 
 [[package]]
 name = "gateway-workspace-memory"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "gateway-endpoint",
  "gateway-http",
@@ -11389,7 +11389,7 @@ dependencies = [
 
 [[package]]
 name = "gateway-worktree"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "agent-config",
  "agent-database",
@@ -11660,7 +11660,7 @@ dependencies = [
 
 [[package]]
 name = "git-discovery"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "git2",
  "tempfile",
@@ -11821,7 +11821,7 @@ dependencies = [
 
 [[package]]
 name = "goal-engine"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "anyhow",
  "serde",
@@ -13285,7 +13285,7 @@ dependencies = [
 
 [[package]]
 name = "json-extract"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "serde_json",
 ]
@@ -13620,7 +13620,7 @@ checksum = "11d3d7f243d5c5a8b9bb5d6dd2b1602c0cb0b9db1621bafc7ed66e35ff9fe092"
 
 [[package]]
 name = "llm-runtime"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "acp-access-policy",
  "acp-agent-registry",
@@ -13692,7 +13692,7 @@ dependencies = [
 
 [[package]]
 name = "local-app-auth"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "anyhow",
  "config-runtime-paths",
@@ -14014,7 +14014,7 @@ dependencies = [
 
 [[package]]
 name = "mcp-client"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "acp-config",
  "agent-client-protocol",
@@ -14098,11 +14098,11 @@ dependencies = [
 
 [[package]]
 name = "memory-algorithms"
-version = "0.6.0"
+version = "0.7.0"
 
 [[package]]
 name = "memory-lucid"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -14117,7 +14117,7 @@ dependencies = [
 
 [[package]]
 name = "memory-mariadb"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -14130,7 +14130,7 @@ dependencies = [
 
 [[package]]
 name = "memory-markdown"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -14143,7 +14143,7 @@ dependencies = [
 
 [[package]]
 name = "memory-postgres"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -14160,7 +14160,7 @@ dependencies = [
 
 [[package]]
 name = "memory-response-cache"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "anyhow",
  "chrono",
@@ -14174,7 +14174,7 @@ dependencies = [
 
 [[package]]
 name = "memory-snapshot"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "anyhow",
  "chrono",
@@ -14187,7 +14187,7 @@ dependencies = [
 
 [[package]]
 name = "memory-sqlite"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -14205,7 +14205,7 @@ dependencies = [
 
 [[package]]
 name = "memory-types"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -14216,7 +14216,7 @@ dependencies = [
 
 [[package]]
 name = "message-types"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "serde",
  "serde_json",
@@ -14349,7 +14349,7 @@ dependencies = [
 
 [[package]]
 name = "model-catalog"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "agent-database",
  "app-settings-store",
@@ -14363,7 +14363,7 @@ dependencies = [
 
 [[package]]
 name = "model-catalog-types"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "model-protocols",
  "model-reasoning",
@@ -14373,14 +14373,14 @@ dependencies = [
 
 [[package]]
 name = "model-http-client"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "reqwest 0.13.4",
 ]
 
 [[package]]
 name = "model-protocol"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "axum",
  "base64 0.23.1",
@@ -14412,7 +14412,7 @@ dependencies = [
 
 [[package]]
 name = "model-protocols"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "serde",
  "serde_json",
@@ -14420,7 +14420,7 @@ dependencies = [
 
 [[package]]
 name = "model-reasoning"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "serde",
  "serde_json",
@@ -14428,7 +14428,7 @@ dependencies = [
 
 [[package]]
 name = "model-relay-http"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "agent-auth",
  "agent-config",
@@ -14464,7 +14464,7 @@ dependencies = [
 
 [[package]]
 name = "model-relay-state"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "http 1.5.0",
  "parking_lot",
@@ -14474,7 +14474,7 @@ dependencies = [
 
 [[package]]
 name = "model-selection"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "config-routing",
  "model-types",
@@ -14482,7 +14482,7 @@ dependencies = [
 
 [[package]]
 name = "model-state"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "model-catalog-types",
  "model-types",
@@ -14492,7 +14492,7 @@ dependencies = [
 
 [[package]]
 name = "model-transport"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "agent-auth",
  "agent-env",
@@ -14522,7 +14522,7 @@ dependencies = [
 
 [[package]]
 name = "model-types"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -14811,7 +14811,7 @@ checksum = "43a88da9dd148bbcdce323dd6ac47d369b4769d4a3b78c6c52389b9269f77932"
 
 [[package]]
 name = "network-policy"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "anyhow",
 ]
@@ -15703,7 +15703,7 @@ dependencies = [
 
 [[package]]
 name = "observer-backends"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "observer-types",
  "tracing",
@@ -15711,7 +15711,7 @@ dependencies = [
 
 [[package]]
 name = "observer-otel"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "observer-types",
  "opentelemetry",
@@ -15722,7 +15722,7 @@ dependencies = [
 
 [[package]]
 name = "observer-prometheus"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "observer-types",
  "prometheus",
@@ -15730,14 +15730,14 @@ dependencies = [
 
 [[package]]
 name = "observer-types"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "parking_lot",
 ]
 
 [[package]]
 name = "office-control-sessions"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "uuid",
  "vw-api-computer-control",
@@ -15928,7 +15928,7 @@ dependencies = [
 
 [[package]]
 name = "ordered-id"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "getrandom 0.4.3",
  "once_cell",
@@ -16117,7 +16117,7 @@ checksum = "57c0d7b74b563b49d38dae00a0c37d4d6de9b432382b2892f0574ddcae73fd0a"
 
 [[package]]
 name = "pasted-text-cache"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "tempfile",
 ]
@@ -16136,7 +16136,7 @@ checksum = "2ee67f1008b1ba2321834326597b8e186293b049a023cdef258527550b9935b4"
 
 [[package]]
 name = "patch"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "serde",
  "serde_json",
@@ -16194,7 +16194,7 @@ checksum = "9b4f627cb1b25917193a259e49bdad08f671f8d9708acfd5fe0a8c1455d87220"
 
 [[package]]
 name = "permission-engine"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "glob",
  "permission-types",
@@ -16203,7 +16203,7 @@ dependencies = [
 
 [[package]]
 name = "permission-runtime"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "agent-paths",
  "ordered-id",
@@ -16215,7 +16215,7 @@ dependencies = [
 
 [[package]]
 name = "permission-types"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "serde",
 ]
@@ -16472,7 +16472,7 @@ dependencies = [
 
 [[package]]
 name = "plugin-hooks"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "agent-client-protocol",
  "agent-hooks",
@@ -16494,7 +16494,7 @@ dependencies = [
 
 [[package]]
 name = "plugin-install"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "agent-client-protocol",
  "agent-skills",
@@ -16518,7 +16518,7 @@ dependencies = [
 
 [[package]]
 name = "plugin-mcp"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "acp-config",
  "acp-types",
@@ -16556,7 +16556,7 @@ dependencies = [
 
 [[package]]
 name = "plugin-types"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "anyhow",
  "serde",
@@ -16772,7 +16772,7 @@ dependencies = [
 
 [[package]]
 name = "preview-content"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "tempfile",
 ]
@@ -16914,7 +16914,7 @@ dependencies = [
 
 [[package]]
 name = "process-sandbox"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "async-trait",
  "landlock",
@@ -16957,7 +16957,7 @@ dependencies = [
 
 [[package]]
 name = "project-storage-paths"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "anyhow",
  "config-runtime-paths",
@@ -16971,7 +16971,7 @@ dependencies = [
 
 [[package]]
 name = "project-types"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "anyhow",
  "serde",
@@ -17067,7 +17067,7 @@ dependencies = [
 
 [[package]]
 name = "provider-auth-reader"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "auth-file-store",
  "auth-types",
@@ -17078,7 +17078,7 @@ dependencies = [
 
 [[package]]
 name = "provider-config-reader"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "config-aggregate",
  "config-gateway",
@@ -17094,7 +17094,7 @@ dependencies = [
 
 [[package]]
 name = "provider-errors"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "serde",
  "serde_json",
@@ -17102,7 +17102,7 @@ dependencies = [
 
 [[package]]
 name = "provider-model-cache"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "model-reasoning",
  "model-state",
@@ -17119,7 +17119,7 @@ dependencies = [
 
 [[package]]
 name = "provider-model-catalog"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "model-catalog-types",
  "model-protocols",
@@ -17133,7 +17133,7 @@ dependencies = [
 
 [[package]]
 name = "provider-model-discovery"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "auth-types",
  "model-state",
@@ -17148,7 +17148,7 @@ dependencies = [
 
 [[package]]
 name = "provider-protocol-routes"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "model-protocols",
  "reqwest 0.13.4",
@@ -17157,14 +17157,14 @@ dependencies = [
 
 [[package]]
 name = "provider-request-identity"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "once_cell",
 ]
 
 [[package]]
 name = "provider-resolution"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "auth-types",
  "gateway-model-provider",
@@ -17185,7 +17185,7 @@ dependencies = [
 
 [[package]]
 name = "provider-runtime-paths"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "config-runtime-paths",
  "directories 5.0.1",
@@ -17194,7 +17194,7 @@ dependencies = [
 
 [[package]]
 name = "provider-state-cache"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "once_cell",
  "tokio",
@@ -17258,7 +17258,7 @@ dependencies = [
 
 [[package]]
 name = "question-types"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "serde",
  "serde_json",
@@ -18131,11 +18131,11 @@ dependencies = [
 
 [[package]]
 name = "runtime-flags"
-version = "0.6.0"
+version = "0.7.0"
 
 [[package]]
 name = "runtime-log"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "chrono",
  "config-runtime-paths",
@@ -18146,14 +18146,14 @@ dependencies = [
 
 [[package]]
 name = "runtime-time"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "web-time",
 ]
 
 [[package]]
 name = "runtime-types"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "anyhow",
  "tokio",
@@ -18568,7 +18568,7 @@ dependencies = [
 
 [[package]]
 name = "secret-store"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "agent-database",
  "anyhow",
@@ -18589,7 +18589,7 @@ dependencies = [
 
 [[package]]
 name = "security-audit"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "anyhow",
  "chrono",
@@ -18877,7 +18877,7 @@ dependencies = [
 
 [[package]]
 name = "session-artifact-store"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "serde_json",
  "session-info",
@@ -18888,7 +18888,7 @@ dependencies = [
 
 [[package]]
 name = "session-engine"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "acp-client",
  "acp-config",
@@ -18969,7 +18969,7 @@ dependencies = [
 
 [[package]]
 name = "session-info"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "anyhow",
  "ordered-id",
@@ -18982,7 +18982,7 @@ dependencies = [
 
 [[package]]
 name = "session-instructions"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "agent-security",
  "agent-util",
@@ -18998,11 +18998,11 @@ dependencies = [
 
 [[package]]
 name = "session-paths"
-version = "0.6.0"
+version = "0.7.0"
 
 [[package]]
 name = "session-port"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "anyhow",
  "config-agent",
@@ -19023,7 +19023,7 @@ dependencies = [
 
 [[package]]
 name = "session-store"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "agent-database",
  "agent-multimodal",
@@ -19058,7 +19058,7 @@ dependencies = [
 
 [[package]]
 name = "session-text"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "getrandom 0.4.3",
  "once_cell",
@@ -19068,7 +19068,7 @@ dependencies = [
 
 [[package]]
 name = "session-ui-types"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "serde",
  "serde_json",
@@ -19128,7 +19128,7 @@ dependencies = [
 
 [[package]]
 name = "shell-command"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "libc",
  "once_cell",
@@ -19153,7 +19153,7 @@ dependencies = [
 
 [[package]]
 name = "shiju-client"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "chrono",
  "gateway-shiju-account",
@@ -19258,7 +19258,7 @@ checksum = "33f4fe9184a62d842c9ef383018f3306d8ba224fd9d836f56d7288308847c256"
 
 [[package]]
 name = "skill-core"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "agent-cli-types",
  "agent-log",
@@ -19282,7 +19282,7 @@ dependencies = [
 
 [[package]]
 name = "skill-forge"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -19297,7 +19297,7 @@ dependencies = [
 
 [[package]]
 name = "skill-market-types"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "serde",
 ]
@@ -19445,7 +19445,7 @@ dependencies = [
 
 [[package]]
 name = "snapshot-types"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "serde",
  "serde_json",
@@ -19582,7 +19582,7 @@ dependencies = [
 
 [[package]]
 name = "storage-types"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "serde_json",
  "tokio",
@@ -19860,7 +19860,7 @@ dependencies = [
 
 [[package]]
 name = "syscall-anomaly"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "anyhow",
  "chrono",
@@ -19988,7 +19988,7 @@ checksum = "61c41af27dd6d1e27b1b16b489db798443478cef1f06a660c96db617ba5de3b1"
 
 [[package]]
 name = "task-file-store"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "chrono",
  "config-runtime-paths",
@@ -20003,7 +20003,7 @@ dependencies = [
 
 [[package]]
 name = "task-lifecycle"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "agent-database",
  "anyhow",
@@ -20028,7 +20028,7 @@ dependencies = [
 
 [[package]]
 name = "task-plan-runner"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "agent-database",
  "agent-installation",
@@ -20054,7 +20054,7 @@ dependencies = [
 
 [[package]]
 name = "task-scheduler"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "agent-cron",
  "agent-database",
@@ -20098,7 +20098,7 @@ dependencies = [
 
 [[package]]
 name = "task-scheduler-core"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -20116,7 +20116,7 @@ dependencies = [
 
 [[package]]
 name = "task-types"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "runtime-time",
  "serde",
@@ -20126,7 +20126,7 @@ dependencies = [
 
 [[package]]
 name = "task-worktree-pool"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "anyhow",
  "project-types",
@@ -20310,7 +20310,7 @@ dependencies = [
 
 [[package]]
 name = "theme-model"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "anyhow",
  "serde",
@@ -20319,7 +20319,7 @@ dependencies = [
 
 [[package]]
 name = "theme-store"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "anyhow",
  "serde_json",
@@ -20511,7 +20511,7 @@ dependencies = [
 
 [[package]]
 name = "todo-types"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "serde",
  "serde_json",
@@ -20859,7 +20859,7 @@ dependencies = [
 
 [[package]]
 name = "tool-agents"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "agent-providers",
  "agent-security",
@@ -20886,7 +20886,7 @@ dependencies = [
 
 [[package]]
 name = "tool-assembly"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "acp-config",
  "acp-types",
@@ -20941,7 +20941,7 @@ dependencies = [
 
 [[package]]
 name = "tool-browser"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "agent-config",
  "agent-security",
@@ -20967,7 +20967,7 @@ dependencies = [
 
 [[package]]
 name = "tool-catalog"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -20981,7 +20981,7 @@ dependencies = [
 
 [[package]]
 name = "tool-computer"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -21007,7 +21007,7 @@ dependencies = [
 
 [[package]]
 name = "tool-context"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "anyhow",
  "config-agent",
@@ -21025,7 +21025,7 @@ dependencies = [
 
 [[package]]
 name = "tool-cron"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "agent-config",
  "agent-cron",
@@ -21042,7 +21042,7 @@ dependencies = [
 
 [[package]]
 name = "tool-files"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "agent-files",
  "agent-multimodal",
@@ -21074,7 +21074,7 @@ dependencies = [
 
 [[package]]
 name = "tool-git"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "agent-security",
  "anyhow",
@@ -21096,7 +21096,7 @@ dependencies = [
 
 [[package]]
 name = "tool-mcp"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "acp-config",
  "agent-client-protocol",
@@ -21117,7 +21117,7 @@ dependencies = [
 
 [[package]]
 name = "tool-memory"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "agent-security",
  "anyhow",
@@ -21132,7 +21132,7 @@ dependencies = [
 
 [[package]]
 name = "tool-office"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "agent-hooks",
  "agent-security",
@@ -21164,7 +21164,7 @@ dependencies = [
 
 [[package]]
 name = "tool-services"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "agent-config",
  "agent-cron",
@@ -21206,7 +21206,7 @@ dependencies = [
 
 [[package]]
 name = "tool-shell"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "agent-runtime",
  "agent-security",
@@ -21235,7 +21235,7 @@ dependencies = [
 
 [[package]]
 name = "tool-types"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -21247,7 +21247,7 @@ dependencies = [
 
 [[package]]
 name = "tool-web"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "agent-config",
  "agent-security",
@@ -21461,7 +21461,7 @@ dependencies = [
 
 [[package]]
 name = "tui-approval"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "crossterm 0.29.0 (git+https://github.com/openai-oss-forks/crossterm?rev=45fecb9508105988f42fe6ff0441783ed3717f92)",
  "ratatui",
@@ -21472,7 +21472,7 @@ dependencies = [
 
 [[package]]
 name = "tui-bottom-pane"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "crossterm 0.29.0 (git+https://github.com/openai-oss-forks/crossterm?rev=45fecb9508105988f42fe6ff0441783ed3717f92)",
  "ratatui",
@@ -21484,7 +21484,7 @@ dependencies = [
 
 [[package]]
 name = "tui-cells"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "insta",
  "pretty_assertions",
@@ -21500,7 +21500,7 @@ dependencies = [
 
 [[package]]
 name = "tui-chat"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "crossterm 0.29.0 (git+https://github.com/openai-oss-forks/crossterm?rev=45fecb9508105988f42fe6ff0441783ed3717f92)",
  "insta",
@@ -21521,14 +21521,14 @@ dependencies = [
 
 [[package]]
 name = "tui-chat-state"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "tui-contracts",
 ]
 
 [[package]]
 name = "tui-clipboard"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "arboard",
  "base64 0.23.1",
@@ -21542,7 +21542,7 @@ dependencies = [
 
 [[package]]
 name = "tui-composer"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "crossterm 0.29.0 (git+https://github.com/openai-oss-forks/crossterm?rev=45fecb9508105988f42fe6ff0441783ed3717f92)",
  "insta",
@@ -21557,11 +21557,11 @@ dependencies = [
 
 [[package]]
 name = "tui-contracts"
-version = "0.6.0"
+version = "0.7.0"
 
 [[package]]
 name = "tui-exec-state"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "ratatui",
  "tui-cells",
@@ -21569,7 +21569,7 @@ dependencies = [
 
 [[package]]
 name = "tui-highlight"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "insta",
  "pretty_assertions",
@@ -21583,7 +21583,7 @@ dependencies = [
 
 [[package]]
 name = "tui-input"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "crossterm 0.29.0 (git+https://github.com/openai-oss-forks/crossterm?rev=45fecb9508105988f42fe6ff0441783ed3717f92)",
  "insta",
@@ -21597,7 +21597,7 @@ dependencies = [
 
 [[package]]
 name = "tui-markdown"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "dirs",
  "insta",
@@ -21615,7 +21615,7 @@ dependencies = [
 
 [[package]]
 name = "tui-onboarding"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "insta",
  "ratatui",
@@ -21623,7 +21623,7 @@ dependencies = [
 
 [[package]]
 name = "tui-pager"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "crossterm 0.29.0 (git+https://github.com/openai-oss-forks/crossterm?rev=45fecb9508105988f42fe6ff0441783ed3717f92)",
  "insta",
@@ -21632,7 +21632,7 @@ dependencies = [
 
 [[package]]
 name = "tui-pickers"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "crossterm 0.29.0 (git+https://github.com/openai-oss-forks/crossterm?rev=45fecb9508105988f42fe6ff0441783ed3717f92)",
  "ratatui",
@@ -21643,7 +21643,7 @@ dependencies = [
 
 [[package]]
 name = "tui-popups"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "crossterm 0.29.0 (git+https://github.com/openai-oss-forks/crossterm?rev=45fecb9508105988f42fe6ff0441783ed3717f92)",
  "ratatui",
@@ -21653,7 +21653,7 @@ dependencies = [
 
 [[package]]
 name = "tui-render"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "crossterm 0.29.0 (git+https://github.com/openai-oss-forks/crossterm?rev=45fecb9508105988f42fe6ff0441783ed3717f92)",
  "pretty_assertions",
@@ -21665,7 +21665,7 @@ dependencies = [
 
 [[package]]
 name = "tui-stream"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "insta",
  "pretty_assertions",
@@ -21681,14 +21681,14 @@ dependencies = [
 
 [[package]]
 name = "tui-surface"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "tui-contracts",
 ]
 
 [[package]]
 name = "tui-terminal"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "crossterm 0.29.0 (git+https://github.com/openai-oss-forks/crossterm?rev=45fecb9508105988f42fe6ff0441783ed3717f92)",
  "insta",
@@ -21704,7 +21704,7 @@ dependencies = [
 
 [[package]]
 name = "tui-terminal-lifecycle"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "crossterm 0.29.0 (git+https://github.com/openai-oss-forks/crossterm?rev=45fecb9508105988f42fe6ff0441783ed3717f92)",
  "ratatui",
@@ -21713,7 +21713,7 @@ dependencies = [
 
 [[package]]
 name = "tui-text"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "itertools 0.15.0",
  "pretty_assertions",
@@ -21728,7 +21728,7 @@ dependencies = [
 
 [[package]]
 name = "tui-theme"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "pretty_assertions",
  "ratatui",
@@ -21738,7 +21738,7 @@ dependencies = [
 
 [[package]]
 name = "tui-transcript"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "crossterm 0.29.0 (git+https://github.com/openai-oss-forks/crossterm?rev=45fecb9508105988f42fe6ff0441783ed3717f92)",
  "ratatui",
@@ -21749,7 +21749,7 @@ dependencies = [
 
 [[package]]
 name = "tui-user-input"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "crossterm 0.29.0 (git+https://github.com/openai-oss-forks/crossterm?rev=45fecb9508105988f42fe6ff0441783ed3717f92)",
  "ratatui",
@@ -21763,7 +21763,7 @@ dependencies = [
 
 [[package]]
 name = "tui-widgets"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "crossterm 0.29.0 (git+https://github.com/openai-oss-forks/crossterm?rev=45fecb9508105988f42fe6ff0441783ed3717f92)",
  "insta",
@@ -22051,7 +22051,7 @@ checksum = "6d49784317cd0d1ee7ec5c716dd598ec5b4483ea832a2dced265471cc0f690ae"
 
 [[package]]
 name = "update-types"
-version = "0.6.0"
+version = "0.7.0"
 
 [[package]]
 name = "ureq"
@@ -22271,7 +22271,7 @@ checksum = "051eb1abcf10076295e815102942cc58f9d5e3b4560e46e53c21e8ff6f3af7b1"
 
 [[package]]
 name = "voice-permissions"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "anyhow",
  "block2 0.6.2",
@@ -22282,7 +22282,7 @@ dependencies = [
 
 [[package]]
 name = "voice-recordings"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "libc",
  "rand 0.10.3",
@@ -22325,7 +22325,7 @@ dependencies = [
 
 [[package]]
 name = "vw-acp"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "acp-access-policy",
  "acp-agent-registry",
@@ -22361,7 +22361,7 @@ dependencies = [
 
 [[package]]
 name = "vw-agent"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "acp-access-policy",
  "acp-agent-registry",
@@ -22821,7 +22821,7 @@ dependencies = [
 
 [[package]]
 name = "vw-agent-apps"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "app-auth",
  "app-availability",
@@ -22870,7 +22870,7 @@ dependencies = [
 
 [[package]]
 name = "vw-api-acp-model"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "serde",
  "serde_json",
@@ -22878,7 +22878,7 @@ dependencies = [
 
 [[package]]
 name = "vw-api-agent-scheduler"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "serde",
  "serde_json",
@@ -22889,7 +22889,7 @@ dependencies = [
 
 [[package]]
 name = "vw-api-app-aggregation"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "serde",
  "serde_json",
@@ -22904,7 +22904,7 @@ dependencies = [
 
 [[package]]
 name = "vw-api-app-auth"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "serde",
  "serde_json",
@@ -22913,7 +22913,7 @@ dependencies = [
 
 [[package]]
 name = "vw-api-app-diagnostics"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "serde",
  "serde_json",
@@ -22925,7 +22925,7 @@ dependencies = [
 
 [[package]]
 name = "vw-api-app-failover"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "serde",
  "serde_json",
@@ -22935,7 +22935,7 @@ dependencies = [
 
 [[package]]
 name = "vw-api-app-identity"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "serde",
  "serde_json",
@@ -22943,7 +22943,7 @@ dependencies = [
 
 [[package]]
 name = "vw-api-app-operations"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "serde",
  "serde_json",
@@ -22954,7 +22954,7 @@ dependencies = [
 
 [[package]]
 name = "vw-api-app-provider-base"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "serde",
  "serde_json",
@@ -22963,7 +22963,7 @@ dependencies = [
 
 [[package]]
 name = "vw-api-app-provider-edit"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "serde",
  "serde_json",
@@ -22973,7 +22973,7 @@ dependencies = [
 
 [[package]]
 name = "vw-api-app-provider-environment"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "serde",
  "serde_json",
@@ -22983,7 +22983,7 @@ dependencies = [
 
 [[package]]
 name = "vw-api-app-provider-extended"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "serde",
  "serde_json",
@@ -22992,7 +22992,7 @@ dependencies = [
 
 [[package]]
 name = "vw-api-app-provider-profiles"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "serde",
  "serde_json",
@@ -23002,7 +23002,7 @@ dependencies = [
 
 [[package]]
 name = "vw-api-app-provider-terminal"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "serde",
  "serde_json",
@@ -23012,7 +23012,7 @@ dependencies = [
 
 [[package]]
 name = "vw-api-app-routing"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "serde",
  "serde_json",
@@ -23021,7 +23021,7 @@ dependencies = [
 
 [[package]]
 name = "vw-api-app-skills"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "serde",
  "vw-api-app-identity",
@@ -23030,7 +23030,7 @@ dependencies = [
 
 [[package]]
 name = "vw-api-apps-usage"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "chrono",
  "serde",
@@ -23043,7 +23043,7 @@ dependencies = [
 
 [[package]]
 name = "vw-api-chat"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "serde",
  "serde_json",
@@ -23057,7 +23057,7 @@ dependencies = [
 
 [[package]]
 name = "vw-api-chat-identity"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "serde",
  "serde_json",
@@ -23065,7 +23065,7 @@ dependencies = [
 
 [[package]]
 name = "vw-api-computer-control"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "config-computer-control",
  "serde",
@@ -23074,7 +23074,7 @@ dependencies = [
 
 [[package]]
 name = "vw-api-device-sync"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "serde",
  "vw-api-app-operations",
@@ -23083,7 +23083,7 @@ dependencies = [
 
 [[package]]
 name = "vw-api-external-session"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "serde",
  "vw-api-task",
@@ -23092,7 +23092,7 @@ dependencies = [
 
 [[package]]
 name = "vw-api-file"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "serde",
  "serde_json",
@@ -23101,7 +23101,7 @@ dependencies = [
 
 [[package]]
 name = "vw-api-git"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "serde",
  "serde_json",
@@ -23110,7 +23110,7 @@ dependencies = [
 
 [[package]]
 name = "vw-api-hermes-dashboard"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "serde",
  "vw-api-app-operations",
@@ -23119,7 +23119,7 @@ dependencies = [
 
 [[package]]
 name = "vw-api-hermes-memory"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "serde",
  "serde_json",
@@ -23127,7 +23127,7 @@ dependencies = [
 
 [[package]]
 name = "vw-api-knowledge"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "serde",
  "serde_json",
@@ -23135,7 +23135,7 @@ dependencies = [
 
 [[package]]
 name = "vw-api-mcp-inspect"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "serde",
  "serde_json",
@@ -23144,7 +23144,7 @@ dependencies = [
 
 [[package]]
 name = "vw-api-mcp-management"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "serde",
  "serde_json",
@@ -23157,7 +23157,7 @@ dependencies = [
 
 [[package]]
 name = "vw-api-mcp-network"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "serde",
  "serde_json",
@@ -23166,7 +23166,7 @@ dependencies = [
 
 [[package]]
 name = "vw-api-model-catalog"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "serde",
  "serde_json",
@@ -23177,7 +23177,7 @@ dependencies = [
 
 [[package]]
 name = "vw-api-openclaw-settings"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "serde",
  "serde_json",
@@ -23185,7 +23185,7 @@ dependencies = [
 
 [[package]]
 name = "vw-api-project"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "serde",
  "serde_json",
@@ -23195,7 +23195,7 @@ dependencies = [
 
 [[package]]
 name = "vw-api-project-profiles"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "serde",
  "serde_json",
@@ -23204,7 +23204,7 @@ dependencies = [
 
 [[package]]
 name = "vw-api-provider"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "serde",
  "serde_json",
@@ -23213,7 +23213,7 @@ dependencies = [
 
 [[package]]
 name = "vw-api-question"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "serde",
  "serde_json",
@@ -23222,7 +23222,7 @@ dependencies = [
 
 [[package]]
 name = "vw-api-session"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "serde",
  "serde_json",
@@ -23233,7 +23233,7 @@ dependencies = [
 
 [[package]]
 name = "vw-api-settings"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "serde",
  "serde_json",
@@ -23241,7 +23241,7 @@ dependencies = [
 
 [[package]]
 name = "vw-api-task"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "serde",
  "serde_json",
@@ -23250,7 +23250,7 @@ dependencies = [
 
 [[package]]
 name = "vw-api-task-lifecycle"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "serde",
  "serde_json",
@@ -23258,7 +23258,7 @@ dependencies = [
 
 [[package]]
 name = "vw-api-todo"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "serde",
  "serde_json",
@@ -23267,7 +23267,7 @@ dependencies = [
 
 [[package]]
 name = "vw-api-tools"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "serde",
  "serde_json",
@@ -23276,7 +23276,7 @@ dependencies = [
 
 [[package]]
 name = "vw-api-transport"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "serde",
  "serde_json",
@@ -23284,7 +23284,7 @@ dependencies = [
 
 [[package]]
 name = "vw-api-types"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "serde_json",
  "vw-api-acp-model",
@@ -23339,7 +23339,7 @@ dependencies = [
 
 [[package]]
 name = "vw-api-usage"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "serde",
  "serde_json",
@@ -23347,7 +23347,7 @@ dependencies = [
 
 [[package]]
 name = "vw-api-voice"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "base64 0.22.1",
  "serde",
@@ -23356,7 +23356,7 @@ dependencies = [
 
 [[package]]
 name = "vw-api-workflow"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "serde",
  "serde_json",
@@ -23364,7 +23364,7 @@ dependencies = [
 
 [[package]]
 name = "vw-api-workspace-memory"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "chrono",
  "serde",
@@ -23373,7 +23373,7 @@ dependencies = [
 
 [[package]]
 name = "vw-api-worktree"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "serde",
  "serde_json",
@@ -23382,7 +23382,7 @@ dependencies = [
 
 [[package]]
 name = "vw-cli"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "anyhow",
  "cli-bootstrap",
@@ -23391,7 +23391,7 @@ dependencies = [
 
 [[package]]
 name = "vw-config-types"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "config-acp-install",
  "config-agent",
@@ -23423,7 +23423,7 @@ dependencies = [
 
 [[package]]
 name = "vw-desktop"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "anyhow",
  "app-lifecycle",
@@ -23716,7 +23716,7 @@ dependencies = [
 
 [[package]]
 name = "vw-gateway-client"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "futures-util",
  "gateway-aggregation",
@@ -23838,7 +23838,7 @@ dependencies = [
 
 [[package]]
 name = "vw-provider-resolver"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "model-protocols",
  "provider-auth-reader",
@@ -23857,7 +23857,7 @@ dependencies = [
 
 [[package]]
 name = "vw-shared"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "app-self-update",
  "auth-file-store",
@@ -23896,7 +23896,7 @@ dependencies = [
 
 [[package]]
 name = "vw-tui"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "crossterm 0.29.0 (git+https://github.com/openai-oss-forks/crossterm?rev=45fecb9508105988f42fe6ff0441783ed3717f92)",
  "insta",
@@ -23918,7 +23918,7 @@ dependencies = [
 
 [[package]]
 name = "vw-webview"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "webview-browser-runtime",
  "webview-mcp-runtime",
@@ -24550,7 +24550,7 @@ dependencies = [
 
 [[package]]
 name = "webview-browser-runtime"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "gtk",
  "open",
@@ -24574,7 +24574,7 @@ dependencies = [
 
 [[package]]
 name = "webview-browser-views"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "gtk",
  "tao",
@@ -24589,14 +24589,14 @@ dependencies = [
 
 [[package]]
 name = "webview-core"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "url",
 ]
 
 [[package]]
 name = "webview-downloads"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "block2 0.6.2",
  "objc2 0.6.4",
@@ -24608,7 +24608,7 @@ dependencies = [
 
 [[package]]
 name = "webview-external-protocol"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "block2 0.6.2",
  "gtk",
@@ -24625,14 +24625,14 @@ dependencies = [
 
 [[package]]
 name = "webview-init-script"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "serde_json",
 ]
 
 [[package]]
 name = "webview-ipc"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "serde_json",
  "webview-core",
@@ -24640,25 +24640,25 @@ dependencies = [
 
 [[package]]
 name = "webview-launch"
-version = "0.6.0"
+version = "0.7.0"
 
 [[package]]
 name = "webview-local-content"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "http 1.5.0",
 ]
 
 [[package]]
 name = "webview-mcp-assets"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "webview-mcp-policy",
 ]
 
 [[package]]
 name = "webview-mcp-form"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "block2 0.6.2",
  "gtk",
@@ -24672,7 +24672,7 @@ dependencies = [
 
 [[package]]
 name = "webview-mcp-policy"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "serde_json",
  "url",
@@ -24681,7 +24681,7 @@ dependencies = [
 
 [[package]]
 name = "webview-mcp-runtime"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "getrandom 0.4.3",
  "serde_json",
@@ -24696,7 +24696,7 @@ dependencies = [
 
 [[package]]
 name = "webview-media-permissions"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "gtk",
  "url",
@@ -24706,7 +24706,7 @@ dependencies = [
 
 [[package]]
 name = "webview-native-menu"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "objc2 0.6.4",
  "objc2-app-kit 0.3.2",
@@ -24717,7 +24717,7 @@ dependencies = [
 
 [[package]]
 name = "webview-popup"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "gtk",
  "objc2 0.6.4",
@@ -24737,7 +24737,7 @@ dependencies = [
 
 [[package]]
 name = "webview-runtime-cookie"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "cookie 0.18.1",
  "http 1.5.0",
@@ -24745,14 +24745,14 @@ dependencies = [
 
 [[package]]
 name = "webview-storage"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "directories 5.0.1",
 ]
 
 [[package]]
 name = "webview-toolbar"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "serde_json",
  "url",
@@ -25784,7 +25784,7 @@ checksum = "1ebf944e87a7c253233ad6766e082e3cd714b5d03812acc24c318f549614536e"
 
 [[package]]
 name = "workflow-core"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "agent-database",
  "anyhow",
@@ -25808,7 +25808,7 @@ dependencies = [
 
 [[package]]
 name = "workflow-engine"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "agent-database",
  "agent-knowledge",
@@ -25840,7 +25840,7 @@ dependencies = [
 
 [[package]]
 name = "workflow-template-contract"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "anyhow",
  "serde_json",
@@ -25850,7 +25850,7 @@ dependencies = [
 
 [[package]]
 name = "workflow-video-edit"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "agent-database",
  "anyhow",
@@ -25884,7 +25884,7 @@ dependencies = [
 
 [[package]]
 name = "worktree-core"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "agent-bus",
  "agent-config",

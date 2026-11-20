@@ -1,6 +1,6 @@
 [package]
 name = "app-diagnostics-runtime"
-version = "0.6.0"
+version = "0.7.0"
 edition = "2024"
 license = "MIT"
 
@@ -40,63 +40,63 @@ version = "0.1"
 
 [dependencies.vw-agent-apps]
 path = "../../vw-agent-apps"
-version = "0.6.0"
+version = "0.7.0"
 
 [dependencies.vw-api-app-diagnostics]
 path = "../api-app-diagnostics"
-version = "0.6.0"
+version = "0.7.0"
 
 [dependencies.vw-api-transport]
 path = "../api-transport"
-version = "0.6.0"
+version = "0.7.0"
 
 [dependencies.agent-app-services]
 path = "../agent-app-services"
-version = "0.6.0"
+version = "0.7.0"
 
 [dependencies.agent-database]
 path = "../agent-database"
-version = "0.6.0"
+version = "0.7.0"
 
 [dependencies.app-provider-services]
 path = "../app-provider-services"
-version = "0.6.0"
+version = "0.7.0"
 
 [dependencies.model-transport]
 path = "../model-transport"
-version = "0.6.0"
+version = "0.7.0"
 
 [dependencies.model-protocol]
 path = "../model-protocol"
-version = "0.6.0"
+version = "0.7.0"
 
 [dependencies.model-types]
 path = "../model-types"
-version = "0.6.0"
+version = "0.7.0"
 
 [dependencies.model-protocols]
 path = "../model-protocols"
-version = "0.6.0"
+version = "0.7.0"
 
 [dependencies.model-catalog]
 path = "../model-catalog"
-version = "0.6.0"
+version = "0.7.0"
 
 [dependencies.provider-protocol-routes]
 path = "../provider-protocol-routes"
-version = "0.6.0"
+version = "0.7.0"
 
 [dependencies.vw-api-model-catalog]
 path = "../api-model-catalog"
-version = "0.6.0"
+version = "0.7.0"
 
 [dependencies.vw-api-app-auth]
 path = "../api-app-auth"
-version = "0.6.0"
+version = "0.7.0"
 
 [dependencies.vw-api-app-identity]
 path = "../api-app-identity"
-version = "0.6.0"
+version = "0.7.0"
 
 [dependencies.reqwest]
 version = "0.13"
@@ -119,7 +119,7 @@ libc = "0.2"
 axum = "0.8"
 tempfile = "3"
 tokio = { version = "1", features = ["full", "test-util"] }
-vw-api-app-provider-base = { path = "../api-app-provider-base", version = "0.6.0" }
-vw-api-app-provider-profiles = { path = "../api-app-provider-profiles", version = "0.6.0" }
-vw-api-app-provider-edit = { path = "../api-app-provider-edit", version = "0.6.0" }
-vw-api-app-failover = { path = "../api-app-failover", version = "0.6.0" }
+vw-api-app-provider-base = { path = "../api-app-provider-base", version = "0.7.0" }
+vw-api-app-provider-profiles = { path = "../api-app-provider-profiles", version = "0.7.0" }
+vw-api-app-provider-edit = { path = "../api-app-provider-edit", version = "0.7.0" }
+vw-api-app-failover = { path = "../api-app-failover", version = "0.7.0" }

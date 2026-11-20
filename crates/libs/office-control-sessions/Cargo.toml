@@ -1,6 +1,6 @@
 [package]
 name = "office-control-sessions"
-version = "0.6.0"
+version = "0.7.0"
 edition = "2024"
 license = "MIT"
 
@@ -8,5 +8,5 @@ license = "MIT"
 doctest = false
 
 [dependencies]
-vw-api-computer-control = { path = "../../libs/api-computer-control", version = "0.6.0" }
+vw-api-computer-control = { path = "../../libs/api-computer-control", version = "0.7.0" }
 uuid = { version = "1.11", features = ["v4", "js"] }

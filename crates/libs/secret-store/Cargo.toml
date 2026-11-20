@@ -1,6 +1,6 @@
 [package]
 name = "secret-store"
-version = "0.6.0"
+version = "0.7.0"
 edition = "2024"
 license = "MIT"
 
@@ -14,14 +14,14 @@ tracing = "0.1"
 
 [dev-dependencies]
 tokio = { version = "1", features = ["fs", "macros", "rt-multi-thread"] }
-config-runtime-paths = { path = "../config-runtime-paths", version = "0.6.0" }
+config-runtime-paths = { path = "../config-runtime-paths", version = "0.7.0" }
 tempfile = "3"
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-agent-database = { path = "../agent-database", version = "0.6.0" }
-vw-api-transport = { path = "../api-transport", version = "0.6.0" }
-config-gateway = { path = "../config-gateway", version = "0.6.0" }
-gateway-pairing = { path = "../gateway-pairing", version = "0.6.0" }
+agent-database = { path = "../agent-database", version = "0.7.0" }
+vw-api-transport = { path = "../api-transport", version = "0.7.0" }
+config-gateway = { path = "../config-gateway", version = "0.7.0" }
+gateway-pairing = { path = "../gateway-pairing", version = "0.7.0" }
 chrono = { version = "0.4", features = ["serde"] }
 sha2 = "0.11"
 hex = "0.4"
@@ -34,4 +34,4 @@ rusqlite = { version = "0.37.0", features = ["bundled"] }
 rusqlite = "0.37.0"
 
 [target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
-agent-database = { path = "../agent-database", version = "0.6.0", features = ["test-support"] }
+agent-database = { path = "../agent-database", version = "0.7.0", features = ["test-support"] }

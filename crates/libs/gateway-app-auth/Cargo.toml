@@ -1,12 +1,12 @@
 [package]
 name = "gateway-app-auth"
-version = "0.6.0"
+version = "0.7.0"
 edition = "2024"
 license = "MIT"
 
 [dependencies]
-vw-api-app-auth = { path = "../api-app-auth", version = "0.6.0" }
-gateway-http = { path = "../gateway-http", version = "0.6.0" }
+vw-api-app-auth = { path = "../api-app-auth", version = "0.7.0" }
+gateway-http = { path = "../gateway-http", version = "0.7.0" }
 serde = { version = "1", features = ["derive"] }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
@@ -16,8 +16,8 @@ reqwest = { version = "0.13", default-features = false, features = ["json", "que
 reqwest = { version = "0.13", features = ["json", "query"] }
 
 [dev-dependencies]
-vw-api-transport = { path = "../api-transport", version = "0.6.0" }
+vw-api-transport = { path = "../api-transport", version = "0.7.0" }
 serde_json = "1"
 tracing = "0.1"
-gateway-endpoint = { path = "../gateway-endpoint", version = "0.6.0" }
+gateway-endpoint = { path = "../gateway-endpoint", version = "0.7.0" }
 tokio = { version = "1", features = ["macros", "rt-multi-thread"] }

@@ -1,11 +1,11 @@
 [package]
 name = "config-security"
-version = "0.6.0"
+version = "0.7.0"
 edition = "2024"
 license = "MIT"
 
 [dependencies]
-config-runtime-paths = { path = "../config-runtime-paths", version = "0.6.0" }
+config-runtime-paths = { path = "../config-runtime-paths", version = "0.7.0" }
 schemars = "1.2"
 serde = { version = "1", features = ["derive"] }
 

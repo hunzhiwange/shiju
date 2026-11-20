@@ -1,6 +1,6 @@
 [package]
 name = "app-data-format"
-version = "0.6.0"
+version = "0.7.0"
 edition = "2024"
 license = "MIT"
 
@@ -15,9 +15,9 @@ serde_json = { version = "1", features = ["arbitrary_precision"] }
 sha2 = "0.11"
 tempfile = "3"
 uuid = { version = "1.11", features = ["v4", "js"] }
-vw-api-transport = { path = "../api-transport", version = "0.6.0" }
-vw-api-app-identity = { path = "../api-app-identity", version = "0.6.0" }
-vw-api-app-provider-base = { path = "../api-app-provider-base", version = "0.6.0" }
+vw-api-transport = { path = "../api-transport", version = "0.7.0" }
+vw-api-app-identity = { path = "../api-app-identity", version = "0.7.0" }
+vw-api-app-provider-base = { path = "../api-app-provider-base", version = "0.7.0" }
 
 [target.'cfg(unix)'.dependencies]
 libc = "0.2"

@@ -1,6 +1,6 @@
 [package]
 name = "plugin-mcp"
-version = "0.6.0"
+version = "0.7.0"
 edition = "2024"
 license = "MIT"
 
@@ -12,8 +12,8 @@ test-support = ["dep:acp-types"]
 
 [dependencies]
 tracing = "0.1"
-acp-types = { path = "../acp-types", version = "0.6.0", optional = true }
-session-port = { path = "../session-port", version = "0.6.0" }
+acp-types = { path = "../acp-types", version = "0.7.0", optional = true }
+session-port = { path = "../session-port", version = "0.7.0" }
 anyhow = "1"
 serde_json = "1"
 rmcp = { version = "0.8.0", features = ["client"] }
@@ -21,24 +21,24 @@ tokio = { version = "1", features = ["time", "macros", "net", "rt-multi-thread",
 tokio-util = "0.7.18"
 chrono = "0.4"
 url = "2"
-agent-question = { path = "../agent-question", version = "0.6.0" }
-question-types = { path = "../question-types", version = "0.6.0" }
-network-policy = { path = "../network-policy", version = "0.6.0" }
-tool-types = { path = "../tool-types", version = "0.6.0" }
-vw-api-tools = { path = "../api-tools", version = "0.6.0" }
-vw-api-transport = { path = "../api-transport", version = "0.6.0" }
-mcp-client = { path = "../mcp-client", version = "0.6.0" }
+agent-question = { path = "../agent-question", version = "0.7.0" }
+question-types = { path = "../question-types", version = "0.7.0" }
+network-policy = { path = "../network-policy", version = "0.7.0" }
+tool-types = { path = "../tool-types", version = "0.7.0" }
+vw-api-tools = { path = "../api-tools", version = "0.7.0" }
+vw-api-transport = { path = "../api-transport", version = "0.7.0" }
+mcp-client = { path = "../mcp-client", version = "0.7.0" }
 serde = { version = "1", features = ["derive"] }
 agent-client-protocol = { version = "0.10.4", features = ["unstable_session_usage", "unstable_session_resume"] }
 base64 = "0.23"
 reqwest_012 = { package = "reqwest", version = "0.12", default-features = false, features = ["json", "rustls-tls-webpki-roots"] }
-acp-config = { path = "../acp-config", version = "0.6.0" }
+acp-config = { path = "../acp-config", version = "0.7.0" }
 sha2 = "0.10"
 hex = "0.4"
-tool-catalog = { path = "../tool-catalog", version = "0.6.0" }
-plugin-types = { path = "../plugin-types", version = "0.6.0" }
-agent-config = { path = "../agent-config", version = "0.6.0" }
-secret-store = { path = "../secret-store", version = "0.6.0" }
+tool-catalog = { path = "../tool-catalog", version = "0.7.0" }
+plugin-types = { path = "../plugin-types", version = "0.7.0" }
+agent-config = { path = "../agent-config", version = "0.7.0" }
+secret-store = { path = "../secret-store", version = "0.7.0" }
 
 uuid = { version = "1.11", features = ["v4", "js"] }
 

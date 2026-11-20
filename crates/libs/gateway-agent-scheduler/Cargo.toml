@@ -1,6 +1,6 @@
 [package]
 name = "gateway-agent-scheduler"
-version = "0.6.0"
+version = "0.7.0"
 edition = "2024"
 license = "MIT"
 
@@ -12,14 +12,14 @@ test-support = []
 
 [dependencies]
 serde = { version = "1", features = ["derive"] }
-vw-api-agent-scheduler = { path = "../api-agent-scheduler", version = "0.6.0" }
-vw-api-transport = { path = "../api-transport", version = "0.6.0" }
+vw-api-agent-scheduler = { path = "../api-agent-scheduler", version = "0.7.0" }
+vw-api-transport = { path = "../api-transport", version = "0.7.0" }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 anyhow = "1"
-task-scheduler = { path = "../task-scheduler", version = "0.6.0" }
-vw-api-chat-identity = { path = "../api-chat-identity", version = "0.6.0" }
-vw-api-task = { path = "../api-task", version = "0.6.0" }
+task-scheduler = { path = "../task-scheduler", version = "0.7.0" }
+vw-api-chat-identity = { path = "../api-chat-identity", version = "0.7.0" }
+vw-api-task = { path = "../api-task", version = "0.7.0" }
 tokio = { version = "1", features = ["sync", "rt"] }
 chrono = "0.4"
 tracing = "0.1"
@@ -27,23 +27,23 @@ async-trait = "0.1"
 axum = { version = "0.8.8", features = ["json"] }
 futures-util = "0.3.32"
 serde_json = "1"
-agent-project = { path = "../agent-project", version = "0.6.0" }
-gateway-types = { path = "../gateway-types", version = "0.6.0" }
-task-scheduler-core = { path = "../task-scheduler-core", version = "0.6.0" }
+agent-project = { path = "../agent-project", version = "0.7.0" }
+gateway-types = { path = "../gateway-types", version = "0.7.0" }
+task-scheduler-core = { path = "../task-scheduler-core", version = "0.7.0" }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
-gateway-task = { path = "../gateway-task", version = "0.6.0" }
-agent-project = { path = "../agent-project", version = "0.6.0", features = ["test-support"] }
+gateway-task = { path = "../gateway-task", version = "0.7.0" }
+agent-project = { path = "../agent-project", version = "0.7.0", features = ["test-support"] }
 tempfile = "3"
 tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
 tower = { version = "0.5", features = ["util"] }
 
 uuid = { version = "1", features = ["v4"] }
-shell-command = { path = "../shell-command", version = "0.6.0" }
-tool-context = { path = "../tool-context", version = "0.6.0" }
-tool-types = { path = "../tool-types", version = "0.6.0" }
-permission-types = { path = "../permission-types", version = "0.6.0" }
+shell-command = { path = "../shell-command", version = "0.7.0" }
+tool-context = { path = "../tool-context", version = "0.7.0" }
+tool-types = { path = "../tool-types", version = "0.7.0" }
+permission-types = { path = "../permission-types", version = "0.7.0" }
 tokio-util = "0.7"
-vw-api-chat = { path = "../api-chat", version = "0.6.0" }
-session-port = { path = "../session-port", version = "0.6.0" }
-task-scheduler = { path = "../task-scheduler", version = "0.6.0", features = ["test-support"] }
+vw-api-chat = { path = "../api-chat", version = "0.7.0" }
+session-port = { path = "../session-port", version = "0.7.0" }
+task-scheduler = { path = "../task-scheduler", version = "0.7.0", features = ["test-support"] }

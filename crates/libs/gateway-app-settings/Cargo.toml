@@ -1,12 +1,12 @@
 [package]
 name = "gateway-app-settings"
-version = "0.6.0"
+version = "0.7.0"
 edition = "2024"
 license = "MIT"
 
 [dependencies]
-gateway-http = { path = "../gateway-http", version = "0.6.0" }
-vw-api-app-identity = { path = "../api-app-identity", version = "0.6.0" }
+gateway-http = { path = "../gateway-http", version = "0.7.0" }
+vw-api-app-identity = { path = "../api-app-identity", version = "0.7.0" }
 serde_json = "1"
 serde = { version = "1", features = ["derive"] }
 
@@ -17,6 +17,6 @@ reqwest = { version = "0.13", default-features = false, features = ["json", "que
 reqwest = { version = "0.13", features = ["json", "query"] }
 
 [dev-dependencies]
-vw-api-transport = { path = "../api-transport", version = "0.6.0" }
-gateway-endpoint = { path = "../gateway-endpoint", version = "0.6.0" }
+vw-api-transport = { path = "../api-transport", version = "0.7.0" }
+gateway-endpoint = { path = "../gateway-endpoint", version = "0.7.0" }
 tokio = { version = "1", features = ["macros", "rt-multi-thread"] }

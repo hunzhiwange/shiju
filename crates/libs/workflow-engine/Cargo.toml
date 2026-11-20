@@ -1,6 +1,6 @@
 [package]
 name = "workflow-engine"
-version = "0.6.0"
+version = "0.7.0"
 edition = "2024"
 license = "MIT"
 
@@ -11,13 +11,13 @@ test-support = ["dep:git2"]
 doctest = false
 
 [dependencies]
-workflow-core = { path = "../workflow-core", version = "0.6.0" }
-model-protocol = { path = "../model-protocol", version = "0.6.0" }
+workflow-core = { path = "../workflow-core", version = "0.7.0" }
+model-protocol = { path = "../model-protocol", version = "0.7.0" }
 futures-util = "0.3.32"
 async-trait = "0.1.89"
-model-types = { path = "../model-types", version = "0.6.0" }
-vw-api-workflow = { path = "../api-workflow", version = "0.6.0" }
-workflow-video-edit = { path = "../workflow-video-edit", version = "0.6.0" }
+model-types = { path = "../model-types", version = "0.7.0" }
+vw-api-workflow = { path = "../api-workflow", version = "0.7.0" }
+workflow-video-edit = { path = "../workflow-video-edit", version = "0.7.0" }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 tracing = "0.1"
@@ -26,12 +26,12 @@ uuid = { version = "1.11", features = ["v4", "js"] }
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 git2 = { version = "0.21.0", default-features = false, features = ["https", "ssh", "vendored-libgit2", "vendored-openssl"], optional = true }
 anyhow = "1"
-agent-knowledge = { path = "../agent-knowledge", version = "0.6.0" }
-vw-api-knowledge = { path = "../api-knowledge", version = "0.6.0" }
+agent-knowledge = { path = "../agent-knowledge", version = "0.7.0" }
+vw-api-knowledge = { path = "../api-knowledge", version = "0.7.0" }
 tokio-util = { version = "0.7.18", features = ["compat"] }
-tool-types = { path = "../tool-types", version = "0.6.0" }
-vw-api-transport = { path = "../api-transport", version = "0.6.0" }
-session-port = { path = "../session-port", version = "0.6.0" }
+tool-types = { path = "../tool-types", version = "0.7.0" }
+vw-api-transport = { path = "../api-transport", version = "0.7.0" }
+session-port = { path = "../session-port", version = "0.7.0" }
 sha2 = "0.11"
 hex = "0.4"
 axum = { version = "0.8.8", features = ["json"] }
@@ -44,7 +44,7 @@ reqwest = { version = "0.13", features = ["json", "multipart", "stream"] }
 tokio = { version = "1", features = ["sync", "macros", "time", "rt", "process", "signal"] }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
-agent-database = { path = "../agent-database", version = "0.6.0" }
+agent-database = { path = "../agent-database", version = "0.7.0" }
 
 [dev-dependencies]
 anyhow = "1"

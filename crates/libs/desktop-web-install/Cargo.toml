@@ -1,6 +1,6 @@
 [package]
 name = "desktop-web-install"
-version = "0.6.0"
+version = "0.7.0"
 edition = "2024"
 license = "MIT"
 
@@ -8,10 +8,10 @@ license = "MIT"
 doctest = false
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-desktop-release = { path = "../desktop-release", version = "0.6.0" }
-update-types = { path = "../update-types", version = "0.6.0" }
+desktop-release = { path = "../desktop-release", version = "0.7.0" }
+update-types = { path = "../update-types", version = "0.7.0" }
 anyhow = "1"
-config-runtime-paths = { path = "../config-runtime-paths", version = "0.6.0" }
+config-runtime-paths = { path = "../config-runtime-paths", version = "0.7.0" }
 directories = "5"
 iced = { version = "0.14", features = ["tokio"] }
 open = "5"

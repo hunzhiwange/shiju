@@ -1,6 +1,6 @@
 [package]
 name = "app-provider-validation"
-version = "0.6.0"
+version = "0.7.0"
 edition = "2024"
 license = "MIT"
 
@@ -8,9 +8,9 @@ license = "MIT"
 doctest = false
 
 [dependencies]
-vw-api-app-provider-edit = { path = "../api-app-provider-edit", version = "0.6.0" }
-vw-api-app-provider-base = { path = "../api-app-provider-base", version = "0.6.0" }
-vw-api-app-identity = { path = "../api-app-identity", version = "0.6.0" }
+vw-api-app-provider-edit = { path = "../api-app-provider-edit", version = "0.7.0" }
+vw-api-app-provider-base = { path = "../api-app-provider-base", version = "0.7.0" }
+vw-api-app-identity = { path = "../api-app-identity", version = "0.7.0" }
 reqwest = { version = "0.13", default-features = false }
 serde_json = { version = "1", features = ["arbitrary_precision"] }
 toml_edit = "0.22"

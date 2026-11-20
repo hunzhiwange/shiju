@@ -1,6 +1,6 @@
 [package]
 name = "agent-knowledge"
-version = "0.6.0"
+version = "0.7.0"
 edition = "2024"
 license = "MIT"
 
@@ -17,16 +17,16 @@ mime_guess = "2.0.5"
 once_cell = "1"
 regex = "1"
 serde_json = "1"
-vw-api-knowledge = { path = "../api-knowledge", version = "0.6.0" }
+vw-api-knowledge = { path = "../api-knowledge", version = "0.7.0" }
 pdf-extract = { version = "0.12.0", optional = true }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-agent-database = { path = "../agent-database", version = "0.6.0" }
-gateway-error = { path = "../gateway-error", version = "0.6.0" }
-agent-config = { path = "../agent-config", version = "0.6.0" }
-agent-memory = { path = "../agent-memory", version = "0.6.0" }
-memory-algorithms = { path = "../memory-algorithms", version = "0.6.0" }
-memory-types = { path = "../memory-types", version = "0.6.0" }
+agent-database = { path = "../agent-database", version = "0.7.0" }
+gateway-error = { path = "../gateway-error", version = "0.7.0" }
+agent-config = { path = "../agent-config", version = "0.7.0" }
+agent-memory = { path = "../agent-memory", version = "0.7.0" }
+memory-algorithms = { path = "../memory-algorithms", version = "0.7.0" }
+memory-types = { path = "../memory-types", version = "0.7.0" }
 tokio = { version = "1", features = ["rt", "sync", "time"] }
 tracing = "0.1"
 anyhow = "1"
@@ -34,10 +34,10 @@ hex = "0.4"
 postgres = { version = "0.19.12", features = ["with-chrono-0_4"] }
 sha2 = "0.10"
 uuid = { version = "1.11", features = ["v4", "js"] }
-vw-api-transport = { path = "../api-transport", version = "0.6.0" }
+vw-api-transport = { path = "../api-transport", version = "0.7.0" }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
-agent-database = { path = "../agent-database", version = "0.6.0", features = ["test-support"] }
+agent-database = { path = "../agent-database", version = "0.7.0", features = ["test-support"] }
 tempfile = "3"
 async-trait = "0.1.89"
 axum = { version = "0.8.8", features = ["json"] }

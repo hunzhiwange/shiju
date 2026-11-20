@@ -1,6 +1,6 @@
 [package]
 name = "tool-computer"
-version = "0.6.0"
+version = "0.7.0"
 edition = "2024"
 license = "MIT"
 
@@ -11,13 +11,13 @@ test-support = ["computer-control/test-support"]
 doctest = false
 
 [target.'cfg(unix)'.dependencies]
-computer-control = { path = "../computer-control", version = "0.6.0" }
-config-computer-control = { path = "../config-computer-control", version = "0.6.0" }
-tool-types = { path = "../tool-types", version = "0.6.0" }
-tool-context = { path = "../tool-context", version = "0.6.0" }
-vw-api-computer-control = { path = "../api-computer-control", version = "0.6.0" }
-vw-api-transport = { path = "../api-transport", version = "0.6.0" }
-vw-api-tools = { path = "../api-tools", version = "0.6.0" }
+computer-control = { path = "../computer-control", version = "0.7.0" }
+config-computer-control = { path = "../config-computer-control", version = "0.7.0" }
+tool-types = { path = "../tool-types", version = "0.7.0" }
+tool-context = { path = "../tool-context", version = "0.7.0" }
+vw-api-computer-control = { path = "../api-computer-control", version = "0.7.0" }
+vw-api-transport = { path = "../api-transport", version = "0.7.0" }
+vw-api-tools = { path = "../api-tools", version = "0.7.0" }
 anyhow = "1"
 async-trait = "0.1.89"
 base64 = "0.23"

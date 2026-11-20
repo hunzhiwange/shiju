@@ -1,12 +1,12 @@
 [package]
 name = "gateway-computer-control"
-version = "0.6.0"
+version = "0.7.0"
 edition = "2024"
 license = "MIT"
 
 [dependencies]
-vw-api-computer-control = { path = "../api-computer-control", version = "0.6.0" }
-gateway-http = { path = "../gateway-http", version = "0.6.0" }
+vw-api-computer-control = { path = "../api-computer-control", version = "0.7.0" }
+gateway-http = { path = "../gateway-http", version = "0.7.0" }
 serde = { version = "1", features = ["derive"] }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
@@ -17,8 +17,8 @@ reqwest = { version = "0.13", features = ["json", "query", "stream"] }
 
 [dev-dependencies]
 serde_json = "1"
-vw-api-transport = { path = "../api-transport", version = "0.6.0" }
-gateway-endpoint = { path = "../gateway-endpoint", version = "0.6.0" }
+vw-api-transport = { path = "../api-transport", version = "0.7.0" }
+gateway-endpoint = { path = "../gateway-endpoint", version = "0.7.0" }
 tokio = { version = "1", features = ["macros", "rt-multi-thread", "process", "time"] }
 
 [lib]
@@ -31,13 +31,13 @@ sha2 = "0.11"
 hex = "0.4"
 libc = "0.2"
 tokio = { version = "1", features = ["sync"] }
-agent-config = { path = "../agent-config", version = "0.6.0" }
-computer-control = { path = "../computer-control", version = "0.6.0" }
-config-computer-control = { path = "../config-computer-control", version = "0.6.0" }
-gateway-pairing = { path = "../gateway-pairing", version = "0.6.0" }
-gateway-types = { path = "../gateway-types", version = "0.6.0" }
-tool-computer = { path = "../tool-computer", version = "0.6.0" }
-vw-api-transport = { path = "../api-transport", version = "0.6.0" }
+agent-config = { path = "../agent-config", version = "0.7.0" }
+computer-control = { path = "../computer-control", version = "0.7.0" }
+config-computer-control = { path = "../config-computer-control", version = "0.7.0" }
+gateway-pairing = { path = "../gateway-pairing", version = "0.7.0" }
+gateway-types = { path = "../gateway-types", version = "0.7.0" }
+tool-computer = { path = "../tool-computer", version = "0.7.0" }
+vw-api-transport = { path = "../api-transport", version = "0.7.0" }
 
 [target.'cfg(unix)'.dev-dependencies]
 tower = { version = "0.5", features = ["util"] }

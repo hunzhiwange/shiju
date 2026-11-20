@@ -1,16 +1,16 @@
 [package]
 name = "session-info"
-version = "0.6.0"
+version = "0.7.0"
 edition = "2024"
 license = "MIT"
 
 [dependencies]
 anyhow = "1"
 serde_json = "1"
-ordered-id = { path = "../ordered-id", version = "0.6.0" }
-storage-types = { path = "../storage-types", version = "0.6.0" }
-permission-types = { path = "../permission-types", version = "0.6.0" }
-snapshot-types = { path = "../snapshot-types", version = "0.6.0" }
+ordered-id = { path = "../ordered-id", version = "0.7.0" }
+storage-types = { path = "../storage-types", version = "0.7.0" }
+permission-types = { path = "../permission-types", version = "0.7.0" }
+snapshot-types = { path = "../snapshot-types", version = "0.7.0" }
 serde = { version = "1", features = ["derive"] }
 
 [dev-dependencies]

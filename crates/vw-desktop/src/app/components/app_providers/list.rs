@@ -1,6 +1,7 @@
 use super::super::system_settings_common::*;
 use crate::app::message::app_providers::list::{ListMessage, message};
 use crate::app::{Message, i18n::I18n, state::app_providers::list::ListState};
+use desktop_ui_controls::system_settings_common::settings_inactive_view;
 use iced::{Element, Theme};
 #[derive(Clone, Copy)]
 pub(crate) struct Help<'a> {

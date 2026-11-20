@@ -1,6 +1,7 @@
 //! Profile chooser and maintenance; applying belongs to the apply workflow.
 use crate::project_profiles::{State, Action};
 use desktop_ui_controls::system_settings_common::*;
+mod apply;
 #[path = "management.rs"]
 mod management;
 use iced::{

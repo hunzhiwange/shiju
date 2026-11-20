@@ -127,7 +127,7 @@ fn agent_workspace(app: &App) -> Element<'_, Message> {
     let state = &app.apps_catalog;
     let projection = system_settings_apps::view_state(state);
     let selected = state.rows.iter().find(|row| Some(row.entry.id) == state.expanded);
-    let (header, body) = if let Some(agent) = selected {
+    let (header, body): (Element<'_, Message>, Element<'_, Message>) = if let Some(agent) = selected {
         use super::app_routing::lifecycle as routing;
         use super::system_settings_common::{settings_panel, settings_value_badge};
         use crate::app::message::settings::aggregation_list;
@@ -181,7 +181,7 @@ fn agent_workspace(app: &App) -> Element<'_, Message> {
                 (Tab::Aggregation, "聚合", aggregation_list::supported(id)),
             ];
             let buttons = settings_tab_row(
-                modes.into_iter().filter(|(_, _, supported)| *supported).map(|(target, label)| {
+                modes.into_iter().filter(|(_, _, supported)| *supported).map(|(target, label, _)| {
                     settings_tab_button(
                         label,
                         tab == target,
@@ -247,7 +247,7 @@ fn agent_workspace(app: &App) -> Element<'_, Message> {
                         aggregation_mode.is_some_and(|mode| mode != AggregationMode::Direct);
                     let next = if can_preview_exit {
                         aggregation_list::message(aggregation_list::Event::Publish(
-                            aggregation_list::publish::Event::OpenExit,
+                            desktop_apps_ui::aggregation::publish::Event::OpenExit,
                         ))
                     } else {
                         select(Tab::Routing)

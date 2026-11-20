@@ -23,13 +23,30 @@ Kimi 的 `ExtraFileSkillSource` 从私有 `KIMI_CODE_HOME/config.toml` 读取 `e
 
 挂载轮依次读回原生技能正文 `call_73e2a13e409fc40dbbdf45b3`、原生附件 `call_f4837aaea2eb97fa68c728af`、选中技能正文 `call_32d4327365da7872d135f2de`、选中附件 `call_66a9c2b595945c737eedebfb` 和 MCP 结果 `call_8841cd0db75f1e4b86d2c818`。拒绝后的原生错误续轮关联 `call_a8632a67296c2ba7b027ac0c`。原生诊断日志位于 `target/acp-skill-coexistence/kimi-direct-*.log`。
 
-## 网关复验状态
+## 前次网关验证
 
 槽位 9 的 `CARGO_TARGET_DIR` 与 `CARGO_BUILD_BUILD_DIR` 均为仓库内的 `target/rust-slot-9`。本次网关构建已通过 `llm-runtime` 编译，随后在并行开发的 `task-scheduler` 退出 101。错误包括 `E0432`（构建时 API 缺少 `TaskPlanSubTask`、`WorkPlanPublication`）和 `E0616`（PostgreSQL 存储访问私有 `PlanMember.id`）。后续共享构建越过 API 导出错误，仍在同一私有字段失败。网关挂载、撤除和拒绝对照尚待复验。
 
 槽位 10 的旧网关另通过 MCP 隔离对照。四个会话均有一次 `chat.done`、零错误，并回读受限模式与指定模型。MCP 实际调用为 0/1/0/0，挂载轮允许一次，拒绝轮拒绝一次。此对照使用原生技能与 MCP，选中技能挂载由新网关复验。证据位于 `target/acp-skill-coexistence/kimi-mcp-only.json`。
 
 定向单测复用槽位 3 已编译的 `llm_runtime-85f23fc8970681f8`，在持有槽位期间按 `acp_skill_coexistence_kimi --test-threads=1` 过滤，退出 0，实际执行 2 项且全部通过。两项缓存路径均为仓库内的 `target/rust-slot-3`。槽位 9 的重复单测编译随后停止，槽位租约已释放。
+
+## 最终网关回归
+
+2026-11-21。复用槽位 6 的共享网关，核对源码提交 `03e5fc747ed4571184fbb6a156bb48d093b9fee0`、默认 Cargo 特性、构建前后源码差异摘要和二进制 SHA-256 `c59878516f6a88bb8f60ce78955654b9859bca9b82af6711fc14c83d0a572eba`。探针退出 1。基线通过，挂载轮激活了所选技能，但原生 `Read` 通过 ACP `fs/read_text_file` 读取视图附件时收到内部错误。首个失败位于宿主工作区读取边界，调用尚未到达 MCP。证据位于 `target/acp-skill-coexistence/kimi-final-before.json`。
+
+Kimi 接入现有 ACP 技能只读根。仅受管启动且持有技能租约时纳入已选源的规范路径，继续执行会话校验、拒绝模式、路径边界及写入限制。用槽位 3 重建 `vw-cli --bin shiju`，Cargo 与探针退出均为 0。两项缓存路径均指向仓库内 `target/rust-slot-3`，网关 SHA-256 为 `22f025d49ce9fb8a88c87233533981664ced10210b28645ed415b3ccfefa1620`，固定 Kimi 制品摘要同上。四轮均回读 `session_model`、`coexistence-fixture/deepseek-v4.1-flash-1017` 和 `full_access=false`。
+
+| 轮次 | 新会话 | `chat.done` / `chat.error` | 模型请求 | MCP 审批 / 下游调用 |
+| --- | --- | --- | ---: | --- |
+| 基线 | `ses_e05e66cd1ffeNKeiRDzCTXSdhW` | 1/0 | 3 | 无 / 0 |
+| 挂载 | `ses_e05e61d3fffedhYYoRYGMC9bnb` | 1/0 | 6 | 允许一次 / 1 |
+| 撤除 | `ses_e05e5d6deffefG5lPG1ds251HN` | 1/0 | 3 | 无 / 0 |
+| 拒绝对照 | `ses_e05e5bf16ffew6BlN6fB0CA5D8` | 1/0 | 6 | 拒绝一次 / 0 |
+
+挂载轮原生技能正文、原生附件、所选正文、所选附件和 MCP 结果依次关联 `call_c8765fcdc054bf7aa8faefec`, `call_8798d3044d2fa9eb04e559e6`, `call_a2db3970b683bdd47cf33c79`, `call_5928491c885328e53215cb1e`, `call_edff9dbe081e18d934987ff5`。拒绝轮的 `call_03efc52ca62fb9919587ed0b` 回传拒绝结果，下游执行零次。完整证据位于 `target/acp-skill-coexistence/kimi.json`。
+
+同槽位运行 `cargo test --locked -j 1 -p acp-client --lib acp_skill_coexistence_kimi -- --test-threads=1`，退出 0，实跑一项并通过。覆盖租约和受管启动缺失、拒绝模式、非选中读、符号链接越界及写入拒绝。沿用此前已通过的两项 `llm-runtime` 单测。
 
 ## 复验入口
 

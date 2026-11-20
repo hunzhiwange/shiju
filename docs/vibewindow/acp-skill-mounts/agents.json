@@ -1903,7 +1903,7 @@
         "evidence": "evidence/kimi.json"
       },
       "coexistence_acceptance": {
-        "status": "unverified",
+        "status": "verified",
         "scope": "Darwin-arm64 native 2.5.0 session_model with one validated extra_skill_dirs root and stdio MCP",
         "evidence": "../../dev/acp/skill-coexistence/kimi.md"
       }

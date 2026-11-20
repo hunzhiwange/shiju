@@ -457,6 +457,10 @@ pub(super) struct PlanMember {
 }
 
 impl PlanMember {
+    pub(super) fn id(&self) -> &TaskId {
+        &self.id
+    }
+
     pub(super) fn decode(
         id: String,
         parent: Option<String>,

@@ -8,9 +8,6 @@ use std::sync::{Arc, Mutex};
 
 use anyhow::Result;
 use async_trait::async_trait;
-#[cfg(all(not(test), not(target_arch = "wasm32")))]
-use serde_json::{Value, json};
-#[cfg(any(test, target_arch = "wasm32"))]
 use serde_json::{Map, Value, json};
 use tokio::sync::Mutex as AsyncMutex;
 use vw_api_agent_scheduler::{

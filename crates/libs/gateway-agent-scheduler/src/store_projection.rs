@@ -411,7 +411,6 @@ pub(super) fn workflow_status_role(
         .map(|status| status.role)
 }
 
-#[cfg(test)]
 pub(super) fn task_metadata_object(value: Value) -> Result<Map<String, Value>, ApiError> {
     match value {
         Value::Object(map) => Ok(map),

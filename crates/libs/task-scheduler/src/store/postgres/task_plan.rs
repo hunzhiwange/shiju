@@ -243,10 +243,11 @@ impl PostgresAgentSchedulerStore {
                 WorkPlanPublication::Manual => {
                     for child in members.iter().filter(|member| member.is_child_of(parent_id)) {
                         let metadata = manual_child_metadata(&parent, child, &workflow, queued_key)?;
+                        let child_id = child.id().as_str();
                         tx.execute(UPDATE_PLAN_TASK, &[
-                            &platform, &company, &project, &child.id.as_str(), &"queued", &metadata, &now.0
+                            &platform, &company, &project, &child_id, &"queued", &metadata, &now.0
                         ])?;
-                        child_ids.push(child.id.as_str().to_owned());
+                        child_ids.push(child_id.to_owned());
                     }
                 }
             }

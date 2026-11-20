@@ -28,3 +28,22 @@
 恢复本项需要兼容现有审批约束的原生工具控制及 MCP 拒绝路径，以及可与会话视图合并的受信原生根。当前私有 Gateway 的 MCP 投影依赖完全访问，ACP 桥没有逐次 MCP 审批。现有生产配置、制品合约和 `cli_local` 门禁保留。 [OpenClaw 权限与传输审计](../mcp-policy-audit/3.md#openclaw)
 
 Python 共享验收判定的 5 项定向测试通过。复用已有网关，未重新构建或运行 Rust 单测。
+
+## 续查受审替代路径
+
+在当前共享代码中复核了两处宿主权限门禁。请求绑定桌面权限后、技能视图准备前检查当前完全访问授权，ACP 启动参数生成时还会检查实际审批模式。OpenClaw 驱动随后独立校验 MCP 投影权限。共享工作区后续变更接通了 OMP、siGit 等适配器的受限启动，OpenClaw 的这三处检查和固定补丁均未变化。先前四轮结果由此可以定位为权限断点，复用已有报告。 [请求入口](../../../../crates/libs/llm-runtime/src/acp/request.rs#L185) · [ACP 进程入口](../../../../crates/libs/acp-client/src/client/process.rs#L383) · [MCP 投影](../../../../crates/libs/llm-runtime/src/acp/model_source/drivers/openclaw.rs#L172)
+
+用固定版原生异步加载器分别观测目录扫描和提示资格。在 0700 临时树放置工作区原生技能、显式禁用技能、其它项目根、私有管理根及链接投影。设置 `plugins.enabled=false`、`skills.allowBundled=[]` 和显式禁用项，结果如下。结构化证据保存在 `target/acp-skill-coexistence/openclaw-native-config.json`。
+
+| 配置 | 进入提示的夹具技能 |
+| --- | --- |
+| 当前空会话根 | 无 |
+| 当前投影会话根 | 选中技能 |
+| 原生 `skills.load.extraDirs` 追加会话视图 | 原生技能、选中技能、其它项目根和私有管理根 |
+| 原生 `workspaceOnly` 加同一 `extraDirs` | 原生技能 |
+
+显式禁用和内置技能过滤在提示资格阶段生效。前一追加路径仍纳入两个未单独授权的根，后一条丢失会话视图。生产接入需要按来源限制原生根，并仅为经宿主校验的会话视图登记链接目标。
+
+固定制品 `dist/server-D2T0Amp5.mjs` 的 `assertSupportedSessionSetup` 拒绝非空 MCP 列表。桥的 Gateway 事件处理只将 `exec.approval.requested` 转成 ACP 权限请求，命令执行的批准绑定到活动会话和命令调用。制品里的 Codex harness 审批及 MCP App 审批属于独立入口。历史同版私有 Gateway 的普通模型工具实测已显示 MCP 结果进入续轮，ACP 审批回调为零。OMP 的受审宿主审批绑定其自有沙箱启动器与 MCP 代理，可用来参考调用约束，但接在 OpenClaw 的 stdio 之后也无法代替对独占 Gateway 原生文件、命令和网络能力的约束。 [固定版回执](../mcp-acceptance/openclaw.md#私有-openclaw-网关探针) · [OMP 受限审批](../mcp-acceptance/omp.md)
+
+三轮和逐次否决仍需要新的受审 OpenClaw 启动路径或固定制品。该路径须同时约束独占 Gateway 的原生 I/O，在普通模型 MCP 调用之前把同一会话、工具和参数交给宿主审批，并证明拒绝和取消均不会触达下游。单独授予完全访问只能进入现有投影，无法验证这项拒绝合同。

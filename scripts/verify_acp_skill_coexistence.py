@@ -25,6 +25,7 @@ from verify_acp_model_source import ROOT, Unavailable
 
 # Add a key only once its supplier module implements the reviewed probe interface.
 AGENTS = ("claude", "qwen", "gemini", "codebuddy", "vibe", "snow", "goose", "hermes", "copilot", "kilocode", "kiro", "opencode", "openclaw", "pi", "iflow", "auggie", "cursor", "droid", "kimi", "qoder", "trae", "amp-acp", "aionrs", "autohand", "corust-agent", "dimcode", "deepagents", "glm-acp-agent", "cortex-code")
+AGENTS += ("grok",)
 AGENT_PROFILE = "acp-coexistence"
 PROVIDER = "coexistence-fixture"
 AGENTS += ("harn",)

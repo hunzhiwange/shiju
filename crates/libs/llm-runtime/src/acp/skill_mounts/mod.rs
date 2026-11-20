@@ -13,6 +13,7 @@ mod droid;
 mod deepagents_tests;
 mod gemini;
 mod goose;
+mod grok;
 mod hermes;
 mod iflow;
 mod kilocode;
@@ -38,6 +39,7 @@ pub fn validate(agent: &str, selected: bool) -> Result<(), Error> {
         "gemini" => return Ok(()),
         "codebuddy" => return Ok(()),
         "goose" => return Ok(()),
+        "grok" if cfg!(all(target_os = "macos", target_arch = "aarch64")) => return Ok(()),
         "vibe" => return Ok(()),
         "hermes" => return Ok(()),
         "snow" => return Ok(()),
@@ -145,7 +147,9 @@ pub fn configure_native_scanner(
     config: &mut agent_config::schema::AcpAgentConfig,
     view: Option<&MountedSkills>,
 ) -> Result<(), Error> {
-    if agent == "kimi" {
+    if agent == "grok" {
+        grok::configure(config, view)?;
+    } else if agent == "kimi" {
         kimi::configure(config, view)?;
     } else if agent == "cursor" {
         cursor::configure(config, view)?;

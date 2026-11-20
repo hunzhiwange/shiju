@@ -5,10 +5,9 @@ bundle. Exact original and resulting SHA-256 values are in `hashes.json`.
 It adds a hidden managed startup flag and a separate project state root.
 Managed model configuration starts from the selected client model instead of
 native Gemini thinking/topK presets, and the resolved model remains locked for
-primary, helper and compression requests. ACP, tools, permissions and
-authentication remain upstream code. The transport removes only the CLI-inserted
-`skip_thought_signature_validator` sentinel; opaque provider signatures remain
-intact and unsupported cross-protocol signatures still fail explicitly. Native cli_local behavior is unchanged.
+primary, helper and compression requests. The transport removes the CLI-inserted
+`skip_thought_signature_validator` sentinel. It preserves opaque provider
+signatures and fails explicitly for unsupported cross-protocol signatures.
 
 Native 0.66.0 stores resumable ACP conversations below `GEMINI_CLI_HOME` together
 with credentials/settings. A request-owned launch directory is removed when its
@@ -27,16 +26,19 @@ patch -p1 -d target/acp-gemini-runtime/node_modules/@google/gemini-cli < patches
 ```
 
 Verify each file against `hashes.json` before/after applying. Use that
-installation's `node_modules/.bin` on PATH for offline acceptance. Task 33 must
-verify and distribute this artifact before advertising managed Gemini support;
-this task does not modify the shared installer or capability manifest.
+installation's `node_modules/.bin` for offline acceptance. The managed registry
+installs this artifact in its versioned revision directory.
 
-The skill mount adapter sets `SHIJU_GEMINI_SKILL_ROOT` independently of the
-model source. When present, the reviewed native SkillManager scans only that
-absolute request-owned directory, or no directories for an empty selection.
-Builtin, extension, user and project skills are excluded in both model modes.
-Without that environment variable, upstream discovery is unchanged. The
-existing model lock, thought signatures and history root behavior are unchanged.
+The managed v3 scanner appends `SHIJU_GEMINI_SKILL_ROOT` after the native
+project discovery roots, inside Gemini's existing trusted-workspace branch.
+An empty selection keeps native discovery. A selected name that collides with
+a native skill fails discovery explicitly. Gemini retains its native skill
+settings, activation and file reader.
+
+In `session_model`, an `activate_skill` call that requires native confirmation
+offers one-time approval and rejection. The host accepts this structured
+confirmation only from the verified bundle during the active session. Gemini's
+policy engine still decides whether to allow, deny or request confirmation.
 
 The managed v2 runtime adds structured ACP permission metadata for native MCP
 tool invocations in `session_model` and offers only single-call allow and reject

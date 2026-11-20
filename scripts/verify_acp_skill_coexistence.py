@@ -23,7 +23,7 @@ from verify_acp_integration import require
 from verify_acp_model_source import ROOT, Unavailable
 
 # Add a key only once its supplier module implements the reviewed probe interface.
-AGENTS = ("claude", "qwen")
+AGENTS = ("claude", "qwen", "gemini")
 AGENT_PROFILE = "acp-coexistence"
 PROVIDER = "coexistence-fixture"
 PHASES = ("baseline", "mounted", "removed", "rejected")
@@ -56,6 +56,8 @@ def make_skill(parent, kind):
 
 def interactive_turn(url, query, body, probe, rejected):
     decisions = []
+    skills = []
+    approves_skill = getattr(probe, "approves_skill", None)
     live_access = None
     sid = body["session_id"]
     with ThreadPoolExecutor(max_workers=1) as pool:
@@ -72,13 +74,17 @@ def interactive_turn(url, query, body, probe, rejected):
                 metadata = row["metadata"]
                 require(metadata.get("requested_channel") == "desktop-acp", "foreign approval channel")
                 is_mcp = probe.approves(metadata)
-                reply = "once" if is_mcp and not rejected else "reject"
+                skill = approves_skill(metadata) if approves_skill is not None else None
+                reply = "once" if skill or (is_mcp and not rejected) else "reject"
                 route = f"/permission/{row['id']}/reply"
                 require(json.loads(request(url, route + query, {"reply": reply})) is True,
                         "permission reply failed")
-                decisions.append(reply if is_mcp else "unexpected")
+                if skill:
+                    skills.append(skill)
+                else:
+                    decisions.append(reply if is_mcp else "unexpected")
             time.sleep(0.05)
-        return stream.result(), decisions, live_access
+        return stream.result(), decisions, skills, live_access
 
 
 def readback(url, query, sid, backend, model, live_access):
@@ -156,7 +162,7 @@ def run(agent, binary, report):
                         "model": model_id, "options": {"full_access": False, "cwd": str(workspace)},
                         "messages": [{"role": "user", "content": "Check the available read-only fixture resources."}]}
                 before = audit.read_text().splitlines() if audit.exists() else []
-                stream, decisions, live_access = interactive_turn(url, query, body, probe, rejected)
+                stream, decisions, skill_approvals, live_access = interactive_turn(url, query, body, probe, rejected)
                 after = audit.read_text().splitlines() if audit.exists() else []
                 events = [json.loads(line[6:]) for line in stream.splitlines() if line.startswith("data: {")]
                 observe_terminal = getattr(probe, "observe_terminal", None)
@@ -166,12 +172,17 @@ def run(agent, binary, report):
                 row.update(done=types.count("chat.done"), errors=types.count("chat.error"),
                            mcp_calls=len(after) - len(before), mcp_decisions=decisions,
                            model_requests=probe.requests, calls=probe.completed)
+                if getattr(probe, "approves_skill", None) is not None:
+                    row["skill_approvals"] = skill_approvals
                 if row["errors"]:
                     row["gateway_failures"] = stream_failure_categories(stream)
                 require(not probe.failure, probe.failure)
                 require(after == before + [supplier.TRANSPORT] * row["mcp_calls"],
                         "MCP audit transport mismatch")
                 verify_turn(row, mounted, rejected)
+                if "skill_approvals" in row:
+                    require(skill_approvals == (["native", "selected"] if mounted else ["native"]),
+                            "missing or unexpected skill approval")
                 row.update(readback(url, query, sid, agent, model_id, live_access))
         require(len({row["session"] for row in report["turns"]}) == len(PHASES), "sessions reused across phases")
 

@@ -168,66 +168,72 @@
      this.modelConfigService = new ModelConfigService(modelConfigServiceConfig ?? DEFAULT_MODEL_CONFIGS);
 --- a/bundle/chunk-M44FJWED.js
 +++ b/bundle/chunk-M44FJWED.js
-@@ -372549,6 +372549,15 @@
-    */
-   async discoverSkills(storage2, extensions = [], isTrusted = false) {
-     this.clearSkills();
-+    // A managed selection replaces every native discovery level, including empty selections.
-+    if (Object.prototype.hasOwnProperty.call(process.env, "SHIJU_GEMINI_SKILL_ROOT")) {
-+      const root = process.env["SHIJU_GEMINI_SKILL_ROOT"];
-+      if (root) {
-+        if (!path86.isAbsolute(root)) throw new Error("Managed Gemini skill root is invalid");
-+        this.addSkillsWithPrecedence(await loadSkillsFromDir(root));
+@@ -372575,6 +372575,16 @@
+       storage2.getProjectAgentSkillsDir()
+     );
+     this.addSkillsWithPrecedence(projectAgentSkills);
++    const sessionRoot = process.env["SHIJU_GEMINI_SKILL_ROOT"];
++    if (sessionRoot) {
++      if (!path86.isAbsolute(sessionRoot)) throw new Error("Managed Gemini skill root is invalid");
++      const selected = await loadSkillsFromDir(sessionRoot);
++      const nativeNames = new Set(this.skills.map((skill) => skill.name));
++      if (selected.some((skill) => nativeNames.has(skill.name))) {
++        throw new Error("Managed Gemini skill name conflicts with a native skill");
 +      }
-+      return;
++      this.addSkillsWithPrecedence(selected);
 +    }
-     await this.discoverBuiltinSkills();
-     for (const extension of extensions) {
-       if (extension.isActive && extension.skills) {
+   }
+   /**
+    * Discovers built-in skills.
 --- a/bundle/chunk-HJ5KJXNZ.js
 +++ b/bundle/chunk-HJ5KJXNZ.js
-@@ -372549,6 +372549,15 @@
-    */
-   async discoverSkills(storage2, extensions = [], isTrusted = false) {
-     this.clearSkills();
-+    // A managed selection replaces every native discovery level, including empty selections.
-+    if (Object.prototype.hasOwnProperty.call(process.env, "SHIJU_GEMINI_SKILL_ROOT")) {
-+      const root = process.env["SHIJU_GEMINI_SKILL_ROOT"];
-+      if (root) {
-+        if (!path86.isAbsolute(root)) throw new Error("Managed Gemini skill root is invalid");
-+        this.addSkillsWithPrecedence(await loadSkillsFromDir(root));
+@@ -372575,6 +372575,16 @@
+       storage2.getProjectAgentSkillsDir()
+     );
+     this.addSkillsWithPrecedence(projectAgentSkills);
++    const sessionRoot = process.env["SHIJU_GEMINI_SKILL_ROOT"];
++    if (sessionRoot) {
++      if (!path86.isAbsolute(sessionRoot)) throw new Error("Managed Gemini skill root is invalid");
++      const selected = await loadSkillsFromDir(sessionRoot);
++      const nativeNames = new Set(this.skills.map((skill) => skill.name));
++      if (selected.some((skill) => nativeNames.has(skill.name))) {
++        throw new Error("Managed Gemini skill name conflicts with a native skill");
 +      }
-+      return;
++      this.addSkillsWithPrecedence(selected);
 +    }
-     await this.discoverBuiltinSkills();
-     for (const extension of extensions) {
-       if (extension.isActive && extension.skills) {
+   }
+   /**
+    * Discovers built-in skills.
 --- a/bundle/chunk-RZ3ZVTZB.js
 +++ b/bundle/chunk-RZ3ZVTZB.js
-@@ -367197,6 +367197,15 @@
-    */
-   async discoverSkills(storage2, extensions = [], isTrusted = false) {
-     this.clearSkills();
-+    // A managed selection replaces every native discovery level, including empty selections.
-+    if (Object.prototype.hasOwnProperty.call(process.env, "SHIJU_GEMINI_SKILL_ROOT")) {
-+      const root = process.env["SHIJU_GEMINI_SKILL_ROOT"];
-+      if (root) {
-+        if (!path86.isAbsolute(root)) throw new Error("Managed Gemini skill root is invalid");
-+        this.addSkillsWithPrecedence(await loadSkillsFromDir(root));
+@@ -367215,6 +367215,16 @@
+     this.addSkillsWithPrecedence(projectSkills);
+     const projectAgentSkills = await loadSkillsFromDir(storage2.getProjectAgentSkillsDir());
+     this.addSkillsWithPrecedence(projectAgentSkills);
++    const sessionRoot = process.env["SHIJU_GEMINI_SKILL_ROOT"];
++    if (sessionRoot) {
++      if (!path86.isAbsolute(sessionRoot)) throw new Error("Managed Gemini skill root is invalid");
++      const selected = await loadSkillsFromDir(sessionRoot);
++      const nativeNames = new Set(this.skills.map((skill) => skill.name));
++      if (selected.some((skill) => nativeNames.has(skill.name))) {
++        throw new Error("Managed Gemini skill name conflicts with a native skill");
 +      }
-+      return;
++      this.addSkillsWithPrecedence(selected);
 +    }
-     await this.discoverBuiltinSkills();
-     for (const extension of extensions) {
-       if (extension.isActive && extension.skills) {
+   }
+   /**
+    * Discovers built-in skills.
 --- a/bundle/gemini-B5V54E2S.js
 +++ b/bundle/gemini-B5V54E2S.js
-@@ -15618,9 +15618,17 @@
+@@ -15618,9 +15618,22 @@
            locations: invocation.toolLocations(),
            kind: toAcpToolKind(tool.kind)
          });
 +        const managedMcp = process.argv.includes("--shiju-model-source") &&
 +          tool instanceof DiscoveredMCPTool && confirmationDetails.type === "mcp";
++        const managedSkill = process.argv.includes("--shiju-model-source") &&
++          tool.name === "activate_skill" && confirmationDetails.type === "info" &&
++          typeof args.name === "string";
          const params = {
            sessionId: this.id,
 -          options: toPermissionOptions(
@@ -236,19 +242,24 @@
 +              server: tool.serverName,
 +              tool: tool.serverToolName
 +            }}
++          } : managedSkill ? {
++            _meta: {"shiju.gemini/skill": args.name}
 +          } : {}),
-+          options: managedMcp ? basicPermissionOptions : toPermissionOptions(
++          options: managedMcp || managedSkill ? basicPermissionOptions : toPermissionOptions(
              confirmationDetails,
              this.context.config,
              this.settings.merged.security.enablePermanentToolApproval
 --- a/bundle/gemini-EOCRFAPZ.js
 +++ b/bundle/gemini-EOCRFAPZ.js
-@@ -15618,9 +15618,17 @@
+@@ -15618,9 +15618,22 @@
            locations: invocation.toolLocations(),
            kind: toAcpToolKind(tool.kind)
          });
 +        const managedMcp = process.argv.includes("--shiju-model-source") &&
 +          tool instanceof DiscoveredMCPTool && confirmationDetails.type === "mcp";
++        const managedSkill = process.argv.includes("--shiju-model-source") &&
++          tool.name === "activate_skill" && confirmationDetails.type === "info" &&
++          typeof args.name === "string";
          const params = {
            sessionId: this.id,
 -          options: toPermissionOptions(
@@ -257,19 +268,24 @@
 +              server: tool.serverName,
 +              tool: tool.serverToolName
 +            }}
++          } : managedSkill ? {
++            _meta: {"shiju.gemini/skill": args.name}
 +          } : {}),
-+          options: managedMcp ? basicPermissionOptions : toPermissionOptions(
++          options: managedMcp || managedSkill ? basicPermissionOptions : toPermissionOptions(
              confirmationDetails,
              this.context.config,
              this.settings.merged.security.enablePermanentToolApproval
 --- a/bundle/gemini-22EOGL6O.js
 +++ b/bundle/gemini-22EOGL6O.js
-@@ -15634,9 +15634,17 @@
+@@ -15634,9 +15634,22 @@
            locations: invocation.toolLocations(),
            kind: toAcpToolKind(tool.kind)
          });
 +        const managedMcp = process.argv.includes("--shiju-model-source") &&
 +          tool instanceof DiscoveredMCPTool && confirmationDetails.type === "mcp";
++        const managedSkill = process.argv.includes("--shiju-model-source") &&
++          tool.name === "activate_skill" && confirmationDetails.type === "info" &&
++          typeof args.name === "string";
          const params = {
            sessionId: this.id,
 -          options: toPermissionOptions(
@@ -278,8 +294,10 @@
 +              server: tool.serverName,
 +              tool: tool.serverToolName
 +            }}
++          } : managedSkill ? {
++            _meta: {"shiju.gemini/skill": args.name}
 +          } : {}),
-+          options: managedMcp ? basicPermissionOptions : toPermissionOptions(
++          options: managedMcp || managedSkill ? basicPermissionOptions : toPermissionOptions(
              confirmationDetails,
              this.context.config,
              this.settings.merged.security.enablePermanentToolApproval

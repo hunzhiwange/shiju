@@ -31,6 +31,7 @@ pub(super) struct AcpEventClient {
     pub(super) codebuddy_permissions: bool,
     pub(super) transient_permissions: bool,
     pub(super) reject_untyped_workflow_permissions: bool,
+    pub(super) managed_gemini: bool,
     pub(super) gemini_mcp_servers: HashSet<String>,
     pub(super) qwen_mcp_servers: HashSet<String>,
     pub(super) expected_session_id: Arc<Mutex<Option<String>>>,

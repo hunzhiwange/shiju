@@ -1,4 +1,4 @@
-//! Gemini's reviewed native scanner reads only the request-owned skill view.
+//! Gemini's reviewed native scanner appends the request-owned view in trusted workspaces.
 use agent_config::schema::AcpAgentConfig;
 
 const ROOT_ENV: &str = "SHIJU_GEMINI_SKILL_ROOT";
@@ -18,7 +18,7 @@ pub(super) fn configure(
             .map_err(super::super::to_api_error)?;
         view.0.root().to_string_lossy().into_owned()
     } else {
-        // An empty selection disables all native skill levels in the reviewed scanner.
+        // Mask any inherited session root. The reviewed scanner still discovers native skills.
         String::new()
     };
     config.env.insert(ROOT_ENV.into(), root);

@@ -1432,7 +1432,7 @@
       "status": "verified",
       "platform": {
         "review_host": "Darwin-arm64",
-        "artifact_scope": "Darwin-arm64 受审固定 0.66.0 补丁发行物的生产 ACP、原生 activate_skill 及两来源完整生命周期真实验证；其他平台未验证。",
+        "artifact_scope": "Darwin arm64 受审 Gemini CLI 0.66.0 修订 3，生产 ACP 的 session_model 技能共存与 stdio MCP。",
         "linux": "unverified",
         "windows": "unverified"
       },
@@ -1445,52 +1445,50 @@
           "kind": "same_distribution",
           "release": "0.66.0"
         },
-        "local_identity": "package.json 固定版本匹配；执行文件另有 SHA-256。"
+        "local_identity": "package.json 固定版本及修订 3 合约中的七项 SHA-256。"
       },
       "acp_entry": {
         "argv": [
           "gemini",
-          "--experimental-acp",
-          "--approval-mode",
-          "yolo",
-          "--skip-trust"
+          "--experimental-acp"
         ],
-        "binding": "crates/vw-acp/src/agent_registry.rs::BUILT_IN_AGENT_DEFINITIONS",
-        "runtime_executed": false,
-        "note": "固定发行物候选入口；注册器含 latest/range，不保证用户当前命令已固定到此版本。"
+        "binding": "crates/libs/acp-agent-registry/src/managed_runtime.rs::reviewed_agent_command",
+        "runtime_executed": true,
+        "note": "受管修订 3 的原生入口。工作区信任由 Gemini 原生设置决定。"
       },
       "mount": {
         "candidate_paths": [
-          "SHIJU_GEMINI_SKILL_ROOT（受审补丁中的会话专属视图）"
+          "SHIJU_GEMINI_SKILL_ROOT（受审补丁中的会话专属视图）",
+          "Gemini 原生内置、扩展、用户和受信项目目录"
         ],
-        "discovery": "受审 0.66.0 SkillManager 仅扫描选中视图，排除 builtin、extension、user、project 技能；两种模型来源均通过真实 ACP。",
-        "activation": "首次请求不含技能正文；真实 activate_skill 按需加载，依据工具结果中的视图目录读取随机附件并执行脚本。",
-        "session_isolation": "空选择禁用全部扫描层级；项目和私有配置根的未选中技能、移除及第二会话隔离均通过。"
+        "discovery": "SkillManager 在原生工作区信任检查后追加会话视图，保留原生层级和禁用设置，同名冲突明确拒绝。",
+        "activation": "真实 activate_skill 按需返回正文和资源目录，原生 read_file 读取附件。宿主对原生确认提供单次审批。",
+        "session_isolation": "空选择沿用 Gemini 原生目录。仅当前会话选中的 ShiJu 技能进入原生目录。"
       },
       "permissions": {
-        "status": "verified for reviewed Darwin-arm64 0.66.0 runtime",
+        "status": "Darwin arm64 修订 3 的原生信任与单次审批",
         "requirements": "执行端重新审核目录、租户/项目/会话权限、路径逃逸与符号链接；支持文件/脚本/MCP 仍受各自授权限制，不扩大 full_access。",
-        "agent_specific": "只为选中源提供 canonical 读取根；未选中、越界链接、写入和 deny-all 均拒绝，不扩大 full_access 或终端权限。"
+        "agent_specific": "选中源沿用作用域读取限制。受审制品在活动会话中可请求一次性技能确认，stdio MCP 沿用已挂载服务校验。"
       },
       "update": {
         "native": "不承诺原生热更新；空闲替换视图并重建 CLI。",
-        "candidate": "两来源添加、移除、V2 内容及空闲更新真实通过；见 evidence/gemini.json。"
+        "candidate": "旧修订的添加、撤除、内容变更和空闲更新见 evidence/gemini.json。"
       },
       "recovery": {
-        "status": "两来源真实 CLI 关闭/重启后重新发现并读取当前视图；见 evidence/gemini.json。",
+        "status": "旧修订的两种模型来源关闭及重启证据见 evidence/gemini.json。",
         "requirements": "仅本机受审固定发行物，其他平台不推断。"
       },
       "independent_sources": {
         "local_configuration": {
           "candidate": "GEMINI_CLI_HOME；保留原有模型和凭据隔离",
           "static_review_only": false,
-          "runtime_verified_this_task": true
+          "runtime_verified_this_task": false
         },
         "client_model_source": {
           "prior_report_status": "verified_release_only",
           "reference": "../../shiju/acp-model-source/cli-versions.json#gemini",
           "runtime_verified_this_task": true,
-          "note": "只保留旧报告定位；不复制其通过/不支持结论到技能能力。"
+          "note": "修订 3 的 session_model 证据见共存回执。"
         }
       },
       "evidence": [
@@ -1513,7 +1511,7 @@
               "excerpt": "se folder is not trusted.\"\n      );\n      return;\n    }\n    const projectSkills = await loadSkillsFromDir(\n      storage2.getProjectSkillsDir()\n    );\n    this.addSkillsWithPrecedence(projectSkills);\n    const projectAgentSkills = await loadSkillsFromDir(\n      storage2.getProjectAgentSkillsDir()\n    );\n"
             }
           ],
-          "scope": "Initial static review before the dedicated mount patch; current reviewed hashes and runtime evidence are in evidence/gemini.json."
+          "scope": "首个挂载补丁之前的历史源码检查。修订 3 证据见共存回执。"
         },
         {
           "path": "target/acp-gemini-runtime/node_modules/@google/gemini-cli/package.json",
@@ -1530,23 +1528,36 @@
           "kind": "package_entry",
           "bytes": 5152,
           "observations": []
+        },
+        {
+          "path": "target/acp-skill-coexistence/gemini-0.66.0-model-source-v3/node_modules/@google/gemini-cli/bundle/chunk-M44FJWED.js",
+          "sha256": "4bb62bf0563eff135141dd22d57a068ad78417f4413310df1701fa7b27356748",
+          "kind": "reviewed_patched_source",
+          "bytes": 16785899,
+          "observations": []
+        },
+        {
+          "path": "target/acp-skill-coexistence/gemini-0.66.0-model-source-v3/node_modules/@google/gemini-cli/bundle/gemini-B5V54E2S.js",
+          "sha256": "fe06998af7a6d09b88d42311bd5186c9b1609e3ee722c2b43f7390aa19c242be",
+          "kind": "reviewed_patched_source",
+          "bytes": 650678,
+          "observations": []
         }
       ],
       "supplemental_official_docs": [],
-      "next_validation": "其他平台/版本需单独真实验收；本机两来源证据见 evidence/gemini.json。",
+      "next_validation": "修订 3 的 cli_local 生命周期和其他平台分别验证。",
       "acceptance": {
         "status": "verified",
-        "production_gate": "reviewed executable required",
-        "evidence": "evidence/gemini.json",
+        "production_gate": "reviewed executable and native workspace trust required",
+        "evidence": "../../dev/acp/skill-coexistence/gemini.md",
         "model_sources": [
-          "session_model",
-          "cli_local"
+          "session_model"
         ],
-        "limitation": "Only reviewed patched Gemini 0.66.0 on Darwin-arm64. Other versions/platforms and unpatched binaries remain unverified."
+        "limitation": "Revision 3 evidence is scoped to Gemini CLI 0.66.0 on Darwin arm64."
       },
       "delivery_acceptance": {
         "status": "verified",
-        "evidence": "evidence/lifecycle.json",
+        "evidence": "../../dev/acp/skill-coexistence/gemini.md",
         "regression": "evidence/regression.json"
       }
     },

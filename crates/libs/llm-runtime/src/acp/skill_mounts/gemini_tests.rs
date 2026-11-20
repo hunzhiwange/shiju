@@ -5,15 +5,18 @@ fn acp_skill_mount_gemini_accepts_reviewed_directory_contract() {
 }
 
 #[test]
-fn acp_skill_mount_gemini_empty_selection_and_conflicting_override_fail_closed() {
+fn acp_skill_coexistence_gemini_empty_selection_masks_inherited_view() {
     let mut config = agent_config::schema::AcpAgentConfig::default();
     super::configure(&mut config, None).unwrap();
     assert_eq!(config.env[super::ROOT_ENV], "");
+
+    config.env.insert(super::ROOT_ENV.into(), "/untrusted".into());
     assert!(super::configure(&mut config, None).is_err());
+    assert_eq!(config.env[super::ROOT_ENV], "/untrusted");
 }
 
 #[test]
-fn acp_skill_mount_gemini_unreviewed_executable_is_rejected_before_environment_changes() {
+fn acp_skill_coexistence_gemini_unreviewed_executable_is_rejected_before_environment_changes() {
     let root = tempfile::tempdir().unwrap();
     let source = root.path().join("example");
     std::fs::create_dir(&source).unwrap();

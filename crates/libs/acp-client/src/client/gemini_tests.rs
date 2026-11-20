@@ -304,3 +304,53 @@ async fn acp_full_access_gemini_mcp_permission_requires_mounted_server_and_activ
     })
     .await;
 }
+
+#[tokio::test]
+async fn acp_skill_coexistence_gemini_only_prompts_for_verified_active_skill_requests() {
+    use acp::Client as _;
+    with_fixture(TestAgent::default(), async |fixture| {
+        fixture.client.agent_name = "gemini".into();
+        fixture.client.permission_mode = crate::PermissionMode::ApproveAll;
+        let (cancel, _) = watch::channel(false);
+        let (_, completed) = watch::channel(false);
+        fixture.client.register_active_prompt("session".into(), cancel, completed);
+        let (tx, _) = mpsc::unbounded_channel();
+        let mut client = fixture.client.build_event_client(
+            Path::new("/tmp"),
+            Arc::new(Mutex::new(Some("session".into()))),
+            tx,
+        );
+        let request = |session: &str| {
+            serde_json::from_value::<acp::RequestPermissionRequest>(serde_json::json!({
+                "sessionId": session,
+                "_meta": {"shiju.gemini/skill": "example"},
+                "toolCall": {"toolCallId":"call", "kind":"other"},
+                "options":[
+                    {"optionId":"once", "name":"Allow", "kind":"allow_once"},
+                    {"optionId":"deny", "name":"Deny", "kind":"reject_once"}
+                ]
+            }))
+            .unwrap()
+        };
+        assert!(client.request_permission(request("session")).await.is_err());
+        client.managed_gemini = true;
+        client.non_interactive_permissions = Some(crate::NonInteractivePermissionPolicy::Deny);
+        let denied = client.request_permission(request("session")).await.unwrap();
+        assert_eq!(serde_json::to_value(denied).unwrap()["outcome"]["optionId"], "deny");
+        assert!(client.request_permission(request("foreign")).await.is_err());
+
+        client.non_interactive_permissions = None;
+        client.permission_confirmation = Some(Arc::new(|title, arguments| {
+            Box::pin(async move {
+                assert_eq!(title, "Activate Skill: example");
+                assert_eq!(arguments, serde_json::json!({"name": "example"}));
+                true
+            })
+        }));
+        let approved = client.request_permission(request("session")).await.unwrap();
+        assert_eq!(serde_json::to_value(approved).unwrap()["outcome"]["optionId"], "once");
+        fixture.client.clear_active_prompt("session");
+        assert!(client.request_permission(request("session")).await.is_err());
+    })
+    .await;
+}

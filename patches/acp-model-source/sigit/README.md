@@ -7,7 +7,7 @@ previews, ambient tool/session hooks and automatic project instruction loading.
 The built-in read/create/edit/multi-edit and foreground command tools use
 host-backed execution. Explicitly selected stdio MCP tools can coexist with
 them under the macOS read-only sandbox. Native fallback tools, automatic
-skills/subagents and ambient MCP discovery stay disabled. Use the pinned
+subagents and ambient MCP discovery stay disabled. Use the pinned
 managed executable.
 
 Build with the repository Cargo slot runner and `MISTRALRS_METAL_PRECOMPILE=0`.
@@ -37,3 +37,18 @@ For an indexed workspace, siGit automatically prepares missing SQLite
 sidecars before launching an explicit RustCodeGraph stdio service. The
 macOS system SQLite helper can write only the sidecars and exits before the
 read-only service starts. Existing workspace MCP configuration is enough.
+
+## Native skill discovery in managed session-model launches
+
+On Darwin arm64, the managed session scanner reads bounded frontmatter from
+the project's native `.sigit/skills` and `.claude/skills` directories. It
+also checks the host's private session view and appends its validated sources.
+Project roots keep siGit's existing name precedence. Files opened for
+discovery must be regular files reached without symlinks. The session view's
+host-created links are checked against their registered targets.
+
+The native `skill` tool activates a name advertised for the current turn.
+Activation and attachment reads use ACP filesystem callbacks and host
+permission policy. Selected sources outside the project are eligible for
+read callbacks with an active skill lease. User-global discovery stays
+disabled in managed ACP. The stdio MCP sandbox and approval path are unchanged.

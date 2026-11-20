@@ -40,13 +40,13 @@ fn root(_agent: &str) -> Result<PathBuf, String> {
 }
 fn installed_directory(agent: &str, contract: &Contract) -> Result<PathBuf, String> {
     // Install revised contracts beside their prior reviewed runtimes.
-    let revision = if matches!(agent, "sigit" | "gemini" | "nova") {
+    let revision = if matches!(agent, "gemini" | "nova") {
         3
     } else if agent == "vibe" {
         4
     } else if agent == "cortex-code" {
         5
-    } else if matches!(agent, "amp-acp" | "corust-agent" | "harn") {
+    } else if matches!(agent, "amp-acp" | "corust-agent" | "harn" | "sigit") {
         4
     } else if matches!(agent, "aionrs" | "dimcode" | "goose" | "vtcode") {
         2

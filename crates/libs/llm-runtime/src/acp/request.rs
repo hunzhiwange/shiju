@@ -289,6 +289,16 @@ pub async fn do_stream_request_acp<H: Host>(
             "Cortex skill mounts require session_model with native tools enabled",
         ));
     }
+    if acp_agent_name == "sigit"
+        && parsed_options.skill_view.is_some()
+        && (source != vw_api_acp_model::acp_model_source::AcpModelSource::SessionModel
+            || parsed_options.permission_mode == Some(acp_types::PermissionMode::DenyAll)
+            || merged_options.get("disable_tools").and_then(Value::as_bool) == Some(true))
+    {
+        return Err(acp_option_error(
+            "siGit skill mounts require session_model with native tools enabled",
+        ));
+    }
     H::supplier(&acp_agent_name, parsed_options.skill_view.as_ref())?;
     if acp_agent_name == "deepagents"
         && parsed_options.skill_view.is_some()
@@ -404,7 +414,7 @@ pub async fn do_stream_request_acp<H: Host>(
     };
     // The profile owns the relay, token and private files for this request only.
     // CLI-local execution preserves the user's original configuration.
-    let launch_profile = match source {
+    let mut launch_profile = match source {
         vw_api_acp_model::acp_model_source::AcpModelSource::SessionModel => {
             let cancellation = async {
                 if let Some(mut receiver) = abort.cloned() {
@@ -438,6 +448,9 @@ pub async fn do_stream_request_acp<H: Host>(
         }
         vw_api_acp_model::acp_model_source::AcpModelSource::CliLocal => None,
     };
+    if acp_agent_name == "sigit" && let Some(profile) = launch_profile.as_mut() {
+        super::skill_mounts::sigit::configure(profile, parsed_options.skill_view.as_ref())?;
+    }
     if acp_agent_name == "junie" && let Some(profile) = launch_profile.as_ref() {
         super::skill_mounts::junie::publish(profile, parsed_options.skill_view.as_ref())?;
     }

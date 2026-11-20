@@ -739,7 +739,7 @@
     "files": {},
     "source_url": "https://api.github.com/repos/getsigit/sigit/tarball/v1.7.10",
     "source_sha256": "088809cfc43ceda419913488390a65e830ac8ff66f1b5dd14a8d833d6b46369e",
-    "patch_sha256": "3884ccd9580594a612ebf06de5636b62bd749ed1098b89b0c4c8a7e5c2440c4e"
+    "patch_sha256": "419c0cc2e4572084c6479cfcaea7f84cd467d362ed97d6bf3037bdb963849ab8"
   },
   "amp-acp": {
     "package": "amp-acp",

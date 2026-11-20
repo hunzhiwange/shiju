@@ -29,6 +29,7 @@ mod opencode;
 mod pi;
 pub(super) mod qoder;
 mod qwen;
+pub(super) mod sigit;
 mod snow;
 pub(super) mod trae;
 mod vibe;
@@ -48,6 +49,7 @@ pub fn validate(agent: &str, selected: bool) -> Result<(), Error> {
         "vibe" => return Ok(()),
         "hermes" => return Ok(()),
         "snow" => return Ok(()),
+        "sigit" if cfg!(all(target_os = "macos", target_arch = "aarch64")) => return Ok(()),
         "copilot" => return Ok(()),
         "corust-agent" if cfg!(all(target_os = "macos", target_arch = "aarch64")) => return Ok(()),
         "junie" if cfg!(all(target_os = "macos", target_arch = "aarch64")) => return Ok(()),

@@ -36,6 +36,7 @@ AGENTS += ("mimo-code",)
 AGENTS += ("nova",)
 AGENTS += ("vtcode",)
 AGENTS += ("stakpak",)
+AGENTS += ("sigit",)
 PHASES = ("baseline", "mounted", "removed", "rejected")
 
 

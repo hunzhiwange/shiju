@@ -213,6 +213,16 @@ pub async fn do_stream_request_acp<H: Host>(
             ));
         }
     }
+    if acp_agent_name == "kimi"
+        && parsed_options.skill_view.is_some()
+        && (source != vw_api_acp_model::acp_model_source::AcpModelSource::SessionModel
+            || parsed_options.permission_mode == Some(acp_types::PermissionMode::DenyAll)
+            || merged_options.get("disable_tools").and_then(Value::as_bool) == Some(true))
+    {
+        return Err(acp_option_error(
+            "Kimi skill mounts require session_model with native tools enabled",
+        ));
+    }
     let cursor_skill_reads_disabled = acp_agent_name == "cursor"
         && (parsed_options.permission_mode == Some(acp_types::PermissionMode::DenyAll)
             || merged_options.get("disable_tools").and_then(Value::as_bool) == Some(true));

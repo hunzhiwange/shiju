@@ -39,7 +39,7 @@ pub fn validate(agent: &str, selected: bool) -> Result<(), Error> {
         "snow" => return Ok(()),
         "copilot" => return Ok(()),
         "kilocode" => return Ok(()),
-        "kimi" => kimi::rejection(),
+        "kimi" => return Ok(()),
         "kiro" => return Ok(()),
         "opencode" => return Ok(()),
         "openclaw" => return Ok(()),
@@ -138,7 +138,9 @@ pub fn configure_native_scanner(
     config: &mut agent_config::schema::AcpAgentConfig,
     view: Option<&MountedSkills>,
 ) -> Result<(), Error> {
-    if agent == "cursor" {
+    if agent == "kimi" {
+        kimi::configure(config, view)?;
+    } else if agent == "cursor" {
         cursor::configure(config, view)?;
     } else if agent == "iflow" {
         iflow::configure(config, view)?;

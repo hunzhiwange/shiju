@@ -1791,7 +1791,7 @@
       "status": "unsupported",
       "platform": {
         "review_host": "Darwin-arm64",
-        "artifact_scope": "Darwin-arm64 native 2.5.0：源码与真实 ACP 负向探针确认不支持选中目录的独占挂载；不是缺安装/账号。其他平台未验证。",
+        "artifact_scope": "Darwin-arm64 原生 2.5.0。历史结论覆盖独占目录，会话追加能力见 coexistence_acceptance。",
         "linux": "unverified",
         "windows": "unverified"
       },
@@ -1874,16 +1874,21 @@
         }
       ],
       "supplemental_official_docs": [],
-      "next_validation": "本固定版本按负向证据跳过，不计挂载成功；上游 ACP 提供可排除默认/插件来源的显式目录入口或有可审查构建补丁后，重新执行完整生命周期与两来源验收。",
+      "next_validation": "追加共存见当前回执。独占目录和完整生命周期继续沿历史验收口径。",
       "acceptance": {
         "status": "unsupported",
         "evidence": "evidence/kimi.json",
         "scope": "Only exclusive selected-directory mounting through reviewed native ACP 2.5.0 on Darwin-arm64. Native default skill scanning exists. Not a positive lifecycle acceptance.",
-        "production_gate": "Existing unverified rejection retained; no prompt-body fallback."
+        "production_gate": "Historical exclusive-directory contract. See coexistence_acceptance for session-scoped addition."
       },
       "delivery_acceptance": {
         "status": "unsupported",
         "evidence": "evidence/kimi.json"
+      },
+      "coexistence_acceptance": {
+        "status": "unverified",
+        "scope": "Darwin-arm64 native 2.5.0 session_model with one validated extra_skill_dirs root and stdio MCP",
+        "evidence": "../../dev/acp/skill-coexistence/kimi.md"
       }
     },
     {

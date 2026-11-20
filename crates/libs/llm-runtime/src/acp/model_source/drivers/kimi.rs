@@ -140,6 +140,28 @@ pub fn configure(profile: &mut AcpLaunchProfile, endpoint: &str) -> anyhow::Resu
     environment.insert("no_proxy".into(), "127.0.0.1,localhost".into());
     let settings = toml::to_string(&settings)?;
     profile.overlay_environment(environment)?;
+    write_settings(&home, &settings)
+}
+
+pub(crate) fn append_skill_root(home: &Path, root: &Path) -> anyhow::Result<()> {
+    anyhow::ensure!(home.is_absolute() && root.is_absolute(), "Kimi requires absolute skill paths");
+    private_directory(home)?;
+    let root = root
+        .to_str()
+        .ok_or_else(|| anyhow::anyhow!("Kimi skill directory requires a UTF-8 path"))?;
+    let path = home.join("config.toml");
+    let metadata = path.symlink_metadata()?;
+    anyhow::ensure!(metadata.is_file(), "unsafe Kimi config file");
+    let mut settings: toml::Table = std::fs::read_to_string(path)?.parse()?;
+    anyhow::ensure!(
+        !settings.contains_key("extra_skill_dirs"),
+        "conflicting Kimi skill directory settings"
+    );
+    settings.insert("extra_skill_dirs".into(), toml::Value::Array(vec![root.into()]));
+    write_settings(home, &toml::to_string(&settings)?)
+}
+
+fn write_settings(home: &Path, settings: &str) -> anyhow::Result<()> {
     let path = home.join("config.toml");
     if let Ok(metadata) = path.symlink_metadata() {
         anyhow::ensure!(
@@ -147,7 +169,7 @@ pub fn configure(profile: &mut AcpLaunchProfile, endpoint: &str) -> anyhow::Resu
             "unsafe Kimi config file"
         );
     }
-    let mut file = tempfile::NamedTempFile::new_in(&home)?;
+    let mut file = tempfile::NamedTempFile::new_in(home)?;
     file.write_all(settings.as_bytes())?;
     file.as_file().sync_all()?;
     file.persist(path).map_err(|_| anyhow::anyhow!("cannot publish Kimi configuration"))?;

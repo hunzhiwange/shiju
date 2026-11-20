@@ -53,3 +53,21 @@ PYTHONPATH=scripts python3 -c 'import sys; from cargo_slot import run; sys.exit(
 Rust 定向测试复用了槽位 9 已编译的 `llm-runtime` 测试程序。以 `acp_skill_coexistence_glm_acp_agent --test-threads=1` 实际运行 2 项，全部通过，覆盖空选择、仅注册受验证项目技能、拒绝项目外来源和拒绝失效视图。
 
 正式网关首轮构建在槽位 10 遇到并行 DimCode 模块的 E0283，尚未运行 GLM 网关探针。共享工作区已移除该处多余的 `.into()`，定向重试沿用槽位 10。
+
+槽位 3 的共享 `vw-cli --bin shiju` 构建已完成。核对二进制内含最终 GLM 模块和受管补丁摘要后复用此产物，取消槽位 10 的重复构建。网关 SHA-256 为 `b2df327cf4e8cd820216995fce313fb2c00c51fc0615ccb68a2ee1f7d8396d0f`，两个 Cargo 缓存路径均为仓库的 `target/rust-slot-3`。
+
+```sh
+PYTHONPATH=scripts python3 -c 'import sys; from cargo_slot import run; sys.exit(run(sys.argv[1:], number=3))' \
+  sh -c 'python3 scripts/verify_acp_skill_coexistence.py --agent glm-acp-agent --gateway-bin "$CARGO_TARGET_DIR/debug/shiju" --output target/acp-skill-coexistence/glm-acp-agent.json'
+```
+
+正式探针退出 0。四个独立网关会话均为一次 `chat.done` 和零次 `chat.error`，回读后端 `glm-acp-agent`、来源 `session_model`、模型 `coexistence-fixture/deepseek-v4.1-flash-1017`。全访问为 false，权限状态 `support=unavailable`、`requested=false`。逐次 MCP 审批经网关权限接口处理。
+
+| 轮次 | 同 ID 回传 | 宿主审批 | 真实 stdio 调用数 |
+| --- | --- | --- | ---: |
+| 基线 | 原生正文及附件 | 无 | 0 |
+| 挂载 | 原生与选中正文及附件、MCP 随机结果 | 允许一次 | 1 |
+| 撤除 | 原生正文及附件 | 无 | 0 |
+| 拒绝 | 原生与选中正文及附件、MCP 拒绝结果 | 拒绝 | 0 |
+
+挂载轮的选中正文、附件和 MCP 调用 ID 分别为 `call_609148cba6c6a58d72428783`、`call_0810a9b7c83ad7193edc8dc8` 和 `call_fef5b7781f774f3df37ad5cc`。拒绝 ID 为 `call_a2db66c1a1d7313160e38a39`。全部会话和调用 ID见 `target/acp-skill-coexistence/glm-acp-agent.json`。

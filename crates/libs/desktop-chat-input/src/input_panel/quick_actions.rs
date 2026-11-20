@@ -91,6 +91,39 @@ pub fn apply_draft(editor: &mut text_editor::Content, text: &str, send: bool) {
     }
 }
 
+pub fn task_quick_action_draft(
+    i18n: desktop_i18n::I18n,
+    task_id: &str,
+    title: Option<&str>,
+    description: &str,
+    prompt: &str,
+) -> String {
+    let description = description.trim();
+    let title = title
+        .map(str::trim)
+        .filter(|title| !title.is_empty())
+        .or_else(|| description.lines().next().map(str::trim))
+        .unwrap_or(task_id);
+    let description = description
+        .strip_prefix(title)
+        .filter(|rest| rest.is_empty() || rest.starts_with(['\n', '\r']))
+        .unwrap_or(description)
+        .trim();
+    let task = i18n.__("任务");
+    let request = i18n.__("请求");
+    let mut draft = format!("{task} {task_id}");
+    if title != task_id {
+        draft.push_str(" · ");
+        draft.push_str(title);
+    }
+    if !description.is_empty() {
+        draft.push_str("\n\n");
+        draft.push_str(description);
+    }
+    draft.push_str(&format!("\n\n{request}\n{}", prompt.trim()));
+    draft
+}
+
 /// 推荐消息只填入空草稿；请求生命周期不属于此入口。
 pub fn fill_recommendation(editor: &mut text_editor::Content, prompt: Option<&str>) -> Result<Option<String>, &'static str> {
     if !editor.text().is_empty() { return Err("请先处理现有草稿"); }

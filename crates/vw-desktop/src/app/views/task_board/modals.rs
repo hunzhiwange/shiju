@@ -1,5 +1,8 @@
 use crate::app::{App, Message};
 use crate::app::task::Task;
+#[cfg(not(target_arch = "wasm32"))]
+pub(in crate::app) mod quick_actions;
+
 pub fn build_task_settings_modal(app: &App) -> iced::Element<'_, Message> {
  desktop_task_board::modals::build_task_settings_modal(desktop_task_board::modals::SettingsView {
  task_board_settings: &app.task_board.task_board_settings, task_board_settings_modal_tab: app.task_board.task_board_settings_modal_tab,

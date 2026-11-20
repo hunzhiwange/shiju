@@ -41,6 +41,8 @@ pub(crate) mod shiju_apps;
 #[cfg(not(target_arch = "wasm32"))]
 pub(crate) mod skill_hub;
 pub mod task_board;
+#[cfg(not(target_arch = "wasm32"))]
+pub(crate) mod task_quick_actions;
 pub mod terminal;
 pub mod view;
 

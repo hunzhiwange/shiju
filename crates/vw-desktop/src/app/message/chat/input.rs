@@ -36,6 +36,17 @@ use std::time::Duration;
 
 pub(crate) use desktop_session::message::chat::input::scroll::ChatScrollUpdateOutcome;
 
+#[cfg(not(target_arch = "wasm32"))]
+pub(super) fn fill_task_quick_action_draft(app: &mut App, draft: String) -> Task<Message> {
+    let runtime = app.current_session_runtime_mut();
+    runtime.task_mode_enabled = false;
+    runtime.workflow_mode_enabled = false;
+    runtime.input_editor = iced::widget::text_editor::Content::with_text(&draft);
+    app.session_state.input_text = draft;
+    shared::sync_global_input_editor_if_needed(app);
+    shared::focus_input_editor(app)
+}
+
 fn git_quick_action_path(app: &App) -> Option<String> {
     desktop_session::message::chat::input::interactions::git_quick_action_path(
         crate::app::components::git_panel::git_repo_path_for_app(app), app.navigation_tabs.project_path.as_deref(),

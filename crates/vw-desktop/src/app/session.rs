@@ -38,7 +38,7 @@ pub use self::loading::{
     session_content_signature, session_usage, shared_chat_messages,
 };
 
-const EMPTY_SESSION_ID: &str = "__empty__";
+pub(super) const EMPTY_SESSION_ID: &str = "__empty__";
 
 pub(crate) use desktop_session::session::backfill_message_models_from_steps;
 

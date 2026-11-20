@@ -77,6 +77,8 @@ pub enum Message {
     WorkflowManager(message::WorkflowManagerMessage),
     Notification(message::NotificationMessage),
     TaskBoard(message::TaskBoardMessage),
+    #[cfg(not(target_arch = "wasm32"))]
+    TaskQuickActions(message::task_quick_actions::Event),
     #[cfg(target_os = "macos")]
     NativeMenu(crate::app::native_menu::NativeMenuAction),
     #[cfg(not(target_arch = "wasm32"))]

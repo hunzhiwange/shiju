@@ -20,6 +20,47 @@ use vw_api_acp_model::acp_model_source::AcpModelSource;
 
 pub use desktop_session::message::chat::session::PendingSessionSend;
 
+#[cfg(not(target_arch = "wasm32"))]
+pub(crate) fn open_task_quick_action_draft(
+    app: &mut App,
+    project_path: String,
+    project: vw_api_project::ProjectDto,
+    draft: String,
+) -> Task<Message> {
+    use crate::app::message::task_quick_actions::warning;
+
+    if app.navigation_tabs.project_path.as_deref() != Some(project_path.as_str())
+        || app.workspace_state.project_id.as_deref().is_some_and(|id| id != project.id.as_ref())
+    {
+        return warning(app, "项目已切换，未打开快捷操作草稿");
+    }
+    let blank = app.session_state.session_runtime_states.get(crate::app::session::EMPTY_SESSION_ID);
+    if app.workspace_state.new_session_creating
+        || blank.is_some_and(|runtime| !runtime.input_editor.text().is_empty())
+        || !app.session_state.files.is_empty()
+    {
+        return warning(app, "请先处理已有的新会话草稿或附件，再打开任务快捷操作");
+    }
+
+    let open = crate::app::message::project::open_session_draft(
+        app,
+        project_path.clone(),
+        project.directory.clone(),
+    );
+    let matches_project = app.session_state.active_session_id.is_none()
+        && app.current_session_runtime_ref()
+            .and_then(|runtime| runtime.draft.as_ref())
+            .is_some_and(|draft| draft.project_path == project_path && draft.directory == project.directory);
+    if !matches_project {
+        return warning(app, "无法打开当前项目的会话草稿");
+    }
+    app.workspace_state.project_id = Some(project.id.as_ref().to_owned());
+    app.task_board.show_task_board = false;
+    app.navigation_tabs.screen = crate::app::Screen::Project;
+    let fill = super::input::fill_task_quick_action_draft(app, draft);
+    Task::batch([open, fill])
+}
+
 fn clear_quick_message_handoff_for_request(app: &mut App, request_id: u64) {
     use desktop_session::message::chat::git_handoff::{GitHandoffEffect, clear_for_request};
     if matches!(

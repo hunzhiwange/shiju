@@ -278,6 +278,7 @@ vw-config-types = { path = "../vw-config-types" }
 vw-gateway-client = { path = "../vw-gateway-client" }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+task-file-store = { path = "../libs/task-file-store" }
 shell-command = { path = "../libs/shell-command", features = ["shell-tokio"] }
 desktop-settings-voice = { path = "../libs/desktop-settings-voice" }
 desktop-voice = { path = "../libs/desktop-voice" }

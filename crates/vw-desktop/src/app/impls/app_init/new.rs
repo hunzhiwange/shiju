@@ -352,6 +352,8 @@ impl App {
             workflow_manager: crate::app::views::workflow_manager::WorkflowManagerState::default(),
 
             task_board: desktop_task_board::state::State::new(&cfg, cfg_acp_agent.clone(), init_ms as u64),
+            #[cfg(not(target_arch = "wasm32"))]
+            task_quick_actions: Default::default(),
 
         };
 

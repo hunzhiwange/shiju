@@ -295,6 +295,8 @@ impl App {
 
             // 任务看板相关消息
             Message::TaskBoard(msg) => message::task_board::update(self, msg),
+            #[cfg(not(target_arch = "wasm32"))]
+            Message::TaskQuickActions(msg) => message::task_quick_actions::update(self, msg),
 
             // LSP 心跳消息（仅非 WASM 目标）
             // 用于定期检查语言服务器协议的状态

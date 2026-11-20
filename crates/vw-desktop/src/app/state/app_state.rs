@@ -247,6 +247,8 @@ pub struct App {
     /// 工作流管理面板状态
     pub workflow_manager: crate::app::views::workflow_manager::WorkflowManagerState,
     pub task_board: desktop_task_board::state::State,
+    #[cfg(not(target_arch = "wasm32"))]
+    pub(crate) task_quick_actions: crate::app::message::task_quick_actions::State,
 }
 
 #[cfg(test)]

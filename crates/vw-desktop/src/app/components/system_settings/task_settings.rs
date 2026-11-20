@@ -11,6 +11,9 @@ use desktop_settings_shell::SystemTab;
 use iced::widget::{button, column, container, row, text};
 use iced::{Element, Length, Task};
 
+#[cfg(not(target_arch = "wasm32"))]
+pub(in crate::app) mod quick_actions;
+
 pub(in crate::app) fn project_path(app: &App) -> Option<&str> {
     app.project_editor
         .project_edit_path

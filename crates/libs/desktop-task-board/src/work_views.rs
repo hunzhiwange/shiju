@@ -67,6 +67,8 @@ pub struct WorkViewFilter {
     pub agents: Vec<ExecutionAgent>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub label_ids: Vec<String>,
+    #[serde(default, skip_serializing_if = "std::collections::BTreeMap::is_empty")]
+    pub properties: vw_api_agent_scheduler::AgentSchedulerTaskPropertyValues,
 }
 
 impl WorkViewFilter {
@@ -82,6 +84,7 @@ impl WorkViewFilter {
             && (self.agents.is_empty() || self.agents.iter().any(|agent| agent.matches(task)))
             && (self.label_ids.is_empty()
                 || self.label_ids.iter().any(|id| task.label_ids.contains(id)))
+            && self.properties.iter().all(|(id, value)| task.properties.get(id) == Some(value))
     }
 }
 

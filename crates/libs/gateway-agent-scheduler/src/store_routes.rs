@@ -301,6 +301,29 @@ impl<H: GatewayExecutorHost> AgentSchedulerGateway for StoreBackedAgentScheduler
             .map_err(|error| error.downcast::<ApiError>().unwrap_or_else(map_scheduler_error))
     }
 
+    async fn task_properties(
+        &self,
+        context: AgentSchedulerContext,
+    ) -> Result<Vec<AgentSchedulerTaskPropertyDto>, ApiError> {
+        self.store.initialize_project(&context).map_err(map_scheduler_error)?;
+        self.store.load_task_properties(&context).map_err(map_scheduler_error)
+    }
+
+    async fn mutate_task_properties(
+        &self,
+        context: AgentSchedulerContext,
+        request: AgentSchedulerTaskPropertyMutation,
+    ) -> Result<Vec<AgentSchedulerTaskPropertyDto>, ApiError> {
+        let dispatch_lock = self.project_dispatch_lock(&context);
+        let _dispatch_guard = dispatch_lock.lock().await;
+        self.store.initialize_project(&context).map_err(map_scheduler_error)?;
+        self.store
+            .edit_task_properties(&context, |properties| {
+                mutate_property_directory(properties, request).map_err(anyhow::Error::new)
+            })
+            .map_err(|error| error.downcast::<ApiError>().unwrap_or_else(map_scheduler_error))
+    }
+
     async fn task_board_status(
         &self,
         project_id: String,
@@ -340,6 +363,7 @@ impl<H: GatewayExecutorHost> AgentSchedulerGateway for StoreBackedAgentScheduler
             read_model: AgentSchedulerTaskBoardSnapshotReadModelDto {
                 workflow: Some(workflow),
                 labels: self.store.load_task_labels(&project_path).map_err(map_scheduler_error)?,
+                properties: self.store.load_task_properties(&project_path).map_err(map_scheduler_error)?,
             },
             tasks,
         })
@@ -666,6 +690,97 @@ fn mutate_label_directory(
             color: color.to_ascii_uppercase(),
             archived: false,
         });
+    }
+    Ok(())
+}
+
+fn mutate_property_directory(
+    properties: &mut Vec<AgentSchedulerTaskPropertyDto>,
+    request: AgentSchedulerTaskPropertyMutation,
+) -> Result<(), ApiError> {
+    use AgentSchedulerTaskPropertyMutation::{Archive, Create, Update};
+
+    match request {
+        Create { name, kind, options } => {
+            let name = validate_property_name(properties, None, name)?;
+            if kind == AgentSchedulerTaskPropertyKind::SingleSelect && options.is_empty() {
+                return Err(ApiError::bad_request("single select properties require options"));
+            }
+            let mut property = AgentSchedulerTaskPropertyDto {
+                id: uuid::Uuid::new_v4().to_string(),
+                name,
+                kind,
+                options: Vec::new(),
+                archived: false,
+            };
+            add_property_options(&mut property, options)?;
+            properties.push(property);
+        }
+        Update { id, name, new_options, option_changes } => {
+            let name = name.map(|name| validate_property_name(properties, Some(&id), name))
+                .transpose()?;
+            let property = properties.iter_mut().find(|property| property.id == id)
+                .ok_or_else(|| ApiError::not_found("task property not found"))?;
+            if property.archived {
+                return Err(ApiError::conflict("task property is archived"));
+            }
+            if let Some(name) = name {
+                property.name = name;
+            }
+            for (id, change) in option_changes {
+                let option = property.options.iter_mut().find(|option| option.id == id)
+                    .ok_or_else(|| ApiError::not_found("task property option not found"))?;
+                if let Some(name) = change.name {
+                    if option.archived {
+                        return Err(ApiError::conflict("task property option is archived"));
+                    }
+                    option.name = non_empty(name.trim().to_owned(), "task property option name")?;
+                }
+                option.archived |= change.archive;
+            }
+            add_property_options(property, new_options)?;
+        }
+        Archive { id } => {
+            let property = properties.iter_mut().find(|property| property.id == id)
+                .ok_or_else(|| ApiError::not_found("task property not found"))?;
+            property.archived = true;
+        }
+    }
+    Ok(())
+}
+
+fn validate_property_name(
+    properties: &[AgentSchedulerTaskPropertyDto],
+    id: Option<&str>,
+    name: String,
+) -> Result<String, ApiError> {
+    let name = non_empty(name.trim().to_owned(), "task property name")?;
+    let normalized = name.to_lowercase();
+    if properties.iter().any(|property| {
+        Some(property.id.as_str()) != id && property.name.to_lowercase() == normalized
+    }) {
+        return Err(ApiError::conflict("task property name already exists"));
+    }
+    Ok(name)
+}
+
+fn add_property_options(
+    property: &mut AgentSchedulerTaskPropertyDto,
+    new_options: Vec<String>,
+) -> Result<(), ApiError> {
+    if property.kind != AgentSchedulerTaskPropertyKind::SingleSelect && !new_options.is_empty() {
+        return Err(ApiError::bad_request("only single select properties accept options"));
+    }
+    for option in new_options {
+        property.options.push(AgentSchedulerTaskPropertyOption {
+            id: uuid::Uuid::new_v4().to_string(),
+            name: non_empty(option.trim().to_owned(), "task property option name")?,
+            archived: false,
+        });
+    }
+    let mut names = std::collections::HashSet::new();
+    if property.options.iter().any(|option| !names.insert(option.name.to_lowercase())) {
+        return Err(ApiError::bad_request("task property option names must be unique"));
     }
     Ok(())
 }

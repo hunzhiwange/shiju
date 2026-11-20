@@ -102,6 +102,47 @@ pub fn update(
         return task;
     }
     match &message {
+        TaskBoardMessage::EditingTaskPropertyChanged { task_id, field_id, value } => {
+            let board = &mut app.task_board;
+            if board.task_property_save_in_progress.is_none()
+                && board.task_board_editing_task_id.as_ref() == Some(task_id)
+                && board.task_properties.iter().any(|field| &field.id == field_id && !field.archived)
+            {
+                board.task_board_draft.property_changes.insert(field_id.clone(), value.clone());
+            }
+            return iced::Task::none();
+        }
+        TaskBoardMessage::SaveEditingTaskProperty { task_id, field_id } => {
+            let board = &mut app.task_board;
+            if board.task_property_save_in_progress.is_some()
+                || board.task_board_editing_task_id.as_ref() != Some(task_id)
+            {
+                return iced::Task::none();
+            }
+            let (Some(project_path), Some(value)) = (
+                app.navigation_tabs.project_path.clone(),
+                board.task_board_draft.property_changes.get(field_id).cloned(),
+            ) else {
+                return iced::Task::none();
+            };
+            let generation = next_agent_scheduler_status_generation();
+            board.task_property_save_in_progress = Some(generation);
+            let result_project = project_path.clone();
+            let (task_id, field_id) = (task_id.clone(), field_id.clone());
+            let (result_task, result_field) = (task_id.clone(), field_id.clone());
+            return iced::Task::perform(
+                async move {
+                    persist_task_property_via_gateway(&project_path, &task_id, &field_id, value).await
+                },
+                move |result| Message::TaskBoard(TaskBoardMessage::EditingTaskPropertySaved {
+                    project_path: result_project.clone(),
+                    task_id: result_task.clone(),
+                    field_id: result_field.clone(),
+                    generation,
+                    result,
+                }),
+            );
+        }
         TaskBoardMessage::ToggleEditingTaskLabel(id) => {
             let board = &mut app.task_board;
             if board.task_label_save_in_progress.is_some() {
@@ -764,6 +805,41 @@ pub fn update(
             maybe_schedule_worktree_snapshot_refresh(app, true)
         }
 
+        TaskBoardMessage::EditingTaskPropertySaved { project_path, task_id, field_id, generation, result } => {
+            if !task_board_project_matches(app, &project_path)
+                || app.task_board.task_property_save_in_progress != Some(generation)
+            {
+                return iced::Task::none();
+            }
+            let board = &mut app.task_board;
+            board.task_property_save_in_progress = None;
+            let value = match result {
+                Ok(value) => value,
+                Err(error) => return app.show_error_toast(error),
+            };
+            let update = |task: &mut Task| {
+                if let Some(value) = value.as_ref() {
+                    task.properties.insert(field_id.clone(), value.clone());
+                } else {
+                    task.properties.remove(&field_id);
+                }
+            };
+            if let Some(task) = board.task_board_tasks.iter_mut().find(|task| task.id == task_id) {
+                update(task);
+            }
+            if let Some(task) = board.task_board_viewing_logs.as_mut().filter(|task| task.id == task_id) {
+                update(task);
+            }
+            if board.task_board_editing_task_id.as_ref() == Some(&task_id) {
+                board.task_board_draft.property_changes.remove(&field_id);
+            }
+            board.task_board_workflow_generation = next_agent_scheduler_status_generation();
+            iced::Task::batch([
+                sync_agent_scheduler_status(project_path),
+                app.show_localized_toast(crate::app::state::ToastKind::Success, "任务属性已保存", vec![]),
+            ])
+        }
+
         TaskBoardMessage::EditingTaskLabelsSaved { project_path, task_id, generation, result } => {
             if !task_board_project_matches(app, &project_path)
                 || app.task_board.task_label_save_in_progress != Some(generation)
@@ -820,6 +896,10 @@ pub fn update(
             if generation >= app.task_board.task_labels_generation {
                 app.task_board.task_labels_generation = generation;
                 app.task_board.task_labels.clone_from(&response.read_model.labels);
+            }
+            if generation >= app.task_board.task_properties_generation {
+                app.task_board.task_properties_generation = generation;
+                app.task_board.task_properties.clone_from(&response.read_model.properties);
             }
             let updated_tasks = apply_agent_scheduler_status(app, response);
             let task_ids = updated_tasks.iter().map(|task| task.id.clone()).collect::<Vec<_>>();
@@ -1046,6 +1126,7 @@ fn apply_local_effect(
         LocalEffect::None => iced::Task::none(),
         LocalEffect::ViewLogs(task) => {
             app.task_board.task_board_draft.label_ids = None;
+            app.task_board.task_board_draft.property_changes.clear();
             set_viewing_logs(app, task);
             iced::Task::none()
         }

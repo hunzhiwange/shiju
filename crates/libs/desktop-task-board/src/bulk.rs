@@ -147,6 +147,7 @@ pub fn task_metadata_patch_for_gateway(
         })),
         metadata_remove_keys: Vec::new(),
         label_ids: None,
+        property_changes: Default::default(),
     }
 }
 

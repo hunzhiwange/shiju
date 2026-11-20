@@ -4,7 +4,10 @@ use anyhow::Result;
 use async_trait::async_trait;
 use gateway_types::ApiError;
 use task_scheduler_core::domain::AgentSchedulerContext;
-use vw_api_agent_scheduler::{AgentSchedulerTaskLabelDto, AgentSchedulerTaskLabelMutation};
+use vw_api_agent_scheduler::{
+    AgentSchedulerTaskLabelDto, AgentSchedulerTaskLabelMutation, AgentSchedulerTaskPropertyDto,
+    AgentSchedulerTaskPropertyMutation,
+};
 use vw_api_agent_scheduler::{
     AgentSchedulerBulkCommandRequest,
     AgentSchedulerBulkCommandResponse,
@@ -125,6 +128,21 @@ pub trait AgentSchedulerGateway: Send + Sync {
         _request: AgentSchedulerTaskLabelMutation,
     ) -> Result<Vec<AgentSchedulerTaskLabelDto>, ApiError> {
         Err(ApiError::not_implemented("agent scheduler task labels are not configured"))
+    }
+
+    async fn task_properties(
+        &self,
+        _context: AgentSchedulerContext,
+    ) -> Result<Vec<AgentSchedulerTaskPropertyDto>, ApiError> {
+        Err(ApiError::not_implemented("agent scheduler task properties are not configured"))
+    }
+
+    async fn mutate_task_properties(
+        &self,
+        _context: AgentSchedulerContext,
+        _request: AgentSchedulerTaskPropertyMutation,
+    ) -> Result<Vec<AgentSchedulerTaskPropertyDto>, ApiError> {
+        Err(ApiError::not_implemented("agent scheduler task properties are not configured"))
     }
 
     async fn task_board_status(

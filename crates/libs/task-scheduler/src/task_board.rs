@@ -6,7 +6,7 @@ use vw_api_chat_identity::ReasoningEffortDto;
 use vw_api_agent_scheduler::{
     AgentSchedulerCommandKindDto, AgentSchedulerLegacyTaskImportDto,
     AgentSchedulerMoveTaskPayloadDto, AgentSchedulerTaskMetadataPatchDto, AgentTaskStatusDto,
-    TASK_LABEL_IDS_METADATA_KEY,
+    TASK_LABEL_IDS_METADATA_KEY, TASK_PROPERTY_VALUES_METADATA_KEY,
 };
 use vw_api_transport::common::TimestampMs;
 use vw_api_task::TaskPoolWorkflowSnapshotDto;
@@ -361,7 +361,8 @@ impl<'a> AgentTaskBoardService<'a> {
         } else {
             Vec::new()
         };
-        let outcome = self.store.edit_task_board_task(project_path, task_id, |current| {
+        let property_changes = std::mem::take(&mut patch.property_changes);
+        let outcome = self.store.edit_task_board_task(project_path, task_id, property_changes, |current| {
             let from_status_key = task_board_status_key(current);
             let title = optional_required_text(patch.title.clone(), "task title")?;
             let mut status = patch.status.clone().map(task_status_from_dto);
@@ -835,12 +836,18 @@ pub(super) fn apply_metadata_patch(
             if key == TASK_LABEL_IDS_METADATA_KEY {
                 bail!("use label_ids to update task labels");
             }
+            if key == TASK_PROPERTY_VALUES_METADATA_KEY {
+                bail!("use property_changes to update task properties");
+            }
             metadata.insert(key, value);
         }
     }
     for key in patch.metadata_remove_keys {
         if key == TASK_LABEL_IDS_METADATA_KEY {
             bail!("use label_ids to clear task labels");
+        }
+        if key == TASK_PROPERTY_VALUES_METADATA_KEY {
+            bail!("use property_changes to clear task properties");
         }
         metadata.remove(&key);
     }

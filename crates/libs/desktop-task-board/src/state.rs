@@ -21,6 +21,10 @@ pub struct State {
     pub work_max_input: String,
     pub work_agent_input: String,
     pub work_label_ids: Vec<String>,
+    pub work_property_values: vw_api_agent_scheduler::AgentSchedulerTaskPropertyValues,
+    pub task_properties: Vec<vw_api_agent_scheduler::AgentSchedulerTaskPropertyDto>,
+    pub task_properties_generation: u64,
+    pub task_property_save_in_progress: Option<u64>,
     pub task_labels: Vec<vw_api_agent_scheduler::AgentSchedulerTaskLabelDto>,
     pub task_labels_generation: u64,
     pub task_label_save_in_progress: Option<u64>,
@@ -211,6 +215,10 @@ impl State {
             work_max_input: String::new(),
             work_agent_input: String::new(),
             work_label_ids: Vec::new(),
+            work_property_values: Default::default(),
+            task_properties: Vec::new(),
+            task_properties_generation: 0,
+            task_property_save_in_progress: None,
             task_labels: Vec::new(),
             task_labels_generation: 0,
             task_label_save_in_progress: None,
@@ -378,6 +386,7 @@ impl State {
         self.work_max_input.clear();
         self.work_agent_input.clear();
         self.work_label_ids.clear();
+        self.work_property_values.clear();
         self.task_board_selected_tasks.clear();
         self.task_board_bulk_active_status = None;
         self.task_board_dragging = None;

@@ -4,6 +4,7 @@ use crate::app::state::TaskBoardViewMode;
 mod board;
 mod work_sidebar;
 mod work_view_editor;
+mod properties;
 mod common;
 mod control;
 mod drag;

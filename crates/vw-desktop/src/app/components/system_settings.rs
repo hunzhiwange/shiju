@@ -506,6 +506,9 @@ pub fn view(app: &App) -> Element<'_, Message> {
     if active_tab == SystemTab::TaskLabels {
         dialog = task_settings::labels::overlay(app, dialog);
     }
+    if active_tab == SystemTab::TaskProperties {
+        dialog = task_settings::properties::overlay(app, dialog);
+    }
 
     dialog = crate::app::components::system_settings_help::with_help_modal(
         app,

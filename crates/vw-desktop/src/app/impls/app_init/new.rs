@@ -350,6 +350,7 @@ impl App {
                 state
             },
             task_label_settings: Default::default(),
+            task_property_settings: Default::default(),
             workflow_manager: crate::app::views::workflow_manager::WorkflowManagerState::default(),
 
             task_board: desktop_task_board::state::State::new(&cfg, cfg_acp_agent.clone(), init_ms as u64),

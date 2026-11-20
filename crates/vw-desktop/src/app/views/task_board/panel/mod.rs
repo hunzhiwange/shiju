@@ -64,7 +64,10 @@ pub fn build_task_panel(app: &App, edit: bool) -> iced::Element<'_, Message> {
              .style(crate::app::components::system_settings_common::rounded_action_btn_style)
              .on_press(Message::TaskBoard(crate::app::message::TaskBoardMessage::TogglePersonalTask(task.id.clone()))),
      ].spacing(8);
-     body.extend(labels).push(panel).into()
+     let properties = (edit && app.task_board.task_board_editing_task_id.as_ref() == Some(&task.id))
+         .then(|| super::properties::task_editor(app, task))
+         .flatten();
+     body.extend(labels).extend(properties).push(panel).into()
  } else { panel }
 }
 fn task_labels<'a>(app: &'a App, task: &'a desktop_task_model::Task) -> iced::Element<'a, Message> {

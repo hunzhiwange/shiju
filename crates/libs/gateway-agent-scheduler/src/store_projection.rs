@@ -320,6 +320,9 @@ pub(super) fn task_board_task_read_model(
             .flatten()
             .filter_map(|value| value.as_str().map(str::to_owned))
             .collect(),
+        properties: metadata.get(TASK_PROPERTY_VALUES_METADATA_KEY)
+            .and_then(|value| serde_json::from_value(value.clone()).ok())
+            .unwrap_or_default(),
     }
 }
 

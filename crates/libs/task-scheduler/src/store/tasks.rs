@@ -7,7 +7,11 @@ use rusqlite::types::Type;
 use rusqlite::{Connection, OptionalExtension, Row, TransactionBehavior, params, params_from_iter};
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value, json};
-use vw_api_agent_scheduler::{AgentSchedulerTaskLabelDto, TASK_LABEL_IDS_METADATA_KEY};
+use vw_api_agent_scheduler::{
+    AgentSchedulerTaskLabelDto, AgentSchedulerTaskPropertyChanges, AgentSchedulerTaskPropertyDto,
+    AgentSchedulerTaskPropertyKind, AgentSchedulerTaskPropertyValue, AgentSchedulerTaskPropertyValues,
+    TASK_LABEL_IDS_METADATA_KEY, TASK_PROPERTY_VALUES_METADATA_KEY,
+};
 use vw_api_transport::common::TimestampMs;
 use vw_api_task::{TaskPoolWorkflowSnapshotDto, TaskPoolWorkflowStatusRoleDto};
 
@@ -26,7 +30,8 @@ const TASK_COLUMNS: &str = "id, kind, status, title, spec_uri, meta_uri, assigne
 room_id, project_room_id, delegated_to_team, schedule, timezone, next_scheduled_at, \
 last_executed_at, dag_json, metadata_json, created_at_ms, updated_at_ms";
 const TASK_BOARD_WORKFLOW_META_KEY: &str = "task_board.workflow";
-pub(super) const TASK_LABELS_META_KEY: &str = "task_board.labels";
+const TASK_LABELS_META_KEY: &str = "task_board.labels";
+pub(super) const TASK_PROPERTIES_META_KEY: &str = "task_board.properties";
 
 pub use task_scheduler_core::task_records::{NewAgentTask, StoredAgentTask, AgentTaskDagNode};
 
@@ -150,6 +155,9 @@ impl AgentSchedulerStore {
         mut task: NewAgentTask,
     ) -> Result<StoredAgentTask> {
         validate_new_task(&task)?;
+        if task.metadata.get(TASK_PROPERTY_VALUES_METADATA_KEY).is_some() {
+            bail!("use property_changes to set task properties");
+        }
         if let Some(value) = task.metadata.get(TASK_LABEL_IDS_METADATA_KEY) {
             let ids = serde_json::from_value(value.clone()).context("invalid task label IDs")?;
             let labels = self.load_task_labels(context)?;
@@ -349,8 +357,8 @@ impl AgentSchedulerStore {
         task_id: &TaskId,
         mut update: AgentTaskBoardUpdate,
     ) -> Result<Option<StoredAgentTask>> {
-        let outcome = self.edit_task_board_task(context, task_id, |current| {
-            preserve_task_labels(&current.metadata, &mut update.metadata);
+        let outcome = self.edit_task_board_task(context, task_id, BTreeMap::new(), |current| {
+            preserve_task_board_fields(&current.metadata, &mut update.metadata);
             Ok(update)
         })?;
         Ok(outcome.map(|(_, updated)| updated))
@@ -361,10 +369,11 @@ impl AgentSchedulerStore {
         &self,
         context: &(impl AgentSchedulerStorageContext + ?Sized),
         task_id: &TaskId,
+        property_changes: AgentSchedulerTaskPropertyChanges,
         edit: impl FnOnce(&StoredAgentTask) -> Result<AgentTaskBoardUpdate> + Send,
     ) -> Result<Option<(StoredAgentTask, StoredAgentTask)>> {
         if let Some(store) = postgres_provider(self, context)? {
-            return store.edit_task_board_task(context, task_id, edit);
+            return store.edit_task_board_task(context, task_id, property_changes, edit);
         }
         let scope = context.storage_scope()?;
         let (platform_id, company_id, project_id) = scope_params(&scope);
@@ -373,7 +382,11 @@ impl AgentSchedulerStore {
         let Some(current) = load_task_with_conn(&tx, context, task_id)? else {
             return Ok(None);
         };
-        let update = edit(&current)?;
+        let mut update = edit(&current)?;
+        if !property_changes.is_empty() {
+            let properties = parse_directory(load_meta(&tx, &scope, TASK_PROPERTIES_META_KEY)?)?;
+            apply_task_property_changes(&mut update.metadata, &properties, property_changes)?;
+        }
         let title = match update.title {
             Some(title) => {
                 ensure_non_empty(&title, "task title")?;
@@ -473,7 +486,7 @@ impl AgentSchedulerStore {
             return Ok(None);
         };
         ensure_transition(current.kind, current.status, to_status)?;
-        preserve_task_labels(&current.metadata, &mut metadata);
+        preserve_task_board_fields(&current.metadata, &mut metadata);
         let metadata_json = serde_json::to_string(&metadata).context("serialize task metadata")?;
         tx.execute(
             "UPDATE scheduler_tasks SET status = ?1, metadata_json = ?2, updated_at_ms = ?3
@@ -576,11 +589,7 @@ impl AgentSchedulerStore {
         &self,
         context: &(impl AgentSchedulerStorageContext + ?Sized),
     ) -> Result<Vec<AgentSchedulerTaskLabelDto>> {
-        if let Some(store) = postgres_provider(self, context)? {
-            return store.load_task_labels(context);
-        }
-        let conn = open_initialized_connection(self, context)?;
-        parse_task_labels(load_meta(&conn, &context.storage_scope()?, TASK_LABELS_META_KEY)?)
+        self.load_task_directory(context, TASK_LABELS_META_KEY)
     }
 
     pub fn edit_task_labels(
@@ -588,24 +597,114 @@ impl AgentSchedulerStore {
         context: &(impl AgentSchedulerStorageContext + ?Sized),
         edit: impl FnOnce(&mut Vec<AgentSchedulerTaskLabelDto>) -> Result<()> + Send,
     ) -> Result<Vec<AgentSchedulerTaskLabelDto>> {
-        if let Some(store) = postgres_provider(self, context)? {
-            return store.edit_task_labels(context, edit);
-        }
+        self.edit_task_directory(context, TASK_LABELS_META_KEY, edit)
+    }
+
+    pub fn load_task_properties(
+        &self,
+        context: &(impl AgentSchedulerStorageContext + ?Sized),
+    ) -> Result<Vec<AgentSchedulerTaskPropertyDto>> {
+        self.load_task_directory(context, TASK_PROPERTIES_META_KEY)
+    }
+
+    pub fn edit_task_properties(
+        &self,
+        context: &(impl AgentSchedulerStorageContext + ?Sized),
+        edit: impl FnOnce(&mut Vec<AgentSchedulerTaskPropertyDto>) -> Result<()> + Send,
+    ) -> Result<Vec<AgentSchedulerTaskPropertyDto>> {
+        self.edit_task_directory(context, TASK_PROPERTIES_META_KEY, edit)
+    }
+
+    fn load_task_directory<T: serde::de::DeserializeOwned>(
+        &self,
+        context: &(impl AgentSchedulerStorageContext + ?Sized),
+        key: &str,
+    ) -> Result<Vec<T>> {
         let scope = context.storage_scope()?;
+        if let Some(store) = postgres_provider(self, context)? {
+            return store.load_task_directory(&scope, key);
+        }
+        let conn = open_initialized_connection(self, context)?;
+        parse_directory(load_meta(&conn, &scope, key)?)
+    }
+
+    fn edit_task_directory<T: serde::de::DeserializeOwned + Serialize + Send>(
+        &self,
+        context: &(impl AgentSchedulerStorageContext + ?Sized),
+        key: &str,
+        edit: impl FnOnce(&mut Vec<T>) -> Result<()> + Send,
+    ) -> Result<Vec<T>> {
+        let scope = context.storage_scope()?;
+        if let Some(store) = postgres_provider(self, context)? {
+            return store.edit_task_directory(&scope, key, edit);
+        }
         let (_guard, mut conn) = open_locked_initialized_connection(self, context)?;
         let tx = conn.transaction_with_behavior(TransactionBehavior::Immediate)?;
-        let mut labels = parse_task_labels(load_meta(&tx, &scope, TASK_LABELS_META_KEY)?)?;
-        edit(&mut labels)?;
-        upsert_meta(&tx, &scope, TASK_LABELS_META_KEY, &serde_json::to_string(&labels)?)?;
+        let mut directory = parse_directory(load_meta(&tx, &scope, key)?)?;
+        edit(&mut directory)?;
+        upsert_meta(&tx, &scope, key, &serde_json::to_string(&directory)?)?;
         tx.commit()?;
-        Ok(labels)
+        Ok(directory)
     }
 }
 
-pub(super) fn parse_task_labels(value: Option<String>) -> Result<Vec<AgentSchedulerTaskLabelDto>> {
-    value.map(|value| serde_json::from_str(&value).context("read task label directory"))
+pub(super) fn parse_directory<T: serde::de::DeserializeOwned>(value: Option<String>) -> Result<Vec<T>> {
+    value.map(|value| serde_json::from_str(&value).context("read task directory"))
         .transpose()
         .map(Option::unwrap_or_default)
+}
+
+pub(super) fn apply_task_property_changes(
+    metadata: &mut Value,
+    directory: &[AgentSchedulerTaskPropertyDto],
+    changes: AgentSchedulerTaskPropertyChanges,
+) -> Result<()> {
+    use AgentSchedulerTaskPropertyKind as Kind;
+    use AgentSchedulerTaskPropertyValue as Property;
+
+    let mut values: AgentSchedulerTaskPropertyValues = metadata
+        .get(TASK_PROPERTY_VALUES_METADATA_KEY)
+        .map(|value| serde_json::from_value(value.clone()).context("read task property values"))
+        .transpose()?
+        .unwrap_or_default();
+    for (id, value) in changes {
+        let field = directory.iter().find(|field| field.id == id)
+            .context("task property does not belong to this project")?;
+        if field.archived {
+            bail!("task property is archived");
+        }
+        match (value.as_ref(), field.kind) {
+            (None, _) => {
+                values.remove(&id);
+            }
+            (Some(Property::Date(date)), Kind::Date) => {
+                let parsed = chrono::NaiveDate::parse_from_str(date, "%Y-%m-%d")
+                    .context("task property date must be a valid date in YYYY-MM-DD format")?;
+                if date.len() != 10 || date.starts_with("0000") || parsed.to_string() != *date {
+                    bail!("task property date must be a valid date in YYYY-MM-DD format");
+                }
+            }
+            (Some(Property::SingleSelect(option)), Kind::SingleSelect) => {
+                let choice = field.options.iter().find(|choice| &choice.id == option)
+                    .context("option does not belong to this task property")?;
+                if choice.archived {
+                    bail!("task property option is archived");
+                }
+            }
+            (Some(Property::Text(_)), Kind::Text) => {}
+            _ => bail!("value does not match task property type"),
+        }
+        if let Some(value) = value {
+            values.insert(id, value);
+        }
+    }
+    let metadata = metadata.as_object_mut().context("task metadata must be an object")?;
+    if values.is_empty() {
+        metadata.remove(TASK_PROPERTY_VALUES_METADATA_KEY);
+    } else {
+        metadata.insert(TASK_PROPERTY_VALUES_METADATA_KEY.to_owned(), serde_json::to_value(values)?);
+    }
+    Ok(())
 }
 
 pub(crate) fn validate_task_label_ids(
@@ -628,14 +727,16 @@ pub(crate) fn validate_task_label_ids(
     Ok(ids)
 }
 
-pub(super) fn preserve_task_labels(current: &Value, metadata: &mut Value) {
-    if let Some(ids) = current.get(TASK_LABEL_IDS_METADATA_KEY) {
-        if !metadata.is_object() {
-            *metadata = json!({});
+pub(super) fn preserve_task_board_fields(current: &Value, metadata: &mut Value) {
+    for key in [TASK_LABEL_IDS_METADATA_KEY, TASK_PROPERTY_VALUES_METADATA_KEY] {
+        if let Some(value) = current.get(key) {
+            if !metadata.is_object() {
+                *metadata = json!({});
+            }
+            metadata[key] = value.clone();
+        } else if let Some(metadata) = metadata.as_object_mut() {
+            metadata.remove(key);
         }
-        metadata[TASK_LABEL_IDS_METADATA_KEY] = ids.clone();
-    } else if let Some(metadata) = metadata.as_object_mut() {
-        metadata.remove(TASK_LABEL_IDS_METADATA_KEY);
     }
 }
 

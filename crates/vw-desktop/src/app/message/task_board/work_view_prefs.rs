@@ -86,6 +86,15 @@ fn filter(app: &App) -> Result<WorkViewFilter, String> {
             _ => return Err("智能体类型须为 builtin 或 acp".into()),
         });
     }
+    for value in board.work_property_values.values() {
+        if let vw_api_agent_scheduler::AgentSchedulerTaskPropertyValue::Date(date) = value {
+            let parsed = chrono::NaiveDate::parse_from_str(date, "%Y-%m-%d")
+                .map_err(|_| "日期筛选须填写有效日期（YYYY-MM-DD）")?;
+            if date.len() != 10 || date.starts_with("0000") || parsed.to_string() != *date {
+                return Err("日期筛选须填写有效日期（YYYY-MM-DD）".into());
+            }
+        }
+    }
     Ok(WorkViewFilter {
         status_keys: board
             .work_status_input
@@ -98,6 +107,7 @@ fn filter(app: &App) -> Result<WorkViewFilter, String> {
         priority_max: max,
         agents,
         label_ids: board.work_label_ids.clone(),
+        properties: board.work_property_values.clone(),
     })
 }
 
@@ -153,6 +163,14 @@ pub(super) fn update(app: &mut App, message: &TaskBoardMessage) -> Option<iced::
                     board.work_label_ids.push(id.clone());
                 }
             }
+            TaskBoardMessage::WorkViewPropertyChanged(id, value) => {
+                let values = &mut app.task_board.work_property_values;
+                if let Some(value) = value {
+                    values.insert(id.clone(), value.clone());
+                } else {
+                    values.remove(id);
+                }
+            }
             TaskBoardMessage::ApplyWorkFilter => {
                 let filter = filter(app)?;
                 app.task_board.task_board_selected_tasks.clear();
@@ -172,6 +190,7 @@ pub(super) fn update(app: &mut App, message: &TaskBoardMessage) -> Option<iced::
                     let board = &mut app.task_board;
                     board.work_status_input = view.filter.status_keys.join(", ");
                     board.work_label_ids.clone_from(&view.filter.label_ids);
+                    board.work_property_values.clone_from(&view.filter.properties);
                     board.work_min_input =
                         view.filter.priority_min.map(|n| n.to_string()).unwrap_or_default();
                     board.work_max_input =
@@ -278,6 +297,7 @@ pub(super) fn update(app: &mut App, message: &TaskBoardMessage) -> Option<iced::
         TaskBoardMessage::OpenWorkViewEditor
             | TaskBoardMessage::WorkViewFieldChanged(..)
             | TaskBoardMessage::ToggleWorkViewLabel(_)
+            | TaskBoardMessage::WorkViewPropertyChanged(..)
             | TaskBoardMessage::ApplyWorkFilter
             | TaskBoardMessage::ClearWorkFilter
             | TaskBoardMessage::OpenSavedWorkView(_)

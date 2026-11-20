@@ -302,6 +302,16 @@ fn client_route_entries() -> Vec<GatewayRouteEntry> {
             "/v1/agent-scheduler/projects/{project_id}/labels",
             "update scheduler task label directory",
         ),
+        client_route(
+            "GET",
+            "/v1/agent-scheduler/projects/{project_id}/properties",
+            "scheduler task properties",
+        ),
+        client_route(
+            "POST",
+            "/v1/agent-scheduler/projects/{project_id}/properties",
+            "update scheduler task property directory",
+        ),
         client_route("GET", "/v1/agent-scheduler/projects/{project_id}/tasks", "scheduler tasks"),
         client_route(
             "POST",

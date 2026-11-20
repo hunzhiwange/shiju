@@ -47,6 +47,9 @@ pub fn view(app: &App) -> Element<'_, Message> {
             row(labels.map(desktop_task_board::board::task_label_badge)).spacing(4).wrap()
         );
     }
+    if !board.work_filter.properties.is_empty() {
+        content = content.push(super::properties::filter_summary(app));
+    }
     if board.work_editor_open {
         let field = |label: &'static str, value: &str, index| {
             text_input(label, value)
@@ -84,6 +87,10 @@ pub fn view(app: &App) -> Element<'_, Message> {
         if !choices.is_empty() {
             fields = fields.push(settings_field_label(i18n.__("标签")))
                 .push(row(choices).spacing(8).wrap());
+        }
+        if !board.task_properties.is_empty() || !board.work_property_values.is_empty() {
+            fields = fields.push(settings_field_label(i18n.__("属性")))
+                .push(super::properties::filter_editor(app));
         }
         let mut actions = row![
             action("应用筛选", TaskBoardMessage::ApplyWorkFilter),

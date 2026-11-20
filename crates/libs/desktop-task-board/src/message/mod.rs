@@ -20,7 +20,7 @@ pub enum TaskBoardDetailTab {
     Basic,
     Logs,
 }
-use vw_api_agent_scheduler::AgentSchedulerDispatchModeDto;
+use vw_api_agent_scheduler::{AgentSchedulerDispatchModeDto, AgentSchedulerTaskPropertyValue};
 
 #[derive(Debug, Clone)]
 pub struct WorktreePoolMaintenanceOutcome {
@@ -35,6 +35,7 @@ pub enum TaskBoardMessage {
     OpenWorkViewEditor,
     WorkViewFieldChanged(u8, String),
     ToggleWorkViewLabel(String),
+    WorkViewPropertyChanged(String, Option<AgentSchedulerTaskPropertyValue>),
     ApplyWorkFilter,
     ClearWorkFilter,
     OpenSavedWorkView(String),
@@ -174,6 +175,19 @@ pub enum TaskBoardMessage {
     ToggleEditingTaskLabel(String),
     ClearEditingTaskLabels,
     SaveEditingTaskLabels,
+    EditingTaskPropertyChanged {
+        task_id: String,
+        field_id: String,
+        value: Option<AgentSchedulerTaskPropertyValue>,
+    },
+    SaveEditingTaskProperty { task_id: String, field_id: String },
+    EditingTaskPropertySaved {
+        project_path: String,
+        task_id: String,
+        field_id: String,
+        generation: u64,
+        result: Result<Option<AgentSchedulerTaskPropertyValue>, String>,
+    },
     EditingTaskLabelsSaved {
         project_path: String,
         task_id: String,

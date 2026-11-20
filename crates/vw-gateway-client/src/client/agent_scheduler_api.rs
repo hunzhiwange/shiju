@@ -1,5 +1,6 @@
 use vw_api_agent_scheduler::{
-    AgentSchedulerTaskLabelDto, AgentSchedulerTaskLabelMutation,
+    AgentSchedulerTaskLabelDto, AgentSchedulerTaskLabelMutation, AgentSchedulerTaskPropertyDto,
+    AgentSchedulerTaskPropertyMutation,
     AgentSchedulerBulkCommandRequest, AgentSchedulerBulkCommandResponse,
     AgentSchedulerCommandRequest, AgentSchedulerCommandResponse, AgentSchedulerCreateTaskRequest,
     AgentSchedulerCreateTaskResponse, AgentSchedulerLegacyImportRequest,
@@ -91,6 +92,23 @@ impl GatewayClient {
     ) -> Result<Vec<AgentSchedulerTaskLabelDto>, String> {
         gateway_scheduler::GatewaySchedulerClient::new(self.transport().clone())
             .agent_scheduler_mutate_task_labels(scope, request).await
+    }
+
+    pub async fn agent_scheduler_task_properties(
+        &self,
+        scope: &AgentSchedulerScopeDto,
+    ) -> Result<Vec<AgentSchedulerTaskPropertyDto>, String> {
+        gateway_scheduler::GatewaySchedulerClient::new(self.transport().clone())
+            .agent_scheduler_task_properties(scope).await
+    }
+
+    pub async fn agent_scheduler_mutate_task_properties(
+        &self,
+        scope: &AgentSchedulerScopeDto,
+        request: &AgentSchedulerTaskPropertyMutation,
+    ) -> Result<Vec<AgentSchedulerTaskPropertyDto>, String> {
+        gateway_scheduler::GatewaySchedulerClient::new(self.transport().clone())
+            .agent_scheduler_mutate_task_properties(scope, request).await
     }
 
     /// 更新 Agent Scheduler 任务板任务元数据投影。

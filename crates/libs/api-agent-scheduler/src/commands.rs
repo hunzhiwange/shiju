@@ -154,6 +154,9 @@ pub struct AgentSchedulerTaskMetadataPatchDto {
     pub metadata_remove_keys: Vec<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub label_ids: Option<Vec<String>>,
+    /// A null value removes only the property at that ID.
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub property_changes: AgentSchedulerTaskPropertyChanges,
 }
 
 /// 旧桌面任务导入项。
@@ -289,6 +292,8 @@ pub struct AgentSchedulerTaskBoardTaskReadModelDto {
     pub stage_label: Option<String>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub label_ids: Vec<String>,
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub properties: AgentSchedulerTaskPropertyValues,
 }
 
 impl AgentSchedulerTaskBoardTaskReadModelDto {
@@ -316,12 +321,81 @@ pub struct AgentSchedulerTaskBoardSnapshotReadModelDto {
     pub workflow: Option<TaskPoolWorkflowSnapshotDto>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub labels: Vec<AgentSchedulerTaskLabelDto>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub properties: Vec<AgentSchedulerTaskPropertyDto>,
 }
 
 impl AgentSchedulerTaskBoardSnapshotReadModelDto {
     pub fn is_empty(&self) -> bool {
         self == &Self::default()
     }
+}
+
+pub const TASK_PROPERTY_VALUES_METADATA_KEY: &str = "task_board.property_values";
+
+pub type AgentSchedulerTaskPropertyValues = BTreeMap<String, AgentSchedulerTaskPropertyValue>;
+pub type AgentSchedulerTaskPropertyChanges = BTreeMap<String, Option<AgentSchedulerTaskPropertyValue>>;
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum AgentSchedulerTaskPropertyKind {
+    SingleSelect,
+    Date,
+    Text,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(tag = "type", content = "value", rename_all = "snake_case")]
+pub enum AgentSchedulerTaskPropertyValue {
+    SingleSelect(String),
+    Date(String),
+    Text(String),
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct AgentSchedulerTaskPropertyOption {
+    pub id: String,
+    pub name: String,
+    #[serde(default)]
+    pub archived: bool,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct AgentSchedulerTaskPropertyOptionChange {
+    pub name: Option<String>,
+    #[serde(default)]
+    pub archive: bool,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct AgentSchedulerTaskPropertyDto {
+    pub id: String,
+    pub name: String,
+    pub kind: AgentSchedulerTaskPropertyKind,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub options: Vec<AgentSchedulerTaskPropertyOption>,
+    #[serde(default)]
+    pub archived: bool,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(tag = "action", rename_all = "snake_case")]
+pub enum AgentSchedulerTaskPropertyMutation {
+    Create {
+        name: String,
+        kind: AgentSchedulerTaskPropertyKind,
+        #[serde(default)]
+        options: Vec<String>,
+    },
+    Update {
+        id: String,
+        name: Option<String>,
+        #[serde(default)]
+        new_options: Vec<String>,
+        #[serde(default)]
+        option_changes: BTreeMap<String, AgentSchedulerTaskPropertyOptionChange>,
+    },
+    Archive { id: String },
 }
 
 pub const TASK_LABEL_IDS_METADATA_KEY: &str = "task_board.label_ids";

@@ -184,6 +184,10 @@ impl App {
         self.task_board.task_board_workflow_generation =
             crate::app::message::task_board::next_agent_scheduler_status_generation();
         self.task_board.task_labels.clear();
+        self.task_board.task_properties.clear();
+        self.task_board.task_properties_generation = self.task_board.task_board_workflow_generation;
+        self.task_board.task_property_save_in_progress = None;
+        self.task_board.task_board_draft.property_changes.clear();
         self.task_board.task_labels_generation = self.task_board.task_board_workflow_generation;
         self.task_board.task_label_save_in_progress = None;
         self.task_board.task_board_draft.label_ids = None;

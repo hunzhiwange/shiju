@@ -3,7 +3,10 @@
 use anyhow::Result;
 use gateway_types::ApiError;
 use task_scheduler_core::domain::AgentSchedulerContext;
-use vw_api_agent_scheduler::{AgentSchedulerTaskLabelDto, AgentSchedulerTaskLabelMutation};
+use vw_api_agent_scheduler::{
+    AgentSchedulerTaskLabelDto, AgentSchedulerTaskLabelMutation, AgentSchedulerTaskPropertyDto,
+    AgentSchedulerTaskPropertyMutation,
+};
 use vw_api_agent_scheduler::AgentSchedulerOutboxDrainResponse as AgentSchedulerProjectOutboxDrainResponse;
 use vw_api_agent_scheduler::{
     AgentSchedulerBulkCommandRequest,
@@ -67,6 +70,11 @@ where
             "/agent-scheduler/projects/{project_id}/labels",
             axum::routing::get(agent_scheduler_project_labels)
                 .post(agent_scheduler_project_mutate_labels),
+        )
+        .route(
+            "/agent-scheduler/projects/{project_id}/properties",
+            axum::routing::get(agent_scheduler_project_properties)
+                .post(agent_scheduler_project_mutate_properties),
         )
         .route(
             "/agent-scheduler/projects/{project_id}/tasks",
@@ -168,6 +176,25 @@ async fn agent_scheduler_project_mutate_labels(
 ) -> Result<Json<Vec<AgentSchedulerTaskLabelDto>>, ApiError> {
     let context = resolve_project_context(tenant, &project_id).await?;
     gateway.mutate_task_labels(context, body).await.map(Json)
+}
+
+async fn agent_scheduler_project_properties(
+    AxumPath(project_id): AxumPath<String>,
+    Extension(tenant): Extension<TenantScope>,
+    Extension(gateway): Extension<SharedAgentSchedulerGateway>,
+) -> Result<Json<Vec<AgentSchedulerTaskPropertyDto>>, ApiError> {
+    let context = resolve_project_context(tenant, &project_id).await?;
+    gateway.task_properties(context).await.map(Json)
+}
+
+async fn agent_scheduler_project_mutate_properties(
+    AxumPath(project_id): AxumPath<String>,
+    Extension(tenant): Extension<TenantScope>,
+    Extension(gateway): Extension<SharedAgentSchedulerGateway>,
+    Json(body): Json<AgentSchedulerTaskPropertyMutation>,
+) -> Result<Json<Vec<AgentSchedulerTaskPropertyDto>>, ApiError> {
+    let context = resolve_project_context(tenant, &project_id).await?;
+    gateway.mutate_task_properties(context, body).await.map(Json)
 }
 
 async fn agent_scheduler_project_tasks(

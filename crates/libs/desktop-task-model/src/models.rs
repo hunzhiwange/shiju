@@ -717,6 +717,8 @@ pub struct Task {
     pub id: String,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub label_ids: Vec<String>,
+    #[serde(default, skip_serializing_if = "std::collections::BTreeMap::is_empty")]
+    pub properties: vw_api_agent_scheduler::AgentSchedulerTaskPropertyValues,
     pub priority: u32,
     pub assignee: String,
     pub model: String,
@@ -768,6 +770,7 @@ impl Default for Task {
         Self {
             id: generate_task_id(),
             label_ids: Vec::new(),
+            properties: Default::default(),
             priority: 999,
             assignee: "VibeWindow".to_string(),
             model: TASK_MODEL_AUTO.to_string(),
@@ -1185,6 +1188,7 @@ fn default_task_workflow_id() -> String {
 #[derive(Debug, Clone)]
 pub struct TaskDraft {
     pub label_ids: Option<Vec<String>>,
+    pub property_changes: vw_api_agent_scheduler::AgentSchedulerTaskPropertyChanges,
     pub priority: String,
     pub assignee: String,
     pub model: String,
@@ -1202,6 +1206,7 @@ impl Default for TaskDraft {
     fn default() -> Self {
         Self {
             label_ids: None,
+            property_changes: Default::default(),
             priority: "999".to_string(),
             assignee: "VibeWindow".to_string(),
             model: TASK_MODEL_AUTO.to_string(),

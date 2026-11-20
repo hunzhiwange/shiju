@@ -23,7 +23,7 @@ from verify_acp_integration import require
 from verify_acp_model_source import ROOT, Unavailable
 
 # Add a key only once its supplier module implements the reviewed probe interface.
-AGENTS = ("claude",)
+AGENTS = ("claude", "qwen")
 AGENT_PROFILE = "acp-coexistence"
 PROVIDER = "coexistence-fixture"
 PHASES = ("baseline", "mounted", "removed", "rejected")
@@ -111,6 +111,9 @@ def run(agent, binary, report):
             "selected": make_skill(workspace / ".shiju/skills", "selected"),
             "unselected": make_skill(workspace / ".shiju/skills", "unselected"),
         }, "mcp": secrets.token_hex(24)}
+        prepare_workspace = getattr(supplier, "prepare_workspace", None)
+        if prepare_workspace is not None:
+            prepare_workspace(workspace)
         attachment = root / "mcp.txt"
         attachment.write_text(fixtures["mcp"])
         audit = root / "mcp-audit.txt"
@@ -156,6 +159,9 @@ def run(agent, binary, report):
                 stream, decisions, live_access = interactive_turn(url, query, body, probe, rejected)
                 after = audit.read_text().splitlines() if audit.exists() else []
                 events = [json.loads(line[6:]) for line in stream.splitlines() if line.startswith("data: {")]
+                observe_terminal = getattr(probe, "observe_terminal", None)
+                if observe_terminal is not None:
+                    observe_terminal(events)
                 types = [event.get("type") for event in events]
                 row.update(done=types.count("chat.done"), errors=types.count("chat.error"),
                            mcp_calls=len(after) - len(before), mcp_decisions=decisions,

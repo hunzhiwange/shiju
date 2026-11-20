@@ -1,4 +1,4 @@
-//! Qwen's reviewed native scanner reads only the request-owned skill view.
+//! Add the request-owned skill view to Qwen’s native discovery roots.
 use agent_config::schema::AcpAgentConfig;
 
 const ROOT_ENV: &str = "SHIJU_QWEN_SKILL_ROOT";
@@ -10,16 +10,12 @@ pub(super) fn configure(
     if config.env.contains_key(ROOT_ENV) {
         return Err(super::super::acp_option_error("conflicting Qwen skill directory environment"));
     }
-    let root = if let Some(view) = view {
+    if let Some(view) = view {
         view.0.validate().map_err(super::super::to_api_error)?;
         acp_agent_registry::verify_reviewed_agent_executable("qwen", &config.command)
             .map_err(super::super::to_api_error)?;
-        view.0.root().to_string_lossy().into_owned()
-    } else {
-        // An empty selection disables all native skill levels in the reviewed scanner.
-        String::new()
-    };
-    config.env.insert(ROOT_ENV.into(), root);
+        config.env.insert(ROOT_ENV.into(), view.0.root().to_string_lossy().into_owned());
+    }
     Ok(())
 }
 

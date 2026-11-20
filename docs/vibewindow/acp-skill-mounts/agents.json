@@ -2492,7 +2492,7 @@
       "status": "verified",
       "platform": {
         "review_host": "Darwin-arm64",
-        "artifact_scope": "Darwin-arm64 受审固定 0.26.7 补丁发行物的生产 ACP、原生技能工具及两来源完整生命周期真实验证；其他平台未验证。",
+        "artifact_scope": "Darwin-arm64 受审 Qwen Code 0.26.7 修订 2，生产 ACP 原生技能与会话技能共存。",
         "linux": "unverified",
         "windows": "unverified"
       },
@@ -2510,14 +2510,11 @@
       "acp_entry": {
         "argv": [
           "qwen",
-          "--acp",
-          "--experimental-skills",
-          "--approval-mode",
-          "yolo"
+          "--acp"
         ],
-        "binding": "crates/vw-acp/src/agent_registry.rs::BUILT_IN_AGENT_DEFINITIONS",
+        "binding": "crates/libs/acp-agent-registry/src/agent_registry.rs::BUILT_IN_AGENT_DEFINITIONS",
         "runtime_executed": true,
-        "note": "受审固定发行物两种模型来源真实运行；选中挂载前检查完整文件散列。experimental-skills 为上游已忽略的兼容参数，不作发现证据。"
+        "note": "受管修订 2 的固定原生入口。选中挂载前检查受审文件摘要。"
       },
       "mount": {
         "candidate_paths": [
@@ -2525,9 +2522,9 @@
           "Storage.getGlobalQwenDir()/skills",
           "其他 SKILL_PROVIDER_CONFIG_DIRS 下的 skills"
         ],
-        "discovery": "受审 0.26.7 scanner 通过 SHIJU_QWEN_SKILL_ROOT 只扫描会话视图；session_model 和 cli_local 真实原生 skill 工具均完成正文、附件及脚本读取。",
+        "discovery": "通过 SHIJU_QWEN_SKILL_ROOT 将选中视图追加到原生用户级扫描根，保留供应商目录优先级和禁用设置。",
         "activation": "首次模型请求没有技能正文；真实 skill 工具按需读取，并由其结果确定视图基目录。",
-        "session_isolation": "受审补丁独占选中视图；空值禁用全部技能层级。项目及私有 QWEN_HOME 未选中技能的负向探针、移除及第二会话隔离均通过。"
+        "session_isolation": "空选择沿用 Qwen 原生目录。只有会话选中的 ShiJu 视图进入原生技能目录。"
       },
       "permissions": {
         "status": "verified for reviewed Darwin-arm64 0.26.7 runtime",
@@ -2536,23 +2533,23 @@
       },
       "update": {
         "native": "无原生热更新承诺；空闲时替换视图并重建 CLI。",
-        "candidate": "两种来源已观察添加、移除、V2 内容及空闲更新；见 evidence/qwen.json。"
+        "candidate": "旧修订的添加、移除、V2 内容及空闲更新回执见 evidence/qwen.json。"
       },
       "recovery": {
-        "status": "两种来源真实 CLI 关闭/重启后重新发现并读取当前视图；见 evidence/qwen.json。",
+        "status": "旧修订的两种模型来源关闭/重启回执见 evidence/qwen.json。",
         "requirements": "支持范围仅本机受审固定发行物，其他平台不推断。"
       },
       "independent_sources": {
         "local_configuration": {
           "candidate": "QWEN_HOME / QWEN_RUNTIME_DIR",
           "static_review_only": false,
-          "runtime_verified_this_task": true
+          "runtime_verified_this_task": false
         },
         "client_model_source": {
           "prior_report_status": "verified_release_only",
           "reference": "../../shiju/acp-model-source/cli-versions.json#qwen",
           "runtime_verified_this_task": true,
-          "note": "只保留旧报告定位；不复制其通过/不支持结论到技能能力。"
+          "note": "修订 2 使用 session_model 完成真实回环共存验收。"
         }
       },
       "evidence": [
@@ -2594,42 +2591,41 @@
           "version": "0.26.7"
         },
         {
-          "path": "target/qwen-skill-runtime/node_modules/@qwen-code/qwen-code/cli-entry.js",
+          "path": "target/acp-skill-coexistence/qwen-archive/qwen-0.26.7-model-source-v2/node_modules/@qwen-code/qwen-code/cli-entry.js",
           "sha256": "89c392458627a27448ffaed32102554f0cb72a70f4ec1e60527fa56068afb387",
           "kind": "reviewed_patched_source",
           "bytes": 19096,
           "observations": []
         },
         {
-          "path": "target/qwen-skill-runtime/node_modules/@qwen-code/qwen-code/chunks/chunk-BLIIEKZX.js",
-          "sha256": "8bbf8e32778ce66b7b40c22e45044c07c2004aa7702b5127b5a0a0d4abe04352",
+          "path": "target/acp-skill-coexistence/qwen-archive/qwen-0.26.7-model-source-v2/node_modules/@qwen-code/qwen-code/chunks/chunk-BLIIEKZX.js",
+          "sha256": "6dc6bdf67a2e646a7fb86199f264d103b3cbc79777cb700cb7db1a62d2dbfeb2",
           "kind": "reviewed_patched_source",
-          "bytes": 5306885,
+          "bytes": 5306784,
           "observations": []
         },
         {
-          "path": "target/qwen-skill-runtime/node_modules/@qwen-code/qwen-code/chunks/chunk-EPODBRBP.js",
-          "sha256": "ce69d9bebae89ff20290903aa3ec1101c42b0dfdce8c5fc594f6f5991e9454dc",
-          "kind": "reviewed_patched_source",
-          "bytes": 12231,
+          "path": "target/acp-skill-coexistence/qwen-archive/qwen-0.26.7-model-source-v2/node_modules/@qwen-code/qwen-code/chunks/chunk-EPODBRBP.js",
+          "sha256": "8fe6c68b997e56c3dcdec5e76f4771e9a84a4b8d8a477d3d1f9e8f47322d2690",
+          "kind": "source",
+          "bytes": 12101,
           "observations": []
         }
       ],
       "supplemental_official_docs": [],
-      "next_validation": "本项固定发行物验收完成；其他平台、版本需各自重新验收，后续执行剩余 agent 任务及整体验收。",
+      "next_validation": "修订 2 的 cli_local 生命周期以及其他平台、版本独立复验。",
       "acceptance": {
         "status": "verified",
         "production_gate": "reviewed executable required",
-        "evidence": "evidence/qwen.json",
+        "evidence": "../../dev/acp/skill-coexistence/qwen.md",
         "model_sources": [
-          "session_model",
-          "cli_local"
+          "session_model"
         ],
         "limitation": "Only reviewed patched Qwen 0.26.7 on Darwin-arm64. No Linux, Windows, unpatched binary or other-version support is inferred."
       },
       "delivery_acceptance": {
         "status": "verified",
-        "evidence": "evidence/lifecycle.json",
+        "evidence": "../../dev/acp/skill-coexistence/qwen.md",
         "regression": "evidence/regression.json"
       }
     },

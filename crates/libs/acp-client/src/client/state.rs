@@ -32,6 +32,7 @@ pub(super) struct AcpEventClient {
     pub(super) transient_permissions: bool,
     pub(super) reject_untyped_workflow_permissions: bool,
     pub(super) gemini_mcp_servers: HashSet<String>,
+    pub(super) qwen_mcp_servers: HashSet<String>,
     pub(super) expected_session_id: Arc<Mutex<Option<String>>>,
     pub(super) event_tx: mpsc::UnboundedSender<InternalEvent>,
     pub(super) filesystem: FileSystemHandlers,

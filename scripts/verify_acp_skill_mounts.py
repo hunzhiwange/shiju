@@ -80,7 +80,12 @@ def run(args):
                 native.mkdir(mode=0o700)
                 if args.agent in ("iflow", "qwen", "gemini", "codebuddy", "goose", "vibe", "hermes", "snow", "copilot", "kilocode", "kiro", "opencode", "pi"):
                     fixture.forbidden_skill = "unselected-" + fixture.name
-                    for base in (root / (".github" if args.agent == "copilot" else ".kilo" if args.agent == "kilocode" else "." + args.agent) / "skills", native / (".gemini/skills" if args.agent == "gemini" else "config/skills" if args.agent == "goose" else "kilo/skills" if args.agent == "kilocode" else "skills")):
+                    if args.agent == "qwen":
+                        # Qwen's native project and user roots are intentionally discovered.
+                        decoy_roots = (root / ".shiju/skills",)
+                    else:
+                        decoy_roots = (root / (".github" if args.agent == "copilot" else ".kilo" if args.agent == "kilocode" else "." + args.agent) / "skills", native / (".gemini/skills" if args.agent == "gemini" else "config/skills" if args.agent == "goose" else "kilo/skills" if args.agent == "kilocode" else "skills"))
+                    for base in decoy_roots:
                         decoy = base / fixture.forbidden_skill
                         decoy.mkdir(parents=True)
                         (decoy / "SKILL.md").write_text(

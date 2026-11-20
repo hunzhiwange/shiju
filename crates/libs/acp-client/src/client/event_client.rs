@@ -63,19 +63,24 @@ impl AcpClient {
         });
         let managed_workspace_io = self.managed_workspace_io();
         let mut gemini_mcp_servers = HashSet::new();
-        if self.agent_name == "gemini"
+        let mut qwen_mcp_servers = HashSet::new();
+        if matches!(self.agent_name.as_str(), "gemini" | "qwen")
             && !self.mcp_servers.is_empty()
             && self.config.args.iter().any(|arg| arg == "--shiju-model-source")
-            && crate::verify_reviewed_agent_executable("gemini", self.config.command.trim()).is_ok()
+            && crate::verify_reviewed_agent_executable(&self.agent_name, self.config.command.trim())
+                .is_ok()
         {
-            gemini_mcp_servers.extend(self.mcp_servers.iter().filter_map(
-                |server| match server {
-                    acp::McpServer::Stdio(server) => Some(server.name.clone()),
-                    acp::McpServer::Http(server) => Some(server.name.clone()),
-                    acp::McpServer::Sse(server) => Some(server.name.clone()),
-                    _ => None,
-                },
-            ));
+            let mounted = if self.agent_name == "gemini" {
+                &mut gemini_mcp_servers
+            } else {
+                &mut qwen_mcp_servers
+            };
+            mounted.extend(self.mcp_servers.iter().filter_map(|server| match server {
+                acp::McpServer::Stdio(server) => Some(server.name.clone()),
+                acp::McpServer::Http(server) => Some(server.name.clone()),
+                acp::McpServer::Sse(server) => Some(server.name.clone()),
+                _ => None,
+            }));
         }
         AcpEventClient {
             managed_workspace_io,
@@ -104,6 +109,7 @@ impl AcpClient {
                 "gemini" | "qwen"
             ),
             gemini_mcp_servers,
+            qwen_mcp_servers,
             expected_session_id,
             desktop_workspace: if managed_workspace_io {
                 Some(cwd.canonicalize().unwrap_or_else(|_| cwd.to_path_buf()))
@@ -189,16 +195,41 @@ impl acp::Client for AcpEventClient {
             return Err(acp::Error::invalid_params()
                 .data("Gemini MCP approval requires a mounted server in the active session"));
         }
-        // Gemini maps plan/question tools to Other without a structured payload.
-        // Do not guess from user-controlled titles or answer these as tool approvals.
+        // The reviewed Qwen scheduler supplies the registered tool name here.
+        // The title is only an argument preview and carries no tool identity.
+        let qwen_mcp = args
+            .tool_call
+            .meta
+            .as_ref()
+            .and_then(|meta| meta.get("toolName"))
+            .and_then(Value::as_str)
+            .filter(|name| {
+                args.tool_call.fields.kind == Some(acp::ToolKind::Other)
+                    && name
+                        .strip_prefix("mcp__")
+                        .and_then(|name| name.split_once("__"))
+                        .is_some_and(|(server, tool)| {
+                            self.qwen_mcp_servers.contains(server) && !tool.trim().is_empty()
+                        })
+                    && self.permission_mode == PermissionMode::ApproveReads
+                    && self.permission_confirmation.is_some()
+                    && args.tool_call.fields.raw_input.as_ref().is_some_and(Value::is_object)
+                    && self.owns_active_prompt(&args.session_id)
+            })
+            .map(str::to_owned);
+        // Untyped workflow requests must not be treated as tool approvals.
         if self.reject_untyped_workflow_permissions
             && gemini_mcp.is_none()
+            && qwen_mcp.is_none()
             && matches!(
                 args.tool_call.fields.kind,
                 None | Some(acp::ToolKind::Other | acp::ToolKind::SwitchMode)
             )
         {
             return Err(acp::Error::invalid_params().data("Agent workflow confirmation requires explicit user interaction; untyped tools cannot be automatically approved"));
+        }
+        if let Some(name) = &qwen_mcp {
+            args.tool_call.fields.title = Some(name.clone());
         }
         // ExitPlanMode is a workflow decision, not an ordinary tool approval.
         // This client has no structured plan-confirmation UI. Fail explicitly rather
@@ -227,6 +258,7 @@ impl acp::Client for AcpEventClient {
             args.tool_call.fields.title.as_deref().filter(|name| name.starts_with("mcp__")),
         );
         let resolve = if gemini_mcp.is_some()
+            || qwen_mcp.is_some()
             || managed_mcp.is_some()
             || self.transient_permissions
             || self.desktop_workspace.is_some()
@@ -270,6 +302,16 @@ impl acp::Client for AcpEventClient {
             && matches!(classify_permission_decision(&args, &response), PermissionDecision::Approved)
             && (!self.owns_active_prompt(&args.session_id)
                 || !args.tool_call.fields.raw_input.as_ref().is_some_and(|input| grant(title, input)))
+        {
+            self.permission_stats.lock().cancelled += 1;
+            return Ok(cancelled_permission_response());
+        }
+        if qwen_mcp.is_some()
+            && matches!(
+                classify_permission_decision(&args, &response),
+                PermissionDecision::Approved
+            )
+            && !self.owns_active_prompt(&args.session_id)
         {
             self.permission_stats.lock().cancelled += 1;
             return Ok(cancelled_permission_response());

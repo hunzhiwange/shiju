@@ -35,6 +35,7 @@ fn event_client(
         transient_permissions: false,
         reject_untyped_workflow_permissions: false,
         gemini_mcp_servers: HashSet::new(),
+        qwen_mcp_servers: HashSet::new(),
         expected_session_id: Arc::new(Mutex::new(expected_session_id)),
         event_tx,
         desktop_workspace: None,
@@ -70,6 +71,7 @@ fn event_client_with_cwd(
         transient_permissions: false,
         reject_untyped_workflow_permissions: false,
         gemini_mcp_servers: HashSet::new(),
+        qwen_mcp_servers: HashSet::new(),
         expected_session_id: Arc::new(Mutex::new(None)),
         event_tx,
         desktop_workspace: None,
@@ -618,6 +620,57 @@ async fn ext_notification_is_explicitly_unsupported() {
         .expect_err("ext notification unsupported");
 
     assert!(err.to_string().to_ascii_lowercase().contains("method not found"));
+}
+
+#[tokio::test]
+async fn acp_skill_coexistence_qwen_mcp_requires_owned_verified_tool_and_once() {
+    let (event_tx, _) = mpsc::unbounded_channel();
+    let mut client = event_client(event_tx, Some("owned".into()));
+    client.reject_untyped_workflow_permissions = true;
+    client.permission_mode = PermissionMode::ApproveReads;
+    let (cancel_tx, _) = tokio::sync::watch::channel(false);
+    let (_, completed_rx) = tokio::sync::watch::channel(false);
+    *client.active_prompt.lock() =
+        Some(super::ActivePromptControl { session_id: "owned".into(), cancel_tx, completed_rx });
+    client.permission_confirmation = Some(Arc::new(|title, arguments| {
+        assert_eq!(title, "mcp__selected__read_probe");
+        assert_eq!(arguments, serde_json::json!({}));
+        Box::pin(async { true })
+    }));
+    let request = |name: &str, title: &str| {
+        serde_json::from_value::<acp::RequestPermissionRequest>(serde_json::json!({
+            "sessionId": "owned",
+            "toolCall": {
+                "toolCallId": "call",
+                "kind": "other",
+                "title": title,
+                "rawInput": {},
+                "_meta": {"toolName": name}
+            },
+            "options": [
+                {"optionId":"once", "name":"Allow", "kind":"allow_once"},
+                {"optionId":"forever", "name":"Always allow", "kind":"allow_always"},
+                {"optionId":"deny", "name":"Reject", "kind":"reject_once"}
+            ]
+        }))
+        .unwrap()
+    };
+
+    let mounted = request("mcp__selected__read_probe", "{}");
+    assert!(client.request_permission(mounted.clone()).await.is_err());
+    client.qwen_mcp_servers.insert("selected".into());
+    assert!(client.request_permission(request("mcp__foreign__read_probe", "{}")).await.is_err());
+    assert!(client.request_permission(request("ask_user_question", "mcp__selected__read_probe")).await.is_err());
+    let response = client.request_permission(mounted.clone()).await.unwrap();
+    assert_eq!(serde_json::to_value(response).unwrap()["outcome"]["optionId"], "once");
+    client.permission_confirmation = Some(Arc::new(|_, _| Box::pin(async { false })));
+    let response = client.request_permission(mounted.clone()).await.unwrap();
+    assert_eq!(serde_json::to_value(response).unwrap()["outcome"]["optionId"], "deny");
+    client.permission_mode = PermissionMode::DenyAll;
+    assert!(client.request_permission(mounted.clone()).await.is_err());
+    client.permission_mode = PermissionMode::ApproveReads;
+    *client.active_prompt.lock() = None;
+    assert!(client.request_permission(mounted).await.is_err());
 }
 
 #[tokio::test]

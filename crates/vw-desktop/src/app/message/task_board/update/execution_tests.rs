@@ -5,8 +5,11 @@ fn test_module_is_wired() {
     assert!(module.ends_with("execution_tests"));
 }
 
+static RECORDING_GATEWAY: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());
+
 #[tokio::test]
 async fn task_pool_desktop_non_git_can_start_and_retry() {
+    let _guard = RECORDING_GATEWAY.lock().await;
     use iced_runtime::futures::futures::StreamExt;
     let gateway = DesktopRecordingGateway::start();
     let directory = tempfile::tempdir().unwrap();
@@ -136,6 +139,8 @@ impl DesktopRecordingGateway {
                     headers.lines().next().unwrap().split_whitespace().nth(1).unwrap().to_string();
                 let response = if path.contains("projects/resolve") {
                     json!({"project": {"id":"project-test", "name":"test", "directory":body["directory"], "display_path":"test", "status":"ready", "created_at_ms":1,"updated_at_ms":1,"git":{"is_repo":false,"has_uncommitted_changes":false}}})
+                } else if path.ends_with("/work-plan") {
+                    json!({"child_task_ids":["desktop-task:plan:1"]})
                 } else if body.get("desired_capacity").is_some() {
                     json!({"idle_count":7,"target_idle_count":7})
                 } else if body.get("command").is_some() {
@@ -204,4 +209,53 @@ fn task_pool_acceptance_capacity_and_employee_interactions_match_baseline() {
     assert_eq!(app.task_board.task_board_worktree_desired_capacity, Some(17));
     assert!(!project.path().join(".git").exists());
     assert_eq!(std::fs::read_dir(project.path()).unwrap().count(), 0);
+}
+
+
+#[tokio::test]
+async fn work_plan_publish_desktop_uses_gateway_handoff() {
+    use desktop_task_executor::executor::runner::TaskPlanGenerationOutcome;
+    use iced_runtime::futures::futures::StreamExt;
+
+    let _guard = RECORDING_GATEWAY.lock().await;
+    let gateway = DesktopRecordingGateway::start();
+    let original = tempfile::tempdir().unwrap();
+    let other = tempfile::tempdir().unwrap();
+    let original_path = original.path().display().to_string();
+    let (mut app, _) = crate::app::App::new();
+    app.navigation_tabs.project_path = Some(other.path().display().to_string());
+    let subtasks = vw_api_agent_scheduler::parse_create_task_plans_prompt(
+        "## 任务 1: 子任务 【批次 1】 依赖批次 无\n计划元数据: {\"acceptance_criteria\":[\"通过检查\"]}\n```text\n执行子任务\n```",
+    ).unwrap();
+    let task = super::update(&mut app, super::TaskBoardMessage::TaskPlanningCompleted {
+        project_path: original_path.clone(),
+        task_id: "desktop-task".into(),
+        planning_attempt_id: "run-plan".into(),
+        result: Ok(TaskPlanGenerationOutcome {
+            subtasks,
+            raw_output: String::new(),
+            plan_dir: String::new(),
+            prompt_md_path: String::new(),
+        }),
+    });
+    let mut stream = iced_runtime::task::into_stream(task).unwrap();
+    let completed = tokio::time::timeout(std::time::Duration::from_secs(10), stream.next())
+        .await.unwrap();
+    let Some(iced_runtime::Action::Output(crate::app::Message::TaskBoard(
+        super::TaskBoardMessage::WorkPlanPublished { project_path, result },
+    ))) = completed else {
+        panic!("expected gateway publication response");
+    };
+    assert_eq!(project_path, original_path);
+    assert_eq!(result.unwrap().child_task_ids, vec!["desktop-task:plan:1"]);
+    assert!(!app.task_board.task_board_executor.is_running("desktop-task"));
+    let requests = gateway.finish();
+    assert!(requests.iter().any(|(path, body)| {
+        path.contains("projects/resolve") && body["directory"] == original_path
+    }));
+    assert!(requests.iter().any(|(path, body)| {
+        path.ends_with("/tasks/desktop-task/work-plan")
+            && body["plan"]["planning_attempt_id"] == "run-plan"
+            && body["plan"]["subtasks"][0]["acceptance_criteria"] == serde_json::json!(["通过检查"])
+    }));
 }

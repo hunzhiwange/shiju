@@ -11,6 +11,7 @@ doctest = false
 test-support = []
 
 [dependencies]
+vw-api-agent-scheduler = { path = "../api-agent-scheduler" }
 vw-api-acp-model = { path = "../api-acp-model" }
 session-text = { path = "../session-text" }
 gateway-session = { path = "../gateway-session" }

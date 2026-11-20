@@ -1076,7 +1076,7 @@ fn task_plan_reads_ignore_legacy_project_cache() {
         .expect("current prompt should be written");
 
     let prompt =
-        super::read_task_plan_prompt_md(home.path(), &task).expect("current prompt should be read");
+        super::read_task_plan_prompt_md(&current_dir).expect("current prompt should be read");
     let (plan, subtask_plan) =
         super::read_plan_context(home.path(), &task, &subtask, 0, task.subtasks.len());
 
@@ -1328,7 +1328,7 @@ fn execute_task_plan_reports_missing_prompt_md_explicitly() {
     std::fs::create_dir_all(&plan_dir).expect("创建计划目录");
 
     let err =
-        super::read_task_plan_prompt_md(home.path(), &task).expect_err("缺失 prompt.md 必须报错");
+        super::read_task_plan_prompt_md(&plan_dir).expect_err("缺失 prompt.md 必须报错");
     assert!(err.contains("prompt.md"), "错误信息应包含 prompt.md: {err}");
     assert!(err.contains(plan_dir.to_string_lossy().as_ref()));
 }
@@ -1619,7 +1619,7 @@ fn read_task_plan_prompt_md_returns_exact_generated_content() {
         .expect("prompt should be written");
 
     let content =
-        super::read_task_plan_prompt_md(home.path(), &task).expect("prompt should be read");
+        super::read_task_plan_prompt_md(&plan_dir).expect("prompt should be read");
 
     assert_eq!(content, "# generated\n\ncontent\n");
 }

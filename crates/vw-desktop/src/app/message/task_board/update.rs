@@ -902,6 +902,7 @@ pub fn update(
                     );
                 }
             };
+            app.task_board.task_board_workflow_generation = generation;
             let response_project_id = response.project_id.clone();
             if generation >= app.task_board.task_labels_generation {
                 app.task_board.task_labels_generation = generation;
@@ -970,88 +971,32 @@ pub fn update(
             let _updated_tasks = apply_agent_scheduler_logs(app, responses);
             iced::Task::none()
         }
-        TaskBoardMessage::TaskPlanningCompleted { project_path, task_id, result } => {
+        TaskBoardMessage::TaskPlanningCompleted {
+            project_path,
+            task_id,
+            planning_attempt_id,
+            result,
+        } => match result {
+            Ok(outcome) => publish_work_plan(
+                app,
+                project_path,
+                task_id,
+                taskboard::update::rules::work_plan_from_outcome(planning_attempt_id, outcome),
+            ),
+            Err(error) => app.show_error_toast(format!("任务拆分失败，请重试: {error}")),
+        },
+        TaskBoardMessage::StartWorkPlan { project_path, task_id } => {
+            publish_work_plan(app, project_path, task_id, vw_api_agent_scheduler::WorkPlanPublication::Manual)
+        }
+        TaskBoardMessage::WorkPlanPublished { project_path, result } => {
+            if let Err(error) = result {
+                return app.show_error_toast(format!("发布工作计划失败，请重试: {error}"));
+            }
             if !task_board_project_matches(app, &project_path) {
                 return iced::Task::none();
             }
-            let final_logs = app.task_board.task_board_executor.poll_task_logs_all(&task_id);
-            app.task_board.task_board_executor.finish_task(&task_id);
-            let Some(project_path) = app.navigation_tabs.project_path.clone() else {
-                return iced::Task::none();
-            };
-            let outcome = taskboard::update::rules::finish_planning(
-                &mut app.task_board.task_board_tasks,
-                &task_id,
-                final_logs,
-                result,
-                |task| {
-                    let _ = crate::app::task::write_task_plan_files(&project_path, task);
-                },
-                |task| crate::app::task::assign_task_execution_worktree(&project_path, task, None),
-            );
-            let task_to_persist = outcome.persist;
-            let execute_task_to_start = outcome.execute;
-            let plan_failed = outcome.failed;
-            sync_viewing_logs(app, &task_id);
-            let persist_task = task_to_persist
-                .clone()
-                .map(|task| {
-                    let path = project_path.clone();
-                    let workflow_id = app.task_board.task_board_settings.workflow_id.clone();
-                    iced::Task::perform(
-                        async move {
-                            persist_updated_tasks_via_gateway(
-                                &path,
-                                &[task],
-                                "任务拆分结果同步",
-                                &workflow_id,
-                            )
-                            .await
-                        },
-                        |_| Message::None,
-                    )
-                })
-                .unwrap_or_else(iced::Task::none);
-            let publish_task = iced::Task::none();
-            if plan_failed {
-                return iced::Task::batch(vec![
-                    persist_task,
-                    publish_task,
-                    schedule_scheduler_tick_with_deadline(app),
-                ]);
-            }
-            if let Some(execute_task_model) = execute_task_to_start {
-                app.task_board.task_board_executor.start_task(&task_id);
-                app.task_board.task_board_executor.register_log_channel(task_id.clone());
-                let log_sender = app.task_board.task_board_executor.get_log_sender(&task_id);
-                let path_clone = project_path.clone();
-                let result_project_path = project_path.clone();
-                let execute_task = iced::Task::perform(
-                    crate::app::task::execute_task_async(
-                        execute_task_model,
-                        path_clone,
-                        log_sender,
-                    ),
-                    move |(tid, result)| {
-                        Message::TaskBoard(TaskBoardMessage::TaskExecutionCompleted {
-                            project_path: result_project_path.clone(),
-                            task_id: tid,
-                            result,
-                        })
-                    },
-                );
-                return iced::Task::batch(vec![
-                    persist_task,
-                    publish_task,
-                    execute_task,
-                    schedule_scheduler_tick_with_deadline(app),
-                ]);
-            }
-            iced::Task::batch(vec![
-                persist_task,
-                publish_task,
-                schedule_scheduler_tick_with_deadline(app),
-            ])
+            app.task_board.task_board_workflow_generation = next_agent_scheduler_status_generation();
+            sync_agent_scheduler_status(project_path)
         }
 
         TaskBoardMessage::ImportFilePick => {
@@ -1339,3 +1284,30 @@ fn projection_state(
 
 #[cfg(test)]
 use taskboard::update::projection::*;
+
+fn publish_work_plan(
+    app: &crate::app::App,
+    project_path: String,
+    task_id: String,
+    plan: vw_api_agent_scheduler::WorkPlanPublication,
+) -> iced::Task<Message> {
+    let request = vw_api_agent_scheduler::WorkPlanPublishRequest {
+        plan,
+        dispatch_mode: app.task_board.task_board_settings.agent_scheduler_dispatch_mode,
+        max_concurrent: Some(app.task_board.task_board_settings.max_concurrent),
+    };
+    let result_path = project_path.clone();
+    iced::Task::perform(
+        async move {
+            let scope = resolve_task_board_scheduler_scope(&project_path).await?;
+            let client = crate::app::config::gateway_client()?;
+            gateway_scheduler::GatewaySchedulerClient::new(client.transport().clone())
+                .agent_scheduler_publish_work_plan(&scope, &task_id, &request)
+                .await
+        },
+        move |result| Message::TaskBoard(TaskBoardMessage::WorkPlanPublished {
+            project_path: result_path.clone(),
+            result,
+        }),
+    )
+}

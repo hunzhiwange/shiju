@@ -607,19 +607,7 @@ pub struct TaskPlanGenerationOutcome {
     pub prompt_md_path: String,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct TaskPlanSubTask {
-    pub title: String,
-    pub boundary: String,
-    pub acceptance_criteria: Vec<String>,
-    pub target_files: Vec<String>,
-    /// 任务所属批次，来自 `prompt.md` 标题中的 `【批次 N】`。
-    pub batch: u32,
-    /// 依赖批次列表，已去重并升序排序；无依赖时为空。
-    pub depends_on_batches: Vec<u32>,
-    /// 来自 `prompt.md` 中紧随标题的 ```text 代码块的完整可复制执行提示。
-    pub execution_prompt: String,
-}
+pub use vw_api_agent_scheduler::TaskPlanSubTask;
 
 #[cfg(not(target_arch = "wasm32"))]
 fn task_plan_root_dir(home: &std::path::Path) -> std::path::PathBuf {
@@ -922,187 +910,24 @@ fn resolve_task_plan_home() -> Result<std::path::PathBuf, String> {
     })
 }
 
-/// 读取确定性计划目录下由 create-task-plans 生成的 `prompt.md`。
-///
-/// 规划完成后执行器必须从此固定位置读取 `prompt.md`，缺失时返回包含路径的明确错误，
-/// 不静默回退旧 JSON 解析。
+/// 只读取当前规划尝试生成的 `prompt.md`。
 #[cfg(not(target_arch = "wasm32"))]
-fn read_task_plan_prompt_md(home: &std::path::Path, task: &Task) -> Result<String, String> {
-    let prompt_md_path = task_split_plan_abs_dir(home, task).join("prompt.md");
+fn read_task_plan_prompt_md(plan_dir: &std::path::Path) -> Result<String, String> {
+    let prompt_md_path = plan_dir.join("prompt.md");
     std::fs::read_to_string(&prompt_md_path)
         .map_err(|err| format!("无法读取任务拆分结果 {}: {err}", prompt_md_path.display()))
 }
 
-/// 解析 `## 任务 N: <标题> 【批次 N】 依赖批次 X,Y` 标题行，返回标题、批次与依赖批次。
-///
-/// 缺失批次或依赖批次非法（自依赖）时返回明确错误，不伪造默认值。
 #[cfg(not(target_arch = "wasm32"))]
-fn parse_task_heading(heading: &str) -> Result<(String, u32, Vec<u32>), String> {
-    // 去掉 `## 任务 N:` 前缀，保留标题与批次/依赖批次文本。
-    let after_marker = heading
-        .trim_start()
-        .trim_start_matches('#')
-        .trim_start()
-        .strip_prefix("任务")
-        .ok_or_else(|| format!("任务标题缺少“任务”前缀: {heading}"))?;
-    // 去掉任务编号与冒号：`3: 标题 ...` -> `标题 ...`。
-    let rest = match after_marker.split_once(':').or_else(|| after_marker.split_once('：')) {
-        Some((_, rest)) => rest.trim(),
-        None => after_marker.trim(),
-    };
-
-    let batch_start =
-        rest.find("【批次").ok_or_else(|| format!("任务标题缺少“【批次 N】”: {heading}"))?;
-    let title = rest[..batch_start].trim().to_string();
-    if title.is_empty() {
-        return Err(format!("任务标题为空: {heading}"));
-    }
-
-    let batch_section = &rest[batch_start..];
-    let batch_inner = batch_section
-        .strip_prefix("【批次")
-        .and_then(|value| value.split_once('】'))
-        .map(|(inner, _)| inner.trim())
-        .ok_or_else(|| format!("任务标题“【批次 N】”格式不正确: {heading}"))?;
-    let batch: u32 =
-        batch_inner.parse().map_err(|_| format!("无法解析批次编号“{batch_inner}”: {heading}"))?;
-
-    let depends_text = batch_section.split_once('】').map(|(_, tail)| tail.trim()).unwrap_or("");
-    let depends_on_batches = parse_depends_on_batches(depends_text, batch, heading)?;
-
-    Ok((title, batch, depends_on_batches))
-}
-
-/// 解析 `依赖批次 X,Y` 文本：去重、升序排序，并校验不自依赖。
-#[cfg(not(target_arch = "wasm32"))]
-fn parse_depends_on_batches(
-    depends_text: &str,
-    batch: u32,
-    heading: &str,
-) -> Result<Vec<u32>, String> {
-    let body = depends_text.trim().strip_prefix("依赖批次").map(str::trim).unwrap_or("");
-    if body.is_empty() || body == "无" {
-        return Ok(Vec::new());
-    }
-
-    let mut batches = Vec::new();
-    for part in body.split([',', '，', ' ', '、']) {
-        let part = part.trim();
-        if part.is_empty() {
-            continue;
-        }
-        let value: u32 =
-            part.parse().map_err(|_| format!("无法解析依赖批次“{part}”: {heading}"))?;
-        if value == batch {
-            return Err(format!("依赖批次不能包含当前批次 {batch}: {heading}"));
-        }
-        if value > batch {
-            return Err(format!("依赖批次 {value} 不能大于当前批次 {batch}: {heading}"));
-        }
-        if !batches.contains(&value) {
-            batches.push(value);
-        }
-    }
-    batches.sort_unstable();
-    Ok(batches)
-}
-
-/// 解析 create-task-plans 生成的 `prompt.md`，把每个 `## 任务 N` 转换为带批次依赖的子任务。
-///
-/// 子任务顺序与 `prompt.md` 顺序一致；完整执行提示来自紧随标题的 ```text 代码块。
-/// 没有任务、缺失代码块或批次/依赖非法时返回明确错误，不伪造成功子任务。
-#[cfg(not(target_arch = "wasm32"))]
-fn parse_create_task_plans_prompt(prompt_md: &str) -> Result<Vec<TaskPlanSubTask>, String> {
-    let lines: Vec<&str> = prompt_md.lines().collect();
-    let mut subtasks = Vec::new();
-    let mut index = 0;
-
-    while index < lines.len() {
-        let line = lines[index];
-        if !is_task_heading(line) {
-            index += 1;
-            continue;
-        }
-
-        let (title, batch, depends_on_batches) = parse_task_heading(line)?;
-
-        // 在下一个任务标题之前寻找紧随其后的 ```text 代码块。
-        let mut cursor = index + 1;
-        let mut execution_prompt: Option<String> = None;
-        while cursor < lines.len() {
-            let candidate = lines[cursor];
-            if is_task_heading(candidate) {
-                break;
-            }
-            if candidate.trim_start().starts_with("```") {
-                let mut body = String::new();
-                cursor += 1;
-                let mut closed = false;
-                while cursor < lines.len() {
-                    if lines[cursor].trim_start().starts_with("```") {
-                        closed = true;
-                        cursor += 1;
-                        break;
-                    }
-                    body.push_str(lines[cursor]);
-                    body.push('\n');
-                    cursor += 1;
-                }
-                if !closed {
-                    return Err(format!("任务“{title}”的代码块未闭合"));
-                }
-                let trimmed = body.trim();
-                if trimmed.is_empty() {
-                    return Err(format!("任务“{title}”的执行提示代码块为空"));
-                }
-                execution_prompt = Some(trimmed.to_string());
-                break;
-            }
-            cursor += 1;
-        }
-
-        let execution_prompt =
-            execution_prompt.ok_or_else(|| format!("任务“{title}”缺少执行提示代码块"))?;
-
-        subtasks.push(TaskPlanSubTask {
-            title,
-            boundary: String::new(),
-            acceptance_criteria: Vec::new(),
-            target_files: Vec::new(),
-            batch,
-            depends_on_batches,
-            execution_prompt,
-        });
-
-        index = cursor;
-    }
-
-    if subtasks.is_empty() {
-        return Err("prompt.md 中没有任何“## 任务 N”任务".to_string());
-    }
-
-    Ok(subtasks)
-}
-
-/// 判断一行是否为 `## 任务 N` 编号任务标题（“任务”后必须紧跟数字编号）。
-#[cfg(not(target_arch = "wasm32"))]
-fn is_task_heading(line: &str) -> bool {
-    let trimmed = line.trim_start();
-    if !trimmed.starts_with('#') {
-        return false;
-    }
-    let body = trimmed.trim_start_matches('#').trim_start();
-    let Some(after) = body.strip_prefix("任务") else {
-        return false;
-    };
-    after.trim_start().starts_with(|ch: char| ch.is_ascii_digit())
-}
+use vw_api_agent_scheduler::parse_create_task_plans_prompt;
+#[cfg(all(test, not(target_arch = "wasm32")))]
+use vw_api_agent_scheduler::{is_task_heading, parse_task_heading};
 
 #[cfg(not(target_arch = "wasm32"))]
 fn build_task_split_prompt(task: &Task, plan_dir: &std::path::Path) -> String {
     let plan_dir = plan_dir.display();
     format!(
-        "请使用下面由框架运行时注入的 create-task-plans 规划规范，把这个开发需求拆分成可独立执行并跟踪的实施计划，不要直接写代码，只生成计划目录与文件。\n\n## 框架运行时规范来源\n\n- create-task-plans-runtime: {CREATE_TASK_PLANS_SKILL_SOURCE}\n- do-task-plans-runtime: {DO_TASK_PLANS_SKILL_SOURCE}\n\n## 输出要求\n\n- 计划目录固定使用绝对路径 `{plan_dir}/`，不要按日期或功能名另起目录；目录不存在时创建它。\n- 在该目录下生成 `plan.md`（整体架构指南，生成后只读）、`prompt.md`（所有任务的执行提示列表）、`tasks.json`（运行时调度事实来源）以及 `1-<任务名>.md`、`2-<任务名>.md` 等编号任务文件。\n- `tasks.json` 必须与 Markdown 文件一一对应；每个任务条目必须包含 `id`、`title`、`file`、`batch`、`depends_on_batches`、`status`。\n- 所有计划内容使用中文，并严格遵循下方技能模板的 plan.md / prompt.md / tasks.json / 任务文件结构。\n- prompt.md 必须覆盖每个编号任务，并引用对应任务文件、当前批次和依赖批次。\n\n## 批次与依赖批次\n\n- 为每个编号任务在任务文件、prompt.md 和 tasks.json 中写明`当前批次`和可为多个的`依赖批次`（无依赖时写“无”或空数组）。\n- 同一批次只允许放入彼此没有任务依赖、不会争用同一文件、且验证资源不冲突的任务；不能证明可并发时必须升高批次数，不要把不能并行的任务塞进同一批次。\n- 用批次表达线性顺序与可并行集合：后批次依赖前批次完成，同批次内的任务可并发执行。\n\n## 自动化排障约束\n\n- 这是自动化执行，用户无法实时干预；不要询问用户、不要等待澄清。先用仓库上下文、现有模块、相邻测试和搜索自行收敛假设。\n- 只有遇到外部依赖缺失、权限不足或安全风险等无法自行解决的情况，才在对应任务文件中记录阻塞原因；其余情况自行查证并继续。\n- {TASK_AUTOMATION_TOOL_GUARDRAIL}\n\n## 框架运行时 create-task-plans 规划规范\n\n{CREATE_TASK_PLANS_SKILL}\n\n## 本次需求\n\n任务ID: {}\n标题: {}\n需求:\n{}",
+        "请使用下面由框架运行时注入的 create-task-plans 规划规范，把这个开发需求拆分成可独立执行并跟踪的实施计划，不要直接写代码，只生成计划目录与文件。\n\n## 框架运行时规范来源\n\n- create-task-plans-runtime: {CREATE_TASK_PLANS_SKILL_SOURCE}\n- do-task-plans-runtime: {DO_TASK_PLANS_SKILL_SOURCE}\n\n## 输出要求\n\n- 计划目录固定使用绝对路径 `{plan_dir}/`，不要按日期或功能名另起目录；目录不存在时创建它。\n- 在该目录下生成 `plan.md`（整体架构指南，生成后只读）、`prompt.md`（所有任务的执行提示列表）、`tasks.json`（运行时调度事实来源）以及 `1-<任务名>.md`、`2-<任务名>.md` 等编号任务文件。\n- `tasks.json` 必须与 Markdown 文件一一对应；每个任务条目必须包含 `id`、`title`、`file`、`batch`、`depends_on_batches`、`status`。\n- 所有计划内容使用中文，并严格遵循下方技能模板的 plan.md / prompt.md / tasks.json / 任务文件结构。\n- prompt.md 必须覆盖每个编号任务，并引用对应任务文件、当前批次和依赖批次。在任务标题与执行提示代码块之间增加单行 `计划元数据: {{\"boundary\": \"任务边界\", \"acceptance_criteria\": [\"验收条件\"], \"target_files\": [\"相对文件路径\"]}}`。\n\n## 批次与依赖批次\n\n- 为每个编号任务在任务文件、prompt.md 和 tasks.json 中写明`当前批次`和可为多个的`依赖批次`（无依赖时写“无”或空数组）。\n- 同一批次只允许放入彼此没有任务依赖、不会争用同一文件、且验证资源不冲突的任务；不能证明可并发时必须升高批次数，不要把不能并行的任务塞进同一批次。\n- 用批次表达线性顺序与可并行集合：后批次依赖前批次完成，同批次内的任务可并发执行。\n\n## 自动化排障约束\n\n- 这是自动化执行，用户无法实时干预；不要询问用户、不要等待澄清。先用仓库上下文、现有模块、相邻测试和搜索自行收敛假设。\n- 只有遇到外部依赖缺失、权限不足或安全风险等无法自行解决的情况，才在对应任务文件中记录阻塞原因；其余情况自行查证并继续。\n- {TASK_AUTOMATION_TOOL_GUARDRAIL}\n\n## 框架运行时 create-task-plans 规划规范\n\n{CREATE_TASK_PLANS_SKILL}\n\n## 本次需求\n\n任务ID: {}\n标题: {}\n需求:\n{}",
         task.id,
         task.description.trim(),
         task.prompt.trim()
@@ -1120,13 +945,21 @@ fn execute_task_plan_blocking(endpoint: fn() -> vw_gateway_client::GatewayEndpoi
         Ok(home) => home,
         Err(error) => return (task.id, Err(error)),
     };
-    let plan_dir = task_split_plan_abs_dir(&home, &task);
+    use std::sync::atomic::{AtomicU64, Ordering};
+    static PLAN_SEQUENCE: AtomicU64 = AtomicU64::new(0);
+    let attempt = format!(
+        "{}-{}-{}",
+        runtime_time::now_ms(),
+        std::process::id(),
+        PLAN_SEQUENCE.fetch_add(1, Ordering::Relaxed),
+    );
+    let plan_dir = task_split_plan_abs_dir(&home, &task).join(&attempt);
     if let Err(error) = std::fs::create_dir_all(&plan_dir) {
         return (task.id, Err(format!("无法创建任务拆分目录 {}: {error}", plan_dir.display())));
     }
     let model = if task.model == "auto" { "auto".to_string() } else { task.model.clone() };
     let prompt = build_task_split_prompt(&task, &plan_dir);
-    let session_id = format!("{}-plan", task_session_id(&task.id));
+    let session_id = format!("{}-plan-{attempt}", task_session_id(&task.id));
     let result = execute_prompt_with_continue_retry_on_timeout(
         &session_id,
         "plan",
@@ -1149,8 +982,7 @@ fn execute_task_plan_blocking(endpoint: fn() -> vw_gateway_client::GatewayEndpoi
         },
     )
     .and_then(|raw_output| {
-        // 模型完成后从确定性计划目录读取 prompt.md，解析失败直接报错，不回退旧 JSON。
-        let prompt_md = read_task_plan_prompt_md(&home, &task)?;
+        let prompt_md = read_task_plan_prompt_md(&plan_dir)?;
         let subtasks = parse_create_task_plans_prompt(&prompt_md)?;
         Ok(TaskPlanGenerationOutcome {
             subtasks,

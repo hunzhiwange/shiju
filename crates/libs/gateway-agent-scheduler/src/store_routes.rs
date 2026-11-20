@@ -434,6 +434,36 @@ impl<H: GatewayExecutorHost> AgentSchedulerGateway for StoreBackedAgentScheduler
         self.task_graph_snapshot(project_id, &project_path)
     }
 
+    async fn publish_work_plan(
+        &self,
+        context: AgentSchedulerContext,
+        task_id: String,
+        request: vw_api_agent_scheduler::WorkPlanPublishRequest,
+    ) -> Result<vw_api_agent_scheduler::WorkPlanPublishResponse, ApiError> {
+        let task_id = TaskId::new(task_id).map_err(map_bad_request)?;
+        let child_task_ids = {
+            let lock = self.project_dispatch_lock(&context);
+            let _guard = lock.lock().await;
+            self.store.initialize_project(&context).map_err(map_scheduler_error)?;
+            self.store.publish_work_plan(&context, &task_id, &request.plan, current_timestamp_ms())
+                .map_err(map_scheduler_error)?
+        };
+
+        // Publication has committed. A failed refill can be resumed by the next scheduler tick.
+        let gateway = self.clone();
+        tokio::spawn(async move {
+            if let Err(error) = gateway.fill_project_slots(
+                &context,
+                current_timestamp_ms(),
+                request.dispatch_mode,
+                normalize_project_wake_max_concurrent(request.max_concurrent),
+            ).await {
+                tracing::warn!(%error, "work plan publication refill failed");
+            }
+        });
+        Ok(vw_api_agent_scheduler::WorkPlanPublishResponse { child_task_ids })
+    }
+
     async fn update_task_plan(
         &self,
         project_id: String,

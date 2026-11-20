@@ -8056,6 +8056,7 @@ dependencies = [
  "time",
  "tokio",
  "vw-api-acp-model",
+ "vw-api-agent-scheduler",
  "vw-api-chat-identity",
  "vw-api-git",
  "vw-api-project",

@@ -92,6 +92,10 @@ where
             axum::routing::put(agent_scheduler_project_update_task_plan),
         )
         .route(
+            "/agent-scheduler/projects/{project_id}/tasks/{task_id}/work-plan",
+            post(agent_scheduler_project_publish_work_plan),
+        )
+        .route(
             "/agent-scheduler/projects/{project_id}/tasks/{task_id}/metadata",
             patch(agent_scheduler_project_update_task_metadata),
         )
@@ -248,6 +252,16 @@ async fn agent_scheduler_project_update_task_plan(
 ) -> Result<Json<AgentSchedulerTaskBoardTaskDto>, ApiError> {
     let context = resolve_project_context(tenant, &project_id).await?;
     gateway.update_task_plan(project_id, context, task_id, body).await.map(Json)
+}
+
+async fn agent_scheduler_project_publish_work_plan(
+    AxumPath((project_id, task_id)): AxumPath<(String, String)>,
+    Extension(tenant): Extension<TenantScope>,
+    Extension(gateway): Extension<SharedAgentSchedulerGateway>,
+    Json(body): Json<vw_api_agent_scheduler::WorkPlanPublishRequest>,
+) -> Result<Json<vw_api_agent_scheduler::WorkPlanPublishResponse>, ApiError> {
+    let context = resolve_project_context(tenant, &project_id).await?;
+    gateway.publish_work_plan(context, task_id, body).await.map(Json)
 }
 
 async fn agent_scheduler_project_update_task_metadata(

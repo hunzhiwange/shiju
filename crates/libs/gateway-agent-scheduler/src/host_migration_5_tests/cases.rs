@@ -3068,3 +3068,84 @@ async fn work_plan_rolling_periodic_wake_refills_after_cancelled_lease_recovery(
     assert_eq!(store.load_run(&context, &run_id)?.unwrap().status, AgentRunStatus::Cancelled);
     Ok(())
 }
+
+#[tokio::test]
+async fn work_plan_publish_atomic_and_idempotent() -> Result<()> {
+    use task_scheduler::domain::AgentRunStatus;
+    use task_scheduler::store::runs::ClaimReadyTaskRunRequest;
+
+    let project = tempfile::tempdir()?;
+    let context = owned_scheduler_context(project.path())?;
+    let project_id = scheduler_project_id(project.path());
+    let gateway = StoreBackedAgentSchedulerGateway::default();
+    let parent_id = TaskId::new("publish-parent")?;
+    let run_id = RunId::new("publish-planning-run")?;
+    seed_rolling_tasks(&gateway.store, &context, &[("publish-parent", 1, AgentTaskStatus::Queued)])?;
+    gateway.store.claim_ready_task_run(&context, ClaimReadyTaskRunRequest {
+        run_id: run_id.clone(),
+        task_id: parent_id.clone(),
+        lease_acquired_at_ms: TimestampMs(2),
+        lease_expires_at_ms: None,
+    })?.expect("parent slot");
+    for status in [AgentTaskStatus::Dispatched, AgentTaskStatus::Acknowledged, AgentTaskStatus::Running] {
+        gateway.store.transition_task_status(&context, &parent_id, status, TimestampMs(3))?;
+    }
+
+    let app = router_with_gateway::<()>(Arc::new(gateway.clone())).with_state(());
+    let route = format!("/agent-scheduler/projects/{project_id}/tasks/publish-parent/work-plan");
+    let mut request = json!({
+        "dispatch_mode": "auto",
+        "max_concurrent": 1,
+        "plan": {
+            "source": "generated",
+            "planning_attempt_id": run_id.as_str(),
+            "subtasks": [
+                {"title":"first", "boundary":"src", "acceptance_criteria":["check"],
+                 "target_files":["src/lib.rs"], "batch":1, "depends_on_batches":[],
+                 "execution_prompt":"Implement the first step"},
+                {"title":"second", "boundary":"src", "acceptance_criteria":["check"],
+                 "target_files":["./src/lib.rs"], "batch":1, "depends_on_batches":[],
+                 "execution_prompt":"Implement the second step"}
+            ],
+        },
+    });
+    let response = post_json_response(app.clone(), &route, &request).await;
+    assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+    assert!(gateway.store.list_task_plan_children(&context, &parent_id)?.is_empty());
+    assert_eq!(gateway.store.load_run(&context, &run_id)?.unwrap().status, AgentRunStatus::Leased);
+
+    request["plan"]["subtasks"][1]["batch"] = json!(2);
+    request["plan"]["subtasks"][1]["depends_on_batches"] = json!([1]);
+    let (left, right) = tokio::join!(
+        post_json_response(app.clone(), &route, &request),
+        post_json_response(app.clone(), &route, &request),
+    );
+    assert_eq!(left.status(), StatusCode::OK);
+    assert_eq!(right.status(), StatusCode::OK);
+    let left = response_json(left).await;
+    assert_eq!(left, response_json(right).await);
+    let child_ids = left["child_task_ids"].as_array().expect("published child IDs");
+    assert_eq!(child_ids.len(), 2);
+    let first = TaskId::new(child_ids[0].as_str().expect("first child ID"))?;
+    let second = TaskId::new(child_ids[1].as_str().expect("second child ID"))?;
+    assert_eq!(gateway.store.load_task(&context, &first)?.unwrap().title, "first");
+    assert_eq!(gateway.store.load_task(&context, &second)?.unwrap().title, "second");
+    assert_eq!(gateway.store.load_task(&context, &parent_id)?.unwrap().status, AgentTaskStatus::Blocked);
+    assert_eq!(gateway.store.load_run(&context, &run_id)?.unwrap().status, AgentRunStatus::Succeeded);
+    assert_eq!(gateway.store.list_task_plan_children(&context, &parent_id)?.len(), 2);
+
+    request["plan"]["subtasks"][0]["title"] = json!("changed");
+    assert_eq!(post_json_response(app.clone(), &route, &request).await.status(), StatusCode::CONFLICT);
+    let wake = gateway.wake_project(project_id, context.clone(), AgentSchedulerProjectWakeRequest {
+        now_ms: TimestampMs(5),
+        dispatch_mode: AgentSchedulerDispatchModeDto::Auto,
+        max_concurrent: Some(1),
+        auto_promote_pool_tasks: false,
+    }).await?;
+    assert!(wake.task_id.as_deref() == Some(first.as_str())
+        || gateway.store.load_latest_run_for_task(&context, &first)?.is_some());
+    assert!(gateway.store.load_latest_run_for_task(
+        &context, &second,
+    )?.is_none());
+    Ok(())
+}

@@ -235,7 +235,16 @@ pub enum TaskBoardMessage {
     TaskPlanningCompleted {
         project_path: String,
         task_id: String,
+        planning_attempt_id: String,
         result: Result<TaskPlanGenerationOutcome, String>,
+    },
+    StartWorkPlan {
+        project_path: String,
+        task_id: String,
+    },
+    WorkPlanPublished {
+        project_path: String,
+        result: Result<vw_api_agent_scheduler::WorkPlanPublishResponse, String>,
     },
     TaskCodeReviewCompleted {
         project_path: String,

@@ -1,101 +1,15 @@
 //! 规划结果与批量任务元数据的局部转换。
-use desktop_task_model::{Task, SubTask, TaskStatus};
+use desktop_task_model::{Task, TaskStatus};
 use crate::draft::{set_task_executor_selection, task_acp_agent_label};
-use crate::helpers::execution::{truncate_for_ui, TASK_LOG_UI_MAX_ENTRY_CHARS, TASK_LOG_UI_MAX_DETAIL_CHARS};
-use crate::helpers::execution::{is_model_response_timeout_error, record_task_worktree_recycle_after_failure};
-use super::projection::summarize_subtask_batches;
+use crate::helpers::execution::{truncate_for_ui, TASK_LOG_UI_MAX_DETAIL_CHARS};
 
-fn apply_plan_outcome(task: &mut Task, outcome: desktop_task_executor::executor::runner::TaskPlanGenerationOutcome) {
-    task.subtasks.clear();
-    for (offset, plan_subtask) in outcome.subtasks.into_iter().enumerate() {
-        let mut subtask = SubTask::new(plan_subtask.title);
-        subtask.order = offset as u32;
-        subtask.boundary = plan_subtask.boundary;
-        subtask.acceptance_criteria = plan_subtask.acceptance_criteria;
-        subtask.target_files = plan_subtask.target_files;
-        subtask.batch = plan_subtask.batch;
-        subtask.depends_on_batches = plan_subtask.depends_on_batches;
-        task.subtasks.push(subtask);
-    }
-    task.add_localized_log(
-        "任务拆分完成: %s 个子任务",
-        vec![(task.subtasks.len()).to_string().into()],
-    );
-    task.add_localized_log(
-        "create-task-plans 计划目录: %s",
-        vec![
-            (truncate_for_ui(
-                &outcome.plan_dir,
-                TASK_LOG_UI_MAX_ENTRY_CHARS,
-            ))
-            .to_string()
-            .into(),
-        ],
-    );
-    task.add_localized_log(
-        "计划入口文件路径: %s",
-        vec![
-            (truncate_for_ui(
-                &outcome.prompt_md_path,
-                TASK_LOG_UI_MAX_ENTRY_CHARS,
-            ))
-            .to_string()
-            .into(),
-        ],
-    );
-    task.add_localized_log(
-        "批次摘要: %s",
-        vec![
-            (truncate_for_ui(
-                &summarize_subtask_batches(&task.subtasks),
-                TASK_LOG_UI_MAX_DETAIL_CHARS,
-            ))
-            .to_string()
-            .into(),
-        ],
-    );
-    if !outcome.raw_output.trim().is_empty() {
-        task.add_localized_log(
-            "拆分结果: %s",
-            vec![
-                (truncate_for_ui(
-                    &outcome.raw_output,
-                    TASK_LOG_UI_MAX_DETAIL_CHARS,
-                ))
-                .to_string()
-                .into(),
-            ],
-        );
-    }
-}
-
-pub fn start_planned_task(task: &mut Task, assigned_worktree_path: Option<String>) {
-    let _ = task.start_execution("开始执行任务".to_string());
-    task.selected_worktree_path = assigned_worktree_path;
-    if let Some(selected_path) = &task.selected_worktree_path {
-        task.add_localized_log(
-            "[WORKTREE] 执行前已分配工作区: %s",
-            vec![(selected_path).to_string().into()],
-        );
-    }
-    task.add_localized_log("子任务将按顺序串行执行", vec![]);
-}
-
-fn mark_plan_failed(task: &mut Task, error: &str) {
-    if is_model_response_timeout_error(&error) {
-        task.mark_execution_failed(format!(
-            "任务拆分模型响应超时: {}",
-            error
-        ));
-        record_task_worktree_recycle_after_failure(
-            task,
-            "任务拆分模型响应超时",
-        );
-    } else {
-        task.mark_execution_failed(format!(
-            "任务拆分失败（create-task-plans 计划拆分产物缺失或无效，如 prompt.md 缺失、解析失败或批次校验失败）: {}",
-            error
-        ));
+pub fn work_plan_from_outcome(
+    planning_attempt_id: String,
+    outcome: desktop_task_executor::executor::runner::TaskPlanGenerationOutcome,
+) -> vw_api_agent_scheduler::WorkPlanPublication {
+    vw_api_agent_scheduler::WorkPlanPublication::Generated {
+        planning_attempt_id,
+        subtasks: outcome.subtasks,
     }
 }
 
@@ -234,66 +148,4 @@ pub fn log_worktree_maintenance_failure(tasks: &mut [Task], error: &str) -> bool
         }
     }
     changed
-}
-
-pub enum PlanningEffect { Ignored, AllocateWorktree, PersistFailure }
-pub fn apply_planning_result(
-    task: &mut Task,
-    final_logs: Vec<desktop_task_executor::TaskLogStream>,
-    result: Result<desktop_task_executor::executor::runner::TaskPlanGenerationOutcome, String>,
-) -> PlanningEffect {
-    for log in final_logs {
-        let _ = crate::helpers::execution::append_task_log_stream(task, &log);
-    }
-    if task.status != TaskStatus::Planning {
-        task.add_localized_log("任务状态已变化，忽略本次拆分结果", vec![]);
-        return PlanningEffect::Ignored;
-    }
-    match result {
-        Ok(outcome) => {
-            apply_plan_outcome(task, outcome);
-            PlanningEffect::AllocateWorktree
-        }
-        Err(error) => {
-            mark_plan_failed(task, &error);
-            PlanningEffect::PersistFailure
-        }
-    }
-}
-
-/// 规划结果的完整本地回写。文件与工作树分配只经过窄效果回调。
-pub struct PlanningCompletion {
-    pub persist: Option<Task>,
-    pub execute: Option<Task>,
-    pub failed: bool,
-}
-pub fn finish_planning(
-    tasks: &mut [Task], task_id: &str,
-    final_logs: Vec<desktop_task_executor::TaskLogStream>,
-    result: Result<desktop_task_executor::executor::runner::TaskPlanGenerationOutcome, String>,
-    mut write_plan: impl FnMut(&Task),
-    mut allocate_worktree: impl FnMut(&mut Task) -> Result<Option<String>, String>,
-) -> PlanningCompletion {
-    let mut outcome = PlanningCompletion { persist: None, execute: None, failed: false };
-    let Some(task) = tasks.iter_mut().find(|task| task.id == task_id) else { return outcome; };
-    match apply_planning_result(task, final_logs, result) {
-        PlanningEffect::AllocateWorktree => {
-            write_plan(task);
-            match allocate_worktree(task) {
-                Ok(path) => {
-                    start_planned_task(task, path);
-                    write_plan(task);
-                    outcome.execute = Some(task.clone());
-                }
-                Err(error) => {
-                    crate::update::projection::mark_task_paused_after_worktree_preallocation_failure(task, error);
-                    outcome.failed = true;
-                }
-            }
-            outcome.persist = Some(task.clone());
-        }
-        PlanningEffect::PersistFailure => { outcome.failed = true; outcome.persist = Some(task.clone()); }
-        PlanningEffect::Ignored => {}
-    }
-    outcome
 }

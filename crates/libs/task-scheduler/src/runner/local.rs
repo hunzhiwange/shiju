@@ -6,6 +6,7 @@ use std::process::Output;
 
 use anyhow::{Context, Result, bail};
 use serde_json::{Map, Value, json};
+use vw_api_agent_scheduler::{WorkPlanPublication, parse_create_task_plans_prompt};
 use vw_api_chat_identity::ReasoningEffortDto;
 use vw_api_transport::common::TimestampMs;
 
@@ -372,6 +373,11 @@ where
         run_id: &RunId,
         request: &LocalAgentRunnerRequest,
     ) -> Result<StoredAgentRun> {
+        let planning = execution_metadata_string(task, "task_split_mode").as_deref() == Some("enabled")
+            && !self.store.work_plan_is_published(project_path, &task.id)?
+            && self.store.load_task_placement(project_path, &task.id)?
+                .is_none_or(|placement| !matches!(placement, crate::store::task_plan::TaskPlanPlacement::Child { .. }))
+            && self.store.list_task_plan_children(project_path, &task.id)?.is_empty();
         let acp_agent = execution_acp_agent(task);
         let reasoning_effort =
             reasoning_effort_from_metadata(&task.metadata)?;
@@ -417,7 +423,7 @@ where
                 task_id: task.id.clone(),
                 run_id: run_id.clone(),
                 title: task.title.clone(),
-                prompt: execution_prompt(task),
+                prompt: if planning { planning_prompt(task) } else { execution_prompt(task) },
                 model: execution_model(task),
                 agent: execution_agent(task, acp_agent.as_deref()),
                 acp_agent,
@@ -452,12 +458,50 @@ where
                 )?
                 .context("cancelled execution run disappeared");
         }
+        if current_task.as_ref().is_some_and(|task| task.status == AgentTaskStatus::Blocked)
+            && current_run.status == crate::domain::AgentRunStatus::Succeeded
+            && self.store.work_plan_is_published(project_path, &task.id)?
+        {
+            self.release_planning_workspace(project_path, task, run_id, workspace);
+            return Ok(current_run);
+        }
         if current_task.is_none_or(|task| task.status != AgentTaskStatus::Running)
             || current_run.status != crate::domain::AgentRunStatus::Running
             || latest_run.is_none_or(|run| run.id != *run_id)
         {
             // A cancellation/recovery or a later attempt owns the task projection now.
             return Ok(current_run);
+        }
+
+        if planning && let Ok(output) = &execution {
+            let published = (|| {
+                let subtasks = parse_create_task_plans_prompt(&output.raw_output)
+                    .map_err(anyhow::Error::msg)?;
+                let publication = WorkPlanPublication::Generated {
+                    planning_attempt_id: run_id.as_str().to_owned(),
+                    subtasks,
+                };
+                self.store.publish_work_plan(
+                    project_path,
+                    &task.id,
+                    &publication,
+                    TimestampMs(chrono::Utc::now().timestamp_millis().max(0)),
+                )
+            })();
+            self.release_planning_workspace(project_path, task, run_id, workspace);
+            return match published {
+                Ok(_) => self.store.load_run(project_path, run_id)?.context("planning run disappeared"),
+                Err(error) => {
+                    let run = self.store.load_run(project_path, run_id)?.context("planning run disappeared")?;
+                    if run.finished_at_ms.is_some() {
+                        return Ok(run);
+                    }
+                    self.fail_running_task(
+                        project_path, task, run_id, request, None,
+                        format!("任务拆分发布失败，请重试任务: {error}"),
+                    )
+                }
+            };
         }
 
         match execution {
@@ -498,6 +542,23 @@ where
                 })?;
                 Ok(failed)
             }
+        }
+    }
+
+    fn release_planning_workspace(
+        &self,
+        project_path: &(impl AgentSchedulerStorageContext + ?Sized),
+        task: &StoredAgentTask,
+        run_id: &RunId,
+        workspace: LocalAgentWorkspace,
+    ) {
+        if let Err(error) = self.executor.release_workspace(LocalAgentWorkspaceReleaseRequest {
+            project_path: project_path.storage_project_path().to_path_buf(),
+            task_id: task.id.clone(),
+            run_id: run_id.clone(),
+            workspace,
+        }) {
+            tracing::warn!(%error, "work plan workspace release failed");
         }
     }
 
@@ -916,16 +977,33 @@ pub fn truncate_log_text(value: &str, max_chars: usize) -> String {
     truncated
 }
 
-pub fn execution_prompt(task: &StoredAgentTask) -> String {
-    let prompt = task
-        .metadata
+fn task_prompt(task: &StoredAgentTask) -> &str {
+    task.metadata
         .get("prompt")
         .and_then(Value::as_str)
         .filter(|prompt| !prompt.trim().is_empty())
         .unwrap_or(&task.title)
         .trim()
-        .to_string();
-    format!("{prompt}\n\n{FINAL_REPLY_INSTRUCTION}")
+}
+
+fn planning_prompt(task: &StoredAgentTask) -> String {
+    format!(
+        "把下面的目标拆成可独立执行的工作计划。可以读取项目上下文，请勿修改文件或执行子任务。\n\
+         按执行顺序输出每个子任务，标题格式为 `## 任务 N: 标题 【批次 N】 依赖批次 无`。\n\
+         后批次等待前批次完成，依赖批次只能引用计划中更早的批次。同批任务不得修改同一文件。\n\
+         每个标题后添加一行 `计划元数据: {{\"boundary\": \"任务边界\", \"acceptance_criteria\": [\"验收条件\"], \"target_files\": [\"相对文件路径\"]}}`，\
+         然后紧接一个 text 代码块，写明该任务完整的执行提示。直接在最终回复中输出计划。\n\n{}",
+        task_prompt(task),
+    )
+}
+
+pub fn execution_prompt(task: &StoredAgentTask) -> String {
+    let prompt = task_prompt(task);
+    if let Some(context) = task.metadata.get("task_plan.context") {
+        format!("父任务与本子任务的执行范围:\n{context}\n\n{prompt}\n\n{FINAL_REPLY_INSTRUCTION}")
+    } else {
+        format!("{prompt}\n\n{FINAL_REPLY_INSTRUCTION}")
+    }
 }
 
 pub fn execution_model(task: &StoredAgentTask) -> Option<String> {

@@ -234,3 +234,89 @@ fn for_each_provider(
     check(&store, &context, fixture.database())?;
     fixture.cleanup()
 }
+
+#[test]
+fn task_plan_store_publish_rolls_back_and_replays() -> Result<()> {
+    use vw_api_agent_scheduler::{TaskPlanSubTask, WorkPlanPublication};
+    use crate::domain::RunId;
+
+    for_each_provider(|store, context, _| {
+        let parent = TaskId::new("publish-parent")?;
+        let first = super::task_plan::generated_child_id(&parent, 0)?;
+        let collision = super::task_plan::generated_child_id(&parent, 1)?;
+        store.create_task(context, finite_task_with_status(&parent, AgentTaskStatus::Queued)?)?;
+        store.create_task(context, finite_task_with_status(&collision, AgentTaskStatus::Draft)?)?;
+        let now = TimestampMs(2_000);
+        let run = store.claim_ready_task_run(context, crate::store::runs::ClaimReadyTaskRunRequest {
+            task_id: parent.clone(),
+            run_id: RunId::new("planning-run")?,
+            lease_acquired_at_ms: now,
+            lease_expires_at_ms: Some(TimestampMs(4_000)),
+        })?.unwrap();
+        for status in [AgentTaskStatus::Dispatched, AgentTaskStatus::Acknowledged, AgentTaskStatus::Running] {
+            store.transition_task_status(context, &parent, status, now)?;
+        }
+        let item = |title: &str, batch| TaskPlanSubTask {
+            title: title.into(),
+            boundary: "修改规划范围内的文件".into(),
+            acceptance_criteria: vec!["检查产物".into()],
+            target_files: vec![format!("{title}.rs")],
+            batch,
+            depends_on_batches: if batch == 1 { vec![] } else { vec![1] },
+            execution_prompt: title.into(),
+        };
+        let request = WorkPlanPublication::Generated {
+            planning_attempt_id: run.id.as_str().into(),
+            subtasks: vec![item("first", 1), item("second", 2)],
+        };
+        assert!(store.publish_work_plan(context, &parent, &request, now).is_err());
+        assert!(store.load_task(context, &first)?.is_none());
+        assert_eq!(store.load_task(context, &parent)?.unwrap().status, AgentTaskStatus::Running);
+        assert!(store.load_run(context, &run.id)?.unwrap().finished_at_ms.is_none());
+
+        let accepted = WorkPlanPublication::Generated {
+            planning_attempt_id: run.id.as_str().into(),
+            subtasks: vec![item("first", 1)],
+        };
+        let ids = store.publish_work_plan(context, &parent, &accepted, now)?;
+        assert_eq!(ids, vec![first.as_str().to_owned()]);
+        assert_eq!(store.publish_work_plan(context, &parent, &accepted, now)?, ids);
+        assert!(store.publish_work_plan(context, &parent, &request, now).is_err());
+        assert_eq!(store.load_task(context, &parent)?.unwrap().status, AgentTaskStatus::Blocked);
+        assert!(store.load_run(context, &run.id)?.unwrap().finished_at_ms.is_some());
+        assert_eq!(store.list_task_plan_children(context, &parent)?.len(), 1);
+        Ok(())
+    })
+}
+
+#[test]
+fn task_plan_store_manual_publication_freezes_children() -> Result<()> {
+    use vw_api_agent_scheduler::WorkPlanPublication;
+
+    for_each_provider(|store, context, _| {
+        let parent = TaskId::new("manual-parent")?;
+        let child = TaskId::new("manual-child")?;
+        let extra = TaskId::new("manual-extra")?;
+        let now = TimestampMs(3_000);
+        store.create_task(context, finite_task_with_status(&parent, AgentTaskStatus::Queued)?)?;
+        store.create_task_with_plan(
+            context, finite_task_with_status(&child, AgentTaskStatus::Draft)?, child_batch(&parent, 1),
+        )?;
+        assert!(store.claim_ready_task_run(context, crate::store::runs::ClaimReadyTaskRunRequest {
+            task_id: parent.clone(),
+            run_id: crate::domain::RunId::new("unpublished-parent-run")?,
+            lease_acquired_at_ms: now,
+            lease_expires_at_ms: None,
+        })?.is_none());
+        let ids = store.publish_work_plan(context, &parent, &WorkPlanPublication::Manual, now)?;
+        assert_eq!(ids, vec![child.as_str()]);
+        assert_eq!(store.publish_work_plan(context, &parent, &WorkPlanPublication::Manual, now)?, ids);
+        assert_eq!(store.load_task(context, &child)?.unwrap().status, AgentTaskStatus::Queued);
+        assert!(edit_placement(store, context, &child, Some(child_batch(&parent, 2))).is_err());
+        assert!(store.create_task_with_plan(
+            context, finite_task_with_status(&extra, AgentTaskStatus::Draft)?, child_batch(&parent, 1),
+        ).is_err());
+        assert!(store.load_task(context, &extra)?.is_none());
+        Ok(())
+    })
+}

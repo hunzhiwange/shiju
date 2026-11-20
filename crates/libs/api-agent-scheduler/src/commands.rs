@@ -283,6 +283,8 @@ pub struct AgentSchedulerTaskBoardTaskReadModelDto {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub dispatch_blocker: Option<AgentSchedulerDispatchBlockerDto>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub task_split_mode: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub title: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub workflow_id: Option<String>,
@@ -306,6 +308,7 @@ pub enum AgentSchedulerDispatchBlockerDto {
     WaitingForEarlierBatch { task_ids: Vec<String> },
     EarlierBatchFailed { task_ids: Vec<String> },
     ParentNotReleased { parent_task_id: String },
+    WorkPlanNotPublished,
     ExplicitDependency { task_ids: Vec<String> },
 }
 

@@ -390,6 +390,7 @@ fn create_task_request_with_workflow(
             "acp_agent": task.acp_agent,
             "reasoning_effort": task.reasoning_effort,
             "prompt": task.prompt,
+            "task_split_mode": task.task_split_mode.to_string_key(),
             "last_error": task.last_error,
             "pause_reason": task.pause_reason,
             "merge_source_branch": task.merge_source_branch,

@@ -32,3 +32,18 @@ umask 077
 npm install --prefix target/acp-skill-coexistence/dirac-npm --ignore-scripts --no-audit --no-fund --save-exact dirac-cli@0.5.24 @modelcontextprotocol/sdk@1.32.2
 python3 scripts/cargo_slot.py sh -c 'cargo build --locked -j 1 -p vw-cli --bin shiju && python3 scripts/verify_acp_skill_coexistence.py --agent dirac --gateway-bin "$CARGO_TARGET_DIR/debug/shiju" --output target/acp-skill-coexistence/dirac.json'
 ```
+
+## 2026-11-21 正式网关回归
+
+在 Darwin arm64 持有 Cargo 槽位 6 时复用共享网关。构建提交为 `03e5fc747ed4571184fbb6a156bb48d093b9fee0`，源码树为 `d05a1a28464c987967ad7e08792b2139bf02f9a5`。构建范围内的工作区差异摘要与共享回执一致，变更仅为其他后端的声明和分派顺序。网关 SHA-256 为 `c59878516f6a88bb8f60ce78955654b9859bca9b82af6711fc14c83d0a572eba`。探针校验 Dirac 0.5.24 的上游入口及两份 v2 文件摘要，均与上表一致。
+
+两个 Cargo 缓存路径均为 `/Users/xiangmin/worker/code/shiju/target/rust-slot-6`。网关探针退出 0，四个独立会话各有一个 `chat.done` 和零个 `chat.error`。每轮均回读 `dirac`、`session_model`、`coexistence-fixture/selected-model` 与 `full_access=false`。
+
+| 场景 | 会话 | 原生激活及附件调用 ID | 选中技能激活及附件调用 ID | MCP 模型调用 ID | 审批与执行数 |
+| --- | --- | --- | --- | --- | --- |
+| 基线 | `ses_e05f87674ffe1kQUGXgSkeUHpM` | `call_9bf6e46de461f841fdc74fd9`、`call_a76216791358730c14f7dada` | 不可发现 | 无 | 无 / 0 |
+| 挂载 | `ses_e05f86a20ffe3YdIH2e9Rpn3or` | `call_4a1b757bbe50006101e20de3`、`call_10edaf7c59e7aad01887ed79` | `call_ac9fd36f9332d393ea285398`、`call_0c214457f951bb094e3a7d95` | `call_f67fa1755de215b14d784af4` | 单次批准 / 1 |
+| 撤除 | `ses_e05f85a51ffe092KEIwC5d4EYo` | `call_4b208b8ab7d137781ee6192a`、`call_63f4c089ab62b1504e01b05b` | 不可发现 | 无 | 无 / 0 |
+| 拒绝 | `ses_e05f84bdaffepsQDqU6e7k3uFi` | `call_9c53d005c893b98283775405`、`call_921054364be26821256613aa` | `call_4bbe35a859d56dc8acac92a1`、`call_46947574ece8159b77df4678` | `call_a0e883bd5a5f7f6810f47377` | 拒绝 / 0 |
+
+模型收到实际读取的正文和附件。挂载轮收到实际 MCP 读盘结果，拒绝轮收到对应调用 ID 的拒绝结果。结构化证据位于 `target/acp-skill-coexistence/dirac.json`。

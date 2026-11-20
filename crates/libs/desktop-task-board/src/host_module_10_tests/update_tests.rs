@@ -69,3 +69,43 @@ fn persistence_ack_releases_snapshot_guard() {
         assert_eq!(app.task_board_tasks[0].status, TaskStatus::Running);
     }
 }
+
+#[test]
+fn work_plan_detail_entry_selects_basic_and_preserves_log_entry() {
+    use crate::message::{TaskBoardDetailTab, TaskBoardMessage};
+    use crate::update::local::{LocalEffect, update_local};
+
+    let mut app = Fixture::default();
+    app.project_path = Some("/work".into());
+    app.task_board_tasks.push(Task {
+        id: "task-1".into(),
+        status: TaskStatus::Running,
+        prompt: "task prompt".into(),
+        ..Task::default()
+    });
+
+    let opened = update_local(
+        local_state(&mut app),
+        TaskBoardMessage::ViewTaskLogs { project_path: "/work".into(), task_id: "task-1".into() },
+        "main",
+    );
+    assert!(matches!(opened, Ok(LocalEffect::OpenDetail(task)) if task.id == "task-1"));
+    assert_eq!(app.task_board_detail_tab, TaskBoardDetailTab::Logs);
+    assert_eq!(app.task_board_editing_task_id.as_deref(), Some("task-1"));
+    assert_eq!(app.task_board_draft.prompt, "task prompt");
+
+    let opened = update_local(
+        local_state(&mut app),
+        TaskBoardMessage::OpenTaskDetail { project_path: "/work".into(), task_id: "task-1".into() },
+        "main",
+    );
+    assert!(matches!(opened, Ok(LocalEffect::OpenDetail(task)) if task.status == TaskStatus::Running));
+    assert_eq!(app.task_board_detail_tab, TaskBoardDetailTab::Basic);
+
+    app.task_board_draft.prompt = "unsaved edit".into();
+    for tab in [TaskBoardDetailTab::Logs, TaskBoardDetailTab::Basic] {
+        let _ = update_local(local_state(&mut app), TaskBoardMessage::SelectDetailTab(tab), "main");
+        assert_eq!(app.task_board_detail_tab, tab);
+        assert_eq!(app.task_board_draft.prompt, "unsaved edit");
+    }
+}

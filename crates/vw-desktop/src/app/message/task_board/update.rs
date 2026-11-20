@@ -1,7 +1,7 @@
 //! 任务看板桌面适配：委派局部更新，映射会话、通知、持久化及原生操作效果。
 
 use crate::app::Message;
-use crate::app::state::MAIN_AGENT_KEY;
+use crate::app::state::{MAIN_AGENT_KEY, TaskBoardDetailTab};
 use desktop_task_board as taskboard;
 
 use super::helpers::*;
@@ -205,6 +205,7 @@ pub fn update(
             app.task_board.show_task_board = true;
             app.task_board.switch_work_view(taskboard::work_views::BuiltinWorkView::AllTasks);
             app.navigation_tabs.screen = crate::app::Screen::TaskBoard;
+            app.task_board.task_board_loading = true;
             return iced::Task::batch([task, sync_task_board_gateway_snapshot(path.clone()), maybe_schedule_worktree_snapshot_refresh(app, true)]);
         }
         TaskBoardMessage::SelectAllTasksInStatus(status) | TaskBoardMessage::InvertTaskSelectionInStatus(status) => {
@@ -503,6 +504,7 @@ pub fn update(
             app.navigation_tabs.screen = crate::app::Screen::TaskBoard;
             if let Some(project_path) = &app.navigation_tabs.project_path {
                 let path: String = project_path.clone();
+                app.task_board.task_board_loading = true;
                 return iced::Task::batch(vec![
                     maybe_schedule_worktree_snapshot_refresh(app, true),
                     sync_task_board_gateway_snapshot(path),
@@ -547,7 +549,10 @@ pub fn update(
                 return iced::Task::none();
             }
             projection_state(app).loaded(tasks);
-            iced::Task::none()
+            if let Some(task_id) = app.task_board.task_board_editing_task_id.clone() {
+                sync_viewing_logs(app, &task_id);
+            }
+            close_missing_detail(app)
         }
 
         TaskBoardMessage::TaskStatusChanged { task_id, new_status } => {
@@ -878,10 +883,11 @@ pub fn update(
             {
                 return iced::Task::none();
             }
+            let was_loading = std::mem::take(&mut app.task_board.task_board_loading);
             let response = match result {
                 Ok(response) => response,
                 Err(error) => {
-                    if agent_scheduler_gateway_unavailable(&error) {
+                    if !was_loading && agent_scheduler_gateway_unavailable(&error) {
                         tracing::debug!(
                             error = %error,
                             "agent scheduler status sync skipped because gateway is unavailable"
@@ -910,8 +916,9 @@ pub fn update(
             let followup_ticks =
                 schedule_agent_scheduler_status_followup_ticks(app, &updated_tasks);
             iced::Task::batch(vec![
-                sync_agent_scheduler_logs(project_path, response_project_id, task_ids),
+                sync_agent_scheduler_logs(project_path, response_project_id, generation, task_ids),
                 followup_ticks,
+                close_missing_detail(app),
             ])
         }
         TaskBoardMessage::TaskResultPersistenceCompleted { project_path, task_id, result } => {
@@ -932,14 +939,31 @@ pub fn update(
             }
             sync
         }
-        TaskBoardMessage::AgentSchedulerLogsLoaded { project_path, result } => {
-            if !task_board_project_matches(app, &project_path) {
+        TaskBoardMessage::AgentSchedulerLogsLoaded {
+            project_path,
+            generation,
+            requested_task_id,
+            result,
+        } => {
+            if !task_board_project_matches(app, &project_path)
+                || generation < app.task_board.task_board_workflow_generation
+            {
                 return iced::Task::none();
             }
             let responses = match result {
                 Ok(response) => response,
                 Err(error) => {
                     tracing::warn!(error = %error, "agent scheduler logs sync failed");
+                    if requested_task_id.is_some()
+                        && requested_task_id == app.task_board.task_board_editing_task_id
+                        && app.task_board.task_board_detail_tab == TaskBoardDetailTab::Logs
+                    {
+                        return app.show_localized_toast(
+                            crate::app::state::ToastKind::Warning,
+                            "加载任务日志失败: %s",
+                            vec![truncate_for_ui(&error, TASK_LOG_UI_MAX_DETAIL_CHARS).into()],
+                        );
+                    }
                     return iced::Task::none();
                 }
             };
@@ -1067,6 +1091,16 @@ pub fn update(
     }
 }
 
+fn close_missing_detail(app: &mut crate::app::App) -> iced::Task<Message> {
+    let board = &app.task_board;
+    if board.task_board_viewing_logs.as_ref().is_some_and(|viewing| {
+        !board.task_board_tasks.iter().any(|task| task.id == viewing.id)
+    }) {
+        return update(app, TaskBoardMessage::CloseTaskLogs);
+    }
+    iced::Task::none()
+}
+
 fn apply_local_effect(
     app: &mut crate::app::App,
     effect: taskboard::update::local::LocalEffect,
@@ -1080,25 +1114,24 @@ fn apply_local_effect(
                 new_status: TaskStatus::Pending,
             }))
         }
-        LocalEffect::OpenLogs(task) => {
+        LocalEffect::OpenDetail(task) => {
             #[cfg(not(target_arch = "wasm32"))]
             app.task_quick_actions.board.close();
-            let id = task.id.clone();
+            app.task_board.task_board_draft.label_ids = None;
+            app.task_board.task_board_draft.property_changes.clear();
+            close_logs_context_menu(app);
             set_viewing_logs(app, Some(task));
-            flush_running_task_logs_throttled(app, true, web_time::Instant::now());
-            app.navigation_tabs
-                .project_path
-                .clone()
-                .map(|path| sync_agent_scheduler_logs_for_project_path(path, vec![id]))
-                .unwrap_or_else(iced::Task::none)
+            if app.task_board.task_board_detail_tab == TaskBoardDetailTab::Logs {
+                return apply_local_effect(app, LocalEffect::SyncLogs);
+            }
+            iced::Task::none()
         }
         LocalEffect::SyncLogs => {
+            flush_running_task_logs_throttled(app, true, web_time::Instant::now());
             let viewing = app.task_board.task_board_viewing_logs.clone();
             sync_task_logs_editor(app, viewing.as_ref());
             match (app.navigation_tabs.project_path.clone(), viewing) {
-                (Some(path), Some(task)) => {
-                    sync_agent_scheduler_logs_for_project_path(path, vec![task.id])
-                }
+                (Some(path), Some(task)) => sync_agent_scheduler_logs_for_project_path(path, task.id),
                 _ => iced::Task::none(),
             }
         }
@@ -1130,12 +1163,13 @@ fn apply_local_effect(
             ),
         },
         LocalEffect::None => iced::Task::none(),
-        LocalEffect::ViewLogs(task) => {
+        LocalEffect::CloseDetail => {
             #[cfg(not(target_arch = "wasm32"))]
             app.task_quick_actions.board.close();
             app.task_board.task_board_draft.label_ids = None;
             app.task_board.task_board_draft.property_changes.clear();
-            set_viewing_logs(app, task);
+            close_logs_context_menu(app);
+            set_viewing_logs(app, None);
             iced::Task::none()
         }
         LocalEffect::ClearSuccess(create) => crate::app::message::after(
@@ -1150,13 +1184,19 @@ fn apply_local_effect(
             let Some(path) = app.navigation_tabs.project_path.clone() else {
                 return iced::Task::none();
             };
+            let result_project_path = path.clone();
+            let task_id = task.id.clone();
             let workflow_id = app.task_board.task_board_settings.workflow_id.clone();
             iced::Task::perform(
                 async move {
                     persist_updated_tasks_via_gateway(&path, &[task], "保存任务编辑", &workflow_id)
                         .await
                 },
-                |result| Message::TaskBoard(TaskBoardMessage::EditingTaskSaved(result)),
+                move |result| Message::TaskBoard(TaskBoardMessage::EditingTaskSaved {
+                    project_path: result_project_path.clone(),
+                    task_id: task_id.clone(),
+                    result,
+                }),
             )
         }
         LocalEffect::Create(task) => {

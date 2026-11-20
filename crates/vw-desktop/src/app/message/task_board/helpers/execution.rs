@@ -117,21 +117,21 @@ async fn load_agent_scheduler_logs(
 
 pub(crate) fn sync_agent_scheduler_logs_for_project_path(
     project_path: String,
-    task_ids: Vec<String>,
+    task_id: String,
 ) -> iced::Task<crate::app::Message> {
-    if task_ids.is_empty() {
-        return iced::Task::none();
-    }
-
+    let generation = next_agent_scheduler_status_generation();
+    let requested_task_id = task_id.clone();
     let result_project_path = project_path.clone();
     iced::Task::perform(
         async move {
             let project_id = resolve_task_board_project_id(&project_path).await?;
-            load_agent_scheduler_logs(project_id, task_ids).await
+            load_agent_scheduler_logs(project_id, vec![task_id]).await
         },
         move |result| {
             crate::app::Message::TaskBoard(TaskBoardMessage::AgentSchedulerLogsLoaded {
                 project_path: result_project_path.clone(),
+                generation,
+                requested_task_id: Some(requested_task_id.clone()),
                 result,
             })
         },
@@ -141,6 +141,7 @@ pub(crate) fn sync_agent_scheduler_logs_for_project_path(
 pub(crate) fn sync_agent_scheduler_logs(
     project_path: String,
     project_id: vw_api_transport::ProjectId,
+    generation: u64,
     task_ids: Vec<String>,
 ) -> iced::Task<crate::app::Message> {
     if task_ids.is_empty() {
@@ -153,6 +154,8 @@ pub(crate) fn sync_agent_scheduler_logs(
         move |result| {
             crate::app::Message::TaskBoard(TaskBoardMessage::AgentSchedulerLogsLoaded {
                 project_path: result_project_path.clone(),
+                generation,
+                requested_task_id: None,
                 result,
             })
         },

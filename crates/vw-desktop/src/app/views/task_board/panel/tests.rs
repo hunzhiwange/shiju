@@ -215,3 +215,61 @@ mod help_rollout {
         }
     }
 }
+
+#[test]
+fn work_plan_detail_entry_clears_selection_on_project_switch() {
+    use crate::app::message::task_board::update;
+
+    let (mut app, _) = crate::app::App::new();
+    let old_project = "/repo/work-old";
+    let new_project = "/repo/work-new";
+    let task_id = "shared-id";
+    let open_detail = |path: &str| TaskBoardMessage::OpenTaskDetail {
+        project_path: path.into(),
+        task_id: task_id.into(),
+    };
+
+    let _ = app.open_project(old_project.into());
+    app.task_board.task_board_tasks.push(Task {
+        id: task_id.into(),
+        status: TaskStatus::Running,
+        ..Task::default()
+    });
+    let _ = update(&mut app, open_detail(old_project));
+    assert_eq!(app.task_board.task_board_editing_task_id.as_deref(), Some(task_id));
+    let _ = update(&mut app, TaskBoardMessage::SelectDetailTab(TaskBoardDetailTab::Logs));
+
+    let _ = app.open_project(new_project.into());
+    assert!(app.task_board.task_board_editing_task_id.is_none());
+    assert!(app.task_board.task_board_viewing_logs.is_none());
+    assert_eq!(app.task_board.task_board_detail_tab, TaskBoardDetailTab::Basic);
+
+    let updated = Task {
+        id: task_id.into(),
+        status: TaskStatus::Failed,
+        ..Task::default()
+    };
+    app.task_board.task_board_tasks.push(updated);
+    let _ = update(&mut app, open_detail(old_project));
+    let _ = update(&mut app, TaskBoardMessage::ViewTaskLogs {
+        project_path: old_project.into(),
+        task_id: task_id.into(),
+    });
+    assert!(app.task_board.task_board_viewing_logs.is_none());
+
+    let _ = update(&mut app, open_detail(new_project));
+    assert_eq!(app.task_board.task_board_viewing_logs.as_ref().unwrap().status, TaskStatus::Failed);
+
+    let _ = update(&mut app, TaskBoardMessage::TasksLoaded {
+        project_path: new_project.into(),
+        tasks: vec![Task { id: task_id.into(), status: TaskStatus::Completed, ..Task::default() }],
+    });
+    assert_eq!(app.task_board.task_board_viewing_logs.as_ref().unwrap().status, TaskStatus::Completed);
+
+    let _ = update(&mut app, TaskBoardMessage::TasksLoaded {
+        project_path: new_project.into(),
+        tasks: vec![],
+    });
+    assert!(app.task_board.task_board_viewing_logs.is_none());
+    assert!(app.task_board.task_board_editing_task_id.is_none());
+}

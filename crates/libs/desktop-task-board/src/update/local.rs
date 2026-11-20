@@ -1,5 +1,5 @@
 //! 拖放、筛选、草稿和编辑器的局部消息更新。
-use crate::message::{TaskBoardMessage, TaskBoardSettingsModalTab};
+use crate::message::{TaskBoardDetailTab, TaskBoardMessage, TaskBoardSettingsModalTab};
 use iced::widget::text_editor;
 use std::collections::{HashMap, HashSet};
 
@@ -14,7 +14,7 @@ pub struct LocalState<'a> {
     pub settings: &'a desktop_task_model::TaskBoardSettings,
     pub logs_auto_scroll: &'a mut bool,
     pub editing_task_id: &'a mut Option<String>,
-    pub detail_tab: &'a mut crate::message::TaskBoardDetailTab,
+    pub detail_tab: &'a mut TaskBoardDetailTab,
     pub last_model: &'a mut String,
     pub create_modal_open: &'a mut bool,
     pub tasks: &'a mut Vec<desktop_task_model::Task>,
@@ -56,10 +56,10 @@ pub struct LocalState<'a> {
 /// 日志编辑器同步由既有日志状态入口完成。
 pub enum LocalEffect {
     None,
-    ViewLogs(Option<desktop_task_model::Task>),
+    OpenDetail(desktop_task_model::Task),
+    CloseDetail,
     Persist(desktop_task_model::Task),
     OpenSession(String),
-    OpenLogs(desktop_task_model::Task),
     SyncLogs,
     Clipboard(String),
     Import(Result<Vec<desktop_task_model::Task>, String>),
@@ -87,16 +87,42 @@ pub fn update_local(
             }
         }
 
-        TaskBoardMessage::ViewTaskLogs(id) => {
-            if let Some(task) = state.tasks.iter().find(|t| t.id == id).cloned() {
-                *state.logs_auto_scroll = true;
-                *state.detail_tab = crate::message::TaskBoardDetailTab::Logs;
-                return Ok(LocalEffect::OpenLogs(task));
+        TaskBoardMessage::OpenTaskDetail { project_path, task_id } => {
+            if !crate::update::projection::task_board_project_matches(
+                state.project_path,
+                &project_path,
+            ) {
+                return Ok(LocalEffect::None);
             }
+            return Ok(open_detail(
+                &mut state,
+                task_id,
+                TaskBoardDetailTab::Basic,
+                main_agent_key,
+            ));
+        }
+        TaskBoardMessage::ViewTaskLogs { project_path, task_id } => {
+            if !crate::update::projection::task_board_project_matches(
+                state.project_path,
+                &project_path,
+            ) {
+                return Ok(LocalEffect::None);
+            }
+            if state.editing_task_id.as_ref() == Some(&task_id) {
+                *state.detail_tab = TaskBoardDetailTab::Logs;
+                *state.logs_auto_scroll = true;
+                return Ok(LocalEffect::SyncLogs);
+            }
+            return Ok(open_detail(
+                &mut state,
+                task_id,
+                TaskBoardDetailTab::Logs,
+                main_agent_key,
+            ));
         }
         TaskBoardMessage::SelectDetailTab(tab) => {
             *state.detail_tab = tab;
-            if tab == crate::message::TaskBoardDetailTab::Logs {
+            if tab == TaskBoardDetailTab::Logs {
                 *state.logs_auto_scroll = true;
                 return Ok(LocalEffect::SyncLogs);
             }
@@ -171,13 +197,13 @@ pub fn update_local(
                 return Ok(LocalEffect::ClearSuccess(true));
             }
         }
-        TaskBoardMessage::EditingTaskSaved(result) => {
-            if result.is_ok() {
+        TaskBoardMessage::EditingTaskSaved { project_path, task_id, result } => {
+            if result.is_ok()
+                && crate::update::projection::task_board_project_matches(state.project_path, &project_path)
+                && state.editing_task_id.as_ref() == Some(&task_id)
+            {
                 if *state.close_after_edit {
-                    *state.logs_auto_scroll = true;
-                    *state.editing_task_id = None;
-                    *state.edit_submit_success = false;
-                    return Ok(LocalEffect::ViewLogs(None));
+                    return Ok(close_detail(&mut state));
                 }
                 *state.edit_submit_success = true;
                 return Ok(LocalEffect::ClearSuccess(false));
@@ -244,31 +270,18 @@ pub fn update_local(
         }
 
         TaskBoardMessage::EditTask(task_id) => {
-            if let Some(task) = state.tasks.iter().find(|t| t.id == task_id).cloned() {
-                *state.logs_auto_scroll = true;
-                *state.editing_task_id = Some(task_id);
-                *state.detail_tab = crate::message::TaskBoardDetailTab::Basic;
-                *state.edit_submit_success = false;
-                // 日志缓存可能覆盖任务日志，但不会改变草稿字段。
-                crate::update::forms::draft_from_task(state.draft, &task, main_agent_key);
-                *state.prompt_editor = text_editor::Content::with_text(&state.draft.prompt);
-                return Ok(LocalEffect::ViewLogs(Some(task)));
-            }
+            return Ok(open_detail(
+                &mut state,
+                task_id,
+                TaskBoardDetailTab::Basic,
+                main_agent_key,
+            ));
         }
-        TaskBoardMessage::CloseTaskLogs => {
-            *state.detail_tab = crate::message::TaskBoardDetailTab::Basic;
-            *state.logs_auto_scroll = true;
-            *state.editing_task_id = None;
-            *state.edit_submit_success = false;
-            return Ok(LocalEffect::ViewLogs(None));
-        }
+        TaskBoardMessage::CloseTaskLogs => return Ok(close_detail(&mut state)),
         TaskBoardMessage::CloseTaskPanel => {
             *state.create_modal_open = false;
-            *state.logs_auto_scroll = true;
-            *state.editing_task_id = None;
             *state.create_submit_success = false;
-            *state.edit_submit_success = false;
-            return Ok(LocalEffect::ViewLogs(None));
+            return Ok(close_detail(&mut state));
         }
         TaskBoardMessage::TaskUpdated(task) => {
             if let Some(existing) = state.tasks.iter_mut().find(|t| t.id == task.id) {
@@ -286,19 +299,12 @@ pub fn update_local(
                 *state.dragging = None;
                 *state.drag_pending = None;
             } else if state.drag_pending.take().is_some() {
-                if let Some(task) = state.tasks.iter().find(|t| t.id == task_id).cloned() {
-                    *state.editing_task_id = Some(task_id);
-                    *state.detail_tab = crate::message::TaskBoardDetailTab::Basic;
-                    state.draft.priority = task.priority.to_string();
-                    state.draft.model = task.model.clone();
-                    state.draft.reasoning_effort = task.reasoning_effort;
-                    crate::draft::set_draft_executor_selection(state.draft, task.acp_agent.clone());
-                    state.draft.prompt = task.prompt.clone();
-                    state.draft.subtasks =
-                        task.subtasks.iter().map(|s| s.content.clone()).collect();
-                    *state.prompt_editor = text_editor::Content::with_text(&task.prompt);
-                    return Ok(LocalEffect::ViewLogs(Some(task)));
-                }
+                return Ok(open_detail(
+                    &mut state,
+                    task_id,
+                    TaskBoardDetailTab::Basic,
+                    main_agent_key,
+                ));
             }
         }
         TaskBoardMessage::DragStarted { task_id, from_status } => {
@@ -526,6 +532,36 @@ pub fn update_local(
         other => return Err(other),
     }
     Ok(LocalEffect::None)
+}
+
+fn open_detail(
+    state: &mut LocalState<'_>,
+    task_id: String,
+    tab: TaskBoardDetailTab,
+    main_agent_key: &str,
+) -> LocalEffect {
+    let Some(task) = state.tasks.iter().find(|task| task.id == task_id).cloned() else {
+        return LocalEffect::None;
+    };
+
+    *state.logs_auto_scroll = true;
+    *state.editing_task_id = Some(task_id);
+    *state.detail_tab = tab;
+    *state.edit_submit_success = false;
+    *state.context_menu = None;
+    state.new_subtask_content.clear();
+    crate::update::forms::draft_from_task(state.draft, &task, main_agent_key);
+    *state.prompt_editor = text_editor::Content::with_text(&state.draft.prompt);
+    LocalEffect::OpenDetail(task)
+}
+
+fn close_detail(state: &mut LocalState<'_>) -> LocalEffect {
+    *state.detail_tab = TaskBoardDetailTab::Basic;
+    *state.logs_auto_scroll = true;
+    *state.editing_task_id = None;
+    *state.edit_submit_success = false;
+    state.new_subtask_content.clear();
+    LocalEffect::CloseDetail
 }
 
 fn reset_draft(state: &mut LocalState<'_>) {

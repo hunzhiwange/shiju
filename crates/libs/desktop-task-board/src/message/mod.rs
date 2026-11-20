@@ -159,7 +159,8 @@ pub enum TaskBoardMessage {
     },
     SelectTask(String),
     DeselectTask,
-    ViewTaskLogs(String),
+    OpenTaskDetail { project_path: String, task_id: String },
+    ViewTaskLogs { project_path: String, task_id: String },
     CloseTaskLogs,
     SelectDetailTab(TaskBoardDetailTab),
     EditTask(String),
@@ -351,6 +352,8 @@ pub enum TaskBoardMessage {
     },
     AgentSchedulerLogsLoaded {
         project_path: String,
+        generation: u64,
+        requested_task_id: Option<String>,
         result: Result<
             Vec<vw_api_agent_scheduler::AgentSchedulerTaskLogsResponse>,
             String,
@@ -397,7 +400,7 @@ pub enum TaskBoardMessage {
     ToggleCloseAfterEdit(bool),
     ClearCreateSubmitSuccess,
     ClearEditSubmitSuccess,
-    EditingTaskSaved(Result<(), String>),
+    EditingTaskSaved { project_path: String, task_id: String, result: Result<(), String> },
     ToggleImportMode(bool),
     ImportEditorAction(iced::widget::text_editor::Action),
     ImportFilePick,

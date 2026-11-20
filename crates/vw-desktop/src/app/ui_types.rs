@@ -67,6 +67,7 @@ pub enum Message {
     View(message::ViewMessage),
     Search(message::SearchMessage),
     Settings(message::SettingsMessage),
+    TaskLabelSettings(crate::app::components::system_settings::task_settings::labels::Event),
     Terminal(message::TerminalMessage),
     Git(message::GitMessage),
     Chat(message::ChatMessage),

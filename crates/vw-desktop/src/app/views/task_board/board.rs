@@ -7,6 +7,7 @@ fn view(app: &App) -> BoardView<'_, Message> {
     BoardView {
         task_visible: Some(Rc::new(move |task| app.task_board.work_task_visible(app.navigation_tabs.project_path.as_deref().unwrap_or(""), task))),
         task_board_settings: &app.task_board.task_board_settings,
+        task_labels: &app.task_board.task_labels,
         task_board_tasks: &app.task_board.task_board_tasks,
         task_board_selected_tasks: &app.task_board.task_board_selected_tasks,
         task_board_bulk_active_status: app.task_board.task_board_bulk_active_status,

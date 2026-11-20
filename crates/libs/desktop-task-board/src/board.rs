@@ -22,6 +22,7 @@ use super::common::{
 pub struct BoardView<'a, M> {
     pub task_visible: Option<std::rc::Rc<dyn Fn(&Task) -> bool + 'a>>,
     pub task_board_settings: &'a desktop_task_model::TaskBoardSettings,
+    pub task_labels: &'a [vw_api_agent_scheduler::AgentSchedulerTaskLabelDto],
     pub task_board_tasks: &'a Vec<Task>,
     pub task_board_selected_tasks: &'a std::collections::HashSet<String>,
     pub task_board_bulk_active_status: Option<TaskStatus>,
@@ -659,6 +660,34 @@ fn build_drop_slot<'a, M: Clone + From<TaskBoardMessage> + 'a>(
     }
 }
 
+pub fn task_label_badge<'a, M: 'a>(
+    label: &'a vw_api_agent_scheduler::AgentSchedulerTaskLabelDto,
+) -> Element<'a, M> {
+    let rgb = label.color.strip_prefix('#')
+        .and_then(|value| u32::from_str_radix(value, 16).ok());
+    let accent = rgb.map(|rgb| Color::from_rgb8(
+        (rgb >> 16) as u8,
+        (rgb >> 8) as u8,
+        rgb as u8,
+    ));
+    container(text(&label.name).size(11))
+        .padding([2, 6])
+        .style(move |theme: &Theme| {
+            let accent = accent.unwrap_or(theme.palette().primary);
+            container::Style {
+                background: Some(accent.scale_alpha(0.16).into()),
+                border: Border {
+                    color: accent,
+                    width: 1.0,
+                    radius: 6.0.into(),
+                },
+                text_color: Some(theme.palette().text),
+                ..Default::default()
+            }
+        })
+        .into()
+}
+
 fn build_task_card<'a, M: Clone + From<TaskBoardMessage> + 'a>(
     app: &BoardView<'a, M>,
     task: &'a Task,
@@ -794,6 +823,11 @@ fn build_task_card<'a, M: Clone + From<TaskBoardMessage> + 'a>(
     ]
     .spacing(2)
     .width(Length::Fill);
+
+    let labels = app.task_labels.iter().filter(|label| task.label_ids.contains(&label.id));
+    if !task.label_ids.is_empty() {
+        content_col = content_col.push(row(labels.map(task_label_badge)).spacing(4).wrap());
+    }
 
     if task.retry_count > 0 {
         let retry_row = row![

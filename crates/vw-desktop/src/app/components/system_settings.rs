@@ -503,6 +503,10 @@ pub fn view(app: &App) -> Element<'_, Message> {
         dialog = super::system_settings_voice::overlay(app, dialog);
     }
 
+    if active_tab == SystemTab::TaskLabels {
+        dialog = task_settings::labels::overlay(app, dialog);
+    }
+
     dialog = crate::app::components::system_settings_help::with_help_modal(
         app,
         dialog,

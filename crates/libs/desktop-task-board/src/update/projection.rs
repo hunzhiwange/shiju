@@ -181,6 +181,7 @@ fn apply_agent_scheduler_task_snapshot(
     }
 
     task.priority = snapshot.priority;
+    task.label_ids.clone_from(&snapshot.read_model.label_ids);
     task.order = runtime_order_no_to_task_order(snapshot.order_no);
     task.model = snapshot.model.clone();
     task.agent = snapshot.agent.clone();
@@ -311,8 +312,9 @@ pub fn apply_agent_scheduler_status(
     for snapshot in &response.tasks {
         let task_id = snapshot.task_id.as_ref().to_string();
         if pending_persistence_task_ids.contains(&task_id)
-            && let Some(task) = previous_tasks.iter().find(|task| task.id == task_id).cloned()
+            && let Some(mut task) = previous_tasks.iter().find(|task| task.id == task_id).cloned()
         {
+            task.label_ids.clone_from(&snapshot.read_model.label_ids);
             updated_task_ids.push(task_id);
             updated_tasks.push(task.clone());
             next_tasks.push(task);

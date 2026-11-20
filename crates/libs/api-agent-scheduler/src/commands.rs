@@ -152,6 +152,8 @@ pub struct AgentSchedulerTaskMetadataPatchDto {
     pub metadata_merge: Option<Value>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub metadata_remove_keys: Vec<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub label_ids: Option<Vec<String>>,
 }
 
 /// 旧桌面任务导入项。
@@ -285,6 +287,8 @@ pub struct AgentSchedulerTaskBoardTaskReadModelDto {
     pub stage_id: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub stage_label: Option<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub label_ids: Vec<String>,
 }
 
 impl AgentSchedulerTaskBoardTaskReadModelDto {
@@ -310,12 +314,42 @@ pub struct AgentSchedulerTaskBoardStatusResponse {
 pub struct AgentSchedulerTaskBoardSnapshotReadModelDto {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub workflow: Option<TaskPoolWorkflowSnapshotDto>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub labels: Vec<AgentSchedulerTaskLabelDto>,
 }
 
 impl AgentSchedulerTaskBoardSnapshotReadModelDto {
     pub fn is_empty(&self) -> bool {
         self == &Self::default()
     }
+}
+
+pub const TASK_LABEL_IDS_METADATA_KEY: &str = "task_board.label_ids";
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct AgentSchedulerTaskLabelDto {
+    pub id: String,
+    pub name: String,
+    pub color: String,
+    #[serde(default)]
+    pub archived: bool,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(tag = "action", rename_all = "snake_case")]
+pub enum AgentSchedulerTaskLabelMutation {
+    Create {
+        name: String,
+        color: String,
+    },
+    Update {
+        id: String,
+        name: Option<String>,
+        color: Option<String>,
+    },
+    Archive {
+        id: String,
+    },
 }
 
 /// 选用租户生命周期预设，要求当前已保存的快照仍与编辑时一致。

@@ -715,6 +715,8 @@ impl TaskLogEntry {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Task {
     pub id: String,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub label_ids: Vec<String>,
     pub priority: u32,
     pub assignee: String,
     pub model: String,
@@ -765,6 +767,7 @@ impl Default for Task {
     fn default() -> Self {
         Self {
             id: generate_task_id(),
+            label_ids: Vec::new(),
             priority: 999,
             assignee: "VibeWindow".to_string(),
             model: TASK_MODEL_AUTO.to_string(),
@@ -1181,6 +1184,7 @@ fn default_task_workflow_id() -> String {
 /// 公开的 TaskDraft 结构体，承载该模块边界内传递的结构化状态。
 #[derive(Debug, Clone)]
 pub struct TaskDraft {
+    pub label_ids: Option<Vec<String>>,
     pub priority: String,
     pub assignee: String,
     pub model: String,
@@ -1197,6 +1201,7 @@ pub struct TaskDraft {
 impl Default for TaskDraft {
     fn default() -> Self {
         Self {
+            label_ids: None,
             priority: "999".to_string(),
             assignee: "VibeWindow".to_string(),
             model: TASK_MODEL_AUTO.to_string(),

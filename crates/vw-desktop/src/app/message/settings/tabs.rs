@@ -98,6 +98,10 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
                     );
                 }
             }
+            if tab == SystemTab::TaskLabels {
+                use crate::app::components::system_settings::task_settings::labels;
+                return labels::update(app, labels::Event::Refresh);
+            }
             if tab == SystemTab::TaskWorkflow {
                 crate::app::components::system_settings::task_settings::load_workflows(app)
             } else if tab == SystemTab::Worktrees {

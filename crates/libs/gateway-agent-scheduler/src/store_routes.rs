@@ -278,6 +278,29 @@ impl<H: GatewayExecutorHost> AgentSchedulerGateway for StoreBackedAgentScheduler
         })
     }
 
+    async fn task_labels(
+        &self,
+        context: AgentSchedulerContext,
+    ) -> Result<Vec<AgentSchedulerTaskLabelDto>, ApiError> {
+        self.store.initialize_project(&context).map_err(map_scheduler_error)?;
+        self.store.load_task_labels(&context).map_err(map_scheduler_error)
+    }
+
+    async fn mutate_task_labels(
+        &self,
+        context: AgentSchedulerContext,
+        request: AgentSchedulerTaskLabelMutation,
+    ) -> Result<Vec<AgentSchedulerTaskLabelDto>, ApiError> {
+        let dispatch_lock = self.project_dispatch_lock(&context);
+        let _dispatch_guard = dispatch_lock.lock().await;
+        self.store.initialize_project(&context).map_err(map_scheduler_error)?;
+        self.store
+            .edit_task_labels(&context, |labels| {
+                mutate_label_directory(labels, request).map_err(anyhow::Error::new)
+            })
+            .map_err(|error| error.downcast::<ApiError>().unwrap_or_else(map_scheduler_error))
+    }
+
     async fn task_board_status(
         &self,
         project_id: String,
@@ -314,7 +337,10 @@ impl<H: GatewayExecutorHost> AgentSchedulerGateway for StoreBackedAgentScheduler
             .collect::<Result<Vec<_>, ApiError>>()?;
         Ok(AgentSchedulerTaskBoardStatusResponse {
             project_id: project_id.into(),
-            read_model: AgentSchedulerTaskBoardSnapshotReadModelDto { workflow: Some(workflow) },
+            read_model: AgentSchedulerTaskBoardSnapshotReadModelDto {
+                workflow: Some(workflow),
+                labels: self.store.load_task_labels(&project_path).map_err(map_scheduler_error)?,
+            },
             tasks,
         })
     }
@@ -587,4 +613,59 @@ impl<H: GatewayExecutorHost> AgentSchedulerGateway for StoreBackedAgentScheduler
         let messages = messages.into_iter().map(outbox_to_dto).collect();
         Ok(AgentSchedulerProjectOutboxDrainResponse { claimed: summary.claimed, messages })
     }
+}
+
+fn mutate_label_directory(
+    labels: &mut Vec<AgentSchedulerTaskLabelDto>,
+    request: AgentSchedulerTaskLabelMutation,
+) -> Result<(), ApiError> {
+    use AgentSchedulerTaskLabelMutation::{Archive, Create, Update};
+
+    let (id, name, color) = match request {
+        Create { name, color } => (None, Some(name), Some(color)),
+        Update { id, name, color } => (Some(id), name, color),
+        Archive { id } => {
+            let label = labels.iter_mut().find(|label| label.id == id)
+                .ok_or_else(|| ApiError::not_found("task label not found"))?;
+            label.archived = true;
+            return Ok(());
+        }
+    };
+    let name = name.as_deref().map(str::trim);
+    if let Some(name) = name {
+        if name.is_empty() {
+            return Err(ApiError::bad_request("task label name must not be empty"));
+        }
+        let normalized = name.to_lowercase();
+        if labels.iter().any(|label| {
+            Some(&label.id) != id.as_ref() && label.name.to_lowercase() == normalized
+        }) {
+            return Err(ApiError::conflict("task label name already exists"));
+        }
+    }
+    let color = color.as_deref().map(str::trim);
+    if color.is_some_and(|color| {
+        color.len() != 7 || !color.starts_with('#')
+            || !color.as_bytes()[1..].iter().all(u8::is_ascii_hexdigit)
+    }) {
+        return Err(ApiError::bad_request("task label color must use #RRGGBB"));
+    }
+    if let Some(id) = id {
+        let label = labels.iter_mut().find(|label| label.id == id)
+            .ok_or_else(|| ApiError::not_found("task label not found"))?;
+        if let Some(name) = name {
+            label.name = name.to_owned();
+        }
+        if let Some(color) = color {
+            label.color = color.to_ascii_uppercase();
+        }
+    } else if let (Some(name), Some(color)) = (name, color) {
+        labels.push(AgentSchedulerTaskLabelDto {
+            id: uuid::Uuid::new_v4().to_string(),
+            name: name.to_owned(),
+            color: color.to_ascii_uppercase(),
+            archived: false,
+        });
+    }
+    Ok(())
 }

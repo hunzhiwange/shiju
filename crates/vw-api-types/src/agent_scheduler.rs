@@ -39,6 +39,8 @@ pub use vw_api_agent_scheduler::{
     AgentSchedulerTaskBoardStatusResponse,
     AgentSchedulerTaskBoardSnapshotReadModelDto,
     AgentSchedulerTaskBoardWorkflowResponse,
+    AgentSchedulerTaskLabelDto,
+    AgentSchedulerTaskLabelMutation,
     AgentSchedulerTaskBoardEventDto,
     AgentSchedulerTaskBoardEventsResponse,
     AgentSchedulerTaskLogDto,

@@ -7,6 +7,7 @@ use rusqlite::types::Type;
 use rusqlite::{Connection, OptionalExtension, Row, TransactionBehavior, params, params_from_iter};
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value, json};
+use vw_api_agent_scheduler::{AgentSchedulerTaskLabelDto, TASK_LABEL_IDS_METADATA_KEY};
 use vw_api_transport::common::TimestampMs;
 use vw_api_task::{TaskPoolWorkflowSnapshotDto, TaskPoolWorkflowStatusRoleDto};
 
@@ -25,6 +26,7 @@ const TASK_COLUMNS: &str = "id, kind, status, title, spec_uri, meta_uri, assigne
 room_id, project_room_id, delegated_to_team, schedule, timezone, next_scheduled_at, \
 last_executed_at, dag_json, metadata_json, created_at_ms, updated_at_ms";
 const TASK_BOARD_WORKFLOW_META_KEY: &str = "task_board.workflow";
+pub(super) const TASK_LABELS_META_KEY: &str = "task_board.labels";
 
 pub use task_scheduler_core::task_records::{NewAgentTask, StoredAgentTask, AgentTaskDagNode};
 
@@ -145,9 +147,15 @@ impl AgentSchedulerStore {
     pub fn create_task(
         &self,
         context: &(impl AgentSchedulerStorageContext + ?Sized),
-        task: NewAgentTask,
+        mut task: NewAgentTask,
     ) -> Result<StoredAgentTask> {
         validate_new_task(&task)?;
+        if let Some(value) = task.metadata.get(TASK_LABEL_IDS_METADATA_KEY) {
+            let ids = serde_json::from_value(value.clone()).context("invalid task label IDs")?;
+            let labels = self.load_task_labels(context)?;
+            let ids = validate_task_label_ids(ids, &labels, &Value::Null)?;
+            task.metadata[TASK_LABEL_IDS_METADATA_KEY] = json!(ids);
+        }
         if let Some(store) = postgres_provider(self, context)? {
             return store.create_task(context, task);
         }
@@ -339,10 +347,24 @@ impl AgentSchedulerStore {
         &self,
         context: &(impl AgentSchedulerStorageContext + ?Sized),
         task_id: &TaskId,
-        update: AgentTaskBoardUpdate,
+        mut update: AgentTaskBoardUpdate,
     ) -> Result<Option<StoredAgentTask>> {
+        let outcome = self.edit_task_board_task(context, task_id, |current| {
+            preserve_task_labels(&current.metadata, &mut update.metadata);
+            Ok(update)
+        })?;
+        Ok(outcome.map(|(_, updated)| updated))
+    }
+
+    /// Apply a partial edit to the row locked by the write transaction.
+    pub(crate) fn edit_task_board_task(
+        &self,
+        context: &(impl AgentSchedulerStorageContext + ?Sized),
+        task_id: &TaskId,
+        edit: impl FnOnce(&StoredAgentTask) -> Result<AgentTaskBoardUpdate> + Send,
+    ) -> Result<Option<(StoredAgentTask, StoredAgentTask)>> {
         if let Some(store) = postgres_provider(self, context)? {
-            return store.update_task_board_task(context, task_id, update);
+            return store.edit_task_board_task(context, task_id, edit);
         }
         let scope = context.storage_scope()?;
         let (platform_id, company_id, project_id) = scope_params(&scope);
@@ -351,12 +373,13 @@ impl AgentSchedulerStore {
         let Some(current) = load_task_with_conn(&tx, context, task_id)? else {
             return Ok(None);
         };
+        let update = edit(&current)?;
         let title = match update.title {
             Some(title) => {
                 ensure_non_empty(&title, "task title")?;
                 title
             }
-            None => current.title,
+            None => current.title.clone(),
         };
         let status = update.status.unwrap_or(current.status);
         let metadata_json =
@@ -380,7 +403,7 @@ impl AgentSchedulerStore {
             format!("task disappeared after task board update: {}", task_id.as_str())
         })?;
         tx.commit()?;
-        Ok(Some(updated))
+        Ok(Some((current, updated)))
     }
 
     /// 按状态机约束转换任务状态；非法边不会写入数据库。
@@ -430,7 +453,7 @@ impl AgentSchedulerStore {
         context: &(impl AgentSchedulerStorageContext + ?Sized),
         task_id: &TaskId,
         to_status: AgentTaskStatus,
-        metadata: Value,
+        mut metadata: Value,
         updated_at_ms: TimestampMs,
     ) -> Result<Option<StoredAgentTask>> {
         if let Some(store) = postgres_provider(self, context)? {
@@ -450,6 +473,7 @@ impl AgentSchedulerStore {
             return Ok(None);
         };
         ensure_transition(current.kind, current.status, to_status)?;
+        preserve_task_labels(&current.metadata, &mut metadata);
         let metadata_json = serde_json::to_string(&metadata).context("serialize task metadata")?;
         tx.execute(
             "UPDATE scheduler_tasks SET status = ?1, metadata_json = ?2, updated_at_ms = ?3
@@ -547,6 +571,72 @@ impl AgentSchedulerStore {
         let conn = open_initialized_connection(self, context)?;
         load_workflow_with_conn(&conn, &context.storage_scope()?)
     }
+
+    pub fn load_task_labels(
+        &self,
+        context: &(impl AgentSchedulerStorageContext + ?Sized),
+    ) -> Result<Vec<AgentSchedulerTaskLabelDto>> {
+        if let Some(store) = postgres_provider(self, context)? {
+            return store.load_task_labels(context);
+        }
+        let conn = open_initialized_connection(self, context)?;
+        parse_task_labels(load_meta(&conn, &context.storage_scope()?, TASK_LABELS_META_KEY)?)
+    }
+
+    pub fn edit_task_labels(
+        &self,
+        context: &(impl AgentSchedulerStorageContext + ?Sized),
+        edit: impl FnOnce(&mut Vec<AgentSchedulerTaskLabelDto>) -> Result<()> + Send,
+    ) -> Result<Vec<AgentSchedulerTaskLabelDto>> {
+        if let Some(store) = postgres_provider(self, context)? {
+            return store.edit_task_labels(context, edit);
+        }
+        let scope = context.storage_scope()?;
+        let (_guard, mut conn) = open_locked_initialized_connection(self, context)?;
+        let tx = conn.transaction_with_behavior(TransactionBehavior::Immediate)?;
+        let mut labels = parse_task_labels(load_meta(&tx, &scope, TASK_LABELS_META_KEY)?)?;
+        edit(&mut labels)?;
+        upsert_meta(&tx, &scope, TASK_LABELS_META_KEY, &serde_json::to_string(&labels)?)?;
+        tx.commit()?;
+        Ok(labels)
+    }
+}
+
+pub(super) fn parse_task_labels(value: Option<String>) -> Result<Vec<AgentSchedulerTaskLabelDto>> {
+    value.map(|value| serde_json::from_str(&value).context("read task label directory"))
+        .transpose()
+        .map(Option::unwrap_or_default)
+}
+
+pub(crate) fn validate_task_label_ids(
+    mut ids: Vec<String>,
+    labels: &[AgentSchedulerTaskLabelDto],
+    current: &Value,
+) -> Result<Vec<String>> {
+    ids.sort_unstable();
+    ids.dedup();
+    let current = current.get(TASK_LABEL_IDS_METADATA_KEY).and_then(Value::as_array);
+    for id in &ids {
+        let label = labels.iter().find(|label| &label.id == id)
+            .with_context(|| format!("task label does not belong to this project: {id}"))?;
+        if label.archived && !current.is_some_and(|ids| {
+            ids.iter().any(|existing| existing.as_str() == Some(id.as_str()))
+        }) {
+            bail!("task label is archived: {id}");
+        }
+    }
+    Ok(ids)
+}
+
+pub(super) fn preserve_task_labels(current: &Value, metadata: &mut Value) {
+    if let Some(ids) = current.get(TASK_LABEL_IDS_METADATA_KEY) {
+        if !metadata.is_object() {
+            *metadata = json!({});
+        }
+        metadata[TASK_LABEL_IDS_METADATA_KEY] = ids.clone();
+    } else if let Some(metadata) = metadata.as_object_mut() {
+        metadata.remove(TASK_LABEL_IDS_METADATA_KEY);
+    }
 }
 
 fn upsert_workflow_with_conn(
@@ -554,14 +644,23 @@ fn upsert_workflow_with_conn(
     scope: &vw_api_agent_scheduler::AgentSchedulerScope,
     workflow: &TaskPoolWorkflowSnapshotDto,
 ) -> Result<()> {
-    let (platform_id, company_id, project_id) = scope_params(scope);
     let workflow_json = serde_json::to_string(workflow).context("serialize task board workflow")?;
+    upsert_meta(conn, scope, TASK_BOARD_WORKFLOW_META_KEY, &workflow_json)
+}
+
+fn upsert_meta(
+    conn: &Connection,
+    scope: &vw_api_agent_scheduler::AgentSchedulerScope,
+    key: &str,
+    value: &str,
+) -> Result<()> {
+    let (platform_id, company_id, project_id) = scope_params(scope);
     conn.execute(
         "INSERT INTO scheduler_meta (platform_id, company_id, project_id, key, value)
          VALUES (?1, ?2, ?3, ?4, ?5)
          ON CONFLICT(platform_id, company_id, project_id, key)
          DO UPDATE SET value = excluded.value",
-        params![platform_id, company_id, project_id, TASK_BOARD_WORKFLOW_META_KEY, workflow_json],
+        params![platform_id, company_id, project_id, key, value],
     )?;
     Ok(())
 }
@@ -570,14 +669,21 @@ fn load_workflow_with_conn(
     conn: &Connection,
     scope: &vw_api_agent_scheduler::AgentSchedulerScope,
 ) -> Result<Option<TaskPoolWorkflowSnapshotDto>> {
+    parse_saved_workflow(load_meta(conn, scope, TASK_BOARD_WORKFLOW_META_KEY)?)
+}
+
+fn load_meta(
+    conn: &Connection,
+    scope: &vw_api_agent_scheduler::AgentSchedulerScope,
+    key: &str,
+) -> Result<Option<String>> {
     let (platform_id, company_id, project_id) = scope_params(scope);
-    let value = conn.query_row(
+    Ok(conn.query_row(
         "SELECT value FROM scheduler_meta
          WHERE platform_id = ?1 AND company_id = ?2 AND project_id = ?3 AND key = ?4",
-        params![platform_id, company_id, project_id, TASK_BOARD_WORKFLOW_META_KEY],
-        |row| row.get::<_, String>(0),
-    ).optional()?;
-    parse_saved_workflow(value)
+        params![platform_id, company_id, project_id, key],
+        |row| row.get(0),
+    ).optional()?)
 }
 
 pub(super) fn parse_saved_workflow(value: Option<String>) -> Result<Option<TaskPoolWorkflowSnapshotDto>> {

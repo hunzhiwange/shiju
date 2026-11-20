@@ -30,6 +30,7 @@ serde_json = "1"
 agent-project = { path = "../agent-project" }
 gateway-types = { path = "../gateway-types" }
 task-scheduler-core = { path = "../task-scheduler-core" }
+uuid = { version = "1", features = ["v4"] }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
 gateway-task = { path = "../gateway-task" }
@@ -38,7 +39,6 @@ tempfile = "3"
 tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
 tower = { version = "0.5", features = ["util"] }
 
-uuid = { version = "1", features = ["v4"] }
 shell-command = { path = "../shell-command" }
 tool-context = { path = "../tool-context" }
 tool-types = { path = "../tool-types" }

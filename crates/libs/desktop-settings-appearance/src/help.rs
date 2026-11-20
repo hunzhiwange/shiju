@@ -329,6 +329,10 @@ fn help_content(tab: SystemTab) -> Option<(&'static str, &'static str)> {
         SystemTab::Editor => Some(("编辑器设置帮助", EDITOR_HELP)),
         SystemTab::Projects => Some(("项目设置帮助", PROJECTS_HELP)),
         SystemTab::TaskWorkflow => Some(("任务工作流帮助", TASK_WORKFLOW_HELP)),
+        SystemTab::TaskLabels => Some((
+            "任务标签帮助",
+            "标签用来分类，保存视图可复用筛选。\n\n例如，给任务添加「缺陷」标签，再保存筛选视图。归档标签后，已有任务仍会显示它。",
+        )),
         SystemTab::Providers => Some(("模型提供商帮助", PROVIDERS_HELP)),
         SystemTab::Models => Some(("模型设置帮助", MODELS_HELP)),
         SystemTab::Agents => Some(("智能体配置帮助", AGENTS_HELP)),
@@ -410,7 +414,7 @@ pub fn with_help_modal<'a, Message: Clone + 'static>(
         copy(help_text),
         close.clone(),
     );
-    if active_tab == SystemTab::TaskWorkflow {
+    if matches!(active_tab, SystemTab::TaskWorkflow | SystemTab::TaskLabels) {
         with_settings_modal_escape(modal, close)
     } else {
         modal

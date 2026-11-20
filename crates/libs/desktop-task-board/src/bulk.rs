@@ -146,6 +146,7 @@ pub fn task_metadata_patch_for_gateway(
             "task_split_mode": task.task_split_mode.to_string_key(),
         })),
         metadata_remove_keys: Vec::new(),
+        label_ids: None,
     }
 }
 

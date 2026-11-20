@@ -479,6 +479,7 @@ struct App {
 }
 impl App { fn view(&self) -> BoardView<'_, Message> { BoardView {
     task_visible: None,
+    task_labels: &[],
     task_board_settings: &self.task_board_settings,
     task_board_tasks: &self.task_board_tasks,
     task_board_selected_tasks: &self.task_board_selected_tasks,

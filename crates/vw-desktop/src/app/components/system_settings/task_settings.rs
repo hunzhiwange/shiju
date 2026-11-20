@@ -11,6 +11,8 @@ use desktop_settings_shell::SystemTab;
 use iced::widget::{button, column, container, row, text};
 use iced::{Element, Length, Task};
 
+pub(in crate::app) mod labels;
+
 #[cfg(not(target_arch = "wasm32"))]
 pub(in crate::app) mod quick_actions;
 
@@ -30,6 +32,9 @@ pub(in crate::app) fn load_workflows(app: &mut App) -> Task<Message> {
 }
 
 pub(super) fn view(app: &App, tab: SystemTab) -> Element<'_, Message> {
+    if tab == SystemTab::TaskLabels {
+        return labels::view(app);
+    }
     if tab == SystemTab::TaskWorkflow {
         workflow(app)
     } else {

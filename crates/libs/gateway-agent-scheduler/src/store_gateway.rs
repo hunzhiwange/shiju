@@ -11,7 +11,10 @@ use serde_json::{Value, json};
 #[cfg(any(test, target_arch = "wasm32"))]
 use serde_json::{Map, Value, json};
 use tokio::sync::Mutex as AsyncMutex;
-use vw_api_agent_scheduler::AgentSchedulerSelectWorkflowRequest;
+use vw_api_agent_scheduler::{
+    AgentSchedulerSelectWorkflowRequest, AgentSchedulerTaskLabelDto, AgentSchedulerTaskLabelMutation,
+    TASK_LABEL_IDS_METADATA_KEY,
+};
 use vw_api_chat_identity::ReasoningEffortDto;
 #[cfg(all(not(test), not(target_arch = "wasm32")))]
 use vw_api_agent_scheduler::{

@@ -6,6 +6,7 @@ use vw_api_chat_identity::ReasoningEffortDto;
 use vw_api_agent_scheduler::{
     AgentSchedulerCommandKindDto, AgentSchedulerLegacyTaskImportDto,
     AgentSchedulerMoveTaskPayloadDto, AgentSchedulerTaskMetadataPatchDto, AgentTaskStatusDto,
+    TASK_LABEL_IDS_METADATA_KEY,
 };
 use vw_api_transport::common::TimestampMs;
 use vw_api_task::TaskPoolWorkflowSnapshotDto;
@@ -16,7 +17,7 @@ use crate::lifecycle_bridge::status_role_key;
 use crate::state_machine::{AgentTaskKind, AgentTaskStatus};
 use crate::store::events::{AppendAgentEventRequest, StoredAgentEvent};
 use crate::store::logs::AppendAgentTaskLogRequest;
-use crate::store::tasks::{AgentTaskBoardUpdate, NewAgentTask, StoredAgentTask};
+use crate::store::tasks::{AgentTaskBoardUpdate, NewAgentTask, StoredAgentTask, validate_task_label_ids};
 use crate::store::{AgentSchedulerStorageContext, AgentSchedulerStore};
 
 const DEFAULT_IMPORT_MODEL: &str = "auto";
@@ -350,33 +351,46 @@ impl<'a> AgentTaskBoardService<'a> {
         &self,
         project_path: &(impl AgentSchedulerStorageContext + ?Sized),
         task_id: &TaskId,
-        patch: AgentSchedulerTaskMetadataPatchDto,
+        mut patch: AgentSchedulerTaskMetadataPatchDto,
         reason: Option<&str>,
         now_ms: TimestampMs,
     ) -> Result<Option<AgentTaskBoardWriteOutcome>> {
-        let Some(current) = self.store.load_task(project_path, task_id)? else {
+        let workflow = self.store.load_task_board_workflow(project_path)?;
+        let labels = if patch.label_ids.as_ref().is_some_and(|ids| !ids.is_empty()) {
+            self.store.load_task_labels(project_path)?
+        } else {
+            Vec::new()
+        };
+        let outcome = self.store.edit_task_board_task(project_path, task_id, |current| {
+            let from_status_key = task_board_status_key(current);
+            let title = optional_required_text(patch.title.clone(), "task title")?;
+            let mut status = patch.status.clone().map(task_status_from_dto);
+            let mut metadata = object_metadata(current.metadata.clone())?;
+            if let Some(ids) = patch.label_ids.take() {
+                patch.label_ids = Some(validate_task_label_ids(ids, &labels, &current.metadata)?);
+            }
+            apply_metadata_patch(&mut metadata, patch)?;
+            if let Some(workflow) = workflow.as_ref() {
+                let status_key = metadata.get("task_board.status_key").and_then(Value::as_str)
+                    .unwrap_or(&from_status_key);
+                let previous_key = current.metadata.get("task_board.status_key")
+                    .and_then(Value::as_str).unwrap_or(&from_status_key);
+                if status_key != previous_key || status.is_some_and(|value| value != current.status) {
+                    let status_key = status_key.to_owned();
+                    status = Some(apply_workflow_status(workflow, &status_key, &mut metadata)?);
+                }
+            }
+            Ok(AgentTaskBoardUpdate {
+                title,
+                status,
+                metadata: Value::Object(metadata),
+                updated_at_ms: now_ms,
+            })
+        })?;
+        let Some((current, updated)) = outcome else {
             return Ok(None);
         };
         let from_status_key = task_board_status_key(&current);
-        let title = optional_required_text(patch.title.clone(), "task title")?;
-        let mut status = patch.status.clone().map(task_status_from_dto);
-        let mut metadata = object_metadata(current.metadata.clone())?;
-        apply_metadata_patch(&mut metadata, patch)?;
-        if let Some(workflow) = self.store.load_task_board_workflow(project_path)? {
-            let status_key = metadata.get("task_board.status_key").and_then(Value::as_str)
-                .unwrap_or(&from_status_key).to_string();
-            if status_key != from_status_key || status.is_some_and(|value| value != current.status) {
-                status = Some(apply_workflow_status(&workflow, &status_key, &mut metadata)?);
-            }
-        }
-        let updated = self.update_task(
-            project_path,
-            &current,
-            title,
-            status,
-            Value::Object(metadata),
-            now_ms,
-        )?;
         let to_status_key = task_board_status_key(&updated);
         Ok(Some(self.audit_task_board_write(
             project_path,
@@ -818,11 +832,20 @@ pub(super) fn apply_metadata_patch(
             bail!("metadata_merge must be a JSON object");
         };
         for (key, value) in merge {
+            if key == TASK_LABEL_IDS_METADATA_KEY {
+                bail!("use label_ids to update task labels");
+            }
             metadata.insert(key, value);
         }
     }
     for key in patch.metadata_remove_keys {
+        if key == TASK_LABEL_IDS_METADATA_KEY {
+            bail!("use label_ids to clear task labels");
+        }
         metadata.remove(&key);
+    }
+    if let Some(ids) = patch.label_ids {
+        metadata.insert(TASK_LABEL_IDS_METADATA_KEY.to_owned(), json!(ids));
     }
     Ok(())
 }

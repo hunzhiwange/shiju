@@ -1,4 +1,5 @@
 use vw_api_agent_scheduler::{
+    AgentSchedulerTaskLabelDto, AgentSchedulerTaskLabelMutation,
     AgentSchedulerBulkCommandRequest, AgentSchedulerBulkCommandResponse,
     AgentSchedulerCommandRequest, AgentSchedulerCommandResponse, AgentSchedulerCreateTaskRequest,
     AgentSchedulerCreateTaskResponse, AgentSchedulerLegacyImportRequest,
@@ -73,6 +74,23 @@ impl GatewayClient {
         scope: &AgentSchedulerScopeDto,
     ) -> Result<AgentSchedulerTaskBoardWorkflowResponse, String> {
         gateway_scheduler::GatewaySchedulerClient::new(self.transport().clone()).agent_scheduler_workflow(scope).await
+    }
+
+    pub async fn agent_scheduler_task_labels(
+        &self,
+        scope: &AgentSchedulerScopeDto,
+    ) -> Result<Vec<AgentSchedulerTaskLabelDto>, String> {
+        gateway_scheduler::GatewaySchedulerClient::new(self.transport().clone())
+            .agent_scheduler_task_labels(scope).await
+    }
+
+    pub async fn agent_scheduler_mutate_task_labels(
+        &self,
+        scope: &AgentSchedulerScopeDto,
+        request: &AgentSchedulerTaskLabelMutation,
+    ) -> Result<Vec<AgentSchedulerTaskLabelDto>, String> {
+        gateway_scheduler::GatewaySchedulerClient::new(self.transport().clone())
+            .agent_scheduler_mutate_task_labels(scope, request).await
     }
 
     /// 更新 Agent Scheduler 任务板任务元数据投影。

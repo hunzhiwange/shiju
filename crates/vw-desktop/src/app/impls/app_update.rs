@@ -270,6 +270,9 @@ impl App {
 
             // 设置相关消息
             Message::Settings(msg) => message::settings::update(self, msg),
+            Message::TaskLabelSettings(event) => {
+                crate::app::components::system_settings::task_settings::labels::update(self, event)
+            }
 
             // 终端相关消息
             Message::Terminal(msg) => message::terminal::update(self, msg),

@@ -20,6 +20,10 @@ pub struct State {
     pub work_min_input: String,
     pub work_max_input: String,
     pub work_agent_input: String,
+    pub work_label_ids: Vec<String>,
+    pub task_labels: Vec<vw_api_agent_scheduler::AgentSchedulerTaskLabelDto>,
+    pub task_labels_generation: u64,
+    pub task_label_save_in_progress: Option<u64>,
     pub work_view: crate::work_views::BuiltinWorkView,
     pub personal_tasks: HashMap<String, Vec<String>>,
     /// 是否显示任务看板
@@ -206,6 +210,10 @@ impl State {
             work_min_input: String::new(),
             work_max_input: String::new(),
             work_agent_input: String::new(),
+            work_label_ids: Vec::new(),
+            task_labels: Vec::new(),
+            task_labels_generation: 0,
+            task_label_save_in_progress: None,
             work_view: crate::work_views::BuiltinWorkView::AllTasks,
             personal_tasks: HashMap::new(),
             show_task_board: false,
@@ -369,6 +377,7 @@ impl State {
         self.work_min_input.clear();
         self.work_max_input.clear();
         self.work_agent_input.clear();
+        self.work_label_ids.clear();
         self.task_board_selected_tasks.clear();
         self.task_board_bulk_active_status = None;
         self.task_board_dragging = None;

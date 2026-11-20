@@ -53,18 +53,74 @@ pub fn build_task_panel(app: &App, edit: bool) -> iced::Element<'_, Message> {
  || reasoning_selector::domain_build(app, edit, false),
  ).map(map);
  if let Some(task) = app.task_board.task_board_viewing_logs.as_ref() {
+     let labels = (edit && app.task_board.task_board_editing_task_id.as_ref() == Some(&task.id))
+         .then(|| task_labels(app, task));
      let personal = app.navigation_tabs.project_path.as_ref()
          .and_then(|path| app.task_board.personal_tasks.get(path))
          .is_some_and(|ids| ids.contains(&task.id));
-     iced::widget::column![
+     let body = iced::widget::column![
          iced::widget::button(iced::widget::text(if personal { "移出我的任务" } else { "加入我的任务" }))
              .padding([8, 12])
              .style(crate::app::components::system_settings_common::rounded_action_btn_style)
              .on_press(Message::TaskBoard(crate::app::message::TaskBoardMessage::TogglePersonalTask(task.id.clone()))),
-         panel
-     ].spacing(8).into()
+     ].spacing(8);
+     body.extend(labels).push(panel).into()
  } else { panel }
 }
+fn task_labels<'a>(app: &'a App, task: &'a desktop_task_model::Task) -> iced::Element<'a, Message> {
+    use crate::app::components::system_settings_common::*;
+    use crate::app::message::TaskBoardMessage;
+    use iced::widget::{button, checkbox, column, container, row, scrollable, text};
+
+    let board = &app.task_board;
+    let i18n = crate::app::i18n::I18n::new(app.general_settings.desktop_locale);
+    let pending = board.task_label_save_in_progress.is_some();
+    let ids = board.task_board_draft.label_ids.as_ref().unwrap_or(&task.label_ids);
+    let choices = board.task_labels.iter().filter_map(|label| {
+        let selected = ids.contains(&label.id);
+        if label.archived && !selected {
+            return None;
+        }
+        let id = label.id.clone();
+        let label_text = if label.archived {
+            format!("{} · {}", label.name, i18n.__("已归档"))
+        } else {
+            label.name.clone()
+        };
+        let checkbox = checkbox(selected).label(label_text).style(settings_checkbox_style);
+        let checkbox = if pending {
+            checkbox
+        } else {
+            checkbox.on_toggle(move |_| Message::TaskBoard(TaskBoardMessage::ToggleEditingTaskLabel(id.clone())))
+        };
+        Some(checkbox.into())
+    }).collect::<Vec<iced::Element<'_, Message>>>();
+    let clear = button(text(i18n.__("清空")).size(12))
+        .padding([6, 10])
+        .style(rounded_action_btn_style)
+        .on_press_maybe((!pending && !ids.is_empty()).then_some(
+            Message::TaskBoard(TaskBoardMessage::ClearEditingTaskLabels),
+        ));
+    let save = button(text(i18n.__("保存标签")).size(12))
+        .padding([6, 10])
+        .style(primary_action_btn_style)
+        .on_press_maybe((!pending && board.task_board_draft.label_ids.is_some()).then_some(
+            Message::TaskBoard(TaskBoardMessage::SaveEditingTaskLabels),
+        ));
+    let header = row![settings_field_label(i18n.__("标签")), clear, save]
+        .spacing(8).align_y(iced::Alignment::Center);
+    column![
+        header,
+        container(
+            scrollable(container(row(choices).spacing(8).wrap()).padding([0, 7]))
+                .height(iced::Length::Shrink)
+                .direction(scrollable::Direction::Vertical(
+                    scrollable::Scrollbar::new().width(4).scroller_width(4),
+                ))
+        ).max_height(88),
+    ].spacing(4).into()
+}
+
 pub(crate) fn build_bulk_task_split_selector(app: &App) -> iced::Element<'_, Message> { desktop_task_board::panel::build_bulk_task_split_selector(input(app)).map(map) }
 pub(crate) fn build_bulk_agent_selector(app: &App) -> iced::Element<'_, Message> { desktop_task_board::panel::build_bulk_agent_selector(input(app)).map(map) }
 

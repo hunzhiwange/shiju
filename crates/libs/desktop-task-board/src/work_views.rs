@@ -65,6 +65,8 @@ pub struct WorkViewFilter {
     pub priority_max: Option<u32>,
     #[serde(default)]
     pub agents: Vec<ExecutionAgent>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub label_ids: Vec<String>,
 }
 
 impl WorkViewFilter {
@@ -78,6 +80,8 @@ impl WorkViewFilter {
             && self.priority_min.is_none_or(|min| task.priority >= min)
             && self.priority_max.is_none_or(|max| task.priority <= max)
             && (self.agents.is_empty() || self.agents.iter().any(|agent| agent.matches(task)))
+            && (self.label_ids.is_empty()
+                || self.label_ids.iter().any(|id| task.label_ids.contains(id)))
     }
 }
 

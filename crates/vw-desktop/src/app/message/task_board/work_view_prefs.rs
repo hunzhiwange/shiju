@@ -97,6 +97,7 @@ fn filter(app: &App) -> Result<WorkViewFilter, String> {
         priority_min: min,
         priority_max: max,
         agents,
+        label_ids: board.work_label_ids.clone(),
     })
 }
 
@@ -144,6 +145,14 @@ pub(super) fn update(app: &mut App, message: &TaskBoardMessage) -> Option<iced::
                 };
                 *target = value.clone();
             }
+            TaskBoardMessage::ToggleWorkViewLabel(id) => {
+                let board = &mut app.task_board;
+                if board.work_label_ids.contains(id) {
+                    board.work_label_ids.retain(|selected| selected != id);
+                } else if board.task_labels.iter().any(|label| !label.archived && &label.id == id) {
+                    board.work_label_ids.push(id.clone());
+                }
+            }
             TaskBoardMessage::ApplyWorkFilter => {
                 let filter = filter(app)?;
                 app.task_board.task_board_selected_tasks.clear();
@@ -162,6 +171,7 @@ pub(super) fn update(app: &mut App, message: &TaskBoardMessage) -> Option<iced::
                     );
                     let board = &mut app.task_board;
                     board.work_status_input = view.filter.status_keys.join(", ");
+                    board.work_label_ids.clone_from(&view.filter.label_ids);
                     board.work_min_input =
                         view.filter.priority_min.map(|n| n.to_string()).unwrap_or_default();
                     board.work_max_input =
@@ -267,6 +277,7 @@ pub(super) fn update(app: &mut App, message: &TaskBoardMessage) -> Option<iced::
         message,
         TaskBoardMessage::OpenWorkViewEditor
             | TaskBoardMessage::WorkViewFieldChanged(..)
+            | TaskBoardMessage::ToggleWorkViewLabel(_)
             | TaskBoardMessage::ApplyWorkFilter
             | TaskBoardMessage::ClearWorkFilter
             | TaskBoardMessage::OpenSavedWorkView(_)

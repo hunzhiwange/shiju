@@ -34,6 +34,7 @@ pub struct WorktreePoolMaintenanceOutcome {
 pub enum TaskBoardMessage {
     OpenWorkViewEditor,
     WorkViewFieldChanged(u8, String),
+    ToggleWorkViewLabel(String),
     ApplyWorkFilter,
     ClearWorkFilter,
     OpenSavedWorkView(String),
@@ -170,6 +171,15 @@ pub enum TaskBoardMessage {
     UpdateEditingTaskSplitMode(TaskSplitMode),
     UpdateEditingTaskPrompt(String),
     SaveEditingTask,
+    ToggleEditingTaskLabel(String),
+    ClearEditingTaskLabels,
+    SaveEditingTaskLabels,
+    EditingTaskLabelsSaved {
+        project_path: String,
+        task_id: String,
+        generation: u64,
+        result: Result<Vec<String>, String>,
+    },
     CloseTaskPanel,
     SetMaxConcurrent(u32),
     ToggleAutoRefresh(bool),

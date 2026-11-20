@@ -249,6 +249,7 @@ fn board(app: &PanelFixture) -> iced::Element<'_, crate::panel::PanelMessage> {
     use std::rc::Rc;
     crate::board::build_kanban_board(&crate::board::BoardView {
         task_visible: None,
+        task_labels: &[],
         task_board_settings: &app.task_board_settings,
         task_board_tasks: &app.task_board_tasks,
         task_board_selected_tasks: &app.task_board_selected_tasks,

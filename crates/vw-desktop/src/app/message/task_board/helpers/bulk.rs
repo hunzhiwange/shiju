@@ -44,6 +44,31 @@ pub(crate) async fn persist_updated_tasks_via_gateway(
     submit_agent_scheduler_bulk_command(project_path, commands, action_label).await
 }
 
+pub(crate) async fn persist_task_labels_via_gateway(
+    project_path: &str,
+    task_id: &str,
+    label_ids: Vec<String>,
+) -> Result<Vec<String>, String> {
+    use vw_api_agent_scheduler::{
+        AgentSchedulerTaskMetadataPatchDto, AgentSchedulerTaskMetadataUpdateRequest,
+    };
+
+    let scope = resolve_task_board_scheduler_scope(project_path).await?;
+    let client = crate::app::config::gateway_client()?;
+    let response = client.agent_scheduler_update_task_metadata(
+        &scope,
+        task_id,
+        &AgentSchedulerTaskMetadataUpdateRequest {
+            patch: AgentSchedulerTaskMetadataPatchDto {
+                label_ids: Some(label_ids),
+                ..Default::default()
+            },
+            reason: Some("更新任务标签".into()),
+        },
+    ).await?;
+    Ok(response.task.read_model.label_ids)
+}
+
 pub(crate) async fn delete_tasks_via_gateway(
     project_path: &str,
     task_ids: &[String],

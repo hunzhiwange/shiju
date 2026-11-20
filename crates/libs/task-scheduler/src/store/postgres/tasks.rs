@@ -5,7 +5,7 @@ use ::postgres::types::ToSql;
 use ::postgres::{GenericClient, Row};
 use anyhow::{Context, Result, bail};
 use serde_json::Value;
-use vw_api_agent_scheduler::AgentSchedulerScope;
+use vw_api_agent_scheduler::{AgentSchedulerScope, AgentSchedulerTaskLabelDto};
 use vw_api_transport::common::TimestampMs;
 use vw_api_task::TaskPoolWorkflowSnapshotDto;
 
@@ -15,9 +15,9 @@ use crate::lifecycle_bridge::normalize_workflow_transitions;
 use crate::state_machine::{AgentTaskKind, AgentTaskStatus, ensure_transition};
 use crate::store::AgentSchedulerStorageContext;
 use crate::store::tasks::{
-    AgentTaskBoardUpdate, AgentTaskFilter, NewAgentTask, StoredAgentTask, bool_metadata_field,
-    ensure_non_empty, parse_dag_value, serialize_dag,
-    parse_saved_workflow, task_board_sort_key, task_kind_key, workflow_changed,
+    AgentTaskBoardUpdate, AgentTaskFilter, NewAgentTask, StoredAgentTask, TASK_LABELS_META_KEY,
+    bool_metadata_field, ensure_non_empty, parse_dag_value, parse_saved_workflow, parse_task_labels,
+    preserve_task_labels, serialize_dag, task_board_sort_key, task_kind_key, workflow_changed,
     workflow_task_conflicts,
 };
 
@@ -136,12 +136,12 @@ impl PostgresAgentSchedulerStore {
         Ok(tasks)
     }
 
-    pub(in crate::store) fn update_task_board_task(
+    pub(in crate::store) fn edit_task_board_task(
         &self,
         context: &(impl AgentSchedulerStorageContext + ?Sized),
         task_id: &TaskId,
-        update: AgentTaskBoardUpdate,
-    ) -> Result<Option<StoredAgentTask>> {
+        edit: impl FnOnce(&StoredAgentTask) -> Result<AgentTaskBoardUpdate> + Send,
+    ) -> Result<Option<(StoredAgentTask, StoredAgentTask)>> {
         agent_database::run_sync_database(|| {
             let scope = context.storage_scope()?;
             let project = scope.project_scope();
@@ -151,12 +151,13 @@ impl PostgresAgentSchedulerStore {
             let Some(current) = load_task_for_update(&mut transaction, &scope, task_id)? else {
                 return Ok(None);
             };
+            let update = edit(&current)?;
             let title = match update.title {
                 Some(title) => {
                     ensure_non_empty(&title, "task title")?;
                     title
                 }
-                None => current.title,
+                None => current.title.clone(),
             };
             let status = update.status.unwrap_or(current.status);
             let metadata_json = serde_json::to_string(&update.metadata)
@@ -186,7 +187,7 @@ impl PostgresAgentSchedulerStore {
                     format!("PostgreSQL task disappeared after board update: {}", task_id.as_str())
                 })?;
             transaction.commit().context("commit PostgreSQL task board update")?;
-            Ok(Some(updated))
+            Ok(Some((current, updated)))
         })
     }
 
@@ -244,7 +245,7 @@ impl PostgresAgentSchedulerStore {
         context: &(impl AgentSchedulerStorageContext + ?Sized),
         task_id: &TaskId,
         to_status: AgentTaskStatus,
-        metadata: Value,
+        mut metadata: Value,
         updated_at_ms: TimestampMs,
     ) -> Result<Option<StoredAgentTask>> {
         agent_database::run_sync_database(|| {
@@ -257,6 +258,7 @@ impl PostgresAgentSchedulerStore {
                 return Ok(None);
             };
             ensure_transition(current.kind, current.status, to_status)?;
+            preserve_task_labels(&current.metadata, &mut metadata);
             let metadata_json =
                 serde_json::to_string(&metadata).context("serialize PostgreSQL task metadata")?;
             let changed = transaction
@@ -457,26 +459,67 @@ impl PostgresAgentSchedulerStore {
         })
     }
 
-    fn load_meta(&self, scope: &AgentSchedulerScope, key: &str) -> Result<Option<String>> {
+    pub(in crate::store) fn load_task_labels(
+        &self,
+        context: &(impl AgentSchedulerStorageContext + ?Sized),
+    ) -> Result<Vec<AgentSchedulerTaskLabelDto>> {
+        parse_task_labels(self.load_meta(&context.storage_scope()?, TASK_LABELS_META_KEY)?)
+    }
+
+    pub(in crate::store) fn edit_task_labels(
+        &self,
+        context: &(impl AgentSchedulerStorageContext + ?Sized),
+        edit: impl FnOnce(&mut Vec<AgentSchedulerTaskLabelDto>) -> Result<()> + Send,
+    ) -> Result<Vec<AgentSchedulerTaskLabelDto>> {
+        let scope = context.storage_scope()?;
         agent_database::run_sync_database(|| {
             let project = scope.project_scope();
-            self.database
-                .connect_postgres()?
-                .query_opt(
-                    "SELECT value FROM scheduler_meta
-                 WHERE platform_id = $1 AND company_id = $2 AND project_id = $3 AND key = $4",
-                    &[
-                        &project.platform_id().as_ref(),
-                        &project.company_id().as_ref(),
-                        &project.project_id().as_ref(),
-                        &key,
-                    ],
-                )
-                .context("load scoped PostgreSQL agent scheduler metadata")?
-                .map(|row| row.try_get(0).context("read PostgreSQL scheduler metadata value"))
-                .transpose()
+            let mut connection = self.database.connect_postgres()?;
+            let mut tx = connection.transaction()?;
+            // Serialize directory edits even before the first scheduler_meta row exists.
+            tx.query_one(
+                "SELECT project_id FROM projects
+                 WHERE platform_id = $1 AND company_id = $2 AND project_id = $3 FOR UPDATE",
+                &[
+                    &project.platform_id().as_ref(),
+                    &project.company_id().as_ref(),
+                    &project.project_id().as_ref(),
+                ],
+            )?;
+            let mut labels = parse_task_labels(load_meta(&mut tx, &scope, TASK_LABELS_META_KEY)?)?;
+            edit(&mut labels)?;
+            upsert_meta(&mut tx, &scope, TASK_LABELS_META_KEY, &serde_json::to_string(&labels)?)?;
+            tx.commit()?;
+            Ok(labels)
         })
     }
+
+    fn load_meta(&self, scope: &AgentSchedulerScope, key: &str) -> Result<Option<String>> {
+        agent_database::run_sync_database(|| {
+            load_meta(&mut *self.database.connect_postgres()?, scope, key)
+        })
+    }
+}
+
+fn load_meta(
+    client: &mut impl GenericClient,
+    scope: &AgentSchedulerScope,
+    key: &str,
+) -> Result<Option<String>> {
+    let project = scope.project_scope();
+    client.query_opt(
+        "SELECT value FROM scheduler_meta
+         WHERE platform_id = $1 AND company_id = $2 AND project_id = $3 AND key = $4",
+        &[
+            &project.platform_id().as_ref(),
+            &project.company_id().as_ref(),
+            &project.project_id().as_ref(),
+            &key,
+        ],
+    )
+    .context("load scoped PostgreSQL agent scheduler metadata")?
+    .map(|row| row.try_get(0).context("read PostgreSQL scheduler metadata value"))
+    .transpose()
 }
 
 fn upsert_meta(

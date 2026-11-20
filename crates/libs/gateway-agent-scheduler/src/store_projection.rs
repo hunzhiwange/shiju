@@ -314,6 +314,12 @@ pub(super) fn task_board_task_read_model(
         stage_id: string_field(metadata, "task_board.stage_id")
             .or_else(|| Some(status_key.to_string())),
         stage_label: string_field(metadata, "task_board.stage_label"),
+        label_ids: metadata.get(TASK_LABEL_IDS_METADATA_KEY)
+            .and_then(Value::as_array)
+            .into_iter()
+            .flatten()
+            .filter_map(|value| value.as_str().map(str::to_owned))
+            .collect(),
     }
 }
 

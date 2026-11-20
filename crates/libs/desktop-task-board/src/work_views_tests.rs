@@ -59,6 +59,7 @@ fn work_views_compound_filter_unions_options_and_intersects_fields() {
         ],
         priority_min: Some(10),
         priority_max: Some(20),
+        label_ids: Vec::new(),
         agents: vec![
             ExecutionAgent::Acp { id: "codex".into() },
             ExecutionAgent::Builtin { id: "main".into() },

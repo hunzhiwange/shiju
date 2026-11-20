@@ -19,6 +19,8 @@ ADAPTER = "openai"
 API_PATH = "/v1"
 TRANSPORT = "stdio"
 NATIVE_DIR = ".agents/skills"
+MCP_TOOL = "coexistence_read_probe"
+MCP_REJECTION = "The user rejected permission to use this specific tool call."
 
 
 def launch(env):
@@ -41,7 +43,13 @@ def launch(env):
             sha256.update(block)
     digest = sha256.hexdigest()
     require(digest == contract["files"][contract["bin"]], "Kilocode executable digest mismatch")
-    version = subprocess.run([str(entry), "--version"], env=env, capture_output=True, timeout=15)
+    try:
+        signature = subprocess.run(["codesign", "--verify", "--strict", str(entry)],
+                                   env=env, capture_output=True, timeout=15)
+        version = subprocess.run([str(entry), "--version"], env=env, capture_output=True, timeout=15)
+    except subprocess.TimeoutExpired:
+        raise AssertionError("Kilocode executable verification timed out") from None
+    require(signature.returncode == 0, "Kilocode signature verification failed")
     require(version.returncode == 0 and version.stdout.strip() == b"7.8.18",
             "unexpected Kilocode executable version")
     return {"command": str(entry), "args": ["acp", "--pure"]}, {
@@ -67,7 +75,6 @@ class Probe:
             return {"content": "Fixture session"}, "stop"
         self.requests += 1
         messages = body["messages"]
-        mcp = [name for name in tools if name.endswith("read_probe")]
         skills = self.fixtures["skills"]
         if self.requests == 1:
             system = "\n".join(str(row["content"]) for row in messages if row["role"] == "system")
@@ -80,7 +87,7 @@ class Probe:
                 require(skill["body"] not in envelope and skill["attachment"] not in envelope,
                         "Kilocode skill content appeared before activation")
             require(self.fixtures["mcp"] not in envelope, "MCP fixture leaked before invocation")
-            require(len(mcp) == int(self.mounted), "unexpected Kilocode stdio MCP catalog")
+            require((MCP_TOOL in tools) == self.mounted, "unexpected Kilocode stdio MCP catalog")
         results = [dict(row, tool_use_id=row["tool_call_id"]) for row in messages if row["role"] == "tool"]
         for kind in ("native", "selected") if self.mounted else ("native",):
             skill = skills[kind]
@@ -103,8 +110,7 @@ class Probe:
             self.completed[step] = self.calls[step]
         if self.mounted:
             if "mcp" not in self.calls:
-                require(len(mcp) == 1, "Kilocode stdio MCP tool disappeared")
-                return self.call(tools, "mcp", mcp[0], {})
+                return self.call(tools, "mcp", MCP_TOOL, {})
             result = str(correlated_result(results, self.calls["mcp"])["content"])
             if self.rejected:
                 require(re.search(r"reject|denied|cancel", result, re.I)
@@ -122,14 +128,27 @@ class Probe:
                 f"Kilocode {step} tool schema changed")
         call_id = "call_" + secrets.token_hex(12)
         self.calls[step] = call_id
-        self.pending = (step, name, arguments)
+        self.pending = step
         return {"tool_calls": [{"index": 0, "id": call_id, "type": "function",
                 "function": {"name": name, "arguments": json.dumps(arguments)}}]}, "tool_calls"
 
+    def observe_terminal(self, events):
+        if not self.rejected or self.pending != "mcp" or "mcp" in self.completed:
+            return False
+        call_id = self.calls["mcp"]
+        failures = [event for event in events if event.get("type") == "chat.tool"
+                    and event.get("call_id") == call_id and event.get("kind") == "complete"
+                    and event.get("status") == "failed"]
+        if len(failures) == 1:
+            payload = failures[0]["payload"]
+            if payload.get("title") == MCP_TOOL and payload.get("error") == MCP_REJECTION:
+                self.completed["mcp"] = call_id
+                return True
+        return False
+
     def approves(self, metadata):
-        return (self.pending is not None and self.pending[0] == "mcp"
-                and metadata.get("title") in (self.pending[1], "read_probe")
-                and metadata.get("arguments") == {})
+        return (self.pending == "mcp" and metadata.get("title") == MCP_TOOL
+                and metadata.get("arguments") == {"mcpInput": {}})
 
 
 class Handler(ProviderHandler):

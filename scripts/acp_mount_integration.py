@@ -20,6 +20,10 @@ def rpc(request, attachment, audit, transport):
     if method == 'initialize':
         result = {'protocolVersion': request['params']['protocolVersion'],
                   'capabilities': {'tools': {}}, 'serverInfo': {'name': 'mount-probe', 'version': '1'}}
+    elif method == 'server/discover' and 'id' in request:
+        # This is a legacy MCP server. Goose probes discovery before initialize.
+        return {'jsonrpc': '2.0', 'id': request['id'],
+                'error': {'code': -32601, 'message': 'Method not found'}}
     elif method == 'tools/list':
         result = {'tools': [{'name': 'read_probe', 'description': 'Read random disk attachment',
                              'inputSchema': {'type': 'object', 'properties': {}}}]}

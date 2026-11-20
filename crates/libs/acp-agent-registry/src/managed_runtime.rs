@@ -46,7 +46,7 @@ fn installed_directory(agent: &str, contract: &Contract) -> Result<PathBuf, Stri
         4
     } else if matches!(agent, "amp-acp" | "corust-agent" | "cortex-code" | "harn") {
         4
-    } else if matches!(agent, "aionrs" | "dimcode" | "vtcode") {
+    } else if matches!(agent, "aionrs" | "dimcode" | "goose" | "vtcode") {
         2
     } else if matches!(agent, "droid" | "kiro") {
         2
@@ -560,7 +560,7 @@ pub(super) async fn install(agent: &str) -> Result<bool, String> {
         (
             "goose.patch",
             include_str!(
-                "../../../../docs/shiju/acp-model-source/evidence/goose/v1.57.0-model-lock.patch"
+                "../../../../docs/shiju/acp-model-source/evidence/goose/v1.57.0-model-lock-skill-coexistence.patch"
             ),
         ),
         (

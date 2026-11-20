@@ -222,11 +222,12 @@ class SkillMountFixture:
                         expected = set() if self.mode == "absent" else {self.name}
                         if self.mode == "added":
                             expected.add(self.name + "-added")
-                        if names != expected:
+                        selected = names & {self.name, self.name + "-added"}
+                        if selected != expected or "goose-doc-guide" not in names:
                             self.native_catalog = {"observed_count": len(names), "expected_count": len(expected),
                                 "selected_present": self.name in names,
                                 "tool_names": [t.get("function", t).get("name") for t in body.get("tools", [])]}
-                            raise ValueError("Goose native catalog does not equal selected skills")
+                            raise ValueError("Goose native catalog did not preserve built-ins and the selected view")
                     if getattr(self, "vibe_native", False):
                         self.discovered_dir = None
                         catalog = "\n".join(str(m.get("content", "")) for m in messages if m.get("role") == "system")

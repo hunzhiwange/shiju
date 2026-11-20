@@ -227,7 +227,8 @@ class SkillMountHarnessTests(unittest.TestCase):
                 fixture.response({"messages": [{"role": "user", "content": fixture.prompt}], "tools": tools})
             fixture.phase_first = True
             message, finish = fixture.response({"messages": [
-                {"role": "system", "content": "# Skills\n\nYou have these skills at your disposal.\n- " + fixture.name + ": fixture"},
+                {"role": "system", "content": "# Skills\n\nYou have these skills at your disposal.\n- goose-doc-guide: built-in\n- "
+                    + fixture.name + ": fixture"},
                 {"role": "user", "content": fixture.prompt}], "tools": tools})
             self.assertEqual(finish, "tool_calls")
             call = message["tool_calls"][0]["function"]

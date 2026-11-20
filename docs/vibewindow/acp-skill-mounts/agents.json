@@ -576,23 +576,24 @@
     {
       "key": "goose",
       "version": "v1.57.0",
-      "status": "verified",
+      "status": "candidate",
       "platform": {
         "review_host": "Darwin-arm64",
-        "artifact_scope": "Darwin-arm64 official v1.57.0 source plus reviewed patch; real production ACP and both model sources verified. Linux/Windows remain unverified.",
+        "artifact_scope": "Darwin-arm64, Goose v1.57.0 managed revision v2. Native ACP read and stdio approval/refusal verified. Production gateway retest pending.",
         "linux": "unverified",
         "windows": "unverified"
       },
       "distribution": {
         "package": "goose",
         "version": "v1.57.0",
-        "upstream_url": "https://github.com/aaif-goose/goose/releases/download/v1.57.0/goose-aarch64-apple-darwin.tar.gz",
-        "upstream_integrity": "见本项 evidence 文件 SHA-256；不得将其等同完整发行物签名",
+        "upstream_url": "https://codeload.github.com/aaif-goose/goose/tar.gz/refs/tags/v1.57.0",
+        "upstream_integrity": "SHA-256 36fcab524e25ca563830757bf2da8a68716ea2a5d7ca2f055dec4647b78548d9",
         "engine": {
           "kind": "same_distribution",
           "release": "v1.57.0"
         },
-        "local_identity": "Official source archive SHA-256, full reviewed patch SHA-256, clean build receipt and actual CLI SHA-256 checked; see evidence/goose.json."
+        "local_identity": "Managed v2 checks the source, coexistence patch and the executable digest in the build receipt.",
+        "patch_sha256": "3b75b96dc038b60f294de02354de34150a204e5e08f51a5bd37ff9095898ebcb"
       },
       "acp_entry": {
         "argv": [
@@ -601,39 +602,39 @@
         ],
         "binding": "crates/vw-acp/src/agent_registry.rs::BUILT_IN_AGENT_DEFINITIONS",
         "runtime_executed": true,
-        "note": "Fixed native v1.57.0 reviewed build exercised through production ACP in both model sources on Darwin-arm64."
+        "note": "Managed v2 was exercised against a loopback model through the native ACP entry. Gateway build is blocked by task-scheduler."
       },
       "mount": {
         "candidate_paths": [
           "SHIJU_GOOSE_SKILL_ROOT -> audited SessionSkillView"
         ],
-        "discovery": "Exclusive native directory scan; no project/home/config/plugin/builtin union. Empty root disables all native skill sources in the reviewed build.",
-        "activation": "Actual unprefixed load_skill(name), random attachment shell read and script execution verified. First model prompt contains metadata but no skill body.",
-        "session_isolation": "Both model sources verify exact selected native catalog, removal and second-session native not-found rejection. Project and private config decoys are excluded."
+        "discovery": "Native project, user, config, enabled plugin and built-in discovery keeps precedence. Append the read-only session view when selected.",
+        "activation": "Native load_skill(name) loads the body and load_skill(name/path) reads its declared supporting file.",
+        "session_isolation": "ShiJu skill discovery receives the audited selected view. An empty selection masks an inherited session root."
       },
       "permissions": {
-        "status": "verified for tested Darwin-arm64 patched v1.57.0",
+        "status": "Native ACP approvals and refusal verified for managed v2 on Darwin-arm64. Production gateway retest pending.",
         "requirements": "执行端重新审核目录、租户/项目/会话权限、路径逃逸与符号链接；支持文件/脚本/MCP 仍受各自授权限制，不扩大 full_access。",
         "agent_specific": "Audited session view and existing authorization retained; deny-all stops before model requests. Native shell tools retain existing runtime permission boundaries."
       },
       "update": {
         "native": "No native hot-update claim; replace view and rebuild when idle.",
-        "candidate": "Both model sources verified add/remove/V2/idle replacement; see evidence/goose.json."
+        "candidate": "History of v1 add/remove/replacement is recorded in evidence/goose.json."
       },
       "recovery": {
-        "status": "Both model sources verified actual CLI shutdown/restart and current view rediscovery.",
+        "status": "Historical v1 restart verified in evidence/goose.json. Native v2 probe covers fresh sessions and removal.",
         "requirements": "重建 new/load/resume 后重新发布同 revision 目录并核实发现、删除和支持文件访问；不能把已有模型来源恢复证据当技能恢复证据。"
       },
       "independent_sources": {
         "local_configuration": {
           "candidate": "GOOSE_PATH_ROOT",
           "static_review_only": false,
-          "runtime_verified_this_task": true
+          "runtime_verified_this_task": false
         },
         "client_model_source": {
           "prior_report_status": "verified_release_only",
           "reference": "../../shiju/acp-model-source/cli-versions.json#goose",
-          "runtime_verified_this_task": true,
+          "runtime_verified_this_task": false,
           "note": "只保留旧报告定位；不复制其通过/不支持结论到技能能力。"
         }
       },
@@ -672,22 +673,26 @@
           "kind": "reviewed_patched_native_binary",
           "bytes": 286361944,
           "observations": []
+        },
+        {
+          "path": "target/acp-skill-coexistence/goose-source/v2/runtime/goose",
+          "sha256": "8363c881ea296ddf1500d704903a3b93c1ca1ca09d9721079a181b04795f110b",
+          "kind": "reviewed_patched_native_binary",
+          "bytes": 285602392,
+          "observations": []
         }
       ],
       "supplemental_official_docs": [],
-      "next_validation": "Continue remaining independent agents and overall regression; do not infer cross-platform support.",
+      "next_validation": "Run the Goose coexistence probe and correlated stdio MCP approval/refusal with the reviewed v2 build.",
       "acceptance": {
-        "status": "verified",
-        "production_gate": "reviewed executable and skill patch receipt required",
-        "evidence": "evidence/goose.json",
-        "model_sources": [
-          "session_model",
-          "cli_local"
-        ],
-        "limitation": "Only the reviewed native Darwin-arm64 v1.57.0 patch build. Other platforms/versions require separate acceptance."
+        "status": "candidate",
+        "production_gate": "reviewed executable and coexistence patch receipt required",
+        "evidence": "../../dev/acp/skill-coexistence/goose.md",
+        "model_sources": [],
+        "limitation": "v2 native ACP is verified on Darwin-arm64. Production gateway retest is blocked. Historical v1 receipts cover isolation and recovery."
       },
       "delivery_acceptance": {
-        "status": "verified",
+        "status": "candidate",
         "evidence": "evidence/lifecycle.json",
         "regression": "evidence/regression.json"
       }

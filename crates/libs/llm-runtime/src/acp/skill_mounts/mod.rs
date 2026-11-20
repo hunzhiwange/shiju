@@ -5,6 +5,7 @@ mod claude;
 mod codebuddy;
 mod codex;
 mod copilot;
+pub(super) mod corust_agent;
 mod cursor;
 mod droid;
 mod gemini;
@@ -38,6 +39,7 @@ pub fn validate(agent: &str, selected: bool) -> Result<(), Error> {
         "hermes" => return Ok(()),
         "snow" => return Ok(()),
         "copilot" => return Ok(()),
+        "corust-agent" if cfg!(all(target_os = "macos", target_arch = "aarch64")) => return Ok(()),
         "kilocode" => return Ok(()),
         "kimi" => return Ok(()),
         "kiro" => return Ok(()),

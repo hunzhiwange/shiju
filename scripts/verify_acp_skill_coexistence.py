@@ -24,7 +24,7 @@ from verify_acp_integration import require
 from verify_acp_model_source import ROOT, Unavailable
 
 # Add a key only once its supplier module implements the reviewed probe interface.
-AGENTS = ("claude", "qwen", "gemini", "codebuddy", "vibe", "snow", "goose", "hermes", "copilot", "kilocode", "kiro", "opencode", "openclaw", "pi", "iflow", "auggie", "cursor", "droid", "kimi", "qoder", "trae", "amp-acp", "aionrs", "autohand")
+AGENTS = ("claude", "qwen", "gemini", "codebuddy", "vibe", "snow", "goose", "hermes", "copilot", "kilocode", "kiro", "opencode", "openclaw", "pi", "iflow", "auggie", "cursor", "droid", "kimi", "qoder", "trae", "amp-acp", "aionrs", "autohand", "corust-agent")
 AGENT_PROFILE = "acp-coexistence"
 PROVIDER = "coexistence-fixture"
 PHASES = ("baseline", "mounted", "removed", "rejected")
@@ -208,6 +208,9 @@ def run(agent, binary, report):
                 observe_terminal = getattr(probe, "observe_terminal", None)
                 if observe_terminal is not None and observe_terminal(events):
                     row["terminal_mcp_rejection"] = True
+                mcp_trace = getattr(probe, "mcp_trace", None)
+                if mcp_trace is not None and not probe.failure and probe.completed:
+                    after, row["mcp_bridge_call_id"] = mcp_trace(events)
                 types = [event.get("type") for event in events]
                 row.update(done=types.count("chat.done"), errors=types.count("chat.error"),
                            mcp_calls=len(after) - len(before), mcp_decisions=decisions,

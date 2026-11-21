@@ -43,7 +43,24 @@ pub(crate) fn view(app: &App) -> Element<'_, Message> {
             return workspace(app, super::system_settings_apps::view(state, i18n));
         }
         ThirdPartyPage::Agents => return workspace(app, agent_workspace(app)),
-        ThirdPartyPage::Mcp => mcp_workspace::view(app),
+        ThirdPartyPage::Mcp => {
+            let mut content = column![].spacing(12).width(Length::Fill).height(Length::Fill);
+            if let Some(error) = &state.error {
+                content = content.push(
+                    container(super::system_settings_common::settings_error_banner(error.clone()))
+                        .padding([0, 7])
+                        .width(Length::Fill),
+                );
+            }
+            return workspace(
+                app,
+                container(content.push(mcp_workspace::view(app)))
+                    .padding([12, 16])
+                    .width(Length::Fill)
+                    .height(Length::Fill)
+                    .into(),
+            );
+        }
         ThirdPartyPage::Skills => {
             let applications = state
                 .rows
@@ -95,15 +112,12 @@ pub(crate) fn view(app: &App) -> Element<'_, Message> {
         .find(|(page, _)| *page == state.third_party_page)
         .map(|(_, label)| i18n.__(label))
         .unwrap_or("");
-    let mut workspace = column![].spacing(16);
-    if state.third_party_page != ThirdPartyPage::Mcp {
-        workspace = workspace.push(settings_page_heading(title, ""));
-    }
+    let mut workspace = column![settings_page_heading(title, "")].spacing(16);
     if let Some(error) = &state.error {
         workspace =
             workspace.push(super::system_settings_common::settings_error_banner(error.clone()));
     }
-    if matches!(state.third_party_page, ThirdPartyPage::Mcp | ThirdPartyPage::Sessions) {
+    if state.third_party_page == ThirdPartyPage::Sessions {
         workspace = workspace.push(container(body).padding([0, 7]).height(Length::Fill));
         return self::workspace(app, container(workspace.height(Length::Fill)).padding(24).into());
     }

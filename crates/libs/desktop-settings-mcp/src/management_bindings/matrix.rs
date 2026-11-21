@@ -16,8 +16,10 @@ pub const APPS: [AppId; 12] = [
     AppId::Agy,
     AppId::Omp,
 ];
-pub const NAME_WIDTH: f32 = 208.0;
-pub const CELL_WIDTH: f32 = 42.0;
+const MIN_NAME_WIDTH: f32 = 180.0;
+const CELL_WIDTH: f32 = 36.0;
+const ACTIONS_WIDTH: f32 = 66.0;
+const TABLE_INSET: f32 = 14.0;
 
 #[derive(Debug, Clone)]
 pub enum Action {
@@ -256,14 +258,10 @@ pub fn panel<'a>(
     menu: Option<&'a crate::management_probe::actions::State>,
 ) -> iced::Element<'a, ViewMessage> {
     use desktop_assets::assets::Icon;
-    use desktop_settings_apps::system_settings_apps::list::brand_icon;
-    use desktop_ui_controls::system_settings_common::{
-        icons::{icon_btn_style, icon_btn_svg_style},
-        *,
-    };
+    use desktop_ui_controls::system_settings_common::{icons::icon_btn_svg_style, *};
     use iced::{
         Alignment, Length,
-        widget::{Space, checkbox, column, container, row, rule, scrollable, text, text_input},
+        widget::{column, container, responsive, row, text, text_input},
     };
 
     let count = catalog.and_then(|c| c.as_ref().ok()).map(|c| {
@@ -295,7 +293,9 @@ pub fn panel<'a>(
     )
     .padding(iced::Padding::ZERO.left(10))
     .style(table_frame);
-    let mut toolbar = row![container(search).width(Length::Fill).max_width(332)].spacing(12);
+    let mut toolbar = row![container(search).width(Length::Fill).max_width(332)]
+        .spacing(12)
+        .width(Length::Fill);
     if let Some(count) = count {
         toolbar = toolbar.push(text(count).size(13).style(settings_muted_text_style));
     }
@@ -310,9 +310,70 @@ pub fn panel<'a>(
     };
     let records = visible_records(catalog, &state.query);
     let columns = columns(targets, shown, host);
+    let table = responsive(move |size| {
+        matrix_table(catalog, state, &records, &columns, running, menu, size.width)
+    })
+    .height(Length::Shrink);
+    body = body.push(container(table).padding(1).width(Length::Fill).style(table_frame));
+    let failures = state
+        .attempts
+        .iter()
+        .filter(|a| match &a.result {
+            Ok(item) => matches!(item.native_outcome, McpDistributionOutcome::Failed { .. }),
+            Err(_) => true,
+        })
+        .count();
+    if failures > 0 || !state.undo.is_empty() {
+        let mut feedback = row![].spacing(8).align_y(Alignment::Center);
+        if failures > 0 {
+            feedback = feedback.push(text(format!("{failures} 项写入失败")).size(13)).push(
+                crate::toolbar_button(
+                    "重试失败项",
+                    (!running
+                        && state.attempts.iter().any(|a| {
+                            a.result.as_ref().is_ok_and(|i| {
+                                matches!(i.native_outcome, McpDistributionOutcome::Failed { .. })
+                            })
+                        }))
+                    .then_some(ViewMessage::Binding(Action::Retry)),
+                ),
+            );
+        }
+        if !state.undo.is_empty() {
+            feedback = feedback.push(crate::toolbar_button(
+                "撤销本次改动",
+                (!running).then_some(ViewMessage::Binding(Action::Undo)),
+            ));
+        }
+        body = body.push(feedback);
+    }
+    body.into()
+}
+
+fn matrix_table<'a>(
+    catalog: &'a McpCatalogResponse,
+    state: &'a State,
+    records: &[&'a McpCatalogRecord],
+    columns: &[(AppId, Option<McpAppTarget>)],
+    running: bool,
+    menu: Option<&'a crate::management_probe::actions::State>,
+    viewport_width: f32,
+) -> iced::Element<'a, ViewMessage> {
+    use desktop_assets::assets::Icon;
+    use desktop_settings_apps::system_settings_apps::list::brand_icon;
+    use desktop_ui_controls::{
+        single_line_label::SingleLineLabel,
+        system_settings_common::{icons::icon_btn_style, *},
+    };
+    use iced::{
+        Alignment, Length,
+        widget::{Space, checkbox, column, container, row, rule, scrollable, text},
+    };
+
     let mut header =
-        row![container(text("名称").size(13)).width(NAME_WIDTH)].align_y(Alignment::Center);
-    for (app, target) in &columns {
+        row![text("名称").size(13).style(settings_muted_text_style).width(Length::Fill)]
+            .align_y(Alignment::Center);
+    for (app, target) in columns {
         let count = target.as_ref().map_or(0, |t| {
             records.iter().filter(|r| binding(catalog, r, t).is_some_and(|b| b.enabled)).count()
         });
@@ -371,9 +432,10 @@ pub fn panel<'a>(
         };
         header = header.push(center_cell(cell));
     }
-    header = header.push(Space::new().width(66));
-    let mut grid =
-        column![container(header).padding([8, 12]).width(Length::Fill).style(table_header),];
+    header = header.push(Space::new().width(ACTIONS_WIDTH));
+    let mut grid = column![
+        container(header).padding([8.0, TABLE_INSET]).width(Length::Fill).style(table_header),
+    ];
     if records.is_empty() {
         grid = grid.push(rule::horizontal(1)).push(empty(if catalog.records.is_empty() {
             "还没有 MCP，点击「添加 MCP」或从应用导入"
@@ -381,7 +443,7 @@ pub fn panel<'a>(
             "没有匹配的 MCP"
         }));
     }
-    for record in records {
+    for &record in records {
         let summary = record.public_summary.as_deref().filter(|s| !s.is_empty()).unwrap_or(
             match record.transport {
                 vw_api_mcp_management::McpTransport::Stdio => "本地命令 · stdio",
@@ -393,7 +455,7 @@ pub fn panel<'a>(
             container(
                 column![
                     hint(
-                        text(short(&record.name, 25)).size(14),
+                        SingleLineLabel::new(record.name.clone(), 14.0),
                         if record.name == record.record.id.0 {
                             record.name.clone()
                         } else {
@@ -401,17 +463,22 @@ pub fn panel<'a>(
                         },
                     ),
                     hint(
-                        text(short(summary, 29)).size(12).style(settings_muted_text_style),
-                        summary.to_owned()
+                        container(SingleLineLabel::new(summary.to_owned(), 12.0)).style(
+                            |theme| iced::widget::container::Style {
+                                text_color: settings_muted_text_style(theme).color,
+                                ..Default::default()
+                            }
+                        ),
+                        summary.to_owned(),
                     ),
                 ]
                 .spacing(3)
             )
-            .width(NAME_WIDTH)
-            .clip(true),
+            .width(Length::Fill)
+            .padding(iced::Padding::ZERO.right(10)),
         ]
         .align_y(Alignment::Center);
-        for (app, target) in &columns {
+        for (app, target) in columns {
             let mut label = app_label(*app).to_owned();
             let mut failed = false;
             let control: iced::Element<'_, ViewMessage> = if let Some(target) = target {
@@ -539,59 +606,33 @@ pub fn panel<'a>(
             trigger
         };
         line = line.push(
-            row![
-                icon_btn(
-                    Icon::Pencil,
-                    "编辑 MCP",
-                    (!running).then(|| ViewMessage::Edit(record.record.clone()))
-                ),
-                trigger,
-            ]
-            .width(66)
-            .align_y(Alignment::Center),
+            container(
+                row![
+                    icon_btn(
+                        Icon::Pencil,
+                        "编辑 MCP",
+                        (!running).then(|| ViewMessage::Edit(record.record.clone()))
+                    ),
+                    trigger,
+                ]
+                .spacing(4)
+                .align_y(Alignment::Center),
+            )
+            .align_right(ACTIONS_WIDTH),
         );
         grid = grid
             .push(rule::horizontal(1))
-            .push(container(line).padding([10, 12]).width(Length::Fill));
+            .push(container(line).padding([10.0, TABLE_INSET]).width(Length::Fill));
     }
-    let width = NAME_WIDTH + CELL_WIDTH * columns.len() as f32 + 66.0 + 24.0;
-    let scroll = scrollable(container(grid).width(width)).direction(
-        scrollable::Direction::Horizontal(scrollable::Scrollbar::new().width(4).scroller_width(4)),
-    );
-    body = body.push(container(scroll.width(Length::Fill)).width(Length::Fill).style(table_frame));
-    let failures = state
-        .attempts
-        .iter()
-        .filter(|a| match &a.result {
-            Ok(item) => matches!(item.native_outcome, McpDistributionOutcome::Failed { .. }),
-            Err(_) => true,
-        })
-        .count();
-    if failures > 0 || !state.undo.is_empty() {
-        let mut feedback = row![].spacing(8).align_y(Alignment::Center);
-        if failures > 0 {
-            feedback = feedback.push(text(format!("{failures} 项写入失败")).size(13)).push(
-                crate::toolbar_button(
-                    "重试失败项",
-                    (!running
-                        && state.attempts.iter().any(|a| {
-                            a.result.as_ref().is_ok_and(|i| {
-                                matches!(i.native_outcome, McpDistributionOutcome::Failed { .. })
-                            })
-                        }))
-                    .then_some(ViewMessage::Binding(Action::Retry)),
-                ),
-            );
-        }
-        if !state.undo.is_empty() {
-            feedback = feedback.push(crate::toolbar_button(
-                "撤销本次改动",
-                (!running).then_some(ViewMessage::Binding(Action::Undo)),
-            ));
-        }
-        body = body.push(feedback);
-    }
-    body.into()
+    // Horizontal scrolling gives its content an unbounded width during layout.
+    let min_width =
+        MIN_NAME_WIDTH + CELL_WIDTH * columns.len() as f32 + ACTIONS_WIDTH + 2.0 * TABLE_INSET;
+    scrollable(container(grid).width(viewport_width.max(min_width)))
+        .width(Length::Fill)
+        .direction(scrollable::Direction::Horizontal(
+            scrollable::Scrollbar::new().width(4).scroller_width(4).spacing(0),
+        ))
+        .into()
 }
 
 fn binding<'a>(
@@ -625,15 +666,6 @@ fn empty(label: &'static str) -> iced::Element<'static, ViewMessage> {
     iced::widget::container(iced::widget::text(label).size(13).style(settings_muted_text_style))
         .padding([16, 12])
         .into()
-}
-
-fn short(value: &str, max: usize) -> String {
-    let mut chars = value.chars();
-    let mut shown: String = chars.by_ref().take(max).collect();
-    if chars.next().is_some() {
-        shown.push('…');
-    }
-    shown
 }
 
 fn table_frame(theme: &iced::Theme) -> iced::widget::container::Style {

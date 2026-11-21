@@ -17,8 +17,8 @@ use desktop_ui_controls::{
     system_settings_common::{icons::icon_btn_svg_style, *},
 };
 use iced::{
-    Element, Length, Task,
-    widget::{Space, column, container, row, rule, scrollable, stack, text},
+    Alignment, Element, Length, Task, alignment,
+    widget::{Space, column, container, row, scrollable, stack, text},
 };
 
 #[derive(Debug, Clone)]
@@ -63,21 +63,30 @@ pub(crate) fn view(app: &App) -> Element<'_, Message> {
         .as_ref()
         .filter(|s| Some(*s) == super::mcp_scope(app).as_ref())
     else {
-        return column![
-            text("MCP").size(23),
-            text("连接网关后刷新 MCP 目录").style(settings_muted_text_style),
-            crate::app::components::system_settings_common::icon_btn(
-                desktop_assets::assets::Icon::ArrowClockwise,
-                "刷新目录",
-                Some(Message::Settings(SettingsMessage::AppsCatalog(AppsCatalogMessage::Refresh)))
-            )
-        ]
+        return container(
+            column![
+                text("MCP").size(23),
+                text("连接网关后刷新 MCP 目录").style(settings_muted_text_style),
+                icon_btn(
+                    Icon::ArrowClockwise,
+                    "刷新目录",
+                    Some(Message::Settings(SettingsMessage::AppsCatalog(AppsCatalogMessage::Refresh)))
+                ),
+            ]
+            .spacing(12),
+        )
+        .padding([0, 7])
+        .width(Length::Fill)
         .into();
     };
     if let Some(draft) =
         app.mcp_settings.connection_form.as_ref().filter(|draft| draft.context == scope.context)
     {
-        return super::super::system_settings_mcp::connection_form_panel(draft);
+        return container(super::super::system_settings_mcp::connection_form_panel(draft))
+            .padding([0, 7])
+            .width(Length::Fill)
+            .height(Length::Fill)
+            .into();
     }
     let targets = settings::mcp_management_import::targets(app);
     let shown = super::super::system_settings_apps::preferences::visible_rows(&app.apps_catalog)
@@ -130,11 +139,7 @@ pub(crate) fn view(app: &App) -> Element<'_, Message> {
     } else {
         more
     };
-    let toolbar = row![
-        row![icon_svg(Icon::HddNetwork, 22.0).style(icon_btn_svg_style), text("MCP").size(23)]
-            .spacing(10)
-            .align_y(iced::Alignment::Center),
-        Space::new().width(Length::Fill),
+    let toolbar_actions = row![
         toolbar_button(
             Icon::CheckSquare,
             "检查连通性",
@@ -168,9 +173,19 @@ pub(crate) fn view(app: &App) -> Element<'_, Message> {
         ),
         more,
     ]
-    .spacing(7)
-    .align_y(iced::Alignment::Center)
-    .wrap();
+    .spacing(8)
+    .align_y(Alignment::Center)
+    .wrap()
+    .align_x(alignment::Horizontal::Right);
+    let toolbar = row![
+        row![icon_svg(Icon::HddNetwork, 22.0).style(icon_btn_svg_style), text("MCP").size(23)]
+            .spacing(10)
+            .align_y(Alignment::Center),
+        container(toolbar_actions).align_right(Length::Fill),
+    ]
+    .spacing(12)
+    .align_y(Alignment::Center)
+    .width(Length::Fill);
     let matrix = matrix::panel(
         settings::mcp_management_list::visible(app),
         &app.mcp_settings.bindings.matrix,
@@ -188,15 +203,17 @@ pub(crate) fn view(app: &App) -> Element<'_, Message> {
     }
     body = body.push(super::super::system_settings_mcp::resync::rewrite_panel(app));
     column![
-        toolbar,
-        rule::horizontal(1),
+        container(toolbar).padding([0, 7]).width(Length::Fill),
+        settings_divider(),
         scrollable(container(body).padding([0, 7]).width(Length::Fill))
             .direction(scrollable::Direction::Vertical(
                 scrollable::Scrollbar::new().width(4).scroller_width(4)
             ))
-            .height(Length::Fill)
+            .width(Length::Fill)
+            .height(Length::Fill),
     ]
     .spacing(12)
+    .width(Length::Fill)
     .height(Length::Fill)
     .into()
 }

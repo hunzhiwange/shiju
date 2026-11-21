@@ -28,7 +28,7 @@
     {
       "key": "auggie",
       "version": "0.37.1",
-      "status": "candidate",
+      "status": "verified",
       "platform": {
         "review_host": "Darwin-arm64",
         "artifact_scope": "Darwin-arm64，Auggie 0.37.1 受管 v2，受限 session_model。",
@@ -67,7 +67,7 @@
         "session_isolation": "只读沙箱校验当前工作区和租户绑定的选中视图。"
       },
       "permissions": {
-        "status": "unverified",
+        "status": "verified",
         "requirements": "执行端重新审核目录、租户/项目/会话权限、路径逃逸与符号链接；支持文件/脚本/MCP 仍受各自授权限制，不扩大 full_access。",
         "agent_specific": "受限模式只投影宿主选中的 MCP，批准绑定会话、工具和参数并由中继单次消费。"
       },
@@ -77,7 +77,7 @@
       },
       "recovery": {
         "status": "unverified",
-        "requirements": "重建 new/load/resume 后重新发布同 revision 目录并核实发现、删除和支持文件访问；不能把已有模型来源恢复证据当技能恢复证据。"
+        "requirements": "固定版独立 ACP 恢复已验证撤除后的目录，网关同会话恢复未单独验收。"
       },
       "independent_sources": {
         "local_configuration": {
@@ -88,8 +88,8 @@
         "client_model_source": {
           "prior_report_status": "unsupported",
           "reference": "../../shiju/acp-model-source/cli-versions.json#auggie",
-          "runtime_verified_this_task": false,
-          "note": "只保留旧报告定位；不复制其通过/不支持结论到技能能力。"
+          "runtime_verified_this_task": true,
+          "note": "受限 session_model 已通过网关选模与回读。"
         }
       },
       "evidence": [
@@ -130,8 +130,9 @@
       "supplemental_official_docs": [],
       "next_validation": "参见 ../../dev/acp/skill-coexistence/auggie.md 的受限网关与恢复验证。",
       "delivery_acceptance": {
-        "status": "candidate",
-        "evidence": "../../dev/acp/skill-coexistence/auggie.md"
+        "status": "verified",
+        "evidence": "../../dev/acp/skill-coexistence/auggie.md",
+        "limitation": "仅 Darwin-arm64 受管 v2 的受限 session_model 入口通过。"
       }
     },
     {

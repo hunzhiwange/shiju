@@ -1,6 +1,6 @@
 # Auggie 技能共存验收
 
-状态：已阻塞。网关在无挂载轮、首个模型请求前返回 `requires_full_access`。技能挂载能力门禁继续拒绝 Auggie。
+受管 v2 已通过真实网关四轮。下文先保留 v1 的失败基线，再记录 v2 的运行结果。
 
 ## 制品与网关
 
@@ -59,3 +59,20 @@ Darwin arm64 的受限 `session_model` 入口只接受受审 0.37.1 v2、桌面�
 安装修订 `auggie-0.37.1-model-source-v2` 的入口 SHA-256 为 `c8d0c76c7ef7eaa1a4837f7cda2eec3eeecd9d8bf28da2db9697993d98300ba9`，模型桥为 `7d0afac3f9242e473a40a42f75aebf7bc48fd611aee50f375a04d92afc3fe162`。直接运行此固定制品的四轮沙箱对照退出 0，模型请求为 `3/6/3/6`，下游 MCP 为 `0/1/0/0`，每轮五类沙箱拒绝均通过。结构化证据为 `target/acp-skill-coexistence/auggie-v2-sandbox.json`。模型桥定向 Node 测试六项通过，覆盖路径逃逸和外部符号链接拒绝。
 
 独立恢复对照在挂载轮完成后关闭 ACP 进程，撤除视图与 MCP，再用原历史目录启动新进程并调用 `session/load`。恢复回合退出 `end_turn`，首次模型请求仍有原生目录，已撤技能和 MCP 均未出现在当前目录，且下游调用为 0。
+
+## 真实网关 v2
+
+Cargo 槽位 6 的构建与目标路径均为 `target/rust-slot-6`。持共享 Cargo 锁运行 `cargo build --locked -j 1 -p vw-cli --bin shiju`，退出 0。随后在同一槽位运行本卡网关探针，退出 0。网关 SHA-256 为 `09c49dfa8efa59deebb31d40ddd6f4533e7670a09f71baef33e77f10f5284453`。
+
+各轮回读为 `acp-coexistence / auggie`、`session_model`、`coexistence-fixture/deepseek-v4.1-flash-1017`、`full_access=false`。ACP 权限能力回读仍为 `requested=false`、`support=unavailable`。只读边界由受管启动器执行。
+
+| 新网关会话 | `chat.done` / `chat.error` | 模型请求 | 审批与下游次数 |
+| --- | --- | ---: | --- |
+| baseline `ses_e04152fbbffeE8Hz2vZP0pl8IG` | 1 / 0 | 3 | 无，0 |
+| mounted `ses_e04151e0affeFAenWiQvtpJfjJ` | 1 / 0 | 6 | once，1 |
+| removed `ses_e0415094affego3SCLEIOzXFgt` | 1 / 0 | 3 | 无，0 |
+| rejected `ses_e0414f82dffexRJM5xpvFbrevQ` | 1 / 0 | 6 | reject，0 |
+
+每轮的原生读取、挂载轮的选中技能读取及批准或拒绝的 MCP 调用 ID 均在 `target/acp-skill-coexistence/auggie.json`。历史 v1 失败报告本地留存为 `target/acp-skill-coexistence/auggie-v1-red.json`。
+
+Rust 定向验收复用 Cargo 已编译的 `llm-runtime --lib` 测试目标。重新持有槽位 10 后，使用构建与目标路径 `target/rust-slot-10`，运行 `"$CARGO_TARGET_DIR/debug/deps/llm_runtime-85f23fc8970681f8" acp_skill_coexistence_auggie --test-threads=1`，退出 0，2 项通过。该二进制另在槽位 13 的私有副本取得相同结果。测试二进制 SHA-256 为 `59dd8a2c179ecfd19b0a0d029acf325b7cc935f66cd750d42d017463f78642c7`。已取消槽位 6 中尚在等待共享锁的重复单测编译。

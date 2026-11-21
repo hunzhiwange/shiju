@@ -107,12 +107,15 @@ pub(crate) fn view(app: &App) -> Element<'_, Message> {
         .spacing(12)
         .into(),
     };
-    let title = ThirdPartyPage::ALL
-        .iter()
-        .find(|(page, _)| *page == state.third_party_page)
-        .map(|(_, label)| i18n.__(label))
-        .unwrap_or("");
-    let mut workspace = column![settings_page_heading(title, "")].spacing(16);
+    let mut workspace = column![].spacing(16);
+    if state.third_party_page != ThirdPartyPage::Sessions {
+        let title = ThirdPartyPage::ALL
+            .iter()
+            .find(|(page, _)| *page == state.third_party_page)
+            .map(|(_, label)| i18n.__(label))
+            .unwrap_or("");
+        workspace = workspace.push(settings_page_heading(title, ""));
+    }
     if let Some(error) = &state.error {
         workspace =
             workspace.push(super::system_settings_common::settings_error_banner(error.clone()));

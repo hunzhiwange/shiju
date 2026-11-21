@@ -2,6 +2,9 @@ use vw_api_transport::{common::TimestampMs, id::{IdValidationError, ProjectId, P
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
+/// Reserved task model selection. The gateway receives CliLocal and no Provider/model.
+pub const TASK_MODEL_ACP_NATIVE: &str = "acp://native";
+
 /// Agent Scheduler 按项目隔离的强类型作用域。
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(transparent)]

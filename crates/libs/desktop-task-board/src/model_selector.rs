@@ -2,6 +2,8 @@
 #[derive(Clone, Copy)]
 pub struct SelectorView<'a> {
     pub draft_model: &'a str,
+    pub draft_acp_agent: Option<&'a str>,
+    pub bulk_has_acp_tasks: bool,
     pub bulk_model: &'a str,
     pub task_board_model_popover: bool,
     pub task_board_bulk_model_popover: bool,
@@ -34,7 +36,7 @@ use desktop_ui_controls::system_settings_common::{
 };
 use self::SelectorMessage as Message;
 use self::SelectorMessage as TaskBoardMessage;
-use desktop_task_model::normalize_task_model_input;
+use desktop_task_model::{TASK_MODEL_ACP_NATIVE, TASK_MODEL_AUTO, normalize_task_model_input};
 
 fn auto_icon() -> svg::Handle { assets::get_icon(Icon::Star) }
 fn provider_logo_handle(id: &str) -> svg::Handle { assets::get_provider_icon(id) }
@@ -153,6 +155,9 @@ fn build_selector<'a>(app: SelectorView<'a>, kind: TaskBoardModelSelectorKind) -
 }
 
 fn build_toggle_label(app: SelectorView<'_>, auto_model: bool, model: &str) -> String {
+    if model == TASK_MODEL_ACP_NATIVE {
+        return model_display_label(desktop_i18n::I18n::new(app.desktop_locale), model).to_owned();
+    }
     if auto_model {
         return desktop_i18n::I18n::new(app.desktop_locale).__("自动模型").to_owned();
     }
@@ -184,8 +189,17 @@ fn build_toggle_label(app: SelectorView<'_>, auto_model: bool, model: &str) -> S
     })
 }
 
+pub fn model_display_label<'a>(i18n: desktop_i18n::I18n, model: &'a str) -> &'a str {
+    if model == TASK_MODEL_ACP_NATIVE { i18n.__("智能体原生模型") } else { model }
+}
+
 fn build_model_icon<'a>(auto_model: bool, app: SelectorView<'a>, model: &str) -> svg::Svg<'a, Theme> {
-    if auto_model {
+    if model == TASK_MODEL_ACP_NATIVE {
+        svg::Svg::<iced::Theme>::new(assets::get_icon(Icon::Hexagon))
+            .width(14)
+            .height(14)
+            .style(|theme: &Theme, _| svg::Style { color: Some(theme.palette().text) })
+    } else if auto_model {
         svg::Svg::<iced::Theme>::new(auto_icon())
             .width(Length::Fixed(14.0))
             .height(Length::Fixed(14.0))
@@ -214,6 +228,46 @@ fn build_model_popover<'a>(
     model: &str,
 ) -> Element<'a, Message> {
     let popup_width = 320.0;
+    let i18n = desktop_i18n::I18n::new(app.desktop_locale);
+    let cli_local = model == TASK_MODEL_ACP_NATIVE;
+    let bulk = matches!(kind, TaskBoardModelSelectorKind::Bulk);
+    let show_sources = cli_local || if bulk {
+        app.bulk_has_acp_tasks
+    } else {
+        app.draft_acp_agent.is_some()
+    };
+    let source_controls = || {
+        let mut choices = column![].spacing(4);
+        for (label, selected, model) in [
+            (i18n.__("客户端模型"), !cli_local, TASK_MODEL_AUTO),
+            (i18n.__("智能体原生模型"), cli_local, TASK_MODEL_ACP_NATIVE),
+        ] {
+            let label = if selected { format!("✓ {label}") } else { label.to_owned() };
+            choices = choices.push(
+                button(SettingsSelectLabel::new(label))
+                    .width(Length::Fill)
+                    .padding([8, 10])
+                    .style(move |theme, status| selector_option_style(theme, status, selected))
+                    .on_press_maybe((!selected).then(|| kind.select_message(model.to_owned()))),
+            );
+        }
+        if bulk {
+            choices = choices.push(
+                text(i18n.__("原生模型仅应用于使用 ACP 的任务"))
+                    .size(12)
+                    .style(settings_muted_text_style),
+            );
+        }
+        container(choices).padding([6, 8])
+    };
+    if cli_local {
+        return container(source_controls())
+            .style(popover_style)
+            .padding(4)
+            .width(Length::Fixed(popup_width))
+            .into();
+    }
+
     let query = app.model_settings.query.trim().to_ascii_lowercase();
 
     let matches_query =
@@ -440,7 +494,11 @@ fn build_model_popover<'a>(
         Tooltip::new(btn, tip, TooltipPosition::Right).gap(8).into()
     };
 
-    let boxed_content = column![
+    let mut boxed_content = column![].spacing(6);
+    if show_sources {
+        boxed_content = boxed_content.push(source_controls());
+    }
+    let boxed_content = boxed_content.extend([
         container(
             column![
                 row![
@@ -478,7 +536,8 @@ fn build_model_popover<'a>(
             ]
             .spacing(10)
         )
-        .padding([6, 8]),
+        .padding([6, 8])
+        .into(),
         container(
             column![
                 settings_field_label(
@@ -505,7 +564,8 @@ fn build_model_popover<'a>(
             ]
             .spacing(6)
         )
-        .padding(iced::Padding { top: 2.0, right: 8.0, bottom: 6.0, left: 8.0 }),
+        .padding(iced::Padding { top: 2.0, right: 8.0, bottom: 6.0, left: 8.0 })
+        .into(),
         container(
             column![
                 row![search.width(Length::Fill), providers_btn, manage_btn]
@@ -522,9 +582,9 @@ fn build_model_popover<'a>(
             ]
             .spacing(8)
         )
-        .padding(iced::Padding { top: 2.0, right: 8.0, bottom: 8.0, left: 8.0 }),
-    ]
-    .spacing(6);
+        .padding(iced::Padding { top: 2.0, right: 8.0, bottom: 8.0, left: 8.0 })
+        .into(),
+    ]);
 
     container(boxed_content)
         .style(popover_style)

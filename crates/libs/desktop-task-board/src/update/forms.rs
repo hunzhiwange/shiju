@@ -42,7 +42,7 @@ pub fn task_from_draft(draft: &TaskDraft, initial_status: TaskStatus, main_agent
     task.model = model;
     task.agent =
         draft.agent.clone().or_else(|| Some(main_agent_key.to_string()));
-    task.acp_agent = draft.acp_agent.clone();
+    set_task_executor_selection(&mut task, draft.acp_agent.clone());
     task.reasoning_effort = draft.reasoning_effort;
     task.task_split_mode = draft.task_split_mode;
     task.prompt = draft.prompt.clone();
@@ -56,7 +56,7 @@ pub fn apply_task_draft(task: &mut Task, draft: &TaskDraft, main_agent_key: &str
     task.model = normalize_task_model(&draft.model);
     task.agent =
         draft.agent.clone().or_else(|| Some(main_agent_key.to_string()));
-    task.acp_agent = draft.acp_agent.clone();
+    set_task_executor_selection(task, draft.acp_agent.clone());
     task.reasoning_effort = draft.reasoning_effort;
     task.task_split_mode = draft.task_split_mode;
     task.prompt = draft.prompt.clone();

@@ -13,6 +13,7 @@ use vw_api_agent_scheduler::AgentSchedulerDispatchModeDto;
 
 /// 公开的 TASK_MODEL_AUTO 常量，集中保存该模块复用的稳定取值。
 pub const TASK_MODEL_AUTO: &str = "auto";
+pub use vw_api_agent_scheduler::TASK_MODEL_ACP_NATIVE;
 pub const TASK_AGENT_MAIN: &str = "main";
 /// 公开的 CLAUDE_DEFAULT_MODEL_ALIAS 常量，集中保存该模块复用的稳定取值。
 pub const CLAUDE_DEFAULT_MODEL_ALIAS: &str = "default";

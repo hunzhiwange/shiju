@@ -144,7 +144,8 @@ pub fn task_metadata_patch_for_gateway(
             "auto_promote_delay_ms": task.auto_promote_delay_ms,
             "task_split_mode": task.task_split_mode.to_string_key(),
         })),
-        metadata_remove_keys: Vec::new(),
+        metadata_remove_keys: task.acp_agent.is_none().then(|| "acp_agent".to_owned())
+            .into_iter().collect(),
         label_ids: None,
         property_changes: Default::default(),
     }

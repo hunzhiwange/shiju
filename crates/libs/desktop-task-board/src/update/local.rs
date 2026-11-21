@@ -483,11 +483,18 @@ pub fn update_local(
         }
         TaskBoardMessage::UpdateEditingTaskExecutor(executor) => {
             crate::draft::set_draft_executor_selection(state.draft, executor);
+            if state.draft.acp_agent.is_some() {
+                state.draft.agent = Some(main_agent_key.to_owned());
+            }
             (*state.executor_popover) = false;
         }
         TaskBoardMessage::UpdateDraftExecutor(executor) => {
-            crate::draft::set_draft_executor_selection(state.draft, executor.clone());
-            (*state.last_acp_agent) = executor;
+            crate::draft::set_draft_executor_selection(state.draft, executor);
+            if state.draft.acp_agent.is_some() {
+                state.draft.agent = Some(main_agent_key.to_owned());
+            }
+            (*state.last_acp_agent) = state.draft.acp_agent.clone();
+            (*state.last_model).clone_from(&state.draft.model);
             (*state.executor_popover) = false;
         }
         TaskBoardMessage::CreateTaskCancelled => {

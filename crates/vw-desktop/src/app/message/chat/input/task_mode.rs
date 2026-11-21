@@ -52,6 +52,9 @@ pub(super) fn handle_task_mode_executor_changed(
 
  let runtime = app.current_session_runtime_mut();
  domain::handle_task_mode_executor_changed(&mut runtime.task_mode_executor, executor);
+ if runtime.task_mode_executor.is_none() && runtime.task_mode_model == desktop_task_model::TASK_MODEL_ACP_NATIVE {
+     runtime.task_mode_model = desktop_task_model::TASK_MODEL_AUTO.to_owned();
+ }
  Task::none()
 }
 pub(super) fn handle_task_mode_reasoning_effort_changed(

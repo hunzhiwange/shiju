@@ -51,6 +51,9 @@ pub fn set_bulk_executor(tasks: &mut [Task], executor: Option<String>) {
     for task in tasks {
         let previous_executor = task_acp_agent_label(task.acp_agent.as_deref());
         set_task_executor_selection(task, executor.clone());
+        if task.acp_agent.is_some() {
+            task.agent = Some(desktop_task_model::TASK_AGENT_MAIN.to_owned());
+        }
         task.add_localized_log(
             "批量设置 ACP 智能体: %s -> %s",
             vec![

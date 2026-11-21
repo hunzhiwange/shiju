@@ -11,7 +11,7 @@ struct ModelFixture {
 impl ModelFixture {
     fn view(&self) -> SelectorView<'_> {
         SelectorView {
-            draft_model: "auto",
+            draft_model: "auto", draft_acp_agent: None, bulk_has_acp_tasks: false,
             bulk_model: &self.task_board_bulk_model_input,
             task_board_model_popover: false,
             task_board_bulk_model_popover: self.task_board_bulk_model_popover,

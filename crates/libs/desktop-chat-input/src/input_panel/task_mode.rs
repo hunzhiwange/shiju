@@ -30,7 +30,7 @@ use super::styles::{
 };
 use desktop_ui_controls::overlays::AboveOverlay;
 use desktop_settings_providers::state::ProviderModelsSummary;
-use desktop_task_model::TaskSplitMode;
+use desktop_task_model::{TASK_MODEL_ACP_NATIVE, TASK_MODEL_AUTO, TaskSplitMode};
 #[derive(Debug, Clone)]
 pub enum Message {
  PriorityChanged(String), ModelChanged(String), TaskSplitModeChanged(TaskSplitMode),
@@ -156,10 +156,31 @@ pub fn task_mode_form<'a>(
     .style(settings_text_input_style)
     .width(Length::Fixed(180.0));
 
+    let model_control: Element<'_, Message> = if task_mode_executor.is_some() {
+        let cli_local = task_mode_model == TASK_MODEL_ACP_NATIVE;
+        let client = i18n.__("客户端模型");
+        let native = i18n.__("智能体原生模型");
+        let source = settings_select(
+            vec![client, native],
+            Some(if cli_local { native } else { client }),
+            move |label| Message::ModelChanged(
+                if label == native { TASK_MODEL_ACP_NATIVE } else { TASK_MODEL_AUTO }.to_owned(),
+            ),
+        )
+        .width(Length::Fixed(180.0));
+        let mut controls = column![source].spacing(6);
+        if !cli_local {
+            controls = controls.push(model_input);
+        }
+        controls.into()
+    } else {
+        model_input.into()
+    };
+
     let model_row = row![
         settings_field_label(input.i18n.__("大模型")),
         Space::new().width(Length::Fill),
-        model_input
+        model_control
     ]
     .align_y(Alignment::Center)
     .spacing(10);

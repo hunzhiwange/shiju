@@ -2,6 +2,8 @@
 use std::path::Path;
 use anyhow::Result;
 use serde_json::{Map, Value, json};
+use vw_api_acp_model::acp_model_source::AcpModelSource;
+use vw_api_agent_scheduler::TASK_MODEL_ACP_NATIVE;
 use vw_api_chat::chat::GatewayChatStreamRequest;
 use vw_api_transport::common::TimestampMs;
 use crate::domain::{RunId, TaskId};
@@ -119,8 +121,11 @@ pub fn truncate_log_text(value: &str, max_chars: usize) -> String {
 pub fn gateway_local_agent_stream_request(
     request: &LocalAgentExecutionRequest,
 ) -> GatewayChatStreamRequest {
+    let native_model = request.model.as_deref() == Some(TASK_MODEL_ACP_NATIVE);
+    let cli_local = native_model && request.acp_agent.is_some();
+    let agent = if cli_local { None } else { request.agent.as_deref() };
     let mut options = gateway_local_agent_options(request.workspace.path.clone());
-    if let Some(agent) = request.agent.as_deref() {
+    if let Some(agent) = agent {
         options.insert("agent".to_string(), json!(agent));
     }
     if request.acp_agent.is_some() {
@@ -134,16 +139,20 @@ pub fn gateway_local_agent_stream_request(
     }
 
     GatewayChatStreamRequest {
-        acp_model_source: vw_api_acp_model::acp_model_source::AcpModelSource::SessionModel,
+        acp_model_source: if cli_local {
+            AcpModelSource::CliLocal
+        } else {
+            AcpModelSource::SessionModel
+        },
         session_id: Some(
             format!("agent-scheduler-{}-{}", request.task_id.as_str(), request.run_id.as_str())
                 .into(),
         ),
         messages: vec![json!({ "role": "user", "content": request.prompt.clone() })],
         system: None,
-        model: request.model.clone(),
+        model: request.model.clone().filter(|_| !native_model),
         reasoning_effort: request.reasoning_effort,
-        agent: request.agent.clone().or_else(|| {
+        agent: agent.map(str::to_owned).or_else(|| {
             request.acp_agent.as_ref().map(|backend| format!("acp-{backend}"))
         }),
         allowed_tools: None,

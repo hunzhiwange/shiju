@@ -110,6 +110,16 @@ pub async fn do_stream_request_acp<H: Host>(
                 message: format!("acp command not configured for model {}", model.api.id),
             })
         })?;
+    use vw_api_acp_model::acp_model_source::{AcpModelSource, AcpModelSourceCapability};
+    if source == AcpModelSource::CliLocal
+        && !super::model_source::drivers::capabilities(&acp_agent_name).iter().any(|capability| {
+            matches!(capability, AcpModelSourceCapability::Supported { source: AcpModelSource::CliLocal })
+        })
+    {
+        return Err(acp_option_error(
+            "This CLI has no verified entry point for the selected model source",
+        ));
+    }
     H::reject_expanded(&acp_agent_name, chat_messages)?;
     let selected_model = vw_api_acp_model::acp_model_source::AcpSessionModelSelection {
         source,

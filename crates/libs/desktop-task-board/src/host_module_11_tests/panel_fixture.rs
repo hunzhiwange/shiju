@@ -163,7 +163,7 @@ pub(super) fn build_task_panel(
         app.input(),
         edit,
         crate::model_selector::SelectorView {
-            draft_model: &app.task_board_draft.model,
+            draft_model: &app.task_board_draft.model, draft_acp_agent: None, bulk_has_acp_tasks: false,
             bulk_model: "auto",
             task_board_model_popover: false,
             task_board_bulk_model_popover: false,
@@ -261,7 +261,7 @@ fn board(app: &PanelFixture) -> iced::Element<'_, crate::panel::PanelMessage> {
             model: Rc::new(|| {
                 crate::model_selector::build_bulk_model_selector(
                     crate::model_selector::SelectorView {
-                        draft_model: &app.task_board_draft.model,
+                        draft_model: &app.task_board_draft.model, draft_acp_agent: None, bulk_has_acp_tasks: false,
                         bulk_model: "auto",
                         task_board_model_popover: false,
                         task_board_bulk_model_popover: false,

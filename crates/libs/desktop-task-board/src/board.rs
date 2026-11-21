@@ -783,7 +783,12 @@ fn build_task_card<'a, M: Clone + From<TaskBoardMessage> + 'a>(
     let title_row = row![container(title_text).width(Length::Fill)].width(Length::Fill);
 
     let auto_model = task.model == "auto";
-    let model_icon_svg = if auto_model {
+    let model_icon_svg = if task.model == desktop_task_model::TASK_MODEL_ACP_NATIVE {
+        svg::Svg::<iced::Theme>::new(assets::get_icon(Icon::Hexagon))
+            .width(14)
+            .height(14)
+            .style(|theme: &Theme, _| svg::Style { color: Some(theme.palette().text) })
+    } else if auto_model {
         svg::Svg::<iced::Theme>::new(auto_icon())
             .width(Length::Fixed(14.0))
             .height(Length::Fixed(14.0))
@@ -802,7 +807,7 @@ fn build_task_card<'a, M: Clone + From<TaskBoardMessage> + 'a>(
 
     let model_row = row![
         model_icon_svg,
-        text(&task.model).size(10).style(|theme: &Theme| iced::widget::text::Style {
+        text(crate::model_selector::model_display_label(desktop_i18n::I18n::new(app.desktop_locale), &task.model)).size(10).style(|theme: &Theme| iced::widget::text::Style {
             color: Some(theme.extended_palette().background.base.text)
         }),
     ]

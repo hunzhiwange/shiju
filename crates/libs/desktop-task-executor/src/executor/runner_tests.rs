@@ -1126,6 +1126,26 @@ fn execute_task_plan_reports_missing_prompt_md_explicitly() {
 
 #[cfg(not(target_arch = "wasm32"))]
 #[test]
+fn gateway_task_stream_request_uses_selected_acp_backend_native_model() {
+    use vw_api_acp_model::acp_model_source::AcpModelSource;
+
+    let request = super::gateway_task_stream_request(
+        "task-plan-session",
+        "/tmp/project",
+        desktop_task_model::TASK_MODEL_ACP_NATIVE,
+        "plan task",
+        Some("reviewer".to_owned()),
+        Some("codex".to_owned()),
+        None,
+        super::GatewayPromptSessionMode::Fresh,
+    );
+    assert_eq!(request.agent.as_deref(), Some("acp-codex"));
+    assert_eq!(request.acp_model_source, AcpModelSource::CliLocal);
+    assert_eq!(request.model, None);
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+#[test]
 fn gateway_task_stream_request_maps_delegate_route_and_auto_model() {
     let request = super::gateway_task_stream_request(
         "task-session",

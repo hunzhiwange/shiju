@@ -361,18 +361,27 @@ fn gateway_task_stream_request(
     reasoning_effort: Option<vw_api_chat_identity::ReasoningEffortDto>,
     session_mode: GatewayPromptSessionMode,
 ) -> gateway_chat_stream::GatewayChatStreamRequest {
+    use vw_api_acp_model::acp_model_source::AcpModelSource;
+
     let acp_enabled = acp_agent.is_some();
+    let native_model = model == desktop_task_model::TASK_MODEL_ACP_NATIVE;
+    let cli_local = native_model && acp_enabled;
+    // A CLI-local selection explicitly targets the selected ACP backend.
+    let agent = if cli_local { None } else { agent };
     let mut options = gateway_prompt_options_for_mode(execution_path, acp_enabled, session_mode);
     if agent.is_some() {
         options.insert("agent".to_string(), json!(agent));
     }
     gateway_chat_stream::GatewayChatStreamRequest {
-        acp_model_source:
-            vw_api_acp_model::acp_model_source::AcpModelSource::SessionModel,
+        acp_model_source: if cli_local {
+            AcpModelSource::CliLocal
+        } else {
+            AcpModelSource::SessionModel
+        },
         session_id: Some(session_id.into()),
         messages: vec![json!({ "role": "user", "content": prompt })],
         system: None,
-        model: (model != "auto").then(|| model.to_string()),
+        model: (!native_model && model != "auto").then(|| model.to_string()),
         reasoning_effort,
         agent: agent.or_else(|| acp_agent.map(|backend| format!("acp-{backend}"))),
         allowed_tools: None,

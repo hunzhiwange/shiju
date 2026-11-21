@@ -144,6 +144,23 @@ fn acp_background_approval_scheduler_keeps_session_isolation() -> Result<()> {
     Ok(())
 }
 #[test]
+fn gateway_stream_request_uses_selected_acp_backend_native_model() -> Result<()> {
+    use vw_api_acp_model::acp_model_source::AcpModelSource;
+
+    let mut request = execution_request(Some("reviewer"), Some("codex"))?;
+    request.model = Some(vw_api_agent_scheduler::TASK_MODEL_ACP_NATIVE.to_owned());
+
+    let stream = gateway_local_agent_stream_request(&request);
+    assert_eq!(stream.agent.as_deref(), Some("acp-codex"));
+    assert_eq!(stream.acp_model_source, AcpModelSource::CliLocal);
+    assert_eq!(stream.model, None);
+    let options = stream.options.expect("gateway options");
+    assert!(options.get("agent").is_none());
+    assert_eq!(options["full_access"], false);
+    Ok(())
+}
+
+#[test]
 fn gateway_stream_request_without_agent_or_acp_keeps_minimal_options() -> Result<()> {
     let request = execution_request(None, None)?;
 

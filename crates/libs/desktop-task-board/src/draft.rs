@@ -44,6 +44,9 @@ pub fn normalize_task_acp_agent(value: Option<&str>) -> Option<String> {
 /// 返回值表达处理结果；失败时保留错误信息给上层界面或调度逻辑。
 pub fn set_draft_executor_selection(draft: &mut TaskDraft, value: Option<String>) {
     draft.acp_agent = normalize_task_acp_agent(value.as_deref());
+    if draft.acp_agent.is_none() && draft.model == desktop_task_model::TASK_MODEL_ACP_NATIVE {
+        draft.model = desktop_task_model::TASK_MODEL_AUTO.to_owned();
+    }
 }
 
 /// 执行 set_task_executor_selection 对应的领域操作。
@@ -52,6 +55,9 @@ pub fn set_draft_executor_selection(draft: &mut TaskDraft, value: Option<String>
 /// 返回值表达处理结果；失败时保留错误信息给上层界面或调度逻辑。
 pub fn set_task_executor_selection(task: &mut Task, value: Option<String>) {
     task.acp_agent = normalize_task_acp_agent(value.as_deref());
+    if task.acp_agent.is_none() && task.model == desktop_task_model::TASK_MODEL_ACP_NATIVE {
+        task.model = desktop_task_model::TASK_MODEL_AUTO.to_owned();
+    }
 }
 
 /// 执行 initial_task_status_for_workflow_id 对应的领域操作。

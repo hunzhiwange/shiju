@@ -81,6 +81,12 @@ pub fn update_bulk(
 
             let model =
                 crate::bulk::normalized_bulk_model_input(&(*state.task_board_bulk_model_input));
+            if model == desktop_task_model::TASK_MODEL_ACP_NATIVE {
+                tasks.retain(|task| task.acp_agent.is_some());
+                if tasks.is_empty() {
+                    return Ok((BulkEffect::None, sync_logs));
+                }
+            }
             (*state.task_board_bulk_model_input) = model.clone();
             (*state.task_board_bulk_reasoning_effort) =
                 crate::update::model::validated_reasoning_effort(

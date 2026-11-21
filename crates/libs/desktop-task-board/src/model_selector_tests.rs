@@ -276,7 +276,7 @@ struct Fixture {
 impl Fixture {
     fn view(&self) -> super::SelectorView<'_> {
         super::SelectorView {
-            draft_model: &self.draft_model, bulk_model: &self.task_board_bulk_model_input,
+            draft_model: &self.draft_model, draft_acp_agent: None, bulk_has_acp_tasks: false, bulk_model: &self.task_board_bulk_model_input,
             task_board_model_popover: self.task_board_model_popover,
             task_board_bulk_model_popover: self.task_board_bulk_model_popover,
             desktop_locale: config_ui::DesktopLocale::SimplifiedChinese,

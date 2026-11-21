@@ -313,7 +313,7 @@ fn properties<'a>(
         field(i18n.__("项目"), text(project_name.to_owned()).size(13)),
         field(i18n.__("工作流"), text(workflow_name).size(13)),
         field(i18n.__("优先级"), text(format!("P{}", task.priority)).size(13)),
-        field(i18n.__("模型"), text(&task.model).size(13)),
+        field(i18n.__("模型"), text(desktop_task_board::model_selector::model_display_label(i18n, &task.model)).size(13)),
     ]
     .spacing(12)
     .width(Length::Fill);

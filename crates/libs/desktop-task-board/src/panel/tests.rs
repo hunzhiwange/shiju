@@ -398,7 +398,7 @@ fn import_field_builds_each_template_format_and_priority_fallback() {
 
 
 fn test_panel(app: &App, edit: bool) -> Element<'_, Message> {
- let selector = crate::model_selector::SelectorView { draft_model: &app.task_board_draft.model, bulk_model: "", task_board_model_popover: false, task_board_bulk_model_popover: false, desktop_locale: app.desktop_locale, model_settings: &app.model_settings };
+ let selector = crate::model_selector::SelectorView { draft_model: &app.task_board_draft.model, draft_acp_agent: None, bulk_has_acp_tasks: false, bulk_model: "", task_board_model_popover: false, task_board_bulk_model_popover: false, desktop_locale: app.desktop_locale, model_settings: &app.model_settings };
  let executor = executor_selector::ExecutorView { task_board_draft: &app.task_board_draft, task_board_bulk_acp_agent: &None, task_board_executor_popover: false, task_board_bulk_executor_popover: false, desktop_locale: app.desktop_locale, acp_agents: &[] };
  build_task_panel(app.view(), edit, PanelSlots { model: Some(crate::model_selector::build_model_selector(selector, edit).map(Message::Model)), executor: Some(executor_selector::build_executor_selector(executor, edit).map(Message::TaskBoard)), reasoning: reasoning_selector::build_reasoning_effort_selector(reasoning_selector::ReasoningView { draft: &app.task_board_draft, bulk_agent: None, bulk_effort: None, model_options: &[None], desktop_locale: app.desktop_locale }, edit).map(|e| e.map(Message::TaskBoard)) })
 }

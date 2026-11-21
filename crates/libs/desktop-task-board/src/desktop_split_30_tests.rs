@@ -53,6 +53,26 @@ fn task_metadata_patch_trims_workflow_and_copies_task_fields() {
 }
 
 #[test]
+fn clearing_acp_removes_backend_and_resets_native_model() {
+    let mut task = task("T-acp", TaskStatus::Pending);
+    task.acp_agent = Some("codex".to_owned());
+    task.model = desktop_task_model::TASK_MODEL_ACP_NATIVE.to_owned();
+
+    crate::draft::set_task_executor_selection(&mut task, None);
+    let patch = crate::bulk::task_metadata_patch_for_gateway(
+        &task,
+        "workflow",
+        "pending".to_owned(),
+        AgentTaskStatusDto::Queued,
+        None,
+    );
+
+    assert_eq!(patch.acp_agent, None);
+    assert_eq!(patch.metadata_remove_keys, vec!["acp_agent".to_owned()]);
+    assert_eq!(patch.model.as_deref(), Some(desktop_task_model::TASK_MODEL_AUTO));
+}
+
+#[test]
 fn task_metadata_patch_copies_error_pause_and_worktree_fields() {
     let mut task = task("T-worktree", TaskStatus::PrSubmitted);
     task.last_error = Some("merge conflict".to_string());

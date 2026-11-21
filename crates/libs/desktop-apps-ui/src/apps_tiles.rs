@@ -30,7 +30,7 @@ pub enum Event {
     None, OpenMostRecent, OpenFolder, OpenProjectsSettings, ToggleWebLinksMenu,
     OpenWebUrlWithTitleAndSize(String, String, Option<i32>, Option<i32>),
     OpenUrlExternal(String), WebBookmarkEditStart(usize), OpenKnowledge,
-    OpenWorkflowTool, OpenWorkflowManager, OpenThirdPartyAgents, AppsSearchChanged(String),
+    OpenWorkflowTool, OpenThirdPartyAgents, AppsSearchChanged(String),
 }
 use Event as Message;
 use iced::widget::{Space, button, column, container, row, stack, text, text_input};
@@ -72,7 +72,7 @@ fn compute_tile_columns(window_width: f32, tile_width: f32, gap: f32) -> usize {
 
 #[cfg(test)]
 fn builtin_tile_titles() -> Vec<&'static str> {
-    vec!["项目管理", "添加网址", "知识库", "工作流", "任务编排", "第三方智能体"]
+    vec!["项目管理", "添加网址", "知识库", "工作流", "第三方智能体"]
 }
 
 /// 渲染应用瓦片网格
@@ -202,17 +202,6 @@ pub fn render_tiles_grid<'a>(window_width: f32, query: &str, i18n: I18n, bookmar
             Color::from_rgb8(0x15, 0x8E, 0xA5),
             vec![("打开", msg(Message::OpenWorkflowTool))],
             msg(Message::OpenWorkflowTool),
-        ));
-    }
-
-    if matches("任务编排") {
-        tiles.push(ui::tile(
-            i18n,
-            Icon::GearWideConnected,
-            i18n.__("任务编排").to_string(),
-            Color::from_rgb8(0x28, 0x8F, 0x61),
-            vec![("打开", msg(Message::OpenWorkflowManager))],
-            msg(Message::OpenWorkflowManager),
         ));
     }
 

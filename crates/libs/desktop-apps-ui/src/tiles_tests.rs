@@ -76,7 +76,7 @@ fn render_tiles_grid_arranges_builtin_tiles_across_complete_and_partial_rows() {
     let mut app = test_app();
     app.window_size = (800.0, 700.0);
 
-    assert_eq!(grid_row_tile_counts(&app, false), vec![4, 2]);
+    assert_eq!(grid_row_tile_counts(&app, false), vec![4, 1]);
 }
 
 #[test]

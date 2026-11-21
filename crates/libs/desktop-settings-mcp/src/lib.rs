@@ -197,8 +197,13 @@ pub(crate) fn tools_preview_section<Message: Clone + 'static>(
     }
 
     if inspect.tools.is_empty() {
+        let message = if inspect.name == config_tools::RUSTCODEGRAPH_MCP_SERVER_ID {
+            "未发现工具。如果当前项目尚未建立索引，请先用 RustCodeGraph 执行 init -i。"
+        } else {
+            "未发现工具"
+        };
         return content
-            .push(text(tr(locale, "未发现工具")).size(11).style(settings_muted_text_style))
+            .push(text(tr(locale, message)).size(11).style(settings_muted_text_style))
             .into();
     }
 

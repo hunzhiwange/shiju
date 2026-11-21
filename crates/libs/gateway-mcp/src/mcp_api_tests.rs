@@ -52,6 +52,24 @@ async fn mcp_inspect_gets_gateway_inspection_response() {
 }
 
 #[tokio::test]
+async fn mcp_inspect_sends_project_directory_and_server_filter() {
+    let server = test_support::server(vec![(200, json!({"servers":[]}))]);
+    server
+        .client()
+        .mcp_inspect_in(Some("/workspace/my project"), Some("rustcodegraph"))
+        .await
+        .expect("scoped MCP inspect");
+
+    let request = server.take_request();
+    assert_eq!(request.method, "GET");
+    assert_eq!(
+        request.path,
+        "/v1/mcp/inspect?directory=%2Fworkspace%2Fmy+project&server=rustcodegraph"
+    );
+    server.join();
+}
+
+#[tokio::test]
 async fn codex_plugin_compat_t30_client_sends_only_bound_tool_call() {
     let server = test_support::server(vec![(200, json!({"content":[]}))]);
     assert_eq!(

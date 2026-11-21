@@ -11,6 +11,7 @@ fn event(value: page::McpMessage) -> Message {
         page::McpMessage::TabSelected(v0) => McpMessage::TabSelected(v0),
         page::McpMessage::Refresh => McpMessage::Refresh,
         page::McpMessage::InspectRefresh => McpMessage::InspectRefresh,
+        page::McpMessage::Connect(key) => McpMessage::Connect(key),
         page::McpMessage::EditorAction(v0) => McpMessage::EditorAction(v0),
         page::McpMessage::Format => McpMessage::Format,
         page::McpMessage::InsertTemplate => McpMessage::InsertTemplate,

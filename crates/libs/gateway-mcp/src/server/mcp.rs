@@ -8,22 +8,29 @@ use gateway_types::AppState;
 use super::host::McpHost;
 use axum::{
     Json,
-    extract::State,
+    extract::{Query, State},
     http::{HeaderMap, StatusCode},
     response::IntoResponse,
 };
+
+#[derive(Default, serde::Deserialize)]
+pub struct McpInspectQuery {
+    pub server: Option<String>,
+    pub directory: Option<String>,
+}
 
 /// 认证后检查已配置 MCP 服务器并列出连接成功服务器公开的工具。
 pub async fn handle_api_mcp_inspect<H: McpHost, S: Clone, C: Clone, K: Clone>(
     State(state): State<AppState<S, C, K>>,
     headers: HeaderMap,
+    Query(query): Query<McpInspectQuery>,
 ) -> impl IntoResponse {
     if let Err(e) = require_auth(&state, &headers) {
         return e.into_response();
     }
 
     let workspace_dir = state.config.lock().workspace_dir.clone();
-    match H::inspect(&workspace_dir)
+    match H::inspect(&workspace_dir, query.directory.as_deref(), query.server.as_deref())
         .await
     {
         Ok(response) => Json(response).into_response(),

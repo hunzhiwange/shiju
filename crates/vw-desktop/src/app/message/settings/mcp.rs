@@ -26,14 +26,14 @@ fn refresh_task() -> Task<Message> {
     })
 }
 
-fn inspect_task() -> Task<Message> {
-    Task::perform(load_mcp_inspect_async(), |result| {
+fn inspect_task(directory: Option<String>) -> Task<Message> {
+    Task::perform(async move { load_mcp_inspect_async(directory.as_deref(), None).await }, |result| {
         Message::Settings(SettingsMessage::Mcp(McpMessage::Inspected(result)))
     })
 }
 
-fn refresh_all_task() -> Task<Message> {
-    Task::batch(vec![refresh_task(), inspect_task()])
+fn refresh_all_task(directory: Option<String>) -> Task<Message> {
+    Task::batch(vec![refresh_task(), inspect_task(directory)])
 }
 
 fn save_task(mcp_servers: Value) -> Task<Message> {
@@ -106,7 +106,7 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
                     app.mcp_settings.inspect_loading = true;
                     let locale = app.general_settings.desktop_locale;
                     Task::batch([
-                        refresh_all_task(),
+                        refresh_all_task(app.navigation_tabs.project_path.clone()),
                         app.show_success_toast(desktop_i18n::settings_extensions::text(
                             locale,
                             "Chrome DevTools MCP 已安装",
@@ -145,7 +145,7 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
                     app.mcp_settings.inspect_loading = true;
                     let locale = app.general_settings.desktop_locale;
                     Task::batch([
-                        refresh_all_task(),
+                        refresh_all_task(app.navigation_tabs.project_path.clone()),
                         app.show_success_toast(desktop_i18n::settings_extensions::text(
                             locale,
                             "RustCodeGraph MCP 已安装",
@@ -172,6 +172,8 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
         McpMessage::Refresh => LocalMessage::Refresh,
         McpMessage::Loaded(v0) => LocalMessage::Loaded(v0),
         McpMessage::InspectRefresh => LocalMessage::InspectRefresh,
+        McpMessage::Connect(key) => LocalMessage::Connect(key),
+        McpMessage::Connected(key, result) => LocalMessage::Connected(key, result),
         McpMessage::Inspected(v0) => LocalMessage::Inspected(v0),
         McpMessage::EditorAction(v0) => LocalMessage::EditorAction(v0),
         McpMessage::Format => LocalMessage::Format,
@@ -200,12 +202,17 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
         McpMessage::Save => LocalMessage::Save,
         McpMessage::Saved(v0) => LocalMessage::Saved(v0),
     };
+    let directory = app.navigation_tabs.project_path.clone();
     match desktop_settings_mcp::configuration_update::update(&mut app.mcp_settings.page, local) {
         Effect::None => Task::none(),
-        Effect::Inspect => inspect_task(),
-        Effect::RefreshAll => refresh_all_task(),
+        Effect::Inspect => inspect_task(directory),
+        Effect::InspectServer { key, name } => Task::perform(
+            async move { (key, load_mcp_inspect_async(directory.as_deref(), Some(&name)).await) },
+            |(key, result)| Message::Settings(SettingsMessage::Mcp(McpMessage::Connected(key, result))),
+        ),
+        Effect::RefreshAll => refresh_all_task(directory),
         Effect::RefreshAllAndCatalog => Task::batch([
-            refresh_all_task(),
+            refresh_all_task(directory),
             super::mcp_management_list::update(
                 app,
                 super::mcp_management_list::CatalogMessage::Refresh,

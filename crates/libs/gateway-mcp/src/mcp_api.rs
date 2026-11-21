@@ -20,6 +20,18 @@ impl GatewayMcpClient {
 
     /// Inspect configured MCP servers and their currently exposed tools.
     pub async fn mcp_inspect(&self) -> Result<McpInspectResponse, String> {
-        self.transport.get_json("/v1/mcp/inspect", &[]).await
+        self.mcp_inspect_in(None, None).await
+    }
+
+    pub async fn mcp_inspect_in(
+        &self,
+        directory: Option<&str>,
+        server: Option<&str>,
+    ) -> Result<McpInspectResponse, String> {
+        let mut query = gateway_http::directory_query(directory);
+        if let Some(name) = server {
+            query.push(("server".into(), name.into()));
+        }
+        self.transport.get_json("/v1/mcp/inspect", &query).await
     }
 }

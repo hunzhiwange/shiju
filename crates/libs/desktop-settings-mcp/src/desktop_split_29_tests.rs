@@ -110,6 +110,26 @@ fn navigation_refresh_and_inspect_messages_update_loading_and_error_state() {
 }
 
 #[test]
+fn connecting_opens_the_selected_preview_and_reports_failure() {
+    use crate::configuration_update::Effect;
+
+    let mut app = app();
+    let key = "global:chrome-devtools".to_owned();
+    let effect = update(&mut app, McpMessage::Connect(key.clone()));
+    assert!(matches!(
+        effect,
+        Effect::InspectServer { key: selected, name }
+            if selected == key && name == "chrome-devtools"
+    ));
+    assert!(app.expanded_previews.contains(&key));
+    assert_eq!(app.connecting.as_deref(), Some(key.as_str()));
+
+    let _ = update(&mut app, McpMessage::Connected(key, Err("connection failed".into())));
+    assert!(app.connecting.is_none());
+    assert_eq!(app.inspect_error.as_deref(), Some("connection failed"));
+}
+
+#[test]
 fn template_panel_and_form_messages_update_local_new_server_state() {
     let mut app = app();
     app.new_server_expanded = false;

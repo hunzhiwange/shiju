@@ -8,7 +8,6 @@ pub fn configured_server_panel<'a, Message: Clone + 'static>(event: fn(McpMessag
     preview_key: String,
     preview_expanded: bool,
     controls_enabled: bool,
-    preview_enabled: bool,
     previewing: bool,
 ) -> Element<'a, Message> {
     let checkbox_label = if server.enabled { tr(locale, "启用") } else { tr(locale, "禁用") };
@@ -60,12 +59,19 @@ pub fn configured_server_panel<'a, Message: Clone + 'static>(event: fn(McpMessag
         ));
     }
 
-    let preview_label = if previewing { tr(locale, "预览中...") } else { tr(locale, "预览") };
+    let connect_label = if previewing { tr(locale, "正在连接 MCP…") } else { tr(locale, "连接") };
+    let connect_message =
+        (controls_enabled && server.enabled).then(|| event(McpMessage::Connect(preview_key.clone())));
     let preview_toggle_label =
-        if preview_expanded { tr(locale, "收起") } else { tr(locale, "展开") };
-    let preview_toggle_message = Some(event(
-        McpMessage::PreviewExpandedToggled(preview_key),
-    ));
+        if preview_expanded { tr(locale, "收起") } else { tr(locale, "预览") };
+    let preview_toggle_message = if !preview_expanded
+        && inspect.is_none()
+        && let Some(message) = &connect_message
+    {
+        Some(message.clone())
+    } else {
+        Some(event(McpMessage::PreviewExpandedToggled(preview_key)))
+    };
     let edit_message = controls_enabled.then(|| {
         event(McpMessage::ServerEditRequested(server_index))
     });
@@ -86,7 +92,7 @@ pub fn configured_server_panel<'a, Message: Clone + 'static>(event: fn(McpMessag
         .spacing(4),
         badges.wrap(),
         actions
-            .push(toolbar_button(preview_label, preview_action_message(event, preview_enabled)))
+            .push(toolbar_button(connect_label, connect_message))
             .push(toolbar_button(preview_toggle_label, preview_toggle_message))
             .spacing(8)
             .align_y(Alignment::Center)
@@ -94,12 +100,7 @@ pub fn configured_server_panel<'a, Message: Clone + 'static>(event: fn(McpMessag
     ]
     .spacing(12);
     if preview_expanded {
-        content = content.push(settings_divider()).push(capability_preview(event,
-            locale,
-            inspect,
-            preview_enabled,
-            previewing,
-        ));
+        content = content.push(settings_divider()).push(capability_preview(locale, inspect, previewing));
     }
 
     settings_panel(content).into()
@@ -111,7 +112,6 @@ pub fn runtime_server_panel<'a, Message: Clone + 'static>(event: fn(McpMessage) 
     preview_key: String,
     preview_expanded: bool,
     controls_enabled: bool,
-    preview_enabled: bool,
     previewing: bool,
 ) -> Element<'_, Message> {
     let checkbox_label = if server.enabled { tr(locale, "启用") } else { tr(locale, "禁用") };
@@ -159,9 +159,11 @@ pub fn runtime_server_panel<'a, Message: Clone + 'static>(event: fn(McpMessage) 
         ));
     }
 
-    let preview_label = if previewing { tr(locale, "预览中...") } else { tr(locale, "预览") };
+    let connect_label = if previewing { tr(locale, "正在连接 MCP…") } else { tr(locale, "连接") };
+    let connect_message =
+        (controls_enabled && server.enabled).then(|| event(McpMessage::Connect(preview_key.clone())));
     let preview_toggle_label =
-        if preview_expanded { tr(locale, "收起") } else { tr(locale, "展开") };
+        if preview_expanded { tr(locale, "收起") } else { tr(locale, "预览") };
     let preview_toggle_message = Some(event(
         McpMessage::PreviewExpandedToggled(preview_key),
     ));
@@ -175,7 +177,7 @@ pub fn runtime_server_panel<'a, Message: Clone + 'static>(event: fn(McpMessage) 
         badges.wrap(),
         row![
             enabled_checkbox,
-            toolbar_button(preview_label, preview_action_message(event, preview_enabled)),
+            toolbar_button(connect_label, connect_message),
             toolbar_button(preview_toggle_label, preview_toggle_message),
         ]
         .spacing(8)
@@ -184,12 +186,7 @@ pub fn runtime_server_panel<'a, Message: Clone + 'static>(event: fn(McpMessage) 
     ]
     .spacing(12);
     if preview_expanded {
-        content = content.push(settings_divider()).push(capability_preview(event,
-            locale,
-            Some(server),
-            preview_enabled,
-            previewing,
-        ));
+        content = content.push(settings_divider()).push(capability_preview(locale, Some(server), previewing));
     }
 
     settings_panel(content).into()

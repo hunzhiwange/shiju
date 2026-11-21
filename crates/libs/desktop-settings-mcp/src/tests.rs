@@ -197,9 +197,9 @@ fn status_and_toolbar_elements_build_for_enabled_disabled_and_active_tabs() {
 fn preview_sections_cover_empty_error_hidden_and_disabled_branches() {
     let mut server = inspected_server("demo", McpConnectionStatusDto::Connected);
     let _: iced::Element<'static, Message> =
-        empty_preview(identity, config_ui::DesktopLocale::SimplifiedChinese, true, false);
+        empty_preview(config_ui::DesktopLocale::SimplifiedChinese, false);
     let _: iced::Element<'static, Message> =
-        empty_preview(identity, config_ui::DesktopLocale::SimplifiedChinese, false, true);
+        empty_preview(config_ui::DesktopLocale::SimplifiedChinese, true);
     let _: iced::Element<'static, Message> =
         tools_preview_section(config_ui::DesktopLocale::SimplifiedChinese, &server);
 
@@ -241,24 +241,21 @@ fn preview_sections_cover_empty_error_hidden_and_disabled_branches() {
     );
 
     let mut disabled = inspected_server("disabled", McpConnectionStatusDto::Disabled);
-    let _: iced::Element<'static, Message> = capability_preview(identity,
+    let _: iced::Element<'static, Message> = capability_preview(
         config_ui::DesktopLocale::SimplifiedChinese,
         Some(&disabled),
-        true,
         false,
     );
     disabled.connection_status = McpConnectionStatusDto::Error;
     disabled.error = Some("server failed".repeat(12));
-    let _: iced::Element<'static, Message> = capability_preview(identity,
+    let _: iced::Element<'static, Message> = capability_preview(
         config_ui::DesktopLocale::SimplifiedChinese,
         Some(&disabled),
-        true,
-        true,
+        false,
     );
-    let _: iced::Element<'static, Message> = capability_preview(identity,
+    let _: iced::Element<'static, Message> = capability_preview(
         config_ui::DesktopLocale::SimplifiedChinese,
         None,
-        true,
         false,
     );
 }

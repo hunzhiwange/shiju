@@ -94,6 +94,11 @@ async fn handle_api_mcp_inspect_returns_disabled_server_metadata() {
                 "timeout": 1,
                 "allowedTools": ["search"],
                 "deniedTools": ["delete"]
+            }, {
+                "name": "unselected",
+                "type": "http",
+                "url": "http://127.0.0.1:9/mcp",
+                "enabled": false
             }]
         }),
     );
@@ -101,6 +106,7 @@ async fn handle_api_mcp_inspect_returns_disabled_server_metadata() {
     let response = handle_api_mcp_inspect(
         State(state(config_for_workspace(&workspace), false, &[])),
         HeaderMap::new(),
+        Query(McpInspectQuery { server: Some("docs".into()), ..Default::default() }),
     )
     .await
     .into_response();
@@ -108,6 +114,7 @@ async fn handle_api_mcp_inspect_returns_disabled_server_metadata() {
     assert_eq!(response.status(), StatusCode::OK);
     let body = response_json(response).await;
     let server = &body["servers"][0];
+    assert_eq!(body["servers"].as_array().unwrap().len(), 1);
     assert_eq!(server["name"], "docs");
     assert_eq!(server["transport"], "http");
     assert_eq!(server["enabled"], false);
@@ -126,6 +133,7 @@ async fn handle_api_mcp_inspect_rejects_missing_bearer_when_pairing_required() {
     let response = handle_api_mcp_inspect(
         State(state(config_for_workspace(&workspace), true, &["paired"])),
         HeaderMap::new(),
+        Query(McpInspectQuery::default()),
     )
     .await
     .into_response();
@@ -144,6 +152,7 @@ async fn handle_api_mcp_inspect_maps_invalid_workspace_config_to_bad_request() {
     let response = handle_api_mcp_inspect(
         State(state(config_for_workspace(&workspace), false, &[])),
         HeaderMap::new(),
+        Query(McpInspectQuery::default()),
     )
     .await
     .into_response();

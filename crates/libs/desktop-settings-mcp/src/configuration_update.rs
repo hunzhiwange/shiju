@@ -21,6 +21,8 @@ pub enum Message {
     Refresh,
     Loaded(Result<serde_json::Value, String>),
     InspectRefresh,
+    Connect(String),
+    Connected(String, Result<vw_api_mcp_inspect::McpInspectResponse, String>),
     Inspected(Result<vw_api_mcp_inspect::McpInspectResponse, String>),
     EditorAction(text_editor::Action),
     Format,
@@ -54,6 +56,7 @@ pub enum Message {
 pub enum Effect {
     None,
     Inspect,
+    InspectServer { key: String, name: String },
     RefreshAll,
     RefreshAllAndCatalog,
     Save(Value),
@@ -120,6 +123,60 @@ pub fn update(app: &mut crate::state::State, message: Message) -> Effect {
             app.inspect_loading = true;
             app.inspect_error = None;
             Effect::Inspect
+        }
+        Message::Connect(key) => {
+            if app.loading || app.saving || app.connecting.is_some() {
+                return Effect::None;
+            }
+            let Some((_, name)) = key.split_once(':') else {
+                return Effect::None;
+            };
+            let name = name.to_owned();
+            app.connecting = Some(key.clone());
+            app.expanded_previews.insert(key.clone());
+            app.inspect_error = None;
+            Effect::InspectServer { key, name }
+        }
+        Message::Connected(key, result) => {
+            if app.connecting.as_ref() != Some(&key) {
+                return Effect::None;
+            }
+            app.connecting = None;
+            let Some((_, name)) = key.split_once(':') else {
+                return Effect::None;
+            };
+            let found = match result {
+                Ok(response) => response
+                    .servers
+                    .into_iter()
+                    .find(|server| server.name == name)
+                    .ok_or_else(|| format!("当前运行时配置中找不到 MCP 服务器 {name}")),
+                Err(error) => Err(error),
+            };
+            match found {
+                Ok(server) => {
+                    let inspect = app.inspect.get_or_insert_with(|| {
+                        vw_api_mcp_inspect::McpInspectResponse { servers: Vec::new() }
+                    });
+                    if let Some(existing) =
+                        inspect.servers.iter_mut().find(|server| server.name == name)
+                    {
+                        *existing = server;
+                    } else {
+                        inspect.servers.push(server);
+                    }
+                }
+                Err(error) => {
+                    if let Some(server) = app.inspect.as_mut().and_then(|inspect| {
+                        inspect.servers.iter_mut().find(|server| server.name == name)
+                    }) {
+                        server.connection_status = vw_api_mcp_inspect::McpConnectionStatusDto::Error;
+                        server.error = Some(error.clone());
+                    }
+                    app.inspect_error = Some(error);
+                }
+            }
+            Effect::None
         }
         Message::Inspected(result) => {
             app.inspect_loading = false;

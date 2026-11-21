@@ -70,7 +70,6 @@ fn server_panels_build_configured_runtime_and_new_server_states() {
         "global:demo".to_string(),
         true,
         true,
-        true,
         false,
     );
     let _: iced::Element<'_, Message> = configured_server_panel(
@@ -81,7 +80,6 @@ fn server_panels_build_configured_runtime_and_new_server_states() {
         "global:demo".to_string(),
         false,
         false,
-        false,
         true,
     );
     let _: iced::Element<'_, Message> = runtime_server_panel(
@@ -89,7 +87,6 @@ fn server_panels_build_configured_runtime_and_new_server_states() {
         config_ui::DesktopLocale::SimplifiedChinese,
         &inspect,
         "runtime:demo".to_string(),
-        true,
         true,
         true,
         false,

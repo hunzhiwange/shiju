@@ -286,10 +286,11 @@ pub async fn load_project_agent_config_async(&self, project_path: &str) -> Resul
 pub async fn load_global_config_value_async(&self) -> Result<serde_json::Value, String> {
     self.fetch_global_config_value_via_gateway().await
 }
-pub async fn load_mcp_inspect_async(&self)
+pub async fn load_mcp_inspect_async(&self, directory: Option<&str>, server: Option<&str>)
 -> Result<vw_api_mcp_inspect::McpInspectResponse, String> {
     let client = self.gateway_client()?;
-    gateway_mcp::GatewayMcpClient::new(client.transport().clone()).mcp_inspect().await
+    gateway_mcp::GatewayMcpClient::new(client.transport().clone())
+        .mcp_inspect_in(directory, server).await
 }
 pub async fn load_browser_config_async(&self) -> Result<BrowserConfig, String> {
     Ok(self.load_full_agent_config_async().await?.browser)

@@ -1,8 +1,35 @@
 //! Host composition preserves session approval, tenant scope and cancellation.
 pub(super) struct Host;
 impl gateway_mcp::server::host::McpHost for Host {
-    async fn inspect(workspace: &std::path::Path) -> anyhow::Result<vw_api_mcp_inspect::McpInspectResponse> {
-        crate::tools::mcp_inspect::inspect_mcp_servers_from_workspace(workspace).await
+    async fn inspect(
+        workspace: &std::path::Path,
+        directory: Option<&str>,
+        server: Option<&str>,
+    ) -> anyhow::Result<vw_api_mcp_inspect::McpInspectResponse> {
+        use crate::tools::mcp_inspect;
+        use std::path::Path;
+
+        let mut workspace = workspace;
+        if let Some(directory) = directory.filter(|directory| !directory.trim().is_empty()) {
+            let requested = Path::new(directory);
+            if requested != workspace {
+                let projects = crate::project::list(&Self::current_tenant()).await?;
+                anyhow::ensure!(
+                    projects.iter().any(|project| {
+                        Path::new(&project.worktree) == requested
+                            || project.sandboxes.iter().any(|path| Path::new(path) == requested)
+                    }),
+                    "MCP inspection directory is not registered in this tenant"
+                );
+                workspace = requested;
+            }
+        }
+        let Some(name) = server else {
+            return mcp_inspect::inspect_mcp_servers_from_workspace(workspace).await;
+        };
+        let mut config = crate::tools::mcp_common::load_resolved_acp_config_from(workspace).await?;
+        config.mcp_servers.retain(|server| mcp_client::server_name(server) == name);
+        Ok(mcp_inspect::inspect_mcp_servers(&config).await)
     }
     fn current_tenant() -> vw_api_transport::TenantScope { crate::session::ui_store::current_tenant_scope() }
     fn call(tenant: vw_api_transport::TenantScope, session: &str, server: &str, binding: &str, name: &str, arguments: serde_json::Value) -> anyhow::Result<serde_json::Value> {

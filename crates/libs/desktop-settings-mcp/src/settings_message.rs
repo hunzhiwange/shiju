@@ -18,6 +18,8 @@ pub enum McpMessage {
     Refresh,
     Loaded(Result<serde_json::Value, String>),
     InspectRefresh,
+    Connect(String),
+    Connected(String, Result<vw_api_mcp_inspect::McpInspectResponse, String>),
     Inspected(Result<vw_api_mcp_inspect::McpInspectResponse, String>),
     EditorAction(text_editor::Action),
     Format,

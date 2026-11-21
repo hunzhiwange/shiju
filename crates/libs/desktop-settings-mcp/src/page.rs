@@ -14,6 +14,7 @@ pub enum McpMessage {
     TabSelected(McpSettingsTab),
     Refresh,
     InspectRefresh,
+    Connect(String),
     EditorAction(text_editor::Action),
     Format,
     InsertTemplate,
@@ -69,32 +70,24 @@ pub(crate) fn preview_action_message<'a, Message: Clone + 'static>(event: fn(Mcp
     enabled.then(|| event(McpMessage::InspectRefresh))
 }
 
-pub(crate) fn empty_preview<'a, Message: Clone + 'static>(event: fn(McpMessage) -> Message,
+pub(crate) fn empty_preview<'a, Message: Clone + 'static>(
     locale: DesktopLocale,
-    preview_enabled: bool,
     previewing: bool,
 ) -> Element<'static, Message> {
-    let label = if previewing { tr(locale, "预览中...") } else { tr(locale, "预览") };
-    row![
-        text(tr(locale, "暂无预览结果"))
-            .size(12)
-            .style(settings_muted_text_style)
-            .width(Length::Fill),
-        toolbar_button(label, preview_action_message(event, preview_enabled)),
-    ]
-    .spacing(12)
-    .align_y(Alignment::Center)
-    .into()
+    let label = if previewing { "正在连接 MCP…" } else { "连接服务器后可查看预览。" };
+    text(tr(locale, label)).size(12).style(settings_muted_text_style).into()
 }
 
-pub(crate) fn capability_preview<'a, Message: Clone + 'static>(event: fn(McpMessage) -> Message,
+pub(crate) fn capability_preview<'a, Message: Clone + 'static>(
     locale: DesktopLocale,
     inspect: Option<&McpServerInspectDto>,
-    preview_enabled: bool,
     previewing: bool,
 ) -> Element<'static, Message> {
+    if previewing {
+        return empty_preview(locale, true);
+    }
     let Some(inspect) = inspect else {
-        return empty_preview(event, locale, preview_enabled, previewing);
+        return empty_preview(locale, false);
     };
 
     if let Some(error) = &inspect.error {
@@ -179,16 +172,16 @@ pub fn view<'a, Message: Clone + 'static>(event: fn(McpMessage) -> Message, s: &
     let inspect_label =
         if s.inspect_loading { tr(locale, "预览中...") } else { tr(locale, "刷新预览") };
     let save_label = if s.saving { tr(locale, "保存中...") } else { tr(locale, "保存") };
+    let connecting = s.connecting.is_some();
 
-    let refresh_message = (!s.loading && !s.saving)
+    let refresh_message = (!s.loading && !s.saving && !connecting)
         .then(|| event(McpMessage::Refresh));
-    let inspect_message = (!s.inspect_loading && !s.saving)
-        .then(|| event(McpMessage::InspectRefresh));
+    let inspect_message = preview_action_message(event, !s.inspect_loading && !s.saving && !connecting);
     let format_message = (!s.loading && !s.saving)
         .then(|| event(McpMessage::Format));
     let template_message = (!s.loading && !s.saving)
         .then(|| event(McpMessage::InsertTemplate));
-    let save_message = (!s.loading && !s.saving)
+    let save_message = (!s.loading && !s.saving && !connecting)
         .then(|| event(McpMessage::Save));
 
     let mut save_button =
@@ -283,12 +276,12 @@ pub fn view<'a, Message: Clone + 'static>(event: fn(McpMessage) -> Message, s: &
                         .style(settings_muted_text_style),
                 ));
             } else {
-                let controls_enabled = !s.loading && !s.saving;
-                let preview_enabled = !s.loading && !s.saving && !s.inspect_loading;
+                let controls_enabled = !s.loading && !s.saving && !connecting;
                 let inspect = s.inspect.as_ref();
                 for server in configured_rows.iter().cloned() {
                     let preview_key = format!("global:{}", server.name);
                     let preview_expanded = s.expanded_previews.contains(&preview_key);
+                    let previewing = s.connecting.as_ref() == Some(&preview_key);
                     let inspect_entry = inspect_for_server(inspect, &server.name);
                     content = content.push(configured_server_panel(event,
                         locale,
@@ -297,8 +290,7 @@ pub fn view<'a, Message: Clone + 'static>(event: fn(McpMessage) -> Message, s: &
                         preview_key,
                         preview_expanded,
                         controls_enabled,
-                        preview_enabled,
-                        s.inspect_loading,
+                        previewing,
                     ));
                 }
             }
@@ -316,19 +308,18 @@ pub fn view<'a, Message: Clone + 'static>(event: fn(McpMessage) -> Message, s: &
                             .style(settings_muted_text_style),
                     ));
                 } else {
-                    let controls_enabled = !s.loading && !s.saving;
-                    let preview_enabled = !s.loading && !s.saving && !s.inspect_loading;
+                    let controls_enabled = !s.loading && !s.saving && !connecting;
                     for server in &inspect.servers {
                         let preview_key = format!("runtime:{}", server.name);
                         let preview_expanded = s.expanded_previews.contains(&preview_key);
+                        let previewing = s.connecting.as_ref() == Some(&preview_key);
                         content = content.push(runtime_server_panel(event,
                             locale,
                             server,
                             preview_key,
                             preview_expanded,
                             controls_enabled,
-                            preview_enabled,
-                            s.inspect_loading,
+                            previewing,
                         ));
                     }
                 }

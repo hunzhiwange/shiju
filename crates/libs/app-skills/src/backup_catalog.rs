@@ -1,6 +1,6 @@
 //! Backup catalog on the authorized execution host. The caller owns root authorization.
-use std::{collections::BTreeMap, ffi::{CStr, CString}, fs::File, io::{self, Read},
-    os::fd::{AsRawFd, FromRawFd}, path::{Path, PathBuf}, time::UNIX_EPOCH};
+use std::{collections::BTreeMap, ffi::{CStr, CString}, fs::{File, OpenOptions}, io::{self, Read},
+    os::{fd::{AsRawFd, FromRawFd}, unix::fs::OpenOptionsExt}, path::{Path, PathBuf}, time::UNIX_EPOCH};
 use serde::{Deserialize, Serialize};
 use super::{copy_deploy::CopyBinding, local_install::{validate_directory, LocalSkill}};
 
@@ -28,7 +28,10 @@ struct Metadata {
 fn invalid() -> io::Error { io::Error::new(io::ErrorKind::InvalidData, "invalid skill backup") }
 fn open_root(root: &Path) -> io::Result<File> {
     if !root.is_absolute() { return Err(invalid()); }
-    app_config_paths::open_beneath(root, root, true).map_err(|_| invalid())
+    OpenOptions::new()
+        .read(true)
+        .custom_flags(libc::O_DIRECTORY | libc::O_NOFOLLOW | libc::O_CLOEXEC)
+        .open(root)
 }
 fn id_name(id: &str) -> io::Result<CString> {
     if !id.starts_with("skill-uninstall-") || id.len() > 255

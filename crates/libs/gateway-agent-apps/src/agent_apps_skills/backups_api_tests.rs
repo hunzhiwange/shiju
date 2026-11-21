@@ -93,6 +93,35 @@ async fn call(project_id: &str, company_id: &str) -> StatusCode {
     );
     status
 }
+
+#[tokio::test]
+async fn cp12_backups_api_lists_empty_before_first_uninstall() {
+    if isolated_test() {
+        return;
+    }
+    let tenant = TenantScope::new("p", "c").unwrap();
+    let host = local_app_auth::HOST_ID;
+    let app = super::backups_api::router_with_policy(None).layer(Extension(tenant.clone()));
+    let response = app
+        .oneshot(
+            Request::get(format!("/agent-apps/skills/backups?projectId=project&targetHostId={host}"))
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::OK);
+    let bytes = axum::body::to_bytes(response.into_body(), 1024).await.unwrap();
+    let list: vw_api_app_skills::backups_api::SkillBackupsResponse =
+        serde_json::from_slice(&bytes).unwrap();
+    assert!(list.backups.is_empty());
+
+    let project = vw_api_transport::ProjectScope::new(tenant, "project".into()).unwrap();
+    let ssot = agent_paths::paths().home.join(".agents/skills");
+    let backups = super::backups_api::backup_root(&ssot, &project, host).unwrap();
+    assert!(!backups.exists());
+}
+
 #[tokio::test]
 async fn cp12_backups_api_success() {
     if isolated_test() {

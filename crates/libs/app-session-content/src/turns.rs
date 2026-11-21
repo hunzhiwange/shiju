@@ -207,11 +207,17 @@ fn merge_steps(steps:Vec<ReaderStep>,provider:SessionProvider)->Vec<ReaderStep> 
     }
     out
 }
-/// Compact directory excludes pure injected/event-only turns except slash commands.
+/// Compact directory includes readable output even when no user question was recorded.
 pub fn build_turn_index(turns:&[SessionTurn])->Vec<TurnIndex> {
     turns.iter().filter_map(|turn| {
         let slash=turn.leading_events.iter().find_map(|s|match &s.block {SessionBlock::Event{kind:EventKind::SlashCommand,text,..}=>text.clone(),_=>None});
-        if turn.question.is_none() && slash.is_none() { return None; }
+        if turn.question.is_none()
+            && slash.is_none()
+            && turn.final_reply.is_none()
+            && turn.steps.is_empty()
+        {
+            return None;
+        }
         let source=turn.question.as_ref().map(ReaderText::text).filter(|s|!s.is_empty()).or(slash).unwrap_or_default();
         let flat=source.split_whitespace().collect::<Vec<_>>().join(" ");
         let preview=if flat.chars().count()>80 { format!("{}…",flat.chars().take(80).collect::<String>()) } else {flat};

@@ -382,6 +382,7 @@ impl TuiSessionPreview {
 /// 当前会话的持久化元信息。
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct TuiSessionState {
+    pub fork_execution_started: Option<bool>,
     pub session_id: Option<String>,
     pub title: String,
     pub first_response_preview: Option<String>,

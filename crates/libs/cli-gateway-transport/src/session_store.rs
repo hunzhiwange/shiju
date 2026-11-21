@@ -5,15 +5,16 @@
 
 use std::collections::HashSet;
 
+use gateway_session::SessionUiLoadResult;
 use serde::Deserialize;
+use session_info::Info;
+use session_ui_types::{ChatSession, ChatSessionMeta};
 use vw_api_session::{
     GatewaySessionForkBody,
     GatewaySessionPatchBody,
     GatewaySessionResetBody,
     GatewaySessionSummarizeBody,
 };
-use session_info::Info;
-use session_ui_types::{ChatSession, ChatSessionMeta};
 
 use super::gateway::{GatewayUiRuntime, block_on_gateway, normalize_optional_str_ref};
 
@@ -23,7 +24,7 @@ struct UiSessionMutationInfo {
 }
 
 impl GatewayUiRuntime {
-    async fn session_ui_load(&self, session_id: &str) -> Result<ChatSession, String> {
+    async fn session_ui_load(&self, session_id: &str) -> Result<SessionUiLoadResult, String> {
         let session_id = normalize_optional_str_ref(Some(session_id))
             .ok_or_else(|| "session restore requires a non-empty session id".to_string())?;
         let directory = self.directory_value();
@@ -31,18 +32,20 @@ impl GatewayUiRuntime {
             .client().transport().clone())
             .session_ui_get_without_raw(session_id, directory.as_deref())
             .await?
-            .map(|loaded| loaded.session)
             .ok_or_else(|| format!("session {session_id} has no UI snapshot"))?;
-        if snapshot.id != session_id {
+        if snapshot.session.id != session_id {
             return Err(format!(
                 "session restore returned mismatched id: expected {session_id}, got {}",
-                snapshot.id
+                snapshot.session.id
             ));
         }
         Ok(snapshot)
     }
 
-    async fn session_ui_resume(&self, session_id: &str) -> Result<ChatSession, String> {
+    async fn session_ui_resume(
+        &self,
+        session_id: &str,
+    ) -> Result<(SessionUiLoadResult, Option<bool>), String> {
         let session_id = normalize_optional_str_ref(Some(session_id))
             .ok_or_else(|| "session restore requires a non-empty session id".to_string())?;
         let directory = self.directory_value();
@@ -51,7 +54,7 @@ impl GatewayUiRuntime {
         if !info.is_user_navigable() {
             return Err(format!("session {session_id} cannot be opened in the TUI"));
         }
-        self.session_ui_load(session_id).await
+        Ok((self.session_ui_load(session_id).await?, info.fork_execution_started))
     }
 
     async fn session_ui_save(&self, session: &ChatSession) -> Result<(), String> {
@@ -167,6 +170,13 @@ impl GatewayUiRuntime {
 
     /// 在当前目录约束下加载完整会话快照，并拒绝空 ID、缺失快照或响应 ID 失配。
     pub fn session_ui_load_blocking(&self, session_id: &str) -> Result<ChatSession, String> {
+        self.session_ui_load_with_binding_blocking(session_id).map(|loaded| loaded.session)
+    }
+
+    pub fn session_ui_load_with_binding_blocking(
+        &self,
+        session_id: &str,
+    ) -> Result<SessionUiLoadResult, String> {
         block_on_gateway(self.session_ui_load(session_id))
     }
 
@@ -174,7 +184,7 @@ impl GatewayUiRuntime {
     pub fn session_ui_resume_blocking(
         &self,
         session_id: &str,
-    ) -> Result<ChatSession, String> {
+    ) -> Result<(SessionUiLoadResult, Option<bool>), String> {
         block_on_gateway(self.session_ui_resume(session_id))
     }
 

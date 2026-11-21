@@ -63,3 +63,50 @@ fn runtime_for_port(port: u16) -> GatewayUiRuntime {
             .with_id(Some("settings-session".to_string())),
     )
 }
+
+#[test]
+fn acp_model_selection_uses_gateway_source_without_forwarding_provider_model() {
+    use vw_api_acp_model::acp_model_source::AcpModelSource;
+
+    let capabilities = r#"{
+        "acp_model_source": "session_model",
+        "model_source_capabilities": [
+            {"status": "supported", "source": "session_model"},
+            {"status": "supported", "source": "cli_local"}
+        ],
+        "connected": false,
+        "options": []
+    }"#;
+    let (port, server) = spawn_json_sequence_server(vec![capabilities; 3]);
+    let mut state = TuiState::default();
+    let model = "openai/gpt-5.6".to_owned();
+    state.session_options.model = Some(model.clone());
+    state.session_capabilities.models.push(model.clone());
+    state
+        .session_capabilities
+        .acp_backends
+        .push(AcpBackendOption { key: Some("codex".to_owned()), label: "Codex".to_owned() });
+    let mut app = V3GatewayApp::new(runtime_for_port(port), state);
+    let mut runner = ActiveRunner::new();
+
+    runner.execute_action(
+        &mut app,
+        V3Action::Select { surface: SETTINGS_ACP_SURFACE.into(), item_id: "codex".into() },
+    );
+    for (item_id, source, expected_model) in [
+        ("acp-cli-local", AcpModelSource::CliLocal, None),
+        (model.as_str(), AcpModelSource::SessionModel, Some(model.as_str())),
+    ] {
+        runner.execute_action(
+            &mut app,
+            V3Action::Select { surface: SETTINGS_MODEL_SURFACE.into(), item_id: item_id.into() },
+        );
+        let submission = build_prompt_submission(app.state(), "hello").expect("build prompt");
+        let request = gateway_stream_request_from_state(app.state(), &submission);
+        assert_eq!(request.agent.as_deref(), Some("acp-codex"));
+        assert_eq!(request.acp_model_source, source);
+        assert_eq!(request.model.as_deref(), expected_model);
+    }
+    let requests = server.join().expect("capabilities fixture");
+    assert!(requests.iter().all(|request| request.starts_with("GET /v1/acp-model-source/codex ")));
+}

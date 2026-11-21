@@ -132,6 +132,13 @@ impl ActiveRunner {
             app.accept_runtime_event(terminal);
         }
         if kind == ActiveStreamKind::Chat {
+            if matches!(app.state.status.turn_terminal, UiTurnTerminal::Done { .. }) {
+                app.state.session_options.acp_session_mode =
+                    cli_interaction_model::session_mode::AcpSessionMode::Reuse;
+                if app.state.session.fork_execution_started == Some(false) {
+                    app.state.session.fork_execution_started = Some(true);
+                }
+            }
             if let Some((text, attachments)) = self.chat_submission.take()
                 && app.pending_first_response
                 && !matches!(app.state.status.turn_terminal, UiTurnTerminal::Done { .. })

@@ -29,7 +29,37 @@ use super::{
     setting_item,
 };
 
+use cli_gateway_transport::gateway::block_on_gateway;
+use gateway_session::GatewaySessionClient;
+use vw_api_acp_model::acp_model_source::{
+    AcpModelSource, AcpModelSourceCapability, AcpModelSourceUpdate, AcpSessionModelSelection,
+};
+use vw_api_acp_model::acp_session::AcpSessionOptions;
+
+const CLI_LOCAL_MODEL: &str = "acp-cli-local";
+
+fn supports_source(options: &AcpSessionOptions, source: AcpModelSource) -> bool {
+    options.model_source_capabilities.iter().any(|capability| {
+        matches!(capability, AcpModelSourceCapability::Supported { source: supported } if *supported == source)
+    })
+}
+
 impl V3GatewayApp {
+    fn model_and_agent_locked(&self) -> bool {
+        self.state.session.session_id.is_some()
+            && self.state.session.fork_execution_started != Some(false)
+            && (!self.pending_first_response
+                || matches!(
+                    self.state.status.turn_terminal,
+                    cli_interaction_model::UiTurnTerminal::Done { .. }
+                ))
+    }
+
+    fn acp_model_capabilities(&self, backend: &str) -> Result<AcpSessionOptions, String> {
+        let client = GatewaySessionClient::new(self.runtime.client().transport().clone());
+        block_on_gateway(client.acp_model_source_capabilities(backend))
+    }
+
     fn settings_values(&self) -> SettingsValues {
         SettingsValues {
             model: self.state.session_options.model.clone(),
@@ -71,17 +101,39 @@ impl V3GatewayApp {
                     SettingKey::Permissions => "permissions",
                     _ => return None,
                 };
-                let current = panel.value_label(row.key);
+                let current = if row.key == SettingKey::Model
+                    && self.state.session_options.acp_model_source == AcpModelSource::CliLocal
+                {
+                    "ACP 智能体模型".to_string()
+                } else {
+                    panel.value_label(row.key)
+                };
+                let unavailable_reason = match row.key {
+                    SettingKey::Model | SettingKey::DelegateAgent | SettingKey::AcpBackend
+                        if self.model_and_agent_locked() =>
+                    {
+                        Some("会话开始后不能切换".to_string())
+                    }
+                    SettingKey::Model => None,
+                    SettingKey::AcpBackend
+                        if self.state.session_options.acp_backend.is_some()
+                            || !self.state.session_capabilities.acp_backend_by_agent.is_empty() =>
+                    {
+                        None
+                    }
+                    SettingKey::Effort if self.state.session_options.acp_backend.is_some() => {
+                        Some("推理强度由 ACP 智能体管理".to_string())
+                    }
+                    _ => row.unavailable_reason.clone(),
+                };
                 Some(V3SelectionItem {
                     id: id.to_string(),
                     label: row.label.to_string(),
                     description: Some(
-                        row.unavailable_reason
-                            .clone()
-                            .unwrap_or_else(|| format!("当前：{current}")),
+                        unavailable_reason.clone().unwrap_or_else(|| format!("当前：{current}")),
                     ),
-                    disabled: row.unavailable_reason.is_some(),
-                    disabled_reason: row.unavailable_reason.clone(),
+                    disabled: unavailable_reason.is_some(),
+                    disabled_reason: unavailable_reason,
                     ..V3SelectionItem::default()
                 })
             })
@@ -111,22 +163,55 @@ impl V3GatewayApp {
     }
 
     pub(super) fn open_model_picker(&mut self) {
-        if self.state.session_capabilities.models.is_empty() {
-            push_runner_error(self, "当前 Gateway 没有声明可选模型");
+        if self.model_and_agent_locked() {
+            push_runner_error(self, "会话开始后不能切换模型，请使用 /new");
             return;
         }
-        let current = self.state.session_options.model.as_deref();
-        let items = self
-            .state
-            .session_capabilities
-            .models
-            .iter()
-            .map(|model| setting_item(model, model, current == Some(model.as_str())))
-            .collect();
+        let session = &self.state.session_options;
+        let capabilities = match session.acp_backend.as_deref() {
+            Some(backend) => match self.acp_model_capabilities(backend) {
+                Ok(options) => Some(options),
+                Err(error) => {
+                    push_runner_error(self, error);
+                    return;
+                }
+            },
+            None => None,
+        };
+        let local = session.acp_model_source == AcpModelSource::CliLocal;
+        let mut items = Vec::new();
+        if capabilities
+            .as_ref()
+            .is_some_and(|options| supports_source(options, AcpModelSource::CliLocal))
+        {
+            items.push(setting_item(CLI_LOCAL_MODEL, "使用 ACP 智能体模型", local));
+        }
+        if capabilities
+            .as_ref()
+            .is_none_or(|options| supports_source(options, AcpModelSource::SessionModel))
+        {
+            let current = session.model.as_deref();
+            items.push(setting_item(
+                "auto",
+                "自动选择模型",
+                !local && current.is_none_or(|model| model == "auto"),
+            ));
+            items.extend(self.state.session_capabilities.models.iter().map(|model| {
+                setting_item(model, model, !local && current == Some(model.as_str()))
+            }));
+        }
+        if items.is_empty() {
+            push_runner_error(self, "当前智能体没有已确认可用的模型来源");
+            return;
+        }
         self.widget.show_selection_overlay(SETTINGS_MODEL_SURFACE, "选择模型", items);
     }
 
     pub(super) fn open_effort_picker(&mut self) {
+        if self.state.session_options.acp_backend.is_some() {
+            push_runner_error(self, "推理强度由 ACP 智能体管理");
+            return;
+        }
         if self
             .state
             .session_capabilities
@@ -172,18 +257,34 @@ impl V3GatewayApp {
     }
 
     fn open_acp_picker(&mut self) {
+        if self.model_and_agent_locked() {
+            push_runner_error(self, "会话开始后不能切换智能体，请使用 /new");
+            return;
+        }
         let current = self.state.session_options.acp_backend.as_deref();
-        let items = self
-            .state
-            .session_capabilities
+        let capabilities = &self.state.session_capabilities;
+        let delegate = self.state.session_options.delegate_agent.as_deref();
+        let mut items: Vec<_> = capabilities
             .acp_backends
             .iter()
             .map(|backend| {
                 let id = backend.key.as_deref().unwrap_or("default");
-                setting_item(id, backend.label.as_str(), current == backend.key.as_deref())
+                let selected = current == backend.key.as_deref()
+                    && delegate.is_none_or(|key| key.strip_prefix("acp-") == current);
+                setting_item(id, backend.label.as_str(), selected)
             })
             .collect();
-        self.widget.show_selection_overlay(SETTINGS_ACP_SURFACE, "选择 ACP 后端", items);
+        items.extend(capabilities.delegate_agents.iter().filter_map(|agent| {
+            let key = agent.key.as_deref()?;
+            let backend = capabilities.acp_backend_by_agent.get(key)?;
+            if key.strip_prefix("acp-") == Some(backend.as_str())
+                && capabilities.acp_backends.iter().any(|entry| entry.key.as_ref() == Some(backend))
+            {
+                return None;
+            }
+            Some(setting_item(&format!("profile:{key}"), &agent.label, delegate == Some(key)))
+        }));
+        self.widget.show_selection_overlay(SETTINGS_ACP_SURFACE, "选择 ACP 智能体", items);
     }
 
     fn open_delegate_picker(&mut self) {
@@ -226,8 +327,24 @@ impl V3GatewayApp {
     }
 
     pub(super) fn apply_model(&mut self, model: String) {
+        if self.model_and_agent_locked() {
+            push_runner_error(self, "会话开始后不能切换模型，请使用 /new");
+            return;
+        }
         let mut values = self.settings_values();
-        values.model = Some(model);
+        let source = if model == CLI_LOCAL_MODEL {
+            AcpModelSource::CliLocal
+        } else {
+            values.model = Some(model);
+            AcpModelSource::SessionModel
+        };
+        if let Err(error) = self
+            .validate_settings_values(&values)
+            .and_then(|()| self.confirm_model_source(&values, source))
+        {
+            push_runner_error(self, error);
+            return;
+        }
         if !self
             .state
             .session_capabilities
@@ -236,10 +353,65 @@ impl V3GatewayApp {
         {
             values.effort = ReasoningEffort::Auto;
         }
-        self.apply_settings_or_report(values);
+        self.state.session_options.model = values.model;
+        self.state.status.model_name.clone_from(&self.state.session_options.model);
+        self.state.session_options.effort = values.effort;
+        self.state.session_options.acp_model_source = source;
+        if self.state.session_options.acp_backend.is_some() {
+            self.state.session_options.acp_session_mode =
+                cli_interaction_model::session_mode::AcpSessionMode::ForceNew;
+        }
+        self.show_settings_updated();
+    }
+
+    fn confirm_model_source(
+        &self,
+        values: &SettingsValues,
+        source: AcpModelSource,
+    ) -> Result<(), String> {
+        let Some(backend) = values.acp_backend.as_deref() else {
+            return if source == AcpModelSource::SessionModel {
+                Ok(())
+            } else {
+                Err("请先选择 ACP 智能体".to_string())
+            };
+        };
+        if self.state.session.fork_execution_started == Some(false)
+            && let Some(session_id) = self.state.session.session_id.as_deref()
+        {
+            let update = AcpModelSourceUpdate {
+                agent: backend.to_owned(),
+                selection: AcpSessionModelSelection {
+                    source,
+                    provider_id: None,
+                    model: if source == AcpModelSource::SessionModel {
+                        values.model.clone()
+                    } else {
+                        None
+                    },
+                },
+            };
+            let client = GatewaySessionClient::new(self.runtime.client().transport().clone());
+            let directory = self.runtime.directory_value();
+            let options = block_on_gateway(client.acp_session_model_source(
+                session_id,
+                directory.as_deref(),
+                &update,
+            ))?;
+            if options.acp_model_source != source {
+                return Err("Gateway 未确认所选模型来源".to_string());
+            }
+        } else if !supports_source(&self.acp_model_capabilities(backend)?, source) {
+            return Err("此智能体不支持所选模型来源".to_string());
+        }
+        Ok(())
     }
 
     pub(super) fn apply_effort(&mut self, effort: ReasoningEffort) {
+        if self.state.session_options.acp_backend.is_some() {
+            push_runner_error(self, "推理强度由 ACP 智能体管理");
+            return;
+        }
         let mut values = self.settings_values();
         values.effort = effort;
         self.apply_settings_or_report(values);
@@ -253,12 +425,22 @@ impl V3GatewayApp {
 
     pub(super) fn apply_acp_backend(&mut self, backend: Option<String>) {
         let mut values = self.settings_values();
+        if values.acp_backend == backend
+            && values.delegate_agent.as_deref()
+                .is_none_or(|key| key.strip_prefix("acp-") == backend.as_deref())
+        {
+            return;
+        }
         values.acp_backend = backend;
+        values.delegate_agent = None;
         self.apply_settings_or_report(values);
     }
 
     pub(super) fn apply_delegate_agent(&mut self, agent: Option<String>) {
         let mut values = self.settings_values();
+        values.acp_backend = agent
+            .as_ref()
+            .and_then(|key| self.state.session_capabilities.acp_backend_by_agent.get(key).cloned());
         values.delegate_agent = agent;
         self.apply_settings_or_report(values);
     }
@@ -287,6 +469,13 @@ impl V3GatewayApp {
         dangerous_confirmed: bool,
     ) -> Result<(), String> {
         self.validate_settings_values(&values)?;
+        let agent_changed = values.acp_backend != self.state.session_options.acp_backend
+            || values.delegate_agent != self.state.session_options.delegate_agent;
+        if self.model_and_agent_locked()
+            && (agent_changed || values.model != self.state.session_options.model)
+        {
+            return Err("会话开始后不能切换模型或智能体，请使用 /new".to_string());
+        }
         let enables_full_access =
             values.full_access_enabled && !self.state.session_options.full_access_enabled();
         let enables_bypass = values.permission_mode == PermissionMode::Bypass
@@ -312,27 +501,49 @@ impl V3GatewayApp {
             return Ok(());
         }
 
+        let source = match (agent_changed, values.acp_backend.as_deref()) {
+            (true, Some(backend)) => {
+                let options = self.acp_model_capabilities(backend)?;
+                if !supports_source(&options, options.acp_model_source) {
+                    return Err("此智能体没有已确认可用的模型来源".to_string());
+                }
+                options.acp_model_source
+            }
+            (true, None) => AcpModelSource::SessionModel,
+            (false, _) => self.state.session_options.acp_model_source,
+        };
         self.widget.set_vim_enabled(values.vim_mode != cli_interaction_model::vim::VimMode::Disabled);
         self.state.session_options.model.clone_from(&values.model);
         self.state.status.model_name.clone_from(&values.model);
         self.state.session_options.effort = values.effort;
         self.state.session_options.delegate_agent.clone_from(&values.delegate_agent);
         self.state.session_options.select_acp_backend(values.acp_backend.clone());
+        self.state.session_options.acp_model_source = source;
+        if agent_changed && values.acp_backend.is_some() {
+            self.state.session_options.acp_session_mode =
+                cli_interaction_model::session_mode::AcpSessionMode::ForceNew;
+            self.state.session_options.effort = ReasoningEffort::Auto;
+        }
         self.state.session_options.set_full_access(values.full_access_enabled);
         self.state.session_options.set_subagent_mode(values.subagent_mode_enabled);
         self.state.session_options.set_permission_mode(values.permission_mode, dangerous_confirmed);
+        self.show_settings_updated();
+        Ok(())
+    }
+
+    fn show_settings_updated(&mut self) {
         let display = GatewayV3Bridge::session_display_data(&self.runtime, &self.state);
         self.widget.set_session_header(display);
         self.widget.push_history(V3DisplayEvent::System {
             text: "会话设置已更新，将从下一条请求开始生效。".to_string(),
         });
-        Ok(())
     }
 
     fn validate_settings_values(&self, values: &SettingsValues) -> Result<(), String> {
         let capabilities = &self.state.session_capabilities;
         if values.model != self.state.session_options.model
             && let Some(model) = values.model.as_ref()
+            && model != "auto"
             && !capabilities.models.iter().any(|candidate| candidate == model)
         {
             return Err(format!("Gateway 未声明模型能力：{model}"));
@@ -362,6 +573,9 @@ impl V3GatewayApp {
                 .acp_backends
                 .iter()
                 .any(|candidate| candidate.key == values.acp_backend)
+            && !values.delegate_agent.as_ref().is_some_and(|key| {
+                capabilities.acp_backend_by_agent.get(key) == values.acp_backend.as_ref()
+            })
         {
             return Err("Gateway 未声明所选 ACP 后端".to_string());
         }

@@ -10,6 +10,7 @@ use {
     vw_gateway_client::GatewayChatStreamRequest,
     vw_api_transport::id::SessionId,
 };
+use vw_api_acp_model::acp_model_source::AcpModelSource;
 use session_ui_types::{ChatMessage, ChatRole};
 
 /// 根据当前状态和提交快照构造 Gateway 请求，并在此收紧工具与权限选项。
@@ -19,6 +20,11 @@ pub(crate) fn gateway_stream_request_from_state(
 ) -> GatewayChatStreamRequest {
     let snapshot = state.to_chat_session();
     let acp_agent = submission.execution.acp_backend.clone();
+    let acp_model_source = if acp_agent.is_some() {
+        submission.execution.acp_model_source
+    } else {
+        AcpModelSource::SessionModel
+    };
     let full_access_enabled = submission.execution.full_access_enabled;
     let acp_permission_mode =
         if full_access_enabled || submission.execution.permission_mode == PermissionMode::Bypass {
@@ -77,13 +83,18 @@ pub(crate) fn gateway_stream_request_from_state(
     }
 
     GatewayChatStreamRequest {
-        acp_model_source:
-            vw_api_acp_model::acp_model_source::AcpModelSource::SessionModel,
+        acp_model_source,
         session_id: normalize_optional_str_ref(submission.session_id.as_deref())
             .map(SessionId::from),
         messages,
         system,
-        model: submission.model.clone(),
+        model: submission
+            .model
+            .as_ref()
+            .filter(|model| {
+                acp_model_source != AcpModelSource::CliLocal && model.as_str() != "auto"
+            })
+            .cloned(),
         reasoning_effort: match submission.execution.effort {
             ReasoningEffort::Auto => None,
             ReasoningEffort::None => {

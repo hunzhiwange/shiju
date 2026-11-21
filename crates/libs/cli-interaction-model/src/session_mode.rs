@@ -1,3 +1,5 @@
+use vw_api_acp_model::acp_model_source::AcpModelSource;
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum ReasoningEffort {
     #[default]
@@ -40,7 +42,7 @@ pub struct AcpBackendOption {
 
 impl AcpBackendOption {
     pub(crate) fn default_backend() -> Self {
-        Self { key: None, label: "默认 ACP".to_string() }
+        Self { key: None, label: "原生智能体".to_string() }
     }
 }
 
@@ -50,6 +52,7 @@ pub struct SessionExecutionSnapshot {
     pub permission_mode: PermissionMode,
     pub delegate_agent: Option<String>,
     pub acp_backend: Option<String>,
+    pub acp_model_source: AcpModelSource,
     pub acp_force_new_session: bool,
     pub full_access_enabled: bool,
     pub subagent_mode_enabled: bool,
@@ -102,6 +105,7 @@ pub struct SessionCapabilityMatrix {
     pub permission_modes: Vec<PermissionMode>,
     pub delegate_agents: Vec<DelegateAgentOption>,
     pub acp_backends: Vec<AcpBackendOption>,
+    pub acp_backend_by_agent: std::collections::HashMap<String, String>,
 }
 
 impl SessionCapabilityMatrix {
@@ -124,6 +128,7 @@ impl Default for SessionCapabilityMatrix {
             permission_modes: vec![PermissionMode::Default],
             delegate_agents: vec![DelegateAgentOption::main()],
             acp_backends: vec![AcpBackendOption::default_backend()],
+            acp_backend_by_agent: Default::default(),
         }
     }
 }
@@ -138,6 +143,7 @@ pub struct SessionOptions {
     pub bypass_confirmed: bool,
     pub delegate_agent: Option<String>,
     pub acp_backend: Option<String>,
+    pub acp_model_source: AcpModelSource,
     pub acp_session_mode: AcpSessionMode,
     pub access_mode: AccessMode,
     pub subagent_mode: SubagentMode,
@@ -172,6 +178,7 @@ impl SessionOptions {
             },
             delegate_agent: self.delegate_agent.clone(),
             acp_backend: self.acp_backend.clone(),
+            acp_model_source: self.acp_model_source,
             acp_force_new_session: self.acp_session_mode == AcpSessionMode::ForceNew,
             full_access_enabled: self.full_access_enabled(),
             subagent_mode_enabled: self.subagent_mode == SubagentMode::Enabled,
@@ -187,6 +194,7 @@ impl SessionOptions {
         self.acp_session_mode =
             if backend.is_some() { AcpSessionMode::ForceNew } else { AcpSessionMode::Reuse };
         self.acp_backend = backend;
+        self.acp_model_source = AcpModelSource::default();
     }
 
     #[cfg(test)]

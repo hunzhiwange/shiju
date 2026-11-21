@@ -51,6 +51,17 @@ impl GatewayV3Bridge {
             .model_name
             .or_else(|| state.session_options.model.clone())
             .unwrap_or_else(|| "default".to_string());
+        let model = if let Some(backend) = state.session_options.acp_backend.as_deref() {
+            if state.session_options.acp_model_source
+                == vw_api_acp_model::acp_model_source::AcpModelSource::CliLocal
+            {
+                format!("{backend} · 智能体模型")
+            } else {
+                format!("{backend} · {model}")
+            }
+        } else {
+            model
+        };
         let permissions = permission_display(state);
         let session_title = summary.title.trim();
         let session_title =

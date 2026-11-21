@@ -192,6 +192,9 @@ const COMMANDS: &[CommandSpec] = &[
     }),
     CommandSpec::local("archive", "归档当前会话", || CommandRoute::ArchiveSession),
     CommandSpec::local("model", "选择当前会话模型", || CommandRoute::OpenModelPicker),
+    CommandSpec::local("agent", "切换 ACP 智能体", || {
+        CommandRoute::OpenSettingsTarget(SettingsTarget::AcpBackend)
+    }),
     CommandSpec::local("effort", "选择推理强度", || CommandRoute::OpenEffortPicker),
     CommandSpec::local("plan", "配置计划模式", || CommandRoute::OpenPermissionPicker {
         plan_only: true,
@@ -281,7 +284,12 @@ pub(crate) fn route_selection(surface: &str, item_id: &str) -> Result<CommandRou
             parse_permission_mode(item_id).map(CommandRoute::ApplyPermissionMode)
         }
         SETTINGS_ACP_SURFACE => {
-            Ok(CommandRoute::ApplyAcpBackend(optional_setting_value(item_id, "default")?))
+            if let Some(key) = item_id.strip_prefix("profile:") {
+                required_setting_value("agent", key)
+                    .map(|key| CommandRoute::ApplyDelegateAgent(Some(key)))
+            } else {
+                optional_setting_value(item_id, "default").map(CommandRoute::ApplyAcpBackend)
+            }
         }
         SETTINGS_DELEGATE_SURFACE => {
             Ok(CommandRoute::ApplyDelegateAgent(optional_setting_value(item_id, "main")?))

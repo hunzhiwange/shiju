@@ -5,6 +5,7 @@ edition = "2024"
 license = "MIT"
 
 [dependencies]
+gateway-session = { path = "../gateway-session" }
 gateway-cron = { path = "../gateway-cron" }
 ordered-id = { path = "../ordered-id" }
 session-text = { path = "../session-text" }

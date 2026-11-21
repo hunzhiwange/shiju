@@ -49,7 +49,7 @@ fn tui_gateway_bridge_preserves_request_and_terminal_semantics() {
     assert_eq!(display.version, env!("CARGO_PKG_VERSION"));
     assert_eq!(display.cwd, PathBuf::from("/workspace"));
     assert_eq!(display.gateway_endpoint, "127.0.0.1:9");
-    assert_eq!(display.model, "openai/gpt-5.6");
+    assert_eq!(display.model, "codex · openai/gpt-5.6");
     assert_eq!(display.permissions, "Plan · workspace write");
     assert_eq!(display.session_id.as_deref(), Some("session-13"));
     assert!(!display.resumed);

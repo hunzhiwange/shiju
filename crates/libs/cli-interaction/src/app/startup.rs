@@ -52,6 +52,61 @@ pub(crate) fn initial_tui_state(runtime: &GatewayUiRuntime) -> TuiState {
     state
 }
 
+pub(super) fn load_resumed_state(
+    runtime: &GatewayUiRuntime,
+    session_id: &str,
+) -> Result<TuiState, String> {
+    let (loaded, fork_execution_started) = runtime.session_ui_resume_blocking(session_id)?;
+    resumed_state(runtime, loaded, fork_execution_started)
+}
+
+pub(super) fn resumed_state(
+    runtime: &GatewayUiRuntime,
+    loaded: gateway_session::SessionUiLoadResult,
+    fork_execution_started: Option<bool>,
+) -> Result<TuiState, String> {
+    use cli_gateway_transport::gateway::block_on_gateway;
+    use cli_interaction_model::session_mode::AcpSessionMode;
+
+    let mut state = TuiState::from_chat_session(&loaded.session);
+    state.session.fork_execution_started = fork_execution_started;
+    state.session_options.model.clone_from(&state.status.model_name);
+    if let Some(binding) = loaded.agent_binding {
+        let options = &mut state.session_options;
+        options.delegate_agent = (binding.agent != "main").then_some(binding.agent);
+        options.acp_backend = binding.acp_agent;
+        if options.acp_backend.is_some() {
+            let client =
+                gateway_session::GatewaySessionClient::new(runtime.client().transport().clone());
+            let directory = runtime.directory_value();
+            let acp = block_on_gateway(
+                client.acp_session_options(&loaded.session.id, directory.as_deref()),
+            )?;
+            options.acp_model_source = acp.acp_model_source;
+            if let Some(selection) = acp.selected_model {
+                options.model = selection.model.map(|model| match selection.provider_id {
+                    Some(provider)
+                        if model != "auto" && !model.starts_with(&format!("{provider}/")) =>
+                    {
+                        format!("{provider}/{model}")
+                    }
+                    _ => model,
+                });
+            } else if fork_execution_started == Some(false) {
+                options.model = Some("auto".to_owned());
+            }
+            if fork_execution_started == Some(false) {
+                options.acp_session_mode = AcpSessionMode::ForceNew;
+            }
+        }
+    }
+    if fork_execution_started == Some(false) && state.session_options.acp_backend.is_none() {
+        state.session_options.model = Some("auto".to_owned());
+    }
+    state.status.model_name.clone_from(&state.session_options.model);
+    Ok(state)
+}
+
 /// 恢复显式指定的会话；普通启动保留空白草稿。
 pub(crate) fn restore_or_create_session_state(
     runtime: &mut GatewayUiRuntime,
@@ -60,9 +115,7 @@ pub(crate) fn restore_or_create_session_state(
         return Ok(initial_tui_state(runtime));
     };
     let scope = runtime.scope().map(ToOwned::to_owned);
-    let snapshot = runtime.session_ui_resume_blocking(session_id)?;
-
-    let mut state = TuiState::from_chat_session(&snapshot);
+    let mut state = load_resumed_state(runtime, session_id)?;
     state.session.scope = scope;
     state.project.workspace_root = Some(runtime.directory().to_path_buf());
     let title = (!state.session.title.trim().is_empty()).then(|| state.session.title.clone());

@@ -8,6 +8,7 @@ license = "MIT"
 doctest = false
 
 [dependencies]
+vw-api-acp-model = { path = "../api-acp-model" }
 gateway-cron = { path = "../gateway-cron" }
 session-ui-types = { path = "../session-ui-types" }
 vw-api-workflow = { path = "../api-workflow" }

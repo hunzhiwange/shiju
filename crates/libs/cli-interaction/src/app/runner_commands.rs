@@ -285,7 +285,13 @@ impl ActiveRunner {
                     RunnerControl::Continue
                 }
                 CommandRoute::ApplyModel(model) => {
-                    app.apply_model(model);
+                    if self.session_bootstrap_in_flight {
+                        push_runner_error(app, "会话历史正在加载");
+                    } else if let Err(error) = self.ensure_session_mutation_idle(app) {
+                        push_runner_error(app, error);
+                    } else {
+                        app.apply_model(model);
+                    }
                     RunnerControl::Continue
                 }
                 CommandRoute::ApplyEffort(effort) => {
@@ -297,11 +303,23 @@ impl ActiveRunner {
                     RunnerControl::Continue
                 }
                 CommandRoute::ApplyAcpBackend(backend) => {
-                    app.apply_acp_backend(backend);
+                    if self.session_bootstrap_in_flight {
+                        push_runner_error(app, "会话历史正在加载");
+                    } else if let Err(error) = self.ensure_session_mutation_idle(app) {
+                        push_runner_error(app, error);
+                    } else {
+                        app.apply_acp_backend(backend);
+                    }
                     RunnerControl::Continue
                 }
                 CommandRoute::ApplyDelegateAgent(agent) => {
-                    app.apply_delegate_agent(agent);
+                    if self.session_bootstrap_in_flight {
+                        push_runner_error(app, "会话历史正在加载");
+                    } else if let Err(error) = self.ensure_session_mutation_idle(app) {
+                        push_runner_error(app, error);
+                    } else {
+                        app.apply_delegate_agent(agent);
+                    }
                     RunnerControl::Continue
                 }
                 CommandRoute::ApplyFullAccess(enabled) => {

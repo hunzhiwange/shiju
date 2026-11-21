@@ -24,6 +24,8 @@ use super::{
     reduce_tui_state,
 };
 
+use super::startup::{load_resumed_state, resumed_state};
+
 impl V3GatewayApp {
     /// 将当前视图状态转换为会话快照并同步保存。
     pub(crate) fn persist_session_snapshot(&mut self) -> Result<(), String> {
@@ -55,14 +57,19 @@ impl V3GatewayApp {
 
     /// 在完整快照加载成功后一次性切换状态、界面与 runtime seed。
     pub(crate) fn resume_session(&mut self, session_id: &str) -> Result<(), String> {
-        let snapshot = self.runtime.session_ui_resume_blocking(session_id)?;
-        self.commit_session_switch(snapshot);
+        let mut state = load_resumed_state(&self.runtime, session_id)?;
+        state.session.scope.clone_from(&self.state.session.scope);
+        self.commit_initial_session_state(state);
         Ok(())
     }
 
     /// 切换到空白草稿，保留当前目录和会话设置。
     pub(crate) fn create_new_session(&mut self) -> Result<(), String> {
         self.commit_initial_session_state(initial_tui_state(&self.runtime));
+        if self.state.session_options.acp_backend.is_some() {
+            self.state.session_options.acp_session_mode =
+                cli_interaction_model::session_mode::AcpSessionMode::ForceNew;
+        }
         Ok(())
     }
 
@@ -97,8 +104,10 @@ impl V3GatewayApp {
             .map(|message_id| self.require_persisted_message_id(message_id))
             .transpose()?;
         let forked_id = self.runtime.session_fork_blocking(message_id)?;
-        let snapshot = self.runtime.session_ui_load_blocking(forked_id.as_str())?;
-        self.commit_session_switch(snapshot);
+        let loaded = self.runtime.session_ui_load_with_binding_blocking(&forked_id)?;
+        let mut state = resumed_state(&self.runtime, loaded, Some(false))?;
+        state.session.scope.clone_from(&self.state.session.scope);
+        self.commit_initial_session_state(state);
         self.widget.push_history(V3DisplayEvent::System {
             text: format!("已分叉并切换到会话 {forked_id}"),
         });
@@ -201,7 +210,9 @@ impl V3GatewayApp {
     fn refresh_current_session_snapshot(&mut self) -> Result<(), String> {
         let session_id = self.current_session_id()?.to_string();
         let snapshot = self.runtime.session_ui_load_blocking(session_id.as_str())?;
+        let fork_execution_started = self.state.session.fork_execution_started;
         self.commit_session_switch(snapshot);
+        self.state.session.fork_execution_started = fork_execution_started;
         Ok(())
     }
 
@@ -246,6 +257,8 @@ impl V3GatewayApp {
         }
         let mut state = TuiState::from_chat_session(snapshot);
         state.session.scope.clone_from(&self.state.session.scope);
+        state.session_options = self.state.session_options.clone();
+        state.session.fork_execution_started = self.state.session.fork_execution_started;
         self.commit_initial_session_state(state);
         self.widget.restore_submission(&draft, attachments);
         for (text, attachments) in queued {
@@ -315,7 +328,15 @@ impl V3GatewayApp {
 
     pub(super) fn commit_initial_session_state(&mut self, mut next_state: TuiState) {
         next_state.project = self.state.project.clone();
-        next_state.session_options = self.state.session_options.clone();
+        let restored_options =
+            std::mem::replace(&mut next_state.session_options, self.state.session_options.clone());
+        if next_state.session.session_id.is_some() {
+            next_state.session_options.model = restored_options.model;
+            next_state.session_options.delegate_agent = restored_options.delegate_agent;
+            next_state.session_options.acp_backend = restored_options.acp_backend;
+            next_state.session_options.acp_model_source = restored_options.acp_model_source;
+            next_state.session_options.acp_session_mode = restored_options.acp_session_mode;
+        }
         next_state.session_capabilities = self.state.session_capabilities.clone();
         next_state.model_catalog = self.state.model_catalog.clone();
         next_state.settings_warnings = self.state.settings_warnings.clone();
@@ -347,7 +368,9 @@ impl V3GatewayApp {
     /// 目标目录全部快照准备完成后，一次性替换活动 runtime、状态与界面。
     pub(crate) fn commit_directory_switch(&mut self, bootstrap: DirectorySwitchBootstrap) {
         let DirectorySwitchBootstrap { runtime, mut state } = bootstrap;
+        let model = state.session_options.model.take();
         state.session_options = self.state.session_options.clone();
+        state.session_options.model = model;
         state.theme_name = self.state.theme_name.clone();
         state.status.provider_name = self.state.status.provider_name.clone();
         if state.status.model_name.is_none() {

@@ -99,7 +99,7 @@ pub(crate) fn build_prompt_submission(state: &TuiState, text: &str) -> Option<Pr
     if let Some(root) = state.project.workspace_root.as_ref() {
         submission = submission.with_root(root.display().to_string());
     }
-    if let Some(model) = state.status.model_name.as_ref() {
+    if let Some(model) = state.session_options.model.as_ref().or(state.status.model_name.as_ref()) {
         submission = submission.with_model(model.clone());
     }
     Some(submission)
@@ -118,7 +118,7 @@ pub(crate) fn build_attachment_submission(state: &TuiState, text: &str) -> Promp
     if let Some(root) = state.project.workspace_root.as_ref() {
         submission = submission.with_root(root.display().to_string());
     }
-    if let Some(model) = state.status.model_name.as_ref() {
+    if let Some(model) = state.session_options.model.as_ref().or(state.status.model_name.as_ref()) {
         submission = submission.with_model(model.clone());
     }
     submission

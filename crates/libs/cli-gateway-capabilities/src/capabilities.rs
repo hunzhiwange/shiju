@@ -77,6 +77,18 @@ pub(crate) async fn load_session_capabilities(
                 .filter(|model| matrix.models.iter().any(|candidate| candidate == model))
                 .or(default_model);
             matrix.delegate_agents = configured_delegate_agents(&config);
+            matrix.acp_backend_by_agent = matrix
+                .delegate_agents
+                .iter()
+                .filter_map(|agent| {
+                    let key = agent.key.as_ref()?;
+                    let runtime = config.get("agents")?.get(key)?.get("runtime")?;
+                    if runtime.get("kind")?.as_str()? != "acp" {
+                        return None;
+                    }
+                    Some((key.clone(), runtime.get("backend")?.as_str()?.to_owned()))
+                })
+                .collect();
             if config_allows_dangerous_access(&config) {
                 matrix.permission_modes.push(PermissionMode::Bypass);
             }

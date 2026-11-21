@@ -92,13 +92,27 @@ impl GatewayAppDataClient {
         serde_json::from_slice(&bytes).map_err(|_| DataMigrationError::Decode)
     }
 
-    async fn data_migration_bytes<B: Serialize>(&self, route: &str, input: &B, token: Option<&str>) -> Result<Vec<u8>, DataMigrationError> {
+    // Browser fetch cannot enforce the migration transport's no-redirect policy.
+    #[cfg(target_arch = "wasm32")]
+    async fn data_migration_bytes<B: Serialize>(
+        &self,
+        _route: &str,
+        _input: &B,
+        _token: Option<&str>,
+    ) -> Result<Vec<u8>, DataMigrationError> {
+        Err(DataMigrationError::NativeTransportRequired)
+    }
+
+    #[cfg(not(target_arch = "wasm32"))]
+    async fn data_migration_bytes<B: Serialize>(
+        &self,
+        route: &str,
+        input: &B,
+        _token: Option<&str>,
+    ) -> Result<Vec<u8>, DataMigrationError> {
         use DataMigrationError as Error;
         let transport = self.transport.native_transport().map_err(|_| Error::NativeTransportRequired)?;
-        let mut request = transport.post(format!("{}/v1/agent-apps/data/{route}", self.transport.endpoint().base_url())).json(input);
-        if let Some(token) = token {
-            request = request;
-        }
+        let request = transport.post(format!("{}/v1/agent-apps/data/{route}", self.transport.endpoint().base_url())).json(input);
         // Native transport disables redirects and retries and applies a bounded timeout.
         let mut response = gateway_http::apply_request_context(request, self.transport.endpoint())
             .send().await.map_err(transport_error)?;
@@ -115,6 +129,7 @@ impl GatewayAppDataClient {
         Ok(bytes)
     }
 }
+#[cfg(not(target_arch = "wasm32"))]
 fn transport_error(error: reqwest::Error) -> DataMigrationError {
     if error.is_timeout() { DataMigrationError::Timeout } else { DataMigrationError::Transport }
 }

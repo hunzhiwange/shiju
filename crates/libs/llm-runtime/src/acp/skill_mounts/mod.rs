@@ -4,13 +4,13 @@ pub(super) mod aionrs;
 pub(super) mod amp_acp;
 pub(super) mod harn;
 pub(super) mod auggie;
-mod claude;
 pub(super) mod autohand;
+mod claude;
 mod codebuddy;
 mod codex;
 mod copilot;
-pub(super) mod corust_agent;
 pub(super) mod cortex_code;
+pub(super) mod corust_agent;
 mod cursor;
 pub(super) mod dimcode;
 mod dirac;
@@ -49,10 +49,10 @@ pub fn validate(agent: &str, selected: bool) -> Result<(), Error> {
     }
     let reason = match agent.trim().to_ascii_lowercase().as_str() {
         "codex" => return codex::validate(),
+        "autohand" if cfg!(all(target_os = "macos", target_arch = "aarch64")) => return Ok(()),
         "claude" | "claude code" => return Ok(()),
         "qwen" => return Ok(()),
         "gemini" => return Ok(()),
-        "autohand" if cfg!(all(target_os = "macos", target_arch = "aarch64")) => return Ok(()),
         "glm-acp-agent" if cfg!(all(target_os = "macos", target_arch = "aarch64")) => return Ok(()),
         "codebuddy" => return Ok(()),
         "goose" => return Ok(()),
@@ -81,8 +81,8 @@ pub fn validate(agent: &str, selected: bool) -> Result<(), Error> {
         "amp-acp" if cfg!(all(target_os = "macos", target_arch = "aarch64")) => return Ok(()),
         "auggie" if cfg!(all(target_os = "macos", target_arch = "aarch64")) => return Ok(()),
         "cursor" => return Ok(()),
-        "deepagents" if cfg!(all(target_os = "macos", target_arch = "aarch64")) => return Ok(()),
         "cortex-code" if cfg!(all(target_os = "macos", target_arch = "aarch64")) => return Ok(()),
+        "deepagents" if cfg!(all(target_os = "macos", target_arch = "aarch64")) => return Ok(()),
         "dirac" if cfg!(all(target_os = "macos", target_arch = "aarch64")) => return Ok(()),
         "dimcode" if cfg!(all(target_os = "macos", target_arch = "aarch64")) => return Ok(()),
         "droid" if cfg!(all(target_os = "macos", target_arch = "aarch64")) => return Ok(()),
@@ -108,16 +108,16 @@ impl super::host::SkillLease for MountedSkills {
     fn fingerprint(&self) -> &str { self.0.fingerprint() }
     fn root(&self) -> &std::path::Path { self.0.root() }
     fn validate(&self) -> Result<(), Error> { self.0.validate().map_err(super::to_api_error) }
+    #[cfg(unix)]
+    fn snapshot(&self, destination: &std::path::Path) -> Result<(), Error> {
+        self.0.snapshot(destination).map_err(super::to_api_error)
+    }
 }
 impl MountedSkills {
     pub fn prepare(
         mounts: &[acp_types::SessionSkillMount],
         cwd: &std::path::Path,
         session: &str,
-    #[cfg(unix)]
-    fn snapshot(&self, destination: &std::path::Path) -> Result<(), Error> {
-        self.0.snapshot(destination).map_err(super::to_api_error)
-    }
         security: &config_skills::SkillSecurityConfig,
         tenant: &vw_api_transport::TenantScope,
     ) -> Result<Option<Self>, Error> {

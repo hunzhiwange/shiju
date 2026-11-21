@@ -187,10 +187,10 @@ pub async fn do_stream_request_acp<H: Host>(
     let mut restricted_auggie = false;
     let mut restricted_hermes = false;
     let mut restricted_droid = false;
-    let mut restricted_opencode = false;
-    let mut restricted_openclaw = false;
     let mut restricted_kilocode = false;
     let mut restricted_pi = false;
+    let mut restricted_opencode = false;
+    let mut restricted_openclaw = false;
     if let Some((root, full_grant)) = desktop_access {
         super::session::bind_desktop_access(&mut parsed_options, root, full_grant);
         restricted_auggie = acp_agent_name == "auggie"
@@ -209,16 +209,6 @@ pub async fn do_stream_request_acp<H: Host>(
             && merged_options.get("disable_tools").and_then(Value::as_bool) != Some(true)
             && cfg!(all(target_os = "macos", target_arch = "aarch64"))
             && source == vw_api_acp_model::acp_model_source::AcpModelSource::SessionModel;
-        restricted_pi = super::skill_mounts::pi::restricted_launch(
-            &acp_agent_name, source, parsed_options.permission_mode,
-            merged_options.get("disable_tools").and_then(Value::as_bool) == Some(true),
-        );
-        restricted_kilocode = acp_agent_name == "kilocode"
-            && !parsed_options.full_access
-            && parsed_options.permission_mode == Some(acp_types::PermissionMode::ApproveReads)
-            && merged_options.get("disable_tools").and_then(Value::as_bool) != Some(true)
-            && cfg!(all(target_os = "macos", target_arch = "aarch64"))
-            && source == vw_api_acp_model::acp_model_source::AcpModelSource::SessionModel;
         restricted_openclaw = acp_agent_name == "openclaw"
             && super::skill_mounts::openclaw::restricted_launch(
                 source,
@@ -231,7 +221,17 @@ pub async fn do_stream_request_acp<H: Host>(
             && !parsed_options.full_access
             && cfg!(all(target_os = "macos", target_arch = "aarch64"))
             && source == vw_api_acp_model::acp_model_source::AcpModelSource::SessionModel;
-        if !restricted_droid && !restricted_auggie && !restricted_opencode && !restricted_kilocode && !restricted_hermes && !restricted_pi && !restricted_openclaw {
+        restricted_pi = super::skill_mounts::pi::restricted_launch(
+            &acp_agent_name, source, parsed_options.permission_mode,
+            merged_options.get("disable_tools").and_then(Value::as_bool) == Some(true),
+        );
+        restricted_kilocode = acp_agent_name == "kilocode"
+            && !parsed_options.full_access
+            && parsed_options.permission_mode == Some(acp_types::PermissionMode::ApproveReads)
+            && merged_options.get("disable_tools").and_then(Value::as_bool) != Some(true)
+            && cfg!(all(target_os = "macos", target_arch = "aarch64"))
+            && source == vw_api_acp_model::acp_model_source::AcpModelSource::SessionModel;
+        if !restricted_droid && !restricted_auggie && !restricted_kilocode && !restricted_hermes && !restricted_opencode && !restricted_pi && !restricted_openclaw {
             acp_client::AcpClient::ensure_desktop_native_access(
                 &acp_agent_name,
                 parsed_options.full_access,
@@ -466,14 +466,6 @@ pub async fn do_stream_request_acp<H: Host>(
     {
         return Err(acp_option_error("Stakpak skill mounts require session_model with native reads enabled"));
     }
-    if acp_agent_name == "stakpak"
-        && parsed_options.skill_view.is_some()
-        && (source != vw_api_acp_model::acp_model_source::AcpModelSource::SessionModel
-            || parsed_options.permission_mode == Some(acp_types::PermissionMode::DenyAll)
-            || merged_options.get("disable_tools").and_then(Value::as_bool) == Some(true))
-    {
-        return Err(acp_option_error("Stakpak skill mounts require session_model with native reads enabled"));
-    }
     H::validate_mounts(&acp_agent_name, !parsed_options.skill_mounts.is_empty())?;
 
     if acp_agent_name == "dimcode"
@@ -553,7 +545,6 @@ pub async fn do_stream_request_acp<H: Host>(
     }
     let auggie_mcp = restricted_auggie && !parsed_options.mcp_servers.is_empty();
     let droid_mcp = restricted_droid && !parsed_options.mcp_servers.is_empty();
-    let auggie_mcp = restricted_auggie && !parsed_options.mcp_servers.is_empty();
     let hermes_mcp = restricted_hermes && !parsed_options.mcp_servers.is_empty();
     let openclaw_mcp = if acp_agent_name == "openclaw" && !restricted_openclaw {
         if !parsed_options.mcp_servers.is_empty()
@@ -814,18 +805,18 @@ pub async fn do_stream_request_acp<H: Host>(
             parsed_options.skill_view.as_ref(),
         )?;
     }
-    let kilocode_sandbox = if restricted_kilocode {
-        super::skill_mounts::kilocode::validate_mcp(&parsed_options.mcp_servers)?;
-        let profile = launch_profile.as_ref().ok_or_else(|| acp_option_error("Missing restricted Kilocode launch"))?;
-        Some(super::skill_mounts::kilocode::sandbox(
+    let opencode_sandbox = if restricted_opencode {
+        let profile = launch_profile.as_ref().ok_or_else(|| acp_option_error("Missing restricted OpenCode launch"))?;
+        Some(super::skill_mounts::opencode::sandbox(
             profile, &mut normalized_acp_cfg, &cwd, parsed_options.skill_view.as_ref(),
         ).map_err(to_api_error)?)
     } else {
         None
     };
-    let opencode_sandbox = if restricted_opencode {
-        let profile = launch_profile.as_ref().ok_or_else(|| acp_option_error("Missing restricted OpenCode launch"))?;
-        Some(super::skill_mounts::opencode::sandbox(
+    let kilocode_sandbox = if restricted_kilocode {
+        super::skill_mounts::kilocode::validate_mcp(&parsed_options.mcp_servers)?;
+        let profile = launch_profile.as_ref().ok_or_else(|| acp_option_error("Missing restricted Kilocode launch"))?;
+        Some(super::skill_mounts::kilocode::sandbox(
             profile, &mut normalized_acp_cfg, &cwd, parsed_options.skill_view.as_ref(),
         ).map_err(to_api_error)?)
     } else {

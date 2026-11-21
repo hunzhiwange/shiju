@@ -197,23 +197,6 @@ fn verify(directory: &Path, contract: &Contract) -> Result<PathBuf, String> {
                 return Err("Stakpak native build receipt checksum mismatch".into());
             }
         }
-        if contract.package == "stakpak" {
-            let receipt: serde_json::Value = serde_json::from_slice(
-                &std::fs::read(directory.join("build-receipt.json"))
-                    .map_err(|_| "Missing Stakpak build receipt")?,
-            ).map_err(|_| "Invalid Stakpak build receipt")?;
-            let digest = hex::encode(Sha256::digest(
-                std::fs::read(directory.join("stakpak-native"))
-                    .map_err(|_| "Missing Stakpak native program")?,
-            ));
-            if receipt["version"] != contract.version
-                || receipt["source_sha256"].as_str() != contract.source_sha256.as_deref()
-                || receipt["patch_sha256"].as_str() != contract.patch_sha256.as_deref()
-                || receipt["sha256"].as_str() != Some(digest.as_str())
-            {
-                return Err("Stakpak native build receipt checksum mismatch".into());
-            }
-        }
         return Ok(directory.join(&contract.bin));
     }
     if contract.layout == "native" {
@@ -382,6 +365,7 @@ pub fn reviewed_agent_command(agent: &str) -> Result<Option<(String, Vec<String>
     let args = match agent {
         "gemini" => vec!["--experimental-acp".into()],
         "iflow" => vec!["--experimental-acp".into()],
+        "autohand" => vec!["--acp".into()],
         "auggie" | "codebuddy" | "dirac" | "qoder" | "qwen" | "snow" => vec!["--acp".into()],
         "copilot" => vec!["--acp".into(), "--stdio".into()],
         "kilocode" => vec!["acp".into(), "--pure".into()],
@@ -454,7 +438,6 @@ pub fn verify_auggie_restricted_executable(command: &str) -> Result<(), String> 
     }
 }
 
-/// Validate explicit overrides too; a familiar executable name is never proof of a patch.
 pub fn verify_droid_restricted_executable(command: &str) -> Result<(), String> {
     let contract = contract("droid").ok_or("Missing Droid artifact contract")?;
     let executable = Path::new(command).canonicalize().map_err(|_| "Missing Droid executable")?;
@@ -480,7 +463,6 @@ pub fn verify_reviewed_agent_executable(agent: &str, command: &str) -> Result<()
             Ok(())
         } else {
             Err("Claude managed launch requires an installed verified ACP adapter".into())
-        "autohand" => vec!["--acp".into()],
         };
     }
     let Some(mut contract) = contract(agent) else { return Ok(()) };
@@ -636,6 +618,9 @@ pub(super) async fn install(agent: &str) -> Result<bool, String> {
     std::fs::create_dir(&stage.0).map_err(|_| "Cannot create ACP installation stage")?;
     let assets = stage.0.join("assets");
     for (name, text) in [
+        ("autohand/apply.py", include_str!("../../../../patches/acp-model-source/autohand/apply.py")),
+        ("autohand/session-boundary.mjs", include_str!("../../../../patches/acp-model-source/autohand/session-boundary.mjs")),
+        ("autohand-lock.json", include_str!("../../../../patches/acp-model-source/autohand/package-lock.json")),
         ("dimcode/apply.py", include_str!("../../../../patches/acp-model-source/dimcode/apply.py")),
         ("nova/apply.py", include_str!("../../../../patches/acp-model-source/nova/apply.py")),
         ("nova/session-model.mjs", include_str!("../../../../patches/acp-model-source/nova/session-model.mjs")),
@@ -727,9 +712,6 @@ pub(super) async fn install(agent: &str) -> Result<bool, String> {
             "kilocode/patch.json",
             include_str!("../../../../patches/acp-model-source/kilocode/patch.json"),
         ),
-        ("autohand/apply.py", include_str!("../../../../patches/acp-model-source/autohand/apply.py")),
-        ("autohand/session-boundary.mjs", include_str!("../../../../patches/acp-model-source/autohand/session-boundary.mjs")),
-        ("autohand-lock.json", include_str!("../../../../patches/acp-model-source/autohand/package-lock.json")),
         ("dirac/apply.py", include_str!("../../../../patches/acp-model-source/dirac/apply.py")),
         (
             "dirac/session-mcp.mjs",

@@ -512,10 +512,11 @@ impl AcpClient {
             return Err(AcpError::Initialize("Invalid restricted Droid launch".into()));
         }
         if self.desktop_workspace.is_some()
-            && self.droid_sandbox.is_none()            && self.auggie_sandbox.is_none()
+            && self.droid_sandbox.is_none()
+            && self.auggie_sandbox.is_none()
             && !(self.agent_name == "hermes" && self.hermes_sandbox.is_some())
-            && !(self.agent_name == "opencode" && self.opencode_sandbox.is_some())
             && !(self.agent_name == "kilocode" && self.kilocode_sandbox.is_some())
+            && !(self.agent_name == "opencode" && self.opencode_sandbox.is_some())
             && !(self.agent_name == "openclaw" && self.openclaw_sandbox.is_some())
             && !restricted_pi
         {

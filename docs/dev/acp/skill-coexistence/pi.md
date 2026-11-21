@@ -71,16 +71,16 @@ Darwin arm64 的桌面读取审批档可进入固定 `session_model` 路径。�
 
 | 场景 | ACP 会话 | 终态 | 下游调用 |
 | --- | --- | --- | ---: |
-| 基线 | `01a1fbc6-9af9-75ca-9191-7c6b534f14a4` | `end_turn` | 0 |
-| 挂载 | `01a1fbc6-a23f-7029-bae4-e06de785c010` | `end_turn` | 1 |
-| 撤除 | `01a1fbc6-a849-7654-8de2-c031d49a95ec` | `end_turn` | 0 |
-| 拒绝 | `01a1fbc6-ae71-75eb-b166-85c829c78538` | `end_turn` | 0 |
-| 撤除后重载 | `01a1fbc6-a23f-7029-bae4-e06de785c010` | `end_turn` | 0 |
-| 审批中取消 | `01a1fbc6-b893-774a-8b4b-495c088b3873` | `cancelled` | 0 |
-| 越界绝对路径 | `01a1fbc6-bcbe-7779-a91c-1c4f5901ab50` | `end_turn` | 0 |
-| 越界符号链接 | `01a1fbc6-c0f5-77f2-a6cd-b1473a75f972` | `end_turn` | 0 |
+| 基线 | `01a1fbd4-02da-700f-97f3-79ff670d8816` | `end_turn` | 0 |
+| 挂载 | `01a1fbd4-090e-7711-b8a8-5c782c1ac689` | `end_turn` | 1 |
+| 撤除 | `01a1fbd4-0f57-7159-bc4d-67d2ec3b0a3c` | `end_turn` | 0 |
+| 拒绝 | `01a1fbd4-157c-74e8-89c2-0d2d350652a5` | `end_turn` | 0 |
+| 撤除后重载 | `01a1fbd4-090e-7711-b8a8-5c782c1ac689` | `end_turn` | 0 |
+| 审批中取消 | `01a1fbd4-1fb3-76b3-ae90-63b0ac80cd32` | `cancelled` | 0 |
+| 越界绝对路径 | `01a1fbd4-23da-74fe-b02f-a87d7e5e828d` | `end_turn` | 0 |
+| 越界符号链接 | `01a1fbd4-27e0-74da-a2c1-8d774d2b0496` | `end_turn` | 0 |
 
-直连挂载轮从工作区外的选中技能真实读取正文和附件。批准调用 `probe7f3ece83ae92dfb5bc907fa2` 返回随机 MCP 值，拒绝调用 `probe55078b4c8d876a59faa8b877` 向模型返回拒绝原因。取消发生在审批等待期间，下游调用为零。真实 Pi `read` 拒绝越界绝对路径及工作区内指向越界文件的符号链接。原生禁用项和未选中项不入目录，自动扩展未运行。系统探针对同一策略验证工作区文件可读、跨界文件及工作区写入被拒、子进程启动和未授权回环端口连接被拒。结构化报告为 `target/acp-skill-coexistence/pi-v4-direct.json` 及 `target/acp-skill-coexistence/pi-v4-os.json`。
+直连挂载轮从工作区外的选中技能真实读取正文和附件。批准调用 `probea6e446898249245fa6a772c3` 返回随机 MCP 值，拒绝调用 `probedb42ebb28e833fee82e06f6c` 向模型返回拒绝原因。取消发生在审批等待期间，下游调用为零。真实 Pi `read` 拒绝越界绝对路径及工作区内指向越界文件的符号链接。原生禁用项和未选中项不入目录，自动扩展未运行。扩展如被加载可在沙箱允许写入的私有状态创建标记，实际未出现该标记。系统探针对同一策略验证工作区文件可读、跨界文件及工作区写入被拒、子进程启动和未授权回环端口连接被拒。结构化报告为 `target/acp-skill-coexistence/pi-v4-direct.json` 及 `target/acp-skill-coexistence/pi-v4-os.json`。
 
 复跑系统对照时，在固定源码应用补丁、安装构建依赖后，从仓库根运行：
 
@@ -90,4 +90,4 @@ node --import "$PI_SOURCE/node_modules/tsx/dist/loader.mjs" \
   "$PI_SOURCE/src/pi-rpc/restricted.ts" "$PI_ENGINE"
 ```
 
-受限网关回归与 Rust 聚焦用例另行记录。
+网关首轮构建在槽位 3 退出 101，阻塞来自并行 Droid 接线的 `sandbox` 可见性错误（`E0603`）。构建输出存于 `target/acp-skill-coexistence/pi-v4-build.log`。Droid 修正后，按编号卡命令复用槽位 3。

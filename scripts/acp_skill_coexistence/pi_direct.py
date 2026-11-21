@@ -57,7 +57,9 @@ def main():
                   (("native", ".pi/skills"), ("unselected", ".shiju/skills"),
                    ("disabled", ".pi/skills"), ("foreign", ".agents/skills"))}
         skills["selected"] = make_skill(root / "external-skills", "selected")
-        side_effect = workspace / "extension-loaded"
+        # Private Pi state is writable, so a missing marker proves the extension
+        # did not run rather than only proving that workspace writes were blocked.
+        side_effect = root / "agent" / "extension-loaded"
         ext = workspace / ".pi/extensions/forbidden.mjs"
         ext.parent.mkdir()
         ext.write_text("import { writeFileSync } from 'node:fs';\nwriteFileSync("

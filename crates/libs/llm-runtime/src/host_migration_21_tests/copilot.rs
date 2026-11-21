@@ -67,7 +67,7 @@ fn verify_private_byok_launch(reasoning: bool, declared_effort: bool, extra_args
         adapter: "openai-compatible".into(),
         url: "https://example.invalid/v1".into(),
     });
-    configure(&mut profile, "http://127.0.0.1:12345").unwrap();
+    configure(&mut profile, "http://127.0.0.1:12345", "").unwrap();
     let env = &profile.config().env;
     assert_eq!(env["COPILOT_MODEL"], "vibewindow/chosen");
     let providers: serde_json::Value =
@@ -133,7 +133,7 @@ fn acp_model_source_copilot_conflicting_account_environment_is_rejected() {
         )
         .unwrap();
         assert!(
-            configure(&mut profile, "http://127.0.0.1:12345")
+            configure(&mut profile, "http://127.0.0.1:12345", "")
                 .unwrap_err()
                 .to_string()
                 .contains("conflicting")
@@ -173,7 +173,7 @@ fn acp_model_source_copilot_rejects_nonexact_tool_filters_and_unreviewed_flags()
         )
         .unwrap();
         assert!(
-            configure(&mut profile, "http://127.0.0.1:12345")
+            configure(&mut profile, "http://127.0.0.1:12345", "")
                 .unwrap_err()
                 .to_string()
                 .contains("verified ACP arguments"),

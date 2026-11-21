@@ -63,3 +63,11 @@
 Darwin arm64 的固定 v2 直连验证以 0 退出。四轮均读取原生随机正文及附件。挂载轮和拒绝轮额外从会话视图读取选中技能，未选项和两个原生排除项始终不可见。同名对照里由配置在前的原生项目技能胜出。SSE 单次允许后下游调用为 1，拒绝后为 0，原生 `allow_all` 四轮均为 `off`。证据位于 `target/acp-skill-coexistence/copilot-direct-v2.log` 和 `target/acp-skill-coexistence/copilot-direct-collision.log`。
 
 补测在原生技能声明 `allowed-tools: bash` 后申请执行仅输出常量的命令。真实 ACP 发出权限请求，选择单次拒绝后回合结束。该命令没有获得技能自授权。诊断退出 0，见 `target/acp-skill-coexistence/copilot-direct-shell-approval.log`。共享 Python 验收判定通过 5 项。
+
+## 正式回归待补
+
+槽位 9 的 `llm-runtime` 定向单测首次编译退出 101。旧 Copilot 模型启动测试的三处调用缺少新增的工作区参数，已更新。将生产投影函数与同一组设置测试直接链接至槽位 9 缓存的依赖，4 项通过。该检查覆盖投影、越界路径、注入字段和链接拒绝，正式测试目标仍待复跑。
+
+共享网关构建期间出现其他适配器的编译错误，包括 `pi` 模块可见性、Auggie 接口接线及 Droid `sandbox` 可见性。实际输出见 `target/acp-skill-coexistence/opencode-build.log` 和 `target/acp-skill-coexistence/pi-v4-build.log`。Copilot 的重试及槽位 3 网关命令在共享编译锁队列中取消，Copilot 进程与槽位 3 已释放。未取得新版网关四轮、绑定和权限回读。
+
+补齐定向单测和网关四轮后才能结项。定向单测命令为 `python3 scripts/cargo_slot.py cargo test --locked -j 1 -p llm-runtime --lib acp_skill_coexistence_copilot -- --test-threads=1`。网关从任务卡原命令复跑，使用同一持有的 Cargo 槽位。可将 `COPILOT_COEXISTENCE_RUNTIME` 指向包含受审 v2 包的私有修订目录，或使用已准备好的受审 v2 安装。两项编译均使用计划的共享编译锁。

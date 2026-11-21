@@ -52,7 +52,9 @@ fn installed_directory(agent: &str, contract: &Contract) -> Result<PathBuf, Stri
         5
     } else if agent == "amp-acp" {
         5
-    } else if matches!(agent, "corust-agent" | "harn" | "sigit") {
+    } else if agent == "harn" {
+        5
+    } else if matches!(agent, "corust-agent" | "sigit") {
         4
     } else if agent == "aionrs" {
         3
@@ -102,6 +104,15 @@ pub fn verify_vtcode_mcp_executable(command: &str) -> Result<(), String> {
 
 fn verify(directory: &Path, contract: &Contract) -> Result<PathBuf, String> {
     if contract.layout == "standalone" {
+        if contract.package == "harn-cli" {
+            for name in contract.files.keys().map(String::as_str).chain(["harn-native", "build-receipt.json"]) {
+                if !std::fs::symlink_metadata(directory.join(name))
+                    .is_ok_and(|metadata| metadata.file_type().is_file())
+                {
+                    return Err("Harn artifact is missing or redirected".into());
+                }
+            }
+        }
         for (name, digest) in &contract.files {
             if hex::encode(Sha256::digest(
                 std::fs::read(directory.join(name))
@@ -109,6 +120,49 @@ fn verify(directory: &Path, contract: &Contract) -> Result<PathBuf, String> {
             )) != *digest
             {
                 return Err("Standalone ACP artifact checksum mismatch".into());
+            }
+        }
+        if contract.package == "harn-cli" {
+            let receipt: serde_json::Value = serde_json::from_slice(
+                &std::fs::read(directory.join("build-receipt.json"))
+                    .map_err(|_| "Missing Harn build receipt")?,
+            ).map_err(|_| "Invalid Harn build receipt")?;
+            use std::io::Read;
+            let mut engine = std::fs::File::open(directory.join("harn-native"))
+                .map_err(|_| "Missing Harn engine")?;
+            let mut digest = Sha256::new();
+            let mut block = [0; 64 * 1024];
+            loop {
+                let size = engine.read(&mut block).map_err(|_| "Cannot read Harn engine")?;
+                if size == 0 {
+                    break;
+                }
+                digest.update(&block[..size]);
+            }
+            let digest = hex::encode(digest.finalize());
+            if receipt["version"] != contract.version
+                || receipt["source_sha256"].as_str() != contract.source_sha256.as_deref()
+                || receipt["patch_sha256"].as_str() != contract.patch_sha256.as_deref()
+                || receipt["engine_sha256"].as_str() != Some(digest.as_str())
+            {
+                return Err("Harn engine build receipt checksum mismatch".into());
+            }
+        }
+        if contract.package == "stakpak" {
+            let receipt: serde_json::Value = serde_json::from_slice(
+                &std::fs::read(directory.join("build-receipt.json"))
+                    .map_err(|_| "Missing Stakpak build receipt")?,
+            ).map_err(|_| "Invalid Stakpak build receipt")?;
+            let digest = hex::encode(Sha256::digest(
+                std::fs::read(directory.join("stakpak-native"))
+                    .map_err(|_| "Missing Stakpak native program")?,
+            ));
+            if receipt["version"] != contract.version
+                || receipt["source_sha256"].as_str() != contract.source_sha256.as_deref()
+                || receipt["patch_sha256"].as_str() != contract.patch_sha256.as_deref()
+                || receipt["sha256"].as_str() != Some(digest.as_str())
+            {
+                return Err("Stakpak native build receipt checksum mismatch".into());
             }
         }
         return Ok(directory.join(&contract.bin));
@@ -365,6 +419,9 @@ pub fn verify_reviewed_agent_executable(agent: &str, command: &str) -> Result<()
     if agent == "glm-acp-agent" {
         return Err("GLM executable must resolve to the installed reviewed entry".into());
     }
+    if agent == "harn" {
+        return Err("Harn executable must resolve to the installed reviewed entry".into());
+    }
     if agent == "vtcode" && executable.file_name().is_some_and(|name| name == contract.bin.as_str())
         && let Some(source_sha256) = &contract.source_sha256
         && hex::encode(Sha256::digest(std::fs::read(&executable).map_err(|_| "Missing VT Code executable")?))
@@ -509,6 +566,7 @@ pub(super) async fn install(agent: &str) -> Result<bool, String> {
         ("mimo-code/stdio-only.patch", include_str!("../../../../patches/acp-model-source/mimo-code/stdio-only.patch")),
         ("junie/launcher.py", include_str!("../../../../patches/acp-model-source/junie/launcher.py")),
         ("junie/mcp_bridge.py", include_str!("../../../../patches/acp-model-source/junie/mcp_bridge.py")),
+        ("harn/skills.patch", include_str!("../../../../patches/acp-model-source/harn/skills.patch")),
         ("harn/agent.harn", include_str!("../../../../patches/acp-model-source/harn/agent.harn")),
         ("poolside/launcher.py", include_str!("../../../../patches/acp-model-source/poolside/launcher.py")),
         ("poolside/mcp_bridge.py", include_str!("../../../../patches/acp-model-source/poolside/mcp_bridge.py")),

@@ -840,12 +840,12 @@
     "package": "harn-cli",
     "version": "0.10.201",
     "bin": "harn",
-    "artifact_url": "https://github.com/burin-labs/harn/releases/download/v0.10.201/harn-aarch64-apple-darwin.tar.gz",
-    "archive_sha256": "332a7a94162e8c9d3345bbc34fcc6e1043e952b707f1ba44ba79fceb2c21a414",
+    "source_url": "https://codeload.github.com/burin-labs/harn/tar.gz/4914194ae9f56b0046210ca90ef6f927988e727e",
+    "source_sha256": "26aca7b48967035e57924268ba86fce9b0adc8b687d006346deb755d662f7d2f",
+    "patch_sha256": "30752aa0fadd36675e1b088cbca5eb8a20de3e98cc0cc1f5a0c5b7d1e10d420a",
     "files": {
-      "agent.harn": "40ce0f80ad9033a8f72aa22d3228cba9f2068781aefaae7450664f312f335cdd",
-      "harn-native": "23c951212c045c56deea491f9ce9505b8298472daa862334b33413ea31dcdcca",
-      "harn": "17ad39da24845bb62914b46b748f30d63ebd11ca5f121af42fd8597a0ed94926",
+      "agent.harn": "6e312194b007bf517450839268573adfc902bc43f3d0ca9e7506e2d819d3e9a8",
+      "harn": "07879ddb4fd301879e85863a091a1bad26cfaa0cd3274f3d450f570f67a62521",
       "shiju_stdio.py": "e6870d58c6c59cb1f1d224a66cdaa8455b34057249912b7bce5b9e21f95a074a"
     }
   },

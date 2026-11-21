@@ -2,6 +2,7 @@
 use super::{Error, acp_option_error};
 pub(super) mod aionrs;
 pub(super) mod amp_acp;
+pub(super) mod harn;
 pub(super) mod auggie;
 mod claude;
 pub(super) mod autohand;
@@ -72,6 +73,7 @@ pub fn validate(agent: &str, selected: bool) -> Result<(), Error> {
         "openclaw" => return Ok(()),
         "pi" => return Ok(()),
         "poolside" if cfg!(all(target_os = "macos", target_arch = "aarch64")) => return Ok(()),
+        "harn" if cfg!(all(target_os = "macos", target_arch = "aarch64")) => return Ok(()),
         "amp-acp" if cfg!(all(target_os = "macos", target_arch = "aarch64")) => return Ok(()),
         "auggie" if cfg!(all(target_os = "macos", target_arch = "aarch64")) => return Ok(()),
         "cursor" => return Ok(()),

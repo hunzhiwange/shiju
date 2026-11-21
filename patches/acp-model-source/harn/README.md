@@ -1,8 +1,9 @@
 # Harn session-model runtime
 
-The system installer pins Harn 0.10.201 for macOS arm64, checks the official archive
-and each runnable artifact, and preserves the supplier's license files. Other
-platforms fail explicitly; no moving shell installer or same-name npm package is used.
+The system installer pins Harn 0.10.201 for macOS arm64 and preserves the
+supplier's license files. v4 used the official binary archive. v5 verifies
+the fixed source archive and patch before building the native CLI. Other
+platforms fail explicitly.
 
 `agent.harn` consumes the ACP `prompt` ambient value through Harn's own
 `std/agent/loop`. It exposes read/write tools through `harness.tools.invoke`, never
@@ -53,4 +54,29 @@ RustCodeGraph and a private indexed RueJS copy:
 
 ```sh
 python3 patches/acp-model-source/harn/mcp_test.py /absolute/path/to/harn /absolute/path/to/rustcodegraph /absolute/path/to/ruejs
+```
+
+## Source-built skill registry
+
+Managed revision v5 uses the pinned 0.10.201 source commit and
+`skills.patch`. Install with Rust 1.99.1 and the upstream lockfile. The
+installer verifies the source and patch before invoking Cargo and records
+the engine digest alongside those inputs. It installs beside v4. Use the
+v5 engine for the pipeline smoke checks above.
+
+The managed request owns a private directory with a snapshot of the selected
+bundles and a separate snapshot of project `.harn/skills` manifests and detached
+signatures. Harn gives the native catalog precedence on duplicate names.
+The ACP runtime installs the same metadata-only loader and policy fetcher
+used by its CLI, with only those two roots. It resets the binding when the
+prompt leaves the VM. Skills that disable model invocation continue to do so.
+The ACP bridge translates attachment reads back to the workspace or the scoped
+skill lease. File permission, tool policy and one-time MCP approval stay with
+the existing host routes.
+
+Run the installer and launcher boundary checks with:
+
+```sh
+python3 patches/acp-model-source/harn/installer_test.py
+python3 patches/acp-model-source/harn/skills_test.py
 ```

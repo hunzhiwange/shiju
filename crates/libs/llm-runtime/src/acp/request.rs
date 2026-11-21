@@ -561,6 +561,15 @@ pub async fn do_stream_request_acp<H: Host>(
         }
         vw_api_acp_model::acp_model_source::AcpModelSource::CliLocal => None,
     };
+    if acp_agent_name == "harn" {
+        let enabled = parsed_options.permission_mode != Some(acp_types::PermissionMode::DenyAll)
+            && merged_options.get("disable_tools").and_then(Value::as_bool) != Some(true);
+        if let Some(profile) = launch_profile.as_mut() {
+            super::skill_mounts::harn::configure(profile, enabled, parsed_options.skill_view.as_ref())?;
+        } else if parsed_options.skill_view.is_some() {
+            return Err(acp_option_error("Harn selected skills require the reviewed session-model launch"));
+        }
+    }
     if acp_agent_name == "amp-acp" {
         let enabled = parsed_options.permission_mode != Some(acp_types::PermissionMode::DenyAll)
             && merged_options.get("disable_tools").and_then(Value::as_bool) != Some(true);

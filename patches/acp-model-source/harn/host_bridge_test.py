@@ -49,7 +49,7 @@ class HostBoundary(unittest.TestCase):
         threading.Thread(target=server.serve_forever, daemon=True).start()
         try:
             with tempfile.TemporaryDirectory() as temporary:
-                root = Path(temporary)
+                root = Path(temporary).resolve()
                 runtime, workspace, state = [root / name for name in ['runtime', 'workspace', 'state']]
                 for directory in [runtime, workspace, state]:
                     directory.mkdir(mode=0o700)

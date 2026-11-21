@@ -110,7 +110,7 @@ fn droid_managed_patch_is_pinned_in_a_separate_install() {
 
 #[test]
 fn harn_reviewed_natural_language_runtime_is_pinned() {
-    let contract = super::contract("harn").expect("Harn must have a reviewed runtime");
+    let mut contract = super::contract("harn").expect("Harn must have a reviewed runtime");
     assert_eq!(contract.layout, "standalone");
     assert_eq!(contract.version, "0.10.201");
     assert!(contract.files.contains_key("harn"));
@@ -119,11 +119,27 @@ fn harn_reviewed_natural_language_runtime_is_pinned() {
     assert!(
         super::installed_directory("harn", &contract)
             .unwrap()
-            .ends_with("harn-0.10.201-model-source-v4")
+            .ends_with("harn-0.10.201-model-source-v5")
     );
     let directory = tempfile::tempdir().unwrap();
     std::fs::write(directory.path().join("harn"), "tampered").unwrap();
     assert!(super::verify(directory.path(), &contract).is_err());
+    for (name, expected) in &mut contract.files {
+        std::fs::write(directory.path().join(name), name.as_bytes()).unwrap();
+        *expected = hex::encode(Sha256::digest(name.as_bytes()));
+    }
+    let native = directory.path().join("harn-native");
+    std::fs::write(&native, b"engine").unwrap();
+    let receipt = serde_json::json!({
+        "version": contract.version,
+        "source_sha256": contract.source_sha256,
+        "patch_sha256": contract.patch_sha256,
+        "engine_sha256": hex::encode(Sha256::digest(b"engine")),
+    });
+    std::fs::write(directory.path().join("build-receipt.json"), receipt.to_string()).unwrap();
+    assert!(super::verify(directory.path(), &contract).is_ok());
+    std::fs::write(&native, b"modified").unwrap();
+    assert!(super::verify(directory.path(), &contract).unwrap_err().contains("checksum"));
 }
 
 #[cfg(all(target_os = "macos", target_arch = "aarch64"))]

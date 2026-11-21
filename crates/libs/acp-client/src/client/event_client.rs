@@ -136,7 +136,7 @@ impl AcpClient {
                 if matches!(
                     self.agent_name.as_str(),
                     "claude" | "claude code" | "qwen" | "gemini" | "codebuddy" | "kiro"
-                ) || (matches!(self.agent_name.as_str(), "amp-acp" | "deepagents" | "dimcode" | "grok" | "kimi" | "sigit")
+                ) || (matches!(self.agent_name.as_str(), "amp-acp" | "deepagents" | "dimcode" | "grok" | "harn" | "kimi" | "sigit")
                     && self.skill_mount_lease.is_some()
                     && self.config.env.contains_key("VW_ACP_LAUNCH_REFERENCE"))
                 {

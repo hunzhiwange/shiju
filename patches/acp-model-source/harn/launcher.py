@@ -1,12 +1,14 @@
 #!/usr/bin/env python3
 """Launch the pinned Harn engine; grant its relay credential to in-process LLM calls only."""
 import asyncio
+from contextlib import ExitStack
 import json
 import hashlib
 import os
 from pathlib import Path
 import runpy
 import signal
+import stat
 import sys
 
 # Load the digest-verified source directly, without consulting Python bytecode caches.
@@ -30,12 +32,14 @@ def grant_request(frame, has_binding):
 
 
 class HarnBridge(Bridge):
-    def __init__(self, native, workspace, has_binding):
+    def __init__(self, native, workspace, has_binding, skill_root=None, selected_view=None):
         super().__init__(native, workspace)
         self.has_binding = has_binding
         self.file_calls = {}
         self.session_directories = {}
         self.admitted_calls = set()
+        self.skill_root = skill_root
+        self.selected_view = selected_view
 
     async def answer(self, identifier, value):
         await self.send({'id': identifier, 'result': value})
@@ -59,6 +63,7 @@ class HarnBridge(Bridge):
                     cwd = Path(params['cwd']).resolve(strict=True)
                     if cwd != self.workspace:
                         raise ValueError('Harn workspace mismatch')
+                    params['cwd'] = str(cwd)
                     definitions = params.get('mcpServers', [])
                     if (not isinstance(definitions, list) or len(definitions) > 16
                             or any(not isinstance(d, dict) or not NAME.fullmatch(d.get('name', ''))
@@ -77,8 +82,9 @@ class HarnBridge(Bridge):
                     continue
                 self.setup = (identifier, sid, selection, params['cwd'])
             elif method == 'session/fork':
-                if self.turn or self.setup or self.sessions.get(sid) or params.get('mcpServers'):
-                    self.host(fail(identifier, 'Harn MCP sessions cannot be forked'))
+                if (self.turn or self.setup or self.sessions.get(sid) or params.get('mcpServers')
+                        or self.selected_view is not None):
+                    self.host(fail(identifier, 'Harn sessions with mounted tools or skills cannot be forked'))
                     continue
                 self.setup = (identifier, None, {}, self.session_directories.get(sid, str(self.workspace)))
             elif method == 'session/prompt':
@@ -170,7 +176,16 @@ class HarnBridge(Bridge):
                 or chr(0) in path or (name == 'write_file' and not isinstance(values.get('content'), str))):
             await self.send(fail(identifier, 'Unverified Harn host tool'))
             return
-        translated = {'sessionId': sid, 'path': os.path.normpath(os.path.join(self.session_directories[sid], path))}
+        path = Path(os.path.normpath(os.path.join(self.session_directories[sid], path)))
+        if self.skill_root and path.is_relative_to(self.skill_root):
+            relative = path.relative_to(self.skill_root)
+            roots = {'native': self.workspace / '.harn/skills', 'selected': self.selected_view}
+            source = roots.get(relative.parts[0]) if relative.parts else None
+            if name != 'read_file' or source is None or len(relative.parts) < 3:
+                await self.send(fail(identifier, 'Harn skills permit only scoped reads'))
+                return
+            path = source.joinpath(*relative.parts[1:])
+        translated = {'sessionId': sid, 'path': str(path)}
         if name == 'write_file':
             translated['content'] = values['content']
         self.file_calls[identifier] = name
@@ -178,7 +193,7 @@ class HarnBridge(Bridge):
                    'method': 'fs/read_text_file' if name == 'read_file' else 'fs/write_text_file'})
 
 
-async def run(command, env, workspace):
+async def run(command, env, workspace, skill_root=None, selected_view=None):
     loop = asyncio.get_running_loop()
     reader = asyncio.StreamReader(limit=LIMIT)
     await loop.connect_read_pipe(lambda: asyncio.StreamReaderProtocol(reader), sys.stdin.buffer)
@@ -186,7 +201,8 @@ async def run(command, env, workspace):
         *command, cwd=workspace, env=env, stdin=asyncio.subprocess.PIPE,
         stdout=asyncio.subprocess.PIPE, limit=LIMIT,
     )
-    bridge = HarnBridge(native, workspace, bool(env.get('SHIJU_HARN_RELAY_TOKEN')))
+    bridge = HarnBridge(native, workspace, bool(env.get('SHIJU_HARN_RELAY_TOKEN')),
+                        skill_root, selected_view)
     stop = asyncio.Event()
     for sig in (signal.SIGINT, signal.SIGTERM):
         loop.add_signal_handler(sig, stop.set)
@@ -213,6 +229,57 @@ async def run(command, env, workspace):
                 await native.wait()
 
 
+def snapshot_native_skills(workspace, destination):
+    """Copy just the native manifests and signatures using directory-relative opens."""
+    directory_flags = os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW
+    with ExitStack() as stack:
+        def open_directory(path, parent=None):
+            fd = os.open(path, directory_flags, dir_fd=parent)
+            stack.callback(os.close, fd)
+            return fd
+
+        try:
+            root = open_directory(workspace)
+            project = open_directory('.harn', root)
+            skills = open_directory('skills', project)
+        except FileNotFoundError:
+            return
+        destination.mkdir(mode=0o700)
+        count = 0
+        with os.scandir(skills) as entries:
+            for entry in entries:
+                if not entry.is_dir(follow_symlinks=False):
+                    continue
+                fd = os.open(entry.name, directory_flags, dir_fd=skills)
+                try:
+                    files = {}
+                    for name in ('SKILL.md', 'SKILL.md.sig'):
+                        try:
+                            file_fd = os.open(name, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK,
+                                              dir_fd=fd)
+                        except FileNotFoundError:
+                            if name == 'SKILL.md':
+                                break
+                            continue
+                        with os.fdopen(file_fd, 'rb') as stream:
+                            if not stat.S_ISREG(os.fstat(stream.fileno()).st_mode):
+                                raise ValueError('Harn skill manifests must be regular files')
+                            data = stream.read(1024 * 1024 + 1)
+                            if len(data) > 1024 * 1024:
+                                raise ValueError('Harn skill manifest exceeds the size limit')
+                            files[name] = data
+                    if 'SKILL.md' in files:
+                        count += 1
+                        if count > 128:
+                            raise ValueError('Harn native skill directory exceeds the bundle limit')
+                        skill = destination / entry.name
+                        skill.mkdir(mode=0o700)
+                        for name, data in files.items():
+                            (skill / name).write_bytes(data)
+                finally:
+                    os.close(fd)
+
+
 def main():
     if len(sys.argv) != 1:
         raise ValueError('Harn managed launcher does not accept custom arguments')
@@ -234,8 +301,21 @@ def main():
     pipeline = Path(os.environ.get('SHIJU_HARN_PIPELINE', str(root / 'agent.harn')))
     if hashlib.sha256(pipeline.read_bytes()).digest() != hashlib.sha256((root / 'agent.harn').read_bytes()).digest():
         raise ValueError('Harn private pipeline differs from the reviewed artifact')
-    return asyncio.run(run([str(root / 'harn-native'), 'serve', 'acp',
-                            '--session-environment', 'isolated', str(pipeline)], env, workspace))
+    command = [str(root / 'harn-native'), 'serve', 'acp', '--session-environment', 'isolated']
+    skill_root = selected_view = None
+    if os.environ.get('SHIJU_HARN_SKILL_ROOT'):
+        skill_root = Path(os.environ['SHIJU_HARN_SKILL_ROOT']).resolve(strict=True)
+        if binding is None or skill_root != pipeline.parent.resolve(strict=True) / 'skill-roots':
+            raise ValueError('Harn skill root must belong to the managed launch profile')
+        snapshot_native_skills(workspace, skill_root / 'native')
+        selected = os.environ.get('SHIJU_HARN_SELECTED_VIEW')
+        if selected:
+            selected_view = Path(selected).resolve(strict=True)
+        env['SHIJU_HARN_SKILL_ROOT'] = str(skill_root)
+        env['SHIJU_HARN_WORKSPACE'] = str(workspace)
+        env['HOME'] = str(skill_root.parent / 'state')
+        command.extend(('--read-only-root', str(skill_root)))
+    return asyncio.run(run([*command, str(pipeline)], env, workspace, skill_root, selected_view))
 
 
 if __name__ == '__main__':

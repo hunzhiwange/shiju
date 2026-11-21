@@ -1,6 +1,6 @@
 # Harn ACP 技能共存验收
 
-**已阻塞。** Harn 0.10.201 的 CLI 能发现用户目录和环境变量指定目录，但 ACP 回合没有绑定原生技能注册表。受管 v4 的私有 pipeline 保留原生文件工具和 stdio MCP 桥。当前技能挂载门禁继续拒绝 Harn。[v4 MCP 基线](../mcp-acceptance/harn.md#v4-正式网关验收通过)
+受管 v4 基线中，Harn 0.10.201 的 CLI 能发现用户目录和环境变量指定目录，但 ACP 回合没有绑定原生技能注册表。受管 v4 的私有 pipeline 保留原生文件工具和 stdio MCP 桥。当前技能挂载门禁继续拒绝 Harn。[v4 MCP 基线](../mcp-acceptance/harn.md#v4-正式网关验收通过)
 
 ## 制品与直接对照
 
@@ -40,3 +40,34 @@ PYTHONPATH=scripts python3 -c 'import sys; from cargo_slot import run; sys.exit(
 - 官方后续发行 v0.10.202 的 ACP 初始化仍未绑定技能注册表。以 0.10.201 标签提交 `4914194ae9f56b0046210ca90ef6f927988e727e` 测得 `cargo +1.99.1 metadata --locked --format-version 1` 在线解析退出 0，未编译供应商。源码级接入会生成与现有合同摘要不同的新原生可执行文件，现有脚本补丁和官方归档均无法提供该入口。[后续版 ACP 初始化](https://github.com/burin-labs/harn/blob/v0.10.202/crates/harn-serve/src/adapters/acp/execute.rs) [官方后续发行](https://github.com/burin-labs/harn/releases/tag/v0.10.202)
 
 继续所需输入为带可核验摘要的受审 Darwin arm64 Harn ACP 制品，或经审定的固定源码补丁与可复现构建契约。该入口需在每个 ACP 会话绑定原生延迟读取器，支持当前工作区与受信选集，保留禁用与签名语义，并沿用 v4 的模型中继、MCP 沙箱及逐次审批。然后再接入宿主选集分派并运行三轮与拒绝对照。
+
+## 受管 v5 源码接入
+
+v5 固定使用上游 0.10.201 提交 `4914194ae9f56b0046210ca90ef6f927988e727e`。Darwin arm64 的 `cargo +1.99.1 build --locked -j 1 -p harn-cli --bin harn` 使用槽位 11 退出 0。源码归档 SHA-256 为 `26aca7b48967035e57924268ba86fce9b0adc8b687d006346deb755d662f7d2f`，补丁 SHA-256 为 `30752aa0fadd36675e1b088cbca5eb8a20de3e98cc0cc1f5a0c5b7d1e10d420a`，本次 Mach-O 引擎 SHA-256 为 `9c6cad508a3d976068c92737eaec22b659685603dd4b753c8a64351bb2d39598`。归档上的补丁预演通过。安装与快照测试合计 5 项通过。
+
+补丁在 ACP 回合 VM 基线恢复后复用 CLI 元数据扫描、签名判断和延迟读取器，回合退出时恢复线程原有绑定。启动器仅暂存工作区 `.harn/skills` 的清单和签名，宿主通过既有会话租约追加选中的只读技能快照。原生同名项优先，供应商禁用标记继续生效。附件转给宿主文件入口，MCP 沿用 v4 沙箱及一次性审批。
+
+使用 v5 引擎的直接 ACP 正向对照退出 0，两份私有正文均由 `harness.agent.load_skill` 读取。随后通过真实 v5 启动器、Chat Completions 回环和真实 stdio 服务运行四个独立 ACP 会话，全部返回 `end_turn`。模型请求数为 3/6/3/6，下游 MCP 次数为 0/1/0/0。挂载批准的 MCP 调用 ID 为 `call_harn_860dcede3420f9e994e358f8`，拒绝调用 ID 为 `call_harn_2ef7b42993677833dd6c115e`。挂载的原生激活、原生附件、选中激活、选中附件分别通过 `call_harn_287aa64ae9073cb263db8780`、`call_harn_8540f93242087a2f432ba2ee`、`call_harn_74ce088249da5f3a375fd53b`、`call_harn_69a5fe83b256ecb3c74c982a` 进入模型续轮。直接 ACP 证据位于 `target/acp-skill-coexistence/harn-direct-v5.json` 与 `target/acp-skill-coexistence/harn-pipeline-v5.jsonl`。
+
+### 生产网关四轮
+
+槽位 11 的 `cargo build --locked -j 1 -p vw-cli --bin shiju` 退出 0。网关 SHA-256 为 `ae85296f170c43eff181a717e9d5016b043b91089b43cc89cc9fff0f138c44b7`，构建和验收的 `CARGO_TARGET_DIR`、`CARGO_BUILD_BUILD_DIR` 均为仓库的 `target/rust-slot-11`。沿任务验收入口运行，`ACP_HARN_RUNTIME` 指向核验过构建回执的 v5 私有制品目录。
+
+```sh
+python3 scripts/verify_acp_skill_coexistence.py --agent harn \
+  --gateway-bin "$CARGO_TARGET_DIR/debug/shiju" \
+  --output target/acp-skill-coexistence/harn.json
+```
+
+退出 0。四个独立会话均回读 `acp-coexistence / harn`、`session_model`、`coexistence-fixture/deepseek-v4.1-flash-1017` 和 `full_access=false`。每轮恰有一个 `chat.done`，零 `chat.error`。首个模型请求没有预置技能正文或附件。禁用的原生技能、未选技能以及撤除的旧选择均未出现在目录。
+
+| 轮次 | 网关会话 | 模型请求 | MCP 执行 | MCP 审批 |
+| --- | --- | ---: | ---: | --- |
+| 无挂载 | `ses_e03c4ced8ffela0IhkyCNDBQcS` | 3 | 0 | 无 |
+| 挂载 | `ses_e03c45feeffeuOYRzk1gNvIX6C` | 6 | 1 | 一次 |
+| 撤除 | `ses_e03c3d407ffetTjmJZVfSh7zdH` | 3 | 0 | 无 |
+| 拒绝 | `ses_e03c349a0fferC6ArtMzcotjIb` | 6 | 0 | 拒绝 |
+
+挂载轮中，原生技能及其附件通过 `call_harn_2200fd563b0cabb2dab387aa` 和 `call_harn_065a09e4ae00f8e3b59da070` 返回正文。选中技能及其附件通过 `call_harn_6a7de07fa83cd24d396d5586` 和 `call_harn_815a367a59508bff180bb419` 返回正文。MCP 批准结果以 `call_harn_e1c4b2a83c4bb6a0b83018f0` 进入模型续轮，拒绝反馈以 `call_harn_00f8332dedafb54c9cb00805` 进入续轮。结构化证据位于 `target/acp-skill-coexistence/harn.json`，原 v4 失败基线位于 `target/acp-skill-coexistence/harn-v4-baseline.json`。
+
+基于同一 v5 引擎的原生文件权限回归 3 项和自然语言入口回归 1 项均退出 0。现行官方安装和用户配置未改。

@@ -1,0 +1,99 @@
+diff --git a/crates/harn-cli/src/acp/mod.rs b/crates/harn-cli/src/acp/mod.rs
+index 31ce04d..4d70290 100644
+--- a/crates/harn-cli/src/acp/mod.rs
++++ b/crates/harn-cli/src/acp/mod.rs
+@@ -136,6 +136,18 @@ impl CliAcpRuntimeConfigurator {
+
+ #[async_trait(?Send)]
+ impl AcpRuntimeConfigurator for CliAcpRuntimeConfigurator {
++    fn configure_prompt_vm(&self, vm: &mut harn_vm::Vm, cwd: &Path) {
++        let root = std::env::var_os("SHIJU_HARN_SKILL_ROOT").filter(|_| {
++            std::env::var_os("SHIJU_HARN_WORKSPACE").as_deref() == Some(cwd.as_os_str())
++        });
++        if let Some(root) = root {
++            let loaded = crate::skill_loader::load_managed_acp_skills(Path::new(&root));
++            crate::skill_loader::install_skills_global(vm, &loaded);
++        } else {
++            vm.set_global("skills", harn_vm::value::VmValue::Nil);
++        }
++    }
++
+     async fn configure(
+         &self,
+         vm: &mut harn_vm::Vm,
+diff --git a/crates/harn-cli/src/skill_loader.rs b/crates/harn-cli/src/skill_loader.rs
+index 98c46b0..1bd9b05 100644
+--- a/crates/harn-cli/src/skill_loader.rs
++++ b/crates/harn-cli/src/skill_loader.rs
+@@ -118,7 +118,26 @@ pub fn load_skills(inputs: &SkillLoaderInputs) -> LoadedSkills {
+     cfg.user_dir = default_user_dir();
+     cfg.system_dirs = default_system_dirs();
+
+-    let discovery = Arc::new(build_fs_discovery(&cfg, options));
++    load_discovery(build_fs_discovery(&cfg, options), registry_url, package_snapshot)
++}
++
++/// Read only the private roots materialized by the managed ACP launcher.
++pub(crate) fn load_managed_acp_skills(root: &Path) -> LoadedSkills {
++    let cfg = FsLayerConfig {
++        // Harn's explicit CLI layer takes precedence over the appended env layer.
++        cli_dirs: vec![root.join("native")],
++        env_dirs: vec![root.join("selected")],
++        ..FsLayerConfig::default()
++    };
++    load_discovery(build_fs_discovery(&cfg, DiscoveryOptions::default()), None, None)
++}
++
++fn load_discovery(
++    discovery: LayeredDiscovery,
++    registry_url: Option<String>,
++    package_snapshot: Option<harn_modules::package_snapshot::PackageSnapshot>,
++) -> LoadedSkills {
++    let discovery = Arc::new(discovery);
+     let raw_report = discovery.build_report();
+     let require_signed_skills = env_requires_signed_skills();
+
+diff --git a/crates/harn-serve/src/adapters/acp/execute.rs b/crates/harn-serve/src/adapters/acp/execute.rs
+index 36a7976..42f511a 100644
+--- a/crates/harn-serve/src/adapters/acp/execute.rs
++++ b/crates/harn-serve/src/adapters/acp/execute.rs
+@@ -393,6 +393,14 @@ pub(super) async fn execute_chunk(
+     let module_progress = ModuleProgressProjector::start(bridge.clone());
+     let observed_progress = module_progress.clone();
+     module_phases.set_progress_observer(move |stats| observed_progress.advance(stats));
++    struct RestoreSkills(Option<harn_vm::skills::BoundSkillRegistry>);
++    impl Drop for RestoreSkills {
++        fn drop(&mut self) {
++            harn_vm::skills::install_current_skill_registry(self.0.take());
++        }
++    }
++    let _restore_skills = RestoreSkills(harn_vm::skills::install_current_skill_registry(None));
++    runtime_configurator.configure_prompt_vm(&mut vm, setup.cwd);
+     let execute_started = Instant::now();
+     let result = harn_vm::secrets::with_active_secret_provider(execution_secret_provider, async {
+         match vm.execute_arc(std::sync::Arc::new(chunk)).await {
+diff --git a/crates/harn-serve/src/adapters/acp/mod.rs b/crates/harn-serve/src/adapters/acp/mod.rs
+index 7f536cd..b6176e7 100644
+--- a/crates/harn-serve/src/adapters/acp/mod.rs
++++ b/crates/harn-serve/src/adapters/acp/mod.rs
+@@ -662,6 +662,9 @@ pub trait AcpRuntimeConfigurator: Send + Sync {
+         Ok(())
+     }
+
++    /// Bind dynamically scoped VM state after restoring a cached baseline.
++    fn configure_prompt_vm(&self, _vm: &mut harn_vm::Vm, _cwd: &std::path::Path) {}
++
+     /// Customize the per-execution harness after the VM baseline is restored.
+     ///
+     /// This is the host-owned seam for process-local capabilities such as an
+@@ -729,6 +732,10 @@ impl AcpRuntimeConfigurator for EndpointOverrideRuntimeConfigurator {
+         self.inner.configure(vm, source_path).await
+     }
+
++    fn configure_prompt_vm(&self, vm: &mut harn_vm::Vm, cwd: &std::path::Path) {
++        self.inner.configure_prompt_vm(vm, cwd);
++    }
++
+     fn configure_harness(&self, harness: harn_vm::Harness) -> harn_vm::Harness {
+         self.inner.configure_harness(harness)
+     }

@@ -55,10 +55,12 @@ def launch(env):
 
 
 class Probe:
-    def __init__(self, fixtures, mounted, rejected):
+    def __init__(self, fixtures, mounted, rejected, *, restricted=False, skills_only=False):
         self.fixtures = fixtures
         self.mounted = mounted
         self.rejected = rejected
+        self.restricted = restricted
+        self.expect_mcp = mounted and not skills_only
         self.requests = 0
         self.completed = {}
         self.pending = None
@@ -69,7 +71,7 @@ class Probe:
         system = "\n".join(str(message["content"]) for message in body["messages"]
                            if message["role"] == "system")
         catalog = {}
-        for section in re.findall(r"<available_skills>.*?</available_skills>", system, re.S):
+        for section in re.findall(r"^<available_skills>\s*\n.*?^</available_skills>\s*$", system, re.M | re.S):
             for entry in ElementTree.fromstring(section).findall("skill"):
                 name = entry.findtext("name")
                 require(name not in catalog, "duplicate OpenClaw skill catalog entry")
@@ -90,7 +92,7 @@ class Probe:
                         "OpenClaw selected skill bypassed the session view")
             self.locations[kind] = location
         require(self.fixtures["mcp"] not in envelope, "MCP value appeared before invocation")
-        require((MCP_TOOL in tools) == self.mounted, "unexpected OpenClaw MCP tool catalog")
+        require((MCP_TOOL in tools) == self.expect_mcp, "unexpected OpenClaw MCP tool catalog")
 
     def response(self, body):
         require(body["model"] == MODEL, "unexpected OpenClaw model")
@@ -98,14 +100,28 @@ class Probe:
         if not tools:
             return {"content": "Fixture session"}, "stop"
         self.requests += 1
+        if self.restricted:
+            allowed = {"read", "skills_read"}
+            if self.expect_mcp:
+                allowed.add(MCP_TOOL)
+            require(set(tools) <= allowed, "restricted OpenClaw tool catalog: " + ", ".join(sorted(tools)))
         if self.requests == 1:
             self.catalog(body, tools)
+            boundary = self.fixtures.get("read_boundary")
+            if boundary is not None:
+                return self.read(tools, "outside_read_denied", boundary["path"])
             return self.read(tools, "native", self.locations["native"])
 
         step, call_id = self.pending
         results = [dict(message, tool_use_id=message["tool_call_id"]) for message in body["messages"]
                    if message["role"] == "tool"]
         result = str(correlated_result(results, call_id)["content"])
+        if step == "outside_read_denied":
+            boundary = self.fixtures["read_boundary"]
+            require(boundary["value"] not in result and re.search(r"outside|escape|denied", result, re.I),
+                    "OpenClaw native reader did not enforce its workspace boundary")
+            self.completed[step] = call_id
+            return self.read(tools, "native", self.locations["native"])
         if step == "mcp":
             value = self.fixtures["mcp"]
             require((value not in result and re.search(r"reject|denied|cancel", result, re.I))
@@ -120,7 +136,7 @@ class Probe:
             return self.read(tools, step + "_read", self.locations[step].parent / "references/value.txt")
         if self.mounted and step == "native_read":
             return self.read(tools, "selected", self.locations["selected"])
-        if self.mounted and step == "selected_read":
+        if self.expect_mcp and step == "selected_read":
             return self.call(tools, "mcp", MCP_TOOL, {})
         self.pending = None
         return {"content": "COEXISTENCE_DONE"}, "stop"

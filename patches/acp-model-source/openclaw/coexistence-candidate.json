@@ -1,0 +1,12 @@
+{
+  "version": "2026.10.10",
+  "file": "dist/workspace-skill-sources-DqAcMM_z.mjs",
+  "original": "db073f36c9ac2d94a9a51b5076bbe6e3ae780c67ec820e81ef000bef1bb83459",
+  "patched": "d2320bcfae0b999e541b642155d510ade08d464bec5dc233d7ef5e4c785bd671",
+  "changes": [
+    {
+      "old": "\t\tconst roots = selected ? [{dir: selected, source: \"openclaw-extra\", tier: \"extra\"}] : [];\n",
+      "new": "\t\tconst roots = selected ? [{dir: selected, source: \"openclaw-extra\", tier: \"extra\"}] : [];\n\t\tconst nativeWorkspace = process.env.SHIJU_OPENCLAW_NATIVE_SKILL_WORKSPACE;\n\t\tif (nativeWorkspace === workspaceDir && path.isAbsolute(nativeWorkspace) && fs.realpathSync(nativeWorkspace) === nativeWorkspace) {\n\t\t\tconst [native] = resolveWorkspaceSkillDirectories(workspaceDir, true);\n\t\t\t// A workspace skill root must stay inside the bound workspace.\n\t\t\tconst metadata = fs.lstatSync(native.dir, {throwIfNoEntry: false});\n\t\t\tif (metadata?.isDirectory()) roots.push({...native, tier: \"workspace\"});\n\t\t}\n"
+    }
+  ]
+}

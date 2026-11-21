@@ -47,3 +47,27 @@ Python 共享验收判定的 5 项定向测试通过。复用已有网关，未�
 固定制品 `dist/server-D2T0Amp5.mjs` 的 `assertSupportedSessionSetup` 拒绝非空 MCP 列表。桥的 Gateway 事件处理只将 `exec.approval.requested` 转成 ACP 权限请求，命令执行的批准绑定到活动会话和命令调用。制品里的 Codex harness 审批及 MCP App 审批属于独立入口。历史同版私有 Gateway 的普通模型工具实测已显示 MCP 结果进入续轮，ACP 审批回调为零。OMP 的受审宿主审批绑定其自有沙箱启动器与 MCP 代理，可用来参考调用约束，但接在 OpenClaw 的 stdio 之后也无法代替对独占 Gateway 原生文件、命令和网络能力的约束。 [固定版回执](../mcp-acceptance/openclaw.md#私有-openclaw-网关探针) · [OMP 受限审批](../mcp-acceptance/omp.md)
 
 三轮和逐次否决仍需要新的受审 OpenClaw 启动路径或固定制品。该路径须同时约束独占 Gateway 的原生 I/O，在普通模型 MCP 调用之前把同一会话、工具和参数交给宿主审批，并证明拒绝和取消均不会触达下游。单独授予完全访问只能进入现有投影，无法验证这项拒绝合同。
+
+## 固定扫描器与受限 ACP 候选验证
+
+2026-11-21，在 Darwin arm64 将候选补丁应用到固定 2026.10.10 的私有副本。原扫描器 SHA-256 为 `db073f36c9ac2d94a9a51b5076bbe6e3ae780c67ec820e81ef000bef1bb83459`，候选扫描器为 `d2320bcfae0b999e541b642155d510ade08d464bec5dc233d7ef5e4c785bd671`。补丁核对唯一匹配点和前后摘要，仅在工作区与宿主绑定一致时追加该工作区的物理 `skills` 目录。空选集保留这个原生根。挂载轮同时保留会话视图，原生过滤和优先级沿用供应商实现。 [固定候选补丁](../../../../patches/acp-model-source/openclaw/coexistence-candidate.json)
+
+在同一运行配置下，Darwin 沙箱限制 Gateway 和 ACP 桥的读写、执行及网络范围。Gateway 启动依赖同一个 Node 入口的 SQLite 只读检查子进程，禁止启动其它程序。独立权限对照观测到私有目录读取、项目写入、非授权执行及非授权环回端口连接均被拒绝。工具同时使用精确的读取和当轮 MCP 目录，以及原生 `tools.fs.workspaceOnly`。四轮均通过真实 native `read` 调用验证 Gateway 私有状态中的测试文件未泄露，同时能读回已注册会话技能的外部附件。沙箱对照见 `target/acp-skill-coexistence/openclaw-candidate-sandbox.json`。
+
+挂载轮经 OpenClaw 原生 Streamable HTTP 进入现有 OMP 宿主审批中继，再由 Cortex 受限 stdio 执行器调用只读服务。独立对照由测试客户端回答中继真实生成的、绑定到 ACP 会话及精确参数的权限请求。拒绝决定进入模型续轮，下游计数为零。
+
+| 轮次 | ACP 终态 | 模型请求 | 逐次决定 | 下游 MCP |
+| --- | --- | ---: | --- | ---: |
+| 基线 | `end_turn` | 4 | 无 | 0 |
+| 挂载 | `end_turn` | 7 | `allow_once` | 1 |
+| 撤除 | `end_turn` | 4 | 无 | 0 |
+| 拒绝 | `end_turn` | 7 | `reject_once` | 0 |
+
+四个 ACP 会话、原生正文和附件、选中正文和附件、越界拒绝、MCP 回复均按调用 ID 校验。运行退出 0，Python 共享验收判定的 5 项定向测试通过。结构化结果在 `target/acp-skill-coexistence/openclaw-candidate-contained.json`。
+
+```sh
+PYTHONPATH=scripts python3 scripts/acp_skill_coexistence/openclaw_candidate.py --with-mcp \
+  --output target/acp-skill-coexistence/openclaw-candidate-contained.json
+```
+
+候选诊断直接连到私有 OpenClaw ACP 桥。生产安装仍指向 v2，ShiJu 网关的权限回读、`chat.done` 和 `chat.error` 尚未取得新证据。本次未构建 Rust。剩余生产接线需要让 ShiJu 持有 OpenClaw Gateway、ACP 桥和 MCP 中继的共同生命周期，在配置 Gateway 前绑定只读服务，并把权限请求交到真实桌面审批通道。只有固定入口、隔离及审批接线联验通过后才可允许受限桌面请求走该路径。旧的完全访问与 CLI 本地门禁继续生效。

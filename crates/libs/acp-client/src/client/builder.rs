@@ -7,6 +7,11 @@ impl AcpClient {
         self.kilocode_sandbox = sandbox;
         self
     }
+    pub fn with_openclaw_sandbox(mut self, sandbox: Option<super::OpenClawSandbox>) -> Self {
+        self.openclaw_sandbox = sandbox;
+        self
+    }
+
     pub fn with_opencode_sandbox(mut self, sandbox: Option<super::OpenCodeSandbox>) -> Self {
         self.opencode_sandbox = sandbox;
         self
@@ -64,6 +69,7 @@ impl AcpClient {
             hermes_sandbox: None,
             droid_sandbox: None,
             opencode_sandbox: None,
+            openclaw_sandbox: None,
             kilocode_sandbox: None,
             agent_name: agent_name.into(),
             config,

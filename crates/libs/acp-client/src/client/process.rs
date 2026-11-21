@@ -31,7 +31,7 @@ impl AcpClient {
     }
 
     pub(super) fn sandboxed_native_io(&self) -> bool {
-        self.droid_sandbox.is_some() || self.managed_restricted_pi() || self.auggie_sandbox.is_some() || self.kilocode_sandbox.is_some() || self.hermes_sandbox.is_some() || self.opencode_sandbox.is_some() || self.managed_vtcode() || self.managed_aionrs() || self.managed_cortex()
+        self.droid_sandbox.is_some() || self.managed_restricted_pi() || self.auggie_sandbox.is_some() || self.kilocode_sandbox.is_some() || self.hermes_sandbox.is_some() || self.opencode_sandbox.is_some() || self.openclaw_sandbox.is_some() || self.managed_vtcode() || self.managed_aionrs() || self.managed_cortex()
     }
 
     pub(super) fn managed_workspace_io(&self) -> bool {
@@ -184,7 +184,7 @@ impl AcpClient {
         let managed_vtcode = self.managed_vtcode();
         let managed_grok =
             self.agent_name == "grok" && env.contains_key("VW_ACP_LAUNCH_REFERENCE");
-        let managed_private_provider = self.managed_restricted_pi() || managed_grok || managed_vtcode || self.managed_workspace_io() || self.managed_aionrs()
+        let managed_private_provider = self.openclaw_sandbox.is_some() || self.managed_restricted_pi() || managed_grok || managed_vtcode || self.managed_workspace_io() || self.managed_aionrs()
             || self.managed_corust() || self.managed_cortex()
             || (matches!(
                 self.agent_name.as_str(),
@@ -247,6 +247,18 @@ impl AcpClient {
                 || !self.config.env.contains_key("VW_ACP_LAUNCH_REFERENCE")
             {
                 return Err(AcpError::Initialize("Invalid restricted Kilocode launch".into()));
+            }
+            sandbox.command(self.config.command.trim(), &args, &env)?
+        } else if let Some(sandbox) = &self.openclaw_sandbox {
+            let workspace_allowed = self.desktop_workspace.as_ref()
+                .and_then(|workspace| workspace.canonicalize().ok())
+                .is_some_and(|workspace| sandbox.workspace.starts_with(workspace));
+            if self.agent_name != "openclaw" || !workspace_allowed || self.full_access
+                || self.permission_mode != PermissionMode::ApproveReads
+                || self.non_interactive_permissions.is_some()
+                || !self.config.env.contains_key("VW_ACP_LAUNCH_REFERENCE")
+            {
+                return Err(AcpError::Initialize("Invalid restricted OpenClaw launch".into()));
             }
             sandbox.command(self.config.command.trim(), &args, &env)?
         } else if let Some(sandbox) = &self.opencode_sandbox {
@@ -375,7 +387,7 @@ impl AcpClient {
         if self.agent_name == "copilot" {
             cmd.env_remove("COPILOT_ALLOW_ALL");
         }
-        if self.droid_sandbox.is_none() && (managed_claude || managed_auggie || managed_cursor || managed_droid || managed_private_provider) {
+        if self.droid_sandbox.is_none() && self.openclaw_sandbox.is_none() && (managed_claude || managed_auggie || managed_cursor || managed_droid || managed_private_provider) {
             // Do not inherit OAuth, cloud backends, Node injection or proxy credentials.
             // Keep the OS runtime paths. VT Code overrides its home in the child overlay.
             let runtime = [
@@ -402,7 +414,7 @@ impl AcpClient {
             cmd.env_remove("VW_ACP_LAUNCH_REFERENCE")
                 .env_remove("SIGIT_MANAGED_SKILL_DIRS");
         }
-        if let Some(directory) = directory.filter(|_| self.droid_sandbox.is_none() && self.auggie_sandbox.is_none() && self.kilocode_sandbox.is_none() && self.hermes_sandbox.is_none() && self.opencode_sandbox.is_none() && !managed_vtcode && !self.managed_workspace_io()) {
+        if let Some(directory) = directory.filter(|_| self.droid_sandbox.is_none() && self.auggie_sandbox.is_none() && self.kilocode_sandbox.is_none() && self.hermes_sandbox.is_none() && self.opencode_sandbox.is_none() && self.openclaw_sandbox.is_none() && !managed_vtcode && !self.managed_workspace_io()) {
             cmd.current_dir(directory);
         }
         if self.agent_name == "opencode" && self.opencode_sandbox.is_none() {
@@ -504,6 +516,7 @@ impl AcpClient {
             && !(self.agent_name == "hermes" && self.hermes_sandbox.is_some())
             && !(self.agent_name == "opencode" && self.opencode_sandbox.is_some())
             && !(self.agent_name == "kilocode" && self.kilocode_sandbox.is_some())
+            && !(self.agent_name == "openclaw" && self.openclaw_sandbox.is_some())
             && !restricted_pi
         {
             Self::ensure_desktop_native_access(&self.agent_name, unrestricted)?;

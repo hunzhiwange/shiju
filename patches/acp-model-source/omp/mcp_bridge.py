@@ -244,17 +244,27 @@ def handler(loop, session, endpoint, token):
     return Handler
 
 
-async def run(command, environment, workspace, endpoint, token, configure, stdio, allowed_tool):
+async def run(command, environment, workspace, endpoint, token, configure, stdio, allowed_tool,
+              *, owned_gateway=None, owned_mounts=None):
     loop = asyncio.get_running_loop()
     session = Session(workspace, stdio, allowed_tool)
     server = ThreadingHTTPServer(('127.0.0.1', 0), handler(loop, session, endpoint, token))
     server_thread = threading.Thread(target=server.serve_forever, daemon=True)
     server_thread.start()
     native = None
+    gateway = None
     tasks = []
+    owner = asyncio.current_task()
+    if owned_gateway is not None:
+        for sig in (signal.SIGINT, signal.SIGTERM):
+            loop.add_signal_handler(sig, owner.cancel)
     try:
         port = server.server_port
         configure(port)
+        if owned_gateway is not None:
+            setup = {"params": {"cwd": str(workspace), "mcpServers": owned_mounts}}
+            await asyncio.wait_for(session.stage(setup, port), TIMEOUT)
+            gateway = await owned_gateway(setup["params"]["mcpServers"], session)
         native = await asyncio.create_subprocess_exec(
             *command(port), env=environment, stdin=asyncio.subprocess.PIPE,
             stdout=asyncio.subprocess.PIPE, limit=LIMIT,
@@ -284,9 +294,16 @@ async def run(command, environment, workspace, endpoint, token, configure, stdio
                             'code': -32603, 'message': 'OMP session is busy'}})
                         continue
                     try:
-                        await session.clear()
+                        if owned_gateway is not None:
+                            if (method != 'session/new' or session.session is not None
+                                    or Path(params['cwd']).resolve(strict=True) != workspace
+                                    or params.get('mcpServers')):
+                                raise ValueError('Owned Gateway needs a new bound session')
+                        else:
+                            await session.clear()
                         session.setup = (identifier, params.get('sessionId'))
-                        await asyncio.wait_for(session.stage(message, port), TIMEOUT)
+                        if owned_gateway is None:
+                            await asyncio.wait_for(session.stage(message, port), TIMEOUT)
                     except Exception:
                         session.setup = None
                         await session.clear()
@@ -330,10 +347,13 @@ async def run(command, environment, workspace, endpoint, token, configure, stdio
                 emit(message)
 
         stopped = asyncio.Event()
-        for sig in (signal.SIGINT, signal.SIGTERM):
-            loop.add_signal_handler(sig, stopped.set)
+        if owned_gateway is None:
+            for sig in (signal.SIGINT, signal.SIGTERM):
+                loop.add_signal_handler(sig, stopped.set)
         peer = asyncio.create_task(from_native())
         tasks = [peer, asyncio.create_task(from_host()), asyncio.create_task(stopped.wait())]
+        if gateway is not None:
+            tasks.append(asyncio.create_task(gateway.wait()))
         done, _ = await asyncio.wait(tasks, return_when=asyncio.FIRST_COMPLETED)
         for task in done:
             task.result()
@@ -347,6 +367,10 @@ async def run(command, environment, workspace, endpoint, token, configure, stdio
             if native.returncode is None:
                 native.kill()
             await native.wait()
+        if gateway is not None:
+            if gateway.returncode is None:
+                gateway.kill()
+            await gateway.wait()
         server.shutdown()
         server.server_close()
         server_thread.join()

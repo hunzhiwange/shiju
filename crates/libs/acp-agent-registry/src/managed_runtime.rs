@@ -77,7 +77,7 @@ fn installed_directory(agent: &str, contract: &Contract) -> Result<PathBuf, Stri
     } else if matches!(agent, "hermes" | "poolside") {
         3
     } else if agent == "openclaw" {
-        2
+        3
     } else {
         1
     };
@@ -286,10 +286,13 @@ pub fn reviewed_agent_command(agent: &str) -> Result<Option<(String, Vec<String>
         use_auggie_v1_contract(&mut contract);
         directory = root(agent)?.join(format!("auggie-{}-model-source-v1", contract.version));
     }
-    // A previously installed OpenClaw remains available for launches without MCP.
-    if agent == "openclaw" && !directory.exists() {
-        contract.files.remove(OPENCLAW_MCP_TRANSPORT);
-        directory = root(agent)?.join(format!("openclaw-{}-model-source-v1", contract.version));
+    if agent == "openclaw" && !directory.try_exists().map_err(|_| "Cannot inspect OpenClaw install")? {
+        contract.files.insert(OPENCLAW_SCANNER.into(), OPENCLAW_LEGACY_SCANNER.into());
+        directory = root(agent)?.join(format!("openclaw-{}-model-source-v2", contract.version));
+        if !directory.try_exists().map_err(|_| "Cannot inspect OpenClaw v2 install")? {
+            contract.files.remove(OPENCLAW_MCP_TRANSPORT);
+            directory = root(agent)?.join(format!("openclaw-{}-model-source-v1", contract.version));
+        }
     }
     if agent == "vtcode" && !directory.try_exists().map_err(|_| "Cannot inspect VT Code managed runtime")? {
         directory = original_vtcode_directory(&mut contract)?;
@@ -346,7 +349,25 @@ pub fn reviewed_agent_command(agent: &str) -> Result<Option<(String, Vec<String>
     Ok(Some((executable.to_string_lossy().into_owned(), args)))
 }
 
+const OPENCLAW_SCANNER: &str = "dist/workspace-skill-sources-DqAcMM_z.mjs";
+const OPENCLAW_LEGACY_SCANNER: &str = "db073f36c9ac2d94a9a51b5076bbe6e3ae780c67ec820e81ef000bef1bb83459";
+
 const OPENCLAW_MCP_TRANSPORT: &str = "dist/mcp-stdio-transport-Dlawzoy1.mjs";
+
+/// Restricted launches require the exact scanner and transport from the current contract.
+pub fn verify_openclaw_restricted_executable(command: &str) -> Result<(), String> {
+    let contract = contract("openclaw").ok_or("OpenClaw contract is unavailable")?;
+    let executable = Path::new(command).canonicalize()
+        .map_err(|_| "Missing restricted OpenClaw runtime")?;
+    if executable.ancestors().any(|directory| {
+        verify(directory, &contract)
+            .is_ok_and(|path| path.canonicalize().ok().as_ref() == Some(&executable))
+    }) {
+        Ok(())
+    } else {
+        Err("Restricted OpenClaw requires the v3 managed runtime".into())
+    }
+}
 
 /// Native stdio mounts require the transport with verified host-exit cleanup.
 pub fn verify_openclaw_mcp_executable(command: &str) -> Result<(), String> {
@@ -475,11 +496,15 @@ pub fn verify_reviewed_agent_executable(agent: &str, command: &str) -> Result<()
         }
     }
     if agent == "openclaw" {
-        contract.files.remove(OPENCLAW_MCP_TRANSPORT);
-        for directory in executable.ancestors() {
-            if verify(directory, &contract)
-                .is_ok_and(|path| path.canonicalize().ok().as_ref() == Some(&executable))
-            {
+        contract.files.insert(OPENCLAW_SCANNER.into(), OPENCLAW_LEGACY_SCANNER.into());
+        for legacy_without_mcp in [false, true] {
+            if legacy_without_mcp {
+                contract.files.remove(OPENCLAW_MCP_TRANSPORT);
+            }
+            if executable.ancestors().any(|directory| {
+                verify(directory, &contract)
+                    .is_ok_and(|path| path.canonicalize().ok().as_ref() == Some(&executable))
+            }) {
                 return Ok(());
             }
         }
@@ -621,6 +646,7 @@ pub(super) async fn install(agent: &str) -> Result<bool, String> {
             "auggie/session-model.mjs",
             include_str!("../../../../patches/acp-model-source/auggie/session-model.mjs"),
         ),
+        ("openclaw/coexistence-candidate.json", include_str!("../../../../patches/acp-model-source/openclaw/coexistence-candidate.json")),
         ("openclaw/apply.py", include_str!("../../../../patches/acp-model-source/openclaw/apply.py")),
         (
             "openclaw/patch.json",

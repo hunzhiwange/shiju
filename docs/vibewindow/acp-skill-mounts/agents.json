@@ -2254,6 +2254,12 @@
           "sha256": "db073f36c9ac2d94a9a51b5076bbe6e3ae780c67ec820e81ef000bef1bb83459",
           "observations": [],
           "bytes": 5967
+        },
+        {
+          "path": "target/openclaw-install-check-v3/runtime/node_modules/openclaw/dist/workspace-skill-sources-DqAcMM_z.mjs",
+          "kind": "reviewed_patched_source",
+          "sha256": "d2320bcfae0b999e541b642155d510ade08d464bec5dc233d7ef5e4c785bd671",
+          "observations": ["v3 restricted Gateway scanner output"]
         }
       ],
       "supplemental_official_docs": [],

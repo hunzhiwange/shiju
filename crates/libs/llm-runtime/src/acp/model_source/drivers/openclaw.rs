@@ -8,6 +8,8 @@ use std::{
 };
 use vw_api_acp_model::acp_model_source::AcpModelSource;
 
+pub(crate) const RESTRICTED_ENV: &str = "SHIJU_OPENCLAW_RESTRICTED";
+
 /// OpenClaw 2026.10.10 ACP is only a bridge. Put the provider on an owned
 /// foreground Gateway, and bind the bridge explicitly to its fresh loopback port.
 pub fn configure(
@@ -59,7 +61,20 @@ pub(crate) fn configure_with_mcp(
         !profile.model_alias.is_empty() && !profile.model_alias.contains(['\0', '$', '{', '}']),
         "OpenClaw requires a literal selected model"
     );
-    let state = state_directory(profile)?;
+    let restricted = profile.config().env.get(RESTRICTED_ENV).is_some_and(|value| value == "1");
+    if restricted {
+        anyhow::ensure!(
+            cfg!(all(target_os = "macos", target_arch = "aarch64"))
+                && mcp.is_empty()
+                && profile.config().env.keys().all(|key| matches!(
+                    key.as_str(), RESTRICTED_ENV | "VW_ACP_LAUNCH_REFERENCE" | "SHIJU_OPENCLAW_SKILL_ROOT"
+                )),
+            "Invalid restricted OpenClaw configuration"
+        );
+        acp_agent_registry::verify_openclaw_restricted_executable(&profile.config().command)
+            .map_err(anyhow::Error::msg)?;
+    }
+    let state = if restricted { profile.directory().join("native") } else { state_directory(profile)? };
     let listener = std::net::TcpListener::bind("127.0.0.1:0")?;
     let address = listener.local_addr()?;
     let mut bytes = [0u8; 32];
@@ -86,6 +101,13 @@ pub(crate) fn configure_with_mcp(
                 "reasoning":false,"input":["text"]}]
         }}}
     });
+    if restricted {
+        config["skills"] = json!({"load": {"watch": false}});
+        profile.write_config("openclaw-draft.json", &serde_json::to_vec(&config)?)?;
+        return profile.overlay_environment(HashMap::from([(
+            "VW_OPENCLAW_RELAY_TOKEN".into(), profile.binding.bearer_token().to_owned(),
+        )]));
+    }
     if !mcp.is_empty() {
         config["mcp"] = json!({"servers": mcp});
         config["tools"] = json!({"toolSearch": false});

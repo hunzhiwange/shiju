@@ -94,6 +94,8 @@ mod droid_sandbox;
 pub use droid_sandbox::DroidSandbox;
 #[path = "client/opencode_sandbox.rs"]
 mod opencode_sandbox;
+mod openclaw_sandbox;
+pub use openclaw_sandbox::OpenClawSandbox;
 pub use opencode_sandbox::OpenCodeSandbox;
 #[path = "client/process_signals.rs"]
 mod process_signals;
@@ -205,6 +207,7 @@ pub struct AcpClient {
     hermes_sandbox: Option<HermesSandbox>,
     droid_sandbox: Option<DroidSandbox>,
     opencode_sandbox: Option<OpenCodeSandbox>,
+    openclaw_sandbox: Option<OpenClawSandbox>,
     kilocode_sandbox: Option<KilocodeSandbox>,
     agent_name: String,
     config: AcpAgentConfig,

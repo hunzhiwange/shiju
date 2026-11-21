@@ -42,3 +42,21 @@ fn acp_skill_mount_openclaw_unreviewed_executable_cannot_receive_mounts() {
     assert!(super::configure(&mut config, Some(&view)).is_err());
     assert!(!config.env.contains_key(super::ROOT_ENV));
 }
+
+#[test]
+fn acp_skill_coexistence_openclaw_restricted_launch_requires_interactive_reads() {
+    use acp_types::PermissionMode;
+    use vw_api_acp_model::acp_model_source::AcpModelSource::{CliLocal, SessionModel};
+
+    let reads = Some(PermissionMode::ApproveReads);
+    let launch = super::restricted_launch;
+    assert_eq!(
+        launch(SessionModel, reads, false, false, false),
+        cfg!(all(target_os = "macos", target_arch = "aarch64"))
+    );
+    assert!(!launch(CliLocal, reads, false, false, false));
+    assert!(!launch(SessionModel, reads, true, false, false));
+    assert!(!launch(SessionModel, reads, false, true, false));
+    assert!(!launch(SessionModel, reads, false, false, true));
+    assert!(!launch(SessionModel, Some(PermissionMode::DenyAll), false, false, false));
+}

@@ -71,3 +71,11 @@ PYTHONPATH=scripts python3 scripts/acp_skill_coexistence/openclaw_candidate.py -
 ```
 
 候选诊断直接连到私有 OpenClaw ACP 桥。生产安装仍指向 v2，ShiJu 网关的权限回读、`chat.done` 和 `chat.error` 尚未取得新证据。本次未构建 Rust。剩余生产接线需要让 ShiJu 持有 OpenClaw Gateway、ACP 桥和 MCP 中继的共同生命周期，在配置 Gateway 前绑定只读服务，并把权限请求交到真实桌面审批通道。只有固定入口、隔离及审批接线联验通过后才可允许受限桌面请求走该路径。旧的完全访问与 CLI 本地门禁继续生效。
+
+## 受管 v3 生产接线
+
+2026-11-21，登记固定 v3 扫描器与启动器。Darwin arm64 的受限桌面请求必须使用受管 `session_model`、交互式 `ApproveReads`、当前桌面工作区和核验通过的制品。宿主为请求创建私有目录及模型中继。启动器共管独占 Gateway、原生 ACP 桥和一次性 MCP 会话，继续使用 v2 stdio 回收补丁的制品合约。较早版本仍沿原方式启动，受限分支要求 v3。
+
+MCP 只接受会话选中的 stdio 服务，沿用宿主 allow/deny 过滤与已有 Cortex 受限执行器。宿主在 ACP 发起 `session/new` 前登记只读投影，网关只看到随机私有地址和允许的工具名。调用通过 ACP `session/request_permission` 返回绑定当前会话的一次性决定。取消撤销待审批调用，请求结束使桥、网关与下游连接退出。原生工具限定为读，工作区文件读取承袭供应商路径守卫及当前会话技能的附件范围。受限路径每个请求分配私有 Gateway 与原生会话，使用宿主提示重放；原有授权和 `cli_local` 门禁沿用。
+
+直接运行生产启动器的真实 ACP 诊断退出 0，四轮下游调用数 0、1、0、0，模型请求数 4、7、4、7。批准及拒绝均经过 ACP JSON-RPC 交互，四轮均拒绝读取 Gateway 私有状态。另在待审批时取消，得到 `cancelled`、下游零调用、进程退出 0、Gateway 端口关闭。诊断结果在 `target/acp-skill-coexistence/openclaw-production-launcher.json` 和 `target/acp-skill-coexistence/openclaw-production-cancel.json`。共享 MCP 中继的 4 项定向测试与共存判定的 5 项定向测试均通过。此阶段的诊断用 ACP 客户端代替桌面交互，ShiJu 完整网关回归证据单独记录。

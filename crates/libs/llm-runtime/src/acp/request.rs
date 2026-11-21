@@ -188,6 +188,7 @@ pub async fn do_stream_request_acp<H: Host>(
     let mut restricted_hermes = false;
     let mut restricted_droid = false;
     let mut restricted_opencode = false;
+    let mut restricted_openclaw = false;
     let mut restricted_kilocode = false;
     let mut restricted_pi = false;
     if let Some((root, full_grant)) = desktop_access {
@@ -218,6 +219,14 @@ pub async fn do_stream_request_acp<H: Host>(
             && merged_options.get("disable_tools").and_then(Value::as_bool) != Some(true)
             && cfg!(all(target_os = "macos", target_arch = "aarch64"))
             && source == vw_api_acp_model::acp_model_source::AcpModelSource::SessionModel;
+        restricted_openclaw = acp_agent_name == "openclaw"
+            && super::skill_mounts::openclaw::restricted_launch(
+                source,
+                parsed_options.permission_mode,
+                parsed_options.full_access,
+                parsed_options.non_interactive_permissions.is_some(),
+                merged_options.get("disable_tools").and_then(Value::as_bool) == Some(true),
+            );
         restricted_opencode = acp_agent_name == "opencode"
             && !parsed_options.full_access
             && cfg!(all(target_os = "macos", target_arch = "aarch64"))
@@ -257,6 +266,16 @@ pub async fn do_stream_request_acp<H: Host>(
         &cfg,
     )?;
     if acp_agent_name == "openclaw" {
+        use super::model_source::drivers::openclaw::RESTRICTED_ENV;
+        if normalized_acp_cfg.env.keys().any(|key| key.eq_ignore_ascii_case(RESTRICTED_ENV)) {
+            return Err(acp_option_error("Reserved OpenClaw launch environment"));
+        }
+        if restricted_openclaw {
+            if recovered.is_some() || fork_replay.is_some() {
+                return Err(acp_option_error("Restricted OpenClaw requires an owned new session"));
+            }
+            normalized_acp_cfg.env.insert(RESTRICTED_ENV.into(), "1".into());
+        }
         H::scanner(
             &acp_agent_name,
             &mut normalized_acp_cfg,
@@ -514,7 +533,7 @@ pub async fn do_stream_request_acp<H: Host>(
     let droid_mcp = restricted_droid && !parsed_options.mcp_servers.is_empty();
     let auggie_mcp = restricted_auggie && !parsed_options.mcp_servers.is_empty();
     let hermes_mcp = restricted_hermes && !parsed_options.mcp_servers.is_empty();
-    let openclaw_mcp = if acp_agent_name == "openclaw" {
+    let openclaw_mcp = if acp_agent_name == "openclaw" && !restricted_openclaw {
         if !parsed_options.mcp_servers.is_empty()
             && merged_options.get("disable_tools").and_then(Value::as_bool) == Some(true)
         {
@@ -667,7 +686,15 @@ pub async fn do_stream_request_acp<H: Host>(
     if (autohand_selected || autohand_mcp) && let Some(profile) = launch_profile.as_mut() {
         super::skill_mounts::autohand::configure(profile, &cwd, parsed_options.skill_view.as_ref())?;
     }
-    if mimo_mcp || !openclaw_mcp.is_empty() {
+    let openclaw_sandbox = if restricted_openclaw {
+        let profile = launch_profile.as_ref().ok_or_else(|| acp_option_error("Missing restricted OpenClaw launch"))?;
+        Some(super::skill_mounts::openclaw::restrict(
+            profile, &cwd, parsed_options.skill_view.as_ref(), &parsed_options.mcp_servers,
+        ).map_err(to_api_error)?)
+    } else {
+        None
+    };
+    if mimo_mcp || !openclaw_mcp.is_empty() || restricted_openclaw {
         // The request-owned launch now owns the projected MCP connections.
         parsed_options.mcp_servers.clear();
     }
@@ -726,7 +753,7 @@ pub async fn do_stream_request_acp<H: Host>(
     // Server-owned fork anchors and recovered sessions take precedence over desktop rebuild hints.
     let requested_force_new_session = fork_replay.is_none()
         && recovered.is_none()
-        && (restricted_droid || vtcode_mcp || autohand_selected || autohand_mcp || merged_options.get("acp_force_new_session").and_then(Value::as_bool).unwrap_or(false));
+        && (restricted_droid || restricted_openclaw || vtcode_mcp || autohand_selected || autohand_mcp || merged_options.get("acp_force_new_session").and_then(Value::as_bool).unwrap_or(false));
     let replay_strategy = if fork_history_needed {
         AcpReplayStrategy::Full
     } else {
@@ -822,7 +849,7 @@ pub async fn do_stream_request_acp<H: Host>(
         .await?;
         let cached_client_entry =
             get_cached_acp_client_with_approval::<H>(
-                &acp_agent_name, &normalized_acp_cfg, &cwd, &parsed_options, auggie_sandbox.clone(), hermes_sandbox.clone(), droid_sandbox.clone(), kilocode_sandbox.clone(), opencode_sandbox.clone(),
+                &acp_agent_name, &normalized_acp_cfg, &cwd, &parsed_options, auggie_sandbox.clone(), hermes_sandbox.clone(), droid_sandbox.clone(), kilocode_sandbox.clone(), opencode_sandbox.clone(), openclaw_sandbox.clone(),
                 launch_profile.as_ref().and_then(|profile| profile.managed_mcp.as_ref()).map(|(_, approve)| approve.clone()),
             );
         let _request_cleanup = super::session::RequestClientCleanup::new(&cached_client_entry);

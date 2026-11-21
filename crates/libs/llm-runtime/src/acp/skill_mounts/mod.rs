@@ -30,7 +30,7 @@ mod kiro;
 pub(super) mod mimo_code;
 mod nova;
 pub(super) mod omp;
-mod openclaw;
+pub(super) mod openclaw;
 pub(super) mod opencode;
 pub(super) mod pi;
 pub(super) mod poolside;

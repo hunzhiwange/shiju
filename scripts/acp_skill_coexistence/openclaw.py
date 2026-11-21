@@ -15,6 +15,7 @@ from verify_acp_integration import ProviderHandler, require
 from verify_acp_model_source import ROOT
 
 from . import correlated_result
+from .pi import mcp_server
 
 MODEL = "deepseek-v4.1-flash-1017"
 ADAPTER = "openai"
@@ -23,7 +24,7 @@ TRANSPORT = "stdio"
 NATIVE_DIR = "skills"
 MCP_TOOL = "coexistence__read_probe"
 VERSION = "2026.10.10"
-REVISION = f"openclaw-{VERSION}-model-source-v2"
+REVISION = f"openclaw-{VERSION}-model-source-v3"
 
 
 def launch(env):
@@ -34,7 +35,7 @@ def launch(env):
     require(contract["version"] == VERSION, "unexpected OpenClaw contract version")
     config = Path(os.environ.get("VIBEWINDOW_CONFIG_DIR", Path.home() / ".local/share/shiju"))
     source = config / "acp-runtime" / REVISION
-    require(source.is_dir(), "reviewed OpenClaw v2 runtime unavailable")
+    require(source.is_dir(), "reviewed OpenClaw v3 runtime unavailable")
     runtime = Path(env["VIBEWINDOW_CONFIG_DIR"]) / "acp-runtime" / REVISION
     shutil.copytree(source, runtime, symlinks=True)
     package = runtime / "node_modules" / contract["package"]
@@ -55,7 +56,7 @@ def launch(env):
 
 
 class Probe:
-    def __init__(self, fixtures, mounted, rejected, *, restricted=False, skills_only=False):
+    def __init__(self, fixtures, mounted, rejected, *, restricted=True, skills_only=False):
         self.fixtures = fixtures
         self.mounted = mounted
         self.rejected = rejected
@@ -158,7 +159,7 @@ class Probe:
 
     def approves(self, metadata):
         return (self.pending is not None and self.pending[0] == "mcp"
-                and metadata.get("title") == MCP_TOOL and metadata.get("arguments") == {})
+                and metadata.get("title") == "mcp__coexistence__read_probe" and metadata.get("arguments") == {})
 
 
 class Handler(ProviderHandler):

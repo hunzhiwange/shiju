@@ -5,7 +5,8 @@ from pathlib import Path
 import sys
 
 spec = json.loads(Path(__file__).with_name("patch.json").read_text())
-for patch in (spec, spec["mcp_lifecycle"]):
+coexistence = json.loads(Path(__file__).with_name("coexistence-candidate.json").read_text())
+for patch in (spec, spec["mcp_lifecycle"], coexistence):
     path = Path(sys.argv[1]) / patch["file"]
     source = path.read_text()
     if hashlib.sha256(source.encode()).hexdigest() != patch["original"]:

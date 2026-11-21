@@ -1,20 +1,25 @@
 use std::{collections::BTreeMap, fmt};
 
 use desktop_assets::assets::Icon;
+use desktop_settings_cron::system_settings_cron::date_time::picker_overlay;
 use desktop_ui_controls::system_settings_common::{
-    SETTINGS_CONTROL_PADDING, SETTINGS_CONTROL_TEXT_SIZE, settings_checkbox_style,
-    settings_modal_card, settings_modal_overlay_with_escape, settings_pick_list_menu_style,
-    settings_pick_list_style, settings_right_drawer_overlay, settings_text_input_style,
+    SETTINGS_CONTROL_HEIGHT, SETTINGS_CONTROL_TEXT_SIZE, icon_svg, primary_action_btn_style,
+    rounded_action_btn_style, select::SettingsSelect, settings_checkbox_style, settings_close_button,
+    settings_divider, settings_error_banner, settings_group_card, settings_modal_header,
+    settings_modal_layout, settings_modal_overlay_with_escape, settings_right_drawer_overlay,
+    settings_select, settings_text_editor, settings_text_input,
 };
 use iced::widget::scrollable::{Direction, Scrollbar};
 use iced::widget::{
-    Column, Row, Space, Stack, button, checkbox, column, container, image, pick_list, progress_bar,
-    responsive, row, scrollable, text_input, tooltip,
+    Column, Row, Space, Stack, button, checkbox, column, container, image, progress_bar, row,
+    scrollable, text, tooltip,
 };
 use iced::{Alignment, Length, Theme};
 
 use super::portraits;
 use super::task_api::{self, Directory, Record, Work};
+use super::task_schedule::future_once;
+use super::task_schedule_view::repeat_view;
 use super::tasks::{
     Center, CenterEvent as E, DetailTab, Draft, DraftField, Drawer, Phase, ScheduleAction, Sort,
     Trigger, message,
@@ -139,17 +144,16 @@ fn filters(center: &Center) -> Item<'_> {
     departments.extend(department_options(center.directory.as_deref()));
     let scope = field(
         "筛选部门",
-        select(departments, &center.filters.department, "全部可查看部门", E::Department),
+        select(departments, &center.filters.department, "全部可查看部门", E::Department)
+            .width(176)
+            .into(),
     );
     let keyword = field(
         "关键字",
-        text_input("搜索任务编号、名称或流程", &center.keyword)
+        settings_text_input("搜索任务编号、名称或流程", &center.keyword)
             .on_input(|value| message(E::Keyword(value)))
             .on_submit(message(E::Query))
-            .padding(SETTINGS_CONTROL_PADDING)
-            .size(SETTINGS_CONTROL_TEXT_SIZE)
             .width(240.0)
-            .style(settings_text_input_style)
             .into(),
     );
     let controls = row![
@@ -158,16 +162,16 @@ fn filters(center: &Center) -> Item<'_> {
         keyword,
         action("查询", Some(Icon::Search), Some(message(E::Query)), true),
         action(
-            if center.expanded { "收起" } else { "展开" },
+            if center.expanded { "收起筛选" } else { "更多筛选" },
             None,
             Some(message(E::Expand)),
             false
         ),
     ]
-    .spacing(10)
-    .align_y(Alignment::End)
+    .spacing(8)
+    .align_y(Alignment::Center)
     .wrap();
-    let mut body = column![controls].spacing(10).padding(15);
+    let mut body = column![overview, controls].spacing(10);
     if center.expanded {
         let directory = center.directory.as_deref();
         let trigger = center.filters.trigger.map_or("", Trigger::key);
@@ -184,6 +188,8 @@ fn filters(center: &Center) -> Item<'_> {
                         "全部员工",
                         E::Employee
                     )
+                    .width(168)
+                    .into()
                 ),
                 field(
                     "流程",
@@ -193,12 +199,16 @@ fn filters(center: &Center) -> Item<'_> {
                         "全部流程",
                         E::Workflow
                     )
+                    .width(168)
+                    .into()
                 ),
                 field(
                     "触发方式",
                     select(triggers, trigger, "全部触发方式", |key| E::TriggerFilter(
                         Trigger::ALL.into_iter().find(|trigger| trigger.key() == key)
                     ))
+                    .width(168)
+                    .into()
                 ),
                 field(
                     "排序",
@@ -213,6 +223,8 @@ fn filters(center: &Center) -> Item<'_> {
                                 .unwrap_or_default()
                         )
                     )
+                    .width(168)
+                    .into()
                 ),
                 action("清空筛选", None, Some(message(E::Clear)), false),
             ]
@@ -257,7 +269,7 @@ fn segmented(content: Item<'_>) -> Item<'_> {
         .into()
 }
 
-fn field<'a>(name: &'static str, component: Item<'a>) -> Item<'a> {
+pub(super) fn field<'a>(name: &'static str, component: Item<'a>) -> Item<'a> {
     column![label(name, 12, Tone::Muted), component].spacing(5).into()
 }
 
@@ -288,15 +300,10 @@ fn select<'a>(
     id: &str,
     placeholder: &'static str,
     change: impl Fn(String) -> E + 'a,
-) -> Item<'a> {
+) -> SettingsSelect<'a, Choice, Message> {
     let active = options.iter().find(|option| option.id == id).cloned();
-    pick_list(options, active, move |choice| message(change(choice.id)))
+    settings_select(options, active, move |choice| message(change(choice.id)))
         .placeholder(placeholder)
-        .padding(SETTINGS_CONTROL_PADDING)
-        .text_size(SETTINGS_CONTROL_TEXT_SIZE)
-        .style(settings_pick_list_style)
-        .menu_style(settings_pick_list_menu_style)
-        .into()
 }
 
 fn department_options(directory: Option<&Directory>) -> Vec<Choice> {
@@ -611,7 +618,16 @@ pub(super) fn overlays<'a>(base: Item<'a>, center: &'a Center, width: f32) -> It
             .map(|drawer| (message(E::Close), drawer_view(center, drawer, width))),
     );
     if let Some(draft) = &center.draft {
-        settings_modal_overlay_with_escape(base, message(E::CloseDraft), draft_view(center, draft))
+        let base = settings_modal_overlay_with_escape(
+            base,
+            message(E::CloseDraft),
+            draft_view(center, draft, width),
+        );
+        if let Some(picker) = &draft.once_picker {
+            picker_overlay(picker, "北京时间（UTC+8）", base, |event| message(E::DatePicker(event)))
+        } else {
+            base
+        }
     } else {
         base
     }
@@ -1077,140 +1093,168 @@ fn diagnosis(record: &Record) -> Item<'_> {
     body.into()
 }
 
-fn draft_view<'a>(center: &'a Center, draft: &'a Draft) -> Item<'a> {
-    responsive(move |size| {
-        let directory = center.directory.as_deref();
-        let edit = |field, title, placeholder, value: &'a str| {
-            field_input(title, placeholder, value, field, center.busy)
-        };
-        let mut form = column![
-            edit(DraftField::Title, "任务名称", "输入任务名称", &draft.title),
-            field(
-                "共享员工",
-                select(
-                    employees(directory, true),
-                    &draft.employee,
-                    "选择可派工的共享员工",
-                    |value| E::Edit(DraftField::Employee, value)
-                )
-            ),
-            field(
-                "流程",
-                select(
-                    workflows(directory, true),
-                    &draft.workflow,
-                    "选择已发布的流程",
-                    |value| E::Edit(DraftField::Workflow, value)
-                )
-            ),
-            edit(DraftField::Prompt, "任务要求", "输入任务要求", &draft.prompt),
-            field("部门", {
-                let mut departments = vec![Choice::all("使用默认范围")];
-                departments.extend(department_options(directory));
-                if !draft.department.is_empty()
-                    && !departments.iter().any(|item| item.id == draft.department)
-                {
-                    departments.push(Choice::new(&draft.department, &draft.department));
-                }
-                select(departments, &draft.department, "使用默认范围", |value| {
-                    E::Edit(DraftField::Department, value)
-                })
-            }),
-            field(
-                "触发方式",
-                select(
-                    Trigger::ALL
-                        .map(|trigger| Choice::new(trigger.key(), trigger.to_string()))
-                        .to_vec(),
-                    draft.trigger.key(),
-                    "触发方式",
-                    |key| E::DraftTrigger(
-                        Trigger::ALL
-                            .into_iter()
-                            .find(|trigger| trigger.key() == key)
-                            .unwrap_or_default()
-                    )
-                )
-            ),
-        ]
-        .spacing(10)
-        .width(Length::Fill);
-        match draft.trigger {
-            Trigger::Once => {
-                form = form.push(edit(
-                    DraftField::Time,
-                    "执行时间（北京时间）",
-                    "YYYY-MM-DD HH:MM",
-                    &draft.time,
-                ))
-            }
-            Trigger::Cron => {
-                form =
-                    form.push(edit(DraftField::Time, "Cron（北京时间）", "0 12 * * *", &draft.time))
-            }
-            Trigger::Now => {}
-        }
-        if let Some(error) = center.command_error.as_deref().or(center.directory_error.as_deref()) {
-            form = form.push(label(error, 13, Tone::Red));
-        }
-        let width = (size.width - 32.0).clamp(260.0, 540.0);
-        container(
-            settings_modal_card(
-                column![
-                    strong(
-                        if draft.trigger == Trigger::Now {
-                            "新建任务"
-                        } else {
-                            "新建定时任务"
-                        },
-                        20,
-                        Tone::Ink
-                    ),
-                    scrollable(form.padding(iced::Padding::new(0.0).right(7.0)))
-                        .direction(Direction::Vertical(scrollbar()))
-                        .height(Length::Fill),
-                    row![
-                        Space::new().width(Length::Fill),
-                        action("取消", None, (!center.busy).then(|| message(E::CloseDraft)), false),
-                        action(
-                            if center.busy { "正在提交…" } else { "创建任务" },
-                            None,
-                            (!center.busy && directory.is_some()).then(|| message(E::Submit)),
-                            true
-                        ),
-                    ]
-                    .spacing(8),
-                ]
-                .spacing(14),
-            )
-            .width(width),
+fn draft_view<'a>(center: &'a Center, draft: &'a Draft, width: f32) -> Item<'a> {
+    let directory = center.directory.as_deref();
+    let editable = !center.busy;
+    let narrow = width < 740.0;
+    let mut prompt = settings_text_editor(&draft.prompt)
+        .placeholder("说明任务目标、已有资料和预期交付成果")
+        .height(if narrow { 190 } else { 330 });
+    if editable {
+        prompt = prompt.on_action(|action| message(E::EditPrompt(action)));
+    }
+
+    let select_field = |name, options, id: &str, placeholder, draft_field| {
+        field(
+            name,
+            select(options, id, placeholder, move |value| E::Edit(draft_field, value))
+                .width(Length::Fill)
+                .disabled(!editable)
+                .into(),
         )
-        .height((size.height - 32.0).clamp(230.0, 620.0))
-        .center_x(Length::Fill)
+    };
+    let employee = select_field(
+        "共享员工",
+        employees(directory, true),
+        &draft.employee,
+        "选择可派工的共享员工",
+        DraftField::Employee,
+    );
+    let workflow = select_field(
+        "流程",
+        workflows(directory, true),
+        &draft.workflow,
+        "选择已发布的流程",
+        DraftField::Workflow,
+    );
+    let mut departments = vec![Choice::all("使用默认范围")];
+    departments.extend(department_options(directory));
+    if !draft.department.is_empty()
+        && !departments.iter().any(|choice| choice.id == draft.department)
+    {
+        departments.push(Choice::new(&draft.department, &draft.department));
+    }
+    let department = select_field(
+        "任务归属部门",
+        departments,
+        &draft.department,
+        "使用默认范围",
+        DraftField::Department,
+    );
+    let trigger = field(
+        "什么时候开始",
+        settings_select(Trigger::ALL, Some(draft.trigger), |trigger| {
+            message(E::DraftTrigger(trigger))
+        })
+        .width(Length::Fill)
+        .disabled(!editable)
+        .into(),
+    );
+
+    let content = column![
+        field(
+            "任务名称",
+            settings_text_input("输入任务名称", &draft.title)
+                .width(Length::Fill)
+                .on_input_maybe(
+                    editable.then_some(|value| message(E::Edit(DraftField::Title, value)))
+                )
+                .into(),
+        ),
+        field("任务说明", prompt.into()),
+    ]
+    .spacing(16);
+    let mut settings = column![employee, workflow, department, trigger].spacing(12);
+    settings = match draft.trigger {
+        Trigger::Now => settings,
+        Trigger::Once => settings.push(once_view(draft, editable)),
+        Trigger::Cron => {
+            settings.push(settings_divider()).push(repeat_view(&draft.repeat, editable))
+        }
+    };
+    if let Some(error) = center.directory_error.as_deref() {
+        settings = settings.push(settings_error_banner(error));
+    }
+    let settings = settings_group_card(settings).padding([16, 18]);
+    let form: Item<'_> = if narrow {
+        column![content, settings].spacing(18).into()
+    } else {
+        row![content.width(Length::FillPortion(3)), settings.width(Length::FillPortion(2))]
+            .spacing(24)
+            .into()
+    };
+
+    let close = message(E::CloseDraft);
+    let scheduled = draft.trigger != Trigger::Now;
+    let heading = settings_modal_header(
+        strong(if scheduled { "新建定时任务" } else { "新建任务" }, 20, Tone::Ink),
+        settings_close_button(close.clone()),
+    );
+    let header = column![heading, settings_divider()].spacing(12).padding([0, 7]);
+
+    let actions = row![
+        button(text("取消").size(SETTINGS_CONTROL_TEXT_SIZE))
+            .padding([9, 14])
+            .style(rounded_action_btn_style)
+            .on_press_maybe(editable.then_some(close)),
+        button(
+            text(if editable { "创建任务" } else { "正在提交…" }).size(SETTINGS_CONTROL_TEXT_SIZE)
+        )
+        .padding([9, 14])
+        .style(primary_action_btn_style)
+        .on_press_maybe((editable && directory.is_some()).then(|| message(E::Submit))),
+    ]
+    .spacing(8);
+    let footer = column![
+        center.command_error.as_deref().map(settings_error_banner),
+        settings_divider(),
+        container(actions).align_right(Length::Fill),
+    ]
+    .spacing(12)
+    .padding([0, 7]);
+
+    let height: u32 = if narrow || draft.trigger == Trigger::Cron { 720 } else { 610 };
+    settings_modal_layout(header, form, Some(footer.into()))
+        .width(Length::Fill)
+        .max_width(960)
+        .height(Length::Fill)
+        .max_height(height)
         .into()
-    })
-    .into()
 }
 
-fn field_input<'a>(
-    title: &'static str,
-    placeholder: &'static str,
-    value: &'a str,
-    draft_field: DraftField,
-    disabled: bool,
-) -> Item<'a> {
-    let input = text_input(placeholder, value)
-        .padding(SETTINGS_CONTROL_PADDING)
-        .size(SETTINGS_CONTROL_TEXT_SIZE)
-        .style(settings_text_input_style);
-    field(
-        title,
-        if disabled {
-            input.into()
-        } else {
-            input.on_input(move |value| message(E::Edit(draft_field, value))).into()
-        },
+fn once_view(draft: &Draft, editable: bool) -> Item<'static> {
+    let value = draft.once_at.map(|time| time.format("%Y-%m-%d %H:%M").to_string());
+    let picker = button(
+        row![
+            icon_svg(Icon::Calendar, 16.0),
+            text(value.unwrap_or_else(|| "选择日期和时间".into()))
+                .size(SETTINGS_CONTROL_TEXT_SIZE)
+                .width(Length::Fill),
+            icon_svg(Icon::ChevronDown, 12.0),
+        ]
+        .spacing(8)
+        .height(Length::Fill)
+        .align_y(Alignment::Center),
     )
+    .height(SETTINGS_CONTROL_HEIGHT)
+    .width(Length::Fill)
+    .padding([0, 12])
+    .style(rounded_action_btn_style)
+    .on_press_maybe(editable.then(|| message(E::OpenDatePicker)));
+    let clear = draft.once_at.is_some().then(|| {
+        button(text("清空").size(SETTINGS_CONTROL_TEXT_SIZE))
+            .padding([8, 10])
+            .height(SETTINGS_CONTROL_HEIGHT)
+            .style(rounded_action_btn_style)
+            .on_press_maybe(editable.then(|| message(E::ClearOnce)))
+    });
+    let error = draft.once_at.and_then(|time| future_once(time).err());
+    column![
+        field("执行时间（北京时间）", row![picker, clear].spacing(8).into()),
+        error.map(|error| label(error, 12, Tone::Red)),
+    ]
+    .spacing(6)
+    .into()
 }
 
 fn cloud_task(work: &Work) -> Message {

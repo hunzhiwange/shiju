@@ -2,7 +2,7 @@
 use desktop_ui_controls::system_settings_common::{settings_close_button, settings_modal_header, settings_modal_layout, settings_muted_text_style, settings_select};
 use super::{cron_segment_style, cron_modal_style, small_button, primary_button, secondary_button};
 use crate::message::{Message, SettingsMessage};
-use chrono::{Datelike, Days, Months, NaiveDate, NaiveTime};
+use chrono::{Datelike, Days, Months, NaiveDate, NaiveTime, Timelike};
 use iced::widget::{button, container, text};
 use iced::widget::{column, row};
 use iced::{Alignment, Element, Length};
@@ -69,7 +69,6 @@ pub fn time_controls<'a, M: Clone + 'a>(
     time: NaiveTime,
     changed: impl Fn(NaiveTime) -> M + Clone + 'a,
 ) -> Element<'a, M> {
-    use chrono::Timelike;
     let hour = time.hour();
     let minute = time.minute();
     let hour_changed = changed.clone();
@@ -98,21 +97,52 @@ pub fn overlay<'a, M: Clone + 'a>(
     base: Element<'a, M>,
     on_message: fn(Message) -> M,
 ) -> Element<'a, M> {
+    picker_overlay(
+        picker,
+        format!("时区：{timezone}；确认后请预览校验执行时间。"),
+        base,
+        move |event| {
+            let message = match event {
+                PickerEvent::Navigate(months) => SettingsMessage::CronPickerNavigate(months),
+                PickerEvent::Date(date) => SettingsMessage::CronPickerDate(date),
+                PickerEvent::Time(time) => {
+                    SettingsMessage::CronPickerTime { hour: time.hour(), minute: time.minute() }
+                }
+                PickerEvent::Cancel => SettingsMessage::CronPickerCancel,
+                PickerEvent::Confirm => SettingsMessage::CronPickerConfirm,
+            };
+            on_message(Message::Settings(message))
+        },
+    )
+}
+
+#[derive(Debug, Clone, Copy)]
+pub enum PickerEvent {
+    Navigate(i32),
+    Date(NaiveDate),
+    Time(NaiveTime),
+    Cancel,
+    Confirm,
+}
+
+pub fn picker_overlay<'a, M: Clone + 'a>(
+    picker: &DateTimePicker,
+    note: impl Into<String>,
+    base: Element<'a, M>,
+    on_message: impl Fn(PickerEvent) -> M + 'a,
+) -> Element<'a, M> {
     use desktop_ui_controls::system_settings_common::settings_modal_overlay_with_escape_and_backdrop_dismiss;
-    use chrono::Timelike;
-    let cancel = Message::Settings(SettingsMessage::CronPickerCancel);
-    let header = settings_modal_header(
-        text("选择日期和时间").size(20),
-        settings_close_button(cancel.clone()),
-    );
+    let cancel = PickerEvent::Cancel;
+    let header =
+        settings_modal_header(text("选择日期和时间").size(20), settings_close_button(cancel));
     let navigation = row![
-        small_button("«", Message::Settings(SettingsMessage::CronPickerNavigate(-12)), false),
-        small_button("‹", Message::Settings(SettingsMessage::CronPickerNavigate(-1)), false),
+        small_button("«", PickerEvent::Navigate(-12), false),
+        small_button("‹", PickerEvent::Navigate(-1), false),
         text(format!("{}年{}月", picker.month.year(), picker.month.month()))
             .width(Length::Fill)
             .center(),
-        small_button("›", Message::Settings(SettingsMessage::CronPickerNavigate(1)), false),
-        small_button("»", Message::Settings(SettingsMessage::CronPickerNavigate(12)), false),
+        small_button("›", PickerEvent::Navigate(1), false),
+        small_button("»", PickerEvent::Navigate(12), false),
     ]
     .spacing(4)
     .align_y(Alignment::Center);
@@ -124,7 +154,7 @@ pub fn overlay<'a, M: Clone + 'a>(
     for week in picker.days().chunks(7) {
         let mut cells = row![].spacing(2);
         for date in week {
-            let cell: Element<'_, Message> = if let Some(date) = date {
+            let cell: Element<'_, PickerEvent> = if let Some(date) = date {
                 let selected = *date == picker.date;
                 let current = date.month() == picker.month.month();
                 let label = text(date.day().to_string()).size(13).center();
@@ -133,7 +163,7 @@ pub fn overlay<'a, M: Clone + 'a>(
                     .width(Length::Fill)
                     .padding([8, 2])
                     .style(move |theme, status| cron_segment_style(theme, status, selected))
-                    .on_press(Message::Settings(SettingsMessage::CronPickerDate(*date)))
+                    .on_press(PickerEvent::Date(*date))
                     .into()
             } else {
                 container(text("")).width(Length::Fill).into()
@@ -142,29 +172,27 @@ pub fn overlay<'a, M: Clone + 'a>(
         }
         calendar = calendar.push(cells);
     }
-    let time = time_controls(picker.time, |time| {
-        Message::Settings(SettingsMessage::CronPickerTime { hour: time.hour(), minute: time.minute() })
-    });
+    let time = time_controls(picker.time, PickerEvent::Time);
     let body = column![
         calendar,
         time,
         text(format!("已选 {} {}", picker.date, picker.time.format("%H:%M"))).size(13),
-        text(format!("时区：{timezone}；确认后请预览校验执行时间。"))
-            .size(12)
-            .style(settings_muted_text_style),
+        text(note.into()).size(12).style(settings_muted_text_style),
     ]
     .spacing(12);
-    let footer = row![
-        secondary_button("取消", cancel.clone()),
-        primary_button("确认", Message::Settings(SettingsMessage::CronPickerConfirm)),
-    ]
-    .spacing(10);
+    let footer =
+        row![secondary_button("取消", cancel), primary_button("确认", PickerEvent::Confirm),]
+            .spacing(10);
     let card = settings_modal_layout(header, body, Some(footer.into()))
         .style(cron_modal_style)
         .width(420)
         .height(540);
-    let card: Element<'a, Message> = card.into();
-    settings_modal_overlay_with_escape_and_backdrop_dismiss(base, on_message(cancel), card.map(on_message))
+    let card: Element<'a, PickerEvent> = card.into();
+    settings_modal_overlay_with_escape_and_backdrop_dismiss(
+        base,
+        on_message(cancel),
+        card.map(on_message),
+    )
 }
 
 #[cfg(test)]

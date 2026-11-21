@@ -82,11 +82,11 @@ pub(super) fn segment_button<'a>(
         .into()
 }
 
-pub(super) fn small_button<'a>(
+pub(super) fn small_button<'a, M: Clone + 'a>(
     label: impl Into<String>,
-    on_press: Message,
+    on_press: M,
     danger: bool,
-) -> Element<'a, Message> {
+) -> Element<'a, M> {
     let mut btn = button(text(label.into()).size(12)).padding([7, 10]);
     btn = if danger {
         btn.style(danger_action_btn_style)
@@ -96,7 +96,10 @@ pub(super) fn small_button<'a>(
     btn.on_press(on_press).into()
 }
 
-pub(super) fn primary_button<'a>(label: impl Into<String>, on_press: Message) -> Element<'a, Message> {
+pub(super) fn primary_button<'a, M: Clone + 'a>(
+    label: impl Into<String>,
+    on_press: M,
+) -> Element<'a, M> {
     button(text(label.into()).size(13))
         .padding(SETTINGS_CONTROL_PADDING)
         .style(primary_action_btn_style)
@@ -104,7 +107,10 @@ pub(super) fn primary_button<'a>(label: impl Into<String>, on_press: Message) ->
         .into()
 }
 
-pub(super) fn secondary_button<'a>(label: impl Into<String>, on_press: Message) -> Element<'a, Message> {
+pub(super) fn secondary_button<'a, M: Clone + 'a>(
+    label: impl Into<String>,
+    on_press: M,
+) -> Element<'a, M> {
     button(text(label.into()).size(13))
         .padding(SETTINGS_CONTROL_PADDING)
         .style(rounded_action_btn_style)

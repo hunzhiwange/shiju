@@ -6,13 +6,17 @@ use std::{
     time::Duration,
 };
 
+use chrono::{DateTime, NaiveDateTime, TimeDelta, Timelike, Utc};
+use desktop_settings_cron::system_settings_cron::date_time::{DateTimePicker, PickerEvent};
 use iced::futures::{SinkExt, Stream};
+use iced::widget::text_editor;
 
 use iced::{Subscription, Task};
 
 use crate::app::{App, Message, Screen};
 
 use super::task_api::{self, Directory, List, Record, Schedules, Work};
+use super::task_schedule::{RepeatPattern, RepeatSchedule, TIMEZONE, future_once};
 use super::{Event, Page, board};
 
 pub(super) const DETAIL_SCROLL_ID: &str = "digital-employees-task-detail";
@@ -75,7 +79,7 @@ impl Trigger {
 impl fmt::Display for Trigger {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str(match self {
-            Self::Now => "立即",
+            Self::Now => "立即开始",
             Self::Once => "指定时间",
             Self::Cron => "周期执行",
         })
@@ -130,11 +134,13 @@ pub(super) struct Filters {
 pub(super) struct Draft {
     pub trigger: Trigger,
     pub title: String,
-    pub prompt: String,
+    pub prompt: text_editor::Content,
     pub employee: String,
     pub workflow: String,
     pub department: String,
-    pub time: String,
+    pub once_at: Option<NaiveDateTime>,
+    pub once_picker: Option<DateTimePicker>,
+    pub repeat: RepeatSchedule,
     pub retained_input: Option<serde_json::Map<String, serde_json::Value>>,
     pub key: String,
 }
@@ -144,7 +150,9 @@ impl Draft {
         Self {
             trigger,
             title: work.map(|work| work.title.clone()).unwrap_or_default(),
-            prompt: work.and_then(|work| work.input_text("prompt")).unwrap_or_default().to_owned(),
+            prompt: text_editor::Content::with_text(
+                work.and_then(|work| work.input_text("prompt")).unwrap_or_default(),
+            ),
             employee: work
                 .and_then(|work| work.input_text("employee_id"))
                 .map(str::to_owned)
@@ -154,7 +162,14 @@ impl Draft {
                 .unwrap_or_default()
                 .to_owned(),
             department: work.and_then(|work| work.department_path.clone()).unwrap_or_default(),
-            time: String::new(),
+            once_at: work
+                .and_then(|work| work.once_at.as_deref())
+                .and_then(|value| DateTime::parse_from_rfc3339(value).ok())
+                .map(|value| value.with_timezone(&TIMEZONE).naive_local()),
+            once_picker: None,
+            repeat: RepeatSchedule::from_cron(
+                work.and_then(|work| work.cron.as_deref()).unwrap_or("0 12 * * *"),
+            ),
             retained_input: work.and_then(|work| work.input.as_ref()?.as_object()).map(|input| {
                 ["attachments", "completion_requirements"]
                     .into_iter()
@@ -236,11 +251,9 @@ impl Center {
 #[derive(Clone, Copy)]
 pub(crate) enum DraftField {
     Title,
-    Prompt,
     Employee,
     Workflow,
     Department,
-    Time,
 }
 
 #[derive(Clone, Copy)]
@@ -299,7 +312,12 @@ pub(crate) enum CenterEvent {
     Reuse,
     CloseDraft,
     Edit(DraftField, String),
+    EditPrompt(text_editor::Action),
     DraftTrigger(Trigger),
+    OpenDatePicker,
+    DatePicker(PickerEvent),
+    ClearOnce,
+    DraftRepeat(RepeatPattern),
     Submit,
     Retry(String),
     Select(String, bool),
@@ -678,9 +696,13 @@ pub(super) fn update(app: &mut App, event: CenterEvent) -> Task<Message> {
         }
         CenterEvent::Reuse if !center.busy => {
             if let Some(record) = center.drawer.as_ref().and_then(|drawer| drawer.record.as_ref()) {
+                let work = &record.detail.task;
+                let trigger = Trigger::ALL
+                    .into_iter()
+                    .find(|trigger| work.trigger_type.as_deref() == Some(trigger.key()))
+                    .unwrap_or_default();
                 center.command_error = None;
-                center.draft =
-                    Some(Draft::new(Trigger::Now, Some(&record.detail.task), String::new()));
+                center.draft = Some(Draft::new(trigger, Some(work), String::new()));
                 return load_directory(app);
             }
         }
@@ -692,21 +714,88 @@ pub(super) fn update(app: &mut App, event: CenterEvent) -> Task<Message> {
             if let Some(draft) = &mut center.draft {
                 let target = match field {
                     DraftField::Title => &mut draft.title,
-                    DraftField::Prompt => &mut draft.prompt,
                     DraftField::Employee => &mut draft.employee,
                     DraftField::Workflow => &mut draft.workflow,
                     DraftField::Department => &mut draft.department,
-                    DraftField::Time => &mut draft.time,
                 };
-                *target = value;
-                draft.key = new_key();
+                if *target != value {
+                    *target = value;
+                    draft.key = new_key();
+                }
+            }
+        }
+        CenterEvent::EditPrompt(action) if !center.busy => {
+            if let Some(draft) = &mut center.draft {
+                let before = action.is_edit().then(|| draft.prompt.text());
+                draft.prompt.perform(action);
+                if before.is_some_and(|before| before != draft.prompt.text()) {
+                    draft.key = new_key();
+                }
             }
         }
         CenterEvent::DraftTrigger(value) if !center.busy => {
-            if let Some(draft) = &mut center.draft {
+            if let Some(draft) = &mut center.draft
+                && draft.trigger != value
+            {
                 draft.trigger = value;
-                draft.time.clear();
+                draft.once_picker = None;
                 draft.key = new_key();
+                center.command_error = None;
+            }
+        }
+        CenterEvent::OpenDatePicker if !center.busy => {
+            if let Some(draft) = &mut center.draft
+                && draft.trigger == Trigger::Once
+                && draft.once_picker.is_none()
+            {
+                let time = draft.once_at.unwrap_or_else(|| {
+                    (Utc::now() + TimeDelta::minutes(1)).with_timezone(&TIMEZONE).naive_local()
+                });
+                let mut picker = DateTimePicker::new(false, time.date(), time.time());
+                picker.set_time(time.hour(), time.minute());
+                draft.once_picker = Some(picker);
+            }
+        }
+        CenterEvent::DatePicker(event) if !center.busy => {
+            if let Some(draft) = &mut center.draft
+                && let Some(picker) = &mut draft.once_picker
+            {
+                match event {
+                    PickerEvent::Navigate(months) => picker.navigate(months),
+                    PickerEvent::Date(date) => picker.select(date),
+                    PickerEvent::Time(time) => picker.set_time(time.hour(), time.minute()),
+                    PickerEvent::Cancel => draft.once_picker = None,
+                    PickerEvent::Confirm => {
+                        let value = Some(picker.date.and_time(picker.time));
+                        draft.once_picker = None;
+                        if value != draft.once_at {
+                            draft.once_at = value;
+                            draft.key = new_key();
+                            center.command_error = None;
+                        }
+                    }
+                }
+            }
+        }
+        CenterEvent::ClearOnce if !center.busy => {
+            if let Some(draft) = &mut center.draft
+                && draft.trigger == Trigger::Once
+                && draft.once_at.is_some()
+            {
+                draft.once_at = None;
+                draft.key = new_key();
+                center.command_error = None;
+            }
+        }
+        CenterEvent::DraftRepeat(pattern) if !center.busy => {
+            let repeat = RepeatSchedule::Pattern(pattern);
+            if let Some(draft) = &mut center.draft
+                && draft.trigger == Trigger::Cron
+                && draft.repeat != repeat
+            {
+                draft.repeat = repeat;
+                draft.key = new_key();
+                center.command_error = None;
             }
         }
         CenterEvent::Submit if !center.busy => match validate(center) {
@@ -850,19 +939,11 @@ fn validate(center: &Center) -> Result<(Draft, String, Option<String>), &'static
     let mut time = None;
     match draft.trigger {
         Trigger::Once => {
-            let local = chrono::NaiveDateTime::parse_from_str(draft.time.trim(), "%Y-%m-%d %H:%M")
-                .map_err(|_| "执行时间格式为 YYYY-MM-DD HH:MM")?;
-            let value = local
-                .and_local_timezone(chrono_tz::Asia::Shanghai)
-                .single()
-                .ok_or("执行时间无效")?;
-            if value.timestamp() <= chrono::Utc::now().timestamp() {
-                return Err("执行时间必须晚于当前时间");
-            }
-            time = Some(value.to_rfc3339());
+            let local = draft.once_at.ok_or("请选择执行日期和时间")?;
+            time = Some(future_once(local)?.to_rfc3339());
         }
-        Trigger::Cron if draft.time.split_whitespace().count() != 5 => {
-            return Err("请填写五段 Cron 表达式");
+        Trigger::Cron if draft.repeat.cron().split_whitespace().count() != 5 => {
+            return Err("原周期规则无效，请重新选择重复周期");
         }
         _ => {}
     }

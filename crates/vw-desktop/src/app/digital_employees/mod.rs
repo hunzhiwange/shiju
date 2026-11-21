@@ -11,6 +11,8 @@ mod shared;
 mod shared_api;
 mod shared_view;
 mod task_api;
+mod task_schedule;
+mod task_schedule_view;
 mod tasks;
 mod tasks_view;
 mod trend;

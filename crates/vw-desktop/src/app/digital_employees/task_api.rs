@@ -10,6 +10,7 @@ use serde_json::{Value, json};
 use super::api::{Client, nullable_list};
 use super::assistants::{Department, IamPage, load_users};
 use super::board_api::{Collaboration, Handoff, Step};
+use super::task_schedule::TIMEZONE;
 use super::tasks::{Draft, Filters, Trigger};
 
 pub(super) const PAGE_SIZE: usize = 20;
@@ -29,7 +30,10 @@ pub(super) struct Work {
     pub(super) created_by: Option<String>,
     pub(super) created_at: Option<String>,
     pub(super) updated_at: Option<String>,
+    pub(super) trigger_type: Option<String>,
     pub(super) trigger_label: Option<String>,
+    pub(super) once_at: Option<String>,
+    pub(super) cron: Option<String>,
     pub(super) next_fire_at: Option<String>,
     pub(super) blocker: Option<String>,
     pub(super) assigned_at: Option<String>,
@@ -426,7 +430,7 @@ pub(super) async fn create(
         ("owner_ref".into(), json!(draft.employee)),
         ("workflow_id".into(), json!(draft.workflow)),
         ("workflow_version_id".into(), json!(version)),
-        ("prompt".into(), json!(draft.prompt.trim())),
+        ("prompt".into(), json!(draft.prompt.text().trim())),
     ]);
     let mut body = json!({
         "title": draft.title.trim(),
@@ -439,10 +443,11 @@ pub(super) async fn create(
     }
     if let Some(time) = time {
         body["once_at"] = json!(time);
+        body["timezone"] = json!(TIMEZONE.name());
     }
     if draft.trigger == Trigger::Cron {
-        body["cron"] = json!(draft.time.trim());
-        body["timezone"] = json!("Asia/Shanghai");
+        body["cron"] = json!(draft.repeat.cron());
+        body["timezone"] = json!(TIMEZONE.name());
     }
     client.post::<Value>(&["tasks"], &body, Some(&draft.key)).await?;
     Ok(())

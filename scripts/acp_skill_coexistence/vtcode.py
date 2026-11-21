@@ -15,13 +15,15 @@ from . import correlated_result
 from .opencode import Probe as ChatProbe
 
 VERSION = "0.183.0"
-REVISION = f"vtcode-{VERSION}-model-source-v2"
+REVISION = f"vtcode-{VERSION}-model-source-v3"
 MODEL = "deepseek-v4.1-flash-1017"
 ADAPTER = "openai"
 API_PATH = "/v1"
 TRANSPORT = "stdio"  # The managed gateway projects host stdio onto private HTTP.
 NATIVE_DIR = ".agents/skills"
-READ_ONLY_BASELINE = "list_files"
+LOAD = "load_skill"
+READ = "load_skill_resource"
+MCP = "mcp__coexistence__read_probe"
 
 
 def checksum(path):
@@ -65,38 +67,51 @@ class Probe(ChatProbe):
         if not tools:
             return {"content": "Fixture session"}, "stop"
         self.requests += 1
-        native = self.fixtures["skills"]["native"]
+        skills = self.fixtures["skills"]
         if self.requests == 1:
             envelope = json.dumps(body)
-            for skill in self.fixtures["skills"].values():
+            require({LOAD, READ} <= tools.keys(), "VT Code ACP read-only skills are unavailable")
+            catalog = tools[LOAD]["description"]
+            for kind, skill in skills.items():
+                visible = kind == "native" or (kind == "selected" and self.mounted)
+                require((skill["name"] in catalog) == visible, f"unexpected VT Code {kind} catalog")
                 require(skill["body"] not in envelope and skill["attachment"] not in envelope,
                         "VT Code exposed skill content before activation")
-                require(skill["name"] not in envelope, "VT Code now advertises skill metadata")
             require(self.fixtures["mcp"] not in envelope, "VT Code exposed MCP data before invocation")
-            require(tools.keys() <= {"read_file", "list_files", "code_search", "apply_patch"},
-                    "VT Code baseline tool catalog changed")
-            # A known fixture path establishes ordinary native tool execution only.
-            return self.call(tools, "ordinary_list", READ_ONLY_BASELINE, {"path": NATIVE_DIR})
+            require((MCP in tools) == self.mounted, "unexpected VT Code MCP catalog")
+            require(tools.keys() <= {"read_file", "list_files", "code_search", "apply_patch", LOAD, READ, MCP},
+                    "VT Code relay tool scope changed")
+            return self.activate(tools, "native")
 
         step, _, _, call_id = self.pending
         results = [dict(row, tool_use_id=row["tool_call_id"])
                    for row in body["messages"] if row["role"] == "tool"]
-        correlated_result(results, call_id, native["name"])
+        content = str(correlated_result(results, call_id)["content"])
         self.completed[step] = call_id
+        if step in ("native", "selected"):
+            skill = skills[step]
+            require(skill["body"] in content and skill["attachment"] not in content,
+                    f"unexpected VT Code {step} activation result")
+            return self.call(tools, step + "_read", READ,
+                             {"skill_name": skill["name"], "resource_path": "references/value.txt"})
+        if step == "mcp":
+            value = self.fixtures["mcp"]
+            require((value not in content and "permission denied" in content.lower())
+                    if self.rejected else value in content, "unexpected VT Code MCP continuation")
+        else:
+            require(skills[step.removesuffix("_read")]["attachment"] in content,
+                    f"VT Code {step} did not read the fixture attachment")
+        if self.mounted and step == "native_read":
+            return self.activate(tools, "selected")
+        if self.mounted and step == "selected_read":
+            return self.call(tools, "mcp", MCP, {})
         self.pending = None
-        self.failure = "VT Code ACP model request lacks a skill catalog and native activation tool"
-        return {"content": "VTCODE_LIST_BASELINE_DONE"}, "stop"
+        return {"content": "VTCODE_COEXISTENCE_DONE"}, "stop"
 
-    def observe_terminal(self, events):
-        if self.mounted and any(
-            row.get("type") == "chat.error"
-            and "vtcode: no verified skill directory mount branch" in str(row.get("error", ""))
-            for row in events
-        ):
-            self.failure = "VT Code host rejected the unverified skill mount before model inference"
-        return False
+    def activate(self, tools, kind):
+        return self.call(tools, kind, LOAD, {"name": self.fixtures["skills"][kind]["name"]})
 
-    def approves(self, _metadata):
+    def observe_terminal(self, _events):
         return False
 
 

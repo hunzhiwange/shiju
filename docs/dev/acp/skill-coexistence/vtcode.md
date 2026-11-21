@@ -23,7 +23,7 @@
 
 两个制品分别使用 `acp zed` 和 `acp standard`。共 4 个原生 ACP 会话、12 个完成回合。普通请求、`/skills list` 和显式 `$技能名` 均到达模型，但系统上下文没有夹具技能目录，请求没有技能正文或附件，也没有技能加载工具。ACP 宣告的静态 `skills` 命令没有动态夹具项。原始工具目录只有 `list_files`、`apply_patch`、`exec_command` 和 `write_stdin`，对照未调用这些工具，也未修改受管中继过滤。这将首次断点定位在供应商 ACP 会话工具和指令处理器。两种 ACP 目标共享该处理器，独立的 CLI 技能入口无法提供同一 ACP 会话的激活和资源回传。项目配置、私有 HOME 投影及改变注册名均无法替代加载入口。
 
-复核使用以下命令，退出码 0 表示对照执行完整。结构化报告为 `target/acp-skill-coexistence/vtcode-native-control.json`。共存验收仍沿用此前退出码 1 的证据，未重复构建网关或运行同一验收。
+v1/v2 复核使用提交 `f3ceadd078` 的探针。以下命令退出码 0 表示对照执行完整。结构化报告为 `target/acp-skill-coexistence/vtcode-native-control.json`。共存验收仍沿用此前退出码 1 的证据，未重复构建网关或运行同一验收。
 
 ```sh
 PYTHONPATH=scripts ACP_VTCODE_REVIEWED_BIN=/path/to/vtcode-acp \
@@ -32,3 +32,11 @@ PYTHONPATH=scripts ACP_VTCODE_REVIEWED_BIN=/path/to/vtcode-acp \
 ```
 
 继续接入所需制品是 Darwin arm64 的新受审 0.183.0 补丁二进制及其 SHA-256。其 ACP 入口须连接供应商技能扫描器，追加请求绑定的受信目录，并在既有权限回合内按名称加载说明及读取已激活技能的资源。通用 CLI 激活会注册技能衍生工具，需在 ACP 明确约束此分支，维持现有普通工具范围、沙箱及会话 MCP 单次授权。当前原包及 v2 均不满足该制品条件。
+
+## 固定版 ACP 只读加载补丁
+
+沿 0.183.0 的原生元数据扫描和清单解析接通 ACP。项目及私有 HOME 下的 `.agents/skills` 按原生优先顺序发现，再追加本次启动独占的受信快照。工具目录仅公布名称和说明。激活与资源读取沿 ACP read 审批，调用时验证供应商主代理的读路径策略。激活状态仅保存在当前会话，资源路径必须属于已激活技能目录。补丁不运行技能脚本，也不注册由技能衍生的工具。 [补丁与复现方式](../../../../patches/acp-model-source/vtcode/README.md)
+
+源码补丁应用及反向检查通过。Darwin arm64 槽位 3 的首版候选构建退出 0，独立原生 ACP 会话完成 6 个关联工具结果和 7 次模型请求。原生与选中技能的四个正文及附件结果各自回到原调用 ID，未激活资源读取和越界资源读取均被拒绝。另用 Seatbelt 私有夹具确认选中路径可读、不可写，未授权邻接文件保持不可读。网关联验使用相同的快照隔离和既有 MCP 审批。
+
+最终 v3 制品以 Rust 1.100.0 在 Darwin arm64 槽位 3 构建，退出 0。硬编码合约的 SHA-256 为 `1b27c8fd3ee3b58f461db5d61dfccbf4a89c4a03a1efd98c75a9dd828c9d1670`，本地产物位于 `target/acp-skill-coexistence/vtcode-skill-candidate`。相同制品通过全部六次原生工具调用与两个读取拒绝对照，脱敏报告位于 `target/acp-skill-coexistence/vtcode-candidate-smoke.json`。v3 安装位于独立目录，v1 普通路径与 v2 已审 MCP 路径继续可用。

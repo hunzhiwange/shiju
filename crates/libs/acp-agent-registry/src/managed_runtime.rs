@@ -60,7 +60,7 @@ fn installed_directory(agent: &str, contract: &Contract) -> Result<PathBuf, Stri
         3
     } else if agent == "dimcode" {
         3
-    } else if matches!(agent, "copilot" | "goose" | "kilocode" | "opencode" | "vtcode") {
+    } else if matches!(agent, "copilot" | "goose" | "kilocode" | "opencode") {
         2
     } else if matches!(agent, "droid" | "kiro") {
         2
@@ -72,6 +72,12 @@ fn installed_directory(agent: &str, contract: &Contract) -> Result<PathBuf, Stri
         4
     } else if matches!(agent, "junie" | "stakpak") {
         3
+    } else if agent == "vtcode" {
+        if contract.files.get(&contract.bin).is_some_and(|digest| digest != VTCODE_V2_SHA256) {
+            3
+        } else {
+            2
+        }
     } else if matches!(agent, "codebuddy" | "codex" | "dirac" | "iflow" | "qoder" | "qwen") {
         2
     } else if matches!(agent, "hermes" | "poolside") {
@@ -93,13 +99,37 @@ fn original_vtcode_directory(contract: &mut Contract) -> Result<PathBuf, String>
 pub fn verify_vtcode_mcp_executable(command: &str) -> Result<(), String> {
     let executable = Path::new(command).canonicalize().map_err(|_| "VT Code executable is unavailable")?;
     let contract = contract("vtcode").ok_or("Missing VT Code runtime contract")?;
-    if executable.parent().is_some_and(|directory| {
-        verify(directory, &contract).is_ok_and(|reviewed| reviewed == executable)
-    }) {
+    if verify_vtcode_patched_path(&executable, &contract) || verify_vtcode_legacy_path(&executable, &contract) {
         Ok(())
     } else {
         Err("VT Code MCP requires the reviewed patched runtime".into())
     }
+}
+
+pub fn verify_vtcode_skill_executable(command: &str) -> Result<(), String> {
+    let executable = Path::new(command).canonicalize().map_err(|_| "VT Code executable is unavailable")?;
+    let contract = contract("vtcode").ok_or("Missing VT Code runtime contract")?;
+    if cfg!(all(target_os = "macos", target_arch = "aarch64"))
+        && contract.files.get(&contract.bin).is_some_and(|digest| digest != VTCODE_V2_SHA256)
+        && verify_vtcode_patched_path(&executable, &contract)
+    {
+        Ok(())
+    } else {
+        Err("VT Code skills require the reviewed read-only ACP runtime".into())
+    }
+}
+
+fn verify_vtcode_patched_path(executable: &Path, contract: &Contract) -> bool {
+    executable.parent().is_some_and(|directory| {
+        verify(directory, contract).is_ok_and(|reviewed| reviewed.as_path() == executable)
+    })
+}
+
+const VTCODE_V2_SHA256: &str = "8b8f6c5204e1125b20d63c7c9637b027821b22d206517ebd00db5f513890cdfb";
+
+fn verify_vtcode_legacy_path(executable: &Path, contract: &Contract) -> bool {
+    executable.file_name().is_some_and(|name| name == contract.bin.as_str())
+        && std::fs::read(executable).is_ok_and(|bytes| hex::encode(Sha256::digest(bytes)) == VTCODE_V2_SHA256)
 }
 
 fn verify(directory: &Path, contract: &Contract) -> Result<PathBuf, String> {
@@ -295,7 +325,13 @@ pub fn reviewed_agent_command(agent: &str) -> Result<Option<(String, Vec<String>
         }
     }
     if agent == "vtcode" && !directory.try_exists().map_err(|_| "Cannot inspect VT Code managed runtime")? {
-        directory = original_vtcode_directory(&mut contract)?;
+        let legacy = root(agent)?.join(format!("vtcode-{}-model-source-v2", contract.version));
+        if legacy.try_exists().map_err(|_| "Cannot inspect VT Code v2 runtime")? {
+            contract.files.insert(contract.bin.clone(), VTCODE_V2_SHA256.into());
+            directory = legacy;
+        } else {
+            directory = original_vtcode_directory(&mut contract)?;
+        }
     }
     // Keep the reviewed original available until the separate patched install succeeds.
     if agent == "droid"
@@ -442,6 +478,9 @@ pub fn verify_reviewed_agent_executable(agent: &str, command: &str) -> Result<()
     }
     if agent == "harn" {
         return Err("Harn executable must resolve to the installed reviewed entry".into());
+    }
+    if agent == "vtcode" && verify_vtcode_legacy_path(&executable, &contract) {
+        return Ok(());
     }
     if agent == "vtcode" && executable.file_name().is_some_and(|name| name == contract.bin.as_str())
         && let Some(source_sha256) = &contract.source_sha256

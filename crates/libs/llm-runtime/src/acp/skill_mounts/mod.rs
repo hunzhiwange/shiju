@@ -40,6 +40,7 @@ pub(super) mod sigit;
 mod snow;
 pub(super) mod trae;
 mod vibe;
+pub(super) mod vtcode;
 
 pub fn validate(agent: &str, selected: bool) -> Result<(), Error> {
     if !selected {
@@ -56,6 +57,7 @@ pub fn validate(agent: &str, selected: bool) -> Result<(), Error> {
         "goose" => return Ok(()),
         "grok" if cfg!(all(target_os = "macos", target_arch = "aarch64")) => return Ok(()),
         "vibe" => return Ok(()),
+        "vtcode" if cfg!(all(target_os = "macos", target_arch = "aarch64")) => return Ok(()),
         "hermes" => return Ok(()),
         "snow" => return Ok(()),
         "aionrs" if cfg!(all(target_os = "macos", target_arch = "aarch64")) => return Ok(()),

@@ -1,0 +1,319 @@
+--- a/crates/codegen/vtcode-core/src/skills/loader/discovery.rs
++++ b/crates/codegen/vtcode-core/src/skills/loader/discovery.rs
+@@ -150,8 +150,13 @@
+ }
+
++pub(super) fn discover_scoped_skill_metadata(root: &SkillRoot, outcome: &mut SkillLoadOutcome) {
++    walk_skills_dir(root, outcome, WalkMode::ScopedMetadata);
++}
++
+ #[derive(Clone, Copy)]
+ enum WalkMode {
+     Full,
+     Metadata,
++    ScopedMetadata,
+ }
+
+@@ -161,4 +166,7 @@
+     };
+
++    if matches!(mode, WalkMode::ScopedMetadata) && root_path != root.path {
++        return;
++    }
+     if !root_path.is_dir() {
+         return;
+@@ -199,4 +207,9 @@
+             }
+
++            if matches!(mode, WalkMode::ScopedMetadata)
++                && !entry.file_type().is_ok_and(|kind| kind.is_dir() || kind.is_file())
++            {
++                continue;
++            }
+             if path.is_dir() {
+                 // Plugin-consumed directories are units: a successful plugin
+@@ -216,5 +229,5 @@
+                 }
+
+-                if try_ingest_plugin_skills(&path, root, outcome) {
++                if !matches!(mode, WalkMode::ScopedMetadata) && try_ingest_plugin_skills(&path, root, outcome) {
+                     continue;
+                 }
+@@ -259,5 +272,5 @@
+             }
+         },
+-        WalkMode::Metadata => match fs::read_to_string(&path).with_context(|| format!("reading {}", path.display())) {
++        WalkMode::Metadata | WalkMode::ScopedMetadata => match fs::read_to_string(&path).with_context(|| format!("reading {}", path.display())) {
+             Ok(contents) => match crate::skills::manifest::parse_skill_content(&contents) {
+                 Ok((manifest, _)) => {
+--- a/crates/codegen/vtcode-core/src/skills/loader.rs
++++ b/crates/codegen/vtcode-core/src/skills/loader.rs
+@@ -107,4 +107,24 @@
+ }
+
++/// Scan only ordinary SKILL.md manifests in approved ACP roots.
++pub fn discover_acp_skills(workspace: &Path, home: &Path, selected: Option<&Path>) -> Vec<crate::skills::SkillMetadata> {
++    let mut outcome = SkillLoadOutcome::default();
++    for (path, scope) in [
++        (workspace.join(".agents/skills"), SkillScope::Repo),
++        (home.join(".agents/skills"), SkillScope::User),
++    ].into_iter().chain(selected.map(|path| (path.to_path_buf(), SkillScope::User))) {
++        discovery::discover_scoped_skill_metadata(
++            &SkillRoot { path, scope, is_tool_root: false, is_plugin_root: false },
++            &mut outcome,
++        );
++    }
++    outcome.skills.retain(|skill| skill.manifest.as_ref().is_some_and(|manifest| {
++        manifest.variety == crate::skills::types::SkillVariety::AgentSkill
++    }));
++    dedup_and_sort(&mut outcome);
++    filter_disabled_skills(&mut outcome, Some(home));
++    outcome.skills
++}
++
+ fn add_system_cli_tools(outcome: &mut SkillLoadOutcome) {
+     if let Ok(system_tools) = discover_cli_tools() {
+--- a/crates/codegen/vtcode-core/src/tools/skills/mod.rs
++++ b/crates/codegen/vtcode-core/src/tools/skills/mod.rs
+@@ -415,5 +415,5 @@
+ }
+
+-fn resolve_skill_resource_path(skill_root: &Path, resource_path: &str) -> anyhow::Result<PathBuf> {
++pub fn resolve_skill_resource_path(skill_root: &Path, resource_path: &str) -> anyhow::Result<PathBuf> {
+     let relative_path = Path::new(resource_path);
+     if relative_path.is_absolute()
+--- a/crates/codegen/vtcode-acp/src/zed/agent/handlers.rs
++++ b/crates/codegen/vtcode-acp/src/zed/agent/handlers.rs
+@@ -425,4 +425,9 @@
+         let mut definitions = agent.tool_definitions(provider_supports_tools, &enabled_tools, primary);
+         if provider_supports_tools {
++            for definition in session.skills.definitions() {
++                if agent.allows_session_skill(primary, definition.function_name()) {
++                    definitions.get_or_insert_with(Vec::new).push(definition);
++                }
++            }
+             for (name, tool) in session.mcp_tools.iter() {
+                 if agent.allows_session_mcp(primary, name) {
+--- a/crates/codegen/vtcode-acp/src/zed/agent/mod.rs
++++ b/crates/codegen/vtcode-acp/src/zed/agent/mod.rs
+@@ -25,4 +25,5 @@
+ mod prompt;
+ pub(super) mod session_mcp;
++pub(super) mod session_skills;
+ mod session_state;
+ #[cfg(test)]
+--- /dev/null
++++ b/crates/codegen/vtcode-acp/src/zed/agent/session_skills.rs
+@@ -0,0 +1,140 @@
++use crate::{acp, reports::ToolExecutionReport};
++use anyhow::{Result, ensure};
++use serde_json::{Value, json};
++use std::{
++    collections::BTreeSet,
++    fs,
++    io::Read,
++    path::{Path, PathBuf},
++    sync::Mutex,
++};
++use vtcode_core::{
++    llm::provider::ToolDefinition,
++    permissions::{ResolvedPermissionDecision, build_permission_request, evaluate_effective_permissions},
++    skills::{SkillMetadata, loader::discover_acp_skills, manifest::parse_skill_content},
++    tools::skills::resolve_skill_resource_path,
++};
++
++const LOAD: &str = "load_skill";
++const READ: &str = "load_skill_resource";
++const MAX_BYTES: u64 = 128 * 1024;
++
++impl super::ZedAgent {
++    pub(super) fn allows_session_skill(&self, primary: &str, tool: &str) -> bool {
++        self.primary_agents.allows_local_tool(primary, tool)
++            && self.primary_agents.allows_tool(primary, "read_file", &self.config.workspace)
++    }
++    pub(super) fn allows_skill_path(&self, primary: &str, path: &Path) -> bool {
++        let Some(permissions) = self.primary_agents.permissions_for(primary) else {
++            return false;
++        };
++        let workspace = &self.config.workspace;
++        let args = json!({"path": path});
++        let request = build_permission_request(workspace, workspace, "read_file", Some(&args));
++        evaluate_effective_permissions(&self.permissions_config, permissions, workspace, workspace, &request)
++            != ResolvedPermissionDecision::Deny
++    }
++}
++
++#[derive(Default)]
++pub(crate) struct SessionSkills {
++    entries: Vec<SkillMetadata>,
++    active: Mutex<BTreeSet<String>>,
++}
++
++impl SessionSkills {
++    pub(super) fn discover(workspace: &Path) -> Self {
++        if std::env::var("SHIJU_VTCODE_READ_ONLY_SKILLS").as_deref() != Ok("1") {
++            return Self::default();
++        }
++        let Some(home) = std::env::var_os("HOME").map(PathBuf::from) else {
++            return Self::default();
++        };
++        let selected = std::env::var_os("SHIJU_VTCODE_SELECTED_SKILLS").map(PathBuf::from);
++        Self {
++            entries: discover_acp_skills(workspace, &home, selected.as_deref()),
++            active: Mutex::default(),
++        }
++    }
++
++    pub(super) fn contains_tool(&self, name: &str) -> bool {
++        !self.entries.is_empty() && matches!(name, LOAD | READ)
++    }
++
++    pub(super) fn definitions(&self) -> Vec<ToolDefinition> {
++        if self.entries.is_empty() {
++            return Vec::new();
++        }
++        let catalog: Vec<_> = self
++            .entries
++            .iter()
++            .map(|skill| json!({"name": skill.name, "description": skill.description}))
++            .collect();
++        vec![
++            ToolDefinition::function(
++                LOAD.to_string(),
++                format!(
++                    "Read and activate a skill's instructions for this ACP session. Skill metadata: {}",
++                    json!(catalog)
++                ),
++                json!({"type": "object", "properties": {"name": {"type": "string"}},
++                       "required": ["name"], "additionalProperties": false}),
++            ),
++            ToolDefinition::function(
++                READ.to_string(),
++                "Read a relative resource belonging to a skill activated in this ACP session.".to_string(),
++                json!({"type": "object", "properties": {"skill_name": {"type": "string"},
++                       "resource_path": {"type": "string"}},
++                       "required": ["skill_name", "resource_path"], "additionalProperties": false}),
++            ),
++        ]
++    }
++
++    pub(super) fn execute(&self, tool: &str, args: &Value, permits: impl Fn(&Path) -> bool) -> ToolExecutionReport {
++        match self.read(tool, args, permits) {
++            Ok(output) => {
++                ToolExecutionReport::success(vec![acp::ToolCallContent::from(output.to_string())], Vec::new(), output)
++            }
++            Err(_) => ToolExecutionReport::failure(tool, "Skill read is unavailable for these arguments"),
++        }
++    }
++
++    fn read(&self, tool: &str, args: &Value, permits: impl Fn(&Path) -> bool) -> Result<Value> {
++        let name_key = if tool == LOAD { "name" } else { "skill_name" };
++        let name = args[name_key].as_str().ok_or_else(|| anyhow::anyhow!("Missing skill name"))?;
++        let entry = self
++            .entries
++            .iter()
++            .find(|entry| entry.name == name)
++            .ok_or_else(|| anyhow::anyhow!("Skill is not in the session catalog"))?;
++        let root = entry.path.parent().ok_or_else(|| anyhow::anyhow!("Missing skill directory"))?;
++        ensure!(fs::canonicalize(root)? == root, "Skill directory changed");
++        let mut active = self.active.lock().map_err(|_| anyhow::anyhow!("Skill session unavailable"))?;
++        if tool == LOAD {
++            let path = resolve_skill_resource_path(root, "SKILL.md")?;
++            ensure!(path == entry.path, "Skill manifest changed");
++            ensure!(permits(&path), "Skill manifest read denied");
++            let (manifest, instructions) = parse_skill_content(&read_text(&path)?)?;
++            ensure!(manifest.name == name, "Skill name changed");
++            let _ = active.insert(name.to_owned());
++            Ok(json!({"name": name, "instructions": instructions}))
++        } else {
++            ensure!(active.contains(name), "Skill has not been activated");
++            let relative = args["resource_path"]
++                .as_str()
++                .ok_or_else(|| anyhow::anyhow!("Missing resource"))?;
++            let path = resolve_skill_resource_path(root, relative)?;
++            ensure!(permits(&path), "Skill resource read denied");
++            Ok(json!({"skill_name": name, "resource_path": relative, "content": read_text(&path)?}))
++        }
++    }
++}
++
++fn read_text(path: &Path) -> Result<String> {
++    let file = fs::File::open(path)?;
++    ensure!(file.metadata()?.is_file(), "Skill resource is not a regular file");
++    let mut bytes = Vec::new();
++    let read = file.take(MAX_BYTES + 1).read_to_end(&mut bytes)?;
++    ensure!(read as u64 <= MAX_BYTES, "Skill resource exceeds read limit");
++    Ok(String::from_utf8(bytes)?)
++}
+--- a/crates/codegen/vtcode-acp/src/zed/agent/session_state/mod.rs
++++ b/crates/codegen/vtcode-acp/src/zed/agent/session_state/mod.rs
+@@ -111,4 +111,5 @@
+             })),
+             cancel_flag: Arc::new(std::sync::atomic::AtomicBool::new(false)),
++            skills: Arc::default(),
+             mcp_tools: Arc::default(),
+         }
+@@ -135,4 +136,5 @@
+         let mut handle = self.build_session_handle(session_id.clone(), thread);
+         handle.mcp_tools = Arc::new(tools);
++        handle.skills = Arc::new(super::session_skills::SessionSkills::discover(&self.config.workspace));
+         if let Ok(mut guard) = self.sessions.lock() {
+             drop(guard.insert(session_id.clone(), handle));
+--- a/crates/codegen/vtcode-acp/src/zed/agent/tool_execution.rs
++++ b/crates/codegen/vtcode-acp/src/zed/agent/tool_execution.rs
+@@ -63,5 +63,6 @@
+         };
+         let mcp_tool = session.mcp_tools.get(&func_ref.name);
+-        let tool_descriptor = if mcp_tool.is_some() {
++        let skill_tool = session.skills.contains_tool(&func_ref.name);
++        let tool_descriptor = if mcp_tool.is_some() || skill_tool {
+             Some(ToolDescriptor::Local)
+         } else {
+@@ -70,5 +71,5 @@
+         let args_value_result: Result<Value, _> = serde_json::from_str(&func_ref.arguments);
+         let args_value_for_input = args_value_result.as_ref().ok().cloned();
+-        let title = if mcp_tool.is_some() {
++        let title = if mcp_tool.is_some() || skill_tool {
+             func_ref.name.clone()
+         } else {
+@@ -85,4 +86,5 @@
+         let call_id = acp::ToolCallId::new(Arc::from(call.id.clone()));
+         let kind = match tool_descriptor {
++            Some(ToolDescriptor::Local) if skill_tool => acp::ToolKind::Read,
+             Some(ToolDescriptor::Acp(tool)) => tool.kind(),
+             Some(ToolDescriptor::Local) | None => self
+@@ -136,5 +138,16 @@
+             match (tool_descriptor, args_value_result) {
+                 (Some(descriptor), Ok(args_value)) => {
+-                    if let Some(tool) = mcp_tool {
++                    if skill_tool {
++                        let primary = session.data.lock().map_err(|_| SdkError::internal_error())?.primary_agent.clone();
++                        if permission_granted && self.allows_session_skill(&primary, &func_ref.name)
++                            && !session.cancel_flag.load(Ordering::Relaxed)
++                        {
++                            session.skills.execute(&func_ref.name, &args_value, |path| {
++                                self.allows_skill_path(&primary, path)
++                            })
++                        } else {
++                            ToolExecutionReport::failure(&func_ref.name, "ACP skill read denied or cancelled")
++                        }
++                    } else if let Some(tool) = mcp_tool {
+                         let primary_agent = session
+                             .data
+--- a/crates/codegen/vtcode-acp/src/zed/helpers.rs
++++ b/crates/codegen/vtcode-acp/src/zed/helpers.rs
+@@ -267,5 +267,5 @@
+         "exec_command" | "write_stdin" => Some("bash"),
+         "apply_patch" => Some("edit"),
+-        "code_search" => Some("read"),
++        "code_search" | "load_skill" | "load_skill_resource" => Some("read"),
+         _ => None,
+     }
+--- a/crates/codegen/vtcode-acp/src/zed/types.rs
++++ b/crates/codegen/vtcode-acp/src/zed/types.rs
+@@ -148,4 +148,5 @@
+     pub(crate) data: Arc<Mutex<SessionData>>,
+     pub(crate) cancel_flag: Arc<AtomicBool>,
++    pub(crate) skills: Arc<super::agent::session_skills::SessionSkills>,
+     pub(crate) mcp_tools: Arc<super::agent::session_mcp::SessionMcpTools>,
+ }

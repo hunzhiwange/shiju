@@ -517,7 +517,7 @@ fn retain_vtcode_tools(request: &mut serde_json::Value, catalog: &[String]) {
         // Expose only the read and patch surfaces supported by the managed launch.
         tools.retain(|tool| {
             tool.pointer("/function/name").and_then(serde_json::Value::as_str).is_some_and(|name| {
-                matches!(name, "read_file" | "list_files" | "code_search" | "apply_patch")
+                matches!(name, "read_file" | "list_files" | "code_search" | "apply_patch" | "load_skill" | "load_skill_resource")
                     || catalog.iter().any(|tool| tool == name)
             })
         });

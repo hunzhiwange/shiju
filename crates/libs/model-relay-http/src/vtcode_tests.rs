@@ -8,10 +8,18 @@ fn vtcode_relay_exposes_only_sandboxed_read_and_patch_tools() {
     let mut request = json!({
         "model": model,
         "messages": [{"role":"user","content":"Create a file"}],
-        "tools": [tool("list_files"),tool("apply_patch"),tool("exec_command"),tool("write_stdin"),tool("web_fetch")]
+        "tools": [tool("list_files"),tool("apply_patch"), tool("load_skill"), tool("load_skill_resource"), tool("exec_command"), tool("write_stdin"), tool("run_skill"), tool("web_fetch")]
     });
     retain_vtcode_tools(&mut request, &[]);
-    assert_eq!(request["tools"], json!([tool("list_files"), tool("apply_patch")]));
+    assert_eq!(
+        request["tools"],
+        json!([
+            tool("list_files"),
+            tool("apply_patch"),
+            tool("load_skill"),
+            tool("load_skill_resource")
+        ])
+    );
     assert_eq!(request["model"], model);
     assert_eq!(request["messages"][0]["content"], "Create a file");
 }

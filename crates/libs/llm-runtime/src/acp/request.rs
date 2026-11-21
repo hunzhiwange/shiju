@@ -507,6 +507,20 @@ pub async fn do_stream_request_acp<H: Host>(
         None
     };
 
+    let vtcode_selected = acp_agent_name == "vtcode" && parsed_options.skill_view.is_some();
+    let vtcode_reads = parsed_options.permission_mode != Some(acp_types::PermissionMode::DenyAll)
+        && merged_options.get("disable_tools").and_then(Value::as_bool) != Some(true)
+        && recovered.is_none()
+        && fork_replay.is_none();
+    if vtcode_selected {
+        if !vtcode_reads
+            || source != vw_api_acp_model::acp_model_source::AcpModelSource::SessionModel
+        {
+            return Err(acp_option_error("VT Code skills require a new managed session with reads enabled"));
+        }
+        acp_agent_registry::verify_vtcode_skill_executable(&normalized_acp_cfg.command)
+            .map_err(acp_option_error)?;
+    }
     let vtcode_mcp = acp_agent_name == "vtcode" && !parsed_options.mcp_servers.is_empty();
     if vtcode_mcp && (source != vw_api_acp_model::acp_model_source::AcpModelSource::SessionModel
         || parsed_options.permission_mode == Some(acp_types::PermissionMode::DenyAll)
@@ -718,6 +732,11 @@ pub async fn do_stream_request_acp<H: Host>(
         .as_ref()
         .map(|profile| profile.config().clone())
         .unwrap_or(normalized_acp_cfg);
+    if acp_agent_name == "vtcode" && let Some(profile) = launch_profile.as_ref() {
+        super::skill_mounts::vtcode::configure(
+            profile, &mut normalized_acp_cfg, vtcode_reads, parsed_options.skill_view.as_ref(),
+        )?;
+    }
     if acp_agent_name == "omp" && let Some(profile) = launch_profile.as_ref() {
         super::skill_mounts::omp::configure(
             profile,
@@ -753,7 +772,7 @@ pub async fn do_stream_request_acp<H: Host>(
     // Server-owned fork anchors and recovered sessions take precedence over desktop rebuild hints.
     let requested_force_new_session = fork_replay.is_none()
         && recovered.is_none()
-        && (restricted_droid || restricted_openclaw || vtcode_mcp || autohand_selected || autohand_mcp || merged_options.get("acp_force_new_session").and_then(Value::as_bool).unwrap_or(false));
+        && (restricted_droid || restricted_openclaw || vtcode_mcp || vtcode_selected || autohand_selected || autohand_mcp || merged_options.get("acp_force_new_session").and_then(Value::as_bool).unwrap_or(false));
     let replay_strategy = if fork_history_needed {
         AcpReplayStrategy::Full
     } else {

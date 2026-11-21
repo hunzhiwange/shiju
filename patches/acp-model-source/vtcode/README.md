@@ -22,3 +22,17 @@ python3 probe.py /absolute/path/vtcode /absolute/path/rustcodegraph /absolute/pa
 可在末尾加 `allow` 单跑挂载。原版 0.183.0 在首次模型调用缺少三种 MCP 工具声明时失败，无挂载和撤除两个对照通过。
 
 Rust 1.100.0 的 Darwin arm64 本地构建已通过，三类真实图谱工具都完成了原生回传。聚焦的批准、拒绝、无挂载、撤除四项通过。受管安装和中继使用同一受审产物。详细轮次见[验收记录](../../../docs/dev/acp/mcp-acceptance/vtcode.md)。
+
+## ACP 只读技能源码补丁
+
+在同一个 0.183.0 源码副本按顺序应用两个补丁，再用固定 Rust 工具链和锁文件构建。
+
+```sh
+git apply --unidiff-zero /absolute/path/vtcode-0.183.0-session-mcp.patch
+git apply /absolute/path/vtcode-0.183.0-read-only-skills.patch
+cargo +1.100.0 build --locked -j 1 -p vtcode --bin vtcode
+```
+
+只读技能补丁复用原生技能元数据扫描、清单解析和相对资源路径校验。受管启动启用后，会话扫描项目与私有 HOME 的 `.agents/skills`，再追加宿主提供的选中技能快照。同名技能沿原生先发现优先。模型先获得元数据，经 ACP 读权限加载正文，再使用已激活技能名读取相对资源。技能激活仅在当前会话记录状态，资源文件受目录边界和大小限制。加载过程不注册技能衍生工具。
+
+两个新增工具以读取类型走 ACP 权限请求和供应商读路径策略。现有四项工作区工具、会话 MCP、首轮工具审批和回环约束沿用原路径。v1 原包和 v2 MCP 制品继续使用各自已审能力。

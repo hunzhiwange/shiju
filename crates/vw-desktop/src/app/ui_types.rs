@@ -41,10 +41,7 @@ pub enum Message {
     },
     SessionDetailsLoaded(String, crate::app::session::hover_details::SessionHoverDetails),
     SessionPinsLoaded(u64, Result<std::collections::HashSet<(String, String)>, String>),
-    DesktopPreferencesSaved(
-        (String, vw_api_transport::TenantScope),
-        Result<(), String>,
-    ),
+    DesktopPreferencesSaved(crate::app::config::PreferencesScope, Result<(), String>),
     SystemSettingsSaved(
         crate::app::config::PreferencesScope,
         crate::app::config::SystemSettingsSection,

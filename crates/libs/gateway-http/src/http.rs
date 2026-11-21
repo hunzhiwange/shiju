@@ -15,6 +15,7 @@ use tracing::{debug, error, warn};
 use {
     vw_api_transport::id::COMPANY_ID_HEADER,
     vw_api_transport::id::PLATFORM_ID_HEADER,
+    vw_api_transport::id::USER_ID_HEADER,
 };
 
 use gateway_endpoint::GatewayEndpoint;
@@ -32,7 +33,8 @@ pub fn apply_request_context(
 ) -> reqwest::RequestBuilder {
     let builder = builder
         .header(PLATFORM_ID_HEADER, endpoint.tenant_scope().platform_id().as_ref())
-        .header(COMPANY_ID_HEADER, endpoint.tenant_scope().company_id().as_ref());
+        .header(COMPANY_ID_HEADER, endpoint.tenant_scope().company_id().as_ref())
+        .header(USER_ID_HEADER, endpoint.user_id().as_ref());
     let Some(auth) = endpoint.auth.as_ref() else {
         return builder;
     };
@@ -54,7 +56,8 @@ pub fn apply_blocking_request_context(
 ) -> reqwest::blocking::RequestBuilder {
     let builder = builder
         .header(PLATFORM_ID_HEADER, endpoint.tenant_scope().platform_id().as_ref())
-        .header(COMPANY_ID_HEADER, endpoint.tenant_scope().company_id().as_ref());
+        .header(COMPANY_ID_HEADER, endpoint.tenant_scope().company_id().as_ref())
+        .header(USER_ID_HEADER, endpoint.user_id().as_ref());
     let Some(auth) = endpoint.auth.as_ref() else {
         return builder;
     };

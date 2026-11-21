@@ -4,4 +4,5 @@ pub(crate) fn router<S: Clone + Send + Sync + 'static>() -> axum::Router<S> {
         crate::session::session_io::NativeSessionIo,
         crate::session::runtime::dynamic_hosts::HostTools,
     >, S>()
+        .layer(axum::middleware::from_fn(crate::gateway::user_scope::session_user))
 }

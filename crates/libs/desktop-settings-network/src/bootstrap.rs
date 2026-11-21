@@ -40,6 +40,7 @@ pub fn apply_bootstrap_gateway_client(
     state.port = active_gateway_client.port.clamp(1, u16::MAX);
     state.platform_id_input = active_gateway_client.platform_id;
     state.company_id_input = active_gateway_client.company_id;
+    state.user_id_input = active_gateway_client.user_id;
     state.skey_input = active_gateway_client.skey;
 }
 

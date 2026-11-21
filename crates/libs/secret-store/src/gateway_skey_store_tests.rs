@@ -13,6 +13,7 @@ fn skey(name: &str, hash: &str) -> GatewaySkey {
         masked_skey: format!("{name}-masked"),
         name: name.to_string(),
         expires_at: None,
+        user_id: None,
     }
 }
 
@@ -84,6 +85,7 @@ fn gateway_skey_store_normalizes_raw_skey(store: &GatewaySkeyStore) -> Result<()
         masked_skey: raw_skey.to_string(),
         name: format!("credential-{raw_skey}"),
         expires_at: Some("  2026-12-31T23:59:59Z  ".to_string()),
+        user_id: Some(" 42 ".to_owned()),
     };
 
     store.replace_all(&tenant, &[input])?;
@@ -94,6 +96,7 @@ fn gateway_skey_store_normalizes_raw_skey(store: &GatewaySkeyStore) -> Result<()
     assert_eq!(loaded[0].masked_skey, "sk-1234567890abc***************111111111");
     assert_eq!(loaded[0].name, "sk-1***1111");
     assert_eq!(loaded[0].expires_at.as_deref(), Some("2026-12-31T23:59:59Z"));
+    assert_eq!(loaded[0].user_id.as_deref(), Some("42"));
     assert!(loaded[0].skey.is_none());
     Ok(())
 }
@@ -113,6 +116,7 @@ fn gateway_skey_store_sqlite_does_not_persist_plaintext() {
         masked_skey: String::new(),
         name: String::new(),
         expires_at: None,
+        user_id: None,
     };
 
     store.replace_all(&tenant, &[input]).expect("replace raw skey");
@@ -192,6 +196,7 @@ fn normalize_skey_preserves_safe_metadata_without_plaintext() {
         masked_skey: "  masked-value  ".into(),
         name: "  deployment key  ".into(),
         expires_at: Some("   ".into()),
+        user_id: None,
     };
 
     let normalized = normalize_skey(&input).unwrap().expect("valid metadata");
@@ -213,6 +218,7 @@ fn normalize_skey_masks_short_raw_secret_and_keeps_safe_name() {
         masked_skey: String::new(),
         name: "  operator key  ".into(),
         expires_at: None,
+        user_id: None,
     };
 
     let normalized = normalize_skey(&input).unwrap().expect("raw secret is normalized");

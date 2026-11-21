@@ -145,10 +145,7 @@ impl GatewayInferenceClient {
     pub async fn connect_chat_websocket(&self) -> Result<GatewayChatWebSocket, String> {
         use tokio_tungstenite::tungstenite::client::IntoClientRequest;
         use tokio_tungstenite::tungstenite::http::HeaderValue;
-        use {
-    vw_api_transport::id::COMPANY_ID_HEADER,
-    vw_api_transport::id::PLATFORM_ID_HEADER,
-};
+        use vw_api_transport::id::{COMPANY_ID_HEADER, PLATFORM_ID_HEADER, USER_ID_HEADER};
 
         let url =
             format!("ws://{}:{}/v1/ws/chat", self.transport.endpoint().normalized_host(), self.transport.endpoint().port);
@@ -166,6 +163,11 @@ impl GatewayInferenceClient {
             COMPANY_ID_HEADER,
             HeaderValue::from_str(self.transport.endpoint().tenant_scope().company_id().as_ref())
                 .map_err(|error| format!("invalid company tenant header: {error}"))?,
+        );
+        headers.insert(
+            USER_ID_HEADER,
+            HeaderValue::from_str(self.transport.endpoint().user_id().as_ref())
+                .map_err(|error| format!("invalid user ID header: {error}"))?,
         );
         if let Some(skey) = self.transport.endpoint()
             .auth

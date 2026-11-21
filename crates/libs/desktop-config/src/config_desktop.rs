@@ -5,7 +5,7 @@ use std::collections::{HashMap, HashSet, hash_map::Entry};
 use tokio::sync::watch;
 use gateway_endpoint::GatewayEndpoint;
 use vw_gateway_client::GatewayClient;
-use vw_api_transport::id::TenantScope;
+use vw_api_transport::id::{TenantScope, UserId};
 use crate::config_project_chat as project_chat;
 use crate::config_system_settings::SystemSettingsSection;
 pub use project_chat::{ChatModelPreferences, ProjectPreferencesScope};
@@ -17,10 +17,10 @@ pub enum PreferencesMessage {
     ProjectChatPreferencesSaved(ProjectPreferencesScope, Result<(), String>),
 }
 use PreferencesMessage as Message;
-pub type PreferencesScope = (String, TenantScope);
+pub type PreferencesScope = (String, TenantScope, UserId);
 
 pub fn preferences_scope(endpoint: &GatewayEndpoint) -> PreferencesScope {
-    (endpoint.base_url().to_ascii_lowercase(), endpoint.tenant_scope().clone())
+    (endpoint.base_url().to_ascii_lowercase(), endpoint.tenant_scope().clone(), endpoint.user_id().clone())
 }
 
 const REASONING_EFFORTS: &str = "session_reasoning_efforts";

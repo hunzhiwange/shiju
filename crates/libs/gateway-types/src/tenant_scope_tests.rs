@@ -114,3 +114,15 @@ async fn tenant_scope_middleware_bypasses_headers_before_method_rejection() {
 
     assert_eq!(response.status(), StatusCode::METHOD_NOT_ALLOWED);
 }
+
+#[test]
+fn user_header_defaults_to_zero_and_rejects_ambiguous_values() {
+    let mut headers = HeaderMap::new();
+    assert_eq!(user_id(&headers).unwrap().as_ref(), "0");
+    headers.append(USER_ID_HEADER, "42".parse().unwrap());
+    assert_eq!(user_id(&headers).unwrap().as_ref(), "42");
+    headers.append(USER_ID_HEADER, "43".parse().unwrap());
+    assert!(user_id(&headers).is_err());
+    headers.insert(USER_ID_HEADER, " ".parse().unwrap());
+    assert!(user_id(&headers).is_err());
+}

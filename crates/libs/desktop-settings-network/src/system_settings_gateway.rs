@@ -294,6 +294,14 @@ pub fn view<'a>(app: View<'a>) -> Element<'a, Message> {
             ),
             settings_divider(),
             skey_field(
+                settings_field_label(connection_text(app.desktop_locale, "用户 ID")),
+                connection_text(app.desktop_locale, "此 skey 绑定的用户 ID，留空使用 0。"),
+                settings_text_input("0", &s.new_skey_user_id_input)
+                    .on_input(|value| Message::Gateway(GatewayMessage::NewSkeyUserIdChanged(value)))
+                    .width(Length::Fill),
+            ),
+            settings_divider(),
+            skey_field(
                 settings_field_label(connection_text(app.desktop_locale, "过期日期")),
                 connection_text(
                     app.desktop_locale,
@@ -360,6 +368,8 @@ pub fn view<'a>(app: View<'a>) -> Element<'a, Message> {
                     .expires_at
                     .as_deref()
                     .unwrap_or(connection_text(app.desktop_locale, "永不过期"));
+                let user_id = skey.user_id.as_deref().unwrap_or(vw_api_transport::DEFAULT_USER_ID);
+                let user_label = connection_text(app.desktop_locale, "用户 ID");
                 let status = if skey.enabled {
                     connection_text(app.desktop_locale, "启用")
                 } else {
@@ -382,7 +392,7 @@ pub fn view<'a>(app: View<'a>) -> Element<'a, Message> {
                                 .size(13)
                                 .width(Length::FillPortion(2))
                                 .wrapping(iced::widget::text::Wrapping::WordOrGlyph),
-                            text(format!("{skey_display} · {expires_at}"))
+                            text(format!("{skey_display} · {user_label} {user_id} · {expires_at}"))
                                 .size(12)
                                 .width(Length::FillPortion(3))
                                 .wrapping(iced::widget::text::Wrapping::WordOrGlyph)

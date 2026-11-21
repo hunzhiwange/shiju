@@ -1,7 +1,7 @@
 //! Persist immutable bindings and permission choices in tenant/project scope.
 use anyhow::{Result, bail};
 use std::path::PathBuf;
-use vw_api_transport::TenantScope;
+use vw_api_transport::{DEFAULT_USER_ID, TenantScope};
 use crate::agent_binding::AgentBinding;
 
 fn component(value: &str) -> Result<String> {
@@ -11,8 +11,12 @@ fn component(value: &str) -> Result<String> {
     Ok(value.as_bytes().iter().map(|byte| format!("{byte:02x}")).collect())
 }
 
-pub fn storage_key(project: &str, session: &str) -> Result<String> {
-    Ok(format!("{}:{}", component(project)?, component(session)?))
+pub fn storage_key(tenant: &TenantScope, project: &str, session: &str) -> Result<String> {
+    let key = format!("{}:{}", component(project)?, component(session)?);
+    if tenant.user_id().as_ref() == DEFAULT_USER_ID {
+        return Ok(key);
+    }
+    Ok(format!("{}:{key}", component(tenant.user_id().as_ref())?))
 }
 
 fn store(home: &std::path::Path) -> Result<app_settings_store::settings_store::GatewaySettingsStore> {
@@ -21,7 +25,7 @@ fn store(home: &std::path::Path) -> Result<app_settings_store::settings_store::G
 }
 
 pub async fn load_scoped(home: PathBuf, tenant: TenantScope, project: &str, session: &str) -> Result<Option<AgentBinding>> {
-    let key = storage_key(project, session)?;
+    let key = storage_key(&tenant, project, session)?;
     agent_database::run_isolated(move || {
         store(&home)?
             .get(&tenant, "session.agent-binding", &key)?
@@ -37,7 +41,7 @@ pub async fn save_scoped(
     session: &str,
     binding: &AgentBinding,
 ) -> Result<()> {
-    let key = storage_key(project, session)?;
+    let key = storage_key(&tenant, project, session)?;
     let payload = serde_json::to_string(binding)?;
     agent_database::run_isolated(move || {
         store(&home)?.upsert(&tenant, "session.agent-binding", &key, &payload)
@@ -53,7 +57,7 @@ pub struct SessionSettings {
 
 impl SessionSettings {
     pub async fn load(home: PathBuf, tenant: TenantScope, project: &str, session: &str) -> Result<Self> {
-        let key = storage_key(project, session)?;
+        let key = storage_key(&tenant, project, session)?;
         agent_database::run_isolated(move || {
             let store = store(&home)?;
             Ok(Self {
@@ -73,7 +77,7 @@ impl SessionSettings {
     }
 
     pub async fn save(&self, home: PathBuf, tenant: TenantScope, project: &str, session: &str) -> Result<()> {
-        let key = storage_key(project, session)?;
+        let key = storage_key(&tenant, project, session)?;
         let binding = self.binding.clone();
         let full_access = self.full_access;
         agent_database::run_isolated(move || {
@@ -100,7 +104,7 @@ impl SessionSettings {
     }
 
     pub async fn remove(&self, home: PathBuf, tenant: TenantScope, project: &str, session: &str) -> Result<()> {
-        let key = storage_key(project, session)?;
+        let key = storage_key(&tenant, project, session)?;
         let has_binding = self.binding.is_some();
         let has_full_access = self.full_access.is_some();
         agent_database::run_isolated(move || {
@@ -119,7 +123,7 @@ impl SessionSettings {
 
 /// Read a persisted permission choice for automation without granting or storing a default.
 pub async fn confirmed_full_access(home: PathBuf, tenant: TenantScope, project: &str, session: &str) -> Result<bool> {
-    let key = storage_key(project, session)?;
+    let key = storage_key(&tenant, project, session)?;
     agent_database::run_isolated(move || {
         Ok(store(&home)?
             .get(&tenant, "session.full-access", &key)?
@@ -142,7 +146,7 @@ pub async fn resolve_full_access_scoped(
     initial: bool,
 ) -> Result<bool> {
     let _guard = FULL_ACCESS.lock().await;
-    let key = storage_key(project, session)?;
+    let key = storage_key(&tenant, project, session)?;
     agent_database::run_isolated(move || {
         let store = store(&home)?;
         let previous = store.get(&tenant, "session.full-access", &key)?;

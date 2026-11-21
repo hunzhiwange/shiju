@@ -185,6 +185,15 @@ impl<S: ViewSnapshot> SessionViewCache<S> {
         }
     }
 
+    pub fn gateway_changed(&mut self) {
+        self.entries.clear();
+        self.most_recent_last.clear();
+        self.estimated_bytes = 0;
+        self.active_open = None;
+        self.pending_eviction_reason = SessionViewCacheEvictionReason::None;
+        self.navigation_generation = self.navigation_generation.wrapping_add(1);
+    }
+
     /// 为一次打开请求分配世代，防止晚到的后台结果覆盖当前会话。
     pub fn begin_open(&mut self, session_id: &str) -> u64 {
         self.next_open_generation = self.next_open_generation.saturating_add(1);

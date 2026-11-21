@@ -58,6 +58,7 @@ pub struct State<R, S> {
     pub active_session_id: Option<String>,
     /// 会话聊天消息缓存（会话 ID -> 消息列表）
     pub session_chat_cache: HashMap<String, super::cache::SharedChatMessages>,
+    pub gateway_user_generation: u64,
     /// 最近访问会话的可移动视图工作集缓存
     pub session_view_cache: super::view_cache::SessionViewCache<S>,
     /// 当前会话的有界历史页与活动消息覆盖层。
@@ -151,6 +152,7 @@ impl<R: Default, S: super::view_cache::ViewSnapshot> State<R, S> {
             session_previews: HashMap::new(),
             active_session_id: None,
             session_chat_cache: HashMap::new(),
+            gateway_user_generation: 0,
             session_view_cache: super::view_cache::SessionViewCache::<S>::new(),
             paged_chat_timeline: None,
             session_chat_message_id_cache: HashMap::new(),

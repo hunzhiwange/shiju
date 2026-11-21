@@ -94,6 +94,13 @@ macro_rules! validated_string_id {
 
 validated_string_id!(PlatformId, "platform id");
 validated_string_id!(CompanyId, "company id");
+validated_string_id!(UserId, "user id");
+
+impl Default for UserId {
+    fn default() -> Self {
+        Self(DEFAULT_USER_ID.to_owned())
+    }
+}
 
 /// 缺少显式配置时使用的平台 ID。
 pub const DEFAULT_PLATFORM_ID: &str = "10000";
@@ -103,12 +110,19 @@ pub const DEFAULT_COMPANY_ID: &str = "100000000";
 pub const PLATFORM_ID_HEADER: &str = "X-Platform-ID";
 /// 网关请求携带公司 ID 的 header 名。
 pub const COMPANY_ID_HEADER: &str = "X-Company-ID";
+/// 缺少显式配置时使用的旧版用户 ID。
+pub const DEFAULT_USER_ID: &str = "0";
+/// 网关请求携带用户 ID 的 header 名。
+pub const USER_ID_HEADER: &str = "X-User-ID";
 
 /// 平台和公司组成的租户作用域。
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct TenantScope {
     platform_id: PlatformId,
     company_id: CompanyId,
+    // The gateway sets this after authentication. Tenant DTOs carry only the company scope.
+    #[serde(skip)]
+    user_id: UserId,
 }
 
 impl TenantScope {
@@ -119,6 +133,7 @@ impl TenantScope {
         Ok(Self {
             platform_id: PlatformId::new(platform_id)?,
             company_id: CompanyId::new(company_id)?,
+            user_id: UserId::default(),
         })
     }
 
@@ -129,6 +144,16 @@ impl TenantScope {
     pub fn company_id(&self) -> &CompanyId {
         &self.company_id
     }
+
+    /// Applies an authenticated user to the internal session scope.
+    pub fn with_user_id(mut self, user_id: UserId) -> Self {
+        self.user_id = user_id;
+        self
+    }
+
+    pub fn user_id(&self) -> &UserId {
+        &self.user_id
+    }
 }
 
 impl Default for TenantScope {
@@ -136,6 +161,7 @@ impl Default for TenantScope {
         Self {
             platform_id: PlatformId(DEFAULT_PLATFORM_ID.to_owned()),
             company_id: CompanyId(DEFAULT_COMPANY_ID.to_owned()),
+            user_id: UserId::default(),
         }
     }
 }
@@ -174,6 +200,10 @@ impl ProjectScope {
 
     pub fn company_id(&self) -> &CompanyId {
         self.tenant_scope.company_id()
+    }
+
+    pub fn user_id(&self) -> &UserId {
+        self.tenant_scope.user_id()
     }
 
     pub fn project_id(&self) -> &ProjectId {

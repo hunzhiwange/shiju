@@ -299,7 +299,7 @@ pub(super) fn client_router(
         .route("/v1/agent", post(agent::handle_agent))
         .route("/v1/models", get(openai_compat::handle_v1_models))
         .nest("/v1", openai_compat_route)
-        .route("/v1/ws/chat", get(ws::handle_ws_chat))
+        .route("/v1/ws/chat", get(ws::handle_ws_chat).layer(from_fn(super::user_scope::session_user)))
         .route("/v1/node-control", post(node_control::handle_node_control))
         .route("/v1/events", get(sse::handle_sse_events))
         .route("/v1/status", get(api::handle_api_status))

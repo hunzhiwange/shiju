@@ -212,6 +212,7 @@ async fn dashboard_config_skeys_are_isolated_by_tenant_scope() {
             masked_skey: format!("{name}-masked"),
             name: name.to_string(),
             expires_at: None,
+            user_id: None,
         }];
         let body = toml::to_string_pretty(&incoming).expect("serialize config");
         let response = crate::handlers::handle_api_config_put::<TestHost>(

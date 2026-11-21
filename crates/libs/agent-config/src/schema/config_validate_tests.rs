@@ -61,6 +61,7 @@ fn gateway_skey(hash: &str) -> GatewaySkey {
         masked_skey: String::new(),
         name: String::new(),
         expires_at: None,
+        user_id: None,
     }
 }
 

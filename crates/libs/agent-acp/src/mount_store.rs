@@ -19,16 +19,17 @@ pub struct MountRecord {
 }
 
 pub fn key(scope: &SessionScope, session: &str) -> String {
-    hex::encode(Sha256::digest(
-        serde_json::json!([
-            scope.tenant().platform_id().as_ref(),
-            scope.tenant().company_id().as_ref(),
-            scope.directory(),
-            session,
-        ])
-        .to_string()
-        .as_bytes(),
-    ))
+    let tenant = scope.tenant();
+    let mut identity = vec![
+        serde_json::json!(tenant.platform_id()),
+        serde_json::json!(tenant.company_id()),
+        serde_json::json!(scope.directory()),
+        serde_json::json!(session),
+    ];
+    if tenant.user_id().as_ref() != vw_api_transport::DEFAULT_USER_ID {
+        identity.push(serde_json::json!(tenant.user_id()));
+    }
+    hex::encode(Sha256::digest(serde_json::Value::Array(identity).to_string().as_bytes()))
 }
 
 pub async fn load(

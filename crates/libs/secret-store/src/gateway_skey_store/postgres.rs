@@ -18,10 +18,13 @@ CREATE TABLE IF NOT EXISTS gateway_skeys (
     name TEXT NOT NULL,
     enabled BOOLEAN NOT NULL,
     expires_at TEXT,
+    user_id TEXT CHECK (user_id IS NULL OR trim(user_id) <> ''),
     created_at_ms BIGINT NOT NULL,
     updated_at_ms BIGINT NOT NULL,
     PRIMARY KEY (platform_id, company_id, skey_hash)
 );
+ALTER TABLE gateway_skeys ADD COLUMN IF NOT EXISTS user_id TEXT
+    CHECK (user_id IS NULL OR trim(user_id) <> '');
 "#;
 
 #[derive(Debug, Clone)]
@@ -47,7 +50,7 @@ impl PostgresGatewaySkeyStore {
         let mut connection = self.database.connect_postgres()?;
         connection
             .query(
-                "SELECT enabled, skey_hash, masked_skey, name, expires_at
+                "SELECT enabled, skey_hash, masked_skey, name, expires_at, user_id
                  FROM gateway_skeys
                  WHERE platform_id = $1 AND company_id = $2
                  ORDER BY created_at_ms ASC, skey_hash ASC",
@@ -63,6 +66,7 @@ impl PostgresGatewaySkeyStore {
                     masked_skey: row.try_get(2)?,
                     name: row.try_get(3)?,
                     expires_at: row.try_get(4)?,
+                    user_id: row.try_get(5)?,
                 })
             })
             .collect()
@@ -101,8 +105,8 @@ impl GatewaySkeyReplacement {
                 .execute(
                     "INSERT INTO gateway_skeys (
                          platform_id, company_id, skey_hash, masked_skey, name, enabled,
-                         expires_at, created_at_ms, updated_at_ms
-                     ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $8)",
+                         expires_at, user_id, created_at_ms, updated_at_ms
+                     ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $9)",
                     &[
                         &tenant.platform_id().as_ref(),
                         &tenant.company_id().as_ref(),
@@ -111,6 +115,7 @@ impl GatewaySkeyReplacement {
                         &skey.name,
                         &skey.enabled,
                         &skey.expires_at,
+                        &skey.user_id,
                         &timestamp_ms,
                     ],
                 )

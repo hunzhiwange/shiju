@@ -21,6 +21,7 @@ fn server(id: &str, host: &str, port: u16) -> GatewayClientServerDraft {
         port,
         platform_id: "10000".to_string(),
         company_id: "100000000".to_string(),
+        user_id: "0".to_string(),
         skey: String::new(),
     }
 }
@@ -116,6 +117,7 @@ fn view_builds_empty_single_and_multi_server_states() {
         port: 443,
         platform_id: "20000".to_string(),
         company_id: "200000001".to_string(),
+        user_id: "0".to_string(),
         skey: "skey".to_string(),
     };
     if let Some(key) = server_health_key(&extra) {

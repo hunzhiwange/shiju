@@ -2,13 +2,25 @@
 
 use anyhow::{Context, Result};
 use serde_json::Value;
-use vw_api_transport::id::TenantScope;
+use vw_api_transport::id::{DEFAULT_USER_ID, TenantScope};
 
 use app_settings_store::settings_store::GatewaySettingsStore;
 use agent_database::GlobalDatabase;
 
 const UI_CONFIG_NAMESPACE: &str = "desktop.preferences";
 const UI_CONFIG_KEY: &str = "default";
+
+fn config_namespace(tenant: &TenantScope) -> &'static str {
+    if tenant.user_id().as_ref() == DEFAULT_USER_ID {
+        UI_CONFIG_NAMESPACE
+    } else {
+        "desktop.user-preferences"
+    }
+}
+fn config_key(tenant: &TenantScope) -> &str {
+    let user_id = tenant.user_id().as_ref();
+    if user_id == DEFAULT_USER_ID { UI_CONFIG_KEY } else { user_id }
+}
 
 /// 执行 load_app_config 操作，并返回调用方需要的结果。
 pub fn load_app_config(tenant: &TenantScope) -> Value {
@@ -51,7 +63,7 @@ fn set_config_field_with_store_result(
 }
 
 fn load_app_config_from_store(store: &GatewaySettingsStore, tenant: &TenantScope) -> Result<Value> {
-    let Some(payload) = store.get(tenant, UI_CONFIG_NAMESPACE, UI_CONFIG_KEY)? else {
+    let Some(payload) = store.get(tenant, config_namespace(tenant), config_key(tenant))? else {
         return Ok(serde_json::json!({}));
     };
     let cfg: Value = serde_json::from_str(&payload).context("decode desktop UI config")?;
@@ -76,7 +88,7 @@ fn set_config_field_in_store(
     }
 
     let payload = serde_json::to_string(&cfg).context("encode desktop UI config")?;
-    store.upsert(tenant, UI_CONFIG_NAMESPACE, UI_CONFIG_KEY, &payload)
+    store.upsert(tenant, config_namespace(tenant), config_key(tenant), &payload)
 }
 
 /// Reserved UI config field: session IDs map to non-secret model identities.

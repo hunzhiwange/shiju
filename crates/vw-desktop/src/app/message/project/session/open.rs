@@ -316,14 +316,20 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
         }
         ProjectMessage::SessionsLoaded(res) => Some(update_lists(app, ListEvent::Loaded(res))),
         ProjectMessage::SessionBootstrapLoaded {
+            gateway_user_generation,
             project_path,
             result,
             previews,
             archived_session_ids,
-        } => Some(update_lists(
-            app,
-            ListEvent::Bootstrap { project_path, result, previews, archived: archived_session_ids },
-        )),
+        } => {
+            if gateway_user_generation != app.session_state.gateway_user_generation {
+                return Some(iced::Task::none());
+            }
+            Some(update_lists(
+                app,
+                ListEvent::Bootstrap { project_path, result, previews, archived: archived_session_ids },
+            ))
+        },
         ProjectMessage::ProjectInfoLoaded(res) => {
             if let Ok(loaded) = res {
                 let Some(completed) = session_open::complete_project(
@@ -352,7 +358,10 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
             }
             Some(iced::Task::none())
         }
-        ProjectMessage::ProjectSessionsLoaded(path, res) => {
+        ProjectMessage::ProjectSessionsLoaded(generation, path, res) => {
+            if generation != app.session_state.gateway_user_generation {
+                return Some(iced::Task::none());
+            }
             Some(update_lists(app, ListEvent::ProjectLoaded(path, res)))
         }
         ProjectMessage::ProjectSessionListScrollChanged {
@@ -466,12 +475,13 @@ fn update_lists(app: &mut App, event: ListEvent) -> iced::Task<Message> {
             ListEffect::Error(text) => app.input_feedback.error_message = Some(text),
             ListEffect::Load(path) => {
                 let project_path = path.clone();
+                let generation = app.session_state.gateway_user_generation;
+                let client = crate::app::gateway_client().map_err(|err| err.to_string());
                 tasks.push(iced::Task::perform(
                     async move {
-                        let client = crate::app::gateway_client().map_err(|err| err.to_string())?;
-                        list_gateway_project_sessions(&client, &project_path).await
+                        list_gateway_project_sessions(&client?, &project_path).await
                     },
-                    |result| Message::Project(ProjectMessage::ProjectSessionsLoaded(path, result)),
+                    move |result| Message::Project(ProjectMessage::ProjectSessionsLoaded(generation, path, result)),
                 ));
             }
         }

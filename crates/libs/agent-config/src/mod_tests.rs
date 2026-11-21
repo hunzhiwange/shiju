@@ -116,6 +116,7 @@ fn take_gateway_skeys_from_patch_removes_valid_skeys_from_patch() {
             masked_skey: "sk-test***************tail".to_string(),
             name: "ci".to_string(),
             expires_at: None,
+            user_id: None,
         }]
     );
     assert_eq!(patch, json!({"gateway": {"auth_enabled": true}}));
@@ -147,6 +148,7 @@ fn hydrate_gateway_skeys_from_store_projects_explicit_tenant_metadata() {
                 masked_skey: "shared-mask".to_string(),
                 name: "shared".to_string(),
                 expires_at: None,
+                user_id: None,
             }],
         )
         .expect("seed tenant skey");
@@ -158,6 +160,7 @@ fn hydrate_gateway_skeys_from_store_projects_explicit_tenant_metadata() {
         masked_skey: "config-mask".to_string(),
         name: "config-payload".to_string(),
         expires_at: None,
+        user_id: None,
     });
 
     super::hydrate_gateway_skeys_from_store(&mut config, &tenant, &store)

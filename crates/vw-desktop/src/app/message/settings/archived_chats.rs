@@ -41,6 +41,7 @@ pub(crate) fn update(app: &mut App, message: ArchivedChatsMessage) -> Task<Messa
     )
     .map(event);
     let mut tasks = vec![task];
+    let gateway_user_generation = app.session_state.gateway_user_generation;
     for effect in effects {
         use desktop_settings_sessions::archive_update::Effect;
         tasks.push(match effect {
@@ -60,6 +61,7 @@ pub(crate) fn update(app: &mut App, message: ArchivedChatsMessage) -> Task<Messa
             Effect::ProjectLoaded(path, sessions) => crate::app::message::project::update(
                 app,
                 crate::app::message::project::ProjectMessage::ProjectSessionsLoaded(
+                    gateway_user_generation,
                     path,
                     Ok(sessions),
                 ),

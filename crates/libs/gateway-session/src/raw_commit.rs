@@ -13,8 +13,7 @@ use session_store::LlmRawStepKey;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 struct RawCommitKey {
-    platform_id: String,
-    company_id: String,
+    tenant: TenantScope,
     project_id: String,
     session_id: String,
     turn_id: String,
@@ -82,8 +81,7 @@ impl PendingRawCommitRegistry {
         }
 
         let key = RawCommitKey {
-            platform_id: tenant.platform_id().as_ref().to_string(),
-            company_id: tenant.company_id().as_ref().to_string(),
+            tenant: tenant.clone(),
             project_id: project_id.to_string(),
             session_id: artifact.context.session_id.clone(),
             turn_id: artifact.context.turn_id.clone(),
@@ -111,8 +109,7 @@ impl PendingRawCommitRegistry {
         let mut claimed = Vec::new();
         for (turn_id, step_index) in finished_steps {
             let key = RawCommitKey {
-                platform_id: tenant.platform_id().as_ref().to_string(),
-                company_id: tenant.company_id().as_ref().to_string(),
+                tenant: tenant.clone(),
                 project_id: project_id.to_string(),
                 session_id: session_id.to_string(),
                 turn_id: turn_id.clone(),

@@ -180,6 +180,7 @@ mod remote_save {
             port: second.port,
             platform_id: "20000".into(),
             company_id: "200000001".into(),
+            user_id: "0".to_string(),
             skey: "second-token".into(),
         });
 

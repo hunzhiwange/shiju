@@ -161,6 +161,7 @@ fn gateway_client_update_rejects_add_and_switch_when_current_tenant_is_invalid()
         port: 443,
         platform_id: "20000".to_string(),
         company_id: "200000001".to_string(),
+        user_id: "0".to_string(),
         skey: String::new(),
     });
     let _ = update(

@@ -33,15 +33,16 @@ pub(super) const SCHEMA: &str = r#"
 CREATE TABLE IF NOT EXISTS session_dynamic_tools (
     platform_id TEXT NOT NULL CHECK (trim(platform_id) <> ''),
     company_id TEXT NOT NULL CHECK (trim(company_id) <> ''),
+    user_id TEXT NOT NULL DEFAULT '0' CHECK (trim(user_id) <> ''),
     project_id TEXT NOT NULL CHECK (trim(project_id) <> ''),
     session_id TEXT NOT NULL CHECK (trim(session_id) <> ''),
     version BIGINT NOT NULL CHECK (version > 0),
     specs_json TEXT NOT NULL,
-    PRIMARY KEY (platform_id, company_id, project_id, session_id),
+    PRIMARY KEY (platform_id, company_id, user_id, project_id, session_id),
     FOREIGN KEY (platform_id, company_id, project_id)
         REFERENCES projects(platform_id, company_id, project_id) ON DELETE RESTRICT,
-    FOREIGN KEY (platform_id, company_id, project_id, session_id)
-        REFERENCES session_index(platform_id, company_id, project_id, session_id) ON DELETE CASCADE
+    FOREIGN KEY (platform_id, company_id, user_id, project_id, session_id)
+        REFERENCES session_index(platform_id, company_id, user_id, project_id, session_id) ON DELETE CASCADE
 );
 "#;
 

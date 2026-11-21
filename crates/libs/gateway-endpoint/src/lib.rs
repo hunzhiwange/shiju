@@ -2,7 +2,7 @@
 //!
 //! 本模块只负责描述“请求发到哪里”以及“请求如何认证”，不包含任何实际网络逻辑。
 
-use vw_api_transport::id::TenantScope;
+use vw_api_transport::id::{TenantScope, UserId};
 
 /// 网关服务地址，负责统一描述主机与端口。
 ///
@@ -17,6 +17,7 @@ pub struct GatewayEndpoint {
     pub auth: Option<GatewayAuth>,
     /// 请求所属的平台与公司租户作用域。
     tenant_scope: TenantScope,
+    user_id: UserId,
 }
 
 /// 网关支持的认证参数集合。
@@ -33,7 +34,13 @@ impl GatewayEndpoint {
     ///
     /// 新建实例默认不携带认证信息，如有需要可继续调用 [`with_auth`](Self::with_auth)。
     pub fn new(host: impl Into<String>, port: u16) -> Self {
-        Self { host: host.into(), port, auth: None, tenant_scope: TenantScope::default() }
+        Self {
+            host: host.into(),
+            port,
+            auth: None,
+            tenant_scope: TenantScope::default(),
+            user_id: UserId::default(),
+        }
     }
 
     /// 返回带认证信息的新端点副本。
@@ -53,6 +60,15 @@ impl GatewayEndpoint {
     /// 返回当前请求使用的租户作用域。
     pub fn tenant_scope(&self) -> &TenantScope {
         &self.tenant_scope
+    }
+
+    pub fn with_user_id(mut self, user_id: UserId) -> Self {
+        self.user_id = user_id;
+        self
+    }
+
+    pub fn user_id(&self) -> &UserId {
+        &self.user_id
     }
 
     /// 返回规范化后的主机名，空白主机回退到本地回环地址。

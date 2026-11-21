@@ -285,6 +285,7 @@ fn bootstrap_system_settings_updates_runtime_timezone_and_normalizes_active_gate
         port: 0,
         platform_id: "platform".to_string(),
         company_id: "company".to_string(),
+        user_id: "0".to_string(),
         bearer_token: String::new(),
         username: String::new(),
         password: String::new(),
@@ -463,6 +464,7 @@ fn gateway_health_checked_retains_known_servers_and_ignores_unknown_results() {
         port: 4242,
         platform_id: "platform".to_string(),
         company_id: "company".to_string(),
+        user_id: "0".to_string(),
         skey: String::new(),
     };
     let known_key = crate::app::message::gateway_health::server_health_key(&server)

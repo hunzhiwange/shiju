@@ -67,6 +67,7 @@ pub struct GatewaySettingsState {
     pub auth_enabled: bool,
     pub skeys: Vec<config_gateway::GatewaySkey>,
     pub new_skey_name_input: String,
+    pub new_skey_user_id_input: String,
     pub new_skey_expires_at_input: String,
     pub new_skey_calendar_month: String,
     pub new_skey_calendar_open: bool,
@@ -98,6 +99,7 @@ impl Default for GatewaySettingsState {
             auth_enabled: false,
             skeys: Vec::new(),
             new_skey_name_input: String::new(),
+            new_skey_user_id_input: String::new(),
             new_skey_expires_at_input: String::new(),
             new_skey_calendar_month: String::new(),
             new_skey_calendar_open: false,
@@ -130,6 +132,7 @@ pub struct GatewayClientServerDraft {
     pub port: u16,
     pub platform_id: String,
     pub company_id: String,
+    pub user_id: String,
     pub skey: String,
 }
 
@@ -142,6 +145,7 @@ impl GatewayClientServerDraft {
             port: server.port.clamp(1, u16::MAX),
             platform_id: server.platform_id.clone(),
             company_id: server.company_id.clone(),
+            user_id: server.user_id.clone(),
             skey: if server.skey.trim().is_empty() {
                 server.bearer_token.clone()
             } else {
@@ -158,6 +162,7 @@ impl GatewayClientServerDraft {
             port: self.port.clamp(1, u16::MAX),
             platform_id: self.platform_id.clone(),
             company_id: self.company_id.clone(),
+            user_id: self.user_id.clone(),
             bearer_token: String::new(),
             username: String::new(),
             password: String::new(),
@@ -176,6 +181,7 @@ pub struct GatewayClientSettingsState {
     pub port: u16,
     pub platform_id_input: String,
     pub company_id_input: String,
+    pub user_id_input: String,
     pub skey_input: String,
     pub pending_remove_server_id: Option<String>,
     pub show_help_modal: bool,
@@ -194,6 +200,7 @@ impl Default for GatewayClientSettingsState {
             port: config_gateway::DEFAULT_GATEWAY_PORT,
             platform_id_input: server.platform_id.clone(),
             company_id_input: server.company_id.clone(),
+            user_id_input: server.user_id.clone(),
             servers: vec![server],
             health: HashMap::new(),
             skey_input: String::new(),

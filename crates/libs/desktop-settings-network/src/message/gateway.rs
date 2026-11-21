@@ -140,8 +140,12 @@ fn add_skey(app: &mut GatewaySettingsState) -> Effect {
         masked_skey: mask_skey_for_display(&skey),
         name,
         expires_at,
+        user_id: Some(app.new_skey_user_id_input.trim())
+            .filter(|value| !value.is_empty() && *value != vw_api_transport::DEFAULT_USER_ID)
+            .map(str::to_owned),
     });
     app.new_skey_name_input.clear();
+    app.new_skey_user_id_input.clear();
     app.new_skey_expires_at_input.clear();
     app.new_skey_calendar_open = false;
     app.last_created_skey = Some(skey);
@@ -227,6 +231,10 @@ pub fn update(app: &mut GatewaySettingsState, message: SettingsMessage) -> Effec
         GatewayMessage::AuthEnabledToggled(value) => app.auth_enabled = value,
         GatewayMessage::NewSkeyNameChanged(value) | GatewayMessage::NewSkeyChanged(value) => {
             app.new_skey_name_input = value;
+            return Effect::None;
+        }
+        GatewayMessage::NewSkeyUserIdChanged(value) => {
+            app.new_skey_user_id_input = value;
             return Effect::None;
         }
         GatewayMessage::NewSkeyExpiresAtChanged(value) => {

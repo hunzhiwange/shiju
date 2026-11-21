@@ -50,6 +50,7 @@ pub mod sse;
 mod state;
 mod types;
 mod util;
+mod user_scope;
 mod webhook;
 #[cfg(test)]
 mod webhook_ingress;

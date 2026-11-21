@@ -2,7 +2,7 @@
 
 
 use config_ui::GatewayClientSystemSettingsConfig;
-use vw_api_transport::id::TenantScope;
+use vw_api_transport::id::{DEFAULT_USER_ID, TenantScope, UserId};
 
 use crate::messages::GatewayClientMessage;
 use crate::Message as SettingsMessage;
@@ -39,6 +39,8 @@ fn sync_selected_server_from_inputs(app: &mut GatewayClientSettingsState) -> Res
     let company_id = settings.company_id_input.trim();
     TenantScope::new(platform_id, company_id)
         .map_err(|err| Feedback::owned("租户配置无效：%s", vec![err.to_string()]))?;
+    let user_id = UserId::new(settings.user_id_input.trim())
+        .map_err(|err| Feedback::owned("租户配置无效：%s", vec![err.to_string()]))?;
     let draft = GatewayClientServerDraft {
         id: settings.selected_server_id.clone(),
         name: normalize_name(&settings.name_input, index),
@@ -46,6 +48,7 @@ fn sync_selected_server_from_inputs(app: &mut GatewayClientSettingsState) -> Res
         port: settings.port.clamp(1, u16::MAX),
         platform_id: platform_id.to_string(),
         company_id: company_id.to_string(),
+        user_id: user_id.as_ref().to_owned(),
         skey: settings.skey_input.trim().to_string(),
     };
     app.servers[index] = draft;
@@ -62,6 +65,7 @@ fn load_selected_server_into_inputs(app: &mut GatewayClientSettingsState) {
     app.port = draft.port.clamp(1, u16::MAX);
     app.platform_id_input = draft.platform_id;
     app.company_id_input = draft.company_id;
+    app.user_id_input = draft.user_id;
     app.skey_input = draft.skey;
 }
 
@@ -102,6 +106,7 @@ pub fn update(app: &mut GatewayClientSettingsState, message: SettingsMessage) ->
             | GatewayClientMessage::PortChanged(_)
             | GatewayClientMessage::PlatformIdChanged(_)
             | GatewayClientMessage::CompanyIdChanged(_)
+            | GatewayClientMessage::UserIdChanged(_)
             | GatewayClientMessage::SkeyChanged(_)
     );
     let changes_selection = matches!(
@@ -146,6 +151,7 @@ pub fn update(app: &mut GatewayClientSettingsState, message: SettingsMessage) ->
                 port: config_gateway::DEFAULT_GATEWAY_PORT,
                 platform_id: "10000".to_string(),
                 company_id: "100000000".to_string(),
+                user_id: DEFAULT_USER_ID.to_owned(),
                 skey: String::new(),
             };
             app.servers.push(draft);
@@ -202,6 +208,7 @@ pub fn update(app: &mut GatewayClientSettingsState, message: SettingsMessage) ->
         GatewayClientMessage::CompanyIdChanged(value) => {
             app.company_id_input = value;
         }
+        GatewayClientMessage::UserIdChanged(value) => app.user_id_input = value,
         GatewayClientMessage::SkeyChanged(value) => app.skey_input = value,
         GatewayClientMessage::HelpOpen => {
             app.show_help_modal = true;

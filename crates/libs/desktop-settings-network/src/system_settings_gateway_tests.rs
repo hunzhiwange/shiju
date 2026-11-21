@@ -279,6 +279,7 @@ fn view_builds_empty_and_populated_gateway_states() {
         masked_skey: "sk-aaaaaaaaaaaaa***************aaaaaaaaa".to_string(),
         name: "abcd***wxyz".to_string(),
         expires_at: None,
+        user_id: None,
     }];
     populated.gateway_settings.new_skey_name_input = "pending-skey".to_string();
     populated.gateway_settings.new_skey_expires_at_input = "2026-12-31".to_string();
@@ -312,6 +313,7 @@ fn view_handles_skey_with_empty_name_and_hash_fallback_display() {
         masked_skey: String::new(),
         name: String::new(),
         expires_at: None,
+        user_id: None,
     }];
     let _ = view(app.inputs());
 }
@@ -327,6 +329,7 @@ fn view_handles_skey_with_expires_at() {
         masked_skey: "sk-bbbbbbbbbbbbb***************bbbbbbbbb".to_string(),
         name: "test-key".to_string(),
         expires_at: Some("2026-12-31T23:59:59Z".to_string()),
+        user_id: None,
     }];
     let _ = view(app.inputs());
 }
@@ -343,6 +346,7 @@ fn view_handles_multiple_skeys_with_scrollable_list() {
             masked_skey: format!("sk-masked-{i}"),
             name: format!("key-{i}"),
             expires_at: None,
+            user_id: None,
         })
         .collect();
     let _ = view(app.inputs());

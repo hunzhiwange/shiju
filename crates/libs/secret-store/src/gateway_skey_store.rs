@@ -29,6 +29,7 @@ CREATE TABLE IF NOT EXISTS gateway_skeys (
     name TEXT NOT NULL,
     enabled INTEGER NOT NULL CHECK (enabled IN (0, 1)),
     expires_at TEXT,
+    user_id TEXT CHECK (user_id IS NULL OR trim(user_id) <> ''),
     created_at_ms INTEGER NOT NULL,
     updated_at_ms INTEGER NOT NULL,
     PRIMARY KEY (platform_id, company_id, skey_hash)
@@ -58,6 +59,15 @@ impl GatewaySkeyStore {
                     connection
                         .execute_batch(GATEWAY_SKEYS_SCHEMA)
                         .context("initialize SQLite gateway skey schema")?;
+                    let mut table = connection.prepare("PRAGMA table_info(gateway_skeys)")?;
+                    let columns = table.query_map([], |row| row.get::<_, String>(1))?;
+                    let columns = columns.collect::<rusqlite::Result<Vec<_>>>()?;
+                    if !columns.iter().any(|column| column == "user_id") {
+                        connection.execute_batch(
+                            "ALTER TABLE gateway_skeys ADD COLUMN user_id TEXT
+                             CHECK (user_id IS NULL OR trim(user_id) <> '')",
+                        )?;
+                    }
                     Ok(())
                 })?;
                 GatewaySkeyStoreProvider::Sqlite(database)
@@ -75,7 +85,7 @@ impl GatewaySkeyStore {
             GatewaySkeyStoreProvider::Sqlite(database) => {
                 let connection = database.connect_sqlite()?;
                 let mut statement = connection.prepare(
-                    "SELECT enabled, skey_hash, masked_skey, name, expires_at
+                    "SELECT enabled, skey_hash, masked_skey, name, expires_at, user_id
                      FROM gateway_skeys
                      WHERE platform_id = ?1 AND company_id = ?2
                      ORDER BY created_at_ms ASC, rowid ASC",
@@ -91,6 +101,7 @@ impl GatewaySkeyStore {
                                 masked_skey: row.get(2)?,
                                 name: row.get(3)?,
                                 expires_at: row.get(4)?,
+                                user_id: row.get(5)?,
                             })
                         },
                     )?
@@ -150,8 +161,8 @@ impl GatewaySkeyReplacement {
             transaction.execute(
                 "INSERT INTO gateway_skeys (
                      platform_id, company_id, skey_hash, masked_skey, name, enabled,
-                     expires_at, created_at_ms, updated_at_ms
-                 ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?8)",
+                     expires_at, user_id, created_at_ms, updated_at_ms
+                 ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?9)",
                 params![
                     tenant.platform_id().as_ref(),
                     tenant.company_id().as_ref(),
@@ -160,6 +171,7 @@ impl GatewaySkeyReplacement {
                     skey.name,
                     if skey.enabled { 1_i64 } else { 0_i64 },
                     skey.expires_at,
+                    skey.user_id,
                     timestamp_ms,
                 ],
             )?;
@@ -207,6 +219,9 @@ fn normalize_skey(skey: &GatewaySkey) -> Result<Option<GatewaySkey>> {
         masked_skey,
         name,
         expires_at,
+        user_id: skey.user_id.as_deref().map(str::trim).map(|user_id| {
+            vw_api_transport::UserId::new(user_id).map(|user| user.as_ref().to_owned())
+        }).transpose()?,
     }))
 }
 

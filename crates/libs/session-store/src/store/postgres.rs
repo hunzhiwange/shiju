@@ -19,7 +19,7 @@ use session_ui_types::{
 };
 
 use super::{
-    FIRST_RESPONSE_SCHEMA, FirstResponseCommit, LlmRawArtifact, LlmRawRound, LlmRawTurnContext,
+    FirstResponseCommit, LlmRawArtifact, LlmRawRound, LlmRawTurnContext,
     SessionMessageDeltaError, SessionMessageDeltaResult, complete_first_response,
     first_response_preview, from_i64, from_i64_usize, message_processing_values, parse_agent_info,
     pending_agent_info, protect_agent_snapshot, resulting_message_count, reuse_session,
@@ -33,6 +33,7 @@ macro_rules! scope_params {
         &[
             &$scope.platform_id().as_ref(),
             &$scope.company_id().as_ref(),
+            &$scope.user_id().as_ref(),
             &$scope.project_id().as_ref(),
         ]
     };
@@ -43,16 +44,18 @@ macro_rules! scoped_id_params {
         &[
             &$scope.platform_id().as_ref(),
             &$scope.company_id().as_ref(),
+            &$scope.user_id().as_ref(),
             &$scope.project_id().as_ref(),
             &$id,
         ]
     };
 }
 
-const SESSION_SCHEMA: &str = r#"
+pub(super) const SESSION_SCHEMA: &str = r#"
 CREATE TABLE IF NOT EXISTS session_index (
     platform_id TEXT NOT NULL CHECK (trim(platform_id) <> ''),
     company_id TEXT NOT NULL CHECK (trim(company_id) <> ''),
+    user_id TEXT NOT NULL DEFAULT '0' CHECK (trim(user_id) <> ''),
     project_id TEXT NOT NULL CHECK (trim(project_id) <> ''),
     session_id TEXT NOT NULL CHECK (trim(session_id) <> ''),
     title TEXT NOT NULL,
@@ -61,19 +64,20 @@ CREATE TABLE IF NOT EXISTS session_index (
     message_count BIGINT NOT NULL,
     call_count BIGINT NOT NULL,
     last_content TEXT,
-    PRIMARY KEY (platform_id, company_id, project_id, session_id),
+    PRIMARY KEY (platform_id, company_id, user_id, project_id, session_id),
     FOREIGN KEY (platform_id, company_id, project_id)
         REFERENCES projects(platform_id, company_id, project_id) ON DELETE RESTRICT
 );
 
 CREATE INDEX IF NOT EXISTS idx_session_index_project_updated
-ON session_index(platform_id, company_id, project_id, updated_ms DESC, session_id DESC);
+ON session_index(platform_id, company_id, user_id, project_id, updated_ms DESC, session_id DESC);
 CREATE INDEX IF NOT EXISTS idx_session_index_tenant_updated
-ON session_index(platform_id, company_id, updated_ms DESC, session_id DESC, project_id);
+ON session_index(platform_id, company_id, user_id, updated_ms DESC, session_id DESC, project_id);
 
 CREATE TABLE IF NOT EXISTS session_messages (
     platform_id TEXT NOT NULL CHECK (trim(platform_id) <> ''),
     company_id TEXT NOT NULL CHECK (trim(company_id) <> ''),
+    user_id TEXT NOT NULL DEFAULT '0' CHECK (trim(user_id) <> ''),
     project_id TEXT NOT NULL CHECK (trim(project_id) <> ''),
     session_id TEXT NOT NULL CHECK (trim(session_id) <> ''),
     seq_no BIGINT NOT NULL,
@@ -86,44 +90,41 @@ CREATE TABLE IF NOT EXISTS session_messages (
     processing_completed_ms BIGINT,
     processing_elapsed_ms BIGINT,
     processing_llm_elapsed_ms BIGINT,
-    PRIMARY KEY (platform_id, company_id, project_id, session_id, seq_no),
+    PRIMARY KEY (platform_id, company_id, user_id, project_id, session_id, seq_no),
     FOREIGN KEY (platform_id, company_id, project_id)
         REFERENCES projects(platform_id, company_id, project_id) ON DELETE RESTRICT,
-    FOREIGN KEY (platform_id, company_id, project_id, session_id)
-        REFERENCES session_index(platform_id, company_id, project_id, session_id)
+    FOREIGN KEY (platform_id, company_id, user_id, project_id, session_id)
+        REFERENCES session_index(platform_id, company_id, user_id, project_id, session_id)
         ON DELETE CASCADE
 );
 
-ALTER TABLE session_messages ADD COLUMN IF NOT EXISTS model TEXT;
-ALTER TABLE session_messages ADD COLUMN IF NOT EXISTS processing_started_ms BIGINT;
-ALTER TABLE session_messages ADD COLUMN IF NOT EXISTS processing_completed_ms BIGINT;
-ALTER TABLE session_messages ADD COLUMN IF NOT EXISTS processing_elapsed_ms BIGINT;
-ALTER TABLE session_messages ADD COLUMN IF NOT EXISTS processing_llm_elapsed_ms BIGINT;
 
 CREATE INDEX IF NOT EXISTS idx_session_messages_project_seq
-ON session_messages(platform_id, company_id, project_id, session_id, seq_no);
+ON session_messages(platform_id, company_id, user_id, project_id, session_id, seq_no);
 
 CREATE TABLE IF NOT EXISTS session_calls (
     platform_id TEXT NOT NULL CHECK (trim(platform_id) <> ''),
     company_id TEXT NOT NULL CHECK (trim(company_id) <> ''),
+    user_id TEXT NOT NULL DEFAULT '0' CHECK (trim(user_id) <> ''),
     project_id TEXT NOT NULL CHECK (trim(project_id) <> ''),
     session_id TEXT NOT NULL CHECK (trim(session_id) <> ''),
     seq_no BIGINT NOT NULL,
     payload_json TEXT NOT NULL,
-    PRIMARY KEY (platform_id, company_id, project_id, session_id, seq_no),
+    PRIMARY KEY (platform_id, company_id, user_id, project_id, session_id, seq_no),
     FOREIGN KEY (platform_id, company_id, project_id)
         REFERENCES projects(platform_id, company_id, project_id) ON DELETE RESTRICT,
-    FOREIGN KEY (platform_id, company_id, project_id, session_id)
-        REFERENCES session_index(platform_id, company_id, project_id, session_id)
+    FOREIGN KEY (platform_id, company_id, user_id, project_id, session_id)
+        REFERENCES session_index(platform_id, company_id, user_id, project_id, session_id)
         ON DELETE CASCADE
 );
 
 CREATE INDEX IF NOT EXISTS idx_session_calls_project_seq
-ON session_calls(platform_id, company_id, project_id, session_id, seq_no);
+ON session_calls(platform_id, company_id, user_id, project_id, session_id, seq_no);
 
 CREATE TABLE IF NOT EXISTS session_steps (
     platform_id TEXT NOT NULL CHECK (trim(platform_id) <> ''),
     company_id TEXT NOT NULL CHECK (trim(company_id) <> ''),
+    user_id TEXT NOT NULL DEFAULT '0' CHECK (trim(user_id) <> ''),
     project_id TEXT NOT NULL CHECK (trim(project_id) <> ''),
     session_id TEXT NOT NULL CHECK (trim(session_id) <> ''),
     step_index BIGINT NOT NULL,
@@ -137,44 +138,25 @@ CREATE TABLE IF NOT EXISTS session_steps (
     finish_reason TEXT,
     model TEXT,
     tool_timings_json TEXT NOT NULL DEFAULT '[]',
-    PRIMARY KEY (platform_id, company_id, project_id, session_id, turn_id, step_index),
+    PRIMARY KEY (platform_id, company_id, user_id, project_id, session_id, turn_id, step_index),
     FOREIGN KEY (platform_id, company_id, project_id)
         REFERENCES projects(platform_id, company_id, project_id) ON DELETE RESTRICT,
-    FOREIGN KEY (platform_id, company_id, project_id, session_id)
-        REFERENCES session_index(platform_id, company_id, project_id, session_id)
+    FOREIGN KEY (platform_id, company_id, user_id, project_id, session_id)
+        REFERENCES session_index(platform_id, company_id, user_id, project_id, session_id)
         ON DELETE CASCADE
 );
 
-ALTER TABLE session_steps ADD COLUMN IF NOT EXISTS tool_timings_json TEXT NOT NULL DEFAULT '[]';
-ALTER TABLE session_steps ADD COLUMN IF NOT EXISTS turn_id TEXT NOT NULL DEFAULT '';
-UPDATE session_steps SET turn_id = '' WHERE turn_id IS NULL;
-ALTER TABLE session_steps ALTER COLUMN turn_id SET DEFAULT '';
-ALTER TABLE session_steps ALTER COLUMN turn_id SET NOT NULL;
-DO $$
-BEGIN
-    IF NOT EXISTS (
-        SELECT 1
-        FROM pg_constraint
-        WHERE conrelid = 'session_steps'::regclass
-          AND contype = 'p'
-          AND pg_get_constraintdef(oid) =
-              'PRIMARY KEY (platform_id, company_id, project_id, session_id, turn_id, step_index)'
-    ) THEN
-        ALTER TABLE session_steps DROP CONSTRAINT session_steps_pkey;
-        ALTER TABLE session_steps
-            ADD PRIMARY KEY (platform_id, company_id, project_id, session_id, turn_id, step_index);
-    END IF;
-END $$;
 
 CREATE INDEX IF NOT EXISTS idx_session_steps_project_index
-ON session_steps(platform_id, company_id, project_id, session_id, step_index);
+ON session_steps(platform_id, company_id, user_id, project_id, session_id, step_index);
 
 CREATE INDEX IF NOT EXISTS idx_session_steps_project_turn_index
-ON session_steps(platform_id, company_id, project_id, session_id, turn_id, step_index);
+ON session_steps(platform_id, company_id, user_id, project_id, session_id, turn_id, step_index);
 
 CREATE TABLE IF NOT EXISTS session_todos (
     platform_id TEXT NOT NULL CHECK (trim(platform_id) <> ''),
     company_id TEXT NOT NULL CHECK (trim(company_id) <> ''),
+    user_id TEXT NOT NULL DEFAULT '0' CHECK (trim(user_id) <> ''),
     project_id TEXT NOT NULL CHECK (trim(project_id) <> ''),
     session_id TEXT NOT NULL CHECK (trim(session_id) <> ''),
     order_no BIGINT NOT NULL,
@@ -182,39 +164,41 @@ CREATE TABLE IF NOT EXISTS session_todos (
     content TEXT NOT NULL,
     status TEXT NOT NULL,
     priority TEXT NOT NULL,
-    PRIMARY KEY (platform_id, company_id, project_id, session_id, order_no),
-    UNIQUE (platform_id, company_id, project_id, session_id, todo_id),
+    PRIMARY KEY (platform_id, company_id, user_id, project_id, session_id, order_no),
+    UNIQUE (platform_id, company_id, user_id, project_id, session_id, todo_id),
     FOREIGN KEY (platform_id, company_id, project_id)
         REFERENCES projects(platform_id, company_id, project_id) ON DELETE RESTRICT,
-    FOREIGN KEY (platform_id, company_id, project_id, session_id)
-        REFERENCES session_index(platform_id, company_id, project_id, session_id)
+    FOREIGN KEY (platform_id, company_id, user_id, project_id, session_id)
+        REFERENCES session_index(platform_id, company_id, user_id, project_id, session_id)
         ON DELETE CASCADE
 );
 
 CREATE INDEX IF NOT EXISTS idx_session_todos_project_order
-ON session_todos(platform_id, company_id, project_id, session_id, order_no, todo_id);
+ON session_todos(platform_id, company_id, user_id, project_id, session_id, order_no, todo_id);
 
 CREATE TABLE IF NOT EXISTS session_step_llm_raw (
     platform_id TEXT NOT NULL CHECK (trim(platform_id) <> ''),
     company_id TEXT NOT NULL CHECK (trim(company_id) <> ''),
+    user_id TEXT NOT NULL DEFAULT '0' CHECK (trim(user_id) <> ''),
     project_id TEXT NOT NULL CHECK (trim(project_id) <> ''),
     session_id TEXT NOT NULL CHECK (trim(session_id) <> ''),
     step_index BIGINT NOT NULL,
     payload_json TEXT NOT NULL,
-    PRIMARY KEY (platform_id, company_id, project_id, session_id, step_index),
+    PRIMARY KEY (platform_id, company_id, user_id, project_id, session_id, step_index),
     FOREIGN KEY (platform_id, company_id, project_id)
         REFERENCES projects(platform_id, company_id, project_id) ON DELETE RESTRICT,
-    FOREIGN KEY (platform_id, company_id, project_id, session_id)
-        REFERENCES session_index(platform_id, company_id, project_id, session_id)
+    FOREIGN KEY (platform_id, company_id, user_id, project_id, session_id)
+        REFERENCES session_index(platform_id, company_id, user_id, project_id, session_id)
         ON DELETE CASCADE
 );
 
 CREATE INDEX IF NOT EXISTS idx_session_step_llm_raw_project_step
-ON session_step_llm_raw(platform_id, company_id, project_id, session_id, step_index);
+ON session_step_llm_raw(platform_id, company_id, user_id, project_id, session_id, step_index);
 
 CREATE TABLE IF NOT EXISTS session_llm_raw_turns (
     platform_id TEXT NOT NULL CHECK (trim(platform_id) <> ''),
     company_id TEXT NOT NULL CHECK (trim(company_id) <> ''),
+    user_id TEXT NOT NULL DEFAULT '0' CHECK (trim(user_id) <> ''),
     project_id TEXT NOT NULL CHECK (trim(project_id) <> ''),
     session_id TEXT NOT NULL CHECK (trim(session_id) <> ''),
     turn_id TEXT NOT NULL CHECK (trim(turn_id) <> ''),
@@ -224,20 +208,21 @@ CREATE TABLE IF NOT EXISTS session_llm_raw_turns (
     initial_request_config_json TEXT NOT NULL,
     initial_provider_messages_json TEXT NOT NULL,
     initial_message_sources_json TEXT NOT NULL,
-    PRIMARY KEY (platform_id, company_id, project_id, session_id, turn_id),
+    PRIMARY KEY (platform_id, company_id, user_id, project_id, session_id, turn_id),
     FOREIGN KEY (platform_id, company_id, project_id)
         REFERENCES projects(platform_id, company_id, project_id) ON DELETE RESTRICT,
-    FOREIGN KEY (platform_id, company_id, project_id, session_id)
-        REFERENCES session_index(platform_id, company_id, project_id, session_id)
+    FOREIGN KEY (platform_id, company_id, user_id, project_id, session_id)
+        REFERENCES session_index(platform_id, company_id, user_id, project_id, session_id)
         ON DELETE CASCADE
 );
 
 CREATE INDEX IF NOT EXISTS idx_session_llm_raw_turns_project_session
-ON session_llm_raw_turns(platform_id, company_id, project_id, session_id, turn_id);
+ON session_llm_raw_turns(platform_id, company_id, user_id, project_id, session_id, turn_id);
 
 CREATE TABLE IF NOT EXISTS session_llm_raw_rounds (
     platform_id TEXT NOT NULL CHECK (trim(platform_id) <> ''),
     company_id TEXT NOT NULL CHECK (trim(company_id) <> ''),
+    user_id TEXT NOT NULL DEFAULT '0' CHECK (trim(user_id) <> ''),
     project_id TEXT NOT NULL CHECK (trim(project_id) <> ''),
     session_id TEXT NOT NULL CHECK (trim(session_id) <> ''),
     turn_id TEXT NOT NULL CHECK (trim(turn_id) <> ''),
@@ -249,43 +234,42 @@ CREATE TABLE IF NOT EXISTS session_llm_raw_rounds (
     tools_delta_json TEXT,
     request_config_delta_json TEXT,
     output_json TEXT NOT NULL,
-    PRIMARY KEY (platform_id, company_id, project_id, session_id, turn_id, step_index),
+    PRIMARY KEY (platform_id, company_id, user_id, project_id, session_id, turn_id, step_index),
     FOREIGN KEY (platform_id, company_id, project_id)
         REFERENCES projects(platform_id, company_id, project_id) ON DELETE RESTRICT,
-    FOREIGN KEY (platform_id, company_id, project_id, session_id, turn_id)
-        REFERENCES session_llm_raw_turns(platform_id, company_id, project_id, session_id, turn_id)
+    FOREIGN KEY (platform_id, company_id, user_id, project_id, session_id, turn_id)
+        REFERENCES session_llm_raw_turns(platform_id, company_id, user_id, project_id, session_id, turn_id)
         ON DELETE CASCADE
 );
 
-ALTER TABLE session_llm_raw_rounds ADD COLUMN IF NOT EXISTS system_delta_json TEXT;
-ALTER TABLE session_llm_raw_rounds ADD COLUMN IF NOT EXISTS tools_delta_json TEXT;
 
 CREATE INDEX IF NOT EXISTS idx_session_llm_raw_rounds_project_turn_step
-ON session_llm_raw_rounds(platform_id, company_id, project_id, session_id, turn_id, step_index);
+ON session_llm_raw_rounds(platform_id, company_id, user_id, project_id, session_id, turn_id, step_index);
 
 CREATE TABLE IF NOT EXISTS session_agent_sessions (
     platform_id TEXT NOT NULL CHECK (trim(platform_id) <> ''),
     company_id TEXT NOT NULL CHECK (trim(company_id) <> ''),
+    user_id TEXT NOT NULL DEFAULT '0' CHECK (trim(user_id) <> ''),
     project_id TEXT NOT NULL CHECK (trim(project_id) <> ''),
     session_id TEXT NOT NULL CHECK (trim(session_id) <> ''),
     parent_id TEXT,
     updated_ms BIGINT NOT NULL,
     info_json TEXT NOT NULL,
-    PRIMARY KEY (platform_id, company_id, project_id, session_id),
+    PRIMARY KEY (platform_id, company_id, user_id, project_id, session_id),
     FOREIGN KEY (platform_id, company_id, project_id)
         REFERENCES projects(platform_id, company_id, project_id) ON DELETE RESTRICT
 );
 
 CREATE INDEX IF NOT EXISTS idx_session_agent_sessions_project_updated
 ON session_agent_sessions(
-    platform_id, company_id, project_id, updated_ms DESC, session_id DESC
+    platform_id, company_id, user_id, project_id, updated_ms DESC, session_id DESC
 );
 CREATE INDEX IF NOT EXISTS idx_session_agent_sessions_tenant_updated
 ON session_agent_sessions(
-    platform_id, company_id, updated_ms DESC, session_id DESC, project_id
+    platform_id, company_id, user_id, updated_ms DESC, session_id DESC, project_id
 );
 CREATE INDEX IF NOT EXISTS idx_session_agent_sessions_parent
-ON session_agent_sessions(platform_id, company_id, project_id, parent_id, session_id);
+ON session_agent_sessions(platform_id, company_id, user_id, project_id, parent_id, session_id);
 "#;
 
 /// PostgreSQL 会话存储句柄，所有方法都要求显式租户或项目作用域。
@@ -307,10 +291,10 @@ impl PostgresSessionStore {
             bail!("session was deleted");
         }
         transaction.execute(
-            "INSERT INTO session_index (platform_id, company_id, project_id, session_id, title, created_ms, updated_ms, message_count, call_count, last_content)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, 0, 0, '')
-             ON CONFLICT (platform_id, company_id, project_id, session_id) DO NOTHING",
-            &[&scope.platform_id().as_ref(), &scope.company_id().as_ref(), &scope.project_id().as_ref(), &info.id, &info.title,
+            "INSERT INTO session_index (platform_id, company_id, user_id, project_id, session_id, title, created_ms, updated_ms, message_count, call_count, last_content)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 0, 0, '')
+             ON CONFLICT (platform_id, company_id, user_id, project_id, session_id) DO NOTHING",
+            &[&scope.platform_id().as_ref(), &scope.company_id().as_ref(), &scope.user_id().as_ref(), &scope.project_id().as_ref(), &info.id, &info.title,
                 &to_i64(info.time.created, "agent session created_ms")?, &to_i64(info.time.updated, "agent session updated_ms")?],
         )?;
         transaction.commit()?;
@@ -327,12 +311,12 @@ impl PostgresSessionStore {
         let mut connection = self.database.connect_postgres()?;
         let mut transaction = connection.transaction()?;
         let changed = transaction.execute(
-            "INSERT INTO session_dynamic_tools (platform_id, company_id, project_id, session_id, version, specs_json)
-             VALUES ($1, $2, $3, $4, $5, $6)
-             ON CONFLICT (platform_id, company_id, project_id, session_id)
+            "INSERT INTO session_dynamic_tools (platform_id, company_id, user_id, project_id, session_id, version, specs_json)
+             VALUES ($1, $2, $3, $4, $5, $6, $7)
+             ON CONFLICT (platform_id, company_id, user_id, project_id, session_id)
              DO UPDATE SET version=excluded.version, specs_json=excluded.specs_json
              WHERE session_dynamic_tools.version < excluded.version",
-            &[&scope.platform_id().as_ref(), &scope.company_id().as_ref(), &scope.project_id().as_ref(), &session_id, &version, &payload],
+            &[&scope.platform_id().as_ref(), &scope.company_id().as_ref(), &scope.user_id().as_ref(), &scope.project_id().as_ref(), &session_id, &version, &payload],
         )?;
         if changed != 1 {
             bail!("stale persistent dynamic tool catalog version");
@@ -348,21 +332,14 @@ impl PostgresSessionStore {
     ) -> Result<Option<String>> {
         let mut connection = self.database.connect_postgres()?;
         Ok(connection.query_opt(
-            "SELECT specs_json FROM session_dynamic_tools WHERE platform_id=$1 AND company_id=$2 AND project_id=$3 AND session_id=$4",
+            "SELECT specs_json FROM session_dynamic_tools WHERE platform_id=$1 AND company_id=$2 AND user_id=$3 AND project_id=$4 AND session_id=$5",
             scoped_id_params!(scope, session_id),
         )?.map(|row| row.get(0)))
     }
 
     /// 初始化会话、消息、步骤、待办和代理会话表。
     pub(super) fn new(database: GlobalDatabase) -> Result<Self> {
-        database.initialize_postgres_schema(|transaction| {
-            transaction
-                .batch_execute(SESSION_SCHEMA)
-                .context("initialize PostgreSQL session schema")?;
-            transaction.batch_execute(crate::dynamic_tool_store::SCHEMA)?;
-            transaction.batch_execute(FIRST_RESPONSE_SCHEMA)?;
-            Ok(())
-        })?;
+        database.initialize_postgres_schema(super::user_scope_migration::initialize_postgres)?;
         Ok(Self { database })
     }
 
@@ -382,19 +359,20 @@ impl PostgresSessionStore {
             bail!("session was deleted");
         }
         let records = transaction.query(
-            "SELECT seq_no,payload_json FROM session_calls WHERE platform_id=$1 AND company_id=$2
-             AND project_id=$3 AND session_id=$4 ORDER BY seq_no", scoped_id_params!(scope, session_id))?
+            "SELECT seq_no,payload_json FROM session_calls WHERE platform_id=$1 AND company_id=$2 AND user_id=$3
+             AND project_id=$4 AND session_id=$5 ORDER BY seq_no", scoped_id_params!(scope, session_id))?
             .iter().map(|row| Ok((row.try_get::<_,i64>(0)?,row.try_get::<_,String>(1)?)))
             .collect::<Result<Vec<_>>>()?;
         let seq = super::session_call_sequence(&records, stream)?;
         let time = to_i64(updated_ms, "call updated_ms")?;
         transaction.execute(
-            "INSERT INTO session_index (platform_id,company_id,project_id,session_id,
+            "INSERT INTO session_index (platform_id,company_id,user_id,project_id,session_id,
              title,created_ms,updated_ms,message_count,call_count)
-             VALUES ($1,$2,$3,$4,'新会话',$5,$5,0,0) ON CONFLICT DO NOTHING",
+             VALUES ($1,$2,$3,$4,$5,'新会话',$6,$6,0,0) ON CONFLICT DO NOTHING",
             &[
                 &scope.platform_id().as_ref(),
                 &scope.company_id().as_ref(),
+                &scope.user_id().as_ref(),
                 &scope.project_id().as_ref(),
                 &session_id,
                 &time,
@@ -402,20 +380,21 @@ impl PostgresSessionStore {
         )?;
         let json = serde_json::to_string(payload)?;
         transaction.execute(
-            "INSERT INTO session_calls (platform_id,company_id,project_id,session_id,seq_no,payload_json)
-             VALUES ($1,$2,$3,$4,$5,$6)
-             ON CONFLICT (platform_id,company_id,project_id,session_id,seq_no)
+            "INSERT INTO session_calls (platform_id,company_id,user_id,project_id,session_id,seq_no,payload_json)
+             VALUES ($1,$2,$3,$4,$5,$6,$7)
+             ON CONFLICT (platform_id,company_id,user_id,project_id,session_id,seq_no)
              DO UPDATE SET payload_json=excluded.payload_json",
-            &[&scope.platform_id().as_ref(),&scope.company_id().as_ref(),
+            &[&scope.platform_id().as_ref(),&scope.company_id().as_ref(),&scope.user_id().as_ref(),
                 &scope.project_id().as_ref(),&session_id,&seq,&json])?;
         transaction.execute(
-            "UPDATE session_index SET updated_ms=GREATEST(updated_ms,$5),call_count=(
-             SELECT COUNT(*) FROM session_calls WHERE platform_id=$1 AND company_id=$2
-             AND project_id=$3 AND session_id=$4)
-             WHERE platform_id=$1 AND company_id=$2 AND project_id=$3 AND session_id=$4",
+            "UPDATE session_index SET updated_ms=GREATEST(updated_ms,$6),call_count=(
+             SELECT COUNT(*) FROM session_calls WHERE platform_id=$1 AND company_id=$2 AND user_id=$3
+             AND project_id=$4 AND session_id=$5)
+             WHERE platform_id=$1 AND company_id=$2 AND user_id=$3 AND project_id=$4 AND session_id=$5",
             &[
                 &scope.platform_id().as_ref(),
                 &scope.company_id().as_ref(),
+                &scope.user_id().as_ref(),
                 &scope.project_id().as_ref(),
                 &session_id,
                 &time,
@@ -474,7 +453,7 @@ impl PostgresSessionStore {
         let call_count = transaction
             .query_opt(
                 "SELECT call_count FROM session_index
-                 WHERE platform_id = $1 AND company_id = $2 AND project_id = $3 AND session_id = $4",
+                 WHERE platform_id = $1 AND company_id = $2 AND user_id = $3 AND project_id = $4 AND session_id = $5",
                 scoped_id_params!(scope, &session.id),
             )?
             .map(|row| from_i64_usize(row.get(0), "session call_count"))
@@ -502,7 +481,7 @@ impl PostgresSessionStore {
         let call_count = transaction
             .query_opt(
                 "SELECT call_count FROM session_index
-                 WHERE platform_id = $1 AND company_id = $2 AND project_id = $3 AND session_id = $4",
+                 WHERE platform_id = $1 AND company_id = $2 AND user_id = $3 AND project_id = $4 AND session_id = $5",
                 scoped_id_params!(scope, &session.id),
             )?
             .map(|row| from_i64_usize(row.get(0), "session call_count"))
@@ -582,10 +561,10 @@ impl PostgresSessionStore {
         let row = connection
             .query_opt(
                 "SELECT project_id FROM session_index
-                 WHERE platform_id = $1 AND company_id = $2 AND session_id = $3
+                 WHERE platform_id = $1 AND company_id = $2 AND user_id = $3 AND session_id = $4
                  ORDER BY updated_ms DESC, project_id, session_id DESC
                  LIMIT 1",
-                &[&tenant.platform_id().as_ref(), &tenant.company_id().as_ref(), &session_id],
+                &[&tenant.platform_id().as_ref(), &tenant.company_id().as_ref(), &tenant.user_id().as_ref(), &session_id],
             )
             .context("find tenant PostgreSQL session project")?;
         let Some(row) = row else {
@@ -604,12 +583,13 @@ impl PostgresSessionStore {
                 "SELECT session_id, title, updated_ms, message_count, call_count,
                    CASE WHEN first_response_state = 'committed' THEN first_response_preview ELSE last_content END
                  FROM session_index
-                 LEFT JOIN session_first_response USING (platform_id, company_id, project_id, session_id)
-                 WHERE platform_id = $1 AND company_id = $2 AND project_id = $3
+                 LEFT JOIN session_first_response USING (platform_id, company_id, user_id, project_id, session_id)
+                 WHERE platform_id = $1 AND company_id = $2 AND user_id = $3 AND project_id = $4
                    AND (COALESCE(first_response_state, 'committed') = 'committed' OR (first_response_state = 'pending' AND EXISTS (
                            SELECT 1 FROM session_agent_sessions AS root
                            WHERE root.platform_id = session_index.platform_id
                              AND root.company_id = session_index.company_id
+                             AND root.user_id = session_index.user_id
                              AND root.project_id = session_index.project_id
                              AND root.session_id = session_index.session_id
                              AND root.parent_id IS NULL)))
@@ -636,20 +616,22 @@ impl PostgresSessionStore {
                 "SELECT session_id, title, updated_ms, message_count, call_count,
                    CASE WHEN first_response_state = 'committed' THEN first_response_preview ELSE last_content END
                  FROM session_index
-                 LEFT JOIN session_first_response USING (platform_id, company_id, project_id, session_id)
-                 WHERE platform_id = $1 AND company_id = $2 AND project_id = $3
-                   AND session_id = $4
+                 LEFT JOIN session_first_response USING (platform_id, company_id, user_id, project_id, session_id)
+                 WHERE platform_id = $1 AND company_id = $2 AND user_id = $3 AND project_id = $4
+                   AND session_id = $5
                    AND ((COALESCE(first_response_state, 'committed') = 'committed' OR (first_response_state = 'pending' AND EXISTS (
                            SELECT 1 FROM session_agent_sessions AS root
                            WHERE root.platform_id = session_index.platform_id
                              AND root.company_id = session_index.company_id
+                             AND root.user_id = session_index.user_id
                              AND root.project_id = session_index.project_id
                              AND root.session_id = session_index.session_id
                              AND root.parent_id IS NULL)))
-                        OR ($5 AND first_response_state = 'pending'))",
+                        OR ($6 AND first_response_state = 'pending'))",
                 &[
                     &scope.platform_id().as_ref(),
                     &scope.company_id().as_ref(),
+                    &scope.user_id().as_ref(),
                     &scope.project_id().as_ref(),
                     &session_id,
                     &include_pending,
@@ -681,12 +663,13 @@ impl PostgresSessionStore {
             transaction
                 .execute(
                     "INSERT INTO session_index (
-                         platform_id, company_id, project_id, session_id, title, created_ms,
+                         platform_id, company_id, user_id, project_id, session_id, title, created_ms,
                          updated_ms, message_count, call_count, last_content
-                     ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) ON CONFLICT (platform_id, company_id, project_id, session_id) DO NOTHING",
+                     ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) ON CONFLICT (platform_id, company_id, user_id, project_id, session_id) DO NOTHING",
                     &[
                         &scope.platform_id().as_ref(),
                         &scope.company_id().as_ref(),
+                        &scope.user_id().as_ref(),
                         &scope.project_id().as_ref(),
                         &session.id,
                         &session.title,
@@ -718,8 +701,8 @@ impl PostgresSessionStore {
         }
         let changed = transaction.execute(
             "DELETE FROM session_index
-             WHERE platform_id = $1 AND company_id = $2 AND project_id = $3
-               AND session_id = $4",
+             WHERE platform_id = $1 AND company_id = $2 AND user_id = $3 AND project_id = $4
+               AND session_id = $5",
             scoped_id_params!(scope, session_id),
         )?;
         transaction.commit()?;
@@ -739,8 +722,8 @@ impl PostgresSessionStore {
         transaction
             .execute(
                 "DELETE FROM session_todos
-                 WHERE platform_id = $1 AND company_id = $2 AND project_id = $3
-                   AND session_id = $4",
+                 WHERE platform_id = $1 AND company_id = $2 AND user_id = $3 AND project_id = $4
+                   AND session_id = $5",
                 scoped_id_params!(scope, session_id),
             )
             .context("delete scoped PostgreSQL session todos")?;
@@ -749,12 +732,13 @@ impl PostgresSessionStore {
             transaction
                 .execute(
                     "INSERT INTO session_todos (
-                         platform_id, company_id, project_id, session_id, order_no,
+                         platform_id, company_id, user_id, project_id, session_id, order_no,
                          todo_id, content, status, priority
-                     ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)",
+                     ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)",
                     &[
                         &scope.platform_id().as_ref(),
                         &scope.company_id().as_ref(),
+                        &scope.user_id().as_ref(),
                         &scope.project_id().as_ref(),
                         &session_id,
                         &order_no,
@@ -785,13 +769,14 @@ impl PostgresSessionStore {
             .connect_postgres()?
             .execute(
                 "INSERT INTO session_step_llm_raw (
-                     platform_id, company_id, project_id, session_id, step_index, payload_json
-                 ) VALUES ($1, $2, $3, $4, $5, $6)
-                 ON CONFLICT (platform_id, company_id, project_id, session_id, step_index)
+                     platform_id, company_id, user_id, project_id, session_id, step_index, payload_json
+                 ) VALUES ($1, $2, $3, $4, $5, $6, $7)
+                 ON CONFLICT (platform_id, company_id, user_id, project_id, session_id, step_index)
                      DO UPDATE SET payload_json = EXCLUDED.payload_json",
                 &[
                     &scope.platform_id().as_ref(),
                     &scope.company_id().as_ref(),
+                    &scope.user_id().as_ref(),
                     &scope.project_id().as_ref(),
                     &session_id,
                     &step_index,
@@ -816,11 +801,12 @@ impl PostgresSessionStore {
                 "SELECT model_json, system_json, tools_json, initial_request_config_json,
                         initial_provider_messages_json, initial_message_sources_json
                  FROM session_llm_raw_turns
-                 WHERE platform_id = $1 AND company_id = $2 AND project_id = $3
-                   AND session_id = $4 AND turn_id = $5",
+                 WHERE platform_id = $1 AND company_id = $2 AND user_id = $3 AND project_id = $4
+                   AND session_id = $5 AND turn_id = $6",
                 &[
                     &scope.platform_id().as_ref(),
                     &scope.company_id().as_ref(),
+                    &scope.user_id().as_ref(),
                     &scope.project_id().as_ref(),
                     &session_id,
                     &turn_id,
@@ -856,12 +842,13 @@ impl PostgresSessionStore {
                     message_source_suffix_json, system_delta_json, tools_delta_json,
                     request_config_delta_json, output_json
              FROM session_llm_raw_rounds
-             WHERE platform_id = $1 AND company_id = $2 AND project_id = $3
-               AND session_id = $4 AND turn_id = $5 AND step_index <= $6
+             WHERE platform_id = $1 AND company_id = $2 AND user_id = $3 AND project_id = $4
+               AND session_id = $5 AND turn_id = $6 AND step_index <= $7
              ORDER BY step_index",
             &[
                 &scope.platform_id().as_ref(),
                 &scope.company_id().as_ref(),
+                &scope.user_id().as_ref(),
                 &scope.project_id().as_ref(),
                 &session_id,
                 &turn_id,
@@ -887,11 +874,12 @@ impl PostgresSessionStore {
         let turn_id = connection
             .query_opt(
                 "SELECT turn_id FROM session_steps
-                 WHERE platform_id = $1 AND company_id = $2 AND project_id = $3
-                   AND session_id = $4 AND step_index = $5",
+                 WHERE platform_id = $1 AND company_id = $2 AND user_id = $3 AND project_id = $4
+                   AND session_id = $5 AND step_index = $6",
                 &[
                     &scope.platform_id().as_ref(),
                     &scope.company_id().as_ref(),
+                    &scope.user_id().as_ref(),
                     &scope.project_id().as_ref(),
                     &session_id,
                     &to_i64(step_index as u64, "step index")?,
@@ -906,11 +894,12 @@ impl PostgresSessionStore {
         let row = connection
             .query_opt(
                 "SELECT payload_json FROM session_step_llm_raw
-                 WHERE platform_id = $1 AND company_id = $2 AND project_id = $3
-                   AND session_id = $4 AND step_index = $5",
+                 WHERE platform_id = $1 AND company_id = $2 AND user_id = $3 AND project_id = $4
+                   AND session_id = $5 AND step_index = $6",
                 &[
                     &scope.platform_id().as_ref(),
                     &scope.company_id().as_ref(),
+                    &scope.user_id().as_ref(),
                     &scope.project_id().as_ref(),
                     &session_id,
                     &step_index,
@@ -936,16 +925,17 @@ impl PostgresSessionStore {
             .connect_postgres()?
             .query(
                 "SELECT step_index FROM session_llm_raw_rounds
-                 WHERE platform_id = $1 AND company_id = $2 AND project_id = $3
-                   AND session_id = $4
+                 WHERE platform_id = $1 AND company_id = $2 AND user_id = $3 AND project_id = $4
+                   AND session_id = $5
                  UNION
                  SELECT step_index FROM session_step_llm_raw
-                 WHERE platform_id = $1 AND company_id = $2 AND project_id = $3
-                   AND session_id = $4
+                 WHERE platform_id = $1 AND company_id = $2 AND user_id = $3 AND project_id = $4
+                   AND session_id = $5
                  ORDER BY step_index",
                 &[
                     &scope.platform_id().as_ref(),
                     &scope.company_id().as_ref(),
+                    &scope.user_id().as_ref(),
                     &scope.project_id().as_ref(),
                     &session_id,
                 ],
@@ -970,8 +960,8 @@ impl PostgresSessionStore {
             .query(
                 "SELECT todo_id, content, status, priority
                  FROM session_todos
-                 WHERE platform_id = $1 AND company_id = $2 AND project_id = $3
-                   AND session_id = $4
+                 WHERE platform_id = $1 AND company_id = $2 AND user_id = $3 AND project_id = $4
+                   AND session_id = $5
                  ORDER BY order_no, todo_id",
                 scoped_id_params!(scope, session_id),
             )
@@ -1045,8 +1035,8 @@ impl PostgresSessionStore {
         }
         let changed = transaction.execute(
             "INSERT INTO session_first_response
-               (platform_id, company_id, project_id, session_id, first_response_state)
-             VALUES ($1, $2, $3, $4, 'pending')
+               (platform_id, company_id, user_id, project_id, session_id, first_response_state)
+             VALUES ($1, $2, $3, $4, $5, 'pending')
              ON CONFLICT DO NOTHING",
             scoped_id_params!(scope, &info.id),
         )?;
@@ -1055,12 +1045,13 @@ impl PostgresSessionStore {
         }
         let pending = pending_agent_info(info);
         transaction.execute(
-            "INSERT INTO session_index (platform_id, company_id, project_id, session_id,
+            "INSERT INTO session_index (platform_id, company_id, user_id, project_id, session_id,
                title, created_ms, updated_ms, message_count, call_count)
-             VALUES ($1, $2, $3, $4, '', $5, $6, 0, 0)",
+             VALUES ($1, $2, $3, $4, $5, '', $6, $7, 0, 0)",
             &[
                 &scope.platform_id().as_ref(),
                 &scope.company_id().as_ref(),
+                &scope.user_id().as_ref(),
                 &scope.project_id().as_ref(),
                 &pending.id,
                 &to_i64(pending.time.created, "session created_ms")?,
@@ -1103,11 +1094,12 @@ impl PostgresSessionStore {
         write_index_title(&mut transaction, scope, &session.id, &info.title)?;
         transaction.execute(
             "UPDATE session_first_response SET first_response_state = 'committed',
-               first_response_preview = $5
-             WHERE platform_id = $1 AND company_id = $2 AND project_id = $3 AND session_id = $4",
+               first_response_preview = $6
+             WHERE platform_id = $1 AND company_id = $2 AND user_id = $3 AND project_id = $4 AND session_id = $5",
             &[
                 &scope.platform_id().as_ref(),
                 &scope.company_id().as_ref(),
+                &scope.user_id().as_ref(),
                 &scope.project_id().as_ref(),
                 &session.id,
                 &first_response_preview(commit.preview),
@@ -1179,8 +1171,8 @@ impl PostgresSessionStore {
         connection
             .query(
                 "SELECT session_id, info_json FROM session_agent_sessions
-                 LEFT JOIN session_first_response USING (platform_id, company_id, project_id, session_id)
-                 WHERE platform_id = $1 AND company_id = $2 AND project_id = $3
+                 LEFT JOIN session_first_response USING (platform_id, company_id, user_id, project_id, session_id)
+                 WHERE platform_id = $1 AND company_id = $2 AND user_id = $3 AND project_id = $4
                    AND (COALESCE(first_response_state, 'committed') = 'committed' OR (first_response_state = 'pending' AND parent_id IS NULL))
                  ORDER BY updated_ms DESC, session_id DESC",
                 scope_params!(scope),
@@ -1200,7 +1192,7 @@ impl PostgresSessionStore {
             .connect_postgres()?
             .query(
                 "SELECT session_id, info_json FROM session_agent_sessions
-             WHERE platform_id = $1 AND company_id = $2 AND project_id = $3 AND parent_id = $4
+             WHERE platform_id = $1 AND company_id = $2 AND user_id = $3 AND project_id = $4 AND parent_id = $5
              ORDER BY updated_ms DESC, session_id DESC",
                 scoped_id_params!(scope, parent_id),
             )?
@@ -1218,11 +1210,11 @@ impl PostgresSessionStore {
         let rows = connection
             .query(
                 "SELECT project_id, session_id, info_json FROM session_agent_sessions
-                 LEFT JOIN session_first_response USING (platform_id, company_id, project_id, session_id)
-                 WHERE platform_id = $1 AND company_id = $2
+                 LEFT JOIN session_first_response USING (platform_id, company_id, user_id, project_id, session_id)
+                 WHERE platform_id = $1 AND company_id = $2 AND user_id = $3
                    AND (COALESCE(first_response_state, 'committed') = 'committed' OR (first_response_state = 'pending' AND parent_id IS NULL))
                  ORDER BY updated_ms DESC, session_id DESC, project_id",
-                &[&tenant.platform_id().as_ref(), &tenant.company_id().as_ref()],
+                &[&tenant.platform_id().as_ref(), &tenant.company_id().as_ref(), &tenant.user_id().as_ref()],
             )
             .context("list tenant PostgreSQL agent sessions")?;
         let mut seen = HashSet::new();
@@ -1241,8 +1233,9 @@ impl PostgresSessionStore {
     pub(super) fn foreign_worktree_directories(&self, tenant: &TenantScope) -> Result<Vec<String>> {
         let mut connection = self.database.connect_postgres()?;
         let mut directories = connection.query(
-            "SELECT info_json FROM session_agent_sessions WHERE platform_id != $1 OR company_id != $2",
-            &[&tenant.platform_id().as_ref(), &tenant.company_id().as_ref()],
+            "SELECT info_json FROM session_agent_sessions
+                     WHERE platform_id != $1 OR company_id != $2 OR user_id != $3",
+            &[&tenant.platform_id().as_ref(), &tenant.company_id().as_ref(), &tenant.user_id().as_ref()],
         )?.into_iter().map(|row| super::foreign_worktree_directory(&row.try_get::<_, String>(0)?))
             .collect::<Result<Vec<_>>>()?;
         for row in connection.query(
@@ -1262,8 +1255,8 @@ impl PostgresSessionStore {
             .connect_postgres()?
             .query(
                 "SELECT project_id, session_id, info_json FROM session_agent_sessions
-             WHERE platform_id = $1 AND company_id = $2 ORDER BY project_id, session_id",
-                &[&tenant.platform_id().as_ref(), &tenant.company_id().as_ref()],
+             WHERE platform_id = $1 AND company_id = $2 AND user_id = $3 ORDER BY project_id, session_id",
+                &[&tenant.platform_id().as_ref(), &tenant.company_id().as_ref(), &tenant.user_id().as_ref()],
             )?
             .into_iter()
             .map(|row| {
@@ -1287,10 +1280,10 @@ impl PostgresSessionStore {
             .connect_postgres()?
             .query_opt(
                 "SELECT project_id, info_json FROM session_agent_sessions
-                 WHERE platform_id = $1 AND company_id = $2 AND session_id = $3
+                 WHERE platform_id = $1 AND company_id = $2 AND user_id = $3 AND session_id = $4
                  ORDER BY updated_ms DESC, project_id
                  LIMIT 1",
-                &[&tenant.platform_id().as_ref(), &tenant.company_id().as_ref(), &session_id],
+                &[&tenant.platform_id().as_ref(), &tenant.company_id().as_ref(), &tenant.user_id().as_ref(), &session_id],
             )
             .context("load tenant PostgreSQL agent session")?;
         row.map(|row| {
@@ -1317,12 +1310,12 @@ impl PostgresSessionStore {
         } else {
             transaction.execute(
                 "DELETE FROM session_index
-                 WHERE platform_id = $1 AND company_id = $2 AND project_id = $3 AND session_id = $4",
+                 WHERE platform_id = $1 AND company_id = $2 AND user_id = $3 AND project_id = $4 AND session_id = $5",
                 scoped_id_params!(scope, session_id),
             )?;
             transaction.execute(
                 "DELETE FROM session_agent_sessions
-                 WHERE platform_id = $1 AND company_id = $2 AND project_id = $3 AND session_id = $4",
+                 WHERE platform_id = $1 AND company_id = $2 AND user_id = $3 AND project_id = $4 AND session_id = $5",
                 scoped_id_params!(scope, session_id),
             )?;
         }
@@ -1349,8 +1342,8 @@ impl PostgresSessionStore {
         }
         let changed = transaction.execute(
             "DELETE FROM session_agent_sessions
-             WHERE platform_id = $1 AND company_id = $2 AND project_id = $3
-               AND session_id = $4",
+             WHERE platform_id = $1 AND company_id = $2 AND user_id = $3 AND project_id = $4
+               AND session_id = $5",
             scoped_id_params!(scope, session_id),
         )?;
         transaction.commit()?;
@@ -1367,7 +1360,7 @@ fn lock_session_scope(
     client.query_opt(
         "SELECT 1 FROM projects WHERE platform_id = $1 AND company_id = $2 AND project_id = $3
          FOR NO KEY UPDATE",
-        scope_params!(scope),
+        &[&scope.platform_id().as_ref(), &scope.company_id().as_ref(), &scope.project_id().as_ref()],
     )?;
     Ok(())
 }
@@ -1380,7 +1373,7 @@ fn first_response_state(
     Ok(client
         .query_opt(
             "SELECT first_response_state FROM session_first_response
-         WHERE platform_id = $1 AND company_id = $2 AND project_id = $3 AND session_id = $4",
+         WHERE platform_id = $1 AND company_id = $2 AND user_id = $3 AND project_id = $4 AND session_id = $5",
             scoped_id_params!(scope, session_id),
         )?
         .map(|row| row.get(0)))
@@ -1394,8 +1387,8 @@ fn load_agent_info(
     let row = client
         .query_opt(
             "SELECT info_json FROM session_agent_sessions
-                 WHERE platform_id = $1 AND company_id = $2 AND project_id = $3
-                   AND session_id = $4",
+                 WHERE platform_id = $1 AND company_id = $2 AND user_id = $3 AND project_id = $4
+                   AND session_id = $5",
             scoped_id_params!(scope, session_id),
         )
         .context("load scoped PostgreSQL agent session")?;
@@ -1413,15 +1406,16 @@ fn write_agent_info(
 ) -> Result<()> {
     client.execute(
         "INSERT INTO session_agent_sessions (
-             platform_id, company_id, project_id, session_id, parent_id, updated_ms, info_json
-         ) VALUES ($1, $2, $3, $4, $5, $6, $7)
-         ON CONFLICT (platform_id, company_id, project_id, session_id) DO UPDATE SET
+             platform_id, company_id, user_id, project_id, session_id, parent_id, updated_ms, info_json
+         ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+         ON CONFLICT (platform_id, company_id, user_id, project_id, session_id) DO UPDATE SET
              parent_id = excluded.parent_id,
              updated_ms = excluded.updated_ms,
              info_json = excluded.info_json",
         &[
             &scope.platform_id().as_ref(),
             &scope.company_id().as_ref(),
+            &scope.user_id().as_ref(),
             &scope.project_id().as_ref(),
             &info.id,
             &info.parent_id,
@@ -1439,11 +1433,12 @@ fn write_index_title(
     title: &str,
 ) -> Result<()> {
     let changed = client.execute(
-        "UPDATE session_index SET title = $5
-         WHERE platform_id = $1 AND company_id = $2 AND project_id = $3 AND session_id = $4",
+        "UPDATE session_index SET title = $6
+         WHERE platform_id = $1 AND company_id = $2 AND user_id = $3 AND project_id = $4 AND session_id = $5",
         &[
             &scope.platform_id().as_ref(),
             &scope.company_id().as_ref(),
+            &scope.user_id().as_ref(),
             &scope.project_id().as_ref(),
             &session_id,
             &title,
@@ -1463,17 +1458,17 @@ fn delete_managed_session(
     client.execute(
         "UPDATE session_first_response SET first_response_state = 'deleted',
            first_response_preview = NULL
-         WHERE platform_id = $1 AND company_id = $2 AND project_id = $3 AND session_id = $4",
+         WHERE platform_id = $1 AND company_id = $2 AND user_id = $3 AND project_id = $4 AND session_id = $5",
         scoped_id_params!(scope, session_id),
     )?;
     client.execute(
         "DELETE FROM session_index
-         WHERE platform_id = $1 AND company_id = $2 AND project_id = $3 AND session_id = $4",
+         WHERE platform_id = $1 AND company_id = $2 AND user_id = $3 AND project_id = $4 AND session_id = $5",
         scoped_id_params!(scope, session_id),
     )?;
     client.execute(
         "DELETE FROM session_agent_sessions
-         WHERE platform_id = $1 AND company_id = $2 AND project_id = $3 AND session_id = $4",
+         WHERE platform_id = $1 AND company_id = $2 AND user_id = $3 AND project_id = $4 AND session_id = $5",
         scoped_id_params!(scope, session_id),
     )?;
     Ok(())
@@ -1489,7 +1484,7 @@ fn commit_ui_snapshot(
     let call_count = transaction
             .query_opt(
                 "SELECT call_count FROM session_index
-                 WHERE platform_id = $1 AND company_id = $2 AND project_id = $3 AND session_id = $4",
+                 WHERE platform_id = $1 AND company_id = $2 AND user_id = $3 AND project_id = $4 AND session_id = $5",
                 scoped_id_params!(scope, &session.id),
             )?
             .map(|row| from_i64_usize(row.get(0), "session call_count"))
@@ -1519,12 +1514,13 @@ fn load_session_message_page_postgres(
                         processing_started_ms, processing_completed_ms, processing_elapsed_ms,
                         processing_llm_elapsed_ms
                  FROM session_messages
-                 WHERE platform_id = $1 AND company_id = $2 AND project_id = $3 AND session_id = $4
-                   AND seq_no < $5
-                 ORDER BY seq_no DESC LIMIT $6",
+                 WHERE platform_id = $1 AND company_id = $2 AND user_id = $3 AND project_id = $4 AND session_id = $5
+                   AND seq_no < $6
+                 ORDER BY seq_no DESC LIMIT $7",
                 &[
                     &scope.platform_id().as_ref(),
                     &scope.company_id().as_ref(),
+                    &scope.user_id().as_ref(),
                     &scope.project_id().as_ref(),
                     &session_id,
                     &before,
@@ -1537,11 +1533,12 @@ fn load_session_message_page_postgres(
                     processing_started_ms, processing_completed_ms, processing_elapsed_ms,
                     processing_llm_elapsed_ms
              FROM session_messages
-             WHERE platform_id = $1 AND company_id = $2 AND project_id = $3 AND session_id = $4
-             ORDER BY seq_no DESC LIMIT $5",
+             WHERE platform_id = $1 AND company_id = $2 AND user_id = $3 AND project_id = $4 AND session_id = $5
+             ORDER BY seq_no DESC LIMIT $6",
             &[
                 &scope.platform_id().as_ref(),
                 &scope.company_id().as_ref(),
+                &scope.user_id().as_ref(),
                 &scope.project_id().as_ref(),
                 &session_id,
                 &fetch_limit,
@@ -1606,7 +1603,7 @@ fn apply_session_message_delta_postgres(
     let row = client
         .query_opt(
             "SELECT updated_ms, message_count FROM session_index
-             WHERE platform_id = $1 AND company_id = $2 AND project_id = $3 AND session_id = $4
+             WHERE platform_id = $1 AND company_id = $2 AND user_id = $3 AND project_id = $4 AND session_id = $5
              FOR UPDATE",
             scoped_id_params!(scope, &delta.session_id),
         )?
@@ -1629,11 +1626,12 @@ fn apply_session_message_delta_postgres(
         let boundary = to_i64(boundary, "message truncate boundary")?;
         client.execute(
             "DELETE FROM session_messages
-             WHERE platform_id = $1 AND company_id = $2 AND project_id = $3 AND session_id = $4
-               AND seq_no > $5",
+             WHERE platform_id = $1 AND company_id = $2 AND user_id = $3 AND project_id = $4 AND session_id = $5
+               AND seq_no > $6",
             &[
                 &scope.platform_id().as_ref(),
                 &scope.company_id().as_ref(),
+                &scope.user_id().as_ref(),
                 &scope.project_id().as_ref(),
                 &delta.session_id,
                 &boundary,
@@ -1648,7 +1646,7 @@ fn apply_session_message_delta_postgres(
     let last_content = client
         .query_opt(
             "SELECT content FROM session_messages
-             WHERE platform_id = $1 AND company_id = $2 AND project_id = $3 AND session_id = $4
+             WHERE platform_id = $1 AND company_id = $2 AND user_id = $3 AND project_id = $4 AND session_id = $5
              ORDER BY seq_no DESC LIMIT 1",
             scoped_id_params!(scope, &delta.session_id),
         )?
@@ -1657,11 +1655,12 @@ fn apply_session_message_delta_postgres(
     let updated_ms = to_i64(delta.updated_ms, "session updated_ms")?;
     let message_count = to_i64(message_count, "session message_count")?;
     client.execute(
-        "UPDATE session_index SET updated_ms = $5, message_count = $6, last_content = $7
-         WHERE platform_id = $1 AND company_id = $2 AND project_id = $3 AND session_id = $4",
+        "UPDATE session_index SET updated_ms = $6, message_count = $7, last_content = $8
+         WHERE platform_id = $1 AND company_id = $2 AND user_id = $3 AND project_id = $4 AND session_id = $5",
         &[
             &scope.platform_id().as_ref(),
             &scope.company_id().as_ref(),
+            &scope.user_id().as_ref(),
             &scope.project_id().as_ref(),
             &delta.session_id,
             &updated_ms,
@@ -1684,11 +1683,11 @@ fn upsert_session_message_postgres(
     let (started, completed, elapsed, llm_elapsed) = message_processing_values(message)?;
     client.execute(
         "INSERT INTO session_messages (
-             platform_id, company_id, project_id, session_id, seq_no, role, message_id,
+             platform_id, company_id, user_id, project_id, session_id, seq_no, role, message_id,
              content, model, think_timing_json, processing_started_ms, processing_completed_ms,
              processing_elapsed_ms, processing_llm_elapsed_ms
-         ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
-         ON CONFLICT (platform_id, company_id, project_id, session_id, seq_no) DO UPDATE SET
+         ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+         ON CONFLICT (platform_id, company_id, user_id, project_id, session_id, seq_no) DO UPDATE SET
              role = excluded.role, message_id = excluded.message_id, content = excluded.content,
              model = excluded.model, think_timing_json = excluded.think_timing_json,
              processing_started_ms = excluded.processing_started_ms,
@@ -1698,6 +1697,7 @@ fn upsert_session_message_postgres(
         &[
             &scope.platform_id().as_ref(),
             &scope.company_id().as_ref(),
+            &scope.user_id().as_ref(),
             &scope.project_id().as_ref(),
             &session_id,
             &seq_no,
@@ -1723,7 +1723,7 @@ fn reject_stale_session_ui_content(
     let stored_updated_ms = client
         .query_opt(
             "SELECT updated_ms FROM session_index
-             WHERE platform_id = $1 AND company_id = $2 AND project_id = $3 AND session_id = $4 FOR UPDATE",
+             WHERE platform_id = $1 AND company_id = $2 AND user_id = $3 AND project_id = $4 AND session_id = $5 FOR UPDATE",
             scoped_id_params!(scope, &session.id),
         )?
         .map(|row| from_i64(row.get(0), "session updated_ms"))
@@ -1759,11 +1759,11 @@ fn upsert_session_header(
     client
         .execute(
             "INSERT INTO session_index (
-                 platform_id, company_id, project_id, session_id, title, created_ms, updated_ms,
+                 platform_id, company_id, user_id, project_id, session_id, title, created_ms, updated_ms,
                  message_count, call_count, last_content
-             ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
-             ON CONFLICT (platform_id, company_id, project_id, session_id) DO UPDATE SET
-                 title = CASE WHEN $11 THEN session_index.title ELSE excluded.title END,
+             ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+             ON CONFLICT (platform_id, company_id, user_id, project_id, session_id) DO UPDATE SET
+                 title = CASE WHEN $12 THEN session_index.title ELSE excluded.title END,
                  created_ms = excluded.created_ms,
                  updated_ms = excluded.updated_ms,
                  message_count = excluded.message_count,
@@ -1772,6 +1772,7 @@ fn upsert_session_header(
             &[
                 &scope.platform_id().as_ref(),
                 &scope.company_id().as_ref(),
+                &scope.user_id().as_ref(),
                 &scope.project_id().as_ref(),
                 &session.id,
                 &session.title,
@@ -1824,13 +1825,14 @@ fn replace_session_messages(
         client
             .execute(
                 "INSERT INTO session_messages (
-                     platform_id, company_id, project_id, session_id, seq_no, role, message_id,
+                     platform_id, company_id, user_id, project_id, session_id, seq_no, role, message_id,
                      content, model, think_timing_json, processing_started_ms,
                      processing_completed_ms, processing_elapsed_ms, processing_llm_elapsed_ms
-                 ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)",
+                 ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)",
                 &[
                     &scope.platform_id().as_ref(),
                     &scope.company_id().as_ref(),
+                    &scope.user_id().as_ref(),
                     &scope.project_id().as_ref(),
                     &session.id,
                     &seq_no,
@@ -1862,11 +1864,12 @@ fn replace_session_calls(
         client
             .execute(
                 "INSERT INTO session_calls (
-                     platform_id, company_id, project_id, session_id, seq_no, payload_json
-                 ) VALUES ($1, $2, $3, $4, $5, $6)",
+                     platform_id, company_id, user_id, project_id, session_id, seq_no, payload_json
+                 ) VALUES ($1, $2, $3, $4, $5, $6, $7)",
                 &[
                     &scope.platform_id().as_ref(),
                     &scope.company_id().as_ref(),
+                    &scope.user_id().as_ref(),
                     &scope.project_id().as_ref(),
                     &session.id,
                     &seq_no,
@@ -1896,13 +1899,14 @@ fn replace_session_steps(
         client
             .execute(
                 "INSERT INTO session_steps (
-                     platform_id, company_id, project_id, session_id, step_index, turn_id, started_ms,
+                     platform_id, company_id, user_id, project_id, session_id, step_index, turn_id, started_ms,
                      finished_ms, start_snapshot_path, finish_snapshot_path, usage_json, cost_usd,
                      finish_reason, model, tool_timings_json
-                 ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)",
+                 ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)",
                 &[
                     &scope.platform_id().as_ref(),
                     &scope.company_id().as_ref(),
+                    &scope.user_id().as_ref(),
                     &scope.project_id().as_ref(),
                     &session.id,
                     &step_index,
@@ -1951,11 +1955,11 @@ fn upsert_session_llm_raw_turn(
     client
         .execute(
             "INSERT INTO session_llm_raw_turns (
-                 platform_id, company_id, project_id, session_id, turn_id, model_json, system_json,
+                 platform_id, company_id, user_id, project_id, session_id, turn_id, model_json, system_json,
                  tools_json, initial_request_config_json, initial_provider_messages_json,
                  initial_message_sources_json
-             ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
-             ON CONFLICT (platform_id, company_id, project_id, session_id, turn_id) DO UPDATE SET
+             ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+             ON CONFLICT (platform_id, company_id, user_id, project_id, session_id, turn_id) DO UPDATE SET
                  model_json = excluded.model_json,
                  system_json = excluded.system_json,
                  tools_json = excluded.tools_json,
@@ -1965,6 +1969,7 @@ fn upsert_session_llm_raw_turn(
             &[
                 &scope.platform_id().as_ref(),
                 &scope.company_id().as_ref(),
+                &scope.user_id().as_ref(),
                 &scope.project_id().as_ref(),
                 &context.session_id,
                 &context.turn_id,
@@ -1999,11 +2004,11 @@ fn upsert_session_llm_raw_round(
     client
         .execute(
             "INSERT INTO session_llm_raw_rounds (
-                 platform_id, company_id, project_id, session_id, turn_id, step_index,
+                 platform_id, company_id, user_id, project_id, session_id, turn_id, step_index,
                  provider_message_prefix_len, provider_message_suffix_json, message_source_suffix_json,
                  system_delta_json, tools_delta_json, request_config_delta_json, output_json
-             ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
-             ON CONFLICT (platform_id, company_id, project_id, session_id, turn_id, step_index)
+             ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+             ON CONFLICT (platform_id, company_id, user_id, project_id, session_id, turn_id, step_index)
                  DO UPDATE SET
                      provider_message_prefix_len = excluded.provider_message_prefix_len,
                      provider_message_suffix_json = excluded.provider_message_suffix_json,
@@ -2015,6 +2020,7 @@ fn upsert_session_llm_raw_round(
             &[
                 &scope.platform_id().as_ref(),
                 &scope.company_id().as_ref(),
+                &scope.user_id().as_ref(),
                 &scope.project_id().as_ref(),
                 &session_id,
                 &round.turn_id,
@@ -2042,8 +2048,8 @@ fn delete_session_children(
         .execute(
             &format!(
                 "DELETE FROM {table}
-                 WHERE platform_id = $1 AND company_id = $2 AND project_id = $3
-                   AND session_id = $4"
+                 WHERE platform_id = $1 AND company_id = $2 AND user_id = $3 AND project_id = $4
+                   AND session_id = $5"
             ),
             scoped_id_params!(scope, session_id),
         )
@@ -2059,7 +2065,7 @@ fn load_session(
     let header = client
         .query_opt(
             "SELECT title, created_ms, updated_ms FROM session_index
-             WHERE platform_id = $1 AND company_id = $2 AND project_id = $3 AND session_id = $4",
+             WHERE platform_id = $1 AND company_id = $2 AND user_id = $3 AND project_id = $4 AND session_id = $5",
             scoped_id_params!(scope, session_id),
         )
         .context("load scoped PostgreSQL session header")?;
@@ -2095,7 +2101,7 @@ fn load_messages(
                     processing_started_ms, processing_completed_ms, processing_elapsed_ms,
                     processing_llm_elapsed_ms
              FROM session_messages
-             WHERE platform_id = $1 AND company_id = $2 AND project_id = $3 AND session_id = $4
+             WHERE platform_id = $1 AND company_id = $2 AND user_id = $3 AND project_id = $4 AND session_id = $5
              ORDER BY seq_no",
             scoped_id_params!(scope, session_id),
         )
@@ -2150,7 +2156,7 @@ fn load_calls(
     client
         .query(
             "SELECT payload_json FROM session_calls
-             WHERE platform_id = $1 AND company_id = $2 AND project_id = $3 AND session_id = $4
+             WHERE platform_id = $1 AND company_id = $2 AND user_id = $3 AND project_id = $4 AND session_id = $5
              ORDER BY seq_no",
             scoped_id_params!(scope, session_id),
         )
@@ -2174,7 +2180,7 @@ fn load_steps(
             "SELECT step_index, turn_id, started_ms, finished_ms, start_snapshot_path, finish_snapshot_path,
                     usage_json, cost_usd, finish_reason, model, tool_timings_json
              FROM session_steps
-             WHERE platform_id = $1 AND company_id = $2 AND project_id = $3 AND session_id = $4
+             WHERE platform_id = $1 AND company_id = $2 AND user_id = $3 AND project_id = $4 AND session_id = $5
              ORDER BY step_index",
             scoped_id_params!(scope, session_id),
         )

@@ -21,7 +21,7 @@ pub struct ForkExecution {
 }
 
 pub async fn load_scoped(home: PathBuf, tenant: TenantScope, project: &str, session: &str) -> Result<Option<ForkExecution>> {
-    let key = storage_key(project, session)?;
+    let key = storage_key(&tenant, project, session)?;
     agent_database::run_isolated(move || {
         store(&home)?
             .get(&tenant, NAMESPACE, &key)?
@@ -34,7 +34,7 @@ pub async fn load_scoped(home: PathBuf, tenant: TenantScope, project: &str, sess
 }
 
 async fn save(home: PathBuf, tenant: TenantScope, project: &str, session: &str, state: ForkExecution) -> Result<()> {
-    let key = storage_key(project, session)?;
+    let key = storage_key(&tenant, project, session)?;
     let payload = serde_json::to_string(&state)?;
     agent_database::run_isolated(move || {
         store(&home)?.upsert(&tenant, NAMESPACE, &key, &payload)
@@ -53,7 +53,7 @@ pub async fn create(
 }
 
 pub async fn remove(home: PathBuf, tenant: TenantScope, project: &str, session: &str) -> Result<()> {
-    let key = storage_key(project, session)?;
+    let key = storage_key(&tenant, project, session)?;
     agent_database::run_isolated(move || {
         store(&home)?.delete(&tenant, NAMESPACE, &key).map(|_| ())
     })

@@ -22,11 +22,13 @@ fn gateway_client_helpers_normalize_and_select() {
     app.host_input = "".to_string();
     app.platform_id_input = " 20000 ".to_string();
     app.company_id_input = " 200000001 ".to_string();
+    app.user_id_input = " 42 ".to_string();
     sync_selected_server_from_inputs(&mut app).unwrap();
     assert_eq!(app.servers[0].name, "primary");
     assert_eq!(app.servers[0].host, "127.0.0.1");
     assert_eq!(app.servers[0].platform_id, "20000");
     assert_eq!(app.servers[0].company_id, "200000001");
+    assert_eq!(app.servers[0].user_id, "42");
 
     app.servers[0].host = "0.0.0.0".to_string();
     load_selected_server_into_inputs(&mut app);

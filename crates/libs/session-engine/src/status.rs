@@ -31,6 +31,8 @@ use serde_json::json;
 use std::collections::HashMap;
 use std::sync::LazyLock;
 use std::sync::Mutex;
+use vw_api_transport::TenantScope;
+use session_store::ui_store::current_tenant_scope;
 
 /// 会话状态相关的事件定义
 ///
@@ -67,7 +69,8 @@ pub use session_port::SessionStatus as Info;
 ///
 /// 使用 `LazyLock<Mutex<HashMap>>` 提供线程安全的全局状态管理。
 /// 仅存储非空闲状态的会话，空闲会话会被移除。
-static STATE: LazyLock<Mutex<HashMap<String, Info>>> = LazyLock::new(|| Mutex::new(HashMap::new()));
+static STATE: LazyLock<Mutex<HashMap<(TenantScope, String), Info>>> =
+    LazyLock::new(|| Mutex::new(HashMap::new()));
 
 /// 获取当前实例目录的可选值
 ///
@@ -117,7 +120,7 @@ pub fn get(session_id: &str) -> Info {
     STATE
         .lock()
         .unwrap_or_else(|e| e.into_inner()) // 如果锁被污染，恢复并继续
-        .get(session_id)
+        .get(&(current_tenant_scope(), session_id.to_owned()))
         .cloned()
         .unwrap_or(Info::Idle) // 未找到时默认返回空闲状态
 }
@@ -144,12 +147,18 @@ pub fn get(session_id: &str) -> Info {
 /// }
 /// ```
 pub fn list() -> HashMap<String, Info> {
-    STATE.lock().unwrap_or_else(|e| e.into_inner()).clone()
+    let tenant = current_tenant_scope();
+    STATE.lock().unwrap_or_else(|e| e.into_inner()).iter()
+        .filter(|((scope, _), _)| scope == &tenant)
+        .map(|((_, id), status)| (id.clone(), status.clone()))
+        .collect()
 }
 
 /// Cleanup must not recover a poisoned runtime snapshot as if it were trustworthy.
 pub fn cleanup_snapshot() -> Result<HashMap<String, Info>, &'static str> {
-    STATE.lock().map(|state| state.clone()).map_err(|_| "Session runtime state is unavailable")
+    STATE.lock().map(|state| {
+        state.iter().map(|((_, id), status)| (id.clone(), status.clone())).collect()
+    }).map_err(|_| "Session runtime state is unavailable")
 }
 
 /// 设置会话状态
@@ -193,6 +202,7 @@ pub fn cleanup_snapshot() -> Result<HashMap<String, Info>, &'static str> {
 /// set("session-123", Info::Idle);
 /// ```
 pub fn set(session_id: &str, status: Info) {
+    let key = (current_tenant_scope(), session_id.to_owned());
     // 发布状态变更事件到事件总线
     let _ = bus::publish(
         event::STATUS,
@@ -206,7 +216,7 @@ pub fn set(session_id: &str, status: Info) {
         let _ =
             bus::publish(event::IDLE, json!({ "sessionID": session_id }), instance_directory_opt());
         // 从全局状态表中移除该会话
-        STATE.lock().unwrap_or_else(|e| e.into_inner()).remove(session_id);
+        STATE.lock().unwrap_or_else(|e| e.into_inner()).remove(&key);
         return;
     }
 
@@ -214,7 +224,7 @@ pub fn set(session_id: &str, status: Info) {
     STATE
         .lock()
         .unwrap_or_else(|e| e.into_inner()) // 如果锁被污染，恢复并继续
-        .insert(session_id.to_string(), status);
+        .insert(key, status);
 }
 #[cfg(test)]
 #[path = "status_tests.rs"]

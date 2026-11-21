@@ -94,7 +94,7 @@ impl<H: ThreadHost> Tool for CreateThreadTool<H> {
             .as_deref()
             .filter(|s| !s.trim().is_empty())
             .ok_or_else(|| anyhow::anyhow!("create_thread requires a current thread ID"))?;
-        let scope = SessionScope::new(TenantScope::default(), &self.directory)?;
+        let scope = SessionScope::new(SessionTool::<H>::tenant_scope(), &self.directory)?;
         let parent = H::load(scope, parent_id).await?;
         let created = self
             .session_tool
@@ -248,7 +248,7 @@ async fn query_parent<H: ThreadHost>(
         .as_deref()
         .filter(|id| !id.trim().is_empty())
         .ok_or_else(|| anyhow::anyhow!("current thread ID required"))?;
-    let scope = SessionScope::new(TenantScope::default(), directory)?;
+    let scope = SessionScope::new(SessionTool::<H>::tenant_scope(), directory)?;
     let parent = H::load(scope.clone(), id).await?;
     Ok((id.to_string(), scope, parent.info.project_id))
 }
@@ -338,12 +338,8 @@ query_tool!(
         query_args(&args, &[])?;
         let (parent, scope, project_id) = query_parent::<H>(&tool.parent_id, &tool.directory).await?;
         let pinned_project_id = project_id.clone();
-        let pinned = run_sync(move || {
-            H::pinned(
-                &TenantScope::default(),
-                &pinned_project_id,
-            )
-        })?;
+        let tenant = scope.tenant().clone();
+        let pinned = run_sync(move || H::pinned(&tenant, &pinned_project_id))?;
         let threads = H::visible(scope, &parent)
             .await?
             .into_iter()
@@ -384,12 +380,13 @@ query_tool!(
         let child = query_child::<H>(&tool.parent_id, &tool.directory, id).await?;
         let project_id = child.info.project_id.clone();
         let thread_id = id.to_string();
+        let tenant = SessionTool::<H>::tenant_scope();
         let actual = run_sync({
             let project_id = project_id.clone();
             let thread_id = thread_id.clone();
             move || {
                 H::pin(
-                    &TenantScope::default(),
+                    &tenant,
                     &project_id,
                     &thread_id,
                     pinned,
@@ -452,7 +449,7 @@ query_tool!(
             .filter(|title| !title.is_empty())
             .ok_or_else(|| anyhow::anyhow!("title must be a non-empty string"))?;
         query_child::<H>(&tool.parent_id, &tool.directory, id).await?;
-        let tenant = TenantScope::default();
+        let tenant = SessionTool::<H>::tenant_scope();
         let directory = tool.directory.clone();
         let id = id.to_string();
         let title = title.to_string();
@@ -479,7 +476,7 @@ query_tool!(
             .and_then(Value::as_bool)
             .ok_or_else(|| anyhow::anyhow!("archived must be a boolean"))?;
         query_child::<H>(&tool.parent_id, &tool.directory, id).await?;
-        let tenant = TenantScope::default();
+        let tenant = SessionTool::<H>::tenant_scope();
         let directory = tool.directory.clone();
         let id = id.to_string();
         let updated = H::archive(directory, tenant, id, archived).await?;

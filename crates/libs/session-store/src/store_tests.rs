@@ -1160,7 +1160,7 @@ fn sqlite_object_exists(connection: &Connection, object_type: &str, name: &str) 
 }
 
 fn assert_scope_columns(connection: &Connection, table: &str) -> Result<()> {
-    for column in ["platform_id", "company_id", "project_id"] {
+    for column in ["platform_id", "company_id", "project_id", "user_id"] {
         let found: i64 = connection.query_row(
             &format!(
                 "SELECT COUNT(*) FROM pragma_table_info('{table}')
@@ -1197,6 +1197,7 @@ fn assert_session_cascade_foreign_key(connection: &Connection, table: &str) -> R
             ("platform_id".to_owned(), "platform_id".to_owned(), "CASCADE".to_owned()),
             ("project_id".to_owned(), "project_id".to_owned(), "CASCADE".to_owned()),
             ("session_id".to_owned(), "session_id".to_owned(), "CASCADE".to_owned()),
+            ("user_id".to_owned(), "user_id".to_owned(), "CASCADE".to_owned()),
         ],
         "incomplete session cascade foreign key for {table}"
     );
@@ -1716,6 +1717,30 @@ fn session_history_explicit_replacement_rejects_stale_and_cross_scope_snapshots(
         assert_json_eq!(fixture.store.load_session(&scope, &original.id)?, Some(&replacement));
         assert!(fixture.store.replace_session_ui_history(&scope, &original, &original).is_err());
         assert_json_eq!(fixture.store.load_session(&scope, &original.id)?, Some(&replacement));
+        Ok(())
+    })
+}
+
+#[test]
+fn session_store_isolates_users_sharing_one_project_and_session_id() -> Result<()> {
+    for_each_session_store_provider(|fixture| {
+        let legacy = fixture.create_project(&fixture.tenant_a, "shared-user-project")?;
+        let named = ProjectScope::new(
+            legacy.tenant_scope().clone().with_user_id(vw_api_transport::UserId::new("42")?),
+            legacy.project_id().clone(),
+        )?;
+        let legacy_session = sample_session("same-session", "Legacy", 100);
+        let named_session = sample_session("same-session", "Named user", 200);
+
+        fixture.store.save_session(&legacy, &legacy_session)?;
+        assert!(fixture.store.load_session_any(named.tenant_scope(), &legacy_session.id)?.is_none());
+        fixture.store.save_session(&named, &named_session)?;
+
+        assert_eq!(fixture.store.list_sessions(&legacy)?[0].title, "Legacy");
+        assert_eq!(fixture.store.list_sessions(&named)?[0].title, "Named user");
+        assert!(fixture.store.delete_session(&named, &named_session.id)?);
+        assert!(fixture.store.load_session(&legacy, &legacy_session.id)?.is_some());
+        assert!(fixture.store.list_sessions(&named)?.is_empty());
         Ok(())
     })
 }

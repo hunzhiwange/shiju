@@ -1,7 +1,7 @@
 //! Shared tenant-header validation for the gateway request boundary.
 use crate::ApiError;
 use axum::{http::{HeaderMap, Method, Request}, middleware::Next, response::{IntoResponse, Response}};
-use vw_api_transport::id::{TenantScope, PLATFORM_ID_HEADER, COMPANY_ID_HEADER};
+use vw_api_transport::id::{TenantScope, UserId, PLATFORM_ID_HEADER, COMPANY_ID_HEADER, USER_ID_HEADER};
 pub async fn tenant_scope_middleware(
     mut req: Request<axum::body::Body>,
     next: Next,
@@ -25,6 +25,14 @@ pub async fn tenant_scope_middleware(
 
     req.extensions_mut().insert(scope);
     next.run(req).await
+}
+
+pub fn user_id(headers: &HeaderMap) -> Result<UserId, ApiError> {
+    if !headers.contains_key(USER_ID_HEADER) {
+        return Ok(UserId::default());
+    }
+    let value = required_tenant_header(headers, USER_ID_HEADER)?;
+    UserId::new(value.trim()).map_err(|error| ApiError::bad_request(error.to_string()))
 }
 
 fn required_tenant_header<'a>(

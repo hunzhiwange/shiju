@@ -35,15 +35,21 @@ use session_artifact_store as ui_store;
 use agent_database::GlobalDatabase;
 
 static SESSION_SCOPE: LazyLock<Mutex<Option<String>>> = LazyLock::new(|| Mutex::new(None));
+static USER_SESSION_SCOPES: LazyLock<Mutex<std::collections::HashMap<TenantScope, String>>> =
+    LazyLock::new(|| Mutex::new(std::collections::HashMap::new()));
 static TASK_STATE_WRITE: Mutex<()> = Mutex::new(());
 static PINNED_THREADS_WRITE: Mutex<()> = Mutex::new(());
 
 fn pinned_threads_scope(tenant: &TenantScope, project_id: &str) -> String {
-    ui_store::pinned_threads_scope(
+    let scope = ui_store::pinned_threads_scope(
         tenant.platform_id().as_ref(),
         tenant.company_id().as_ref(),
         project_id,
-    )
+    );
+    if tenant.user_id().as_ref() == vw_api_transport::DEFAULT_USER_ID {
+        return scope;
+    }
+    serde_json::json!([tenant.user_id(), scope]).to_string()
 }
 
 /// Load persisted pin state for one tenant and project.
@@ -203,6 +209,10 @@ impl ScopeProjectMetadata {
 }
 
 fn session_scope() -> Option<String> {
+    let tenant = current_tenant_scope();
+    if tenant.user_id().as_ref() != vw_api_transport::DEFAULT_USER_ID {
+        return USER_SESSION_SCOPES.lock().unwrap_or_else(|error| error.into_inner()).get(&tenant).cloned();
+    }
     SESSION_SCOPE.lock().unwrap_or_else(|e| e.into_inner()).clone()
 }
 
@@ -213,6 +223,16 @@ pub fn current_session_scope() -> Option<String> {
 
 /// 执行 set_session_scope 操作，并返回调用方需要的结果。
 pub fn set_session_scope(path: Option<&str>) {
+    let tenant = current_tenant_scope();
+    if tenant.user_id().as_ref() != vw_api_transport::DEFAULT_USER_ID {
+        let mut scopes = USER_SESSION_SCOPES.lock().unwrap_or_else(|error| error.into_inner());
+        if let Some(path) = path {
+            scopes.insert(tenant, path.to_owned());
+        } else {
+            scopes.remove(&tenant);
+        }
+        return;
+    }
     let mut lock = SESSION_SCOPE.lock().unwrap_or_else(|e| e.into_inner());
     *lock = path.map(|s| s.to_string());
 }

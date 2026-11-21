@@ -21,7 +21,12 @@ pub fn validate_session(session: &str) -> Result<(), String> {
 
 pub fn scope_for_directory(tenant: &vw_api_transport::TenantScope, directory: &str) -> String {
     let identity =
-        json!([tenant.platform_id().as_ref(), tenant.company_id().as_ref(), directory]).to_string();
+        if tenant.user_id().as_ref() == vw_api_transport::DEFAULT_USER_ID {
+            json!([tenant.platform_id().as_ref(), tenant.company_id().as_ref(), directory])
+        } else {
+            json!([tenant.platform_id().as_ref(), tenant.company_id().as_ref(), tenant.user_id(), directory])
+        }
+        .to_string();
     hex::encode(Sha256::digest(identity.as_bytes()))
 }
 

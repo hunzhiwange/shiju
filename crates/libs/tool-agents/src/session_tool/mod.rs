@@ -60,7 +60,7 @@ impl<H: SessionHost> SessionTool<H> {
             .ok_or_else(|| anyhow::anyhow!("SessionTool requires a current session ID"))
     }
 
-    fn tenant_scope() -> TenantScope {
+    pub(crate) fn tenant_scope() -> TenantScope {
         current_tool_use_context::<H::Context>()
             .map_or_else(H::tenant, |context| context.tenant_scope())
     }

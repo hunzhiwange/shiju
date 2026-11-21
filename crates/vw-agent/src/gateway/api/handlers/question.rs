@@ -13,4 +13,6 @@ where
     S: Clone + Send + Sync + 'static,
 {
     gateway_question::router::<S, QuestionHost>()
+        .layer(axum::middleware::from_fn(gateway_session::native_ui::session_tenant_scope))
+        .layer(axum::middleware::from_fn(crate::gateway::user_scope::session_user))
 }

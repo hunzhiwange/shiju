@@ -240,12 +240,13 @@ pub enum ProjectMessage<PreparedOpen, HistoryPage, UiPhase> {
     SessionCreated(session_info::Info),
     SessionsLoaded(Result<Vec<session_info::Info>, String>),
     SessionBootstrapLoaded {
+        gateway_user_generation: u64,
         project_path: Option<String>,
         result: Result<Vec<session_info::Info>, String>,
         previews: std::collections::HashMap<String, String>,
         archived_session_ids: std::collections::HashSet<String>,
     },
-    ProjectSessionsLoaded(String, Result<Vec<session_info::Info>, String>),
+    ProjectSessionsLoaded(u64, String, Result<Vec<session_info::Info>, String>),
     ProjectSessionListScrollChanged {
         project_path: String,
         has_vertical_scrollbar: bool,

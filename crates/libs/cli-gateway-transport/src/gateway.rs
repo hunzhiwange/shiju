@@ -20,7 +20,7 @@ use std::future::Future;
 use std::path::{Path, PathBuf};
 use config_aggregate::AcpAgentConfig;
 use vw_api_agent_scheduler::AgentSchedulerScopeDto;
-use vw_api_transport::id::ProjectScope;
+use vw_api_transport::id::{DEFAULT_USER_ID, ProjectScope, UserId};
 use {
     vw_api_transport::id::SessionId,
     vw_api_transport::id::TenantScope,
@@ -61,6 +61,8 @@ pub struct GatewayClientBootstrapConfig {
     pub platform_id: String,
     /// 请求所属的公司租户 ID。
     pub company_id: String,
+    /// 请求使用的用户 ID。
+    pub user_id: String,
 }
 
 impl Default for GatewayClientBootstrapConfig {
@@ -71,6 +73,7 @@ impl Default for GatewayClientBootstrapConfig {
             skey: None,
             platform_id: "10000".to_string(),
             company_id: "100000000".to_string(),
+            user_id: DEFAULT_USER_ID.to_owned(),
         }
     }
 }
@@ -119,8 +122,10 @@ impl GatewayClientBootstrapConfig {
     pub fn endpoint(&self) -> GatewayEndpoint {
         let tenant_scope = TenantScope::new(self.platform_id.clone(), self.company_id.clone())
             .expect("CLI gateway bootstrap tenant IDs must not be empty");
-        let mut endpoint =
-            GatewayEndpoint::new(self.host.clone(), self.port).with_tenant_scope(tenant_scope);
+        let user_id = UserId::new(self.user_id.trim()).expect("CLI gateway bootstrap user ID must not be empty");
+        let mut endpoint = GatewayEndpoint::new(self.host.clone(), self.port)
+            .with_tenant_scope(tenant_scope)
+            .with_user_id(user_id);
         if let Some(auth) = self.auth() {
             endpoint = endpoint.with_auth(auth);
         }
@@ -129,8 +134,15 @@ impl GatewayClientBootstrapConfig {
 
     /// 将顶层 JSON 根对象中的 `gateway_client` 块映射到当前结构。
     fn apply_json_root(&mut self, root: &serde_json::Value) {
-        let gateway = root.get("gateway_client").unwrap_or(root).as_object();
-        let Some(gateway) = gateway else {
+        let gateway = root.get("gateway_client").unwrap_or(root);
+        let active_id = gateway.get("active_server_id").and_then(serde_json::Value::as_str);
+        let servers = gateway.get("servers").and_then(serde_json::Value::as_array);
+        let active = servers.and_then(|servers| {
+            servers.iter().find(|server| {
+                active_id.is_some() && server.get("id").and_then(serde_json::Value::as_str) == active_id
+            }).or_else(|| servers.first())
+        });
+        let Some(gateway) = active.unwrap_or(gateway).as_object() else {
             return;
         };
 
@@ -155,6 +167,9 @@ impl GatewayClientBootstrapConfig {
         }
         if let Some(company_id) = gateway_optional_string(gateway.get("company_id")) {
             self.company_id = company_id;
+        }
+        if let Some(user_id) = gateway_optional_string(gateway.get("user_id")) {
+            self.user_id = user_id;
         }
     }
 

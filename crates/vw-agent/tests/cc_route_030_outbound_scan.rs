@@ -49,6 +49,7 @@ async fn gateway_child() {
             masked_skey: String::new(),
             name: "scan fixture".into(),
             expires_at: None,
+            user_id: None,
         }],
     )
     .await

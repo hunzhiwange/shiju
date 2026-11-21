@@ -91,6 +91,7 @@ fn configured_skeys_respect_enabled_flag_and_expiration() {
         masked_skey: String::new(),
         name: "enabled".to_string(),
         expires_at: None,
+        user_id: None,
     };
     let disabled = GatewaySkey {
         enabled: false,
@@ -99,6 +100,7 @@ fn configured_skeys_respect_enabled_flag_and_expiration() {
         masked_skey: String::new(),
         name: "disabled".to_string(),
         expires_at: None,
+        user_id: None,
     };
     let expired = GatewaySkey {
         enabled: true,
@@ -107,6 +109,7 @@ fn configured_skeys_respect_enabled_flag_and_expiration() {
         masked_skey: String::new(),
         name: "expired".to_string(),
         expires_at: Some("2000-01-01T00:00:00Z".to_string()),
+        user_id: None,
     };
     let guard = PairingGuard::from_skeys(true, &[enabled, disabled, expired]);
 
@@ -129,6 +132,7 @@ fn skey_config_updates_apply_to_existing_guard() {
         masked_skey: String::new(),
         name: "hot".to_string(),
         expires_at: None,
+        user_id: None,
     };
 
     guard.update_from_skeys(true, &[enabled]);
@@ -182,6 +186,7 @@ fn configured_skeys_reject_invalid_hashes_and_expiration_timestamps() {
         masked_skey: String::new(),
         name: "invalid-hash".to_string(),
         expires_at: None,
+        user_id: None,
     };
     let invalid_expiration = GatewaySkey {
         enabled: true,
@@ -190,6 +195,7 @@ fn configured_skeys_reject_invalid_hashes_and_expiration_timestamps() {
         masked_skey: String::new(),
         name: "invalid-expiration".to_string(),
         expires_at: Some("not-rfc3339".to_string()),
+        user_id: None,
     };
 
     let guard = PairingGuard::from_skeys(true, &[invalid_hash, invalid_expiration]);

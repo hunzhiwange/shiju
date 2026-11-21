@@ -79,6 +79,7 @@ pub fn build_gateway_settings(
         auth_enabled: gateway_cfg.auth_enabled,
         skeys: gateway_cfg.skeys,
         new_skey_name_input: String::new(),
+        new_skey_user_id_input: String::new(),
         new_skey_expires_at_input: String::new(),
         new_skey_calendar_month: String::new(),
         new_skey_calendar_open: false,
@@ -227,6 +228,7 @@ pub fn build_gateway_client_settings(
         port: gateway_client_cfg.active_server().port.clamp(1, u16::MAX),
         platform_id_input: gateway_client_cfg.active_server().platform_id.clone(),
         company_id_input: gateway_client_cfg.active_server().company_id.clone(),
+        user_id_input: gateway_client_cfg.active_server().user_id,
         skey_input: {
             let active = gateway_client_cfg.active_server();
             if active.skey.trim().is_empty() { active.bearer_token } else { active.skey }

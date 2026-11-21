@@ -21,6 +21,7 @@ use session_port::llm_raw::{LlmRawArtifact, LlmRawRound, LlmRawTurnContext};
 
 mod history;
 mod postgres;
+mod user_scope_migration;
 
 use postgres::PostgresSessionStore;
 
@@ -28,22 +29,22 @@ const FIRST_RESPONSE_SCHEMA: &str = "
 CREATE TABLE IF NOT EXISTS session_first_response (
     platform_id TEXT NOT NULL,
     company_id TEXT NOT NULL,
+    user_id TEXT NOT NULL DEFAULT '0' CHECK (trim(user_id) <> ''),
     project_id TEXT NOT NULL,
     session_id TEXT NOT NULL,
     first_response_state TEXT NOT NULL CHECK (first_response_state IN ('pending', 'committed', 'deleted')),
     first_response_preview TEXT,
-    PRIMARY KEY (platform_id, company_id, project_id, session_id),
+    PRIMARY KEY (platform_id, company_id, user_id, project_id, session_id),
     FOREIGN KEY (platform_id, company_id, project_id)
         REFERENCES projects(platform_id, company_id, project_id) ON DELETE CASCADE
 );
 ";
 
 const SESSION_SCHEMA: &str = r#"
-BEGIN IMMEDIATE;
-
 CREATE TABLE IF NOT EXISTS session_index (
     platform_id TEXT NOT NULL CHECK (trim(platform_id) <> ''),
     company_id TEXT NOT NULL CHECK (trim(company_id) <> ''),
+    user_id TEXT NOT NULL DEFAULT '0' CHECK (trim(user_id) <> ''),
     project_id TEXT NOT NULL CHECK (trim(project_id) <> ''),
     session_id TEXT NOT NULL CHECK (trim(session_id) <> ''),
     title TEXT NOT NULL,
@@ -52,19 +53,20 @@ CREATE TABLE IF NOT EXISTS session_index (
     message_count INTEGER NOT NULL,
     call_count INTEGER NOT NULL,
     last_content TEXT,
-    PRIMARY KEY (platform_id, company_id, project_id, session_id),
+    PRIMARY KEY (platform_id, company_id, user_id, project_id, session_id),
     FOREIGN KEY (platform_id, company_id, project_id)
         REFERENCES projects(platform_id, company_id, project_id) ON DELETE RESTRICT
 );
 
 CREATE INDEX IF NOT EXISTS idx_session_index_project_updated
-ON session_index(platform_id, company_id, project_id, updated_ms DESC, session_id DESC);
+ON session_index(platform_id, company_id, user_id, project_id, updated_ms DESC, session_id DESC);
 CREATE INDEX IF NOT EXISTS idx_session_index_tenant_updated
-ON session_index(platform_id, company_id, updated_ms DESC, session_id DESC, project_id);
+ON session_index(platform_id, company_id, user_id, updated_ms DESC, session_id DESC, project_id);
 
 CREATE TABLE IF NOT EXISTS session_messages (
     platform_id TEXT NOT NULL CHECK (trim(platform_id) <> ''),
     company_id TEXT NOT NULL CHECK (trim(company_id) <> ''),
+    user_id TEXT NOT NULL DEFAULT '0' CHECK (trim(user_id) <> ''),
     project_id TEXT NOT NULL CHECK (trim(project_id) <> ''),
     session_id TEXT NOT NULL CHECK (trim(session_id) <> ''),
     seq_no INTEGER NOT NULL,
@@ -77,38 +79,40 @@ CREATE TABLE IF NOT EXISTS session_messages (
     processing_completed_ms INTEGER,
     processing_elapsed_ms INTEGER,
     processing_llm_elapsed_ms INTEGER,
-    PRIMARY KEY (platform_id, company_id, project_id, session_id, seq_no),
+    PRIMARY KEY (platform_id, company_id, user_id, project_id, session_id, seq_no),
     FOREIGN KEY (platform_id, company_id, project_id)
         REFERENCES projects(platform_id, company_id, project_id) ON DELETE RESTRICT,
-    FOREIGN KEY (platform_id, company_id, project_id, session_id)
-        REFERENCES session_index(platform_id, company_id, project_id, session_id)
+    FOREIGN KEY (platform_id, company_id, user_id, project_id, session_id)
+        REFERENCES session_index(platform_id, company_id, user_id, project_id, session_id)
         ON DELETE CASCADE
 );
 
 CREATE INDEX IF NOT EXISTS idx_session_messages_project_seq
-ON session_messages(platform_id, company_id, project_id, session_id, seq_no);
+ON session_messages(platform_id, company_id, user_id, project_id, session_id, seq_no);
 
 CREATE TABLE IF NOT EXISTS session_calls (
     platform_id TEXT NOT NULL CHECK (trim(platform_id) <> ''),
     company_id TEXT NOT NULL CHECK (trim(company_id) <> ''),
+    user_id TEXT NOT NULL DEFAULT '0' CHECK (trim(user_id) <> ''),
     project_id TEXT NOT NULL CHECK (trim(project_id) <> ''),
     session_id TEXT NOT NULL CHECK (trim(session_id) <> ''),
     seq_no INTEGER NOT NULL,
     payload_json TEXT NOT NULL,
-    PRIMARY KEY (platform_id, company_id, project_id, session_id, seq_no),
+    PRIMARY KEY (platform_id, company_id, user_id, project_id, session_id, seq_no),
     FOREIGN KEY (platform_id, company_id, project_id)
         REFERENCES projects(platform_id, company_id, project_id) ON DELETE RESTRICT,
-    FOREIGN KEY (platform_id, company_id, project_id, session_id)
-        REFERENCES session_index(platform_id, company_id, project_id, session_id)
+    FOREIGN KEY (platform_id, company_id, user_id, project_id, session_id)
+        REFERENCES session_index(platform_id, company_id, user_id, project_id, session_id)
         ON DELETE CASCADE
 );
 
 CREATE INDEX IF NOT EXISTS idx_session_calls_project_seq
-ON session_calls(platform_id, company_id, project_id, session_id, seq_no);
+ON session_calls(platform_id, company_id, user_id, project_id, session_id, seq_no);
 
 CREATE TABLE IF NOT EXISTS session_steps (
     platform_id TEXT NOT NULL CHECK (trim(platform_id) <> ''),
     company_id TEXT NOT NULL CHECK (trim(company_id) <> ''),
+    user_id TEXT NOT NULL DEFAULT '0' CHECK (trim(user_id) <> ''),
     project_id TEXT NOT NULL CHECK (trim(project_id) <> ''),
     session_id TEXT NOT NULL CHECK (trim(session_id) <> ''),
     step_index INTEGER NOT NULL,
@@ -122,23 +126,24 @@ CREATE TABLE IF NOT EXISTS session_steps (
     finish_reason TEXT,
     model TEXT,
     tool_timings_json TEXT NOT NULL DEFAULT '[]',
-    PRIMARY KEY (platform_id, company_id, project_id, session_id, turn_id, step_index),
+    PRIMARY KEY (platform_id, company_id, user_id, project_id, session_id, turn_id, step_index),
     FOREIGN KEY (platform_id, company_id, project_id)
         REFERENCES projects(platform_id, company_id, project_id) ON DELETE RESTRICT,
-    FOREIGN KEY (platform_id, company_id, project_id, session_id)
-        REFERENCES session_index(platform_id, company_id, project_id, session_id)
+    FOREIGN KEY (platform_id, company_id, user_id, project_id, session_id)
+        REFERENCES session_index(platform_id, company_id, user_id, project_id, session_id)
         ON DELETE CASCADE
 );
 
 CREATE INDEX IF NOT EXISTS idx_session_steps_project_index
-ON session_steps(platform_id, company_id, project_id, session_id, step_index);
+ON session_steps(platform_id, company_id, user_id, project_id, session_id, step_index);
 
 CREATE INDEX IF NOT EXISTS idx_session_steps_project_turn_index
-ON session_steps(platform_id, company_id, project_id, session_id, turn_id, step_index);
+ON session_steps(platform_id, company_id, user_id, project_id, session_id, turn_id, step_index);
 
 CREATE TABLE IF NOT EXISTS session_todos (
     platform_id TEXT NOT NULL CHECK (trim(platform_id) <> ''),
     company_id TEXT NOT NULL CHECK (trim(company_id) <> ''),
+    user_id TEXT NOT NULL DEFAULT '0' CHECK (trim(user_id) <> ''),
     project_id TEXT NOT NULL CHECK (trim(project_id) <> ''),
     session_id TEXT NOT NULL CHECK (trim(session_id) <> ''),
     order_no INTEGER NOT NULL,
@@ -146,39 +151,41 @@ CREATE TABLE IF NOT EXISTS session_todos (
     content TEXT NOT NULL,
     status TEXT NOT NULL,
     priority TEXT NOT NULL,
-    PRIMARY KEY (platform_id, company_id, project_id, session_id, order_no),
-    UNIQUE (platform_id, company_id, project_id, session_id, todo_id),
+    PRIMARY KEY (platform_id, company_id, user_id, project_id, session_id, order_no),
+    UNIQUE (platform_id, company_id, user_id, project_id, session_id, todo_id),
     FOREIGN KEY (platform_id, company_id, project_id)
         REFERENCES projects(platform_id, company_id, project_id) ON DELETE RESTRICT,
-    FOREIGN KEY (platform_id, company_id, project_id, session_id)
-        REFERENCES session_index(platform_id, company_id, project_id, session_id)
+    FOREIGN KEY (platform_id, company_id, user_id, project_id, session_id)
+        REFERENCES session_index(platform_id, company_id, user_id, project_id, session_id)
         ON DELETE CASCADE
 );
 
 CREATE INDEX IF NOT EXISTS idx_session_todos_project_order
-ON session_todos(platform_id, company_id, project_id, session_id, order_no, todo_id);
+ON session_todos(platform_id, company_id, user_id, project_id, session_id, order_no, todo_id);
 
 CREATE TABLE IF NOT EXISTS session_step_llm_raw (
     platform_id TEXT NOT NULL CHECK (trim(platform_id) <> ''),
     company_id TEXT NOT NULL CHECK (trim(company_id) <> ''),
+    user_id TEXT NOT NULL DEFAULT '0' CHECK (trim(user_id) <> ''),
     project_id TEXT NOT NULL CHECK (trim(project_id) <> ''),
     session_id TEXT NOT NULL CHECK (trim(session_id) <> ''),
     step_index INTEGER NOT NULL,
     payload_json TEXT NOT NULL,
-    PRIMARY KEY (platform_id, company_id, project_id, session_id, step_index),
+    PRIMARY KEY (platform_id, company_id, user_id, project_id, session_id, step_index),
     FOREIGN KEY (platform_id, company_id, project_id)
         REFERENCES projects(platform_id, company_id, project_id) ON DELETE RESTRICT,
-    FOREIGN KEY (platform_id, company_id, project_id, session_id)
-        REFERENCES session_index(platform_id, company_id, project_id, session_id)
+    FOREIGN KEY (platform_id, company_id, user_id, project_id, session_id)
+        REFERENCES session_index(platform_id, company_id, user_id, project_id, session_id)
         ON DELETE CASCADE
 );
 
 CREATE INDEX IF NOT EXISTS idx_session_step_llm_raw_project_step
-ON session_step_llm_raw(platform_id, company_id, project_id, session_id, step_index);
+ON session_step_llm_raw(platform_id, company_id, user_id, project_id, session_id, step_index);
 
 CREATE TABLE IF NOT EXISTS session_llm_raw_turns (
     platform_id TEXT NOT NULL CHECK (trim(platform_id) <> ''),
     company_id TEXT NOT NULL CHECK (trim(company_id) <> ''),
+    user_id TEXT NOT NULL DEFAULT '0' CHECK (trim(user_id) <> ''),
     project_id TEXT NOT NULL CHECK (trim(project_id) <> ''),
     session_id TEXT NOT NULL CHECK (trim(session_id) <> ''),
     turn_id TEXT NOT NULL CHECK (trim(turn_id) <> ''),
@@ -188,20 +195,21 @@ CREATE TABLE IF NOT EXISTS session_llm_raw_turns (
     initial_request_config_json TEXT NOT NULL,
     initial_provider_messages_json TEXT NOT NULL,
     initial_message_sources_json TEXT NOT NULL,
-    PRIMARY KEY (platform_id, company_id, project_id, session_id, turn_id),
+    PRIMARY KEY (platform_id, company_id, user_id, project_id, session_id, turn_id),
     FOREIGN KEY (platform_id, company_id, project_id)
         REFERENCES projects(platform_id, company_id, project_id) ON DELETE RESTRICT,
-    FOREIGN KEY (platform_id, company_id, project_id, session_id)
-        REFERENCES session_index(platform_id, company_id, project_id, session_id)
+    FOREIGN KEY (platform_id, company_id, user_id, project_id, session_id)
+        REFERENCES session_index(platform_id, company_id, user_id, project_id, session_id)
         ON DELETE CASCADE
 );
 
 CREATE INDEX IF NOT EXISTS idx_session_llm_raw_turns_project_session
-ON session_llm_raw_turns(platform_id, company_id, project_id, session_id, turn_id);
+ON session_llm_raw_turns(platform_id, company_id, user_id, project_id, session_id, turn_id);
 
 CREATE TABLE IF NOT EXISTS session_llm_raw_rounds (
     platform_id TEXT NOT NULL CHECK (trim(platform_id) <> ''),
     company_id TEXT NOT NULL CHECK (trim(company_id) <> ''),
+    user_id TEXT NOT NULL DEFAULT '0' CHECK (trim(user_id) <> ''),
     project_id TEXT NOT NULL CHECK (trim(project_id) <> ''),
     session_id TEXT NOT NULL CHECK (trim(session_id) <> ''),
     turn_id TEXT NOT NULL CHECK (trim(turn_id) <> ''),
@@ -213,42 +221,42 @@ CREATE TABLE IF NOT EXISTS session_llm_raw_rounds (
     tools_delta_json TEXT,
     request_config_delta_json TEXT,
     output_json TEXT NOT NULL,
-    PRIMARY KEY (platform_id, company_id, project_id, session_id, turn_id, step_index),
+    PRIMARY KEY (platform_id, company_id, user_id, project_id, session_id, turn_id, step_index),
     FOREIGN KEY (platform_id, company_id, project_id)
         REFERENCES projects(platform_id, company_id, project_id) ON DELETE RESTRICT,
-    FOREIGN KEY (platform_id, company_id, project_id, session_id, turn_id)
-        REFERENCES session_llm_raw_turns(platform_id, company_id, project_id, session_id, turn_id)
+    FOREIGN KEY (platform_id, company_id, user_id, project_id, session_id, turn_id)
+        REFERENCES session_llm_raw_turns(platform_id, company_id, user_id, project_id, session_id, turn_id)
         ON DELETE CASCADE
 );
 
 CREATE INDEX IF NOT EXISTS idx_session_llm_raw_rounds_project_turn_step
-ON session_llm_raw_rounds(platform_id, company_id, project_id, session_id, turn_id, step_index);
+ON session_llm_raw_rounds(platform_id, company_id, user_id, project_id, session_id, turn_id, step_index);
 
 CREATE TABLE IF NOT EXISTS session_agent_sessions (
     platform_id TEXT NOT NULL CHECK (trim(platform_id) <> ''),
     company_id TEXT NOT NULL CHECK (trim(company_id) <> ''),
+    user_id TEXT NOT NULL DEFAULT '0' CHECK (trim(user_id) <> ''),
     project_id TEXT NOT NULL CHECK (trim(project_id) <> ''),
     session_id TEXT NOT NULL CHECK (trim(session_id) <> ''),
     parent_id TEXT,
     updated_ms INTEGER NOT NULL,
     info_json TEXT NOT NULL,
-    PRIMARY KEY (platform_id, company_id, project_id, session_id),
+    PRIMARY KEY (platform_id, company_id, user_id, project_id, session_id),
     FOREIGN KEY (platform_id, company_id, project_id)
         REFERENCES projects(platform_id, company_id, project_id) ON DELETE RESTRICT
 );
 
 CREATE INDEX IF NOT EXISTS idx_session_agent_sessions_project_updated
 ON session_agent_sessions(
-    platform_id, company_id, project_id, updated_ms DESC, session_id DESC
+    platform_id, company_id, user_id, project_id, updated_ms DESC, session_id DESC
 );
 CREATE INDEX IF NOT EXISTS idx_session_agent_sessions_tenant_updated
 ON session_agent_sessions(
-    platform_id, company_id, updated_ms DESC, session_id DESC, project_id
+    platform_id, company_id, user_id, updated_ms DESC, session_id DESC, project_id
 );
 CREATE INDEX IF NOT EXISTS idx_session_agent_sessions_parent
-ON session_agent_sessions(platform_id, company_id, project_id, parent_id, session_id);
+ON session_agent_sessions(platform_id, company_id, user_id, project_id, parent_id, session_id);
 
-COMMIT;
 "#;
 
 #[derive(Debug, Clone)]
@@ -330,10 +338,10 @@ impl SessionStore {
                         bail!("session was deleted");
                     }
                     transaction.execute(
-                    "INSERT INTO session_index (platform_id, company_id, project_id, session_id, title, created_ms, updated_ms, message_count, call_count, last_content)
-                     VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, 0, 0, '')
-                     ON CONFLICT (platform_id, company_id, project_id, session_id) DO NOTHING",
-                    params![scope.platform_id().as_ref(), scope.company_id().as_ref(), scope.project_id().as_ref(), info.id, info.title,
+                    "INSERT INTO session_index (platform_id, company_id, user_id, project_id, session_id, title, created_ms, updated_ms, message_count, call_count, last_content)
+                     VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, 0, 0, '')
+                     ON CONFLICT (platform_id, company_id, user_id, project_id, session_id) DO NOTHING",
+                    params![scope.platform_id().as_ref(), scope.company_id().as_ref(), scope.user_id().as_ref(), scope.project_id().as_ref(), info.id, info.title,
                         to_i64(info.time.created, "agent session created_ms")?, to_i64(info.time.updated, "agent session updated_ms")?],
                 )?;
                     Ok(())
@@ -358,12 +366,12 @@ impl SessionStore {
             SessionStoreProvider::Sqlite(database) => {
                 database.with_sqlite_transaction(TransactionBehavior::Immediate, |transaction| {
                     let changed = transaction.execute(
-                        "INSERT INTO session_dynamic_tools (platform_id, company_id, project_id, session_id, version, specs_json)
-                         VALUES (?1, ?2, ?3, ?4, ?5, ?6)
-                         ON CONFLICT (platform_id, company_id, project_id, session_id)
+                        "INSERT INTO session_dynamic_tools (platform_id, company_id, user_id, project_id, session_id, version, specs_json)
+                         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)
+                         ON CONFLICT (platform_id, company_id, user_id, project_id, session_id)
                          DO UPDATE SET version=excluded.version, specs_json=excluded.specs_json
                          WHERE session_dynamic_tools.version < excluded.version",
-                        params![scope.platform_id().as_ref(), scope.company_id().as_ref(), scope.project_id().as_ref(), session_id, version, payload],
+                        params![scope.platform_id().as_ref(), scope.company_id().as_ref(), scope.user_id().as_ref(), scope.project_id().as_ref(), session_id, version, payload],
                     )?;
                     if changed != 1 { bail!("stale persistent dynamic tool catalog version"); }
                     Ok(())
@@ -384,8 +392,8 @@ impl SessionStore {
         validate_id("session id", session_id)?;
         let payload: Option<String> = match &self.provider {
             SessionStoreProvider::Sqlite(database) => database.connect_sqlite()?.query_row(
-                "SELECT specs_json FROM session_dynamic_tools WHERE platform_id=?1 AND company_id=?2 AND project_id=?3 AND session_id=?4",
-                params![scope.platform_id().as_ref(), scope.company_id().as_ref(), scope.project_id().as_ref(), session_id],
+                "SELECT specs_json FROM session_dynamic_tools WHERE platform_id=?1 AND company_id=?2 AND user_id=?3 AND project_id=?4 AND session_id=?5",
+                params![scope.platform_id().as_ref(), scope.company_id().as_ref(), scope.user_id().as_ref(), scope.project_id().as_ref(), session_id],
                 |row| row.get(0),
             ).optional()?,
             SessionStoreProvider::Postgres(store) => run_sync_database(|| store.load_dynamic_tools(scope, session_id))?,
@@ -400,19 +408,7 @@ impl SessionStore {
     pub fn new(database: GlobalDatabase) -> Result<Self> {
         let provider = match database.provider() {
             DatabaseProvider::Sqlite => {
-                database.initialize_sqlite_schema(|connection| {
-                    connection
-                        .execute_batch(SESSION_SCHEMA)
-                        .context("initialize SQLite session schema")?;
-                    connection.execute_batch(crate::dynamic_tool_store::SCHEMA)?;
-                    connection.execute_batch(FIRST_RESPONSE_SCHEMA)?;
-                    ensure_sqlite_message_model_column(connection)?;
-                    ensure_sqlite_message_processing_timing_columns(connection)?;
-                    ensure_sqlite_step_tool_timings_column(connection)?;
-                    ensure_sqlite_step_turn_id_column(connection)?;
-                    ensure_sqlite_llm_raw_round_context_delta_columns(connection)?;
-                    Ok(())
-                })?;
+                database.initialize_sqlite_schema(user_scope_migration::initialize_sqlite)?;
                 SessionStoreProvider::Sqlite(database)
             }
             DatabaseProvider::Postgres => {
@@ -447,7 +443,7 @@ impl SessionStore {
                     }
                     let mut statement = transaction.prepare(
                         "SELECT seq_no, payload_json FROM session_calls
-                         WHERE platform_id=?1 AND company_id=?2 AND project_id=?3 AND session_id=?4
+                         WHERE platform_id=?1 AND company_id=?2 AND user_id=?3 AND project_id=?4 AND session_id=?5
                          ORDER BY seq_no")?;
                     let records = statement.query_map(scoped_id_params(scope, session_id), |row| {
                         Ok((row.get::<_, i64>(0)?, row.get::<_, String>(1)?))
@@ -455,24 +451,24 @@ impl SessionStore {
                     let seq = session_call_sequence(&records, stream)?;
                     let time = to_i64(updated_ms, "call updated_ms")?;
                     transaction.execute(
-                        "INSERT INTO session_index (platform_id, company_id, project_id, session_id,
+                        "INSERT INTO session_index (platform_id, company_id, user_id, project_id, session_id,
                          title, created_ms, updated_ms, message_count, call_count)
-                         VALUES (?1,?2,?3,?4,'新会话',?5,?5,0,0) ON CONFLICT DO NOTHING",
-                        params![scope.platform_id().as_ref(),scope.company_id().as_ref(),
+                         VALUES (?1,?2,?3,?4,?5,'新会话',?6,?6,0,0) ON CONFLICT DO NOTHING",
+                        params![scope.platform_id().as_ref(),scope.company_id().as_ref(), scope.user_id().as_ref(),
                             scope.project_id().as_ref(),session_id,time])?;
                     transaction.execute(
-                        "INSERT INTO session_calls (platform_id,company_id,project_id,session_id,seq_no,payload_json)
-                         VALUES (?1,?2,?3,?4,?5,?6)
-                         ON CONFLICT (platform_id,company_id,project_id,session_id,seq_no)
+                        "INSERT INTO session_calls (platform_id,company_id,user_id,project_id,session_id,seq_no,payload_json)
+                         VALUES (?1,?2,?3,?4,?5,?6,?7)
+                         ON CONFLICT (platform_id,company_id,user_id,project_id,session_id,seq_no)
                          DO UPDATE SET payload_json=excluded.payload_json",
-                        params![scope.platform_id().as_ref(),scope.company_id().as_ref(),
+                        params![scope.platform_id().as_ref(),scope.company_id().as_ref(), scope.user_id().as_ref(),
                             scope.project_id().as_ref(),session_id,seq,serde_json::to_string(payload)?])?;
                     transaction.execute(
-                        "UPDATE session_index SET updated_ms=MAX(updated_ms,?5), call_count=(
-                         SELECT COUNT(*) FROM session_calls WHERE platform_id=?1 AND company_id=?2
-                         AND project_id=?3 AND session_id=?4)
-                         WHERE platform_id=?1 AND company_id=?2 AND project_id=?3 AND session_id=?4",
-                        params![scope.platform_id().as_ref(),scope.company_id().as_ref(),
+                        "UPDATE session_index SET updated_ms=MAX(updated_ms,?6), call_count=(
+                         SELECT COUNT(*) FROM session_calls WHERE platform_id=?1 AND company_id=?2 AND user_id=?3
+                         AND project_id=?4 AND session_id=?5)
+                         WHERE platform_id=?1 AND company_id=?2 AND user_id=?3 AND project_id=?4 AND session_id=?5",
+                        params![scope.platform_id().as_ref(),scope.company_id().as_ref(), scope.user_id().as_ref(),
                             scope.project_id().as_ref(),session_id,time])?;
                     Ok(())
                 })
@@ -677,12 +673,13 @@ impl SessionStore {
                 let project_id = connection
                     .query_row(
                         "SELECT project_id FROM session_index
-                         WHERE platform_id = ?1 AND company_id = ?2 AND session_id = ?3
+                         WHERE platform_id = ?1 AND company_id = ?2 AND user_id = ?3 AND session_id = ?4
                          ORDER BY updated_ms DESC, project_id, session_id DESC
                          LIMIT 1",
                         params![
                             tenant.platform_id().as_ref(),
                             tenant.company_id().as_ref(),
+                            tenant.user_id().as_ref(),
                             session_id,
                         ],
                         |row| row.get::<_, String>(0),
@@ -709,12 +706,13 @@ impl SessionStore {
                     "SELECT session_id, title, updated_ms, message_count, call_count,
                            CASE WHEN first_response_state = 'committed' THEN first_response_preview ELSE last_content END
                      FROM session_index
-                         LEFT JOIN session_first_response USING (platform_id, company_id, project_id, session_id)
-                     WHERE platform_id = ?1 AND company_id = ?2 AND project_id = ?3
+                         LEFT JOIN session_first_response USING (platform_id, company_id, user_id, project_id, session_id)
+                     WHERE platform_id = ?1 AND company_id = ?2 AND user_id = ?3 AND project_id = ?4
                        AND (COALESCE(first_response_state, 'committed') = 'committed' OR (first_response_state = 'pending' AND EXISTS (
                            SELECT 1 FROM session_agent_sessions AS root
                            WHERE root.platform_id = session_index.platform_id
                              AND root.company_id = session_index.company_id
+                             AND root.user_id = session_index.user_id
                              AND root.project_id = session_index.project_id
                              AND root.session_id = session_index.session_id
                              AND root.parent_id IS NULL)))
@@ -773,20 +771,22 @@ impl SessionStore {
                         "SELECT title, updated_ms, message_count, call_count,
                            CASE WHEN first_response_state = 'committed' THEN first_response_preview ELSE last_content END
                          FROM session_index
-                         LEFT JOIN session_first_response USING (platform_id, company_id, project_id, session_id)
-                         WHERE platform_id = ?1 AND company_id = ?2 AND project_id = ?3
-                           AND session_id = ?4
+                         LEFT JOIN session_first_response USING (platform_id, company_id, user_id, project_id, session_id)
+                         WHERE platform_id = ?1 AND company_id = ?2 AND user_id = ?3 AND project_id = ?4
+                           AND session_id = ?5
                            AND ((COALESCE(first_response_state, 'committed') = 'committed' OR (first_response_state = 'pending' AND EXISTS (
                            SELECT 1 FROM session_agent_sessions AS root
                            WHERE root.platform_id = session_index.platform_id
                              AND root.company_id = session_index.company_id
+                             AND root.user_id = session_index.user_id
                              AND root.project_id = session_index.project_id
                              AND root.session_id = session_index.session_id
                              AND root.parent_id IS NULL)))
-                                OR (?5 AND first_response_state = 'pending'))",
+                                OR (?6 AND first_response_state = 'pending'))",
                         params![
                             scope.platform_id().as_ref(),
                             scope.company_id().as_ref(),
+                            scope.user_id().as_ref(),
                             scope.project_id().as_ref(),
                             session_id,
                             include_pending,
@@ -843,12 +843,13 @@ impl SessionStore {
                         }
                         transaction.execute(
                             "INSERT INTO session_index (
-                                 platform_id, company_id, project_id, session_id, title, created_ms,
+                                 platform_id, company_id, user_id, project_id, session_id, title, created_ms,
                                  updated_ms, message_count, call_count, last_content
-                             ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10) ON CONFLICT (platform_id, company_id, project_id, session_id) DO NOTHING",
+                             ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11) ON CONFLICT (platform_id, company_id, user_id, project_id, session_id) DO NOTHING",
                             params![
                                 scope.platform_id().as_ref(),
                                 scope.company_id().as_ref(),
+                                scope.user_id().as_ref(),
                                 scope.project_id().as_ref(),
                                 session.id,
                                 session.title,
@@ -883,8 +884,8 @@ impl SessionStore {
                     }
                     let changed = transaction.execute(
                         "DELETE FROM session_index
-                         WHERE platform_id = ?1 AND company_id = ?2 AND project_id = ?3
-                           AND session_id = ?4",
+                         WHERE platform_id = ?1 AND company_id = ?2 AND user_id = ?3 AND project_id = ?4
+                           AND session_id = ?5",
                         scoped_id_params(scope, session_id),
                     )?;
                     Ok(changed == 1)
@@ -915,19 +916,20 @@ impl SessionStore {
                 database.with_sqlite_transaction(TransactionBehavior::Immediate, |transaction| {
                     transaction.execute(
                         "DELETE FROM session_todos
-                         WHERE platform_id = ?1 AND company_id = ?2 AND project_id = ?3
-                           AND session_id = ?4",
+                         WHERE platform_id = ?1 AND company_id = ?2 AND user_id = ?3 AND project_id = ?4
+                           AND session_id = ?5",
                         scoped_id_params(scope, session_id),
                     )?;
                     for (order_no, todo) in todos.iter().enumerate() {
                         transaction.execute(
                             "INSERT INTO session_todos (
-                                 platform_id, company_id, project_id, session_id, order_no,
+                                 platform_id, company_id, user_id, project_id, session_id, order_no,
                                  todo_id, content, status, priority
-                             ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
+                             ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)",
                             params![
                                 scope.platform_id().as_ref(),
                                 scope.company_id().as_ref(),
+                                scope.user_id().as_ref(),
                                 scope.project_id().as_ref(),
                                 session_id,
                                 usize_to_i64(order_no, "todo order_no")?,
@@ -963,13 +965,14 @@ impl SessionStore {
             SessionStoreProvider::Sqlite(database) => {
                 database.connect_sqlite()?.execute(
                     "INSERT INTO session_step_llm_raw (
-                        platform_id, company_id, project_id, session_id, step_index, payload_json
-                    ) VALUES (?1, ?2, ?3, ?4, ?5, ?6)
-                    ON CONFLICT (platform_id, company_id, project_id, session_id, step_index)
+                        platform_id, company_id, user_id, project_id, session_id, step_index, payload_json
+                    ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)
+                    ON CONFLICT (platform_id, company_id, user_id, project_id, session_id, step_index)
                         DO UPDATE SET payload_json = excluded.payload_json",
                     params![
                         scope.platform_id().as_ref(),
                         scope.company_id().as_ref(),
+                        scope.user_id().as_ref(),
                         scope.project_id().as_ref(),
                         session_id,
                         step_index_sqlite,
@@ -1058,12 +1061,12 @@ impl SessionStore {
                 let connection = database.connect_sqlite()?;
                 let mut statement = connection.prepare(
                     "SELECT step_index FROM session_llm_raw_rounds
-                     WHERE platform_id = ?1 AND company_id = ?2 AND project_id = ?3
-                       AND session_id = ?4
+                     WHERE platform_id = ?1 AND company_id = ?2 AND user_id = ?3 AND project_id = ?4
+                       AND session_id = ?5
                      UNION
                      SELECT step_index FROM session_step_llm_raw
-                     WHERE platform_id = ?1 AND company_id = ?2 AND project_id = ?3
-                       AND session_id = ?4
+                     WHERE platform_id = ?1 AND company_id = ?2 AND user_id = ?3 AND project_id = ?4
+                       AND session_id = ?5
                      ORDER BY step_index",
                 )?;
                 statement
@@ -1071,6 +1074,7 @@ impl SessionStore {
                         params![
                             scope.platform_id().as_ref(),
                             scope.company_id().as_ref(),
+                            scope.user_id().as_ref(),
                             scope.project_id().as_ref(),
                             session_id,
                         ],
@@ -1100,8 +1104,8 @@ impl SessionStore {
                 let mut statement = connection.prepare(
                     "SELECT todo_id, content, status, priority
                      FROM session_todos
-                     WHERE platform_id = ?1 AND company_id = ?2 AND project_id = ?3
-                       AND session_id = ?4
+                     WHERE platform_id = ?1 AND company_id = ?2 AND user_id = ?3 AND project_id = ?4
+                       AND session_id = ?5
                      ORDER BY order_no, todo_id",
                 )?;
                 let todos = statement
@@ -1188,8 +1192,8 @@ impl SessionStore {
                     }
                     let changed = transaction.execute(
                         "INSERT INTO session_first_response
-                           (platform_id, company_id, project_id, session_id, first_response_state)
-                         VALUES (?1, ?2, ?3, ?4, 'pending')
+                           (platform_id, company_id, user_id, project_id, session_id, first_response_state)
+                         VALUES (?1, ?2, ?3, ?4, ?5, 'pending')
                          ON CONFLICT DO NOTHING",
                         scoped_id_params(scope, &info.id),
                     )?;
@@ -1198,10 +1202,10 @@ impl SessionStore {
                     }
                     let pending = pending_agent_info(info);
                     transaction.execute(
-                        "INSERT INTO session_index (platform_id, company_id, project_id, session_id,
+                        "INSERT INTO session_index (platform_id, company_id, user_id, project_id, session_id,
                            title, created_ms, updated_ms, message_count, call_count)
-                         VALUES (?1, ?2, ?3, ?4, '', ?5, ?6, 0, 0)",
-                        params![scope.platform_id().as_ref(), scope.company_id().as_ref(),
+                         VALUES (?1, ?2, ?3, ?4, ?5, '', ?6, ?7, 0, 0)",
+                        params![scope.platform_id().as_ref(), scope.company_id().as_ref(), scope.user_id().as_ref(),
                             scope.project_id().as_ref(), pending.id,
                             to_i64(pending.time.created, "session created_ms")?,
                             to_i64(pending.time.updated, "session updated_ms")?],
@@ -1258,12 +1262,13 @@ impl SessionStore {
                     write_index_title(transaction, scope, &session.id, &info.title)?;
                     transaction.execute(
                         "UPDATE session_first_response SET first_response_state = 'committed',
-                           first_response_preview = ?5
-                         WHERE platform_id = ?1 AND company_id = ?2 AND project_id = ?3
-                           AND session_id = ?4",
+                           first_response_preview = ?6
+                         WHERE platform_id = ?1 AND company_id = ?2 AND user_id = ?3 AND project_id = ?4
+                           AND session_id = ?5",
                         params![
                             scope.platform_id().as_ref(),
                             scope.company_id().as_ref(),
+                            scope.user_id().as_ref(),
                             scope.project_id().as_ref(),
                             session.id,
                             first_response_preview(commit.preview)
@@ -1359,8 +1364,8 @@ impl SessionStore {
                 let connection = database.connect_sqlite()?;
                 let mut statement = connection.prepare(
                     "SELECT session_id, info_json FROM session_agent_sessions
-                         LEFT JOIN session_first_response USING (platform_id, company_id, project_id, session_id)
-                     WHERE platform_id = ?1 AND company_id = ?2 AND project_id = ?3
+                         LEFT JOIN session_first_response USING (platform_id, company_id, user_id, project_id, session_id)
+                     WHERE platform_id = ?1 AND company_id = ?2 AND user_id = ?3 AND project_id = ?4
                        AND (COALESCE(first_response_state, 'committed') = 'committed' OR (first_response_state = 'pending' AND parent_id IS NULL))
                      ORDER BY updated_ms DESC, session_id DESC",
                 )?;
@@ -1394,8 +1399,8 @@ impl SessionStore {
                 let connection = database.connect_sqlite()?;
                 let mut statement = connection.prepare(
                     "SELECT session_id, info_json FROM session_agent_sessions
-                     WHERE platform_id = ?1 AND company_id = ?2 AND project_id = ?3
-                       AND parent_id = ?4
+                     WHERE platform_id = ?1 AND company_id = ?2 AND user_id = ?3 AND project_id = ?4
+                       AND parent_id = ?5
                      ORDER BY updated_ms DESC, session_id DESC",
                 )?;
                 let mut rows = statement.query(scoped_id_params(scope, parent_id))?;
@@ -1419,13 +1424,13 @@ impl SessionStore {
                 let connection = database.connect_sqlite()?;
                 let mut statement = connection.prepare(
                     "SELECT project_id, session_id, info_json FROM session_agent_sessions
-                         LEFT JOIN session_first_response USING (platform_id, company_id, project_id, session_id)
-                     WHERE platform_id = ?1 AND company_id = ?2
+                         LEFT JOIN session_first_response USING (platform_id, company_id, user_id, project_id, session_id)
+                     WHERE platform_id = ?1 AND company_id = ?2 AND user_id = ?3
                        AND (COALESCE(first_response_state, 'committed') = 'committed' OR (first_response_state = 'pending' AND parent_id IS NULL))
                      ORDER BY updated_ms DESC, session_id DESC, project_id",
                 )?;
                 let mut rows = statement
-                    .query(params![tenant.platform_id().as_ref(), tenant.company_id().as_ref(),])?;
+                    .query(params![tenant.platform_id().as_ref(), tenant.company_id().as_ref(), tenant.user_id().as_ref()])?;
                 let mut seen = HashSet::new();
                 let mut sessions = Vec::new();
                 while let Some(row) = rows.next()? {
@@ -1450,10 +1455,11 @@ impl SessionStore {
             SessionStoreProvider::Sqlite(database) => {
                 let connection = database.connect_sqlite()?;
                 let mut statement = connection.prepare(
-                    "SELECT info_json FROM session_agent_sessions WHERE platform_id != ?1 OR company_id != ?2",
+                    "SELECT info_json FROM session_agent_sessions
+                     WHERE platform_id != ?1 OR company_id != ?2 OR user_id != ?3",
                 )?;
                 let rows = statement.query_map(
-                    params![tenant.platform_id().as_ref(), tenant.company_id().as_ref()],
+                    params![tenant.platform_id().as_ref(), tenant.company_id().as_ref(), tenant.user_id().as_ref()],
                     |row| row.get::<_, String>(0),
                 )?;
                 let mut directories = rows
@@ -1489,11 +1495,11 @@ impl SessionStore {
                 let connection = database.connect_sqlite()?;
                 let mut statement = connection.prepare(
                     "SELECT project_id, session_id, info_json FROM session_agent_sessions
-                     WHERE platform_id = ?1 AND company_id = ?2
+                     WHERE platform_id = ?1 AND company_id = ?2 AND user_id = ?3
                      ORDER BY project_id, session_id",
                 )?;
                 let mut rows = statement
-                    .query(params![tenant.platform_id().as_ref(), tenant.company_id().as_ref(),])?;
+                    .query(params![tenant.platform_id().as_ref(), tenant.company_id().as_ref(), tenant.user_id().as_ref()])?;
                 let mut sessions = Vec::new();
                 while let Some(row) = rows.next()? {
                     sessions.push(parse_agent_info(
@@ -1522,12 +1528,13 @@ impl SessionStore {
                     .connect_sqlite()?
                     .query_row(
                         "SELECT project_id, info_json FROM session_agent_sessions
-                         WHERE platform_id = ?1 AND company_id = ?2 AND session_id = ?3
+                         WHERE platform_id = ?1 AND company_id = ?2 AND user_id = ?3 AND session_id = ?4
                          ORDER BY updated_ms DESC, project_id
                          LIMIT 1",
                         params![
                             tenant.platform_id().as_ref(),
                             tenant.company_id().as_ref(),
+                            tenant.user_id().as_ref(),
                             session_id,
                         ],
                         |row| Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?)),
@@ -1561,14 +1568,14 @@ impl SessionStore {
                     } else {
                         transaction.execute(
                             "DELETE FROM session_index
-                             WHERE platform_id = ?1 AND company_id = ?2 AND project_id = ?3
-                               AND session_id = ?4",
+                             WHERE platform_id = ?1 AND company_id = ?2 AND user_id = ?3 AND project_id = ?4
+                               AND session_id = ?5",
                             scoped_id_params(scope, session_id),
                         )?;
                         transaction.execute(
                             "DELETE FROM session_agent_sessions
-                             WHERE platform_id = ?1 AND company_id = ?2 AND project_id = ?3
-                               AND session_id = ?4",
+                             WHERE platform_id = ?1 AND company_id = ?2 AND user_id = ?3 AND project_id = ?4
+                               AND session_id = ?5",
                             scoped_id_params(scope, session_id),
                         )?;
                     }
@@ -1595,8 +1602,8 @@ impl SessionStore {
                     }
                     let changed = transaction.execute(
                         "DELETE FROM session_agent_sessions
-                         WHERE platform_id = ?1 AND company_id = ?2 AND project_id = ?3
-                           AND session_id = ?4",
+                         WHERE platform_id = ?1 AND company_id = ?2 AND user_id = ?3 AND project_id = ?4
+                           AND session_id = ?5",
                         scoped_id_params(scope, session_id),
                     )?;
                     Ok(changed == 1)
@@ -1617,7 +1624,7 @@ fn first_response_state(
     Ok(connection
         .query_row(
             "SELECT first_response_state FROM session_first_response
-         WHERE platform_id = ?1 AND company_id = ?2 AND project_id = ?3 AND session_id = ?4",
+         WHERE platform_id = ?1 AND company_id = ?2 AND user_id = ?3 AND project_id = ?4 AND session_id = ?5",
             scoped_id_params(scope, session_id),
             |row| row.get(0),
         )
@@ -1632,7 +1639,7 @@ fn load_agent_info(
     let json: Option<String> = connection
         .query_row(
             "SELECT info_json FROM session_agent_sessions
-         WHERE platform_id = ?1 AND company_id = ?2 AND project_id = ?3 AND session_id = ?4",
+         WHERE platform_id = ?1 AND company_id = ?2 AND user_id = ?3 AND project_id = ?4 AND session_id = ?5",
             scoped_id_params(scope, session_id),
             |row| row.get(0),
         )
@@ -1647,15 +1654,16 @@ fn write_agent_info(
 ) -> Result<()> {
     transaction.execute(
         "INSERT INTO session_agent_sessions (
-             platform_id, company_id, project_id, session_id, parent_id, updated_ms, info_json
-         ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)
-         ON CONFLICT (platform_id, company_id, project_id, session_id) DO UPDATE SET
+             platform_id, company_id, user_id, project_id, session_id, parent_id, updated_ms, info_json
+         ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)
+         ON CONFLICT (platform_id, company_id, user_id, project_id, session_id) DO UPDATE SET
              parent_id = excluded.parent_id,
              updated_ms = excluded.updated_ms,
              info_json = excluded.info_json",
         params![
             scope.platform_id().as_ref(),
             scope.company_id().as_ref(),
+            scope.user_id().as_ref(),
             scope.project_id().as_ref(),
             info.id,
             info.parent_id,
@@ -1673,11 +1681,12 @@ fn write_index_title(
     title: &str,
 ) -> Result<()> {
     let changed = transaction.execute(
-        "UPDATE session_index SET title = ?5
-         WHERE platform_id = ?1 AND company_id = ?2 AND project_id = ?3 AND session_id = ?4",
+        "UPDATE session_index SET title = ?6
+         WHERE platform_id = ?1 AND company_id = ?2 AND user_id = ?3 AND project_id = ?4 AND session_id = ?5",
         params![
             scope.platform_id().as_ref(),
             scope.company_id().as_ref(),
+            scope.user_id().as_ref(),
             scope.project_id().as_ref(),
             session_id,
             title
@@ -1698,17 +1707,17 @@ fn delete_managed_session(
     transaction.execute(
         "UPDATE session_first_response SET first_response_state = 'deleted',
            first_response_preview = NULL
-         WHERE platform_id = ?1 AND company_id = ?2 AND project_id = ?3 AND session_id = ?4",
+         WHERE platform_id = ?1 AND company_id = ?2 AND user_id = ?3 AND project_id = ?4 AND session_id = ?5",
         key,
     )?;
     transaction.execute(
         "DELETE FROM session_index
-         WHERE platform_id = ?1 AND company_id = ?2 AND project_id = ?3 AND session_id = ?4",
+         WHERE platform_id = ?1 AND company_id = ?2 AND user_id = ?3 AND project_id = ?4 AND session_id = ?5",
         key,
     )?;
     transaction.execute(
         "DELETE FROM session_agent_sessions
-         WHERE platform_id = ?1 AND company_id = ?2 AND project_id = ?3 AND session_id = ?4",
+         WHERE platform_id = ?1 AND company_id = ?2 AND user_id = ?3 AND project_id = ?4 AND session_id = ?5",
         key,
     )?;
     Ok(())
@@ -1850,11 +1859,12 @@ fn sqlite_session_step_turn_id(
     let turn_id = connection
         .query_row(
             "SELECT turn_id FROM session_steps
-             WHERE platform_id = ?1 AND company_id = ?2 AND project_id = ?3
-               AND session_id = ?4 AND step_index = ?5",
+             WHERE platform_id = ?1 AND company_id = ?2 AND user_id = ?3 AND project_id = ?4
+               AND session_id = ?5 AND step_index = ?6",
             params![
                 scope.platform_id().as_ref(),
                 scope.company_id().as_ref(),
+                scope.user_id().as_ref(),
                 scope.project_id().as_ref(),
                 session_id,
                 i64::from(step_index),
@@ -1875,11 +1885,12 @@ fn load_sqlite_legacy_session_step_llm_raw(
         .query_row(
             "SELECT payload_json
              FROM session_step_llm_raw
-             WHERE platform_id = ?1 AND company_id = ?2 AND project_id = ?3
-               AND session_id = ?4 AND step_index = ?5",
+             WHERE platform_id = ?1 AND company_id = ?2 AND user_id = ?3 AND project_id = ?4
+               AND session_id = ?5 AND step_index = ?6",
             params![
                 scope.platform_id().as_ref(),
                 scope.company_id().as_ref(),
+                scope.user_id().as_ref(),
                 scope.project_id().as_ref(),
                 session_id,
                 i64::from(step_index),
@@ -1908,11 +1919,12 @@ fn load_sqlite_session_turn_step_llm_raw(
             "SELECT model_json, system_json, tools_json, initial_request_config_json,
                     initial_provider_messages_json, initial_message_sources_json
              FROM session_llm_raw_turns
-             WHERE platform_id = ?1 AND company_id = ?2 AND project_id = ?3
-               AND session_id = ?4 AND turn_id = ?5",
+             WHERE platform_id = ?1 AND company_id = ?2 AND user_id = ?3 AND project_id = ?4
+               AND session_id = ?5 AND turn_id = ?6",
             params![
                 scope.platform_id().as_ref(),
                 scope.company_id().as_ref(),
+                scope.user_id().as_ref(),
                 scope.project_id().as_ref(),
                 session_id,
                 turn_id,
@@ -1964,8 +1976,8 @@ fn load_sqlite_session_turn_step_llm_raw(
                 message_source_suffix_json, system_delta_json, tools_delta_json,
                 request_config_delta_json, output_json
          FROM session_llm_raw_rounds
-         WHERE platform_id = ?1 AND company_id = ?2 AND project_id = ?3
-           AND session_id = ?4 AND turn_id = ?5 AND step_index <= ?6
+         WHERE platform_id = ?1 AND company_id = ?2 AND user_id = ?3 AND project_id = ?4
+           AND session_id = ?5 AND turn_id = ?6 AND step_index <= ?7
          ORDER BY step_index",
     )?;
     let rounds = statement
@@ -1973,6 +1985,7 @@ fn load_sqlite_session_turn_step_llm_raw(
             params![
                 scope.platform_id().as_ref(),
                 scope.company_id().as_ref(),
+                scope.user_id().as_ref(),
                 scope.project_id().as_ref(),
                 session_id,
                 turn_id,
@@ -2063,11 +2076,11 @@ fn upsert_session_header(
     }
     transaction.execute(
         "INSERT INTO session_index (
-             platform_id, company_id, project_id, session_id, title, created_ms, updated_ms,
+             platform_id, company_id, user_id, project_id, session_id, title, created_ms, updated_ms,
              message_count, call_count, last_content
-         ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)
-         ON CONFLICT (platform_id, company_id, project_id, session_id) DO UPDATE SET
-             title = CASE WHEN ?11 THEN session_index.title ELSE excluded.title END,
+         ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)
+         ON CONFLICT (platform_id, company_id, user_id, project_id, session_id) DO UPDATE SET
+             title = CASE WHEN ?12 THEN session_index.title ELSE excluded.title END,
              created_ms = excluded.created_ms,
              updated_ms = excluded.updated_ms,
              message_count = excluded.message_count,
@@ -2076,6 +2089,7 @@ fn upsert_session_header(
         params![
             scope.platform_id().as_ref(),
             scope.company_id().as_ref(),
+            scope.user_id().as_ref(),
             scope.project_id().as_ref(),
             session.id,
             session.title,
@@ -2099,7 +2113,7 @@ fn existing_session_call_count(
     let call_count = transaction
         .query_row(
             "SELECT call_count FROM session_index
-             WHERE platform_id = ?1 AND company_id = ?2 AND project_id = ?3 AND session_id = ?4",
+             WHERE platform_id = ?1 AND company_id = ?2 AND user_id = ?3 AND project_id = ?4 AND session_id = ?5",
             scoped_id_params(scope, session_id),
             |row| row.get::<_, i64>(0),
         )
@@ -2115,7 +2129,7 @@ fn reject_stale_session_ui_content(
     let stored_updated_ms = transaction
         .query_row(
             "SELECT updated_ms FROM session_index
-             WHERE platform_id = ?1 AND company_id = ?2 AND project_id = ?3 AND session_id = ?4",
+             WHERE platform_id = ?1 AND company_id = ?2 AND user_id = ?3 AND project_id = ?4 AND session_id = ?5",
             scoped_id_params(scope, &session.id),
             |row| row.get::<_, i64>(0),
         )
@@ -2142,7 +2156,7 @@ fn replace_session_messages(
 ) -> Result<()> {
     transaction.execute(
         "DELETE FROM session_messages
-         WHERE platform_id = ?1 AND company_id = ?2 AND project_id = ?3 AND session_id = ?4",
+         WHERE platform_id = ?1 AND company_id = ?2 AND user_id = ?3 AND project_id = ?4 AND session_id = ?5",
         scoped_id_params(scope, &session.id),
     )?;
     for (seq_no, message) in session.messages.iter().enumerate() {
@@ -2173,13 +2187,14 @@ fn replace_session_messages(
             .transpose()?;
         transaction.execute(
             "INSERT INTO session_messages (
-                 platform_id, company_id, project_id, session_id, seq_no, role, message_id,
+                 platform_id, company_id, user_id, project_id, session_id, seq_no, role, message_id,
                  content, model, think_timing_json, processing_started_ms, processing_completed_ms,
                  processing_elapsed_ms, processing_llm_elapsed_ms
-             ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14)",
+             ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15)",
             params![
                 scope.platform_id().as_ref(),
                 scope.company_id().as_ref(),
+                scope.user_id().as_ref(),
                 scope.project_id().as_ref(),
                 session.id,
                 usize_to_i64(seq_no, "message seq_no")?,
@@ -2205,18 +2220,19 @@ fn replace_session_calls(
 ) -> Result<()> {
     transaction.execute(
         "DELETE FROM session_calls
-         WHERE platform_id = ?1 AND company_id = ?2 AND project_id = ?3 AND session_id = ?4",
+         WHERE platform_id = ?1 AND company_id = ?2 AND user_id = ?3 AND project_id = ?4 AND session_id = ?5",
         scoped_id_params(scope, &session.id),
     )?;
     for (seq_no, payload) in session.calls.iter().enumerate() {
         let payload_json = serde_json::to_string(payload).context("serialize session call JSON")?;
         transaction.execute(
             "INSERT INTO session_calls (
-                 platform_id, company_id, project_id, session_id, seq_no, payload_json
-             ) VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+                 platform_id, company_id, user_id, project_id, session_id, seq_no, payload_json
+             ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
             params![
                 scope.platform_id().as_ref(),
                 scope.company_id().as_ref(),
+                scope.user_id().as_ref(),
                 scope.project_id().as_ref(),
                 session.id,
                 usize_to_i64(seq_no, "call seq_no")?,
@@ -2234,7 +2250,7 @@ fn replace_session_steps(
 ) -> Result<()> {
     transaction.execute(
         "DELETE FROM session_steps
-         WHERE platform_id = ?1 AND company_id = ?2 AND project_id = ?3 AND session_id = ?4",
+         WHERE platform_id = ?1 AND company_id = ?2 AND user_id = ?3 AND project_id = ?4 AND session_id = ?5",
         scoped_id_params(scope, &session.id),
     )?;
     for step in &session.steps {
@@ -2244,13 +2260,14 @@ fn replace_session_steps(
             .context("serialize step tool timings JSON")?;
         transaction.execute(
             "INSERT INTO session_steps (
-                 platform_id, company_id, project_id, session_id, step_index, turn_id, started_ms,
+                 platform_id, company_id, user_id, project_id, session_id, step_index, turn_id, started_ms,
                  finished_ms, start_snapshot_path, finish_snapshot_path, usage_json, cost_usd,
                  finish_reason, model, tool_timings_json
-             ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15)",
+             ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16)",
             params![
                 scope.platform_id().as_ref(),
                 scope.company_id().as_ref(),
+                scope.user_id().as_ref(),
                 scope.project_id().as_ref(),
                 session.id,
                 i64::from(step.index),
@@ -2349,11 +2366,11 @@ fn upsert_session_llm_raw_turn(
 ) -> Result<()> {
     transaction.execute(
         "INSERT INTO session_llm_raw_turns (
-             platform_id, company_id, project_id, session_id, turn_id, model_json, system_json,
+             platform_id, company_id, user_id, project_id, session_id, turn_id, model_json, system_json,
              tools_json, initial_request_config_json, initial_provider_messages_json,
              initial_message_sources_json
-         ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)
-         ON CONFLICT (platform_id, company_id, project_id, session_id, turn_id) DO UPDATE SET
+         ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12)
+         ON CONFLICT (platform_id, company_id, user_id, project_id, session_id, turn_id) DO UPDATE SET
              model_json = excluded.model_json,
              system_json = excluded.system_json,
              tools_json = excluded.tools_json,
@@ -2363,6 +2380,7 @@ fn upsert_session_llm_raw_turn(
         params![
             scope.platform_id().as_ref(),
             scope.company_id().as_ref(),
+            scope.user_id().as_ref(),
             scope.project_id().as_ref(),
             context.session_id,
             context.turn_id,
@@ -2385,11 +2403,11 @@ fn upsert_session_llm_raw_round(
 ) -> Result<()> {
     transaction.execute(
         "INSERT INTO session_llm_raw_rounds (
-             platform_id, company_id, project_id, session_id, turn_id, step_index,
+             platform_id, company_id, user_id, project_id, session_id, turn_id, step_index,
              provider_message_prefix_len, provider_message_suffix_json, message_source_suffix_json,
              system_delta_json, tools_delta_json, request_config_delta_json, output_json
-         ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13)
-         ON CONFLICT (platform_id, company_id, project_id, session_id, turn_id, step_index)
+         ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14)
+         ON CONFLICT (platform_id, company_id, user_id, project_id, session_id, turn_id, step_index)
              DO UPDATE SET
                  provider_message_prefix_len = excluded.provider_message_prefix_len,
                  provider_message_suffix_json = excluded.provider_message_suffix_json,
@@ -2401,6 +2419,7 @@ fn upsert_session_llm_raw_round(
         params![
             scope.platform_id().as_ref(),
             scope.company_id().as_ref(),
+            scope.user_id().as_ref(),
             scope.project_id().as_ref(),
             session_id,
             round.turn_id,
@@ -2487,22 +2506,23 @@ fn load_session_message_page_sqlite(
                 processing_started_ms, processing_completed_ms, processing_elapsed_ms,
                 processing_llm_elapsed_ms
          FROM session_messages
-         WHERE platform_id = ?1 AND company_id = ?2 AND project_id = ?3 AND session_id = ?4
-           AND seq_no < ?5
-         ORDER BY seq_no DESC LIMIT ?6"
+         WHERE platform_id = ?1 AND company_id = ?2 AND user_id = ?3 AND project_id = ?4 AND session_id = ?5
+           AND seq_no < ?6
+         ORDER BY seq_no DESC LIMIT ?7"
     } else {
         "SELECT seq_no, message_id, role, content, model, think_timing_json,
                 processing_started_ms, processing_completed_ms, processing_elapsed_ms,
                 processing_llm_elapsed_ms
          FROM session_messages
-         WHERE platform_id = ?1 AND company_id = ?2 AND project_id = ?3 AND session_id = ?4
-         ORDER BY seq_no DESC LIMIT ?5"
+         WHERE platform_id = ?1 AND company_id = ?2 AND user_id = ?3 AND project_id = ?4 AND session_id = ?5
+         ORDER BY seq_no DESC LIMIT ?6"
     };
     let mut statement = connection.prepare(sql)?;
     let mut rows = match before_seq_no {
         Some(before) => statement.query(params![
             scope.platform_id().as_ref(),
             scope.company_id().as_ref(),
+            scope.user_id().as_ref(),
             scope.project_id().as_ref(),
             session_id,
             before,
@@ -2511,6 +2531,7 @@ fn load_session_message_page_sqlite(
         None => statement.query(params![
             scope.platform_id().as_ref(),
             scope.company_id().as_ref(),
+            scope.user_id().as_ref(),
             scope.project_id().as_ref(),
             session_id,
             fetch_limit
@@ -2578,7 +2599,7 @@ fn apply_session_message_delta_sqlite(
     let (stored_updated_ms, stored_message_count) = transaction
         .query_row(
             "SELECT updated_ms, message_count FROM session_index
-             WHERE platform_id = ?1 AND company_id = ?2 AND project_id = ?3 AND session_id = ?4",
+             WHERE platform_id = ?1 AND company_id = ?2 AND user_id = ?3 AND project_id = ?4 AND session_id = ?5",
             scoped_id_params(scope, &delta.session_id),
             |row| Ok((row.get::<_, i64>(0)?, row.get::<_, i64>(1)?)),
         )
@@ -2602,11 +2623,12 @@ fn apply_session_message_delta_sqlite(
     let truncated_rows = if let Some(boundary) = delta.truncate_after {
         transaction.execute(
             "DELETE FROM session_messages
-             WHERE platform_id = ?1 AND company_id = ?2 AND project_id = ?3 AND session_id = ?4
-               AND seq_no > ?5",
+             WHERE platform_id = ?1 AND company_id = ?2 AND user_id = ?3 AND project_id = ?4 AND session_id = ?5
+               AND seq_no > ?6",
             params![
                 scope.platform_id().as_ref(),
                 scope.company_id().as_ref(),
+                scope.user_id().as_ref(),
                 scope.project_id().as_ref(),
                 delta.session_id,
                 to_i64(boundary, "message truncate boundary")?
@@ -2621,18 +2643,19 @@ fn apply_session_message_delta_sqlite(
     let last_content: Option<String> = transaction
         .query_row(
             "SELECT content FROM session_messages
-             WHERE platform_id = ?1 AND company_id = ?2 AND project_id = ?3 AND session_id = ?4
+             WHERE platform_id = ?1 AND company_id = ?2 AND user_id = ?3 AND project_id = ?4 AND session_id = ?5
              ORDER BY seq_no DESC LIMIT 1",
             scoped_id_params(scope, &delta.session_id),
             |row| row.get(0),
         )
         .optional()?;
     transaction.execute(
-        "UPDATE session_index SET updated_ms = ?5, message_count = ?6, last_content = ?7
-         WHERE platform_id = ?1 AND company_id = ?2 AND project_id = ?3 AND session_id = ?4",
+        "UPDATE session_index SET updated_ms = ?6, message_count = ?7, last_content = ?8
+         WHERE platform_id = ?1 AND company_id = ?2 AND user_id = ?3 AND project_id = ?4 AND session_id = ?5",
         params![
             scope.platform_id().as_ref(),
             scope.company_id().as_ref(),
+            scope.user_id().as_ref(),
             scope.project_id().as_ref(),
             delta.session_id,
             to_i64(delta.updated_ms, "session updated_ms")?,
@@ -2654,11 +2677,11 @@ fn upsert_session_message_sqlite(
     let (started, completed, elapsed, llm_elapsed) = message_processing_values(message)?;
     transaction.execute(
         "INSERT INTO session_messages (
-             platform_id, company_id, project_id, session_id, seq_no, role, message_id,
+             platform_id, company_id, user_id, project_id, session_id, seq_no, role, message_id,
              content, model, think_timing_json, processing_started_ms, processing_completed_ms,
              processing_elapsed_ms, processing_llm_elapsed_ms
-         ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14)
-         ON CONFLICT (platform_id, company_id, project_id, session_id, seq_no) DO UPDATE SET
+         ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15)
+         ON CONFLICT (platform_id, company_id, user_id, project_id, session_id, seq_no) DO UPDATE SET
              role = excluded.role, message_id = excluded.message_id, content = excluded.content,
              model = excluded.model, think_timing_json = excluded.think_timing_json,
              processing_started_ms = excluded.processing_started_ms,
@@ -2668,6 +2691,7 @@ fn upsert_session_message_sqlite(
         params![
             scope.platform_id().as_ref(),
             scope.company_id().as_ref(),
+            scope.user_id().as_ref(),
             scope.project_id().as_ref(),
             session_id,
             to_i64(record.seq_no, "message seq_no")?,
@@ -2716,7 +2740,7 @@ fn load_session_from_connection(
     let header = connection
         .query_row(
             "SELECT title, created_ms, updated_ms FROM session_index
-             WHERE platform_id = ?1 AND company_id = ?2 AND project_id = ?3 AND session_id = ?4",
+             WHERE platform_id = ?1 AND company_id = ?2 AND user_id = ?3 AND project_id = ?4 AND session_id = ?5",
             scoped_id_params(scope, session_id),
             |row| Ok((row.get::<_, String>(0)?, row.get::<_, i64>(1)?, row.get::<_, i64>(2)?)),
         )
@@ -2750,7 +2774,7 @@ fn load_messages(
                 processing_started_ms, processing_completed_ms, processing_elapsed_ms,
                 processing_llm_elapsed_ms
          FROM session_messages
-         WHERE platform_id = ?1 AND company_id = ?2 AND project_id = ?3 AND session_id = ?4
+         WHERE platform_id = ?1 AND company_id = ?2 AND user_id = ?3 AND project_id = ?4 AND session_id = ?5
          ORDER BY seq_no",
     )?;
     let mut rows = statement.query(scoped_id_params(scope, session_id))?;
@@ -2796,149 +2820,6 @@ fn load_messages(
     Ok((messages, message_ids))
 }
 
-fn ensure_sqlite_message_model_column(connection: &Connection) -> Result<()> {
-    let mut statement = connection.prepare("PRAGMA table_info(session_messages)")?;
-    let mut rows = statement.query([])?;
-    while let Some(row) = rows.next()? {
-        if row.get::<_, String>(1)? == "model" {
-            return Ok(());
-        }
-    }
-
-    connection
-        .execute("ALTER TABLE session_messages ADD COLUMN model TEXT", [])
-        .context("add SQLite session message model column")?;
-    Ok(())
-}
-
-fn ensure_sqlite_message_processing_timing_columns(connection: &Connection) -> Result<()> {
-    let columns = {
-        let mut statement = connection.prepare("PRAGMA table_info(session_messages)")?;
-        let rows = statement.query_map([], |row| row.get::<_, String>(1))?;
-        rows.collect::<rusqlite::Result<HashSet<_>>>()?
-    };
-    if !columns.contains("processing_started_ms") {
-        connection
-            .execute("ALTER TABLE session_messages ADD COLUMN processing_started_ms INTEGER", [])
-            .context("add SQLite session message processing started_ms column")?;
-    }
-    if !columns.contains("processing_completed_ms") {
-        connection
-            .execute("ALTER TABLE session_messages ADD COLUMN processing_completed_ms INTEGER", [])
-            .context("add SQLite session message processing completed_ms column")?;
-    }
-    if !columns.contains("processing_elapsed_ms") {
-        connection
-            .execute("ALTER TABLE session_messages ADD COLUMN processing_elapsed_ms INTEGER", [])
-            .context("add SQLite session message processing elapsed_ms column")?;
-    }
-    if !columns.contains("processing_llm_elapsed_ms") {
-        connection
-            .execute(
-                "ALTER TABLE session_messages ADD COLUMN processing_llm_elapsed_ms INTEGER",
-                [],
-            )
-            .context("add SQLite session message processing llm_elapsed_ms column")?;
-    }
-    Ok(())
-}
-
-fn ensure_sqlite_step_tool_timings_column(connection: &Connection) -> Result<()> {
-    let mut statement = connection.prepare("PRAGMA table_info(session_steps)")?;
-    let rows = statement.query_map([], |row| row.get::<_, String>(1))?;
-    if rows.collect::<rusqlite::Result<HashSet<_>>>()?.contains("tool_timings_json") {
-        return Ok(());
-    }
-    connection
-        .execute(
-            "ALTER TABLE session_steps ADD COLUMN tool_timings_json TEXT NOT NULL DEFAULT '[]'",
-            [],
-        )
-        .context("add SQLite session step tool timings column")?;
-    Ok(())
-}
-
-fn ensure_sqlite_llm_raw_round_context_delta_columns(connection: &Connection) -> Result<()> {
-    let mut statement = connection.prepare("PRAGMA table_info(session_llm_raw_rounds)")?;
-    let columns = statement
-        .query_map([], |row| row.get::<_, String>(1))?
-        .collect::<rusqlite::Result<HashSet<_>>>()?;
-    if !columns.contains("system_delta_json") {
-        connection
-            .execute("ALTER TABLE session_llm_raw_rounds ADD COLUMN system_delta_json TEXT", [])
-            .context("add SQLite LLM raw round system delta column")?;
-    }
-    if !columns.contains("tools_delta_json") {
-        connection
-            .execute("ALTER TABLE session_llm_raw_rounds ADD COLUMN tools_delta_json TEXT", [])
-            .context("add SQLite LLM raw round tools delta column")?;
-    }
-    Ok(())
-}
-
-fn ensure_sqlite_step_turn_id_column(connection: &Connection) -> Result<()> {
-    let mut statement = connection.prepare("PRAGMA table_info(session_steps)")?;
-    let columns = statement
-        .query_map([], |row| Ok((row.get::<_, String>(1)?, row.get::<_, i64>(5)?)))?
-        .collect::<rusqlite::Result<Vec<_>>>()?;
-    if !columns.iter().any(|(name, _)| name == "turn_id") {
-        connection
-            .execute("ALTER TABLE session_steps ADD COLUMN turn_id TEXT NOT NULL DEFAULT ''", [])
-            .context("add SQLite session step turn_id column")?;
-    }
-
-    if columns.iter().any(|(name, primary_key_order)| name == "turn_id" && *primary_key_order > 0) {
-        return Ok(());
-    }
-
-    connection
-        .execute_batch(
-            "BEGIN IMMEDIATE;
-             ALTER TABLE session_steps RENAME TO session_steps_legacy;
-             CREATE TABLE session_steps (
-                 platform_id TEXT NOT NULL CHECK (trim(platform_id) <> ''),
-                 company_id TEXT NOT NULL CHECK (trim(company_id) <> ''),
-                 project_id TEXT NOT NULL CHECK (trim(project_id) <> ''),
-                 session_id TEXT NOT NULL CHECK (trim(session_id) <> ''),
-                 step_index INTEGER NOT NULL,
-                 turn_id TEXT NOT NULL DEFAULT '',
-                 started_ms INTEGER NOT NULL,
-                 finished_ms INTEGER,
-                 start_snapshot_path TEXT,
-                 finish_snapshot_path TEXT,
-                 usage_json TEXT NOT NULL,
-                 cost_usd REAL,
-                 finish_reason TEXT,
-                 model TEXT,
-                 tool_timings_json TEXT NOT NULL DEFAULT '[]',
-                 PRIMARY KEY (platform_id, company_id, project_id, session_id, turn_id, step_index),
-                 FOREIGN KEY (platform_id, company_id, project_id)
-                     REFERENCES projects(platform_id, company_id, project_id) ON DELETE RESTRICT,
-                 FOREIGN KEY (platform_id, company_id, project_id, session_id)
-                     REFERENCES session_index(platform_id, company_id, project_id, session_id)
-                     ON DELETE CASCADE
-             );
-             INSERT INTO session_steps (
-                 platform_id, company_id, project_id, session_id, step_index, turn_id, started_ms,
-                 finished_ms, start_snapshot_path, finish_snapshot_path, usage_json, cost_usd,
-                 finish_reason, model, tool_timings_json
-             )
-             SELECT
-                 platform_id, company_id, project_id, session_id, step_index, COALESCE(turn_id, ''),
-                 started_ms, finished_ms, start_snapshot_path, finish_snapshot_path, usage_json,
-                 cost_usd, finish_reason, model, tool_timings_json
-             FROM session_steps_legacy;
-             DROP TABLE session_steps_legacy;
-             CREATE INDEX idx_session_steps_project_index
-                 ON session_steps(platform_id, company_id, project_id, session_id, step_index);
-             CREATE INDEX idx_session_steps_project_turn_index
-                 ON session_steps(platform_id, company_id, project_id, session_id, turn_id, step_index);
-             COMMIT;",
-        )
-        .context("migrate SQLite session step key to turn identity")?;
-    Ok(())
-}
-
 fn load_calls(
     connection: &Connection,
     scope: &ProjectScope,
@@ -2946,7 +2827,7 @@ fn load_calls(
 ) -> Result<Vec<serde_json::Value>> {
     let mut statement = connection.prepare(
         "SELECT payload_json FROM session_calls
-         WHERE platform_id = ?1 AND company_id = ?2 AND project_id = ?3 AND session_id = ?4
+         WHERE platform_id = ?1 AND company_id = ?2 AND user_id = ?3 AND project_id = ?4 AND session_id = ?5
          ORDER BY seq_no",
     )?;
     let mut rows = statement.query(scoped_id_params(scope, session_id))?;
@@ -2970,7 +2851,7 @@ fn load_steps(
         "SELECT step_index, turn_id, started_ms, finished_ms, start_snapshot_path, finish_snapshot_path,
                 usage_json, cost_usd, finish_reason, model, tool_timings_json
          FROM session_steps
-         WHERE platform_id = ?1 AND company_id = ?2 AND project_id = ?3 AND session_id = ?4
+         WHERE platform_id = ?1 AND company_id = ?2 AND user_id = ?3 AND project_id = ?4 AND session_id = ?5
          ORDER BY step_index",
     )?;
     let mut rows = statement.query(scoped_id_params(scope, session_id))?;
@@ -3068,15 +2949,15 @@ fn from_i64_usize(value: i64, field: &str) -> Result<usize> {
     usize::try_from(value).with_context(|| format!("{field} is negative or too large"))
 }
 
-fn scope_params(scope: &ProjectScope) -> (&str, &str, &str) {
-    (scope.platform_id().as_ref(), scope.company_id().as_ref(), scope.project_id().as_ref())
+fn scope_params(scope: &ProjectScope) -> (&str, &str, &str, &str) {
+    (scope.platform_id().as_ref(), scope.company_id().as_ref(), scope.user_id().as_ref(), scope.project_id().as_ref())
 }
 
 fn scoped_id_params<'a>(
     scope: &'a ProjectScope,
     id: &'a str,
-) -> (&'a str, &'a str, &'a str, &'a str) {
-    (scope.platform_id().as_ref(), scope.company_id().as_ref(), scope.project_id().as_ref(), id)
+) -> (&'a str, &'a str, &'a str, &'a str, &'a str) {
+    (scope.platform_id().as_ref(), scope.company_id().as_ref(), scope.user_id().as_ref(), scope.project_id().as_ref(), id)
 }
 
 /// Reject corrupt metadata instead of treating an unreadable foreign tenant as absent.

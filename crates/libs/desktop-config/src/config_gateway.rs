@@ -37,7 +37,7 @@ pub fn load_tools_list_via_gateway(&self) -> Vec<String> {
 }
 
 use config_ui::GatewayClientSystemSettingsConfig;
-use vw_api_transport::id::TenantScope;
+use vw_api_transport::id::{TenantScope, UserId};
 #[cfg(not(target_arch = "wasm32"))]
 use serde::de::DeserializeOwned;
 pub use crate::access::set_config_value_at_path;
@@ -101,6 +101,7 @@ pub fn gateway_client_endpoint_from_config(
     GatewayEndpoint::new(host, active.port.clamp(1, u16::MAX))
         .with_auth(auth)
         .with_tenant_scope(tenant_scope)
+        .with_user_id(UserId::new(active.user_id.trim()).expect("gateway client user ID must not be empty"))
 }
 pub fn normalize_tool_ids(mut tools: Vec<String>) -> Vec<String> {
     tools.retain(|tool_id| {

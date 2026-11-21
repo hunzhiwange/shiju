@@ -36,6 +36,7 @@ pub(crate) fn router<S>() -> Router<S>
 where S: Clone + Send + Sync + 'static,
 {
     gateway_permission::router::<S, Host>()
+        .layer(axum::middleware::from_fn(crate::gateway::user_scope::session_user))
 }
 
 #[cfg(test)]

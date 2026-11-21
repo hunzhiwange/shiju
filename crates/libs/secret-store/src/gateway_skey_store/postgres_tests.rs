@@ -50,6 +50,7 @@ fn replace_all_rejects_sqlite_backend_without_mutating_it() {
         masked_skey: "masked".to_string(),
         name: "test key".to_string(),
         expires_at: None,
+        user_id: None,
     };
 
     let error = store

@@ -510,15 +510,16 @@ fn update_navigation(
             {
                 app.workspace_state.project_sessions_loading.insert(path.clone());
                 let directory = path.clone();
+                let generation = app.session_state.gateway_user_generation;
+                let client = crate::app::gateway_client().map_err(|err| err.to_string());
                 let sessions = Task::perform(
                     async move {
-                        let client = crate::app::gateway_client().map_err(|err| err.to_string())?;
                         crate::app::message::project::helpers::list_gateway_project_sessions(
-                            &client, &directory,
+                            &client?, &directory,
                         )
                         .await
                     },
-                    |result| Message::Project(ProjectMessage::ProjectSessionsLoaded(path, result)),
+                    move |result| Message::Project(ProjectMessage::ProjectSessionsLoaded(generation, path, result)),
                 );
                 return Task::batch([save, sessions]);
             }

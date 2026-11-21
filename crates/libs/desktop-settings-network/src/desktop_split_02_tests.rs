@@ -92,6 +92,7 @@ fn gateway_client_server_draft_round_trips_config_and_clamps_port() {
         port: 0,
         platform_id: "20000".to_string(),
         company_id: "200000001".to_string(),
+        user_id: "0".to_string(),
         bearer_token: "bearer".to_string(),
         username: "user".to_string(),
         password: "pass".to_string(),
@@ -132,6 +133,7 @@ fn gateway_client_server_draft_uses_bearer_token_when_skey_is_blank() {
         port: u16::MAX,
         platform_id: "platform".to_string(),
         company_id: "company".to_string(),
+        user_id: "0".to_string(),
         bearer_token: "legacy-token".to_string(),
         username: String::new(),
         password: String::new(),
@@ -156,6 +158,7 @@ fn gateway_client_server_draft_to_config_clamps_zero_and_clears_legacy_credentia
         port: 0,
         platform_id: "10000".to_string(),
         company_id: "100000000".to_string(),
+        user_id: "0".to_string(),
         skey: "current-skey".to_string(),
     };
 

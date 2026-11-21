@@ -185,6 +185,7 @@ async fn global_config_api_projects_shared_skeys_and_ignores_conflicting_legacy_
                 masked_skey: "shared-mask".to_string(),
                 name: "shared-only".to_string(),
                 expires_at: None,
+                user_id: None,
             }],
         )
         .expect("seed shared skey");

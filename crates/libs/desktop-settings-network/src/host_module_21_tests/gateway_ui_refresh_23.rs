@@ -565,6 +565,7 @@ async fn ui_refresh_23_scrolls_skeys_and_keeps_row_indices() {
                 format!("fixture key {index:02}")
             },
             expires_at: (index == 0).then_some("2030-02-14T23:59:59Z".into()),
+            user_id: None,
         })
         .collect();
 

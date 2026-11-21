@@ -15,6 +15,8 @@ pub struct GatewayClientServerConfig {
     pub platform_id: String,
     #[serde(default = "default_company_id", deserialize_with = "deserialize_tenant_id")]
     pub company_id: String,
+    #[serde(default = "default_user_id", deserialize_with = "deserialize_tenant_id")]
+    pub user_id: String,
     /// 旧版 `bearer_token` 字段，仅用于读取旧配置并迁移到 skey。
     #[serde(default, skip_serializing_if = "String::is_empty")]
     pub bearer_token: String,
@@ -38,6 +40,8 @@ pub struct GatewayClientSystemSettingsConfig {
     pub platform_id: String,
     #[serde(default = "default_company_id", deserialize_with = "deserialize_tenant_id")]
     pub company_id: String,
+    #[serde(default = "default_user_id", deserialize_with = "deserialize_tenant_id")]
+    pub user_id: String,
     /// 旧版 `bearer_token` 字段，仅用于读取旧配置并迁移到 skey。
     #[serde(default, skip_serializing_if = "String::is_empty")]
     pub bearer_token: String,
@@ -71,6 +75,10 @@ fn default_company_id() -> String {
     "100000000".to_string()
 }
 
+fn default_user_id() -> String {
+    "0".to_string()
+}
+
 fn deserialize_tenant_id<'de, D>(deserializer: D) -> Result<String, D::Error>
 where
     D: serde::Deserializer<'de>,
@@ -97,6 +105,7 @@ impl Default for GatewayClientSystemSettingsConfig {
             port: default_gateway_client_port(),
             platform_id: default_platform_id(),
             company_id: default_company_id(),
+            user_id: default_user_id(),
             bearer_token: String::new(),
             username: String::new(),
             password: String::new(),
@@ -116,6 +125,7 @@ impl Default for GatewayClientServerConfig {
             port: default_gateway_client_port(),
             platform_id: default_platform_id(),
             company_id: default_company_id(),
+            user_id: default_user_id(),
             bearer_token: String::new(),
             username: String::new(),
             password: String::new(),
@@ -134,6 +144,7 @@ impl GatewayClientSystemSettingsConfig {
                 port: self.port,
                 platform_id: self.platform_id.clone(),
                 company_id: self.company_id.clone(),
+                user_id: self.user_id.clone(),
                 bearer_token: self.bearer_token.clone(),
                 username: self.username.clone(),
                 password: self.password.clone(),
@@ -194,6 +205,7 @@ impl GatewayClientSystemSettingsConfig {
         self.port = active.port;
         self.platform_id = active.platform_id.clone();
         self.company_id = active.company_id.clone();
+        self.user_id = active.user_id.clone();
         self.bearer_token = active.bearer_token.clone();
         self.username = active.username.clone();
         self.password = active.password.clone();

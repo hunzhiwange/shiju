@@ -25,10 +25,12 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
     let Some(old_endpoint) = old_endpoint else {
         return save;
     };
-    let preferences = if old_endpoint.base_url() != endpoint.base_url()
+    let user_changed = old_endpoint.user_id() != endpoint.user_id();
+    let connection_changed = old_endpoint.base_url() != endpoint.base_url()
         || old_endpoint.tenant_scope() != endpoint.tenant_scope()
-        || old_endpoint.auth.and_then(|auth| auth.skey) != endpoint.auth.and_then(|auth| auth.skey)
-    {
+        || old_endpoint.auth.as_ref().and_then(|auth| auth.skey.as_ref())
+            != endpoint.auth.as_ref().and_then(|auth| auth.skey.as_ref());
+    let preferences = if connection_changed || user_changed {
         let archived = super::archived_chats::gateway_changed(app);
         app.session_state.last_llm_full_access = None;
         app.reset_draft_full_access();
@@ -37,7 +39,29 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
     } else {
         Task::none()
     };
-    Task::batch([save, preferences, Task::done(Message::GatewayHealthTick)])
+    let named_user = endpoint.user_id().as_ref() != vw_api_transport::DEFAULT_USER_ID;
+    let sessions = if user_changed || (named_user && connection_changed) {
+        app.session_state.gateway_user_generation = app.session_state.gateway_user_generation.wrapping_add(1);
+        app.session_state.agent_stream_id = app.session_state.agent_stream_id.wrapping_add(1);
+        app.session_state.active_session_id = None;
+        app.session_state.session_view_cache.gateway_changed();
+        app.session_state.session_chat_cache.clear();
+        app.session_state.session_chat_message_id_cache.clear();
+        app.session_state.session_runtime_states.clear();
+        app.session_state.session_history_reset_boundaries = Default::default();
+        app.session_state.session_reasoning_efforts.clear();
+        app.session_state.permission_modal_requests.clear();
+        app.session_state.paged_chat_timeline = None;
+        app.close_session_transient_ui();
+        app.workspace_state.project_sessions.clear();
+        app.workspace_state.project_sessions_loading.clear();
+        app.workspace_state.project_session_load_counts.clear();
+        app.workspace_state.session_tree_expanded.clear();
+        app.reload_sessions_for_project(app.navigation_tabs.project_path.clone())
+    } else {
+        Task::none()
+    };
+    Task::batch([save, preferences, sessions, Task::done(Message::GatewayHealthTick)])
 }
 
 #[cfg(test)]

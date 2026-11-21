@@ -40,6 +40,7 @@ impl PlanRunHost for Host {
 
 pub(crate) fn router<S: Clone + Send + Sync + 'static>() -> axum::Router<S> {
     gateway_task::task_plan_run::router::<S, Host>()
+        .layer(axum::middleware::from_fn(crate::gateway::user_scope::session_user))
 }
 
 #[cfg(test)]

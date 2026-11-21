@@ -27,6 +27,7 @@ async fn gateway_pairing_production_boundary() {
         masked_skey: pairing::masked_skey_name(skey),
         name: "boundary fixture".to_string(),
         expires_at: None,
+        user_id: None,
     }]);
     assert!(shared_guard.is_authenticated(skey));
     assert!(!shared_guard.is_authenticated(&token));

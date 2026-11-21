@@ -62,6 +62,7 @@ pub struct ArchivedChatDeleteTarget {
 pub struct ArchivedChatsIdentity {
     pub gateway: String,
     pub tenant: vw_api_transport::TenantScope,
+    pub user_id: vw_api_transport::UserId,
     pub auth_fingerprint: [u8; 32],
 }
 
@@ -81,6 +82,7 @@ impl ArchivedChatsIdentity {
         Self {
             gateway: endpoint.base_url(),
             tenant: endpoint.tenant_scope().clone(),
+            user_id: endpoint.user_id().clone(),
             auth_fingerprint: Sha256::digest(auth.as_bytes()).into(),
         }
     }

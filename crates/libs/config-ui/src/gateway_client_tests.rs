@@ -8,6 +8,7 @@ fn normalized_servers_falls_back_repairs_blanks_and_selects_active() {
         port: 19999,
         platform_id: "10000".to_string(),
         company_id: "100000000".to_string(),
+        user_id: "0".to_string(),
         bearer_token: "token".to_string(),
         username: "user".to_string(),
         password: "pass".to_string(),
@@ -64,6 +65,7 @@ fn set_servers_syncs_active_connection_fields_and_falls_back() {
         port: 443,
         platform_id: "20000".to_string(),
         company_id: "200000001".to_string(),
+        user_id: "42".to_string(),
         bearer_token: "token".to_string(),
         username: "u".to_string(),
         password: "p".to_string(),
@@ -77,6 +79,7 @@ fn set_servers_syncs_active_connection_fields_and_falls_back() {
     assert_eq!(gateway.port, 443);
     assert_eq!(gateway.platform_id, "20000");
     assert_eq!(gateway.company_id, "200000001");
+    assert_eq!(gateway.user_id, "42");
     assert_eq!(gateway.bearer_token, "token");
     assert_eq!(gateway.username, "u");
     assert_eq!(gateway.password, "p");
@@ -128,6 +131,7 @@ fn gateway_client_tenant_fields_default_serialize_and_reject_blanks() {
     let json = serde_json::to_value(&server).unwrap();
     assert_eq!(json["platform_id"], "10000");
     assert_eq!(json["company_id"], "100000000");
+    assert_eq!(json["user_id"], "0");
 
     assert!(
         serde_json::from_value::<GatewayClientServerConfig>(serde_json::json!({

@@ -291,6 +291,14 @@ pub fn view<'a>(app: View<'a>) -> Element<'a, Message> {
             )
         },
     );
+    let user_id_row = text_row(
+        app,
+        connection_text(app.desktop_locale, "用户 ID"),
+        connection_text(app.desktop_locale, "当前网关请求使用的用户 ID，默认为 0。"),
+        "0",
+        &s.user_id_input,
+        |value| Message::GatewayClient(GatewayClientMessage::UserIdChanged(value)),
+    );
     let skey_row = secure_text_row(
         app,
         "skey",
@@ -352,6 +360,8 @@ pub fn view<'a>(app: View<'a>) -> Element<'a, Message> {
             platform_id_row,
             settings_divider(),
             company_id_row,
+            settings_divider(),
+            user_id_row,
         ]),
         text(connection_text(app.desktop_locale, "认证")).size(17),
         settings_group_card(skey_row),

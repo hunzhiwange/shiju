@@ -67,6 +67,7 @@ fn save_config_to_store_omits_gateway_skeys_from_system_payload() {
             masked_skey: String::new(),
             name: "  \t ".to_string(),
             expires_at: Some("  2026-12-31T23:59:59Z  ".to_string()),
+            user_id: None,
         },
         GatewaySkey {
             enabled: false,
@@ -75,6 +76,7 @@ fn save_config_to_store_omits_gateway_skeys_from_system_payload() {
             masked_skey: "saved-mask".to_string(),
             name: "  Existing Name  ".to_string(),
             expires_at: Some(" \n ".to_string()),
+            user_id: None,
         },
     ];
 

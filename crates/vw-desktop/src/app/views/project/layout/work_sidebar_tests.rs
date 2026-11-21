@@ -874,6 +874,7 @@ fn work_sidebar_projection_reuses_scroll_snapshot_and_updates_after_session_chan
     assert_eq!(app.status_animation_frame, frame.wrapping_add(1));
     assert!(std::sync::Arc::ptr_eq(&first, &work_sidebar::cached_model(&app)));
     let event = ProjectMessage::ProjectSessionsLoaded(
+        0,
         "/workspace".into(),
         Ok(vec![session("new", "New", "/workspace", 2)]),
     );
@@ -1021,6 +1022,7 @@ fn browser_and_request_polling_reuse_sidebar_without_hiding_metadata_updates() {
         assert!(std::sync::Arc::ptr_eq(&snapshot, &work_sidebar::cached_model(&app)));
     }
     let event = ProjectMessage::ProjectSessionsLoaded(
+        0,
         "/workspace".into(),
         Ok(vec![session("task", "Renamed", "/workspace", 2)]),
     );

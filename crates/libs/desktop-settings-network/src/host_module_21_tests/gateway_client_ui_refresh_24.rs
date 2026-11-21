@@ -214,6 +214,7 @@ fn fixture() -> App {
         port: s.port,
         platform_id: s.platform_id_input.clone(),
         company_id: s.company_id_input.clone(),
+        user_id: "0".to_string(),
         skey: s.skey_input.clone(),
     }];
     app

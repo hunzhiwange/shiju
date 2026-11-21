@@ -36,7 +36,7 @@ pub(super) fn validate_sqlite_snapshot(
 ) -> Result<()> {
     let mut statement = connection.prepare(
         "SELECT seq_no, role, message_id, content FROM session_messages
-         WHERE platform_id = ?1 AND company_id = ?2 AND project_id = ?3 AND session_id = ?4",
+         WHERE platform_id = ?1 AND company_id = ?2 AND user_id = ?3 AND project_id = ?4 AND session_id = ?5",
     )?;
     let mut rows = statement.query(super::scoped_id_params(scope, &session.id))?;
     while let Some(row) = rows.next()? {
@@ -65,21 +65,23 @@ pub(super) fn validate_postgres_snapshot(
     // an append cannot commit between validation and snapshot replacement.
     client.query_opt(
         "SELECT 1 FROM session_index
-         WHERE platform_id = $1 AND company_id = $2 AND project_id = $3 AND session_id = $4
+         WHERE platform_id = $1 AND company_id = $2 AND user_id = $3 AND project_id = $4 AND session_id = $5
          FOR UPDATE",
         &[
             &scope.platform_id().as_ref(),
             &scope.company_id().as_ref(),
+            &scope.user_id().as_ref(),
             &scope.project_id().as_ref(),
             &session.id,
         ],
     )?;
     for row in client.query(
         "SELECT seq_no, role, message_id, content FROM session_messages
-         WHERE platform_id = $1 AND company_id = $2 AND project_id = $3 AND session_id = $4",
+         WHERE platform_id = $1 AND company_id = $2 AND user_id = $3 AND project_id = $4 AND session_id = $5",
         &[
             &scope.platform_id().as_ref(),
             &scope.company_id().as_ref(),
+            &scope.user_id().as_ref(),
             &scope.project_id().as_ref(),
             &session.id,
         ],
@@ -104,8 +106,8 @@ pub(super) fn validate_sqlite_delta(
 ) -> Result<()> {
     let mut statement = connection.prepare(
         "SELECT role, message_id, content FROM session_messages
-         WHERE platform_id = ?1 AND company_id = ?2 AND project_id = ?3
-           AND session_id = ?4 AND seq_no = ?5",
+         WHERE platform_id = ?1 AND company_id = ?2 AND user_id = ?3 AND project_id = ?4
+           AND session_id = ?5 AND seq_no = ?6",
     )?;
     for record in &delta.upserts {
         // The caller explicitly authorized replacing the truncated tail.
@@ -118,6 +120,7 @@ pub(super) fn validate_sqlite_delta(
                 params![
                     scope.platform_id().as_ref(),
                     scope.company_id().as_ref(),
+                    scope.user_id().as_ref(),
                     scope.project_id().as_ref(),
                     delta.session_id,
                     seq_no
@@ -155,11 +158,12 @@ pub(super) fn validate_postgres_delta(
         let seq_no = super::to_i64(record.seq_no, "message seq_no")?;
         if let Some(row) = client.query_opt(
             "SELECT role, message_id, content FROM session_messages
-             WHERE platform_id = $1 AND company_id = $2 AND project_id = $3
-               AND session_id = $4 AND seq_no = $5",
+             WHERE platform_id = $1 AND company_id = $2 AND user_id = $3 AND project_id = $4
+               AND session_id = $5 AND seq_no = $6",
             &[
                 &scope.platform_id().as_ref(),
                 &scope.company_id().as_ref(),
+                &scope.user_id().as_ref(),
                 &scope.project_id().as_ref(),
                 &delta.session_id,
                 &seq_no,

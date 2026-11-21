@@ -75,6 +75,7 @@ impl App {
             self.workspace_state.project_sessions_loading.insert(project_path.clone());
         }
         let path_clone = path.clone();
+        let gateway_user_generation = self.session_state.gateway_user_generation;
         let project_id = self.workspace_state.project_id.clone();
         let endpoint = crate::app::config::gateway_client_endpoint();
 
@@ -95,6 +96,7 @@ impl App {
             >| match res {
                 Ok((sessions, previews, archived_session_ids)) => crate::app::Message::Project(
                     crate::app::message::project::ProjectMessage::SessionBootstrapLoaded {
+                        gateway_user_generation,
                         project_path: path.clone(),
                         result: Ok(sessions),
                         previews,
@@ -103,6 +105,7 @@ impl App {
                 ),
                 Err(err) => crate::app::Message::Project(
                     crate::app::message::project::ProjectMessage::SessionBootstrapLoaded {
+                        gateway_user_generation,
                         project_path: path,
                         result: Err(err.to_string()),
                         previews: std::collections::HashMap::new(),

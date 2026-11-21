@@ -101,6 +101,7 @@ pub(crate) fn router() -> Router<AppState> {
         .route("/session/{session_id}/any", get(session_ui_get_any::<ui_ops::Host>))
         .route("/session/{session_id}/title", post(session_title_generate))
         .layer(from_fn(session_tenant_scope))
+        .layer(from_fn(crate::gateway::user_scope::session_user))
 }
 
 

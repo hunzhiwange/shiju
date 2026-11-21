@@ -95,6 +95,10 @@ pub struct GatewaySkey {
     /// 可选过期时间，RFC3339 格式，例如 `2026-12-31T23:59:59Z`。
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub expires_at: Option<String>,
+
+    /// 用户会话 ID。旧 skey 允许使用默认用户 0。
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub user_id: Option<String>,
 }
 
 /// `[gateway.node_control]` 下的 Node-control 脚手架配置。

@@ -52,6 +52,7 @@ fn server(id: &str, name: &str, host: &str, port: u16) -> GatewayClientServerDra
         port,
         platform_id: "10000".to_string(),
         company_id: "100000000".to_string(),
+        user_id: "0".to_string(),
         skey: String::new(),
     }
 }

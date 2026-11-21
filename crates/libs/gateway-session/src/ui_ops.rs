@@ -61,6 +61,8 @@ struct MessageCursor {
     session_id: String,
     platform_id: String,
     company_id: String,
+    #[serde(default)]
+    user_id: vw_api_transport::UserId,
     scope: String,
     before_seq_no: u64,
 }
@@ -145,6 +147,7 @@ pub async fn session_ui_messages<H: UiHost>(
             || cursor.scope != scope
             || cursor.platform_id != tenant.platform_id().as_ref()
             || cursor.company_id != tenant.company_id().as_ref()
+            || &cursor.user_id != tenant.user_id()
         {
             return Err(ApiError::bad_request(
                 "session message cursor does not match request scope",
@@ -187,6 +190,7 @@ pub async fn session_ui_messages<H: UiHost>(
                 session_id,
                 platform_id: tenant.platform_id().as_ref().to_owned(),
                 company_id: tenant.company_id().as_ref().to_owned(),
+                user_id: tenant.user_id().clone(),
                 scope,
                 before_seq_no: record.seq_no,
             })
@@ -566,7 +570,10 @@ pub async fn session_path_get<H: UiHost>(
 }
 
 pub async fn session_scope_get<H: UiHost>() -> Result<Json<Option<String>>, ApiError> {
-    let scope = agent_database::run_isolated(H::current_session_scope)
+    let tenant = H::current_tenant_scope();
+    let scope = agent_database::run_isolated(move || {
+        session_store::ui_store::with_tenant_scope_sync(tenant, H::current_session_scope)
+    })
         .await
         .map_err(|e| ApiError::internal(e.to_string()))?;
     Ok(Json(scope))
@@ -575,7 +582,10 @@ pub async fn session_scope_get<H: UiHost>() -> Result<Json<Option<String>>, ApiE
 pub async fn session_scope_put<H: UiHost>(
     Json(body): Json<GatewaySessionScopeBody>,
 ) -> Result<Json<bool>, ApiError> {
-    agent_database::run_isolated(move || H::set_session_scope(body.scope.as_deref()))
+    let tenant = H::current_tenant_scope();
+    agent_database::run_isolated(move || {
+        session_store::ui_store::with_tenant_scope_sync(tenant, || H::set_session_scope(body.scope.as_deref()))
+    })
         .await
         .map_err(|e| ApiError::internal(e.to_string()))?;
     Ok(Json(true))

@@ -16,7 +16,7 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
         {
             let page = &app.apps_catalog.third_party_skills;
             let available = if page.bindings.snapshot.is_some() {
-                page.available_targets(&input.targets)
+                page.available_targets()
             } else {
                 saved.into_iter().filter(|target| input.targets.contains(target)).collect()
             };

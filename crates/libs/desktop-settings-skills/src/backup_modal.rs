@@ -10,6 +10,7 @@ pub fn view<'a, M: Clone + 'static>(
     s: ViewState<'a>,
     base: Element<'a, M>,
     message: fn(Event) -> M,
+    app_name: impl Fn(vw_api_app_identity::AppId) -> String,
 ) -> Element<'a, M> {
     if !s.open {
         return base;
@@ -86,7 +87,7 @@ pub fn view<'a, M: Clone + 'static>(
             body =
                 body.push(
                     checkbox(s.targets.contains(&target))
-                        .label(format!("{:?} · {}", target.app_id, target.installation_id))
+                        .label(app_name(target.app_id))
                         .text_size(SETTINGS_CONTROL_TEXT_SIZE)
                         .style(style::checkbox)
                         .on_toggle_maybe((!s.busy).then_some(move |enabled| {

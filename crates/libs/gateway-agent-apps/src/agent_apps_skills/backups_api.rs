@@ -52,8 +52,8 @@ async fn execute(tenant: TenantScope, db: Option<Extension<GlobalDatabase>>, pol
         let project = ProjectScope::new(tenant, scope.project_id.clone()).map_err(|_| StatusCode::BAD_REQUEST)?;
         #[cfg(target_os = "macos")]
         {
-            use vw_agent_apps::{skills::{backup_catalog, app_paths, bulk_sync::SkillInstallTarget},
-                apps::discovery::read::resolve_cli_installation};
+            use vw_agent_apps::skills::{backup_catalog, app_paths, bulk_sync::prepare_default_directory};
+            use vw_api_app_skills::bindings_api::DEFAULT_SKILL_DIRECTORY;
             let (env, root) = app_access_service::access::authorize_skill_bindings(
                 policy.0.as_deref(), &headers, &project, &scope.target_host_id)?;
             let id = match &operation { Operation::List => None,
@@ -85,15 +85,14 @@ async fn execute(tenant: TenantScope, db: Option<Extension<GlobalDatabase>>, pol
                     let mut targets = std::collections::BTreeMap::new();
                     for (index, target) in apps.iter().enumerate() {
                         if apps[..index].contains(target) { return Err(StatusCode::BAD_REQUEST); }
-                        SkillInstallTarget { installation_id: target.installation_id.clone(), app_id: target.app_id }
-                            .validate().map_err(|_| StatusCode::BAD_REQUEST)?;
-                        if !resolve_cli_installation(target.app_id, &env,
-                            &vw_api_app_identity::AppInstallationId(target.installation_id.clone()))
-                            .map_err(|_| StatusCode::CONFLICT)? { return Err(StatusCode::NOT_FOUND); }
+                        super::bindings_api::authorize_target(target, &env)?;
                         let path = app_paths::resolve(&env.home, target.app_id, None,
                             &std::collections::BTreeMap::new(), &[&root]).map_err(|_| StatusCode::BAD_REQUEST)?;
                         let key = serde_json::to_string(&(target.installation_id.clone(), target.app_id, entry.skill.directory.clone()))
                             .map_err(|_| StatusCode::BAD_REQUEST)?;
+                        if target.installation_id == DEFAULT_SKILL_DIRECTORY {
+                            prepare_default_directory(&env.home, &path).map_err(|_| StatusCode::CONFLICT)?;
+                        }
                         targets.insert(key, path);
                     }
                     let db = match db { Some(Extension(db)) => db,

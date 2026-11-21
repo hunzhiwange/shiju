@@ -78,17 +78,11 @@ pub(crate) fn execute(
     if matches!(effect, Effect::None) {
         return Task::none();
     }
-    let targets = app.apps_catalog.third_party_skills.bindings.targets.clone();
-    let input = crate::app::message::settings::skills::update_input(app);
-    let snapshot = app.apps_catalog.third_party_skills.bindings.snapshot.clone();
-    let targets = targets
-        .into_iter()
-        .filter(|target| {
-            input.targets.contains(target)
-                && snapshot.as_ref().is_some_and(|s| {
-                    s.capabilities.iter().any(|c| c.app_id == target.app_id && c.supported)
-                })
-        })
+    let page = &app.apps_catalog.third_party_skills;
+    let available = page.available_targets();
+    let targets = page.bindings.targets.iter()
+        .filter(|target| available.contains(target))
+        .cloned()
         .collect::<Vec<_>>();
     let token = app.apps_catalog.token.clone();
     let request_scope = SkillReposQuery {

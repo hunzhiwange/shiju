@@ -44,8 +44,7 @@ async fn execute(tenant: TenantScope, db: Option<Extension<GlobalDatabase>>, hea
         let policy = std::env::var_os("SHIJU_AGENT_APPS_ACCESS_FILE").map(std::path::PathBuf::from);
         #[cfg(target_os = "macos")]
         {
-            use vw_agent_apps::{apps::discovery::read::resolve_cli_installation,
-                skills::{app_paths, bulk_sync::SkillSyncTarget, link_deploy::SyncMethod}};
+            use vw_agent_apps::skills::{app_paths, bulk_sync::SkillSyncTarget, link_deploy::SyncMethod};
             use app_settings_store::agent_apps_skills_store::SkillInstallsStore;
             // Both inventory and install authority are required to expose and change roots.
             app_access_service::access::authorize_skill_inventory(policy.as_deref(), &headers, &project, &scope.target_host_id)?;
@@ -74,8 +73,7 @@ async fn execute(tenant: TenantScope, db: Option<Extension<GlobalDatabase>>, hea
                     let mut targets = Vec::new();
                     for (index, target) in request.targets.iter().enumerate() {
                         if request.targets[..index].contains(target) { return Err(StatusCode::BAD_REQUEST); }
-                        if !resolve_cli_installation(target.app_id, &env, &vw_api_app_identity::AppInstallationId(target.installation_id.clone()))
-                            .map_err(|_| StatusCode::CONFLICT)? { return Err(StatusCode::NOT_FOUND); }
+                        super::bindings_api::authorize_target(target, &env)?;
                         let path = app_paths::resolve(&env.home, target.app_id, None, &std::collections::BTreeMap::new(), &[&state.ssot_root, &destination])
                             .map_err(|_| StatusCode::BAD_REQUEST)?;
                         targets.push(SkillSyncTarget { installation_id: target.installation_id.clone(), path });

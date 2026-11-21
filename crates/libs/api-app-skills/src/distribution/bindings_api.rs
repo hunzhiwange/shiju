@@ -6,6 +6,16 @@ use super::repos_api::SkillReposQuery;
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct SkillBindingTarget { pub installation_id: String, pub app_id: AppId }
+
+/// Reserved identity for the application's default skill directory on the scoped host.
+/// Discovered CLI installation IDs use base64url and cannot contain a colon.
+pub const DEFAULT_SKILL_DIRECTORY: &str = "skills:default";
+
+impl SkillBindingTarget {
+    pub fn application(app_id: AppId) -> Self {
+        Self { installation_id: DEFAULT_SKILL_DIRECTORY.into(), app_id }
+    }
+}
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum SkillBindingMode { Auto, Symlink, Copy }

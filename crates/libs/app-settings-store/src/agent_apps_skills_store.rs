@@ -1049,12 +1049,15 @@ impl SkillInstallsStore {
                 let attempt = (|| -> Result<()> {
                     target.identity().validate()?;
                     let state = self.get(scope, host, ssot)?;
+                    let installation = existing_skill_binding_installation(
+                        &state, target, directory,
+                    )?;
                     if enabled {
                         self.enable_with_method(scope, host, state.version, ssot,
-                            &target.installation_id, &target.path, directory, method)?;
+                            &installation, &target.path, directory, method)?;
                     } else {
                         self.disable_deploy(scope, host, state.version, ssot,
-                            &target.installation_id, &target.path, directory)?;
+                            &installation, &target.path, directory)?;
                     }
                     Ok(())
                 })();
@@ -1141,7 +1144,7 @@ impl SkillInstallsStore {
                         Ok(identity) => identity,
                         Err(_) => continue, // Invalid identities grant no cleanup authority.
                     };
-                if installation != target.installation_id || app != target.path.app_id { continue; }
+                if !matches_skill_binding_installation(target, app, &installation) { continue; }
                 let mut status = SkillSyncStatus::Enabled;
                 let attempt = (|| -> Result<()> {
                     target.identity().validate()?;
@@ -1173,6 +1176,50 @@ impl SkillInstallsStore {
         }
         Ok(result)
     }
+}
+
+#[cfg(target_os = "macos")]
+fn matches_skill_binding_installation(
+    target: &app_skills::bulk_sync::SkillSyncTarget,
+    app: vw_api_app_identity::AppId,
+    installation: &str,
+) -> bool {
+    use vw_api_app_skills::bindings_api::DEFAULT_SKILL_DIRECTORY;
+
+    target.path.app_id == app
+        && (target.installation_id == installation
+            || target.installation_id == DEFAULT_SKILL_DIRECTORY
+            || installation == DEFAULT_SKILL_DIRECTORY)
+}
+
+#[cfg(target_os = "macos")]
+fn existing_skill_binding_installation(
+    state: &SkillInstallsState,
+    target: &app_skills::bulk_sync::SkillSyncTarget,
+    directory: &str,
+) -> Result<String> {
+    let exact = serde_json::to_string(&(target.installation_id.as_str(), target.path.app_id, directory))?;
+    if state.copy_bindings.contains_key(&exact) {
+        return Ok(target.installation_id.clone());
+    }
+    let destination = match target.path.directory.canonicalize() {
+        Ok(root) => root.join(directory),
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(target.installation_id.clone()),
+        Err(error) => return Err(error.into()),
+    };
+    let mut compatible = None;
+    for (key, binding) in &state.copy_bindings {
+        if binding.directory != directory || binding.destination != destination {
+            continue;
+        }
+        let Ok((installation, app, saved_directory)) =
+            serde_json::from_str::<(String, vw_api_app_identity::AppId, String)>(key) else { continue; };
+        if saved_directory == directory && matches_skill_binding_installation(target, app, &installation) {
+            ensure!(compatible.is_none(), "ambiguous saved skill binding");
+            compatible = Some(installation);
+        }
+    }
+    Ok(compatible.unwrap_or_else(|| target.installation_id.clone()))
 }
 
 #[cfg(target_os = "macos")]
@@ -1289,7 +1336,7 @@ impl SkillInstallsStore {
             let (installation, app, directory): (String, vw_api_app_identity::AppId, String) =
                 serde_json::from_str(key)?;
             ensure!(directory == binding.directory && targets.iter().any(|target|
-                target.installation_id == installation && target.path.app_id == app
+                matches_skill_binding_installation(target, app, &installation)
                     && target.path.directory.join(&directory) == binding.destination),
                 "skill migration requires every bound application target");
         }

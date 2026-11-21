@@ -3,6 +3,7 @@ use desktop_provider_apps::AgentAppsContext;
 use vw_api_app_skills::bindings_api::SkillBindingTarget;
 
 /// Explicit scope and authorization readback; no credentials enter domain events.
+#[derive(Clone)]
 pub struct Input {
     pub connection_error: String,
     pub context: Option<AgentAppsContext>,

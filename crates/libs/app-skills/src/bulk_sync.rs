@@ -90,3 +90,28 @@ pub fn validate_targets(targets: &[SkillInstallTarget]) -> Result<(), SkillTarge
     }
     Ok(())
 }
+
+/// Create the resolved directory beneath the authorized home without following links.
+pub fn prepare_default_directory(
+    home: &std::path::Path,
+    target: &AppSkillsPath,
+) -> std::io::Result<()> {
+    use std::{ffi::CString, io, os::{fd::AsRawFd, unix::ffi::OsStrExt}, path::Component};
+
+    target.require_distribution().map_err(io::Error::other)?;
+    let invalid = || io::Error::new(io::ErrorKind::InvalidInput, "unsafe skill directory");
+    let relative = target.directory.strip_prefix(home).map_err(|_| invalid())?;
+    let mut path = home.to_path_buf();
+    let mut parent = app_config_paths::open_beneath(home, home, true).map_err(|_| invalid())?;
+    for part in relative.components() {
+        let Component::Normal(name) = part else { return Err(invalid()); };
+        let entry = CString::new(name.as_bytes())?;
+        if unsafe { libc::mkdirat(parent.as_raw_fd(), entry.as_ptr(), 0o700) } != 0 {
+            let error = io::Error::last_os_error();
+            if error.kind() != io::ErrorKind::AlreadyExists { return Err(error); }
+        }
+        path.push(name);
+        parent = app_config_paths::open_beneath(home, &path, true).map_err(|_| invalid())?;
+    }
+    Ok(())
+}

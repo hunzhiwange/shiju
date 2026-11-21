@@ -36,8 +36,8 @@ async fn uninstall(Extension(tenant): Extension<TenantScope>, db: Option<Extensi
             .map_err(|_| StatusCode::BAD_REQUEST)?;
         #[cfg(target_os = "macos")]
         {
-            use vw_agent_apps::{apps::discovery::read::resolve_cli_installation,
-                skills::{app_paths, local_install::validate_directory}};
+            use vw_agent_apps::skills::{app_paths, local_install::validate_directory};
+            use vw_api_app_skills::bindings_api::SkillBindingTarget;
             use app_settings_store::agent_apps_skills_store::SkillInstallsStore;
             let (env, root) = app_access_service::access::authorize_skill_bindings(
                 policy.0.as_deref(), &headers, &project, &request.scope.target_host_id)?;
@@ -61,8 +61,9 @@ async fn uninstall(Extension(tenant): Extension<TenantScope>, db: Option<Extensi
                     String, vw_api_app_identity::AppId, String)>(key) else { continue; };
                 if directory != id { continue; }
                 // Unresolvable installations remain preserved by the native owner.
-                if !resolve_cli_installation(app, &env,
-                    &vw_api_app_identity::AppInstallationId(installation)).unwrap_or(false) {
+                if super::bindings_api::authorize_target(
+                    &SkillBindingTarget { app_id: app, installation_id: installation }, &env,
+                ).is_err() {
                     continue;
                 }
                 if let Ok(path) = app_paths::resolve(&env.home, app, None,

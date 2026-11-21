@@ -8,6 +8,27 @@ use {
 };
 use agent_database::GlobalDatabase;
 
+#[cfg(target_os = "macos")]
+pub(super) fn authorize_target(
+    target: &SkillBindingTarget,
+    env: &vw_agent_apps::apps::discovery::read::LocalReadEnvironment,
+) -> Result<(), StatusCode> {
+    use vw_agent_apps::{
+        apps::discovery::read::resolve_cli_installation, skills::bulk_sync::SkillInstallTarget,
+    };
+    SkillInstallTarget { installation_id: target.installation_id.clone(), app_id: target.app_id }
+        .validate().map_err(|_| StatusCode::BAD_REQUEST)?;
+    if target.installation_id == DEFAULT_SKILL_DIRECTORY
+        || resolve_cli_installation(target.app_id, env,
+            &vw_api_app_identity::AppInstallationId(target.installation_id.clone()))
+            .map_err(|_| StatusCode::CONFLICT)?
+    {
+        Ok(())
+    } else {
+        Err(StatusCode::NOT_FOUND)
+    }
+}
+
 pub fn router() -> Router {
     Router::new()
         .route("/agent-apps/skills/binding-targets", get(snapshot).put(preferences))
@@ -41,9 +62,9 @@ async fn execute(tenant: TenantScope, db: Option<Extension<GlobalDatabase>>, hea
         let policy = std::env::var_os("SHIJU_AGENT_APPS_ACCESS_FILE").map(std::path::PathBuf::from);
         #[cfg(target_os = "macos")]
         {
-            use vw_agent_apps::{apps::discovery::read::resolve_cli_installation,
-                skills::{app_paths, bulk_sync::{SkillInstallTarget, SkillSyncTarget, SkillSyncStatus},
-                    link_deploy::SyncMethod, local_install::validate_directory}};
+            use vw_agent_apps::skills::{app_paths,
+                bulk_sync::{SkillSyncTarget, SkillSyncStatus, prepare_default_directory},
+                link_deploy::SyncMethod, local_install::validate_directory};
             use app_settings_store::agent_apps_skills_store::SkillInstallsStore;
             let (env, root) = app_access_service::access::authorize_skill_bindings(
                 policy.as_deref(), &headers, &project, &scope.target_host_id)?;
@@ -55,11 +76,7 @@ async fn execute(tenant: TenantScope, db: Option<Extension<GlobalDatabase>>, hea
             let mut resolved = Vec::new();
             for (index, target) in targets.iter().enumerate() {
                 if targets[..index].contains(target) { return Err(StatusCode::BAD_REQUEST); }
-                SkillInstallTarget { installation_id: target.installation_id.clone(), app_id: target.app_id }
-                    .validate().map_err(|_| StatusCode::BAD_REQUEST)?;
-                if !resolve_cli_installation(target.app_id, &env,
-                    &vw_api_app_identity::AppInstallationId(target.installation_id.clone()))
-                    .map_err(|_| StatusCode::CONFLICT)? { return Err(StatusCode::NOT_FOUND); }
+                authorize_target(target, &env)?;
                 let path = app_paths::resolve(&env.home, target.app_id, None,
                     &std::collections::BTreeMap::new(), &[&root])
                     .map_err(|_| StatusCode::BAD_REQUEST)?;
@@ -73,6 +90,19 @@ async fn execute(tenant: TenantScope, db: Option<Extension<GlobalDatabase>>, hea
             let store = SkillInstallsStore::new(db).map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?;
             let result = match binding {
                 Some((id, enabled, mode)) => {
+                    if enabled && resolved.iter().any(|target| target.installation_id == DEFAULT_SKILL_DIRECTORY) {
+                        let state = store.get(&project, &scope.target_host_id, &root)
+                            .map_err(|_| StatusCode::CONFLICT)?;
+                        if !state.skills.iter().any(|skill| skill.directory == id) {
+                            return Err(StatusCode::NOT_FOUND);
+                        }
+                        for target in &resolved {
+                            if target.installation_id == DEFAULT_SKILL_DIRECTORY {
+                                prepare_default_directory(&env.home, &target.path)
+                                    .map_err(|_| StatusCode::CONFLICT)?;
+                            }
+                        }
+                    }
                     let method = match mode { SkillBindingMode::Auto => SyncMethod::Auto,
                         SkillBindingMode::Symlink => SyncMethod::Symlink, SkillBindingMode::Copy => SyncMethod::Copy };
                     store.bulk_toggle(&project, &scope.target_host_id, &root, &[id], &resolved, enabled, method)
@@ -124,9 +154,7 @@ async fn binding_settings(tenant: TenantScope, db: Option<Extension<GlobalDataba
             let store = SkillInstallsStore::new(db).map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?;
             let state = if let Some((version, targets)) = change {
                 for target in &targets {
-                    if !vw_agent_apps::apps::discovery::read::resolve_cli_installation(target.app_id, &env,
-                        &vw_api_app_identity::AppInstallationId(target.installation_id.clone()))
-                        .map_err(|_| StatusCode::CONFLICT)? { return Err(StatusCode::NOT_FOUND); }
+                    authorize_target(target, &env)?;
                 }
                 store.save_install_targets(&project, &scope.target_host_id, version, &root,
                     targets.into_iter().map(|t| SkillInstallTarget { installation_id: t.installation_id, app_id: t.app_id }).collect())

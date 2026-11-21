@@ -48,10 +48,7 @@ pub(crate) fn view(app: &App) -> Element<'_, Message> {
             let applications = state
                 .rows
                 .iter()
-                .map(|r| desktop_settings_skills::bindings_view::BindingApplication {
-                    entry: &r.entry,
-                    observation: r.observation.as_ref().ok(),
-                })
+                .map(|r| &r.entry)
                 .collect::<Vec<_>>();
             let skills = desktop_settings_skills::third_party::view(
                 &state.third_party_skills,
@@ -877,7 +874,7 @@ pub(crate) fn skills_update(
             if opening_import && app.skills_settings.import.open {
                 let page = &app.apps_catalog.third_party_skills;
                 let import = &mut app.skills_settings.import;
-                import.available_targets = page.available_targets(&input.targets);
+                import.available_targets = page.available_targets();
                 import.targets = page.bindings.targets.iter()
                     .filter(|target| import.available_targets.contains(target))
                     .cloned()

@@ -78,22 +78,11 @@ impl State {
         }
     }
 
-    pub fn available_targets(&self, targets: &[SkillBindingTarget]) -> Vec<SkillBindingTarget> {
-        let Some(snapshot) = &self.bindings.snapshot else {
-            return Vec::new();
-        };
-        let mut available = Vec::new();
-        for target in targets {
-            if !available.contains(target)
-                && snapshot
-                    .capabilities
-                    .iter()
-                    .any(|capability| capability.app_id == target.app_id && capability.supported)
-            {
-                available.push(target.clone());
-            }
-        }
-        available
+    pub fn available_targets(&self) -> Vec<SkillBindingTarget> {
+        self.bindings.snapshot.iter().flat_map(|snapshot| &snapshot.capabilities)
+            .filter(|capability| capability.supported)
+            .map(|capability| SkillBindingTarget::application(capability.app_id))
+            .collect()
     }
 
     pub fn awaiting_target_snapshot(&self) -> bool {
@@ -104,11 +93,13 @@ impl State {
         if self.bindings.snapshot.is_none() {
             return;
         }
-        let available = self.available_targets(targets);
+        let available = self.available_targets();
         if self.custom_targets {
             self.bindings.targets.retain(|target| available.contains(target));
         } else {
-            self.bindings.targets = available;
+            self.bindings.targets = available.into_iter()
+                .filter(|target| targets.iter().any(|installed| installed.app_id == target.app_id))
+                .collect();
         }
     }
 
@@ -133,7 +124,7 @@ impl State {
         Some(
             bindings
                 .iter()
-                .any(|binding| binding.target == *target && binding.directory == directory),
+                .any(|binding| binding.target.app_id == target.app_id && binding.directory == directory),
         )
     }
 
@@ -174,9 +165,8 @@ pub fn update(state: &mut State, input: &Input, message: Message) -> Effect {
         Action::Binding(event) => event,
         Action::SelectAllTargets(all) => {
             if !state.bindings.busy {
-                state.custom_targets = !all;
-                state.bindings.targets.clear();
-                state.reconcile_targets(&input.targets);
+                state.custom_targets = true;
+                state.bindings.targets = if all { state.available_targets() } else { Vec::new() };
             }
             return Effect::None;
         }
@@ -194,36 +184,29 @@ pub fn update(state: &mut State, input: &Input, message: Message) -> Effect {
             effect: bindings::Effect::Error("请在全局应用绑定中保存目标偏好".into()),
         };
     }
-    if let bindings::Event::Target(target, _) = &event {
-        if state.bindings.busy || !state.available_targets(&input.targets).contains(target) {
-            return Effect::None;
+    let available = state.available_targets();
+    if let bindings::Event::Target(target, enabled) = &event {
+        if !state.bindings.busy && available.contains(target) {
+            state.custom_targets = true;
+            state.bindings.targets.retain(|item| item != target);
+            if *enabled {
+                state.bindings.targets.push(target.clone());
+            }
         }
-        state.custom_targets = true;
+        return Effect::None;
     }
-    if matches!(event, bindings::Event::Bind(_) | bindings::Event::Resync) {
-        let supported = state.bindings.snapshot.as_ref().is_some_and(|snapshot| {
-            state.bindings.targets.iter().all(|target| {
-                snapshot
-                    .capabilities
-                    .iter()
-                    .any(|capability| capability.app_id == target.app_id && capability.supported)
-            })
-        });
-        if !supported
-            || state.bindings.targets.is_empty()
-            || state.bindings.targets.iter().any(|target| !input.targets.contains(target))
-        {
-            return Effect::Binding {
-                scope,
-                catalog: state.catalog,
-                effect: bindings::Effect::Error(
-                    "当前应用或安装实例不支持技能绑定，请刷新应用目录".into(),
-                ),
-            };
-        }
+    if matches!(event, bindings::Event::Bind(_) | bindings::Event::Resync)
+        && (state.bindings.targets.is_empty()
+            || state.bindings.targets.iter().any(|target| !available.contains(target)))
+    {
+        return Effect::Binding {
+            scope,
+            catalog: state.catalog,
+            effect: bindings::Effect::Error("当前应用不支持技能绑定，请刷新应用目录".into()),
+        };
     }
     if let bindings::Event::BindTarget(id, target, enabled) = &event {
-        if state.binding_status(target, id) != Some(!enabled) {
+        if !available.contains(target) || state.binding_status(target, id) != Some(!enabled) {
             return Effect::None;
         }
     }
@@ -244,7 +227,8 @@ pub fn update(state: &mut State, input: &Input, message: Message) -> Effect {
     }
     let preserve_targets = state.custom_targets && matches!(event, bindings::Event::Completed(..));
     let previous = preserve_targets.then(|| state.bindings.targets.clone());
-    let effect = bindings::update(&mut state.bindings, input, event);
+    let scoped_input = Input { targets: available, ..(*input).clone() };
+    let effect = bindings::update(&mut state.bindings, &scoped_input, event);
     if let Some(previous) = previous {
         state.bindings.targets = previous;
     }
@@ -254,7 +238,7 @@ pub fn update(state: &mut State, input: &Input, message: Message) -> Effect {
 
 pub fn view<'a>(
     state: &'a State,
-    applications: &[crate::bindings_view::BindingApplication<'_>],
+    applications: &[&vw_api_app_identity::AppCatalogEntry],
     icon: fn(AppId, f32) -> Element<'static, Message>,
 ) -> Element<'a, Message> {
     let Some(scope) = state.scope.as_ref() else {
@@ -269,42 +253,15 @@ pub fn view<'a>(
         action: Action::Binding(event),
     };
     let s = &state.bindings;
-    let mut options: Vec<(SkillBindingTarget, String)> = Vec::new();
-    let mut selected_names = Vec::new();
-    for application in applications {
-        let app_id = application.entry.id;
-        if !s.snapshot.as_ref().is_some_and(|snapshot| {
-            snapshot
-                .capabilities
-                .iter()
-                .any(|capability| capability.app_id == app_id && capability.supported)
-        }) {
-            continue;
-        }
-        let Some(observation) = application.observation else {
-            continue;
-        };
-        let installations = observation
-            .installations
-            .iter()
-            .filter(|item| item.target_host_id == scope.host && item.app_id == app_id);
-        let multiple = installations.clone().count() > 1;
-        for installation in installations {
-            let target = SkillBindingTarget { app_id, installation_id: installation.id.0.clone() };
-            if options.iter().any(|(existing, _)| existing == &target) {
-                continue;
-            }
-            let name = if multiple {
-                format!("{} · {}", application.entry.name, installation.id.0)
-            } else {
-                application.entry.name.clone()
-            };
-            if s.targets.contains(&target) {
-                selected_names.push(application.entry.name.clone());
-            }
-            options.push((target, name));
-        }
-    }
+    let available = state.available_targets();
+    let options: Vec<_> = applications.iter().filter_map(|application| {
+        let target = SkillBindingTarget::application(application.id);
+        available.contains(&target).then(|| (target, application.name.clone()))
+    }).collect();
+    let selected_names: Vec<_> = options.iter()
+        .filter(|(target, _)| s.targets.contains(target))
+        .map(|(_, name)| name.clone())
+        .collect();
     let label = match selected_names.as_slice() {
         [] if s.busy => "安装到 · 正在读取".to_owned(),
         [] if state.awaiting_target_snapshot() => "安装到 · 待读取".to_owned(),
@@ -328,12 +285,7 @@ pub fn view<'a>(
         let mut panel = column![
             row![
                 text("在这些应用中启用技能").size(13).width(Length::Fill),
-                choose(
-                    "全选",
-                    true,
-                    !options.is_empty()
-                        && (state.custom_targets || selected_names.len() != options.len())
-                ),
+                choose("全选", true, selected_names.len() < options.len()),
                 choose(
                     "仅主副本",
                     false,
@@ -349,12 +301,11 @@ pub fn view<'a>(
         for pair in options.chunks(2) {
             let mut line = row![].spacing(8);
             for (target, name) in pair {
+                let selected = s.targets.contains(target);
                 let target = target.clone();
-                let selected = s.targets.contains(&target);
-                let app_id = target.app_id;
                 line = line.push(
                     row![
-                        icon(app_id, 16.0),
+                        icon(target.app_id, 16.0),
                         checkbox(selected)
                             .label(name.clone())
                             .text_size(13)
@@ -387,6 +338,7 @@ pub fn view<'a>(
                     scrollable::Scrollbar::new().width(4).scroller_width(4),
                 ),
             ));
+
         }
         if let Some(error) = &s.error {
             panel = panel.push(settings_error_banner(error.clone())).push(
@@ -428,20 +380,11 @@ pub fn view<'a>(
         }
         panel = panel.push(controls);
         for result in &s.results {
-            panel = panel.push(
-                text(format!("{}：{:?}", result.target.installation_id, result.status)).size(12),
-            );
+            if let Some((_, name)) = options.iter().find(|(target, _)| target == &result.target) {
+                panel = panel.push(text(format!("{name}：{:?}", result.status)).size(12));
+            }
         }
         container(panel).padding(10).width(Length::Fill).style(settings_section_card_style).into()
     });
-    let mut columns = Vec::new();
-    for (target, name) in &options {
-        if !columns
-            .iter()
-            .any(|(column, _): &(SkillBindingTarget, String)| column.app_id == target.app_id)
-        {
-            columns.push((target.clone(), name.clone()));
-        }
-    }
-    workspace::view(state, label, picker().into(), bindings, &columns, icon)
+    workspace::view(state, label, picker().into(), bindings, &options, icon)
 }

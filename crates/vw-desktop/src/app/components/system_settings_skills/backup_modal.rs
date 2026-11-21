@@ -33,6 +33,10 @@ pub(super) fn view<'a>(
         },
         base,
         message,
+        |id| {
+            app.apps_catalog.rows.iter().find(|row| row.entry.id == id)
+                .map_or_else(|| format!("{id:?}"), |row| row.entry.name.clone())
+        },
     )
 }
 

@@ -67,6 +67,7 @@ impl Fixture {
         let routes = super::install_api::router_at(None, archives.clone())
             .merge(super::discovery_api::router_at(None, archives.clone(), archives.clone()))
             .merge(super::inventory_api::router_with_policy(None))
+            .merge(super::bindings_api::router())
             .merge(super::updates_api::router_at(None, archives))
             .merge(super::jobs_api::router_with_policy(None))
             .merge(super::uninstall_api::router_with_policy(None))
@@ -111,6 +112,56 @@ fn install() -> InstallSkillRequest {
     InstallSkillRequest { scope: scope(), expected_version: 0,
         source: SkillInstallSource::Git { repo_id: "owner:repo".into(),
             selection: "skills/tool".into(), directory: "tool".into() } }
+}
+
+#[tokio::test]
+async fn default_skill_directory_binding_needs_no_cli_installation() {
+    use app_settings_store::agent_apps_skills_store::SkillInstallsStore;
+    use vw_api_app_identity::AppId;
+    use vw_api_app_skills::bindings_api::{
+        SkillBindingMode, SkillBindingStatus, SkillBindingTarget, SkillBindingsRequest,
+    };
+
+    if isolated_test() {
+        return;
+    }
+    let home = &agent_paths::paths().home;
+    let fixture = Fixture::new(GlobalDatabase::for_home(home).unwrap());
+    let source = fixture.root.path().join("source");
+    fs::create_dir(&source).unwrap();
+    fs::write(
+        source.join("SKILL.md"),
+        "---\nname: Tool\ndescription: Example\n---\nContent",
+    ).unwrap();
+    let scope = scope();
+    let project = ProjectScope::new(TenantScope::new("p", "c").unwrap(), scope.project_id.clone())
+        .unwrap();
+    let root = home.join(".agents/skills");
+    SkillInstallsStore::new(fixture.database.clone()).unwrap()
+        .install_local(&project, &scope.target_host_id, 0, &root, &source, "tool").unwrap();
+
+    let destination = home.join(".codex/skills/tool");
+    assert!(!destination.parent().unwrap().exists());
+    let server = fixture.serve_at("http://127.0.0.1:1".into()).await;
+    let client = server.client();
+    let target = SkillBindingTarget::application(AppId::Codex);
+    let mut request = SkillBindingsRequest {
+        scope,
+        targets: vec![target.clone()],
+        enabled: true,
+        mode: SkillBindingMode::Auto,
+    };
+    let response = client.agent_apps_skills_bindings("tool", &request, TOKEN).await.unwrap();
+    assert_eq!(response.results.len(), 1);
+    assert_eq!(response.results[0].target, target);
+    assert_eq!(response.results[0].status, SkillBindingStatus::Enabled);
+    assert!(destination.join("SKILL.md").is_file());
+
+    request.enabled = false;
+    let response = client.agent_apps_skills_bindings("tool", &request, TOKEN).await.unwrap();
+    assert_eq!(response.results[0].status, SkillBindingStatus::Disabled);
+    assert!(!destination.exists());
+    assert!(root.join("tool/SKILL.md").is_file());
 }
 
 async fn lifecycle(f: &Fixture) {

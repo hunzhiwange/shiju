@@ -26,6 +26,7 @@ vw-api-app-identity = { path = "../api-app-identity" }
 vw-agent-apps = { path = "../../vw-agent-apps" }
 
 [target.'cfg(target_os = "macos")'.dependencies]
+vw-api-app-skills = { path = "../api-app-skills" }
 reqwest = { version = "0.13", default-features = false }
 sha2 = "0.11"
 uuid = { version = "1.11", features = ["v4", "js"] }

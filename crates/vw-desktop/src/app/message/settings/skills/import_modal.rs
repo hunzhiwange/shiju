@@ -8,7 +8,12 @@ pub(crate) fn message(event: Event) -> Message {
 }
 pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
     use desktop_settings_skills::update::import_modal::{Effect, update as reduce};
-    let input = super::update_input(app);
+    let mut input = super::update_input(app);
+    if crate::app::components::third_party_settings::is_visible(app)
+        && app.apps_catalog.third_party_page == desktop_ui_controls::settings_navigation::ThirdPartyPage::Skills
+    {
+        input.targets = app.apps_catalog.third_party_skills.available_targets();
+    }
     let effect = reduce(&mut app.skills_settings.import, &input, event);
     if matches!(effect, Effect::Refresh)
         && app.apps_catalog.third_party_skills.scope().is_some_and(|scope| {

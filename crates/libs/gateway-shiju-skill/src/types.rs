@@ -149,6 +149,13 @@ where
     Option::<String>::deserialize(deserializer).map(Option::unwrap_or_default)
 }
 
+fn deserialize_version_id_or_default<'de, D>(deserializer: D) -> Result<u64, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    Option::<u64>::deserialize(deserializer).map(Option::unwrap_or_default)
+}
+
 fn deserialize_vec_or_default<'de, D, T>(deserializer: D) -> Result<Vec<T>, D::Error>
 where
     D: Deserializer<'de>,
@@ -272,7 +279,7 @@ pub struct ShijuSkillDetailDto {
     pub status: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub is_all_company_accessible: Option<u8>,
-    #[serde(default)]
+    #[serde(default, deserialize_with = "deserialize_version_id_or_default")]
     pub current_version_id: u64,
     pub current_version: Option<ShijuSkillVersionContentDto>,
     #[serde(default, deserialize_with = "deserialize_string_or_default")]

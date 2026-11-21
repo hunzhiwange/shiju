@@ -252,6 +252,13 @@ fn shiju_skill_contract_preserves_catalog_detail_and_version_shapes() {
     );
     assert!(detail.level.is_empty());
     assert_eq!(detail.is_all_company_accessible, None);
+    let mut draft_detail = detail_fixture.clone();
+    draft_detail["current_version_id"] = serde_json::Value::Null;
+    draft_detail.as_object_mut().unwrap().remove("current_version");
+    let draft: ShijuSkillDetailDto =
+        serde_json::from_value(draft_detail).expect("draft without a current version");
+    assert_eq!(draft.current_version_id, 0);
+    assert!(draft.current_version.is_none());
     assert!(versions[0].download_url.is_none());
     assert!(versions[0].scan_result.is_none());
     let mut legacy_version = versions_fixture[0].clone();

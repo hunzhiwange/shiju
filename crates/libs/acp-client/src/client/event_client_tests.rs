@@ -35,6 +35,7 @@ fn event_client(
         transient_permissions: false,
         reject_untyped_workflow_permissions: false,
         managed_gemini: false,
+        droid_mcp_calls: None,
         gemini_mcp_servers: HashSet::new(),
         qwen_mcp_servers: HashSet::new(),
         expected_session_id: Arc::new(Mutex::new(expected_session_id)),
@@ -72,6 +73,7 @@ fn event_client_with_cwd(
         transient_permissions: false,
         reject_untyped_workflow_permissions: false,
         managed_gemini: false,
+        droid_mcp_calls: None,
         gemini_mcp_servers: HashSet::new(),
         qwen_mcp_servers: HashSet::new(),
         expected_session_id: Arc::new(Mutex::new(None)),
@@ -1502,4 +1504,50 @@ async fn assert_managed_workspace_boundary(agent: &str) {
         assert!(response.get("error").is_some(), "{response}");
     })
     .await;
+}
+
+#[tokio::test]
+async fn acp_skill_coexistence_droid_mcp_uses_owned_metadata_and_once() {
+    let (event_tx, _) = mpsc::unbounded_channel();
+    let mut client = event_client(event_tx, Some("owned".into()));
+    client.droid_mcp_calls = Some(Mutex::new(HashSet::new()));
+    client.permission_mode = PermissionMode::ApproveReads;
+    let (cancel_tx, _) = tokio::sync::watch::channel(false);
+    let (_, completed_rx) = tokio::sync::watch::channel(false);
+    *client.active_prompt.lock() =
+        Some(super::ActivePromptControl { session_id: "owned".into(), cancel_tx, completed_rx });
+    client.permission_confirmation = Some(Arc::new(|title, arguments| {
+        assert_eq!(title, "selected: read_probe");
+        assert_eq!(arguments, serde_json::json!({}));
+        Box::pin(async { true })
+    }));
+    client.managed_mcp_approval = Some(Arc::new(|key, input| {
+        key == crate::droid_mcp_identity("selected", "read_probe") && input == &serde_json::json!({})
+    }));
+    let request = |session: &str, factory: serde_json::Value| {
+        serde_json::from_value::<acp::RequestPermissionRequest>(serde_json::json!({
+            "sessionId": session,
+            "toolCall": {
+                "toolCallId": "call",
+                "kind": "other",
+                "title": "untrusted tool title",
+                "rawInput": {},
+                "_meta": {"factory": factory}
+            },
+            "options": [
+                {"optionId":"once", "name":"Allow", "kind":"allow_once"},
+                {"optionId":"forever", "name":"Always allow", "kind":"allow_always"},
+                {"optionId":"deny", "name":"Reject", "kind":"reject_once"}
+            ]
+        })).unwrap()
+    };
+    let factory = serde_json::json!({"source":"mcp", "server":"selected", "tool":"read_probe"});
+    for invalid in [request("other", factory.clone()), request("owned", serde_json::Value::Null)] {
+        let response = client.request_permission(invalid).await.unwrap();
+        assert_eq!(serde_json::to_value(response).unwrap()["outcome"]["outcome"], "cancelled");
+    }
+    let response = client.request_permission(request("owned", factory.clone())).await.unwrap();
+    assert_eq!(serde_json::to_value(response).unwrap()["outcome"]["optionId"], "once");
+    let replay = client.request_permission(request("owned", factory)).await.unwrap();
+    assert_eq!(serde_json::to_value(replay).unwrap()["outcome"]["outcome"], "cancelled");
 }

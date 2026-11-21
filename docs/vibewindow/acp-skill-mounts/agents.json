@@ -1346,24 +1346,24 @@
     },
     {
       "key": "droid",
-      "version": "1.3.0",
-      "status": "unverified",
+      "version": "1.9.0",
+      "status": "verified",
       "platform": {
         "review_host": "Darwin-arm64",
-        "artifact_scope": "本机固定发行物静态审查；源码/通用 JS 的跨平台执行未验证",
+        "artifact_scope": "Darwin arm64 受管 Droid 1.9.0 v2，受限桌面 session_model",
         "linux": "unverified",
         "windows": "unverified"
       },
       "distribution": {
         "package": "droid",
-        "version": "1.3.0",
-        "upstream_url": "https://downloads.factory.ai/factory-cli/releases/1.3.0/darwin/arm64/droid",
-        "upstream_integrity": "见本项 evidence 文件 SHA-256；不得将其等同完整发行物签名",
+        "version": "1.9.0",
+        "upstream_url": "https://downloads.factory.ai/factory-cli/releases/1.9.0/darwin/arm64/droid",
+        "upstream_integrity": "b62ce8de0ed7ffaada1abb2a017fe182021003694e85fe7f3b1136ad43628a5d",
         "engine": {
           "kind": "same_distribution",
-          "release": "1.3.0"
+          "release": "1.9.0"
         },
-        "local_identity": "固定版本来自版本清单/本机隔离发行物路径；仅记录静态文件散列，不把路径命名当作运行身份验证。",
+        "local_identity": "受限入口要求受管 droid-1.9.0-model-source-v2 固定摘要。",
         "published_checksum_matches": true
       },
       "acp_entry": {
@@ -1373,23 +1373,23 @@
           "--output-format",
           "acp"
         ],
-        "binding": "crates/vw-acp/src/agent_registry.rs::BUILT_IN_AGENT_DEFINITIONS",
-        "runtime_executed": false,
-        "note": "固定发行物候选入口；注册器含 latest/range，不保证用户当前命令已固定到此版本。"
+        "binding": "crates/libs/llm-runtime/src/acp/model_source/drivers/droid.rs",
+        "runtime_executed": true,
+        "note": "受限桌面入口使用请求专属 Darwin 沙箱。"
       },
       "mount": {
         "candidate_paths": [
-          "~/.factory/skills（当前官方文档）",
-          "<repo>/.factory/skills（当前官方文档）"
+          "<repo>/.factory/skills",
+          "$FACTORY_HOME_OVERRIDE/.factory/skills"
         ],
-        "discovery": "1.3.0 二进制有 SKILL.md 与技能导入字符串，但无可审查 ACP loader；当前文档不能直接覆盖固定包。",
-        "activation": "技能导入/创建 UI 字符串不能证明 ACP 默认发现或激活。",
-        "session_isolation": "unverified：额外根/专属配置根不自动排除内建、用户、项目及插件技能；不得修改 HOME 或写用户全局目录。"
+        "discovery": "项目原生目录叠加请求专属的私有 SessionSkillView 链接。",
+        "activation": "真实 Skill 返回正文及路径，真实 Read 返回引用文件。",
+        "session_isolation": "新会话撤除后无法发现选中视图；未选来源和原生禁用技能不入目录。"
       },
       "permissions": {
-        "status": "unverified",
+        "status": "verified",
         "requirements": "执行端重新审核目录、租户/项目/会话权限、路径逃逸与符号链接；支持文件/脚本/MCP 仍受各自授权限制，不扩大 full_access。",
-        "agent_specific": "固定 ACP 的目录/工具授权条件须后续真实验证；未因模型来源受限推定技能不支持。"
+        "agent_specific": "ApproveReads 保留项目 settings.json 的只读约束。MCP 请求由宿主按会话单次批准，中继按服务、工具及参数消费。"
       },
       "update": {
         "native": "unverified：本任务未执行热更新或原子完整替换；静态刷新函数/文档 reload 不作成功承诺。",
@@ -1397,7 +1397,7 @@
       },
       "recovery": {
         "status": "unverified",
-        "requirements": "重建 new/load/resume 后重新发布同 revision 目录并核实发现、删除和支持文件访问；不能把已有模型来源恢复证据当技能恢复证据。"
+        "requirements": "受限入口按请求创建原生会话并使用宿主历史；未验证旧原生状态的跨进程恢复。"
       },
       "independent_sources": {
         "local_configuration": {
@@ -1408,7 +1408,7 @@
         "client_model_source": {
           "prior_report_status": "unsupported",
           "reference": "../../shiju/acp-model-source/cli-versions.json#droid",
-          "runtime_verified_this_task": false,
+          "runtime_verified_this_task": true,
           "note": "只保留旧报告定位；不复制其通过/不支持结论到技能能力。"
         }
       },
@@ -1425,7 +1425,13 @@
               "line": null,
               "excerpt": "openFiles      �=� connectionStatus   �!�� builtin:   ��r� SKILL.md   ��x� .md \t  �� � reference      �B�� asset      �AZH withFileTypes   /  ��L� [Daemon] JSON-RPC fatal error in streaming exec @  ���! Cannot destructure property 'limit' from null or undefined value"
             }
-          ]
+          ],
+          "version": "1.3.0"
+        },
+        {
+          "path": "../../dev/acp/skill-coexistence/droid.md",
+          "kind": "skill_coexistence",
+          "sha256": "0858a4f7411b0159780246598fc6170a17d695556e4da66ab939bff82b58050b"
         }
       ],
       "supplemental_official_docs": [
@@ -1435,11 +1441,10 @@
           "scope": "当前文档补充线索；未绑定固定发行物/ACP；不用于提升支持状态。"
         }
       ],
-      "next_validation": "固定版本真实 ACP：发现元数据 → 按需激活 → 支持文件/脚本工具回合 → 隔离/删除/更新失败保旧 → 跨进程恢复；只替代外部模型 HTTP。未安装/缺账号则保留 unverified。",
+      "next_validation": "扩展平台或原生历史恢复时须按新入口复验。",
       "delivery_acceptance": {
-        "status": "user_waived",
-        "reason": "用户明确决定免登录、免验证并接受本项；未实际运行，不计实测 verified。",
-        "evidence": "evidence/regression.json"
+        "status": "verified",
+        "evidence": "../../dev/acp/skill-coexistence/droid.md"
       }
     },
     {

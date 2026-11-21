@@ -1,6 +1,6 @@
 # Droid 技能共存验收
 
-状态：已阻塞。私有网关在无挂载轮以 `requires_full_access` 拒绝启动 Droid。Droid 的技能能力门禁保持关闭。
+状态：受管网关验收通过。历史红验证中，私有网关在无挂载轮以 `requires_full_access` 拒绝启动 Droid。
 
 ## 受审制品
 
@@ -45,4 +45,29 @@ PYTHONPATH=scripts python3 -m acp_skill_coexistence.droid_sandbox \
   --output target/acp-skill-coexistence/droid-sandbox.json
 ```
 
-现有受审的生产中继还未提供 Droid 的绑定。Droid 用 `_meta.factory.server/tool` 声明审批目标，标题是展示字符串。现行消费型中继按受管工具名识别批准，不能直接把 Droid 标题当作可消费的授权。生产复验需要接通并审定受管子进程沙箱，将原生服务和工具身份映射到同会话中继的单次批准，并保留项目设置的读取边界。在此之前保留两个宿主门禁。独立 ACP 对照不含网关权限回读或 `chat.done` 证据。
+原型验收时生产中继尚未接入 Droid。Droid 用 `_meta.factory.server/tool` 声明审批目标，标题是展示字符串。现行消费型中继按受管工具名识别批准，不能直接把 Droid 标题当作可消费的授权。生产复验需要接通并审定受管子进程沙箱，将原生服务和工具身份映射到同会话中继的单次批准，并保留项目设置的读取边界。独立 ACP 对照不含网关权限回读或 `chat.done` 证据。
+
+## 受管入口
+
+受限桌面会话仅在 Darwin arm64、`session_model`、`ApproveReads` 且启用工具时使用 Droid 1.9.0 v2。宿主和启动端校验固定摘要，沙箱仅允许启动该可执行文件。项目设置和原生技能目录为只读，会话选集从已验证的私有链接视图追加。未受审的启动入口仍应用原权限门禁。
+
+网关使用请求专属的 HTTP 中继访问宿主选中的 stdio 服务。ACP 的 `_meta.factory` 提供服务与工具身份，宿主先校验当前 ACP 会话和唯一调用 ID，再沿交互权限层获取单次确认。中继只能消费匹配服务、工具和参数的本次确认；展示标题只由服务与工具名生成。受限入口用请求专属的 Droid 状态为每次请求重建原生会话，沿宿主的会话历史重放定制。历史原生会话恢复与分叉锚点不在该入口的支持范围。
+
+用生产沙箱规则另行运行四次独立 ACP 会话，模型请求为 3/6/3/5，MCP 执行为 0/1/0/0，拒绝返回 `cancelled`。只为该对照分开模型与 MCP 监听端口。额外原生 `Read` 对照直接请求未选技能附件，模型收到访问拒绝，未取得附件标记。
+
+### 真实网关验收
+
+2026-11-21，使用获验共享构建的网关快照，SHA-256 为 `09c49dfa8efa59deebb31d40ddd6f4533e7670a09f71baef33e77f10f5284453`。从槽位 6 构建产物复制独立快照到持有的槽位 11，并与共享验收报告的摘要和本次接线标识比对。探针的两项 Cargo 目录均为 `target/rust-slot-11`。Droid 保持 1.9.0 v2 固定摘要和原生延迟工具。真实模型请求包含 `reasoning_effort=high`，因此为夹具模型声明对应能力，沿原有中继校验。
+
+| 阶段 | ShiJu 会话 | 带工具的模型请求 | MCP 下游执行 |
+| --- | --- | ---: | ---: |
+| 基线 | `ses_e040f3d23ffeh42vKxOORmWYQc` | 3 | 0 |
+| 挂载 | `ses_e040ed55dffe90FhTeHBvq00S1` | 6 | 1 |
+| 撤除 | `ses_e040e715fffeKdj0OF7Rg2z4fx` | 3 | 0 |
+| 拒绝 | `ses_e040e33d7ffeZFc5TLAmTKwzU3` | 5 | 0 |
+
+四轮各一个 `chat.done`、零个 `chat.error`。网关回读 `session_model`、`coexistence-fixture/deepseek-v4.1-flash-1017`、Droid 和未请求完全访问，结构化结果见 `target/acp-skill-coexistence/droid.json`。挂载轮原生技能激活及附件 ID 为 `call_42d96b336d858bdf_0`、`call_b45aa8c8e257eb30_0`，选中技能和附件为 `call_896f7b7b010f3d1b_0`、`call_3a1d6cb237161255_0`，MCP 为 `call_df44f6318ed2a7b5_0`。拒绝轮的 `call_0598b9152e066f19_0` 对应原生失败事件，禁止下游调用并且无后续模型请求。
+
+无正文的拒绝对照同样拒绝并保持下游执行为零，网关对空的取消回合报告 `模型未返回内容`。正式探针在批准和拒绝的相同模型响应中先输出检查提示，再发出一次只读 MCP 调用，保留原生取消和拒绝证据。退出码为 0。
+
+使用槽位 10 已构建的 `llm-runtime` 测试二进制运行过滤器 `acp_skill_coexistence_droid`，两个用例通过，分别覆盖仅追加选集和拒绝链接形式的项目设置。

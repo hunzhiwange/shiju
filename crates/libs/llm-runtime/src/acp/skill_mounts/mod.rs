@@ -12,7 +12,7 @@ pub(super) mod cortex_code;
 mod cursor;
 pub(super) mod dimcode;
 mod dirac;
-mod droid;
+pub(super) mod droid;
 #[cfg(test)]
 mod deepagents_tests;
 mod gemini;
@@ -77,7 +77,7 @@ pub fn validate(agent: &str, selected: bool) -> Result<(), Error> {
         "cortex-code" if cfg!(all(target_os = "macos", target_arch = "aarch64")) => return Ok(()),
         "dirac" if cfg!(all(target_os = "macos", target_arch = "aarch64")) => return Ok(()),
         "dimcode" if cfg!(all(target_os = "macos", target_arch = "aarch64")) => return Ok(()),
-        "droid" => droid::rejection(),
+        "droid" if cfg!(all(target_os = "macos", target_arch = "aarch64")) => return Ok(()),
         "qoder" if cfg!(all(target_os = "macos", target_arch = "aarch64")) => return Ok(()),
         "trae" if cfg!(all(target_os = "macos", target_arch = "aarch64")) => return Ok(()),
         "iflow" => return Ok(()),

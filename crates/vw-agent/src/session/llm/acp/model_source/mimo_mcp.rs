@@ -131,7 +131,9 @@ pub(super) async fn prepare(
     let vtcode = launch.identity().session.ends_with(":vtcode");
     let hermes = launch.identity().session.ends_with(":hermes");
     let auggie = launch.identity().session.ends_with(":auggie");
-    let requires_approval = vtcode || hermes || auggie;
+    let droid = launch.identity().session.ends_with(":droid");
+    let autohand = launch.identity().session.ends_with(":autohand");
+    let requires_approval = vtcode || hermes || auggie || droid || autohand;
     anyhow::ensure!(
         requires_approval || launch.identity().session.ends_with(":mimo-code"),
         "Managed MCP requires a reviewed relay"
@@ -151,10 +153,12 @@ pub(super) async fn prepare(
     let mut services = BTreeSet::new();
     let mut native_tools = BTreeSet::new();
 
-    let policy_key = match (hermes, vtcode, auggie) {
-        (true, _, _) => "shiju.hermes.toolPolicy",
-        (_, true, _) => "shiju.vtcode.toolPolicy",
-        (_, _, true) => "shiju.auggie.toolPolicy",
+    let policy_key = match (hermes, vtcode, auggie, droid) {
+        _ if autohand => "shiju.autohand.toolPolicy",
+        (_, _, _, true) => "shiju.droid.toolPolicy",
+        (true, _, _, _) => "shiju.hermes.toolPolicy",
+        (_, true, _, _) => "shiju.vtcode.toolPolicy",
+        (_, _, true, _) => "shiju.auggie.toolPolicy",
         _ => "shiju.mimo.toolPolicy",
     };
     for definition in definitions {
@@ -216,7 +220,7 @@ pub(super) async fn prepare(
             ("scratch", scratch_path.clone()),
             ("host-home", host_home),
             ("git", workspace.join(".git")),
-            ("settings", workspace.join(if auggie { ".augment" } else if hermes { ".hermes" } else if vtcode { ".vtcode" } else { ".mimocode" })),
+            ("settings", workspace.join(if droid { ".factory" } else if auggie { ".augment" } else if hermes { ".hermes" } else if vtcode { ".vtcode" } else if autohand { ".autohand" } else { ".mimocode" })),
             ("env", workspace.join(".env")),
             ("mount", workspace.join(".vwacprc.json")),
         ] {
@@ -250,14 +254,16 @@ pub(super) async fn prepare(
             if !mcp_client::mcp_tool_allowed(&management, &name, &tool_id) {
                 continue;
             }
-            let public = if auggie {
+            let public = if droid {
+                acp_client::droid_mcp_identity(&definition.name, &name)
+            } else if auggie {
                 // Match Auggie's tool_server identity and reject collisions below.
                 let mut alias = format!("{name}_{}", definition.name);
                 alias.truncate(64);
                 format!("mcp__auggie__{alias}")
             } else if hermes {
                 format!("mcp__{}__{name}", definition.name).replace('-', "_")
-            } else if vtcode {
+            } else if vtcode || autohand {
                 format!("mcp__{}__{name}", definition.name)
             } else {
                 format!("{}_{name}", definition.name)

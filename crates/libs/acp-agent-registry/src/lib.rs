@@ -12,7 +12,7 @@ pub use agent_registry::{
 };
 #[cfg(not(target_arch = "wasm32"))]
 pub use install::install_builtin_agent;
-pub use managed_runtime::{reviewed_agent_command, verify_auggie_restricted_executable, verify_openclaw_mcp_executable, verify_reviewed_agent_executable, verify_vtcode_mcp_executable};
+pub use managed_runtime::{reviewed_agent_command, verify_auggie_restricted_executable, verify_droid_restricted_executable, verify_openclaw_mcp_executable, verify_reviewed_agent_executable, verify_vtcode_mcp_executable};
 
 #[cfg(all(test, not(target_arch = "wasm32")))]
 static TEST_HOME_ENV_LOCK: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());

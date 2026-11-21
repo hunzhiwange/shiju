@@ -15,7 +15,12 @@ use acp_lifecycle::{AgentLifecycleExit, AgentLifecycleSnapshot};
 use acp_storage::session_persistence;
 
 mod client;
-pub use client::{AcpClient, AuggieSandbox, ConnectionDiagnostic, HermesSandbox, OpenCodeSandbox, KilocodeSandbox, SkillMountLease};
+/// Canonical approval key for the two components in Droid's native MCP metadata.
+pub fn droid_mcp_identity(server: &str, tool: &str) -> String {
+    format!("mcp__droid__{}_{server}{tool}", server.len())
+}
+
+pub use client::{AcpClient, AuggieSandbox, ConnectionDiagnostic, DroidSandbox, HermesSandbox, OpenCodeSandbox, KilocodeSandbox, SkillMountLease};
 
 #[cfg(test)]
 use acp_agent_registry::{

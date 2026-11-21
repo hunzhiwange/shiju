@@ -78,7 +78,8 @@ def run_phase(phase, report):
         attachment.write_text(value)
         server = stack.enter_context(stdio_relay(attachment, audit)) if mounted else None
         model = stack.enter_context(model_server(droid.Handler, secrets.token_hex(24)))
-        probe = model.probe = droid.Probe({"skills": skills, "mcp": value}, mounted, rejected)
+        probe = model.probe = droid.Probe(
+            {"skills": skills, "mcp": value}, mounted, rejected, observe_stdio=False)
         ports = [model.server_port]
         if server is not None:
             ports.append(urlsplit(server["url"]).port)

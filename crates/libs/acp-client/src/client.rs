@@ -90,6 +90,8 @@ mod hermes_sandbox;
 mod auggie_sandbox;
 pub use auggie_sandbox::AuggieSandbox;
 pub use hermes_sandbox::HermesSandbox;
+mod droid_sandbox;
+pub use droid_sandbox::DroidSandbox;
 #[path = "client/opencode_sandbox.rs"]
 mod opencode_sandbox;
 pub use opencode_sandbox::OpenCodeSandbox;
@@ -201,6 +203,7 @@ impl<T: Send + Sync> SkillMountLease for T {}
 pub struct AcpClient {
     auggie_sandbox: Option<AuggieSandbox>,
     hermes_sandbox: Option<HermesSandbox>,
+    droid_sandbox: Option<DroidSandbox>,
     opencode_sandbox: Option<OpenCodeSandbox>,
     kilocode_sandbox: Option<KilocodeSandbox>,
     agent_name: String,

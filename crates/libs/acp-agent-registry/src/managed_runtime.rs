@@ -325,6 +325,21 @@ pub fn verify_auggie_restricted_executable(command: &str) -> Result<(), String> 
 }
 
 /// Validate explicit overrides too; a familiar executable name is never proof of a patch.
+pub fn verify_droid_restricted_executable(command: &str) -> Result<(), String> {
+    let contract = contract("droid").ok_or("Missing Droid artifact contract")?;
+    let executable = Path::new(command).canonicalize().map_err(|_| "Missing Droid executable")?;
+    let digest = hex::encode(Sha256::digest(std::fs::read(&executable).map_err(|_| "Missing Droid executable")?));
+    if cfg!(all(target_os = "macos", target_arch = "aarch64"))
+        && executable.file_name().is_some_and(|name| name == contract.bin.as_str())
+        && contract.files.get(&contract.bin) == Some(&digest)
+    {
+        Ok(())
+    } else {
+        Err("Restricted Droid requires the reviewed patched executable".into())
+    }
+}
+
+/// Validate explicit overrides too; a familiar executable name is never proof of a patch.
 pub fn verify_reviewed_agent_executable(agent: &str, command: &str) -> Result<(), String> {
     if agent == "claude" {
         let command = command.trim();

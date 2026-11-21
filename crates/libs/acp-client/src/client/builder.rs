@@ -17,6 +17,11 @@ impl AcpClient {
         self
     }
 
+    pub fn with_droid_sandbox(mut self, sandbox: Option<super::DroidSandbox>) -> Self {
+        self.droid_sandbox = sandbox;
+        self
+    }
+
     pub fn with_hermes_sandbox(mut self, sandbox: Option<super::HermesSandbox>) -> Self {
         self.hermes_sandbox = sandbox;
         self
@@ -57,6 +62,7 @@ impl AcpClient {
         Self {
             auggie_sandbox: None,
             hermes_sandbox: None,
+            droid_sandbox: None,
             opencode_sandbox: None,
             kilocode_sandbox: None,
             agent_name: agent_name.into(),

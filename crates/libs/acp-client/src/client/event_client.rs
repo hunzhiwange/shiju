@@ -113,6 +113,7 @@ impl AcpClient {
                 "gemini" | "qwen"
             ),
             managed_gemini,
+            droid_mcp_calls: self.droid_sandbox.as_ref().map(|_| Mutex::new(HashSet::new())),
             gemini_mcp_servers,
             qwen_mcp_servers,
             expected_session_id,
@@ -279,8 +280,41 @@ impl acp::Client for AcpEventClient {
         if self.desktop_workspace.is_some() && args.tool_call.fields.kind.is_none() {
             args.tool_call.fields.kind = Some(acp::ToolKind::Other);
         }
+        let droid_tool = if let Some(calls) = &self.droid_mcp_calls {
+            let identify = || {
+                let factory = args.tool_call.meta.as_ref()?.get("factory")?;
+                (factory["source"] == "mcp").then_some(())?;
+                let server = factory["server"].as_str()?;
+                let tool = factory["tool"].as_str()?;
+                self.managed_mcp_approval.as_ref()?;
+                // The metadata identifies the prospective operation. Only the
+                // host confirmation and the relay's selected catalog can grant it.
+                let valid_component = |name: &str| {
+                    !name.is_empty() && name.len() <= 64
+                        && name.bytes().all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'_' | b'-'))
+                };
+                if !valid_component(server) || !valid_component(tool)
+                    || !self.owns_active_prompt(&args.session_id)
+                    || args.tool_call.fields.kind != Some(acp::ToolKind::Other)
+                    || !args.tool_call.fields.raw_input.as_ref().is_some_and(Value::is_object)
+                    || args.tool_call.tool_call_id.0.is_empty()
+                    || !calls.lock().insert(args.tool_call.tool_call_id.to_string())
+                {
+                    return None;
+                }
+                Some((crate::droid_mcp_identity(server, tool), format!("{server}: {tool}")))
+            };
+            let Some((name, title)) = identify() else {
+                return Ok(cancelled_permission_response());
+            };
+            args.tool_call.fields.title = Some(title);
+            Some(name)
+        } else {
+            None
+        };
         let managed_mcp = self.managed_mcp_approval.as_ref().zip(
-            args.tool_call.fields.title.as_deref().filter(|name| name.starts_with("mcp__")),
+            droid_tool.as_deref().or_else(||
+                args.tool_call.fields.title.as_deref().filter(|name| name.starts_with("mcp__"))),
         );
         let resolve = if gemini_skill.is_some()
             || gemini_mcp.is_some()

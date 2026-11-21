@@ -186,6 +186,7 @@ pub async fn do_stream_request_acp<H: Host>(
     .await?;
     let mut restricted_auggie = false;
     let mut restricted_hermes = false;
+    let mut restricted_droid = false;
     let mut restricted_opencode = false;
     let mut restricted_kilocode = false;
     let mut restricted_pi = false;
@@ -193,6 +194,11 @@ pub async fn do_stream_request_acp<H: Host>(
         super::session::bind_desktop_access(&mut parsed_options, root, full_grant);
         restricted_auggie = acp_agent_name == "auggie"
             && !parsed_options.full_access
+            && parsed_options.permission_mode == Some(acp_types::PermissionMode::ApproveReads)
+            && merged_options.get("disable_tools").and_then(Value::as_bool) != Some(true)
+            && cfg!(all(target_os = "macos", target_arch = "aarch64"))
+            && source == vw_api_acp_model::acp_model_source::AcpModelSource::SessionModel;
+        restricted_droid = acp_agent_name == "droid"
             && parsed_options.permission_mode == Some(acp_types::PermissionMode::ApproveReads)
             && merged_options.get("disable_tools").and_then(Value::as_bool) != Some(true)
             && cfg!(all(target_os = "macos", target_arch = "aarch64"))
@@ -216,7 +222,7 @@ pub async fn do_stream_request_acp<H: Host>(
             && !parsed_options.full_access
             && cfg!(all(target_os = "macos", target_arch = "aarch64"))
             && source == vw_api_acp_model::acp_model_source::AcpModelSource::SessionModel;
-        if !restricted_auggie && !restricted_opencode && !restricted_kilocode && !restricted_hermes && !restricted_pi {
+        if !restricted_droid && !restricted_auggie && !restricted_opencode && !restricted_kilocode && !restricted_hermes && !restricted_pi {
             acp_client::AcpClient::ensure_desktop_native_access(
                 &acp_agent_name,
                 parsed_options.full_access,
@@ -230,6 +236,17 @@ pub async fn do_stream_request_acp<H: Host>(
                 .map_err(to_api_error)?;
         } else if !parsed_options.skill_mounts.is_empty() {
             return Err(acp_option_error("Auggie selected skills require its restricted session-model launch"));
+        }
+    }
+    if acp_agent_name == "droid" {
+        if restricted_droid {
+            acp_agent_registry::verify_droid_restricted_executable(&normalized_acp_cfg.command)
+                .map_err(to_api_error)?;
+            if recovered.is_some() || fork_replay.is_some() {
+                return Err(acp_option_error("Restricted Droid requires a new session"));
+            }
+        } else if !parsed_options.skill_mounts.is_empty() {
+            return Err(acp_option_error("Droid selected skills require its restricted session-model launch"));
         }
     }
     parsed_options.runtime_identity = Some(scoped_session.clone());
@@ -496,7 +513,7 @@ pub async fn do_stream_request_acp<H: Host>(
                 }
                 std::future::pending::<()>().await;
             };
-            let prepare = if mimo_mcp || vtcode_mcp || hermes_mcp || auggie_mcp {
+            let prepare = if mimo_mcp || vtcode_mcp || hermes_mcp || auggie_mcp || droid_mcp {
                 H::prepare_stdio_mcp_launch(&acp_agent_name, &normalized_acp_cfg, model, &scoped_session, &cwd, &parsed_options.mcp_servers)
             } else if openclaw_mcp.is_empty() {
                 H::prepare_launch(&acp_agent_name, &normalized_acp_cfg, model, &scoped_session)
@@ -540,6 +557,12 @@ pub async fn do_stream_request_acp<H: Host>(
     let auggie_sandbox = if restricted_auggie {
         let profile = launch_profile.as_mut().ok_or_else(|| acp_option_error("Missing restricted Auggie launch"))?;
         Some(super::skill_mounts::auggie::sandbox(profile, &cwd, parsed_options.skill_view.as_ref()).map_err(to_api_error)?)
+    } else {
+        None
+    };
+    let droid_sandbox = if restricted_droid {
+        let profile = launch_profile.as_ref().ok_or_else(|| acp_option_error("Missing restricted Droid launch"))?;
+        Some(super::skill_mounts::droid::sandbox(profile, &cwd, parsed_options.skill_view.as_ref()).map_err(to_api_error)?)
     } else {
         None
     };
@@ -662,7 +685,7 @@ pub async fn do_stream_request_acp<H: Host>(
     // Server-owned fork anchors and recovered sessions take precedence over desktop rebuild hints.
     let requested_force_new_session = fork_replay.is_none()
         && recovered.is_none()
-        && (vtcode_mcp || merged_options.get("acp_force_new_session").and_then(Value::as_bool).unwrap_or(false));
+        && (restricted_droid || vtcode_mcp || merged_options.get("acp_force_new_session").and_then(Value::as_bool).unwrap_or(false));
     let replay_strategy = if fork_history_needed {
         AcpReplayStrategy::Full
     } else {
@@ -758,7 +781,7 @@ pub async fn do_stream_request_acp<H: Host>(
         .await?;
         let cached_client_entry =
             get_cached_acp_client_with_approval::<H>(
-                &acp_agent_name, &normalized_acp_cfg, &cwd, &parsed_options, auggie_sandbox.clone(), hermes_sandbox.clone(), kilocode_sandbox.clone(), opencode_sandbox.clone(),
+                &acp_agent_name, &normalized_acp_cfg, &cwd, &parsed_options, auggie_sandbox.clone(), hermes_sandbox.clone(), droid_sandbox.clone(), kilocode_sandbox.clone(), opencode_sandbox.clone(),
                 launch_profile.as_ref().and_then(|profile| profile.managed_mcp.as_ref()).map(|(_, approve)| approve.clone()),
             );
         let _request_cleanup = super::session::RequestClientCleanup::new(&cached_client_entry);

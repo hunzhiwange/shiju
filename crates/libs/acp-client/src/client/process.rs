@@ -31,7 +31,7 @@ impl AcpClient {
     }
 
     pub(super) fn sandboxed_native_io(&self) -> bool {
-        self.managed_restricted_pi() || self.auggie_sandbox.is_some() || self.kilocode_sandbox.is_some() || self.hermes_sandbox.is_some() || self.opencode_sandbox.is_some() || self.managed_vtcode() || self.managed_aionrs() || self.managed_cortex()
+        self.droid_sandbox.is_some() || self.managed_restricted_pi() || self.auggie_sandbox.is_some() || self.kilocode_sandbox.is_some() || self.hermes_sandbox.is_some() || self.opencode_sandbox.is_some() || self.managed_vtcode() || self.managed_aionrs() || self.managed_cortex()
     }
 
     pub(super) fn managed_workspace_io(&self) -> bool {
@@ -280,6 +280,14 @@ impl AcpClient {
             env.insert("TMPDIR".into(), sandbox.home.to_string_lossy().into_owned());
             env.insert("NO_PROXY".into(), "*".into());
             sandbox.command(self.config.command.trim())?
+        } else if let Some(sandbox) = &self.droid_sandbox {
+            let allowed = self.desktop_workspace.as_ref()
+                .and_then(|workspace| workspace.canonicalize().ok())
+                .is_some_and(|workspace| sandbox.workspace.starts_with(workspace));
+            if !allowed {
+                return Err(AcpError::Initialize("Restricted Droid workspace is outside desktop access".into()));
+            }
+            sandbox.command(self.config.command.trim(), &args)?
         } else if let Some(sandbox) = &self.hermes_sandbox {
             if self.agent_name != "hermes" {
                 return Err(AcpError::Initialize("Hermes sandbox requires the Hermes backend".into()));
@@ -367,7 +375,7 @@ impl AcpClient {
         if self.agent_name == "copilot" {
             cmd.env_remove("COPILOT_ALLOW_ALL");
         }
-        if managed_claude || managed_auggie || managed_cursor || managed_droid || managed_private_provider {
+        if self.droid_sandbox.is_none() && (managed_claude || managed_auggie || managed_cursor || managed_droid || managed_private_provider) {
             // Do not inherit OAuth, cloud backends, Node injection or proxy credentials.
             // Keep the OS runtime paths. VT Code overrides its home in the child overlay.
             let runtime = [
@@ -394,7 +402,7 @@ impl AcpClient {
             cmd.env_remove("VW_ACP_LAUNCH_REFERENCE")
                 .env_remove("SIGIT_MANAGED_SKILL_DIRS");
         }
-        if let Some(directory) = directory.filter(|_| self.auggie_sandbox.is_none() && self.kilocode_sandbox.is_none() && self.hermes_sandbox.is_none() && self.opencode_sandbox.is_none() && !managed_vtcode && !self.managed_workspace_io()) {
+        if let Some(directory) = directory.filter(|_| self.droid_sandbox.is_none() && self.auggie_sandbox.is_none() && self.kilocode_sandbox.is_none() && self.hermes_sandbox.is_none() && self.opencode_sandbox.is_none() && !managed_vtcode && !self.managed_workspace_io()) {
             cmd.current_dir(directory);
         }
         if self.agent_name == "opencode" && self.opencode_sandbox.is_none() {
@@ -484,8 +492,15 @@ impl AcpClient {
         {
             return Err(AcpError::Initialize("Invalid restricted Auggie launch".into()));
         }
+        if self.droid_sandbox.is_some()
+            && (self.agent_name != "droid" || !self.config.env.contains_key("VW_ACP_LAUNCH_REFERENCE")
+                || self.desktop_workspace.is_none()
+                || self.full_access || self.permission_mode != PermissionMode::ApproveReads)
+        {
+            return Err(AcpError::Initialize("Invalid restricted Droid launch".into()));
+        }
         if self.desktop_workspace.is_some()
-            && self.auggie_sandbox.is_none()
+            && self.droid_sandbox.is_none()            && self.auggie_sandbox.is_none()
             && !(self.agent_name == "hermes" && self.hermes_sandbox.is_some())
             && !(self.agent_name == "opencode" && self.opencode_sandbox.is_some())
             && !(self.agent_name == "kilocode" && self.kilocode_sandbox.is_some())

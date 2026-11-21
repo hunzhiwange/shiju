@@ -16,8 +16,10 @@ from verify_acp_integration import ProviderHandler, require
 from verify_acp_model_source import ROOT
 
 from . import correlated_result
+from .mimo_code import mcp_server as mcp_server
 
 MODEL = "deepseek-v4.1-flash-1017"
+MODEL_REASONING = True
 ADAPTER = "openai"
 API_PATH = "/v1"
 TRANSPORT = "stdio"
@@ -71,8 +73,17 @@ def launch(env):
     }
 
 
+def prepare_workspace(workspace):
+    disabled = workspace / NATIVE_DIR / "droid-probe-disabled"
+    disabled.mkdir()
+    (disabled / "SKILL.md").write_text(
+        "---\nname: droid-probe-disabled\ndescription: Disabled project fixture\n---\nThis valid fixture is disabled.\n")
+    (workspace / ".factory/settings.json").write_text(
+        json.dumps({"disabledSkills": [disabled.name]}))
+
+
 class Probe:
-    def __init__(self, fixtures, mounted, rejected):
+    def __init__(self, fixtures, mounted, rejected, *, observe_stdio=True):
         self.fixtures = fixtures
         self.mounted = mounted
         self.rejected = rejected
@@ -80,6 +91,8 @@ class Probe:
         self.completed = {}
         self.failure = None
         self.pending = None
+        self.observe_stdio = observe_stdio
+        self.audit = None
 
     def response(self, body):
         require(body["model"] == MODEL and body.get("stream") is True,
@@ -105,6 +118,7 @@ class Probe:
                 r"<system-reminder>\nAvailable skills \([^\n]+\):\n(.*?)</system-reminder>",
                 message, re.S))
             names = set(re.findall(r"^([a-z0-9-]+): ", catalog, re.M))
+            require("droid-probe-disabled" not in names, "Droid ignored project skill disablement")
             envelope = json.dumps(body)
             for kind, skill in skills.items():
                 visible = kind == "native" or (kind == "selected" and self.mounted)
@@ -112,6 +126,13 @@ class Probe:
                 require(skill["body"] not in envelope and skill["attachment"] not in envelope,
                         "Droid skill content appeared before activation")
             require(self.fixtures["mcp"] not in envelope, "Droid MCP content appeared before invocation")
+            if self.mounted and self.observe_stdio:
+                root = skills["native"]["path"].parents[3]
+                audits = list((root / "tmp").glob("shiju-mimo-mcp-*/mimo-fixture-audit"))
+                require(len(audits) == 1, "missing Droid stdio audit")
+                self.audit = root / ("droid-rejected-audit" if self.rejected else "droid-mounted-audit")
+                os.link(audits[0], self.audit)
+                require(not self.audit.read_text(), "Droid executed MCP before approval")
             return self.call(tools, "native", "Skill", {"skill": skills["native"]["name"]})
 
         step, name, arguments = self.pending
@@ -167,12 +188,17 @@ class Probe:
         require(set(schema.get("required", [])) <= arguments.keys() <= schema.get("properties", {}).keys(),
                 f"unexpected Droid {step} tool schema")
         self.pending = (step, name, arguments)
-        return {"tool_calls": [{"index": 0, "id": "call_" + secrets.token_hex(12), "type": "function",
-                                "function": {"name": name, "arguments": json.dumps(arguments)}}]}, "tool_calls"
+        delta = {"tool_calls": [{"index": 0, "id": "call_" + secrets.token_hex(12), "type": "function",
+                                 "function": {"name": name, "arguments": json.dumps(arguments)}}]}
+        if step == "mcp":
+            # The same model preamble precedes both outcomes. A native refusal
+            # ends the prompt without another model response.
+            delta["content"] = "Checking the selected read-only MCP tool."
+        return delta, "tool_calls"
 
     def approves(self, metadata):
         return (self.pending == ("mcp", MCP_TOOL, {})
-                and metadata.get("title") == MCP_TITLE and metadata.get("arguments") == {})
+                and metadata.get("title") == "coexistence: read_probe" and metadata.get("arguments") == {})
 
     def observe_terminal(self, events):
         if not self.rejected or "mcp" in self.completed or self.pending != ("mcp", MCP_TOOL, {}):
@@ -191,6 +217,10 @@ class Probe:
             return False
         self.completed["mcp"] = call_id
         return True
+
+    def mcp_trace(self, _events):
+        audit = self.audit.read_text().splitlines() if self.mounted else []
+        return audit, self.completed.get("mcp")
 
 
 class Handler(ProviderHandler):

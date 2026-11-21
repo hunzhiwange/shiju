@@ -94,6 +94,7 @@ pub enum Event {
     Uninstalled(bool),
     LoadMoreDiscovery,
     Refresh,
+    RetryDiscovery,
     Search(usize),
     Loaded(u64, Result<(SkillReposResponse, SkillInventoryResponse), String>),
     Discovered(u64, Result<DiscoverSkillsResponse, String>),
@@ -166,7 +167,11 @@ pub fn update(s: &mut State, event: Event, minimum_version: u64) -> Effect {
     if s.installing
         && matches!(
             event,
-            Event::Refresh | Event::Tab(_) | Event::Install(_) | Event::ConfirmRepository
+            Event::Refresh
+                | Event::RetryDiscovery
+                | Event::Tab(_)
+                | Event::Install(_)
+                | Event::ConfirmRepository
         )
     {
         return Effect::None;
@@ -279,12 +284,16 @@ pub fn update(s: &mut State, event: Event, minimum_version: u64) -> Effect {
         Event::Refresh => {
             return match s.tab {
                 Tab::Installed => Effect::Load(s.begin(0)),
+                Tab::Repositories if s.busy[1] => Effect::None,
                 Tab::Repositories => {
                     s.additional_discovery_rows = 0;
                     Effect::Discover(s.begin(1), true)
                 }
                 Tab::Market => return update(s, Event::Search(s.offset), minimum_version),
             };
+        }
+        Event::RetryDiscovery if s.tab == Tab::Repositories && !s.busy[1] => {
+            return Effect::Discover(s.begin(1), false);
         }
         Event::Search(offset) => {
             if offset > 10_000
@@ -303,7 +312,7 @@ pub fn update(s: &mut State, event: Event, minimum_version: u64) -> Effect {
                 Ok((repos, inventory)) => {
                     s.repositories = Some(repos);
                     s.inventory = Some(inventory);
-                    if s.tab == Tab::Repositories {
+                    if s.tab == Tab::Repositories && !s.busy[1] {
                         return Effect::Discover(s.begin(1), false);
                     }
                 }
@@ -486,8 +495,11 @@ pub fn view<'a>(
         tabs = tabs
             .push(container(style::search(search)).width(Length::FillPortion(2)).max_width(280));
         tabs = tabs.push(match s.tab {
-            Tab::Installed => toolbar_action("检查更新", directory(DirectoryAction::Updates)),
-            Tab::Repositories => toolbar_action("刷新仓库", send(Event::Refresh)),
+            Tab::Installed => toolbar_action("检查更新", Some(directory(DirectoryAction::Updates))),
+            Tab::Repositories => toolbar_action(
+                if s.busy[1] { "正在读取仓库…" } else { "刷新仓库" },
+                (!s.busy[1]).then(|| send(Event::Refresh)),
+            ),
             Tab::Market => action("搜索", Event::Search(0)),
         });
     }
@@ -778,7 +790,10 @@ pub fn view<'a>(
                         ]
                         .spacing(3)
                         .width(Length::Fill),
-                        action("重试", Event::Refresh),
+                        button("重试")
+                            .padding([6, 10])
+                            .style(rounded_action_btn_style)
+                            .on_press_maybe((!s.busy[1]).then(|| send(Event::RetryDiscovery))),
                     ]
                     .spacing(10)
                     .align_y(iced::Alignment::Center),
@@ -1069,7 +1084,7 @@ fn dropdown_trigger<'a>(
     .on_press(event)
 }
 
-fn toolbar_action<'a>(label: &'static str, event: Message) -> button::Button<'a, Message> {
+fn toolbar_action<'a>(label: &'static str, event: Option<Message>) -> button::Button<'a, Message> {
     button(
         row![icon_svg(Icon::ArrowClockwise, 16.0).style(icon_btn_svg_style), text(label).size(13),]
             .spacing(5)
@@ -1077,7 +1092,7 @@ fn toolbar_action<'a>(label: &'static str, event: Message) -> button::Button<'a,
     )
     .padding([7, 8])
     .style(|theme, status| settings_tab_style(theme, status, false))
-    .on_press(event)
+    .on_press_maybe(event)
 }
 
 fn more_button(event: Message) -> button::Button<'static, Message> {

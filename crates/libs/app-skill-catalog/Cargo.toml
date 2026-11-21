@@ -8,6 +8,7 @@ license = "MIT"
 doctest = false
 
 [dependencies]
+futures-util = "0.3.32"
 app-config-paths = { path = "../app-config-paths" }
 vw-api-app-identity = { path = "../api-app-identity" }
 vw-api-app-provider-environment = { path = "../api-app-provider-environment" }
@@ -18,6 +19,7 @@ serde_json = { version = "1", features = ["arbitrary_precision"] }
 serde_yaml = "0.9"
 uuid = { version = "1.11", features = ["v4", "js"] }
 tempfile = "3"
+tokio = { version = "1", features = ["rt", "time"] }
 zip = { version = "8.6", default-features = false, features = ["deflate-flate2-zlib-rs"] }
 
 [dev-dependencies]

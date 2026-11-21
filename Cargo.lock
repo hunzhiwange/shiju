@@ -2988,6 +2988,7 @@ version = "0.7.3"
 dependencies = [
  "app-catalog",
  "app-config-paths",
+ "futures-util",
  "reqwest 0.13.4",
  "serde",
  "serde_json",

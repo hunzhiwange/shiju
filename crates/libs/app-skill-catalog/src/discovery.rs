@@ -5,6 +5,7 @@
 use std::{collections::BTreeSet, fs, io::{Read, Write}, path::{Path, PathBuf}, time::Duration};
 
 use serde::{Deserialize, Serialize};
+use tokio::time::Instant;
 
 use super::{archive::MAX_ARCHIVE_DOWNLOAD_BYTES, repos::{SkillRepo, validate_repo_ref}};
 
@@ -95,17 +96,43 @@ pub async fn discover_at(
 ) -> SkillDiscoveryResult {
     let mut report = SkillDiscoveryResult::default();
     for repo in repos.iter().filter(|repo| repo.enabled) {
-        match fetch_repo(client, repo, api, archives).await {
-            Ok(skills) => report.skills.extend(skills),
-            Err(error) => report.failures.push(SkillRepoFailure {
-                owner: repo.owner.clone(), name: repo.name.clone(), branch: repo.branch.clone(), error,
-            }),
-        }
+        let result = discover_repository(client, repo, api, archives, None).await;
+        report.skills.extend(result.skills);
+        report.failures.extend(result.failures);
     }
     let mut seen = BTreeSet::new();
     report.skills.retain(|skill| seen.insert(skill.key.to_lowercase()));
     report.skills.sort_by_cached_key(|skill| (skill.name.to_lowercase(), skill.key.to_lowercase()));
     report
+}
+
+pub(super) async fn discover_repository(
+    client: &reqwest::Client,
+    repo: &SkillRepo,
+    api: &str,
+    archives: &str,
+    deadline: Option<Instant>,
+) -> SkillDiscoveryResult {
+    let fetch = fetch_repo(client, repo, api, archives, deadline);
+    let result = match deadline {
+        Some(deadline) if Instant::now() >= deadline => Err(DiscoveryError::Timeout),
+        Some(deadline) => tokio::time::timeout_at(deadline, fetch)
+            .await
+            .unwrap_or(Err(DiscoveryError::Timeout)),
+        None => fetch.await,
+    };
+    match result {
+        Ok(skills) => SkillDiscoveryResult { skills, failures: Vec::new() },
+        Err(error) => SkillDiscoveryResult {
+            skills: Vec::new(),
+            failures: vec![SkillRepoFailure {
+                owner: repo.owner.clone(),
+                name: repo.name.clone(),
+                branch: repo.branch.clone(),
+                error,
+            }],
+        },
+    }
 }
 
 pub(super) async fn request(client: &reqwest::Client, url: reqwest::Url) -> Result<reqwest::Response, DiscoveryError> {
@@ -136,6 +163,7 @@ async fn fetch_repo(
     repo: &SkillRepo,
     api: &str,
     archives: &str,
+    deadline: Option<Instant>,
 ) -> Result<Vec<DiscoverableSkill>, DiscoveryError> {
     validate_repo_ref(&repo.owner, &repo.name, &repo.branch).map_err(|_| DiscoveryError::InvalidRepository)?;
     let mut resolved = repo.clone();
@@ -158,8 +186,24 @@ async fn fetch_repo(
         validate_repo_ref(&resolved.owner, &resolved.name, &resolved.branch)
             .map_err(|_| DiscoveryError::InvalidResponse)?;
     }
-    let guard = download_branch(client, &resolved, archives).await?;
-    scan_repo(guard.path(), &resolved)
+    let file = download_branch_file(client, &resolved, archives, &|| Ok(())).await?;
+    let result = tokio::task::spawn_blocking(move || {
+        let check = || {
+            if deadline.is_some_and(|deadline| Instant::now() >= deadline) {
+                return Err(std::io::ErrorKind::TimedOut.into());
+            }
+            Ok(())
+        };
+        let guard = super::archive::extract_repo_archive_checked(file, &check)
+            .map_err(|_| DiscoveryError::InvalidArchive)?;
+        scan_repo_checked(guard.path(), &resolved, &check)
+    })
+    .await
+    .map_err(|_| DiscoveryError::InvalidArchive)?;
+    if deadline.is_some_and(|deadline| Instant::now() >= deadline) {
+        return Err(DiscoveryError::Timeout);
+    }
+    result
 }
 
 pub async fn download_branch(
@@ -174,6 +218,16 @@ pub async fn download_branch_checked(
     client: &reqwest::Client, repo: &SkillRepo, archives: &str,
     check: &(dyn Fn() -> std::io::Result<()> + Sync),
 ) -> Result<tempfile::TempDir, DiscoveryError> {
+    let file = download_branch_file(client, repo, archives, check).await?;
+    super::archive::extract_repo_archive_checked(file, check).map_err(|_| DiscoveryError::InvalidArchive)
+}
+
+async fn download_branch_file(
+    client: &reqwest::Client,
+    repo: &SkillRepo,
+    archives: &str,
+    check: &(dyn Fn() -> std::io::Result<()> + Sync),
+) -> Result<fs::File, DiscoveryError> {
     check().map_err(|_| DiscoveryError::InvalidArchive)?;
     let mut response = request(client, url(archives, &[&repo.owner, &repo.name, "zip", "refs", "heads", &repo.branch])?).await?;
     if response.content_length().is_some_and(|length| length > MAX_ARCHIVE_DOWNLOAD_BYTES) {
@@ -187,8 +241,7 @@ pub async fn download_branch_checked(
             .ok_or(DiscoveryError::InvalidArchive)?;
         file.write_all(&chunk).map_err(|_| DiscoveryError::InvalidArchive)?;
     }
-    let guard = super::archive::extract_repo_archive_checked(file, check).map_err(|_| DiscoveryError::InvalidArchive)?;
-    Ok(guard)
+    Ok(file)
 }
 
 #[derive(Default, Deserialize)]

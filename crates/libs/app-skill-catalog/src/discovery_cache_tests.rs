@@ -106,3 +106,35 @@ fn cp12_discovery_cache_new_failure_prevents_old_success_publication() {
     assert_eq!(cache.snapshot().unwrap(), failure);
     assert_eq!(cache.begin(false, now).unwrap().len(), 1);
 }
+
+#[tokio::test]
+async fn discovery_starts_other_repositories_while_first_is_waiting() {
+    use tokio::{io::{AsyncReadExt, AsyncWriteExt}, net::TcpListener, time::timeout};
+
+    let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let endpoint = format!("http://{}", listener.local_addr().unwrap());
+    let cache = SkillDiscoveryCache::default();
+    cache.update_repositories(1, vec![repo("first"), repo("second")]).unwrap();
+    let client = reqwest::Client::builder().no_proxy().build().unwrap();
+
+    let serve = async {
+        let (mut first, _) = listener.accept().await.unwrap();
+        let (mut second, _) = listener.accept().await.unwrap();
+        for stream in [&mut first, &mut second] {
+            let mut header = Vec::new();
+            while !header.ends_with(b"\r\n\r\n") {
+                header.push(stream.read_u8().await.unwrap());
+            }
+            stream.write_all(
+                b"HTTP/1.1 404 Not Found\r\nContent-Length: 0\r\nConnection: close\r\n\r\n",
+            ).await.unwrap();
+        }
+    };
+    let (report, ()) = timeout(Duration::from_secs(5), async {
+        tokio::join!(cache.discover_at(&client, false, &endpoint, &endpoint), serve)
+    }).await.expect("both repositories should be requested before either responds");
+
+    let report = report.unwrap();
+    assert_eq!(report.failures.len(), 2);
+    assert!(report.failures.iter().all(|failure| failure.error == DiscoveryError::NotFound));
+}

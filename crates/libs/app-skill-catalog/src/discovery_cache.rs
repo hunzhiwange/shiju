@@ -3,9 +3,14 @@
 
 use std::{collections::BTreeMap, sync::Mutex, time::{Duration, Instant}};
 
-use super::{discovery::{SkillDiscoveryResult, discover_at}, repos::{SkillRepo, SkillRepos}};
+use futures_util::{StreamExt, stream};
+
+use super::{discovery::{SkillDiscoveryResult, discover_repository}, repos::{SkillRepo, SkillRepos}};
 
 const TTL: Duration = Duration::from_secs(600);
+const MAX_CONCURRENT_REPOSITORIES: usize = 4;
+// Leave time for the gateway to return the report within the client's 30s request timeout.
+const DISCOVERY_BUDGET: Duration = Duration::from_secs(25);
 type RepoKey = (String, String, String);
 
 fn key(repo: &SkillRepo) -> RepoKey {
@@ -80,9 +85,15 @@ impl SkillDiscoveryCache {
         api: &str, archives: &str,
     ) -> Result<SkillDiscoveryResult, CacheError> {
         let requests = self.begin(force_refresh, Instant::now())?;
-        for (repo, sequence) in requests {
-            let result = discover_at(client, std::slice::from_ref(&repo), api, archives).await;
-            self.finish(&key(&repo), sequence, result, Instant::now())?;
+        let deadline = tokio::time::Instant::now() + DISCOVERY_BUDGET;
+        let mut pending = stream::iter(requests)
+            .map(|(repo, sequence)| async move {
+                let result = discover_repository(client, &repo, api, archives, Some(deadline)).await;
+                (key(&repo), sequence, result)
+            })
+            .buffer_unordered(MAX_CONCURRENT_REPOSITORIES);
+        while let Some((key, sequence, result)) = pending.next().await {
+            self.finish(&key, sequence, result, Instant::now())?;
         }
         self.snapshot()
     }

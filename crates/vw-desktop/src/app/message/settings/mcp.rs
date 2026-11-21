@@ -9,6 +9,9 @@ use serde_json::{Value, json};
 
 use super::messages::{McpMessage, SettingsMessage};
 
+#[path = "mcp_transfer.rs"]
+pub(crate) mod transfer;
+
 fn refresh_task() -> Task<Message> {
     Task::perform(load_global_config_value_async(), |result| {
         Message::Settings(SettingsMessage::Mcp(McpMessage::Loaded(result)))
@@ -53,6 +56,7 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
         McpMessage::ConnectionForm(value) => return super::mcp_management_form::update(app, value),
         McpMessage::Bindings(value) => return super::mcp_management_bindings::update(app, value),
         McpMessage::Resync(value) => return super::mcp_management_resync::update(app, value),
+        McpMessage::Transfer(value) => return transfer::update(app, value),
         McpMessage::Import(value) => return super::mcp_management_import::update(app, value),
         McpMessage::TabSelected(v0) => LocalMessage::TabSelected(v0),
         McpMessage::Refresh => LocalMessage::Refresh,

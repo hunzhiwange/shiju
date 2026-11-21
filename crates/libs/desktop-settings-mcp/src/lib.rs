@@ -291,7 +291,7 @@ mod tests;
 pub mod connection;
 pub mod tools;
 
-pub(crate) fn toolbar_button<'a, Message: Clone + 'a>(
+pub fn toolbar_button<'a, Message: Clone + 'a>(
     label: &'static str,
     message: Option<Message>,
 ) -> iced::widget::Button<'a, Message> {
@@ -362,3 +362,5 @@ pub mod third_party;
 
 #[cfg(test)]
 mod third_party_tests;
+
+pub mod configuration_transfer;

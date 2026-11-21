@@ -96,13 +96,44 @@ fn catalog_event(value: catalog::Message) -> Message {
         catalog::Message::Import => import::message(import::ImportMessage::Open),
     }
 }
+fn configuration_transfer_panel(app: &App) -> Element<'_, Message> {
+    use crate::app::message::settings::mcp::transfer::message;
+    use desktop_settings_mcp::{configuration_transfer::Message as Event, toolbar_button};
+    use desktop_ui_controls::system_settings_common::settings_muted_text_style;
+    use iced::widget::{column, row, text};
+
+    let state = &app.mcp_settings.page;
+    let ready = !state.loading && !state.saving && !state.transfer_pending;
+    let mut actions = row![].spacing(8);
+    if cfg!(not(target_arch = "wasm32")) {
+        actions = actions
+            .push(toolbar_button("导入配置文件", ready.then(|| message(Event::Import))))
+            .push(toolbar_button("导出 JSON 备份", ready.then(|| message(Event::Export))));
+    }
+    actions = actions
+        .push(toolbar_button("粘贴配置 JSON", ready.then(|| message(Event::Paste))))
+        .push(toolbar_button("复制 AI 修改提示词", Some(message(Event::CopyPrompt))));
+    let mut panel = column![actions.wrap()].spacing(6);
+    if cfg!(not(target_arch = "wasm32")) {
+        panel = panel.push(
+            text("支持 Codex config.toml、Claude Code .mcp.json、Cursor mcp.json 和识矩全局 MCP 备份。导入后检查草稿并保存。备份包含编辑器中的全局服务器配置，可能含有凭据。")
+                .size(12)
+                .style(settings_muted_text_style),
+        );
+    }
+    panel.into()
+}
+
 pub fn view(app: &App) -> Element<'_, Message> {
     page::view(
         event,
         &app.mcp_settings.page,
         app.general_settings.desktop_locale,
         &app.appearance.app_theme,
-        std::array::from_fn(|_| iced::widget::Space::new().into()),
+        std::array::from_fn(|index| match index {
+            0 => configuration_transfer_panel(app),
+            _ => iced::widget::Space::new().into(),
+        }),
         help,
     )
 }

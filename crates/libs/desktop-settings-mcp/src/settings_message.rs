@@ -9,6 +9,7 @@ pub enum McpMessage {
     Bindings(crate::management_bindings::BindingsMessage),
     Resync(crate::management_resync::ResyncMessage),
     Import(crate::management_import::ImportMessage),
+    Transfer(crate::configuration_transfer::Message),
     TabSelected(McpSettingsTab),
     Refresh,
     Loaded(Result<serde_json::Value, String>),

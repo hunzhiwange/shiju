@@ -318,6 +318,18 @@ pub fn mask_sensitive_fields(config: &Config) -> Config {
         mask_required_secret(&mut wecom_webhook.webhook_url);
     }
 
+    for instance in &mut masked.channels_config.qq_instances {
+        mask_required_secret(&mut instance.config.app_secret);
+    }
+
+    for instance in &mut masked.channels_config.wecom_instances {
+        mask_required_secret(&mut instance.config.secret);
+    }
+
+    for instance in &mut masked.channels_config.wechat_instances {
+        mask_required_secret(&mut instance.config.bot_token);
+    }
+
     // 掩码 Nostr 通道配置
     if let Some(nostr) = masked.channels_config.nostr.as_mut() {
         mask_required_secret(&mut nostr.private_key);
@@ -531,25 +543,10 @@ fn restore_masked_sensitive_fields(incoming: &mut Config, current: &Config) {
         restore_required_secret(&mut incoming_ch.app_secret, &current_ch.app_secret);
     }
 
-    if let Some(wecom) = incoming.channels_config.wecom.as_mut() {
-        let current_secret = current
-            .channels_config
-            .wecom
-            .as_ref()
-            .map(|config| config.secret.as_str())
-            .unwrap_or_default();
-        restore_required_secret(&mut wecom.secret, current_secret);
-    }
-    if let Some(wecom_webhook) = incoming.channels_config.wecom_webhook.as_mut() {
-        let current_url = current
-            .channels_config
-            .wecom_webhook
-            .as_ref()
-            .map(|config| config.webhook_url.as_str())
-            .unwrap_or_default();
-        // 占位符只能恢复既有凭据；不存在旧值时保持未配置，不能将星号存为 URL。
-        restore_required_secret(&mut wecom_webhook.webhook_url, current_url);
-    }
+    agent_config::schema::restore_masked_channel_credentials(
+        &mut incoming.channels_config,
+        &current.channels_config,
+    );
 
     // 恢复 Nostr 通道配置
     if let (Some(incoming_ch), Some(current_ch)) =

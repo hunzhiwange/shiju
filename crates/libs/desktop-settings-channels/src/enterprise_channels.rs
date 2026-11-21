@@ -23,8 +23,21 @@ use super::common::{
 };
 
 pub(crate) fn qr_authorization<'a>(app: ViewState<'a>, channel: &'static str) -> Element<'a, Message> {
+    qr_authorization_for(app, channel, None)
+}
+
+fn qr_authorization_for<'a>(
+    app: ViewState<'a>,
+    channel: &'static str,
+    instance_id: Option<&str>,
+) -> Element<'a, Message> {
     let flow = &app.channels_settings.qr_flow;
-    let is_current = flow.channel.as_deref() == Some(channel);
+    let is_current =
+        flow.channel.as_deref() == Some(channel) && flow.instance_id.as_deref() == instance_id;
+    let target = match instance_id {
+        Some(id) => format!("{channel}:{id}"),
+        None => channel.to_owned(),
+    };
     let mut content = column![
         settings_group_heading(
             tr(app.desktop_locale, "扫码授权"),
@@ -40,7 +53,7 @@ pub(crate) fn qr_authorization<'a>(app: ViewState<'a>, channel: &'static str) ->
         )
         .padding([8, 12])
         .on_press(Message::Settings(SettingsMessage::Channels(ChannelsMessage::QrRequested(
-            channel.to_string()
+            target
         ),)))
         .style(rounded_action_btn_style),
     ]
@@ -609,6 +622,22 @@ pub fn dingtalk_panel(app: ViewState<'_>) -> Element<'_, Message> {
     )
 }
 
+fn named_bot_header<'a>(
+    app: ViewState<'a>,
+    channel: &'static str,
+    id: &str,
+    index: usize,
+) -> iced::widget::Column<'a, Message> {
+    let title = desktop_i18n::__!(I18n::new(app.desktop_locale), "实例 %s", id)
+        .expect("valid channel instance template");
+    column![
+        instance_title_row(app.desktop_locale, title, channel, index),
+        default_project_selector(app, format!("{channel}:{id}")),
+        qr_authorization_for(app, channel, Some(id)),
+    ]
+    .spacing(12)
+}
+
 /// 构建或处理 `qq_panel` 对应的界面片段与交互数据。
 ///
 /// # 参数
@@ -624,7 +653,7 @@ pub fn dingtalk_panel(app: ViewState<'_>) -> Element<'_, Message> {
 /// 本函数不直接返回错误；无法交互或缺省状态会在控件状态中显式表达。
 pub fn qq_panel(app: ViewState<'_>) -> Element<'_, Message> {
     let s = &app.channels_settings;
-    let body: Element<'_, Message> = if let Some(cfg) = s.qq.as_ref() {
+    let mut body = if let Some(cfg) = s.qq.as_ref() {
         column![
             qr_authorization(app, "qq"),
             default_project_selector(app, "qq:default".into()),
@@ -646,19 +675,54 @@ pub fn qq_panel(app: ViewState<'_>) -> Element<'_, Message> {
             ),
         ]
         .spacing(12)
-        .into()
     } else {
-        column![].into()
+        column![].spacing(12)
     };
 
-    panel(
-        app,
-        "qq",
-        "QQ",
-        tr(app.desktop_locale, "QQ 官方机器人 app 信息与接收模式。"),
-        s.qq.is_some(),
-        body,
-    )
+    for (index, instance) in app.channels_settings.qq_instances.iter().enumerate() {
+        let key_prefix = format!("qq_instances.{index}");
+        let fields = named_bot_header(app, "qq", &instance.id, index)
+            .push(text_row_with_key(
+                app,
+                "app_id",
+                "QQ app id",
+                &instance.config.app_id,
+                format!("{key_prefix}.app_id"),
+                true,
+            ))
+            .push(text_row_with_key(
+                app,
+                "app_secret",
+                "QQ app secret",
+                &instance.config.app_secret,
+                format!("{key_prefix}.app_secret"),
+                true,
+            ))
+            .push(text_row_with_key(
+                app,
+                "allowed_users",
+                "逗号或换行分隔，支持 *",
+                "",
+                format!("{key_prefix}.allowed_users"),
+                false,
+            ))
+            .push(hint_row(tr(app.desktop_locale, "新增 QQ 实例使用 WebSocket 接收消息。")));
+        body = body.push(settings_group_card(container(fields).padding([14, 0])));
+    }
+
+    column![
+        panel(
+            app,
+            "qq",
+            "QQ",
+            tr(app.desktop_locale, "QQ 官方机器人 app 信息与接收模式。"),
+            s.qq.is_some() || !s.qq_instances.is_empty(),
+            body.into(),
+        ),
+        add_instance_row("qq", tr(app.desktop_locale, "新增QQ实例")),
+    ]
+    .spacing(12)
+    .into()
 }
 
 pub fn wecom_panel(app: ViewState<'_>) -> Element<'_, Message> {
@@ -671,9 +735,9 @@ pub fn wecom_panel(app: ViewState<'_>) -> Element<'_, Message> {
             tr(app.desktop_locale, "企业微信 AI 机器人长连接凭据。"),
         ),
         text(if app.channels_settings.wecom.is_some() {
-            "智能机器人：已配置"
+            tr(app.desktop_locale, "默认智能机器人：已配置")
         } else {
-            "智能机器人：未配置"
+            tr(app.desktop_locale, "默认智能机器人：未配置")
         })
         .size(13),
     ]
@@ -697,12 +761,34 @@ pub fn wecom_panel(app: ViewState<'_>) -> Element<'_, Message> {
     if app.channels_settings.wecom.is_some() {
         body = body.push(default_project_selector(app, "wecom:default".into()));
     }
+    for (index, instance) in app.channels_settings.wecom_instances.iter().enumerate() {
+        let key_prefix = format!("wecom_instances.{index}");
+        let fields = named_bot_header(app, "wecom", &instance.id, index)
+            .push(text_row_with_key(
+                app,
+                "bot_id",
+                "企业微信 Bot ID",
+                &instance.config.bot_id,
+                format!("{key_prefix}.bot_id"),
+                false,
+            ))
+            .push(text_row_with_key(
+                app,
+                "secret",
+                "企业微信 Secret",
+                &instance.config.secret,
+                format!("{key_prefix}.secret"),
+                true,
+            ));
+        body = body.push(settings_group_card(container(fields).padding([14, 0])));
+    }
+    body = body.push(add_instance_row("wecom", tr(app.desktop_locale, "新增企业微信实例")));
     settings_group_card(container(body).padding([14, 0])).into()
 }
 
 pub fn wechat_panel(app: ViewState<'_>) -> Element<'_, Message> {
     let s = &app.channels_settings;
-    let body: Element<'_, Message> = if let Some(cfg) = s.wechat.as_ref() {
+    let mut body = if let Some(cfg) = s.wechat.as_ref() {
         column![
             qr_authorization(app, "wechat"),
             default_project_selector(app, "wechat:default".into()),
@@ -724,18 +810,44 @@ pub fn wechat_panel(app: ViewState<'_>) -> Element<'_, Message> {
             ),
         ]
         .spacing(12)
-        .into()
     } else {
-        column![].into()
+        column![].spacing(12)
     };
-    panel(
-        app,
-        "wechat",
-        tr(app.desktop_locale, "微信"),
-        tr(app.desktop_locale, "微信 iLink 机器人凭据与可信平台地址。"),
-        s.wechat.is_some(),
-        body,
-    )
+    for (index, instance) in app.channels_settings.wechat_instances.iter().enumerate() {
+        let key_prefix = format!("wechat_instances.{index}");
+        let fields = named_bot_header(app, "wechat", &instance.id, index)
+            .push(text_row_with_key(
+                app,
+                "bot_token",
+                "微信 Bot Token",
+                &instance.config.bot_token,
+                format!("{key_prefix}.bot_token"),
+                true,
+            ))
+            .push(text_row_with_key(
+                app,
+                "base_url",
+                "可信 iLink 地址",
+                &instance.config.base_url,
+                format!("{key_prefix}.base_url"),
+                false,
+            ));
+        body = body.push(settings_group_card(container(fields).padding([14, 0])));
+    }
+
+    column![
+        panel(
+            app,
+            "wechat",
+            tr(app.desktop_locale, "微信"),
+            tr(app.desktop_locale, "微信 iLink 机器人凭据与可信平台地址。"),
+            s.wechat.is_some() || !s.wechat_instances.is_empty(),
+            body.into(),
+        ),
+        add_instance_row("wechat", tr(app.desktop_locale, "新增微信实例")),
+    ]
+    .spacing(12)
+    .into()
 }
 
 /// 构建或处理 `nostr_panel` 对应的界面片段与交互数据。

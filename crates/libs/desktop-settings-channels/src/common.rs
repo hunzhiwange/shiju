@@ -165,6 +165,7 @@ pub fn is_multiline_list_key(key: &str) -> bool {
         named_instance_field(key, "feishu_instances"),
         Some("allowed_users" | "group_reply.allowed_sender_ids")
     ) || matches!(named_instance_field(key, "dingtalk_instances"), Some("allowed_users"))
+        || matches!(named_instance_field(key, "qq_instances"), Some("allowed_users"))
 }
 
 pub fn localized_label(label: &'static str) -> &'static str {
@@ -721,13 +722,13 @@ pub fn enabled_channels(app: ViewState<'_>) -> Vec<&'static str> {
     if s.dingtalk.is_some() || !s.dingtalk_instances.is_empty() {
         items.push("钉钉");
     }
-    if s.qq.is_some() {
+    if s.qq.is_some() || !s.qq_instances.is_empty() {
         items.push("QQ");
     }
-    if s.wecom.is_some() {
+    if s.wecom.is_some() || !s.wecom_instances.is_empty() {
         items.push("企业微信");
     }
-    if s.wechat.is_some() {
+    if s.wechat.is_some() || !s.wechat_instances.is_empty() {
         items.push("微信");
     }
     if s.nostr.is_some() {

@@ -52,6 +52,42 @@ pub(super) fn apply_instance_text_change(app: &mut ChannelsSettingsState, key: &
         return true;
     }
 
+    if let Some((index, field)) = parse_instance_field(key, "qq_instances") {
+        if let Some(instance) = app.qq_instances.get_mut(index) {
+            match field {
+                "app_id" => instance.config.app_id = value.to_owned(),
+                "app_secret" => instance.config.app_secret = value.to_owned(),
+                "allowed_users" => {
+                    instance.config.allowed_users = parse_comma_or_newline_list(value)
+                }
+                _ => {}
+            }
+        }
+        return true;
+    }
+
+    if let Some((index, field)) = parse_instance_field(key, "wecom_instances") {
+        if let Some(instance) = app.wecom_instances.get_mut(index) {
+            match field {
+                "bot_id" => instance.config.bot_id = value.to_owned(),
+                "secret" => instance.config.secret = value.to_owned(),
+                _ => {}
+            }
+        }
+        return true;
+    }
+
+    if let Some((index, field)) = parse_instance_field(key, "wechat_instances") {
+        if let Some(instance) = app.wechat_instances.get_mut(index) {
+            match field {
+                "bot_token" => instance.config.bot_token = value.to_owned(),
+                "base_url" => instance.config.base_url = value.to_owned(),
+                _ => {}
+            }
+        }
+        return true;
+    }
+
     false
 }
 

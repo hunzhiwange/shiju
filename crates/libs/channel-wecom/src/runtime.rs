@@ -17,7 +17,7 @@ pub struct WeComRuntimeScope {
     pub(super) config_store: PathBuf,
     pub(super) workspace: PathBuf,
     config_source: PathBuf,
-    instance: &'static str,
+    instance: String,
 }
 
 impl WeComRuntimeScope {
@@ -30,8 +30,13 @@ impl WeComRuntimeScope {
             config_store: config_runtime_paths::global_database_config_path(home),
             config_source: config.config_path.clone(),
             workspace: config.workspace_dir.clone(),
-            instance: "default",
+            instance: "default".into(),
         })
+    }
+
+    pub fn with_instance_id(mut self, instance_id: &str) -> Self {
+        self.instance = instance_id.to_owned();
+        self
     }
 }
 

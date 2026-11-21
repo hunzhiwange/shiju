@@ -394,3 +394,42 @@ fn wecom_delivery_foreign_key_isolated_and_recovers_after_replacement() {
         "https://example.invalid/?key=repaired"
     );
 }
+
+#[test]
+fn named_qq_wecom_wechat_credentials_restore_by_id_and_remain_encrypted() {
+    let tmp = tempfile::tempdir().unwrap();
+    let store = SecretStore::new(tmp.path(), true);
+    for (key, field, mut fields) in [
+        (
+            "qq_instances",
+            "app_secret",
+            serde_json::json!({"app_id": "qq", "receive_mode": "websocket"}),
+        ),
+        ("wecom_instances", "secret", serde_json::json!({"bot_id": "wecom"})),
+        ("wechat_instances", "bot_token", serde_json::json!({})),
+    ] {
+        fields["id"] = "one".into();
+        fields[field] = "fixture-one".into();
+        let mut second = fields.clone();
+        second["id"] = "two".into();
+        second[field] = "fixture-two".into();
+        let mut input = serde_json::json!({"cli": true});
+        input[key] = serde_json::json!([fields, second]);
+        let current: ChannelsConfig = serde_json::from_value(input.clone()).unwrap();
+        let instances = input[key].as_array_mut().unwrap();
+        instances.reverse();
+        for instance in instances {
+            instance[field] = "***MASKED***".into();
+        }
+        let mut next: ChannelsConfig = serde_json::from_value(input).unwrap();
+        super::restore_masked_channel_credentials(&mut next, &current);
+        encrypt_channel_secrets(&store, &mut next).unwrap();
+        let encrypted = serde_json::to_value(&next).unwrap();
+        assert!(SecretStore::is_encrypted(encrypted[key][0][field].as_str().unwrap()));
+        assert!(SecretStore::is_encrypted(encrypted[key][1][field].as_str().unwrap()));
+        super::decrypt_channel_secrets_isolated(&store, &mut next).unwrap();
+        let decrypted = serde_json::to_value(next).unwrap();
+        assert_eq!(decrypted[key][0][field], "fixture-two");
+        assert_eq!(decrypted[key][1][field], "fixture-one");
+    }
+}

@@ -175,6 +175,14 @@ pub struct QQConfig {
     pub receive_mode: QQReceiveMode,
 }
 
+/// 命名 QQ 通道实例。
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct QQInstanceConfig {
+    pub id: String,
+    #[serde(flatten)]
+    pub config: QQConfig,
+}
+
 /// 默认 Nostr relay 列表。
 pub fn default_nostr_relays() -> Vec<String> {
     vec![

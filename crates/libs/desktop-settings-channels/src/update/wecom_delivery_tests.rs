@@ -135,3 +135,37 @@ fn wecom_delivery_modal_webhook_only_validates_without_bot_credentials() {
     assert!(wecom.is_none());
     assert!(webhook.is_some());
 }
+
+#[test]
+fn named_wecom_qr_credentials_only_update_the_selected_instance_after_save() {
+    use gateway_channel_qr::{ChannelQrStatusDto, ChannelQrStatusResponseDto};
+    let mut app = ChannelsSettingsState::default();
+    let services = services();
+    app.wecom = Some(WeComConfig { bot_id: "default".into(), secret: "default-secret".into() });
+    let handle = super::updates::update;
+    for _ in 0..2 {
+        drop(handle(&mut app, &services, ChannelsMessage::InstanceAdded("wecom".into())));
+    }
+    drop(handle(&mut app, &services, ChannelsMessage::QrRequested("wecom:2".into())));
+    let generation = app.qr_flow.generation;
+    let result = serde_json::json!({"bot_id": "named", "secret": "named-secret"});
+    drop(handle(
+        &mut app,
+        &services,
+        ChannelsMessage::QrPolled {
+            channel: "wecom".into(),
+            generation,
+            result: Ok(ChannelQrStatusResponseDto {
+                status: ChannelQrStatusDto::Authorized,
+                credentials: result.as_object().cloned(),
+            }),
+        },
+    ));
+
+    assert!(app.qr_flow.credentials_ready);
+    assert!(app.wecom_instances[1].config.secret.is_empty());
+    drop(handle(&mut app, &services, ChannelsMessage::QrSaveConfirmed));
+    assert_eq!(app.wecom.as_ref().unwrap().secret, "default-secret");
+    assert!(app.wecom_instances[0].config.secret.is_empty());
+    assert_eq!(app.wecom_instances[1].config.secret, "named-secret");
+}

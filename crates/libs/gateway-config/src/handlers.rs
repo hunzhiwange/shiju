@@ -54,11 +54,14 @@ pub fn stateful_router<H: ConfigHost>() -> Router<H::State> {
 }
 
 // Keep runtime credentials intact; only redact the public response copy.
-fn wecom_safe_config_value<H: ConfigHost>(config: &config::Config) -> Result<Value, serde_json::Error> {
+fn public_config_value<H: ConfigHost>(config: &config::Config) -> Result<Value, serde_json::Error> {
     let mut public = config.clone();
     let masked = H::mask_sensitive_fields(config);
     public.channels_config.wecom = masked.channels_config.wecom;
     public.channels_config.wecom_webhook = masked.channels_config.wecom_webhook;
+    public.channels_config.qq_instances = masked.channels_config.qq_instances;
+    public.channels_config.wecom_instances = masked.channels_config.wecom_instances;
+    public.channels_config.wechat_instances = masked.channels_config.wechat_instances;
     serde_json::to_value(public)
 }
 
@@ -72,7 +75,8 @@ pub async fn config_get<H: ConfigHost>(
             .await
             .map_err(|error| ApiError::bad_request(error.to_string()))?;
         return Ok(Json(
-            wecom_safe_config_value::<H>(&cfg).map_err(|error| ApiError::internal(error.to_string()))?,
+            public_config_value::<H>(&cfg)
+                .map_err(|error| ApiError::internal(error.to_string()))?,
         ));
     }
 
@@ -86,7 +90,7 @@ pub async fn config_get<H: ConfigHost>(
         })
     })
     .await?;
-    Ok(Json(wecom_safe_config_value::<H>(&cfg).map_err(|e| ApiError::internal(e.to_string()))?))
+    Ok(Json(public_config_value::<H>(&cfg).map_err(|e| ApiError::internal(e.to_string()))?))
 }
 
 pub async fn config_patch<H: ConfigHost>(
@@ -96,7 +100,7 @@ pub async fn config_patch<H: ConfigHost>(
     Json(patch): Json<Value>,
 ) -> Result<Json<Value>, ApiError> {
     let (next, _) = apply_config_patch::<H>(&tenant, &query, &headers, patch).await?;
-    Ok(Json(wecom_safe_config_value::<H>(&next).map_err(|e| ApiError::internal(e.to_string()))?))
+    Ok(Json(public_config_value::<H>(&next).map_err(|e| ApiError::internal(e.to_string()))?))
 }
 
 pub async fn config_get_stateful<H: ConfigHost>(
@@ -116,7 +120,8 @@ pub async fn config_patch_stateful<H: ConfigHost>(
 ) -> Result<Json<Value>, ApiError> {
     let (next, updates_active_config) =
         apply_config_patch::<H>(&tenant, &query, &headers, patch).await?;
-    let response = wecom_safe_config_value::<H>(&next).map_err(|e| ApiError::internal(e.to_string()))?;
+    let response =
+        public_config_value::<H>(&next).map_err(|e| ApiError::internal(e.to_string()))?;
 
     if updates_active_config {
         H::pairing(&state).update_from_skeys(next.gateway.auth_enabled, &next.gateway.skeys);

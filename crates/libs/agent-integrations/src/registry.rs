@@ -198,7 +198,7 @@ pub fn all_integrations() -> Vec<IntegrationEntry> {
             description: "Tencent QQ Bot SDK",
             category: IntegrationCategory::Chat,
             status_fn: |c| {
-                if c.channels_config.qq.is_some() {
+                if c.channels_config.qq.is_some() || !c.channels_config.qq_instances.is_empty() {
                     IntegrationStatus::Active
                 } else {
                     IntegrationStatus::Available

@@ -716,6 +716,7 @@ fn merge_global_config_patch(current: Config, mut patch: Value) -> Result<Config
 
     // 反序列化回 Config 结构
     let mut next = serde_json::from_value::<Config>(merged).map_err(Error::Json)?;
+    schema::restore_masked_channel_credentials(&mut next.channels_config, &current.channels_config);
     validate_agent_runtime_update(&current, &next)?;
     // 保留路径字段（不被 patch 覆盖）
     next.workspace_dir = current.workspace_dir;

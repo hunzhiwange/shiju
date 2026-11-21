@@ -59,13 +59,13 @@ fn enabled_channels(settings: &ChannelsSettingsState) -> Vec<&'static str> {
     if settings.dingtalk.is_some() || !settings.dingtalk_instances.is_empty() {
         channels.push("钉钉");
     }
-    if settings.qq.is_some() {
+    if settings.qq.is_some() || !settings.qq_instances.is_empty() {
         channels.push("QQ");
     }
-    if settings.wecom.is_some() {
+    if settings.wecom.is_some() || !settings.wecom_instances.is_empty() {
         channels.push("企业微信");
     }
-    if settings.wechat.is_some() {
+    if settings.wechat.is_some() || !settings.wechat_instances.is_empty() {
         channels.push("微信");
     }
     if settings.nostr.is_some() {
@@ -110,9 +110,12 @@ pub fn build_channels_config_from_settings(
         dingtalk: settings.dingtalk.clone(),
         dingtalk_instances: settings.dingtalk_instances.clone(),
         qq: settings.qq.clone(),
+        qq_instances: settings.qq_instances.clone(),
         wecom: settings.wecom.clone(),
+        wecom_instances: settings.wecom_instances.clone(),
         wecom_webhook: settings.wecom_webhook.clone(),
         wechat: settings.wechat.clone(),
+        wechat_instances: settings.wechat_instances.clone(),
         nostr: settings.nostr.clone(),
         clawdtalk: settings.clawdtalk.clone(),
         message_timeout_secs: settings.message_timeout_secs.max(1) as u64,

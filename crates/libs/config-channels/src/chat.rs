@@ -158,13 +158,19 @@ pub struct ChannelsConfig {
     pub dingtalk_instances: Vec<DingTalkInstanceConfig>,
     /// QQ 通道配置。
     pub qq: Option<QQConfig>,
+    #[serde(default)]
+    pub qq_instances: Vec<config_channel_services::QQInstanceConfig>,
     /// 企业微信 AI 机器人通道配置。
     pub wecom: Option<WeComConfig>,
+    #[serde(default)]
+    pub wecom_instances: Vec<config_channel_services::WeComInstanceConfig>,
     /// 仅用于结果投递，不注册接收监听器或项目绑定。
     #[serde(default)]
     pub wecom_webhook: Option<WeComWebhookConfig>,
     /// 微信 iLink 机器人通道配置。
     pub wechat: Option<WeChatConfig>,
+    #[serde(default)]
+    pub wechat_instances: Vec<config_channel_services::WeChatInstanceConfig>,
     /// Nostr 通道配置。
     pub nostr: Option<NostrConfig>,
     /// ClawdTalk 通道配置。
@@ -207,9 +213,12 @@ impl Default for ChannelsConfig {
             dingtalk: None,
             dingtalk_instances: Vec::new(),
             qq: None,
+            qq_instances: Vec::new(),
             wecom: None,
+            wecom_instances: Vec::new(),
             wecom_webhook: None,
             wechat: None,
+            wechat_instances: Vec::new(),
             nostr: None,
             clawdtalk: None,
             message_timeout_secs: default_channel_message_timeout_secs(),
@@ -254,6 +263,14 @@ impl ChannelsConfig {
         });
         next.dingtalk_instances.retain(|instance| {
             !self.unavailable_channels.contains(&format!("dingtalk:{}", instance.id))
+        });
+        next.qq_instances
+            .retain(|instance| !self.unavailable_channels.contains(&format!("qq:{}", instance.id)));
+        next.wecom_instances.retain(|instance| {
+            !self.unavailable_channels.contains(&format!("wecom:{}", instance.id))
+        });
+        next.wechat_instances.retain(|instance| {
+            !self.unavailable_channels.contains(&format!("wechat:{}", instance.id))
         });
         next
     }
@@ -338,6 +355,27 @@ impl ChannelsConfig {
             self.dingtalk_instances.iter().map(|instance| instance.id.as_str()),
         )?;
 
+        push_instance_profiles(
+            &mut profiles,
+            "qq",
+            self.qq.is_some(),
+            self.qq_instances.iter().map(|instance| instance.id.as_str()),
+        )?;
+
+        push_instance_profiles(
+            &mut profiles,
+            "wecom",
+            self.wecom.is_some(),
+            self.wecom_instances.iter().map(|instance| instance.id.as_str()),
+        )?;
+
+        push_instance_profiles(
+            &mut profiles,
+            "wechat",
+            self.wechat.is_some(),
+            self.wechat_instances.iter().map(|instance| instance.id.as_str()),
+        )?;
+
         for (channel_type, configured) in [
             ("telegram", self.telegram.is_some()),
             ("discord", self.discord.is_some()),
@@ -351,9 +389,6 @@ impl ChannelsConfig {
             ("wati", self.wati.is_some()),
             ("nextcloud_talk", self.nextcloud_talk.is_some()),
             ("irc", self.irc.is_some()),
-            ("qq", self.qq.is_some()),
-            ("wecom", self.wecom.is_some()),
-            ("wechat", self.wechat.is_some()),
             ("nostr", self.nostr.is_some()),
             ("clawdtalk", self.clawdtalk.is_some()),
             ("lark", self.lark.as_ref().is_some_and(|config| !config.use_feishu)),

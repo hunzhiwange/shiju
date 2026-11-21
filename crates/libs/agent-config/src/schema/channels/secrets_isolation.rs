@@ -55,6 +55,41 @@ pub fn decrypt_channel_secrets_isolated(
             );
         }
     }
+    for instance in &mut channels.qq_instances {
+        let mut isolated =
+            ChannelsConfig { qq_instances: vec![instance.clone()], ..ChannelsConfig::default() };
+        if decrypt_channel_secrets(store, &mut isolated).is_ok() {
+            *instance = isolated.qq_instances.remove(0);
+        } else {
+            record_unavailable(&mut channels.unavailable_channels, &format!("qq:{}", instance.id));
+        }
+    }
+    for instance in &mut channels.wecom_instances {
+        let mut isolated =
+            ChannelsConfig { wecom_instances: vec![instance.clone()], ..ChannelsConfig::default() };
+        if decrypt_channel_secrets(store, &mut isolated).is_ok() {
+            *instance = isolated.wecom_instances.remove(0);
+        } else {
+            record_unavailable(
+                &mut channels.unavailable_channels,
+                &format!("wecom:{}", instance.id),
+            );
+        }
+    }
+    for instance in &mut channels.wechat_instances {
+        let mut isolated = ChannelsConfig {
+            wechat_instances: vec![instance.clone()],
+            ..ChannelsConfig::default()
+        };
+        if decrypt_channel_secrets(store, &mut isolated).is_ok() {
+            *instance = isolated.wechat_instances.remove(0);
+        } else {
+            record_unavailable(
+                &mut channels.unavailable_channels,
+                &format!("wechat:{}", instance.id),
+            );
+        }
+    }
     Ok(())
 }
 

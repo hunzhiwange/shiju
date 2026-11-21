@@ -133,19 +133,30 @@ impl ChannelsConfigExt for ChannelsConfig {
                 Box::new(ConfigWrapper::new(self.wecom.as_ref())),
                 self.wecom
                     .as_ref()
-                    .is_some_and(|wecom| wecom.has_required_credentials()),
+                    .is_some_and(|wecom| wecom.has_required_credentials())
+                    || self.wecom_instances.iter().any(|instance| {
+                        instance.config.has_required_credentials()
+                    }),
             ),
             (
                 Box::new(ConfigWrapper::new(self.wechat.as_ref())),
                 self.wechat
                     .as_ref()
-                    .is_some_and(|wechat| wechat.has_required_credentials()),
+                    .is_some_and(|wechat| wechat.has_required_credentials())
+                    || self.wechat_instances.iter().any(|instance| {
+                        instance.config.has_required_credentials()
+                    }),
             ),
             (
                 Box::new(ConfigWrapper::new(self.qq.as_ref())),
                 self.qq
                     .as_ref()
                     .is_some_and(|qq| qq.receive_mode == QQReceiveMode::Websocket)
+                    || self.qq_instances.iter().any(|instance| {
+                        instance.config.receive_mode == QQReceiveMode::Websocket
+                        && !instance.config.app_id.trim().is_empty()
+                        && !instance.config.app_secret.trim().is_empty()
+                    })
             ),
             (
                 Box::new(ConfigWrapper::new(self.nostr.as_ref())),

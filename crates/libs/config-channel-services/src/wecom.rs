@@ -10,6 +10,14 @@ pub struct WeComConfig {
     pub secret: String,
 }
 
+/// 命名企业微信通道实例。
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct WeComInstanceConfig {
+    pub id: String,
+    #[serde(flatten)]
+    pub config: WeComConfig,
+}
+
 impl WeComConfig {
     pub fn has_required_credentials(&self) -> bool {
         !self.bot_id.trim().is_empty() && !self.secret.trim().is_empty()

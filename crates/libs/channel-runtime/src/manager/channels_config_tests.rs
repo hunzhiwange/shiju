@@ -474,3 +474,33 @@ fn unavailable_channel_credentials_are_not_instantiated() {
     assert!(names.contains(&"Discord"));
     assert!(!names.contains(&"Slack"));
 }
+
+#[cfg(not(target_arch = "wasm32"))]
+#[test]
+fn named_qq_wecom_wechat_instances_start_with_separate_runtime_keys() {
+    let mut config = Config::default();
+    config.channels_config = serde_json::from_value(serde_json::json!({
+        "cli": true,
+        "qq_instances": [
+            {"id": "one", "app_id": "qq-one", "app_secret": "fixture", "receive_mode": "websocket"},
+            {"id": "two", "app_id": "qq-two", "app_secret": "fixture", "receive_mode": "websocket"},
+            {"id": "draft", "app_id": "", "app_secret": "", "receive_mode": "websocket"}
+        ],
+        "wecom_instances": [
+            {"id": "one", "bot_id": "wecom-one", "secret": "fixture"},
+            {"id": "two", "bot_id": "wecom-two", "secret": "fixture"}
+        ],
+        "wechat_instances": [
+            {"id": "one", "bot_token": "wechat-one"},
+            {"id": "two", "bot_token": "wechat-two"}
+        ],
+        "instance_default_projects": {"wecom:two": "project-two"}
+    }))
+    .unwrap();
+    let channels = collect_configured_channels(&config, TenantScope::default(), "test");
+    let keys: Vec<_> = channels
+        .iter()
+        .map(|channel| format!("{}:{}", channel.channel.name(), channel.instance_id))
+        .collect();
+    assert_eq!(keys, ["qq:one", "qq:two", "wecom:one", "wecom:two", "wechat:one", "wechat:two"]);
+}

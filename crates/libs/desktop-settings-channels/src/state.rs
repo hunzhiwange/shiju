@@ -43,6 +43,21 @@ pub struct ChannelQrFlowState {
     pub scan_observed: bool,
     pub generation: u64,
     pub credentials_ready: bool,
+    pub(crate) instance_id: Option<String>,
+    pub(crate) instance_credentials: Option<NamedQrCredentials>,
+}
+
+#[derive(Clone)]
+pub(crate) enum NamedQrCredentials {
+    Qq { app_id: String, app_secret: String },
+    WeCom(config_channel_services::WeComConfig),
+    WeChat(config_channel_services::WeChatConfig),
+}
+
+impl std::fmt::Debug for NamedQrCredentials {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str("NamedQrCredentials([REDACTED])")
+    }
 }
 
 impl ChannelQrFlowState {
@@ -56,6 +71,8 @@ impl ChannelQrFlowState {
         self.poll_in_flight = false;
         self.scan_observed = false;
         self.credentials_ready = false;
+        self.instance_id = None;
+        self.instance_credentials = None;
     }
 }
 
@@ -102,6 +119,7 @@ fn is_named_instance_multiline_channel_key(key: &str) -> bool {
         named_instance_field(key, "feishu_instances"),
         Some("allowed_users" | "group_reply.allowed_sender_ids")
     ) || matches!(named_instance_field(key, "dingtalk_instances"), Some("allowed_users"))
+        || matches!(named_instance_field(key, "qq_instances"), Some("allowed_users"))
 }
 
 fn is_multiline_channel_key(key: &str) -> bool {
@@ -236,9 +254,12 @@ pub struct ChannelsSettingsState {
     pub dingtalk: Option<config_channel_services::DingTalkConfig>,
     pub dingtalk_instances: Vec<config_channel_services::DingTalkInstanceConfig>,
     pub qq: Option<config_channel_services::QQConfig>,
+    pub qq_instances: Vec<config_channel_services::QQInstanceConfig>,
     pub wecom: Option<config_channel_services::WeComConfig>,
+    pub wecom_instances: Vec<config_channel_services::WeComInstanceConfig>,
     pub wecom_webhook: Option<config_channel_services::WeComWebhookConfig>,
     pub wechat: Option<config_channel_services::WeChatConfig>,
+    pub wechat_instances: Vec<config_channel_services::WeChatInstanceConfig>,
     pub nostr: Option<config_channel_services::NostrConfig>,
     pub clawdtalk: Option<config_channel_services::ClawdTalkConfig>,
     pub message_timeout_secs: u32,
@@ -287,9 +308,12 @@ impl Default for ChannelsSettingsState {
             dingtalk: None,
             dingtalk_instances: Vec::new(),
             qq: None,
+            qq_instances: Vec::new(),
             wecom: None,
+            wecom_instances: Vec::new(),
             wecom_webhook: None,
             wechat: None,
+            wechat_instances: Vec::new(),
             nostr: None,
             clawdtalk: None,
             message_timeout_secs: 300,
@@ -316,7 +340,12 @@ impl ChannelsSettingsState {
     /// 参数由调用方提供，函数在当前模块的状态边界内完成处理。
     /// 返回值表达处理结果；失败时保留错误信息给上层界面或调度逻辑。
     pub fn refresh_text_inputs(&mut self) {
-        self.text_inputs.retain(|key, _| !is_multiline_channel_key(key));
+        self.text_inputs.retain(|key, _| {
+            !is_multiline_channel_key(key)
+                && !["qq_instances.", "wecom_instances.", "wechat_instances."]
+                    .iter()
+                    .any(|prefix| key.starts_with(*prefix))
+        });
         self.text_editors.retain(|key, _| is_static_multiline_channel_key(key));
 
         let insert_list = |map: &mut HashMap<String, String>, key: &str, values: &[String]| {
@@ -521,6 +550,11 @@ impl ChannelsSettingsState {
         if let Some(cfg) = self.qq.as_ref() {
             insert_list(&mut self.text_inputs, "qq.allowed_users", &cfg.allowed_users);
             insert_editor(&mut self.text_editors, "qq.allowed_users", &cfg.allowed_users);
+        }
+        for (index, instance) in self.qq_instances.iter().enumerate() {
+            let key = format!("qq_instances.{index}.allowed_users");
+            insert_list(&mut self.text_inputs, &key, &instance.config.allowed_users);
+            insert_editor(&mut self.text_editors, &key, &instance.config.allowed_users);
         }
         if let Some(cfg) = self.nostr.as_ref() {
             insert_list(&mut self.text_inputs, "nostr.relays", &cfg.relays);

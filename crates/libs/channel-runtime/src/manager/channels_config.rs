@@ -33,6 +33,15 @@ fn instance_display_name(channel_name: &str, instance_id: &str) -> String {
     format!("{channel_name}({instance_id})")
 }
 
+#[cfg(not(target_arch = "wasm32"))]
+fn channel_instance_display_name(channel_name: &str, instance_id: &str) -> String {
+    if instance_id == "default" {
+        channel_name.to_owned()
+    } else {
+        instance_display_name(channel_name, instance_id)
+    }
+}
+
 /// 从配置对象中收集所有已配置的通道实例
 ///
 /// 此函数遍历配置中的所有通道设置，为每个已配置且可用的通道创建实例。
@@ -95,7 +104,7 @@ pub fn collect_configured_channels(
         Ok(_) => true,
         Err(err) => {
             tracing::warn!(
-                "Channel instance profile config is invalid: {err}; skipping Feishu and DingTalk channel instances."
+                "Channel instance profile config is invalid: {err}; skipping channels with named instance support."
             );
             false
         }
@@ -437,61 +446,82 @@ pub fn collect_configured_channels(
         }
     }
 
-    // ==================== QQ 通道配置 ====================
-    // QQ 是腾讯的即时通讯平台
     #[cfg(not(target_arch = "wasm32"))]
-    if let Some(ref qq) = config.channels_config.qq {
-        // QQ 通道支持两种接收模式：WebSocket 和 Webhook
-        if qq.receive_mode == agent_config::runtime_schema::QQReceiveMode::Webhook {
-            // Webhook 模式下，不启动 WebSocket 监听器
-            tracing::info!(
-                "QQ channel configured with receive_mode=webhook; websocket listener startup skipped."
+    if channel_instance_profiles_valid {
+        let settings = &config.channels_config;
+        let qq_instances = settings.qq.iter().map(|cfg| ("default", cfg)).chain(
+            settings.qq_instances.iter().map(|instance| (instance.id.as_str(), &instance.config)),
+        );
+        for (id, qq) in qq_instances {
+            if qq.receive_mode == agent_config::runtime_schema::QQReceiveMode::Webhook {
+                if id != "default" {
+                    tracing::warn!("Named QQ instances require WebSocket; skipping listener");
+                }
+                continue;
+            }
+            if qq.app_id.trim().is_empty() || qq.app_secret.trim().is_empty() {
+                continue;
+            }
+            channels.push(
+                ConfiguredChannel::new(
+                    channel_instance_display_name("QQ", id),
+                    Arc::new(QQChannel::new(
+                        qq.app_id.clone(),
+                        qq.app_secret.clone(),
+                        qq.allowed_users.clone(),
+                    )),
+                )
+                .with_instance_id(id),
             );
-        } else {
-            // WebSocket 模式下，启动 QQ 通道实例
-            channels.push(ConfiguredChannel::new(
-                "QQ",
-                Arc::new(QQChannel::new(
-                    qq.app_id.clone(),        // QQ 应用 ID
-                    qq.app_secret.clone(),    // QQ 应用密钥
-                    qq.allowed_users.clone(), // 允许的用户列表
-                )),
-            ));
         }
-    }
 
-    // ==================== 企业微信通道配置 ====================
-    #[cfg(not(target_arch = "wasm32"))]
-    if let Some(ref wecom) = config.channels_config.wecom {
-        if wecom.has_required_credentials() {
-            match channel_wecom::runtime::WeComRuntimeScope::from_config(
-                config,
-                tenant.clone(),
-            ) {
-                Ok(scope) => channels.push(ConfiguredChannel::new(
-                    "WeCom",
-                    Arc::new(
-                        WeComChannel::new(wecom.bot_id.clone(), wecom.secret.clone())
-                            .with_runtime_scope(scope),
-                    ),
-                )),
+        let wecom_instances = settings.wecom.iter().map(|cfg| ("default", cfg)).chain(
+            settings
+                .wecom_instances
+                .iter()
+                .map(|instance| (instance.id.as_str(), &instance.config)),
+        );
+        for (id, wecom) in wecom_instances {
+            if !wecom.has_required_credentials() {
+                continue;
+            }
+            match channel_wecom::runtime::WeComRuntimeScope::from_config(config, tenant.clone()) {
+                Ok(scope) => channels.push(
+                    ConfiguredChannel::new(
+                        channel_instance_display_name("WeCom", id),
+                        Arc::new(
+                            WeComChannel::new(wecom.bot_id.clone(), wecom.secret.clone())
+                                .with_runtime_scope(scope.with_instance_id(id)),
+                        ),
+                    )
+                    .with_instance_id(id),
+                ),
                 Err(_) => tracing::warn!(
                     "Cannot resolve WeCom configuration storage scope; skipping channel"
                 ),
             }
         }
-    }
 
-    // ==================== 微信通道配置 ====================
-    #[cfg(not(target_arch = "wasm32"))]
-    if let Some(ref wechat) = config.channels_config.wechat {
-        if wechat.has_required_credentials() {
+        let wechat_instances = settings.wechat.iter().map(|cfg| ("default", cfg)).chain(
+            settings
+                .wechat_instances
+                .iter()
+                .map(|instance| (instance.id.as_str(), &instance.config)),
+        );
+        for (id, wechat) in wechat_instances {
+            if !wechat.has_required_credentials() {
+                continue;
+            }
             match WeChatChannel::new(wechat.bot_token.clone(), wechat.base_url.clone()) {
-                Ok(channel) => channels.push(ConfiguredChannel::new("WeChat", Arc::new(channel))),
+                Ok(channel) => channels.push(
+                    ConfiguredChannel::new(
+                        channel_instance_display_name("WeChat", id),
+                        Arc::new(channel),
+                    )
+                    .with_instance_id(id),
+                ),
                 Err(error) => tracing::warn!("WeChat channel configuration rejected: {error}"),
             }
-        } else {
-            tracing::warn!("微信：配置未完成，未启动监听（请先完成扫码授权并保存）");
         }
     }
 

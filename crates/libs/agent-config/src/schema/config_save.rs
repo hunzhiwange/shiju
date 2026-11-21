@@ -74,7 +74,7 @@ pub fn prepare_project_override(
     super::config_validate::validate_agent_profile_patch(&patch)?;
     let mut current_payload = serde_json::to_value(base)?;
     merge_config_payload(&mut current_payload, raw_override.clone());
-    let current = serde_json::from_value(current_payload)?;
+    let current: Config = serde_json::from_value(current_payload)?;
     super::config_validate::seed_agent_profile_patch(&current, &mut patch, catalog)?;
     let mut next_override = raw_override;
     merge_raw_project_patch(&mut next_override, patch);
@@ -90,6 +90,10 @@ pub fn prepare_project_override(
     merge_config_payload(&mut effective_payload, next_override.clone());
     let mut effective: Config = serde_json::from_value(effective_payload)
         .context("Failed to deserialize effective project config")?;
+    super::restore_masked_channel_credentials(
+        &mut effective.channels_config,
+        &current.channels_config,
+    );
     effective.config_path = base.config_path.clone();
     effective.workspace_dir = base.workspace_dir.clone();
     effective.gateway.skeys.clear();

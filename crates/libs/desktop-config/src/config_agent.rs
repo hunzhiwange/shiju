@@ -21,6 +21,29 @@ use vw_config_types::{
 
 use super::access::*;
 use super::{ConfigAccess, ConfigSaved, spawn_gateway_task};
+
+fn channels_config_patch(
+    mut config: ChannelsConfig,
+    update: impl FnOnce(&mut ChannelsConfig),
+) -> Result<serde_json::Value, String> {
+    let previous_projects: Vec<_> = config.instance_default_projects.keys().cloned().collect();
+    let previous_execution: Vec<_> = config.instance_execution.keys().cloned().collect();
+    update(&mut config);
+    let mut patch = serde_json::to_value(config).map_err(|error| error.to_string())?;
+    // Deleting a map entry requires an explicit null in the JSON merge patch.
+    for (field, previous) in [
+        ("instance_default_projects", previous_projects),
+        ("instance_execution", previous_execution),
+    ] {
+        if let Some(bindings) = patch[field].as_object_mut() {
+            for key in previous {
+                bindings.entry(key).or_insert(serde_json::Value::Null);
+            }
+        }
+    }
+    Ok(patch)
+}
+
 #[derive(Debug, Clone)]
 pub struct AcpSettingsSnapshot {
     pub defaults: BTreeMap<String, AcpAgentConfig>,
@@ -664,10 +687,9 @@ pub fn update_main_agent_overrides_from_delegate_agents(&self) {}
             pub fn update_security_config(&self, _update: impl FnOnce(&mut SecurityConfig)) {}
             #[cfg(not(target_arch = "wasm32"))]
             pub fn update_channels_config_result(&self, update: impl FnOnce(&mut ChannelsConfig)) -> Result<(), String> {
-                let mut cfg = self.load_full_agent_config_result()?.channels_config;
-                update(&mut cfg);
-                let value = serde_json::to_value(cfg).map_err(|err| err.to_string())?;
-                self.patch_agent_config_result(&["channels_config"], value)
+                let cfg = self.load_full_agent_config_result()?.channels_config;
+                let patch = channels_config_patch(cfg, update)?;
+                self.patch_agent_config_result(&["channels_config"], patch)
             }
             #[cfg(not(target_arch = "wasm32"))]
             pub fn update_channels_config(&self, update: impl FnOnce(&mut ChannelsConfig)) {
@@ -1003,11 +1025,10 @@ pub async fn update_security_config_result_async(&self, update: impl FnOnce(&mut
                 self.patch_full_agent_config_async(serde_json::json!({ ["security"][0]: value })).await
             }
 pub async fn update_channels_config_result_async(&self, update: impl FnOnce(&mut ChannelsConfig)) -> Result<(), String> {
-                let mut cfg = self.load_full_agent_config_async().await?.channels_config;
-                update(&mut cfg);
-                let value = serde_json::to_value(cfg).map_err(|err| err.to_string())?;
-                self.patch_full_agent_config_async(serde_json::json!({ ["channels_config"][0]: value })).await
-            }
+    let cfg = self.load_full_agent_config_async().await?.channels_config;
+    let patch = channels_config_patch(cfg, update)?;
+    self.patch_full_agent_config_async(serde_json::json!({ "channels_config": patch })).await
+}
 pub async fn update_observability_config_result_async(&self, update: impl FnOnce(&mut ObservabilityConfig)) -> Result<(), String> {
                 let mut cfg = self.load_full_agent_config_async().await?.observability;
                 update(&mut cfg);

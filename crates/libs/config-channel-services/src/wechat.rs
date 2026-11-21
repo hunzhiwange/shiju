@@ -12,6 +12,14 @@ pub struct WeChatConfig {
     pub base_url: String,
 }
 
+/// 命名微信通道实例。
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct WeChatInstanceConfig {
+    pub id: String,
+    #[serde(flatten)]
+    pub config: WeChatConfig,
+}
+
 impl WeChatConfig {
     pub fn has_required_credentials(&self) -> bool {
         !self.bot_token.trim().is_empty() && self.has_trusted_base_url()

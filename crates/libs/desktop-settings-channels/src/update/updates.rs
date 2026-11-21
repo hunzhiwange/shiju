@@ -1,7 +1,7 @@
 //! 处理渠道设置子模块的状态变更、字段转换和持久化。
 
 use super::{Effect as Message, Services};
-use crate::state::ChannelsSettingsState;
+use crate::state::{ChannelsSettingsState, NamedQrCredentials};
 use base64::{Engine as _, engine::general_purpose::STANDARD as BASE64_STANDARD};
 use config_channel_services::{QQConfig, QQReceiveMode, WeChatConfig, WeComConfig};
 use gateway_channel_qr::{ChannelQrStatusDto, GatewayChannelQrClient};
@@ -82,11 +82,69 @@ fn credential(credentials: &Map<String, Value>, key: &str) -> Result<String, Str
         .ok_or_else(|| format!("扫码授权未返回所需字段：{key}"))
 }
 
+fn has_named_instance(app: &ChannelsSettingsState, channel: &str, id: &str) -> bool {
+    match channel {
+        "qq" => app.qq_instances.iter().any(|instance| instance.id == id),
+        "wecom" => app.wecom_instances.iter().any(|instance| instance.id == id),
+        "wechat" => app.wechat_instances.iter().any(|instance| instance.id == id),
+        _ => false,
+    }
+}
+
+fn named_qr_credentials(
+    channel: &str,
+    credentials: &Map<String, Value>,
+) -> Result<NamedQrCredentials, String> {
+    match channel {
+        "qq" => Ok(NamedQrCredentials::Qq {
+            app_id: credential(credentials, "app_id")?,
+            app_secret: credential(credentials, "app_secret")?,
+        }),
+        "wecom" => Ok(NamedQrCredentials::WeCom(WeComConfig {
+            bot_id: credential(credentials, "bot_id")?,
+            secret: credential(credentials, "secret")?,
+        })),
+        "wechat" => Ok(NamedQrCredentials::WeChat(WeChatConfig {
+            bot_token: credential(credentials, "bot_token")?,
+            base_url: credential(credentials, "base_url")?,
+        })),
+        _ => Err("该通道不支持实例扫码授权".into()),
+    }
+}
+
+fn commit_named_qr_credentials(
+    app: &mut ChannelsSettingsState,
+    id: &str,
+    credentials: NamedQrCredentials,
+) -> Option<()> {
+    match credentials {
+        NamedQrCredentials::Qq { app_id, app_secret } => {
+            let instance = app.qq_instances.iter_mut().find(|instance| instance.id == id)?;
+            instance.config.app_id = app_id;
+            instance.config.app_secret = app_secret;
+        }
+        NamedQrCredentials::WeCom(config) => {
+            let instance = app.wecom_instances.iter_mut().find(|instance| instance.id == id)?;
+            instance.config = config;
+        }
+        NamedQrCredentials::WeChat(config) => {
+            let instance = app.wechat_instances.iter_mut().find(|instance| instance.id == id)?;
+            instance.config = config;
+        }
+    }
+    app.refresh_text_inputs();
+    Some(())
+}
+
 fn fill_confirmed_credentials(
     app: &mut ChannelsSettingsState,
     channel: &str,
     credentials: &Map<String, Value>,
 ) -> Result<(), String> {
+    if app.qr_flow.instance_id.is_some() {
+        app.qr_flow.instance_credentials = Some(named_qr_credentials(channel, credentials)?);
+        return Ok(());
+    }
     if channel == "wecom" {
         if let Some(draft) = app.wecom_delivery.as_mut() {
             let bot_id = credential(credentials, "bot_id")?;
@@ -259,6 +317,15 @@ pub fn update(
         }
         ChannelsMessage::InstanceRemoved(channel, index) => {
             remove_channel_instance(app, &channel, index);
+            if app.qr_flow.channel.as_deref() == Some(channel.as_str())
+                && app
+                    .qr_flow
+                    .instance_id
+                    .as_deref()
+                    .is_some_and(|id| !has_named_instance(app, &channel, id))
+            {
+                app.qr_flow.close();
+            }
             super::projects::retain_configured_bindings(app);
             app.refresh_text_inputs();
             persist_channels_settings(app, services).unwrap_or_else(Task::none)
@@ -295,8 +362,17 @@ pub fn update(
             apply_receive_mode_change(app, &key, value);
             persist_channels_settings(app, services).unwrap_or_else(Task::none)
         }
-        ChannelsMessage::QrRequested(channel) => {
-            if !matches!(channel.as_str(), "dingtalk" | "feishu" | "qq" | "wecom" | "wechat") {
+        ChannelsMessage::QrRequested(target) => {
+            let (channel, instance_id) = match target.split_once(':') {
+                Some((channel, id))
+                    if has_named_instance(app, channel, id) && app.wecom_delivery.is_none() =>
+                {
+                    (channel, Some(id.to_owned()))
+                }
+                Some(_) => return Task::none(),
+                None => (target.as_str(), None),
+            };
+            if !matches!(channel, "dingtalk" | "feishu" | "qq" | "wecom" | "wechat") {
                 return super::localized_toast(
                     super::ToastKind::Error,
                     "该通道不支持扫码授权",
@@ -304,9 +380,10 @@ pub fn update(
                 );
             }
             app.qr_flow.close();
-            app.qr_flow.channel = Some(channel.clone());
+            app.qr_flow.channel = Some(channel.to_owned());
+            app.qr_flow.instance_id = instance_id;
             let generation = app.qr_flow.generation;
-            qr_fetch_task(services, channel, generation)
+            qr_fetch_task(services, channel.to_owned(), generation)
         }
         ChannelsMessage::QrFetched { channel, generation, result } => {
             if app.qr_flow.generation != generation
@@ -452,6 +529,15 @@ pub fn update(
             Task::none()
         }
         ChannelsMessage::QrSaveConfirmed => {
+            if let Some(id) = app.qr_flow.instance_id.clone() {
+                let Some(credentials) = app.qr_flow.instance_credentials.take() else {
+                    return Task::none();
+                };
+                if commit_named_qr_credentials(app, &id, credentials).is_none() {
+                    app.qr_flow.close();
+                    return Task::none();
+                }
+            }
             let task = persist_channels_settings(app, services).unwrap_or_else(Task::none);
             app.qr_flow.close();
             task

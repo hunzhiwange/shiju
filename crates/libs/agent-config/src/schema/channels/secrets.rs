@@ -249,9 +249,17 @@ pub fn decrypt_channel_secrets(store: &SecretStore, channels: &mut ChannelsConfi
     if let Some(ref mut qq) = channels.qq {
         decrypt_secret(store, &mut qq.app_secret, "config.channels_config.qq.app_secret")?;
     }
+    for instance in &mut channels.qq_instances {
+        let path = channel_instance_secret_path("qq", &instance.id, "app_secret");
+        decrypt_secret(store, &mut instance.config.app_secret, &path)?;
+    }
 
     if let Some(ref mut wecom) = channels.wecom {
         decrypt_secret(store, &mut wecom.secret, "config.channels_config.wecom.secret")?;
+    }
+    for instance in &mut channels.wecom_instances {
+        let path = channel_instance_secret_path("wecom", &instance.id, "secret");
+        decrypt_secret(store, &mut instance.config.secret, &path)?;
     }
     if let Some(ref mut wecom_webhook) = channels.wecom_webhook {
         decrypt_secret(
@@ -267,6 +275,10 @@ pub fn decrypt_channel_secrets(store: &SecretStore, channels: &mut ChannelsConfi
     }
     if let Some(ref mut wechat) = channels.wechat {
         decrypt_secret(store, &mut wechat.bot_token, "config.channels_config.wechat.bot_token")?;
+    }
+    for instance in &mut channels.wechat_instances {
+        let path = channel_instance_secret_path("wechat", &instance.id, "bot_token");
+        decrypt_secret(store, &mut instance.config.bot_token, &path)?;
     }
 
     // 解密 Nostr 渠道配置
@@ -501,9 +513,17 @@ pub fn encrypt_channel_secrets(store: &SecretStore, channels: &mut ChannelsConfi
     if let Some(ref mut qq) = channels.qq {
         encrypt_secret(store, &mut qq.app_secret, "config.channels_config.qq.app_secret")?;
     }
+    for instance in &mut channels.qq_instances {
+        let path = channel_instance_secret_path("qq", &instance.id, "app_secret");
+        encrypt_secret(store, &mut instance.config.app_secret, &path)?;
+    }
 
     if let Some(ref mut wecom) = channels.wecom {
         encrypt_secret(store, &mut wecom.secret, "config.channels_config.wecom.secret")?;
+    }
+    for instance in &mut channels.wecom_instances {
+        let path = channel_instance_secret_path("wecom", &instance.id, "secret");
+        encrypt_secret(store, &mut instance.config.secret, &path)?;
     }
     if let Some(ref mut wecom_webhook) = channels.wecom_webhook {
         if wecom_webhook.webhook_url.contains('*') {
@@ -519,6 +539,10 @@ pub fn encrypt_channel_secrets(store: &SecretStore, channels: &mut ChannelsConfi
     }
     if let Some(ref mut wechat) = channels.wechat {
         encrypt_secret(store, &mut wechat.bot_token, "config.channels_config.wechat.bot_token")?;
+    }
+    for instance in &mut channels.wechat_instances {
+        let path = channel_instance_secret_path("wechat", &instance.id, "bot_token");
+        encrypt_secret(store, &mut instance.config.bot_token, &path)?;
     }
 
     // 加密 Nostr 渠道配置
@@ -539,4 +563,47 @@ pub fn encrypt_channel_secrets(store: &SecretStore, channels: &mut ChannelsConfi
     }
 
     Ok(())
+}
+
+/// Restore credentials from the same instance in the current configuration.
+pub fn restore_masked_channel_credentials(incoming: &mut ChannelsConfig, current: &ChannelsConfig) {
+    fn restore(value: &mut String, previous: Option<&str>) {
+        if value == "***MASKED***" {
+            *value = previous.unwrap_or_default().to_owned();
+        }
+    }
+
+    if let Some(wecom) = incoming.wecom.as_mut() {
+        restore(&mut wecom.secret, current.wecom.as_ref().map(|config| config.secret.as_str()));
+    }
+    if let Some(webhook) = incoming.wecom_webhook.as_mut() {
+        restore(
+            &mut webhook.webhook_url,
+            current.wecom_webhook.as_ref().map(|config| config.webhook_url.as_str()),
+        );
+    }
+    for instance in &mut incoming.qq_instances {
+        let previous = current
+            .qq_instances
+            .iter()
+            .find(|previous| previous.id == instance.id)
+            .map(|previous| previous.config.app_secret.as_str());
+        restore(&mut instance.config.app_secret, previous);
+    }
+    for instance in &mut incoming.wecom_instances {
+        let previous = current
+            .wecom_instances
+            .iter()
+            .find(|previous| previous.id == instance.id)
+            .map(|previous| previous.config.secret.as_str());
+        restore(&mut instance.config.secret, previous);
+    }
+    for instance in &mut incoming.wechat_instances {
+        let previous = current
+            .wechat_instances
+            .iter()
+            .find(|previous| previous.id == instance.id)
+            .map(|previous| previous.config.bot_token.as_str());
+        restore(&mut instance.config.bot_token, previous);
+    }
 }

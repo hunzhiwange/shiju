@@ -172,17 +172,26 @@ pub(super) fn toggle_enabled(app: &mut ChannelsSettingsState, channel: &str, ena
                 app_secret: String::new(),
                 allowed_users: Vec::new(),
                 receive_mode: QQReceiveMode::Webhook,
-            })
+            });
+            if !enabled {
+                app.qq_instances.clear();
+            }
         }
         "wecom" => {
             app.wecom =
-                enabled.then(|| WeComConfig { bot_id: String::new(), secret: String::new() })
+                enabled.then(|| WeComConfig { bot_id: String::new(), secret: String::new() });
+            if !enabled {
+                app.wecom_instances.clear();
+            }
         }
         "wechat" => {
             app.wechat = enabled.then(|| WeChatConfig {
                 bot_token: String::new(),
                 base_url: config_channel_services::DEFAULT_WECHAT_BASE_URL.to_string(),
-            })
+            });
+            if !enabled {
+                app.wechat_instances.clear();
+            }
         }
         "nostr" => {
             app.nostr = enabled.then(|| NostrConfig {
@@ -254,6 +263,38 @@ pub(super) fn add_channel_instance(app: &mut ChannelsSettingsState, channel: &st
                 .dingtalk_instances
                 .push(DingTalkInstanceConfig { id, config: default_dingtalk_config() });
         }
+        "qq" => {
+            let id = next_instance_id(
+                app.qq.is_some(),
+                app.qq_instances.iter().map(|instance| instance.id.as_str()),
+            );
+            let config = QQConfig {
+                app_id: String::new(),
+                app_secret: String::new(),
+                allowed_users: Vec::new(),
+                receive_mode: QQReceiveMode::Websocket,
+            };
+            app.qq_instances.push(config_channel_services::QQInstanceConfig { id, config });
+        }
+        "wecom" => {
+            let id = next_instance_id(
+                app.wecom.is_some(),
+                app.wecom_instances.iter().map(|instance| instance.id.as_str()),
+            );
+            let config = WeComConfig { bot_id: String::new(), secret: String::new() };
+            app.wecom_instances.push(config_channel_services::WeComInstanceConfig { id, config });
+        }
+        "wechat" => {
+            let id = next_instance_id(
+                app.wechat.is_some(),
+                app.wechat_instances.iter().map(|instance| instance.id.as_str()),
+            );
+            let config = WeChatConfig {
+                bot_token: String::new(),
+                base_url: config_channel_services::DEFAULT_WECHAT_BASE_URL.to_owned(),
+            };
+            app.wechat_instances.push(config_channel_services::WeChatInstanceConfig { id, config });
+        }
         _ => return,
     }
 }
@@ -269,6 +310,15 @@ pub(super) fn remove_channel_instance(app: &mut ChannelsSettingsState, channel: 
             if index < app.dingtalk_instances.len() {
                 app.dingtalk_instances.remove(index);
             }
+        }
+        "qq" if index < app.qq_instances.len() => {
+            app.qq_instances.remove(index);
+        }
+        "wecom" if index < app.wecom_instances.len() => {
+            app.wecom_instances.remove(index);
+        }
+        "wechat" if index < app.wechat_instances.len() => {
+            app.wechat_instances.remove(index);
         }
         _ => {}
     }

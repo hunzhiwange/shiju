@@ -70,7 +70,9 @@ fn installed_directory(agent: &str, contract: &Contract) -> Result<PathBuf, Stri
         5
     } else if agent == "snow" {
         4
-    } else if matches!(agent, "junie" | "stakpak") {
+    } else if agent == "stakpak" {
+        4
+    } else if agent == "junie" {
         3
     } else if agent == "vtcode" {
         if contract.files.get(&contract.bin).is_some_and(|digest| digest != VTCODE_V2_SHA256) {
@@ -176,6 +178,23 @@ fn verify(directory: &Path, contract: &Contract) -> Result<PathBuf, String> {
                 || receipt["engine_sha256"].as_str() != Some(digest.as_str())
             {
                 return Err("Harn engine build receipt checksum mismatch".into());
+            }
+        }
+        if contract.package == "stakpak" {
+            let receipt: serde_json::Value = serde_json::from_slice(
+                &std::fs::read(directory.join("build-receipt.json"))
+                    .map_err(|_| "Missing Stakpak build receipt")?,
+            ).map_err(|_| "Invalid Stakpak build receipt")?;
+            let digest = hex::encode(Sha256::digest(
+                std::fs::read(directory.join("stakpak-native"))
+                    .map_err(|_| "Missing Stakpak native program")?,
+            ));
+            if receipt["version"] != contract.version
+                || receipt["source_sha256"].as_str() != contract.source_sha256.as_deref()
+                || receipt["patch_sha256"].as_str() != contract.patch_sha256.as_deref()
+                || receipt["sha256"].as_str() != Some(digest.as_str())
+            {
+                return Err("Stakpak native build receipt checksum mismatch".into());
             }
         }
         if contract.package == "stakpak" {
@@ -476,6 +495,9 @@ pub fn verify_reviewed_agent_executable(agent: &str, command: &str) -> Result<()
     if agent == "glm-acp-agent" {
         return Err("GLM executable must resolve to the installed reviewed entry".into());
     }
+    if agent == "stakpak" {
+        return Err("Stakpak requires the installed reviewed source build".into());
+    }
     if agent == "harn" {
         return Err("Harn executable must resolve to the installed reviewed entry".into());
     }
@@ -640,6 +662,7 @@ pub(super) async fn install(agent: &str) -> Result<bool, String> {
         ("corust-agent/mcp_graph.py", include_str!("../../../../patches/acp-model-source/corust-agent/mcp_graph.py")),
         ("stakpak/launcher.py", include_str!("../../../../patches/acp-model-source/stakpak/launcher.py")),
         ("stakpak/mcp.py", include_str!("../../../../patches/acp-model-source/stakpak/mcp.py")),
+        ("stakpak/skills.patch", include_str!("../../../../patches/acp-model-source/stakpak/skills.patch")),
         (
             "aionrs.patch",
             include_str!("../../../../patches/acp-model-source/aionrs/read-only-skills.patch"),

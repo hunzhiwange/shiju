@@ -168,7 +168,13 @@ fn stakpak_reviewed_runtime_pins_native_and_launcher() {
     let contract = super::contract("stakpak").expect("Stakpak must have a reviewed runtime");
     assert_eq!(contract.version, "0.3.88");
     assert_eq!(contract.bin, "stakpak");
-    assert!(contract.files.contains_key("stakpak-native"));
+    assert!(contract.source_sha256.is_some());
+    let patch = include_str!("../../../../patches/acp-model-source/stakpak/skills.patch");
+    assert_eq!(
+        contract.patch_sha256.as_deref().unwrap(),
+        hex::encode(Sha256::digest(patch.as_bytes())),
+    );
+    assert!(contract.files.contains_key("mcp.py"));
     assert!(contract.files.contains_key("stakpak"));
 }
 

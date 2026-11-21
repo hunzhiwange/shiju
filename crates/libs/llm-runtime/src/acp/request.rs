@@ -466,6 +466,14 @@ pub async fn do_stream_request_acp<H: Host>(
     {
         return Err(acp_option_error("Stakpak skill mounts require session_model with native reads enabled"));
     }
+    if acp_agent_name == "stakpak"
+        && parsed_options.skill_view.is_some()
+        && (source != vw_api_acp_model::acp_model_source::AcpModelSource::SessionModel
+            || parsed_options.permission_mode == Some(acp_types::PermissionMode::DenyAll)
+            || merged_options.get("disable_tools").and_then(Value::as_bool) == Some(true))
+    {
+        return Err(acp_option_error("Stakpak skill mounts require session_model with native reads enabled"));
+    }
     H::validate_mounts(&acp_agent_name, !parsed_options.skill_mounts.is_empty())?;
 
     if acp_agent_name == "dimcode"
@@ -667,6 +675,9 @@ pub async fn do_stream_request_acp<H: Host>(
     }
     if acp_agent_name == "sigit" && let Some(profile) = launch_profile.as_mut() {
         super::skill_mounts::sigit::configure(profile, parsed_options.skill_view.as_ref())?;
+    }
+    if acp_agent_name == "stakpak" && let Some(profile) = launch_profile.as_ref() {
+        super::skill_mounts::stakpak::publish(profile, parsed_options.skill_view.as_ref())?;
     }
     if acp_agent_name == "junie" && let Some(profile) = launch_profile.as_ref() {
         super::skill_mounts::junie::publish(profile, parsed_options.skill_view.as_ref())?;

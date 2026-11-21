@@ -146,6 +146,16 @@ impl AcpClient {
                         .flat_map(|selection| &selection.skills)
                         .filter_map(|skill| Path::new(&skill.path).canonicalize().ok())
                         .collect()
+                } else if self.agent_name == "stakpak"
+                    && self.skill_mount_lease.is_some()
+                    && self.config.env.contains_key("VW_ACP_LAUNCH_REFERENCE")
+                {
+                    self.config.env.get("SHIJU_STAKPAK_RUNTIME")
+                        .and_then(|home| Path::new(home).canonicalize().ok())
+                        .map(|home| home.join(".stakpak/skills"))
+                        .filter(|root| root.canonicalize().is_ok_and(|resolved| resolved == *root))
+                        .into_iter()
+                        .collect()
                 } else {
                     Vec::new()
                 },

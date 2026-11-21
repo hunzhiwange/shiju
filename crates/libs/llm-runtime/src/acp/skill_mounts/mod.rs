@@ -38,6 +38,7 @@ pub(super) mod qoder;
 mod qwen;
 pub(super) mod sigit;
 mod snow;
+pub(super) mod stakpak;
 pub(super) mod trae;
 mod vibe;
 pub(super) mod vtcode;
@@ -60,6 +61,7 @@ pub fn validate(agent: &str, selected: bool) -> Result<(), Error> {
         "vtcode" if cfg!(all(target_os = "macos", target_arch = "aarch64")) => return Ok(()),
         "hermes" => return Ok(()),
         "snow" => return Ok(()),
+        "stakpak" if cfg!(all(target_os = "macos", target_arch = "aarch64")) => return Ok(()),
         "aionrs" if cfg!(all(target_os = "macos", target_arch = "aarch64")) => return Ok(()),
         "sigit" if cfg!(all(target_os = "macos", target_arch = "aarch64")) => return Ok(()),
         "copilot" => return Ok(()),

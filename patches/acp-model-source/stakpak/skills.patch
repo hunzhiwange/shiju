@@ -1,0 +1,179 @@
+--- a/libs/api/src/local/skills/parser.rs
++++ b/libs/api/src/local/skills/parser.rs
+@@ -7,6 +7,8 @@
+     pub name: String,
+     /// Should describe both what the skill does and when to use it
+     pub description: String,
++    #[serde(default, rename = "disable-model-invocation")]
++    pub disable_model_invocation: bool,
+     /// License name or reference to a bundled license file.
+     pub license: Option<String>,
+     /// Environment requirements (intended product, system packages, network access, etc.). Max 500 chars.
+--- a/libs/api/src/local/skills/mod.rs
++++ b/libs/api/src/local/skills/mod.rs
+@@ -5,6 +5,23 @@
+ use std::path::{Path, PathBuf};
+
+ pub fn discover_skills(directories: &[PathBuf]) -> Vec<Skill> {
++    discover(directories, false)
++}
++
++/// Managed ACP discovers only contained, model-invocable local skills.
++pub fn discover_managed_acp_skills() -> Vec<Skill> {
++    let Ok(cwd) = std::env::current_dir() else {
++        return Vec::new();
++    };
++    let roots = default_skill_directories()
++        .into_iter()
++        .map(|path| cwd.join(path))
++        .filter(|path| path.canonicalize().is_ok_and(|real| real == *path))
++        .collect::<Vec<_>>();
++    discover(&roots, true)
++}
++
++fn discover(directories: &[PathBuf], managed: bool) -> Vec<Skill> {
+     let mut skills = Vec::new();
+     let mut seen_skills = std::collections::HashSet::new();
+
+@@ -26,7 +43,10 @@
+
+             let skill_md = path.join("SKILL.md");
+
+-            if !skill_md.is_file() {
++            if !skill_md.is_file()
++                || (managed && (path.join("SKILL.disabled").exists()
++                    || !skill_md.canonicalize().is_ok_and(|real| real == skill_md)))
++            {
+                 continue;
+             }
+
+@@ -40,6 +60,10 @@
+                 Ok(parsed) => parsed,
+                 Err(_) => continue, // skip malformed skills silently
+             };
++
++            if managed && frontmatter.disable_model_invocation {
++                continue;
++            }
+
+             // Validate that the skill name matches the parent directory name
+             let dir_name = match path.file_name().and_then(|n| n.to_str()) {
+--- a/cli/src/commands/acp/server.rs
++++ b/cli/src/commands/acp/server.rs
+@@ -24,6 +24,19 @@
+ use tokio::sync::{mpsc, oneshot};
+ use tokio_util::compat::{TokioAsyncReadCompatExt as _, TokioAsyncWriteCompatExt as _};
+ use uuid::Uuid;
++
++fn managed_skills() -> bool {
++    std::env::var("SHIJU_STAKPAK_MANAGED_SKILLS").as_deref() == Ok("1")
++}
++
++fn check_skill_workspace(cwd: &Path) -> Result<(), acp::Error> {
++    if managed_skills() && !cwd.canonicalize().is_ok_and(|path| {
++        std::env::current_dir().is_ok_and(|current| current == path)
++    }) {
++        return Err(acp::Error::invalid_params().data("Managed Stakpak skill workspace mismatch"));
++    }
++    Ok(())
++}
+
+ pub struct StakpakAcpAgent {
+     config: Arc<tokio::sync::RwLock<AppConfig>>,
+@@ -487,6 +500,7 @@
+     // Helper method to determine if a tool should be auto-approved
+     fn is_auto_approved_tool(&self, tool_name: &str) -> bool {
+         super::tool_names::is_auto_approved(tool_name)
++            && !(managed_skills() && tool_name == super::tool_names::LOAD_SKILL)
+     }
+
+     // Helper method to create proper rawInput for tool calls
+@@ -804,6 +818,19 @@
+                 .unwrap_or(serde_json::Value::Null);
+             let stripped_name =
+                 crate::commands::acp::utils::strip_tool_name(&tool_call.function.name);
++            if managed_skills()
++                && tool_call.function.name == "stakpak__load_skill"
++                && !raw_input.get("uri").and_then(|uri| uri.as_str()).is_some_and(|uri| {
++                    stakpak_api::local::skills::discover_managed_acp_skills()
++                        .iter().any(|skill| skill.uri == uri)
++                })
++            {
++                self.active_tool_calls.lock().await.retain(|active| active.id != tool_call.id);
++                results.push(crate::commands::agent::run::helpers::tool_result(
++                    tool_call.id.clone(), "LOAD_SKILL_ERROR: URI is not in the active skill catalog".into(),
++                ));
++                continue;
++            }
+             let tool_title = self.generate_tool_title(stripped_name, &raw_input);
+             let tool_kind = self.get_tool_kind(stripped_name);
+
+@@ -1690,6 +1717,7 @@
+         &self,
+         args: acp::NewSessionRequest,
+     ) -> Result<acp::NewSessionResponse, acp::Error> {
++        check_skill_workspace(&args.cwd)?;
+         log::info!("Received new session request {args:?}");
+
+         // Check if we have valid credentials: either a Stakpak API key OR local provider keys
+@@ -1780,6 +1808,7 @@
+         &self,
+         args: acp::LoadSessionRequest,
+     ) -> Result<acp::LoadSessionResponse, acp::Error> {
++        check_skill_workspace(&args.cwd)?;
+         log::info!("Received load session request {args:?}");
+
+         // Parse session ID from the request
+--- a/libs/api/src/local/hooks/task_board_context/mod.rs
++++ b/libs/api/src/local/hooks/task_board_context/mod.rs
+@@ -45,13 +45,29 @@
+         let model = ctx.state.active_model.clone();
+         let max_output_tokens: u64 = 16000;
+
++        let mut system_prompt = SYSTEM_PROMPT.to_string();
++        if std::env::var("SHIJU_STAKPAK_MANAGED_SKILLS").as_deref() == Ok("1") {
++            let skills = crate::local::skills::discover_managed_acp_skills();
++            if !skills.is_empty() {
++                // Only inference input receives discovery metadata. Persisted
++                // conversation messages never carry the registered catalog.
++                let metadata = skills.iter().map(|skill| serde_json::json!({
++                    "name": skill.name, "description": skill.description, "uri": skill.uri,
++                })).collect::<Vec<_>>();
++                system_prompt.push_str(&format!(
++                    "\nUse stakpak__load_skill with a listed URI when its skill is relevant.\n<available_skills>\n{}\n</available_skills>",
++                    serde_json::to_string(&metadata).expect("skill metadata is serializable"),
++                ));
++            }
++        }
++
+         // Subtract fixed overhead from context window so the trimmer budgets
+         // only the space actually available for chat messages.
+         // - System prompt: added after trimming (line 67+), not in message list
+         // - max_output_tokens: reserved for the model's response
+         let system_prompt_tokens = TaskBoardContextManager::estimate_tokens(&[LLMMessage {
+             role: Role::System.to_string(),
+-            content: LLMMessageContent::String(SYSTEM_PROMPT.to_string()),
++            content: LLMMessageContent::String(system_prompt.clone()),
+         }]);
+         let context_window = model
+             .limit
+@@ -80,7 +96,7 @@
+         let mut messages = Vec::new();
+         messages.push(LLMMessage {
+             role: Role::System.to_string(),
+-            content: LLMMessageContent::String(SYSTEM_PROMPT.to_string()),
++            content: LLMMessageContent::String(system_prompt),
+         });
+         messages.extend(reduced_messages);
+
+--- a/libs/mcp/server/src/remote_tools.rs
++++ b/libs/mcp/server/src/remote_tools.rs
+@@ -347,7 +347,7 @@
+     // }
+
+     #[tool(
+-        description = "Load a skill's full instructions by its URI. Use this to retrieve the complete content of any skill listed in the <available_skills> block. For local skills the URI is a file path; for remote skills the URI is the rulebook URI. This tool is auto-approved and does not require user confirmation."
++        description = "Load a skill's full instructions by its URI. Use this to retrieve the complete content of any skill listed in the <available_skills> block. For local skills the URI is a file path; for remote skills the URI is the rulebook URI."
+     )]
+     pub async fn load_skill(
+         &self,

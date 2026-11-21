@@ -155,27 +155,44 @@ if agent == 'stakpak':
     if (platform.system(), platform.machine()) != ('Darwin', 'arm64'):
         raise RuntimeError('Stakpak reviewed runtime is Darwin-arm64 only')
     archive = assets / 'stakpak.tar.gz'
-    run(['/usr/bin/curl', '--fail', '--silent', '--show-error', '--location',
+    run(['/usr/bin/curl', '--disable', '--fail', '--silent', '--show-error', '--location',
          '--proto', '=https', '--proto-redir', '=https', '--retry', '2',
-         '--max-time', '40', '--output', str(archive), contract['artifact_url']])
-    if digest(archive) != contract['archive_sha256']:
-        raise RuntimeError('Stakpak fixed archive checksum mismatch')
-    runtime.mkdir()
-    native = runtime / 'stakpak-native'
+         '--max-time', '60', '--output', str(archive), contract['source_url']])
+    patch = assets / 'stakpak/skills.patch'
+    if digest(archive) != contract['source_sha256'] or digest(patch) != contract['patch_sha256']:
+        raise RuntimeError('Stakpak source or patch checksum mismatch')
+    source = assets / f"agent-{contract['version']}"
     with tarfile.open(archive) as package:
         members = package.getmembers()
-        if len(members) != 1 or members[0].name != 'stakpak' or not members[0].isfile():
-            raise RuntimeError('Unexpected Stakpak fixed archive layout')
-        with package.extractfile(members[0]) as source, native.open('wb') as output:
-            shutil.copyfileobj(source, output)
+        if not members or any(
+            not Path(member.name).parts or Path(member.name).parts[0] != source.name
+            or Path(member.name).is_absolute() or '..' in Path(member.name).parts
+            or not (member.isdir() or member.isfile()) for member in members
+        ):
+            raise RuntimeError('Unexpected Stakpak fixed source layout')
+        package.extractall(assets, members=members)
+    run(['patch', '--batch', '--forward', '-p1', '-d', str(source), '-i', str(patch)])
+    target = Path(os.environ.get('CARGO_TARGET_DIR', str(assets / 'cargo-target'))).absolute()
+    build_env = dict(os.environ, CARGO_TARGET_DIR=str(target), CARGO_BUILD_BUILD_DIR=str(target))
+    subprocess.run(
+        ['cargo', '+1.94.1', 'build', '--locked', '-j', '1', '-p', 'stakpak', '--bin', 'stakpak'],
+        cwd=source, env=build_env, check=True, stdin=subprocess.DEVNULL,
+    )
+    runtime.mkdir(mode=0o700)
+    native = runtime / 'stakpak-native'
+    shutil.copyfile(target / 'debug/stakpak', native)
     native.chmod(0o700)
     launcher = runtime / 'stakpak'
-    shutil.copy2(assets / 'stakpak/launcher.py', launcher)
+    shutil.copyfile(assets / 'stakpak/launcher.py', launcher)
     shutil.copyfile(assets / 'stakpak/mcp.py', runtime / 'mcp.py')
     shutil.copyfile(assets / 'poolside/mcp_bridge.py', runtime / 'mcp_bridge.py')
     shutil.copyfile(assets / 'cortex-code/mcp_bridge.py', runtime / 'shiju-stdio.py')
     launcher.chmod(0o700)
     check_files(runtime, contract['files'])
+    (runtime / 'build-receipt.json').write_text(json.dumps({
+        'version': contract['version'], 'source_sha256': contract['source_sha256'],
+        'patch_sha256': contract['patch_sha256'], 'sha256': digest(native),
+    }))
     raise SystemExit(0)
 if agent == 'mimo-code':
     import platform

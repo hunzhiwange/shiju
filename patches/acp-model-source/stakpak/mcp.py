@@ -11,10 +11,10 @@ import sys
 from mcp_bridge import Mounts, POLICY, arguments_key
 
 
-BUILTIN_NAMES = ('stakpak__view', 'stakpak__create', 'stakpak__str_replace')
+BUILTIN_NAMES = ('stakpak__view', 'stakpak__create', 'stakpak__str_replace', 'stakpak__load_skill')
 BUILTIN_TOOLS = 'allowed_tools = ' + json.dumps(BUILTIN_NAMES)
-BUILTIN_TITLES = {'Read', 'Creating', 'Editing'}
-RESERVED_MCP_TOOLS = {'view', 'create', 'create_file', 'str_replace', 'edit_file'}
+BUILTIN_TITLES = {'Read', 'Creating', 'Editing', 'Load skill'}
+RESERVED_MCP_TOOLS = {'view', 'create', 'create_file', 'str_replace', 'edit_file', 'load_skill'}
 POLICY_KEY = 'shiju.stakpak.toolPolicy'
 LIMIT = 4 * 1024 * 1024
 
@@ -96,8 +96,6 @@ class StakpakMounts(Mounts):
         entries = {}
         tools = list(BUILTIN_NAMES)
         for server, catalog in self.catalogs.items():
-            entries[server] = dict(url=f'http://127.0.0.1:{self.http.server_port}/{server}',
-                                   headers={'Authorization': 'Bearer ' + self.tokens[server]})
             for tool in catalog:
                 title = native_title(tool)
                 if (title in self.titles or title in BUILTIN_TITLES
@@ -105,6 +103,8 @@ class StakpakMounts(Mounts):
                     raise ValueError('Stakpak MCP tool titles must be unambiguous')
                 self.titles[title] = (server, tool)
                 tools.append(server + '__' + tool)
+            entries[server] = dict(url=f'http://127.0.0.1:{self.http.server_port}/{server}',
+                                   headers={'Authorization': 'Bearer ' + self.tokens[server]})
         if not self.titles:
             raise ValueError('Stakpak MCP selection has no permitted tools')
         config_file = config_dir / 'mcp.json'

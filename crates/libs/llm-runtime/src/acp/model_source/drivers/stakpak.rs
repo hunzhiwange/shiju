@@ -39,7 +39,7 @@ pub fn configure(
     }
 
     let config = format!(
-        "[profiles.default]\nprovider = \"local\"\nallowed_tools = [\"stakpak__view\", \"stakpak__create\", \"stakpak__str_replace\"]\n\
+        "[profiles.default]\nprovider = \"local\"\nallowed_tools = [\"stakpak__view\", \"stakpak__create\", \"stakpak__str_replace\", \"stakpak__load_skill\"]\n\
          [profiles.default.providers.shiju-session]\ntype = \"custom\"\napi_endpoint = {}\napi_key = {}\n\
          [settings]\ncollect_telemetry = false\nauto_append_gitignore = false\n",
         serde_json::to_string(url.join("v1")?.as_str())?,

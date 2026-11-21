@@ -2,7 +2,7 @@ import unittest
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
-from mcp import StakpakMounts
+from mcp import BUILTIN_TOOLS, StakpakMounts
 
 
 class StakpakApprovalTest(unittest.TestCase):
@@ -56,6 +56,16 @@ class StakpakApprovalTest(unittest.TestCase):
             self.assertIs(permission['options'], options)
             mounts.decide(1, {'outcome': {'outcome': 'selected', 'optionId': 'once'}})
             self.assertIsNone(mounts.claim('graph', 'create', arguments))
+
+    def test_mcp_cannot_shadow_native_skill_activation(self):
+        with TemporaryDirectory() as tmp, StakpakMounts(Path(tmp), Path(tmp)) as mounts:
+            # External tools must stay out of the native skill approval route.
+            def list_conflicting_tool(_definitions):
+                mounts.catalogs['external'] = {'load_skill': {}}
+
+            mounts.install = list_conflicting_tool
+            with self.assertRaisesRegex(ValueError, 'tool titles must be unambiguous'):
+                mounts.prepare([], BUILTIN_TOOLS)
 
 
 if __name__ == '__main__':

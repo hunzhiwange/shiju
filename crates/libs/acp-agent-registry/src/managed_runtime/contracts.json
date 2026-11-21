@@ -854,12 +854,12 @@
     "package": "stakpak",
     "version": "0.3.88",
     "bin": "stakpak",
-    "artifact_url": "https://github.com/stakpak/agent/releases/download/v0.3.88/stakpak-darwin-aarch64.tar.gz",
-    "archive_sha256": "9c18808f7a3352a5ca2cbb9f123f2b2fafda03a5abef446c20065bb6ec629d1f",
+    "source_url": "https://codeload.github.com/stakpak/agent/tar.gz/refs/tags/v0.3.88",
+    "source_sha256": "7ffae3233a6d97d4bf142392ce747a720b6c94717259ee6527deed91664eeb00",
+    "patch_sha256": "4873acd8bbdbcb0224db458256821e2cde986cee2298b7bc7433ec5bb616d7c4",
     "files": {
-      "stakpak-native": "70c559eff250a5be0dcdb19f31f13dca86847ee57648dba78e531506bb482ebc",
-      "stakpak": "e23af645b513eae95f62d964ea067aeca76d88bc421a33656eefae7a7f2609c6",
-      "mcp.py": "2ec797054b0c9dfb8fb41db19ed15de98363f613e745be26afa29677d22ef580",
+      "stakpak": "4bd47c48b5d0dd2524306ce968f2dced20abd7714ddbe5e7938972671b45b97e",
+      "mcp.py": "d3650efa659045dffbc1b3b59cfd5dee60bd3ea6aa13eecdf3acbf4a34084d2b",
       "mcp_bridge.py": "8aea18ecdbc23070a2fc6a9eb5245f095219ac76e9390f4ec2b32e1dd95db136",
       "shiju-stdio.py": "e6870d58c6c59cb1f1d224a66cdaa8455b34057249912b7bce5b9e21f95a074a"
     }

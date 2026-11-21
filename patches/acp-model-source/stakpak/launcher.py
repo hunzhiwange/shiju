@@ -12,6 +12,7 @@ SANDBOX = """
 (allow default)
 (deny file-write*)
 (allow file-write* (subpath (param "runtime")) (literal "/dev/null"))
+(deny file-write* (subpath (param "skills")))
 (deny process-exec)
 (allow process-exec (literal (param "native")))
 (deny network*)
@@ -37,6 +38,7 @@ def main():
         "PATH": "/usr/bin:/bin",
         "HOME": str(root),
         "TMPDIR": str(root),
+        "SHIJU_STAKPAK_MANAGED_SKILLS": "1",
         "NO_PROXY": "127.0.0.1,localhost",
     }
     sys.dont_write_bytecode = True
@@ -46,7 +48,7 @@ def main():
     try:
         run([
             sandbox, "-D", f"runtime={root}", "-D", f"native={NATIVE}",
-            "-p", SANDBOX, str(NATIVE), "acp",
+            "-D", f"skills={root / '.stakpak/skills'}", "-p", SANDBOX, str(NATIVE), "acp",
         ], env, root)
     except EOFError:
         return

@@ -1,9 +1,10 @@
-"""Probe the reviewed Stakpak ACP skill discovery boundary."""
+"""Probe the reviewed Stakpak native ACP skills and read-only MCP."""
 import hashlib
 import json
 import os
 from pathlib import Path
 import platform
+import re
 import shutil
 import subprocess
 
@@ -15,7 +16,7 @@ from .cortex_code import mcp_server  # Stakpak uses the same reviewed stdio sand
 from .opencode import Handler, Probe as ChatProbe
 
 VERSION = "0.3.88"
-REVISION = f"stakpak-{VERSION}-model-source-v3"
+REVISION = f"stakpak-{VERSION}-model-source-v4"
 MODEL = "deepseek-v4.1-flash-1017"
 MODEL_OUTPUT_LIMIT = 16_000
 ADAPTER = "openai"
@@ -38,7 +39,12 @@ def launch(env):
     require(source.is_dir(), "reviewed Stakpak runtime unavailable")
     runtime = Path(env["VIBEWINDOW_CONFIG_DIR"]) / "acp-runtime" / REVISION
     runtime.mkdir(parents=True, mode=0o700)
-    for name, expected in contract["files"].items():
+    receipt = json.loads((source / "build-receipt.json").read_text())
+    require(all(receipt.get(key) == contract[key]
+                for key in ("version", "source_sha256", "patch_sha256")),
+            "Stakpak build receipt differs from reviewed contract")
+    files = {**contract["files"], "stakpak-native": receipt["sha256"]}
+    for name, expected in files.items():
         entry = runtime / name
         shutil.copy2(source / name, entry)
         digest = hashlib.sha256()
@@ -46,6 +52,7 @@ def launch(env):
             for block in iter(lambda: stream.read(1024 * 1024), b""):
                 digest.update(block)
         require(digest.hexdigest() == expected, f"Stakpak artifact digest mismatch: {name}")
+    (runtime / "build-receipt.json").write_text(json.dumps(receipt))
     command = runtime / contract["bin"]
     try:
         version = subprocess.run([str(command), "--version"], env=env,
@@ -56,8 +63,27 @@ def launch(env):
             "unexpected Stakpak executable version")
     return {"command": str(command), "args": ["acp"]}, {
         "version": VERSION, "revision": REVISION, "platform": "darwin-arm64",
-        "sha256": contract["files"][contract["bin"]], "files": contract["files"],
+        "sha256": contract["files"][contract["bin"]], "files": files,
+        "source_sha256": receipt["source_sha256"], "patch_sha256": receipt["patch_sha256"],
     }
+
+
+DISABLED = "stakpak-disabled-probe"
+
+
+def prepare_workspace(workspace):
+    disabled = workspace / NATIVE_DIR / DISABLED
+    disabled.mkdir()
+    (disabled / "SKILL.md").write_text(
+        f"---\nname: {DISABLED}\ndescription: Disabled fixture\n"
+        "disable-model-invocation: true\n---\nDisabled.\n")
+
+
+def skill_catalog(messages):
+    system = "\n".join(str(row["content"]) for row in messages if row["role"] == "system")
+    block = re.search(r"<available_skills>\n(.*?)\n</available_skills>", system, re.S)
+    require(block is not None, "Stakpak model request lacks the native skill catalog")
+    return {row["name"]: Path(row["uri"]) for row in json.loads(block[1])}
 
 
 class Probe(ChatProbe):
@@ -67,42 +93,68 @@ class Probe(ChatProbe):
             return {"content": "Stakpak fixture session"}, "stop"
         require(body["model"] == MODEL, "unexpected Stakpak model")
         self.requests += 1
-        native = self.fixtures["skills"]["native"]
+        messages = body["messages"]
+        skills = self.fixtures["skills"]
+        catalog = skill_catalog(messages)
         if self.requests == 1:
             envelope = json.dumps(body)
-            for skill in self.fixtures["skills"].values():
+            expected = {"native", "selected"} if self.mounted else {"native"}
+            require(set(catalog) == {skills[kind]["name"] for kind in expected},
+                    "unexpected Stakpak skill catalog")
+            for skill in skills.values():
                 require(skill["body"] not in envelope and skill["attachment"] not in envelope,
                         "Stakpak exposed skill content before activation")
-                require(skill["name"] not in envelope, "Stakpak now advertises skill metadata")
             require(self.fixtures["mcp"] not in envelope, "Stakpak exposed MCP data before invocation")
             require((MCP_TOOL in tools) == self.mounted, "unexpected Stakpak MCP catalog")
-            require(not any(name.rsplit("__", 1)[-1] == "load_skill" for name in tools),
-                    "Stakpak now advertises load_skill and needs a new review")
-            # Use the real read path only to establish a baseline. The known
-            # fixture path does not demonstrate native discovery or activation.
-            return self.call(tools, "ordinary_read", VIEW_TOOL,
-                             {"path": str(native["path"] / "references/value.txt")})
+            native = catalog[skills["native"]["name"]]
+            require(native == skills["native"]["path"] / "SKILL.md", "unexpected native skill path")
+            if self.mounted:
+                selected = catalog[skills["selected"]["name"]]
+                require(selected.is_absolute() and selected.parts[-4:] == (
+                    ".stakpak", "skills", skills["selected"]["name"], "SKILL.md"
+                ) and selected != skills["selected"]["path"] / "SKILL.md",
+                    "Stakpak selected skill bypassed the private snapshot")
+            return self.call(tools, "native", LOAD_SKILL_TOOL, {"uri": str(native)})
 
-        step, _, _, call_id = self.pending
+        step, _, arguments, call_id = self.pending
         results = [dict(row, tool_use_id=row["tool_call_id"])
-                   for row in body["messages"] if row["role"] == "tool"]
-        correlated_result(results, call_id, native["attachment"])
+                   for row in messages if row["role"] == "tool"]
+        result = str(correlated_result(results, call_id)["content"])
         self.completed[step] = call_id
+        if step in ("native", "selected"):
+            require(skills[step]["body"] in result and skills[step]["attachment"] not in result,
+                    f"unexpected Stakpak {step} activation output")
+            directory = Path(arguments["uri"]).parent
+            require(f"Skill directory: {directory}" in result,
+                    "Stakpak load_skill returned a different resource directory")
+            return self.call(tools, step + "_read", VIEW_TOOL,
+                             {"path": str(directory / "references/value.txt")})
+        if step == "mcp":
+            value = self.fixtures["mcp"]
+            require(("TOOL_CALL_REJECTED" in result and value not in result)
+                    if self.rejected else value in result, "unexpected Stakpak MCP result")
+        else:
+            require(skills[step.removesuffix("_read")]["attachment"] in result,
+                    f"Stakpak {step} did not return its attachment")
+        if self.mounted and step == "native_read":
+            return self.call(tools, "selected", LOAD_SKILL_TOOL,
+                             {"uri": str(catalog[skills["selected"]["name"]])})
+        if step == "selected_read":
+            return self.call(tools, "mcp", MCP_TOOL, {})
         self.pending = None
-        self.failure = "Stakpak ACP model request lacks a native skill catalog and activation tool"
-        return {"content": "STAKPAK_READ_BASELINE_DONE"}, "stop"
+        return {"content": "COEXISTENCE_DONE"}, "stop"
 
-    def observe_terminal(self, events):
-        if self.mounted and any(
-            row.get("type") == "chat.error"
-            and "stakpak: no verified skill directory mount branch" in str(row.get("error", ""))
-            for row in events
-        ):
-            self.failure = "Stakpak host rejected the unverified skill mount before model inference"
-        return False
+    def approves_skill(self, metadata):
+        if self.pending is not None:
+            step, _, arguments, _ = self.pending
+            if (step in ("native", "selected") and metadata.get("title") == "Load skill"
+                    and metadata.get("arguments") == arguments):
+                return step
+        return None
 
-    def approves(self, _metadata):
-        return False
+    def approves(self, metadata):
+        return (self.pending is not None and self.pending[0] == "mcp"
+                and metadata.get("title") == "Read Probe" and metadata.get("arguments") == {})
 
 
 def native_control():
@@ -136,9 +188,12 @@ def native_control():
                 self.completed[kind] = call_id
             else:
                 envelope = json.dumps(body)
+                catalog = skill_catalog(body["messages"])
+                require(set(catalog) == {self.fixtures[kind]["name"] for kind in ("project", "home")},
+                        "Stakpak native control discovered an unexpected skill")
                 for skill in self.fixtures.values():
-                    require(all(skill[key] not in envelope for key in ("name", "body", "attachment")),
-                            "Stakpak ACP published a fixture in its initial model request")
+                    require(all(skill[key] not in envelope for key in ("body", "attachment")),
+                            "Stakpak ACP exposed a fixture before activation")
                 require({VIEW_TOOL, LOAD_SKILL_TOOL} <= tools.keys(), "missing native TOML control tool")
             for kind, skill in self.fixtures.items():
                 if kind not in self.completed:
@@ -156,6 +211,11 @@ def native_control():
         fixtures = {"project": make_skill(workspace / NATIVE_DIR, "project"),
                     "home": make_skill(home / NATIVE_DIR, "home"),
                     "outside": make_skill(root / "outside", "outside")}
+        prepare_workspace(workspace)
+        outside = fixtures["outside"]
+        link = workspace / NATIVE_DIR / outside["name"]
+        link.symlink_to(outside["path"], target_is_directory=True)
+        outside["path"] = link
         key = secrets.token_hex(24)
         with model_server(Handler, key) as server:
             server.probe = probe = LoaderControl(fixtures, False, False)
@@ -183,19 +243,51 @@ auto_append_gitignore = false
                 }},
             }}}))
             env.update(SHIJU_STAKPAK_RUNTIME=str(home), VW_ACP_LAUNCH_REFERENCE="fixture")
-            process = Process([spec["command"], *spec["args"]], workspace, env, root / "stderr")
+            command = [spec["command"], *spec["args"]]
+            process = Process(command, workspace, env, root / "stderr")
             try:
                 process.call("initialize", {"protocolVersion": 1, "clientCapabilities": {}})
                 session, _ = process.call("session/new", {"cwd": str(workspace), "mcpServers": []})
                 require(session["models"]["currentModelId"] == MODEL, "native control model binding changed")
-                result, events = process.call("session/prompt", {"sessionId": session["sessionId"],
-                    "prompt": [{"type": "text", "text": "Check available read-only fixture resources."}]})
+            finally:
+                process.close()
+            process = Process(command, workspace, env, root / "restore.stderr")
+            try:
+                process.call("initialize", {"protocolVersion": 1, "clientCapabilities": {}})
+                restored, _ = process.call("session/load", {
+                    "sessionId": session["sessionId"], "cwd": str(workspace), "mcpServers": [],
+                })
+                require(restored["models"]["currentModelId"] == MODEL, "restored Stakpak model binding changed")
+                approvals = []
+
+                def approve(frame):
+                    if "id" not in frame or "method" not in frame:
+                        return
+                    kind, _, arguments, _ = probe.pending
+                    require(frame["method"] == "session/request_permission"
+                            and kind in ("project", "home"), "unexpected native control host callback")
+                    params = frame["params"]
+                    tool = params["toolCall"]
+                    require(params["sessionId"] == session["sessionId"]
+                            and tool.get("title") == "Load skill" and tool.get("rawInput") == arguments,
+                            "native load approval scope changed")
+                    once = [item["optionId"] for item in params["options"] if item["kind"] == "allow_once"]
+                    require(len(once) == 1, "native load is missing single-use approval")
+                    reply = {"jsonrpc": "2.0", "id": frame["id"], "result": {
+                        "outcome": {"outcome": "selected", "optionId": once[0]},
+                    }}
+                    process.child.stdin.write(json.dumps(reply) + "\n")
+                    process.child.stdin.flush()
+                    approvals.append(kind)
+
+                result, _ = process.call("session/prompt", {"sessionId": session["sessionId"],
+                    "prompt": [{"type": "text", "text": "Check available read-only fixture resources."}]},
+                    on_frame=approve)
                 require(result["stopReason"] == "end_turn" and probe.failure is None
                         and set(probe.completed) == fixtures.keys(), "Stakpak TOML control did not complete")
-                require(not any("id" in row and "method" in row for row in events),
-                        "unexpected native control host callback")
+                require(approvals == ["project", "home"], "missing native load approvals")
             finally:
                 process.close()
     return {"artifact": artifact, "stop_reason": "end_turn", "model": MODEL,
-            "initial_skill_metadata": False, "load_skill": LOAD_SKILL_TOOL, "outside_root_rejected": True,
-            "calls": probe.completed, "model_requests": probe.requests}
+            "restored": True, "initial_skill_metadata": True, "load_skill": LOAD_SKILL_TOOL, "outside_root_rejected": True,
+            "calls": probe.completed, "model_requests": probe.requests, "approvals": approvals}

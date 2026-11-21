@@ -21,7 +21,6 @@ pub(super) type Item<'a> = Element<'a, Message>;
 
 pub(super) struct Palette {
     pub surface: Color,
-    page: Color,
     pub header: Color,
     pub border: Color,
     pub ink: Color,
@@ -39,7 +38,6 @@ impl Palette {
             let palette = theme.extended_palette();
             return Self {
                 surface: palette.background.weak.color,
-                page: palette.background.base.color,
                 header: palette.background.base.color,
                 border: palette.background.strong.color,
                 ink: theme.palette().text,
@@ -53,7 +51,6 @@ impl Palette {
         }
         Self {
             surface: Color::from_rgb8(254, 254, 254),
-            page: Color::from_rgb8(248, 247, 242),
             header: Color::from_rgb8(249, 248, 246),
             border: Color::from_rgb8(230, 225, 216),
             ink: Color::from_rgb8(23, 39, 70),
@@ -95,7 +92,7 @@ fn page_content(app: &App) -> Item<'_> {
     responsive(move |size| {
         let pad = if size.width >= 880.0 { 24.0 } else { 16.0 };
         let width = size.width - 2.0 * pad - 7.0;
-        let mut page = column![segmented(
+        let tabs = segmented(
             row![
                 page_tab("工作台", Page::Workbench, state.page),
                 page_tab("任务看板", Page::Board, state.page),
@@ -107,8 +104,8 @@ fn page_content(app: &App) -> Item<'_> {
             .spacing(2)
             .wrap()
             .into()
-        )]
-        .spacing(20);
+        );
+        let mut page = Column::new().spacing(20);
         if state.page == Page::Workbench {
             page = page.push(heading(state, actor, size.width < 520.0));
         }
@@ -168,19 +165,19 @@ fn page_content(app: &App) -> Item<'_> {
         } else if state.loading {
             page = page.push(page_notice(label("正在加载工作台…", 14, Tone::Muted)));
         }
-        container(
+        column![
+            container(tabs).padding(iced::Padding::new(pad).right(pad + 7.0).bottom(0.0)),
             scrollable(
                 container(page.width(Length::Fill))
-                    .padding(iced::Padding::new(pad).right(pad + 7.0)),
+                    .padding(iced::Padding::new(pad).right(pad + 7.0).top(20.0)),
             )
             .id(iced::widget::Id::new(super::board::SCROLL_ID))
             .width(Length::Fill)
             .height(Length::Fill)
             .direction(Direction::Vertical(Scrollbar::new().width(4).scroller_width(4).margin(3))),
-        )
+        ]
         .width(Length::Fill)
         .height(Length::Fill)
-        .style(|theme| container::Style::default().background(Palette::new(theme).page))
         .into()
     })
     .into()

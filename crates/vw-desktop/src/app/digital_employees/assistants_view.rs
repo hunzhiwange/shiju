@@ -1,10 +1,9 @@
 use desktop_assets::assets::Icon;
 use desktop_ui_controls::system_settings_common::{
-    settings_close_button, settings_error_banner, settings_modal_card,
+    rounded_action_btn_style, settings_close_button, settings_error_banner, settings_modal_layout,
     settings_modal_overlay_with_escape, settings_select, settings_text_input,
 };
-use iced::widget::scrollable::{Direction, Scrollbar};
-use iced::widget::{Column, Row, Space, column, container, image, row, scrollable};
+use iced::widget::{Column, Row, Space, button, column, container, image, row};
 use iced::{Alignment, Length};
 
 use super::assistants::{Assistant, List, ListEvent, PAGE_SIZE, RunFilter, Snapshot, message};
@@ -125,7 +124,6 @@ pub(super) fn overlay<'a>(
     base: Item<'a>,
     state: &'a List,
     actor: Option<&'a str>,
-    height: f32,
 ) -> Item<'a> {
     let (Some(transfer), Some(employee), Some(data)) =
         (&state.transfer, state.transfer_employee(), state.data.as_deref())
@@ -148,45 +146,56 @@ pub(super) fn overlay<'a>(
             form = form.push(label("可指派的范围内暂无其他成员", 14, Tone::Muted));
         } else {
             let query = transfer.search.trim().to_lowercase();
-            let choices: Vec<_> =
-                recipients.iter().filter(|recipient| recipient.matches(&query)).cloned().collect();
-            let placeholder =
-                if choices.is_empty() { "没有匹配的成员" } else { "请选择使用人" };
+            let mut choices =
+                recipients.iter().filter(|recipient| recipient.matches(&query)).peekable();
             let search = settings_text_input("搜索成员姓名或账号", &transfer.search)
                 .on_input_maybe(
                     (!transfer.submitting)
                         .then_some(|search| message(ListEvent::TransferSearch(search))),
                 )
                 .width(Length::Fill);
-            form = form.push(search).push(
-                settings_select(choices, transfer.selected.clone(), |recipient| {
-                    message(ListEvent::TransferSelect(recipient))
-                })
-                .placeholder(placeholder)
-                .disabled(transfer.submitting)
-                .width(Length::Fill),
-            );
+            form = form.push(search);
+            if choices.peek().is_none() {
+                form = form.push(label("没有匹配的成员", 14, Tone::Muted));
+            }
+            let mut options = Column::new().spacing(4);
+            for recipient in choices {
+                let selected = transfer.selected.as_ref() == Some(recipient);
+                let mark: Item<'_> = if selected {
+                    icon(Icon::Check, 16, Tone::Ink).into()
+                } else {
+                    Space::new().width(16).into()
+                };
+                let option = button(
+                    row![mark, label(recipient.to_string(), 14, Tone::Ink)]
+                        .spacing(8)
+                        .align_y(Alignment::Center),
+                )
+                .width(Length::Fill)
+                .padding([10, 12])
+                .style(rounded_action_btn_style)
+                .on_press_maybe(
+                    (!transfer.submitting)
+                        .then(|| message(ListEvent::TransferSelect(recipient.clone()))),
+                );
+                options = options.push(option);
+            }
+            form = form.push(options);
         }
     } else if transfer.error.is_none() {
         form = form.push(label("正在读取成员…", 14, Tone::Muted));
     }
-    if let Some(error) = &transfer.error {
-        form = form.push(label(error.as_str(), 13, Tone::Red));
-    }
-    let content = container(
-        scrollable(container(form.width(Length::Fill)).padding(iced::Padding::ZERO.right(7)))
-            .direction(Direction::Vertical(Scrollbar::new().width(4).scroller_width(4).margin(3))),
-    )
-    .max_height((height - 160.0).clamp(64.0, 360.0))
-    .width(Length::Fill);
     let header = row![
         strong("转交使用人", 20, Tone::Ink).width(Length::Fill),
         (!transfer.submitting).then(|| settings_close_button(close.clone())),
     ]
     .align_y(Alignment::Center)
     .spacing(12);
-    let footer = row![
-        Space::new().width(Length::Fill),
+    let actions = row![
+        container(transfer.selected.as_ref().map(|recipient| {
+            label(format!("已选：{recipient}"), 13, Tone::Muted)
+        }))
+        .width(Length::Fill),
         action("取消", None, (!transfer.submitting).then(|| close.clone()), false),
         action(
             if transfer.submitting { "正在转交…" } else { "确认转交" },
@@ -196,10 +205,18 @@ pub(super) fn overlay<'a>(
             true,
         ),
     ]
+    .spacing(8)
+    .align_y(Alignment::Center);
+    let footer = column![
+        transfer.error.as_deref().map(|error| label(error, 13, Tone::Red)),
+        actions,
+    ]
     .spacing(8);
-    let dialog = settings_modal_card(column![header, content, footer].spacing(14))
+    let dialog = settings_modal_layout(header, form, Some(footer.into()))
         .width(Length::Fill)
-        .max_width(640);
+        .max_width(640)
+        .height(Length::Fill)
+        .max_height(640);
     settings_modal_overlay_with_escape(base, close, dialog)
 }
 

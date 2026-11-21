@@ -79,7 +79,6 @@ pub(crate) fn view(app: &App) -> Item<'_> {
                 base,
                 &state.assistants,
                 account.profile().map(|profile| profile.name()),
-                size.height,
             ),
             _ => base,
         }

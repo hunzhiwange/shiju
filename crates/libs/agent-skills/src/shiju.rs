@@ -10,6 +10,8 @@ use {gateway_shiju_account::ShijuCredential, gateway_shiju_skill::ShijuInstalled
 
 const SHIJU_SKILL_BASE_URL: &str = "https://gateway.shiju.cloud/sj/skill-hub/api/v1/";
 const MAX_PAGE_SIZE: u32 = 100;
+// The legacy skill endpoint rejects skills outside the current tenant's scope.
+const TENANT_SKILL_FORBIDDEN_CODE: i64 = 403502003;
 const MAINTAINED_SKILL_STATUSES: [&str; 4] =
     ["draft", "pending_review", "published", "unpublished"];
 
@@ -23,6 +25,7 @@ pub struct ShijuSkillInstallRequest {
 enum ShijuSkillErrorKind {
     InvalidInput,
     AccessDenied,
+    TenantSkillForbidden,
     Upstream,
 }
 
@@ -45,6 +48,13 @@ impl ShijuSkillError {
     /// 判断错误是否来自本地输入校验。
     pub fn is_invalid_input(&self) -> bool {
         self.kind == ShijuSkillErrorKind::InvalidInput
+    }
+
+    fn allows_marketplace_lookup(&self) -> bool {
+        matches!(
+            self.kind,
+            ShijuSkillErrorKind::Upstream | ShijuSkillErrorKind::TenantSkillForbidden
+        )
     }
 }
 
@@ -223,7 +233,7 @@ impl ShijuSkillClient {
                 }
                 Ok(detail)
             }
-            Err(error) if error.kind == ShijuSkillErrorKind::Upstream => market.ok_or(error),
+            Err(error) if error.allows_marketplace_lookup() => market.ok_or(error),
             Err(error) => Err(error),
         }
     }
@@ -242,7 +252,7 @@ impl ShijuSkillClient {
             Ok(readme) if readme.markdown.as_ref().is_some_and(|text| !text.trim().is_empty()) => {
                 return result;
             }
-            Err(error) if error.kind != ShijuSkillErrorKind::Upstream => return result,
+            Err(error) if !error.allows_marketplace_lookup() => return result,
             _ => {}
         }
         self.get(&format!("marketplace/skills/{skill_id}/readme"), &[], credential)
@@ -387,7 +397,7 @@ impl ShijuSkillClient {
         if body.is_empty() {
             return Ok(());
         }
-        let envelope = serde_json::from_slice::<MutationEnvelope>(&body)
+        let envelope = serde_json::from_slice::<ApiCode>(&body)
             .map_err(|_| ShijuSkillError::upstream("SHIJU skill upstream response is invalid"))?;
         if envelope.code != 200 {
             return Err(business_error(envelope.code));
@@ -407,6 +417,14 @@ async fn decode_response<T: DeserializeOwned>(
 ) -> Result<T, ShijuSkillError> {
     let status = response.status();
     if !status.is_success() {
+        if status == StatusCode::FORBIDDEN
+            && response
+                .json::<ApiCode>()
+                .await
+                .is_ok_and(|envelope| envelope.code == TENANT_SKILL_FORBIDDEN_CODE)
+        {
+            return Err(business_error(TENANT_SKILL_FORBIDDEN_CODE));
+        }
         return Err(http_error(status));
     }
     let envelope = response.json::<ApiEnvelope>().await.map_err(|error| {
@@ -439,6 +457,7 @@ fn business_error(code: i64) -> ShijuSkillError {
 fn upstream_status_error(code: i64, message: String) -> ShijuSkillError {
     let kind = match code {
         401 | 403 => ShijuSkillErrorKind::AccessDenied,
+        TENANT_SKILL_FORBIDDEN_CODE => ShijuSkillErrorKind::TenantSkillForbidden,
         _ => ShijuSkillErrorKind::Upstream,
     };
     ShijuSkillError { kind, message }
@@ -564,7 +583,7 @@ struct ApiEnvelope {
 }
 
 #[derive(Deserialize)]
-struct MutationEnvelope {
+struct ApiCode {
     code: i64,
 }
 

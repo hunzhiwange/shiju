@@ -149,6 +149,29 @@ async fn shiju_skill_adapter_loads_marketplace_readme_when_legacy_is_empty() {
 }
 
 #[tokio::test(flavor = "multi_thread")]
+async fn shiju_skill_adapter_loads_marketplace_readme_outside_tenant_scope() {
+    let (base, requests) = fixture(vec![
+        ("403 Forbidden".into(), r#"{"code":403502003,"data":null}"#.into()),
+        (
+            "200 OK".into(),
+            envelope(serde_json::json!({
+                "skill_id": 88,
+                "readme_format": "markdown",
+                "content": "# 市场技能说明"
+            })),
+        ),
+    ]);
+    let client = ShijuSkillClient::with_base_url(&base).expect("client");
+
+    let readme = client.readme(&credential(), 88).await.expect("README");
+    assert_eq!(readme.markdown.as_deref(), Some("# 市场技能说明"));
+
+    let requests = requests.join().expect("join fixture");
+    assert!(requests[0].starts_with("GET /skills/88/readme "));
+    assert!(requests[1].starts_with("GET /marketplace/skills/88/readme "));
+}
+
+#[tokio::test(flavor = "multi_thread")]
 async fn shiju_skill_adapter_maps_all_private_catalog_paths() {
     let detail = serde_json::json!({
         "id": 31,
@@ -277,8 +300,10 @@ async fn shiju_skill_detail_recovers_and_merges_marketplace_metadata() {
             "current_version_id": 41,
             "current_version": {"version": "1.0.2", "download_url": null}
         }))),
+        ("403 Forbidden", r#"{"code":403502003,"data":null}"#.into()),
         ("403 Forbidden", String::new()),
     ] {
+        let generic_access_denial = legacy_status == "403 Forbidden" && legacy_data.is_empty();
         let (base, requests) = fixture_with_responder(2, move |request| {
             if request.starts_with("GET /marketplace/skills/88 ") {
                 return ("200 OK".into(), envelope(serde_json::json!({
@@ -308,7 +333,7 @@ async fn shiju_skill_detail_recovers_and_merges_marketplace_metadata() {
         let client = ShijuSkillClient::with_base_url(&base).expect("client");
         let result = client.detail(&credential(), 88).await;
         requests.join().expect("join fixture");
-        if legacy_status == "403 Forbidden" {
+        if generic_access_denial {
             assert!(result.expect_err("respect legacy access denial").to_string().contains("403"));
             continue;
         }

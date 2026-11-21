@@ -107,7 +107,26 @@ struct IamResource {
 pub(super) struct IamPage<T> {
     #[serde(deserialize_with = "super::api::nullable_list")]
     pub(super) list: Vec<T>,
+    #[serde(default, deserialize_with = "deserialize_iam_total")]
     total: Option<usize>,
+}
+
+fn deserialize_iam_total<'de, D>(deserializer: D) -> Result<Option<usize>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    #[derive(Deserialize)]
+    #[serde(untagged)]
+    enum Total {
+        Number(usize),
+        String(String),
+    }
+
+    match Option::<Total>::deserialize(deserializer)? {
+        Some(Total::Number(total)) => Ok(Some(total)),
+        Some(Total::String(total)) => total.parse().map(Some).map_err(serde::de::Error::custom),
+        None => Ok(None),
+    }
 }
 
 #[derive(Deserialize)]

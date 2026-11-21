@@ -58,7 +58,7 @@ pub(super) fn view<'a>(state: &'a List, width: f32, actor: Option<&'a str>) -> I
         })
         .collect();
 
-    page = page.push(filters(state, data, source, width));
+    page = page.push(filters(state, data, width));
     if let Err(error) = &data.governance {
         page = page.push(settings_error_banner(format!("组织内私有员工加载失败。{error}")));
     }
@@ -219,21 +219,14 @@ fn filters<'a>(state: &'a List, data: &Snapshot, width: f32) -> Item<'a> {
             message(ListEvent::Scope(true)),
         ));
     }
-    let on_duty =
-        RunFilter::OnDuty(source.iter().filter(|item| item.runtime() == "on_duty").count());
-    let abnormal =
-        RunFilter::Abnormal(source.iter().filter(|item| item.runtime() == "abnormal").count());
-    let current = match state.filter {
-        RunFilter::All => RunFilter::All,
-        RunFilter::OnDuty(_) => on_duty,
-        RunFilter::Abnormal(_) => abnormal,
-    };
     let search = settings_text_input("搜索私有员工", &state.search)
         .on_input(|input| message(ListEvent::Search(input)))
         .width(if width >= 595.0 { Length::Fixed(285.0) } else { Length::Fill });
-    let run = settings_select([RunFilter::All, on_duty, abnormal], Some(current), |value| {
-        message(ListEvent::Run(value))
-    })
+    let run = settings_select(
+        [RunFilter::All, RunFilter::OnDuty, RunFilter::Abnormal],
+        Some(state.filter),
+        |value| message(ListEvent::Run(value)),
+    )
     .width(156);
     let published = data.mine.iter().filter(|item| item.publish_status == "PUBLISHED").count();
     let runs = data.mine.iter().map(|item| item.usage_count).sum::<u64>();

@@ -77,16 +77,16 @@ impl Recipient {
 pub(crate) enum RunFilter {
     #[default]
     All,
-    OnDuty(usize),
-    Abnormal(usize),
+    OnDuty,
+    Abnormal,
 }
 
 impl RunFilter {
     pub(super) fn matches(self, employee: &Assistant) -> bool {
         match self {
             Self::All => true,
-            Self::OnDuty(_) => employee.runtime() == "on_duty",
-            Self::Abnormal(_) => employee.runtime() == "abnormal",
+            Self::OnDuty => employee.runtime() == "on_duty",
+            Self::Abnormal => employee.runtime() == "abnormal",
         }
     }
 }
@@ -95,8 +95,8 @@ impl fmt::Display for RunFilter {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::All => f.write_str("全部状态"),
-            Self::OnDuty(count) => write!(f, "在岗 {count}"),
-            Self::Abnormal(count) => write!(f, "异常 {count}"),
+            Self::OnDuty => f.write_str("在岗"),
+            Self::Abnormal => f.write_str("异常"),
         }
     }
 }

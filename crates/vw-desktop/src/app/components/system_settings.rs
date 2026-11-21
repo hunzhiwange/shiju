@@ -511,7 +511,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
     let dialog = crate::app::provider_link_preview::overlay(dialog);
     #[cfg(target_os = "macos")]
     let dialog = super::system_settings_data::backup_list_ui::overlay(app, dialog);
-    #[cfg(not(target_arch = "wasm32"))]
+    #[cfg(target_os = "macos")]
     let dialog = crate::app::mcp_link_preview::overlay(app, dialog);
     #[cfg(target_os = "macos")]
     let dialog = crate::app::skill_link_preview::overlay(app, dialog);

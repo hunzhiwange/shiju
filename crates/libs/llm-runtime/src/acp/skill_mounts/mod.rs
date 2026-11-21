@@ -2,7 +2,7 @@
 use super::{Error, acp_option_error};
 pub(super) mod aionrs;
 pub(super) mod amp_acp;
-mod auggie;
+pub(super) mod auggie;
 mod claude;
 mod codebuddy;
 mod codex;
@@ -71,7 +71,7 @@ pub fn validate(agent: &str, selected: bool) -> Result<(), Error> {
         "pi" => return Ok(()),
         "poolside" if cfg!(all(target_os = "macos", target_arch = "aarch64")) => return Ok(()),
         "amp-acp" if cfg!(all(target_os = "macos", target_arch = "aarch64")) => return Ok(()),
-        "auggie" => auggie::rejection(),
+        "auggie" if cfg!(all(target_os = "macos", target_arch = "aarch64")) => return Ok(()),
         "cursor" => return Ok(()),
         "deepagents" if cfg!(all(target_os = "macos", target_arch = "aarch64")) => return Ok(()),
         "cortex-code" if cfg!(all(target_os = "macos", target_arch = "aarch64")) => return Ok(()),

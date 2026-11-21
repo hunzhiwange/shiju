@@ -130,7 +130,8 @@ pub(super) async fn prepare(
     );
     let vtcode = launch.identity().session.ends_with(":vtcode");
     let hermes = launch.identity().session.ends_with(":hermes");
-    let requires_approval = vtcode || hermes;
+    let auggie = launch.identity().session.ends_with(":auggie");
+    let requires_approval = vtcode || hermes || auggie;
     anyhow::ensure!(
         requires_approval || launch.identity().session.ends_with(":mimo-code"),
         "Managed MCP requires a reviewed relay"
@@ -150,9 +151,10 @@ pub(super) async fn prepare(
     let mut services = BTreeSet::new();
     let mut native_tools = BTreeSet::new();
 
-    let policy_key = match (hermes, vtcode) {
-        (true, _) => "shiju.hermes.toolPolicy",
-        (_, true) => "shiju.vtcode.toolPolicy",
+    let policy_key = match (hermes, vtcode, auggie) {
+        (true, _, _) => "shiju.hermes.toolPolicy",
+        (_, true, _) => "shiju.vtcode.toolPolicy",
+        (_, _, true) => "shiju.auggie.toolPolicy",
         _ => "shiju.mimo.toolPolicy",
     };
     for definition in definitions {
@@ -214,7 +216,7 @@ pub(super) async fn prepare(
             ("scratch", scratch_path.clone()),
             ("host-home", host_home),
             ("git", workspace.join(".git")),
-            ("settings", workspace.join(if hermes { ".hermes" } else if vtcode { ".vtcode" } else { ".mimocode" })),
+            ("settings", workspace.join(if auggie { ".augment" } else if hermes { ".hermes" } else if vtcode { ".vtcode" } else { ".mimocode" })),
             ("env", workspace.join(".env")),
             ("mount", workspace.join(".vwacprc.json")),
         ] {
@@ -248,7 +250,12 @@ pub(super) async fn prepare(
             if !mcp_client::mcp_tool_allowed(&management, &name, &tool_id) {
                 continue;
             }
-            let public = if hermes {
+            let public = if auggie {
+                // Match Auggie's tool_server identity and reject collisions below.
+                let mut alias = format!("{name}_{}", definition.name);
+                alias.truncate(64);
+                format!("mcp__auggie__{alias}")
+            } else if hermes {
                 format!("mcp__{}__{name}", definition.name).replace('-', "_")
             } else if vtcode {
                 format!("mcp__{}__{name}", definition.name)
@@ -259,7 +266,7 @@ pub(super) async fn prepare(
                 approval_names.insert(name.clone(), public.clone());
             }
             anyhow::ensure!(
-                public.len() <= 64 && native_tools.insert(public),
+                (auggie || public.len() <= 64) && native_tools.insert(public),
                 "invalid or colliding MiMo MCP tool name"
             );
             if graph_root.is_some() {

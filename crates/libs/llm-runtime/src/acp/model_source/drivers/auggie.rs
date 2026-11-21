@@ -61,7 +61,7 @@ pub fn configure(profile: &mut AcpLaunchProfile, endpoint: &str) -> anyhow::Resu
     Ok(())
 }
 
-fn history_directory(profile: &AcpLaunchProfile) -> anyhow::Result<std::path::PathBuf> {
+pub(in crate::acp) fn history_directory(profile: &AcpLaunchProfile) -> anyhow::Result<std::path::PathBuf> {
     #[cfg(not(unix))]
     anyhow::bail!("Auggie history ACL verification unavailable");
     #[cfg(unix)]

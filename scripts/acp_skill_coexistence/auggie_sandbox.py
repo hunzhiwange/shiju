@@ -1,4 +1,4 @@
-"""Exercise an experimental Auggie skill scanner under a read-only Darwin sandbox."""
+"""Exercise the reviewed Auggie skill scanner under a read-only Darwin sandbox."""
 
 import argparse
 import hashlib
@@ -19,14 +19,6 @@ from verify_acp_integration import Process, require, text_updates
 from verify_acp_model_source import ROOT
 from verify_acp_skill_coexistence import PHASES, make_skill, model_server
 
-SCAN = "return dmi(i,o,e,n)}function d2e"
-SCAN_APPEND = (
-    'let skills=dmi(i,o,e,n),root=process.env.SHIJU_AUGGIE_SKILL_VIEW;'
-    'if(root){let files=G3({directories:[{path:root,source:"workspace"}],'
-    'extensions:[".md"],createConfigFile:s=>s}).filter(Dfn);'
-    'for(let skill of Wfn({discoveredFiles:files,transform:e}).transformedFiles)'
-    'if(!o.has(skill.name))skills.push(skill)}return skills}function d2e'
-)
 DENIAL_PROBE = """
 const fs = require("node:fs");
 const net = require("node:net");
@@ -48,6 +40,19 @@ class DirectProbe(Probe):
         names = {item["function"]["name"] for item in body.get("tools", [])}
         require("web-fetch" not in names, "Auggie ignored project removedTools")
         return super().response(body)
+
+
+class RestoreProbe(DirectProbe):
+    def response(self, body):
+        require(body["model"] == MODEL, "unexpected Auggie restored model")
+        self.requests += 1
+        catalogue = "\n".join(row["content"] for row in body["messages"] if row["role"] == "system")
+        for kind, skill in self.fixtures["skills"].items():
+            require((skill["name"] in catalogue) == (kind == "native"),
+                    f"unexpected restored {kind} catalogue")
+        require(all(row["function"]["name"] != MCP_TOOL for row in body.get("tools", [])),
+                "restored Auggie retained an old MCP")
+        return {"content": "COEXISTENCE_RESTORED"}, "stop"
 
 
 class DirectHandler(Handler):
@@ -74,11 +79,7 @@ def copy_runtime(source, root):
         original = source / name
         require(digest(original) == expected, "unexpected Auggie input digest")
         shutil.copy2(original, package / name)
-    entry = package / contract["bin"]
-    code = entry.read_text()
-    require(code.count(SCAN) == 1, "unexpected Auggie scanner anchor")
-    entry.write_text(code.replace(SCAN, SCAN_APPEND))
-    return entry
+    return package / contract["bin"]
 
 
 def sandbox(node, read_dirs, read_files, write_dirs, ports):
@@ -132,19 +133,22 @@ def run_phase(phase, root, entry, node, model, mcp, attachment, audit, foreign):
                                   "outputLimit": 1024}))
     auth.write_text(json.dumps({"accessToken": model.key, "tenantURL": endpoint, "scopes": ["email"]}))
     env.update(SHIJU_AUGGIE_MODEL_CONFIG=str(config), AUGMENT_DISABLE_AUTO_UPDATE="1",
-               SHIJU_AUGGIE_SKILL_VIEW=str(view) if mounted else "", NO_PROXY="*")
+               SHIJU_AUGGIE_SKILL_VIEW=str(view) if mounted else "", NO_PROXY="*",
+               SHIJU_AUGGIE_RESTRICTED="1", SHIJU_AUGGIE_WORKSPACE=str(workspace),
+               SHIJU_AUGGIE_MCP_TOOLS=json.dumps([MCP_TOOL] if mounted else []))
     private = [Path(env["HOME"]), Path(env["TMPDIR"]), history]
-    read_dirs = [entry.parent, workspace, *private]
+    read_dirs = [workspace, *private]
+    read_files = [node, config, auth, entry, entry.with_name("session-model.mjs")]
     ports = [model.server_port]
     if mounted:
         read_dirs.extend((view, selected))
         ports.append(urlsplit(mcp["url"]).port)
-    policy = sandbox(node, read_dirs, [node, config, auth], private, ports)
+    policy = sandbox(node, read_dirs, read_files, private, ports)
     command = ["/usr/bin/sandbox-exec", "-p", policy, str(node)]
     subprocess.run([*command, "-e", DENIAL_PROBE, str(foreign), str(workspace / "write-test")],
                    env=env, cwd=workspace, check=True, timeout=10, capture_output=True)
     flags = ["--permission", MCP_TOOL + ":ask-user"] if mounted else []
-    model.probe = probe = DirectProbe({"skills": skills, "mcp": attachment.read_text()}, mounted, rejected)
+    model.probe = probe = DirectProbe({"skills": skills, "mcp": attachment.read_text()}, mounted, rejected, observe_stdio=False)
     before = len(audit.read_text().splitlines()) if audit.exists() else 0
     process = Process([*command, str(entry), "--acp", "--model", MODEL, "--augment-cache-dir",
                        str(history), "--augment-session-json", str(auth), *flags],
@@ -155,7 +159,7 @@ def run_phase(phase, root, entry, node, model, mcp, attachment, audit, foreign):
         if frame.get("method") != "session/request_permission":
             return
         call = frame["params"]["toolCall"]
-        require(probe.pending == ("mcp", call["toolCallId"]) and call.get("title") == MCP_TOOL
+        require(probe.pending == ("mcp", call["toolCallId"]) and call.get("title") == "mcp__auggie__" + MCP_TOOL
                 and call.get("rawInput") == {}, "unexpected Auggie approval")
         kind = "reject_once" if rejected else "allow_once"
         option = next(row for row in frame["params"]["options"] if row["kind"] == kind)
@@ -189,9 +193,36 @@ def run_phase(phase, root, entry, node, model, mcp, attachment, audit, foreign):
             "unexpected Auggie approval count")
     require(after - before == int(mounted and not rejected), "unexpected Auggie downstream calls")
     require(settings.read_text() == project_settings, "Auggie changed project settings")
-    return {"phase": phase, "session": session["sessionId"], "stop": result["stopReason"],
-            "calls": probe.completed, "requests": probe.requests, "decisions": decisions,
-            "downstream": after - before, "sandbox_denials": 5}
+    row = {"phase": phase, "session": session["sessionId"], "stop": result["stopReason"],
+           "calls": probe.completed, "requests": probe.requests, "decisions": decisions,
+           "downstream": after - before, "sandbox_denials": 5}
+    if phase == "mounted":
+        # Resume the original vendor conversation in a new process after revoking the view and relay.
+        (view / selected.name).unlink()
+        policy = sandbox(node, [workspace, *private], read_files,
+                         private, [model.server_port])
+        env.update(SHIJU_AUGGIE_SKILL_VIEW="", SHIJU_AUGGIE_MCP_TOOLS="[]")
+        model.probe = restore = RestoreProbe(probe.fixtures, False, False, observe_stdio=False)
+        process = Process(["/usr/bin/sandbox-exec", "-p", policy, str(node), str(entry), "--acp",
+                           "--model", MODEL, "--augment-cache-dir", str(history),
+                           "--augment-session-json", str(auth)], workspace, env, root / "restore-stderr")
+        try:
+            process.call("initialize", {"protocolVersion": 1, "clientCapabilities": {}})
+            process.call("session/load", {"sessionId": session["sessionId"],
+                                          "cwd": str(workspace), "mcpServers": []})
+            result, events = process.call("session/prompt", {
+                "sessionId": session["sessionId"],
+                "prompt": [{"type": "text", "text": "Check the current resource catalogue."}],
+            })
+        finally:
+            process.close()
+        require(restore.failure is None, restore.failure)
+        require(result["stopReason"] == "end_turn" and restore.requests == 1
+                and "".join(text_updates(events)) == "COEXISTENCE_RESTORED",
+                "Auggie restore did not use the current catalogue")
+        require(len(audit.read_text().splitlines()) == after, "Auggie restore executed revoked MCP")
+        row["restore"] = {"stop": result["stopReason"], "requests": restore.requests, "downstream": 0}
+    return row
 
 
 def main():
@@ -214,7 +245,7 @@ def main():
                                    foreign) for phase in PHASES]
         require(len({row["session"] for row in turns}) == len(PHASES), "Auggie reused a session")
         report = {"platform": "Darwin-arm64", "model": MODEL, "node_sha256": digest(node),
-                  "candidate_sha256": digest(entry), "turns": turns}
+                  "entry_sha256": digest(entry), "turns": turns}
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(json.dumps(report, indent=2) + "\n")
 

@@ -40,7 +40,9 @@ fn root(_agent: &str) -> Result<PathBuf, String> {
 }
 fn installed_directory(agent: &str, contract: &Contract) -> Result<PathBuf, String> {
     // Install revised contracts beside their prior reviewed runtimes.
-    let revision = if matches!(agent, "gemini" | "nova" | "glm-acp-agent") {
+    let revision = if agent == "auggie" {
+        2
+    } else if matches!(agent, "gemini" | "nova" | "glm-acp-agent") {
         3
     } else if agent == "pi" {
         4
@@ -213,10 +215,23 @@ fn verify(directory: &Path, contract: &Contract) -> Result<PathBuf, String> {
     Ok(package.join(&contract.bin))
 }
 
+fn use_auggie_v1_contract(contract: &mut Contract) {
+    contract.files.insert("augment.mjs".into(),
+        "1e39bfa85bb3ebe44afb6d627bdd3202550508d5224c837dc4370576f555cb18".into());
+    contract.files.insert("session-model.mjs".into(),
+        "d50926db8682babc44174201b0591e7b309e00e5f7f5989c924f610e7b1a7081".into());
+}
+
 /// Absence is explicit: callers must not advertise patched support based on a CLI name.
 pub fn reviewed_agent_command(agent: &str) -> Result<Option<(String, Vec<String>)>, String> {
     let Some(mut contract) = contract(agent) else { return Ok(None) };
     let mut directory = installed_directory(agent, &contract)?;
+    if agent == "auggie"
+        && !directory.try_exists().map_err(|_| "Cannot inspect Auggie managed runtime")?
+    {
+        use_auggie_v1_contract(&mut contract);
+        directory = root(agent)?.join(format!("auggie-{}-model-source-v1", contract.version));
+    }
     // A previously installed OpenClaw remains available for launches without MCP.
     if agent == "openclaw" && !directory.exists() {
         contract.files.remove(OPENCLAW_MCP_TRANSPORT);
@@ -296,6 +311,19 @@ pub fn verify_openclaw_mcp_executable(command: &str) -> Result<(), String> {
     Ok(())
 }
 
+/// Restricted Auggie requires the current contract, with no v1 fallback.
+pub fn verify_auggie_restricted_executable(command: &str) -> Result<(), String> {
+    let contract = contract("auggie").ok_or("Missing Auggie runtime contract")?;
+    let executable = Path::new(command).canonicalize().map_err(|_| "Missing Auggie executable")?;
+    if executable.ancestors().any(|root| {
+        verify(root, &contract).is_ok_and(|path| path.canonicalize().ok().as_ref() == Some(&executable))
+    }) {
+        Ok(())
+    } else {
+        Err("Restricted Auggie requires the reviewed skill runtime".into())
+    }
+}
+
 /// Validate explicit overrides too; a familiar executable name is never proof of a patch.
 pub fn verify_reviewed_agent_executable(agent: &str, command: &str) -> Result<(), String> {
     if agent == "claude" {
@@ -363,6 +391,14 @@ pub fn verify_reviewed_agent_executable(agent: &str, command: &str) -> Result<()
             {
                 return Ok(());
             }
+        }
+    }
+    if agent == "auggie" {
+        use_auggie_v1_contract(&mut contract);
+        if executable.ancestors().any(|root| {
+            verify(root, &contract).is_ok_and(|path| path.canonicalize().ok().as_ref() == Some(&executable))
+        }) {
+            return Ok(());
         }
     }
     if agent == "openclaw" {

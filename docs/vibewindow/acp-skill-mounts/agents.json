@@ -27,47 +27,49 @@
   "entries": [
     {
       "key": "auggie",
-      "version": "0.36.0",
+      "version": "0.37.1",
       "status": "candidate",
       "platform": {
         "review_host": "Darwin-arm64",
-        "artifact_scope": "本机固定发行物静态审查；源码/通用 JS 的跨平台执行未验证",
+        "artifact_scope": "Darwin-arm64，Auggie 0.37.1 受管 v2，受限 session_model。",
         "linux": "unverified",
         "windows": "unverified"
       },
       "distribution": {
         "package": "@augmentcode/auggie",
-        "version": "0.36.0",
-        "upstream_url": "https://registry.npmjs.org/%40augmentcode%2Fauggie/0.36.0",
-        "upstream_integrity": "sha512-jb4kq97pGzG0i5UyISc//LjTVlFzIywwD+VfPemiSIl58KjLfxry3KDgxWYnr1vmV8yUkySVzjLnj4ewUEbT/Q==",
+        "version": "0.37.1",
+        "upstream_url": "https://registry.npmjs.org/%40augmentcode%2Fauggie/0.37.1",
+        "upstream_integrity": "sha512-TFnkuFUFR5U2xWXbsol8sbO9w0im9nyH+cI6AzJmSAjvkcAiTeLxAf4SX8TcwWq4S6HdhmgOdYfAHKXeF/DjnQ==",
         "engine": {
           "kind": "same_distribution",
-          "release": "0.36.0"
+          "release": "0.37.1"
         },
-        "local_identity": "package.json 固定版本匹配；执行文件另有 SHA-256。"
+        "local_identity": "受管 v2 核对固定入口与模型桥摘要。"
       },
       "acp_entry": {
         "argv": [
           "auggie",
           "--acp"
         ],
-        "binding": "crates/vw-acp/src/agent_registry.rs::BUILT_IN_AGENT_DEFINITIONS",
-        "runtime_executed": false,
-        "note": "固定发行物候选入口；注册器含 latest/range，不保证用户当前命令已固定到此版本。"
+        "binding": "crates/libs/acp-agent-registry/src/managed_runtime/contracts.json#auggie",
+        "runtime_executed": true,
+        "note": "受限入口要求受管 v2、桌面批准读取及会话模型。"
       },
       "mount": {
         "candidate_paths": [
           "<cwd>/.augment/skills",
-          "~/.augment/skills"
+          "<cwd>/.claude/skills",
+          "<cwd>/.agents/skills",
+          "<session-skill-view>"
         ],
-        "discovery": "固定包 Ppi 生成用户/项目 skills 路径，SkillsService 解析 SKILL.md；ACP 下的发现链路与会话专属覆盖尚未证明。",
-        "activation": "存在目录发现及按相关性加载线索；skillModes/禁用列表不是按需激活验收。",
-        "session_isolation": "unverified：额外根/专属配置根不自动排除内建、用户、项目及插件技能；不得修改 HOME 或写用户全局目录。"
+        "discovery": "原生扫描器先加载项目技能，再追加会话视图并应用禁用项。",
+        "activation": "模型依据原生目录，通过 view 读取技能正文和附件。",
+        "session_isolation": "只读沙箱校验当前工作区和租户绑定的选中视图。"
       },
       "permissions": {
         "status": "unverified",
         "requirements": "执行端重新审核目录、租户/项目/会话权限、路径逃逸与符号链接；支持文件/脚本/MCP 仍受各自授权限制，不扩大 full_access。",
-        "agent_specific": "固定 ACP 的目录/工具授权条件须后续真实验证；未因模型来源受限推定技能不支持。"
+        "agent_specific": "受限模式只投影宿主选中的 MCP，批准绑定会话、工具和参数并由中继单次消费。"
       },
       "update": {
         "native": "unverified：本任务未执行热更新或原子完整替换；静态刷新函数/文档 reload 不作成功承诺。",
@@ -119,14 +121,17 @@
           "observations": [],
           "package": "@augmentcode/auggie",
           "version": "0.36.0"
+        },
+        {
+          "path": "../../dev/acp/skill-coexistence/auggie.md",
+          "kind": "skill_coexistence"
         }
       ],
       "supplemental_official_docs": [],
-      "next_validation": "固定版本真实 ACP：发现元数据 → 按需激活 → 支持文件/脚本工具回合 → 隔离/删除/更新失败保旧 → 跨进程恢复；只替代外部模型 HTTP。未安装/缺账号则保留 unverified。",
+      "next_validation": "参见 ../../dev/acp/skill-coexistence/auggie.md 的受限网关与恢复验证。",
       "delivery_acceptance": {
-        "status": "user_waived",
-        "reason": "用户明确决定免登录、免验证并接受本项；未实际运行，不计实测 verified。",
-        "evidence": "evidence/regression.json"
+        "status": "candidate",
+        "evidence": "../../dev/acp/skill-coexistence/auggie.md"
       }
     },
     {

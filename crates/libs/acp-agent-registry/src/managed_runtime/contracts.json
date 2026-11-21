@@ -320,8 +320,8 @@
     "integrity": "sha512-TFnkuFUFR5U2xWXbsol8sbO9w0im9nyH+cI6AzJmSAjvkcAiTeLxAf4SX8TcwWq4S6HdhmgOdYfAHKXeF/DjnQ==",
     "bin": "augment.mjs",
     "files": {
-      "augment.mjs": "1e39bfa85bb3ebe44afb6d627bdd3202550508d5224c837dc4370576f555cb18",
-      "session-model.mjs": "d50926db8682babc44174201b0591e7b309e00e5f7f5989c924f610e7b1a7081"
+      "augment.mjs": "c8d0c76c7ef7eaa1a4837f7cda2eec3eeecd9d8bf28da2db9697993d98300ba9",
+      "session-model.mjs": "7d0afac3f9242e473a40a42f75aebf7bc48fd611aee50f375a04d92afc3fe162"
     },
     "original": {
       "augment.mjs": "7d809fef34f9cb0eae57559ced737e225ec74a390cf325ea453871d847d716c9"

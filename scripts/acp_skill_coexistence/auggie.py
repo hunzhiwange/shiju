@@ -2,6 +2,7 @@
 
 import hashlib
 import json
+import os
 from pathlib import Path
 import platform
 import re
@@ -10,6 +11,8 @@ import shutil
 import subprocess
 import sys
 import tempfile
+
+from .mimo_code import mcp_server
 
 from verify_acp_integration import ProviderHandler, require
 from verify_acp_model_source import ROOT
@@ -21,7 +24,7 @@ ADAPTER = "openai"
 API_PATH = "/v1"
 TRANSPORT = "stdio"
 NATIVE_DIR = ".augment/skills"
-REVISION = "auggie-0.37.1-model-source-v1"
+REVISION = "auggie-0.37.1-model-source-v2"
 MCP_TOOL = "read_probe_coexistence"
 MANAGED_DIR = ROOT / "crates/libs/acp-agent-registry/src/managed_runtime"
 PATCH_DIR = ROOT / "patches/acp-model-source/auggie"
@@ -35,17 +38,21 @@ def launch(env):
     require(contract["version"] == "0.37.1", "unexpected Auggie contract version")
     target = Path(env["VIBEWINDOW_CONFIG_DIR"]) / "acp-runtime" / REVISION
     target.parent.mkdir()
-    with tempfile.TemporaryDirectory() as directory:
-        assets = Path(directory)
-        shutil.copy2(manifest, assets)
-        shutil.copytree(PATCH_DIR, assets / "auggie")
-        try:
-            installed = subprocess.run(
-                [sys.executable, str(MANAGED_DIR / "install.py"), str(assets), str(target), "auggie"],
-                env=env, capture_output=True, timeout=180)
-        except subprocess.TimeoutExpired as error:
-            raise AssertionError("Auggie reviewed runtime installation timed out") from error
-        require(installed.returncode == 0, "Auggie reviewed runtime installation failed")
+    source = os.environ.get("AUGGIE_COEXISTENCE_RUNTIME")
+    if source:
+        shutil.copytree(source, target, symlinks=True)
+    else:
+        with tempfile.TemporaryDirectory() as directory:
+            assets = Path(directory)
+            shutil.copy2(manifest, assets)
+            shutil.copytree(PATCH_DIR, assets / "auggie")
+            try:
+                installed = subprocess.run(
+                    [sys.executable, str(MANAGED_DIR / "install.py"), str(assets), str(target), "auggie"],
+                    env=env, capture_output=True, timeout=180)
+            except subprocess.TimeoutExpired as error:
+                raise AssertionError("Auggie reviewed runtime installation timed out") from error
+            require(installed.returncode == 0, "Auggie reviewed runtime installation failed")
     package = target / "node_modules" / contract["package"]
     files = {name: hashlib.sha256((package / name).read_bytes()).hexdigest()
              for name in contract["files"]}
@@ -65,8 +72,20 @@ def launch(env):
     }
 
 
+def prepare_workspace(workspace):
+    name = "auggie-disabled-probe"
+    skill = workspace / NATIVE_DIR / name
+    skill.mkdir()
+    (skill / "SKILL.md").write_text(
+        f"---\nname: {name}\ndescription: Disabled fixture\n---\nDisabled fixture body.\n")
+    preferences = workspace.parent / "home/.augment"
+    preferences.mkdir()
+    (preferences / "feature-config.json").write_text(
+        json.dumps({"skillModes": {name: "disabled"}}))
+
+
 class Probe:
-    def __init__(self, fixtures, mounted, rejected):
+    def __init__(self, fixtures, mounted, rejected, *, observe_stdio=True):
         self.fixtures = fixtures
         self.mounted = mounted
         self.rejected = rejected
@@ -75,6 +94,8 @@ class Probe:
         self.failure = None
         self.pending = None
         self.paths = {}
+        self.observe_stdio = observe_stdio
+        self.audit = None
 
     def response(self, body):
         require(body["model"] == MODEL, "unexpected Auggie model")
@@ -89,6 +110,13 @@ class Probe:
                     and not schema.get("required"), "unexpected Auggie read-only MCP schema")
         if self.requests == 1:
             self.check_catalogue(body)
+            if self.mounted and self.observe_stdio:
+                root = skills["native"]["path"].parents[3]
+                audits = list((root / "tmp").glob("shiju-mimo-mcp-*/mimo-fixture-audit"))
+                require(len(audits) == 1, "missing Auggie stdio audit")
+                self.audit = root / ("auggie-rejected-audit" if self.rejected else "auggie-mounted-audit")
+                os.link(audits[0], self.audit)
+                require(not self.audit.read_text(), "Auggie executed MCP before approval")
             return self.read(tools, "native", self.paths["native"])
         step, call_id = self.pending
         results = [{"tool_use_id": row["tool_call_id"], "content": row["content"]}
@@ -116,6 +144,8 @@ class Probe:
         entries = [json.loads(line) for row in body["messages"] if row["role"] == "system"
                    for line in row["content"].splitlines() if line.startswith('{"name":')
                    and '"location":' in line]
+        require(not any(row["name"] == "auggie-disabled-probe" for row in entries),
+                "Auggie ignored the disabled native skill")
         request = json.dumps(body)
         for kind, skill in self.fixtures["skills"].items():
             visible = kind == "native" or (kind == "selected" and self.mounted)
@@ -149,9 +179,12 @@ class Probe:
         return {"tool_calls": [{"index": 0, "id": call_id, "type": "function",
                                 "function": {"name": name, "arguments": json.dumps(arguments)}}]}, "tool_calls"
 
+    def mcp_trace(self, _events):
+        return self.audit.read_text().splitlines() if self.audit else [], self.completed.get("mcp")
+
     def approves(self, metadata):
         return (self.pending is not None and self.pending[0] == "mcp"
-                and metadata.get("title") == MCP_TOOL and metadata.get("arguments") == {})
+                and metadata.get("title") == "mcp__auggie__" + MCP_TOOL and metadata.get("arguments") == {})
 
 
 class Handler(ProviderHandler):

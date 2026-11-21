@@ -169,6 +169,10 @@ impl AcpLaunchProfile {
             Ok(path)
         }
     }
+    pub(in crate::acp) fn relay_address(&self) -> Option<std::net::SocketAddr> {
+        self.server.as_ref().map(RelayServer::address)
+    }
+
     pub fn attach_server(&mut self, server: impl Into<RelayServer>) {
         self.server = Some(server.into());
     }

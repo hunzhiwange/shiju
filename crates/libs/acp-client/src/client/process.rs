@@ -31,7 +31,7 @@ impl AcpClient {
     }
 
     pub(super) fn sandboxed_native_io(&self) -> bool {
-        self.managed_restricted_pi() || self.kilocode_sandbox.is_some() || self.hermes_sandbox.is_some() || self.opencode_sandbox.is_some() || self.managed_vtcode() || self.managed_aionrs() || self.managed_cortex()
+        self.managed_restricted_pi() || self.auggie_sandbox.is_some() || self.kilocode_sandbox.is_some() || self.hermes_sandbox.is_some() || self.opencode_sandbox.is_some() || self.managed_vtcode() || self.managed_aionrs() || self.managed_cortex()
     }
 
     pub(super) fn managed_workspace_io(&self) -> bool {
@@ -260,6 +260,26 @@ impl AcpClient {
                 return Err(AcpError::Initialize("Invalid restricted OpenCode launch".into()));
             }
             sandbox.command(self.config.command.trim(), &args, &env)?
+        } else if let Some(sandbox) = &self.auggie_sandbox {
+            let workspace_allowed = self.desktop_workspace.as_ref()
+                .and_then(|workspace| workspace.canonicalize().ok())
+                .is_some_and(|workspace| sandbox.workspace.starts_with(workspace));
+            if !workspace_allowed {
+                return Err(AcpError::Initialize("Restricted Auggie workspace is outside desktop access".into()));
+            }
+            if env.keys().any(|name| !matches!(name.as_str(),
+                "VW_ACP_LAUNCH_REFERENCE" | "AUGMENT_DISABLE_AUTO_UPDATE" | "AUGMENT_SESSION_AUTH"
+                | "SHIJU_AUGGIE_MODEL_CONFIG" | "SHIJU_AUGGIE_SKILL_VIEW" | "SHIJU_AUGGIE_MCP_TOOLS"
+            )) {
+                return Err(AcpError::Initialize("Restricted Auggie requires its generated launch environment".into()));
+            }
+            env.insert("SHIJU_AUGGIE_WORKSPACE".into(), sandbox.workspace.to_string_lossy().into_owned());
+            env.insert("SHIJU_AUGGIE_RESTRICTED".into(), "1".into());
+            env.insert("AUGMENT_DISABLE_AUTO_UPDATE".into(), "1".into());
+            env.insert("HOME".into(), sandbox.home.to_string_lossy().into_owned());
+            env.insert("TMPDIR".into(), sandbox.home.to_string_lossy().into_owned());
+            env.insert("NO_PROXY".into(), "*".into());
+            sandbox.command(self.config.command.trim())?
         } else if let Some(sandbox) = &self.hermes_sandbox {
             if self.agent_name != "hermes" {
                 return Err(AcpError::Initialize("Hermes sandbox requires the Hermes backend".into()));
@@ -374,7 +394,7 @@ impl AcpClient {
             cmd.env_remove("VW_ACP_LAUNCH_REFERENCE")
                 .env_remove("SIGIT_MANAGED_SKILL_DIRS");
         }
-        if let Some(directory) = directory.filter(|_| self.kilocode_sandbox.is_none() && self.hermes_sandbox.is_none() && self.opencode_sandbox.is_none() && !managed_vtcode && !self.managed_workspace_io()) {
+        if let Some(directory) = directory.filter(|_| self.auggie_sandbox.is_none() && self.kilocode_sandbox.is_none() && self.hermes_sandbox.is_none() && self.opencode_sandbox.is_none() && !managed_vtcode && !self.managed_workspace_io()) {
             cmd.current_dir(directory);
         }
         if self.agent_name == "opencode" && self.opencode_sandbox.is_none() {
@@ -453,7 +473,19 @@ impl AcpClient {
             crate::verify_reviewed_agent_executable("pi", self.config.command.trim())
                 .map_err(AcpError::Initialize)?;
         }
+        if self.auggie_sandbox.is_some()
+            && (!cfg!(all(target_os = "macos", target_arch = "aarch64"))
+                || self.agent_name != "auggie"
+                || !self.config.env.contains_key("VW_ACP_LAUNCH_REFERENCE")
+                || self.desktop_workspace.is_none()
+                || self.full_access
+                || self.permission_mode != PermissionMode::ApproveReads
+                || self.config.args.first().is_none_or(|arg| arg != "--acp"))
+        {
+            return Err(AcpError::Initialize("Invalid restricted Auggie launch".into()));
+        }
         if self.desktop_workspace.is_some()
+            && self.auggie_sandbox.is_none()
             && !(self.agent_name == "hermes" && self.hermes_sandbox.is_some())
             && !(self.agent_name == "opencode" && self.opencode_sandbox.is_some())
             && !(self.agent_name == "kilocode" && self.kilocode_sandbox.is_some())

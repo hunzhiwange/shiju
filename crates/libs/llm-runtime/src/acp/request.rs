@@ -184,12 +184,19 @@ pub async fn do_stream_request_acp<H: Host>(
         chat_messages,
     )
     .await?;
+    let mut restricted_auggie = false;
     let mut restricted_hermes = false;
     let mut restricted_opencode = false;
     let mut restricted_kilocode = false;
     let mut restricted_pi = false;
     if let Some((root, full_grant)) = desktop_access {
         super::session::bind_desktop_access(&mut parsed_options, root, full_grant);
+        restricted_auggie = acp_agent_name == "auggie"
+            && !parsed_options.full_access
+            && parsed_options.permission_mode == Some(acp_types::PermissionMode::ApproveReads)
+            && merged_options.get("disable_tools").and_then(Value::as_bool) != Some(true)
+            && cfg!(all(target_os = "macos", target_arch = "aarch64"))
+            && source == vw_api_acp_model::acp_model_source::AcpModelSource::SessionModel;
         restricted_hermes = acp_agent_name == "hermes"
             && parsed_options.permission_mode == Some(acp_types::PermissionMode::ApproveReads)
             && merged_options.get("disable_tools").and_then(Value::as_bool) != Some(true)
@@ -209,12 +216,20 @@ pub async fn do_stream_request_acp<H: Host>(
             && !parsed_options.full_access
             && cfg!(all(target_os = "macos", target_arch = "aarch64"))
             && source == vw_api_acp_model::acp_model_source::AcpModelSource::SessionModel;
-        if !restricted_opencode && !restricted_kilocode && !restricted_hermes && !restricted_pi {
+        if !restricted_auggie && !restricted_opencode && !restricted_kilocode && !restricted_hermes && !restricted_pi {
             acp_client::AcpClient::ensure_desktop_native_access(
                 &acp_agent_name,
                 parsed_options.full_access,
             )
             .map_err(to_api_error)?;
+        }
+    }
+    if acp_agent_name == "auggie" {
+        if restricted_auggie {
+            acp_agent_registry::verify_auggie_restricted_executable(&normalized_acp_cfg.command)
+                .map_err(to_api_error)?;
+        } else if !parsed_options.skill_mounts.is_empty() {
+            return Err(acp_option_error("Auggie selected skills require its restricted session-model launch"));
         }
     }
     parsed_options.runtime_identity = Some(scoped_session.clone());
@@ -451,6 +466,7 @@ pub async fn do_stream_request_acp<H: Host>(
     }
     let auggie_mcp = restricted_auggie && !parsed_options.mcp_servers.is_empty();
     let droid_mcp = restricted_droid && !parsed_options.mcp_servers.is_empty();
+    let auggie_mcp = restricted_auggie && !parsed_options.mcp_servers.is_empty();
     let hermes_mcp = restricted_hermes && !parsed_options.mcp_servers.is_empty();
     let openclaw_mcp = if acp_agent_name == "openclaw" {
         if !parsed_options.mcp_servers.is_empty()
@@ -480,7 +496,7 @@ pub async fn do_stream_request_acp<H: Host>(
                 }
                 std::future::pending::<()>().await;
             };
-            let prepare = if mimo_mcp || vtcode_mcp || hermes_mcp {
+            let prepare = if mimo_mcp || vtcode_mcp || hermes_mcp || auggie_mcp {
                 H::prepare_stdio_mcp_launch(&acp_agent_name, &normalized_acp_cfg, model, &scoped_session, &cwd, &parsed_options.mcp_servers)
             } else if openclaw_mcp.is_empty() {
                 H::prepare_launch(&acp_agent_name, &normalized_acp_cfg, model, &scoped_session)
@@ -521,6 +537,12 @@ pub async fn do_stream_request_acp<H: Host>(
         let profile = launch_profile.as_mut().ok_or_else(|| acp_option_error("Missing restricted Pi launch"))?;
         super::skill_mounts::pi::configure_restricted(profile).map_err(to_api_error)?;
     }
+    let auggie_sandbox = if restricted_auggie {
+        let profile = launch_profile.as_mut().ok_or_else(|| acp_option_error("Missing restricted Auggie launch"))?;
+        Some(super::skill_mounts::auggie::sandbox(profile, &cwd, parsed_options.skill_view.as_ref()).map_err(to_api_error)?)
+    } else {
+        None
+    };
     let hermes_sandbox = if restricted_hermes {
         let profile = launch_profile.as_ref().ok_or_else(|| acp_option_error("Missing restricted Hermes launch"))?;
         Some(super::skill_mounts::hermes::sandbox(profile, &cwd, parsed_options.skill_view.as_ref()).map_err(to_api_error)?)
@@ -736,7 +758,7 @@ pub async fn do_stream_request_acp<H: Host>(
         .await?;
         let cached_client_entry =
             get_cached_acp_client_with_approval::<H>(
-                &acp_agent_name, &normalized_acp_cfg, &cwd, &parsed_options, hermes_sandbox.clone(), kilocode_sandbox.clone(), opencode_sandbox.clone(),
+                &acp_agent_name, &normalized_acp_cfg, &cwd, &parsed_options, auggie_sandbox.clone(), hermes_sandbox.clone(), kilocode_sandbox.clone(), opencode_sandbox.clone(),
                 launch_profile.as_ref().and_then(|profile| profile.managed_mcp.as_ref()).map(|(_, approve)| approve.clone()),
             );
         let _request_cleanup = super::session::RequestClientCleanup::new(&cached_client_entry);

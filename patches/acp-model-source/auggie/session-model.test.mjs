@@ -40,3 +40,40 @@ test('unknown tools and invalid JSON cannot execute from an otherwise complete s
   await assert.rejects(async()=>{for await(const _ of fromChatStream(bytes(stream),new Set(['save']))){}}, /Auggie invalid/);
  }
 });
+
+test('restricted view allows native and selected files and rejects escaped paths', async (t) => {
+  const { mkdirSync, mkdtempSync, realpathSync, rmSync, symlinkSync, writeFileSync } = await import('node:fs');
+  const { tmpdir } = await import('node:os');
+  const { join } = await import('node:path');
+  const root = realpathSync(mkdtempSync(join(tmpdir(), 'auggie-view-test-')));
+  t.after(() => rmSync(root, { recursive: true, force: true }));
+  const workspace = join(root, 'workspace');
+  const view = join(root, 'view');
+  const selected = join(root, 'selected');
+  for (const dir of [workspace, view, selected]) mkdirSync(dir);
+  const foreign = join(root, 'secret');
+  for (const path of [foreign, join(workspace, 'native'), join(selected, 'SKILL.md')]) writeFileSync(path, 'fixture');
+  symlinkSync(selected, join(view, 'selected'));
+  symlinkSync(foreign, join(workspace, 'escape'));
+  symlinkSync(foreign, join(selected, 'escape'));
+  const env = { SHIJU_AUGGIE_WORKSPACE: workspace, SHIJU_AUGGIE_SKILL_VIEW: view };
+  for (const [name, value] of Object.entries(env)) {
+    const previous = process.env[name];
+    process.env[name] = value;
+    t.after(() => {
+      if (previous === undefined) delete process.env[name];
+      else process.env[name] = previous;
+    });
+  }
+  async function read(path) {
+    const stream = sse({ choices: [{ delta: { tool_calls: [{
+      index: 0, id: 'read', function: { name: 'view', arguments: JSON.stringify({ path }) }
+    }] }, finish_reason: 'tool_calls' }] }) + 'data: [DONE]\n\n';
+    for await (const _ of fromChatStream(bytes(stream), new Set(['view']), true)) {}
+  }
+  await read('native');
+  await read(join(view, 'selected/SKILL.md'));
+  for (const path of [foreign, 'escape', join(view, 'selected/escape')]) {
+    await assert.rejects(read(path), /outside the approved roots/);
+  }
+});

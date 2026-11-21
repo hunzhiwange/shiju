@@ -12,6 +12,11 @@ impl AcpClient {
         self
     }
 
+    pub fn with_auggie_sandbox(mut self, sandbox: Option<super::AuggieSandbox>) -> Self {
+        self.auggie_sandbox = sandbox;
+        self
+    }
+
     pub fn with_hermes_sandbox(mut self, sandbox: Option<super::HermesSandbox>) -> Self {
         self.hermes_sandbox = sandbox;
         self
@@ -50,6 +55,7 @@ impl AcpClient {
     /// 返回的客户端尚未启动代理进程；首次会话或提示词请求会按需启动。
     pub fn new(agent_name: impl Into<String>, config: AcpAgentConfig) -> Self {
         Self {
+            auggie_sandbox: None,
             hermes_sandbox: None,
             opencode_sandbox: None,
             kilocode_sandbox: None,

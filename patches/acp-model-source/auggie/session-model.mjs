@@ -1,5 +1,27 @@
 // Binding for the pinned Auggie 0.37.1 runtime. Native ACP, tools and permissions stay upstream.
-import { readFileSync } from 'node:fs';
+import { readFileSync, realpathSync } from 'node:fs';
+import { isAbsolute, relative, resolve, sep } from 'node:path';
+
+function restrictedViewPath(args) {
+  const workspace = process.env.SHIJU_AUGGIE_WORKSPACE;
+  const view = process.env.SHIJU_AUGGIE_SKILL_VIEW;
+  if (typeof args.path !== 'string' || !args.path || !workspace) return false;
+  const requested = resolve(workspace, args.path);
+  const inside = (root, path) => {
+    const child = relative(root, path);
+    return child !== '..' && !child.startsWith('..' + sep) && !isAbsolute(child);
+  };
+  try {
+    const actual = realpathSync(requested);
+    if (inside(workspace, requested) && inside(workspace, actual)) return true;
+    if (!view || !inside(view, requested) || requested === view) return false;
+    const skill = relative(view, requested).split(sep)[0];
+    return inside(realpathSync(resolve(view, skill)), actual);
+  } catch {
+    return false;
+  }
+}
+
 export function validateConfig(config) {
   const url = new URL(config.endpoint);
   if (url.protocol !== 'http:' || url.hostname !== '127.0.0.1' || !url.port || url.pathname !== '/' || url.username || url.password || url.search || url.hash)
@@ -52,7 +74,7 @@ export function toChatRequest(input,c) {
  const tools=(input.toolDefinitions??[]).map(t=>({type:'function',function:{name:t.name,description:t.description??'',parameters:JSON.parse(t.input_schema_json)}}));
  return {model:c.model,messages,stream:true,max_tokens:c.outputLimit,...tools.length?{tools}:{}};
 }
-export async function* fromChatStream(body,allowed) {
+export async function* fromChatStream(body,allowed,restricted=false) {
  const decoder=new TextDecoder();let buffer='',done=false,finish=null,id=0;const calls=new Map();
  function consume(line) {
   if(!line.startsWith('data:'))return null;
@@ -81,14 +103,24 @@ export async function* fromChatStream(body,allowed) {
  const seen=new Set(),nodes=[];
  for(const call of calls.values()){
   if(!call.id||seen.has(call.id)||!allowed.has(call.name))throw new Error('Auggie invalid returned tool');
-  seen.add(call.id);try{const value=JSON.parse(call.arguments);if(!value||typeof value!=='object'||Array.isArray(value))throw 0;}catch{throw new Error('Auggie invalid returned tool arguments');}
+  seen.add(call.id);
+  let value;
+  try{value=JSON.parse(call.arguments);if(!value||typeof value!=='object'||Array.isArray(value))throw 0;}
+  catch{throw new Error('Auggie invalid returned tool arguments');}
+  if(restricted && call.name==='view' && !restrictedViewPath(value))
+   throw new Error('Auggie read is outside the approved roots');
   nodes.push({id:++id,type:5,content:'',tool_use:{tool_use_id:call.id,tool_name:call.name,input_json:call.arguments}});
  }
  yield {text:'',nodes,stop_reason:finish==='tool_calls'?3:finish==='length'?2:1};
 }
 export async function chatStream(input) {
  const c=config(),request=toChatRequest(input,c);
+ const restricted=process.env.SHIJU_AUGGIE_RESTRICTED==='1';
+ if(restricted){
+  const allowed=new Set(['view',...JSON.parse(process.env.SHIJU_AUGGIE_MCP_TOOLS??'[]')]);
+  request.tools=(request.tools??[]).filter(tool=>allowed.has(tool.function.name));
+ }
  const response=await fetch(new URL('v1/chat/completions',c.endpoint),{method:'POST',headers:{'Content-Type':'application/json',Authorization:`Bearer ${c.token}`},body:JSON.stringify(request),signal:input.signal,redirect:'error'});
  if(!response.ok){await response.body?.cancel();throw new Error(`Auggie model request failed (HTTP ${response.status})`);}
- return fromChatStream(response.body,new Set((input.toolDefinitions??[]).map(t=>t.name)));
+ return fromChatStream(response.body,new Set((request.tools??[]).map(t=>t.function.name)),restricted);
 }

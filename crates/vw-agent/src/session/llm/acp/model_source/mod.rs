@@ -101,8 +101,19 @@ async fn prepare_with_mounts(
     .await?;
     let endpoint = format!("http://{}", server.address());
     profile.attach_server(server);
-    if let Some(projection) = projection.as_ref().filter(|_| matches!(agent, "vtcode" | "hermes")) {
+    if let Some(projection) = projection.as_ref().filter(|_| matches!(agent, "vtcode" | "hermes" | "auggie")) {
         llm_runtime::acp::model_source::configure_profile(agent, &mut profile, &endpoint, &directory, openclaw_mcp).await?;
+        if agent == "auggie" {
+            let tools = projection.tools.iter().map(|name| {
+                name.strip_prefix("mcp__auggie__").ok_or_else(|| anyhow::anyhow!("Invalid Auggie MCP approval name"))
+            }).collect::<anyhow::Result<Vec<_>>>()?;
+            let flags = tools.iter().flat_map(|tool| ["--permission".to_owned(), format!("{tool}:ask-user")])
+                .collect::<Vec<_>>();
+            profile.append_arguments(&flags)?;
+            profile.overlay_environment(std::collections::HashMap::from([
+                ("SHIJU_AUGGIE_MCP_TOOLS".into(), serde_json::to_string(&tools)?),
+            ]))?;
+        }
         profile.managed_mcp = Some(projection.approval_config(&endpoint)?);
     } else if let Some(mimo) = projection {
         llm_runtime::acp::model_source::drivers::launch_route(agent, &profile)?;

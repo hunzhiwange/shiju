@@ -40,6 +40,17 @@ fn value_label(i18n: I18n, property: Option<&Property>, value: &Value) -> String
     }
 }
 
+pub(super) fn task_summary<'a>(
+    app: &'a App,
+    task: &'a desktop_task_model::Task,
+) -> impl Iterator<Item = (&'a str, String)> + 'a {
+    let i18n = I18n::new(app.general_settings.desktop_locale);
+    app.task_board.task_properties.iter().filter_map(move |property| {
+        let value = task.properties.get(&property.id)?;
+        Some((property.name.as_str(), value_label(i18n, Some(property), value)))
+    })
+}
+
 fn control<'a>(
     i18n: I18n,
     property: &'a Property,

@@ -82,6 +82,19 @@ pub fn update(
     app: &mut crate::app::App,
     message: TaskBoardMessage,
 ) -> iced::Task<crate::app::Message> {
+    if app.task_board.task_board_viewing_logs.is_some()
+        && matches!(
+            &message,
+            TaskBoardMessage::SelectWorkView(_)
+                | TaskBoardMessage::OpenSavedWorkView(_)
+                | TaskBoardMessage::OpenWorkPlanView
+                | TaskBoardMessage::CreateTask
+        )
+    {
+        let close = update(app, TaskBoardMessage::CloseTaskLogs);
+        let navigate = update(app, message);
+        return iced::Task::batch([close, navigate]);
+    }
     if let Some(task) = work_plan_update::update(app, &message) {
         return task;
     }
@@ -89,6 +102,49 @@ pub fn update(
         return task;
     }
     match &message {
+        TaskBoardMessage::ShowWorkDisplay(open) => {
+            app.task_board.work_display_open = *open;
+            if *open {
+                app.task_board.task_board_context_menu = None;
+            }
+            return iced::Task::none();
+        }
+        TaskBoardMessage::SelectWorkDisplayMode(mode) => {
+            let board = &mut app.task_board;
+            board.work_display_open = false;
+            if board.task_board_view_mode != *mode {
+                board.task_board_view_mode = *mode;
+                board.task_board_selected_tasks.clear();
+                board.task_board_bulk_active_status = None;
+                board.task_board_drag_pending = None;
+                board.task_board_dragging = None;
+                board.task_board_context_menu = None;
+            }
+            return iced::Task::none();
+        }
+        TaskBoardMessage::ChangeWorkDisplay(display) => {
+            let board = &mut app.task_board;
+            if board.work_display.show_children != display.show_children {
+                board.task_board_selected_tasks.clear();
+            }
+            board.work_display = *display;
+            return iced::Task::none();
+        }
+        TaskBoardMessage::SearchWorkTasks(query) => {
+            app.task_board.work_search.clone_from(query);
+            app.task_board.task_board_selected_tasks.clear();
+            return iced::Task::none();
+        }
+        TaskBoardMessage::SelectDetailTab(tab) if *tab != TaskBoardDetailTab::Logs => {
+            close_logs_context_menu(app);
+        }
+        TaskBoardMessage::ToggleWorkDisplayGroup(group) => {
+            let groups = &mut app.task_board.collapsed_work_groups;
+            if !groups.remove(group) {
+                groups.insert(group.clone());
+            }
+            return iced::Task::none();
+        }
         TaskBoardMessage::EditingTaskPropertyChanged { task_id, field_id, value } => {
             let board = &mut app.task_board;
             if board.task_property_save_in_progress.is_none()
@@ -198,7 +254,7 @@ pub fn update(
         TaskBoardMessage::SelectAllTasksInStatus(status) | TaskBoardMessage::InvertTaskSelectionInStatus(status) => {
             let path = app.navigation_tabs.project_path.as_deref().unwrap_or("");
             let ids: Vec<_> = app.task_board.task_board_tasks.iter()
-                .filter(|task| task.status == *status && app.task_board.work_task_visible(path, task))
+                .filter(|task| task.status == *status && app.task_board.work_display_task_visible(path, task))
                 .map(|task| task.id.clone()).collect();
             for id in ids {
                 if matches!(&message, TaskBoardMessage::SelectAllTasksInStatus(_)) || !app.task_board.task_board_selected_tasks.remove(&id) {

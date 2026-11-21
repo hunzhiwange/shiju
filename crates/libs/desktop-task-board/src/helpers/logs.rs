@@ -288,7 +288,7 @@ pub fn scroll_task_logs_to_bottom(app: &mut TaskLogsState<'_>) {
 #[path = "logs_tests.rs"]
 mod logs_tests;
 
-fn localized_log_message(i18n: desktop_i18n::I18n, entry: &TaskLogEntry) -> String {
+pub fn localized_log_message(i18n: desktop_i18n::I18n, entry: &TaskLogEntry) -> String {
     let label = |status: TaskStatus| desktop_i18n::tasks::status_label(i18n, &status.label_for_workflow_id(""), matches!(status, TaskStatus::Custom(_)));
     let transition = match (entry.status_from, entry.status_to) {
         (Some(from), Some(to)) => Some((label(from), label(to))),

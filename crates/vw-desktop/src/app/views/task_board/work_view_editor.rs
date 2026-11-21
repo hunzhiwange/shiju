@@ -5,7 +5,7 @@ use crate::app::{App, Message};
 use iced::widget::{button, checkbox, column, container, row, scrollable, text, text_input};
 use iced::{Element, Length};
 
-pub fn view(app: &App) -> Element<'_, Message> {
+pub fn view(app: &App, show_trigger: bool) -> Element<'_, Message> {
     let board = &app.task_board;
     let i18n = crate::app::i18n::I18n::new(app.general_settings.desktop_locale);
     let action = |label: &'static str, message| {
@@ -30,15 +30,14 @@ pub fn view(app: &App) -> Element<'_, Message> {
             agents.into(),
         ],
     ).expect("valid work view summary template");
-    let mut content = column![
-        row![
-            action("添加筛选 / 收起", TaskBoardMessage::OpenWorkViewEditor),
-            action("清除条件", TaskBoardMessage::ClearWorkFilter),
-        ]
-        .spacing(8),
-        text(summary).size(12),
-    ]
-    .spacing(8);
+    let mut actions = row![].spacing(8);
+    if show_trigger {
+        actions = actions.push(action("添加筛选 / 收起", TaskBoardMessage::OpenWorkViewEditor));
+    }
+    if board.work_filter != desktop_task_board::work_views::WorkViewFilter::default() {
+        actions = actions.push(action("清除条件", TaskBoardMessage::ClearWorkFilter));
+    }
+    let mut content = column![actions, text(summary).size(12)].spacing(8);
     if !board.work_filter.label_ids.is_empty() {
         let labels = board.task_labels.iter()
             .filter(|label| board.work_filter.label_ids.contains(&label.id));

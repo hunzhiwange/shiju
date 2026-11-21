@@ -2,6 +2,7 @@ use crate::app::components::system_settings_common::*;
 use crate::app::i18n::{I18n, tasks::status_label};
 use crate::app::message::TaskBoardMessage;
 use crate::app::{App, Message};
+use desktop_task_board::board::{task_status_marker, task_title};
 use desktop_task_board::work_views::{WorkPlanGroupKey as Key, WorkPlanProgress, WorkPlanView};
 use desktop_task_model::{Task, TaskWorkflow};
 use iced::widget::{Column, button, column, container, row, scrollable, text};
@@ -55,7 +56,7 @@ fn action<'a>(label: impl Into<String>) -> button::Button<'a, Message> {
     button(text(label.into()).size(13)).padding([6, 10]).style(rounded_action_btn_style)
 }
 
-fn group_button(plan: &WorkPlanView, key: Key, label: String) -> button::Button<'static, Message> {
+fn group_button<'a>(plan: &WorkPlanView, key: Key, label: String) -> button::Button<'a, Message> {
     let arrow = if plan.collapsed.contains(&key) { "▸" } else { "▾" };
     action(format!("{arrow} {label}"))
         .width(Length::Fill)
@@ -106,29 +107,26 @@ fn task_row<'a>(
     app: &App,
     project: &str,
     plan: &WorkPlanView,
-    task: &Task,
+    task: &'a Task,
 ) -> Element<'a, Message> {
     let i18n = I18n::new(app.general_settings.desktop_locale);
     let snapshot = plan.tasks.get(&task.id);
     let status = snapshot
         .and_then(|snapshot| snapshot.status_label.as_deref())
         .map_or_else(|| status_label(i18n, task.status), |label| i18n.__(label).to_owned());
-    let title = if task.description.trim().is_empty() {
-        task.prompt.lines().find(|line| !line.trim().is_empty()).unwrap_or(&task.id)
-    } else {
-        &task.description
-    };
     let selected = app.task_board.task_board_editing_task_id.as_ref() == Some(&task.id);
     let agent = task
         .acp_agent
         .as_deref()
         .or(task.agent.as_deref())
         .unwrap_or(desktop_task_model::TASK_AGENT_MAIN);
-    let mut body = column![
-        text(format!("{}{title}", if selected { "• " } else { "" })).size(14),
-        text(format!("{} · {status} · {agent}", task.id)).size(12),
-    ]
-    .spacing(4);
+    let mut body = column![row![
+        task_status_marker(task.status),
+        text(task_title(task)).size(13).width(Length::Fill),
+        text(&task.id).size(11).style(settings_muted_text_style),
+    ].spacing(8).align_y(iced::Alignment::Center),
+    text(format!("{status} · {agent}")).size(11).style(settings_muted_text_style),
+    ].spacing(4);
     if let Some(blocker) = snapshot.and_then(|snapshot| snapshot.blocker.as_ref()) {
         body = body.push(text(blocker_label(blocker)).size(12).style(settings_muted_text_style));
     }
@@ -138,7 +136,7 @@ fn task_row<'a>(
     button(body)
         .padding([7, 10])
         .width(Length::Fill)
-        .style(rounded_action_btn_style)
+        .style(move |theme, status| settings_segment_button_style(theme, status, selected))
         .on_press(open_detail(project, &task.id))
         .into()
 }
@@ -325,7 +323,7 @@ pub(super) fn history<'a>(app: &'a App, task: &Task) -> Option<Element<'a, Messa
                 TaskBoardMessage::LoadWorkPlanHistory { include_children: true },
             )));
     }
-    let mut body = column![buttons].spacing(6);
+    let mut body = column![buttons.wrap()].spacing(6);
     if let Some(history) = plan.history.as_ref().filter(|history| history.task_id == task.id) {
         let scope =
             if history.include_children { "当前任务及子任务" } else { "当前任务" };

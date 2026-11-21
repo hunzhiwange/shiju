@@ -37,6 +37,39 @@ pub struct BoardView<'a, M> {
     pub desktop_locale: config_ui::DesktopLocale,
     pub slots: BoardSlots<'a, M>,
 }
+
+pub fn task_title(task: &Task) -> String {
+    let title = task.description
+        .lines()
+        .chain(task.prompt.lines())
+        .find(|line| !line.trim().is_empty())
+        .map(str::trim)
+        .unwrap_or(&task.id);
+    let mut chars = title.chars();
+    let mut preview = chars.by_ref().take(140).collect::<String>();
+    if chars.next().is_some() {
+        preview.push('…');
+    }
+    preview
+}
+
+pub fn task_status_marker<'a, M: 'a>(status: TaskStatus) -> Element<'a, M> {
+    let (accent, light) = task_status_tag_colors(status);
+    container(Space::new().width(9).height(9))
+        .style(move |theme: &Theme| {
+            let color = if desktop_ui_controls::system_settings_common::theme::is_dark_theme(theme) {
+                light
+            } else {
+                accent
+            };
+            container::Style {
+                background: Some(color.into()),
+                border: Border { radius: 4.5.into(), ..Default::default() },
+                ..Default::default()
+            }
+        })
+        .into()
+}
 #[derive(Clone)]
 pub struct BoardSlots<'a, M> {
     pub model: std::rc::Rc<dyn Fn() -> Element<'a, M> + 'a>,
@@ -46,6 +79,9 @@ pub struct BoardSlots<'a, M> {
     pub task_split: std::rc::Rc<dyn Fn() -> Element<'a, M> + 'a>,
     pub context_menu: std::rc::Rc<dyn Fn(Task) -> Element<'a, M> + 'a>,
 }
+mod display;
+pub use display::{DisplayView, build_work_display};
+
 const CARD_CONTENT_PREVIEW_MAX_CHARS: usize = 180;
 const TASK_BOARD_SCROLLBAR_WIDTH: f32 = 4.0;
 const TASK_BOARD_SCROLLBAR_GUTTER: f32 = 7.0;
@@ -158,31 +194,65 @@ fn task_status_label<M: Clone + From<TaskBoardMessage>>(app: &BoardView<'_, M>, 
 /// # 错误
 /// 此函数不返回 `Result`；不可用状态会通过空视图、禁用控件或回退文案表达。
 pub fn build_kanban_board<'a, M: Clone + From<TaskBoardMessage> + 'a>(app: &BoardView<'a, M>) -> Element<'a, M> {
-    let now_ms = now_ms();
-    let mut columns_row = row![].spacing(12).width(Length::Fill).height(Length::Fill);
+    kanban_board(app, None, false, true)
+}
 
+fn kanban_board<'a, M: Clone + From<TaskBoardMessage> + 'a>(
+    app: &BoardView<'a, M>,
+    sorted_tasks: Option<&[&'a Task]>,
+    hide_empty: bool,
+    allow_reorder: bool,
+) -> Element<'a, M> {
+    let now_ms = now_ms();
+    let mut columns = row![].spacing(12).height(Length::Fill);
+    let mut has_columns = false;
     for column in kanban_columns(app) {
-        let col = build_status_column(app, column.status, now_ms);
-        columns_row = columns_row.push(col);
+        let tasks = column_tasks(app, column.status, sorted_tasks);
+        if !hide_empty || !tasks.is_empty() || app.task_board_dragging.is_some() {
+            has_columns = true;
+            columns = columns.push(status_column(app, column.status, tasks, now_ms, allow_reorder));
+        }
+    }
+    if !has_columns {
+        return display::empty(app.desktop_locale);
     }
 
-    scrollable(columns_row)
-        .direction(iced::widget::scrollable::Direction::Horizontal(
-            iced::widget::scrollable::Scrollbar::new().width(4).scroller_width(4),
-        ))
+    scrollable(columns)
+        .direction(scrollable::Direction::Horizontal(display::scrollbar()))
         .width(Length::Fill)
         .height(Length::Fill)
         .into()
 }
 
-fn build_status_column<'a, M: Clone + From<TaskBoardMessage> + 'a>(app: &BoardView<'a, M>, status: TaskStatus, now_ms: u64) -> Element<'a, M> {
-    let mut tasks: Vec<&Task> = app
-        .task_board_tasks
-        .iter()
+fn column_tasks<'a, M>(
+    app: &BoardView<'a, M>,
+    status: TaskStatus,
+    sorted_tasks: Option<&[&'a Task]>,
+) -> Vec<&'a Task> {
+    if let Some(tasks) = sorted_tasks {
+        return tasks.iter().copied().filter(|task| task.status == status).collect();
+    }
+    let mut tasks = app.task_board_tasks.iter()
         .filter(|t| t.status == status && !t.deleted && !t.archived && app.task_visible.as_ref().is_none_or(|visible| visible(t)))
-        .collect();
+        .collect::<Vec<_>>();
     sort_task_cards(&mut tasks);
+    tasks
+}
 
+#[cfg(test)]
+fn build_status_column<'a, M: Clone + From<TaskBoardMessage> + 'a>(
+    app: &BoardView<'a, M>, status: TaskStatus, now_ms: u64,
+) -> Element<'a, M> {
+    status_column(app, status, column_tasks(app, status, None), now_ms, true)
+}
+
+fn status_column<'a, M: Clone + From<TaskBoardMessage> + 'a>(
+    app: &BoardView<'a, M>,
+    status: TaskStatus,
+    tasks: Vec<&'a Task>,
+    now_ms: u64,
+    allow_reorder: bool,
+) -> Element<'a, M> {
     let count = tasks.len();
     let selected_count =
         tasks.iter().filter(|task| app.task_board_selected_tasks.contains(&task.id)).count();
@@ -233,42 +303,7 @@ fn build_status_column<'a, M: Clone + From<TaskBoardMessage> + 'a>(app: &BoardVi
     };
 
     let header_top = row![
-        text(task_status_label(app, status))
-            .size(13)
-            .font(iced::Font { weight: iced::font::Weight::Bold, ..Default::default() }),
-        container(text(count.to_string()).size(11)).padding([2, 6]).style(move |theme: &Theme| {
-            let p = theme.extended_palette();
-            container::Style {
-                background: Some(Background::Color(
-                    if theme.palette().background.r
-                        + theme.palette().background.g
-                        + theme.palette().background.b
-                        < 1.5
-                    {
-                        p.background.strong.color.scale_alpha(0.56)
-                    } else {
-                        p.primary.base.color.scale_alpha(0.10)
-                    },
-                )),
-                text_color: Some(
-                    if theme.palette().background.r
-                        + theme.palette().background.g
-                        + theme.palette().background.b
-                        < 1.5
-                    {
-                        p.background.base.text
-                    } else {
-                        p.primary.base.color
-                    },
-                ),
-                border: Border {
-                    radius: 999.0.into(),
-                    width: 1.0,
-                    color: p.background.strong.color.scale_alpha(0.46),
-                },
-                ..Default::default()
-            }
-        }),
+        display::status_heading(status, task_status_label(app, status), count),
         Space::new().width(Length::Fill),
         row![selected_summary, bulk_toggle_button].spacing(6).align_y(Alignment::Center),
     ]
@@ -544,8 +579,16 @@ fn build_status_column<'a, M: Clone + From<TaskBoardMessage> + 'a>(app: &BoardVi
     let cursor_position = app.cursor_position;
     let context_menu = (*app.task_board_context_menu).clone();
     let is_dragging_active = app.task_board_dragging.is_some();
+    if tasks.is_empty() {
+        tasks_col = tasks_col.push(container(text(
+            desktop_i18n::I18n::new(app.desktop_locale).__("无任务"),
+        ).size(12).style(desktop_ui_controls::system_settings_common::settings_muted_text_style))
+            .center_x(Length::Fill)
+            .padding([18, 0]));
+    }
+    let allow_insert = is_dragging_active && allow_reorder;
     let mut insert_index = 0usize;
-    tasks_col = tasks_col.push(build_drop_slot(status, insert_index, is_dragging_active));
+    tasks_col = tasks_col.push(build_drop_slot(status, insert_index, allow_insert));
     for task in &tasks {
         let is_dragging = dragging_task_id == Some(task.id.as_str());
         let card = build_task_card(
@@ -560,7 +603,7 @@ fn build_status_column<'a, M: Clone + From<TaskBoardMessage> + 'a>(app: &BoardVi
         );
         tasks_col = tasks_col.push(card);
         insert_index = insert_index.saturating_add(1);
-        tasks_col = tasks_col.push(build_drop_slot(status, insert_index, is_dragging_active));
+        tasks_col = tasks_col.push(build_drop_slot(status, insert_index, allow_insert));
     }
 
     let right_inset =
@@ -575,35 +618,8 @@ fn build_status_column<'a, M: Clone + From<TaskBoardMessage> + 'a>(app: &BoardVi
     .width(Length::Fill)
     .padding(iced::Padding { top: 0.0, right: right_inset, bottom: 0.0, left: 0.0 });
 
-    let is_drop_target = app.task_board_dragging.is_some();
-
-    let container_style = move |theme: &Theme| {
-        let base = theme.palette().background;
-        let is_dark = base.r + base.g + base.b < 1.5;
-        let bg = if is_dark {
-            theme.extended_palette().background.base.color.scale_alpha(0.90)
-        } else {
-            Color::from_rgba8(255, 255, 255, 0.86)
-        };
-        container::Style {
-            background: Some(Background::Color(bg)),
-            border: Border {
-                width: if is_drop_target { 2.0 } else { 1.0 },
-                color: if is_drop_target {
-                    theme.palette().primary.scale_alpha(0.86)
-                } else {
-                    theme.extended_palette().background.strong.color.scale_alpha(0.72)
-                },
-                radius: 20.0.into(),
-            },
-            shadow: iced::Shadow {
-                color: Color::BLACK.scale_alpha(if is_dark { 0.18 } else { 0.08 }),
-                offset: iced::Vector::new(0.0, 12.0),
-                blur_radius: 26.0,
-            },
-            ..Default::default()
-        }
-    };
+    let is_drop_target = app.task_board_dragging.as_ref()
+        .is_some_and(|(_, source)| allow_reorder || *source != status);
 
     let col_container = container(
         scrollable(content)
@@ -625,7 +641,7 @@ fn build_status_column<'a, M: Clone + From<TaskBoardMessage> + 'a>(app: &BoardVi
     .width(Length::Fixed(240.0))
     .height(Length::Fill)
     .padding(12)
-    .style(container_style);
+    .style(move |theme| display::well_style(theme, is_drop_target));
 
     let mouse_area = iced::widget::mouse_area(col_container);
 
@@ -763,7 +779,7 @@ fn build_task_card<'a, M: Clone + From<TaskBoardMessage> + 'a>(
     .spacing(4)
     .align_y(Alignment::Center);
 
-    let title_text = text(content).size(12).wrapping(iced::widget::text::Wrapping::Word);
+    let title_text = text(content).size(13).wrapping(iced::widget::text::Wrapping::Word);
     let title_row = row![container(title_text).width(Length::Fill)].width(Length::Fill);
 
     let auto_model = task.model == "auto";
@@ -914,7 +930,7 @@ fn build_task_card<'a, M: Clone + From<TaskBoardMessage> + 'a>(
             {
                 theme.extended_palette().background.weak.color.scale_alpha(0.18)
             } else {
-                Color::WHITE.scale_alpha(0.82)
+                theme.palette().background
             };
             let border_color = if is_dragging {
                 theme.palette().primary.scale_alpha(0.92)
@@ -928,7 +944,7 @@ fn build_task_card<'a, M: Clone + From<TaskBoardMessage> + 'a>(
                 border: Border {
                     width: if is_dragging || is_selected { 2.0 } else { 1.0 },
                     color: border_color,
-                    radius: 16.0.into(),
+                    radius: 8.0.into(),
                 },
                 shadow: iced::Shadow {
                     color: Color::BLACK.scale_alpha(if is_dragging || is_selected {
@@ -936,8 +952,8 @@ fn build_task_card<'a, M: Clone + From<TaskBoardMessage> + 'a>(
                     } else {
                         0.06
                     }),
-                    offset: iced::Vector::new(0.0, 10.0),
-                    blur_radius: 22.0,
+                    offset: iced::Vector::new(0.0, 2.0),
+                    blur_radius: 5.0,
                 },
                 ..Default::default()
             }
@@ -956,9 +972,18 @@ fn build_task_card<'a, M: Clone + From<TaskBoardMessage> + 'a>(
         }));
     }
 
+    with_task_menu(app, task, mouse_area.into(), context_menu.as_ref())
+}
+
+fn with_task_menu<'a, M: Clone + From<TaskBoardMessage> + 'a>(
+    app: &BoardView<'a, M>,
+    task: &Task,
+    content: Element<'a, M>,
+    context_menu: Option<&(String, f32, f32)>,
+) -> Element<'a, M> {
     let task_id_for_menu = task.id.clone();
     let right_click = Element::new(RightClickArea::new(
-        mouse_area.into(),
+        content,
         Box::new(move |pos| {
             M::from(TaskBoardMessage::ContextMenuOpened {
                 task_id: task_id_for_menu.clone(),
@@ -969,14 +994,14 @@ fn build_task_card<'a, M: Clone + From<TaskBoardMessage> + 'a>(
     ));
 
     if let Some((open_id, x, y)) = context_menu
-        && open_id == task.id
+        && open_id == &task.id
     {
         return PointBelowOverlay::new(
             right_click,
             (app.slots.context_menu)(task.clone()),
         )
         .show(true)
-        .anchor(iced::Point::new(x, y))
+        .anchor(iced::Point::new(*x, *y))
         .gap(2.0)
         .on_close(M::from(TaskBoardMessage::ContextMenuClosed))
         .into();

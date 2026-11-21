@@ -3,11 +3,7 @@ use crate::message::{TaskBoardDetailTab, TaskBoardSettingsModalTab};
 use iced::widget::{Id, text_editor};
 use std::collections::{HashMap, HashSet};
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
-pub enum TaskBoardViewMode {
-    #[default]
-    Kanban,
-}
+pub use crate::work_views::TaskBoardViewMode;
 
 pub struct State {
     pub work_prefs_project: Option<String>,
@@ -38,6 +34,10 @@ pub struct State {
     pub task_board_workflow_generation: u64,
     /// 任务看板当前视图模式
     pub task_board_view_mode: TaskBoardViewMode,
+    pub work_display: crate::work_views::WorkDisplay,
+    pub work_display_open: bool,
+    pub work_search: String,
+    pub collapsed_work_groups: HashSet<crate::work_views::WorkDisplayGroup>,
     /// 任务看板任务列表
     pub task_board_tasks: Vec<desktop_task_model::models::Task>,
     /// 本地终态正在持久化、需避免旧网关快照覆盖的任务 ID
@@ -229,6 +229,10 @@ impl State {
             task_board_loading: false,
             task_board_workflow_generation: 0,
             task_board_view_mode: TaskBoardViewMode::default(),
+            work_display: Default::default(),
+            work_display_open: false,
+            work_search: String::new(),
+            collapsed_work_groups: HashSet::new(),
             task_board_tasks: Vec::new(),
             task_board_tasks_pending_persistence: std::collections::HashSet::new(),
             task_board_create_modal_open: false,
@@ -365,6 +369,16 @@ impl State {
 }
 
 impl State {
+    pub fn work_display_task_visible(&self, project: &str, task: &desktop_task_model::Task) -> bool {
+        use vw_api_agent_scheduler::AgentSchedulerTaskPlanPlacementDto::Child;
+
+        self.work_task_visible(project, task)
+            && (self.work_display.show_children
+                || self.work_plan.project.as_deref() != Some(project)
+                || !matches!(self.work_plan.placement(&task.id), Some(Child { .. })))
+            && crate::work_views::task_matches_search(task, &self.work_search)
+    }
+
     pub fn work_task_visible(&self, project: &str, task: &desktop_task_model::Task) -> bool {
         self.work_task_matches(project, self.work_view, task)
             && self.task_board_settings.workflow()
@@ -387,6 +401,9 @@ impl State {
         self.work_agent_input.clear();
         self.work_label_ids.clear();
         self.work_property_values.clear();
+        self.work_search.clear();
+        self.work_display_open = false;
+        self.collapsed_work_groups.clear();
         self.task_board_selected_tasks.clear();
         self.task_board_bulk_active_status = None;
         self.task_board_dragging = None;

@@ -73,13 +73,6 @@ pub fn build_control_buttons<'a>(app: &ControlView<'a>) -> Element<'a, Message> 
             text(desktop_i18n::I18n::new(app.desktop_locale).__("任务看板"))
                 .size(20)
                 .font(iced::Font { weight: iced::font::Weight::Bold, ..Default::default() }),
-            text(
-                desktop_i18n::I18n::new(app.desktop_locale)
-                    .__("统一管理调度、工作池与批量任务动作。")
-            )
-            .size(12)
-            .width(Length::Fill)
-            .style(settings_muted_text_style),
         ]
         .spacing(10)
         .align_y(Alignment::Center),
@@ -133,7 +126,7 @@ pub fn build_control_buttons<'a>(app: &ControlView<'a>) -> Element<'a, Message> 
 
     let i18n = desktop_i18n::I18n::new(app.desktop_locale);
     let office_selected = app.task_board_worktree_pixel_office;
-    let board_btn = button(text(i18n.__("看板")).size(12))
+    let board_btn = button(text(i18n.__("任务池")).size(12))
         .on_press_maybe(
             office_selected.then_some(TaskBoardMessage::ToggleWorktreePixelOffice(false)),
         )

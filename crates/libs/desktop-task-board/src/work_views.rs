@@ -4,6 +4,71 @@ use desktop_task_model::{
 };
 use serde::{Deserialize, Serialize};
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum TaskBoardViewMode {
+    #[default]
+    Kanban,
+    List,
+    Table,
+    Swimlane,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum WorkSort {
+    #[default]
+    Created,
+    Updated,
+    Priority,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum LaneGrouping {
+    Assignee,
+    Agent,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub enum WorkDisplayGroup {
+    Status(desktop_task_model::TaskStatus),
+    Lane(LaneGrouping, String),
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct WorkDisplay {
+    pub sort: WorkSort,
+    pub ascending: bool,
+    pub show_children: bool,
+    pub table_group_status: bool,
+    pub table_hierarchy: bool,
+    pub lane_grouping: LaneGrouping,
+    pub hide_empty_statuses: bool,
+}
+
+impl Default for WorkDisplay {
+    fn default() -> Self {
+        Self {
+            sort: WorkSort::Created,
+            ascending: false,
+            show_children: true,
+            table_group_status: false,
+            table_hierarchy: true,
+            lane_grouping: LaneGrouping::Assignee,
+            hide_empty_statuses: false,
+        }
+    }
+}
+
+pub(crate) fn task_matches_search(task: &Task, query: &str) -> bool {
+    let query = query.trim();
+    if query.is_empty() {
+        return true;
+    }
+    let query = query.to_lowercase();
+    [&task.id, &task.description, &task.prompt]
+        .into_iter()
+        .any(|value| value.to_lowercase().contains(&query))
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum BuiltinWorkView {

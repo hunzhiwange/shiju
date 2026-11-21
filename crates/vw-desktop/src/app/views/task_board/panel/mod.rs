@@ -46,7 +46,12 @@ fn map(message: desktop_task_board::panel::PanelMessage) -> Message {
  desktop_task_board::panel::PanelMessage::OpenUrl(s) => crate::app::components::text_editor_context_menu::text_context_message(desktop_ui_controls::text_editor_context_menu::TextContextEffect::OpenUrl(s)),
  desktop_task_board::panel::PanelMessage::Selection { session_id, message_idx, text_idx, text } => Message::ChatMarkdownSelectionChanged { session_id, message_idx, text_idx, text } }
 }
+#[cfg(test)]
 pub fn build_task_panel(app: &App, edit: bool) -> iced::Element<'_, Message> {
+    build_panel(app, edit, false)
+}
+
+pub(super) fn build_panel(app: &App, edit: bool, over_detail: bool) -> iced::Element<'_, Message> {
     use crate::app::components::system_settings_common::rounded_action_btn_style;
     use crate::app::message::TaskBoardMessage;
     use crate::app::state::TaskBoardDetailTab;
@@ -57,6 +62,12 @@ pub fn build_task_panel(app: &App, edit: bool) -> iced::Element<'_, Message> {
     }).and_then(|task| {
         if app.task_board.task_board_detail_tab == TaskBoardDetailTab::Logs {
             return super::work_plan::history(app, task);
+        }
+        if over_detail {
+            return Some(column![task_labels(app, task)]
+                .extend(super::properties::task_editor(app, task))
+                .spacing(12)
+                .into());
         }
         let personal = app.navigation_tabs.project_path.as_ref()
             .and_then(|path| app.task_board.personal_tasks.get(path))
@@ -77,7 +88,13 @@ pub fn build_task_panel(app: &App, edit: bool) -> iced::Element<'_, Message> {
     });
     desktop_task_board::panel::build_with_controls_and_content(
         input(app), edit, model_selector::view(app), executor_selector::input(app),
-        || reasoning_selector::domain_build(app, edit, false), map, detail,
+        || reasoning_selector::domain_build(app, edit, false),
+        move |message| match message {
+            desktop_task_board::panel::PanelMessage::TaskBoard(TaskBoardMessage::CloseTaskLogs)
+                if over_detail => TaskBoardMessage::SelectDetailTab(TaskBoardDetailTab::Basic).into(),
+            other => map(other),
+        },
+        detail,
     )
 }
 fn task_labels<'a>(app: &'a App, task: &'a desktop_task_model::Task) -> iced::Element<'a, Message> {

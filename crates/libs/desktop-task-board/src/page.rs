@@ -1,5 +1,5 @@
 use iced::widget::{column, container, responsive, row, scrollable, stack};
-use iced::{Background, Color, Element, Length, Theme};
+use iced::{Element, Length, Theme};
 use desktop_ui_controls::system_settings_common::{
     panels::settings_right_drawer_overlay, settings_modal_overlay,
 };
@@ -107,17 +107,7 @@ pub fn build_view<'a, M: Clone + 'static>(app: PageView, create_width: Option<Le
 
 fn task_board_container_style(theme: &Theme) -> container::Style {
     container::Style {
-        background: Some(Background::Color(
-            if theme.palette().background.r
-                + theme.palette().background.g
-                + theme.palette().background.b
-                < 1.5
-            {
-                theme.extended_palette().background.base.color.scale_alpha(0.94)
-            } else {
-                Color::from_rgba8(246, 248, 252, 0.98)
-            },
-        )),
+        background: Some(theme.palette().background.into()),
         ..Default::default()
     }
 }

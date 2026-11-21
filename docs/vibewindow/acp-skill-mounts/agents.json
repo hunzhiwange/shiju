@@ -2383,7 +2383,7 @@
         },
         {
           "path": "crates/libs/acp-agent-registry/src/managed_runtime/contracts.json#pi",
-          "sha256": "720185f6ac86542d8ceddbb8e9cbbff6320c39334168fe1d2f3525780878f847",
+          "sha256": "fcebdd9f79aa5343ad1b7e52db47112cd955e69472b15491a186020e24362774",
           "kind": "reviewed_patched_adapter",
           "version": "0.0.22"
         }

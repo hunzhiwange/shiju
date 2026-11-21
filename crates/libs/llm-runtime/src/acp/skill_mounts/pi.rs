@@ -4,7 +4,7 @@ use acp_types::PermissionMode;
 use agent_config::schema::AcpAgentConfig;
 use vw_api_acp_model::acp_model_source::AcpModelSource;
 
-pub(super) fn restricted_launch(
+pub(in crate::acp) fn restricted_launch(
     agent: &str,
     source: AcpModelSource,
     permission: Option<PermissionMode>,
@@ -17,7 +17,7 @@ pub(super) fn restricted_launch(
         && !tools_disabled
 }
 
-pub(super) fn configure_restricted(profile: &mut AcpLaunchProfile) -> anyhow::Result<()> {
+pub(in crate::acp) fn configure_restricted(profile: &mut AcpLaunchProfile) -> anyhow::Result<()> {
     let adapter = std::path::Path::new(&profile.config().command).canonicalize()?;
     let modules = adapter
         .ancestors()

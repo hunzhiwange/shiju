@@ -168,7 +168,7 @@
     "integrity": "sha512-A9DFxi3dF/xFgf0vm5r5jvEtTszRXqK2MUYXWQN0aSSLeJW53efqFlueczZCj5J119s+FLlQVQYso71PDPL0sw==",
     "bin": "dist/index.js",
     "files": {
-      "dist/index.js": "720185f6ac86542d8ceddbb8e9cbbff6320c39334168fe1d2f3525780878f847",
+      "dist/index.js": "fcebdd9f79aa5343ad1b7e52db47112cd955e69472b15491a186020e24362774",
       "dist/shiju-mcp-extension.mjs": "ec5c5f34a37d3d3d0767e3341420c95c57878f1abf308f531545dde5cfab8c8e",
       "dist/shiju-mcp.py": "ede7bf31f0eafe51f6dd0572d0cea482fe3be3eb715534b2f566d87e5c8aa915",
       "dist/shiju-stdio.py": "e6870d58c6c59cb1f1d224a66cdaa8455b34057249912b7bce5b9e21f95a074a"

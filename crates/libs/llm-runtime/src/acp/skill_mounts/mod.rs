@@ -30,7 +30,7 @@ mod nova;
 pub(super) mod omp;
 mod openclaw;
 mod opencode;
-mod pi;
+pub(super) mod pi;
 pub(super) mod poolside;
 pub(super) mod qoder;
 mod qwen;

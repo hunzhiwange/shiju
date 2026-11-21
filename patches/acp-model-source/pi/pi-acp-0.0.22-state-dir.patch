@@ -1,9 +1,12 @@
 diff --git a/src/acp/agent.ts b/src/acp/agent.ts
-index 8f4e8b8..d7f8850 100644
+index 8f4e8b8..de50836 100644
 --- a/src/acp/agent.ts
 +++ b/src/acp/agent.ts
 @@ -22,0 +23 @@ import { getAuthMethods } from './auth.js'
 +import { discoverMcp } from './session-mcp.js'
+@@ -169 +170 @@ export class PiAcpAgent implements ACPAgent {
+-    const fileCommands = loadSlashCommands(params.cwd)
++    const fileCommands = process.env.VW_PI_RESTRICTED === '1' ? [] : loadSlashCommands(params.cwd)
 @@ -223 +224 @@ export class PiAcpAgent implements ACPAgent {
 -    const updateNotice = buildUpdateNotice()
 +    const updateNotice = process.env.VW_PI_RESTRICTED === '1' ? null : buildUpdateNotice()
@@ -21,6 +24,9 @@ index 8f4e8b8..d7f8850 100644
 -        piCommand: process.env.PI_ACP_PI_COMMAND
 +        piCommand: process.env.PI_ACP_PI_COMMAND,
 +        mcp: await discoverMcp(params.mcpServers, params.cwd)
+@@ -832 +838 @@ export class PiAcpAgent implements ACPAgent {
+-    const fileCommands = loadSlashCommands(params.cwd)
++    const fileCommands = process.env.VW_PI_RESTRICTED === '1' ? [] : loadSlashCommands(params.cwd)
 @@ -1183,0 +1190 @@ function buildStartupInfo(opts: {
 +  managedSkills?: string[]
 @@ -1189,2 +1196,2 @@ function buildStartupInfo(opts: {
@@ -247,17 +253,17 @@ index 57bd99e..16c8ae2 100644
 @@ -530,0 +586 @@ export class PiAcpSession {
 +        this.mcpCalls.delete(toolCallId)
 diff --git a/src/pi-rpc/process.ts b/src/pi-rpc/process.ts
-index d62018d..5d2f9b6 100644
+index d62018d..d5165c4 100644
 --- a/src/pi-rpc/process.ts
 +++ b/src/pi-rpc/process.ts
 @@ -0,0 +1,6 @@
 +import { restrictedLaunch } from './restricted.js'
-+import { realpath } from 'node:fs/promises'
++import { readFile, realpath } from 'node:fs/promises'
 +import { dirname, isAbsolute, join, relative, sep } from 'node:path'
 +import { pathToFileURL } from 'node:url'
 +import { getAgentDir } from '../acp/pi-settings.js'
 +import { extension, type SessionMcp } from '../acp/session-mcp.js'
-@@ -3,0 +10,31 @@ import * as readline from 'node:readline'
+@@ -3,0 +10,43 @@ import * as readline from 'node:readline'
 +// Use the pinned Pi resolver for project skill overrides and .gitignore rules.
 +async function projectSkillFiles(cwd: string, engine: string): Promise<string[]> {
 +  const workspace = await realpath(cwd)
@@ -270,7 +276,19 @@ index d62018d..5d2f9b6 100644
 +  if (resolvedRoot !== root) return []
 +  const agentDir = getAgentDir()
 +  const { DefaultPackageManager, SettingsManager } = await import(pathToFileURL(join(dirname(engine), 'index.js')).href)
-+  const settings = SettingsManager.create(workspace, agentDir)
++  const settingsPath = join(workspace, '.pi', 'settings.json')
++  const settingsTarget = await realpath(settingsPath).catch((error: NodeJS.ErrnoException) => {
++    if (error.code === 'ENOENT') return undefined
++    throw error
++  })
++  if (settingsTarget && settingsTarget !== settingsPath) throw new Error('Invalid Pi project settings path')
++  const projectSettings = settingsTarget ? await readFile(settingsTarget, 'utf8') : undefined
++  // FileSettingsStorage locks the project file even on reads. Use the same
++  // migration/parser without creating a lock in the workspace.
++  const settings = SettingsManager.fromStorage({
++    withLock: (scope: string, read: (text?: string) => void) =>
++      read(scope === 'project' ? projectSettings : undefined)
++  })
 +  const skillPatterns = settings.getProjectSettings().skills
 +  const resolver = new DefaultPackageManager({
 +    cwd: workspace, agentDir,
@@ -289,19 +307,19 @@ index d62018d..5d2f9b6 100644
 +  return files
 +}
 +
-@@ -70,0 +108 @@ type SpawnParams = {
+@@ -70,0 +120 @@ type SpawnParams = {
 +  mcp?: SessionMcp
-@@ -74,0 +113,3 @@ export class PiRpcProcess {
+@@ -74,0 +125,3 @@ export class PiRpcProcess {
 +  readonly mcp?: SessionMcp
 +  private readonly lifetime = new AbortController()
 +  get signal(): AbortSignal { return this.lifetime.signal }
-@@ -79 +120 @@ export class PiRpcProcess {
+@@ -79 +132 @@ export class PiRpcProcess {
 -  private constructor(child: ChildProcessWithoutNullStreams) {
 +  private constructor(child: ChildProcessWithoutNullStreams, mcp?: SessionMcp) {
-@@ -80,0 +122,2 @@ export class PiRpcProcess {
+@@ -80,0 +134,2 @@ export class PiRpcProcess {
 +    this.mcp = mcp
 +    child.once('close', () => this.lifetime.abort())
-@@ -130,0 +174,16 @@ export class PiRpcProcess {
+@@ -130,0 +186,16 @@ export class PiRpcProcess {
 +    const skillRoot = process.env.SHIJU_PI_SKILL_ROOT
 +    if (skillRoot !== undefined) {
 +      if (skillRoot && !isAbsolute(skillRoot)) throw new Error('SHIJU_PI_SKILL_ROOT must be absolute')
@@ -318,22 +336,22 @@ index d62018d..5d2f9b6 100644
 +      args.push('--extension', extension)
 +      env.VW_PI_MCP_CATALOG = JSON.stringify(params.mcp.catalog)
 +    }
-@@ -133 +192,4 @@ export class PiRpcProcess {
+@@ -133 +204,4 @@ export class PiRpcProcess {
 -    const child = spawn(cmd, args, {
 +    const launch = process.env.VW_PI_RESTRICTED === '1'
 +      ? await restrictedLaunch(params.cwd, cmd, skillRoot ?? '', args, env.VW_PI_MCP_CATALOG)
 +      : { cmd, args, env }
 +    const child = spawn(launch.cmd, launch.args, {
-@@ -136 +198 @@ export class PiRpcProcess {
+@@ -136 +210 @@ export class PiRpcProcess {
 -      env: process.env
 +      env: launch.env
-@@ -179 +241 @@ export class PiRpcProcess {
+@@ -179 +253 @@ export class PiRpcProcess {
 -    const proc = new PiRpcProcess(child)
 +    const proc = new PiRpcProcess(child, params.mcp)
-@@ -188 +250 @@ export class PiRpcProcess {
+@@ -188 +262 @@ export class PiRpcProcess {
 -      if (sessionFile) {
 +      if (sessionFile && process.env.VW_PI_RESTRICTED !== '1') {
-@@ -196,0 +259,11 @@ export class PiRpcProcess {
+@@ -196,0 +271,11 @@ export class PiRpcProcess {
 +    if (params.mcp?.catalog.length) {
 +      try {
 +        const result = await proc.getCommands() as { commands?: Array<{ name: string; source: string }> }
@@ -345,7 +363,7 @@ index d62018d..5d2f9b6 100644
 +        throw error
 +      }
 +    }
-@@ -206,0 +280,8 @@ export class PiRpcProcess {
+@@ -206,0 +292,8 @@ export class PiRpcProcess {
 +  respondMcp(id: string, value?: string): void {
 +    if (this.signal.aborted) return
 +    const reply = value === undefined ? { cancelled: true } : { value }
@@ -354,7 +372,7 @@ index d62018d..5d2f9b6 100644
 +    })
 +  }
 +
-@@ -207,0 +289 @@ export class PiRpcProcess {
+@@ -207,0 +301 @@ export class PiRpcProcess {
 +    this.lifetime.abort()
 diff --git a/src/pi-rpc/restricted.ts b/src/pi-rpc/restricted.ts
 new file mode 100644

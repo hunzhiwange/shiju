@@ -52,7 +52,7 @@ pub(super) fn panel(theme: &Theme, radius: f32) -> container::Style {
     }
 }
 
-pub(super) fn line() -> Element<'static, Message> {
+pub(in crate::views) fn line<'a, M: 'a>() -> Element<'a, M> {
     container(Space::new())
         .width(Length::Fill)
         .height(1)
@@ -90,7 +90,7 @@ fn card_style(theme: &Theme, featured: bool) -> container::Style {
     style
 }
 
-pub(super) fn avatar(id: u64, name: &str, size: f32) -> Element<'static, Message> {
+pub(super) fn avatar<'a, M: 'a>(id: u64, name: &str, size: f32) -> Element<'a, M> {
     let initial = name.trim().chars().next().unwrap_or('?').to_ascii_uppercase();
     let tone = match id % 5 {
         0 => Color::from_rgb8(133, 76, 53),
@@ -163,16 +163,13 @@ pub(in crate::views) fn updated_label(i18n: I18n, date: Option<&str>) -> String 
     }
 }
 
-pub(in crate::views) fn card_identity(
+pub(in crate::views) fn identity<'a, M: 'a>(
     id: u64,
     name: &str,
     subtitle: String,
-    title_tooltip: String,
-    detail: Message,
-) -> Element<'static, Message> {
-    let title: Element<'static, Message> =
-        SingleLineLabel::new(name.to_string(), 17.0).font(bold()).into();
-    let identity = row![
+) -> Element<'a, M> {
+    let title: Element<'a, M> = SingleLineLabel::new(name.to_string(), 17.0).font(bold()).into();
+    row![
         avatar(id, name, 38.0),
         column![
             title,
@@ -184,11 +181,24 @@ pub(in crate::views) fn card_identity(
     ]
     .spacing(10)
     .align_y(Alignment::Center)
-    .width(Length::Fill);
-    mouse_area(tooltip(identity, description_tooltip(title_tooltip), Position::Top).gap(5))
-        .on_press(detail)
-        .interaction(iced::mouse::Interaction::Pointer)
-        .into()
+    .width(Length::Fill)
+    .into()
+}
+
+pub(in crate::views) fn card_identity(
+    id: u64,
+    name: &str,
+    subtitle: String,
+    title_tooltip: String,
+    detail: Message,
+) -> Element<'static, Message> {
+    mouse_area(
+        tooltip(identity(id, name, subtitle), description_tooltip(title_tooltip), Position::Top)
+            .gap(5),
+    )
+    .on_press(detail)
+    .interaction(iced::mouse::Interaction::Pointer)
+    .into()
 }
 
 pub(in crate::views) fn description_area(
@@ -218,25 +228,35 @@ pub(in crate::views) fn description_area(
     .into()
 }
 
+pub(in crate::views) fn card_surface<'a, M: 'a>(
+    content: impl Into<Element<'a, M>>,
+    featured: bool,
+) -> container::Container<'a, M> {
+    container(content)
+        .padding(iced::Padding { top: 16.0, bottom: 14.0, left: 20.0, right: 20.0 })
+        .width(Length::Fill)
+        .style(move |theme| card_style(theme, featured))
+}
+
 pub(in crate::views) fn card_layout(
     heading: Element<'static, Message>,
     description: Element<'static, Message>,
     footer: Element<'static, Message>,
     featured: bool,
 ) -> Element<'static, Message> {
-    container(column![
-        heading,
-        Space::new().height(8),
-        description,
-        Space::new().height(10),
-        line(),
-        Space::new().height(10),
-        footer,
-    ])
-    .padding(iced::Padding { top: 16.0, bottom: 14.0, left: 20.0, right: 20.0 })
-    .width(Length::Fill)
+    card_surface(
+        column![
+            heading,
+            Space::new().height(8),
+            description,
+            Space::new().height(10),
+            line(),
+            Space::new().height(10),
+            footer,
+        ],
+        featured,
+    )
     .height(Length::Fixed(167.0))
-    .style(move |theme| card_style(theme, featured))
     .into()
 }
 

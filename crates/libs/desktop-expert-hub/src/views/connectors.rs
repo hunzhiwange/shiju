@@ -1,4 +1,5 @@
 //! 三列连接器卡片与统一配置弹窗；授权等待只属于对应卡片。
+use super::list::cards;
 use super::styles;
 use super::ViewInput;
 use desktop_ui_controls::system_settings_common::*;
@@ -11,7 +12,8 @@ fn help_label<'a, M: Clone + 'static>(render: HelpRenderer<M>, i18n: I18n, theme
     desktop_ui_controls::system_settings_common::help::settings_hover_help_label(label, render(title, description.into(), Some(theme.palette().text), i18n))
 }
 use iced::widget::scrollable::{Direction, Scrollbar};
-use iced::widget::{Space, button, column, container, responsive, row, scrollable, text};
+use iced::widget::tooltip::Position;
+use iced::widget::{Space, button, column, container, responsive, row, scrollable, text, tooltip};
 use iced::{Alignment, Background, Element, Length, Theme};
 use gateway_shiju_connector::ShijuConnector;
 
@@ -105,88 +107,89 @@ pub fn card_grid<'a, M: Clone + 'static>(
     }
     container(grid).padding([4, SCROLLABLE_SIDE_PADDING]).width(Length::Fill).into()
 }
-fn connector_card<'a, M: Clone + 'static>(app: &ViewInput<'a>, connector: &'a ShijuConnector, message: fn(ConnectorMessage) -> M) -> Element<'a, M> {
-    let i18n = desktop_i18n::I18n::new(app.desktop_locale);
+fn connector_card<'a, M: Clone + 'static>(
+    app: &ViewInput<'a>,
+    connector: &'a ShijuConnector,
+    message: fn(ConnectorMessage) -> M,
+) -> Element<'a, M> {
+    let i18n = I18n::new(app.desktop_locale);
     let id = connector.company_platform_id;
     let operation = app.expert_hub.connectors.work.get(&id);
     let idle = operation.is_none();
     let binding_status = match &connector.binding {
-        Some(binding) if binding.status == "enabled" => {
-            desktop_i18n::I18n::new(app.desktop_locale).__("已绑定")
-        }
-        Some(_) => desktop_i18n::I18n::new(app.desktop_locale).__("已停用"),
-        None => desktop_i18n::I18n::new(app.desktop_locale).__("未绑定"),
+        Some(binding) if binding.status == "enabled" => i18n.__("已绑定"),
+        Some(_) => i18n.__("已停用"),
+        None => i18n.__("未绑定"),
     };
-    let identity = column![
-        text(&connector.platform_name).size(17),
-        text(&connector.platform_code).size(12).style(settings_muted_text_style),
-    ]
-    .spacing(6)
-    .width(Length::FillPortion(1));
+    let identity = cards::identity(
+        connector.platform_id,
+        &connector.platform_name,
+        connector.platform_code.clone(),
+    );
     let mut binding_details = column![
-        container(text(binding_status).size(11)).padding([4, 8]).style(styles::meta_badge_style)
+        container(text(binding_status).size(11)).padding([4, 8]).style(styles::meta_badge_style),
     ]
-    .spacing(5)
-    .align_x(Alignment::End)
-    .width(Length::FillPortion(1));
+    .spacing(4)
+    .align_x(Alignment::End);
     if let Some(binding) = &connector.binding {
-        if !binding.third_party_account_name.is_empty() {
-            binding_details =
-                binding_details.push(text(&binding.third_party_account_name).size(13));
-        }
-        if !binding.third_party_account_id.is_empty() {
-            binding_details = binding_details.push(
-                text(&binding.third_party_account_id).size(12).style(settings_muted_text_style),
+        let account =
+            [binding.third_party_account_name.as_str(), binding.third_party_account_id.as_str()]
+                .into_iter()
+                .filter(|value| !value.is_empty())
+                .collect::<Vec<_>>();
+        if !account.is_empty() {
+            let labels = column(account.iter().map(|value| {
+                text(*value).size(12).style(cards::muted_text).wrapping(text::Wrapping::None).into()
+            }))
+            .spacing(2)
+            .align_x(Alignment::End)
+            .width(Length::Fill);
+            binding_details = binding_details.width(Length::FillPortion(1)).push(
+                tooltip(
+                    container(labels).width(Length::Fill).clip(true),
+                    container(text(account.join("\n")).size(12).width(Length::Fixed(240.0)))
+                        .padding([6, 10])
+                        .style(icons::icon_btn_tooltip_style),
+                    Position::Top,
+                )
+                .gap(5),
             );
         }
     }
-    let mut content =
-        column![row![identity, binding_details].spacing(12).align_y(Alignment::Start),].spacing(12);
-    let mut actions = row![].spacing(8);
-    if connector.authorization_available {
-        actions = actions.push(
-            button(text(desktop_i18n::I18n::new(app.desktop_locale).__("账号授权")).size(13))
-                .padding([8, 12])
-                .style(primary_action_btn_style)
-                .on_press_maybe(idle.then(|| message(ConnectorMessage::Authorize(id)))),
-        );
+    let action = if connector.authorization_available {
+        button(text(i18n.__("账号授权")).size(13))
+            .padding([8, 12])
+            .style(primary_action_btn_style)
+            .on_press_maybe(idle.then(|| message(ConnectorMessage::Authorize(id))))
     } else {
-        actions = actions.push(
-            button(text(desktop_i18n::I18n::new(app.desktop_locale).__("手动绑定")).size(13))
-                .padding([8, 12])
-                .style(rounded_action_btn_style)
-                .on_press_maybe(idle.then(|| message(ConnectorMessage::Edit(id)))),
-        );
-    }
-    content = content.push(actions);
+        button(text(i18n.__("手动绑定")).size(13))
+            .padding([8, 12])
+            .style(rounded_action_btn_style)
+            .on_press_maybe(idle.then(|| message(ConnectorMessage::Edit(id))))
+    };
+    let heading = row![identity, binding_details].spacing(8).height(60).align_y(Alignment::Start);
+    let mut content =
+        column![heading, cards::line(), row![Space::new().width(Length::Fill), action]].spacing(10);
     if let Some(operation) = operation {
         let label = match operation.work {
-            ConnectorWork::Starting => {
-                desktop_i18n::I18n::new(app.desktop_locale).__("正在发起授权…")
-            }
-            ConnectorWork::Authorizing { .. } => {
-                desktop_i18n::I18n::new(app.desktop_locale).__("等待浏览器授权…")
-            }
-            ConnectorWork::Saving => {
-                desktop_i18n::I18n::new(app.desktop_locale).__("正在保存绑定…")
-            }
+            ConnectorWork::Starting => i18n.__("正在发起授权…"),
+            ConnectorWork::Authorizing { .. } => i18n.__("等待浏览器授权…"),
+            ConnectorWork::Saving => i18n.__("正在保存绑定…"),
         };
-        let mut waiting = row![text(i18n.__(label)).size(12).style(settings_muted_text_style)]
+        let mut waiting = row![text(label).size(12).style(settings_muted_text_style)]
             .spacing(8)
             .align_y(Alignment::Center);
         if !matches!(operation.work, ConnectorWork::Saving) {
             waiting = waiting.push(
-                button(
-                    text(desktop_i18n::I18n::new(app.desktop_locale).__("取消等待")).size(12),
-                )
-                .padding([6, 10])
-                .style(rounded_action_btn_style)
-                .on_press(message(ConnectorMessage::CancelAuthorization(id))),
+                button(text(i18n.__("取消等待")).size(12))
+                    .padding([6, 10])
+                    .style(rounded_action_btn_style)
+                    .on_press(message(ConnectorMessage::CancelAuthorization(id))),
             );
         }
-        content = content.push(waiting);
+        content = content.push(waiting.wrap());
     }
-    container(content).padding(16).width(Length::FillPortion(1)).style(styles::card_style).into()
+    cards::card_surface(content, false).into()
 }
 fn status<'a, M: Clone + 'static>(label: &'a str) -> Element<'a, M> {
     container(text(label).size(16)).center_x(Length::Fill).center_y(Length::Fill).into()

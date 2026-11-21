@@ -44,14 +44,9 @@ impl SnapshotState<'_> {
     }
     pub fn loaded(
         &mut self,
-        is_git: bool,
         result: Result<Option<WorktreePoolSnapshot>, String>,
         now: u64,
     ) {
-        if !is_git {
-            self.clear();
-            return;
-        }
         *self.loading = false;
         *self.last_refresh = now;
         match result {
@@ -69,16 +64,10 @@ impl SnapshotState<'_> {
         &mut self,
         in_flight: &mut bool,
         tasks: &mut [desktop_task_model::Task],
-        is_git: bool,
-        has_project: bool,
         result: Result<crate::message::WorktreePoolMaintenanceOutcome, String>,
         now: u64,
     ) -> MaintenanceEffect {
         *in_flight = false;
-        if !is_git {
-            self.clear();
-            return MaintenanceEffect::None;
-        }
         match result {
             Ok(outcome) => {
                 tracing::debug!(
@@ -97,9 +86,7 @@ impl SnapshotState<'_> {
             }
             Err(error) => {
                 tracing::warn!(error = %error, "gateway worktree pool maintenance failed");
-                if has_project
-                    && crate::update::rules::log_worktree_maintenance_failure(tasks, &error)
-                {
+                if crate::update::rules::log_worktree_maintenance_failure(tasks, &error) {
                     MaintenanceEffect::Persist
                 } else {
                     MaintenanceEffect::None

@@ -51,10 +51,6 @@ pub(super) fn worktree_summary_text_style(theme: &Theme) -> iced::widget::text::
     faded_base_text_style(theme, 0.86)
 }
 
-pub(super) fn worktree_refreshing_text_style(theme: &Theme) -> iced::widget::text::Style {
-    faded_base_text_style(theme, 0.72)
-}
-
 pub(super) fn worktree_action_text_style(theme: &Theme) -> iced::widget::text::Style {
     faded_base_text_style(theme, 0.82)
 }
@@ -69,10 +65,6 @@ pub(super) fn worktree_slot_path_text_style(theme: &Theme) -> iced::widget::text
 
 pub(super) fn worktree_slot_taint_text_style(theme: &Theme) -> iced::widget::text::Style {
     faded_base_text_style(theme, 0.76)
-}
-
-pub(super) fn worktree_loading_text_style(theme: &Theme) -> iced::widget::text::Style {
-    faded_base_text_style(theme, 0.78)
 }
 
 pub(super) fn confirm_hint_text_style(_theme: &Theme) -> iced::widget::text::Style {

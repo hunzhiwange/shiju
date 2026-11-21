@@ -50,7 +50,6 @@ pub(super) struct PanelFixture {
     pub(super) task_board_worktree_manual_action_kind: Option<&'static str>,
     pub(super) task_board_worktree_manual_confirm_kind: Option<&'static str>,
     pub(super) task_board_worktree_panel_expanded: bool,
-    pub(super) task_board_worktree_snapshot_loading: bool,
     pub(super) task_board_worktree_action_logs: Vec<String>,
     pub(super) task_board_create_modal_open: bool,
     pub(super) task_board_settings_modal_open: bool,
@@ -73,7 +72,6 @@ impl Default for PanelFixture {
             task_board_worktree_manual_action_kind: Default::default(),
             task_board_worktree_manual_confirm_kind: Default::default(),
             task_board_worktree_panel_expanded: Default::default(),
-            task_board_worktree_snapshot_loading: Default::default(),
             task_board_worktree_action_logs: Default::default(),
             task_board_create_modal_open: Default::default(),
             task_board_settings_modal_open: Default::default(),
@@ -203,7 +201,6 @@ pub(super) fn page(app: &PanelFixture) -> iced::Element<'_, crate::panel::PanelM
                     task_board_worktree_panel_expanded: app.task_board_worktree_panel_expanded,
                     task_board_worktree_pixel_office: app.task_board_worktree_pixel_office,
                     task_board_worktree_snapshot: app.task_board_worktree_snapshot.as_ref(),
-                    task_board_worktree_snapshot_loading: app.task_board_worktree_snapshot_loading,
                     task_board_worktree_action_logs: &app.task_board_worktree_action_logs,
                     agent_entries: vec![],
                 })

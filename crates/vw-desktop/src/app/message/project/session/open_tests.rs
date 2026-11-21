@@ -996,16 +996,16 @@ fn project_info_loaded_applies_current_project_identity_timestamp_and_branch() {
 }
 
 #[test]
-fn project_info_loaded_sets_non_git_capability_when_vcs_absent() {
+fn project_info_loaded_preserves_logical_pool_when_vcs_absent() {
     let mut app = app();
     app.navigation_tabs.project_path = Some("/tmp/current".to_string());
     app.workspace_state.project_is_git_repo = true;
     app.task_board.task_board_worktree_snapshot_loading = true;
     app.task_board.task_board_last_worktree_snapshot_at_ms = 99;
     app.task_board.task_board_worktree_snapshot = Some(crate::app::task::WorktreePoolSnapshot {
-        repo_root: "/tmp/stale".to_string(),
-        pool_root: "/tmp/stale/.worktrees".to_string(),
-        base_branch: "main".to_string(),
+        repo_root: String::new(),
+        pool_root: String::new(),
+        base_branch: String::new(),
         idle_count: 1,
         busy_count: 0,
         tainted_count: 0,
@@ -1023,9 +1023,10 @@ fn project_info_loaded_sets_non_git_capability_when_vcs_absent() {
     );
 
     assert!(!app.workspace_state.project_is_git_repo);
-    assert!(app.task_board.task_board_worktree_snapshot.is_none());
-    assert!(!app.task_board.task_board_worktree_snapshot_loading);
-    assert_eq!(app.task_board.task_board_last_worktree_snapshot_at_ms, 0);
+    let snapshot = app.task_board.task_board_worktree_snapshot.as_ref().unwrap();
+    assert_eq!(snapshot.idle_count, 1);
+    assert!(app.task_board.task_board_worktree_snapshot_loading);
+    assert_eq!(app.task_board.task_board_last_worktree_snapshot_at_ms, 99);
 }
 
 #[test]

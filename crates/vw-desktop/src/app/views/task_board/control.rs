@@ -21,7 +21,6 @@ pub fn build_control_buttons(app: &App) -> iced::Element<'_, Message> {
         task_board_worktree_panel_expanded: app.task_board.task_board_worktree_panel_expanded,
         task_board_worktree_pixel_office: app.task_board.task_board_worktree_pixel_office,
         task_board_worktree_snapshot: app.task_board.task_board_worktree_snapshot.as_ref(),
-        task_board_worktree_snapshot_loading: app.task_board.task_board_worktree_snapshot_loading,
         task_board_worktree_action_logs: &app.task_board.task_board_worktree_action_logs,
         agent_entries: entries,
     }).map(Message::TaskBoard)

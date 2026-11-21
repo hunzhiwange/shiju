@@ -315,16 +315,10 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
                     app.git.selected_branch = completed.selected_branch;
                 }
                 app.workspace_state.project_is_git_repo = completed.is_git_repo;
-                if !app.workspace_state.project_is_git_repo {
-                    app.task_board.task_board_worktree_snapshot = None;
-                    app.task_board.task_board_worktree_snapshot_loading = false;
-                    app.task_board.task_board_last_worktree_snapshot_at_ms = 0;
-                    app.task_board.task_board_worktree_maintenance_in_flight = false;
-                    app.task_board.task_board_worktree_manual_action_kind = None;
-                    app.task_board.task_board_worktree_manual_confirm_kind = None;
-                    if app.task_board.task_board_executor_running {
-                        app.task_board.task_board_executor_running = false;
-                    }
+                if !app.workspace_state.project_is_git_repo
+                    && app.task_board.task_board_executor_running
+                {
+                    app.task_board.task_board_executor_running = false;
                 }
                 app.workspace_state.project_id = Some(completed.id);
             }

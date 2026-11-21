@@ -15,7 +15,6 @@ pub struct TestApp {
     pub task_board_worktree_panel_expanded: bool,
     pub task_board_worktree_pixel_office: bool,
     pub task_board_worktree_snapshot: Option<WorktreePoolSnapshot>,
-    pub task_board_worktree_snapshot_loading: bool,
     pub task_board_worktree_action_logs: Vec<String>,
     pub agent_entries: Vec<AgentEntry<'static>>,
     pub project_is_git_repo: bool,
@@ -38,7 +37,6 @@ impl TestApp {
             task_board_worktree_panel_expanded: self.task_board_worktree_panel_expanded,
             task_board_worktree_pixel_office: self.task_board_worktree_pixel_office,
             task_board_worktree_snapshot: self.task_board_worktree_snapshot.as_ref(),
-            task_board_worktree_snapshot_loading: self.task_board_worktree_snapshot_loading,
             task_board_worktree_action_logs: &self.task_board_worktree_action_logs,
             agent_entries: self.agent_entries.iter().map(|e| AgentEntry {
                 key: e.key,

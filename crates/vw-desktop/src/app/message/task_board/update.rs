@@ -733,8 +733,6 @@ pub fn update(
             .maintained(
                 &mut app.task_board.task_board_worktree_maintenance_in_flight,
                 &mut app.task_board.task_board_tasks,
-                app.workspace_state.project_is_git_repo,
-                app.navigation_tabs.project_path.is_some(),
                 result,
                 now_ms(),
             );
@@ -756,8 +754,7 @@ pub fn update(
             if !task_board_project_matches(app, &project_path) {
                 return iced::Task::none();
             }
-            let is_git = app.workspace_state.project_is_git_repo;
-            snapshot_state(app).loaded(is_git, result, now_ms());
+            snapshot_state(app).loaded(result, now_ms());
             iced::Task::none()
         }
 

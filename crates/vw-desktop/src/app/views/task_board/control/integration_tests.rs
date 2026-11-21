@@ -30,6 +30,46 @@ fn snapshot(slots: Vec<WorktreeSlotSnapshot>) -> WorktreePoolSnapshot {
 }
 
 #[test]
+fn task_pool_office_receives_logical_slots_for_non_git_projects() {
+    use crate::app::message::task_board::{TaskBoardMessage, WorktreePoolMaintenanceOutcome, update};
+
+    let mut app = test_app();
+    let project_path = "/tmp/non-git-project".to_string();
+    app.navigation_tabs.project_path = Some(project_path.clone());
+    app.workspace_state.project_is_git_repo = false;
+    app.task_board.task_board_worktree_snapshot_loading = true;
+
+    let loaded = snapshot(vec![slot("running-agent", WorktreeState::Busy)]);
+    let _ = update(
+        &mut app,
+        TaskBoardMessage::WorktreeSnapshotLoaded {
+            project_path: project_path.clone(),
+            result: Ok(Some(loaded)),
+        },
+    );
+    assert!(!app.task_board.task_board_worktree_snapshot_loading);
+    let current = app.task_board.task_board_worktree_snapshot.as_ref().unwrap();
+    assert_eq!(current.busy_count, 1);
+
+    app.task_board.task_board_worktree_maintenance_in_flight = true;
+    let maintained = snapshot(vec![slot("available-station", WorktreeState::Idle)]);
+    let _ = update(
+        &mut app,
+        TaskBoardMessage::WorktreePoolMaintained {
+            project_path,
+            result: Ok(WorktreePoolMaintenanceOutcome {
+                idle_count: maintained.idle_count,
+                target_idle_count: 1,
+                snapshot: Some(maintained),
+            }),
+        },
+    );
+    assert!(!app.task_board.task_board_worktree_maintenance_in_flight);
+    let current = app.task_board.task_board_worktree_snapshot.as_ref().unwrap();
+    assert_eq!(current.idle_count, 1);
+}
+
+#[test]
 fn task_pool_office_capacity_and_all_employee_interactions_are_preserved() {
     let mut app = test_app();
     let project = tempfile::tempdir().unwrap();

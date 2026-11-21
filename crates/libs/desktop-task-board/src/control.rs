@@ -11,7 +11,7 @@ use iced::widget::{button, column, container, row, scrollable, text};
 use iced::{Alignment, Color, Element, Length, Padding, Theme};
 
 use desktop_ui_controls::system_settings_common::{
-    settings_muted_text_style,
+    settings_muted_text_style, settings_segment_button_style,
 };
 use crate::message::TaskBoardMessage;
 use desktop_task_executor::executor::state::WorktreeState;
@@ -131,6 +131,22 @@ pub fn build_control_buttons<'a>(app: &ControlView<'a>) -> Element<'a, Message> 
         None
     };
 
+    let i18n = desktop_i18n::I18n::new(app.desktop_locale);
+    let office_selected = app.task_board_worktree_pixel_office;
+    let board_btn = button(text(i18n.__("看板")).size(12))
+        .on_press_maybe(
+            office_selected.then_some(TaskBoardMessage::ToggleWorktreePixelOffice(false)),
+        )
+        .padding([6, 10])
+        .style(move |theme, status| settings_segment_button_style(theme, status, !office_selected));
+    let office_btn = button(text(i18n.__("员工")).size(12))
+        .on_press_maybe(
+            (!office_selected).then_some(TaskBoardMessage::ToggleWorktreePixelOffice(true)),
+        )
+        .padding([6, 10])
+        .style(move |theme, status| settings_segment_button_style(theme, status, office_selected));
+    let view_switch = row![board_btn, office_btn].spacing(4).align_y(Alignment::Center);
+
     let settings_btn =
         button(text(desktop_i18n::I18n::new(app.desktop_locale).__("看板设置")).size(12))
             .on_press(TaskBoardMessage::OpenSettingsModal)
@@ -196,10 +212,17 @@ pub fn build_control_buttons<'a>(app: &ControlView<'a>) -> Element<'a, Message> 
         summary_row = summary_row.push(worktree_chip);
     }
 
-    let controls_row =
-        row![exec_btn, new_task_btn, settings_btn, archive_completed_btn, refresh_btn, close_btn]
-            .spacing(8)
-            .align_y(Alignment::Center);
+    let controls_row = row![
+        view_switch,
+        exec_btn,
+        new_task_btn,
+        settings_btn,
+        archive_completed_btn,
+        refresh_btn,
+        close_btn,
+    ]
+    .spacing(8)
+    .align_y(Alignment::Center);
     let controls_scroll = scrollable(controls_row)
         .direction(iced::widget::scrollable::Direction::Horizontal(
             iced::widget::scrollable::Scrollbar::new().width(4).scroller_width(4),
@@ -220,7 +243,6 @@ pub fn build_control_buttons<'a>(app: &ControlView<'a>) -> Element<'a, Message> 
             let title_line = text(desktop_i18n::I18n::new(app.desktop_locale).__("工作池"))
                 .size(13)
                 .style(worktree_title_text_style);
-            let i18n = desktop_i18n::I18n::new(app.desktop_locale);
             let lock_text = if snapshot.merge_target_locks.is_empty() {
                 desktop_i18n::I18n::new(app.desktop_locale).__("合并锁: 无").to_string()
             } else {
@@ -271,20 +293,6 @@ pub fn build_control_buttons<'a>(app: &ControlView<'a>) -> Element<'a, Message> 
                 text(desktop_i18n::I18n::new(app.desktop_locale).__(toggle_label)).size(12),
             )
             .on_press(TaskBoardMessage::ToggleWorktreePanelExpanded)
-            .padding([4, 8])
-            .style(button_style_secondary);
-            let office_toggle_label = if app.task_board_worktree_pixel_office {
-                "切换列表视图"
-            } else {
-                "切换像素办公室"
-            };
-            let office_toggle_btn = button(
-                text(desktop_i18n::I18n::new(app.desktop_locale).__(office_toggle_label))
-                    .size(12),
-            )
-            .on_press(TaskBoardMessage::ToggleWorktreePixelOffice(
-                !app.task_board_worktree_pixel_office,
-            ))
             .padding([4, 8])
             .style(button_style_secondary);
             let clean_btn_label = if app.task_board_worktree_manual_action_kind == Some("cleanup") {
@@ -360,14 +368,7 @@ pub fn build_control_buttons<'a>(app: &ControlView<'a>) -> Element<'a, Message> 
                 .style(button_style_secondary);
                 title_row = title_row.push(cancel_btn);
             }
-            title_row = title_row.push(office_toggle_btn).push(toggle_btn);
-            if app.task_board_worktree_snapshot_loading {
-                let loading_text = desktop_i18n::I18n::new(app.desktop_locale)
-                    .format("后台刷新中%s", &[(running_dots(now_ms)).into()])
-                    .expect("valid task display template");
-                title_row = title_row
-                    .push(text(loading_text).size(12).style(worktree_refreshing_text_style));
-            }
+            title_row = title_row.push(toggle_btn);
 
             let mut panel_col = column![title_row, summary_line].spacing(4);
             if let Some(confirm_kind) = app.task_board_worktree_manual_confirm_kind {
@@ -470,21 +471,17 @@ pub fn build_control_buttons<'a>(app: &ControlView<'a>) -> Element<'a, Message> 
                 .width(Length::Fill)
                 .style(worktree_status_panel_style);
             content = content.push(status_panel);
-            if app.task_board_worktree_pixel_office {
+            if office_selected {
                 content = content.push(build_worktree_pixel_office(app, snapshot));
             }
-        } else if app.project_path.is_some() && app.task_board_worktree_snapshot_loading {
-            let loading_panel = container(
-                text(
-                    desktop_i18n::I18n::new(app.desktop_locale).__("Worktree 池后台加载中..."),
-                )
-                .size(12)
-                .style(worktree_loading_text_style),
+        } else if office_selected {
+            let empty_panel = container(
+                text(i18n.__("暂无工位数据")).size(12).style(settings_muted_text_style),
             )
             .padding([8, 10])
             .width(Length::Fill)
             .style(worktree_status_panel_style);
-            content = content.push(loading_panel);
+            content = content.push(empty_panel);
         }
     }
 
@@ -503,7 +500,6 @@ pub struct ControlView<'a> {
     pub task_board_worktree_panel_expanded: bool,
     pub task_board_worktree_pixel_office: bool,
     pub task_board_worktree_snapshot: Option<&'a desktop_task_executor::executor::state::WorktreePoolSnapshot>,
-    pub task_board_worktree_snapshot_loading: bool,
     pub task_board_worktree_action_logs: &'a [String],
     pub agent_entries: Vec<desktop_task_model::agent_activity::AgentEntry<'a>>,
 }

@@ -88,7 +88,11 @@ impl canvas::Program<Message> for Chart<'_> {
         for tick in 0..=ticks {
             let value = maximum * f64::from(tick) / f64::from(ticks);
             let y = y_at(value);
-            frame.fill_rectangle(Point::new(left, y), Size::new(right - left, 1.0), colors.border);
+            frame.fill_rectangle(
+                Point::new(left, y),
+                Size::new(right - left, 1.0),
+                colors.border.scale_alpha(if tick == 0 { 0.8 } else { 0.48 }),
+            );
             frame.fill_text(label(
                 self.metric.format(Some(value)),
                 Point::new(left - 10.0, y),

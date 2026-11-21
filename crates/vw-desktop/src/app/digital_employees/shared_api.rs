@@ -1,6 +1,7 @@
 use std::collections::{HashMap, HashSet};
 
 use serde::Deserialize;
+use serde_json::json;
 
 use super::{
     api::{Client, nullable_list},
@@ -10,11 +11,16 @@ use super::{
 pub(crate) struct Directory {
     pub(super) employees: Vec<SharedEmployee>,
     pub(super) templates: Option<usize>,
+    pub(super) access: Access,
     pub(super) counts: Option<HashMap<String, TaskCounts>>,
 }
 
 #[derive(Deserialize)]
 pub(super) struct SharedEmployee {
+    pub version: Option<u64>,
+    pub active_version_id: Option<String>,
+    #[serde(default, deserialize_with = "nullable_list")]
+    pub allowed_actions: Vec<String>,
     pub employee_id: String,
     pub name: String,
     pub agent_kind: Option<String>,
@@ -83,6 +89,120 @@ impl SharedEmployee {
     }
 }
 
+#[derive(Default, Deserialize)]
+pub(super) struct Access {
+    #[serde(default, deserialize_with = "nullable_list")]
+    permission_codes: Vec<String>,
+}
+
+impl Access {
+    fn allows(&self, code: &str) -> bool {
+        self.permission_codes.iter().any(|permission| permission == code)
+    }
+
+    pub fn can_configure(&self, employee: &SharedEmployee) -> bool {
+        self.allows("agent-worker.employee.update")
+            && employee.allowed_actions.iter().any(|action| action == "edit")
+    }
+
+    pub fn can_dispatch(&self, employee: &SharedEmployee) -> bool {
+        self.allows("agent-worker.task.create")
+            && self.allows("agent-worker.task.view")
+            && employee.manager()
+            && employee.visibility.as_deref() != Some("private")
+            && employee.status.as_deref() == Some("ACTIVE")
+            && employee.publish_status.as_deref() == Some("PUBLISHED")
+            && employee.runtime_status.as_deref() == Some("on_duty")
+            && employee.active_version_id.as_deref().is_some_and(|id| !id.is_empty())
+            && !employee.occupancy.as_ref().is_some_and(|occupancy| occupancy.busy)
+            && employee.allowed_actions.iter().any(|action| action == "dispatch")
+    }
+
+    pub fn can_manage(&self, employee: &SharedEmployee, action: Operation) -> bool {
+        let runtime = employee.runtime_status.as_deref();
+        if matches!(runtime, Some("enabling" | "disabling")) {
+            return false;
+        }
+        if action == Operation::SaveTemplate {
+            return self.allows("agent-worker.employee.create")
+                && !employee.archived()
+                && employee.publish_status.as_deref() == Some("PUBLISHED")
+                && employee.active_version_id.as_deref().is_some_and(|id| !id.is_empty());
+        }
+        if !self.can_configure(employee) || employee.version.is_none() {
+            return false;
+        }
+        let disabled = employee.status.as_deref() == Some("DISABLED");
+        match action {
+            Operation::Enable => {
+                employee.archived() || disabled || matches!(runtime, Some("abnormal" | "none"))
+            }
+            Operation::Disable => {
+                !employee.archived()
+                    && !disabled
+                    && employee.publish_status.as_deref() == Some("PUBLISHED")
+            }
+            Operation::Archive => !employee.archived(),
+            Operation::Delete => true,
+            Operation::SaveTemplate => false,
+        }
+    }
+}
+
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub(crate) enum Operation {
+    SaveTemplate,
+    Enable,
+    Disable,
+    Archive,
+    Delete,
+}
+
+impl Operation {
+    pub const ALL: [Self; 5] =
+        [Self::SaveTemplate, Self::Enable, Self::Disable, Self::Archive, Self::Delete];
+}
+
+impl std::fmt::Display for Operation {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter.write_str(match self {
+            Self::SaveTemplate => "保存为岗位模板",
+            Self::Enable => "启用 / 恢复使用",
+            Self::Disable => "停用",
+            Self::Archive => "归档",
+            Self::Delete => "删除",
+        })
+    }
+}
+
+pub(super) async fn operate(
+    credential: &str,
+    id: &str,
+    operation: Operation,
+    version: Option<u64>,
+    name: &str,
+) -> Result<&'static str, String> {
+    let client = Client::new(credential)?;
+    if operation == Operation::SaveTemplate {
+        let _: serde_json::Value = client
+            .post(&["employees", id, "actions", "save-as-template"], &json!({"name": name}), None)
+            .await?;
+        return Ok("已保存为岗位模板");
+    }
+    let version = version.ok_or("员工版本不可用，请刷新后重试")?;
+    let body = json!({"expected_version": version});
+    let (action, message) = match operation {
+        Operation::Enable => ("enable", "已提交启用请求"),
+        Operation::Disable => ("disable", "已提交停用请求"),
+        Operation::Archive => ("archive", "已提交归档请求"),
+        Operation::Delete => return client.delete_employee(id, &body).await,
+        Operation::SaveTemplate => unreachable!(),
+    };
+    let _: serde_json::Value =
+        client.post(&["employees", id, "actions", action], &body, None).await?;
+    Ok(message)
+}
+
 #[derive(Deserialize)]
 struct Page {
     #[serde(default, deserialize_with = "nullable_list")]
@@ -109,13 +229,15 @@ pub(super) struct TaskCounts {
 
 pub(super) async fn load(credential: &str) -> Result<Directory, String> {
     let client = Client::new(credential)?;
-    let (employees, templates, counts) = tokio::join!(
+    let (employees, templates, counts, access) = tokio::join!(
         employees(&client),
         client.get::<Templates>("job-templates", &[]),
         task_counts(&client),
+        client.iam::<Access>("me/access", &[]),
     );
     Ok(Directory {
         employees: employees?,
+        access: access.unwrap_or_default(),
         templates: templates.ok().map(|page| {
             page.templates.iter().filter(|template| template.status == "active").count()
         }),

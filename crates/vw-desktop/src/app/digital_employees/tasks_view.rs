@@ -1,18 +1,20 @@
-use std::{collections::BTreeMap, fmt};
+use std::fmt;
 
 use desktop_assets::assets::Icon;
 use desktop_settings_cron::system_settings_cron::date_time::picker_overlay;
+use desktop_ui_controls::overlays::BelowOverlay;
 use desktop_ui_controls::system_settings_common::{
-    SETTINGS_CONTROL_HEIGHT, SETTINGS_CONTROL_TEXT_SIZE, icon_svg, primary_action_btn_style,
-    rounded_action_btn_style, select::SettingsSelect, settings_checkbox_style, settings_close_button,
-    settings_divider, settings_error_banner, settings_group_card, settings_modal_header,
-    settings_modal_layout, settings_modal_overlay_with_escape, settings_right_drawer_overlay,
+    SETTINGS_CONTROL_HEIGHT, SETTINGS_CONTROL_TEXT_SIZE, SettingsSelectLabel, icon_svg,
+    primary_action_btn_style, rounded_action_btn_style, select::SettingsSelect,
+    settings_checkbox_style, settings_close_button, settings_divider, settings_error_banner,
+    settings_group_card, settings_modal_header, settings_modal_layout, settings_modal_overlay_with_escape,
+    settings_pick_list_menu_style, settings_pick_list_style, settings_right_drawer_overlay,
     settings_select, settings_text_editor, settings_text_input,
 };
 use iced::widget::scrollable::{Direction, Scrollbar};
 use iced::widget::{
-    Column, Row, Space, Stack, button, checkbox, column, container, image, progress_bar, row,
-    scrollable, text, tooltip,
+    Column, Row, Space, button, checkbox, column, container, image, pick_list, progress_bar,
+    row, scrollable, svg, text, tooltip,
 };
 use iced::{Alignment, Length, Theme};
 
@@ -21,66 +23,65 @@ use super::task_api::{self, Directory, Record, Work};
 use super::task_schedule::future_once;
 use super::task_schedule_view::repeat_view;
 use super::tasks::{
-    Center, CenterEvent as E, DetailTab, Draft, DraftField, Drawer, Phase, ScheduleAction, Sort,
-    Trigger, message,
+    Center, CenterEvent as E, DEPARTMENT_SEARCH_ID, DetailTab, Draft, DraftField, Drawer, Phase,
+    ScheduleAction, Sort, Trigger, message,
 };
 use super::view::{
-    Item, Palette, Tone, action, card, chip, divider, format_time, icon, label, panel_style,
-    strong, task_ref, tint_style,
+    Item, Palette, Tone, action, card, divider, format_time, icon, label, page_notice, panel_style,
+    segment, segmented, status_label, strong, table_header_style, task_ref, tint_style,
 };
 use crate::app::Message;
 
 const FAILED: &[&str] = &["FAILED", "REJECTED"];
 
 pub(super) fn view(center: &Center, width: f32) -> Item<'_> {
-    let title = column![
-        strong("任务中心", 25, Tone::Ink),
-        label("看任务跑到哪了，哪些在等你处理", 14, Tone::Muted),
-    ]
-    .spacing(8)
-    .width(Length::Fill);
+    let title = strong("任务中心", 24, Tone::Ink).width(Length::Fill);
     let actions = row![
         action("新建定时任务", None, Some(message(E::New(Trigger::Once, String::new()))), false),
-        action("+ 新建任务", None, Some(message(E::New(Trigger::Now, String::new()))), true),
+        action(
+            "新建任务",
+            Some(Icon::Plus),
+            Some(message(E::New(Trigger::Now, String::new()))),
+            true
+        ),
     ]
     .spacing(8);
     let heading: Item<'_> = if width >= 650.0 {
         row![title, actions].align_y(Alignment::Center).into()
     } else {
-        column![title, actions].spacing(12).into()
+        column![title, actions.wrap()].spacing(12).into()
     };
     let mode = segmented(
         row![
-            segment("任务列表", !center.schedules, E::ViewSchedules(false)),
-            segment("定时任务", center.schedules, E::ViewSchedules(true)),
+            segment("任务列表", !center.schedules, message(E::ViewSchedules(false))),
+            segment("定时任务", center.schedules, message(E::ViewSchedules(true))),
         ]
-        .spacing(4)
+        .spacing(2)
         .into(),
     );
-    let mut body = column![heading, mode].spacing(16).width(Length::Fill);
+    let mut body = column![heading, mode].spacing(20).width(Length::Fill);
     if let Some(notice) = center.notice.as_deref() {
         body = body.push(label(notice, 13, Tone::Green));
     }
     if let Some(error) = center.command_error.as_deref() {
-        body = body.push(label(error, 13, Tone::Red));
+        body = body.push(settings_error_banner(error));
     }
     if !center.schedules {
-        body = body.push(stats(center, width)).push(filters(center));
+        body = body.push(filters(center, width));
         if let Some(error) = center.directory_error.as_deref() {
             body = body.push(label(format!("员工或流程目录读取失败 · {error}"), 13, Tone::Red));
         }
     }
     if center.loading {
-        body = body.push(card(container(label("正在读取任务…", 14, Tone::Muted)).padding(16)));
+        body = body.push(page_notice(label("正在读取任务…", 14, Tone::Muted)));
     } else if let Some(error) = center.error.as_deref() {
-        body = body.push(card(
+        body = body.push(
             column![
-                label(error, 14, Tone::Red),
+                settings_error_banner(error),
                 action("重新加载", None, Some(message(E::Load)), false),
             ]
-            .spacing(8)
-            .padding(16),
-        ));
+            .spacing(8),
+        );
     } else if center.schedules {
         if let Some(plans) = &center.plans {
             body = body.push(schedules(center, plans));
@@ -89,43 +90,14 @@ pub(super) fn view(center: &Center, width: f32) -> Item<'_> {
         if let Err(error) = &data.counts {
             body = body.push(label(format!("状态计数暂不可用 · {error}"), 12, Tone::Muted));
         }
-        body = body.push(Space::new().height(12)).push(table(center, data, width));
+        body = body.push(table(center, data, width));
     }
     body.into()
 }
 
-fn stats(center: &Center, width: f32) -> Item<'_> {
+fn filters(center: &Center, width: f32) -> Item<'_> {
     let counts = center.list.as_ref().and_then(|data| data.counts.as_ref().ok());
-    let cards = [
-        ("执行中", Icon::ArrowRight, Tone::Blue, Phase::Running.statuses()),
-        ("等人处理", Icon::Clock, Tone::Green, Phase::Waiting.statuses()),
-        ("已完成", Icon::Check, Tone::Green, &["SUCCEEDED"][..]),
-        ("失败或被驳回", Icon::X, Tone::Red, FAILED),
-    ];
-    let mut cells = cards.into_iter().map(|(name, glyph, tone, statuses)| {
-        let count = counts.map_or_else(|| "—".into(), |counts| counts.sum(statuses).to_string());
-        card(
-            row![
-                container(icon(glyph, 18, tone))
-                    .padding(10)
-                    .style(move |theme| tint_style(theme, tone, 8.0)),
-                column![label(name, 13, Tone::Muted), strong(count, 24, Tone::Ink)].spacing(7),
-            ]
-            .spacing(12)
-            .padding(14),
-        )
-    });
-    let top = row![cells.next(), cells.next()].spacing(12);
-    if width >= 760.0 {
-        top.push(cells.next()).push(cells.next()).into()
-    } else {
-        column![top, row![cells.next(), cells.next()].spacing(12)].spacing(12).into()
-    }
-}
-
-fn filters(center: &Center) -> Item<'_> {
-    let counts = center.list.as_ref().and_then(|data| data.counts.as_ref().ok());
-    let mut phases = Row::new().spacing(4);
+    let mut phases = Row::new().spacing(2);
     for phase in Phase::ALL {
         let count = counts.map_or_else(
             || "—".into(),
@@ -137,29 +109,26 @@ fn filters(center: &Center) -> Item<'_> {
         phases = phases.push(segment(
             format!("{} {count}", phase.label()),
             center.filters.phase == phase,
-            E::Phase(phase),
+            message(E::Phase(phase)),
         ));
     }
-    let mut departments = vec![Choice::all("全部可查看部门")];
-    departments.extend(department_options(center.directory.as_deref()));
-    let scope = field(
-        "筛选部门",
-        select(departments, &center.filters.department, "全部可查看部门", E::Department)
-            .width(176)
-            .into(),
+    let count = |statuses: &[&str]| {
+        counts.map_or_else(|| "—".into(), |counts| counts.sum(statuses).to_string())
+    };
+    let phases = segmented(phases.wrap().into());
+    let completed = label(
+        format!("成功 {} · 失败或驳回 {}", count(&["SUCCEEDED"]), count(FAILED)),
+        12,
+        Tone::Muted,
     );
-    let keyword = field(
-        "关键字",
-        settings_text_input("搜索任务编号、名称或流程", &center.keyword)
-            .on_input(|value| message(E::Keyword(value)))
-            .on_submit(message(E::Query))
-            .width(240.0)
-            .into(),
-    );
+    let overview = row![phases, completed].spacing(10).align_y(Alignment::Center).wrap();
+    let keyword = settings_text_input("搜索任务编号、名称或流程", &center.keyword)
+        .on_input(|value| message(E::Keyword(value)))
+        .on_submit(message(E::Query))
+        .width(if width >= 630.0 { Length::Fixed(260.0) } else { Length::Fill });
     let controls = row![
-        segmented(phases.wrap().into()),
-        scope,
         keyword,
+        department_filter(center),
         action("查询", Some(Icon::Search), Some(message(E::Query)), true),
         action(
             if center.expanded { "收起筛选" } else { "更多筛选" },
@@ -233,40 +202,7 @@ fn filters(center: &Center) -> Item<'_> {
             .wrap(),
         );
     }
-    card(body)
-}
-
-fn segment<'a>(
-    title: impl iced::widget::text::IntoFragment<'a>,
-    selected: bool,
-    event: E,
-) -> Item<'a> {
-    button(strong(title, 13, if selected { Tone::Accent } else { Tone::Muted }))
-        .padding([8, 11])
-        .on_press(message(event))
-        .style(move |theme, status| {
-            let palette = Palette::new(theme);
-            button::Style {
-                background: if selected {
-                    Some(palette.accent.scale_alpha(0.12).into())
-                } else if status != button::Status::Active {
-                    Some(palette.border.scale_alpha(0.5).into())
-                } else {
-                    None
-                },
-                border: iced::border::rounded(7),
-                text_color: palette.ink,
-                ..Default::default()
-            }
-        })
-        .into()
-}
-
-fn segmented(content: Item<'_>) -> Item<'_> {
-    container(content)
-        .padding(4)
-        .style(|theme| panel_style(theme).background(Palette::new(theme).header))
-        .into()
+    body.into()
 }
 
 pub(super) fn field<'a>(name: &'static str, component: Item<'a>) -> Item<'a> {
@@ -306,22 +242,117 @@ fn select<'a>(
         .placeholder(placeholder)
 }
 
-fn department_options(directory: Option<&Directory>) -> Vec<Choice> {
-    let Some(directory) = directory else { return Vec::new() };
-    let mut paths: BTreeMap<_, _> = directory
-        .departments
-        .iter()
-        .filter(|(path, _)| !path.is_empty() && path != "/")
-        .map(|(path, name)| (path.as_str(), name.as_str()))
-        .collect();
-    for path in
-        directory.employees.iter().filter_map(|employee| employee.department_path.as_deref())
-    {
-        if !path.is_empty() && path != "/" {
-            paths.entry(path).or_insert(path);
+fn department_filter(center: &Center) -> Item<'_> {
+    const ALL: &str = "全部可查看部门";
+    let Some(departments) = center.departments.as_deref() else {
+        return if center.department_error {
+            action("部门目录读取失败，重试", None, Some(message(E::LoadDepartments)), false)
+        } else {
+            action("正在读取部门…", None, None, false)
+        };
+    };
+    let current = center.filters.department.as_str();
+    let selected = if current.is_empty() {
+        ALL
+    } else {
+        departments
+            .iter()
+            .find(|(path, _)| path == current)
+            .map_or("当前部门不在目录中", |(_, name)| name.as_str())
+    };
+    let open = center.department_menu;
+    let trigger = button(
+        row![
+            Item::from(SettingsSelectLabel::new(selected.to_owned())),
+            icon_svg(Icon::ChevronDown, 12.0).style(|theme: &Theme, _| svg::Style {
+                color: Some(theme.palette().text.scale_alpha(0.7)),
+            }),
+        ]
+        .spacing(12)
+        .align_y(Alignment::Center)
+        .height(Length::Fill),
+    )
+    .width(176)
+    .height(SETTINGS_CONTROL_HEIGHT)
+    .padding([9, 12])
+    .style(move |theme, status| {
+        let hovered = matches!(status, button::Status::Hovered | button::Status::Pressed);
+        let state = if open {
+            pick_list::Status::Opened { is_hovered: hovered }
+        } else if hovered {
+            pick_list::Status::Hovered
+        } else {
+            pick_list::Status::Active
+        };
+        let style = settings_pick_list_style(theme, state);
+        button::Style {
+            background: Some(style.background),
+            text_color: style.text_color,
+            border: iced::Border { radius: 10.0.into(), ..style.border },
+            ..Default::default()
         }
+    })
+    .on_press(message(E::DepartmentMenu(!open)));
+    if !open {
+        return trigger.into();
     }
-    paths.into_iter().map(|(path, name)| Choice::new(path, name)).collect()
+
+    let query = center.department_search.trim().to_lowercase();
+    let mut matches = std::iter::once(("", ALL))
+        .chain(departments.iter().map(|(path, name)| (path.as_str(), name.as_str())))
+        .filter(|(_, name)| name.to_lowercase().contains(&query))
+        .peekable();
+    let mut options = Column::new().spacing(2);
+    if matches.peek().is_none() {
+        options = options.push(container(label("未找到匹配的部门", 13, Tone::Muted)).padding(8));
+    }
+    for (path, name) in matches {
+        let is_selected = path == current;
+        let mark: Item<'_> = if is_selected {
+            icon(Icon::Check, 14, Tone::Ink).into()
+        } else {
+            Space::new().width(14).into()
+        };
+        let option =
+            button(row![mark, label(name, 14, Tone::Ink)].spacing(8).align_y(Alignment::Center))
+                .width(Length::Fill)
+                .padding([7, 9])
+                .style(move |theme, status| {
+                    let mut style = rounded_action_btn_style(theme, status);
+                    if is_selected && status == button::Status::Active {
+                        style.background =
+                            Some(Palette::new(theme).accent.scale_alpha(0.14).into());
+                    }
+                    style.border.width = 0.0;
+                    style
+                })
+                .on_press(message(E::Department(path.to_owned())));
+        options = options.push(option);
+    }
+    let search = settings_text_input("搜索部门名称", &center.department_search)
+        .id(DEPARTMENT_SEARCH_ID)
+        .on_input(|query| message(E::DepartmentSearch(query)));
+    let list = scrollable(options.padding([0, 7]))
+        .direction(Direction::Vertical(scrollbar()))
+        .height(Length::Shrink);
+    let menu = container(column![search, container(list).max_height(232)].spacing(5))
+        .width(240)
+        .padding(7)
+        .style(|theme| {
+            let style = settings_pick_list_menu_style(theme);
+            container::Style {
+                background: Some(theme.extended_palette().background.base.color.into()),
+                border: style.border,
+                shadow: style.shadow,
+                ..Default::default()
+            }
+        });
+    BelowOverlay::new(trigger, menu)
+        .show(true)
+        .gap(4.0)
+        .on_close(message(E::DepartmentMenu(false)))
+        .dismiss_on_escape()
+        .into()
 }
 
 fn employees(directory: Option<&Directory>, dispatch: bool) -> Vec<Choice> {
@@ -386,7 +417,7 @@ fn status(work: &Work) -> Item<'_> {
         "CREATED" | "QUEUED" => ("排队中", Tone::Muted),
         _ => (work.status.as_str(), Tone::Muted),
     };
-    chip(strong(work.status_label.as_deref().unwrap_or(fallback), 12, tone), tone)
+    status_label(work.status_label.as_deref().unwrap_or(fallback), tone)
 }
 
 const TABLE_LABELS: [&str; 8] =
@@ -395,17 +426,14 @@ const TABLE_PORTIONS: [u16; 9] = [3, 22, 11, 11, 8, 11, 10, 15, 14];
 
 fn table<'a>(center: &'a Center, data: &'a task_api::List, width: f32) -> Item<'a> {
     if data.page.tasks.is_empty() {
-        return card(container(label("没有符合条件的任务", 14, Tone::Muted)).padding(20));
+        return page_notice(label("没有符合条件的任务", 14, Tone::Muted));
     }
     let all_checked = data.page.tasks.iter().all(|work| center.selected.contains(&work.task_id));
     let head = table_row(
         std::iter::once(selection(all_checked, E::SelectPage, center.busy))
             .chain(TABLE_LABELS.map(|name| strong(name, 12, Tone::Muted).into())),
     );
-    let mut rows = column![
-        container(head)
-            .style(|theme| { container::Style::default().background(Palette::new(theme).header) })
-    ];
+    let mut rows = column![container(head).style(table_header_style)];
     for work in &data.page.tasks {
         let directory = center.directory.as_deref();
         let (owner, manager) = owner(work, directory);
@@ -474,14 +502,12 @@ fn table<'a>(center: &'a Center, data: &'a task_api::List, width: f32) -> Item<'
             controls,
         ]);
         let selected = center.drawer.as_ref().is_some_and(|drawer| drawer.id == work.task_id);
-        rows = rows.push(divider()).push(container(cells).style(move |theme| {
-            let palette = Palette::new(theme);
-            container::Style::default().background(if selected {
-                palette.accent.scale_alpha(0.12)
-            } else {
-                palette.surface
-            })
-        }));
+        let cells = if selected {
+            container(cells).style(|theme| tint_style(theme, Tone::Accent, 6.0)).into()
+        } else {
+            cells
+        };
+        rows = rows.push(divider()).push(cells);
     }
     let total =
         data.page.total.unwrap_or(center.page * task_api::PAGE_SIZE + data.page.tasks.len());
@@ -557,7 +583,7 @@ fn pagination(page: usize, total: usize) -> Item<'static> {
 
 fn schedules<'a>(center: &'a Center, plans: &'a task_api::Schedules) -> Item<'a> {
     if plans.schedules.is_empty() {
-        return card(container(label("暂无定时任务", 14, Tone::Muted)).padding(20));
+        return page_notice(label("暂无定时任务", 14, Tone::Muted));
     }
     let mut body = column![].spacing(10);
     for plan in &plans.schedules {
@@ -581,10 +607,18 @@ fn schedules<'a>(center: &'a Center, plans: &'a task_api::Schedules) -> Item<'a>
                     label(task_ref(&plan.schedule_id), 11, Tone::Muted)
                 ]
                 .spacing(4),
-                label(state, 13, if paused { Tone::Warning } else { Tone::Muted }),
+                status_label(
+                    state,
+                    if paused {
+                        Tone::Warning
+                    } else if plan.enabled {
+                        Tone::Green
+                    } else {
+                        Tone::Muted
+                    }
+                ),
                 label(nonempty(plan.cron.as_deref()), 13, Tone::Muted),
                 label(time, 13, Tone::Muted),
-                Space::new().width(Length::Fill),
                 action(
                     toggle.label(),
                     None,
@@ -671,18 +705,15 @@ fn drawer_view<'a>(center: &'a Center, drawer: &'a Drawer, width: f32) -> Item<'
         (DetailTab::Collaboration, "协作记录"),
         (DetailTab::Diagnosis, "运行诊断"),
     ];
-    let mut nav = Row::new().spacing(5);
-    for (tab, name) in tabs {
-        let control = segment(name, drawer.tab == tab, E::DetailTab(tab));
-        if drawer_width >= 490.0 {
-            nav = nav.push(container(control).center_x(Length::Fill));
-        } else {
-            nav = nav.push(control);
-        }
-    }
-    let tabs =
-        if drawer_width >= 490.0 { nav.width(Length::Fill).into() } else { nav.wrap().into() };
-    let mut content = column![segmented(tabs)].spacing(12);
+    let tabs = segmented(
+        Row::with_children(
+            tabs.map(|(tab, name)| segment(name, drawer.tab == tab, message(E::DetailTab(tab)))),
+        )
+        .spacing(2)
+        .wrap()
+        .into(),
+    );
+    let mut content = Column::new().spacing(14);
     if let Some(error) = drawer.error.as_deref().or(center.command_error.as_deref()) {
         content = content.push(label(error, 13, Tone::Red));
     }
@@ -713,9 +744,7 @@ fn drawer_view<'a>(center: &'a Center, drawer: &'a Drawer, width: f32) -> Item<'
             ));
         }
         let tab = match drawer.tab {
-            DetailTab::Overview => {
-                overview(center.directory.as_deref(), record, drawer.view_only, drawer_width)
-            }
+            DetailTab::Overview => overview(center, record, drawer.view_only, drawer_width),
             DetailTab::Execution => execution(record),
             DetailTab::Results => results(record),
             DetailTab::Collaboration => collaboration(record),
@@ -727,6 +756,7 @@ fn drawer_view<'a>(center: &'a Center, drawer: &'a Drawer, width: f32) -> Item<'
     }
     container(column![
         header,
+        container(tabs).padding(iced::Padding::new(0.0).left(16.0).right(16.0).bottom(12.0)),
         divider(),
         scrollable(container(content).padding(iced::Padding::new(16.0).right(23.0)))
             .id(iced::widget::Id::new(super::tasks::DETAIL_SCROLL_ID))
@@ -739,12 +769,8 @@ fn drawer_view<'a>(center: &'a Center, drawer: &'a Drawer, width: f32) -> Item<'
     .into()
 }
 
-fn overview<'a>(
-    directory: Option<&'a Directory>,
-    record: &'a Record,
-    view_only: bool,
-    width: f32,
-) -> Item<'a> {
+fn overview<'a>(center: &'a Center, record: &'a Record, view_only: bool, width: f32) -> Item<'a> {
+    let directory = center.directory.as_deref();
     let work = &record.detail.task;
     let (owner, _) = owner(work, directory);
     let phase = Phase::ALL
@@ -763,10 +789,11 @@ fn overview<'a>(
     let creator = record.creator.as_deref().or_else(|| work.input_text("created_by_name"));
     let department =
         work.department_path.as_deref().filter(|path| !path.is_empty() && *path != "/");
-    let department = directory
-        .and_then(|directory| {
-            directory
-                .departments
+    let department = center
+        .departments
+        .as_deref()
+        .and_then(|departments| {
+            departments
                 .iter()
                 .find(|(path, _)| Some(path.as_str()) == department)
                 .map(|(_, name)| name.as_str())
@@ -796,16 +823,8 @@ fn overview<'a>(
     } else {
         row![left, right].spacing(20).into()
     };
-    let mut body = column![
-        container(label(format!("任务编号 {}", work.task_id), 13, Tone::Muted))
-            .padding(12)
-            .width(Length::Fill)
-            .style(|theme| container::Style::default()
-                .background(Palette::new(theme).header)
-                .border(iced::border::rounded(8))),
-        card(container(fields).padding(16)),
-    ]
-    .spacing(12);
+    let mut body =
+        column![label(format!("任务编号 {}", work.task_id), 13, Tone::Muted), fields,].spacing(12);
     if !view_only {
         body = body.push(
             row![
@@ -820,44 +839,34 @@ fn overview<'a>(
             .spacing(8),
         );
     }
-    body.push(receipt(work)).into()
+    body.push(divider()).push(receipt(work, width)).into()
 }
 
 fn meta<'a>(name: &'static str, value: impl iced::widget::text::IntoFragment<'a>) -> Item<'a> {
     row![label(name, 13, Tone::Muted).width(84), label(value, 13, Tone::Ink)].spacing(6).into()
 }
 
-fn receipt(work: &Work) -> Item<'_> {
+fn receipt(work: &Work, width: f32) -> Item<'_> {
     let stages = [
         ("派单", "未派单", work.assigned_at.as_deref()),
         ("已读", "等待接收", work.acknowledged_at.as_deref()),
         ("执行中", "未执行", work.started_at.as_deref()),
         ("已交付", "未交付", work.submitted_at.as_deref()),
     ];
-    let mut track = Row::new().spacing(8);
-    for (name, pending, date) in stages {
-        let done = date.is_some();
-        track = track.push(
-            container(
-                column![
-                    strong(
-                        if done { "●" } else { "○" },
-                        15,
-                        if done { Tone::Green } else { Tone::Muted }
-                    ),
-                    strong(
-                        if done { name } else { pending },
-                        12,
-                        if done { Tone::Ink } else { Tone::Muted }
-                    ),
-                    label(format_time(date), 11, Tone::Muted).align_x(Alignment::Center),
-                ]
-                .align_x(Alignment::Center)
-                .spacing(4),
-            )
-            .center_x(Length::Fill),
-        );
-    }
+    let [first, second, third, fourth] = stages.map(|(name, pending, date)| {
+        let tone = if date.is_some() { Tone::Green } else { Tone::Muted };
+        column![
+            status_label(if date.is_some() { name } else { pending }, tone),
+            label(format_time(date), 11, Tone::Muted),
+        ]
+        .width(Length::Fill)
+        .spacing(4)
+    });
+    let track: Item<'_> = if width >= 620.0 {
+        row![first, second, third, fourth].spacing(12).into()
+    } else {
+        column![row![first, second].spacing(12), row![third, fourth].spacing(12)].spacing(10).into()
+    };
     let elapsed = work
         .assigned_at
         .as_deref()
@@ -871,23 +880,21 @@ fn receipt(work: &Work) -> Item<'_> {
         })
         .and_then(|ms| u64::try_from(ms).ok());
     let hint = row![
-        work.acknowledgement_latency_ms.map(|ms| chip(
-            strong(format!("已读用时 {}", duration(ms)), 12, Tone::Accent),
-            Tone::Accent
+        work.acknowledgement_latency_ms.map(|ms| label(
+            format!("已读用时 {}", duration(ms)),
+            12,
+            Tone::Muted
         )),
         elapsed.map(|ms| label(format!("总耗时 {}", duration(ms)), 12, Tone::Muted)),
     ]
     .spacing(8)
-    .align_y(Alignment::Center);
-    let line = row![
-        Space::new().width(Length::FillPortion(1)),
-        container(divider())
-            .width(Length::FillPortion(6))
-            .padding(iced::Padding::new(0.0).top(10.0)),
-        Space::new().width(Length::FillPortion(1)),
-    ];
-    let track = Stack::new().push(track).push_under(line);
-    column![card(container(track).padding(12)), hint].spacing(8).into()
+    .align_y(Alignment::Center)
+    .wrap();
+    let mut body = column![strong("执行回执", 15, Tone::Ink), track].spacing(10);
+    if work.acknowledgement_latency_ms.is_some() || elapsed.is_some() {
+        body = body.push(hint);
+    }
+    body.into()
 }
 
 fn duration(ms: u64) -> String {
@@ -901,9 +908,9 @@ fn duration(ms: u64) -> String {
 }
 
 fn execution(record: &Record) -> Item<'_> {
-    let mut steps = Column::new().spacing(8);
+    let mut steps = Column::new().spacing(14);
     for (index, step) in record.detail.steps.iter().enumerate() {
-        steps = steps.push(card(
+        steps = steps.push(
             column![
                 row![
                     strong(
@@ -918,14 +925,15 @@ fn execution(record: &Record) -> Item<'_> {
                 label(nonempty(step.actor_name.as_deref()), 12, Tone::Muted),
                 step.summary.as_deref().map(|summary| label(summary, 13, Tone::Ink)),
             ]
-            .spacing(6)
-            .padding(12),
-        ));
+            .spacing(5),
+        );
     }
     if record.detail.steps.is_empty() {
         steps = steps.push(label("暂无执行步骤", 13, Tone::Muted));
     }
-    column![steps, strong("事件记录", 15, Tone::Ink), log_rows(record)].spacing(12).into()
+    column![steps, divider(), strong("事件记录", 15, Tone::Ink), log_rows(record)]
+        .spacing(14)
+        .into()
 }
 
 fn step_status(status: &str) -> &str {
@@ -957,23 +965,22 @@ fn log_rows(record: &Record) -> Item<'_> {
 }
 
 fn results(record: &Record) -> Item<'_> {
-    let mut body = column![strong("成果与文件", 15, Tone::Ink)].spacing(8);
+    let mut body = column![strong("成果与文件", 15, Tone::Ink)].spacing(12);
     let artifacts = record
         .detail
         .deliverables
         .as_ref()
         .map_or(record.detail.artifacts.as_slice(), |items| items.items.as_slice());
     for artifact in artifacts {
-        body = body.push(card(
+        body = body.push(
             row![
-                strong(artifact.name.as_str(), 13, Tone::Ink).width(Length::Fill),
+                strong(artifact.name.as_str(), 13, Tone::Ink),
                 label(nonempty(artifact.content_type.as_deref()), 12, Tone::Muted),
-                artifact.byte_size.map(|size| label(format!("{size} 字节"), 12, Tone::Muted)),
+                artifact.byte_size().map(|size| label(format!("{size} 字节"), 12, Tone::Muted)),
             ]
             .spacing(10)
-            .padding(12)
             .wrap(),
-        ));
+        );
     }
     match &record.handoff {
         Ok(handoff) => {
@@ -1016,7 +1023,7 @@ fn collaboration(record: &Record) -> Item<'_> {
         Ok(data) => data,
         Err(error) => return label(error.as_str(), 13, Tone::Red).into(),
     };
-    let mut body = column![].spacing(8);
+    let mut body = column![].spacing(14);
     if !data.record_complete {
         body = body.push(label("协作记录可能未完全同步", 13, Tone::Warning));
     }
@@ -1031,35 +1038,34 @@ fn collaboration(record: &Record) -> Item<'_> {
             "HUMAN_MESSAGE" => "人工留言",
             other => other,
         };
-        body = body.push(card(
+        body = body.push(
             column![
                 row![
                     strong(kind, 13, Tone::Ink),
-                    label(entry.actor.label.as_str(), 13, Tone::Ink).width(Length::Fill),
+                    label(entry.actor.label.as_str(), 13, Tone::Ink),
                     label(format_time(entry.occurred_at.as_deref()), 12, Tone::Muted)
                 ]
                 .spacing(8)
                 .wrap(),
                 entry.summary.as_deref().map(|summary| label(summary, 13, Tone::Muted)),
             ]
-            .spacing(6)
-            .padding(12),
-        ));
+            .spacing(5),
+        );
     }
     body.into()
 }
 
 fn diagnosis(record: &Record) -> Item<'_> {
-    let mut body = column![].spacing(8);
+    let mut body = column![].spacing(14);
     if let Some(runtime) = &record.detail.runtime {
-        body = body.push(card(
+        body = body.push(
             column![
+                strong("运行环境", 15, Tone::Ink),
                 meta("运行后端", nonempty(runtime.backend.as_deref())),
                 meta("运行状态", nonempty(runtime.ensure_status.as_deref())),
             ]
-            .spacing(8)
-            .padding(12),
-        ));
+            .spacing(8),
+        );
     }
     match &record.trace {
         Ok(page) if page.entries.is_empty() => {
@@ -1067,15 +1073,14 @@ fn diagnosis(record: &Record) -> Item<'_> {
         }
         Ok(page) => {
             for trace in &page.entries {
-                body = body.push(card(
+                body = body.push(
                     column![
                         row![
                             strong(
                                 nonempty(trace.title.as_deref().or(trace.kind.as_deref())),
                                 13,
                                 Tone::Ink
-                            )
-                            .width(Length::Fill),
+                            ),
                             label(format_time(trace.started_at.as_deref()), 12, Tone::Muted),
                             trace.duration_ms.map(|ms| label(duration(ms), 12, Tone::Muted)),
                         ]
@@ -1083,9 +1088,8 @@ fn diagnosis(record: &Record) -> Item<'_> {
                         .wrap(),
                         trace.summary.as_deref().map(|summary| label(summary, 13, Tone::Muted)),
                     ]
-                    .spacing(6)
-                    .padding(12),
-                ));
+                    .spacing(5),
+                );
             }
         }
         Err(error) => body = body.push(label(error.as_str(), 13, Tone::Red)),
@@ -1128,7 +1132,14 @@ fn draft_view<'a>(center: &'a Center, draft: &'a Draft, width: f32) -> Item<'a> 
         DraftField::Workflow,
     );
     let mut departments = vec![Choice::all("使用默认范围")];
-    departments.extend(department_options(directory));
+    departments.extend(
+        center
+            .departments
+            .as_deref()
+            .into_iter()
+            .flatten()
+            .map(|(path, name)| Choice::new(path, name.as_str())),
+    );
     if !draft.department.is_empty()
         && !departments.iter().any(|choice| choice.id == draft.department)
     {

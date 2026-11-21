@@ -1,6 +1,6 @@
 use desktop_assets::assets::{Icon, get_icon};
 use desktop_ui_controls::system_settings_common::{
-    primary_action_btn_style, rounded_action_btn_style,
+    primary_action_btn_style, rounded_action_btn_style, settings_error_banner,
 };
 use iced::widget::scrollable::{Direction, Scrollbar};
 use iced::widget::{
@@ -68,50 +68,54 @@ impl Palette {
 }
 
 pub(crate) fn view(app: &App) -> Item<'_> {
+    let state = &app.digital_employees;
     responsive(move |size| {
         let base = crate::app::views::project::with_session_sidebar(app, page_content(app));
-        let state = &app.digital_employees;
-        if state.page == Page::Tasks && app.account.active_account().is_some() {
-            super::tasks_view::overlays(base, &state.tasks, size.width)
-        } else {
-            base
+        let account = app.account.active_account();
+        match (state.page, account) {
+            (Page::Tasks, Some(_)) => super::tasks_view::overlays(base, &state.tasks, size.width),
+            (Page::Shared, Some(_)) => super::shared_view::overlay(base, &state.shared, size.width),
+            (Page::Assistants, Some(account)) => super::assistants_view::overlay(
+                base,
+                &state.assistants,
+                account.profile().map(|profile| profile.name()),
+                size.height,
+            ),
+            _ => base,
         }
     })
     .into()
 }
 
 fn page_content(app: &App) -> Item<'_> {
-    let actor = app
-        .account
-        .active_account()
-        .map(|account| account.profile().map_or("你好", |profile| profile.name()));
+    let account = app.account.active_account();
+    let profile_name = account.and_then(|account| account.profile()).map(|profile| profile.name());
+    let actor = account.map(|_| profile_name.unwrap_or("你好"));
     let state = &app.digital_employees;
     responsive(move |size| {
         let pad = if size.width >= 880.0 { 24.0 } else { 16.0 };
-        let mut page = column![
+        let width = size.width - 2.0 * pad - 7.0;
+        let mut page = column![segmented(
             row![
                 page_tab("工作台", Page::Workbench, state.page),
                 page_tab("任务看板", Page::Board, state.page),
                 page_tab("任务中心", Page::Tasks, state.page),
                 page_tab("私有员工", Page::Assistants, state.page),
-                page_tab("工作流程", Page::Workflows, state.page),
                 page_tab("共享员工", Page::Shared, state.page),
+                page_tab("工作流程", Page::Workflows, state.page),
             ]
-            .spacing(8)
+            .spacing(2)
             .wrap()
-        ]
-        .spacing(16);
+            .into()
+        )]
+        .spacing(20);
         if state.page == Page::Workbench {
             page = page.push(heading(state, actor, size.width < 520.0));
         }
         if state.page == Page::Shared {
-            page = page.push(super::shared_view::view(
-                &state.shared,
-                actor.is_some(),
-                size.width - 2.0 * pad - 7.0,
-            ));
+            page = page.push(super::shared_view::view(&state.shared, actor.is_some(), width));
         } else if actor.is_none() {
-            page = page.push(card(
+            page = page.push(page_notice(
                 column![
                     label("登录识矩后查看数字员工", 14, Tone::Ink),
                     action(
@@ -124,43 +128,36 @@ fn page_content(app: &App) -> Item<'_> {
                     ),
                 ]
                 .spacing(12)
-                .padding(16),
+                .align_x(Alignment::Center),
             ));
         } else if state.page == Page::Tasks {
-            page = page.push(super::tasks_view::view(&state.tasks, size.width - 2.0 * pad - 7.0));
+            page = page.push(super::tasks_view::view(&state.tasks, width));
         } else if state.page == Page::Assistants {
-            let profile = app.account.active_account().and_then(|account| account.profile());
-            page = page.push(super::assistants_view::view(
-                &state.assistants,
-                size.width - 2.0 * pad - 7.0,
-                profile.map(|profile| profile.name()),
-            ));
+            page = page.push(super::assistants_view::view(&state.assistants, width, profile_name));
         } else if state.page == Page::Workflows {
-            page = page
-                .push(super::workflows_view::view(&state.workflows, size.width - 2.0 * pad - 7.0));
+            page = page.push(super::workflows_view::view(&state.workflows, width));
         } else if state.page == Page::Board {
             page = page.push(super::board_view::view(
                 &state.board,
-                size.width,
+                width,
                 app.main_window_id.is_some(),
             ));
         } else if let Some(error) = &state.error {
-            page = page.push(card(container(label(error.as_str(), 14, Tone::Red)).padding(16)));
+            page = page.push(settings_error_banner(error.as_str()));
         } else if let Some(summary) = &state.summary {
             if summary.partial {
                 page = page.push(label("部分工作台数据暂不可用", 13, Tone::Red));
             }
             page = page
-                .push(kpis(summary, size.width))
-                .push(panel_pair(decisions(summary), roster(summary), size.width))
+                .push(kpis(summary, width))
+                .push(panel_pair(decisions(summary), roster(summary), width))
                 .push(panel_pair(
                     trends(summary.trend.as_ref(), state.trend_values),
-                    activity(summary, size.width >= 1260.0),
-                    size.width,
+                    activity(summary, width >= 1260.0),
+                    width,
                 ));
         } else if state.loading {
-            page =
-                page.push(card(container(label("正在加载工作台…", 14, Tone::Muted)).padding(16)));
+            page = page.push(page_notice(label("正在加载工作台…", 14, Tone::Muted)));
         }
         container(
             scrollable(
@@ -181,7 +178,7 @@ fn page_content(app: &App) -> Item<'_> {
 }
 
 fn page_tab(title: &'static str, page: Page, active: Page) -> Item<'static> {
-    action(title, None, Some(event(Event::SelectPage(page))), page == active)
+    segment(title, page == active, event(Event::SelectPage(page)))
 }
 
 fn heading<'a>(state: &'a State, actor: Option<&str>, narrow: bool) -> Item<'a> {
@@ -289,22 +286,21 @@ fn stat<'a>(
     let mut values =
         Row::new().push(strong(value, 23, Tone::Ink)).spacing(6).align_y(Alignment::End);
     if let Some(hint) = hint {
-        values = values.push(strong(hint, 12, Tone::Green));
+        values = values.push(label(hint, 12, Tone::Muted));
     }
     button(
         row![badge, column![label(title, 13, Tone::Muted), values.wrap()].spacing(8)].spacing(12),
     )
     .padding(16)
     .width(Length::Fill)
-    .height(85)
     .on_press(message)
     .style(|theme, status| {
         let mut style = rounded_action_btn_style(theme, status);
         let palette = Palette::new(theme);
-        style.border = Border { color: palette.border, width: 1.0, radius: 8.0.into() };
-        style.background = Some(
-            if status == button::Status::Active { palette.surface } else { palette.header }.into(),
-        );
+        style.border = panel_style(theme).border;
+        if status == button::Status::Active {
+            style.background = Some(palette.surface.into());
+        }
         style
     })
     .into()
@@ -348,20 +344,10 @@ fn panel<'a>(
     }
     let mut header = header.push(strong(title, 15, Tone::Ink));
     if let Some(count) = count {
-        header = header.push(chip(strong(count.to_string(), 12, Tone::Accent), Tone::Accent));
+        header = header.push(label(count.to_string(), 12, Tone::Muted));
     }
     let header = header.push(Space::new().width(Length::Fill)).push(trailing);
-    column![
-        container(header).width(Length::Fill).center_y(52).padding([0, 16]).style(|theme| {
-            container::Style::default()
-                .background(Palette::new(theme).header)
-                .border(border::rounded(border::top(8)))
-        }),
-        divider(),
-        container(content).width(Length::Fill).padding(16),
-    ]
-    .width(Length::Fill)
-    .into()
+    column![header, content,].padding(16).spacing(14).width(Length::Fill).into()
 }
 
 fn decisions(summary: &Summary) -> Item<'_> {
@@ -388,37 +374,43 @@ fn decisions(summary: &Summary) -> Item<'_> {
             "WAITING_INPUT" | "supplemental_input" => "补充材料",
             _ => "查看任务",
         };
-        body = body.push(card(
-            column![
-                row![
-                    chip(strong(caption, 12, Tone::Accent), Tone::Accent),
-                    Space::new().width(Length::Fill),
-                    label(
-                        format!("已等 {} 分钟", item.waiting_duration_ms / 60_000),
-                        12,
-                        Tone::Muted
-                    ),
+        body = body.push(
+            container(
+                column![
+                    row![
+                        status_label(
+                            caption,
+                            if item.sla_breached { Tone::Red } else { Tone::Accent }
+                        ),
+                        Space::new().width(Length::Fill),
+                        label(
+                            format!("已等 {} 分钟", item.waiting_duration_ms / 60_000),
+                            12,
+                            Tone::Muted
+                        ),
+                    ]
+                    .align_y(Alignment::Center),
+                    strong(item.task_name.as_str(), 14, Tone::Ink),
+                    label(task_ref(&item.task_id), 12, Tone::Muted),
+                    label(item.decision_summary.as_str(), 13, Tone::Ink),
+                    label(item.impact_hint.as_str(), 12, Tone::Muted),
+                    row![
+                        label(format!("卡在 {}", item.blocked_step), 12, Tone::Muted)
+                            .width(Length::Fill),
+                        action(
+                            action_label,
+                            None,
+                            Some(web("/tasks", Some(("task", &item.task_id)))),
+                            true
+                        ),
+                    ]
+                    .align_y(Alignment::Center),
                 ]
-                .align_y(Alignment::Center),
-                strong(item.task_name.as_str(), 14, Tone::Ink),
-                label(task_ref(&item.task_id), 12, Tone::Muted),
-                label(item.decision_summary.as_str(), 13, Tone::Ink),
-                label(item.impact_hint.as_str(), 12, Tone::Muted),
-                row![
-                    label(format!("卡在 {}", item.blocked_step), 12, Tone::Muted)
-                        .width(Length::Fill),
-                    action(
-                        action_label,
-                        None,
-                        Some(web("/tasks", Some(("task", &item.task_id)))),
-                        true
-                    ),
-                ]
-                .align_y(Alignment::Center),
-            ]
-            .spacing(7)
-            .padding(12),
-        ));
+                .spacing(7)
+                .padding(12),
+            )
+            .style(|theme| tint_style(theme, Tone::Muted, 8.0)),
+        );
     }
     let kinds = [
         ("approval", "待审批", Tone::Accent),
@@ -436,18 +428,17 @@ fn decisions(summary: &Summary) -> Item<'_> {
         let mut group = column![
             container(
                 row![
-                    chip(strong(title, 12, tone), tone),
+                    status_label(title, tone),
                     Space::new().width(Length::Fill),
                     label(format!("{} 条", todos.len()), 12, Tone::Muted),
                 ]
                 .align_y(Alignment::Center)
             )
-            .padding([9, 12])
-            .style(|theme| container::Style::default().background(Palette::new(theme).header)),
+            .padding([5, 9]),
         ];
         for todo in todos.iter().take(3) {
             let reference = todo.task_id.as_deref().map(task_ref).unwrap_or_default();
-            group = group.push(divider()).push(row_button(
+            group = group.push(row_button(
                 row![
                     label(todo.title.as_str(), 13, Tone::Ink).width(Length::Fill),
                     label(reference, 11, Tone::Muted),
@@ -464,12 +455,12 @@ fn decisions(summary: &Summary) -> Item<'_> {
             } else {
                 ("/tasks", "任务中心")
             };
-            group = group.push(divider()).push(link(
+            group = group.push(link(
                 format!("还有 {} 条，去{place}处理", todos.len() - 3),
                 web(destination, None),
             ));
         }
-        body = body.push(card(group));
+        body = body.push(group);
     }
     panel("等你拍板", Some(Icon::CheckSquare), (total > 0).then_some(total), trailing, body.into())
 }
@@ -478,11 +469,9 @@ fn roster(summary: &Summary) -> Item<'_> {
     let (trailing, content) = match &summary.roster {
         Some(roster) if !roster.rows.is_empty() => {
             let items = separated(roster.rows.iter().take(8).map(employee));
-            let content = column![
-                card(items),
-                label("执行员工由任务主管在工作流程里安排。", 12, Tone::Muted),
-            ]
-            .spacing(10);
+            let content =
+                column![items, label("执行员工由任务主管在工作流程里安排。", 12, Tone::Muted),]
+                    .spacing(10);
             (
                 label(
                     format!(
@@ -507,16 +496,7 @@ fn roster(summary: &Summary) -> Item<'_> {
 fn employee(person: &Employee) -> Item<'_> {
     let manager = person.agent_kind == "manager";
     let avatar: Item<'_> = match portraits::avatar(&person.name, manager) {
-        Some(handle) => container(image(handle).width(34).height(34))
-            .padding(1)
-            .style(|theme| {
-                container::Style::default().border(Border {
-                    color: Palette::new(theme).border,
-                    width: 1.0,
-                    radius: 18.0.into(),
-                })
-            })
-            .into(),
+        Some(handle) => image(handle).width(36).height(36).into(),
         None => container(strong("—", 16, Tone::Muted))
             .center(36)
             .style(|theme| tint_style(theme, Tone::Muted, 18.0))
@@ -572,7 +552,7 @@ fn employee(person: &Employee) -> Item<'_> {
             }
             idle.into()
         };
-    container(column![who, status].spacing(7)).padding(16).width(Length::Fill).into()
+    container(column![who, status].spacing(7)).padding([9, 0]).width(Length::Fill).into()
 }
 
 fn trends(trend: Option<&Trend>, values: [bool; 2]) -> Item<'_> {
@@ -601,7 +581,7 @@ fn series(trend: &Trend, metric: Metric, values: bool) -> Item<'_> {
     ]
     .align_y(Alignment::Center);
     let detail: Item<'_> = if values {
-        card(separated(trend.days.iter().enumerate().map(|(index, day)| {
+        separated(trend.days.iter().enumerate().map(|(index, day)| {
             container(row![
                 label(day.as_str(), 12, Tone::Muted).width(Length::Fill),
                 label(metric.format(metric.value(trend, index)), 12, Tone::Ink),
@@ -609,7 +589,8 @@ fn series(trend: &Trend, metric: Metric, values: bool) -> Item<'_> {
             .width(Length::Fill)
             .padding([5, 10])
             .into()
-        })))
+        }))
+        .into()
     } else {
         canvas(Chart { trend, metric }).width(Length::Fill).height(192).into()
     };
@@ -632,16 +613,12 @@ fn activity(summary: &Summary, wide: bool) -> Item<'_> {
             label("更新", 12, Tone::Muted).into(),
             wide,
         );
-        let header: Item<'_> = container(header)
-            .padding([12, 9])
-            .width(Length::Fill)
-            .style(|theme| container::Style::default().background(Palette::new(theme).header))
-            .into();
+        let header: Item<'_> = container(header).padding([12, 9]).width(Length::Fill).into();
         content =
             content
-                .push(card(separated(std::iter::once(header).chain(
+                .push(separated(std::iter::once(header).chain(
                     summary.recent_activity.iter().take(8).map(|r| activity_item(r, wide)),
-                ))));
+                )));
     }
     if summary
         .scope
@@ -692,7 +669,7 @@ fn activity_item(item: &Activity, wide: bool) -> Item<'_> {
         activity_cells(
             title.into(),
             label(item.current_step.as_deref().unwrap_or("—"), 12, Tone::Muted).into(),
-            chip(strong(status, 11, tone), tone),
+            status_label(status, tone),
             label(format_time(item.at.as_deref()), 12, Tone::Muted).into(),
             wide,
         ),
@@ -848,6 +825,53 @@ pub(super) fn link<'a>(
         .into()
 }
 
+pub(super) fn page_notice<'a>(content: impl Into<Item<'a>>) -> Item<'a> {
+    container(content).center_x(Length::Fill).padding([40, 16]).into()
+}
+
+pub(super) fn status_label<'a>(title: &'a str, tone: Tone) -> Item<'a> {
+    let dot = container(Space::new()).width(6).height(6).style(move |theme| {
+        container::Style::default().background(tone.color(theme)).border(border::rounded(3))
+    });
+    let text_tone = if matches!(tone, Tone::Red) { Tone::Red } else { Tone::Muted };
+    row![dot, label(title, 12, text_tone)].spacing(6).align_y(Alignment::Center).into()
+}
+
+pub(super) fn segment<'a>(
+    title: impl iced::widget::text::IntoFragment<'a>,
+    selected: bool,
+    message: Message,
+) -> Item<'a> {
+    button(text(title).size(13))
+        .padding([7, 10])
+        .on_press(message)
+        .style(move |theme, status| {
+            let colors = Palette::new(theme);
+            let mut style = rounded_action_btn_style(theme, status);
+            style.background = match status {
+                button::Status::Pressed => Some(colors.border.into()),
+                _ if selected => Some(colors.surface.into()),
+                button::Status::Hovered => Some(colors.surface.scale_alpha(0.65).into()),
+                _ => None,
+            };
+            style.text_color = if selected { colors.ink } else { colors.muted };
+            style.border = border::rounded(6);
+            style
+        })
+        .into()
+}
+
+pub(super) fn segmented(content: Item<'_>) -> Item<'_> {
+    container(content)
+        .padding(3)
+        .style(|theme| {
+            container::Style::default()
+                .background(Palette::new(theme).border.scale_alpha(0.38))
+                .border(border::rounded(8))
+        })
+        .into()
+}
+
 pub(super) fn card<'a>(content: impl Into<Item<'a>>) -> Item<'a> {
     container(content).width(Length::Fill).style(|theme| panel_style(theme)).into()
 }
@@ -855,16 +879,22 @@ pub(super) fn card<'a>(content: impl Into<Item<'a>>) -> Item<'a> {
 pub(super) fn panel_style(theme: &Theme) -> container::Style {
     let colors = Palette::new(theme);
     container::Style::default().background(colors.surface).border(Border {
-        color: colors.border,
+        color: colors.border.scale_alpha(0.72),
         width: 1.0,
-        radius: 8.0.into(),
+        radius: 12.0.into(),
     })
+}
+
+pub(super) fn table_header_style(theme: &Theme) -> container::Style {
+    container::Style::default()
+        .background(Palette::new(theme).header)
+        .border(border::rounded(border::top(12)))
 }
 
 pub(super) fn divider<'a>() -> Item<'a> {
     rule::horizontal(1)
         .style(|theme| rule::Style {
-            color: Palette::new(theme).border,
+            color: Palette::new(theme).border.scale_alpha(0.62),
             radius: 0.into(),
             fill_mode: rule::FillMode::Full,
             snap: true,
@@ -881,10 +911,6 @@ fn separated<'a>(items: impl IntoIterator<Item = Item<'a>>) -> Column<'a, Messag
         column = column.push(item);
     }
     column
-}
-
-pub(super) fn chip<'a>(content: impl Into<Item<'a>>, tone: Tone) -> Item<'a> {
-    container(content).padding([4, 8]).style(move |theme| tint_style(theme, tone, 20.0)).into()
 }
 
 pub(super) fn tint_style(theme: &Theme, tone: Tone, radius: f32) -> container::Style {

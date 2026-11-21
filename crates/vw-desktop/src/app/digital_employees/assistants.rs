@@ -1,4 +1,4 @@
-//! Read-only private employee list scoped by Agent Cloud.
+//! Private employee list and ownership transfer scoped by Agent Cloud.
 
 use std::{
     collections::{HashMap, HashSet},
@@ -12,7 +12,7 @@ use serde::Deserialize;
 
 use crate::app::{App, Message};
 
-use super::{Event, api::Client, board};
+use super::{Event, Page, api::Client, board};
 
 pub(super) const PAGE_SIZE: usize = 9;
 
@@ -25,6 +25,7 @@ pub(super) struct List {
     pub search: String,
     pub filter: RunFilter,
     pub page: usize,
+    pub transfer: Option<Transfer>,
     generation: u64,
 }
 
@@ -36,6 +37,40 @@ pub(crate) enum ListEvent {
     Search(String),
     Run(RunFilter),
     Page(usize),
+    OpenTransfer(String),
+    CloseTransfer,
+    TransferMembers(u64, Result<Vec<Recipient>, String>),
+    TransferSearch(String),
+    TransferSelect(Recipient),
+    SubmitTransfer,
+    TransferFinished(u64, Result<(), String>),
+}
+
+pub(super) struct Transfer {
+    employee_id: String,
+    pub recipients: Option<Vec<Recipient>>,
+    pub selected: Option<Recipient>,
+    pub search: String,
+    pub submitting: bool,
+    pub error: Option<String>,
+}
+
+#[derive(Clone, PartialEq, Eq)]
+pub(crate) struct Recipient {
+    id: String,
+    label: String,
+}
+
+impl fmt::Display for Recipient {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter.write_str(&self.label)
+    }
+}
+
+impl Recipient {
+    pub(super) fn matches(&self, query: &str) -> bool {
+        self.label.to_lowercase().contains(query)
+    }
 }
 
 #[derive(Clone, Copy, Default, PartialEq, Eq)]
@@ -59,7 +94,7 @@ impl RunFilter {
 impl fmt::Display for RunFilter {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::All => f.write_str("全部"),
+            Self::All => f.write_str("全部状态"),
             Self::OnDuty(count) => write!(f, "在岗 {count}"),
             Self::Abnormal(count) => write!(f, "异常 {count}"),
         }
@@ -79,6 +114,10 @@ struct Response {
 
 #[derive(Deserialize)]
 pub(super) struct Assistant {
+    employee_id: Option<String>,
+    version: Option<u64>,
+    #[serde(default, deserialize_with = "super::api::nullable_list")]
+    allowed_actions: Vec<String>,
     pub name: String,
     pub department_path: String,
     pub owner_user_id: String,
@@ -133,6 +172,7 @@ where
 pub(super) struct Member {
     user_id: String,
     pub name: String,
+    account_name: Option<String>,
     #[serde(default, deserialize_with = "super::api::nullable_list")]
     departments: Vec<Membership>,
     #[serde(skip)]
@@ -152,6 +192,14 @@ pub(super) struct Department {
 }
 
 impl Assistant {
+    pub(super) fn transfer_id(&self) -> Option<&str> {
+        self.employee_id.as_deref().filter(|id| {
+            !id.is_empty()
+                && self.version.is_some()
+                && self.allowed_actions.iter().any(|action| action == "transfer_owner")
+        })
+    }
+
     pub(super) fn runtime(&self) -> &str {
         self.runtime_status.as_deref().unwrap_or_default().trim()
     }
@@ -179,6 +227,17 @@ impl Assistant {
 }
 
 impl List {
+    pub(super) fn transfer_employee(&self) -> Option<&Assistant> {
+        self.transfer.as_ref().and_then(|transfer| self.transfer_target(&transfer.employee_id))
+    }
+
+    fn transfer_target(&self, id: &str) -> Option<&Assistant> {
+        let data = self.data.as_deref()?;
+        let organization = data.governance.as_ref().ok().and_then(Option::as_deref);
+        let source = if self.organization { organization? } else { data.mine.as_slice() };
+        source.iter().find(|employee| employee.transfer_id() == Some(id))
+    }
+
     pub(super) fn account_reset(&self) -> Self {
         Self { generation: self.generation.wrapping_add(1), ..Self::default() }
     }
@@ -209,29 +268,191 @@ pub(super) fn update(app: &mut App, event: ListEvent) -> Task<Message> {
                 }
             }
         }
-        ListEvent::Scope(organization) => {
+        ListEvent::OpenTransfer(id) => return open_transfer(app, id),
+        ListEvent::CloseTransfer => {
+            if state.transfer.as_ref().is_some_and(|transfer| !transfer.submitting) {
+                state.transfer = None;
+            }
+        }
+        ListEvent::TransferMembers(generation, result) if generation == state.generation => {
+            if let Some(transfer) = &mut state.transfer {
+                match result {
+                    Ok(recipients) => transfer.recipients = Some(recipients),
+                    Err(error) => transfer.error = Some(error),
+                }
+            }
+        }
+        ListEvent::TransferSearch(search) => {
+            if let Some(transfer) = state.transfer.as_mut().filter(|transfer| !transfer.submitting)
+            {
+                transfer.search = search;
+            }
+        }
+        ListEvent::TransferSelect(recipient) => {
+            if let Some(transfer) = state.transfer.as_mut().filter(|transfer| !transfer.submitting)
+            {
+                transfer.selected = Some(recipient);
+            }
+        }
+        ListEvent::SubmitTransfer => return submit_transfer(app),
+        ListEvent::TransferFinished(generation, result) if generation == state.generation => {
+            if let Some(transfer) = state.transfer.as_mut().filter(|transfer| transfer.submitting) {
+                transfer.submitting = false;
+                match result {
+                    Ok(()) => {
+                        state.transfer = None;
+                        state.data = None;
+                        state.page = 0;
+                        return Task::batch([
+                            app.show_toast(crate::app::state::ToastKind::Success, "已转交使用人"),
+                            refresh(app),
+                        ]);
+                    }
+                    Err(error) => {
+                        transfer.error = Some(format!(
+                            "转交失败。{error}。如员工资料已更新，请关闭弹窗并刷新列表。"
+                        ));
+                    }
+                }
+            }
+        }
+        ListEvent::TransferMembers(..) | ListEvent::TransferFinished(..) => {}
+        ListEvent::Scope(organization) if state.transfer.is_none() => {
             state.organization = organization;
             state.page = 0;
         }
-        ListEvent::Search(search) => {
+        ListEvent::Search(search) if state.transfer.is_none() => {
             state.search = search;
             state.page = 0;
         }
-        ListEvent::Run(filter) => {
+        ListEvent::Run(filter) if state.transfer.is_none() => {
             state.filter = filter;
             state.page = 0;
         }
-        ListEvent::Page(page) => {
+        ListEvent::Page(page) if state.transfer.is_none() => {
             state.page = page;
             return board::scroll_to_top();
         }
+        ListEvent::Scope(_) | ListEvent::Search(_) | ListEvent::Run(_) | ListEvent::Page(_) => {}
     }
     Task::none()
 }
 
+fn open_transfer(app: &mut App, id: String) -> Task<Message> {
+    let state = &mut app.digital_employees.assistants;
+    if app.digital_employees.page != Page::Assistants || state.loading || state.transfer.is_some() {
+        return Task::none();
+    }
+    let Some(employee) = state.transfer_target(&id) else {
+        return Task::none();
+    };
+    let current_owner = employee.owner_user_id.clone();
+    let Some(account) = app.account.active_account() else {
+        return Task::none();
+    };
+    let credential = account.skill_hub_credential();
+    state.generation = state.generation.wrapping_add(1);
+    let generation = state.generation;
+    state.transfer = Some(Transfer {
+        employee_id: id,
+        recipients: None,
+        selected: None,
+        search: String::new(),
+        submitting: false,
+        error: None,
+    });
+    Task::perform(
+        async move {
+            let client = Client::new(credential.expose())?;
+            load_recipients(&client, &current_owner).await
+        },
+        move |result| message(ListEvent::TransferMembers(generation, result)),
+    )
+}
+
+fn submit_transfer(app: &mut App) -> Task<Message> {
+    if app.digital_employees.page != Page::Assistants {
+        return Task::none();
+    }
+    let state = &mut app.digital_employees.assistants;
+    let Some(employee) = state.transfer_employee() else {
+        return Task::none();
+    };
+    let Some(version) = employee.version else {
+        return Task::none();
+    };
+    let Some(transfer) = state.transfer.as_mut().filter(|transfer| !transfer.submitting) else {
+        return Task::none();
+    };
+    let Some(recipient) = transfer.selected.as_ref().filter(|recipient| {
+        transfer.recipients.as_ref().is_some_and(|recipients| recipients.contains(recipient))
+    }) else {
+        return Task::none();
+    };
+    let Some(account) = app.account.active_account() else {
+        return Task::none();
+    };
+    let credential = account.skill_hub_credential();
+    let employee_id = transfer.employee_id.clone();
+    let recipient_id = recipient.id.clone();
+    let generation = state.generation;
+    transfer.submitting = true;
+    transfer.error = None;
+    Task::perform(
+        async move {
+            Client::new(credential.expose())?
+                .post::<serde_json::Value>(
+                    &["employees", &employee_id, "owner", "transfer"],
+                    &serde_json::json!({ "owner_user_id": recipient_id, "expected_version": version }),
+                    None,
+                )
+                .await
+                .map(|_| ())
+        },
+        move |result| message(ListEvent::TransferFinished(generation, result)),
+    )
+}
+
+async fn load_recipients(client: &Client, owner: &str) -> Result<Vec<Recipient>, String> {
+    let mut page = 1;
+    let mut scanned = 0;
+    let mut recipients = Vec::new();
+    let mut seen = HashSet::new();
+    loop {
+        let result = load_user_page(client, page).await?;
+        if result.list.is_empty() {
+            break;
+        }
+        scanned += result.list.len();
+        recipients.extend(result.list.into_iter().filter_map(|member| {
+            let name = member.name.trim();
+            if name.is_empty()
+                || member.user_id.is_empty()
+                || member.user_id == owner
+                || !seen.insert(member.user_id.clone())
+            {
+                return None;
+            }
+            let label = match member.account_name.as_deref().map(str::trim) {
+                Some(account) if !account.is_empty() && account != name => {
+                    format!("{name}（{account}）")
+                }
+                _ => name.to_owned(),
+            };
+            Some(Recipient { id: member.user_id, label })
+        }));
+        if result.total.is_none_or(|total| scanned >= total) {
+            break;
+        }
+        page += 1;
+    }
+    recipients.sort_by(|left, right| left.label.cmp(&right.label));
+    Ok(recipients)
+}
+
 pub(super) fn refresh(app: &mut App) -> Task<Message> {
     let state = &mut app.digital_employees.assistants;
-    if state.loading {
+    if state.loading || state.transfer.is_some() {
         return Task::none();
     }
     let Some(account) = app.account.active_account() else {
@@ -318,14 +539,15 @@ async fn load_members<'a>(
         .collect()
 }
 
+async fn load_user_page(client: &Client, page: usize) -> Result<IamPage<Member>, String> {
+    client.iam("users", &[("page", &page.to_string()), ("page_size", "100")]).await
+}
+
 pub(super) async fn load_users(client: &Client, mut wanted: HashSet<&str>) -> Vec<Member> {
     let mut page = 1;
     let mut scanned = 0;
     let mut users = Vec::new();
-    while let Ok(result) = client
-        .iam::<IamPage<Member>>("users", &[("page", &page.to_string()), ("page_size", "100")])
-        .await
-    {
+    while let Ok(result) = load_user_page(client, page).await {
         if result.list.is_empty() {
             break;
         }

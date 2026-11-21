@@ -3,8 +3,9 @@ use iced::Task;
 use crate::app::{App, Message};
 
 use super::{
-    Event,
-    shared_api::{self, Directory},
+    Event, Page, api,
+    shared_api::{self, Directory, Operation},
+    tasks,
 };
 
 #[derive(Clone, Copy, PartialEq, Eq, Default)]
@@ -36,7 +37,7 @@ impl Runtime {
 impl std::fmt::Display for Runtime {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_str(match self {
-            Self::All => "全部",
+            Self::All => "全部状态",
             Self::OnDuty => "在岗",
             Self::Abnormal => "异常",
         })
@@ -55,9 +56,26 @@ pub(crate) enum ListEvent {
     Table(bool),
     Page { managers: bool, index: usize },
     PageSize(usize),
+    Dispatch(String),
+    Configure(String),
+    OpenOperation(String, Operation),
+    TemplateName(String),
+    CloseOperation,
+    SubmitOperation,
+    Operated(u64, Result<&'static str, String>),
+}
+
+pub(super) struct Confirmation {
+    employee_id: String,
+    pub employee_name: String,
+    pub operation: Operation,
+    pub template_name: String,
+    pub submitting: bool,
+    pub error: Option<String>,
 }
 
 pub(super) struct Shared {
+    pub confirmation: Option<Confirmation>,
     pub directory: Option<std::sync::Arc<Directory>>,
     pub error: Option<String>,
     pub loading: bool,
@@ -77,6 +95,7 @@ pub(super) struct Shared {
 impl Default for Shared {
     fn default() -> Self {
         Self {
+            confirmation: None,
             directory: None,
             error: None,
             loading: false,
@@ -115,6 +134,96 @@ pub(super) fn update(app: &mut App, event: ListEvent) -> Task<Message> {
     let state = &mut app.digital_employees.shared;
     match event {
         ListEvent::Refresh => return refresh(app),
+        ListEvent::Dispatch(id) => {
+            if app.digital_employees.page != Page::Shared
+                || app.digital_employees.tasks.busy
+                || !state.directory.as_ref().is_some_and(|directory| {
+                    directory.employees.iter().any(|employee| {
+                        employee.employee_id == id && directory.access.can_dispatch(employee)
+                    })
+                })
+            {
+                return Task::none();
+            }
+            // Refresh the task form options because an employee may have just become available.
+            app.digital_employees.tasks.directory = None;
+            let page = super::select_page(app, Page::Tasks);
+            let draft = tasks::update(app, tasks::CenterEvent::New(tasks::Trigger::Now, id));
+            return Task::batch([page, draft]);
+        }
+        ListEvent::Configure(id) => {
+            if app.digital_employees.page == Page::Shared
+                && state.directory.as_ref().is_some_and(|directory| {
+                    directory.employees.iter().any(|employee| {
+                        employee.employee_id == id && directory.access.can_configure(employee)
+                    })
+                })
+            {
+                return crate::app::message::view::update(
+                    app,
+                    crate::app::message::view::ViewMessage::OpenUrlExternal(
+                        api::employee_config_url(&id),
+                    ),
+                );
+            }
+            return Task::none();
+        }
+        ListEvent::OpenOperation(id, operation) => {
+            if app.digital_employees.page == Page::Shared
+                && !state.loading
+                && state.confirmation.is_none()
+            {
+                if let Some(employee) = state.directory.as_ref().and_then(|directory| {
+                    directory.employees.iter().find(|employee| {
+                        employee.employee_id == id
+                            && directory.access.can_manage(employee, operation)
+                    })
+                }) {
+                    state.confirmation = Some(Confirmation {
+                        employee_id: id,
+                        employee_name: employee.name.clone(),
+                        operation,
+                        template_name: format!("{}模板", employee.name),
+                        submitting: false,
+                        error: None,
+                    });
+                }
+            }
+            return Task::none();
+        }
+        ListEvent::TemplateName(name) => {
+            if let Some(dialog) = state.confirmation.as_mut().filter(|dialog| !dialog.submitting) {
+                dialog.template_name = name;
+            }
+            return Task::none();
+        }
+        ListEvent::CloseOperation => {
+            if !state.confirmation.as_ref().is_some_and(|dialog| dialog.submitting) {
+                state.confirmation = None;
+            }
+            return Task::none();
+        }
+        ListEvent::SubmitOperation => return submit_operation(app),
+        ListEvent::Operated(generation, result) => {
+            if generation == state.generation {
+                if let Some(dialog) = state.confirmation.as_mut().filter(|dialog| dialog.submitting)
+                {
+                    match result {
+                        Ok(notice) => {
+                            state.confirmation = None;
+                            let toast =
+                                app.show_toast(crate::app::state::ToastKind::Success, notice);
+                            return Task::batch([toast, refresh(app)]);
+                        }
+                        Err(error) => {
+                            dialog.submitting = false;
+                            dialog.error = Some(error);
+                        }
+                    }
+                }
+            }
+            return Task::none();
+        }
         ListEvent::Loaded(generation, result) => {
             if state.generation == generation && state.loading {
                 state.loading = false;
@@ -170,7 +279,7 @@ pub(super) fn update(app: &mut App, event: ListEvent) -> Task<Message> {
 
 pub(super) fn refresh(app: &mut App) -> Task<Message> {
     let state = &mut app.digital_employees.shared;
-    if state.loading {
+    if state.loading || state.confirmation.is_some() {
         return Task::none();
     }
     let Some(account) = app.account.active_account() else {
@@ -184,5 +293,42 @@ pub(super) fn refresh(app: &mut App) -> Task<Message> {
     Task::perform(
         async move { shared_api::load(credential.expose()).await.map(std::sync::Arc::new) },
         move |result| message(ListEvent::Loaded(generation, result)),
+    )
+}
+
+fn submit_operation(app: &mut App) -> Task<Message> {
+    if app.digital_employees.page != Page::Shared {
+        return Task::none();
+    }
+    let Some(account) = app.account.active_account() else { return Task::none() };
+    let state = &mut app.digital_employees.shared;
+    let Some(dialog) = state.confirmation.as_mut().filter(|dialog| !dialog.submitting) else {
+        return Task::none();
+    };
+    if dialog.error.is_some() {
+        return Task::none();
+    }
+    let Some(employee) = state.directory.as_ref().and_then(|directory| {
+        directory.employees.iter().find(|employee| {
+            employee.employee_id == dialog.employee_id
+                && directory.access.can_manage(employee, dialog.operation)
+        })
+    }) else {
+        dialog.error = Some("当前员工无法执行此操作，请刷新后重试".into());
+        return Task::none();
+    };
+    let operation = dialog.operation;
+    let name = dialog.template_name.trim().to_owned();
+    if operation == Operation::SaveTemplate && name.is_empty() {
+        return Task::none();
+    }
+    let version = employee.version;
+    let id = dialog.employee_id.clone();
+    let credential = account.skill_hub_credential();
+    let generation = state.generation;
+    dialog.submitting = true;
+    Task::perform(
+        async move { shared_api::operate(credential.expose(), &id, operation, version, &name).await },
+        move |result| message(ListEvent::Operated(generation, result)),
     )
 }

@@ -93,6 +93,46 @@ impl Client {
         Self::decode(response).await
     }
 
+    pub(super) async fn delete_employee(
+        &self,
+        id: &str,
+        body: &serde_json::Value,
+    ) -> Result<&'static str, String> {
+        let response = self
+            .0
+            .delete(path_url(["employees", id]))
+            .json(body)
+            .send()
+            .await
+            .map_err(|_| "无法连接数字员工服务，请刷新确认员工状态")?;
+        match response.status() {
+            StatusCode::NO_CONTENT => Ok("已删除共享员工"),
+            StatusCode::ACCEPTED => Ok("删除已受理，正在等待运行资源清理"),
+            StatusCode::FORBIDDEN => Err("当前识矩账号没有删除共享员工的权限".into()),
+            StatusCode::CONFLICT => {
+                #[derive(Deserialize)]
+                struct Failure {
+                    code: Option<String>,
+                }
+                if response
+                    .json::<Failure>()
+                    .await
+                    .ok()
+                    .and_then(|failure| failure.code)
+                    .as_deref()
+                    == Some("EMPLOYEE_REFERENCED")
+                {
+                    Err("员工仍有未完成任务或被工作流程引用，可先停用".into())
+                } else {
+                    Err("员工状态已变更，请关闭弹窗并刷新后重试".into())
+                }
+            }
+            _ => Self::decode::<serde_json::Value>(response)
+                .await
+                .map(|_| "已提交删除请求"),
+        }
+    }
+
     pub(super) async fn task_stream(&self, id: &str) -> Result<Response, String> {
         let response = self
             .0

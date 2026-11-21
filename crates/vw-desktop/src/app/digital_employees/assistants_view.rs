@@ -1,27 +1,41 @@
 use desktop_assets::assets::Icon;
 use desktop_ui_controls::system_settings_common::{
-    SETTINGS_CONTROL_PADDING, SETTINGS_CONTROL_TEXT_SIZE, settings_pick_list_menu_style,
-    settings_pick_list_style, settings_text_input,
+    settings_close_button, settings_error_banner, settings_modal_card,
+    settings_modal_overlay_with_escape, settings_select, settings_text_input,
 };
-use iced::widget::{Column, Row, Space, column, container, image, pick_list, row};
+use iced::widget::scrollable::{Direction, Scrollbar};
+use iced::widget::{Column, Row, Space, column, container, image, row, scrollable};
 use iced::{Alignment, Length};
 
 use super::assistants::{Assistant, List, ListEvent, PAGE_SIZE, RunFilter, Snapshot, message};
 use super::portraits;
-use super::view::{Item, Tone, action, card, chip, icon, label, strong, tint_style};
+use super::view::{
+    Item, Tone, action, card, divider, icon, label, page_notice, segment, segmented, status_label,
+    strong, tint_style,
+};
 
 pub(super) fn view<'a>(state: &'a List, width: f32, actor: Option<&'a str>) -> Item<'a> {
-    let mut page = column![strong("私有员工", 25, Tone::Ink)].spacing(16).width(Length::Fill);
+    let mut page = column![
+        row![
+            strong("私有员工", 24, Tone::Ink).width(Length::Fill),
+            action(
+                if state.loading { "刷新中…" } else { "刷新" },
+                Some(Icon::ArrowRepeat),
+                (!state.loading).then(|| message(ListEvent::Refresh)),
+                false,
+            ),
+        ]
+        .spacing(10)
+        .align_y(Alignment::Center),
+    ]
+    .spacing(20)
+    .width(Length::Fill);
     let Some(data) = state.data.as_deref() else {
         let content = match &state.error {
-            Some(error) => column![
-                label(error.as_str(), 14, Tone::Red),
-                action("重试", None, Some(message(ListEvent::Refresh)), false),
-            ]
-            .spacing(12),
-            None => column![label("正在加载私有员工…", 14, Tone::Muted)],
+            Some(error) => settings_error_banner(error.as_str()),
+            None => page_notice(label("正在加载私有员工…", 14, Tone::Muted)),
         };
-        return page.push(card(container(content).padding(16))).into();
+        return page.push(content).into();
     };
 
     let governance = data.governance.as_ref().ok().and_then(Option::as_deref);
@@ -44,9 +58,9 @@ pub(super) fn view<'a>(state: &'a List, width: f32, actor: Option<&'a str>) -> I
         })
         .collect();
 
-    page = page.push(kpis(data, width)).push(filters(state, data, source, width));
+    page = page.push(filters(state, data, source, width));
     if let Err(error) = &data.governance {
-        page = page.push(label(format!("组织内私有员工加载失败。{error}"), 13, Tone::Red));
+        page = page.push(settings_error_banner(format!("组织内私有员工加载失败。{error}")));
     }
     if matches.is_empty() {
         let empty = if state.organization && data.governance.is_err() {
@@ -58,9 +72,7 @@ pub(super) fn view<'a>(state: &'a List, width: f32, actor: Option<&'a str>) -> I
         } else {
             "你还没有私有员工"
         };
-        return page
-            .push(card(container(label(empty, 14, Tone::Muted)).center_x(Length::Fill).padding(32)))
-            .into();
+        return page.push(page_notice(label(empty, 14, Tone::Muted))).into();
     }
 
     let total_pages = matches.len().div_ceil(PAGE_SIZE);
@@ -76,116 +88,134 @@ pub(super) fn view<'a>(state: &'a List, width: f32, actor: Option<&'a str>) -> I
     };
     let mut grid = Column::new().spacing(16);
     for employees in matches[start..end].chunks(columns) {
-        let mut group =
-            Row::with_children(employees.iter().map(|person| employee_card(person, data, actor)))
-                .spacing(16)
-                .width(Length::Fill);
+        let mut group = Row::with_children(
+            employees.iter().map(|person| employee_card(person, data, actor, !state.loading)),
+        )
+        .spacing(16)
+        .width(Length::Fill);
         for _ in employees.len()..columns {
             group = group.push(Space::new().width(Length::Fill));
         }
         grid = grid.push(group);
     }
-    page.push(grid)
-        .push(
-            row![
-                label(
-                    format!("第 {}–{} 项，共 {} 项", start + 1, end, matches.len()),
-                    13,
-                    Tone::Muted
-                ),
-                Space::new().width(Length::Fill),
-                action(
-                    "上一页",
-                    Some(Icon::ChevronLeft),
-                    selected_page.checked_sub(1).map(|page| message(ListEvent::Page(page))),
-                    false,
-                ),
-                action(
-                    "下一页",
-                    Some(Icon::ChevronRight),
-                    (selected_page + 1 < total_pages)
-                        .then(|| message(ListEvent::Page(selected_page + 1))),
-                    false,
-                ),
-            ]
-            .align_y(Alignment::Center)
-            .spacing(8)
-            .wrap(),
-        )
-        .into()
-}
-
-fn kpis(data: &Snapshot, width: f32) -> Item<'_> {
-    let mine = data.mine.len();
-    let published = data.mine.iter().filter(|item| item.publish_status == "PUBLISHED").count();
-    let runs = data.mine.iter().map(|item| item.usage_count).sum::<u64>();
-    let drafts = mine - published;
-    let visible = data.governance.as_ref().map(|rows| mine + rows.as_ref().map_or(0, Vec::len));
-    let owned = stat(
-        "我的私有员工",
-        mine.to_string(),
-        format!("{published} 个已发布"),
-        Icon::Robot,
-        Tone::Violet,
-    );
-    let today =
-        stat("今日执行", runs.to_string(), "仅本人私有员工".into(), Icon::Check, Tone::Green);
-    let organization = stat(
-        "组织内私有员工",
-        visible.as_ref().map_or_else(|_| "—".into(), |count| count.to_string()),
-        if matches!(&data.governance, Ok(None)) { "仅本人" } else { "账号可见范围" }.into(),
-        Icon::Robot,
-        Tone::Blue,
-    );
-    let draft = stat(
-        "草稿待发布",
-        drafts.to_string(),
-        "发布后才能开始用".into(),
-        Icon::Clock,
-        if drafts > 0 { Tone::Warning } else { Tone::Green },
-    );
-    if width >= 900.0 {
-        row![owned, today, organization, draft].spacing(16).into()
-    } else if width >= 490.0 {
-        column![row![owned, today].spacing(12), row![organization, draft].spacing(12)]
-            .spacing(12)
-            .into()
-    } else {
-        column![owned, today, organization, draft].spacing(10).into()
+    let mut footer =
+        row![label(format!("{}–{} / {} 人", start + 1, end, matches.len()), 12, Tone::Muted,)]
+            .spacing(10)
+            .align_y(Alignment::Center);
+    if total_pages > 1 {
+        footer = footer
+            .push(action(
+                "上一页",
+                Some(Icon::ChevronLeft),
+                selected_page.checked_sub(1).map(|page| message(ListEvent::Page(page))),
+                false,
+            ))
+            .push(action(
+                "下一页",
+                Some(Icon::ChevronRight),
+                (selected_page + 1 < total_pages)
+                    .then(|| message(ListEvent::Page(selected_page + 1))),
+                false,
+            ));
     }
+    page.push(grid).push(footer.wrap()).into()
 }
 
-fn stat(
-    title: &'static str,
-    value: String,
-    hint: String,
-    glyph: Icon,
-    tone: Tone,
-) -> Item<'static> {
-    let badge = container(icon(glyph, 19, tone))
-        .center(38)
-        .style(move |theme| tint_style(theme, tone, 8.0));
-    card(
-        row![
-            badge,
-            column![
-                label(title, 13, Tone::Muted),
-                strong(value, 24, Tone::Ink),
-                label(hint, 12, Tone::Muted)
-            ]
-            .spacing(4),
-        ]
-        .align_y(Alignment::Start)
-        .spacing(12)
-        .padding(16),
+pub(super) fn overlay<'a>(
+    base: Item<'a>,
+    state: &'a List,
+    actor: Option<&'a str>,
+    height: f32,
+) -> Item<'a> {
+    let (Some(transfer), Some(employee), Some(data)) =
+        (&state.transfer, state.transfer_employee(), state.data.as_deref())
+    else {
+        return base;
+    };
+    let close = message(ListEvent::CloseTransfer);
+    let owner = employee
+        .owner_name(&data.members, actor)
+        .filter(|name| !name.trim().is_empty())
+        .unwrap_or("当前使用人");
+    let description = format!(
+        "当前使用人是{owner}。转交后，原使用人将立即失去对话、配置、发布和连接办公软件的权限，已连接的消息渠道会一并解绑。"
+    );
+
+    let mut form = column![label(description, 14, Tone::Muted), strong("新使用人", 14, Tone::Ink),]
+        .spacing(10);
+    if let Some(recipients) = &transfer.recipients {
+        if recipients.is_empty() {
+            form = form.push(label("可指派的范围内暂无其他成员", 14, Tone::Muted));
+        } else {
+            let query = transfer.search.trim().to_lowercase();
+            let choices: Vec<_> =
+                recipients.iter().filter(|recipient| recipient.matches(&query)).cloned().collect();
+            let placeholder =
+                if choices.is_empty() { "没有匹配的成员" } else { "请选择使用人" };
+            let search = settings_text_input("搜索成员姓名或账号", &transfer.search)
+                .on_input_maybe(
+                    (!transfer.submitting)
+                        .then_some(|search| message(ListEvent::TransferSearch(search))),
+                )
+                .width(Length::Fill);
+            form = form.push(search).push(
+                settings_select(choices, transfer.selected.clone(), |recipient| {
+                    message(ListEvent::TransferSelect(recipient))
+                })
+                .placeholder(placeholder)
+                .disabled(transfer.submitting)
+                .width(Length::Fill),
+            );
+        }
+    } else if transfer.error.is_none() {
+        form = form.push(label("正在读取成员…", 14, Tone::Muted));
+    }
+    if let Some(error) = &transfer.error {
+        form = form.push(label(error.as_str(), 13, Tone::Red));
+    }
+    let content = container(
+        scrollable(container(form.width(Length::Fill)).padding(iced::Padding::ZERO.right(7)))
+            .direction(Direction::Vertical(Scrollbar::new().width(4).scroller_width(4).margin(3))),
     )
+    .max_height((height - 160.0).clamp(64.0, 360.0))
+    .width(Length::Fill);
+    let header = row![
+        strong("转交使用人", 20, Tone::Ink).width(Length::Fill),
+        (!transfer.submitting).then(|| settings_close_button(close.clone())),
+    ]
+    .align_y(Alignment::Center)
+    .spacing(12);
+    let footer = row![
+        Space::new().width(Length::Fill),
+        action("取消", None, (!transfer.submitting).then(|| close.clone()), false),
+        action(
+            if transfer.submitting { "正在转交…" } else { "确认转交" },
+            None,
+            (transfer.selected.is_some() && !transfer.submitting)
+                .then(|| message(ListEvent::SubmitTransfer)),
+            true,
+        ),
+    ]
+    .spacing(8);
+    let dialog = settings_modal_card(column![header, content, footer].spacing(14))
+        .width(Length::Fill)
+        .max_width(640);
+    settings_modal_overlay_with_escape(base, close, dialog)
 }
 
 fn filters<'a>(state: &'a List, data: &Snapshot, source: &[Assistant], width: f32) -> Item<'a> {
-    let mut scopes =
-        row![scope("我的私有员工", data.mine.len(), !state.organization, false)].spacing(8);
+    let mut scopes = row![segment(
+        format!("我的私有员工 {}", data.mine.len()),
+        !state.organization,
+        message(ListEvent::Scope(false)),
+    )]
+    .spacing(2);
     if let Ok(Some(governance)) = &data.governance {
-        scopes = scopes.push(scope("组织内私有员工", governance.len(), state.organization, true));
+        scopes = scopes.push(segment(
+            format!("组织内私有员工 {}", governance.len()),
+            state.organization,
+            message(ListEvent::Scope(true)),
+        ));
     }
     let on_duty =
         RunFilter::OnDuty(source.iter().filter(|item| item.runtime() == "on_duty").count());
@@ -196,143 +226,129 @@ fn filters<'a>(state: &'a List, data: &Snapshot, source: &[Assistant], width: f3
         RunFilter::OnDuty(_) => on_duty,
         RunFilter::Abnormal(_) => abnormal,
     };
-    let search = column![
-        label("关键字", 12, Tone::Muted),
-        settings_text_input("搜索私有员工名称、岗位或能力", &state.search)
-            .on_input(|input| message(ListEvent::Search(input)))
-            .width(if width >= 620.0 { Length::Fixed(285.0) } else { Length::Fill }),
+    let search = settings_text_input("搜索私有员工", &state.search)
+        .on_input(|input| message(ListEvent::Search(input)))
+        .width(if width >= 595.0 { Length::Fixed(285.0) } else { Length::Fill });
+    let run = settings_select([RunFilter::All, on_duty, abnormal], Some(current), |value| {
+        message(ListEvent::Run(value))
+    })
+    .width(156);
+    let published = data.mine.iter().filter(|item| item.publish_status == "PUBLISHED").count();
+    let runs = data.mine.iter().map(|item| item.usage_count).sum::<u64>();
+    let fields = row![
+        search,
+        run,
+        label(
+            format!(
+                "本人已发布 {published} · 草稿 {} · 今日执行 {runs}",
+                data.mine.len() - published
+            ),
+            12,
+            Tone::Muted,
+        ),
     ]
-    .spacing(6);
-    let run = column![
-        label("运行状态", 12, Tone::Muted),
-        pick_list([RunFilter::All, on_duty, abnormal], Some(current), |value| message(
-            ListEvent::Run(value)
-        ))
-        .padding(SETTINGS_CONTROL_PADDING)
-        .text_size(SETTINGS_CONTROL_TEXT_SIZE)
-        .style(settings_pick_list_style)
-        .menu_style(settings_pick_list_menu_style),
-    ]
-    .spacing(6);
-    let refresh = action(
-        if state.loading { "加载中" } else { "查询" },
-        Some(Icon::Search),
-        (!state.loading).then(|| message(ListEvent::Refresh)),
-        true,
-    );
-    let fields: Item<'_> = if width >= 620.0 {
-        row![search, run, Space::new().width(Length::Fill), refresh]
-            .align_y(Alignment::End)
-            .spacing(12)
-            .into()
-    } else {
-        column![search, row![run, refresh].align_y(Alignment::End).spacing(12)].spacing(12).into()
-    };
-    card(column![scopes.wrap(), fields].spacing(12).padding(16))
-}
-
-fn scope(title: &str, count: usize, selected: bool, organization: bool) -> Item<'static> {
-    use desktop_ui_controls::system_settings_common::{
-        primary_action_btn_style, rounded_action_btn_style,
-    };
-    iced::widget::button(iced::widget::text(format!("{title} {count}")).size(13))
-        .padding([8, 12])
-        .style(if selected { primary_action_btn_style } else { rounded_action_btn_style })
-        .on_press(message(ListEvent::Scope(organization)))
-        .into()
+    .spacing(8)
+    .align_y(Alignment::Center)
+    .wrap();
+    column![segmented(scopes.wrap().into()), fields].spacing(10).into()
 }
 
 fn employee_card<'a>(
     person: &'a Assistant,
     data: &'a Snapshot,
     actor: Option<&'a str>,
+    can_open: bool,
 ) -> Item<'a> {
     let (runtime, runtime_tone) = match person.runtime() {
-        "on_duty" => ("● 在岗", Tone::Green),
-        "abnormal" => ("● 异常", Tone::Red),
-        "enabling" => ("● 启用中", Tone::Warning),
-        "disabling" => ("● 停用中", Tone::Warning),
+        "on_duty" => ("在岗", Tone::Green),
+        "abnormal" => ("异常", Tone::Red),
+        "enabling" => ("启用中", Tone::Warning),
+        "disabling" => ("停用中", Tone::Warning),
         "none" => ("已停用", Tone::Muted),
         _ => ("—", Tone::Muted),
     };
     let (published, publish_tone) = match person.publish_status.as_str() {
         "PUBLISHED" => ("已发布", Tone::Green),
-        "PUBLISHING" => ("启用中", Tone::Warning),
+        "PUBLISHING" => ("发布中", Tone::Warning),
         "DRAFT" => ("草稿", Tone::Warning),
         "TESTING" => ("测试中", Tone::Warning),
         status if status.contains("FAIL") => ("发布异常", Tone::Red),
         _ => ("未知", Tone::Muted),
     };
-    let mut status =
-        row![strong(runtime, 12, runtime_tone), tag(format!("配置：{published}"), publish_tone)]
-            .align_y(Alignment::Center)
-            .spacing(6);
-    if !person.owned_by_caller {
-        status = status.push(tag("组织内".into(), Tone::Violet));
-    }
-    let tags = row![
-        tag("私有员工".into(), Tone::Violet),
-        tag(format!("技能 {}", person.capability_summary.skill_count), Tone::Muted),
-        tag(format!("系统工具 {}", person.capability_summary.mcp_count), Tone::Muted),
+    let publish_tone = if matches!(publish_tone, Tone::Red) { Tone::Red } else { Tone::Muted };
+    let status = row![
+        status_label(runtime, runtime_tone),
+        label(format!("配置 · {published}"), 12, publish_tone),
+        (!person.owned_by_caller).then(|| label("组织内", 12, Tone::Muted)),
     ]
-    .spacing(6);
+    .align_y(Alignment::Center)
+    .spacing(10)
+    .wrap();
     let picture: Item<'_> = match portraits::avatar(&person.name, false) {
-        Some(handle) => image(handle).width(136).height(136).into(),
-        None => container(icon(Icon::Person, 44, Tone::Violet)).center(136).into(),
+        Some(handle) => image(handle).width(44).height(44).into(),
+        None => container(icon(Icon::Person, 20, Tone::Accent))
+            .center(44)
+            .style(|theme| tint_style(theme, Tone::Accent, 22.0))
+            .into(),
     };
-    let portrait = container(picture)
-        .center_x(Length::Fill)
-        .style(|theme| tint_style(theme, Tone::Violet, 8.0));
+    let identity = row![
+        picture,
+        column![
+            strong(person.name.as_str(), 17, Tone::Ink),
+            label("私有执行员工", 12, Tone::Muted),
+        ]
+        .spacing(3)
+        .width(Length::Fill),
+    ]
+    .spacing(10)
+    .align_y(Alignment::Center);
     let department = |id: &str| {
         data.members.get(id).and_then(|member| member.department.as_deref()).unwrap_or("")
     };
-    let attribution = container(
-        row![
-            member(
-                "使用人",
-                person.owner_name(&data.members, actor),
-                department(&person.owner_user_id)
-            ),
-            member(
-                "创建人",
-                person.creator_name(&data.members, actor),
-                department(&person.created_by)
-            ),
-        ]
-        .spacing(8),
-    )
-    .padding(10)
-    .width(Length::Fill)
-    .style(|theme| tint_style(theme, Tone::Violet, 8.0));
+    let attribution = row![
+        member(
+            "使用人",
+            person.owner_name(&data.members, actor),
+            department(&person.owner_user_id)
+        ),
+        member("创建人", person.creator_name(&data.members, actor), department(&person.created_by)),
+    ]
+    .spacing(10);
     let note = if person.owned_by_caller {
         "仅你可使用 · 通过已连接的办公软件交互"
     } else {
         "仅使用人可使用 · 不参与团队任务"
     };
-    let executions = container(
-        column![
-            strong(person.usage_count.to_string(), 15, Tone::Ink),
-            label("今日执行", 11, Tone::Muted)
-        ]
-        .align_x(Alignment::Center)
-        .spacing(2),
-    )
-    .center_x(Length::Fill)
-    .padding(8)
-    .style(|theme| tint_style(theme, Tone::Muted, 8.0));
     card(
         column![
-            portrait,
-            strong(person.name.as_str(), 17, Tone::Ink),
-            label("私有执行员工", 13, Tone::Muted),
-            status.wrap().align_x(Alignment::Center),
-            tags.wrap().align_x(Alignment::Center),
+            identity,
+            status,
+            label(
+                format!(
+                    "技能 {} · 系统工具 {}",
+                    person.capability_summary.skill_count, person.capability_summary.mcp_count
+                ),
+                12,
+                Tone::Muted,
+            ),
             attribution,
-            label(note, 11, Tone::Violet),
-            executions,
+            label(note, 12, Tone::Muted),
+            divider(),
+            row![
+                label("今日执行", 12, Tone::Muted),
+                strong(person.usage_count.to_string(), 13, Tone::Ink),
+                person.transfer_id().map(|id| action(
+                    "转交使用人",
+                    None,
+                    can_open.then(|| message(ListEvent::OpenTransfer(id.to_owned()))),
+                    false,
+                )),
+            ]
+            .spacing(8)
+            .align_y(Alignment::Center)
+            .wrap(),
         ]
-        .align_x(Alignment::Center)
-        .spacing(8)
+        .spacing(10)
         .padding(16),
     )
 }
@@ -346,8 +362,4 @@ fn member<'a>(title: &'static str, name: Option<&'a str>, department: &'a str) -
     .spacing(2)
     .width(Length::Fill)
     .into()
-}
-
-fn tag(value: String, tone: Tone) -> Item<'static> {
-    chip(label(value, 11, tone), tone)
 }

@@ -8,7 +8,7 @@ use serde::Deserialize;
 use serde_json::{Value, json};
 
 use super::api::{Client, nullable_list};
-use super::assistants::{Department, IamPage, load_users};
+use super::assistants::{IamPage, load_users};
 use super::board_api::{Collaboration, Handoff, Step};
 use super::task_schedule::TIMEZONE;
 use super::tasks::{Draft, Filters, Trigger};
@@ -80,7 +80,6 @@ pub(super) struct Employee {
     pub(super) employee_id: String,
     pub(super) name: String,
     pub(super) agent_kind: Option<String>,
-    pub(super) department_path: Option<String>,
     visibility: Option<String>,
     status: Option<String>,
     publish_status: Option<String>,
@@ -125,7 +124,6 @@ impl Workflow {
 pub(crate) struct Directory {
     pub(super) employees: Vec<Employee>,
     pub(super) workflows: Vec<Workflow>,
-    pub(super) departments: Vec<(String, String)>,
 }
 
 #[derive(Deserialize)]
@@ -172,7 +170,7 @@ pub(super) async fn list(key: &str, filters: Filters, page: usize) -> Result<Lis
 
 pub(super) async fn directory(key: &str) -> Result<Directory, String> {
     let client = Client::new(key)?;
-    let (employees, workflows, departments) = tokio::join!(
+    let (employees, workflows) = tokio::join!(
         async {
             let mut all = Vec::new();
             let mut seen = HashSet::new();
@@ -209,20 +207,34 @@ pub(super) async fn directory(key: &str) -> Result<Directory, String> {
                 }
             }
         },
-        client.iam::<IamPage<Department>>("departments", &[]),
     );
-    let departments = departments
-        .ok()
-        .map(|page| {
-            page.list
-                .into_iter()
-                .filter_map(|department| {
-                    Some((department.department_path?, department.department_name))
-                })
-                .collect()
+    Ok(Directory { employees: employees?, workflows: workflows? })
+}
+
+#[derive(Deserialize)]
+struct DepartmentRow {
+    department_path: Option<String>,
+    department_name: Option<String>,
+}
+
+pub(super) async fn departments(key: &str) -> Result<Vec<(String, String)>, String> {
+    let page: IamPage<DepartmentRow> = Client::new(key)?.iam("departments", &[]).await?;
+    Ok(department_choices(page))
+}
+
+fn department_choices(page: IamPage<DepartmentRow>) -> Vec<(String, String)> {
+    let mut seen = HashSet::new();
+    page.list
+        .into_iter()
+        .filter_map(|row| {
+            let path = row.department_path?;
+            let name = row.department_name?;
+            if path.trim().is_empty() || name.trim().is_empty() || !seen.insert(path.clone()) {
+                return None;
+            }
+            Some((path, name))
         })
-        .unwrap_or_default();
-    Ok(Directory { employees: employees?, workflows: workflows?, departments })
+        .collect()
 }
 
 #[derive(Deserialize)]
@@ -270,9 +282,20 @@ pub(super) struct Deliverables {
 pub(super) struct Artifact {
     pub(super) name: String,
     pub(super) content_type: Option<String>,
-    #[serde(alias = "size_bytes")]
-    pub(super) byte_size: Option<u64>,
+    // The service can return both names on the same artifact.
+    byte_size: Option<u64>,
+    size_bytes: Option<u64>,
 }
+
+impl Artifact {
+    pub(super) fn byte_size(&self) -> Option<u64> {
+        self.byte_size.or(self.size_bytes)
+    }
+}
+
+#[cfg(test)]
+#[path = "task_api_tests.rs"]
+mod tests;
 
 #[derive(Deserialize)]
 pub(super) struct Runtime {

@@ -19,6 +19,8 @@ use super::task_api::{self, Directory, List, Record, Schedules, Work};
 use super::task_schedule::{RepeatPattern, RepeatSchedule, TIMEZONE, future_once};
 use super::{Event, Page, board};
 
+pub(super) const DEPARTMENT_SEARCH_ID: &str = "digital-employees-task-department-search";
+
 pub(super) const DETAIL_SCROLL_ID: &str = "digital-employees-task-detail";
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
@@ -221,6 +223,10 @@ pub(super) struct Center {
     pub plans: Option<Arc<Schedules>>,
     pub directory: Option<Arc<Directory>>,
     pub directory_error: Option<String>,
+    pub departments: Option<Arc<[(String, String)]>>,
+    pub department_error: bool,
+    pub department_menu: bool,
+    pub department_search: String,
     pub drawer: Option<Drawer>,
     pub draft: Option<Draft>,
     pub loading: bool,
@@ -234,6 +240,7 @@ pub(super) struct Center {
     stream_revision: u64,
     account_revision: u64,
     directory_loading: bool,
+    departments_loading: bool,
 }
 
 impl Center {
@@ -292,6 +299,10 @@ pub(crate) enum CenterEvent {
     Query,
     Phase(Phase),
     Department(String),
+    LoadDepartments,
+    DepartmentsLoaded(u64, Result<Arc<[(String, String)]>, String>),
+    DepartmentMenu(bool),
+    DepartmentSearch(String),
     Employee(String),
     Workflow(String),
     TriggerFilter(Option<Trigger>),
@@ -434,7 +445,7 @@ pub(super) fn subscription(app: &App) -> Subscription<Message> {
 }
 
 pub(super) fn enter(app: &mut App) -> Task<Message> {
-    Task::batch([load(app), load_directory(app)])
+    Task::batch([load(app), load_directory(app), load_departments(app)])
 }
 
 fn load(app: &mut App) -> Task<Message> {
@@ -475,6 +486,22 @@ fn load_directory(app: &mut App) -> Task<Message> {
     Task::perform(
         async move { task_api::directory(key.expose()).await.map(Arc::new) },
         move |result| message(CenterEvent::DirectoryLoaded(revision, result)),
+    )
+}
+
+fn load_departments(app: &mut App) -> Task<Message> {
+    let Some(account) = app.account.active_account() else { return Task::none() };
+    let center = &mut app.digital_employees.tasks;
+    if center.departments_loading || center.departments.is_some() {
+        return Task::none();
+    }
+    center.departments_loading = true;
+    center.department_error = false;
+    let revision = center.account_revision;
+    let key = account.skill_hub_credential();
+    Task::perform(
+        async move { task_api::departments(key.expose()).await.map(Arc::from) },
+        move |result| message(CenterEvent::DepartmentsLoaded(revision, result)),
     )
 }
 
@@ -519,6 +546,7 @@ pub(super) fn update(app: &mut App, event: CenterEvent) -> Task<Message> {
     let center = &mut app.digital_employees.tasks;
     match event {
         CenterEvent::ViewSchedules(value) => {
+            center.department_menu = false;
             center.schedules = value;
             return load(app);
         }
@@ -567,7 +595,24 @@ pub(super) fn update(app: &mut App, event: CenterEvent) -> Task<Message> {
             center.filters.phase = value;
             return reset_page(app);
         }
+        CenterEvent::LoadDepartments => return load_departments(app),
+        CenterEvent::DepartmentsLoaded(revision, result) if revision == center.account_revision => {
+            center.departments_loading = false;
+            match result {
+                Ok(departments) => center.departments = Some(departments),
+                Err(_) => center.department_error = true,
+            }
+        }
+        CenterEvent::DepartmentMenu(open) => {
+            center.department_menu = open;
+            center.department_search.clear();
+            if open {
+                return iced::widget::operation::focus(DEPARTMENT_SEARCH_ID);
+            }
+        }
+        CenterEvent::DepartmentSearch(query) => center.department_search = query,
         CenterEvent::Department(value) => {
+            center.department_menu = false;
             center.filters.department = value;
             return reset_page(app);
         }
@@ -692,7 +737,7 @@ pub(super) fn update(app: &mut App, event: CenterEvent) -> Task<Message> {
         CenterEvent::New(trigger, employee) if !center.busy => {
             center.command_error = None;
             center.draft = Some(Draft::new(trigger, None, employee));
-            return load_directory(app);
+            return Task::batch([load_directory(app), load_departments(app)]);
         }
         CenterEvent::Reuse if !center.busy => {
             if let Some(record) = center.drawer.as_ref().and_then(|drawer| drawer.record.as_ref()) {
@@ -703,7 +748,7 @@ pub(super) fn update(app: &mut App, event: CenterEvent) -> Task<Message> {
                     .unwrap_or_default();
                 center.command_error = None;
                 center.draft = Some(Draft::new(trigger, Some(work), String::new()));
-                return load_directory(app);
+                return Task::batch([load_directory(app), load_departments(app)]);
             }
         }
         CenterEvent::CloseDraft if !center.busy => {

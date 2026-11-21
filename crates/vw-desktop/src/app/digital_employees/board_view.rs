@@ -1,8 +1,11 @@
 use desktop_assets::assets::Icon;
-use iced::widget::{
-    Column, Row, Space, Stack, button, canvas, column, container, image, progress_bar, row, stack,
+use desktop_ui_controls::system_settings_common::{
+    rounded_action_btn_style, settings_error_banner,
 };
-use iced::{Alignment, Border, Color, Length, Point, Rectangle, Renderer, Size, Theme, mouse};
+use iced::widget::{
+    Column, Row, Space, button, canvas, column, container, image, progress_bar, row, stack,
+};
+use iced::{Alignment, Color, Length, Point, Rectangle, Renderer, Size, Theme, mouse};
 
 use crate::app::Message;
 use crate::app::message::view::ViewMessage;
@@ -12,17 +15,16 @@ use super::board::{Board, BoardEvent as Event, PAGE_SIZE, Queue, message};
 use super::board_api::{Handoff, Profile, Snapshot, Step, WorkItem};
 use super::portraits;
 use super::view::{
-    Item, Palette, Tone, action, card, chip, divider, format_time, label, link, strong, task_ref,
-    tint_style, web,
+    Item, Palette, Tone, action, card, divider, format_time, label, link, panel_style, segment,
+    segmented, status_label as status, strong, task_ref, tint_style, web,
 };
 
-const NAVY: Color = Color::from_rgb(0.086, 0.157, 0.275);
 const ORANGE: Color = Color::from_rgb(0.906, 0.475, 0.318);
 
 pub(super) fn view(board: &Board, width: f32, can_fullscreen: bool) -> Item<'_> {
     let mut page = column![header(board, width, can_fullscreen)].spacing(20);
     if let Some(error) = &board.error {
-        page = page.push(card(container(label(error.as_str(), 13, Tone::Red)).padding(14)));
+        page = page.push(settings_error_banner(error.as_str()));
     } else if board.loading {
         page = page.push(label("正在加载办公室…", 13, Tone::Muted));
     }
@@ -33,17 +35,15 @@ pub(super) fn view(board: &Board, width: f32, can_fullscreen: bool) -> Item<'_> 
             page = page.push(label("部分工作台数据暂不可用", 13, Tone::Red));
         }
         page = page
-            .push(
-                container(
-                    row![
-                        tab("数字员工办公室", Event::TaskView(false), !board.task_view),
-                        tab("正在发生的工作", Event::TaskView(true), board.task_view),
-                    ]
-                    .spacing(4),
-                )
-                .padding(4)
-                .style(|theme| panel_style(theme, true)),
-            )
+            .push(segmented(
+                row![
+                    segment("数字员工办公室", !board.task_view, message(Event::TaskView(false))),
+                    segment("正在发生的工作", board.task_view, message(Event::TaskView(true))),
+                ]
+                .spacing(2)
+                .wrap()
+                .into(),
+            ))
             .push(if board.task_view {
                 tasks_panel(board, snapshot, width)
             } else {
@@ -59,15 +59,8 @@ pub(super) fn view(board: &Board, width: f32, can_fullscreen: bool) -> Item<'_> 
 }
 
 fn header(board: &Board, width: f32, can_fullscreen: bool) -> Item<'_> {
-    let heading = column![
-        label("数字员工 · 协同办公", 11, Tone::Muted),
-        strong("任务看板", 28, Tone::Ink),
-        label("你的团队，正在把工作变成成果。", 13, Tone::Muted),
-    ]
-    .spacing(5)
-    .width(Length::Fill);
+    let heading = strong("任务看板", 24, Tone::Ink).width(Length::Fill);
     let controls = row![
-        label("实时概览", 11, Tone::Muted),
         action(
             "刷新",
             Some(Icon::ArrowRepeat),
@@ -140,52 +133,30 @@ fn summary(data: Option<&Snapshot>, width: f32) -> Item<'_> {
         .zip(notes)
         .enumerate()
         .map(|(index, ((title, count), note))| {
-            let number = container(strong(format!("{:02}", index + 1), 11, Tone::White))
-                .center(26)
-                .style(|_| {
-                    container::Style::default().background(ORANGE).border(iced::border::rounded(6))
-                });
             let value = row![
-                strong(count.map_or_else(|| "—".into(), |n| n.to_string()), 34, Tone::Ink),
+                strong(count.map_or_else(|| "—".into(), |n| n.to_string()), 25, Tone::Ink),
                 label(if index < 2 { "位" } else { "项" }, 12, Tone::Muted),
             ]
             .spacing(5)
-            .align_y(Alignment::End);
-            container(
-                row![
-                    number,
-                    column![
-                        label(title, 12, Tone::Muted),
-                        value,
-                        label(note.unwrap_or_default(), 11, Tone::Muted)
-                    ]
-                    .spacing(4),
-                ]
-                .spacing(14),
-            )
-            .padding([18, 20])
+            .align_y(Alignment::Center);
+            column![
+                label(title, 13, Tone::Muted),
+                value,
+                note.map(|note| label(note, 12, Tone::Muted)),
+            ]
+            .spacing(5)
             .width(Length::Fill)
-            .style(move |theme| {
-                container::Style::default().border(Border {
-                    color: Palette::new(theme).border,
-                    width: if index == 0 { 0.0 } else { 0.5 },
-                    ..Border::default()
-                })
-            })
             .into()
         })
         .collect();
-    card(grid(
-        cells,
-        if width < 450.0 {
-            1
-        } else if width < 720.0 {
-            2
-        } else {
-            4
-        },
-        0,
-    ))
+    let columns = if width >= 720.0 {
+        4
+    } else if width >= 360.0 {
+        2
+    } else {
+        1
+    };
+    card(container(grid(cells, columns, 14)).padding(16))
 }
 
 struct WorkState<'a> {
@@ -240,7 +211,7 @@ fn office<'a>(board: &'a Board, data: &'a Snapshot, width: f32) -> Item<'a> {
         .find(|employee| Some(employee.employee_id.as_str()) == board.employee.as_deref());
     let wide = width >= 1000.0;
     let inspector_width = if width >= 1250.0 { 330.0 } else { 260.0 };
-    let office_width = if wide { width - inspector_width - 75.0 } else { width - 40.0 };
+    let office_width = if wide { width - inspector_width - 52.0 } else { width - 32.0 };
     let focus =
         board.focus.as_ref().and_then(|id| data.tasks.iter().find(|task| &task.task_id == id));
     let title = column![
@@ -263,7 +234,8 @@ fn office<'a>(board: &'a Board, data: &'a Snapshot, width: f32) -> Item<'a> {
         status("需要协助", Tone::Red),
     ]
     .spacing(12);
-    let mut panel = column![section_header(title, legend, office_width < 620.0), divider()];
+    let mut panel =
+        column![section_header(title, legend.wrap().into(), office_width < 620.0)].spacing(14);
     if let Some(task) = focus {
         let detail = board
             .details
@@ -313,32 +285,20 @@ fn office<'a>(board: &'a Board, data: &'a Snapshot, width: f32) -> Item<'a> {
             )
             .padding([8, 16])
             .width(Length::Fill)
-            .style(|theme| tint_style(theme, Tone::Accent, 0.0)),
+            .style(|theme| tint_style(theme, Tone::Accent, 8.0)),
         );
     }
-    let sign = container(
-        row![
-            strong("识矩 · 数字办公室", 14, Tone::White).width(Length::Fill),
-            label(
-                format!("更新于 {}", format_time(data.summary.data_as_of.as_deref())),
-                11,
-                Tone::White
-            ),
-        ]
-        .spacing(8)
-        .align_y(Alignment::Center),
-    )
-    .padding([15, 20])
-    .width(Length::Fill)
-    .style(|_| container::Style::default().background(NAVY));
-    let manager = zone("任务主管", "安排 · 协调 · 验收", true, 1, board, data, focus);
+    let manager_width = if width >= 1250.0 { 215.0 } else { 170.0 };
+    let side_by_side = office_width >= 620.0;
+    let worker_width =
+        if side_by_side { office_width - manager_width - 12.0 } else { office_width };
+    let manager = zone("任务主管", true, 1, board, data, focus);
     let worker = zone(
         "员工工作区",
-        "每个人都有自己的工作",
         false,
-        if width >= 1400.0 {
+        if worker_width >= 700.0 {
             3
-        } else if office_width >= 515.0 {
+        } else if worker_width >= 440.0 {
             2
         } else {
             1
@@ -347,37 +307,21 @@ fn office<'a>(board: &'a Board, data: &'a Snapshot, width: f32) -> Item<'a> {
         data,
         focus,
     );
-    let zones: Item<'_> = if office_width >= 460.0 {
-        row![container(manager).width(if width >= 1250.0 { 215 } else { 150 }), worker]
-            .width(Length::Fill)
-            .into()
+    let zones: Item<'_> = if side_by_side {
+        row![container(manager).width(manager_width), worker].spacing(12).into()
     } else {
-        column![manager, divider(), worker].width(Length::Fill).into()
+        column![manager, worker].spacing(12).into()
     };
-    let floor = container(
-        row![
-            label("员工工位", 11, Tone::Muted).width(Length::Fill),
-            label("主管安排 → 员工执行 → 成果回传", 11, Tone::Muted),
-        ]
-        .spacing(5),
-    )
-    .padding([9, 14])
-    .width(Length::Fill)
-    .style(|theme| panel_style(theme, true));
-    let interior = card(column![sign, zones, floor,]);
-    panel = panel
-        .push(container(interior).width(Length::Fill).padding(14))
-        .push(
-            container(label(
+    let office = card(
+        panel
+            .push(zones)
+            .push(label(
                 format!("展示授权名单中的 {} 位员工", employees(data).len()),
-                11,
+                12,
                 Tone::Muted,
             ))
-            .padding([0, 14])
-            .width(Length::Fill),
-        )
-        .push(Space::new().height(14));
-    let office = card(panel);
+            .padding(16),
+    );
     let inspect = card(match selected {
         Some(person) => inspector(board, data, person),
         None => container(label("当前没有可展示的员工", 13, Tone::Muted)).padding(18).into(),
@@ -391,7 +335,6 @@ fn office<'a>(board: &'a Board, data: &'a Snapshot, width: f32) -> Item<'a> {
 
 fn zone<'a>(
     title: &'static str,
-    hint: &'static str,
     manager: bool,
     cols: usize,
     board: &'a Board,
@@ -403,9 +346,9 @@ fn zone<'a>(
         .filter(|person| (person.agent_kind == "manager") == manager)
         .map(|person| desk(board, data, person, manager, focus))
         .collect();
-    let inside = container(
+    container(
         column![
-            row![strong(title, 13, Tone::Ink), label(hint, 11, Tone::Muted)].spacing(8).wrap(),
+            strong(title, 14, Tone::Ink),
             if people.is_empty() {
                 label(
                     if manager {
@@ -424,12 +367,9 @@ fn zone<'a>(
         .spacing(12),
     )
     .width(Length::Fill)
-    .padding([14, 10]);
-    Stack::new()
-        .push(inside)
-        .push_under(canvas(Dots { manager }).width(Length::Fill).height(Length::Fill))
-        .width(Length::Fill)
-        .into()
+    .padding([12, 10])
+    .style(|theme| tint_style(theme, Tone::Muted, 10.0))
+    .into()
 }
 
 fn desk<'a>(
@@ -456,23 +396,9 @@ fn desk<'a>(
                     record.detail.steps.iter().any(|step| task.step_employee(step) == Some(id))
                 })
     });
-    let badge = container(
-        column![
-            strong(person.name.as_str(), 13, if manager { Tone::White } else { Tone::Ink }),
-            label(role, 11, if manager { Tone::White } else { Tone::Muted }),
-        ]
-        .spacing(3)
-        .align_x(Alignment::Center),
-    )
-    .padding([8, 10])
-    .center_x(Length::Fill)
-    .style(move |theme| {
-        if manager {
-            container::Style::default().background(NAVY).border(iced::border::rounded(6))
-        } else {
-            panel_style(theme, false)
-        }
-    });
+    let identity =
+        column![strong(person.name.as_str(), 14, Tone::Ink), label(role, 12, Tone::Muted),]
+            .spacing(3);
     let height = if manager { 116.0 } else { 156.0 };
     let picture = image(portraits::office_avatar(&person.name, manager))
         .width(height * 0.75)
@@ -485,18 +411,15 @@ fn desk<'a>(
             .width(Length::Fill)
             .height(height),
     ];
-    let speech = container(strong(
+    let speech = label(
         if state.working && board.pulse {
             format!("{} …", state.action)
         } else {
             state.action.to_owned()
         },
         12,
-        Tone::Ink,
-    ))
-    .padding([8, 10])
-    .width(Length::Fill)
-    .style(|theme| panel_style(theme, false));
+        Tone::Muted,
+    );
     let title = data
         .tasks
         .iter()
@@ -505,13 +428,13 @@ fn desk<'a>(
         .or_else(|| person.current_work.as_ref().map(|work| work.task_name.as_str()))
         .unwrap_or("在岗，可继续安排工作");
     let body = column![
+        identity,
         status(state.name, state.tone),
-        speech,
         scene,
-        badge,
-        container(label(title, 11, Tone::Muted)).center_x(Length::Fill),
+        strong(title, 12, Tone::Ink),
+        speech
     ]
-    .spacing(8)
+    .spacing(6)
     .width(Length::Fill);
     button(body)
         .padding(9)
@@ -519,21 +442,20 @@ fn desk<'a>(
         .on_press(message(Event::Select(person.employee_id.clone())))
         .style(move |theme, status| {
             let colors = Palette::new(theme);
-            let hovered = status != button::Status::Active;
-            button::Style {
-                background: if selected || participant {
-                    Some(ORANGE.scale_alpha(0.12).into())
+            let mut style = rounded_action_btn_style(theme, status);
+            style.background = Some(
+                if selected || participant {
+                    colors.accent.scale_alpha(if selected { 0.16 } else { 0.09 })
+                } else if status == button::Status::Active {
+                    colors.surface
                 } else {
-                    hovered.then(|| colors.surface.into())
-                },
-                text_color: colors.ink,
-                border: Border {
-                    color: if selected || participant { ORANGE } else { colors.border },
-                    width: if selected || participant || hovered { 1.0 } else { 0.0 },
-                    radius: 8.0.into(),
-                },
-                ..button::Style::default()
-            }
+                    colors.header
+                }
+                .into(),
+            );
+            style.text_color = colors.ink;
+            style.border = iced::border::rounded(8);
+            style
         })
         .into()
 }
@@ -543,32 +465,19 @@ fn inspector<'a>(board: &'a Board, data: &'a Snapshot, person: &'a Employee) -> 
     let manager = person.agent_kind == "manager";
     let profile = data.profiles.get(&person.employee_id);
     let role = role_title(profile, manager);
-    let mut profile_head =
-        column![label("数字员工", 11, Tone::Accent)].spacing(9).width(Length::Fill);
-    if let Some(handle) = portraits::avatar(&person.name, manager) {
-        profile_head =
-            profile_head.push(container(image(handle).width(94).height(94)).center_x(Length::Fill));
-    }
-    profile_head = profile_head.push(
-        container(
-            column![
-                strong(person.name.as_str(), 21, Tone::Ink),
-                label(
-                    format!("{role} · {}", if manager { "安排与验收" } else { "专注交付" }),
-                    12,
-                    Tone::Muted
-                ),
-                status(state.name, state.tone),
-            ]
-            .spacing(9)
-            .align_x(Alignment::Center),
-        )
-        .center_x(Length::Fill),
-    );
-    let header = container(profile_head)
-        .padding(18)
-        .width(Length::Fill)
-        .style(|theme| panel_style(theme, true));
+    let portrait =
+        portraits::avatar(&person.name, manager).map(|handle| image(handle).width(44).height(44));
+    let header = row![
+        portrait,
+        column![
+            strong(person.name.as_str(), 17, Tone::Ink),
+            label(role, 12, Tone::Muted),
+            status(state.name, state.tone),
+        ]
+        .spacing(4),
+    ]
+    .align_y(Alignment::Center)
+    .spacing(10);
     let mut info = column![
         label("部门", 11, Tone::Muted),
         strong(nonempty(person.department_path.as_deref(), "部门未登记"), 13, Tone::Ink),
@@ -580,19 +489,22 @@ fn inspector<'a>(board: &'a Board, data: &'a Snapshot, person: &'a Employee) -> 
     {
         info = info.push(label("所属主管", 11, Tone::Muted)).push(strong(manager, 13, Tone::Ink));
     }
-    let mut body = column![card(container(info).padding(13))].spacing(13);
+    let mut body = column![info].spacing(11);
     if let Some(profile) = profile {
-        let mut tags = Row::new().spacing(4);
-        for tag in profile.tags.iter().filter(|tag| !tag.trim().is_empty()) {
-            tags = tags.push(chip(label(tag.as_str(), 11, Tone::Muted), Tone::Muted));
+        let tags = profile
+            .tags
+            .iter()
+            .map(|tag| tag.trim())
+            .filter(|tag| !tag.is_empty())
+            .collect::<Vec<_>>()
+            .join(" · ");
+        if !tags.is_empty() {
+            body = body.push(label(tags, 12, Tone::Muted));
         }
-        body = body.push(tags.wrap());
     }
-    body = body.push(strong("TA 正在做什么", 13, Tone::Ink)).push(label(
-        state.action,
-        12,
-        Tone::Muted,
-    ));
+    body = body.push(
+        column![strong("当前工作", 13, Tone::Ink), label(state.action, 12, Tone::Muted)].spacing(5),
+    );
     let related: Vec<_> = data
         .tasks
         .iter()
@@ -603,19 +515,17 @@ fn inspector<'a>(board: &'a Board, data: &'a Snapshot, person: &'a Employee) -> 
         .take(3)
         .collect();
     for task in related.iter().copied().filter(|task| task.running() || task.waiting()) {
-        body = body.push(card(
-            container(
-                column![
-                    status(task_status(task).0, task_status(task).1),
-                    strong(task.title.as_str(), 13, Tone::Ink),
-                    label(task_ref(&task.task_id), 11, Tone::Muted),
-                    progress(task),
-                    link("查看任务 ↗", web("/tasks", Some(("task", &task.task_id)))),
-                ]
-                .spacing(7),
-            )
-            .padding(10),
-        ));
+        let (caption, tone) = task_status(task);
+        body = body.push(
+            column![
+                status(caption, tone),
+                strong(task.title.as_str(), 13, Tone::Ink),
+                label(task_ref(&task.task_id), 11, Tone::Muted),
+                progress(task),
+                link("查看任务 ↗", web("/tasks", Some(("task", &task.task_id)))),
+            ]
+            .spacing(7),
+        );
     }
     let mut outputs = Vec::new();
     let mut records = Vec::new();
@@ -688,31 +598,24 @@ fn inspector<'a>(board: &'a Board, data: &'a Snapshot, person: &'a Employee) -> 
         Some(Message::View(ViewMessage::OpenUrlExternal(employee_config_url(&person.employee_id)))),
         false,
     ));
-    column![header, container(body).padding(18).width(Length::Fill)].into()
+    column![header, body].spacing(16).padding(16).width(Length::Fill).into()
 }
 
 fn tasks_panel<'a>(board: &'a Board, data: &'a Snapshot, width: f32) -> Item<'a> {
-    let controls = row![
-        action(
-            "执行中",
-            None,
-            Some(message(Event::Queue(Queue::Running))),
-            board.queue == Queue::Running
-        ),
-        action(
-            "等你拍板",
-            None,
-            Some(message(Event::Queue(Queue::Waiting))),
-            board.queue == Queue::Waiting
-        ),
-        action(
-            "全部任务",
-            None,
-            Some(message(Event::Queue(Queue::All))),
-            board.queue == Queue::All
-        ),
-    ]
-    .spacing(8);
+    let controls = segmented(
+        row![
+            segment("执行中", board.queue == Queue::Running, message(Event::Queue(Queue::Running))),
+            segment(
+                "等你拍板",
+                board.queue == Queue::Waiting,
+                message(Event::Queue(Queue::Waiting))
+            ),
+            segment("全部任务", board.queue == Queue::All, message(Event::Queue(Queue::All))),
+        ]
+        .spacing(2)
+        .wrap()
+        .into(),
+    );
     let title = column![
         strong("正在发生的工作", 16, Tone::Ink),
         label("任务中心的任务 · 查看整体进度、节点状态和每一步的负责人", 12, Tone::Muted),
@@ -742,11 +645,9 @@ fn tasks_panel<'a>(board: &'a Board, data: &'a Snapshot, width: f32) -> Item<'a>
             12,
         )
     };
-    let mut content = column![
-        section_header(title, controls, width < 750.0),
-        divider(),
-        container(list).padding(12).width(Length::Fill),
-    ];
+    let mut content = column![section_header(title, controls, width < 750.0), list]
+        .spacing(14)
+        .width(Length::Fill);
     if page_count > 1 {
         content = content.push(
             container(
@@ -772,7 +673,7 @@ fn tasks_panel<'a>(board: &'a Board, data: &'a Snapshot, width: f32) -> Item<'a>
             .center_x(Length::Fill),
         );
     }
-    card(content)
+    content.into()
 }
 
 fn task_card<'a>(board: &'a Board, data: &'a Snapshot, task: &'a WorkItem) -> Item<'a> {
@@ -782,18 +683,10 @@ fn task_card<'a>(board: &'a Board, data: &'a Snapshot, task: &'a WorkItem) -> It
         .map(String::as_str)
         .or_else(|| task.input_text("workflow_name"))
         .unwrap_or("协作任务");
-    let (status_label, tone) = task_status(task);
-    let head = container(
-        row![
-            label(workflow, 12, Tone::Muted).width(Length::Fill),
-            chip(label(status_label, 11, tone), tone),
-        ]
+    let (state, tone) = task_status(task);
+    let head = row![label(workflow, 12, Tone::Muted).width(Length::Fill), status(state, tone),]
         .spacing(8)
-        .align_y(Alignment::Center),
-    )
-    .padding([7, 12])
-    .width(Length::Fill)
-    .style(|theme| panel_style(theme, true));
+        .align_y(Alignment::Center);
     let detail = board.details.get(&task.task_id).and_then(|entry| entry.as_ref());
     let current = detail.and_then(|entry| entry.as_ref().ok()).map(|record| &record.detail.steps);
     let active_steps: Vec<_> =
@@ -825,11 +718,7 @@ fn task_card<'a>(board: &'a Board, data: &'a Snapshot, task: &'a WorkItem) -> It
         strong(nonempty(Some(&task.title), "未命名任务"), 15, Tone::Ink),
         label(task_ref(&task.task_id), 11, Tone::Muted),
         progress(task),
-        container(current_node).padding(9).width(Length::Fill).style(|theme| tint_style(
-            theme,
-            Tone::Accent,
-            8.0
-        )),
+        current_node,
     ]
     .spacing(9);
     if let Some(blocker) = task.blocker.as_deref().filter(|value| !value.trim().is_empty()) {
@@ -888,34 +777,30 @@ fn task_card<'a>(board: &'a Board, data: &'a Snapshot, task: &'a WorkItem) -> It
             None => link("重试工作交接", message(Event::Retry(task.task_id.clone()))),
         });
     }
-    body = body.push(divider()).push(label(
+    body = body.push(label(
         format!("更新于 {}", format_time(task.updated_at.as_deref())),
         11,
         Tone::Muted,
     ));
-    let footer = container(
-        row![
-            action(
-                "在办公室看协作",
-                None,
-                Some(message(Event::Focus(Some(task.task_id.clone())))),
-                false
-            ),
-            Space::new().width(Length::Fill),
-            link("任务详情 ↗", web("/tasks", Some(("task", &task.task_id)))),
-        ]
-        .spacing(6)
-        .align_y(Alignment::Center),
-    )
-    .padding([7, 12])
-    .width(Length::Fill)
-    .style(|theme| panel_style(theme, true));
-    container(column![head, container(body).padding(12).width(Length::Fill), footer])
+    let footer = row![
+        action(
+            "在办公室看协作",
+            None,
+            Some(message(Event::Focus(Some(task.task_id.clone())))),
+            false
+        ),
+        link("任务详情 ↗", web("/tasks", Some(("task", &task.task_id)))),
+    ]
+    .spacing(8)
+    .align_y(Alignment::Center)
+    .wrap();
+    container(column![head, body, divider(), footer].spacing(12))
+        .padding(16)
         .width(Length::Fill)
         .style(move |theme| {
-            let mut style = panel_style(theme, false);
+            let mut style = panel_style(theme);
             if board.focus.as_deref() == Some(task.task_id.as_str()) {
-                style.border.color = ORANGE;
+                style.border.color = Tone::Accent.color(theme);
             }
             style
         })
@@ -963,7 +848,9 @@ fn node<'a>(data: &'a Snapshot, task: &'a WorkItem, step: &'a Step, index: usize
         info = info.push(label(reason.as_str(), 12, Tone::Red));
     }
     row![
-        container(label(marker, 12, tone)).center(24).style(|theme| panel_style(theme, false)),
+        container(label(marker, 12, tone))
+            .center(24)
+            .style(move |theme| tint_style(theme, tone, 6.0)),
         info,
     ]
     .spacing(8)
@@ -1051,48 +938,12 @@ fn nonempty<'a>(value: Option<&'a str>, fallback: &'a str) -> &'a str {
     value.filter(|value| !value.trim().is_empty()).unwrap_or(fallback)
 }
 
-fn status(name: &str, tone: Tone) -> Item<'_> {
-    row![
-        container(Space::new().width(7).height(7)).style(move |theme| {
-            container::Style::default()
-                .background(tone.color(theme))
-                .border(iced::border::rounded(4))
-        }),
-        label(name, 11, Tone::Muted),
-    ]
-    .spacing(5)
-    .align_y(Alignment::Center)
-    .into()
-}
-
-fn section_header<'a>(
-    title: Column<'a, Message>,
-    controls: Row<'a, Message>,
-    narrow: bool,
-) -> Item<'a> {
-    let body: Item<'_> = if narrow {
-        column![title, controls.wrap()].spacing(10).into()
+fn section_header<'a>(title: Column<'a, Message>, controls: Item<'a>, narrow: bool) -> Item<'a> {
+    if narrow {
+        column![title, controls].spacing(10).into()
     } else {
         row![title, controls].spacing(12).align_y(Alignment::Center).into()
-    };
-    container(body)
-        .padding([18, 16])
-        .width(Length::Fill)
-        .style(|theme| panel_style(theme, true))
-        .into()
-}
-
-fn tab(title: &'static str, event: Event, selected: bool) -> Item<'static> {
-    button(strong(title, 14, if selected { Tone::Accent } else { Tone::Muted }))
-        .on_press(message(event))
-        .padding([8, 12])
-        .style(move |_, status| button::Style {
-            background: (selected || status == button::Status::Hovered)
-                .then(|| ORANGE.scale_alpha(0.14).into()),
-            border: iced::border::rounded(7),
-            ..button::Style::default()
-        })
-        .into()
+    }
 }
 
 fn grid<'a>(cells: Vec<Item<'a>>, columns: usize, gap: u32) -> Item<'a> {
@@ -1107,48 +958,6 @@ fn grid<'a>(cells: Vec<Item<'a>>, columns: usize, gap: u32) -> Item<'a> {
         rows = rows.push(row);
     }
     rows.into()
-}
-
-fn panel_style(theme: &Theme, muted: bool) -> container::Style {
-    let colors = Palette::new(theme);
-    container::Style::default()
-        .background(if muted { colors.header } else { colors.surface })
-        .border(Border { color: colors.border, width: 1.0, radius: 8.0.into() })
-}
-
-struct Dots {
-    manager: bool,
-}
-
-impl canvas::Program<Message> for Dots {
-    type State = ();
-
-    fn draw(
-        &self,
-        _: &(),
-        renderer: &Renderer,
-        theme: &Theme,
-        bounds: Rectangle,
-        _: mouse::Cursor,
-    ) -> Vec<canvas::Geometry> {
-        let mut frame = canvas::Frame::new(renderer, bounds.size());
-        let colors = Palette::new(theme);
-        frame.fill_rectangle(
-            Point::ORIGIN,
-            bounds.size(),
-            if self.manager { colors.header } else { colors.surface },
-        );
-        let color = colors.ink.scale_alpha(if self.manager { 0.19 } else { 0.14 });
-        let dots = canvas::Path::new(|path| {
-            for y in (2..bounds.height as usize).step_by(22) {
-                for x in (2..bounds.width as usize).step_by(22) {
-                    path.circle(Point::new(x as f32, y as f32), 0.9);
-                }
-            }
-        });
-        frame.fill(&dots, color);
-        vec![frame.into_geometry()]
-    }
 }
 
 struct Furniture {

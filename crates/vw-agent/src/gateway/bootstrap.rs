@@ -342,10 +342,12 @@ pub(super) fn stateful_handler_router() -> Router<AppState> {
     let router = Router::<AppState>::new();
     #[cfg(target_os = "macos")]
     let router = router.merge(api::handlers::agent_apps_diagnostics::router().with_state(()));
-    router
+    let router = router
         .merge(api::handlers::agent_apps::router().with_state(()))
-        .merge(api::handlers::usage::router().with_state(()))
-        .merge(api::handlers::computer_control::router().with_state(()))
+        .merge(api::handlers::usage::router().with_state(()));
+    #[cfg(unix)]
+    let router = router.merge(api::handlers::computer_control::router().with_state(()));
+    router
         .merge(api::handlers::app_providers::router().with_state(()))
         .merge(api::handlers::model_catalog::router().with_state(()))
         .merge(api::handlers::auth::router())

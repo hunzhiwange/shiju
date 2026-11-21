@@ -44,12 +44,12 @@ pub fn strategy(
 /// Placeholder credentials must never become permanent catalog credentials.
 pub fn reject_placeholders(
     bytes: &[u8],
-) -> Result<(), super::live::write_guard::WriteError> {
+) -> Result<(), super::live::WriteError> {
     if [b"PROXY_MANAGED".as_slice(), b"CC_SWITCH_PENDING_KEY".as_slice()]
         .iter()
         .any(|marker| bytes.windows(marker.len()).any(|part| part == *marker))
     {
-        return Err(super::live::write_guard::WriteError::InvalidResource);
+        return Err(super::live::WriteError::InvalidResource);
     }
     Ok(())
 }

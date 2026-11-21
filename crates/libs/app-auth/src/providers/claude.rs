@@ -1,6 +1,6 @@
 //! Claude adapter: one field projection, guarded native file and shared pending transaction.
 use super::{
-    live::{patch_json::JsonPatch, write_guard::WriteError},
+    live::{WriteError, patch_json::JsonPatch},
     projection::fields,
 };
 use serde_json::{Value, json};

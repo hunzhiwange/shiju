@@ -8,5 +8,5 @@ impl PublishHost for SnapshotHost { type State = gateway_app_providers::operatio
 
 pub(super) fn router() -> axum::Router { gateway_aggregation::aggregation_publish::router(SnapshotHost) }
 
-#[cfg(any(test, target_arch = "wasm32"))]
+#[cfg(any(test, not(target_os = "macos")))]
 pub(super) use gateway_aggregation::aggregation_publish::operation_error;

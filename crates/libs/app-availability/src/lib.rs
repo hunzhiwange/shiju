@@ -10,4 +10,5 @@ mod queue_tests;
 #[cfg(not(target_arch = "wasm32"))]
 pub use app_availability_core::retry;
 
+#[cfg(target_os = "macos")]
 pub mod selection;

@@ -24,6 +24,7 @@ vw-api-app-identity = { path = "../api-app-identity" }
 vw-api-transport = { path = "../api-transport" }
 app-catalog = { path = "../app-catalog" }
 app-config-patch = { path = "../app-config-patch" }
+app-config-write = { path = "../app-config-write" }
 app-provider-validation = { path = "../app-provider-validation" }
 app-provider-projection = { path = "../app-provider-projection" }
 tokio = { version = "1", features = ["macros", "rt", "sync", "time"] }
@@ -41,7 +42,6 @@ vw-api-app-provider-edit = { path = "../api-app-provider-edit" }
 vw-api-app-provider-base = { path = "../api-app-provider-base" }
 
 [target.'cfg(target_os = "macos")'.dependencies]
-app-config-write = { path = "../app-config-write" }
 vw-api-app-provider-environment = { path = "../api-app-provider-environment" }
 vw-api-app-provider-terminal = { path = "../api-app-provider-terminal" }
 serde_yaml = "0.9"

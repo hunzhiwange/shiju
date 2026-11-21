@@ -25,7 +25,7 @@ impl RelayBinding {
     }
 
     /// The owning ACP launch profile revokes the capability on drop.
-    #[cfg(unix)]
+    #[cfg(any(unix, windows))]
     pub fn for_prompt(identity: RelayIdentity) -> anyhow::Result<Arc<Self>> {
         Self::issue(identity, None)
     }

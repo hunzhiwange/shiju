@@ -1,9 +1,13 @@
+#[cfg(target_os = "macos")]
 use app_auth::providers::live::commit::{AppState, Mode};
 pub use app_aggregation_catalog::member_validation::{MemberValidationError, ProviderRole, validate_provider};
+#[cfg(target_os = "macos")]
 use app_aggregation_catalog::member_validation::require_supported_app;
+#[cfg(target_os = "macos")]
 use vw_api_app_identity::AppId;
 
 /// Validate against the settled state held under the application's transaction lock.
+#[cfg(target_os = "macos")]
 pub fn validate_member_removal(
     app: AppId,
     state: &AppState,

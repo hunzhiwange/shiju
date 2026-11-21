@@ -306,9 +306,9 @@ mod aggregation_members_tests;
 mod aggregation_omo;
 #[cfg(all(test, target_os = "macos"))]
 mod aggregation_omo_tests;
-#[cfg(any(test, target_arch = "wasm32"))]
+#[cfg(any(test, not(target_os = "macos")))]
 pub(crate) use gateway_aggregation::aggregation_omp as aggregation_omp;
-#[cfg(any(test, target_arch = "wasm32"))]
+#[cfg(any(test, not(target_os = "macos")))]
 pub(crate) use gateway_aggregation::aggregation_pi as aggregation_pi;
 mod aggregation_read;
 #[cfg(all(test, target_os = "macos"))]
@@ -420,6 +420,7 @@ pub(crate) use gateway_agent_app::agent_app_prompt_sync as agent_app_prompt_sync
 
 pub(crate) use gateway_agent_app::agent_app_prompt_shared_import as agent_app_prompt_shared_import;
 
+#[cfg(unix)]
 pub(crate) mod computer_control;
 // Computer-control policy tests are registered by gateway-computer-control.
 

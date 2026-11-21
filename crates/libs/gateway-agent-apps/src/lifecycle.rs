@@ -1,43 +1,49 @@
 //! Fixed lifecycle endpoints; opaque IDs never confer scope or host authority.
-use vw_api_app_operations::{AppActionExecutionResult, AppActionPreview, AppActionPreviewId, AppActionPreviewRequest, AppActionSubmitRequest, AppLifecycleAction, AppOperationPhase, AppOperationStatus};
+#[cfg(unix)]
 use super::access;
+#[cfg(unix)]
+use axum::{Json, routing::post};
 use axum::{
-    Extension, Json, Router,
+    Extension, Router,
     extract::{DefaultBodyLimit, Path, Query},
     http::{HeaderMap, StatusCode},
     response::{IntoResponse, Response},
-    routing::{get, post},
+    routing::get,
 };
 use serde::Deserialize;
+use std::{path::PathBuf, time::Duration};
+#[cfg(unix)]
 use std::{
     collections::HashMap,
-    path::PathBuf,
     sync::{Arc, Mutex},
-    time::{Duration, Instant},
+    time::Instant,
 };
-use vw_agent_apps::apps::{
-    discovery::read::LocalReadEnvironment,
-    lifecycle::{
-        local,
-        operations::{Operation, Phase},
-    },
+use vw_agent_apps::apps::lifecycle::operations::{Operation, Phase};
+#[cfg(unix)]
+use vw_agent_apps::apps::{discovery::read::LocalReadEnvironment, lifecycle::local};
+#[cfg(unix)]
+use vw_api_app_operations::{
+    AppActionExecutionResult, AppActionPreview, AppActionPreviewId, AppActionPreviewRequest,
+    AppActionSubmitRequest, AppLifecycleAction,
 };
-use {
-    vw_api_transport::id::TaskId,
-    vw_api_transport::id::TenantScope,
-    vw_api_task::TaskStatus,
-};
+use vw_api_app_operations::{AppOperationPhase, AppOperationStatus};
+#[cfg(unix)]
+use vw_api_task::TaskStatus;
+use vw_api_transport::id::{TaskId, TenantScope};
 
 #[derive(Clone)]
 struct State {
     policy: Option<PathBuf>,
+    #[cfg(unix)]
     store: Arc<Mutex<Store>>,
 }
+#[cfg(unix)]
 #[derive(Default)]
 struct Store {
     previews: HashMap<String, Preview>,
     operations: HashMap<String, Running>,
 }
+#[cfg(unix)]
 struct Preview {
     tenant: TenantScope,
     host: String,
@@ -45,6 +51,7 @@ struct Preview {
     plan: local::Plan,
     write: local::WriteEnvironment,
 }
+#[cfg(unix)]
 struct Running {
     tenant: TenantScope,
     host: String,
@@ -74,14 +81,22 @@ pub fn router() -> Router {
     router_with_policy(std::env::var_os("SHIJU_AGENT_APPS_ACCESS_FILE").map(PathBuf::from))
 }
 pub fn router_with_policy(policy: Option<PathBuf>) -> Router {
-    Router::new()
+    let router = Router::new();
+    #[cfg(unix)]
+    let router = router
         .route("/agent-apps/actions/preview", post(preview))
-        .route("/agent-apps/actions", post(submit))
+        .route("/agent-apps/actions", post(submit));
+    router
         .route("/agent-apps/operations/{id}", get(read).delete(cancel))
         .route("/agent-apps/operations/{id}/events", get(events))
         .layer(DefaultBodyLimit::max(8192))
-        .layer(Extension(State { policy, store: Arc::new(Mutex::new(Store::default())) }))
+        .layer(Extension(State {
+            policy,
+            #[cfg(unix)]
+            store: Arc::new(Mutex::new(Store::default())),
+        }))
 }
+#[cfg(unix)]
 async fn authorize(
     state: &State,
     headers: HeaderMap,
@@ -96,6 +111,7 @@ async fn authorize(
     .await
     .map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?
 }
+#[cfg(unix)]
 fn environment(
     host: access::Host,
 ) -> Result<(LocalReadEnvironment, local::WriteEnvironment), StatusCode> {
@@ -111,6 +127,7 @@ fn environment(
         local::WriteEnvironment { prefix: write.prefix, npm: write.npm },
     ))
 }
+#[cfg(unix)]
 async fn preview(
     Extension(state): Extension<State>,
     Extension(tenant): Extension<TenantScope>,
@@ -148,6 +165,7 @@ async fn preview(
     );
     Ok(Json(response))
 }
+#[cfg(unix)]
 async fn submit(
     Extension(state): Extension<State>,
     Extension(tenant): Extension<TenantScope>,
@@ -237,6 +255,7 @@ async fn submit(
         }),
     ))
 }
+#[cfg(unix)]
 async fn owned(
     state: &State,
     tenant: TenantScope,
@@ -258,16 +277,29 @@ async fn owned(
 }
 enum OwnedOperation {
     External(std::sync::Arc<dyn gateway_types::app_operations::AppOperation>),
+    #[cfg(unix)]
     Lifecycle(Operation),
     #[cfg(target_os = "macos")]
     Usage(Arc<super::apps_usage_refresh::RefreshOperation>),
 }
 impl OwnedOperation {
     fn operation(&self) -> &Operation {
-        match self { Self::External(entry) => entry.operation(), Self::Lifecycle(op) => op, #[cfg(target_os = "macos")] Self::Usage(entry) => &entry.operation }
+        match self {
+            Self::External(entry) => entry.operation(),
+            #[cfg(unix)]
+            Self::Lifecycle(op) => op,
+            #[cfg(target_os = "macos")]
+            Self::Usage(entry) => &entry.operation,
+        }
     }
     fn response(&self, id: String) -> Response {
-        match self { Self::External(entry) => entry.response(id), Self::Lifecycle(op) => Json(status(id, op)).into_response(), #[cfg(target_os = "macos")] Self::Usage(entry) => entry.response() }
+        match self {
+            Self::External(entry) => entry.response(id),
+            #[cfg(unix)]
+            Self::Lifecycle(op) => Json(status(id, op)).into_response(),
+            #[cfg(target_os = "macos")]
+            Self::Usage(entry) => entry.response(),
+        }
     }
 }
 #[cfg(target_os = "macos")]
@@ -288,8 +320,15 @@ async fn resolve_operation(state: &State, tenant: TenantScope, headers: HeaderMa
             .map_err(super::usage_read::ReadError::operation_response)?;
         return Ok(OwnedOperation::Usage(entry));
     }
-    owned(state, tenant, headers, host.to_owned(), id).await
-        .map(OwnedOperation::Lifecycle).map_err(IntoResponse::into_response)
+    #[cfg(unix)]
+    {
+        owned(state, tenant, headers, host.to_owned(), id).await
+            .map(OwnedOperation::Lifecycle).map_err(IntoResponse::into_response)
+    }
+    #[cfg(not(unix))]
+    {
+        Err(StatusCode::NOT_FOUND.into_response())
+    }
 }
 
 async fn read(
@@ -379,6 +418,7 @@ async fn cancel(
     .await?;
     entry.operation().cancel_and_wait().await;
     let entry = match entry {
+        #[cfg(unix)]
         OwnedOperation::Lifecycle(_) => entry,
         _ => {
             resolve_operation(

@@ -1,5 +1,5 @@
 //! Gemini adapter composes existing field projection and two-file pending transaction.
-use super::live::{patch_dotenv::DotenvPatch, patch_json::JsonPatch, write_guard::WriteError};
+use super::live::{WriteError, patch_dotenv::DotenvPatch, patch_json::JsonPatch};
 use serde_json::{Value, json};
 use vw_api_app_provider_profiles::gemini::*;
 #[path = "gemini_form.rs"]

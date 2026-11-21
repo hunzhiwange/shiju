@@ -3,6 +3,7 @@
 //! Callers must authorize the directory before locking and retain the guard for
 //! the entire read/prepare/commit transaction. External processes and other
 //! executor processes do not participate. No network/file API is exposed here.
+pub use crate::WriteError;
 use std::{
     collections::HashSet,
     ffi::{CString, OsStr, OsString},
@@ -27,17 +28,6 @@ use vw_api_app_identity::{AppId};
 pub enum FilePrivacy {
     Private,
     Shared,
-}
-
-/// Fixed errors deliberately exclude credentials, input bytes and host paths.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum WriteError {
-    /// A prior transaction was recovered; reload state before retrying.
-    Recovered,
-    /// Concurrent edits exhausted replanning or invalidated a guarded snapshot.
-    Conflict,
-    InvalidResource,
-    Io,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]

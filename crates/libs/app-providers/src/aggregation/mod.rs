@@ -4,6 +4,7 @@ pub use app_aggregation_catalog::model_ids;
 pub use app_aggregation_catalog::omo_read;
 
 
+#[cfg(target_os = "macos")]
 pub use app_aggregation::member_keys;
 
 
@@ -76,6 +77,7 @@ pub mod catalog_generation;
 #[cfg(all(test, target_os = "macos"))]
 mod catalog_generation_tests;
 
+#[cfg(target_os = "macos")]
 pub use app_aggregation::codex_settings;
 
 #[cfg(all(test, target_os = "macos"))]

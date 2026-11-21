@@ -1,7 +1,7 @@
 //! Fixed macOS Desktop profiles; all four files share one durable intent.
 use super::live::{
+    WriteError,
     patch_json::{JsonPatch, object_value},
-    write_guard::WriteError,
 };
 use serde_json::{Map, Value, json};
 use vw_api_app_provider_profiles::claude_desktop::*;

@@ -63,7 +63,6 @@ pub(crate) mod codex_login_material {
     pub(crate) use app_auth_codex::identity::extract_codex_auth_user_identity;
 }
 
-#[cfg(target_os = "macos")]
 pub mod codex_catalog;
 #[cfg(all(test, target_os = "macos"))]
 mod codex_catalog_tests;

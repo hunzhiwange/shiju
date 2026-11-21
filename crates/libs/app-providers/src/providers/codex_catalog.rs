@@ -1,17 +1,24 @@
 //! Codex adapter composes route, catalog and login preparations into the sole pending owner.
+#[cfg(target_os = "macos")]
 pub mod form;
 
+use super::live::WriteError;
+#[cfg(target_os = "macos")]
 use super::live::{
     commit::*,
     stage::{FileChange, WholeFile},
     write_guard::*,
 };
 use serde_json::{Value, json};
+#[cfg(target_os = "macos")]
 use std::{ffi::OsStr, path::Path};
 use vw_api_app_identity::AppId;
 use vw_api_app_provider_profiles::codex_catalog::CodexProfile;
+#[cfg(target_os = "macos")]
 use vw_api_transport::id::TenantScope;
-use vw_api_model_catalog::*;
+#[cfg(target_os = "macos")]
+use vw_api_model_catalog::SavedCodexCatalog;
+use vw_api_model_catalog::ModelCatalogIdentity;
 pub use app_aggregation::CATALOG_FILENAME;
 pub fn settings(profile: &CodexProfile) -> Value {
     json!({"config":profile.config,"auth":{"OPENAI_API_KEY":profile.api_key}})
@@ -44,9 +51,11 @@ pub fn identity(
         endpoint: endpoint.into(),
     })
 }
+#[cfg(target_os = "macos")]
 pub struct CodexFiles {
     pub guard: AppWriteGuard,
 }
+#[cfg(target_os = "macos")]
 impl CodexFiles {
     pub fn open(home: &Path) -> Result<Self, WriteError> {
         use std::os::{

@@ -4,10 +4,11 @@ use super::{
     source::SourceRegistry,
 };
 use app_launch::request::validate_launch_request;
+#[cfg(unix)]
+use std::process::Command;
 use std::{
     collections::BTreeMap,
     path::{Path, PathBuf},
-    process::Command,
 };
 use vw_api_external_session::{ExternalSessionIdentity, SessionProvider};
 use vw_api_app_identity::{AppId, AppInstallation, LaunchRequest};
@@ -89,6 +90,7 @@ impl ResumePlan {
     /// AGY credentials must be resolved from the authorized identity here, on the
     /// execution host. A failed resolver aborts; no key reaches this plan or DTOs.
     /// Callers reauthorize/rebuild immediately before executing under their guard.
+    #[cfg(unix)]
     pub fn command_with_credentials(
         &self,
         resolve_agy: impl FnOnce(&ExternalSessionIdentity, &mut Command) -> Result<(), String>,

@@ -11,6 +11,9 @@ pub mod execute;
 #[cfg(all(test, unix))]
 mod execute_tests;
 
+#[cfg(unix)]
 pub mod local;
+#[cfg(unix)]
 mod local_agy;
+#[cfg(unix)]
 mod local_omp;

@@ -66,8 +66,6 @@ pub mod claude_rotation;
 #[cfg(all(test, target_os = "macos"))]
 mod claude_rotation_tests;
 
-#[cfg(target_os = "macos")]
-
 #[cfg(not(target_arch = "wasm32"))]
 pub mod xai;
 

@@ -1,5 +1,6 @@
 //! Internal live configuration primitives; callers authorize resources and own transactions.
 pub use app_config_patch::{patch_dotenv, patch_json, patch_toml, patch_yaml};
+pub use app_config_write::WriteError;
 
 #[cfg(target_os = "macos")]
 pub use app_config_write::write_guard;

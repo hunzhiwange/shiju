@@ -1,5 +1,5 @@
 //! Fixed Grok model-table adapter using the shared native projection and transaction owner.
-use super::live::write_guard::WriteError;
+use super::live::WriteError;
 use serde_json::{Value, json};
 use toml_edit::{DocumentMut, Item};
 use vw_api_app_provider_extended::grok::*;

@@ -4,6 +4,7 @@ pub use app_aggregation_catalog::{codex_classic, codex_review, codex_subagent, m
 
 pub const CATALOG_FILENAME: &str = "shiju-model-catalog.json";
 
+#[cfg(target_os = "macos")]
 pub mod member_keys;
 #[cfg(all(test, target_os = "macos"))]
 mod member_keys_tests;
@@ -35,4 +36,5 @@ pub mod omo_slim;
 #[cfg(all(test, target_os = "macos"))]
 mod omo_slim_tests;
 
+#[cfg(target_os = "macos")]
 pub mod codex_settings;

@@ -27,6 +27,23 @@ fn map(event: domain::Message) -> Message {
         domain::Message::SkillHub(m) => {
             Message::SkillHub(crate::app::message::skill_hub::map_domain(m))
         }
+        domain::Message::OpenSkillSettings => {
+            use crate::app::{
+                components::system_settings::SystemTab,
+                message::{
+                    ViewMessage,
+                    settings::{AgentConfigTabMessage, SettingsMessage},
+                },
+                state::AgentConfigTab,
+            };
+
+            Message::Batch(vec![
+                Message::View(ViewMessage::OpenSystemSettingsTab(SystemTab::Agents)),
+                Message::Settings(SettingsMessage::AgentConfigTab(
+                    AgentConfigTabMessage::Selected(AgentConfigTab::Skills),
+                )),
+            ])
+        }
         domain::Message::Connectors(m) => {
             Message::SkillHub(crate::app::message::SkillHubMessage::Connectors(m))
         }

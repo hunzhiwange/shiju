@@ -133,11 +133,11 @@ fn shiju_apps_cards_surface_runtime_readiness() {
         shiju_apps::mine::runtime_readiness(&installed_app(false)),
         Err("协调状态：pending；运行状态：unavailable".to_string())
     );
-    assert!(shiju_apps::mine::open_action_message(&installed_app(true)).is_some());
-    assert!(shiju_apps::mine::open_action_message(&installed_app(false)).is_none());
-    let mut app = installed_app(true);
-    app.runtime_url.clear();
-    assert!(shiju_apps::mine::open_action_message(&app).is_some());
+    assert!(matches!(
+        shiju_apps::open_installed("INSTALL01"),
+        Some(ShijuAppsMessage::OpenInstalled(id)) if id == "INSTALL01"
+    ));
+    assert!(shiju_apps::open_installed("").is_none());
     assert_eq!(shiju_apps::styles::SCROLLBAR_WIDTH, 4);
     assert_eq!(shiju_apps::styles::SCROLLABLE_SIDE_PADDING, 7);
 }

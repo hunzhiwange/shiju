@@ -81,6 +81,7 @@ pub struct ShijuInstalledAppDto {
     pub reconcile_status: String,
     #[serde(default)]
     pub runtime_status: String,
+    #[serde(default)]
     pub runtime_url: String,
     #[serde(default, alias = "installedAt")]
     pub created_at: Option<String>,
@@ -93,7 +94,7 @@ pub struct ShijuInstalledAppDto {
 }
 
 impl ShijuInstalledAppDto {
-    /// Runtime status gates the desktop binding flow; the launch service validates the URL.
+    /// Reports runtime status independently of launch authorization and URL validation.
     pub fn runtime_ready(&self) -> bool {
         !self.installation_id.is_empty()
             && self.reconcile_status == "ready"

@@ -10,7 +10,9 @@ use gateway_shiju_app::{ShijuAppPresentation, ShijuCatalogAppDto, ShijuInstalled
 use iced::widget::{Column, button, column, container, row, rule};
 use iced::{Alignment, Element, Font, Length};
 
-use super::{Event, Message, action, app_icon, date, icon_svg, mine, muted, styles, title};
+use super::{
+    Event, Message, action, app_icon, date, icon_svg, mine, muted, open_installed, styles, title,
+};
 
 struct Detail<'a> {
     name: &'a str,
@@ -361,12 +363,7 @@ pub(super) fn view(
                 .then(|| Event::MarketplaceAction(ShijuMarketplaceAction::Install(id.to_owned()))),
         ))
     } else {
-        installed.map(|item| {
-            (
-                "打开",
-                item.runtime_ready().then(|| Event::OpenInstalled(item.installation_id.clone())),
-            )
-        })
+        installed.map(|item| ("打开", open_installed(&item.installation_id)))
     };
     if let Some((label, event)) = primary {
         actions = actions.push(

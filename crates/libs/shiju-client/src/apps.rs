@@ -343,6 +343,14 @@ impl ShijuAppClient {
             .ok_or_else(|| {
                 ShijuAppError::invalid_input("SHIJU application installation is not owned")
             })?;
+        let app = if app.reconcile_status.is_empty()
+            || app.runtime_status.is_empty()
+            || (app.runtime_ready() && app.runtime_url.is_empty())
+        {
+            self.installation_detail(credential, installation_id).await?
+        } else {
+            app
+        };
         if !app.runtime_ready() {
             return Err(ShijuAppError::invalid_input("SHIJU application runtime is not ready"));
         }

@@ -17,7 +17,7 @@ use desktop_app_launch::{
 use desktop_app_launch::{ShijuAppsState, ShijuDetailMetadata, ShijuMarketplaceAction};
 use gateway_shiju_app::{
     GatewayShijuAppClient, ShijuAppCategory, ShijuCreatedApp, ShijuFeaturedApp,
-    ShijuMarketplaceList,
+    ShijuMarketplaceList, valid_installation_id,
 };
 
 /// 识矩应用在主标签栏中的稳定标识。
@@ -301,15 +301,13 @@ fn prepare_installed_launch(
 }
 
 fn begin_binding_check(app: &mut Input<'_>, installation_id: String) -> Task<ShijuAppsMessage> {
-    let ready = matches!(
+    let installed = matches!(
         &app.shiju_apps.mine,
         ShijuAppsLoadState::Loaded(apps)
-            if apps.apps.iter().any(|item| {
-                item.installation_id == installation_id && item.runtime_ready()
-            })
+            if apps.apps.iter().any(|item| item.installation_id == installation_id)
     );
-    if !ready && !app.shiju_apps.changing_binding {
-        return app.show_localized_toast((), "识矩应用尚未运行就绪", vec![]);
+    if !valid_installation_id(&installation_id) || (!installed && !app.shiju_apps.changing_binding) {
+        return app.show_localized_toast((), "应用条目不存在", vec![]);
     }
     let Some(account) = app.account else {
         return app.show_localized_toast((), "登录识矩账户后打开应用", vec![]);

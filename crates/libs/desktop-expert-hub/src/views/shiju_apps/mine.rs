@@ -10,7 +10,8 @@ use iced::{Alignment, Element, Length};
 
 use super::{
     Event, Message, action, app_icon, card_grid, columns, date, heading, icon_svg, list_feedback,
-    matches_query, muted, page_range, pagination, pill, search, settings_select, styles, title,
+    matches_query, muted, open_installed, page_range, pagination, pill, search, settings_select,
+    styles, title,
 };
 
 pub fn runtime_readiness(app: &ShijuInstalledAppDto) -> Result<&'static str, String> {
@@ -19,10 +20,6 @@ pub fn runtime_readiness(app: &ShijuInstalledAppDto) -> Result<&'static str, Str
     } else {
         Err(format!("协调状态：{}；运行状态：{}", app.reconcile_status, app.runtime_status))
     }
-}
-
-pub fn open_action_message(app: &ShijuInstalledAppDto) -> Option<Message> {
-    app.runtime_ready().then(|| Event::OpenInstalled(app.installation_id.clone()).into())
 }
 
 fn installed_card(
@@ -77,10 +74,7 @@ fn installed_card(
                 column![row![name, star].align_y(Alignment::Center).spacing(4), muted(byline, 12)]
                     .spacing(3)
                     .width(Length::Fill),
-                action(
-                    i18n.__("打开"),
-                    app.runtime_ready().then(|| Event::OpenInstalled(app.installation_id.clone()))
-                ),
+                action(i18n.__("打开"), open_installed(&app.installation_id)),
             ]
             .align_y(Alignment::Start)
             .spacing(12),

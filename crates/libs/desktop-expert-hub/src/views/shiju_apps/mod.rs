@@ -66,6 +66,11 @@ fn action(label: &'static str, event: Option<Event>) -> iced::widget::Button<'st
         .on_press_maybe(event.map(Message::from))
 }
 
+pub(super) fn open_installed(installation_id: &str) -> Option<Event> {
+    gateway_shiju_app::valid_installation_id(installation_id)
+        .then(|| Event::OpenInstalled(installation_id.to_owned()))
+}
+
 fn pill(label: String, selected: bool, event: Event) -> iced::widget::Button<'static, Message> {
     button(title(label, 14))
         .padding([9, 16])

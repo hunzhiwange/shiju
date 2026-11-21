@@ -147,6 +147,8 @@ fn open_shiju_app_checks_binding_before_launch() {
     let ShijuAppsLoadState::Loaded(mine) = &mut app.shiju_apps.mine else {
         panic!("expected installed applications");
     };
+    mine.apps[0].reconcile_status.clear();
+    mine.apps[0].runtime_status.clear();
     mine.apps[0].runtime_url.clear();
 
     let _task =

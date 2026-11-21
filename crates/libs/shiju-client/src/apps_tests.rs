@@ -186,16 +186,23 @@ async fn shiju_apps_adapter_maps_catalog_and_installed_lists() {
         "canUse": true,
         "canManage": true
     }]);
-    let installed = serde_json::json!([installed_app(
+    let detail = installed_app(
         INSTALLATION_ID,
         "ready",
         "ready",
-        &format!("https://app.shiju.cloud/app/{INSTALLATION_ID}/")
-    )]);
+        &format!("https://app.shiju.cloud/app/{INSTALLATION_ID}/"),
+    );
+    let mut summary = detail.clone();
+    let fields = summary.as_object_mut().expect("installed app object");
+    fields.remove("reconcileStatus");
+    fields.remove("runtimeStatus");
+    fields.remove("runtimeUrl");
+    let installed = serde_json::json!([summary]);
     let (app_base, iam_base, requests) = fixture(vec![
         ok(catalog),
         ok(installed.clone()),
         ok(installed),
+        ok(detail),
         FixtureResponse {
             status: 200,
             headers: Vec::new(),
@@ -233,14 +240,17 @@ async fn shiju_apps_adapter_maps_catalog_and_installed_lists() {
     assert!(!format!("{launch:?}").contains("fixture-runtime-session-secret"));
 
     let requests = requests.join().expect("join fixture");
-    assert_eq!(requests.len(), 5);
+    assert_eq!(requests.len(), 6);
     assert!(requests[0].starts_with("GET /app-platform/api/catalog HTTP/1.1\r\n"));
     assert!(requests[1].starts_with("GET /app-platform/api/apps HTTP/1.1\r\n"));
     assert!(requests[2].starts_with("GET /app-platform/api/apps HTTP/1.1\r\n"));
     assert!(requests[3].starts_with(&format!(
+        "GET /app-platform/api/tenant/installations/{INSTALLATION_ID} HTTP/1.1\r\n"
+    )));
+    assert!(requests[4].starts_with(&format!(
         "GET /app-platform/api/tenant/installations/{INSTALLATION_ID}/api-key-binding HTTP/1.1\r\n"
     )));
-    assert!(requests[4].starts_with("POST /app-platform/api/runtime/browser-session HTTP/1.1\r\n"));
+    assert!(requests[5].starts_with("POST /app-platform/api/runtime/browser-session HTTP/1.1\r\n"));
     for request in &requests {
         assert_api_key(request);
         assert!(!request.lines().next().unwrap().contains(CREDENTIAL));

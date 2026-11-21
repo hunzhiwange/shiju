@@ -122,11 +122,8 @@ pub(super) fn view(i18n: I18n, state: &ShijuAppsState, width: f32) -> Element<'s
             ShijuAppsLoadState::Loaded(mine) => mine
                 .apps
                 .iter()
-                .find(|item| {
-                    item.runtime_ready()
-                        && Some(item.installation_id.as_str()) == app.installation_id.as_deref()
-                })
-                .map(|item| Event::OpenInstalled(item.installation_id.clone())),
+                .find(|item| Some(item.installation_id.as_str()) == app.installation_id.as_deref())
+                .and_then(|item| super::open_installed(&item.installation_id)),
             _ => None,
         };
         let tools = row![

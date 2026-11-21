@@ -3,6 +3,10 @@
 use super::*;
 
 impl AcpClient {
+    pub fn with_kilocode_sandbox(mut self, sandbox: Option<super::KilocodeSandbox>) -> Self {
+        self.kilocode_sandbox = sandbox;
+        self
+    }
     pub fn with_hermes_sandbox(mut self, sandbox: Option<super::HermesSandbox>) -> Self {
         self.hermes_sandbox = sandbox;
         self
@@ -42,6 +46,7 @@ impl AcpClient {
     pub fn new(agent_name: impl Into<String>, config: AcpAgentConfig) -> Self {
         Self {
             hermes_sandbox: None,
+            kilocode_sandbox: None,
             agent_name: agent_name.into(),
             config,
             client_name: "vibewindow-acp-client".to_string(),

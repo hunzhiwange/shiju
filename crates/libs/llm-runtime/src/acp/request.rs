@@ -185,6 +185,7 @@ pub async fn do_stream_request_acp<H: Host>(
     )
     .await?;
     let mut restricted_hermes = false;
+    let mut restricted_kilocode = false;
     let mut restricted_pi = false;
     if let Some((root, full_grant)) = desktop_access {
         super::session::bind_desktop_access(&mut parsed_options, root, full_grant);
@@ -197,7 +198,13 @@ pub async fn do_stream_request_acp<H: Host>(
             &acp_agent_name, source, parsed_options.permission_mode,
             merged_options.get("disable_tools").and_then(Value::as_bool) == Some(true),
         );
-        if !restricted_hermes && !restricted_pi {
+        restricted_kilocode = acp_agent_name == "kilocode"
+            && !parsed_options.full_access
+            && parsed_options.permission_mode == Some(acp_types::PermissionMode::ApproveReads)
+            && merged_options.get("disable_tools").and_then(Value::as_bool) != Some(true)
+            && cfg!(all(target_os = "macos", target_arch = "aarch64"))
+            && source == vw_api_acp_model::acp_model_source::AcpModelSource::SessionModel;
+        if !restricted_kilocode && !restricted_hermes && !restricted_pi {
             acp_client::AcpClient::ensure_desktop_native_access(
                 &acp_agent_name,
                 parsed_options.full_access,
@@ -644,6 +651,15 @@ pub async fn do_stream_request_acp<H: Host>(
             parsed_options.skill_view.as_ref(),
         )?;
     }
+    let kilocode_sandbox = if restricted_kilocode {
+        super::skill_mounts::kilocode::validate_mcp(&parsed_options.mcp_servers)?;
+        let profile = launch_profile.as_ref().ok_or_else(|| acp_option_error("Missing restricted Kilocode launch"))?;
+        Some(super::skill_mounts::kilocode::sandbox(
+            profile, &mut normalized_acp_cfg, &cwd, parsed_options.skill_view.as_ref(),
+        ).map_err(to_api_error)?)
+    } else {
+        None
+    };
     let close_client_after_request =
         parse_close_client_after_request(merged_options)? || launch_profile.is_some();
     let cwd_text = cwd.to_string_lossy().into_owned();
@@ -692,7 +708,7 @@ pub async fn do_stream_request_acp<H: Host>(
         .await?;
         let cached_client_entry =
             get_cached_acp_client_with_approval::<H>(
-                &acp_agent_name, &normalized_acp_cfg, &cwd, &parsed_options, hermes_sandbox.clone(),
+                &acp_agent_name, &normalized_acp_cfg, &cwd, &parsed_options, hermes_sandbox.clone(), kilocode_sandbox.clone(),
                 launch_profile.as_ref().and_then(|profile| profile.managed_mcp.as_ref()).map(|(_, approve)| approve.clone()),
             );
         let _request_cleanup = super::session::RequestClientCleanup::new(&cached_client_entry);

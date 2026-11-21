@@ -1,37 +1,35 @@
 # Kilocode 7.8.18 session skill scanner (Darwin arm64)
 
-The reviewed npm platform binary contains a Bun module graph with UTF-16 entry
-source, not opaque agent bytecode. `apply.py` validates the complete upstream
-executable and entry-source SHA-256, applies the two exact source edits in
-`patch.json`, adjusts graph pointers and the Mach-O section length within existing
-zero padding, then ad-hoc signs the private copy with a fixed identifier and no
-timestamp. The resulting executable SHA-256 is pinned too. Other embedded modules
-are checked byte-for-byte; native code, tools, providers and assets are retained.
-No external Bun installation or source rebuild is needed. Other platforms fail
-explicitly. Two independent repacks produced the same signed executable hash.
+`apply.py` verifies the pinned npm platform executable and UTF-16 Bun entry
+source, applies the four exact edits in `patch.json`, and adjusts the module
+graph inside the existing Mach-O section padding. The private copy is ad-hoc
+signed with a fixed identifier and no timestamp. The script checks its final
+SHA-256 and compares every other embedded module byte for byte. The managed
+installer uses revision `kilocode-7.8.18-model-source-v2`.
 
-The source edits implement this behavior:
+The scanner keeps the upstream native search order and configuration gates.
+A nonempty `SHIJU_KILO_SKILL_ROOT` appends the validated session view using
+the upstream discovery and Markdown parser. The empty value adds no paths.
+Each selected skill retains its canonical directory as its file substitution
+and source-read boundary and stays untrusted. Native skills take precedence
+when a selected skill declares the same name. The managed launch continues
+to omit built-ins while the variable is set. Without the variable, upstream
+discovery and built-in registration are unchanged. ACP slash commands and the
+model's native `skill` tool use the same catalog.
 
-- Without `SHIJU_KILO_SKILL_ROOT`, preserve the upstream discovery and built-ins.
-- With an empty value, discover no skill directories and register no built-ins.
-- With an absolute existing root, call the **upstream scanner and markdown
-  parser** only for that root, marking it untrusted. Resolve each selected skill directory through the
-  native filesystem service and use that directory as the source-read and file
-  substitution boundary, so audited session-view links work without granting
-  trust or allowing reads outside that selected skill. Do not discover global, project, URL or plugin skills.
-- In this mode, do not seed built-in skills. The upstream ACP directory snapshot
-  derives its skill slash commands from this same skill service, so it cannot
-  reintroduce excluded built-ins or removed skills.
+Restricted Darwin `session_model` launches use the request-owned Seatbelt
+profile. The native `skill` tool samples files with Bun's glob iterator in
+this profile, so it needs no ripgrep executable or download. The launcher
+permits the reviewed entry and system Git, enables only its authenticated
+native loopback endpoint and the existing OMP bridge, and exposes selected
+MCP services through that bridge. The bridge checks the host catalog, binds
+calls to the active prompt, and waits for one-time authorization before
+running the isolated stdio call.
 
-This changes neither provider routing nor native permission evaluation, and does
-not grant skill shell-injection trust. The Rust adapter validates the session
-view and full patched installation before setting the root. Installation copies
-and patches only the private runtime; it never changes the user's CLI or HOME.
+The patch retains the native provider and permission implementations. The
+installer works on its private runtime, and the host still checks the selected
+view and reviewed executable before passing the root.
 
-The fixed upstream source is available at
-`https://github.com/Kilo-Org/kilocode/tree/v7.8.18`, notably
-`packages/opencode/src/skill/index.ts` and `packages/opencode/src/acp/service.ts`.
-The downloaded tag archive SHA-256 is
-`05a640377d8de1dba008992ea3f3b54d558de3f7eda91ceb1fe8879eb27c96e7`.
-The repack uses the exact npm binary's embedded source, rather than assuming a
-fresh build from a tag would match the release executable.
+The release sources for the scanner and ACP catalog are
+[`skill/index.ts`](https://raw.githubusercontent.com/Kilo-Org/kilocode/v7.8.18/packages/opencode/src/skill/index.ts)
+and [`acp/service.ts`](https://raw.githubusercontent.com/Kilo-Org/kilocode/v7.8.18/packages/opencode/src/acp/service.ts).

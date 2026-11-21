@@ -13,6 +13,7 @@ from verify_acp_integration import ProviderHandler, require
 from verify_acp_model_source import ROOT
 
 from . import correlated_result
+from .cortex_code import mcp_server
 
 MODEL = "deepseek-v4.1-flash-1017"
 ADAPTER = "openai"
@@ -29,14 +30,25 @@ def launch(env):
     contract = json.loads((ROOT / "crates/libs/acp-agent-registry/src/managed_runtime/contracts.json")
                           .read_text())["kilocode"]
     require(contract["version"] == "7.8.18", "unexpected Kilocode contract version")
-    revision = "kilocode-7.8.18-model-source-v1"
+    revision = "kilocode-7.8.18-model-source-v2"
     base = Path(os.environ.get("VIBEWINDOW_CONFIG_DIR", Path.home() / ".local/share/shiju"))
     relative = Path("node_modules") / contract["package"] / contract["bin"]
-    source = base / "acp-runtime" / revision / relative
+    runtime = base / "acp-runtime"
+    source = runtime / revision / relative
+    package_path = source.parent.parent / "package.json"
+    if override := os.environ.get("ACP_COEXISTENCE_KILOCODE_BIN"):
+        source = Path(override)
+        # The pinned upstream package metadata is identical across repacks.
+        if not package_path.is_file():
+            package_path = runtime / "kilocode-7.8.18-model-source-v1" / relative.parent.parent / "package.json"
+    package = json.loads(package_path.read_text())
+    require(package["name"] == contract["package"] and package["version"] == contract["version"],
+            "unexpected Kilocode package identity")
     require(source.is_file(), "reviewed Kilocode executable unavailable")
     entry = Path(env["VIBEWINDOW_CONFIG_DIR"]) / "acp-runtime" / revision / relative
     entry.parent.mkdir(parents=True)
     shutil.copy2(source, entry)
+    shutil.copy2(package_path, entry.parent.parent / "package.json")
     sha256 = hashlib.sha256()
     with entry.open("rb") as stream:
         for block in iter(lambda: stream.read(1024 * 1024), b""):
@@ -147,8 +159,8 @@ class Probe:
         return False
 
     def approves(self, metadata):
-        return (self.pending == "mcp" and metadata.get("title") == MCP_TOOL
-                and metadata.get("arguments") == {"mcpInput": {}})
+        return (self.pending == "mcp" and metadata.get("title") == "mcp__coexistence__read_probe"
+                and metadata.get("arguments") == {})
 
 
 class Handler(ProviderHandler):

@@ -1719,15 +1719,15 @@
         ],
         "binding": "crates/vw-acp/src/agent_registry.rs::BUILT_IN_AGENT_DEFINITIONS",
         "runtime_executed": true,
-        "note": "Real production ACP lifecycle and native tools passed for both model sources; see evidence/kilocode.json."
+        "note": "Revision 2 scanner passed native ACP coexistence. The linked historical lifecycle evidence covers revision 1."
       },
       "mount": {
         "candidate_paths": [
           ".kilo/skills（当前官方文档）"
         ],
-        "discovery": "SHIJU_KILO_SKILL_ROOT replaces all scanner roots and builtin registration; empty value means empty selection.",
+        "discovery": "SHIJU_KILO_SKILL_ROOT appends the selected view to native discovery. An empty value adds nothing. The managed entry still omits built-ins.",
         "activation": "Native skill(name) loads on demand; actual read/bash tools read random attachment and execute script; initial prompt excludes body.",
-        "session_isolation": "Verified empty selection, separate session, ambient/project decoys and builtin exclusion. ACP skill commands project the same exclusive collection."
+        "session_isolation": "The fixed scanner keeps native precedence and reads only the selected ShiJu view. ACP skill commands use the same native collection."
       },
       "permissions": {
         "status": "verified",
@@ -1774,9 +1774,13 @@
         },
         {
           "path": "reviewed/kilocode",
-          "sha256": "19cc66a17aead6565b60dda07f7f7a47a1b73f72e0d91a9456fd94a483cfa7ff",
+          "sha256": "ffc69891010b026c41d2c04da987d311adc54408b3f83f7d6712243e1c38c88d",
           "kind": "reviewed_embedded_source_patch",
           "platform": "Darwin-arm64"
+        },
+        {
+          "path": "../../dev/acp/skill-coexistence/kilocode.md",
+          "kind": "skill_coexistence"
         }
       ],
       "supplemental_official_docs": [

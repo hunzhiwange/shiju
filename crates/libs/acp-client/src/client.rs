@@ -84,6 +84,8 @@ mod message_io;
 mod nova_io;
 #[path = "client/process.rs"]
 mod process;
+mod kilocode_sandbox;
+pub use kilocode_sandbox::KilocodeSandbox;
 mod hermes_sandbox;
 pub use hermes_sandbox::HermesSandbox;
 #[path = "client/process_signals.rs"]
@@ -193,6 +195,7 @@ impl<T: Send + Sync> SkillMountLease for T {}
 /// 回调和后台 actor 状态；克隆句柄会共享同一个 actor 状态和当前提示词控制。
 pub struct AcpClient {
     hermes_sandbox: Option<HermesSandbox>,
+    kilocode_sandbox: Option<KilocodeSandbox>,
     agent_name: String,
     config: AcpAgentConfig,
     client_name: String,

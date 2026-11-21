@@ -22,7 +22,7 @@ mod grok;
 pub(super) mod hermes;
 mod iflow;
 pub(super) mod junie;
-mod kilocode;
+pub(super) mod kilocode;
 mod kimi;
 mod kiro;
 pub(super) mod mimo_code;

@@ -74,3 +74,48 @@ MCP，只用回环替换模型。挂载请求通过真实 `session/request_permi
 可受宿主逐次授权的 stdio 服务启动方式。若改用既有 HTTP 转接，需要扩展本卡
 已审的供应商传输范围，并单独核对转接的调用身份及拒绝路径。Python 探针
 语法检查通过。本轮未修改 Rust 或重新运行 Cargo。
+
+## 7.8.18 受管修订 2
+
+2026-11-21。固定 Darwin arm64 发布物经 `apply.py` 两次独立重签得到相同字节。
+入口 SHA-256 为 `ffc69891010b026c41d2c04da987d311adc54408b3f83f7d6712243e1c38c88d`，
+嵌入入口源码 SHA-256 为 `7e1719433144028e8da90ab810a9dca770f8447bd5183f1e554cf96334da3076`。
+本修订的扫描器在原生扫描后追加选中视图，保持原生同名优先和选中来源的未信任
+Markdown 边界。空选集保留原生扫描，同时继续省略受管入口的内置技能。
+
+桌面受限 `session_model` 路径使用请求拥有的 Seatbelt 启动器。工作区和具体
+批准来源只读，供应商进程出站仅到本次回环端点。固定系统 Git 负责供应商的
+目录初始化，原生 `skill` 在受限模式用 Bun 枚举附件，不下载 ripgrep。
+受审入口、授权工作区、会话模型及审批模式均由宿主核对。其他入口继续走
+原有访问门禁。
+
+供应商使用 Streamable HTTP 连接现有 OMP 中继，下游保持隔离 stdio。中继先按
+宿主策略过滤工具，再将 `mcp__coexistence__read_probe` 和实际入参提交到
+活跃 ACP 会话的逐次审批。只有单次批准才转发工具。拒绝由真实 stdio
+下游计数和模型续轮的同 ID 错误共同验证。
+
+使用仓库的实际启动器和中继直连重签版，普通目录和 Git 工作区分别完成下表。
+挂载轮还放置了不同正文的同名选中候选，原生正文与附件仍优先。未选技能从未进入
+目录，四轮首次模型请求均无技能正文或附件。另设
+`KILO_DISABLE_EXTERNAL_SKILLS=1`，原生目录如预期缺席，报告为
+`target/acp-skill-coexistence/kilocode-v2-disabled-native.json`。
+
+| 轮次 | ACP 终态 | 模型请求 | MCP 宿主决策 / 下游次数 |
+| --- | --- | ---: | --- |
+| 基线 | `end_turn` | 3 | 无 / 0 |
+| 挂载 | `end_turn` | 6 | 单次批准 / 1 |
+| 撤除 | `end_turn` | 3 | 无 / 0 |
+| 拒绝 | `end_turn` | 6 | 拒绝 / 0 |
+
+普通目录及 Git 工作区报告为
+`target/acp-skill-coexistence/kilocode-v2-launcher{,-git}.json`，均退出 0。
+挂载与拒绝的模型 MCP 调用 ID 在普通目录分别为
+`call_8f6e655b4e0864bb8b61dfc8` 和 `call_d0df39acb39942621a5241aa`。
+重签和探针在私有目录使用当前制品，未更换用户实际安装。
+
+网关构建在槽位 3 退出 101。编译器在 `request.rs` 拒绝访问 `skill_mounts::pi`
+的 `restricted_launch` 和 `configure_restricted`（E0603）。定向测试在槽位 9
+退出 101，除 Pi 可见性问题外，Copilot 现有测试仍以两个参数调用当前三个参数
+的 `configure`（E0061）。两次构建均经共享编译锁，两个 Cargo 缓存变量
+均指向各自绝对槽位。Rust 定向实际运行 0 项，网关探针未启动。
+先恢复共享编译，再用任务卡命令取得网关四轮及模型、权限回读。

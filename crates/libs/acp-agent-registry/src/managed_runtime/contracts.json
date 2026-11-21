@@ -271,7 +271,7 @@
     "integrity": "sha512-/Ym2x0IK6drlX4eZK79JcAcKU90sxnqQlInUCiYtpekyMXeMGHLbr0WQpDrJGyTaAJQRhQ4WStADaaQtfQC/nQ==",
     "bin": "reviewed/kilocode",
     "files": {
-      "reviewed/kilocode": "19cc66a17aead6565b60dda07f7f7a47a1b73f72e0d91a9456fd94a483cfa7ff"
+      "reviewed/kilocode": "ffc69891010b026c41d2c04da987d311adc54408b3f83f7d6712243e1c38c88d"
     },
     "native_sha256": "73e6626784cb314308e035f11b8cb8ab251624a593c2a110abeb94869514a237"
   },

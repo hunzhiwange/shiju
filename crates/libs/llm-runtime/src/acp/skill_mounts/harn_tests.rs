@@ -1,5 +1,6 @@
 use super::*;
 
+#[derive(Clone)]
 struct Fixture(std::path::PathBuf);
 
 impl SkillLease for Fixture {

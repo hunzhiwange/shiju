@@ -71,3 +71,10 @@ python3 scripts/verify_acp_skill_coexistence.py --agent harn \
 挂载轮中，原生技能及其附件通过 `call_harn_2200fd563b0cabb2dab387aa` 和 `call_harn_065a09e4ae00f8e3b59da070` 返回正文。选中技能及其附件通过 `call_harn_6a7de07fa83cd24d396d5586` 和 `call_harn_815a367a59508bff180bb419` 返回正文。MCP 批准结果以 `call_harn_e1c4b2a83c4bb6a0b83018f0` 进入模型续轮，拒绝反馈以 `call_harn_00f8332dedafb54c9cb00805` 进入续轮。结构化证据位于 `target/acp-skill-coexistence/harn.json`，原 v4 失败基线位于 `target/acp-skill-coexistence/harn-v4-baseline.json`。
 
 基于同一 v5 引擎的原生文件权限回归 3 项和自然语言入口回归 1 项均退出 0。现行官方安装和用户配置未改。
+
+槽位 11 的两个定向 Rust 测试均退出 0，各实际运行并通过 1 项。首轮 `llm-runtime` 测试在编译时发现测试夹具缺少 `Clone`，补齐后复跑通过。生产代码未因这次测试修复变更。
+
+```sh
+cargo test --locked -j 1 -p llm-runtime --lib acp_skill_coexistence_harn -- --test-threads=1
+cargo test --locked -j 1 -p acp-agent-registry --lib harn_reviewed_natural_language_runtime_is_pinned -- --test-threads=1
+```

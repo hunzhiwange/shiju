@@ -7,12 +7,17 @@ use desktop_ui_controls::system_settings_common::{
 use iced::widget::{Column, Row, Space, column, container, row};
 use iced::{Alignment, Length};
 
+use super::departments;
 use super::view::{
     Item, Tone, action, card, divider, label, page_notice, segment, segmented, status_label, strong,
 };
 use super::workflows::{Department, List, ListEvent, PAGE_SIZE, Sort, Status, Workflow, message};
 
-pub(super) fn view(state: &List, width: f32) -> Item<'_> {
+pub(super) fn view<'a>(
+    state: &'a List,
+    directory: Option<&departments::Directory>,
+    width: f32,
+) -> Item<'a> {
     let items = state.items.as_deref().map_or(&[][..], Vec::as_slice);
     let scoped: Vec<_> = items.iter().filter(|item| state.department.matches(item)).collect();
     let count = |status| scoped.iter().filter(|item| item.status() == status).count();
@@ -35,7 +40,7 @@ pub(super) fn view(state: &List, width: f32) -> Item<'_> {
         ]
         .spacing(10)
         .align_y(Alignment::Center),
-        filters(state, items, [scoped.len(), published, drafts, offline], active, width),
+        filters(state, items, directory, [scoped.len(), published, drafts, offline], active, width),
     ]
     .spacing(20)
     .width(Length::Fill);
@@ -45,7 +50,7 @@ pub(super) fn view(state: &List, width: f32) -> Item<'_> {
     } else if let Some(error) = &state.error {
         settings_error_banner(error.as_str())
     } else {
-        let filtered = state.filtered(&scoped);
+        let filtered = state.filtered(&scoped, directory);
         if filtered.is_empty() {
             let title = if state.search.trim().is_empty()
                 && state.status.is_none()
@@ -57,7 +62,7 @@ pub(super) fn view(state: &List, width: f32) -> Item<'_> {
             };
             page_notice(label(title, 14, Tone::Muted))
         } else {
-            results(state, &filtered, width)
+            results(state, &filtered, directory, width)
         }
     };
     page.push(results).into()
@@ -66,6 +71,7 @@ pub(super) fn view(state: &List, width: f32) -> Item<'_> {
 fn filters<'a>(
     state: &'a List,
     items: &[Workflow],
+    directory: Option<&departments::Directory>,
     counts: [usize; 4],
     active: Option<u64>,
     width: f32,
@@ -80,16 +86,21 @@ fn filters<'a>(
         }))
         .spacing(2)
         .wrap();
+    let choice = |value: Department| departments::Choice {
+        label: value.label(directory).to_owned(),
+        value,
+    };
     let departments = std::iter::once(Department::All)
-        .chain(items.iter().map(Workflow::department).collect::<BTreeSet<_>>());
+        .chain(items.iter().map(Workflow::department).collect::<BTreeSet<_>>())
+        .map(choice);
     let search = settings_text_input("搜索流程名称、说明或部门", &state.search)
         .on_input(|value| message(ListEvent::Search(value)))
         .on_submit_maybe((!state.loading).then(|| message(ListEvent::Refresh)))
         .width(if width >= 750.0 { Length::Fixed(285.0) } else { Length::Fill });
     let fields = row![
         search,
-        settings_select(departments, Some(state.department.clone()), |value| {
-            message(ListEvent::Department(value))
+        settings_select(departments, Some(choice(state.department.clone())), |option| {
+            message(ListEvent::Department(option.value))
         })
         .width(248),
         settings_select([Sort::Updated, Sort::Name, Sort::Runs], Some(state.sort), |value| {
@@ -108,7 +119,12 @@ fn filters<'a>(
     column![segmented(status_picker.into()), fields].spacing(10).into()
 }
 
-fn results<'a>(state: &List, items: &[&'a Workflow], width: f32) -> Item<'a> {
+fn results<'a>(
+    state: &List,
+    items: &[&'a Workflow],
+    directory: Option<&departments::Directory>,
+    width: f32,
+) -> Item<'a> {
     let pages = items.len().div_ceil(PAGE_SIZE);
     let page = state.page.min(pages - 1);
     let start = page * PAGE_SIZE;
@@ -118,7 +134,7 @@ fn results<'a>(state: &List, items: &[&'a Workflow], width: f32) -> Item<'a> {
     let mut grid = Column::new().spacing(16).width(Length::Fill);
     for cards in items[start..end].chunks(columns) {
         let mut group =
-            Row::with_children(cards.iter().map(|item| workflow_card(item, card_width)))
+            Row::with_children(cards.iter().map(|item| workflow_card(item, directory, card_width)))
                 .spacing(16)
                 .width(Length::Fill);
         if cards.len() < columns {
@@ -148,7 +164,11 @@ fn results<'a>(state: &List, items: &[&'a Workflow], width: f32) -> Item<'a> {
     column![grid, footer.wrap()].spacing(12).into()
 }
 
-fn workflow_card(item: &Workflow, width: f32) -> Item<'_> {
+fn workflow_card<'a>(
+    item: &'a Workflow,
+    directory: Option<&departments::Directory>,
+    width: f32,
+) -> Item<'a> {
     let status = item.status();
     let tone = match status {
         Status::Published => Tone::Green,
@@ -205,7 +225,7 @@ fn workflow_card(item: &Workflow, width: f32) -> Item<'_> {
             row![
                 label(version, 12, Tone::Muted),
                 label(scope, 12, Tone::Muted),
-                label(item.department().to_string(), 12, Tone::Muted),
+                label(item.department().label(directory).to_owned(), 12, Tone::Muted),
             ]
             .spacing(8)
             .wrap(),

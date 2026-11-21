@@ -113,7 +113,12 @@ fn page_content(app: &App) -> Item<'_> {
             page = page.push(heading(state, actor, size.width < 520.0));
         }
         if state.page == Page::Shared {
-            page = page.push(super::shared_view::view(&state.shared, actor.is_some(), width));
+            page = page.push(super::shared_view::view(
+                &state.shared,
+                state.tasks.departments.as_deref(),
+                actor.is_some(),
+                width,
+            ));
         } else if actor.is_none() {
             page = page.push(page_notice(
                 column![
@@ -135,7 +140,11 @@ fn page_content(app: &App) -> Item<'_> {
         } else if state.page == Page::Assistants {
             page = page.push(super::assistants_view::view(&state.assistants, width, profile_name));
         } else if state.page == Page::Workflows {
-            page = page.push(super::workflows_view::view(&state.workflows, width));
+            page = page.push(super::workflows_view::view(
+                &state.workflows,
+                state.tasks.departments.as_deref(),
+                width,
+            ));
         } else if state.page == Page::Board {
             page = page.push(super::board_view::view(
                 &state.board,

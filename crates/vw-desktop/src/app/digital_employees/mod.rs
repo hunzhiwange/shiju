@@ -6,6 +6,7 @@ mod assistants_view;
 mod board;
 mod board_api;
 mod board_view;
+mod departments;
 mod portraits;
 mod shared;
 mod shared_api;
@@ -176,8 +177,14 @@ fn select_page(app: &mut App, page: Page) -> Task<Message> {
         Page::Board if state.board.snapshot.is_none() => board::refresh(app),
         Page::Tasks => tasks::enter(app),
         Page::Assistants => assistants::refresh(app),
-        Page::Shared if state.shared.directory.is_none() => shared::refresh(app),
-        Page::Workflows if state.workflows.items.is_none() => workflows::refresh(app),
+        Page::Shared => Task::batch([
+            if state.shared.directory.is_none() { shared::refresh(app) } else { Task::none() },
+            tasks::load_departments(app),
+        ]),
+        Page::Workflows => Task::batch([
+            if state.workflows.items.is_none() { workflows::refresh(app) } else { Task::none() },
+            tasks::load_departments(app),
+        ]),
         _ => Task::none(),
     };
     Task::batch([window, board::scroll_to_top(), load])
@@ -189,8 +196,8 @@ fn refresh_visible(app: &mut App) -> Task<Message> {
         Page::Board => board::refresh(app),
         Page::Tasks => tasks::enter(app),
         Page::Assistants => assistants::refresh(app),
-        Page::Shared => shared::refresh(app),
-        Page::Workflows => workflows::refresh(app),
+        Page::Shared => Task::batch([shared::refresh(app), tasks::load_departments(app)]),
+        Page::Workflows => Task::batch([workflows::refresh(app), tasks::load_departments(app)]),
     }
 }
 

@@ -489,7 +489,7 @@ fn load_directory(app: &mut App) -> Task<Message> {
     )
 }
 
-fn load_departments(app: &mut App) -> Task<Message> {
+pub(super) fn load_departments(app: &mut App) -> Task<Message> {
     let Some(account) = app.account.active_account() else { return Task::none() };
     let center = &mut app.digital_employees.tasks;
     if center.departments_loading || center.departments.is_some() {

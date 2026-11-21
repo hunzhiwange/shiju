@@ -12,7 +12,7 @@ use iced::{Alignment, Length};
 
 use crate::app::{Message, message::AccountMessage};
 
-use super::portraits;
+use super::{departments, portraits};
 use super::shared::{Kind, ListEvent, Runtime, Shared, message};
 use super::shared_api::{Access, Directory, Operation, SharedEmployee};
 use super::view::{
@@ -20,7 +20,12 @@ use super::view::{
     segmented, status_label, strong, table_header_style, tint_style,
 };
 
-pub(super) fn view(state: &Shared, signed_in: bool, width: f32) -> Item<'_> {
+pub(super) fn view<'a>(
+    state: &'a Shared,
+    departments: Option<&departments::Directory>,
+    signed_in: bool,
+    width: f32,
+) -> Item<'a> {
     let mut heading = row![strong("共享员工", 24, Tone::Ink), Space::new().width(Length::Fill)]
         .spacing(10)
         .align_y(Alignment::Center);
@@ -63,7 +68,9 @@ pub(super) fn view(state: &Shared, signed_in: bool, width: f32) -> Item<'_> {
     let query = state.query.trim().to_lowercase();
     let path = state.department.as_deref();
     let scoped = directory.employees.iter().filter(|employee| {
-        path.is_none_or(|prefix| department_matches(prefix, employee.department()))
+        path.is_none_or(|prefix| {
+            employee.department().is_some_and(|path| departments::contains(prefix, path))
+        })
     });
     let archived = scoped.clone().filter(|employee| employee.archived()).count();
     let mut all = Vec::new();
@@ -83,6 +90,7 @@ pub(super) fn view(state: &Shared, signed_in: bool, width: f32) -> Item<'_> {
     page = page.push(filters(
         state,
         directory,
+        departments,
         [all.len(), managers.len(), workers.len(), archived],
         width,
     ));
@@ -98,7 +106,7 @@ pub(super) fn view(state: &Shared, signed_in: bool, width: f32) -> Item<'_> {
     if state.table {
         let pagination = Pagination::new(selected.len(), state.page, state.table_size);
         return page
-            .push(table(pagination.slice(selected), &directory.access, width))
+            .push(table(pagination.slice(selected), &directory.access, departments, width))
             .push(pager(pagination, false, true))
             .into();
     }
@@ -128,48 +136,28 @@ pub(super) fn view(state: &Shared, signed_in: bool, width: f32) -> Item<'_> {
     page.into()
 }
 
-fn department_matches(prefix: &str, path: Option<&str>) -> bool {
-    let Some(path) = path else { return false };
-    let prefix = prefix.trim_end_matches('/');
-    let path = path.trim_end_matches('/');
-    let prefix = prefix.trim_start_matches('/');
-    let path = path.trim_start_matches('/');
-    path == prefix
-        || (!prefix.is_empty()
-            && path.strip_prefix(prefix).is_some_and(|rest| rest.starts_with('/')))
-}
-
-#[derive(Clone, PartialEq, Eq)]
-struct Department(Option<String>);
-
-impl std::fmt::Display for Department {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match &self.0 {
-            Some(path) if path.starts_with('/') => f.write_str(path),
-            Some(path) => write!(f, "/{path}"),
-            None => f.write_str("全部部门"),
-        }
-    }
-}
-
 fn filters<'a>(
     state: &'a Shared,
     directory: &Directory,
+    department_directory: Option<&departments::Directory>,
     counts: [usize; 4],
     width: f32,
 ) -> Item<'a> {
     let [all, managers, workers, archived] = counts;
     let departments: BTreeSet<_> =
         directory.employees.iter().filter_map(SharedEmployee::department).collect();
-    let departments = std::iter::once(Department(None))
-        .chain(departments.into_iter().map(|path| Department(Some(path.to_owned()))))
-        .collect::<Vec<_>>();
-
-    let department =
-        settings_select(departments, Some(Department(state.department.clone())), |option| {
-            message(ListEvent::Department(option.0))
-        })
-        .width(248);
+    let choice = |path: Option<&str>| departments::Choice {
+        value: path.map(str::to_owned),
+        label: path
+            .map_or("全部部门", |path| department_label(department_directory, path))
+            .to_owned(),
+    };
+    let options = std::iter::once(choice(None))
+        .chain(departments.into_iter().map(|path| choice(Some(path))));
+    let department = settings_select(options, Some(choice(state.department.as_deref())), |option| {
+        message(ListEvent::Department(option.value))
+    })
+    .width(248);
     let runtime = settings_select(
         [Runtime::All, Runtime::OnDuty, Runtime::Abnormal],
         Some(state.runtime),
@@ -501,7 +489,16 @@ fn runtime_status(employee: &SharedEmployee, show_publish: bool) -> Item<'_> {
     lines.into()
 }
 
-fn table<'a>(employees: &[&'a SharedEmployee], access: &Access, width: f32) -> Item<'a> {
+fn department_label<'a>(directory: Option<&'a departments::Directory>, path: &str) -> &'a str {
+    departments::name(directory, path).unwrap_or("部门名称未提供")
+}
+
+fn table<'a>(
+    employees: &[&'a SharedEmployee],
+    access: &Access,
+    departments: Option<&departments::Directory>,
+    width: f32,
+) -> Item<'a> {
     const HEADERS: [&str; 6] = ["名称", "类型", "部门", "发布状态", "运行状态", "更新时间"];
     let actions =
         employees.iter().map(|employee| employee_actions(employee, access)).collect::<Vec<_>>();
@@ -524,10 +521,10 @@ fn table<'a>(employees: &[&'a SharedEmployee], access: &Access, width: f32) -> I
             strong(employee.name.as_str(), 14, Tone::Ink).into(),
             label(kind_title(employee), 13, Tone::Muted).into(),
             label(
-                employee.department().map_or_else(
-                    || "全公司".into(),
-                    |path| Department(Some(path.to_owned())).to_string(),
-                ),
+                employee
+                    .department()
+                    .map_or("全公司", |path| department_label(departments, path))
+                    .to_owned(),
                 14,
                 Tone::Ink,
             )

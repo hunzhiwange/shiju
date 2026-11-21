@@ -133,7 +133,9 @@ pub(super) fn message(event: ListEvent) -> Message {
 pub(super) fn update(app: &mut App, event: ListEvent) -> Task<Message> {
     let state = &mut app.digital_employees.shared;
     match event {
-        ListEvent::Refresh => return refresh(app),
+        ListEvent::Refresh => {
+            return Task::batch([refresh(app), super::tasks::load_departments(app)]);
+        }
         ListEvent::Dispatch(id) => {
             if app.digital_employees.page != Page::Shared
                 || app.digital_employees.tasks.busy

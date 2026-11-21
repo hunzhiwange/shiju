@@ -790,17 +790,9 @@ fn overview<'a>(center: &'a Center, record: &'a Record, view_only: bool, width: 
     let creator = record.creator.as_deref().or_else(|| work.input_text("created_by_name"));
     let department =
         work.department_path.as_deref().filter(|path| !path.is_empty() && *path != "/");
-    let department = center
-        .departments
-        .as_deref()
-        .and_then(|departments| {
-            departments
-                .iter()
-                .find(|(path, _)| Some(path.as_str()) == department)
-                .map(|(_, name)| name.as_str())
-        })
-        .or(department)
-        .unwrap_or("全公司");
+    let department = department.map_or("全公司", |path| {
+        super::departments::name(center.departments.as_deref(), path).unwrap_or("部门名称未提供")
+    });
     let left = column![
         meta("发起人", nonempty(creator)),
         meta("流程", workflow_name(work, directory)),

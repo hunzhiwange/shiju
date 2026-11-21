@@ -68,26 +68,20 @@ impl Department {
             Self::All => true,
             Self::Company => workflow.department() == Self::Company,
             Self::Path(prefix) => match workflow.department() {
-                Self::Path(path) => {
-                    prefix == "/"
-                        || path == *prefix
-                        || path
-                            .strip_prefix(prefix.as_str())
-                            .is_some_and(|suffix| suffix.starts_with('/'))
-                }
+                Self::Path(path) => super::departments::contains(prefix, &path),
                 _ => false,
             },
         }
     }
-}
 
-impl fmt::Display for Department {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.write_str(match self {
+    pub(super) fn label<'a>(&self, directory: Option<&'a super::departments::Directory>) -> &'a str {
+        match self {
             Self::All => "全部可查看部门",
             Self::Company => "全公司",
-            Self::Path(path) => path,
-        })
+            Self::Path(path) => {
+                super::departments::name(directory, path).unwrap_or("部门名称未提供")
+            }
+        }
     }
 }
 
@@ -171,11 +165,19 @@ impl Workflow {
         }
     }
 
-    fn matches_search(&self, search: &str) -> bool {
+    fn matches_search(
+        &self,
+        search: &str,
+        directory: Option<&super::departments::Directory>,
+    ) -> bool {
         search.is_empty()
             || self.name.to_lowercase().contains(search)
             || self.description.as_ref().is_some_and(|value| value.to_lowercase().contains(search))
-            || self.department().to_string().to_lowercase().contains(search)
+            || self.department().label(directory).to_lowercase().contains(search)
+            || self
+                .department_path
+                .as_ref()
+                .is_some_and(|path| path.to_lowercase().contains(search))
             || self.step_titles.iter().any(|step| step.to_lowercase().contains(search))
     }
 }
@@ -185,14 +187,18 @@ impl List {
         Self { generation: self.generation.wrapping_add(1), ..Self::default() }
     }
 
-    pub(super) fn filtered<'a>(&self, scoped: &[&'a Workflow]) -> Vec<&'a Workflow> {
+    pub(super) fn filtered<'a>(
+        &self,
+        scoped: &[&'a Workflow],
+        directory: Option<&super::departments::Directory>,
+    ) -> Vec<&'a Workflow> {
         let search = self.search.trim().to_lowercase();
         let mut rows: Vec<_> = scoped
             .iter()
             .copied()
             .filter(|item| {
                 self.status.is_none_or(|status| item.status() == status)
-                    && item.matches_search(&search)
+                    && item.matches_search(&search, directory)
             })
             .collect();
         match self.sort {
@@ -211,7 +217,9 @@ pub(super) fn message(event: ListEvent) -> Message {
 pub(super) fn update(app: &mut App, event: ListEvent) -> Task<Message> {
     let state = &mut app.digital_employees.workflows;
     match event {
-        ListEvent::Refresh => return refresh(app),
+        ListEvent::Refresh => {
+            return Task::batch([refresh(app), super::tasks::load_departments(app)]);
+        }
         ListEvent::Loaded(generation, result) => {
             if state.generation != generation || !state.loading {
                 return Task::none();

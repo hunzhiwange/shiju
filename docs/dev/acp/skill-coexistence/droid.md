@@ -71,3 +71,5 @@ PYTHONPATH=scripts python3 -m acp_skill_coexistence.droid_sandbox \
 无正文的拒绝对照同样拒绝并保持下游执行为零，网关对空的取消回合报告 `模型未返回内容`。正式探针在批准和拒绝的相同模型响应中先输出检查提示，再发出一次只读 MCP 调用，保留原生取消和拒绝证据。退出码为 0。
 
 使用槽位 10 已构建的 `llm-runtime` 测试二进制运行过滤器 `acp_skill_coexistence_droid`，两个用例通过，分别覆盖仅追加选集和拒绝链接形式的项目设置。
+
+同一槽位运行 `cargo test --locked -j 1 -p acp-client --lib acp_skill_coexistence_droid -- --test-threads=1`，退出 0，1 个用例通过，覆盖同会话的原生工具身份、单次确认及调用重放拒绝。

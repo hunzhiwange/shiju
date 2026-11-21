@@ -163,10 +163,13 @@ def run(agent, binary, report):
         spec, report["artifact"] = supplier.launch(env)
         workspace = root / "workspace"
         workspace.mkdir()
+        selected_parent = (Path(env["HOME"]) / ".skills"
+                           if getattr(supplier, "GLOBAL_SKILL_FIXTURES", False)
+                           else workspace / ".shiju/skills")
         fixtures = {"skills": {
             "native": make_skill(workspace / supplier.NATIVE_DIR, "native"),
-            "selected": make_skill(workspace / ".shiju/skills", "selected"),
-            "unselected": make_skill(workspace / ".shiju/skills", "unselected"),
+            "selected": make_skill(selected_parent, "selected"),
+            "unselected": make_skill(selected_parent, "unselected"),
         }, "mcp": secrets.token_hex(24)}
         prepare_workspace = getattr(supplier, "prepare_workspace", None)
         if prepare_workspace is not None:

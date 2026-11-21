@@ -117,6 +117,21 @@ impl SessionSkillView {
         &self.fingerprint
     }
 
+    /// Publish a verified snapshot for a request-owned read-only adapter.
+    #[cfg(unix)]
+    pub fn snapshot(&self, destination: &Path) -> Result<()> {
+        use std::os::unix::fs::DirBuilderExt;
+        self.validate()?;
+        fs::DirBuilder::new().mode(0o700).create(destination)?;
+        for source in &self.sources {
+            let copy = destination.join(&source.mount.name);
+            copy_snapshot(&source.canonical, &copy)?;
+            ensure!(tree_digest(&copy)? == source.digest, "skill snapshot differs from lease");
+            restrict_snapshot(&copy)?;
+        }
+        self.validate()
+    }
+
     pub fn validate(&self) -> Result<()> {
         directory_identity(self.root())?;
         for source in &self.sources {
@@ -228,6 +243,42 @@ fn hash_tree(root: &Path, path: &Path, hasher: &mut Sha256) -> Result<()> {
         }
     } else {
         bail!("unsupported special file in skill source");
+    }
+    Ok(())
+}
+
+
+#[cfg(unix)]
+fn copy_snapshot(source: &Path, destination: &Path) -> Result<()> {
+    use std::os::unix::fs::{DirBuilderExt, OpenOptionsExt};
+    let metadata = fs::symlink_metadata(source)?;
+    if metadata.is_dir() {
+        fs::DirBuilder::new().mode(0o700).create(destination)?;
+        for entry in fs::read_dir(source)? {
+            let entry = entry?;
+            copy_snapshot(&entry.path(), &destination.join(entry.file_name()))?;
+        }
+    } else {
+        ensure!(metadata.is_file(), "invalid skill snapshot resource");
+        let mut input = fs::OpenOptions::new().read(true).custom_flags(libc::O_NOFOLLOW | libc::O_NONBLOCK).open(source)?;
+        ensure!(input.metadata()?.is_file(), "invalid opened skill resource");
+        let mut output = fs::OpenOptions::new().create_new(true).write(true).mode(0o600).open(destination)?;
+        std::io::copy(&mut input, &mut output)?;
+    }
+    fs::set_permissions(destination, metadata.permissions())?;
+    Ok(())
+}
+
+#[cfg(unix)]
+fn restrict_snapshot(path: &Path) -> Result<()> {
+    use std::os::unix::fs::PermissionsExt;
+    if path.is_dir() {
+        fs::set_permissions(path, fs::Permissions::from_mode(0o700))?;
+        for entry in fs::read_dir(path)? {
+            restrict_snapshot(&entry?.path())?;
+        }
+    } else {
+        fs::set_permissions(path, fs::Permissions::from_mode(0o400))?;
     }
     Ok(())
 }

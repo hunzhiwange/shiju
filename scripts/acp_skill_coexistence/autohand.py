@@ -2,16 +2,21 @@
 
 import hashlib
 import json
+import os
 from pathlib import Path
 import platform
 import re
 import secrets
 import shutil
 import subprocess
+import sys
+import tempfile
 
 from verify_acp_integration import ProviderHandler, require
+from verify_acp_model_source import ROOT as REPOSITORY
 
 from . import correlated_result
+from .mimo_code import mcp_server
 
 MODEL = "deepseek-v4.1-flash-1017"
 # The pinned OpenAI client requests this budget even for a short tool turn.
@@ -20,11 +25,19 @@ ADAPTER = "openai"
 API_PATH = "/v1"
 TRANSPORT = "stdio"
 NATIVE_DIR = ".autohand/skills"
+GLOBAL_SKILL_FIXTURES = True
 # AutoHand checks the inherited cwd before receiving ACP session/new.
 GATEWAY_WORKSPACE_CWD = True
 MCP_TOOL = "mcp__coexistence__read_probe"
 PROMPT = ("Inspect and activate the available fixture skill, read its file reference, "
           "and check whether the mcp__coexistence__read_probe MCP tool is available.")
+# AutoHand can prepare these native specialists before the primary session prompt.
+SPECIALIST_PROMPTS = (
+    "You are a read-only security auditor.",
+    "# Autohand Review",
+    "You are a software delivery planner.",
+    "You are a verification engineer.",
+)
 VERSION = "0.9.11 (46a28b16)"
 SHA256 = "339bdb0c8f4f8b7f9076108434d910b2cd5e14f2593b48c0e5858e04e91950eb"
 DIRECT_ARGS = ["--acp", "--set", "features.codeMode=false",
@@ -34,28 +47,50 @@ DIRECT_ARGS = ["--acp", "--set", "features.codeMode=false",
 def launch(env):
     require((platform.system(), platform.machine()) == ("Darwin", "arm64"),
             "unreviewed AutoHand platform")
-    command = shutil.which("autohand", path=env["PATH"])
-    require(command is not None, "reviewed AutoHand entry unavailable")
-    entry = Path(command).resolve(strict=True)
-    require(hashlib.sha256(entry.read_bytes()).hexdigest() == SHA256,
-            "AutoHand entry digest mismatch")
-    metadata = json.loads((entry.parent.parent / "package.json").read_text())
-    require((metadata["name"], metadata["version"]) == ("autohand-cli", "0.9.11"),
-            "unexpected AutoHand package identity")
+    registry = REPOSITORY / "crates/libs/acp-agent-registry/src/managed_runtime"
+    manifest = registry / "contracts.json"
+    contract = json.loads(manifest.read_text())["autohand"]
+    revision = "autohand-0.9.11-model-source-v1"
+    runtime = Path(env["VIBEWINDOW_CONFIG_DIR"]) / "acp-runtime" / revision
+    runtime.parent.mkdir(mode=0o700)
+    source = os.environ.get("AUTOHAND_COEXISTENCE_RUNTIME")
+    if source:
+        shutil.copytree(Path(source).resolve(strict=True), runtime, symlinks=True)
+    else:
+        with tempfile.TemporaryDirectory(dir=env["TMPDIR"]) as stage:
+            assets = Path(stage)
+            patch = REPOSITORY / "patches/acp-model-source/autohand"
+            shutil.copy2(manifest, assets)
+            shutil.copytree(patch, assets / "autohand")
+            shutil.copy2(patch / "package-lock.json", assets / "autohand-lock.json")
+            try:
+                install = subprocess.run(
+                    [sys.executable, str(registry / "install.py"), stage, str(runtime), "autohand"],
+                    env=env, capture_output=True, timeout=180,
+                )
+            except subprocess.TimeoutExpired:
+                raise AssertionError("reviewed AutoHand installation timed out") from None
+            require(install.returncode == 0, "reviewed AutoHand installation failed")
+    package = runtime / "node_modules" / contract["package"]
+    files = {name: hashlib.sha256((package / name).read_bytes()).hexdigest()
+             for name in contract["files"]}
+    require(files == contract["files"] and files[contract["bin"]] == SHA256,
+            "AutoHand runtime digest mismatch")
+    entry = runtime / "node_modules/.bin/autohand"
+    require(entry.resolve(strict=True) == (package / contract["bin"]).resolve(strict=True),
+            "unexpected AutoHand executable target")
     version = subprocess.run([str(entry), "--version"], env=env, capture_output=True,
-                             text=True, timeout=10)
+                             text=True, timeout=15)
     require(version.returncode == 0 and VERSION in version.stdout,
             "unexpected AutoHand executable version")
-    return {"command": command, "args": DIRECT_ARGS, "env": {
+    return {"command": str(entry), "args": DIRECT_ARGS, "env": {
         "AUTOHAND_SKIP_AHTRACES_INSTALL": "1",
         "AUTOHAND_SKIP_COMPUTER_CONTROL_INSTALL": "1",
-    }}, {
-        "version": VERSION, "sha256": SHA256, "tool_mode": "reviewed direct tools",
-    }
+    }}, {"version": VERSION, "revision": revision, "sha256": files}
 
 
 class Probe:
-    def __init__(self, fixtures, mounted, rejected):
+    def __init__(self, fixtures, mounted, rejected, *, observe_stdio=True):
         self.fixtures = fixtures
         self.mounted = mounted
         self.rejected = rejected
@@ -64,13 +99,14 @@ class Probe:
         self.pending = None
         self.locations = {}
         self.failure = None
+        self.observe_stdio = observe_stdio
+        self.audit = None
 
     def response(self, body):
         require(body["model"] == MODEL, "unexpected AutoHand upstream model")
         tools = {row["function"]["name"]: row["function"] for row in body.get("tools", [])}
         if not tools:
             return {"content": "Fixture session"}, "stop"
-        self.requests += 1
         skills = self.fixtures["skills"]
         if self.pending is None:
             system_parts = []
@@ -84,8 +120,15 @@ class Probe:
                     system_parts.extend(part["text"] for part in content if part["type"] == "text")
             system = "\n".join(system_parts)
             catalog = re.search(r"(?m)^## Available Skills\n(.*?)(?=^## |\Z)", system, re.S)
-            require(catalog is not None, "AutoHand native catalog missing")
             envelope = json.dumps(body)
+            if catalog is None and system.startswith(SPECIALIST_PROMPTS):
+                require(MCP_TOOL not in tools and self.fixtures["mcp"] not in envelope
+                        and all(skill["body"] not in envelope and skill["attachment"] not in envelope
+                                for skill in skills.values()),
+                        "AutoHand specialist received a private fixture resource")
+                return {"content": "No additional work is required for this fixture."}, "stop"
+            require(catalog is not None, "AutoHand native catalog missing")
+            self.requests += 1
             for kind, skill in skills.items():
                 visible = kind == "native" or (kind == "selected" and self.mounted)
                 require((skill["name"] in catalog[1]) == visible,
@@ -94,8 +137,16 @@ class Probe:
                         "AutoHand skill content appeared before activation")
             require(self.fixtures["mcp"] not in envelope, "MCP value appeared before invocation")
             require((MCP_TOOL in tools) == self.mounted, "unexpected AutoHand MCP catalog")
+            if self.mounted and self.observe_stdio:
+                root = skills["native"]["path"].parents[3]
+                audits = list((root / "tmp").glob("shiju-mimo-mcp-*/mimo-fixture-audit"))
+                require(len(audits) == 1, "missing or ambiguous AutoHand stdio audit")
+                self.audit = root / ("autohand-rejected-audit" if self.rejected else "autohand-mounted-audit")
+                os.link(audits[0], self.audit)
+                require(not self.audit.read_text(), "AutoHand MCP ran before approval")
             return self.skill_call(tools, "native", "info")
 
+        self.requests += 1
         step, call_id = self.pending
         results = [dict(row, tool_use_id=row["tool_call_id"]) for row in body["messages"]
                    if row["role"] == "tool"]
@@ -106,12 +157,15 @@ class Probe:
             expected = skills[kind]["path"] / "SKILL.md"
             path = Path(info["path"])
             require(info["name"] == skills[kind]["name"] and not info["active"]
-                    and path.is_absolute() and path.resolve() == expected.resolve(),
+                    and path.is_absolute() and path.name == "SKILL.md",
                     f"unexpected AutoHand {kind} skill location")
-            if kind == "selected":
-                view_parts = (*path.parts, *path.parent.resolve().parts)
-                require(any(part.startswith("shiju-session-skills-") for part in view_parts),
-                        "AutoHand selected skill bypassed the session view")
+            if kind == "native":
+                require(path.resolve() == expected.resolve(), "unexpected AutoHand native source")
+            else:
+                require(path.parent.name == skills[kind]["name"]
+                        and path.parent.parent.name.startswith("shiju-session-skills-")
+                        and path.resolve() == path,
+                        "AutoHand selected skill bypassed the request snapshot")
             self.locations[kind] = path
             return self.skill_call(tools, kind, "activate")
         if step in self.locations:
@@ -180,11 +234,12 @@ class Probe:
         return False
 
     def approves(self, metadata):
-        arguments = metadata.get("arguments")
         return (self.pending is not None and self.pending[0] == "mcp"
-                and metadata.get("title") == f"MCP: coexistence/read_probe: Allow tool {MCP_TOOL}?"
-                and isinstance(arguments, dict) and arguments.get("tool") == MCP_TOOL
-                and arguments.get("args") in (None, {}))
+                and metadata.get("title") == MCP_TOOL and metadata.get("arguments") == {})
+
+    def mcp_trace(self, _events):
+        return (self.audit.read_text().splitlines() if self.audit else [],
+                self.completed.get("mcp"))
 
 
 class Handler(ProviderHandler):

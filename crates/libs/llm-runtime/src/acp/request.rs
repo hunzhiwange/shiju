@@ -418,6 +418,35 @@ pub async fn do_stream_request_acp<H: Host>(
             "Nova skill mounts require session_model with native tools enabled",
         ));
     }
+    let managed_autohand = acp_agent_name == "autohand"
+        && cfg!(all(target_os = "macos", target_arch = "aarch64"))
+        && source == vw_api_acp_model::acp_model_source::AcpModelSource::SessionModel
+        && super::skill_mounts::autohand::matches_managed_entry(&normalized_acp_cfg.command);
+    let autohand_selected = acp_agent_name == "autohand" && parsed_options.skill_view.is_some();
+    let autohand_mcp = managed_autohand && !parsed_options.mcp_servers.is_empty();
+    if acp_agent_name == "autohand" && normalized_acp_cfg.env.keys().any(|key| {
+        key.eq_ignore_ascii_case(super::skill_mounts::autohand::MANAGED)
+            || key.eq_ignore_ascii_case(super::skill_mounts::autohand::ROOT)
+            || key.eq_ignore_ascii_case(super::skill_mounts::autohand::WORKSPACE)
+    }) {
+        return Err(acp_option_error("Reserved AutoHand skill and MCP launch controls"));
+    }
+    if (autohand_selected || autohand_mcp) && (!managed_autohand
+        || parsed_options.full_access
+        || parsed_options.permission_mode == Some(acp_types::PermissionMode::DenyAll)
+        || merged_options.get("disable_tools").and_then(Value::as_bool) == Some(true)
+        || recovered.is_some() || fork_replay.is_some())
+    {
+        return Err(acp_option_error("AutoHand requires a reviewed session_model launch with host approvals"));
+    }
+    if acp_agent_name == "stakpak"
+        && parsed_options.skill_view.is_some()
+        && (source != vw_api_acp_model::acp_model_source::AcpModelSource::SessionModel
+            || parsed_options.permission_mode == Some(acp_types::PermissionMode::DenyAll)
+            || merged_options.get("disable_tools").and_then(Value::as_bool) == Some(true))
+    {
+        return Err(acp_option_error("Stakpak skill mounts require session_model with native reads enabled"));
+    }
     H::validate_mounts(&acp_agent_name, !parsed_options.skill_mounts.is_empty())?;
 
     if acp_agent_name == "dimcode"
@@ -513,7 +542,7 @@ pub async fn do_stream_request_acp<H: Host>(
                 }
                 std::future::pending::<()>().await;
             };
-            let prepare = if mimo_mcp || vtcode_mcp || hermes_mcp || auggie_mcp || droid_mcp {
+            let prepare = if mimo_mcp || vtcode_mcp || hermes_mcp || auggie_mcp || droid_mcp || autohand_mcp {
                 H::prepare_stdio_mcp_launch(&acp_agent_name, &normalized_acp_cfg, model, &scoped_session, &cwd, &parsed_options.mcp_servers)
             } else if openclaw_mcp.is_empty() {
                 H::prepare_launch(&acp_agent_name, &normalized_acp_cfg, model, &scoped_session)
@@ -626,6 +655,9 @@ pub async fn do_stream_request_acp<H: Host>(
             parsed_options.skill_view.as_ref(),
         )?;
     }
+    if (autohand_selected || autohand_mcp) && let Some(profile) = launch_profile.as_mut() {
+        super::skill_mounts::autohand::configure(profile, &cwd, parsed_options.skill_view.as_ref())?;
+    }
     if mimo_mcp || !openclaw_mcp.is_empty() {
         // The request-owned launch now owns the projected MCP connections.
         parsed_options.mcp_servers.clear();
@@ -685,7 +717,7 @@ pub async fn do_stream_request_acp<H: Host>(
     // Server-owned fork anchors and recovered sessions take precedence over desktop rebuild hints.
     let requested_force_new_session = fork_replay.is_none()
         && recovered.is_none()
-        && (restricted_droid || vtcode_mcp || merged_options.get("acp_force_new_session").and_then(Value::as_bool).unwrap_or(false));
+        && (restricted_droid || vtcode_mcp || autohand_selected || autohand_mcp || merged_options.get("acp_force_new_session").and_then(Value::as_bool).unwrap_or(false));
     let replay_strategy = if fork_history_needed {
         AcpReplayStrategy::Full
     } else {

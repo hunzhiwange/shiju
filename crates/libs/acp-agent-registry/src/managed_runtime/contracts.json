@@ -1,4 +1,17 @@
 {
+  "autohand": {
+    "package": "autohand-cli",
+    "version": "0.9.11",
+    "bin": "dist/index.js",
+    "integrity": "sha512-SzGmR1FjOtNBse8n8BfzbSDVNV8XfIC0yWbHymtXl8eKMWpmAME1OAwots0SOuH05oCooUQWhWeXRs4YoOOUIw==",
+    "lock_sha256": "382247a59e6e548bb27975e0fb5090039bd4c39913d92d8b9b06d4ad6a071b47",
+    "files": {
+      "dist/index.js": "339bdb0c8f4f8b7f9076108434d910b2cd5e14f2593b48c0e5858e04e91950eb",
+      "dist/acp-LDTU5B5V.js": "9fb1a8986092536b5cea385301a471fe1770c922ea5de76ccd6cb511c0192863",
+      "dist/chunk-R73FESUM.js": "d2f414752f4fe0d2e03595262e751f3bc2b491b6198ac146da93b39662b33cd0",
+      "dist/shiju-session-boundary.mjs": "1e7c4b51e1c1ea258aef233b69054b1393066e9d7e3f38a79dc857b19a4f7829"
+    }
+  },
   "dirac": {
     "package": "dirac-cli",
     "version": "0.5.24",

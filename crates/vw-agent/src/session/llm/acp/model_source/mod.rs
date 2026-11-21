@@ -101,7 +101,7 @@ async fn prepare_with_mounts(
     .await?;
     let endpoint = format!("http://{}", server.address());
     profile.attach_server(server);
-    if let Some(projection) = projection.as_ref().filter(|_| matches!(agent, "vtcode" | "hermes" | "auggie" | "droid")) {
+    if let Some(projection) = projection.as_ref().filter(|_| matches!(agent, "vtcode" | "hermes" | "auggie" | "droid" | "autohand")) {
         llm_runtime::acp::model_source::configure_profile(agent, &mut profile, &endpoint, &directory, openclaw_mcp).await?;
         if agent == "auggie" {
             let tools = projection.tools.iter().map(|name| {

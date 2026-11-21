@@ -4,6 +4,7 @@ pub(super) mod aionrs;
 pub(super) mod amp_acp;
 pub(super) mod auggie;
 mod claude;
+pub(super) mod autohand;
 mod codebuddy;
 mod codex;
 mod copilot;
@@ -48,6 +49,7 @@ pub fn validate(agent: &str, selected: bool) -> Result<(), Error> {
         "claude" | "claude code" => return Ok(()),
         "qwen" => return Ok(()),
         "gemini" => return Ok(()),
+        "autohand" if cfg!(all(target_os = "macos", target_arch = "aarch64")) => return Ok(()),
         "glm-acp-agent" if cfg!(all(target_os = "macos", target_arch = "aarch64")) => return Ok(()),
         "codebuddy" => return Ok(()),
         "goose" => return Ok(()),
@@ -106,6 +108,10 @@ impl MountedSkills {
         mounts: &[acp_types::SessionSkillMount],
         cwd: &std::path::Path,
         session: &str,
+    #[cfg(unix)]
+    fn snapshot(&self, destination: &std::path::Path) -> Result<(), Error> {
+        self.0.snapshot(destination).map_err(super::to_api_error)
+    }
         security: &config_skills::SkillSecurityConfig,
         tenant: &vw_api_transport::TenantScope,
     ) -> Result<Option<Self>, Error> {

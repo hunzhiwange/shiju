@@ -350,6 +350,7 @@ pub fn verify_reviewed_agent_executable(agent: &str, command: &str) -> Result<()
             Ok(())
         } else {
             Err("Claude managed launch requires an installed verified ACP adapter".into())
+        "autohand" => vec!["--acp".into()],
         };
     }
     let Some(mut contract) = contract(agent) else { return Ok(()) };
@@ -580,6 +581,9 @@ pub(super) async fn install(agent: &str) -> Result<bool, String> {
             "kilocode/patch.json",
             include_str!("../../../../patches/acp-model-source/kilocode/patch.json"),
         ),
+        ("autohand/apply.py", include_str!("../../../../patches/acp-model-source/autohand/apply.py")),
+        ("autohand/session-boundary.mjs", include_str!("../../../../patches/acp-model-source/autohand/session-boundary.mjs")),
+        ("autohand-lock.json", include_str!("../../../../patches/acp-model-source/autohand/package-lock.json")),
         ("dirac/apply.py", include_str!("../../../../patches/acp-model-source/dirac/apply.py")),
         (
             "dirac/session-mcp.mjs",

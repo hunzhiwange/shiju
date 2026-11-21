@@ -155,27 +155,44 @@ if agent == 'stakpak':
     if (platform.system(), platform.machine()) != ('Darwin', 'arm64'):
         raise RuntimeError('Stakpak reviewed runtime is Darwin-arm64 only')
     archive = assets / 'stakpak.tar.gz'
-    run(['/usr/bin/curl', '--fail', '--silent', '--show-error', '--location',
+    run(['/usr/bin/curl', '--disable', '--fail', '--silent', '--show-error', '--location',
          '--proto', '=https', '--proto-redir', '=https', '--retry', '2',
-         '--max-time', '40', '--output', str(archive), contract['artifact_url']])
-    if digest(archive) != contract['archive_sha256']:
-        raise RuntimeError('Stakpak fixed archive checksum mismatch')
-    runtime.mkdir()
-    native = runtime / 'stakpak-native'
+         '--max-time', '60', '--output', str(archive), contract['source_url']])
+    patch = assets / 'stakpak/skills.patch'
+    if digest(archive) != contract['source_sha256'] or digest(patch) != contract['patch_sha256']:
+        raise RuntimeError('Stakpak source or patch checksum mismatch')
+    source = assets / f"agent-{contract['version']}"
     with tarfile.open(archive) as package:
         members = package.getmembers()
-        if len(members) != 1 or members[0].name != 'stakpak' or not members[0].isfile():
-            raise RuntimeError('Unexpected Stakpak fixed archive layout')
-        with package.extractfile(members[0]) as source, native.open('wb') as output:
-            shutil.copyfileobj(source, output)
+        if not members or any(
+            not Path(member.name).parts or Path(member.name).parts[0] != source.name
+            or Path(member.name).is_absolute() or '..' in Path(member.name).parts
+            or not (member.isdir() or member.isfile()) for member in members
+        ):
+            raise RuntimeError('Unexpected Stakpak fixed source layout')
+        package.extractall(assets, members=members)
+    run(['patch', '--batch', '--forward', '-p1', '-d', str(source), '-i', str(patch)])
+    target = Path(os.environ.get('CARGO_TARGET_DIR', str(assets / 'cargo-target'))).absolute()
+    build_env = dict(os.environ, CARGO_TARGET_DIR=str(target), CARGO_BUILD_BUILD_DIR=str(target))
+    subprocess.run(
+        ['cargo', '+1.94.1', 'build', '--locked', '-j', '1', '-p', 'stakpak', '--bin', 'stakpak'],
+        cwd=source, env=build_env, check=True, stdin=subprocess.DEVNULL,
+    )
+    runtime.mkdir(mode=0o700)
+    native = runtime / 'stakpak-native'
+    shutil.copyfile(target / 'debug/stakpak', native)
     native.chmod(0o700)
     launcher = runtime / 'stakpak'
-    shutil.copy2(assets / 'stakpak/launcher.py', launcher)
+    shutil.copyfile(assets / 'stakpak/launcher.py', launcher)
     shutil.copyfile(assets / 'stakpak/mcp.py', runtime / 'mcp.py')
     shutil.copyfile(assets / 'poolside/mcp_bridge.py', runtime / 'mcp_bridge.py')
     shutil.copyfile(assets / 'cortex-code/mcp_bridge.py', runtime / 'shiju-stdio.py')
     launcher.chmod(0o700)
     check_files(runtime, contract['files'])
+    (runtime / 'build-receipt.json').write_text(json.dumps({
+        'version': contract['version'], 'source_sha256': contract['source_sha256'],
+        'patch_sha256': contract['patch_sha256'], 'sha256': digest(native),
+    }))
     raise SystemExit(0)
 if agent == 'mimo-code':
     import platform
@@ -387,32 +404,48 @@ if agent == 'harn':
     import platform
     if (platform.system(), platform.machine()) != ('Darwin', 'arm64'):
         raise RuntimeError('Harn reviewed runtime is Darwin-arm64 only')
-    archive = assets / 'harn.tar.gz'
-    with urllib.request.urlopen(contract['artifact_url'], timeout=120) as response, archive.open('wb') as output:
+    archive = assets / 'harn-source.tar.gz'
+    patch = assets / 'harn/skills.patch'
+    with urllib.request.urlopen(contract['source_url'], timeout=120) as response, archive.open('wb') as output:
         shutil.copyfileobj(response, output)
-    if digest(archive) != contract['archive_sha256']:
-        raise RuntimeError('Harn fixed archive checksum mismatch')
-    runtime.mkdir()
+    if digest(archive) != contract['source_sha256'] or digest(patch) != contract['patch_sha256']:
+        raise RuntimeError('Harn reviewed source/patch checksum mismatch')
+    revision = '4914194ae9f56b0046210ca90ef6f927988e727e'
+    source = assets / f'harn-{revision}'
     with tarfile.open(archive) as package:
+        members = []
         for member in package.getmembers():
             path = Path(member.name)
-            # The fixed supplier archive includes two optional aliases to harn.
-            # They are not used by this runtime; never materialize archive links.
-            if member.issym() and member.name in ('harn-dap', 'harn-lsp') and member.linkname == 'harn':
+            if path.is_absolute() or '..' in path.parts or not path.parts or path.parts[0] != source.name:
+                raise RuntimeError('Unsafe Harn source entry')
+            # Development aliases are unnecessary for the CLI build.
+            if member.issym():
                 continue
-            if path.is_absolute() or '..' in path.parts or not (member.isfile() or member.isdir()):
-                raise RuntimeError('Unsafe Harn archive entry')
-            if member.isfile():
-                destination = runtime / path
-                destination.parent.mkdir(parents=True, exist_ok=True)
-                destination.write_bytes(package.extractfile(member).read())
-    (runtime / 'harn').rename(runtime / 'harn-native')
-    (runtime / 'harn-native').chmod(0o700)
-    shutil.copy2(assets / 'harn/launcher.py', runtime / 'harn')
+            if not (member.isfile() or member.isdir()):
+                raise RuntimeError('Unsafe Harn source entry type')
+            members.append(member)
+        package.extractall(assets, members=members)
+    run(['/usr/bin/patch', '--batch', '--forward', '-p1', '-i', str(patch)], source)
+    target = Path(os.environ.get('CARGO_TARGET_DIR', str(assets / 'cargo-target'))).absolute()
+    build_env = dict(os.environ, CARGO_TARGET_DIR=str(target), CARGO_BUILD_BUILD_DIR=str(target),
+                     HARN_BUILD_REVISION=revision, HARN_BUILD_FRESHNESS_ID='')
+    subprocess.run(['cargo', '+1.99.1', 'build', '--locked', '-j', '1', '-p', 'harn-cli', '--bin', 'harn'],
+                   cwd=source, env=build_env, stdin=subprocess.DEVNULL, check=True)
+    runtime.mkdir(mode=0o700)
+    binary = runtime / 'harn-native'
+    shutil.copyfile(target / 'debug/harn', binary)
+    for name in ('LICENSE-APACHE', 'LICENSE-MIT'):
+        shutil.copyfile(source / name, runtime / name)
+    shutil.copyfile(assets / 'harn/launcher.py', runtime / 'harn')
     (runtime / 'harn').chmod(0o700)
-    shutil.copy2(assets / 'harn/agent.harn', runtime / 'agent.harn')
-    shutil.copy2(assets / 'cortex-code/mcp_bridge.py', runtime / 'shiju_stdio.py')
+    binary.chmod(0o700)
+    shutil.copyfile(assets / 'harn/agent.harn', runtime / 'agent.harn')
+    shutil.copyfile(assets / 'cortex-code/mcp_bridge.py', runtime / 'shiju_stdio.py')
     check_files(runtime, contract['files'])
+    (runtime / 'build-receipt.json').write_text(json.dumps({
+        'version': contract['version'], 'source_sha256': contract['source_sha256'],
+        'patch_sha256': contract['patch_sha256'], 'engine_sha256': digest(binary),
+    }))
     raise SystemExit(0)
 if agent == 'trae':
     import platform
@@ -648,7 +681,9 @@ if agent == 'glm-acp-agent':
     if hashlib.sha256(patch.read_bytes().replace(b'\r\n', b'\n')).hexdigest() != contract['patch_sha256']:
         raise RuntimeError('GLM reviewed patch checksum mismatch')
 runtime.mkdir()
-if agent in ('iflow', 'deepagents'):
+if agent in ('iflow', 'deepagents', 'autohand'):
+    if agent == 'autohand' and digest(assets / 'autohand-lock.json') != contract['lock_sha256']:
+        raise RuntimeError('AutoHand dependency lock checksum mismatch')
     lock_input = json.loads((assets / (agent + '-lock.json')).read_text())
     (runtime / 'package.json').write_text(json.dumps({'private': True, 'dependencies': lock_input['packages']['']['dependencies']}))
     shutil.copy2(assets / (agent + '-lock.json'), runtime / 'package-lock.json')
@@ -676,6 +711,9 @@ root = runtime / 'node_modules' / contract['package']
 package = json.loads((root / 'package.json').read_text())
 if (package['name'], package['version']) != (contract['package'], contract['version']):
     raise RuntimeError('Supplier package identity mismatch')
+if agent == 'autohand':
+    run([sys.executable, str(assets / 'autohand/apply.py'), str(root),
+         str(assets / 'autohand/session-boundary.mjs')])
 if agent == 'opencode':
     import platform
     if (platform.system(), platform.machine()) != ('Darwin', 'arm64'):

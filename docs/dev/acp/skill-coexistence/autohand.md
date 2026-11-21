@@ -1,6 +1,6 @@
 # AutoHand ACP 技能共存验收
 
-任务 24 已阻塞。网关无挂载基线通过，挂载轮命中现有能力门禁。AutoHand 0.9.11 的原生读取器拒绝工作区外选集。私有预工具钩子可对夹具的 stdio MCP 请求单次审批。
+原版 AutoHand 0.9.11 的对照确认，网关无挂载基线通过，挂载轮命中旧能力门禁。原版读取器拒绝工作区外选集。本文记录原版对照和受管补丁的后续验证。
 
 ## 制品与网关
 
@@ -40,3 +40,32 @@ PYTHONPATH=scripts python3 -c 'import sys; from cargo_slot import run; sys.exit(
 固定版 `syncMcpTools` 默认把外接工具标成无需审批。私有配置中的 `pre-tool` 钩子按完整工具名匹配，只返回 `ask`，成功触发 `session/request_permission`。四个独立原生会话都返回 `end_turn`。基线、挂载、撤除、拒绝的 stdio 审计计数为 0/1/0/0。批准工具调用 `probe_eb803ab9c7d602ba407a68ec` 读回真实附件，拒绝调用 `probe_0ceebfeb6df8090fdc1218cf` 按调用 ID 回传原生跳过结果。空的私有工作区信任记录下，额外的项目 `permission-request` 钩子未覆盖宿主审批。已信任项目钩子仍可在后续权限阶段改变决定，因此生产接线需要独立核实项目钩子优先级或在宿主转发端强制审批。已有 VT Code 转发依赖适配器提供主动申请的单次凭证，AutoHand 当前协议没有提供该合同。
 
 本地脱敏报告见 `target/acp-skill-coexistence/autohand-hook.json`、`autohand-project-hook.json` 和 `autohand-external-view.json`。下一步需要审定的供应商制品或上游接口，支持把会话选集追加到原生发现，同时按受信视图提供工作区外正文和附件的只读访问。再接入可强制执行的 MCP 单次审批后，复跑正式三轮和拒绝对照。
+
+## 固定受管补丁
+
+受管 `autohand-0.9.11-model-source-v1` 从 npm 固定包和依赖锁安装，禁用 npm 安装脚本，校验包的 registry 完整性及四个入口文件摘要。安装目录独立于本机 CLI。Darwin arm64 上已用生产安装器两次生成制品，最后一次在新目录重新安装并校验。[受管契约](../../../../crates/libs/acp-agent-registry/src/managed_runtime/contracts.json) · [可复现补丁](../../../../patches/acp-model-source/autohand/apply.py)
+
+ACP 初始化保留原生扫描器，在生成系统目录之前注册当次选集。宿主校验活跃技能租约，只复制所选目录，验证复制内容后发布 0700 的私有视图，资源文件权限为 0400。补丁用独立的原生 `FileActionManager` 处理视图中的 `read_file`。普通读写仍使用已有工作区管理器。路径逃逸、内部符号链接、硬链接和非普通文件不会获得视图读权限。
+
+网关把宿主已选 stdio MCP 投影至已有审批中继。补丁在供应商工具派发点校验连接，当次工具名和精确参数通过 ACP 获取单次审批，中继在下游派发前消费授权。原生项目配置和用户钩子沿用原有支持。挂载分支要求固定受管入口、`session_model` 和已启用工具的权限模式。普通无挂载和无宿主 MCP 的会话继续使用原启动行为。
+
+最终安装产物的独立原生 ACP 对照四轮均返回 `end_turn`，真实只读 MCP 调用计数为 0/1/0/0。挂载轮读回的选集正文、附件和 MCP 调用 ID 分别为 `probe_47c5ea26cbd283438467f027`、`probe_edd05bf4ceea2c6fbd1b3a4a`、`probe_fcdae134b27c3edf464ae9f4`。拒绝轮 `probe_dfaa50e789abef6b66582d1b` 回读原生跳过结果。记录在 `target/acp-skill-coexistence/autohand-patch-native-final.jsonl`。针对同制品的文件边界测试通过，覆盖选集可读、选集不可写、外部同级文件拒读、符号链接拒读和 MCP 连接替换拒绝。
+
+槽位 9 的 Cargo target 与 build 路径均为仓库的 `target/rust-slot-9`。定向命令 `cargo test --locked -j 1 -p llm-runtime --lib acp_skill_coexistence_autohand -- --test-threads=1` 实际通过 2 项，退出 0。两项覆盖外部选集快照、未选集隔离、文件读权限、源变更拒绝和无选集时的启动环境。
+
+同一新版探针和受管 npm 制品复用旧网关测红。槽位 6 的网关 SHA-256 为 `09c49dfa8efa59deebb31d40ddd6f4533e7670a09f71baef33e77f10f5284453`，无挂载读回成功，挂载被旧门禁拒绝，退出 1。报告为 `target/acp-skill-coexistence/autohand-managed-red.json`。
+
+## 正式网关验收
+
+`cargo build --locked -j 1 -p vw-cli --bin shiju` 在槽位 9 退出 0。网关 SHA-256 为 `0991a07bf3ef6f9cf52f179979d0aee8552e611af5860a7f69b9f778d9731499`。首次执行见 `autohand-shape.json`，挂载轮的读取与审批已完成，探针把原生专家准备请求误判为主会话。按实际专家系统前缀完善探针，对辅助请求验证无私有正文、附件和 MCP 值。主会话仍校验原生目录、调用 ID、实际审批与下游审计。
+
+复用同一网关与制品执行正式探针后退出 0。四轮均回读 `autohand`、`session_model`、`coexistence-fixture/deepseek-v4.1-flash-1017` 和 `full_access=false`。宿主仅对挂载轮批准一次，拒绝轮未执行下游。选中及非选中源放在独立私有 HOME 的 `.skills`，在项目外。撤除轮仍可读取项目原生技能，先前选集不可发现。
+
+| 轮次 | 网关会话 ID | chat.done / chat.error | 主会话模型回合 | 下游 MCP |
+| --- | --- | --- | --- | --- |
+| 无挂载 | `ses_e03edae60ffeO0LMTZfUYuMlm0` | 1 / 0 | 5 | 0 |
+| 挂载并批准 | `ses_e03eda1bfffeGa83ZkX5F6KJLm` | 1 / 0 | 10 | 1 |
+| 撤除 | `ses_e03ed9081ffe5fbKvvKYpRGKpN` | 1 / 0 | 5 | 0 |
+| 挂载并拒绝 | `ses_e03ed8497ffefitOy4Bd02s2kn` | 1 / 0 | 10 | 0 |
+
+挂载轮的原生正文、原生附件、选集正文、选集附件和 MCP 调用 ID 分别为 `probe_6f52e86a5394f5bf200949cc`、`probe_7fe011a2d50b29caa3b2e635`、`probe_a429b5771ee2ca024c2008bf`、`probe_92210af15bcc3c5bbf528383` 和 `probe_6df5b94454cdfdd7cf5d9863`。拒绝调用 `probe_9c49308d8240c5f8b796e379` 按 ID 回读原生跳过结果。正式结构化证据在 `target/acp-skill-coexistence/autohand.json`。本次为 Darwin arm64 的请求级启动验证。选集按请求重建私有原生会话。

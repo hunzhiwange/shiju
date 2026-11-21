@@ -158,6 +158,7 @@ pub async fn apply_agent_defaults<H: DefaultsHost, S>(
                 "harn" => Some("shiju.harn.toolPolicy"),
                 "mimo-code" => Some("shiju.mimo.toolPolicy"),
                 "vtcode" => Some("shiju.vtcode.toolPolicy"),
+                "autohand" => Some("shiju.autohand.toolPolicy"),
                 "auggie" => Some("shiju.auggie.toolPolicy"),
                 "hermes" => Some("shiju.hermes.toolPolicy"),
                 "droid" => Some("shiju.droid.toolPolicy"),

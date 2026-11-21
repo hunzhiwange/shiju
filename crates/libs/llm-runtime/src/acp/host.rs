@@ -10,6 +10,9 @@ pub trait SkillLease: Clone + Send + Sync + 'static {
     fn fingerprint(&self) -> &str;
     fn root(&self) -> &Path;
     fn validate(&self) -> Result<(), Error>;
+    fn snapshot(&self, _destination: &Path) -> Result<(), Error> {
+        Err(super::acp_option_error("The host cannot snapshot this skill lease"))
+    }
 }
 
 pub struct DesktopContext {

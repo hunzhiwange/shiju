@@ -238,8 +238,11 @@ pub struct ShijuSkillPageDto<T> {
 /// Download metadata for the current SHIJU skill version.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ShijuSkillVersionContentDto {
+    #[serde(default, deserialize_with = "deserialize_string_or_default")]
     pub checksum: String,
+    #[serde(default, deserialize_with = "deserialize_string_or_default")]
     pub content_type: String,
+    #[serde(default)]
     pub download_expires_at: i64,
     pub download_url: Option<String>,
     pub version: String,
@@ -251,22 +254,66 @@ pub struct ShijuSkillDetailDto {
     pub id: u64,
     pub slug: String,
     pub name: String,
+    #[serde(default, deserialize_with = "deserialize_string_or_default")]
     pub description: String,
     #[serde(default)]
     pub level: String,
+    #[serde(default, deserialize_with = "deserialize_string_or_default")]
     pub modality: String,
+    #[serde(default, deserialize_with = "deserialize_string_or_default")]
     pub format: String,
+    #[serde(default, deserialize_with = "deserialize_string_or_default")]
     pub company_id: String,
+    #[serde(default, deserialize_with = "deserialize_string_or_default")]
     pub created_uid: String,
+    #[serde(default, deserialize_with = "deserialize_string_or_default")]
     pub maintainer_uid: String,
+    #[serde(default, deserialize_with = "deserialize_string_or_default")]
     pub status: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub is_all_company_accessible: Option<u8>,
     #[serde(default)]
-    pub is_all_company_accessible: u8,
     pub current_version_id: u64,
     pub current_version: Option<ShijuSkillVersionContentDto>,
+    #[serde(default, deserialize_with = "deserialize_string_or_default")]
     pub created_at: String,
+    #[serde(default, deserialize_with = "deserialize_string_or_default")]
     pub updated_at: String,
+    #[serde(default, deserialize_with = "deserialize_vec_or_default")]
     pub tags: Vec<ShijuSkillTagDto>,
+    #[serde(flatten)]
+    pub marketplace: ShijuSkillMarketplaceDetailDto,
+}
+
+/// Additional detail fields returned by the marketplace endpoint.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ShijuSkillMarketplaceDetailDto {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub publisher_company_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub publisher_company_name: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub is_platform_publisher: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub publisher_kind: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub developer_display_name: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub creator_display_name: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub marketplace_submission_id: Option<u64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub marketplace_status: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub marketplace_version: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub distribution_source: Option<ShijuSkillSource>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub content_type: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub is_installed: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub icon_url: Option<String>,
 }
 
 /// README content for one SHIJU private skill.
@@ -286,10 +333,15 @@ impl<'de> Deserialize<'de> for ShijuSkillReadmeDto {
             markdown: Option<String>,
             #[serde(default)]
             content: Option<String>,
+            readme_format: Option<String>,
         }
 
         let wire = WireDto::deserialize(deserializer)?;
-        let markdown = wire.markdown.or_else(|| wire.content.and_then(legacy_readme_markdown));
+        let markdown = match wire.readme_format.as_deref() {
+            Some("html") => wire.markdown,
+            Some("markdown") => wire.content.or(wire.markdown),
+            _ => wire.markdown.or_else(|| wire.content.and_then(legacy_readme_markdown)),
+        };
         Ok(Self { markdown })
     }
 }

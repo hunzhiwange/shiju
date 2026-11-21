@@ -251,7 +251,7 @@ fn shiju_skill_contract_preserves_catalog_detail_and_version_shapes() {
         Some("https://skill.shiju.cloud/content.zip?signature=detail-secret")
     );
     assert!(detail.level.is_empty());
-    assert_eq!(detail.is_all_company_accessible, 0);
+    assert_eq!(detail.is_all_company_accessible, None);
     assert!(versions[0].download_url.is_none());
     assert!(versions[0].scan_result.is_none());
     let mut legacy_version = versions_fixture[0].clone();

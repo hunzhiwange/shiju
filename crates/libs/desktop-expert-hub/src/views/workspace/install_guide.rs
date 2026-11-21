@@ -23,6 +23,7 @@ fn map(message: crate::views::Message) -> Message {
         crate::views::Message::StartBrowserLogin => {
             Message::Account(crate::views::workspace::AccountMessage::StartBrowserLogin)
         }
+        crate::views::Message::CopyCode(text) => Message::CopyCode(text),
         crate::views::Message::None => Message::None,
     }
 }

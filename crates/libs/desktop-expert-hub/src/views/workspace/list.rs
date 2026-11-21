@@ -11,6 +11,7 @@ fn map(message: views::Message) -> Message {
         views::Message::StartBrowserLogin => {
             Message::Account(crate::views::workspace::AccountMessage::StartBrowserLogin)
         }
+        views::Message::CopyCode(text) => Message::CopyCode(text),
         views::Message::None => Message::None,
     }
 }

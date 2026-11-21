@@ -29,7 +29,7 @@ pub(super) fn open_skill_detail(app: &mut SkillUpdate<'_>, skill_id: u64) -> Tas
             let dto = gateway_shiju_skill_detail_async(gateway, &credential, skill_id)
                 .await
                 .map_err(SkillHubError::from)?;
-            SkillDetail::try_from(dto)
+            Ok(SkillDetail::from(dto))
         },
         move |result| {
             Message::SkillHub(SkillHubMessage::SkillDetailLoaded {
@@ -142,6 +142,13 @@ pub(super) fn start_skill_action(
     };
     let market = market.iter().chain(&app.expert_hub.featured_skills)
         .find(|item| item.id == skill_id).and_then(|item| item.distribution_source);
+    let detail_source = app.expert_hub.detail.as_ref().and_then(|state| match &state.detail {
+        LoadState::Loaded(detail) if detail.id == skill_id && detail.company_id.is_empty() => {
+            detail.marketplace.distribution_source
+        }
+        _ => None,
+    });
+    let market = market.or(detail_source);
     let source = if action == SkillActionKind::Uninstall { installed.or(market) } else { market };
     let request_action = action.clone();
     Task::perform(
@@ -204,8 +211,9 @@ pub(super) fn start_quick_upgrade(app: &mut SkillUpdate<'_>, skill_id: u64) -> T
     Task::perform(
         async move {
             let credential = credential.gateway_credential().map_err(|error| error.to_string())?;
-            let dto = gateway_shiju_skill_detail_async(gateway, &credential, skill_id).await?;
-            SkillDetail::try_from(dto)
+            gateway_shiju_skill_detail_async(gateway, &credential, skill_id)
+                .await
+                .map(SkillDetail::from)
         },
         move |result| {
             Message::SkillHub(SkillHubMessage::SkillUpgradeResolved {
@@ -238,7 +246,15 @@ pub(super) fn finish_quick_upgrade_resolution(
         return Task::none();
     }
     let detail = match result {
-        Ok(detail) if detail.id == skill_id => detail,
+        Ok(detail) if detail.id == skill_id && detail.current_version_id != 0 => detail,
+        Ok(detail) if detail.id == skill_id => {
+            app.expert_hub.action = None;
+            return app.show_localized_toast(
+                ToastKind::Error,
+                "暂无可用的技能版本",
+                vec![],
+            );
+        }
         Ok(_) => {
             app.expert_hub.action = None;
             return app.show_localized_toast(
@@ -366,6 +382,12 @@ pub(super) fn finish_skill_action(
     app.expert_hub.action = None;
     if result.is_ok() {
         let installed = action != SkillActionKind::Uninstall;
+        if let Some(state) = &mut app.expert_hub.detail
+            && let LoadState::Loaded(detail) = &mut state.detail
+            && detail.id == skill_id
+        {
+            detail.marketplace.is_installed = Some(installed);
+        }
         if let LoadState::Loaded(page) = &mut app.expert_hub.marketplace {
             for skill in page.items.iter_mut().filter(|skill| skill.id == skill_id) {
                 skill.is_installed = installed;

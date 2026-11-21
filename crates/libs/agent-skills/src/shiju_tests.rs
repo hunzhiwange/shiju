@@ -14,12 +14,20 @@ fn shiju_skills_production_gateway_uses_sj_prefix() {
 }
 
 fn fixture(responses: Vec<(String, String)>) -> (String, thread::JoinHandle<Vec<String>>) {
+    let count = responses.len();
+    let mut responses = responses.into_iter();
+    fixture_with_responder(count, move |_| responses.next().expect("fixture response"))
+}
+
+fn fixture_with_responder(
+    count: usize,
+    mut respond: impl FnMut(&str) -> (String, String) + Send + 'static,
+) -> (String, thread::JoinHandle<Vec<String>>) {
     let listener = TcpListener::bind("127.0.0.1:0").expect("bind SHIJU skill fixture");
     let address = listener.local_addr().expect("fixture address");
     let handle = thread::spawn(move || {
-        responses
-            .into_iter()
-            .map(|(status, body)| {
+        (0..count)
+            .map(|_| {
                 let (mut stream, _) = listener.accept().expect("accept SHIJU skill request");
                 stream
                     .set_read_timeout(Some(std::time::Duration::from_secs(5)))
@@ -44,12 +52,14 @@ fn fixture(responses: Vec<(String, String)>) -> (String, thread::JoinHandle<Vec<
                         }
                     }
                 }
+                let request = String::from_utf8(request).expect("request UTF-8");
+                let (status, body) = respond(request.lines().next().expect("request line"));
                 let response = format!(
                     "HTTP/1.1 {status}\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}",
                     body.len()
                 );
                 stream.write_all(response.as_bytes()).expect("write SHIJU skill response");
-                String::from_utf8(request).expect("request UTF-8")
+                request
             })
             .collect()
     });
@@ -110,21 +120,32 @@ async fn shiju_skill_adapter_reads_markdown_readme_envelope() {
 }
 
 #[tokio::test(flavor = "multi_thread")]
-async fn shiju_skill_adapter_accepts_missing_version_readme() {
-    let (base, requests) = fixture(vec![(
-        "200 OK".to_string(),
-        envelope(serde_json::json!({
-            "skill_id": 31,
-            "version": "0.1.3",
-            "markdown": null
-        })),
-    )]);
+async fn shiju_skill_adapter_loads_marketplace_readme_when_legacy_is_empty() {
+    let (base, requests) = fixture(vec![
+        (
+            "200 OK".to_string(),
+            envelope(serde_json::json!({
+                "skill_id": 31,
+                "version": "0.1.3",
+                "markdown": null
+            })),
+        ),
+        (
+            "200 OK".to_string(),
+            envelope(serde_json::json!({
+                "skill_id": 31,
+                "readme_format": "markdown",
+                "content": "# 市场技能说明"
+            })),
+        ),
+    ]);
     let client = ShijuSkillClient::with_base_url(&base).expect("client");
 
     let readme = client.readme(&credential(), 31).await.expect("README");
 
-    assert_eq!(readme.markdown, None);
-    requests.join().expect("join fixture");
+    assert_eq!(readme.markdown.as_deref(), Some("# 市场技能说明"));
+    let requests = requests.join().expect("join fixture");
+    assert!(requests[1].starts_with("GET /marketplace/skills/31/readme "));
 }
 
 #[tokio::test(flavor = "multi_thread")]
@@ -166,6 +187,7 @@ async fn shiju_skill_adapter_maps_all_private_catalog_paths() {
             "200 OK".to_string(),
             envelope(serde_json::json!({"items": [], "page": 4, "page_size": 20, "total": 0})),
         ),
+        ("200 OK".to_string(), envelope(detail.clone())),
         ("200 OK".to_string(), envelope(detail)),
         ("200 OK".to_string(), envelope(serde_json::json!([]))),
     ]);
@@ -223,12 +245,14 @@ async fn shiju_skill_adapter_maps_all_private_catalog_paths() {
 
     assert_eq!(search.next_cursor.as_deref(), Some("cursor-2"));
     assert_eq!(detail.name, "视觉技能");
-    let requests = requests.join().expect("join fixture");
+    let mut requests = requests.join().expect("join fixture");
+    requests[4..6].sort();
     let expected = [
         "GET /marketplace/skills?page_size=20&q=%E8%A7%86%E8%A7%89+%26+%E5%88%86%E6%9E%90&cursor=cursor%2Fnext&tag_ids=2&company_tag_ids=5&distribution_source=marketplace ",
         "GET /me/skills?include_card_metadata=true ",
         "GET /tenant/system-skills?page=2&page_size=20&name=%E8%A7%86%E8%A7%89&tag_id=2 ",
         "GET /me/maintained-skills?page=4&page_size=20&keyword=%E4%B8%AA%E4%BA%BA&tag_ids=2%2C1&company_tag_ids=5&statuses=draft%2Cpending_review%2Cpublished%2Cunpublished ",
+        "GET /marketplace/skills/31 ",
         "GET /skills/31 ",
         "GET /skills/31/versions ",
     ];
@@ -238,6 +262,67 @@ async fn shiju_skill_adapter_maps_all_private_catalog_paths() {
             request.to_ascii_lowercase().contains("x-api-key: fixture-private-skill-secret\r\n")
         );
         assert!(!request.lines().next().unwrap_or_default().contains(credential.expose()));
+    }
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn shiju_skill_detail_recovers_and_merges_marketplace_metadata() {
+    for (legacy_status, legacy_data) in [
+        ("500 Internal Server Error", String::new()),
+        ("200 OK", envelope(serde_json::json!({
+            "id": 88,
+            "slug": "shiju-app-admin",
+            "name": "识矩应用管理",
+            "status": "published",
+            "current_version_id": 41,
+            "current_version": {"version": "1.0.2", "download_url": null}
+        }))),
+        ("403 Forbidden", String::new()),
+    ] {
+        let (base, requests) = fixture_with_responder(2, move |request| {
+            if request.starts_with("GET /marketplace/skills/88 ") {
+                return ("200 OK".into(), envelope(serde_json::json!({
+                    "id": 88,
+                    "slug": "shiju-app-admin",
+                    "name": "识矩应用管理",
+                    "description": "公司应用管理",
+                    "modality": "local",
+                    "format": "zip",
+                    "publisher_company_id": "10011",
+                    "publisher_kind": "platform",
+                    "is_platform_publisher": true,
+                    "developer_display_name": "开发者",
+                    "creator_display_name": "创建者",
+                    "marketplace_submission_id": 67,
+                    "marketplace_status": "approved",
+                    "marketplace_version": "1.0.3",
+                    "distribution_source": "marketplace",
+                    "content_type": "zip",
+                    "is_installed": true,
+                    "tags": [{"id": 2, "name": "识矩", "sort_order": 1}]
+                })));
+            }
+            assert!(request.starts_with("GET /skills/88 "));
+            (legacy_status.into(), legacy_data.clone())
+        });
+        let client = ShijuSkillClient::with_base_url(&base).expect("client");
+        let result = client.detail(&credential(), 88).await;
+        requests.join().expect("join fixture");
+        if legacy_status == "403 Forbidden" {
+            assert!(result.expect_err("respect legacy access denial").to_string().contains("403"));
+            continue;
+        }
+        let detail = result.expect("detail");
+        assert_eq!(detail.marketplace.marketplace_version.as_deref(), Some("1.0.3"));
+        assert_eq!(detail.marketplace.creator_display_name.as_deref(), Some("创建者"));
+        assert_eq!(detail.tags[0].name, "识矩");
+        if legacy_status == "200 OK" {
+            assert_eq!(detail.current_version_id, 41);
+            assert_eq!(detail.current_version.unwrap().version, "1.0.2");
+        } else {
+            assert_eq!(detail.current_version_id, 0);
+            assert!(detail.current_version.is_none());
+        }
     }
 }
 

@@ -84,9 +84,11 @@ fn shiju_gateway_dtos_preserve_download_url_validation() {
             "tags": []
         }))
         .expect("detail dto");
-    let detail = SkillDetail::try_from(detail_dto.clone()).expect("trusted detail");
+    let detail = SkillDetail::from(detail_dto.clone());
     assert_eq!(
-        detail.current_version.as_ref().map(|version| version.download_url.as_str()),
+        detail.current_version.as_ref()
+            .and_then(|version| version.download_url.as_ref())
+            .map(SkillDownloadUrl::as_str),
         Some("https://skill.shiju.cloud/content.zip?signature=detail-secret")
     );
     assert!(!format!("{detail:?}").contains("detail-secret"));
@@ -94,8 +96,11 @@ fn shiju_gateway_dtos_preserve_download_url_validation() {
     let mut untrusted = detail_dto;
     untrusted.current_version.as_mut().unwrap().download_url =
         Some("https://untrusted.example/content.zip?signature=leak-secret".to_string());
-    let error = SkillDetail::try_from(untrusted).expect_err("untrusted detail URL");
-    assert!(!error.contains("leak-secret"));
+    let detail = SkillDetail::from(untrusted);
+    let version = detail.current_version.as_ref().expect("version metadata");
+    assert_eq!(version.version, "0.1.1");
+    assert!(version.download_url.is_none());
+    assert!(!format!("{detail:?}").contains("leak-secret"));
 
     let version_dto: gateway_shiju_skill::ShijuSkillVersionDto =
         serde_json::from_value(serde_json::json!({

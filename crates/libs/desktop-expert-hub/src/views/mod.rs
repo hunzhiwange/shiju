@@ -9,6 +9,7 @@ pub enum Message {
     SkillHub(crate::message::skill_hub::SkillHubMessage),
     Connectors(crate::message::connectors::ConnectorMessage),
     StartBrowserLogin,
+    CopyCode(String),
     None,
 }
 /// 视图只借用专家中心状态、语言和主题。

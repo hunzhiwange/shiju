@@ -255,12 +255,14 @@ pub struct SkillDetail {
     pub created_uid: String,
     pub maintainer_uid: String,
     pub status: String,
-    pub is_all_company_accessible: u8,
+    pub is_all_company_accessible: Option<u8>,
     pub current_version_id: u64,
     pub current_version: Option<SkillVersionContent>,
     pub created_at: String,
     pub updated_at: String,
     pub tags: Vec<SkillTag>,
+    #[serde(flatten)]
+    pub marketplace: gateway_shiju_skill::ShijuSkillMarketplaceDetailDto,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
@@ -269,7 +271,8 @@ pub struct SkillVersionContent {
     pub checksum: String,
     pub content_type: String,
     pub download_expires_at: i64,
-    pub download_url: SkillDownloadUrl,
+    #[serde(default, deserialize_with = "deserialize_optional_skill_download_url")]
+    pub download_url: Option<SkillDownloadUrl>,
     pub version: String,
 }
 
@@ -299,29 +302,21 @@ pub struct SkillVersion {
     pub updated_at: String,
 }
 
-impl TryFrom<gateway_shiju_skill::ShijuSkillVersionContentDto> for SkillVersionContent {
-    type Error = super::SkillHubError;
-
-    fn try_from(dto: gateway_shiju_skill::ShijuSkillVersionContentDto) -> Result<Self, Self::Error> {
-        let download_url = dto
-            .download_url
-            .ok_or_else(|| super::SkillHubError::localized("技能下载地址不可用", vec![]))
-            .and_then(|url| SkillDownloadUrl::parse(&url))?;
-        Ok(Self {
+impl From<gateway_shiju_skill::ShijuSkillVersionContentDto> for SkillVersionContent {
+    fn from(dto: gateway_shiju_skill::ShijuSkillVersionContentDto) -> Self {
+        Self {
             checksum: dto.checksum,
             content_type: dto.content_type,
             download_expires_at: dto.download_expires_at,
-            download_url,
+            download_url: dto.download_url.and_then(|url| SkillDownloadUrl::parse(&url).ok()),
             version: dto.version,
-        })
+        }
     }
 }
 
-impl TryFrom<gateway_shiju_skill::ShijuSkillDetailDto> for SkillDetail {
-    type Error = super::SkillHubError;
-
-    fn try_from(dto: gateway_shiju_skill::ShijuSkillDetailDto) -> Result<Self, Self::Error> {
-        Ok(Self {
+impl From<gateway_shiju_skill::ShijuSkillDetailDto> for SkillDetail {
+    fn from(dto: gateway_shiju_skill::ShijuSkillDetailDto) -> Self {
+        Self {
             id: dto.id,
             slug: dto.slug,
             name: dto.name,
@@ -335,11 +330,12 @@ impl TryFrom<gateway_shiju_skill::ShijuSkillDetailDto> for SkillDetail {
             status: dto.status,
             is_all_company_accessible: dto.is_all_company_accessible,
             current_version_id: dto.current_version_id,
-            current_version: dto.current_version.map(SkillVersionContent::try_from).transpose()?,
+            current_version: dto.current_version.map(SkillVersionContent::from),
             created_at: dto.created_at,
             updated_at: dto.updated_at,
             tags: dto.tags.into_iter().map(SkillTag::from).collect(),
-        })
+            marketplace: dto.marketplace,
+        }
     }
 }
 

@@ -22,6 +22,7 @@ pub struct ShijuSkillInstallRequest {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum ShijuSkillErrorKind {
     InvalidInput,
+    AccessDenied,
     Upstream,
 }
 
@@ -190,7 +191,41 @@ impl ShijuSkillClient {
         skill_id: u64,
     ) -> Result<ShijuSkillDetailDto, ShijuSkillError> {
         validate_skill_id(skill_id)?;
-        self.get(&format!("skills/{skill_id}"), &[], credential).await
+        let legacy_path = format!("skills/{skill_id}");
+        let market_path = format!("marketplace/skills/{skill_id}");
+        let (legacy, market) = futures_util::future::join(
+            self.get::<ShijuSkillDetailDto>(&legacy_path, &[], credential),
+            self.get::<ShijuSkillDetailDto>(&market_path, &[], credential),
+        )
+        .await;
+        let market = market.ok().filter(|detail| detail.id == skill_id);
+        match legacy {
+            Ok(mut detail) => {
+                if let Some(catalog) = market.filter(|catalog| catalog.id == detail.id) {
+                    let metadata = &mut detail.marketplace;
+                    let catalog_metadata = catalog.marketplace;
+                    metadata.publisher_company_id = metadata.publisher_company_id.take().or(catalog_metadata.publisher_company_id);
+                    metadata.publisher_company_name = metadata.publisher_company_name.take().or(catalog_metadata.publisher_company_name);
+                    metadata.is_platform_publisher = metadata.is_platform_publisher.take().or(catalog_metadata.is_platform_publisher);
+                    metadata.publisher_kind = metadata.publisher_kind.take().or(catalog_metadata.publisher_kind);
+                    metadata.developer_display_name = metadata.developer_display_name.take().or(catalog_metadata.developer_display_name);
+                    metadata.creator_display_name = metadata.creator_display_name.take().or(catalog_metadata.creator_display_name);
+                    metadata.marketplace_submission_id = metadata.marketplace_submission_id.take().or(catalog_metadata.marketplace_submission_id);
+                    metadata.marketplace_status = metadata.marketplace_status.take().or(catalog_metadata.marketplace_status);
+                    metadata.marketplace_version = metadata.marketplace_version.take().or(catalog_metadata.marketplace_version);
+                    metadata.distribution_source = metadata.distribution_source.take().or(catalog_metadata.distribution_source);
+                    metadata.content_type = metadata.content_type.take().or(catalog_metadata.content_type);
+                    metadata.is_installed = metadata.is_installed.take().or(catalog_metadata.is_installed);
+                    metadata.icon_url = metadata.icon_url.take().or(catalog_metadata.icon_url);
+                    if detail.tags.is_empty() {
+                        detail.tags = catalog.tags;
+                    }
+                }
+                Ok(detail)
+            }
+            Err(error) if error.kind == ShijuSkillErrorKind::Upstream => market.ok_or(error),
+            Err(error) => Err(error),
+        }
     }
 
     /// 读取单个技能说明文档。
@@ -200,7 +235,19 @@ impl ShijuSkillClient {
         skill_id: u64,
     ) -> Result<ShijuSkillReadmeDto, ShijuSkillError> {
         validate_skill_id(skill_id)?;
-        self.get(&format!("skills/{skill_id}/readme"), &[], credential).await
+        let result = self
+            .get::<ShijuSkillReadmeDto>(&format!("skills/{skill_id}/readme"), &[], credential)
+            .await;
+        match &result {
+            Ok(readme) if readme.markdown.as_ref().is_some_and(|text| !text.trim().is_empty()) => {
+                return result;
+            }
+            Err(error) if error.kind != ShijuSkillErrorKind::Upstream => return result,
+            _ => {}
+        }
+        self.get(&format!("marketplace/skills/{skill_id}/readme"), &[], credential)
+            .await
+            .or(result)
     }
 
     /// 列出技能的可安装版本。
@@ -362,27 +409,39 @@ async fn decode_response<T: DeserializeOwned>(
     if !status.is_success() {
         return Err(http_error(status));
     }
-    let envelope = response.json::<ApiEnvelope<T>>().await.map_err(|error| {
+    let envelope = response.json::<ApiEnvelope>().await.map_err(|error| {
         tracing::warn!(error = %error, "failed to decode SHIJU skill upstream response");
         ShijuSkillError::upstream("SHIJU skill upstream response is invalid")
     })?;
     if envelope.code != 200 {
         return Err(business_error(envelope.code));
     }
-    envelope
+    let data = envelope
         .data
-        .ok_or_else(|| ShijuSkillError::upstream("SHIJU skill upstream response is missing data"))
+        .ok_or_else(|| ShijuSkillError::upstream("SHIJU skill upstream response is missing data"))?;
+    serde_json::from_value(data).map_err(|_| {
+        tracing::warn!("failed to decode SHIJU skill upstream data");
+        ShijuSkillError::upstream("SHIJU skill upstream response is invalid")
+    })
 }
 
 fn http_error(status: StatusCode) -> ShijuSkillError {
-    ShijuSkillError::upstream(format!(
-        "SHIJU skill upstream request failed: HTTP {}",
-        status.as_u16()
-    ))
+    upstream_status_error(
+        i64::from(status.as_u16()),
+        format!("SHIJU skill upstream request failed: HTTP {}", status.as_u16()),
+    )
 }
 
 fn business_error(code: i64) -> ShijuSkillError {
-    ShijuSkillError::upstream(format!("SHIJU skill upstream returned business error {code}"))
+    upstream_status_error(code, format!("SHIJU skill upstream returned business error {code}"))
+}
+
+fn upstream_status_error(code: i64, message: String) -> ShijuSkillError {
+    let kind = match code {
+        401 | 403 => ShijuSkillErrorKind::AccessDenied,
+        _ => ShijuSkillErrorKind::Upstream,
+    };
+    ShijuSkillError { kind, message }
 }
 
 fn validate_page(page: u32, page_size: u32) -> Result<(), ShijuSkillError> {
@@ -499,9 +558,9 @@ fn push_statuses_filter(query: &mut Vec<(&str, String)>, statuses: &[String]) {
 }
 
 #[derive(Deserialize)]
-struct ApiEnvelope<T> {
+struct ApiEnvelope {
     code: i64,
-    data: Option<T>,
+    data: Option<serde_json::Value>,
 }
 
 #[derive(Deserialize)]

@@ -556,6 +556,12 @@ pub fn update(app: &mut SkillUpdate<'_>, message: SkillHubMessage) -> Task<Messa
         SkillHubMessage::InstalledLoaded { generation, account_id, result } => {
             if installed_response_is_current(app, generation, &account_id) {
                 if let Ok(installed) = &result {
+                    if let Some(state) = &mut app.expert_hub.detail
+                        && let LoadState::Loaded(detail) = &mut state.detail
+                    {
+                        detail.marketplace.is_installed =
+                            Some(installed.iter().any(|item| item.skill_id == detail.id));
+                    }
                     for skill in &mut app.expert_hub.featured_skills {
                         skill.is_installed = installed.iter().any(|item| item.skill_id == skill.id);
                     }

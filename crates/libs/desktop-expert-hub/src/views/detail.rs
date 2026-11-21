@@ -49,8 +49,10 @@ fn installed_skill<'a>(app: &ViewInput<'a>, skill_id: u64) -> Option<&'a Install
     }
 }
 
-fn is_installed(app: &ViewInput<'_>, skill_id: u64) -> bool {
+fn is_installed(app: &ViewInput<'_>, detail: &SkillDetail) -> bool {
+    let skill_id = detail.id;
     installed_skill(app, skill_id).is_some()
+        || detail.marketplace.is_installed == Some(true)
         || match &app.expert_hub.marketplace {
             LoadState::Loaded(page) => page
                 .items
@@ -323,7 +325,7 @@ fn loaded_view<'a>(
     versions_notice: Option<String>,
 ) -> Element<'a, Message> {
     let i18n = desktop_i18n::I18n::new(app.desktop_locale);
-    let installed = is_installed(app, detail.id);
+    let installed = is_installed(app, detail);
     let installed_version =
         installed_skill(app, detail.id).map(|skill| skill.installed_version.as_str());
     let pending = app.expert_hub.action.as_ref().is_some_and(|action| action.skill_id == detail.id);
@@ -352,7 +354,55 @@ fn loaded_view<'a>(
         .current_version
         .as_ref()
         .map(|version| version.version.clone())
-        .unwrap_or_else(|| format!("#{}", detail.current_version_id));
+        .or_else(|| detail.marketplace.marketplace_version.clone())
+        .or_else(|| (detail.current_version_id != 0).then(|| format!("#{}", detail.current_version_id)))
+        .unwrap_or_else(|| i18n.__("未知").to_string());
+    let format = if detail.format.is_empty() {
+        detail.marketplace.content_type.as_deref().unwrap_or_else(|| i18n.__("未知"))
+    } else {
+        &detail.format
+    };
+    let status = if detail.status.is_empty() {
+        detail.marketplace.marketplace_status.as_deref().unwrap_or_else(|| i18n.__("未知"))
+    } else {
+        &detail.status
+    };
+    let install_status = match installed_version {
+        Some(version) => format!("{} · {version}", i18n.__("已安装")),
+        None if installed => i18n.__("已安装").to_string(),
+        None => i18n.__("未安装").to_string(),
+    };
+    let mut marketplace_fields = row![field(i18n, "安装状态", install_status)].spacing(18);
+    if let Some(source) = detail.marketplace.distribution_source {
+        let label = match source {
+            gateway_shiju_skill::ShijuSkillSource::Marketplace => "技能市场",
+            gateway_shiju_skill::ShijuSkillSource::Tenant => "企业技能",
+        };
+        marketplace_fields = marketplace_fields.push(field(i18n, "来源", i18n.__(label).to_string()));
+    }
+    if let Some(version) = detail.marketplace.marketplace_version.as_ref()
+        && version != &current_version
+    {
+        marketplace_fields = marketplace_fields.push(field(i18n, "市场版本", version.clone()));
+    }
+    let publisher = match (
+        detail.marketplace.publisher_company_name.as_deref(),
+        detail.marketplace.publisher_kind.as_deref(),
+        detail.marketplace.is_platform_publisher,
+    ) {
+        (Some(company), _, _) if !company.trim().is_empty() => Some(company),
+        (_, Some("platform"), _) | (_, None, Some(true)) => Some(i18n.__("平台发布")),
+        _ => None,
+    };
+    for (label, value) in [
+        ("技能开发公司", publisher),
+        ("开发者", detail.marketplace.developer_display_name.as_deref()),
+        ("创建者", detail.marketplace.creator_display_name.as_deref()),
+    ] {
+        if let Some(value) = value.filter(|value| !value.trim().is_empty()) {
+            marketplace_fields = marketplace_fields.push(field(i18n, label, value.to_string()));
+        }
+    }
 
     let information = container(
         column![
@@ -361,7 +411,7 @@ fn loaded_view<'a>(
                     .size(18)
                     .font(Font { weight: iced::font::Weight::Semibold, ..Font::default() }),
                 Space::new().width(Length::Fill),
-                container(text(detail.status.clone()).size(11))
+                container(text(status.to_string()).size(11))
                     .padding([5, 10])
                     .style(styles::meta_badge_style),
             ]
@@ -384,7 +434,7 @@ fn loaded_view<'a>(
                 field(
                     i18n,
                     desktop_i18n::I18n::new(app.desktop_locale).__("格式"),
-                    detail.format.clone()
+                    format.to_string()
                 ),
                 field(
                     i18n,
@@ -408,11 +458,12 @@ fn loaded_view<'a>(
                 field(
                     i18n,
                     desktop_i18n::I18n::new(app.desktop_locale).__("访问范围"),
-                    if detail.is_all_company_accessible == 1 {
-                        desktop_i18n::I18n::new(app.desktop_locale).__("全公司").to_string()
-                    } else {
-                        desktop_i18n::I18n::new(app.desktop_locale).__("受限").to_string()
-                    },
+                    match detail.is_all_company_accessible {
+                        Some(1) => i18n.__("全公司"),
+                        Some(_) => i18n.__("受限"),
+                        None => i18n.__("未知"),
+                    }
+                    .to_string(),
                 ),
                 field(
                     i18n,
@@ -426,6 +477,7 @@ fn loaded_view<'a>(
             ]
             .spacing(18)
             .wrap(),
+            marketplace_fields.wrap(),
             column![
                 text(desktop_i18n::I18n::new(app.desktop_locale).__("介绍"))
                     .size(11)
@@ -510,6 +562,33 @@ fn loaded_view<'a>(
         }
     }
 
+    let prompt = i18n
+        .format(
+            "请使用「%s」技能，先阅读技能说明并检查所需账号、权限与数据。\n[填写具体目标与材料]\n涉及写入、发布或删除时，请先说明影响并等待我确认。",
+            &[detail.name.clone().into()],
+        )
+        .expect("valid skill prompt template");
+    let preparation = container(
+        column![
+            text(i18n.__("使用前准备")).size(18),
+            text(i18n.__("在支持技能的 Agent 中登录与安装技能相同的识矩账号。")),
+            text(i18n.__("确认拥有相关业务和数据访问权限，准备任务目标和材料。")),
+            row![
+                text(i18n.__("任务示例")).size(18).width(Length::Fill),
+                button(text(i18n.__("复制任务示例")).size(13))
+                    .padding([7, 10])
+                    .style(styles::quiet_button_style)
+                    .on_press(Message::CopyCode(prompt.clone())),
+            ]
+            .align_y(Alignment::Center),
+            text(prompt).size(14),
+        ]
+        .spacing(12),
+    )
+    .padding(22)
+    .width(Length::Fill)
+    .style(styles::detail_panel_style);
+
     let page = column![
         back_button(i18n),
         row![
@@ -531,6 +610,7 @@ fn loaded_view<'a>(
             .style(styles::divider_style),
         information,
         readme_panel(app, state),
+        preparation,
         versions_content,
     ]
     .spacing(20)

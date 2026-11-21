@@ -63,7 +63,7 @@ pub(super) fn line() -> Element<'static, Message> {
         .into()
 }
 
-pub(super) fn muted_text(theme: &Theme) -> text::Style {
+pub(in crate::views) fn muted_text(theme: &Theme) -> text::Style {
     text::Style { color: Some(muted(theme)) }
 }
 
@@ -110,7 +110,7 @@ pub(super) fn avatar(id: u64, name: &str, size: f32) -> Element<'static, Message
         .into()
 }
 
-pub(super) fn icon_button(
+pub(in crate::views) fn icon_button(
     icon: Icon,
     label: &'static str,
     action: Option<Message>,
@@ -145,7 +145,7 @@ pub(super) fn source_label(i18n: I18n, source: Option<ShijuSkillSource>) -> &'st
     }
 }
 
-fn updated_label(i18n: I18n, date: Option<&str>) -> String {
+pub(in crate::views) fn updated_label(i18n: I18n, date: Option<&str>) -> String {
     let Some(date) = date
         .and_then(|value| value.get(..10))
         .and_then(|value| chrono::NaiveDate::parse_from_str(value, "%Y-%m-%d").ok())
@@ -161,6 +161,83 @@ fn updated_label(i18n: I18n, date: Option<&str>) -> String {
             .format("%s 更新", &[date.format("%m-%d").to_string().into()])
             .expect("valid update date"),
     }
+}
+
+pub(in crate::views) fn card_identity(
+    id: u64,
+    name: &str,
+    subtitle: String,
+    title_tooltip: String,
+    detail: Message,
+) -> Element<'static, Message> {
+    let title: Element<'static, Message> =
+        SingleLineLabel::new(name.to_string(), 17.0).font(bold()).into();
+    let identity = row![
+        avatar(id, name, 38.0),
+        column![
+            title,
+            container(text(subtitle).size(12).style(muted_text).wrapping(text::Wrapping::None))
+                .width(Length::Fill)
+                .clip(true),
+        ]
+        .spacing(2),
+    ]
+    .spacing(10)
+    .align_y(Alignment::Center)
+    .width(Length::Fill);
+    mouse_area(tooltip(identity, description_tooltip(title_tooltip), Position::Top).gap(5))
+        .on_press(detail)
+        .interaction(iced::mouse::Interaction::Pointer)
+        .into()
+}
+
+pub(in crate::views) fn description_area(
+    description: &str,
+    width: f32,
+    detail: Message,
+) -> Element<'static, Message> {
+    let preview = description.split_whitespace().collect::<Vec<_>>().join(" ");
+    mouse_area(
+        tooltip(
+            container(
+                text(card_preview(&preview, width))
+                    .size(14)
+                    .line_height(iced::Pixels(21.0))
+                    .style(muted_text)
+                    .width(Length::Fill),
+            )
+            .height(42)
+            .clip(true),
+            description_tooltip(description.to_string()),
+            Position::Top,
+        )
+        .gap(5),
+    )
+    .on_press(detail)
+    .interaction(iced::mouse::Interaction::Pointer)
+    .into()
+}
+
+pub(in crate::views) fn card_layout(
+    heading: Element<'static, Message>,
+    description: Element<'static, Message>,
+    footer: Element<'static, Message>,
+    featured: bool,
+) -> Element<'static, Message> {
+    container(column![
+        heading,
+        Space::new().height(8),
+        description,
+        Space::new().height(10),
+        line(),
+        Space::new().height(10),
+        footer,
+    ])
+    .padding(iced::Padding { top: 16.0, bottom: 14.0, left: 20.0, right: 20.0 })
+    .width(Length::Fill)
+    .height(Length::Fixed(167.0))
+    .style(move |theme| card_style(theme, featured))
+    .into()
 }
 
 pub(super) struct Card<'a> {
@@ -184,43 +261,17 @@ pub(super) struct Card<'a> {
 impl Card<'_> {
     pub(super) fn view(self, i18n: I18n) -> Element<'static, Message> {
         let detail = detail_action_message(self.id);
-        let description = self.description.split_whitespace().collect::<Vec<_>>().join(" ");
-        let title: Element<'static, Message> =
-            SingleLineLabel::new(self.name.to_string(), 17.0).font(bold()).into();
         let developer = self
             .developer
             .filter(|name| !name.trim().is_empty())
             .map(|name| format!("@{name}"))
             .unwrap_or_default();
-        let identity = row![
-            avatar(self.id, self.name, 38.0),
-            column![
-                title,
-                container(
-                    text(developer).size(12).style(muted_text).wrapping(text::Wrapping::None)
-                )
-                .width(Length::Fill)
-                .clip(true)
-            ]
-            .spacing(2)
-        ]
-        .spacing(10)
-        .align_y(Alignment::Center)
-        .width(Length::Fill);
-        let identity = mouse_area(
-            tooltip(
-                identity,
-                description_tooltip(if self.properties.is_empty() {
-                    self.name.to_string()
-                } else {
-                    format!("{}\n{}", self.name, self.properties)
-                }),
-                Position::Top,
-            )
-            .gap(5),
-        )
-        .on_press(detail.clone())
-        .interaction(iced::mouse::Interaction::Pointer);
+        let title_tooltip = if self.properties.is_empty() {
+            self.name.to_string()
+        } else {
+            format!("{}\n{}", self.name, self.properties)
+        };
+        let identity = card_identity(self.id, self.name, developer, title_tooltip, detail.clone());
         let mut heading = row![identity].spacing(8).height(44).align_y(Alignment::Center);
         if self.can_install {
             let (icon, label) = if self.installed {
@@ -234,25 +285,6 @@ impl Card<'_> {
                 (!self.pending).then(|| install_action_message(self.id, self.installed)),
             ));
         }
-
-        let description_area = mouse_area(
-            tooltip(
-                container(
-                    text(card_preview(&description, self.width))
-                        .size(14)
-                        .line_height(iced::Pixels(21.0))
-                        .style(muted_text)
-                        .width(Length::Fill),
-                )
-                .height(42)
-                .clip(true),
-                description_tooltip(self.description.to_string()),
-                Position::Top,
-            )
-            .gap(5),
-        )
-        .on_press(detail)
-        .interaction(iced::mouse::Interaction::Pointer);
 
         let updated = updated_label(i18n, self.updated_at);
         let source = source_label(i18n, self.source);
@@ -288,21 +320,12 @@ impl Card<'_> {
                     }),
             );
         }
-        let featured = self.featured;
-        container(column![
-            heading,
-            Space::new().height(8),
-            description_area,
-            Space::new().height(10),
-            line(),
-            Space::new().height(10),
-            footer.clip(true),
-        ])
-        .padding(iced::Padding { top: 16.0, bottom: 14.0, left: 20.0, right: 20.0 })
-        .width(Length::Fill)
-        .height(Length::Fixed(167.0))
-        .style(move |theme| card_style(theme, featured))
-        .into()
+        card_layout(
+            heading.into(),
+            description_area(self.description, self.width, detail),
+            footer.clip(true).into(),
+            self.featured,
+        )
     }
 }
 

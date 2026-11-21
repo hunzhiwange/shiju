@@ -1,34 +1,30 @@
 //! 构建公共技能市场的推荐、检索、来源筛选与套件列表。
 
 use gateway_skill_market::{
-    SkillMarketSkillDto,
-    SkillMarketSkillLocatorDto,
-    SkillMarketSkillSetDto,
-    SkillMarketSort,
+    SkillMarketSkillDto, SkillMarketSkillLocatorDto, SkillMarketSkillSetDto, SkillMarketSort,
     SkillMarketSourceDto,
 };
 use std::fmt;
+use std::hash::{DefaultHasher, Hash, Hasher};
 
 use iced::widget::scrollable::{Direction, Scrollbar};
 use iced::widget::tooltip::{Position as TooltipPosition, Tooltip};
 use iced::widget::{Space, button, column, container, responsive, row, scrollable, text};
 use iced::{Alignment, Element, Font, Length};
 
-
-use super::list::{description_preview, description_tooltip};
+use super::list::{cards, description_tooltip};
 use super::styles;
-use desktop_ui_controls::system_settings_common::{settings_select, settings_text_input};
+use super::{Message, ViewInput};
 use crate::message::skill_hub::{PublicSkillMessage, SkillHubMessage};
+use desktop_assets::assets::Icon;
 use desktop_skill_hub::skill_hub::{LoadState, PublicSkillMarketState, PublicSkillTab};
-use super::{ViewInput, Message};
+use desktop_ui_controls::system_settings_common::{settings_select, settings_text_input};
 
 /// 公共技能页面统一使用的滚动条宽度。
 pub const SCROLLBAR_WIDTH: u32 = 4;
 const SCROLLBAR_GUTTER: u32 = 12;
 const CARD_GAP: f32 = 16.0;
 const MIN_CARD_WIDTH: f32 = 300.0;
-const DESCRIPTION_CHARS: usize = 88;
-const COORDINATE_PREVIEW_CHARS: usize = 32;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 struct SourceOption {
@@ -182,184 +178,137 @@ fn truncate(value: &str, limit: usize) -> String {
     if characters.next().is_some() { format!("{text}…") } else { text }
 }
 
-fn initial_badge(i18n: desktop_i18n::I18n, name: &str) -> Element<'static, Message> {
-    let initial = name
-        .chars()
-        .next()
-        .unwrap_or_else(|| i18n.__("技能").chars().next().unwrap_or('S'))
-        .to_string();
-    container(
-        text(initial).size(17).font(Font { weight: iced::font::Weight::Bold, ..Font::default() }),
+fn public_card(
+    name: &str,
+    subtitle: String,
+    title_tooltip: String,
+    description: &str,
+    footer: Element<'static, Message>,
+    (detail, detail_label): (Message, &'static str),
+    width: f32,
+) -> Element<'static, Message> {
+    let mut hasher = DefaultHasher::new();
+    name.hash(&mut hasher);
+    let identity =
+        cards::card_identity(hasher.finish(), name, subtitle, title_tooltip, detail.clone());
+    let heading =
+        row![identity, cards::icon_button(Icon::ChevronRight, detail_label, Some(detail.clone())),]
+            .spacing(8)
+            .height(44)
+            .align_y(Alignment::Center);
+    cards::card_layout(
+        heading.into(),
+        cards::description_area(description, width, detail),
+        footer,
+        false,
     )
-    .width(Length::Fixed(42.0))
-    .height(Length::Fixed(42.0))
-    .center_x(Length::Fixed(42.0))
-    .center_y(Length::Fixed(42.0))
-    .style(styles::skill_badge_style)
-    .into()
-}
-
-fn skill_coordinate_line(namespace: &str, slug: &str, version: &str) -> Element<'static, Message> {
-    let coordinate = format!("{namespace} / {slug}");
-    let coordinate_preview = container(
-        text(truncate(&coordinate, COORDINATE_PREVIEW_CHARS))
-            .size(11)
-            .width(Length::Fill)
-            .wrapping(iced::widget::text::Wrapping::None)
-            .style(styles::muted_text_style),
-    )
-    .width(Length::Fill)
-    .height(Length::Fixed(16.0))
-    .clip(true);
-    let coordinate_view =
-        Tooltip::new(coordinate_preview, description_tooltip(coordinate), TooltipPosition::Top)
-            .gap(8);
-
-    row![
-        coordinate_view,
-        text(format!("· {version}"))
-            .size(11)
-            .wrapping(iced::widget::text::Wrapping::None)
-            .style(styles::muted_text_style),
-    ]
-    .spacing(4)
-    .align_y(Alignment::Center)
-    .width(Length::Fill)
-    .into()
 }
 
 fn skill_card(
     i18n: desktop_i18n::I18n,
     skill: &SkillMarketSkillDto,
-    featured: bool,
+    width: f32,
 ) -> Element<'static, Message> {
-    let locator = skill.coordinate.locator.clone();
+    let locator = &skill.coordinate.locator;
+    let version = &skill.coordinate.version;
+    let coordinate = format!("{} / {}", locator.namespace, locator.slug);
+    let author = skill.author.trim();
+    let tags = skill.tags.join(" · ");
+    let subtitle = [author, tags.as_str()]
+        .into_iter()
+        .filter(|value| !value.is_empty())
+        .collect::<Vec<_>>()
+        .join(" · ");
+    let title_tooltip = [skill.name.as_str(), subtitle.as_str(), &coordinate, version]
+        .into_iter()
+        .filter(|value| !value.is_empty())
+        .collect::<Vec<_>>()
+        .join("\n");
+    let subtitle = if subtitle.is_empty() { coordinate } else { subtitle };
     let metadata = format!(
-        "{} · 下载 {} · 安装 {} · {:.1} 分",
-        skill.author, skill.downloads, skill.installs, skill.rating
+        "{} {} · {} {} · {} {:.1}",
+        i18n.__("下载"),
+        skill.downloads,
+        i18n.__("安装"),
+        skill.installs,
+        i18n.__("评分"),
+        skill.rating,
     );
-    let description_view = Tooltip::new(
-        container(text(description_preview(&skill.description)).size(13).width(Length::Fill))
-            .width(Length::Fill)
-            .height(Length::Fixed(44.0)),
-        description_tooltip(skill.description.clone()),
+    let stats = Tooltip::new(
+        container(
+            text(metadata.clone()).size(12).style(cards::muted_text).wrapping(text::Wrapping::None),
+        )
+        .width(Length::Fill)
+        .clip(true),
+        description_tooltip(metadata),
         TooltipPosition::Top,
     )
-    .gap(8);
-    container(
-        column![
-            row![
-                initial_badge(i18n, &skill.name),
-                column![
-                    text(truncate(&skill.name, 34))
-                        .size(16)
-                        .font(Font { weight: iced::font::Weight::Semibold, ..Font::default() }),
-                    skill_coordinate_line(
-                        &skill.coordinate.locator.namespace,
-                        &skill.coordinate.locator.slug,
-                        &skill.coordinate.version,
-                    ),
-                ]
-                .spacing(4)
-                .width(Length::Fill),
-            ]
-            .spacing(10)
-            .align_y(Alignment::Center),
-            description_view,
-            text(truncate(&metadata, 70)).size(11).style(styles::muted_text_style),
-            row![
-                text(truncate(&skill.tags.join(" · "), 42))
-                    .size(11)
-                    .style(styles::muted_text_style)
-                    .width(Length::Fill),
-                button(text(i18n.__("详情")).size(12))
-                    .on_press(skill_detail_message(locator))
-                    .padding([6, 11])
-                    .style(styles::quiet_button_style),
-            ]
-            .align_y(Alignment::Center),
-        ]
-        .spacing(10),
+    .gap(5);
+    let footer = row![
+        stats,
+        container(
+            text(version.clone()).size(12).style(cards::muted_text).wrapping(text::Wrapping::None),
+        )
+        .max_width(84)
+        .clip(true),
+    ]
+    .spacing(6)
+    .align_y(Alignment::Center)
+    .clip(true);
+    public_card(
+        &skill.name,
+        subtitle,
+        title_tooltip,
+        &skill.description,
+        footer.into(),
+        (skill_detail_message(locator.clone()), i18n.__("详情")),
+        width,
     )
-    .padding(16)
-    .width(Length::Fill)
-    .height(Length::Fixed(196.0))
-    .style(
-        move |theme| {
-            if featured { styles::featured_card_style(theme) } else { styles::card_style(theme) }
-        },
-    )
-    .into()
 }
 
 fn suite_card(
     i18n: desktop_i18n::I18n,
     suite: &SkillMarketSkillSetDto,
+    width: f32,
 ) -> Element<'static, Message> {
-    let source = suite.source.clone();
-    let slug = suite.slug.clone();
-    container(
-        column![
-            row![
-                initial_badge(i18n, &suite.name),
-                column![
-                    text(truncate(&suite.name, 34))
-                        .size(16)
-                        .font(Font { weight: iced::font::Weight::Semibold, ..Font::default() }),
-                    text(
-                        i18n.format(
-                            "%s 个成员 · %s",
-                            &[
-                                (suite.member_count).to_string().into(),
-                                (suite.author).to_string().into()
-                            ]
-                        )
-                        .expect("valid display template")
-                    )
-                    .size(11)
-                    .style(styles::muted_text_style),
-                ]
-                .spacing(4)
-                .width(Length::Fill),
-            ]
-            .spacing(10)
-            .align_y(Alignment::Center),
-            text(truncate(&suite.description, DESCRIPTION_CHARS))
-                .size(13)
-                .height(Length::Fixed(56.0)),
-            row![
-                text(truncate(&suite.updated_at, 32))
-                    .size(11)
-                    .style(styles::muted_text_style)
-                    .width(Length::Fill),
-                button(text(i18n.__("查看套件")).size(12))
-                    .on_press(public_message(PublicSkillMessage::OpenSuiteDetail { source, slug }))
-                    .padding([6, 11])
-                    .style(styles::quiet_button_style),
-            ]
-            .align_y(Alignment::Center),
-        ]
-        .spacing(12),
+    let subtitle = i18n
+        .format(
+            "%s 个成员 · %s",
+            &[suite.member_count.to_string().into(), suite.author.clone().into()],
+        )
+        .expect("valid display template");
+    let title_tooltip = format!("{}\n{subtitle}", suite.name);
+    let updated = cards::updated_label(i18n, Some(&suite.updated_at));
+    public_card(
+        &suite.name,
+        subtitle,
+        title_tooltip,
+        &suite.description,
+        text(updated).size(12).style(cards::muted_text).into(),
+        (
+            public_message(PublicSkillMessage::OpenSuiteDetail {
+                source: suite.source.clone(),
+                slug: suite.slug.clone(),
+            }),
+            i18n.__("查看套件"),
+        ),
+        width,
     )
-    .padding(16)
-    .width(Length::Fill)
-    .height(Length::Fixed(196.0))
-    .style(styles::card_style)
-    .into()
 }
 
 fn card_grid<T, F>(items: Vec<T>, card: F) -> Element<'static, Message>
 where
     T: 'static,
-    F: Fn(&T) -> Element<'static, Message> + 'static,
+    F: Fn(&T, f32) -> Element<'static, Message> + 'static,
 {
     responsive(move |size| {
         let columns = grid_column_count(size.width);
+        let card_width = (size.width - CARD_GAP * (columns - 1) as f32) / columns as f32;
         let mut grid = column![].spacing(CARD_GAP);
         for chunk in items.chunks(columns) {
             let mut cards = row![].spacing(CARD_GAP);
             for item in chunk {
-                cards = cards.push(card(item));
+                cards = cards.push(card(item, card_width));
             }
             for _ in chunk.len()..columns {
                 cards = cards.push(Space::new().width(Length::FillPortion(1)));
@@ -419,7 +368,6 @@ pub fn error_view(i18n: desktop_i18n::I18n, error: &str) -> Element<'static, Mes
 fn skill_state_content(
     i18n: desktop_i18n::I18n,
     state: &LoadState<Vec<SkillMarketSkillDto>>,
-    featured: bool,
     empty: &'static str,
 ) -> Element<'static, Message> {
     match state {
@@ -428,7 +376,7 @@ fn skill_state_content(
         LoadState::Error(error) => error_view(i18n, &error.render(i18n)),
         LoadState::Loaded(skills) if skills.is_empty() => empty_view(i18n, empty),
         LoadState::Loaded(skills) => {
-            card_grid(skills.clone(), move |skill| skill_card(i18n, skill, featured))
+            card_grid(skills.clone(), move |skill, width| skill_card(i18n, skill, width))
         }
     }
 }
@@ -437,7 +385,7 @@ fn recommended_content(
     i18n: desktop_i18n::I18n,
     state: &PublicSkillMarketState,
 ) -> Element<'static, Message> {
-    let all_content = skill_state_content(i18n, &state.recommended, false, i18n.__("暂无推荐技能"));
+    let all_content = skill_state_content(i18n, &state.recommended, i18n.__("暂无推荐技能"));
     column![
         text(i18n.__("推荐技能"))
             .size(19)
@@ -527,7 +475,7 @@ fn market_content(
             empty_view(i18n, i18n.__("未找到匹配的技能"))
         }
         LoadState::Loaded(page) => column![
-            card_grid(page.skills.clone(), move |skill| skill_card(i18n, skill, false)),
+            card_grid(page.skills.clone(), move |skill, width| skill_card(i18n, skill, width)),
             pagination(i18n, page.page, page.page_size, page.total),
         ]
         .spacing(12)
@@ -548,7 +496,7 @@ pub fn suites_content(
             empty_view(i18n, i18n.__("未找到匹配的套件"))
         }
         LoadState::Loaded(page) => column![
-            card_grid(page.skillsets.clone(), move |suite| suite_card(i18n, suite)),
+            card_grid(page.skillsets.clone(), move |suite, width| suite_card(i18n, suite, width)),
             pagination(i18n, page.page, page.page_size, page.total),
         ]
         .spacing(12)
@@ -609,7 +557,7 @@ pub fn view<'a>(app: &ViewInput<'a>) -> Element<'a, Message> {
             PublicSkillTab::Suites => suites_content(i18n, state),
         },
     };
-    let body = column![search_header(app), content].spacing(18).width(Length::Fill);
+    let body = column![search_header(app), content].spacing(18).padding([0, 7]).width(Length::Fill);
     scrollable(body)
         .direction(Direction::Vertical(
             Scrollbar::new()

@@ -1,6 +1,6 @@
 //! 构建识矩技能市场、已安装、系统、公司与我的技能列表。
 
-mod cards;
+pub(super) mod cards;
 mod maintained;
 
 use super::styles;

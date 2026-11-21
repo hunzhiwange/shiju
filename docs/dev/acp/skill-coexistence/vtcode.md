@@ -11,9 +11,16 @@ Darwin arm64 上的受管 VT Code 0.183.0 v3 已通过四轮真实 ACP 验收。
 | 撤除 | `ses_e039b6c18ffe08uy76Fndjge75` | 1 / 0 | 3 | 无 | 0 |
 | MCP 拒绝 | `ses_e039b4642ffeuaD7cJ03eugPsP` | 1 / 0 | 6 | reject | 0 |
 
-四轮均回读 `acp-coexistence / vtcode`、`session_model`、`coexistence-fixture/deepseek-v4.1-flash-1017` 和 `full_access=false`。首次模型请求只包含技能目录元数据。原生技能在每轮均完成正文和资源回传，挂载及拒绝轮还完成所选技能的正文和资源回传。模型按原调用 ID 收到真实工具结果。拒绝轮返回关联的 MCP 权限拒绝结果，下游执行为零。逐次调用 ID、阶段许可回读和固定制品摘要见 `target/acp-skill-coexistence/vtcode.json`。
+四轮均回读 `acp-coexistence / vtcode`、`session_model`、`coexistence-fixture/deepseek-v4.1-flash-1017` 和 `full_access=false`。首次模型请求中的技能信息限于目录元数据。原生技能在每轮均完成正文和资源回传，挂载及拒绝轮还完成所选技能的正文和资源回传。模型按原调用 ID 收到真实工具结果。拒绝轮返回关联的 MCP 权限拒绝结果，下游执行为零。逐次调用 ID、阶段许可回读和固定制品摘要见 `target/acp-skill-coexistence/vtcode.json`。
 
 首次 v3 网关联验的无挂载轮通过，挂载轮在通用 stdio 夹具初始化时返回 `connection closed: initialize response`。VT Code 探针复用已有适配器的沙箱兼容 stdio 夹具，将脚本放入私有工作区，以只读 FIFO 提供随机附件并在沙箱外计数。同一网关、制品与审批策略复跑通过。
+
+定向 Rust 测试复用槽位 11，`CARGO_TARGET_DIR` 和 `CARGO_BUILD_BUILD_DIR` 均为该槽位。两个命令退出 0，各运行 2 项。宿主验证无选中时不创建快照、仅复制选中技能及快照写入门禁。中继验证原生工具、只读技能工具和会话 MCP 目录的白名单边界。
+
+```sh
+cargo test --locked -j 1 -p llm-runtime --lib acp_skill_coexistence_vtcode -- --test-threads=1
+cargo test --locked -j 1 -p model-relay-http --lib vtcode_relay -- --test-threads=1
+```
 
 ## 修复前与原生对照
 

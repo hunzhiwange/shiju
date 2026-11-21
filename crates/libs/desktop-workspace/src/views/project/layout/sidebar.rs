@@ -1,27 +1,8 @@
 use iced::{Element, Length};
-use iced::widget::{button,column,container,mouse_area,row,text,tooltip};
+use iced::widget::{column, container, mouse_area, row};
 use super::super::handles::HResizeHandle;
 use super::styles::left_rail_style;
 use super::chrome::overlay_divider;
-/// 在两种侧栏状态下提供同一应用工作区入口，沿用设置页的连接与加载流程。
-pub fn workspace_rail<'a, Message: Clone + 'static>(projects: Element<'a, Message>, open: Message, external: Message) -> Element<'a, Message> {
-    let entry = button(text("工作区").size(12))
-        .padding([8, 6])
-        .style(desktop_ui_controls::system_settings_common::rounded_action_btn_style)
-        .on_press(open);
-    column![
-        projects,
-        tooltip(entry, text("应用工作区"), tooltip::Position::Right),
-        button(text("外部会话").size(12))
-            .padding([8, 6])
-            .style(desktop_ui_controls::system_settings_common::rounded_action_btn_style)
-            .on_press(external),
-    ]
-    .align_x(iced::alignment::Horizontal::Center)
-    .spacing(8)
-    .height(Length::Fill)
-    .into()
-}
 
 /// 构建侧栏界面。
 ///

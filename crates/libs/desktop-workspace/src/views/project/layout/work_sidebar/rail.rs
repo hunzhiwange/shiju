@@ -41,7 +41,7 @@ pub(super) fn view(app: &ViewInput<'_>) -> Element<'static, Message> {
     ));
     #[cfg(not(target_arch = "wasm32"))]
     let navigation = navigation.push(control(
-        i18n, "数字员工", Icon::Robot, Some(Message::DigitalEmployees),
+        i18n, "数字员工", Icon::Person, Some(Message::DigitalEmployees),
     ));
     let controls = navigation
         .push(control(

@@ -68,6 +68,19 @@ impl Palette {
 }
 
 pub(crate) fn view(app: &App) -> Item<'_> {
+    responsive(move |size| {
+        let base = crate::app::views::project::with_session_sidebar(app, page_content(app));
+        let state = &app.digital_employees;
+        if state.page == Page::Tasks && app.account.active_account().is_some() {
+            super::tasks_view::overlays(base, &state.tasks, size.width)
+        } else {
+            base
+        }
+    })
+    .into()
+}
+
+fn page_content(app: &App) -> Item<'_> {
     let actor = app
         .account
         .active_account()
@@ -151,7 +164,7 @@ pub(crate) fn view(app: &App) -> Item<'_> {
             page =
                 page.push(card(container(label("正在加载工作台…", 14, Tone::Muted)).padding(16)));
         }
-        let base = container(
+        container(
             scrollable(
                 container(page.width(Length::Fill))
                     .padding(iced::Padding::new(pad).right(pad + 7.0)),
@@ -164,12 +177,7 @@ pub(crate) fn view(app: &App) -> Item<'_> {
         .width(Length::Fill)
         .height(Length::Fill)
         .style(|theme| container::Style::default().background(Palette::new(theme).page))
-        .into();
-        if state.page == Page::Tasks && actor.is_some() {
-            super::tasks_view::overlays(base, &state.tasks, size.width)
-        } else {
-            base
-        }
+        .into()
     })
     .into()
 }
@@ -279,7 +287,7 @@ fn kpis(summary: &Summary, width: f32) -> Item<'_> {
         "共享员工",
         count(kpi.employees_total),
         kpi.employees_active.map(|n| format!("{n} 名在岗")),
-        Icon::Robot,
+        Icon::Person,
         Tone::Accent,
         event(Event::SelectPage(Page::Shared)),
     );
@@ -546,7 +554,7 @@ fn roster(summary: &Summary) -> Item<'_> {
             (Space::new().into(), label("工位信息暂不可用，请稍后刷新", 13, Tone::Muted).into())
         }
     };
-    panel("员工在忙什么", Some(Icon::Robot), None, trailing, content)
+    panel("员工在忙什么", Some(Icon::Person), None, trailing, content)
 }
 
 fn employee(person: &Employee) -> Item<'_> {

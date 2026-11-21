@@ -39,6 +39,11 @@ pub(super) fn register_icons(m: &mut HashMap<Icon, svg::Handle>) {
         svg::Handle::from_memory(include_bytes!("../../../../../assets/icons/bootstrap/robot.svg")),
     );
 
+    m.insert(
+        Icon::Person,
+        svg::Handle::from_memory(include_bytes!("../../../../../assets/icons/bootstrap/person.svg")),
+    );
+
     // 橡皮擦/清除图标
     m.insert(
         Icon::Eraser,

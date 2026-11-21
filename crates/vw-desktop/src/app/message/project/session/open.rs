@@ -57,7 +57,7 @@ pub(crate) fn open_project_session(
     app.stash_active_session_view();
 
     let open_task = if app.navigation_tabs.project_path.as_ref() == Some(&project_path) {
-        iced::Task::none()
+        resume_project_from_sidebar(app, &project_path)
     } else {
         app.open_project(project_path.clone())
     };
@@ -173,6 +173,8 @@ fn request_session_navigation(app: &mut App, path: String, id: String) -> iced::
         .filter(|runtime| runtime.request_lifecycle.is_requesting)
         .and_then(|runtime| runtime.draft.as_ref())
         .map(|draft| (draft.project_path.as_str(), draft.directory.as_str()));
+    let is_active_draft = requesting_draft.is_some_and(|(_, directory)| directory == path)
+        && app.session_state.active_session_id.as_deref() == Some(id.trim());
     let (id, cached, path) = match session_open::navigation(
         path,
         id,
@@ -183,7 +185,14 @@ fn request_session_navigation(app: &mut App, path: String, id: String) -> iced::
         &app.workspace_state.project_sessions,
         requesting_draft,
     ) {
-        Navigation::Ignore => return iced::Task::none(),
+        Navigation::Ignore => {
+            if is_active_draft
+                && let Some(project_path) = app.navigation_tabs.project_path.clone()
+            {
+                return resume_project_from_sidebar(app, &project_path);
+            }
+            return iced::Task::none();
+        }
         Navigation::Cached { project_path, id, info } => {
             return open_project_session(app, project_path, id, Some(info), None);
         }
@@ -208,6 +217,23 @@ fn request_session_navigation(app: &mut App, path: String, id: String) -> iced::
             })
         },
     )
+}
+
+fn resume_project_from_sidebar(app: &mut App, project_path: &str) -> iced::Task<Message> {
+    #[cfg(not(target_arch = "wasm32"))]
+    if app.navigation_tabs.screen == crate::app::Screen::DigitalEmployees {
+        let (tab_id, _) = desktop_workspace::projects::project_tab(project_path);
+        if app.navigation_tabs.open_tabs.iter().any(|tab| tab.id == tab_id) {
+            return crate::app::message::view::update(
+                app,
+                crate::app::message::ViewMessage::TabSelected(tab_id),
+            );
+        }
+        return app.open_project(project_path.to_owned());
+    }
+    #[cfg(target_arch = "wasm32")]
+    let _ = (app, project_path);
+    iced::Task::none()
 }
 
 /// handle 处理当前模块对应的消息或状态转换。
@@ -246,7 +272,12 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
                 overlay::Effect::ResetPicker => reset_new_session_picker_state(app),
                 overlay::Effect::Open(path) => tasks.push(app.open_project_and_index(path)),
                 overlay::Effect::Switch(path) => {
-                    tasks.push(app.switch_work_space_preserving_chat(path))
+                    let task = if app.navigation_tabs.project_path.as_deref() == Some(path.as_str()) {
+                        resume_project_from_sidebar(app, &path)
+                    } else {
+                        app.switch_work_space_preserving_chat(path)
+                    };
+                    tasks.push(task);
                 }
                 overlay::Effect::Hover(path) => {
                     tasks.push(update_lists(app, ListEvent::Hover(path)))
@@ -343,7 +374,7 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
             }
             let project_switch_task =
                 if app.navigation_tabs.project_path.as_deref() == Some(project_path.as_str()) {
-                    iced::Task::none()
+                    resume_project_from_sidebar(app, &project_path)
                 } else {
                     app.open_project_and_index(project_path.clone())
                 };

@@ -171,6 +171,8 @@ pub enum Icon {
     Funnel,
     /// 机器人/小宠物图标
     Robot,
+    /// 单人图标
+    Person,
     /// 循环箭头/刷新图标
     ArrowRepeat,
     /// X/关闭图标

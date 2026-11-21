@@ -34,6 +34,27 @@ use main::main_area;
 use sidebar::sidebar_group;
 pub use work::build_work_layout;
 
+pub(crate) fn with_session_sidebar<'a>(
+    app: &'a App,
+    content: Element<'a, Message>,
+) -> Element<'a, Message> {
+    use crate::app::message::ViewMessage;
+    use desktop_workspace::views::project::handles::HResizeHandle;
+    use iced::widget::{mouse_area, row};
+
+    if app.navigation_mode.workspace_mode == crate::app::state::WorkspaceMode::Work {
+        let divider = mouse_area(HResizeHandle)
+            .on_press(Message::View(ViewMessage::WorkSidebarDragStarted));
+        row![work_sidebar::view(app), divider, content].height(Length::Fill).into()
+    } else {
+        let width = desktop_workspace::views::project::composition::settings_panel_width(
+            app.layout_drag.settings_panel_width,
+        );
+        let (sidebar, divider) = sidebar_group(app, width, 56.0, 0.6, 12.0);
+        row![sidebar, divider, content].height(Length::Fill).into()
+    }
+}
+
 #[cfg(test)]
 const WORKSPACE_BOTTOM_GAP: f32 = desktop_workspace::views::project::layout::WORKSPACE_BOTTOM_GAP;
 

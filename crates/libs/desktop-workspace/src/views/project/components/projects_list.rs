@@ -46,6 +46,8 @@ pub enum Message {
  ShijuSkills,
  #[cfg(not(target_arch = "wasm32"))]
  ShijuApps,
+ #[cfg(not(target_arch = "wasm32"))]
+ DigitalEmployees,
 }
 pub struct Input<'a> {
  pub recent_projects: &'a [String],
@@ -519,29 +521,52 @@ pub fn shiju_apps_badge_button<'a>(i18n: desktop_i18n::I18n) -> Element<'a, Mess
 }
 
 #[cfg(not(target_arch = "wasm32"))]
+fn digital_employees_badge_button(i18n: desktop_i18n::I18n) -> Element<'static, Message> {
+    use desktop_assets::assets::{Icon, get_icon};
+    use iced::widget::svg;
+
+    let badge = container(
+        svg(get_icon(Icon::Person))
+            .width(20)
+            .height(20)
+            .style(|theme: &Theme, _| svg::Style { color: Some(theme.palette().text) }),
+    )
+    .center_x(36)
+    .center_y(36);
+    title_tooltip(
+        navigation_badge(badge, Message::DigitalEmployees),
+        i18n.__("数字员工"),
+        TooltipPosition::Right,
+    )
+}
+
+#[cfg(not(target_arch = "wasm32"))]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum ProjectListAction {
     OpenProject,
     ExpertHub,
     ShijuSkills,
     ShijuApps,
+    DigitalEmployees,
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-const PROJECT_LIST_ACTIONS: [ProjectListAction; 4] = [
+const PROJECT_LIST_ACTIONS: [ProjectListAction; 5] = [
     ProjectListAction::OpenProject,
     ProjectListAction::ExpertHub,
     ProjectListAction::ShijuSkills,
     ProjectListAction::ShijuApps,
+    ProjectListAction::DigitalEmployees,
 ];
 
 #[cfg(not(target_arch = "wasm32"))]
-pub fn project_list_action_order() -> [&'static str; 4] {
+pub fn project_list_action_order() -> [&'static str; 5] {
     PROJECT_LIST_ACTIONS.map(|action| match action {
         ProjectListAction::OpenProject => "open_project",
         ProjectListAction::ExpertHub => "expert_hub",
         ProjectListAction::ShijuSkills => "shiju_skills",
         ProjectListAction::ShijuApps => "shiju_apps",
+        ProjectListAction::DigitalEmployees => "digital_employees",
     })
 }
 
@@ -609,6 +634,9 @@ pub fn projects_list<'a>(app: &Input<'_>, collapsed_hover_mode: bool) -> Element
             }
             ProjectListAction::ShijuApps => {
                 shiju_apps_badge_button(desktop_i18n::I18n::new(app.desktop_locale))
+            }
+            ProjectListAction::DigitalEmployees => {
+                digital_employees_badge_button(desktop_i18n::I18n::new(app.desktop_locale))
             }
         });
     }

@@ -12,6 +12,8 @@ fn map(event: domain::Message) -> Message {
  domain::Message::ShijuSkills => Message::SkillHub(message::SkillHubMessage::OpenShijuSkills),
  #[cfg(not(target_arch = "wasm32"))]
  domain::Message::ShijuApps => Message::ShijuApps(message::ShijuAppsMessage::Open),
+ #[cfg(not(target_arch = "wasm32"))]
+ domain::Message::DigitalEmployees => Message::DigitalEmployees(crate::app::digital_employees::Event::Open),
  }
 }
 pub fn projects_list<'a>(app: &App, collapsed_hover_mode: bool) -> iced::Element<'a, Message> {

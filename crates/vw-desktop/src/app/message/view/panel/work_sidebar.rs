@@ -5,6 +5,13 @@ use desktop_navigation::panel::work_sidebar as domain;
 
 pub(super) fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
     if matches!(message, ViewMessage::WorkProjectHome) {
+        #[cfg(not(target_arch = "wasm32"))]
+        if app.navigation_tabs.screen == crate::app::Screen::DigitalEmployees {
+            return match app.navigation_tabs.project_path.clone() {
+                Some(path) => app.open_project_and_index(path),
+                None => super::tabs::update(app, ViewMessage::GoHome),
+            };
+        }
         if domain::project_home(app.navigation_tabs.screen, app.navigation_tabs.project_path.is_some(), app.session_state.active_session_id.is_some(), &mut app.navigation_workspace) {
             app.stash_active_session_view();
             app.session_state.active_session_id = None;

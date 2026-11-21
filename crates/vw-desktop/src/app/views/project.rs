@@ -28,6 +28,7 @@ pub(crate) use components::project_list_action_order;
 mod handles;
 pub(crate) use components::new_session_picker_layer;
 mod layout;
+pub(crate) use layout::with_session_sidebar;
 pub(crate) use layout::WorkSidebarModel;
 mod styles;
 use layout::{build_base_layout, build_work_layout, drag_badge_layer};

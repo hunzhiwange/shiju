@@ -356,7 +356,7 @@ fn employee_card<'a>(employee: &'a SharedEmployee, directory: &Directory) -> Ite
         role.unwrap_or_default(),
     ) {
         Some(handle) => image(handle).width(136).height(136).into(),
-        None => container(icon(Icon::Robot, 42, Tone::Muted))
+        None => container(icon(Icon::Person, 42, Tone::Muted))
             .center(136)
             .style(|theme| tint_style(theme, Tone::Muted, 68.0))
             .into(),

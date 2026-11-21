@@ -278,7 +278,7 @@ fn employee_card<'a>(
     .spacing(6);
     let picture: Item<'_> = match portraits::avatar(&person.name, false) {
         Some(handle) => image(handle).width(136).height(136).into(),
-        None => container(icon(Icon::Robot, 44, Tone::Violet)).center(136).into(),
+        None => container(icon(Icon::Person, 44, Tone::Violet)).center(136).into(),
     };
     let portrait = container(picture)
         .center_x(Length::Fill)

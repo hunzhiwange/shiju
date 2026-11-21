@@ -176,7 +176,7 @@ pub(super) fn navigation_section(app: &ViewInput<'_>) -> Element<'static, Messag
         .push(navigation_button(
             desktop_i18n::I18n::new(app.desktop_locale),
             "数字员工",
-            Icon::Robot,
+            Icon::Person,
             Message::DigitalEmployees,
             None,
         ))

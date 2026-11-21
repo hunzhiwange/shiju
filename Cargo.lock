@@ -7079,6 +7079,7 @@ dependencies = [
  "vw-config-types",
  "vw-gateway-client",
  "web-sys",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]

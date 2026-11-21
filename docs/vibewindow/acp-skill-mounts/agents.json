@@ -1150,7 +1150,7 @@
         ],
         "discovery": "固定 SEA 私有解包后，仅补齐 ACP boot options；原生 SDK skillsLoad 和 skill 工具实际发现选中会话目录。",
         "activation": "原生 skill(skill=name) 成功回执与单独的正文/目录上下文均须存在；随后真实 view/bash 读取随机附件与执行脚本。首次 prompt 没有技能正文。",
-        "session_isolation": "verified on reviewed Darwin-arm64 build：enableConfigDiscovery=false、includedBuiltinSkills=[]、installedPlugins=[]、pluginDirectories=[]；空选择关闭技能，独立会话和项目/用户 decoy 未泄漏，环境列表被清空。"
+        "session_isolation": "Darwin arm64，受管 v2 仅向 SDK 投影租户配置显式授权的项目内原生技能设置，并追加会话视图。全量配置、插件、内置发现和原生环境目录仍关闭。"
       },
       "permissions": {
         "status": "verified_release_only",
@@ -1208,13 +1208,17 @@
         },
         {
           "path": "${MANAGED_COPILOT}/node_modules/@github/copilot/embedded/cli-main.js",
-          "sha256": "1f8978f33a7a54105087ab9e66313a4b973dd852e198ab85b39c3de44959b502",
+          "sha256": "5233b13e859de96f86a21bd8806611dc0bf534e4b63d45e6d81475f92100bd64",
           "kind": "reviewed_managed_artifact"
         },
         {
           "path": "${MANAGED_COPILOT}/node_modules/@github/copilot/embedded/prebuilds/darwin-arm64/runtime.node",
           "sha256": "423ba722d1fa544ba352fd6e702d5b67f78419995a0247580185aa030bcbc1fb",
           "kind": "reviewed_managed_artifact"
+        },
+        {
+          "path": "../../dev/acp/skill-coexistence/copilot.md",
+          "kind": "skill_coexistence"
         },
         {
           "path": "evidence/copilot.json",

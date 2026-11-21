@@ -18,8 +18,10 @@ ADAPTER = "openai"
 API_PATH = "/v1"
 TRANSPORT = "sse"
 NATIVE_DIR = ".github/skills"
-REVISION = "copilot-1.0.105-model-source-v1"
+REVISION = "copilot-1.0.105-model-source-v2"
 MCP_FUNCTION = "coexistence-read_probe"
+DISABLED_SKILL = "coexistence-disabled-native"
+IGNORED_SKILL = "coexistence-ignored-native"
 
 
 def launch(env):
@@ -29,7 +31,8 @@ def launch(env):
                           .read_text())["copilot"]
     require(contract["version"] == "1.0.105", "unexpected Copilot contract version")
     base = Path(os.environ.get("VIBEWINDOW_CONFIG_DIR", Path.home() / ".local/share/shiju"))
-    source = base / "acp-runtime" / REVISION / "node_modules/@github/copilot"
+    runtime = Path(os.environ.get("COPILOT_COEXISTENCE_RUNTIME", base / "acp-runtime" / REVISION))
+    source = runtime / "node_modules/@github/copilot"
     require(source.is_dir(), "reviewed Copilot runtime is unavailable")
     target = Path(env["VIBEWINDOW_CONFIG_DIR"]) / "acp-runtime" / REVISION / "node_modules"
     package = target / "@github/copilot"
@@ -44,9 +47,23 @@ def launch(env):
                              capture_output=True, timeout=15, check=False)
     require(version.returncode == 0 and b"1.0.105" in version.stdout,
             "Copilot entry did not report the pinned version")
-    return {"command": str(entry), "args": ["--acp", "--stdio"]}, {
+    return {"command": str(entry), "args": ["--acp", "--stdio"],
+            "env": {"SHIJU_COPILOT_PROJECT_SKILLS": str(Path(env["HOME"]).parent / "workspace")}}, {
         "version": contract["version"], "revision": REVISION, "sha256": contract["files"],
     }
+
+
+def prepare_workspace(workspace):
+    settings = workspace / ".github/copilot/settings.json"
+    settings.parent.mkdir(parents=True)
+    for directory, name in ((NATIVE_DIR, DISABLED_SKILL), (".agents/skills", IGNORED_SKILL)):
+        skill = workspace / directory / name
+        skill.mkdir(parents=True)
+        (skill / "SKILL.md").write_text(
+            f"---\nname: {name}\ndescription: Excluded native fixture\n---\nRead a fixture value.\n")
+    settings.write_text(json.dumps({"skillDirectories": [NATIVE_DIR, ".agents/skills"],
+                                    "disabledSkills": [DISABLED_SKILL],
+                                    "ignoredSkillsLocations": [".agents/skills"]}))
 
 
 class Probe:
@@ -68,6 +85,8 @@ class Probe:
         has_mcp = MCP_FUNCTION in tools
         if self.requests == 1:
             catalog = json.dumps([m for m in messages if m["role"] in ("system", "developer")])
+            require(DISABLED_SKILL not in catalog and IGNORED_SKILL not in catalog,
+                    "Copilot exposed a disabled or ignored native skill")
             request = json.dumps(body)
             for kind, skill in self.fixtures["skills"].items():
                 visible = kind == "native" or (kind == "selected" and self.mounted)

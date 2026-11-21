@@ -238,6 +238,13 @@ pub async fn do_stream_request_acp<H: Host>(
             ));
         }
     }
+    if acp_agent_name == "copilot"
+        && (source != vw_api_acp_model::acp_model_source::AcpModelSource::SessionModel
+            || parsed_options.permission_mode == Some(acp_types::PermissionMode::DenyAll)
+            || merged_options.get("disable_tools").and_then(Value::as_bool) == Some(true))
+    {
+        normalized_acp_cfg.env.remove(super::model_source::drivers::copilot::PROJECT_SKILLS_ENV);
+    }
     if acp_agent_name == "kimi"
         && parsed_options.skill_view.is_some()
         && (source != vw_api_acp_model::acp_model_source::AcpModelSource::SessionModel

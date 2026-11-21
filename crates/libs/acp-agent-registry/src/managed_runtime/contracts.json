@@ -261,7 +261,7 @@
     "files": {
       "embedded/index.js": "19f4cb854302397bdd880f5cde12ed069d373a630dce3f09a60e62b8ac8fcc4c",
       "embedded/app.js": "cb69bda81260cb16dcf740cc968c52da9e6c7bc80b7fb8eafa47fb986726e3ac",
-      "embedded/cli-main.js": "1f8978f33a7a54105087ab9e66313a4b973dd852e198ab85b39c3de44959b502",
+      "embedded/cli-main.js": "5233b13e859de96f86a21bd8806611dc0bf534e4b63d45e6d81475f92100bd64",
       "embedded/prebuilds/darwin-arm64/runtime.node": "423ba722d1fa544ba352fd6e702d5b67f78419995a0247580185aa030bcbc1fb"
     }
   },

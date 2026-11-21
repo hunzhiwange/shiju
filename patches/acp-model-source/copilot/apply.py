@@ -11,10 +11,23 @@ original = path.read_bytes()
 if hashlib.sha256(original).hexdigest() != contract['original']:
     raise SystemExit('Copilot embedded source checksum mismatch')
 text = original.decode()
-helper = ('function shijuCopilotSkillOptions(){const root=process.env.SHIJU_COPILOT_SKILL_ROOT;'
-          'if(root===undefined)return{};return{enableConfigDiscovery:false,enableSkills:root!=="",'
-          'skillDirectories:root?[root]:[],includedBuiltinSkills:[],installedPlugins:[],pluginDirectories:[],'
-          'ignoredSkillsLocations:[]}};\n')
+helper = """function shijuCopilotSkillOptions(settings) {
+  const root = process.env.SHIJU_COPILOT_SKILL_ROOT;
+  if (root === undefined) return {};
+  const project = process.env.SHIJU_COPILOT_PROJECT_SKILLS ? settings : undefined;
+  const directories = [...(project?.skillDirectories ?? []), ...(root ? [root] : [])];
+  return {
+    enableConfigDiscovery: false,
+    enableSkills: directories.length !== 0,
+    skillDirectories: directories,
+    disabledSkills: project?.disabledSkills,
+    ignoredSkillsLocations: project?.ignoredSkillsLocations ?? [],
+    includedBuiltinSkills: [],
+    installedPlugins: [],
+    pluginDirectories: []
+  };
+}
+"""
 anchor = '#!/usr/bin/env node\n'
 if not text.startswith(anchor):
     raise SystemExit('Copilot source entry differs')
@@ -22,7 +35,7 @@ text = anchor + helper + text[len(anchor):]
 anchor = 'homeDirectory:gmt.homedir()}}function U8n'
 if text.count(anchor) != 1:
     raise SystemExit('Copilot ACP boot boundary differs')
-text = text.replace(anchor, 'homeDirectory:gmt.homedir(),...shijuCopilotSkillOptions()}}function U8n')
+text = text.replace(anchor, 'homeDirectory:gmt.homedir(),...shijuCopilotSkillOptions(r)}}function U8n')
 patched = text.encode()
 if hashlib.sha256(patched).hexdigest() != contract['patched']:
     raise SystemExit('Copilot patched source checksum mismatch')

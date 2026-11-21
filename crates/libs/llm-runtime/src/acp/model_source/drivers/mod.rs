@@ -255,7 +255,7 @@ pub fn configure(
         "vibe" => vibe::configure(profile, endpoint),
         "hermes" => hermes::configure(profile, endpoint),
         "snow" => snow::configure(profile, endpoint),
-        "copilot" => copilot::configure(profile, endpoint),
+        "copilot" => copilot::configure(profile, endpoint, directory),
         "corust-agent" => corust::configure(profile, endpoint, directory),
         "cortex-code" => cortex::configure(profile, endpoint, directory),
         "cursor" => cursor::configure(profile, endpoint),

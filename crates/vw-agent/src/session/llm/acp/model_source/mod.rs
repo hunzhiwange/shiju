@@ -54,6 +54,26 @@ async fn prepare_with_mounts(
     // cannot supply a Provider snapshot or resurrect removed models.
     let resolved = provider::get_model(&model.provider_id, &model.id).await?;
     let identity = launch_identity(context.project.id.clone(), agent, model, session);
+    let mut copilot_launch = None;
+    if agent == "copilot" {
+        use llm_runtime::acp::model_source::drivers::copilot::PROJECT_SKILLS_ENV;
+        if let Some(grant) = config.env.get(PROJECT_SKILLS_ENV) {
+            let tenant = crate::session::ui_store::current_tenant_scope();
+            let tenant_config = crate::config::get_global_for_tenant_without_env(&tenant).await?;
+            anyhow::ensure!(
+                tenant_config.acp.get("copilot")
+                    .and_then(|entry| entry.env.get(PROJECT_SKILLS_ENV)) == Some(grant),
+                "Copilot native skills require a tenant-owned project grant"
+            );
+            let project = std::path::Path::new(&context.directory).canonicalize()?;
+            if std::path::Path::new(grant) != project {
+                let mut launch = config.clone();
+                launch.env.remove(PROJECT_SKILLS_ENV);
+                copilot_launch = Some(launch);
+            }
+        }
+    }
+    let config = copilot_launch.as_ref().unwrap_or(config);
     let state_root = || std::env::var_os("VIBEWINDOW_CONFIG_DIR").map(std::path::PathBuf::from)
         .unwrap_or_else(|| crate::global::paths().state.clone());
     let mut profile = llm_runtime::acp::model_source::prepare_profile(agent, config, &resolved, identity, state_root)?;
@@ -93,7 +113,9 @@ async fn prepare_with_mounts(
             ("SHIJU_MIMO_MCP_TOKEN".to_owned(), mimo.token().to_owned()),
         ]))?;
     } else {
-        llm_runtime::acp::model_source::configure_profile(agent, &mut profile, &endpoint, &directory, openclaw_mcp).await?;
+        let project_directory = instance::directory();
+        let configuration_directory = if agent == "copilot" { &project_directory } else { &directory };
+        llm_runtime::acp::model_source::configure_profile(agent, &mut profile, &endpoint, configuration_directory, openclaw_mcp).await?;
     }
     Ok(profile)
 }

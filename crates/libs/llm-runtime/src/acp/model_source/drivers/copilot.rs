@@ -3,7 +3,10 @@ use serde_json::json;
 use std::collections::HashMap;
 use model_reasoning::{ReasoningFormat, reasoning_levels, reasoning_profile};
 
-pub fn configure(profile: &mut AcpLaunchProfile, endpoint: &str) -> anyhow::Result<()> {
+pub const PROJECT_SKILLS_ENV: &str = "SHIJU_COPILOT_PROJECT_SKILLS";
+const NATIVE_PROJECT_ROOTS: [&str; 3] = [".github/skills", ".claude/skills", ".agents/skills"];
+
+pub fn configure(profile: &mut AcpLaunchProfile, endpoint: &str, workspace: &str) -> anyhow::Result<()> {
     let url = reqwest::Url::parse(endpoint)?;
     anyhow::ensure!(
         url.scheme() == "http"
@@ -57,6 +60,15 @@ pub fn configure(profile: &mut AcpLaunchProfile, endpoint: &str) -> anyhow::Resu
         }),
         "conflicting Copilot provider or authentication environment"
     );
+    if let Some(project) = config.env.get(PROJECT_SKILLS_ENV) {
+        let workspace = std::path::Path::new(workspace).canonicalize()?;
+        anyhow::ensure!(std::path::Path::new(project) == workspace,
+            "Copilot native skills require an explicit grant for the bound project");
+        acp_agent_registry::verify_reviewed_agent_executable("copilot", &config.command)
+            .map_err(anyhow::Error::msg)?;
+        let settings = project_skill_settings(&workspace)?;
+        profile.write_config("settings.json", &serde_json::to_vec(&settings)?)?;
+    }
     let api = profile
         .model_api
         .as_ref()
@@ -116,6 +128,121 @@ pub fn configure(profile: &mut AcpLaunchProfile, endpoint: &str) -> anyhow::Resu
     profile.write_config("providers.json", &content)?;
     Ok(())
 }
+
+// Project scope comes from the host launch, never from the settings document.
+fn project_skill_settings(workspace: &std::path::Path) -> anyhow::Result<ProjectSkillSettings> {
+    use std::io::Read;
+    let workspace = workspace.canonicalize()?;
+    anyhow::ensure!(workspace.is_dir() && workspace.parent().is_some(), "invalid Copilot project");
+    let mut source = open_project_skill_settings(&workspace)?.take(65537);
+    let mut bytes = Vec::new();
+    source.read_to_end(&mut bytes)?;
+    anyhow::ensure!(bytes.len() <= 65536, "Copilot project skill settings exceed 64 KiB");
+    let mut settings: ProjectSkillSettings = serde_json::from_slice(&bytes)
+        .map_err(|_| anyhow::anyhow!("invalid Copilot project skill settings"))?;
+    for root in &mut settings.skill_directories {
+        anyhow::ensure!(
+            NATIVE_PROJECT_ROOTS.contains(&root.as_str()),
+            "Copilot project skill root must be a native project directory"
+        );
+        let path = project_skill_path(&workspace, root)?;
+        check_skill_tree(&path)?;
+        *root = path.to_str().ok_or_else(|| anyhow::anyhow!("non-UTF-8 Copilot skill directory"))?.into();
+    }
+    for location in &mut settings.ignored_skills_locations {
+        anyhow::ensure!(
+            NATIVE_PROJECT_ROOTS.contains(&location.as_str()),
+            "Copilot ignored locations must be native project roots; use disabledSkills for names"
+        );
+        let path = workspace.join(&*location);
+        *location = path.to_str().ok_or_else(|| anyhow::anyhow!("non-UTF-8 Copilot ignored location"))?.into();
+    }
+    Ok(settings)
+}
+
+#[cfg(unix)]
+fn open_project_skill_settings(workspace: &std::path::Path) -> anyhow::Result<std::fs::File> {
+    use std::{fs::File, os::{fd::{AsRawFd, FromRawFd}, unix::fs::MetadataExt}};
+    let mut file = File::open(workspace)?;
+    for (name, flags) in [
+        (c".github", libc::O_DIRECTORY),
+        (c"copilot", libc::O_DIRECTORY),
+        (c"settings.json", libc::O_NONBLOCK),
+    ] {
+        // Keep each parent open until its child is resolved. No component can
+        // be redirected through a symlink while the settings are opened.
+        let fd = unsafe {
+            libc::openat(file.as_raw_fd(), name.as_ptr(),
+                libc::O_RDONLY | libc::O_NOFOLLOW | libc::O_CLOEXEC | flags)
+        };
+        if fd < 0 {
+            return Err(std::io::Error::last_os_error().into());
+        }
+        // SAFETY: openat returned a new owned descriptor.
+        file = unsafe { File::from_raw_fd(fd) };
+    }
+    let metadata = file.metadata()?;
+    anyhow::ensure!(
+        metadata.is_file() && metadata.nlink() == 1,
+        "Copilot project skill settings must be a regular file without hard links"
+    );
+    Ok(file)
+}
+
+#[cfg(not(unix))]
+fn open_project_skill_settings(_: &std::path::Path) -> anyhow::Result<std::fs::File> {
+    anyhow::bail!("isolated Copilot project settings are unavailable on this platform")
+}
+
+#[derive(Default, serde::Deserialize, serde::Serialize)]
+#[serde(default, rename_all = "camelCase", deny_unknown_fields)]
+struct ProjectSkillSettings {
+    skill_directories: Vec<String>,
+    disabled_skills: Vec<String>,
+    ignored_skills_locations: Vec<String>,
+}
+
+fn project_skill_path(workspace: &std::path::Path, source: &str) -> anyhow::Result<std::path::PathBuf> {
+    use std::path::{Component, Path};
+    let mut result = workspace.to_owned();
+    anyhow::ensure!(!source.is_empty(), "empty Copilot project skill path");
+    for component in Path::new(source).components() {
+        let Component::Normal(component) = component else {
+            anyhow::bail!("Copilot project skill paths must be relative to the bound project");
+        };
+        result.push(component);
+        anyhow::ensure!(
+            !result.symlink_metadata()?.file_type().is_symlink(),
+            "Copilot project skill paths cannot use symbolic links"
+        );
+    }
+    Ok(result)
+}
+
+fn check_skill_tree(root: &std::path::Path) -> anyhow::Result<()> {
+    let mut pending = vec![root.to_owned()];
+    while let Some(directory) = pending.pop() {
+        for entry in std::fs::read_dir(directory)? {
+            let entry = entry?;
+            let kind = entry.file_type()?;
+            if kind.is_dir() {
+                pending.push(entry.path());
+            } else {
+                anyhow::ensure!(kind.is_file(), "Copilot project skills require regular files");
+                #[cfg(unix)]
+                {
+                    use std::os::unix::fs::MetadataExt;
+                    anyhow::ensure!(entry.metadata()?.nlink() == 1, "Copilot project skill file is hard linked");
+                }
+            }
+        }
+    }
+    Ok(())
+}
+
+#[cfg(test)]
+#[path = "copilot_skill_tests.rs"]
+mod skill_tests;
 
 // Persist only native history. Provider credentials remain in the leased profile.
 pub fn preserve_history(profile: &AcpLaunchProfile) -> anyhow::Result<()> {

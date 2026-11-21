@@ -17,6 +17,15 @@ fn acp_skill_mount_copilot_empty_selection_and_conflicting_override_fail_closed(
 }
 
 #[test]
+fn acp_skill_coexistence_copilot_empty_selection_masks_ambient_settings() {
+    let mut config = agent_config::schema::AcpAgentConfig::default();
+    config.env.insert(super::PROJECT_SKILLS_ENV.into(), "/other-project".into());
+    super::configure(&mut config, None).unwrap();
+    assert_eq!(config.env[super::PROJECT_SKILLS_ENV], "");
+    assert_eq!(config.env[super::ROOT_ENV], "");
+}
+
+#[test]
 fn acp_skill_mount_copilot_unreviewed_executable_is_rejected_before_environment_changes() {
     let root = tempfile::tempdir().unwrap();
     let source = root.path().join("example");

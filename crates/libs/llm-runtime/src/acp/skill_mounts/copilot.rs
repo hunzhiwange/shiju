@@ -1,5 +1,6 @@
-//! Reviewed Copilot ACP boot options select only the request-owned skill view.
+//! Reviewed Copilot ACP boot options append the request-owned skill view.
 use agent_config::schema::AcpAgentConfig;
+use crate::acp::model_source::{drivers::copilot::PROJECT_SKILLS_ENV, profile::REFERENCE_ENV};
 
 const ROOT_ENV: &str = "SHIJU_COPILOT_SKILL_ROOT";
 
@@ -24,6 +25,13 @@ pub(super) fn configure(
         String::new()
     };
     config.env.insert(ROOT_ENV.into(), root);
+    // The managed model driver has already projected the authorized settings.
+    // Mask an inherited opt-in on launches without a host grant.
+    if config.env.contains_key(REFERENCE_ENV) {
+        config.env.entry(PROJECT_SKILLS_ENV.into()).or_default();
+    } else {
+        config.env.insert(PROJECT_SKILLS_ENV.into(), String::new());
+    }
     // Explicit roots remain independent from an ambient native CLI directory list.
     config.env.insert("COPILOT_SKILLS_DIRS".into(), String::new());
     Ok(())

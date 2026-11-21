@@ -130,6 +130,34 @@ fn connecting_opens_the_selected_preview_and_reports_failure() {
 }
 
 #[test]
+fn a_late_refresh_preserves_the_explicit_connection_preview() {
+    use vw_api_mcp_inspect::McpInspectResponse;
+
+    let response = |tool_count| {
+        serde_json::from_value::<McpInspectResponse>(json!({
+            "servers": [{
+                "name": "rustcodegraph",
+                "transport": "stdio",
+                "enabled": true,
+                "required": false,
+                "connection_status": "connected",
+                "tool_count": tool_count
+            }]
+        }))
+        .unwrap()
+    };
+    let mut app = app();
+    let key = "global:rustcodegraph".to_owned();
+
+    let _ = update(&mut app, McpMessage::InspectRefresh);
+    let _ = update(&mut app, McpMessage::Connect(key.clone()));
+    let _ = update(&mut app, McpMessage::Connected(key, Ok(response(4))));
+    let _ = update(&mut app, McpMessage::Inspected(Ok(response(0))));
+
+    assert_eq!(app.inspect.unwrap().servers[0].tool_count, Some(4));
+}
+
+#[test]
 fn template_panel_and_form_messages_update_local_new_server_state() {
     let mut app = app();
     app.new_server_expanded = false;

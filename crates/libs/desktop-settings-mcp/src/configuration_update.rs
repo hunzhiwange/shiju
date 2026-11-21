@@ -132,6 +132,9 @@ pub fn update(app: &mut crate::state::State, message: Message) -> Effect {
                 return Effect::None;
             };
             let name = name.to_owned();
+            if app.inspect_loading {
+                app.rechecked_during_refresh.insert(name.clone());
+            }
             app.connecting = Some(key.clone());
             app.expanded_previews.insert(key.clone());
             app.inspect_error = None;
@@ -180,10 +183,20 @@ pub fn update(app: &mut crate::state::State, message: Message) -> Effect {
         }
         Message::Inspected(result) => {
             app.inspect_loading = false;
+            let rechecked = std::mem::take(&mut app.rechecked_during_refresh);
             match result {
-                Ok(inspect) => {
+                Ok(mut inspect) => {
+                    // A later, explicit check owns this server's preview.
+                    inspect.servers.retain(|server| !rechecked.contains(&server.name));
+                    if let Some(previous) = app.inspect.take() {
+                        inspect.servers.extend(
+                            previous.servers.into_iter().filter(|server| rechecked.contains(&server.name)),
+                        );
+                    }
                     app.inspect = Some(inspect);
-                    app.inspect_error = None;
+                    if rechecked.is_empty() {
+                        app.inspect_error = None;
+                    }
                 }
                 Err(err) => app.inspect_error = Some(err),
             }

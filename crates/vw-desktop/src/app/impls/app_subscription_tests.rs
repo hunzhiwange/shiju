@@ -253,20 +253,19 @@ fn mini_companion_hidden_stops_avatar_and_expansion_ticks() {
 
 #[test]
 fn cron_history_polling_stops_when_page_is_hidden() {
-    use crate::app::components::system_settings::SystemTab;
+    use crate::app::Screen;
     use crate::app::state::CronSettingsTab;
     use iced::advanced::subscription::into_recipes;
     let mut app = test_app();
-    app.navigation_panels.show_system_settings = true;
-    app.navigation_panels.system_settings_tab = SystemTab::Cron;
+    app.navigation_tabs.screen = Screen::Cron;
     app.cron_settings.active_tab = CronSettingsTab::History;
     assert_eq!(into_recipes(cron_history_subscription(&app)).len(), 1);
-    app.navigation_panels.show_system_settings = false;
-    assert!(into_recipes(cron_history_subscription(&app)).is_empty());
     app.navigation_panels.show_system_settings = true;
+    assert!(into_recipes(cron_history_subscription(&app)).is_empty());
+    app.navigation_panels.show_system_settings = false;
     app.cron_settings.active_tab = CronSettingsTab::Jobs;
     assert!(into_recipes(cron_history_subscription(&app)).is_empty());
     app.cron_settings.active_tab = CronSettingsTab::History;
-    app.navigation_panels.system_settings_tab = SystemTab::General;
+    app.navigation_tabs.screen = Screen::Project;
     assert!(into_recipes(cron_history_subscription(&app)).is_empty());
 }

@@ -10,7 +10,7 @@ use iced::{Alignment, Background, Border, Color, Element, Length, Theme, Vector}
 use desktop_assets::assets::Icon;
 use desktop_ui_controls::system_settings_common::settings_panel_style;
 #[derive(Debug, Clone)]
-pub enum Message { OpenFolderPressed, OpenProjectPressed, OpenApps, HomeAppsBarScrollChanged(f32) }
+pub enum Message { OpenFolderPressed, OpenProjectPressed, OpenApps, OpenCron, HomeAppsBarScrollChanged(f32) }
 
 use super::common::{icon_svg, is_dark_theme, primary_button, secondary_button};
 
@@ -34,12 +34,20 @@ pub fn render(i18n: desktop_i18n::I18n, scroll_id: iced::widget::Id) -> Element<
         Message::OpenProjectPressed,
     );
 
-    let switches_row = row![app_chip(
-        Icon::Grid1x2,
-        i18n.__("应用中心"),
-        Color::from_rgb8(0x35, 0x85, 0xD6),
-        Message::OpenApps,
-    ),]
+    let switches_row = row![
+        app_chip(
+            Icon::Grid1x2,
+            i18n.__("应用中心"),
+            Color::from_rgb8(0x35, 0x85, 0xD6),
+            Message::OpenApps,
+        ),
+        app_chip(
+            Icon::Clock,
+            i18n.__("定时任务"),
+            Color::from_rgb8(0x35, 0x85, 0xD6),
+            Message::OpenCron,
+        ),
+    ]
     .spacing(6)
     .align_y(Alignment::Center);
 

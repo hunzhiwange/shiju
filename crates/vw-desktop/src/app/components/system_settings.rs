@@ -51,7 +51,6 @@ pub(super) fn system_tab_matches_query(tab: SystemTab, query: &str) -> bool {
             descriptor.label.to_lowercase().contains(&needle)
                 || descriptor.keywords.iter().any(|text| text.to_lowercase().contains(&needle))
         }),
-        SystemTab::Cron => descriptors_match(super::system_settings_cron::CRON_TABS, &needle),
         SystemTab::Agents => {
             descriptors_match(super::system_settings_agents::AGENT_CONFIG_TABS, &needle)
                 || descriptors_match(
@@ -106,9 +105,6 @@ pub(super) fn active_tab_help_modal_open(app: &App, active_tab: SystemTab) -> bo
             }
             _ => false,
         },
-        SystemTab::Cron => {
-            app.cron_settings.show_help_modal || app.scheduler_settings.show_help_modal
-        }
         SystemTab::Autonomy => app.autonomy_settings.show_help_modal,
         SystemTab::Security => app.security_settings.show_help_modal,
         SystemTab::GatewayClient => app.gateway_client_settings.show_help_modal,
@@ -136,9 +132,6 @@ pub(super) fn active_tab_save_error(app: &App, active_tab: SystemTab) -> Option<
         SystemTab::Providers => app.provider_settings.save_error.as_deref(),
         SystemTab::Models => {
             crate::app::components::system_settings_models::active_tab_save_error(app)
-        }
-        SystemTab::Cron => {
-            app.cron_settings.save_error.as_deref().or(app.scheduler_settings.save_error.as_deref())
         }
         SystemTab::Agents => match app.agents_settings.active_config_tab {
             crate::app::state::AgentConfigTab::Agents => app.agents_settings.save_error.as_deref(),
@@ -227,7 +220,6 @@ fn settings_content(app: &App, active_tab: SystemTab) -> Element<'_, Message> {
         SystemTab::Worktrees => super::system_settings_worktrees::view(app),
         SystemTab::Providers => super::system_settings_providers::connected::view(app),
         SystemTab::Models => crate::app::components::system_settings_models::view(app),
-        SystemTab::Cron => crate::app::components::system_settings_cron::view(app),
         SystemTab::Agents => crate::app::components::system_settings_agents::view(app),
         SystemTab::Channels => crate::app::components::system_settings_channels::view(app),
         SystemTab::Memory => crate::app::components::system_settings_memory::view(app),
@@ -281,13 +273,7 @@ fn settings_content(app: &App, active_tab: SystemTab) -> Element<'_, Message> {
         || matches!(
             active_tab,
             SystemTab::Agents | SystemTab::ArchivedChats | SystemTab::TaskWorkflow
-        )
-        || (active_tab == SystemTab::Cron
-            && matches!(
-                app.cron_settings.active_tab,
-                crate::app::state::CronSettingsTab::Jobs
-                    | crate::app::state::CronSettingsTab::History
-            ));
+        );
     #[cfg(not(target_arch = "wasm32"))]
     let owns_scroll = owns_scroll
         || matches!(active_tab, SystemTab::Auth | SystemTab::ComputerControl)
@@ -297,7 +283,7 @@ fn settings_content(app: &App, active_tab: SystemTab) -> Element<'_, Message> {
     let owns_scroll = owns_scroll || active_tab_help_modal_open(app, active_tab);
     desktop_settings_shell::content_page(
         content_column,
-        prompts_page || matches!(active_tab, SystemTab::Cron | SystemTab::TaskWorkflow),
+        prompts_page || active_tab == SystemTab::TaskWorkflow,
         owns_scroll,
     )
 }
@@ -429,10 +415,6 @@ pub fn view(app: &App) -> Element<'_, Message> {
             }
             _ => dialog,
         };
-    }
-
-    if app.navigation_panels.system_settings_tab == SystemTab::Cron {
-        dialog = crate::app::components::system_settings_cron::view_overlays(app, dialog);
     }
 
     dialog = super::system_settings_channels::view_overlays(app, dialog);

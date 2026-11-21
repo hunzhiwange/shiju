@@ -4,6 +4,38 @@ use super::messages::SettingsMessage;
 use desktop_settings_cron::update::cron as domain;
 use iced::Task;
 #[path = "cron_mapping.rs"] pub(super) mod mapping;
+
+pub(crate) fn open_page(app: &mut App) -> Task<Message> {
+    use crate::app::{AppTab, Screen};
+
+    const TAB_ID: &str = "cron";
+    if !app.navigation_tabs.open_tabs.iter().any(|tab| tab.id == TAB_ID) {
+        let i18n = desktop_i18n::I18n::new(app.general_settings.desktop_locale);
+        app.navigation_tabs.open_tabs.push(AppTab {
+            id: TAB_ID.into(),
+            title: i18n.__("定时任务").into(),
+            screen: Screen::Cron,
+            project_path: None,
+        });
+    }
+    let was_visible = crate::app::components::system_settings_cron::visible(app);
+    app.navigation_tabs.active_tab_id = Some(TAB_ID.into());
+    app.navigation_tabs.screen = Screen::Cron;
+    app.navigation_panels.show_system_settings = false;
+    app.mobile_layout.drawer_open = false;
+    app.mobile_layout.mine_open = false;
+    if was_visible {
+        return Task::none();
+    }
+    app.agents_settings.loading = true;
+    Task::batch([
+        update(app, SettingsMessage::CronJobsRefresh),
+        Task::done(Message::Settings(SettingsMessage::Agents(
+            super::messages::AgentsMessage::Refresh,
+        ))),
+    ])
+}
+
 pub fn update(app: &mut App, event: SettingsMessage) -> Task<Message> {
  let delivery = crate::app::components::system_settings_cron::availability(app);
  let mut notices = Vec::new();

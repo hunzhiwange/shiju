@@ -73,7 +73,6 @@ pub fn tabbed_page_owns_save_error(active_tab: SystemTab) -> bool {
     matches!(
         active_tab,
         SystemTab::Models
-            | SystemTab::Cron
             | SystemTab::Agents
             | SystemTab::Channels
             | SystemTab::Memory

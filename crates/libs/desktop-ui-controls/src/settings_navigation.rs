@@ -14,7 +14,6 @@
 /// - `ModelRoutes` - 模型路由设置，配置模式到模型的映射
 /// - `QueryClassification` - 查询模型分类设置，配置匹配规则与模型路由目标
 /// - `Heartbeat` - 心跳设置，配置心跳检测参数
-/// - `Cron` - Cron 设置，配置定时任务
 /// - `Agents` - Agents 设置，配置 researcher / coder / reviewer 等委托代理
 /// - `Reliability` - 可靠性设置，配置容错与恢复机制
 /// - `Channels` - 通道设置，配置 CLI 与外部消息通道
@@ -65,8 +64,6 @@ pub enum SystemTab {
     Providers,
     /// 模型设置标签页
     Models,
-    /// 定时任务配置标签页
-    Cron,
     /// 智能体配置标签页
     Agents,
     /// 通道配置标签页
@@ -121,7 +118,6 @@ impl SystemTab {
             SystemTab::TaskQuickActions => "快捷操作",
             SystemTab::Providers => "提供商",
             SystemTab::Models => "模型",
-            SystemTab::Cron => "定时任务",
             SystemTab::Agents => "智能体",
             SystemTab::Channels => "通道配置",
             SystemTab::Memory => "记忆配置",
@@ -205,7 +201,6 @@ pub fn system_tab_keywords(tab: SystemTab) -> &'static [&'static str] {
             &["providers", "api key", "model", "模型", "密钥", "base url", "catalog"]
         }
         SystemTab::Models => &["models", "llm", "ai", "provider"],
-        SystemTab::Cron => &["cron", "schedule", "task", "自动化"],
         SystemTab::Agents => &["agents", "subagent", "智能体"],
         SystemTab::Channels => &["channels", "message", "通道"],
         SystemTab::Memory => &["memory", "记忆"],
@@ -250,7 +245,7 @@ pub const GROUPS: &[(&str, &[SystemTab])] = {
         ),
         ("模型与智能体", &[Models, Providers, Agents, Memory]),
         ("网络与集成", &[GatewayClient, Gateway, WebSearch]),
-        ("运行与安全", &[Cron, Security, Autonomy, Hooks, Observability]),
+        ("运行与安全", &[Security, Autonomy, Hooks, Observability]),
     ]
 };
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]

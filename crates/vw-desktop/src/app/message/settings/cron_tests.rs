@@ -49,8 +49,7 @@ fn wb_schedule_feedback_save_error_preserves_draft_and_shows_toast() {
 
 fn history_app() -> App {
     let mut app = app();
-    app.navigation_panels.show_system_settings = true;
-    app.navigation_panels.system_settings_tab = crate::app::components::system_settings::SystemTab::Cron;
+    app.navigation_tabs.screen = crate::app::Screen::Cron;
     let _ = update(&mut app, SettingsMessage::CronTabSelected(CronSettingsTab::History));
     app
 }
@@ -66,12 +65,12 @@ fn cron_history_close_and_workspace_change_invalidate_responses() {
     use super::super::cron_history;
     let mut app = history_app();
     let first = app.cron_settings.history.generation;
-    app.navigation_panels.show_system_settings = false;
+    app.navigation_tabs.screen = crate::app::Screen::Project;
     let _ = app.update(Message::None);
     assert!(app.cron_settings.history.generation > first);
     history_loaded(&mut app, first, Ok((history_response(), vec![job("old")])));
     assert!(app.cron_settings.history.runs.is_empty());
-    app.navigation_panels.show_system_settings = true;
+    app.navigation_tabs.screen = crate::app::Screen::Cron;
     let _ = app.update(Message::None);
     let second = app.cron_settings.history.generation;
     app.navigation_tabs.project_path = Some("/other".into());

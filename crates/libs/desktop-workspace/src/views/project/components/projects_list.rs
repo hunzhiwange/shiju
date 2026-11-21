@@ -48,6 +48,7 @@ pub enum Message {
  ShijuApps,
  #[cfg(not(target_arch = "wasm32"))]
  DigitalEmployees,
+ OpenCron,
 }
 pub struct Input<'a> {
  pub recent_projects: &'a [String],
@@ -540,6 +541,16 @@ fn digital_employees_badge_button(i18n: desktop_i18n::I18n) -> Element<'static, 
     )
 }
 
+fn cron_badge_button(i18n: desktop_i18n::I18n) -> Element<'static, Message> {
+    let badge = container(desktop_ui_controls::system_settings_common::icon_svg(
+        desktop_assets::assets::Icon::Clock,
+        20.0,
+    ))
+    .center_x(36)
+    .center_y(36);
+    title_tooltip(navigation_badge(badge, Message::OpenCron), i18n.__("定时任务"), TooltipPosition::Right)
+}
+
 #[cfg(not(target_arch = "wasm32"))]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum ProjectListAction {
@@ -548,25 +559,28 @@ enum ProjectListAction {
     ShijuSkills,
     ShijuApps,
     DigitalEmployees,
+    Cron,
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-const PROJECT_LIST_ACTIONS: [ProjectListAction; 5] = [
+const PROJECT_LIST_ACTIONS: [ProjectListAction; 6] = [
     ProjectListAction::OpenProject,
     ProjectListAction::ExpertHub,
     ProjectListAction::ShijuSkills,
     ProjectListAction::ShijuApps,
     ProjectListAction::DigitalEmployees,
+    ProjectListAction::Cron,
 ];
 
 #[cfg(not(target_arch = "wasm32"))]
-pub fn project_list_action_order() -> [&'static str; 5] {
+pub fn project_list_action_order() -> [&'static str; 6] {
     PROJECT_LIST_ACTIONS.map(|action| match action {
         ProjectListAction::OpenProject => "open_project",
         ProjectListAction::ExpertHub => "expert_hub",
         ProjectListAction::ShijuSkills => "shiju_skills",
         ProjectListAction::ShijuApps => "shiju_apps",
         ProjectListAction::DigitalEmployees => "digital_employees",
+        ProjectListAction::Cron => "cron",
     })
 }
 
@@ -638,12 +652,16 @@ pub fn projects_list<'a>(app: &Input<'_>, collapsed_hover_mode: bool) -> Element
             ProjectListAction::DigitalEmployees => {
                 digital_employees_badge_button(desktop_i18n::I18n::new(app.desktop_locale))
             }
+            ProjectListAction::Cron => {
+                cron_badge_button(desktop_i18n::I18n::new(app.desktop_locale))
+            }
         });
     }
     #[cfg(target_arch = "wasm32")]
     {
         projects_col = projects_col
-            .push(open_project_badge_button(desktop_i18n::I18n::new(app.desktop_locale)));
+            .push(open_project_badge_button(desktop_i18n::I18n::new(app.desktop_locale)))
+            .push(cron_badge_button(desktop_i18n::I18n::new(app.desktop_locale)));
     }
 
     // 包装为可滚动容器，填充可用空间

@@ -19,18 +19,15 @@ async fn cron_list_fills_available_content_width() {
     }
     let mut renderer = renderer().await;
     let mut app = list_fixture();
-    app.navigation_panels.show_system_settings = true;
     app.cron_settings.batch_mode = true;
     let mut widths = Vec::new();
     for width in [1280, 1920] {
-        app.navigation_panels.system_settings_tab = SystemTab::Cron;
         let size = Size::new(width, 900);
-        let mut ui =
-            scene(crate::app::components::system_settings::view(&app), &mut renderer, size);
+        let mut ui = scene(super::super::page(&app), &mut renderer, size);
         let positions = geometry(&mut ui, &renderer);
         let scroll = positions.scroll.unwrap().0;
         let title = positions.label("定时任务配置");
-        assert!(scroll.x >= 300.0 && scroll.x < 350.0, "{scroll:?}");
+        assert!((scroll.x - 7.0).abs() <= 1.0, "{scroll:?}");
         assert!(scroll.x + scroll.width > width as f32 - 50.0, "{scroll:?}");
         assert!((title.x - scroll.x).abs() < 15.0);
         let heading = positions.label("当前任务");
@@ -52,6 +49,7 @@ async fn cron_list_fills_available_content_width() {
             mouse::Cursor::Unavailable,
         );
         drop(ui);
+        app.navigation_panels.show_system_settings = true;
         app.navigation_panels.system_settings_tab = SystemTab::Agents;
         app.agents_settings.active_config_tab = crate::app::state::AgentConfigTab::Heartbeat;
         let mut ui =
@@ -85,8 +83,6 @@ async fn cron_list_render_theme_and_width_matrix() {
         for (width, height) in [(1920, 1080), (1280, 800), (760, 620)] {
             let mut app = list_fixture();
             app.appearance.app_theme = theme.clone();
-            app.navigation_panels.show_system_settings = true;
-            app.navigation_panels.system_settings_tab = SystemTab::Cron;
             app.cron_settings.batch_mode = true;
             let mut job = app.cron_settings.jobs[0].clone();
             job.name = Some("中文长标题巡检任务🧭".repeat(12));
@@ -121,8 +117,7 @@ async fn cron_list_render_theme_and_width_matrix() {
                     other.name = None;
                     app.cron_settings.jobs.push(other);
                 }
-                let mut ui =
-                    scene(crate::app::components::system_settings::view(&app), &mut renderer, size);
+                let mut ui = scene(super::super::page(&app), &mut renderer, size);
                 let positions = geometry(&mut ui, &renderer);
                 assert_single_content_scroll(&positions);
                 let scroll = positions.scroll.unwrap().0;
@@ -131,10 +126,10 @@ async fn cron_list_render_theme_and_width_matrix() {
                     positions.labels.iter().find(|(s, _)| s.starts_with("全部 (")).unwrap().1;
                 assert!((title.x - scroll.x).abs() <= 1.0);
                 assert!((group.x - 14.0 - scroll.x).abs() <= 1.0);
-                // Sidebar, divider and the shared 7px scrollbar gutters.
-                assert!(
-                    (scroll.x - ((width as f32 * 0.24).clamp(112.0, 300.0) + 8.0)).abs() <= 1.0,
-                    "{scroll:?}"
+                assert!((scroll.x - 7.0).abs() <= 1.0, "{scroll:?}");
+                assert_eq!(
+                    positions.labels.iter().any(|(label, _)| label == "试试这些常用任务"),
+                    state == "empty",
                 );
                 assert!(
                     (scroll.x + scroll.width - (width as f32 - 7.0)).abs() <= 1.0,
@@ -195,8 +190,6 @@ async fn cron_list_bulk_footer_stays_visible_when_scrolled() {
     }
     let mut renderer = renderer().await;
     let mut app = list_fixture();
-    app.navigation_panels.show_system_settings = true;
-    app.navigation_panels.system_settings_tab = SystemTab::Cron;
     app.cron_settings.batch_mode = true;
     let base = app.cron_settings.jobs[0].clone();
     app.cron_settings.jobs = (0..30)
@@ -208,8 +201,7 @@ async fn cron_list_bulk_footer_stays_visible_when_scrolled() {
         })
         .collect();
     for size in [Size::new(760, 620), Size::new(1920, 1080)] {
-        let mut ui =
-            scene(crate::app::components::system_settings::view(&app), &mut renderer, size);
+        let mut ui = scene(super::super::page(&app), &mut renderer, size);
         let before = geometry(&mut ui, &renderer);
         assert_single_content_scroll(&before);
         let scroll = before.scroll.unwrap().0;
@@ -244,14 +236,11 @@ async fn cron_list_tabs_and_modals_preserve_width_and_scroll() {
     }
     let mut renderer = renderer().await;
     let mut app = list_fixture();
-    app.navigation_panels.show_system_settings = true;
-    app.navigation_panels.system_settings_tab = SystemTab::Cron;
     for size in [Size::new(760, 620), Size::new(1920, 1080)] {
         let mut left = None;
         for tab in [CronSettingsTab::Jobs, CronSettingsTab::Config, CronSettingsTab::Scheduler] {
             app.cron_settings.active_tab = tab;
-            let mut ui =
-                scene(crate::app::components::system_settings::view(&app), &mut renderer, size);
+            let mut ui = scene(super::super::page(&app), &mut renderer, size);
             let before = geometry(&mut ui, &renderer);
             let title = before.label("定时任务配置");
             assert!((title.x - *left.get_or_insert(title.x)).abs() <= 1.0);
@@ -274,8 +263,8 @@ async fn cron_list_tabs_and_modals_preserve_width_and_scroll() {
             app.cron_settings.runs_modal_job_id = (modal == "history").then(|| "list-job".into());
             app.cron_settings.edit_draft.name = "中文动态任务 🧭".into();
             app.cron_settings.runs_modal_error = Some("中文历史错误：本地示例".into());
-            let mut ui =
-                scene(crate::app::components::system_settings::view(&app), &mut renderer, size);
+            let base = super::super::page(&app);
+            let mut ui = scene(super::super::view_overlays(&app, base), &mut renderer, size);
             let before = geometry(&mut ui, &renderer);
             if matches!(modal, "add" | "edit") {
                 let save = before.label("保存");

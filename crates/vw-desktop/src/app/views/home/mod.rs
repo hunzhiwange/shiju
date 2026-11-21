@@ -21,6 +21,8 @@ pub fn view(app: &App) -> iced::Element<'_, Message> {
                     Message::Project(message::ProjectMessage::OpenFolderPressed),
                 Home::Header(header::Message::OpenProjectPressed) =>
                     Message::Project(message::ProjectMessage::OpenProjectPressed),
+                Home::Header(header::Message::OpenCron) =>
+                    Message::View(message::ViewMessage::OpenCron),
                 Home::Header(header::Message::OpenApps) =>
                     Message::View(message::ViewMessage::OpenApps),
                 Home::Header(header::Message::HomeAppsBarScrollChanged(x)) =>

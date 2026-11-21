@@ -225,7 +225,7 @@ pub fn embedded_view<'a>(app: &ViewData<'a>) -> Element<'a, Message> {
 
 /// 构建独立调度器设置视图。
 ///
-/// 保留该入口供组件测试和嵌入前的调用方使用；系统设置导航会将内容展示在定时任务配置中。
+/// 保留该入口供组件测试和嵌入前的调用方使用；定时任务页使用嵌入式调度器视图。
 pub fn view<'a>(app: &ViewData<'a>) -> Element<'a, Message> {
     let i18n = I18n::new(app.desktop_locale);
     column![

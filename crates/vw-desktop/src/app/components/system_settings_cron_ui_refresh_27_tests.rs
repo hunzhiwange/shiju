@@ -13,7 +13,7 @@ async fn settings_tabs_core_appearance_cron() {
         |scene, app| {
             app.cron_settings.active_tab = CronSettingsTab::Jobs;
             let i18n = I18n::new(app.general_settings.desktop_locale);
-            let labels: Vec<_> = CRON_TABS.iter().map(|tab| i18n.__(tab.label)).collect();
+            let labels: Vec<_> = domain::CRON_TABS.iter().map(|tab| i18n.__(tab.1)).collect();
             assert!(matches!(
                 scene.check(app, view(app), &labels, 3),
                 SettingsMessage::CronTabSelected(CronSettingsTab::Scheduler)

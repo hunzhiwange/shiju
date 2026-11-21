@@ -1,5 +1,4 @@
 //! 桌面壳：投影 Cron 视图输入并映射局部事件，保留跨领域组合。
-use crate::app::components::system_settings_search::SettingsTabDescriptor;
 use crate::app::message::SettingsMessage;
 use crate::app::state::CronSettingsTab;
 use crate::app::{App, Message};
@@ -9,13 +8,6 @@ use desktop_settings_cron::message::{
 use desktop_settings_cron::system_settings_cron as domain;
 use iced::Element;
 pub(crate) mod date_time;
-const fn tab(index: usize) -> SettingsTabDescriptor<CronSettingsTab> {
-    let item = domain::CRON_TABS[index];
-    SettingsTabDescriptor::new(item.0, item.1, item.2)
-}
-pub(super) const CRON_TABS: &[SettingsTabDescriptor<CronSettingsTab>] =
-    &[tab(0), tab(1), tab(2), tab(3), tab(4)];
-
 pub(crate) fn availability(app: &App) -> domain::DeliveryAvailability {
     let c = &app.channels_settings;
     domain::DeliveryAvailability {
@@ -210,7 +202,22 @@ fn map(event: LocalMessage) -> Message {
         }),
     }
 }
-pub fn view(app: &App) -> Element<'_, Message> {
+pub(crate) fn visible(app: &App) -> bool {
+    app.navigation_tabs.screen == crate::app::Screen::Cron
+        && !app.navigation_panels.show_system_settings
+        && (app.mobile_layout.mode() == crate::app::state::LayoutMode::Desktop
+            || !(app.mobile_layout.drawer_open || app.mobile_layout.mine_open))
+}
+
+pub(crate) fn page(app: &App) -> Element<'_, Message> {
+    let owns_scroll = matches!(
+        app.cron_settings.active_tab,
+        CronSettingsTab::Jobs | CronSettingsTab::History | CronSettingsTab::Add
+    );
+    desktop_settings_shell::content_page(iced::widget::column![view(app)], true, owns_scroll)
+}
+
+fn view(app: &App) -> Element<'_, Message> {
     let scheduler = if app.cron_settings.active_tab == CronSettingsTab::Scheduler {
         crate::app::components::system_settings_scheduler::embedded_view(app)
     } else {

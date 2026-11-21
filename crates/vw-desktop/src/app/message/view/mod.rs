@@ -111,6 +111,7 @@ pub enum ViewMessage {
     /// # 参数
     /// - 标签页标识，指定要打开的系统设置标签
     OpenAcpSettings,
+    OpenCron,
     OpenSystemSettingsTab(crate::app::components::system_settings::SystemTab),
     /// 打开系统设置中的模型详情页
     ///
@@ -665,7 +666,7 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
     if matches!(&message,
         ViewMessage::WorkspaceModeSelected(_) | ViewMessage::WorkProjectHome
         | ViewMessage::ToggleSystemSettings | ViewMessage::TaskPetOpenSettings
-        | ViewMessage::OpenAcpSettings | ViewMessage::OpenSystemSettingsTab(_)
+        | ViewMessage::OpenAcpSettings | ViewMessage::OpenCron | ViewMessage::OpenSystemSettingsTab(_)
         | ViewMessage::OpenSystemSettingsModelDetail(_, _)
         | ViewMessage::GoHome | ViewMessage::TabSelected(_) | ViewMessage::TabClosed(_)) {
         app.usage_center.close();
@@ -707,6 +708,7 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
             | ViewMessage::ToggleSystemSettings
             | ViewMessage::TaskPetOpenSettings
             | ViewMessage::OpenAcpSettings
+            | ViewMessage::OpenCron
             | ViewMessage::OpenSystemSettingsTab(_)
             | ViewMessage::OpenSystemSettingsModelDetail(_, _)
             | ViewMessage::GoHome
@@ -951,6 +953,7 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
                 input,
             }))
         }
+        ViewMessage::OpenCron => crate::app::message::settings::open_cron_page(app),
         // 面板相关消息：包括设置面板、系统设置、菜单、弹窗、工具窗口等
         // 这些消息统一委托给 panel 子模块处理
         ViewMessage::ToggleSettingsPanel

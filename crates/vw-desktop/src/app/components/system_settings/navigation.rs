@@ -68,7 +68,6 @@ fn search_target_is_active(app: &App, target: SystemSettingsSearchTarget) -> boo
             page: app.navigation_panels.system_settings_tab,
             general: app.general_settings.general_settings_tab,
             models: app.model_settings.active_tab,
-            cron: app.cron_settings.active_tab,
             agents: app.agents_settings.active_config_tab,
             channels: app.channels_settings.active_tab,
             memory: app.memory_settings.active_tab,

@@ -22,7 +22,7 @@ pub(super) use desktop_settings_shell::search::navigation_label;
 pub fn catalog(app: &App) -> Vec<SystemSettingsSearchEntry> {
     use crate::app::components::{
         system_settings_agents, system_settings_autonomy, system_settings_channels,
-        system_settings_cron, system_settings_gateway, system_settings_general,
+        system_settings_gateway, system_settings_general,
         system_settings_mcp, system_settings_memory, system_settings_models,
         system_settings_network, system_settings_security, system_settings_skills,
     };
@@ -53,7 +53,6 @@ pub fn catalog(app: &App) -> Vec<SystemSettingsSearchEntry> {
 
     extend_tabs!(system_settings_general::GENERAL_TABS, "常规设置", General);
     extend_tabs!(system_settings_models::MODEL_TABS, "模型", Models);
-    extend_tabs!(system_settings_cron::CRON_TABS, "定时任务", Cron);
     extend_tabs!(system_settings_agents::AGENT_CONFIG_TABS, "智能体", Agents);
     let channel_tabs = system_settings_channels::channel_tab_descriptors();
     extend_tabs!(channel_tabs, "智能体 / 通道", Channels);

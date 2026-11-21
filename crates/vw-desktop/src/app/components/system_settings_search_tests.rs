@@ -35,7 +35,6 @@ fn catalog_extracts_unique_navigable_child_tabs_and_scoped_keywords() {
     }
     assert_target_count!(SystemSettingsSearchTarget::General(_), 4);
     assert_target_count!(SystemSettingsSearchTarget::Models(_), 4);
-    assert_target_count!(SystemSettingsSearchTarget::Cron(_), 4);
     assert_target_count!(SystemSettingsSearchTarget::Agents(_), 11);
     assert_target_count!(
         SystemSettingsSearchTarget::Channels(_),

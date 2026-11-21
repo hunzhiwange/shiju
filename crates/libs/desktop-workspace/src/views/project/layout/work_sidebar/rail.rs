@@ -48,7 +48,7 @@ pub(super) fn view(app: &ViewInput<'_>) -> Element<'static, Message> {
             i18n,
             "定时任务",
             Icon::Clock,
-            Some(Message::View(ViewMessage::OpenSystemSettingsTab(SystemTab::Cron))),
+            Some(Message::View(ViewMessage::OpenCron)),
         ))
         .push(more_control(app, i18n))
         .push(container(more_menu_divider()).width(Length::Fixed(24.0)))

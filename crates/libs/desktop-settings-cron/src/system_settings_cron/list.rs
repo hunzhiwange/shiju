@@ -357,6 +357,9 @@ pub fn jobs_tab<'a>(app: &ViewData<'a>) -> Element<'a, Message> {
     } else if s.jobs.is_empty() {
         cards =
             cards.push(text(tr.__("当前没有定时任务。")).size(13).style(settings_muted_text_style));
+        if s.save_error.is_none() {
+            cards = cards.push(super::templates::view());
+        }
     } else if s.visible_jobs().next().is_none() {
         cards =
             cards.push(text(tr.__("当前分组暂无任务")).size(13).style(settings_muted_text_style));
@@ -373,7 +376,6 @@ pub fn jobs_tab<'a>(app: &ViewData<'a>) -> Element<'a, Message> {
             cards = cards.push(line);
         }
     }
-    cards = cards.push(super::templates::view());
     let list = scrollable(container(cards).padding([0, 7]).width(Length::Fill))
         .direction(Direction::Vertical(Scrollbar::new().width(4).scroller_width(4)))
         .height(Length::Fill);

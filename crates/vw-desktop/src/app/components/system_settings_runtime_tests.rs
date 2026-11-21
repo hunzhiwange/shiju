@@ -474,8 +474,6 @@ mod rollout {
         }
         let mut renderer = renderer().await;
         let mut app = App::new().0;
-        app.navigation_panels.show_system_settings = true;
-        app.navigation_panels.system_settings_tab = SystemTab::Cron;
         app.cron_settings.active_tab = CronSettingsTab::Scheduler;
         app.scheduler_settings.enabled = false;
         app.scheduler_settings.max_tasks = 63;
@@ -484,7 +482,7 @@ mod rollout {
             app.general_settings.desktop_locale = locale;
             app.appearance.app_theme = theme.clone();
             let size = Size::new(width, 980);
-            let mut ui = scene(system_settings::view(&app), &mut renderer, size);
+            let mut ui = scene(crate::app::components::system_settings_cron::page(&app), &mut renderer, size);
             let positions = geometry(&mut ui, &renderer);
             let recommendation = runtime_text(
                 locale,

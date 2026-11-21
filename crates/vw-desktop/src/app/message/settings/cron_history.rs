@@ -5,7 +5,8 @@ use iced::Task;
 pub use desktop_settings_cron::message::HistoryMessage as CronHistoryMessage;
 use super::cron::mapping;
 pub(crate) fn visible(app: &App) -> bool {
- app.navigation_panels.show_system_settings && app.navigation_panels.system_settings_tab == crate::app::components::system_settings::SystemTab::Cron && app.cron_settings.active_tab == CronSettingsTab::History
+    crate::app::components::system_settings_cron::visible(app)
+        && app.cron_settings.active_tab == CronSettingsTab::History
 }
 fn task(app: &mut App, event: Option<CronHistoryMessage>) -> Task<Message> {
  use desktop_settings_cron::update::{cron, history};

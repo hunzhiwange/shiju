@@ -191,7 +191,7 @@ pub(super) fn navigation_section(app: &ViewInput<'_>) -> Element<'static, Messag
         desktop_i18n::I18n::new(app.desktop_locale),
         specs[6].0,
         specs[6].1,
-        Message::View(ViewMessage::OpenSystemSettingsTab(SystemTab::Cron)),
+        Message::View(ViewMessage::OpenCron),
         specs[6].2,
     ));
     #[cfg(not(target_arch = "wasm32"))]

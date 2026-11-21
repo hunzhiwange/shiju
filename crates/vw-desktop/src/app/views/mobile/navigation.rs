@@ -44,7 +44,14 @@ fn session_row(label: &str, message: ViewMessage, selected: bool) -> Element<'st
 }
 
 pub fn view(app: &App) -> Element<'_, Message> {
-    let mut items = column![].spacing(6).width(Length::Fill);
+    let i18n = desktop_i18n::I18n::new(app.general_settings.desktop_locale);
+    let mut items = column![session_row(
+        i18n.__("定时任务"),
+        ViewMessage::OpenCron,
+        app.navigation_tabs.screen == crate::app::Screen::Cron,
+    )]
+    .spacing(6)
+    .width(Length::Fill);
     // 主操作仅使用已有项目，避免移动端新增第二条项目创建流程。
     if let Some(path) = app
         .navigation_tabs

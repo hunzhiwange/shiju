@@ -51,13 +51,6 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
             app.apps_catalog.daily_memory.invalidate();
             app.apps_catalog.hermes_memory.invalidate();
             app.apps_catalog.project_profiles.invalidate();
-            if app.cron_settings.add_draft.submitting || app.cron_settings.edit_draft.submitting {
-                return Task::none();
-            }
-            if app.cron_settings.show_add_modal || app.cron_settings.editing_job_id.is_some() {
-                let _ = super::cron::update(app, SettingsMessage::CronJobEditCanceled);
-            }
-            app.cron_settings.show_cron_templates = false;
             if app.navigation_panels.system_settings_tab == SystemTab::Worktrees {
                 super::worktrees::recovery::invalidate(app);
             }
@@ -126,13 +119,6 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
                 app.model_settings.loading = true;
                 app.model_settings.save_error = None;
                 models_refresh_task()
-            } else if tab == SystemTab::Cron {
-                app.cron_settings.save_error = None;
-                app.agents_settings.loading = true;
-                Task::batch(vec![
-                    Task::done(Message::Settings(SettingsMessage::CronJobsRefresh)),
-                    Task::done(Message::Settings(SettingsMessage::Agents(AgentsMessage::Refresh))),
-                ])
             } else if tab == SystemTab::Runtime {
                 app.runtime_settings.save_error = None;
                 Task::done(Message::Settings(SettingsMessage::Runtime(RuntimeMessage::Refresh)))
@@ -203,9 +189,6 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
                     app,
                     SettingsMessage::ModelConfigTab(ModelConfigTabMessage::Selected(tab)),
                 ),
-                SystemSettingsSearchTarget::Cron(tab) => {
-                    super::cron::update(app, SettingsMessage::CronTabSelected(tab))
-                }
                 SystemSettingsSearchTarget::Agents(tab) => update(
                     app,
                     SettingsMessage::AgentConfigTab(AgentConfigTabMessage::Selected(tab)),

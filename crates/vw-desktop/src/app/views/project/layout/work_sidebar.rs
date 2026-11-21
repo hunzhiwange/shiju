@@ -32,7 +32,8 @@ e::ProjectMessage::SwitchWorkSpacePressed(v0) => crate::app::message::ProjectMes
 e::Message::View(event) => Message::View(match event {
 e::ViewMessage::OpenApps => crate::app::message::ViewMessage::OpenApps,
 e::ViewMessage::OpenKnowledge => crate::app::message::ViewMessage::OpenKnowledge,
-e::ViewMessage::OpenSystemSettingsTab(v0) => crate::app::message::ViewMessage::OpenSystemSettingsTab(match v0 {e::SystemTab::Agents => crate::app::components::system_settings::SystemTab::Agents,e::SystemTab::Cron => crate::app::components::system_settings::SystemTab::Cron,e::SystemTab::Projects => crate::app::components::system_settings::SystemTab::Projects,}),
+e::ViewMessage::OpenCron => crate::app::message::ViewMessage::OpenCron,
+e::ViewMessage::OpenSystemSettingsTab(v0) => crate::app::message::ViewMessage::OpenSystemSettingsTab(match v0 {e::SystemTab::Agents => crate::app::components::system_settings::SystemTab::Agents,e::SystemTab::Projects => crate::app::components::system_settings::SystemTab::Projects,}),
 e::ViewMessage::OpenWorkflowTool => crate::app::message::ViewMessage::OpenWorkflowTool,
 e::ViewMessage::ProjectFileNewProject => crate::app::message::ViewMessage::ProjectFileNewProject,
 e::ViewMessage::ProjectFileNewSession => crate::app::message::ViewMessage::ProjectFileNewSession,

@@ -1,7 +1,6 @@
 use crate::{GeneralSettingsTab, SystemTab, general_fields::GeneralSettingField};
 use desktop_settings_agents::agents_state::AgentConfigTab;
 use desktop_settings_channels::state::ChannelsSettingsTab;
-use desktop_settings_cron::state::CronSettingsTab;
 use desktop_settings_mcp::state::McpSettingsTab;
 use desktop_settings_memory::state::MemorySettingsTab;
 use desktop_settings_network::state::GatewaySettingsTab;
@@ -18,7 +17,6 @@ pub enum SystemSettingsSearchTarget {
     General(GeneralSettingsTab),
     GeneralField(&'static GeneralSettingField),
     Models(ModelConfigTab),
-    Cron(CronSettingsTab),
     Agents(AgentConfigTab),
     Channels(ChannelsSettingsTab),
     Memory(MemorySettingsTab),
@@ -37,7 +35,6 @@ impl SystemSettingsSearchTarget {
             Self::ThirdParty(_) => SystemTab::Apps,
             Self::General(_) | Self::GeneralField(_) => SystemTab::General,
             Self::Models(_) => SystemTab::Models,
-            Self::Cron(_) => SystemTab::Cron,
             Self::Agents(_) | Self::Channels(_) | Self::AgentMcp(_) | Self::AgentSkills(_) => {
                 SystemTab::Agents
             }
@@ -75,7 +72,6 @@ pub struct ActiveNavigation {
     pub page: SystemTab,
     pub general: GeneralSettingsTab,
     pub models: ModelConfigTab,
-    pub cron: CronSettingsTab,
     pub agents: AgentConfigTab,
     pub channels: ChannelsSettingsTab,
     pub memory: MemorySettingsTab,
@@ -101,7 +97,6 @@ pub fn search_target_is_active(
         SystemSettingsSearchTarget::Models(tab) => {
             state.page == SystemTab::Models && state.models == tab
         }
-        SystemSettingsSearchTarget::Cron(tab) => state.page == SystemTab::Cron && state.cron == tab,
         SystemSettingsSearchTarget::Agents(tab) => {
             state.page == SystemTab::Agents && state.agents == tab
         }

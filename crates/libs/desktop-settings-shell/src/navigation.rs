@@ -175,7 +175,6 @@ fn tab_icon(tab: SystemTab) -> Icon {
         SystemTab::Models => Icon::Hexagon,
         SystemTab::Agents => Icon::Robot,
         SystemTab::Channels => Icon::ChatTextFill,
-        SystemTab::Cron => Icon::Clock,
         SystemTab::Memory => Icon::Journals,
         SystemTab::GatewayClient => Icon::Link,
         SystemTab::Gateway => Icon::HddNetwork,

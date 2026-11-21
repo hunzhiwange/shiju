@@ -26,6 +26,8 @@ pub fn view(app: &App) -> Element<'_, Message> {
         "项目"
     } else if app.navigation_panels.show_system_settings {
         "设置"
+    } else if app.navigation_tabs.screen == Screen::Cron {
+        desktop_i18n::I18n::new(app.general_settings.desktop_locale).__("定时任务")
     } else {
         "会话"
     };
@@ -36,6 +38,8 @@ pub fn view(app: &App) -> Element<'_, Message> {
         navigation::view(app)
     } else if app.navigation_panels.show_system_settings {
         settings::view(app)
+    } else if app.navigation_tabs.screen == Screen::Cron {
+        crate::app::components::system_settings_cron::page(app)
     } else if matches!(app.navigation_tabs.screen, Screen::Home | Screen::Project) {
         chat::view(app)
     } else {
@@ -107,7 +111,10 @@ fn bottom_navigation(app: &App) -> Element<'_, Message> {
                 get_icon(Icon::ChatTextFill),
                 "会话",
                 ViewMessage::MobileChat,
-                !mine && !project && !settings
+                !mine
+                    && !project
+                    && !settings
+                    && app.navigation_tabs.screen != Screen::Cron
             ),
             bottom_tab(
                 get_icon(Icon::FolderClosed),

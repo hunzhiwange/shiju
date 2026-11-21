@@ -19,6 +19,7 @@ pub enum ViewMessage {
 OpenApps,
 OpenKnowledge,
 OpenSystemSettingsTab(SystemTab),
+OpenCron,
 OpenWorkflowTool,
 ProjectFileNewProject,
 ProjectFileNewSession,
@@ -60,7 +61,6 @@ ToggleBoard,
 #[derive(Debug, Clone)]
 pub enum SystemTab {
 Agents,
-Cron,
 Projects,
 }
 #[derive(Debug, Clone)]

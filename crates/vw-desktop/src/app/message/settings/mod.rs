@@ -16,6 +16,7 @@ mod channels;
 #[cfg(not(target_arch = "wasm32"))]
 pub(crate) mod computer_control;
 mod cron;
+pub(crate) use cron::open_page as open_cron_page;
 pub(crate) mod cron_history;
 pub(crate) mod backup_inventory;
 mod dialogue_flow;

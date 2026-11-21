@@ -459,7 +459,7 @@ fn detect_newly_installed_directory(
 /// - `Ok(SkillAuditReport)` - 审计通过，返回审计报告
 /// - `Err(...)` - 审计未通过，包含详细的失败原因
 #[cfg(not(target_arch = "wasm32"))]
-fn enforce_skill_security_audit(
+pub(crate) fn enforce_skill_security_audit(
     skill_path: &Path,
     security: &SkillSecurityConfig,
 ) -> Result<audit::SkillAuditReport> {
@@ -525,7 +525,7 @@ fn remove_git_metadata(skill_path: &Path) -> Result<()> {
 /// - 目录中的条目是符号链接：拒绝复制
 /// - 文件操作失败（权限、磁盘空间等）
 #[cfg(not(target_arch = "wasm32"))]
-fn copy_dir_recursive_secure(src: &Path, dest: &Path) -> Result<()> {
+pub(crate) fn copy_dir_recursive_secure(src: &Path, dest: &Path) -> Result<()> {
     // 获取源路径的元数据（不跟随符号链接）
     let src_meta = std::fs::symlink_metadata(src)
         .with_context(|| format!("failed to read metadata for {}", src.display()))?;

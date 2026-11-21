@@ -54,7 +54,45 @@ pub(super) fn message(event: Event) -> Message {
     })
 }
 pub(super) fn view(app: &App) -> iced::Element<'_, Message> {
-    desktop_settings_skills::browser::view(context(app)).map(message)
+    let catalog = desktop_settings_skills::browser::view(context(app)).map(message);
+    #[cfg(not(target_arch = "wasm32"))]
+    if crate::app::config::gateway_client_endpoint().is_loopback() {
+        use desktop_i18n::settings_extensions::text as tr;
+        use desktop_ui_controls::system_settings_common::{
+            rounded_action_btn_style, settings_muted_text_style,
+        };
+        use iced::widget::{button, column, row, text};
+
+        let locale = app.general_settings.desktop_locale;
+        let busy = app.skills_settings.local_import_busy;
+        let action = |label, event| {
+            button(text(tr(locale, label)))
+                .padding([8, 12])
+                .style(rounded_action_btn_style)
+                .on_press_maybe((!busy).then_some(Message::Settings(event)))
+        };
+        let destination = if busy {
+            "正在导入技能…"
+        } else if app.navigation_tabs.project_path.is_some() {
+            "导入到当前项目"
+        } else {
+            "导入到全局技能目录"
+        };
+        return column![
+            row![
+                action("从 ZIP 导入", SettingsMessage::SkillsImportZip),
+                action("从文件夹导入", SettingsMessage::SkillsImportFolder),
+                text(tr(locale, destination)).size(12).style(settings_muted_text_style),
+            ]
+            .spacing(8)
+            .align_y(iced::Alignment::Center)
+            .wrap(),
+            catalog,
+        ]
+        .spacing(12)
+        .into();
+    }
+    catalog
 }
 pub(super) fn discovery_order_view(app: &App) -> iced::Element<'_, Message> {
     desktop_settings_skills::browser::discovery_order_view(context(app)).map(message)

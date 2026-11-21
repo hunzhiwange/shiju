@@ -18,6 +18,8 @@ pub struct ConfigContext<'a> {
 pub enum Message {
     None,
     HelpOpen,
+    #[cfg(not(target_arch = "wasm32"))]
+    OpenSkillList,
     RepositoriesOpen,
     ClaudeOpen,
     MarketOpen,
@@ -136,6 +138,14 @@ pub fn view<'a, M: Clone + 'static>(
     use iced::Alignment;
     use iced::widget::{container, row};
     let help_btn = settings_help_button_with_locale(app.desktop_locale, map(Message::HelpOpen));
+    let actions = row![].spacing(8).align_y(Alignment::Center);
+    #[cfg(not(target_arch = "wasm32"))]
+    let actions = actions.push(
+        iced::widget::button(iced::widget::text(tr(app.desktop_locale, "技能列表")).size(14))
+            .padding([6, 10])
+            .style(rounded_action_btn_style)
+            .on_press(map(Message::OpenSkillList)),
+    );
     let mut page = column![
         row![
             container(
@@ -146,14 +156,14 @@ pub fn view<'a, M: Clone + 'static>(
                     iced::widget::text(tr(app.desktop_locale, "技能配置")).size(28),
                     tr(
                         app.desktop_locale,
-                        "技能、发现顺序与系统配置分开展示；技能页只保留浏览和搜索。"
+                        "浏览、搜索和导入技能，查看发现顺序并调整系统配置。"
                     )
                     .into(),
                 )
                 .wrap()
             )
             .width(Length::Fill),
-            help_btn,
+            actions.push(help_btn),
         ]
         .align_y(Alignment::Start)
         .wrap(),

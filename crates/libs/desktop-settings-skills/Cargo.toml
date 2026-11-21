@@ -8,6 +8,7 @@ license = "MIT"
 doctest = false
 
 [dependencies]
+config-runtime-paths = { path = "../config-runtime-paths" }
 config-ui = { path = "../config-ui" }
 config-skills = { path = "../config-skills" }
 desktop-i18n = { path = "../desktop-i18n" }
@@ -31,7 +32,6 @@ rfd = { version = "0.17", features = ["file-handle-inner"] }
 vw-api-transport = { path = "../api-transport" }
 
 [dev-dependencies]
-config-runtime-paths = { path = "../config-runtime-paths" }
 desktop-chat-view = { path = "../desktop-chat-view" }
 iced_runtime = "0.14"
 image = "0.25"

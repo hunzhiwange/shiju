@@ -333,7 +333,7 @@ struct SignedPayload {
     skill_version: String,
 }
 
-fn ensure_target_absent(target: &Path) -> Result<()> {
+pub(crate) fn ensure_target_absent(target: &Path) -> Result<()> {
     match fs::symlink_metadata(target) {
         Ok(_) => bail!("skill market install target already exists: {}", target.display()),
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(()),
@@ -342,7 +342,7 @@ fn ensure_target_absent(target: &Path) -> Result<()> {
     }
 }
 
-fn ensure_skills_root(skills_root: &Path) -> Result<()> {
+pub(crate) fn ensure_skills_root(skills_root: &Path) -> Result<()> {
     if let Some(parent) = skills_root.parent()
         && let Ok(metadata) = fs::symlink_metadata(parent)
         && metadata.file_type().is_symlink()

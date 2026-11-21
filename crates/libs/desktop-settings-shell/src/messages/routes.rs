@@ -233,6 +233,9 @@ impl<SettingsTab, SearchTarget, AppsCatalog, AppProviders>
         | SettingsMessage::SkillsDetailLoaded { .. }
         | SettingsMessage::SkillsQueryChanged(_)
         | SettingsMessage::SkillsDirectoryScopeChanged(_)
+        | SettingsMessage::SkillsImportZip
+        | SettingsMessage::SkillsImportFolder
+        | SettingsMessage::SkillsLocalImportCompleted { .. }
         | SettingsMessage::SkillsCreateNewRequested
         | SettingsMessage::SkillsCreateNewCompleted(_)
         | SettingsMessage::SkillsCopyInstallCommand

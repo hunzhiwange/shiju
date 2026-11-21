@@ -249,7 +249,7 @@ pub fn load_skill_directory(
 /// # 清单结构
 ///
 /// TOML 清单应包含 `[skill]` 节定义元数据，可选包含 `[[tools]]` 和 `[[prompts]]` 节。
-fn load_skill_toml(path: &Path, load_mode: SkillLoadMode) -> Result<Skill> {
+pub(crate) fn load_skill_toml(path: &Path, load_mode: SkillLoadMode) -> Result<Skill> {
     let content = std::fs::read_to_string(path)?;
 
     match load_mode {

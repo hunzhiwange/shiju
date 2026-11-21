@@ -18,6 +18,7 @@ pub(crate) mod market_view;
 pub(crate) mod repo_modal;
 pub(crate) mod deeplink;
 pub(crate) mod import_modal;
+mod local_import;
 pub(crate) mod claude_view;
 pub(crate) mod bindings_view;
 pub(crate) mod storage_modal;
@@ -107,6 +108,15 @@ fn plugin_delete_task(plugin_id: String) -> Task<Message> {
 }
 
 pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
+    match message {
+        SettingsMessage::SkillsImportZip | SettingsMessage::SkillsImportFolder => {
+            return local_import::pick(app, matches!(message, SettingsMessage::SkillsImportZip));
+        }
+        SettingsMessage::SkillsLocalImportCompleted { project, result } => {
+            return local_import::complete(app, project, result);
+        }
+        _ => {}
+    }
     if let SettingsMessage::SkillsBackups(event) = message {
         return backup_modal::update(app, event);
     }

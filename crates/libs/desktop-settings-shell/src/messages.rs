@@ -501,6 +501,12 @@ pub enum SettingsMessage<SettingsTab, SearchTarget, AppsCatalog, AppProviders> {
     },
     SkillsQueryChanged(String),
     SkillsDirectoryScopeChanged(desktop_settings_skills::types::SkillsDirectoryScope),
+    SkillsImportZip,
+    SkillsImportFolder,
+    SkillsLocalImportCompleted {
+        project: Option<String>,
+        result: Result<Option<(usize, Vec<String>)>, String>,
+    },
     SkillsCreateNewRequested,
     SkillsCreateNewCompleted(Result<String, String>),
     SkillsCopyInstallCommand,

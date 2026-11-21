@@ -23,6 +23,7 @@ pub struct State {
     pub directory_scope: SkillsDirectoryScope,
     /// 技能目录是否正在通过 gateway 加载
     pub loading: bool,
+    pub local_import_busy: bool,
     /// 当前展示的技能目录项
     pub catalog: Vec<SkillsCatalogItem>,
     /// 当前展示的插件目录项
@@ -76,6 +77,7 @@ impl Default for State {
             query: String::new(),
             directory_scope: SkillsDirectoryScope::Project,
             loading: false,
+            local_import_busy: false,
             catalog: Vec::new(),
             plugin_catalog: Vec::new(),
             plugin_install: None,

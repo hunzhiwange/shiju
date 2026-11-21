@@ -29,6 +29,13 @@ fn page_message(event: desktop_settings_skills::page::Message) -> Message {
     use desktop_settings_skills::page::Message as Ui;
     Message::Settings(match event {
         Ui::HelpOpen => message::SettingsMessage::SkillsHelpOpen,
+        #[cfg(not(target_arch = "wasm32"))]
+        Ui::OpenSkillList => {
+            return Message::Batch(vec![
+                Message::View(message::ViewMessage::ToggleSystemSettings),
+                Message::SkillHub(message::SkillHubMessage::OpenShijuSkills),
+            ]);
+        }
         Ui::RepositoriesOpen => message::SettingsMessage::SkillRepositories(
             crate::app::message::settings::skills::repo_modal::Event::Open,
         ),

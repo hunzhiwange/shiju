@@ -244,6 +244,7 @@ fn select<'a>(
 
 fn department_filter(center: &Center) -> Item<'_> {
     const ALL: &str = "全部可查看部门";
+    const WIDTH: f32 = 248.0;
     let Some(departments) = center.departments.as_deref() else {
         return if center.department_error {
             action("部门目录读取失败，重试", None, Some(message(E::LoadDepartments)), false)
@@ -272,7 +273,7 @@ fn department_filter(center: &Center) -> Item<'_> {
         .align_y(Alignment::Center)
         .height(Length::Fill),
     )
-    .width(176)
+    .width(WIDTH)
     .height(SETTINGS_CONTROL_HEIGHT)
     .padding([9, 12])
     .style(move |theme, status| {
@@ -336,7 +337,7 @@ fn department_filter(center: &Center) -> Item<'_> {
         .direction(Direction::Vertical(scrollbar()))
         .height(Length::Shrink);
     let menu = container(column![search, container(list).max_height(232)].spacing(5))
-        .width(240)
+        .width(WIDTH)
         .padding(7)
         .style(|theme| {
             let style = settings_pick_list_menu_style(theme);

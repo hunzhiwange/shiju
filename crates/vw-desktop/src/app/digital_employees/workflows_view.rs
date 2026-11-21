@@ -91,11 +91,11 @@ fn filters<'a>(
         settings_select(departments, Some(state.department.clone()), |value| {
             message(ListEvent::Department(value))
         })
-        .width(180),
+        .width(248),
         settings_select([Sort::Updated, Sort::Name, Sort::Runs], Some(state.sort), |value| {
             message(ListEvent::Sort(value))
         })
-        .width(164),
+        .width(216),
         label(
             active.map_or_else(|| "执行中任务 —".to_owned(), |count| format!("执行中任务 {count}")),
             12,

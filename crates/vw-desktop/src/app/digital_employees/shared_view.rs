@@ -169,7 +169,7 @@ fn filters<'a>(
         settings_select(departments, Some(Department(state.department.clone())), |option| {
             message(ListEvent::Department(option.0))
         })
-        .width(192);
+        .width(248);
     let runtime = settings_select(
         [Runtime::All, Runtime::OnDuty, Runtime::Abnormal],
         Some(state.runtime),
@@ -178,7 +178,7 @@ fn filters<'a>(
     .width(128);
     let search = settings_text_input("搜索名称、岗位或能力", &state.query)
         .width(if width >= 660.0 {
-            Length::Fixed((width - 430.0).min(340.0))
+            Length::Fixed((width - 486.0).min(340.0))
         } else {
             Length::Fill
         })

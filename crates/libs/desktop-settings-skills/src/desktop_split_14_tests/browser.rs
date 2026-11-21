@@ -1,6 +1,6 @@
 //! 验证技能浏览器的目录作用域、路径契约、搜索样式和详情状态。
 //!
-//! 技能来源覆盖全局、项目和多种目录提供商，用于约束作用域判定与路径展示。
+//! 覆盖全局与项目技能的作用域判定和路径展示。
 
 // 保留计划任务 819 的既定覆盖面。
 const SOURCE: &str = concat!(
@@ -23,7 +23,6 @@ use crate::types::{
     SkillsCatalogItem, SkillsCatalogKind, SkillsDirectoryScope, SkillsSelectedDetail,
 };
 use crate::{BrowserContext, BrowserState, Event as Message};
-use config_skills::SkillsDirectoryProvider;
 use iced::advanced::widget::Tree;
 
 pub(super) fn help<'a, E>(
@@ -52,7 +51,6 @@ impl Default for Fixture {
     }
 }
 struct State {
-    directory_provider: config_skills::SkillsDirectoryProvider,
     query: String,
     directory_scope: SkillsDirectoryScope,
     loading: bool,
@@ -67,7 +65,6 @@ struct State {
 impl Default for State {
     fn default() -> Self {
         Self {
-            directory_provider: config_skills::SkillsDirectoryProvider::Vibewindow,
             query: String::new(),
             directory_scope: SkillsDirectoryScope::All,
             loading: false,
@@ -91,7 +88,6 @@ impl Fixture {
             project_path: &self.project_path,
             recent_projects: &self.recent_projects,
             skills_settings: BrowserState {
-                directory_provider: s.directory_provider,
                 query: &s.query,
                 directory_scope: s.directory_scope,
                 loading: s.loading,
@@ -183,24 +179,25 @@ fn source_declares_symbol(name: &str) -> bool {
 #[test]
 fn discovery_order_text_distinguishes_project_context() {
     let mut app = app();
-    app.skills_settings.directory_provider = SkillsDirectoryProvider::Codex;
+    let global = format!("~/{}/skills, ~/.skills", config_runtime_paths::HOME_CONFIG_DIR_NAME);
 
     assert_eq!(
         discovery_order_text(app.context()),
-        "未打开项目时，仅显示 ~/.codex/skills, ~/.agents/skills 与内置技能。"
+        format!("未打开项目时，仅显示 {global} 与内置技能。")
     );
 
     app.project_path = Some("/workspace/demo".to_string());
     assert_eq!(
         discovery_order_text(app.context()),
-        "发现顺序：/workspace/demo/.codex/skills, .agents/skills, skills -> 父级 .codex/skills, .agents/skills, skills -> ~/.codex/skills, ~/.agents/skills"
+        format!(
+            "发现顺序：/workspace/demo/.shiju/skills, skills, .agents/skills -> 父级 .shiju/skills, skills, .agents/skills -> {global}"
+        )
     );
 }
 
 #[test]
 fn discovery_order_view_builds_for_closed_and_open_project() {
     let mut app = app();
-    app.skills_settings.directory_provider = SkillsDirectoryProvider::Claude;
     let _ = discovery_order_view(app.context());
 
     app.project_path = Some("/workspace/demo".to_string());
@@ -346,7 +343,6 @@ fn overlays_build_for_base_loading_and_each_detail_source() {
 #[test]
 fn browser_view_builds_empty_loading_status_and_grouped_catalog_states() {
     let mut app = app();
-    app.skills_settings.directory_provider = SkillsDirectoryProvider::Codex;
 
     for scope in [
         SkillsDirectoryScope::Project,

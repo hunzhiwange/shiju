@@ -68,7 +68,6 @@ fn context(app: &Fixture) -> crate::BrowserContext<'_> {
         project_path: &app.project_path,
         recent_projects: &app.recent_projects,
         skills_settings: crate::BrowserState {
-            directory_provider: s.directory_provider,
             query: &s.query,
             directory_scope: s.directory_scope,
             loading: s.loading,
@@ -89,7 +88,6 @@ fn config_context(app: &Fixture) -> crate::page::ConfigContext<'_> {
         help,
         desktop_locale: app.desktop_locale,
         app_theme: &app.app_theme,
-        directory_provider: s.directory_provider,
         auto_load_project_skills: s.auto_load_project_skills,
         prompt_injection_mode: s.prompt_injection_mode,
     }

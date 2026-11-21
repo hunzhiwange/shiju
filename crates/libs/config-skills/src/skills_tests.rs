@@ -8,11 +8,10 @@ fn task_631_test_module_is_wired() {
     assert!(path.ends_with("skills_tests.rs"));
 }
 
-// 默认只读取 ShiJu 技能目录，额外注入能力需显式开启。
+// 项目技能默认加载，提示使用紧凑模式。
 #[test]
-fn skills_config_defaults_to_vibewindow_directory_provider() {
+fn skills_config_defaults_to_project_auto_load_and_compact_mode() {
     let config = super::SkillsConfig::default();
-    assert_eq!(config.directory_provider, super::SkillsDirectoryProvider::Vibewindow);
     assert!(config.auto_load_project_skills);
     assert_eq!(config.prompt_injection_mode, super::SkillsPromptInjectionMode::Compact);
 
@@ -22,11 +21,10 @@ fn skills_config_defaults_to_vibewindow_directory_provider() {
     keys.sort_unstable();
     assert_eq!(
         keys,
-        ["auto_load_project_skills", "directory_provider", "prompt_injection_mode", "security"]
+        ["auto_load_project_skills", "prompt_injection_mode", "security"]
     );
 
     let parsed: super::SkillsConfig = serde_json::from_str("{}").unwrap();
-    assert_eq!(parsed.directory_provider, super::SkillsDirectoryProvider::Vibewindow);
     assert!(parsed.auto_load_project_skills);
     assert_eq!(parsed.prompt_injection_mode, super::SkillsPromptInjectionMode::Compact);
 }
@@ -84,76 +82,6 @@ fn skill_security_defaults_off_and_round_trips_independently() {
     assert_eq!(round_tripped.security, configured.security);
 }
 
-// 目录来源的 serde 名称、用户标签和枚举顺序共同构成设置界面契约。
-#[test]
-fn skills_directory_provider_round_trips_as_snake_case() {
-    let config = super::SkillsConfig {
-        directory_provider: super::SkillsDirectoryProvider::Codex,
-        ..Default::default()
-    };
-
-    let serialized = serde_json::to_value(config).unwrap();
-    assert_eq!(serialized["directory_provider"], "codex");
-
-    let parsed: super::SkillsConfig =
-        serde_json::from_value(serde_json::json!({ "directory_provider": "claude" })).unwrap();
-    assert_eq!(parsed.directory_provider, super::SkillsDirectoryProvider::Claude);
-}
-
-#[test]
-fn skills_directory_provider_labels_match_display_and_all_order() {
-    let providers = super::SkillsDirectoryProvider::ALL;
-    assert_eq!(
-        providers,
-        [
-            super::SkillsDirectoryProvider::Vibewindow,
-            super::SkillsDirectoryProvider::Codex,
-            super::SkillsDirectoryProvider::Claude,
-            super::SkillsDirectoryProvider::Cursor,
-        ]
-    );
-
-    let labels = providers.map(|provider| provider.label());
-    assert_eq!(labels, ["ShiJu", "Codex", "Claude", "Cursor"]);
-
-    let display_labels = providers.map(|provider| provider.to_string());
-    assert_eq!(
-        display_labels,
-        [
-            String::from("ShiJu"),
-            String::from("Codex"),
-            String::from("Claude"),
-            String::from("Cursor"),
-        ]
-    );
-}
-
-// 解析器接受已公布别名和大小写差异，但未知来源不能静默回退。
-#[test]
-fn parse_skills_directory_provider_accepts_supported_aliases() {
-    let cases = [
-        (" vibewindow ", super::SkillsDirectoryProvider::Vibewindow),
-        ("VIBE_WINDOW", super::SkillsDirectoryProvider::Vibewindow),
-        ("vibe-window", super::SkillsDirectoryProvider::Vibewindow),
-        ("CoDeX", super::SkillsDirectoryProvider::Codex),
-        ("claude", super::SkillsDirectoryProvider::Claude),
-        ("CLAUDE_CODE", super::SkillsDirectoryProvider::Claude),
-        ("claude-code", super::SkillsDirectoryProvider::Claude),
-        (" cursor ", super::SkillsDirectoryProvider::Cursor),
-    ];
-
-    for (raw, expected) in cases {
-        assert_eq!(super::parse_skills_directory_provider(raw), Some(expected));
-    }
-}
-
-#[test]
-fn parse_skills_directory_provider_rejects_unknown_values() {
-    for raw in ["", "vibe window", "claude/code", "codex-cli", "unknown"] {
-        assert_eq!(super::parse_skills_directory_provider(raw), None);
-    }
-}
-
 // 提示注入模式同样先清理输入再匹配，错误值需向调用方返回明确失败。
 #[test]
 fn parse_skills_prompt_injection_mode_accepts_trimmed_case_insensitive_values() {
@@ -183,9 +111,9 @@ fn skills_prompt_injection_mode_round_trips_as_snake_case() {
     assert_eq!(parsed, super::SkillsPromptInjectionMode::Compact);
 }
 
-// 完整配置读取确认目录来源与注入模式覆盖项不会被默认值吞掉。
+// 旧目录提供方字段可随其他技能配置一起读取。
 #[test]
-fn skills_config_deserializes_directory_and_prompt_mode_overrides() {
+fn skills_config_ignores_legacy_directory_provider() {
     let parsed: super::SkillsConfig = serde_json::from_value(serde_json::json!({
         "directory_provider": "cursor",
         "auto_load_project_skills": false,
@@ -193,7 +121,7 @@ fn skills_config_deserializes_directory_and_prompt_mode_overrides() {
     }))
     .unwrap();
 
-    assert_eq!(parsed.directory_provider, super::SkillsDirectoryProvider::Cursor);
+    assert!(serde_json::to_value(&parsed).unwrap().get("directory_provider").is_none());
     assert!(!parsed.auto_load_project_skills);
     assert_eq!(parsed.prompt_injection_mode, super::SkillsPromptInjectionMode::Full);
 }

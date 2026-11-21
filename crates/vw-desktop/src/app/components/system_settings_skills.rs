@@ -62,9 +62,6 @@ fn page_message(event: desktop_settings_skills::page::Message) -> Message {
         Ui::None => return Message::None,
         Ui::CopyText(text) => return Message::CopyCode(text),
         Ui::SkillsTabChanged(v) => message::SettingsMessage::SkillsTabChanged(v),
-        Ui::SkillsDirectoryProviderChanged(v) => {
-            message::SettingsMessage::SkillsDirectoryProviderChanged(v)
-        }
         Ui::SkillsProjectAutoLoadToggled(v) => {
             message::SettingsMessage::SkillsProjectAutoLoadToggled(v)
         }
@@ -79,7 +76,6 @@ fn config_context(app: &App) -> desktop_settings_skills::page::ConfigContext<'_>
         help,
         desktop_locale: app.general_settings.desktop_locale,
         app_theme: &app.appearance.app_theme,
-        directory_provider: s.directory_provider,
         auto_load_project_skills: s.auto_load_project_skills,
         prompt_injection_mode: s.prompt_injection_mode,
     }
@@ -98,7 +94,7 @@ pub(super) const SKILLS_TABS: &[SettingsTabDescriptor<SkillsSettingsTab>] = &[
     SettingsTabDescriptor::new(
         SKILLS_TAB_LABELS[2].1,
         SKILLS_TAB_LABELS[2].0,
-        &["directory provider", "提示注入", "prompt injection", "技能目录路径"],
+        &["项目技能", "project skills", "提示注入", "prompt injection"],
     ),
 ];
 

@@ -42,7 +42,7 @@ async fn desktop_gettext_area_6_search_preserves_chinese_navigation() {
     assert!(global.matches("全局服务器"));
     let skills = entries.iter().find(|entry| entry.label == "System configuration").unwrap();
     assert!(skills.matches("系统配置"));
-    assert!(skills.matches("directory provider"));
+    assert!(skills.matches("prompt injection"));
 }
 
 #[tokio::test(flavor = "multi_thread")]

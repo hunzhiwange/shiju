@@ -14,8 +14,8 @@ use iced::{Alignment, Element, Length};
 
 pub use crate::browser_detail::{detail_modal_body, view_overlays};
 pub use crate::browser_discovery::{
-    discovery_order_text, discovery_order_view, provider_global_paths, provider_project_paths,
-    scope_description, scope_source_matches, scope_title, skill_project_options,
+    discovery_order_text, discovery_order_view, scope_description, scope_source_matches,
+    scope_title, skill_project_options,
 };
 pub use crate::browser_widgets::{
     DetailActionStyle, catalog_panel_style, detail_action_button, detail_source_note, empty_state,
@@ -141,7 +141,7 @@ pub fn view<'a>(app: BrowserContext<'a>) -> Element<'a, Message> {
         row![
             column![
                 text(tr(locale, scope_title(s.directory_scope))).size(18),
-                text(scope_description(locale, s.directory_scope, s.directory_provider))
+                text(scope_description(locale, s.directory_scope))
                     .size(13)
                     .style(settings_muted_text_style),
             ]
@@ -229,7 +229,7 @@ pub fn view<'a>(app: BrowserContext<'a>) -> Element<'a, Message> {
             ),
             (SkillsDirectoryScope::Global, _) => (
                 tr(locale, "全局目录下没有技能"),
-                tr(locale, "当前目录提供方的全局技能目录没有命中技能。"),
+                tr(locale, "全局技能目录没有命中技能。"),
             ),
             (SkillsDirectoryScope::Bundled, _) => (
                 tr(locale, "没有内置技能"),

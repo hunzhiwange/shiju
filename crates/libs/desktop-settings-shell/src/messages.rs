@@ -520,7 +520,6 @@ pub enum SettingsMessage<SettingsTab, SearchTarget, AppsCatalog, AppProviders> {
         skill_id: String,
         result: Result<String, String>,
     },
-    SkillsDirectoryProviderChanged(config_skills::SkillsDirectoryProvider),
     SkillsProjectAutoLoadToggled(bool),
     SkillsPromptInjectionModeChanged(config_skills::SkillsPromptInjectionMode),
     SkillsSave,

@@ -154,7 +154,7 @@ async fn skill_install_post(
     let provider = resolve_provider(&registry, &coordinate.locator.source)?;
     let artifact = provider.skill_artifact(&coordinate).await.map_err(MarketApiError::provider)?;
     let skills_config = config.skills().await;
-    let skills_root = workspace_skills_dir(&project_path, skills_config.directory_provider);
+    let skills_root = workspace_skills_dir(&project_path);
     let security = skills_config.security;
     let installed = tokio::task::spawn_blocking(move || {
         install_verified_market_artifact(&skills_root, &coordinate, artifact, &security)
@@ -185,9 +185,7 @@ async fn skill_install_targets_post(
         .canonicalize()
         .map_err(|_| MarketApiError::bad_request("user home directory could not be resolved"))?;
     let skills_config = config.skills().await;
-    let vibe_project_root = project_path
-        .as_ref()
-        .map(|project| workspace_skills_dir(project, skills_config.directory_provider));
+    let vibe_project_root = project_path.as_deref().map(workspace_skills_dir);
     let roots = resolve_explicit_install_roots(
         &home,
         project_path.as_deref(),
@@ -252,7 +250,7 @@ async fn skill_set_install_post(
     let artifact =
         provider.skill_set_artifact(&source, &slug).await.map_err(MarketApiError::provider)?;
     let skills_config = config.skills().await;
-    let skills_root = workspace_skills_dir(&project_path, skills_config.directory_provider);
+    let skills_root = workspace_skills_dir(&project_path);
     let security = skills_config.security;
     let installed = tokio::task::spawn_blocking(move || {
         install_verified_market_skill_set(&skills_root, artifact, &security)

@@ -298,7 +298,7 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
         SettingsRoute::ProvidersRefresh(message) => providers::update(app, message),
         SettingsRoute::ModelsRefresh(message) => models::update(app, message),
         SettingsRoute::PluginInstallEffect(message) => plugin_install::update(app, message),
-        SettingsRoute::SkillsDirectoryProviderChanged(message) => {
+        SettingsRoute::SkillsConfigChanged(message) => {
             update_config_panel(app, message, "skills_settings", skills::update)
         }
         SettingsRoute::SkillsProjectSelected(message) => skills::update(app, message),

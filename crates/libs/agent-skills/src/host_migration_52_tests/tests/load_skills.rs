@@ -11,7 +11,6 @@ use config_skills::SkillsPromptInjectionMode;
 use std::fs;
 use std::path::PathBuf;
 use config_runtime_paths::home_config_dir;
-use config_skills::SkillsDirectoryProvider;
 
 fn load_workspace_only(workspace_dir: &std::path::Path) -> Vec<Skill> {
     let _lock = env_var_lock().lock().unwrap();
@@ -354,7 +353,7 @@ fn load_skills_discovers_workspace_ancestor_and_global_sources() {
 }
 
 #[test]
-fn common_project_skill_roots_load_without_selecting_codex_provider() {
+fn common_project_skill_roots_are_discovered() {
     let _lock = env_var_lock().lock().unwrap();
     let home = tempfile::tempdir().unwrap();
     let _guard = EnvVarGuard::set("HOME", home.path().to_str().unwrap());
@@ -369,8 +368,7 @@ fn common_project_skill_roots_load_without_selecting_codex_provider() {
         fs::write(skill_dir.join("SKILL.md"), format!("# {skill_name}\n")).unwrap();
     }
 
-    let mut config = Config::default();
-    config.skills.directory_provider = SkillsDirectoryProvider::Claude;
+    let config = Config::default();
 
     let names = load_skills_with_config(&project_dir, &config)
         .into_iter()
@@ -381,7 +379,7 @@ fn common_project_skill_roots_load_without_selecting_codex_provider() {
 }
 
 #[test]
-fn load_skills_uses_configured_directory_provider() {
+fn load_skills_uses_standard_project_directories() {
     let _lock = env_var_lock().lock().unwrap();
     let home = tempfile::tempdir().unwrap();
     let _guard = EnvVarGuard::set("HOME", home.path().to_str().unwrap());
@@ -397,35 +395,22 @@ fn load_skills_uses_configured_directory_provider() {
     fs::create_dir_all(&codex_skill).unwrap();
     fs::write(codex_skill.join("SKILL.md"), "# Codex\nCodex skill\n").unwrap();
 
-    let mut config = Config::default();
-    config.skills.directory_provider = SkillsDirectoryProvider::Codex;
+    let config = Config::default();
 
     let names = load_skills_with_config(&project_dir, &config)
         .iter()
         .map(|skill| skill.name.clone())
         .collect::<Vec<_>>();
-    assert_eq!(names, vec!["codex-skill"]);
+    assert_eq!(names, vec!["vw-skill"]);
 }
 
 #[test]
-fn workspace_skill_roots_follow_directory_provider_contract() {
+fn workspace_skill_install_root_is_shiju_skills() {
     let workspace = std::path::Path::new("/workspace");
 
     assert_eq!(
-        workspace_skills_dir(workspace, SkillsDirectoryProvider::Vibewindow),
+        workspace_skills_dir(workspace),
         PathBuf::from("/workspace/.shiju/skills")
-    );
-    assert_eq!(
-        workspace_skills_dir(workspace, SkillsDirectoryProvider::Codex),
-        PathBuf::from("/workspace/.codex/skills")
-    );
-    assert_eq!(
-        workspace_skills_dir(workspace, SkillsDirectoryProvider::Claude),
-        PathBuf::from("/workspace/.claude/skills")
-    );
-    assert_eq!(
-        workspace_skills_dir(workspace, SkillsDirectoryProvider::Cursor),
-        PathBuf::from("/workspace/.cursor/skills")
     );
 }
 

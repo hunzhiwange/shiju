@@ -11,7 +11,6 @@ doctest = false
 urlencoding = "2"
 agent-skills = { path = "../agent-skills" }
 agent-plugins = { path = "../agent-plugins" }
-config-skills = { path = "../config-skills" }
 gateway-desktop-settings = { path = "../gateway-desktop-settings" }
 tool-browser = { path = "../tool-browser" }
 include_dir = "0.7"

@@ -1,14 +1,13 @@
 use super::browser::help;
 use crate::page::*;
 use crate::types::SkillsSettingsTab;
-use config_skills::{SkillsDirectoryProvider, SkillsPromptInjectionMode};
+use config_skills::SkillsPromptInjectionMode;
 use iced::{Element, advanced::widget::Tree, widget::text};
 fn context() -> ConfigContext<'static> {
     ConfigContext {
         help: help::<Message>,
         desktop_locale: config_ui::DesktopLocale::SimplifiedChinese,
         app_theme: &iced::Theme::Dark,
-        directory_provider: SkillsDirectoryProvider::Vibewindow,
         auto_load_project_skills: true,
         prompt_injection_mode: SkillsPromptInjectionMode::Compact,
     }
@@ -57,14 +56,11 @@ fn system_config_view_builds_default_and_populated_settings() {
     app.auto_load_project_skills = false;
     app.prompt_injection_mode = SkillsPromptInjectionMode::Full;
 
-    for provider in SkillsDirectoryProvider::ALL {
-        app.directory_provider = provider;
-        keep_element(system_config_view(app));
-    }
+    keep_element(system_config_view(app));
 }
 
 #[test]
-fn system_config_view_keeps_three_config_rows_in_one_panel() {
+fn system_config_view_keeps_two_config_rows_in_one_panel() {
     let app = context();
     let element = system_config_view(app);
     let tree = Tree::new(element.as_widget());
@@ -72,5 +68,5 @@ fn system_config_view_keeps_three_config_rows_in_one_panel() {
     assert_eq!(tree.children.len(), 2);
     // The field rows have controls; separators have no children.
     let fields = tree.children[1].children.iter().filter(|child| !child.children.is_empty());
-    assert_eq!(fields.count(), 3);
+    assert_eq!(fields.count(), 2);
 }

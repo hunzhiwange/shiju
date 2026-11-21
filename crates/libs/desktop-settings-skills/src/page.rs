@@ -1,5 +1,5 @@
 use crate::types::SkillsSettingsTab;
-use config_skills::{SkillsDirectoryProvider, SkillsPromptInjectionMode};
+use config_skills::SkillsPromptInjectionMode;
 use desktop_i18n::{I18n, settings_extensions::text as tr};
 use desktop_ui_controls::system_settings_common::*;
 use iced::{
@@ -11,7 +11,6 @@ pub struct ConfigContext<'a> {
     pub help: crate::HelpRenderer<Message>,
     pub desktop_locale: config_ui::DesktopLocale,
     pub app_theme: &'a iced::Theme,
-    pub directory_provider: SkillsDirectoryProvider,
     pub auto_load_project_skills: bool,
     pub prompt_injection_mode: SkillsPromptInjectionMode,
 }
@@ -31,7 +30,6 @@ pub enum Message {
     BackupOpen,
     CopyText(String),
     SkillsTabChanged(SkillsSettingsTab),
-    SkillsDirectoryProviderChanged(SkillsDirectoryProvider),
     SkillsProjectAutoLoadToggled(bool),
     SkillsPromptInjectionModeChanged(SkillsPromptInjectionMode),
 }
@@ -72,20 +70,6 @@ pub fn skills_tab_labels() -> &'static [(&'static str, SkillsSettingsTab)] {
 
 pub fn system_config_view(app: ConfigContext<'_>) -> Element<'static, Message> {
     let s = app;
-
-    let provider_pick =
-        settings_select(SkillsDirectoryProvider::ALL, Some(s.directory_provider), |provider| {
-            Message::SkillsDirectoryProviderChanged(provider)
-        })
-        .placeholder("ShiJu")
-        .width(Length::Fill);
-
-    let provider_row = field_row(
-        app,
-        tr(app.desktop_locale, "技能目录提供者"),
-        tr(app.desktop_locale, "切换技能目录兼容模式；配置缺失时使用 ShiJu。"),
-        provider_pick,
-    );
 
     let project_auto_load_row = field_row(
         app,
@@ -132,7 +116,7 @@ pub fn system_config_view(app: ConfigContext<'_>) -> Element<'static, Message> {
             .into(),
         )
         .wrap(),
-        settings_group_card(column![provider_row, project_auto_load_row, mode_row]),
+        settings_group_card(column![project_auto_load_row, mode_row]),
     ]
     .spacing(16)
     .width(Length::Fill);

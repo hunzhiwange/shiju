@@ -11,7 +11,6 @@ fn context(app: &App) -> BrowserContext<'_> {
         project_path: &app.navigation_tabs.project_path,
         recent_projects: &app.workspace_state.recent_projects,
         skills_settings: BrowserState {
-            directory_provider: s.directory_provider,
             query: &s.query,
             directory_scope: s.directory_scope,
             loading: s.loading,

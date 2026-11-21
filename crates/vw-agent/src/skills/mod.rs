@@ -69,10 +69,10 @@ pub use types::{PluginSkillSource, Skill, SkillTool};
 #[cfg(any(test, target_arch = "wasm32"))]
 pub(crate) use agent_skills::local::{is_local_skill_disabled, local_skill_disabled_marker_path};
 #[cfg(all(not(test), not(target_arch = "wasm32")))]
-pub(crate) use agent_skills::local_sources::discover_local_skill_source_dirs_with_provider;
+pub(crate) use agent_skills::local_sources::discover_local_skill_source_dirs;
 #[cfg(any(test, target_arch = "wasm32"))]
 pub(crate) use agent_skills::local_sources::{
-    LocalSkillSourceKind, discover_local_skill_source_dirs_with_provider, workspace_skills_dir,
+    LocalSkillSourceKind, discover_local_skill_source_dirs, workspace_skills_dir,
 };
 
 pub use agent_skills::catalog::{load_skills, skills_dir};

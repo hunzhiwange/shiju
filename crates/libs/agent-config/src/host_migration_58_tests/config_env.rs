@@ -8,7 +8,7 @@ use crate::runtime_schema::{
 use std::ffi::OsString;
 use std::path::Path;
 use std::sync::MutexGuard;
-use config_skills::{SkillsDirectoryProvider, SkillsPromptInjectionMode};
+use config_skills::SkillsPromptInjectionMode;
 
 const CONFIG_ENV_KEYS: &[&str] = &[
     "VIBEWINDOW_API_KEY",
@@ -22,7 +22,6 @@ const CONFIG_ENV_KEYS: &[&str] = &[
     "OPENAI_API_KEY",
     "VIBEWINDOW_WORKSPACE",
     "VIBEWINDOW_SKILLS_PROMPT_MODE",
-    "VIBEWINDOW_SKILLS_DIRECTORY_PROVIDER",
     "VIBEWINDOW_GATEWAY_PORT",
     "PORT",
     "VIBEWINDOW_GATEWAY_HOST",
@@ -243,7 +242,6 @@ fn valid_workspace_skills_and_storage_values_are_normalized() {
     for (key, value) in [
         ("VIBEWINDOW_WORKSPACE", "/tmp/vibewindow-config-env"),
         ("VIBEWINDOW_SKILLS_PROMPT_MODE", " FULL "),
-        ("VIBEWINDOW_SKILLS_DIRECTORY_PROVIDER", "claude-code"),
         ("VIBEWINDOW_STORAGE_PROVIDER", " postgres "),
         ("VIBEWINDOW_STORAGE_DB_URL", " postgres://db.example/vw "),
         ("VIBEWINDOW_STORAGE_CONNECT_TIMEOUT_SECS", "9"),
@@ -256,7 +254,6 @@ fn valid_workspace_skills_and_storage_values_are_normalized() {
 
     assert_eq!(config.workspace_dir, Path::new("/tmp/vibewindow-config-env").join("workspace"));
     assert_eq!(config.skills.prompt_injection_mode, SkillsPromptInjectionMode::Full);
-    assert_eq!(config.skills.directory_provider, SkillsDirectoryProvider::Claude);
     assert_eq!(config.storage.provider.config.provider, "postgres");
     assert_eq!(config.storage.provider.config.db_url.as_deref(), Some("postgres://db.example/vw"));
     assert_eq!(config.storage.provider.config.connect_timeout_secs, Some(9));
@@ -297,7 +294,6 @@ fn blank_and_invalid_values_leave_structured_configuration_unchanged() {
         ("VIBEWINDOW_MODEL", ""),
         ("VIBEWINDOW_WORKSPACE", "  "),
         ("VIBEWINDOW_SKILLS_PROMPT_MODE", "verbose"),
-        ("VIBEWINDOW_SKILLS_DIRECTORY_PROVIDER", "unknown"),
         ("VIBEWINDOW_GATEWAY_PORT", "70000"),
         ("VIBEWINDOW_GATEWAY_HOST", ""),
         ("VIBEWINDOW_TEMPERATURE", "2.01"),
@@ -321,7 +317,6 @@ fn blank_and_invalid_values_leave_structured_configuration_unchanged() {
     config.default_provider = Some("configured-provider".to_string());
     config.default_model = Some("configured-model".to_string());
     config.skills.prompt_injection_mode = SkillsPromptInjectionMode::Full;
-    config.skills.directory_provider = SkillsDirectoryProvider::Cursor;
     config.gateway.port = 1234;
     config.gateway.host = "configured-host".to_string();
     config.default_temperature = 1.25;
@@ -342,7 +337,6 @@ fn blank_and_invalid_values_leave_structured_configuration_unchanged() {
     assert_eq!(config.default_model.as_deref(), Some("configured-model"));
     assert_eq!(config.workspace_dir, original_workspace);
     assert_eq!(config.skills.prompt_injection_mode, SkillsPromptInjectionMode::Full);
-    assert_eq!(config.skills.directory_provider, SkillsDirectoryProvider::Cursor);
     assert_eq!(config.gateway.port, 1234);
     assert_eq!(config.gateway.host, "configured-host");
     assert_eq!(config.default_temperature, 1.25);

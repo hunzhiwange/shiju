@@ -48,10 +48,6 @@ fn skills_enums_and_default_state_are_stable() {
     let state = SkillsSettingsState::default();
     assert!(state.auto_load_project_skills);
     assert_eq!(
-        state.directory_provider,
-        config_skills::SkillsDirectoryProvider::Vibewindow
-    );
-    assert_eq!(
         state.prompt_injection_mode,
         config_skills::SkillsPromptInjectionMode::Compact
     );

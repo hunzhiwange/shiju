@@ -23,7 +23,6 @@ pub enum Event {
 }
 #[derive(Clone, Copy)]
 pub struct BrowserState<'a> {
-    pub directory_provider: config_skills::SkillsDirectoryProvider,
     pub query: &'a String,
     pub directory_scope: types::SkillsDirectoryScope,
     pub loading: bool,

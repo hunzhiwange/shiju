@@ -65,22 +65,12 @@ impl IntegrationKind {
     }
 }
 
-/// 集成页面的列表、选中位置与技能平台子选择器。
+/// 集成页面的列表和选中位置。
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct IntegrationPanel {
     pub kind: IntegrationKind,
     pub state: IntegrationLoadState,
     pub items: Vec<IntegrationItem>,
-    pub selected: usize,
-    pub skill_provider: SkillsDirectoryProvider,
-    pub can_toggle: bool,
-    pub skill_platform_focused: bool,
-    pub skill_provider_picker: Option<SkillProviderPicker>,
-}
-
-/// 技能目录平台选择器的临时状态。
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct SkillProviderPicker {
     pub selected: usize,
 }
 
@@ -92,10 +82,6 @@ impl IntegrationPanel {
             state: IntegrationLoadState::Loading,
             items: Vec::new(),
             selected: 0,
-            skill_provider: SkillsDirectoryProvider::default(),
-            can_toggle: true,
-            skill_platform_focused: kind == IntegrationKind::Skill,
-            skill_provider_picker: None,
         }
     }
 
@@ -130,80 +116,21 @@ impl IntegrationPanel {
     /// 生成终端列表文本，所有条目详情在插值前会经过脱敏。
     pub fn lines(&self) -> Vec<String> {
         let mut lines = vec![format!("{:?} · {:?}", self.kind, self.state)];
-        if self.kind == IntegrationKind::Skill {
-            lines.push(format!(
-                "{} 平台 · {}",
-                if self.skill_platform_focused { ">" } else { " " },
-                self.skill_provider.label()
-            ));
-        }
         lines.extend(self.items.iter().enumerate().map(|(index, item)| {
-            let status = if self.kind == IntegrationKind::Skill && !self.can_toggle {
-                "installed"
-            } else if item.enabled {
+            let status = if item.enabled {
                 "enabled"
             } else {
                 "disabled"
             };
             format!(
                 "{} {} · {} · {}",
-                if !self.skill_platform_focused && index == self.selected { ">" } else { " " },
+                if index == self.selected { ">" } else { " " },
                 item.title,
                 status,
                 sanitize_integration_text(&item.detail)
             )
         }));
         lines
-    }
-
-    /// 切换技能目录平台，并重置子选择器和条目选中位置。
-    #[cfg(test)]
-    pub(crate) fn set_skill_provider(&mut self, provider: SkillsDirectoryProvider) {
-        self.skill_provider = provider;
-        self.can_toggle = provider == SkillsDirectoryProvider::Vibewindow;
-        self.skill_platform_focused = true;
-        self.skill_provider_picker = None;
-        self.selected = 0;
-    }
-
-    /// 仅在技能面板中打开平台选择器。
-    #[cfg(test)]
-    pub(crate) fn open_skill_provider_picker(&mut self) -> bool {
-        if self.kind != IntegrationKind::Skill {
-            return false;
-        }
-        let selected = SkillsDirectoryProvider::ALL
-            .iter()
-            .position(|provider| *provider == self.skill_provider)
-            .unwrap_or_default();
-        self.skill_provider_picker = Some(SkillProviderPicker { selected });
-        true
-    }
-
-    #[cfg(test)]
-    pub(crate) fn cancel_skill_provider_picker(&mut self) -> bool {
-        self.skill_provider_picker.take().is_some()
-    }
-
-    #[cfg(test)]
-    pub(crate) fn move_skill_provider_picker_selection(&mut self, delta: isize) {
-        let Some(picker) = self.skill_provider_picker.as_mut() else {
-            return;
-        };
-        let len = SkillsDirectoryProvider::ALL.len();
-        picker.selected = if delta < 0 {
-            picker.selected.checked_sub(1).unwrap_or(len.saturating_sub(1))
-        } else {
-            (picker.selected + 1) % len
-        };
-    }
-
-    #[cfg(test)]
-    pub(crate) fn selected_skill_provider(&self) -> Option<SkillsDirectoryProvider> {
-        self.skill_provider_picker
-            .as_ref()
-            .and_then(|picker| SkillsDirectoryProvider::ALL.get(picker.selected))
-            .copied()
     }
 }
 
@@ -224,4 +151,3 @@ pub fn sanitize_integration_text(text: &str) -> String {
         .collect::<Vec<_>>()
         .join(" ")
 }
-use config_skills::SkillsDirectoryProvider;

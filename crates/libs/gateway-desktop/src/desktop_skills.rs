@@ -16,10 +16,9 @@ use std::path::{Path, PathBuf};
 use {gateway_desktop_settings::DesktopSkillCatalogEntryDto, gateway_desktop_settings::DesktopSkillDetailDto, gateway_desktop_settings::DesktopSkillPathDto};
 
 use gateway_types::ApiError;
-use agent_skills::local_sources::{LocalSkillSourceKind, discover_local_skill_source_dirs_with_provider, workspace_skills_dir};
+use agent_skills::local_sources::{LocalSkillSourceKind, discover_local_skill_source_dirs, workspace_skills_dir};
 use agent_skills::local::{is_local_skill_disabled, local_skill_disabled_marker_path};
 use agent_skills::loader::read_markdown_skill_metadata;
-use config_skills::SkillsDirectoryProvider;
 
 static BUILT_IN_SKILLS_DIR: Dir<'_> = include_dir!("$CARGO_MANIFEST_DIR/../agent-skills/assets/skills");
 static RECOMMENDED_SKILL_IDS: &[&str] = &["create-task-plans", "do-task-plans", "rustcodegraph"];
@@ -191,9 +190,8 @@ pub(crate) async fn catalog_get(
 ) -> Result<Json<Vec<DesktopSkillCatalogEntryDto>>, ApiError> {
     let project_path = normalize_optional_project_path(query.project_path);
     let config = agent_config::runtime::get().await;
-    let directory_provider = config.skills.directory_provider;
     let items = tokio::task::spawn_blocking(move || {
-        let mut items = collect_catalog_skills(project_path.as_deref(), directory_provider)?;
+        let mut items = collect_catalog_skills(project_path.as_deref())?;
         let plugins = plugin_catalog(project_path.as_deref(), &config)?;
         merge_plugin_catalog(&mut items, plugins);
         Ok::<_, String>(items)
@@ -227,7 +225,6 @@ pub(crate) async fn detail_get(
         return Err(ApiError::bad_request("skill_id is required"));
     }
     let config = agent_config::runtime::get().await;
-    let directory_provider = config.skills.directory_provider;
 
     let detail = tokio::task::spawn_blocking(move || {
         if skill_id.starts_with("plugin:") {
@@ -244,7 +241,7 @@ pub(crate) async fn detail_get(
                 can_install: false, can_toggle: false, can_delete: false,
             });
         }
-        resolve_skill_detail(project_path.as_deref(), &skill_id, directory_provider)
+        resolve_skill_detail(project_path.as_deref(), &skill_id)
     })
     .await
     .map_err(|err| ApiError::internal(format!("desktop skill detail task failed: {err}")))?
@@ -270,9 +267,8 @@ pub(crate) async fn create_post(
     Json(body): Json<SkillsProjectRequest>,
 ) -> Result<Json<DesktopSkillPathDto>, ApiError> {
     let project_path = resolve_project_path(&body.project_path).map_err(ApiError::bad_request)?;
-    let directory_provider = agent_config::runtime::get().await.skills.directory_provider;
     let path = tokio::task::spawn_blocking(move || {
-        create_new_skill_scaffold(&project_path, directory_provider)
+        create_new_skill_scaffold(&project_path)
     })
     .await
     .map_err(|err| ApiError::internal(format!("desktop skills create task failed: {err}")))?
@@ -302,10 +298,9 @@ pub(crate) async fn install_builtin_post(
     if skill_id.is_empty() {
         return Err(ApiError::bad_request("skill_id is required"));
     }
-    let directory_provider = agent_config::runtime::get().await.skills.directory_provider;
 
     let path = tokio::task::spawn_blocking(move || {
-        install_built_in_skill(&project_path, &skill_id, directory_provider)
+        install_built_in_skill(&project_path, &skill_id)
     })
     .await
     .map_err(|err| ApiError::internal(format!("desktop skills install task failed: {err}")))?
@@ -336,12 +331,11 @@ pub(crate) async fn set_enabled_post(
         return Err(ApiError::bad_request("skill_id is required"));
     }
     let config = agent_config::runtime::get().await;
-    let directory_provider = config.skills.directory_provider;
 
     let enabled = body.enabled;
     let path = tokio::task::spawn_blocking(move || {
-        reject_plugin_mutation(project_path.as_deref(), &skill_id, directory_provider, &config)?;
-        set_local_skill_enabled(project_path.as_deref(), &skill_id, enabled, directory_provider)
+        reject_plugin_mutation(project_path.as_deref(), &skill_id, &config)?;
+        set_local_skill_enabled(project_path.as_deref(), &skill_id, enabled)
     })
     .await
     .map_err(|err| ApiError::internal(format!("desktop skill toggle task failed: {err}")))?
@@ -372,11 +366,10 @@ pub(crate) async fn delete_post(
         return Err(ApiError::bad_request("skill_id is required"));
     }
     let config = agent_config::runtime::get().await;
-    let directory_provider = config.skills.directory_provider;
 
     let path = tokio::task::spawn_blocking(move || {
-        reject_plugin_mutation(project_path.as_deref(), &skill_id, directory_provider, &config)?;
-        delete_local_skill(project_path.as_deref(), &skill_id, directory_provider)
+        reject_plugin_mutation(project_path.as_deref(), &skill_id, &config)?;
+        delete_local_skill(project_path.as_deref(), &skill_id)
     })
     .await
     .map_err(|err| ApiError::internal(format!("desktop skill delete task failed: {err}")))?
@@ -387,9 +380,8 @@ pub(crate) async fn delete_post(
 
 fn collect_catalog_skills(
     project_path: Option<&str>,
-    directory_provider: SkillsDirectoryProvider,
 ) -> Result<Vec<DesktopSkillCatalogEntryDto>, String> {
-    let local_skills = discover_local_skills(project_path, directory_provider)?;
+    let local_skills = discover_local_skills(project_path)?;
     let local_skill_ids = local_skills.iter().map(|skill| skill.id.clone()).collect::<HashSet<_>>();
     let local_by_id = local_skills
         .iter()
@@ -462,10 +454,9 @@ fn collect_catalog_skills(
 fn reject_plugin_mutation(
     project_path: Option<&str>,
     skill_id: &str,
-    provider: SkillsDirectoryProvider,
     config: &agent_config::runtime::Config,
 ) -> Result<(), String> {
-    let directory = resolve_local_skill_dir(project_path, skill_id, provider)?;
+    let directory = resolve_local_skill_dir(project_path, skill_id)?;
     let directory = std::fs::canonicalize(directory).map_err(|error| error.to_string())?;
     let workspace = project_path.map(Path::new).unwrap_or(&config.workspace_dir);
     let config_dir = config.config_path.parent().unwrap_or(&config.workspace_dir);
@@ -591,15 +582,12 @@ fn discover_built_in_skills() -> Vec<BuiltInSkillMeta> {
 
 fn discover_local_skills(
     project_path: Option<&str>,
-    directory_provider: SkillsDirectoryProvider,
 ) -> Result<Vec<LocalCatalogSkillMeta>, String> {
     let workspace_dir = project_path.map(resolve_project_path).transpose()?;
     let mut skills = Vec::new();
     let mut seen_ids = HashSet::new();
 
-    for source_dir in
-        discover_local_skill_source_dirs_with_provider(workspace_dir.as_deref(), directory_provider)
-    {
+    for source_dir in discover_local_skill_source_dirs(workspace_dir.as_deref()) {
         let entries = match std::fs::read_dir(&source_dir.path) {
             Ok(entries) => entries,
             Err(err) if err.kind() == std::io::ErrorKind::NotFound => continue,
@@ -759,9 +747,8 @@ fn find_bundled_skill_file<'a>(
 fn resolve_skill_detail(
     project_path: Option<&str>,
     skill_id: &str,
-    directory_provider: SkillsDirectoryProvider,
 ) -> Result<DesktopSkillDetailDto, String> {
-    if let Some(local_skill) = discover_local_skills(project_path, directory_provider)?
+    if let Some(local_skill) = discover_local_skills(project_path)?
         .into_iter()
         .find(|skill| skill.id == skill_id)
     {
@@ -851,12 +838,11 @@ fn read_local_skill_document(skill_dir: &Path) -> Result<(String, String), Strin
 fn resolve_local_skill_dir(
     project_path: Option<&str>,
     skill_id: &str,
-    directory_provider: SkillsDirectoryProvider,
 ) -> Result<PathBuf, String> {
     if skill_id.starts_with("plugin:") {
         return Err("插件技能由所属插件管理，不能单独切换或删除".into());
     }
-    let skill = discover_local_skills(project_path, directory_provider)?
+    let skill = discover_local_skills(project_path)?
         .into_iter()
         .find(|item| item.id == skill_id)
         .ok_or_else(|| format!("未找到可管理的本地技能: {skill_id}"))?;
@@ -872,9 +858,8 @@ fn set_local_skill_enabled(
     project_path: Option<&str>,
     skill_id: &str,
     enabled: bool,
-    directory_provider: SkillsDirectoryProvider,
 ) -> Result<String, String> {
-    let skill_dir = resolve_local_skill_dir(project_path, skill_id, directory_provider)?;
+    let skill_dir = resolve_local_skill_dir(project_path, skill_id)?;
     let marker_path = local_skill_disabled_marker_path(&skill_dir);
 
     // 技能启用状态用禁用标记表达，避免修改用户维护的 SKILL 文档内容。
@@ -890,12 +875,8 @@ fn set_local_skill_enabled(
     Ok(skill_dir.display().to_string())
 }
 
-fn delete_local_skill(
-    project_path: Option<&str>,
-    skill_id: &str,
-    directory_provider: SkillsDirectoryProvider,
-) -> Result<String, String> {
-    let skill_dir = resolve_local_skill_dir(project_path, skill_id, directory_provider)?;
+fn delete_local_skill(project_path: Option<&str>, skill_id: &str) -> Result<String, String> {
+    let skill_dir = resolve_local_skill_dir(project_path, skill_id)?;
     std::fs::remove_dir_all(&skill_dir).map_err(|err| format!("删除技能目录失败: {err}"))?;
     Ok(skill_dir.display().to_string())
 }
@@ -965,11 +946,8 @@ fn uuid_suffix() -> String {
         .unwrap_or_else(|_| "custom".to_string())
 }
 
-fn create_new_skill_scaffold(
-    project_path: &Path,
-    directory_provider: SkillsDirectoryProvider,
-) -> Result<String, String> {
-    let skills_root = workspace_skills_dir(project_path, directory_provider);
+fn create_new_skill_scaffold(project_path: &Path) -> Result<String, String> {
+    let skills_root = workspace_skills_dir(project_path);
     std::fs::create_dir_all(&skills_root).map_err(|err| format!("创建 skills 目录失败: {err}"))?;
 
     let skill_dir = unique_skill_directory(&skills_root);
@@ -1006,16 +984,12 @@ fn copy_bundled_dir_recursive(source: &Dir<'_>, dest: &Path) -> Result<(), Strin
     Ok(())
 }
 
-fn install_built_in_skill(
-    project_path: &Path,
-    skill_id: &str,
-    directory_provider: SkillsDirectoryProvider,
-) -> Result<String, String> {
+fn install_built_in_skill(project_path: &Path, skill_id: &str) -> Result<String, String> {
     let Some(skill_dir) = BUILT_IN_SKILLS_DIR.get_dir(skill_id) else {
         return Err(format!("未找到内置技能: {skill_id}"));
     };
 
-    let skills_root = workspace_skills_dir(project_path, directory_provider);
+    let skills_root = workspace_skills_dir(project_path);
     std::fs::create_dir_all(&skills_root).map_err(|err| format!("创建 skills 目录失败: {err}"))?;
 
     let target_dir = skills_root.join(skill_id);

@@ -1,6 +1,6 @@
 use super::*;
 use crate::types::{SkillsDirectoryScope, SkillsSettingsTab};
-use config_skills::{SkillsDirectoryProvider, SkillsPromptInjectionMode};
+use config_skills::SkillsPromptInjectionMode;
 use crate::update::test_support::{Harness, input};
 fn app() -> Harness<State> { Harness { state: State::default(), input: input() } }
 fn catalog_item(id: &str, kind: &str) -> DesktopSkillCatalogEntryDto {
@@ -533,13 +533,9 @@ fn skill_mapping_loading_detail_and_config_paths() {
     assert!(app.state.selected_skill_id.is_none());
 
     app.state.save_error = Some("old".to_string());
-    let _ = update(&mut app.state, &app.input.directory,
-        Event::SkillsDirectoryProviderChanged(SkillsDirectoryProvider::Codex),
-    );
-    assert_eq!(app.state.directory_provider, SkillsDirectoryProvider::Codex);
-    assert!(app.state.save_error.is_none());
     let _ = update(&mut app.state, &app.input.directory, Event::SkillsProjectAutoLoadToggled(false));
     assert!(!app.state.auto_load_project_skills);
+    assert!(app.state.save_error.is_none());
     let _ = update(&mut app.state, &app.input.directory,
         Event::SkillsPromptInjectionModeChanged(SkillsPromptInjectionMode::Full),
     );

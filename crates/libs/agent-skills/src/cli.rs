@@ -199,14 +199,14 @@ pub fn handle_command(
         skill_core::types::SkillCommands::Audit { source } => {
             audit_skill(
                 source,
-                &crate::local_sources::workspace_skills_dir(workspace_dir, config.directory_provider),
+                &crate::local_sources::workspace_skills_dir(workspace_dir),
                 &config.security,
             )
         }
 
         // 处理 install 命令：从指定来源安装技能
         skill_core::types::SkillCommands::Install { source } => {
-            let skills_path = crate::local_sources::workspace_skills_dir(workspace_dir, config.directory_provider);
+            let skills_path = crate::local_sources::workspace_skills_dir(workspace_dir);
             install_skill(
                 &source,
                 &skills_path,
@@ -223,7 +223,7 @@ pub fn handle_command(
         skill_core::types::SkillCommands::Remove { name } => {
             remove_skill(
                 name,
-                &crate::local_sources::workspace_skills_dir(workspace_dir, config.directory_provider),
+                &crate::local_sources::workspace_skills_dir(workspace_dir),
             )
         }
     }

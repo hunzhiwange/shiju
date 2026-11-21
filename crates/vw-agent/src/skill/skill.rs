@@ -130,13 +130,12 @@ async fn load_state() -> State {
 
 #[cfg(not(target_arch = "wasm32"))]
 async fn load_state() -> State {
-    let cfg = config::get().await;
     let mut external_dirs = Vec::new();
     if !*flag::VIBEWINDOW_DISABLE_EXTERNAL_SKILLS {
         let start = instance::directory();
         let workspace_dir = if start.is_empty() { None } else { Some(PathBuf::from(&start)) };
-        external_dirs = crate::app::agent::skills::discover_local_skill_source_dirs_with_provider(
-            workspace_dir.as_deref(), cfg.skills.directory_provider,
+        external_dirs = crate::app::agent::skills::discover_local_skill_source_dirs(
+            workspace_dir.as_deref(),
         ).into_iter().map(|source| source.path).collect();
     }
     skill_core::project::load_state(&external_dirs, || config::directories()).await

@@ -1,7 +1,7 @@
 use super::*;
 use crate::plugin_state::{PluginInstallForm, PluginInstallPhase};
 use crate::types::*;
-use config_skills::{SkillsDirectoryProvider, SkillsPromptInjectionMode};
+use config_skills::SkillsPromptInjectionMode;
 use config_ui::{DesktopLocale, GatewayClientSystemSettingsConfig};
 use gateway_desktop_settings::{
     DesktopPluginCapabilitiesDto, DesktopPluginDependencyDto, DesktopPluginPreviewDto,
@@ -548,17 +548,6 @@ async fn ui_refresh_19_layout_and_interaction() {
             SkillsPromptInjectionMode::Full
         ))]
     ));
-    let trigger = geometry(&mut ui, &renderer).focusable[0];
-    assert!((trigger.height - 38.0).abs() < 0.5);
-    assert!(click(&mut ui, &mut renderer, trigger.center()).is_empty());
-    assert!(send(&mut ui, &mut renderer, keyboard, &[key(Named::ArrowDown)]).is_empty());
-    assert!(matches!(
-        send(&mut ui, &mut renderer, keyboard, &[key(Named::Enter)]).as_slice(),
-        [Message::Page(crate::page::Message::SkillsDirectoryProviderChanged(
-            SkillsDirectoryProvider::Codex
-        ))]
-    ));
-
     drop(ui);
     app.skills_settings.active_tab = SkillsSettingsTab::Skills;
     app.skills_settings.selected_skill_id = Some("fixture-skill".into());
@@ -752,7 +741,6 @@ async fn help_rollout_10_renders_contextual_help() {
         for (title, description) in [
             ("技能配置", "技能、发现顺序与系统配置分开展示；技能页只保留浏览和搜索。"),
             ("系统配置", "这里配置项目技能默认加载与 prompt injection；目录顺序单独展示。"),
-            ("技能目录提供者", "切换技能目录兼容模式；配置缺失时使用 ShiJu。"),
             ("项目技能", "自动向委托代理提供项目及父级 skills、.agents/skills；无需逐项选择。"),
             ("提示注入模式", "compact 更省上下文，full 会注入完整技能内容。"),
         ] {

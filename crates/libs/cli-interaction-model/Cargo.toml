@@ -14,7 +14,6 @@ vw-api-workflow = { path = "../api-workflow" }
 vw-api-agent-scheduler = { path = "../api-agent-scheduler" }
 todo-types = { path = "../todo-types" }
 crossterm = { git = "https://github.com/openai-oss-forks/crossterm", rev = "45fecb9508105988f42fe6ff0441783ed3717f92" }
-config-skills = { path = "../config-skills" }
 question-types = { path = "../question-types" }
 serde_json = "1"
 unicode-segmentation = "1"

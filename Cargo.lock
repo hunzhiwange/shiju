@@ -5460,7 +5460,6 @@ dependencies = [
 name = "cli-interaction-model"
 version = "0.7.6"
 dependencies = [
- "config-skills",
  "crossterm 0.29.0 (git+https://github.com/openai-oss-forks/crossterm?rev=45fecb9508105988f42fe6ff0441783ed3717f92)",
  "gateway-cron",
  "question-types",
@@ -10138,7 +10137,6 @@ dependencies = [
  "axum",
  "config-acp-install",
  "config-runtime-paths",
- "config-skills",
  "gateway-desktop-settings",
  "gateway-types",
  "include_dir",

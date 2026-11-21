@@ -3,7 +3,6 @@ use crate::Event as Message;
 use crate::browser_widgets::header_panel_style;
 use crate::catalog::section_card_style;
 use crate::types::SkillsDirectoryScope;
-use config_skills::SkillsDirectoryProvider;
 use config_ui::DesktopLocale;
 use desktop_i18n::{I18n, settings_extensions::text as tr};
 use desktop_ui_controls::system_settings_common::settings_value_badge;
@@ -41,55 +40,33 @@ pub fn scope_title(scope: SkillsDirectoryScope) -> &'static str {
     }
 }
 
-pub fn provider_project_paths(provider: SkillsDirectoryProvider) -> &'static str {
-    match provider {
-        SkillsDirectoryProvider::Vibewindow => ".shiju/skills, skills, .agents/skills",
-        SkillsDirectoryProvider::Codex => ".codex/skills, .agents/skills, skills",
-        SkillsDirectoryProvider::Claude => ".claude/skills, skills, .agents/skills",
-        SkillsDirectoryProvider::Cursor => ".cursor/skills, skills, .agents/skills",
-    }
-}
+const PROJECT_SKILL_PATHS: &str = ".shiju/skills, skills, .agents/skills";
 
-pub fn provider_global_paths(provider: SkillsDirectoryProvider) -> &'static str {
-    match provider {
-        SkillsDirectoryProvider::Vibewindow => {
-            #[cfg(debug_assertions)]
-            {
-                "~/.shiju-harness-dev/skills, ~/.skills"
-            }
-            #[cfg(not(debug_assertions))]
-            {
-                "~/.shiju-harness/skills, ~/.skills"
-            }
-        }
-        SkillsDirectoryProvider::Codex => "~/.codex/skills, ~/.agents/skills",
-        SkillsDirectoryProvider::Claude => "~/.claude/skills",
-        SkillsDirectoryProvider::Cursor => "~/.cursor/skills",
-    }
+fn global_skill_paths() -> String {
+    format!("{}, ~/.skills", config_runtime_paths::tilde_config_path("skills"))
 }
 
 pub fn scope_description(
     locale: DesktopLocale,
     scope: SkillsDirectoryScope,
-    provider: SkillsDirectoryProvider,
 ) -> String {
     match scope {
         SkillsDirectoryScope::Project => desktop_i18n::__!(
             desktop_i18n::I18n::new(locale),
             "查看当前项目 %s 目录命中的技能。",
-            (provider_project_paths(provider)).to_string()
+            PROJECT_SKILL_PATHS.to_string()
         )
         .expect("valid skills display template"),
         SkillsDirectoryScope::Ancestor => desktop_i18n::__!(
             desktop_i18n::I18n::new(locale),
             "查看从项目父级向上发现的 %s 技能。",
-            (provider_project_paths(provider)).to_string()
+            PROJECT_SKILL_PATHS.to_string()
         )
         .expect("valid skills display template"),
         SkillsDirectoryScope::Global => desktop_i18n::__!(
             desktop_i18n::I18n::new(locale),
             "查看当前用户 %s 中的全局技能。",
-            (provider_global_paths(provider)).to_string()
+            global_skill_paths()
         )
         .expect("valid skills display template"),
         SkillsDirectoryScope::Bundled => {
@@ -110,9 +87,9 @@ pub fn discovery_order_text(app: BrowserContext<'_>) -> String {
             desktop_i18n::I18n::new(locale),
             "发现顺序：%s/%s -> 父级 %s -> %s",
             (project_path).to_string(),
-            (provider_project_paths(app.skills_settings.directory_provider)).to_string(),
-            (provider_project_paths(app.skills_settings.directory_provider)).to_string(),
-            (provider_global_paths(app.skills_settings.directory_provider)).to_string()
+            PROJECT_SKILL_PATHS.to_string(),
+            PROJECT_SKILL_PATHS.to_string(),
+            global_skill_paths()
         )
         .expect("valid skills display template");
     }
@@ -120,7 +97,7 @@ pub fn discovery_order_text(app: BrowserContext<'_>) -> String {
     desktop_i18n::__!(
         desktop_i18n::I18n::new(locale),
         "未打开项目时，仅显示 %s 与内置技能。",
-        (provider_global_paths(app.skills_settings.directory_provider)).to_string()
+        global_skill_paths()
     )
     .expect("valid skills display template")
 }
@@ -128,7 +105,6 @@ pub fn discovery_order_text(app: BrowserContext<'_>) -> String {
 pub fn discovery_order_view<'a>(app: BrowserContext<'a>) -> Element<'a, Message> {
     let locale = app.desktop_locale;
     let project_open = app.project_path.is_some();
-    let provider = app.skills_settings.directory_provider;
     let order = if project_open {
         vec![
             (
@@ -136,7 +112,7 @@ pub fn discovery_order_view<'a>(app: BrowserContext<'a>) -> Element<'a, Message>
                 desktop_i18n::__!(
                     desktop_i18n::I18n::new(locale),
                     "当前项目 %s",
-                    (provider_project_paths(provider)).to_string()
+                    PROJECT_SKILL_PATHS.to_string()
                 )
                 .expect("valid skills display template"),
                 tr(locale, "项目私有技能，优先级最高。").to_string(),
@@ -146,14 +122,14 @@ pub fn discovery_order_view<'a>(app: BrowserContext<'a>) -> Element<'a, Message>
                 desktop_i18n::__!(
                     desktop_i18n::I18n::new(locale),
                     "父级 %s",
-                    (provider_project_paths(provider)).to_string()
+                    PROJECT_SKILL_PATHS.to_string()
                 )
                 .expect("valid skills display template"),
                 tr(locale, "从项目父级向上发现，越近优先级越高。").to_string(),
             ),
             (
                 "3",
-                provider_global_paths(provider).to_string(),
+                global_skill_paths(),
                 tr(locale, "当前用户全局技能目录。").to_string(),
             ),
             (
@@ -166,7 +142,7 @@ pub fn discovery_order_view<'a>(app: BrowserContext<'a>) -> Element<'a, Message>
         vec![
             (
                 "1",
-                provider_global_paths(provider).to_string(),
+                global_skill_paths(),
                 tr(locale, "未打开项目时使用当前用户全局技能目录。").to_string(),
             ),
             (

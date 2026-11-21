@@ -1,9 +1,9 @@
 //! Local/plugin skill loading, project selection and catalog precedence.
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
-use config_skills::{SkillsConfig, SkillsDirectoryProvider, SkillSecurityConfig};
+use config_skills::{SkillsConfig, SkillSecurityConfig};
 use crate::{Skill, types::SkillLoadMode, loader};
-use crate::local_sources::{discover_local_skill_source_dirs_with_provider, LocalSkillSourceKind};
+use crate::local_sources::{discover_local_skill_source_dirs, LocalSkillSourceKind};
 
 fn extend_unique_skills(
     target: &mut Vec<Skill>,
@@ -35,10 +35,9 @@ fn extend_unique_skills(
 fn load_workspace_skills(
     workspace_dir: &Path,
     load_mode: SkillLoadMode,
-    directory_provider: SkillsDirectoryProvider,
     security: &config_skills::SkillSecurityConfig,
 ) -> Vec<Skill> {
-    discover_local_skill_source_dirs_with_provider(Some(workspace_dir), directory_provider)
+    discover_local_skill_source_dirs(Some(workspace_dir))
         .into_iter()
         .flat_map(|source| loader::load_skills_from_directory(&source.path, load_mode, security))
         .collect()
@@ -52,14 +51,12 @@ pub fn load_project_skills_with_config(
     let mut seen = HashSet::new();
     let load_mode = SkillLoadMode::from_prompt_mode(config.prompt_injection_mode);
 
-    for source in discover_local_skill_source_dirs_with_provider(
-        Some(workspace_dir),
-        config.directory_provider,
-    )
-    .into_iter()
-    .filter(|source| {
-        matches!(source.kind, LocalSkillSourceKind::Workspace | LocalSkillSourceKind::Ancestor)
-    }) {
+    for source in discover_local_skill_source_dirs(Some(workspace_dir))
+        .into_iter()
+        .filter(|source| {
+            matches!(source.kind, LocalSkillSourceKind::Workspace | LocalSkillSourceKind::Ancestor)
+        })
+    {
         extend_unique_skills(
             &mut skills,
             &mut seen,
@@ -70,12 +67,11 @@ pub fn load_project_skills_with_config(
     skills
 }
 
-/// Load legacy default local sources without querying plugin services.
+/// Load local sources without querying plugin services.
 pub fn load_skills(workspace: &Path) -> Vec<Skill> {
-    load_with_provider(
+    load_catalog(
         workspace,
         SkillLoadMode::Full,
-        SkillsDirectoryProvider::Vibewindow,
         &SkillSecurityConfig::default(),
         |_| Vec::new(),
     )
@@ -93,13 +89,12 @@ pub fn load_skills_with_config(
     } else {
         SkillLoadMode::from_prompt_mode(config.prompt_injection_mode)
     };
-    load_with_provider(workspace, mode, config.directory_provider, &config.security, plugin_skills)
+    load_catalog(workspace, mode, &config.security, plugin_skills)
 }
 
-fn load_with_provider(
+fn load_catalog(
     workspace: &Path,
     mode: SkillLoadMode,
-    provider: SkillsDirectoryProvider,
     security: &SkillSecurityConfig,
     plugin_skills: impl FnOnce(SkillLoadMode) -> Vec<Skill>,
 ) -> Vec<Skill> {
@@ -108,7 +103,7 @@ fn load_with_provider(
     extend_unique_skills(
         &mut skills,
         &mut seen,
-        load_workspace_skills(workspace, mode, provider, security),
+        load_workspace_skills(workspace, mode, security),
     );
     extend_unique_skills(&mut skills, &mut seen, plugin_skills(mode));
     skills

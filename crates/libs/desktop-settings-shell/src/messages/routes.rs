@@ -49,7 +49,7 @@ pub enum SettingsRoute<SettingsTab, SearchTarget, AppsCatalog, AppProviders> {
     ProvidersRefresh(SettingsMessage<SettingsTab, SearchTarget, AppsCatalog, AppProviders>),
     ModelsRefresh(SettingsMessage<SettingsTab, SearchTarget, AppsCatalog, AppProviders>),
     PluginInstallEffect(SettingsMessage<SettingsTab, SearchTarget, AppsCatalog, AppProviders>),
-    SkillsDirectoryProviderChanged(
+    SkillsConfigChanged(
         SettingsMessage<SettingsTab, SearchTarget, AppsCatalog, AppProviders>,
     ),
     SkillsProjectSelected(SettingsMessage<SettingsTab, SearchTarget, AppsCatalog, AppProviders>),
@@ -214,10 +214,9 @@ impl<SettingsTab, SearchTarget, AppsCatalog, AppProviders>
         | SettingsMessage::PluginsInstallCompleted { .. }
         | SettingsMessage::PluginsInstallClose
         | SettingsMessage::PluginsPreviewDiscarded(_) ) => SettingsRoute::PluginInstallEffect(message),
-            message @ (SettingsMessage::SkillsDirectoryProviderChanged(_)
-        | SettingsMessage::SkillsProjectAutoLoadToggled(_)
+            message @ (SettingsMessage::SkillsProjectAutoLoadToggled(_)
         | SettingsMessage::SkillsPromptInjectionModeChanged(_)
-        | SettingsMessage::SkillsSave ) => SettingsRoute::SkillsDirectoryProviderChanged(message),
+        | SettingsMessage::SkillsSave ) => SettingsRoute::SkillsConfigChanged(message),
             message @ (SettingsMessage::SkillsProjectSelected(_)
         | SettingsMessage::SkillsRefresh
         | SettingsMessage::SkillsLoaded(_)

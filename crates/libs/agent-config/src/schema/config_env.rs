@@ -7,7 +7,7 @@
 //! - 支持多种环境变量命名风格（VIBEWINDOW_* 前缀优先，回退到通用名称）
 //! - 覆盖 API 密钥、Provider、模型、工作区目录等核心配置
 //! - 配置网关端口、主机绑定和公开绑定权限
-//! - 管理技能系统（目录提供方/提示模式）
+//! - 管理技能提示模式
 //! - 控制推理能力、视觉支持和网络搜索功能
 //! - 设置存储后端（Provider/连接 URL/超时）
 //! - 完整的代理配置（启用标志/URL/作用域/服务列表/验证）
@@ -26,7 +26,7 @@
 use config_aggregate::Config;
 
 use config_proxy::*;
-use config_skills::{parse_skills_directory_provider, parse_skills_prompt_injection_mode};
+use config_skills::parse_skills_prompt_injection_mode;
 
 /// 宿主提供尚未迁移的运行时副作用；不持有全局状态副本。
 pub struct EnvironmentHost {
@@ -104,20 +104,6 @@ pub fn apply_env_overrides(config: &mut Config, host: &EnvironmentHost) {
             } else {
                 tracing::warn!(
                     "忽略无效的 VIBEWINDOW_SKILLS_PROMPT_MODE 值（有效值：full|compact）"
-                );
-            }
-        }
-    }
-
-    // 技能目录提供方覆盖：VIBEWINDOW_SKILLS_DIRECTORY_PROVIDER
-    // 有效值：vibewindow|codex|claude|cursor
-    if let Ok(provider) = std::env::var("VIBEWINDOW_SKILLS_DIRECTORY_PROVIDER") {
-        if !provider.trim().is_empty() {
-            if let Some(parsed) = parse_skills_directory_provider(&provider) {
-                config.skills.directory_provider = parsed;
-            } else {
-                tracing::warn!(
-                    "忽略无效的 VIBEWINDOW_SKILLS_DIRECTORY_PROVIDER 值（有效值：vibewindow|codex|claude|cursor）"
                 );
             }
         }

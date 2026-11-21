@@ -2,7 +2,6 @@
 use crate::{Skill, catalog::{load_skills, skills_dir}, invoked::InvokedSkillRecord,
     session_state::SkillListingSessionState, local_sources::{LocalSkillSourceKind,
     discover_local_skill_source_dirs, workspace_skills_dir}};
-use config_skills::SkillsDirectoryProvider;
 use crate::init::init_skills_dir;
 use crate::installer::InstallResult;
 #[cfg(not(target_arch = "wasm32"))]

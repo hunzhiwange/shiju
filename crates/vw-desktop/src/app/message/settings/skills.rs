@@ -163,7 +163,6 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
         SettingsMessage::SkillsSetEnabledCompleted { skill_id, enabled, result } => Event::SkillsSetEnabledCompleted { skill_id, enabled, result },
         SettingsMessage::SkillsDeleteRequested(value) => Event::SkillsDeleteRequested(value),
         SettingsMessage::SkillsDeleteCompleted { skill_id, result } => Event::SkillsDeleteCompleted { skill_id, result },
-        SettingsMessage::SkillsDirectoryProviderChanged(value) => Event::SkillsDirectoryProviderChanged(value),
         SettingsMessage::SkillsProjectAutoLoadToggled(value) => Event::SkillsProjectAutoLoadToggled(value),
         SettingsMessage::SkillsPromptInjectionModeChanged(value) => Event::SkillsPromptInjectionModeChanged(value),
         SettingsMessage::SkillsSave => Event::SkillsSave,
@@ -198,9 +197,8 @@ fn execute(app: &mut App, effect: Effect) -> Task<Message> {
             async move { gateway_skill_install_builtin_async(crate::app::config::gateway_client_endpoint(), &path, &id).await },
             |result| Message::Settings(SettingsMessage::SkillsInstallBuiltInCompleted(result)),
         ),
-        Effect::Save(directory_provider, auto_load_project_skills, prompt_injection_mode) => {
+        Effect::Save(auto_load_project_skills, prompt_injection_mode) => {
             crate::app::update_skills_config_async(move |skills| {
-                skills.directory_provider = directory_provider;
                 skills.auto_load_project_skills = auto_load_project_skills;
                 skills.prompt_injection_mode = prompt_injection_mode;
             })

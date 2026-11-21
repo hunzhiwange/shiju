@@ -13,8 +13,6 @@ pub struct State {
     pub repositories: super::repo_modal::State,
     /// 是否让委托代理默认加载项目及父级技能
     pub auto_load_project_skills: bool,
-    /// 技能目录提供方
-    pub directory_provider: config_skills::SkillsDirectoryProvider,
     /// 提示注入模式
     pub prompt_injection_mode: config_skills::SkillsPromptInjectionMode,
     /// 当前激活的技能设置页签
@@ -73,7 +71,6 @@ impl Default for State {
             storage: Default::default(),
             claude_config: Default::default(),
             auto_load_project_skills: true,
-            directory_provider: config_skills::SkillsDirectoryProvider::Vibewindow,
             prompt_injection_mode: config_skills::SkillsPromptInjectionMode::Compact,
             active_tab: SkillsSettingsTab::Skills,
             query: String::new(),
@@ -106,7 +103,6 @@ pub fn build_skills_settings(
 ) -> crate::update::state::State {
     crate::update::state::State {
         auto_load_project_skills: config.auto_load_project_skills,
-        directory_provider: config.directory_provider,
         prompt_injection_mode: config.prompt_injection_mode,
         ..Default::default()
     }

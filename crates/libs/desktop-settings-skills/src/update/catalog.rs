@@ -51,7 +51,6 @@ SkillsDeleteCompleted {
         skill_id: String,
         result: Result<String, String>,
     },
-SkillsDirectoryProviderChanged(config_skills::SkillsDirectoryProvider),
 SkillsProjectAutoLoadToggled(bool),
 SkillsPromptInjectionModeChanged(config_skills::SkillsPromptInjectionMode),
 SkillsSave,
@@ -63,7 +62,7 @@ pub enum Effect {
  Refresh(Option<String>), PluginsRefresh, Detail(Option<String>, String),
  SetEnabled(Option<String>, String, bool), Delete(Option<String>, String),
  PluginSetEnabled(String, bool), PluginDelete(String), Create(String), InstallBuiltin(String, String),
- Save(config_skills::SkillsDirectoryProvider, bool, config_skills::SkillsPromptInjectionMode),
+ Save(bool, config_skills::SkillsPromptInjectionMode),
 }
 fn refresh_task(p: Option<String>) -> Effect { Effect::Refresh(p) }
 fn plugins_refresh_task() -> Effect { Effect::PluginsRefresh }
@@ -72,7 +71,9 @@ fn set_enabled_task(p: Option<String>, id: String, enabled: bool) -> Effect { Ef
 fn delete_task(p: Option<String>, id: String) -> Effect { Effect::Delete(p,id) }
 fn plugin_set_enabled_task(id: String, enabled: bool) -> Effect { Effect::PluginSetEnabled(id,enabled) }
 fn plugin_delete_task(id: String) -> Effect { Effect::PluginDelete(id) }
-fn persist_skills_settings(s: &State) -> Effect { Effect::Save(s.directory_provider,s.auto_load_project_skills,s.prompt_injection_mode) }
+fn persist_skills_settings(s: &State) -> Effect {
+    Effect::Save(s.auto_load_project_skills, s.prompt_injection_mode)
+}
 pub const INSTALL_COMMAND_TEMPLATE: &str = "shiju skills install <source>";
 
 fn clear_selected_detail(app: &mut State) {
@@ -398,13 +399,6 @@ pub fn update(app: &mut State, current_project: &Option<String>, message: Event)
                 }
             }
             Effect::None
-        }
-        Event::SkillsDirectoryProviderChanged(provider) => {
-            app.directory_provider = provider;
-            app.save_error = None;
-            app.loading = true;
-            clear_selected_detail(app);
-            Effect::Batch(vec![persist_skills_settings(app), refresh_task(current_project.clone())])
         }
         Event::SkillsProjectAutoLoadToggled(v) => {
             app.auto_load_project_skills = v;

@@ -47,7 +47,7 @@ fn installed_card(
         icon_svg(Icon::Star, 14.0).style(styles::muted_icon)
     };
     let star = button(container(star_icon).center(18))
-        .padding(3)
+        .padding(iced::Padding { top: 1.0, right: 3.0, bottom: 5.0, left: 3.0 })
         .style(button::text)
         .on_press_maybe((state.action.is_none()).then(|| {
             Event::MarketplaceAction(ShijuMarketplaceAction::Favorite(

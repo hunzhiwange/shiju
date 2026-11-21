@@ -11,6 +11,22 @@ use super::channels::is_valid_env_var_name;
 use super::proxy::validate_proxy_config;
 use domain_matcher::domain_matcher::DomainMatcher;
 
+pub(crate) fn validate_builtin_mcp_servers_retained(
+    current: &[serde_json::Value],
+    next: &[serde_json::Value],
+) -> Result<()> {
+    for name in current
+        .iter()
+        .filter_map(|server| server["name"].as_str().map(str::trim))
+        .filter(|name| config_tools::is_builtin_mcp_server_id(name))
+    {
+        if !next.iter().any(|server| server["name"].as_str().map(str::trim) == Some(name)) {
+            anyhow::bail!("builtin MCP server {name} cannot be deleted");
+        }
+    }
+    Ok(())
+}
+
 /// 将用户配置的 wire API 名称归一化为内部稳定标识。
 ///
 /// 支持 Responses API 与 Chat Completions API 的常见拼写。未知值返回 `None`，由调用方决定是否报错。

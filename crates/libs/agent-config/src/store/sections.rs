@@ -53,6 +53,17 @@ impl ConfigSnapshot {
     pub fn changes(&self, payload: &str) -> Result<ConfigChanges> {
         let next = parse_sections(payload)?;
         let previous = self.sections.as_ref();
+        if let Some(previous_servers) = previous
+            .and_then(|sections| sections.get("mcpServers"))
+            .and_then(Value::as_array)
+        {
+            let next_servers =
+                next.get("mcpServers").and_then(Value::as_array).map(Vec::as_slice);
+            crate::schema::config_validate::validate_builtin_mcp_servers_retained(
+                previous_servers,
+                next_servers.unwrap_or_default(),
+            )?;
+        }
         let mut changes = ConfigChanges {
             initialize: previous.is_none(),
             upsert: Vec::new(),

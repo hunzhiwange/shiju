@@ -40,6 +40,18 @@ async fn load_with_plugins<H: McpConfigHost>(
     Ok((resolved, config))
 }
 
+fn resolve_rustcodegraph_workspace(servers: &mut [McpServer], workspace: &Path) {
+    let Some(workspace) = workspace.to_str() else { return };
+    for server in servers {
+        if let McpServer::Stdio(server) = server
+            && server.name == "rustcodegraph"
+            && server.args == ["serve", "--mcp", "--path", "${workspaceRoot}"]
+        {
+            server.args[3] = workspace.to_owned();
+        }
+    }
+}
+
 /// ACP entries precede globals, then plugins; explicit management overrides apply last.
 pub async fn resolve_mcp_config_with_plugins<H: McpConfigHost>(
     workspace: &Path,
@@ -48,6 +60,7 @@ pub async fn resolve_mcp_config_with_plugins<H: McpConfigHost>(
     let (mut resolved, config) = load_with_plugins(workspace, host).await?;
     let values = H::values(&config);
     apply_mcp_server_override_values(&mut resolved, values.overrides, &values.source_path)?;
+    resolve_rustcodegraph_workspace(&mut resolved.mcp_servers, workspace);
     Ok(resolved)
 }
 
@@ -61,6 +74,7 @@ pub async fn resolve_runtime_mcp_config<H: RuntimeMcpConfigHost>(
     resolved.mcp_servers.extend(managed);
     let values = H::values(&config);
     apply_mcp_server_override_values(&mut resolved, values.overrides, &values.source_path)?;
+    resolve_rustcodegraph_workspace(&mut resolved.mcp_servers, workspace);
     if let Some(selected) = host.native_selection() {
         resolved.mcp_servers.retain(|server| selected.contains(server_name(server)));
     }

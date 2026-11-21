@@ -8,6 +8,25 @@ use agent_database::GlobalDatabase;
 use agent_database::test_support::PostgresTestDatabase;
 use secret_store::gateway_skey_store::{GatewaySkeyReplacement, GatewaySkeyStore};
 
+#[test]
+fn system_config_replacement_preserves_installed_rustcodegraph() -> Result<()> {
+    for_each_system_config_store_provider(|store, _| {
+        let tenant = TenantScope::new("mcp", "builtin")?;
+        store.upsert(
+            &tenant,
+            r#"{"mcpServers":[{"name":"rustcodegraph"},{"name":"custom"}]}"#,
+        )?;
+        let error = store.upsert(&tenant, r#"{"mcpServers":[]}"#).unwrap_err();
+        assert!(format!("{error:#}").contains("builtin MCP server rustcodegraph cannot be deleted"));
+        assert!(store.upsert(&tenant, "{}").is_err());
+
+        let disabled = r#"{"mcpServers":[{"enabled":false,"name":"rustcodegraph"}]}"#;
+        store.upsert(&tenant, disabled)?;
+        assert_eq!(store.get(&tenant)?.as_deref(), Some(disabled));
+        Ok(())
+    })
+}
+
 // 正常值、缺省值与非法输入成组验证，用于固定配置兼容边界和失败语义。
 #[test]
 fn system_config_store_isolates_platform_and_company_rows() -> Result<()> {

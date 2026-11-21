@@ -13,6 +13,7 @@ pub fn configured_server_panel<'a, Message: Clone + 'static>(event: fn(McpMessag
 ) -> Element<'a, Message> {
     let checkbox_label = if server.enabled { tr(locale, "启用") } else { tr(locale, "禁用") };
     let server_index = server.index;
+    let builtin = config_tools::is_builtin_mcp_server_id(&server.name);
     let enabled_checkbox = checkbox(server.enabled)
         .label(checkbox_label)
         .style(settings_checkbox_style)
@@ -34,6 +35,9 @@ pub fn configured_server_panel<'a, Message: Clone + 'static>(event: fn(McpMessag
     ]
     .spacing(8)
     .align_y(Alignment::Center);
+    if builtin {
+        badges = badges.push(settings_value_badge(tr(locale, "内置")));
+    }
     if server.required {
         badges = badges.push(settings_value_badge(tr(locale, "必需")));
     }
@@ -65,8 +69,14 @@ pub fn configured_server_panel<'a, Message: Clone + 'static>(event: fn(McpMessag
     let edit_message = controls_enabled.then(|| {
         event(McpMessage::ServerEditRequested(server_index))
     });
-    let delete_message = controls_enabled
-        .then(|| event(McpMessage::RequestDelete(server_index)));
+    let mut actions = row![
+        enabled_checkbox,
+        toolbar_button(tr(locale, "编辑"), edit_message),
+    ];
+    if !builtin {
+        let delete_message = controls_enabled.then(|| event(McpMessage::RequestDelete(server_index)));
+        actions = actions.push(toolbar_button(tr(locale, "删除"), delete_message));
+    }
 
     let mut content = column![
         column![
@@ -75,16 +85,12 @@ pub fn configured_server_panel<'a, Message: Clone + 'static>(event: fn(McpMessag
         ]
         .spacing(4),
         badges.wrap(),
-        row![
-            enabled_checkbox,
-            toolbar_button(tr(locale, "编辑"), edit_message),
-            toolbar_button(tr(locale, "删除"), delete_message),
-            toolbar_button(preview_label, preview_action_message(event, preview_enabled)),
-            toolbar_button(preview_toggle_label, preview_toggle_message),
-        ]
-        .spacing(8)
-        .align_y(Alignment::Center)
-        .wrap(),
+        actions
+            .push(toolbar_button(preview_label, preview_action_message(event, preview_enabled)))
+            .push(toolbar_button(preview_toggle_label, preview_toggle_message))
+            .spacing(8)
+            .align_y(Alignment::Center)
+            .wrap(),
     ]
     .spacing(12);
     if preview_expanded {

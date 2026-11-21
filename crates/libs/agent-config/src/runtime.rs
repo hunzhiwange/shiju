@@ -691,6 +691,22 @@ pub async fn update_global_for_tenant(tenant: &TenantScope, mut patch: Value) ->
 }
 
 fn merge_global_config_patch(current: Config, mut patch: Value) -> Result<Config, Error> {
+    // Apply the append to the latest snapshot on every compare-and-swap attempt.
+    if let Some(server) = patch.as_object_mut().and_then(|patch| patch.remove("mcpServerToAdd")) {
+        let name = server.get("name").and_then(Value::as_str).map(str::trim)
+            .filter(|name| !name.is_empty())
+            .ok_or_else(|| Error::Invalid("mcpServerToAdd requires a server name".into()))?;
+        if patch.get("mcpServers").is_some() {
+            return Err(Error::Invalid("mcpServerToAdd cannot accompany mcpServers".into()));
+        }
+        let mut servers = current.mcp_servers.clone();
+        match servers.iter().find(|entry| entry["name"].as_str().map(str::trim) == Some(name)) {
+            Some(entry) if entry == &server => {}
+            Some(_) => return Err(Error::Invalid("An MCP server with this name already exists".into())),
+            None => servers.push(server),
+        }
+        patch["mcpServers"] = Value::Array(servers);
+    }
     schema::seed_agent_profile_patch(&current, &mut patch)
         .map_err(|error| Error::Invalid(error.to_string()))?;
     // 将配置转换为 JSON 值
@@ -708,7 +724,7 @@ fn merge_global_config_patch(current: Config, mut patch: Value) -> Result<Config
     Ok(next)
 }
 
-/// Saved agent keys retain their engine; custom deletion remains supported.
+/// Preserve saved agent engines and the IDs of installed built-in MCP servers.
 pub fn validate_agent_runtime_update(current: &Config, next: &Config) -> Result<(), Error> {
     for (key, agent) in &current.agents {
         if let Some(candidate) = next.agents.get(key)
@@ -719,7 +735,11 @@ pub fn validate_agent_runtime_update(current: &Config, next: &Config) -> Result<
             )));
         }
     }
-    Ok(())
+    crate::schema::config_validate::validate_builtin_mcp_servers_retained(
+        &current.mcp_servers,
+        &next.mcp_servers,
+    )
+    .map_err(|error| Error::Invalid(error.to_string()))
 }
 
 pub async fn update_global(patch: Value) -> Result<(), Error> {

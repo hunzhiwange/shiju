@@ -306,16 +306,12 @@ pub fn update(app: &mut crate::state::State, message: Message) -> Effect {
             {
                 return Effect::None;
             }
-            match editor_value(&app.editor) {
-                Ok((value, _)) if value.as_array().is_some_and(|servers| index < servers.len()) => {
+            match editor_value(&app.editor)
+                .and_then(|(value, _)| validate_server_deletion(&value, index))
+            {
+                Ok(()) => {
                     app.delete_pending = Some(index);
                     clear_edit_feedback(app);
-                }
-                Ok(_) => {
-                    app.delete_pending = None;
-                    app.save_error = Some(format!(
-                        "Invalid mcpServers[{index}] in global config: index out of bounds"
-                    ));
                 }
                 Err(err) => {
                     app.delete_pending = None;

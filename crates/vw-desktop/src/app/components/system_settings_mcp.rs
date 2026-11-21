@@ -124,6 +124,77 @@ fn configuration_transfer_panel(app: &App) -> Element<'_, Message> {
     panel.into()
 }
 
+#[cfg(not(target_arch = "wasm32"))]
+fn rustcodegraph_install_panel(app: &App) -> Element<'_, Message> {
+    use desktop_i18n::settings_extensions::text as tr;
+    use desktop_ui_controls::system_settings_common::{
+        settings_group_card, settings_muted_text_style,
+    };
+    use iced::widget::{column, text};
+
+    if !crate::app::config::gateway_client_endpoint().is_loopback() {
+        return iced::widget::Space::new().into();
+    }
+    let state = &app.mcp_settings;
+    let locale = app.general_settings.desktop_locale;
+    let label = if state.installing_rustcodegraph {
+        "正在安装 RustCodeGraph…"
+    } else {
+        "一键安装 RustCodeGraph MCP"
+    };
+    let ready = !state.loading && !state.saving && !state.transfer_pending
+        && !state.new_server_expanded;
+    let action = ready.then_some(Message::Settings(SettingsMessage::Mcp(
+        McpMessage::InstallRustCodeGraph,
+    )));
+    settings_group_card(column![
+        desktop_settings_mcp::toolbar_button(tr(locale, label), action),
+        text(tr(locale, "从 GitHub 下载并注册到本机网关。使用服务器配置中的命令路径，在项目目录运行 init -i 创建索引。"))
+            .size(12)
+            .style(settings_muted_text_style),
+    ].spacing(8))
+    .padding([14, 16])
+    .into()
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+fn chrome_devtools_install_panel(app: &App) -> Element<'_, Message> {
+    use desktop_i18n::settings_extensions::text as tr;
+    use desktop_ui_controls::system_settings_common::{
+        settings_group_card, settings_muted_text_style,
+    };
+    use iced::widget::{column, text};
+
+    if !crate::app::config::gateway_client_endpoint().is_loopback() {
+        return iced::widget::Space::new().into();
+    }
+    let state = &app.mcp_settings;
+    let locale = app.general_settings.desktop_locale;
+    let label = if state.installing_chrome_devtools {
+        "正在安装 Chrome DevTools MCP…"
+    } else {
+        "一键安装 Chrome DevTools MCP"
+    };
+    let ready = !state.loading
+        && !state.saving
+        && !state.transfer_pending
+        && !state.new_server_expanded;
+    let action = ready.then_some(Message::Settings(SettingsMessage::Mcp(
+        McpMessage::InstallChromeDevTools,
+    )));
+    settings_group_card(
+        column![
+            desktop_settings_mcp::toolbar_button(tr(locale, label), action),
+            text(tr(locale, "通过 npm 下载官方包。需要 Node.js LTS、npm 和最新版稳定版 Chrome。"))
+                .size(12)
+                .style(settings_muted_text_style),
+        ]
+        .spacing(8),
+    )
+    .padding([14, 16])
+    .into()
+}
+
 pub fn view(app: &App) -> Element<'_, Message> {
     page::view(
         event,
@@ -132,6 +203,10 @@ pub fn view(app: &App) -> Element<'_, Message> {
         &app.appearance.app_theme,
         std::array::from_fn(|index| match index {
             0 => configuration_transfer_panel(app),
+            #[cfg(not(target_arch = "wasm32"))]
+            1 => rustcodegraph_install_panel(app),
+            #[cfg(not(target_arch = "wasm32"))]
+            2 => chrome_devtools_install_panel(app),
             _ => iced::widget::Space::new().into(),
         }),
         help,

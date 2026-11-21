@@ -1,3 +1,13 @@
+pub const CHROME_DEVTOOLS_MCP_SERVER_ID: &str = "chrome-devtools";
+pub const RUSTCODEGRAPH_MCP_SERVER_ID: &str = "rustcodegraph";
+
+pub fn is_builtin_mcp_server_id(name: &str) -> bool {
+    matches!(
+        name.trim(),
+        CHROME_DEVTOOLS_MCP_SERVER_ID | RUSTCODEGRAPH_MCP_SERVER_ID
+    )
+}
+
 /// Agent 基础闭环必需的主工具；权限策略仍可拒绝具体操作。
 pub const BUILTIN_REQUIRED_TOOL_IDS: &[&str] = &[
     "file_read",

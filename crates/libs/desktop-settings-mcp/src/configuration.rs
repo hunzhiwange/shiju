@@ -368,19 +368,27 @@ pub(crate) fn set_server_enabled(
     Ok((value, count))
 }
 
+pub(crate) fn validate_server_deletion(value: &Value, index: usize) -> Result<(), McpSettingsError> {
+    let server = value.get(index).ok_or_else(|| {
+        invalid(&format!("mcpServers[{index}] in global config"), "index within bounds")
+    })?;
+    if server["name"].as_str().is_some_and(config_tools::is_builtin_mcp_server_id) {
+        return Err(McpSettingsError::Localized(desktop_i18n::format::Message::new(
+            "内置 MCP 服务器不可删除",
+            vec![],
+        )));
+    }
+    Ok(())
+}
+
 pub(crate) fn delete_server(
     editor: &text_editor::Content,
     index: usize,
 ) -> Result<(Value, usize), McpSettingsError> {
     let (mut value, _) = editor_value(editor)?;
+    validate_server_deletion(&value, index)?;
     let servers =
         value.as_array_mut().ok_or_else(|| invalid("mcpServers in global config", "array"))?;
-    if index >= servers.len() {
-        return Err(invalid(
-            &format!("mcpServers[{index}] in global config"),
-            "index within bounds",
-        ));
-    }
     servers.remove(index);
     let count = validate_mcp_servers(&value)?;
     Ok((value, count))

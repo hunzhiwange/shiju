@@ -9,6 +9,8 @@ pub struct McpSettingsState {
     pub import: Option<crate::management_import::ImportState>,
     pub connection_form: Option<crate::management_form::Draft>,
     pub page: crate::state::State,
+    pub installing_rustcodegraph: bool,
+    pub installing_chrome_devtools: bool,
 }
 
 impl Default for McpSettingsState {
@@ -23,6 +25,8 @@ impl Default for McpSettingsState {
             import: None,
             connection_form: None,
             page: Default::default(),
+            installing_rustcodegraph: false,
+            installing_chrome_devtools: false,
         }
     }
 }

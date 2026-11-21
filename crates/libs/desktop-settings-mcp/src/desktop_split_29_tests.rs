@@ -294,6 +294,25 @@ fn delete_confirmation_requires_matching_target_and_adjusts_edit_index() {
 }
 
 #[test]
+fn installed_rustcodegraph_cannot_be_deleted_from_settings() {
+    let mut app = app();
+    app.editor = text_editor::Content::with_text(
+        r#"[{"name":"rustcodegraph","command":"rustcodegraph"}]"#,
+    );
+    let before = app.editor.text();
+
+    let _ = update(&mut app, McpMessage::RequestDelete(0));
+    assert_eq!(app.delete_pending, None);
+
+    app.delete_pending = Some(0);
+    let _ = update(&mut app, McpMessage::ConfirmDelete(0));
+    assert_eq!(app.delete_pending, None);
+    assert!(!app.saving);
+    assert_eq!(app.editor.text(), before);
+    assert_eq!(app.save_error.as_deref(), Some("内置 MCP 服务器不可删除"));
+}
+
+#[test]
 fn deleting_edited_server_clears_stale_form_state_and_cancel_keeps_editor() {
     let mut app = app();
     app.editor = text_editor::Content::with_text(

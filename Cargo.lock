@@ -7635,6 +7635,7 @@ dependencies = [
 name = "desktop-settings-mcp"
 version = "0.7.6"
 dependencies = [
+ "config-tools",
  "config-ui",
  "desktop-apps-ui",
  "desktop-assets",

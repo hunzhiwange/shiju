@@ -7,7 +7,8 @@ mod network;
 
 pub use browser::{BrowserComputerUseConfig, BrowserConfig};
 pub use catalog::{
-    BUILTIN_REQUIRED_TOOL_IDS, DEFAULT_ENABLED_TOOL_IDS, is_builtin_required_tool_id,
+    BUILTIN_REQUIRED_TOOL_IDS, CHROME_DEVTOOLS_MCP_SERVER_ID, DEFAULT_ENABLED_TOOL_IDS,
+    RUSTCODEGRAPH_MCP_SERVER_ID, is_builtin_mcp_server_id, is_builtin_required_tool_id,
     is_mcp_dynamic_tool_id,
 };
 pub use multimodal::{MultimodalConfig, MultimodalOcrConfig};

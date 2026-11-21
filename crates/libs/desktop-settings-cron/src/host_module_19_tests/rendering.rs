@@ -719,7 +719,7 @@ async fn help_rollout_15_renders_contextual_help() {
             assert_fits(positions.label(label), size);
         }
         for help in [
-            ("定时任务配置", "配置 Cron 子系统的开关与历史保留策略。"),
+            ("定时任务", "配置 Cron 子系统的开关与历史保留策略。"),
             ("当前任务", "默认展示已配置的定时任务，并支持单项或批量管理。"),
         ] {
             assert_schedule_help(&app, &mut ui, &mut renderer, size, "cron-jobs", help);

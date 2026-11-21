@@ -26,7 +26,7 @@ async fn cron_list_fills_available_content_width() {
         let mut ui = scene(super::super::page(&app), &mut renderer, size);
         let positions = geometry(&mut ui, &renderer);
         let scroll = positions.scroll.unwrap().0;
-        let title = positions.label("定时任务配置");
+        let title = positions.label("定时任务");
         assert!((scroll.x - 7.0).abs() <= 1.0, "{scroll:?}");
         assert!(scroll.x + scroll.width > width as f32 - 50.0, "{scroll:?}");
         assert!((title.x - scroll.x).abs() < 15.0);
@@ -63,7 +63,7 @@ async fn cron_list_fills_available_content_width() {
 }
 
 fn assert_single_content_scroll(positions: &Geometry) {
-    let content_left = positions.label("定时任务配置").x;
+    let content_left = positions.label("定时任务").x;
     assert_eq!(
         positions.scrolls.iter().filter(|r| r.x + r.width > content_left).count(),
         1,
@@ -121,7 +121,7 @@ async fn cron_list_render_theme_and_width_matrix() {
                 let positions = geometry(&mut ui, &renderer);
                 assert_single_content_scroll(&positions);
                 let scroll = positions.scroll.unwrap().0;
-                let title = positions.label("定时任务配置");
+                let title = positions.label("定时任务");
                 let group =
                     positions.labels.iter().find(|(s, _)| s.starts_with("全部 (")).unwrap().1;
                 assert!((title.x - scroll.x).abs() <= 1.0);
@@ -212,7 +212,7 @@ async fn cron_list_bulk_footer_stays_visible_when_scrolled() {
         let translation = after.scroll.unwrap().1;
         assert!(translation.y > 1000.0);
         assert!(scroll.contains(after.label("巡检任务 29").center() - translation));
-        for label in ["定时任务配置", "全部 (30)", "全选 30 个任务", "删除已选(0)"]
+        for label in ["定时任务", "全部 (30)", "全选 30 个任务", "删除已选(0)"]
         {
             assert_eq!(before.label(label), after.label(label));
             assert_fits(after.label(label), size);
@@ -242,7 +242,7 @@ async fn cron_list_tabs_and_modals_preserve_width_and_scroll() {
             app.cron_settings.active_tab = tab;
             let mut ui = scene(super::super::page(&app), &mut renderer, size);
             let before = geometry(&mut ui, &renderer);
-            let title = before.label("定时任务配置");
+            let title = before.label("定时任务");
             assert!((title.x - *left.get_or_insert(title.x)).abs() <= 1.0);
             let content_width = size.width as f32 - title.x - 7.0;
             assert!(before.containers.iter().any(|r| (r.x - title.x).abs() <= 1.0 && (r.width - content_width).abs() <= 1.0), "Cron tab must fill the content area");

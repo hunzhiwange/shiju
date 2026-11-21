@@ -152,7 +152,7 @@ pub fn view<'a, M: Clone + 'static>(app: &ViewData<'a>, scheduler_content: Eleme
 
     let heading: Element<'_, Message> = row![
             container(settings_page_heading_with_help(app,
-                i18n.__("定时任务配置"),
+                i18n.__("定时任务"),
                 i18n.__("配置 Cron 子系统的开关与历史保留策略。")
             ))
             .width(Length::Fill),

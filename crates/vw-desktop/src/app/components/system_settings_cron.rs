@@ -214,7 +214,8 @@ pub(crate) fn page(app: &App) -> Element<'_, Message> {
         app.cron_settings.active_tab,
         CronSettingsTab::Jobs | CronSettingsTab::History | CronSettingsTab::Add
     );
-    desktop_settings_shell::content_page(iced::widget::column![view(app)], true, owns_scroll)
+    let content = iced::widget::column![view(app)].padding(iced::Padding::ZERO.top(24));
+    desktop_settings_shell::content_page(content, true, owns_scroll)
 }
 
 fn view(app: &App) -> Element<'_, Message> {

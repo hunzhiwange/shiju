@@ -356,18 +356,16 @@ pub(super) fn view(
             }),
         ));
     }
-    let primary = if let Some(id) = detail.catalog_id {
-        Some((
-            "安装",
-            (!busy)
-                .then(|| Event::MarketplaceAction(ShijuMarketplaceAction::Install(id.to_owned()))),
-        ))
-    } else {
-        installed.map(|item| ("打开", open_installed(&item.installation_id)))
-    };
-    if let Some((label, event)) = primary {
+    if let Some(id) = detail.catalog_id {
+        let event = (!busy)
+            .then(|| Event::MarketplaceAction(ShijuMarketplaceAction::Install(id.to_owned())));
         actions = actions.push(
-            action(i18n.__(label), event).style(styles::primary_button_style).padding([9, 14]),
+            action(i18n.__("安装"), event).style(styles::primary_button_style).padding([9, 14]),
+        );
+    } else if let Some(app) = installed {
+        actions = actions.push(
+            action(i18n.__("打开"), open_installed(&app.installation_id))
+                .style(styles::primary_button_style),
         );
     }
     let intro = row![

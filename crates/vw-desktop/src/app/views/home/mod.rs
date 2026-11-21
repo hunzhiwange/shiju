@@ -4,6 +4,9 @@ mod common;
 pub(in crate::app) use common::{parse_hex_color, project_avatar};
 use crate::app::{App, Message, message};
 
+#[cfg(not(target_arch = "wasm32"))]
+use crate::app::skill_hub::ExpertHubSection;
+
 pub fn view(app: &App) -> iced::Element<'_, Message> {
     let state = desktop_navigation::views::home::recent::State {
         desktop_locale: app.general_settings.desktop_locale,
@@ -25,6 +28,29 @@ pub fn view(app: &App) -> iced::Element<'_, Message> {
                     Message::View(message::ViewMessage::OpenCron),
                 Home::Header(header::Message::OpenApps) =>
                     Message::View(message::ViewMessage::OpenApps),
+                Home::Header(header::Message::OpenThirdPartyAgents) =>
+                    Message::View(message::ViewMessage::OpenThirdPartyAgents),
+                #[cfg(not(target_arch = "wasm32"))]
+                Home::Header(header::Message::OpenShijuSkills) =>
+                    Message::SkillHub(message::SkillHubMessage::OpenShijuSkills),
+                #[cfg(not(target_arch = "wasm32"))]
+                Home::Header(header::Message::OpenShijuApps) =>
+                    Message::ShijuApps(message::ShijuAppsMessage::Open),
+                #[cfg(not(target_arch = "wasm32"))]
+                Home::Header(header::Message::OpenShijuKnowledge) =>
+                    Message::SkillHub(message::SkillHubMessage::SelectSection(ExpertHubSection::Knowledge)),
+                #[cfg(not(target_arch = "wasm32"))]
+                Home::Header(header::Message::OpenDigitalEmployees) =>
+                    Message::DigitalEmployees(crate::app::digital_employees::Event::Open),
+                #[cfg(not(target_arch = "wasm32"))]
+                Home::Header(header::Message::OpenExperts) =>
+                    Message::SkillHub(message::SkillHubMessage::SelectSection(ExpertHubSection::Experts)),
+                #[cfg(not(target_arch = "wasm32"))]
+                Home::Header(header::Message::OpenSkills) =>
+                    Message::SkillHub(message::SkillHubMessage::SelectSection(ExpertHubSection::Skills)),
+                #[cfg(not(target_arch = "wasm32"))]
+                Home::Header(header::Message::OpenConnectors) =>
+                    Message::SkillHub(message::SkillHubMessage::SelectSection(ExpertHubSection::Connectors)),
                 Home::Header(header::Message::HomeAppsBarScrollChanged(x)) =>
                     Message::View(message::ViewMessage::HomeAppsBarScrollChanged(x)),
                 Home::Recent(recent::Message::OpenRecentPressed(path)) =>

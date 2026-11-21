@@ -9,8 +9,30 @@ use iced::{Alignment, Background, Border, Color, Element, Length, Theme, Vector}
 
 use desktop_assets::assets::Icon;
 use desktop_ui_controls::system_settings_common::settings_panel_style;
+
 #[derive(Debug, Clone)]
-pub enum Message { OpenFolderPressed, OpenProjectPressed, OpenApps, OpenCron, HomeAppsBarScrollChanged(f32) }
+pub enum Message {
+    OpenFolderPressed,
+    OpenProjectPressed,
+    OpenApps,
+    OpenCron,
+    OpenThirdPartyAgents,
+    #[cfg(not(target_arch = "wasm32"))]
+    OpenShijuSkills,
+    #[cfg(not(target_arch = "wasm32"))]
+    OpenShijuApps,
+    #[cfg(not(target_arch = "wasm32"))]
+    OpenShijuKnowledge,
+    #[cfg(not(target_arch = "wasm32"))]
+    OpenDigitalEmployees,
+    #[cfg(not(target_arch = "wasm32"))]
+    OpenExperts,
+    #[cfg(not(target_arch = "wasm32"))]
+    OpenSkills,
+    #[cfg(not(target_arch = "wasm32"))]
+    OpenConnectors,
+    HomeAppsBarScrollChanged(f32),
+}
 
 use super::common::{icon_svg, is_dark_theme, primary_button, secondary_button};
 
@@ -34,22 +56,44 @@ pub fn render(i18n: desktop_i18n::I18n, scroll_id: iced::widget::Id) -> Element<
         Message::OpenProjectPressed,
     );
 
+    let accent = Color::from_rgb8(0x35, 0x85, 0xD6);
     let switches_row = row![
         app_chip(
             Icon::Grid1x2,
             i18n.__("应用中心"),
-            Color::from_rgb8(0x35, 0x85, 0xD6),
+            accent,
             Message::OpenApps,
         ),
         app_chip(
             Icon::Clock,
             i18n.__("定时任务"),
-            Color::from_rgb8(0x35, 0x85, 0xD6),
+            accent,
             Message::OpenCron,
+        ),
+        app_chip(
+            Icon::Terminal,
+            i18n.__("第三方智能体"),
+            accent,
+            Message::OpenThirdPartyAgents,
         ),
     ]
     .spacing(6)
     .align_y(Alignment::Center);
+
+    #[cfg(not(target_arch = "wasm32"))]
+    let switches_row = switches_row.extend(
+        [
+            (Icon::Star, i18n.__("识矩技能"), Message::OpenShijuSkills),
+            (Icon::Box, i18n.__("识矩应用"), Message::OpenShijuApps),
+            (Icon::Journals, i18n.__("识矩知识库"), Message::OpenShijuKnowledge),
+            (Icon::Robot, i18n.__("数字员工"), Message::OpenDigitalEmployees),
+            (Icon::Person, i18n.__("专家"), Message::OpenExperts),
+            (Icon::Wrench, i18n.__("技能"), Message::OpenSkills),
+            (Icon::Link, i18n.__("连接器"), Message::OpenConnectors),
+        ]
+        .into_iter()
+        .map(|(icon, label, message)| app_chip(icon, label, accent, message)),
+    );
 
     let switches = scrollable(switches_row)
         .id(scroll_id)

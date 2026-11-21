@@ -20,7 +20,7 @@ pub mod resume;
 #[derive(Clone, Default)]
 pub struct State {
     pub open: bool,
-    pub sources_open: bool,
+    sources: Option<paths::Sources>,
     pub apps_open: bool,
     pub deletion: delete::State,
     pub maintenance: maintenance::State,
@@ -338,7 +338,7 @@ pub fn close(state: &mut State) {
     state.cancel_reader();
     state.deletion = delete::State::default();
     state.open = false;
-    state.sources_open = false;
+    state.sources = None;
     state.apps_open = false;
     state.busy = false;
     state.generation = state.generation.wrapping_add(1);

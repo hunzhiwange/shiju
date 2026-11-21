@@ -6,7 +6,53 @@ use super::Event as Message;
 use crate::{Connection, Notice, error as notify_error, success as notify_success};
 use iced::{Element, Length, Task, widget::{button, column, container, row, scrollable, text}};
 use iced::widget::scrollable::{Direction, Scrollbar};
+use std::{
+    collections::{HashMap, HashSet},
+    sync::Arc,
+    time::Duration,
+};
 use vw_api_external_session::SessionMeta;
+
+const SOURCE_PATHS: &[(&str, &[&str])] = &[
+    ("Claude Code", &["~/.claude/projects"]),
+    ("Codex", &["~/.codex/sessions", "~/.codex/archived_sessions"]),
+    ("OpenCode", &["~/.local/share/opencode"]),
+    ("Hermes", &["~/.hermes/state.db", "~/.hermes/sessions"]),
+    ("Gemini", &["~/.gemini/tmp/<project>/chats"]),
+    ("Pi", &["~/.pi/agent/sessions"]),
+    ("OMP", &["~/.omp/agent/sessions"]),
+    ("Grok Build", &["~/.grok/sessions", "~/.grok/archived_sessions"]),
+    ("OpenClaw", &["~/.openclaw/agents/<agent>/sessions"]),
+    ("MiniMax Code", &["~/.minimax"]),
+    ("Kimi", &["~/.kimi-code/sessions"]),
+    ("DSH", &["~/.dsh/sessions/<project>/<session>/session.v*.jsonl[.zstd]"]),
+    ("Antigravity", &["~/.gemini/antigravity-cli/brain/<conversation>/.system_generated/logs"]),
+];
+
+#[derive(Clone, Default)]
+pub(super) struct Sources {
+    instance: Arc<()>,
+    copied: HashSet<&'static str>,
+    revealable: HashMap<&'static str, String>,
+}
+
+#[cfg(target_os = "macos")]
+fn revealable_sources() -> HashMap<&'static str, String> {
+    let Some(home) = std::env::home_dir() else {
+        return HashMap::new();
+    };
+    SOURCE_PATHS.iter()
+        .flat_map(|(_, paths)| paths.iter().copied())
+        .filter_map(|label| {
+            if label.contains('<') || label.contains('*') {
+                return None;
+            }
+            let path = home.join(label.strip_prefix("~/")?);
+            let path = local_path(path.to_str()?)?;
+            std::path::Path::new(&path).try_exists().ok()?.then_some((label, path))
+        })
+        .collect()
+}
 
 fn msg(event: Event) -> Message { message(ParentEvent::Path(event)) }
 
@@ -41,7 +87,60 @@ pub(super) fn update(state: &mut super::State, connection: &Connection, notice: 
     let scope = Scope { context, host: state.host.clone(), project,
         catalog: connection.generation, generation: state.generation, append: false };
     let (identity, generation, kind, reveal) = match event {
-        Event::Sources(open) => { state.sources_open = open; return Task::none(); }
+        Event::Sources(false) => {
+            state.sources = None;
+            return Task::none();
+        }
+        Event::Sources(true) => {
+            let sources = Sources::default();
+            #[cfg(target_os = "macos")]
+            let instance = sources.instance.clone();
+            state.sources = Some(sources);
+            #[cfg(target_os = "macos")]
+            if verified_local && client.endpoint().is_loopback() {
+                return Task::perform(async move {
+                    let paths = tokio::task::spawn_blocking(revealable_sources).await.unwrap_or_default();
+                    msg(Event::RevealableSources(instance, paths))
+                }, |message| message);
+            }
+            return Task::none();
+        }
+        Event::RevealableSources(instance, paths) => {
+            if let Some(sources) = &mut state.sources
+                && Arc::ptr_eq(&sources.instance, &instance)
+            {
+                sources.revealable = paths;
+            }
+            return Task::none();
+        }
+        Event::CopySource(path) => {
+            let Some(sources) = &mut state.sources else { return Task::none(); };
+            if !sources.copied.insert(path) {
+                return Task::none();
+            }
+            let instance = sources.instance.clone();
+            return iced::clipboard::write(path.to_owned()).chain(Task::perform(async move {
+                crate::diagnostics::sleep::sleep(Duration::from_secs(2)).await;
+                msg(Event::ResetSourceCopy(instance, path))
+            }, |message| message));
+        }
+        Event::ResetSourceCopy(instance, path) => {
+            if let Some(sources) = &mut state.sources
+                && Arc::ptr_eq(&sources.instance, &instance)
+            {
+                sources.copied.remove(path);
+            }
+            return Task::none();
+        }
+        Event::RevealSource(label) => {
+            if !cfg!(target_os = "macos") || !verified_local {
+                return notify_error(notice, "此路径无法在 Finder 中显示，可以复制路径");
+            }
+            let Some(path) = state.sources.as_ref()
+                .and_then(|sources| sources.revealable.get(label)).cloned()
+            else { return Task::none(); };
+            return reveal_path(client.endpoint().clone(), path, scope);
+        }
         Event::Finished(other, result) => {
             if other.context != scope.context || other.host != scope.host || other.project != scope.project
                 || other.catalog != scope.catalog || other.generation != scope.generation { return Task::none(); }
@@ -71,8 +170,12 @@ pub(super) fn update(state: &mut super::State, connection: &Connection, notice: 
     let Some(path) = local_path(&value) else {
         return notify_error(notice, "此来源位置不是可在 Finder 中显示的本机绝对路径");
     };
+    reveal_path(client.endpoint().clone(), path, scope)
+}
+
+fn reveal_path(endpoint: gateway_endpoint::GatewayEndpoint, path: String, scope: Scope) -> Task<Message> {
     Task::perform(async move {
-        let result = desktop_config::config_file_manager::reveal_gateway_path_locally(client.endpoint(), &path).await;
+        let result = desktop_config::config_file_manager::reveal_gateway_path_locally(&endpoint, &path).await;
         msg(Event::Finished(scope, result))
     }, |message| message)
 }
@@ -108,37 +211,44 @@ pub(super) fn source_button() -> Element<'static, Message> {
 }
 
 pub(super) fn view<'a>(state: &'a State, base: Element<'a, Message>) -> Element<'a, Message> {
-    if !state.sources_open { return base; }
+    let Some(sources) = &state.sources else { return base; };
     let close = msg(Event::Sources(false));
     let mut locations = column![].spacing(10).padding([0, 7]);
-    for (app, paths) in [
-        ("Claude Code", "~/.claude/projects"),
-        ("Codex", "~/.codex/sessions；~/.codex/archived_sessions"),
-        ("OpenCode", "~/.local/share/opencode"),
-        ("Hermes", "~/.hermes/state.db；~/.hermes/sessions"),
-        ("Gemini", "~/.gemini/tmp/<project>/chats"),
-        ("Pi", "~/.pi/agent/sessions"),
-        ("OMP", "~/.omp/agent/sessions"),
-        ("Grok Build", "~/.grok/sessions；~/.grok/archived_sessions"),
-        ("OpenClaw", "~/.openclaw/agents/<agent>/sessions"),
-        ("MiniMax Code", "~/.minimax"),
-        ("Kimi", "~/.kimi-code/sessions"),
-        ("DSH", "~/.dsh/sessions/<project>/<session>/session.v*.jsonl[.zstd]"),
-        ("Antigravity", "~/.gemini/antigravity-cli/brain/<conversation>/.system_generated/logs"),
-    ] {
-        locations = locations.push(column![row![desktop_ui_controls::icons::acp_agent_icon(app, 20.0), text(app).size(14)].spacing(8),
-            text(paths).size(12).style(settings_muted_text_style)].spacing(4));
+    for &(app, paths) in SOURCE_PATHS {
+        let mut group = column![row![
+            desktop_ui_controls::icons::acp_agent_icon(app, 20.0),
+            text(app).size(14),
+        ].spacing(8)].spacing(6);
+        for &path in paths {
+            let copied = sources.copied.contains(path);
+            let mut actions = row![
+                button(text(if copied { "已复制" } else { "复制路径" }))
+                    .padding([4, 8])
+                    .style(rounded_action_btn_style)
+                    .on_press_maybe((!copied).then(|| msg(Event::CopySource(path)))),
+            ].spacing(8);
+            if sources.revealable.contains_key(path) {
+                actions = actions.push(button(text("在 Finder 中显示"))
+                    .padding([4, 8])
+                    .style(rounded_action_btn_style)
+                    .on_press(msg(Event::RevealSource(path))));
+            }
+            group = group.push(text(path).size(12).style(settings_muted_text_style))
+                .push(actions.wrap());
+        }
+        locations = locations.push(group);
     }
-    let header = column![
-        row![text("会话记录在哪里").size(18), settings_close_button(close.clone())].spacing(12),
-    ].spacing(12);
-    let card = settings_modal_card(header.extend([
+    let header = settings_modal_header(
+        text("会话记录在哪里").size(18),
+        settings_close_button(close.clone()),
+    );
+    let card = settings_modal_card(column![
+        header,
         text("以下是默认位置。修改过数据目录时，以会话详情中的来源为准。Claude Desktop 使用 Claude Code 的记录。")
-            .style(settings_muted_text_style).into(),
+            .style(settings_muted_text_style),
         scrollable(container(locations).width(Length::Fill)).height(Length::Fixed(320.0))
-            .direction(Direction::Vertical(Scrollbar::new().width(4).scroller_width(4))).into(),
-        button(text("关闭")).padding([8, 12]).style(rounded_action_btn_style).on_press(close.clone()).into(),
-    ])).width(Length::Fill).max_width(600);
+            .direction(Direction::Vertical(Scrollbar::new().width(4).scroller_width(4))),
+    ].spacing(12)).width(Length::Fill).max_width(600);
     settings_modal_overlay_with_escape_and_backdrop_dismiss(base, close, container(card).max_width(600))
 }
 
@@ -148,6 +258,10 @@ pub enum Location { Source, Project, Identity }
 #[derive(Clone, Debug)]
 pub enum Event {
     Sources(bool),
+    RevealableSources(Arc<()>, HashMap<&'static str, String>),
+    CopySource(&'static str),
+    ResetSourceCopy(Arc<()>, &'static str),
+    RevealSource(&'static str),
     Copy(ExternalSessionIdentity, u64, Location),
     Reveal(ExternalSessionIdentity, u64, Location),
     Finished(Scope, Result<(), String>),

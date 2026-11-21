@@ -29,20 +29,14 @@ fn map(event: domain::Message) -> Message {
         }
         domain::Message::OpenSkillSettings => {
             use crate::app::{
-                components::system_settings::SystemTab,
-                message::{
-                    ViewMessage,
-                    settings::{AgentConfigTabMessage, SettingsMessage},
-                },
-                state::AgentConfigTab,
+                components::system_settings_search::SystemSettingsSearchTarget,
+                message::ViewMessage,
+                state::SkillsSettingsTab,
             };
 
-            Message::Batch(vec![
-                Message::View(ViewMessage::OpenSystemSettingsTab(SystemTab::Agents)),
-                Message::Settings(SettingsMessage::AgentConfigTab(
-                    AgentConfigTabMessage::Selected(AgentConfigTab::Skills),
-                )),
-            ])
+            Message::View(ViewMessage::OpenSystemSettingsTarget(
+                SystemSettingsSearchTarget::AgentSkills(SkillsSettingsTab::Skills),
+            ))
         }
         domain::Message::Connectors(m) => {
             Message::SkillHub(crate::app::message::SkillHubMessage::Connectors(m))

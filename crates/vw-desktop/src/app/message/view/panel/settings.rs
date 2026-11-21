@@ -4,6 +4,7 @@ use super::ViewMessage;
 use crate::app::message::settings::McpMessage;
 use crate::app::message::{ProjectMessage, SettingsMessage};
 use crate::app::{App, Message};
+use desktop_settings_shell::search::SystemSettingsSearchTarget;
 use desktop_update::panel::{Effect, PanelMessage};
 use iced::Task;
 #[cfg(not(target_arch = "wasm32"))]
@@ -35,7 +36,11 @@ pub(crate) use desktop_navigation::window_lifecycle::begin_shutdown;
 /// 处理设置、更新、项目与窗口生命周期相关的面板消息。
 pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
     if let Some(local) = navigation_message(&message) {
-        return update_navigation(app, local);
+        let target = match message {
+            ViewMessage::OpenSystemSettingsTarget(target) => Some(target),
+            _ => None,
+        };
+        return update_navigation(app, local, target);
     }
     match message {
         ViewMessage::RestartApp => {
@@ -181,7 +186,11 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
             Task::none()
         }
         ViewMessage::MenuAction(msg) => {
-            let _ = update_navigation(app, desktop_navigation::panel::settings::Message::MenuAction);
+            let _ = update_navigation(
+                app,
+                desktop_navigation::panel::settings::Message::MenuAction,
+                None,
+            );
             Task::done(*msg)
         }
         _ => Task::none(),
@@ -461,6 +470,7 @@ fn navigation_message(
         ViewMessage::ToggleSystemSettings => Local::ToggleSystemSettings,
         ViewMessage::OpenAcpSettings => Local::OpenAcpSettings,
         ViewMessage::OpenSystemSettingsTab(value) => Local::OpenSystemSettingsTab(*value),
+        ViewMessage::OpenSystemSettingsTarget(target) => Local::OpenSystemSettingsTab(target.page()),
         ViewMessage::OpenSystemSettingsModelDetail(provider, model) => {
             Local::OpenSystemSettingsModelDetail(provider.clone(), model.clone())
         }
@@ -480,6 +490,7 @@ fn navigation_message(
 fn update_navigation(
     app: &mut App,
     message: desktop_navigation::panel::settings::Message,
+    target: Option<SystemSettingsSearchTarget>,
 ) -> Task<Message> {
     use desktop_navigation::panel::settings as domain;
     let effect = domain::update(
@@ -583,7 +594,14 @@ fn update_navigation(
             )))
         }
         Some(domain::Effect::SelectSystemTab(tab)) => {
-            Task::done(Message::Settings(SettingsMessage::SystemTabSelected(tab)))
+            if let Some(target) = target {
+                crate::app::message::settings::update(
+                    app,
+                    SettingsMessage::SystemSearchTargetSelected(target),
+                )
+            } else {
+                Task::done(Message::Settings(SettingsMessage::SystemTabSelected(tab)))
+            }
         }
         Some(domain::Effect::OpenModelDetail(provider, model)) => {
             app.model_settings.active_tab = crate::app::state::ModelConfigTab::Models;

@@ -55,6 +55,7 @@ pub(crate) fn intercept(app: &mut App, message: &Message) -> bool {
             | Message::View(
                 ViewMessage::ToggleSystemSettings
                     | ViewMessage::OpenSystemSettingsTab(_)
+                    | ViewMessage::OpenSystemSettingsTarget(_)
                     | ViewMessage::OpenSystemSettingsModelDetail(_, _)
             )
     );

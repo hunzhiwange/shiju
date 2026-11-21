@@ -103,6 +103,31 @@ fn opening_model_detail_selects_models_and_closes_transient_popovers() {
     assert!(!app.popover_visibility.usage);
 }
 
+#[test]
+fn opening_skill_settings_selects_both_skill_tabs_immediately() {
+    use crate::app::components::system_settings::SystemTab;
+    use crate::app::message::view::ViewMessage;
+    use crate::app::state::{AgentConfigTab, SkillsSettingsTab};
+    use desktop_settings_shell::search::SystemSettingsSearchTarget;
+
+    let mut app = crate::app::App::new().0;
+    app.navigation_panels.system_settings_tab = SystemTab::General;
+    app.agents_settings.active_config_tab = AgentConfigTab::Agents;
+    app.skills_settings.active_tab = SkillsSettingsTab::SystemConfig;
+
+    let _ = super::update(
+        &mut app,
+        ViewMessage::OpenSystemSettingsTarget(SystemSettingsSearchTarget::AgentSkills(
+            SkillsSettingsTab::Skills,
+        )),
+    );
+
+    assert!(app.navigation_panels.show_system_settings);
+    assert_eq!(app.navigation_panels.system_settings_tab, SystemTab::Agents);
+    assert_eq!(app.agents_settings.active_config_tab, AgentConfigTab::Skills);
+    assert_eq!(app.skills_settings.active_tab, SkillsSettingsTab::Skills);
+}
+
 // 任务与结果：覆盖任务构造、调度或结果回写对公开状态的影响。
 // 完成、失败与过期响应均按当前场景的既定契约处理。
 #[test]

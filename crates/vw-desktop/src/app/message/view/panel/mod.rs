@@ -83,6 +83,7 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
         | ViewMessage::ToggleSystemSettings
         | ViewMessage::OpenAcpSettings
         | ViewMessage::OpenSystemSettingsTab(_)
+        | ViewMessage::OpenSystemSettingsTarget(_)
         | ViewMessage::OpenSystemSettingsModelDetail(_, _)
         | ViewMessage::ToggleAboutModal
         | ViewMessage::RestartApp

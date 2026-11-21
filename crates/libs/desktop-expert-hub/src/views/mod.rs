@@ -6,6 +6,7 @@ pub mod styles;
 use desktop_skill_hub::skill_hub::ExpertHubState;
 #[derive(Debug, Clone)]
 pub enum Message {
+    OpenSkillSettings,
     SkillHub(crate::message::skill_hub::SkillHubMessage),
     Connectors(crate::message::connectors::ConnectorMessage),
     StartBrowserLogin,

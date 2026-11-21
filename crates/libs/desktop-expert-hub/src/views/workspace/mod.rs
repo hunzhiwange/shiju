@@ -2,7 +2,6 @@
 
 pub use crate::message::skill_hub::SkillHubMessage;
 use desktop_skill_hub::skill_hub::ExpertHubSection;
-use desktop_ui_controls::system_settings_common::rounded_action_btn_style;
 type WorkspaceInput<'a> = ViewInput<'a>;
 use iced::Element;
 
@@ -73,16 +72,7 @@ pub fn shiju_skills_view<'a, M: Clone + 'static>(
     layout: impl FnOnce(Element<'a, M>) -> Element<'a, M>,
 ) -> Element<'a, M> {
     let body = if app.expert_hub.detail.is_some() { detail::view(app) } else { list::view(app) };
-    let i18n = desktop_i18n::I18n::new(app.desktop_locale);
-    let settings = iced::widget::button(iced::widget::text(i18n.__("技能配置")).size(14))
-        .padding([6, 10])
-        .style(rounded_action_btn_style)
-        .on_press(map(Message::OpenSkillSettings));
-    let navigation = iced::widget::row![section_tabs(app, map), settings]
-        .spacing(8)
-        .align_y(iced::Alignment::Center)
-        .wrap();
-    let base = layout(crate::views::shell::view(navigation.into(), body.map(map)));
+    let base = layout(crate::views::shell::view(section_tabs(app, map), body.map(map)));
     let base = list::with_maintained_action(app, base, map);
     install_guide::with_uninstall_confirmation(app, base, map)
 }

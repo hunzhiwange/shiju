@@ -934,6 +934,14 @@ fn marketplace_filters(app: &ViewInput<'_>, width: f32) -> Element<'static, Mess
 fn marketplace(app: &ViewInput<'_>, width: f32, columns: usize) -> Element<'static, Message> {
     let i18n = desktop_i18n::I18n::new(app.desktop_locale);
     let state = app.expert_hub;
+    let settings = button(text(i18n.__("技能配置")).size(14))
+        .padding([10, 16])
+        .style(|theme, status| {
+            let mut style = rounded_action_btn_style(theme, status);
+            style.border.radius = 8.0.into();
+            style
+        })
+        .on_press(Message::OpenSkillSettings);
     let install = button(
         row![
             icon_svg(Icon::CloudDownload, 16.0)
@@ -959,11 +967,12 @@ fn marketplace(app: &ViewInput<'_>, width: f32, columns: usize) -> Element<'stat
         style
     })
     .on_press(Message::SkillHub(SkillHubMessage::OpenInstallGuide));
+    let actions = row![settings, install].spacing(8).align_y(Alignment::Center).wrap();
     let title = heading(i18n, "技能广场", "发现并安装当前账号可使用的技能。");
     let header: Element<'_, Message> = if width >= 610.0 {
-        row![title, Space::new().width(Length::Fill), install].align_y(Alignment::Center).into()
+        row![title, Space::new().width(Length::Fill), actions].align_y(Alignment::Center).into()
     } else {
-        column![title, install].spacing(12).into()
+        column![title, actions].spacing(12).into()
     };
     let mut content = column![header].spacing(28).width(Length::Fill);
     if !state.featured_skills.is_empty() {

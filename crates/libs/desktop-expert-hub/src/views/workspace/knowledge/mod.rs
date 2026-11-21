@@ -12,6 +12,7 @@ fn map(message: crate::views::Message) -> Message {
             Message::Account(crate::views::workspace::AccountMessage::StartBrowserLogin)
         }
         crate::views::Message::CopyCode(text) => Message::CopyCode(text),
+        crate::views::Message::OpenSkillSettings => Message::OpenSkillSettings,
         crate::views::Message::None => Message::None,
     }
 }

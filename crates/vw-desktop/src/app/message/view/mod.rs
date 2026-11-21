@@ -113,6 +113,7 @@ pub enum ViewMessage {
     OpenAcpSettings,
     OpenCron,
     OpenSystemSettingsTab(crate::app::components::system_settings::SystemTab),
+    OpenSystemSettingsTarget(desktop_settings_shell::search::SystemSettingsSearchTarget),
     /// 打开系统设置中的模型详情页
     ///
     /// # 参数
@@ -667,6 +668,7 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
         ViewMessage::WorkspaceModeSelected(_) | ViewMessage::WorkProjectHome
         | ViewMessage::ToggleSystemSettings | ViewMessage::TaskPetOpenSettings
         | ViewMessage::OpenAcpSettings | ViewMessage::OpenCron | ViewMessage::OpenSystemSettingsTab(_)
+        | ViewMessage::OpenSystemSettingsTarget(_)
         | ViewMessage::OpenSystemSettingsModelDetail(_, _)
         | ViewMessage::GoHome | ViewMessage::TabSelected(_) | ViewMessage::TabClosed(_)) {
         app.usage_center.close();
@@ -710,6 +712,7 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
             | ViewMessage::OpenAcpSettings
             | ViewMessage::OpenCron
             | ViewMessage::OpenSystemSettingsTab(_)
+            | ViewMessage::OpenSystemSettingsTarget(_)
             | ViewMessage::OpenSystemSettingsModelDetail(_, _)
             | ViewMessage::GoHome
             | ViewMessage::TabSelected(_)
@@ -965,6 +968,7 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
         | ViewMessage::ToggleSystemSettings
         | ViewMessage::OpenAcpSettings
         | ViewMessage::OpenSystemSettingsTab(_)
+        | ViewMessage::OpenSystemSettingsTarget(_)
         | ViewMessage::OpenSystemSettingsModelDetail(_, _)
         | ViewMessage::ToggleAboutModal
         | ViewMessage::RestartApp

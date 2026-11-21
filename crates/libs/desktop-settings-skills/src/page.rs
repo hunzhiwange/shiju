@@ -138,14 +138,24 @@ pub fn view<'a, M: Clone + 'static>(
     use iced::Alignment;
     use iced::widget::{container, row};
     let help_btn = settings_help_button_with_locale(app.desktop_locale, map(Message::HelpOpen));
-    let actions = row![].spacing(8).align_y(Alignment::Center);
+    let tabs = settings_tab_row(skills_tab_labels().iter().map(|(label, tab)| {
+        skills_tab_button(tr(app.desktop_locale, label), *tab, active_tab).map(map)
+    }))
+    .wrap();
     #[cfg(not(target_arch = "wasm32"))]
-    let actions = actions.push(
-        iced::widget::button(iced::widget::text(tr(app.desktop_locale, "技能列表")).size(14))
-            .padding([6, 10])
-            .style(rounded_action_btn_style)
-            .on_press(map(Message::OpenSkillList)),
-    );
+    let tabs = row![
+        tabs,
+        iced::widget::Space::new().width(Length::Fill),
+        settings_tab_button(
+            tr(app.desktop_locale, "技能列表"),
+            false,
+            Some(map(Message::OpenSkillList)),
+        )
+        .style(rounded_action_btn_style),
+    ]
+    .spacing(8)
+    .align_y(Alignment::Center)
+    .width(Length::Fill);
     let mut page = column![
         row![
             container(
@@ -163,14 +173,11 @@ pub fn view<'a, M: Clone + 'static>(
                 .wrap()
             )
             .width(Length::Fill),
-            actions.push(help_btn),
+            help_btn,
         ]
         .align_y(Alignment::Start)
         .wrap(),
-        settings_tab_row(skills_tab_labels().iter().map(|(label, tab)| {
-            skills_tab_button(tr(app.desktop_locale, label), *tab, active_tab).map(map)
-        }))
-        .wrap(),
+        tabs,
     ]
     .spacing(16)
     .width(Length::Fill);

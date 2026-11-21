@@ -119,3 +119,38 @@ Markdown 边界。空选集保留原生扫描，同时继续省略受管入口�
 的 `configure`（E0061）。两次构建均经共享编译锁，两个 Cargo 缓存变量
 均指向各自绝对槽位。Rust 定向实际运行 0 项，网关探针未启动。
 先恢复共享编译，再用任务卡命令取得网关四轮及模型、权限回读。
+
+## 正式网关回归
+
+2026-11-21，Darwin arm64。复用共享槽位 3 的网关，构建成功证据见
+`target/acp-skill-coexistence/recovery-regression-gateway.json`。持有同一槽位时
+核对了网关 SHA-256 `54089fcae85172aeca2459440eae5fbb8c041c774d64ff9b045b669219044e19`，
+以及 Kilocode 修订 2 摘要和受限启动标记。两个 Cargo 缓存路径均指向
+`target/rust-slot-3`。直接运行本卡探针，退出 0，未重建公共网关。实际供应商
+制品为上述重签的 7.8.18 修订 2。结构化报告为
+`target/acp-skill-coexistence/kilocode.json`。
+
+| 轮次 | 独立会话 | `chat.done` / `chat.error` | 模型请求 | MCP 决策 / 下游次数 |
+| --- | --- | ---: | ---: | --- |
+| 基线 | `ses_e037b2277ffeg2nxZbp7d4qsJK` | 1 / 0 | 3 | 无 / 0 |
+| 挂载 | `ses_e037afb87ffe3rlVeHkNA1AQ70` | 1 / 0 | 6 | 单次批准 / 1 |
+| 撤除 | `ses_e037ace48ffegkiDEawXnZGQ7D` | 1 / 0 | 3 | 无 / 0 |
+| 拒绝 | `ses_e037aa959ffelmir6Sc6yWoSFM` | 1 / 0 | 6 | 拒绝 / 0 |
+
+挂载轮原生技能及附件分别由 `call_c27d1303ee3089eed18ed8ea` 和
+`call_5a57d6e6643b2191a4b00f1b` 回传。选中技能及附件分别由
+`call_67e761dbf3ee0580a82a7c98` 和 `call_deb87670c7c7f8fbd9827721`
+回传。MCP 放行与拒绝的调用 ID 分别为 `call_32ba015492fa792b362d1b02`
+和 `call_006666928c2790fdde73cfba`。拒绝结果以同一调用 ID 返回模型，
+后续模型请求未收到只读服务的随机值。撤除轮保留原生技能，目录中未发现
+上轮选集、未选技能或 MCP 工具。
+
+四轮回读均为后端 `kilocode` 7.8.18、`session_model` 和
+`coexistence-fixture/deepseek-v4.1-flash-1017`。会话摘要
+`full_access=false`，权限状态 `requested=false`、`support=unavailable`，
+同时经现有宿主审批验证了受限 MCP 的单次放行和拒绝。
+
+在共享编译锁下使用槽位 11 执行
+`cargo test --locked -j 1 -p llm-runtime --lib acp_skill_coexistence_kilocode -- --test-threads=1`。
+两个 Cargo 缓存路径均指向 `target/rust-slot-11`。退出 0，实际运行 4 项，全部
+通过。覆盖空选集与冲突配置、受审入口校验、选中来源的只读范围、MCP 宿主策略。

@@ -345,6 +345,14 @@ async fn ui_refresh_39_layout_and_interaction() {
         let original = capture(&mut ui, &mut renderer, &theme, size, name, Point::ORIGIN);
         let geometry = bounds(&mut ui, &renderer);
         let account = position(&geometry.inputs, "fixture-account");
+        let account_label = position(&geometry.labels, i18n.__("第三方账号 ID"));
+        if size.width == 960 {
+            assert!(account_label.x + account_label.width <= account.x);
+            assert!(account_label.center().y >= account.y);
+            assert!(account_label.center().y <= account.y + account.height);
+        } else {
+            assert!(account_label.y + account_label.height <= account.y);
+        }
         let save = position(&geometry.labels, i18n.__("保存绑定"));
         let cancel = position(&geometry.labels, i18n.__("取消"));
         assert!(save.y >= geometry.scrolls[0].0.y + geometry.scrolls[0].0.height);

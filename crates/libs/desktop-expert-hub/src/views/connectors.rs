@@ -11,8 +11,8 @@ fn help_label<'a, M: Clone + 'static>(render: HelpRenderer<M>, i18n: I18n, theme
     desktop_ui_controls::system_settings_common::help::settings_hover_help_label(label, render(title, description.into(), Some(theme.palette().text), i18n))
 }
 use iced::widget::scrollable::{Direction, Scrollbar};
-use iced::widget::{Space, button, column, container, row, scrollable, text, text_input};
-use iced::{Alignment, Element, Length, Theme};
+use iced::widget::{Space, button, column, container, responsive, row, scrollable, text};
+use iced::{Alignment, Background, Element, Length, Theme};
 use gateway_shiju_connector::ShijuConnector;
 
 const GRID_COLUMNS: usize = 3;
@@ -233,21 +233,36 @@ pub fn binding_modal<'a, M: Clone + 'static>(app: &ViewInput<'a>, help: HelpRend
     ]
     .spacing(10)
     .align_y(Alignment::Center);
-    let card = settings_modal_layout(
-        header,
-        binding_form(i18n, app.app_theme, form, !saving, help, message),
-        Some(footer.into()),
-    )
-    .width(Length::Fixed(720.0))
-    .height(Length::Fixed(680.0));
+    let theme = app.app_theme;
+    let body = responsive(move |size| {
+        binding_form(i18n, theme, form, !saving, help, message, size.width >= 600.0)
+    })
+    .height(Length::Shrink);
+    let card = settings_modal_layout(header, body, Some(footer.into()))
+        .width(Length::Fixed(720.0))
+        .height(Length::Fixed(680.0))
+        .style(|theme| {
+            let mut style = settings_modal_card_style(theme);
+            if let Some(Background::Color(color)) = &mut style.background {
+                color.a = 1.0;
+            }
+            style
+        });
     Some((close, container(card).padding(12).into()))
 }
 
 fn field<'a, M: Clone + 'static>(
+    wide: bool,
     label: impl Into<Element<'a, M>>,
     control: impl Into<Element<'a, M>>,
 ) -> Element<'a, M> {
-    column![label.into(), control.into()].spacing(6).padding([12, 0]).width(Length::Fill).into()
+    if wide {
+        settings_flexible_row_with_label(container(label).width(Length::Fill), 460.0, control)
+            .padding([12, 0])
+            .into()
+    } else {
+        column![label.into(), control.into()].spacing(6).padding([12, 0]).width(Length::Fill).into()
+    }
 }
 
 fn binding_form<'a, M: Clone + 'static>(
@@ -257,24 +272,23 @@ fn binding_form<'a, M: Clone + 'static>(
     editable: bool,
     help: HelpRenderer<M>,
     message: fn(ConnectorMessage) -> M,
+    wide: bool,
 ) -> Element<'a, M> {
     let account_id = i18n.__("第三方账号 ID");
     let account_name = i18n.__("第三方账号名称");
     let account_fields = column![
         field(
+            wide,
             help_label(
                 help,
                 i18n,
                 theme,
                 account_id,
-                text(account_id).size(13),
+                settings_field_label(account_id),
                 i18n.__("连接器平台中的账号标识"),
             )
             .wrap(),
-            text_input(i18n.__("填写第三方账号 ID"), &form.account_id)
-                .padding(SETTINGS_CONTROL_PADDING)
-                .size(SETTINGS_CONTROL_TEXT_SIZE)
-                .style(settings_text_input_style)
+            settings_text_input(i18n.__("填写第三方账号 ID"), &form.account_id)
                 .width(Length::Fill)
                 .on_input_maybe(
                     editable.then_some(move |value| message(ConnectorMessage::AccountId(value)))
@@ -282,19 +296,17 @@ fn binding_form<'a, M: Clone + 'static>(
         ),
         settings_divider(),
         field(
+            wide,
             help_label(
                 help,
                 i18n,
                 theme,
                 account_name,
-                text(account_name).size(13),
+                settings_field_label(account_name),
                 i18n.__("便于识别的账号名称"),
             )
             .wrap(),
-            text_input(i18n.__("填写账号名称"), &form.account_name)
-                .padding(SETTINGS_CONTROL_PADDING)
-                .size(SETTINGS_CONTROL_TEXT_SIZE)
-                .style(settings_text_input_style)
+            settings_text_input(i18n.__("填写账号名称"), &form.account_name)
                 .width(Length::Fill)
                 .on_input_maybe(
                     editable.then_some(move |value| message(ConnectorMessage::AccountName(value)))
@@ -326,19 +338,17 @@ fn binding_form<'a, M: Clone + 'static>(
             } else {
                 i18n.__("填写绑定变量")
             };
-            let input = text_input(placeholder, value)
+            let input = settings_text_input(placeholder, value)
                 .secure(secret)
-                .padding(SETTINGS_CONTROL_PADDING)
-                .size(SETTINGS_CONTROL_TEXT_SIZE)
-                .style(settings_text_input_style)
                 .width(Length::Fill)
                 .on_input_maybe(editable.then_some(move |value| {
                     message(ConnectorMessage::Variable(name.clone(), value))
                 }));
             let label =
-                text(format!("{label}{}", if variable.required { " *" } else { "" })).size(13);
+                text(format!("{label}{}", if variable.required { " *" } else { "" })).size(15);
             let field = if secret {
                 field(
+                    wide,
                     label,
                     settings_control_with_hint(
                         input,
@@ -347,6 +357,7 @@ fn binding_form<'a, M: Clone + 'static>(
                 )
             } else {
                 field(
+                    wide,
                     help_label(
                         help,
                         i18n,

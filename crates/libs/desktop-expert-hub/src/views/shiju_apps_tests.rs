@@ -135,6 +135,9 @@ fn shiju_apps_cards_surface_runtime_readiness() {
     );
     assert!(shiju_apps::mine::open_action_message(&installed_app(true)).is_some());
     assert!(shiju_apps::mine::open_action_message(&installed_app(false)).is_none());
+    let mut app = installed_app(true);
+    app.runtime_url.clear();
+    assert!(shiju_apps::mine::open_action_message(&app).is_some());
     assert_eq!(shiju_apps::styles::SCROLLBAR_WIDTH, 4);
     assert_eq!(shiju_apps::styles::SCROLLABLE_SIDE_PADDING, 7);
 }

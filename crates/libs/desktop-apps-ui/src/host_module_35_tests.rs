@@ -144,6 +144,10 @@ fn app_ready_for_launch() -> Fixture {
 #[test]
 fn open_shiju_app_checks_binding_before_launch() {
     let mut app = app_ready_for_launch();
+    let ShijuAppsLoadState::Loaded(mine) = &mut app.shiju_apps.mine else {
+        panic!("expected installed applications");
+    };
+    mine.apps[0].runtime_url.clear();
 
     let _task =
         app.update(ShijuAppsMessage::OpenInstalled("01K1APP0000000000000000001".to_string()));

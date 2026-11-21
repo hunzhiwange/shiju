@@ -93,9 +93,9 @@ pub struct ShijuInstalledAppDto {
 }
 
 impl ShijuInstalledAppDto {
+    /// Runtime status gates the desktop binding flow; the launch service validates the URL.
     pub fn runtime_ready(&self) -> bool {
         !self.installation_id.is_empty()
-            && !self.runtime_url.is_empty()
             && self.reconcile_status == "ready"
             && self.runtime_status == "ready"
     }

@@ -13,12 +13,17 @@ use iced::widget::{Space, button, column, container, responsive, row, scrollable
 use iced::{Alignment, Element, Font, Length};
 
 use super::list::{cards, description_tooltip};
+use super::public_skill_detail::installed_in_catalog;
 use super::styles;
 use super::{Message, ViewInput};
 use crate::message::skill_hub::{PublicSkillMessage, SkillHubMessage};
 use desktop_assets::assets::Icon;
-use desktop_skill_hub::skill_hub::{LoadState, PublicSkillMarketState, PublicSkillTab};
-use desktop_ui_controls::system_settings_common::{settings_select, settings_text_input};
+use desktop_skill_hub::skill_hub::{
+    LoadState, PublicDetailTarget, PublicSkillMarketState, PublicSkillTab,
+};
+use desktop_ui_controls::system_settings_common::{
+    primary_action_btn_style, settings_select, settings_text_input,
+};
 
 /// 公共技能页面统一使用的滚动条宽度。
 pub const SCROLLBAR_WIDTH: u32 = 4;
@@ -202,11 +207,36 @@ fn public_card(
         footer,
         false,
     )
+    .height(Length::Fixed(178.0))
+    .into()
+}
+
+fn install_action(
+    i18n: desktop_i18n::I18n,
+    installed: bool,
+    action: Message,
+) -> Element<'static, Message> {
+    if installed {
+        return container(text(i18n.__("已安装")).size(12))
+            .padding([5, 8])
+            .style(styles::skill_badge_style)
+            .into();
+    }
+    button(text(i18n.__("安装")).size(12))
+        .padding([5, 10])
+        .style(|theme, status| {
+            let mut style = primary_action_btn_style(theme, status);
+            style.border.radius = 8.0.into();
+            style
+        })
+        .on_press(action)
+        .into()
 }
 
 fn skill_card(
     i18n: desktop_i18n::I18n,
     skill: &SkillMarketSkillDto,
+    installed: bool,
     width: f32,
 ) -> Element<'static, Message> {
     let locator = &skill.coordinate.locator;
@@ -251,6 +281,7 @@ fn skill_card(
         )
         .max_width(84)
         .clip(true),
+        install_action(i18n, installed, skill_detail_message(locator.clone())),
     ]
     .spacing(6)
     .align_y(Alignment::Center)
@@ -269,6 +300,7 @@ fn skill_card(
 fn suite_card(
     i18n: desktop_i18n::I18n,
     suite: &SkillMarketSkillSetDto,
+    installed: bool,
     width: f32,
 ) -> Element<'static, Message> {
     let subtitle = i18n
@@ -279,12 +311,22 @@ fn suite_card(
         .expect("valid display template");
     let title_tooltip = format!("{}\n{subtitle}", suite.name);
     let updated = cards::updated_label(i18n, Some(&suite.updated_at));
+    let install = public_message(PublicSkillMessage::OpenSuiteInstall {
+        source: suite.source.clone(),
+        slug: suite.slug.clone(),
+    });
+    let footer = row![
+        text(updated).size(12).style(cards::muted_text).width(Length::Fill),
+        install_action(i18n, installed, install),
+    ]
+    .spacing(6)
+    .align_y(Alignment::Center);
     public_card(
         &suite.name,
         subtitle,
         title_tooltip,
         &suite.description,
-        text(updated).size(12).style(cards::muted_text).into(),
+        footer.into(),
         (
             public_message(PublicSkillMessage::OpenSuiteDetail {
                 source: suite.source.clone(),
@@ -365,27 +407,32 @@ pub fn error_view(i18n: desktop_i18n::I18n, error: &str) -> Element<'static, Mes
     .into()
 }
 
-fn skill_state_content(
+fn skill_grid(
     i18n: desktop_i18n::I18n,
-    state: &LoadState<Vec<SkillMarketSkillDto>>,
-    empty: &'static str,
+    state: &PublicSkillMarketState,
+    skills: &[SkillMarketSkillDto],
 ) -> Element<'static, Message> {
-    match state {
-        LoadState::Idle | LoadState::Loading { .. } => loading_view(),
-        LoadState::NeedsLogin => error_view(i18n, i18n.__("公开市场不需要登录，请重试")),
-        LoadState::Error(error) => error_view(i18n, &error.render(i18n)),
-        LoadState::Loaded(skills) if skills.is_empty() => empty_view(i18n, empty),
-        LoadState::Loaded(skills) => {
-            card_grid(skills.clone(), move |skill, width| skill_card(i18n, skill, width))
-        }
-    }
+    let items = skills
+        .iter()
+        .map(|skill| {
+            let target = PublicDetailTarget::Skill(skill.coordinate.locator.clone());
+            (skill.clone(), installed_in_catalog(state, &target))
+        })
+        .collect();
+    card_grid(items, move |(skill, installed), width| skill_card(i18n, skill, *installed, width))
 }
 
 fn recommended_content(
     i18n: desktop_i18n::I18n,
     state: &PublicSkillMarketState,
 ) -> Element<'static, Message> {
-    let all_content = skill_state_content(i18n, &state.recommended, i18n.__("暂无推荐技能"));
+    let all_content = match &state.recommended {
+        LoadState::Idle | LoadState::Loading { .. } => loading_view(),
+        LoadState::NeedsLogin => error_view(i18n, i18n.__("公开市场不需要登录，请重试")),
+        LoadState::Error(error) => error_view(i18n, &error.render(i18n)),
+        LoadState::Loaded(skills) if skills.is_empty() => empty_view(i18n, i18n.__("暂无推荐技能")),
+        LoadState::Loaded(skills) => skill_grid(i18n, state, skills),
+    };
     column![
         text(i18n.__("推荐技能"))
             .size(19)
@@ -475,7 +522,7 @@ fn market_content(
             empty_view(i18n, i18n.__("未找到匹配的技能"))
         }
         LoadState::Loaded(page) => column![
-            card_grid(page.skills.clone(), move |skill, width| skill_card(i18n, skill, width)),
+            skill_grid(i18n, state, &page.skills),
             pagination(i18n, page.page, page.page_size, page.total),
         ]
         .spacing(12)
@@ -495,12 +542,27 @@ pub fn suites_content(
         LoadState::Loaded(page) if page.skillsets.is_empty() => {
             empty_view(i18n, i18n.__("未找到匹配的套件"))
         }
-        LoadState::Loaded(page) => column![
-            card_grid(page.skillsets.clone(), move |suite, width| suite_card(i18n, suite, width)),
-            pagination(i18n, page.page, page.page_size, page.total),
-        ]
-        .spacing(12)
-        .into(),
+        LoadState::Loaded(page) => {
+            let items = page
+                .skillsets
+                .iter()
+                .map(|suite| {
+                    let target = PublicDetailTarget::Suite {
+                        source: suite.source.clone(),
+                        slug: suite.slug.clone(),
+                    };
+                    (suite.clone(), installed_in_catalog(state, &target))
+                })
+                .collect();
+            column![
+                card_grid(items, move |(suite, installed), width| {
+                    suite_card(i18n, suite, *installed, width)
+                }),
+                pagination(i18n, page.page, page.page_size, page.total),
+            ]
+            .spacing(12)
+            .into()
+        }
     };
     column![suite_category_controls(i18n, state), content].spacing(12).into()
 }

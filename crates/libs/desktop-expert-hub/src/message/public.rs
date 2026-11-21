@@ -72,6 +72,10 @@ pub enum PublicSkillMessage {
         source: String,
         slug: String,
     },
+    OpenSuiteInstall {
+        source: String,
+        slug: String,
+    },
     CloseDetail,
     SetDetailMode(PublicDetailMode),
     SelectDetailInstallScope(SkillInstallScope),
@@ -256,14 +260,10 @@ pub fn update(app: &mut SkillUpdate<'_>, message: PublicSkillMessage) -> Task<Me
         if !detail.select_install_project_path(project_path.to_string()) {
             return Task::none();
         }
-        app.expert_hub.public_market.installed_generation =
-            app.expert_hub.public_market.installed_generation.wrapping_add(1);
-        let generation = app.expert_hub.public_market.installed_generation;
-        app.expert_hub.public_market.installed = LoadState::Loading { generation };
-        return dispatch(app.gateway, PublicRequest::RefreshInstalled {
-            project_path: project_path.to_string(),
-            generation,
-        });
+        return dispatch(
+            app.gateway,
+            refresh_installed(&mut app.expert_hub.public_market, project_path.to_string()),
+        );
     }
     if matches!(message, PublicSkillMessage::InstallCurrent) {
         if app.expert_hub.section == desktop_skill_hub::skill_hub::ExpertHubSection::Experts {
@@ -354,7 +354,9 @@ pub fn update(app: &mut SkillUpdate<'_>, message: PublicSkillMessage) -> Task<Me
     };
     let refresh_error = match &message {
         PublicSkillMessage::InstalledRefreshed { generation, result }
-            if *generation == app.expert_hub.public_market.installed_generation =>
+            if *generation == app.expert_hub.public_market.installed_generation
+                && (app.expert_hub.public_market.detail.is_some()
+                    || app.expert_hub.public_market.installed_open) =>
         {
             result.as_ref().err().cloned()
         }
@@ -375,9 +377,17 @@ pub fn update(app: &mut SkillUpdate<'_>, message: PublicSkillMessage) -> Task<Me
         _ => None,
     };
     let open_installed = matches!(message, PublicSkillMessage::OpenInstalled);
+    let returns_to_list =
+        matches!(message, PublicSkillMessage::CloseDetail | PublicSkillMessage::CloseInstalled);
+    let installed_while_on_list =
+        matches!(&message, PublicSkillMessage::InstallFinished { result: Ok(_), .. })
+            && app.expert_hub.public_market.detail.is_none()
+            && !app.expert_hub.public_market.installed_open;
     let opens_detail = matches!(
         &message,
-        PublicSkillMessage::OpenSkillDetail(_) | PublicSkillMessage::OpenSuiteDetail { .. }
+        PublicSkillMessage::OpenSkillDetail(_)
+            | PublicSkillMessage::OpenSuiteDetail { .. }
+            | PublicSkillMessage::OpenSuiteInstall { .. }
     );
     let default_project_path = default_install_project_path(app);
     let mut requests = reduce(&mut app.expert_hub.public_market, message);
@@ -390,22 +400,13 @@ pub fn update(app: &mut SkillUpdate<'_>, message: PublicSkillMessage) -> Task<Me
             detail.selected_install_project_path = default_project_path.clone();
         }
     }
-    if detail_opened && let Some(project_path) = default_project_path {
-        app.expert_hub.public_market.installed_generation =
-            app.expert_hub.public_market.installed_generation.wrapping_add(1);
-        let generation = app.expert_hub.public_market.installed_generation;
-        app.expert_hub.public_market.installed = LoadState::Loading { generation };
-        requests.push(PublicRequest::RefreshInstalled { project_path, generation });
-    }
-    if open_installed {
-        app.expert_hub.public_market.installed_generation =
-            app.expert_hub.public_market.installed_generation.wrapping_add(1);
-        let generation = app.expert_hub.public_market.installed_generation;
-        app.expert_hub.public_market.installed = LoadState::Loading { generation };
-        requests.push(PublicRequest::RefreshInstalled {
-            project_path: app.project_path.clone().unwrap_or_default(),
-            generation,
-        });
+    if detail_opened || returns_to_list || open_installed || installed_while_on_list {
+        let project_path =
+            if open_installed { app.project_path.clone() } else { default_project_path };
+        requests.push(refresh_installed(
+            &mut app.expert_hub.public_market,
+            project_path.unwrap_or_default(),
+        ));
     }
     let mut tasks = requests.into_iter().map(|request| dispatch(app.gateway, request)).collect::<Vec<_>>();
     if let Some((expert, result)) = install_feedback {
@@ -491,13 +492,24 @@ pub fn selectable_expert_skill(state: &PublicSkillMarketState, project_path: Opt
     }
 }
 
-/// 在公共市场尚未初始化时加载来源与当前页，已加载时保持状态不变。
+/// 进入公共市场时刷新安装目录，并按需加载来源与当前页。
 pub fn ensure_loaded(app: &mut SkillUpdate<'_>) -> Task<Message> {
-    if matches!(app.expert_hub.public_market.sources, LoadState::Idle | LoadState::Error(_)) {
-        update(app, PublicSkillMessage::LoadSources)
-    } else {
-        Task::none()
-    }
+    let sources =
+        if matches!(app.expert_hub.public_market.sources, LoadState::Idle | LoadState::Error(_)) {
+            update(app, PublicSkillMessage::LoadSources)
+        } else {
+            Task::none()
+        };
+    let project_path = default_install_project_path(app).unwrap_or_default();
+    let installed = refresh_installed(&mut app.expert_hub.public_market, project_path);
+    Task::batch([sources, dispatch(app.gateway, installed)])
+}
+
+fn refresh_installed(state: &mut PublicSkillMarketState, project_path: String) -> PublicRequest {
+    state.installed_generation = state.installed_generation.wrapping_add(1);
+    let generation = state.installed_generation;
+    state.installed = LoadState::Loading { generation };
+    PublicRequest::RefreshInstalled { project_path, generation }
 }
 
 fn default_install_project_path(app: &SkillUpdate<'_>) -> Option<String> {

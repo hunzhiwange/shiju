@@ -5,6 +5,7 @@ pub fn reduce(
     state: &mut PublicSkillMarketState,
     message: PublicSkillMessage,
 ) -> Vec<PublicRequest> {
+    let open_suite_install = matches!(&message, PublicSkillMessage::OpenSuiteInstall { .. });
     match message {
         PublicSkillMessage::LoadSources => vec![load_sources(state)],
         PublicSkillMessage::SourcesLoaded { generation, result } => {
@@ -149,11 +150,15 @@ pub fn reduce(
                 PublicRequest::SkillFile { locator, generation },
             ]
         }
-        PublicSkillMessage::OpenSuiteDetail { source, slug } => {
+        PublicSkillMessage::OpenSuiteDetail { source, slug }
+        | PublicSkillMessage::OpenSuiteInstall { source, slug } => {
             if state.current_source.as_deref() != Some(&source) {
                 return Vec::new();
             }
             let generation = state.open_suite_detail(source.clone(), slug.clone());
+            if let Some(detail) = state.detail.as_mut() {
+                detail.install_confirmation_open = open_suite_install;
+            }
             vec![PublicRequest::SuiteDetail { source, slug, generation }]
         }
         PublicSkillMessage::CloseDetail => {
@@ -224,13 +229,7 @@ pub fn reduce(
             match result {
                 Ok(paths) => {
                     detail.install = PublicInstallState::Installed { paths };
-                    if project_path.trim().is_empty() {
-                        return Vec::new();
-                    }
-                    state.installed_generation = state.installed_generation.wrapping_add(1);
-                    let generation = state.installed_generation;
-                    state.installed = LoadState::Loading { generation };
-                    vec![PublicRequest::RefreshInstalled { project_path, generation }]
+                    vec![refresh_installed(state, project_path)]
                 }
                 Err(_) => {
                     detail.install = PublicInstallState::Idle;

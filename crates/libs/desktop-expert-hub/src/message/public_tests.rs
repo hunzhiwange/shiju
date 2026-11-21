@@ -82,6 +82,32 @@ fn expert_package_navigation_ignores_stale_results() {
 }
 
 #[test]
+fn expert_package_list_install_opens_project_confirmation() {
+    let mut state = PublicSkillMarketState::default();
+    loaded_sources(&mut state);
+
+    let requests = reduce(
+        &mut state,
+        PublicSkillMessage::OpenSuiteInstall {
+            source: "skillhub".to_string(),
+            slug: "fixture-suite".to_string(),
+        },
+    );
+
+    let detail = state.detail.as_ref().expect("suite detail");
+    assert!(detail.install_confirmation_open);
+    assert!(matches!(
+        requests.as_slice(),
+        [PublicRequest::SuiteDetail { source, slug, generation }]
+            if source == "skillhub" && slug == "fixture-suite" && *generation == detail.generation
+    ));
+    assert_eq!(
+        begin_install(&mut state, Some("/fixture")).expect_err("detail must be loaded"),
+        "套件详情尚未加载完成"
+    );
+}
+
+#[test]
 fn expert_package_install_requires_project() {
     let mut state = PublicSkillMarketState::default();
     loaded_sources(&mut state);

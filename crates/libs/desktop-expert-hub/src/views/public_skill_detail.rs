@@ -185,9 +185,7 @@ fn with_expert_install_confirmation<'a>(
     base: Element<'a, Message>,
 ) -> Element<'a, Message> {
     let i18n = desktop_i18n::I18n::new(app.desktop_locale);
-    if app.expert_hub.section != desktop_skill_hub::skill_hub::ExpertHubSection::Experts
-        || !detail.install_confirmation_open
-    {
+    if !detail.install_confirmation_open {
         return base;
     }
     let cancel = public_message(PublicSkillMessage::CancelExpertInstall);
@@ -207,11 +205,16 @@ fn with_expert_install_confirmation<'a>(
         .spacing(5),
         settings_close_button(cancel.clone()),
     );
-    let mut install =
-        button(text(desktop_i18n::I18n::new(app.desktop_locale).__("安装到项目")).size(13))
-            .padding([9, 16])
-            .style(primary_action_btn_style);
-    if has_project && !detail.install_is_busy() {
+    let market = &app.expert_hub.public_market;
+    let installed = installed_in_catalog(market, &detail.target);
+    let label = if installed { i18n.__("已安装") } else { i18n.__("安装到项目") };
+    let mut install = button(text(label).size(13)).padding([9, 16]).style(primary_action_btn_style);
+    if has_project
+        && matches!(detail.suite_detail, LoadState::Loaded(_))
+        && !matches!(market.installed, LoadState::Loading { .. })
+        && !installed
+        && !detail.install_is_busy()
+    {
         install = install.on_press(public_message(PublicSkillMessage::InstallCurrent));
     }
     let body = column![

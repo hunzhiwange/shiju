@@ -243,7 +243,7 @@ pub(in crate::views) fn card_layout(
     description: Element<'static, Message>,
     footer: Element<'static, Message>,
     featured: bool,
-) -> Element<'static, Message> {
+) -> container::Container<'static, Message> {
     card_surface(
         column![
             heading,
@@ -256,8 +256,6 @@ pub(in crate::views) fn card_layout(
         ],
         featured,
     )
-    .height(Length::Fixed(167.0))
-    .into()
 }
 
 pub(super) struct Card<'a> {
@@ -346,6 +344,8 @@ impl Card<'_> {
             footer.clip(true).into(),
             self.featured,
         )
+        .height(Length::Fixed(167.0))
+        .into()
     }
 }
 

@@ -6,11 +6,8 @@ use desktop_ui_controls::system_settings_common::{
     settings_close_button, settings_error_banner, settings_modal_card,
     settings_modal_overlay_with_escape, settings_select, settings_text_input,
 };
-use iced::widget::scrollable::{Direction, Scrollbar};
 use iced::widget::tooltip::Position;
-use iced::widget::{
-    Column, Row, Space, column, container, image, row, scrollable, tooltip,
-};
+use iced::widget::{Column, Row, Space, column, container, image, row, tooltip};
 use iced::{Alignment, Length};
 
 use crate::app::{Message, message::AccountMessage};
@@ -367,7 +364,7 @@ fn employee_actions(employee: &SharedEmployee, access: &Access) -> Option<Item<'
                 message(ListEvent::OpenOperation(id.clone(), operation))
             })
             .placeholder("更多操作")
-            .width(128),
+            .width(176),
         );
     }
     Some(actions.wrap().into())
@@ -505,53 +502,79 @@ fn runtime_status(employee: &SharedEmployee, show_publish: bool) -> Item<'_> {
 }
 
 fn table<'a>(employees: &[&'a SharedEmployee], access: &Access, width: f32) -> Item<'a> {
+    const HEADERS: [&str; 6] = ["名称", "类型", "部门", "发布状态", "运行状态", "更新时间"];
     let actions =
         employees.iter().map(|employee| employee_actions(employee, access)).collect::<Vec<_>>();
     let show_actions = actions.iter().any(Option::is_some);
-    let header = ["名称", "类型", "部门", "发布状态", "运行状态", "更新时间"]
-        .map(|title| strong(title, 12, Tone::Muted).into());
-    let mut body = column![
-        container(table_row(header, show_actions.then(|| strong("操作", 12, Tone::Muted).into())))
-            .style(table_header_style)
-    ];
-    for (employee, actions) in employees.iter().zip(actions) {
-        let (published, tone) = publish(employee);
-        body = body.push(divider()).push(table_row(
-            [
-                strong(employee.name.as_str(), 14, Tone::Ink).into(),
-                label(kind_title(employee), 13, Tone::Muted).into(),
-                label(
-                    employee.department().map_or_else(
-                        || "全公司".into(),
-                        |path| Department(Some(path.to_owned())).to_string(),
-                    ),
-                    14,
-                    Tone::Ink,
-                )
-                .into(),
-                status_label(published, tone),
-                runtime_status(employee, false),
-                label(format_time(employee.updated_at.as_deref()), 14, Tone::Ink).into(),
-            ],
-            show_actions.then(|| actions.unwrap_or_else(|| Space::new().into())),
-        ));
+    let compact = width < if show_actions { 1020.0 } else { 720.0 };
+    let mut body = Column::new().width(Length::Fill);
+    if !compact {
+        let header = HEADERS.map(|title| strong(title, 12, Tone::Muted).into());
+        body = body.push(
+            container(table_row(
+                header,
+                show_actions.then(|| strong("操作", 12, Tone::Muted).into()),
+            ))
+            .style(table_header_style),
+        );
     }
-    let sheet = container(body)
-        .width(width.max(if show_actions { 1020.0 } else { 720.0 }))
-        .style(panel_style);
-    scrollable(sheet)
-        .width(Length::Fill)
-        .direction(Direction::Horizontal(Scrollbar::new().width(4).scroller_width(4).margin(3)))
-        .into()
+    for (index, (employee, actions)) in employees.iter().zip(actions).enumerate() {
+        let (published, tone) = publish(employee);
+        let items = [
+            strong(employee.name.as_str(), 14, Tone::Ink).into(),
+            label(kind_title(employee), 13, Tone::Muted).into(),
+            label(
+                employee.department().map_or_else(
+                    || "全公司".into(),
+                    |path| Department(Some(path.to_owned())).to_string(),
+                ),
+                14,
+                Tone::Ink,
+            )
+            .into(),
+            status_label(published, tone),
+            runtime_status(employee, false),
+            label(format_time(employee.updated_at.as_deref()), 14, Tone::Ink).into(),
+        ];
+        if !compact || index > 0 {
+            body = body.push(divider());
+        }
+        body = body.push(if compact {
+            let [name, kind, department, published, runtime, updated] = items;
+            let field = |title, value| column![label(title, 12, Tone::Muted), value].spacing(3);
+            let mut entry = column![
+                name,
+                row![
+                    column![field(HEADERS[1], kind), field(HEADERS[2], department)]
+                        .spacing(8)
+                        .width(Length::Fill),
+                    column![field(HEADERS[3], published), field(HEADERS[4], runtime)]
+                        .spacing(8)
+                        .width(Length::Fill),
+                ]
+                .spacing(12),
+                field(HEADERS[5], updated),
+            ]
+            .spacing(10);
+            if let Some(actions) = actions {
+                entry = entry.push(actions);
+            }
+            container(entry).padding([12, 16]).width(Length::Fill).into()
+        } else {
+            table_row(items, show_actions.then(|| actions.unwrap_or_else(|| Space::new().into())))
+        });
+    }
+    container(body).width(Length::Fill).style(panel_style).into()
 }
 
 fn table_row<'a>(items: [Item<'a>; 6], actions: Option<Item<'a>>) -> Item<'a> {
-    let mut row = Row::new().spacing(12).padding([12, 16]).align_y(Alignment::Center);
+    let mut row =
+        Row::new().width(Length::Fill).spacing(12).padding([12, 16]).align_y(Alignment::Center);
     for (item, portion) in items.into_iter().zip([5, 3, 4, 3, 5, 5]) {
         row = row.push(container(item).width(Length::FillPortion(portion)));
     }
     if let Some(actions) = actions {
-        row = row.push(container(actions).width(Length::FillPortion(9)));
+        row = row.push(container(actions).width(320));
     }
     row.into()
 }

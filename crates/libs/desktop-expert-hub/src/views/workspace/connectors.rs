@@ -28,15 +28,16 @@ fn help<'a>(
 pub(super) fn view<'a>(app: &WorkspaceInput<'a>) -> Element<'a, Message> {
     views::connectors::view(&input(app), help, message)
 }
-pub(super) fn with_binding_modal<'a>(
+pub(super) fn with_binding_modal<'a, M: Clone + 'static>(
     app: &WorkspaceInput<'a>,
-    base: Element<'a, Message>,
-) -> Element<'a, Message> {
+    base: Element<'a, M>,
+    map_message: fn(Message) -> M,
+) -> Element<'a, M> {
     match views::connectors::binding_modal(&input(app), help, message) {
         Some((close, card)) => desktop_ui_controls::system_settings_common::settings_modal_overlay(
             Some(base),
-            close,
-            card,
+            map_message(close),
+            card.map(map_message),
         ),
         None => base,
     }

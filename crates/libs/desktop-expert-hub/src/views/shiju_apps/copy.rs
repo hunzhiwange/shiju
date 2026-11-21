@@ -13,7 +13,7 @@ use super::{Event, Message, ViewInput, action, muted, styles, title};
 pub(super) fn with_overlay<'a, M: Clone + 'static>(
     app: &ViewInput<'_>,
     base: Element<'a, M>,
-    map: fn(Message) -> M,
+    map: impl Fn(Message) -> M + 'a,
 ) -> Element<'a, M> {
     let Some(form) = &app.shiju_apps.copy_form else { return base };
     let i18n = I18n::new(app.desktop_locale);

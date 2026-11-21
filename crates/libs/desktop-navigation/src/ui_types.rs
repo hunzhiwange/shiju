@@ -71,5 +71,15 @@ pub enum Screen {
     ExpertHub,
 }
 
+impl Screen {
+    /// Pages that show the workspace session sidebar alongside their main content.
+    pub fn shows_workspace_session_sidebar(self) -> bool {
+        match self {
+            #[cfg(not(target_arch = "wasm32"))]
+            Self::DigitalEmployees | Self::ExpertHub | Self::ShijuSkills | Self::ShijuApps => true,
+            _ => false,
+        }
+    }
+}
 
 #[cfg(test)] #[path="ui_types_tests.rs"] mod tests;

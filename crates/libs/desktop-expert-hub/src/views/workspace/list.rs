@@ -31,10 +31,11 @@ pub(super) fn view<'a>(app: &WorkspaceInput<'a>) -> Element<'a, Message> {
     )
     .map(map)
 }
-pub(super) fn with_maintained_action<'a>(
+pub(super) fn with_maintained_action<'a, M: Clone + 'static>(
     app: &WorkspaceInput<'_>,
-    base: Element<'a, Message>,
-) -> Element<'a, Message> {
+    base: Element<'a, M>,
+    map_message: fn(Message) -> M,
+) -> Element<'a, M> {
     let input = views::ViewInput {
         expert_hub: app.expert_hub,
         desktop_locale: app.desktop_locale,
@@ -44,7 +45,9 @@ pub(super) fn with_maintained_action<'a>(
         return base;
     };
     desktop_ui_controls::system_settings_common::settings_modal_overlay_with_escape(
-        base, map(close), card.map(map),
+        base,
+        map_message(map(close)),
+        card.map(move |message| map_message(map(message))),
     )
 }
 #[cfg(test)]

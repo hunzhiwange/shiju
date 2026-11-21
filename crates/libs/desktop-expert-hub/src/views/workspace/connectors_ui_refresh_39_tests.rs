@@ -1,5 +1,7 @@
 //! Render the expert hub forms and drive their existing messages.
 
+use std::convert::identity;
+
 use super::connectors::{self, with_binding_modal};
 use super::fixture::Fixture;
 use super::*;
@@ -251,6 +253,7 @@ async fn ui_refresh_39_uninstall_keeps_confirmation_visible_while_paths_scroll()
         install_guide::with_uninstall_confirmation(
             &app.input(),
             Space::new().width(Length::Fill).height(Length::Fill).into(),
+            identity,
         ),
         &mut renderer,
         size,
@@ -335,7 +338,7 @@ async fn ui_refresh_39_layout_and_interaction() {
         app.desktop_locale = locale;
         let i18n = I18n::new(locale);
         let mut ui = scene(
-            with_binding_modal(&app.input(), connectors::view(&app.input())),
+            with_binding_modal(&app.input(), connectors::view(&app.input()), identity),
             &mut renderer,
             size,
         );
@@ -372,7 +375,7 @@ async fn ui_refresh_39_layout_and_interaction() {
             let form = app.expert_hub.connectors.form.as_mut().unwrap();
             form.values.insert("token".into(), "sample-secret-Z".into());
             let mut ui = scene(
-                with_binding_modal(&app.input(), connectors::view(&app.input())),
+                with_binding_modal(&app.input(), connectors::view(&app.input()), identity),
                 &mut renderer,
                 size,
             );
@@ -386,7 +389,7 @@ async fn ui_refresh_39_layout_and_interaction() {
     let i18n = I18n::new(app.desktop_locale);
     let size = Size::new(420, 480);
     let mut ui = scene(
-        with_binding_modal(&app.input(), connectors::view(&app.input())),
+        with_binding_modal(&app.input(), connectors::view(&app.input()), identity),
         &mut renderer,
         size,
     );
@@ -436,7 +439,7 @@ async fn ui_refresh_39_preserves_values_and_disabled_states() {
         error: Some("虚构的绑定失败，可刷新重试。".into()),
     };
     let i18n = I18n::new(app.desktop_locale);
-    let mut ui = scene(shiju_apps::view(&app.input()), &mut renderer, size);
+    let mut ui = scene(shiju_apps::view(&app.input(), identity, identity), &mut renderer, size);
     capture(&mut ui, &mut renderer, &Theme::Light, size, "api-failed-420", Point::ORIGIN);
     let geometry = bounds(&mut ui, &renderer);
     position(&geometry.labels, "虚构的绑定失败，可刷新重试。");
@@ -488,7 +491,7 @@ async fn ui_refresh_39_preserves_values_and_disabled_states() {
         *selected_api_key_id = Some(29);
         *error = None;
     }
-    let mut ui = scene(shiju_apps::view(&app.input()), &mut renderer, size);
+    let mut ui = scene(shiju_apps::view(&app.input(), identity, identity), &mut renderer, size);
     capture(&mut ui, &mut renderer, &Theme::Dark, size, "api-selected-420", Point::ORIGIN);
     let geometry = bounds(&mut ui, &renderer);
     position(&geometry.labels, "sk-****0029");
@@ -524,7 +527,7 @@ async fn ui_refresh_39_preserves_values_and_disabled_states() {
         ),
     ] {
         app.shiju_apps.launch = state;
-        let mut ui = scene(shiju_apps::view(&app.input()), &mut renderer, size);
+        let mut ui = scene(shiju_apps::view(&app.input(), identity, identity), &mut renderer, size);
         capture(&mut ui, &mut renderer, &Theme::Dark, size, name, Point::ORIGIN);
         let geometry = bounds(&mut ui, &renderer);
         assert!(geometry.selects.is_empty());
@@ -626,6 +629,7 @@ async fn ui_refresh_39_guide_and_skill_confirmations_keep_original_actions() {
         installed_skills::with_delete_confirmation(
             &app.input(),
             Space::new().width(Length::Fill).height(Length::Fill).into(),
+            identity,
         ),
         &mut renderer,
         size,
@@ -716,7 +720,7 @@ async fn help_rollout_23_renders_contextual_help() {
         app.app_theme = theme;
         let i18n = I18n::new(locale);
         let size = Size::new(width, 720);
-        let mut ui = scene(super::view(&app.input()), &mut renderer, size);
+        let mut ui = scene(super::view(&app.input(), identity, identity), &mut renderer, size);
         for (id, title, description) in [
             ("account-group", "账号信息", "填写需要绑定的第三方账号"),
             ("account-id", "第三方账号 ID", "连接器平台中的账号标识"),
@@ -770,7 +774,7 @@ async fn help_rollout_23_connector_page_uses_only_static_menu_text() {
     let description = i18n.__("查看并授权你自己的连接器账号。");
     let mut renderer = renderer().await;
     let size = Size::new(960, 600);
-    let mut ui = scene(super::view(&app.input()), &mut renderer, size);
+    let mut ui = scene(super::view(&app.input(), identity, identity), &mut renderer, size);
     let icon = check_contextual_help(
         &mut ui,
         &mut renderer,
@@ -848,7 +852,7 @@ async fn help_rollout_23_installed_skills_renders_contextual_help() {
         app.desktop_locale = locale;
         app.app_theme = theme;
         let i18n = I18n::new(locale);
-        let mut ui = scene(super::view(&app.input()), &mut renderer, size);
+        let mut ui = scene(super::view(&app.input(), identity, identity), &mut renderer, size);
         check_contextual_help(
             &mut ui,
             &mut renderer,

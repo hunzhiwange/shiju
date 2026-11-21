@@ -9,9 +9,8 @@ pub fn sidebar_group(
     scale: f32,
     radius: f32,
 ) -> (iced::Element<'_, Message>, Option<iced::Element<'_, Message>>) {
-    let expanded = app.navigation_panels.show_settings;
-    #[cfg(not(target_arch = "wasm32"))]
-    let expanded = expanded || app.navigation_tabs.screen == crate::app::Screen::DigitalEmployees;
+    let expanded = app.navigation_panels.show_settings
+        || app.navigation_tabs.screen.shows_workspace_session_sidebar();
     layout::sidebar_group(
         expanded,
         super::super::components::projects_list(app, !expanded),

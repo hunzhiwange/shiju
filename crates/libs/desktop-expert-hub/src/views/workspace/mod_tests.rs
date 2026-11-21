@@ -1,6 +1,8 @@
 //! 专家中心外壳测试，验证所有一级分区与技能标签都能由默认状态构建。
 //! 该测试守护模块聚合层，避免新增分区后导航入口与内容区域脱节。
 
+use std::convert::identity;
+
 use super::Message;
 use super::fixture::Fixture;
 use desktop_skill_hub::skill_hub::{ExpertHubSection, SkillTab};
@@ -13,7 +15,7 @@ fn expert_hub_shell_builds_all_sections_and_skill_tabs() {
         [ExpertHubSection::Experts, ExpertHubSection::Connectors, ExpertHubSection::Skills]
     {
         app.expert_hub.section = section;
-        let element: iced::Element<'_, Message> = super::view(&app.input());
+        let element: iced::Element<'_, Message> = super::view(&app.input(), identity, identity);
         std::hint::black_box(element);
     }
 
@@ -25,7 +27,7 @@ fn expert_hub_shell_builds_all_sections_and_skill_tabs() {
         SkillTab::Install,
     ] {
         app.expert_hub.skill_tab = tab;
-        let element: iced::Element<'_, Message> = super::shiju_skills_view(&app.input());
+        let element: iced::Element<'_, Message> = super::shiju_skills_view(&app.input(), identity, identity);
         std::hint::black_box(element);
     }
 }

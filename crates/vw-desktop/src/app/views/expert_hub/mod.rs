@@ -50,15 +50,21 @@ fn map(event: domain::Message) -> Message {
     }
 }
 pub(crate) fn view(app: &App) -> Element<'_, Message> {
-    domain::view(&input(app)).map(map)
+    domain::view(&input(app), map, |content| {
+        crate::app::views::project::with_session_sidebar(app, content)
+    })
 }
 pub(crate) fn shiju_skills_view(app: &App) -> Element<'_, Message> {
-    domain::shiju_skills_view(&input(app)).map(map)
+    domain::shiju_skills_view(&input(app), map, |content| {
+        crate::app::views::project::with_session_sidebar(app, content)
+    })
 }
 pub(crate) mod shiju_apps {
     use super::*;
     pub(crate) fn view(app: &App) -> Element<'_, Message> {
-        domain::shiju_apps::view(&input(app)).map(map)
+        domain::shiju_apps::view(&input(app), map, |content| {
+            crate::app::views::project::with_session_sidebar(app, content)
+        })
     }
 }
 

@@ -261,7 +261,8 @@ fn scroll(body: Element<'static, Message>) -> Element<'static, Message> {
 pub fn view<'a, M: Clone + 'static>(
     app: &ViewInput<'a>,
     tabs: Element<'a, M>,
-    map: fn(Message) -> M,
+    map: impl Fn(Message) -> M + Copy + 'static,
+    layout: impl FnOnce(Element<'a, M>) -> Element<'a, M>,
 ) -> Element<'a, M> {
     let state = app.shiju_apps.clone();
     let i18n = I18n::new(app.desktop_locale);
@@ -290,6 +291,6 @@ pub fn view<'a, M: Clone + 'static>(
         .height(Length::Fill)
         .style(styles::page_style)
         .into();
-    let base = copy::with_overlay(app, base, map);
+    let base = copy::with_overlay(app, layout(base), map);
     api_key_binding::with_overlay(app, base, map)
 }

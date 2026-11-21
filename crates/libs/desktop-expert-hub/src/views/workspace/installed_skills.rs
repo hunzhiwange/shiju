@@ -49,15 +49,16 @@ pub(super) fn view<'a>(app: &WorkspaceInput<'a>) -> Element<'a, Message> {
         installed_skills::view(&input(app), header, map)
     }
 }
-pub(super) fn with_delete_confirmation<'a>(
+pub(super) fn with_delete_confirmation<'a, M: Clone + 'static>(
     app: &WorkspaceInput<'a>,
-    base: Element<'a, Message>,
-) -> Element<'a, Message> {
+    base: Element<'a, M>,
+    map_message: fn(Message) -> M,
+) -> Element<'a, M> {
     match installed_skills::delete_confirmation(&input(app)) {
         Some((close, card)) => desktop_ui_controls::system_settings_common::settings_modal_overlay(
             Some(base),
-            map(close),
-            card.map(map),
+            map_message(map(close)),
+            card.map(move |message| map_message(map(message))),
         ),
         None => base,
     }

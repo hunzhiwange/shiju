@@ -18,7 +18,10 @@ pub mod shiju_apps;
 mod styles;
 mod upgrade_actions;
 
-fn section_tabs(app: &WorkspaceInput) -> Element<'static, Message> {
+fn section_tabs<M: Clone + 'static>(
+    app: &WorkspaceInput<'_>,
+    map: fn(Message) -> M,
+) -> Element<'static, M> {
     use crate::views::shell::{self, Navigation};
     let screen = match app.screen {
         Screen::ExpertHub => shell::Screen::ExpertHub,
@@ -34,10 +37,15 @@ fn section_tabs(app: &WorkspaceInput) -> Element<'static, Message> {
         Navigation::OpenShijuSkills => Message::SkillHub(SkillHubMessage::OpenShijuSkills),
         Navigation::OpenShijuApps => Message::ShijuApps(ShijuAppsMessage::Open),
     })
+    .map(map)
 }
 
 /// 构建专家中心一级分区，并为技能分区选择公共或识矩子页面。
-pub fn view<'a>(app: &WorkspaceInput<'a>) -> Element<'a, Message> {
+pub fn view<'a, M: Clone + 'static>(
+    app: &WorkspaceInput<'a>,
+    map: fn(Message) -> M,
+    layout: impl FnOnce(Element<'a, M>) -> Element<'a, M>,
+) -> Element<'a, M> {
     let body: Element<'_, Message> = match app.expert_hub.section {
         ExpertHubSection::Experts => experts::view(app),
         ExpertHubSection::Connectors => connectors::view(app),
@@ -51,18 +59,22 @@ pub fn view<'a>(app: &WorkspaceInput<'a>) -> Element<'a, Message> {
         ExpertHubSection::Skills => public_skills::view(app),
     };
 
-    let base = crate::views::shell::view(section_tabs(app), body);
+    let base = layout(crate::views::shell::view(section_tabs(app, map), body.map(map)));
 
-    let base = installed_skills::with_delete_confirmation(app, base);
-    connectors::with_binding_modal(app, base)
+    let base = installed_skills::with_delete_confirmation(app, base, map);
+    connectors::with_binding_modal(app, base, map)
 }
 
 /// 构建兼容的识矩技能入口，复用专家中心技能列表与详情。
-pub fn shiju_skills_view<'a>(app: &WorkspaceInput<'a>) -> Element<'a, Message> {
+pub fn shiju_skills_view<'a, M: Clone + 'static>(
+    app: &WorkspaceInput<'a>,
+    map: fn(Message) -> M,
+    layout: impl FnOnce(Element<'a, M>) -> Element<'a, M>,
+) -> Element<'a, M> {
     let body = if app.expert_hub.detail.is_some() { detail::view(app) } else { list::view(app) };
-    let base = crate::views::shell::view(section_tabs(app), body);
-    let base = list::with_maintained_action(app, base);
-    install_guide::with_uninstall_confirmation(app, base)
+    let base = layout(crate::views::shell::view(section_tabs(app, map), body.map(map)));
+    let base = list::with_maintained_action(app, base, map);
+    install_guide::with_uninstall_confirmation(app, base, map)
 }
 
 #[derive(Debug, Clone, Copy)]

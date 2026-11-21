@@ -220,8 +220,7 @@ fn request_session_navigation(app: &mut App, path: String, id: String) -> iced::
 }
 
 fn resume_project_from_sidebar(app: &mut App, project_path: &str) -> iced::Task<Message> {
-    #[cfg(not(target_arch = "wasm32"))]
-    if app.navigation_tabs.screen == crate::app::Screen::DigitalEmployees {
+    if app.navigation_tabs.screen.shows_workspace_session_sidebar() {
         let (tab_id, _) = desktop_workspace::projects::project_tab(project_path);
         if app.navigation_tabs.open_tabs.iter().any(|tab| tab.id == tab_id) {
             return crate::app::message::view::update(
@@ -231,8 +230,6 @@ fn resume_project_from_sidebar(app: &mut App, project_path: &str) -> iced::Task<
         }
         return app.open_project(project_path.to_owned());
     }
-    #[cfg(target_arch = "wasm32")]
-    let _ = (app, project_path);
     iced::Task::none()
 }
 

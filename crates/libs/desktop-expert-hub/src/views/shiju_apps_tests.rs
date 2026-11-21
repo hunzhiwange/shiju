@@ -1,6 +1,8 @@
 //! 时聚应用视图测试，覆盖商店、已安装列表、详情及 API 密钥绑定覆盖层。
 //! 加载、空、错误和未登录状态均需可渲染，运行就绪与密钥选择决定动作可用性。
 
+use std::convert::identity;
+
 use iced::advanced::renderer::Headless;
 use iced::advanced::{Layout, layout, mouse, renderer, widget::Tree};
 use iced::{Color, Font, Pixels, Rectangle, Size, Theme};
@@ -16,7 +18,15 @@ use super::shiju_apps::Message;
 struct App { shiju_apps: desktop_app_launch::ShijuAppsState }
 impl App { fn new() -> (Self, ()) { (Self::default(), ()) } }
 fn view(app: &App) -> iced::Element<'_, Message> {
-    shiju_apps::view(&shiju_apps::ViewInput { shiju_apps: &app.shiju_apps, desktop_locale: Default::default() }, iced::widget::text("").into(), |message| message)
+    shiju_apps::view(
+        &shiju_apps::ViewInput {
+            shiju_apps: &app.shiju_apps,
+            desktop_locale: Default::default(),
+        },
+        iced::widget::text("").into(),
+        identity,
+        identity,
+    )
 }
 
 fn catalog_app(installed: bool) -> ShijuCatalogAppDto {

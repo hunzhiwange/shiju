@@ -96,10 +96,11 @@ def managed_command(executable, root, workspace, home, view, sources, env, confi
     env.update(VW_OPENCODE_RELAY_TOKEN=key, SHIJU_OPENCODE_SKILL_ROOT=str(view) if sources else "",
                SHIJU_OPENCODE_SKILL_SOURCES=json.dumps([str(source) for source in sources]))
     for name in ("CONFIG", "CACHE", "DATA", "STATE"):
-        path = home / name.lower()
+        path = root / "xdg-config" if name == "CONFIG" else home / name.lower()
         path.mkdir()
         env[f"XDG_{name}_HOME"] = str(path)
-    env["OPENCODE_CONFIG_DIR"] = env["XDG_CONFIG_HOME"]
+    config_directory = root / "config"
+    env["OPENCODE_CONFIG_DIR"] = str(config_directory)
     for source, target in [
         ("opencode/launcher.py", "opencode-launcher.py"),
         ("omp/mcp_bridge.py", "omp-mcp-bridge.py"),

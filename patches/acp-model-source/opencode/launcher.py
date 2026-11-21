@@ -59,6 +59,10 @@ def main():
                  "OPENCODE_DISABLE_CLAUDE_CODE", "OPENCODE_PERMISSION"):
         if name in os.environ:
             env[name] = os.environ[name]
+    config_scope = Path(env["XDG_CONFIG_HOME"]).resolve(strict=True) / "opencode"
+    config_dir = Path(env["OPENCODE_CONFIG_DIR"]).resolve(strict=True)
+    if config_scope.parent != profile / "xdg-config" or config_dir != profile / "config":
+        raise ValueError("Invalid private OpenCode config directories")
     reads = " ".join(f"(subpath {quote(path)})"
                      for path in [profile, *state.values(), *sources, *([root] if root else [])])
     writes = " ".join(f"(subpath {quote(path)})" for path in [home, *state.values()])
@@ -86,6 +90,9 @@ def main():
 (deny file-read-data {denied})
 (deny file-write*)
 (allow file-write* {writes} (literal "/dev/null"))
+(allow file-write-create (literal {quote(config_scope)}))
+(allow file-write* (literal {quote(config_scope / ".gitignore")})
+  (literal {quote(config_dir / ".gitignore")}))
 (deny process-fork process-exec)
 (allow process-exec (literal {quote(executable)}))
 (deny network*)

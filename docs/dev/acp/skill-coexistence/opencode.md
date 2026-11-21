@@ -71,3 +71,7 @@ PYTHONPATH=scripts python3 -m acp_skill_coexistence.opencode_sandbox --managed \
 ```
 
 第一次正式构建使用槽位 6，退出 101。同期 Pi 的模块可见性错误及 Auggie 的未完成接线阻止了 `llm-runtime` 编译。第一次定向单测用槽位 10，退出 101，实际运行零项。编译期间共享工作区加入 Auggie 和 Droid 沙箱，但该轮已编译的注册库缺少对应校验入口。两次均未进入网关探针，属于共享构建失败。
+
+共享编译接线恢复后，在槽位 10 串行执行 `cargo test --locked -j 1 -p llm-runtime --lib acp_skill_coexistence_opencode -- --test-threads=1`。`CARGO_TARGET_DIR` 与 `CARGO_BUILD_BUILD_DIR` 均指向该槽位，退出 0，实际运行 1 项且通过。复用的 OMP MCP 桥接用例 4 项及共享探针判定用例 5 项也全部通过。
+
+首次复用正式网关曾在初始化时退出。Bun 需要在两个请求私有配置目录初始化 `.gitignore`，直连旧夹具曾把 XDG 配置放在可写的私有 home，未覆盖网关的分离布局。现按网关布局运行直连，约束目录必须属于当前 launch，Seatbelt 只额外允许创建指定配置子目录及写两个固定的私有 `.gitignore`。工作区仍只读。修正后的生产启动器直连五轮退出 0。另将同一启动策略注入隔离网关作诊断，四轮均得到一个 `chat.done`、零个 `chat.error`、MCP 0/1/0/0，确认问题定位。此诊断报告为 `target/acp-skill-coexistence/opencode-gateway-policy-diagnostic.json`。

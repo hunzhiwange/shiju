@@ -214,27 +214,34 @@ pub(super) fn view<'a>(state: &'a State, base: Element<'a, Message>) -> Element<
     let Some(sources) = &state.sources else { return base; };
     let close = msg(Event::Sources(false));
     let mut locations = column![].spacing(10).padding([0, 7]);
-    for &(app, paths) in SOURCE_PATHS {
+    for (index, &(app, paths)) in SOURCE_PATHS.iter().enumerate() {
+        if index > 0 {
+            locations = locations.push(settings_divider());
+        }
         let mut group = column![row![
             desktop_ui_controls::icons::acp_agent_icon(app, 20.0),
             text(app).size(14),
-        ].spacing(8)].spacing(6);
+        ].spacing(8).align_y(iced::Alignment::Center)].spacing(6);
         for &path in paths {
-            let copied = sources.copied.contains(path);
-            let mut actions = row![
-                button(text(if copied { "已复制" } else { "复制路径" }))
-                    .padding([4, 8])
-                    .style(rounded_action_btn_style)
-                    .on_press_maybe((!copied).then(|| msg(Event::CopySource(path)))),
+            let mut line = row![
+                text(path)
+                    .size(12)
+                    .width(Length::Fill)
+                    .wrapping(iced::widget::text::Wrapping::WordOrGlyph)
+                    .style(settings_muted_text_style),
             ].spacing(8);
             if sources.revealable.contains_key(path) {
-                actions = actions.push(button(text("在 Finder 中显示"))
+                line = line.push(button(text("在 Finder 中显示"))
                     .padding([4, 8])
                     .style(rounded_action_btn_style)
                     .on_press(msg(Event::RevealSource(path))));
             }
-            group = group.push(text(path).size(12).style(settings_muted_text_style))
-                .push(actions.wrap());
+            let copied = sources.copied.contains(path);
+            let copy = button(text(if copied { "已复制" } else { "复制路径" }))
+                .padding([4, 8])
+                .style(rounded_action_btn_style)
+                .on_press_maybe((!copied).then(|| msg(Event::CopySource(path))));
+            group = group.push(line.push(copy).align_y(iced::Alignment::Center));
         }
         locations = locations.push(group);
     }

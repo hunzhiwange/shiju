@@ -126,12 +126,12 @@ pub fn page<'a, M: Clone + 'static>(
     footer = footer.push(
         row![
             Space::new().width(Length::Fill),
-            button(text("取消").size(14))
+            button(container(text("取消").size(14)).center_y(Length::Fill))
                 .height(34)
                 .padding([0, 15])
                 .style(rounded_action_btn_style)
                 .on_press_maybe((!draft.saving).then_some(close)),
-            button(text(submit).size(14))
+            button(container(text(submit).size(14)).center_y(Length::Fill))
                 .height(34)
                 .padding([0, 15])
                 .style(primary_action_btn_style)

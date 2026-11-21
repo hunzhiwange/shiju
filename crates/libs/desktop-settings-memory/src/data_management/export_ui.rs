@@ -48,6 +48,9 @@ pub fn update(state: &mut State, current: Option<Identity>, client: Option<vw_ga
     if state.identity.as_ref() != Some(&current) || !state.open { return Task::none(); }
     match event {
         Event::Close if !state.busy => state.open = false,
+        #[cfg(target_arch = "wasm32")]
+        Event::Export if !state.busy => return notify_error("此平台不支持配置导出"),
+        #[cfg(not(target_arch = "wasm32"))]
         Event::Export if !state.busy => {
             let Ok(client) = client.clone().ok_or(()) else { return Task::none(); };
             let Ok(scope) = ProjectScope::new(current.context.tenant.clone(), current.project.clone().into()) else { return Task::none(); };
@@ -69,6 +72,7 @@ pub fn update(state: &mut State, current: Option<Identity>, client: Option<vw_ga
                 message(Event::Downloaded(current, generation, result))
             }, |message| message);
         }
+        #[cfg(not(target_arch = "wasm32"))]
         Event::Downloaded(request, generation, result) if request == current && generation == state.generation && state.busy => {
             let bytes = match result {
                 Ok(bytes) => bytes,

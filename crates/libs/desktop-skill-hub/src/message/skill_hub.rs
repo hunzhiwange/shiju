@@ -10,7 +10,7 @@ use crate::skill_hub::{
     SkillCacheSyncReport, SkillDetail, SkillDetailState, SkillHubClient, SkillHubError,
     SkillInstallScope, SkillInstallSelection, SkillInstallTarget, SkillTab, SkillTag, SkillVersion,
     SkillVersionAction, SkillVersionDirection, SystemSkill, TenantSkill,
-    install_shiju_archive_for_targets, package_version_cache_path, parse_public_markdown,
+    package_version_cache_path, parse_public_markdown,
     resolve_skill_destinations, shiju_installation, shiju_installations_for_targets,
     sync_business_skill_cache, sync_shiju_key_for_targets, uninstall_shiju_for_targets,
     write_package_version_cache,
@@ -19,10 +19,10 @@ use gateway_shiju_skill::{
     ShijuMaintainedSkillQuery, ShijuSkillSearchQuery, ShijuSystemSkillQuery,
 };
 use iced::Task;
-use reqwest::redirect::Policy;
+#[cfg(not(target_arch = "wasm32"))]
+use {crate::skill_hub::install_shiju_archive_for_targets, reqwest::redirect::Policy, tempfile::NamedTempFile};
 use std::path::PathBuf;
 use std::time::Duration;
-use tempfile::NamedTempFile;
 
 #[path = "skill_business.rs"]
 mod business;
@@ -535,8 +535,9 @@ pub fn update(app: &mut SkillUpdate<'_>, message: SkillHubMessage) -> Task<Messa
         SkillHubMessage::RetrySkillCacheSync => retry_skill_cache_sync(app),
         SkillHubMessage::DownloadVersion(version_id) => {
             match dispatch_download_with(app.expert_hub, version_id, |url| {
-                open::that(url)
-                    .map_err(|_| SkillHubError::localized("无法打开技能下载地址", vec![]))
+                crate::message::open_url(url)
+                    .then_some(())
+                    .ok_or_else(|| SkillHubError::localized("无法打开技能下载地址", vec![]))
             }) {
                 Ok(()) => app.show_localized_toast(
                     ToastKind::Info,

@@ -263,6 +263,7 @@ impl App {
                 Subscription::none()
             };
 
+        #[cfg(not(target_arch = "wasm32"))]
         let web_install_progress_tick = if self.web_install.progress_rx.is_some() {
             iced::time::every(std::time::Duration::from_millis(50)).map(|_| {
                 Message::View(message::ViewMessage::WebInstall(
@@ -323,6 +324,7 @@ impl App {
                 Subscription::none()
             };
         Subscription::batch(vec![
+            #[cfg(not(target_arch = "wasm32"))]
             crate::app::digital_employees::subscription(self),
             usage_center_tick,
             cron_history_subscription(self),
@@ -393,6 +395,7 @@ impl App {
             design_generation_stream_tick,
             provider_models_sync_tick,
             app_update_progress_tick,
+            #[cfg(not(target_arch = "wasm32"))]
             web_install_progress_tick,
             work_browser_runtime_tick,
             workflow_run,

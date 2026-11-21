@@ -54,6 +54,7 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
         ViewMessage::WindowFocused(window_id) => {
             if app.main_window_id == Some(window_id) {
                 app.work_browser.window_focused = true;
+                #[cfg(not(target_arch = "wasm32"))]
                 return crate::app::message::settings::voice::update(
                     app,
                     crate::app::message::settings::voice::Event::RefreshLocal,

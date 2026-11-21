@@ -67,10 +67,15 @@ fn location(session: &SessionMeta, kind: Location) -> Option<&str> {
 /// Do not turn database locators, remote file URLs or relative paths into local paths.
 fn local_path(value: &str) -> Option<String> {
     let path = if value.starts_with("file:") {
-        let url = url::Url::parse(value).ok()?;
-        if url.host_str().is_some_and(|host| host != "localhost")
-            || url.query().is_some() || url.fragment().is_some() { return None; }
-        url.to_file_path().ok()?.to_str()?.to_owned()
+        #[cfg(target_arch = "wasm32")]
+        return None;
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            let url = url::Url::parse(value).ok()?;
+            if url.host_str().is_some_and(|host| host != "localhost")
+                || url.query().is_some() || url.fragment().is_some() { return None; }
+            url.to_file_path().ok()?.to_str()?.to_owned()
+        }
     } else { value.to_owned() };
     if !std::path::Path::new(&path).is_absolute() || path.starts_with("//")
         || path.starts_with("\\\\") || path.chars().any(char::is_control) { return None; }

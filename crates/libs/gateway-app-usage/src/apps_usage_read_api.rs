@@ -127,7 +127,7 @@ impl GatewayAppUsageClient {
         selection: &UsageSnapshotQuery,
         principal_token: &str,
     ) -> Result<T, AppsUsageReadError> {
-        let request = self.transport.dynamic_host_client()
+        let request = self.transport.native_transport().map_err(|_| AppsUsageReadError::Transport)?
             .get(format!("{}{path}", self.transport.endpoint().base_url()))
             .query(selection)
             .header(CACHE_CONTROL, "no-cache, no-store");

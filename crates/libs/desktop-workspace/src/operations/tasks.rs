@@ -3,6 +3,7 @@ use crate::file_tree::outcome;
 use crate::interaction::{FileTreeClipboard, FileTreeClipboardMode};
 use crate::operations::{self, Operation};
 use iced::Task;
+use iced::advanced::graphics::futures::MaybeSend;
 use std::future::Future;
 
 #[derive(Debug)]
@@ -36,8 +37,8 @@ pub enum FileEvent {
 }
 pub fn duplicate<E, F>(root: String, paths: Vec<String>, execute: E) -> Task<FileEvent>
 where
-    E: Fn(Operation) -> F + Send + 'static,
-    F: Future<Output = Result<(), String>> + Send + 'static,
+    E: Fn(Operation) -> F + MaybeSend + 'static,
+    F: Future<Output = Result<(), String>> + MaybeSend + 'static,
 {
     iced::Task::perform(
         async move {
@@ -59,8 +60,8 @@ pub fn paste<E, F>(
     execute: E,
 ) -> Task<FileEvent>
 where
-    E: Fn(Operation) -> F + Send + 'static,
-    F: Future<Output = Result<(), String>> + Send + 'static,
+    E: Fn(Operation) -> F + MaybeSend + 'static,
+    F: Future<Output = Result<(), String>> + MaybeSend + 'static,
 {
     iced::Task::perform(
         async move {
@@ -91,8 +92,8 @@ where
 
 pub fn delete<E, F>(root: String, paths: Vec<(String, bool)>, execute: E) -> Task<FileEvent>
 where
-    E: Fn(Operation) -> F + Send + 'static,
-    F: Future<Output = Result<(), String>> + Send + 'static,
+    E: Fn(Operation) -> F + MaybeSend + 'static,
+    F: Future<Output = Result<(), String>> + MaybeSend + 'static,
 {
     iced::Task::perform(
         async move {
@@ -115,8 +116,8 @@ where
 
 pub fn move_paths<E, F>(root: String, moves: Vec<(String, String)>, execute: E) -> Task<FileEvent>
 where
-    E: Fn(Operation) -> F + Send + 'static,
-    F: Future<Output = Result<(), String>> + Send + 'static,
+    E: Fn(Operation) -> F + MaybeSend + 'static,
+    F: Future<Output = Result<(), String>> + MaybeSend + 'static,
 {
     Task::perform(
         async move {
@@ -165,8 +166,8 @@ pub fn import<E, F>(
     execute: E,
 ) -> Task<ImportCompleted>
 where
-    E: FnOnce(String, String, Vec<String>) -> F + Send + 'static,
-    F: Future<Output = Result<vw_api_file::file::LocalImportResponse, String>> + Send + 'static,
+    E: FnOnce(String, String, Vec<String>) -> F + MaybeSend + 'static,
+    F: Future<Output = Result<vw_api_file::file::LocalImportResponse, String>> + MaybeSend + 'static,
 {
     Task::perform(
         async move {

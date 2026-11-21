@@ -1,16 +1,17 @@
 //! Drive desktop status reads and cancellation through the scoped gateway SDK.
 
-use desktop_settings_account::types::{Connection, LoginChallenge, LoginTarget};
-use iced::{
-    futures::{SinkExt, channel::mpsc},
-};
-use std::time::Duration;
-use tokio::sync::oneshot;
+use desktop_settings_account::types::LoginChallenge;
+use vw_api_transport::TimestampMs;
+
+#[cfg(not(target_arch = "wasm32"))]
 use {
+    desktop_settings_account::types::{Connection, LoginTarget},
+    iced::futures::{SinkExt, channel::mpsc},
+    std::time::Duration,
+    tokio::sync::oneshot,
     gateway_app_auth::AgentAppsAuthCredentials,
     gateway_app_auth::AgentAppsAuthError,
     vw_gateway_client::GatewayClient,
-    vw_api_transport::TimestampMs,
     vw_api_app_auth::AuthErrorCode,
     vw_api_app_auth::AuthFlow,
     vw_api_app_auth::AuthFlowId,
@@ -29,6 +30,7 @@ pub enum Update {
     CancelFailed,
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 pub async fn run(
     client: GatewayClient,
     connection: Connection,
@@ -141,6 +143,7 @@ pub async fn run(
     }
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 fn challenge(
     target: LoginTarget,
     user_code: Option<String>,
@@ -171,6 +174,7 @@ fn challenge(
     Some(LoginChallenge { user_code, verification_url, region, expires_at, can_paste })
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 fn matches_flow(snapshot: &AuthFlow, expected: &AuthFlowId) -> bool {
     let id = match snapshot {
         AuthFlow::Pending { flow_id, .. }
@@ -182,6 +186,7 @@ fn matches_flow(snapshot: &AuthFlow, expected: &AuthFlowId) -> bool {
     id == expected
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 fn error_label(error: AgentAppsAuthError) -> &'static str {
     match error {
         AgentAppsAuthError::Request(code) | AgentAppsAuthError::Http { code: Some(code), .. } => {
@@ -195,6 +200,7 @@ fn error_label(error: AgentAppsAuthError) -> &'static str {
     }
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 fn code_label(code: AuthErrorCode) -> &'static str {
     use AuthErrorCode::*;
     match code {
@@ -209,6 +215,7 @@ fn code_label(code: AuthErrorCode) -> &'static str {
     }
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 fn paste_error_label(error: AgentAppsAuthError) -> &'static str {
     match error {
         AgentAppsAuthError::Http { code: Some(AuthErrorCode::InvalidInput), .. } => {

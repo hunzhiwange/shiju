@@ -1,14 +1,17 @@
 //! 仅准备当前环境的原生技能，并在写盘时读取最新账户凭据。
 
 use super::installer::{
-    download_package, install_shiju_archive_at_home, shiju_installation_at_home,
+    install_shiju_archive_at_home, shiju_installation_at_home,
     sync_shiju_key_at_home,
 };
-use super::{ShijuInstallation, ShijuPackageId, SkillHubClient};
+use super::ShijuInstallation;
+#[cfg(not(target_arch = "wasm32"))]
+use super::{ShijuPackageId, SkillHubClient, installer::download_package};
 use desktop_account::SecretSkey;
 use anyhow::{Context, Result};
 use parking_lot::Mutex;
 use std::future::Future;
+#[cfg(not(target_arch = "wasm32"))]
 use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
@@ -122,6 +125,7 @@ where
     .context(super::SkillHubError::localized("识矩登录信息同步任务异常终止", vec![]))?
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 pub async fn download_native_shiju_skill(credential: SecretSkey) -> Result<NamedTempFile> {
     let package_id = ShijuPackageId::current()
         .context(super::SkillHubError::localized("当前平台不支持识矩技能自动安装", vec![]))?;

@@ -8,6 +8,7 @@ use serde::{Deserialize, Serialize};
 use serde::de::DeserializeOwned;
 use std::error::Error;
 use std::fmt;
+#[cfg(not(target_arch = "wasm32"))]
 use std::time::Duration;
 
 /// 生产技能中心 API 的固定 HTTPS 根地址。
@@ -35,17 +36,23 @@ impl SkillHubClient {
         Self::build(credential, base_url)
     }
 
+    #[cfg(not(target_arch = "wasm32"))]
     fn build(credential: SecretSkey, base_url: &str) -> Result<Self, SkillHubError> {
         let base_url = Url::parse(base_url).map_err(|error| {
             SkillHubError::localized("技能中心地址无效: %s", vec![error.to_string()])
         })?;
         let builder = reqwest::Client::builder().timeout(Duration::from_secs(20));
-        #[cfg(not(target_arch = "wasm32"))]
         let builder = builder.redirect(reqwest::redirect::Policy::none());
         let http = builder.build().map_err(
             |error| SkillHubError::localized("无法创建技能中心客户端: %s", vec![error.to_string()]),
         )?;
         Ok(Self { http, base_url, credential })
+    }
+
+    #[cfg(target_arch = "wasm32")]
+    fn build(_credential: SecretSkey, _base_url: &str) -> Result<Self, SkillHubError> {
+        // Browser Fetch through reqwest cannot enforce the no-redirect policy for API keys.
+        Err(SkillHubError::localized("当前平台不支持原生技能中心连接", vec![]))
     }
 
     /// 获取指定识矩包的最新发布信息。

@@ -15,7 +15,7 @@ pub(super) fn edit(app: &mut SkillUpdate<'_>, id: u64) -> Task<Message> {
         return Task::none();
     }
     let url = format!("https://ai.shiju.cloud/skill-hub/my-skills/{id}/edit");
-    if open::that(url).is_err() {
+    if !crate::message::open_url(&url) {
         return app.feedback(
             ToastKind::Error,
             SkillHubError::localized("无法打开技能编辑页面", vec![]).message(),

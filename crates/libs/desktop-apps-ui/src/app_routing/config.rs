@@ -270,6 +270,7 @@ fn update_settings(
     let token = token.to_owned();
     Task::perform(
         async move {
+            #[cfg(not(target_arch = "wasm32"))]
             let request = async {
                 match (target, draft) {
                     (Target::Listener, None) => {
@@ -304,10 +305,7 @@ fn update_settings(
                 .await
                 .unwrap_or_else(|_| Err("请求超时；保存结果未知，请重新读取确认后重试".into()));
             #[cfg(target_arch = "wasm32")]
-            let result = {
-                let _ = request;
-                Err("此平台不支持路由设置".into())
-            };
+            let result = Err("此平台不支持路由设置".into());
             Event::Reply(context, project, serial, saving, result)
         },
         message,

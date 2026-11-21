@@ -401,10 +401,13 @@ fn update_panel(app: &mut App, message: PanelMessage) -> Task<Message> {
                 |result| Message::View(ViewMessage::AppUpdateSourceSaved(result)),
             ),
             Effect::Error(error) => app.show_error_toast(error),
+            #[cfg(not(target_arch = "wasm32"))]
             Effect::Shutdown => {
                 let window_id = app.main_window_id;
                 shutdown(app, window_id)
             }
+            #[cfg(target_arch = "wasm32")]
+            Effect::Shutdown => Task::none(),
         });
     }
     Task::batch(tasks)

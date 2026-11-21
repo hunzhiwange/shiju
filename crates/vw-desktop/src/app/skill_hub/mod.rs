@@ -16,16 +16,18 @@ mod state;
 pub(crate) use cache_sync::{SkillCacheSyncError, SkillCacheSyncReport, sync_business_skill_cache};
 pub(crate) use client::{SkillHubClient, SkillHubError};
 pub(crate) use native::{
-    NativeShijuSkillPrepared, NativeShijuSkillState, download_native_shiju_skill,
+    NativeShijuSkillPrepared, NativeShijuSkillState,
     prepare_native_shiju_skill,
 };
+#[cfg(not(target_arch = "wasm32"))]
+pub(crate) use {installer::install_shiju_package, native::download_native_shiju_skill};
 // 安装器统一承担路径解析、归档安全校验和多目标回滚。
 pub(crate) use installer::{
     ResolvedSkillDestination, ShijuInstallItem, ShijuInstallReport, ShijuInstallation,
     ShijuInstallationsReport, ShijuKeySyncOutcome, ShijuKeySyncReport, ShijuMultiInstallReport,
     ShijuTargetInstallation, ShijuTargetKeySync, ShijuTargetUninstall, ShijuUninstallReport,
     SkillInstallScope, SkillInstallSelection, SkillInstallTarget,
-    install_shiju_archive_for_targets, install_shiju_package, resolve_skill_destinations,
+    install_shiju_archive_for_targets, resolve_skill_destinations,
     shiju_install_dir, shiju_install_path_label, shiju_installation,
     shiju_installations_for_targets, sync_shiju_key_for_targets, uninstall_shiju_for_targets,
     uninstall_shiju_package, version_is_newer,

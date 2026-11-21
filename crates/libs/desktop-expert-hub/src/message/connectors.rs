@@ -274,7 +274,15 @@ pub fn update(app: &mut SkillUpdate<'_>, msg: ConnectorMessage) -> Task<Message>
                     && url.username().is_empty()
                     && url.password().is_none()
             });
-            if !valid_url || open::that(&challenge.authorization_url).is_err() {
+            let opened = valid_url && {
+                #[cfg(not(target_arch = "wasm32"))]
+                { open::that(&challenge.authorization_url).is_ok() }
+                #[cfg(target_arch = "wasm32")]
+                {
+                    desktop_account::browser::open_external(&challenge.authorization_url)
+                }
+            };
+            if !opened {
                 app.expert_hub.connectors.work.remove(&id);
                 return app.show_localized_toast(
                     ToastKind::Error,

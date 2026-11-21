@@ -48,8 +48,10 @@ pub fn view(app: &App) -> Element<'_, Message> {
     let content: Element<'_, Message> = if app.usage_center.open {
         center::view(app)
     } else {
-        iced::widget::column![center::view(app), external_usage_entry(), layout::build_usage_view(app, &usage_data)]
-            .spacing(8).into()
+        let column = iced::widget::column![center::view(app)];
+        #[cfg(not(target_arch = "wasm32"))]
+        let column = column.push(external_usage_entry());
+        column.push(layout::build_usage_view(app, &usage_data)).spacing(8).into()
     };
     if let Some(modal) = raw_modal::view(app) {
         iced::widget::stack![content, modal].into()
@@ -58,6 +60,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
     }
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 fn external_usage_entry() -> Element<'static, Message> {
     desktop_usage::entry::external_usage_entry().map(|navigation| {
         use crate::app::components::system_settings::SystemTab;

@@ -87,6 +87,13 @@ pub fn update(app: &mut Input<'_>, event: Event) -> Task<Message> {
             match event {
                 Event::Copy => prompts_client.agent_app_prompts_copy(&scope, id.as_deref().unwrap_or_default(), &targets, &token).await.map(Outcome::Copies).map_err(|e| e.to_string()),
                 Event::ImportHost | Event::ImportClient => {
+                    #[cfg(target_arch = "wasm32")]
+                    if matches!(event, Event::ImportClient) {
+                        return Err("此平台不支持从本地文件导入提示词".into());
+                    }
+                    #[cfg(target_arch = "wasm32")]
+                    let source = AgentAppPromptImportSource::CurrentFile;
+                    #[cfg(not(target_arch = "wasm32"))]
                     let source = if matches!(event, Event::ImportHost) { AgentAppPromptImportSource::CurrentFile } else {
                         let Some(file) = rfd::AsyncFileDialog::new().add_filter("提示词", &["md", "txt"]).pick_file().await else { return Ok(Outcome::Cancelled); };
                         // Read only the explicitly selected client file, with a bounded UTF-8 payload.

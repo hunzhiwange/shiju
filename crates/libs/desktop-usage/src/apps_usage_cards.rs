@@ -3,20 +3,22 @@
 use std::collections::{HashMap, HashSet};
 
 use {
-    gateway_app_auth::AgentAppsAuthCredentials,
-    gateway_app_auth::AgentAppsAuthReadError,
     vw_gateway_client::GatewayClient,
     vw_api_app_identity::AppId,
     vw_api_app_auth::AuthErrorCode,
     vw_api_app_auth::AuthService,
-    vw_api_apps_usage::apps_usage::UsageQueryKind,
     vw_api_apps_usage::apps_usage::UsageSnapshotQuery,
     vw_api_apps_usage::apps_usage::UsageSnapshotResponse,
     vw_api_transport::id::ProjectId,
 };
 
 use desktop_settings_account::types::{Connection, Scope as AuthScope};
-use crate::refresh::{read_snapshot, refresh_one};
+#[cfg(not(target_arch = "wasm32"))]
+use {
+    crate::refresh::{read_snapshot, refresh_one},
+    gateway_app_auth::{AgentAppsAuthCredentials, AgentAppsAuthReadError},
+    vw_api_apps_usage::apps_usage::UsageQueryKind,
+};
 #[path = "apps_usage_cards/view.rs"]
 mod view;
 pub use view::{account_view, provider_view};
@@ -259,6 +261,7 @@ pub struct QueryContext {
     pub connection: Option<Connection>,
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 pub async fn read(
     client: &GatewayClient,
     context: &QueryContext,
@@ -347,6 +350,16 @@ pub async fn read(
     Ok(result)
 }
 
+
+#[cfg(target_arch = "wasm32")]
+pub async fn read(
+    _client: &GatewayClient,
+    _context: &QueryContext,
+    _target: &Target,
+    _refresh: Option<&str>,
+) -> CardResult {
+    Err(Failure::Unsupported)
+}
 
 impl Scope { pub fn same_context(&self, other: &Self) -> bool { self.endpoint == other.endpoint && self.project == other.project && self.host == other.host && self.auth_generation == other.auth_generation } }
 impl Cards {

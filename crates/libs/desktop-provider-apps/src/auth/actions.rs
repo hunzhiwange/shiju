@@ -1,15 +1,21 @@
 //! Review and execute account operations through the scoped Gateway SDK.
-use gateway_app_auth::AgentAppsAuthError;
-use gateway_app_auth::AgentAppsAuthLogout;
-use gateway_app_auth::AgentAppsAuthCredentials;
+use desktop_settings_account::types::{AccountOperation, ActionPhase, Scope};
+use vw_api_app_auth::AuthService;
 
-use super::{Event, load_service, message, read_error_label};
-use super::state::{State, Usage};
-use desktop_settings_account::types::{AccountAction, AccountOperation, ActionPhase, Connection, Scope};
-use crate::{Notice, error, success};
-type Message = Event;
-use iced::Task;
-use {gateway_endpoint::{GatewayEndpoint}, {vw_gateway_client::GatewayClient, vw_api_app_auth::{AuthErrorCode, AuthService}}};
+#[cfg(not(target_arch = "wasm32"))]
+use {
+    super::{
+        Event, load_service, message, read_error_label,
+        state::{State, Usage},
+    },
+    crate::{Notice, error, success},
+    desktop_settings_account::types::{AccountAction, Connection},
+    gateway_app_auth::{AgentAppsAuthCredentials, AgentAppsAuthError, AgentAppsAuthLogout},
+    gateway_endpoint::GatewayEndpoint,
+    iced::Task,
+    vw_api_app_auth::AuthErrorCode,
+    vw_gateway_client::GatewayClient,
+};
 
 #[derive(Clone)]
 pub enum ActionEvent {
@@ -42,6 +48,7 @@ pub enum Outcome {
     Failed(&'static str),
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 pub fn update<U: Usage>(
     state: &mut State<U>,
     notice: &mut Option<Notice>,
@@ -49,7 +56,7 @@ pub fn update<U: Usage>(
     endpoint: GatewayEndpoint,
     scope: Scope,
     visible: bool,
-) -> Task<Message> {
+) -> Task<Event> {
     let Some(connection) = state.connection.as_ref().filter(|connection| connection.valid()) else {
         return Task::none();
     };
@@ -150,12 +157,13 @@ pub fn update<U: Usage>(
     Task::none()
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 fn check(
     endpoint: GatewayEndpoint,
     scope: Scope,
     connection: Connection,
     action: &mut AccountAction,
-) -> Task<Message> {
+) -> Task<Event> {
     let generation = action.generation;
     let operation = action.operation;
     let service = action.account.service;
@@ -177,6 +185,7 @@ fn check(
     )
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 async fn review(
     client: &GatewayClient,
     connection: &Connection,
@@ -227,6 +236,7 @@ async fn review(
     })
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 async fn mutate(
     client: GatewayClient,
     connection: Connection,
@@ -269,6 +279,7 @@ async fn mutate(
     }
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 fn saved<U: Usage>(
     state: &mut State<U>,
     notice: &mut Option<Notice>,
@@ -277,7 +288,7 @@ fn saved<U: Usage>(
     generation: u64,
     result: Outcome,
     visible: bool,
-) -> Task<Message> {
+) -> Task<Event> {
     let Some(action) = state.account_action.as_mut().filter(|action| {
         action.generation == generation && matches!(action.phase, ActionPhase::Saving)
     }) else {
@@ -347,6 +358,7 @@ fn saved<U: Usage>(
     Task::batch([toast, reload])
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 fn credentials(connection: &Connection) -> AgentAppsAuthCredentials<'_> {
     AgentAppsAuthCredentials {
         username: connection.username.trim(),
@@ -355,6 +367,7 @@ fn credentials(connection: &Connection) -> AgentAppsAuthCredentials<'_> {
     }
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 fn error_label(error: AgentAppsAuthError) -> &'static str {
     use AuthErrorCode::*;
     match error {

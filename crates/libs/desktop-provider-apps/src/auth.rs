@@ -1,7 +1,12 @@
+#[cfg(not(target_arch = "wasm32"))]
 use gateway_app_auth::{AgentAppsAuthCredentials, AgentAppsAuthReadError};
 use desktop_settings_account::types::ServiceAccounts;
+#[cfg(not(target_arch = "wasm32"))]
 use vw_gateway_client::GatewayClient;
-use vw_api_app_auth::{AuthService, AuthErrorCode, AuthAccount};
+use vw_api_app_auth::{AuthAccount, AuthService};
+#[cfg(not(target_arch = "wasm32"))]
+use vw_api_app_auth::AuthErrorCode;
+#[cfg(not(target_arch = "wasm32"))]
 pub const SERVICES: [AuthService; 7] = [
     AuthService::ClaudeOfficial,
     AuthService::CodexOauth,
@@ -12,6 +17,7 @@ pub const SERVICES: [AuthService; 7] = [
     AuthService::DshAccount,
 ];
 
+#[cfg(not(target_arch = "wasm32"))]
 pub async fn load(
     client: &GatewayClient,
     host: &str,
@@ -23,6 +29,7 @@ pub async fn load(
     .await
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 pub async fn load_service(
     client: &GatewayClient,
     host: &str,
@@ -47,6 +54,7 @@ pub async fn load_service(
     ServiceAccounts { service, accounts }
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 pub fn read_error_label(error: AgentAppsAuthReadError) -> &'static str {
     use AuthErrorCode::*;
     match error {
@@ -132,8 +140,10 @@ impl std::fmt::Debug for Event {
 }
 
 
+#[cfg(not(target_arch = "wasm32"))]
 fn message(event: Event) -> Event { event }
 
+#[cfg(not(target_arch = "wasm32"))]
 pub mod binding;
 
 #[cfg(test)]
@@ -146,4 +156,5 @@ mod test_state {
 #[cfg(test)] mod login_modal_tests;
 #[cfg(test)] mod browser_tests;
 
+#[cfg(not(target_arch = "wasm32"))]
 pub mod controller;

@@ -7,14 +7,13 @@ pub mod overview;
 pub mod pricing;
 pub mod scan;
 pub mod state;
-use crate::app::state::agent_apps_auth::Scope;
 use crate::app::{App, Message, Screen, message::ViewMessage};
 use iced::{Element, Task};
 
 pub use desktop_usage::Identity;
 
 fn identity() -> Option<Identity> {
-    Some(Scope::from(&crate::app::config::gateway_client_endpoint()))
+    Some(Identity::from(&crate::app::config::gateway_client_endpoint()))
 }
 
 pub use desktop_usage::center::event::Event;

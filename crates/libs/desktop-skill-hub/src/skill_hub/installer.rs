@@ -1,14 +1,17 @@
 //! 安全下载、校验并安装识矩技能包到受支持的目标目录。
 
+#[cfg(not(target_arch = "wasm32"))]
 use super::SkillDownloadUrl;
 use desktop_account::SecretSkey;
 use anyhow::{Context, Result, bail};
 use directories::BaseDirs;
+#[cfg(not(target_arch = "wasm32"))]
 use reqwest::redirect::Policy;
 use std::collections::HashSet;
 use std::fs;
 use std::io::{Read, Write};
 use std::path::{Component, Path, PathBuf};
+#[cfg(not(target_arch = "wasm32"))]
 use std::time::Duration;
 use tempfile::{Builder, NamedTempFile, TempDir};
 use config_runtime_paths::{HOME_CONFIG_DIR_NAME, home_config_dir, tilde_config_path};
@@ -262,6 +265,7 @@ fn numeric_version(version: &str) -> Option<Vec<u64>> {
         .collect()
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 pub async fn install_shiju_package(
     download_url: SkillDownloadUrl,
 ) -> Result<ShijuInstallReport> {
@@ -280,6 +284,7 @@ pub async fn install_shiju_package(
         .context(super::SkillHubError::localized("识矩技能安装任务异常终止", vec![]))?
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 pub(super) async fn download_package(
     download_url: &SkillDownloadUrl,
     destination: &mut fs::File,

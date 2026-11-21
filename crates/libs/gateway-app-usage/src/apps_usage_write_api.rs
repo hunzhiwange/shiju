@@ -117,7 +117,7 @@ impl GatewayAppUsageClient {
         selection: &UsageSnapshotQuery,
         principal_token: &str,
     ) -> Result<AppActionExecutionResult, AppsUsageWriteError> {
-        let request = self.usage_request(Method::POST, "/v1/apps/usage/refresh").json(selection);
+        let request = self.usage_request(Method::POST, "/v1/apps/usage/refresh")?.json(selection);
         usage_json(self.send_usage_request(request, principal_token).await?).await
     }
 
@@ -129,7 +129,7 @@ impl GatewayAppUsageClient {
         principal_token: &str,
     ) -> Result<AppActionExecutionResult, AppsUsageWriteError> {
         let request = self
-            .usage_request(Method::POST, "/v1/apps/usage/refresh-all")
+            .usage_request(Method::POST, "/v1/apps/usage/refresh-all")?
             .json(&BatchScope { project_id, target_host_id });
         usage_json(self.send_usage_request(request, principal_token).await?).await
     }
@@ -173,7 +173,7 @@ impl GatewayAppUsageClient {
         principal_token: &str,
     ) -> Result<(), AppsUsageWriteError> {
         let request = self
-            .usage_request(Method::PUT, "/v1/apps/usage/settings")
+            .usage_request(Method::PUT, "/v1/apps/usage/settings")?
             .json(&SaveSettings { selection, settings });
         let response = self.send_usage_request(request, principal_token).await?;
         if response.status() != StatusCode::NO_CONTENT {
@@ -188,7 +188,7 @@ impl GatewayAppUsageClient {
         trial: &AppsUsageScriptTrial,
         principal_token: &str,
     ) -> Result<Vec<UsageScriptPackage>, AppsUsageWriteError> {
-        let request = self.usage_request(Method::POST, "/v1/apps/usage/script-test").json(trial);
+        let request = self.usage_request(Method::POST, "/v1/apps/usage/script-test")?.json(trial);
         usage_json(self.send_usage_request(request, principal_token).await?).await
     }
 
@@ -205,7 +205,7 @@ impl GatewayAppUsageClient {
             return Err(AppsUsageWriteError::InvalidOperationId);
         }
         let path = format!("/v1/agent-apps/{}", operation_path(id, events));
-        let request = self.usage_request(method, &path).query(&[("targetHostId", target_host_id)]);
+        let request = self.usage_request(method, &path)?.query(&[("targetHostId", target_host_id)]);
         let progress: AppsUsageOperation =
             usage_json(self.send_usage_request(request, principal_token).await?).await?;
         if progress.operation.operation_id != *id || progress.target_host_id != target_host_id {
@@ -214,10 +214,11 @@ impl GatewayAppUsageClient {
         Ok(progress)
     }
 
-    fn usage_request(&self, method: Method, path: &str) -> RequestBuilder {
-        self.transport.dynamic_host_client()
+    fn usage_request(&self, method: Method, path: &str) -> Result<RequestBuilder, AppsUsageWriteError> {
+        let client = self.transport.native_transport().map_err(|_| AppsUsageWriteError::Transport)?;
+        Ok(client
             .request(method, format!("{}{path}", self.transport.endpoint().base_url()))
-            .header(CACHE_CONTROL, "no-cache, no-store")
+            .header(CACHE_CONTROL, "no-cache, no-store"))
     }
 
     async fn send_usage_request(

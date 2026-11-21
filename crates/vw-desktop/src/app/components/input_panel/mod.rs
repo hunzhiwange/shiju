@@ -238,6 +238,7 @@ pub fn view<'a>(app: &'a App) -> Element<'a, Message> {
     let (input, _editor_height) =
         input_editor::build_input_editor(app, input_editor, is_requesting, task_mode_enabled);
 
+    #[cfg(not(target_arch = "wasm32"))]
     let input = if matches!(
         app.voice.draft.phase,
         crate::app::message::voice_draft::Phase::Recording
@@ -411,7 +412,10 @@ pub fn view<'a>(app: &'a App) -> Element<'a, Message> {
             chrome,
             background: app.appearance.active_theme_skin.as_ref().and_then(|skin| skin.chat_input_path.as_deref()),
             fit,
+            #[cfg(not(target_arch = "wasm32"))]
             voice: super::voice_chat::local_inline(app),
+            #[cfg(target_arch = "wasm32")]
+            voice: None,
             agent_sessions: agent_sessions::agent_sessions_entry(app, &running_agent_sessions),
             quick_messages: quick_messages::view(app),
         },

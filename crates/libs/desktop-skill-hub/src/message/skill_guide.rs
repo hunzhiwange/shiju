@@ -208,7 +208,13 @@ pub(super) fn open_shiju_install_dir_for(
         return app.show_localized_toast(ToastKind::Warning, "指定目标尚未安装识矩技能", vec![]);
     };
     match open_shiju_install_dir_with(&directory, |path| {
-        open::that(path).map_err(|_| SkillHubError::localized("无法打开识矩技能目录", vec![]))
+        #[cfg(not(target_arch = "wasm32"))]
+        return open::that(path).map_err(|_| SkillHubError::localized("无法打开识矩技能目录", vec![]));
+        #[cfg(target_arch = "wasm32")]
+        {
+            let _ = path;
+            Err(SkillHubError::localized("此平台不支持打开本地技能目录", vec![]))
+        }
     }) {
         Ok(()) => app.show_localized_toast(ToastKind::Info, "已打开识矩技能目录", vec![]),
         Err(error) => show_skill_error(app, ToastKind::Error, None, error.into()),
@@ -346,8 +352,9 @@ pub(super) fn finish_manual_download(
     app.expert_hub.install_guide.manual_download = None;
     match result {
         Ok(release) => match dispatch_shiju_download_with(&release, |url| {
-            open::that(url)
-                .map_err(|_| SkillHubError::localized("无法打开识矩技能下载地址", vec![]))
+            crate::message::open_url(url)
+                .then_some(())
+                .ok_or_else(|| SkillHubError::localized("无法打开识矩技能下载地址", vec![]))
         }) {
             Ok(()) => {
                 app.show_localized_toast(ToastKind::Info, "已在系统浏览器中打开安装包", vec![])

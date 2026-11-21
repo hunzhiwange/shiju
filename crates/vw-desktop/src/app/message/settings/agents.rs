@@ -27,7 +27,7 @@ fn effects(app: &mut App, effects: Vec<Effect>, task: Task<Local>) -> Task<Messa
 fn inputs(app: &mut App, validation_error: Option<String>) -> domain::Update<'_> {
  domain::Update { state: &mut app.agents_settings, access: crate::app::config::agent_config_access(), client: crate::app::config::gateway_client(), acp_agents: &app.session_state.acp_agents, acp_loading: app.acp_settings.loading, new_session_creating: app.workspace_state.new_session_creating, project_path: app.navigation_tabs.project_path.clone(), validation_error, effects: Vec::new() }
 }
-#[cfg(test)]
+#[cfg(any(test, target_arch = "wasm32"))]
 pub(super) fn config_task(project_path: Option<String>) -> Task<Message> { domain::config_task(crate::app::config::agent_config_access(), crate::app::config::gateway_client(), project_path).map(event) }
 pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
  let SettingsMessage::Agents(message) = message else { return Task::none(); };

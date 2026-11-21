@@ -21,8 +21,11 @@ pub fn tab() -> PreviewTab {
         auto_save_revision: 0,
         editor: Editor::new(&content, "rust"),
         scroll_id: iced::widget::Id::unique(),
+        #[cfg(not(target_arch = "wasm32"))]
         lsp_server_key: None,
+        #[cfg(not(target_arch = "wasm32"))]
         lsp_uri: None,
+        #[cfg(not(target_arch = "wasm32"))]
         lsp_language_id: None,
     };
     tab

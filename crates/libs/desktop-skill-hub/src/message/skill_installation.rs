@@ -150,6 +150,7 @@ pub(super) fn finish_direct_install(
     }
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 pub async fn install_shiju_package_for_targets(
     release: ShijuPackageRelease,
     project_root: Option<PathBuf>,
@@ -237,7 +238,14 @@ pub async fn install_shiju_package_for_targets(
     install_task.await.map_err(|_| SkillHubError::localized("识矩技能安装任务异常终止", vec![]))?
 }
 
-/// 顺序写入下载数据块；超过上限或读取失败时停止并返回错误。
+#[cfg(target_arch = "wasm32")]
+pub async fn install_shiju_package_for_targets(
+    _release: ShijuPackageRelease,
+    _project_root: Option<PathBuf>,
+    _selections: Vec<SkillInstallSelection>,
+) -> Result<ShijuMultiInstallReport, SkillHubError> {
+    Err(SkillHubError::localized("当前系统或架构暂不支持直接安装", vec![]))
+}
 
 pub(super) fn start_manual_shiju_key_sync(app: &mut SkillUpdate<'_>) -> Task<Message> {
     if app.expert_hub.install_guide.installed_selection_count() == 0 {

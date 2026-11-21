@@ -302,10 +302,11 @@ pub(super) fn steps<'a>(
         .on_press_maybe((!changes_only).then(|| event(Event::Process)));
     let mut process = column![summary].spacing(5);
     if has_rows {
+        // The rule fills the timeline's height without making the transcript row fill vertically.
         process = process.push(container(row![
             iced::widget::rule::vertical(1),
             timeline,
-        ].spacing(6)).padding(iced::Padding { left: 11.0, ..Default::default() }));
+        ].height(Length::Shrink).spacing(6)).padding(iced::Padding { left: 11.0, ..Default::default() }));
     }
     process.into()
 }

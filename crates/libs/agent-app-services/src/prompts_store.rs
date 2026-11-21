@@ -286,6 +286,10 @@ mod sync_store;
 #[path = "prompt_toggle_store.rs"]
 mod toggle_store;
 
+#[cfg(all(test, target_os = "macos"))]
+#[path = "prompt_toggle_store_tests.rs"]
+mod toggle_store_tests;
+
 #[cfg(target_os = "macos")]
 #[path = "profile_prompt_store.rs"]
 mod profile_prompt_store;

@@ -7,7 +7,7 @@ use {
     vw_api_transport::id::ProjectScope,
 };
 use app_auth::providers::live::{
-    commit::{PendingTarget, ProviderTransactions},
+    commit::{AppState, PendingTarget, ProviderTransactions},
     stage::{FileChange, WholeFile},
     write_guard::{AppWriteGuard, FilePrivacy, WriteError},
 };
@@ -49,6 +49,14 @@ pub fn filename(app: AppId) -> Result<&'static OsStr, ActivationError> {
         _ => "AGENTS.md",
     };
     Ok(OsStr::new(name))
+}
+
+/// Only the default settings scope on the executor may initialize a new
+/// ordinary prompt target. The caller must also verify state and file absence.
+pub fn can_initialize(scope: &ProjectScope, host: &str, app: AppId) -> bool {
+    scope.project_id().as_ref() == vw_api_transport::LOCAL_PROJECT_ID
+        && host == vw_api_transport::LOCAL_HOST_ID
+        && filename(app).is_ok()
 }
 
 /// Prepare all catalog changes without side effects. Capture the requested body
@@ -102,16 +110,26 @@ pub fn prepare(
 #[allow(clippy::too_many_arguments)]
 pub fn publish<T>(
     guard: &mut AppWriteGuard, transactions: &ProviderTransactions,
-    scope: &ProjectScope, expected: Option<&[u8]>, content: &str,
+    scope: &ProjectScope, first_activation: bool, expected: Option<&[u8]>, content: &str,
     validate: impl Fn() -> Result<(), WriteError>,
     commit: impl FnOnce() -> Result<T, ()>,
 ) -> Result<T, ActivationError> {
     let name = filename(guard.app())?;
     let state = transactions.state(guard.app()).map_err(ActivationError::File)?;
-    state.require_project(scope).map_err(ActivationError::File)?;
+    if first_activation {
+        if !can_initialize(scope, vw_api_transport::LOCAL_HOST_ID, guard.app())
+            || !transactions.is_for_host(vw_api_transport::LOCAL_HOST_ID)
+            || state != AppState::default()
+            || expected.is_some()
+        {
+            return Err(ActivationError::File(WriteError::Conflict));
+        }
+    } else {
+        state.require_project(scope).map_err(ActivationError::File)?;
+    }
     let write = |guard: &mut AppWriteGuard, before: Option<&[u8]>, after: Option<Vec<u8>>| {
         let patch = WholeFile::new(before, after);
-        transactions.commit_project_checked(scope, guard, &state, false,
+        transactions.commit_project_checked(scope, guard, &state, first_activation,
             &[FileChange { name, privacy: FilePrivacy::Private, patch: &patch }],
             PendingTarget::default(), &validate)
     };

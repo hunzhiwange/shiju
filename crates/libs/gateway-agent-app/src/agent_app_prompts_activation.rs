@@ -132,17 +132,28 @@ pub fn execute(
     let context = authorize().map_err(|s| {
         (s, if s == StatusCode::UNAUTHORIZED { "unauthenticated" } else { "forbidden" })
     })?;
-    let tx = ProviderTransactions::open_existing(
-        &context.3,
-        ExecutionHostId::new(&q.target_host_id).map_err(|_| unavailable())?,
-    )
-    .map_err(|_| unavailable())?
-    .ok_or_else(conflict)?;
+    let host = ExecutionHostId::new(&q.target_host_id).map_err(|_| unavailable())?;
+    let uninitialized = || (StatusCode::CONFLICT, "prompt_target_unbound");
+    let tx = match ProviderTransactions::open_existing(&context.3, host.clone())
+        .map_err(|_| unavailable())?
+    {
+        Some(tx) => tx,
+        None if enabled
+            && q.expected_content.is_none()
+            && vw_agent_apps::prompts::activation::can_initialize(
+                &project,
+                &q.target_host_id,
+                q.app_id,
+            ) =>
+        {
+            ProviderTransactions::new(&context.3, host).map_err(|_| unavailable())?
+        }
+        None => return Err(uninitialized()),
+    };
     let state = tx.state(q.app_id).map_err(|_| unavailable())?;
     if state.project_scope.as_ref().is_some_and(|s| s != &project) {
         return Err((StatusCode::FORBIDDEN, "forbidden"));
     }
-    state.require_project(&project).map_err(|_| conflict())?;
     let environment = std::env::vars_os()
         .filter_map(|(k, v)| Some((k.into_string().ok()?, v.into_string().ok()?)))
         .collect();
@@ -179,6 +190,8 @@ pub fn execute(
             let text = e.to_string();
             if text == "prompt not found" {
                 (StatusCode::NOT_FOUND, "not_found")
+            } else if text == "prompt target unbound" {
+                uninitialized()
             } else if text.contains("conflict")
                 || text.contains("Conflict")
                 || text.contains("Recovered")

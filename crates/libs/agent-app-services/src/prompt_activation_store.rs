@@ -46,7 +46,7 @@ impl PromptsStore {
         catalog.revision = revision.checked_add(1)
             .ok_or_else(|| anyhow::anyhow!("prompt catalog revision exhausted"))?;
         let payload = serde_json::to_string(&catalog)?;
-        activation::publish(&mut guard, transactions, scope.project, live.as_deref(), &content,
+        activation::publish(&mut guard, transactions, scope.project, false, live.as_deref(), &content,
             || {
                 authorize()?;
                 let current = self.0.get(tenant, NAMESPACE, &key).map_err(|_| WriteError::Io)?;

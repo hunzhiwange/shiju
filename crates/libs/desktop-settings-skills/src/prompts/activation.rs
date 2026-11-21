@@ -23,6 +23,16 @@ pub fn error_text(error: AgentAppPromptsError) -> String {
         {
             "启用中的条目不能删除，请先停用。".into()
         }
+        AgentAppPromptsError::Http { status: 409, body }
+            if body["error"]["code"].as_str() == Some("prompt_target_unbound") =>
+        {
+            "目标尚未绑定到当前项目，无法写入提示词。".into()
+        }
+        AgentAppPromptsError::Http { status: 409, body }
+            if body["error"]["code"].as_str() == Some("recovery_pending") =>
+        {
+            "目标文件有待恢复的写入，暂时无法修改。".into()
+        }
         AgentAppPromptsError::Http { status: 409, .. } => {
             "提示词或目标文件已变化，操作冲突；请刷新后重试。".into()
         }

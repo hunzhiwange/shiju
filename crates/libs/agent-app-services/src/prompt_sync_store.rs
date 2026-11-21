@@ -54,7 +54,7 @@ impl PromptsStore {
                 &selected.content, validate, || Ok(()))
                 .map_err(|_| anyhow::anyhow!("MCode prompt projection failed"))?;
         } else {
-            activation::publish(&mut guard, transactions, scope.project, live.as_deref(),
+            activation::publish(&mut guard, transactions, scope.project, false, live.as_deref(),
                 &selected.content, validate, || Ok(()))?;
         }
         Ok(Outcome::Published { duplicate_selection })

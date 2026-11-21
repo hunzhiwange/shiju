@@ -4,7 +4,7 @@ use std::{collections::BTreeMap, path::Path};
 use vw_agent_apps::{
     prompts::{activation, deactivation, mcode, pi_agents, targets},
     providers::live::{
-        commit::ProviderTransactions,
+        commit::{AppState, ProviderTransactions},
         write_guard::{WriteError, lock_app},
     },
 };
@@ -35,8 +35,18 @@ impl PromptsStore {
         let name =
             target.file.file_name().ok_or_else(|| anyhow::anyhow!("invalid prompt target"))?;
         let state = tx.state(scope.app).map_err(native_error)?;
-        state.require_project(scope.project).map_err(native_error)?;
         ensure!(tx.pending(scope.app).map_err(native_error)?.is_none(), "prompt recovery pending");
+        // The default local settings project may initialize a pristine ordinary
+        // target. Legacy provider state and existing prompt files need an owner.
+        let first_activation = enabled
+            && expected.is_none()
+            && state == AppState::default()
+            && tx.is_for_host(scope.host)
+            && activation::can_initialize(scope.project, scope.host, scope.app);
+        if !first_activation {
+            ensure!(state.project_scope.is_some(), "prompt target unbound");
+            state.require_project(scope.project).map_err(native_error)?;
+        }
         let key = scope.key()?;
         let tenant = scope.project.tenant_scope();
         let previous = self.0.get(tenant, NAMESPACE, &key)?;
@@ -145,6 +155,7 @@ impl PromptsStore {
                         &mut guard,
                         tx,
                         scope.project,
+                        first_activation,
                         live.as_deref(),
                         after,
                         preflight,

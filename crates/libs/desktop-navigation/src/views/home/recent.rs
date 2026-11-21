@@ -97,20 +97,26 @@ fn render_empty_state<'a>(i18n: desktop_i18n::I18n) -> iced::widget::Container<'
 }
 
 fn render_recent_projects_body<'a>(app: &State<'_>) -> Element<'a, Message> {
+    const HERO_LOGO_SIZE: f32 = 94.0;
+
     let i18n = desktop_i18n::I18n::new(app.desktop_locale);
     let hero_logo = container(
         Image::new(assets::get_image(Icon::Logo))
-            .width(Length::Fixed(140.0))
-            .height(Length::Fixed(140.0)),
+            .width(Length::Fixed(HERO_LOGO_SIZE))
+            .height(Length::Fixed(HERO_LOGO_SIZE)),
     )
-    .width(Length::Fixed(140.0))
-    .height(Length::Fixed(140.0))
+    .width(Length::Fixed(HERO_LOGO_SIZE))
+    .height(Length::Fixed(HERO_LOGO_SIZE))
     .clip(true)
     .style(|theme: &Theme| {
         let palette = theme.extended_palette();
         iced::widget::container::Style {
             background: Some(Background::Color(palette.background.base.color)),
-            border: Border { width: 0.0, color: Color::TRANSPARENT, radius: 70.0.into() },
+            border: Border {
+                width: 0.0,
+                color: Color::TRANSPARENT,
+                radius: (HERO_LOGO_SIZE / 2.0).into(),
+            },
             ..Default::default()
         }
     });

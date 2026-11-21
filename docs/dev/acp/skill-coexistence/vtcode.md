@@ -1,5 +1,22 @@
 # VT Code ACP 技能共存验收
 
+## 受管网关联验
+
+Darwin arm64 上的受管 VT Code 0.183.0 v3 已通过四轮真实 ACP 验收。私有网关 SHA-256 为 `54089fcae85172aeca2459440eae5fbb8c041c774d64ff9b045b669219044e19`。库和 CLI 均在槽位 3 使用 `--locked -j 1`，Cargo 目标和构建路径相同。验收退出 0。
+
+| 轮次 | 独立会话 ID | chat.done / chat.error | 模型请求 | 审批 | MCP 执行 |
+| --- | --- | --- | --- | --- | --- |
+| 无挂载 | `ses_e039bbc9effeiU0x8H1Fj8kJI1` | 1 / 0 | 3 | 无 | 0 |
+| 挂载 | `ses_e039b9784ffeKmb2qZ19yOcLCs` | 1 / 0 | 6 | once | 1 |
+| 撤除 | `ses_e039b6c18ffe08uy76Fndjge75` | 1 / 0 | 3 | 无 | 0 |
+| MCP 拒绝 | `ses_e039b4642ffeuaD7cJ03eugPsP` | 1 / 0 | 6 | reject | 0 |
+
+四轮均回读 `acp-coexistence / vtcode`、`session_model`、`coexistence-fixture/deepseek-v4.1-flash-1017` 和 `full_access=false`。首次模型请求只包含技能目录元数据。原生技能在每轮均完成正文和资源回传，挂载及拒绝轮还完成所选技能的正文和资源回传。模型按原调用 ID 收到真实工具结果。拒绝轮返回关联的 MCP 权限拒绝结果，下游执行为零。逐次调用 ID、阶段许可回读和固定制品摘要见 `target/acp-skill-coexistence/vtcode.json`。
+
+首次 v3 网关联验的无挂载轮通过，挂载轮在通用 stdio 夹具初始化时返回 `connection closed: initialize response`。VT Code 探针复用已有适配器的沙箱兼容 stdio 夹具，将脚本放入私有工作区，以只读 FIFO 提供随机附件并在沙箱外计数。同一网关、制品与审批策略复跑通过。
+
+## 修复前与原生对照
+
 2026-11-20 在 Darwin arm64 验证受管 VT Code 0.183.0 v2。补丁入口 SHA-256 为 `8b8f6c5204e1125b20d63c7c9637b027821b22d206517ebd00db5f513890cdfb`。私有网关复用槽位 11 的已构建 ShiJu，SHA-256 为 `69663985a6f90d50109d81e9b211ccb8ab4dfe8e73b67d726cca72ec14ef419a`。宿主通过 `defaults.skills` 和 `defaults.mcp` 解析选择，MCP 服务配置走已有 stdio 至私有 HTTP 投影。仅模型响应由回环夹具提供。
 
 | 独立会话 | chat.done / chat.error | 模型请求 | 下游 MCP 调用 | 结果 |

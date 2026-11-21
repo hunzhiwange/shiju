@@ -12,6 +12,7 @@ from verify_acp_integration import Process, ProviderHandler, require
 from verify_acp_model_source import ROOT
 
 from . import correlated_result
+from .cortex_code import mcp_server as mcp_server
 from .opencode import Probe as ChatProbe
 
 VERSION = "0.183.0"

@@ -1,9 +1,10 @@
 use super::icons::{icon_btn, icon_btn_tooltip_style, icon_svg};
 use super::theme::is_dark_theme;
 use crate::overlays::SideOverlay;
+use crate::selectable_text::markdown_selection::{SelectionMessage, selectable_readonly_text};
 use desktop_assets::assets::Icon;
 use iced::widget::{Row, Text, button, container, mouse_area, row, svg};
-use iced::{Alignment, Border, Color, Element, Length, Shadow, Vector, mouse};
+use iced::{Alignment, Border, Color, Element, Font, Length, Shadow, Vector, mouse};
 use std::hash::{Hash, Hasher};
 pub fn settings_close_button<Message: Clone + 'static>(
     on_press: Message,
@@ -107,14 +108,52 @@ pub fn with_settings_help_modal<'a, Message: Clone + 'static>(
     copy_message: Message,
     close_message: Message,
 ) -> Element<'a, Message> {
+    let body = iced::widget::text(help_text)
+        .size(13)
+        .style(super::styles::settings_muted_text_style);
+    help_modal(base, title, body.into(), copy_icon, copy_tip, copy_message, close_message)
+}
+
+/// Allow text selection in the help body while keeping the full-text copy action.
+pub fn selectable_settings_help_modal<'a, Message: SelectionMessage + 'static>(
+    locale: config_ui::DesktopLocale,
+    copied_hash: Option<u64>,
+    base: Element<'a, Message>,
+    title: &'static str,
+    help_text: &'static str,
+    close_message: Message,
+) -> Element<'a, Message> {
+    let i18n = desktop_i18n::I18n::new(locale);
+    let help_text = i18n.__(help_text);
+    let (copy_icon, copy_tip) = settings_help_copy_state(copied_hash, help_text);
+    let copy_tip = if copy_icon == Icon::Copy { "复制全部" } else { copy_tip };
+    let body = selectable_readonly_text(help_text, Length::Fill, Font::DEFAULT, &[], i18n);
+    help_modal(
+        base,
+        i18n.__(title).to_owned(),
+        body,
+        copy_icon,
+        i18n.__(copy_tip),
+        Message::copy(help_text.to_owned()),
+        close_message,
+    )
+}
+
+fn help_modal<'a, Message: Clone + 'static>(
+    base: Element<'a, Message>,
+    title: String,
+    body: Element<'a, Message>,
+    copy_icon: Icon,
+    copy_tip: &'static str,
+    copy_message: Message,
+    close_message: Message,
+) -> Element<'a, Message> {
     let close_btn = settings_close_button(close_message.clone());
     let copy_btn = icon_btn(copy_icon, copy_tip, Some(copy_message));
     let header = super::panels::settings_modal_header(
         iced::widget::text(title).size(16),
         row![copy_btn, close_btn].spacing(10).align_y(Alignment::Center),
     );
-    let body =
-        iced::widget::text(help_text).size(13).style(super::styles::settings_muted_text_style);
     let card = super::panels::settings_modal_layout(header, body, None).width(720).height(560);
 
     super::panels::settings_modal_overlay(Some(base), close_message, card)

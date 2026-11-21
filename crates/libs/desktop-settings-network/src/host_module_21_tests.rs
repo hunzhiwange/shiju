@@ -189,7 +189,6 @@ fn with_help_modal<'a>(
     desktop_settings_appearance::help::with_help_modal(
         app.desktop_locale,
         app.last_copied_code_hash,
-        Message::CopyCode,
         Message::None,
         base,
         tab,

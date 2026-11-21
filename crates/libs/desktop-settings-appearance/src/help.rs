@@ -1,5 +1,8 @@
+use desktop_ui_controls::selectable_text::markdown_selection::SelectionMessage;
 use desktop_ui_controls::settings_navigation::SystemTab;
-use desktop_ui_controls::system_settings_common::help::{settings_help_button_with_locale, settings_help_copy_state, with_settings_help_modal};
+use desktop_ui_controls::system_settings_common::help::{
+    selectable_settings_help_modal, settings_help_button_with_locale,
+};
 use desktop_ui_controls::system_settings_common::panels::with_settings_modal_escape;
 use iced::Element;
 const GENERAL_HELP: &str = r#"常规设置说明
@@ -384,10 +387,9 @@ pub fn help_button<Message: Clone + 'static>(locale: config_ui::DesktopLocale, t
 /// # 错误处理
 ///
 /// 本函数不直接返回错误；无法交互或缺省状态会在控件状态中显式表达。
-pub fn with_help_modal<'a, Message: Clone + 'static>(
+pub fn with_help_modal<'a, Message: SelectionMessage + 'static>(
     locale: config_ui::DesktopLocale,
     copied_hash: Option<u64>,
-    copy: fn(String) -> Message,
     close: Message,
     base: Element<'a, Message>,
     active_tab: SystemTab,
@@ -401,19 +403,8 @@ pub fn with_help_modal<'a, Message: Clone + 'static>(
         return base;
     };
 
-    let i18n = desktop_i18n::I18n::new(locale);
-    let help_text = i18n.__(help_text).to_string();
-    let (icon, tip) = settings_help_copy_state(copied_hash, &help_text);
-    let tip = desktop_i18n::settings_runtime::text(locale, tip);
-    let modal = with_settings_help_modal(
-        base,
-        i18n.__(title).to_string(),
-        help_text.clone(),
-        icon,
-        tip,
-        copy(help_text),
-        close.clone(),
-    );
+    let modal =
+        selectable_settings_help_modal(locale, copied_hash, base, title, help_text, close.clone());
     if matches!(active_tab, SystemTab::TaskWorkflow | SystemTab::TaskLabels) {
         with_settings_modal_escape(modal, close)
     } else {

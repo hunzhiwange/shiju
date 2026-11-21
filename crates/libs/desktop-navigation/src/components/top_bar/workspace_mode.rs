@@ -4,7 +4,7 @@ use iced::widget::text::LineHeight;
 use iced::widget::{Space, button, column, container, row, text};
 use iced::{Element, Font, Length, Theme};
 
-use super::widgets::{icon_svg, menu_container_style, workspace_mode_button_style};
+use super::widgets::{icon_svg, icon_svg_style, menu_container_style, workspace_mode_button_style};
 use desktop_assets::assets::Icon;
 use desktop_ui_controls::overlays::BelowOverlay;
 use super::types::WorkspaceMode;
@@ -74,7 +74,7 @@ fn mode_item(
 ) -> Element<'static, Message> {
     let (label, description) = copy(mode);
     let check: Element<'static, Message> = if selected {
-        container(icon_svg(Icon::Check))
+        container(icon_svg(Icon::Check).style(|theme, _| icon_svg_style(theme, true)))
             .width(Length::Fixed(18.0))
             .height(Length::Fixed(18.0))
             .align_x(iced::alignment::Horizontal::Center)

@@ -86,4 +86,14 @@ MCP 只接受会话选中的 stdio 服务，沿用宿主 allow/deny 过滤与已
 
 用共享槽位 10 已构建的网关副本运行标准验收，探针持有槽位 6，目标和构建目录同为该槽位。网关 SHA-256 为 `ff5da09342e645242942bc3208c4e579e417114c66e63b893e7fd256d00b79ca`。四次新会话各产生一个 `chat.done`、零个 `chat.error`。对照次数为 0、1、0、0，分别观测到挂载的 `once` 与拒绝对照的 `reject`。模型请求数为 3、6、3、6。每轮回读 OpenClaw 2026.10.10、`session_model`、`coexistence-fixture/deepseek-v4.1-flash-1017`、`full_access=false`。报告包含四个会话与原生、选中技能及 MCP 的相关调用 ID，标准验收退出 0。结果见 `target/acp-skill-coexistence/openclaw-shared-build.json`。
 
-共享槽位构建与本项末次单会话加固时间交叠。该加固另用生产启动器通过跨工作区与二次绑定的拒绝测试。本项槽位 9 的定向 Rust 测试及最新网关复验已入队。
+共享槽位构建与本项末次单会话加固时间交叠。该加固另用生产启动器通过跨工作区与二次绑定的拒绝测试。定向 Rust 测试复用最新已链接的同一 lib-test 目标，结果如下。
+
+私有目录内由仓库正式安装器从固定 npm 制品重新安装 v3，退出 0，入口报告 `OpenClaw 2026.10.10 (7dc3350)`，三个合约摘要一致。在同一共享网关副本上用该安装结果重跑标准探针，四轮再次通过，审批与下游计数一致。安装与验收报告分别为 `target/acp-skill-coexistence/openclaw-install-v3.json` 及 `target/acp-skill-coexistence/openclaw-official-install.json`。
+
+包含单会话加固的槽位 3 网关已编译。持有槽位 3 使用其独立快照和正式安装产物完成最新标准网关复验，退出 0。目标与构建目录均为 `target/rust-slot-3`，网关 SHA-256 为 `54089fcae85172aeca2459440eae5fbb8c041c774d64ff9b045b669219044e19`。四轮终态与 MCP 计数保持 1/0 和 0/1/0/0，模型、权限及调用 ID 详见 `target/acp-skill-coexistence/openclaw.json`。
+
+在同一个已绑定桌面会话中追加两轮，复用原模型及固定技能选集。首轮批准、次轮拒绝，均有 `chat.done`，MCP 调用计数为 1、0，确认批准不跨轮复用。结果见 `target/acp-skill-coexistence/openclaw-same-binding.json`。另行改变全局默认值时，既有会话仍沿用首次请求固定的服务端选集。标准撤除对照依计划使用新会话。
+
+### 定向 Rust 测试
+
+复用统一编译锁下槽位 10 产出的 `llm-runtime --lib` 测试二进制 `llm_runtime-85f23fc8970681f8`，构建与目标路径均为仓库内的 `target/rust-slot-10`。复制产物并使用 `acp_skill_coexistence_openclaw --test-threads=1` 运行，退出 0，1 项通过，549 项被过滤。结果保存在 `target/acp-skill-coexistence/openclaw-focused-reused.json`。同目标的槽位 9 重复编译随后取消，退出 130，槽位由原命令释放。

@@ -161,18 +161,19 @@ pub(super) fn new_task_button(app: &ViewInput<'_>) -> Element<'static, Message> 
 
 pub(super) fn navigation_section(app: &ViewInput<'_>) -> Element<'static, Message> {
     let specs = navigation_specs();
-    let navigation = column![new_task_button(app)].spacing(2);
-
-    #[cfg(not(target_arch = "wasm32"))]
-    let navigation = navigation
+    let navigation = column![new_task_button(app)]
+        .spacing(2)
         .push(navigation_button(
             desktop_i18n::I18n::new(app.desktop_locale),
             specs[1].0,
             specs[1].1,
-            expert_hub_message(ExpertHubSection::Experts),
+            agent_settings_message(),
             specs[1].2,
         ))
-        .push(project_navigation_control(app))
+        .push(project_navigation_control(app));
+
+    #[cfg(not(target_arch = "wasm32"))]
+    let navigation = navigation
         .push(navigation_button(
             desktop_i18n::I18n::new(app.desktop_locale),
             "数字员工",
@@ -183,9 +184,6 @@ pub(super) fn navigation_section(app: &ViewInput<'_>) -> Element<'static, Messag
         .push(shiju_apps_button(desktop_i18n::I18n::new(app.desktop_locale)))
         .push(shiju_skills_button(desktop_i18n::I18n::new(app.desktop_locale)))
         .push(expert_hub_button(desktop_i18n::I18n::new(app.desktop_locale)));
-
-    #[cfg(target_arch = "wasm32")]
-    let navigation = navigation.push(project_navigation_control(app));
 
     let navigation = navigation.push(navigation_button(
         desktop_i18n::I18n::new(app.desktop_locale),
@@ -203,6 +201,10 @@ pub(super) fn navigation_section(app: &ViewInput<'_>) -> Element<'static, Messag
         specs[7].2,
     ));
     navigation.push(more_control(app)).into()
+}
+
+pub(super) fn agent_settings_message() -> Message {
+    Message::View(ViewMessage::OpenSystemSettingsTab(SystemTab::Agents))
 }
 
 pub fn project_navigation_message() -> Message {

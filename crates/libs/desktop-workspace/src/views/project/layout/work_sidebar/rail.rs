@@ -17,10 +17,10 @@ use super::ViewInput;
 #[cfg(not(target_arch = "wasm32"))]
 use super::expert_hub_message;
 use super::{
-    WORK_SIDEBAR_SCROLLBAR_WIDTH, filter_control, icon_control, more_menu_action,
-    more_menu_divider, more_menu_items, more_menu_style, navigation_icon_enabled, navigation_specs,
-    project_create_message, project_navigation_message, refresh_all_control, search_control,
-    sidebar_style, sidebar_toggle_control, task_pool_control,
+    WORK_SIDEBAR_SCROLLBAR_WIDTH, agent_settings_message, filter_control, icon_control,
+    more_menu_action, more_menu_divider, more_menu_items, more_menu_style, navigation_icon_enabled,
+    navigation_specs, project_create_message, project_navigation_message, refresh_all_control,
+    search_control, sidebar_style, sidebar_toggle_control, task_pool_control,
 };
 
 const CONTROL_SIZE: f32 = 36.0;
@@ -33,12 +33,8 @@ pub(super) fn view(app: &ViewInput<'_>) -> Element<'static, Message> {
         Icon::Home,
         Some(Message::View(ViewMessage::WorkProjectHome)),
     )];
-    let navigation = navigation.push(control(
-        i18n,
-        "智能体",
-        Icon::Robot,
-        Some(Message::View(ViewMessage::OpenSystemSettingsTab(SystemTab::Agents))),
-    ));
+    let (label, icon, _) = navigation_specs()[1];
+    let navigation = navigation.push(control(i18n, label, icon, Some(agent_settings_message())));
     #[cfg(not(target_arch = "wasm32"))]
     let navigation = navigation.push(control(
         i18n, "数字员工", Icon::Person, Some(Message::DigitalEmployees),

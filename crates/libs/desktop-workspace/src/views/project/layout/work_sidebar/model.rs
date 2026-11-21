@@ -31,7 +31,7 @@ pub struct WorkSidebarModel {
 pub fn navigation_specs() -> [(&'static str, Icon, Option<&'static str>); 9] {
     [
         ("新建任务", Icon::FileEarmarkPlus, None),
-        ("助手", Icon::Robot, None),
+        ("智能体", Icon::Robot, None),
         ("项目", Icon::FolderOpen, None),
         ("识矩应用", Icon::Grid1x2, None),
         ("识矩技能", Icon::Star, None),

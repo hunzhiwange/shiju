@@ -48,6 +48,7 @@ pub enum Message {
  ShijuApps,
  #[cfg(not(target_arch = "wasm32"))]
  DigitalEmployees,
+ OpenAgentSettings,
  OpenCron,
 }
 pub struct Input<'a> {
@@ -541,6 +542,25 @@ fn digital_employees_badge_button(i18n: desktop_i18n::I18n) -> Element<'static, 
     )
 }
 
+fn agent_settings_badge_button(i18n: desktop_i18n::I18n) -> Element<'static, Message> {
+    use iced::widget::svg;
+
+    let badge = container(
+        desktop_ui_controls::system_settings_common::icon_svg(
+            desktop_assets::assets::Icon::Robot,
+            20.0,
+        )
+        .style(|theme: &Theme, _| svg::Style { color: Some(theme.palette().text) }),
+    )
+    .center_x(36)
+    .center_y(36);
+    title_tooltip(
+        navigation_badge(badge, Message::OpenAgentSettings),
+        i18n.__("智能体"),
+        TooltipPosition::Right,
+    )
+}
+
 fn cron_badge_button(i18n: desktop_i18n::I18n) -> Element<'static, Message> {
     let badge = container(desktop_ui_controls::system_settings_common::icon_svg(
         desktop_assets::assets::Icon::Clock,
@@ -558,27 +578,30 @@ enum ProjectListAction {
     ExpertHub,
     ShijuSkills,
     ShijuApps,
+    AgentSettings,
     DigitalEmployees,
     Cron,
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-const PROJECT_LIST_ACTIONS: [ProjectListAction; 6] = [
+const PROJECT_LIST_ACTIONS: [ProjectListAction; 7] = [
     ProjectListAction::OpenProject,
     ProjectListAction::ExpertHub,
     ProjectListAction::ShijuSkills,
     ProjectListAction::ShijuApps,
+    ProjectListAction::AgentSettings,
     ProjectListAction::DigitalEmployees,
     ProjectListAction::Cron,
 ];
 
 #[cfg(not(target_arch = "wasm32"))]
-pub fn project_list_action_order() -> [&'static str; 6] {
+pub fn project_list_action_order() -> [&'static str; 7] {
     PROJECT_LIST_ACTIONS.map(|action| match action {
         ProjectListAction::OpenProject => "open_project",
         ProjectListAction::ExpertHub => "expert_hub",
         ProjectListAction::ShijuSkills => "shiju_skills",
         ProjectListAction::ShijuApps => "shiju_apps",
+        ProjectListAction::AgentSettings => "agent_settings",
         ProjectListAction::DigitalEmployees => "digital_employees",
         ProjectListAction::Cron => "cron",
     })
@@ -649,6 +672,9 @@ pub fn projects_list<'a>(app: &Input<'_>, collapsed_hover_mode: bool) -> Element
             ProjectListAction::ShijuApps => {
                 shiju_apps_badge_button(desktop_i18n::I18n::new(app.desktop_locale))
             }
+            ProjectListAction::AgentSettings => {
+                agent_settings_badge_button(desktop_i18n::I18n::new(app.desktop_locale))
+            }
             ProjectListAction::DigitalEmployees => {
                 digital_employees_badge_button(desktop_i18n::I18n::new(app.desktop_locale))
             }
@@ -661,6 +687,7 @@ pub fn projects_list<'a>(app: &Input<'_>, collapsed_hover_mode: bool) -> Element
     {
         projects_col = projects_col
             .push(open_project_badge_button(desktop_i18n::I18n::new(app.desktop_locale)))
+            .push(agent_settings_badge_button(desktop_i18n::I18n::new(app.desktop_locale)))
             .push(cron_badge_button(desktop_i18n::I18n::new(app.desktop_locale)));
     }
 

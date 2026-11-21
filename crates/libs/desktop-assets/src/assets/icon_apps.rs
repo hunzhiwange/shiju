@@ -170,6 +170,12 @@ pub(super) fn register_icons(m: &mut HashMap<Icon, svg::Handle>) {
             "../../../../../assets/icons/bootstrap/three-dots-vertical.svg"
         )),
     );
+    m.insert(
+        Icon::DotsThreeHorizontal,
+        svg::Handle::from_memory(include_bytes!(
+            "../../../../../assets/icons/bootstrap/three-dots.svg"
+        )),
+    );
 }
 #[cfg(test)]
 #[path = "icon_apps_tests.rs"]

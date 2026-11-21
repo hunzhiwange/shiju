@@ -305,6 +305,8 @@ pub enum Icon {
     AppWindsurf,
     /// 三个垂直点/更多选项图标
     DotsThreeVertical,
+    /// 水平三点/更多选项图标
+    DotsThreeHorizontal,
     /// 全屏图标
     Fullscreen,
     /// 退出全屏图标

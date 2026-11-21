@@ -7,14 +7,14 @@ use desktop_ui_controls::system_settings_common::{
     SETTINGS_CONTROL_HEIGHT, SETTINGS_CONTROL_TEXT_SIZE, SettingsSelectLabel, icon_svg,
     primary_action_btn_style, rounded_action_btn_style, select::SettingsSelect,
     settings_checkbox_style, settings_close_button, settings_divider, settings_error_banner,
-    settings_group_card, settings_modal_header, settings_modal_layout, settings_modal_overlay_with_escape,
-    settings_pick_list_menu_style, settings_pick_list_style, settings_right_drawer_overlay,
-    settings_select, settings_text_editor, settings_text_input,
+    settings_group_card, settings_modal_card, settings_modal_header, settings_modal_layout,
+    settings_modal_overlay_with_escape, settings_pick_list_menu_style, settings_pick_list_style,
+    settings_right_drawer_overlay, settings_select, settings_text_editor, settings_text_input,
 };
 use iced::widget::scrollable::{Direction, Scrollbar};
 use iced::widget::{
-    Column, Row, Space, button, checkbox, column, container, image, pick_list, progress_bar,
-    row, scrollable, svg, text, tooltip,
+    Column, Row, Space, button, checkbox, column, container, image, pick_list, progress_bar, row,
+    scrollable, svg, text,
 };
 use iced::{Alignment, Length, Theme};
 
@@ -24,11 +24,11 @@ use super::task_schedule::future_once;
 use super::task_schedule_view::repeat_view;
 use super::tasks::{
     Center, CenterEvent as E, DEPARTMENT_SEARCH_ID, DetailTab, Draft, DraftField, Drawer, Phase,
-    ScheduleAction, Sort, Trigger, message,
+    ScheduleAction, Sort, TaskConfirmation, Trigger, message, row_schedule_action,
 };
 use super::view::{
-    Item, Palette, Tone, action, card, divider, format_time, icon, label, page_notice, panel_style,
-    segment, segmented, status_label, strong, table_header_style, task_ref, tint_style,
+    Item, Palette, Tone, action, card, divider, format_time, icon, label, page_notice, segment,
+    segmented, status_label, strong, table_header_style, task_ref, tint_style,
 };
 use crate::app::Message;
 
@@ -448,7 +448,7 @@ fn table<'a>(center: &'a Center, data: &'a task_api::List, width: f32) -> Item<'
             .spacing(3),
         )
         .padding(0)
-        .on_press(message(E::Open(work.task_id.clone())))
+        .on_press(message(E::Open(work.task_id.clone(), DetailTab::Overview)))
         .style(|_, _| button::Style::default());
         let progress: Item<'_> = work.progress_pct.map_or_else(
             || label("—", 13, Tone::Muted).into(),
@@ -465,28 +465,6 @@ fn table<'a>(center: &'a Center, data: &'a task_api::List, width: f32) -> Item<'
                 .into()
             },
         );
-        let secondary = action(
-            if work.allows("retry") { "详情" } else { "查看进展" },
-            None,
-            Some(message(E::Open(work.task_id.clone()))),
-            false,
-        );
-        let primary = if work.allows("retry") {
-            action(
-                "整体重跑",
-                None,
-                (!center.busy).then(|| message(E::Retry(work.task_id.clone()))),
-                true,
-            )
-        } else {
-            secondary
-        };
-        let more = tooltip(
-            action("···", None, Some(cloud_task(work)), false),
-            container(label("在云端打开任务", 12, Tone::Ink)).padding(8).style(panel_style),
-            tooltip::Position::Top,
-        );
-        let controls = row![primary, more].spacing(6).wrap().into();
         let cells = table_row([
             selection(
                 center.selected.contains(&work.task_id),
@@ -500,7 +478,7 @@ fn table<'a>(center: &'a Center, data: &'a task_api::List, width: f32) -> Item<'
             row![avatar, label(owner, 13, Tone::Ink)].spacing(6).align_y(Alignment::Center).into(),
             progress,
             label(format_time(work.updated_at.as_deref()), 12, Tone::Muted).into(),
-            controls,
+            task_row_actions(center, data, work),
         ]);
         let selected = center.drawer.as_ref().is_some_and(|drawer| drawer.id == work.task_id);
         let cells = if selected {
@@ -541,6 +519,113 @@ fn table<'a>(center: &'a Center, data: &'a task_api::List, width: f32) -> Item<'
         .align_y(Alignment::Center)
     });
     column![batch, horizontal, pagination(center.page, total)].spacing(12).into()
+}
+
+fn task_decision(work: &Work) -> Option<&'static str> {
+    match work.status.as_str() {
+        "WAITING_APPROVAL" => Some("去审批"),
+        "WAITING_INPUT" => Some("去补材料"),
+        "HUMAN_TAKEOVER" => Some("去接手"),
+        _ => {
+            ["approve", "reject", "request_input", "submit_input", "takeover", "complete_as_human"]
+                .iter()
+                .any(|permission| work.allows(permission))
+                .then_some("去处理")
+        }
+    }
+}
+
+fn task_row_actions<'a>(center: &Center, list: &task_api::List, work: &Work) -> Item<'a> {
+    let id = &work.task_id;
+    let decision = task_decision(work);
+    let retry = work.allows("retry");
+    let detail = E::Open(id.clone(), DetailTab::Overview);
+    let rerun = (!center.busy).then(|| E::Retry(id.clone()));
+    let (title, event, primary) = match decision {
+        Some(title) => (title, Some(detail.clone()), true),
+        None if retry => ("整体重跑", rerun.clone(), true),
+        None => ("查看进展", Some(detail.clone()), false),
+    };
+    let mut items = Vec::new();
+    if retry {
+        if decision.is_some() {
+            items.push(("整体重跑", rerun, Tone::Accent));
+        } else {
+            items.push(("查看进展", Some(detail), Tone::Ink));
+        }
+    }
+    if work.allows("run_now") {
+        items.push(("立即执行", (!center.busy).then(|| E::RunNow(id.clone())), Tone::Ink));
+    }
+    if work.allows("cancel") {
+        items.push(("取消", (!center.busy).then(|| E::Cancel(id.clone())), Tone::Red));
+    } else if let Some(schedule) = row_schedule_action(list, work) {
+        let (title, tone) = match schedule {
+            ScheduleAction::Resume => ("恢复调度", Tone::Ink),
+            _ => ("暂停调度", Tone::Red),
+        };
+        items.push((title, (!center.busy).then(|| E::RowSchedule(id.clone())), tone));
+    }
+    if work.allows("handoff") {
+        items.push(("转交", Some(E::Open(id.clone(), DetailTab::Collaboration)), Tone::Ink));
+    }
+    if work.allows("view_deliverables") {
+        items.push(("查看产物", Some(E::Open(id.clone(), DetailTab::Results)), Tone::Ink));
+    }
+    let more = (!items.is_empty()).then(|| {
+        let open = center.row_menu.as_ref() == Some(id);
+        let trigger =
+            button(container(icon(Icon::DotsThreeHorizontal, 14, Tone::Ink)).center(Length::Fill))
+                .width(24)
+                .height(32)
+                .padding(0)
+                .style(rounded_action_btn_style)
+                .on_press(message(E::RowMenu((!open).then(|| id.clone()))));
+        let mut options = Column::new().spacing(2);
+        for (title, event, tone) in items {
+            options = options.push(
+                button(text(title).size(14))
+                    .width(Length::Fill)
+                    .padding([7, 10])
+                    .on_press_maybe(event.map(message))
+                    .style(move |theme, status| {
+                        let mut style = rounded_action_btn_style(theme, status);
+                        style.border.width = 0.0;
+                        if matches!(status, button::Status::Active | button::Status::Disabled) {
+                            style.background = None;
+                        }
+                        if status != button::Status::Disabled {
+                            style.text_color = tone.color(theme);
+                        }
+                        style
+                    }),
+            );
+        }
+        let menu = container(options.width(84)).padding(4).style(|theme| {
+            let style = settings_pick_list_menu_style(theme);
+            container::Style {
+                background: Some(theme.extended_palette().background.base.color.into()),
+                border: style.border,
+                shadow: style.shadow,
+                ..Default::default()
+            }
+        });
+        Item::new(
+            BelowOverlay::new(trigger, menu)
+                .show(open)
+                .gap(4.0)
+                .align_right(true)
+                .snap_within_viewport(true)
+                .capture_outside_click(true)
+                .on_close(message(E::RowMenu(None)))
+                .dismiss_on_escape(),
+        )
+    });
+    row![action(title, None, event.map(message), primary), more]
+        .spacing(6)
+        .align_y(Alignment::Center)
+        .wrap()
+        .into()
 }
 
 fn selection<'a>(checked: bool, on_toggle: impl Fn(bool) -> E + 'a, busy: bool) -> Item<'a> {
@@ -652,6 +737,13 @@ pub(super) fn overlays<'a>(base: Item<'a>, center: &'a Center, width: f32) -> It
             .as_ref()
             .map(|drawer| (message(E::Close), drawer_view(center, drawer, width))),
     );
+    if let Some(confirmation) = &center.confirmation {
+        return settings_modal_overlay_with_escape(
+            base,
+            message(E::DismissConfirmation),
+            task_confirmation(confirmation, width),
+        );
+    }
     if let Some(draft) = &center.draft {
         let base = settings_modal_overlay_with_escape(
             base,
@@ -659,13 +751,54 @@ pub(super) fn overlays<'a>(base: Item<'a>, center: &'a Center, width: f32) -> It
             draft_view(center, draft, width),
         );
         if let Some(picker) = &draft.once_picker {
-            picker_overlay(picker, "北京时间（UTC+8）", base, |event| message(E::DatePicker(event)))
+            picker_overlay(picker, "北京时间（UTC+8）", base, |event| {
+                message(E::DatePicker(event))
+            })
         } else {
             base
         }
     } else {
         base
     }
+}
+
+fn task_confirmation(confirmation: &TaskConfirmation, width: f32) -> Item<'_> {
+    let close = message(E::DismissConfirmation);
+    let (title, description) = if confirmation.cancel {
+        (
+            "取消任务",
+            format!(
+                "任务当前停在「{}」。取消后不再继续，已产出的内容会保留。此操作不可撤销。",
+                nonempty(confirmation.step.as_deref())
+            ),
+        )
+    } else {
+        ("整体重跑", "任务将从头执行，已经完成的步骤会重新执行，并产生相应消耗。".into())
+    };
+    let heading = settings_modal_header(
+        strong(format!("{title} · {}", confirmation.title), 18, Tone::Ink),
+        settings_close_button(close.clone()),
+    );
+    let reason = confirmation.cancel.then(|| {
+        settings_text_input("取消原因（选填）", &confirmation.reason)
+            .on_input(|reason| message(E::CancelReason(reason)))
+    });
+    settings_modal_card(
+        column![
+            heading,
+            label(description, 14, Tone::Muted),
+            reason,
+            row![
+                Space::new().width(Length::Fill),
+                action("返回", None, Some(close), false),
+                action(title, None, Some(message(E::ConfirmCommand)), true),
+            ]
+            .spacing(8),
+        ]
+        .spacing(16),
+    )
+    .width((width - 32.0).clamp(240.0, 460.0))
+    .into()
 }
 
 fn drawer_view<'a>(center: &'a Center, drawer: &'a Drawer, width: f32) -> Item<'a> {
@@ -734,13 +867,16 @@ fn drawer_view<'a>(center: &'a Center, drawer: &'a Drawer, width: f32) -> Item<'
         {
             content = content.push(label(format!("阻塞 · {blocker}"), 13, Tone::Warning));
         }
-        if !drawer.view_only
-            && Phase::Waiting.statuses().contains(&record.detail.task.status.as_str())
-        {
+        let work = &record.detail.task;
+        if !drawer.view_only && (task_decision(work).is_some() || work.allows("handoff")) {
             content = content.push(action(
-                "在云端处理待办",
+                if drawer.tab == DetailTab::Collaboration && work.allows("handoff") {
+                    "在网页转交接管"
+                } else {
+                    "在网页处理待办"
+                },
                 None,
-                Some(cloud_task(&record.detail.task)),
+                Some(cloud_task(work)),
                 false,
             ));
         }

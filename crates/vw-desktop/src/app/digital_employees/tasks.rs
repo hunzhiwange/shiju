@@ -227,6 +227,8 @@ pub(super) struct Center {
     pub department_error: bool,
     pub department_menu: bool,
     pub department_search: String,
+    pub row_menu: Option<String>,
+    pub confirmation: Option<TaskConfirmation>,
     pub drawer: Option<Drawer>,
     pub draft: Option<Draft>,
     pub loading: bool,
@@ -288,6 +290,25 @@ impl ScheduleAction {
     }
 }
 
+pub(super) fn row_schedule_action(list: &List, work: &Work) -> Option<ScheduleAction> {
+    let id = work.schedule_id.as_ref()?;
+    (work.allows("cancel_schedule") && !work.allows("cancel")).then(|| {
+        if list.paused_schedules.contains(id) {
+            ScheduleAction::Resume
+        } else {
+            ScheduleAction::Pause
+        }
+    })
+}
+
+pub(super) struct TaskConfirmation {
+    pub id: String,
+    pub title: String,
+    pub step: Option<String>,
+    pub cancel: bool,
+    pub reason: String,
+}
+
 #[derive(Clone)]
 pub(crate) enum CenterEvent {
     ViewSchedules(bool),
@@ -310,7 +331,8 @@ pub(crate) enum CenterEvent {
     Clear,
     Expand,
     Page(usize),
-    Open(String),
+    Open(String, DetailTab),
+    RowMenu(Option<String>),
     Close,
     DetailTab(DetailTab),
     DetailLoaded(u64, Result<Arc<Record>, String>),
@@ -331,6 +353,12 @@ pub(crate) enum CenterEvent {
     DraftRepeat(RepeatPattern),
     Submit,
     Retry(String),
+    Cancel(String),
+    CancelReason(String),
+    DismissConfirmation,
+    ConfirmCommand,
+    RunNow(String),
+    RowSchedule(String),
     Select(String, bool),
     SelectPage(bool),
     BatchRetry,
@@ -454,6 +482,7 @@ fn load(app: &mut App) -> Task<Message> {
     let center = &mut app.digital_employees.tasks;
     center.list_revision = center.list_revision.wrapping_add(1);
     center.loading = true;
+    center.row_menu = None;
     center.selected.clear();
     center.error = None;
     let revision = center.list_revision;
@@ -538,7 +567,8 @@ pub(super) fn route(app: &mut App, phase: Phase, id: Option<String>) -> Task<Mes
     } else {
         super::select_page(app, Page::Tasks)
     };
-    let drawer = id.map_or_else(Task::none, |id| update(app, CenterEvent::Open(id)));
+    let drawer =
+        id.map_or_else(Task::none, |id| update(app, CenterEvent::Open(id, DetailTab::Overview)));
     Task::batch([nav, drawer])
 }
 
@@ -646,12 +676,18 @@ pub(super) fn update(app: &mut App, event: CenterEvent) -> Task<Message> {
             }
             return Task::batch([load(app), board::scroll_to_top()]);
         }
-        CenterEvent::Open(id) => {
+        CenterEvent::Open(id, tab) => {
+            center.row_menu = None;
             center.stream_revision = center.stream_revision.wrapping_add(1);
-            center.drawer =
-                Some(Drawer { id, stream_revision: center.stream_revision, ..Drawer::default() });
+            center.drawer = Some(Drawer {
+                id,
+                tab,
+                stream_revision: center.stream_revision,
+                ..Drawer::default()
+            });
             return detail(app);
         }
+        CenterEvent::RowMenu(id) => center.row_menu = id,
         CenterEvent::Close => center.drawer = None,
         CenterEvent::DetailTab(tab) => {
             if let Some(drawer) = &mut center.drawer {
@@ -851,20 +887,61 @@ pub(super) fn update(app: &mut App, event: CenterEvent) -> Task<Message> {
             }
             Err(error) => center.command_error = Some(error.into()),
         },
-        CenterEvent::Retry(id) if !center.busy => {
-            let rows = center.list.iter().flat_map(|list| &list.page.tasks);
-            let detail = center
-                .drawer
-                .iter()
-                .filter_map(|drawer| drawer.record.as_ref())
-                .map(|record| &record.detail.task);
-            if detail
-                .chain(rows)
-                .find(|row| row.task_id == id)
-                .is_some_and(|row| row.allows("retry"))
+        CenterEvent::Retry(ref id) | CenterEvent::Cancel(ref id) if !center.busy => {
+            center.row_menu = None;
+            let cancel = matches!(event, CenterEvent::Cancel(_));
+            let permission = if cancel { "cancel" } else { "retry" };
+            if let Some(work) = command_work(center, id).filter(|work| work.allows(permission)) {
+                center.confirmation = Some(TaskConfirmation {
+                    id: id.clone(),
+                    title: work.title.clone(),
+                    step: work.current_step.clone(),
+                    cancel,
+                    reason: String::new(),
+                });
+            }
+        }
+        CenterEvent::CancelReason(reason) => {
+            if let Some(confirmation) = &mut center.confirmation {
+                confirmation.reason = reason;
+            }
+        }
+        CenterEvent::DismissConfirmation => center.confirmation = None,
+        CenterEvent::ConfirmCommand if !center.busy => {
+            if let Some(confirmation) = center.confirmation.take() {
+                let permission = if confirmation.cancel { "cancel" } else { "retry" };
+                if command_work(center, &confirmation.id)
+                    .is_some_and(|work| work.allows(permission))
+                {
+                    return command(app, false, move |key| async move {
+                        if confirmation.cancel {
+                            task_api::cancel(key.expose(), &confirmation.id, &confirmation.reason)
+                                .await
+                        } else {
+                            task_api::retry(key.expose(), &confirmation.id).await
+                        }
+                    });
+                }
+                center.command_error = Some("任务状态已更新，请刷新后重试".into());
+            }
+        }
+        CenterEvent::RunNow(id) if !center.busy => {
+            center.row_menu = None;
+            if command_work(center, &id).is_some_and(|work| work.allows("run_now")) {
+                return command(app, false, move |key| async move {
+                    task_api::run_now(key.expose(), &id).await
+                });
+            }
+        }
+        CenterEvent::RowSchedule(id) if !center.busy => {
+            center.row_menu = None;
+            if let Some(list) = &center.list
+                && let Some(work) = list.page.tasks.iter().find(|work| work.task_id == id)
+                && let Some(action) = row_schedule_action(list, work)
+                && let Some(schedule_id) = work.schedule_id.clone()
             {
                 return command(app, false, move |key| async move {
-                    task_api::retry(key.expose(), &id).await
+                    task_api::schedule_command(key.expose(), &schedule_id, action.key()).await
                 });
             }
         }
@@ -955,6 +1032,16 @@ pub(super) fn update(app: &mut App, event: CenterEvent) -> Task<Message> {
         _ => {}
     }
     Task::none()
+}
+
+fn command_work<'a>(center: &'a Center, id: &str) -> Option<&'a Work> {
+    center
+        .drawer
+        .iter()
+        .filter_map(|drawer| drawer.record.as_ref())
+        .map(|record| &record.detail.task)
+        .chain(center.list.iter().flat_map(|list| &list.page.tasks))
+        .find(|work| work.task_id == id)
 }
 
 fn reset_page(app: &mut App) -> Task<Message> {

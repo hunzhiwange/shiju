@@ -35,6 +35,7 @@ pub(super) struct Work {
     pub(super) once_at: Option<String>,
     pub(super) cron: Option<String>,
     pub(super) next_fire_at: Option<String>,
+    pub(super) schedule_id: Option<String>,
     pub(super) blocker: Option<String>,
     pub(super) assigned_at: Option<String>,
     pub(super) acknowledged_at: Option<String>,
@@ -143,6 +144,7 @@ struct Workflows {
 pub(crate) struct List {
     pub(super) page: WorkPage,
     pub(super) counts: Result<Counts, String>,
+    pub(super) paused_schedules: HashSet<String>,
 }
 
 pub(super) async fn list(key: &str, filters: Filters, page: usize) -> Result<List, String> {
@@ -165,7 +167,35 @@ pub(super) async fn list(key: &str, filters: Filters, page: usize) -> Result<Lis
     }
     let (page, counts) =
         tokio::join!(client.get("tasks", &page_query), client.get("tasks/count", &query),);
-    Ok(List { page: page?, counts })
+    let page: WorkPage = page?;
+    let schedule_ids: HashSet<_> = page
+        .tasks
+        .iter()
+        .filter(|work| work.allows("cancel_schedule") && !work.allows("cancel"))
+        .filter_map(|work| work.schedule_id.as_deref())
+        .collect();
+    let paused_schedules = iced::futures::future::join_all(schedule_ids.into_iter().map(|id| {
+        let client = &client;
+        async move {
+            #[derive(Deserialize)]
+            struct Response {
+                schedule: Schedule,
+            }
+            let response = tokio::time::timeout(
+                Duration::from_secs(3),
+                client.get_path::<Response>(&["schedules", id], &[]),
+            )
+            .await
+            .ok()?
+            .ok()?;
+            (response.schedule.control_state.as_deref() == Some("PAUSE")).then(|| id.to_owned())
+        }
+    }))
+    .await
+    .into_iter()
+    .flatten()
+    .collect();
+    Ok(List { page, counts, paused_schedules })
 }
 
 pub(super) async fn directory(key: &str) -> Result<Directory, String> {
@@ -393,6 +423,18 @@ pub(super) async fn batch(
 
 pub(super) async fn retry(key: &str, id: &str) -> Result<(), String> {
     Client::new(key)?.post::<Value>(&["tasks", id, "actions", "retry"], &json!({}), None).await?;
+    Ok(())
+}
+
+pub(super) async fn cancel(key: &str, id: &str, reason: &str) -> Result<(), String> {
+    let body =
+        if reason.trim().is_empty() { json!({}) } else { json!({ "reason": reason.trim() }) };
+    Client::new(key)?.post::<Value>(&["tasks", &format!("{id}:cancel")], &body, None).await?;
+    Ok(())
+}
+
+pub(super) async fn run_now(key: &str, id: &str) -> Result<(), String> {
+    Client::new(key)?.post::<Value>(&["tasks", &format!("{id}:run-now")], &json!({}), None).await?;
     Ok(())
 }
 

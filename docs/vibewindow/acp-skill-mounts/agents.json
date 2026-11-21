@@ -2028,7 +2028,7 @@
       "status": "verified",
       "platform": {
         "review_host": "Darwin-arm64",
-        "artifact_scope": "Darwin-arm64 固定 1.19.5 私有补丁发行物，两种模型来源完成生产 ACP 原生技能及完整生命周期验收；其他平台未验证。",
+        "artifact_scope": "Darwin-arm64 固定 1.19.5。旧版双模型来源生命周期记录见历史回执；v2 新增受限 session_model Chat 启动。其他平台未验证。",
         "linux": "unverified",
         "windows": "unverified"
       },
@@ -2050,15 +2050,15 @@
         ],
         "binding": "crates/vw-acp/src/agent_registry.rs::BUILT_IN_AGENT_DEFINITIONS",
         "runtime_executed": true,
-        "note": "固定私有补丁发行物由安装器校验完整散列；生产 ACP argv 保持 acp。"
+        "note": "安装器校验固定 v2 散列。受限入口使用 acp --pure 和独立认证回环端口。"
       },
       "mount": {
         "candidate_paths": [
           "SHIJU_OPENCODE_SKILL_ROOT（受审私有补丁的会话视图）"
         ],
-        "discovery": "原生 scanner 只扫描准备好的会话技能视图，排除全局、项目、配置、网络与内建技能。",
-        "activation": "首次模型请求不含技能正文；真实 skill 工具按需加载，read/bash 实际读取随机附件并执行脚本。",
-        "session_isolation": "两来源均验证精确目录、未选中探针、移除、第二会话及权限拒绝；空根禁用全部技能，私有补丁缺少根变量时明确报错。"
+        "discovery": "受限 session_model 追加校验后的会话视图，保留原生项目和内置技能。同名时原生优先。旧启动模式沿用专属视图。",
+        "activation": "首次模型请求不含技能正文。原生 skill 和 read 按需读取正文及附件。",
+        "session_isolation": "受限入口空根保留原生目录。非空根仅追加校验的视图，缺少根变量时明确报错。"
       },
       "permissions": {
         "status": "verified for reviewed Darwin-arm64 1.19.5 runtime",
@@ -2111,10 +2111,10 @@
           "version": "1.19.5"
         },
         {
-          "path": "target/opencode-install-check/runtime/node_modules/opencode-ai/reviewed/opencode",
-          "sha256": "1a1f10028d3edebddd6df10a465cfa79b58d710875173dbd32137a8b115daa2c",
+          "path": "target/acp-skill-coexistence/opencode-development/opencode-v2",
+          "sha256": "6749a41bbb0c4625cc171705587b6e37a6f1d1068329f238efc2054f83c4b519",
           "kind": "reviewed_patched_binary",
-          "bytes": 180672544,
+          "bytes": 180653360,
           "observations": []
         }
       ],

@@ -8,18 +8,20 @@ import re
 import secrets
 import shutil
 import subprocess
+import sys
 
 from verify_acp_integration import ProviderHandler, require
 from verify_acp_model_source import ROOT
 
 from . import correlated_result
+from .cortex_code import mcp_server
 
 MODEL = "deepseek-v4.1-flash-1017"
 ADAPTER = "openai"
 API_PATH = "/v1"
 TRANSPORT = "stdio"
 NATIVE_DIR = ".agents/skills"
-REVISION = "opencode-1.19.5-model-source-v1"
+REVISION = "opencode-1.19.5-model-source-v2"
 MCP_TOOL = "coexistence_read_probe"
 MCP_REJECTION = "The user rejected permission to use this specific tool call."
 
@@ -33,10 +35,25 @@ def launch(env):
     relative = Path("node_modules") / contract["package"] / contract["bin"]
     base = Path(os.environ.get("VIBEWINDOW_CONFIG_DIR", Path.home() / ".local/share/shiju"))
     source = base / "acp-runtime" / REVISION / relative
-    require(source.is_file(), "reviewed OpenCode executable unavailable")
     entry = Path(env["VIBEWINDOW_CONFIG_DIR"]) / "acp-runtime" / REVISION / relative
     entry.parent.mkdir(parents=True)
-    shutil.copy2(source, entry)
+    old_runtime = base / "acp-runtime/opencode-1.19.5-model-source-v1/node_modules"
+    metadata = source.parent.parent / "package.json" if source.is_file() else old_runtime / contract["package"] / "package.json"
+    require(metadata.is_file(), "OpenCode package identity unavailable")
+    shutil.copy2(metadata, entry.parent.parent / "package.json")
+    if source.is_file():
+        shutil.copy2(source, entry)
+    else:
+        upstream = old_runtime / "opencode-darwin-arm64/bin/opencode"
+        require(upstream.is_file(), "reviewed OpenCode upstream executable unavailable")
+        shutil.copy2(upstream, entry)
+        patch = ROOT / "patches/acp-model-source/opencode/apply-skills.py"
+        try:
+            result = subprocess.run([sys.executable, str(patch), str(entry)],
+                                    env=env, capture_output=True, timeout=30)
+        except subprocess.TimeoutExpired:
+            raise AssertionError("OpenCode confined runtime build timed out") from None
+        require(result.returncode == 0, "OpenCode confined runtime build failed")
     sha256 = hashlib.sha256()
     with entry.open("rb") as stream:
         for block in iter(lambda: stream.read(1024 * 1024), b""):
@@ -152,7 +169,7 @@ class Probe:
 
     def approves(self, metadata):
         return (self.pending is not None and self.pending[0] == "mcp"
-                and metadata.get("title") == self.pending[1]
+                and metadata.get("title") == "mcp__coexistence__read_probe"
                 and metadata.get("arguments") in (None, {}))
 
 

@@ -42,3 +42,20 @@ fn acp_skill_mount_opencode_unreviewed_executable_is_rejected_before_environment
     assert!(super::configure(&mut config, Some(&view)).is_err());
     assert!(!config.env.contains_key(super::ROOT_ENV));
 }
+
+#[cfg(unix)]
+#[test]
+fn acp_skill_coexistence_opencode_scopes_selected_link_targets() {
+    let temp = tempfile::tempdir().unwrap();
+    let view = temp.path().join("view");
+    let selected = temp.path().join("selected");
+    let unselected = temp.path().join("unselected");
+    for directory in [&view, &selected, &unselected] {
+        std::fs::create_dir(directory).unwrap();
+    }
+    assert!(super::selection(&view).unwrap().1.is_empty());
+    std::os::unix::fs::symlink(&selected, view.join("mounted")).unwrap();
+    assert_eq!(super::selection(&view).unwrap().1, [selected.canonicalize().unwrap()]);
+    std::fs::create_dir(view.join("untrusted")).unwrap();
+    assert!(super::selection(&view).is_err());
+}

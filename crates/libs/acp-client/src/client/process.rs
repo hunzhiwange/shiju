@@ -31,7 +31,7 @@ impl AcpClient {
     }
 
     pub(super) fn sandboxed_native_io(&self) -> bool {
-        self.managed_restricted_pi() || self.kilocode_sandbox.is_some() || self.hermes_sandbox.is_some() || self.managed_vtcode() || self.managed_aionrs() || self.managed_cortex()
+        self.managed_restricted_pi() || self.kilocode_sandbox.is_some() || self.hermes_sandbox.is_some() || self.opencode_sandbox.is_some() || self.managed_vtcode() || self.managed_aionrs() || self.managed_cortex()
     }
 
     pub(super) fn managed_workspace_io(&self) -> bool {
@@ -232,7 +232,7 @@ impl AcpClient {
                 ));
             }
         }
-        if self.kilocode_sandbox.is_none() && self.hermes_sandbox.is_none() && !managed_claude && !managed_auggie && !managed_cursor && !managed_droid && !managed_private_provider {
+        if self.kilocode_sandbox.is_none() && self.hermes_sandbox.is_none() && self.opencode_sandbox.is_none() && !managed_claude && !managed_auggie && !managed_cursor && !managed_droid && !managed_private_provider {
             for (key, value) in build_agent_environment(&self.auth_credentials) {
                 insert_auth_env_if_missing(&mut env, key, value);
             }
@@ -247,6 +247,17 @@ impl AcpClient {
                 || !self.config.env.contains_key("VW_ACP_LAUNCH_REFERENCE")
             {
                 return Err(AcpError::Initialize("Invalid restricted Kilocode launch".into()));
+            }
+            sandbox.command(self.config.command.trim(), &args, &env)?
+        } else if let Some(sandbox) = &self.opencode_sandbox {
+            let workspace_allowed = self.desktop_workspace.as_ref().is_some_and(|workspace| {
+                sandbox.workspace.starts_with(workspace)
+            });
+            if self.agent_name != "opencode" || !workspace_allowed || self.full_access
+                || self.permission_mode != PermissionMode::ApproveReads
+                || !self.config.env.contains_key("VW_ACP_LAUNCH_REFERENCE")
+            {
+                return Err(AcpError::Initialize("Invalid restricted OpenCode launch".into()));
             }
             sandbox.command(self.config.command.trim(), &args, &env)?
         } else if let Some(sandbox) = &self.hermes_sandbox {
@@ -363,8 +374,11 @@ impl AcpClient {
             cmd.env_remove("VW_ACP_LAUNCH_REFERENCE")
                 .env_remove("SIGIT_MANAGED_SKILL_DIRS");
         }
-        if let Some(directory) = directory.filter(|_| self.kilocode_sandbox.is_none() && self.hermes_sandbox.is_none() && !managed_vtcode && !self.managed_workspace_io()) {
+        if let Some(directory) = directory.filter(|_| self.kilocode_sandbox.is_none() && self.hermes_sandbox.is_none() && self.opencode_sandbox.is_none() && !managed_vtcode && !self.managed_workspace_io()) {
             cmd.current_dir(directory);
+        }
+        if self.agent_name == "opencode" && self.opencode_sandbox.is_none() {
+            cmd.env_remove("VW_OC_RO");
         }
         cmd.args(&args);
         if self.managed_workspace_io() {
@@ -441,6 +455,7 @@ impl AcpClient {
         }
         if self.desktop_workspace.is_some()
             && !(self.agent_name == "hermes" && self.hermes_sandbox.is_some())
+            && !(self.agent_name == "opencode" && self.opencode_sandbox.is_some())
             && !(self.agent_name == "kilocode" && self.kilocode_sandbox.is_some())
             && !restricted_pi
         {

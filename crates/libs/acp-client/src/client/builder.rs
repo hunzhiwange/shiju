@@ -7,6 +7,11 @@ impl AcpClient {
         self.kilocode_sandbox = sandbox;
         self
     }
+    pub fn with_opencode_sandbox(mut self, sandbox: Option<super::OpenCodeSandbox>) -> Self {
+        self.opencode_sandbox = sandbox;
+        self
+    }
+
     pub fn with_hermes_sandbox(mut self, sandbox: Option<super::HermesSandbox>) -> Self {
         self.hermes_sandbox = sandbox;
         self
@@ -46,6 +51,7 @@ impl AcpClient {
     pub fn new(agent_name: impl Into<String>, config: AcpAgentConfig) -> Self {
         Self {
             hermes_sandbox: None,
+            opencode_sandbox: None,
             kilocode_sandbox: None,
             agent_name: agent_name.into(),
             config,

@@ -55,3 +55,19 @@ PYTHONPATH=scripts python3 -m acp_skill_coexistence.opencode_sandbox \
 ```
 
 本卡以 OpenCode 已受审的原生 stdio 路径为验收条件。继续生产接线需要确认能否采用上述受限 HTTP 中继及入包 `rg` 的审定方式，或取得支持受限原生 stdio 的受审 OpenCode 制品。现有全访问门禁继续保护未受限入口。私有中继对照不产生正式网关 SSE 或模型和权限回读。
+
+## v2 受限生产入口
+
+2026-11-21，用户确认可使用现有回环中继作为内部传输。Darwin arm64 的固定 OpenCode 1.19.5 v2 入口 SHA-256 为 `6749a41bbb0c4625cc171705587b6e37a6f1d1068329f238efc2054f83c4b519`。安装补丁校验原始制品与三个定长锚点，重签后再次校验码签及目标摘要。
+
+受限 Chat Completions 会话由宿主创建独立 Seatbelt 入口。OpenCode 使用认证本机端口和请求所有的 HTTP 中继，真实 MCP 下游仍为宿主选中的隔离 stdio 服务。MCP 工具过滤沿用宿主解析的 allow/deny，调用需逐次 ACP 决策。拒绝与取消都撤销调用许可。原生工作区和选中的技能来源仅允许读取。OpenCode 的附件枚举使用 Bun 原生 Glob，受限项目发现跳过 Git 子进程。Seatbelt 只允许执行固定 OpenCode，生产路径无需 Git 或 ripgrep 辅助制品。旧权限门禁仍适用于未进入受限路径的桌面会话。
+
+原生扫描保留工作区和内置目录，追加验证过的会话视图。受限入口空选集保留原生技能。私有直连使用真实 v2 及生产 launcher，在有 `.git` 的夹具中验证同名原生技能优先。五轮退出 0。基线、挂载、撤除和拒绝为 `end_turn`，审批等待期间取消返回 `cancelled`。MCP 下游计数为 0、1、0、0、0，迟到的允许结果未发往 stdio。独立会话和调用 ID 位于 `target/acp-skill-coexistence/opencode-production-direct.json`。另以 v1 和 v2 对照旧入口，空选择和仅挂载目录相同。
+
+```sh
+PYTHONPATH=scripts python3 -m acp_skill_coexistence.opencode_sandbox --managed \
+  --upstream "$HOME/.local/share/shiju/acp-runtime/opencode-1.19.5-model-source-v1/node_modules/opencode-darwin-arm64/bin/opencode" \
+  --output target/acp-skill-coexistence/opencode-production-direct.json
+```
+
+第一次正式构建使用槽位 6，退出 101。同期 Pi 的模块可见性错误及 Auggie 的未完成接线阻止了 `llm-runtime` 编译。第一次定向单测用槽位 10，退出 101，实际运行零项。编译期间共享工作区加入 Auggie 和 Droid 沙箱，但该轮已编译的注册库缺少对应校验入口。两次均未进入网关探针，属于共享构建失败。

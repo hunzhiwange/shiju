@@ -29,7 +29,7 @@ pub(super) mod mimo_code;
 mod nova;
 pub(super) mod omp;
 mod openclaw;
-mod opencode;
+pub(super) mod opencode;
 pub(super) mod pi;
 pub(super) mod poolside;
 pub(super) mod qoder;

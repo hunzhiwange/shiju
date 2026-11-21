@@ -91,9 +91,31 @@ def run_child(mode, executable, rg):
                                      configure, stdio["Stdio"], stdio["allowed_tool"]))
 
 
+def managed_command(executable, root, workspace, home, view, sources, env, config, key):
+    config["provider"]["session-provider"]["options"]["apiKey"] = "{env:VW_OPENCODE_RELAY_TOKEN}"
+    env.update(VW_OPENCODE_RELAY_TOKEN=key, SHIJU_OPENCODE_SKILL_ROOT=str(view) if sources else "",
+               SHIJU_OPENCODE_SKILL_SOURCES=json.dumps([str(source) for source in sources]))
+    for name in ("CONFIG", "CACHE", "DATA", "STATE"):
+        path = home / name.lower()
+        path.mkdir()
+        env[f"XDG_{name}_HOME"] = str(path)
+    env["OPENCODE_CONFIG_DIR"] = env["XDG_CONFIG_HOME"]
+    for source, target in [
+        ("opencode/launcher.py", "opencode-launcher.py"),
+        ("omp/mcp_bridge.py", "omp-mcp-bridge.py"),
+        ("cortex-code/mcp_bridge.py", "omp-mcp-stdio.py"),
+    ]:
+        shutil.copyfile(ROOT / "patches/acp-model-source" / source, root / target)
+    # Fixture preparation only. The sandbox cannot execute git or read .git.
+    (workspace / ".git").mkdir()
+    return ["/usr/bin/python3", "-IB", str(root / "opencode-launcher.py"),
+            str(executable), str(root), "acp"]
+
+
 def turn(executable, rg, recipe, mode, phase):
-    mounted = phase in ("mounted", "rejected")
+    mounted = phase in ("mounted", "rejected", "cancelled")
     rejected = phase == "rejected"
+    cancelled = phase == "cancelled"
     with tempfile.TemporaryDirectory(prefix="opencode-seatbelt-") as scratch:
         root = Path(scratch).resolve()
         env = environment(root)
@@ -120,13 +142,33 @@ def turn(executable, rg, recipe, mode, phase):
             model.probe = probe
             config = recipe.replace("{{model}}", opencode.MODEL).replace("{{key}}", key)
             config = json.loads(config.replace("{{endpoint}}", f"http://127.0.0.1:{model.server_port}/v1"))
-            if mounted:
+            if mode == "managed":
+                sources = []
+                if mounted:
+                    # A conflicting projected name must resolve to the native fixture.
+                    native_name = skills["native"]["name"]
+                    collision = workspace / ".shiju/skills" / native_name
+                    collision.mkdir()
+                    (collision / "SKILL.md").write_text(
+                        f"---\nname: {native_name}\ndescription: collision fixture\n---\nShadow body\n")
+                    (view / native_name).symlink_to(collision)
+                    sources = [skills["selected"]["path"], collision]
+                command = managed_command(executable, root, workspace, home, view,
+                                          sources, env, config, key)
+            else:
+                command = [sys.executable, "-m", "acp_skill_coexistence.opencode_sandbox",
+                           "--child", mode, str(executable), str(rg)]
+            if mounted and mode != "managed":
                 config["skills"] = {"paths": [str(view)]}
                 if mode == "native":
                     config["permission"] = {"coexistence_*": "ask"}
             env["OPENCODE_CONFIG_CONTENT"] = json.dumps(config)
-            child = Process([sys.executable, "-m", "acp_skill_coexistence.opencode_sandbox",
-                             "--child", mode, str(executable), str(rg)], workspace, env, root / "acp.log")
+            if mode == "managed":
+                # The Rust launcher starts the same wrapper with a cleared environment.
+                env.pop("PATH", None)
+                env.pop("PYTHONPATH", None)
+                env["TMPDIR"] = str(home)
+            child = Process(command, workspace, env, root / "acp.log")
             try:
                 child.call("initialize", {"protocolVersion": 1, "clientCapabilities": {}})
                 created, _ = child.call("session/new", {"cwd": str(workspace),
@@ -143,7 +185,9 @@ def turn(executable, rg, recipe, mode, phase):
                     options = frame["params"]["options"]
                     require(any(row["optionId"] == decision and row["kind"] == decision for row in options),
                             "missing bridge approval option")
-                    decisions.append(decision)
+                    if cancelled:
+                        child.send("session/cancel", {"sessionId": created["sessionId"]}, notification=True)
+                    decisions.append("late_" + decision if cancelled else decision)
                     child.child.stdin.write(json.dumps({"jsonrpc": "2.0", "id": frame["id"], "result": {
                         "outcome": {"outcome": "selected", "optionId": decision}}}) + "\n")
                     child.child.stdin.flush()
@@ -157,6 +201,13 @@ def turn(executable, rg, recipe, mode, phase):
                             "unexpected restricted OpenCode prompt failure")
                     return {"phase": phase, "session": created["sessionId"], "failure": probe.failure,
                             "model_requests": probe.requests, "mcp_calls": 0}
+                if cancelled:
+                    require(decisions == ["late_allow_once"] and not audit.exists()
+                            and prompt.get("stopReason") == "cancelled",
+                            "cancelled MCP approval reached the downstream service")
+                    return {"phase": phase, "session": created["sessionId"], "stop": prompt["stopReason"],
+                            "model_requests": probe.requests, "calls": probe.completed,
+                            "decisions": decisions, "mcp_calls": 0}
                 require(not probe.failure and prompt.get("stopReason") == "end_turn", "incomplete sandbox turn")
                 expected_steps = {"native", "native_read"}
                 if mounted:
@@ -179,7 +230,8 @@ def main():
         return run_child(mode, Path(executable), Path(rg))
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--upstream", required=True, type=Path)
-    parser.add_argument("--rg", required=True, type=Path)
+    parser.add_argument("--rg", type=Path)
+    parser.add_argument("--managed", action="store_true")
     parser.add_argument("--output", required=True, type=Path)
     args = parser.parse_args()
     require((platform.system(), platform.machine()) == ("Darwin", "arm64"), "requires Darwin arm64")
@@ -188,20 +240,35 @@ def main():
     recipe = recipe["session-model"]["files"]["opencode.json"]
     with tempfile.TemporaryDirectory(prefix="opencode-reviewed-") as scratch:
         executable = Path(shutil.copy2(args.upstream, Path(scratch).resolve() / "opencode"))
-        rg = Path(shutil.copy2(args.rg, Path(scratch).resolve() / "rg"))
-        for binary, digest in ((executable, contract["original_sha256"]), (rg, RG_SHA256)):
-            require(hashlib.sha256(binary.read_bytes()).hexdigest() == digest, "sandbox executable digest mismatch")
+        if args.managed:
+            subprocess.run([sys.executable, str(ROOT / "patches/acp-model-source/opencode/apply-skills.py"),
+                            str(executable)], check=True, timeout=30, capture_output=True)
+        digest = contract["patched_sha256" if args.managed else "original_sha256"]
+        artifacts = [(executable, digest)]
+        rg = None
+        if not args.managed:
+            require(args.rg is not None, "upstream diagnostic requires the pinned rg executable")
+            rg = Path(shutil.copy2(args.rg, Path(scratch).resolve() / "rg"))
+            artifacts.append((rg, RG_SHA256))
+        for binary, checksum in artifacts:
+            require(hashlib.sha256(binary.read_bytes()).hexdigest() == checksum, "sandbox executable digest mismatch")
             require(subprocess.run(["codesign", "--verify", "--strict", str(binary)],
                                    capture_output=True, timeout=15).returncode == 0,
                     "sandbox executable signature verification failed")
-        native = turn(executable, rg, recipe, "native", "mounted")
-        require("failure" in native, "expected the sandbox to withhold native stdio")
-        turns = [turn(executable, rg, recipe, "bridge", phase)
-                 for phase in ("baseline", "mounted", "removed", "rejected")]
-        require(len({row["session"] for row in turns}) == 4, "sandbox sessions reused")
-    report = {"version": contract["version"], "entry_sha256": contract["original_sha256"],
-              "rg_sha256": RG_SHA256, "native_stdio": native,
-              "projected_transport": "streamable-http to stdio", "turns": turns, "passed": True}
+        report = {"version": contract["version"], "entry_sha256": digest,
+                  "projected_transport": "streamable-http to stdio"}
+        phases = ("baseline", "mounted", "removed", "rejected")
+        if args.managed:
+            mode = "managed"
+            phases += ("cancelled",)
+        else:
+            mode = "bridge"
+            native = turn(executable, rg, recipe, "native", "mounted")
+            require("failure" in native, "expected the sandbox to withhold native stdio")
+            report.update(native_stdio=native, rg_sha256=RG_SHA256)
+        turns = [turn(executable, rg, recipe, mode, phase) for phase in phases]
+        require(len({row["session"] for row in turns}) == len(phases), "sandbox sessions reused")
+    report.update(turns=turns, passed=True)
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(json.dumps(report, indent=2) + "\n")
     return 0

@@ -295,7 +295,7 @@
     "integrity": "sha512-tEqMvQahfhdDj8vceYpXtoIrvjPXm5XRfetWnPN5YISueU7adNx9JcUA3zZ+2GKuDVgDpGdQe1ZLtCZDjqodvA==",
     "bin": "reviewed/opencode",
     "files": {
-      "reviewed/opencode": "1a1f10028d3edebddd6df10a465cfa79b58d710875173dbd32137a8b115daa2c"
+      "reviewed/opencode": "6749a41bbb0c4625cc171705587b6e37a6f1d1068329f238efc2054f83c4b519"
     },
     "native_sha256": "feaafead8cd563af0c2dcb386b0757e4355e327ebb6bd1aaad5440fe2f83596c"
   },

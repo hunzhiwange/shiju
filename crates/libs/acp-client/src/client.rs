@@ -88,6 +88,9 @@ mod kilocode_sandbox;
 pub use kilocode_sandbox::KilocodeSandbox;
 mod hermes_sandbox;
 pub use hermes_sandbox::HermesSandbox;
+#[path = "client/opencode_sandbox.rs"]
+mod opencode_sandbox;
+pub use opencode_sandbox::OpenCodeSandbox;
 #[path = "client/process_signals.rs"]
 mod process_signals;
 #[path = "client/prompt_controls.rs"]
@@ -195,6 +198,7 @@ impl<T: Send + Sync> SkillMountLease for T {}
 /// 回调和后台 actor 状态；克隆句柄会共享同一个 actor 状态和当前提示词控制。
 pub struct AcpClient {
     hermes_sandbox: Option<HermesSandbox>,
+    opencode_sandbox: Option<OpenCodeSandbox>,
     kilocode_sandbox: Option<KilocodeSandbox>,
     agent_name: String,
     config: AcpAgentConfig,

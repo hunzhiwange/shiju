@@ -1,7 +1,7 @@
 """Patch a hash-pinned private Darwin-arm64 Bun executable without moving modules.
 
-Only the reviewed native skill scanner/state span changes. Its byte length stays
-fixed, preserving all module offsets and native code; re-sign the private copy.
+The reviewed scanner and skill file listing retain their original byte lengths,
+preserving all module offsets and native code; re-sign the private copy.
 """
 import hashlib
 import json
@@ -18,14 +18,20 @@ def patch(path):
     original = path.read_bytes()
     if hashlib.sha256(original).hexdigest() != contract['original_sha256']:
         raise ValueError('OpenCode original executable checksum mismatch')
-    before, after = contract['before'].encode(), contract['after'].encode()
-    start = contract['offset']
-    if original[start:start + len(before)] != before or len(after) > len(before):
-        raise ValueError('OpenCode reviewed skill source anchor mismatch')
-    path.write_bytes(original[:start] + after + b' ' * (len(before) - len(after))
-                     + original[start + len(before):])
+    patched = bytearray(original)
+    previous_end = 0
+    for edit in sorted(contract["edits"], key=lambda item: item["offset"]):
+        before, after = edit["before"].encode(), edit["after"].encode()
+        start = edit["offset"]
+        end = start + len(before)
+        if start < previous_end or original[start:end] != before or len(after) > len(before):
+            raise ValueError('OpenCode reviewed skill source anchor mismatch')
+        patched[start:end] = after.ljust(len(before))
+        previous_end = end
+    path.write_bytes(patched)
     subprocess.run(['codesign', '--force', '--sign', '-', '--identifier',
                     'ai.opencode.shiju.skills', '--timestamp=none', str(path)], check=True)
+    subprocess.run(['codesign', '--verify', '--strict', str(path)], check=True)
     if hashlib.sha256(path.read_bytes()).hexdigest() != contract['patched_sha256']:
         raise ValueError('OpenCode signed patched executable checksum mismatch')
 

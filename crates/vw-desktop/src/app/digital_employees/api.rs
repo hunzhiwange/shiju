@@ -195,8 +195,6 @@ pub(crate) struct Summary {
     pub(super) trend: Option<Trend>,
     pub(super) scope: Option<Scope>,
     #[serde(default, deserialize_with = "nullable_list")]
-    pub(super) sources: Vec<Source>,
-    #[serde(default, deserialize_with = "nullable_list")]
     pub(super) recent_activity: Vec<Activity>,
     #[serde(default)]
     pub(super) partial: bool,
@@ -227,14 +225,7 @@ pub(super) struct Kpi {
 
 #[derive(Debug, Clone, Deserialize)]
 pub(super) struct Scope {
-    pub(super) visible_hint: Option<String>,
     pub(super) role_hint: Option<String>,
-}
-
-#[derive(Debug, Clone, Deserialize)]
-pub(super) struct Source {
-    pub(super) name: String,
-    pub(super) status: String,
 }
 
 #[derive(Debug, Clone, Deserialize)]

@@ -5,7 +5,7 @@ use desktop_ui_controls::system_settings_common::{
 use iced::widget::scrollable::{Direction, Scrollbar};
 use iced::widget::{
     Column, Row, Space, Stack, button, canvas, column, container, image, responsive, row, rule,
-    scrollable, svg, text, tooltip,
+    scrollable, svg, text,
 };
 use iced::{Alignment, Border, Color, Element, Font, Length, Theme, border};
 
@@ -151,8 +151,6 @@ fn page_content(app: &App) -> Item<'_> {
                 page = page.push(label("部分工作台数据暂不可用", 13, Tone::Red));
             }
             page = page
-                .push(scope_bar(summary))
-                .push(Space::new().height(18))
                 .push(kpis(summary, size.width))
                 .push(panel_pair(decisions(summary), roster(summary), size.width))
                 .push(panel_pair(
@@ -223,57 +221,6 @@ fn heading<'a>(state: &'a State, actor: Option<&str>, narrow: bool) -> Item<'a> 
     } else {
         row![title, actions].align_y(Alignment::Center).into()
     }
-}
-
-fn scope_bar(summary: &Summary) -> Item<'_> {
-    let visible = summary
-        .scope
-        .as_ref()
-        .and_then(|scope| scope.visible_hint.as_deref())
-        .map(|hint| hint.trim_start_matches("当前可见").trim_start_matches(['：', ':']).trim())
-        .filter(|hint| !hint.is_empty())
-        .unwrap_or("范围暂不可用");
-    let scope = chip(
-        row![
-            icon(Icon::ShieldLock, 12, Tone::Muted),
-            label("当前可见", 12, Tone::Muted),
-            strong(visible, 12, Tone::Ink)
-        ]
-        .align_y(Alignment::Center)
-        .spacing(8),
-        Tone::Muted,
-    );
-    let scope: Item<'_> = match summary.data_as_of.as_deref() {
-        Some(date) => tooltip(
-            scope,
-            label(format!("更新于 {}", format_time(Some(date))), 12, Tone::Ink),
-            tooltip::Position::Bottom,
-        )
-        .style(|theme| panel_style(theme))
-        .into(),
-        None => scope,
-    };
-    let items = summary.sources.iter().map(|source| {
-        let name = match source.name.as_str() {
-            "employees" => "员工",
-            "tasks" => "任务",
-            "approvals" => "审批",
-            "workflows" => "工作流程",
-            name => name,
-        };
-        let tone = if source.status == "ok" { Tone::Green } else { Tone::Red };
-        row![label("●", 10, tone), label(name, 12, Tone::Muted)]
-            .align_y(Alignment::Center)
-            .spacing(5)
-            .into()
-    });
-    card(
-        Row::with_children(std::iter::once(scope).chain(items))
-            .spacing(11)
-            .align_y(Alignment::Center)
-            .padding([12, 16])
-            .wrap(),
-    )
 }
 
 fn kpis(summary: &Summary, width: f32) -> Item<'_> {

@@ -44,10 +44,10 @@ fn installed_card(
         .width(Length::Shrink)
         .clip(true)
         .style(styles::text_button_style);
-    let star_icon: Element<'static, Message> = if metadata.is_favorite {
-        text("★").size(16).style(styles::favorite_text_style).into()
+    let star_icon = if metadata.is_favorite {
+        icon_svg(Icon::StarFill, 14.0).style(styles::accent_icon)
     } else {
-        icon_svg(Icon::Star, 14.0).style(styles::muted_icon).into()
+        icon_svg(Icon::Star, 14.0).style(styles::muted_icon)
     };
     let star = button(container(star_icon).center(18))
         .padding(3)

@@ -53,6 +53,8 @@ pub enum Icon {
     Circle,
     /// 星形图标
     Star,
+    /// 实心星形图标
+    StarFill,
     /// 三角形图标
     Triangle,
     /// 菱形图标

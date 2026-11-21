@@ -154,6 +154,12 @@ pub(super) fn register_icons(m: &mut HashMap<Icon, svg::Handle>) {
         Icon::Star,
         svg::Handle::from_memory(include_bytes!("../../../../../assets/icons/bootstrap/star.svg")),
     );
+    m.insert(
+        Icon::StarFill,
+        svg::Handle::from_memory(include_bytes!(
+            "../../../../../assets/icons/bootstrap/star-fill.svg"
+        )),
+    );
 
     // 三角形图标
     m.insert(

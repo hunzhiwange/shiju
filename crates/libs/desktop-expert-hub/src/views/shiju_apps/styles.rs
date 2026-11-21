@@ -195,7 +195,3 @@ pub fn lifecycle_style(theme: &Theme, status: &str) -> container::Style {
 pub fn badge_style(theme: &Theme) -> container::Style {
     surface(theme, iced::color!(0xefede9), 24.0, false)
 }
-
-pub fn favorite_text_style(theme: &Theme) -> text::Style {
-    text::Style { color: Some(color(theme, ACCENT, iced::color!(0xf08c68))) }
-}

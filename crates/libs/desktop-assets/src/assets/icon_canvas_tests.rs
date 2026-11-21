@@ -44,6 +44,7 @@ fn register_icons_populates_canvas_icon_group_without_clearing_existing_entries(
         Icon::Pencil,
         Icon::Circle,
         Icon::Star,
+        Icon::StarFill,
         Icon::Triangle,
         Icon::Diamond,
         Icon::Pentagon,

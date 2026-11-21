@@ -1,9 +1,12 @@
 diff --git a/src/acp/agent.ts b/src/acp/agent.ts
-index 8f4e8b8..b3931a9 100644
+index 8f4e8b8..d7f8850 100644
 --- a/src/acp/agent.ts
 +++ b/src/acp/agent.ts
 @@ -22,0 +23 @@ import { getAuthMethods } from './auth.js'
 +import { discoverMcp } from './session-mcp.js'
+@@ -223 +224 @@ export class PiAcpAgent implements ACPAgent {
+-    const updateNotice = buildUpdateNotice()
++    const updateNotice = process.env.VW_PI_RESTRICTED === '1' ? null : buildUpdateNotice()
 @@ -234 +235,6 @@ export class PiAcpAgent implements ACPAgent {
 -          updateNotice
 +          updateNotice,
@@ -20,6 +23,11 @@ index 8f4e8b8..b3931a9 100644
 +        mcp: await discoverMcp(params.mcpServers, params.cwd)
 @@ -1183,0 +1190 @@ function buildStartupInfo(opts: {
 +  managedSkills?: string[]
+@@ -1189,2 +1196,2 @@ function buildStartupInfo(opts: {
+-  // pi version header
+-  try {
++  // Avoid probing an ambient Pi executable in restricted launches.
++  if (process.env.VW_PI_RESTRICTED !== '1') try {
 @@ -1270,12 +1277,16 @@ function buildStartupInfo(opts: {
 -  // Global skills
 -  // Use getAgentDir() so this respects PI_CODING_AGENT_DIR overrides.
@@ -164,7 +172,7 @@ index 0000000..0bd19db
 +  }
 +}
 diff --git a/src/acp/session.ts b/src/acp/session.ts
-index 57bd99e..a42ae89 100644
+index 57bd99e..16c8ae2 100644
 --- a/src/acp/session.ts
 +++ b/src/acp/session.ts
 @@ -0,0 +1 @@
@@ -233,19 +241,23 @@ index 57bd99e..a42ae89 100644
 +          this.mcpCalls.set(toolCallId, { name: toolName, args })
 +        }
 +
+@@ -429 +484 @@ export class PiAcpSession {
+-        if (toolName === 'edit') {
++        if (process.env.VW_PI_RESTRICTED !== '1' && toolName === 'edit') {
 @@ -530,0 +586 @@ export class PiAcpSession {
 +        this.mcpCalls.delete(toolCallId)
 diff --git a/src/pi-rpc/process.ts b/src/pi-rpc/process.ts
-index d62018d..ff1a377 100644
+index d62018d..5d2f9b6 100644
 --- a/src/pi-rpc/process.ts
 +++ b/src/pi-rpc/process.ts
-@@ -0,0 +1,5 @@
+@@ -0,0 +1,6 @@
++import { restrictedLaunch } from './restricted.js'
 +import { realpath } from 'node:fs/promises'
 +import { dirname, isAbsolute, join, relative, sep } from 'node:path'
 +import { pathToFileURL } from 'node:url'
 +import { getAgentDir } from '../acp/pi-settings.js'
 +import { extension, type SessionMcp } from '../acp/session-mcp.js'
-@@ -3,0 +9,31 @@ import * as readline from 'node:readline'
+@@ -3,0 +10,31 @@ import * as readline from 'node:readline'
 +// Use the pinned Pi resolver for project skill overrides and .gitignore rules.
 +async function projectSkillFiles(cwd: string, engine: string): Promise<string[]> {
 +  const workspace = await realpath(cwd)
@@ -277,19 +289,19 @@ index d62018d..ff1a377 100644
 +  return files
 +}
 +
-@@ -70,0 +107 @@ type SpawnParams = {
+@@ -70,0 +108 @@ type SpawnParams = {
 +  mcp?: SessionMcp
-@@ -74,0 +112,3 @@ export class PiRpcProcess {
+@@ -74,0 +113,3 @@ export class PiRpcProcess {
 +  readonly mcp?: SessionMcp
 +  private readonly lifetime = new AbortController()
 +  get signal(): AbortSignal { return this.lifetime.signal }
-@@ -79 +119 @@ export class PiRpcProcess {
+@@ -79 +120 @@ export class PiRpcProcess {
 -  private constructor(child: ChildProcessWithoutNullStreams) {
 +  private constructor(child: ChildProcessWithoutNullStreams, mcp?: SessionMcp) {
-@@ -80,0 +121,2 @@ export class PiRpcProcess {
+@@ -80,0 +122,2 @@ export class PiRpcProcess {
 +    this.mcp = mcp
 +    child.once('close', () => this.lifetime.abort())
-@@ -130,0 +173,16 @@ export class PiRpcProcess {
+@@ -130,0 +174,16 @@ export class PiRpcProcess {
 +    const skillRoot = process.env.SHIJU_PI_SKILL_ROOT
 +    if (skillRoot !== undefined) {
 +      if (skillRoot && !isAbsolute(skillRoot)) throw new Error('SHIJU_PI_SKILL_ROOT must be absolute')
@@ -306,13 +318,22 @@ index d62018d..ff1a377 100644
 +      args.push('--extension', extension)
 +      env.VW_PI_MCP_CATALOG = JSON.stringify(params.mcp.catalog)
 +    }
-@@ -136 +194 @@ export class PiRpcProcess {
+@@ -133 +192,4 @@ export class PiRpcProcess {
+-    const child = spawn(cmd, args, {
++    const launch = process.env.VW_PI_RESTRICTED === '1'
++      ? await restrictedLaunch(params.cwd, cmd, skillRoot ?? '', args, env.VW_PI_MCP_CATALOG)
++      : { cmd, args, env }
++    const child = spawn(launch.cmd, launch.args, {
+@@ -136 +198 @@ export class PiRpcProcess {
 -      env: process.env
-+      env
-@@ -179 +237 @@ export class PiRpcProcess {
++      env: launch.env
+@@ -179 +241 @@ export class PiRpcProcess {
 -    const proc = new PiRpcProcess(child)
 +    const proc = new PiRpcProcess(child, params.mcp)
-@@ -196,0 +255,11 @@ export class PiRpcProcess {
+@@ -188 +250 @@ export class PiRpcProcess {
+-      if (sessionFile) {
++      if (sessionFile && process.env.VW_PI_RESTRICTED !== '1') {
+@@ -196,0 +259,11 @@ export class PiRpcProcess {
 +    if (params.mcp?.catalog.length) {
 +      try {
 +        const result = await proc.getCommands() as { commands?: Array<{ name: string; source: string }> }
@@ -324,7 +345,7 @@ index d62018d..ff1a377 100644
 +        throw error
 +      }
 +    }
-@@ -206,0 +276,8 @@ export class PiRpcProcess {
+@@ -206,0 +280,8 @@ export class PiRpcProcess {
 +  respondMcp(id: string, value?: string): void {
 +    if (this.signal.aborted) return
 +    const reply = value === undefined ? { cancelled: true } : { value }
@@ -333,5 +354,70 @@ index d62018d..ff1a377 100644
 +    })
 +  }
 +
-@@ -207,0 +285 @@ export class PiRpcProcess {
+@@ -207,0 +289 @@ export class PiRpcProcess {
 +    this.lifetime.abort()
+diff --git a/src/pi-rpc/restricted.ts b/src/pi-rpc/restricted.ts
+new file mode 100644
+index 0000000..66edab1
+--- /dev/null
++++ b/src/pi-rpc/restricted.ts
+@@ -0,0 +1,59 @@
++import { readFile, readdir, realpath } from 'node:fs/promises'
++import { isAbsolute, join, resolve } from 'node:path'
++import { getAgentDir } from '../acp/pi-settings.js'
++
++export async function restrictedLaunch(cwd: string, engine: string, view: string, args: string[], catalog?: string) {
++  if (process.platform !== 'darwin' || process.arch !== 'arm64' || !isAbsolute(engine) ||
++      !process.env.VW_PI_RELAY_TOKEN || !process.env.PI_CODING_AGENT_DIR) {
++    throw new Error('Unsupported restricted Pi launch')
++  }
++  const workspace = await realpath(cwd)
++  const native = await realpath(getAgentDir())
++  const { sessionDir } = JSON.parse(await readFile(join(native, 'settings.json'), 'utf8'))
++  const sessions = await realpath(sessionDir)
++  const models = JSON.parse(await readFile(join(native, 'models.json'), 'utf8'))
++  const relay = new URL(models.providers['session-provider'].baseUrl)
++  if (relay.protocol !== 'http:' || relay.hostname !== '127.0.0.1' || !relay.port ||
++      workspace === '/' || native === '/' || sessions === '/') {
++    throw new Error('Invalid restricted Pi scope')
++  }
++  const executable = await realpath(process.execPath)
++  const modules = await realpath(resolve(engine, '../../../..'))
++  const selected = view ? [await realpath(view), ...await Promise.all(
++    (await readdir(view)).map(name => realpath(join(view, name)))
++  )] : []
++  // The adapter and its post-approval MCP helper remain outside this child sandbox.
++  const subpath = (value: string) => '(subpath ' + JSON.stringify(value) + ')'
++  const policy = `(version 1)
++(allow default)
++(deny file-read-data)
++(allow file-read-data (literal "/") (subpath "/System") (subpath "/usr/lib") (subpath "/usr/share"))
++(deny file-read-data (subpath "/System/Volumes/Data"))
++(allow file-read-data (literal "/dev/null") (literal "/dev/urandom") (literal "/private/etc/hosts")
++    (literal "/private/etc/localtime") (literal ${JSON.stringify(executable)})
++    ${[modules, workspace, native, sessions].map(subpath).join(' ')})
++(deny file-read-data ${['.git', '.env', '.vwacprc.json', '.shiju/skills'].map(name => subpath(join(workspace, name))).join(' ')})
++${selected.length ? '(allow file-read-data ' + selected.map(subpath).join(' ') + ')' : ''}
++(deny file-write*)
++(allow file-write* (literal "/dev/null") ${[native, sessions].map(subpath).join(' ')})
++(deny process-fork process-exec)
++(allow process-exec (literal ${JSON.stringify(executable)}))
++(deny network*)
++(allow network-outbound (remote ip "localhost:${relay.port}"))
++`
++  const env: NodeJS.ProcessEnv = {
++    PATH: '/usr/bin:/bin', HOME: native, TMPDIR: native, NO_PROXY: '*',
++    PI_CODING_AGENT_DIR: native, PI_OFFLINE: '1', PI_SKIP_VERSION_CHECK: '1',
++    VW_PI_RELAY_TOKEN: process.env.VW_PI_RELAY_TOKEN
++  }
++  const tools = ['read']
++  if (catalog) {
++    env.VW_PI_MCP_CATALOG = catalog
++    for (const { name } of JSON.parse(catalog) as Array<{ name: string }>) tools.push(name)
++  }
++  return {
++    cmd: '/usr/bin/sandbox-exec',
++    args: ['-p', policy, executable, engine, ...args, '--tools', tools.join(','), '--session-dir', sessions],
++    env
++  }
++}

@@ -62,3 +62,32 @@ VIBEWINDOW_CONFIG_DIR=<私有制品目录> PYTHONPATH=scripts python3 -m acp_ski
 ```
 
 结构化结果见 `target/acp-skill-coexistence/pi-v3-direct.json`。当前共享代码的请求和启动检查仍对 Pi 要求完全访问。仅用 `--tools read` 约束模型工具表仍可由原生读工具读取工作区外文件，现有 stdio 沙箱只约束 MCP 子进程。直连探针覆盖供应商路径，桌面网关仍需受审的受限 Pi 启动契约。该契约应约束原生文件读取和启动扩展，保留活动会话的逐次 MCP 审批，并在拒绝时禁止下游执行。当前审批档下的网关断点未变化，本轮复用这些失败证据，未重复构建网关或运行 Rust 单测。[启动检查](../../../../crates/libs/acp-client/src/client/process.rs#L33)
+
+## 受管 v4 受限启动
+
+Darwin arm64 的桌面读取审批档可进入固定 `session_model` 路径。宿主校验适配器摘要及同安装目录的 Pi 引擎。Seatbelt 仅启动原生 RPC 子进程，读取范围为项目和经宿主验证的技能目标，写入限当前 Pi 私有状态，网络限模型回环端口。原生工具表只保留 `read`，选中的 MCP 继续由 ACP 适配器通过逐次审批及原 stdio 沙箱执行。全拒绝、禁用工具、非受审平台及 CLI 本地模型均不使用这个入口。
+
+受管入口 SHA-256 为 `720185f6ac86542d8ceddbb8e9cbbff6320c39334168fe1d2f3525780878f847`，固定源码 TypeScript 检查及构建退出 0。共享探针 Python 单测 5 项通过。
+
+| 场景 | ACP 会话 | 终态 | 下游调用 |
+| --- | --- | --- | ---: |
+| 基线 | `01a1fbb8-59b0-7701-888d-e68c7a50ff02` | `end_turn` | 0 |
+| 挂载 | `01a1fbb8-5f0a-7070-88e0-cb808f87463b` | `end_turn` | 1 |
+| 撤除 | `01a1fbb8-6682-73a0-8302-78633488619c` | `end_turn` | 0 |
+| 拒绝 | `01a1fbb8-6cc6-734e-b451-a1111b46d8ed` | `end_turn` | 0 |
+| 撤除后重载 | `01a1fbb8-5f0a-7070-88e0-cb808f87463b` | `end_turn` | 0 |
+| 审批中取消 | `01a1fbb8-78e5-77a0-82d1-a134fac49e2e` | `cancelled` | 0 |
+| 越界绝对路径 | `01a1fbb8-7dba-7583-9c0c-3bcdfe89c8e0` | `end_turn` | 0 |
+| 越界符号链接 | `01a1fbb8-82dc-7597-8117-2386aec4319c` | `end_turn` | 0 |
+
+直连挂载轮从工作区外的选中技能真实读取正文和附件。批准调用 `probe86224172ad13d2031ddc56b5` 返回随机 MCP 值，拒绝调用 `probe5173b62f4bfd39d0ba006e76` 向模型返回拒绝原因。取消发生在审批等待期间，下游调用为零。真实 Pi `read` 拒绝越界绝对路径及工作区内指向越界文件的符号链接。原生禁用项和未选中项不入目录，自动扩展未运行。系统探针对同一策略验证工作区文件可读、跨界文件及工作区写入被拒、子进程启动和未授权回环端口连接被拒。结构化报告为 `target/acp-skill-coexistence/pi-v4-direct.json` 及 `target/acp-skill-coexistence/pi-v4-os.json`。
+
+复跑系统对照时，在固定源码应用补丁、安装构建依赖后，从仓库根运行：
+
+```sh
+node --import "$PI_SOURCE/node_modules/tsx/dist/loader.mjs" \
+  patches/acp-model-source/pi/verify-sandbox.mts \
+  "$PI_SOURCE/src/pi-rpc/restricted.ts" "$PI_ENGINE"
+```
+
+受限网关回归与 Rust 聚焦用例另行记录。

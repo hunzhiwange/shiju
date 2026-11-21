@@ -43,7 +43,7 @@ fn installed_directory(agent: &str, contract: &Contract) -> Result<PathBuf, Stri
     let revision = if matches!(agent, "gemini" | "nova" | "glm-acp-agent") {
         3
     } else if agent == "pi" {
-        3
+        4
     } else if agent == "vibe" {
         4
     } else if agent == "cortex-code" {

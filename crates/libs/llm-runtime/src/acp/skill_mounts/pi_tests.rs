@@ -38,3 +38,19 @@ fn acp_skill_mount_pi_unreviewed_executable_is_rejected_before_environment_chang
     assert!(super::configure(&mut config, Some(&view)).is_err());
     assert!(!config.env.contains_key(super::ROOT_ENV));
 }
+
+#[test]
+fn acp_skill_coexistence_pi_restricts_the_exception_to_reviewed_read_mode() {
+    use acp_types::PermissionMode::*;
+    use vw_api_acp_model::acp_model_source::AcpModelSource::*;
+
+    assert_eq!(
+        super::restricted_launch("pi", SessionModel, Some(ApproveReads), false),
+        cfg!(all(target_os = "macos", target_arch = "aarch64"))
+    );
+    assert!(!super::restricted_launch("pi", CliLocal, Some(ApproveReads), false));
+    assert!(!super::restricted_launch("pi", SessionModel, Some(DenyAll), false));
+    assert!(!super::restricted_launch("pi", SessionModel, Some(ApproveReads), true));
+    assert!(!super::restricted_launch("pi", SessionModel, Some(ApproveAll), false));
+    assert!(!super::restricted_launch("other", SessionModel, Some(ApproveReads), false));
+}

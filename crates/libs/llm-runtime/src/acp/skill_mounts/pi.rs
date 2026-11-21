@@ -1,5 +1,43 @@
-//! Pi uses --no-skills with an explicit view; the ACP catalog uses the same root.
+//! Project skills and the host session view share the reviewed Pi RPC catalog.
+use super::super::model_source::profile::AcpLaunchProfile;
+use acp_types::PermissionMode;
 use agent_config::schema::AcpAgentConfig;
+use vw_api_acp_model::acp_model_source::AcpModelSource;
+
+pub(super) fn restricted_launch(
+    agent: &str,
+    source: AcpModelSource,
+    permission: Option<PermissionMode>,
+    tools_disabled: bool,
+) -> bool {
+    cfg!(all(target_os = "macos", target_arch = "aarch64"))
+        && agent == "pi"
+        && source == AcpModelSource::SessionModel
+        && permission == Some(PermissionMode::ApproveReads)
+        && !tools_disabled
+}
+
+pub(super) fn configure_restricted(profile: &mut AcpLaunchProfile) -> anyhow::Result<()> {
+    let adapter = std::path::Path::new(&profile.config().command).canonicalize()?;
+    let modules = adapter
+        .ancestors()
+        .nth(3)
+        .ok_or_else(|| anyhow::anyhow!("Invalid restricted Pi adapter path"))?;
+    let engine = modules.join("@mariozechner/pi-coding-agent/dist/cli.js");
+    anyhow::ensure!(
+        engine.canonicalize().ok().as_ref() == Some(&engine)
+            && profile
+                .config()
+                .env
+                .get("PI_ACP_PI_COMMAND")
+                .is_some_and(|path| { std::path::Path::new(path) == engine.as_path() }),
+        "Restricted Pi requires the co-installed native engine"
+    );
+    profile.overlay_environment(std::collections::HashMap::from([(
+        "VW_PI_RESTRICTED".into(),
+        "1".into(),
+    )]))
+}
 
 pub(super) const ROOT_ENV: &str = "SHIJU_PI_SKILL_ROOT";
 

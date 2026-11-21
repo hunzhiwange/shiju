@@ -24,8 +24,14 @@ impl AcpClient {
         self.agent_name == "corust-agent" && self.config.env.contains_key("VW_ACP_LAUNCH_REFERENCE")
     }
 
+    fn managed_restricted_pi(&self) -> bool {
+        self.agent_name == "pi"
+            && self.config.env.contains_key("VW_ACP_LAUNCH_REFERENCE")
+            && self.config.env.get("VW_PI_RESTRICTED").is_some_and(|value| value == "1")
+    }
+
     pub(super) fn sandboxed_native_io(&self) -> bool {
-        self.hermes_sandbox.is_some() || self.managed_vtcode() || self.managed_aionrs() || self.managed_cortex()
+        self.managed_restricted_pi() || self.hermes_sandbox.is_some() || self.managed_vtcode() || self.managed_aionrs() || self.managed_cortex()
     }
 
     pub(super) fn managed_workspace_io(&self) -> bool {
@@ -104,6 +110,17 @@ impl AcpClient {
             ));
         }
         let mut env = self.config.env.clone();
+        if self.managed_restricted_pi() {
+            env.retain(|key, _| matches!(key.as_str(),
+                "VW_ACP_LAUNCH_REFERENCE" | "VW_PI_RESTRICTED" | "VW_PI_RELAY_TOKEN"
+                | "PI_ACP_PI_COMMAND" | "PI_ACP_STATE_DIR" | "PI_CODING_AGENT_DIR"
+                | "PI_OFFLINE" | "PI_SKIP_VERSION_CHECK" | "SHIJU_PI_SKILL_ROOT"
+            ));
+            let home = env.get("PI_CODING_AGENT_DIR").cloned().ok_or_else(|| {
+                AcpError::Initialize("Missing restricted Pi private home".into())
+            })?;
+            env.insert("HOME".into(), home);
+        }
         if self.agent_name == "amp-acp" {
             if env.contains_key("VW_ACP_LAUNCH_REFERENCE") {
                 env.entry("SHIJU_AMP_SKILL_VIEW".into()).or_insert_with(|| "null".into());
@@ -167,7 +184,7 @@ impl AcpClient {
         let managed_vtcode = self.managed_vtcode();
         let managed_grok =
             self.agent_name == "grok" && env.contains_key("VW_ACP_LAUNCH_REFERENCE");
-        let managed_private_provider = managed_grok || managed_vtcode || self.managed_workspace_io() || self.managed_aionrs()
+        let managed_private_provider = self.managed_restricted_pi() || managed_grok || managed_vtcode || self.managed_workspace_io() || self.managed_aionrs()
             || self.managed_corust() || self.managed_cortex()
             || (matches!(
                 self.agent_name.as_str(),
@@ -398,8 +415,22 @@ impl AcpClient {
     /// Materialize only known official launch shapes; custom argv stays byte-for-byte intact.
     pub(super) fn launch_args(&self) -> Result<Vec<String>, AcpError> {
         let unrestricted = self.full_access && self.permission_mode == PermissionMode::ApproveAll;
+        let restricted_pi = self.managed_restricted_pi();
+        if restricted_pi {
+            if !cfg!(all(target_os = "macos", target_arch = "aarch64"))
+                || self.full_access
+                || self.permission_mode != PermissionMode::ApproveReads
+                || !self.config.args.is_empty()
+                || self.desktop_workspace.is_none()
+            {
+                return Err(AcpError::Initialize("Invalid restricted Pi launch".into()));
+            }
+            crate::verify_reviewed_agent_executable("pi", self.config.command.trim())
+                .map_err(AcpError::Initialize)?;
+        }
         if self.desktop_workspace.is_some()
             && !(self.agent_name == "hermes" && self.hermes_sandbox.is_some())
+            && !restricted_pi
         {
             Self::ensure_desktop_native_access(&self.agent_name, unrestricted)?;
         }

@@ -153,6 +153,8 @@ class Probe:
         self.failure = None
 
     def catalog(self, body, tools):
+        require(set(tools) == ({"read", MCP_TOOL} if self.mounted else {"read"}),
+                "restricted Pi exposed an unexpected tool")
         system = "\n".join(str(message["content"]) for message in body["messages"]
                            if message["role"] == "system")
         catalog = {}

@@ -22,6 +22,15 @@ no environment overrides. The gateway passes the resolved tool allow and deny
 rules, and the runner gets a private HOME and a workspace read-only view.
 Loading a session reconstructs the tool set from that load request.
 
+The v4 managed adapter supports the desktop's Darwin arm64 read-approval
+mode for bound session models. Only the Pi RPC child enters Seatbelt. The
+sandbox restricts model network traffic to the owned loopback relay, project
+and selected skill files to read access, and writes to private Pi state.
+The child cannot fork arbitrary commands. It advertises the original native
+read tool and the reviewed MCP extension's selected tools. The adapter
+retains the per-call ACP approval channel and runs the MCP helper in its
+separate single-operation stdio sandbox after approval.
+
 Apply and build in a private checkout of that exact commit:
 
 ```sh
@@ -33,9 +42,9 @@ npm run build
 Pinned upstream package-lock SHA256:
 `e257ee4cbe345ee0de44714d34401ed2ed14de41abc2c6ed7511b1a3d923c606`.
 Patch SHA256:
-`e860e7597343eef5c47af62cac90e4ce1e036efcb4968a4ea60786b03a834ad0`.
+`60a1e358a000721e404b0366a8755c4d83d3e07ec3fc4e5a86ea7bf76c79cf07`.
 Built dist/index.js SHA256 (Darwin arm64):
-`625fb0af3d7170a000c9ce763355091c64ce67ad6be00abd548e49f1dcf05001`.
+`720185f6ac86542d8ceddbb8e9cbbff6320c39334168fe1d2f3525780878f847`.
 The session_model driver checks the adapter and installed companion file hashes against the managed registry before launch;
 launch the executable dist/index.js directly (no npx wrapper or extra arguments).
 The native engine used for acceptance is the real published

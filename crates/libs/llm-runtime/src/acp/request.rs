@@ -185,6 +185,7 @@ pub async fn do_stream_request_acp<H: Host>(
     )
     .await?;
     let mut restricted_hermes = false;
+    let mut restricted_pi = false;
     if let Some((root, full_grant)) = desktop_access {
         super::session::bind_desktop_access(&mut parsed_options, root, full_grant);
         restricted_hermes = acp_agent_name == "hermes"
@@ -192,7 +193,11 @@ pub async fn do_stream_request_acp<H: Host>(
             && merged_options.get("disable_tools").and_then(Value::as_bool) != Some(true)
             && cfg!(all(target_os = "macos", target_arch = "aarch64"))
             && source == vw_api_acp_model::acp_model_source::AcpModelSource::SessionModel;
-        if !restricted_hermes {
+        restricted_pi = super::skill_mounts::pi::restricted_launch(
+            &acp_agent_name, source, parsed_options.permission_mode,
+            merged_options.get("disable_tools").and_then(Value::as_bool) == Some(true),
+        );
+        if !restricted_hermes && !restricted_pi {
             acp_client::AcpClient::ensure_desktop_native_access(
                 &acp_agent_name,
                 parsed_options.full_access,
@@ -484,6 +489,10 @@ pub async fn do_stream_request_acp<H: Host>(
         } else if parsed_options.skill_view.is_some() {
             return Err(acp_option_error("Poolside skills require the reviewed session-model launch"));
         }
+    }
+    if restricted_pi {
+        let profile = launch_profile.as_mut().ok_or_else(|| acp_option_error("Missing restricted Pi launch"))?;
+        super::skill_mounts::pi::configure_restricted(profile).map_err(to_api_error)?;
     }
     let hermes_sandbox = if restricted_hermes {
         let profile = launch_profile.as_ref().ok_or_else(|| acp_option_error("Missing restricted Hermes launch"))?;

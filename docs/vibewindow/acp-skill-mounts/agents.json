@@ -2263,7 +2263,7 @@
       "status": "verified",
       "platform": {
         "review_host": "Darwin-arm64",
-        "artifact_scope": "Darwin-arm64，受管 v3 固定 pi-acp 0.0.22 / Pi 0.73.1；session_model 直连验证，网关验收待授权。",
+        "artifact_scope": "Darwin-arm64，受管 v4 固定 pi-acp 0.0.22 / Pi 0.73.1；受限 session_model 直连验证。",
         "linux": "unverified",
         "windows": "unverified"
       },
@@ -2310,7 +2310,7 @@
       "permissions": {
         "status": "verified on Darwin-arm64 for both model sources",
         "requirements": "执行端重新审核目录、租户/项目/会话权限、路径逃逸与符号链接；支持文件/脚本/MCP 仍受各自授权限制，不扩大 full_access。",
-        "agent_specific": "保持既有会话目录审核；deny-all 在模型调用前拒绝，不扩大 full_access。"
+        "agent_specific": "Darwin arm64 的受限 session_model 只开放 Pi 原生 read 和经逐次审批的选中 MCP。RPC 沙箱约束文件、子进程和模型回环；其它模式沿用门禁。"
       },
       "update": {
         "native": "不承诺运行中热更新；空闲视图替换后重建 ACP/Pi 进程。",
@@ -2379,13 +2379,13 @@
         },
         {
           "path": "crates/libs/acp-agent-registry/src/managed_runtime/contracts.json#pi",
-          "sha256": "625fb0af3d7170a000c9ce763355091c64ce67ad6be00abd548e49f1dcf05001",
+          "sha256": "720185f6ac86542d8ceddbb8e9cbbff6320c39334168fe1d2f3525780878f847",
           "kind": "reviewed_patched_adapter",
           "version": "0.0.22"
         }
       ],
       "supplemental_official_docs": [],
-      "next_validation": "受管 v3 直连三轮及拒绝、恢复通过；保留完全访问门禁，待通过合规入口复验真实网关。",
+      "next_validation": "受管 v4 通过受限直连、拒绝、取消及恢复；跟踪受限网关验收。",
       "acceptance": {
         "status": "verified",
         "evidence": "evidence/pi.json",

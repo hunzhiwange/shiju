@@ -253,6 +253,7 @@ async def run(command, environment, workspace, endpoint, token, configure, stdio
     server_thread.start()
     native = None
     gateway = None
+    owned_session_started = False
     tasks = []
     owner = asyncio.current_task()
     if owned_gateway is not None:
@@ -283,6 +284,7 @@ async def run(command, environment, workspace, endpoint, token, configure, stdio
         session.emit = emit
 
         async def from_host():
+            nonlocal owned_session_started
             while line := await host.readline():
                 message = json.loads(line)
                 method = message.get('method')
@@ -295,10 +297,11 @@ async def run(command, environment, workspace, endpoint, token, configure, stdio
                         continue
                     try:
                         if owned_gateway is not None:
-                            if (method != 'session/new' or session.session is not None
+                            if (method != 'session/new' or owned_session_started
                                     or Path(params['cwd']).resolve(strict=True) != workspace
                                     or params.get('mcpServers')):
                                 raise ValueError('Owned Gateway needs a new bound session')
+                            owned_session_started = True
                         else:
                             await session.clear()
                         session.setup = (identifier, params.get('sessionId'))

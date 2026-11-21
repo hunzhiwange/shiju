@@ -79,3 +79,5 @@ PYTHONPATH=scripts python3 scripts/acp_skill_coexistence/openclaw_candidate.py -
 MCP 只接受会话选中的 stdio 服务，沿用宿主 allow/deny 过滤与已有 Cortex 受限执行器。宿主在 ACP 发起 `session/new` 前登记只读投影，网关只看到随机私有地址和允许的工具名。调用通过 ACP `session/request_permission` 返回绑定当前会话的一次性决定。取消撤销待审批调用，请求结束使桥、网关与下游连接退出。原生工具限定为读，工作区文件读取承袭供应商路径守卫及当前会话技能的附件范围。受限路径每个请求分配私有 Gateway 与原生会话，使用宿主提示重放；原有授权和 `cli_local` 门禁沿用。
 
 直接运行生产启动器的真实 ACP 诊断退出 0，四轮下游调用数 0、1、0、0，模型请求数 4、7、4、7。批准及拒绝均经过 ACP JSON-RPC 交互，四轮均拒绝读取 Gateway 私有状态。另在待审批时取消，得到 `cancelled`、下游零调用、进程退出 0、Gateway 端口关闭。诊断结果在 `target/acp-skill-coexistence/openclaw-production-launcher.json` 和 `target/acp-skill-coexistence/openclaw-production-cancel.json`。共享 MCP 中继的 4 项定向测试与共存判定的 5 项定向测试均通过。此阶段的诊断用 ACP 客户端代替桌面交互，ShiJu 完整网关回归证据单独记录。
+
+额外用真实生产启动器验证会话边界。初次请求给出其它工作区时返回错误，当前工作区可正常建会话，关闭后再次建会话被拒绝。结果见 `target/acp-skill-coexistence/openclaw-production-isolation.json`。同一启动器只能绑定一次原生会话，MCP 审批中继的生命周期与该会话一致。

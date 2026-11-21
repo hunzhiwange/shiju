@@ -75,3 +75,18 @@ PYTHONPATH=scripts python3 -m acp_skill_coexistence.opencode_sandbox --managed \
 共享编译接线恢复后，在槽位 10 串行执行 `cargo test --locked -j 1 -p llm-runtime --lib acp_skill_coexistence_opencode -- --test-threads=1`。`CARGO_TARGET_DIR` 与 `CARGO_BUILD_BUILD_DIR` 均指向该槽位，退出 0，实际运行 1 项且通过。复用的 OMP MCP 桥接用例 4 项及共享探针判定用例 5 项也全部通过。
 
 首次复用正式网关曾在初始化时退出。Bun 需要在两个请求私有配置目录初始化 `.gitignore`，直连旧夹具曾把 XDG 配置放在可写的私有 home，未覆盖网关的分离布局。现按网关布局运行直连，约束目录必须属于当前 launch，Seatbelt 只额外允许创建指定配置子目录及写两个固定的私有 `.gitignore`。工作区仍只读。修正后的生产启动器直连五轮退出 0。另将同一启动策略注入隔离网关作诊断，四轮均得到一个 `chat.done`、零个 `chat.error`、MCP 0/1/0/0，确认问题定位。此诊断报告为 `target/acp-skill-coexistence/opencode-gateway-policy-diagnostic.json`。
+
+## 正式网关复验
+
+2026-11-21，Darwin arm64，正式探针退出 0。复用槽位 9 新建的网关，重新领取该槽位后运行验收。两个 Cargo 缓存变量均指向 `target/rust-slot-9` 的绝对路径。网关 SHA-256 为 `0991a07bf3ef6f9cf52f179979d0aee8552e611af5860a7f69b9f778d9731499`。结构化报告位于 `target/acp-skill-coexistence/opencode.json`。槽位 6 重复构建在该结果通过后取消，退出 130。
+
+| 轮次 | 会话 ID | 模型请求 | `chat.done` / `chat.error` | MCP 决策 / 下游次数 |
+| --- | --- | ---: | --- | --- |
+| 基线 | `ses_e03f07f04ffejVHF3jEfyEbIBH` | 3 | 1 / 0 | 无 / 0 |
+| 挂载 | `ses_e03f05cc6ffe95wqcgSJbFy3QV` | 6 | 1 / 0 | 单次允许 / 1 |
+| 撤除 | `ses_e03f03421ffebwx4IrwUjuaW2i` | 3 | 1 / 0 | 无 / 0 |
+| 拒绝 | `ses_e03f0124bffeffs93scVO9cDjV` | 6 | 1 / 0 | 拒绝 / 0 |
+
+挂载轮原生技能的激活和附件读取为 `call_3bff0fb7b63c60e5aac2407b`、`call_3deaa47760793c75e6dae9e4`，选中技能为 `call_295454163af7020479c1f067`、`call_b8310c4f222ebcc5611d80a5`。MCP 允许和拒绝分别对应 `call_e446bf3e2b2d8a630de7782e`、`call_ffaafb76a5bb040f913d81ca`。四轮均回读后端 `opencode`、`session_model`、指定模型和未申请全访问的权限状态。撤除后保留原生目录，旧视图与 MCP 未列出。
+
+Rust 定向单测 1 项通过。取消使用真实受限启动器的直连对照验证，取消后迟到的允许决策没有下游执行。验收覆盖固定版 1.19.5 v2、Darwin arm64、受限 Chat Completions 和宿主逐次审批。

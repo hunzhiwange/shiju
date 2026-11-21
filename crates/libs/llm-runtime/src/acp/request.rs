@@ -231,7 +231,7 @@ pub async fn do_stream_request_acp<H: Host>(
             && !parsed_options.full_access
             && cfg!(all(target_os = "macos", target_arch = "aarch64"))
             && source == vw_api_acp_model::acp_model_source::AcpModelSource::SessionModel;
-        if !restricted_droid && !restricted_auggie && !restricted_opencode && !restricted_kilocode && !restricted_hermes && !restricted_pi {
+        if !restricted_droid && !restricted_auggie && !restricted_opencode && !restricted_kilocode && !restricted_hermes && !restricted_pi && !restricted_openclaw {
             acp_client::AcpClient::ensure_desktop_native_access(
                 &acp_agent_name,
                 parsed_options.full_access,

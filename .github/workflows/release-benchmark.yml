@@ -185,6 +185,10 @@ jobs:
           from summarize_release_build import benchmark
           sys.exit(benchmark('${{ matrix.target }}', pathlib.Path('benchmark')))
           PYTHON
+      - name: Build the embedded macOS control helper
+        if: runner.os == 'macOS'
+        shell: bash
+        run: cargo build --locked --profile dist --target "$CACHE_TARGETS" -p computer-control --bin shiju-computer-use
       - name: Package prebuilt binaries without signing credentials
         shell: bash
         env:

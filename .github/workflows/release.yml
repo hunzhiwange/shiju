@@ -282,6 +282,16 @@ jobs:
           # Actually do builds and make zips and whatnot
           dist build ${{ needs.plan.outputs.tag-flag }} --print=linkage --output-format=json ${{ matrix.dist_args }} > dist-manifest.json
           echo "dist ran successfully"
+      - name: Build the embedded macOS control helper
+        if: ${{ contains(join(matrix.targets, ','), 'apple-darwin') }}
+        shell: bash
+        run: |
+          # The helper ships inside the macOS app, outside the cargo-dist archives.
+          for target in ${{ join(matrix.targets, ' ') }}; do
+            if [[ "$target" == *apple-darwin ]]; then
+              cargo build --locked --profile dist --target "$target" -p computer-control --bin shiju-computer-use
+            fi
+          done
       - name: Build Linux DEB/RPM
         if: ${{ contains(join(matrix.targets, ','), 'unknown-linux-gnu') }}
         shell: bash

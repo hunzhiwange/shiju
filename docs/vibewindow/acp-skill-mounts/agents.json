@@ -2282,7 +2282,7 @@
       "status": "verified",
       "platform": {
         "review_host": "Darwin-arm64",
-        "artifact_scope": "Darwin-arm64，受管 v4 固定 pi-acp 0.0.22 / Pi 0.73.1；受限 session_model 直连验证。",
+        "artifact_scope": "Darwin-arm64，受管 v4 固定 pi-acp 0.0.22 / Pi 0.73.1；受限 session_model 已通过真实网关和直连验收。",
         "linux": "unverified",
         "windows": "unverified"
       },
@@ -2404,7 +2404,7 @@
         }
       ],
       "supplemental_official_docs": [],
-      "next_validation": "受管 v4 通过受限直连、拒绝、取消及恢复；跟踪受限网关验收。",
+      "next_validation": "受管 v4 真实网关四轮、拒绝、取消及恢复通过；见 ../../dev/acp/skill-coexistence/pi.md。",
       "acceptance": {
         "status": "verified",
         "evidence": "evidence/pi.json",

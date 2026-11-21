@@ -91,3 +91,20 @@ node --import "$PI_SOURCE/node_modules/tsx/dist/loader.mjs" \
 ```
 
 网关首轮构建在槽位 3 退出 101，阻塞来自并行 Droid 接线的 `sandbox` 可见性错误（`E0603`）。构建输出存于 `target/acp-skill-coexistence/pi-v4-build.log`。Droid 修正后，按编号卡命令复用槽位 3。
+
+## 受限网关验收
+
+同一共享源码中的已验证网关制品来自槽位 6。其 SHA-256 为 `09c49dfa8efa59deebb31d40ddd6f4533e7670a09f71baef33e77f10f5284453`。核验制品含 Pi v4 摘要与受限启动检查后，复制到 0700 私有目录。Pi 探针独立持有槽位 12，`CARGO_TARGET_DIR` 与 `CARGO_BUILD_BUILD_DIR` 均为仓库下的 `target/rust-slot-12`。标准验收退出 0。
+
+| 轮次 | 新会话 | `chat.done/chat.error` | 下游 MCP | 审批 |
+| --- | --- | --- | ---: | --- |
+| 基线 | `ses_e0411c204ffeN2117pBLxzyxbZ` | 1/0 | 0 | 无 |
+| 挂载 | `ses_e0411b6e3ffeK5hALboPO2u8sp` | 1/0 | 1 | 单次批准 |
+| 撤除 | `ses_e0411a6fbffeHmb5mFDH0dQ6wi` | 1/0 | 0 | 无 |
+| 拒绝 | `ses_e04119d07ffefDMiRwtrBAvVlJ` | 1/0 | 0 | 拒绝 |
+
+各轮均回读 `acp-coexistence / pi`、`session_model`、`coexistence-fixture/deepseek-v4.1-flash-1017` 和 `full_access=false`。挂载轮原生技能正文、附件的调用 ID 为 `probe7c603a218e5c377ee5f1d920`、`probe2617be966895267205187027`，选中技能正文、附件的调用 ID 为 `probe1a5a4faf4bc5b39afb1f6e17`、`probe58e320a8629a031cc9727d35`。批准与拒绝各由模型续轮关联 ACP 调用 `probe7c64f7e70f4952482384ed87`、`probe8d88e7bb0daffa89b4dd6828`。主报告保存在 `target/acp-skill-coexistence/pi.json`。
+
+同一网关构建也通过恢复和取消补充对照。恢复已挂载会话 `ses_e040d792dffeBs6Zrot01PxkAL`，两类技能仍经原生 `read` 读取，拒绝调用 `probe1dd3dd54ff05acfe7af513ee` 后下游零次执行并正常完成。新会话 `ses_e040d4498ffe0HadgpVoz1sSWe` 等待批准调用 `probe6f52e49a084f98e1778d7e30` 时通过网关流停止接口取消，SSE 为 `chat.done=0/chat.error=1`，下游零次执行，审批项随后清理。原生 ACP 直连另验证显式撤除后加载旧会话所见目录。补充报告保存在 `target/acp-skill-coexistence/pi-v4-lifecycle.json`。
+
+定向 Rust 验证复用由共享槽位 9 构建的同一 `llm-runtime --lib` 测试目标。私有副本 SHA-256 为 `6cc4e4cb9fd9dcca453f7fe591b46f551892aea349e144343cec324a01bfba9e`。在槽位 12 以 `acp_skill_coexistence_pi --test-threads=1` 执行，退出 0，实际 1 项通过、0 项失败，输出为 `target/acp-skill-coexistence/pi-v4-rust-reused.log`。槽位 3 启动的同目标重复编译已取消。未执行桌面构建。

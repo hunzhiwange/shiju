@@ -856,6 +856,7 @@ pub fn view<'a>(
         }
         sources = sources
             .push(rule::horizontal(1))
+            .push(Space::new().height(4))
             .push(menu_item("添加或管理仓库", directory(DirectoryAction::Repositories)));
         let source_label = if s.excluded_repos.is_empty() {
             "来源 · 全部".to_owned()

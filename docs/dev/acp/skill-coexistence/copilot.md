@@ -13,7 +13,7 @@
 
 复用槽位 10 已构建的 `shiju`，SHA-256 为 `b2a05ed113477712c36de9dd731517d27f151d4e51f7c8096c0e80ae2e27d276`。目标目录和构建目录均为仓库内的 `target/rust-slot-10`。探针启动私有网关，以 `session_model` 请求 `coexistence-fixture/deepseek-v4.1-flash-1017`，设置 `full_access=false`。模型请求实际到达回环 Chat Completions 夹具。
 
-基线会话 `ses_e07ab35bdffe4in80BKQPYqZgS` 的第一条模型请求缺少 `.github/skills` 中的原生测试技能。网关发出一个 `chat.done`、零个 `chat.error`，下游调用为零。探针退出 1，首个断点为 `unexpected Copilot native skill catalogue`。基线止于目录验证，未执行网关挂载、撤除、拒绝和模式回读。结果见 `target/acp-skill-coexistence/copilot-before.json`。用最终探针复验同一网关，退出 1，会话 `ses_e07a389b1ffezuQ4q8iuwtV36l` 到达同一断点，见 `target/acp-skill-coexistence/copilot.json`。
+基线会话 `ses_e07ab35bdffe4in80BKQPYqZgS` 的第一条模型请求缺少 `.github/skills` 中的原生测试技能。网关发出一个 `chat.done`、零个 `chat.error`，下游调用为零。探针退出 1，首个断点为 `unexpected Copilot native skill catalogue`。基线止于目录验证，未执行网关挂载、撤除、拒绝和模式回读。结果见 `target/acp-skill-coexistence/copilot-before.json`。用最终探针复验同一网关，退出 1，会话 `ses_e07a389b1ffezuQ4q8iuwtV36l` 到达同一断点，见 `target/acp-skill-coexistence/copilot-v1-last.json`。
 
 探针沿用网关 `defaults.skills` 与项目级 MCP 配置，通过原生 `skill` 和 `view` 的调用 ID 核对正文与附件。MCP 使用独立鉴权的 SSE 只读服务，沿用 Copilot 已审传输。本次范围为 SSE。[原生工具和 MCP 审计](../mcp-policy-audit/coexistence/copilot.md)
 
@@ -64,10 +64,28 @@ Darwin arm64 的固定 v2 直连验证以 0 退出。四轮均读取原生随机
 
 补测在原生技能声明 `allowed-tools: bash` 后申请执行仅输出常量的命令。真实 ACP 发出权限请求，选择单次拒绝后回合结束。该命令没有获得技能自授权。诊断退出 0，见 `target/acp-skill-coexistence/copilot-direct-shell-approval.log`。共享 Python 验收判定通过 5 项。
 
-## 正式回归待补
+## 首次正式回归尝试
 
 槽位 9 的 `llm-runtime` 定向单测首次编译退出 101。旧 Copilot 模型启动测试的三处调用缺少新增的工作区参数，已更新。将生产投影函数与同一组设置测试直接链接至槽位 9 缓存的依赖，4 项通过。该检查覆盖投影、越界路径、注入字段和链接拒绝，正式测试目标仍待复跑。
 
 共享网关构建期间出现其他适配器的编译错误，包括 `pi` 模块可见性、Auggie 接口接线及 Droid `sandbox` 可见性。实际输出见 `target/acp-skill-coexistence/opencode-build.log` 和 `target/acp-skill-coexistence/pi-v4-build.log`。Copilot 的重试及槽位 3 网关命令在共享编译锁队列中取消，Copilot 进程与槽位 3 已释放。未取得新版网关四轮、绑定和权限回读。
 
-补齐定向单测和网关四轮后才能结项。定向单测命令为 `python3 scripts/cargo_slot.py cargo test --locked -j 1 -p llm-runtime --lib acp_skill_coexistence_copilot -- --test-threads=1`。网关从任务卡原命令复跑，使用同一持有的 Cargo 槽位。可将 `COPILOT_COEXISTENCE_RUNTIME` 指向包含受审 v2 包的私有修订目录，或使用已准备好的受审 v2 安装。两项编译均使用计划的共享编译锁。
+以下命令用于复验定向单测和网关四轮。定向单测命令为 `python3 scripts/cargo_slot.py cargo test --locked -j 1 -p llm-runtime --lib acp_skill_coexistence_copilot -- --test-threads=1`。网关从任务卡原命令复跑，使用同一持有的 Cargo 槽位。可将 `COPILOT_COEXISTENCE_RUNTIME` 指向包含受审 v2 包的私有修订目录，或使用已准备好的受审 v2 安装。两项编译均使用计划的共享编译锁。
+
+
+## 正式回归通过
+
+Darwin arm64 复用槽位 3 的正式网关，启动路径为仓库内 `target/rust-slot-3/debug/shiju`，Cargo 目标和构建路径同为该槽位。网关 SHA-256 为 `54089fcae85172aeca2459440eae5fbb8c041c774d64ff9b045b669219044e19`，与 VT Code 和 OpenClaw 的通过报告一致。复用前在二进制中查到 Copilot 与 Kilocode 的现行受管摘要和生产门禁标识。共享回执位于 `target/acp-skill-coexistence/recovery-regression-gateway.json`，包含来源核对与原构建退出 0 的记录。本轮复用制品，未重新构建网关。
+
+Copilot 正式网关探针退出 0。四轮均回读 `copilot` 1.0.105 v2、`session_model`、`coexistence-fixture/deepseek-v4.1-flash-1017`、`full_access=false` 和 `access_status.requested=false`。未选技能和原生排除项始终不可见，第一次模型请求未带技能正文或附件。
+
+| 轮次 | 新会话 | `chat.done` / `chat.error` | 模型请求 | MCP 审批 | 下游调用 |
+| --- | --- | ---: | ---: | --- | ---: |
+| 基线 | `ses_e037eab81ffeV9e4kYWE4HQMG5` | 1 / 0 | 3 | 无 | 0 |
+| 挂载 | `ses_e037e9532ffeKTkfX4GCNvAZfs` | 1 / 0 | 6 | 单次允许 | 1 |
+| 撤除 | `ses_e037e7e5fffelJIcfQT05MnOT2` | 1 / 0 | 3 | 无 | 0 |
+| 拒绝 | `ses_e037e692dffe7BHqXi3VxtVrBW` | 1 / 0 | 5 | 拒绝 | 0 |
+
+挂载轮原生技能和附件调用为 `call_71b143568a4c50f1b1d07c34`、`call_b9c59dc0b8e9184870c0a6e1`，选中技能和附件调用为 `call_4303e565d44e88f3da5107f5`、`call_6a881b0c34f48b2e23a9bdd9`。SSE MCP 结果按 `call_80cd926a8fbe354b3066b295` 进入模型续轮。拒绝轮按 `call_330a731b364c03e9815619e5` 收到明确的失败终态，下游零次执行。四轮结构化报告位于 `target/acp-skill-coexistence/copilot.json`。
+
+定向单测复用槽位 11 已构建的 `llm-runtime --lib` 可执行文件 `llm_runtime-85f23fc8970681f8`，两个 Cargo 路径同为该槽位。使用 `acp_skill_coexistence_copilot --test-threads=1`，5 项通过，545 项过滤。未重复执行已通过且未受影响的 Python 测试。

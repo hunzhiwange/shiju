@@ -8,8 +8,10 @@ import platform
 import plistlib
 import re
 import shutil
+import signal
 import subprocess
 import sys
+import time
 
 ROOT = Path(__file__).resolve().parents[1]
 STATE = ROOT / '.cache' / 'relax-dev'
@@ -210,6 +212,22 @@ def desktop_bundle(binary):
     return executable
 
 
+def run_live(args, cwd, env):
+    from cargo_slot import run_foreground
+
+    restart_delay = 3
+    while True:
+        # Leave time for the Cargo slot wrapper to finish stopping this process.
+        status = run_foreground(args, cwd, env, shutdown_timeout=3)
+        if status == 0:
+            return 0
+        if status in (-signal.SIGINT, -signal.SIGTERM):
+            return 128 - status
+        reason = f'信号 {-status}' if status < 0 else f'退出码 {status}'
+        print(f'Relax 异常退出（{reason}），{restart_delay} 秒后自动重启。', file=sys.stderr, flush=True)
+        time.sleep(restart_delay)
+
+
 def main(argv):
     if not argv or argv[0] not in ('setup', 'desktop', 'gateway', 'test'):
         print('用法: python3 scripts/relax_dev.py {setup|desktop|gateway} [程序参数...]\n'
@@ -248,10 +266,11 @@ def main(argv):
     # Each package uses its own default Relax cache, not one shared override.
     if argv[0] == 'test':
         print(f'Relax 常驻测试：{package} filter={argv[2]} ahead={env[prefix + "AHEAD"]}；源码 {ROOT}', flush=True)
-    else:
-        print(f'Relax 常驻开发：{package}；源码 {ROOT}', flush=True)
-    os.chdir(cwd)
-    os.execve(binary, args, env)
+        os.chdir(cwd)
+        os.execve(binary, args, env)
+        return
+    print(f'Relax 常驻开发：{package}；源码 {ROOT}', flush=True)
+    return run_live(args, cwd, env)
 
 
 if __name__ == '__main__':

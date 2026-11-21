@@ -2,6 +2,7 @@ import importlib.util
 import json
 import os
 from pathlib import Path
+import signal
 import subprocess
 import sys
 import tempfile
@@ -90,6 +91,19 @@ class CargoSlotTests(unittest.TestCase):
                 patch.object(slots, 'group_alive', return_value=True), \
                 patch.object(slots.time, 'sleep'), self.assertRaises(PermissionError):
             slots.signal_group(123, slots.signal.SIGKILL)
+
+    def test_stop_during_group_cleanup_cancels_successful_return(self):
+        def check_group(_pid):
+            signal.raise_signal(signal.SIGTERM)
+            return False
+
+        with patch.object(slots.subprocess, 'Popen') as spawn, \
+                patch.object(slots, 'signal_group') as send, \
+                patch.object(slots, 'group_alive', side_effect=check_group):
+            spawn.return_value.wait.return_value = 0
+            with self.assertRaises(KeyboardInterrupt):
+                slots.run_foreground(['command'], Path('/run'), {})
+            self.assertEqual(send.call_count, 2)
 
     def test_sigterm_releases_lock_after_child_ends(self):
         with tempfile.TemporaryDirectory() as folder:

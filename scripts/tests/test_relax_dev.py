@@ -2,9 +2,11 @@
 import importlib.util
 import json
 from pathlib import Path
+import signal
 import tempfile
+from types import SimpleNamespace
 import unittest
-from unittest.mock import patch
+from unittest.mock import Mock, call, patch
 
 SPEC = importlib.util.spec_from_file_location('relax_dev', Path(__file__).parents[1] / 'relax_dev.py')
 dev = importlib.util.module_from_spec(SPEC)
@@ -125,7 +127,6 @@ class RelaxDevTests(unittest.TestCase):
 
             def run(args, **kwargs):
                 if args[:2] == ['cargo', 'metadata']:
-                    from types import SimpleNamespace
                     return SimpleNamespace(stdout=json.dumps(metadata))
                 return real_run(args, **kwargs)
 
@@ -139,14 +140,33 @@ class RelaxDevTests(unittest.TestCase):
 
     def test_gateway_launch_keeps_live_mode_and_forwards_arguments(self):
         with patch.object(dev, 'prepare', return_value=(Path('/tool/relax'), Path('/tool/source'), Path('/run'))), \
-                patch.object(dev.os, 'chdir') as chdir, patch.object(dev.os, 'execve') as execute:
+                patch.object(dev, 'run_live') as execute:
             dev.main(['gateway', '--port', '54771'])
-            binary, args, env = execute.call_args.args
-            self.assertEqual(binary, Path('/tool/relax'))
+            args, cwd, env = execute.call_args.args
+            self.assertEqual(args[0], '/tool/relax')
             self.assertEqual(args[-4:], ['--', 'gateway', '--port', '54771'])
             self.assertNotIn('--unattended', args)
             self.assertEqual(env['RELAX_STD'], '/tool/source/libs/relax/compiler/std')
-            chdir.assert_called_once_with(Path('/run'))
+            self.assertEqual(cwd, Path('/run'))
+
+    def test_live_run_restarts_after_crash_and_nonzero_exit(self):
+        launch = Mock(side_effect=[-signal.SIGILL, 1, 0])
+        args, cwd, env = ['/tool/relax', 'run'], Path('/run'), {'CARGO_TARGET_DIR': '/slot'}
+        with patch.dict('sys.modules', cargo_slot=SimpleNamespace(run_foreground=launch)), \
+                patch.object(dev.time, 'sleep') as sleep, patch('builtins.print'):
+            self.assertEqual(dev.run_live(args, cwd, env), 0)
+        self.assertEqual(launch.call_args_list, [call(args, cwd, env, shutdown_timeout=3)] * 3)
+        self.assertEqual(sleep.call_args_list, [call(3), call(3)])
+
+    def test_live_run_stops_after_an_interrupt(self):
+        for status in (-signal.SIGINT, -signal.SIGTERM):
+            launch = Mock(return_value=status)
+            with self.subTest(status=status), \
+                    patch.dict('sys.modules', cargo_slot=SimpleNamespace(run_foreground=launch)), \
+                    patch.object(dev.time, 'sleep') as sleep:
+                self.assertEqual(dev.run_live(['/tool/relax', 'run'], Path('/run'), {}), 128 - status)
+            launch.assert_called_once()
+            sleep.assert_not_called()
 
     def test_macos_bundle_has_independent_identity_and_updates_runner(self):
         with tempfile.TemporaryDirectory() as folder:
@@ -197,17 +217,17 @@ class RelaxDevTests(unittest.TestCase):
         with patch.dict(dev.os.environ, {}, clear=True), \
                 patch.object(dev, 'prepare', return_value=(Path('/tool/relax'), Path('/tool/source'), Path('/run'))), \
                 patch.object(dev, 'desktop_bundle', return_value=Path('/tool/relax')), \
-                patch.object(dev.os, 'chdir'), patch.object(dev.os, 'execve') as execute:
+                patch.object(dev, 'run_live') as execute:
             dev.main(['desktop'])
-            self.assertEqual(execute.call_args.args[1][-3:], ['vw-desktop', '--bin', 'shi-ju'])
+            self.assertEqual(execute.call_args.args[0][-3:], ['vw-desktop', '--bin', 'shi-ju'])
             self.assertEqual(execute.call_args.args[2]['RELAX_O3'], '0')
-            self.assertNotIn('--unattended', execute.call_args.args[1])
+            self.assertNotIn('--unattended', execute.call_args.args[0])
 
     def test_desktop_honors_explicit_o3_for_compiler_reproduction(self):
         with patch.dict(dev.os.environ, {'RELAX_O3': '1'}, clear=True), \
                 patch.object(dev, 'prepare', return_value=(Path('/tool/relax'), Path('/tool/source'), Path('/run'))), \
                 patch.object(dev, 'desktop_bundle', return_value=Path('/tool/relax')), \
-                patch.object(dev.os, 'chdir'), patch.object(dev.os, 'execve') as execute:
+                patch.object(dev, 'run_live') as execute:
             dev.main(['desktop'])
             self.assertEqual(execute.call_args.args[2]['RELAX_O3'], '1')
 

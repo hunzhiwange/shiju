@@ -112,42 +112,68 @@ def signal_group(pid, signum):
         raise
 
 
+@contextmanager
+def stop_on_signal(stop):
+    previous = {}
+    try:
+        for signum in (signal.SIGINT, signal.SIGTERM):
+            previous[signum] = signal.signal(signum, stop)
+        yield
+    finally:
+        for signum, handler in previous.items():
+            signal.signal(signum, handler)
+
+
+def run_foreground(command, cwd, env, *, shutdown_timeout=10):
+    child = None
+    interrupted = False
+    cleaning_up = False
+
+    def stop(_signum, _frame):
+        nonlocal interrupted
+        # If a signal arrives during Popen, wait until we have the group ID.
+        interrupted = True
+        if child is not None and not cleaning_up:
+            raise KeyboardInterrupt
+
+    with stop_on_signal(stop):
+        try:
+            child = subprocess.Popen(command, cwd=cwd, env=env, start_new_session=True)
+            if interrupted:
+                raise KeyboardInterrupt
+            return child.wait()
+        finally:
+            cleaning_up = True
+            if child is not None:
+                signal_group(child.pid, signal.SIGTERM)
+                try:
+                    child.wait(timeout=shutdown_timeout)
+                except subprocess.TimeoutExpired:
+                    signal_group(child.pid, signal.SIGKILL)
+                    child.wait()
+                # Descendants can outlive the leader. Wait until the group
+                # has no live process that can keep using the slot.
+                signal_group(child.pid, signal.SIGKILL)
+                while group_alive(child.pid):
+                    time.sleep(0.05)
+            cleaning_up = False
+            if interrupted:
+                raise KeyboardInterrupt
+
+
 def run(command, root=ROOT, number=None):
     if not command:
         raise RuntimeError('Usage: python3 scripts/cargo_slot.py COMMAND [ARGS...]')
     if os.name != 'posix':
         raise RuntimeError('Cargo slot runner currently supports macOS/Linux')
-    # Install handlers before claiming the lock, including the wait-for-slot path.
-    previous = {}
 
     def stop(_signum, _frame):
         raise KeyboardInterrupt
 
-    try:
-        for signum in (signal.SIGINT, signal.SIGTERM):
-            previous[signum] = signal.signal(signum, stop)
+    # Also handle interruption while waiting to claim the slot.
+    with stop_on_signal(stop):
         with slot(root, number=number) as env:
-            child = subprocess.Popen(command, cwd=root, env=env, start_new_session=True)
-            try:
-                return child.wait()
-            finally:
-                # Finish cleanup even if the caller interrupts a second time.
-                for signum in previous:
-                    signal.signal(signum, signal.SIG_IGN)
-                signal_group(child.pid, signal.SIGTERM)
-                try:
-                    child.wait(timeout=10)
-                except subprocess.TimeoutExpired:
-                    signal_group(child.pid, signal.SIGKILL)
-                    child.wait()
-                # A descendant can outlive the leader briefly. Zombies cannot
-                # write artifacts; wait until no live group member remains.
-                signal_group(child.pid, signal.SIGKILL)
-                while group_alive(child.pid):
-                    time.sleep(0.05)
-    finally:
-        for signum, handler in previous.items():
-            signal.signal(signum, handler)
+            return run_foreground(command, root, env)
 
 
 if __name__ == '__main__':

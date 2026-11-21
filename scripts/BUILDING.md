@@ -9,6 +9,10 @@ terminals. First use installs the pinned unpatched Relax automatically; `cargo d
 prepares it ahead of time. Requires Python 3.9+ and the existing Rust/native build toolchain.
 See [team setup and validation](../docs/dev/Relax开发验证.md#团队一键入口当前仓库).
 
+If either application's Relax process crashes or returns an error, the session
+restarts it after three seconds and keeps the same Cargo slot. A clean exit or an
+interrupt ends the session. Press Ctrl+C in the launching terminal to stop it.
+
 To use a local Relax build, create the ignored `.cache/relax-dev/local.json`:
 
 ```json
@@ -17,7 +21,7 @@ To use a local Relax build, create the ignored `.cache/relax-dev/local.json`:
 
 The binary must be executable and located at `<relax-source>/target/release/relax`;
 the entry uses that source tree's standard library. This bypasses the pinned
-installer, while retaining workspace vendor preparation. Each new launch reads
+installer, while retaining workspace vendor preparation. Each new session reads
 the current binary; after rebuilding Relax, restart `cargo dev-gateway`,
 `cargo dev-desktop`, or `cargo dev-test`. Running sessions keep their loaded runner.
 Remove `local.json` to restore the pinned unpatched version. A configured invalid

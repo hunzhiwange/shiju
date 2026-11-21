@@ -238,7 +238,6 @@ pub(crate) struct Summary {
     pub(super) recent_activity: Vec<Activity>,
     #[serde(default)]
     pub(super) partial: bool,
-    pub(super) data_as_of: Option<String>,
 }
 
 impl Summary {

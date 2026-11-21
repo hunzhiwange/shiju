@@ -48,12 +48,7 @@ pub(super) fn view(board: &Board, width: f32, can_fullscreen: bool) -> Item<'_> 
                 tasks_panel(board, snapshot, width)
             } else {
                 office(board, snapshot, width)
-            })
-            .push(label(
-                format!("任务数据截至 {}", format_time(snapshot.summary.data_as_of.as_deref())),
-                11,
-                Tone::Muted,
-            ));
+            });
     }
     page.width(Length::Fill).into()
 }

@@ -238,7 +238,7 @@ fn applications(state: &State) -> Element<'_, Event> {
         text(state.provider.map_or("全部应用", provider_name)).size(13),
         text(count_label(state.provider)).size(12).style(settings_muted_text_style),
         icon_svg(Icon::ChevronDown, 12.0),
-    ].spacing(7).align_y(iced::Alignment::Center))
+    ].spacing(7).height(Length::Fill).align_y(iced::Alignment::Center))
         .height(SETTINGS_CONTROL_HEIGHT).padding([0, 9]).style(rounded_action_btn_style)
         .on_press(Event::Applications(!state.apps_open));
     let mut menu = column![].spacing(2);

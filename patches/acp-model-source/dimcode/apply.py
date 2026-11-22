@@ -1,7 +1,8 @@
-"""Patch only the pinned DimCode Darwin arm64 ACP image."""
+"""Patch pinned DimCode 0.5.28 ACP images."""
+import argparse
 import hashlib
+import json
 from pathlib import Path
-import sys
 
 SOURCE_SHA256 = "0d6298cc8881b15ae8cdf1901b6f39674b74dbf5c14caedadfe509ab5ae114b0"
 
@@ -25,9 +26,14 @@ def patch(data, start, end, replacements):
     return data[:left] + result.ljust(right - left) + data[right:]
 
 
-def apply(source, target):
+def apply(source, target, linux_arch=None):
+    source_sha256 = SOURCE_SHA256
+    if linux_arch is not None:
+        manifest = json.loads(Path(__file__).with_name("linux-artifacts.json").read_text())
+        contract = manifest["targets"][linux_arch]
+        source_sha256 = contract["source_sha256"]
     data = source.read_bytes()
-    if hashlib.sha256(data).hexdigest() != SOURCE_SHA256:
+    if hashlib.sha256(data).hexdigest() != source_sha256:
         raise RuntimeError("DimCode upstream executable digest mismatch")
     # Use session runtime settings only during the current ACP prompt. A fork
     # or subagent has a different ID and receives no inherited selection.
@@ -105,10 +111,17 @@ if(ctx.shMcp&&permissionDecision.decision==="deny"&&permissionDecision.reason===
 }
 let handoff;"""),
     ])
+    if linux_arch is not None and hashlib.sha256(data).hexdigest() != contract["managed_sha256"]:
+        raise RuntimeError("DimCode managed executable digest mismatch")
     with target.open("xb") as output:
         output.write(data)
     target.chmod(0o700)
 
 
 if __name__ == "__main__":
-    apply(*map(Path, sys.argv[1:]))
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("source", type=Path)
+    parser.add_argument("target", type=Path)
+    parser.add_argument("--linux-arch", choices=("x86_64", "aarch64"))
+    args = parser.parse_args()
+    apply(args.source, args.target, args.linux_arch)

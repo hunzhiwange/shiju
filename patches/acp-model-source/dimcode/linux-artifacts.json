@@ -1,0 +1,20 @@
+{
+  "version": "0.5.28",
+  "revision": "dimcode-0.5.28-model-source-v3",
+  "bin": "dim",
+  "archive_member": "package/bin/dimcode",
+  "targets": {
+    "x86_64": {
+      "artifact_url": "https://registry.npmjs.org/dimcode-linux-x64/-/dimcode-linux-x64-0.5.28.tgz",
+      "archive_sha256": "95cfa37c3e6afaa32b8a23206937cf420622617922022e99984ae8638bbed0e8",
+      "source_sha256": "a3aca1797626e0f09456fce733ce900073b622b170cbb869aa56488a4551e0af",
+      "managed_sha256": "7ea644d2cf48676875c57410be0febd00d6032a88d9b3b9cef4160a17afeb17b"
+    },
+    "aarch64": {
+      "artifact_url": "https://registry.npmjs.org/dimcode-linux-arm64/-/dimcode-linux-arm64-0.5.28.tgz",
+      "archive_sha256": "b6e948e8f3809b906b62b6fe4c599f562445e3496a600e6c80210f9e3a184712",
+      "source_sha256": "6548617feb40ffa6e0b0bc8d9790f3ad7112ef0fd4cef6f95d967e279a184de3",
+      "managed_sha256": "00cf1e75208939bee617753398f550ea4ff39c3cb569b1dce081f0bd3629ee25"
+    }
+  }
+}

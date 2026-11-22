@@ -29,10 +29,18 @@ MCP_TOOL = "coexistence__read_probe"
 
 
 def launch(env):
-    require((platform.system(), platform.machine()) == ("Darwin", "arm64"),
-            "unreviewed DimCode platform")
-    contract = json.loads((ROOT / "crates/libs/acp-agent-registry/src/"
-                           "managed_runtime/contracts.json").read_text())["dimcode"]
+    system, arch = platform.system(), platform.machine()
+    if system == "Linux":
+        require(arch in ("x86_64", "aarch64") and os.confstr("CS_GNU_LIBC_VERSION"),
+                "unreviewed DimCode Linux target")
+        contract = json.loads((ROOT / "patches/acp-model-source/dimcode/"
+                               "linux-artifacts.json").read_text())
+        expected = contract["targets"][arch]["managed_sha256"]
+    else:
+        require((system, arch) == ("Darwin", "arm64"), "unreviewed DimCode platform")
+        contract = json.loads((ROOT / "crates/libs/acp-agent-registry/src/"
+                               "managed_runtime/contracts.json").read_text())["dimcode"]
+        expected = contract["files"][contract["bin"]]
     require(contract["version"] == "0.5.28", "unexpected DimCode contract version")
     relative = Path("acp-runtime") / REVISION / contract["bin"]
     base = Path(os.environ.get("VIBEWINDOW_CONFIG_DIR", Path.home() / ".local/share/shiju"))
@@ -46,16 +54,18 @@ def launch(env):
         for block in iter(lambda: stream.read(1024 * 1024), b""):
             sha256.update(block)
     digest = sha256.hexdigest()
-    require(digest == contract["files"][contract["bin"]], "DimCode executable digest mismatch")
-    signature = subprocess.run(["/usr/bin/codesign", "--verify", "--strict", str(entry)],
-                               env=env, capture_output=True, timeout=15)
-    require(signature.returncode == 0, "DimCode signature verification failed")
+    require(digest == expected, "DimCode executable digest mismatch")
+    if system == "Darwin":
+        signature = subprocess.run(["/usr/bin/codesign", "--verify", "--strict", str(entry)],
+                                   env=env, capture_output=True, timeout=15)
+        require(signature.returncode == 0, "DimCode signature verification failed")
     version = subprocess.run([str(entry), "--version"], env=env, capture_output=True, timeout=15)
     require(version.returncode == 0 and version.stdout.strip() == b"dimcode 0.5.28",
             "unexpected DimCode executable version")
     return {"command": str(entry), "args": ["acp"]}, {
-        "platform": "darwin-arm64", "version": contract["version"],
-        "revision": REVISION, "sha256": digest,
+        "platform": f"{system.lower()}-{arch}", "version": contract["version"],
+        "revision": REVISION, "entry": contract["bin"], "sha256": digest,
+        "model_endpoint": "/v1/chat/completions",
     }
 
 

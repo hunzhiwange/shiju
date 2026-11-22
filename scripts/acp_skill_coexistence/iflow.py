@@ -10,7 +10,7 @@ import secrets
 import shutil
 import subprocess
 
-from verify_acp_integration import ProviderHandler, require
+from verify_acp_integration import ProviderHandler, platform_process, require
 from verify_acp_model_source import ROOT
 
 MODEL = "deepseek-v4.1-flash-1017"
@@ -284,6 +284,25 @@ class Handler(ProviderHandler):
                 "message": dict(delta, role="assistant")}]}).encode())
 
 
+def skill_mount_revision(binary, root, env, workspace, session, *, expected, remove=False):
+    log = root / ("iflow-skill-remove.log" if remove else f"iflow-skill-revision-{expected}.log")
+    with platform_process([str(binary), "acp"], workspace, env, log) as acp:
+        acp.call("initialize", {"protocolVersion": 1, "clientCapabilities": {}})
+        loaded, _ = acp.call("session/load", {"sessionId": session, "cwd": str(workspace),
+                                             "mcpServers": []})
+        mounts = loaded["_meta"]["shiju.mounts"]
+        require(mounts["revision"] == expected, "unexpected iFlow session mount revision")
+        if not remove:
+            if expected > 0:
+                require(mounts["skills"] == [], "iFlow restored a removed skill selection")
+            return
+        updated, _ = acp.call("_shiju/session/set_mounts", {
+            "sessionId": session, "expectedRevision": expected, "skills": [], "mcpServers": [],
+        })
+        require(updated["revision"] == expected + 1 and updated["skills"] == [],
+                "iFlow did not commit the empty skill selection")
+
+
 def verify_skill_restore(gateway_bin):
     """Use one gateway session, then change the active skill selection."""
     import tempfile
@@ -308,7 +327,10 @@ def verify_skill_restore(gateway_bin):
         }, "mcp": secrets.token_hex(24)}
         query = "?" + urlencode({"directory": str(workspace)})
         model_id = PROVIDER + "/" + MODEL
-        with model_server(Handler, env["ACP_COEXISTENCE_KEY"]) as model,                 gateway(str(gateway_bin), root, env) as url:
+        with (
+            model_server(Handler, env["ACP_COEXISTENCE_KEY"]) as model,
+            gateway(str(gateway_bin), root, env) as url,
+        ):
             request(url, "/global/config", {
                 "workspace_dir": str(workspace), "acp": {"iflow": spec},
                 "providers": {PROVIDER: {
@@ -321,17 +343,17 @@ def verify_skill_restore(gateway_bin):
                     }},
                 }},
             }, method="PATCH")
-            sid = None
+            request(url, "/global/config", {"agents": {AGENT_PROFILE: {
+                "enabled": True, "runtime": {"kind": "acp", "backend": "iflow"},
+                "defaults": {"skills": {"mode": "fixed", "value": [fixtures["skills"]["selected"]["name"]]},
+                             "mcp": {"mode": "fixed", "value": []}},
+            }}}, method="PATCH")
+            sid = json.loads(request(url, "/session" + query, {"title": "iFlow skill restore"}))["id"]
             previous = ""
-            for mounted in (True, False, False):
-                names = [fixtures["skills"]["selected"]["name"]] if mounted else []
-                request(url, "/global/config", {"agents": {AGENT_PROFILE: {
-                    "enabled": True, "runtime": {"kind": "acp", "backend": "iflow"},
-                    "defaults": {"skills": {"mode": "fixed", "value": names},
-                                 "mcp": {"mode": "fixed", "value": []}},
-                }}}, method="PATCH")
-                if sid is None:
-                    sid = json.loads(request(url, "/session" + query, {"title": "iFlow skill restore"}))["id"]
+            for phase in ("mounted", "removed", "restored"):
+                if phase == "removed":
+                    skill_mount_revision(gateway_bin, root, env, workspace, sid, expected=0, remove=True)
+                mounted = phase == "mounted"
                 current = "Inspect fixture resources " + secrets.token_hex(12)
                 model.probe = probe = Probe(
                     fixtures, mounted, False, mcp=False, current=current, previous=previous)
@@ -348,8 +370,11 @@ def verify_skill_restore(gateway_bin):
                         "unexpected approval during iFlow restore")
                 require(set(probe.completed) == set(approvals) and probe.requests > len(approvals),
                         "iFlow skill results did not reach the model on the current turn")
-                readback(url, query, sid, "iflow", model_id, access)
+                # The managed process can close before live status is polled.
+                # Read the persisted access setting and require this turn's approvals above.
+                readback(url, query, sid, "iflow", model_id, access, require_live_access=False)
                 previous = current
+            skill_mount_revision(gateway_bin, root, env, workspace, sid, expected=1)
 
 
 if __name__ == "__main__":

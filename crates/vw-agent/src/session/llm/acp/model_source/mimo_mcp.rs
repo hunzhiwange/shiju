@@ -237,9 +237,6 @@ pub(super) enum LinuxMcpSource {
     Mounted,
 }
 
-#[cfg(all(target_os = "linux", target_env = "gnu", any(target_arch = "x86_64", target_arch = "aarch64")))]
-pub(super) type IFlowMcpSource = LinuxMcpSource;
-
 /// A pin from the host's reviewed service catalog. The ACP mount is only a
 /// selection and cannot supply this pin or choose the isolated launcher.
 #[cfg(all(target_os = "linux", target_env = "gnu", any(target_arch = "x86_64", target_arch = "aarch64")))]

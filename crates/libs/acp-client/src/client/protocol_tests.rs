@@ -915,3 +915,43 @@ async fn acp_platform_dispatch_contract_rejects_linux_mcp_before_new_or_restore(
     })
     .await;
 }
+
+#[cfg(all(target_os = "linux", target_env = "gnu", any(target_arch = "x86_64", target_arch = "aarch64")))]
+#[test]
+fn acp_platform_iflow_v4_validates_every_projected_service() {
+    let origin = "http://127.0.0.1:12345";
+    let bearer = "fixture";
+    let projected = |name: &str, source: &str, token: &str| {
+        acp::McpServer::Http(
+            acp::McpServerHttp::new(name, format!("{origin}/shiju-vtcode-mcp/{name}"))
+                .headers(vec![acp::HttpHeader::new("Authorization", format!("Bearer {token}"))])
+                .meta(serde_json::Map::from_iter([("shiju.iflow.mcp-v4".into(), json!(source))])),
+        )
+    };
+    let client = AcpClient::new(
+        "iflow",
+        AcpAgentConfig {
+            command: "/unused".into(),
+            args: vec!["--experimental-acp".into(), "--shiju-model-source".into()],
+            env: HashMap::from([
+                ("SHIJU_IFLOW_MCP_RELAY".into(), origin.into()),
+                ("SHIJU_IFLOW_MCP_TOKEN".into(), bearer.into()),
+            ]),
+        },
+    )
+    .with_managed_mcp_approval(Some(Arc::new(|_, _, _, _| true)))
+    .with_permission_confirmation(Arc::new(|_, _| Box::pin(async { true })));
+    let project = projected("project", "project", bearer);
+    let mounted = projected("mounted", "mounted", bearer);
+    assert!(client.clone().with_mcp_servers(vec![project.clone(), mounted])
+        .validate_linux_iflow_mcp().is_ok());
+    for invalid in [
+        projected("project", "mounted", bearer),
+        projected("mounted", "other", bearer),
+        projected("mounted", "mounted", "wrong"),
+        acp::McpServer::Stdio(acp::McpServerStdio::new("raw", "/unused")),
+    ] {
+        assert!(client.clone().with_mcp_servers(vec![project.clone(), invalid])
+            .validate_linux_iflow_mcp().is_err());
+    }
+}

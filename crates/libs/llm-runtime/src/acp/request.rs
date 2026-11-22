@@ -1286,6 +1286,17 @@ pub async fn do_stream_request_acp<H: Host>(
             }
         };
         tokio::pin!(request_employee_stop);
+        let reviewed_batch = launch_profile.as_ref().filter(|profile| {
+            (iflow_managed || glm_managed) && profile.managed_mcp_current.is_some()
+        });
+        let batch_revoked = async {
+            if let Some(profile) = reviewed_batch {
+                profile.binding.cancelled().cancelled().await;
+            } else {
+                std::future::pending::<()>().await;
+            }
+        };
+        tokio::pin!(batch_revoked);
         let mut employee_stop_sent = false;
         loop {
             if should_abort(abort) {
@@ -1306,6 +1317,12 @@ pub async fn do_stream_request_acp<H: Host>(
             }
             if let Some(abort_rx) = abort_rx.as_mut() {
                 tokio::select! {
+                    _ = &mut batch_revoked => {
+                        acp_task.abort();
+                        let _ = (&mut acp_task).await;
+                        acp_error = Some(acp_option_error("Reviewed ACP MCP selection was revoked"));
+                        break;
+                    }
                     _ = &mut request_employee_stop, if !employee_stop_sent => {
                         employee_stop_sent = true;
                     }
@@ -1390,6 +1407,12 @@ pub async fn do_stream_request_acp<H: Host>(
                 }
             } else {
                 tokio::select! {
+                    _ = &mut batch_revoked => {
+                        acp_task.abort();
+                        let _ = (&mut acp_task).await;
+                        acp_error = Some(acp_option_error("Reviewed ACP MCP selection was revoked"));
+                        break;
+                    }
                     _ = &mut request_employee_stop, if !employee_stop_sent => {
                         employee_stop_sent = true;
                     }
@@ -1456,6 +1479,11 @@ pub async fn do_stream_request_acp<H: Host>(
 
         drop(approval);
         *cached_client.output_tx.lock() = None;
+        if let Some(profile) = reviewed_batch
+            && let Err(error) = profile.validate_managed_mcp()
+        {
+            acp_error = Some(to_api_error(error));
+        }
         if fork_history_needed && finish_reason.as_deref() == Some("cancelled") {
             acp_error = Some(to_api_error(
                 "fork history delivery is uncertain after a cancelled ACP prompt; create a new fork",

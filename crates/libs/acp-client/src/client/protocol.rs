@@ -5,6 +5,8 @@
 
 use super::*;
 
+const MAX_REVIEWED_LINUX_MCP_SERVICES: usize = 16;
+
 impl AcpClient {
     pub(super) async fn initialize_connection(
         &self,
@@ -254,31 +256,40 @@ impl AcpClient {
             return Ok(());
         }
         let projected = (|| {
-            let [acp::McpServer::Http(server)] = self.mcp_servers.as_slice() else {
-                return None;
-            };
             let origin = self.config.env.get("SHIJU_IFLOW_MCP_RELAY")?;
             let token = self.config.env.get("SHIJU_IFLOW_MCP_TOKEN")?;
             let address = origin.strip_prefix("http://")?.parse::<std::net::SocketAddr>().ok()?;
-            let source = server.meta.as_ref()?.get("shiju.iflow.mcp-v4")?.as_str()?;
-            let [auth] = server.headers.as_slice() else { return None };
-            (self.managed_mcp_approval.is_some()
-                && self.permission_confirmation.is_some()
-                && self.non_interactive_permissions.is_none()
-                && self.permission_mode != PermissionMode::DenyAll
-                && !self.full_access
-                && (address.ip() == std::net::Ipv4Addr::LOCALHOST
-                    || address.ip() == std::net::Ipv6Addr::LOCALHOST)
-                && !matches!(address.port(), 0 | 80)
-                && *origin == format!("http://{address}")
-                && matches!(source, "project" | "mounted")
-                && !server.name.is_empty()
-                && server.name.bytes().all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'_' | b'-'))
-                && server.url == format!("{origin}/shiju-vtcode-mcp/{}", server.name)
-                && !token.is_empty()
-                && auth.name.eq_ignore_ascii_case("authorization")
-                && auth.value == format!("Bearer {token}"))
-                .then_some(())
+            if self.managed_mcp_approval.is_none()
+                || self.permission_confirmation.is_none()
+                || self.non_interactive_permissions.is_some()
+                || self.permission_mode == PermissionMode::DenyAll
+                || self.full_access
+                || (address.ip() != std::net::Ipv4Addr::LOCALHOST
+                    && address.ip() != std::net::Ipv6Addr::LOCALHOST)
+                || matches!(address.port(), 0 | 80)
+                || *origin != format!("http://{address}")
+                || token.is_empty()
+                || self.mcp_servers.len() > MAX_REVIEWED_LINUX_MCP_SERVICES
+            {
+                return None;
+            }
+            let bearer = format!("Bearer {token}");
+            let mut names = std::collections::HashSet::new();
+            self.mcp_servers.iter().all(|entry| {
+                let acp::McpServer::Http(server) = entry else { return false };
+                let [auth] = server.headers.as_slice() else { return false };
+                let source = server.meta.as_ref()
+                    .and_then(|meta| meta.get("shiju.iflow.mcp-v4"))
+                    .and_then(Value::as_str);
+                matches!(source, Some("project" | "mounted"))
+                    && !server.name.is_empty()
+                    && server.name.len() <= 64
+                    && names.insert(server.name.as_str())
+                    && server.name.bytes().all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'_' | b'-'))
+                    && server.url == format!("{origin}/shiju-vtcode-mcp/{}", server.name)
+                    && auth.name.eq_ignore_ascii_case("authorization")
+                    && auth.value == bearer
+            }).then_some(())
         })();
         projected.ok_or_else(|| AcpError::NewSession(
             "iFlow Linux requires an active reviewed host MCP projection".into(),
@@ -286,7 +297,9 @@ impl AcpClient {
     }
 
     fn has_reviewed_linux_http_projection(&self, vtcode: bool) -> bool {
+        let max_services = if vtcode { 1 } else { MAX_REVIEWED_LINUX_MCP_SERVICES };
         if !cfg!(all(target_os = "linux", target_env = "gnu", any(target_arch = "x86_64", target_arch = "aarch64")))
+            || self.mcp_servers.len() > max_services
             || self.managed_mcp_approval.is_none()
             || self.permission_confirmation.is_none()
             || self.non_interactive_permissions.is_some()

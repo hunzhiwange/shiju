@@ -204,8 +204,8 @@ async fn acp_platform_approval_only_launches_the_reviewed_linux_projection() {
 #[cfg(all(target_os = "linux", target_env = "gnu", any(target_arch = "x86_64", target_arch = "aarch64")))]
 #[tokio::test]
 async fn acp_platform_approval_iflow_v4_binds_host_selected_source() {
-    assert_reviewed_linux_projection(LinuxMcpOwner::IFlow(IFlowMcpSource::Project), "iflow", Some("project")).await;
-    assert_reviewed_linux_projection(LinuxMcpOwner::IFlow(IFlowMcpSource::Mounted), "iflow", Some("mounted")).await;
+    assert_reviewed_linux_projection(LinuxMcpOwner::IFlow(LinuxMcpSource::Project), "iflow", Some("project")).await;
+    assert_reviewed_linux_projection(LinuxMcpOwner::IFlow(LinuxMcpSource::Mounted), "iflow", Some("mounted")).await;
 }
 
 #[cfg(all(target_os = "linux", target_env = "gnu", any(target_arch = "x86_64", target_arch = "aarch64")))]

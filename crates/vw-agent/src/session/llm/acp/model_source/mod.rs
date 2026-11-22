@@ -174,7 +174,8 @@ async fn prepare_with_mounts(
 type ReviewValidity = std::sync::Arc<dyn Fn() -> bool + Send + Sync>;
 
 #[cfg(all(target_os = "linux", target_env = "gnu", any(target_arch = "x86_64", target_arch = "aarch64")))]
-async fn prepare_glm_mcp_projection(
+async fn prepare_reviewed_mcp_batch(
+    agent: &str,
     servers: &[acp_types::AcpMcpServer],
     directory: &str,
     binding: std::sync::Arc<crate::model_relay::RelayBinding>,
@@ -186,20 +187,26 @@ async fn prepare_glm_mcp_projection(
         binding.clone(), std::path::Path::new(directory), servers,
     ).await?;
     let Some(first) = selected.first() else {
-        anyhow::ensure!(servers.is_empty(), "Missing reviewed GLM Linux MCP selection");
+        anyhow::ensure!(servers.is_empty(), "Missing reviewed Linux MCP selection");
         return Ok((None, None));
     };
     let current = first.current.clone();
+    let policy_key = if agent == "iflow" { "shiju.iflow.toolPolicy" } else { "shiju.glm.toolPolicy" };
     let policies = selected.iter().map(|selection| {
         let acp_types::AcpMcpServer::Stdio(service) = &selection.server else {
-            anyhow::bail!("Managed GLM Linux MCP requires reviewed stdio services");
+            anyhow::bail!("Managed Linux MCP requires reviewed stdio services");
         };
         let mut policy = acp_config::McpServerManagement::default_for_server(&service.name);
-        if selection.source == ReviewedStdioSource::Project
-            && let Some(narrowing) = service.meta.as_ref().and_then(|meta| meta.get("shiju.glm.toolPolicy"))
-        {
-            policy.allowed_tools = serde_json::from_value(narrowing["allow"].clone())?;
-            policy.denied_tools = serde_json::from_value(narrowing["deny"].clone())?;
+        if selection.source == ReviewedStdioSource::Project {
+            let narrowing = service.meta.as_ref().and_then(|meta| meta.get(policy_key));
+            anyhow::ensure!(
+                agent != "iflow" || narrowing.is_some(),
+                "Managed iFlow Linux MCP requires a host-selected tool policy"
+            );
+            if let Some(narrowing) = narrowing {
+                policy.allowed_tools = serde_json::from_value(narrowing["allow"].clone())?;
+                policy.denied_tools = serde_json::from_value(narrowing["deny"].clone())?;
+            }
         }
         let mut allowed = Vec::new();
         for name in selection.review.allowed_tools() {
@@ -212,15 +219,18 @@ async fn prepare_glm_mcp_projection(
         Ok(policy)
     }).collect::<anyhow::Result<Vec<_>>>()?;
     let declarations = selected.iter().map(|selection| selection.server.clone()).collect::<Vec<_>>();
-    let pins = selected.iter().zip(&policies).map(|(selection, policy)| ReviewedLinuxStdio {
-        owner: LinuxMcpOwner::Glm(match selection.source {
+    let pins = selected.iter().zip(&policies).map(|(selection, policy)| {
+        let source = match selection.source {
             ReviewedStdioSource::Project => LinuxMcpSource::Project,
             ReviewedStdioSource::Mounted => LinuxMcpSource::Mounted,
-        }),
-        executable: selection.review.executable(),
-        sha256: selection.review.sha256(),
-        args: selection.review.args(),
-        policy,
+        };
+        ReviewedLinuxStdio {
+            owner: if agent == "iflow" { LinuxMcpOwner::IFlow(source) } else { LinuxMcpOwner::Glm(source) },
+            executable: selection.review.executable(),
+            sha256: selection.review.sha256(),
+            args: selection.review.args(),
+            policy,
+        }
     }).collect::<Vec<_>>();
     let projection = mimo_mcp::prepare_linux_stdio_many(
         &declarations, &pins, binding, current.clone(),
@@ -235,11 +245,11 @@ async fn prepare_mcp_projection(
     binding: std::sync::Arc<crate::model_relay::RelayBinding>,
 ) -> anyhow::Result<(Option<mimo_mcp::Projection>, Option<ReviewValidity>)> {
     #[cfg(all(target_os = "linux", target_env = "gnu", any(target_arch = "x86_64", target_arch = "aarch64")))]
-    if agent == "glm-acp-agent" {
-        return prepare_glm_mcp_projection(servers, directory, binding).await;
+    if matches!(agent, "iflow" | "glm-acp-agent") {
+        return prepare_reviewed_mcp_batch(agent, servers, directory, binding).await;
     }
     #[cfg(all(target_os = "linux", target_env = "gnu", any(target_arch = "x86_64", target_arch = "aarch64")))]
-    if matches!(agent, "vtcode" | "iflow") {
+    if agent == "vtcode" {
         use crate::agent_apps::mcp::acp_mount::{ReviewedStdioSource, reviewed_linux_stdio};
 
         let Some(selected) = reviewed_linux_stdio(
@@ -251,30 +261,17 @@ async fn prepare_mcp_projection(
         let acp_types::AcpMcpServer::Stdio(service) = &selected.server else {
             anyhow::bail!("Managed Linux MCP requires one reviewed stdio service");
         };
-        let (owner, policy_key) = match (agent, selected.source) {
-            ("iflow", ReviewedStdioSource::Project) => (
-                mimo_mcp::LinuxMcpOwner::IFlow(mimo_mcp::IFlowMcpSource::Project),
-                Some("shiju.iflow.toolPolicy"),
-            ),
-            ("iflow", ReviewedStdioSource::Mounted) => (
-                mimo_mcp::LinuxMcpOwner::IFlow(mimo_mcp::IFlowMcpSource::Mounted),
-                None,
-            ),
-            ("vtcode", ReviewedStdioSource::Project) => (
-                mimo_mcp::LinuxMcpOwner::VtCode,
-                Some("shiju.vtcode.toolPolicy"),
-            ),
-            _ => anyhow::bail!("This Linux adapter does not support the MCP selection source"),
-        };
+        anyhow::ensure!(
+            selected.source == ReviewedStdioSource::Project,
+            "This Linux adapter does not support the MCP selection source"
+        );
         let review = &selected.review;
         let mut policy = acp_config::McpServerManagement::default_for_server(&service.name);
-        if let Some(key) = policy_key {
-            let selected_policy = service.meta.as_ref()
-                .and_then(|meta| meta.get(key))
-                .ok_or_else(|| anyhow::anyhow!("Managed Linux MCP requires a host-selected tool policy"))?;
-            policy.allowed_tools = serde_json::from_value(selected_policy["allow"].clone())?;
-            policy.denied_tools = serde_json::from_value(selected_policy["deny"].clone())?;
-        }
+        let selected_policy = service.meta.as_ref()
+            .and_then(|meta| meta.get("shiju.vtcode.toolPolicy"))
+            .ok_or_else(|| anyhow::anyhow!("Managed Linux MCP requires a host-selected tool policy"))?;
+        policy.allowed_tools = serde_json::from_value(selected_policy["allow"].clone())?;
+        policy.denied_tools = serde_json::from_value(selected_policy["deny"].clone())?;
         // Request policy may only narrow the independent review.
         let mut allowed = Vec::new();
         for name in review.allowed_tools() {
@@ -289,7 +286,7 @@ async fn prepare_mcp_projection(
         let projection = mimo_mcp::prepare_linux_stdio(
             std::slice::from_ref(&selected.server),
             mimo_mcp::ReviewedLinuxStdio {
-                owner,
+                owner: mimo_mcp::LinuxMcpOwner::VtCode,
                 executable: review.executable(),
                 sha256: review.sha256(),
                 args: review.args(),

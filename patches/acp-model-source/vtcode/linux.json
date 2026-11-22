@@ -1,0 +1,25 @@
+{
+  "version": "0.183.0",
+  "directory": "vtcode-0.183.0-linux-cli-v1",
+  "bin": "vtcode",
+  "archive_entry": "./vtcode",
+  "args": ["acp"],
+  "env": {
+    "VT_ACP_ENABLED": "1",
+    "VT_ACP_ZED_ENABLED": "1"
+  },
+  "targets": {
+    "x86_64": {
+      "triple": "x86_64-unknown-linux-gnu",
+      "url": "https://github.com/vinhnx/VTCode/releases/download/0.183.0/vtcode-0.183.0-x86_64-unknown-linux-gnu.tar.gz",
+      "archive_sha256": "83be7b4ba9b8e44e7991195cf56c33aec9f058b9bf54bfc916ffdf6699e435e6",
+      "executable_sha256": "fa1b402186758531c9c6ed7bb1928b5a836d76d59a9ad0d6ab5329a4013a37e5"
+    },
+    "aarch64": {
+      "triple": "aarch64-unknown-linux-gnu",
+      "url": "https://github.com/vinhnx/VTCode/releases/download/0.183.0/vtcode-0.183.0-aarch64-unknown-linux-gnu.tar.gz",
+      "archive_sha256": "5e6dbfd6cdeb45ee78b7cf4cae0afc682ab7144d98bd8f3e03f805aa01808a65",
+      "executable_sha256": "bb09d012e383f017e4615985e2ec47f11c6c504db2ac2c60dadf42042b4bae7f"
+    }
+  }
+}

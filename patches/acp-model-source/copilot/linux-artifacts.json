@@ -1,11 +1,13 @@
 {
+  "package": "@github/copilot",
   "version": "1.0.105",
-  "revision": "copilot-1.0.105-model-source-linux-v2",
+  "integrity": "sha512-k5JPVZrc0Ms4YdAmYS80OGxDvwjDZNVqDS3dxphIFUVSTFJRwcHkbHh3yUKk7MEyBjKqQYKLKNAKSF+dVmjl7A==",
+  "revision": "copilot-1.0.105-model-source-linux-v3",
   "bin": "embedded/index.js",
   "files": {
     "embedded/index.js": "19f4cb854302397bdd880f5cde12ed069d373a630dce3f09a60e62b8ac8fcc4c",
     "embedded/app.js": "cb69bda81260cb16dcf740cc968c52da9e6c7bc80b7fb8eafa47fb986726e3ac",
-    "embedded/cli-main.js": "5233b13e859de96f86a21bd8806611dc0bf534e4b63d45e6d81475f92100bd64",
+    "embedded/cli-main.js": "0806d4bf433fa33fb284676b31e0b7d9a79013cdd0f425ca947ae5fd8d4d1f98",
     "embedded/package.json": "3d0e9fb43c9c91bbfad85f4bbc2d1d41ee2e4535ace1aeaea44e32f9b40b16af"
   },
   "targets": {

@@ -31,7 +31,7 @@ fn acp_platform_copilot_contract() {
     let artifact = &evidence["artifact"];
     assert_eq!(artifact["version"], "1.0.105");
     assert_eq!(artifact["platform_package"], package);
-    assert_eq!(artifact["revision"], "copilot-1.0.105-model-source-linux-v2");
+    assert_eq!(artifact["revision"], "copilot-1.0.105-model-source-linux-v3");
     assert_eq!(artifact["entry"], "embedded/index.js");
     assert_eq!(artifact["model_protocol"], "/v1/chat/completions");
 

@@ -22,13 +22,14 @@ def install(runtime, machine):
     target = contract["targets"][machine]
     version = contract["version"]
     modules = runtime / "node_modules"
-    root = modules / "@github/copilot"
+    root = modules / contract["package"]
 
     lock = json.loads((runtime / "package-lock.json").read_text())["packages"]
     package = target["package"]
-    locked = lock["node_modules/" + package]
-    if locked["version"] != version or locked["integrity"] != target["integrity"]:
-        raise RuntimeError("Copilot Linux SEA archive identity differs")
+    for artifact in (contract, target):
+        locked = lock["node_modules/" + artifact["package"]]
+        if locked["version"] != version or locked["integrity"] != artifact["integrity"]:
+            raise RuntimeError("Copilot Linux npm archive identity differs")
 
     native = modules / package / "copilot"
     if not native.is_file() or native.resolve(strict=True) != native:
@@ -53,7 +54,7 @@ def install(runtime, machine):
     embedded = root / "embedded"
     extracted.rename(embedded)
     subprocess.run(
-        [sys.executable, "-I", str(assets / "apply.py"), str(embedded)],
+        [sys.executable, "-I", str(assets / "apply.py"), str(embedded), "--linux"],
         stdin=subprocess.DEVNULL,
         check=True,
     )

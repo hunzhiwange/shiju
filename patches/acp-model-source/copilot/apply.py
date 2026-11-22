@@ -1,10 +1,14 @@
 """Patch the fixed, privately extracted Copilot ACP boot options only."""
+import argparse
 import hashlib
 import json
 from pathlib import Path
-import sys
 
-root = Path(sys.argv[1])
+parser = argparse.ArgumentParser()
+parser.add_argument('root', type=Path)
+parser.add_argument('--linux', action='store_true')
+args = parser.parse_args()
+root = args.root
 contract = json.loads((Path(__file__).with_name('patch.json')).read_text())
 path = root / 'cli-main.js'
 original = path.read_bytes()
@@ -39,4 +43,22 @@ text = text.replace(anchor, 'homeDirectory:gmt.homedir(),...shijuCopilotSkillOpt
 patched = text.encode()
 if hashlib.sha256(patched).hexdigest() != contract['patched']:
     raise SystemExit('Copilot patched source checksum mismatch')
+if args.linux:
+    # The ACP boot loader reads vendor MCP config before the SDK discovery
+    # options take effect. Managed Linux only accepts host session MCP lists.
+    anchor = 'async function B8n(e){'
+    if text.count(anchor) != 1:
+        raise SystemExit('Copilot ACP MCP boot boundary differs')
+    guard = ('if(process.env.VW_ACP_LAUNCH_REFERENCE)'
+             'return{mcpServers:{},disabledServers:S.githubMcpGetBuiltinServerNames()};')
+    text = text.replace(anchor, anchor + guard)
+    anchor = 'mcpServers:t?.mcpServers,additionalMcpConfig:e.additionalMcpConfig,'
+    if text.count(anchor) != 1:
+        raise SystemExit('Copilot ACP MCP config boundary differs')
+    text = text.replace(anchor, 'mcpServers:t?.mcpServers,additionalMcpConfig:'
+                        'process.env.VW_ACP_LAUNCH_REFERENCE?undefined:e.additionalMcpConfig,')
+    patched = text.encode()
+    linux = json.loads((Path(__file__).with_name('linux-artifacts.json')).read_text())
+    if hashlib.sha256(patched).hexdigest() != linux['files']['embedded/cli-main.js']:
+        raise SystemExit('Copilot Linux patched source checksum mismatch')
 path.write_bytes(patched)

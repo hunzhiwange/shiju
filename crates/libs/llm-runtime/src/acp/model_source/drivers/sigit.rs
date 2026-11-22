@@ -2,6 +2,8 @@ use super::AcpLaunchProfile;
 #[cfg(unix)]
 use std::collections::HashMap;
 
+pub const MANAGED_MCP_TOKEN_ENV: &str = "SIGIT_MANAGED_MCP_TOKEN";
+
 /// siGit Code's explicit environment overrides are read without changing CLI defaults.
 #[cfg(unix)]
 pub fn configure(profile: &mut AcpLaunchProfile, endpoint: &str) -> anyhow::Result<()> {
@@ -57,6 +59,8 @@ pub fn configure(profile: &mut AcpLaunchProfile, endpoint: &str) -> anyhow::Resu
         ("SIGIT_CONFIG_DIR".into(), home.to_string_lossy().into_owned()),
         ("SIGIT_MCP".into(), "off".into()),
     ]);
+    #[cfg(target_os = "linux")]
+    env.insert(MANAGED_MCP_TOKEN_ENV.into(), String::new());
     for key in ["HTTP_PROXY", "HTTPS_PROXY", "ALL_PROXY", "http_proxy", "https_proxy", "all_proxy"]
     {
         env.insert(key.into(), String::new());

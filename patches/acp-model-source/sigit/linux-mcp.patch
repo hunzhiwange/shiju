@@ -1,0 +1,343 @@
+--- a/crates/cli/src/main.rs
++++ b/crates/cli/src/main.rs
+@@ -2292 +2292 @@
+-                    .mcp_capabilities(McpCapabilities::new())
++                    .mcp_capabilities(McpCapabilities::new().http(mcp::managed_http_available()))
+@@ -3920 +3920 @@
+-                                            result = mcp::call_reviewed_tool(&tc.name, &tc.arguments) => match result {
++                                            result = mcp::call_reviewed_tool(&tc.name, &tc.arguments, &tc.id) => match result {
+@@ -4264 +4264,2 @@
+-        let title = if args_preview.is_empty() {
++        let projected_mcp = mcp::managed_http_available() && mcp::is_mcp_tool(tool_name);
++        let title = if projected_mcp || args_preview.is_empty() {
+@@ -4273,0 +4275,20 @@
++        let mut options = vec![
++            PermissionOption::new("allow_once", "Allow once", PermissionOptionKind::AllowOnce),
++            PermissionOption::new(
++                "allow_session",
++                "Allow for this session",
++                PermissionOptionKind::AllowAlways,
++            ),
++            PermissionOption::new("reject_once", "Deny", PermissionOptionKind::RejectOnce),
++            PermissionOption::new(
++                "reject_session",
++                "Deny for this session",
++                PermissionOptionKind::RejectAlways,
++            ),
++        ];
++        if projected_mcp {
++            options.retain(|option| matches!(
++                option.kind,
++                PermissionOptionKind::AllowOnce | PermissionOptionKind::RejectOnce
++            ));
++        }
+@@ -4285,14 +4306 @@
+-            vec![
+-                PermissionOption::new("allow_once", "Allow once", PermissionOptionKind::AllowOnce),
+-                PermissionOption::new(
+-                    "allow_session",
+-                    "Allow for this session",
+-                    PermissionOptionKind::AllowAlways,
+-                ),
+-                PermissionOption::new("reject_once", "Deny", PermissionOptionKind::RejectOnce),
+-                PermissionOption::new(
+-                    "reject_session",
+-                    "Deny for this session",
+-                    PermissionOptionKind::RejectAlways,
+-                ),
+-            ],
++            options,
+@@ -4306 +4314 @@
+-                        "allow_session" => {
++                        "allow_session" if !projected_mcp => {
+@@ -4314 +4322 @@
+-                        "reject_session" => {
++                        "reject_session" if !projected_mcp => {
+--- a/crates/cli/src/mcp.rs
++++ b/crates/cli/src/mcp.rs
+@@ -752 +752,4 @@
+-pub struct SessionServers(Arc<Vec<ServerConn>>);
++pub struct SessionServers(
++    Arc<Vec<ServerConn>>,
++    Option<Arc<shiju_projection::Projection>>,
++);
+@@ -753,0 +757,6 @@
++mod shiju_projection;
++
++pub fn managed_http_available() -> bool {
++    shiju_projection::available()
++}
++
+@@ -837 +846 @@
+-    SessionServers(Arc::new(connected))
++    SessionServers(Arc::new(connected), None)
+@@ -956 +965,2 @@
+-        return Err("siGit MCP requires the reviewed macOS sandbox");
++        let projection = shiju_projection::Projection::prepare(servers).await?;
++        return Ok(SessionServers(Arc::default(), Some(Arc::new(projection))));
+@@ -1073,13 +1083,5 @@
+-pub async fn call_reviewed_tool(name: &str, arguments: &str) -> Result<String, String> {
+-    let session = session_servers();
+-    let (server, remote_name) = session
+-        .0
+-        .iter()
+-        .find_map(|server| {
+-            server
+-                .tools()
+-                .iter()
+-                .find(|tool| tool.full_name == name)
+-                .map(|tool| (server, tool.remote_name.clone()))
+-        })
+-        .ok_or_else(|| "Unknown session MCP tool".to_string())?;
++pub async fn call_reviewed_tool(
++    name: &str,
++    arguments: &str,
++    call_id: &str,
++) -> Result<String, String> {
+@@ -1094 +1096,19 @@
+-    let (output, failed) = call_server(server, &remote_name, args).await?;
++    let session = session_servers();
++    let (output, failed) = if let Some(projection) = &session.1 {
++        let result = projection.call(name, args, call_id).await.map_err(str::to_owned)?;
++        let failed = result.get("isError").and_then(Value::as_bool) == Some(true);
++        (render_tool_result(&result), failed)
++    } else {
++        let (server, remote_name) = session
++            .0
++            .iter()
++            .find_map(|server| {
++                server
++                    .tools()
++                    .iter()
++                    .find(|tool| tool.full_name == name)
++                    .map(|tool| (server, tool.remote_name.clone()))
++            })
++            .ok_or_else(|| "Unknown session MCP tool".to_string())?;
++        call_server(server, &remote_name, args).await?
++    };
+@@ -1132,0 +1153,7 @@
++    if let Some(projection) = &session.1 {
++        specs.extend(projection.tools().map(|tool| ToolSpec {
++            name: tool.full_name.clone(),
++            description: tool.description.clone(),
++            parameters_schema: tool.parameters_schema.clone(),
++        }));
++    }
+--- /dev/null
++++ b/crates/cli/src/mcp/shiju_projection.rs
+@@ -0,0 +1,215 @@
++//! The Linux vendor process consumes the host's request-owned MCP catalog.
++//! It never starts a service or retries an approved invocation.
++use super::{CALL_TIMEOUT, MCP_PREFIX, McpTool};
++use agent_client_protocol::schema::v1::McpServer;
++use reqwest::Url;
++use serde_json::{Value, json};
++use std::collections::HashSet;
++
++const PREFIX: &str = "/shiju-vtcode-mcp/";
++const LIMIT: usize = 1024 * 1024;
++
++struct Scope {
++    relay: Url,
++    bearer: String,
++}
++
++impl Scope {
++    fn from_launch() -> Option<Self> {
++        if !cfg!(all(
++            target_os = "linux",
++            target_env = "gnu",
++            any(target_arch = "x86_64", target_arch = "aarch64")
++        )) || std::env::var_os("VW_ACP_LAUNCH_REFERENCE").is_none()
++        {
++            return None;
++        }
++        let relay = Url::parse(&std::env::var("OPENAI_BASE_URL").ok()?).ok()?;
++        let bearer = std::env::var("SIGIT_MANAGED_MCP_TOKEN").ok()?;
++        let model_bearer = std::env::var("OPENAI_API_KEY").ok()?;
++        (relay.scheme() == "http"
++            && relay.host_str() == Some("127.0.0.1")
++            && relay.port().is_some()
++            && relay.path() == "/v1"
++            && relay.username().is_empty()
++            && relay.password().is_none()
++            && relay.query().is_none()
++            && relay.fragment().is_none()
++            && bearer.len() == 64
++            && bearer.bytes().all(|byte| byte.is_ascii_hexdigit())
++            && bearer != model_bearer)
++            .then_some(Self { relay, bearer })
++    }
++}
++
++fn valid_component(name: &str) -> bool {
++    !name.is_empty()
++        && name.len() <= 64
++        && name
++            .bytes()
++            .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'_' | b'-'))
++}
++
++pub(super) fn available() -> bool {
++    Scope::from_launch().is_some()
++}
++
++struct Service {
++    endpoint: Url,
++    tools: Vec<McpTool>,
++}
++
++pub(super) struct Projection {
++    client: reqwest::Client,
++    bearer: String,
++    services: Vec<Service>,
++}
++
++impl Projection {
++    pub(super) async fn prepare(servers: &[McpServer]) -> Result<Self, &'static str> {
++        let scope = Scope::from_launch().ok_or("siGit MCP requires an active host projection")?;
++        if servers.len() > 16 {
++            return Err("Too many siGit MCP services");
++        }
++        let mut names = HashSet::new();
++        let services = servers
++            .iter()
++            .map(|server| {
++                let McpServer::Http(server) = server else {
++                    return Err("siGit Linux MCP accepts only host HTTP projections");
++                };
++                let name = server.name.as_str();
++                if !valid_component(name) || !names.insert(name) {
++                    return Err("Invalid or duplicate siGit MCP service name");
++                }
++                let mut endpoint = scope.relay.clone();
++                endpoint.set_path(&format!("{PREFIX}{name}"));
++                if server.url != endpoint.as_str()
++                    || server.headers.len() != 1
++                    || !server.headers[0].name.eq_ignore_ascii_case("authorization")
++                    || server.headers[0].value != format!("Bearer {}", scope.bearer)
++                {
++                    return Err("siGit MCP service does not match the active host projection");
++                }
++                Ok((name, endpoint))
++            })
++            .collect::<Result<Vec<_>, _>>()?;
++
++        let mut projection = Self {
++            client: reqwest::Client::builder()
++                .no_proxy()
++                .redirect(reqwest::redirect::Policy::none())
++                .retry(reqwest::retry::never())
++                .timeout(CALL_TIMEOUT)
++                .build()
++                .map_err(|_| "Could not configure siGit MCP projection")?,
++            bearer: scope.bearer,
++            services: Vec::new(),
++        };
++        let mut tool_names = HashSet::new();
++        for (name, endpoint) in services {
++            let result = projection
++                .request(&endpoint, "tools/list", json!({}))
++                .await?;
++            let tools = result["tools"]
++                .as_array()
++                .filter(|tools| !tools.is_empty() && tools.len() <= 256)
++                .ok_or("Invalid siGit MCP projection catalog")?;
++            let tools = tools
++                .iter()
++                .map(|tool| {
++                    let remote_name = tool["name"]
++                        .as_str()
++                        .filter(|name| valid_component(name))
++                        .ok_or("Invalid siGit MCP tool name")?;
++                    let full_name = format!("{MCP_PREFIX}{name}__{remote_name}");
++                    if full_name.len() > 64 || !tool_names.insert(full_name.clone()) {
++                        return Err("Invalid or duplicate siGit MCP tool identity");
++                    }
++                    let schema = &tool["inputSchema"];
++                    if !schema.is_object() {
++                        return Err("Invalid siGit MCP tool schema");
++                    }
++                    let description = tool["description"].as_str().unwrap_or(remote_name);
++                    Ok(McpTool {
++                        full_name,
++                        remote_name: remote_name.into(),
++                        description: format!("[MCP server '{name}'] {description}"),
++                        parameters_schema: schema.to_string(),
++                    })
++                })
++                .collect::<Result<Vec<_>, _>>()?;
++            projection.services.push(Service { endpoint, tools });
++        }
++        Ok(projection)
++    }
++
++    pub(super) fn tools(&self) -> impl Iterator<Item = &McpTool> {
++        self.services
++            .iter()
++            .flat_map(|service| service.tools.iter())
++    }
++
++    pub(super) async fn call(
++        &self,
++        name: &str,
++        arguments: Value,
++        call_id: &str,
++    ) -> Result<Value, &'static str> {
++        if call_id.is_empty() || call_id.len() > 256 {
++            return Err("Missing or invalid siGit MCP call identity");
++        }
++        let (endpoint, tool) = self
++            .services
++            .iter()
++            .find_map(|service| {
++                service
++                    .tools
++                    .iter()
++                    .find(|tool| tool.full_name == name)
++                    .map(|tool| (&service.endpoint, tool))
++            })
++            .ok_or("Unknown siGit MCP projection tool")?;
++        self.request(
++            endpoint,
++            "tools/call",
++            json!({
++                "name": tool.remote_name,
++                "arguments": arguments,
++                "_meta": { "shiju.sigit.toolCallId": call_id }
++            }),
++        )
++        .await
++    }
++
++    async fn request(&self, url: &Url, method: &str, params: Value) -> Result<Value, &'static str> {
++        const FAILURE: &str = "siGit MCP host projection failed";
++        let mut response = self
++            .client
++            .post(url.clone())
++            .bearer_auth(&self.bearer)
++            .json(&json!({"jsonrpc": "2.0", "id": 1, "method": method, "params": params}))
++            .send()
++            .await
++            .map_err(|_| FAILURE)?;
++        if response.status() != reqwest::StatusCode::OK {
++            return Err(FAILURE);
++        }
++        let mut body = Vec::new();
++        while let Some(chunk) = response.chunk().await.map_err(|_| FAILURE)? {
++            if chunk.len() > LIMIT - body.len() {
++                return Err("siGit MCP host response too large");
++            }
++            body.extend_from_slice(&chunk);
++        }
++        let mut message: Value = serde_json::from_slice(&body).map_err(|_| FAILURE)?;
++        if message["jsonrpc"] != "2.0" || message["id"] != 1 || message.get("error").is_some() {
++            return Err(FAILURE);
++        }
++        message
++            .as_object_mut()
++            .and_then(|object| object.remove("result"))
++            .filter(Value::is_object)
++            .ok_or(FAILURE)
++    }
++}

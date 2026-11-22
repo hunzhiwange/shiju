@@ -29,7 +29,14 @@ fn acp_platform_sigit_contract() {
     ))
     .unwrap();
     let artifact = &evidence["artifact"];
-    for field in ["version", "revision", "entry", "source_sha256", "linux_patch_sha256"] {
+    for field in [
+        "version",
+        "revision",
+        "entry",
+        "source_sha256",
+        "linux_patch_sha256",
+        "linux_mcp_patch_sha256",
+    ] {
         assert_eq!(artifact[field], contract[field], "{field}");
     }
     assert_eq!(artifact["elf_machine"], contract["targets"][std::env::consts::ARCH]["elf_machine"]);

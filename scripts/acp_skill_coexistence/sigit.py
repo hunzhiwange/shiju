@@ -58,7 +58,8 @@ def launch(env):
         require(receipt["source_sha256"] == linux_contract["source_sha256"]
                 and receipt["patch_sha256"] == linux_contract["base_patch_sha256"]
                 and receipt["target"] == platform_target["rust_target"]
-                and receipt["linux_patch_sha256"] == linux_contract["linux_patch_sha256"],
+                and receipt["linux_patch_sha256"] == linux_contract["linux_patch_sha256"]
+                and receipt["linux_mcp_patch_sha256"] == linux_contract["linux_mcp_patch_sha256"],
                 "siGit Linux build receipt mismatch")
         with (source / "sigit").open("rb") as stream:
             header = stream.read(20)
@@ -69,6 +70,7 @@ def launch(env):
             "entry": linux_contract["entry"],
             "elf_machine": platform_target["elf_machine"],
             "linux_patch_sha256": receipt["linux_patch_sha256"],
+            "linux_mcp_patch_sha256": receipt["linux_mcp_patch_sha256"],
             # The Chat Completions handler rejects every other request path.
             "model_protocol": "POST /v1/chat/completions",
         }
@@ -179,6 +181,7 @@ class Probe(ChatProbe):
         return {"content": "COEXISTENCE_DONE"}, "stop"
 
     def approves(self, metadata):
+        title = MCP_TOOL if platform.system() == "Linux" else f"{MCP_TOOL}({{}})"
         return (self.pending is not None and self.pending[0] == "mcp"
-                and metadata.get("title") == f"{MCP_TOOL}({{}})"
+                and metadata.get("title") == title
                 and metadata.get("arguments") == {})

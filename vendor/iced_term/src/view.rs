@@ -16,13 +16,24 @@ use iced::widget::container;
 use iced::{Color, Element, Length, Point, Rectangle, Size, Theme};
 use iced_core::clipboard::Kind as ClipboardKind;
 use iced_core::input_method::{self, InputMethod, Preedit, Purpose};
-use iced_core::keyboard::Modifiers;
+use iced::time::{Duration, Instant};
+use iced_core::keyboard::{key, Event as KeyEvent, Key, Modifiers};
 use iced_core::mouse::{self, Click};
 use iced_core::text::{Alignment, LineHeight, Shaping};
 use iced_core::widget::operation::{self, Focusable};
 use iced_graphics::core::widget::{tree, Tree};
 use iced_graphics::core::Widget;
 use iced_graphics::geometry::Stroke;
+
+const REPEAT_DELAY: Duration = Duration::from_millis(250);
+const REPEAT_INTERVAL: Duration = Duration::from_millis(20);
+
+#[derive(Debug, Clone)]
+struct HeldKey {
+    physical_key: key::Physical,
+    bytes: Vec<u8>,
+    next_repeat: Instant,
+}
 
 pub struct TerminalView<'a> {
     term: &'a Terminal,
@@ -688,6 +699,7 @@ impl Widget<Event, Theme, iced::Renderer> for TerminalView<'_> {
             iced::Event::InputMethod(event)
                 if state.is_focused() && state.window_focused =>
             {
+                state.held_key = None;
                 match event {
                     input_method::Event::Opened
                     | input_method::Event::Closed => {
@@ -721,6 +733,7 @@ impl Widget<Event, Theme, iced::Renderer> for TerminalView<'_> {
             },
             iced::Event::Window(iced::window::Event::Unfocused) => {
                 state.window_focused = false;
+                state.held_key = None;
                 state.preedit = None;
                 shell.request_redraw();
                 return;
@@ -730,9 +743,19 @@ impl Widget<Event, Theme, iced::Renderer> for TerminalView<'_> {
                 shell.request_redraw();
                 return;
             },
-            iced::Event::Window(iced::window::Event::RedrawRequested(_))
+            iced::Event::Window(iced::window::Event::RedrawRequested(now))
                 if state.is_focused() && state.window_focused =>
             {
+                if let Some(held) = &mut state.held_key {
+                    if *now >= held.next_repeat {
+                        shell.publish(Event::BackendCall(
+                            self.term.id,
+                            Command::Write(held.bytes.clone()),
+                        ));
+                        held.next_repeat = *now + REPEAT_INTERVAL;
+                    }
+                    shell.request_redraw_at(held.next_repeat);
+                }
                 shell.request_input_method(
                     &self.input_method(state, layout.bounds()),
                 );
@@ -743,14 +766,56 @@ impl Widget<Event, Theme, iced::Renderer> for TerminalView<'_> {
                     return;
                 }
 
-                self.handle_keyboard_event(
-                    state,
-                    clipboard,
-                    shell,
-                    keyboard_event,
-                )
-                .into_iter()
-                .collect()
+                match keyboard_event {
+                    KeyEvent::KeyReleased { physical_key, .. }
+                        if state.held_key.as_ref().is_some_and(|held| {
+                            &held.physical_key == physical_key
+                        }) =>
+                    {
+                        state.held_key = None;
+                    },
+                    KeyEvent::ModifiersChanged(_) | KeyEvent::KeyPressed { repeat: false, .. } => {
+                        state.held_key = None;
+                    },
+                    KeyEvent::KeyPressed { physical_key, repeat: true, .. }
+                        if state.held_key.as_ref().is_some_and(|held| {
+                            &held.physical_key == physical_key
+                        }) =>
+                    {
+                        shell.capture_event();
+                        return;
+                    },
+                    _ => {},
+                }
+
+                let command =
+                    self.handle_keyboard_event(state, clipboard, shell, keyboard_event);
+                if let (
+                    KeyEvent::KeyPressed {
+                        key: Key::Named(
+                            key::Named::Backspace | key::Named::Delete
+                            | key::Named::ArrowLeft | key::Named::ArrowRight
+                            | key::Named::ArrowUp | key::Named::ArrowDown,
+                        ),
+                        physical_key,
+                        modifiers,
+                        repeat: false,
+                        ..
+                    },
+                    Some(Command::Write(bytes)),
+                ) = (keyboard_event, &command)
+                {
+                    if modifiers.is_empty() && state.window_focused && state.preedit.is_none() {
+                        let next_repeat = Instant::now() + REPEAT_DELAY;
+                        state.held_key = Some(HeldKey {
+                            physical_key: *physical_key,
+                            bytes: bytes.clone(),
+                            next_repeat,
+                        });
+                        shell.request_redraw_at(next_repeat);
+                    }
+                }
+                command.into_iter().collect()
             },
             _ => Vec::new(),
         };
@@ -808,6 +873,7 @@ struct TerminalViewState {
     widget_id: iced::widget::Id,
     window_focused: bool,
     preedit: Option<Preedit>,
+    held_key: Option<HeldKey>,
 }
 
 impl TerminalViewState {
@@ -823,6 +889,7 @@ impl TerminalViewState {
             widget_id,
             window_focused: true,
             preedit: None,
+            held_key: None,
         }
     }
 }
@@ -838,6 +905,7 @@ impl operation::Focusable for TerminalViewState {
 
     fn unfocus(&mut self) {
         self.focus = false;
+        self.held_key = None;
         self.preedit = None;
     }
 }

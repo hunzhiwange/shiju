@@ -16,6 +16,7 @@ from verify_acp_model_source import ROOT
 MODEL = "deepseek-v4.1-flash-1017"
 ADAPTER = "openai"
 API_PATH = "/v1"
+MODEL_PROTOCOL = API_PATH + "/chat/completions"
 TRANSPORT = "sse"
 NATIVE_DIR = ".github/skills"
 REVISION = "copilot-1.0.105-model-source-v2"
@@ -25,32 +26,67 @@ IGNORED_SKILL = "coexistence-ignored-native"
 
 
 def launch(env):
-    require((platform.system(), platform.machine()) == ("Darwin", "arm64"),
-            "unreviewed Copilot platform")
+    system, machine = platform.system(), platform.machine()
     contract = json.loads((ROOT / "crates/libs/acp-agent-registry/src/managed_runtime/contracts.json")
                           .read_text())["copilot"]
     require(contract["version"] == "1.0.105", "unexpected Copilot contract version")
+    revision = REVISION
+    files = contract["files"]
+    artifact = {}
+    if system == "Linux":
+        require(os.geteuid() != 0 and platform.libc_ver()[0] == "glibc",
+                "Copilot Linux probe requires a non-root GNU environment")
+        linux = json.loads((ROOT / "patches/acp-model-source/copilot/linux-artifacts.json").read_text())
+        require(machine in linux["targets"] and linux["version"] == contract["version"]
+                and linux["bin"] == contract["bin"], "unreviewed Copilot Linux platform")
+        target_contract = linux["targets"][machine]
+        revision = linux["revision"]
+        files = linux["files"] | target_contract["files"]
+        artifact = {"platform_package": target_contract["package"], "entry": linux["bin"],
+                    "model_protocol": MODEL_PROTOCOL}
+    else:
+        require((system, machine) == ("Darwin", "arm64"), "unreviewed Copilot platform")
     base = Path(os.environ.get("VIBEWINDOW_CONFIG_DIR", Path.home() / ".local/share/shiju"))
-    runtime = Path(os.environ.get("COPILOT_COEXISTENCE_RUNTIME", base / "acp-runtime" / REVISION))
+    runtime = Path(os.environ.get("COPILOT_COEXISTENCE_RUNTIME", base / "acp-runtime" / revision))
+    if system == "Linux":
+        native = runtime / "node_modules" / artifact["platform_package"] / "copilot"
+        require(artifact_digest(native) == target_contract["sea_sha256"],
+                "Copilot Linux supplier SEA digest differs from contract")
+        artifact["sea_sha256"] = target_contract["sea_sha256"]
     source = runtime / "node_modules/@github/copilot"
     require(source.is_dir(), "reviewed Copilot runtime is unavailable")
-    target = Path(env["VIBEWINDOW_CONFIG_DIR"]) / "acp-runtime" / REVISION / "node_modules"
+    staged = Path(env["VIBEWINDOW_CONFIG_DIR"]) / "acp-runtime" / revision
+    target = staged / "node_modules"
     package = target / "@github/copilot"
-    shutil.copytree(source, package)
-    for name, expected in contract["files"].items():
-        require(hashlib.sha256((package / name).read_bytes()).hexdigest() == expected,
-                "Copilot artifact digest differs from contract")
     entry = target / ".bin/copilot"
-    entry.parent.mkdir()
-    entry.symlink_to("../@github/copilot/" + contract["bin"])
+    if system == "Linux":
+        shutil.copytree(runtime, staged, symlinks=True)
+        require(entry.is_symlink() and entry.resolve(strict=True) == package / contract["bin"],
+                "Copilot Linux executable does not resolve to the staged fixed entry")
+    else:
+        shutil.copytree(source, package)
+        entry.parent.mkdir()
+        entry.symlink_to("../@github/copilot/" + contract["bin"])
+    for name, expected in files.items():
+        path = package / name
+        require(path.resolve(strict=True) == path and artifact_digest(path) == expected,
+                "Copilot artifact digest differs from contract")
     version = subprocess.run([str(entry), "--no-auto-update", "--version"], env=env, cwd=target,
                              capture_output=True, timeout=15, check=False)
     require(version.returncode == 0 and b"1.0.105" in version.stdout,
             "Copilot entry did not report the pinned version")
     return {"command": str(entry), "args": ["--acp", "--stdio"],
             "env": {"SHIJU_COPILOT_PROJECT_SKILLS": str(Path(env["HOME"]).parent / "workspace")}}, {
-        "version": contract["version"], "revision": REVISION, "sha256": contract["files"],
+        **artifact, "version": contract["version"], "revision": revision, "sha256": files,
     }
+
+
+def artifact_digest(path):
+    digest = hashlib.sha256()
+    with path.open("rb") as stream:
+        for chunk in iter(lambda: stream.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
 
 
 def prepare_workspace(workspace):
@@ -179,7 +215,7 @@ class Handler(ProviderHandler):
         try:
             require(self.headers.get("Authorization") == "Bearer " + self.server.key,
                     "unauthenticated Copilot model request")
-            require(self.path == "/v1/chat/completions", "unexpected Copilot model protocol")
+            require(self.path == MODEL_PROTOCOL, "unexpected Copilot model protocol")
             size = int(self.headers["Content-Length"])
             require(0 < size <= 8_000_000, "invalid Copilot model request size")
             body = json.loads(self.rfile.read(size))

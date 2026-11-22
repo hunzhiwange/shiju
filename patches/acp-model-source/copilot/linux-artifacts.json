@@ -1,0 +1,39 @@
+{
+  "version": "1.0.105",
+  "revision": "copilot-1.0.105-model-source-linux-v2",
+  "bin": "embedded/index.js",
+  "files": {
+    "embedded/index.js": "19f4cb854302397bdd880f5cde12ed069d373a630dce3f09a60e62b8ac8fcc4c",
+    "embedded/app.js": "cb69bda81260cb16dcf740cc968c52da9e6c7bc80b7fb8eafa47fb986726e3ac",
+    "embedded/cli-main.js": "5233b13e859de96f86a21bd8806611dc0bf534e4b63d45e6d81475f92100bd64",
+    "embedded/package.json": "3d0e9fb43c9c91bbfad85f4bbc2d1d41ee2e4535ace1aeaea44e32f9b40b16af"
+  },
+  "targets": {
+    "x86_64": {
+      "package": "@github/copilot-linux-x64",
+      "integrity": "sha512-3trlyisQQAnlNy3CvYVRDVWC/WK+0CfDId7dDwNbxTFJ9IgM3aoCPyg+QbGPBUeuYNs4sjgtTqFn5l5yfyHVDg==",
+      "sea_sha256": "3bd8bdc75670d7b4ec445725f6a5b9af66ee7ec49e6194646e4a40a0bc09091c",
+      "cache_platform": "linux-x64",
+      "files": {
+        "embedded/prebuilds/linux-x64/cli-native.node": "d0c00716241663613403cb226b037d4ceb5a5ef4d57417747307468043c1168c",
+        "embedded/prebuilds/linux-x64/copilot-runtime": "4305ffb1c2ba738875b7a1fc450e459606ef447aa8fb9e9fe0bcd376d49a4d33",
+        "embedded/prebuilds/linux-x64/runtime.node": "bf898c589818f599b13450378fc918edee31b138b9b5c1532ef7c19ae355758d",
+        "embedded/ripgrep/bin/linux-x64/rg": "f2ee496a39139b8d9ad9408081217a55f1382cef4950100565d147d247364856",
+        "embedded/tgrep/bin/linux-x64/tgrep": "475ff9f2a4a95f2ac4f3b0e6e2ebdeef3db3720e8b0e1f56338ac4e9d1951644"
+      }
+    },
+    "aarch64": {
+      "package": "@github/copilot-linux-arm64",
+      "integrity": "sha512-L7/4Sq1ibeUdD8aE++cubBjr2oWfAFGe0yKjuY5oe0HDZw8QHYAPrZhB2p79Nkg2lIB88REncsf+qWuVVDVPjA==",
+      "sea_sha256": "0e0bde8da81405c2e2bf76d072160c6ec74121721e0be5bbd08784af494d9a22",
+      "cache_platform": "linux-arm64",
+      "files": {
+        "embedded/prebuilds/linux-arm64/cli-native.node": "ed337e86c053c1d13c024bfc757c05ef7e6966352f1ea2a3ea12281931e5116e",
+        "embedded/prebuilds/linux-arm64/copilot-runtime": "b896df43a1e752da15b4aef67950541476365e5cef6683ae8c84a71e4f1b2ed7",
+        "embedded/prebuilds/linux-arm64/runtime.node": "78f596494177a3b8a7e3e3029d19c76d64d5a170b4598330ad3f6dd6cdc680b3",
+        "embedded/ripgrep/bin/linux-arm64/rg": "204c5d433e275ee8f29f1a22a5fb9c32a667f280f003a2e0a5011af122d8d6f2",
+        "embedded/tgrep/bin/linux-arm64/tgrep": "bc51f3a2e84021f7fed811e2228bd12939c0c42c8be5682e4c09ae274cd60968"
+      }
+    }
+  }
+}

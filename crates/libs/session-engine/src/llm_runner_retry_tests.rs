@@ -482,7 +482,7 @@ fn model_recovery_backoff_cancellation_and_closed_consumer_stop_requests() {
 }
 
 #[test]
-fn model_recovery_tool_calls_and_remote_side_effects_are_not_replayed() {
+fn stream_tool_timeout_no_replay_also_blocks_explicit_errors() {
     let _guard = test_llm_stream_guard();
     for tool_event in [
         llm::StreamEvent::ToolCalls(vec![model_types::ToolCall {
@@ -501,26 +501,112 @@ fn model_recovery_tool_calls_and_remote_side_effects_are_not_replayed() {
     ] {
         enqueue_test_llm_stream(vec![
             tool_event,
-            llm::StreamEvent::Error(recovery_api_error("temporary failure", true)),
+            llm::StreamEvent::Error(recovery_api_error("context length exceeded", true)),
         ]);
-        assert!(
-            super::run_llm_step_with_retry::<ScriptedStreamHost>(
-                "recovery",
-                &[],
-                &[],
-                None,
-                &serde_json::json!({}),
-                &[],
-                &HashSet::new(),
-                &mut |_| true,
-                2,
-                0,
-                None
-            )
-            .is_err()
-        );
+        let error = super::run_llm_step_with_retry::<ScriptedStreamHost>(
+            "recovery",
+            &[],
+            &[],
+            None,
+            &serde_json::json!({}),
+            &[],
+            &HashSet::new(),
+            &mut |_| true,
+            2,
+            0,
+            None,
+        )
+        .unwrap_err();
         assert_eq!(take_test_llm_stream_tool_ids().len(), 1);
+        assert!(!super::is_request_too_long_error(&error, &[]));
     }
+}
+
+#[test]
+fn stream_tool_timeout_no_replay_after_buffered_call() {
+    let (result, requests, events) =
+        run_idle_stream_with_retry(vec![llm::StreamEvent::ToolCalls(vec![
+            model_types::ToolCall {
+                kind: Default::default(),
+                namespace: None,
+                id: "call-1".into(),
+                name: "shell".into(),
+                arguments: "{}".into(),
+            },
+        ])]);
+
+    assert_eq!(requests, 1, "a buffered tool call must stop replay");
+    let error = result.expect_err("an incomplete stream must not return a dispatchable step");
+    assert!(!super::llm_step_retry_allowed(&error, false));
+    assert!(!super::llm_step_retry_allowed(&error, true));
+    assert!(matches!(
+        serde_json::from_str::<AssistantError>(&error).unwrap(),
+        AssistantError::APIError { message, metadata: Some(metadata), .. }
+            if message == "模型响应超时"
+                && metadata.get("replay_safe").is_some_and(|value| value == "false")
+    ));
+    assert!(events.iter().all(|event| !matches!(event, CollectorStreamEvent::Tool(_))));
+    let states = model_recovery_states(events);
+    assert_eq!(states.len(), 1);
+    assert_eq!(states[0].phase, session_port::RecoveryPhase::Stopped);
+}
+
+#[test]
+fn stream_tool_timeout_no_replay_allows_retry_before_any_call() {
+    let (result, requests, events) = run_idle_stream_with_retry(Vec::new());
+
+    assert_eq!(requests, 2);
+    let step = result.expect("an empty timeout should allow the next attempt");
+    assert_eq!(step.text, "second attempt");
+    assert!(step.tool_calls.is_empty());
+    let phases: Vec<_> =
+        model_recovery_states(events).into_iter().map(|state| state.phase).collect();
+    assert_eq!(
+        phases,
+        [session_port::RecoveryPhase::Waiting, session_port::RecoveryPhase::Recovered]
+    );
+}
+
+fn run_idle_stream_with_retry(
+    initial_events: Vec<llm::StreamEvent>,
+) -> (Result<super::LlmStep, String>, usize, Vec<CollectorStreamEvent>) {
+    let mut initial_events = Some(initial_events);
+    let mut requests = 0;
+    let mut events = Vec::new();
+    let result = crate::recovery::RetryBudget::new(1, 0).run(
+        false,
+        None,
+        &mut |event| {
+            events.push(event);
+            true
+        },
+        |sink| {
+            requests += 1;
+            let (tx, rx) = std::sync::mpsc::channel();
+            let (abort_tx, abort_rx) = tokio::sync::watch::channel(false);
+            let expect_timeout = initial_events.is_some();
+            if let Some(initial_events) = initial_events.take() {
+                for event in initial_events {
+                    tx.send(event).unwrap();
+                }
+            } else {
+                tx.send(llm::StreamEvent::Delta("second attempt".into())).unwrap();
+                tx.send(llm::StreamEvent::Done { usage: usage(3, 4), finish_reason: None })
+                    .unwrap();
+            }
+            let result = runner::collect_llm_step_from_stream(
+                rx,
+                sink,
+                &abort_tx,
+                std::time::Duration::from_millis(10),
+                None,
+            );
+            assert_eq!(*abort_rx.borrow(), expect_timeout);
+            drop(tx);
+            result
+        },
+    );
+    (result, requests, events)
 }
 
 #[test]

@@ -85,6 +85,17 @@ pub fn collect_llm_step_from_stream(
     idle_timeout: std::time::Duration,
     cancellation: Option<&tokio_util::sync::CancellationToken>,
 ) -> Result<LlmStep, String> {
+    collect_llm_step(rx, on_event, abort_tx, idle_timeout, cancellation, false)
+}
+
+fn collect_llm_step(
+    rx: std::sync::mpsc::Receiver<llm::StreamEvent>,
+    on_event: &mut dyn FnMut(StreamEvent) -> bool,
+    abort_tx: &tokio::sync::watch::Sender<bool>,
+    idle_timeout: Duration,
+    cancellation: Option<&tokio_util::sync::CancellationToken>,
+    employee: bool,
+) -> Result<LlmStep, String> {
     /// 流式内容刷新的最小时间间隔（约 30 FPS）
     const FLUSH_MIN_INTERVAL: std::time::Duration = std::time::Duration::from_millis(33);
     /// 流式内容刷新的最小字符数
@@ -150,7 +161,13 @@ pub fn collect_llm_step_from_stream(
                     )?;
                 }
                 request_stream_abort(abort_tx);
-                return Err("模型响应超时".to_string());
+                let message = "模型响应超时".to_string();
+                if saw_tool_calls {
+                    let mut error = crate::message::AssistantError::Unknown { message };
+                    crate::replay_safety::prevent_error_replay(&mut error);
+                    return Err(serde_json::to_string(&error).expect("assistant error serializes"));
+                }
+                return Err(message);
             }
             Err(std::sync::mpsc::RecvTimeoutError::Disconnected) => break None,
         };
@@ -295,7 +312,7 @@ pub fn collect_llm_step_from_stream(
                     )?;
                 }
                 // 工具调用已经进入响应，禁止重新生成这一调用。
-                if !tool_calls.is_empty() {
+                if saw_tool_calls {
                     crate::replay_safety::prevent_error_replay(&mut e);
                 }
                 // 将错误转换为字符串并返回
@@ -345,7 +362,9 @@ pub fn collect_llm_step_from_stream(
 
     // 推理内容只是中间过程，不能作为最终答复。否则模型仅输出“接下来继续……”
     // 之类的思考后以 stop 结束时，会被上层误判为任务已经完成。
-    if text.trim().is_empty() && tool_calls.is_empty() {
+    if text.trim().is_empty() && tool_calls.is_empty()
+        && !(employee && finish_reason.as_deref() == Some("cancelled"))
+    {
         return Err("模型未返回内容".to_string());
     }
 
@@ -446,15 +465,17 @@ pub fn run_llm_step<H: LlmStreamHost>(
         .map(|s| (s.id.clone(), s))
         .collect::<std::collections::HashMap<_, _>>();
 
+    let employee = llm_runtime::stream::requests_employee_acp(&options);
     let stream_task =
         H::spawn(session_id, messages, system, model, options, tools, abort_rx, tx);
 
-    let result = collect_llm_step_from_stream(
+    let result = collect_llm_step(
         rx,
         on_event,
         &abort_tx,
         DEFAULT_LLM_STEP_IDLE_TIMEOUT,
         cancellation,
+        employee,
     );
     if result.is_err() {
         request_stream_abort(&abort_tx);

@@ -9,7 +9,9 @@ use vw_api_acp_model::acp_model_source::{
 
 #[test]
 fn acp_platform_dispatch_contract_preserves_native_options_and_rejects_mounts() {
-    for agent in ["corust-agent", "omp", "stakpak", "vtcode", "mimo-code", "poolside", "trae"] {
+    for agent in
+        ["corust-agent", "junie", "omp", "stakpak", "vtcode", "mimo-code", "poolside", "trae"]
+    {
         let spec = acp_agent_registry::resolve_agent_spec(agent).unwrap();
         assert!(!spec.command.is_empty(), "{agent}");
         let mut options = Default::default();
@@ -103,4 +105,16 @@ fn acp_platform_dispatch_contract_glm_keeps_linux_mounts_closed() {
         request::validate_linux_session_mcp("glm-acp-agent", Source::SessionModel, true).is_err()
     );
     assert!(skill_mounts::validate("glm-acp-agent", true).is_err());
+}
+
+#[test]
+fn acp_platform_dispatch_contract_iflow_and_amp_keep_public_gate() {
+    for agent in ["iflow", "amp-acp"] {
+        assert!(drivers::capabilities(agent).iter().any(|capability| matches!(
+            capability,
+            Capability::Unsupported { source: Source::SessionModel, .. }
+        )));
+    }
+    assert!(request::validate_linux_session_mcp("pi", Source::CliLocal, true).is_err());
+    assert!(skill_mounts::validate("pi", true).is_err());
 }

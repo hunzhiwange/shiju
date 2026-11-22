@@ -164,7 +164,9 @@ fn built_in_agent_command(definition: &BuiltInAgentDefinition) -> (String, Vec<S
     if let Ok(Some(command)) = crate::managed_runtime::linux_cli_command(definition.name) {
         return command;
     }
-    if let Ok(Some(command)) = crate::managed_runtime::reviewed_agent_command(definition.name) {
+    if !(cfg!(target_os = "linux") && definition.name == "droid")
+        && let Ok(Some(command)) = crate::managed_runtime::reviewed_agent_command(definition.name)
+    {
         return command;
     }
     if definition.name == "opencode" {

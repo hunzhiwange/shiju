@@ -75,7 +75,7 @@ pub fn validate(agent: &str, selected: bool) -> Result<(), Error> {
         "nova" if cfg!(all(target_os = "macos", target_arch = "aarch64")) => return Ok(()),
         "omp" if cfg!(all(target_os = "macos", target_arch = "aarch64")) => return Ok(()),
         "openclaw" => return Ok(()),
-        "pi" => return Ok(()),
+        "pi" if !cfg!(target_os = "linux") => return Ok(()),
         "poolside" if cfg!(all(target_os = "macos", target_arch = "aarch64")) => return Ok(()),
         "harn" if cfg!(all(target_os = "macos", target_arch = "aarch64")) => return Ok(()),
         "amp-acp" if cfg!(all(target_os = "macos", target_arch = "aarch64")) => return Ok(()),

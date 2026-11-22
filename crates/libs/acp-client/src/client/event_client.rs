@@ -126,6 +126,8 @@ impl AcpClient {
                 "gemini" | "qwen"
             ),
             managed_gemini,
+            managed_linux_iflow: self.managed_linux_iflow()
+                && crate::verify_reviewed_agent_executable("iflow", self.config.command.trim()).is_ok(),
             droid_mcp_calls: self.droid_sandbox.as_ref().map(|_| Mutex::new(HashSet::new())),
             gemini_mcp_servers,
             qwen_mcp_servers,
@@ -219,6 +221,23 @@ impl acp::Client for AcpEventClient {
             self.permission_stats.lock().cancelled += 1;
             return Ok(cancelled_permission_response());
         }
+        let iflow_tool = args.meta.as_ref()
+            .and_then(|meta| meta.get(crate::access_policy::iflow::LINUX_TOOL_APPROVAL));
+        if self.managed_linux_iflow && iflow_tool.is_none() {
+            self.permission_stats.lock().cancelled += 1;
+            return Ok(cancelled_permission_response());
+        }
+        if let Some(tool) = iflow_tool {
+            if !self.managed_linux_iflow
+                || !self.owns_active_prompt(&args.session_id)
+                || !crate::access_policy::iflow::valid_linux_tool_approval(&args)
+            {
+                self.permission_stats.lock().cancelled += 1;
+                return Ok(cancelled_permission_response());
+            }
+            args.tool_call.fields.title = tool.as_str().map(str::to_owned);
+        }
+        let iflow_tool = iflow_tool.is_some();
         // Only the reviewed Gemini bundle emits this marker for an MCP invocation.
         let gemini_mcp = args.meta.as_ref().and_then(|meta| meta.get("shiju.gemini/mcp"));
         if let Some(mcp) = gemini_mcp
@@ -364,8 +383,11 @@ impl acp::Client for AcpEventClient {
         };
         // A relay grant must follow an explicit host decision, even when the
         // agent's native mode automatically approves its own tools.
+        let require_host_decision = managed_mcp.is_some() || iflow_tool;
         let mut approval_prompt = None;
-        let response = if managed_mcp.is_some()
+        let response = if iflow_tool && self.non_interactive_permissions.is_some() {
+            crate::permissions::resolve_host_confirmation(&args, false)
+        } else if require_host_decision
             && (mode == PermissionMode::DenyAll
                 || self.non_interactive_permissions == Some(NonInteractivePermissionPolicy::Deny)
                 || (self.non_interactive_permissions.is_none()
@@ -375,7 +397,7 @@ impl acp::Client for AcpEventClient {
         } else if let Some(confirm) = &self.permission_confirmation
             && self.non_interactive_permissions.is_none()
         {
-            let policy_response = if managed_mcp.is_some() {
+            let policy_response = if require_host_decision {
                 None
             } else {
                 resolve(&args, mode, Some(NonInteractivePermissionPolicy::Fail)).ok()
@@ -390,7 +412,7 @@ impl acp::Client for AcpEventClient {
                     approval_prompt = self.active_prompt.lock().clone();
                     let call_id = args.tool_call.tool_call_id.0.as_ref();
                     if call_id.is_empty()
-                        || (managed_mcp.is_some() && approval_prompt.is_none())
+                        || (require_host_decision && approval_prompt.is_none())
                         || approval_prompt.as_ref().is_some_and(|prompt| {
                             prompt.session_id != args.session_id.0.as_ref()
                                 || !prompt.accepts_approvals()
@@ -422,7 +444,7 @@ impl acp::Client for AcpEventClient {
                     }
                 }
             }
-        } else if managed_mcp.is_some() {
+        } else if require_host_decision {
             return Err(acp::Error::into_internal_error(
                 crate::errors::PermissionPromptUnavailableError::new(),
             ));

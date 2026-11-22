@@ -35,6 +35,7 @@ fn event_client(
         transient_permissions: false,
         reject_untyped_workflow_permissions: false,
         managed_gemini: false,
+        managed_linux_iflow: false,
         droid_mcp_calls: None,
         gemini_mcp_servers: HashSet::new(),
         qwen_mcp_servers: HashSet::new(),
@@ -73,6 +74,7 @@ fn event_client_with_cwd(
         transient_permissions: false,
         reject_untyped_workflow_permissions: false,
         managed_gemini: false,
+        managed_linux_iflow: false,
         droid_mcp_calls: None,
         gemini_mcp_servers: HashSet::new(),
         qwen_mcp_servers: HashSet::new(),
@@ -1616,4 +1618,46 @@ async fn acp_platform_approval_replay_cannot_reach_managed_grant() {
     assert_eq!(input, &serde_json::json!({"path": "/tmp/shiju-approval/note.txt"}));
     completed_tx.send(true).unwrap();
     assert!(!valid());
+}
+
+#[tokio::test]
+async fn acp_platform_iflow_contract_requires_current_prompt_and_explicit_once() {
+    let (event_tx, _) = mpsc::unbounded_channel();
+    let mut client = event_client(event_tx, Some("owned".into()));
+    client.permission_mode = PermissionMode::ApproveAll;
+    let request = serde_json::from_value::<acp::RequestPermissionRequest>(serde_json::json!({
+        "sessionId": "owned",
+        "_meta": {"shiju.iflow/tool-v3": "read_file"},
+        "toolCall": {"toolCallId": "call", "kind": "read", "rawInput": {"path": "fixture"}},
+        "options": [
+            {"optionId": "once", "name": "Allow", "kind": "allow_once"},
+            {"optionId": "deny", "name": "Reject", "kind": "reject_once"}
+        ]
+    })).unwrap();
+
+    let unverified = client.request_permission(request.clone()).await.unwrap();
+    assert_ne!(crate::classify_permission_decision(&request, &unverified), crate::PermissionDecision::Approved);
+    client.managed_linux_iflow = true;
+    let no_prompt = client.request_permission(request.clone()).await.unwrap();
+    assert_ne!(crate::classify_permission_decision(&request, &no_prompt), crate::PermissionDecision::Approved);
+
+    let (cancel_tx, _cancel_rx) = tokio::sync::watch::channel(false);
+    let (_completed_tx, completed_rx) = tokio::sync::watch::channel(false);
+    *client.active_prompt.lock() = Some(super::ActivePromptControl::new(
+        "owned".into(), cancel_tx, completed_rx,
+    ));
+    let missing_confirmation = client.request_permission(request.clone()).await.unwrap();
+    assert_ne!(
+        crate::classify_permission_decision(&request, &missing_confirmation),
+        crate::PermissionDecision::Approved
+    );
+    client.permission_confirmation = Some(Arc::new(|title, args| Box::pin(async move {
+        assert_eq!(title, "read_file");
+        assert_eq!(args, serde_json::json!({"path": "fixture"}));
+        true
+    })));
+    let once = client.request_permission(request.clone()).await.unwrap();
+    assert_eq!(crate::classify_permission_decision(&request, &once), crate::PermissionDecision::Approved);
+    let replay = client.request_permission(request.clone()).await.unwrap();
+    assert_ne!(crate::classify_permission_decision(&request, &replay), crate::PermissionDecision::Approved);
 }

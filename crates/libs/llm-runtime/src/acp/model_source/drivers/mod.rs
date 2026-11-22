@@ -102,7 +102,10 @@ pub fn capabilities(
         } else {
             Capability::Unsupported { source: Source::SessionModel, reason: Reason::UnsupportedCli }
         },
-        if matches!(agent, "amp-acp" | "harn" | "junie") || (agent == "poolside" && verified) {
+        if matches!(agent, "amp-acp" | "harn")
+            || (agent == "junie" && !cfg!(all(target_os = "linux", target_env = "gnu",
+                any(target_arch = "x86_64", target_arch = "aarch64"))))
+            || (agent == "poolside" && verified) {
             Capability::Unsupported { source: Source::CliLocal, reason: Reason::UnsupportedCli }
         } else {
             Capability::Supported { source: Source::CliLocal }

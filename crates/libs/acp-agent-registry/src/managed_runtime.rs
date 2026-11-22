@@ -19,15 +19,28 @@ mod stakpak;
 #[path = "managed_runtime/vtcode.rs"]
 mod vtcode;
 
+#[cfg(all(target_os = "linux", target_env = "gnu", any(target_arch = "x86_64", target_arch = "aarch64")))]
+#[path = "managed_runtime/droid.rs"]
+mod droid;
+#[cfg(all(target_os = "linux", target_env = "gnu", any(target_arch = "x86_64", target_arch = "aarch64")))]
+#[path = "managed_runtime/iflow.rs"]
+mod iflow;
+#[cfg(all(target_os = "linux", target_env = "gnu", any(target_arch = "x86_64", target_arch = "aarch64")))]
+#[path = "managed_runtime/junie.rs"]
+mod junie;
+
 pub fn linux_native_only(agent: &str) -> bool {
     cfg!(target_os = "linux")
-        && matches!(agent, "corust-agent" | "mimo-code" | "omp" | "poolside" | "stakpak" | "trae" | "vtcode")
+        && matches!(agent, "corust-agent" | "junie" | "mimo-code" | "omp" | "poolside" | "stakpak" | "trae" | "vtcode")
 }
 
 #[cfg(all(target_os = "linux", target_env = "gnu", any(target_arch = "x86_64", target_arch = "aarch64")))]
 pub(super) fn linux_cli_command(agent: &str) -> Result<Option<(String, Vec<String>)>, String> {
     if !linux_native_only(agent) {
         return Ok(None);
+    }
+    if agent == "junie" {
+        return junie::discover(&root(agent)?);
     }
     linux_cli::discover(agent, &root(agent)?)
 }
@@ -36,6 +49,9 @@ pub(super) fn linux_cli_command(agent: &str) -> Result<Option<(String, Vec<Strin
 pub fn verify_fixed_linux_cli_launch(agent: &str, command: &str, args: &[String]) -> Result<(), String> {
     #[cfg(all(target_os = "linux", target_env = "gnu", any(target_arch = "x86_64", target_arch = "aarch64")))]
     if linux_native_only(agent) && Path::new(command).is_absolute() {
+        if agent == "junie" {
+            return junie::verify_launch(&root(agent)?, Path::new(command), args);
+        }
         return linux_cli::verify_launch(agent, &root(agent)?, Path::new(command), args);
     }
     let _ = (agent, command, args);
@@ -59,14 +75,22 @@ const CONTRACTS: &str = include_str!("managed_runtime/contracts.json");
 const GLM_LINUX_CONTRACT: &str = include_str!(
     "../../../../patches/acp-model-source/glm-acp-agent/linux-session-model.json"
 );
-const GLM_LINUX_V4: bool = cfg!(all(
-    target_os = "linux",
-    target_env = "gnu",
-    any(target_arch = "x86_64", target_arch = "aarch64")
-));
 
 #[derive(Deserialize)]
 struct GlmLinuxOverlay {
+    files: std::collections::BTreeMap<String, String>,
+}
+
+const AMP_LINUX_CONTRACT: &str = include_str!(
+    "../../../../patches/acp-model-source/amp-acp/linux-runtime.json"
+);
+const LINUX_GNU: bool = cfg!(all(
+    target_os = "linux", target_env = "gnu", any(target_arch = "x86_64", target_arch = "aarch64")
+));
+
+#[derive(Deserialize)]
+struct AmpLinuxContract {
+    revision: String,
     files: std::collections::BTreeMap<String, String>,
 }
 
@@ -74,9 +98,13 @@ fn contract(agent: &str) -> Option<Contract> {
     let mut contract = serde_json::from_str::<std::collections::HashMap<String, Contract>>(CONTRACTS)
         .ok()?
         .remove(agent)?;
-    if agent == "glm-acp-agent" && GLM_LINUX_V4 {
+    if agent == "glm-acp-agent" && LINUX_GNU {
         let overlay: GlmLinuxOverlay = serde_json::from_str(GLM_LINUX_CONTRACT).ok()?;
         contract.files.extend(overlay.files);
+    }
+    if agent == "amp-acp" && LINUX_GNU {
+        let linux: AmpLinuxContract = serde_json::from_str(AMP_LINUX_CONTRACT).ok()?;
+        contract.files = linux.files;
     }
     Some(contract)
 }
@@ -97,10 +125,19 @@ fn root(_agent: &str) -> Result<PathBuf, String> {
         .ok_or_else(|| "ACP runtime installation requires a home directory".into())
 }
 fn installed_directory(agent: &str, contract: &Contract) -> Result<PathBuf, String> {
+    #[cfg(all(target_os = "linux", target_env = "gnu", any(target_arch = "x86_64", target_arch = "aarch64")))]
+    if agent == "iflow" {
+        return Ok(root(agent)?.join(iflow::Manifest::load()?.revision));
+    }
+    if agent == "amp-acp" && LINUX_GNU {
+        let linux: AmpLinuxContract = serde_json::from_str(AMP_LINUX_CONTRACT)
+            .map_err(|_| "Invalid Amp Linux runtime contract")?;
+        return Ok(root(agent)?.join(linux.revision));
+    }
     // Install revised contracts beside their prior reviewed runtimes.
     let revision = if agent == "auggie" {
         2
-    } else if agent == "glm-acp-agent" && GLM_LINUX_V4 {
+    } else if agent == "glm-acp-agent" && LINUX_GNU {
         4
     } else if matches!(agent, "gemini" | "nova" | "glm-acp-agent") {
         3
@@ -334,6 +371,26 @@ fn verify(directory: &Path, contract: &Contract) -> Result<PathBuf, String> {
     if metadata["name"] != contract.package || metadata["version"] != contract.version {
         return Err("ACP patched package version differs from reviewed artifact".into());
     }
+    #[cfg(all(target_os = "linux", target_env = "gnu", any(target_arch = "x86_64", target_arch = "aarch64")))]
+    if contract.package == "@iflow-ai/iflow-cli" {
+        iflow::verify(directory, contract)?;
+        return Ok(package.join(&contract.bin));
+    }
+    if contract.package == "amp-acp" && LINUX_GNU {
+        let base = directory.parent().ok_or("Missing Amp runtime root")?
+            .canonicalize().map_err(|_| "Missing Amp runtime root")?;
+        let modules = base.join(directory.file_name().ok_or("Missing Amp runtime directory")?)
+            .join("node_modules");
+        for file in contract.files.keys().map(String::as_str).chain(["package.json", "../@sourcegraph/amp/package.json"]) {
+            let expected = match file.strip_prefix("../") {
+                Some(worker) => modules.join(worker),
+                None => modules.join("amp-acp").join(file),
+            };
+            if expected.canonicalize().ok().as_ref() != Some(&expected) {
+                return Err("Amp Linux artifact is missing or redirected".into());
+            }
+        }
+    }
     for (name, digest) in &contract.files {
         let bytes = std::fs::read(package.join(name)).map_err(|_| {
             if contract.package == "amp-acp" && name.starts_with("../@sourcegraph/amp/") {
@@ -376,6 +433,10 @@ fn use_auggie_v1_contract(contract: &mut Contract) {
 
 /// Absence is explicit: callers must not advertise patched support based on a CLI name.
 pub fn reviewed_agent_command(agent: &str) -> Result<Option<(String, Vec<String>)>, String> {
+    #[cfg(all(target_os = "linux", target_env = "gnu", any(target_arch = "x86_64", target_arch = "aarch64")))]
+    if agent == "droid" {
+        return droid::reviewed_command();
+    }
     if linux_native_only(agent) {
         return Ok(None);
     }
@@ -523,6 +584,10 @@ pub fn verify_droid_restricted_executable(command: &str) -> Result<(), String> {
 
 /// Validate explicit overrides too; a familiar executable name is never proof of a patch.
 pub fn verify_reviewed_agent_executable(agent: &str, command: &str) -> Result<(), String> {
+    #[cfg(all(target_os = "linux", target_env = "gnu", any(target_arch = "x86_64", target_arch = "aarch64")))]
+    if agent == "droid" {
+        return droid::verify_command(command);
+    }
     if linux_native_only(agent) {
         return Err("No reviewed managed ACP executable for this Linux agent".into());
     }
@@ -545,6 +610,12 @@ pub fn verify_reviewed_agent_executable(agent: &str, command: &str) -> Result<()
         && Path::new(&installed).canonicalize().ok().as_ref() == Some(&executable)
     {
         return Ok(());
+    }
+    if agent == "amp-acp" && cfg!(target_os = "linux") {
+        return Err("Amp Linux requires the installed reviewed v6 executable".into());
+    }
+    if agent == "iflow" && cfg!(target_os = "linux") {
+        return Err("iFlow Linux requires the installed reviewed v3 executable".into());
     }
     if agent == "glm-acp-agent" {
         return Err("GLM executable must resolve to the installed reviewed entry".into());
@@ -659,17 +730,27 @@ impl Drop for Stage {
 
 #[cfg(not(target_arch = "wasm32"))]
 pub(super) async fn install(agent: &str) -> Result<bool, String> {
+    #[cfg(all(target_os = "linux", target_env = "gnu", any(target_arch = "x86_64", target_arch = "aarch64")))]
+    if agent == "droid" {
+        droid::install().await?;
+        return Ok(true);
+    }
     if linux_native_only(agent) {
         #[cfg(all(target_os = "linux", target_env = "gnu", any(target_arch = "x86_64", target_arch = "aarch64")))]
         {
-            linux_cli::install(agent).await?;
+            if agent == "junie" {
+                junie::install().await?;
+            } else {
+                linux_cli::install(agent).await?;
+            }
             return Ok(true);
         }
         #[cfg(not(all(target_os = "linux", target_env = "gnu", any(target_arch = "x86_64", target_arch = "aarch64"))))]
         return Err("No fixed ACP executable for this Linux target".into());
     }
     let Some(mut contract) = contract(agent) else { return Ok(false) };
-    if agent == "amp-acp" && !cfg!(all(target_os = "macos", target_arch = "aarch64")) {
+    let amp_linux = agent == "amp-acp" && LINUX_GNU;
+    if agent == "amp-acp" && !amp_linux && !cfg!(all(target_os = "macos", target_arch = "aarch64")) {
         return Err("Amp reviewed local runtime is only verified on macOS arm64".into());
     }
     if agent == "deepagents" && cfg!(windows) {
@@ -677,7 +758,8 @@ pub(super) async fn install(agent: &str) -> Result<bool, String> {
     }
     let glm_platform = agent == "glm-acp-agent"
         && cfg!(any(target_os = "linux", target_os = "macos", target_os = "windows"));
-    if agent != "deepagents" && !glm_platform && !cfg!(all(target_os = "macos", target_arch = "aarch64")) {
+    let iflow_linux = agent == "iflow" && LINUX_GNU;
+    if agent != "deepagents" && !glm_platform && !iflow_linux && !amp_linux && !cfg!(all(target_os = "macos", target_arch = "aarch64")) {
         // Preserve the existing native installer for CLI-local use on unverified hosts.
         return Ok(false);
     }
@@ -920,6 +1002,23 @@ pub(super) async fn install(agent: &str) -> Result<bool, String> {
         std::fs::copy(bridge, assets.join("aionrs-acp"))
             .map_err(|_| "Cannot stage packaged aionrs bridge")?;
     }
+    #[cfg(all(target_os = "linux", target_env = "gnu", any(target_arch = "x86_64", target_arch = "aarch64")))]
+    if iflow_linux {
+        for (name, text) in [
+            ("iflow/linux-artifacts.json", iflow::MANIFEST),
+            ("iflow/apply-linux.py", include_str!("../../../../patches/acp-model-source/iflow/apply-linux.py")),
+        ] {
+            std::fs::write(assets.join(name), text).map_err(|_| "Cannot stage iFlow Linux assets")?;
+        }
+    }
+    if amp_linux {
+        for (name, text) in [
+            ("amp-acp/linux-runtime.json", AMP_LINUX_CONTRACT),
+            ("amp-acp/install_linux.py", include_str!("../../../../patches/acp-model-source/amp-acp/install_linux.py")),
+        ] {
+            std::fs::write(assets.join(name), text).map_err(|_| "Cannot stage Amp Linux assets")?;
+        }
+    }
     let runtime = stage.0.join("runtime");
     let uv = if matches!(agent, "vibe" | "hermes") {
         crate::install::ensure_uv(tokio::time::Instant::now() + std::time::Duration::from_secs(300))
@@ -944,7 +1043,7 @@ pub(super) async fn install(agent: &str) -> Result<bool, String> {
             runtime.to_str().ok_or("Invalid runtime path")?,
             agent,
             &uv,
-            if agent == "glm-acp-agent" && GLM_LINUX_V4 { "--glm-linux-v4" } else { "" },
+            if agent == "glm-acp-agent" && LINUX_GNU { "--glm-linux-v4" } else { "" },
         ],
         tokio::time::Instant::now() + std::time::Duration::from_secs(timeout),
     )

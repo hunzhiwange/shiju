@@ -1508,6 +1508,7 @@ pub(super) fn validate_linux_session_mcp(
     let backend = acp_agent_registry::agent_registry::desktop_permission_agent(agent);
     if selected
         && (backend.is_some_and(acp_agent_registry::linux_native_only)
+            || (cfg!(target_os = "linux") && backend == Some("pi"))
             || (cfg!(target_os = "linux") && backend == Some("glm-acp-agent")
                 && source == AcpModelSource::SessionModel))
     {

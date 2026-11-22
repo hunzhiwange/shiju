@@ -367,3 +367,16 @@ fn acp_platform_registry_contract_glm_requires_linux_overlay() {
             .ends_with("glm-acp-agent-1.17.1-model-source-v4")
     );
 }
+
+#[cfg(all(target_os = "linux", target_env = "gnu", any(target_arch = "x86_64", target_arch = "aarch64")))]
+#[test]
+fn acp_platform_registry_contract_uses_separate_iflow_and_amp_linux_revisions() {
+    for (agent, version_directory) in [
+        ("iflow", "iflow-0.5.19-model-source-v3"),
+        ("amp-acp", "amp-acp-0.12.0-model-source-linux-v6"),
+    ] {
+        let contract = contract(agent).unwrap();
+        assert!(installed_directory(agent, &contract).unwrap().ends_with(version_directory));
+        assert!(crate::verify_reviewed_agent_executable(agent, "/unreviewed-linux-entry").is_err());
+    }
+}

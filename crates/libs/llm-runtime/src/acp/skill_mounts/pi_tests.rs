@@ -1,6 +1,6 @@
 #[test]
 fn acp_skill_mount_pi_accepts_reviewed_directory_contract() {
-    assert!(super::super::validate("pi", true).is_ok());
+    assert_eq!(super::super::validate("pi", true).is_ok(), !cfg!(target_os = "linux"));
     assert!(super::super::validate("pi", false).is_ok());
 }
 

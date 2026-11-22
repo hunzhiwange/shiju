@@ -59,6 +59,19 @@ if sys.argv[4:5] == ['--linux-cli']:
 contracts = json.loads((assets / 'contracts.json').read_text())
 contract = contracts[agent]
 
+if agent == 'amp-acp' and (assets / 'amp-acp/linux-runtime.json').is_file():
+    amp_assets = assets / 'amp-acp'
+    reviewed = json.loads((amp_assets / 'linux-runtime.json').read_text())
+    archives = []
+    for name in ('amp-acp', '@sourcegraph/amp'):
+        archive = amp_assets / (name.rsplit('/', 1)[-1] + '.tgz')
+        run(['/usr/bin/curl', '--disable', '--fail', '--silent', '--show-error', '--location',
+             '--proto', '=https', '--proto-redir', '=https', '--retry', '2',
+             '--max-time', '120', '--output', str(archive), reviewed['archives'][name]['url']])
+        archives.append(str(archive))
+    run([sys.executable, '-I', str(amp_assets / 'install_linux.py'), str(runtime), *archives])
+    raise SystemExit(0)
+
 def check_files(root, files):
     for name, expected in files.items():
         if digest(root / name) != expected:
@@ -720,6 +733,18 @@ if agent == 'glm-acp-agent':
     if hashlib.sha256(patch.read_bytes().replace(b'\r\n', b'\n')).hexdigest() != contract['patch_sha256']:
         raise RuntimeError('GLM reviewed patch checksum mismatch')
 runtime.mkdir()
+iflow_linux = None
+if agent == 'iflow' and (assets / 'iflow/linux-artifacts.json').is_file():
+    import platform
+    iflow_linux = json.loads((assets / 'iflow/linux-artifacts.json').read_text())
+    if platform.system() != 'Linux' or platform.machine() not in iflow_linux['targets']:
+        raise RuntimeError('Unsupported iFlow Linux target')
+    if any(iflow_linux[key] != contract[key] for key in ('package', 'version', 'bin', 'integrity')):
+        raise RuntimeError('iFlow Linux contract identity mismatch')
+    if digest(assets / 'iflow-lock.json') != iflow_linux['lock_sha256']:
+        raise RuntimeError('iFlow Linux lock checksum mismatch')
+    if digest(assets / 'iflow/apply-linux.py') != iflow_linux['overlay_sha256']:
+        raise RuntimeError('iFlow Linux overlay checksum mismatch')
 if agent in ('iflow', 'deepagents', 'autohand'):
     if agent == 'autohand' and digest(assets / 'autohand-lock.json') != contract['lock_sha256']:
         raise RuntimeError('AutoHand dependency lock checksum mismatch')
@@ -838,6 +863,9 @@ elif agent == 'pi':
     shutil.copyfile(assets / 'deepagents/mcp.py', root / 'dist/shiju-mcp.py')
     shutil.copyfile(assets / 'cortex-code/mcp_bridge.py', root / 'dist/shiju-stdio.py')
 check_files(root, contract['files'])
+if iflow_linux is not None:
+    run([sys.executable, str(assets / 'iflow/apply-linux.py'), str(root)])
+    check_files(root, iflow_linux['patched_files'])
 if agent == 'pi':
     engine = runtime / 'node_modules/@mariozechner/pi-coding-agent/dist/cli.js'
     if digest(engine) != 'e959f463b06ddd15ed882783ac02f39ecaeef950ef967da86380f39dda6595fa':

@@ -6,6 +6,14 @@
 use super::*;
 
 impl AcpClient {
+    pub(super) fn managed_linux_iflow(&self) -> bool {
+        cfg!(target_os = "linux")
+            && crate::agent_registry::desktop_permission_agent(&self.agent_name) == Some("iflow")
+            && (self.config.env.contains_key("VW_ACP_LAUNCH_REFERENCE")
+                || self.config.env.contains_key("SHIJU_IFLOW_MODEL_LOCK")
+                || self.config.args.iter().any(|arg| arg == "--shiju-model-source"))
+    }
+
     pub(super) fn managed_cortex(&self) -> bool {
         self.agent_name == "cortex-code"
             && self.config.env.contains_key("VW_ACP_LAUNCH_REFERENCE")
@@ -106,6 +114,19 @@ impl AcpClient {
                 .map_err(AcpError::Initialize)?;
         }
         let args = self.launch_args()?;
+        if self.managed_linux_iflow() {
+            if args != ["--experimental-acp", "--shiju-model-source"]
+                || !self.config.env.contains_key("VW_ACP_LAUNCH_REFERENCE")
+                || !self.config.env.contains_key("SHIJU_IFLOW_MODEL_LOCK")
+            {
+                return Err(AcpError::Initialize("Invalid managed iFlow Linux launch".into()));
+            }
+            crate::verify_reviewed_agent_executable("iflow", self.config.command.trim())
+                .map_err(AcpError::Initialize)?;
+            return Err(AcpError::Initialize(
+                "Managed iFlow needs a Linux isolation boundary for project MCP discovery".into(),
+            ));
+        }
         if let Some(agent) = acp_agent_registry::agent_registry::desktop_permission_agent(&self.agent_name)
             && acp_agent_registry::linux_native_only(agent)
         {
@@ -118,6 +139,16 @@ impl AcpClient {
         if self.agent_name == "sigit" && args != ["--acp"] {
             return Err(AcpError::Initialize(
                 "siGit reviewed runtime requires exactly --acp".into(),
+            ));
+        }
+        if cfg!(target_os = "linux")
+            && self.agent_name == "amp-acp"
+            && (!self.config.env.contains_key("VW_ACP_LAUNCH_REFERENCE")
+                || !self.config.env.contains_key("SHIJU_AMP_BINDING")
+                || !self.mcp_servers.is_empty())
+        {
+            return Err(AcpError::Initialize(
+                "Amp Linux requires a reviewed managed launch without session MCP".into(),
             ));
         }
         if self.agent_name == "amp-acp" && !args.is_empty() {
@@ -221,6 +252,11 @@ impl AcpClient {
         if managed_droid {
             crate::verify_reviewed_agent_executable("droid", self.config.command.trim())
                 .map_err(AcpError::Initialize)?;
+            if cfg!(target_os = "linux") {
+                return Err(AcpError::Initialize(
+                    "Managed Droid needs Linux process and MCP isolation".into(),
+                ));
+            }
         }
         let managed_cursor =
             self.agent_name == "cursor" && env.contains_key("VW_ACP_LAUNCH_REFERENCE");

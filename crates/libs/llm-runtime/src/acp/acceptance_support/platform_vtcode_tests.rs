@@ -40,6 +40,11 @@ async fn acp_platform_vtcode_contract_resolves_and_initializes_fixed_native_entr
     let spec = acp_agent_registry::resolve_agent_spec(AGENT).unwrap();
     assert_eq!(Path::new(&spec.command), expected);
     assert_eq!(spec.args, ["acp"]);
+    acp_agent_registry::verify_fixed_linux_cli_launch(AGENT, &spec.command, &spec.args).unwrap();
+    assert!(
+        acp_agent_registry::verify_fixed_linux_cli_launch(AGENT, &spec.command, &["chat".into()])
+            .is_err()
+    );
     assert_eq!(spec.env["VT_ACP_ENABLED"], "1");
     assert_eq!(spec.env["VT_ACP_ZED_ENABLED"], "1");
 

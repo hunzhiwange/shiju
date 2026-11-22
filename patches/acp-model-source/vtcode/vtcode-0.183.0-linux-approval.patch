@@ -1,0 +1,239 @@
+--- a/crates/codegen/vtcode-acp/src/permissions.rs
++++ b/crates/codegen/vtcode-acp/src/permissions.rs
+@@ -156,10 +156,15 @@
+             .status(acp::ToolCallStatus::Pending)
+             .raw_input(args.clone());
+
++        let managed = managed_linux_launch();
++        let mut options = self.permission_options_for_action(tool.action_label);
++        if managed {
++            options.retain(|option| option.kind != acp::PermissionOptionKind::AllowAlways);
++        }
+         let request = acp::RequestPermissionRequest::new(
+             session_id.clone(),
+             acp::ToolCallUpdate::new(call.tool_call_id.clone(), fields),
+-            self.permission_options_for_action(tool.action_label),
++            options,
+         );
+
+         match client.request_permission(request).await {
+@@ -169,9 +174,7 @@
+                 }
+                 acp::RequestPermissionOutcome::Selected(outcome) => {
+                     let option_id_str = outcome.option_id.0.as_ref();
+-                    if option_id_str == TOOL_PERMISSION_ALLOW_OPTION_ID
+-                        || option_id_str == TOOL_PERMISSION_ALLOW_ALWAYS_OPTION_ID
+-                    {
++                    if allows_permission_option(option_id_str, managed) {
+                         Ok(None)
+                     } else if option_id_str == TOOL_PERMISSION_DENY_OPTION_ID
+                         || option_id_str == TOOL_PERMISSION_DENY_ALWAYS_OPTION_ID
+@@ -192,8 +195,30 @@
+     }
+ }
+
++pub(crate) fn managed_linux_launch() -> bool {
++    cfg!(target_os = "linux") && std::env::var_os("VW_ACP_LAUNCH_REFERENCE").is_some()
++}
++
++fn allows_permission_option(option: &str, managed: bool) -> bool {
++    option == TOOL_PERMISSION_ALLOW_OPTION_ID
++        || (!managed && option == TOOL_PERMISSION_ALLOW_ALWAYS_OPTION_ID)
++}
++
+ #[cfg(test)]
+ mod tests {
++    #[test]
++    fn managed_permission_accepts_only_the_single_call_option() {
++        use super::{
++            TOOL_PERMISSION_ALLOW_ALWAYS_OPTION_ID, TOOL_PERMISSION_ALLOW_OPTION_ID,
++            TOOL_PERMISSION_DENY_OPTION_ID, allows_permission_option,
++        };
++        assert!(allows_permission_option(TOOL_PERMISSION_ALLOW_OPTION_ID, true));
++        assert!(!allows_permission_option(TOOL_PERMISSION_ALLOW_ALWAYS_OPTION_ID, true));
++        assert!(!allows_permission_option(TOOL_PERMISSION_DENY_OPTION_ID, true));
++        assert!(!allows_permission_option("unknown", true));
++        assert!(allows_permission_option(TOOL_PERMISSION_ALLOW_ALWAYS_OPTION_ID, false));
++    }
++
+     use super::*;
+     use crate::reports::{
+         TOOL_PERMISSION_ALLOW_OPTION_ID, TOOL_PERMISSION_CANCELLED_MESSAGE, TOOL_PERMISSION_DENIED_MESSAGE,
+--- a/crates/codegen/vtcode-acp/src/zed/agent/tool_execution.rs
++++ b/crates/codegen/vtcode-acp/src/zed/agent/tool_execution.rs
+@@ -159,7 +159,7 @@
+                             && self.allows_session_mcp_call(&primary_agent, &func_ref.name, &args_value).await
+                             && !session.cancel_flag.load(Ordering::Relaxed)
+                         {
+-                            tool.execute(&func_ref.name, args_value).await
++                            tool.execute(&func_ref.name, args_value, &call.id).await
+                         } else {
+                             ToolExecutionReport::failure(&func_ref.name, "ACP MCP tool denied or cancelled")
+                         }
+--- a/crates/codegen/vtcode-acp/src/zed/agent/session_mcp.rs
++++ b/crates/codegen/vtcode-acp/src/zed/agent/session_mcp.rs
+@@ -18,8 +18,18 @@
+ }
+
+ impl SessionMcpTool {
+-    pub(super) async fn execute(&self, name: &str, arguments: serde_json::Value) -> ToolExecutionReport {
+-        match self.client.execute_tool(&self.remote_name, arguments).await {
++    pub(super) async fn execute(
++        &self,
++        name: &str,
++        arguments: serde_json::Value,
++        call_id: &str,
++    ) -> ToolExecutionReport {
++        let result = if crate::permissions::managed_linux_launch() {
++            self.client.execute_tool_with_call_id(&self.remote_name, &arguments, call_id).await
++        } else {
++            self.client.execute_tool(&self.remote_name, arguments).await
++        };
++        match result {
+             Ok(output) => {
+                 ToolExecutionReport::success(vec![acp::ToolCallContent::from(output.to_string())], Vec::new(), output)
+             }
+@@ -52,6 +62,17 @@
+             || !names.insert(server.name.clone())
+         {
+             return Err(unavailable("invalid or duplicated ACP MCP endpoint"));
++        }
++        if crate::permissions::managed_linux_launch() {
++            let origin = std::env::var("SHIJU_VTCODE_MCP_ORIGIN")
++                .map_err(|_| unavailable("managed ACP MCP origin is unavailable"))?;
++            let projected = format!("{origin}/shiju-vtcode-mcp/{}", server.name);
++            if endpoint.as_str() != projected
++                || !server.name.bytes().all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'_' | b'-'))
++                || server.name.is_empty()
++            {
++                return Err(unavailable("managed ACP MCP requires a host-projected service"));
++            }
+         }
+         let mut headers = BTreeMap::new();
+         for header in server.headers {
+--- a/crates/codegen/vtcode-mcp/src/client/mod.rs
++++ b/crates/codegen/vtcode-mcp/src/client/mod.rs
+@@ -169,11 +169,16 @@
+     /// with existing callers. Delegates to the reference-taking implementation
+     /// to avoid unnecessary cloning when the caller already has a reference.
+     async fn execute_tool_with_validation(&self, tool_name: &str, args: Value) -> Result<Value> {
+-        self.execute_tool_with_validation_ref(tool_name, &args).await
++        self.execute_tool_with_validation_ref(tool_name, &args, None).await
+     }
+
+     // Internal reference-taking implementation to avoid cloning when not necessary.
+-    async fn execute_tool_with_validation_ref(&self, tool_name: &str, args: &Value) -> Result<Value> {
++    async fn execute_tool_with_validation_ref(
++        &self,
++        tool_name: &str,
++        args: &Value,
++        call_id: Option<&str>,
++    ) -> Result<Value> {
+         if !self.config.enabled {
+             return Err(anyhow!("MCP support is disabled in the current configuration"));
+         }
+@@ -194,7 +199,7 @@
+             bail!("MCP tool '{tool_name}' is not available to the model (app-only visibility)");
+         }
+         let result = provider
+-            .call_tool(tool_name, args, self.tool_timeout(), &allowlist_snapshot)
++            .call_tool(tool_name, args, self.tool_timeout(), &allowlist_snapshot, call_id)
+             .await?;
+
+         Self::format_tool_result(&provider.name, tool_name, result)
+@@ -239,6 +244,14 @@
+     /// Execute a tool call on the appropriate provider.
+     pub async fn execute_tool(&self, tool_name: &str, args: Value) -> Result<Value> {
+         self.execute_tool_with_validation(tool_name, args).await
++    }
++
++    /// Execute an approved host-projected tool with its original ACP call ID.
++    pub async fn execute_tool_with_call_id(&self, tool_name: &str, args: &Value, call_id: &str) -> Result<Value> {
++        if call_id.is_empty() || !args.is_object() {
++            bail!("Managed MCP requires a tool call ID and object arguments");
++        }
++        self.execute_tool_with_validation_ref(tool_name, args, Some(call_id)).await
+     }
+
+     /// List all model-visible tools from all active providers.
+@@ -845,7 +858,7 @@
+ #[async_trait]
+ impl McpToolExecutor for McpClient {
+     async fn execute_mcp_tool(&self, tool_name: &str, args: &Value) -> Result<Value> {
+-        self.execute_tool_with_validation_ref(tool_name, args).await
++        self.execute_tool_with_validation_ref(tool_name, args, None).await
+     }
+
+     async fn list_mcp_tools(&self) -> Result<Vec<McpToolInfo>> {
+--- a/crates/codegen/vtcode-mcp/src/provider.rs
++++ b/crates/codegen/vtcode-mcp/src/provider.rs
+@@ -3,7 +3,7 @@
+ use hashbrown::HashMap;
+ use rmcp::model::{
+     CallToolRequestParams, CallToolResult, GetPromptRequestParams, InitializeRequestParams, Prompt,
+-    ReadResourceRequestParams, Resource, ServerPeerInfo, Tool,
++    ReadResourceRequestParams, RequestMetaObject, Resource, ServerPeerInfo, Tool,
+ };
+ use rmcp::service::ClientLifecycleMode;
+ use serde_json::{Map, Value};
+@@ -278,6 +278,7 @@
+         args: &Value,
+         timeout: Option<Duration>,
+         allowlist: &McpAllowListConfig,
++        call_id: Option<&str>,
+     ) -> Result<CallToolResult> {
+         if !allowlist.is_tool_allowed(&self.name, tool_name) {
+             return Err(anyhow!("Tool '{}' is blocked by the MCP allow list for provider '{}'", tool_name, self.name));
+@@ -290,12 +291,19 @@
+             .await
+             .context("Failed to acquire MCP request slot")?;
+         let mut arguments = McpClient::normalize_arguments(args);
+-        self.add_argument_defaults(tool_name, &mut arguments, allowlist, timeout)
+-            .await
+-            .with_context(|| {
+-                format!("failed to prepare arguments for MCP tool '{}' on provider '{}'", tool_name, self.name)
+-            })?;
+-        let params = CallToolRequestParams::new(tool_name.to_string()).with_arguments(arguments);
++        if call_id.is_none() {
++            self.add_argument_defaults(tool_name, &mut arguments, allowlist, timeout)
++                .await
++                .with_context(|| {
++                    format!("failed to prepare arguments for MCP tool '{}' on provider '{}'", tool_name, self.name)
++                })?;
++        }
++        let mut params = CallToolRequestParams::new(tool_name.to_string()).with_arguments(arguments);
++        if let Some(call_id) = call_id {
++            let mut meta = RequestMetaObject::new();
++            drop(meta.insert("shijuCallId".into(), Value::String(call_id.into())));
++            params.meta = Some(meta);
++        }
+         let client = self.client.load_full();
+         async move { client.call_tool(params, timeout).await }
+             .instrument(mcp_tool_call_span(&self.name, tool_name, &self.config.transport))
+--- a/crates/codegen/vtcode-mcp/src/connection_pool.rs
++++ b/crates/codegen/vtcode-mcp/src/connection_pool.rs
+@@ -327,7 +327,7 @@
+
+         // Execute the tool with correct signature
+         let result = provider
+-            .call_tool(tool_name, args_ref, tool_timeout, allowlist)
++            .call_tool(tool_name, args_ref, tool_timeout, allowlist, None)
+             .await
+             .map_err(|e| McpPoolError::ToolExecutionError(provider_name.to_string(), e.to_string()))?;
+
+--- a/crates/codegen/vtcode-mcp/src/rmcp_client/mod.rs
++++ b/crates/codegen/vtcode-mcp/src/rmcp_client/mod.rs
+@@ -553,6 +553,13 @@
+         timeout: Option<Duration>,
+     ) -> Result<CallToolResult> {
+         let service = self.service().await?;
++        if params.meta.as_ref().is_some_and(|meta| meta.contains_key("shijuCallId")) {
++            let response = run_with_timeout(service.call_tool_once(params), timeout, "tools/call").await?;
++            let rmcp::model::CallToolResponse::Complete(result) = response else {
++                anyhow::bail!("Managed MCP tool requires a complete response");
++            };
++            return Ok(result);
++        }
+         let result = run_with_timeout(service.call_tool(params), timeout, "tools/call").await?;
+         Ok(result)
+     }

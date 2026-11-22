@@ -21,5 +21,26 @@
       "archive_sha256": "5e6dbfd6cdeb45ee78b7cf4cae0afc682ab7144d98bd8f3e03f805aa01808a65",
       "executable_sha256": "bb09d012e383f017e4615985e2ec47f11c6c504db2ac2c60dadf42042b4bae7f"
     }
+  },
+  "managed_source_candidate": {
+    "source_url": "https://codeload.github.com/vinhnx/VTCode/tar.gz/refs/tags/0.183.0",
+    "commit": "4fd8e47a885c1224f122bde8b52f293071240525",
+    "archive_sha256": "80c598c0086a2ad4fe4b3ea5cfdade9651cace6dc2542990be982a56dc617831",
+    "cargo_lock_sha256": "6ba0d9c829a09f0cd88f6f2ccaf966b4d26e2f6a1cadc00d26f64121625bad45",
+    "rust_toolchain": "1.100.0",
+    "patches_in_order": [
+      {
+        "file": "vtcode-0.183.0-session-mcp.patch",
+        "sha256": "5f880b25dfb3832ca4881f93602d5489c0c1f5bd3e1776920eaa7028e634b799"
+      },
+      {
+        "file": "vtcode-0.183.0-read-only-skills.patch",
+        "sha256": "ab657c6e25a73a940cd54e6b80ef70425b44631c80ccf80871b9cfd266e3fa6b"
+      },
+      {
+        "file": "vtcode-0.183.0-linux-approval.patch",
+        "sha256": "0ea392702551eaf9c168ba78f45f1981d6c2017c44e7e8650cf42709d2a9a8ac"
+      }
+    ]
   }
 }

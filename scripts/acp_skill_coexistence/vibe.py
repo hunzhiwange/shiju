@@ -27,11 +27,27 @@ SEARCH = "search_tool_functions"
 
 
 def launch(env):
-    require((platform.system(), platform.machine()) == ("Darwin", "arm64"),
-            "unreviewed Vibe platform")
+    system, machine = platform.system(), platform.machine()
+    linux = system == "Linux"
+    require(linux or (system, machine) == ("Darwin", "arm64"), "unreviewed Vibe platform")
     contract = json.loads((ROOT / "crates/libs/acp-agent-registry/src/managed_runtime/contracts.json")
                           .read_text())["vibe"]
     require(contract["version"] == "3.0.4", "Vibe version differs from coexistence pin")
+    entry_name = "bin/vibe-acp"
+    evidence = {}
+    if linux:
+        require(os.geteuid() != 0, "run the Vibe Linux probe as a non-root user")
+        require(platform.libc_ver()[0] == "glibc", "GNU Vibe requires glibc")
+        target = f"{machine}-unknown-linux-gnu"
+        manifest = json.loads((ROOT / "patches/acp-model-source/vibe/linux.json").read_text())
+        require(target in manifest["targets"], "unreviewed Vibe Linux architecture")
+        require(manifest["version"] == contract["version"] and manifest["revision"] == REVISION
+                and manifest["entry"] == entry_name, "Vibe Linux manifest differs from coexistence pin")
+        artifact = manifest["targets"][target]
+        contract["wheel_sha256"] = artifact["wheel_sha256"]
+        contract["files"].update(artifact["files"])
+        evidence = {"target": target, "entry": entry_name,
+                    "model_protocol": "POST /v1/chat/completions"}
     config = Path(env["VIBEWINDOW_CONFIG_DIR"])
     private = config / "acp-runtime" / REVISION
     base = Path(os.environ.get("VIBEWINDOW_CONFIG_DIR", Path.home() / ".local/share/shiju"))
@@ -42,7 +58,10 @@ def launch(env):
     for name, digest in contract["files"].items():
         require(hashlib.sha256((site / name).read_bytes()).hexdigest() == digest,
                 "Vibe artifact digest differs from contract")
-    entry = private / "bin/vibe-acp"
+    entry = private / entry_name
+    entry_digest = hashlib.sha256(entry.read_bytes()).hexdigest()
+    if linux:
+        require(entry_digest == manifest["launcher_sha256"], "Vibe Linux launcher digest mismatch")
     env["VIBE_TEST_DISABLE_KEYRING"] = "1"
     env["PYTHON_KEYRING_BACKEND"] = "keyring.backends.null.Keyring"
     version = subprocess.run([str(entry), "--version"], env=env, cwd=config,
@@ -53,8 +72,7 @@ def launch(env):
         "VIBE_TEST_DISABLE_KEYRING": "1",
         "PYTHON_KEYRING_BACKEND": "keyring.backends.null.Keyring",
     }}, {"version": contract["version"], "revision": REVISION, "sha256": contract["files"],
-         "entry_sha256": hashlib.sha256(entry.read_bytes()).hexdigest(),
-         "wheel_sha256": contract["wheel_sha256"]}
+         "entry_sha256": entry_digest, "wheel_sha256": contract["wheel_sha256"], **evidence}
 
 
 def prepare_workspace(workspace):

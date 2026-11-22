@@ -1,4 +1,4 @@
-"""Probe the fixed Darwin aionrs bridge through the production gateway."""
+"""Probe the fixed aionrs bridge through the production gateway."""
 
 from contextlib import contextmanager
 import hashlib
@@ -31,15 +31,21 @@ MCP_TOOL = "mcp__coexistence__read_probe"
 
 
 def launch(env):
-    require((platform.system(), platform.machine()) == ("Darwin", "arm64"),
-            "unreviewed aionrs platform")
+    system, machine = platform.system(), platform.machine()
+    linux_machine = {"x86_64": 62, "aarch64": 183}.get(machine) if system == "Linux" else None
+    require((system, machine) == ("Darwin", "arm64") or linux_machine is not None,
+            "unsupported aionrs probe platform")
     contract = json.loads((ROOT / "crates/libs/acp-agent-registry/src/managed_runtime"
                            / "contracts.json").read_text())["aionrs"]
     require(contract["version"] == VERSION and contract["bin"] == "aionrs-acp"
             and contract["source_sha256"] == SOURCE_SHA256,
             "unexpected aionrs contract")
-    source = Path(os.environ.get("ACP_AIONRS_REVIEWED_DIR",
-                                 Path.home() / ".local/share/shiju/acp-runtime" / REVISION))
+    source_path = os.environ.get("ACP_AIONRS_REVIEWED_DIR")
+    if linux_machine is not None:
+        require(source_path and Path(source_path).is_absolute(),
+                "Linux aionrs probe requires an explicit absolute candidate directory")
+    source = Path(source_path if source_path is not None else
+                  Path.home() / ".local/share/shiju/acp-runtime" / REVISION)
     target = Path(env["VIBEWINDOW_CONFIG_DIR"]) / "acp-runtime" / REVISION
     target.mkdir(parents=True, mode=0o700)
     receipt = json.loads((source / "build-receipt.json").read_text())
@@ -52,13 +58,19 @@ def launch(env):
         shutil.copy2(source / name, artifact)
         digests[name] = hashlib.sha256(artifact.read_bytes()).hexdigest()
         require(digests[name] == receipt[field], f"reviewed {name} artifact digest mismatch")
+        if linux_machine is not None:
+            with artifact.open("rb") as stream:
+                header = stream.read(20)
+            require(len(header) == 20 and header[:7] == b"\x7fELF\x02\x01\x01"
+                    and int.from_bytes(header[18:20], "little") == linux_machine,
+                    f"{name} is not an ELF64 artifact for Linux {machine}")
     shutil.copyfile(source / "build-receipt.json", target / "build-receipt.json")
     version = subprocess.run([str(target / "aionrs"), "--version"], env=env,
                              capture_output=True, timeout=15)
     require(version.returncode == 0 and version.stdout.strip() == b"aionrs 0.2.11",
             "unexpected aionrs engine version")
     return {"command": str(target / "aionrs-acp"), "args": []}, {
-        "version": VERSION, "revision": REVISION, "platform": "Darwin-arm64",
+        "version": VERSION, "revision": REVISION, "platform": f"{system}-{machine}",
         "source_sha256": SOURCE_SHA256, "patch_sha256": receipt["patch_sha256"],
         "sha256": digests,
     }

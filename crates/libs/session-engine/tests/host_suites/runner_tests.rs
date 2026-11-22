@@ -1378,6 +1378,152 @@ fn desktop_compaction_checkpoint_boundary_replays_two_compactions() {
     );
 }
 
+#[cfg(not(target_arch = "wasm32"))]
+#[test]
+fn desktop_interrupted_summary_checkpoint_preserves_last_complete_checkpoint() {
+    use crate::session::{compaction_checkpoint, prompt::block_on};
+    use agent_database::GlobalDatabase;
+    use agent_project::store::ProjectStore;
+    use models::{ChatMessage, ChatRole, ChatSession};
+    use session_engine::compaction::CompactionHost;
+    use session_engine::runner_protocol::{
+        CompactionBoundary, compact_transient_history_for_request,
+    };
+    use session_store::store::SessionStore;
+
+    let _guard = super::llm_runner::test_llm_stream_guard();
+    let id = unique_session_id("interrupted-summary");
+    let workspace = tempfile::tempdir().unwrap();
+    let database = GlobalDatabase::new(workspace.path().join("global.sqlite3")).unwrap();
+    let scope = agent_project::project_scope_for_default_tenant("compaction-regression").unwrap();
+    ProjectStore::new(database.clone())
+        .unwrap()
+        .create(
+            scope.tenant(),
+            &agent_project::Info {
+                id: scope.project_id().to_string(),
+                worktree: workspace.path().to_string_lossy().into_owned(),
+                vcs: None,
+                name: None,
+                icon: None,
+                commands: None,
+                time: agent_project::TimeInfo { created: 1, updated: 1, initialized: None },
+                sandboxes: Vec::new(),
+            },
+        )
+        .unwrap();
+    let store = SessionStore::new(database).unwrap();
+    let message = |role, content: &str| ChatMessage {
+        role,
+        content: content.into(),
+        model: None,
+        think_timing: Vec::new(),
+        processing_timing: None,
+    };
+    let mut transcript = ChatSession {
+        id: id.clone(),
+        title: "Compaction regression".into(),
+        messages: vec![
+            message(ChatRole::User, "old task"),
+            message(ChatRole::Assistant, "old details"),
+            message(ChatRole::User, "current task"),
+        ],
+        message_ids: vec![
+            Some("old-user".into()),
+            Some("old-assistant".into()),
+            Some("current-user".into()),
+        ],
+        calls: Vec::new(),
+        steps: Vec::new(),
+        created_ms: 1,
+        updated_ms: 1,
+    };
+    let read_raw = |expected: &ChatSession| {
+        let snapshot =
+            store.load_session(&scope, &id).unwrap().expect("reload original transcript");
+        assert_eq!(snapshot.messages, expected.messages);
+        assert_eq!(snapshot.message_ids, expected.message_ids);
+        snapshot
+            .messages
+            .iter()
+            .flat_map(<crate::tools::context::AgentContextHost as CompactionHost>::project_message)
+            .collect::<Vec<_>>()
+    };
+    store.save_session(&scope, &transcript).expect("persist original transcript");
+    let source = read_raw(&transcript);
+    block_on(compaction_checkpoint::save(&id, &source, "old checkpoint", Some(source[2].clone())))
+        .expect("persist old checkpoint");
+    let prefix = block_on(compaction_checkpoint::restore(&id, &source)).unwrap();
+    assert_eq!(prefix[0]["content"], "[Compaction summary]\nold checkpoint");
+
+    transcript
+        .messages
+        .push(message(ChatRole::Tool, "tool read\n{\"output\":\"tool evidence\"}\n"));
+    transcript.message_ids.push(Some("tool-result".into()));
+    transcript.updated_ms += 1;
+    store.save_session(&scope, &transcript).expect("persist completed tool step");
+    let raw = read_raw(&transcript);
+    let mut live = prefix.clone();
+    live.extend_from_slice(&raw[source.len()..]);
+    let mut boundary =
+        CompactionBoundary { source, live_prefix_len: prefix.len(), hidden_prefetch: 0..0 };
+    let mut user_index = Some(1);
+    let before = live.clone();
+    let done = |reason: &str| llm::StreamEvent::Done {
+        usage: Default::default(),
+        finish_reason: Some(reason.into()),
+    };
+    let incomplete = [
+        (vec![llm::StreamEvent::Delta("partial checkpoint".into())], Some("模型响应流中断")),
+        (
+            vec![llm::StreamEvent::Delta("truncated checkpoint".into()), done("length")],
+            Some("truncated"),
+        ),
+        (vec![done("stop")], Some("empty summary")),
+    ];
+    for (stream, expected_error) in incomplete
+        .into_iter()
+        .chain([(vec![llm::StreamEvent::Delta("new checkpoint".into()), done("stop")], None)])
+    {
+        super::llm_runner::enqueue_test_llm_stream(stream);
+        let mut completed = false;
+        let result = compact_transient_history_for_request::<super::AgentRunnerHost>(
+            &id,
+            Some(&mut boundary),
+            &mut live,
+            &mut user_index,
+            "provider/model",
+            &crate::config::ReliabilityConfig { provider_retries: 0, ..Default::default() },
+            &mut |event| {
+                completed |= matches!(
+                    event,
+                    super::StreamEvent::Compaction { phase: super::CompactionPhase::Completed }
+                );
+                true
+            },
+            None,
+            &crate::provider::provider::resolve_model_limit(None, None, None),
+            0,
+            |_| Ok(true),
+        );
+        let restored =
+            block_on(compaction_checkpoint::restore(&id, &read_raw(&transcript))).unwrap();
+        if let Some(expected_error) = expected_error {
+            assert_eq!(restored, before, "failed summary must keep the old checkpoint");
+            assert_eq!(live, before);
+            assert!(!completed);
+            let error = result.expect_err("incomplete summary must fail");
+            assert!(error.contains(expected_error), "{error}");
+        } else {
+            assert!(result.expect("explicit Done must install the summary"));
+            assert!(completed);
+            assert_eq!(restored[0]["content"], "[Compaction summary]\nnew checkpoint");
+            assert_eq!(restored[1..], before[1..]);
+            assert_eq!(restored, live);
+        }
+    }
+}
+
 #[test]
 fn compaction_lifecycle_checkpoint_write_failure_keeps_raw_history() {
     let _guard = super::llm_runner::test_llm_stream_guard();

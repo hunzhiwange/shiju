@@ -53,7 +53,7 @@ pub fn validate(agent: &str, selected: bool) -> Result<(), Error> {
         "claude" | "claude code" => return Ok(()),
         "qwen" => return Ok(()),
         "gemini" => return Ok(()),
-        "glm-acp-agent" if cfg!(all(target_os = "macos", target_arch = "aarch64")) => return Ok(()),
+        "glm-acp-agent" if glm_acp_agent::supports_session_view_target() => return Ok(()),
         "codebuddy" => return Ok(()),
         "goose" => return Ok(()),
         "grok" if cfg!(all(target_os = "macos", target_arch = "aarch64")) => return Ok(()),

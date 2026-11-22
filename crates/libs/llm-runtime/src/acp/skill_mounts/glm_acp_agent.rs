@@ -4,8 +4,8 @@ use super::super::{
 };
 use std::{collections::HashMap, fs, path::Path};
 
-/// Targets that can use the same workspace view with the reviewed v3 package.
-/// The host still decides whether to expose the capability.
+/// Targets with a reviewed workspace view contract (v3 on macOS, v5 on GNU Linux).
+/// The request also verifies the installed entry and permission policy.
 pub(in crate::acp) const fn supports_session_view_target() -> bool {
     cfg!(any(
         all(target_os = "macos", target_arch = "aarch64"),

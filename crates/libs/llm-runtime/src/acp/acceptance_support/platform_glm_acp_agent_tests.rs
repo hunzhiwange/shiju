@@ -1,9 +1,7 @@
 use serde_json::Value;
 use std::{path::Path, process::Command};
 
-#[test]
-#[ignore = "requires a Linux shiju gateway binary and npm access for the private GLM install"]
-fn acp_platform_glm_acp_agent_contract_native_only() {
+fn gateway_evidence(phase: &str) -> Value {
     let gateway = std::env::var_os("SHIJU_ACP_GLM_GATEWAY_BIN")
         .expect("set SHIJU_ACP_GLM_GATEWAY_BIN to the current Linux shiju gateway binary");
     let gateway = Path::new(&gateway).canonicalize().unwrap();
@@ -13,7 +11,7 @@ fn acp_platform_glm_acp_agent_contract_native_only() {
 
     let status = Command::new("python3")
         .arg(root.join("scripts/verify_acp_skill_coexistence.py"))
-        .args(["--agent", "glm-acp-agent", "--baseline-only", "--gateway-bin"])
+        .args(["--agent", "glm-acp-agent", phase, "--gateway-bin"])
         .arg(gateway)
         .arg("--output")
         .arg(&report)
@@ -45,7 +43,13 @@ fn acp_platform_glm_acp_agent_contract_native_only() {
     }
     assert!(status.success(), "GLM platform probe failed: {evidence}");
     assert_eq!(evidence["passed"], true);
+    evidence
+}
 
+#[test]
+#[ignore = "requires a Linux shiju gateway binary and npm access for the private GLM install"]
+fn acp_platform_glm_acp_agent_contract_native_only() {
+    let evidence = gateway_evidence("--baseline-only");
     let turns = evidence["turns"].as_array().unwrap();
     let [turn] = turns.as_slice() else { panic!("expected one native-only turn") };
     assert_eq!(turn["phase"], "baseline");
@@ -60,4 +64,29 @@ fn acp_platform_glm_acp_agent_contract_native_only() {
     assert_eq!(turn["mcp_calls"], 0);
     assert_eq!(turn["mcp_decisions"], serde_json::json!([]));
     assert!(turn["model_requests"].as_u64().unwrap() > calls.len() as u64);
+}
+
+#[test]
+#[ignore = "requires a Linux shiju gateway binary and npm access for the private GLM install"]
+fn acp_platform_glm_acp_agent_contract_selected_skills_removed_on_restore() {
+    let evidence = gateway_evidence("--glm-skill-removal");
+    let turns = evidence["turns"].as_array().unwrap();
+    let [mounted, removed] = turns.as_slice() else { panic!("expected two turns on one session") };
+    assert_eq!(mounted["phase"], "mounted");
+    assert_eq!(removed["phase"], "removed");
+    assert!(mounted["session"].is_string());
+    assert_eq!(mounted["session"], removed["session"]);
+    for turn in [mounted, removed] {
+        assert_eq!(turn["source"], "session_model");
+        assert_eq!(turn["done"], 1);
+        assert_eq!(turn["errors"], 0);
+        assert_eq!(turn["mcp_calls"], 0);
+        assert_eq!(turn["mcp_decisions"], serde_json::json!([]));
+        assert!(turn["calls"]["native"].is_string());
+        assert!(turn["calls"]["native_read"].is_string());
+    }
+    for key in ["selected", "selected_read"] {
+        assert!(mounted["calls"][key].is_string());
+        assert!(removed["calls"].get(key).is_none());
+    }
 }

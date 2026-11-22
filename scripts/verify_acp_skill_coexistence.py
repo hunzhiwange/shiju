@@ -39,6 +39,7 @@ AGENTS += ("stakpak",)
 AGENTS += ("vtcode",)
 PHASES = ("baseline", "mounted", "removed", "rejected")
 IFLOW_NATIVE_PHASES = ("baseline", "native-rejected", "native-cancelled")
+GLM_SKILL_PHASES = ("mounted", "removed")
 
 
 @contextmanager
@@ -181,6 +182,7 @@ def readback(url, query, sid, backend, model, live_access):
 def run(agent, binary, report, phases=PHASES):
     supplier = import_module("acp_skill_coexistence." + agent.replace("-", "_"))
     iflow_native = agent == "iflow" and phases == IFLOW_NATIVE_PHASES
+    glm_skills = agent == "glm-acp-agent" and phases == GLM_SKILL_PHASES
     temp_parent = getattr(supplier, "TEMP_PARENT", None)
     with tempfile.TemporaryDirectory(prefix="shiju-acp-coexistence-", dir=temp_parent) as directory:
         root = Path(directory).resolve()
@@ -235,6 +237,7 @@ def run(agent, binary, report, phases=PHASES):
                               "limit": {"context": 100000,
                                   "output": getattr(supplier, "MODEL_OUTPUT_LIMIT", 1024)}}}}}}
             request(url, "/global/config", config, method="PATCH")
+            sid = None
             for phase in phases:
                 report["stage"] = phase
                 row = {"phase": phase}
@@ -243,11 +246,14 @@ def run(agent, binary, report, phases=PHASES):
                 rejected = phase == "rejected"
                 profile = {"enabled": True, "runtime": {"kind": "acp", "backend": agent},
                            "defaults": {"skills": {"mode": "fixed", "value": [selected] if mounted else []},
-                                        "mcp": {"mode": "fixed", "value": ["coexistence"] if mounted else []}}}
+                                        "mcp": {"mode": "fixed", "value": ["coexistence"]
+                                                if mounted and not glm_skills else []}}}
                 request(url, "/global/config", {"agents": {AGENT_PROFILE: profile}}, method="PATCH")
-                sid = json.loads(request(url, "/session" + query, {"title": "ACP coexistence " + phase}))["id"]
+                if sid is None or not glm_skills:
+                    sid = json.loads(request(url, "/session" + query, {"title": "ACP coexistence " + phase}))["id"]
                 row["session"] = sid
-                model.probe = probe = supplier.Probe(fixtures, mounted, rejected)
+                probe_options = {"skill_only": True, "restored": phase == "removed"} if glm_skills else {}
+                model.probe = probe = supplier.Probe(fixtures, mounted, rejected, **probe_options)
                 native_read_decision = {"native-rejected": "reject", "native-cancelled": "cancel"}.get(phase)
                 if native_read_decision:
                     probe.native_read_decision = native_read_decision
@@ -295,7 +301,15 @@ def run(agent, binary, report, phases=PHASES):
                         require(row["done"] == 1 and row["errors"] == 0 and probe.native_read_denied,
                                 "missing correlated native read refusal")
                     continue
-                verify_turn(row, mounted, rejected)
+                if glm_skills:
+                    expected = {"native", "native_read"}
+                    if mounted:
+                        expected.update(("selected", "selected_read"))
+                    require(set(probe.completed) == expected, "incorrect GLM selected skill readbacks")
+                    require(row["done"] == 1 and row["errors"] == 0
+                            and after == before and decisions == [], "GLM skill-only turn failed")
+                else:
+                    verify_turn(row, mounted, rejected)
                 if "skill_approvals" in row:
                     expected = ["native", "selected"] if mounted else ["native"]
                     if hasattr(probe, "expected_skill_approvals"):
@@ -311,7 +325,8 @@ def run(agent, binary, report, phases=PHASES):
             require(not native_start.exists(), "iFlow started an unprojected project MCP during shutdown")
             require(not audit.exists() or not audit.read_text().splitlines(),
                     "unselected gateway MCP executed during native verification")
-        require(len({row["session"] for row in report["turns"]}) == len(phases), "sessions reused across phases")
+        sessions = {row["session"] for row in report["turns"]}
+        require(len(sessions) == (1 if glm_skills else len(phases)), "unexpected session reuse")
 
 
 def main():
@@ -323,7 +338,12 @@ def main():
                         help="verify only the native skill and read path")
     parser.add_argument("--iflow-native-approval", action="store_true",
                         help="verify Linux iFlow native approval, rejection and cancellation")
+    parser.add_argument("--glm-skill-removal", action="store_true",
+                        help="verify the selected Linux GLM skill view and removal in the same session")
     args = parser.parse_args()
+    if args.glm_skill_removal and (args.agent != "glm-acp-agent" or platform.system() != "Linux"
+                                   or args.baseline_only):
+        parser.error("--glm-skill-removal requires Linux GLM and its mounted and removed phases")
     if args.iflow_native_approval and (args.agent != "iflow" or platform.system() != "Linux"
                                       or args.baseline_only):
         parser.error("--iflow-native-approval requires Linux iFlow and its three native phases")
@@ -341,6 +361,8 @@ def main():
         phases = ("baseline",) if args.baseline_only else PHASES
         if args.iflow_native_approval:
             phases = IFLOW_NATIVE_PHASES
+        if args.glm_skill_removal:
+            phases = GLM_SKILL_PHASES
         run(args.agent, binary, report, phases)
         report.pop("stage", None)
         report["passed"] = True

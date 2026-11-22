@@ -106,7 +106,10 @@ fn acp_platform_dispatch_contract_glm_requires_supported_managed_projection_targ
         cfg!(all(target_os = "linux", target_env = "gnu",
             any(target_arch = "x86_64", target_arch = "aarch64")))
     );
-    assert!(skill_mounts::validate("glm-acp-agent", true).is_err());
+    assert_eq!(
+        skill_mounts::validate("glm-acp-agent", true).is_ok(),
+        cfg!(all(target_env = "gnu", any(target_arch = "x86_64", target_arch = "aarch64")))
+    );
 }
 
 #[test]

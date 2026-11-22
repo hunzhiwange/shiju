@@ -96,11 +96,13 @@ def launch(env):
 
 
 class Probe:
-    def __init__(self, fixtures, mounted, rejected, *, slash=False):
+    def __init__(self, fixtures, mounted, rejected, *, slash=False, skill_only=False, restored=False):
         self.fixtures = fixtures
         self.mounted = mounted
         self.rejected = rejected
         self.slash = slash
+        self.skill_only = skill_only
+        self.restored = restored
         self.mcp_tool = ("mcp__coexistence__read_probe"
                          if not slash and platform.system() == "Linux" else "read_probe")
         self.requests = 0
@@ -121,6 +123,8 @@ class Probe:
         wire = json.dumps(body)
         if self.requests == 1:
             for kind, skill in self.fixtures["skills"].items():
+                if self.restored and kind in ("native", "selected"):
+                    continue  # These results may already exist in the native session history.
                 if not (self.slash and kind == "native"):
                     require(skill["body"] not in wire, "GLM included a skill body before activation")
                 require(skill["attachment"] not in wire, "GLM included a skill attachment before reading")
@@ -145,7 +149,8 @@ class Probe:
                     require(path == (skills[kind]["path"] / "SKILL.md").resolve(),
                             f"unexpected GLM {kind} skill path")
                     self.paths[kind] = path
-                require((self.mcp_tool in tools) == self.mounted, "unexpected GLM session MCP directory")
+                require((self.mcp_tool in tools) == (self.mounted and not self.skill_only),
+                        "unexpected GLM session MCP directory")
                 return self.read(tools, "native")
             source = native["path"] / "SKILL.md"
             require(any(row["role"] == "user" and native["body"] in row["content"]
@@ -176,7 +181,7 @@ class Probe:
             return self.read(tools, step + "_read")
         if self.mounted and step == "native_read" and not self.slash:
             return self.read(tools, "selected")
-        if self.mounted and step in ("native_read", "selected_read"):
+        if self.mounted and not self.skill_only and step in ("native_read", "selected_read"):
             # The direct policy control intentionally tries the excluded tool.
             return self.call(tools, "mcp", self.mcp_tool, {})
         return {"content": "GLM skill coexistence fixture finished"}, "stop"

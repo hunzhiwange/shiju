@@ -107,3 +107,50 @@ async fn acp_skill_mount_lifecycle_content_removal_and_session_change_identity()
             .is_err()
     );
 }
+
+#[cfg(target_os = "linux")]
+#[tokio::test]
+async fn acp_platform_mount_lifecycle_restore_retires_replaced_cached_view() {
+    let _guard = super::CACHE_LOCK.lock().await;
+    let project = tempfile::tempdir().unwrap();
+    let source = project.path().join("外部技能");
+    std::fs::create_dir(&source).unwrap();
+    std::fs::write(
+        source.join("SKILL.md"),
+        "---\nname: external\ndescription: fixture\n---\nexternal marker\n",
+    )
+    .unwrap();
+    let mounts = vec![acp_types::SessionSkillMount {
+        name: "external".into(),
+        path: source.to_str().unwrap().into(),
+    }];
+    let owner = "platform-mount-restore";
+    let options = || ParsedAcpOptions {
+        runtime_identity: Some(owner.into()),
+        skill_mounts: mounts.clone(),
+        skill_view: super::prepare(&mounts, project.path(), owner, &Default::default()).unwrap(),
+        ..Default::default()
+    };
+    let original = options();
+    let config =
+        serde_json::from_value(json!({"command":"unused-lifecycle-agent", "args":[], "env":{}}))
+            .unwrap();
+    let cached = session::get_cached_acp_client("fixture", &config, project.path(), &original);
+    let old_root = original.skill_view.as_ref().unwrap().0.root();
+    std::fs::rename(old_root, old_root.with_file_name("retired")).unwrap();
+    std::fs::create_dir(old_root).unwrap();
+    std::os::unix::fs::symlink(source.canonicalize().unwrap(), old_root.join("external")).unwrap();
+
+    let restored = options();
+    session::stop_incompatible_cached_clients("fixture", &config, project.path(), &restored)
+        .await
+        .unwrap();
+    let replacement = session::get_cached_acp_client("fixture", &config, project.path(), &restored);
+    assert_eq!(cached.key, replacement.key);
+    assert!(!std::sync::Arc::ptr_eq(&cached.client, &replacement.client));
+    let cleared = ParsedAcpOptions { runtime_identity: Some(owner.into()), ..Default::default() };
+    session::stop_incompatible_cached_clients("fixture", &config, project.path(), &cleared)
+        .await
+        .unwrap();
+    assert!(!super::ACP_CLIENT_CACHE.lock().contains_key(&replacement.key));
+}

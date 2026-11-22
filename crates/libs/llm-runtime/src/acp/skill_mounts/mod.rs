@@ -160,6 +160,9 @@ pub fn reject_expanded_invocations(
     Ok(())
 }
 
+#[cfg(all(test, target_os = "linux"))]
+mod platform_lifecycle_tests;
+
 #[cfg(test)]
 #[path = "outbound_tests.rs"]
 mod outbound_tests;

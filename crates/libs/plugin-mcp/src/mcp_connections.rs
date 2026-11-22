@@ -390,6 +390,12 @@ impl McpSessionConnections {
                     }
                 },
             };
+            // Startup can wait on an external peer after the preflight revision check.
+            #[cfg(not(target_arch = "wasm32"))]
+            if !self.managed_selection_is_current(server)? {
+                entry.closed.cancel();
+                bail!("managed MCP runtime selection was revoked");
+            }
             *entry.catalogs.lock().unwrap_or_else(std::sync::PoisonError::into_inner) =
                 Arc::downgrade(&client.service().catalogs);
             *active.client = Some(client);

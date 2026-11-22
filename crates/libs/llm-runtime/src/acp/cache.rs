@@ -15,6 +15,7 @@ pub struct CachedAcpClient {
     pub tenant: vw_api_transport::TenantScope,
     pub runtime_identity: Option<String>,
     pub client: Arc<AcpClient>,
+    pub(super) validate_skill_view: Option<Box<dyn Fn() -> Result<(), crate::Error> + Send + Sync>>,
     pub prompt_lock: Arc<tokio::sync::Mutex<()>>,
     pub output_tx: Arc<Mutex<Option<mpsc::UnboundedSender<AcpJsonRpcMessage>>>>,
     // Native peers can retain terminals between prompts. Keep their actual cwd

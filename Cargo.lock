@@ -457,6 +457,7 @@ dependencies = [
 name = "agent-app-services"
 version = "0.7.8"
 dependencies = [
+ "acp-config",
  "acp-server",
  "acp-types",
  "agent-client-protocol",

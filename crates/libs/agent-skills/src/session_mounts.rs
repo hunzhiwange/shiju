@@ -31,6 +31,7 @@ struct Source {
 pub struct SessionSkillView {
     _directory: tempfile::TempDir,
     root: PathBuf,
+    root_identity: (u64, u64),
     binding: SessionSkillBinding,
     sources: Vec<Source>,
     fingerprint: String,
@@ -97,12 +98,12 @@ impl SessionSkillView {
             binding.revision,
             entries,
         ))?));
-        for source in &sources {
-            source.validate()?;
-        }
-        fs::rename(&stage, directory.path().join("skills"))?;
         let root = directory.path().join("skills");
-        Ok(Self { _directory: directory, root, binding, sources, fingerprint })
+        let root_identity = directory_identity(&stage)?;
+        fs::rename(&stage, &root)?;
+        let view = Self { _directory: directory, root, root_identity, binding, sources, fingerprint };
+        view.validate()?;
+        Ok(view)
     }
 
     /// Validate live sources immediately before passing this path to an executor.
@@ -133,7 +134,10 @@ impl SessionSkillView {
     }
 
     pub fn validate(&self) -> Result<()> {
-        directory_identity(self.root())?;
+        ensure!(
+            directory_identity(self.root())? == self.root_identity,
+            "skill view directory replaced"
+        );
         for source in &self.sources {
             source.validate()?;
             let link = self.root().join(&source.mount.name);

@@ -269,6 +269,9 @@ fn build_cached_acp_client_with_approval<H: Host>(
         tenant: H::tenant(),
         runtime_identity: parsed_options.runtime_identity.clone(),
         client: Arc::new(client),
+        validate_skill_view: parsed_options.skill_view.clone().map(|view| {
+            Box::new(move || view.validate()) as Box<dyn Fn() -> Result<(), Error> + Send + Sync>
+        }),
         prompt_lock: Arc::new(tokio::sync::Mutex::new(())),
         output_tx,
     })
@@ -315,7 +318,7 @@ pub(super) fn get_cached_acp_client_with_approval<H: Host>(
 }
 
 /// The logical session lease is held by the caller. Retire its old process before
-/// restoring that same native thread with a different process-scoped skill view.
+/// restoring that same native thread with a different or invalidated skill view.
 pub async fn stop_incompatible_cached_clients<H: Host>(
     agent: &str,
     config: &config::schema::AcpAgentConfig,
@@ -325,26 +328,31 @@ pub async fn stop_incompatible_cached_clients<H: Host>(
     let Some(owner) = &options.runtime_identity else { return Ok(()) };
     let key = acp_client_cache_key::<H>(agent, config, cwd, options);
     let tenant = H::tenant();
-    let retired: Vec<_> = {
+    let candidates: Vec<_> = {
         let cache = ACP_CLIENT_CACHE.lock();
         cache
             .iter()
             .filter(|(candidate, client)| {
-                **candidate != key
-                    && client.tenant == tenant
+                client.tenant == tenant
                     && client.runtime_identity.as_ref() == Some(owner)
+                    && (**candidate != key || client.validate_skill_view.is_some())
             })
             .map(|(key, client)| (key.clone(), client.clone()))
             .collect()
     };
-    for (key, client) in retired {
+    for (candidate, client) in candidates {
         let _guard = client.prompt_lock.lock().await;
+        if candidate == key
+            && client.validate_skill_view.as_ref().is_none_or(|validate| validate().is_ok())
+        {
+            continue;
+        }
         // Keep a failed shutdown reachable so a retry cannot leave an executable
         // old process behind while constructing a replacement with lower access.
         client.client.close().await.map_err(to_api_error)?;
         let mut cache = ACP_CLIENT_CACHE.lock();
-        if cache.get(&key).is_some_and(|current| Arc::ptr_eq(current, &client)) {
-            cache.remove(&key);
+        if cache.get(&candidate).is_some_and(|current| Arc::ptr_eq(current, &client)) {
+            cache.remove(&candidate);
         }
     }
     Ok(())

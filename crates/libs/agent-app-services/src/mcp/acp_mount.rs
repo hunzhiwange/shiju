@@ -1,5 +1,9 @@
 //! Resolve managed MCP references against the scope of an owned ACP session.
 
+#[cfg(all(test, target_os = "linux"))]
+#[path = "acp_mount_tests.rs"]
+mod tests;
+
 use std::collections::HashSet;
 
 use agent_client_protocol::McpServer;
@@ -76,6 +80,15 @@ pub fn resolve_mounts(
                     Ok(server) => server,
                     Err(_) => return Ok(Err(mount_error(McpFailureCode::InvalidDefinition))),
                 };
+                // Transport materialization can touch the filesystem. Recheck the
+                // pinned record before handing the candidate to the session pool.
+                match store.connection_for_revision(&mount.scope, &mount.record) {
+                    Ok(_) => {}
+                    Err(McpFailureCode::NotFound | McpFailureCode::StaleRevision) if restoring => {
+                        continue;
+                    }
+                    Err(code) => return Ok(Err(mount_error(code))),
+                }
                 servers.push(server);
                 mounts.push(mount.clone());
             }

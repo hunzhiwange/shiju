@@ -30,6 +30,8 @@ pub(super) struct StoredSelection {
     pub(super) disabled: bool,
     #[serde(default)]
     pub(super) generation: u64,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub(super) linux_stdio: Option<super::reviewed_stdio::StdioReview>,
 }
 
 impl McpCatalogStore {
@@ -39,6 +41,16 @@ impl McpCatalogStore {
         authorized_project: &ProjectScope,
         authorized_catalog: &McpCatalogScope,
         selection: &McpRuntimeSelection,
+    ) -> Result<(), McpFailureCode> {
+        self.select_for_runtime_with_review(authorized_project, authorized_catalog, selection, None)
+    }
+
+    pub(super) fn select_for_runtime_with_review(
+        &self,
+        authorized_project: &ProjectScope,
+        authorized_catalog: &McpCatalogScope,
+        selection: &McpRuntimeSelection,
+        linux_stdio: Option<super::reviewed_stdio::StdioReview>,
     ) -> Result<(), McpFailureCode> {
         let tenant = authorized_project.tenant_scope();
         if authorized_project != &selection.project
@@ -54,6 +66,7 @@ impl McpCatalogStore {
             record: selection.record.clone(),
             disabled: false,
             generation: 0,
+            linux_stdio,
         };
         let payload =
             serde_json::to_string(&next).map_err(|_| McpFailureCode::StorageUnavailable)?;
@@ -77,10 +90,17 @@ impl McpCatalogStore {
         if current.record.revision > next.record.revision {
             return Err(McpFailureCode::StaleRevision);
         }
-        if current.record == next.record && !current.disabled {
+        if current.linux_stdio.is_some() && next.linux_stdio.is_none() {
+            return Err(McpFailureCode::PermissionDenied);
+        }
+        if current.record == next.record && current.linux_stdio == next.linux_stdio && !current.disabled {
             return Ok(());
         }
-        next.generation = current.generation;
+        next.generation = if current.linux_stdio != next.linux_stdio {
+            current.generation.checked_add(1).ok_or(McpFailureCode::StorageUnavailable)?
+        } else {
+            current.generation
+        };
         self.save_entry(tenant, &namespace, key, &previous, &next)
     }
 
@@ -152,6 +172,10 @@ impl McpCatalogStore {
         for row in rows {
             let selection: StoredSelection = serde_json::from_str(&row.payload_json)
                 .map_err(|_| catalog_error(McpFailureCode::StorageUnavailable))?;
+            // The separate GNU reader consumes reviewed selections only in isolation.
+            if selection.linux_stdio.is_some() {
+                continue;
+            }
             if row.config_key != selection.record.id.0
                 || !scope_belongs_to_project(&selection.scope, project)
             {

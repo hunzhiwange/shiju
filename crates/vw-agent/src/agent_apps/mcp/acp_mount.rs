@@ -26,3 +26,40 @@ impl AcpMountLeases {
     }
     pub(crate) fn revoked_names(&self) -> anyhow::Result<HashSet<&str>> { self.0.revoked_names() }
 }
+
+/// Read the reviewed project selection using the host-minted relay owner.
+/// The returned check must guard discovery, approval, and dispatch.
+#[cfg(all(target_os = "linux", target_env = "gnu", any(target_arch = "x86_64", target_arch = "aarch64")))]
+pub(crate) fn reviewed_project_stdio(
+    launch: std::sync::Arc<crate::model_relay::RelayBinding>,
+    requested: &[McpServer],
+) -> anyhow::Result<(
+    std::sync::Arc<agent_app_services::mcp::reviewed_stdio::ReviewedProjectStdio>,
+    impl Fn() -> bool + Send + Sync + use<>,
+)> {
+    use agent_app_services::mcp::McpCatalogStore;
+    use agent_database::run_sync_database;
+    use std::{sync::Arc, time::Instant};
+
+    let identity = launch.identity();
+    let owner = vw_api_transport::ProjectScope::new(
+        identity.tenant.clone(),
+        identity.project.as_str().into(),
+    )?;
+    let load = |error| anyhow::anyhow!("reviewed project MCP selection: {error:?}");
+    let database = GlobalDatabase::for_home(&crate::global::paths().home)?;
+    let (store, review) = run_sync_database(|| {
+        let store = McpCatalogStore::new(database).map_err(load)?;
+        let review = store.reviewed_project_stdio(&owner, requested).map_err(load)?;
+        Ok((store, Arc::new(review)))
+    })?;
+    let current = review.clone();
+    let valid = move || {
+        !launch.cancelled().is_cancelled()
+            && launch.expires().is_none_or(|expires| Instant::now() < expires)
+            && run_sync_database(|| current.is_current(&store, &owner).map_err(load))
+                .unwrap_or(false)
+    };
+    anyhow::ensure!(valid(), "reviewed project MCP selection was revoked");
+    Ok((review, valid))
+}

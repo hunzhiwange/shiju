@@ -107,6 +107,7 @@ pub fn runtime_selection_is_current(
         || !scope_belongs_to_project(&selection.scope, &project)
         || server_name(server) != key
         || selection.disabled
+        || selection.linux_stdio.is_some()
     {
         return Ok(false);
     }

@@ -38,3 +38,16 @@ MCP 目录及撤销专属红绿测试另用 `python3 scripts/cargo_slot.py cargo
 - 技能视图记录私有目录的文件系统身份。恢复入口重验实际缓存客户端持有的视图，相同指纹下也会退役失效实例。测试源码检查中文路径、原生与外挂标记、重建及分叉视图身份、入站同名冲突、非法链接和租约释放。适配器恢复及分叉协议行为、原生扫描器优先级、模型消费 MCP 回执的续轮仍需逐适配器实测。
 - 任务 48 沿用现有技能分派接口和平台门控。仅在对应适配器证据满足时启用 Linux，未证实隔离的分派保持拒绝。
 - 静态检查覆盖本任务差异、Rust 源码解析和测试入口引用。受影响测试目标为 `llm-runtime --lib` 和 `agent-app-services --lib`，覆盖依赖 `agent-skills` 和 `plugin-mcp`。上述两条 Linux Docker 红绿命令均未执行，暂无退出码或命中数。
+
+## 最终静态复核
+
+- 复用任务 49 的 `df77249c6`。入站更新和恢复仍经 `resolve_mounts` 与会话连接池。出站请求在逻辑会话锁下、选择缓存客户端前复核实际持有的技能视图。后续接线未改变共用视图入口。任务 48 的 Linux Pi 技能拒绝保留。
+- `992af074c7` 已把移入启动任务的 MCP 配置副本与启动后复核借用分开。stdio 并发用例在真实子进程初始化后推进目录版本并释放启动等待，断言旧服务收不到 `tools/call`。HTTP/SSE 用例仅覆盖来源、冲突和恢复过滤。模型续轮和原生、外挂标记的端到端断言沿任务 49 的 Linux 宿主入口。
+- 两个定向测试入口静态可见，分别有 3 个技能和 2 个 MCP 用例。沿用上方精确命令，在非 root GNU Linux 容器内提供 Cargo 槽位、SQLite 构建依赖及 stdio 用例所需的 `python3`。本轮未执行编译、测试、安装或容器，继续待回归。
+
+## GNU 固定 stdio 目录接线
+
+- 登记使用现有 `PUT /agent-apps/mcp/{id}` 更新入口。请求携带 `targetHostId: "desktop-local"`、`projectId`、`expectedRevision` 和 `linuxStdioSelection: {"action":"select","sha256":"<独立审定的 64 位小写十六进制摘要>","allowedTools":["<原始工具名>"]}`。同一请求不能编辑定义。`{"action":"disable"}` 撤销选择。宿主通过配置的私有 `SHIJU_AGENT_APPS_ACCESS_FILE` 校验 `X-Agent-Apps-Token`，同一授予项须包含 `provider_config_write` 和匹配的 `mcp_catalog_write_projects`，以及本机、平台和公司身份。
+- pin 只授予明确选择的项目目录修订，规范 ELF 路径和精确 argv 来自该修订；GNU x86_64/aarch64 验证 ELF 头及可执行位，启动仍须用审定摘要复核实际 ELF。旧数据没有 pin 时保持原有行为。受审选择不会进入原生未隔离的运行时扫描，且禁用或再次选择会使旧投影失效。
+- 任务 48 使用 `crate::agent_apps::mcp::acp_mount::reviewed_project_stdio(launch.clone(), selected)` 获取项目来源的 pin 和失败关闭的续用检查。由宿主 RelayBinding 确定项目及用户。接入前校验续用检查，发现完成后、审批签发及每次 dispatch 继续复核。供应商 `_meta` 不参与授权。会话外挂来源仍需接上已提交的会话修订和撤权，保持拒绝；iFlow/GLM 的逐适配器接线归任务 48。
+- 新增两条待授权命令 `python3 scripts/cargo_slot.py cargo test -j 1 -p agent-app-services --lib acp_platform_mcp_review` 和 `python3 scripts/cargo_slot.py cargo test -j 1 -p gateway-mcp --lib acp_platform_mcp_review`。各应命中一个用例，容器须提供 `/usr/bin/true` 与 SQLite 构建依赖。本轮只做源码解析和差异检查。

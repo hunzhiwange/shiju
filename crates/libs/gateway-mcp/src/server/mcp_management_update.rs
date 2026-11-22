@@ -47,21 +47,44 @@ pub(super) async fn update_catalog_record(
             },
             None => McpCatalogScope::Tenant { scope: tenant },
         };
-        agent_apps::authorize_mcp_catalog_write(
-            policy.0.as_deref(),
-            &headers,
-            &scope,
-            &request.target_host_id,
-        )
-        .map_err(access_error)?;
-        let store = McpCatalogStore::new(open_database(database)?).map_err(unavailable)?;
         let expected = McpRecordRef { id: McpRecordId(id), revision: request.expected_revision };
         // Saving the desired definition makes no claim about native distribution or connectivity.
-        store.update_record(&scope, &expected, request.connection, request.metadata, request.public_summary).map(Json).map_err(|code| {
+        let result = if let Some(action) = request.linux_stdio_selection {
+            let McpCatalogScope::Project { scope: project } = &scope else {
+                return Err(access_error(StatusCode::FORBIDDEN));
+            };
+            agent_apps::authorize_mcp_linux_stdio_review(
+                policy.0.as_deref(),
+                &headers,
+                project,
+                &request.target_host_id,
+            )
+            .map_err(access_error)?;
+            if request.connection.is_some()
+                || request.metadata != Default::default()
+                || request.public_summary != Default::default()
+            {
+                return Err(failure(StatusCode::BAD_REQUEST, McpFailureCode::InvalidDefinition));
+            }
+            let store = McpCatalogStore::new(open_database(database)?).map_err(unavailable)?;
+            store.configure_linux_stdio(project, &expected, action)
+        } else {
+            agent_apps::authorize_mcp_catalog_write(
+                policy.0.as_deref(),
+                &headers,
+                &scope,
+                &request.target_host_id,
+            )
+            .map_err(access_error)?;
+            let store = McpCatalogStore::new(open_database(database)?).map_err(unavailable)?;
+            store.update_record(&scope, &expected, request.connection, request.metadata, request.public_summary)
+        };
+        result.map(Json).map_err(|code| {
             let status = match code {
                 McpFailureCode::InvalidDefinition => StatusCode::BAD_REQUEST,
                 McpFailureCode::StaleRevision | McpFailureCode::Conflict => StatusCode::CONFLICT,
                 McpFailureCode::NotFound => StatusCode::NOT_FOUND,
+                McpFailureCode::PermissionDenied => StatusCode::FORBIDDEN,
                 _ => StatusCode::SERVICE_UNAVAILABLE,
             };
             failure(status, code)
@@ -70,3 +93,7 @@ pub(super) async fn update_catalog_record(
     .await
     .map_err(unavailable)?
 }
+
+#[cfg(all(test, target_os = "linux", target_env = "gnu", any(target_arch = "x86_64", target_arch = "aarch64")))]
+#[path = "mcp_management_review_tests.rs"]
+mod review_tests;

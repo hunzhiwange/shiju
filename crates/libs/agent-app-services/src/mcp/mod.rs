@@ -161,6 +161,8 @@ impl McpCatalogStore {
 #[cfg(not(target_arch = "wasm32"))]
 pub mod runtime;
 #[cfg(not(target_arch = "wasm32"))]
+pub mod reviewed_stdio;
+#[cfg(not(target_arch = "wasm32"))]
 pub mod revocation;
 #[cfg(not(target_arch = "wasm32"))]
 mod probe_snapshot;

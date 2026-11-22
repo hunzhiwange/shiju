@@ -1159,6 +1159,43 @@ pub fn authorize_mcp_catalog_write(
         .map(|authorization| authorization.principal)
 }
 
+/// Fixed ELF review requires a separate host-admin grant, even when gateway pairing is disabled.
+pub fn authorize_mcp_linux_stdio_review(
+    path: Option<&Path>,
+    headers: &HeaderMap,
+    project: &vw_api_transport::ProjectScope,
+    target: &str,
+) -> Result<(), StatusCode> {
+    use gateway_pairing::pairing::constant_time_eq;
+
+    if target != vw_api_transport::LOCAL_HOST_ID {
+        return Err(StatusCode::FORBIDDEN);
+    }
+    let path = path.ok_or(StatusCode::FORBIDDEN)?;
+    let token = headers.get("x-agent-apps-token")
+        .and_then(|value| value.to_str().ok())
+        .filter(|value| !value.is_empty())
+        .ok_or(StatusCode::FORBIDDEN)?;
+    let policy = load(path).map_err(|_| StatusCode::FORBIDDEN)?;
+    if !policy.hosts.iter().any(|host| host.id == target && host.online && matches!(host.binding, Binding::Local)) {
+        return Err(StatusCode::FORBIDDEN);
+    }
+    let digest = hex::encode(Sha256::digest(token.as_bytes()));
+    let member = policy.principals.iter().find(|principal| constant_time_eq(&principal.token_sha256, &digest))
+        .ok_or(StatusCode::FORBIDDEN)?;
+    if member.grants.iter().any(|grant| {
+        grant.host_id == target
+            && grant.platform_id == project.platform_id().as_ref()
+            && grant.company_id == project.company_id().as_ref()
+            && grant.provider_config_write
+            && grant.mcp_catalog_write_projects.contains(project.project_id())
+    }) {
+        Ok(())
+    } else {
+        Err(StatusCode::FORBIDDEN)
+    }
+}
+
 /// Configuration metadata reads require an independent administrator grant.
 pub fn authorize_provider_config(
     path: Option<&Path>,

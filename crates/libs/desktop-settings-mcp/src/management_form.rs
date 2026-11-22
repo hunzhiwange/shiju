@@ -310,6 +310,7 @@ pub async fn save(
                     target_host_id: draft.context.host.clone(),
                     project_id,
                     expected_revision: record.record.revision,
+                    linux_stdio_selection: None,
                     connection,
                     metadata: McpMetadataPatch {
                         name: McpTextEdit::Set(draft.name.clone()),

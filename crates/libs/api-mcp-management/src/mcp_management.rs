@@ -86,6 +86,18 @@ pub struct McpCreateRequest {
     pub connection: McpConnectionDefinition,
 }
 
+/// Host-admin operation on the exact existing project catalog revision.
+#[derive(Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(tag = "action", rename_all = "snake_case", deny_unknown_fields)]
+pub enum McpLinuxStdioSelection {
+    Select {
+        sha256: String,
+        #[serde(rename = "allowedTools")]
+        allowed_tools: Vec<String>,
+    },
+    Disable,
+}
+
 /// Revision-checked partial metadata edits and optional private connection replacement.
 /// A successful save does not imply native distribution or a connection check.
 #[derive(Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -102,6 +114,8 @@ pub struct McpUpdateRequest {
     pub metadata: McpMetadataPatch,
     #[serde(default)]
     pub public_summary: McpPublicSummaryEdit,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub linux_stdio_selection: Option<McpLinuxStdioSelection>,
 }
 
 /// Retire an expected catalog revision. Native cleanup is reported separately per target.

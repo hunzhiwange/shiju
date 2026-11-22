@@ -24,7 +24,7 @@ fn acp_platform_nova_contract() {
     assert_eq!(evidence["passed"], true);
     assert_eq!(evidence["platform"], format!("Linux-{}", std::env::consts::ARCH));
     assert_eq!(evidence["artifact"]["version"], "1.1.65");
-    assert_eq!(evidence["artifact"]["revision"], "nova-1.1.65-model-source-v4");
+    assert_eq!(evidence["artifact"]["revision"], "nova-1.1.65-model-source-v5");
     assert_eq!(evidence["artifact"]["entry"], "scripts/bin-wrapper.mjs");
     assert_eq!(evidence["artifact"]["model_protocol"], "anthropic");
     assert_eq!(

@@ -1,5 +1,6 @@
 """Overlay the Linux GNU Nova runtime after applying the reviewed v3 patch."""
 import hashlib
+import shutil
 from pathlib import Path
 import sys
 
@@ -39,12 +40,51 @@ patched_cli = rewrite(cli,
          b"_0x2265ff=(shijuNovaBound || shijuNovaIsMountedSkill(_0x5d5232))?"),
     ])
 
-# The install overlay is restricted to Linux GNU by the host. The MCP gate
-# remains closed on Linux because the stdio helper requires sandbox-exec.
+# Linux can only use request-owned projections. Keep the original inputs for
+# v3 verification, then remove the local process path from the Linux extension.
 patched_extension = rewrite(extension,
-    "4dc6b7a014f47022e6915e0790cc0ae859863d3c1039d64727d4abe0992a4202",
-    [(b"process.platform !== 'darwin' || process.arch !== 'arm64'",
-      b"process.platform !== 'linux' || !['x64', 'arm64'].includes(process.arch)")])
-
+    "4dc6b7a014f47022e6915e0790cc0ae859863d3c1039d64727d4abe0992a4202", [
+        (b"import { execFile } from 'node:child_process';\n", b""),
+        (b"import { fileURLToPath } from 'node:url';",
+         b"import { selectProjectedServers, projectedOperation } from './shiju-linux-mcp.mjs';"),
+        (b"const helper = fileURLToPath(new URL('./shiju-mcp.py', import.meta.url));\n", b""),
+        (b"process.platform !== 'darwin' || process.arch !== 'arm64'",
+         b"process.platform !== 'linux' || !['x64', 'arm64'].includes(process.arch)"),
+        (b"process.platform !== 'darwin' || servers.length > 16",
+         b"process.platform !== 'linux' || !['x64', 'arm64'].includes(process.arch)"),
+        (b"    const selected = Array.isArray(servers) && servers.length > 0;",
+         b"    if (servers !== undefined && !Array.isArray(servers)) throw invalid('Invalid Nova MCP selection');\n"
+         b"    const selected = Boolean(servers?.length);"),
+        (b"    state = { managed: true };",
+         b"    const projected = selectProjectedServers(servers, bound.endpoint,\n"
+         b"      process.env.SHIJU_NOVA_RELAY_TOKEN, process.env.VW_ACP_LAUNCH_REFERENCE);\n"
+         b"    state = { managed: true };"),
+        (b"      state.workspace = await realpath(params.cwd);\n", b""),
+        (b"async function discover(servers, workspace, allowed, signal)",
+         b"async function discover(servers, allowed, signal)"),
+        (b"state.tools = await discover(servers, state.workspace,",
+         b"state.tools = await discover(projected,"),
+        (b"if ((allowed && !allowed.has(policyId)) || deny.includes(descriptor.name) || deny.includes(policyId) ||\n"
+         b"          (allow.length && !allow.includes(descriptor.name) && !allow.includes(policyId))) continue;",
+         b"if (allowed && !allowed.has(policyId)) continue;"),
+        (b"await operation({ operation: 'call', workspace: state.workspace,\n"
+         b"    server: target.server, name: target.name, arguments: arguments_",
+         b"await projectedOperation({ operation: 'call',\n"
+         b"    server: target.server, name: target.name, arguments: arguments_, callId"),
+    ])
+operation = patched_extension.index(b"function operation(request, signal)")
+discovery = patched_extension.index(b"async function discover", operation)
+patched_extension = patched_extension[:operation] + patched_extension[discovery:]
+start = patched_extension.index(b"  const names = new Set();", operation)
+end = patched_extension.index(b"    for (const descriptor", start)
+patched_extension = (
+    patched_extension[:start]
+    + b"  const tools = new Map();\n"
+    + b"  for (const server of servers) {\n"
+    + b"    const { name } = server;\n"
+    + b"    const catalog = await projectedOperation({ operation: 'list', server }, signal);\n"
+    + patched_extension[end:]
+)
 for path, source in [(wrapper, patched_wrapper), (cli, patched_cli), (extension, patched_extension)]:
     path.write_bytes(source)
+shutil.copyfile(Path(__file__).with_name("linux-mcp.mjs"), root / "dist/shiju-linux-mcp.mjs")

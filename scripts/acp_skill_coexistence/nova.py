@@ -32,11 +32,6 @@ def launch(env):
     prefix = os.environ.get("ACP_NOVA_REVIEWED_PREFIX")
     consent = os.environ.get("ACP_NOVA_TEST_CONSENT")
     require(prefix and consent, "Nova requires a reviewed install and an authorized test consent file")
-    modules = Path(env["VIBEWINDOW_CONFIG_DIR"]) / "node_modules"
-    shutil.copytree(Path(prefix) / "node_modules", modules, symlinks=True)
-    package = modules / contract["package"]
-    require(json.loads((package / "package.json").read_text())["version"] == contract["version"],
-            "Nova package version mismatch")
     files = contract["files"]
     revision = "nova-1.1.65-model-source-v3"
     if linux:
@@ -44,15 +39,33 @@ def launch(env):
         require(f"{target[1]}-unknown-linux-gnu" in overlay["targets"], "unlisted Nova target")
         files = {**files, **overlay["files"]}
         revision = overlay["revision"]
+    directory = Path(env["VIBEWINDOW_CONFIG_DIR"])
+    if linux:
+        directory = directory / "acp-runtime" / revision
+        directory.mkdir(parents=True, mode=0o700)
+        lock = Path(prefix) / "package-lock.json"
+        packages = json.loads(lock.read_text())["packages"]
+        require(packages["node_modules/" + contract["package"]]["integrity"] == contract["integrity"],
+                "Nova package archive integrity mismatch")
+        shutil.copyfile(lock, directory / lock.name)
+    modules = directory / "node_modules"
+    shutil.copytree(Path(prefix) / "node_modules", modules, symlinks=True)
+    package = modules / contract["package"]
+    metadata = json.loads((package / "package.json").read_text())
+    require((metadata["name"], metadata["version"]) == (contract["package"], contract["version"]),
+            "Nova package identity mismatch")
+    entry = package / contract["bin"]
+    if linux:
+        require((modules / ".bin/nova").resolve(strict=True) == entry, "Nova reviewed entry mismatch")
     for path, digest in files.items():
         require(hashlib.sha256((package / path).read_bytes()).hexdigest() == digest,
                 "Nova managed artifact digest mismatch")
     state = Path(env["HOME"]) / ".nova"
     state.mkdir(mode=0o700)
-    target = state / "consent.json"
-    target.touch(mode=0o600)
-    target.write_bytes(Path(consent).read_bytes())
-    return {"command": str(package / contract["bin"]), "args": ["acp"]}, {
+    consent_file = state / "consent.json"
+    consent_file.touch(mode=0o600)
+    consent_file.write_bytes(Path(consent).read_bytes())
+    return {"command": str(entry), "args": ["acp"]}, {
         "version": contract["version"], "platform": "-".join(target).lower(), "sha256": files,
         "entry": contract["bin"], "revision": revision, "model_protocol": ADAPTER,
     }

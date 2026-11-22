@@ -1395,13 +1395,14 @@ fn desktop_interrupted_summary_checkpoint_preserves_last_complete_checkpoint() {
     let id = unique_session_id("interrupted-summary");
     let workspace = tempfile::tempdir().unwrap();
     let database = GlobalDatabase::new(workspace.path().join("global.sqlite3")).unwrap();
-    let scope = agent_project::project_scope_for_default_tenant("compaction-regression").unwrap();
+    let project_id = "compaction-regression";
+    let scope = agent_project::project_scope_for_default_tenant(project_id).unwrap();
     ProjectStore::new(database.clone())
         .unwrap()
         .create(
-            scope.tenant(),
+            scope.tenant_scope(),
             &agent_project::Info {
-                id: scope.project_id().to_string(),
+                id: project_id.to_owned(),
                 worktree: workspace.path().to_string_lossy().into_owned(),
                 vcs: None,
                 name: None,

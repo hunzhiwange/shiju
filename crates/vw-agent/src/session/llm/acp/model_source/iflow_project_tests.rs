@@ -286,6 +286,7 @@ async fn host_project_mcp_contract(agent: &str, test_name: &str) {
         conflict.to_string(),
         "Reviewed MCP name conflicts across project and session selections"
     );
+    assert_eq!(backend.session_tool_count(id), Some(0));
     assert_eq!(backend.set_session_mounts(update(1, Some(mounted))).await.unwrap().revision.0, 2);
 
     let batch = prepare_mounted(true).await.unwrap();
@@ -295,8 +296,8 @@ async fn host_project_mcp_contract(agent: &str, test_name: &str) {
     assert_projected_service(agent, &batch, mounted_server, "mounted");
     assert_eq!(project_server.headers[0].value, mounted_server.headers[0].value);
 
-    assert_eq!(call(project_server, "unapproved").await.unwrap().status(), 403);
     for (index, server) in [project_server, mounted_server].into_iter().enumerate() {
+        assert_eq!(call(server, "unapproved").await.unwrap().status(), 403);
         let identity = format!("mcp__{}__read_fixture", server.name);
         for receipt in 1..=2 {
             let call_id = format!("batch-{index}-{receipt}");
@@ -309,46 +310,54 @@ async fn host_project_mcp_contract(agent: &str, test_name: &str) {
         }
     }
 
-    assert!(approve(
-        "mcp__mounted__read_fixture",
-        "before-project-withdrawal",
-        &json!({}),
-        Box::new(|| true)
-    ));
+    let project_withdrawal = [
+        (project_server, "project-before-withdrawal"),
+        (mounted_server, "mounted-before-withdrawal"),
+    ];
+    for (server, call_id) in project_withdrawal {
+        let identity = format!("mcp__{}__read_fixture", server.name);
+        assert!(approve(&identity, call_id, &json!({}), Box::new(|| true)));
+    }
     store.configure_linux_stdio(&project_scope, &updated, McpLinuxStdioSelection::Disable).unwrap();
     wait_for_retirement(&batch).await;
-    assert_revoked(call(mounted_server, "before-project-withdrawal").await);
-    assert!(!approve(
-        "mcp__mounted__read_fixture",
-        "after-project-withdrawal",
-        &json!({}),
-        Box::new(|| true)
-    ));
+    for (server, call_id) in project_withdrawal {
+        assert_revoked(call(server, call_id).await);
+        let identity = format!("mcp__{}__read_fixture", server.name);
+        assert!(!approve(&identity, "after-project-withdrawal", &json!({}), Box::new(|| true)));
+    }
     store.configure_linux_stdio(&project_scope, &updated, review()).unwrap();
 
     let batch = prepare_mounted(true).await.unwrap();
     let (servers, approve) = batch.managed_mcp.as_ref().unwrap();
-    let (project_server, _) = two_projected_services(servers);
-    assert!(approve(
-        "mcp__selected__read_fixture",
-        "before-mount-removal",
-        &json!({}),
-        Box::new(|| true)
-    ));
+    let (project_server, mounted_server) = two_projected_services(servers);
+    let mount_removal = [
+        (project_server, "project-before-removal"),
+        (mounted_server, "mounted-before-removal"),
+    ];
+    for (server, call_id) in mount_removal {
+        let identity = format!("mcp__{}__read_fixture", server.name);
+        assert!(approve(&identity, call_id, &json!({}), Box::new(|| true)));
+    }
     assert!(backend.set_session_mounts(update(1, None)).await.is_err());
     assert!((batch.managed_mcp_current.as_ref().unwrap())());
     assert_eq!(backend.set_session_mounts(update(2, None)).await.unwrap().revision.0, 3);
     wait_for_retirement(&batch).await;
-    assert_revoked(call(project_server, "before-mount-removal").await);
-    assert!(!approve(
-        "mcp__selected__read_fixture",
-        "after-mount-removal",
-        &json!({}),
-        Box::new(|| true)
-    ));
+    for (server, call_id) in mount_removal {
+        assert_revoked(call(server, call_id).await);
+        let identity = format!("mcp__{}__read_fixture", server.name);
+        assert!(!approve(&identity, "after-mount-removal", &json!({}), Box::new(|| true)));
+    }
     assert!(prepare_mounted(false).await.unwrap().managed_mcp.is_none());
     let remaining = prepare_mounted(true).await.unwrap();
-    assert_eq!(remaining.managed_mcp.as_ref().unwrap().0.len(), 1);
+    let (servers, approve) = remaining.managed_mcp.as_ref().unwrap();
+    let [acp_types::AcpMcpServer::Http(new_project)] = servers.as_slice() else {
+        panic!("Expected only the reviewed project service after removal");
+    };
+    assert_eq!(new_project.name, project_server.name);
+    assert_ne!(new_project.headers[0].value, project_server.headers[0].value);
+    assert!(approve("mcp__selected__read_fixture", "fresh-project", &json!({}), Box::new(|| true)));
+    let response = call(new_project, "fresh-project").await.unwrap().json::<Value>().await.unwrap();
+    assert_eq!(response["result"]["content"][0]["text"], "execution-1");
 }
 
 fn assert_projected_service(
@@ -391,6 +400,6 @@ async fn wait_for_retirement(profile: &AcpLaunchProfile) {
 fn assert_revoked(response: Result<reqwest::Response, reqwest::Error>) {
     match response {
         Ok(response) => assert!(matches!(response.status().as_u16(), 401 | 403)),
-        Err(error) => assert!(error.is_connect() || error.is_request(), "{error}"),
+        Err(error) => assert!(!error.is_timeout() && (error.is_connect() || error.is_request()), "{error}"),
     }
 }

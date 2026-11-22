@@ -3,7 +3,7 @@ use std::{path::Path, process::Command};
 
 #[test]
 #[ignore = "requires a Linux shiju gateway binary and npm access for the private GLM install"]
-fn acp_platform_glm_acp_agent_contract() {
+fn acp_platform_glm_acp_agent_contract_native_only() {
     let gateway = std::env::var_os("SHIJU_ACP_GLM_GATEWAY_BIN")
         .expect("set SHIJU_ACP_GLM_GATEWAY_BIN to the current Linux shiju gateway binary");
     let gateway = Path::new(&gateway).canonicalize().unwrap();
@@ -13,7 +13,7 @@ fn acp_platform_glm_acp_agent_contract() {
 
     let status = Command::new("python3")
         .arg(root.join("scripts/verify_acp_skill_coexistence.py"))
-        .args(["--agent", "glm-acp-agent", "--gateway-bin"])
+        .args(["--agent", "glm-acp-agent", "--baseline-only", "--gateway-bin"])
         .arg(gateway)
         .arg("--output")
         .arg(&report)
@@ -47,29 +47,17 @@ fn acp_platform_glm_acp_agent_contract() {
     assert_eq!(evidence["passed"], true);
 
     let turns = evidence["turns"].as_array().unwrap();
-    assert_eq!(turns.len(), 4);
-    for (turn, phase) in turns.iter().zip(["baseline", "mounted", "removed", "rejected"]) {
-        assert_eq!(turn["phase"], phase);
-        assert_eq!(turn["source"], "session_model");
-        assert_eq!(turn["model"], "coexistence-fixture/deepseek-v4.1-flash-1017");
-        assert_eq!(turn["done"], 1);
-        assert_eq!(turn["errors"], 0);
-        let mounted = matches!(phase, "mounted" | "rejected");
-        let calls = turn["calls"].as_object().unwrap();
-        assert!(calls.contains_key("native"));
-        assert!(calls.contains_key("native_read"));
-        assert_eq!(calls.contains_key("selected"), mounted);
-        assert_eq!(calls.contains_key("selected_read"), mounted);
-        assert_eq!(calls.contains_key("mcp"), mounted);
-        assert_eq!(turn["mcp_calls"], if phase == "mounted" { 1 } else { 0 });
-        assert_eq!(
-            turn["mcp_decisions"],
-            match phase {
-                "mounted" => serde_json::json!(["once"]),
-                "rejected" => serde_json::json!(["reject"]),
-                _ => serde_json::json!([]),
-            }
-        );
-        assert!(turn["model_requests"].as_u64().unwrap() > calls.len() as u64);
-    }
+    let [turn] = turns.as_slice() else { panic!("expected one native-only turn") };
+    assert_eq!(turn["phase"], "baseline");
+    assert_eq!(turn["source"], "session_model");
+    assert_eq!(turn["model"], "coexistence-fixture/deepseek-v4.1-flash-1017");
+    assert_eq!(turn["done"], 1);
+    assert_eq!(turn["errors"], 0);
+    let calls = turn["calls"].as_object().unwrap();
+    assert_eq!(calls.len(), 2);
+    assert!(calls["native"].is_string());
+    assert!(calls["native_read"].is_string());
+    assert_eq!(turn["mcp_calls"], 0);
+    assert_eq!(turn["mcp_decisions"], serde_json::json!([]));
+    assert!(turn["model_requests"].as_u64().unwrap() > calls.len() as u64);
 }

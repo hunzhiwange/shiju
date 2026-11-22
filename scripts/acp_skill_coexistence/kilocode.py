@@ -24,7 +24,40 @@ MCP_TOOL = "coexistence_read_probe"
 MCP_REJECTION = "The user rejected permission to use this specific tool call."
 
 
+def linux_launch(env):
+    arch = {"x86_64": "x64", "aarch64": "arm64"}.get(platform.machine())
+    require(arch is not None and os.confstr("CS_GNU_LIBC_VERSION"),
+            "unreviewed GNU Kilocode platform")
+    contract = json.loads((ROOT / "patches/acp-model-source/kilocode/linux.json").read_text())
+    digest = contract["targets"][arch]["patched_sha256"]
+    relative = Path("node_modules/@kilocode/cli") / contract["entry"]
+    runtime = Path(os.environ.get("VIBEWINDOW_CONFIG_DIR", Path.home() / ".local/share/shiju"))
+    installation = runtime / "acp-runtime" / contract["revision"] / relative
+    source = Path(os.environ.get("ACP_COEXISTENCE_KILOCODE_BIN", installation))
+    package_path = source.parent.parent / "package.json"
+    package = json.loads(package_path.read_text())
+    require(package["name"] == "@kilocode/cli" and package["version"] == contract["version"],
+            "unexpected Kilocode Linux package identity")
+    require(source.is_file() and os.access(source, os.X_OK), "reviewed Kilocode ELF unavailable")
+
+    entry = Path(env["VIBEWINDOW_CONFIG_DIR"]) / "acp-runtime" / contract["revision"] / relative
+    entry.parent.mkdir(parents=True)
+    shutil.copy2(source, entry)
+    shutil.copy2(package_path, entry.parent.parent / "package.json")
+    sha256 = hashlib.sha256()
+    with entry.open("rb") as stream:
+        for block in iter(lambda: stream.read(1024 * 1024), b""):
+            sha256.update(block)
+    require(sha256.hexdigest() == digest, "Kilocode Linux executable digest mismatch")
+    return {"command": str(entry), "args": ["acp", "--pure"]}, {
+        "version": contract["version"], "revision": contract["revision"],
+        "entry": contract["entry"], "sha256": digest, "model_endpoint": "/v1/chat/completions",
+    }
+
+
 def launch(env):
+    if platform.system() == "Linux":
+        return linux_launch(env)
     require((platform.system(), platform.machine()) == ("Darwin", "arm64"),
             "unreviewed Kilocode platform")
     contract = json.loads((ROOT / "crates/libs/acp-agent-registry/src/managed_runtime/contracts.json")

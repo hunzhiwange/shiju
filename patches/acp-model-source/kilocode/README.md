@@ -33,3 +33,18 @@ view and reviewed executable before passing the root.
 The release sources for the scanner and ACP catalog are
 [`skill/index.ts`](https://raw.githubusercontent.com/Kilo-Org/kilocode/v7.8.18/packages/opencode/src/skill/index.ts)
 and [`acp/service.ts`](https://raw.githubusercontent.com/Kilo-Org/kilocode/v7.8.18/packages/opencode/src/acp/service.ts).
+
+## Linux GNU release artifacts
+
+`linux.json` pins the npm archive integrity, original ELF, embedded entry
+source, and patched ELF for x86-64 baseline and AArch64. `apply_linux.py`
+takes the manifest target (`x64` or `arm64`), the extracted `bin/kilo`,
+and a separate reviewed destination inside the private installation. It
+uses the release's existing ELF segment padding for the same four scanner
+edits, checks the complete output digest, and publishes the executable
+atomically. Both targets use the native `acp --pure` entry.
+
+The patched ELF is an installation input. Restricted Linux use still
+requires a launcher that enforces the workspace, execution, and loopback
+boundaries and isolates the downstream MCP peers. The checked-in Seatbelt
+launcher provides those boundaries on Darwin arm64.

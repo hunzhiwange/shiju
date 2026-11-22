@@ -1,0 +1,71 @@
+{
+  "version": "7.8.18",
+  "revision": "kilocode-7.8.18-model-source-linux-v2",
+  "entry": "reviewed/kilocode",
+  "targets": {
+    "x64": {
+      "package": "@kilocode/cli-linux-x64-baseline",
+      "tarball": "https://registry.npmjs.org/@kilocode/cli-linux-x64-baseline/-/cli-linux-x64-baseline-7.8.18.tgz",
+      "integrity": "sha512-9u09PXfj1BOjlGO2TFyRmSzdfxHhAyuOxBPFFnV4Hxlgk51hFj7ihmEOpPShREtHszQhPT/7wXiG3CFETpjXHQ==",
+      "rust_arch": "x86_64",
+      "machine": 62,
+      "glibc_symbol_version": "2.30",
+      "section_header": 259213104,
+      "padding_end": 259162112,
+      "original_sha256": "aa9fb3f37464eafb7c0c395f057dee042e7414a8620a17dc8c3ca2fa39b12361",
+      "entry_sha256": "9b32ad2b23693ff211c3feadc68a989682a0ac8c281b4afe80b388c1054a5055",
+      "patched_entry_sha256": "388bd0bbfe9c46823195dfa095c5563de018daa0c5f008f23688c8a3f1bb88a7",
+      "edits": [
+        [
+          "for(let D of L.skills?.urls??[]){let b=yield*t.pull(D);for(let x of b)yield*qqr(u,x,C9u,{root:x})}return{matches:Array.from(u.matches.values()),dirs:Array.from(u.dirs)}}",
+          "for(let D of L.skills?.urls??[]){let b=yield*t.pull(D);for(let x of b)yield*qqr(u,x,C9u,{root:x})}let root=process.env.SHIJU_KILO_SKILL_ROOT;if(root){if(!qje.isAbsolute(root)||!(yield*r.isDir(root)))throw Error(\"invalid session skill directory\");let selected={matches:new Map,dirs:u.dirs};yield*qqr(selected,root,C9u,{trusted:!1,root,sourceRoot:root,projectRoot:root});for(let match of selected.matches.values()){let scope=yield*r.realPath(qje.dirname(match.path));match.root=scope;match.sourceRoot=scope;match.shijuSelection=!0;if(!u.matches.has(match.path))u.matches.set(match.path,match)}}return{matches:Array.from(u.matches.values()),dirs:Array.from(u.dirs)}}"
+        ],
+        [
+          "if(e.skills[s.data.name])yield*uA(\"duplicate skill name\"",
+          "if(t.shijuSelection&&Object.hasOwn(e.skills,s.data.name))return;if(e.skills[s.data.name])yield*uA(\"duplicate skill name\""
+        ],
+        [
+          "for(let n of BYn)e.skills[n.name]",
+          "for(let n of process.env.SHIJU_KILO_SKILL_ROOT===void 0?BYn:[])e.skills[n.name]"
+        ],
+        [
+          "m=yield*t.find({cwd:H,pattern:\"!**/SKILL.md\",hidden:!0,follow:!1,signal:a.abort,limit:10})",
+          "m=process.env.SHIJU_KILO_RESTRICTED===\"1\"?(()=>{let files=[];for(let path of new Bun.Glob(\"**/*\").scanSync({cwd:H,dot:!0,followSymlinks:!1,onlyFiles:!0})){if(a.abort.aborted)break;if(pll.basename(path)===\"SKILL.md\")continue;files.push({path});if(files.length===10)break}return files})():(yield*t.find({cwd:H,pattern:\"!**/SKILL.md\",hidden:!0,follow:!1,signal:a.abort,limit:10}))"
+        ]
+      ],
+      "patched_sha256": "23bc339768ecbfaedd0553480720271087956449a958293ac8f7d72f123cc5bc"
+    },
+    "arm64": {
+      "package": "@kilocode/cli-linux-arm64",
+      "tarball": "https://registry.npmjs.org/@kilocode/cli-linux-arm64/-/cli-linux-arm64-7.8.18.tgz",
+      "integrity": "sha512-cxzD2nFA/F9hINYncUjmrgJpts/DMc7I6JJyffGKvhCLoC+djJvGPENC263mBbz6RcTWonf8ADD1aSAYeukisg==",
+      "rust_arch": "aarch64",
+      "machine": 183,
+      "glibc_symbol_version": "2.30",
+      "section_header": 258263672,
+      "padding_end": 258211840,
+      "original_sha256": "c92049d8b0e03ad3a3526cf133ae1bc54b4e7aef79f410647d357d8b486bfcc2",
+      "entry_sha256": "ed17c2d079d5423fa43bb26aecd43b7d8818d9638d1ab6e26b636d17c29f24a3",
+      "patched_entry_sha256": "e87eb0bad4a9fa3864839c66216e56c3c3ecba8ab086723f0e9fb6286c6c3671",
+      "edits": [
+        [
+          "for(let R of x.skills?.urls??[]){let E=yield*t.pull(R);for(let S of E)yield*UUr(u,S,Oql,{root:S})}return{matches:Array.from(u.matches.values()),dirs:Array.from(u.dirs)}}",
+          "for(let R of x.skills?.urls??[]){let E=yield*t.pull(R);for(let S of E)yield*UUr(u,S,Oql,{root:S})}let root=process.env.SHIJU_KILO_SKILL_ROOT;if(root){if(!U9e.isAbsolute(root)||!(yield*r.isDir(root)))throw Error(\"invalid session skill directory\");let selected={matches:new Map,dirs:u.dirs};yield*UUr(selected,root,Oql,{trusted:!1,root,sourceRoot:root,projectRoot:root});for(let match of selected.matches.values()){let scope=yield*r.realPath(U9e.dirname(match.path));match.root=scope;match.sourceRoot=scope;match.shijuSelection=!0;if(!u.matches.has(match.path))u.matches.set(match.path,match)}}return{matches:Array.from(u.matches.values()),dirs:Array.from(u.dirs)}}"
+        ],
+        [
+          "if(e.skills[s.data.name])yield*lm(\"duplicate skill name\"",
+          "if(t.shijuSelection&&Object.hasOwn(e.skills,s.data.name))return;if(e.skills[s.data.name])yield*lm(\"duplicate skill name\""
+        ],
+        [
+          "for(let n of qXn)e.skills[n.name]",
+          "for(let n of process.env.SHIJU_KILO_SKILL_ROOT===void 0?qXn:[])e.skills[n.name]"
+        ],
+        [
+          "A=yield*t.find({cwd:f,pattern:\"!**/SKILL.md\",hidden:!0,follow:!1,signal:a.abort,limit:10})",
+          "A=process.env.SHIJU_KILO_RESTRICTED===\"1\"?(()=>{let files=[];for(let path of new Bun.Glob(\"**/*\").scanSync({cwd:f,dot:!0,followSymlinks:!1,onlyFiles:!0})){if(a.abort.aborted)break;if(huu.basename(path)===\"SKILL.md\")continue;files.push({path});if(files.length===10)break}return files})():(yield*t.find({cwd:f,pattern:\"!**/SKILL.md\",hidden:!0,follow:!1,signal:a.abort,limit:10}))"
+        ]
+      ],
+      "patched_sha256": "4f55cd95b1f45f0b71d77aca7950caa7b88b2be668901248bc1471b564759262"
+    }
+  }
+}

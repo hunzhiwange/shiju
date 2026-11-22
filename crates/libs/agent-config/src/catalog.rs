@@ -14,7 +14,8 @@ pub fn merged_agent_catalog(
         let mut entry = configured.get(&key).cloned().unwrap_or_else(|| AgentDefinitionConfig {
             enabled: matches!(
                 backend.as_str(),
-                "claude" | "gemini" | "opencode" | "codex" | "openclaw" | "copilot"
+                acp_agent_registry::EMPLOYEE_ACP_BACKEND
+                    | "claude" | "gemini" | "opencode" | "codex" | "openclaw" | "copilot"
             ),
             recommended_prompts: vec![format!(
                 "请使用 {} 帮我分析当前项目并完成任务。",

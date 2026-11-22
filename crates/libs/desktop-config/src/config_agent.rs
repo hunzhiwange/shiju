@@ -328,7 +328,7 @@ pub async fn load_acp_settings_snapshot_async(&self) -> Result<AcpSettingsSnapsh
     let config = self.fetch_global_agent_config_via_gateway().await?;
     catalog.extend(config.acp_saved);
     let mut enabled = resolve_enabled_acp_config(&catalog, config.acp);
-    if config.agents.get(EMPLOYEE_ACP_PROFILE).is_some_and(|profile| profile.enabled)
+    if config.agents.get(EMPLOYEE_ACP_PROFILE).is_none_or(|profile| profile.enabled)
         && let Some(spec) = catalog.get(EMPLOYEE_ACP_BACKEND)
     {
         enabled.insert(EMPLOYEE_ACP_BACKEND.into(), spec.clone());

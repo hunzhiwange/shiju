@@ -8,6 +8,11 @@ impl AcpClient {
         self
     }
 
+    pub fn with_vtcode_linux_sandbox(mut self, sandbox: Option<super::VtcodeLinuxSandbox>) -> Self {
+        self.vtcode_linux_sandbox = sandbox;
+        self
+    }
+
     pub fn with_openclaw_sandbox(mut self, sandbox: Option<super::OpenClawSandbox>) -> Self {
         self.openclaw_sandbox = sandbox;
         self
@@ -72,6 +77,7 @@ impl AcpClient {
             kilocode_sandbox: None,
             opencode_sandbox: None,
             openclaw_sandbox: None,
+            vtcode_linux_sandbox: None,
             agent_name: agent_name.into(),
             config,
             client_name: "vibewindow-acp-client".to_string(),

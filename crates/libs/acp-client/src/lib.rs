@@ -20,7 +20,7 @@ pub fn droid_mcp_identity(server: &str, tool: &str) -> String {
     format!("mcp__droid__{}_{server}{tool}", server.len())
 }
 
-pub use client::{AcpClient, AuggieSandbox, ConnectionDiagnostic, DroidSandbox, HermesSandbox, KilocodeSandbox, OpenClawSandbox, OpenCodeSandbox, SkillMountLease};
+pub use client::{AcpClient, AuggieSandbox, ConnectionDiagnostic, DroidSandbox, HermesSandbox, KilocodeSandbox, OpenClawSandbox, OpenCodeSandbox, SkillMountLease, VtcodeLinuxSandbox};
 
 #[cfg(test)]
 use acp_agent_registry::{

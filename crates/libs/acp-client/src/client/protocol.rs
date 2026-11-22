@@ -285,19 +285,78 @@ impl AcpClient {
         ))
     }
 
+    fn has_reviewed_linux_http_projection(&self, vtcode: bool) -> bool {
+        if !cfg!(all(target_os = "linux", target_env = "gnu", any(target_arch = "x86_64", target_arch = "aarch64")))
+            || self.managed_mcp_approval.is_none()
+            || self.permission_confirmation.is_none()
+            || self.non_interactive_permissions.is_some()
+            || self.permission_mode == PermissionMode::DenyAll
+            || self.full_access
+        {
+            return false;
+        }
+        let (origin, model_token) = if vtcode {
+            ("http://127.0.0.1:1", None)
+        } else {
+            let Some(origin) = self.config.env.get("ACP_GLM_BASE_URL")
+                .and_then(|url| url.strip_suffix("/v1")) else {
+                return false;
+            };
+            let Some(address) = origin.strip_prefix("http://")
+                .and_then(|value| value.parse::<std::net::SocketAddrV4>().ok()) else {
+                return false;
+            };
+            let Some(model_token) = self.config.env.get("Z_AI_API_KEY").filter(|token| !token.is_empty()) else {
+                return false;
+            };
+            if *address.ip() != std::net::Ipv4Addr::LOCALHOST
+                || matches!(address.port(), 0 | 80)
+                || origin != format!("http://{address}")
+            {
+                return false;
+            }
+            (origin, Some(model_token.as_str()))
+        };
+        let mut names = std::collections::HashSet::new();
+        self.mcp_servers.iter().all(|server| {
+            let acp::McpServer::Http(server) = server else { return false };
+            let [header] = server.headers.as_slice() else { return false };
+            let Some(token) = header.value.strip_prefix("Bearer ") else { return false };
+            server.name.len() <= 64
+                && server.name.bytes().any(|byte| byte.is_ascii_alphanumeric())
+                && server.name.bytes().all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'_' | b'-'))
+                && names.insert(server.name.clone())
+                && server.url == format!("{origin}/shiju-vtcode-mcp/{}", server.name)
+                && header.name.eq_ignore_ascii_case("authorization")
+                && token.len() == 64
+                && token.bytes().all(|byte| byte.is_ascii_digit() || matches!(byte, b'a'..=b'f'))
+                && model_token != Some(token)
+        })
+    }
+
     fn validate_mcp_contract(&self) -> Result<(), AcpError> {
         let backend = acp_agent_registry::agent_registry::desktop_permission_agent(&self.agent_name);
         self.validate_linux_iflow_mcp()?;
+        let vtcode_linux = self.vtcode_linux_sandbox.is_some() && self.managed_vtcode();
+        let glm_linux = cfg!(target_os = "linux")
+            && backend == Some("glm-acp-agent")
+            && self.config.env.contains_key("VW_ACP_LAUNCH_REFERENCE");
         if !self.mcp_servers.is_empty()
-            && (backend.is_some_and(acp_agent_registry::linux_native_only)
+            && ((backend.is_some_and(acp_agent_registry::linux_native_only) && !vtcode_linux)
                 || (cfg!(target_os = "linux") && matches!(backend, Some("amp-acp" | "pi")))
-                || (cfg!(target_os = "linux")
-                    && backend == Some("glm-acp-agent")
-                    && self.config.env.contains_key("VW_ACP_LAUNCH_REFERENCE")))
+                || ((vtcode_linux || glm_linux) && !self.has_reviewed_linux_http_projection(vtcode_linux)))
         {
             return Err(AcpError::NewSession(
                 "Session MCP has no verified Linux launch boundary for this agent".into(),
             ));
+        }
+        if !self.mcp_servers.is_empty() && (vtcode_linux || glm_linux) {
+            if vtcode_linux {
+                acp_agent_registry::verify_vtcode_mcp_executable(&self.config.command)
+            } else {
+                crate::verify_reviewed_agent_executable("glm-acp-agent", &self.config.command)
+            }
+            .map_err(AcpError::NewSession)?;
         }
         if self.agent_name == "glm-acp-agent"
             && self.mcp_servers.iter().any(|server| {
@@ -423,7 +482,7 @@ impl AcpClient {
         cwd: &Path,
     ) -> Result<SessionInfo, AcpError> {
         self.validate_mcp_contract()?;
-        let mut request = acp::NewSessionRequest::new(cwd).mcp_servers(self.mcp_servers.clone());
+        let mut request = acp::NewSessionRequest::new(self.protocol_workspace(cwd)).mcp_servers(self.mcp_servers.clone());
         if let Some(meta) = self.mounted_session_meta() {
             request = request.meta(meta);
         }
@@ -482,7 +541,7 @@ impl AcpClient {
         session_id: String,
     ) -> Result<SessionInfo, AcpError> {
         self.validate_mcp_contract()?;
-        let mut request = acp::LoadSessionRequest::new(session_id.clone(), cwd)
+        let mut request = acp::LoadSessionRequest::new(session_id.clone(), self.protocol_workspace(cwd))
             .mcp_servers(self.mcp_servers.clone());
         if (managed_claude_settings(&self.config).is_some()
             || self.skill_mounts.is_some()
@@ -541,7 +600,7 @@ impl AcpClient {
             return self.load_session_info(conn, cwd, session_id).await;
         }
         self.validate_mcp_contract()?;
-        let mut request = acp::ResumeSessionRequest::new(session_id.clone(), cwd)
+        let mut request = acp::ResumeSessionRequest::new(session_id.clone(), self.protocol_workspace(cwd))
             .mcp_servers(self.mcp_servers.clone());
         if (managed_claude_settings(&self.config).is_some() || self.skill_mounts.is_some())
             && let Some(meta) = self.mounted_session_meta()

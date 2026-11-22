@@ -173,7 +173,7 @@ pub fn build_cached_acp_client<H: Host>(
     acp_cfg: &config::schema::AcpAgentConfig,
     parsed_options: &ParsedAcpOptions<H::Skills>,
 ) -> Arc<CachedAcpClient> {
-    build_cached_acp_client_with_approval::<H>(acp_agent_name, acp_cfg, parsed_options, None, None, None, None, None, None, None)
+    build_cached_acp_client_with_approval::<H>(acp_agent_name, acp_cfg, parsed_options, None, None, None, None, None, None, None, None)
 }
 
 fn build_cached_acp_client_with_approval<H: Host>(
@@ -186,6 +186,7 @@ fn build_cached_acp_client_with_approval<H: Host>(
     kilocode_sandbox: Option<acp_client::KilocodeSandbox>,
     opencode_sandbox: Option<acp_client::OpenCodeSandbox>,
     openclaw_sandbox: Option<acp_client::OpenClawSandbox>,
+    vtcode_linux_sandbox: Option<acp_client::VtcodeLinuxSandbox>,
     approval: Option<acp_client::ManagedMcpApproval>,
 ) -> Arc<CachedAcpClient> {
     let permission_confirmation =
@@ -241,6 +242,7 @@ fn build_cached_acp_client_with_approval<H: Host>(
     .with_kilocode_sandbox(kilocode_sandbox)
     .with_opencode_sandbox(opencode_sandbox)
     .with_openclaw_sandbox(openclaw_sandbox)
+    .with_vtcode_linux_sandbox(vtcode_linux_sandbox)
     .with_managed_mcp_approval(approval)
     .with_permission_mode(parsed_options.permission_mode.unwrap_or(if parsed_options.full_access {
         PermissionMode::ApproveAll
@@ -286,7 +288,7 @@ pub fn get_cached_acp_client<H: Host>(
     cwd: &Path,
     parsed_options: &ParsedAcpOptions<H::Skills>,
 ) -> CachedAcpClientEntry {
-    get_cached_acp_client_with_approval::<H>(acp_agent_name, acp_cfg, cwd, parsed_options, None, None, None, None, None, None, None)
+    get_cached_acp_client_with_approval::<H>(acp_agent_name, acp_cfg, cwd, parsed_options, None, None, None, None, None, None, None, None)
 }
 
 pub(super) fn get_cached_acp_client_with_approval<H: Host>(
@@ -300,9 +302,16 @@ pub(super) fn get_cached_acp_client_with_approval<H: Host>(
     kilocode_sandbox: Option<acp_client::KilocodeSandbox>,
     opencode_sandbox: Option<acp_client::OpenCodeSandbox>,
     openclaw_sandbox: Option<acp_client::OpenClawSandbox>,
+    vtcode_linux_sandbox: Option<acp_client::VtcodeLinuxSandbox>,
     approval: Option<acp_client::ManagedMcpApproval>,
 ) -> CachedAcpClientEntry {
-    let key = acp_client_cache_key::<H>(acp_agent_name, acp_cfg, cwd, parsed_options);
+    let mut key = acp_client_cache_key::<H>(acp_agent_name, acp_cfg, cwd, parsed_options);
+    if let Some(sandbox) = &vtcode_linux_sandbox {
+        // The stable launch reference is persisted, but the sandbox files belong to this request.
+        key.push_str(&super::model_source::fingerprint(
+            sandbox.model_config.as_os_str().as_encoded_bytes(),
+        ));
+    }
     let mut cache = ACP_CLIENT_CACHE.lock();
     if let Some(existing) = cache.get(&key) {
         return CachedAcpClientEntry {
@@ -312,7 +321,7 @@ pub(super) fn get_cached_acp_client_with_approval<H: Host>(
         };
     }
 
-    let client = build_cached_acp_client_with_approval::<H>(acp_agent_name, acp_cfg, parsed_options, auggie_sandbox, hermes_sandbox, droid_sandbox, kilocode_sandbox, opencode_sandbox, openclaw_sandbox, approval);
+    let client = build_cached_acp_client_with_approval::<H>(acp_agent_name, acp_cfg, parsed_options, auggie_sandbox, hermes_sandbox, droid_sandbox, kilocode_sandbox, opencode_sandbox, openclaw_sandbox, vtcode_linux_sandbox, approval);
     cache.insert(key.clone(), client.clone());
     CachedAcpClientEntry { request_owned: launch_reference(acp_cfg).is_some(), key, client }
 }

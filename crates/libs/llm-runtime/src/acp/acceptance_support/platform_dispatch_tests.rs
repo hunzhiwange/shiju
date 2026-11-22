@@ -97,12 +97,14 @@ fn acp_platform_dispatch_contract_resolves_native_config_and_session_options() {
 }
 
 #[test]
-fn acp_platform_dispatch_contract_glm_keeps_linux_mounts_closed() {
+fn acp_platform_dispatch_contract_glm_requires_supported_managed_projection_target() {
     assert!(
         request::validate_linux_session_mcp("glm-acp-agent", Source::SessionModel, false).is_ok()
     );
-    assert!(
-        request::validate_linux_session_mcp("glm-acp-agent", Source::SessionModel, true).is_err()
+    assert_eq!(
+        request::validate_linux_session_mcp("glm-acp-agent", Source::SessionModel, true).is_ok(),
+        cfg!(all(target_os = "linux", target_env = "gnu",
+            any(target_arch = "x86_64", target_arch = "aarch64")))
     );
     assert!(skill_mounts::validate("glm-acp-agent", true).is_err());
 }

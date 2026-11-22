@@ -55,6 +55,21 @@ pub fn spawn_isolated_stdio_with_unix_relay_and_model_config(
     )?)
 }
 
+/// Prepare the fixed VT Code supervisor for ACP client lifecycle management.
+pub fn vtcode_linux_command(
+    executable: &Path,
+    relay_socket: &Path,
+    model_config: &Path,
+) -> io::Result<Command> {
+    isolated_unix_relay_with_model_config_command(
+        executable,
+        &["--config".into(), ISOLATED_UNIX_RELAY_MODEL_CONFIG.into(), "acp".into()],
+        relay_socket,
+        model_config,
+    )
+    .map(Command::from)
+}
+
 fn spawn(command: std::process::Command) -> io::Result<IsolatedStdio> {
     let mut command = Command::from(command);
     command.kill_on_drop(true);

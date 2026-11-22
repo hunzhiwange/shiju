@@ -1,5 +1,6 @@
 //! Bind the reviewed native VT Code to the request-owned Chat relay.
 use super::{super::profile::REFERENCE_ENV, AcpLaunchProfile};
+#[cfg(not(target_os = "linux"))]
 use std::collections::HashMap;
 #[cfg(not(target_os = "linux"))]
 use std::path::Path;
@@ -40,10 +41,14 @@ pub fn configure(
         "VT Code requires a selected tool-capable model"
     );
     let quote = serde_json::to_string::<str>;
+    #[cfg(target_os = "linux")]
+    let api_key = "";
+    #[cfg(not(target_os = "linux"))]
+    let api_key = "api_key_env = \"SHIJU_VTCODE_RELAY_TOKEN\"\n";
     let config = format!(
         "providers_whitelist = [{provider}]\n[agent]\nprovider = {provider}\ndefault_model = {model}\nreasoning_effort = \"none\"\n\
          [[custom_providers]]\nname = {provider}\ndisplay_name = {provider}\nbase_url = {url}\n\
-         api_key_env = \"SHIJU_VTCODE_RELAY_TOKEN\"\nmodel = {model}\nmodels = [{model}]\n\
+         {api_key}model = {model}\nmodels = [{model}]\n\
          api_format = \"openai-chat\"\nsupports_tools = true\n\
          [permissions]\ndeny = [\"bash\", \"write_stdin\"]\n[tools]\nprofile = \"advanced_vtcode\"\n[tools.policies]\nexec_command = \"deny\"\nwrite_stdin = \"deny\"\napply_patch = \"prompt\"\n",
         provider = quote(provider)?,
@@ -53,15 +58,24 @@ pub fn configure(
     #[cfg(target_os = "linux")]
     {
         anyhow::ensure!(
-            endpoint == "http://127.0.0.1:1" && profile.relay_unix_socket().is_some(),
-            "VT Code Linux requires the request-owned Unix model relay"
+            endpoint == "http://127.0.0.1:1",
+            "VT Code Linux requires the fixed Unix relay origin"
         );
-        let config = profile.write_config("vtcode.toml", config.as_bytes())?;
-        profile.overlay_environment(HashMap::from([
-            ("SHIJU_VTCODE_CONFIG".into(), config.to_string_lossy().into_owned()),
-            ("SHIJU_VTCODE_RELAY_TOKEN".into(), profile.binding.bearer_token().into()),
-            ("SHIJU_VTCODE_MCP_ORIGIN".into(), endpoint.into()),
-        ]))?;
+        let relay_socket = profile.relay_unix_socket()
+            .ok_or_else(|| anyhow::anyhow!("VT Code Linux requires the request-owned Unix model relay"))?
+            .to_path_buf();
+        let bearer = profile.binding.bearer_token();
+        anyhow::ensure!(
+            bearer.len() == 64
+                && bearer.bytes().all(|byte| byte.is_ascii_digit() || matches!(byte, b'a'..=b'f')),
+            "Invalid VT Code Linux relay credential"
+        );
+        let config = format!("# shiju-relay-bearer = {bearer}\n{config}");
+        let model_config = profile.write_config("vtcode.toml", config.as_bytes())?;
+        profile.vtcode_linux_sandbox = Some(acp_client::VtcodeLinuxSandbox {
+            relay_socket,
+            model_config,
+        });
         profile.session_model_id = Some(model);
         let _ = (directory, port);
         return Ok(());

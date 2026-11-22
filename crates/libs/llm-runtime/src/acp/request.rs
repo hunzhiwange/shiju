@@ -544,7 +544,26 @@ pub async fn do_stream_request_acp<H: Host>(
         acp_agent_registry::verify_vtcode_skill_executable(&normalized_acp_cfg.command)
             .map_err(acp_option_error)?;
     }
+    let linux_reviewed_projection_target = cfg!(all(target_os = "linux", target_env = "gnu",
+        any(target_arch = "x86_64", target_arch = "aarch64")));
+    let interactive_mcp = !parsed_options.full_access
+        && parsed_options.non_interactive_permissions.is_none()
+        && parsed_options.permission_mode != Some(acp_types::PermissionMode::DenyAll)
+        && merged_options.get("disable_tools").and_then(Value::as_bool) != Some(true);
     let vtcode_mcp = acp_agent_name == "vtcode" && !parsed_options.mcp_servers.is_empty();
+    if vtcode_mcp && cfg!(target_os = "linux") {
+        if !interactive_mcp {
+            return Err(acp_option_error("VT Code Linux MCP requires interactive tool approvals"));
+        }
+        acp_agent_registry::verify_vtcode_mcp_executable(&normalized_acp_cfg.command)
+            .map_err(acp_option_error)?;
+    }
+    let glm_managed = linux_reviewed_projection_target && acp_agent_name == "glm-acp-agent"
+        && source == AcpModelSource::SessionModel;
+    let glm_mcp = glm_managed && !parsed_options.mcp_servers.is_empty();
+    if glm_mcp && !interactive_mcp {
+        return Err(acp_option_error("GLM Linux MCP requires interactive tool approvals"));
+    }
     if vtcode_mcp && (source != vw_api_acp_model::acp_model_source::AcpModelSource::SessionModel
         || parsed_options.permission_mode == Some(acp_types::PermissionMode::DenyAll)
         || merged_options.get("disable_tools").and_then(Value::as_bool) == Some(true)
@@ -609,7 +628,7 @@ pub async fn do_stream_request_acp<H: Host>(
                 }
                 std::future::pending::<()>().await;
             };
-            let prepare = if iflow_projection_allowed || mimo_mcp || vtcode_mcp || hermes_mcp || auggie_mcp || droid_mcp || autohand_mcp {
+            let prepare = if iflow_projection_allowed || (glm_managed && interactive_mcp) || mimo_mcp || vtcode_mcp || hermes_mcp || auggie_mcp || droid_mcp || autohand_mcp {
                 H::prepare_stdio_mcp_launch(&acp_agent_name, &normalized_acp_cfg, model, &scoped_session, &cwd, &parsed_options.mcp_servers)
             } else if openclaw_mcp.is_empty() {
                 H::prepare_launch(&acp_agent_name, &normalized_acp_cfg, model, &scoped_session)
@@ -751,6 +770,11 @@ pub async fn do_stream_request_acp<H: Host>(
     }
     if iflow_mcp && launch_profile.as_ref().is_none_or(|profile| profile.managed_mcp.is_none()) {
         return Err(acp_option_error("Missing reviewed iFlow Linux MCP projection"));
+    }
+    if (glm_mcp || (cfg!(target_os = "linux") && vtcode_mcp))
+        && launch_profile.as_ref().is_none_or(|profile| profile.managed_mcp.is_none())
+    {
+        return Err(acp_option_error(format!("Missing reviewed {acp_agent_name} Linux MCP projection")));
     }
     if let Some((servers, _)) = launch_profile.as_ref().and_then(|profile| profile.managed_mcp.as_ref()) {
         parsed_options.mcp_servers = servers.clone();
@@ -916,6 +940,7 @@ pub async fn do_stream_request_acp<H: Host>(
         let cached_client_entry =
             get_cached_acp_client_with_approval::<H>(
                 &acp_agent_name, &normalized_acp_cfg, &cwd, &parsed_options, auggie_sandbox.clone(), hermes_sandbox.clone(), droid_sandbox.clone(), kilocode_sandbox.clone(), opencode_sandbox.clone(), openclaw_sandbox.clone(),
+                launch_profile.as_ref().and_then(|profile| profile.vtcode_linux_sandbox.clone()),
                 launch_profile.as_ref().and_then(|profile| profile.managed_mcp.as_ref()).map(|(_, approve)| approve.clone()),
             );
         let _request_cleanup = super::session::RequestClientCleanup::new(&cached_client_entry);
@@ -1545,7 +1570,10 @@ pub(super) fn validate_linux_session_mcp(
 ) -> Result<(), Error> {
     use vw_api_acp_model::acp_model_source::AcpModelSource;
     let backend = acp_agent_registry::agent_registry::desktop_permission_agent(agent);
-    if selected
+    let reviewed_projection = cfg!(all(target_os = "linux", target_env = "gnu",
+        any(target_arch = "x86_64", target_arch = "aarch64")))
+        && matches!(agent, "vtcode" | "glm-acp-agent") && source == AcpModelSource::SessionModel;
+    if selected && !reviewed_projection
         && (backend.is_some_and(acp_agent_registry::linux_native_only)
             || (cfg!(target_os = "linux") && backend == Some("pi"))
             || (cfg!(target_os = "linux") && backend == Some("glm-acp-agent")

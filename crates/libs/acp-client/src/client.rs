@@ -197,11 +197,18 @@ const DEFAULT_ACTOR_IDLE_TIMEOUT: Duration = Duration::from_secs(60);
 pub trait SkillMountLease: Send + Sync {}
 impl<T: Send + Sync> SkillMountLease for T {}
 
+/// Request-owned host paths for the managed Linux VT Code sandbox.
 #[derive(Clone)]
+pub struct VtcodeLinuxSandbox {
+    pub relay_socket: PathBuf,
+    pub model_config: PathBuf,
+}
+
 /// ACP 客户端的可复用句柄。
 ///
 /// 该类型是上层与 ACP 代理交互的主要入口。它持有启动配置、权限策略、
 /// 回调和后台 actor 状态；克隆句柄会共享同一个 actor 状态和当前提示词控制。
+#[derive(Clone)]
 pub struct AcpClient {
     auggie_sandbox: Option<AuggieSandbox>,
     hermes_sandbox: Option<HermesSandbox>,
@@ -209,6 +216,7 @@ pub struct AcpClient {
     kilocode_sandbox: Option<KilocodeSandbox>,
     opencode_sandbox: Option<OpenCodeSandbox>,
     openclaw_sandbox: Option<OpenClawSandbox>,
+    vtcode_linux_sandbox: Option<VtcodeLinuxSandbox>,
     agent_name: String,
     config: AcpAgentConfig,
     client_name: String,

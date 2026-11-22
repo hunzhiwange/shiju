@@ -174,7 +174,12 @@ fn stdio_command(
         ]);
     }
     if let Some(fd) = config_fd {
-        command.arg("--ro-bind-fd").arg(fd.to_string()).arg(ISOLATED_UNIX_RELAY_MODEL_CONFIG);
+        command.arg("--ro-bind-fd").arg(fd.to_string()).args([
+            ISOLATED_UNIX_RELAY_MODEL_CONFIG,
+            "--setenv",
+            "SHIJU_VTCODE_MCP_ORIGIN",
+            "http://127.0.0.1:1",
+        ]);
     }
     // Bind individual system files only. Extra package libraries and interpreters
     // must not be taken from the host search path or from the host's environment.

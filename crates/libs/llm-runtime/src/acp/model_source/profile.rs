@@ -87,6 +87,7 @@ pub struct AcpLaunchProfile {
     pub model_api: Option<model_types::ApiInfo>,
     /// A selected native provider/model that must be applied by ACP RPC before prompt.
     pub session_model_id: Option<String>,
+    pub(in crate::acp) vtcode_linux_sandbox: Option<acp_client::VtcodeLinuxSandbox>,
     pub managed_mcp_current: Option<Arc<dyn Fn() -> bool + Send + Sync>>,
     pub managed_mcp: Option<(Vec<agent_client_protocol::McpServer>, acp_client::ManagedMcpApproval)>,
 }
@@ -167,6 +168,7 @@ impl AcpLaunchProfile {
                 state_root: None,
                 model_api: None,
                 session_model_id: None,
+                vtcode_linux_sandbox: None,
                 managed_mcp_current: None,
                 managed_mcp: None,
             })

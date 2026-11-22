@@ -106,6 +106,10 @@ impl AcpClient {
             return Err(AcpError::EmptyCommand);
         }
 
+        if let Some(sandbox) = &self.vtcode_linux_sandbox {
+            return self.spawn_vtcode_linux(sandbox);
+        }
+
         let requires_review = matches!(self.agent_name.as_str(), "deepagents" | "sigit" | "amp-acp");
         if requires_review {
             // Local discovery, npx fallback and explicit overrides share this boundary.
@@ -550,6 +554,10 @@ impl AcpClient {
                 AcpError::Initialize("Employee ACP requires a request credential".into())
             })?;
             cmd.env(credential_env, credential);
+            #[cfg(all(feature = "employee-acp-test-support", debug_assertions))]
+            if let Some(address) = std::env::var_os("SHIJU_EMPLOYEE_ACP_FIXTURE_ADDRESS") {
+                cmd.env("SHIJU_EMPLOYEE_ACP_FIXTURE_ADDRESS", address);
+            }
         } else {
             cmd.env_remove(credential_env);
         }
@@ -601,6 +609,43 @@ impl AcpClient {
         });
 
         Ok(ProcessHandles { child, stderr_task })
+    }
+
+    fn spawn_vtcode_linux(&self, sandbox: &VtcodeLinuxSandbox) -> Result<ProcessHandles, AcpError> {
+        #[cfg(all(target_os = "linux", target_env = "gnu", any(target_arch = "x86_64", target_arch = "aarch64")))]
+        {
+            if !self.managed_vtcode()
+                || self.config.args != ["acp"]
+                || self.desktop_workspace.is_some()
+            {
+                return Err(AcpError::Initialize("Invalid managed VT Code Linux launch".into()));
+            }
+            crate::verify_reviewed_agent_executable("vtcode", self.config.command.trim())
+                .map_err(AcpError::Initialize)?;
+            let mut command = acp_host_io::isolated_stdio::vtcode_linux_command(
+                Path::new(self.config.command.trim()),
+                &sandbox.relay_socket,
+                &sandbox.model_config,
+            )
+            .map_err(AcpError::Spawn)?;
+            // The supervisor creates its own session before applying isolation.
+            command.stderr(Stdio::null()).kill_on_drop(true);
+            let child = command.spawn().map_err(AcpError::Spawn)?;
+            return Ok(ProcessHandles { child, stderr_task: None });
+        }
+        #[cfg(not(all(target_os = "linux", target_env = "gnu", any(target_arch = "x86_64", target_arch = "aarch64"))))]
+        {
+            let _ = sandbox;
+            Err(AcpError::Initialize("Unsupported VT Code Linux sandbox target".into()))
+        }
+    }
+
+    pub(super) fn protocol_workspace<'a>(&self, workspace: &'a Path) -> &'a Path {
+        #[cfg(all(target_os = "linux", target_env = "gnu", any(target_arch = "x86_64", target_arch = "aarch64")))]
+        if self.vtcode_linux_sandbox.is_some() {
+            return Path::new(acp_host_io::isolated_stdio::ISOLATED_UNIX_RELAY_WORKSPACE);
+        }
+        workspace
     }
 
     /// Materialize only known official launch shapes; custom argv stays byte-for-byte intact.

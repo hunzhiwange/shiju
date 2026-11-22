@@ -123,7 +123,7 @@ async fn prepare_with_mounts(
     ).await?;
     let endpoint = format!("http://{}", server.address());
     profile.attach_server(server);
-    if let Some(projection) = projection.as_ref().filter(|_| matches!(agent, "vtcode" | "hermes" | "auggie" | "droid" | "autohand" | "iflow")) {
+    if let Some(projection) = projection.as_ref().filter(|_| matches!(agent, "vtcode" | "hermes" | "auggie" | "droid" | "autohand" | "iflow" | "glm-acp-agent")) {
         llm_runtime::acp::model_source::configure_profile(agent, &mut profile, &endpoint, &directory, openclaw_mcp).await?;
         if agent == "auggie" {
             let tools = projection.tools.iter().map(|name| {
@@ -173,12 +173,71 @@ async fn prepare_with_mounts(
 
 type ReviewValidity = std::sync::Arc<dyn Fn() -> bool + Send + Sync>;
 
+#[cfg(all(target_os = "linux", target_env = "gnu", any(target_arch = "x86_64", target_arch = "aarch64")))]
+async fn prepare_glm_mcp_projection(
+    servers: &[acp_types::AcpMcpServer],
+    directory: &str,
+    binding: std::sync::Arc<crate::model_relay::RelayBinding>,
+) -> anyhow::Result<(Option<mimo_mcp::Projection>, Option<ReviewValidity>)> {
+    use crate::agent_apps::mcp::acp_mount::{ReviewedStdioSource, reviewed_linux_stdio_list};
+    use mimo_mcp::{LinuxMcpOwner, LinuxMcpSource, ReviewedLinuxStdio};
+
+    let selected = reviewed_linux_stdio_list(
+        binding.clone(), std::path::Path::new(directory), servers,
+    ).await?;
+    let Some(first) = selected.first() else {
+        anyhow::ensure!(servers.is_empty(), "Missing reviewed GLM Linux MCP selection");
+        return Ok((None, None));
+    };
+    let current = first.current.clone();
+    let policies = selected.iter().map(|selection| {
+        let acp_types::AcpMcpServer::Stdio(service) = &selection.server else {
+            anyhow::bail!("Managed GLM Linux MCP requires reviewed stdio services");
+        };
+        let mut policy = acp_config::McpServerManagement::default_for_server(&service.name);
+        if selection.source == ReviewedStdioSource::Project
+            && let Some(narrowing) = service.meta.as_ref().and_then(|meta| meta.get("shiju.glm.toolPolicy"))
+        {
+            policy.allowed_tools = serde_json::from_value(narrowing["allow"].clone())?;
+            policy.denied_tools = serde_json::from_value(narrowing["deny"].clone())?;
+        }
+        let mut allowed = Vec::new();
+        for name in selection.review.allowed_tools() {
+            let id = tool_mcp::mcp_tool::mcp_tool_id(&service.name, name)?;
+            if mcp_client::mcp_tool_allowed(&policy, name, &id) {
+                allowed.push(name.clone());
+            }
+        }
+        policy.allowed_tools = allowed;
+        Ok(policy)
+    }).collect::<anyhow::Result<Vec<_>>>()?;
+    let declarations = selected.iter().map(|selection| selection.server.clone()).collect::<Vec<_>>();
+    let pins = selected.iter().zip(&policies).map(|(selection, policy)| ReviewedLinuxStdio {
+        owner: LinuxMcpOwner::Glm(match selection.source {
+            ReviewedStdioSource::Project => LinuxMcpSource::Project,
+            ReviewedStdioSource::Mounted => LinuxMcpSource::Mounted,
+        }),
+        executable: selection.review.executable(),
+        sha256: selection.review.sha256(),
+        args: selection.review.args(),
+        policy,
+    }).collect::<Vec<_>>();
+    let projection = mimo_mcp::prepare_linux_stdio_many(
+        &declarations, &pins, binding, current.clone(),
+    ).await?;
+    Ok((Some(projection), Some(current)))
+}
+
 async fn prepare_mcp_projection(
     agent: &str,
     servers: &[acp_types::AcpMcpServer],
     directory: &str,
     binding: std::sync::Arc<crate::model_relay::RelayBinding>,
 ) -> anyhow::Result<(Option<mimo_mcp::Projection>, Option<ReviewValidity>)> {
+    #[cfg(all(target_os = "linux", target_env = "gnu", any(target_arch = "x86_64", target_arch = "aarch64")))]
+    if agent == "glm-acp-agent" {
+        return prepare_glm_mcp_projection(servers, directory, binding).await;
+    }
     #[cfg(all(target_os = "linux", target_env = "gnu", any(target_arch = "x86_64", target_arch = "aarch64")))]
     if matches!(agent, "vtcode" | "iflow") {
         use crate::agent_apps::mcp::acp_mount::{ReviewedStdioSource, reviewed_linux_stdio};

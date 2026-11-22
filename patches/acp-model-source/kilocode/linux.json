@@ -1,6 +1,6 @@
 {
   "version": "7.8.18",
-  "revision": "kilocode-7.8.18-model-source-linux-v2",
+  "revision": "kilocode-7.8.18-model-source-linux-v3",
   "entry": "reviewed/kilocode",
   "targets": {
     "x64": {
@@ -14,7 +14,7 @@
       "padding_end": 259162112,
       "original_sha256": "aa9fb3f37464eafb7c0c395f057dee042e7414a8620a17dc8c3ca2fa39b12361",
       "entry_sha256": "9b32ad2b23693ff211c3feadc68a989682a0ac8c281b4afe80b388c1054a5055",
-      "patched_entry_sha256": "388bd0bbfe9c46823195dfa095c5563de018daa0c5f008f23688c8a3f1bb88a7",
+      "patched_entry_sha256": "842e0fd09e936b067eba792b58c7611342b4a1fda5420acb9373a0553970d4ed",
       "edits": [
         [
           "for(let D of L.skills?.urls??[]){let b=yield*t.pull(D);for(let x of b)yield*qqr(u,x,C9u,{root:x})}return{matches:Array.from(u.matches.values()),dirs:Array.from(u.dirs)}}",
@@ -31,9 +31,13 @@
         [
           "m=yield*t.find({cwd:H,pattern:\"!**/SKILL.md\",hidden:!0,follow:!1,signal:a.abort,limit:10})",
           "m=process.env.SHIJU_KILO_RESTRICTED===\"1\"?(()=>{let files=[];for(let path of new Bun.Glob(\"**/*\").scanSync({cwd:H,dot:!0,followSymlinks:!1,onlyFiles:!0})){if(a.abort.aborted)break;if(pll.basename(path)===\"SKILL.md\")continue;files.push({path});if(files.length===10)break}return files})():(yield*t.find({cwd:H,pattern:\"!**/SKILL.md\",hidden:!0,follow:!1,signal:a.abort,limit:10}))"
+        ],
+        [
+          "function qhi(e,t,r,n,s){let o=performance.now(),a=t.get(n)??new Set;",
+          "function qhi(e,t,r,n,s){if(process.env.SHIJU_KILO_RESTRICTED===\"1\"){let port=process.env.SHIJU_KILO_BRIDGE_PORT;if(!port||s.some(m=>m.type!==\"http\"||m.url.match(/^http:\\/\\/127\\.0\\.0\\.1:(\\d+)\\/mcp\\/[A-Za-z0-9_-]{43}(?![\\s\\S])/)?.[1]!==port||!Array.isArray(m.headers)||m.headers.length))throw Error(\"Invalid managed MCP\")}let o=performance.now(),a=t.get(n)??new Set;"
         ]
       ],
-      "patched_sha256": "23bc339768ecbfaedd0553480720271087956449a958293ac8f7d72f123cc5bc"
+      "patched_sha256": "3c37b0e6a23c9ae24d8d78a6a7b25f62fce2a4c9a688e0391b8cdf69a451ad67"
     },
     "arm64": {
       "package": "@kilocode/cli-linux-arm64",
@@ -46,7 +50,7 @@
       "padding_end": 258211840,
       "original_sha256": "c92049d8b0e03ad3a3526cf133ae1bc54b4e7aef79f410647d357d8b486bfcc2",
       "entry_sha256": "ed17c2d079d5423fa43bb26aecd43b7d8818d9638d1ab6e26b636d17c29f24a3",
-      "patched_entry_sha256": "e87eb0bad4a9fa3864839c66216e56c3c3ecba8ab086723f0e9fb6286c6c3671",
+      "patched_entry_sha256": "0ec40bb842f856e1af0da6645e55fcbb8d294c1c41aa74a306c1e971360bc07b",
       "edits": [
         [
           "for(let R of x.skills?.urls??[]){let E=yield*t.pull(R);for(let S of E)yield*UUr(u,S,Oql,{root:S})}return{matches:Array.from(u.matches.values()),dirs:Array.from(u.dirs)}}",
@@ -63,9 +67,13 @@
         [
           "A=yield*t.find({cwd:f,pattern:\"!**/SKILL.md\",hidden:!0,follow:!1,signal:a.abort,limit:10})",
           "A=process.env.SHIJU_KILO_RESTRICTED===\"1\"?(()=>{let files=[];for(let path of new Bun.Glob(\"**/*\").scanSync({cwd:f,dot:!0,followSymlinks:!1,onlyFiles:!0})){if(a.abort.aborted)break;if(huu.basename(path)===\"SKILL.md\")continue;files.push({path});if(files.length===10)break}return files})():(yield*t.find({cwd:f,pattern:\"!**/SKILL.md\",hidden:!0,follow:!1,signal:a.abort,limit:10}))"
+        ],
+        [
+          "function Ugi(e,t,r,n,s){let o=performance.now(),a=t.get(n)??new Set;",
+          "function Ugi(e,t,r,n,s){if(process.env.SHIJU_KILO_RESTRICTED===\"1\"){let port=process.env.SHIJU_KILO_BRIDGE_PORT;if(!port||s.some(m=>m.type!==\"http\"||m.url.match(/^http:\\/\\/127\\.0\\.0\\.1:(\\d+)\\/mcp\\/[A-Za-z0-9_-]{43}(?![\\s\\S])/)?.[1]!==port||!Array.isArray(m.headers)||m.headers.length))throw Error(\"Invalid managed MCP\")}let o=performance.now(),a=t.get(n)??new Set;"
         ]
       ],
-      "patched_sha256": "4f55cd95b1f45f0b71d77aca7950caa7b88b2be668901248bc1471b564759262"
+      "patched_sha256": "b511073bf0706e06ed93c50e02d9cd13bf0c46743f13e47d79a20bee70800da3"
     }
   }
 }

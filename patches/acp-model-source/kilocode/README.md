@@ -44,6 +44,12 @@ uses the release's existing ELF segment padding for the same four scanner
 edits, checks the complete output digest, and publishes the executable
 atomically. Both targets use the native `acp --pure` entry.
 
+In revision 3, restricted ACP registration accepts only the anonymous
+Streamable HTTP paths issued by the host bridge. The Linux launcher must
+set `SHIJU_KILO_BRIDGE_PORT` from the bridge's bound port in the child
+environment. The client rejects every supplied mount if the port is unset
+or any entry falls outside that contract.
+
 The patched ELF is an installation input. Restricted Linux use still
 requires a launcher that enforces the workspace, execution, and loopback
 boundaries and isolates the downstream MCP peers. The checked-in Seatbelt

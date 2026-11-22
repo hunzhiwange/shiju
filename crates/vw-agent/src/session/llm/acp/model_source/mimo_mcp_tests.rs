@@ -1,21 +1,25 @@
 use super::*;
-#[cfg(all(target_os = "macos", target_arch = "aarch64"))]
 use agent_client_protocol::McpServerStdio;
 use axum::body::Body;
 use model_transport::RelayIdentity;
-#[cfg(all(target_os = "macos", target_arch = "aarch64"))]
 use tower::ServiceExt;
 
 const SERVER: &str = r#"
+if [ -n "${DISCOVERY_AUDIT:-}" ]; then
+    printf 'started\n' >> "$DISCOVERY_AUDIT"
+fi
 while IFS= read -r line; do
     case "$line" in
-        *'"id":'*) id=${line#*\"id\":}; id=${id%%[,}]*};;
+        *'"id":'*) id=${line#*\"id\":}; id=${id%%,*}; id=${id%%\}*};;
         *) continue;;
     esac
     case "$line" in
         *'"method":"initialize"'*)
             result='{"protocolVersion":"2024-11-05","capabilities":{"tools":{}},"serverInfo":{"name":"fixture","version":"1"}}';;
         *'"method":"tools/list"'*)
+            if [ -n "${DISCOVERY_AUDIT:-}" ]; then
+                printf 'listed\n' >> "$DISCOVERY_AUDIT"
+            fi
             result='{"tools":[{"name":"echo","inputSchema":{"type":"object"}},{"name":"denied","inputSchema":{"type":"object"}}]}';;
         *'"method":"tools/call"'*)
             if [ -n "${APPROVAL_AUDIT:-}" ]; then
@@ -41,16 +45,16 @@ fn binding(session: &str) -> Arc<RelayBinding> {
     .unwrap()
 }
 
-#[cfg(all(target_os = "macos", target_arch = "aarch64"))]
 async fn post(
     projection: &Projection,
+    route: &str,
     token: &str,
     method: &str,
     params: Value,
 ) -> (StatusCode, Value) {
     let request = axum::http::Request::builder()
         .method("POST")
-        .uri("/shiju-mimo-mcp/fixture")
+        .uri(route)
         .header(AUTHORIZATION, format!("Bearer {token}"))
         .body(Body::from(
             json!({"jsonrpc":"2.0","id":1,"method":method,"params":params}).to_string(),
@@ -81,31 +85,32 @@ async fn mimo_mcp_projects_filters_calls_and_revokes_the_selected_catalog() {
     .await
     .unwrap();
     assert_eq!(projection.tools, ["fixture_echo"]);
+    const ROUTE: &str = "/shiju-mimo-mcp/fixture";
     assert_eq!(
-        post(&projection, launch.bearer_token(), "tools/list", json!({})).await.0,
+        post(&projection, ROUTE, launch.bearer_token(), "tools/list", json!({})).await.0,
         StatusCode::UNAUTHORIZED
     );
     assert_eq!(
-        post(&projection, binding("other:mimo-code").bearer_token(), "tools/list", json!({}))
+        post(&projection, ROUTE, binding("other:mimo-code").bearer_token(), "tools/list", json!({}))
             .await
             .0,
         StatusCode::UNAUTHORIZED
     );
-    let (status, listed) = post(&projection, projection.token(), "tools/list", json!({})).await;
+    let (status, listed) = post(&projection, ROUTE, projection.token(), "tools/list", json!({})).await;
     assert_eq!(status, StatusCode::OK);
     assert_eq!(listed["result"]["tools"].as_array().unwrap().len(), 1);
     assert_eq!(listed["result"]["tools"][0]["name"], "echo");
     let (_, denied) =
-        post(&projection, projection.token(), "tools/call", json!({"name":"denied"})).await;
+        post(&projection, ROUTE, projection.token(), "tools/call", json!({"name":"denied"})).await;
     assert_eq!(denied["error"]["code"], -32602);
     let (_, called) =
-        post(&projection, projection.token(), "tools/call", json!({"name":"echo","arguments":{}}))
+        post(&projection, ROUTE, projection.token(), "tools/call", json!({"name":"echo","arguments":{}}))
             .await;
     assert_eq!(called["result"]["content"][0]["text"], "fixture result");
 
     launch.revoke();
     assert_eq!(
-        post(&projection, projection.token(), "tools/list", json!({})).await.0,
+        post(&projection, ROUTE, projection.token(), "tools/list", json!({})).await.0,
         StatusCode::UNAUTHORIZED
     );
 }
@@ -184,4 +189,123 @@ async fn acp_platform_approval_dispatch_binds_call_source_and_arguments() {
     assert!(send(request.clone()).await.is_ok());
     assert_eq!(send(request).await.err(), Some(StatusCode::FORBIDDEN));
     assert_eq!(std::fs::read_to_string(audit).unwrap(), "executed\n");
+}
+
+#[cfg(all(target_os = "linux", target_env = "gnu", any(target_arch = "x86_64", target_arch = "aarch64")))]
+#[tokio::test]
+async fn acp_platform_approval_only_launches_the_reviewed_linux_projection() {
+    use sha2::{Digest, Sha256};
+
+    const ROUTE: &str = "/shiju-vtcode-mcp/selected";
+    let dir = tempfile::tempdir().unwrap();
+    let discovery = dir.path().join("discovery");
+    let execution = dir.path().join("execution");
+    let executable = FsPath::new("/bin/bash").canonicalize().unwrap();
+    let digest: [u8; 32] = Sha256::digest(std::fs::read(&executable).unwrap()).into();
+    let args = vec!["-c".into(), SERVER.into()];
+    let mut policy = acp_config::McpServerManagement::default_for_server("selected");
+    policy.enabled = true;
+    policy.allowed_tools = vec!["echo".into()];
+    let pin = |sha256| ReviewedLinuxStdio {
+        executable: &executable, sha256, args: &args, policy: &policy,
+    };
+    let launch = binding("first:vtcode");
+    let selected = AcpMcpServer::Stdio(McpServerStdio::new("selected", &executable).args(args.clone()));
+    let implicit = AcpMcpServer::Stdio(McpServerStdio::new("project", &executable).args(args.clone()));
+    let altered = AcpMcpServer::Stdio(McpServerStdio::new("selected", &executable).args(vec!["-s".into()]));
+    let must_not_launch = |_: &FsPath, _: &[String]| -> anyhow::Result<Command> {
+        panic!("unapproved discovery reached process preparation")
+    };
+    for rejected in [vec![], vec![implicit], vec![altered], vec![selected.clone(), selected.clone()]] {
+        assert!(prepare_linux_vtcode_with(&rejected, pin(digest), launch.clone(), must_not_launch).await.is_err());
+    }
+    assert!(prepare_linux_vtcode_with(
+        std::slice::from_ref(&selected), pin([0; 32]), launch.clone(), must_not_launch,
+    ).await.is_err());
+    let revoked = binding("revoked:vtcode");
+    revoked.revoke();
+    assert!(prepare_linux_vtcode_with(
+        std::slice::from_ref(&selected), pin(digest), revoked, must_not_launch,
+    ).await.is_err());
+    assert!(!discovery.exists());
+
+    let projection = prepare_linux_vtcode_with(&[selected], pin(digest), launch.clone(), |staged, args| {
+        // Only the test replaces the OS sandbox command. Catalog discovery and
+        // the mounted peer execute the real stdio protocol and router.
+        assert_ne!(staged, executable.as_path());
+        let staged_digest: [u8; 32] = Sha256::digest(std::fs::read(staged).unwrap()).into();
+        assert_eq!(staged_digest, digest);
+        let mut command = Command::new(staged);
+        command.args(args).current_dir(staged.parent().unwrap()).env_clear()
+            .env("DISCOVERY_AUDIT", &discovery)
+            .env("APPROVAL_AUDIT", &execution);
+        Ok(command)
+    }).await.unwrap();
+
+    let token = projection.token();
+    let foreign = binding("other:vtcode");
+    assert_eq!(post(&projection, ROUTE, foreign.bearer_token(), "tools/list", json!({})).await.0,
+        StatusCode::UNAUTHORIZED);
+    let (status, catalog) = post(&projection, ROUTE, token, "tools/list", json!({})).await;
+    assert_eq!(status, StatusCode::OK);
+    let tools = catalog["result"]["tools"].as_array().unwrap();
+    assert_eq!(tools.len(), 1);
+    assert_eq!(tools[0]["name"], "echo");
+    assert_eq!(std::fs::read_to_string(&discovery).unwrap(), "started\nlisted\n");
+
+    let input = json!({"path": "note.txt"});
+    let call = json!({"name": "echo", "arguments": input, "_meta": {"shijuCallId": "owned-call"}});
+    assert_eq!(post(&projection, ROUTE, token, "tools/call", call.clone()).await.0, StatusCode::FORBIDDEN);
+    assert!(!execution.exists());
+    let (_, issue) = projection.approval_config("http://127.0.0.1:1").unwrap();
+    assert!(!issue("mcp__project__echo", "owned-call", &input, Box::new(|| true)));
+    assert!(issue("mcp__selected__echo", "owned-call", &input, Box::new(|| true)));
+    assert_eq!(post(&projection, ROUTE, token, "tools/call", call.clone()).await.0, StatusCode::OK);
+    assert_eq!(post(&projection, ROUTE, token, "tools/call", call.clone()).await.0, StatusCode::FORBIDDEN);
+    launch.revoke();
+    assert!(!issue("mcp__selected__echo", "owned-call", &input, Box::new(|| true)));
+    assert_eq!(post(&projection, ROUTE, token, "tools/call", call).await.0, StatusCode::UNAUTHORIZED);
+    assert_eq!(std::fs::read_to_string(execution).unwrap(), "executed\n");
+}
+
+#[cfg(all(target_os = "linux", target_env = "gnu", any(target_arch = "x86_64", target_arch = "aarch64")))]
+#[tokio::test]
+#[ignore = "requires non-root GNU Linux with Bubblewrap user namespaces and native dash"]
+async fn acp_platform_approval_linux_sandboxed_stdio_dispatch() {
+    use sha2::{Digest, Sha256};
+
+    const ROUTE: &str = "/shiju-vtcode-mcp/selected";
+    let executable = FsPath::new("/bin/dash").canonicalize().unwrap();
+    // The sandbox must not see this host file, even during catalog discovery.
+    let host = tempfile::NamedTempFile::new().unwrap();
+    let fixture = format!(
+        "[ ! -e \"$1\" ] && [ \"$PWD\" = /tmp/work ] || exit 4\n{SERVER}"
+    );
+    let args = vec!["-c".into(), fixture, "relay-fixture".into(), host.path().to_str().unwrap().into()];
+    let mut policy = acp_config::McpServerManagement::default_for_server("selected");
+    policy.enabled = true;
+    policy.allowed_tools = vec!["echo".into()];
+    let launch = binding("sandboxed:vtcode");
+    let selection = AcpMcpServer::Stdio(McpServerStdio::new("selected", &executable).args(args.clone()));
+    let projection = prepare_linux_vtcode(
+        &[selection],
+        ReviewedLinuxStdio {
+            executable: &executable,
+            sha256: Sha256::digest(std::fs::read(&executable).unwrap()).into(),
+            args: &args,
+            policy: &policy,
+        },
+        launch.clone(),
+    ).await.unwrap();
+    let token = projection.token();
+    let input = json!({});
+    let call = json!({"name": "echo", "arguments": input, "_meta": {"shijuCallId": "sandbox-call"}});
+    assert_eq!(post(&projection, ROUTE, token, "tools/call", call.clone()).await.0, StatusCode::FORBIDDEN);
+    let (_, issue) = projection.approval_config("http://127.0.0.1:1").unwrap();
+    assert!(issue("mcp__selected__echo", "sandbox-call", &input, Box::new(|| true)));
+    let (status, result) = post(&projection, ROUTE, token, "tools/call", call.clone()).await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(result["result"]["content"][0]["text"], "fixture result");
+    launch.revoke();
+    assert_eq!(post(&projection, ROUTE, token, "tools/call", call).await.0, StatusCode::UNAUTHORIZED);
 }

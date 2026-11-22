@@ -113,6 +113,7 @@ pub(super) struct Projection {
     pub(super) router: Router,
     servers: Vec<String>,
     access: Arc<RelayBinding>,
+    launch: Arc<RelayBinding>,
     pub(super) tools: Vec<String>,
     approvals: Option<Arc<VtcodeApproval>>,
 }
@@ -128,8 +129,12 @@ impl Projection {
         use agent_client_protocol::{HttpHeader, McpServerHttp};
         let approvals = self.approvals.clone().ok_or_else(|| anyhow::anyhow!("Missing managed MCP approval store"))?;
         let catalog = self.tools.clone();
+        let launch = self.launch.clone();
+        let access = self.access.clone();
         let approve: acp_client::ManagedMcpApproval = Arc::new(move |name, call_id, input, valid| {
-            input.is_object() && catalog.iter().any(|tool| tool == name)
+            !launch.cancelled().is_cancelled()
+                && access.expires().is_none_or(|expires| Instant::now() < expires)
+                && input.is_object() && catalog.iter().any(|tool| tool == name)
                 && approvals.issue(name, call_id, input, valid)
         });
         let servers = self.servers.iter().map(|name| {
@@ -157,6 +162,128 @@ impl Projection {
     }
 }
 
+/// A pin from the host's reviewed service catalog. The ACP mount is only a
+/// selection and cannot supply this pin or choose the isolated launcher.
+#[cfg(all(target_os = "linux", target_env = "gnu", any(target_arch = "x86_64", target_arch = "aarch64")))]
+pub(super) struct ReviewedLinuxStdio<'a> {
+    pub(super) executable: &'a FsPath,
+    pub(super) sha256: [u8; 32],
+    pub(super) args: &'a [String],
+    pub(super) policy: &'a acp_config::McpServerManagement,
+}
+
+/// Candidate entry point for the managed VT Code launch. The registry and
+/// adapter still have to supply a reviewed selection and enable their route.
+#[cfg(all(target_os = "linux", target_env = "gnu", any(target_arch = "x86_64", target_arch = "aarch64")))]
+pub(super) async fn prepare_linux_vtcode(
+    selected: &[AcpMcpServer],
+    reviewed: ReviewedLinuxStdio<'_>,
+    launch: Arc<RelayBinding>,
+) -> anyhow::Result<Projection> {
+    prepare_linux_vtcode_with(selected, reviewed, launch, |executable, args| {
+        let args = args.iter().map(|arg| std::ffi::OsString::from(arg.as_str())).collect::<Vec<_>>();
+        let command = process_sandbox::bubblewrap::isolated_stdio_command(executable, &args)?;
+        Ok(Command::from(command))
+    }).await
+}
+
+#[cfg(all(target_os = "linux", target_env = "gnu", any(target_arch = "x86_64", target_arch = "aarch64")))]
+async fn prepare_linux_vtcode_with(
+    selected: &[AcpMcpServer],
+    reviewed: ReviewedLinuxStdio<'_>,
+    launch: Arc<RelayBinding>,
+    isolate: impl FnOnce(&FsPath, &[String]) -> anyhow::Result<Command>,
+) -> anyhow::Result<Projection> {
+    use sha2::{Digest, Sha256};
+    use std::{io::{Read, Write}, os::unix::fs::OpenOptionsExt};
+
+    anyhow::ensure!(launch.identity().session.ends_with(":vtcode"), "Expected a VT Code launch");
+    let [AcpMcpServer::Stdio(service)] = selected else {
+        anyhow::bail!("VT Code Linux requires one explicitly selected stdio service");
+    };
+    let policy = reviewed.policy;
+    anyhow::ensure!(
+        policy.enabled && !policy.allowed_tools.is_empty()
+            && valid_name(&service.name) && service.name == policy.name
+            && service.env.is_empty()
+            && service.command.as_path() == reviewed.executable
+            && service.args.as_slice() == reviewed.args,
+        "VT Code Linux selection differs from the reviewed service"
+    );
+    anyhow::ensure!(
+        reviewed.executable.is_absolute() && reviewed.executable.canonicalize()? == reviewed.executable,
+        "VT Code Linux service requires a canonical executable"
+    );
+    anyhow::ensure!(!launch.cancelled().is_cancelled(), "VT Code Linux projection was revoked");
+    let scratch = tempfile::Builder::new().prefix("shiju-vtcode-mcp-").tempdir()?;
+    let entry = scratch.path().canonicalize()?.join("entry");
+    // Hash the same bytes written to the private entry that Bubblewrap opens.
+    let mut copy = std::fs::OpenOptions::new().write(true).create_new(true).mode(0o500).open(&entry)?;
+    let mut file = std::fs::OpenOptions::new()
+        .read(true)
+        .custom_flags(libc::O_NOFOLLOW | libc::O_NONBLOCK)
+        .open(reviewed.executable)?;
+    anyhow::ensure!(file.metadata()?.is_file(), "VT Code Linux service must be a regular file");
+    let mut hash = Sha256::new();
+    let mut buffer = [0u8; 64 * 1024];
+    loop {
+        let size = file.read(&mut buffer)?;
+        if size == 0 { break; }
+        hash.update(&buffer[..size]);
+        copy.write_all(&buffer[..size])?;
+    }
+    let actual: [u8; 32] = hash.finalize().into();
+    anyhow::ensure!(
+        actual == reviewed.sha256,
+        "VT Code Linux service checksum mismatch"
+    );
+
+    drop(copy);
+    drop(file);
+    anyhow::ensure!(!launch.cancelled().is_cancelled(), "VT Code Linux projection was revoked");
+    let command = isolate(&entry, reviewed.args)?;
+    let (peer, listed) = discover_stdio(command, &launch).await?;
+    let mut catalog = BTreeMap::new();
+    let mut approval_names = BTreeMap::new();
+    for tool in listed {
+        let name = tool.name.to_string();
+        anyhow::ensure!(valid_name(&name), "Invalid VT Code Linux tool name");
+        let tool_id = tool_mcp::mcp_tool::mcp_tool_id(&service.name, &name)?;
+        if mcp_client::mcp_tool_allowed(policy, &name, &tool_id) {
+            let public = format!("mcp__{}__{name}", service.name);
+            anyhow::ensure!(
+                public.len() <= 64 && !catalog.contains_key(&name),
+                "Invalid or duplicate VT Code Linux tool"
+            );
+            approval_names.insert(name.clone(), public);
+            catalog.insert(name, tool);
+        }
+    }
+    let tools = approval_names.values().cloned().collect::<BTreeSet<_>>();
+    let servers = BTreeMap::from([(
+        service.name.clone(),
+        Server { peer, catalog, approval_names, permits: Semaphore::new(1), _scratch: scratch, graph_root: None },
+    )]);
+    finish_projection(launch, servers, tools, Some(Arc::new(VtcodeApproval::new(true))))
+}
+
+async fn discover_stdio(
+    command: Command,
+    launch: &RelayBinding,
+) -> anyhow::Result<(mcp_client::RunningMcpPeer, Vec<Tool>)> {
+    tokio::select! {
+        biased;
+        () = launch.cancelled().cancelled() => anyhow::bail!("MCP projection was revoked"),
+        result = async {
+            let peer = mcp_client::client::open_isolated_stdio_peer(
+                command, TIMEOUT, launch.cancelled().clone(),
+            ).await?;
+            let listed = tokio::time::timeout(TIMEOUT, mcp_client::catalog::list_tools(&peer)).await??;
+            Ok((peer, listed))
+        } => result,
+    }
+}
+
 pub(super) async fn prepare(
     definitions: &[AcpMcpServer],
     directory: &str,
@@ -177,7 +304,7 @@ pub(super) async fn prepare(
         "Managed MCP requires a reviewed relay"
     );
     let approvals = requires_approval
-        .then(|| Arc::new(VtcodeApproval::new(vtcode && cfg!(target_os = "linux"))));
+        .then(|| Arc::new(VtcodeApproval::new(false)));
     anyhow::ensure!(
         !definitions.is_empty() && definitions.len() <= 16,
         "invalid MiMo MCP service count"
@@ -187,7 +314,6 @@ pub(super) async fn prepare(
         workspace.is_dir() && workspace.parent().is_some(),
         "invalid MiMo MCP workspace"
     );
-    let access = RelayBinding::new(launch.identity().clone(), Duration::from_secs(900))?;
     let mut servers = BTreeMap::new();
     let mut services = BTreeSet::new();
     let mut native_tools = BTreeSet::new();
@@ -276,14 +402,7 @@ pub(super) async fn prepare(
             .env("TMPDIR", &scratch_path)
             .env("LANG", "en_US.UTF-8");
 
-        let peer = mcp_client::client::open_isolated_stdio_peer(
-            command,
-            TIMEOUT,
-            launch.cancelled().clone(),
-        )
-        .await?;
-        let listed =
-            tokio::time::timeout(TIMEOUT, mcp_client::catalog::list_tools(&peer)).await??;
+        let (peer, listed) = discover_stdio(command, &launch).await?;
         let mut catalog = BTreeMap::new();
         let mut approval_names = BTreeMap::new();
         for mut tool in listed {
@@ -337,12 +456,23 @@ pub(super) async fn prepare(
             );
         }
     }
-    anyhow::ensure!(!requires_approval || !servers.is_empty(), "No tools in the selected ACP MCP catalog");
+    finish_projection(launch, servers, native_tools, approvals)
+}
+
+fn finish_projection(
+    launch: Arc<RelayBinding>,
+    servers: BTreeMap<String, Server>,
+    tools: BTreeSet<String>,
+    approvals: Option<Arc<VtcodeApproval>>,
+) -> anyhow::Result<Projection> {
+    let requires_approval = approvals.is_some();
+    anyhow::ensure!(!requires_approval || !tools.is_empty(), "No tools in the selected ACP MCP catalog");
+    let access = RelayBinding::new(launch.identity().clone(), Duration::from_secs(900))?;
     let names = servers.keys().cloned().collect();
-    let state = Arc::new(Bridge { launch, access: access.clone(), servers, approvals: approvals.clone() });
+    let state = Arc::new(Bridge { launch: launch.clone(), access: access.clone(), servers, approvals: approvals.clone() });
     let route = if requires_approval { "/shiju-vtcode-mcp/{service}" } else { "/shiju-mimo-mcp/{service}" };
     let router = Router::new().route(route, post(handle)).with_state(state);
-    Ok(Projection { router, servers: names, access, tools: native_tools.into_iter().collect(), approvals })
+    Ok(Projection { router, servers: names, access, launch, tools: tools.into_iter().collect(), approvals })
 }
 
 #[cfg(unix)]

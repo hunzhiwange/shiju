@@ -274,7 +274,7 @@ pub async fn agent_model_inheritance_acp_new_and_reopened_sessions_preserve_prio
                             Some(expected),
                             "new/reopened {explicit:?}"
                         );
-                        assert_eq!(overrides.acp_backend.as_deref(), Some("codex"));
+                        assert_eq!(resolved.acp_backend.as_deref(), Some("codex"));
                     }
                 }
                 let mut inherited = GatewayChatStreamRequest {

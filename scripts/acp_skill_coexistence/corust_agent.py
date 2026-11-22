@@ -6,6 +6,7 @@ import json
 import os
 from pathlib import Path
 import platform
+import runpy
 import secrets
 import shutil
 import subprocess
@@ -26,6 +27,21 @@ NATIVE_TOOLS = {"read_file", "write_file", "glob", "grep"}
 
 
 def launch(env):
+    if platform.system() == "Linux":
+        require(platform.machine() == "x86_64", "Corust 0.6.0 has no Linux ARM64 archive")
+        archive = os.environ.get("ACP_CORUST_LINUX_ARCHIVE")
+        require(archive, "set ACP_CORUST_LINUX_ARCHIVE to the fixed Corust Linux archive")
+        installer = runpy.run_path(
+            str(ROOT / "patches/acp-model-source/corust-agent/install_linux.py"))
+        staging = (Path(env["VIBEWINDOW_CONFIG_DIR"]) / "acp-runtime"
+                   / f"corust-agent-{VERSION}-linux-x64-native")
+        staging.parent.mkdir(parents=True, exist_ok=True)
+        entry, contract = installer["install_native"](Path(archive), staging)
+        require(contract["version"] == VERSION, "unexpected Corust version")
+        return {"command": str(entry), "args": []}, {
+            "version": VERSION, "entry": entry.name,
+            "native_sha256": contract["files"][entry.name],
+        }
     require((platform.system(), platform.machine()) == ("Darwin", "arm64"),
             "unreviewed Corust platform")
     contract = json.loads((ROOT / "crates/libs/acp-agent-registry/src/managed_runtime"

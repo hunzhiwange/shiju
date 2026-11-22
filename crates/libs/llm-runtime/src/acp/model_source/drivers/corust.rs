@@ -8,6 +8,10 @@ pub fn configure(
     endpoint: &str,
     directory: &str,
 ) -> anyhow::Result<()> {
+    anyhow::ensure!(
+        !cfg!(target_os = "linux"),
+        "Corust session_model requires Linux isolation for its native and MCP processes"
+    );
     let config = profile.config();
     anyhow::ensure!(
         config.args.is_empty() && config.env.keys().all(|key| key == REFERENCE_ENV),

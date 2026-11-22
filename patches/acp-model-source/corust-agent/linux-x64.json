@@ -1,0 +1,12 @@
+{
+  "layout": "standalone",
+  "package": "corust-agent",
+  "version": "0.6.0",
+  "target": "x86_64-unknown-linux-gnu",
+  "bin": "corust-agent-acp",
+  "artifact_url": "https://api.github.com/repos/rustingai/corust-agent-release/releases/assets/419147802",
+  "archive_sha256": "2a2e42572b317c83d38f3c373ef5f417e83b0ccabf2fb43ff2aa038ab9f73ba2",
+  "files": {
+    "corust-agent-acp": "3392fe6c6609a84824323f755b720f31f2d158ab6c74dbe360843334e02f1547"
+  }
+}

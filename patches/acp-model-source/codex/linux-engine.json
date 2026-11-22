@@ -1,6 +1,6 @@
 {
   "bridge_version": "2.5.0",
-  "bridge_sha256": "171b6467529780441b66be1aac1460363e1c3fc825be73eba41dfe9e99da70fa",
+  "bridge_sha256": "0dc0bb3066158b4e5c0d5121b48b83e9bb471ab45221ae94baac24fc485a9321",
   "engine_version": "0.165.0",
   "wrapper_integrity": "sha512-aiwtQVp2KBhJld966CuU5bVfQ46VNB4mNTl6giX3WGZdt4euI3tv2RUqJpnupPNA8DXHg2z+RoQ0Zfw87dy8Lw==",
   "wrapper_sha256": "61b0194f3bb6534439c8d26a3ed57d0805f84b884588b761795323eeb92fcf70",

@@ -19,3 +19,124 @@
 +    }
 +    codex = spawn(process.execPath, [wrapper, ...appServerStartupArgs], { env: spawnEnv });
 +  } else if (codexPath) {
+@@ -39082,0 +39099,17 @@
++    }
++  }
++  async requestShijuMcpPermission(sessionId, toolCallId, title, rawInput) {
++    if (this.cancellationSignal?.aborted) return false;
++    try {
++      const response = await this.connection.request(methods.client.session.requestPermission, {
++        sessionId,
++        toolCall: { toolCallId, title, kind: "other", rawInput },
++        options: [
++          { optionId: "shiju-mcp-once", name: "Allow once", kind: "allow_once" },
++          { optionId: "shiju-mcp-deny", name: "Deny", kind: "reject_once" }
++        ]
++      }, this.requestOptions());
++      return !this.cancellationSignal?.aborted && response.outcome?.outcome === "selected" &&
++        response.outcome.optionId === "shiju-mcp-once";
++    } catch {
++      return false;
+@@ -40559,0 +40593 @@
++    if (shijuHostMcp()) return [_AgentMode.ReadOnly];
+@@ -40562,0 +40597 @@
++    if (shijuHostMcp() && modeId !== "read-only") return null;
+@@ -40566,0 +40602 @@
++    if (shijuHostMcp()) return _AgentMode.ReadOnly;
+@@ -41931,0 +41968,23 @@
++    const binding = shijuHostMcp();
++    if (binding) {
++      const server = mcpServers[0];
++      if (mcpServers.length !== 1 || server?.type !== "http" || server.name !== binding.name ||
++          server.url !== binding.url || server.headers?.length !== 1 ||
++          server.headers[0].name !== "Authorization" || !/^Bearer [A-Za-z0-9_-]+$/.test(server.headers[0].value) ||
++          (await this.getConfigMcpServerNames(projectPath)).size !== 0) {
++        throw new Error("Managed Codex MCP requires the sole host projection");
++      }
++      return { config: {
++        ...this.config,
++        features: {
++          shell_tool: false, code_mode: false, code_mode_host: false, multi_agent: false,
++          multi_agent_v2: false, tool_call_mcp_elicitation: false, apps: false,
++          standalone_web_search: false
++        },
++        web_search: "disabled",
++        mcp_servers: { [binding.name]: {
++          ...toCodexMcpServerConfig(normalizeMcpServer(server)),
++          default_tools_approval_mode: "prompt"
++        } }
++      }, skippedMcpServers: [] };
++    }
+@@ -42136,0 +42196 @@
++    if (shijuHostMcp()) agentMode = AgentMode.ReadOnly;
+@@ -42848,0 +42909,10 @@
++// Linux managed MCP uses the native item ID, never a form or service-name guess.
++function shijuHostMcp() {
++  const name = process.env["SHIJU_CODEX_HOST_MCP_SERVER"];
++  const url = process.env["SHIJU_CODEX_HOST_MCP_URL"];
++  if (process.platform !== "linux" || !process.env["SHIJU_CODEX_MODEL_LOCK"] || !name && !url) return null;
++  if (!/^[A-Za-z0-9_-]{1,48}$/.test(name ?? "") || !url) {
++    throw new Error("Invalid managed Codex MCP binding");
++  }
++  return { name, url };
++}
+@@ -42849,0 +42920,43 @@
++  shijuMcpItems = new Map();
++  observeShijuMcp(notification) {
++    const { threadId, turnId, item } = notification.params ?? {};
++    if (notification.method === "turn/started" || notification.method === "turn/completed") {
++      this.shijuMcpItems.delete(threadId);
++      return;
++    }
++    if (item?.type !== "mcpToolCall" || item.server !== shijuHostMcp().name) return;
++    if (notification.method === "item/completed") {
++      this.shijuMcpItems.get(threadId)?.delete(item.id);
++      return;
++    }
++    if (notification.method !== "item/started" || item.status !== "inProgress" || !turnId ||
++        this.runningTurnIds.get(threadId) !== turnId) return;
++    const items = this.shijuMcpItems.get(threadId) ?? new Map();
++    if (items.size >= 64) return;
++    // A duplicate start invalidates the ID rather than replacing its arguments.
++    items.set(item.id, items.has(item.id) ? null : { turnId, item });
++    this.shijuMcpItems.set(threadId, items);
++  }
++  async requestShijuMcpApproval(params, handler) {
++    const { threadId, turnId, itemId, questions } = params;
++    const items = this.shijuMcpItems.get(threadId);
++    const record = items?.get(itemId);
++    const question = questions?.[0];
++    const binding = shijuHostMcp();
++    if (!handler || !record || !turnId || this.runningTurnIds.get(threadId) !== turnId ||
++        record.turnId !== turnId || !/^[A-Za-z0-9_-]{1,128}$/.test(itemId ?? "") ||
++        questions?.length !== 1 || question?.id !== `mcp_tool_call_approval_${itemId}` ||
++        params.isBlocking !== true || params.autoResolutionMs !== null ||
++        !question.options?.some((option) => option.label === "Allow")) return { answers: {} };
++    const { item } = record;
++    if (item.server !== binding.name || !/^[A-Za-z0-9_-]{1,48}$/.test(item.tool ?? "") ||
++        !item.arguments || typeof item.arguments !== "object" || Array.isArray(item.arguments)) return { answers: {} };
++    const pending = {};
++    items.set(itemId, pending);
++    const title = `mcp__${item.server}__${item.tool}`;
++    if (title.length > 64) return { answers: {} };
++    const approved = await handler.requestShijuMcpPermission(threadId, itemId, title, item.arguments);
++    if (!approved || this.runningTurnIds.get(threadId) !== turnId ||
++        this.shijuMcpItems.get(threadId) !== items || items.get(itemId) !== pending || this.elicitationHandlers.get(threadId) !== handler) return { answers: {} };
++    return { answers: { [question.id]: { answers: ["Allow"] } } };
++  }
+@@ -42876,0 +42990 @@
++      if (shijuHostMcp()) this.observeShijuMcp(serverNotification);
+@@ -42920,0 +43035 @@
++      if (shijuHostMcp()) return { decision: "cancel" };
+@@ -42930,0 +43046 @@
++      if (shijuHostMcp()) return { decision: "cancel" };
+@@ -42940,0 +43057 @@
++      if (shijuHostMcp()) return { permissions: {}, scope: "turn", strictAutoReview: false };
+@@ -42950,0 +43068 @@
++      if (shijuHostMcp()) return { action: "cancel", content: null, _meta: null };
+@@ -42960,0 +43079,3 @@
++      if (shijuHostMcp()) {
++        return await this.requestShijuMcpApproval(params, this.elicitationHandlers.get(params.threadId));
++      }
+@@ -42977,0 +43099 @@
++    this.shijuMcpItems.delete(threadId);

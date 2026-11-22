@@ -103,3 +103,26 @@ async fn acp_platform_codex_contract_reviewed_launch_and_protocols() {
         assert_eq!(version.as_deref(), contract["bridge_version"].as_str());
     }
 }
+
+#[test]
+fn acp_platform_codex_contract_host_mcp_execution_identity() {
+    use crate::acp::model_source::drivers::codex::host_mcp_call_id;
+
+    let input = json!({"name": "read_probe", "arguments": {"value": "challenge"}});
+    let mut native = input.clone();
+    native["_meta"] = json!({"callId": "call_fixture_1", "sessionId": "thread-fixture"});
+    assert_eq!(host_mcp_call_id(&native), Some("call_fixture_1"));
+    assert_eq!(host_mcp_call_id(&input), None);
+    for metadata in [
+        json!({"id": "call_fixture_1"}),
+        json!({"shijuCallId": "call_fixture_1"}),
+        json!({"callId": "call_fixture_1", "shijuCallId": "call_fixture_2"}),
+        json!({"callId": "call fixture"}),
+        json!({"callId": 1}),
+        json!({"callId": "x".repeat(129)}),
+    ] {
+        let mut invalid = input.clone();
+        invalid["_meta"] = metadata;
+        assert_eq!(host_mcp_call_id(&invalid), None);
+    }
+}

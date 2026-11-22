@@ -94,3 +94,23 @@ helpers. It streams the hashes and rejects redirected files. Task 48 wires the L
 
 Source archives are published by [npm](https://registry.npmjs.org/@openai%2fcodex/0.165.0).
 The fixed engine also has an [upstream release](https://github.com/openai/codex/releases/tag/rust-v0.165.0).
+
+## Linux host-mounted MCP candidate
+
+The candidate accepts one HTTP projection of a host-reviewed mounted stdio
+service on native Responses. It rejects an additional server, a direct stdio
+or SSE declaration, and an existing native MCP configuration. Its read-only
+mode declines native command, file-change, permission, and MCP form approval
+requests. Native tools and static MCP are outside the candidate's capability.
+
+The bridge binds the native approval question to an in-progress
+`item/started` record using thread, turn and item ID. ACP receives the original
+arguments, the exact tool ID and the catalog name `mcp__<server>__<tool>`.
+Only an explicit allow-once answer can complete the native question. The
+Codex-owned projection reads the engine's `params._meta.callId` through the
+driver's `host_mcp_call_id` helper. The host consumes that ID with the exact
+catalog name and arguments before calling stdio. JSON-RPC request IDs and
+`shijuCallId` are invalid on this projection.
+
+The candidate requires task 48's private process isolation and relay dispatch.
+The public Linux capability stays gated.

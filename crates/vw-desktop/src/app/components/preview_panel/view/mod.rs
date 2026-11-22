@@ -119,7 +119,6 @@ fn map_editor_view_message(action: desktop_editor::components::preview_panel::vi
     let message = match action {
         Action::EditorEvent(event) => return Message::Preview(message::PreviewMessage::EditorEvent(event)),
         Action::SetOption(option, enabled) => EditorMessage::SetOption(option, enabled),
-        Action::SetWrapColumn(value) => EditorMessage::SetWrapColumn(value),
         Action::SetIndentStyle(style) => EditorMessage::SetIndentStyle(style),
         Action::ToggleSettings => EditorMessage::ToggleSettings,
         Action::ClosePopover => EditorMessage::ClosePopover,

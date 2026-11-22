@@ -24,6 +24,7 @@ fn register_icons_inserts_every_action_icon_without_clearing_existing_entries() 
         Icon::ArrowCounterClockwise,
         Icon::ArrowClockwise,
         Icon::Search,
+        Icon::Replace,
         Icon::Robot,
         Icon::Person,
         Icon::Eraser,
@@ -43,5 +44,5 @@ fn register_icons_inserts_every_action_icon_without_clearing_existing_entries() 
     }
 
     assert!(icons.contains_key(&sentinel));
-    assert_eq!(icons.len(), 19);
+    assert_eq!(icons.len(), 20);
 }

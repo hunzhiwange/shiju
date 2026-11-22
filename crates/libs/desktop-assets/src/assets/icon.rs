@@ -169,6 +169,8 @@ pub enum Icon {
     ArrowClockwise,
     /// 搜索图标
     Search,
+    /// 文本替换图标
+    Replace,
     /// 漏斗/过滤图标
     Funnel,
     /// 机器人/小宠物图标

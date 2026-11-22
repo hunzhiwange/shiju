@@ -8,7 +8,6 @@ pub mod settings;
 pub enum Message {
     EditorEvent(iced_code_editor::Message),
     SetOption(options::EditorOption, bool),
-    SetWrapColumn(String),
     SetIndentStyle(iced_code_editor::IndentStyle),
     ToggleSettings,
     ClosePopover,

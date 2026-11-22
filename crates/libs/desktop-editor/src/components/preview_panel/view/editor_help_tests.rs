@@ -6,8 +6,11 @@ fn ecp05_help_shortcuts_match_platform_and_mode() {
     for mac in [true, false] {
         let rows = entries(mac, true, true);
         assert!(rows.iter().any(|(label, key)| *label == "搜索" && key == if mac { "Cmd+F" } else { "Ctrl+F" }));
-        assert!(rows.iter().any(|(label, key)| label.contains("焦点导航") && key == "Shift+Tab"));
-        assert!(rows.iter().any(|(label, _)| label.contains("字段循环")));
+        assert!(rows.iter().any(|(label, key)| *label == "切换编辑模式"
+            && key == if mac { "Cmd+Option+V" } else { "Ctrl+Alt+V" }));
+        let mode_order: Vec<_> =
+            rows.iter().filter_map(|(label, key)| key.is_empty().then_some(*label)).collect();
+        assert_eq!(mode_order, ["常用操作", "Vim 模式", "普通模式"]);
         let mut editor = CodeEditor::new("one\ntwo", "txt").with_vim_enabled(true);
         for key in [':', 'q', '\n'] {
             let _ = editor.update(&Message::VimKey(key));
@@ -27,7 +30,9 @@ fn ecp05_help_omits_unsupported_features() {
             .iter()
             .any(|unsupported| label.contains(unsupported))
     }));
-    assert!(!rows.iter().any(|(_, key)| key == "hjkl"));
+    let mode_order: Vec<_> =
+        rows.iter().filter_map(|(label, key)| key.is_empty().then_some(*label)).collect();
+    assert_eq!(mode_order, ["常用操作", "普通模式", "Vim 模式"]);
     let mut editor = CodeEditor::new("one", "txt");
     let _ = editor.update(&Message::SelectAll);
     assert_eq!(editor.content(), "one");

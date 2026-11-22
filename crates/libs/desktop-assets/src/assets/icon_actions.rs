@@ -33,6 +33,11 @@ pub(super) fn register_icons(m: &mut HashMap<Icon, svg::Handle>) {
         )),
     );
 
+    m.insert(
+        Icon::Replace,
+        svg::Handle::from_memory(include_bytes!("../../../../../assets/icons/app/text-replace.svg")),
+    );
+
     // 机器人/小宠物图标
     m.insert(
         Icon::Robot,

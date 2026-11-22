@@ -20,7 +20,6 @@ pub enum EditorMessage {
     SetOption(EditorOption, bool),
     SetIndentStyle(iced_code_editor::IndentStyle),
     /// 留空随视口，否则仅接受正整数列宽。
-    SetWrapColumn(String),
     /// 切换设置面板显示状态
     ToggleSettings,
 
@@ -98,22 +97,6 @@ pub fn update(
             if let Some(editor) = editor
             {
                 option.set(&mut editor.inner, enabled);
-            }
-            Task::none()
-        }
-        EditorMessage::SetWrapColumn(value) => {
-            let column = if value.is_empty() {
-                None
-            } else {
-                match value.parse::<usize>() {
-                    Ok(column) if column > 0 => Some(column),
-                    _ => return Task::none(),
-                }
-            };
-            if let Some(editor) = editor
-                && editor.inner.wrap_enabled()
-            {
-                editor.inner.set_wrap_column(column);
             }
             Task::none()
         }
@@ -263,7 +246,7 @@ pub fn prepare_message(shutdown: bool, read_only: bool, popover: &mut Option<Edi
         return true;
     }
     if read_only && matches!(message, EditorMessage::OpenReplace | EditorMessage::Undo | EditorMessage::Redo | EditorMessage::Cut | EditorMessage::Paste | EditorMessage::ClipboardContentReceived(_) | EditorMessage::Delete) { return false; }
-    if !matches!(message, EditorMessage::TogglePopover(_) | EditorMessage::ClosePopover | EditorMessage::SetOption(_, _) | EditorMessage::SetIndentStyle(_) | EditorMessage::SetWrapColumn(_)) { *popover = None; }
+    if !matches!(message, EditorMessage::TogglePopover(_) | EditorMessage::ClosePopover | EditorMessage::SetOption(_, _) | EditorMessage::SetIndentStyle(_)) { *popover = None; }
     true
 }
 

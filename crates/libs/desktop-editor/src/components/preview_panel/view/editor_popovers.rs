@@ -19,7 +19,7 @@ pub fn tools<'a>(editor: Option<&'a iced_code_editor::CodeEditor>, read_only: bo
         .align_y(iced::Alignment::Center);
     if editor.is_some() && !read_only
     {
-        let replace = button(small_icon_svg(Icon::ArrowRepeat))
+        let replace = button(small_icon_svg(Icon::Replace))
             .padding(4)
             .style(overlay_icon_button_style)
             .on_press(Message::OpenReplace);

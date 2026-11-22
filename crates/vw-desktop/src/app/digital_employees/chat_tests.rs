@@ -286,10 +286,12 @@ async fn employee_acp_desktop_shared_chat_request_and_stop() {
 #[tokio::test]
 async fn employee_acp_desktop_chat_action_has_readable_text_in_both_themes() {
     use desktop_ui_controls::system_settings_common::rounded_action_btn_style;
-    use iced::advanced::renderer::{Headless, Renderer as _, Style};
-    use iced::advanced::widget::Tree;
-    use iced::advanced::{Layout, layout, mouse};
-    use iced::{Background, Font, Rectangle, Renderer, Size, Theme, widget::button::Status};
+    use iced::advanced::{
+        clipboard,
+        renderer::{Headless, Style},
+    };
+    use iced::{Background, Font, Point, Renderer, Size, Theme, mouse, widget::button::Status};
+    use iced_runtime::user_interface::{Cache, UserInterface};
 
     {
         let mut fonts = iced::advanced::graphics::text::font_system().write().unwrap();
@@ -301,8 +303,7 @@ async fn employee_acp_desktop_chat_action_has_readable_text_in_both_themes() {
         Renderer::new(Font::with_name("Noto Sans CJK SC"), 14.0.into(), Some("tiny-skia"))
             .await
             .unwrap();
-    let viewport = Rectangle::with_size(Size::new(80.0, 50.0));
-    let limits = layout::Limits::new(Size::ZERO, viewport.size());
+    let size = Size::new(80.0, 50.0);
     for theme in [Theme::Light, Theme::Dark] {
         let style = rounded_action_btn_style(&theme, Status::Active);
         let Some(Background::Color(background)) = style.background else {
@@ -310,19 +311,25 @@ async fn employee_acp_desktop_chat_action_has_readable_text_in_both_themes() {
         };
         assert!(style.text_color.is_readable_on(background));
 
-        let mut button =
+        let button =
             super::super::view::chat_action(Some(Message::DigitalEmployees(Event::Refresh)));
-        let mut tree = Tree::new(button.as_widget());
-        let node = button.as_widget_mut().layout(&mut tree, &renderer, &limits);
-        renderer.reset(viewport);
-        button.as_widget().draw(
-            &tree,
+        let mut ui = UserInterface::build(button, size, Cache::new(), &mut renderer);
+        let mut messages = Vec::new();
+        let _ = ui.update(
+            &[iced::Event::Window(
+                iced::window::Event::RedrawRequested(iced::time::Instant::now()),
+            )],
+            mouse::Cursor::Unavailable,
+            &mut renderer,
+            &mut clipboard::Null,
+            &mut messages,
+        );
+        assert!(messages.is_empty());
+        ui.draw(
             &mut renderer,
             &theme,
-            &Style::default(),
-            Layout::new(&node),
+            &Style { text_color: theme.palette().text },
             mouse::Cursor::Unavailable,
-            &viewport,
         );
         let pixels = renderer.screenshot(Size::new(160, 100), 2.0, theme.palette().background);
         let [red, green, blue, _] = style.text_color.into_rgba8();
@@ -339,5 +346,16 @@ async fn employee_acp_desktop_chat_action_has_readable_text_in_both_themes() {
             })
             .count();
         assert!(glyph_pixels > 20, "{theme:?}: found {glyph_pixels} legible text pixels");
+        let _ = ui.update(
+            &[
+                iced::Event::Mouse(mouse::Event::ButtonPressed(mouse::Button::Left)),
+                iced::Event::Mouse(mouse::Event::ButtonReleased(mouse::Button::Left)),
+            ],
+            mouse::Cursor::Available(Point::new(25.0, 15.0)),
+            &mut renderer,
+            &mut clipboard::Null,
+            &mut messages,
+        );
+        assert!(matches!(messages.as_slice(), [Message::DigitalEmployees(Event::Refresh)]));
     }
 }

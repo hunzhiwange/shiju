@@ -14,7 +14,7 @@ from urllib.parse import urlencode
 
 from acp_model_source_fixture import ModelFixture
 from verify_acp_approval import environment, gateway, request
-from verify_acp_integration import require
+from verify_acp_integration import platform_process, require
 from verify_acp_model_source import Unavailable
 from verify_acp_skill_coexistence import AGENT_PROFILE, PROVIDER, interactive_turn, readback
 
@@ -93,7 +93,20 @@ def select_profile(url, agent, mounted):
     request(url, "/global/config", {"agents": {AGENT_PROFILE: profile}}, method="PATCH")
 
 
-def observe_turn(url, query, session, agent, model_id, fixture, mounted):
+def replace_session_mount(binary, root, env, workspace, session, mounts):
+    log = root / f"session-mount-{len(mounts)}.log"
+    with platform_process([str(binary), "acp"], workspace, env, log) as acp:
+        acp.call("initialize", {"protocolVersion": 1, "clientCapabilities": {}})
+        loaded, _ = acp.call("session/load", {"sessionId": session, "cwd": str(workspace),
+                                             "mcpServers": []})
+        revision = loaded["_meta"]["shiju.mounts"]["revision"]
+        updated, _ = acp.call("_shiju/session/set_mounts", {"sessionId": session,
+            "expectedRevision": revision, "skills": [], "mcpServers": [], "mcpCatalog": mounts})
+        require(updated["revision"] == revision + 1, "session mount revision did not advance")
+        return updated["revision"]
+
+
+def observe_turn(url, query, session, agent, model_id, fixture, mounted, *, revoked_project=False):
     marker = "ACP_MODEL_CONTRACT_" + secrets.token_hex(16)
     with fixture.lock:
         fixture.mount_turn = (marker, mounted)
@@ -106,6 +119,13 @@ def observe_turn(url, query, session, agent, model_id, fixture, mounted):
     stream, decisions, native_decisions, access = interactive_turn(url, query, body, probe, False)
     events = [json.loads(line[6:]) for line in stream.splitlines() if line.startswith("data: {")]
     types = [event.get("type") for event in events]
+    if revoked_project:
+        errors = [event["error"] for event in events if event.get("type") == "chat.error"]
+        require(len(errors) == 1 and "reviewed MCP selection: PermissionDenied" in errors[0]
+                and "chat.done" not in types, "revoked project selection was not rejected")
+        require(not decisions and not native_decisions and len(fixture.snapshot()["requests"]) == offset,
+                "revoked project selection reached approval or model dispatch")
+        return {"phase": "revoked", "session": session, "mcp_approval": [], "relay_requests": []}
     require(types.count("chat.done") == 1 and "chat.error" not in types,
             "gateway did not complete the model turn")
     answer = "".join(event["delta"] for event in events if event.get("type") == "chat.delta")
@@ -123,13 +143,15 @@ def observe_turn(url, query, session, agent, model_id, fixture, mounted):
     ids = rounds[-1]["continued_call_ids"]
     require(len(set(ids)) == len(ids) and (not mounted or ids[-1] == probe.mcp_call),
             "approved tool did not continue with its issued model call ID")
-    selection = readback(url, query, session, agent, model_id, access)
+    # A fast resumed turn may close its private ACP process before live access polling.
+    selection = readback(url, query, session, agent, model_id, access, require_live_access=mounted)
     return {"phase": "mounted" if mounted else "removed", "session": session,
             "source": selection["source"], "selected_model": selection["model"],
+            "live_access_observed": bool(selection["access"]),
             "mcp_approval": decisions, "approved_model_call_id": probe.mcp_call, "relay_requests": requests}
 
 
-def run(agent, binary, report):
+def run(agent, binary, report, session_mount=False):
     require(platform.system() == "Linux" and platform.machine() in ("x86_64", "aarch64")
             and os.geteuid() != 0, "requires non-root Linux x86_64 or aarch64")
     supplier = import_module("acp_skill_coexistence." + agent.replace("-", "_"))
@@ -152,6 +174,11 @@ def run(agent, binary, report):
         (workspace / ".vwacprc.json").write_text(json.dumps({"mcpServers": [{
             "name": SERVER, "command": str(executable), "args": args, "env": [],
         }]}))
+        if agent == "iflow" and not session_mount:
+            # iFlow cross-checks project-source names against its native declaration.
+            native_settings = workspace / ".iflow/settings.json"
+            native_settings.parent.mkdir()
+            native_settings.write_text(json.dumps({"mcpServers": {SERVER: {}}}))
         policy = root / "access.json"
         env.update(SHIJU_AGENT_APPS_ACCESS_FILE=str(policy), ACP_COEXISTENCE_KEY=fixture.key)
         token = secrets.token_urlsafe(32)
@@ -166,7 +193,7 @@ def run(agent, binary, report):
                     "models": {supplier.MODEL: {"status": "active", "temperature": True, "tool_call": True,
                         "limit": {"context": 100000, "output": getattr(supplier, "MODEL_OUTPUT_LIMIT", 1024)}}}}}},
                 method="PATCH")
-            select_profile(url, agent, True)
+            select_profile(url, agent, not session_mount)
             session = json.loads(request(url, "/session" + query, {"title": "ACP model mounts"}))
             review_policy(policy, Path(env["HOME"]), token, session["projectID"])
             report["stage"] = "catalog"
@@ -182,12 +209,24 @@ def run(agent, binary, report):
 
             review({"action": "select", "sha256": hashlib.sha256(executable.read_bytes()).hexdigest(),
                     "allowedTools": [TOOL]})
+            if session_mount:
+                scope = {"kind": "project", "scope": {"platform_id": "10000",
+                    "company_id": "100000000", "project_id": session["projectID"]}}
+                mounted_revision = replace_session_mount(binary, root, env, workspace, session["id"],
+                                                         [{"scope": scope, "record": record}])
             report["stage"] = "mounted"
             report["turns"].append(observe_turn(url, query, session["id"], agent, model_id, fixture, True))
             report["stage"] = "removed"
-            review({"action": "disable"})
-            select_profile(url, agent, False)
-            report["turns"].append(observe_turn(url, query, session["id"], agent, model_id, fixture, False))
+            if session_mount:
+                report["turns"][0]["mount_revision"] = mounted_revision
+                removed_revision = replace_session_mount(binary, root, env, workspace, session["id"], [])
+                require(removed_revision == mounted_revision + 1, "removal did not follow the mounted revision")
+            else:
+                review({"action": "disable"})
+            report["turns"].append(observe_turn(url, query, session["id"], agent, model_id, fixture, False,
+                                                revoked_project=not session_mount))
+            if session_mount:
+                report["turns"][1]["mount_revision"] = removed_revision
             mounted_ids, removed_ids = (
                 {call_id for row in turn["relay_requests"] for call_id in row.get("continued_call_ids", ())}
                 for turn in report["turns"])
@@ -199,11 +238,14 @@ def main():
     parser.add_argument("--agent", choices=AGENTS, required=True)
     parser.add_argument("--gateway-bin", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
+    parser.add_argument("--session-mount", action="store_true",
+                        help="select and remove a committed ACP session mount")
     args = parser.parse_args()
     report = {"agent": args.agent, "platform": f"{platform.system()}-{platform.machine()}",
+              "mount_source": "session" if args.session_mount else "project",
               "turns": [], "passed": False}
     try:
-        run(args.agent, args.gateway_bin.resolve(strict=True), report)
+        run(args.agent, args.gateway_bin.resolve(strict=True), report, args.session_mount)
         report.pop("stage", None)
         report["passed"] = True
     except AssertionError as error:

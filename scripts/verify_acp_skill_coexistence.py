@@ -180,15 +180,17 @@ def readback(url, query, sid, backend, model, live_access, *, require_live_acces
     return {"binding": binding, "source": selected["source"], "model": model, "access": access}
 
 
-def replace_glm_skills(binary, root, env, workspace, session, skills):
-    log = root / f"glm-skill-mount-{len(skills)}.log"
+def glm_skill_revision(binary, root, env, workspace, session, *, remove):
+    log = root / ("glm-skill-remove.log" if remove else "glm-skill-load.log")
     with platform_process([str(binary), "acp"], workspace, env, log) as acp:
         acp.call("initialize", {"protocolVersion": 1, "clientCapabilities": {}})
         loaded, _ = acp.call("session/load", {"sessionId": session, "cwd": str(workspace),
                                              "mcpServers": []})
         revision = loaded["_meta"]["shiju.mounts"]["revision"]
+        if not remove:
+            return revision
         updated, _ = acp.call("_shiju/session/set_mounts", {"sessionId": session,
-            "expectedRevision": revision, "skills": skills, "mcpServers": []})
+            "expectedRevision": revision, "skills": [], "mcpServers": []})
         require(updated["revision"] == revision + 1, "GLM session mount revision did not advance")
         return updated["revision"]
 
@@ -268,8 +270,9 @@ def run(agent, binary, report, phases=PHASES):
                     sid = json.loads(request(url, "/session" + query, {"title": "ACP coexistence " + phase}))["id"]
                 row["session"] = sid
                 if glm_skills:
-                    selections = [{"name": selected, "path": str(fixtures["skills"]["selected"]["path"])}] if mounted else []
-                    row["mount_revision"] = replace_glm_skills(binary, root, env, workspace, sid, selections)
+                    # The attached default is already a local catalog skill.
+                    # Record its starting revision, then explicitly revoke it.
+                    row["mount_revision"] = glm_skill_revision(binary, root, env, workspace, sid, remove=not mounted)
                     if not mounted:
                         require(row["mount_revision"] == report["turns"][0]["mount_revision"] + 1,
                                 "GLM removal did not follow the selected session revision")
@@ -336,7 +339,9 @@ def run(agent, binary, report, phases=PHASES):
                     if hasattr(probe, "expected_skill_approvals"):
                         expected = probe.expected_skill_approvals()
                     require(skill_approvals == expected, "missing or unexpected skill approval")
-                row.update(readback(url, query, sid, agent, model_id, live_access))
+                # The resumed native turn can finish between access-status polls.
+                row.update(readback(url, query, sid, agent, model_id, live_access,
+                                    require_live_access=not (glm_skills and phase == "removed")))
             verify_native_plugins = getattr(supplier, "verify_native_plugins", None)
             if verify_native_plugins is not None:
                 report["stage"] = "native_plugins"

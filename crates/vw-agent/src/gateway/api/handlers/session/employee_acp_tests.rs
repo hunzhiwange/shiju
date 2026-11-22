@@ -303,6 +303,7 @@ async fn employee_acp_gateway_verifies_account_and_waits_for_product_stop() {
             .args(["--exact", &test, "--nocapture"])
             .env(FIXTURE_ROOT, root.path())
             .env("VIBEWINDOW_TEST_ROOT", root.path())
+            .env("VW_RECOVERY_WINDOW_HTTP", "1")
             .env("HOME", root.path())
             .output()
             .unwrap();
@@ -464,13 +465,21 @@ for line in sys.stdin:
                 );
             }
             let session = response.headers()["x-vw-session-id"].to_str().unwrap().to_owned();
-            tokio::time::timeout(Duration::from_secs(20), async {
+            if tokio::time::timeout(Duration::from_secs(20), async {
                 while !directory.join("prompted").exists() {
                     tokio::time::sleep(Duration::from_millis(10)).await;
                 }
             })
             .await
-            .expect("credential reached the controlled peer and it received the prompt");
+            .is_err()
+            {
+                let output = tokio::time::timeout(
+                    Duration::from_secs(2),
+                    to_bytes(response.into_body(), 32_768),
+                )
+                .await;
+                panic!("controlled ACP peer did not receive the prompt: {output:?}");
+            }
 
             let stop_path = format!("/chat/stream/{request_id}/stop");
             let stopped =

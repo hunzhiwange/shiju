@@ -36,6 +36,7 @@ fn acp_platform_iflow_contract() {
     let target = &manifest["targets"][std::env::consts::ARCH];
     let artifact = &evidence["artifact"];
     assert_eq!(artifact["version"], "0.5.19");
+    assert_eq!(artifact["revision"], manifest["revision"]);
     assert_eq!(artifact["entry"], "bundle/entry.js");
     assert_eq!(artifact["args"], json!(["--experimental-acp"]));
     assert_eq!(artifact["integrity"], manifest["integrity"]);
@@ -53,6 +54,14 @@ fn acp_platform_iflow_contract() {
         assert_eq!(turn["done"], 1);
         assert_eq!(turn["errors"], 0);
         assert_eq!(turn["mcp_calls"], usize::from(phase == "mounted"));
+        assert_eq!(
+            turn["skill_approvals"],
+            if mounted {
+                json!(["native", "native_read", "selected", "selected_read"])
+            } else {
+                json!(["native", "native_read"])
+            }
+        );
         assert_eq!(
             turn["mcp_decisions"],
             match phase {

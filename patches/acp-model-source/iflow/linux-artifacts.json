@@ -7,7 +7,7 @@
   "bin": "bundle/entry.js",
   "patched_files": {
     "bundle/entry.js": "55710b7cfea2e5aefebfe0acec4eaf3e647d34538ee5835a3d724a49853d1fa6",
-    "bundle/iflow.js": "e8590e0e5923809928c2c831272fe4d05f917a13e95dfd862fb1c52c4634cd57"
+    "bundle/iflow.js": "b5f48e8a3c9e48fb35367dc4636ecb5fe0f85ee7c462ee1332b47aeddcc67e7c"
   },
   "targets": {
     "x86_64": {
@@ -22,5 +22,7 @@
       "pty_package": "@lydell/node-pty-linux-arm64",
       "pty_sha256": "c192e560428e778842fdbbe72f14032824b03373ed49ad3efcdbcf9eb249b75b"
     }
-  }
+  },
+  "revision": "iflow-0.5.19-model-source-v3",
+  "overlay_sha256": "a9ede67c800fe17c37b1c8b469b895bd1cb45d4bef2f62c23a962b0d15d4fdc5"
 }

@@ -60,7 +60,7 @@ def launch_linux(env):
     source = os.environ.get("IFLOW_COEXISTENCE_RUNTIME")
     require(source, "set IFLOW_COEXISTENCE_RUNTIME to the reviewed Linux installation")
 
-    revision = f"iflow-{manifest['version']}-model-source-v2"
+    revision = manifest["revision"]
     runtime = Path(env["VIBEWINDOW_CONFIG_DIR"]) / "acp-runtime" / revision
     shutil.copytree(Path(source).resolve(strict=True), runtime, symlinks=True)
     modules = runtime / "node_modules"
@@ -115,6 +115,7 @@ class Probe:
         self.completed = {}
         self.failure = None
         self.pending = None
+        self.pending_read = None
 
     def response(self, body):
         require(body["model"] == MODEL, "unexpected iFlow model")
@@ -156,8 +157,8 @@ class Probe:
                 else:
                     require(base.parent.parent.name.startswith("shiju-session-skills-"),
                             "iFlow bypassed the session skill view")
-                return self.call(tools, read, "read_file",
-                                 {"absolute_path": str(base / "references/value.txt")})
+                self.pending_read = {"absolute_path": str(base / "references/value.txt")}
+                return self.call(tools, read, "read_file", self.pending_read)
             require(skill["attachment"] in self.result(messages, read)[0],
                     f"iFlow {kind} attachment was not read")
 
@@ -197,7 +198,16 @@ class Probe:
         return (self.pending == "mcp" and metadata.get("title") == MCP_TOOL
                 and metadata.get("arguments") in (None, {}))
 
+    def expected_skill_approvals(self):
+        sources = ("native", "selected") if self.mounted else ("native",)
+        if platform.system() == "Linux":
+            return [step for source in sources for step in (source, source + "_read")]
+        return list(sources)
+
     def approves_skill(self, metadata):
+        if (platform.system() == "Linux" and self.pending in ("native_read", "selected_read")
+                and metadata.get("arguments") == self.pending_read):
+            return self.pending
         if self.pending in ("native", "selected"):
             skill = self.fixtures["skills"][self.pending]
             if (metadata.get("title") == "Launch skill: " + skill["name"]

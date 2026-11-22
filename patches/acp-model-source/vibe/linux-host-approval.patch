@@ -1,0 +1,102 @@
+--- a/vibe/core/config/session_model_binding.py
++++ b/vibe/core/config/session_model_binding.py
+@@ -6,0 +7 @@
++import sys
+@@ -16,0 +18,4 @@
++
++
++def uses_host_approval():
++    return sys.platform == "linux" and ENV in os.environ
+--- a/vibe/app_server/_runtime.py
++++ b/vibe/app_server/_runtime.py
+@@ -1205,0 +1206,3 @@
++        from vibe.core.config.session_model_binding import uses_host_approval
++
++        host_approval = uses_host_approval()
+@@ -1466,0 +1470,2 @@
++        if host_approval and (hook_result.hooks or plugin_hooks):
++            raise ValueError("Managed Vibe cannot run configured hooks without host approval")
+@@ -1568 +1573,3 @@
+-                ToolGate.BYPASS
++                ToolGate.PROMPT
++                if host_approval
++                else ToolGate.BYPASS
+@@ -1845,2 +1852,10 @@
+-                            **os.environ,
+-                            **session_plugins.materialized.process_environment,
++                            key: value
++                            for key, value in {
++                                **os.environ,
++                                **session_plugins.materialized.process_environment,
++                            }.items()
++                            if not host_approval or key not in {
++                                "VW_VIBE_RELAY_TOKEN",
++                                "VW_ACP_LAUNCH_REFERENCE",
++                                "_SHIJU_VIBE_SESSION_MODEL_CONFIG",
++                            }
+--- a/vibe/app_server/_unified_permissions.py
++++ b/vibe/app_server/_unified_permissions.py
+@@ -475,0 +476,2 @@
++        from vibe.core.config.session_model_binding import uses_host_approval
++
+@@ -476,0 +479,11 @@
++        if (
++            uses_host_approval()
++            and outcome.decision == "allow"
++            and (
++                builtin not in RUST_BUILTIN_TOOL_SOURCES
++                or builtin in _SHELL_COMMAND_BUILTINS
++                or builtin in _PROCESS_SESSION_GRANT_BUILTINS
++                or builtin in {"file_system.edit", "file_system.write_file"}
++            )
++        ):
++            outcome = replace(outcome, decision="ask")
+--- a/vibe/acp/agent.py
++++ b/vibe/acp/agent.py
+@@ -901,0 +902,3 @@
++        from vibe.core.config.session_model_binding import uses_host_approval
++
++        host_approval = uses_host_approval()
+@@ -903 +906,2 @@
+-        tool_call = ToolCallUpdate(tool_call_id=detail.related_entry_id or name)
++        fallback_id = callback.callback_id if host_approval else name
++        tool_call = ToolCallUpdate(tool_call_id=detail.related_entry_id or fallback_id)
+@@ -909,0 +914,17 @@
++        elif host_approval:
++            tool_call.title = name
++            effect_input = effect_input_json(detail.effect)
++            if isinstance(effect_input, dict):
++                tool_call.raw_input = {
++                    key: effect_input[key]
++                    for key in ("command", "cwd", "filePath", "processId")
++                    if key in effect_input
++                }
++        options = build_permission_options(
++            detail.required_permissions, detail.path_scope_choices
++        )
++        if host_approval:
++            options = [
++                option for option in options
++                if option.option_id in (ToolOption.ALLOW_ONCE, ToolOption.REJECT_ONCE)
++            ]
+@@ -913,3 +934 @@
+-            options=build_permission_options(
+-                detail.required_permissions, detail.path_scope_choices
+-            ),
++            options=options,
+@@ -920 +939,4 @@
+-        if isinstance(response.outcome, AllowedOutcome):
++        if isinstance(response.outcome, AllowedOutcome) and (
++            not host_approval
++            or response.outcome.option_id in (ToolOption.ALLOW_ONCE, ToolOption.REJECT_ONCE)
++        ):
+--- a/mistralai_vibe_local_harness/vibe/_mcp_transport.py
++++ b/mistralai_vibe_local_harness/vibe/_mcp_transport.py
+@@ -248,0 +249,7 @@
++        from vibe.core.config.session_model_binding import uses_host_approval
++
++        if uses_host_approval():
++            raise MCPRuntimeFailure(
++                "mcp_invalid_configuration",
++                "Managed Vibe requires host projection for stdio MCP",
++            )

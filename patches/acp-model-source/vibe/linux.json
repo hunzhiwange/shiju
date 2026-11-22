@@ -21,5 +21,28 @@
         "vibe/_bin/vibe-rs": "aaea9bbc6d8a487b010f0b95c1852119d5444ecb7b1990241bd88a018d476bb9"
       }
     }
+  },
+  "approval_patch_sha256": "13a0a0f4ae70b021327b3907b85dc85889740da8cdd4fc77fe721d33fc9b9f46",
+  "approval_files": {
+    "vibe/core/config/session_model_binding.py": {
+      "before": "bc0d7c44ca16badcc25a8185d6eb0b8a23c63256a346c75176928a085d944ee3",
+      "after": "9990b6dcd125c07e5617470bfb61394a88a124e9a362857bc47fb173b8f15b30"
+    },
+    "vibe/app_server/_runtime.py": {
+      "before": "dcad0e4554e92a44adb283b5a8fe4acd4ff9fe16522af49f206c552979730955",
+      "after": "4d0f37dfbcdc019e3f2fdc1fe0b575200143039cb3f909649824baecc4831e64"
+    },
+    "vibe/app_server/_unified_permissions.py": {
+      "before": "025d6fa66557fc9434fc233186bb9efb5dbc9e010f1a1c8175928071f76b5930",
+      "after": "adc8c003b3803047143e1aa551176d644b1de51bb3befe17417c61773884ba0f"
+    },
+    "vibe/acp/agent.py": {
+      "before": "abb400ee2d07b0cebc046df604d563272a0be7e02494b8f08f81ff92f1dfe09f",
+      "after": "fbfd39279b341b36e31427ca3d3eed6dd48deb9167faf45568889a92e89cea9d"
+    },
+    "mistralai_vibe_local_harness/vibe/_mcp_transport.py": {
+      "before": "55cad13e631b5edb020a2775e6017074e09fdd9ae374ba7c90be54b747c2ed29",
+      "after": "a8855567c8b66d20661f31ccac97f75b189d03aa4d578945b2b43a2e83c870f5"
+    }
   }
 }

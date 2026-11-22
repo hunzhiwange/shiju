@@ -160,6 +160,7 @@ fn acp_platform_vibe_contract() {
     assert_eq!(artifact["entry_sha256"], manifest["launcher_sha256"]);
     assert_eq!(artifact["wheel_sha256"], manifest["targets"][&target]["wheel_sha256"]);
     assert_eq!(artifact["model_protocol"], "POST /v1/chat/completions");
+    assert_eq!(artifact["mcp_transport"], "http");
 
     let turns = evidence["turns"].as_array().unwrap();
     assert_eq!(turns.len(), 4);

@@ -15,13 +15,21 @@ pub(super) const LAUNCHER: &str =
     include_str!("../../../../../patches/acp-model-source/vibe/launcher.sh");
 pub(super) const INSTALLER: &str =
     include_str!("../../../../../patches/acp-model-source/vibe/install_linux.py");
+pub(super) const APPROVAL_PATCH: &str =
+    include_str!("../../../../../patches/acp-model-source/vibe/linux-host-approval.patch");
 
 #[derive(Deserialize)]
 struct LinuxManifest {
     version: String,
     entry: String,
     launcher_sha256: String,
+    approval_files: BTreeMap<String, ApprovalFile>,
     targets: BTreeMap<String, LinuxArtifact>,
+}
+
+#[derive(Deserialize)]
+struct ApprovalFile {
+    after: String,
 }
 
 #[derive(Deserialize)]
@@ -46,7 +54,9 @@ pub(super) fn verify_linux(
     let entry = runtime.join(&manifest.entry);
     verify_file(&entry, &manifest.launcher_sha256)?;
     let site = runtime.join("lib/python3.12/site-packages");
-    for (name, digest) in patched_sources.iter().chain(&artifact.files) {
+    let mut files = patched_sources.clone();
+    files.extend(manifest.approval_files.into_iter().map(|(name, file)| (name, file.after)));
+    for (name, digest) in files.iter().chain(&artifact.files) {
         verify_file(&site.join(name), digest)?;
     }
     for program in [&entry, &runtime.join("bin/python")] {

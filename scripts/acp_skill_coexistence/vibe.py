@@ -1,5 +1,6 @@
-"""Mistral Vibe's native Chat Completions, skill and stdio MCP protocol."""
+"""Mistral Vibe's native Chat Completions, skills and MCP."""
 
+from contextlib import contextmanager
 import hashlib
 import json
 import os
@@ -10,13 +11,14 @@ import secrets
 import shutil
 import subprocess
 
+from acp_mount_integration import McpHandler
 from verify_acp_integration import ProviderHandler, require
 from verify_acp_model_source import ROOT
 
 MODEL = "deepseek-v4.1-flash-1017"
 ADAPTER = "openai"
 API_PATH = "/v1"
-TRANSPORT = "stdio"
+TRANSPORT = "http" if platform.system() == "Linux" else "stdio"
 # The gateway fixture has its own HOME. VIBE_HOME stays bound to the model profile.
 NATIVE_DIR = "../home/.agents/skills"
 DISABLED_SKILL = "disabled-vibe-coexistence-probe"
@@ -46,7 +48,9 @@ def launch(env):
         artifact = manifest["targets"][target]
         contract["wheel_sha256"] = artifact["wheel_sha256"]
         contract["files"].update(artifact["files"])
-        evidence = {"target": target, "entry": entry_name,
+        contract["files"].update({name: digests["after"]
+                                  for name, digests in manifest["approval_files"].items()})
+        evidence = {"target": target, "entry": entry_name, "mcp_transport": TRANSPORT,
                     "model_protocol": "POST /v1/chat/completions"}
     config = Path(env["VIBEWINDOW_CONFIG_DIR"])
     private = config / "acp-runtime" / REVISION
@@ -73,6 +77,32 @@ def launch(env):
         "PYTHON_KEYRING_BACKEND": "keyring.backends.null.Keyring",
     }}, {"version": contract["version"], "revision": REVISION, "sha256": contract["files"],
          "entry_sha256": entry_digest, "wheel_sha256": contract["wheel_sha256"], **evidence}
+
+
+class HttpMcpHandler(McpHandler):
+    def do_POST(self):
+        if self.path != "/mcp" or self.headers.get("Authorization") != "Bearer " + self.server.key:
+            self.close_connection = True
+            self.reply(401)
+            return
+        super().do_POST()
+
+
+@contextmanager
+def mcp_server(_workspace, attachment, audit):
+    from verify_acp_skill_coexistence import mcp_server as shared_mcp_server, model_server
+
+    if TRANSPORT == "stdio":
+        with shared_mcp_server(TRANSPORT, attachment, audit) as spec:
+            yield spec
+        return
+    key = secrets.token_hex(24)
+    with model_server(HttpMcpHandler, key) as server:
+        server.attachment = attachment
+        server.audit = audit
+        yield {"name": "coexistence", "type": "http",
+               "url": f"http://127.0.0.1:{server.server_port}/mcp",
+               "headers": [{"name": "Authorization", "value": "Bearer " + key}]}
 
 
 def prepare_workspace(workspace):

@@ -35,8 +35,10 @@ def main(assets, runtime, uv):
         raise RuntimeError("Vibe Linux and shared Python contract versions differ")
 
     patch = assets / "vibe/mistral-vibe-3.0.4-session-binding.patch"
+    approval_patch = assets / "vibe/linux-host-approval.patch"
     launcher = assets / "vibe/launcher.sh"
     verify(patch, manifest["patch_sha256"])
+    verify(approval_patch, manifest["approval_patch_sha256"])
     verify(launcher, manifest["launcher_sha256"])
 
     wheel_url = artifact["wheel_url"]
@@ -54,6 +56,12 @@ def main(assets, runtime, uv):
     for files in (contract["files"], artifact["files"]):
         for name, digest in files.items():
             verify(site / name, digest)
+    for name, digests in manifest["approval_files"].items():
+        verify(site / name, digests["before"])
+    run("patch", "--batch", "--forward", "--fuzz=0", "-p1", "-d", str(site),
+        "-i", str(approval_patch))
+    for name, digests in manifest["approval_files"].items():
+        verify(site / name, digests["after"])
 
     # The generated console script has installer-dependent bytes. Replace it with
     # the fixed launcher, which calls the same upstream entry in isolated mode.

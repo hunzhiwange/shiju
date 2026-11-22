@@ -1,5 +1,5 @@
 use crate::help::{settings_hover_help_label, settings_page_heading_with_help, settings_group_heading_with_help};
-use crate::message::{Event, AcpMessage};
+use crate::message::{AcpMessage, AgentsMessage, Event};
 // 系统设置中 ACP 配置页面的界面拼装与交互消息转换。
 
 use desktop_ui_controls::system_settings_common::{
@@ -8,7 +8,7 @@ use desktop_ui_controls::system_settings_common::{
     settings_icon_tile_style,
     settings_modal_card_style, settings_modal_header, settings_modal_layout,
     settings_modal_overlay, settings_muted_text_style, settings_panel, settings_panel_style, settings_success_banner, settings_text_input,
-    settings_success_banner_style, settings_value_badge,
+    settings_select, settings_success_banner_style, settings_value_badge,
 };
 use desktop_i18n::I18n;
 use iced::widget::{Space, button, column, container, responsive, row, scrollable, text};
@@ -16,10 +16,11 @@ use iced::{Alignment, Element, Length};
 use config_aggregate::AcpAgentConfig;
 
 use crate::acp_diagnostic::diagnostic_status;
+use crate::acp_state::AcpInstallFilter;
 
 use crate::acp::{
     EMPLOYEE_ACP_HINT, acp_description, acp_title, built_in_agent_display_name, command_line,
-    ordered_agents, setup_hint,
+    filtered_agents, setup_hint,
 };
 
 pub fn acp_card<'a>(input: Input<'a>, agent: String, config: &'a AcpAgentConfig) -> Element<'a, Event> {
@@ -64,12 +65,8 @@ pub fn acp_card<'a>(input: Input<'a>, agent: String, config: &'a AcpAgentConfig)
                 tr(acp_description(&summary_agent)),
             )
             .wrap(),
+            settings_value_badge(tr(if enabled { "已启用" } else { "未启用" })),
         ];
-        let labels = if employee {
-            labels
-        } else {
-            labels.push(settings_value_badge(tr(if enabled { "已启用" } else { "未启用" })))
-        };
         let labels = if builtin {
             labels.push(settings_value_badge(tr("内置 ACP")))
         } else {
@@ -94,14 +91,16 @@ pub fn acp_card<'a>(input: Input<'a>, agent: String, config: &'a AcpAgentConfig)
         .spacing(12)
         .align_y(Alignment::Center)
         .width(Length::Fill);
-        if employee {
-            return identity.into();
-        }
+        let edit = if employee {
+            Event::Agents(AgentsMessage::ProfileOpen(crate::acp::EMPLOYEE_ACP_PROFILE.into()))
+        } else {
+            acp_message(AcpMessage::EditAgent(summary_agent.clone()))
+        };
         let actions = row![
             button(text(tr("编辑")).size(13))
                 .padding([7, 12])
                 .style(rounded_action_btn_style)
-                .on_press(acp_message(AcpMessage::EditAgent(summary_agent.clone()))),
+                .on_press(edit),
             button(text(tr(if testing { "取消测试" } else { "测试连接" })).size(13))
                 .padding([7, 12])
                 .style(rounded_action_btn_style)
@@ -134,17 +133,19 @@ pub fn acp_card<'a>(input: Input<'a>, agent: String, config: &'a AcpAgentConfig)
     .height(Length::Shrink);
 
     if employee {
-        return container(
-            column![
-                summary,
-                text(tr(EMPLOYEE_ACP_HINT)).size(12).style(settings_muted_text_style),
-            ]
-            .spacing(10),
-        )
-        .padding([16, 18])
-        .width(Length::Fill)
-        .style(settings_panel_style)
-        .into();
+        let mut content = column![
+            summary,
+            text(tr(EMPLOYEE_ACP_HINT)).size(12).style(settings_muted_text_style),
+        ]
+        .spacing(10);
+        if let Some(status) = input.state.diagnostic_results.get(&agent) {
+            content = content.push(diagnostic_status(*status, input.frame, locale));
+        }
+        return container(content)
+            .padding([16, 18])
+            .width(Length::Fill)
+            .style(settings_panel_style)
+            .into();
     }
 
     let installation = installation_section(input, &agent, builtin);
@@ -513,6 +514,37 @@ fn save_error(input: Input<'_>) -> Option<String> {
     })
 }
 
+#[derive(Clone, Copy, PartialEq, Eq)]
+struct InstallFilterChoice(AcpInstallFilter, &'static str);
+
+impl std::fmt::Display for InstallFilterChoice {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter.write_str(self.1)
+    }
+}
+
+fn catalog_filters(input: Input<'_>) -> Element<'_, Event> {
+    let i18n = I18n::new(input.locale);
+    let choices = [
+        InstallFilterChoice(AcpInstallFilter::All, i18n.__("全部")),
+        InstallFilterChoice(AcpInstallFilter::Installed, i18n.__("已安装")),
+        InstallFilterChoice(AcpInstallFilter::NotInstalled, i18n.__("未安装")),
+    ];
+    let selected = choices.iter().copied().find(|choice| choice.0 == input.state.install_filter);
+    row![
+        settings_select(choices, selected, |choice| {
+            acp_message(AcpMessage::InstallFilterChanged(choice.0))
+        })
+        .width(144.0),
+        settings_text_input(i18n.__("搜索名称或标识"), &input.state.catalog_query)
+            .on_input(|query| acp_message(AcpMessage::CatalogQueryChanged(query)))
+            .width(Length::Fill),
+    ]
+    .spacing(8)
+    .align_y(Alignment::Center)
+    .into()
+}
+
 /// 构建 ACP 系统设置页。
 pub fn view(input: Input<'_>) -> Element<'_, Event> {
     let refresh_btn = button(
@@ -549,14 +581,18 @@ pub fn view(input: Input<'_>) -> Element<'_, Event> {
         ),
         row![add_btn, refresh_btn].spacing(8).align_y(Alignment::Center).wrap(),
         settings_group_card(
-            settings_hover_help_label(input.help,
-                i18n,
-                input.theme,
-                title,
-                text(title).size(14),
-                i18n.__("启用后会出现在聊天、任务和设计生成的 ACP 后端选择中。"),
-            )
-            .wrap(),
+            column![
+                settings_hover_help_label(input.help,
+                    i18n,
+                    input.theme,
+                    title,
+                    text(title).size(14),
+                    i18n.__("启用后会出现在聊天、任务和设计生成的 ACP 后端选择中。"),
+                )
+                .wrap(),
+                catalog_filters(input),
+            ]
+            .spacing(10),
         )
         .padding([14, 16]),
     ]
@@ -580,18 +616,15 @@ pub fn view(input: Input<'_>) -> Element<'_, Event> {
         content = content.push(settings_error_banner(error));
     }
 
-    let agents = ordered_agents(&input.state.catalog);
+    let agents = filtered_agents(input.state, input.locale);
     if agents.is_empty() {
+        let message = if input.state.catalog.is_empty() {
+            "暂未从网关加载到 ACP 目录，点击刷新后会重新读取。"
+        } else {
+            "没有匹配的智能体"
+        };
         content = content.push(settings_panel(
-            column![
-                text(
-                    I18n::new(input.locale)
-                        .__("暂未从网关加载到 ACP 目录，点击刷新后会重新读取。")
-                )
-                .size(12)
-                .style(settings_muted_text_style)
-            ]
-            .spacing(0),
+            text(i18n.__(message)).size(12).style(settings_muted_text_style),
         ));
     } else {
         let mut cards = column![].spacing(8);

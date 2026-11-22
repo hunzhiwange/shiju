@@ -51,7 +51,7 @@ where
         .route("/desktop/acp-install/{agent}", get(super::desktop_acp_install::install_get).post(super::desktop_acp_install::install_post).delete(super::desktop_acp_install::install_delete))
         .route(
             "/desktop/acp-diagnostic/{id}",
-            post(acp_diagnostic_post).delete(acp_diagnostic_cancel),
+            post(acp_diagnostic_request).delete(acp_diagnostic_cancel),
         )
         .route("/desktop/preferences", get(preferences_get).patch(preferences_patch))
         .route("/desktop/tool-content/{tool_type}", get(tool_content_get).put(tool_content_put))
@@ -941,6 +941,39 @@ impl Drop for AcpProbeGuard {
             token.cancel();
         }
     }
+}
+
+#[derive(Deserialize)]
+#[serde(untagged)]
+enum AcpDiagnosticRequest {
+    Builtin { builtin: String },
+    Command(acp_types::AcpAgentConfig),
+}
+
+async fn acp_diagnostic_request(
+    id: Path<String>,
+    Json(request): Json<AcpDiagnosticRequest>,
+) -> Result<Json<String>, ApiError> {
+    let config = match request {
+        AcpDiagnosticRequest::Builtin { builtin }
+            if builtin == acp_agent_registry::EMPLOYEE_ACP_BACKEND =>
+        {
+            let command = std::env::current_exe()
+                .ok()
+                .and_then(|path| path.into_os_string().into_string().ok())
+                .ok_or_else(|| ApiError::internal("bundled ACP executable is unavailable"))?;
+            acp_types::AcpAgentConfig {
+                command,
+                args: vec!["employee-acp-probe".into()],
+                env: Default::default(),
+            }
+        }
+        AcpDiagnosticRequest::Builtin { .. } => {
+            return Err(ApiError::bad_request("unknown built-in ACP diagnostic"));
+        }
+        AcpDiagnosticRequest::Command(config) => config,
+    };
+    acp_diagnostic_post(id, Json(config)).await
 }
 
 async fn acp_diagnostic_post(

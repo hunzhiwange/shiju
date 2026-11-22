@@ -27,8 +27,18 @@ impl AcpDiagnosticStatus {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum AcpInstallFilter {
+    #[default]
+    All,
+    Installed,
+    NotInstalled,
+}
+
 #[derive(Debug, Clone)]
 pub struct AcpSettingsState {
+    pub install_filter: AcpInstallFilter,
+    pub catalog_query: String,
     pub installed: std::collections::BTreeMap<String, bool>,
     pub installing_agent: Option<String>,
     pub(crate) install_id: Option<String>,
@@ -77,6 +87,8 @@ impl AcpSettingsState {
 impl Default for AcpSettingsState {
     fn default() -> Self {
         Self {
+            install_filter: AcpInstallFilter::All,
+            catalog_query: String::new(),
             installed: Default::default(),
             installing_agent: None,
             install_id: None,

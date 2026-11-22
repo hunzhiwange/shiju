@@ -69,7 +69,7 @@ pub struct DelegateAgentSettingsEntry {
 impl DelegateAgentSettingsEntry {
     pub fn can_start_session(&self) -> bool {
         self.enabled
-            && self.key != acp_agent_registry::EMPLOYEE_ACP_PROFILE
+            && (!cfg!(target_arch = "wasm32") || self.key != crate::acp::EMPLOYEE_ACP_PROFILE)
             && !matches!(self.kind, AgentSettingsEntryKind::BuiltinWorker)
     }
 

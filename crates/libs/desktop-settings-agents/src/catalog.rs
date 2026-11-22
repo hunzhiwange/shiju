@@ -14,15 +14,25 @@ pub fn entries<'a>(
     query: &str,
 ) -> Vec<&'a DelegateAgentSettingsEntry> {
     let query = query.trim().to_lowercase();
-    entries
+    let mut visible = entries
         .iter()
         .filter(|entry| {
-            (if official { entry.builtin } else { entry.enabled || !entry.builtin })
+            (if official {
+                entry.builtin
+            } else {
+                entry.enabled || !entry.builtin || entry.key == crate::acp::EMPLOYEE_ACP_PROFILE
+            })
                 && [&entry.key, &entry.label, &entry.description]
                     .iter()
                     .any(|value| value.to_lowercase().contains(&query))
         })
-        .collect()
+        .collect::<Vec<_>>();
+    visible.sort_by_key(|entry| match entry.key.as_str() {
+        MAIN_AGENT_KEY => 0,
+        crate::acp::EMPLOYEE_ACP_PROFILE => 1,
+        _ => 2,
+    });
+    visible
 }
 
 fn message(value: AgentsMessage) -> Event {
@@ -99,11 +109,13 @@ pub fn cards(input: Input<'_>) -> Vec<Element<'_, Event>> {
                 AgentRuntime::Acp { backend } => format!("ACP · {backend}"),
             };
             let status = match &entry.runtime {
-                AgentRuntime::Acp { .. } if employee => label(crate::acp::EMPLOYEE_ACP_HINT).into(),
                 AgentRuntime::Native => label("原生运行引擎").to_string(),
                 AgentRuntime::Acp { backend } => input.diagnostic_results
                     .get(backend)
                     .map(|status| match status {
+                        crate::acp_state::AcpDiagnosticStatus::Connected if employee => {
+                            label(status.description()).to_string()
+                        }
                         crate::acp_state::AcpDiagnosticStatus::Connected => {
                             label("已安装 · 已连接").to_string()
                         }
@@ -112,7 +124,11 @@ pub fn cards(input: Input<'_>) -> Vec<Element<'_, Event>> {
                         }
                         _ => label(status.description()).to_string(),
                     })
-                    .unwrap_or_else(|| label("网关安装 / 认证状态待检测").into()),
+                    .unwrap_or_else(|| label(if employee {
+                        crate::acp::EMPLOYEE_ACP_HINT
+                    } else {
+                        "网关安装 / 认证状态待检测"
+                    }).into()),
             };
             let action = |label, value| {
                 button(text(label).size(SETTINGS_CONTROL_TEXT_SIZE))
@@ -137,9 +153,7 @@ pub fn cards(input: Input<'_>) -> Vec<Element<'_, Event>> {
                     AgentsMessage::CatalogToggle(entry.key.clone(), !entry.enabled),
                 ));
             }
-            if let AgentRuntime::Acp { backend } = &entry.runtime
-                && !employee
-            {
+            if let AgentRuntime::Acp { backend } = &entry.runtime {
                 actions = actions.push(
                     button(text(label("运行设置")).size(SETTINGS_CONTROL_TEXT_SIZE))
                         .padding([8, 11])

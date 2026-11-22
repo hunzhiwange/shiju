@@ -1,5 +1,7 @@
 #[derive(Debug, Clone)]
 pub enum AcpMessage {
+    InstallFilterChanged(crate::acp_state::AcpInstallFilter),
+    CatalogQueryChanged(String),
     StartDiagnostic,
     TestAgent(String),
     InstallAgent(String),

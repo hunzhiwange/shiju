@@ -320,12 +320,19 @@ pub async fn load_enabled_acp_config_async(&self) -> Result<HashMap<String, AcpA
     Ok(resolve_enabled_acp_config(&catalog, enabled))
 }
 pub async fn load_acp_settings_snapshot_async(&self) -> Result<AcpSettingsSnapshot, String> {
+    use acp_agent_registry::{EMPLOYEE_ACP_BACKEND, EMPLOYEE_ACP_PROFILE};
+
     let client = gateway_config::GatewayConfigClient::new(self.gateway_client()?.transport().clone());
     let defaults = client.global_acp_defaults_get().await?;
     let mut catalog = self.fetch_global_acp_config_via_gateway().await?;
     let config = self.fetch_global_agent_config_via_gateway().await?;
     catalog.extend(config.acp_saved);
-    let enabled = resolve_enabled_acp_config(&catalog, config.acp);
+    let mut enabled = resolve_enabled_acp_config(&catalog, config.acp);
+    if config.agents.get(EMPLOYEE_ACP_PROFILE).is_some_and(|profile| profile.enabled)
+        && let Some(spec) = catalog.get(EMPLOYEE_ACP_BACKEND)
+    {
+        enabled.insert(EMPLOYEE_ACP_BACKEND.into(), spec.clone());
+    }
 
     Ok(AcpSettingsSnapshot {
         defaults,
@@ -339,6 +346,16 @@ pub async fn set_global_acp_agent_enabled_async(&self,
     enabled: bool,
     spec: Option<AcpAgentConfig>,
 ) -> Result<AcpSettingsSnapshot, String> {
+    use acp_agent_registry::{EMPLOYEE_ACP_BACKEND, EMPLOYEE_ACP_PROFILE};
+
+    if agent_name == EMPLOYEE_ACP_BACKEND {
+        let patch = serde_json::json!({
+            "agents": { (EMPLOYEE_ACP_PROFILE): { "enabled": enabled } }
+        });
+        self.patch_agent_config_via_gateway(&patch).await?;
+        return self.load_acp_settings_snapshot_async().await;
+    }
+
     let catalog = self.fetch_global_acp_config_via_gateway().await?;
     let configured = self.fetch_global_agent_config_via_gateway().await?.acp;
     let patch = build_acp_agent_enabled_patch(&agent_name, enabled, spec, &catalog, configured)?;

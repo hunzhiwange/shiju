@@ -40,6 +40,35 @@ fn catalog_config() -> config_aggregate::Config {
 }
 
 #[test]
+fn employee_agent_is_manageable_in_both_catalogs_before_enabling() {
+    let key = crate::acp::EMPLOYEE_ACP_PROFILE;
+    let mut config = catalog_config();
+    config.agents.insert(key.into(), config_agent::DelegateAgentConfig {
+        label: Some("识矩数字员工".into()),
+        enabled: false,
+        builtin: true,
+        runtime: config_agent_profile::AgentRuntime::Acp {
+            backend: crate::acp::EMPLOYEE_ACP_BACKEND.into(),
+        },
+        ..Default::default()
+    });
+    let mut entries = crate::state::agent_settings_entries_from_config(&config);
+    for official in [false, true] {
+        let visible = crate::catalog::entries(&entries, official, "");
+        assert_eq!(visible[0].key, crate::state::MAIN_AGENT_KEY);
+        assert_eq!(visible[1].key, key);
+        let found = crate::catalog::entries(&entries, official, "识矩数字员工");
+        assert_eq!(found.len(), 1);
+        assert_eq!(found[0].key, key);
+        assert!(found[0].can_disable);
+        assert!(!found[0].can_start_session());
+    }
+    let employee = entries.iter_mut().find(|entry| entry.key == key).unwrap();
+    employee.enabled = true;
+    assert_eq!(employee.can_start_session(), !cfg!(target_arch = "wasm32"));
+}
+
+#[test]
 fn agent_catalog_view_failed_toggle_preserves_snapshot_and_main() {
     use crate::message::AgentsMessage;
     let mut app = ProfileFixture::default();

@@ -1,5 +1,35 @@
 use super::{acp_description, acp_title, command_line, setup_hint};
 use config_aggregate::AcpAgentConfig;
+
+#[test]
+fn acp_catalog_search_combines_with_install_status_and_preserves_order() {
+    use crate::acp_state::{AcpInstallFilter, AcpSettingsState};
+    use config_ui::DesktopLocale::SimplifiedChinese;
+
+    let mut state = AcpSettingsState::default();
+    for name in ["employee-acp", "claude", "codex", "custom"] {
+        state.catalog.insert(name.into(), AcpAgentConfig::default());
+    }
+    state.installed.extend([("claude".into(), true), ("codex".into(), false)]);
+    assert_eq!(
+        super::filtered_agents(&state, SimplifiedChinese),
+        ["employee-acp", "claude", "codex", "custom"]
+    );
+
+    state.install_filter = AcpInstallFilter::Installed;
+    assert_eq!(super::filtered_agents(&state, SimplifiedChinese), ["employee-acp", "claude"]);
+    for query in [" 数字员工 ", " DIGITAL employees ", "EMPLOYEE-ACP"] {
+        state.catalog_query = query.into();
+        assert_eq!(super::filtered_agents(&state, SimplifiedChinese), ["employee-acp"]);
+    }
+    state.catalog_query = "CLAUDE CODE".into();
+    assert_eq!(super::filtered_agents(&state, SimplifiedChinese), ["claude"]);
+    state.install_filter = AcpInstallFilter::NotInstalled;
+    assert!(super::filtered_agents(&state, SimplifiedChinese).is_empty());
+    state.catalog_query.clear();
+    assert_eq!(super::filtered_agents(&state, SimplifiedChinese), ["codex"]);
+}
+
 #[test]
 fn acp_title_description_and_setup_hint_cover_known_and_custom_agents() {
     assert_eq!(acp_title("codex"), "Codex CLI");

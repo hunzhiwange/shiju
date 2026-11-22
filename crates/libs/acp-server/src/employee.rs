@@ -108,6 +108,47 @@ struct Connection<U> {
     active: RefCell<HashMap<String, Rc<ActivePrompt>>>,
 }
 
+struct InitializeProbe;
+
+#[async_trait::async_trait(?Send)]
+impl Agent for InitializeProbe {
+    async fn initialize(&self, _: InitializeRequest) -> Result<InitializeResponse> {
+        Ok(employee_initialize_response())
+    }
+
+    async fn authenticate(&self, _: AuthenticateRequest) -> Result<AuthenticateResponse> {
+        Err(Error::method_not_found())
+    }
+
+    async fn new_session(&self, _: NewSessionRequest) -> Result<NewSessionResponse> {
+        Err(Error::method_not_found())
+    }
+
+    async fn prompt(&self, _: PromptRequest) -> Result<PromptResponse> {
+        Err(Error::method_not_found())
+    }
+
+    async fn cancel(&self, _: CancelNotification) -> Result<()> {
+        Err(Error::method_not_found())
+    }
+}
+
+pub async fn serve_initialize_probe<R, W>(reader: R, writer: W) -> Result<()>
+where
+    R: AsyncRead + Unpin + 'static,
+    W: AsyncWrite + Unpin + 'static,
+{
+    serve_agent_with_io(reader, writer, |_| InitializeProbe).await
+}
+
+fn employee_initialize_response() -> InitializeResponse {
+    InitializeResponse::new(ProtocolVersion::V1).agent_capabilities(
+        AgentCapabilities::new().load_session(true).session_capabilities(
+            SessionCapabilities::new().list(SessionListCapabilities::new()),
+        ),
+    )
+}
+
 #[derive(Default)]
 struct ActivePrompt {
     armed: Cell<bool>,
@@ -132,11 +173,7 @@ impl<U: SessionUpdateSink> Agent for Connection<U> {
         if self.initialized.replace(true) {
             return Err(Error::new(-32600, "ACP connection is already initialized"));
         }
-        Ok(InitializeResponse::new(ProtocolVersion::V1).agent_capabilities(
-            AgentCapabilities::new().load_session(true).session_capabilities(
-                SessionCapabilities::new().list(SessionListCapabilities::new()),
-            ),
-        ))
+        Ok(employee_initialize_response())
     }
 
     async fn authenticate(&self, _: AuthenticateRequest) -> Result<AuthenticateResponse> {

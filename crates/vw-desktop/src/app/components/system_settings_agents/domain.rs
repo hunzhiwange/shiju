@@ -29,6 +29,8 @@ pub(in crate::app::components) fn event(event: Event) -> Message {
         )),
         Event::Agents(value) => Message::Settings(SettingsMessage::Agents(value)),
         Event::Acp(value) => Message::Settings(SettingsMessage::Acp(match value {
+            LocalAcp::InstallFilterChanged(filter) => AcpMessage::InstallFilterChanged(filter),
+            LocalAcp::CatalogQueryChanged(query) => AcpMessage::CatalogQueryChanged(query),
             LocalAcp::StartDiagnostic => AcpMessage::StartDiagnostic,
             LocalAcp::TestAgent(v0) => AcpMessage::TestAgent(v0),
             LocalAcp::InstallAgent(v0) => AcpMessage::InstallAgent(v0),

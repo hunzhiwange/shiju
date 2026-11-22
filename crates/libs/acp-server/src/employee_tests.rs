@@ -270,6 +270,23 @@ async fn session<T, F: Future<Output = T>>(
     result
 }
 
+#[tokio::test]
+async fn employee_probe_handshakes_without_allowing_sessions() {
+    let (client_io, server_io) = tokio::io::duplex(4096);
+    let (reader, writer) = tokio::io::split(server_io);
+    let (result, ()) = time::timeout(Duration::from_secs(5), async {
+        tokio::join!(serve_initialize_probe(reader, writer), async {
+            let mut client = Rpc(BufReader::new(client_io));
+            client.initialize().await;
+            client.send("session/new", Some(2), json!({ "cwd": "/", "mcpServers": [] })).await;
+            assert_eq!(client.read().await["error"]["code"], -32601);
+        })
+    })
+    .await
+    .expect("probe timed out");
+    result.expect("stdio transport");
+}
+
 async fn roundtrip(kind: EmployeeKind) {
     let (client, http) = fixture(vec![
         Exchange::new("POST", collection(kind), 201, submission(kind, 1, "DELIVERED", false)),

@@ -1,6 +1,10 @@
 pub(crate) use acp_agent_registry::agent_registry::built_in_agent_display_name;
-use acp_agent_registry::EMPLOYEE_ACP_BACKEND;
+pub use acp_agent_registry::{EMPLOYEE_ACP_BACKEND, EMPLOYEE_ACP_PROFILE};
 use config_aggregate::AcpAgentConfig;
+use config_ui::DesktopLocale;
+use desktop_i18n::I18n;
+
+use crate::acp_state::{AcpInstallFilter, AcpSettingsState};
 
 pub(crate) const ACP_ORDER: &[&str] = &[
     EMPLOYEE_ACP_BACKEND,
@@ -29,7 +33,7 @@ pub(crate) const ACP_ORDER: &[&str] = &[
 ];
 
 pub(crate) const EMPLOYEE_ACP_HINT: &str =
-    "在官方智能体中启用后，请从数字员工页面选择员工发起会话。";
+    "网关内置，无需安装。启用后，请从数字员工页面选择员工发起会话。";
 
 pub fn acp_title(agent: &str) -> &'static str {
     built_in_agent_display_name(agent).unwrap_or("自定义 ACP")
@@ -94,6 +98,34 @@ pub fn ordered_agents(catalog: &std::collections::BTreeMap<String, AcpAgentConfi
         (left_rank, left.as_str()).cmp(&(right_rank, right.as_str()))
     });
     names
+}
+
+pub(crate) fn filtered_agents(state: &AcpSettingsState, locale: DesktopLocale) -> Vec<String> {
+    let query = state.catalog_query.trim().to_lowercase();
+    let localized = I18n::new(locale);
+    let english = I18n::new(DesktopLocale::English);
+    let mut agents = ordered_agents(&state.catalog);
+    agents.retain(|agent| {
+        let installed = if agent == EMPLOYEE_ACP_BACKEND {
+            Some(true)
+        } else {
+            state.installed.get(agent).copied()
+        };
+        let matches_filter = match state.install_filter {
+            AcpInstallFilter::All => true,
+            AcpInstallFilter::Installed => installed == Some(true),
+            AcpInstallFilter::NotInstalled => installed == Some(false),
+        };
+        matches_filter
+            && (query.is_empty()
+                || agent.to_lowercase().contains(&query)
+                || built_in_agent_display_name(agent).is_some_and(|name| {
+                    [name, localized.__(name), english.__(name)]
+                        .iter()
+                        .any(|label| label.to_lowercase().contains(&query))
+                }))
+    });
+    agents
 }
 
 #[cfg(test)]

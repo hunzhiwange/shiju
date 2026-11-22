@@ -15,6 +15,14 @@ fn effects(app: &mut App, effects: Vec<Effect>, task: Task<Local>) -> Task<Messa
  Effect::EditAcp(backend) => super::acp::update(app, SettingsMessage::Acp(super::AcpMessage::EditAgent(backend))),
  Effect::RefreshAcp => super::acp::update(app, SettingsMessage::Acp(super::AcpMessage::Refresh)),
  Effect::RefreshMcp => super::mcp::update(app, SettingsMessage::Mcp(super::McpMessage::InspectRefresh)),
+ #[cfg(not(target_arch = "wasm32"))]
+ Effect::OpenDigitalEmployees => {
+ app.navigation_panels.show_system_settings = false;
+ app.navigation_panels.show_settings = false;
+ Task::done(Message::DigitalEmployees(crate::app::digital_employees::Event::Open))
+ }
+ #[cfg(target_arch = "wasm32")]
+ Effect::OpenDigitalEmployees => Task::none(),
  Effect::Launch { project, key } => {
  let draft = crate::app::message::project::open_session_draft(app, project.clone(), project);
  let selection = crate::app::message::chat::session::update(app, crate::app::message::chat::ChatMessage::SessionAgentSelected(Some(key)));

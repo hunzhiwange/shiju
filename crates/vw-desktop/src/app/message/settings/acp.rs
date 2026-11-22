@@ -2,9 +2,17 @@
 use crate::app::{App, Message};
 use super::messages::{SettingsMessage};
 use desktop_settings_agents::{acp_update, acp_update_message::{Message as Local, Toast}};
+use desktop_settings_agents::acp::{EMPLOYEE_ACP_BACKEND, EMPLOYEE_ACP_PROFILE};
 use iced::Task;
 pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
  let SettingsMessage::Acp(message) = message else { return Task::none(); };
+ if let super::AcpMessage::SetEnabledCompleted { agent, result: Ok(snapshot), .. } = &message
+     && agent == EMPLOYEE_ACP_BACKEND
+     && let Some(entry) = app.agents_settings.entries.iter_mut()
+         .find(|entry| entry.key == EMPLOYEE_ACP_PROFILE)
+ {
+     entry.enabled = snapshot.enabled.contains_key(EMPLOYEE_ACP_BACKEND);
+ }
  let refresh_chat_source = matches!(&message,
      super::AcpMessage::InstallCompleted { agent, result: Ok(report) }
          if report.success && app.acp_settings.installing_agent.as_deref() == Some(agent.as_str())

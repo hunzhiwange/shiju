@@ -117,6 +117,11 @@ pub async fn run() -> Result<()> {
 
     // 解析命令行参数
     let cli = Cli::parse();
+    if matches!(&cli.command, Commands::EmployeeAcpProbe) {
+        return acp_server::employee::serve_initialize_probe(tokio::io::stdin(), tokio::io::stdout())
+            .await
+            .map_err(|error| anyhow::anyhow!("Employee ACP probe failed: {error}"));
+    }
     if let Commands::EmployeeAcp { employee_id, employee_kind, state_dir, account_scope } =
         cli.command
     {
@@ -181,7 +186,7 @@ pub async fn run() -> Result<()> {
     // 根据命令类型路由到相应的处理器
     match cli.command {
         /* Commands::Onboard { .. } | */ Commands::Completions { .. } => unreachable!(),
-        Commands::Acp | Commands::EmployeeAcp { .. } => {
+        Commands::Acp | Commands::EmployeeAcp { .. } | Commands::EmployeeAcpProbe => {
             unreachable!("ACP mode is routed before interactive initialization")
         }
 

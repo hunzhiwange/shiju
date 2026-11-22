@@ -119,6 +119,9 @@ pub enum Commands {
     /// 通过 stdin/stdout 运行本地 ACP Agent。
     Acp,
 
+    #[command(hide = true)]
+    EmployeeAcpProbe,
+
     /// 通过 stdin/stdout 运行绑定到当前账号和数字员工的 ACP Agent。
     EmployeeAcp {
         #[arg(long)]

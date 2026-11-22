@@ -8,6 +8,7 @@ license = "MIT"
 doctest = false
 
 [dependencies]
+acp-agent-registry = { path = "../acp-agent-registry" }
 gateway-desktop-settings = { path = "../gateway-desktop-settings" }
 gateway-interaction = { path = "../gateway-interaction" }
 gateway-cron = { path = "../gateway-cron" }

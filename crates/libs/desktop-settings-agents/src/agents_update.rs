@@ -770,7 +770,11 @@ pub fn update(app: &mut Update<'_>, message: SettingsMessage) -> Task<Message> {
         }
         AgentsMessage::CatalogRuntimeSettings(backend) => {
             app.state.active_config_tab = crate::state::AgentConfigTab::Acp;
-            app.effect(Effect::EditAcp(backend))
+            if backend == acp_agent_registry::EMPLOYEE_ACP_BACKEND {
+                app.effect(Effect::RefreshAcp)
+            } else {
+                app.effect(Effect::EditAcp(backend))
+            }
         }
         AgentsMessage::CatalogToggle(key, enabled) => {
             if let Some(draft) = app.state.profile_modal.as_mut() {
@@ -865,6 +869,9 @@ pub fn update(app: &mut Update<'_>, message: SettingsMessage) -> Task<Message> {
                     .any(|entry| entry.key == key && entry.can_start_session())
             {
                 return Task::none();
+            }
+            if key == crate::acp::EMPLOYEE_ACP_PROFILE {
+                return app.effect(Effect::OpenDigitalEmployees);
             }
             let Some(project) = app.project_path.clone().filter(|path| !path.trim().is_empty())
             else {

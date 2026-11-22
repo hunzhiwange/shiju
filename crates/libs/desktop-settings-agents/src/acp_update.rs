@@ -37,7 +37,10 @@ fn apply_snapshot(app: &mut Update, snapshot: AcpSettingsSnapshot) {
     app.state.catalog = snapshot.catalog;
     app.state.installed = snapshot.installed;
     app.state.enabled = snapshot.enabled.keys().cloned().collect();
-    *app.acp_agents = sort_acp_agent_names(app.state.enabled.iter().cloned().collect());
+    *app.acp_agents = sort_acp_agent_names(app.state.enabled.iter()
+        .filter(|agent| agent.as_str() != acp_agent_registry::EMPLOYEE_ACP_BACKEND)
+        .cloned()
+        .collect());
     if app.acp_agent.as_ref().is_some_and(|agent| !app.state.enabled.contains(agent)) {
         *app.acp_agent = None;
     }
@@ -119,6 +122,14 @@ pub fn update(app: &mut Update, message: AcpMessage) -> Task<Message> {
         Task::none()
     };
     let task = match message {
+        AcpMessage::InstallFilterChanged(filter) => {
+            app.state.install_filter = filter;
+            Task::none()
+        }
+        AcpMessage::CatalogQueryChanged(query) => {
+            app.state.catalog_query = query;
+            Task::none()
+        }
         AcpMessage::ToggleInstallDetails(agent) => {
             if !app.state.install_expanded.insert(agent.clone()) {
                 app.state.install_expanded.remove(&agent);
@@ -239,6 +250,7 @@ pub fn update(app: &mut Update, message: AcpMessage) -> Task<Message> {
                 },
             };
             let previous = cancel_diagnostic(app);
+            let employee = agent == acp_agent_registry::EMPLOYEE_ACP_BACKEND;
             let id = operation_id();
             app.state.diagnostic_id = Some(id.clone());
             app.state.diagnostic_status = Some(AcpDiagnosticStatus::Running);
@@ -254,7 +266,11 @@ pub fn update(app: &mut Update, message: AcpMessage) -> Task<Message> {
                     async move {
                         let result = async {
                             let client = client.clone()?;
-                            let value = serde_json::to_value(config).map_err(|e| e.to_string())?;
+                            let value = if employee {
+                                serde_json::json!({"builtin": acp_agent_registry::EMPLOYEE_ACP_BACKEND})
+                            } else {
+                                serde_json::to_value(config).map_err(|e| e.to_string())?
+                            };
                             gateway_desktop_settings::GatewayDesktopSettingsClient::new(client.transport().clone()).acp_diagnostic(&id, &value).await
                         }
                         .await;

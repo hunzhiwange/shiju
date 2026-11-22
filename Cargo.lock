@@ -160,6 +160,7 @@ dependencies = [
  "agent-client-protocol",
  "libc",
  "parking_lot",
+ "process-sandbox",
  "serde",
  "serde_json",
  "shell-command",
@@ -16928,6 +16929,7 @@ version = "0.7.8"
 dependencies = [
  "async-trait",
  "landlock",
+ "libc",
  "tempfile",
  "tracing",
 ]

@@ -12,6 +12,7 @@ async-trait = "0.1.89"
 tracing = "0.1"
 
 [target.'cfg(target_os = "linux")'.dependencies]
+libc = { version = "0.2", optional = true }
 landlock = { version = "0.4.5", optional = true }
 
 [dev-dependencies]
@@ -19,5 +20,5 @@ tempfile = "3"
 
 [features]
 default = []
-sandbox-bubblewrap = []
+sandbox-bubblewrap = ["dep:libc"]
 sandbox-landlock = ["dep:landlock"]

@@ -269,3 +269,8 @@ mod tests;
 #[cfg(test)]
 #[path = "legacy_security_tests.rs"]
 mod legacy_security_tests;
+
+#[cfg(all(target_os = "linux", target_env = "gnu", any(target_arch = "x86_64", target_arch = "aarch64")))]
+mod isolated_stdio;
+#[cfg(all(target_os = "linux", target_env = "gnu", any(target_arch = "x86_64", target_arch = "aarch64")))]
+pub use isolated_stdio::isolated_stdio_command;

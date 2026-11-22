@@ -21,28 +21,43 @@ NATIVE_DIR = ".kimi-code/skills"
 VERSION = "2.5.0"
 SHA256 = "d4dd02d40f18f3a784699fc37ae0c55d676a4704c37a3b91ab96541b0db673a1"
 ARTIFACT = ROOT / "target/acp-skill-coexistence/kimi-artifact/kimi"
+CHAT_ENDPOINT = "/v1/chat/completions"
 MCP_TOOL = "mcp__coexistence__read_probe"
 
 
 def launch(env):
-    require((platform.system(), platform.machine()) == ("Darwin", "arm64"),
-            "unreviewed Kimi platform")
-    require(ARTIFACT.is_file(), "missing reviewed Kimi executable at " + str(ARTIFACT.relative_to(ROOT)))
+    system, machine = platform.system(), platform.machine()
+    artifact = ARTIFACT
+    version, expected_digest = VERSION, SHA256
+    args = ["acp"]
+    evidence = {}
+    if system == "Linux":
+        manifest = json.loads((ROOT / "patches/acp-model-source/kimi/linux.json").read_text())
+        target = manifest["targets"].get(machine)
+        require(target is not None, "unreviewed Linux Kimi architecture")
+        artifact = ARTIFACT.parent / target["platform"] / "kimi"
+        version, expected_digest = manifest["version"], target["sha256"]
+        args = manifest["args"]
+        evidence = {"target": target["platform"], "args": args,
+                    "model_endpoint": CHAT_ENDPOINT}
+    else:
+        require((system, machine) == ("Darwin", "arm64"), "unreviewed Kimi platform")
+    require(artifact.is_file(), "missing pinned Kimi executable at " + str(artifact.relative_to(ROOT)))
     entry = Path(env["TMPDIR"]) / "kimi"
-    shutil.copy2(ARTIFACT, entry)
+    shutil.copy2(artifact, entry)
     checksum = hashlib.sha256()
     with entry.open("rb") as stream:
         for block in iter(lambda: stream.read(1024 * 1024), b""):
             checksum.update(block)
     digest = checksum.hexdigest()
-    require(digest == SHA256, "Kimi executable digest mismatch")
+    require(digest == expected_digest, "Kimi executable digest mismatch")
     try:
-        version = subprocess.run([str(entry), "--version"], env=env, capture_output=True, timeout=15)
+        readback = subprocess.run([str(entry), "--version"], env=env, capture_output=True, timeout=15)
     except subprocess.TimeoutExpired as error:
         raise AssertionError("Kimi version readback timed out") from error
-    require(version.returncode == 0 and version.stdout.strip() == VERSION.encode(),
+    require(readback.returncode == 0 and readback.stdout.strip() == version.encode(),
             "unexpected Kimi executable version")
-    return {"command": str(entry), "args": ["acp"]}, {"version": VERSION, "sha256": digest}
+    return {"command": str(entry), "args": args}, {"version": version, "sha256": digest, **evidence}
 
 
 class Probe:
@@ -150,7 +165,7 @@ class Handler(ProviderHandler):
     def do_POST(self):
         probe = self.server.probe
         try:
-            require(self.path == "/v1/chat/completions", "unexpected Kimi model protocol")
+            require(self.path == CHAT_ENDPOINT, "unexpected Kimi model protocol")
             require(self.headers.get("Authorization") == "Bearer " + self.server.key,
                     "unauthenticated Kimi model request")
             size = int(self.headers["Content-Length"])

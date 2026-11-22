@@ -1,0 +1,22 @@
+{
+  "version": "2.5.0",
+  "upstream_commit": "41c341434ae24e45bfe0f2232ec11b80531ac717",
+  "base_url": "https://code.kimi.com/kimi-code/binaries/2.5.0/",
+  "args": ["acp"],
+  "targets": {
+    "x86_64": {
+      "platform": "linux-x64",
+      "archive": "kimi-code-linux-x64.zst",
+      "archive_sha256": "d0d0ff80e034dbb1e2081e028b257a98439bf8b7baeba1f611b21d2e0114328e",
+      "sha256": "289a8d33e5e76d7a280ebf273855b9b2d941c09fa6828cccf993c0666886fd6c",
+      "interpreter": "/lib64/ld-linux-x86-64.so.2"
+    },
+    "aarch64": {
+      "platform": "linux-arm64",
+      "archive": "kimi-code-linux-arm64.zst",
+      "archive_sha256": "8e1b96a12550058ab3bfe6961d373ff43bc71b7eb482ab71b0bfed0a6f5f2c37",
+      "sha256": "643ae9a7f1971c39c4d8c7ff0fbaaaf6cdd8e4c35e58f98b9c1be556694dddab",
+      "interpreter": "/lib/ld-linux-aarch64.so.1"
+    }
+  }
+}

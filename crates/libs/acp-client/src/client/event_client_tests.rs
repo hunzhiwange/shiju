@@ -1676,3 +1676,63 @@ async fn acp_platform_iflow_contract_requires_current_prompt_and_explicit_once()
     let replay = client.request_permission(request.clone()).await.unwrap();
     assert_ne!(crate::classify_permission_decision(&request, &replay), crate::PermissionDecision::Approved);
 }
+
+#[tokio::test]
+async fn acp_platform_iflow_v4_mcp_approval_requires_scoped_relay() {
+    let (event_tx, _) = mpsc::unbounded_channel();
+    let mut client = event_client(event_tx, Some("owned".into()));
+    client.managed_linux_iflow = true;
+    client.permission_mode = PermissionMode::ApproveAll;
+    client.permission_confirmation = Some(Arc::new(|title, input| Box::pin(async move {
+        assert_eq!(title, "mcp__selected__read");
+        assert_eq!(input, serde_json::json!({"path": "note.txt"}));
+        true
+    })));
+    let (cancel_tx, _cancel_rx) = tokio::sync::watch::channel(false);
+    let (completed_tx, completed_rx) = tokio::sync::watch::channel(false);
+    *client.active_prompt.lock() = Some(super::ActivePromptControl::new(
+        "owned".into(), cancel_tx, completed_rx,
+    ));
+    let request = serde_json::from_value::<acp::RequestPermissionRequest>(serde_json::json!({
+        "sessionId": "owned",
+        "_meta": {"shiju.iflow/tool-v3": "mcp__selected__read"},
+        "toolCall": {
+            "toolCallId": "iflow-call", "kind": "read", "title": "untrusted label",
+            "rawInput": {"path": "note.txt"}
+        },
+        "options": [
+            {"optionId": "once", "name": "Allow", "kind": "allow_once"},
+            {"optionId": "deny", "name": "Reject", "kind": "reject_once"}
+        ]
+    })).unwrap();
+    let response = client.request_permission(request.clone()).await.unwrap();
+    assert_eq!(
+        crate::classify_permission_decision(&request, &response),
+        crate::PermissionDecision::Cancelled
+    );
+
+    let approved_grants = Arc::new(Mutex::new(Vec::new()));
+    let observed = approved_grants.clone();
+    client.managed_mcp_approval = Some(Arc::new(move |tool, call_id, args, valid| {
+        assert_eq!(tool, "mcp__selected__read");
+        assert_eq!(call_id, "iflow-call");
+        assert_eq!(args, &serde_json::json!({"path": "note.txt"}));
+        observed.lock().push(valid);
+        true
+    }));
+    let response = client.request_permission(request.clone()).await.unwrap();
+    assert_eq!(
+        crate::classify_permission_decision(&request, &response),
+        crate::PermissionDecision::Approved
+    );
+    let replay = client.request_permission(request.clone()).await.unwrap();
+    assert_eq!(
+        crate::classify_permission_decision(&request, &replay),
+        crate::PermissionDecision::Cancelled
+    );
+    let grants = approved_grants.lock();
+    assert_eq!(grants.len(), 1);
+    assert!(grants[0]());
+    completed_tx.send(true).unwrap();
+    assert!(!grants[0]());
+}

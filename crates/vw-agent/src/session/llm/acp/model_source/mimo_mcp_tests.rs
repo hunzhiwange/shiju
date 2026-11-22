@@ -194,6 +194,18 @@ async fn acp_platform_approval_dispatch_binds_call_source_and_arguments() {
 #[cfg(all(target_os = "linux", target_env = "gnu", any(target_arch = "x86_64", target_arch = "aarch64")))]
 #[tokio::test]
 async fn acp_platform_approval_only_launches_the_reviewed_linux_projection() {
+    assert_reviewed_linux_projection(LinuxMcpOwner::VtCode, "vtcode", None).await;
+}
+
+#[cfg(all(target_os = "linux", target_env = "gnu", any(target_arch = "x86_64", target_arch = "aarch64")))]
+#[tokio::test]
+async fn acp_platform_approval_iflow_v4_binds_host_selected_source() {
+    assert_reviewed_linux_projection(LinuxMcpOwner::IFlow(IFlowMcpSource::Project), "iflow", Some("project")).await;
+    assert_reviewed_linux_projection(LinuxMcpOwner::IFlow(IFlowMcpSource::Mounted), "iflow", Some("mounted")).await;
+}
+
+#[cfg(all(target_os = "linux", target_env = "gnu", any(target_arch = "x86_64", target_arch = "aarch64")))]
+async fn assert_reviewed_linux_projection(owner: LinuxMcpOwner, backend: &str, source: Option<&str>) {
     use sha2::{Digest, Sha256};
 
     const ROUTE: &str = "/shiju-vtcode-mcp/selected";
@@ -207,29 +219,35 @@ async fn acp_platform_approval_only_launches_the_reviewed_linux_projection() {
     policy.enabled = true;
     policy.allowed_tools = vec!["echo".into()];
     let pin = |sha256| ReviewedLinuxStdio {
+        owner,
         executable: &executable, sha256, args: &args, policy: &policy,
     };
-    let launch = binding("first:vtcode");
-    let selected = AcpMcpServer::Stdio(McpServerStdio::new("selected", &executable).args(args.clone()));
+    let launch = binding(&format!("first:{backend}"));
+    let mut declaration = McpServerStdio::new("selected", &executable).args(args.clone());
+    declaration.meta = Some(Map::from_iter([("shiju.iflow.mcp-v4".into(), json!("forged"))]));
+    let selected = AcpMcpServer::Stdio(declaration);
     let implicit = AcpMcpServer::Stdio(McpServerStdio::new("project", &executable).args(args.clone()));
     let altered = AcpMcpServer::Stdio(McpServerStdio::new("selected", &executable).args(vec!["-s".into()]));
     let must_not_launch = |_: &FsPath, _: &[String]| -> anyhow::Result<Command> {
         panic!("unapproved discovery reached process preparation")
     };
     for rejected in [vec![], vec![implicit], vec![altered], vec![selected.clone(), selected.clone()]] {
-        assert!(prepare_linux_vtcode_with(&rejected, pin(digest), launch.clone(), must_not_launch).await.is_err());
+        assert!(prepare_linux_stdio_with(&rejected, pin(digest), launch.clone(), must_not_launch).await.is_err());
     }
-    assert!(prepare_linux_vtcode_with(
+    assert!(prepare_linux_stdio_with(
         std::slice::from_ref(&selected), pin([0; 32]), launch.clone(), must_not_launch,
     ).await.is_err());
-    let revoked = binding("revoked:vtcode");
+    assert!(prepare_linux_stdio_with(
+        std::slice::from_ref(&selected), pin(digest), binding("first:other"), must_not_launch,
+    ).await.is_err());
+    let revoked = binding(&format!("revoked:{backend}"));
     revoked.revoke();
-    assert!(prepare_linux_vtcode_with(
+    assert!(prepare_linux_stdio_with(
         std::slice::from_ref(&selected), pin(digest), revoked, must_not_launch,
     ).await.is_err());
     assert!(!discovery.exists());
 
-    let projection = prepare_linux_vtcode_with(&[selected], pin(digest), launch.clone(), |staged, args| {
+    let projection = prepare_linux_stdio_with(&[selected], pin(digest), launch.clone(), |staged, args| {
         // Only the test replaces the OS sandbox command. Catalog discovery and
         // the mounted peer execute the real stdio protocol and router.
         assert_ne!(staged, executable.as_path());
@@ -243,7 +261,7 @@ async fn acp_platform_approval_only_launches_the_reviewed_linux_projection() {
     }).await.unwrap();
 
     let token = projection.token();
-    let foreign = binding("other:vtcode");
+    let foreign = binding(&format!("other:{backend}"));
     assert_eq!(post(&projection, ROUTE, foreign.bearer_token(), "tools/list", json!({})).await.0,
         StatusCode::UNAUTHORIZED);
     let (status, catalog) = post(&projection, ROUTE, token, "tools/list", json!({})).await;
@@ -257,9 +275,25 @@ async fn acp_platform_approval_only_launches_the_reviewed_linux_projection() {
     let call = json!({"name": "echo", "arguments": input, "_meta": {"shijuCallId": "owned-call"}});
     assert_eq!(post(&projection, ROUTE, token, "tools/call", call.clone()).await.0, StatusCode::FORBIDDEN);
     assert!(!execution.exists());
-    let (_, issue) = projection.approval_config("http://127.0.0.1:1").unwrap();
+    if source.is_some() {
+        for endpoint in ["https://127.0.0.1:1", "http://192.0.2.1:1", "http://127.0.0.1:1/", "http://127.0.0.1:80"] {
+            assert!(projection.approval_config(endpoint).is_err());
+        }
+    }
+    let (servers, issue) = projection.approval_config("http://127.0.0.1:1").unwrap();
+    let [AcpMcpServer::Http(server)] = servers.as_slice() else { panic!("expected one HTTP projection") };
+    assert_eq!(server.url, "http://127.0.0.1:1/shiju-vtcode-mcp/selected");
+    assert_eq!(server.meta.as_ref().and_then(|meta| meta.get("shiju.iflow.mcp-v4")).and_then(Value::as_str), source);
     assert!(!issue("mcp__project__echo", "owned-call", &input, Box::new(|| true)));
     assert!(issue("mcp__selected__echo", "owned-call", &input, Box::new(|| true)));
+    let mut wrong_id = call.clone();
+    wrong_id["_meta"]["shijuCallId"] = json!("other-call");
+    let mut wrong_args = call.clone();
+    wrong_args["arguments"]["path"] = json!("other.txt");
+    for invalid in [wrong_id, wrong_args] {
+        assert_eq!(post(&projection, ROUTE, token, "tools/call", invalid).await.0, StatusCode::FORBIDDEN);
+    }
+    assert!(!execution.exists());
     assert_eq!(post(&projection, ROUTE, token, "tools/call", call.clone()).await.0, StatusCode::OK);
     assert_eq!(post(&projection, ROUTE, token, "tools/call", call.clone()).await.0, StatusCode::FORBIDDEN);
     launch.revoke();
@@ -287,9 +321,10 @@ async fn acp_platform_approval_linux_sandboxed_stdio_dispatch() {
     policy.allowed_tools = vec!["echo".into()];
     let launch = binding("sandboxed:vtcode");
     let selection = AcpMcpServer::Stdio(McpServerStdio::new("selected", &executable).args(args.clone()));
-    let projection = prepare_linux_vtcode(
+    let projection = prepare_linux_stdio(
         &[selection],
         ReviewedLinuxStdio {
+            owner: LinuxMcpOwner::VtCode,
             executable: &executable,
             sha256: Sha256::digest(std::fs::read(&executable).unwrap()).into(),
             args: &args,

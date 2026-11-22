@@ -231,6 +231,8 @@ impl acp::Client for AcpEventClient {
             if !self.managed_linux_iflow
                 || !self.owns_active_prompt(&args.session_id)
                 || !crate::access_policy::iflow::valid_linux_tool_approval(&args)
+                || (tool.as_str().is_some_and(|name| name.starts_with("mcp__"))
+                    && self.managed_mcp_approval.is_none())
             {
                 self.permission_stats.lock().cancelled += 1;
                 return Ok(cancelled_permission_response());

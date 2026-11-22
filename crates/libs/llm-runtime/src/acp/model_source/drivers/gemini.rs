@@ -2,6 +2,14 @@ use super::AcpLaunchProfile;
 use serde_json::{Value, json};
 use std::collections::HashMap;
 
+pub(super) const fn supports_managed_linux_target() -> bool {
+    cfg!(all(
+        target_os = "linux",
+        target_env = "gnu",
+        any(target_arch = "x86_64", target_arch = "aarch64")
+    ))
+}
+
 pub fn configure(profile: &mut AcpLaunchProfile, endpoint: &str) -> anyhow::Result<()> {
     let url = reqwest::Url::parse(endpoint)
         .map_err(|_| anyhow::anyhow!("Gemini relay endpoint is invalid"))?;
@@ -23,15 +31,17 @@ pub fn configure(profile: &mut AcpLaunchProfile, endpoint: &str) -> anyhow::Resu
         matches!(command, Some("gemini" | "gemini.cmd" | "gemini.exe")),
         "Gemini requires the verified CLI executable"
     );
-    anyhow::ensure!(
+    let reviewed_args = if supports_managed_linux_target() {
+        matches!(config.args.as_slice(), [acp] if acp == "--experimental-acp")
+    } else {
         config
             .args
             .first()
             .is_some_and(|arg| matches!(arg.as_str(), "--experimental-acp" | "--acp"))
             && (config.args.len() == 1
-                || matches!(&config.args[1..], [a,b,c] if a == "--approval-mode" && b == "yolo" && c == "--skip-trust")),
-        "Gemini managed launch requires verified ACP arguments"
-    );
+                || matches!(&config.args[1..], [a,b,c] if a == "--approval-mode" && b == "yolo" && c == "--skip-trust"))
+    };
+    anyhow::ensure!(reviewed_args, "Gemini managed launch requires verified ACP arguments");
     anyhow::ensure!(
         !config.env.keys().any(|key| {
             let key = key.to_ascii_uppercase();

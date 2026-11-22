@@ -25,8 +25,12 @@ REVISION = "gemini-0.66.0-model-source-v3"
 
 
 def launch(env):
-    require((platform.system(), platform.machine()) == ("Darwin", "arm64"),
+    system, machine = platform.system(), platform.machine()
+    linux = system == "Linux" and machine in ("x86_64", "aarch64")
+    require(linux or (system, machine) == ("Darwin", "arm64"),
             "unreviewed Gemini platform")
+    if linux:
+        require(platform.libc_ver()[0] == "glibc", "Gemini Linux fixture requires glibc")
     contract = json.loads((ROOT / "crates/libs/acp-agent-registry/src/managed_runtime/contracts.json")
                           .read_text())["gemini"]
     require(contract["version"] == "0.66.0", "Gemini version differs from coexistence pin")
@@ -42,6 +46,13 @@ def launch(env):
     metadata = json.loads((package / "package.json").read_text())
     require((metadata["name"], metadata["version"]) == (contract["package"], contract["version"]),
             "Gemini package identity differs from contract")
+    if linux:
+        lock = json.loads((private / "package-lock.json").read_text())["packages"]
+        require(lock["node_modules/" + contract["package"]]["integrity"] == contract["integrity"],
+                "Gemini package integrity differs from contract")
+        require(not any((private / "node_modules" / name).exists()
+                        for name in metadata.get("optionalDependencies", {})),
+                "Gemini Linux fixture requires the reviewed JavaScript-only installation")
     for name, digest in contract["files"].items():
         require(hashlib.sha256((package / name).read_bytes()).hexdigest() == digest,
                 "Gemini artifact digest differs from contract")
@@ -57,7 +68,9 @@ def launch(env):
     env.update(GEMINI_CLI_TRUSTED_FOLDERS_PATH=str(trust),
                GEMINI_CLI_SYSTEM_DEFAULTS_PATH=str(defaults))
     return {"command": str(entry), "args": ["--experimental-acp"], "env": {}}, {
-        "version": contract["version"], "sha256": contract["files"], "revision": REVISION}
+        "version": contract["version"], "sha256": contract["files"], "revision": REVISION,
+        "entry": contract["bin"], "integrity": contract["integrity"],
+        "model_endpoint": f"{API_PATH}/models/{MODEL}:streamGenerateContent"}
 
 
 class Probe:

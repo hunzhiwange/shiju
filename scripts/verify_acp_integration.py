@@ -385,7 +385,9 @@ class PlatformModel(ProviderHandler):
             self.wfile.write(b"data: [DONE]\n\n")
             self.wfile.flush()
         except (BrokenPipeError, ConnectionResetError):
-            if not turn.get("cancel"):
+            if turn.get("cancel"):
+                turn["stream_closed"].set()
+            else:
                 turn["failure"] = "model connection closed before completing the turn"
         except Exception as error:
             turn["failure"] = str(error)
@@ -421,7 +423,7 @@ def platform_process(command, cwd, env, log):
                     pass
 
 
-def platform_scenarios(shiju, output):
+def platform_scenarios(shiju, output, report):
     from acp_mount_integration import McpHandler
     from verify_acp_skill_coexistence import make_skill
 
@@ -536,7 +538,6 @@ def platform_scenarios(shiju, output):
             verify_platform_audit(before, audit_counts(), mounted=mounted, rejected=rejected)
             return marker
 
-        report = {}
         with connect("platform-host.log") as client:
             initialize(client)
             params = {"cwd": str(cwd), "mcpServers": []}
@@ -568,8 +569,10 @@ def platform_scenarios(shiju, output):
             update([], [])
             probe(client, sid, "removed")
             report["removed"] = True
-            marker = "ACP_CANCEL_" + uuid.uuid4().hex
-            model.turn = {"marker": marker, "model": "beta", "plan": [], "issued": [], "cancel": True}
+            cancel_marker = "ACP_CANCEL_" + uuid.uuid4().hex
+            stream_closed = threading.Event()
+            model.turn = {"marker": cancel_marker, "model": "beta", "plan": [], "issued": [],
+                          "cancel": True, "stream_closed": stream_closed}
             cancelled = None
 
             def cancel(frame):
@@ -580,9 +583,11 @@ def platform_scenarios(shiju, output):
 
             before = audit_counts()
             result, _ = client.call("session/prompt", {"sessionId": sid, "prompt": [
-                {"type": "text", "text": marker}]}, on_frame=cancel)
+                {"type": "text", "text": cancel_marker}]}, on_frame=cancel)
             require(cancelled is not None and time.monotonic() - cancelled < 5
                     and result["stopReason"] == "cancelled", "ACP prompt did not cancel promptly")
+            require(stream_closed.wait(max(0, cancelled + 5 - time.monotonic())),
+                    "cancelled ACP prompt left its provider stream open")
             require(audit_counts() == before, "cancelled turn called a fixture service")
             report["cancelled"] = True
 
@@ -590,11 +595,16 @@ def platform_scenarios(shiju, output):
             agent = initialize(client)
             require(agent.get("loadSession") is True, "ACP load capability")
             before = audit_counts()
-            loaded, _ = client.call("session/load", {**params, "sessionId": sid})
+            loaded, history = client.call("session/load", {**params, "sessionId": sid})
             mounts = loaded["_meta"]["shiju.mounts"]
             require(mounts["revision"] == revision and mounts["skills"] == [] and mounts["mcpServers"] == [],
                     "removed mounts reappeared on restart")
             require(loaded["models"]["currentModelId"] == "fixture/beta", "restored model")
+            require(any(frame.get("method") == "session/update"
+                        and frame["params"]["sessionId"] == sid
+                        and frame["params"]["update"]["sessionUpdate"] == "user_message_chunk"
+                        and cancel_marker in json.dumps(frame["params"]["update"]["content"])
+                        for frame in history), "cancelled prompt missing from restored ACP history")
             require(audit_counts() == before, "session load executed an MCP tool")
             probe(client, sid, "recovered", history=baseline)
             report["recovered"] = True
@@ -606,7 +616,6 @@ def platform_scenarios(shiju, output):
             else:
                 report["fork"] = "not advertised"
         report["owned_processes_cleaned"] = True
-        return report
 
 
 def main():
@@ -629,7 +638,7 @@ def main():
     if args.linux_platform:
         report = {"architecture": platform.machine(), "passed": False, "checks": {}}
         try:
-            report["checks"] = platform_scenarios(shiju, output)
+            platform_scenarios(shiju, output, report["checks"])
             report["passed"] = True
         finally:
             (output / "platform-results.json").write_text(json.dumps(report, indent=2) + "\n")

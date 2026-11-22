@@ -290,6 +290,36 @@ async fn employee_acp_gateway_verifies_account_and_waits_for_product_stop() {
     use gateway_shiju_account::SHIJU_CREDENTIAL_HEADER;
     use std::{fs, net::SocketAddr, os::unix::fs::PermissionsExt, time::Duration};
 
+    const FIXTURE_ROOT: &str = "SHIJU_EMPLOYEE_ACP_GATEWAY_FIXTURE";
+    if std::env::var_os(FIXTURE_ROOT).is_none() {
+        // ACP's disk repository resolves the process home, so isolate the real peer and all
+        // its storage in a subprocess before any paths are initialized.
+        let root = tempfile::tempdir().unwrap();
+        let test = format!(
+            "{}::employee_acp_gateway_verifies_account_and_waits_for_product_stop",
+            module_path!().split_once("::").unwrap().1,
+        );
+        let result = std::process::Command::new(std::env::current_exe().unwrap())
+            .args(["--exact", &test, "--nocapture"])
+            .env(FIXTURE_ROOT, root.path())
+            .env("VIBEWINDOW_TEST_ROOT", root.path())
+            .env("HOME", root.path())
+            .output()
+            .unwrap();
+        for output in [&result.stdout, &result.stderr] {
+            let output = String::from_utf8_lossy(output);
+            assert!(!output.contains("fixture-login-a") && !output.contains("fixture-login-b"));
+        }
+        assert!(
+            result.status.success(),
+            "{}\n{}",
+            String::from_utf8_lossy(&result.stdout),
+            String::from_utf8_lossy(&result.stderr)
+        );
+        assert!(String::from_utf8_lossy(&result.stdout).contains("1 passed"));
+        return;
+    }
+
     let _env = crate::test_support::global_async_env_lock().lock().await;
     let _fixture = crate::session::llm::recovery_test_support::RecoveryConfig::new(
         "https://example.test/v1",

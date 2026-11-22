@@ -49,6 +49,27 @@ def main():
         " && ['x64', 'arm64'].includes(process.arch)"
         " && !!process.report.getReport().header.glibcVersionRuntime;\nlet binding;",
     )
+    binding = replace_once(
+        binding,
+        "export const active = !!process.env.SHIJU_QODER_MODEL_CONFIG;",
+        "const bindingFile = process.env.SHIJU_QODER_MODEL_CONFIG;\n"
+        "const launchReference = process.env.VW_ACP_LAUNCH_REFERENCE;\n"
+        "export const active = !!bindingFile;",
+    )
+    binding = replace_once(binding, "const file = process.env.SHIJU_QODER_MODEL_CONFIG;",
+                           "const file = bindingFile;")
+    binding = replace_once(binding, "process.env.VW_ACP_LAUNCH_REFERENCE || ''",
+                           "launchReference || ''")
+    binding = replace_once(
+        binding,
+        "if (active) {\n  const c = validate();",
+        "if (active) {\n"
+        "  delete process.env.SHIJU_QODER_MODEL_CONFIG;\n"
+        "  delete process.env.VW_ACP_LAUNCH_REFERENCE;\n"
+        "  const c = validate();",
+    )
+    binding = replace_once(binding, "path.dirname(process.env.SHIJU_QODER_MODEL_CONFIG)",
+                           "path.dirname(bindingFile)")
     binding += """
 // The installer and host verify this architecture's exact npm helper.
 export function ripgrep() {
@@ -63,6 +84,35 @@ export function ripgrep() {
     bundle = root / "bundle/qodercli.js"
     source = replace_once(bundle.read_text(), "function FBn(){if(Fx)return Fx;",
                           "function FBn(){if(Fx)return Fx;if(shijuQoder.active)return Fx=shijuQoder.ripgrep();")
+    # Retain native denies, and never persist approval for a managed MCP request.
+    source = replace_once(
+        source, "let r=t(),o=i.details;if(o?.type===Qi&&Yyt(e.clientCapabilities))",
+        'let r=t(),o=i.details,shijuMcp=shijuQoder.active&&'
+        '(o?.type==="mcp"||i.toolName.startsWith("mcp__"));'
+        'if(shijuMcp&&(o?.type===Qi||o?.type===oi))return ave();'
+        "if(o?.type===Qi&&Yyt(e.clientCapabilities))",
+    )
+    source = replace_once(
+        source, ",e.toolCallNames.set(i.toolUseId,i.toolName),e.permissionToolCallIds",
+        ';if(shijuMcp)a=a.filter(A=>A.kind==="allow_once"||A.kind==="reject_once");'
+        "e.toolCallNames.set(i.toolUseId,i.toolName),e.permissionToolCallIds",
+    )
+    source = replace_once(
+        source, 'if("cancel"===s)return ave();let l="proceed_always_and_save"',
+        'if("cancel"===s||shijuMcp&&"proceed_once"!==s)return ave();'
+        'if(shijuMcp)return{behavior:"allow",updatedInput:i.input};'
+        'let l="proceed_always_and_save"',
+    )
+    # Oot runs the actual invocation inside Mki({callId:s.callId,...}).
+    source = replace_once(
+        source,
+        'try{let A=NNi(t.args,this.propertyKeyMap),n={name:t.name,arguments:A,_meta:{progressToken:i}}',
+        'try{const callId=DW()?.callId;'
+        'if(shijuQoder.active&&(typeof callId!=="string"||!callId))'
+        'throw Error("Managed Qoder MCP call has no invocation ID");'
+        'let A=NNi(t.args,this.propertyKeyMap),n={name:t.name,arguments:A,'
+        '_meta:{progressToken:i,...(shijuQoder.active?{shijuCallId:callId}:{})}}',
+    )
     for file, contents in ((module, binding), (bundle, source)):
         data = contents.encode()
         if hashlib.sha256(data).hexdigest() != contract["files"][str(file.relative_to(root))]:

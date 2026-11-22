@@ -1,5 +1,6 @@
 """Verify Qoder's native skill and stdio MCP tools through Chat Completions."""
 
+from contextlib import contextmanager
 import hashlib
 import json
 import os
@@ -81,6 +82,39 @@ def launch(env):
         artifact["ripgrep_sha256"] = digest
         artifact["model_protocol"] = "POST /v1/chat/completions"
     return {"command": str(command), "args": ["--acp"]}, artifact
+
+
+@contextmanager
+def mcp_server(workspace, attachment, audit):
+    args = [str(ROOT / "scripts/acp_mount_integration.py"), "--mcp-stdio",
+            str(attachment), str(audit)]
+    env = []
+    if platform.system() == "Linux":
+        # Import only the test server code using the trusted repository path.
+        args = ["-c", "import sys; sys.path.insert(0, sys.argv[1]); "
+                "from acp_skill_coexistence.qoder import linux_mcp_stdio; "
+                "linux_mcp_stdio(*sys.argv[2:])",
+                str(ROOT / "scripts"), str(workspace / ".qoder-probe-call"),
+                str(attachment), str(audit)]
+        env = [{"name": "QODER_PROBE_" + name, "value": "${" + name + ":-absent}"}
+               for name in ("SHIJU_QODER_MODEL_CONFIG", "VW_ACP_LAUNCH_REFERENCE")]
+    yield {"name": "coexistence", "command": sys.executable, "args": args, "env": env}
+
+
+def linux_mcp_stdio(expected_call, attachment, audit):
+    from acp_mount_integration import rpc
+
+    for name in ("SHIJU_QODER_MODEL_CONFIG", "VW_ACP_LAUNCH_REFERENCE"):
+        require(name not in os.environ and os.environ.get("QODER_PROBE_" + name) == "absent",
+                "Qoder exposed a binding variable to a tool subprocess")
+    for line in sys.stdin:
+        request = json.loads(line)
+        if request.get("method") == "tools/call":
+            call_id = request["params"].get("_meta", {}).get("shijuCallId")
+            require(call_id == Path(expected_call).read_text(), "Qoder MCP invocation ID changed")
+        response = rpc(request, attachment, audit, "stdio")
+        if response is not None:
+            print(json.dumps(response), flush=True)
 
 
 class Probe:
@@ -179,6 +213,9 @@ class Probe:
         require(set(schema.get("required", ())) <= arguments.keys() <= schema.get("properties", {}).keys(),
                 f"unexpected Qoder {step} tool schema")
         call_id = "call_" + secrets.token_hex(12)
+        if step == "mcp" and platform.system() == "Linux":
+            workspace = self.fixtures["skills"]["selected"]["path"].parents[2]
+            (workspace / ".qoder-probe-call").write_text(call_id)
         self.pending = (step, name, call_id, arguments)
         return {"tool_calls": [{"index": 0, "id": call_id, "type": "function",
                                 "function": {"name": name, "arguments": json.dumps(arguments)}}]}, "tool_calls"

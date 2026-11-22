@@ -5,8 +5,8 @@
   "revision": "qoder-1.1.88-model-source-v3",
   "integrity": "sha512-3UkODiq9eNtbQPzE1DN6UbcwCjNcY5XKeO0htxzzm5ZZjs2gE2yY8xzTjwEU6Hb8Dhyiy7XdcqSyKwWudxmh+w==",
   "files": {
-    "bundle/shiju-session-model.mjs": "4b6d47864ee2b559dfc2f7e323920228e7aeee771303157d815ea81e5b08c001",
-    "bundle/qodercli.js": "77bf52aeadb15c07a06218714f16103fd8154df0c31b19e0fa49f7cb255f8068",
+    "bundle/shiju-session-model.mjs": "706fd4002691f84b4276284355ea2687d45bf582394a03c9cea178b26efe91a5",
+    "bundle/qodercli.js": "c84bebad4470481f7c34327f1d5ed42d9af741abafe2cbf62c7b9bc5a2b7de7e",
     "package.json": "ec71b9fd3e3902fb5e59643db87b1ac24d94668224fcdfdff32b3aad45d3081e"
   },
   "ripgrep": {

@@ -1,6 +1,8 @@
 //! Bind the reviewed native VT Code to the request-owned Chat relay.
 use super::{super::profile::REFERENCE_ENV, AcpLaunchProfile};
-use std::{collections::HashMap, path::Path};
+use std::collections::HashMap;
+#[cfg(not(target_os = "linux"))]
+use std::path::Path;
 
 pub fn configure(
     profile: &mut AcpLaunchProfile,
@@ -19,29 +21,6 @@ pub fn configure(
     );
     acp_agent_registry::verify_reviewed_agent_executable("vtcode", &config.command)
         .map_err(anyhow::Error::msg)?;
-    let native = Path::new(&config.command).canonicalize()?;
-    let workspace = Path::new(directory).canonicalize()?;
-    anyhow::ensure!(
-        workspace.is_dir() && workspace.parent().is_some(),
-        "Invalid VT Code workspace"
-    );
-    // An operator can narrow a gateway's native VT Code write scope for delegated jobs.
-    let write_root = match std::env::var_os("SHIJU_VTCODE_WRITE_ROOT") {
-        Some(root) => std::fs::canonicalize(root)?,
-        None => workspace.clone(),
-    };
-    anyhow::ensure!(
-        write_root.is_dir() && write_root.starts_with(&workspace),
-        "VT Code write root must be an existing directory within the workspace"
-    );
-    for ancestor in workspace.ancestors() {
-        for name in ["vtcode.toml", ".vtcode", ".env"] {
-            match ancestor.join(name).symlink_metadata() {
-                Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
-                _ => anyhow::bail!("VT Code project configuration overrides are not verified"),
-            }
-        }
-    }
     let url = reqwest::Url::parse(endpoint)?;
     let port = url.port().ok_or_else(|| anyhow::anyhow!("Missing VT Code relay port"))?;
     anyhow::ensure!(
@@ -71,6 +50,58 @@ pub fn configure(
         model = quote(&model)?,
         url = quote(url.join("v1")?.as_str())?,
     );
+    #[cfg(target_os = "linux")]
+    {
+        anyhow::ensure!(
+            endpoint == "http://127.0.0.1:1" && profile.relay_unix_socket().is_some(),
+            "VT Code Linux requires the request-owned Unix model relay"
+        );
+        let config = profile.write_config("vtcode.toml", config.as_bytes())?;
+        profile.overlay_environment(HashMap::from([
+            ("SHIJU_VTCODE_CONFIG".into(), config.to_string_lossy().into_owned()),
+            ("SHIJU_VTCODE_RELAY_TOKEN".into(), profile.binding.bearer_token().into()),
+            ("SHIJU_VTCODE_MCP_ORIGIN".into(), endpoint.into()),
+        ]))?;
+        profile.session_model_id = Some(model);
+        let _ = (directory, port);
+        return Ok(());
+    }
+    #[cfg(not(target_os = "linux"))]
+    configure_seatbelt(profile, &config, model, directory, port)
+}
+
+#[cfg(not(target_os = "linux"))]
+fn configure_seatbelt(
+    profile: &mut AcpLaunchProfile,
+    config: &str,
+    model: String,
+    directory: &str,
+    port: u16,
+) -> anyhow::Result<()> {
+    let quote = serde_json::to_string::<str>;
+    let native = Path::new(&profile.config().command).canonicalize()?;
+    let workspace = Path::new(directory).canonicalize()?;
+    anyhow::ensure!(
+        workspace.is_dir() && workspace.parent().is_some(),
+        "Invalid VT Code workspace"
+    );
+    // An operator can narrow a gateway's native VT Code write scope for delegated jobs.
+    let write_root = match std::env::var_os("SHIJU_VTCODE_WRITE_ROOT") {
+        Some(root) => std::fs::canonicalize(root)?,
+        None => workspace.clone(),
+    };
+    anyhow::ensure!(
+        write_root.is_dir() && write_root.starts_with(&workspace),
+        "VT Code write root must be an existing directory within the workspace"
+    );
+    for ancestor in workspace.ancestors() {
+        for name in ["vtcode.toml", ".vtcode", ".env"] {
+            match ancestor.join(name).symlink_metadata() {
+                Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+                _ => anyhow::bail!("VT Code project configuration overrides are not verified"),
+            }
+        }
+    }
     let config = profile.write_config("vtcode.toml", config.as_bytes())?;
     let state = profile.directory().join("state");
     std::fs::create_dir(&state)?;
@@ -86,12 +117,12 @@ pub fn configure(
     anyhow::ensure!(!home.starts_with(&workspace), "VT Code workspace includes the host home");
     let policy = format!(
         "(version 1)\n(allow default)\n(deny file-read-data (subpath \"/Users\") (subpath {}))\n\
-         (allow file-read-data (subpath {}) (subpath {}) (literal {}) (literal {}))\n\
-         (deny file-write*)\n\
-         (allow file-write* (subpath {}) (subpath {}) (literal \"/dev/null\"))\n\
-         (deny file-write* (literal {}) (subpath {}) (literal {}))\n\
-         (deny process-fork process-exec)\n(allow process-exec (literal {}))\n\
-         (deny network*)\n(allow network-outbound (remote ip \"localhost:{port}\"))\n",
+     (allow file-read-data (subpath {}) (subpath {}) (literal {}) (literal {}))\n\
+     (deny file-write*)\n\
+     (allow file-write* (subpath {}) (subpath {}) (literal \"/dev/null\"))\n\
+     (deny file-write* (literal {}) (subpath {}) (literal {}))\n\
+     (deny process-fork process-exec)\n(allow process-exec (literal {}))\n\
+     (deny network*)\n(allow network-outbound (remote ip \"localhost:{port}\"))\n",
         path(&home)?,
         path(&workspace)?,
         path(&state)?,

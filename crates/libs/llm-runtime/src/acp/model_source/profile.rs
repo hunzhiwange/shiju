@@ -222,7 +222,17 @@ impl AcpLaunchProfile {
         }
     }
     pub(in crate::acp) fn relay_address(&self) -> Option<std::net::SocketAddr> {
-        self.server.as_ref().map(RelayServer::address)
+        let server = self.server.as_ref()?;
+        #[cfg(unix)]
+        if server.unix_socket().is_some() {
+            return None;
+        }
+        Some(server.address())
+    }
+
+    #[cfg(target_os = "linux")]
+    pub(in crate::acp) fn relay_unix_socket(&self) -> Option<&Path> {
+        self.server.as_ref()?.unix_socket()
     }
 
     pub fn attach_server(&mut self, server: impl Into<RelayServer>) {

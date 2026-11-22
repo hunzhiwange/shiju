@@ -51,6 +51,7 @@ pub trait RelayHost: Send + Sync + 'static {
 
 struct ServerState {
     vtcode_catalog: Vec<String>,
+    vtcode_isolated_workspace: bool,
     binding: Arc<RelayBinding>,
     backend: Arc<dyn RelayBackend>,
     host: Arc<dyn RelayHost>,
@@ -66,6 +67,8 @@ pub struct RelayServer {
     address: SocketAddr,
     binding: Arc<RelayBinding>,
     task: Option<JoinHandle<std::io::Result<()>>>,
+    #[cfg(unix)]
+    unix_socket: Option<std::path::PathBuf>,
     aionrs_mcp: Arc<std::sync::OnceLock<crate::aionrs_mcp::Socket>>,
 }
 impl RelayServer {
@@ -93,17 +96,62 @@ impl RelayServer {
         private_routes: Router,
         vtcode_catalog: Vec<String>,
     ) -> anyhow::Result<Self> {
+        let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
+        let address = listener.local_addr()?;
+        Self::start_listener(binding, backend, host, private_routes, vtcode_catalog, listener, address, None)
+    }
+
+    /// Bind the production model and verified MCP routes without a TCP listener.
+    /// The returned logical address is only for HTTP URI construction over the socket.
+    #[cfg(unix)]
+    pub async fn start_vtcode_unix(
+        binding: Arc<RelayBinding>,
+        backend: Arc<dyn RelayBackend>,
+        host: Arc<dyn RelayHost>,
+        private_routes: Router,
+        vtcode_catalog: Vec<String>,
+    ) -> anyhow::Result<Self> {
+        use std::os::unix::fs::PermissionsExt;
+
+        anyhow::ensure!(binding.identity().session.ends_with(":vtcode"),
+            "Unix model relay requires a VT Code session");
+        let directory = tempfile::Builder::new().prefix("shiju-vt-").tempdir()?;
+        std::fs::set_permissions(directory.path(), std::fs::Permissions::from_mode(0o700))?;
+        let socket = directory.path().canonicalize()?.join("relay.sock");
+        let listener = tokio::net::UnixListener::bind(&socket)?;
+        std::fs::set_permissions(&socket, std::fs::Permissions::from_mode(0o600))?;
+        let mut server = Self::start_listener(
+            binding, backend, host, private_routes, vtcode_catalog, listener,
+            SocketAddr::from((Ipv4Addr::LOCALHOST, 1)), Some(directory),
+        )?;
+        server.unix_socket = Some(socket);
+        Ok(server)
+    }
+
+    fn start_listener(
+        binding: Arc<RelayBinding>,
+        backend: Arc<dyn RelayBackend>,
+        host: Arc<dyn RelayHost>,
+        private_routes: Router,
+        vtcode_catalog: Vec<String>,
+        listener: impl axum::serve::Listener,
+        address: SocketAddr,
+        #[cfg(unix)] socket_directory: Option<tempfile::TempDir>,
+        #[cfg(not(unix))] _socket_directory: Option<()>,
+    ) -> anyhow::Result<Self> {
         anyhow::ensure!(vtcode_catalog.is_empty() || binding.identity().session.ends_with(":vtcode"),
             "VT Code MCP catalog requires a VT Code relay");
         anyhow::ensure!(
             binding.accepts(binding.bearer_token(), binding.identity()),
             "inactive relay capability"
         );
-        let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
-        let address = listener.local_addr()?;
         let aionrs_mcp = Arc::new(std::sync::OnceLock::new());
         let state = Arc::new(ServerState {
             vtcode_catalog,
+            #[cfg(unix)]
+            vtcode_isolated_workspace: socket_directory.is_some(),
+            #[cfg(not(unix))]
+            vtcode_isolated_workspace: false,
             aionrs_mcp: aionrs_mcp.clone(),
             binding: binding.clone(),
             backend,
@@ -141,6 +189,8 @@ impl RelayServer {
         let cancel = binding.cancelled().clone();
         let expires = binding.expires();
         let task = tokio::spawn(async move {
+            #[cfg(unix)]
+            let _socket_directory = socket_directory;
             axum::serve(listener, router)
                 .with_graceful_shutdown(async move {
                     if let Some(expires) = expires {
@@ -154,13 +204,23 @@ impl RelayServer {
                 })
                 .await
         });
-        Ok(Self { address, binding, task: Some(task), aionrs_mcp })
+        Ok(Self {
+            address, binding, task: Some(task), aionrs_mcp,
+            #[cfg(unix)]
+            unix_socket: None,
+        })
     }
     pub fn bind_aionrs_mcp(&self, path: std::path::PathBuf, token: String) -> anyhow::Result<()> {
         anyhow::ensure!(self.binding.identity().session.ends_with(":aionrs"), "aionrs relay binding required");
         self.aionrs_mcp.set(crate::aionrs_mcp::Socket { path, token }).map_err(|_| anyhow::anyhow!("aionrs MCP socket already bound"))
     }
 
+    #[cfg(unix)]
+    pub fn unix_socket(&self) -> Option<&std::path::Path> {
+        self.unix_socket.as_deref()
+    }
+
+    /// TCP listener address, or a logical HTTP origin when `unix_socket` is set.
     pub fn address(&self) -> SocketAddr {
         self.address
     }
@@ -383,7 +443,7 @@ async fn handle(State(state): State<Arc<ServerState>>, request: Request) -> Resp
         let vtcode = path == "/v1/chat/completions"
             && state.binding.identity().session.ends_with(":vtcode");
         if vtcode {
-            retain_vtcode_tools(&mut json, &state.vtcode_catalog);
+            retain_vtcode_tools(&mut json, &state.vtcode_catalog, state.vtcode_isolated_workspace);
         }
 
         if aionrs {
@@ -511,13 +571,15 @@ fn retain_corust_tools(request: &mut serde_json::Value) {
     }
 }
 
-fn retain_vtcode_tools(request: &mut serde_json::Value, catalog: &[String]) {
+fn retain_vtcode_tools(request: &mut serde_json::Value, catalog: &[String], isolated_workspace: bool) {
     if let Some(tools) = request.get_mut("tools").and_then(serde_json::Value::as_array_mut) {
         // The native catalog still advertises shell tools when its sandbox denies them.
         // Expose only the read and patch surfaces supported by the managed launch.
         tools.retain(|tool| {
             tool.pointer("/function/name").and_then(serde_json::Value::as_str).is_some_and(|name| {
-                matches!(name, "read_file" | "list_files" | "code_search" | "apply_patch" | "load_skill" | "load_skill_resource")
+                name == "list_files"
+                    || (!isolated_workspace
+                        && matches!(name, "read_file" | "code_search" | "apply_patch" | "load_skill" | "load_skill_resource"))
                     || catalog.iter().any(|tool| tool == name)
             })
         });

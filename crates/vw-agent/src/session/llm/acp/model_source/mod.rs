@@ -84,21 +84,45 @@ async fn prepare_with_mounts(
     if agent == "vtcode" && mounts.is_some() {
         acp_agent_registry::verify_vtcode_mcp_executable(&config.command).map_err(anyhow::Error::msg)?;
     }
-    let projection = match mounts {
-        Some((_, servers)) => Some(mimo_mcp::prepare(servers, &directory, profile.binding.clone()).await?),
-        None => None,
+    let (projection, review_is_current) = match mounts {
+        Some((_, servers)) => {
+            let (projection, review_is_current) =
+                prepare_mcp_projection(agent, servers, &directory, profile.binding.clone()).await?;
+            (Some(projection), review_is_current)
+        }
+        None => (None, None),
     };
-    let routes = projection.as_ref().map_or_else(axum::Router::new, |projection| projection.router.clone());
+    let mut routes = projection.as_ref()
+        .map_or_else(axum::Router::new, |projection| projection.router.clone());
+    if let Some(current) = review_is_current.clone() {
+        routes = routes.layer(axum::middleware::from_fn(
+            move |request: axum::extract::Request, next: axum::middleware::Next| {
+                let current = current.clone();
+                async move {
+                    if current() {
+                        next.run(request).await
+                    } else {
+                        axum::response::IntoResponse::into_response(axum::http::StatusCode::FORBIDDEN)
+                    }
+                }
+            },
+        ));
+    }
     let catalog = projection.as_ref().filter(|_| agent == "vtcode")
         .map(|projection| projection.tools.clone()).unwrap_or_default();
+    let backend = std::sync::Arc::new(ProviderRelayBackend::new()?);
+    #[cfg(target_os = "linux")]
+    let server = if agent == "vtcode" {
+        // The launch and mount validators above must have accepted the fixed
+        // Linux artifacts before their request can acquire a listener.
+        RelayServer::start_vtcode_unix(profile.binding.clone(), backend, context, routes, catalog).await?
+    } else {
+        RelayServer::start_with_routes_and_vtcode_catalog(profile.binding.clone(), backend, context, routes, catalog).await?
+    };
+    #[cfg(not(target_os = "linux"))]
     let server = RelayServer::start_with_routes_and_vtcode_catalog(
-        profile.binding.clone(),
-        std::sync::Arc::new(ProviderRelayBackend::new()?),
-        context,
-        routes,
-        catalog,
-    )
-    .await?;
+        profile.binding.clone(), backend, context, routes, catalog,
+    ).await?;
     let endpoint = format!("http://{}", server.address());
     profile.attach_server(server);
     if let Some(projection) = projection.as_ref().filter(|_| matches!(agent, "vtcode" | "hermes" | "auggie" | "droid" | "autohand")) {
@@ -114,7 +138,18 @@ async fn prepare_with_mounts(
                 ("SHIJU_AUGGIE_MCP_TOOLS".into(), serde_json::to_string(&tools)?),
             ]))?;
         }
-        profile.managed_mcp = Some(projection.approval_config(&endpoint)?);
+        let (servers, mut approve) = projection.approval_config(&endpoint)?;
+        if let Some(current) = review_is_current {
+            let issue = approve;
+            approve = std::sync::Arc::new(move |name, call_id, input, valid| {
+                if !current() {
+                    return false;
+                }
+                let current = current.clone();
+                issue(name, call_id, input, Box::new(move || current() && valid()))
+            });
+        }
+        profile.managed_mcp = Some((servers, approve));
     } else if let Some(mimo) = projection {
         llm_runtime::acp::model_source::drivers::launch_route(agent, &profile)?;
         llm_runtime::acp::model_source::drivers::mimo_code::configure_with_mcp(
@@ -129,6 +164,57 @@ async fn prepare_with_mounts(
         llm_runtime::acp::model_source::configure_profile(agent, &mut profile, &endpoint, configuration_directory, openclaw_mcp).await?;
     }
     Ok(profile)
+}
+
+type ReviewValidity = std::sync::Arc<dyn Fn() -> bool + Send + Sync>;
+
+async fn prepare_mcp_projection(
+    agent: &str,
+    servers: &[acp_types::AcpMcpServer],
+    directory: &str,
+    binding: std::sync::Arc<crate::model_relay::RelayBinding>,
+) -> anyhow::Result<(mimo_mcp::Projection, Option<ReviewValidity>)> {
+    #[cfg(all(target_os = "linux", target_env = "gnu", any(target_arch = "x86_64", target_arch = "aarch64")))]
+    if agent == "vtcode" {
+        let (review, current) =
+            crate::agent_apps::mcp::acp_mount::reviewed_project_stdio(binding.clone(), servers)?;
+        let [acp_types::AcpMcpServer::Stdio(service)] = servers else {
+            anyhow::bail!("VT Code requires one reviewed project stdio service");
+        };
+        let selected_policy = service.meta.as_ref()
+            .and_then(|meta| meta.get("shiju.vtcode.toolPolicy"))
+            .ok_or_else(|| anyhow::anyhow!("VT Code MCP requires a host-selected tool policy"))?;
+        let mut policy = acp_config::McpServerManagement {
+            allowed_tools: serde_json::from_value(selected_policy["allow"].clone())?,
+            denied_tools: serde_json::from_value(selected_policy["deny"].clone())?,
+            ..acp_config::McpServerManagement::default_for_server(&service.name)
+        };
+        // Request policy may only narrow the independent project review.
+        let mut allowed = Vec::new();
+        for name in review.allowed_tools() {
+            let id = tool_mcp::mcp_tool::mcp_tool_id(&service.name, name)?;
+            if mcp_client::mcp_tool_allowed(&policy, name, &id) {
+                allowed.push(name.clone());
+            }
+        }
+        policy.allowed_tools = allowed;
+        let projection = mimo_mcp::prepare_linux_stdio(
+            servers,
+            mimo_mcp::ReviewedLinuxStdio {
+                owner: mimo_mcp::LinuxMcpOwner::VtCode,
+                executable: review.executable(),
+                sha256: review.sha256(),
+                args: review.args(),
+                policy: &policy,
+            },
+            binding,
+        )
+        .await?;
+        anyhow::ensure!(current(), "VT Code project MCP review changed during discovery");
+        return Ok((projection, Some(std::sync::Arc::new(current))));
+    }
+    let _ = agent;
+    Ok((mimo_mcp::prepare(servers, directory, binding).await?, None))
 }
 
 pub(super) fn launch_identity(

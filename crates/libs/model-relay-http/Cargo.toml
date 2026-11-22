@@ -48,3 +48,6 @@ agent-env = { path = "../agent-env" }
 app-provider-services = { path = "../app-provider-services" }
 app-models = { path = "../app-models" }
 tempfile = "3"
+
+[target.'cfg(unix)'.dependencies]
+tempfile = "3"

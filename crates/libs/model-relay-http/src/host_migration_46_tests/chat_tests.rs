@@ -105,7 +105,7 @@ async fn acp_model_source_relay_chat_roundtrip_stream_tools_and_account_isolatio
     let server = RelayServer::start(
         binding.clone(),
         Arc::new(ProviderRelayBackend::new().unwrap()),
-        context,
+        context.clone(),
     )
     .await
     .unwrap();
@@ -254,6 +254,59 @@ async fn acp_model_source_relay_chat_roundtrip_stream_tools_and_account_isolatio
     }
 
     server.shutdown().await.unwrap();
+    #[cfg(unix)]
+    verify_vtcode_unix_relay(binding.identity().clone(), context).await;
     stop.cancel();
     upstream.await.unwrap();
+}
+
+
+#[cfg(unix)]
+async fn verify_vtcode_unix_relay(
+    mut identity: RelayIdentity,
+    context: agent_project::instance::Context,
+) {
+    use std::os::unix::fs::PermissionsExt;
+
+    identity.session = "unix:vtcode".into();
+    let binding = RelayBinding::new(identity, Duration::from_secs(60)).unwrap();
+    // Only the external endpoint is a fixture. The model handler and its
+    // provider transport are the same ones used by the TCP test above.
+    let routes = Router::new().route(
+        "/shiju-vtcode-mcp/selected",
+        post(|headers: HeaderMap| async move {
+            if headers.get("authorization").and_then(|value| value.to_str().ok()) == Some("Bearer fixture-mcp") {
+                StatusCode::NO_CONTENT
+            } else {
+                StatusCode::UNAUTHORIZED
+            }
+        }),
+    );
+    let relay = RelayServer::start_vtcode_unix(
+        binding.clone(), Arc::new(ProviderRelayBackend::new().unwrap()), context, routes,
+    ).await.unwrap();
+    let socket = relay.unix_socket().unwrap().to_path_buf();
+    let directory = socket.parent().unwrap().to_path_buf();
+    assert_eq!(socket.metadata().unwrap().permissions().mode() & 0o777, 0o600);
+    assert_eq!(directory.metadata().unwrap().permissions().mode() & 0o777, 0o700);
+    assert_eq!(relay.address().to_string(), "127.0.0.1:1");
+    let client = reqwest::Client::builder().unix_socket(socket.as_path()).no_proxy()
+        .timeout(Duration::from_secs(10)).build().unwrap();
+    let origin = format!("http://{}", relay.address());
+    let url = format!("{origin}/v1/chat/completions");
+    let body = json!({"model":"selected","messages":[{"role":"user","content":"fixture"}]});
+    let wrong = client.post(&url).bearer_auth("fixture-mcp").json(&body).send().await.unwrap();
+    assert_eq!(wrong.status(), StatusCode::UNAUTHORIZED);
+    let response = client.post(&url).bearer_auth(binding.bearer_token()).json(&body).send().await.unwrap();
+    assert_eq!(response.status(), StatusCode::OK);
+    assert_eq!(response.json::<Value>().await.unwrap()["usage"]["total_tokens"], 10);
+    let mcp = format!("{origin}/shiju-vtcode-mcp/selected");
+    let wrong = client.post(&mcp).bearer_auth(binding.bearer_token()).send().await.unwrap();
+    assert_eq!(wrong.status(), StatusCode::UNAUTHORIZED);
+    let response = client.post(&mcp).bearer_auth("fixture-mcp").send().await.unwrap();
+    assert_eq!(response.status(), StatusCode::NO_CONTENT);
+    drop(client);
+    relay.shutdown().await.unwrap();
+    assert!(!socket.exists());
+    assert!(!directory.exists());
 }

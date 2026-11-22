@@ -14,6 +14,19 @@ impl RelayServer {
         let host = Arc::new(RelayContext { context, backend });
         crate::RelayServer::start(binding, host.clone(), host).await.map(Self)
     }
+    #[cfg(unix)]
+    pub async fn start_vtcode_unix(
+        binding: Arc<RelayBinding>,
+        backend: Arc<dyn RelayBackend>,
+        context: agent_project::instance::Context,
+        routes: axum::Router,
+    ) -> anyhow::Result<Self> {
+        anyhow::ensure!(context.project.id == binding.identity().project && !context.directory.is_empty(), "relay project mismatch");
+        let host = Arc::new(RelayContext { context, backend });
+        crate::RelayServer::start_vtcode_unix(binding, host.clone(), host, routes, Vec::new()).await.map(Self)
+    }
+    #[cfg(unix)]
+    pub fn unix_socket(&self) -> Option<&std::path::Path> { self.0.unix_socket() }
     pub fn address(&self) -> std::net::SocketAddr { self.0.address() }
     pub async fn shutdown(self) -> anyhow::Result<()> { self.0.shutdown().await }
 }

@@ -1,5 +1,7 @@
-//! ACP host entry point for a network-free fixed executable over stdio.
+//! ACP host entry points for isolated fixed executables.
 
+pub use process_sandbox::bubblewrap::{ISOLATED_UNIX_RELAY_SOCKET, ISOLATED_UNIX_RELAY_WORKSPACE};
+use process_sandbox::bubblewrap::{isolated_stdio_command, isolated_unix_relay_command};
 use std::ffi::OsString;
 use std::io;
 use std::path::Path;
@@ -14,7 +16,23 @@ pub struct IsolatedStdio(Child);
 /// Bubblewrap setup failures produce stderr and a failed exit and never launch
 /// the entry outside the sandbox. Use the child's protocol to establish readiness.
 pub fn spawn_isolated_stdio(executable: &Path, args: &[OsString]) -> io::Result<IsolatedStdio> {
-    let command = process_sandbox::bubblewrap::isolated_stdio_command(executable, args)?;
+    spawn(isolated_stdio_command(executable, args)?)
+}
+
+/// Spawn a caller-reviewed executable with one request-owned Unix relay.
+/// Give it the sandbox workspace in its protocol requests. The socket must be
+/// owned by the host user with mode 0600 inside a request directory of mode 0700.
+/// Establish readiness through the child protocol and keep the listener
+/// private and alive for the request. The host remains responsible for grants.
+pub fn spawn_isolated_stdio_with_unix_relay(
+    executable: &Path,
+    args: &[OsString],
+    relay_socket: &Path,
+) -> io::Result<IsolatedStdio> {
+    spawn(isolated_unix_relay_command(executable, args, relay_socket)?)
+}
+
+fn spawn(command: std::process::Command) -> io::Result<IsolatedStdio> {
     let mut command = Command::from(command);
     command.kill_on_drop(true);
     command.spawn().map(IsolatedStdio)

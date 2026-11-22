@@ -333,10 +333,11 @@ pub fn jobs_tab<'a>(app: &ViewData<'a>) -> Element<'a, Message> {
                 Message::Settings(message::SettingsMessage::CronTemplatesToggled(true)),
                 false
             ),
-            primary_button(
-                tr.__("新建定时任务"),
-                Message::Settings(message::SettingsMessage::CronTabSelected(CronSettingsTab::Add))
-            ),
+            compact_button(tr.__("新建定时任务"))
+                .style(primary_action_btn_style)
+                .on_press(Message::Settings(message::SettingsMessage::CronTabSelected(
+                    CronSettingsTab::Add,
+                ))),
         ]
         .spacing(8)
         .align_y(Alignment::Center);

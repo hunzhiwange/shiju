@@ -82,12 +82,18 @@ pub(super) fn segment_button<'a>(
         .into()
 }
 
+pub(super) fn compact_button<'a, M: Clone + 'a>(
+    label: impl Into<String>,
+) -> iced::widget::Button<'a, M> {
+    button(text(label.into()).size(12)).padding([7, 10])
+}
+
 pub(super) fn small_button<'a, M: Clone + 'a>(
     label: impl Into<String>,
     on_press: M,
     danger: bool,
 ) -> Element<'a, M> {
-    let mut btn = button(text(label.into()).size(12)).padding([7, 10]);
+    let mut btn = compact_button(label);
     btn = if danger {
         btn.style(danger_action_btn_style)
     } else {

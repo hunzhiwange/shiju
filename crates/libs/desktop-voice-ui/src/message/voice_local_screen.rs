@@ -2,7 +2,8 @@
 use super::{State, Stage};
 pub fn screen_call(chat: Option<&State>, same_scope: bool, active_session: Option<&str>, stopping: bool, ready: Result<(), &'static str>, supported: bool) -> Result<u128, &'static str> {
     let chat = chat.ok_or("语音通话已结束。")?;
-    if !same_scope || active_session != Some(chat.session.as_str()) { return Err("语音会话已切换，请重新分享。"); }
+    if !same_scope || active_session != chat.session.as_deref() { return Err("语音会话已切换，请重新分享。"); }
+    if chat.session.is_none() { return Err("请先发送首条语音消息，再分享屏幕。"); }
     if chat.stage != Stage::Ready || stopping { return Err("请先完成或打断当前语音轮次，再分享屏幕。"); }
     ready?;
     if !supported { return Err("请先选择已声明支持图片输入的普通聊天模型；也可查看聊天并使用附件。"); }

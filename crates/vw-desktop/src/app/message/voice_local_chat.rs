@@ -41,10 +41,7 @@ pub(super) fn start(app: &mut App, preferences: Preferences) -> Task<Message> {
     let Some(scope) = super::scope(app) else {
         return app.show_error_toast("请先选择聊天会话。");
     };
-    // This path still owns an existing-session SendToSession request.
-    let Some(session) = scope.session_id().map(str::to_owned) else {
-        return app.show_error_toast("本机逐轮语音聊天暂不支持未发送的新草稿；听写不受此限制。");
-    };
+    let session = scope.session_id().map(str::to_owned);
     app.voice.conversation_endpoint = Some(crate::app::gateway_client_endpoint());
     app.voice.conversation_scope = Some(scope.clone());
     app.voice.local_conversation = Some(desktop_voice_ui::message::voice_local_chat::new(session, preferences));
@@ -59,7 +56,8 @@ pub(super) fn end(app: &mut App) {
 fn stop_owned(app: &mut App, chat: &mut State) {
     chat.cancel_media();
     if let Some(id) = chat.request.take()
-        && let Some(request) = app.get_session_runtime(&chat.session).request_lifecycle.active_agent_request.as_ref()
+        && let Some(session) = &chat.session
+        && let Some(request) = app.get_session_runtime(session).request_lifecycle.active_agent_request.as_ref()
         && request.id == id
         && let Some(endpoint) = app.voice.conversation_endpoint.clone()
     {
@@ -130,6 +128,21 @@ pub(super) fn update(app: &mut App, event: Event) -> Task<Message> {
         return Task::none();
     }
     let Some(chat) = app.voice.local_conversation.as_ref() else { return Task::none(); };
+    if let Event::DraftProjectResolved(call, round, stream_id, input, result) = event {
+        if chat.call != call || chat.round != round || chat.stage != Stage::Recognizing {
+            return Task::none();
+        }
+        if app.session_state.agent_stream_id != stream_id {
+            return outcome(app, "聊天状态已变化，请重新录音。".into());
+        }
+        return match result {
+            Ok(project_id) => {
+                app.workspace_state.project_id = Some(project_id);
+                send_request(app, input.clone(), input)
+            }
+            Err(error) => outcome(app, error),
+        };
+    }
     if matches!(event, Event::Begin) {
         if chat.stage != Stage::Ready || chat.muted || app.voice.local_stop.is_some() { return Task::none(); }
         if let Err(error) = ready_to_send(app) { return app.show_error_toast(error); }
@@ -154,23 +167,62 @@ fn send_request(app: &mut App, input: String, caption: String) -> Task<Message> 
         return outcome(app, error.into());
     }
     let chat = app.voice.local_conversation.as_mut().unwrap();
-    chat.watermark = app.chat_view.chat.len();
     let session_id = chat.session.clone();
-    let task = crate::app::message::chat::update(
-        app,
-        crate::app::message::chat::ChatMessage::SendToSession {
-            session_id: session_id.clone(),
-            input,
-        },
-    );
+    if session_id.is_none() {
+        if !app.session_state.files.is_empty() {
+            return outcome(app, "请先移除聊天输入框中的附件。".into());
+        }
+        let path = app.navigation_tabs.project_path.clone().unwrap_or_default();
+        let project_id = desktop_session::message::chat::lifecycle::inferred_project_id(
+            app.workspace_state.project_id.as_deref(),
+            &path,
+            app.workspace_state.project_sessions.get(&path).into_iter().flatten(),
+            app.session_state.sessions.iter(),
+        );
+        if project_id.is_none() {
+            if path.trim().is_empty() {
+                return outcome(app, "未选择项目，无法创建会话。".into());
+            }
+            // Invalidate duplicate recognition events while the project is being resolved.
+            chat.round = chat.round.wrapping_add(1);
+            let (call, round) = (chat.call, chat.round);
+            let stream_id = app.session_state.agent_stream_id;
+            return Task::perform(
+                async move {
+                    crate::app::message::project::helpers::resolve_gateway_project(&path)
+                        .await
+                        .map(|project| project.id.0)
+                },
+                move |result| message(Event::DraftProjectResolved(
+                    call, round, stream_id, input.clone(), result,
+                )),
+            );
+        }
+    }
+
+    chat.watermark = app.chat_view.chat.len();
+    use crate::app::message::chat::{self, ChatMessage};
+    let send = if let Some(session_id) = &session_id {
+        ChatMessage::SendToSession { session_id: session_id.clone(), input }
+    } else {
+        app.current_session_runtime_mut().input_editor =
+            iced::widget::text_editor::Content::with_text(&input);
+        ChatMessage::SendPressed
+    };
+    let task = chat::update(app, send);
     let request = app
         .current_session_runtime_ref()
         .and_then(|r| r.request_lifecycle.active_agent_request.as_ref())
         .map(|r| (r.id, r.session.clone()));
     if let Some((id, session)) = request
-        && session == session_id
+        && app.session_state.active_session_id.as_deref() == Some(session.as_str())
+        && session_id.as_ref().is_none_or(|expected| expected == &session)
     {
+        if session_id.is_none() {
+            app.voice.conversation_scope = super::scope(app);
+        }
         let chat = app.voice.local_conversation.as_mut().unwrap();
+        chat.session = Some(session);
         chat.request = Some(id);
         chat.stage = Stage::WaitingModel;
         chat.caption(false, caption);

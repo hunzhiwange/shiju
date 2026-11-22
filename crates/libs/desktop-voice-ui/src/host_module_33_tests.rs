@@ -24,7 +24,7 @@ fn local_inline(state: &crate::message::voice::State) -> Option<Element<'_, Even
 fn state() -> crate::message::voice::State {
     let mut state = crate::message::voice::State::default();
     state.local_conversation =
-        Some(crate::message::voice_local_chat::new("local-ui".into(), Default::default()));
+        Some(crate::message::voice_local_chat::new(Some("local-ui".into()), Default::default()));
     state
 }
 fn overlay_screen<'a>(

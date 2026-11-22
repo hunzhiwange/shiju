@@ -1,5 +1,7 @@
 //! Dictation controls use the same theme-aware button style as the composer toolbar.
-use super::surface_styles::{BOTTOM_BAR_ICON_BUTTON_SIZE, BOTTOM_BAR_ICON_SIZE, square_icon_button_style};
+use super::surface_styles::{
+    BOTTOM_BAR_ICON_BUTTON_SIZE, BOTTOM_BAR_ICON_SIZE, square_icon_button_style, tooltip_dark_style,
+};
 use desktop_voice_ui::message::voice_draft::Phase;
 #[derive(Debug, Clone)]
 pub enum Event { Start, Finish, Cancel, Apply }
@@ -53,10 +55,14 @@ pub fn view(input: Input) -> Element<'static, Event> {
         .padding([4, 6])
         .style(|theme, status| square_icon_button_style(theme, status, true))
         .on_press(event);
-    let mut controls =
-        row![tooltip(control, text(dictation_tooltip(label)).width(320), tooltip::Position::Top)]
-            .spacing(3)
-            .align_y(Alignment::Center);
+    let hint = dictation_tooltip(label);
+    let hint_width = if hint.contains('\n') { Length::Fixed(320.0) } else { Length::Shrink };
+    let tip = container(text(hint).size(12).width(hint_width))
+        .style(tooltip_dark_style)
+        .padding([6, 8]);
+    let mut controls = row![tooltip(control, tip, tooltip::Position::Top)]
+        .spacing(3)
+        .align_y(Alignment::Center);
     if phase == Phase::Recording || pending {
         controls = controls.push(
             button(text("取消").size(12))
@@ -93,7 +99,9 @@ pub fn recording_bar(input: Input, waveform: Element<'static, Event>) -> Element
                 .padding(4)
                 .style(|theme, status| square_icon_button_style(theme, status, true))
                 .on_press(event),
-            text(label),
+            container(text(label).size(12))
+                .style(tooltip_dark_style)
+                .padding([6, 8]),
             tooltip::Position::Top,
         )
         .into()

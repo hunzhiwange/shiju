@@ -28,6 +28,45 @@ fn recognized(app: &mut App, input: &str) {
     let _ = update(app, Event::Recognized(call, round, Ok(input.into())));
 }
 #[test]
+fn local_voice_first_turn_creates_session_from_blank_task() {
+    let mut app = app();
+    super::super::end_conversation(&mut app);
+    app.session_state.active_session_id = None;
+    app.workspace_state.project_id = Some("voice-project".into());
+    let runtime = app.current_session_runtime_mut();
+    runtime.acp_agent = None;
+    runtime.task_mode_enabled = false;
+    runtime.workflow_mode_enabled = false;
+    runtime.input_editor = iced::widget::text_editor::Content::new();
+
+    let _ = start(
+        &mut app,
+        Preferences {
+            engine: crate::app::voice::preferences::VoiceEngine::Local,
+            ..Default::default()
+        },
+    );
+    assert!(app.voice.local_conversation.is_some());
+    assert!(app.session_state.active_session_id.is_none());
+
+    let voice = app.voice.local_conversation.as_mut().unwrap();
+    voice.stage = Stage::Recognizing;
+    let (call, round) = (voice.call, voice.round);
+    let _ = app.update(Message::Voice(VoiceEvent::Local(Event::Recognized(
+        call, round, Ok("空白任务的首条语音".into()),
+    ))));
+    let session = app.session_state.active_session_id.as_deref().unwrap();
+    let voice = app.voice.local_conversation.as_ref().unwrap();
+    let runtime = app.current_session_runtime_ref().unwrap();
+    let request = runtime.request_lifecycle.active_agent_request.as_ref().unwrap();
+    assert_eq!(voice.session.as_deref(), Some(session));
+    assert_eq!(voice.request, Some(request.id));
+    assert_eq!(voice.stage, Stage::WaitingModel);
+    assert_eq!(request.query, "空白任务的首条语音");
+    assert!(runtime.input_editor.text().is_empty());
+}
+
+#[test]
 fn voice_task_11_local_uses_ordinary_request_and_final_completion_once() {
     let mut app = app();
     recognized(&mut app, "请回答一个普通问题");

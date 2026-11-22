@@ -11,7 +11,7 @@ pub struct State {
     pub notice: Option<String>,
     pub call: u128,
     pub round: u64,
-    pub session: String,
+    pub session: Option<String>,
     pub preferences: Preferences,
     pub native: Cancellation,
     pub cancel: Option<tokio::sync::watch::Sender<bool>>,
@@ -58,6 +58,7 @@ pub enum Event {
     Recognized(u128, u64, Result<String, String>),
     Spoken(u128, u64, Result<(), String>),
     Stopped(u128, Result<(), String>),
+    DraftProjectResolved(u128, u64, u64, String, Result<String, String>),
 }
 pub struct Stop {
     pub call: u128,
@@ -86,7 +87,7 @@ pub fn update_media(state: &mut State, endpoint: GatewayEndpoint, event: Event) 
             let (tx, rx) = tokio::sync::watch::channel(false);
             state.cancel = Some(tx);
             let (call, round) = (state.call, state.round);
-            let future = dictation::prepare(state.preferences.clone(), endpoint, Some(state.session.clone()), round, rx, state.native.clone());
+            let future = dictation::prepare(state.preferences.clone(), endpoint, state.session.clone(), round, rx, state.native.clone());
             Task::perform(async move {
                 tokio::time::timeout(std::time::Duration::from_secs(20), future).await
                     .unwrap_or_else(|_| Err("准备本机录音超时，请重试。".into()))
@@ -122,13 +123,13 @@ pub fn update_media(state: &mut State, endpoint: GatewayEndpoint, event: Event) 
             if let Err(error) = result { return failed(state, error); }
             Task::none()
         }
-        Event::Stopped(..) => Task::none(),
+        Event::Stopped(..) | Event::DraftProjectResolved(..) => Task::none(),
     };
     (task, None)
 }
 
 pub fn model_completed<'a>(chat: &mut State, id: u64, session: &str, messages: impl Iterator<Item = (bool, &'a str)>) -> Result<iced::Task<Event>, String> {
-    if chat.request != Some(id) || chat.session != session || chat.stage != Stage::WaitingModel { return Ok(iced::Task::none()); }
+    if chat.request != Some(id) || chat.session.as_deref() != Some(session) || chat.stage != Stage::WaitingModel { return Ok(iced::Task::none()); }
     chat.request = None;
     let prose = messages.skip(chat.watermark).filter(|(assistant, _)| *assistant).last()
         .map(|(_, content)| if content.len() > 65_536 { String::new() } else { desktop_chat_view::message_view::parse::assistant_speech_text(content) }).unwrap_or_default();
@@ -162,7 +163,7 @@ pub fn ready(state: Readiness) -> Result<(), &'static str> {
     Ok(())
 }
 
-pub fn new(session: String, preferences: Preferences) -> State {
+pub fn new(session: Option<String>, preferences: Preferences) -> State {
 State {
         stage: Stage::Ready,
         show: true,

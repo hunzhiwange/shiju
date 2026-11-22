@@ -40,6 +40,10 @@
       {
         "file": "vtcode-0.183.0-linux-approval.patch",
         "sha256": "0ea392702551eaf9c168ba78f45f1981d6c2017c44e7e8650cf42709d2a9a8ac"
+      },
+      {
+        "file": "vtcode-0.183.0-linux-unix-relay.patch",
+        "sha256": "1118bba70585c057b616e20ced82ee426a9694c49a616e2a24f98970e69d1a71"
       }
     ]
   }

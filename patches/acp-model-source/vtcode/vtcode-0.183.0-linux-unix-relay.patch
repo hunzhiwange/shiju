@@ -1,0 +1,229 @@
+--- a/crates/common/vtcode-commons/src/http.rs
++++ b/crates/common/vtcode-commons/src/http.rs
+@@ -24,6 +24,15 @@
+ use std::time::Duration;
+
+ use crate::retry::RetryPolicy;
++
++/// Fixed mount supplied only to the isolated ShiJu ACP process.
++#[cfg(target_os = "linux")]
++pub const SHIJU_RELAY_SOCKET: &str = "/run/shiju/relay.sock";
++
++/// The host provides this launch reference only to the managed ACP process.
++pub fn shiju_managed_linux() -> bool {
++    cfg!(target_os = "linux") && std::env::var_os("VW_ACP_LAUNCH_REFERENCE").is_some()
++}
+
+ /// Default connect timeout for outbound HTTP clients.
+ const DEFAULT_CONNECT_TIMEOUT: Duration = Duration::from_secs(5);
+--- a/crates/codegen/vtcode-acp/src/permissions.rs
++++ b/crates/codegen/vtcode-acp/src/permissions.rs
+@@ -196,7 +196,7 @@
+ }
+
+ pub(crate) fn managed_linux_launch() -> bool {
+-    cfg!(target_os = "linux") && std::env::var_os("VW_ACP_LAUNCH_REFERENCE").is_some()
++    vtcode_commons::http::shiju_managed_linux()
+ }
+
+ fn allows_permission_option(option: &str, managed: bool) -> bool {
+--- a/crates/codegen/vtcode-llm/src/http_client.rs
++++ b/crates/codegen/vtcode-llm/src/http_client.rs
+@@ -10,6 +10,24 @@
+
+ /// Factory for creating pre-configured HTTP clients.
+ pub struct HttpClientFactory;
++
++#[cfg(target_os = "linux")]
++pub(crate) fn shiju_relay_client(
++    config: &TimeoutsConfig,
++    socket: &std::path::Path,
++) -> Result<Client, reqwest::Error> {
++    Client::builder()
++        .unix_socket(socket.to_path_buf())
++        .no_proxy()
++        .redirect(reqwest::redirect::Policy::none())
++        .connect_timeout(HttpClientFactory::connect_timeout(config))
++        .timeout(HttpClientFactory::llm_timeout(config))
++        .build()
++}
++
++#[cfg(all(test, target_os = "linux"))]
++#[path = "http_client_shiju_tests.rs"]
++mod shiju_tests;
+
+ impl HttpClientFactory {
+     /// Create an HTTP client for standard LLM API requests.
+--- /dev/null
++++ b/crates/codegen/vtcode-llm/src/http_client_shiju_tests.rs
+@@ -0,0 +1,39 @@
++use super::shiju_relay_client;
++use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
++use tokio::net::UnixListener;
++
++#[tokio::test]
++async fn shiju_relay_uses_unix_socket_and_refuses_redirect() {
++    let directory = tempfile::tempdir().unwrap();
++    let socket = directory.path().join("relay.sock");
++    let listener = UnixListener::bind(&socket).unwrap();
++    let server = tokio::spawn(async move {
++        let (stream, _) = listener.accept().await.unwrap();
++        let mut stream = BufReader::new(stream);
++        let mut line = String::new();
++        stream.read_line(&mut line).await.unwrap();
++        assert_eq!(line, "POST /v1/chat/completions HTTP/1.1\r\n");
++        loop {
++            line.clear();
++            assert!(stream.read_line(&mut line).await.unwrap() > 0);
++            if line == "\r\n" {
++                break;
++            }
++        }
++        stream
++            .get_mut()
++            .write_all(b"HTTP/1.1 307 Temporary Redirect\r\nLocation: http://127.0.0.1:1/other\r\nContent-Length: 0\r\nConnection: close\r\n\r\n")
++            .await
++            .unwrap();
++    });
++    let client = shiju_relay_client(&Default::default(), &socket).unwrap();
++    let response = tokio::time::timeout(
++        std::time::Duration::from_secs(3),
++        client.post("http://127.0.0.1:1/v1/chat/completions").send(),
++    )
++    .await
++    .unwrap()
++    .unwrap();
++    assert_eq!(response.status(), reqwest::StatusCode::TEMPORARY_REDIRECT);
++    server.await.unwrap();
++}
+--- a/crates/codegen/vtcode-llm/src/providers/openai/provider.rs
++++ b/crates/codegen/vtcode-llm/src/providers/openai/provider.rs
+@@ -358,6 +358,17 @@
+         use crate::http_client::HttpClientFactory;
+         let http_client = HttpClientFactory::for_llm(&timeouts);
+         let decisions_client = HttpClientFactory::for_llm_without_redirects(&timeouts);
++        #[cfg(target_os = "linux")]
++        let (http_client, decisions_client) = if vtcode_commons::http::shiju_managed_linux() {
++            let relay = crate::http_client::shiju_relay_client(
++                &timeouts,
++                std::path::Path::new(vtcode_commons::http::SHIJU_RELAY_SOCKET),
++            )
++            .expect("managed ShiJu ACP requires its Unix HTTP client");
++            (relay.clone(), Ok(relay))
++        } else {
++            (http_client, decisions_client)
++        };
+
+         Self {
+             api_key: Arc::from(api_key.as_str()),
+--- a/crates/codegen/vtcode-mcp/src/rmcp_client/mod.rs
++++ b/crates/codegen/vtcode-mcp/src/rmcp_client/mod.rs
+@@ -405,6 +405,12 @@
+         info!("Connecting to MCP HTTP provider '{}' at {}", provider_name, url);
+
+         let mut client_builder = rmcp_reqwest::Client::builder();
++        #[cfg(target_os = "linux")]
++        if vtcode_commons::http::shiju_managed_linux() {
++            client_builder = client_builder
++                .unix_socket(vtcode_commons::http::SHIJU_RELAY_SOCKET)
++                .no_proxy();
++        }
+         if !headers.is_empty() {
+             client_builder = client_builder.default_headers(headers);
+         }
+--- a/crates/codegen/vtcode-acp/src/zed/agent/tool_config.rs
++++ b/crates/codegen/vtcode-acp/src/zed/agent/tool_config.rs
+@@ -14,12 +14,21 @@
+ };
+ use super::super::types::ToolRuntime;
+
++pub(super) fn native_tool_allowed(name: &str) -> bool {
++    use vtcode_core::config::constants::tools;
++    !crate::permissions::managed_linux_launch()
++        || matches!(name, tools::LIST_FILES | tools::APPLY_PATCH)
++}
++
+ impl ZedAgent {
+     pub(super) fn local_tools_available(&self, primary_agent: &str) -> bool {
+         self.acp_tool_registry
+             .definitions_for(&[], true)
+             .iter()
+-            .any(|definition| self.primary_agents.allows_local_tool(primary_agent, definition.function_name()))
++            .any(|definition| {
++                native_tool_allowed(definition.function_name())
++                    && self.primary_agents.allows_local_tool(primary_agent, definition.function_name())
++            })
+     }
+
+     pub(super) fn tool_definitions(
+@@ -40,8 +49,8 @@
+             Some(
+                 self.acp_tool_registry
+                     .definitions_for_filtered(enabled_tools, include_local, |tool_name| {
+-                        self.primary_agents
+-                            .allows_tool(primary_agent, tool_name, workspace_root.as_path())
++                        native_tool_allowed(tool_name)
++                            && self.primary_agents.allows_tool(primary_agent, tool_name, workspace_root.as_path())
+                     }),
+             )
+         }
+@@ -73,7 +82,10 @@
+             .into_iter()
+             .map(|tool| {
+                 let runtime =
+-                    if provider_supports_tools && (tool != SupportedTool::ReadFile || client_supports_read_text_file) {
++                    if provider_supports_tools
++                        && native_tool_allowed(tool.function_name())
++                        && (tool != SupportedTool::ReadFile || client_supports_read_text_file)
++                    {
+                         ToolRuntime::Enabled
+                     } else {
+                         ToolRuntime::Disabled
+--- a/crates/codegen/vtcode-acp/src/zed/agent/tool_execution.rs
++++ b/crates/codegen/vtcode-acp/src/zed/agent/tool_execution.rs
+@@ -65,8 +65,10 @@
+         let skill_tool = session.skills.contains_tool(&func_ref.name);
+         let tool_descriptor = if mcp_tool.is_some() || skill_tool {
+             Some(ToolDescriptor::Local)
++        } else if super::tool_config::native_tool_allowed(&func_ref.name) {
++            self.acp_tool_registry.lookup(&func_ref.name)
+         } else {
+-            self.acp_tool_registry.lookup(&func_ref.name)
++            None
+         };
+         let args_value_result: Result<Value, _> = serde_json::from_str(&func_ref.arguments);
+         let args_value_for_input = args_value_result.as_ref().ok().cloned();
+--- a/crates/codegen/vtcode-acp/src/zed/agent/session_state/mod.rs
++++ b/crates/codegen/vtcode-acp/src/zed/agent/session_state/mod.rs
+@@ -395,6 +395,11 @@
+     /// would require per-session tool roots).
+     pub(crate) async fn new_session(&self, req: acp::NewSessionRequest) -> Result<acp::NewSessionResponse, acp::Error> {
+         ensure_absolute_cwd(&req.cwd)?;
++        if crate::permissions::managed_linux_launch()
++            && (req.cwd != self.config.workspace || !req.additional_directories.is_empty())
++        {
++            return Err(acp::Error::invalid_params());
++        }
+         if req.cwd != self.config.workspace {
+             warn!(
+                 requested = %req.cwd.display(),
+@@ -428,6 +433,9 @@
+         args: acp::LoadSessionRequest,
+     ) -> Result<acp::LoadSessionResponse, acp::Error> {
+         ensure_absolute_cwd(&args.cwd)?;
++        if crate::permissions::managed_linux_launch() && args.cwd != self.config.workspace {
++            return Err(acp::Error::invalid_params());
++        }
+         if !args.mcp_servers.is_empty()
+             || self
+                 .session_handle(&args.session_id)
+@@ -494,6 +502,9 @@
+         args: acp::ResumeSessionRequest,
+     ) -> Result<acp::ResumeSessionResponse, acp::Error> {
+         ensure_absolute_cwd(&args.cwd)?;
++        if crate::permissions::managed_linux_launch() && args.cwd != self.config.workspace {
++            return Err(acp::Error::invalid_params());
++        }
+         if !args.mcp_servers.is_empty()
+             || self
+                 .session_handle(&args.session_id)

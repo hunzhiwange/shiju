@@ -5,6 +5,10 @@ use model_transport::RelayIdentity;
 use tower::ServiceExt;
 
 const SERVER: &str = r#"
+if [ -n "${PID_AUDIT:-}" ]; then
+    printf '%s
+' "$$" > "$PID_AUDIT"
+fi
 if [ -n "${DISCOVERY_AUDIT:-}" ]; then
     printf 'started\n' >> "$DISCOVERY_AUDIT"
 fi
@@ -278,10 +282,10 @@ async fn assert_reviewed_linux_projection(owner: LinuxMcpOwner, backend: &str, s
         panic!("unapproved discovery reached process preparation")
     };
     for rejected in [vec![], vec![implicit], vec![altered], vec![selected.clone(), selected.clone()]] {
-        assert!(prepare_linux_stdio_with(&rejected, pin(digest), launch.clone(), must_not_launch).await.is_err());
+        assert!(prepare_linux_stdio_with(&rejected, pin(digest), binding(&format!("rejected:{backend}")), must_not_launch).await.is_err());
     }
     assert!(prepare_linux_stdio_with(
-        std::slice::from_ref(&selected), pin([0; 32]), launch.clone(), must_not_launch,
+        std::slice::from_ref(&selected), pin([0; 32]), binding(&format!("invalid-pin:{backend}")), must_not_launch,
     ).await.is_err());
     assert!(prepare_linux_stdio_with(
         std::slice::from_ref(&selected), pin(digest), binding("first:other"), must_not_launch,
@@ -306,7 +310,7 @@ async fn assert_reviewed_linux_projection(owner: LinuxMcpOwner, backend: &str, s
         Ok(command)
     }).await.unwrap();
 
-    assert_eq!(projection.linux_owner, Some(owner));
+    assert_eq!(projection.linux_owners.get("selected"), Some(&owner));
     let token = projection.token();
     assert!(token != launch.bearer_token());
     assert_eq!(post(&projection, ROUTE, launch.bearer_token(), "tools/list", json!({})).await.0,
@@ -402,3 +406,140 @@ async fn acp_platform_approval_linux_sandboxed_stdio_dispatch() {
 #[cfg(all(target_os = "linux", target_env = "gnu", any(target_arch = "x86_64", target_arch = "aarch64")))]
 #[path = "mimo_mcp_mount_review_tests.rs"]
 mod mount_review;
+
+#[cfg(all(target_os = "linux", target_env = "gnu", any(target_arch = "x86_64", target_arch = "aarch64")))]
+#[tokio::test]
+async fn acp_platform_approval_linux_batch_is_atomic_and_revokes_both_sources() {
+    use sha2::{Digest, Sha256};
+    use std::sync::atomic::{AtomicBool, Ordering};
+
+    let dir = tempfile::tempdir().unwrap();
+    let executable = FsPath::new("/bin/bash").canonicalize().unwrap();
+    let sha256 = Sha256::digest(std::fs::read(&executable).unwrap()).into();
+    let args = vec!["-c".into(), SERVER.into()];
+    let names = ["project", "mounted"];
+    let selected = names.map(|name| {
+        AcpMcpServer::Stdio(McpServerStdio::new(name, &executable).args(args.clone()))
+    });
+    let policies = names.map(|name| {
+        let mut policy = acp_config::McpServerManagement::default_for_server(name);
+        policy.enabled = true;
+        policy.allowed_tools = vec!["echo".into()];
+        policy
+    });
+    let pins = || -> [ReviewedLinuxStdio<'_>; 2] {
+        let sources = [LinuxMcpSource::Project, LinuxMcpSource::Mounted];
+        std::array::from_fn(|index| ReviewedLinuxStdio {
+            owner: LinuxMcpOwner::IFlow(sources[index]),
+            executable: &executable,
+            sha256,
+            args: &args,
+            policy: &policies[index],
+        })
+    };
+    let must_not_prepare = |_: &FsPath, _: &[String]| -> anyhow::Result<Command> {
+        panic!("a bad second selection reached command preparation")
+    };
+    let mut bad_pins = pins();
+    bad_pins[1].sha256 = [0; 32];
+    let invalid = binding("invalid:iflow");
+    assert!(prepare_linux_stdio_batch(&selected, &bad_pins, invalid.clone(), None, must_not_prepare).await.is_err());
+    assert!(invalid.cancelled().is_cancelled());
+
+    let mut collision_policies = policies.clone();
+    collision_policies[0].allowed_tools = vec!["child__echo".into()];
+    collision_policies[1].name = "project__child".into();
+    let mut colliding = pins();
+    colliding[0].policy = &collision_policies[0];
+    colliding[1].policy = &collision_policies[1];
+    let colliding_selection = [
+        selected[0].clone(),
+        AcpMcpServer::Stdio(McpServerStdio::new("project__child", &executable).args(args.clone())),
+    ];
+    let conflict = prepare_linux_stdio_batch(
+        &colliding_selection, &colliding, binding("collision:iflow"), None, must_not_prepare,
+    ).await;
+    let Err(conflict) = conflict else { panic!("conflicting identities were advertised") };
+    assert_eq!(conflict.to_string(), "Colliding Linux ACP tool identity");
+
+    let first_pid = dir.path().join("failed-batch-first-pid");
+    let failed = binding("failed:iflow");
+    let mut commands = 0;
+    let failure = prepare_linux_stdio_batch(&selected, &pins(), failed.clone(), None, |staged, args| {
+        commands += 1;
+        let mut command = Command::new(staged);
+        command.env_clear();
+        if commands == 1 {
+            command.args(args).env("PID_AUDIT", &first_pid);
+        } else {
+            command.args(["-c", "exit 7"]);
+        }
+        Ok(command)
+    }).await;
+    assert!(failure.is_err());
+    assert!(failed.cancelled().is_cancelled());
+    assert_reaped(&first_pid).await;
+
+    let launch = binding("batch:iflow");
+    let project_current = Arc::new(AtomicBool::new(true));
+    let mounted_current = Arc::new(AtomicBool::new(true));
+    let current: ReviewValidity = {
+        let project = project_current.clone();
+        let mounted = mounted_current.clone();
+        Arc::new(move || project.load(Ordering::SeqCst) && mounted.load(Ordering::SeqCst))
+    };
+    let mut index = 0;
+    let projection = prepare_linux_stdio_batch(&selected, &pins(), launch.clone(), Some(current), |staged, args| {
+        let mut command = Command::new(staged);
+        let name = names[index];
+        index += 1;
+        command.args(args).env_clear()
+            .env("PID_AUDIT", dir.path().join(format!("{name}-pid")))
+            .env("APPROVAL_AUDIT", dir.path().join(format!("{name}-calls")));
+        Ok(command)
+    }).await.unwrap();
+    let (services, issue) = projection.approval_config("http://127.0.0.1:1").unwrap();
+    assert_eq!(services.len(), 2);
+    for definition in services {
+        let AcpMcpServer::Http(server) = definition else { panic!("expected HTTP projection") };
+        assert_eq!(server.meta.as_ref().unwrap()["shiju.iflow.mcp-v4"].as_str(), Some(server.name.as_str()));
+    }
+
+    let token = projection.token();
+    let input = json!({"value": true});
+    let call = |id| json!({"name": "echo", "arguments": input, "_meta": {"shijuCallId": id}});
+    let project = "/shiju-vtcode-mcp/project";
+    let mounted = "/shiju-vtcode-mcp/mounted";
+    assert!(issue("mcp__project__echo", "project-call", &input, Box::new(|| true)));
+    assert!(issue("mcp__mounted__echo", "mounted-call", &input, Box::new(|| true)));
+    assert_eq!(post(&projection, mounted, token, "tools/call", call("project-call")).await.0, StatusCode::FORBIDDEN);
+    assert_eq!(post(&projection, project, token, "tools/call", call("mounted-call")).await.0, StatusCode::FORBIDDEN);
+    assert!(!dir.path().join("project-calls").exists());
+    assert!(!dir.path().join("mounted-calls").exists());
+    assert_eq!(post(&projection, project, token, "tools/call", call("project-call")).await.0, StatusCode::OK);
+    assert_eq!(post(&projection, mounted, token, "tools/call", call("mounted-call")).await.0, StatusCode::OK);
+    assert!(issue("mcp__project__echo", "pending", &input, Box::new(|| true)));
+
+    mounted_current.store(false, Ordering::SeqCst);
+    assert_reaped(&dir.path().join("project-pid")).await;
+    assert_reaped(&dir.path().join("mounted-pid")).await;
+    assert!(launch.cancelled().is_cancelled());
+    assert_eq!(post(&projection, project, token, "tools/call", call("pending")).await.0, StatusCode::UNAUTHORIZED);
+    assert!(!issue("mcp__project__echo", "after-revoke", &input, Box::new(|| true)));
+    assert!(project_current.load(Ordering::SeqCst));
+    for name in names {
+        assert_eq!(std::fs::read_to_string(dir.path().join(format!("{name}-calls"))).unwrap(), "executed
+");
+    }
+}
+
+#[cfg(all(target_os = "linux", target_env = "gnu", any(target_arch = "x86_64", target_arch = "aarch64")))]
+async fn assert_reaped(pid_file: &FsPath) {
+    let pid = std::fs::read_to_string(pid_file).unwrap();
+    let proc_entry = std::path::PathBuf::from("/proc").join(pid.trim());
+    tokio::time::timeout(Duration::from_secs(10), async {
+        while proc_entry.exists() {
+            tokio::time::sleep(Duration::from_millis(25)).await;
+        }
+    }).await.expect("fixture process was not reaped");
+}

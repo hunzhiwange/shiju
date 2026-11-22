@@ -18,7 +18,10 @@ use std::{
     time::{Duration, Instant},
 };
 use tokio::{process::Command, sync::Semaphore};
+use tokio_util::sync::DropGuard;
 
+const MAX_SERVICES: usize = 16;
+const MAX_PENDING_APPROVALS: usize = 64;
 const TIMEOUT: Duration = Duration::from_secs(15);
 const BODY_LIMIT: usize = 4 * 1024 * 1024;
 const PREFIX: &str = "/shiju-mimo-mcp";
@@ -49,7 +52,6 @@ struct Server {
 
 struct PendingApproval {
     tool: String,
-    call_id: String,
     arguments: Value,
     issued: Instant,
     valid: acp_client::ApprovalValidity,
@@ -57,12 +59,12 @@ struct PendingApproval {
 
 struct VtcodeApproval {
     require_call_id: bool,
-    pending: Mutex<Option<PendingApproval>>,
+    pending: Mutex<BTreeMap<String, PendingApproval>>,
 }
 
 impl VtcodeApproval {
     fn new(require_call_id: bool) -> Self {
-        Self { require_call_id, pending: Mutex::new(None) }
+        Self { require_call_id, pending: Mutex::new(BTreeMap::new()) }
     }
 
     fn issue(
@@ -76,9 +78,15 @@ impl VtcodeApproval {
             return false;
         }
         let Ok(mut current) = self.pending.lock() else { return false };
-        *current = Some(PendingApproval {
+        let key = if self.require_call_id { call_id } else { "" };
+        if self.require_call_id {
+            current.retain(|_, approval| approval.issued.elapsed() <= TIMEOUT);
+            if current.contains_key(key) || current.len() >= MAX_PENDING_APPROVALS {
+                return false;
+            }
+        }
+        current.insert(key.to_owned(), PendingApproval {
             tool: name.to_owned(),
-            call_id: call_id.to_owned(),
             arguments: input.clone(),
             issued: Instant::now(),
             valid,
@@ -88,21 +96,30 @@ impl VtcodeApproval {
 
     fn consume(&self, name: &str, call_id: Option<&str>, input: &Value) -> bool {
         let Ok(mut current) = self.pending.lock() else { return false };
-        let allowed = current.as_ref().is_some_and(|approval| {
+        let key = if self.require_call_id {
+            let Some(call_id) = call_id else { return false };
+            call_id
+        } else {
+            ""
+        };
+        let allowed = current.get(key).is_some_and(|approval| {
             approval.tool == name
                 && &approval.arguments == input
-                && (!self.require_call_id || call_id == Some(approval.call_id.as_str()))
                 && approval.issued.elapsed() <= TIMEOUT
                 && (approval.valid)()
         });
         if allowed || !self.require_call_id {
-            *current = None;
+            current.remove(key);
         }
         allowed
     }
 }
 
+pub(super) type ReviewValidity = Arc<dyn Fn() -> bool + Send + Sync>;
+
 struct Bridge {
+    current: Option<ReviewValidity>,
+    _workers: Option<DropGuard>,
     approvals: Option<Arc<VtcodeApproval>>,
     launch: Arc<RelayBinding>,
     access: Arc<RelayBinding>,
@@ -114,7 +131,8 @@ pub(super) struct Projection {
     servers: Vec<String>,
     access: Arc<RelayBinding>,
     launch: Arc<RelayBinding>,
-    linux_owner: Option<LinuxMcpOwner>,
+    linux_owners: BTreeMap<String, LinuxMcpOwner>,
+    current: Option<ReviewValidity>,
     pub(super) tools: Vec<String>,
     approvals: Option<Arc<VtcodeApproval>>,
 }
@@ -128,12 +146,9 @@ impl Projection {
         Vec<AcpMcpServer>, acp_client::ManagedMcpApproval,
     )> {
         use agent_client_protocol::{HttpHeader, McpServerHttp};
-        let iflow_source = match self.linux_owner {
-            Some(LinuxMcpOwner::IFlow(source)) => Some(source),
-            _ => None,
-        };
-        let glm = matches!(self.linux_owner, Some(LinuxMcpOwner::Glm(_)));
-        if iflow_source.is_some() || glm {
+        let owner = self.linux_owners.values().next();
+        let glm = matches!(owner, Some(LinuxMcpOwner::Glm(_)));
+        if matches!(owner, Some(LinuxMcpOwner::IFlow(_) | LinuxMcpOwner::Glm(_))) {
             let address = endpoint.strip_prefix("http://")
                 .and_then(|value| value.parse::<std::net::SocketAddr>().ok())
                 .filter(|address| match address.ip() {
@@ -150,16 +165,23 @@ impl Projection {
         let catalog = self.tools.clone();
         let launch = self.launch.clone();
         let access = self.access.clone();
+        let current = self.current.clone();
         let approve: acp_client::ManagedMcpApproval = Arc::new(move |name, call_id, input, valid| {
-            !launch.cancelled().is_cancelled()
+            review_current(&launch, current.as_ref())
                 && access.expires().is_none_or(|expires| Instant::now() < expires)
                 && input.is_object() && catalog.iter().any(|tool| tool == name)
-                && approvals.issue(name, call_id, input, valid)
+                && {
+                    let launch = launch.clone();
+                    let current = current.clone();
+                    approvals.issue(name, call_id, input, Box::new(move || {
+                        review_current(&launch, current.as_ref()) && valid()
+                    }))
+                }
         });
         let servers = self.servers.iter().map(|name| {
             let mut server = McpServerHttp::new(name.as_str(), format!("{endpoint}{VTCODE_PREFIX}/{name}"))
                 .headers(vec![HttpHeader::new("Authorization", format!("Bearer {}", self.token()))]);
-            if let Some(source) = iflow_source {
+            if let Some(LinuxMcpOwner::IFlow(source)) = self.linux_owners.get(name) {
                 let source = match source {
                     LinuxMcpSource::Project => "project",
                     LinuxMcpSource::Mounted => "mounted",
@@ -198,6 +220,17 @@ pub(super) enum LinuxMcpOwner {
     Glm(LinuxMcpSource),
 }
 
+impl LinuxMcpOwner {
+    #[cfg(all(target_os = "linux", target_env = "gnu", any(target_arch = "x86_64", target_arch = "aarch64")))]
+    fn backend(self) -> &'static str {
+        match self {
+            Self::VtCode => "vtcode",
+            Self::IFlow(_) => "iflow",
+            Self::Glm(_) => "glm-acp-agent",
+        }
+    }
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(super) enum LinuxMcpSource {
     Project,
@@ -218,58 +251,180 @@ pub(super) struct ReviewedLinuxStdio<'a> {
     pub(super) policy: &'a acp_config::McpServerManagement,
 }
 
-/// Candidate entry point for a reviewed GNU ACP launch. The registry and
-/// adapter still have to supply a reviewed selection and enable their route.
+/// Compatibility entry point for a single reviewed service.
 #[cfg(all(target_os = "linux", target_env = "gnu", any(target_arch = "x86_64", target_arch = "aarch64")))]
 pub(super) async fn prepare_linux_stdio(
     selected: &[AcpMcpServer],
     reviewed: ReviewedLinuxStdio<'_>,
     launch: Arc<RelayBinding>,
 ) -> anyhow::Result<Projection> {
-    prepare_linux_stdio_with(selected, reviewed, launch, |executable, args| {
-        let args = args.iter().map(|arg| std::ffi::OsString::from(arg.as_str())).collect::<Vec<_>>();
-        let command = process_sandbox::bubblewrap::isolated_stdio_command(executable, &args)?;
-        Ok(Command::from(command))
-    }).await
+    prepare_linux_stdio_batch(selected, &[reviewed], launch, None, linux_stdio_command).await
+}
+
+/// The caller resolves every selected service from the host-reviewed directory
+/// in declaration order and supplies a check of all current revisions.
+#[cfg(all(target_os = "linux", target_env = "gnu", any(target_arch = "x86_64", target_arch = "aarch64")))]
+pub(super) async fn prepare_linux_stdio_many(
+    selected: &[AcpMcpServer],
+    reviewed: &[ReviewedLinuxStdio<'_>],
+    launch: Arc<RelayBinding>,
+    current: ReviewValidity,
+) -> anyhow::Result<Projection> {
+    prepare_linux_stdio_batch(selected, reviewed, launch, Some(current), linux_stdio_command).await
 }
 
 #[cfg(all(target_os = "linux", target_env = "gnu", any(target_arch = "x86_64", target_arch = "aarch64")))]
+fn linux_stdio_command(executable: &FsPath, args: &[String]) -> anyhow::Result<Command> {
+    let args = args.iter().map(|arg| std::ffi::OsString::from(arg.as_str())).collect::<Vec<_>>();
+    Ok(Command::from(process_sandbox::bubblewrap::isolated_stdio_command(executable, &args)?))
+}
+
+#[cfg(all(test, target_os = "linux", target_env = "gnu", any(target_arch = "x86_64", target_arch = "aarch64")))]
 async fn prepare_linux_stdio_with(
     selected: &[AcpMcpServer],
     reviewed: ReviewedLinuxStdio<'_>,
     launch: Arc<RelayBinding>,
-    isolate: impl FnOnce(&FsPath, &[String]) -> anyhow::Result<Command>,
+    isolate: impl FnMut(&FsPath, &[String]) -> anyhow::Result<Command>,
 ) -> anyhow::Result<Projection> {
+    prepare_linux_stdio_batch(selected, &[reviewed], launch, None, isolate).await
+}
+
+#[cfg(all(target_os = "linux", target_env = "gnu", any(target_arch = "x86_64", target_arch = "aarch64")))]
+async fn prepare_linux_stdio_batch(
+    selected: &[AcpMcpServer],
+    reviewed: &[ReviewedLinuxStdio<'_>],
+    launch: Arc<RelayBinding>,
+    current: Option<ReviewValidity>,
+    mut isolate: impl FnMut(&FsPath, &[String]) -> anyhow::Result<Command>,
+) -> anyhow::Result<Projection> {
+    let setup_guard = launch.cancelled().clone().drop_guard();
+    let mut servers = BTreeMap::<String, Server>::new();
+    let mut owners = BTreeMap::new();
+    let setup = async {
+        anyhow::ensure!(
+            (1..=MAX_SERVICES).contains(&selected.len()) && reviewed.len() == selected.len(),
+            "Linux ACP requires a bounded list of reviewed stdio selections"
+        );
+        anyhow::ensure!(review_current(&launch, current.as_ref()), "Linux ACP projection was revoked");
+        let mut declared_aliases = BTreeSet::new();
+        let mut services = Vec::with_capacity(selected.len());
+        for (selection, pin) in selected.iter().zip(reviewed) {
+            let AcpMcpServer::Stdio(service) = selection else {
+                anyhow::bail!("Linux ACP requires a reviewed stdio service");
+            };
+            anyhow::ensure!(
+                launch.identity().session.rsplit_once(':').is_some_and(|(_, owner)| owner == pin.owner.backend()),
+                "Linux MCP projection belongs to another adapter"
+            );
+            let policy = pin.policy;
+            anyhow::ensure!(
+                policy.enabled && !policy.allowed_tools.is_empty()
+                    && valid_name(&service.name) && service.name == policy.name
+                    && service.env.is_empty()
+                    && service.command.as_path() == pin.executable
+                    && service.args.as_slice() == pin.args,
+                "Linux ACP selection differs from the reviewed service"
+            );
+            anyhow::ensure!(
+                owners.insert(service.name.clone(), pin.owner).is_none(),
+                "Duplicate Linux ACP service across reviewed sources"
+            );
+            let mut aliases = BTreeSet::new();
+            for name in &policy.allowed_tools {
+                let id = tool_mcp::mcp_tool::mcp_tool_id(&service.name, name)?;
+                if mcp_client::mcp_tool_allowed(policy, name, &id) {
+                    let alias = linux_tool_name(pin.owner, &service.name, name)?;
+                    anyhow::ensure!(
+                        declared_aliases.insert(alias.clone()),
+                        "Colliding Linux ACP tool identity"
+                    );
+                    aliases.insert(alias);
+                }
+            }
+            anyhow::ensure!(!aliases.is_empty(), "No tools in the reviewed Linux ACP service");
+            services.push((service, pin, aliases));
+        }
+        let mut prepared = Vec::with_capacity(services.len());
+        for (service, pin, aliases) in services {
+            let (scratch, entry) = stage_linux_stdio(pin)?;
+            prepared.push((service, pin, aliases, scratch, entry));
+        }
+        anyhow::ensure!(review_current(&launch, current.as_ref()), "Linux ACP projection was revoked");
+        let mut commands = Vec::with_capacity(prepared.len());
+        for (service, pin, aliases, scratch, entry) in prepared {
+            commands.push((service, pin, aliases, scratch, isolate(&entry, pin.args)?));
+        }
+
+        let mut tools = BTreeSet::new();
+        for (service, pin, aliases, scratch, command) in commands {
+            anyhow::ensure!(review_current(&launch, current.as_ref()), "Linux ACP projection was revoked");
+            let (peer, listed) = discover_stdio(command, &launch).await?;
+            let server = servers.entry(service.name.clone()).or_insert(Server {
+                peer, catalog: BTreeMap::new(), approval_names: BTreeMap::new(),
+                permits: Semaphore::new(1), _scratch: scratch, graph_root: None,
+            });
+            for tool in listed {
+                let name = tool.name.to_string();
+                anyhow::ensure!(valid_name(&name), "Invalid Linux ACP tool name");
+                let id = tool_mcp::mcp_tool::mcp_tool_id(&service.name, &name)?;
+                if mcp_client::mcp_tool_allowed(pin.policy, &name, &id) {
+                    let public = linux_tool_name(pin.owner, &service.name, &name)?;
+                    anyhow::ensure!(
+                        aliases.contains(&public) && tools.insert(public.clone()),
+                        "Invalid or duplicate Linux ACP tool"
+                    );
+                    server.approval_names.insert(name.clone(), public);
+                    server.catalog.insert(name, tool);
+                }
+            }
+            anyhow::ensure!(!server.catalog.is_empty(), "No tools in the reviewed Linux ACP service");
+        }
+        anyhow::ensure!(review_current(&launch, current.as_ref()), "Linux ACP projection was revoked");
+        Ok(tools)
+    };
+    let result = tokio::select! {
+        biased;
+        () = launch.cancelled().cancelled() => Err(anyhow::anyhow!("Linux ACP projection was revoked")),
+        () = wait_for_review_revocation(current.as_ref()) => Err(anyhow::anyhow!("Linux ACP review was revoked")),
+        result = setup => result,
+    };
+    let tools = match result {
+        Ok(tools) => tools,
+        Err(error) => {
+            launch.revoke();
+            futures_util::future::join_all(servers.into_values().map(|server| async move {
+                let _ = server.peer.cancel().await;
+            })).await;
+            return Err(error);
+        }
+    };
+    let projection = finish_projection(
+        launch, servers, tools, Some(Arc::new(VtcodeApproval::new(true))), owners, current,
+    )?;
+    let _ = setup_guard.disarm();
+    Ok(projection)
+}
+
+#[cfg(all(target_os = "linux", target_env = "gnu", any(target_arch = "x86_64", target_arch = "aarch64")))]
+fn linux_tool_name(owner: LinuxMcpOwner, service: &str, name: &str) -> anyhow::Result<String> {
+    if matches!(owner, LinuxMcpOwner::Glm(_)) {
+        return llm_runtime::acp::model_source::drivers::glm_acp_agent::projected_mcp_tool_name(service, name);
+    }
+    let public = format!("mcp__{service}__{name}");
+    anyhow::ensure!(valid_name(name) && public.len() <= 64, "Invalid Linux ACP tool name");
+    Ok(public)
+}
+
+#[cfg(all(target_os = "linux", target_env = "gnu", any(target_arch = "x86_64", target_arch = "aarch64")))]
+fn stage_linux_stdio(reviewed: &ReviewedLinuxStdio<'_>) -> anyhow::Result<(tempfile::TempDir, std::path::PathBuf)> {
     use sha2::{Digest, Sha256};
     use std::{io::{Read, Write}, os::unix::fs::OpenOptionsExt};
 
-    let backend = match reviewed.owner {
-        LinuxMcpOwner::VtCode => "vtcode",
-        LinuxMcpOwner::IFlow(_) => "iflow",
-        LinuxMcpOwner::Glm(_) => "glm-acp-agent",
-    };
-    anyhow::ensure!(
-        launch.identity().session.rsplit_once(':').is_some_and(|(_, owner)| owner == backend),
-        "Linux MCP projection belongs to another adapter"
-    );
-    let [AcpMcpServer::Stdio(service)] = selected else {
-        anyhow::bail!("Linux ACP requires one explicitly selected stdio service");
-    };
-    let policy = reviewed.policy;
-    anyhow::ensure!(
-        policy.enabled && !policy.allowed_tools.is_empty()
-            && valid_name(&service.name) && service.name == policy.name
-            && service.env.is_empty()
-            && service.command.as_path() == reviewed.executable
-            && service.args.as_slice() == reviewed.args,
-        "Linux ACP selection differs from the reviewed service"
-    );
     anyhow::ensure!(
         reviewed.executable.is_absolute() && reviewed.executable.canonicalize()? == reviewed.executable,
         "Linux ACP service requires a canonical executable"
     );
-    anyhow::ensure!(!launch.cancelled().is_cancelled(), "Linux ACP projection was revoked");
-    let scratch = tempfile::Builder::new().prefix("shiju-vtcode-mcp-").tempdir()?;
+    let scratch = tempfile::Builder::new().prefix("shiju-acp-mcp-").tempdir()?;
     let entry = scratch.path().canonicalize()?.join("entry");
     // Hash the same bytes written to the private entry that Bubblewrap opens.
     let mut copy = std::fs::OpenOptions::new().write(true).create_new(true).mode(0o500).open(&entry)?;
@@ -292,39 +447,31 @@ async fn prepare_linux_stdio_with(
         "Linux ACP service checksum mismatch"
     );
 
-    drop(copy);
-    drop(file);
-    anyhow::ensure!(!launch.cancelled().is_cancelled(), "Linux ACP projection was revoked");
-    let command = isolate(&entry, reviewed.args)?;
-    let (peer, listed) = discover_stdio(command, &launch).await?;
-    let mut catalog = BTreeMap::new();
-    let mut approval_names = BTreeMap::new();
-    for tool in listed {
-        let name = tool.name.to_string();
-        anyhow::ensure!(valid_name(&name), "Invalid Linux ACP tool name");
-        let tool_id = tool_mcp::mcp_tool::mcp_tool_id(&service.name, &name)?;
-        if mcp_client::mcp_tool_allowed(policy, &name, &tool_id) {
-            let public = if matches!(reviewed.owner, LinuxMcpOwner::Glm(_)) {
-                llm_runtime::acp::model_source::drivers::glm_acp_agent::projected_mcp_tool_name(
-                    &service.name, &name,
-                )?
-            } else {
-                format!("mcp__{}__{name}", service.name)
-            };
-            anyhow::ensure!(
-                public.len() <= 64 && !catalog.contains_key(&name),
-                "Invalid or duplicate Linux ACP tool"
-            );
-            approval_names.insert(name.clone(), public);
-            catalog.insert(name, tool);
+    Ok((scratch, entry))
+}
+
+fn review_current(launch: &RelayBinding, current: Option<&ReviewValidity>) -> bool {
+    if launch.cancelled().is_cancelled() {
+        return false;
+    }
+    if current.is_some_and(|check| !check()) {
+        launch.revoke();
+        return false;
+    }
+    true
+}
+
+async fn wait_for_review_revocation(current: Option<&ReviewValidity>) {
+    let Some(current) = current else {
+        return std::future::pending().await;
+    };
+    loop {
+        tokio::time::sleep(Duration::from_secs(1)).await;
+        let check = current.clone();
+        if !tokio::task::spawn_blocking(move || check()).await.unwrap_or(false) {
+            break;
         }
     }
-    let tools = approval_names.values().cloned().collect::<BTreeSet<_>>();
-    let servers = BTreeMap::from([(
-        service.name.clone(),
-        Server { peer, catalog, approval_names, permits: Semaphore::new(1), _scratch: scratch, graph_root: None },
-    )]);
-    finish_projection(launch, servers, tools, Some(Arc::new(VtcodeApproval::new(true))), Some(reviewed.owner))
 }
 
 async fn discover_stdio(
@@ -366,7 +513,7 @@ pub(super) async fn prepare(
     let approvals = requires_approval
         .then(|| Arc::new(VtcodeApproval::new(false)));
     anyhow::ensure!(
-        !definitions.is_empty() && definitions.len() <= 16,
+        !definitions.is_empty() && definitions.len() <= MAX_SERVICES,
         "invalid MiMo MCP service count"
     );
     let workspace = FsPath::new(directory).canonicalize()?;
@@ -516,7 +663,7 @@ pub(super) async fn prepare(
             );
         }
     }
-    finish_projection(launch, servers, native_tools, approvals, None)
+    finish_projection(launch, servers, native_tools, approvals, BTreeMap::new(), None)
 }
 
 fn finish_projection(
@@ -524,16 +671,37 @@ fn finish_projection(
     servers: BTreeMap<String, Server>,
     tools: BTreeSet<String>,
     approvals: Option<Arc<VtcodeApproval>>,
-    linux_owner: Option<LinuxMcpOwner>,
+    linux_owners: BTreeMap<String, LinuxMcpOwner>,
+    current: Option<ReviewValidity>,
 ) -> anyhow::Result<Projection> {
     let requires_approval = approvals.is_some();
     anyhow::ensure!(!requires_approval || !tools.is_empty(), "No tools in the selected ACP MCP catalog");
     let access = RelayBinding::new(launch.identity().clone(), Duration::from_secs(900))?;
     let names = servers.keys().cloned().collect();
-    let state = Arc::new(Bridge { launch: launch.clone(), access: access.clone(), servers, approvals: approvals.clone() });
+    let workers = (!linux_owners.is_empty()).then(|| {
+        let peers = servers.values().map(|server| server.peer.cancellation_token()).collect::<Vec<_>>();
+        let stopped = launch.cancelled().child_token();
+        let guard = stopped.clone().drop_guard();
+        let launch = launch.clone();
+        let current = current.clone();
+        tokio::spawn(async move {
+            tokio::select! {
+                () = stopped.cancelled() => {}
+                () = wait_for_review_revocation(current.as_ref()) => launch.revoke(),
+            }
+            for peer in peers {
+                peer.cancel();
+            }
+        });
+        guard
+    });
+    let state = Arc::new(Bridge {
+        launch: launch.clone(), access: access.clone(), servers, approvals: approvals.clone(),
+        current: current.clone(), _workers: workers,
+    });
     let route = if requires_approval { "/shiju-vtcode-mcp/{service}" } else { "/shiju-mimo-mcp/{service}" };
     let router = Router::new().route(route, post(handle)).with_state(state);
-    Ok(Projection { router, servers: names, access, launch, linux_owner, tools: tools.into_iter().collect(), approvals })
+    Ok(Projection { router, servers: names, access, launch, linux_owners, current, tools: tools.into_iter().collect(), approvals })
 }
 
 #[cfg(unix)]
@@ -582,7 +750,7 @@ async fn handle(
         .and_then(|v| v.strip_prefix("Bearer "))
         .ok_or(StatusCode::UNAUTHORIZED)?;
     if !state.access.accepts(token, state.launch.identity())
-        || state.launch.cancelled().is_cancelled()
+        || !review_current(&state.launch, state.current.as_ref())
     {
         return Err(StatusCode::UNAUTHORIZED);
     }

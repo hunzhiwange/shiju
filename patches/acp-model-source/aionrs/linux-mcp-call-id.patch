@@ -1,0 +1,135 @@
+--- a/crates/aion-mcp/src/tool_proxy.rs
++++ b/crates/aion-mcp/src/tool_proxy.rs
+@@ -7,7 +7,7 @@
+ use super::config::McpServerConfig;
+ use super::manager::McpManager;
+ use aion_protocol::events::ToolCategory;
+-use aion_tools::Tool;
++use aion_tools::{Tool, ToolExecutionOutput};
+ use aion_types::tool::{JsonSchema, ToolResult};
+
+ /// Wraps an MCP server tool as a local Tool trait implementation.
+@@ -73,7 +73,41 @@
+     }
+
+     async fn execute(&self, input: Value) -> ToolResult {
+-        match self.manager.call_tool(&self.server_name, &self.tool_name, input).await {
++        self.invoke(input, None).await
++    }
++
++    async fn execute_with_call_id(&self, input: Value, call_id: &str) -> ToolExecutionOutput {
++        self.invoke(input, Some(call_id)).await.into()
++    }
++
++    fn category(&self) -> ToolCategory {
++        ToolCategory::Mcp
++    }
++
++    fn describe(&self, input: &Value) -> String {
++        format!(
++            "MCP {}/{}: {}",
++            self.server_name,
++            self.tool_name,
++            serde_json::to_string(input).unwrap_or_default()
++        )
++    }
++}
++
++impl McpToolProxy {
++    async fn invoke(&self, input: Value, call_id: Option<&str>) -> ToolResult {
++        // Only the managed Linux bridge opts in after routing MCP through its private broker.
++        let call_id = if cfg!(target_os = "linux")
++            && std::env::var_os("SHIJU_AIONRS_MCP_CALL_ID").as_deref() == Some(std::ffi::OsStr::new("1"))
++        {
++            let Some(call_id) = call_id.filter(|id| !id.trim().is_empty()) else {
++                return ToolResult { content: "Missing managed MCP call ID".into(), is_error: true };
++            };
++            Some(call_id)
++        } else {
++            None
++        };
++        match self.manager.call_tool_with_id(&self.server_name, &self.tool_name, input, call_id).await {
+             Ok(content) => ToolResult {
+                 content,
+                 is_error: false,
+@@ -83,19 +117,6 @@
+                 is_error: true,
+             },
+         }
+-    }
+-
+-    fn category(&self) -> ToolCategory {
+-        ToolCategory::Mcp
+-    }
+-
+-    fn describe(&self, input: &Value) -> String {
+-        format!(
+-            "MCP {}/{}: {}",
+-            self.server_name,
+-            self.tool_name,
+-            serde_json::to_string(input).unwrap_or_default()
+-        )
+     }
+ }
+
+--- a/crates/aion-tools/src/tool.rs
++++ b/crates/aion-tools/src/tool.rs
+@@ -66,6 +66,11 @@
+         self.execute(input).await.into()
+     }
+
++    /// Execute with the identity of the model's tool request.
++    async fn execute_with_call_id(&self, input: Value, _call_id: &str) -> ToolExecutionOutput {
++        self.execute_with_follow_up(input).await
++    }
++
+     /// Whether advertising and executing this tool requires image-input
+     /// support from the currently selected model.
+     fn requires_image_input(&self) -> bool {
+--- a/crates/aion-agent/src/orchestration.rs
++++ b/crates/aion-agent/src/orchestration.rs
+@@ -173,7 +173,7 @@
+     let (result, modifier, follow_up_blocks) = match registry.get(name) {
+         Some(tool) => {
+             let max_size = tool.max_result_size();
+-            let execution = tool.execute_with_follow_up(input.clone()).await;
++            let execution = tool.execute_with_call_id(input.clone(), id).await;
+             let r = execution.result;
+             let modifier = if r.is_error {
+                 None
+--- a/crates/aion-mcp/src/manager.rs
++++ b/crates/aion-mcp/src/manager.rs
+@@ -236,18 +236,29 @@
+         tool_name: &str,
+         arguments: serde_json::Value,
+     ) -> Result<String, McpError> {
++        self.call_tool_with_id(server_name, tool_name, arguments, None).await
++    }
++
++    pub(crate) async fn call_tool_with_id(
++        &self,
++        server_name: &str,
++        tool_name: &str,
++        arguments: serde_json::Value,
++        call_id: Option<&str>,
++    ) -> Result<String, McpError> {
+         let server = self
+             .servers
+             .get(server_name)
+             .ok_or_else(|| McpError::ServerNotFound(server_name.to_string()))?;
+
++        let mut params = json!({ "name": tool_name, "arguments": arguments });
++        if let Some(call_id) = call_id {
++            params["_meta"] = json!({ "shijuCallId": call_id });
++        }
+         let request = JsonRpcRequest::new(
+             0, // id doesn't matter for stdio, will be used for SSE/HTTP
+             "tools/call",
+-            Some(json!({
+-                "name": tool_name,
+-                "arguments": arguments
+-            })),
++            Some(params),
+         );
+
+         let response = server.transport.request(&request).await?;

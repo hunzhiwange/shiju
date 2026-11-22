@@ -26,7 +26,41 @@ MCP_TOOL = "coexistence_read_probe"
 MCP_REJECTION = "The user rejected permission to use this specific tool call."
 
 
+def launch_linux(env):
+    target = {"x86_64": "x64", "aarch64": "arm64"}.get(platform.machine())
+    require(target is not None, "unreviewed OpenCode Linux architecture")
+    manifest = ROOT / "patches/acp-model-source/opencode/linux.json"
+    contract = json.loads(manifest.read_text())
+    revision = contract["revision"]
+    relative = Path("node_modules/opencode-ai/reviewed/opencode")
+    base = Path(os.environ.get("VIBEWINDOW_CONFIG_DIR", Path.home() / ".local/share/shiju"))
+    source = base / "acp-runtime" / revision / relative
+    runtime = Path(env["VIBEWINDOW_CONFIG_DIR"]) / "acp-runtime" / revision
+    entry = runtime / relative
+    require(source.is_file() and not source.is_symlink(), "reviewed OpenCode Linux binary unavailable")
+    entry.parent.mkdir(parents=True)
+    shutil.copy2(source, entry)
+    shutil.copy2(source.parent.parent / "package.json", entry.parent.parent / "package.json")
+    sha256 = hashlib.sha256()
+    with entry.open("rb") as stream:
+        for block in iter(lambda: stream.read(1024 * 1024), b""):
+            sha256.update(block)
+    digest = sha256.hexdigest()
+    require(digest == contract["targets"][target]["patched_sha256"], "OpenCode Linux digest mismatch")
+    link = runtime / "node_modules/.bin/opencode"
+    link.parent.mkdir()
+    link.symlink_to("../opencode-ai/reviewed/opencode")
+    version = subprocess.run([str(entry), "--version"], env=env, capture_output=True, timeout=15)
+    require(version.returncode == 0 and version.stdout.strip().decode() == contract["version"],
+            "unexpected OpenCode Linux version")
+    return {"command": str(link), "args": ["acp"]}, {
+        "version": contract["version"], "revision": revision, "sha256": digest,
+        "entry": "reviewed/opencode", "model_endpoint": "/v1/chat/completions"}
+
+
 def launch(env):
+    if platform.system() == "Linux":
+        return launch_linux(env)
     require((platform.system(), platform.machine()) == ("Darwin", "arm64"),
             "unreviewed OpenCode platform")
     manifest = ROOT / "crates/libs/acp-agent-registry/src/managed_runtime/contracts.json"

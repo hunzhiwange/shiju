@@ -1,0 +1,62 @@
+{
+  "version": "1.19.5",
+  "revision": "opencode-1.19.5-model-source-linux-v1",
+  "targets": {
+    "x64": {
+      "package": "opencode-linux-x64-baseline",
+      "integrity": "sha512-9kA+st3XXtCXMPx5f3Ld1u19uoHTO2u2Btt8a2cqhJ4GIqVbD1mXLevj3LHFEmtuQoFGk+UstGnl38sCqXj5sQ==",
+      "original_sha256": "7df4e4136301f16589b0f30bf91a61380fca5f8ef22dd36570f5ebe1d4ec802c",
+      "patched_sha256": "7bae7fb457fa063fdd3d9305584afd5f113f8000dc86a625bfe722a5ceed01bf",
+      "edits": [
+        {
+          "offset": 110320440,
+          "before": "if(!Z)return;let le=Rt.dirname(Z),Pe=Yn(le,t),ke=yield*Pe([\"rev-parse\",\"--show-toplevel\"]),Me=yield*Pe([\"rev-parse\",\"--git-dir\"]),Ke=yield*Pe([\"rev-parse\",\"--git-common-dir\"]);if(Me.exitCode!==0||Ke.exitCode!==0)return;",
+          "after": "if(!Z||process.env.VW_OC_RO)return;let p=\"rev-parse\",le=Rt.dirname(Z),Pe=Yn(le,t),ke=yield*Pe([p,\"--show-toplevel\"]),Me=yield*Pe([p,\"--git-dir\"]),Ke=yield*Pe([p,\"--git-common-dir\"]);if(Me.exitCode||Ke.exitCode)return;"
+        },
+        {
+          "offset": 124321354,
+          "before": "if(!n)return;if(!be(n.data))return;if(e.skills[n.data.name])yield*jt(\"duplicate skill name\",{name:n.data.name,existing:e.skills[n.data.name].location,duplicate:i});",
+          "after": "if(!n||!be(n.data))return;if(e.skills[n.data.name]&&i.startsWith(process.env.SHIJU_OPENCODE_SKILL_ROOT+\"/\"))return;"
+        },
+        {
+          "offset": 124322292,
+          "before": "let E=yield*e.directories();for(let v of E)yield*_(s,v,Ie);let I=yield*e.get();for(let v of I.skills?.paths??[]){let a=v.startsWith(\"~/\")?C.join(n.home,v.slice(2)):v,t=C.isAbsolute(a)?a:C.join(f,a);if(!(yield*d.isDir(t))){yield*jt(\"skill path not found\",{path:t});continue}yield*_(s,t,re)}for(let v of I.skills?.urls??[]){let a=yield*i.pull(v);for(let t of a)yield*_(s,t,re)}",
+          "after": "let E=yield*e.directories();for(let v of E)yield*_(s,v,Ie);let R=process.env.SHIJU_OPENCODE_SKILL_ROOT;if(R===void 0)throw Error(\"session skill directory required\");if(R){if(!C.isAbsolute(R)||!(yield*d.isDir(R)))throw Error(\"invalid session skill directory\");yield*_(s,R,re)}"
+        },
+        {
+          "offset": 125401587,
+          "before": "let a=jo.dirname(s.location),f=a,d=yield*r.find({cwd:a,pattern:\"!**/SKILL.md\",hidden:!0,follow:!1,signal:i.abort,limit:10});return{title:`Loaded skill: ${s.name}`,output:[`<skill_content name=\"${s.name}\">`,`# Skill: ${s.name}`,\"\",s.content.trim(),\"\",`Base directory for this skill: ${f}`,\"Relative paths in this skill (e.g., scripts/, reference/) are relative to this base directory.\",\"Note: file list is sampled.\",\"\",\"<skill_files>\",d.map((u)=>`<file>${jo.resolve(a,u.path)}</file>`).join(`\n`),\"</skill_files>\",\"</skill_content>\"]",
+          "after": "let a=jo.dirname(s.location),d=[];for(let u of new Bun.Glob(\"**/*\").scanSync({cwd:a,dot:!0,followSymlinks:!1}))if(jo.basename(u)!==\"SKILL.md\"&&d.push(u)===10)break;return{title:`Loaded skill: ${s.name}`,output:[`<skill_content name=\"${s.name}\">`,`# Skill: ${s.name}`,\"\",s.content.trim(),\"\",`Base directory for this skill: ${a}`,\"Resolve relative paths from this directory.\",\"File list is sampled.\",\"<skill_files>\",d.map(u=>`<file>${jo.resolve(a,u)}</file>`).join(`\n`),\"</skill_files>\",\"</skill_content>\"]"
+        }
+      ]
+    },
+    "arm64": {
+      "package": "opencode-linux-arm64",
+      "integrity": "sha512-u2HFRI6v1nNMVKiV34An8XrGBxJeZ+RCg2tYu3SqlGODKqKsr5RoEbaX1tnsfGb+rETh9AJVX9kS8dSZXPufsA==",
+      "original_sha256": "dab85b46f4ea4813da5367997f99a60aab64a2118d58ebf552980e792747436c",
+      "patched_sha256": "fb44c311d591c6b6a4e7f24eebd2c829f36636f890c2058fcb37f5d989cb35de",
+      "edits": [
+        {
+          "offset": 110369592,
+          "before": "if(!Y)return;let le=wt.dirname(Y),Re=Xn(le,t),Pe=yield*Re([\"rev-parse\",\"--show-toplevel\"]),je=yield*Re([\"rev-parse\",\"--git-dir\"]),Ve=yield*Re([\"rev-parse\",\"--git-common-dir\"]);if(je.exitCode!==0||Ve.exitCode!==0)return;",
+          "after": "if(!Y||process.env.VW_OC_RO)return;let p=\"rev-parse\",le=wt.dirname(Y),Re=Xn(le,t),Pe=yield*Re([p,\"--show-toplevel\"]),je=yield*Re([p,\"--git-dir\"]),Ve=yield*Re([p,\"--git-common-dir\"]);if(je.exitCode||Ve.exitCode)return;"
+        },
+        {
+          "offset": 124370520,
+          "before": "if(!n)return;if(!Le(n.data))return;if(e.skills[n.data.name])yield*Ot(\"duplicate skill name\",{name:n.data.name,existing:e.skills[n.data.name].location,duplicate:i});",
+          "after": "if(!n||!Le(n.data))return;if(e.skills[n.data.name]&&i.startsWith(process.env.SHIJU_OPENCODE_SKILL_ROOT+\"/\"))return;"
+        },
+        {
+          "offset": 124371458,
+          "before": "let y=yield*e.directories();for(let S of y)yield*C(o,S,Ie);let h=yield*e.get();for(let S of h.skills?.paths??[]){let s=S.startsWith(\"~/\")?b.join(n.home,S.slice(2)):S,t=b.isAbsolute(s)?s:b.join(f,s);if(!(yield*d.isDir(t))){yield*Ot(\"skill path not found\",{path:t});continue}yield*C(o,t,te)}for(let S of h.skills?.urls??[]){let s=yield*i.pull(S);for(let t of s)yield*C(o,t,te)}",
+          "after": "let y=yield*e.directories();for(let S of y)yield*C(o,S,Ie);let R=process.env.SHIJU_OPENCODE_SKILL_ROOT;if(R===void 0)throw Error(\"session skill directory required\");if(R){if(!b.isAbsolute(R)||!(yield*d.isDir(R)))throw Error(\"invalid session skill directory\");yield*C(o,R,te)}"
+        },
+        {
+          "offset": 125450753,
+          "before": "let s=Ro.dirname(i.location),f=s,d=yield*o.find({cwd:s,pattern:\"!**/SKILL.md\",hidden:!0,follow:!1,signal:r.abort,limit:10});return{title:`Loaded skill: ${i.name}`,output:[`<skill_content name=\"${i.name}\">`,`# Skill: ${i.name}`,\"\",i.content.trim(),\"\",`Base directory for this skill: ${f}`,\"Relative paths in this skill (e.g., scripts/, reference/) are relative to this base directory.\",\"Note: file list is sampled.\",\"\",\"<skill_files>\",d.map((p)=>`<file>${Ro.resolve(s,p.path)}</file>`).join(`\n`),\"</skill_files>\",\"</skill_content>\"]",
+          "after": "let s=Ro.dirname(i.location),d=[];for(let p of new Bun.Glob(\"**/*\").scanSync({cwd:s,dot:!0,followSymlinks:!1}))if(Ro.basename(p)!==\"SKILL.md\"&&d.push(p)===10)break;return{title:`Loaded skill: ${i.name}`,output:[`<skill_content name=\"${i.name}\">`,`# Skill: ${i.name}`,\"\",i.content.trim(),\"\",`Base directory for this skill: ${s}`,\"Resolve relative paths from this directory.\",\"File list is sampled.\",\"<skill_files>\",d.map(p=>`<file>${Ro.resolve(s,p)}</file>`).join(`\n`),\"</skill_files>\",\"</skill_content>\"]"
+        }
+      ]
+    }
+  }
+}

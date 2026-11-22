@@ -11,6 +11,10 @@ pub fn configure(
     endpoint: &str,
     directory: &str,
 ) -> anyhow::Result<()> {
+    anyhow::ensure!(
+        !cfg!(target_os = "linux"),
+        "OMP managed model source requires Linux equivalents for its process and MCP sandboxes"
+    );
     let launch = profile.config();
     anyhow::ensure!(
         launch.args == ["acp"] && launch.env.keys().all(|key| key == REFERENCE_ENV),

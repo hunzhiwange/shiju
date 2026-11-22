@@ -32,3 +32,72 @@ fn omp_rejects_an_unreviewed_binary_before_exposing_credentials() {
     assert!(error.is_err());
     assert!(!profile.config().env.contains_key("SHIJU_OMP_RELAY_TOKEN"));
 }
+
+#[cfg(all(
+    target_os = "linux",
+    target_env = "gnu",
+    any(target_arch = "x86_64", target_arch = "aarch64")
+))]
+#[test]
+#[ignore = "requires a Linux Shiju gateway and the pinned OMP binary"]
+fn acp_platform_omp_contract() {
+    use serde_json::{Value, json};
+    use std::{path::Path, process::Command};
+
+    let gateway = std::env::var_os("SHIJU_ACP_OMP_GATEWAY_BIN")
+        .expect("set SHIJU_ACP_OMP_GATEWAY_BIN to the Linux Shiju gateway binary");
+    let gateway = Path::new(&gateway).canonicalize().unwrap();
+    let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../..");
+    let temp = tempfile::tempdir().unwrap();
+    let report = temp.path().join("omp-platform.json");
+    let status = Command::new("python3")
+        .arg(root.join("scripts/verify_acp_skill_coexistence.py"))
+        .args(["--agent", "omp", "--gateway-bin"])
+        .arg(gateway)
+        .arg("--output")
+        .arg(&report)
+        .status()
+        .unwrap();
+
+    let evidence: Value = serde_json::from_slice(&std::fs::read(report).unwrap()).unwrap();
+    assert!(status.success(), "OMP gateway contract failed at {}: {evidence}", evidence["stage"]);
+    assert_eq!(evidence["passed"], true);
+    assert_eq!(evidence["platform"], format!("Linux-{}", std::env::consts::ARCH));
+    let artifact = &evidence["artifact"];
+    assert_eq!(artifact["version"], "18.22.0");
+    assert_eq!(artifact["entry"], "omp");
+    assert_eq!(artifact["model_endpoint"], "/v1/chat/completions");
+    let platform = match std::env::consts::ARCH {
+        "x86_64" => "linux-x64",
+        "aarch64" => "linux-arm64",
+        arch => panic!("unsupported OMP test architecture: {arch}"),
+    };
+    assert_eq!(artifact["platform"], platform);
+
+    let turns = evidence["turns"].as_array().unwrap();
+    assert_eq!(turns.len(), 4);
+    for (turn, phase) in turns.iter().zip(["baseline", "mounted", "removed", "rejected"]) {
+        assert_eq!(turn["phase"], phase);
+        assert_eq!(turn["source"], "session_model");
+        assert_eq!(turn["model"], "coexistence-fixture/selected-model");
+        assert_eq!(turn["done"], 1);
+        assert_eq!(turn["errors"], 0);
+        let mounted = matches!(phase, "mounted" | "rejected");
+        let calls = turn["calls"].as_object().unwrap();
+        assert!(calls.contains_key("native"));
+        assert!(calls.contains_key("native_read"));
+        assert_eq!(calls.contains_key("selected"), mounted);
+        assert_eq!(calls.contains_key("selected_read"), mounted);
+        assert_eq!(calls.contains_key("mcp"), mounted);
+        assert!(turn["model_requests"].as_u64().unwrap() > calls.len() as u64);
+        assert_eq!(turn["mcp_calls"], if phase == "mounted" { 1 } else { 0 });
+        assert_eq!(
+            turn["mcp_decisions"],
+            match phase {
+                "mounted" => json!(["once"]),
+                "rejected" => json!(["reject"]),
+                _ => json!([]),
+            }
+        );
+    }
+}

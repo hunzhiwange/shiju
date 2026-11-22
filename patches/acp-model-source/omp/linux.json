@@ -1,0 +1,17 @@
+{
+  "version": "18.22.0",
+  "bin": "omp",
+  "args": ["acp"],
+  "targets": {
+    "x86_64-unknown-linux-gnu": {
+      "artifact_url": "https://github.com/can1357/oh-my-pi/releases/download/v18.22.0/omp-linux-x64",
+      "sha256": "f706b27ba845834d8f8360705a2e9ba1534f3593fa24411d41358272de33642b",
+      "size": 292006064
+    },
+    "aarch64-unknown-linux-gnu": {
+      "artifact_url": "https://github.com/can1357/oh-my-pi/releases/download/v18.22.0/omp-linux-arm64",
+      "sha256": "7238dd213d5c61bc9bf51735d552bc71901fdd44329f862b0a971146b1cdac3e",
+      "size": 247385080
+    }
+  }
+}

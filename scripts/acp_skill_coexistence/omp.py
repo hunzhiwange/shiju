@@ -27,15 +27,29 @@ MCP_TOOL = "mcp__coexistence_read_probe"
 
 
 def launch(env):
-    require((platform.system(), platform.machine()) == ("Darwin", "arm64"),
-            "unreviewed OMP platform")
-    manifest = ROOT / "crates/libs/acp-agent-registry/src/managed_runtime/contracts.json"
-    contract = json.loads(manifest.read_text())["omp"]
-    require(contract["version"] == VERSION, "unexpected OMP contract version")
+    system, machine = platform.system(), platform.machine()
+    if system == "Linux" and machine in ("x86_64", "aarch64"):
+        manifest = ROOT / "patches/acp-model-source/omp/linux.json"
+        contract = json.loads(manifest.read_text())
+        artifact = contract["targets"][f"{machine}-unknown-linux-gnu"]
+        platform_name = "linux-x64" if machine == "x86_64" else "linux-arm64"
+        expected_digest = artifact["sha256"]
+        revision = f"{REVISION}-{platform_name}"
+        args = contract["args"]
+    else:
+        require((system, machine) == ("Darwin", "arm64"), "unreviewed OMP platform")
+        manifest = ROOT / "crates/libs/acp-agent-registry/src/managed_runtime/contracts.json"
+        contract = json.loads(manifest.read_text())["omp"]
+        platform_name = "darwin-arm64"
+        expected_digest = contract["files"]["omp"]
+        revision = REVISION
+        args = ["acp"]
+    require(contract["version"] == VERSION and contract["bin"] == "omp" and args == ["acp"],
+            "unexpected OMP contract version or entry")
     config = Path(os.environ.get("VIBEWINDOW_CONFIG_DIR", Path.home() / ".local/share/shiju"))
-    source = Path(os.environ.get("ACP_OMP_REVIEWED_BIN", config / "acp-runtime" / REVISION / "omp"))
+    source = Path(os.environ.get("ACP_OMP_REVIEWED_BIN", config / "acp-runtime" / revision / "omp"))
     require(source.is_file(), "reviewed OMP executable unavailable")
-    entry = Path(env["VIBEWINDOW_CONFIG_DIR"]) / "acp-runtime" / REVISION / "omp"
+    entry = Path(env["VIBEWINDOW_CONFIG_DIR"]) / "acp-runtime" / revision / "omp"
     entry.parent.mkdir(parents=True, mode=0o700)
     shutil.copy2(source, entry)
     sha256 = hashlib.sha256()
@@ -43,15 +57,16 @@ def launch(env):
         for block in iter(lambda: stream.read(1024 * 1024), b""):
             sha256.update(block)
     digest = sha256.hexdigest()
-    require(digest == contract["files"]["omp"], "OMP executable digest mismatch")
+    require(digest == expected_digest, "OMP executable digest mismatch")
     try:
         version = subprocess.run([str(entry), "--version"], env=env, capture_output=True, timeout=15)
     except subprocess.TimeoutExpired:
         raise AssertionError("OMP version check timed out") from None
     require(version.returncode == 0 and version.stdout.strip().decode() == f"omp/{VERSION}",
             "unexpected OMP executable version")
-    return {"command": str(entry), "args": ["acp"]}, {
-        "version": VERSION, "platform": "darwin-arm64", "sha256": digest, "revision": REVISION,
+    return {"command": str(entry), "args": args}, {
+        "version": VERSION, "platform": platform_name, "sha256": digest, "revision": revision,
+        "entry": entry.name, "model_endpoint": "/v1/chat/completions",
     }
 
 
@@ -72,6 +87,7 @@ class Probe(ChatProbe):
         skills = self.fixtures["skills"]
         messages = body["messages"]
         if self.requests == 1:
+            require({"read", "write", "edit"}.issubset(tools), "OMP native tool inventory missing")
             catalog = "\n".join(str(row["content"]) for row in messages if row["role"] == "system")
             catalogs = re.findall(r"<skills>(.*?)</skills>", catalog, re.S)
             listed = re.findall(r"^- ([^:\n]+): ", "\n".join(catalogs), re.M)

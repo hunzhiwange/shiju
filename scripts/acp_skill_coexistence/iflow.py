@@ -195,8 +195,9 @@ class Probe:
         return message_text(content), index
 
     def approves(self, metadata):
+        arguments = metadata.get("arguments")
         return (self.pending == "mcp" and metadata.get("title") == MCP_TOOL
-                and metadata.get("arguments") in (None, {}))
+                and (arguments == {} or (platform.system() != "Linux" and arguments is None)))
 
     def expected_skill_approvals(self):
         sources = ("native", "selected") if self.mounted else ("native",)
@@ -205,13 +206,17 @@ class Probe:
         return list(sources)
 
     def approves_skill(self, metadata):
-        if (platform.system() == "Linux" and self.pending in ("native_read", "selected_read")
-                and metadata.get("arguments") == self.pending_read):
-            return self.pending
+        linux = platform.system() == "Linux"
+        title, arguments = metadata.get("title"), metadata.get("arguments")
+        if linux and self.pending in ("native_read", "selected_read"):
+            if title == "read_file" and arguments == self.pending_read:
+                return self.pending
         if self.pending in ("native", "selected"):
-            skill = self.fixtures["skills"][self.pending]
-            if (metadata.get("title") == "Launch skill: " + skill["name"]
-                    and metadata.get("arguments") in (None, {"skill": skill["name"]})):
+            name = self.fixtures["skills"][self.pending]["name"]
+            if linux:
+                if title == "Skill" and arguments == {"skill": name}:
+                    return self.pending
+            elif title == "Launch skill: " + name and arguments in (None, {"skill": name}):
                 return self.pending
         return None
 

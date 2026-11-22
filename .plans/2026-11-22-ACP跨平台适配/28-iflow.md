@@ -4,7 +4,7 @@
 
 批次：【批次 3】 依赖：批次 1、2
 
-状态：待回归
+状态：已阻塞
 
 来源任务：无
 
@@ -51,3 +51,9 @@
 - 主工具分派在调用实际执行函数前使用当前调用 ID、原始参数及单次接受/拒绝选项，拒绝异常、取消、无匹配单次回复和覆盖调用 ID。宿主 `AcpEventClient::request_permission` 对 `shiju.iflow/tool-v3` 接 `access_policy::iflow::valid_linux_tool_approval`，仅接受已验证 Linux v3 进程的有效当前提示，并要求显式单次宿主批准；缺少批准函数、取消、过期及未知进程须返回拒绝。复用现有 active-prompt 所有权和单次调用 ID 防重；不得让通用自动批准路径吞掉该标识。验收已要求独立的 Skill 与原生读取回执。
 - v3 隔离范围为主分派和 stdio 环境。命令执行、子代理、斜杠/美元前缀及隐式附件走不到同一受管边界，当前拒绝这些路径。静态 MCP 的发现可在提示之前启动原生进程；环境清理不提供进程隔离，目录接入仍需共享宿主租约与执行边界才能发布。两个架构均未验证 shell 或供应商钩子、静态 MCP、同会话恢复或即时撤权。
 - 从固定 npm 归档在临时目录生成 v2 和 v3，两个补丁的上下文与清单摘要匹配，Node 仅进行语法解析。Rust 格式及 Python AST、定向差异通过。未运行 Cargo、网关或上游进程。按首轮记录运行 Docker ignored 验收。
+
+## 最终静态验收
+
+- 复用任务 49 的 `df77249c6` 双架构静态取证及任务 48 的 `c5c3af94b1` 接线。Linux GNU x86_64、aarch64 都已接 v3 固定锁安装、对应 PTY/ripgrep 与入口身份校验及普通发现。宿主候选审批要求受审入口、当前提示、未消费调用 ID 和显式单次回复。网关探针已按宿主实际输出的 `Skill`、`read_file`、`read_probe` 名称和原始参数匹配 Linux 批准。Darwin 探针沿用供应商描述字段。
+- 两目标完整受管均有实现缺口。`model_source::drivers::capabilities` 保持 Linux 公开门控；`AcpClient::spawn_child_at` 在 v3 身份复核后无条件拒绝受管进程，无法进入模型、工具或技能回合。供应商在 `newSessionConfig` 合并项目 MCP 后会通过初始化发现服务，可能先于有效提示及工具批准启动进程。v3 清理 stdio 环境和核对单次批准，仍缺启动前隔离与拥有者绑定的执行及撤销边界。需要任务 48 接入经审查的 Linux 启动与 MCP 隔离，并接通实际的名单投影和恢复撤除；保持现有拒绝，禁止绕过以取得绿灯。
+- 已静态核对制品入口、测试注册、宿主审批标题、参数及回执断言。未执行编译、测试、安装或容器。获准后可先在两个目标分别运行 `python3 scripts/cargo_slot.py cargo test -j 1 -p acp-agent-registry --lib acp_platform_registry_contract_uses_separate_iflow_and_amp_linux_revisions` 和 `python3 scripts/cargo_slot.py cargo test -j 1 -p acp-client --lib acp_platform_iflow_contract_requires_current_prompt_and_explicit_once`，各应命中 1 项。隔离接线完成后，使用 `SHIJU_ACP_IFLOW_GATEWAY_BIN`、`IFLOW_COEXISTENCE_RUNTIME` 和前述 ignored 网关命令验证完整路径。当前无运行退出码或命中数，保留编号文件。

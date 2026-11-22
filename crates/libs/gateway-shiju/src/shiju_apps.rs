@@ -213,7 +213,13 @@ async fn prepare_launch_post(
     Path(installation_id): Path<String>,
 ) -> Result<Json<ShijuAppLaunchDto>, ApiError> {
     let credential = credential(&headers)?;
-    client.prepare_launch(credential.expose(), &installation_id).await.map(Json).map_err(map_error)
+    client.prepare_launch(credential.expose(), &installation_id).await.map(Json).map_err(|error| {
+        // Launch errors contain fixed client messages, never upstream response bodies.
+        match error.kind() {
+            ShijuAppErrorKind::InvalidInput => ApiError::bad_request(error.to_string()),
+            ShijuAppErrorKind::Upstream => ApiError::internal(error.to_string()),
+        }
+    })
 }
 
 fn credential(headers: &HeaderMap) -> Result<ShijuCredential, ApiError> {

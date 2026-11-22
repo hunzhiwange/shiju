@@ -347,7 +347,9 @@ impl ShijuAppClient {
     ) -> Result<ShijuAppLaunchDto, ShijuAppError> {
         validate_installation_id(installation_id)?;
 
-        let installed = self.installed(credential).await?;
+        let installed = self.installed(credential).await.map_err(|_| {
+            ShijuAppError::upstream("SHIJU launch failed to load installed applications")
+        })?;
         let app = installed
             .apps
             .into_iter()
@@ -359,7 +361,9 @@ impl ShijuAppClient {
             || app.runtime_status.is_empty()
             || (app.runtime_ready() && app.runtime_url.is_empty())
         {
-            self.installation_detail(credential, installation_id).await?
+            self.installation_detail(credential, installation_id).await.map_err(|_| {
+                ShijuAppError::upstream("SHIJU launch failed to load installation detail")
+            })?
         } else {
             app
         };
@@ -368,7 +372,9 @@ impl ShijuAppClient {
         }
         validate_runtime_url(&app.runtime_url, installation_id)?;
 
-        let binding = self.api_key_binding(credential, installation_id).await?;
+        let binding = self.api_key_binding(credential, installation_id).await.map_err(|_| {
+            ShijuAppError::upstream("SHIJU launch failed to read the application API key binding")
+        })?;
         if !binding.personal.configured {
             return Err(ShijuAppError::invalid_input(
                 "SHIJU application API key binding is not configured",
@@ -405,7 +411,13 @@ impl ShijuAppClient {
             .await
             .map_err(|_| ShijuAppError::upstream("SHIJU browser session request failed"))?;
         if !response.status().is_success() {
-            return Err(ShijuAppError::upstream("SHIJU browser session request failed"));
+            let message = match response.status() {
+                reqwest::StatusCode::UNAUTHORIZED => "SHIJU browser session rejected credentials (401)",
+                reqwest::StatusCode::FORBIDDEN => "SHIJU browser session access denied (403)",
+                reqwest::StatusCode::NOT_FOUND => "SHIJU browser session endpoint not found (404)",
+                _ => "SHIJU browser session returned an unsuccessful status",
+            };
+            return Err(ShijuAppError::upstream(message));
         }
         response
             .headers()

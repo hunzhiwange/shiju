@@ -15,7 +15,14 @@ pub(in crate::acp) fn publish(
     view.validate()
 }
 
-#[cfg(all(target_os = "macos", target_arch = "aarch64"))]
+#[cfg(any(
+    all(target_os = "macos", target_arch = "aarch64"),
+    all(
+        target_os = "linux",
+        target_env = "gnu",
+        any(target_arch = "x86_64", target_arch = "aarch64")
+    ),
+))]
 fn publish_links(directory: &Path, workspace: &Path, view: &Path) -> anyhow::Result<()> {
     use std::{fs, os::unix::fs::symlink};
 
@@ -24,8 +31,12 @@ fn publish_links(directory: &Path, workspace: &Path, view: &Path) -> anyhow::Res
         .map(|entry| {
             let entry = entry?;
             let source = fs::read_link(entry.path())?;
+            let resolved = entry.path().canonicalize()?;
             anyhow::ensure!(
-                source != workspace && source.starts_with(&workspace),
+                source == resolved
+                    && resolved != workspace
+                    && resolved.starts_with(&workspace)
+                    && resolved.is_dir(),
                 "aionrs selected skill is outside the sandbox workspace"
             );
             Ok((entry.file_name(), source))
@@ -39,11 +50,28 @@ fn publish_links(directory: &Path, workspace: &Path, view: &Path) -> anyhow::Res
     Ok(())
 }
 
-#[cfg(not(all(target_os = "macos", target_arch = "aarch64")))]
+#[cfg(not(any(
+    all(target_os = "macos", target_arch = "aarch64"),
+    all(
+        target_os = "linux",
+        target_env = "gnu",
+        any(target_arch = "x86_64", target_arch = "aarch64")
+    ),
+)))]
 fn publish_links(_directory: &Path, _workspace: &Path, _view: &Path) -> anyhow::Result<()> {
-    anyhow::bail!("aionrs selected skills require the reviewed Darwin arm64 runtime")
+    anyhow::bail!("aionrs selected skills are unavailable on this platform")
 }
 
-#[cfg(all(test, target_os = "macos", target_arch = "aarch64"))]
+#[cfg(all(
+    test,
+    any(
+        all(target_os = "macos", target_arch = "aarch64"),
+        all(
+            target_os = "linux",
+            target_env = "gnu",
+            any(target_arch = "x86_64", target_arch = "aarch64")
+        ),
+    )
+))]
 #[path = "aionrs_tests.rs"]
 mod tests;

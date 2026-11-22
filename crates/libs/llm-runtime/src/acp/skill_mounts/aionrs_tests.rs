@@ -2,7 +2,7 @@ use super::*;
 use std::{fs, os::unix::fs::symlink, path::PathBuf};
 
 #[test]
-fn acp_skill_coexistence_aionrs_projects_only_the_selected_workspace_directory() {
+fn acp_platform_aionrs_contract_projects_only_the_selected_workspace_directory() {
     let workspace = tempfile::tempdir().unwrap();
     let launch = tempfile::tempdir().unwrap();
     let view = tempfile::tempdir().unwrap();
@@ -23,6 +23,26 @@ fn acp_skill_coexistence_aionrs_projects_only_the_selected_workspace_directory()
     let another_launch = tempfile::tempdir().unwrap();
     assert!(publish(another_launch.path(), workspace.path(), Some(&lease)).is_err());
     assert!(!another_launch.path().join(".aionrs").exists());
+}
+
+#[test]
+fn acp_platform_aionrs_contract_rejects_indirect_escape_from_workspace() {
+    let root = tempfile::tempdir().unwrap();
+    let root_path = root.path().canonicalize().unwrap();
+    let workspace = root_path.join("workspace");
+    let external = root_path.join("external");
+    let view = root_path.join("view");
+    let launch = root_path.join("launch");
+    for directory in [&workspace, &external, &view, &launch] {
+        fs::create_dir(directory).unwrap();
+    }
+    let redirect = workspace.join("redirect");
+    symlink(&external, &redirect).unwrap();
+    symlink(redirect, view.join("selected")).unwrap();
+
+    let lease = TestLease(view);
+    assert!(publish(&launch, &workspace, Some(&lease)).is_err());
+    assert!(!launch.join(".aionrs").exists());
 }
 
 #[derive(Clone)]

@@ -24,28 +24,43 @@ TRANSPORT = "stdio"
 NATIVE_DIR = ".agents/skills"
 MCP_TOOL = "mcp__coexistence__read_probe"
 MANAGED = ROOT / "crates/libs/acp-agent-registry/src/managed_runtime"
+PATCHES = ROOT / "patches/acp-model-source/amp-acp"
 VERSION = "0.12.0"
 ENGINE = "0.0.1778732631-gc5875c"
 REVISION = f"amp-acp-{VERSION}-model-source-v5"
 
 
 def launch(env):
-    require((platform.system(), platform.machine()) == ("Darwin", "arm64"),
+    system, machine = platform.system(), platform.machine()
+    linux = system == "Linux"
+    require((system, machine) == ("Darwin", "arm64")
+            or (linux and machine in ("x86_64", "aarch64") and platform.libc_ver()[0] == "glibc"),
             "unreviewed Amp platform")
     manifest = MANAGED / "contracts.json"
     contract = json.loads(manifest.read_text())["amp-acp"]
     require((contract["version"], contract["engine_version"]) == (VERSION, ENGINE),
             "unexpected Amp contract version")
-    runtime = Path(env["VIBEWINDOW_CONFIG_DIR"]) / "acp-runtime" / REVISION
+    revision = REVISION
+    files = contract["files"]
+    if linux:
+        candidate = json.loads((PATCHES / "linux-runtime.json").read_text())
+        require(f"{machine}-unknown-linux-gnu" in candidate["targets"], "unreviewed Amp GNU target")
+        require(candidate["archives"]["amp-acp"]["version"] == VERSION
+                and candidate["archives"]["@sourcegraph/amp"]["version"] == ENGINE,
+                "unexpected Amp Linux contract version")
+        revision = candidate["revision"]
+        files = candidate["files"]
+    runtime = Path(env["VIBEWINDOW_CONFIG_DIR"]) / "acp-runtime" / revision
     runtime.parent.mkdir(mode=0o700)
     source = os.environ.get("SHIJU_AMP_PROBE_RUNTIME")
+    require(not linux or source, "set SHIJU_AMP_PROBE_RUNTIME to the reviewed Linux installation")
     if source:
         shutil.copytree(Path(source).resolve(strict=True), runtime, symlinks=True)
     else:
         with tempfile.TemporaryDirectory(dir=env["TMPDIR"]) as directory:
             assets = Path(directory)
             shutil.copy2(manifest, assets)
-            shutil.copytree(ROOT / "patches/acp-model-source/amp-acp", assets / "amp-acp")
+            shutil.copytree(PATCHES, assets / "amp-acp")
             try:
                 install = subprocess.run(
                     [sys.executable, str(MANAGED / "install.py"), directory, str(runtime), "amp-acp"],
@@ -62,9 +77,11 @@ def launch(env):
         require((meta["name"], meta["version"]) == (name, version),
                 "unexpected Amp package identity")
     hashes = {}
-    for name, digest in contract["files"].items():
+    for name, digest in files.items():
         file = (package / name).resolve(strict=True)
         require(file.is_relative_to(modules), "redirected Amp artifact")
+        if linux:
+            require(file == Path(os.path.normpath(package / name)), "redirected Amp Linux artifact")
         actual = hashlib.sha256(file.read_bytes()).hexdigest()
         require(actual == digest, "Amp reviewed artifact digest mismatch")
         hashes[name] = actual
@@ -73,7 +90,8 @@ def launch(env):
             "Amp launch entry does not resolve to the reviewed adapter")
     node = subprocess.check_output(["node", "--version"], env=env, text=True, timeout=10).strip()
     return {"command": str(command), "args": []}, {
-        "version": VERSION, "engine": ENGINE, "revision": REVISION, "node": node, "sha256": hashes,
+        "version": VERSION, "engine": ENGINE, "revision": revision, "node": node, "sha256": hashes,
+        "entry": contract["bin"], "model_endpoint": API_PATH + "/messages",
     }
 
 
@@ -96,6 +114,8 @@ class Probe:
         skills = self.fixtures["skills"]
         require((MCP_TOOL in tools) == self.mounted, "unexpected Amp stdio MCP catalog")
         if self.pending is None:
+            require({"Read", "create_file", "edit_file", "Bash"}.issubset(tools),
+                    "Amp pruned a host-routed native tool")
             catalog = json.dumps([body.get("system"), tools, body["messages"]])
             for kind, skill in skills.items():
                 visible = kind == "native" or (kind == "selected" and self.mounted)

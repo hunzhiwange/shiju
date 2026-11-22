@@ -1,0 +1,24 @@
+{
+  "revision": "amp-acp-0.12.0-model-source-linux-v6",
+  "targets": ["x86_64-unknown-linux-gnu", "aarch64-unknown-linux-gnu"],
+  "archives": {
+    "amp-acp": {
+      "version": "0.12.0",
+      "url": "https://registry.npmjs.org/amp-acp/-/amp-acp-0.12.0.tgz",
+      "integrity": "sha512-RuLpWELP2klRTBUz8VJtY8fm3zWHSiu5ZPRjui5xi7D7paMW/8FTq44+noRakRVg5J1SCK4IzMYcsjb7icr/Lw==",
+      "entry": "dist/index.js"
+    },
+    "@sourcegraph/amp": {
+      "version": "0.0.1778732631-gc5875c",
+      "url": "https://registry.npmjs.org/@sourcegraph/amp/-/amp-0.0.1778732631-gc5875c.tgz",
+      "integrity": "sha512-+DY8uzhwq7i9BlSwfTwIDaPX6UdsTocOjdP2unf3TOEkO8WV6vP5I/xYklJHCrcyX7wMUhwwLJCCVH+wX4AvnQ==",
+      "entry": "dist/main.js"
+    }
+  },
+  "files": {
+    "dist/index.js": "d56eae64eb5cf820fd6ea982e8298cedca182a1b52fe104965ee89fa19ed40c9",
+    "dist/shiju-local.mjs": "1b285ac0f6c628b135b93cebe0e3931fb8378be2869a0b6eda92aaf5a6d9e660",
+    "dist/amp-cli": "f51aa1149f9548b712b4af252fa393694f74c7ca54c883de7ed85fb9835b06fa",
+    "../@sourcegraph/amp/dist/main.js": "ee0c87274a5a80baeb1a05a551259c767077c56f4b66c83e9604e3e39c2117bc"
+  }
+}

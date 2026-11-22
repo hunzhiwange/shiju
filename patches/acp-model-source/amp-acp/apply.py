@@ -5,6 +5,9 @@ import shutil
 import sys
 
 root = Path(sys.argv[1])
+linux = sys.argv[2:] == ['--linux']
+if sys.argv[2:] and not linux:
+    raise RuntimeError('Unknown Amp patch target')
 engine = root.parent / '@sourcegraph/amp/dist/main.js'
 if hashlib.sha256(engine.read_bytes()).hexdigest() != '458435712c9c4e222822847fc9e70080cdf023ffb3c820e959a30425a22a5836':
     raise RuntimeError('Amp engine differs from reviewed input')
@@ -67,6 +70,12 @@ replace('getHooks:async()=>(await this.getConfig()).settings?.hooks', 'getHooks:
 replace('trackFilesFromHistory(){', 'trackFilesFromHistory(){return;')
 replace('async restoreFileChangesFromBackups(){', 'async restoreFileChangesFromBackups(){return;')
 replace('async function tM4(A,{configService:Q,filesystem:B,previousUserState:$}){', 'async function tM4(A,{configService:Q,filesystem:B,previousUserState:$}){return {message:{role:"user",messageId:0,content:A.content,source:A.source,agentMode:A.agentMode,meta:{sentAt:Date.now()}}};')
+if linux:
+    # The Worker already receives its loopback token via AMP_API_KEY. Keep
+    # supplier secret storage inside the private state directory.
+    start = s.index('async function Fe0(A,Q){')
+    end = s.index('async function Mb4(A)', start)
+    s = s[:start] + 'async function Fe0(A,Q){return Ib4({dataDir:A.dataDir||vx})}' + s[end:]
 guard = """import { scanSkills } from '../../../amp-acp/dist/shiju-local.mjs';
 let shijuSkillNames = new Set();
 let shijuSelectedMcp = {};
@@ -140,7 +149,39 @@ main_start = s.index('if (process.argv.includes("--setup")) {')
 s = s[:main_start] + 'if (process.argv.length !== 2) throw new Error("Amp reviewed adapter requires empty arguments");\nrunAcp();\nprocess.stdin.resume();\n'
 s = s.replace('\n', '\nimport { LocalAmp, ampCommand, localAmpEnvironment, selectedStdio } from "./shiju-local.mjs";\n', 1)
 entry.write_text(s)
-shutil.copy2(Path(__file__).with_name('local.mjs'), root / 'dist/shiju-local.mjs')
+bridge = root / 'dist/shiju-local.mjs'
+shutil.copy2(Path(__file__).with_name('local.mjs'), bridge)
 launcher = root / 'dist/amp-cli'
 launcher.write_text('#!/bin/sh\nexec node "$(dirname "$0")/../../@sourcegraph/amp/dist/main.js" "$@"\n')
+if linux:
+    s = bridge.read_text()
+    replace('import { readFile,', 'import { access, readFile,')
+    replace('    this.endpoint = endpoint;', '''    try {
+      const worker = path.resolve(path.dirname(ampCommand), '../../@sourcegraph/amp/dist/main.js');
+      if (!(await lstat(ampCommand)).isFile() || !(await lstat(worker)).isFile()) throw Error();
+      await access(ampCommand, constants.X_OK);
+      await access(worker, constants.R_OK);
+      await access(process.execPath, constants.X_OK);
+      await access('/bin/sh', constants.X_OK);
+    } catch {
+      throw Error('Amp reviewed Linux ThreadWorker launcher or runtime is missing or inaccessible');
+    }
+    this.endpoint = endpoint;''')
+    replace('      AMP_URL: this.url, AMP_API_KEY: context.token,', '''      AMP_URL: this.url, AMP_API_KEY: context.token, SHIJU_AMP_NODE: process.execPath,''')
+    # The host sets an array for an enabled skill/tool policy (even with no
+    # selection), and null for disabled tools or DenyAll.
+    replace("const SKILL_ENABLE = 'SHIJU_AMP_SKILL_VIEW';", """const SKILL_ENABLE = 'SHIJU_AMP_SKILL_VIEW';
+const toolsEnabled = () => Array.isArray(JSON.parse(process.env[SKILL_ENABLE] ?? 'null'));""")
+    replace('  const selected = Object.create(null);', '''  if (servers.length && !toolsEnabled()) throw Error('Amp MCP requires enabled host tool approvals');
+  const selected = Object.create(null);''')
+    replace("    if (route === '/shiju/tool') {", """    if (route === '/shiju/tool' || route === '/shiju/skill-permission' || route === '/shiju/mcp-permission') {
+      if (!toolsEnabled()) throw Error('Amp host tool approvals are disabled');
+    }
+    if (route === '/shiju/tool') {""")
+    replace('    if (body.stream) context.tools.clear();', '''    const enabled = toolsEnabled();
+    if (body.stream) context.tools.clear();''')
+    replace("      if (tool.name === 'skill') {", """      if (!enabled) return tool.name === 'set_title' && !body.stream;
+      if (tool.name === 'skill') {""")
+    bridge.write_text(s)
+    launcher.write_text('#!/bin/sh\nexec "$SHIJU_AMP_NODE" "${0%/*}/../../@sourcegraph/amp/dist/main.js" "$@"\n')
 launcher.chmod(0o700)

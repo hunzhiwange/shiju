@@ -276,10 +276,13 @@ dependencies = [
  "parking_lot",
  "serde",
  "serde_json",
+ "sha2 0.10.9",
+ "shiju-client",
  "tempfile",
  "thiserror 2.0.21",
  "tokio",
  "tokio-util",
+ "uuid",
 ]
 
 [[package]]

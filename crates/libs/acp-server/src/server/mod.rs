@@ -2,7 +2,7 @@
 
 #[cfg(test)]
 mod acceptance_tests;
-mod agent;
+pub(crate) mod agent;
 mod backend;
 mod content;
 mod events;

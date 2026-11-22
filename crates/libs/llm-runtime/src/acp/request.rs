@@ -12,6 +12,7 @@ use acp_lifecycle::apply_lifecycle_snapshot_to_record;
 use acp_storage::write_session_record;
 
 use agent_auth as auth;
+use agent_config as config;
 use model_types as provider;
 use message_types as message;
 use session_ui_types as ui_types;

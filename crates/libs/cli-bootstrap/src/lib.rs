@@ -117,6 +117,11 @@ pub async fn run() -> Result<()> {
 
     // 解析命令行参数
     let cli = Cli::parse();
+    if let Commands::EmployeeAcp { employee_id, employee_kind, state_dir, account_scope } =
+        cli.command
+    {
+        return acp::run_employee_stdio(employee_id, employee_kind, state_dir, account_scope).await;
+    }
     if matches!(&cli.command, Commands::Gateway { .. } | Commands::Daemon { .. }) {
         initialize_runtime_build_id().map_err(anyhow::Error::msg)?;
     }
@@ -176,7 +181,9 @@ pub async fn run() -> Result<()> {
     // 根据命令类型路由到相应的处理器
     match cli.command {
         /* Commands::Onboard { .. } | */ Commands::Completions { .. } => unreachable!(),
-        Commands::Acp => unreachable!("ACP mode is routed before interactive initialization"),
+        Commands::Acp | Commands::EmployeeAcp { .. } => {
+            unreachable!("ACP mode is routed before interactive initialization")
+        }
 
         // 处理根级远程 Gateway API 命令。
         Commands::Api(api_commands) => cli_gateway_commands::run(api_commands.into_args()).await,

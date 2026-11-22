@@ -227,7 +227,7 @@ fn protocol_error(error: Error, message: impl Into<String>) -> Error {
     error.data(serde_json::json!({ "reason": message.into() }))
 }
 
-fn canonical_directory(path: &Path) -> Result<PathBuf> {
+pub(crate) fn canonical_directory(path: &Path) -> Result<PathBuf> {
     if !path.is_absolute() {
         return Err(protocol_error(
             Error::invalid_params(),
@@ -485,7 +485,7 @@ where
     }
 }
 
-struct ConnectionUpdateSink {
+pub(crate) struct ConnectionUpdateSink {
     connection: Rc<OnceCell<AgentSideConnection>>,
 }
 
@@ -516,13 +516,26 @@ where
     R: AsyncRead + Unpin + 'static,
     W: AsyncWrite + Unpin + 'static,
 {
+    serve_agent_with_io(reader, writer, |updates| {
+        VibeWindowAgent::with_update_sink(backend, updates)
+    })
+    .await
+}
+
+pub(crate) async fn serve_agent_with_io<A, R, W>(
+    reader: R,
+    writer: W,
+    make_agent: impl FnOnce(ConnectionUpdateSink) -> A,
+) -> Result<()>
+where
+    A: Agent + 'static,
+    R: AsyncRead + Unpin + 'static,
+    W: AsyncWrite + Unpin + 'static,
+{
     tokio::task::LocalSet::new()
         .run_until(async move {
             let connection = Rc::new(OnceCell::new());
-            let agent = VibeWindowAgent::with_update_sink(
-                backend,
-                ConnectionUpdateSink { connection: Rc::clone(&connection) },
-            );
+            let agent = make_agent(ConnectionUpdateSink { connection: Rc::clone(&connection) });
             let (client, io_task) =
                 AgentSideConnection::new(agent, writer.compat_write(), reader.compat(), |future| {
                     tokio::task::spawn_local(future);

@@ -159,3 +159,91 @@ async fn acp_stdio_eof_cancels_and_exits() {
     assert_eq!(observed.creates.load(Ordering::SeqCst), 1);
     assert_eq!(observed.cancel_count.load(Ordering::SeqCst), 1);
 }
+
+#[test]
+fn employee_acp_cli_parses_scope_target_and_state_directory() {
+    use crate::cli::{Commands, EmployeeAcpKind};
+
+    let args = [
+        "shiju",
+        "employee-acp",
+        "--employee-id",
+        "fixture-employee",
+        "--employee-kind",
+        "shared",
+        "--state-dir",
+        "/fixture/state",
+        "--account-scope",
+        "fixture-account",
+    ];
+    let cli = crate::cli::Cli::try_parse_from(args).expect("employee ACP command");
+    let Commands::EmployeeAcp { employee_id, employee_kind, state_dir, account_scope } =
+        cli.command
+    else {
+        panic!("wrong command");
+    };
+    assert_eq!(employee_id, "fixture-employee");
+    assert!(matches!(employee_kind, EmployeeAcpKind::Shared));
+    assert_eq!(state_dir, PathBuf::from("/fixture/state"));
+    assert_eq!(account_scope, "fixture-account");
+    assert!(crate::cli::Cli::try_parse_from(&args[..args.len() - 2]).is_err());
+}
+
+#[tokio::test]
+async fn employee_acp_cli_missing_credential_leaves_stdout_empty() {
+    let root = tempfile::tempdir().unwrap();
+    let (reader, writer) = tokio::io::duplex(1024);
+    let error = super::run_employee_with_io(
+        "fixture-employee".into(),
+        crate::cli::EmployeeAcpKind::Private,
+        root.path().to_owned(),
+        "fixture-account".into(),
+        None,
+        tokio::io::empty(),
+        writer,
+    )
+    .await
+    .unwrap_err();
+    assert!(error.to_string().contains("SHIJU_EMPLOYEE_ACP_CREDENTIAL"));
+    let mut output = String::new();
+    BufReader::new(reader).read_line(&mut output).await.unwrap();
+    assert!(output.is_empty());
+}
+
+#[tokio::test]
+async fn employee_acp_cli_stdout_contains_only_protocol_frames() {
+    let root = tempfile::tempdir().unwrap();
+    let (mut client, server) = tokio::io::duplex(4096);
+    let (reader, writer) = tokio::io::split(server);
+    let server = super::run_employee_with_io(
+        "fixture-employee".into(),
+        crate::cli::EmployeeAcpKind::Private,
+        root.path().to_owned(),
+        "fixture-account".into(),
+        Some("fixture-credential"),
+        reader,
+        writer,
+    );
+    let client = async move {
+        use tokio::io::AsyncReadExt;
+
+        client.write_all(b"{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{\"protocolVersion\":1}}\n")
+            .await.unwrap();
+        let mut client = BufReader::new(client);
+        let mut output = String::new();
+        client.read_line(&mut output).await.unwrap();
+        client.get_mut().shutdown().await.unwrap();
+        client.read_to_string(&mut output).await.unwrap();
+        output
+    };
+    let (server, output) = tokio::time::timeout(std::time::Duration::from_secs(5), async {
+        tokio::join!(server, client)
+    })
+    .await
+    .unwrap();
+    server.unwrap();
+    let frame: serde_json::Value = serde_json::from_str(output.trim()).unwrap();
+    assert_eq!(frame["id"], 1);
+    assert_eq!(frame["result"]["agentCapabilities"]["loadSession"], true);
+    assert!(!output.contains("fixture-credential"));
+}

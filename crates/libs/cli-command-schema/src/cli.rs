@@ -104,6 +104,12 @@ pub struct Cli {
     pub command: Commands,
 }
 
+#[derive(Clone, Copy, Debug, clap::ValueEnum)]
+pub enum EmployeeAcpKind {
+    Private,
+    Shared,
+}
+
 /// CLI 子命令枚举
 ///
 /// 定义了 VibeWindow 支持的所有一级子命令。每个变体对应一个独立的功能模块，
@@ -112,6 +118,18 @@ pub struct Cli {
 pub enum Commands {
     /// 通过 stdin/stdout 运行本地 ACP Agent。
     Acp,
+
+    /// 通过 stdin/stdout 运行绑定到当前账号和数字员工的 ACP Agent。
+    EmployeeAcp {
+        #[arg(long)]
+        employee_id: String,
+        #[arg(long, value_enum)]
+        employee_kind: EmployeeAcpKind,
+        #[arg(long)]
+        state_dir: std::path::PathBuf,
+        #[arg(long)]
+        account_scope: String,
+    },
 
     /// 直接调用远程 Gateway API 命令族。
     #[command(flatten)]

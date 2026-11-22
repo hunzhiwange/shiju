@@ -6,3 +6,6 @@ pub mod server;
 pub use server::*;
 
 pub mod aionrs;
+
+pub mod employee;
+mod employee_state;

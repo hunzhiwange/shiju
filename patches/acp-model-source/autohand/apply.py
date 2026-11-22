@@ -6,7 +6,7 @@ from pathlib import Path
 import sys
 
 
-def apply(package, boundary):
+def apply(package, boundary, linux_boundary=None):
     # npm's ESM entry imports this specific ACP chunk. Leave other modes untouched.
     entry = package / "dist/index.js"
     adapter = package / "dist/acp-LDTU5B5V.js"
@@ -81,6 +81,9 @@ def apply(package, boundary):
     agent_source = agent_source.replace(
         before, "  await host.shijuPrepareSkillView?.();\n" + before
     )
+    if linux_boundary is not None:
+        source, agent_source = apply_linux_mcp_boundary(source, agent_source)
+        (adapter.parent / "shiju-linux-mcp-boundary.mjs").write_bytes(linux_boundary.read_bytes())
     agent.write_text(agent_source)
     (adapter.parent / "shiju-session-boundary.mjs").write_bytes(boundary.read_bytes())
     adapter.write_text(
@@ -88,5 +91,36 @@ def apply(package, boundary):
     )
 
 
+def apply_linux_mcp_boundary(adapter, agent):
+    def replace_once(source, before, after):
+        if source.count(before) != 1:
+            raise ValueError("unexpected AutoHand Linux MCP patch anchor")
+        return source.replace(before, after)
+
+    adapter = replace_once(
+        adapter,
+        '    if (process.env.SHIJU_AUTOHAND_MANAGED === "1") {\n'
+        "      agent.shijuPrepareSkillView",
+        '    if (process.env.SHIJU_AUTOHAND_MANAGED === "1") {\n'
+        "      agent.shijuGuardMcp = guardMcpConnections;\n"
+        "      agent.shijuPrepareSkillView",
+    )
+    adapter = replace_once(
+        adapter,
+        "      agent.shijuMcpSelect = requireMcpApproval(agent, this.connection, managedSessionId);",
+        "      const approveMcp = requireMcpApproval(agent, this.connection, managedSessionId);\n"
+        "      agent.shijuMcpSelect = (servers) => agent.shijuSelectMcpConnections(servers, approveMcp);",
+    )
+    agent = replace_once(
+        agent,
+        "  host.mcpManager = new McpClientManager();",
+        "  host.mcpManager = new McpClientManager();\n"
+        "  host.shijuSelectMcpConnections = host.shijuGuardMcp?.(host.mcpManager);",
+    )
+    return ('import { guardMcpConnections } from "./shiju-linux-mcp-boundary.mjs";\n' + adapter, agent)
+
+
 if __name__ == "__main__":
-    apply(Path(sys.argv[1]), Path(sys.argv[2]))
+    if len(sys.argv) not in (3, 4):
+        sys.exit("usage: apply.py PACKAGE BOUNDARY [LINUX_BOUNDARY]")
+    apply(*map(Path, sys.argv[1:]))

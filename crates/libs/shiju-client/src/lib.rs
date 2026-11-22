@@ -4,3 +4,5 @@
 pub mod account;
 /// SHIJU 应用目录、IAM 密钥和运行会话客户端。
 pub mod apps;
+/// Agent Cloud 数字员工直聊会话客户端。
+pub mod employee_conversations;

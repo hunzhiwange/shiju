@@ -7,7 +7,7 @@ use std::{path::Path, sync::Arc};
 use crate::acp::model_source::profile::AcpLaunchProfile;
 pub type ParsedAcpOptions = options::ParsedAcpOptions<MountedSkills>;
 pub(crate) struct CacheHost;
-tokio::task_local! { static REQUEST_CONFIG: Config; }
+tokio::task_local! { pub(crate) static REQUEST_CONFIG: Config; pub(crate) static EMPLOYEE_LAUNCH: EmployeeAcpLaunch; }
 #[allow(unused_variables)]
 impl Host for CacheHost {
     type Skills = MountedSkills;
@@ -28,6 +28,7 @@ impl Host for CacheHost {
     fn model_source(options: &serde_json::Value) -> Result<vw_api_acp_model::acp_model_source::AcpModelSource, String> { crate::prompt::acp_model_source(options) }
     fn config() -> HostFuture<'static, anyhow::Result<Config>> { Box::pin(async { Ok(REQUEST_CONFIG.try_with(Clone::clone).unwrap_or_default()) }) }
     fn project_id() -> Option<String> { unimplemented!("unused host port in cache fixture") }
+    fn employee_acp_launch(_session: &str) -> Option<EmployeeAcpLaunch> { EMPLOYEE_LAUNCH.try_with(Clone::clone).ok() }
     fn bind_agent<'a>(session: &'a str, cfg: &'a mut Config) -> HostFuture<'a, anyhow::Result<()>> { Box::pin(async { Ok(()) }) }
     fn agent_defaults<'a>(cfg: &'a Config, options: &'a serde_json::Value, agent: &'a str, cwd: &'a Path, parsed: &'a mut options::ParsedAcpOptions<Self::Skills>, messages: &'a serde_json::Value) -> HostFuture<'a, Result<serde_json::Value, Error>> { Box::pin(async move { assert!(options.get("agent").is_none(), "fixture has no bound agent defaults"); Ok(messages.clone()) }) }
     fn prepare_skills(mounts: &[acp_types::SessionSkillMount], cwd: &Path, session: &str, cfg: &Config) -> Result<Option<Self::Skills>, Error> { MountedSkills::prepare(mounts, cwd, session, &cfg.skills.security, &Self::tenant()) }

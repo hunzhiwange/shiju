@@ -75,6 +75,14 @@ fn has_ollama_cloud_credential(config_api_key: Option<&str>) -> bool {
 /// 解释成更宽松的运行时行为。
 pub fn validate_config(config: &Config) -> Result<()> {
     config.worktree_settings.validate().map_err(anyhow::Error::msg)?;
+    use acp_agent_registry::{EMPLOYEE_ACP_BACKEND, EMPLOYEE_ACP_CREDENTIAL_ENV};
+    for (name, launch) in &config.acp {
+        if acp_agent_registry::normalize_agent_name(name) == EMPLOYEE_ACP_BACKEND
+            || launch.env.keys().any(|key| key.eq_ignore_ascii_case(EMPLOYEE_ACP_CREDENTIAL_ENV))
+        {
+            anyhow::bail!("employee-acp launch configuration is reserved for the authenticated host");
+        }
+    }
     validate_agent_profiles(config)?;
     if config.gateway.host.trim().is_empty() {
         anyhow::bail!("gateway.host must not be empty");
@@ -384,6 +392,12 @@ fn validate_agent_profiles(config: &Config) -> Result<()> {
             }
         } else if agent.builtin {
             anyhow::bail!("custom agent {key} cannot claim builtin source");
+        }
+        if let AgentRuntime::Acp { backend } = &agent.runtime
+            && backend == acp_agent_registry::EMPLOYEE_ACP_BACKEND
+            && key != acp_agent_registry::EMPLOYEE_ACP_PROFILE
+        {
+            anyhow::bail!("employee-acp requires its official profile");
         }
         if let AgentRuntime::Acp { backend } = &agent.runtime
             && !backends.contains_key(backend)

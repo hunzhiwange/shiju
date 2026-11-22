@@ -31,7 +31,8 @@ impl AcpClient {
     }
 
     pub(super) fn sandboxed_native_io(&self) -> bool {
-        self.droid_sandbox.is_some() || self.managed_restricted_pi() || self.auggie_sandbox.is_some() || self.kilocode_sandbox.is_some() || self.hermes_sandbox.is_some() || self.opencode_sandbox.is_some() || self.openclaw_sandbox.is_some() || self.managed_vtcode() || self.managed_aionrs() || self.managed_cortex()
+        self.agent_name == acp_agent_registry::EMPLOYEE_ACP_BACKEND
+            || self.droid_sandbox.is_some() || self.managed_restricted_pi() || self.auggie_sandbox.is_some() || self.kilocode_sandbox.is_some() || self.hermes_sandbox.is_some() || self.opencode_sandbox.is_some() || self.openclaw_sandbox.is_some() || self.managed_vtcode() || self.managed_aionrs() || self.managed_cortex()
     }
 
     pub(super) fn managed_workspace_io(&self) -> bool {
@@ -111,6 +112,9 @@ impl AcpClient {
             ));
         }
         let mut env = self.config.env.clone();
+        if self.agent_name != acp_agent_registry::EMPLOYEE_ACP_BACKEND {
+            env.retain(|key, _| !key.eq_ignore_ascii_case(acp_agent_registry::EMPLOYEE_ACP_CREDENTIAL_ENV));
+        }
         if self.managed_restricted_pi() {
             env.retain(|key, _| matches!(key.as_str(),
                 "VW_ACP_LAUNCH_REFERENCE" | "VW_PI_RESTRICTED" | "VW_PI_RELAY_TOKEN"
@@ -435,6 +439,21 @@ impl AcpClient {
         }
         if self.agent_name == "opencode" && self.opencode_sandbox.is_none() {
             cmd.env_remove("VW_OC_RO");
+        }
+        let credential_env = acp_agent_registry::EMPLOYEE_ACP_CREDENTIAL_ENV;
+        if self.agent_name == acp_agent_registry::EMPLOYEE_ACP_BACKEND {
+            // Keep only OS paths needed by the bundled CLI and its process-private credential.
+            cmd.env_clear().envs(
+                ["HOME", "USERPROFILE", "SystemRoot", "TMPDIR", "TMP", "TEMP"]
+                    .into_iter()
+                    .filter_map(|key| std::env::var_os(key).map(|value| (key, value))),
+            );
+            let credential = env.get(credential_env).ok_or_else(|| {
+                AcpError::Initialize("Employee ACP requires a request credential".into())
+            })?;
+            cmd.env(credential_env, credential);
+        } else {
+            cmd.env_remove(credential_env);
         }
         cmd.args(&args);
         if self.managed_workspace_io() {

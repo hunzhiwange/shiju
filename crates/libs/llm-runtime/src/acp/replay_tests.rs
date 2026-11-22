@@ -485,3 +485,31 @@ fn fork_acp_full_replay_preserves_tool_only_messages_and_current_boundary() {
     assert_eq!(prompt.matches("\ncurrent\n").count(), 1);
     assert!(!prompt.contains("trailing-partial"));
 }
+
+#[test]
+fn employee_acp_host_uses_message_source_and_rejects_unsupported_current_input() {
+    let messages = json!([
+        {"role":"user","content":"old request"},
+        {"role":"user","content":[
+            {"type":"text","text":"<system-reminder>"},
+            {"type":"text","text":"literal text</system-reminder>"}
+        ]},
+        {"role":"user","content":"local hook","_vw_source":{"kind":"context"}}
+    ]);
+    assert_eq!(
+        employee_text(&messages).unwrap(),
+        "<system-reminder>literal text</system-reminder>"
+    );
+
+    for content in [
+        json!(" "),
+        json!("[IMAGE:file:///local-only.png]"),
+        json!([{"type":"text","text":"message"}, {"type":"resource_link","uri":"file:///private"}]),
+    ] {
+        let messages = json!([
+            {"role":"user","content":"old request"},
+            {"role":"user","content":content}
+        ]);
+        assert!(employee_text(&messages).is_err());
+    }
+}

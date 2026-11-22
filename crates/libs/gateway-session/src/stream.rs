@@ -1180,6 +1180,26 @@ pub async fn prepare_gateway_agent_request<H: StreamHost>(
         config_agent_profile::AgentRuntime::Native => None,
         config_agent_profile::AgentRuntime::Acp { backend } => Some(backend.clone()),
     };
+    let employee = acp_backend.as_deref() == Some("employee-acp");
+    if employee {
+        let invalid_text = || ApiError::bad_request("Employee ACP requires a non-empty text message");
+        let content = body.messages.last_mut()
+            .filter(|message| message["role"] == "user")
+            .and_then(|message| message.get_mut("content"))
+            .ok_or_else(invalid_text)?;
+        if let Value::Array(blocks) = content {
+            let text = blocks.iter().map(|block| {
+                (block["type"] == "text").then(|| block["text"].as_str()).flatten()
+            }).collect::<Option<String>>().ok_or_else(invalid_text)?;
+            *content = Value::String(text);
+        }
+        if content.as_str().is_none_or(|text| text.trim().is_empty()) {
+            return Err(invalid_text());
+        }
+        // A product-owned model has no provider/model selection on the gateway.
+        body.model = None;
+        body.acp_model_source = vw_api_acp_model::acp_model_source::AcpModelSource::CliLocal;
+    }
     let model = session_model::<H>(body, &binding, session).await?;
     let explicit_full_access = options
         .and_then(|options| options.get("full_access"))
@@ -1188,18 +1208,25 @@ pub async fn prepare_gateway_agent_request<H: StreamHost>(
         })
         .transpose()?;
     let background_acp_access = background_full_access.filter(|_| acp_backend.is_some());
-    let full_access = match background_acp_access {
-        // The automation grant is for this turn only. Never persist it as a chat preference.
-        Some(granted) => granted,
-        None => H::resolve_full_access(session, explicit_full_access, binding.defaults.full_access)
-            .await
-            .map_err(|error| ApiError::bad_request(error.to_string()))?,
+    let full_access = if employee {
+        false
+    } else {
+        match background_acp_access {
+            // The automation grant is for this turn only. Never persist it as a chat preference.
+            Some(granted) => granted,
+            None => H::resolve_full_access(session, explicit_full_access, binding.defaults.full_access)
+                .await
+                .map_err(|error| ApiError::bad_request(error.to_string()))?,
+        }
     };
     let mut options = body.options.take().unwrap_or_else(|| serde_json::json!({}));
     let values = options
         .as_object_mut()
         .ok_or_else(|| ApiError::bad_request("options must be an object"))?;
     values.insert("full_access".into(), Value::Bool(full_access));
+    if employee {
+        values.insert("acp_model_source".into(), serde_json::json!(body.acp_model_source));
+    }
     if background_acp_access.is_some() {
         values
             .entry("acp_non_interactive_permissions")
@@ -1383,6 +1410,7 @@ pub async fn start_gateway_chat_producer<H: StreamHost>(
 
     let model = delegate_overrides.model.clone();
     let message_agent = delegate_overrides.agent.clone().unwrap_or_else(|| "gateway".to_string());
+    let employee = delegate_overrides.acp_backend.as_deref() == Some("employee-acp");
     let preserve_structured_prompt = delegate_overrides.acp_backend.is_some();
     let background_acp = background_full_access.is_some() && preserve_structured_prompt;
     let options = merge_gateway_request_options(
@@ -1734,7 +1762,7 @@ pub async fn start_gateway_chat_producer<H: StreamHost>(
                                         eligible.then_some(preview.as_str()),
                                     ) {
                                         Ok(first_preview) => {
-                                            if let Some(preview) = first_preview {
+                                            if !employee && let Some(preview) = first_preview {
                                                 let title_model = if preserve_structured_prompt {
                                                     None
                                                 } else {

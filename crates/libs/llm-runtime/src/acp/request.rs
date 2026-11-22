@@ -6,6 +6,7 @@
 use std::sync::Arc;
 use serde_json::Value;
 use tokio::sync::mpsc;
+use acp_agent_registry::{EMPLOYEE_ACP_BACKEND, EMPLOYEE_ACP_CREDENTIAL_ENV, normalize_agent_name};
 use acp_types::{AcpJsonRpcMessage, PromptRequest, SessionStrategy};
 use acp_lifecycle::apply_lifecycle_snapshot_to_record;
 use acp_storage::write_session_record;
@@ -62,6 +63,28 @@ pub async fn do_stream_request_acp<H: Host>(
         return Err(Error::Aborted);
     }
 
+    use vw_api_acp_model::acp_model_source::{AcpModelSource, AcpModelSourceCapability};
+    let cfg = H::config().await.map_err(to_api_error)?;
+    let (acp_agent_name, acp_cfg) = lookup_acp_command(&cfg, model, merged_options)
+        .ok_or_else(|| to_api_error(format!("acp command not configured for model {}", model.api.id)))?;
+    let employee = normalize_agent_name(&acp_agent_name) == EMPLOYEE_ACP_BACKEND;
+    let (acp_agent_name, acp_cfg, employee_text, source) = if employee {
+        let launch = H::employee_acp_launch(session_id)
+            .ok_or_else(|| acp_option_error("Employee ACP requires an authorized session binding"))?;
+        (
+            EMPLOYEE_ACP_BACKEND.to_owned(),
+            employee_launch_config(launch)?,
+            Some(super::replay::employee_text(chat_messages)?),
+            AcpModelSource::CliLocal,
+        )
+    } else {
+        let source = H::model_source(merged_options).map_err(acp_option_error)?;
+        if source == AcpModelSource::SessionModel {
+            validate_session_model(model, provider_info, auth_info)?;
+        }
+        (acp_agent_name, acp_cfg, None, source)
+    };
+
     let tool_context = H::tool_context();
     let desktop_context = tool_context.as_ref().and_then(H::desktop_context);
     let requested_cwd = merged_options
@@ -89,29 +112,10 @@ pub async fn do_stream_request_acp<H: Host>(
     let mut fork_replay =
         H::fork_replay(session_id, &cwd_text).await.map_err(to_api_error)?;
     let fork_history_needed = fork_replay.as_ref().is_some_and(|state| state.needs_history());
-    let source =
-        H::model_source(merged_options).map_err(super::acp_option_error)?;
-    if source == vw_api_acp_model::acp_model_source::AcpModelSource::SessionModel {
-        validate_session_model(model, provider_info, auth_info)?;
+    if employee && fork_replay.is_some() {
+        return Err(acp_option_error("Employee ACP does not support local history forks"));
     }
-    let cfg = H::config().await.map_err(to_api_error)?;
-    let (acp_agent_name, acp_cfg) =
-        lookup_acp_command(&cfg, model, merged_options).ok_or_else(|| {
-            tracing::warn!(
-                target: "vw_agent",
-                model = %model.api.id,
-                requested_acp_agent = merged_options
-                    .get("acp_agent")
-                    .and_then(|value| value.as_str())
-                    .unwrap_or_default(),
-                "ACP command not configured"
-            );
-            Error::Api(message::AssistantError::Unknown {
-                message: format!("acp command not configured for model {}", model.api.id),
-            })
-        })?;
-    use vw_api_acp_model::acp_model_source::{AcpModelSource, AcpModelSourceCapability};
-    if source == AcpModelSource::CliLocal
+    if !employee && source == AcpModelSource::CliLocal
         && !super::model_source::drivers::capabilities(&acp_agent_name).iter().any(|capability| {
             matches!(capability, AcpModelSourceCapability::Supported { source: AcpModelSource::CliLocal })
         })
@@ -120,7 +124,9 @@ pub async fn do_stream_request_acp<H: Host>(
             "This CLI has no verified entry point for the selected model source",
         ));
     }
-    H::reject_expanded(&acp_agent_name, chat_messages)?;
+    if !employee {
+        H::reject_expanded(&acp_agent_name, chat_messages)?;
+    }
     let selected_model = vw_api_acp_model::acp_model_source::AcpSessionModelSelection {
         source,
         provider_id: (source == vw_api_acp_model::acp_model_source::AcpModelSource::SessionModel)
@@ -145,7 +151,7 @@ pub async fn do_stream_request_acp<H: Host>(
     let identity = super::lifecycle::session_identity(&H::tenant(), session_id, &cwd_text);
     let mut normalized_acp_cfg = normalize_acp_agent_config(&acp_agent_name, &acp_cfg);
     // Older model selection writes could clear the anchor of a running session.
-    let recovered = if previous_selection.is_some() && locked_selection.is_none() {
+    let recovered = if !employee && previous_selection.is_some() && locked_selection.is_none() {
         let launch = match source {
             vw_api_acp_model::acp_model_source::AcpModelSource::CliLocal => {
                 super::recovery::Launch::Local {
@@ -179,21 +185,22 @@ pub async fn do_stream_request_acp<H: Host>(
     };
     let generation = recovered.as_ref().map_or(selected_generation, |session| session.generation);
     let scoped_session = format!("{session_id}:acp-source-{generation}:{identity}");
-    let mut parsed_options =
-        parse_acp_options::<H::Skills>(merged_options, &acp_agent_name, &normalized_acp_cfg)?;
     let mut cfg = cfg;
-    H::bind_agent(session_id, &mut cfg)
-        .await
-        .map_err(to_api_error)?;
-    let chat_messages = H::agent_defaults(
-        &cfg,
-        merged_options,
-        &acp_agent_name,
-        &cwd,
-        &mut parsed_options,
-        chat_messages,
-    )
-    .await?;
+    let (mut parsed_options, chat_messages) = if employee {
+        (
+            super::options::ParsedAcpOptions::<H::Skills> {
+                permission_mode: Some(acp_types::PermissionMode::DenyAll),
+                non_interactive_permissions: Some(acp_types::NonInteractivePermissionPolicy::Deny),
+                ..Default::default()
+            },
+            Value::Null,
+        )
+    } else {
+        let mut parsed = parse_acp_options::<H::Skills>(merged_options, &acp_agent_name, &normalized_acp_cfg)?;
+        H::bind_agent(session_id, &mut cfg).await.map_err(to_api_error)?;
+        let messages = H::agent_defaults(&cfg, merged_options, &acp_agent_name, &cwd, &mut parsed, chat_messages).await?;
+        (parsed, messages)
+    };
     let mut restricted_auggie = false;
     let mut restricted_hermes = false;
     let mut restricted_droid = false;
@@ -201,7 +208,7 @@ pub async fn do_stream_request_acp<H: Host>(
     let mut restricted_pi = false;
     let mut restricted_opencode = false;
     let mut restricted_openclaw = false;
-    if let Some((root, full_grant)) = desktop_access {
+    if !employee && let Some((root, full_grant)) = desktop_access {
         super::session::bind_desktop_access(&mut parsed_options, root, full_grant);
         restricted_auggie = acp_agent_name == "auggie"
             && !parsed_options.full_access
@@ -269,12 +276,10 @@ pub async fn do_stream_request_acp<H: Host>(
         }
     }
     parsed_options.runtime_identity = Some(scoped_session.clone());
-    parsed_options.skill_view = H::prepare_skills(
-        &parsed_options.skill_mounts,
-        &cwd,
-        &scoped_session,
-        &cfg,
-    )?;
+    if !employee {
+        parsed_options.skill_view =
+            H::prepare_skills(&parsed_options.skill_mounts, &cwd, &scoped_session, &cfg)?;
+    }
     if acp_agent_name == "openclaw" {
         use super::model_source::drivers::openclaw::RESTRICTED_ENV;
         if normalized_acp_cfg.env.keys().any(|key| key.eq_ignore_ascii_case(RESTRICTED_ENV)) {
@@ -400,7 +405,9 @@ pub async fn do_stream_request_acp<H: Host>(
     {
         return Err(acp_option_error("GLM skill mounts require session_model with native tools enabled"));
     }
-    H::supplier(&acp_agent_name, parsed_options.skill_view.as_ref())?;
+    if !employee {
+        H::supplier(&acp_agent_name, parsed_options.skill_view.as_ref())?;
+    }
     if acp_agent_name == "deepagents"
         && parsed_options.skill_view.is_some()
         && (source != vw_api_acp_model::acp_model_source::AcpModelSource::SessionModel
@@ -476,7 +483,9 @@ pub async fn do_stream_request_acp<H: Host>(
     {
         return Err(acp_option_error("Stakpak skill mounts require session_model with native reads enabled"));
     }
-    H::validate_mounts(&acp_agent_name, !parsed_options.skill_mounts.is_empty())?;
+    if !employee {
+        H::validate_mounts(&acp_agent_name, !parsed_options.skill_mounts.is_empty())?;
+    }
 
     if acp_agent_name == "dimcode"
         && (!parsed_options.mcp_servers.is_empty() || parsed_options.skill_view.is_some())
@@ -500,7 +509,7 @@ pub async fn do_stream_request_acp<H: Host>(
             .map_err(acp_option_error)?;
     }
 
-    let previous_native = if source == vw_api_acp_model::acp_model_source::AcpModelSource::CliLocal
+    let previous_native = if !employee && source == vw_api_acp_model::acp_model_source::AcpModelSource::CliLocal
         && (recovered.is_some() || locked_selection.is_some())
     {
         let state = if let Some(recovered) = &recovered {
@@ -782,7 +791,7 @@ pub async fn do_stream_request_acp<H: Host>(
     }
 
     // Server-owned fork anchors and recovered sessions take precedence over desktop rebuild hints.
-    let requested_force_new_session = fork_replay.is_none()
+    let requested_force_new_session = !employee && fork_replay.is_none()
         && recovered.is_none()
         && (restricted_droid || restricted_openclaw || vtcode_mcp || vtcode_selected || autohand_selected || autohand_mcp || merged_options.get("acp_force_new_session").and_then(Value::as_bool).unwrap_or(false));
     let replay_strategy = if fork_history_needed {
@@ -791,13 +800,15 @@ pub async fn do_stream_request_acp<H: Host>(
         parse_replay_strategy(merged_options)
     };
     let replay_recent_count = parse_recent_count(merged_options);
-    let initial_prompt_len = build_request_prompt(
-        &chat_messages,
-        requested_force_new_session || fork_history_needed,
-        replay_strategy,
-        replay_recent_count,
-    )
-    .len();
+    let initial_prompt_len = employee_text.as_ref().map_or_else(
+        || build_request_prompt(
+            &chat_messages,
+            requested_force_new_session || fork_history_needed,
+            replay_strategy,
+            replay_recent_count,
+        ).len(),
+        String::len,
+    );
     tracing::info!(
         target: "vw_agent",
         model = %model.api.id,
@@ -808,7 +819,7 @@ pub async fn do_stream_request_acp<H: Host>(
         "resolved ACP request configuration"
     );
     let acp_agent_name = acp_agent_name.to_string();
-    if acp_agent_name != "openclaw" {
+    if !employee && acp_agent_name != "openclaw" {
         H::scanner(
             &acp_agent_name,
             &mut normalized_acp_cfg,
@@ -833,7 +844,7 @@ pub async fn do_stream_request_acp<H: Host>(
         None
     };
     let close_client_after_request =
-        parse_close_client_after_request(merged_options)? || launch_profile.is_some();
+        employee || parse_close_client_after_request(merged_options)? || launch_profile.is_some();
     let cwd_text = cwd.to_string_lossy().into_owned();
     let walk_boundary = acp_storage::find_git_repository_root(&cwd_text)
         .map(|path| path.to_string_lossy().into_owned())
@@ -848,14 +859,18 @@ pub async fn do_stream_request_acp<H: Host>(
     let mut force_new_session = requested_force_new_session;
     let mut recovered_session_change = false;
     loop {
-        let prompt = super::content::build_request_content(
-            &chat_messages,
-            force_new_session || fork_history_needed,
-            replay_strategy,
-            replay_recent_count,
-            build_request_prompt,
-        )
-        .map_err(to_api_error)?;
+        let prompt = if let Some(text) = &employee_text {
+            acp_types::prompt_content::text_prompt(text.clone())
+        } else {
+            super::content::build_request_content(
+                &chat_messages,
+                force_new_session || fork_history_needed,
+                replay_strategy,
+                replay_recent_count,
+                build_request_prompt,
+            )
+            .map_err(to_api_error)?
+        };
         if prompt.is_empty() {
             tracing::warn!(
                 target: "vw_agent",
@@ -898,7 +913,20 @@ pub async fn do_stream_request_acp<H: Host>(
             &cached_client.permission_confirmation,
             session_id,
         );
-        let record = if let Some(recovered) = &recovered {
+        let record = if employee && let Some(selection) = locked_selection {
+            acp_storage::resolve_session_record(&selection.record_id).await
+                .map_err(to_api_error)
+                .and_then(|record| {
+                    if record.vwacp_record_id == selection.record_id
+                        && normalized_acp_cfg.env.get(super::model_source::profile::REFERENCE_ENV)
+                            .is_some_and(|reference| reference == &record.agent_command)
+                    {
+                        Ok(record)
+                    } else {
+                        Err(acp_option_error("Employee ACP session binding changed"))
+                    }
+                })
+        } else if let Some(recovered) = &recovered {
             Ok(recovered.record.clone())
         } else {
             find_or_create_cached_session_record::<H>(
@@ -933,195 +961,205 @@ pub async fn do_stream_request_acp<H: Host>(
             return Err(to_api_error(error));
         }
 
-        let bound_model_id =
-            launch_profile.as_ref().and_then(|profile| profile.session_model_id.as_deref());
-        if let Some(model_id) = bound_model_id {
-            // Managed launch identity takes precedence over a saved native selection.
-            acp_access_policy::session_mode_preference::set_desired_model_id(&mut record, Some(model_id));
-        }
-        // Capture the non-elevated preference before replaying controls. Automatic
-        // native access sync must never become the saved user preference.
-        if acp_access_policy::session_mode_preference::get_desired_mode_id(record.vwacp.as_ref()).is_none() {
-            acp_access_policy::session_mode_preference::set_desired_mode_id(&mut record, parsed_options.session_mode.as_deref());
-        }
-        let saved_config = acp_access_policy::session_mode_preference::get_desired_config_options(record.vwacp.as_ref());
-        for (id, value) in &parsed_options.session_config_options {
-            if !saved_config.contains_key(id)
-                && matches!(id.as_str(), "mode" | "edit_approval_policy")
-            {
-                acp_access_policy::session_mode_preference::set_desired_config_option(&mut record, id, value);
-            }
-        }
-        super::controls::prepare_access_restore(&cached_client.client, &mut record);
         let acp_session_id = record.acp_session_id.clone();
-        if !super::controls::has_saved_config_category(
-            &record,
-            agent_client_protocol::SessionConfigOptionCategory::Mode,
-        ) && let Some(mode_id) = acp_access_policy::session_mode_preference::get_desired_mode_id(record.vwacp.as_ref())
-            .or_else(|| parsed_options.session_mode.clone())
+        // session/load replays remote history. Complete it before attaching this
+        // turn's output channel so historical updates cannot become a new reply.
+        if employee && !cached_client.client.has_reusable_session(&acp_session_id)
+            && let Err(error) = cached_client.client.load_session(acp_session_id.clone(), &cwd).await
         {
-            if let Err(err) = apply_default_mode(
-                &cached_client.client,
-                &acp_session_id,
-                &cwd,
-                cached_client.client.restored_permission_value("mode", &mode_id).to_owned(),
-            )
-            .await
-            {
-                close_client_after_request_if_needed(
-                    close_client_after_request,
-                    &cached_client_entry,
-                )
-                .await;
-                drop(prompt_guard);
-                return Err(err);
+            close_client_after_request_if_needed(true, &cached_client_entry).await;
+            return Err(to_api_error(format!("could not restore Employee ACP session: {error}")));
+        }
+        if !employee {
+            let bound_model_id =
+                launch_profile.as_ref().and_then(|profile| profile.session_model_id.as_deref());
+            if let Some(model_id) = bound_model_id {
+                // Managed launch identity takes precedence over a saved native selection.
+                acp_access_policy::session_mode_preference::set_desired_model_id(&mut record, Some(model_id));
             }
-        }
-        if (bound_model_id.is_some()
-            || (launch_profile.is_none()
-                && !super::controls::has_saved_config_category(
-                    &record,
-                    agent_client_protocol::SessionConfigOptionCategory::Model,
-                )))
-            && let Some(model_id) =
-                acp_access_policy::session_mode_preference::get_desired_model_id(record.vwacp.as_ref()).or_else(|| {
-                    parsed_options
-                        .session_options
-                        .as_ref()
-                        .and_then(|options| options.model.clone())
-                })
-            && !cached_client
-                .client
-                .session_capabilities(&acp_session_id)
-                .and_then(|info| info.models)
-                .is_some_and(|models| models.current_model_id.0.as_ref() == model_id)
-        {
-            if let Err(err) = cached_client
-                .client
-                .set_session_model(acp_session_id.clone(), &cwd, model_id)
-                .await
-                .map_err(to_api_error)
-            {
-                close_client_after_request_if_needed(
-                    close_client_after_request,
-                    &cached_client_entry,
-                )
-                .await;
-                drop(prompt_guard);
-                return Err(err);
+            // Capture the non-elevated preference before replaying controls. Automatic
+            // native access sync must never become the saved user preference.
+            if acp_access_policy::session_mode_preference::get_desired_mode_id(record.vwacp.as_ref()).is_none() {
+                acp_access_policy::session_mode_preference::set_desired_mode_id(&mut record, parsed_options.session_mode.as_deref());
             }
-        }
-        let mut config_options: std::collections::BTreeMap<_, _> =
-            parsed_options.session_config_options.iter().cloned().collect();
-        if super::controls::has_saved_config_category(
-            &record,
-            agent_client_protocol::SessionConfigOptionCategory::ThoughtLevel,
-        ) {
-            config_options.retain(|id, _| {
-                !matches!(id.as_str(), "reasoning_effort" | "thought_level" | "effort")
-            });
-        }
-        let info = cached_client.client.session_capabilities(&acp_session_id);
-        // Typed reasoning options can map to a vendor config ID. Do not let a
-        // desktop request write that ID if the adapter advertises it as a permission control.
-        if parsed_options.desktop_workspace.is_some()
-            && info.as_ref().and_then(|info| info.config_options.as_ref()).is_some_and(|options| {
-                options.iter().any(|option| {
-                    config_options.contains_key(option.id.0.as_ref())
-                        && super::controls::is_permission_config(option)
-                })
-            })
-        {
-            close_client_after_request_if_needed(close_client_after_request, &cached_client_entry)
-                .await;
-            drop(prompt_guard);
-            return Err(super::acp_option_error(
-                "ACP request options cannot change native permissions",
-            ));
-        }
-        let native_config = |id: &str| {
-            info.as_ref().and_then(|info| info.config_options.as_ref()).and_then(|options| {
-                options.iter().find(|option| {
-                    option.id.0.as_ref() == id && super::controls::is_model_config(option)
-                })
-            })
-        };
-        if locked_selection.is_some() || recovered.is_some() {
-            config_options.retain(|id, _| id != "model" && native_config(id).is_none());
-        }
-        config_options.extend(acp_access_policy::session_mode_preference::get_desired_config_options(record.vwacp.as_ref()));
-        if let Some(state) = previous_native.as_ref() {
-            for option in state
-                .config_options
-                .iter()
-                .flatten()
-                .filter(|option| super::controls::is_model_config(option))
-            {
-                let agent_client_protocol::SessionConfigKind::Select(select) = &option.kind else {
-                    continue;
-                };
-                let id = option.id.to_string();
-                let value = state
-                    .desired_config_options
-                    .as_ref()
-                    .and_then(|values| values.get(&id))
-                    .cloned()
-                    .unwrap_or_else(|| select.current_value.to_string());
-                config_options.insert(id, value);
-            }
-        }
-        if launch_profile.is_some() {
-            config_options.retain(|id, _| id != "model" && native_config(id).is_none());
-        }
-        for (config_id, value) in config_options {
-            if let Some(option) = native_config(&config_id)
-                && let agent_client_protocol::SessionConfigKind::Select(select) = &option.kind
-                && select.current_value.0.as_ref() == value
-            {
-                continue;
-            }
-            let value =
-                cached_client.client.restored_permission_value(&config_id, &value).to_owned();
-            if let Err(err) = cached_client
-                .client
-                .set_session_config_option(acp_session_id.clone(), &cwd, config_id, value)
-                .await
-                .map_err(to_api_error)
-            {
-                close_client_after_request_if_needed(
-                    close_client_after_request,
-                    &cached_client_entry,
-                )
-                .await;
-                drop(prompt_guard);
-                return Err(err);
-            }
-        }
-
-        if launch_profile.is_none()
-            && let Some(info) = cached_client.client.session_capabilities(&acp_session_id)
-        {
-            if acp_access_policy::session_mode_preference::get_desired_model_id(record.vwacp.as_ref()).is_none()
-                && let Some(models) = info.models.as_ref()
-                && !info.config_options.iter().flatten().any(super::controls::is_model_config)
-            {
-                acp_access_policy::session_mode_preference::set_desired_model_id(&mut record, Some(models.current_model_id.0.as_ref()));
-            }
-            for option in info
-                .config_options
-                .iter()
-                .flatten()
-                .filter(|option| super::controls::is_model_config(option))
-            {
-                if let agent_client_protocol::SessionConfigKind::Select(select) = &option.kind {
-                    acp_access_policy::session_mode_preference::set_desired_config_option(
-                        &mut record,
-                        option.id.0.as_ref(),
-                        select.current_value.0.as_ref(),
-                    );
+            let saved_config = acp_access_policy::session_mode_preference::get_desired_config_options(record.vwacp.as_ref());
+            for (id, value) in &parsed_options.session_config_options {
+                if !saved_config.contains_key(id)
+                    && matches!(id.as_str(), "mode" | "edit_approval_policy")
+                {
+                    acp_access_policy::session_mode_preference::set_desired_config_option(&mut record, id, value);
                 }
             }
-            acp_access_policy::session_mode_preference::sync_config_options(&mut record, info.config_options);
+            super::controls::prepare_access_restore(&cached_client.client, &mut record);
+            if !super::controls::has_saved_config_category(
+                &record,
+                agent_client_protocol::SessionConfigOptionCategory::Mode,
+            ) && let Some(mode_id) = acp_access_policy::session_mode_preference::get_desired_mode_id(record.vwacp.as_ref())
+                .or_else(|| parsed_options.session_mode.clone())
+            {
+                if let Err(err) = apply_default_mode(
+                    &cached_client.client,
+                    &acp_session_id,
+                    &cwd,
+                    cached_client.client.restored_permission_value("mode", &mode_id).to_owned(),
+                )
+                .await
+                {
+                    close_client_after_request_if_needed(
+                        close_client_after_request,
+                        &cached_client_entry,
+                    )
+                    .await;
+                    drop(prompt_guard);
+                    return Err(err);
+                }
+            }
+            if (bound_model_id.is_some()
+                || (launch_profile.is_none()
+                    && !super::controls::has_saved_config_category(
+                        &record,
+                        agent_client_protocol::SessionConfigOptionCategory::Model,
+                    )))
+                && let Some(model_id) =
+                    acp_access_policy::session_mode_preference::get_desired_model_id(record.vwacp.as_ref()).or_else(|| {
+                        parsed_options
+                            .session_options
+                            .as_ref()
+                            .and_then(|options| options.model.clone())
+                    })
+                && !cached_client
+                    .client
+                    .session_capabilities(&acp_session_id)
+                    .and_then(|info| info.models)
+                    .is_some_and(|models| models.current_model_id.0.as_ref() == model_id)
+            {
+                if let Err(err) = cached_client
+                    .client
+                    .set_session_model(acp_session_id.clone(), &cwd, model_id)
+                    .await
+                    .map_err(to_api_error)
+                {
+                    close_client_after_request_if_needed(
+                        close_client_after_request,
+                        &cached_client_entry,
+                    )
+                    .await;
+                    drop(prompt_guard);
+                    return Err(err);
+                }
+            }
+            let mut config_options: std::collections::BTreeMap<_, _> =
+                parsed_options.session_config_options.iter().cloned().collect();
+            if super::controls::has_saved_config_category(
+                &record,
+                agent_client_protocol::SessionConfigOptionCategory::ThoughtLevel,
+            ) {
+                config_options.retain(|id, _| {
+                    !matches!(id.as_str(), "reasoning_effort" | "thought_level" | "effort")
+                });
+            }
+            let info = cached_client.client.session_capabilities(&acp_session_id);
+            // Typed reasoning options can map to a vendor config ID. Do not let a
+            // desktop request write that ID if the adapter advertises it as a permission control.
+            if parsed_options.desktop_workspace.is_some()
+                && info.as_ref().and_then(|info| info.config_options.as_ref()).is_some_and(|options| {
+                    options.iter().any(|option| {
+                        config_options.contains_key(option.id.0.as_ref())
+                            && super::controls::is_permission_config(option)
+                    })
+                })
+            {
+                close_client_after_request_if_needed(close_client_after_request, &cached_client_entry)
+                    .await;
+                drop(prompt_guard);
+                return Err(super::acp_option_error(
+                    "ACP request options cannot change native permissions",
+                ));
+            }
+            let native_config = |id: &str| {
+                info.as_ref().and_then(|info| info.config_options.as_ref()).and_then(|options| {
+                    options.iter().find(|option| {
+                        option.id.0.as_ref() == id && super::controls::is_model_config(option)
+                    })
+                })
+            };
+            if locked_selection.is_some() || recovered.is_some() {
+                config_options.retain(|id, _| id != "model" && native_config(id).is_none());
+            }
+            config_options.extend(acp_access_policy::session_mode_preference::get_desired_config_options(record.vwacp.as_ref()));
+            if let Some(state) = previous_native.as_ref() {
+                for option in state
+                    .config_options
+                    .iter()
+                    .flatten()
+                    .filter(|option| super::controls::is_model_config(option))
+                {
+                    let agent_client_protocol::SessionConfigKind::Select(select) = &option.kind else {
+                        continue;
+                    };
+                    let id = option.id.to_string();
+                    let value = state
+                        .desired_config_options
+                        .as_ref()
+                        .and_then(|values| values.get(&id))
+                        .cloned()
+                        .unwrap_or_else(|| select.current_value.to_string());
+                    config_options.insert(id, value);
+                }
+            }
+            if launch_profile.is_some() {
+                config_options.retain(|id, _| id != "model" && native_config(id).is_none());
+            }
+            for (config_id, value) in config_options {
+                if let Some(option) = native_config(&config_id)
+                    && let agent_client_protocol::SessionConfigKind::Select(select) = &option.kind
+                    && select.current_value.0.as_ref() == value
+                {
+                    continue;
+                }
+                let value =
+                    cached_client.client.restored_permission_value(&config_id, &value).to_owned();
+                if let Err(err) = cached_client
+                    .client
+                    .set_session_config_option(acp_session_id.clone(), &cwd, config_id, value)
+                    .await
+                    .map_err(to_api_error)
+                {
+                    close_client_after_request_if_needed(
+                        close_client_after_request,
+                        &cached_client_entry,
+                    )
+                    .await;
+                    drop(prompt_guard);
+                    return Err(err);
+                }
+            }
+
+            if launch_profile.is_none()
+                && let Some(info) = cached_client.client.session_capabilities(&acp_session_id)
+            {
+                if acp_access_policy::session_mode_preference::get_desired_model_id(record.vwacp.as_ref()).is_none()
+                    && let Some(models) = info.models.as_ref()
+                    && !info.config_options.iter().flatten().any(super::controls::is_model_config)
+                {
+                    acp_access_policy::session_mode_preference::set_desired_model_id(&mut record, Some(models.current_model_id.0.as_ref()));
+                }
+                for option in info
+                    .config_options
+                    .iter()
+                    .flatten()
+                    .filter(|option| super::controls::is_model_config(option))
+                {
+                    if let agent_client_protocol::SessionConfigKind::Select(select) = &option.kind {
+                        acp_access_policy::session_mode_preference::set_desired_config_option(
+                            &mut record,
+                            option.id.0.as_ref(),
+                            select.current_value.0.as_ref(),
+                        );
+                    }
+                }
+                acp_access_policy::session_mode_preference::sync_config_options(&mut record, info.config_options);
+            }
         }
         apply_lifecycle_snapshot_to_record(
             &mut record,
@@ -1227,7 +1265,7 @@ pub async fn do_stream_request_acp<H: Host>(
                     }
                     maybe_message = acp_message_rx.recv() => {
                         if let Some(message) = maybe_message {
-                            if launch_profile.is_none()
+                            if !employee && launch_profile.is_none()
                                 && let Some((id, usage)) = super::updates::request_usage(&message)
                             {
                                 if request_usage.len() < 4096 || request_usage.contains_key(&id) {
@@ -1236,7 +1274,9 @@ pub async fn do_stream_request_acp<H: Host>(
                                     tracing::warn!("ACP request usage observation limit reached");
                                 }
                             }
-                            forward_acp_message(&message, on_event, &mut latest_usage, &mut delta_count, &mut tool_updates, H::tool_input_preview);
+                            if !employee || super::updates::extract_delta_from_acp_message(&message).is_some() {
+                                forward_acp_message(&message, on_event, &mut latest_usage, &mut delta_count, &mut tool_updates, H::tool_input_preview);
+                            }
                         }
                     }
                     joined = &mut acp_task => {
@@ -1265,7 +1305,7 @@ pub async fn do_stream_request_acp<H: Host>(
                             }
                         }
                         while let Ok(message) = acp_message_rx.try_recv() {
-                            if launch_profile.is_none()
+                            if !employee && launch_profile.is_none()
                                 && let Some((id, usage)) = super::updates::request_usage(&message)
                             {
                                 if request_usage.len() < 4096 || request_usage.contains_key(&id) {
@@ -1274,7 +1314,9 @@ pub async fn do_stream_request_acp<H: Host>(
                                     tracing::warn!("ACP request usage observation limit reached");
                                 }
                             }
-                            forward_acp_message(&message, on_event, &mut latest_usage, &mut delta_count, &mut tool_updates, H::tool_input_preview);
+                            if !employee || super::updates::extract_delta_from_acp_message(&message).is_some() {
+                                forward_acp_message(&message, on_event, &mut latest_usage, &mut delta_count, &mut tool_updates, H::tool_input_preview);
+                            }
                         }
                         break;
                     }
@@ -1283,7 +1325,7 @@ pub async fn do_stream_request_acp<H: Host>(
                 tokio::select! {
                     maybe_message = acp_message_rx.recv() => {
                         if let Some(message) = maybe_message {
-                            if launch_profile.is_none()
+                            if !employee && launch_profile.is_none()
                                 && let Some((id, usage)) = super::updates::request_usage(&message)
                             {
                                 if request_usage.len() < 4096 || request_usage.contains_key(&id) {
@@ -1292,7 +1334,9 @@ pub async fn do_stream_request_acp<H: Host>(
                                     tracing::warn!("ACP request usage observation limit reached");
                                 }
                             }
-                            forward_acp_message(&message, on_event, &mut latest_usage, &mut delta_count, &mut tool_updates, H::tool_input_preview);
+                            if !employee || super::updates::extract_delta_from_acp_message(&message).is_some() {
+                                forward_acp_message(&message, on_event, &mut latest_usage, &mut delta_count, &mut tool_updates, H::tool_input_preview);
+                            }
                         }
                     }
                     joined = &mut acp_task => {
@@ -1321,7 +1365,7 @@ pub async fn do_stream_request_acp<H: Host>(
                             }
                         }
                         while let Ok(message) = acp_message_rx.try_recv() {
-                            if launch_profile.is_none()
+                            if !employee && launch_profile.is_none()
                                 && let Some((id, usage)) = super::updates::request_usage(&message)
                             {
                                 if request_usage.len() < 4096 || request_usage.contains_key(&id) {
@@ -1330,7 +1374,9 @@ pub async fn do_stream_request_acp<H: Host>(
                                     tracing::warn!("ACP request usage observation limit reached");
                                 }
                             }
-                            forward_acp_message(&message, on_event, &mut latest_usage, &mut delta_count, &mut tool_updates, H::tool_input_preview);
+                            if !employee || super::updates::extract_delta_from_acp_message(&message).is_some() {
+                                forward_acp_message(&message, on_event, &mut latest_usage, &mut delta_count, &mut tool_updates, H::tool_input_preview);
+                            }
                         }
                         break;
                     }
@@ -1345,7 +1391,7 @@ pub async fn do_stream_request_acp<H: Host>(
             ));
         }
         if let Some(err) = acp_error {
-            if !fork_history_needed
+            if !employee && !fork_history_needed
                 && !recovered_session_change
                 && is_acp_session_changed_error(&err)
             {
@@ -1486,6 +1532,62 @@ pub fn validate_session_model(
         }));
     }
     Ok(())
+}
+
+fn employee_launch_config(
+    launch: super::host::EmployeeAcpLaunch,
+) -> Result<config::schema::AcpAgentConfig, Error> {
+    #[cfg(not(test))]
+    let executable = std::env::current_exe().map_err(to_api_error)?;
+    #[cfg(test)]
+    let executable = match launch.executable.as_ref() {
+        Some(path) => path.clone(),
+        None => std::env::current_exe().map_err(to_api_error)?,
+    };
+    let command = executable
+        .to_str()
+        .filter(|_| executable.is_absolute())
+        .ok_or_else(|| acp_option_error("Employee ACP requires an absolute ShiJu executable"))?;
+    let state_dir = launch
+        .state_dir
+        .to_str()
+        .filter(|_| launch.state_dir.is_absolute())
+        .ok_or_else(|| acp_option_error("Employee ACP requires an absolute state directory"))?;
+    if launch.employee_id.trim().is_empty()
+        || launch.account_scope.trim().is_empty()
+        || launch.credential.trim().is_empty()
+        || launch.credential.contains('\0')
+    {
+        return Err(acp_option_error("Employee ACP launch binding is incomplete"));
+    }
+    let kind = match launch.kind {
+        super::host::EmployeeAcpKind::Private => "private",
+        super::host::EmployeeAcpKind::Shared => "shared",
+    };
+    let binding = serde_json::json!([launch.account_scope, kind, launch.employee_id]);
+    let reference = format!(
+        "vw-employee-acp:{}",
+        super::model_source::fingerprint(binding.to_string().as_bytes())
+    );
+    Ok(config::schema::AcpAgentConfig {
+        command: command.into(),
+        args: vec![
+            EMPLOYEE_ACP_BACKEND.into(),
+            "--employee-id".into(),
+            launch.employee_id,
+            "--employee-kind".into(),
+            kind.into(),
+            "--state-dir".into(),
+            state_dir.into(),
+            "--account-scope".into(),
+            launch.account_scope,
+        ],
+        env: [
+            (super::model_source::profile::REFERENCE_ENV.into(), reference),
+            (EMPLOYEE_ACP_CREDENTIAL_ENV.into(), launch.credential),
+        ]
+        .into(),
+    })
 }
 
 async fn close_client_after_request_if_needed(should_close: bool, entry: &CachedAcpClientEntry) {

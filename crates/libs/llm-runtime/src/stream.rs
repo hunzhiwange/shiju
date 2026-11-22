@@ -58,6 +58,12 @@ use super::messages::{build_chat_messages, build_system_messages, has_tool_calls
 use super::options::merge_deep_value;
 use super::{Error, StreamEvent, types::StreamInput};
 
+pub fn requests_employee_acp(options: &Value) -> bool {
+    options.get("acp_agent").and_then(Value::as_str).is_some_and(|name| {
+        name.trim().eq_ignore_ascii_case(acp_agent_registry::EMPLOYEE_ACP_BACKEND)
+    })
+}
+
 #[doc(hidden)]
 pub fn request_options_map_enable_acp(options: &HashMap<String, Value>) -> bool {
     options.get("acp_test").and_then(Value::as_bool).unwrap_or(false)
@@ -259,7 +265,8 @@ async fn stream_inner<H: Host>(
     // - auth_info: 认证信息（API key、OAuth token 等）
     let input_options = Value::Object(input.agent.options.clone().into_iter().collect());
     let acp_requested_by_input = request_options_map_enable_acp(&input.agent.options);
-    let cli_local = acp_requested_by_input
+    let employee = requests_employee_acp(&input_options);
+    let cli_local = employee || acp_requested_by_input
         && super::prompt::acp_model_source(&input_options)
             .map_err(|error| Error::Api(message::AssistantError::Unknown { message: error }))?
             == vw_api_acp_model::acp_model_source::AcpModelSource::CliLocal;
@@ -537,10 +544,11 @@ async fn stream_inner<H: Host>(
             return Err(Error::Api(error));
         }
 
-        // 构建完整的聊天消息列表（系统消息 + 用户/助手消息）
-        let chat_messages = build_chat_messages(&system_msgs, &input.messages, &input.model);
-        // 将用户消息中的 `[IMAGE:...]` 本地/远程引用归一化为 data URI，供 aisdk 多模态转换使用。
-        let chat_messages =
+        let chat_messages = if employee {
+            Value::Array(input.messages.clone())
+        } else {
+            let chat_messages = build_chat_messages(&system_msgs, &input.messages, &input.model);
+            // 将用户消息中的 `[IMAGE:...]` 本地/远程引用归一化为 data URI。
             match agent_multimodal::prepare_openai_json_messages_for_provider(
                 chat_messages,
                 &multimodal_config,
@@ -562,7 +570,8 @@ async fn stream_inner<H: Host>(
                     on_event(StreamEvent::Error(err.clone()));
                     return Err(Error::Api(err));
                 }
-            };
+            }
+        };
 
         // 发送完整消息事件，允许调用方查看实际发送给 API 的消息
         if let Value::Array(msgs) = chat_messages.clone() {

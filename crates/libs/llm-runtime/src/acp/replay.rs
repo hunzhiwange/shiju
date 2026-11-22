@@ -27,6 +27,37 @@ pub fn build_request_prompt(
     }
 }
 
+/// Select the latest source user message before ACP context or history projection.
+pub(super) fn employee_text(messages: &Value) -> Result<String, crate::Error> {
+    let invalid = || super::acp_option_error("Employee ACP requires a non-empty text message");
+    let message = messages
+        .as_array()
+        .and_then(|items| {
+            items
+                .iter()
+                .rfind(|item| item["role"] == "user" && item["_vw_source"]["kind"] != "context")
+        })
+        .ok_or_else(invalid)?;
+    let content = &message["content"];
+    let text = if let Some(text) = content.as_str() {
+        text.to_owned()
+    } else {
+        let blocks = content.as_array().ok_or_else(invalid)?;
+        let mut text = String::new();
+        for block in blocks {
+            if block["type"] != "text" {
+                return Err(invalid());
+            }
+            text.push_str(block["text"].as_str().ok_or_else(invalid)?);
+        }
+        text
+    };
+    if text.trim().is_empty() || !agent_multimodal::parse_image_markers(&text).1.is_empty() {
+        return Err(invalid());
+    }
+    Ok(text)
+}
+
 /// 构造当前 ACP 会话的单条 prompt。
 ///
 /// AGENTS.md 和 skill 协议以瞬态 meta 消息存在于本地消息列表中。

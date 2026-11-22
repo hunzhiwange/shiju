@@ -21,6 +21,24 @@ pub struct DesktopContext {
     pub full_access: bool,
 }
 
+/// Request-only data supplied by the host after checking the server-owned binding.
+#[cfg_attr(test, derive(Clone))]
+pub struct EmployeeAcpLaunch {
+    pub employee_id: String,
+    pub kind: EmployeeAcpKind,
+    pub account_scope: String,
+    pub state_dir: PathBuf,
+    pub credential: String,
+    #[cfg(test)]
+    pub(crate) executable: Option<PathBuf>,
+}
+
+#[derive(Clone, Copy)]
+pub enum EmployeeAcpKind {
+    Private,
+    Shared,
+}
+
 pub trait Host: Send + Sync + 'static {
     type Skills: SkillLease;
     type TurnContext: Send + Sync;
@@ -34,6 +52,11 @@ pub trait Host: Send + Sync + 'static {
     fn model_source(options: &serde_json::Value) -> Result<vw_api_acp_model::acp_model_source::AcpModelSource, String>;
     fn config() -> HostFuture<'static, anyhow::Result<Config>>;
     fn project_id() -> Option<String>;
+    /// Return launch data only for this turn's authenticated employee binding.
+    /// The gateway carries it across the stream worker boundary outside JSON options.
+    fn employee_acp_launch(_session: &str) -> Option<EmployeeAcpLaunch> {
+        None
+    }
     fn bind_agent<'a>(session: &'a str, cfg: &'a mut Config) -> HostFuture<'a, anyhow::Result<()>>;
     fn agent_defaults<'a>(cfg: &'a Config, options: &'a serde_json::Value, agent: &'a str, cwd: &'a Path, parsed: &'a mut ParsedAcpOptions<Self::Skills>, messages: &'a serde_json::Value) -> HostFuture<'a, Result<serde_json::Value, Error>>;
     fn prepare_skills(mounts: &[acp_types::SessionSkillMount], cwd: &Path, session: &str, cfg: &Config) -> Result<Option<Self::Skills>, Error>;

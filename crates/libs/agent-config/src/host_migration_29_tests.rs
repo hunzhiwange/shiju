@@ -672,3 +672,35 @@ fn acp_onboarding_aionrs_catalog_binding() {
         serde_json::to_value(entry).unwrap()
     );
 }
+
+#[test]
+fn employee_acp_builtin_has_one_opt_in_profile() {
+    let catalog = load_agent_configs(&json!({}));
+    let profile = &catalog["acp-employee-acp"];
+    assert!(profile.builtin);
+    assert!(!profile.enabled);
+    assert!(!profile.allow_as_subagent);
+    assert_eq!(profile.runtime, AgentRuntime::Acp { backend: "employee-acp".into() });
+}
+
+#[test]
+fn employee_acp_builtin_rejects_custom_launch_and_profile() {
+    use crate::schema::{AcpAgentConfig, Config, config_validate::validate_config};
+
+    let mut config = Config::default();
+    let mut launch = AcpAgentConfig { command: "arbitrary".into(), ..Default::default() };
+    config.acp.insert("EMPLOYEE-ACP".into(), launch.clone());
+    assert!(validate_config(&config).unwrap_err().to_string().contains("employee-acp"));
+
+    config.acp.clear();
+    launch.env.insert("shiju_employee_acp_credential".into(), "fixture".into());
+    config.acp.insert("other".into(), launch);
+    assert!(validate_config(&config).unwrap_err().to_string().contains("employee-acp"));
+
+    config.acp.clear();
+    config.agents.insert("custom".into(), config_agent::AgentDefinitionConfig {
+        runtime: AgentRuntime::Acp { backend: "employee-acp".into() },
+        ..Default::default()
+    });
+    assert!(validate_config(&config).unwrap_err().to_string().contains("employee-acp"));
+}

@@ -55,6 +55,11 @@ pub fn run<H: RunnerHost>(
     let mut session = Session::new(req.session.clone());
     let mut raw_rounds = Vec::new();
     let is_acp = is_acp_request(&req.options);
+    let employee = llm_runtime::stream::requests_employee_acp(&req.options);
+    if employee {
+        req.options["acp_model_source"] = json!("cli_local");
+        req.options["disable_tools"] = json!(true);
+    }
     let app_session_scope = req.app_session_scope.as_deref();
 
     let agent_key = req.options.get("agent").and_then(Value::as_str).map(ToOwned::to_owned);
@@ -125,7 +130,7 @@ pub fn run<H: RunnerHost>(
     let model_selected_by_auto = !is_acp && is_auto_model_request(req.model.as_deref());
     let (provider_retries, provider_backoff_ms) = request_provider_retry_policy::<H>(&req);
     let mut initial_budget =
-        crate::recovery::RetryBudget::new(provider_retries, provider_backoff_ms);
+        crate::recovery::RetryBudget::new(if employee { 0 } else { provider_retries }, provider_backoff_ms);
     let selected_model =
         match initial_budget.run(is_acp, req.abort_token.as_ref(), &mut on_event, |_| {
             resolve_request_model::<H>(&req, &config)
@@ -186,10 +191,14 @@ pub fn run<H: RunnerHost>(
     let mut ctx = admitted_ctx;
     let _interrupt = InterruptGuard::<H>(ctx.tool_use_context());
     let mut tool_state = ToolSessionState::default();
-    let skills = tool_context::context::scope_tool_use_context_sync::<H::CtxHost, _>(
-        ctx.tool_use_context().clone(),
-        || H::load_skills(&skill_workspace, &config, &req.session_skills, false),
-    );
+    let skills = if employee {
+        Ok(Vec::new())
+    } else {
+        tool_context::context::scope_tool_use_context_sync::<H::CtxHost, _>(
+            ctx.tool_use_context().clone(),
+            || H::load_skills(&skill_workspace, &config, &req.session_skills, false),
+        )
+    };
     let skills = match skills {
         Ok(skills) => skills,
         Err(error) => {
@@ -227,7 +236,7 @@ pub fn run<H: RunnerHost>(
         }
     }
 
-    if should_handle_docs_request_locally(&req.query) {
+    if !employee && should_handle_docs_request_locally(&req.query) {
         handle_docs_request::<H>(&mut session, &ctx, &mut on_event);
         return;
     }
@@ -265,12 +274,13 @@ pub fn run<H: RunnerHost>(
         );
     }
     #[cfg(not(target_arch = "wasm32"))]
-    if H::run_video_command(&req, &ctx, &session_protocol.skills, &mut on_event)
-        || H::run_bound_command(&req, &ctx, &mut on_event)
+    if !employee
+        && (H::run_video_command(&req, &ctx, &session_protocol.skills, &mut on_event)
+            || H::run_bound_command(&req, &ctx, &mut on_event))
     {
         return;
     }
-    if let Err(message) = session_protocol.prepare_native_skill_context::<H>(
+    if !employee && let Err(message) = session_protocol.prepare_native_skill_context::<H>(
         &req.session,
         &req.options,
         &checkpoint_source,
@@ -286,7 +296,9 @@ pub fn run<H: RunnerHost>(
     // 无法执行的协议要求。
     let live_catalog = tool_context::context::current_tool_use_context::<H::CtxHost>()
         .and_then(|context| context.live_tool_catalog());
-    let live_catalog = if let Some(catalog) = live_catalog {
+    let live_catalog = if employee {
+        None
+    } else if let Some(catalog) = live_catalog {
         Some(catalog)
     } else {
         let tools = H::execution_tools(&ctx);
@@ -302,7 +314,7 @@ pub fn run<H: RunnerHost>(
         }
         Some(catalog)
     };
-    let mcp_connections = H::mcp_connections(&ctx);
+    let mcp_connections = live_catalog.as_ref().map(|_| H::mcp_connections(&ctx));
     let mut catalog_snapshot = live_catalog.as_ref().map(|catalog| catalog.snapshot());
     #[cfg(not(target_arch = "wasm32"))]
     if let Some(snapshot) = catalog_snapshot.take() {
@@ -320,7 +332,7 @@ pub fn run<H: RunnerHost>(
     let available_tool_specs = catalog_snapshot
         .as_ref()
         .map(|snapshot| snapshot.specs())
-        .unwrap_or_else(|| H::tool_specs(&ctx))
+        .unwrap_or_else(|| if employee { Vec::new() } else { H::tool_specs(&ctx) })
         .into_iter()
         // Exclude worker-ineligible tools before required-tool expansion.
         .filter(|spec| agent_key.as_deref().unwrap_or("main") == "main" || spec.id != "AgentTool")
@@ -348,7 +360,7 @@ pub fn run<H: RunnerHost>(
         req.options["acp_allowed_tools"] =
             serde_json::json!(allowed_tools.iter().cloned().collect::<Vec<_>>());
     }
-    if !base_system.visible_instruction_paths().is_empty()
+    if !employee && !base_system.visible_instruction_paths().is_empty()
         && !on_event(StreamEvent::ContextLoaded {
             paths: base_system.visible_instruction_paths().to_vec(),
         })
@@ -357,22 +369,28 @@ pub fn run<H: RunnerHost>(
     }
 
     let prefetch_start = session.messages.len();
-    crate::prefetch::prefetch_seed_context::<H::Prefetch>(
-        &mut session,
-        &req.query,
-        &ctx,
-        &allowed_tools,
-        &mut tool_state,
-    );
+    if !employee {
+        crate::prefetch::prefetch_seed_context::<H::Prefetch>(
+            &mut session,
+            &req.query,
+            &ctx,
+            &allowed_tools,
+            &mut tool_state,
+        );
+    }
     session_protocol.hidden_prefetch = prefetch_start..session.messages.len();
-    crate::runner_ingest::ingest_user_query::<H>(
-        &mut session,
-        &req.query,
-        &ctx,
-        &allowed_tools,
-        &mut on_event,
-        &mut tool_state,
-    );
+    if employee {
+        crate::runner_ingest::push_user_dedup(&mut session, req.query.clone());
+    } else {
+        crate::runner_ingest::ingest_user_query::<H>(
+            &mut session,
+            &req.query,
+            &ctx,
+            &allowed_tools,
+            &mut on_event,
+            &mut tool_state,
+        );
+    }
 
     let primary_system_prompt = req
         .options
@@ -397,8 +415,12 @@ pub fn run<H: RunnerHost>(
         return;
     }
     let checkpoint_source = current_messages;
-    if let Some(source) = llm_messages::input_source_from_options(&req.options) {
-        llm_messages::annotate_current_user_source(&mut llm_messages, source);
+    // Capture the user position in session history before tool output can append user-role messages.
+    let mut current_user_index = llm_messages.iter().rposition(|message| message["role"] == "user");
+    if let (Some(index), Some(source)) =
+        (current_user_index, llm_messages::input_source_from_options(&req.options))
+    {
+        llm_messages::annotate_current_user_source(&mut llm_messages[index..=index], source);
     }
     let mut image_turn =
         match build_image_turn_context_for_request::<H>(&req, &session, &config, &mut on_event) {
@@ -447,8 +469,8 @@ pub fn run<H: RunnerHost>(
             return;
         }
         // Definitions and executors change together, only before the next model request.
-        if let Some(catalog) = &live_catalog {
-            if let Err(error) = H::refresh_catalog(&mcp_connections, catalog) {
+        if let Some((catalog, connections)) = live_catalog.as_ref().zip(mcp_connections.as_ref()) {
+            if let Err(error) = H::refresh_catalog(connections, catalog) {
                 tracing::warn!("MCP catalog refresh remains pending: {error}");
             }
             let snapshot = catalog.snapshot();
@@ -571,25 +593,34 @@ pub fn run<H: RunnerHost>(
         // LLM step will actually receive. In particular, OCR's nested request
         // disables tools and should not spend its input budget on every local
         // tool schema.
-        let assembled_messages = match session_protocol.assemble(
-            &llm_messages,
-            base_system.instruction_context(),
-            !is_acp && tools_for_step.contains("skill"),
-        ) {
-            Ok(messages) => messages,
-            Err(message) => {
-                on_event(StreamEvent::Error(message));
-                return;
-            }
+        let (mut provider_messages, message_sources) = if employee {
+            // The accepted query is the turn source. Protocol assembly also adds
+            // user-role hook and workspace messages, so use the query directly.
+            ctx.tool_use_context().take_hook_contexts();
+            (vec![json!({"role":"user", "content":req.query})], vec![
+                llm_messages::input_source_from_options(&req.options).unwrap_or(Value::Null),
+            ])
+        } else {
+            let assembled_messages = match session_protocol.assemble(
+                &llm_messages,
+                base_system.instruction_context(),
+                !is_acp && tools_for_step.contains("skill"),
+            ) {
+                Ok(messages) => messages,
+                Err(message) => {
+                    on_event(StreamEvent::Error(message));
+                    return;
+                }
+            };
+            let mut provider_messages = assembled_messages.messages;
+            provider_messages.extend(
+                ctx.tool_use_context()
+                    .take_hook_contexts()
+                    .into_iter()
+                    .map(|text| json!({"role":"user", "content":text})),
+            );
+            (provider_messages, assembled_messages.message_sources)
         };
-        let mut provider_messages = assembled_messages.messages;
-        provider_messages.extend(
-            ctx.tool_use_context()
-                .take_hook_contexts()
-                .into_iter()
-                .map(|text| json!({"role":"user", "content":text})),
-        );
-        let message_sources = assembled_messages.message_sources;
         let compaction = match prepare_context_before_llm_step(
             &mut provider_messages,
             &system,
@@ -630,6 +661,7 @@ pub fn run<H: RunnerHost>(
                         &req.session,
                         &checkpoint_source,
                         &mut llm_messages,
+                        &mut current_user_index,
                         &selected_model.model,
                         &req.reliability,
                         &mut on_event,
@@ -730,6 +762,7 @@ pub fn run<H: RunnerHost>(
                                 &req.session,
                                 &checkpoint_source,
                                 &mut llm_messages,
+                                &mut current_user_index,
                                 &selected_model.model,
                                 &req.reliability,
                                 &mut on_event,
@@ -755,6 +788,10 @@ pub fn run<H: RunnerHost>(
                             return;
                         }
                     }
+                }
+                if employee {
+                    on_event(StreamEvent::Error(message));
+                    return;
                 }
                 if handle_step_error(
                     &mut session,
@@ -836,6 +873,27 @@ pub fn run<H: RunnerHost>(
         total_usage.cached_tokens += step_out.usage.cached_tokens;
         total_usage.reasoning_tokens += step_out.usage.reasoning_tokens;
         observed_input_tokens = Some(step_out.usage.input_tokens);
+
+        if employee {
+            if req.abort_token.as_ref().is_some_and(|token| token.is_cancelled()) {
+                return;
+            }
+            if step_out.text.trim().is_empty() {
+                on_event(StreamEvent::Error(EMPTY_RESPONSE_ERR.into()));
+                return;
+            }
+            session.push(Role::Assistant, step_out.text.clone());
+            crate::artifacts::persist_final_ai_call_payload::<H>(
+                &artifact_request::<H>(&req),
+                &session,
+                &total_usage,
+                &step_out.text,
+                app_session_scope,
+                req.persist_app_session_artifacts,
+            );
+            on_event(StreamEvent::Done(total_usage));
+            return;
+        }
 
         let step_text_preview = response_preview(&step_out.text);
         tracing::debug!(

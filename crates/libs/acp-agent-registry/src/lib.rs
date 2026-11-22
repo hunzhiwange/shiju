@@ -6,7 +6,8 @@ mod install;
 mod managed_runtime;
 
 pub use agent_registry::{
-    AgentCommandSpec, DEFAULT_AGENT_NAME, built_in_agent_registry, built_in_agent_specs,
+    AgentCommandSpec, DEFAULT_AGENT_NAME, EMPLOYEE_ACP_BACKEND, EMPLOYEE_ACP_PROFILE,
+    EMPLOYEE_ACP_CREDENTIAL_ENV, built_in_agent_registry, built_in_agent_specs,
     list_built_in_agents, merge_agent_registry, merge_agent_specs, normalize_agent_name,
     resolve_agent_command, resolve_agent_spec, resolve_agent_spec_with_overrides,
 };

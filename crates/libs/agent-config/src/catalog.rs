@@ -22,6 +22,14 @@ pub fn merged_agent_catalog(
             )],
             ..AgentDefinitionConfig::default()
         });
+        if backend == acp_agent_registry::EMPLOYEE_ACP_BACKEND {
+            entry.provider.clear();
+            entry.model.clear();
+            entry.force_model_selection = false;
+            entry.defaults = Default::default();
+            entry.allowed_tools.clear();
+            entry.allowed_skills.clear();
+        }
         if entry.label.is_none() {
             entry.label = Some(spec.display_name.clone());
         }

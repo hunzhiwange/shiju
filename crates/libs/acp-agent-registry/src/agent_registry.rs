@@ -232,6 +232,7 @@ fn normalize_agent_spec_for_name(name: &str, spec: &AgentCommandSpec) -> AgentCo
         },
         env: spec.env.clone(),
     };
+    normalized.env.retain(|key, _| !key.eq_ignore_ascii_case(EMPLOYEE_ACP_CREDENTIAL_ENV));
     // Saved official fallbacks must discover a CLI installed after the profile was enabled.
     // Only an unchanged official launcher may adopt local arguments; custom commands stay exact.
     if let Some(definition) = built_in_agent_definitions().iter().find(|definition| {
@@ -246,7 +247,21 @@ fn normalize_agent_spec_for_name(name: &str, spec: &AgentCommandSpec) -> AgentCo
     normalized
 }
 
+pub const EMPLOYEE_ACP_BACKEND: &str = "employee-acp";
+pub const EMPLOYEE_ACP_PROFILE: &str = "acp-employee-acp";
+pub const EMPLOYEE_ACP_CREDENTIAL_ENV: &str = "SHIJU_EMPLOYEE_ACP_CREDENTIAL";
+
 const BUILT_IN_AGENT_DEFINITIONS: &[BuiltInAgentDefinition] = &[
+    BuiltInAgentDefinition {
+        name: EMPLOYEE_ACP_BACKEND,
+        display_name: "数字员工",
+        // A launch can only be supplied by the authenticated request host.
+        command: "",
+        args: &[],
+        env: &[],
+        local_command_candidates: &[],
+        local_args: &[],
+    },
     // Official Bun CLI: https://github.com/can1357/oh-my-pi
     BuiltInAgentDefinition {
         name: "aionrs",
@@ -765,7 +780,7 @@ pub fn merge_agent_specs(
     if let Some(overrides) = overrides {
         for (name, spec) in overrides {
             let normalized = normalize_agent_name(name);
-            if normalized.is_empty() || spec.command.trim().is_empty() {
+            if normalized.is_empty() || normalized == EMPLOYEE_ACP_BACKEND || spec.command.trim().is_empty() {
                 continue;
             }
             merged.insert(normalized.clone(), normalize_agent_spec_for_name(&normalized, spec));
@@ -785,7 +800,7 @@ pub fn merge_agent_registry(
     if let Some(overrides) = overrides {
         for (name, spec) in overrides {
             let normalized = normalize_agent_name(name);
-            if normalized.is_empty() || spec.command.trim().is_empty() {
+            if normalized.is_empty() || normalized == EMPLOYEE_ACP_BACKEND || spec.command.trim().is_empty() {
                 continue;
             }
             let spec = normalize_agent_spec_for_name(&normalized, spec);

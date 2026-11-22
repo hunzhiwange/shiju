@@ -19,8 +19,8 @@
   "server_entry": "engine/kas/node_modules/@kiro/agent/dist/server/acp-server.js",
   "original_server_sha256": "bf79b2b0fa7ae68653abdf117b4a4dbf064fec6fa7ca49500115f3f2f67581b1",
   "v2_server_sha256": "25726b5cf5b69c1cca0aa7685627db5dca37afde52e148d5af8f1a8b0c3083f9",
-  "server_sha256": "8619822571719aab4031891bea39d0286ec7fef441ab71445a9042b963c95329",
-  "launcher_sha256": "a8a55f1c3994d08e3aadfe4c032c90ab99bc87a84062242a2d1b07abd0d0e4a6",
+  "server_sha256": "8faffef164c344149ae95df432de93f1bd224c7f759e8f17b250e68f7e79c50c",
+  "launcher_sha256": "6379b7e5bf46ebfe518f8856be8ea6859c425da6b7d980c209e5366ba68d7e9c",
   "targets": {
     "x86_64": {
       "elf_machine": 62,

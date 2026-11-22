@@ -1,4 +1,5 @@
 """Exercise Kiro's reviewed V3 Responses engine and native stdio MCP."""
+from contextlib import contextmanager
 import hashlib
 import json
 import os
@@ -96,6 +97,21 @@ def launch_linux(env):
         "version": contract["version"], "revision": contract["revision"], "arch": arch,
         "archive": artifact["artifact_url"], "files": files,
         "protocol": contract["model_protocol"], "model_path": "/v1/responses"}
+
+
+@contextmanager
+def mcp_server(_workspace, attachment, audit):
+    script = ROOT / "scripts/acp_mount_integration.py"
+    args = [str(script), "--mcp-stdio", str(attachment), str(audit)]
+    if platform.system() == "Linux":
+        args = ["-c", (
+            "import os, sys\n"
+            "if any(key in os.environ for key in "
+            "('KIRO_API_KEY', 'VW_ACP_LAUNCH_REFERENCE')):\n"
+            "    raise SystemExit('MCP child received managed Kiro credentials')\n"
+            "os.execv(sys.executable, [sys.executable, *sys.argv[1:]])\n"
+        ), *args]
+    yield {"name": "coexistence", "command": sys.executable, "args": args, "env": []}
 
 
 class Probe:

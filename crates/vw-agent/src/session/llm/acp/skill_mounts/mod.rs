@@ -4,9 +4,9 @@ pub(super) fn prepare(mounts: &[acp_types::SessionSkillMount], cwd: &std::path::
     MountedSkills::prepare(mounts, cwd, session, security, &crate::session::ui_store::current_tenant_scope())
 }
 #[cfg(all(target_os = "linux", target_env = "gnu", any(target_arch = "x86_64", target_arch = "aarch64")))]
-mod glm_revision;
+mod reviewed_revision;
 #[cfg(all(target_os = "linux", target_env = "gnu", any(target_arch = "x86_64", target_arch = "aarch64")))]
-pub(super) use glm_revision::prepare_glm_revision;
+pub(super) use reviewed_revision::prepare_reviewed_revision;
 
 #[cfg(test)]
 mod acceptance_tests;

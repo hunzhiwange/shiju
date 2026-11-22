@@ -1,10 +1,10 @@
-//! Narrow attached GLM skills to the current committed host session revision.
+//! Narrow attached skills to the current committed host session revision.
 use super::MountedSkills;
 use crate::session::runtime::SessionScope;
 use acp_types::SessionSkillMount;
 use std::path::Path;
 
-pub(in crate::session::llm::acp) async fn prepare_glm_revision(
+pub(in crate::session::llm::acp) async fn prepare_reviewed_revision(
     defaults: &mut Vec<SessionSkillMount>,
     cwd: &Path,
     session: &str,
@@ -13,7 +13,7 @@ pub(in crate::session::llm::acp) async fn prepare_glm_revision(
 ) -> anyhow::Result<Option<MountedSkills>> {
     let tenant = crate::session::ui_store::current_tenant_scope();
     let Some(project) = crate::project::instance::project() else {
-        anyhow::bail!("GLM session skills require a project");
+        anyhow::bail!("Reviewed ACP session skills require a project");
     };
     let scope = SessionScope::new(tenant, cwd)?;
     let owner = agent_database::run_sync_database(|| {
@@ -26,10 +26,10 @@ pub(in crate::session::llm::acp) async fn prepare_glm_revision(
             owner.id == session
                 && owner.project_id == project.id
                 && Path::new(&owner.directory).canonicalize()? == scope.directory(),
-            "GLM skill mount belongs to another session or directory"
+            "ACP skill mount belongs to another session or directory"
         );
     } else {
-        anyhow::ensure!(committed.is_none(), "Cannot establish GLM skill mount ownership");
+        anyhow::ensure!(committed.is_none(), "Cannot establish ACP skill mount ownership");
     }
     let mut committed_view = None;
     if let Some(record) = committed.as_ref().filter(|record| record.revision.0 > 0) {
@@ -41,7 +41,7 @@ pub(in crate::session::llm::acp) async fn prepare_glm_revision(
                 record.revision,
                 security,
             )?;
-            anyhow::ensure!(view.fingerprint() == expected, "Committed GLM skill view changed");
+            anyhow::ensure!(view.fingerprint() == expected, "Committed ACP skill view changed");
             committed_view = Some(view);
         }
         // The session revision can remove bound profile choices. New grants still
@@ -64,7 +64,7 @@ pub(in crate::session::llm::acp) async fn prepare_glm_revision(
             record.map(|record| (record.revision, record.fingerprint, record.skills)) == expected
         })
     };
-    anyhow::ensure!(current(), "GLM skill mount revision changed during preparation");
+    anyhow::ensure!(current(), "ACP skill mount revision changed during preparation");
     Ok(view.map(|view| view.with_current(current)))
 }
 

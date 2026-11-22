@@ -37,4 +37,9 @@ fn acp_skill_mount_iflow_unreviewed_executable_is_rejected_before_environment_ch
     };
     assert!(super::configure(&mut config, Some(&view)).is_err());
     assert!(!config.env.contains_key(super::ROOT_ENV));
+
+    let retired = view.with_current(|| false);
+    let error = super::configure(&mut config, Some(&retired)).unwrap_err();
+    assert!(error.to_string().contains("ACP session skill selection was revised"));
+    assert!(!config.env.contains_key(super::ROOT_ENV));
 }

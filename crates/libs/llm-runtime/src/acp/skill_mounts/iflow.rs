@@ -1,5 +1,6 @@
 //! Add a reviewed request-owned view to iFlow's native skill discovery.
 use agent_config::schema::AcpAgentConfig;
+use crate::acp::host::SkillLease;
 
 const ROOT_ENV: &str = "SHIJU_IFLOW_SKILL_ROOT";
 
@@ -13,10 +14,10 @@ pub(super) fn configure(
         ));
     }
     let root = if let Some(view) = view {
-        view.0.validate().map_err(super::super::to_api_error)?;
+        view.validate()?;
         acp_agent_registry::verify_reviewed_agent_executable("iflow", &config.command)
             .map_err(super::super::to_api_error)?;
-        view.0.root().to_string_lossy().into_owned()
+        view.root().to_string_lossy().into_owned()
     } else {
         // An explicit empty value masks inherited views while preserving native roots.
         String::new()

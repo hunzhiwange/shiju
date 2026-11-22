@@ -42,7 +42,7 @@ impl Host for RuntimeHost {
     fn agent_defaults<'a>(cfg: &'a config::schema::Config, options: &'a Value, agent: &'a str, cwd: &'a Path, parsed: &'a mut ParsedAcpOptions, messages: &'a Value) -> HostFuture<'a, Result<Value, Error>> { Box::pin(super::config::apply_agent_defaults(cfg, options, agent, cwd, parsed, messages)) }
     fn prepare_skills(mounts: &[acp_types::SessionSkillMount], cwd: &Path, session: &str, cfg: &config::schema::Config) -> Result<Option<Self::Skills>, Error> { super::skill_mounts::prepare(mounts, cwd, session, &cfg.skills.security) }
     #[cfg(all(target_os = "linux", target_env = "gnu", any(target_arch = "x86_64", target_arch = "aarch64")))]
-    fn prepare_glm_skills<'a>(
+    fn prepare_reviewed_skills<'a>(
         mounts: &'a mut Vec<acp_types::SessionSkillMount>,
         cwd: &'a Path,
         session: &'a str,
@@ -50,7 +50,7 @@ impl Host for RuntimeHost {
         cfg: &'a config::schema::Config,
     ) -> HostFuture<'a, Result<Option<Self::Skills>, Error>> {
         Box::pin(async move {
-            super::skill_mounts::prepare_glm_revision(mounts, cwd, session, scoped_session, &cfg.skills.security)
+            super::skill_mounts::prepare_reviewed_revision(mounts, cwd, session, scoped_session, &cfg.skills.security)
                 .await.map_err(|error| Error::Api(crate::session::message::AssistantError::Unknown {
                     message: format!("acp: {error}"),
                 }))

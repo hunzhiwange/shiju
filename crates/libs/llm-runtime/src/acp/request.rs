@@ -279,15 +279,20 @@ pub async fn do_stream_request_acp<H: Host>(
             return Err(acp_option_error("Droid selected skills require its restricted session-model launch"));
         }
     }
+    let reviewed_session_model = cfg!(all(target_os = "linux", target_env = "gnu",
+        any(target_arch = "x86_64", target_arch = "aarch64")))
+        && source == AcpModelSource::SessionModel;
+    let glm_managed = reviewed_session_model && acp_agent_name == "glm-acp-agent";
+    let iflow_managed = reviewed_session_model && acp_agent_name == "iflow";
     parsed_options.runtime_identity = Some(scoped_session.clone());
     if !employee {
-        parsed_options.skill_view = if cfg!(all(target_os = "linux", target_env = "gnu",
-            any(target_arch = "x86_64", target_arch = "aarch64")))
-            && acp_agent_name == "glm-acp-agent"
-            && source == AcpModelSource::SessionModel
+        parsed_options.skill_view = if (glm_managed || iflow_managed)
             && !parsed_options.skill_mounts.is_empty()
         {
-            H::prepare_glm_skills(
+            acp_agent_registry::verify_reviewed_agent_executable(
+                &acp_agent_name, &normalized_acp_cfg.command,
+            ).map_err(acp_option_error)?;
+            H::prepare_reviewed_skills(
                 &mut parsed_options.skill_mounts, &cwd, session_id, &scoped_session, &cfg,
             ).await?
         } else {
@@ -426,8 +431,6 @@ pub async fn do_stream_request_acp<H: Host>(
             {
                 return Err(acp_option_error("GLM Linux skill mounts require interactive host permissions"));
             }
-            acp_agent_registry::verify_reviewed_agent_executable("glm-acp-agent", &normalized_acp_cfg.command)
-                .map_err(acp_option_error)?;
         }
     }
     if !employee {
@@ -565,8 +568,6 @@ pub async fn do_stream_request_acp<H: Host>(
         acp_agent_registry::verify_vtcode_skill_executable(&normalized_acp_cfg.command)
             .map_err(acp_option_error)?;
     }
-    let linux_reviewed_projection_target = cfg!(all(target_os = "linux", target_env = "gnu",
-        any(target_arch = "x86_64", target_arch = "aarch64")));
     let interactive_mcp = !parsed_options.full_access
         && parsed_options.non_interactive_permissions.is_none()
         && parsed_options.permission_mode != Some(acp_types::PermissionMode::DenyAll)
@@ -579,8 +580,6 @@ pub async fn do_stream_request_acp<H: Host>(
         acp_agent_registry::verify_vtcode_mcp_executable(&normalized_acp_cfg.command)
             .map_err(acp_option_error)?;
     }
-    let glm_managed = linux_reviewed_projection_target && acp_agent_name == "glm-acp-agent"
-        && source == AcpModelSource::SessionModel;
     let glm_mcp = glm_managed && !parsed_options.mcp_servers.is_empty();
     if glm_mcp && !interactive_mcp {
         return Err(acp_option_error("GLM Linux MCP requires interactive tool approvals"));
@@ -592,9 +591,6 @@ pub async fn do_stream_request_acp<H: Host>(
     {
         return Err(acp_option_error("VT Code MCP requires a new managed session with tools enabled"));
     }
-    let iflow_managed = cfg!(all(target_os = "linux", target_env = "gnu",
-        any(target_arch = "x86_64", target_arch = "aarch64")))
-        && acp_agent_name == "iflow" && source == AcpModelSource::SessionModel;
     let iflow_mcp = iflow_managed && !parsed_options.mcp_servers.is_empty();
     let iflow_projection_allowed = iflow_managed
         && !parsed_options.full_access
@@ -1285,7 +1281,7 @@ pub async fn do_stream_request_acp<H: Host>(
         if let Some(profile) = launch_profile.as_ref() {
             profile.validate_managed_mcp().map_err(to_api_error)?;
         }
-        if glm_managed && let Some(view) = &parsed_options.skill_view {
+        if (glm_managed || iflow_managed) && let Some(view) = &parsed_options.skill_view {
             view.validate()?;
         }
         let approval = H::approval(&cached_client.permission_confirmation, session_id);

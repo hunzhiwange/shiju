@@ -7,7 +7,7 @@
   "bin": "bundle/entry.js",
   "patched_files": {
     "bundle/entry.js": "55710b7cfea2e5aefebfe0acec4eaf3e647d34538ee5835a3d724a49853d1fa6",
-    "bundle/iflow.js": "644c3ac6bd2358f949f1152e391fd4467222431a008098ccc611cd4d76998df5"
+    "bundle/iflow.js": "2d75d52e0f00f040a4cb8a5dd38822f810b29ca40894dddd8e488e2b20731672"
   },
   "targets": {
     "x86_64": {
@@ -24,5 +24,5 @@
     }
   },
   "revision": "iflow-0.5.19-model-source-v4",
-  "overlay_sha256": "562d39a46ea2d2194e5b16e812b0e1f2ce2e931ea60e64944f8899fe878323ad"
+  "overlay_sha256": "619afb04cbde445ad868abe64a666e3fccd7c7991ab47530c0f91fc03a5fae30"
 }

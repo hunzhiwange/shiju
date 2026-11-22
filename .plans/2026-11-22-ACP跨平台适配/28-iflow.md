@@ -4,7 +4,7 @@
 
 批次：【批次 3】 依赖：批次 1、2
 
-状态：已阻塞
+状态：待回归
 
 来源任务：无
 
@@ -66,3 +66,11 @@
 - 受管 MCP 批准仍用 `shiju.iflow/tool-v3`，其中 relay 身份为 `mcp__<service>__<tool>`。`tools/call` 发送原始参数及 `params._meta.shijuCallId`，ID 沿用同一 ACP 批准帧。任务 4/48 从所选 relay catalog 绑定服务、参数、ID、提示和启动租约，在 stdio 执行前原子消费。服务器连接仅允许实际投影对象与固定的同源 URL，拒绝重定向。相同 ACP ID 的 load 在启动替代前删除旧会话、取消提示、使旧 transport 失效并停止旧 MCP manager，拒绝并行的新建/恢复。宿主撤除或轮次失效须同步撤销 relay 租约；选择变化需轮换或按新目录收紧宿主执行范围。
 - 合并宿主 Linux 启动隔离和 stdio relay 前仍标记已阻塞，两个目标都必须保持现有生产拒绝。当前适配器可交付的 MCP 子集是宿主审定、原生项目来源或外挂来源、由 relay 执行的单次调用。运行前需任务 2/4 保护原生声明读取范围、进程启动与可撤销 relay，任务 48 在正确的网关路径接线。不能根据本轮静态证据宣布即时撤销、安装、协议兼容或完整原生工具行为通过。
 - 复用上游 SRI 和架构证据，静态重新生成 v4，校验补丁上下文、摘要、Python AST、改动 Rust 文件格式以及 bundle JS 语法。未启动供应商入口，未跑测试、安装、编译或容器。后续两目标运行 `python3 patches/acp-model-source/iflow/linux_mcp_contract_test.py`（预期 4 项）及原 ignored 网关命令（令 `IFLOW_COEXISTENCE_RUNTIME` 指向 v4 安装根）。网关用例按 relay 审批名、两类技能、工具回执及拒绝/移除副作用验收。
+
+
+## v4 生产接线复核
+
+- 复核 `bb4129467` 和所含前置接线。Linux GNU x86_64、aarch64 已从正常网关请求进入受管选模和交互审批。宿主把经过审定的项目及会话服务投影到同一回合，按来源、工具、参数和调用 ID 消费许可。撤除任一引用可撤销旧 batch 并中止当前回合。生产 Host 夹具覆盖双来源独立执行、交叉许可及重放拒绝、项目撤权与会话撤除；此前“受管启动一律拒绝”和“待 MCP 接线”的结论已被该窄路径取代。
+- iFlow 项目原生 Skill、工作区文件读取及外挂技能扫描使用已有受管路径。补齐新建历史持久化与 Linux 恢复校验，缺失、格式错误或 ID 不匹配的历史会报错。新增网关夹具在同一会话先调用原生及外挂技能并读取附件，撤除外挂后恢复两轮，分开确认历史连续、当前目录撤除及当轮批准和工具结果。历史中已经批准的可见内容保留，后续测试核验当前技能目录及新的访问。MCP 并存及撤权由生产 Host 夹具覆盖，暂时没有合并为一次真实供应商 MCP 网关回合的收据。
+- 已接子集为固定 v4 制品、Chat Completions 选模、原生 Skill/读工具与选中技能、受审项目及会话 MCP、交互单次批准、原 ID load 和撤除。独立 shell/终端及子代理执行、斜杠自动化、隐式附件、供应商直连 MCP 与 headless 仍受显式限制；本轮未放开这些能力。普通 `cli_local` 沿用原生账户，Linux 会话外挂 MCP 仅开放受管模式。
+- 已从锁定归档静态重建 v4，更新补丁和 bundle 摘要，核对补丁上下文、JS 构建文本语法、Python AST、Rust 格式及定向差异。未执行测试、安装、网关、编译或容器。双目标仍使用非 root、目标架构 Node.js/npm、Bubblewrap、dash、Python 3 和当前网关。获准后分别运行 `python3 patches/acp-model-source/iflow/linux_mcp_contract_test.py`（预期 5 项）、`python3 scripts/cargo_slot.py cargo test -j 1 -p vw-agent --lib acp_platform_iflow_contract_host_project_mcp_revision_and_removal -- --ignored`（预期 1 项）及传入 `SHIJU_ACP_IFLOW_GATEWAY_BIN` 的 `python3 scripts/cargo_slot.py cargo test -j 1 -p llm-runtime --lib acp_platform_iflow_contract_native_approval -- --ignored`（预期 1 项，含同会话技能恢复）。保留任务卡至实际运行验收完成。

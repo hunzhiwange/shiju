@@ -54,6 +54,16 @@ async fn acp_platform_iflow_contract_native_approval() {
     assert!(turns[2]["calls"]["native_read"].is_null());
     assert_eq!(turns[2]["done"], 0);
     assert_eq!(turns[2]["errors"], 1);
+    let gateway = std::env::var_os("SHIJU_ACP_IFLOW_GATEWAY_BIN").unwrap();
+    let gateway = Path::new(&gateway).canonicalize().unwrap();
+    let status = Command::new("python3")
+        .current_dir(Path::new(env!("CARGO_MANIFEST_DIR")).join("../../../scripts"))
+        .args(["-m", "acp_skill_coexistence.iflow", "--gateway-bin"])
+        .arg(gateway)
+        .env("IFLOW_COEXISTENCE_RUNTIME", runtime)
+        .status()
+        .unwrap();
+    assert!(status.success(), "iFlow same-session skill restore failed");
 }
 
 fn run_probe(runtime: &Path) -> Value {

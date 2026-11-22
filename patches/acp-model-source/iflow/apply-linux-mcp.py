@@ -105,6 +105,13 @@ function shijuIFlowIdentity(server, tool) {
     return identity;
 }
 
+function shijuIFlowValidateHistory(history, sessionId) {
+    if (shijuIFlowManaged() &&
+        (!history || history.sessionId !== sessionId || !Array.isArray(history.chatHistory))) {
+        throw El.invalidRequest("Cannot restore iFlow managed session history");
+    }
+}
+
 function shijuIFlowCallParams(call) {
     const params = {name: call.name, arguments: call.args};
     if (shijuIFlowManaged()) {
@@ -251,6 +258,11 @@ if(shijuManaged){n=[];o=undefined;s=undefined;a=undefined;}
         'async shijuOriginalNewSession(e){let r=e.cwd,n=e.mcpServers,')
     source = replace(source, 'this.newSession({sessionId:r,cwd:n,mcpServers:o||[],',
         'this.shijuOriginalNewSession({sessionId:r,cwd:n,mcpServers:o||[],')
+    source = replace(source, 'let m=await this.sessionStorage.loadSession(r);if(!m)',
+        'let m=await this.sessionStorage.loadSession(r);shijuIFlowValidateHistory(m,r);if(!m)')
+    source = replace(source, 'A=new v2t(c,p,this.client,this,b);this.sessions.set(c,A);',
+        'A=new v2t(c,p,this.client,this,b);'
+        'if(shijuIFlowManaged())await A.saveSessionState();this.sessions.set(c,A);')
 
     # Preserve the ACP call ID all the way to the host-side tools/call frame.
     source = replace(source, 'o=[{name:this.serverToolName,args:n}];',

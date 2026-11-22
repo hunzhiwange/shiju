@@ -96,6 +96,14 @@ assert.deepEqual(shijuIFlowCallParams({name: "read", args, shijuCallId: "call-1"
     {name: "read", arguments: args, _meta: {shijuCallId: "call-1"}});
 """)
 
+    def test_missing_or_mismatched_history_cannot_be_replaced(self):
+        self.javascript("""
+assert.doesNotThrow(() => shijuIFlowValidateHistory({sessionId: "same", chatHistory: []}, "same"));
+assert.throws(() => shijuIFlowValidateHistory(null, "same"));
+assert.throws(() => shijuIFlowValidateHistory({sessionId: "other", chatHistory: []}, "same"));
+assert.throws(() => shijuIFlowValidateHistory({sessionId: "same", chatHistory: {}}, "same"));
+""")
+
     def test_restore_retires_old_session_before_loading_replacement(self):
         self.javascript("""
 class Adapter {

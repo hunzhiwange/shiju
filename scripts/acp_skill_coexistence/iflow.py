@@ -106,10 +106,13 @@ def message_text(content):
 
 
 class Probe:
-    def __init__(self, fixtures, mounted, rejected):
+    def __init__(self, fixtures, mounted, rejected, *, mcp=None, current="", previous=""):
         self.fixtures = fixtures
         self.mounted = mounted
         self.rejected = rejected
+        self.mcp = mounted if mcp is None else mcp
+        self.current = current
+        self.previous = previous
         self.requests = 0
         self.calls = {}
         self.completed = {}
@@ -133,14 +136,25 @@ class Probe:
             catalog = tools.get("Skill", {}).get("description", "")
             sections = re.findall(r"<available_skills>(.*?)</available_skills>", catalog, re.S)
             names = set(re.findall(r"<name>\s*([^<\s]+)\s*</name>", "".join(sections)))
-            payload = json.dumps(body)
+            current_messages = messages
+            if self.current:
+                current = next((index for index, row in enumerate(messages)
+                                if row["role"] == "user" and self.current in message_text(row["content"])), None)
+                require(current is not None, "iFlow did not receive the current prompt")
+                if self.previous:
+                    require(any(row["role"] == "user" and self.previous in message_text(row["content"])
+                                for row in messages[:current]), "iFlow did not restore the previous prompt")
+                # Already-approved historical reads may remain in the transcript.
+                current_messages = [row for row in messages[:current] if row["role"] == "system"]
+                current_messages += messages[current:]
+            payload = json.dumps({**body, "messages": current_messages})
             for kind, skill in self.fixtures["skills"].items():
                 visible = kind == "native" or (kind == "selected" and self.mounted)
                 require((skill["name"] in names) == visible, f"unexpected iFlow {kind} catalog")
                 require(skill["body"] not in payload and skill["attachment"] not in payload,
                         "iFlow skill content leaked before activation")
             require(self.fixtures["mcp"] not in payload, "MCP value leaked before invocation")
-            require((MCP_TOOL in tools) == self.mounted, "unexpected iFlow MCP catalog")
+            require((MCP_TOOL in tools) == self.mcp, "unexpected iFlow MCP catalog")
 
         for kind in ("native", "selected") if self.mounted else ("native",):
             skill = self.fixtures["skills"][kind]
@@ -174,7 +188,7 @@ class Probe:
             require(skill["attachment"] in result,
                     f"iFlow {kind} attachment was not read")
 
-        if self.mounted:
+        if self.mcp:
             if "mcp" not in self.calls:
                 return self.call(tools, "mcp", MCP_TOOL, {})
             result, _ = self.result(messages, "mcp")
@@ -263,3 +277,80 @@ class Handler(ProviderHandler):
             self.wfile.write(json.dumps({"id": "chatcmpl-fixture", "object": "chat.completion",
                 "model": body["model"], "choices": [{"index": 0, "finish_reason": finish,
                 "message": dict(delta, role="assistant")}]}).encode())
+
+
+def verify_skill_restore(gateway_bin):
+    """Use one gateway session, then change the active skill selection."""
+    import tempfile
+    from urllib.parse import urlencode
+    from verify_acp_approval import environment, gateway, request
+    from verify_acp_skill_coexistence import (
+        AGENT_PROFILE, PROVIDER, interactive_turn, make_skill, model_server, readback,
+    )
+
+    with tempfile.TemporaryDirectory(prefix="shiju-iflow-restore-") as directory:
+        root = Path(directory).resolve()
+        env = environment(root)
+        env["ACP_COEXISTENCE_KEY"] = secrets.token_hex(24)
+        spec, _ = launch_linux(env)
+        workspace = root / "workspace"
+        workspace.mkdir()
+        selected_parent = workspace / ".shiju/skills"
+        fixtures = {"skills": {
+            "native": make_skill(workspace / NATIVE_DIR, "native"),
+            "selected": make_skill(selected_parent, "selected"),
+            "unselected": make_skill(selected_parent, "unselected"),
+        }, "mcp": secrets.token_hex(24)}
+        query = "?" + urlencode({"directory": str(workspace)})
+        model_id = PROVIDER + "/" + MODEL
+        with model_server(Handler, env["ACP_COEXISTENCE_KEY"]) as model,                 gateway(str(gateway_bin), root, env) as url:
+            request(url, "/global/config", {
+                "workspace_dir": str(workspace), "acp": {"iflow": spec},
+                "providers": {PROVIDER: {
+                    "name": "Private iFlow fixture", "adapter": ADAPTER,
+                    "api": f"http://127.0.0.1:{model.server_port}{API_PATH}",
+                    "env": ["ACP_COEXISTENCE_KEY"],
+                    "models": {MODEL: {
+                        "status": "active", "temperature": True, "tool_call": True,
+                        "limit": {"context": 100000, "output": 1024},
+                    }},
+                }},
+            }, method="PATCH")
+            sid = None
+            previous = ""
+            for mounted in (True, False, False):
+                names = [fixtures["skills"]["selected"]["name"]] if mounted else []
+                request(url, "/global/config", {"agents": {AGENT_PROFILE: {
+                    "enabled": True, "runtime": {"kind": "acp", "backend": "iflow"},
+                    "defaults": {"skills": {"mode": "fixed", "value": names},
+                                 "mcp": {"mode": "fixed", "value": []}},
+                }}}, method="PATCH")
+                if sid is None:
+                    sid = json.loads(request(url, "/session" + query, {"title": "iFlow skill restore"}))["id"]
+                current = "Inspect fixture resources " + secrets.token_hex(12)
+                model.probe = probe = Probe(
+                    fixtures, mounted, False, mcp=False, current=current, previous=previous)
+                body = {"session_id": sid, "agent": AGENT_PROFILE, "acp_model_source": "session_model",
+                        "model": model_id, "options": {"full_access": False, "cwd": str(workspace)},
+                        "messages": [{"role": "user", "content": current}]}
+                stream, decisions, approvals, access = interactive_turn(url, query, body, probe, False)
+                require(not probe.failure, probe.failure)
+                events = [json.loads(line[6:]) for line in stream.splitlines() if line.startswith("data: {")]
+                types = [event.get("type") for event in events]
+                require(types.count("chat.done") == 1 and "chat.error" not in types,
+                        "iFlow restore turn did not complete")
+                require(decisions == [] and approvals == probe.expected_skill_approvals(),
+                        "unexpected approval during iFlow restore")
+                require(set(probe.completed) == set(approvals) and probe.requests > len(approvals),
+                        "iFlow skill results did not reach the model on the current turn")
+                readback(url, query, sid, "iflow", model_id, access)
+                previous = current
+
+
+if __name__ == "__main__":
+    import argparse
+
+    parser = argparse.ArgumentParser(description="Verify iFlow skill changes across a restored session")
+    parser.add_argument("--gateway-bin", type=Path, required=True)
+    args = parser.parse_args()
+    verify_skill_restore(args.gateway_bin.resolve(strict=True))

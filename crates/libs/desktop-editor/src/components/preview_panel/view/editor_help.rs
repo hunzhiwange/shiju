@@ -3,7 +3,7 @@ use super::Message;
 use desktop_ui_controls::system_settings_common::rounded_action_btn_style;
 
 use iced::widget::{Space, button, column, container, row, scrollable, text};
-use iced::{Element, Length};
+use iced::{Border, Element, Length, Theme};
 
 pub fn entries(mac: bool, vim: bool, folding: bool) -> Vec<(&'static str, String)> {
     let command = if mac { "Cmd" } else { "Ctrl" };
@@ -59,13 +59,45 @@ pub fn view(
     let mut body = iced::widget::Column::<Message>::new().spacing(8);
     for (label, key) in entries(cfg!(target_os = "macos"), vim, folding) {
         let item: Element<'_, Message> = if key.is_empty() {
-            text(i18n.__(label)).size(14).into()
+            let heading = text(i18n.__(label)).size(14);
+            match label {
+                "普通模式" | "Vim 模式" => container(heading)
+                    .width(Length::Fill)
+                    .padding([4, 8])
+                    .style(move |theme: &Theme| {
+                        let palette = theme.extended_palette();
+                        let pair = if label == "Vim 模式" {
+                            palette.success.weak
+                        } else {
+                            palette.primary.weak
+                        };
+                        container::Style {
+                            background: Some(pair.color.into()),
+                            text_color: Some(pair.text),
+                            border: Border::default().rounded(5),
+                            ..Default::default()
+                        }
+                    })
+                    .into(),
+                _ => heading.into(),
+            }
         } else {
+            let shortcut = container(text(key).size(12)).padding([3, 6]).style(|theme: &Theme| {
+                let palette = theme.extended_palette();
+                let pair = palette.background.weak;
+                container::Style {
+                    background: Some(pair.color.into()),
+                    text_color: Some(pair.text),
+                    border: Border::default().rounded(4),
+                    ..Default::default()
+                }
+            });
             row![
                 text(i18n.__(label)).size(12).width(Length::Fill),
-                text(key).size(12).width(Length::Fill),
+                container(shortcut).width(Length::Fill),
             ]
             .spacing(8)
+            .align_y(iced::Alignment::Center)
             .into()
         };
         body = body.push(item);

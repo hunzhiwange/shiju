@@ -22,6 +22,7 @@ from . import correlated_result
 MODEL = "deepseek-v4.1-flash-1017"
 ADAPTER = "openai"
 API_PATH = "/v1"
+CHAT_ENDPOINT = f"{API_PATH}/chat/completions"
 TRANSPORT = "stdio"
 NATIVE_DIR = ".claude/skills"
 VERSION = "1.2.46+175654.6f8561fd271f"
@@ -31,6 +32,8 @@ DISABLED_SKILL = "disabled-cortex-probe"
 
 
 def launch(env):
+    if platform.system() == "Linux":
+        return launch_linux(env)
     require((platform.system(), platform.machine()) == ("Darwin", "arm64"),
             "unreviewed Cortex Code platform")
     contract = json.loads((ROOT / "crates/libs/acp-agent-registry/src/managed_runtime"
@@ -55,6 +58,43 @@ def launch(env):
             "unexpected Cortex Code version")
     return {"command": str(target / "cortex"), "args": ["acp", "serve"]}, {
         "version": VERSION, "revision": REVISION, "sha256": contract["files"],
+    }
+
+
+def launch_linux(env):
+    manifest = json.loads((ROOT / "patches/acp-model-source/cortex-code"
+                           / "linux-artifacts.json").read_text())
+    target = manifest["targets"].get(platform.machine())
+    require(target is not None and manifest["version"] == VERSION,
+            "unreviewed Cortex Code Linux artifact")
+    directory = os.environ.get("ACP_CORTEX_REVIEWED_DIR")
+    require(directory, "set ACP_CORTEX_REVIEWED_DIR to the private Linux Cortex fixture")
+    source = Path(directory).resolve(strict=True)
+    runtime = Path(env["VIBEWINDOW_CONFIG_DIR"]) / "acp-runtime"
+    runtime.mkdir(mode=0o700)
+    installation = runtime / source.name
+    shutil.copytree(source, installation, symlinks=True)
+    entry = installation / manifest["entry"]
+    native = installation / "cortex-native"
+    if not native.exists() and not native.is_symlink():
+        native = entry
+    for artifact in (entry, native):
+        require(artifact.is_file() and not artifact.is_symlink() and os.access(artifact, os.X_OK),
+                "missing or redirected Cortex Code Linux executable")
+    with native.open("rb") as handle:
+        digest = hashlib.sha256()
+        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+            digest.update(chunk)
+    require(digest.hexdigest() == target["native_sha256"],
+            "unexpected Cortex Code Linux native executable digest")
+    version_file = installation / "cortex-version.txt"
+    require(version_file.is_file() and not version_file.is_symlink()
+            and version_file.read_text().strip() == VERSION,
+            "unexpected Cortex Code Linux version")
+    # The gateway must validate the reviewed entry itself before it can start a process.
+    return {"command": str(entry), "args": manifest["args"]}, {
+        "version": VERSION, "entry": entry.name, "native_sha256": digest.hexdigest(),
+        "model_endpoint": CHAT_ENDPOINT,
     }
 
 
@@ -201,7 +241,7 @@ class Handler(ProviderHandler):
     def do_POST(self):
         probe = self.server.probe
         try:
-            require(self.path == "/v1/chat/completions", "unexpected Cortex Code model protocol")
+            require(self.path == CHAT_ENDPOINT, "unexpected Cortex Code model protocol")
             require(self.headers.get("Authorization") == "Bearer " + self.server.key,
                     "unauthenticated Cortex Code model request")
             size = int(self.headers["Content-Length"])

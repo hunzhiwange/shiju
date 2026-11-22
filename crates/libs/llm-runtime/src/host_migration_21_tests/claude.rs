@@ -374,6 +374,24 @@ fn acp_platform_claude_contract_checks_managed_settings_drop_ins() {
     target_env = "gnu",
     any(target_arch = "x86_64", target_arch = "aarch64")
 ))]
+#[test]
+#[ignore = "requires a separate installation of the fixed Claude model-only candidate"]
+fn acp_platform_claude_contract_model_only_identity() {
+    use acp_access_policy::access_policy::claude::{
+        verified_linux_engine, verified_linux_model_only_engine,
+    };
+
+    let entry = std::env::var("SHIJU_TEST_CLAUDE_MODEL_ONLY_ENTRY").unwrap();
+    assert!(verified_linux_model_only_engine(&entry, &[]).unwrap().ends_with("cli.js"));
+    assert!(verified_linux_model_only_engine(&entry, &["--cli".into()]).is_none());
+    assert!(verified_linux_engine(&entry, &[], true).is_none());
+}
+
+#[cfg(all(
+    target_os = "linux",
+    target_env = "gnu",
+    any(target_arch = "x86_64", target_arch = "aarch64")
+))]
 #[tokio::test]
 #[ignore = "requires isolated installations of both pinned Claude ACP releases"]
 async fn acp_platform_claude_contract() {

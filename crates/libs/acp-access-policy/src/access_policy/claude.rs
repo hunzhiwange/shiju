@@ -45,7 +45,7 @@ pub fn advertises_mode(options: Option<&[SessionConfigOption]>, value: &str) -> 
 
 /// Verify the actual npm entry and SDK, rather than trusting agentInfo or an npx label.
 pub fn verified_entry(command: &str, args: &[String]) -> bool {
-    args.is_empty() && verified_legacy_engine(command).is_some()
+    args.is_empty() && verified_legacy_engine(command, false).is_some()
 }
 
 /// Resolve the reviewed engine for a managed Linux launch with no CLI overrides.
@@ -59,7 +59,7 @@ pub fn verified_linux_engine(
     if !args.is_empty() || !Path::new(command).is_absolute() {
         return None;
     }
-    let engine = match verified_legacy_engine(command) {
+    let engine = match verified_legacy_engine(command, false) {
         Some(engine) => engine,
         None if native_messages => verified_effort_engine(command)?,
         None => return None,
@@ -67,18 +67,38 @@ pub fn verified_linux_engine(
     engine.canonicalize().ok()
 }
 
-fn verified_legacy_engine(command: &str) -> Option<PathBuf> {
+/// Verify the separate GNU model-only candidate without treating it as the ordinary runtime.
+#[cfg(target_os = "linux")]
+pub fn verified_linux_model_only_engine(command: &str, args: &[String]) -> Option<PathBuf> {
+    if !args.is_empty() || !Path::new(command).is_absolute() {
+        return None;
+    }
+    verified_legacy_engine(command, true)?.canonicalize().ok()
+}
+
+fn verified_legacy_engine(command: &str, model_only: bool) -> Option<PathBuf> {
     let package = adapter_package(command)?;
+    let agent_digest = if model_only {
+        "d6865914e917cf4c166b062078b2af2c21ac3f06bd8c6e7a0bb0982cd19eaa19"
+    } else {
+        "00e66a056cc39ba087dffe63da3b62d27fcff6694e6eee5fe3b25961e6218ddd"
+    };
     let files = [
         ("package.json", "822baae8c24189370708779ece72fef22a741de2981a861bd4bc7ee034ed783d"),
         ("dist/index.js", "2859ccaa5ba91ed27b80614eae47399370015acbcbc7d01d1408c71f7964565d"),
         ("dist/lib.js", "0d80ee1628ae07d4dc7e17a1a59635ad491c6bacdd0d9b7601c3c2a13b5ca45f"),
-        ("dist/acp-agent.js", "00e66a056cc39ba087dffe63da3b62d27fcff6694e6eee5fe3b25961e6218ddd"),
+        ("dist/acp-agent.js", agent_digest),
         ("dist/settings.js", "9bf60a23f0b9dbb4f159f6b6bbb9d334d6f0cb0d9ca5c9531d923635b56a35bb"),
         ("dist/tools.js", "e3fef100a075f727824cc37dbb9629089bab9760c1efc0f761dfe698f75be630"),
         ("dist/utils.js", "2a7cc008c0c0614420ec182e0c680a67a06efdfe3a78960ebebcb032326f06c6"),
     ];
-    if !matches_hashes(&package, &files) {
+    if !matches_hashes(&package, &files)
+        || model_only
+            && !matches_hashes(
+                &package,
+                &[("dist/model-only.mjs", "fb4d6c47d3be3219d8321e1b1a70a798b899f82328d5fb829169ca69ab00882d")],
+            )
+    {
         return None;
     }
     let sdk = node_dependency(&package.join("dist"), "@anthropic-ai/claude-agent-sdk")?;

@@ -8,6 +8,9 @@ root = Path(sys.argv[1])
 linux = sys.argv[2:] == ['--linux']
 if sys.argv[2:] and not linux:
     raise RuntimeError('Unknown Amp patch target')
+entry = root / 'dist/index.js'
+if linux and hashlib.sha256(entry.read_bytes()).hexdigest() != 'fc5aca9122c1c78ebe1a55ec3e0c7e4ebed97fc056f8e01e1fedd9a1d6256737':
+    raise RuntimeError('Amp adapter differs from reviewed input')
 engine = root.parent / '@sourcegraph/amp/dist/main.js'
 if hashlib.sha256(engine.read_bytes()).hexdigest() != '458435712c9c4e222822847fc9e70080cdf023ffb3c820e959a30425a22a5836':
     raise RuntimeError('Amp engine differs from reviewed input')
@@ -90,7 +93,6 @@ globalThis.fetch = (input, init) => {
 """
 s = s.replace('\n', '\n' + guard, 1)
 engine.write_text(s)
-entry = root / 'dist/index.js'
 s = entry.read_text()
 replace('class AmpAcpAgent {', 'class AmpAcpAgent {\n  local;')
 replace('    this.client = client;\n    this.transport = transport;', '    this.client = client;\n    this.local = new LocalAmp(this);\n    this.transport = transport;')
@@ -172,8 +174,15 @@ if linux:
     # selection), and null for disabled tools or DenyAll.
     replace("const SKILL_ENABLE = 'SHIJU_AMP_SKILL_VIEW';", """const SKILL_ENABLE = 'SHIJU_AMP_SKILL_VIEW';
 const toolsEnabled = () => Array.isArray(JSON.parse(process.env[SKILL_ENABLE] ?? 'null'));""")
-    replace('  const selected = Object.create(null);', '''  if (servers.length && !toolsEnabled()) throw Error('Amp MCP requires enabled host tool approvals');
-  const selected = Object.create(null);''')
+    # The Linux host has no isolated process transport to hand the Worker.
+    # Enforce that boundary at ACP new/load/resume as well as in the host.
+    start = s.index('export function selectedStdio(')
+    end = s.index('const SKILL_ENABLE', start)
+    s = s[:start] + '''export function selectedStdio(servers = []) {
+  if (!Array.isArray(servers) || servers.length) throw Error('Amp Linux requires an isolated MCP transport');
+  return Object.create(null);
+}
+''' + s[end:]
     replace("    if (route === '/shiju/tool') {", """    if (route === '/shiju/tool' || route === '/shiju/skill-permission' || route === '/shiju/mcp-permission') {
       if (!toolsEnabled()) throw Error('Amp host tool approvals are disabled');
     }

@@ -1,0 +1,121 @@
+{
+  "package": "@tencent-ai/codebuddy-code",
+  "version": "2.179.3",
+  "tarball": "https://registry.npmjs.org/@tencent-ai/codebuddy-code/-/codebuddy-code-2.179.3.tgz",
+  "integrity": "sha512-SQy1YDuITzH2MClXCrLBVIzW93syDE8VXWsyok8g3eGmahdBE7G+1aR4tBZvQHMwjPANLasTkINM26nUKstPHQ==",
+  "common_dependencies": [
+    {
+      "package": "@lydell/node-pty",
+      "version": "1.2.0-beta.14",
+      "tarball": "https://registry.npmjs.org/@lydell/node-pty/-/node-pty-1.2.0-beta.14.tgz",
+      "integrity": "sha512-RjQis46eBwL9xyDvfXqVsNS2JZ5zQQK/QAYsNE5j8sYPTf4/OpG5Ghm92WGn+w4Rsk3LTpj2adpaZM9Cb8rzDA==",
+      "files": {
+        "index.js": "4d9d98052d80c995aff7e064fe2c54ca88b3c1911abca89ba159a60b087fcedb",
+        "package.json": "6b54ffa1d00c0b171dcdef413dd9eea22589e44e175bc0c267fa0d1942975242"
+      },
+      "executables": []
+    }
+  ],
+  "targets": {
+    "x86_64": {
+      "package_files": {
+        "vendor/genie-trash/linux-x64": "df60478623123ab376ef0286e12128f887920348c9aa5789ba48a4ae0b8c941d",
+        "vendor/ripgrep/x64-linux/rg": "f401154e2393f9002ac77e419f9ee5521c18f4f8cd3e32293972f493ba06fce7",
+        "vendor/ripgrep/x64-linux/ripgrep.node": "64c2d622043f9c75e8121a2f62f2eb8e2b5289d4b24bf7b3d873f000b159127f"
+      },
+      "package_executables": [
+        "vendor/genie-trash/linux-x64",
+        "vendor/ripgrep/x64-linux/rg"
+      ],
+      "dependencies": [
+        {
+          "package": "@tencent-ai/sandbox-cli-linux-x64",
+          "version": "5.12.0-beta.5",
+          "tarball": "https://registry.npmjs.org/@tencent-ai/sandbox-cli-linux-x64/-/sandbox-cli-linux-x64-5.12.0-beta.5.tgz",
+          "integrity": "sha512-eIa7+uoo5aEdr1WRiTyaR65nrx94hZDRieafWxHJQ3b6T9gQ4z85Zz+VklyBVhVh2ZH1caoyzbpIqYB1L9TomQ==",
+          "files": {
+            "bin/betterleaks": "5f43201bc8cd698cb359c9857fc411c64be3b62254288fe30eb2d3ce4fb91810",
+            "bin/sandbox-center": "443c07f72db9bfcbfa46f72413dcfa8f8212a79da187777f47a1d8cede533cf0",
+            "bin/sandbox-cli": "7d6f83951352309c6dc74290f3d8c1dcd59e6de687cb0d0ffba558b09b3c3312",
+            "bin/wb-bridge": "f1eede904e6b898bbd49f47d87680117444d4a5befcbd9bd024894fa8807a26f",
+            "package.json": "5c262117d5b7f976be5bcc3258811ad54de09ad6f6f7a3ba77ead1d17ba95113"
+          },
+          "executables": [
+            "bin/betterleaks",
+            "bin/sandbox-center",
+            "bin/sandbox-cli",
+            "bin/wb-bridge"
+          ]
+        },
+        {
+          "package": "@lydell/node-pty-linux-x64",
+          "version": "1.2.0-beta.14",
+          "tarball": "https://registry.npmjs.org/@lydell/node-pty-linux-x64/-/node-pty-linux-x64-1.2.0-beta.14.tgz",
+          "integrity": "sha512-ijTyPgkECpLkrBqs/uuasaXgjv/lQf+5am19ywF6SQ6PsreHZgT36h2j5cdFTN551KHFEDMl6fCgMPDxEEyqxg==",
+          "files": {
+            "lib/eventEmitter2.js": "f1c14613aa90c10def4ca7238329270871997eb26f919f7074dc25533e3e75dd",
+            "lib/index.js": "17e79806518ab350cd7d729dcc94154c5d770ea03e38e53684c5a8618065f99c",
+            "lib/interfaces.js": "56e4173f09aad26173f9d4c79800fda0b808c34424f987ef8d671cc931119a0a",
+            "lib/terminal.js": "771f5388103c3eb7bc698b589f41c08f06044d96de609eec45c9a79e4ee4fc00",
+            "lib/types.js": "408bf8287717b6322cc380ea66caf1b5e366dcf697707ae2f3cc454e08f3b151",
+            "lib/unixTerminal.js": "63b605fb25c4e6d237493cd1799b01a8d880d89c78850108aae1853d04b4cdf0",
+            "lib/utils.js": "807bc62c8b702377d591136862309718ba48fb2b9eca54f4b25fbe43838c8fc6",
+            "package.json": "32cdea135ec47f487a153cd51d88fb13a5037c672e28b99103beb16a389059c2",
+            "prebuilds/linux-x64/pty.node": "123792d8f22f36d519b21dfb6f4b716f9b18b9e579085ea2840d0773d88d35fd"
+          },
+          "executables": []
+        }
+      ]
+    },
+    "aarch64": {
+      "package_files": {
+        "vendor/genie-trash/linux-arm64": "d2ebc813e0c013c6806364769ce3a2a3e2873ad0c3b5c5b8e883d3cfc8c0507d",
+        "vendor/ripgrep/arm64-linux/rg": "717b20bd9176b6b81ecc9930d342cac9dfa3a129f194ea3923ac5a7fedad7ddf",
+        "vendor/ripgrep/arm64-linux/ripgrep.node": "45b787d7b3ca36c4cf9c0c3a7d92f5b182085f6bd88b942496fe772ff6e8e73b"
+      },
+      "package_executables": [
+        "vendor/genie-trash/linux-arm64",
+        "vendor/ripgrep/arm64-linux/rg"
+      ],
+      "dependencies": [
+        {
+          "package": "@tencent-ai/sandbox-cli-linux-arm64",
+          "version": "5.12.0-beta.5",
+          "tarball": "https://registry.npmjs.org/@tencent-ai/sandbox-cli-linux-arm64/-/sandbox-cli-linux-arm64-5.12.0-beta.5.tgz",
+          "integrity": "sha512-JNngJab/c7xwZwTzNMJOsMF2gMJFN7XCMJsfY1zUTb4+PcH/mc8j+2G+Dnd263eQcyEIYX8Xox6HGhI7C2GqCw==",
+          "files": {
+            "bin/betterleaks": "f59db73604c92ff26f2bf0c6334efb65a2ff5d4af95c71786936a272d5b08162",
+            "bin/sandbox-center": "0af4f2b9c22e006dc5c755252572178a763b2a02cb4071923a9d00bbf6bad51d",
+            "bin/sandbox-cli": "3b65b3cb00bd8349e1b622f1274dc272fd3b0081b73de5697b8d400938b3f30d",
+            "bin/wb-bridge": "4884a3069b34a574e94fdecc430f62f4233657b7f9ee05e7221c65161ac78503",
+            "package.json": "885520c7bbd1bbe74b4bf0aef648211888fa0657ae9575ccb1e93ffd7b0bd0e6"
+          },
+          "executables": [
+            "bin/betterleaks",
+            "bin/sandbox-center",
+            "bin/sandbox-cli",
+            "bin/wb-bridge"
+          ]
+        },
+        {
+          "package": "@lydell/node-pty-linux-arm64",
+          "version": "1.2.0-beta.14",
+          "tarball": "https://registry.npmjs.org/@lydell/node-pty-linux-arm64/-/node-pty-linux-arm64-1.2.0-beta.14.tgz",
+          "integrity": "sha512-xZclf3acgWmHi7VMZeVBUJRyJQf78pjCkeBf3ofT/5Xvn5QkRICCZJXtcg1f2lJoCtdF1OWHkeddmJgVDOSv6Q==",
+          "files": {
+            "lib/eventEmitter2.js": "f1c14613aa90c10def4ca7238329270871997eb26f919f7074dc25533e3e75dd",
+            "lib/index.js": "17e79806518ab350cd7d729dcc94154c5d770ea03e38e53684c5a8618065f99c",
+            "lib/interfaces.js": "56e4173f09aad26173f9d4c79800fda0b808c34424f987ef8d671cc931119a0a",
+            "lib/terminal.js": "771f5388103c3eb7bc698b589f41c08f06044d96de609eec45c9a79e4ee4fc00",
+            "lib/types.js": "408bf8287717b6322cc380ea66caf1b5e366dcf697707ae2f3cc454e08f3b151",
+            "lib/unixTerminal.js": "63b605fb25c4e6d237493cd1799b01a8d880d89c78850108aae1853d04b4cdf0",
+            "lib/utils.js": "807bc62c8b702377d591136862309718ba48fb2b9eca54f4b25fbe43838c8fc6",
+            "package.json": "a2c5619ecc63fd1c200dba7a4c814a1b54b993f1e8bcc01953c06120d7a2cb5a",
+            "prebuilds/linux-arm64/pty.node": "5a3b8930d62535edabec2eac79fe8eca70a178d93fbb76b1ae875dd60ee8f825"
+          },
+          "executables": []
+        }
+      ]
+    }
+  }
+}

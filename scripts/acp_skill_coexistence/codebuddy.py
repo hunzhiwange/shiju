@@ -23,7 +23,8 @@ MCP_TOOL = "mcp__coexistence__read_probe"
 
 
 def launch(env):
-    require((platform.system(), platform.machine()) == ("Darwin", "arm64"),
+    target = (platform.system(), platform.machine())
+    require(target in {("Darwin", "arm64"), ("Linux", "x86_64"), ("Linux", "aarch64")},
             "unreviewed CodeBuddy platform")
     contract = json.loads((ROOT / "crates/libs/acp-agent-registry/src/managed_runtime/contracts.json")
                           .read_text())["codebuddy"]
@@ -33,6 +34,7 @@ def launch(env):
     if source := os.environ.get("CODEBUDDY_COEXISTENCE_RUNTIME"):
         runtime = Path(source).resolve()
     else:
+        require(target[0] != "Linux", "Linux probe requires a private CodeBuddy runtime")
         base = Path(os.environ.get("VIBEWINDOW_CONFIG_DIR", Path.home() / ".local/share/shiju"))
         runtime = base / "acp-runtime" / revision
     require((runtime / "node_modules" / contract["package"]).is_dir(),
@@ -49,7 +51,8 @@ def launch(env):
     require(version.returncode == 0 and b"2.179.3" in version.stdout,
             "CodeBuddy entry did not report the pinned version")
     return {"command": str(entry), "args": ["--acp"], "env": {}}, {
-        "version": contract["version"], "sha256": contract["files"]}
+        "version": contract["version"], "sha256": contract["files"],
+        "entry": contract["bin"], "revision": revision}
 
 
 class Probe:
@@ -204,6 +207,7 @@ class Probe:
                 and any(json.loads(value) == arguments for value in attempted if isinstance(value, str))
                 and not any(event.get("status") == "completed" for event in matching)):
             self.completed["mcp"] = call_id
+            return True
 
 
 class Handler(ProviderHandler):

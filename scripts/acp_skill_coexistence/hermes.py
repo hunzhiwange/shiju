@@ -1,6 +1,7 @@
 """Hermes 0.19.0 native skill_view and stdio MCP through Chat Completions."""
 
 import hashlib
+from email.parser import BytesHeaderParser
 from http.server import BaseHTTPRequestHandler
 import json
 import os
@@ -24,8 +25,14 @@ MCP_TOOL = "mcp__coexistence__read_probe"
 
 
 def launch(env, prototype=False):
-    require((platform.system(), platform.machine()) == ("Darwin", "arm64"),
-            "unreviewed Hermes platform")
+    linux = platform.system() == "Linux" and not prototype
+    if linux:
+        manifest = json.loads((ROOT / "patches/acp-model-source/hermes/linux.json").read_text())
+        target = manifest["targets"].get(platform.machine())
+        require(target and platform.libc_ver()[0] == "glibc", "unreviewed Hermes Linux target")
+    else:
+        require((platform.system(), platform.machine()) == ("Darwin", "arm64"),
+                "unreviewed Hermes platform")
     contracts = ROOT / "crates/libs/acp-agent-registry/src/managed_runtime/contracts.json"
     contract = json.loads(contracts.read_text())["hermes"]
     require(contract["version"] == "0.19.0", "Hermes version differs from coexistence pin")
@@ -36,26 +43,49 @@ def launch(env, prototype=False):
                              for name, row in json.loads(metadata.read_text())["files"].items()
                              } | {"mcp/__init__.py": contract["files"]["mcp/__init__.py"]}
     config = Path(os.getenv("VIBEWINDOW_CONFIG_DIR") or Path.home() / ".local/share/shiju")
-    source = Path(os.getenv("HERMES_COEXISTENCE_RUNTIME") or config / "acp-runtime" / revision)
+    supplied = os.getenv("HERMES_COEXISTENCE_RUNTIME")
+    if linux:
+        require(supplied, "set HERMES_COEXISTENCE_RUNTIME to the reviewed Linux fixture runtime")
+    source = Path(supplied or config / "acp-runtime" / revision)
     require(source.is_dir(), "reviewed Hermes runtime is unavailable")
     runtime = Path(env["VIBEWINDOW_CONFIG_DIR"]) / "acp-runtime" / revision
     shutil.copytree(source, runtime, symlinks=True)
-    site = runtime / "lib/python3.12/site-packages"
+    python_version = manifest["python"] if linux else "3.12"
+    site = runtime / f"lib/python{python_version}/site-packages"
     for name, digest in contract["files"].items():
         require((site / name).is_file() and hashlib.sha256((site / name).read_bytes()).hexdigest() == digest,
                 "Hermes artifact differs from contract: " + name)
     entry = runtime / "bin" / contract["bin"]
-    try:
-        version = subprocess.run([str(entry), "acp", "--version"], env=env, capture_output=True,
-                                 text=True, timeout=15)
-    except subprocess.TimeoutExpired:
-        raise AssertionError("Hermes version check timed out") from None
-    require(version.returncode == 0 and re.search(r"\bv?0\.19\.0\b", version.stdout),
-            "Hermes entry did not report the pinned version")
-    return {"command": str(entry), "args": ["acp"], "env": {}}, {
+    if linux:
+        require(entry.is_file() and entry.resolve() == entry and os.access(entry, os.X_OK),
+                "Hermes Linux entry is missing, redirected, or non-executable")
+    else:
+        try:
+            version = subprocess.run([str(entry), "acp", "--version"], env=env, capture_output=True,
+                                     text=True, timeout=15)
+        except subprocess.TimeoutExpired:
+            raise AssertionError("Hermes version check timed out") from None
+        require(version.returncode == 0 and re.search(r"\bv?0\.19\.0\b", version.stdout),
+                "Hermes entry did not report the pinned version")
+    artifact = {
         "version": contract["version"], "sha256": hashlib.sha256(entry.read_bytes()).hexdigest(),
         "contract_files": contract["files"], "wheel_sha256": contract["wheel_sha256"],
     }
+    if linux:
+        require(entry.relative_to(runtime).as_posix() == manifest["entry"]
+                and contract["wheel_sha256"] == manifest["hermes"]["sha256"],
+                "Linux and registry Hermes contracts differ")
+        for name, expected in (("hermes_agent", manifest["hermes"]["version"]),
+                               ("mcp", manifest["mcp"]["version"]),
+                               ("agent_client_protocol", manifest["acp_sdk"]["version"])):
+            [metadata] = site.glob(f"{name}-*.dist-info/METADATA")
+            package = BytesHeaderParser().parsebytes(metadata.read_bytes())
+            require(package["Name"].replace("-", "_") == name and package["Version"] == expected,
+                    "Hermes installed package version mismatch: " + name)
+        artifact.update(target=target, entry=manifest["entry"], mcp_version=manifest["mcp"]["version"],
+                        model_endpoint="/v1/chat/completions")
+    args = manifest["args"] if linux else ["acp"]
+    return {"command": str(entry), "args": args, "env": {}}, artifact
 
 
 class Probe:
@@ -69,6 +99,8 @@ class Probe:
         self.failure = None
         self.audit = None
         self.observe_stdio = observe_stdio
+        self.unmounted_call = None
+        self.unmounted_rejected = False
 
     def response(self, body):
         require(body["model"] == MODEL, "unexpected upstream model")
@@ -114,6 +146,9 @@ class Probe:
                         "selected skill bypassed the session view")
             read = kind + "_read"
             if read not in self.calls:
+                if kind == "native" and platform.system() == "Linux":
+                    return self.call(tools, read, "read_file",
+                                     {"path": str(skill["path"] / "references/value.txt")})
                 return self.call(tools, read, "skill_view",
                                  {"name": skill["name"], "file_path": "references/value.txt"})
             self.result(messages, read, skill["attachment"])
@@ -124,6 +159,20 @@ class Probe:
             if self.rejected:
                 require(re.search(r"denied|reject|cancel", result, re.I) is not None
                         and self.fixtures["mcp"] not in result, "MCP result lacks a rejection")
+        elif platform.system() == "Linux":
+            require(MCP_TOOL not in tools, "unmounted Hermes MCP tool reappeared")
+            if self.unmounted_call is None:
+                self.unmounted_call = "call_" + secrets.token_hex(12)
+                return {"role": "assistant", "content": None, "tool_calls": [{
+                    "id": self.unmounted_call, "type": "function",
+                    "function": {"name": MCP_TOOL, "arguments": "{}"},
+                }]}, "tool_calls"
+            results = [message["content"] for message in messages
+                       if message["role"] == "tool" and message["tool_call_id"] == self.unmounted_call]
+            require(len(results) == 1 and isinstance(results[0], str)
+                    and "does not exist" in results[0] and self.fixtures["mcp"] not in results[0],
+                    "Hermes did not reject the unmounted MCP tool")
+            self.unmounted_rejected = True
         return {"role": "assistant", "content": "COEXISTENCE_DONE"}, "stop"
 
     def result(self, messages, kind, expected):
@@ -146,6 +195,11 @@ class Probe:
             "id": call_id, "type": "function",
             "function": {"name": name, "arguments": json.dumps(arguments)},
         }]}, "tool_calls"
+
+    def observe_terminal(self, _events):
+        if platform.system() == "Linux" and not self.mounted and self.failure is None:
+            require(self.unmounted_rejected, "missing continuation for the unmounted MCP call")
+        return False
 
     def mcp_trace(self, _events):
         return self.audit.read_text().splitlines() if self.audit else [], self.completed.get("mcp")

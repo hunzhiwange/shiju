@@ -225,25 +225,27 @@ pub fn provider_request_options(options: &Value) -> Value {
     options
 }
 
-/// Summarize completed history, including tool rounds after the latest user request.
-/// Preserve that user request verbatim and replace model context only after checkpoint persistence.
+/// Summarize completed history around the user position captured at session ingestion.
+/// Replace model context after checkpoint persistence and move the index to the retained user.
 #[allow(clippy::too_many_arguments)] // Keep request identity, budget, and lifecycle explicit.
 pub fn compact_transient_history_for_request<H: RunnerCheckpointHost + crate::compaction_summary::SummaryHost>(
     session_id: &str,
     checkpoint_source: &[Value],
     llm_messages: &mut Vec<Value>,
+    current_user_index: &mut Option<usize>,
     model: &str,
     reliability: &agent_config::runtime::ReliabilityConfig,
     on_event: &mut impl FnMut(StreamEvent) -> bool,
     cancellation: Option<&tokio_util::sync::CancellationToken>,
     model_limit: &model_types::ModelLimit,
 ) -> Result<bool, String> {
-    let Some(boundary) = llm_messages
-        .iter()
-        .rposition(|message| message.get("role").and_then(Value::as_str) == Some("user"))
-    else {
+    let Some(index) = *current_user_index else {
         return Ok(false);
     };
+    let current_user = llm_messages
+        .get(index)
+        .filter(|message| message["role"] == "user")
+        .ok_or_else(|| "invalid compaction user index".to_string())?;
     if llm_messages.len() == 1 {
         return Ok(false);
     }
@@ -262,16 +264,16 @@ pub fn compact_transient_history_for_request<H: RunnerCheckpointHost + crate::co
         cancellation,
         model_limit,
     )?;
-    let current_user = llm_messages[boundary].clone();
     let replacement = vec![
         json!({ "role": "assistant", "content": format!("[Compaction summary]\n{summary}") }),
-        current_user,
+        current_user.clone(),
     ];
     if cancellation.is_some_and(|token| token.is_cancelled()) {
         return Err("执行已取消".into());
     }
     persist_context_checkpoint::<H>(session_id, checkpoint_source, &replacement)?;
     *llm_messages = replacement;
+    *current_user_index = Some(1);
     H::compact_hook(session_id, session_id, model, true, true)
         .map_err(|error| error.to_string())?;
     on_event(StreamEvent::Compaction { phase: CompactionPhase::Completed });

@@ -539,7 +539,7 @@ fn acp_context_preflight_preserves_large_prompt_without_local_compaction() {
 }
 
 #[test]
-fn compaction_lifecycle_replaces_only_covered_history_after_completion() {
+fn desktop_compaction_user_anchor_preserves_user_source_over_pdf_image() {
     let _guard = super::llm_runner::test_llm_stream_guard();
     super::llm_runner::enqueue_test_llm_stream(vec![
         crate::app::agent::session::llm::StreamEvent::Delta("remembered context".to_string()),
@@ -561,6 +561,20 @@ fn compaction_lifecycle_replaces_only_covered_history_after_completion() {
                 "clientTimeZone": "Asia/Shanghai",
             }
         }),
+        serde_json::json!({
+            "role": "assistant",
+            "tool_calls": [{
+                "id": "pdf-call", "type": "function",
+                "function": {"name": "pdf_read", "arguments": "{}"},
+            }],
+        }),
+        serde_json::json!({
+            "role": "user",
+            "content": "PDF page 1 of 1; PNG 1x1\n[IMAGE:data:image/png;base64,AA==]",
+        }),
+        serde_json::json!({
+            "role": "tool", "tool_call_id": "pdf-call", "content": "Rendered PDF page",
+        }),
     ];
     let mut events = Vec::new();
 
@@ -568,6 +582,7 @@ fn compaction_lifecycle_replaces_only_covered_history_after_completion() {
         "runner-transient-compaction",
         &[],
         &mut messages,
+        &mut Some(3),
         "provider/model",
         &crate::app::agent::config::ReliabilityConfig { provider_retries: 0, ..Default::default() },
         &mut |event| {
@@ -586,6 +601,7 @@ fn compaction_lifecycle_replaces_only_covered_history_after_completion() {
     );
     assert_eq!(messages[1]["content"], "latest request");
     assert_eq!(messages[1]["_vw_source"]["rpcId"], "desktop-compaction-request");
+    assert_eq!(messages[1]["_vw_source"]["clientTimeZone"], "Asia/Shanghai");
     assert_eq!(super::llm_runner::take_test_llm_stream_tool_ids(), vec![Vec::<String>::new()]);
     assert!(matches!(
         events.as_slice(),
@@ -619,6 +635,7 @@ fn compaction_lifecycle_keeps_history_and_omits_completion_when_summary_fails() 
         "runner-transient-compaction-failure",
         &[],
         &mut messages,
+        &mut Some(2),
         "provider/model",
         &crate::app::agent::config::ReliabilityConfig { provider_retries: 0, ..Default::default() },
         &mut |event| {
@@ -1105,6 +1122,7 @@ fn compaction_lifecycle_failure_preserves_multibyte_history() {
         "chunk-failure",
         &[],
         &mut messages,
+        &mut Some(3),
         "provider/model",
         &crate::app::agent::config::ReliabilityConfig { provider_retries: 0, ..Default::default() },
         &mut |event| {
@@ -1143,6 +1161,7 @@ fn compaction_lifecycle_rejects_truncated_summary_without_replacing_history() {
         "truncated-summary",
         &[],
         &mut messages,
+        &mut Some(1),
         "provider/model",
         &crate::app::agent::config::ReliabilityConfig { provider_retries: 0, ..Default::default() },
         &mut |_| true,
@@ -1155,13 +1174,15 @@ fn compaction_lifecycle_rejects_truncated_summary_without_replacing_history() {
 }
 
 #[test]
-fn compaction_lifecycle_can_summarize_successive_tool_rounds_in_one_turn() {
+fn desktop_compaction_user_anchor_survives_identical_tool_message_and_rebuild() {
     let _guard = super::llm_runner::test_llm_stream_guard();
     let user = serde_json::json!({"role": "user", "content": "continue", "_vw_source": {"rpcId": "original"}});
     let mut messages = vec![user.clone()];
+    let mut current_user_index = Some(0);
     for round in 0..2 {
         messages.push(serde_json::json!({"role": "assistant", "tool_calls": [{"id": format!("call-{round}"), "function": {"name": "read", "arguments": "{}"}}]}));
         messages.push(serde_json::json!({"role": "tool", "tool_call_id": format!("call-{round}"), "content": format!("completed tool round {round}")}));
+        messages.push(serde_json::json!({"role": "user", "content": "continue"}));
         super::llm_runner::enqueue_test_llm_stream(vec![
             crate::app::agent::session::llm::StreamEvent::Delta(format!(
                 "remembered round {round}"
@@ -1176,6 +1197,7 @@ fn compaction_lifecycle_can_summarize_successive_tool_rounds_in_one_turn() {
                 "successive-rounds",
                 &[],
                 &mut messages,
+                &mut current_user_index,
                 "provider/model",
                 &crate::app::agent::config::ReliabilityConfig {
                     provider_retries: 0,
@@ -1189,6 +1211,7 @@ fn compaction_lifecycle_can_summarize_successive_tool_rounds_in_one_turn() {
         );
         assert_eq!(messages.len(), 2);
         assert_eq!(messages[1], user);
+        assert_eq!(current_user_index, Some(1));
         assert!(
             messages[0]["content"].as_str().unwrap().contains(&format!("remembered round {round}"))
         );
@@ -1221,6 +1244,7 @@ fn compaction_checkpoint_replays_after_restart_without_rewriting_chat() {
         &id,
         &raw,
         &mut context,
+        &mut Some(2),
         "provider/model",
         &crate::config::ReliabilityConfig { provider_retries: 0, ..Default::default() },
         &mut |event| {
@@ -1267,6 +1291,7 @@ fn compaction_checkpoint_failure_keeps_context_and_never_emits_completion() {
         "../invalid",
         &raw,
         &mut context,
+        &mut Some(1),
         "provider/model",
         &crate::config::ReliabilityConfig { provider_retries: 0, ..Default::default() },
         &mut |event| {
@@ -2405,6 +2430,7 @@ fn codex_plugin_compat_t10_compaction_restores_qualified_invocation_arguments() 
         "t10-compaction",
         &[],
         &mut history,
+        &mut Some(2),
         "provider/model",
         &crate::config::ReliabilityConfig { provider_retries: 0, ..Default::default() },
         &mut |_| true,
@@ -2456,6 +2482,7 @@ fn codex_plugin_compat_t42_processor_emits_around_real_summary() {
             &session,
             &[],
             &mut history,
+            &mut Some(2),
             "fixture/model",
             &crate::config::ReliabilityConfig { provider_retries: 0, ..Default::default() },
             &mut |_| true,

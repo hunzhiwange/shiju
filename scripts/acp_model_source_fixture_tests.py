@@ -377,6 +377,33 @@ class GeminiContract(unittest.TestCase):
 
 
 class LocalModelContract(unittest.TestCase):
+    def test_removed_mount_rejects_old_catalog_and_keeps_native_continuation(self):
+        with ModelFixture(local_protocol="chat") as fixture:
+            fixture.mount_turn = ("removed-probe", False)
+            read = {"name": "read_file", "parameters": {"properties": {"path": {}}}}
+            body = {"model": fixture.models[0], "tools": [{"type": "function", "function": read}],
+                    "messages": [{"role": "user", "content": "removed-probe"}]}
+
+            def request():
+                req = urllib.request.Request(fixture.url + fixture.local_route, json.dumps(body).encode(),
+                                             {"Authorization": "Bearer " + fixture.key})
+                with urllib.request.urlopen(req) as reply:
+                    return json.load(reply)["choices"][0]["message"]
+
+            body["tools"].append({"type": "function", "function": {"name": fixture.mcp_tool}})
+            with self.assertRaises(urllib.error.HTTPError):
+                request()
+            body["tools"].pop()
+            message = request()
+            call_id = message["tool_calls"][0]["id"]
+            self.assertEqual(fixture.pending_call["id"], call_id)
+            body["messages"] += [message, {"role": "tool", "tool_call_id": call_id,
+                                           "content": fixture.challenge}]
+            self.assertIn(fixture.challenge, request()["content"])
+            row = fixture.snapshot()["requests"][-1]
+            self.assertEqual(row["continued_tools"], ["native"])
+            self.assertEqual(row["continued_call_ids"], [call_id])
+
     def test_protocols_require_matching_native_and_mcp_results(self):
         from acp_model_source_fixture import LOCAL_MODEL_ROUTES
 

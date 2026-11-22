@@ -42,6 +42,8 @@ class ModelFixture:
         self.mcp_challenge = secrets.token_hex(16)
         self.text_only_model = "acp-fixture-text-only"
         self.issued_calls = {}
+        self.mount_turn = None
+        self.pending_call = None
         if self.local_route:
             self.models += (self.text_only_model,)
         fixture = self
@@ -154,8 +156,10 @@ class ModelFixture:
                 model = body["model"]
                 if model == fixture.text_only_model and tools:
                     raise ValueError("tools_unsupported")
+                turn = fixture.mount_turn
                 start = next((index for index in range(len(messages) - 1, -1, -1)
-                              if messages[index].get("role") == "user"), None)
+                              if messages[index].get("role") == "user" and
+                              (turn is None or turn[0] in json.dumps(messages[index].get("content")))), None)
                 if start is None:
                     raise ValueError("missing local model prompt")
                 user = messages[start]
@@ -163,15 +167,17 @@ class ModelFixture:
                            for message in messages[start + 1:] if message.get("role") == "tool"]
                 continued = []
                 parent = None
-                stages = ("native", "mcp")
+                stages = ("native", "mcp") if turn is None or turn[1] else ("native",)
                 with fixture.lock:
+                    if turn is not None and any(tool.get("name") == fixture.mcp_tool for tool in tools) != turn[1]:
+                        raise ValueError("tools_missing")
                     for call_id, output in outputs:
                         if len(continued) == len(stages):
                             raise ValueError("continuation")
                         stage = stages[len(continued)]
                         expected = fixture.challenge if stage == "native" else fixture.mcp_challenge
                         if (not isinstance(call_id, str)
-                                or fixture.issued_calls.get(call_id) != (model, stage, parent)
+                                or fixture.issued_calls.get(call_id) != (model, stage, parent, turn)
                                 or expected not in json.dumps(output)):
                             raise ValueError("continuation")
                         continued.append(stage)
@@ -196,10 +202,14 @@ class ModelFixture:
                                 raise ValueError("tools_missing")
                             arguments = {}
                         call_id = "call_fixture_" + secrets.token_hex(12)
-                        fixture.issued_calls[call_id] = (model, stage, parent)
+                        fixture.issued_calls[call_id] = (model, stage, parent, turn)
                         call = {"id": call_id, "name": tool["name"], "input": arguments}
-                    fixture.records.append({"model": model, "authenticated": True, "route": fixture.local_route,
-                                            "tool_results": len(continued), "continued_tools": continued})
+                    record = {"model": model, "authenticated": True, "route": fixture.local_route,
+                              "tool_results": len(continued), "continued_tools": continued}
+                    if turn is not None:
+                        fixture.pending_call = call
+                        record["continued_call_ids"] = [call_id for call_id, _ in outputs]
+                    fixture.records.append(record)
                 if cancelled:
                     time.sleep(5)
                 return call
@@ -249,9 +259,17 @@ class ModelFixture:
                             and "</conversation>" in json.dumps(m.get("content"))
                             for m in messages if m.get("role") == "user"))
                     local_call = None
+                    reply_text = "FIXTURE_MODEL_REPLY " + fixture.challenge
                     if fixture.local_route:
-                        local_call = self.local_tool_call(
-                            body, [tool.get("function", {}) for tool in tools], messages)
+                        turn = fixture.mount_turn
+                        if turn is not None and not tools and turn[0] not in json.dumps(messages):
+                            with fixture.lock:
+                                fixture.records.append({"model": model, "authenticated": True,
+                                                        "route": self.path, "auxiliary": True})
+                            reply_text = "Fixture auxiliary reply"
+                        else:
+                            local_call = self.local_tool_call(
+                                body, [tool.get("function", {}) for tool in tools], messages)
                     else:
                         with fixture.lock:
                             delay_next_request = fixture.delay_next_request
@@ -301,7 +319,7 @@ class ModelFixture:
                         message = {"role": "assistant", "content": None, "tool_calls": [call]}
                         finish = "tool_calls"
                     else:
-                        message = {"role": "assistant", "content": "FIXTURE_MODEL_REPLY " + fixture.challenge}
+                        message = {"role": "assistant", "content": reply_text}
                         finish = "stop"
                     response_id = "fixture-" + secrets.token_hex(12)
                     if body.get("stream"):

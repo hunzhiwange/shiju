@@ -4,13 +4,17 @@ import argparse
 import json
 import os
 from pathlib import Path
+import platform
 import queue
 import signal
 import sqlite3
 import subprocess
+import sys
 import tempfile
 import threading
 import time
+import uuid
+from contextlib import ExitStack, contextmanager
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -81,10 +85,11 @@ class ProviderHandler(BaseHTTPRequestHandler):
 
 
 class Process:
-    def __init__(self, command, cwd, env, log):
+    def __init__(self, command, cwd, env, log, *, own_session=False):
         self.log = log.open("w")
         self.child = subprocess.Popen(command, cwd=cwd, env=env, stdin=subprocess.PIPE,
-                                      stdout=subprocess.PIPE, stderr=self.log, text=True, bufsize=1)
+                                      stdout=subprocess.PIPE, stderr=self.log, text=True, bufsize=1,
+                                      start_new_session=own_session)
         self.frames = queue.Queue()
         self.received = []
         self.reader = threading.Thread(target=self.read, daemon=True)
@@ -115,9 +120,11 @@ class Process:
         events = []
         deadline = time.monotonic() + 30
         while True:
-            frame = self.frames.get(timeout=max(0.01, deadline - time.monotonic()))
+            remaining = deadline - time.monotonic()
+            require(remaining > 0, f"ACP response timed out for {method}")
+            frame = self.frames.get(timeout=remaining)
             require("eof" not in frame and "invalid_stdout" not in frame, str(frame))
-            if frame.get("id") == request_id:
+            if frame.get("id") == request_id and "method" not in frame:
                 require("error" not in frame, str(frame))
                 return frame["result"], events
             events.append(frame)
@@ -142,7 +149,7 @@ def text_updates(frames):
             and frame["params"]["update"].get("sessionUpdate") == "agent_message_chunk"]
 
 
-def prepare(output, port):
+def prepare(output, port, config_overrides=None):
     from system_config_fixture import seed_system_config
 
     home, cwd = output / "home", output / "cwd"
@@ -158,6 +165,7 @@ def prepare(output, port):
                         model: {"status": "active", "tool_call": True,
                                 "limit": {"context": 100000, "output": 1024}}
                         for model in ("alpha", "beta")}}}}
+    config.update(config_overrides or {})
     database = home / ".shiju-harness-dev/database/vibe-window.sqlite3"
     database.parent.mkdir(parents=True)
     with sqlite3.connect(database) as connection:
@@ -279,16 +287,354 @@ def cleanup_owners(output, acp):
             pass
 
 
+NATIVE_MCP = "mcp__native_probe__read_probe"
+ATTACHED_MCP = "mcp__attached_probe__read_probe"
+
+
+def platform_receipts(messages, marker, issued):
+    anchors = [index for index, message in enumerate(messages)
+               if message["role"] == "user" and marker in json.dumps(message["content"])]
+    require(len(anchors) == 1, "model continuation lacks a unique current prompt")
+    current = messages[anchors[0] + 1:]
+    calls = [call["id"] for message in current if message["role"] == "assistant"
+             for call in message.get("tool_calls") or []]
+    receipts = [message for message in current if message["role"] == "tool"]
+    require(calls == issued == [message["tool_call_id"] for message in receipts],
+            "model continuation has missing, foreign or duplicate call IDs")
+    return receipts
+
+
+def verify_platform_catalog(tools, *, mounted):
+    require(NATIVE_MCP in tools, "native MCP missing")
+    require((ATTACHED_MCP in tools) == mounted,
+            "attached MCP missing" if mounted else "removed MCP still advertised")
+
+
+def verify_platform_audit(before, after, *, mounted, rejected=False):
+    require(after[0] == before[0] + 1, "native MCP audit must record one call")
+    require(after[1] == before[1] + int(mounted and not rejected),
+            "attached MCP audit differs from the current approval and mount state")
+
+
+@contextmanager
+def loopback(handler, **state):
+    with ThreadingHTTPServer(("127.0.0.1", 0), handler) as server:
+        server.daemon_threads = True
+        vars(server).update(state)
+        worker = threading.Thread(target=server.serve_forever, daemon=True)
+        worker.start()
+        try:
+            yield server
+        finally:
+            server.shutdown()
+            worker.join()
+
+
+class PlatformModel(ProviderHandler):
+    def do_POST(self):
+        body = json.loads(self.rfile.read(int(self.headers["Content-Length"])))
+        turn = self.server.turn
+        try:
+            require(self.path == "/v1/chat/completions" and body.get("stream") is True,
+                    "expected streaming OpenAI Chat Completions")
+            require(body["model"] == turn["model"], "unexpected requested model")
+            messages = body["messages"]
+            turn["receipts"] = receipts = platform_receipts(messages, turn["marker"], turn["issued"])
+            if turn.get("history"):
+                require(any(message["role"] == "user" and turn["history"] in json.dumps(message["content"])
+                            for message in messages), "restored history missing from model request")
+            tools = {tool["function"]["name"] for tool in body.get("tools", [])}
+            step = len(receipts)
+            plan = turn["plan"]
+            if step:
+                name, _, expected = plan[step - 1]
+                content = str(receipts[-1]["content"])
+                if expected is None:
+                    require(turn["attached_value"] not in content
+                            and any(word in content.lower() for word in ("denied", "rejected", "拒绝")),
+                            "attached MCP refusal lacked its correlated rejection receipt")
+                else:
+                    require(expected in content, f"{name} continuation missing its fixture value")
+            # MCP tools are dynamic. Check the catalog after the real tool_search call.
+            if step and plan[step - 1][0] == "tool_search":
+                catalog = str(receipts[-1]["content"])
+                candidates = {name for name in (NATIVE_MCP, ATTACHED_MCP)
+                              if name in tools or name in catalog}
+                verify_platform_catalog(candidates, mounted=turn["mounted"])
+            self.send_response(200)
+            self.send_header("Content-Type", "text/event-stream")
+            self.end_headers()
+            if turn.get("cancel"):
+                for _ in range(200):
+                    self.chunk(body["model"], {"content": "PLATFORM_WAITING"}, None)
+                    time.sleep(.1)
+                raise AssertionError("cancelled prompt kept its model stream open")
+            elif step == len(plan):
+                self.chunk(body["model"], {"content": "PLATFORM_COMPLETE"}, None)
+                self.chunk(body["model"], {}, "stop")
+            else:
+                name, args, _ = plan[step]
+                require(name in tools, f"tool was not offered by the runtime: {name}")
+                call_id = "platform_" + uuid.uuid4().hex
+                turn["issued"].append(call_id)
+                self.chunk(body["model"], {"tool_calls": [{
+                    "index": 0, "id": call_id, "type": "function",
+                    "function": {"name": name, "arguments": json.dumps(args)},
+                }]}, None)
+                self.chunk(body["model"], {}, "tool_calls")
+            self.wfile.write(b"data: [DONE]\n\n")
+            self.wfile.flush()
+        except (BrokenPipeError, ConnectionResetError):
+            if not turn.get("cancel"):
+                turn["failure"] = "model connection closed before completing the turn"
+        except Exception as error:
+            turn["failure"] = str(error)
+            raise
+
+
+def owned_session_pids(sid):
+    listing = subprocess.check_output(["ps", "-axo", "pid=,sid=,stat="], text=True)
+    return {int(pid) for pid, session, status in map(str.split, listing.splitlines())
+            if int(session) == sid and not status.startswith("Z")}
+
+
+@contextmanager
+def platform_process(command, cwd, env, log):
+    process = Process(command, cwd, env, log, own_session=True)
+    sid = process.child.pid
+    try:
+        yield process
+    finally:
+        try:
+            process.close()
+            deadline = time.monotonic() + 5
+            while owned_session_pids(sid) and time.monotonic() < deadline:
+                time.sleep(.05)
+            require(process.child.returncode == 0, "ACP host did not exit cleanly")
+            require(not owned_session_pids(sid), "ACP host leaked processes in its own OS session")
+        finally:
+            for pid in owned_session_pids(sid):
+                try:
+                    if os.getsid(pid) == sid:
+                        os.kill(pid, signal.SIGKILL)
+                except ProcessLookupError:
+                    pass
+
+
+def platform_scenarios(shiju, output):
+    from acp_mount_integration import McpHandler
+    from verify_acp_skill_coexistence import make_skill
+
+    with ExitStack() as stack:
+        model = stack.enter_context(loopback(PlatformModel))
+        configuration = {"autonomy": {"level": "supervised", "always_ask": [ATTACHED_MCP]}}
+        env, cwd = prepare(output, model.server_port, configuration)
+        native = make_skill(cwd / ".shiju/skills", "native")
+        attached = make_skill(output / "skills", "attached")
+        database = Path(env["VIBEWINDOW_CONFIG_DIR"]) / "database/vibe-window.sqlite3"
+        with sqlite3.connect(database) as connection:
+            connection.execute(
+                "CREATE TABLE gateway_settings (platform_id TEXT NOT NULL, company_id TEXT NOT NULL, "
+                "namespace TEXT NOT NULL, config_key TEXT NOT NULL, payload_json TEXT NOT NULL, "
+                "updated_at_ms INTEGER NOT NULL, PRIMARY KEY(platform_id,company_id,namespace,config_key))"
+            )
+            preferences = {"permission": {"skill": {native["name"]: "allow", attached["name"]: "allow"}}}
+            connection.execute("INSERT INTO gateway_settings VALUES (?,?,?,?,?,?)", (
+                "10000", "100000000", "desktop.preferences", "default", json.dumps(preferences), 1,
+            ))
+        configs, audits, values = {}, [], []
+        for name in ("native_probe", "attached_probe"):
+            attachment = output / (name + ".txt")
+            value = uuid.uuid4().hex
+            attachment.write_text(value)
+            audit = output / (name + ".audit")
+            if name == "native_probe":
+                configs[name] = {"name": name, "command": sys.executable, "args": [
+                    str(ROOT / "scripts/acp_mount_integration.py"), "--mcp-stdio",
+                    str(attachment), str(audit),
+                ]}
+            else:
+                mcp = stack.enter_context(loopback(
+                    McpHandler, attachment=attachment, audit=audit,
+                    channels={}, stopping=threading.Event(),
+                ))
+                configs[name] = {"name": name, "type": "http",
+                                 "url": f"http://127.0.0.1:{mcp.server_port}/mcp"}
+            audits.append(audit)
+            values.append(value)
+        (cwd / ".vwacprc.json").write_text(json.dumps({"mcpServers": [configs["native_probe"]]}))
+
+        def audit_counts():
+            return tuple(len(path.read_text().splitlines()) if path.exists() else 0 for path in audits)
+
+        def connect(log):
+            return platform_process([str(shiju), "acp"], cwd, env, output / log)
+
+        def initialize(client):
+            capabilities, _ = client.call("initialize", {"protocolVersion": 1, "clientCapabilities": {}})
+            require(capabilities["protocolVersion"] == 1, "ACP protocol version")
+            require(capabilities["_meta"]["shiju.mounts"]["setMounts"], "ACP mount update capability")
+            return capabilities["agentCapabilities"]
+
+        def probe(client, session, phase, mounted=False, rejected=False, history=None):
+            marker = f"ACP_{phase}_" + uuid.uuid4().hex
+            plan = [
+                ("skill", {"skill": native["name"]}, f'Skill "{native["name"]}" loaded.'),
+                ("file_read", {"path": str(native["path"] / "references/value.txt")}, native["attachment"]),
+                ("skill", {"skill": attached["name"]},
+                 f'Skill "{attached["name"]}" loaded.' if mounted else "未找到技能"),
+            ]
+            if mounted:
+                plan.append(("file_read", {"path": str(attached["path"] / "references/value.txt")},
+                             attached["attachment"]))
+            plan += [
+                ("tool_search", {"query": "read_probe", "limit": 10}, NATIVE_MCP),
+                (NATIVE_MCP, {}, values[0]),
+            ]
+            if mounted:
+                plan.append((ATTACHED_MCP, {}, None if rejected else values[1]))
+            model.turn = {"marker": marker, "model": "beta", "plan": plan, "issued": [],
+                          "mounted": mounted, "history": history, "attached_value": values[1]}
+            before = audit_counts()
+            decisions = []
+
+            def permission(frame):
+                if frame.get("method") != "session/request_permission":
+                    return
+                params = frame["params"]
+                require(params["sessionId"] == session, "permission requested for another session")
+                step = len(model.turn["issued"])
+                require(step and step <= len(plan), "permission outside a model tool call")
+                tool = plan[step - 1][0]
+                call = params["toolCall"]
+                require(call["toolCallId"] == model.turn["issued"][-1] and call["title"] == tool,
+                        "permission did not identify the current model call")
+                denied = tool == ATTACHED_MCP and rejected
+                kind = "reject_once" if denied else "allow_once"
+                if tool == ATTACHED_MCP:
+                    require(audit_counts()[1] == before[1], "attached MCP executed before approval")
+                    decisions.append(kind)
+                option = next(option for option in params["options"] if option["kind"] == kind)
+                response = {"jsonrpc": "2.0", "id": frame["id"], "result": {
+                    "outcome": {"outcome": "selected", "optionId": option["optionId"]}}}
+                client.child.stdin.write(json.dumps(response) + "\n")
+                client.child.stdin.flush()
+
+            try:
+                result, events = client.call("session/prompt", {"sessionId": session, "prompt": [
+                    {"type": "text", "text": marker}]}, on_frame=permission)
+            except (AssertionError, queue.Empty):
+                require(not model.turn.get("failure"), model.turn.get("failure"))
+                raise
+            require(not model.turn.get("failure"), model.turn.get("failure"))
+            require(all(frame["params"]["sessionId"] == session for frame in events
+                        if frame.get("method") == "session/update"), "foreign ACP session update")
+            require(result["stopReason"] == "end_turn" and "PLATFORM_COMPLETE" in text_updates(events),
+                    f"{phase} did not finish after all correlated receipts")
+            require(decisions == (["reject_once" if rejected else "allow_once"] if mounted else []),
+                    "unexpected attached MCP approval receipts")
+            verify_platform_audit(before, audit_counts(), mounted=mounted, rejected=rejected)
+            return marker
+
+        report = {}
+        with connect("platform-host.log") as client:
+            initialize(client)
+            params = {"cwd": str(cwd), "mcpServers": []}
+            created, _ = client.call("session/new", params)
+            sid = created["sessionId"]
+            client.call("session/set_model", {"sessionId": sid, "modelId": "fixture/beta"})
+            revision = created["_meta"]["shiju.mounts"]["revision"]
+            require(audit_counts() == (0, 0), "discovery executed an MCP tool")
+            baseline = probe(client, sid, "baseline")
+            report["baseline"] = True
+
+            def update(servers, skills):
+                nonlocal revision
+                before = audit_counts()
+                changed, _ = client.call("_shiju/session/set_mounts", {"sessionId": sid,
+                    "expectedRevision": revision, "skills": skills, "mcpServers": servers})
+                require(changed["skills"] == [item["name"] for item in skills]
+                        and changed["mcpServers"] == [item["name"] for item in servers]
+                        and changed["revision"] > revision, "mount revision or readback mismatch")
+                require(audit_counts() == before, "mount update executed an MCP tool")
+                revision = changed["revision"]
+
+            update([configs["attached_probe"]],
+                   [{"name": attached["name"], "path": str(attached["path"])}])
+            probe(client, sid, "mounted", mounted=True)
+            report["approved"] = True
+            probe(client, sid, "rejected", mounted=True, rejected=True)
+            report["rejected"] = True
+            update([], [])
+            probe(client, sid, "removed")
+            report["removed"] = True
+            marker = "ACP_CANCEL_" + uuid.uuid4().hex
+            model.turn = {"marker": marker, "model": "beta", "plan": [], "issued": [], "cancel": True}
+            cancelled = None
+
+            def cancel(frame):
+                nonlocal cancelled
+                if cancelled is None and "PLATFORM_WAITING" in "".join(text_updates([frame])):
+                    client.send("session/cancel", {"sessionId": sid}, notification=True)
+                    cancelled = time.monotonic()
+
+            before = audit_counts()
+            result, _ = client.call("session/prompt", {"sessionId": sid, "prompt": [
+                {"type": "text", "text": marker}]}, on_frame=cancel)
+            require(cancelled is not None and time.monotonic() - cancelled < 5
+                    and result["stopReason"] == "cancelled", "ACP prompt did not cancel promptly")
+            require(audit_counts() == before, "cancelled turn called a fixture service")
+            report["cancelled"] = True
+
+        with connect("platform-recovered.log") as client:
+            agent = initialize(client)
+            require(agent.get("loadSession") is True, "ACP load capability")
+            before = audit_counts()
+            loaded, _ = client.call("session/load", {**params, "sessionId": sid})
+            mounts = loaded["_meta"]["shiju.mounts"]
+            require(mounts["revision"] == revision and mounts["skills"] == [] and mounts["mcpServers"] == [],
+                    "removed mounts reappeared on restart")
+            require(loaded["models"]["currentModelId"] == "fixture/beta", "restored model")
+            require(audit_counts() == before, "session load executed an MCP tool")
+            probe(client, sid, "recovered", history=baseline)
+            report["recovered"] = True
+            if (agent.get("sessionCapabilities") or {}).get("fork") is not None:
+                forked, _ = client.call("session/fork", {**params, "sessionId": sid})
+                require(forked["sessionId"] != sid, "fork must bind a different session")
+                probe(client, forked["sessionId"], "forked", history=baseline)
+                report["fork"] = True
+            else:
+                report["fork"] = "not advertised"
+        report["owned_processes_cleaned"] = True
+        return report
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--shiju", type=Path, default=ROOT / "target-dir/debug/shiju")
     parser.add_argument("--acp", type=Path, default=ROOT / "target-dir/debug/acp")
     parser.add_argument("--output", type=Path)
-    parser.add_argument("--mounts", action="store_true", help="Run production skill/MCP mount acceptance")
+    modes = parser.add_mutually_exclusive_group()
+    modes.add_argument("--mounts", action="store_true", help="Run production skill/MCP mount acceptance")
+    modes.add_argument("--linux-platform", action="store_true", help="Run Linux ACP host integration")
     args = parser.parse_args()
-    shiju, acp = args.shiju.resolve(strict=True), args.acp.resolve(strict=True)
+    shiju = args.shiju.resolve(strict=True)
+    if args.linux_platform:
+        require(platform.system() == "Linux" and platform.machine() in ("x86_64", "aarch64")
+                and platform.libc_ver()[0] == "glibc" and os.geteuid() != 0,
+                "Linux integration requires a non-root GNU x86_64 or aarch64 environment")
+    acp = args.acp.resolve(strict=True) if not (args.linux_platform or args.mounts) else None
     output = args.output.resolve() if args.output else Path(tempfile.mkdtemp(prefix="vw-acp-integration-"))
     output.mkdir(parents=True, exist_ok=not args.output)
+    if args.linux_platform:
+        report = {"architecture": platform.machine(), "passed": False, "checks": {}}
+        try:
+            report["checks"] = platform_scenarios(shiju, output)
+            report["passed"] = True
+        finally:
+            (output / "platform-results.json").write_text(json.dumps(report, indent=2) + "\n")
+        print(json.dumps(report), flush=True)
+        return
     if args.mounts:
         from acp_mount_integration import run
         print(json.dumps({"mounts": run(shiju, output)}), flush=True)

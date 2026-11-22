@@ -39,6 +39,9 @@ fn acp_platform_qwen_contract() {
     ))
     .unwrap();
     assert_eq!(artifact["native_sha256"], manifest["targets"][target]["files"]);
+    for (path, digest) in manifest["overlay_files"].as_object().unwrap() {
+        assert_eq!(artifact["sha256"][path.as_str()], *digest);
+    }
     assert_eq!(artifact["model_protocol"], "POST /v1/chat/completions");
 
     let turns = evidence["turns"].as_array().unwrap();

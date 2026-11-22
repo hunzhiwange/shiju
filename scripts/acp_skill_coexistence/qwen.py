@@ -31,6 +31,7 @@ def launch(env):
     require(contract["version"] == "0.26.7", "Qwen version differs from coexistence pin")
     require(shutil.which("node", path=env["PATH"]), "Node is unavailable")
     revision = "qwen-0.26.7-model-source-v2"
+    files = contract["files"]
     args = ["--acp"]
     if linux:
         manifest = json.loads((ROOT / "patches/acp-model-source/qwen/linux.json").read_text())
@@ -41,6 +42,7 @@ def launch(env):
         target = f"{machine}-unknown-linux-gnu"
         native_files = manifest["targets"][target]["files"]
         revision = manifest["managed_revision"]
+        files = {**files, **manifest["overlay_files"]}
         args = manifest["args"]
     if source := os.environ.get("QWEN_COEXISTENCE_RUNTIME"):
         runtime = Path(source).resolve()
@@ -56,11 +58,11 @@ def launch(env):
     metadata = json.loads((package / "package.json").read_text())
     require((metadata["name"], metadata["version"]) == (contract["package"], contract["version"]),
             "Qwen package identity differs from contract")
-    for name, digest in contract["files"].items():
+    for name, digest in files.items():
         require(hashlib.sha256((package / name).read_bytes()).hexdigest() == digest,
                 "Qwen artifact digest differs from contract")
     entry = package / contract["bin"]
-    artifact = {"version": contract["version"], "sha256": contract["files"]}
+    artifact = {"version": contract["version"], "sha256": files}
     if linux:
         require(entry.resolve(strict=True) == entry and os.access(entry, os.X_OK),
                 "Qwen Linux entry is redirected or not executable")

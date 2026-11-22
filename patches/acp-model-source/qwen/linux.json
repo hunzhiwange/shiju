@@ -1,5 +1,5 @@
 {
-  "managed_revision": "qwen-0.26.7-model-source-linux-v1",
+  "managed_revision": "qwen-0.26.7-model-source-linux-v2",
   "package": "@qwen-code/qwen-code",
   "version": "0.26.7",
   "archive_url": "https://registry.npmjs.org/@qwen-code/qwen-code/-/qwen-code-0.26.7.tgz",
@@ -7,7 +7,9 @@
   "integrity": "sha512-sRFWwmakpvF3bWBfG1M/ijoZG5h8Yxs0IC4cXZP3dJLyEbbTHItyhzMySG4o4CzLGFIfofArummQJo/xcggweQ==",
   "node": ">=22.0.0",
   "entry": "cli-entry.js",
-  "args": ["--acp"],
+  "args": [
+    "--acp"
+  ],
   "model_protocol": "POST /v1/chat/completions",
   "targets": {
     "x86_64-unknown-linux-gnu": {
@@ -24,5 +26,8 @@
         "opentui-assets/@opentui/core-linux-arm64/libopentui.so": "7f691b3a2527b5411774137f6818a6cba1e3c055d03660f5441848309e946b46"
       }
     }
+  },
+  "overlay_files": {
+    "chunks/acpAgent-C3CM2WHA.js": "3133ffe746eb45e12e8fb9a1c19f87117a420d5926c16c566d232dd8883602c4"
   }
 }

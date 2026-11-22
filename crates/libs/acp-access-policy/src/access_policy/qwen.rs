@@ -71,9 +71,9 @@ pub fn verified_entry(command: &str, args: &[String]) -> bool {
 
 /// Check the exact patched Linux tree, independent of the launch arguments.
 pub fn verified_linux_package(command: &str) -> bool {
-    // The Linux installation uses the v2 skill scanner and original home helper.
+    // The Linux overlay requires the private host tool guard before initialization.
     package_fingerprint(command).as_deref()
-        == Some("b2fdbd34cebf7510cfd4a11fea11804e805a7f09b09301d9b5b6ecea2852769f")
+        == Some("2dd558a0d57266248f4f9ab4412066dfed2773965fd70b9cc461487c4a06313d")
 }
 
 fn package_fingerprint(command: &str) -> Option<String> {

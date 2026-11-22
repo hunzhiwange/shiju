@@ -1,0 +1,23 @@
+{
+  "version": "0.10.201",
+  "source_url": "https://codeload.github.com/burin-labs/harn/tar.gz/4914194ae9f56b0046210ca90ef6f927988e727e",
+  "source_sha256": "26aca7b48967035e57924268ba86fce9b0adc8b687d006346deb755d662f7d2f",
+  "patch_sha256": "30752aa0fadd36675e1b088cbca5eb8a20de3e98cc0cc1f5a0c5b7d1e10d420a",
+  "files": {
+    "agent.harn": "6e312194b007bf517450839268573adfc902bc43f3d0ca9e7506e2d819d3e9a8",
+    "harn": "10e0fd828ad68be972da8ddb6239da7d51adf9155ab496a0b7bf8e0f92871dc6",
+    "shiju_stdio.py": "e6870d58c6c59cb1f1d224a66cdaa8455b34057249912b7bce5b9e21f95a074a"
+  },
+  "directory": "harn-0.10.201-model-source-v5-linux",
+  "source_revision": "4914194ae9f56b0046210ca90ef6f927988e727e",
+  "rust_toolchain": "1.99.1",
+  "launcher_patch_sha256": "babc3bd6c1402a7cce3898923359ca57762bc31e46b7ea19ad49ea92c158cd91",
+  "targets": {
+    "x86_64-unknown-linux-gnu": {
+      "upstream_tar_xz_sha256": "a5e1071ae92284ff4c5f8a6bdcabc3a313cb810903b68c97d325948fc85fffa9"
+    },
+    "aarch64-unknown-linux-gnu": {
+      "upstream_tar_xz_sha256": "7e19093c9cf9bcdd11944276d62492e46deced5c3ac70aba447a31fda712e61e"
+    }
+  }
+}

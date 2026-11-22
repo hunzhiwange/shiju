@@ -77,9 +77,10 @@ def prepare_workspace(workspace):
 
 
 class Probe:
-    def __init__(self, fixtures, mounted, rejected):
+    def __init__(self, fixtures, mounted, rejected, *, selected=None):
         self.fixtures = fixtures
         self.mounted = mounted
+        self.selected = mounted if selected is None else selected
         self.rejected = rejected
         self.requests = 0
         self.completed = {}
@@ -100,7 +101,7 @@ class Probe:
             envelope = json.dumps(body)
             require("disabled-probe" not in catalog, "Harn advertised a model-disabled skill")
             for kind, skill in skills.items():
-                visible = kind == "native" or (kind == "selected" and self.mounted)
+                visible = kind == "native" or (kind == "selected" and self.selected)
                 require((skill["name"] in catalog) == visible, f"unexpected Harn {kind} catalog")
                 require(skill["body"] not in envelope and skill["attachment"] not in envelope,
                         f"Harn disclosed {kind} contents before native activation")
@@ -132,9 +133,9 @@ class Probe:
             require(skills[step.removesuffix("_read")]["attachment"] in content,
                     f"Harn did not read {step} attachment")
         self.completed[step] = call_id
-        if step == "native_read" and self.mounted:
+        if step == "native_read" and self.selected:
             return self.call(tools, "selected", "load_skill", {"name": skills["selected"]["name"]})
-        if step == "selected_read":
+        if step == "selected_read" and self.mounted:
             return self.call(tools, "mcp", MCP_TOOL, {})
         self.pending = None
         if self.rejected:

@@ -38,6 +38,7 @@ AGENTS += ("sigit",)
 AGENTS += ("stakpak",)
 AGENTS += ("vtcode",)
 PHASES = ("baseline", "mounted", "removed", "rejected")
+IFLOW_NATIVE_PHASES = ("baseline", "native-rejected", "native-cancelled")
 
 
 @contextmanager
@@ -104,14 +105,18 @@ def make_skill(parent, kind):
     return {"name": name, "path": path, "body": body, "attachment": attachment}
 
 
-def interactive_turn(url, query, body, probe, rejected):
+def interactive_turn(url, query, body, probe, rejected, *, native_read_decision=None):
     decisions = []
     skills = []
     approves_skill = getattr(probe, "approves_skill", None)
     live_access = None
     sid = body["session_id"]
+    request_id = secrets.token_hex(16) if native_read_decision == "cancel" else None
+    stream_headers = {"X-VW-Stream-Request-ID": request_id} if request_id else {}
+    stopped_permission = None
     with ThreadPoolExecutor(max_workers=1) as pool:
-        stream = pool.submit(request, url, "/chat/stream" + query, body)
+        stream = pool.submit(request, url, "/chat/stream" + query, body,
+                             extra_headers=stream_headers)
         while not stream.done():
             if live_access is None or live_access.get("support") == "failed":
                 controls = json.loads(request(url, f"/session/{sid}/acp-options" + query))
@@ -125,16 +130,36 @@ def interactive_turn(url, query, body, probe, rejected):
                 require(metadata.get("requested_channel") == "desktop-acp", "foreign approval channel")
                 is_mcp = probe.approves(metadata)
                 skill = approves_skill(metadata) if approves_skill is not None else None
+                if native_read_decision == "cancel" and skill == "native_read":
+                    require(stopped_permission in (None, row["id"]), "unexpected second pending read")
+                    if stopped_permission is None:
+                        stop = json.loads(request(url, f"/chat/stream/{request_id}/stop" + query,
+                                                  {}, method="POST"))
+                        require(stop["cancelled"] is True, "gateway did not cancel pending read")
+                        stopped_permission = row["id"]
+                        skills.append("native_read:cancel")
+                    continue
                 reply = "once" if skill or (is_mcp and not rejected) else "reject"
+                if native_read_decision == "reject" and skill == "native_read":
+                    reply = "reject"
                 route = f"/permission/{row['id']}/reply"
                 require(json.loads(request(url, route + query, {"reply": reply})) is True,
                         "permission reply failed")
                 if skill:
-                    skills.append(skill)
+                    skills.append(skill if reply == "once" else skill + ":reject")
                 else:
                     decisions.append(reply if is_mcp else "unexpected")
             time.sleep(0.05)
-        return stream.result(), decisions, skills, live_access
+        result = stream.result()
+        if stopped_permission is not None:
+            deadline = time.monotonic() + 5
+            while True:
+                pending = json.loads(request(url, "/permission" + query))
+                if all(row["session_id"] != sid for row in pending):
+                    break
+                require(time.monotonic() < deadline, "cancelled read permission remained pending")
+                time.sleep(0.05)
+        return result, decisions, skills, live_access
 
 
 def readback(url, query, sid, backend, model, live_access):
@@ -155,6 +180,7 @@ def readback(url, query, sid, backend, model, live_access):
 
 def run(agent, binary, report, phases=PHASES):
     supplier = import_module("acp_skill_coexistence." + agent.replace("-", "_"))
+    iflow_native = agent == "iflow" and phases == IFLOW_NATIVE_PHASES
     temp_parent = getattr(supplier, "TEMP_PARENT", None)
     with tempfile.TemporaryDirectory(prefix="shiju-acp-coexistence-", dir=temp_parent) as directory:
         root = Path(directory).resolve()
@@ -178,6 +204,15 @@ def run(agent, binary, report, phases=PHASES):
         attachment.write_text(fixtures["mcp"])
         audit = root / "mcp-audit.txt"
         config_path = workspace / ".vwacprc.json"
+        native_start = root / "native-mcp-started"
+        if iflow_native:
+            # The provider's project config is distinct from the gateway's unselected MCP.
+            native_settings = workspace / ".iflow/settings.json"
+            native_settings.write_text(json.dumps({"mcpServers": {"native_probe": {
+                "command": sys.executable,
+                "args": ["-c", "from pathlib import Path; import sys; Path(sys.argv[1]).touch()",
+                         str(native_start)],
+            }}}))
         env["ACP_COEXISTENCE_KEY"] = secrets.token_hex(24)
         query = "?" + urlencode({"directory": str(workspace)})
         model_id = PROVIDER + "/" + supplier.MODEL
@@ -213,12 +248,16 @@ def run(agent, binary, report, phases=PHASES):
                 sid = json.loads(request(url, "/session" + query, {"title": "ACP coexistence " + phase}))["id"]
                 row["session"] = sid
                 model.probe = probe = supplier.Probe(fixtures, mounted, rejected)
+                native_read_decision = {"native-rejected": "reject", "native-cancelled": "cancel"}.get(phase)
+                if native_read_decision:
+                    probe.native_read_decision = native_read_decision
                 body = {"session_id": sid, "agent": AGENT_PROFILE, "acp_model_source": "session_model",
                         "model": model_id, "options": {"full_access": False, "cwd": str(workspace)},
                         "messages": [{"role": "user", "content": getattr(supplier, "PROMPT",
                             "Check the available read-only fixture resources.")}]}
                 before = audit.read_text().splitlines() if audit.exists() else []
-                stream, decisions, skill_approvals, live_access = interactive_turn(url, query, body, probe, rejected)
+                stream, decisions, skill_approvals, live_access = interactive_turn(
+                    url, query, body, probe, rejected, native_read_decision=native_read_decision)
                 after = audit.read_text().splitlines() if audit.exists() else []
                 events = [json.loads(line[6:]) for line in stream.splitlines() if line.startswith("data: {")]
                 observe_terminal = getattr(probe, "observe_terminal", None)
@@ -236,8 +275,26 @@ def run(agent, binary, report, phases=PHASES):
                 if row["errors"]:
                     row["gateway_failures"] = stream_failure_categories(stream)
                 require(not probe.failure, probe.failure)
+                if iflow_native:
+                    require(not native_start.exists(), "iFlow started an unprojected project MCP")
                 require(after == before + [supplier.TRANSPORT] * row["mcp_calls"],
                         "MCP audit transport mismatch")
+                if native_read_decision:
+                    require(after == before and decisions == [], "negative native turn reached MCP")
+                    require(skill_approvals == ["native", "native_read:" + native_read_decision],
+                            "unexpected native read permission receipt")
+                    require(fixtures["skills"]["native"]["attachment"] not in stream,
+                            "blocked native read leaked its attachment to the gateway")
+                    require(set(probe.calls) == {"native", "native_read"}, "native read was never requested")
+                    if native_read_decision == "cancel":
+                        require(row["done"] == 0 and row["errors"] == 1
+                                and any(event.get("error") == "cancelled" for event in events),
+                                "missing gateway cancellation terminal")
+                        require(set(probe.completed) == {"native"}, "cancelled read returned to model")
+                    else:
+                        require(row["done"] == 1 and row["errors"] == 0 and probe.native_read_denied,
+                                "missing correlated native read refusal")
+                    continue
                 verify_turn(row, mounted, rejected)
                 if "skill_approvals" in row:
                     expected = ["native", "selected"] if mounted else ["native"]
@@ -249,6 +306,11 @@ def run(agent, binary, report, phases=PHASES):
             if verify_native_plugins is not None:
                 report["stage"] = "native_plugins"
                 report["native_plugins"] = verify_native_plugins(spec, root, env, model, make_skill)
+        if iflow_native:
+            require(not probe.failure, probe.failure)
+            require(not native_start.exists(), "iFlow started an unprojected project MCP during shutdown")
+            require(not audit.exists() or not audit.read_text().splitlines(),
+                    "unselected gateway MCP executed during native verification")
         require(len({row["session"] for row in report["turns"]}) == len(phases), "sessions reused across phases")
 
 
@@ -259,7 +321,12 @@ def main():
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--baseline-only", action="store_true",
                         help="verify only the native skill and read path")
+    parser.add_argument("--iflow-native-approval", action="store_true",
+                        help="verify Linux iFlow native approval, rejection and cancellation")
     args = parser.parse_args()
+    if args.iflow_native_approval and (args.agent != "iflow" or platform.system() != "Linux"
+                                      or args.baseline_only):
+        parser.error("--iflow-native-approval requires Linux iFlow and its three native phases")
     report = {"agent": args.agent, "platform": f"{platform.system()}-{platform.machine()}",
               "cargo_target_dir": os.environ.get("CARGO_TARGET_DIR"),
               "cargo_build_build_dir": os.environ.get("CARGO_BUILD_BUILD_DIR"),
@@ -271,7 +338,10 @@ def main():
             for block in iter(lambda: stream.read(1024 * 1024), b""):
                 digest.update(block)
         report["gateway_sha256"] = digest.hexdigest()
-        run(args.agent, binary, report, ("baseline",) if args.baseline_only else PHASES)
+        phases = ("baseline",) if args.baseline_only else PHASES
+        if args.iflow_native_approval:
+            phases = IFLOW_NATIVE_PHASES
+        run(args.agent, binary, report, phases)
         report.pop("stage", None)
         report["passed"] = True
     except AssertionError as error:

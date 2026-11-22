@@ -134,10 +134,11 @@ def environment(root):
     return env
 
 
-def request(url, path, body=None, method=None):
+def request(url, path, body=None, method=None, *, extra_headers=None):
     data = None if body is None else json.dumps(body).encode()
     headers = {"Content-Type": "application/json", "X-Platform-ID": "10000",
                "X-Company-ID": "100000000"}
+    headers.update(extra_headers or {})
     try:
         with HTTP.open(Request(url + path, data, headers, method=method), timeout=60) as response:
             return response.read(2_000_000).decode()

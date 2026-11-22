@@ -116,12 +116,19 @@ class Probe:
         self.failure = None
         self.pending = None
         self.pending_read = None
+        self.native_read_decision = None
+        self.native_read_denied = False
 
     def response(self, body):
         require(body["model"] == MODEL, "unexpected iFlow model")
         tools = {item["function"]["name"]: item["function"] for item in body.get("tools", [])}
         self.requests += 1
         messages = body["messages"]
+        if self.native_read_decision:
+            require(self.fixtures["skills"]["native"]["attachment"] not in json.dumps(messages),
+                    "blocked iFlow read exposed its attachment to the model")
+            require(self.native_read_decision != "cancel" or "native_read" not in self.calls,
+                    "cancelled iFlow read reached a model continuation")
         if self.requests == 1:
             catalog = tools.get("Skill", {}).get("description", "")
             sections = re.findall(r"<available_skills>(.*?)</available_skills>", catalog, re.S)
@@ -159,7 +166,12 @@ class Probe:
                             "iFlow bypassed the session skill view")
                 self.pending_read = {"absolute_path": str(base / "references/value.txt")}
                 return self.call(tools, read, "read_file", self.pending_read)
-            require(skill["attachment"] in self.result(messages, read)[0],
+            result, _ = self.result(messages, read)
+            if read == "native_read" and self.native_read_decision == "reject":
+                require("Tool execution rejected by user" in result, "iFlow native read refusal missing")
+                self.native_read_denied = True
+                continue
+            require(skill["attachment"] in result,
                     f"iFlow {kind} attachment was not read")
 
         if self.mounted:

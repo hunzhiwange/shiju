@@ -29,7 +29,7 @@ async fn acp_platform_iflow_contract_native_approval() {
     let runtime = Path::new(&root).join("acp-runtime/iflow-0.5.19-model-source-v4");
     let evidence = run_probe(&runtime);
     let turns = evidence["turns"].as_array().unwrap();
-    assert_eq!(turns.len(), 1);
+    assert_eq!(turns.len(), 3);
     let baseline = &turns[0];
     assert_eq!(baseline["source"], "session_model");
     assert_eq!(baseline["skill_approvals"], json!(["native", "native_read"]));
@@ -38,6 +38,22 @@ async fn acp_platform_iflow_contract_native_approval() {
     assert_eq!(baseline["mcp_calls"], 0);
     assert_eq!(baseline["mcp_decisions"], json!([]));
     assert_eq!(baseline["done"], 1);
+    for (index, phase, receipt) in [
+        (1, "native-rejected", "native_read:reject"),
+        (2, "native-cancelled", "native_read:cancel"),
+    ] {
+        let turn = &turns[index];
+        assert_eq!(turn["phase"], phase);
+        assert_eq!(turn["skill_approvals"], json!(["native", receipt]));
+        assert_eq!(turn["mcp_calls"], 0);
+        assert_eq!(turn["mcp_decisions"], json!([]));
+        assert!(turn["calls"]["native"].is_string());
+    }
+    assert!(turns[1]["calls"]["native_read"].is_string());
+    assert_eq!(turns[1]["done"], 1);
+    assert!(turns[2]["calls"]["native_read"].is_null());
+    assert_eq!(turns[2]["done"], 0);
+    assert_eq!(turns[2]["errors"], 1);
 }
 
 fn run_probe(runtime: &Path) -> Value {
@@ -55,7 +71,7 @@ fn run_probe(runtime: &Path) -> Value {
         .arg("--output")
         .arg(&report)
         .env("IFLOW_COEXISTENCE_RUNTIME", runtime)
-        .arg("--baseline-only")
+        .arg("--iflow-native-approval")
         .status()
         .unwrap();
     let evidence: Value = serde_json::from_slice(&std::fs::read(report).unwrap()).unwrap();

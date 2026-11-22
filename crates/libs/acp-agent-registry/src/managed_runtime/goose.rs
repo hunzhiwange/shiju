@@ -15,6 +15,9 @@ pub(super) const TARGET: &str = if cfg!(target_arch = "x86_64") {
     "aarch64-unknown-linux-gnu"
 };
 
+pub(super) const LINUX_PATCH_SHA256: &str =
+    "ad6eda848802728e2efadab5677d61f740e3dc64a823e18625d807cf37a63ebe";
+
 pub(super) fn verify(directory: &Path, contract: &Contract) -> Result<PathBuf, String> {
     let metadata = fs::symlink_metadata(directory).map_err(|_| "Missing Goose installation")?;
     if !metadata.is_dir() || metadata.permissions().mode() & 0o022 != 0 {
@@ -40,6 +43,7 @@ pub(super) fn verify(directory: &Path, contract: &Contract) -> Result<PathBuf, S
     )
     .map_err(|_| "Invalid Goose build receipt")?;
     if receipt["target"] != TARGET
+        || receipt["linux_patch_sha256"] != LINUX_PATCH_SHA256
         || receipt["version"] != contract.version
         || receipt["source_sha256"].as_str() != contract.source_sha256.as_deref()
         || receipt["patch_sha256"].as_str() != contract.patch_sha256.as_deref()

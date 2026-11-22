@@ -5,9 +5,11 @@ import os
 from pathlib import Path
 import platform
 import re
+import runpy
 import secrets
 import shutil
 import subprocess
+import sys
 
 from verify_acp_integration import ProviderHandler, require
 from verify_acp_model_source import ROOT
@@ -28,7 +30,7 @@ def launch(env):
     require(linux or (platform.system(), machine) == ("Darwin", "arm64"),
             "unreviewed Goose platform")
     target = f"{machine}-unknown-linux-gnu" if linux else None
-    runtime_name = (f"goose-v1.57.0-model-source-v2-{target}" if linux
+    runtime_name = (f"goose-v1.57.0-model-source-v3-{target}" if linux
                     else "goose-v1.57.0-model-source-v2")
     home = Path(os.environ.get("VIBEWINDOW_CONFIG_DIR", Path.home() / ".local/share/shiju"))
     default = home / "acp-runtime" / runtime_name / "goose"
@@ -46,6 +48,9 @@ def launch(env):
             "Goose build receipt differs from reviewed contract")
     if linux:
         require(receipt.get("target") == target, "Goose build receipt is for a different target")
+        patch = ROOT / "patches/acp-model-source/goose/linux-session.patch"
+        require(receipt.get("linux_patch_sha256") == hashlib.sha256(patch.read_bytes()).hexdigest(),
+                "Goose security patch differs from the Linux build receipt")
     if legacy:
         runtime_name = "goose-v1.57.0-model-source-v1"
     runtime = Path(env["VIBEWINDOW_CONFIG_DIR"]) / "acp-runtime" / runtime_name
@@ -59,7 +64,7 @@ def launch(env):
     require(sha256.hexdigest() == receipt.get("sha256"), "Goose executable digest differs from build receipt")
     identity = {key: receipt[key] for key in ("version", "source_sha256", "patch_sha256", "sha256")}
     if linux:
-        identity.update(target=target, entry=entry.name)
+        identity.update(target=target, entry=entry.name, linux_patch_sha256=receipt["linux_patch_sha256"])
     (runtime / "build-receipt.json").write_text(json.dumps(identity))
     try:
         version = subprocess.run([str(entry), "--version"], env=env, capture_output=True, timeout=20)
@@ -225,3 +230,57 @@ class Handler(ProviderHandler):
             self.wfile.write(json.dumps({"id": "chatcmpl-fixture", "object": "chat.completion",
                 "created": 1, "model": body["model"], "choices": [
                     {"index": 0, "finish_reason": finish, "message": message}]}).encode())
+
+
+def verify_native_plugins(spec, root, env, model, _make_skill):
+    if platform.system() != "Linux":
+        return None
+    # Reopen the stored ACP session in a second process with an empty MCP list.
+    # The gateway phases above independently cover approved and denied execution.
+    client_type = runpy.run_path(str(ROOT / "docs/shiju/acp-model-source/evidence/goose/native_probe.py"))["Client"]
+    workspace = root / "workspace"
+    state = root / "recovery"
+    state.mkdir(mode=0o700)
+    child_env = dict(env, GOOSE_PATH_ROOT=str(state), GOOSE_PROVIDER="openai", GOOSE_MODEL=MODEL,
+                     SHIJU_GOOSE_MODEL_LOCK=MODEL, GOOSE_DISABLE_KEYRING="true",
+                     OPENAI_HOST=f"http://127.0.0.1:{model.server_port}",
+                     OPENAI_BASE_PATH="v1/chat/completions", OPENAI_API_KEY=model.key)
+    child_env.update(spec["env"])
+    audit = state / "audit.txt"
+    attachment = state / "attachment.txt"
+    attachment.write_text(secrets.token_hex(24))
+    server = {"name": "coexistence", "command": sys.executable, "env": [],
+              "args": [str(ROOT / "scripts/acp_mount_integration.py"), "--mcp-stdio",
+                       str(attachment), str(audit)]}
+
+    def open_client():
+        return client_type(spec["command"], workspace, child_env, managed=True)
+
+    def initialize(client):
+        return client.rpc("initialize", {"protocolVersion": 1, "clientCapabilities": {}})
+
+    def tools(client, session):
+        response = client.rpc("_goose/unstable/tools/list", {"sessionId": session})
+        return {tool["name"] for tool in response["tools"]}
+
+    client = open_client()
+    try:
+        initialize(client)
+        session = client.rpc("session/new", {"cwd": str(workspace), "mcpServers": [server]})["sessionId"]
+        mounted = tools(client, session)
+        require(MCP_TOOL in mounted, "Goose recovery fixture MCP was not mounted")
+        native_tree = mounted.intersection(("tree", "developer__tree"))
+        require(len(native_tree) == 1, "Goose recovery fixture native tree unavailable")
+    finally:
+        client.close()
+    client = open_client()
+    try:
+        initialize(client)
+        client.rpc("session/load", {"sessionId": session, "cwd": str(workspace), "mcpServers": []})
+        restored = tools(client, session)
+        require(MCP_TOOL not in restored, "Goose restored a revoked MCP from its transcript")
+        require(native_tree <= restored, "Goose lost its native tree while restoring")
+        require(not audit.exists(), "Goose recovery unexpectedly executed an MCP tool")
+    finally:
+        client.close()
+    return {"same_session_mcp_removed": True, "native_tree_retained": True}

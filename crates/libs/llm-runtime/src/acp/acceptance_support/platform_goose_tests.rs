@@ -39,6 +39,13 @@ fn acp_platform_goose_contract() {
         "3b75b96dc038b60f294de02354de34150a204e5e08f51a5bd37ff9095898ebcb"
     );
 
+    assert_eq!(
+        artifact["linux_patch_sha256"],
+        "ad6eda848802728e2efadab5677d61f740e3dc64a823e18625d807cf37a63ebe"
+    );
+    assert_eq!(evidence["native_plugins"]["same_session_mcp_removed"], true);
+    assert_eq!(evidence["native_plugins"]["native_tree_retained"], true);
+
     let turns = evidence["turns"].as_array().unwrap();
     assert_eq!(turns.len(), 4);
     for (turn, phase) in turns.iter().zip(["baseline", "mounted", "removed", "rejected"]) {

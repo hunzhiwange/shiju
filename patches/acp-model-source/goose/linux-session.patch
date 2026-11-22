@@ -1,0 +1,183 @@
+--- a/crates/goose/src/acp/mod.rs
++++ b/crates/goose/src/acp/mod.rs
+@@ -11,0 +12,5 @@
++
++// The reviewed launcher clears the lock in ordinary CLI ACP mode.
++pub(crate) fn managed_linux() -> bool {
++    cfg!(target_os = "linux") && std::env::var_os("SHIJU_GOOSE_MODEL_LOCK").is_some()
++}
+--- a/crates/goose/src/acp/server.rs
++++ b/crates/goose/src/acp/server.rs
+@@ -10 +10 @@
+-use crate::acp::{PermissionDecision, ACP_CURRENT_MODEL};
++use crate::acp::{managed_linux, PermissionDecision, ACP_CURRENT_MODEL};
+@@ -313,0 +314 @@
++    managed_activation: Mutex<()>,
+@@ -587 +588,11 @@
+-        add_mcp_servers(&mut extensions, mcp_servers)?;
++        if managed_linux() {
++            for extension in mcp_server_configs(mcp_servers)? {
++                if extensions.iter().any(|existing| existing.name() == extension.name()) {
++                    return Err(agent_client_protocol::Error::invalid_params()
++                        .data("MCP extension name conflicts with an active extension"));
++                }
++                extensions.push(extension);
++            }
++        } else {
++            add_mcp_servers(&mut extensions, mcp_servers)?;
++        }
+@@ -938,0 +950 @@
++            managed_activation: Mutex::new(()),
+@@ -1064 +1076 @@
+-            builder = builder.working_dir(cwd);
++            builder = builder.working_dir(cwd.clone());
+@@ -1077 +1089,14 @@
+-        if !mcp_servers.is_empty() {
++        if managed_linux() {
++            if session.recipe.is_some() {
++                return Err(agent_client_protocol::Error::invalid_params()
++                    .data("Managed Goose cannot restore recipe-defined extensions"));
++            }
++            let extensions = initial_session_extensions(
++                config, &self.builtin_selection, &cwd, mcp_servers, None, None,
++            )?;
++            builder = builder.extension_data(enabled_extensions_data(&session, extensions)?);
++            if session.goose_mode != GooseMode::Chat {
++                builder = builder.goose_mode(GooseMode::Approve);
++            }
++            session_needs_update = true;
++        } else if !mcp_servers.is_empty() {
+@@ -1483,6 +1508,11 @@
+-        let options = vec![
+-            option(PermissionOptionKind::AllowAlways),
+-            option(PermissionOptionKind::AllowOnce),
+-            option(PermissionOptionKind::RejectOnce),
+-            option(PermissionOptionKind::RejectAlways),
+-        ];
++        let managed = managed_linux();
++        let options = if managed {
++            vec![option(PermissionOptionKind::AllowOnce), option(PermissionOptionKind::RejectOnce)]
++        } else {
++            vec![
++                option(PermissionOptionKind::AllowAlways),
++                option(PermissionOptionKind::AllowOnce),
++                option(PermissionOptionKind::RejectOnce),
++                option(PermissionOptionKind::RejectAlways),
++            ]
++        };
+@@ -1501,0 +1532,9 @@
++                };
++
++                if managed && !target.cancel_token.as_ref().is_some_and(|token| !token.is_cancelled()) {
++                    return Ok(());
++                }
++                let permission = if managed && !matches!(permission, Permission::AllowOnce | Permission::DenyOnce) {
++                    Permission::Cancel
++                } else {
++                    permission
+@@ -1769,0 +1809,5 @@
++        }
++
++        if managed_linux() {
++            return Err(agent_client_protocol::Error::resource_not_found(Some(session_id.to_string()))
++                .data("Managed Goose requires session/load before activating a stored session"));
+@@ -2193,0 +2238 @@
++        let activation = if managed_linux() { Some(self.managed_activation.lock().await) } else { None };
+@@ -2204,0 +2250,2 @@
++
++        drop(activation);
+@@ -2440,0 +2488,4 @@
++        if managed_linux() && !matches!(mode, GooseMode::Approve | GooseMode::Chat) {
++            return Err(agent_client_protocol::Error::invalid_params()
++                .data("Managed Goose requires approve or chat mode"));
++        }
+--- a/crates/goose/src/acp/server/new_session.rs
++++ b/crates/goose/src/acp/server/new_session.rs
+@@ -52 +52,6 @@
+-        let current_mode: GooseMode = config.get_goose_mode().unwrap_or_default();
++        let configured_mode = config.get_goose_mode().unwrap_or_default();
++        let current_mode = if super::managed_linux() && configured_mode != GooseMode::Chat {
++            GooseMode::Approve
++        } else {
++            configured_mode
++        };
+@@ -53,0 +59,4 @@
++        if super::managed_linux() && (recipe.is_some() || meta_goose_extensions(args.meta.as_ref())?.is_some()) {
++            return Err(agent_client_protocol::Error::invalid_params()
++                .data("Managed Goose requires the standard ACP extension inventory"));
++        }
+--- a/crates/goose/src/acp/server/load_session.rs
++++ b/crates/goose/src/acp/server/load_session.rs
+@@ -385,0 +386,11 @@
++        let _activation = if managed_linux() {
++            let guard = self.managed_activation.lock().await;
++            if self.active_runs.agent_run(&session_id_str).is_some() {
++                return Err(agent_client_protocol::Error::invalid_params()
++                    .data("Cancel the active Goose turn before loading its session"));
++            }
++            self.sessions.lock().await.remove(&session_id_str);
++            Some(guard)
++        } else {
++            None
++        };
+@@ -397,0 +409,8 @@
++
++        if managed_linux() && session.conversation.as_ref().is_some_and(|conversation| {
++            !pending_tool_confirmations(conversation).is_empty()
++                || has_unapplied_tool_confirmation_response(conversation)
++        }) {
++            return Err(agent_client_protocol::Error::invalid_params()
++                .data("Cannot restore an interrupted Goose approval"));
++        }
+--- a/crates/goose/src/permission/permission_inspector.rs
++++ b/crates/goose/src/permission/permission_inspector.rs
+@@ -165,0 +166,3 @@
++                                PermissionLevel::AlwaysAllow if crate::acp::managed_linux() => {
++                                    InspectionAction::RequireApproval(None)
++                                }
+--- a/crates/goose/src/agents/state_machine/ops_toolcalling.rs
++++ b/crates/goose/src/agents/state_machine/ops_toolcalling.rs
+@@ -12 +12 @@
+-use crate::agents::state_machine::ops_tool_approval::request_executable;
++use crate::agents::state_machine::ops_tool_approval::{request_executable, ApprovalState};
+@@ -439,0 +440,7 @@
++            if crate::acp::managed_linux() && cancellation_token.is_cancelled() {
++                return Err(ErrorData::new(
++                    rmcp::model::ErrorCode::INTERNAL_ERROR,
++                    EXPIRED_APPROVAL_RESPONSE,
++                    None,
++                ));
++            }
+@@ -917,0 +925,32 @@
++        if crate::acp::managed_linux() {
++            let approvals = ApprovalState::from_messages(messages);
++            let mut seen = HashSet::new();
++            for (request, disposition) in &mut pending {
++                if *disposition != ToolDisposition::Execute {
++                    continue;
++                }
++                let call = request.tool_call.as_ref().expect("executable tool call");
++                let mut confirmations = messages.iter().flat_map(|message| &message.content)
++                    .filter_map(|content| match content {
++                        MessageContent::ActionRequired(action) => match &action.data {
++                            ActionRequiredData::ToolConfirmation { id, tool_name, arguments, .. }
++                                if id == &request.id => Some((tool_name, arguments)),
++                            _ => None,
++                        },
++                        _ => None,
++                    });
++                let exact = confirmations.next().is_some_and(|(name, args)| {
++                    name.as_str() == call.name.as_ref()
++                        && call.arguments.as_ref().map_or(args.is_empty(), |input| input == args)
++                }) && confirmations.next().is_none();
++                if !seen.insert(request.id.clone())
++                        || !exact
++                        || !matches!(
++                            approvals.confirmation_response(&request.id),
++                            Some(crate::permission::Permission::AllowOnce)
++                        )
++                {
++                    *disposition = ToolDisposition::Decline;
++                }
++            }
++        }

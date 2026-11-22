@@ -23,6 +23,7 @@ MODEL = "deepseek-v4.1-flash-1017"
 MODEL_OUTPUT_LIMIT = 16_000
 ADAPTER = "openai"
 API_PATH = "/v1"
+MODEL_ENDPOINT = API_PATH + "/chat/completions"
 TRANSPORT = "stdio"
 NATIVE_DIR = ".autohand/skills"
 GLOBAL_SKILL_FIXTURES = True
@@ -45,8 +46,9 @@ DIRECT_ARGS = ["--acp", "--set", "features.codeMode=false",
 
 
 def launch(env):
-    require((platform.system(), platform.machine()) == ("Darwin", "arm64"),
-            "unreviewed AutoHand platform")
+    target = (platform.system(), platform.machine())
+    require(target in {("Darwin", "arm64"), ("Linux", "x86_64"), ("Linux", "aarch64")},
+            "unsupported AutoHand probe platform")
     registry = REPOSITORY / "crates/libs/acp-agent-registry/src/managed_runtime"
     manifest = registry / "contracts.json"
     contract = json.loads(manifest.read_text())["autohand"]
@@ -86,7 +88,8 @@ def launch(env):
     return {"command": str(entry), "args": DIRECT_ARGS, "env": {
         "AUTOHAND_SKIP_AHTRACES_INSTALL": "1",
         "AUTOHAND_SKIP_COMPUTER_CONTROL_INSTALL": "1",
-    }}, {"version": VERSION, "revision": revision, "sha256": files}
+    }}, {"version": VERSION, "revision": revision, "entry": contract["bin"],
+         "model_endpoint": MODEL_ENDPOINT, "sha256": files}
 
 
 class Probe:
@@ -248,7 +251,7 @@ class Handler(ProviderHandler):
         try:
             require(self.headers.get("Authorization") == "Bearer " + self.server.key,
                     "unauthenticated AutoHand model request")
-            require(self.path == "/v1/chat/completions", "unexpected AutoHand model protocol")
+            require(self.path == MODEL_ENDPOINT, "unexpected AutoHand model protocol")
             size = int(self.headers["Content-Length"])
             require(0 < size <= 8_000_000, "invalid AutoHand model request size")
             body = json.loads(self.rfile.read(size))

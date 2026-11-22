@@ -281,8 +281,18 @@ pub async fn do_stream_request_acp<H: Host>(
     }
     parsed_options.runtime_identity = Some(scoped_session.clone());
     if !employee {
-        parsed_options.skill_view =
-            H::prepare_skills(&parsed_options.skill_mounts, &cwd, &scoped_session, &cfg)?;
+        parsed_options.skill_view = if cfg!(all(target_os = "linux", target_env = "gnu",
+            any(target_arch = "x86_64", target_arch = "aarch64")))
+            && acp_agent_name == "glm-acp-agent"
+            && source == AcpModelSource::SessionModel
+            && !parsed_options.skill_mounts.is_empty()
+        {
+            H::prepare_glm_skills(
+                &mut parsed_options.skill_mounts, &cwd, session_id, &scoped_session, &cfg,
+            ).await?
+        } else {
+            H::prepare_skills(&parsed_options.skill_mounts, &cwd, &scoped_session, &cfg)?
+        };
     }
     if acp_agent_name == "openclaw" {
         use super::model_source::drivers::openclaw::RESTRICTED_ENV;
@@ -1274,6 +1284,9 @@ pub async fn do_stream_request_acp<H: Host>(
         let prompt_session_id = record.acp_session_id.clone();
         if let Some(profile) = launch_profile.as_ref() {
             profile.validate_managed_mcp().map_err(to_api_error)?;
+        }
+        if glm_managed && let Some(view) = &parsed_options.skill_view {
+            view.validate()?;
         }
         let approval = H::approval(&cached_client.permission_confirmation, session_id);
         let mut acp_task = tokio::spawn(async move {

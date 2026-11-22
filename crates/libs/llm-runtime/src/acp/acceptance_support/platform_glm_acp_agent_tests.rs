@@ -76,6 +76,10 @@ fn acp_platform_glm_acp_agent_contract_selected_skills_removed_on_restore() {
     assert_eq!(removed["phase"], "removed");
     assert!(mounted["session"].is_string());
     assert_eq!(mounted["session"], removed["session"]);
+    assert_eq!(
+        removed["mount_revision"].as_u64(),
+        mounted["mount_revision"].as_u64().map(|revision| revision + 1)
+    );
     for turn in [mounted, removed] {
         assert_eq!(turn["source"], "session_model");
         assert_eq!(turn["done"], 1);

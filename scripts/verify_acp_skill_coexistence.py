@@ -20,7 +20,7 @@ from urllib.parse import urlencode
 from acp_mount_integration import McpHandler
 from acp_skill_coexistence import verify_turn
 from verify_acp_approval import environment, gateway, request, stream_failure_categories
-from verify_acp_integration import require
+from verify_acp_integration import platform_process, require
 from verify_acp_model_source import ROOT, Unavailable
 
 # Add a key only once its supplier module implements the reviewed probe interface.
@@ -163,7 +163,7 @@ def interactive_turn(url, query, body, probe, rejected, *, native_read_decision=
         return result, decisions, skills, live_access
 
 
-def readback(url, query, sid, backend, model, live_access):
+def readback(url, query, sid, backend, model, live_access, *, require_live_access=True):
     options = json.loads(request(url, f"/session/{sid}/acp-options" + query))
     summary = json.loads(request(url, f"/session/{sid}/ui/summary" + query))
     selected = options.get("selected_model") or {}
@@ -174,9 +174,23 @@ def readback(url, query, sid, backend, model, live_access):
     require(options.get("acp_model_source") == selected.get("source") == "session_model"
             and selected.get("model") == model and selected.get("provider_id") == PROVIDER,
             "gateway selected model mismatch")
-    require(summary.get("full_access") is False and access.get("requested") is False,
-            "gateway permission readback mismatch")
+    require(summary.get("full_access") is False, "gateway requested full access")
+    if access or require_live_access:
+        require(access.get("requested") is False, "gateway permission readback mismatch")
     return {"binding": binding, "source": selected["source"], "model": model, "access": access}
+
+
+def replace_glm_skills(binary, root, env, workspace, session, skills):
+    log = root / f"glm-skill-mount-{len(skills)}.log"
+    with platform_process([str(binary), "acp"], workspace, env, log) as acp:
+        acp.call("initialize", {"protocolVersion": 1, "clientCapabilities": {}})
+        loaded, _ = acp.call("session/load", {"sessionId": session, "cwd": str(workspace),
+                                             "mcpServers": []})
+        revision = loaded["_meta"]["shiju.mounts"]["revision"]
+        updated, _ = acp.call("_shiju/session/set_mounts", {"sessionId": session,
+            "expectedRevision": revision, "skills": skills, "mcpServers": []})
+        require(updated["revision"] == revision + 1, "GLM session mount revision did not advance")
+        return updated["revision"]
 
 
 def run(agent, binary, report, phases=PHASES):
@@ -248,10 +262,17 @@ def run(agent, binary, report, phases=PHASES):
                            "defaults": {"skills": {"mode": "fixed", "value": [selected] if mounted else []},
                                         "mcp": {"mode": "fixed", "value": ["coexistence"]
                                                 if mounted and not glm_skills else []}}}
-                request(url, "/global/config", {"agents": {AGENT_PROFILE: profile}}, method="PATCH")
+                if sid is None or not glm_skills:
+                    request(url, "/global/config", {"agents": {AGENT_PROFILE: profile}}, method="PATCH")
                 if sid is None or not glm_skills:
                     sid = json.loads(request(url, "/session" + query, {"title": "ACP coexistence " + phase}))["id"]
                 row["session"] = sid
+                if glm_skills:
+                    selections = [{"name": selected, "path": str(fixtures["skills"]["selected"]["path"])}] if mounted else []
+                    row["mount_revision"] = replace_glm_skills(binary, root, env, workspace, sid, selections)
+                    if not mounted:
+                        require(row["mount_revision"] == report["turns"][0]["mount_revision"] + 1,
+                                "GLM removal did not follow the selected session revision")
                 probe_options = {"skill_only": True, "restored": phase == "removed"} if glm_skills else {}
                 model.probe = probe = supplier.Probe(fixtures, mounted, rejected, **probe_options)
                 native_read_decision = {"native-rejected": "reject", "native-cancelled": "cancel"}.get(phase)

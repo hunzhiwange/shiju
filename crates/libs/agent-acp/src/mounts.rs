@@ -28,27 +28,38 @@ pub fn prepare_skills(
     let skills = if mounts.is_empty() {
         SessionSkillSources::default()
     } else {
-        let view = SessionSkillView::prepare(
-            SessionSkillBinding {
-                tenant: serde_json::json!([
-                    scope.tenant().platform_id().as_ref(),
-                    scope.tenant().company_id().as_ref()
-                ])
-                .to_string(),
-                project: scope.directory().to_path_buf(),
-                session: session.into(),
-                revision: revision.0,
-            },
-            &mounts,
-            security,
-        )
-        .map_err(prepare_error)?;
+        let view = prepare_skill_view(scope, session, &mounts, revision, security)
+            .map_err(prepare_error)?;
         SessionSkillSources::new(view, mounts.clone())
     };
     skills
         .extend(native_skills(), security, false)
         .map_err(prepare_error)?;
     Ok((skills, mounts))
+}
+
+/// Rebuild the exact scope and revision used to fingerprint committed skills.
+pub fn prepare_skill_view(
+    scope: &SessionScope,
+    session: &str,
+    mounts: &[SessionSkillMount],
+    revision: SessionMountRevision,
+    security: &config_skills::SkillSecurityConfig,
+) -> anyhow::Result<SessionSkillView> {
+    SessionSkillView::prepare(
+        SessionSkillBinding {
+            tenant: serde_json::json!([
+                scope.tenant().platform_id().as_ref(),
+                scope.tenant().company_id().as_ref()
+            ])
+            .to_string(),
+            project: scope.directory().to_path_buf(),
+            session: session.into(),
+            revision: revision.0,
+        },
+        mounts,
+        security,
+    )
 }
 
 pub async fn save(

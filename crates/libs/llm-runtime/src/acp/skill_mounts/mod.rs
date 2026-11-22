@@ -97,6 +97,7 @@ pub fn validate(agent: &str, selected: bool) -> Result<(), Error> {
 #[derive(Clone)]
 pub struct MountedSkills(
     pub std::sync::Arc<agent_skills::session_mounts::SessionSkillView>,
+    Option<std::sync::Arc<dyn Fn() -> bool + Send + Sync>>,
 );
 impl PartialEq for MountedSkills {
     fn eq(&self, other: &Self) -> bool {
@@ -107,13 +108,24 @@ impl Eq for MountedSkills {}
 impl super::host::SkillLease for MountedSkills {
     fn fingerprint(&self) -> &str { self.0.fingerprint() }
     fn root(&self) -> &std::path::Path { self.0.root() }
-    fn validate(&self) -> Result<(), Error> { self.0.validate().map_err(super::to_api_error) }
+    fn validate(&self) -> Result<(), Error> {
+        if self.1.as_ref().is_some_and(|current| !current()) {
+            return Err(super::acp_option_error("ACP session skill selection was revised"));
+        }
+        self.0.validate().map_err(super::to_api_error)
+    }
     #[cfg(unix)]
     fn snapshot(&self, destination: &std::path::Path) -> Result<(), Error> {
+        self.validate()?;
         self.0.snapshot(destination).map_err(super::to_api_error)
     }
 }
 impl MountedSkills {
+    pub fn with_current(mut self, current: impl Fn() -> bool + Send + Sync + 'static) -> Self {
+        self.1 = Some(std::sync::Arc::new(current));
+        self
+    }
+
     pub fn prepare(
         mounts: &[acp_types::SessionSkillMount],
         cwd: &std::path::Path,
@@ -134,7 +146,7 @@ impl MountedSkills {
         let view =
             agent_skills::session_mounts::SessionSkillView::prepare(binding, mounts, security)
                 .map_err(super::to_api_error)?;
-        Ok(Some(Self(std::sync::Arc::new(view))))
+        Ok(Some(Self(std::sync::Arc::new(view), None)))
     }
 }
 

@@ -62,6 +62,15 @@ pub trait Host: Send + Sync + 'static {
     fn bind_agent<'a>(session: &'a str, cfg: &'a mut Config) -> HostFuture<'a, anyhow::Result<()>>;
     fn agent_defaults<'a>(cfg: &'a Config, options: &'a serde_json::Value, agent: &'a str, cwd: &'a Path, parsed: &'a mut ParsedAcpOptions<Self::Skills>, messages: &'a serde_json::Value) -> HostFuture<'a, Result<serde_json::Value, Error>>;
     fn prepare_skills(mounts: &[acp_types::SessionSkillMount], cwd: &Path, session: &str, cfg: &Config) -> Result<Option<Self::Skills>, Error>;
+    fn prepare_glm_skills<'a>(
+        mounts: &'a mut Vec<acp_types::SessionSkillMount>,
+        cwd: &'a Path,
+        _session: &'a str,
+        scoped_session: &'a str,
+        cfg: &'a Config,
+    ) -> HostFuture<'a, Result<Option<Self::Skills>, Error>> {
+        Box::pin(async move { Self::prepare_skills(mounts, cwd, scoped_session, cfg) })
+    }
     fn reject_expanded(agent: &str, messages: &serde_json::Value) -> Result<(), Error>;
     fn scanner(agent: &str, cfg: &mut AcpAgentConfig, skills: Option<&Self::Skills>) -> Result<(), Error>;
     fn supplier(agent: &str, skills: Option<&Self::Skills>) -> Result<(), Error>;

@@ -25,4 +25,9 @@ path = Path(sys.argv[1]) / "bundle/cli.mjs"
 data = apply(path.read_bytes(), "patch.json")
 if sys.argv[2:] == ["--linux"]:
     data = apply(data, "linux.json")
+    projection = Path(__file__).with_name("linux-mcp.mjs").read_bytes()
+    spec = json.loads(Path(__file__).with_name("linux.json").read_text())
+    if hashlib.sha256(projection).hexdigest() != spec["projection_sha256"]:
+        raise RuntimeError("Snow MCP projection checksum mismatch")
+    path.with_name("shiju-mcp.mjs").write_bytes(projection)
 path.write_bytes(data)

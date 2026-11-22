@@ -21,6 +21,7 @@ from verify_acp_skill_coexistence import mcp_server as session_mcp_server, model
 
 REVISION = "snow-0.9.14-model-source-v5"
 NATIVE_MCP = "nativeprobe-read_probe"
+PROJECTED_MCP = "mcp__coexistence__read_probe"
 
 
 @contextmanager
@@ -96,24 +97,46 @@ class CancelProbe:
     def response(self, body):
         tools = {row["function"]["name"] for row in body["tools"]}
         self.catalogs.append(tools)
-        if snow.MCP_TOOL not in tools:
+        if PROJECTED_MCP not in tools:
             return {"content": "MOUNT_REMOVED"}, "stop"
         return {"tool_calls": [{"index": 0, "id": "call_cancel", "type": "function",
-                                "function": {"name": snow.MCP_TOOL, "arguments": "{}"}}]}, "tool_calls"
+                                "function": {"name": PROJECTED_MCP, "arguments": "{}"}}]}, "tool_calls"
+
+
+class CancelHandler(snow.Handler):
+    def do_POST(self):
+        if self.path != "/shiju-vtcode-mcp/coexistence":
+            return super().do_POST()
+        if self.headers.get("Authorization") != "Bearer " + self.server.mcp_key:
+            self.send_error(401)
+            return
+        payload = json.loads(self.rfile.read(int(self.headers["Content-Length"])))
+        self.server.mcp_methods.append(payload["method"])
+        if payload["method"] != "tools/list":
+            self.send_error(403)
+            return
+        self.send_response(200)
+        self.send_header("Content-Type", "application/json")
+        self.end_headers()
+        self.wfile.write(json.dumps({"jsonrpc": "2.0", "id": payload["id"], "result": {
+            "tools": [{"name": "read_probe", "inputSchema": {"type": "object", "properties": {}}}],
+        }}).encode())
 
 
 def verify_cancel_and_load(entry, root, env):
     workspace = root / "cancel-workspace"
     workspace.mkdir()
-    attachment = root / "cancel-value.txt"
-    attachment.write_text(secrets.token_hex(24))
-    audit = root / "cancel-audit.txt"
     config = root / "cancel-snow"
     config.mkdir(mode=0o700)
     key = secrets.token_hex(24)
     probe = CancelProbe()
-    with session_mcp_server("stdio", attachment, audit) as mcp, model_server(snow.Handler, key) as model:
+    with model_server(CancelHandler, key) as model:
         model.probe = probe
+        model.mcp_methods = []
+        model.mcp_key = secrets.token_hex(32)
+        mcp = {"type": "http", "name": "coexistence",
+               "url": f"http://127.0.0.1:{model.server_port}/shiju-vtcode-mcp/coexistence",
+               "headers": [{"name": "Authorization", "value": "Bearer " + model.mcp_key}]}
         (config / "config.json").write_text(json.dumps({"snowcfg": {
             "baseUrl": f"http://127.0.0.1:{model.server_port}/v1", "baseUrlMode": "base",
             "apiKey": key, "advancedModel": snow.MODEL, "requestMethod": "chat",
@@ -125,16 +148,32 @@ def verify_cancel_and_load(entry, root, env):
         try:
             info, _ = process.call("initialize", {"protocolVersion": 1, "clientCapabilities": {}})
             require(info["agentInfo"]["version"] == "0.9.14", "unexpected ACP Snow version")
+            raw_started = root / "unexpected-stdio-start"
+            raw = {"name": "raw", "command": sys.executable, "env": [], "args": [
+                "-c", "from pathlib import Path; import sys; Path(sys.argv[1]).touch()", str(raw_started),
+            ]}
+            raw_session, _ = process.call("session/new", {"cwd": str(workspace), "mcpServers": [raw]})
+            prompt_content = [{"type": "text", "text": "Check the fixture."}]
+            try:
+                process.call("session/prompt", {"sessionId": raw_session["sessionId"],
+                                                "prompt": prompt_content})
+            except AssertionError as error:
+                require("Invalid Snow host MCP selection" in str(error), "unexpected raw stdio error")
+            else:
+                raise AssertionError("Snow accepted raw session stdio")
+            require(not raw_started.exists() and not probe.catalogs and not model.mcp_methods,
+                    "raw session stdio crossed Snow's request boundary")
+
             session, _ = process.call("session/new", {"cwd": str(workspace), "mcpServers": [mcp]})
             sid = session["sessionId"]
-            prompt = {"sessionId": sid, "prompt": [{"type": "text", "text": "Check the fixture."}]}
+            prompt = {"sessionId": sid, "prompt": prompt_content}
             approvals = []
 
             def cancel_then_approve(frame):
                 if frame.get("method") != "session/request_permission":
                     return
                 call = frame["params"]["toolCall"]
-                require(call["toolCallId"] == "call_cancel" and call["title"] == snow.MCP_TOOL
+                require(call["toolCallId"] == "call_cancel" and call["title"] == PROJECTED_MCP
                         and call["rawInput"] == {}, "unexpected pending Snow MCP action")
                 approvals.append(call["toolCallId"])
                 process.send("session/cancel", {"sessionId": sid}, notification=True)
@@ -146,12 +185,12 @@ def verify_cancel_and_load(entry, root, env):
 
             result, _ = process.call("session/prompt", prompt, cancel_then_approve)
             require(result["stopReason"] == "cancelled" and approvals == ["call_cancel"]
-                    and len(probe.catalogs) == 1 and not audit.exists(),
+                    and len(probe.catalogs) == 1 and model.mcp_methods == ["tools/list"],
                     "late approval continued a cancelled Snow turn")
             process.call("session/load", {"sessionId": sid, "cwd": str(workspace), "mcpServers": []})
             result, frames = process.call("session/prompt", prompt)
             require(result["stopReason"] == "end_turn" and len(probe.catalogs) == 2
-                    and snow.MCP_TOOL not in probe.catalogs[1] and not audit.exists()
+                    and PROJECTED_MCP not in probe.catalogs[1] and model.mcp_methods == ["tools/list"]
                     and all(row.get("method") != "session/request_permission" for row in frames),
                     "removed Snow MCP was reused after session/load")
             require(probe.failure is None, probe.failure)
@@ -186,6 +225,8 @@ def verify(binary):
                     "unexpected Snow package identity")
             require(hashlib.sha256(entry.read_bytes()).hexdigest() == pin["patched"],
                     "unexpected Snow entry digest")
+            require(hashlib.sha256(entry.with_name("shiju-mcp.mjs").read_bytes()).hexdigest()
+                    == pin["projection_sha256"], "unexpected Snow MCP projection digest")
             lock = json.loads((runtime / "package-lock.json").read_text())["packages"]
             helper = "node_modules/" + ripgrep["package"]
             require(lock[helper]["integrity"] == ripgrep["integrity"]
@@ -204,7 +245,8 @@ def verify(binary):
             }
 
         report = {"turns": []}
-        with patch.multiple(snow, launch=launch, Probe=Probe, mcp_server=mcp_server, create=True):
+        with patch.multiple(snow, launch=launch, Probe=Probe, MCP_TOOL=PROJECTED_MCP,
+                            mcp_server=mcp_server, create=True):
             run("snow", binary, report)
         require([row["mcp_calls"] for row in report["turns"]] == [0, 1, 0, 0],
                 "Snow session MCP audit changed after rejection or removal")

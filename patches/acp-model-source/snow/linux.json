@@ -1,6 +1,6 @@
 {
   "original": "b3fb29de76fe1e89ab229b0954bca728589948940e2f203d0ca7ab56ea8702dd",
-  "patched": "c33e2848e9c458e119eeda8cd72156f73dc63d410a71c46e0fba24f3659abc72",
+  "patched": "e041f175238895b5cfb109af8da186de61770537b811d8e6414c7e1e2f6515eb",
   "ripgrep": {
     "version": "1.18.0",
     "x86_64": {
@@ -46,6 +46,35 @@
     {
       "old": "await executeToolCall(toolCall, controller.signal, void 0, void 0, confirmNested, () => false, false, void 0, void 0, void 0, workingDirectory);",
       "new": "await executeToolCall(toolCall, controller.signal, void 0, void 0, confirmNested, () => false, false, void 0, void 0, void 0, workingDirectory, confirmNested);"
+    },
+    {
+      "old": "              const clients = new Set();\n              try {\n                const mounted = await this.discoverSessionMcp(session, controller.signal, clients);\n                const stopReason = await this.handlePrompt(session, userContent, imageUrls, controller, conn, () => cancelled, mounted);\n                return { stopReason: cancelled ? \"cancelled\" : stopReason };\n              } finally {\n                await this.closeSessionMcp(clients);\n              }\n",
+      "new": "              const mounted = await discoverProjectedSnowMcp(session.mcpServers, getSnowConfig(), controller.signal);\n              const stopReason = await this.handlePrompt(session, userContent, imageUrls, controller, conn, () => cancelled, mounted);\n              return { stopReason: cancelled ? \"cancelled\" : stopReason };\n"
+    },
+    {
+      "old": "      async discoverSessionMcp(session, signal, clients) {\n        const mounted = new Map();\n        const services = new Set();\n        for (const server of session.mcpServers) {\n          if (!server.command || server.type || services.has(server.name)) {\n            throw new Error(\"Snow ACP requires uniquely named stdio MCP servers\");\n          }\n          services.add(server.name);\n          const client = createMCPClient(server.name);\n          clients.add(client);\n          this.activeMcpClients.add(client);\n          const discoverySignal = AbortSignal.any([signal, AbortSignal.timeout(10000)]);\n          discoverySignal.throwIfAborted();\n          let onAbort;\n          try {\n            await Promise.race([\n              new Promise((_, reject) => {\n                onAbort = () => reject(discoverySignal.reason);\n                discoverySignal.addEventListener(\"abort\", onAbort, { once: true });\n              }),\n              client.connect(new StdioClientTransport({\n                command: server.command,\n                args: server.args,\n                cwd: session.cwd,\n                env: Object.fromEntries(server.env.map(({ name, value }) => [name, value])),\n                stderr: \"ignore\"\n              }))\n            ]);\n          } finally {\n            discoverySignal.removeEventListener(\"abort\", onAbort);\n          }\n          let cursor;\n          do {\n            const page = await client.listTools(cursor ? { cursor } : {}, { signal: discoverySignal });\n            for (const tool of page.tools) {\n              const name = `${server.name}-${tool.name}`;\n              if (mounted.has(name) || !/^[a-zA-Z0-9_-]{1,64}$/.test(name)) {\n                throw new Error(\"Invalid or duplicate Snow ACP MCP tool name: \" + name);\n              }\n              mounted.set(name, {\n                client,\n                toolName: tool.name,\n                serviceName: server.name,\n                definition: {\n                  type: \"function\",\n                  function: { name, description: tool.description, parameters: tool.inputSchema }\n                }\n              });\n            }\n            cursor = page.nextCursor;\n          } while (cursor);\n        }\n        return mounted;\n      }\n      async closeSessionMcp(clients) {\n        await Promise.allSettled(Array.from(clients, async (client) => {\n          if (this.activeMcpClients.delete(client)) {\n            await client.close();\n          }\n        }));\n      }\n",
+      "new": ""
+    },
+    {
+      "old": "      activeMcpClients = new Set();\n",
+      "new": ""
+    },
+    {
+      "old": "        await this.closeSessionMcp(this.activeMcpClients);\n",
+      "new": ""
+    },
+    {
+      "old": "          const rawInput = JSON.parse(args || \"{}\");\n          const { outcome }",
+      "new": "          const rawInput = JSON.parse(args || \"{}\");\n          if (!rawInput || typeof rawInput !== \"object\" || Array.isArray(rawInput)) {\n            throw new Error(\"Invalid Snow MCP arguments\");\n          }\n          const { outcome }"
+    },
+    {
+      "old": "await tool.client.callTool({ name: tool.toolName, arguments: rawInput }, { signal })",
+      "new": "await tool.call(rawInput, call.id, signal)"
+    },
+    {
+      "old": "import { createRequire as _createRequire } from 'module';",
+      "new": "import { createRequire as _createRequire } from 'module';\nimport { discoverProjectedSnowMcp } from \"./shiju-mcp.mjs\";"
     }
-  ]
+  ],
+  "projection_sha256": "a9618c48e45601211f3d2be62bed8d4aee7e12e6a2b3925174c61950eface66d"
 }

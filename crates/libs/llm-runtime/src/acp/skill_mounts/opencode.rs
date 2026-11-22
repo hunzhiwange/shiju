@@ -7,6 +7,13 @@ pub(super) fn configure(
     config: &mut AcpAgentConfig,
     view: Option<&super::MountedSkills>,
 ) -> Result<(), super::Error> {
+    // A reviewed ELF identifies the scanner but grants no confinement for the
+    // selected directories. Keep projections out of the native Linux process.
+    if cfg!(target_os = "linux") && view.is_some() {
+        return Err(super::super::acp_option_error(
+            "OpenCode skill mounts require a verified Linux sandbox",
+        ));
+    }
     if config.env.contains_key(ROOT_ENV) || std::env::var_os(ROOT_ENV).is_some() {
         return Err(super::super::acp_option_error(
             "conflicting OpenCode skill directory environment",

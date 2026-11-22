@@ -39,8 +39,15 @@ fn acp_skill_mount_opencode_unreviewed_executable_is_rejected_before_environment
         command: root.path().join("missing-opencode").to_string_lossy().into(),
         ..Default::default()
     };
-    assert!(super::configure(&mut config, Some(&view)).is_err());
+    let error =
+        super::super::configure_native_scanner("opencode", &mut config, Some(&view)).unwrap_err();
+    if cfg!(target_os = "linux") {
+        assert!(
+            error.to_string().contains("OpenCode skill mounts require a verified Linux sandbox")
+        );
+    }
     assert!(!config.env.contains_key(super::ROOT_ENV));
+    assert!(!config.env.contains_key("OPENCODE_PURE"));
 }
 
 #[cfg(unix)]

@@ -353,14 +353,14 @@ impl McpSessionConnections {
             active.client.take();
         }
         if active.client.is_none() {
-            let server = server.clone();
+            let startup_server = server.clone();
             let closed = entry.closed.child_token();
             let form_owner = self.form_owner.clone();
             let host = self.host.clone();
             let task = runtime().spawn(async move {
                 let operation = async {
                     let client = host.open_peer(
-                        server, startup, closed, form_owner,
+                        startup_server, startup, closed, form_owner,
                     )
                     .await?;
                     if client.peer_info().is_some_and(|info| info.capabilities.tools.is_some()) {

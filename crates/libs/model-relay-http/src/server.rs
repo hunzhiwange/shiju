@@ -134,7 +134,7 @@ impl RelayServer {
         host: Arc<dyn RelayHost>,
         private_routes: Router,
         vtcode_catalog: Vec<String>,
-        listener: impl axum::serve::Listener,
+        listener: impl axum::serve::Listener<Addr: std::fmt::Debug>,
         address: SocketAddr,
         #[cfg(unix)] socket_directory: Option<tempfile::TempDir>,
         #[cfg(not(unix))] _socket_directory: Option<()>,

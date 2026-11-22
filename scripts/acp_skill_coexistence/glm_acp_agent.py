@@ -20,13 +20,16 @@ MODEL = "deepseek-v4.1-flash-1017"
 MODEL_OUTPUT_LIMIT = 32_768
 ADAPTER = "openai"
 API_PATH = "/v1"
+MODEL_ENDPOINT = API_PATH + "/chat/completions"
 TRANSPORT = "stdio"
 NATIVE_DIR = ".claude/skills"
 CATALOG = "Available skills. Use the native read_file tool on a listed path to load instructions when needed.\n"
 
 
 def launch(env):
-    require((platform.system(), platform.machine()) == ("Darwin", "arm64"),
+    require((platform.system(), platform.machine()) in {
+                ("Darwin", "arm64"), ("Linux", "x86_64"), ("Linux", "aarch64"),
+            },
             "unreviewed GLM coexistence platform")
     installer = ROOT / "crates/libs/acp-agent-registry/src/managed_runtime"
     contracts = installer / "contracts.json"
@@ -50,7 +53,9 @@ def launch(env):
         require(hashlib.sha256((package / name).read_bytes()).hexdigest() == digest,
                 f"reviewed GLM checksum mismatch: {name}")
     return {"command": str(package / contract["bin"]), "args": []}, {
-        "version": VERSION, "revision": REVISION, "integrity": contract["integrity"], "sha256": hashes,
+        "version": VERSION, "revision": REVISION, "entry": contract["bin"],
+        "integrity": contract["integrity"], "sha256": hashes,
+        "model_endpoint": MODEL_ENDPOINT,
     }
 
 
@@ -160,7 +165,7 @@ class Handler(ProviderHandler):
     def do_POST(self):
         probe = self.server.probe
         try:
-            require(self.path == "/v1/chat/completions", "unexpected GLM model endpoint")
+            require(self.path == MODEL_ENDPOINT, "unexpected GLM model endpoint")
             require(self.headers.get("Authorization") == "Bearer " + self.server.key,
                     "unauthenticated GLM model request")
             delta, finish = probe.response(json.loads(self.rfile.read(int(self.headers["Content-Length"]))))
@@ -202,10 +207,14 @@ def direct_control():
                 info, _ = process.call("initialize", {"protocolVersion": 1, "clientCapabilities": {}})
                 require(info["agentInfo"]["version"] == VERSION, "unexpected GLM ACP version")
                 denied = {**mcp, "_meta": {"shiju.glm.toolPolicy": {"allow": [], "deny": ["read_probe"]}}}
+                overlap = {**mcp, "_meta": {"shiju.glm.toolPolicy": {
+                    "allow": ["read_probe"], "deny": ["read_probe"],
+                }}}
                 for phase, servers in (("baseline", []), ("mounted", [mcp]),
-                                       ("removed", []), ("policy_denied", [denied])):
+                                       ("removed", []), ("policy_denied", [denied]),
+                                       ("policy_overlap", [overlap])):
                     session, updates = process.call("session/new", {"cwd": str(workspace), "mcpServers": servers})
-                    model.probe = probe = Probe(fixtures, bool(servers), phase == "policy_denied", slash=True)
+                    model.probe = probe = Probe(fixtures, bool(servers), phase.startswith("policy_"), slash=True)
                     before = audit.read_text().splitlines() if audit.exists() else []
                     result, events = process.call("session/prompt", {"sessionId": session["sessionId"],
                         "prompt": [{"type": "text", "text": "/" + native["name"]}]})

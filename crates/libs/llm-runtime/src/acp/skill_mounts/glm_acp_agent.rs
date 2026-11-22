@@ -4,11 +4,29 @@ use super::super::{
 };
 use std::{collections::HashMap, fs, path::Path};
 
+/// Targets that can use the same workspace view with the reviewed v3 package.
+/// The host still decides whether to expose the capability.
+pub(in crate::acp) const fn supports_session_view_target() -> bool {
+    cfg!(any(
+        all(target_os = "macos", target_arch = "aarch64"),
+        all(
+            target_os = "linux",
+            target_env = "gnu",
+            any(target_arch = "x86_64", target_arch = "aarch64")
+        )
+    ))
+}
+
 pub(in crate::acp) fn configure(
     profile: &mut AcpLaunchProfile,
     workspace: &Path,
     view: Option<&impl SkillLease>,
 ) -> Result<(), Error> {
+    if !supports_session_view_target() {
+        return Err(super::super::acp_option_error(
+            "GLM session skill view is unavailable on this target",
+        ));
+    }
     let sources = selection(workspace, view).map_err(to_api_error)?;
     profile
         .overlay_environment(HashMap::from([("SHIJU_GLM_SKILL_VIEW".into(), sources)]))

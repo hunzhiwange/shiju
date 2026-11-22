@@ -32,16 +32,9 @@ Use `RELAX_*` settings; the pinned older runner receives the corresponding
 `MAKEPAD_RUN_*` names. Legacy shell settings remain accepted; `RELAX_*` takes
 priority when both spellings are set.
 
-The desktop entry temporarily defaults `RELAX_O3=0` after a reported
-`SIGILL` in the O3 closure used by `session_row::local_time`. Hot reload remains
-enabled. This disables the faulting optimization tier, but the compiler root cause
-is still unconfirmed; it is not a guarantee against other JIT failures. Restart
-`cargo dev-desktop` to apply it to an existing session. Gateway and live test
-entries keep their existing optimization policy. For compiler reproduction only,
-use `RELAX_O3=1 cargo dev-desktop`; the entry prints the selected value.
-An isolated chrono formatting loop passed even after reaching O3, so it does not
-yet reproduce the full application failure. See the
-[investigation evidence](../docs/dev/evidence/relax-jit-sigill-2026-11-13/report.md).
+The desktop and gateway entries use the selected Relax runner’s default
+optimization policy. Set `RELAX_O3=0` when launching either entry to disable O3
+for that session.
 
 ## Relax live focused tests
 

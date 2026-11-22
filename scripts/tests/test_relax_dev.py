@@ -220,16 +220,16 @@ class RelaxDevTests(unittest.TestCase):
                 patch.object(dev, 'run_live') as execute:
             dev.main(['desktop'])
             self.assertEqual(execute.call_args.args[0][-3:], ['vw-desktop', '--bin', 'shi-ju'])
-            self.assertEqual(execute.call_args.args[2]['RELAX_O3'], '0')
+            self.assertNotIn('RELAX_O3', execute.call_args.args[2])
             self.assertNotIn('--unattended', execute.call_args.args[0])
 
-    def test_desktop_honors_explicit_o3_for_compiler_reproduction(self):
-        with patch.dict(dev.os.environ, {'RELAX_O3': '1'}, clear=True), \
+    def test_desktop_honors_explicit_o3_override(self):
+        with patch.dict(dev.os.environ, {'RELAX_O3': '0'}, clear=True), \
                 patch.object(dev, 'prepare', return_value=(Path('/tool/relax'), Path('/tool/source'), Path('/run'))), \
                 patch.object(dev, 'desktop_bundle', return_value=Path('/tool/relax')), \
                 patch.object(dev, 'run_live') as execute:
             dev.main(['desktop'])
-            self.assertEqual(execute.call_args.args[2]['RELAX_O3'], '1')
+            self.assertEqual(execute.call_args.args[2]['RELAX_O3'], '0')
 
 
 if __name__ == '__main__':

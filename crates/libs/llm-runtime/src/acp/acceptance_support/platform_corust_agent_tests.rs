@@ -58,3 +58,67 @@ fn acp_platform_corust_agent_contract() {
         assert!(turn["model_requests"].as_u64().unwrap() > calls.len() as u64);
     }
 }
+
+#[tokio::test]
+#[ignore = "requires a disposable Linux container with glibc 2.39 and access to the pinned archive"]
+async fn acp_platform_corust_agent_native_contract() {
+    use acp_agent_registry::{install_builtin_agent, resolve_agent_spec};
+    use acp_client::AcpClient;
+    use acp_types::{AcpAgentConfig, PermissionMode};
+    use std::{env, fs, time::Duration};
+
+    const CHILD_ROOT: &str = "SHIJU_TEST_CORUST_NATIVE_ROOT";
+    const AGENT: &str = "corust-agent";
+    let Some(root) = env::var_os(CHILD_ROOT) else {
+        let root = tempfile::tempdir().unwrap();
+        for directory in ["home", "config", "workspace"] {
+            fs::create_dir(root.path().join(directory)).unwrap();
+        }
+        let module = module_path!().split_once("::").unwrap().1;
+        let test = format!("{module}::acp_platform_corust_agent_native_contract");
+        let status = Command::new(env::current_exe().unwrap())
+            .args(["--ignored", "--exact", &test])
+            .env_clear()
+            .env("PATH", "/usr/bin:/bin")
+            .env("HOME", root.path().join("home"))
+            .env("VIBEWINDOW_CONFIG_DIR", root.path().join("config"))
+            .env(CHILD_ROOT, root.path())
+            .current_dir(root.path().join("workspace"))
+            .status()
+            .unwrap();
+        assert!(status.success(), "isolated Corust native contract failed");
+        return;
+    };
+
+    let root = Path::new(&root);
+    let runtime = root.join("config/acp-runtime");
+    if cfg!(target_arch = "aarch64") {
+        let error = install_builtin_agent(AGENT).await.unwrap_err();
+        assert_eq!(error, "No fixed ACP executable for this Linux architecture");
+        assert!(!runtime.exists());
+        return;
+    }
+
+    install_builtin_agent(AGENT).await.unwrap();
+    let entry = runtime
+        .join("corust-agent-0.6.0-linux-x64-native/corust-agent-acp")
+        .canonicalize()
+        .unwrap();
+    let spec = resolve_agent_spec(AGENT).unwrap();
+    assert_eq!(Path::new(&spec.command), entry.as_path());
+    assert!(spec.args.is_empty() && spec.env.is_empty());
+
+    let client = AcpClient::new(
+        AGENT,
+        AcpAgentConfig { command: spec.command, args: spec.args, env: spec.env },
+    )
+    .with_full_access(true)
+    .with_permission_mode(PermissionMode::ApproveAll);
+    let created = tokio::time::timeout(
+        Duration::from_secs(30),
+        client.create_session(root.join("workspace")),
+    )
+    .await;
+    client.close().await.unwrap();
+    assert!(!created.unwrap().unwrap().session_id.is_empty());
+}

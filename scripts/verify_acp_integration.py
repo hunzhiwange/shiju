@@ -349,6 +349,12 @@ class PlatformModel(ProviderHandler):
             if step:
                 name, _, expected = plan[step - 1]
                 content = str(receipts[-1]["content"])
+                try:
+                    decoded = json.loads(content)
+                except json.JSONDecodeError:
+                    decoded = None
+                if isinstance(decoded, str):
+                    content = decoded
                 if expected is None:
                     require(turn["attached_value"] not in content
                             and any(word in content.lower() for word in ("denied", "rejected", "拒绝")),
@@ -432,7 +438,8 @@ def platform_scenarios(shiju, output, report):
         configuration = {"autonomy": {"level": "supervised", "always_ask": [ATTACHED_MCP]}}
         env, cwd = prepare(output, model.server_port, configuration)
         native = make_skill(cwd / ".shiju/skills", "native")
-        attached = make_skill(output / "skills", "attached")
+        # A parent-directory "skills" folder would already be auto-discovered.
+        attached = make_skill(output / "mounted-fixtures", "attached")
         database = Path(env["VIBEWINDOW_CONFIG_DIR"]) / "database/vibe-window.sqlite3"
         with sqlite3.connect(database) as connection:
             connection.execute(
@@ -461,7 +468,7 @@ def platform_scenarios(shiju, output, report):
                     channels={}, stopping=threading.Event(),
                 ))
                 configs[name] = {"name": name, "type": "http",
-                                 "url": f"http://127.0.0.1:{mcp.server_port}/mcp"}
+                                 "url": f"http://127.0.0.1:{mcp.server_port}/mcp", "headers": []}
             audits.append(audit)
             values.append(value)
         (cwd / ".vwacprc.json").write_text(json.dumps({"mcpServers": [configs["native_probe"]]}))

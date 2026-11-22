@@ -54,7 +54,7 @@ def launch(env):
 
 
 def launch_linux(env):
-    manifest = json.loads((ROOT / "patches/acp-model-source/iflow/linux-artifacts.json").read_text())
+    manifest = json.loads((ROOT / "patches/acp-model-source/iflow/linux-mcp-artifacts.json").read_text())
     target = manifest["targets"].get(platform.machine())
     require(target is not None, "unreviewed iFlow Linux architecture")
     source = os.environ.get("IFLOW_COEXISTENCE_RUNTIME")
@@ -196,7 +196,8 @@ class Probe:
 
     def approves(self, metadata):
         arguments = metadata.get("arguments")
-        return (self.pending == "mcp" and metadata.get("title") == MCP_TOOL
+        title = "mcp__coexistence__" + MCP_TOOL if platform.system() == "Linux" else MCP_TOOL
+        return (self.pending == "mcp" and metadata.get("title") == title
                 and (arguments == {} or (platform.system() != "Linux" and arguments is None)))
 
     def expected_skill_approvals(self):

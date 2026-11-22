@@ -30,7 +30,7 @@ fn acp_platform_iflow_contract() {
 
     let manifest: Value = serde_json::from_str(include_str!(concat!(
         env!("CARGO_MANIFEST_DIR"),
-        "/../../../patches/acp-model-source/iflow/linux-artifacts.json"
+        "/../../../patches/acp-model-source/iflow/linux-mcp-artifacts.json"
     )))
     .unwrap();
     let target = &manifest["targets"][std::env::consts::ARCH];

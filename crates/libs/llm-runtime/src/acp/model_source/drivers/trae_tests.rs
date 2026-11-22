@@ -111,3 +111,91 @@ fn acp_platform_trae_contract() {
     // The provider fixture rejects every request outside this protocol.
     eprintln!("TRAE platform artifact {artifact} used POST /v1/chat/completions");
 }
+
+#[cfg(all(
+    target_os = "linux",
+    target_env = "gnu",
+    any(target_arch = "x86_64", target_arch = "aarch64")
+))]
+#[tokio::test]
+#[ignore = "requires the pinned official TRAE archive in a disposable GNU Linux container"]
+async fn acp_platform_trae_contract_cli_local() {
+    use acp_agent_registry::{install_builtin_agent, resolve_agent_spec, reviewed_agent_command};
+    use acp_client::AcpClient;
+    use acp_types::{AcpAgentConfig, PermissionMode};
+    use agent_client_protocol::{McpServer, McpServerStdio};
+    use std::{env, fs, path::Path, process::Command, time::Duration};
+
+    const FIXTURE_ROOT: &str = "SHIJU_TEST_TRAE_CLI_LOCAL_ROOT";
+    let Some(root) = env::var_os(FIXTURE_ROOT) else {
+        let root = tempfile::tempdir().unwrap();
+        for name in ["home", "config", "workspace", "tmp"] {
+            fs::create_dir(root.path().join(name)).unwrap();
+        }
+        let module = module_path!().split_once("::").unwrap().1;
+        let test = format!("{module}::acp_platform_trae_contract_cli_local");
+        let status = Command::new(env::current_exe().unwrap())
+            .args(["--ignored", "--exact", &test])
+            .env_clear()
+            .env("PATH", "/usr/local/bin:/usr/bin:/bin")
+            .env("HOME", root.path().join("home"))
+            .env("TMPDIR", root.path().join("tmp"))
+            .env("VIBEWINDOW_CONFIG_DIR", root.path().join("config"))
+            .env(FIXTURE_ROOT, root.path())
+            .current_dir(root.path().join("workspace"))
+            .status()
+            .unwrap();
+        assert!(status.success(), "isolated TRAE cli_local contract failed");
+        return;
+    };
+
+    let root = Path::new(&root);
+    let workspace = root.join("workspace");
+    install_builtin_agent("trae").await.unwrap();
+    let entry = root
+        .join("config/acp-runtime/trae-0.121.3-linux-native-v1/traecli")
+        .canonicalize()
+        .unwrap();
+    let spec = resolve_agent_spec("trae").unwrap();
+    assert_eq!(Path::new(&spec.command), entry.as_path());
+    assert_eq!(spec.args, ["acp", "serve"]);
+    assert!(spec.env.is_empty());
+    assert_eq!(reviewed_agent_command("trae").unwrap(), None);
+    assert!(AcpClient::ensure_desktop_native_access("trae", false).is_err());
+
+    let ordinary = AcpAgentConfig { command: spec.command, args: spec.args, env: spec.env };
+    let client =
+        |config| AcpClient::new("trae", config).with_permission_mode(PermissionMode::DenyAll);
+    let timeout = Duration::from_secs(30);
+    let native = client(ordinary.clone());
+    let result = tokio::time::timeout(timeout, native.create_session(&workspace)).await;
+    native.close().await.unwrap();
+    assert!(!result.unwrap().unwrap().session_id.is_empty());
+
+    let marker = root.join("mcp-started");
+    let mcp = McpServer::Stdio(
+        McpServerStdio::new("unreviewed_mcp", "/usr/bin/touch")
+            .args(vec![marker.to_str().unwrap().into()]),
+    );
+    let mounted = client(ordinary.clone()).with_mcp_servers(vec![mcp]);
+    let result = tokio::time::timeout(timeout, mounted.create_session(&workspace)).await;
+    mounted.close().await.unwrap();
+    let error = result.unwrap().unwrap_err().to_string();
+    assert!(error.contains("Session MCP has no verified Linux launch boundary"), "{error}");
+    assert!(!marker.exists());
+
+    let mut managed = ordinary.clone();
+    managed.env.insert("VW_ACP_LAUNCH_REFERENCE".into(), "unissued-fixture-reference".into());
+    let managed = client(managed);
+    let result = tokio::time::timeout(timeout, managed.create_session(&workspace)).await;
+    managed.close().await.unwrap();
+    let error = result.unwrap().unwrap_err().to_string();
+    assert!(error.contains("no verified managed Linux launch"), "{error}");
+
+    fs::write(&entry, b"unreviewed executable").unwrap();
+    let replaced = client(ordinary);
+    let result = tokio::time::timeout(timeout, replaced.create_session(&workspace)).await;
+    replaced.close().await.unwrap();
+    let error = result.unwrap().unwrap_err().to_string();
+    assert!(error.contains("Fixed Linux ACP executable checksum mismatch"), "{error}");
+}

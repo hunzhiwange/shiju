@@ -51,4 +51,17 @@
 ### 验证
 
 - 双架构归档及 ELF 逐项比对。Python 语法解析、定向 Rust 格式和 Git 空白检查。未运行安装器、供应商进程、Cargo 或 Docker。
-- 后续在 `linux/amd64` 和 `linux/arm64` 的非 root 容器中分别设定 `SHIJU_ACP_TRAE_GATEWAY_BIN` 为当前源码构建的网关绝对路径。测试入口 `python3 scripts/cargo_slot.py cargo test -j 1 -p llm-runtime --lib acp_platform_trae_contract -- --ignored`，每种架构预期恰好命中 1 项。当前没有退出码、命中数或绿灯记录。
+- 后续在 `linux/amd64` 和 `linux/arm64` 的非 root 容器中分别运行下述定向入口。当前没有退出码、命中数或绿灯记录。
+
+### 共享接线后的复查
+
+| 两个 Linux GNU 目标的组合 | 状态 | 当前证据 |
+| --- | --- | --- |
+| 固定安装、发现和普通 ACP 建会话 | 待回归 | 任务 48 已通过 `managed_runtime/linux_cli.rs` 加载 TRAE 双架构合同，并由 `install.py --linux-cli` 调用专属解包器。注册表发现已校验摘要的原版 `traecli acp serve`。普通模型对话仍使用已授权的供应商账号。 |
+| 独立本机模型和两类技能 | 已阻塞 | 原版历史 ACP 对照在模型首次请求前失败，受管 Darwin 固定装配依赖 Mach-O 和专用网络沙箱。宿主 Linux 仍缺等效的私有运行时，原生文件执行和技能扫描也缺途经宿主授权的边界。 |
+| 受限原生工具、既有 MCP、会话外挂 MCP 及撤销恢复 | 已阻塞 | 历史原生 `Read` 在工作区外直接读取且未申请权限；固定版还把会话级 `session_level_allow` 标成 `allow_once`。既有 stdio 服务发现无法证明随后执行消费了同一调用的审批。 |
+
+- **原生替代路径。** 固定版官方原包的合成回环配置已能建会话、发现 stdio、选中模型，但首次提示因平台状态缺失失败，模型和 MCP 执行均为零。CLI 2.0 的配置参考支持初始模型和原生 MCP，官方快速开始仍要求账户及登录，初始模型名不能据此证明存在独立回环模型和逐次授权入口。固定受管版的 `loadSession` 不能证明支持 `session/resume`，历史独立实测只支持以当前 MCP 清单显式 `session/load`。普通原包验收仅覆盖安装到 ACP 建会话，模型完整轨迹需要独立获授权的固定版供应商会话。[固定版审计](../../docs/dev/acp/mcp-policy-audit/coexistence/trae.md) · [CLI 2.0 配置参考](https://docs.trae.cn/cli_config-file) · [CLI 2.0 登录方式](https://docs.trae.cn/cli_get-started-with-trae-cli-2)
+- **现有隔离和审批替代路径。** 宿主进程组处理收尾且不提供文件或网络隔离。现有 Landlock 实现只设置文件访问规则，Docker 无网络会切断当前 TCP 回环中继；在独立网络命名空间搬运中继需要受审的宿主转接与后代边界。复用宿主 MCP 中继只能保护显式投影的服务。TRAE 固定版缺可验证的原生执行前委托及 MCP 调度身份，本机环境、现有 MCP 配置、原生文件读写和原生命令仍能绕过该中继，单独移植 Mach-O 的模型配置补丁也无法补足这些缺口。启用前至少需要供应商提供固定 Linux 制品与支持独立绑定、原生工具执行前委托和 MCP 调用身份的接口，或提供足以审计等价宿主进程隔离与接管的实现及运行依赖。保留现行外部门控与失败关闭。
+- **新增普通入口验收源码。** `acp_platform_trae_contract_cli_local` 通过生产注册表安装和发现固定原包，再由生产 `AcpClient` 建会话。测试子进程使用合成 HOME，不提交模型提示。源码同时断言原包不会被认成受管入口，受限桌面入口拒绝、外挂 stdio 拒绝且启动标记不存在、冒用绑定拒绝、替换缓存入口后在下一次启动时拒绝。两架构分别执行 `python3 scripts/cargo_slot.py cargo test -j 1 -p llm-runtime --lib acp_platform_trae_contract_cli_local -- --ignored`，预期各命中 1 项。定向 Rust 格式及 Git 差异静态检查，本轮未运行测试或安装。
+- **受管后续入口。** 获得上述输入和完成接线后，分别设置 `SHIJU_ACP_TRAE_GATEWAY_BIN` 为当前源码构建的网关绝对路径，再执行 `python3 scripts/cargo_slot.py cargo test -j 1 -p llm-runtime --lib acp::model_source::drivers::trae::tests::acp_platform_trae_contract -- --exact --ignored`，预期各命中 1 项。

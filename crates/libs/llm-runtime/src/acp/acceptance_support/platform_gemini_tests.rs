@@ -28,7 +28,7 @@ fn acp_platform_gemini_contract() {
     assert_eq!(evidence["passed"], true);
     assert_eq!(evidence["platform"], format!("Linux-{}", std::env::consts::ARCH));
     assert_eq!(evidence["artifact"]["version"], "0.66.0");
-    assert_eq!(evidence["artifact"]["revision"], "gemini-0.66.0-model-source-v3");
+    assert_eq!(evidence["artifact"]["revision"], "gemini-0.66.0-model-source-v4");
     assert_eq!(evidence["artifact"]["entry"], "bundle/gemini.js");
     assert_eq!(
         evidence["artifact"]["integrity"],
@@ -39,8 +39,8 @@ fn acp_platform_gemini_contract() {
         "/v1beta/models/gemini-2.5-flash:streamGenerateContent"
     );
     assert_eq!(
-        evidence["artifact"]["sha256"]["bundle/gemini-EOCRFAPZ.js"],
-        "f26f50b8eafd82b198d477bfd52ca9ab053ff0788f724ddd17d06656d015ef43"
+        evidence["artifact"]["sha256"]["bundle/shiju-linux-mcp.mjs"],
+        "76c1b9274a042e52233570c90efeb08fc9e227e951303140a6f1be2d3fe5f965"
     );
 
     let turns = evidence["turns"].as_array().unwrap();

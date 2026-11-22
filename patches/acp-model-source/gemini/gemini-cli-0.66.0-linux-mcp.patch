@@ -1,0 +1,419 @@
+--- a/bundle/gemini-22EOGL6O.js
++++ b/bundle/gemini-22EOGL6O.js
+@@ -1,3 +1,4 @@
++import { isManagedLinuxMcp, validateMountedServers, setMountedServers, describeMcpTool, authorizeMcpInvocation } from "./shiju-linux-mcp.mjs";
+ const require = (await import('node:module')).createRequire(import.meta.url); const __chunk_filename = (await import('node:url')).fileURLToPath(import.meta.url); const __chunk_dirname = (await import('node:path')).dirname(__chunk_filename);
+ import {
+   startCommand,
+@@ -15218,6 +15219,7 @@
+       CoreEvent.ApprovalModeChanged,
+       this.handleApprovalModeChanged
+     );
++    if (isManagedLinuxMcp()) this.pendingPrompt?.abort();
+     this.disposeController.abort();
+     if (this.context.config?.dispose) {
+       try {
+@@ -15605,7 +15607,11 @@
+       const invocation = tool.build(args);
+       const displayTitle = typeof invocation.getDisplayTitle === "function" ? invocation.getDisplayTitle() : invocation.getDescription();
+       const explanation = typeof invocation.getExplanation === "function" ? invocation.getExplanation() : "";
+-      const confirmationDetails = await invocation.shouldConfirmExecute(abortSignal);
++      // Run supplier policy first. A supplier denial still terminates the call.
++      const nativeConfirmation = await invocation.shouldConfirmExecute(abortSignal);
++      const linuxMcp = isManagedLinuxMcp() && tool instanceof DiscoveredMCPTool;
++      const approval = linuxMcp ? describeMcpTool(this.context.config, invocation, tool) : null;
++      const confirmationDetails = nativeConfirmation || (approval ? {type: "mcp"} : false);
+       if (confirmationDetails) {
+         const content2 = [];
+         if (confirmationDetails.type === "edit") {
+@@ -15641,7 +15647,9 @@
+           typeof args.name === "string";
+         const params = {
+           sessionId: this.id,
+-          ...(managedMcp ? {
++          ...(approval ? {
++            _meta: {"shiju.gemini/mcp-v4": approval.source}
++          } : managedMcp ? {
+             _meta: {"shiju.gemini/mcp": {
+               server: tool.serverName,
+               tool: tool.serverToolName
+@@ -15658,6 +15666,7 @@
+             toolCallId: callId,
+             status: "pending",
+             title: displayTitle,
++            ...(approval ? {rawInput: approval.input} : {}),
+             content: content2,
+             locations: invocation.toolLocations(),
+             kind: toAcpToolKind(tool.kind)
+@@ -15667,15 +15676,22 @@
+           await this.connection.requestPermission(params)
+         );
+         const outcome = output.outcome.outcome === "cancelled" ? ToolConfirmationOutcome.Cancel : external_exports.nativeEnum(ToolConfirmationOutcome).parse(output.outcome.optionId);
+-        await confirmationDetails.onConfirm(outcome);
+-        await updatePolicy(
+-          tool,
+-          outcome,
+-          confirmationDetails,
+-          this.context,
+-          this.context.messageBus,
+-          invocation
+-        );
++        if (approval) {
++          if (outcome !== ToolConfirmationOutcome.ProceedOnce || abortSignal.aborted) {
++            throw new Error("Gemini MCP execution was canceled by the host.");
++          }
++          authorizeMcpInvocation(invocation, approval, abortSignal);
++        } else {
++          await confirmationDetails.onConfirm(outcome);
++          await updatePolicy(
++            tool,
++            outcome,
++            confirmationDetails,
++            this.context,
++            this.context.messageBus,
++            invocation
++          );
++        }
+         switch (outcome) {
+           case ToolConfirmationOutcome.Cancel: {
+             const cancelError = new Error(
+@@ -16641,6 +16657,10 @@
+   async newSessionConfig(sessionId, cwd, mcpServers, loadedSettings) {
+     const currentSettings = loadedSettings || this.settings;
+     const mergedMcpServers = { ...currentSettings.merged.mcpServers };
++    if (isManagedLinuxMcp()) {
++      validateMountedServers(mcpServers, mergedMcpServers,
++        currentSettings.merged.admin?.mcp?.requiredConfig, currentSettings.merged.mcp?.serverCommand);
++    }
+     for (const server of mcpServers) {
+       if ("type" in server && (server.type === "sse" || server.type === "http")) {
+         const headers = Object.fromEntries(
+@@ -16679,6 +16699,7 @@
+       mcpServers: mergedMcpServers
+     };
+     const config = await loadCliConfig(settings, sessionId, this.argv, { cwd });
++    setMountedServers(config, mcpServers);
+     createPolicyUpdater(
+       config.getPolicyEngine(),
+       config.messageBus,
+--- a/bundle/gemini-B5V54E2S.js
++++ b/bundle/gemini-B5V54E2S.js
+@@ -1,3 +1,4 @@
++import { isManagedLinuxMcp, validateMountedServers, setMountedServers, describeMcpTool, authorizeMcpInvocation } from "./shiju-linux-mcp.mjs";
+ const require = (await import('node:module')).createRequire(import.meta.url); const __chunk_filename = (await import('node:url')).fileURLToPath(import.meta.url); const __chunk_dirname = (await import('node:path')).dirname(__chunk_filename);
+ import {
+   startCommand,
+@@ -15202,6 +15203,7 @@
+       "approval-mode-changed" /* ApprovalModeChanged */,
+       this.handleApprovalModeChanged
+     );
++    if (isManagedLinuxMcp()) this.pendingPrompt?.abort();
+     this.disposeController.abort();
+     if (this.context.config?.dispose) {
+       try {
+@@ -15589,7 +15591,11 @@
+       const invocation = tool.build(args);
+       const displayTitle = typeof invocation.getDisplayTitle === "function" ? invocation.getDisplayTitle() : invocation.getDescription();
+       const explanation = typeof invocation.getExplanation === "function" ? invocation.getExplanation() : "";
+-      const confirmationDetails = await invocation.shouldConfirmExecute(abortSignal);
++      // Run supplier policy first. A supplier denial still terminates the call.
++      const nativeConfirmation = await invocation.shouldConfirmExecute(abortSignal);
++      const linuxMcp = isManagedLinuxMcp() && tool instanceof DiscoveredMCPTool;
++      const approval = linuxMcp ? describeMcpTool(this.context.config, invocation, tool) : null;
++      const confirmationDetails = nativeConfirmation || (approval ? {type: "mcp"} : false);
+       if (confirmationDetails) {
+         const content2 = [];
+         if (confirmationDetails.type === "edit") {
+@@ -15625,7 +15631,9 @@
+           typeof args.name === "string";
+         const params = {
+           sessionId: this.id,
+-          ...(managedMcp ? {
++          ...(approval ? {
++            _meta: {"shiju.gemini/mcp-v4": approval.source}
++          } : managedMcp ? {
+             _meta: {"shiju.gemini/mcp": {
+               server: tool.serverName,
+               tool: tool.serverToolName
+@@ -15642,6 +15650,7 @@
+             toolCallId: callId,
+             status: "pending",
+             title: displayTitle,
++            ...(approval ? {rawInput: approval.input} : {}),
+             content: content2,
+             locations: invocation.toolLocations(),
+             kind: toAcpToolKind(tool.kind)
+@@ -15651,15 +15660,22 @@
+           await this.connection.requestPermission(params)
+         );
+         const outcome = output.outcome.outcome === "cancelled" ? "cancel" /* Cancel */ : external_exports.nativeEnum(ToolConfirmationOutcome).parse(output.outcome.optionId);
+-        await confirmationDetails.onConfirm(outcome);
+-        await updatePolicy(
+-          tool,
+-          outcome,
+-          confirmationDetails,
+-          this.context,
+-          this.context.messageBus,
+-          invocation
+-        );
++        if (approval) {
++          if (outcome !== ToolConfirmationOutcome.ProceedOnce || abortSignal.aborted) {
++            throw new Error("Gemini MCP execution was canceled by the host.");
++          }
++          authorizeMcpInvocation(invocation, approval, abortSignal);
++        } else {
++          await confirmationDetails.onConfirm(outcome);
++          await updatePolicy(
++            tool,
++            outcome,
++            confirmationDetails,
++            this.context,
++            this.context.messageBus,
++            invocation
++          );
++        }
+         switch (outcome) {
+           case "cancel" /* Cancel */: {
+             const cancelError = new Error(
+@@ -16625,6 +16641,10 @@
+   async newSessionConfig(sessionId, cwd, mcpServers, loadedSettings) {
+     const currentSettings = loadedSettings || this.settings;
+     const mergedMcpServers = { ...currentSettings.merged.mcpServers };
++    if (isManagedLinuxMcp()) {
++      validateMountedServers(mcpServers, mergedMcpServers,
++        currentSettings.merged.admin?.mcp?.requiredConfig, currentSettings.merged.mcp?.serverCommand);
++    }
+     for (const server of mcpServers) {
+       if ("type" in server && (server.type === "sse" || server.type === "http")) {
+         const headers = Object.fromEntries(
+@@ -16663,6 +16683,7 @@
+       mcpServers: mergedMcpServers
+     };
+     const config = await loadCliConfig(settings, sessionId, this.argv, { cwd });
++    setMountedServers(config, mcpServers);
+     createPolicyUpdater(
+       config.getPolicyEngine(),
+       config.messageBus,
+--- a/bundle/gemini-EOCRFAPZ.js
++++ b/bundle/gemini-EOCRFAPZ.js
+@@ -1,3 +1,4 @@
++import { isManagedLinuxMcp, validateMountedServers, setMountedServers, describeMcpTool, authorizeMcpInvocation } from "./shiju-linux-mcp.mjs";
+ const require = (await import('node:module')).createRequire(import.meta.url); const __chunk_filename = (await import('node:url')).fileURLToPath(import.meta.url); const __chunk_dirname = (await import('node:path')).dirname(__chunk_filename);
+ import {
+   startCommand,
+@@ -15202,6 +15203,7 @@
+       "approval-mode-changed" /* ApprovalModeChanged */,
+       this.handleApprovalModeChanged
+     );
++    if (isManagedLinuxMcp()) this.pendingPrompt?.abort();
+     this.disposeController.abort();
+     if (this.context.config?.dispose) {
+       try {
+@@ -15589,7 +15591,11 @@
+       const invocation = tool.build(args);
+       const displayTitle = typeof invocation.getDisplayTitle === "function" ? invocation.getDisplayTitle() : invocation.getDescription();
+       const explanation = typeof invocation.getExplanation === "function" ? invocation.getExplanation() : "";
+-      const confirmationDetails = await invocation.shouldConfirmExecute(abortSignal);
++      // Run supplier policy first. A supplier denial still terminates the call.
++      const nativeConfirmation = await invocation.shouldConfirmExecute(abortSignal);
++      const linuxMcp = isManagedLinuxMcp() && tool instanceof DiscoveredMCPTool;
++      const approval = linuxMcp ? describeMcpTool(this.context.config, invocation, tool) : null;
++      const confirmationDetails = nativeConfirmation || (approval ? {type: "mcp"} : false);
+       if (confirmationDetails) {
+         const content2 = [];
+         if (confirmationDetails.type === "edit") {
+@@ -15625,7 +15631,9 @@
+           typeof args.name === "string";
+         const params = {
+           sessionId: this.id,
+-          ...(managedMcp ? {
++          ...(approval ? {
++            _meta: {"shiju.gemini/mcp-v4": approval.source}
++          } : managedMcp ? {
+             _meta: {"shiju.gemini/mcp": {
+               server: tool.serverName,
+               tool: tool.serverToolName
+@@ -15642,6 +15650,7 @@
+             toolCallId: callId,
+             status: "pending",
+             title: displayTitle,
++            ...(approval ? {rawInput: approval.input} : {}),
+             content: content2,
+             locations: invocation.toolLocations(),
+             kind: toAcpToolKind(tool.kind)
+@@ -15651,15 +15660,22 @@
+           await this.connection.requestPermission(params)
+         );
+         const outcome = output.outcome.outcome === "cancelled" ? "cancel" /* Cancel */ : external_exports.nativeEnum(ToolConfirmationOutcome).parse(output.outcome.optionId);
+-        await confirmationDetails.onConfirm(outcome);
+-        await updatePolicy(
+-          tool,
+-          outcome,
+-          confirmationDetails,
+-          this.context,
+-          this.context.messageBus,
+-          invocation
+-        );
++        if (approval) {
++          if (outcome !== ToolConfirmationOutcome.ProceedOnce || abortSignal.aborted) {
++            throw new Error("Gemini MCP execution was canceled by the host.");
++          }
++          authorizeMcpInvocation(invocation, approval, abortSignal);
++        } else {
++          await confirmationDetails.onConfirm(outcome);
++          await updatePolicy(
++            tool,
++            outcome,
++            confirmationDetails,
++            this.context,
++            this.context.messageBus,
++            invocation
++          );
++        }
+         switch (outcome) {
+           case "cancel" /* Cancel */: {
+             const cancelError = new Error(
+@@ -16625,6 +16641,10 @@
+   async newSessionConfig(sessionId, cwd, mcpServers, loadedSettings) {
+     const currentSettings = loadedSettings || this.settings;
+     const mergedMcpServers = { ...currentSettings.merged.mcpServers };
++    if (isManagedLinuxMcp()) {
++      validateMountedServers(mcpServers, mergedMcpServers,
++        currentSettings.merged.admin?.mcp?.requiredConfig, currentSettings.merged.mcp?.serverCommand);
++    }
+     for (const server of mcpServers) {
+       if ("type" in server && (server.type === "sse" || server.type === "http")) {
+         const headers = Object.fromEntries(
+@@ -16663,6 +16683,7 @@
+       mcpServers: mergedMcpServers
+     };
+     const config = await loadCliConfig(settings, sessionId, this.argv, { cwd });
++    setMountedServers(config, mcpServers);
+     createPolicyUpdater(
+       config.getPolicyEngine(),
+       config.messageBus,
+--- a/bundle/chunk-RZ3ZVTZB.js
++++ b/bundle/chunk-RZ3ZVTZB.js
+@@ -1,3 +1,4 @@
++import { consumeMcpApproval } from "./shiju-linux-mcp.mjs";
+ const require = (await import('node:module')).createRequire(import.meta.url); const __chunk_filename = (await import('node:url')).fileURLToPath(import.meta.url); const __chunk_dirname = (await import('node:path')).dirname(__chunk_filename);
+ import {
+   import_websocket,
+@@ -274859,6 +274860,13 @@
+         signal.removeEventListener("abort", onAbort);
+       };
+       signal.addEventListener("abort", onAbort, { once: true });
++      try {
++        consumeMcpApproval(this, signal);
++      } catch (error) {
++        cleanup();
++        reject(error);
++        return;
++      }
+       this.mcpTool.callTool(functionCalls).then((res) => {
+         cleanup();
+         resolve29(res);
+--- a/bundle/chunk-M44FJWED.js
++++ b/bundle/chunk-M44FJWED.js
+@@ -1,3 +1,4 @@
++import { consumeMcpApproval } from "./shiju-linux-mcp.mjs";
+ const require = (await import('node:module')).createRequire(import.meta.url); const __chunk_filename = (await import('node:url')).fileURLToPath(import.meta.url); const __chunk_dirname = (await import('node:path')).dirname(__chunk_filename);
+ import {
+   import_websocket,
+@@ -275145,6 +275146,13 @@
+         signal.removeEventListener("abort", onAbort);
+       };
+       signal.addEventListener("abort", onAbort, { once: true });
++      try {
++        consumeMcpApproval(this, signal);
++      } catch (error) {
++        cleanup();
++        reject(error);
++        return;
++      }
+       this.mcpTool.callTool(functionCalls).then((res) => {
+         cleanup();
+         resolve29(res);
+--- a/bundle/chunk-HJ5KJXNZ.js
++++ b/bundle/chunk-HJ5KJXNZ.js
+@@ -1,3 +1,4 @@
++import { consumeMcpApproval } from "./shiju-linux-mcp.mjs";
+ const require = (await import('node:module')).createRequire(import.meta.url); const __chunk_filename = (await import('node:url')).fileURLToPath(import.meta.url); const __chunk_dirname = (await import('node:path')).dirname(__chunk_filename);
+ import {
+   import_websocket,
+@@ -275145,6 +275146,13 @@
+         signal.removeEventListener("abort", onAbort);
+       };
+       signal.addEventListener("abort", onAbort, { once: true });
++      try {
++        consumeMcpApproval(this, signal);
++      } catch (error) {
++        cleanup();
++        reject(error);
++        return;
++      }
+       this.mcpTool.callTool(functionCalls).then((res) => {
+         cleanup();
+         resolve29(res);
+--- /dev/null
++++ b/bundle/shiju-linux-mcp.mjs
+@@ -0,0 +1,59 @@
++// Shared by the ACP caller and every bundled MCP execution entry.
++const mountedByConfig = new WeakMap();
++const approvedInvocations = new WeakMap();
++
++export function isManagedLinuxMcp() {
++  return process.platform === "linux" && process.argv.includes("--shiju-model-source");
++}
++
++export function validateMountedServers(servers, configured, required, serverCommand) {
++  const names = new Set();
++  for (const {name} of servers) {
++    if (names.has(name) || Object.hasOwn(configured, name) ||
++        Object.hasOwn(required ?? {}, name) || Object.hasOwn(Object.prototype, name) ||
++        (name === "mcp" && serverCommand)) {
++      throw new Error("Gemini MCP mount conflicts with another server name.");
++    }
++    names.add(name);
++  }
++}
++
++export function setMountedServers(config, servers) {
++  if (isManagedLinuxMcp()) {
++    mountedByConfig.set(config, new Set(servers.map(({name}) => name)));
++  }
++}
++
++export function describeMcpTool(config, invocation, tool) {
++  const mounted = mountedByConfig.get(config);
++  if (!mounted || !tool.serverName || !tool.serverToolName ||
++      !invocation.params || Array.isArray(invocation.params) || typeof invocation.params !== "object") {
++    throw new Error("Gemini MCP invocation lacks an approval identity.");
++  }
++  const isMounted = mounted.has(tool.serverName);
++  if (isMounted && (tool.extensionName || tool.extensionId)) {
++    throw new Error("Gemini MCP extension conflicts with a mounted server.");
++  }
++  const snapshot = JSON.stringify(invocation.params);
++  return {
++    source: {origin: isMounted ? "mounted" : "native", server: tool.serverName, tool: tool.serverToolName},
++    input: JSON.parse(snapshot),
++    snapshot
++  };
++}
++
++export function authorizeMcpInvocation(invocation, approval, signal) {
++  approvedInvocations.set(invocation, {approval, signal});
++}
++
++export function consumeMcpApproval(invocation, signal) {
++  if (!isManagedLinuxMcp()) return;
++  const grant = approvedInvocations.get(invocation);
++  approvedInvocations.delete(invocation);
++  if (!grant || grant.signal !== signal || signal.aborted ||
++      grant.approval.source.server !== invocation.serverName ||
++      grant.approval.source.tool !== invocation.serverToolName ||
++      grant.approval.snapshot !== JSON.stringify(invocation.params)) {
++    throw new Error("Gemini MCP execution requires a current, matching one-time host approval.");
++  }
++}

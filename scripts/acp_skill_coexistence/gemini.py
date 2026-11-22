@@ -22,6 +22,7 @@ TRANSPORT = "stdio"
 NATIVE_DIR = ".gemini/skills"
 MCP_TOOL = "mcp_coexistence_read_probe"
 REVISION = "gemini-0.66.0-model-source-v3"
+LINUX_REVISION = "gemini-0.66.0-model-source-v4"
 
 
 def launch(env):
@@ -36,11 +37,12 @@ def launch(env):
     require(contract["version"] == "0.66.0", "Gemini version differs from coexistence pin")
     require(shutil.which("node", path=env["PATH"]), "Node is unavailable")
     base = Path(os.environ.get("VIBEWINDOW_CONFIG_DIR", Path.home() / ".local/share/shiju"))
-    runtime = Path(os.environ.get("GEMINI_COEXISTENCE_RUNTIME", base / "acp-runtime" / REVISION))
+    revision = LINUX_REVISION if linux else REVISION
+    runtime = Path(os.environ.get("GEMINI_COEXISTENCE_RUNTIME", base / "acp-runtime" / revision))
     require((runtime / "node_modules" / contract["package"]).is_dir(),
             "reviewed Gemini package is unavailable")
     config = Path(env["VIBEWINDOW_CONFIG_DIR"])
-    private = config / "acp-runtime" / REVISION
+    private = config / "acp-runtime" / revision
     shutil.copytree(runtime, private, symlinks=True)
     package = private / "node_modules" / contract["package"]
     metadata = json.loads((package / "package.json").read_text())
@@ -53,7 +55,11 @@ def launch(env):
         require(not any((private / "node_modules" / name).exists()
                         for name in metadata.get("optionalDependencies", {})),
                 "Gemini Linux fixture requires the reviewed JavaScript-only installation")
-    for name, digest in contract["files"].items():
+    hashes = dict(contract["files"])
+    if linux:
+        hashes.update(json.loads((ROOT / "patches/acp-model-source/gemini/linux-hashes.json")
+                                 .read_text()))
+    for name, digest in hashes.items():
         require(hashlib.sha256((package / name).read_bytes()).hexdigest() == digest,
                 "Gemini artifact digest differs from contract")
     entry = private / "node_modules/.bin/gemini"
@@ -68,7 +74,7 @@ def launch(env):
     env.update(GEMINI_CLI_TRUSTED_FOLDERS_PATH=str(trust),
                GEMINI_CLI_SYSTEM_DEFAULTS_PATH=str(defaults))
     return {"command": str(entry), "args": ["--experimental-acp"], "env": {}}, {
-        "version": contract["version"], "sha256": contract["files"], "revision": REVISION,
+        "version": contract["version"], "sha256": hashes, "revision": revision,
         "entry": contract["bin"], "integrity": contract["integrity"],
         "model_endpoint": f"{API_PATH}/models/{MODEL}:streamGenerateContent"}
 

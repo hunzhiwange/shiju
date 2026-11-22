@@ -110,7 +110,7 @@ fn unrelated_view_message_leaves_theme_state_unchanged() {
 
 #[cfg(not(target_arch = "wasm32"))]
 #[test]
-fn app_theme_selected_persists_custom_prefix_for_custom_theme() {
+fn app_theme_selected_replaces_previous_custom_skin_and_persists_new_id() {
     let definition = ThemeDefinition {
         id: "mint-night".to_string(),
         name: "Mint Night".to_string(),
@@ -124,7 +124,26 @@ fn app_theme_selected_persists_custom_prefix_for_custom_theme() {
             danger: "#ef4444".to_string(),
         },
         assets: ThemeAssets::default(),
-        chrome: ThemeChrome::default(),
+        chrome: ThemeChrome {
+            panel_bg: Some("#101820".to_string()),
+            input_bg: Some("#162028".to_string()),
+            ..ThemeChrome::default()
+        },
+    };
+    let light_definition = ThemeDefinition {
+        id: "light-preset".to_string(),
+        name: "Light Preset".to_string(),
+        palette: ThemePaletteHex {
+            background: "#f8f7f3".to_string(),
+            text: "#182a4a".to_string(),
+            ..definition.palette.clone()
+        },
+        chrome: ThemeChrome {
+            panel_bg: Some("#ffffff".to_string()),
+            input_bg: Some("#ffffff".to_string()),
+            ..ThemeChrome::default()
+        },
+        ..definition.clone()
     };
     let theme = to_iced_theme(&definition).expect("convert");
     assert_eq!(config_value_for_theme(&theme, Some("mint-night")), "custom:mint-night");
@@ -133,17 +152,23 @@ fn app_theme_selected_persists_custom_prefix_for_custom_theme() {
     let temp = tempfile::tempdir().expect("tempdir");
     let store = ThemeStore::new(temp.path());
     store.save(&definition).expect("save theme for persist lookup");
+    store.save(&light_definition).expect("save previous theme");
     set_test_themes_root(Some(temp.path().to_path_buf()));
 
     with_editor_settings_gateway(|mut app, requests, responses| {
-        app.appearance.app_theme = Theme::Light;
-        app.appearance.active_custom_theme_id = None;
+        app.appearance.app_theme = to_iced_theme(&light_definition).expect("convert previous theme");
+        app.appearance.active_custom_theme_id = Some(light_definition.id.clone());
+        crate::app::theme_catalog::sync_active_theme_skin(&mut app);
         let save = app.update(Message::View(ViewMessage::AppThemeSelected(theme.clone())));
 
         assert!(matches!(app.appearance.app_theme, Theme::Custom(_)));
         assert_eq!(app.appearance.app_theme.to_string(), "Mint Night");
         assert_eq!(app.appearance.app_theme.palette(), theme.palette());
         assert_eq!(app.appearance.active_custom_theme_id.as_deref(), Some("mint-night"));
+        let skin = app.appearance.active_theme_skin.as_ref().expect("active custom skin");
+        assert_eq!(skin.theme_id, definition.id);
+        assert_eq!(skin.chrome.panel_bg, definition.chrome.panel_bg);
+        assert_eq!(skin.chrome.input_bg, definition.chrome.input_bg);
 
         let saved = drive_system_settings_patch(
             save,
@@ -158,6 +183,7 @@ fn app_theme_selected_persists_custom_prefix_for_custom_theme() {
 
         let _ = app.update(Message::View(ViewMessage::AppThemeSelected(Theme::Dark)));
         assert!(app.appearance.active_custom_theme_id.is_none());
+        assert!(app.appearance.active_theme_skin.is_none());
     });
 
     set_test_themes_root(None);

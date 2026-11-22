@@ -35,7 +35,8 @@ class KiroFixtureMixin:
         messages = []
         for item in inputs:
             if item.get("type") == "function_call_output":
-                messages.append({"role": "tool", "content": item.get("output")})
+                messages.append({"role": "tool", "tool_call_id": item.get("call_id"),
+                                 "content": item.get("output")})
             elif item.get("type") == "function_call":
                 messages.append({"role": "assistant", "content": item.get("arguments")})
             elif item.get("role"):
@@ -44,10 +45,7 @@ class KiroFixtureMixin:
         auxiliary = any("AUXILIARY_CHILD" in json.dumps(m.get("content")) for m in messages if m.get("role") == "user")
         tools = body.get("tools", [])
         if fixture.local_route:
-            delegate = self.local_tool_call(
-                body, tools, [(item.get("call_id"), item.get("output"))
-                              for item in inputs if item.get("type") == "function_call_output"],
-                messages)
+            delegate = self.local_tool_call(body, tools, messages)
         else:
             with fixture.lock:
                 fixture.records.append({"model": body["model"], "authenticated": True, "route": "/v1/responses", "tool_results": len(results), "auxiliary": auxiliary})

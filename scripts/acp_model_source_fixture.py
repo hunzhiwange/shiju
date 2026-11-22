@@ -149,11 +149,18 @@ class ModelFixture:
                 except (BrokenPipeError, ConnectionResetError):
                     pass
 
-            def local_tool_call(self, body, tools, outputs, messages):
-                """Check returned IDs and payloads before issuing the next external model response."""
+            def local_tool_call(self, body, tools, messages):
+                """Check the current turn's outputs before issuing the next model response."""
                 model = body["model"]
                 if model == fixture.text_only_model and tools:
                     raise ValueError("tools_unsupported")
+                start = next((index for index in range(len(messages) - 1, -1, -1)
+                              if messages[index].get("role") == "user"), None)
+                if start is None:
+                    raise ValueError("missing local model prompt")
+                user = messages[start]
+                outputs = [(message.get("tool_call_id"), message.get("content"))
+                           for message in messages[start + 1:] if message.get("role") == "tool"]
                 continued = []
                 parent = None
                 stages = ("native", "mcp")
@@ -169,7 +176,6 @@ class ModelFixture:
                             raise ValueError("continuation")
                         continued.append(stage)
                         parent = call_id
-                    user = next((message for message in reversed(messages) if message.get("role") == "user"), {})
                     cancelled = fixture.delay_next_request or "CANCEL_PROBE" in json.dumps(user.get("content"))
                     fixture.delay_next_request = False
                     call = None
@@ -245,9 +251,7 @@ class ModelFixture:
                     local_call = None
                     if fixture.local_route:
                         local_call = self.local_tool_call(
-                            body, [tool.get("function", {}) for tool in tools],
-                            [(m.get("tool_call_id"), m.get("content")) for m in messages if m.get("role") == "tool"],
-                            messages)
+                            body, [tool.get("function", {}) for tool in tools], messages)
                     else:
                         with fixture.lock:
                             delay_next_request = fixture.delay_next_request
@@ -350,13 +354,18 @@ class ModelFixture:
                            if block.get("type") == "tool_result" and fixture.challenge in json.dumps(block.get("content"))]
                 local_call = None
                 if fixture.local_route:
-                    local_call = self.local_tool_call(
-                        body, body.get("tools", []),
-                        [(block.get("tool_use_id"), None if block.get("is_error") else block.get("content"))
-                         for message in messages if message.get("role") == "user"
-                         for block in (message["content"] if isinstance(message.get("content"), list) else [])
-                         if block.get("type") == "tool_result"],
-                        messages)
+                    transcript = []
+                    for message in messages:
+                        if message.get("role") != "user" or not isinstance(message.get("content"), list):
+                            transcript.append(message)
+                            continue
+                        for block in message["content"]:
+                            if block.get("type") == "tool_result":
+                                transcript.append({"role": "tool", "tool_call_id": block.get("tool_use_id"),
+                                                   "content": None if block.get("is_error") else block.get("content")})
+                            else:
+                                transcript.append({"role": "user", "content": block})
+                    local_call = self.local_tool_call(body, body.get("tools", []), transcript)
                 else:
                     with fixture.lock:
                         record = {"model": body["model"], "authenticated": True,

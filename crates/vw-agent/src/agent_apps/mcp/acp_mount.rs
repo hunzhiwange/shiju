@@ -70,4 +70,4 @@ pub(crate) fn reviewed_project_stdio(
 mod reviewed;
 
 #[cfg(all(target_os = "linux", target_env = "gnu", any(target_arch = "x86_64", target_arch = "aarch64")))]
-pub(crate) use reviewed::{ReviewedStdioMount, ReviewedStdioSource, reviewed_linux_stdio};
+pub(crate) use reviewed::{ReviewedStdioMount, ReviewedStdioSource, reviewed_linux_stdio, reviewed_linux_stdio_list};

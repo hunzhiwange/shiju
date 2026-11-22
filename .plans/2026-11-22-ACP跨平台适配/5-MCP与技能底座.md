@@ -57,3 +57,9 @@ MCP 目录及撤销专属红绿测试另用 `python3 scripts/cargo_slot.py cargo
 - 复用同一宿主项目登记。现有 `_shiju/session/set_mounts` 用 `mcpCatalog` 显式选择精确目录引用，提交会话挂载修订。受审引用进入提交记录与响应，普通 MCP 连接池不会启动它。进程池复核可撤销登记前缓存的普通执行器。供应商声明与已选来源同名即拒绝。
 - 任务 48 调用 `crate::agent_apps::mcp::acp_mount::reviewed_linux_stdio(launch.clone(), cwd, project_selected).await`，其中 `project_selected` 只传本轮明确的项目来源候选。即使候选为空也须调用，以便读取会话来源。结果包含 `source`（`Project` 或 `Mounted`）、宿主服务声明、固定身份和 `current` 检查。使用 `guard(existing_approval)` 合并单次审批有效性，绑定到实际执行入口；发现前后及每次执行前均复核 `current`。会话来源只从已验证的当前工具上下文及持久化挂载记录读取。
 - 定向回归入口 `python3 scripts/cargo_slot.py cargo test -j 1 -p vw-agent --lib acp_platform_mcp_review_mount_revokes_already_issued_approval`。子用例在隔离状态目录走真实宿主会话挂载更新、私有目录选择和生产单次审批消费。它检查同名冲突、原池零工具、移除、重挂及目录修订后旧批准失效。GNU 两目标须提供 `/usr/bin/true` 和 SQLite 构建依赖。本轮静态核对，尚未运行。
+
+## GNU 项目与会话来源共存
+
+- 新入口 `crate::agent_apps::mcp::acp_mount::reviewed_linux_stdio_list(launch.clone(), cwd, project_selected).await` 返回最多 16 个 `ReviewedStdioMount`。每项携带来源、连接声明、审定目录引用和 `guard`。同时检查项目候选及当前会话名称，合并前拒绝同名。
+- 列表的每项共享整批有效性检查。会话挂载修订或任一选中目录记录及审定选择变化后，旧列表的全部 guard 失效。旧 `reviewed_linux_stdio` 单服务入口及现有持久化读写继续保留。任务 4 承接执行层向量。
+- 定向回归入口 `python3 scripts/cargo_slot.py cargo test -j 1 -p vw-agent --lib acp_platform_mcp_review_list_revokes_all_sources`。源码走真实项目登记和会话挂载更新，断言双来源、同名与数量拒绝、项目目录修订、挂载修订和外挂目录修订导致整组失效。GNU 容器须提供 `/usr/bin/true` 与 SQLite 构建依赖。本轮未执行。

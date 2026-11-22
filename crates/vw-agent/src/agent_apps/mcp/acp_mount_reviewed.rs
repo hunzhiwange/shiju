@@ -28,17 +28,55 @@ impl ReviewedStdioMount {
     }
 }
 
+const MAX_REVIEWED_STDIO_SERVICES: usize = 16;
+
+#[derive(Clone, Copy)]
+enum SelectionMode {
+    Single,
+    List,
+}
+
+impl SelectionMode {
+    fn limit(self) -> usize {
+        match self {
+            Self::Single => 1,
+            Self::List => MAX_REVIEWED_STDIO_SERVICES,
+        }
+    }
+}
+
 /// Resolve the current session's committed reference or an explicit project selection.
 pub(crate) async fn reviewed_linux_stdio(
     launch: Arc<RelayBinding>,
     cwd: &Path,
     project_selected: &[McpServer],
 ) -> anyhow::Result<Option<ReviewedStdioMount>> {
+    let mut services =
+        resolve_for_session(launch, cwd, project_selected, SelectionMode::Single).await?;
+    Ok(services.pop())
+}
+
+/// Resolve project and session selections for one projection. Every returned
+/// service shares a validity check for the full set of reviewed revisions.
+pub(crate) async fn reviewed_linux_stdio_list(
+    launch: Arc<RelayBinding>,
+    cwd: &Path,
+    project_selected: &[McpServer],
+) -> anyhow::Result<Vec<ReviewedStdioMount>> {
+    resolve_for_session(launch, cwd, project_selected, SelectionMode::List).await
+}
+
+async fn resolve_for_session(
+    launch: Arc<RelayBinding>,
+    cwd: &Path,
+    project_selected: &[McpServer],
+    mode: SelectionMode,
+) -> anyhow::Result<Vec<ReviewedStdioMount>> {
     let identity = launch.identity();
     let owner = ProjectScope::new(identity.tenant.clone(), identity.project.as_str().into())?;
     let database = || GlobalDatabase::for_home(&crate::global::paths().home);
     let Some(context) = crate::tools::current_tool_use_context() else {
-        return resolve(launch, owner, database, project_selected, || Ok(None));
+        return resolve(launch, owner, database, project_selected, mode, || Ok(None));
     };
     let session = context.session();
     let Some((session_scope, adapter)) = identity.session.rsplit_once(':') else {
@@ -71,7 +109,7 @@ pub(crate) async fn reviewed_linux_stdio(
     let read = agent_acp::mount_store::reader(&scope, session).await;
     // A project-only launch can precede publication of the native session.
     let owns_session = record_scope.is_some();
-    resolve(launch, owner, database, project_selected, move || {
+    resolve(launch, owner, database, project_selected, mode, move || {
         let record = read()?;
         if !owns_session && record.is_some() {
             return Err(BackendError::InvalidRequest(
@@ -82,28 +120,45 @@ pub(crate) async fn reviewed_linux_stdio(
     })
 }
 
+struct ReviewedSelection {
+    server: McpServer,
+    proof: Arc<ReviewedProjectStdio>,
+    mount: Option<McpCatalogMount>,
+}
+
 fn resolve(
     launch: Arc<RelayBinding>,
     owner: ProjectScope,
     database: impl FnOnce() -> anyhow::Result<GlobalDatabase>,
     project_selected: &[McpServer],
+    mode: SelectionMode,
     read: impl Fn() -> Result<Option<MountRecord>, BackendError> + Send + Sync + 'static,
-) -> anyhow::Result<Option<ReviewedStdioMount>> {
+) -> anyhow::Result<Vec<ReviewedStdioMount>> {
+    anyhow::ensure!(
+        project_selected.len() <= mode.limit(),
+        "Too many reviewed project MCP selections"
+    );
     let committed = read()?;
     let refs = committed.as_ref().map(|record| record.mcp_catalog.as_slice()).unwrap_or_default();
     if refs.is_empty() && project_selected.is_empty() {
-        return Ok(None);
+        return Ok(Vec::new());
     }
-    anyhow::ensure!(
-        !committed.as_ref().is_some_and(|record| project_selected
-            .iter()
-            .any(|server| record.has_mcp_name(mcp_client::server_name(server)))),
-        "Reviewed MCP name conflicts across project and session selections"
-    );
+    let mut names = HashSet::new();
+    for server in project_selected {
+        let name = mcp_client::server_name(server);
+        anyhow::ensure!(
+            names.insert(name)
+                && committed.as_ref().is_none_or(|record| !record.has_mcp_name(name)),
+            "Reviewed MCP name conflicts across project and session selections"
+        );
+    }
+    for mount in refs {
+        anyhow::ensure!(names.insert(mount.record.id.0.as_str()), "Duplicate reviewed MCP name");
+    }
     let database = database()?;
     let load = |error| anyhow::anyhow!("reviewed MCP selection: {error:?}");
     let store = run_sync_database(|| McpCatalogStore::new(database).map_err(load))?;
-    let mut mounted = None;
+    let mut selections = Vec::new();
     for mount in refs {
         let reviewed = run_sync_database(|| {
             store.reviewed_mounted_stdio(&owner, mount).map_or_else(
@@ -118,57 +173,43 @@ fn resolve(
         })?;
         if let Some((proof, server)) = reviewed {
             anyhow::ensure!(
-                mounted.is_none(),
-                "Only one reviewed session MCP selection is supported"
+                selections.len() + project_selected.len() < mode.limit(),
+                "Too many reviewed MCP selections"
             );
-            mounted = Some((proof, McpServer::Stdio(server), mount.clone()));
+            selections.push(ReviewedSelection {
+                server: McpServer::Stdio(server),
+                proof: Arc::new(proof),
+                mount: Some(mount.clone()),
+            });
         }
     }
-    let (source, proof, server, anchor) = if let Some((proof, server, mount)) = mounted {
-        anyhow::ensure!(
-            project_selected.is_empty(),
-            "Only one reviewed MCP selection is supported"
-        );
-        let revision = committed.as_ref().expect("mount has committed revision").revision;
-        (ReviewedStdioSource::Mounted, proof, server, Some((revision, mount)))
-    } else {
-        let [] = project_selected else {
-            let proof = run_sync_database(|| {
-                store.reviewed_project_stdio(&owner, project_selected).map_err(load)
-            })?;
-            let [server] = project_selected else {
-                anyhow::bail!("Only one reviewed project MCP selection is supported")
-            };
-            return bind(
-                launch,
-                owner,
-                store,
-                read,
-                ReviewedStdioSource::Project,
-                proof,
-                server.clone(),
-                None,
-            )
-            .map(Some);
-        };
-        return Ok(None);
-    };
-    bind(launch, owner, store, read, source, proof, server, anchor).map(Some)
-}
+    for server in project_selected {
+        let proof = run_sync_database(|| {
+            store.reviewed_project_stdio(&owner, std::slice::from_ref(server)).map_err(load)
+        })?;
+        selections.push(ReviewedSelection {
+            server: server.clone(),
+            proof: Arc::new(proof),
+            mount: None,
+        });
+    }
+    if selections.is_empty() {
+        return Ok(Vec::new());
+    }
 
-fn bind(
-    launch: Arc<RelayBinding>,
-    owner: ProjectScope,
-    store: McpCatalogStore,
-    read: impl Fn() -> Result<Option<MountRecord>, BackendError> + Send + Sync + 'static,
-    source: ReviewedStdioSource,
-    proof: ReviewedProjectStdio,
-    server: McpServer,
-    anchor: Option<(acp_types::SessionMountRevision, McpCatalogMount)>,
-) -> anyhow::Result<ReviewedStdioMount> {
-    let service = mcp_client::server_name(&server).to_owned();
-    let review = Arc::new(proof);
-    let proof = review.clone();
+    let mount_revision = committed.as_ref().map(|record| record.revision);
+    let pin_mount_revision = matches!(mode, SelectionMode::List)
+        || selections.iter().any(|selection| selection.mount.is_some());
+    let pins: Vec<_> = selections
+        .iter()
+        .map(|selection| {
+            (
+                mcp_client::server_name(&selection.server).to_owned(),
+                selection.mount.clone(),
+                selection.proof.clone(),
+            )
+        })
+        .collect();
     let current = Arc::new(move || {
         if launch.cancelled().is_cancelled()
             || launch.expires().is_some_and(|expiry| Instant::now() >= expiry)
@@ -176,21 +217,39 @@ fn bind(
             return false;
         }
         let Ok(record) = read() else { return false };
-        let selected = match &anchor {
-            Some((revision, mount)) => record.is_some_and(|record| {
-                record.revision == *revision
-                    && record
-                        .mcp_catalog
-                        .iter()
-                        .filter(|entry| entry.record.id.0 == service)
-                        .eq([mount])
+        if pin_mount_revision && record.as_ref().map(|record| record.revision) != mount_revision {
+            return false;
+        }
+        let same_selections = pins.iter().all(|(name, mount, _)| match mount {
+            Some(mount) => record.as_ref().is_some_and(|record| {
+                record.mcp_catalog.iter().filter(|entry| &entry.record.id.0 == name).eq([mount])
             }),
-            None => record.is_none_or(|record| !record.has_mcp_name(&service)),
-        };
-        selected
-            && run_sync_database(|| Ok(proof.is_current(&store, &owner).unwrap_or(false)))
-                .unwrap_or(false)
+            None => record.as_ref().is_none_or(|record| !record.has_mcp_name(name)),
+        });
+        same_selections
+            && run_sync_database(|| {
+                Ok(pins
+                    .iter()
+                    .all(|(_, _, proof)| proof.is_current(&store, &owner).unwrap_or(false)))
+            })
+            .unwrap_or(false)
     });
     anyhow::ensure!(current(), "Reviewed MCP selection was revoked");
-    Ok(ReviewedStdioMount { source, server, review, current })
+    Ok(selections
+        .into_iter()
+        .map(|selection| ReviewedStdioMount {
+            source: if selection.mount.is_some() {
+                ReviewedStdioSource::Mounted
+            } else {
+                ReviewedStdioSource::Project
+            },
+            server: selection.server,
+            review: selection.proof,
+            current: current.clone(),
+        })
+        .collect())
 }
+
+#[cfg(test)]
+#[path = "acp_mount_reviewed_tests.rs"]
+mod tests;

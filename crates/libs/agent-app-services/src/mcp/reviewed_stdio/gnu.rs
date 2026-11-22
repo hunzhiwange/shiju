@@ -13,6 +13,10 @@ pub struct ReviewedProjectStdio {
 }
 
 impl ReviewedProjectStdio {
+    pub fn record(&self) -> &McpRecordRef {
+        &self.selection.record
+    }
+
     pub fn executable(&self) -> &Path {
         &self.executable
     }

@@ -44,10 +44,27 @@
 - 普通 `cli_local` 保留现有注册项及 `npx -y glm-acp-agent@1.17.1` 原生回退。现行 `session_model` 的 GLM 驱动在两个 Linux 目标均走 Unix 私有目录校验，绑定本机 `/v1/chat/completions` 中继与明确模型名。继续复用 `model_source::prepare_profile`、`drivers::launch_route`、`configure_profile` 和 `acp-client::spawn_child_at` 的固定入口验证。
 - v3 补丁沿用供应商原生工具、原生斜杠发现和选择后的技能视图。验证过的工作区内技能由 `skill_mounts::glm_acp_agent::configure` 发布为 `SHIJU_GLM_SKILL_VIEW`。空视图为 `[]`，同样启用工作区原生技能目录及逐次会话 MCP 审批。目录仅发布名字及路径，正文和附件由原生 `read_file` 读取。工作区外的技能继续受原有范围限制。外挂 MCP 走供应商 `connectSessionMcpServers`，按所属服务处理 `shiju.glm.toolPolicy`，显式拒绝优先；带策略的宿主 `DenyAll` 由 `acp-client::validate_mcp_contract` 拒绝。挂载工具从当前服务绑定调用，v3 支持批准后执行、拒绝时不分发、同 ID 回传和错误状态。保留 Apple Silicon 现行入口。
 - 任务 48 接线点。以稳定 key `glm-acp-agent` 复用现有 v3 合约、`reviewed_agent_command` 和 Node 固定入口。技能候选平台使用独占模块的 `supports_session_view_target()`。待受审后，将该判定与已审入口、版本及有效权限共同接入 `skill_mounts/mod.rs::validate` 和 `request.rs::do_stream_request_acp` 的 GLM profile 分支。保留 `session_model`、禁用工具和 `DenyAll` 检查，以及会话级撤权和审批注册。Linux 须保持对外技能与审批门控，直至解决下列阻塞并取得目标证据。现行模型能力判断仍在 `model_source/drivers/mod.rs::capabilities`，不据此扩大技能或 MCP 能力。
-- 测试接线在 `acceptance_support/mod.rs` 增加 `#[cfg(all(test, target_os = "linux", target_env = "gnu", any(target_arch = "x86_64", target_arch = "aarch64")))] mod platform_glm_acp_agent_tests;`。Rust 验收复用生产网关和既有 GLM 夹具，记录固定入口、实际模型 API 路径及选模读回。夹具断言原生与外挂技能目录及文件读取、按同一调用 ID 返回的选中服务随机结果、批准后一次调用、拒绝及撤除轮零新增审计。供应商直接对照另覆盖同一工具同时列入允许和拒绝名单。旧 Linux 路由在无挂载轮缺模型侧原生技能目录，挂载轮还会在技能门控失败。撤除轮使用新会话，当前测试没有覆盖同一会话恢复后的撤权。
+- 测试接线在 `acceptance_support/mod.rs` 增加 `#[cfg(all(test, target_os = "linux", target_env = "gnu", any(target_arch = "x86_64", target_arch = "aarch64")))] mod platform_glm_acp_agent_tests;`。Rust 验收复用生产网关和既有 GLM 夹具，记录固定入口、实际模型 API 路径及选模读回。夹具断言原生与外挂技能目录及文件读取、按同一调用 ID 返回的选中服务随机结果、批准后一次调用、拒绝及撤除轮零新增审计。供应商直接对照另覆盖同一工具同时列入允许和拒绝名单。旧 Linux 路由在无挂载轮缺模型侧原生技能目录，挂载轮还会在技能门控失败。网关撤除轮使用新会话。补充的供应商直连测试通过同一会话 ID 检查 `session/load` 后的撤权。
 - 阻塞。上游内建视觉 MCP 由 `visionClient` 懒加载 `@z_ai/mcp-server@latest`，该制品及供应商账户未受审。中继绑定使用私有令牌，不能据 stdio 挂载证据认可视觉路径，也没有固定制品及安全等价的本机接入可以复用。原生 `read_file` 仍可按其工作区边界复用。原生写入/命令审批及同会话取消、恢复、撤权尚无本任务的 Linux 回执。两种架构均需独立核对；Apple Silicon 既有回执、源码和旁证不计为任一 Linux 运行结果。
 
 ### 本轮验证
 
 - 通过归档、补丁和产出摘要核对，Python AST 解析、定向 Rust 格式及 Git 空白检查。没有运行安装器、Node、Cargo 或 Docker。
 - 后续在每种 Linux 架构容器中先提供当前源码构建的 `shiju` 网关，设置 `SHIJU_ACP_GLM_GATEWAY_BIN` 为其绝对路径。测试标记为 ignored 以免常规单测隐式安装上游包，实际命令为 `python3 scripts/cargo_slot.py cargo test -j 1 -p llm-runtime --lib acp_platform_glm_acp_agent_contract -- --ignored`。接线后预期恰好命中 1 项，零失败。当前退出码及命中数未获取。
+
+### 继续排查与收敛
+
+- `RuntimeHost::prepare_stdio_mcp_launch` 使用 `mimo_mcp::prepare` 把宿主选定的 MCP 服务器挂到中继路由。Cortex 的 stdio 桥也只转换宿主声明的会话服务。GLM 的 `visionClient`、附件预处理、`web_search`、`web_reader` 和 `/usage` 均由供应商进程内部直接调用，两个现有桥无法拦截或替代。v2 受管补丁和 v3 技能补丁只处理会话 MCP，历史 MCP-only 补丁会移除本地原生工具，不能复用其目录裁剪。
+- 针对可独立交付的 Linux 子集，新增 `patches/acp-model-source/glm-acp-agent/glm-acp-agent-1.17.1-linux-session-model.patch`。它叠加在已校验的 v3 上，仅在 Linux 且宿主发布了 `VW_ACP_LAUNCH_REFERENCE` 时生效。供应商网页及视觉 MCP 从目录移除，强制调用也失败，普通附件的视觉回退和供应商额度查询沿显式不可用路径。会话 MCP、原生写入与命令沿现有 ACP 逐次审批，供应商权限模式不能短路审批。本地读取和技能目录继续复用。启动 stdio 或命令子进程时移除从上级继承的中继令牌及引用，已选 MCP 的显式环境维持原语义。此环境处理不提供进程级沙箱。Apple Silicon 和普通 `cli_local` 保留现有行为。
+- 任务 48 可以将该层作为两种 Linux GNU 目标的独立 v4 修订（建议目录 `glm-acp-agent-1.17.1-model-source-v4`）。在校验 v3 摘要后，用同一 `apply_glm_patch(root, linux_patch, v3_files)` 叠加并校验下表。将 `managed_runtime.rs::installed_directory`、`reviewed_agent_command`、`verify_reviewed_agent_executable` 及安装素材选择统一绑定该 Linux 修订；受管模型启动不得回退旧 v3。其余 v3 文件、npm SRI、固定 JS 入口和平台门控沿用。网关验收夹具须同步复制第二补丁、读取 Linux 摘要并期望 Linux 修订；供应商直连测试如已通过正式安装应用该层，则删除夹具内重复的临时 patch 步骤。技能与会话 MCP 仍按上节接线。
+- `managed-coexistence.test.mjs` 增加同一会话撤除并恢复、强制调用被撤除工具后服务零新增、Linux 供应商工具隐藏和强制调用拒绝、获得 ACP 审批的原生命令不继承中继环境的断言。Node 静态语法检查通过，未执行该测试。两个架构仍须在各自 Docker 容器中复跑网关验收；供应商直接对照后续入口为 `node --test patches/acp-model-source/glm-acp-agent/managed-coexistence.test.mjs`。
+- 完整合同仍为已阻塞。要恢复 Linux `session_model` 的供应商原生 MCP，至少需要固定且可审计的供应商视觉运行时，以及独立于会话中继的供应商授权或等价本机协议。当前安全子集仍待任务 48 接线及双架构运行证据。本轮保持对外门控，未运行 Node 测试、Cargo、Docker 或运行时安装。
+
+| Linux 叠加产物 | SHA-256 |
+| --- | --- |
+| `glm-acp-agent-1.17.1-linux-session-model.patch` | `0c1bfc5d1cc48fbd0ce82bde59880da7b497e906438f8510b6d41ab5be7a3770` |
+| `dist/protocol/agent.js` | `643c2f13a66fc18df8ff8e7aabcab5aa5052370fa863111a992dff07f6a9a561` |
+| `dist/tools/executor.js` | `2c83a349eb3cd272a4d8762ffa40c4f910185a725dc36acc95e3e35fd7931c42` |
+| `dist/tools/session-mcp-client.js` | `e6f448f8e275791edf1b5e2ccacd8ccfe394be56ca3cb9c75de79888530e8ef6` |
+
+静态证据基于 npm 原版、现行 v3 合约和生产 Python 精确补丁函数。两次应用及修改后 JavaScript 的语法检查均通过。上一提交 `db91472de` 提供独占技能候选入口和网关测试源码，本次提交提供 Linux 受管叠加层、供应商测试及接线证据。

@@ -1,0 +1,122 @@
+--- a/dist/protocol/agent.js
++++ b/dist/protocol/agent.js
+@@ -7,7 +7,7 @@
+ import { ProcessSupervisor } from "../tools/process-supervisor.js";
+ import { readLocalTextPrefix } from "../tools/file-reader.js";
+ import { TOOL_DEFINITIONS } from "../tools/definitions.js";
+-import { connectSessionMcpServers } from "../tools/session-mcp-client.js";
++import { connectSessionMcpServers, isManagedLinuxSessionModel, isVendorMcpTool } from "../tools/session-mcp-client.js";
+ import { SessionStore } from "./session-store.js";
+ import { SessionLifecycle } from "./session-lifecycle.js";
+ import { checkModelTransition } from "./model-transition.js";
+@@ -173,6 +173,8 @@
+         return this._glm;
+     }
+     get visionClient() {
++        if (isManagedLinuxSessionModel())
++            return null;
+         if (this.visionClientExplicit)
+             return this._visionClient;
+         if (!this._visionClient) {
+@@ -663,7 +665,9 @@
+             if (firstText?.type === "text" && /^\/usage(?:\s|$)/.test(firstText.text.trim())) {
+                 const standalone = params.prompt.every(block => block.type === "text") &&
+                     params.prompt.map(block => block.type === "text" ? block.text : "").join("\n").trim() === "/usage";
+-                const text = standalone
++                const text = isManagedLinuxSessionModel()
++                    ? "Z.AI quota is unavailable for a ShiJu session model."
++                    : standalone
+                     ? formatQuotaUsage(await waitForAbort(this.quotaClient.getUsage(), abortController.signal, "Quota lookup cancelled"))
+                     : "Usage: /usage (send without arguments or attachments)";
+                 if (abortController.signal.aborted || !ownsPrompt())
+@@ -2146,7 +2150,8 @@
+         }
+         const allowed = new Set(names);
+         return [
+-            ...TOOL_DEFINITIONS.filter((tool) => allowed.has(tool.function.name)),
++            ...TOOL_DEFINITIONS.filter((tool) => allowed.has(tool.function.name) &&
++                !(isManagedLinuxSessionModel() && isVendorMcpTool(tool.function.name))),
+             ...(mcpTools?.toolDefinitions ?? []),
+         ];
+     }
+--- a/dist/tools/executor.js
++++ b/dist/tools/executor.js
+@@ -8,6 +8,7 @@
+ import { boundToolResult, takeUtf8Prefix } from "./tool-output.js";
+ import { readLocalTextFileBounded, readLocalTextPage } from "./file-reader.js";
+ import { validateToolArguments } from "./argument-validation.js";
++import { childEnvironment, isManagedLinuxSessionModel, isVendorMcpTool } from "./session-mcp-client.js";
+ /**
+  * A call that was announced, or was waiting on permission, but whose operation
+  * never ran. History must omit it. The text is the card/result the executor
+@@ -229,6 +230,12 @@
+             return { content: boundToolResult(message, this.resourceLimits.toolResultBytes), outcome: "completed" };
+         }
+         const args = validation.value;
++        if (isManagedLinuxSessionModel() && isVendorMcpTool(toolName)) {
++            const message = "Vendor MCP is unavailable for a ShiJu session model.";
++            // Use the normal failed card without retaining the rejected arguments.
++            await this.failedToolCall(toolCallId, toolName, {}, message);
++            return { content: message, outcome: "completed" };
++        }
+         const result = await (async () => {
+             switch (toolName) {
+                 case "read_file":
+@@ -1149,7 +1156,7 @@
+         });
+         if (this.signal?.aborted)
+             throw new ToolCallCancelledBeforeExecutionError();
+-        if (process.env.SHIJU_GLM_SKILL_VIEW !== undefined) {
++        if (isManagedLinuxSessionModel() || process.env.SHIJU_GLM_SKILL_VIEW !== undefined) {
+             const decision = await this.maybeRequestPermission({
+                 toolCallId, kind: "execute", title: toolName, rawInput: args, requireApproval: true,
+             });
+@@ -1194,11 +1201,11 @@
+             return { type: "aborted" };
+         }
+         // bypass_permissions: allow everything without prompting
+-        if (!args.requireApproval && mode === "bypass_permissions") {
++        if (!isManagedLinuxSessionModel() && !args.requireApproval && mode === "bypass_permissions") {
+             return { type: "allow" };
+         }
+         // accept_edits: allow writes without prompting, still prompt for commands
+-        if (mode === "accept_edits" && args.kind === "write") {
++        if (!isManagedLinuxSessionModel() && mode === "accept_edits" && args.kind === "write") {
+             return { type: "allow" };
+         }
+         // default mode (or accept_edits with execute): prompt for permission
+@@ -1483,6 +1490,7 @@
+         }
+         const child = spawn("sh", ["-c", command], {
+             cwd,
++            env: childEnvironment(),
+             // Run the shell in its own process group so that background processes
+             // (nohup, disown, &) survive after the main sh -c exits and don't
+             // receive signals aimed at this agent. The child must stay ref'd: while
+--- a/dist/tools/session-mcp-client.js
++++ b/dist/tools/session-mcp-client.js
+@@ -849,8 +849,23 @@
+         });
+     });
+ }
++export function isManagedLinuxSessionModel() {
++    return process.platform === "linux" && process.env.VW_ACP_LAUNCH_REFERENCE !== undefined;
++}
++export function isVendorMcpTool(name) {
++    return name === "web_search" || name === "web_reader" || name === "image_analysis";
++}
++export function childEnvironment() {
++    const env = { ...process.env };
++    if (isManagedLinuxSessionModel()) {
++        // The parent key authenticates only to the ShiJu relay.
++        delete env.Z_AI_API_KEY;
++        delete env.VW_ACP_LAUNCH_REFERENCE;
++    }
++    return env;
++}
+ function buildStdioEnv(server) {
+-    const env = { ...process.env };
++    const env = childEnvironment();
+     for (const entry of server.env) {
+         env[entry.name] = entry.value;
+     }

@@ -14,6 +14,8 @@ import { promisify } from 'node:util';
 const exec = promisify(execFile);
 const installer = new URL('../../../crates/libs/acp-agent-registry/src/managed_runtime/', import.meta.url);
 const patch = new URL('./glm-acp-agent-1.17.1-skills.patch', import.meta.url);
+const linuxPatch = new URL('./glm-acp-agent-1.17.1-linux-session-model.patch', import.meta.url);
+const managedLinux = process.platform === 'linux' && ['x64', 'arm64'].includes(process.arch);
 const packageName = 'glm-acp-agent';
 const tools = ['fixture_lookup', 'fixture_error', 'fixture_denied', 'fixture_other'];
 const toolSchema = { type: 'object', properties: {} };
@@ -27,7 +29,12 @@ async function install(directory) {
     // The production installer checks the npm integrity and both sets of file hashes.
     await exec('python3', [fileURLToPath(new URL('install.py', installer)), assets, runtime, packageName],
         { timeout: 80_000 });
-    return join(runtime, 'node_modules');
+    const modules = join(runtime, 'node_modules');
+    if (managedLinux) {
+        await exec('patch', ['--batch', '-p1', '-i', fileURLToPath(linuxPatch)],
+            { cwd: join(modules, packageName) });
+    }
+    return modules;
 }
 
 function sendModelTurn(response, calls, id) {
@@ -126,6 +133,7 @@ test('GLM managed entrypoint keeps official tools alongside scoped MCP catalogs'
             ACP_GLM_MAX_TURNS: '3',
             ACP_GLM_STREAM_IDLE_TIMEOUT_MS: '5000',
             Z_AI_API_KEY: 'fixture-token',
+            ...(managedLinux && { VW_ACP_LAUNCH_REFERENCE: 'vw-session-model:fixture' }),
         },
         stdio: ['pipe', 'pipe', 'pipe'],
     });
@@ -143,11 +151,15 @@ test('GLM managed entrypoint keeps official tools alongside scoped MCP catalogs'
     };
     const updates = [];
     const approvals = [];
+    const envCheck = 'test -z "$Z_AI_API_KEY" && test -z "$VW_ACP_LAUNCH_REFERENCE" && echo isolated';
     const client = new ClientSideConnection(() => ({
         async sessionUpdate({ update }) { updates.push(update); },
         async requestPermission({ toolCall, options }) {
             approvals.push(toolCall.toolCallId);
-            return { outcome: { outcome: 'selected', optionId: options.find(option => option.kind === 'reject_once').optionId } };
+            const approved = managedLinux &&
+                (toolCall.title.startsWith('fixture_') || toolCall.rawInput?.command === envCheck);
+            const kind = approved ? 'allow_once' : 'reject_once';
+            return { outcome: { outcome: 'selected', optionId: options.find(option => option.kind === kind).optionId } };
         },
     }), ndJsonStream(Writable.toWeb(child.stdin), Readable.toWeb(child.stdout)));
 
@@ -175,6 +187,11 @@ test('GLM managed entrypoint keeps official tools alongside scoped MCP catalogs'
         assert.equal(result.stopReason, 'end_turn');
         const names = modelRequests[0].tools.map(tool => tool.function.name);
         assert.ok(names.includes('read_file'), `${id}: official read_file missing from model catalog`);
+        if (managedLinux) {
+            for (const name of ['web_search', 'web_reader', 'image_analysis']) {
+                assert.ok(!names.includes(name), `${id}: vendor MCP escaped the managed boundary`);
+            }
+        }
         const nativeNames = names.filter(name => !name.startsWith('fixture_')).sort();
         officialTools ??= nativeNames;
         assert.deepEqual(nativeNames, officialTools, `${id}: official catalog differs from the unmounted session`);
@@ -190,7 +207,11 @@ test('GLM managed entrypoint keeps official tools alongside scoped MCP catalogs'
             assert.match(returned.get(toolCallId), content);
             assert.equal(updates.findLast(update => update.toolCallId === toolCallId)?.status, status, toolCallId);
         }
-        assert.deepEqual(approvals, rejectedWrite ? [`call_${id}_${calls.length - 1}`] : []);
+        const expectedApprovals = calls.flatMap(([name], index) => (
+            (managedLinux && (expectedMcpCalls.includes(name) || name === 'run_command')) ||
+            (rejectedWrite && name === 'write_file')
+        ) ? [`call_${id}_${index}`] : []);
+        assert.deepEqual([...approvals].sort(), expectedApprovals.sort());
     }
 
     const nativeResult = [/native read result/, 'completed'];
@@ -221,4 +242,18 @@ test('GLM managed entrypoint keeps official tools alongside scoped MCP catalogs'
     await checkTurn(fork.sessionId, 'fork', ['fixture_lookup', 'fixture_error', 'fixture_sibling'],
         [read, ['fixture_sibling', {}], ['fixture_denied', {}]], ['fixture_sibling'],
         [nativeResult, [/MCP result: fixture_sibling/, 'completed'], deniedResult]);
+
+    await client.loadSession({ sessionId: source, cwd, mcpServers: [] });
+    await checkTurn(source, 'revoked', [], [read, ['fixture_lookup', {}]], [],
+        [nativeResult, [/unknown tool "fixture_lookup"/, 'failed']]);
+
+    if (managedLinux) {
+        await checkTurn(source, 'isolated', [], [
+            ['web_search', { query: 'fixture' }],
+            ['run_command', { command: envCheck }],
+        ], [], [
+            [/Vendor MCP is unavailable/, 'failed'],
+            [/isolated/, 'completed'],
+        ]);
+    }
 });

@@ -342,6 +342,10 @@ def tool_policy(server):
     return (server.get('_meta') or {}).get('shiju.grok.toolPolicy') or {}
 
 
+class UnsupportedMcpPolicy(ValueError):
+    pass
+
+
 class Selection:
     def __init__(self, root, script):
         self.root = root
@@ -368,7 +372,7 @@ class Selection:
             for server in servers:
                 policy = tool_policy(server)
                 if policy.get('allow') or policy.get('deny'):
-                    raise ValueError('native mixed MCP transport cannot enforce scoped stdio tool policy')
+                    raise UnsupportedMcpPolicy('Grok cannot enforce scoped MCP tool policy with remote transport')
             self.snapshot = None
             return
         self.generation += 1
@@ -492,13 +496,28 @@ def launch(script, config, port, command):
             original, f'http://127.0.0.1:{server.server_port}/v1').encode())
         threading.Thread(target=server.serve_forever, daemon=True).start()
         with subprocess.Popen(command, stdin=subprocess.PIPE, stdout=subprocess.PIPE) as proc:
+            output_lock = threading.Lock()
+
+            def send_to_host(line):
+                with output_lock:
+                    send(sys.stdout.buffer, line)
+
             def requests():
                 try:
                     for line in lines(sys.stdin.buffer):
                         msg = json.loads(line)
                         method = msg.get('method')
                         if method in SESSIONS:
-                            server.selection.bind(msg['params'])
+                            try:
+                                server.selection.bind(msg['params'])
+                            except UnsupportedMcpPolicy as error:
+                                if sys.platform != 'linux' or 'id' not in msg:
+                                    raise
+                                send_to_host(encode({
+                                    'jsonrpc': '2.0', 'id': msg['id'],
+                                    'error': {'code': -32602, 'message': str(error)},
+                                }) + b'\n')
+                                continue
                             line = encode(msg) + b'\n'
                         elif method == 'session/close':
                             server.selection.close()
@@ -515,7 +534,7 @@ def launch(script, config, port, command):
             threading.Thread(target=requests, daemon=True).start()
             try:
                 for line in lines(proc.stdout):
-                    send(sys.stdout.buffer, line)
+                    send_to_host(line)
             finally:
                 stop(proc)
                 server.shutdown()

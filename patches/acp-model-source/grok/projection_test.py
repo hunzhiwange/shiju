@@ -166,6 +166,32 @@ for line in sys.stdin:
                     child.stdin.close()
                     child.wait(timeout=5)
 
+    @unittest.skipUnless(sys.platform == 'linux', 'Linux ACP policy errors')
+    def test_scoped_mixed_transport_returns_acp_error_without_forwarding(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            script = Path(__file__).with_name('projection.py').resolve()
+            template = root / 'model.toml'
+            template.write_text('base_url = "http://127.0.0.1:12345/v1"')
+            refused = {'jsonrpc': '2.0', 'id': 1, 'method': 'session/new', 'params': {
+                'cwd': folder, 'mcpServers': [
+                    {'name': SERVER, 'command': 'fixture', 'args': [],
+                     '_meta': {'shiju.grok.toolPolicy': {'deny': ['lookup']}}},
+                    {'name': 'remote', 'type': 'http', 'url': 'http://127.0.0.1:23456'},
+                ],
+            }}
+            initialize = {'jsonrpc': '2.0', 'id': 2, 'method': 'initialize', 'params': {}}
+            result = subprocess.run([
+                sys.executable, '-I', str(script), str(template), '12345', sys.executable, '-u',
+                '-c', 'import sys; [print(line, end="") for line in sys.stdin]',
+            ], input=b'\n'.join(map(encode, [refused, initialize])) + b'\n',
+                env=dict(os.environ, GROK_HOME=folder, SHIJU_GROK_RELAY_KEY='fixture-only'),
+                capture_output=True, timeout=8, check=True)
+            rejected, forwarded = map(json.loads, result.stdout.splitlines())
+            self.assertEqual(rejected['id'], 1)
+            self.assertEqual(rejected['error']['code'], -32602)
+            self.assertEqual(forwarded, initialize)
+
     def test_resource_only_server_has_an_empty_catalog(self):
         with tempfile.TemporaryDirectory() as folder:
             path = Path(folder) / 'tools.json'

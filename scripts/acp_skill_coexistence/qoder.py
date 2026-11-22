@@ -30,16 +30,21 @@ MANAGED = ROOT / "crates/libs/acp-agent-registry/src/managed_runtime"
 
 
 def launch(env):
-    require((platform.system(), platform.machine()) == ("Darwin", "arm64"),
-            "unreviewed Qoder platform")
+    system, machine = platform.system(), platform.machine()
+    linux_arch = {"x86_64": "x64", "aarch64": "arm64"}.get(machine)
+    linux = system == "Linux" and linux_arch is not None and platform.libc_ver()[0] == "glibc"
+    require(linux or (system, machine) == ("Darwin", "arm64"), "unreviewed Qoder platform")
     manifest = MANAGED / "contracts.json"
-    contract = json.loads(manifest.read_text())["qoder"]
+    patches = ROOT / "patches/acp-model-source/qoder"
+    contract = (json.loads((patches / "linux.json").read_text()) if linux
+                else json.loads(manifest.read_text())["qoder"])
     require(contract["version"] == VERSION, "unexpected Qoder contract version")
-    target = Path(env["VIBEWINDOW_CONFIG_DIR"]) / "acp-runtime" / REVISION
+    revision = contract["revision"] if linux else REVISION
+    target = Path(env["VIBEWINDOW_CONFIG_DIR"]) / "acp-runtime" / revision
     package = target / "node_modules" / contract["package"]
-    # A private preinstalled package can be reused when npm is unavailable.
+    # The legacy Darwin fixture can reuse a private preinstalled package.
     supplied = os.environ.get("QODER_COEXISTENCE_PACKAGE")
-    if supplied:
+    if supplied and not linux:
         source = Path(supplied).resolve(strict=True)
         require(all(hashlib.sha256((source / file).read_bytes()).hexdigest() == digest
                     for file, digest in contract["files"].items()), "Qoder artifact digest mismatch")
@@ -49,7 +54,7 @@ def launch(env):
         assets = Path(env["TMPDIR"]) / "qoder-assets"
         assets.mkdir(mode=0o700)
         shutil.copy2(manifest, assets)
-        shutil.copytree(ROOT / "patches/acp-model-source/qoder", assets / "qoder")
+        shutil.copytree(patches, assets / "qoder")
         try:
             result = subprocess.run(
                 [sys.executable, str(MANAGED / "install.py"), str(assets), str(target), "qoder"],
@@ -65,9 +70,17 @@ def launch(env):
                             capture_output=True, timeout=15)
     require(result.returncode == 0 and re.search(rb"\b1\.1\.88\b", result.stdout),
             "unexpected Qoder runtime version")
-    return {"command": str(command), "args": ["--acp"]}, {
-        "platform": "Darwin-arm64", "version": VERSION, "revision": REVISION, "sha256": hashes,
+    artifact = {
+        "platform": f"{system}-{machine}", "version": VERSION, "revision": revision, "sha256": hashes,
     }
+    if linux:
+        helper = contract["ripgrep"][linux_arch]
+        rg = target / "node_modules" / helper["package"] / "bin/rg"
+        digest = hashlib.sha256(rg.read_bytes()).hexdigest()
+        require(digest == helper["sha256"], "Qoder ripgrep digest mismatch")
+        artifact["ripgrep_sha256"] = digest
+        artifact["model_protocol"] = "POST /v1/chat/completions"
+    return {"command": str(command), "args": ["--acp"]}, artifact
 
 
 class Probe:

@@ -1,0 +1,24 @@
+{
+  "package": "@qoder-ai/qodercli",
+  "version": "1.1.88",
+  "bin": "bundle/qodercli.js",
+  "revision": "qoder-1.1.88-model-source-v3",
+  "integrity": "sha512-3UkODiq9eNtbQPzE1DN6UbcwCjNcY5XKeO0htxzzm5ZZjs2gE2yY8xzTjwEU6Hb8Dhyiy7XdcqSyKwWudxmh+w==",
+  "files": {
+    "bundle/shiju-session-model.mjs": "4b6d47864ee2b559dfc2f7e323920228e7aeee771303157d815ea81e5b08c001",
+    "bundle/qodercli.js": "77bf52aeadb15c07a06218714f16103fd8154df0c31b19e0fa49f7cb255f8068",
+    "package.json": "ec71b9fd3e3902fb5e59643db87b1ac24d94668224fcdfdff32b3aad45d3081e"
+  },
+  "ripgrep": {
+    "x64": {
+      "package": "@qoder-ai/qodercli-ripgrep-linux-x64",
+      "integrity": "sha512-gQ3ipQj4c6bKMV1HSLsoowywtcu+MrvysKB5T1xIbppGe3M/cw2ekt24OP3CT43CDqgd16jCoiIe7+JrHSD9wA==",
+      "sha256": "193906679498de4d939345b937fa24e0e69a03c244bd70c859f5e41232713f21"
+    },
+    "arm64": {
+      "package": "@qoder-ai/qodercli-ripgrep-linux-arm64",
+      "integrity": "sha512-i2VrcTJFQN24tuT+Mxlf/sGKkw2RAFt+TYuSz15bntLE4JImxIC60wMWv+TGEeOitUO9dTd1eFrF1JlCzQcx9A==",
+      "sha256": "e152ea689d6e8420357e592f0d8253b96476c164118ca3e6e13074fa1705ddda"
+    }
+  }
+}

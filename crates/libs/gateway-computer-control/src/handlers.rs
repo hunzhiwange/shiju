@@ -2,6 +2,7 @@
 use axum::{Extension, Json, Router, extract::DefaultBodyLimit, http::{HeaderMap, StatusCode}, middleware, response::{IntoResponse, Response}, routing::{get, post}};
 use serde_json::json;
 use sha2::{Digest, Sha256};
+use std::path::Path;
 use {
     vw_api_computer_control::*,
     vw_api_transport::id::TenantScope,
@@ -58,12 +59,19 @@ async fn status(Extension(_t): Extension<TenantScope>, h: HeaderMap) -> Result<J
     let runtime = runtime(&h).await?;
     let chrome_connected = runtime.chrome_connected().await;
     let documents = runtime.office_transport().map(|o| o.connected_documents()).unwrap_or_default();
-    let permissions = service_permissions("--permissions").await;
+    let native = probe_native_service().await;
     let policy = runtime.control_policy().read();
     let config = policy.config().users.get(&user()).cloned().unwrap_or_default();
-    let (readiness, auth, backend, caps) = match permissions {
-        Ok(p) => (if p.accessibility && p.screen_recording { ControlReadiness::Ready } else { ControlReadiness::Unauthorized }, if p.accessibility && p.screen_recording { SystemAuthorization::Granted } else { SystemAuthorization::Denied }, ControlBackend::Available, vec![ControlCapability::Observe, ControlCapability::Screenshot, ControlCapability::Input]),
-        Err(_) => (ControlReadiness::Unsupported, SystemAuthorization::NotChecked, ControlBackend::Unsupported, vec![]),
+    let (readiness, auth, backend, caps) = match native.permissions {
+        Some(p) => (if p.accessibility && p.screen_recording { ControlReadiness::Ready } else { ControlReadiness::Unauthorized }, if p.accessibility && p.screen_recording { SystemAuthorization::Granted } else { SystemAuthorization::Denied }, ControlBackend::Available, vec![ControlCapability::Observe, ControlCapability::Screenshot, ControlCapability::Input]),
+        None => {
+            let (readiness, backend) = match native.state {
+                NativeServiceState::NotInstalled => (ControlReadiness::NotInstalled, ControlBackend::NotInstalled),
+                NativeServiceState::Unsupported => (ControlReadiness::Unsupported, ControlBackend::Unsupported),
+                NativeServiceState::Disconnected | NativeServiceState::Available => (ControlReadiness::Disconnected, ControlBackend::Available),
+            };
+            (readiness, SystemAuthorization::NotChecked, backend, vec![])
+        }
     };
     let bridge = |enabled, connected, capabilities| {
         let mut status = feature(enabled, if connected { ControlReadiness::Ready } else { ControlReadiness::Disconnected }, SystemAuthorization::NotRequired, ControlBackend::Available, capabilities);
@@ -178,23 +186,27 @@ async fn save_browser_permissions(Extension(_t): Extension<TenantScope>, h: Head
 async fn request_native_permission(Extension(_t): Extension<TenantScope>, h: HeaderMap, Json(q): Json<NativePermissionRequest>) -> Result<Json<NativePermissionReport>, Failure> {
     let _runtime = runtime(&h).await?;
     let mode = if q.screen_recording { "--request-screen-recording" } else { "--request-accessibility" };
-    Ok(Json(service_permissions(mode).await?))
+    let executable = computer_control::service::executable().map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?;
+    Ok(Json(service_permissions(&executable, mode).await?))
 }
 
 async fn native_service(Extension(_t): Extension<TenantScope>, h: HeaderMap) -> Result<Json<NativeServiceReport>, Failure> {
     let _runtime = runtime(&h).await?;
+    Ok(Json(probe_native_service().await))
+}
+
+async fn probe_native_service() -> NativeServiceReport {
     if !cfg!(target_os = "macos") {
-        return Ok(Json(NativeServiceReport { state: NativeServiceState::Unsupported, permissions: None }));
+        return NativeServiceReport { state: NativeServiceState::Unsupported, permissions: None };
     }
-    let report = match computer_control::service::executable() {
+    match computer_control::service::executable() {
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => NativeServiceReport { state: NativeServiceState::NotInstalled, permissions: None },
         Err(_) => NativeServiceReport { state: NativeServiceState::Disconnected, permissions: None },
-        Ok(_) => match service_permissions("--permissions").await {
+        Ok(executable) => match service_permissions(&executable, "--permissions").await {
             Ok(permissions) => NativeServiceReport { state: NativeServiceState::Available, permissions: Some(permissions) },
             Err(_) => NativeServiceReport { state: NativeServiceState::Disconnected, permissions: None },
         },
-    };
-    Ok(Json(report))
+    }
 }
 
 fn validate_service_identity(expected: &std::path::Path, report: &NativePermissionReport) -> Result<(), Failure> {
@@ -204,13 +216,12 @@ fn validate_service_identity(expected: &std::path::Path, report: &NativePermissi
     Ok(())
 }
 
-async fn service_permissions(mode: &'static str) -> Result<NativePermissionReport, Failure> {
+async fn service_permissions(executable: &Path, mode: &'static str) -> Result<NativePermissionReport, Failure> {
     tokio::time::timeout(std::time::Duration::from_secs(30), async move {
-        let executable = computer_control::service::executable().map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?;
-        let output = tokio::process::Command::new(&executable).arg(mode).kill_on_drop(true).output().await.map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?;
+        let output = tokio::process::Command::new(executable).arg(mode).kill_on_drop(true).output().await.map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?;
         if !output.status.success() { return Err(StatusCode::UNPROCESSABLE_ENTITY); }
         let report = serde_json::from_slice(&output.stdout).map_err(|_| StatusCode::BAD_GATEWAY)?;
-        validate_service_identity(&executable, &report)?;
+        validate_service_identity(executable, &report)?;
         Ok(report)
     }).await.map_err(|_| StatusCode::GATEWAY_TIMEOUT)?
 }

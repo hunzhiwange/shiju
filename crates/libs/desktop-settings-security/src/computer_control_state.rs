@@ -37,6 +37,30 @@ pub struct OfficePairingDraft {
     pub workspace: Option<std::path::PathBuf>,
     pub credential: Option<PairingCredential>,
 }
+
+#[derive(Debug, Clone)]
+pub struct NativeInstall {
+    pub app_path: String,
+    pub command: String,
+}
+
+impl NativeInstall {
+    #[cfg(target_os = "macos")]
+    pub(crate) fn from_launcher(launcher: &std::path::Path) -> Option<Self> {
+        use config_runtime_paths::{BUNDLED_COMPUTER_USE_EXECUTABLE, INSTALL_COMPUTER_USE_ARG, bundled_computer_use_app};
+
+        let app = bundled_computer_use_app(launcher)?;
+        if !app.join(BUNDLED_COMPUTER_USE_EXECUTABLE).is_file() {
+            return None;
+        }
+        let executable = launcher.to_str()?.replace('\'', "'\\''");
+        Some(Self {
+            app_path: app.to_str()?.to_owned(),
+            command: format!("'{executable}' {INSTALL_COMPUTER_USE_ARG}"),
+        })
+    }
+}
+
 #[derive(Debug, Clone, Default)]
 pub struct ComputerControlSettingsState {
     pub identity: Option<ControlIdentity>,
@@ -54,6 +78,8 @@ pub struct ComputerControlSettingsState {
     pub requesting_permission: bool,
     pub native_service: Option<NativeServiceReport>,
     pub target_host: String,
+    pub target_is_local: bool,
+    pub native_install: Option<NativeInstall>,
     pub browser: Option<BrowserPermissionsSnapshot>,
     pub browser_origin: String,
 }

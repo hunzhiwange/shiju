@@ -214,6 +214,17 @@ fn boot_app() -> (app::App, iced::Task<app::Message>) {
 ///
 /// 返回 iced 运行结果，窗口或渲染器初始化失败时将错误交给进程入口处理。
 pub fn main() -> iced::Result {
+    #[cfg(target_os = "macos")]
+    if std::env::args_os().nth(1).is_some_and(|arg| arg == config_runtime_paths::INSTALL_COMPUTER_USE_ARG) {
+        match desktop_config::config_cli_bootstrap::install_computer_use_from_bundle() {
+            Ok(path) => println!("已安装 {}。请在电脑操控设置中刷新状态。", path.display()),
+            Err(error) => {
+                eprintln!("{error}");
+                std::process::exit(1);
+            }
+        }
+        return Ok(());
+    }
     #[cfg(not(target_arch = "wasm32"))]
     configure_native_graphics_backend();
     #[cfg(not(target_arch = "wasm32"))]

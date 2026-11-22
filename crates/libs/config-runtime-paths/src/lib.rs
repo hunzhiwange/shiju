@@ -18,6 +18,19 @@ pub const DEV_APP_DIR_NAME: &str = "shiju-dev";
 /// 任务工作树在用户配置目录下的固定子目录名。
 pub const TASK_WORKTREES_DIR_NAME: &str = "task-worktrees";
 
+pub const BUNDLED_COMPUTER_USE_APP_NAME: &str = "ShiJu Computer Use.app";
+pub const BUNDLED_COMPUTER_USE_EXECUTABLE: &str = "Contents/MacOS/shiju-computer-use";
+pub const INSTALL_COMPUTER_USE_ARG: &str = "--install-computer-use";
+
+/// Compute the helper app's location from an executable in the macOS desktop bundle.
+pub fn bundled_computer_use_app(executable: &Path) -> Option<PathBuf> {
+    let macos = executable.parent()?;
+    if !macos.ends_with("Contents/MacOS") {
+        return None;
+    }
+    Some(macos.parent()?.join("Helpers").join(BUNDLED_COMPUTER_USE_APP_NAME))
+}
+
 /// 当前构建配置对应的用户配置目录名。
 #[cfg(debug_assertions)]
 pub const HOME_CONFIG_DIR_NAME: &str = DEV_HOME_CONFIG_DIR_NAME;

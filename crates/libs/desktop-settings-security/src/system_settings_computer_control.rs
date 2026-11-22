@@ -24,6 +24,13 @@ pub fn readiness_label(readiness: ControlReadiness) -> &'static str {
         ControlReadiness::Unsupported => "当前平台或后端不支持",
     }
 }
+fn feature_readiness_label(feature: ControlSetting, readiness: ControlReadiness) -> &'static str {
+    match (feature, readiness) {
+        (ControlSetting::NativeApps, ControlReadiness::NotInstalled) => "执行应用未安装",
+        (ControlSetting::NativeApps, ControlReadiness::Disconnected) => "执行应用无法连接",
+        _ => readiness_label(readiness),
+    }
+}
 fn action(label: &'static str, event: Event, enabled: bool) -> Element<'static, Event> {
     button(text(label).size(13))
         .padding([8, 14])
@@ -87,7 +94,7 @@ pub fn page(state: &ComputerControlSettingsState) -> Element<'_, Event> {
         let mut details = column![
             text(title).size(16),
             text(feature_description(feature)).size(13).style(settings_muted_text_style),
-            text(report.map(|s| readiness_label(s.readiness)).unwrap_or("尚未取得服务端状态"))
+            text(report.map(|s| feature_readiness_label(feature, s.readiness)).unwrap_or("尚未取得服务端状态"))
                 .size(13)
                 .style(settings_muted_text_style),
         ]
@@ -133,7 +140,14 @@ pub fn page(state: &ComputerControlSettingsState) -> Element<'_, Event> {
             }
         }
         if matches!(feature, ControlSetting::NativeApps | ControlSetting::Chrome) {
-            details = details.push(action("管理权限", Event::Manage(feature), true));
+            let label = if feature == ControlSetting::NativeApps
+                && state.native_service.as_ref().is_some_and(|report| report.state == NativeServiceState::NotInstalled)
+            {
+                "安装与权限"
+            } else {
+                "管理权限"
+            };
+            details = details.push(action(label, Event::Manage(feature), true));
         }
         if matches!(feature, ControlSetting::Excel | ControlSetting::Word) {
             details = details.push(action(
@@ -237,7 +251,7 @@ fn management_page(state: &ComputerControlSettingsState, feature: ControlSetting
     let mut content = column![
         action("返回电脑操控", Event::ManageClose, true),
         text(title).size(28),
-        text(state.feature(feature).map(|report| readiness_label(report.readiness)).unwrap_or("尚未取得服务端状态"))
+        text(state.feature(feature).map(|report| feature_readiness_label(feature, report.readiness)).unwrap_or("尚未取得服务端状态"))
             .size(13).style(settings_muted_text_style),
         action("刷新状态", Event::Refresh, !state.busy()),
     ].spacing(20).width(Length::Fill);
@@ -253,21 +267,41 @@ fn management_page(state: &ComputerControlSettingsState, feature: ControlSetting
             text("历史记录、网站工具和完整 CDP 尚无执行后端；浏览、上传、下载的策略在下方配置并保存。").size(13).style(settings_muted_text_style),
         ].spacing(12)));
     } else {
+        let service_state = state.native_service.as_ref().map(|report| report.state);
         let mut permissions = column![
             text("系统权限").size(17),
-            text("请为 ShiJu Computer Use 执行应用分别授予辅助功能和屏幕录制权限。远程网关需在目标电脑操作；打开设置或发出申请不代表已授权。").size(13),
+            text("请在网关所在的 Mac 上为 ShiJu Computer Use 授予辅助功能和屏幕录制权限。").size(13),
         ].spacing(12);
         permissions = permissions.push(text(format!("目标网关：{}", state.target_host)).size(13));
-        if let Some(report) = &state.native_service {
-            let label = match report.state {
-                vw_api_computer_control::NativeServiceState::Available => "执行应用可用",
-                vw_api_computer_control::NativeServiceState::NotInstalled => "执行应用未安装",
-                vw_api_computer_control::NativeServiceState::Disconnected => "执行应用断开或身份验证失败",
-                vw_api_computer_control::NativeServiceState::Unsupported => "目标系统暂不支持",
+        if let Some(service_state) = service_state {
+            let label = match service_state {
+                NativeServiceState::Available => "执行应用可用",
+                NativeServiceState::NotInstalled => "执行应用未安装",
+                NativeServiceState::Disconnected => "执行应用断开或身份验证失败",
+                NativeServiceState::Unsupported => "目标系统暂不支持",
             };
             permissions = permissions.push(text(label).size(13));
         }
-        if cfg!(target_os = "macos") {
+        if let Some(install) = &state.native_install {
+            let mut actions = row![action("复制安装地址", Event::CopyNativeInstallPath, !state.busy())]
+                .spacing(10);
+            permissions = permissions
+                .push(text("安装包内位置").size(13))
+                .push(text(install.app_path.as_str()).size(13).wrapping(iced::widget::text::Wrapping::WordOrGlyph));
+            if service_state == Some(NativeServiceState::NotInstalled) {
+                permissions = permissions.push(text("在本机终端运行安装命令，完成后刷新状态。").size(13));
+                actions = actions.push(action("复制安装命令", Event::CopyNativeInstallCommand, !state.busy()));
+            }
+            permissions = permissions.push(actions.wrap());
+        } else if service_state == Some(NativeServiceState::NotInstalled) {
+            let hint = if state.target_is_local {
+                "请安装包含 ShiJu Computer Use.app 的完整识矩 macOS 安装包，然后刷新状态。"
+            } else {
+                "请在运行网关的 Mac 上打开识矩，从该电脑的安装包安装执行应用，然后刷新状态。"
+            };
+            permissions = permissions.push(text(hint).size(13));
+        }
+        if cfg!(target_os = "macos") && state.target_is_local && service_state == Some(NativeServiceState::Available) {
             permissions = permissions.push(row![
                 action("申请辅助功能权限", Event::OpenSystemPermission { screen_recording: false }, !state.busy()),
                 action("申请屏幕录制权限", Event::OpenSystemPermission { screen_recording: true }, !state.busy()),
@@ -283,7 +317,7 @@ fn management_page(state: &ComputerControlSettingsState, feature: ControlSetting
             }
             permissions = permissions.push(text("请在系统授权列表中启用上述进程对应的应用。授权后刷新；屏幕录制仍未生效时，按系统提示退出并重新启动该应用。开发程序重新构建后可能需要重新授权。").size(13));
         }
-        content = content.push(settings_group_card(permissions));
+        content = content.push(settings_group_card(container(permissions).padding([16, 0])));
     }
     let mut grants = column![text(if chrome { "已授权网站" } else { "已授权应用" }).size(17)].spacing(12);
     let mut count = 0;

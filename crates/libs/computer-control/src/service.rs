@@ -127,7 +127,7 @@ pub struct ServiceImageChunk {
     pub data: String,
     pub done: bool,
 }
-/// Locate only the helper bundled alongside the running ShiJu executable.
+/// Locate the bundled helper, including the link installed by desktop bootstrap.
 pub fn executable() -> io::Result<PathBuf> {
     let current = std::env::current_exe()?;
     let contents = current
@@ -141,5 +141,5 @@ pub fn executable() -> io::Result<PathBuf> {
             "bundled computer control App unavailable",
         ));
     }
-    Ok(helper)
+    helper.canonicalize()
 }

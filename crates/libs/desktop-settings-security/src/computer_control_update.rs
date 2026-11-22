@@ -14,6 +14,8 @@ pub enum Event {
     BrowserEdit { origin: Option<String>, field: u8, value: Option<BrowserPermission> },
     BrowserRemove(String),
     BrowserSave,
+    CopyNativeInstallPath,
+    CopyNativeInstallCommand,
     OpenSystemPermission { screen_recording: bool },
     NativePermissionRequested { identity: ControlIdentity, generation: u64, result: Result<NativePermissionReport, String> },
     NativeServiceLoaded { identity: ControlIdentity, generation: u64, result: Result<NativeServiceReport, String> },
@@ -53,6 +55,11 @@ fn refresh(state: &mut ComputerControlSettingsState, endpoint: &GatewayEndpoint)
     state.native_service = None;
     state.native_permission_report = None;
     state.target_host = endpoint.base_url();
+    state.target_is_local = endpoint.is_loopback();
+    #[cfg(target_os = "macos")]
+    if state.target_is_local {
+        state.native_install = std::env::current_exe().ok().and_then(|path| NativeInstall::from_launcher(&path));
+    }
     let client = gateway_http::GatewayTransport::new(endpoint.clone())
         .map(gateway_computer_control::GatewayComputerControlClient::new);
     let browser_identity = identity.clone();
@@ -129,6 +136,18 @@ fn update_inner(state: &mut ComputerControlSettingsState, endpoint: &GatewayEndp
             Task::perform(async move { client?.save_browser_permissions(&snapshot).await.map_err(safe_error)?; Ok(None) }, move |result| Event::Completed { identity: identity.clone(), generation, result })
         }
         Event::ManageClose => { state.management = None; Task::none() }
+        event @ (Event::CopyNativeInstallPath | Event::CopyNativeInstallCommand) => {
+            let Some(install) = state.native_install.as_ref().filter(|_| endpoint.is_loopback()) else {
+                return Task::none();
+            };
+            let (value, label) = if matches!(event, Event::CopyNativeInstallPath) {
+                (&install.app_path, "已复制安装地址")
+            } else {
+                (&install.command, "已复制安装命令")
+            };
+            *notice = Some(Notice::Success(label.into()));
+            iced::clipboard::write(value.clone())
+        }
         Event::OpenSystemPermission { screen_recording } => {
             if state.busy() { return Task::none(); }
             if !endpoint.is_loopback() {

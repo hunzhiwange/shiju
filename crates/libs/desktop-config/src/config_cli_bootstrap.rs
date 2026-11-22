@@ -145,10 +145,17 @@ fn bootstrap_cli_service(config: GatewayClientSystemSettingsConfig, cache_path: 
 
 #[cfg(not(target_arch = "wasm32"))]
 fn ensure_cli_installed(home: &Path) -> Result<PathBuf, String> {
-    let install_dir = config_runtime_paths::home_config_dir(home).join("bin");
+    let config_dir = config_runtime_paths::home_config_dir(home);
+    let install_dir = config_dir.join("bin");
     let target_bin = install_dir.join(cli_binary_name());
     let source_bin = resolve_agent_binary_path()
         .map_err(|error| format!("{error}。请重新安装包含 shiju 的完整安装包。"))?;
+    #[cfg(target_os = "macos")]
+    if let Some(source_app) = installed_package_helper(&source_bin)
+        && let Err(error) = link_bundled_computer_use(&source_app, &config_dir)
+    {
+        tracing::warn!(target: "vw_desktop", %error, "failed to link the bundled computer use app");
+    }
     if installed_cli_matches_source(&target_bin, &source_bin) {
         return Ok(target_bin);
     }
@@ -171,6 +178,56 @@ fn ensure_cli_installed(home: &Path) -> Result<PathBuf, String> {
     });
     verify_cli_binary(&target_bin)?;
     Ok(target_bin)
+}
+
+#[cfg(target_os = "macos")]
+pub fn install_computer_use_from_bundle() -> Result<PathBuf, String> {
+    let launcher = std::env::current_exe().map_err(|error| format!("无法定位识矩安装包：{error}"))?;
+    let source_app = installed_package_helper(&launcher)
+        .ok_or_else(|| "当前识矩安装包缺少 ShiJu Computer Use.app，请安装完整的 macOS 版本。".to_string())?;
+    let config_dir = config_runtime_paths::home_config_dir(resolve_home_dir()?);
+    link_bundled_computer_use(&source_app, &config_dir)
+        .map_err(|error| format!("无法为本机网关安装执行应用：{error}"))?;
+    Ok(source_app)
+}
+
+#[cfg(target_os = "macos")]
+fn installed_package_helper(launcher: &Path) -> Option<PathBuf> {
+    let app = config_runtime_paths::bundled_computer_use_app(launcher)?;
+    app.join(config_runtime_paths::BUNDLED_COMPUTER_USE_EXECUTABLE).is_file().then_some(app)
+}
+
+#[cfg(target_os = "macos")]
+fn link_bundled_computer_use(source_app: &Path, config_dir: &Path) -> std::io::Result<()> {
+    use config_runtime_paths::BUNDLED_COMPUTER_USE_APP_NAME as APP_NAME;
+    use std::io::{Error, ErrorKind};
+    use std::os::unix::fs::symlink;
+
+    // The copied gateway resolves Helpers beside its bin directory. Link the whole
+    // app so the executable keeps the bundle identity used by macOS permissions.
+    let helpers = config_dir.join("Helpers");
+    fs::create_dir_all(&helpers)?;
+    if !fs::symlink_metadata(&helpers)?.is_dir() {
+        return Err(Error::new(ErrorKind::AlreadyExists, "Helpers is not a directory"));
+    }
+    let installed_app = helpers.join(APP_NAME);
+    match symlink(source_app, &installed_app) {
+        Ok(()) => return Ok(()),
+        Err(error) if error.kind() == ErrorKind::AlreadyExists => {}
+        Err(error) => return Err(error),
+    }
+    let previous = fs::read_link(&installed_app)?;
+    if previous.as_path() == source_app {
+        return Ok(());
+    }
+    if !previous.is_absolute() || !previous.ends_with(Path::new("Contents/Helpers").join(APP_NAME)) {
+        return Err(Error::new(ErrorKind::AlreadyExists, "unrecognized computer use app link"));
+    }
+
+    let staging = tempfile::Builder::new().prefix(".computer-use-").tempdir_in(&helpers)?;
+    let staged_app = staging.path().join(APP_NAME);
+    symlink(source_app, &staged_app)?;
+    fs::rename(staged_app, installed_app)
 }
 
 #[cfg(not(target_arch = "wasm32"))]

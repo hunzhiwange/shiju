@@ -8,6 +8,12 @@
 
 以下是后续人工部署步骤，本轮没有执行。需先取得包含 computer-control 资源的 ShiJu.app；本仓库的打包接线不代表已有经验证的安装包。将应用移到稳定位置后，按[本地资源说明](../plugins/shiju-computer-control/README.md)执行安装、状态查询与卸载命令。安装器依赖 Python 3，解释器位置须保持有效；资源写入 `~/.shiju/computer-control`，不修改系统授权。
 
+原生执行应用随 macOS 安装包内置，位于 `ShiJu.app/Contents/Helpers/ShiJu Computer Use.app`。本机网关提示执行应用未安装时，打开「设置 → 电脑操控 → 任意应用 → 安装与权限」，复制安装命令到终端运行，再回到设置刷新状态。若 ShiJu 已放在 `/Applications`，也可以运行下方命令。
+
+```sh
+"/Applications/ShiJu.app/Contents/MacOS/shi-ju" --install-computer-use
+```
+
 1. 在实际运行网关/控制宿主的 Mac 上安装资源。在 ShiJu 的设置→电脑操控点击“刷新状态”，确认当前网关身份。远程网关报告的是远端主机状态，不能用本地系统权限替代。
 2. 原生应用控制：在 macOS 系统设置中为实际宿主授予辅助功能与屏幕录制权限，涉及应用自动化时按系统提示决定授权。ShiJu 的应用授权与系统权限分别管理，开关不会自动取得 TCC 权限。
 3. Chrome：在宿主创建的隔离 profile 中加载安装目录的 `plugin/chrome`。当前资源要求 Chrome 106+，Native Messaging 仅接受扩展 ID `ogfgcnpdhnmkpcbaclbglefaclanipmg`。仓库没有稳定扩展签名 key，任意 unpacked 安装不保证取得该 ID；不匹配时应取得维护者提供的匹配扩展，不能放宽 allowed_origins。每个文档需点击扩展临时授权，站点策略仍独立检查。

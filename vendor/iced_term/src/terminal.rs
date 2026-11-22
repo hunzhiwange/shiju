@@ -112,6 +112,14 @@ impl Terminal {
             Command::AddBindings(bindings) => {
                 self.bindings.add_bindings(bindings);
             },
+            Command::ProxyToBackend(backend::Command::Write(input)) => {
+                // PTY output will sync the grid. Input only redraws immediately
+                // when it changes the viewport or vi-mode selection.
+                if self.backend.write_input(input) {
+                    self.redraw();
+                }
+                return action;
+            },
             Command::ProxyToBackend(cmd) => {
                 action = self.backend.handle(cmd);
             },

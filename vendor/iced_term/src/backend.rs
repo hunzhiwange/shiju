@@ -214,7 +214,7 @@ impl Backend {
             },
             Command::Write(input) => {
                 self.write(input);
-                term.scroll_display(Scroll::Bottom);
+                Self::scroll_to_input(&mut term);
             },
             Command::Paste(text) => {
                 if !text.is_empty() {
@@ -479,6 +479,25 @@ impl Backend {
                 self.size.num_lines as usize,
             ));
         }
+    }
+
+    pub(crate) fn write_input(&mut self, input: Vec<u8>) -> bool {
+        self.write(input);
+        let term = self.term.clone();
+        let mut term = term.lock();
+        if Self::scroll_to_input(&mut term) {
+            self.internal_sync(&mut term);
+            return true;
+        }
+        false
+    }
+
+    fn scroll_to_input(term: &mut Term<EventProxy>) -> bool {
+        if term.grid().display_offset() == 0 && !term.mode().contains(TermMode::VI) {
+            return false;
+        }
+        term.scroll_display(Scroll::Bottom);
+        true
     }
 
     fn write<I: Into<Cow<'static, [u8]>>>(&self, input: I) {

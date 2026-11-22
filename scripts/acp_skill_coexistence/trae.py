@@ -7,6 +7,7 @@ import platform
 import re
 import secrets
 import shutil
+import struct
 import subprocess
 import sys
 
@@ -27,12 +28,14 @@ MANAGED = ROOT / "crates/libs/acp-agent-registry/src/managed_runtime"
 
 
 def launch(env):
-    require((platform.system(), platform.machine()) == ("Darwin", "arm64"),
-            "unreviewed TRAE platform")
+    system, machine = platform.system(), platform.machine()
+    linux = system == "Linux" and machine in ("x86_64", "aarch64")
+    require(linux or (system, machine) == ("Darwin", "arm64"), "unreviewed TRAE platform")
     manifest = MANAGED / "contracts.json"
     contract = json.loads(manifest.read_text())["trae"]
     require(contract["version"] == VERSION, "unexpected TRAE contract version")
-    target = Path(env["VIBEWINDOW_CONFIG_DIR"]) / "acp-runtime" / REVISION
+    revision = f"trae-{VERSION}-linux-model-source-v1" if linux else REVISION
+    target = Path(env["VIBEWINDOW_CONFIG_DIR"]) / "acp-runtime" / revision
     target.parent.mkdir()
     assets = Path(env["TMPDIR"]) / "trae-assets"
     assets.mkdir(mode=0o700)
@@ -41,20 +44,41 @@ def launch(env):
     result = subprocess.run(
         [sys.executable, str(MANAGED / "install.py"), str(assets), str(target), "trae"],
         env=env, capture_output=True, timeout=180)
-    require(result.returncode == 0, "TRAE managed installation failed")
-    hashes = {file: hashlib.sha256((target / file).read_bytes()).hexdigest()
-              for file in contract["files"]}
-    require(hashes == contract["files"], "TRAE artifact digest mismatch")
-    command = target / contract["bin"]
+    require(result.returncode == 0,
+            f"TRAE reviewed session-model installation failed for {system}-{machine}")
+    files = ("native/trae-cli", "native/trae-local", "traecli") if linux else contract["files"]
+    hashes = {file: hashlib.sha256((target / file).read_bytes()).hexdigest() for file in files}
+    evidence = {"platform": system + "-" + machine, "version": VERSION, "revision": revision,
+                "archive_sha256": contract["archive_sha256"], "sha256": hashes}
+    args = ["acp", "serve"]
+    if linux:
+        contract = json.loads((assets / "trae/linux.json").read_text())
+        require(contract["version"] == VERSION, "unexpected TRAE Linux contract version")
+        require(contract["args"] == args, "unexpected TRAE Linux ACP arguments")
+        expected = contract["targets"][machine]
+        archive_sha256 = hashlib.sha256((assets / "trae.tar.gz").read_bytes()).hexdigest()
+        require(archive_sha256 == expected["archive_sha256"], "TRAE Linux archive checksum mismatch")
+        require(hashes["native/trae-cli"] == expected["executable_sha256"],
+                "TRAE Linux source executable checksum mismatch")
+        require(hashes == expected.get("session_model_files"),
+                "TRAE Linux session-model files have no matching reviewed digests")
+        with (target / "native/trae-cli").open("rb") as source:
+            header = source.read(64)
+        require(len(header) == 64 and header[:7] == b"\x7fELF\x02\x01\x01",
+                "TRAE Linux source must be a little-endian ELF64 executable")
+        machine_id = struct.unpack_from("<H", header, 18)[0]
+        require(machine_id == expected["elf_machine"], "TRAE Linux ELF machine mismatch")
+        evidence.update(archive_sha256=archive_sha256, elf_machine=machine_id,
+                        entry=contract["entry"], args=args)
+    else:
+        require(hashes == contract["files"], "TRAE artifact digest mismatch")
+    command = target / (contract["entry"] if linux else contract["bin"])
     result = subprocess.run([str(command), "--version"], env=env,
                             capture_output=True, timeout=15)
     require(result.returncode == 0
             and result.stdout.splitlines()[:1] == [f"trae-cli version {VERSION}".encode()],
             "unexpected TRAE runtime version")
-    return {"command": str(command), "args": ["acp", "serve"]}, {
-        "platform": "Darwin-arm64", "version": VERSION, "revision": REVISION,
-        "archive_sha256": contract["archive_sha256"], "sha256": hashes,
-    }
+    return {"command": str(command), "args": args}, evidence
 
 
 class Probe:

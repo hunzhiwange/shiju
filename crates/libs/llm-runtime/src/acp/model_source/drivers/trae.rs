@@ -3,6 +3,10 @@ use std::collections::HashMap;
 
 pub fn configure(profile: &mut AcpLaunchProfile, endpoint: &str) -> anyhow::Result<()> {
     anyhow::ensure!(
+        !cfg!(target_os = "linux"),
+        "TRAE session_model requires a reviewed Linux launch with relay-only network isolation"
+    );
+    anyhow::ensure!(
         profile.config().args == ["acp", "serve"],
         "TRAE requires verified ACP arguments"
     );

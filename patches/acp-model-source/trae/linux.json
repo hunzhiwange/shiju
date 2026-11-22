@@ -1,0 +1,22 @@
+{
+  "version": "0.121.3",
+  "build_commit": "72fe00ff52f56b0eb11a37bd561d4f10a4a44354",
+  "native_revision": "trae-0.121.3-linux-native-v1",
+  "entry": "traecli",
+  "archive_entry": "trae-cli",
+  "args": ["acp", "serve"],
+  "targets": {
+    "x86_64": {
+      "artifact_url": "https://lf-cdn.trae.com.cn/obj/trae-com-cn/trae-cli/trae-cli_0.121.3_linux_amd64.tar.gz",
+      "archive_sha256": "87251d035f6b182adeecff7b5a5cca5ea729c3ef10c264c2561ac84b5c935126",
+      "executable_sha256": "9045da1f00a8387084510f7e63b088049da996236065b8352c6783339a3db16f",
+      "elf_machine": 62
+    },
+    "aarch64": {
+      "artifact_url": "https://lf-cdn.trae.com.cn/obj/trae-com-cn/trae-cli/trae-cli_0.121.3_linux_arm64.tar.gz",
+      "archive_sha256": "d1c3fe8ff0281d2db866615dea162e2831bcf7988b2e82adfbd56207a23dbdd9",
+      "executable_sha256": "2865b8330eb545f2132a4e5e49a75d54fb0e41d377269ec4ffc6dc78881e5abf",
+      "elf_machine": 183
+    }
+  }
+}

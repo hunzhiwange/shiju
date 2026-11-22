@@ -493,7 +493,7 @@ fn model_selection_stays_consistent_with_provider_in_both_drafts() {
 
 
 #[test]
-fn cron_history_candidates_include_unrun_jobs_and_disambiguate_ids() {
+fn cron_history_candidates_include_unrun_jobs_and_number_duplicate_titles() {
     let mut app = app();
     let mut first = job("a");
     first.name = Some("备份".into());
@@ -506,8 +506,8 @@ fn cron_history_candidates_include_unrun_jobs_and_disambiguate_ids() {
     assert!(history.runs.is_empty());
     let candidates = history.task_candidates(&app.jobs);
     assert_eq!(candidates.len(), 3);
-    assert_eq!(candidates[0], ("a", "备份 (a)".into()));
-    assert_eq!(candidates[1], ("b", "备份 (b)".into()));
+    assert_eq!(candidates[0], ("a", "备份（1）".into()));
+    assert_eq!(candidates[1], ("b", "备份（2）".into()));
     history.task_search = " DaI ".into();
     assert_eq!(history.task_candidates(&app.jobs), vec![("c", "DAILY".into())]);
 }

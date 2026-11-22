@@ -102,11 +102,11 @@ fn app_backed_option_helpers_include_current_selection() {
 #[test]
 fn job_helpers_handle_fallback_labels_and_types() {
     let mut shell = job("shell");
-    assert_eq!(job_title(&shell), "shell");
+    assert_eq!(job_title(&shell), "未命名任务");
     assert!(!job_is_agent(&shell));
 
     shell.name = Some("  ".to_string());
-    assert_eq!(job_title(&shell), "shell");
+    assert_eq!(job_title(&shell), "未命名任务");
 
     let mut agent = job("agent");
     agent.job_type = "agent".to_string();
@@ -159,9 +159,9 @@ fn models_for_provider_returns_models_when_provider_found() {
     assert!(models_for_provider(&data(&app), "missing").is_empty());
 }
 #[test]
-fn job_title_returns_name_when_valid_or_id_as_fallback() {
+fn job_title_trims_surrounding_whitespace() {
     let mut job = job("id-fallback");
-    job.name = Some("My Cron Job".to_string());
+    job.name = Some("  My Cron Job  ".to_string());
     assert_eq!(job_title(&job), "My Cron Job");
 }
 #[test]

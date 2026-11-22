@@ -34,6 +34,8 @@ fn cron_history_filters_intersect() {
     assert_eq!(state.visible_runs().next().unwrap().job_id, "c");
     assert_eq!(CronHistoryState::display_name(&state.runs[2]), "未命名任务");
     assert_eq!(CronHistoryState::display_name(&run("empty", Some("  "), "ok")), "未命名任务");
+    state.search = "c".into();
+    assert_eq!(state.visible_runs().count(), 0);
 }
 
 #[test]
@@ -53,10 +55,12 @@ fn cron_history_duplicate_names_with_common_prefix_remain_distinct() {
     let mut second = first.clone();
     second.id = "job-00000001".into();
     let jobs = [first, second];
-    let state = CronHistoryState::default();
+    let mut state = CronHistoryState::default();
     let candidates = state.task_candidates(&jobs);
     assert_eq!(candidates[0], (jobs[0].id.as_str(), "中文重名任务（1）".into()));
     assert_eq!(candidates[1], (jobs[1].id.as_str(), "中文重名任务（2）".into()));
+    state.task_search = jobs[0].id.clone();
+    assert!(state.task_candidates(&jobs).is_empty());
 }
 
 #[test]

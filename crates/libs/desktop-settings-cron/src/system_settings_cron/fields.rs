@@ -205,12 +205,8 @@ pub(crate) fn pick_field<'a>(
     settings_select(options, selected, on_selected).width(Length::Fill).into()
 }
 
-pub(super) fn job_title(job: &CronJobDto) -> String {
-    job.name
-        .as_ref()
-        .filter(|name| !name.trim().is_empty())
-        .cloned()
-        .unwrap_or_else(|| job.id.clone())
+pub(super) fn job_title(job: &CronJobDto) -> &str {
+    crate::state::task_title(job.name.as_deref())
 }
 
 pub(super) fn job_project_label(app: &ViewData<'_>, job: &CronJobDto) -> String {

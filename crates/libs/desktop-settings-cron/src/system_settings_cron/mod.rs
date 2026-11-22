@@ -256,13 +256,13 @@ fn with_runs_modal<'a, M: Clone + 'static>(app: &ViewData<'a>, dialog: Element<'
     let Some(job_id) = s.runs_modal_job_id.as_deref() else {
         return dialog;
     };
+    let tr = desktop_i18n::I18n::new(app.desktop_locale);
     let job_label = s
         .jobs
         .iter()
         .find(|job| job.id == job_id)
         .map(job_title)
-        .unwrap_or_else(|| job_id.to_string());
-    let tr = desktop_i18n::I18n::new(app.desktop_locale);
+        .unwrap_or_else(|| tr.__("未命名任务"));
     let close = Message::Settings(message::SettingsMessage::CronJobRunsClose);
     let header = settings_modal_header(
         column![

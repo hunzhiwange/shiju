@@ -1,0 +1,21 @@
+--- a/dist/index.js
++++ b/dist/index.js
+@@ -28130 +28130,17 @@
+-  if (codexPath) {
++  if (process.platform === "linux" && process.env["SHIJU_CODEX_MODEL_LOCK"]) {
++    // Resolve the same fixed npm layout the host verifies. A nested npm copy,
++    // CODEX_PATH, or the wrapper's vendor fallback cannot select the engine.
++    const platformPackage = { x64: "@openai/codex-linux-x64", arm64: "@openai/codex-linux-arm64" }[process.arch];
++    if (!platformPackage || codexPath) {
++      throw new Error("Unsupported managed Codex Linux engine");
++    }
++    const modules = new URL("../../../", import.meta.url);
++    const wrapper = fileURLToPath(new URL("@openai/codex/bin/codex.js", modules));
++    const metadata = fileURLToPath(new URL(`${platformPackage}/package.json`, modules));
++    if (fs.realpathSync(wrapper) !== wrapper ||
++        createRequire(wrapper).resolve(`${platformPackage}/package.json`) !== metadata ||
++        fs.realpathSync(metadata) !== metadata) {
++      throw new Error("Managed Codex Linux engine does not resolve to the pinned layout");
++    }
++    codex = spawn(process.execPath, [wrapper, ...appServerStartupArgs], { env: spawnEnv });
++  } else if (codexPath) {

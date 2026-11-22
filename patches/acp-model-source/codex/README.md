@@ -5,7 +5,7 @@ Fixed actual adapter-resolved engine: `@openai/codex@0.165.0`.
 Original `dist/index.js` SHA-256:
 `15de6b2dd5203876a48b12861378bcf87040d623ab2159e05052dc9d54c32b16`.
 Patched bundle SHA-256:
-`b47dda5f2a998dab3aaf97f7f7e48dc499bebf9906cd5c2bb103756ae5974c37`.
+`e0dfd526b28929c04500f2706e5b4fbfab9b3243eb4233463171985e54e1f263`.
 
 The adapter passes `CODEX_CONFIG`/`MODEL_PROVIDER` to ordinary sessions but chooses
 `gpt-5.6-luna` for titles/suggestions and starts their threads without the session
@@ -41,11 +41,9 @@ target/acp-codex-inspection/runtime/node_modules/.bin/codex-acp --shiju-model-so
 ```
 
 The marker is `codex-acp 2.5.0 shiju-model-source-v1`. The private production
-verifier checks both the exact patched hash and marker, resolves the engine
-relative to the adapter, and probes that actual engine's version. A plain
-upstream --version probe is insufficient. Task 33 must distribute this exact
-artifact before advertising support; this task does not edit the installer or
-shared capability manifest.
+registry verifier checks the exact patched hash and the fixed engine package
+metadata. The marker is available for inspection. The Linux install contract
+additionally pins the wrapper and the platform engine by digest.
 
 Direct real-adapter probes (only the model upstream is a fixture):
 
@@ -73,3 +71,24 @@ project, logical session and skill revision, so process-scoped roots cannot be
 shared between logical sessions. Replacements use a fresh process and restore
 history. The exact bundle hash is pinned in `managed_runtime/contracts.json`;
 the model-source marker remains unchanged because its routing contract persists.
+
+## Linux managed engine
+
+The Linux installation applies `codex-acp-2.5.0-linux-engine.patch` after the
+existing model-source patch. The second patch affects managed startup on Linux.
+The bridge starts the fixed sibling npm wrapper in Node. It rejects a redirected
+wrapper, a nested platform package, and a missing platform package before the
+wrapper can use its vendor fallback. It doesn't change the ordinary ACP entry or
+the Apple Silicon bundle.
+
+`linux-engine.json` records the exact Linux adapter digest, the wrapper and
+platform archive integrity values, and the engine entry and helper digests.
+The GNU host targets use the corresponding upstream musl payloads shipped by
+the npm wrapper. Installation needs Node.js, npm with optional dependencies
+enabled, and patch tooling. Install the bridge and wrapper at the fixed versions
+into the managed layout and compare the lockfile archive integrity values.
+Before launch, verify the installed bundle and pinned engine files in that
+layout. A matching version string alone cannot verify engine identity.
+
+Source archives are published by [npm](https://registry.npmjs.org/@openai%2fcodex/0.165.0).
+The fixed engine also has an [upstream release](https://github.com/openai/codex/releases/tag/rust-v0.165.0).

@@ -1,0 +1,33 @@
+{
+  "bridge_version": "2.5.0",
+  "bridge_sha256": "171b6467529780441b66be1aac1460363e1c3fc825be73eba41dfe9e99da70fa",
+  "engine_version": "0.165.0",
+  "wrapper_integrity": "sha512-aiwtQVp2KBhJld966CuU5bVfQ46VNB4mNTl6giX3WGZdt4euI3tv2RUqJpnupPNA8DXHg2z+RoQ0Zfw87dy8Lw==",
+  "wrapper_sha256": "61b0194f3bb6534439c8d26a3ed57d0805f84b884588b761795323eeb92fcf70",
+  "targets": {
+    "x86_64-unknown-linux-gnu": {
+      "package": "@openai/codex-linux-x64",
+      "version": "0.165.0-linux-x64",
+      "vendor": "vendor/x86_64-unknown-linux-musl",
+      "integrity": "sha512-FotDc7bVHwaommtsdDP8PPrH0a5IwC/t8H/LhdEcH4EBqgeYFRCtptiHcuwgvNRCLbTbOyFE/Ur6GzYCljgaSQ==",
+      "files": {
+        "package.json": "d7a74db2867f45c30bc4c1cf18daec37521122a3bb7e68254a59d30284034bac",
+        "vendor/x86_64-unknown-linux-musl/bin/codex": "c06a67fd8ac76508dc78bd99ce20c9f317b8d568beda59485f3f4134df9962d5",
+        "vendor/x86_64-unknown-linux-musl/bin/codex-code-mode-host": "522935d4392ec9674fab60b239b5495992c6a93e4deb65113a216b6f5451ccd4",
+        "vendor/x86_64-unknown-linux-musl/codex-resources/bwrap": "755c8d6a9b893905a4aabab058bd6c02c453e5e8653adb84fc08e570607f3f36"
+      }
+    },
+    "aarch64-unknown-linux-gnu": {
+      "package": "@openai/codex-linux-arm64",
+      "version": "0.165.0-linux-arm64",
+      "vendor": "vendor/aarch64-unknown-linux-musl",
+      "integrity": "sha512-qdrYdcabxn3biX2qTtb/GuuMk20ZAQYxcmY7lHcp6CkAzyqsXbL0vIJFwWJr83/pNM+CUZH4YaTPns2kN7ZIfA==",
+      "files": {
+        "package.json": "ba65caf4f54367f2275dddad1ec4ddeec69f70e8b74ff56f78e01d8a3e13ac96",
+        "vendor/aarch64-unknown-linux-musl/bin/codex": "b32ece31af06440da980b733fb8fefdd1f193439595fda84096f1caaceec543f",
+        "vendor/aarch64-unknown-linux-musl/bin/codex-code-mode-host": "fd7a4a1f29871fb0015c19ad2f885ef6a878244643260703e17663418695aa14",
+        "vendor/aarch64-unknown-linux-musl/codex-resources/bwrap": "0d784834f1674ff02aee25b42f2cbcfd27c5305863806cd6475d0eac8e33c378"
+      }
+    }
+  }
+}

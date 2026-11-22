@@ -1,0 +1,13 @@
+{
+  "version": "0.1.42",
+  "revision": 6,
+  "files": {
+    "dist/cli.js": "c8e011cb84ada420c394da56956ffa003eefa3f691e84bd5f03a4a26937d8b72",
+    "dist/shiju-guard.mjs": "e61e79f6cdce6ccc61186c488d1481b2ad63d8856abf08d008fda6d91b213b1c",
+    "dist/shiju-linux-mcp.mjs": "81db2b30dfbdaca900ce6690da8ba1560a304f6cda69b49c64d3e34caf80af5b",
+    "dist/shiju-mcp.mjs": "5635a43dad403c09ae37d00bc0d609f842e7d4367074123bc7223fb489a3854c",
+    "dist/shiju-mcp.py": "ede7bf31f0eafe51f6dd0572d0cea482fe3be3eb715534b2f566d87e5c8aa915",
+    "dist/shiju-skills.mjs": "ede7dd841c8817bf931a245aa94d992289249fea242a0cb21ead7d12e72365bf",
+    "dist/shiju-stdio.py": "ae5ab81d5d9857c8dfa29a17d3fdfb1df223150a572156a0c2f190af420901d8"
+  }
+}

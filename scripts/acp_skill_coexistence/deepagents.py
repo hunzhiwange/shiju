@@ -23,6 +23,7 @@ MODEL_ENDPOINT = API_PATH + "/chat/completions"
 TRANSPORT = "stdio"
 NATIVE_DIR = ".deepagents/skills"
 MCP_TOOL = "coexistence__read_probe"
+LINUX_MCP_TOOL = "mcp__" + MCP_TOOL
 V4_ENTRY = "99235b0c39283be84bef07a2d3beb908533e93d5697e929eac62b450a01a7f52"
 
 
@@ -40,6 +41,12 @@ def launch(env):
         revision = 4
         expected["dist/cli.js"] = V4_ENTRY
         expected.pop("dist/shiju-skills.mjs", None)
+    if platform_target[0] == "Linux":
+        linux_contract = json.loads((ROOT / "patches/acp-model-source/deepagents"
+                                     / "linux-contract.json").read_text())
+        require(linux_contract["version"] == contract["version"], "DeepAgents Linux version mismatch")
+        revision = linux_contract["revision"]
+        expected = linux_contract["files"]
     directory = f"deepagents-0.1.42-model-source-v{revision}"
     installed = Path(os.environ.get("VIBEWINDOW_CONFIG_DIR", Path.home() / ".local/share/shiju"))
     source = Path(os.environ.get("ACP_COEXISTENCE_DEEPAGENTS_RUNTIME",
@@ -118,6 +125,7 @@ def mcp_server(workspace, attachment, audit):
 class Probe:
     def __init__(self, fixtures, mounted, rejected):
         self.fixtures = fixtures
+        self.mcp_tool = LINUX_MCP_TOOL if platform.system() == "Linux" else MCP_TOOL
         self.mounted = mounted
         self.rejected = rejected
         self.requests = 0
@@ -131,7 +139,7 @@ class Probe:
         self.requests += 1
         messages = body["messages"]
         tools = {item["function"]["name"]: item["function"] for item in body["tools"]}
-        require((MCP_TOOL in tools) == self.mounted, "unexpected DeepAgents MCP tool catalog")
+        require((self.mcp_tool in tools) == self.mounted, "unexpected DeepAgents MCP tool catalog")
         if self.requests == 1:
             catalog = "\n".join(str(item["content"]) for item in messages if item["role"] == "system")
             wire = json.dumps(body)
@@ -172,7 +180,7 @@ class Probe:
             return self.call(tools, step, "read_file", {"file_path": str(path), "offset": 0, "limit": 100}, value)
         if self.mounted and "mcp" not in self.completed:
             value = "Tool execution denied" if self.rejected else self.fixtures["mcp"]
-            return self.call(tools, "mcp", MCP_TOOL, {}, value)
+            return self.call(tools, "mcp", self.mcp_tool, {}, value)
         return {"content": "COEXISTENCE_DONE"}, "stop"
 
     def call(self, tools, step, name, args, expected):
@@ -186,8 +194,9 @@ class Probe:
                                 "function": {"name": name, "arguments": json.dumps(args)}}]}, "tool_calls"
 
     def approves(self, metadata):
-        return (self.pending is not None and self.pending[1] == MCP_TOOL
-                and metadata.get("title") == f"Executing {MCP_TOOL}"
+        title = self.mcp_tool if self.mcp_tool == LINUX_MCP_TOOL else f"Executing {self.mcp_tool}"
+        return (self.pending is not None and self.pending[1] == self.mcp_tool
+                and metadata.get("title") == title
                 and metadata.get("arguments") == {})
 
     def approves_skill(self, metadata):

@@ -84,7 +84,7 @@ fn acp_platform_deepagents_contract() {
         .expect("set SHIJU_ACP_DEEPAGENTS_GATEWAY_BIN to the current Linux gateway");
     let gateway = Path::new(&gateway).canonicalize().unwrap();
     let runtime = std::env::var_os("ACP_COEXISTENCE_DEEPAGENTS_RUNTIME")
-        .expect("set ACP_COEXISTENCE_DEEPAGENTS_RUNTIME to the isolated v5 install");
+        .expect("set ACP_COEXISTENCE_DEEPAGENTS_RUNTIME to the isolated Linux v6 install");
     let runtime = Path::new(&runtime).canonicalize().unwrap();
     let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../..");
     let temp = tempfile::tempdir().unwrap();
@@ -106,12 +106,12 @@ fn acp_platform_deepagents_contract() {
     assert_eq!(evidence["passed"], true);
     assert_eq!(evidence["platform"], format!("Linux-{}", std::env::consts::ARCH));
     assert_eq!(evidence["artifact"]["version"], "0.1.42");
-    assert_eq!(evidence["artifact"]["revision"], 5);
+    assert_eq!(evidence["artifact"]["revision"], 6);
     assert_eq!(evidence["artifact"]["entry"], "dist/cli.js");
     assert_eq!(evidence["artifact"]["model_endpoint"], "/v1/chat/completions");
     assert_eq!(
         evidence["artifact"]["sha256"]["dist/cli.js"],
-        "55aace3a7b5eb077e8cb6314465f6fb965d8ee844d134e7f361bbca6f5396d4c"
+        "c8e011cb84ada420c394da56956ffa003eefa3f691e84bd5f03a4a26937d8b72"
     );
 
     let turns = evidence["turns"].as_array().unwrap();

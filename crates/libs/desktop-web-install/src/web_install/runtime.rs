@@ -1,7 +1,7 @@
 //! 管理从 Web 包启动的 Node 静态服务；仅允许回环地址和自动分配端口。
 use anyhow::{Context, Result, bail};
 use std::io::{BufRead, BufReader, Read};
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::process::{Child, Command, Stdio};
 use std::sync::Mutex;
 use std::time::Duration;
@@ -30,8 +30,8 @@ impl Drop for RunningWeb {
     }
 }
 
-fn node_command() -> Command {
-    let command = Command::new("node");
+fn node_command(node: &Path) -> Command {
+    let command = Command::new(node);
     #[cfg(windows)]
     {
         use std::os::windows::process::CommandExt;
@@ -43,21 +43,71 @@ fn node_command() -> Command {
     command
 }
 
-pub(super) fn require_node() -> Result<()> {
-    let output = node_command()
+fn supported_node_version(version: &str) -> bool {
+    version
+        .trim()
+        .trim_start_matches('v')
+        .split('.')
+        .next()
+        .and_then(|major| major.parse::<u32>().ok())
+        .is_some_and(|major| major >= 22)
+}
+
+#[cfg(unix)]
+pub(super) fn require_node() -> Result<PathBuf> {
+    use app_discovery::posix::{PosixEnvironment, build_tool_search_paths, login_shell_path};
+    use app_discovery::version::probe_local_version;
+    use std::env;
+
+    let path = env::var_os("PATH").unwrap_or_default();
+    let environment = PosixEnvironment {
+        home: directories::BaseDirs::new()
+            .map(|dirs| dirs.home_dir().to_path_buf())
+            .unwrap_or_default(),
+        path: Default::default(),
+        login_path: None,
+        variables: ["PNPM_HOME", "NPM_CONFIG_PREFIX"]
+            .into_iter()
+            .filter_map(|key| env::var_os(key).map(|value| (key.to_owned(), value)))
+            .collect(),
+    };
+    let mut searched = std::collections::HashSet::new();
+    let mut find_node = |dirs: &mut dyn Iterator<Item = PathBuf>| {
+        dirs.filter(|dir| dir.is_absolute() && searched.insert(dir.clone()))
+            .map(|dir| dir.join("node"))
+            .find(|candidate| {
+                probe_local_version(candidate, Duration::from_secs(2))
+                    .ok()
+                    .and_then(|probe| probe.version)
+                    .is_some_and(|version| supported_node_version(&version))
+            })
+    };
+
+    if let Some(node) = find_node(&mut env::split_paths(&path))
+        .or_else(|| find_node(&mut build_tool_search_paths("node", &environment).into_iter()))
+    {
+        return Ok(node);
+    }
+    if let Some(path) = env::var_os("SHELL")
+        .and_then(|shell| login_shell_path(Path::new(&shell), Duration::from_secs(2)).ok())
+        && let Some(node) = find_node(&mut env::split_paths(&path))
+    {
+        return Ok(node);
+    }
+    bail!("未找到可用的 Node.js 22 或以上版本，请检查 Node.js 版本及安装路径");
+}
+
+#[cfg(not(unix))]
+pub(super) fn require_node() -> Result<PathBuf> {
+    let node = PathBuf::from("node");
+    let output = node_command(&node)
         .arg("--version")
         .output()
         .context("请先安装 Node.js 22 或以上版本，并确保 node 位于 PATH 中")?;
-    let version = String::from_utf8_lossy(&output.stdout);
-    let major = version
-        .trim()
-        .strip_prefix('v')
-        .and_then(|v| v.split('.').next())
-        .and_then(|v| v.parse::<u32>().ok());
-    if !output.status.success() || major.is_none_or(|major| major < 22) {
+    if !output.status.success() || !supported_node_version(&String::from_utf8_lossy(&output.stdout)) {
         bail!("请先安装 Node.js 22 或以上版本，并确保 node 位于 PATH 中");
     }
-    Ok(())
+    Ok(node)
 }
 
 impl Runtime {
@@ -72,7 +122,7 @@ impl Runtime {
         Ok(None)
     }
 
-    pub(super) fn start(&self, path: &Path) -> Result<String> {
+    pub(super) fn start(&self, path: &Path, node: Option<PathBuf>) -> Result<String> {
         {
             let mut inner = self.inner.lock().map_err(|_| anyhow::anyhow!("Web 服务状态锁异常"))?;
             if inner.closed {
@@ -85,9 +135,12 @@ impl Runtime {
                 inner.process = None;
             }
         }
-        require_node()?;
+        let node = match node {
+            Some(node) => node,
+            None => require_node()?,
+        };
         super::installer::validate_package(path)?;
-        let child = node_command()
+        let child = node_command(&node)
             .arg(path.join("serve.mjs"))
             .args(["--port", "0"])
             .current_dir(path)

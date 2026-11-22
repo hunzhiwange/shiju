@@ -138,10 +138,10 @@ fn operate(
         if runtime.url()?.is_some() {
             bail!("请先停止 Web 服务，再安装或更新");
         }
-        runtime::require_node()?;
+        let node = runtime::require_node()?;
         let path = installer::install(source.context("请先选择有效的升级来源")?, progress_tx)?;
         let _ = progress_tx.send(Event::Status("正在启动 Web 服务…"));
-        let url = runtime.start(&path)?;
+        let url = runtime.start(&path, Some(node))?;
         open::that(&url).context("Web 已启动，打开浏览器失败；请使用弹窗中的访问地址")?;
     } else if matches!(event, Event::OpenDirectory) {
         let path = installer::installed()?.context("请先下载安装 Web 版本")?;
@@ -160,7 +160,7 @@ fn operate(
         open::that(&path).context("打开 Web 目录失败")?;
     } else if matches!(event, Event::Start) {
         let path = installer::installed()?.context("请先下载安装 Web 版本")?;
-        let url = runtime.start(&path)?;
+        let url = runtime.start(&path, None)?;
         open::that(&url).context("Web 已启动，打开浏览器失败；请使用弹窗中的访问地址")?;
     }
     installer::installed()?;

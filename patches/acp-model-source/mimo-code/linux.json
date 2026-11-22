@@ -1,0 +1,33 @@
+{
+  "version": "0.1.17",
+  "revision": "mimo-code-0.1.17-model-source-linux-v1",
+  "entry": "mimo",
+  "source_commit": "3704f8d8854cb5c4d4a73ff82c0a1d1008b8a564",
+  "source_url": "https://api.github.com/repos/XiaomiMiMo/MiMo-Code/tarball/3704f8d8854cb5c4d4a73ff82c0a1d1008b8a564",
+  "source_sha256": "b09c0045b7bac40c4f25e4d714e925d7e01908129f88d3a31e6c17588cad2eac",
+  "lock_sha256": "5d28aa8cb809436d83dfa503d3dd48ca299b835a23d2e91adf255c87136baa18",
+  "patch_sha256": "1d39b67e136a8bda3f5c4a87ece1a87b66a1988f1c0ed6e135dfba4e76e638ae",
+  "bun_version": "1.3.14",
+  "targets": {
+    "x86_64-unknown-linux-gnu": {
+      "upstream_url": "https://github.com/XiaomiMiMo/MiMo-Code/releases/download/v0.1.17/mimocode-linux-x64.tar.gz",
+      "upstream_sha256": "0e08c70e20a67995f0da7ed32af28a8f3621e7269213db6f29fd26cb64cd52b0",
+      "upstream_entry_sha256": "b896793575de00328f636440bfc06c5c8067bdd713410afca8c3de165e3dd3e4",
+      "bun_url": "https://registry.npmjs.org/@oven/bun-linux-x64/-/bun-linux-x64-1.3.14.tgz",
+      "bun_sha256": "e3ee6722a9e2dbb691dd8877658e24012aab0b1a712028c1587d8e32ac726109",
+      "build_args": ["--single", "--skip-install"],
+      "build_entry": "packages/cli/dist/mimocode-linux-x64/bin/mimo",
+      "elf_machine": 62
+    },
+    "aarch64-unknown-linux-gnu": {
+      "upstream_url": "https://github.com/XiaomiMiMo/MiMo-Code/releases/download/v0.1.17/mimocode-linux-arm64.tar.gz",
+      "upstream_sha256": "c7685012abae6ab63e1b38ba52666ea8bac4a0fd33e2b86bd8ea2de726b80a43",
+      "upstream_entry_sha256": "f8cc140548b486f7eaa99ce5705df18c0676a458b08862582bf58817f51220c1",
+      "bun_url": "https://registry.npmjs.org/@oven/bun-linux-aarch64/-/bun-linux-aarch64-1.3.14.tgz",
+      "bun_sha256": "97631ecfb616c248a4662599c555a59e2a18140a2ec1c0038a89bff08b815169",
+      "build_args": ["--single", "--skip-install"],
+      "build_entry": "packages/cli/dist/mimocode-linux-arm64/bin/mimo",
+      "elf_machine": 183
+    }
+  }
+}

@@ -10,6 +10,7 @@ import platform
 import re
 import shutil
 import subprocess
+import sys
 from urllib.parse import unquote, urlsplit
 
 from acp_mount_integration import rpc
@@ -29,7 +30,46 @@ REVISION = f"mimo-code-{VERSION}-model-source-v1"
 MCP_TOOL = "coexistence_read_probe"
 
 
+def linux_launch(env):
+    target = f"{platform.machine()}-unknown-linux-gnu"
+    contract = json.loads((ROOT / "patches/acp-model-source/mimo-code/linux.json").read_text())
+    platform_contract = contract["targets"].get(target)
+    require(platform_contract is not None and os.confstr("CS_GNU_LIBC_VERSION"),
+            "unreviewed GNU MiMo platform")
+    reviewed_dir = os.environ.get("ACP_MIMO_REVIEWED_DIR")
+    require(reviewed_dir, "set ACP_MIMO_REVIEWED_DIR to a privately prepared Linux MiMo build")
+    source = Path(reviewed_dir).resolve(strict=True)
+    receipt = json.loads((source / "build-receipt.json").read_text())
+    fields = ("version", "revision", "entry", "source_sha256", "patch_sha256", "lock_sha256")
+    require(all(receipt.get(key) == contract[key] for key in fields)
+            and receipt.get("target") == target
+            and receipt.get("bun_sha256") == platform_contract["bun_sha256"],
+            "MiMo Linux build receipt mismatch")
+    entry = Path(env["VIBEWINDOW_CONFIG_DIR"]) / "acp-runtime" / contract["revision"]
+    entry.mkdir(parents=True, mode=0o700)
+    executable = entry / contract["entry"]
+    shutil.copy2(source / contract["entry"], executable)
+    shutil.copy2(source / "build-receipt.json", entry / "build-receipt.json")
+    require(os.access(executable, os.X_OK), "MiMo Linux entry is not executable")
+    with executable.open("rb") as stream:
+        header = stream.read(20)
+        require(header.startswith(b"\x7fELF\x02\x01")
+                and int.from_bytes(header[18:20], "little") == platform_contract["elf_machine"],
+                "MiMo Linux ELF target mismatch")
+        stream.seek(0)
+        digest = hashlib.sha256()
+        for block in iter(lambda: stream.read(1024 * 1024), b""):
+            digest.update(block)
+    require(digest.hexdigest() == receipt.get("sha256"), "MiMo Linux executable digest mismatch")
+    return {"command": str(executable), "args": ["acp"]}, {
+        **{key: receipt[key] for key in (*fields, "target", "bun_sha256", "sha256")},
+        "model_endpoint": "/v1/chat/completions",
+    }
+
+
 def launch(env):
+    if platform.system() == "Linux":
+        return linux_launch(env)
     require((platform.system(), platform.machine()) == ("Darwin", "arm64"),
             "unreviewed MiMo platform")
     contract = json.loads((ROOT / "crates/libs/acp-agent-registry/src/managed_runtime"
@@ -77,6 +117,10 @@ def mcp_server(workspace, attachment, _audit):
         "    if result is not None:\n        print(json.dumps(result), flush=True)\n")
     payload = workspace / "mcp-payload.txt"
     payload.write_text(attachment.read_text())
+    if platform.system() == "Linux":
+        yield {"name": "coexistence", "command": str(Path(sys.executable).resolve(strict=True)),
+               "args": ["-I", "-B", str(script), str(payload)], "env": []}
+        return
     # The CLT python3 command is a launcher. Use the running interpreter so
     # the stdio sandbox can keep child process execution disabled.
     executable = ctypes.create_string_buffer(4096)

@@ -20,6 +20,10 @@ pub fn configure_with_mcp(
     mcp: serde_json::Map<String, serde_json::Value>,
     tool_names: &[String],
 ) -> anyhow::Result<()> {
+    anyhow::ensure!(
+        !cfg!(target_os = "linux"),
+        "Managed MiMo Code requires reviewed Linux process and MCP sandboxing"
+    );
     let launch = profile.config();
     anyhow::ensure!(
         launch.args == ["acp"] && launch.env.keys().all(|key| key == REFERENCE_ENV),

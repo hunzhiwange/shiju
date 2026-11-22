@@ -23,9 +23,15 @@ NATIVE_DIR = ".agents/skills"
 
 
 def launch(env):
-    require((platform.system(), platform.machine()) == ("Darwin", "arm64"), "unreviewed Goose platform")
+    machine = platform.machine()
+    linux = platform.system() == "Linux" and machine in ("x86_64", "aarch64")
+    require(linux or (platform.system(), machine) == ("Darwin", "arm64"),
+            "unreviewed Goose platform")
+    target = f"{machine}-unknown-linux-gnu" if linux else None
+    runtime_name = (f"goose-v1.57.0-model-source-v2-{target}" if linux
+                    else "goose-v1.57.0-model-source-v2")
     home = Path(os.environ.get("VIBEWINDOW_CONFIG_DIR", Path.home() / ".local/share/shiju"))
-    default = home / "acp-runtime/goose-v1.57.0-model-source-v2/goose"
+    default = home / "acp-runtime" / runtime_name / "goose"
     override = os.environ.get("ACP_COEXISTENCE_GOOSE_BIN")
     source = Path(override or default).resolve()
     require(source.is_file(), "reviewed Goose executable unavailable")
@@ -34,13 +40,15 @@ def launch(env):
     receipt = json.loads(source.with_name("build-receipt.json").read_text())
     # An explicit artifact can reproduce the pre-fix behavior with the old gateway.
     old_patch = "3a47bbbdcf861d680ff051879d81d23ef872d035a01a0549f9cedecd65b54e06"
-    legacy = bool(override) and receipt.get("patch_sha256") == old_patch
+    legacy = not linux and bool(override) and receipt.get("patch_sha256") == old_patch
     require(all(receipt.get(key) == contract[key] for key in ("version", "source_sha256"))
             and (legacy or receipt.get("patch_sha256") == contract["patch_sha256"]),
             "Goose build receipt differs from reviewed contract")
-    revision = 1 if legacy else 2
-    runtime = (Path(env["VIBEWINDOW_CONFIG_DIR"]) / "acp-runtime"
-               / f"goose-v1.57.0-model-source-v{revision}")
+    if linux:
+        require(receipt.get("target") == target, "Goose build receipt is for a different target")
+    if legacy:
+        runtime_name = "goose-v1.57.0-model-source-v1"
+    runtime = Path(env["VIBEWINDOW_CONFIG_DIR"]) / "acp-runtime" / runtime_name
     runtime.mkdir(parents=True, mode=0o700)
     entry = runtime / "goose"
     shutil.copy2(source, entry)
@@ -50,6 +58,8 @@ def launch(env):
             sha256.update(block)
     require(sha256.hexdigest() == receipt.get("sha256"), "Goose executable digest differs from build receipt")
     identity = {key: receipt[key] for key in ("version", "source_sha256", "patch_sha256", "sha256")}
+    if linux:
+        identity.update(target=target, entry=entry.name)
     (runtime / "build-receipt.json").write_text(json.dumps(identity))
     try:
         version = subprocess.run([str(entry), "--version"], env=env, capture_output=True, timeout=20)
@@ -71,6 +81,11 @@ class Probe:
         self.failure = None
         self.mcp_pending = False
         self.skill_pending = None
+        # Keep the historical Darwin probe ordering and extend Linux with a
+        # read from the built-in developer extension.
+        self.verify_tree = platform.system() == "Linux"
+        self.tree_call_id = None
+        self.tree_arguments = {"path": str(fixtures["skills"]["native"]["path"]), "depth": 1}
 
     def response(self, body):
         self.requests += 1
@@ -95,6 +110,14 @@ class Probe:
             require((MCP_TOOL in tools) == self.mounted, f"unexpected MCP tool catalog {aliases}")
 
         results = [dict(msg, tool_use_id=msg["tool_call_id"]) for msg in messages if msg["role"] == "tool"]
+        if self.verify_tree:
+            if self.tree_call_id is None:
+                candidates = [name for name in ("tree", "developer__tree") if name in tools]
+                require(len(candidates) == 1, "Goose native developer tree is missing or ambiguous")
+                response = self.call(tools, "tree", candidates[0], self.tree_arguments)
+                self.tree_call_id = self.calls.pop("tree")
+                return response
+            correlated_result(results, self.tree_call_id, "SKILL.md")
         for kind, skill in self.fixtures["skills"].items():
             if kind == "unselected" or (kind == "selected" and not self.mounted):
                 continue
@@ -156,6 +179,10 @@ class Probe:
                 and metadata.get("arguments") == {})
 
     def approves_skill(self, metadata):
+        if (self.tree_call_id and self.skill_pending is None and not self.calls
+                and metadata.get("arguments") == self.tree_arguments
+                and str(metadata.get("title", "")).startswith(("tree · ", "developer: tree · "))):
+            return "tree"
         if self.skill_pending is not None:
             step, name = self.skill_pending
             if (metadata.get("title") == f"load skill · {name}"
@@ -164,7 +191,8 @@ class Probe:
         return None
 
     def expected_skill_approvals(self):
-        return [step for step in self.calls if step != "mcp"]
+        steps = [step for step in self.calls if step != "mcp"]
+        return ["tree", *steps] if self.verify_tree else steps
 
 
 class Handler(ProviderHandler):

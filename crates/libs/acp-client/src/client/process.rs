@@ -114,7 +114,8 @@ impl AcpClient {
                 .map_err(AcpError::Initialize)?;
         }
         let args = self.launch_args()?;
-        if self.managed_linux_iflow() {
+        let managed_iflow = self.managed_linux_iflow();
+        if managed_iflow {
             if args != ["--experimental-acp", "--shiju-model-source"]
                 || !self.config.env.contains_key("VW_ACP_LAUNCH_REFERENCE")
                 || !self.config.env.contains_key("SHIJU_IFLOW_MODEL_LOCK")
@@ -123,9 +124,15 @@ impl AcpClient {
             }
             crate::verify_reviewed_agent_executable("iflow", self.config.command.trim())
                 .map_err(AcpError::Initialize)?;
-            return Err(AcpError::Initialize(
-                "Managed iFlow needs a Linux isolation boundary for project MCP discovery".into(),
-            ));
+            if !self.mcp_servers.is_empty() || self.full_access
+                || self.non_interactive_permissions.is_some()
+                || self.permission_confirmation.is_none()
+                || self.permission_mode == PermissionMode::DenyAll
+            {
+                return Err(AcpError::Initialize(
+                    "Managed iFlow requires interactive approvals and an empty MCP selection".into(),
+                ));
+            }
         }
         if let Some(agent) = acp_agent_registry::agent_registry::desktop_permission_agent(&self.agent_name)
             && acp_agent_registry::linux_native_only(agent)
@@ -157,6 +164,23 @@ impl AcpClient {
             ));
         }
         let mut env = self.config.env.clone();
+        if managed_iflow {
+            // Keep the reviewed Node launcher and request-owned model settings.
+            // Neither configured injection nor inherited credentials reach it.
+            env.retain(|key, _| matches!(key.as_str(),
+                "VW_ACP_LAUNCH_REFERENCE" | "IFLOW_HOME" | "SHIJU_IFLOW_HISTORY_HOME"
+                | "IFLOW_CLI_SYSTEM_SETTINGS_PATH" | "IFLOW_apiKey" | "IFLOW_baseUrl"
+                | "IFLOW_modelName" | "IFLOW_selectedAuthType" | "IFLOW_multimodalModelName"
+                | "IFLOW_outputTokensLimit" | "IFLOW_tokensLimit" | "IFLOW_disableAutoUpdate"
+                | "IFLOW_usageStatisticsEnabled" | "SHIJU_IFLOW_MODEL_LOCK" | "SHIJU_IFLOW_SKILL_ROOT"
+            ));
+            let home = env.get("IFLOW_HOME").cloned()
+                .filter(|home| Path::new(home).is_absolute())
+                .ok_or_else(|| AcpError::Initialize("Missing private iFlow home".into()))?;
+            env.insert("HOME".into(), home);
+            env.insert("NO_PROXY".into(), "127.0.0.1,localhost".into());
+        }
+
         if self.agent_name != acp_agent_registry::EMPLOYEE_ACP_BACKEND {
             env.retain(|key, _| !key.eq_ignore_ascii_case(acp_agent_registry::EMPLOYEE_ACP_CREDENTIAL_ENV));
         }
@@ -301,7 +325,7 @@ impl AcpClient {
                 env.insert("CLAUDE_CODE_EXECUTABLE".into(), engine.into());
             }
         }
-        if self.kilocode_sandbox.is_none() && self.hermes_sandbox.is_none() && self.opencode_sandbox.is_none() && !managed_claude && !managed_auggie && !managed_cursor && !managed_droid && !managed_private_provider {
+        if self.kilocode_sandbox.is_none() && self.hermes_sandbox.is_none() && self.opencode_sandbox.is_none() && !managed_iflow && !managed_claude && !managed_auggie && !managed_cursor && !managed_droid && !managed_private_provider {
             for (key, value) in build_agent_environment(&self.auth_credentials) {
                 insert_auth_env_if_missing(&mut env, key, value);
             }
@@ -437,6 +461,14 @@ impl AcpClient {
                 command.current_dir(workspace).args(["-f", &policy]).arg(executable);
                 command
             }
+        } else if managed_iflow {
+            let entry = Path::new(self.config.command.trim()).canonicalize().map_err(AcpError::Spawn)?;
+            let node = shell_command::resolve_executable("node")
+                .filter(|path| path.is_absolute())
+                .ok_or_else(|| AcpError::Initialize("Managed iFlow requires Node.js".into()))?;
+            let mut command = tokio::process::Command::new(node);
+            command.arg(entry);
+            command
         } else if let Some(entry) = glm_entry {
             let entry = entry?;
             if !args.is_empty() {
@@ -471,7 +503,7 @@ impl AcpClient {
         if self.agent_name == "copilot" {
             cmd.env_remove("COPILOT_ALLOW_ALL");
         }
-        if self.droid_sandbox.is_none() && self.openclaw_sandbox.is_none() && (managed_claude || managed_auggie || managed_cursor || managed_droid || managed_private_provider) {
+        if self.droid_sandbox.is_none() && self.openclaw_sandbox.is_none() && (managed_iflow || managed_claude || managed_auggie || managed_cursor || managed_droid || managed_private_provider) {
             // Do not inherit OAuth, cloud backends, Node injection or proxy credentials.
             // Keep the OS runtime paths. VT Code overrides its home in the child overlay.
             let runtime = [

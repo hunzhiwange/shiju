@@ -153,7 +153,7 @@ def readback(url, query, sid, backend, model, live_access):
     return {"binding": binding, "source": selected["source"], "model": model, "access": access}
 
 
-def run(agent, binary, report):
+def run(agent, binary, report, phases=PHASES):
     supplier = import_module("acp_skill_coexistence." + agent.replace("-", "_"))
     temp_parent = getattr(supplier, "TEMP_PARENT", None)
     with tempfile.TemporaryDirectory(prefix="shiju-acp-coexistence-", dir=temp_parent) as directory:
@@ -200,7 +200,7 @@ def run(agent, binary, report):
                               "limit": {"context": 100000,
                                   "output": getattr(supplier, "MODEL_OUTPUT_LIMIT", 1024)}}}}}}
             request(url, "/global/config", config, method="PATCH")
-            for phase in PHASES:
+            for phase in phases:
                 report["stage"] = phase
                 row = {"phase": phase}
                 report["turns"].append(row)
@@ -249,7 +249,7 @@ def run(agent, binary, report):
             if verify_native_plugins is not None:
                 report["stage"] = "native_plugins"
                 report["native_plugins"] = verify_native_plugins(spec, root, env, model, make_skill)
-        require(len({row["session"] for row in report["turns"]}) == len(PHASES), "sessions reused across phases")
+        require(len({row["session"] for row in report["turns"]}) == len(phases), "sessions reused across phases")
 
 
 def main():
@@ -257,6 +257,8 @@ def main():
     parser.add_argument("--agent", choices=AGENTS, required=True)
     parser.add_argument("--gateway-bin", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
+    parser.add_argument("--baseline-only", action="store_true",
+                        help="verify only the native skill and read path")
     args = parser.parse_args()
     report = {"agent": args.agent, "platform": f"{platform.system()}-{platform.machine()}",
               "cargo_target_dir": os.environ.get("CARGO_TARGET_DIR"),
@@ -269,7 +271,7 @@ def main():
             for block in iter(lambda: stream.read(1024 * 1024), b""):
                 digest.update(block)
         report["gateway_sha256"] = digest.hexdigest()
-        run(args.agent, binary, report)
+        run(args.agent, binary, report, ("baseline",) if args.baseline_only else PHASES)
         report.pop("stage", None)
         report["passed"] = True
     except AssertionError as error:

@@ -5,7 +5,7 @@ use sha2::{Digest, Sha256};
 use std::{collections::BTreeMap, fs, os::unix::fs::PermissionsExt, path::Path};
 
 pub(super) const MANIFEST: &str =
-    include_str!("../../../../../patches/acp-model-source/iflow/linux-artifacts.json");
+    include_str!("../../../../../patches/acp-model-source/iflow/linux-mcp-artifacts.json");
 
 #[derive(Deserialize)]
 pub(super) struct Manifest {

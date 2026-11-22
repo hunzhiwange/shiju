@@ -252,7 +252,8 @@ impl AcpClient {
     fn validate_mcp_contract(&self) -> Result<(), AcpError> {
         let backend = acp_agent_registry::agent_registry::desktop_permission_agent(&self.agent_name);
         if !self.mcp_servers.is_empty()
-            && (backend.is_some_and(acp_agent_registry::linux_native_only)
+            && (self.managed_linux_iflow()
+                || backend.is_some_and(acp_agent_registry::linux_native_only)
                 || (cfg!(target_os = "linux") && matches!(backend, Some("amp-acp" | "pi")))
                 || (cfg!(target_os = "linux")
                     && backend == Some("glm-acp-agent")

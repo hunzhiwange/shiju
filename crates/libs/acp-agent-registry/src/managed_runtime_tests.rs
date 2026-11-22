@@ -364,7 +364,7 @@ fn acp_platform_registry_contract_glm_requires_linux_overlay() {
     assert!(
         installed_directory("glm-acp-agent", &reviewed)
             .unwrap()
-            .ends_with("glm-acp-agent-1.17.1-model-source-v4")
+            .ends_with("glm-acp-agent-1.17.1-model-source-v5")
     );
 }
 
@@ -372,7 +372,7 @@ fn acp_platform_registry_contract_glm_requires_linux_overlay() {
 #[test]
 fn acp_platform_registry_contract_uses_separate_iflow_and_amp_linux_revisions() {
     for (agent, version_directory) in [
-        ("iflow", "iflow-0.5.19-model-source-v3"),
+        ("iflow", "iflow-0.5.19-model-source-v4"),
         ("amp-acp", "amp-acp-0.12.0-model-source-linux-v6"),
     ] {
         let contract = contract(agent).unwrap();

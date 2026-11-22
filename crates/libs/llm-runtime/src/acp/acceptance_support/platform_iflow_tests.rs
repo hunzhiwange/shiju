@@ -1,15 +1,49 @@
 use serde_json::{Value, json};
 use std::{path::Path, process::Command};
 
-#[test]
-#[ignore = "requires a Linux shiju gateway and the reviewed iFlow npm installation"]
-fn acp_platform_iflow_contract() {
+#[tokio::test]
+#[ignore = "requires a GNU Linux shiju gateway, Node.js and access to the pinned npm packages"]
+async fn acp_platform_iflow_contract_native_approval() {
+    const INSTALL_ROOT: &str = "SHIJU_TEST_IFLOW_INSTALL_ROOT";
+    let Some(root) = std::env::var_os(INSTALL_ROOT) else {
+        let root = tempfile::tempdir().unwrap();
+        let config = root.path().join("config");
+        let home = root.path().join("home");
+        std::fs::create_dir(&home).unwrap();
+        let module = module_path!().split_once("::").unwrap().1;
+        let status = Command::new(std::env::current_exe().unwrap())
+            .args([
+                "--ignored",
+                "--exact",
+                &format!("{module}::acp_platform_iflow_contract_native_approval"),
+            ])
+            .env("HOME", home)
+            .env("VIBEWINDOW_CONFIG_DIR", &config)
+            .env(INSTALL_ROOT, &config)
+            .status()
+            .unwrap();
+        assert!(status.success(), "iFlow native approval gateway contract failed");
+        return;
+    };
+    acp_agent_registry::install_builtin_agent("iflow").await.unwrap();
+    let runtime = Path::new(&root).join("acp-runtime/iflow-0.5.19-model-source-v4");
+    let evidence = run_probe(&runtime);
+    let turns = evidence["turns"].as_array().unwrap();
+    assert_eq!(turns.len(), 1);
+    let baseline = &turns[0];
+    assert_eq!(baseline["source"], "session_model");
+    assert_eq!(baseline["skill_approvals"], json!(["native", "native_read"]));
+    assert!(baseline["calls"]["native"].is_string());
+    assert!(baseline["calls"]["native_read"].is_string());
+    assert_eq!(baseline["mcp_calls"], 0);
+    assert_eq!(baseline["mcp_decisions"], json!([]));
+    assert_eq!(baseline["done"], 1);
+}
+
+fn run_probe(runtime: &Path) -> Value {
     let gateway = std::env::var_os("SHIJU_ACP_IFLOW_GATEWAY_BIN")
         .expect("set SHIJU_ACP_IFLOW_GATEWAY_BIN to the current Linux shiju gateway");
     let gateway = Path::new(&gateway).canonicalize().unwrap();
-    let runtime = std::env::var_os("IFLOW_COEXISTENCE_RUNTIME")
-        .expect("set IFLOW_COEXISTENCE_RUNTIME to the reviewed iFlow npm installation");
-    let runtime = Path::new(&runtime).canonicalize().unwrap();
     let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../..");
     let temp = tempfile::tempdir().unwrap();
     let report = temp.path().join("iflow-platform.json");
@@ -21,6 +55,7 @@ fn acp_platform_iflow_contract() {
         .arg("--output")
         .arg(&report)
         .env("IFLOW_COEXISTENCE_RUNTIME", runtime)
+        .arg("--baseline-only")
         .status()
         .unwrap();
     let evidence: Value = serde_json::from_slice(&std::fs::read(report).unwrap()).unwrap();
@@ -44,40 +79,5 @@ fn acp_platform_iflow_contract() {
     assert_eq!(artifact["ripgrep_sha256"], target["ripgrep_sha256"]);
     assert_eq!(artifact["pty_sha256"], target["pty_sha256"]);
 
-    let turns = evidence["turns"].as_array().unwrap();
-    assert_eq!(turns.len(), 4);
-    for (turn, phase) in turns.iter().zip(["baseline", "mounted", "removed", "rejected"]) {
-        let mounted = matches!(phase, "mounted" | "rejected");
-        assert_eq!(turn["phase"], phase);
-        assert_eq!(turn["source"], "session_model");
-        assert_eq!(turn["model"], "coexistence-fixture/deepseek-v4.1-flash-1017");
-        assert_eq!(turn["done"], 1);
-        assert_eq!(turn["errors"], 0);
-        assert_eq!(turn["mcp_calls"], usize::from(phase == "mounted"));
-        assert_eq!(
-            turn["skill_approvals"],
-            if mounted {
-                json!(["native", "native_read", "selected", "selected_read"])
-            } else {
-                json!(["native", "native_read"])
-            }
-        );
-        assert_eq!(
-            turn["mcp_decisions"],
-            match phase {
-                "mounted" => json!(["once"]),
-                "rejected" => json!(["reject"]),
-                _ => json!([]),
-            }
-        );
-        let calls = turn["calls"].as_object().unwrap();
-        assert!(calls.contains_key("native"));
-        assert!(calls.contains_key("native_read"));
-        assert_eq!(calls.contains_key("selected"), mounted);
-        assert_eq!(calls.contains_key("selected_read"), mounted);
-        assert_eq!(calls.contains_key("mcp"), mounted);
-        // The model handler accepts only authenticated Chat Completions requests
-        // and checks each continuation against the tool call it issued.
-        assert!(turn["model_requests"].as_u64().unwrap() > calls.len() as u64);
-    }
+    evidence
 }

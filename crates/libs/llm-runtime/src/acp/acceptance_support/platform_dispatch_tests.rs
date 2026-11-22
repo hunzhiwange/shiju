@@ -115,6 +115,8 @@ fn acp_platform_dispatch_contract_iflow_and_amp_keep_public_gate() {
             Capability::Unsupported { source: Source::SessionModel, .. }
         )));
     }
+    assert!(request::validate_linux_session_mcp("iflow", Source::SessionModel, false).is_ok());
+    assert!(request::validate_linux_session_mcp("iflow", Source::SessionModel, true).is_err());
     assert!(request::validate_linux_session_mcp("pi", Source::CliLocal, true).is_err());
     assert!(skill_mounts::validate("pi", true).is_err());
 }

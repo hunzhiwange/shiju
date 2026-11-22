@@ -1527,7 +1527,7 @@ pub(super) fn validate_linux_session_mcp(
     if selected
         && (backend.is_some_and(acp_agent_registry::linux_native_only)
             || (cfg!(target_os = "linux") && backend == Some("pi"))
-            || (cfg!(target_os = "linux") && backend == Some("glm-acp-agent")
+            || (cfg!(target_os = "linux") && matches!(backend, Some("glm-acp-agent" | "iflow"))
                 && source == AcpModelSource::SessionModel))
     {
         return Err(acp_option_error(format!("{agent}: no verified Linux session MCP launch")));

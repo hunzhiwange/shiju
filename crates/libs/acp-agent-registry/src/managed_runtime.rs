@@ -73,7 +73,7 @@ struct Contract {
 }
 const CONTRACTS: &str = include_str!("managed_runtime/contracts.json");
 const GLM_LINUX_CONTRACT: &str = include_str!(
-    "../../../../patches/acp-model-source/glm-acp-agent/linux-session-model.json"
+    "../../../../patches/acp-model-source/glm-acp-agent/linux-host-mcp.json"
 );
 
 #[derive(Deserialize)]
@@ -138,7 +138,7 @@ fn installed_directory(agent: &str, contract: &Contract) -> Result<PathBuf, Stri
     let revision = if agent == "auggie" {
         2
     } else if agent == "glm-acp-agent" && LINUX_GNU {
-        4
+        5
     } else if matches!(agent, "gemini" | "nova" | "glm-acp-agent") {
         3
     } else if agent == "pi" {
@@ -615,7 +615,7 @@ pub fn verify_reviewed_agent_executable(agent: &str, command: &str) -> Result<()
         return Err("Amp Linux requires the installed reviewed v6 executable".into());
     }
     if agent == "iflow" && cfg!(target_os = "linux") {
-        return Err("iFlow Linux requires the installed reviewed v3 executable".into());
+        return Err("iFlow Linux requires the installed reviewed v4 executable".into());
     }
     if agent == "glm-acp-agent" {
         return Err("GLM executable must resolve to the installed reviewed entry".into());
@@ -807,7 +807,7 @@ pub(super) async fn install(agent: &str) -> Result<bool, String> {
         ("glm-linux-contract.json", GLM_LINUX_CONTRACT),
         (
             "glm-linux-session-model.patch",
-            include_str!("../../../../patches/acp-model-source/glm-acp-agent/glm-acp-agent-1.17.1-linux-session-model.patch"),
+            include_str!("../../../../patches/acp-model-source/glm-acp-agent/glm-acp-agent-1.17.1-linux-host-mcp.patch"),
         ),
         ("droid/apply.py", include_str!("../../../../patches/acp-model-source/droid/apply.py")),
         ("cortex-code/apply.py", include_str!("../../../../patches/acp-model-source/cortex-code/apply.py")),
@@ -1006,7 +1006,7 @@ pub(super) async fn install(agent: &str) -> Result<bool, String> {
     if iflow_linux {
         for (name, text) in [
             ("iflow/linux-artifacts.json", iflow::MANIFEST),
-            ("iflow/apply-linux.py", include_str!("../../../../patches/acp-model-source/iflow/apply-linux.py")),
+            ("iflow/apply-linux.py", include_str!("../../../../patches/acp-model-source/iflow/apply-linux-mcp.py")),
         ] {
             std::fs::write(assets.join(name), text).map_err(|_| "Cannot stage iFlow Linux assets")?;
         }

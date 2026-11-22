@@ -1,0 +1,18 @@
+{
+  "version": "0.3.88",
+  "directory": "stakpak-0.3.88-linux-cli-local",
+  "entry": "stakpak",
+  "args": ["acp"],
+  "targets": {
+    "x86_64": {
+      "archive": "https://github.com/stakpak/agent/releases/download/v0.3.88/stakpak-linux-x86_64.tar.gz",
+      "archive_sha256": "1e923d6b632e6bda743b3f48c40914f657853478647c26d0a47729a7728490c6",
+      "executable_sha256": "5329d4d44afbc9df57d4c99fd9f066750bce81c73d0e459171e6610640321663"
+    },
+    "aarch64": {
+      "archive": "https://github.com/stakpak/agent/releases/download/v0.3.88/stakpak-linux-aarch64.tar.gz",
+      "archive_sha256": "8312b611b5a635ea7411555f082b0fb3b6d644f99007d2c6a1f30fc6c13e725d",
+      "executable_sha256": "0e549ba092f298ba7bebc57da1da8a8cb47ab9a71acbaca5d896a233d0c7c3c1"
+    }
+  }
+}

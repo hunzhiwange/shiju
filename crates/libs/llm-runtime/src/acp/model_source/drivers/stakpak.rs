@@ -9,6 +9,10 @@ pub fn configure(
     directory: &str,
 ) -> anyhow::Result<()> {
     anyhow::ensure!(
+        !cfg!(target_os = "linux"),
+        "Stakpak session_model requires reviewed Linux isolation for the ACP and MCP processes"
+    );
+    anyhow::ensure!(
         profile.config().args == ["acp"]
             && profile.config().env.keys().all(|key| key == REFERENCE_ENV),
         "Stakpak requires reviewed ACP arguments and environment"

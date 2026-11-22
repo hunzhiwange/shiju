@@ -29,13 +29,19 @@ LOAD_SKILL_TOOL = "stakpak__load_skill"
 
 
 def launch(env):
-    require((platform.system(), platform.machine()) == ("Darwin", "arm64"),
+    system, machine = platform.system(), platform.machine()
+    linux = system == "Linux" and machine in {"x86_64", "aarch64"}
+    require(linux or (system, machine) == ("Darwin", "arm64"),
             "unreviewed Stakpak platform")
     manifest = ROOT / "crates/libs/acp-agent-registry/src/managed_runtime/contracts.json"
     contract = json.loads(manifest.read_text())["stakpak"]
     require(contract["version"] == VERSION, "unexpected Stakpak contract version")
     base = Path(os.environ.get("VIBEWINDOW_CONFIG_DIR", Path.home() / ".local/share/shiju"))
-    source = Path(os.environ.get("ACP_STAKPAK_REVIEWED_DIR", base / "acp-runtime" / REVISION))
+    configured = os.environ.get("ACP_STAKPAK_REVIEWED_DIR")
+    if linux:
+        require(os.geteuid() != 0 and configured and Path(configured).is_absolute(),
+                "run as non-root and set ACP_STAKPAK_REVIEWED_DIR to the private Linux source build")
+    source = Path(configured) if configured is not None else base / "acp-runtime" / REVISION
     require(source.is_dir(), "reviewed Stakpak runtime unavailable")
     runtime = Path(env["VIBEWINDOW_CONFIG_DIR"]) / "acp-runtime" / REVISION
     runtime.mkdir(parents=True, mode=0o700)
@@ -54,18 +60,23 @@ def launch(env):
         require(digest.hexdigest() == expected, f"Stakpak artifact digest mismatch: {name}")
     (runtime / "build-receipt.json").write_text(json.dumps(receipt))
     command = runtime / contract["bin"]
-    try:
-        version = subprocess.run([str(command), "--version"], env=env,
-                                 capture_output=True, timeout=15)
-    except subprocess.TimeoutExpired:
-        raise AssertionError("Stakpak version check timed out") from None
-    require(version.returncode == 0 and version.stdout.strip() == f"stakpak {VERSION}".encode(),
-            "unexpected Stakpak executable version")
-    return {"command": str(command), "args": ["acp"]}, {
-        "version": VERSION, "revision": REVISION, "platform": "darwin-arm64",
+    if not linux:
+        try:
+            version = subprocess.run([str(command), "--version"], env=env,
+                                     capture_output=True, timeout=15)
+        except subprocess.TimeoutExpired:
+            raise AssertionError("Stakpak version check timed out") from None
+        require(version.returncode == 0 and version.stdout.strip() == f"stakpak {VERSION}".encode(),
+                "unexpected Stakpak executable version")
+    artifact = {
+        "version": VERSION, "revision": REVISION,
+        "platform": f"Linux-{machine}" if linux else "darwin-arm64",
         "sha256": contract["files"][contract["bin"]], "files": files,
         "source_sha256": receipt["source_sha256"], "patch_sha256": receipt["patch_sha256"],
     }
+    if linux:
+        artifact["model_protocol"] = "POST /v1/chat/completions"
+    return {"command": str(command), "args": ["acp"]}, artifact
 
 
 DISABLED = "stakpak-disabled-probe"

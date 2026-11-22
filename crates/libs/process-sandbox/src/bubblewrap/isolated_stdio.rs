@@ -1,17 +1,19 @@
 //! Bubblewrap policy for a single reviewed GNU ELF communicating over stdio.
 
-use std::ffi::{CString, OsString};
+use std::ffi::{CString, OsStr, OsString};
 use std::fs::{self, File, OpenOptions};
 use std::io::{self, Read, Seek, Write};
 use std::os::fd::{AsRawFd, FromRawFd};
 use std::os::unix::ffi::OsStrExt;
 use std::os::unix::fs::{FileTypeExt, MetadataExt, OpenOptionsExt};
 use std::os::unix::process::CommandExt;
-use std::path::Path;
+use std::path::{Component, Path, PathBuf};
 use std::process::{Command, Stdio};
 
 const BWRAP: &str = "/usr/bin/bwrap";
 const ENTRY: &str = "/app/entry";
+const VTCODE_MODEL_FILE: &str = "vtcode.toml";
+pub const ISOLATED_UNIX_RELAY_MODEL_CONFIG: &str = "/run/shiju/vtcode.toml";
 pub const ISOLATED_UNIX_RELAY_SOCKET: &str = "/run/shiju/relay.sock";
 pub const ISOLATED_UNIX_RELAY_WORKSPACE: &str = "/tmp/work";
 #[cfg(target_arch = "x86_64")]
@@ -42,7 +44,7 @@ const LIB_DIRS: &[&str] = &[
 /// copy of the entry and individual system runtime files. It gets no host paths,
 /// environment overlay or file descriptors beyond the three private stdio pipes.
 pub fn isolated_stdio_command(executable: &Path, args: &[OsString]) -> io::Result<Command> {
-    stdio_command(executable, args, None)
+    stdio_command(executable, args, None, None)
 }
 
 /// Add exactly one request-owned Unix stream listener and an empty read-only
@@ -53,10 +55,28 @@ pub fn isolated_unix_relay_command(
     args: &[OsString],
     relay_socket: &Path,
 ) -> io::Result<Command> {
-    stdio_command(executable, args, Some(open_relay_socket(relay_socket)?))
+    stdio_command(executable, args, Some(open_relay_socket(relay_socket)?), None)
 }
 
-fn stdio_command(executable: &Path, args: &[OsString], relay: Option<File>) -> io::Result<Command> {
+/// Add only the caller's request-owned VT Code TOML at the fixed sandbox path.
+/// Pass the sandbox path if the entry needs a config argument. Keep credentials
+/// in the private file and the host relay, never in the provided arguments.
+pub fn isolated_unix_relay_with_model_config_command(
+    executable: &Path,
+    args: &[OsString],
+    relay_socket: &Path,
+    model_config: &Path,
+) -> io::Result<Command> {
+    let config = open_model_config(model_config)?;
+    stdio_command(executable, args, Some(open_relay_socket(relay_socket)?), Some(config))
+}
+
+fn stdio_command(
+    executable: &Path,
+    args: &[OsString],
+    relay: Option<File>,
+    model_config: Option<File>,
+) -> io::Result<Command> {
     if !executable.is_absolute() {
         return Err(io::Error::new(
             io::ErrorKind::InvalidInput,
@@ -95,7 +115,9 @@ fn stdio_command(executable: &Path, args: &[OsString], relay: Option<File>) -> i
     let entry_fd = entry.as_raw_fd();
     let filter_fd = filter.as_raw_fd();
     let relay_fd = relay.as_ref().map(AsRawFd::as_raw_fd);
-    if entry_fd < 3 || filter_fd < 3 || relay_fd.is_some_and(|fd| fd < 3) {
+    let config_fd = model_config.as_ref().map(AsRawFd::as_raw_fd);
+    if [Some(entry_fd), Some(filter_fd), relay_fd, config_fd].into_iter().flatten().any(|fd| fd < 3)
+    {
         return Err(io::Error::other(
             "isolated stdio requires descriptors 0 through 2 on the host",
         ));
@@ -151,6 +173,9 @@ fn stdio_command(executable: &Path, args: &[OsString], relay: Option<File>) -> i
             "isolated-unix-relay",
         ]);
     }
+    if let Some(fd) = config_fd {
+        command.arg("--ro-bind-fd").arg(fd.to_string()).arg(ISOLATED_UNIX_RELAY_MODEL_CONFIG);
+    }
     // Bind individual system files only. Extra package libraries and interpreters
     // must not be taken from the host search path or from the host's environment.
     if trusted_library(Path::new(LOADER)) {
@@ -198,6 +223,7 @@ fn stdio_command(executable: &Path, args: &[OsString], relay: Option<File>) -> i
                 Some(entry.as_raw_fd()),
                 Some(filter.as_raw_fd()),
                 relay.as_ref().map(AsRawFd::as_raw_fd),
+                model_config.as_ref().map(AsRawFd::as_raw_fd),
             ];
             if libc::syscall(libc::SYS_close_range, 3_u32, u32::MAX, libc::CLOSE_RANGE_CLOEXEC) < 0
             {
@@ -240,21 +266,8 @@ fn open_relay_socket(path: &Path) -> io::Result<File> {
         ));
     }
 
-    let name = CString::new(name.as_bytes())
-        .map_err(|_| io::Error::new(io::ErrorKind::InvalidInput, "invalid relay socket name"))?;
-    // O_PATH opens the socket inode without connecting. Do not follow a symlink or
-    // resolve the mutable path again when Bubblewrap builds the mount.
-    let fd = unsafe {
-        libc::openat(
-            directory.as_raw_fd(),
-            name.as_ptr(),
-            libc::O_PATH | libc::O_NOFOLLOW | libc::O_CLOEXEC,
-        )
-    };
-    if fd < 0 {
-        return Err(io::Error::last_os_error());
-    }
-    let socket = unsafe { File::from_raw_fd(fd) };
+    // Pin the socket inode without connecting.
+    let socket = open_child_path(&directory, name, 0)?;
     let metadata = socket.metadata()?;
     if !metadata.file_type().is_socket() {
         return Err(io::Error::new(io::ErrorKind::InvalidInput, "relay path is not a Unix socket"));
@@ -266,6 +279,80 @@ fn open_relay_socket(path: &Path) -> io::Result<File> {
         ));
     }
     Ok(socket)
+}
+
+fn open_model_config(path: &Path) -> io::Result<File> {
+    let normalized = path.components().collect::<PathBuf>();
+    let Some(parent) = path.parent().filter(|_| {
+        path.is_absolute()
+            && normalized.as_os_str() == path.as_os_str()
+            && path.file_name() == Some(OsStr::new(VTCODE_MODEL_FILE))
+    }) else {
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidInput,
+            "expected a normalized absolute path to the request vtcode.toml",
+        ));
+    };
+    let uid = unsafe { libc::geteuid() };
+    let mut directory =
+        OpenOptions::new().read(true).custom_flags(libc::O_PATH | libc::O_DIRECTORY).open("/")?;
+    // Inspect the same directory inodes used for the next lookup. Trusted sticky
+    // ancestors such as /tmp may contain the private request directory.
+    for part in parent.components().skip(1) {
+        let Component::Normal(name) = part else {
+            return Err(io::Error::new(io::ErrorKind::InvalidInput, "invalid model config path"));
+        };
+        directory = open_child_path(&directory, name, libc::O_DIRECTORY)?;
+        let metadata = directory.metadata()?;
+        let mode = metadata.mode();
+        if (metadata.uid() != 0 && metadata.uid() != uid)
+            || (mode & 0o022 != 0 && mode & 0o1000 == 0)
+        {
+            return Err(io::Error::new(
+                io::ErrorKind::PermissionDenied,
+                "model config has an insecure directory ancestor",
+            ));
+        }
+    }
+    let metadata = directory.metadata()?;
+    if parent == Path::new("/") || metadata.uid() != uid || metadata.mode() & 0o7777 != 0o700 {
+        return Err(io::Error::new(
+            io::ErrorKind::PermissionDenied,
+            "model config directory must be owned by the host user with mode 0700",
+        ));
+    }
+
+    let file = open_child_path(&directory, OsStr::new(VTCODE_MODEL_FILE), 0)?;
+    let metadata = file.metadata()?;
+    if !metadata.is_file() {
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidInput,
+            "model config must be a regular file",
+        ));
+    }
+    if metadata.uid() != uid || metadata.mode() & 0o7777 != 0o600 || metadata.nlink() != 1 {
+        return Err(io::Error::new(
+            io::ErrorKind::PermissionDenied,
+            "model config must be owned by the host user with mode 0600 and a single link",
+        ));
+    }
+    Ok(file)
+}
+
+fn open_child_path(directory: &File, name: &OsStr, flags: i32) -> io::Result<File> {
+    let name = CString::new(name.as_bytes())
+        .map_err(|_| io::Error::new(io::ErrorKind::InvalidInput, "invalid private file name"))?;
+    let fd = unsafe {
+        libc::openat(
+            directory.as_raw_fd(),
+            name.as_ptr(),
+            libc::O_PATH | libc::O_NOFOLLOW | libc::O_CLOEXEC | flags,
+        )
+    };
+    if fd < 0 {
+        return Err(io::Error::last_os_error());
+    }
+    Ok(unsafe { File::from_raw_fd(fd) })
 }
 
 fn trusted_library(path: &Path) -> bool {

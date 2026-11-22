@@ -1,6 +1,7 @@
 use super::isolated_stdio::{
-    ISOLATED_UNIX_RELAY_SOCKET, ISOLATED_UNIX_RELAY_WORKSPACE, spawn_isolated_stdio,
-    spawn_isolated_stdio_with_unix_relay,
+    ISOLATED_UNIX_RELAY_MODEL_CONFIG, ISOLATED_UNIX_RELAY_SOCKET, ISOLATED_UNIX_RELAY_WORKSPACE,
+    spawn_isolated_stdio, spawn_isolated_stdio_with_unix_relay,
+    spawn_isolated_stdio_with_unix_relay_and_model_config,
 };
 use std::ffi::OsString;
 use std::io::{self, BufRead, Read, Write};
@@ -234,4 +235,133 @@ fn acp_platform_isolated_unix_relay_rejects_missing_symlink_and_insecure_socket(
             Err(error) if error.kind() == kind
         ));
     }
+}
+
+const MODEL_FIXTURE_TOKEN: &str = "fixture-model-secret";
+
+#[test]
+#[ignore = "launched only inside the isolated model config acceptance sandbox"]
+fn model_config_fixture() {
+    let mut line = String::new();
+    io::stdin().lock().read_line(&mut line).unwrap();
+    let (host_config, sibling) = line.trim_end().split_once('\t').unwrap();
+    assert_eq!(std::env::var_os("HOME").unwrap(), "/tmp/home");
+    assert!(
+        std::env::args_os()
+            .all(|argument| !argument.to_string_lossy().contains(MODEL_FIXTURE_TOKEN))
+    );
+    assert!(
+        std::env::vars_os()
+            .all(|(_, value)| !value.to_string_lossy().contains(MODEL_FIXTURE_TOKEN))
+    );
+    assert!(std::env::var_os("SHIJU_VTCODE_RELAY_TOKEN").is_none());
+
+    let config = std::fs::read_to_string(ISOLATED_UNIX_RELAY_MODEL_CONFIG).unwrap();
+    assert!(config.contains(MODEL_FIXTURE_TOKEN));
+    assert_eq!(
+        std::fs::write(ISOLATED_UNIX_RELAY_MODEL_CONFIG, "modified").unwrap_err().raw_os_error(),
+        Some(libc::EROFS)
+    );
+    assert!(!Path::new(host_config).exists());
+    assert!(!Path::new(sibling).exists());
+    assert!(!Path::new("/run/shiju/unrelated.toml").exists());
+    println!("isolated-model-config-read");
+}
+
+#[tokio::test]
+async fn acp_platform_isolated_model_config_mounts_only_the_readonly_request_file() {
+    use std::os::unix::fs::OpenOptionsExt;
+
+    let root = tempfile::tempdir().unwrap();
+    let root_path = root.path().canonicalize().unwrap();
+    std::fs::set_permissions(&root_path, std::fs::Permissions::from_mode(0o700)).unwrap();
+    let config = root_path.join("vtcode.toml");
+    let sibling = root_path.join("unrelated.toml");
+    let socket = root_path.join("relay.sock");
+    let _listener = UnixListener::bind(&socket).unwrap();
+    std::fs::set_permissions(&socket, std::fs::Permissions::from_mode(0o600)).unwrap();
+    let contents = format!("[model]\napi_key = \"{MODEL_FIXTURE_TOKEN}\"\n");
+    let mut file =
+        std::fs::OpenOptions::new().write(true).create_new(true).mode(0o600).open(&config).unwrap();
+    file.write_all(contents.as_bytes()).unwrap();
+    drop(file);
+    std::fs::write(&sibling, "[sibling]\n").unwrap();
+
+    let args =
+        ["--exact", "isolated_stdio_tests::model_config_fixture", "--ignored", "--nocapture"]
+            .map(OsString::from);
+    let entry = std::env::current_exe().unwrap();
+    let mut sandbox =
+        spawn_isolated_stdio_with_unix_relay_and_model_config(&entry, &args, &socket, &config)
+            .unwrap();
+    let mut stdin = sandbox.take_stdin().unwrap();
+    let mut stdout = sandbox.take_stdout().unwrap();
+    let mut stderr = sandbox.take_stderr().unwrap();
+    let finish = timeout(Duration::from_secs(15), async {
+        let input = format!("{}\t{}\n", config.display(), sibling.display());
+        stdin.write_all(input.as_bytes()).await?;
+        drop(stdin);
+        let mut output = String::new();
+        let mut diagnostics = String::new();
+        let (status, out, err) = tokio::join!(
+            sandbox.wait(),
+            stdout.read_to_string(&mut output),
+            stderr.read_to_string(&mut diagnostics),
+        );
+        out?;
+        err?;
+        Ok::<_, io::Error>((status?, output, diagnostics))
+    })
+    .await;
+    match finish {
+        Ok(Ok((status, output, diagnostics))) => {
+            assert!(status.success(), "sandbox fixture failed: {output}\n{diagnostics}");
+            assert!(output.lines().any(|line| line == "isolated-model-config-read"));
+        }
+        other => panic!("sandbox fixture did not complete: {other:?}"),
+    }
+    assert!(std::fs::read_to_string(config).unwrap() == contents);
+}
+
+#[test]
+fn acp_platform_isolated_model_config_rejects_untrusted_file_and_ancestry() {
+    let root = tempfile::tempdir().unwrap();
+    let root_path = root.path().canonicalize().unwrap();
+    let entry = std::env::current_exe().unwrap();
+    let socket = root_path.join("relay.sock");
+    let _listener = UnixListener::bind(&socket).unwrap();
+    std::fs::set_permissions(&socket, std::fs::Permissions::from_mode(0o600)).unwrap();
+    let request = root_path.join("request");
+    let alias = root_path.join("alias");
+    std::fs::create_dir(&request).unwrap();
+    std::fs::set_permissions(&request, std::fs::Permissions::from_mode(0o700)).unwrap();
+    symlink(&request, &alias).unwrap();
+    let config = request.join("vtcode.toml");
+    let rejected = |config: &Path| {
+        spawn_isolated_stdio_with_unix_relay_and_model_config(&entry, &[], &socket, config)
+            .err()
+            .expect("model mount preflight should reject")
+    };
+
+    assert_eq!(rejected(&config).kind(), io::ErrorKind::NotFound);
+    let other = request.join("other.toml");
+    std::fs::write(&other, "").unwrap();
+    symlink(&other, &config).unwrap();
+    assert_eq!(rejected(&config).kind(), io::ErrorKind::InvalidInput);
+    std::fs::remove_file(&config).unwrap();
+    std::fs::write(&config, "").unwrap();
+    std::fs::set_permissions(&config, std::fs::Permissions::from_mode(0o644)).unwrap();
+    assert_eq!(rejected(&config).kind(), io::ErrorKind::PermissionDenied);
+    std::fs::set_permissions(&config, std::fs::Permissions::from_mode(0o600)).unwrap();
+    assert_eq!(
+        rejected(&request.join("../request/vtcode.toml")).kind(),
+        io::ErrorKind::InvalidInput
+    );
+    assert_eq!(rejected(&alias.join("vtcode.toml")).kind(), io::ErrorKind::NotADirectory);
+    let hardlink = request.join("another-link");
+    std::fs::hard_link(&config, &hardlink).unwrap();
+    assert_eq!(rejected(&config).kind(), io::ErrorKind::PermissionDenied);
+    std::fs::remove_file(hardlink).unwrap();
+    std::fs::set_permissions(&request, std::fs::Permissions::from_mode(0o755)).unwrap();
+    assert_eq!(rejected(&config).kind(), io::ErrorKind::PermissionDenied);
 }

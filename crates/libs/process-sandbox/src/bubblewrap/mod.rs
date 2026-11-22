@@ -274,6 +274,6 @@ mod legacy_security_tests;
 mod isolated_stdio;
 #[cfg(all(target_os = "linux", target_env = "gnu", any(target_arch = "x86_64", target_arch = "aarch64")))]
 pub use isolated_stdio::{
-    ISOLATED_UNIX_RELAY_SOCKET, ISOLATED_UNIX_RELAY_WORKSPACE, isolated_stdio_command,
-    isolated_unix_relay_command,
+    ISOLATED_UNIX_RELAY_MODEL_CONFIG, ISOLATED_UNIX_RELAY_SOCKET, ISOLATED_UNIX_RELAY_WORKSPACE,
+    isolated_stdio_command, isolated_unix_relay_command, isolated_unix_relay_with_model_config_command,
 };

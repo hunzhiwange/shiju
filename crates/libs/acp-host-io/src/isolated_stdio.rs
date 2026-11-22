@@ -1,7 +1,12 @@
 //! ACP host entry points for isolated fixed executables.
 
-pub use process_sandbox::bubblewrap::{ISOLATED_UNIX_RELAY_SOCKET, ISOLATED_UNIX_RELAY_WORKSPACE};
-use process_sandbox::bubblewrap::{isolated_stdio_command, isolated_unix_relay_command};
+pub use process_sandbox::bubblewrap::{
+    ISOLATED_UNIX_RELAY_MODEL_CONFIG, ISOLATED_UNIX_RELAY_SOCKET, ISOLATED_UNIX_RELAY_WORKSPACE,
+};
+use process_sandbox::bubblewrap::{
+    isolated_stdio_command, isolated_unix_relay_command,
+    isolated_unix_relay_with_model_config_command,
+};
 use std::ffi::OsString;
 use std::io;
 use std::path::Path;
@@ -30,6 +35,24 @@ pub fn spawn_isolated_stdio_with_unix_relay(
     relay_socket: &Path,
 ) -> io::Result<IsolatedStdio> {
     spawn(isolated_unix_relay_command(executable, args, relay_socket)?)
+}
+
+/// Spawn the isolated Unix relay process with one private VT Code model TOML.
+/// The child can read `ISOLATED_UNIX_RELAY_MODEL_CONFIG`. Pass that fixed path
+/// to `--config` when needed. Keep model credentials in the file and out of argv
+/// and environment. The file must be `vtcode.toml` in a canonical 0700 request directory.
+pub fn spawn_isolated_stdio_with_unix_relay_and_model_config(
+    executable: &Path,
+    args: &[OsString],
+    relay_socket: &Path,
+    model_config: &Path,
+) -> io::Result<IsolatedStdio> {
+    spawn(isolated_unix_relay_with_model_config_command(
+        executable,
+        args,
+        relay_socket,
+        model_config,
+    )?)
 }
 
 fn spawn(command: std::process::Command) -> io::Result<IsolatedStdio> {

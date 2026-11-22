@@ -6,7 +6,10 @@ pub enum AcpMessage {
     TestAgent(String),
     InstallAgent(String),
     CancelInstall,
-    InstallCancelAccepted,
+    InstallProgressLoaded {
+        id: String,
+        progress: Option<gateway_desktop_settings::AcpInstallProgress>,
+    },
     InstallCancelFailed { id: String, message: String },
     ToggleInstallDetails(String),
     InstallInstructionsLoaded {
@@ -14,6 +17,7 @@ pub enum AcpMessage {
         result: Result<gateway_desktop_settings::AcpInstallInstructions, String>,
     },
     InstallCompleted {
+        id: String,
         agent: String,
         result: Result<gateway_desktop_settings::AcpInstallReport, String>,
     },

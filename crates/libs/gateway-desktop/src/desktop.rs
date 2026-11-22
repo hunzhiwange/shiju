@@ -48,6 +48,7 @@ where
             "/desktop/browser-install/{backend}",
             post(super::desktop_browser_install::install_post),
         )
+        .route("/desktop/acp-install/{agent}/progress", get(super::desktop_acp_install::install_progress))
         .route("/desktop/acp-install/{agent}", get(super::desktop_acp_install::install_get).post(super::desktop_acp_install::install_post).delete(super::desktop_acp_install::install_delete))
         .route(
             "/desktop/acp-diagnostic/{id}",

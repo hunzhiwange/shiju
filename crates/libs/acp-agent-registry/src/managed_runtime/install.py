@@ -16,6 +16,28 @@ assets, runtime, agent = Path(sys.argv[1]), Path(sys.argv[2]), sys.argv[3]
 def run(args, cwd=None):
     subprocess.run(args, cwd=cwd, check=True, stdin=subprocess.DEVNULL)
 
+def copy_download(response, output):
+    length = response.headers.get('Content-Length', '')
+    total = int(length) if length.isdecimal() else None
+    downloaded = 0
+    last_bytes = 0
+    last_time = time.monotonic()
+
+    def report(rate):
+        print('SHIJU_DOWNLOAD ' + json.dumps({
+            'downloaded': downloaded, 'total': total, 'bytes_per_second': rate,
+        }), flush=True)
+
+    report(0)
+    while chunk := response.read1(256 * 1024):
+        output.write(chunk)
+        downloaded += len(chunk)
+        now = time.monotonic()
+        if now - last_time >= 0.5:
+            report(int((downloaded - last_bytes) / (now - last_time)))
+            last_bytes, last_time = downloaded, now
+    print('SHIJU_DOWNLOAD null', flush=True)
+
 def digest(path):
     result = hashlib.sha256()
     with path.open('rb') as stream:
@@ -465,7 +487,7 @@ if agent == 'harn':
     archive = assets / 'harn-source.tar.gz'
     patch = assets / 'harn/skills.patch'
     with urllib.request.urlopen(contract['source_url'], timeout=120) as response, archive.open('wb') as output:
-        shutil.copyfileobj(response, output)
+        copy_download(response, output)
     if digest(archive) != contract['source_sha256'] or digest(patch) != contract['patch_sha256']:
         raise RuntimeError('Harn reviewed source/patch checksum mismatch')
     revision = '4914194ae9f56b0046210ca90ef6f927988e727e'
@@ -511,7 +533,7 @@ if agent == 'trae':
         raise RuntimeError('TRAE reviewed runtime is Darwin-arm64 only')
     archive = assets / 'trae.tar.gz'
     with urllib.request.urlopen(contract['artifact_url'], timeout=120) as response, archive.open('wb') as output:
-        shutil.copyfileobj(response, output)
+        copy_download(response, output)
     if digest(archive) != contract['archive_sha256']:
         raise RuntimeError('TRAE fixed archive checksum mismatch')
     runtime.mkdir()
@@ -533,7 +555,7 @@ if agent == 'droid':
         raise RuntimeError('Droid reviewed runtime is Darwin-arm64 only')
     native = assets / 'droid-original'
     with urllib.request.urlopen(contract['artifact_url'], timeout=120) as response, native.open('xb') as output:
-        shutil.copyfileobj(response, output)
+        copy_download(response, output)
     if digest(native) != contract['source_sha256']:
         raise RuntimeError('Droid original executable checksum mismatch')
     runtime.mkdir()
@@ -547,7 +569,7 @@ if agent == 'cursor':
     archive = assets / 'cursor.tar.gz'
     request = urllib.request.Request(contract['artifact_url'], headers={'User-Agent': 'ShiJu-ACP-Installer/1.0'})
     with urllib.request.urlopen(request, timeout=120) as response, archive.open('wb') as output:
-        shutil.copyfileobj(response, output)
+        copy_download(response, output)
     if digest(archive) != contract['archive_sha256']:
         raise RuntimeError('Cursor fixed archive checksum mismatch')
     runtime.mkdir()
@@ -568,8 +590,12 @@ if contract.get('layout') == 'standalone':
     if agent != 'kiro' or platform.system() != 'Darwin' or platform.machine() != 'arm64':
         raise RuntimeError('Kiro reviewed runtime is Darwin-arm64 only')
     archive = assets / 'kiro.zip'
-    with urllib.request.urlopen(contract['artifact_url'], timeout=120) as response, archive.open('wb') as output:
-        shutil.copyfileobj(response, output)
+    print('SHIJU_DOWNLOAD {"downloaded":0,"total":null,"bytes_per_second":0}', flush=True)
+    try:
+        with urllib.request.urlopen(contract['artifact_url'], timeout=30) as response, archive.open('wb') as output:
+            copy_download(response, output)
+    except TimeoutError as error:
+        raise RuntimeError('Kiro download timed out while waiting for network data') from error
     if digest(archive) != contract['archive_sha256']:
         raise RuntimeError('Kiro fixed archive checksum mismatch')
     runtime.mkdir()
@@ -580,7 +606,10 @@ if contract.get('layout') == 'standalone':
     native.chmod(0o700)
     if digest(native) != contract['files']['native/kiro-cli']:
         raise RuntimeError('Kiro fixed executable checksum mismatch')
-    run([str(native), '_', 'extract-runtime', '--dir', str(runtime / 'runtime')])
+    subprocess.run(
+        [str(native), '_', 'extract-runtime', '--dir', str(runtime / 'runtime')],
+        check=True, stdin=subprocess.DEVNULL, timeout=120,
+    )
     server = runtime / 'runtime/3.0.0-96d7248d901e42e1/kas/node_modules/@kiro/agent/dist/server/acp-server.js'
     run([sys.executable, str(assets / 'kiro/apply.py'), str(server)])
     shutil.copy2(assets / 'kiro/launcher.py', runtime / 'kiro-cli')
@@ -599,7 +628,7 @@ if contract.get('layout') == 'python':
         wheel_url = next(row['url'] for row in release['urls'] if row['digests']['sha256'] == contract['wheel_sha256'])
     wheel = assets / wheel_url.rsplit('/', 1)[1]
     with urllib.request.urlopen(wheel_url, timeout=60) as response, wheel.open('wb') as output:
-        shutil.copyfileobj(response, output)
+        copy_download(response, output)
     if digest(wheel) != contract['wheel_sha256']:
         raise RuntimeError('Pinned Python wheel checksum mismatch')
     package = str(wheel) + ('[acp,cli,mcp]' if agent == 'hermes' else '')
@@ -628,7 +657,7 @@ if agent == 'sigit':
                 raise RuntimeError('Could not connect to the siGit source archive after 3 attempts') from error
             time.sleep(attempt + 1)
     with response, archive.open('wb') as output:
-        shutil.copyfileobj(response, output)
+        copy_download(response, output)
     if digest(archive) != contract['source_sha256'] or digest(assets / 'sigit.patch') != contract['patch_sha256']:
         raise RuntimeError('siGit source/patch checksum mismatch')
     source = assets / 'sigit-source'
@@ -667,7 +696,7 @@ if agent == 'sigit':
 if agent == 'aionrs':
     archive = assets / 'aionrs.tar.gz'
     with urllib.request.urlopen(contract['source_url'], timeout=45) as response, archive.open('xb') as output:
-        shutil.copyfileobj(response, output)
+        copy_download(response, output)
     if digest(archive) != contract['source_sha256']:
         raise RuntimeError('aionrs fixed source checksum mismatch')
     source = assets / 'aionrs-source'
@@ -709,7 +738,7 @@ if contract.get('layout') == 'native':
     # Cargo inherits the caller's shared-slot directories when run from this repository.
     archive = assets / 'goose.tar.gz'
     with urllib.request.urlopen(contract['source_url'], timeout=60) as response, archive.open('wb') as output:
-        shutil.copyfileobj(response, output)
+        copy_download(response, output)
     if digest(archive) != contract['source_sha256'] or digest(assets / 'goose.patch') != contract['patch_sha256']:
         raise RuntimeError('Goose reviewed source/patch checksum mismatch')
     source = assets / 'goose-source'

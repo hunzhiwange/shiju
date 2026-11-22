@@ -17,6 +17,19 @@ pub struct AcpInstallReport {
     pub steps: Vec<String>,
 }
 
+#[derive(Debug, Clone, serde::Deserialize)]
+pub struct AcpInstallProgress {
+    pub stage: String,
+    pub download: Option<AcpInstallDownload>,
+}
+
+#[derive(Debug, Clone, serde::Deserialize)]
+pub struct AcpInstallDownload {
+    pub downloaded: u64,
+    pub total: Option<u64>,
+    pub bytes_per_second: u64,
+}
+
 impl GatewayDesktopSettingsClient {
     /// 在网关主机安装浏览器依赖，沿用认证上下文并允许下载时间。
     pub async fn browser_install(&self, backend: &str) -> Result<String, String> {
@@ -66,6 +79,15 @@ impl GatewayDesktopSettingsClient {
             Reply::Report(report) => Ok(report),
             Reply::Legacy(message) => Ok(AcpInstallReport { success: true, message, steps: Vec::new() }),
         }
+    }
+
+    pub async fn acp_install_progress(
+        &self,
+        agent: &str,
+        install_id: &str,
+    ) -> Result<Option<AcpInstallProgress>, String> {
+        let path = format!("{}/progress", acp_install_path(agent)?);
+        self.transport.get_json(&path, &[("install_id".into(), install_id.into())]).await
     }
 
     pub async fn acp_install_cancel(&self, agent: &str, install_id: &str) -> Result<bool, String> {

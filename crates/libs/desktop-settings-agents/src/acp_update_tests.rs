@@ -531,9 +531,11 @@ fn acp_install_tracks_busy_state_and_releases_after_failure() {
     assert_eq!(app.acp_settings.installing_agent.as_deref(), Some("codex"));
     let _ = update(&mut app, SettingsMessage::Acp(AcpMessage::InstallAgent("gemini".into())));
     assert_eq!(app.acp_settings.installing_agent.as_deref(), Some("codex"));
+    let id = app.acp_settings.install_id.clone().unwrap();
     let _ = update(
         &mut app,
         SettingsMessage::Acp(AcpMessage::InstallCompleted {
+            id,
             agent: "codex".into(),
             result: Err("installation failed".into()),
         }),

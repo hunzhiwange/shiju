@@ -12,7 +12,7 @@ pub use agent_registry::{
     resolve_agent_command, resolve_agent_spec, resolve_agent_spec_with_overrides,
 };
 #[cfg(not(target_arch = "wasm32"))]
-pub use install::{InstallLog, install_builtin_agent, install_builtin_agent_with_log, manual_install_commands};
+pub use install::{InstallLog, InstallProgress, install_builtin_agent, install_builtin_agent_with_log, manual_install_commands};
 pub use managed_runtime::{linux_native_only, verify_fixed_linux_cli_launch, reviewed_agent_command, verify_auggie_restricted_executable, verify_droid_restricted_executable, verify_openclaw_mcp_executable, verify_openclaw_restricted_executable, verify_reviewed_agent_executable, verify_vtcode_mcp_executable, verify_vtcode_skill_executable};
 
 #[cfg(all(test, not(target_arch = "wasm32")))]

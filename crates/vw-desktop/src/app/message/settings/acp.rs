@@ -14,8 +14,8 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
      entry.enabled = snapshot.enabled.contains_key(EMPLOYEE_ACP_BACKEND);
  }
  let refresh_chat_source = matches!(&message,
-     super::AcpMessage::InstallCompleted { agent, result: Ok(report) }
-         if report.success && app.acp_settings.installing_agent.as_deref() == Some(agent.as_str())
+     super::AcpMessage::InstallCompleted { id, agent, result: Ok(report) }
+         if report.success && app.acp_settings.install_id.as_deref() == Some(id.as_str())
              && app.current_session_runtime_ref().is_some_and(|runtime| {
                  runtime.acp_agent.as_deref() == Some(agent.as_str())
              }) && !app.current_session_has_started()

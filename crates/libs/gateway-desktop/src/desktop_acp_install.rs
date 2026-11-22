@@ -7,13 +7,14 @@ use axum::{
 use config_acp_install::acp_install_supported;
 use gateway_desktop_settings::{AcpInstallInstructions, AcpInstallReport};
 use gateway_types::ApiError;
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 use tokio_util::sync::CancellationToken;
 
 struct ActiveInstall {
     agent: String,
     id: Option<String>,
     cancellation: CancellationToken,
+    progress: Arc<Mutex<acp_agent_registry::InstallProgress>>,
 }
 
 static INSTALLING: Mutex<Option<ActiveInstall>> = Mutex::new(None);
@@ -49,6 +50,7 @@ pub(super) async fn install_post(
         return Err(ApiError::bad_request("该 ACP 暂无一键安装命令，请使用官方安装器"));
     }
     let cancellation = CancellationToken::new();
+    let mut log = acp_agent_registry::InstallLog::default();
     {
         let mut active = INSTALLING.lock().unwrap();
         if active.is_some() {
@@ -58,10 +60,10 @@ pub(super) async fn install_post(
             agent: agent.clone(),
             id: query.install_id,
             cancellation: cancellation.clone(),
+            progress: Arc::clone(&log.progress),
         });
     }
     let _guard = InstallGuard;
-    let mut log = acp_agent_registry::InstallLog::default();
     let result = cancellation
         .run_until_cancelled(acp_agent_registry::install_builtin_agent_with_log(&agent, &mut log))
         .await
@@ -74,6 +76,17 @@ pub(super) async fn install_post(
     }
     result.map_err(ApiError::bad_request)?;
     Ok(Json(success_message()).into_response())
+}
+
+pub(super) async fn install_progress(
+    Path(agent): Path<String>,
+    Query(query): Query<InstallQuery>,
+) -> Json<Option<acp_agent_registry::InstallProgress>> {
+    let active = INSTALLING.lock().unwrap();
+    Json(active
+        .as_ref()
+        .filter(|install| install.agent == agent && query.install_id.is_some() && install.id == query.install_id)
+        .map(|install| install.progress.lock().unwrap().clone()))
 }
 
 pub(super) async fn install_delete(

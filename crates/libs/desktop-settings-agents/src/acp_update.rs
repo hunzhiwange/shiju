@@ -89,6 +89,7 @@ pub fn update(app: &mut Update, message: AcpMessage) -> Task<Message> {
         && !matches!(
             message,
             AcpMessage::AddAgentCompleted { .. }
+                | AcpMessage::InstallProgressLoaded { .. }
                 | AcpMessage::CancelInstall
                 | AcpMessage::InstallCancelFailed { .. }
                 | AcpMessage::InstallCompleted { .. }
@@ -150,6 +151,8 @@ pub fn update(app: &mut Update, message: AcpMessage) -> Task<Message> {
             }
             let id = operation_id();
             app.state.install_id = Some(id.clone());
+            app.state.install_progress = None;
+            let progress = poll_install_progress(app, agent.clone(), id.clone());
             app.state.installing_agent = Some(agent.clone());
             app.state.install_expanded.insert(agent.clone());
             app.state.install_reports.remove(&agent);
@@ -162,11 +165,11 @@ pub fn update(app: &mut Update, message: AcpMessage) -> Task<Message> {
                         gateway_desktop_settings::GatewayDesktopSettingsClient::new(client.transport().clone())
                             .acp_install_report_with_id(&agent, Some(&id)).await
                     }.await;
-                    (agent, result)
+                    (id, agent, result)
                 },
-                |(agent, result)| Message::Acp(AcpMessage::InstallCompleted { agent, result }),
+                |(id, agent, result)| Message::Acp(AcpMessage::InstallCompleted { id, agent, result }),
             );
-            Task::batch([instructions, install])
+            Task::batch([instructions, install, progress])
         }
         AcpMessage::CancelInstall => {
             let (Some(agent), Some(id)) = (app.state.installing_agent.clone(), app.state.install_id.clone()) else {
@@ -179,7 +182,7 @@ pub fn update(app: &mut Update, message: AcpMessage) -> Task<Message> {
             let client = app.client.clone();
             Task::perform(
                 async move {
-                    let result = async {
+                    let result = tokio::time::timeout(Duration::from_secs(12), async {
                         let client = gateway_desktop_settings::GatewayDesktopSettingsClient::new(client?.transport().clone());
                         // The cancellation request can reach the gateway before the install request.
                         for _ in 0..40 {
@@ -189,16 +192,37 @@ pub fn update(app: &mut Update, message: AcpMessage) -> Task<Message> {
                             tokio::time::sleep(Duration::from_millis(250)).await;
                         }
                         Err("网关未确认取消 ACP 安装".into())
-                    }.await;
-                    (id, result)
+                    }).await.unwrap_or_else(|_| Err("等待网关确认取消超时".into()));
+                    (id, agent, result)
                 },
-                |(id, result)| match result {
-                    Ok(()) => Message::Acp(AcpMessage::InstallCancelAccepted),
+                |(id, agent, result)| match result {
+                    Ok(()) => Message::Acp(AcpMessage::InstallCompleted {
+                        id,
+                        agent,
+                        result: Err(gateway_desktop_settings::ACP_INSTALL_CANCELLED.into()),
+                    }),
                     Err(message) => Message::Acp(AcpMessage::InstallCancelFailed { id, message }),
                 },
             )
         }
-        AcpMessage::InstallCancelAccepted => Task::none(),
+        AcpMessage::InstallProgressLoaded { id, mut progress } => {
+            let Some(agent) = app.state.installing_agent.clone() else {
+                return Task::none();
+            };
+            if app.state.install_id.as_deref() != Some(&id) {
+                return Task::none();
+            }
+            if let Some(download) = progress.as_mut().and_then(|progress| progress.download.as_mut()) {
+                if app.state.install_progress.as_ref()
+                    .and_then(|previous| previous.download.as_ref())
+                    .is_some_and(|previous| previous.downloaded == download.downloaded)
+                {
+                    download.bytes_per_second = 0;
+                }
+            }
+            app.state.install_progress = progress;
+            poll_install_progress(app, agent, id)
+        },
         AcpMessage::InstallCancelFailed { id, message } => {
             if app.state.install_id.as_deref() != Some(&id) {
                 return Task::none();
@@ -206,12 +230,13 @@ pub fn update(app: &mut Update, message: AcpMessage) -> Task<Message> {
             app.state.cancelling_install = false;
             app.show_error_toast(message)
         }
-        AcpMessage::InstallCompleted { agent, result } => {
-            if app.state.installing_agent.as_deref() != Some(&agent) {
+        AcpMessage::InstallCompleted { id, agent, result } => {
+            if app.state.install_id.as_deref() != Some(&id) {
                 return Task::none();
             }
             app.state.installing_agent = None;
             app.state.install_id = None;
+            app.state.install_progress = None;
             app.state.cancelling_install = false;
             let report = result.unwrap_or_else(|message| gateway_desktop_settings::AcpInstallReport {
                 success: false,
@@ -640,5 +665,20 @@ fn operation_id() -> String {
             .unwrap_or_default()
             .as_nanos(),
         NEXT.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
+    )
+}
+
+fn poll_install_progress(app: &Update<'_>, agent: String, id: String) -> Task<Message> {
+    let Ok(client) = app.client.clone() else {
+        return Task::none();
+    };
+    let client = gateway_desktop_settings::GatewayDesktopSettingsClient::new(client.transport().clone());
+    Task::perform(
+        async move {
+            tokio::time::sleep(Duration::from_millis(750)).await;
+            let progress = client.acp_install_progress(&agent, &id).await.ok().flatten();
+            (id, progress)
+        },
+        |(id, progress)| Message::Acp(AcpMessage::InstallProgressLoaded { id, progress }),
     )
 }

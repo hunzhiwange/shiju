@@ -724,7 +724,16 @@ impl Stage {
 #[cfg(not(target_arch = "wasm32"))]
 impl Drop for Stage {
     fn drop(&mut self) {
-        let _ = std::fs::remove_dir_all(&self.0);
+        // Unpacking can leave a large tree. Do not hold the install request
+        // and the gateway's install slot while removing it after cancellation.
+        if let Ok(runtime) = tokio::runtime::Handle::try_current() {
+            let path = std::mem::take(&mut self.0);
+            runtime.spawn_blocking(move || {
+                let _ = std::fs::remove_dir_all(path);
+            });
+        } else {
+            let _ = std::fs::remove_dir_all(&self.0);
+        }
     }
 }
 

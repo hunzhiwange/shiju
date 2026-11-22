@@ -255,8 +255,27 @@ fn installation_section<'a>(input: Input<'a>, agent: &str, builtin: bool) -> Ele
     }
 
     if installing {
-        section = section.push(text(tr("正在网关主机安装，完成后可查看输出。"))
-            .size(12).style(settings_muted_text_style));
+        let stage = state.install_progress.as_ref()
+            .filter(|progress| !progress.stage.is_empty())
+            .map_or_else(
+                || tr("正在网关主机安装，完成后可查看输出。").to_string(),
+                |progress| progress.stage.clone(),
+            );
+        section = section.push(text(stage).size(12).style(settings_muted_text_style));
+        if let Some(download) = state.install_progress.as_ref().and_then(|progress| progress.download.as_ref()) {
+            let mib = |bytes: u64| bytes as f64 / (1024.0 * 1024.0);
+            let rate = format!("{:.1} KiB/s", download.bytes_per_second as f64 / 1024.0);
+            let amount = if let Some(total) = download.total.filter(|total| *total > 0) {
+                let fraction = (download.downloaded as f64 / total as f64).clamp(0.0, 1.0);
+                section = section.push(container(iced::widget::progress_bar(0.0..=1.0, fraction as f32))
+                    .height(Length::Fixed(8.0)));
+                format!("{:.0}% · {:.1} / {:.1} MiB", fraction * 100.0, mib(download.downloaded), mib(total))
+            } else {
+                format!("{:.1} MiB", mib(download.downloaded))
+            };
+            section = section.push(text(format!("{} · {amount} · {rate}", tr("下载中")))
+                .size(12).style(settings_muted_text_style));
+        }
     }
     if let Some(report) = state.install_reports.get(agent) {
         let mut transcript = report.steps.join("\n\n");

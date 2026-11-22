@@ -1,21 +1,40 @@
 //! ACP 内置代理安装执行：固定来源、用户级 uv 引导与进程树清理。
 use config_acp_install::acp_install_command;
 use std::process::Stdio;
+use std::sync::{Arc, Mutex};
 
 /// 按网关所在平台安装内置代理，不接收任意命令、包名或 URL。
 pub async fn install_builtin_agent(agent: &str) -> Result<(), String> {
     install(agent, &mut InstallLog::default()).await
 }
 
+#[derive(Clone, Default, serde::Serialize)]
+pub struct InstallProgress {
+    pub stage: String,
+    pub download: Option<InstallDownload>,
+}
+
+#[derive(Clone, serde::Deserialize, serde::Serialize)]
+pub struct InstallDownload {
+    pub downloaded: u64,
+    pub total: Option<u64>,
+    pub bytes_per_second: u64,
+}
+
 /// 安装过程仅供发起者查看，调用方无需写入日志或持久化。
 #[derive(Default)]
 pub struct InstallLog {
     pub steps: Vec<String>,
+    pub progress: Arc<Mutex<InstallProgress>>,
 }
 
 impl InstallLog {
     pub(super) fn step(&mut self, label: &str) {
         self.steps.push(label.to_owned());
+        *self.progress.lock().unwrap() = InstallProgress {
+            stage: label.to_owned(),
+            download: None,
+        };
     }
 }
 
@@ -190,10 +209,15 @@ pub(super) async fn run_installer(
     let mut stderr = OutputTail::default();
     let stdout_pipe = child.stdout.take().expect("installer stdout is piped");
     let stderr_pipe = child.stderr.take().expect("installer stderr is piped");
+    let progress = Arc::clone(&log.progress);
     // 同时消费两个管道，保留退出前最后一段输出。
     let result = async {
         let drain = async {
-            tokio::try_join!(stdout.read(stdout_pipe), stderr.read(stderr_pipe)).map(|_| ())
+            tokio::try_join!(
+                stdout.read_with_progress(stdout_pipe, Some(&progress)),
+                stderr.read_with_progress(stderr_pipe, None),
+            )
+            .map(|_| ())
         };
         tokio::pin!(drain);
         tokio::select! {
@@ -233,14 +257,40 @@ struct OutputTail {
 }
 
 impl OutputTail {
-    async fn read(&mut self, mut pipe: impl tokio::io::AsyncRead + Unpin) -> std::io::Result<()> {
+    async fn read_with_progress(
+        &mut self,
+        mut pipe: impl tokio::io::AsyncRead + Unpin,
+        progress: Option<&Mutex<InstallProgress>>,
+    ) -> std::io::Result<()> {
         use tokio::io::AsyncReadExt;
         const LIMIT: usize = 8192;
         let mut chunk = [0; 4096];
+        let mut line = Vec::new();
         loop {
             let size = pipe.read(&mut chunk).await?;
             if size == 0 {
                 return Ok(());
+            }
+            if let Some(progress) = progress {
+                for part in chunk[..size].split_inclusive(|byte| *byte == b'\n') {
+                    const MAX_PROGRESS_LINE: usize = 256;
+                    let remaining = MAX_PROGRESS_LINE.saturating_sub(line.len());
+                    line.extend_from_slice(&part[..part.len().min(remaining)]);
+                    if part.ends_with(b"\n") {
+                        if line.len() < MAX_PROGRESS_LINE {
+                            if let Some(payload) = line.strip_prefix(b"SHIJU_DOWNLOAD ") {
+                                if let Ok(download) = serde_json::from_slice(payload) {
+                                    let mut progress = progress.lock().unwrap();
+                                    progress.download = download;
+                                    if progress.download.is_none() {
+                                        progress.stage = "校验下载并安装".into();
+                                    }
+                                }
+                            }
+                        }
+                        line.clear();
+                    }
+                }
             }
             let excess = (self.bytes.len() + size).saturating_sub(LIMIT);
             self.truncated |= excess > 0;

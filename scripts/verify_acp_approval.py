@@ -177,13 +177,13 @@ def interactive_turn(url, query, other_query, body, workspace, approve_edits, re
                 # correlate the reported action to the exact input emitted by the fixture.
                 if fixture_edit and fixture_edit() and not arguments:
                     write = metadata.get("title") in edit_titles
-                terminal = (metadata.get("title") == "Terminal"
+                terminal = (approve_terminal and isinstance(arguments, dict)
+                            and metadata.get("title") == "Terminal"
                             and arguments.get("command") == "/usr/bin/touch"
                             and arguments.get("args") == [str(workspace / "terminal.txt")]
                             and arguments.get("cwd") == str(workspace)
                             and arguments.get("envNames") == [])
-                decision = "once" if (approve_edits and write
-                                      or approve_terminal and terminal) else "reject"
+                decision = "once" if (approve_edits and write or terminal) else "reject"
                 if rendezvous is not None and not decisions:
                     rendezvous.wait(timeout=20)
                 route = f"/permission/{row['id']}/reply"

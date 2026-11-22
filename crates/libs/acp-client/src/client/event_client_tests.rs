@@ -120,7 +120,7 @@ fn permission_request(session_id: &str) -> acp::RequestPermissionRequest {
 }
 
 #[tokio::test]
-async fn request_permission_uses_host_confirmation_for_matching_session_only() {
+async fn acp_platform_approval_requires_matching_active_prompt() {
     let (event_tx, _) = mpsc::unbounded_channel();
     let mut client = event_client(event_tx, Some("owned-session".into()));
     client.permission_mode = PermissionMode::ApproveReads;
@@ -129,6 +129,19 @@ async fn request_permission_uses_host_confirmation_for_matching_session_only() {
         Box::pin(async { true })
     }));
     let request = permission_request("owned-session");
+    let no_prompt = client.request_permission(request.clone()).await.unwrap();
+    assert_eq!(
+        crate::classify_permission_decision(&request, &no_prompt),
+        crate::PermissionDecision::Cancelled
+    );
+
+    let (cancel_tx, _cancel_rx) = tokio::sync::watch::channel(false);
+    let (_completed_tx, completed_rx) = tokio::sync::watch::channel(false);
+    *client.active_prompt.lock() = Some(super::ActivePromptControl::new(
+        "owned-session".into(),
+        cancel_tx,
+        completed_rx,
+    ));
     let response = client.request_permission(request.clone()).await.unwrap();
     assert_eq!(
         crate::classify_permission_decision(&request, &response),

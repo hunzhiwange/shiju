@@ -412,8 +412,7 @@ impl acp::Client for AcpEventClient {
                     approval_prompt = self.active_prompt.lock().clone();
                     let call_id = args.tool_call.tool_call_id.0.as_ref();
                     if call_id.is_empty()
-                        || (require_host_decision && approval_prompt.is_none())
-                        || approval_prompt.as_ref().is_some_and(|prompt| {
+                        || approval_prompt.as_ref().is_none_or(|prompt| {
                             prompt.session_id != args.session_id.0.as_ref()
                                 || !prompt.accepts_approvals()
                                 || !prompt.approval_calls.lock().insert(call_id.to_owned())

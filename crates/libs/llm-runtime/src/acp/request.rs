@@ -913,11 +913,7 @@ pub async fn do_stream_request_acp<H: Host>(
         }
         // 同一个 ACP 客户端可能被多个本地请求复用；串行化 prompt 可以避免代理端
         // 把并发输入混到同一会话流里。
-        let prompt_guard = cached_client.prompt_lock.lock().await;
-        let _approval = H::approval(
-            &cached_client.permission_confirmation,
-            session_id,
-        );
+        let _prompt_guard = cached_client.prompt_lock.lock().await;
         let record = if employee && let Some(selection) = locked_selection {
             acp_storage::resolve_session_record(&selection.record_id).await
                 .map_err(to_api_error)
@@ -954,7 +950,6 @@ pub async fn do_stream_request_acp<H: Host>(
                     &cached_client_entry,
                 )
                 .await;
-                drop(prompt_guard);
                 return Err(err);
             }
         };
@@ -1015,7 +1010,6 @@ pub async fn do_stream_request_acp<H: Host>(
                         &cached_client_entry,
                     )
                     .await;
-                    drop(prompt_guard);
                     return Err(err);
                 }
             }
@@ -1049,7 +1043,6 @@ pub async fn do_stream_request_acp<H: Host>(
                         &cached_client_entry,
                     )
                     .await;
-                    drop(prompt_guard);
                     return Err(err);
                 }
             }
@@ -1076,7 +1069,6 @@ pub async fn do_stream_request_acp<H: Host>(
             {
                 close_client_after_request_if_needed(close_client_after_request, &cached_client_entry)
                     .await;
-                drop(prompt_guard);
                 return Err(super::acp_option_error(
                     "ACP request options cannot change native permissions",
                 ));
@@ -1135,7 +1127,6 @@ pub async fn do_stream_request_acp<H: Host>(
                         &cached_client_entry,
                     )
                     .await;
-                    drop(prompt_guard);
                     return Err(err);
                 }
             }
@@ -1173,7 +1164,6 @@ pub async fn do_stream_request_acp<H: Host>(
         if let Err(err) = write_session_record(&record).await.map_err(to_api_error) {
             close_client_after_request_if_needed(close_client_after_request, &cached_client_entry)
                 .await;
-            drop(prompt_guard);
             return Err(err);
         }
 
@@ -1218,6 +1208,7 @@ pub async fn do_stream_request_acp<H: Host>(
         let prompt_cwd = cwd.clone();
         let prompt_text = prompt.clone();
         let prompt_session_id = record.acp_session_id.clone();
+        let approval = H::approval(&cached_client.permission_confirmation, session_id);
         let mut acp_task = tokio::spawn(async move {
             let mut on_prompt_event = |_event: acp_types::PromptEvent| {};
             prompt_client
@@ -1252,6 +1243,7 @@ pub async fn do_stream_request_acp<H: Host>(
         let mut employee_stop_sent = false;
         loop {
             if should_abort(abort) {
+                drop(approval);
                 *cached_client.output_tx.lock() = None;
                 let _ = cached_client.client.cancel(record.acp_session_id.clone()).await;
                 acp_task.abort();
@@ -1264,7 +1256,6 @@ pub async fn do_stream_request_acp<H: Host>(
                     &cached_client_entry,
                 )
                 .await;
-                drop(prompt_guard);
                 return Err(Error::Aborted);
             }
             if let Some(abort_rx) = abort_rx.as_mut() {
@@ -1275,6 +1266,7 @@ pub async fn do_stream_request_acp<H: Host>(
                     changed = abort_rx.changed() => {
                         match changed {
                             Ok(_) if *abort_rx.borrow() => {
+                                drop(approval);
                                 *cached_client.output_tx.lock() = None;
                                 let _ = cached_client.client.cancel(record.acp_session_id.clone()).await;
                                 acp_task.abort();
@@ -1287,7 +1279,6 @@ pub async fn do_stream_request_acp<H: Host>(
                                     &cached_client_entry,
                                 )
                                 .await;
-                                drop(prompt_guard);
                                 return Err(Error::Aborted);
                             }
                             Ok(_) | Err(_) => {}
@@ -1417,6 +1408,7 @@ pub async fn do_stream_request_acp<H: Host>(
             }
         }
 
+        drop(approval);
         *cached_client.output_tx.lock() = None;
         if fork_history_needed && finish_reason.as_deref() == Some("cancelled") {
             acp_error = Some(to_api_error(
@@ -1442,12 +1434,10 @@ pub async fn do_stream_request_acp<H: Host>(
                     &cached_client_entry,
                 )
                 .await;
-                drop(prompt_guard);
                 continue;
             }
             close_client_after_request_if_needed(close_client_after_request, &cached_client_entry)
                 .await;
-            drop(prompt_guard);
             return Err(err);
         }
 
@@ -1490,7 +1480,6 @@ pub async fn do_stream_request_acp<H: Host>(
         if let Err(err) = write_session_record(&record).await.map_err(to_api_error) {
             close_client_after_request_if_needed(close_client_after_request, &cached_client_entry)
                 .await;
-            drop(prompt_guard);
             return Err(err);
         }
 
@@ -1524,7 +1513,6 @@ pub async fn do_stream_request_acp<H: Host>(
         );
         close_client_after_request_if_needed(close_client_after_request, &cached_client_entry)
             .await;
-        drop(prompt_guard);
         return Ok(());
     }
 }

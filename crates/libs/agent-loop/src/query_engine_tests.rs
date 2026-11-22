@@ -237,7 +237,8 @@ fn chat_tool_call(id: &str) -> ChatResponse {
     }
 }
 
-struct HookProbeTool;
+#[derive(Default)]
+struct HookProbeTool(Arc<AtomicUsize>);
 
 #[async_trait::async_trait]
 impl Tool for HookProbeTool {
@@ -254,6 +255,7 @@ impl Tool for HookProbeTool {
     }
 
     async fn execute(&self, _args: serde_json::Value) -> anyhow::Result<ToolResult> {
+        self.0.fetch_add(1, Ordering::SeqCst);
         Ok(ToolResult { success: true, output: "ok".to_string(), error: None })
     }
 }
@@ -387,8 +389,8 @@ async fn codex_discovery_core_query_engine_loads_and_resets_tools_between_user_t
 
 #[tokio::test]
 #[allow(clippy::await_holding_lock)] // Serialize the summary-model boundary.
-async fn query_engine_uses_hook_runtime_for_primary_and_retry_turns() {
-    let _guard = crate::session::processor::test_llm_stream_guard();
+async fn query_engine_no_turn_replay_after_tool_completion() {
+    let guard = crate::session::processor::test_llm_stream_guard();
     crate::session::processor::enqueue_test_llm_stream(vec![
         crate::session::llm::StreamEvent::Delta("previous progress".into()),
         crate::session::llm::StreamEvent::Done {
@@ -400,35 +402,61 @@ async fn query_engine_uses_hook_runtime_for_primary_and_retry_turns() {
     let provider = ScriptedProvider::with_steps(vec![
         ProviderStep::Response(chat_tool_call("primary-tool")),
         ProviderStep::Error("prompt too long"),
-        ProviderStep::Response(chat_tool_call("retry-tool")),
+        ProviderStep::Response(chat_tool_call("primary-tool")),
         ProviderStep::Response(chat_text("recovered", None)),
     ]);
     let provider_handle = provider.clone();
     let mut engine = test_engine(provider, Arc::new(FakeMemory::default()));
-    engine.tools_registry = vec![Box::new(HookProbeTool)];
+    let tool = HookProbeTool::default();
+    let executions = tool.0.clone();
+    engine.tools_registry = vec![Box::new(tool)];
     engine.compact_context = true;
     engine.history =
         vec![ChatMessage::user("previous task"), ChatMessage::assistant("previous result")];
     engine.hook_runtime = Some(runtime.shared());
 
-    let response = engine.submit_message("exercise primary and retry").await.unwrap();
+    let result = engine.submit_message("run the tool").await;
 
-    assert_eq!(response, "recovered");
-    assert_eq!(runtime.audit_store().entries().len(), 2);
-    let requests = provider_handle.seen_messages();
-    assert_eq!(requests.len(), 4);
-    assert!(requests[2].iter().any(|message| message.content.contains("[Compaction summary]")));
-    assert_eq!(crate::session::processor::take_test_llm_messages(&engine.session_id).len(), 1);
+    let compaction_requests =
+        crate::session::processor::take_test_llm_messages(&engine.session_id);
+    drop(guard);
+    assert_eq!(provider_handle.seen_messages().len(), 2);
+    assert!(compaction_requests.is_empty());
+    assert_eq!(executions.load(Ordering::SeqCst), 1);
+    assert_eq!(result.unwrap_err().to_string(), "prompt too long");
+    assert_eq!(runtime.audit_store().entries().len(), 1);
     assert_eq!(engine.history_snapshot()[0].content, "previous task");
     assert_eq!(engine.history_snapshot()[1].content, "previous result");
+}
 
+#[tokio::test]
+async fn query_engine_no_turn_replay_for_provider_replay_guard_or_abort() {
+    for error in [
+        r#"{"name":"APIError","message":"prompt too long","is_retryable":false,"metadata":{"replay_safe":"false"}}"#,
+        r#"{"name":"MessageAbortedError","message":"cancelled after prompt too long"}"#,
+    ] {
+        let provider = ScriptedProvider::with_steps(vec![
+            ProviderStep::Error(error),
+            ProviderStep::Response(chat_text("unexpected retry", None)),
+        ]);
+        let mut engine = test_engine(provider.clone(), Arc::new(FakeMemory::default()));
+
+        let result = engine.submit_message("latest").await;
+
+        assert_eq!(result.unwrap_err().to_string(), error);
+        assert_eq!(provider.seen_messages().len(), 1);
+    }
+}
+
+#[tokio::test]
+async fn query_engine_skips_disabled_hooks() {
     let disabled = command_logger_runtime(false);
     let provider = ScriptedProvider::with_steps(vec![
         ProviderStep::Response(chat_tool_call("disabled-tool")),
         ProviderStep::Response(chat_text("disabled", None)),
     ]);
     let mut engine = test_engine(provider, Arc::new(FakeMemory::default()));
-    engine.tools_registry = vec![Box::new(HookProbeTool)];
+    engine.tools_registry = vec![Box::new(HookProbeTool::default())];
     engine.hook_runtime = Some(disabled.shared());
 
     assert_eq!(engine.submit_message("hooks disabled").await.unwrap(), "disabled");

@@ -1,4 +1,6 @@
 //! Channel turn defaults and task-local approval/reply routing scopes.
+use std::{cell::Cell, future::Future, sync::Arc};
+use anyhow::Result;
 use model_types::{Provider, ChatMessage};
 use tool_types::Tool;
 use agent_observability::Observer;
@@ -9,8 +11,24 @@ use tokio_util::sync::CancellationToken;
 use crate::approval::{NonCliApprovalContext, TOOL_LOOP_NON_CLI_APPROVAL_CONTEXT};
 
 tokio::task_local! { pub static TOOL_LOOP_REPLY_TARGET: Option<String>; }
-use std::sync::Arc;
-use anyhow::Result;
+
+tokio::task_local! { static TURN_REPLAY_BLOCKED: Cell<bool>; }
+
+/// Track whether restarting the turn would discard output or repeat tool dispatch.
+pub async fn track_replay_safety(
+    turn: impl Future<Output = Result<String>>,
+) -> (Result<String>, bool) {
+    TURN_REPLAY_BLOCKED
+        .scope(Cell::new(false), async {
+            let result = turn.await;
+            (result, TURN_REPLAY_BLOCKED.with(Cell::get))
+        })
+        .await
+}
+
+pub(super) fn block_turn_replay() {
+    let _ = TURN_REPLAY_BLOCKED.try_with(|blocked| blocked.set(true));
+}
 
 /// 执行代理循环的单次轮次
 ///

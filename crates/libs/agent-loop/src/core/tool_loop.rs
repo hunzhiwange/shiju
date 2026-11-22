@@ -246,7 +246,9 @@ where
             history.push(ChatMessage::user(retry_prompt));
         }
 
-        consume(services, &tool_use_context, history)?;
+        if consume(services, &tool_use_context, history)? {
+            super::turn::block_turn_replay();
+        }
         update_thinking_progress(&services.wire, on_delta.as_ref(), iteration).await;
 
         // Capture specifications and executors together, before the model can wait.
@@ -316,6 +318,9 @@ where
     tool_specs: &tool_specs, use_native_tools, turn_id: &turn_id, iteration,
 })
         .await?;
+
+        // A completed model step may emit output or start tool dispatch before history is updated.
+        super::turn::block_turn_replay();
 
         if let Some(ctx) = image_turn.as_mut() {
             if !pending_reloads.is_empty() {

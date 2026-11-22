@@ -361,7 +361,7 @@ impl<H: QueryEngineHost> QueryEngine<H> {
         let transient_len = request_history.len();
         request_history.extend(context);
 
-        let result = H::agent_turn(
+        let (result, replay_blocked) = H::agent_turn(
             self.provider.as_ref(),
             &mut request_history,
             &self.tools_registry,
@@ -379,7 +379,11 @@ impl<H: QueryEngineHost> QueryEngine<H> {
 
         let mut retry_response_persisted = false;
         let result = match result {
-            Err(error) if is_prompt_too_long(&error.to_string(), &request_history) => {
+            Err(error)
+                if !replay_blocked
+                    && !agent_loop::core::errors::is_tool_loop_cancelled(&error)
+                    && is_prompt_too_long(&error.to_string(), &request_history) =>
+            {
                 let context = match self.compact_before_primary_request(true).await {
                     Ok(context) => context,
                     Err(compaction_error) => {
@@ -401,7 +405,7 @@ impl<H: QueryEngineHost> QueryEngine<H> {
                 ))];
                 let transient_len = retry_history.len();
                 retry_history.extend(context);
-                let retry = H::agent_turn(
+                let (retry, _) = H::agent_turn(
                     self.provider.as_ref(),
                     &mut retry_history,
                     &self.tools_registry,
@@ -570,6 +574,12 @@ impl<H: QueryEngineHost> QueryEngine<H> {
 }
 
 fn is_prompt_too_long(message: &str, history: &[ChatMessage]) -> bool {
+    if matches!(
+        serde_json::from_str::<message_types::AssistantError>(message),
+        Ok(message_types::AssistantError::MessageAbortedError { .. })
+    ) {
+        return false;
+    }
     let input = history
         .iter()
         .map(|item| serde_json::json!({"role": item.role, "content": item.content}))

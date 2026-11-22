@@ -156,3 +156,60 @@ async fn codex_plugin_compat_t44_actual_turn_failure_and_cancellation() {
         }
     }
 }
+
+#[tokio::test]
+async fn query_engine_no_turn_replay_when_dispatch_fails_before_history_write() {
+    let calls = Arc::new(AtomicUsize::new(0));
+    let provider = RecordingProvider::from_responses(
+        vec![model_types::ChatResponse {
+            text: None,
+            tool_calls: vec![model_types::ToolCall {
+                kind: Default::default(),
+                namespace: None,
+                id: "tool-call".into(),
+                name: "fixture".into(),
+                arguments: "{}".into(),
+            }],
+            usage: None,
+            reasoning_content: None,
+        }],
+        calls.clone(),
+    );
+    let mut services = super::super::tool_loop::services();
+    services.execute_tools = |request| {
+        Box::pin(async move {
+            assert_eq!(request.tool_calls.len(), 1);
+            assert_eq!(request.history.len(), 1);
+            anyhow::bail!("prompt too long after dispatch began");
+        })
+    };
+    let mut history = vec![ChatMessage::user("run the tool")];
+
+    let (result, replay_blocked) = agent_loop::core::turn::track_replay_safety(
+        agent_loop::core::turn::agent_turn::<super::super::skills::NativeCoreSkillHost, _, _>(
+            &services,
+            &provider,
+            &mut history,
+            &[],
+            &crate::observability::NoopObserver,
+            "fixture",
+            "fixture",
+            0.0,
+            true,
+            &Default::default(),
+            4,
+            None,
+            None,
+        ),
+    )
+    .await;
+
+    assert_eq!(
+        result.unwrap_err().to_string(),
+        "prompt too long after dispatch began"
+    );
+    assert!(replay_blocked);
+    assert_eq!(calls.load(Ordering::SeqCst), 1);
+    assert_eq!(history.len(), 1);
+    assert_eq!(history[0].content, "run the tool");
+}

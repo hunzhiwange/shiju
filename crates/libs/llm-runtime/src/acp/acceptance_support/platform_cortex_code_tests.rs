@@ -33,6 +33,7 @@ fn acp_platform_cortex_code_contract() {
     assert_eq!(evidence["artifact"]["native_sha256"], target["native_sha256"]);
     assert!(status.success(), "Cortex gateway probe failed: {evidence}");
     assert_eq!(evidence["passed"], true);
+    assert_eq!(evidence["artifact"]["local_sha256"], target["local_sha256"]);
     assert_eq!(evidence["artifact"]["model_endpoint"], "/v1/chat/completions");
 
     let turns = evidence["turns"].as_array().unwrap();

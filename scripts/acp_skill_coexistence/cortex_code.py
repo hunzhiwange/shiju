@@ -78,22 +78,28 @@ def launch_linux(env):
     native = installation / "cortex-native"
     if not native.exists() and not native.is_symlink():
         native = entry
-    for artifact in (entry, native):
+    require(entry.is_file() and not entry.is_symlink() and os.access(entry, os.X_OK),
+            "missing or redirected Cortex Code Linux entry")
+    files = [(native, "native_sha256")]
+    if native != entry:
+        files.append((installation / "cortex-local", "local_sha256"))
+    digests = {}
+    for artifact, key in files:
         require(artifact.is_file() and not artifact.is_symlink() and os.access(artifact, os.X_OK),
                 "missing or redirected Cortex Code Linux executable")
-    with native.open("rb") as handle:
-        digest = hashlib.sha256()
-        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
-            digest.update(chunk)
-    require(digest.hexdigest() == target["native_sha256"],
-            "unexpected Cortex Code Linux native executable digest")
+        with artifact.open("rb") as handle:
+            digest = hashlib.sha256()
+            for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+                digest.update(chunk)
+        digests[key] = digest.hexdigest()
+        require(digests[key] == target[key], f"unexpected Cortex Code Linux {artifact.name} digest")
     version_file = installation / "cortex-version.txt"
     require(version_file.is_file() and not version_file.is_symlink()
             and version_file.read_text().strip() == VERSION,
             "unexpected Cortex Code Linux version")
     # The gateway must validate the reviewed entry itself before it can start a process.
     return {"command": str(entry), "args": manifest["args"]}, {
-        "version": VERSION, "entry": entry.name, "native_sha256": digest.hexdigest(),
+        "version": VERSION, "entry": entry.name, **digests,
         "model_endpoint": CHAT_ENDPOINT,
     }
 

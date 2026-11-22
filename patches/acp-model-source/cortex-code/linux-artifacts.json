@@ -8,13 +8,15 @@
       "archive_url": "https://sfc-repo.snowflakecomputing.com/cortex-code-cli/a4643c4278/1.2.46%2B175654.6f8561fd271f/coco-1.2.46%2B175654.6f8561fd271f-linux-amd64.tar.gz",
       "archive_sha256": "84b2ef93a25f2b73658bba219c15af53679911458f37eb550993ba06f1bf363f",
       "archive_root": "coco-1.2.46+175654.6f8561fd271f-linux-amd64",
-      "native_sha256": "42cbc28b4ceef8e8c4e897e0db447b6d47cb32a625b5434830de4b23824e4313"
+      "native_sha256": "42cbc28b4ceef8e8c4e897e0db447b6d47cb32a625b5434830de4b23824e4313",
+      "local_sha256": "c92d26bbf4f37f4659d69af615819bd92fe471fd7299c778c2bc54e747dff4a3"
     },
     "aarch64": {
       "archive_url": "https://sfc-repo.snowflakecomputing.com/cortex-code-cli/a4643c4278/1.2.46%2B175654.6f8561fd271f/coco-1.2.46%2B175654.6f8561fd271f-linux-arm64.tar.gz",
       "archive_sha256": "bdc87770326123469b9d4b40e91f82d61ebf6ea58bfac0458a9f69ce50543394",
       "archive_root": "coco-1.2.46+175654.6f8561fd271f-linux-arm64",
-      "native_sha256": "a894b18f42af7b4d0f74f0d790b0850fca4bd9902f38ae9020008297a706bb41"
+      "native_sha256": "a894b18f42af7b4d0f74f0d790b0850fca4bd9902f38ae9020008297a706bb41",
+      "local_sha256": "7a0788dfd23dd6fe08518a72dd79e25071834288adbd8a64dcc19ed2e12e9fa5"
     }
   }
 }

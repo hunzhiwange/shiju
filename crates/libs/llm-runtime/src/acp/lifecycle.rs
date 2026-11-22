@@ -7,7 +7,7 @@ use std::{
 };
 use {
     vw_api_acp_model::acp_model_source::AcpSessionModelSelection,
-    vw_api_transport::id::TenantScope,
+    vw_api_transport::id::{DEFAULT_USER_ID, TenantScope},
 };
 
 static LOCKS: LazyLock<parking_lot::Mutex<HashMap<String, Weak<tokio::sync::Mutex<()>>>>> =
@@ -16,12 +16,17 @@ const NAMESPACE: &str = "acp.session.selection";
 
 pub fn session_identity(tenant: &TenantScope, session: &str, directory: &str) -> String {
     use sha2::Digest;
+    let mut identity = serde_json::json!({
+        "tenant": tenant,
+        "session": session, "directory": directory,
+    });
+    // TenantScope intentionally omits the user from its serialized form.
+    let user = tenant.user_id().as_ref();
+    if user != DEFAULT_USER_ID {
+        identity["user_id"] = serde_json::Value::String(user.to_owned());
+    }
     hex::encode(sha2::Sha256::digest(
-        serde_json::to_vec(&serde_json::json!({
-            "tenant": tenant,
-            "session": session, "directory": directory,
-        }))
-        .expect("serializable ACP identity"),
+        serde_json::to_vec(&identity).expect("serializable ACP identity"),
     ))
 }
 

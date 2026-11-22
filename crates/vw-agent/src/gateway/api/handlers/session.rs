@@ -129,3 +129,7 @@ mod archived_delete_tests;
 #[cfg(test)]
 #[path = "session/stream_acceptance_host.rs"]
 mod stream_acceptance_host;
+
+#[cfg(test)]
+#[path = "session/employee_acp_tests.rs"]
+mod employee_acp_tests;

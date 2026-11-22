@@ -2,8 +2,14 @@
 use anyhow::Result;
 use agent_config::runtime::Config;
 use config_agent_profile::AgentRuntime;
-use crate::agent_binding::AgentBinding;
+use crate::agent_binding::{AgentBinding, EmployeeTarget};
 use crate::admission_host::AdmissionHost;
+
+/// A trusted caller supplies Verified only after checking the current account.
+pub enum EmployeeAdmission<'a> {
+    Unverified,
+    Verified { target: Option<&'a EmployeeTarget> },
+}
 
 static INITIALIZE: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());
 
@@ -15,8 +21,32 @@ pub async fn prepare<H: AdmissionHost>(
     explicit_model: Option<&str>,
     workspace: &std::path::Path,
 ) -> Result<(AgentBinding, Config)> {
+    prepare_with_employee::<H>(
+        session,
+        selected_agent,
+        backend,
+        explicit_model,
+        workspace,
+        EmployeeAdmission::Unverified,
+    )
+    .await
+}
+
+/// Employee admission is reserved for callers that have verified the request account.
+pub async fn prepare_with_employee<H: AdmissionHost>(
+    session: &str,
+    selected_agent: Option<&str>,
+    backend: Option<&str>,
+    explicit_model: Option<&str>,
+    workspace: &std::path::Path,
+    employee_request: EmployeeAdmission<'_>,
+) -> Result<(AgentBinding, Config)> {
     use agent_defaults::{DefaultSelection, DefaultsContext, resolve};
     use config_agent_profile::{AgentDefault, AgentModelReference};
+    let (employee_verified, requested_target) = match employee_request {
+        EmployeeAdmission::Unverified => (false, None),
+        EmployeeAdmission::Verified { target } => (true, target),
+    };
     let _guard = INITIALIZE.lock().await;
     let mut config = H::config().await?;
     let fork_selectable = if !session.is_empty() {
@@ -27,8 +57,14 @@ pub async fn prepare<H: AdmissionHost>(
         false
     };
     let previous = if session.is_empty() { None } else { H::load_binding(session).await? };
-    if !fork_selectable && let Some(binding) = previous.as_ref() {
+    if let Some(binding) =
+        previous.as_ref().filter(|binding| !fork_selectable || binding.is_employee())
+    {
         binding.validate_selection(selected_agent, backend)?;
+        if binding.is_employee() && (!employee_verified || fork_selectable) {
+            anyhow::bail!("employee ACP requires an authorized, non-fork session");
+        }
+        binding.validate_employee_selection(requested_target)?;
         let mut definition = agent_config::catalog::merged_agent_catalog(&config.agents)
             .remove(&binding.agent)
             .unwrap_or_default();
@@ -70,6 +106,18 @@ pub async fn prepare<H: AdmissionHost>(
     }
     let provisional = AgentBinding::from_definition(agent.clone(), &definition);
     provisional.validate_selection(selected_agent, backend)?;
+    let employee_target = if provisional.is_employee() {
+        if session.is_empty() || fork_selectable || !history.is_empty() {
+            anyhow::bail!("employee ACP requires a new persistent session");
+        }
+        Some(
+            requested_target
+                .ok_or_else(|| anyhow::anyhow!("employee ACP requires an authorized employee_target"))?,
+        )
+    } else {
+        provisional.validate_employee_selection(requested_target)?;
+        None
+    };
     let mcp = H::mcp(workspace, &provisional.runtime).await?;
     let context = DefaultsContext {
         skills: H::skills(workspace, &config),
@@ -131,7 +179,10 @@ pub async fn prepare<H: AdmissionHost>(
         // Legacy sessions without a binding did not opt in to the new default.
         definition.defaults.full_access = false;
     }
-    let binding = AgentBinding::from_definition(agent.clone(), &definition);
+    let mut binding = AgentBinding::from_definition(agent.clone(), &definition);
+    if let Some(target) = employee_target {
+        binding.set_employee_target(target.clone());
+    }
     let project = H::project()
         .ok_or_else(|| anyhow::anyhow!("session binding requires a project"))?;
     if !session.is_empty() {

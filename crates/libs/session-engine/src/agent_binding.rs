@@ -4,6 +4,40 @@ use serde::{Deserialize, Serialize};
 use config_agent_profile::{AgentDefaults, AgentRuntime};
 use config_agent::{AgentDefinitionConfig, DelegateCapabilityPolicy};
 
+/// Non-sensitive product identity tied to a server-owned session binding.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct EmployeeTarget {
+    #[serde(deserialize_with = "deserialize_employee_id")]
+    employee_id: String,
+    pub kind: EmployeeKind,
+}
+
+impl EmployeeTarget {
+    pub fn employee_id(&self) -> &str {
+        &self.employee_id
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum EmployeeKind {
+    Private,
+    Shared,
+}
+
+fn deserialize_employee_id<'de, D: serde::Deserializer<'de>>(
+    deserializer: D,
+) -> Result<String, D::Error> {
+    let value = String::deserialize(deserializer)?;
+    let id = uuid::Uuid::parse_str(&value)
+        .map_err(|_| serde::de::Error::custom("invalid employee_id"))?;
+    if id.is_nil() || id.hyphenated().to_string() != value {
+        return Err(serde::de::Error::custom("invalid employee_id"));
+    }
+    Ok(value)
+}
+
 #[derive(Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct AgentBinding {
@@ -20,6 +54,8 @@ pub struct AgentBinding {
     pub provider: String,
     pub model: String,
     pub force_model_selection: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    employee_target: Option<EmployeeTarget>,
 }
 
 impl AgentBinding {
@@ -38,7 +74,36 @@ impl AgentBinding {
             provider: definition.provider.clone(),
             model: definition.model.clone(),
             force_model_selection: definition.force_model_selection,
+            employee_target: None,
         }
+    }
+
+    pub fn is_employee(&self) -> bool {
+        matches!(&self.runtime, AgentRuntime::Acp { backend } if backend == "employee-acp")
+    }
+
+    pub fn employee_target(&self) -> Option<&EmployeeTarget> {
+        self.employee_target.as_ref()
+    }
+
+    pub(crate) fn set_employee_target(&mut self, target: EmployeeTarget) {
+        self.employee_target = Some(target);
+    }
+
+    pub(crate) fn validate_employee_selection(
+        &self,
+        requested: Option<&EmployeeTarget>,
+    ) -> Result<()> {
+        if self.is_employee() {
+            let bound = self.employee_target()
+                .ok_or_else(|| anyhow::anyhow!("missing employee session binding"))?;
+            if requested.is_some_and(|target| target != bound) {
+                bail!("changing the employee target requires a new session");
+            }
+        } else if requested.is_some() {
+            bail!("employee_target requires the employee ACP backend");
+        }
+        Ok(())
     }
 
     /// Keep credentials and live security rules in current configuration only.

@@ -205,6 +205,52 @@ async fn acp_platform_approval_iflow_v4_binds_host_selected_source() {
 }
 
 #[cfg(all(target_os = "linux", target_env = "gnu", any(target_arch = "x86_64", target_arch = "aarch64")))]
+#[tokio::test]
+async fn acp_platform_approval_glm_v5_binds_both_reviewed_sources() {
+    for source in [LinuxMcpSource::Project, LinuxMcpSource::Mounted] {
+        assert_reviewed_linux_projection(LinuxMcpOwner::Glm(source), "glm-acp-agent", None).await;
+    }
+}
+
+#[cfg(all(target_os = "linux", target_env = "gnu", any(target_arch = "x86_64", target_arch = "aarch64")))]
+#[tokio::test]
+async fn acp_platform_approval_glm_v5_rejects_overlong_and_duplicate_catalog() {
+    use sha2::{Digest, Sha256};
+
+    let executable = FsPath::new("/bin/bash").canonicalize().unwrap();
+    let sha256 = Sha256::digest(std::fs::read(&executable).unwrap()).into();
+    let long = "x".repeat(50); // mcp__selected__ + 50 exceeds GLM's 64-byte limit.
+    for (body, name, error) in [
+        (SERVER.replace(r#""name":"echo""#, &format!(r#""name":"{long}""#)), long.as_str(), "invalid managed GLM MCP tool identity"),
+        (SERVER.replace(r#""name":"denied""#, r#""name":"echo""#), "echo", "Invalid or duplicate Linux ACP tool"),
+    ] {
+        let args = vec!["-c".into(), body];
+        let mut policy = acp_config::McpServerManagement::default_for_server("selected");
+        policy.enabled = true;
+        policy.allowed_tools = vec![name.into()];
+        let selected = AcpMcpServer::Stdio(McpServerStdio::new("selected", &executable).args(args.clone()));
+        let result = prepare_linux_stdio_with(
+            &[selected],
+            ReviewedLinuxStdio {
+                owner: LinuxMcpOwner::Glm(LinuxMcpSource::Mounted),
+                executable: &executable,
+                sha256,
+                args: &args,
+                policy: &policy,
+            },
+            binding("catalog:glm-acp-agent"),
+            |staged, args| {
+                let mut command = Command::new(staged);
+                command.args(args).env_clear();
+                Ok(command)
+            },
+        ).await;
+        let Err(failure) = result else { panic!("invalid catalog was advertised") };
+        assert_eq!(failure.to_string(), error);
+    }
+}
+
+#[cfg(all(target_os = "linux", target_env = "gnu", any(target_arch = "x86_64", target_arch = "aarch64")))]
 async fn assert_reviewed_linux_projection(owner: LinuxMcpOwner, backend: &str, source: Option<&str>) {
     use sha2::{Digest, Sha256};
 
@@ -260,7 +306,11 @@ async fn assert_reviewed_linux_projection(owner: LinuxMcpOwner, backend: &str, s
         Ok(command)
     }).await.unwrap();
 
+    assert_eq!(projection.linux_owner, Some(owner));
     let token = projection.token();
+    assert!(token != launch.bearer_token());
+    assert_eq!(post(&projection, ROUTE, launch.bearer_token(), "tools/list", json!({})).await.0,
+        StatusCode::UNAUTHORIZED);
     let foreign = binding(&format!("other:{backend}"));
     assert_eq!(post(&projection, ROUTE, foreign.bearer_token(), "tools/list", json!({})).await.0,
         StatusCode::UNAUTHORIZED);
@@ -271,25 +321,29 @@ async fn assert_reviewed_linux_projection(owner: LinuxMcpOwner, backend: &str, s
     assert_eq!(tools[0]["name"], "echo");
     assert_eq!(std::fs::read_to_string(&discovery).unwrap(), "started\nlisted\n");
 
-    let input = json!({"path": "note.txt"});
+    let input = json!({"path": "note.txt", "values": [null, true, 1, "1", {"enabled": false}]});
     let call = json!({"name": "echo", "arguments": input, "_meta": {"shijuCallId": "owned-call"}});
     assert_eq!(post(&projection, ROUTE, token, "tools/call", call.clone()).await.0, StatusCode::FORBIDDEN);
     assert!(!execution.exists());
-    if source.is_some() {
+    if source.is_some() || matches!(owner, LinuxMcpOwner::Glm(_)) {
         for endpoint in ["https://127.0.0.1:1", "http://192.0.2.1:1", "http://127.0.0.1:1/", "http://127.0.0.1:80"] {
             assert!(projection.approval_config(endpoint).is_err());
         }
+    }
+    if matches!(owner, LinuxMcpOwner::Glm(_)) {
+        assert!(projection.approval_config("http://[::1]:1").is_err());
     }
     let (servers, issue) = projection.approval_config("http://127.0.0.1:1").unwrap();
     let [AcpMcpServer::Http(server)] = servers.as_slice() else { panic!("expected one HTTP projection") };
     assert_eq!(server.url, "http://127.0.0.1:1/shiju-vtcode-mcp/selected");
     assert_eq!(server.meta.as_ref().and_then(|meta| meta.get("shiju.iflow.mcp-v4")).and_then(Value::as_str), source);
     assert!(!issue("mcp__project__echo", "owned-call", &input, Box::new(|| true)));
+    assert!(!issue("image_analysis", "owned-call", &input, Box::new(|| true)));
     assert!(issue("mcp__selected__echo", "owned-call", &input, Box::new(|| true)));
     let mut wrong_id = call.clone();
     wrong_id["_meta"]["shijuCallId"] = json!("other-call");
     let mut wrong_args = call.clone();
-    wrong_args["arguments"]["path"] = json!("other.txt");
+    wrong_args["arguments"]["values"][2] = json!("1");
     for invalid in [wrong_id, wrong_args] {
         assert_eq!(post(&projection, ROUTE, token, "tools/call", invalid).await.0, StatusCode::FORBIDDEN);
     }

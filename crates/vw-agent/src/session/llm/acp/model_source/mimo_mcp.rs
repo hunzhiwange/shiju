@@ -114,7 +114,7 @@ pub(super) struct Projection {
     servers: Vec<String>,
     access: Arc<RelayBinding>,
     launch: Arc<RelayBinding>,
-    iflow_source: Option<&'static str>,
+    linux_owner: Option<LinuxMcpOwner>,
     pub(super) tools: Vec<String>,
     approvals: Option<Arc<VtcodeApproval>>,
 }
@@ -128,17 +128,22 @@ impl Projection {
         Vec<AcpMcpServer>, acp_client::ManagedMcpApproval,
     )> {
         use agent_client_protocol::{HttpHeader, McpServerHttp};
-        if self.iflow_source.is_some() {
+        let iflow_source = match self.linux_owner {
+            Some(LinuxMcpOwner::IFlow(source)) => Some(source),
+            _ => None,
+        };
+        let glm = matches!(self.linux_owner, Some(LinuxMcpOwner::Glm(_)));
+        if iflow_source.is_some() || glm {
             let address = endpoint.strip_prefix("http://")
                 .and_then(|value| value.parse::<std::net::SocketAddr>().ok())
                 .filter(|address| match address.ip() {
                     std::net::IpAddr::V4(ip) => ip == std::net::Ipv4Addr::LOCALHOST,
-                    std::net::IpAddr::V6(ip) => ip == std::net::Ipv6Addr::LOCALHOST,
+                    std::net::IpAddr::V6(ip) => !glm && ip == std::net::Ipv6Addr::LOCALHOST,
                 })
                 .filter(|address| !matches!(address.port(), 0 | 80));
             anyhow::ensure!(
                 address.is_some_and(|address| endpoint == format!("http://{address}")),
-                "iFlow MCP requires the exact private loopback origin"
+                "Managed MCP requires the exact private loopback origin"
             );
         }
         let approvals = self.approvals.clone().ok_or_else(|| anyhow::anyhow!("Missing managed MCP approval store"))?;
@@ -154,9 +159,15 @@ impl Projection {
         let servers = self.servers.iter().map(|name| {
             let mut server = McpServerHttp::new(name.as_str(), format!("{endpoint}{VTCODE_PREFIX}/{name}"))
                 .headers(vec![HttpHeader::new("Authorization", format!("Bearer {}", self.token()))]);
-            if let Some(source) = self.iflow_source {
+            if let Some(source) = iflow_source {
+                let source = match source {
+                    LinuxMcpSource::Project => "project",
+                    LinuxMcpSource::Mounted => "mounted",
+                };
                 server.meta = Some(Map::from_iter([("shiju.iflow.mcp-v4".into(), json!(source))]));
             }
+            // GLM v5 has no source field on its wire. The launch-scoped catalog
+            // and bearer carry the host-reviewed source through execution.
             AcpMcpServer::Http(server)
         }).collect();
         Ok((servers, approve))
@@ -180,19 +191,21 @@ impl Projection {
     }
 }
 
-#[cfg(all(target_os = "linux", target_env = "gnu", any(target_arch = "x86_64", target_arch = "aarch64")))]
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(super) enum LinuxMcpOwner {
     VtCode,
-    IFlow(IFlowMcpSource),
+    IFlow(LinuxMcpSource),
+    Glm(LinuxMcpSource),
 }
 
-#[cfg(all(target_os = "linux", target_env = "gnu", any(target_arch = "x86_64", target_arch = "aarch64")))]
-#[derive(Clone, Copy)]
-pub(super) enum IFlowMcpSource {
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(super) enum LinuxMcpSource {
     Project,
     Mounted,
 }
+
+#[cfg(all(target_os = "linux", target_env = "gnu", any(target_arch = "x86_64", target_arch = "aarch64")))]
+pub(super) type IFlowMcpSource = LinuxMcpSource;
 
 /// A pin from the host's reviewed service catalog. The ACP mount is only a
 /// selection and cannot supply this pin or choose the isolated launcher.
@@ -230,10 +243,10 @@ async fn prepare_linux_stdio_with(
     use sha2::{Digest, Sha256};
     use std::{io::{Read, Write}, os::unix::fs::OpenOptionsExt};
 
-    let (backend, iflow_source) = match reviewed.owner {
-        LinuxMcpOwner::VtCode => ("vtcode", None),
-        LinuxMcpOwner::IFlow(IFlowMcpSource::Project) => ("iflow", Some("project")),
-        LinuxMcpOwner::IFlow(IFlowMcpSource::Mounted) => ("iflow", Some("mounted")),
+    let backend = match reviewed.owner {
+        LinuxMcpOwner::VtCode => "vtcode",
+        LinuxMcpOwner::IFlow(_) => "iflow",
+        LinuxMcpOwner::Glm(_) => "glm-acp-agent",
     };
     anyhow::ensure!(
         launch.identity().session.rsplit_once(':').is_some_and(|(_, owner)| owner == backend),
@@ -291,7 +304,13 @@ async fn prepare_linux_stdio_with(
         anyhow::ensure!(valid_name(&name), "Invalid Linux ACP tool name");
         let tool_id = tool_mcp::mcp_tool::mcp_tool_id(&service.name, &name)?;
         if mcp_client::mcp_tool_allowed(policy, &name, &tool_id) {
-            let public = format!("mcp__{}__{name}", service.name);
+            let public = if matches!(reviewed.owner, LinuxMcpOwner::Glm(_)) {
+                llm_runtime::acp::model_source::drivers::glm_acp_agent::projected_mcp_tool_name(
+                    &service.name, &name,
+                )?
+            } else {
+                format!("mcp__{}__{name}", service.name)
+            };
             anyhow::ensure!(
                 public.len() <= 64 && !catalog.contains_key(&name),
                 "Invalid or duplicate Linux ACP tool"
@@ -305,7 +324,7 @@ async fn prepare_linux_stdio_with(
         service.name.clone(),
         Server { peer, catalog, approval_names, permits: Semaphore::new(1), _scratch: scratch, graph_root: None },
     )]);
-    finish_projection(launch, servers, tools, Some(Arc::new(VtcodeApproval::new(true))), iflow_source)
+    finish_projection(launch, servers, tools, Some(Arc::new(VtcodeApproval::new(true))), Some(reviewed.owner))
 }
 
 async fn discover_stdio(
@@ -505,7 +524,7 @@ fn finish_projection(
     servers: BTreeMap<String, Server>,
     tools: BTreeSet<String>,
     approvals: Option<Arc<VtcodeApproval>>,
-    iflow_source: Option<&'static str>,
+    linux_owner: Option<LinuxMcpOwner>,
 ) -> anyhow::Result<Projection> {
     let requires_approval = approvals.is_some();
     anyhow::ensure!(!requires_approval || !tools.is_empty(), "No tools in the selected ACP MCP catalog");
@@ -514,7 +533,7 @@ fn finish_projection(
     let state = Arc::new(Bridge { launch: launch.clone(), access: access.clone(), servers, approvals: approvals.clone() });
     let route = if requires_approval { "/shiju-vtcode-mcp/{service}" } else { "/shiju-mimo-mcp/{service}" };
     let router = Router::new().route(route, post(handle)).with_state(state);
-    Ok(Projection { router, servers: names, access, launch, iflow_source, tools: tools.into_iter().collect(), approvals })
+    Ok(Projection { router, servers: names, access, launch, linux_owner, tools: tools.into_iter().collect(), approvals })
 }
 
 #[cfg(unix)]

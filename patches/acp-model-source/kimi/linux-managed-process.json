@@ -1,0 +1,15 @@
+{
+  "package": "@moonshot-ai/kimi-code",
+  "version": "2.5.0",
+  "tarball": "https://registry.npmjs.org/@moonshot-ai/kimi-code/-/kimi-code-2.5.0.tgz",
+  "integrity": "sha512-AYuT4fW7pzZAqxIIDjx+ypLJNoAL07NZCUyPDlf/JrgyKri35eVq9mDuhoe/xRX7wNHL+1fX+H0Dj/rB3H04Yg==",
+  "node": ">=22.19.0",
+  "entry": "dist/main.mjs",
+  "args": [
+    "acp"
+  ],
+  "source_sha256": "acd6894e2e2db50d37c449eefe9d3549a0177bd2d12cf17a8e1da94c60eb359f",
+  "patch": "linux-managed-process.patch",
+  "patch_sha256": "c6bd28123b60ca322ae7b898b6a4e040965d75e5bd8f4fcec8d380deadf88a80",
+  "patched_sha256": "98935a5502e694c765a2f9ae9a90a6bef130ee007b4a94e8fadf22892340c85e"
+}

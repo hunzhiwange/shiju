@@ -1,0 +1,32 @@
+--- a/dist/main.mjs
++++ b/dist/main.mjs
+@@ -1695,7 +1695,15 @@
+-function buildEnv(overrides) {
+-	if (overrides === void 0) return;
+-	return {
+-		...process.env,
+-		...overrides
+-	};
+-}
++function isShiJuManagedKimiLinux() {
++	return process.platform === "linux" && Boolean(process.env.VW_ACP_LAUNCH_REFERENCE);
++}
++function buildEnv(overrides) {
++	if (overrides === void 0 && !isShiJuManagedKimiLinux()) return;
++	const env = {
++		...process.env,
++		...overrides
++	};
++	if (isShiJuManagedKimiLinux()) {
++		delete env.VW_ACP_LAUNCH_REFERENCE;
++		delete env.VW_KIMI_RELAY_TOKEN;
++	}
++	return env;
++}
+@@ -331733,1 +331741,5 @@
+-			if (!this.connection.terminalEnabled || !isBashToolInvocation(args, options)) return this.local.spawn(command, args, {
++			const bashInvocation = isBashToolInvocation(args, options);
++			if (isShiJuManagedKimiLinux() && bashInvocation && !this.connection.terminalEnabled) {
++				throw new Error("Managed Kimi Bash requires the host ACP terminal");
++			}
++			if (!this.connection.terminalEnabled || !bashInvocation) return this.local.spawn(command, args, {

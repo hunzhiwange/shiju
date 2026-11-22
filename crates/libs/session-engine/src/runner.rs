@@ -4,7 +4,7 @@ use crate::prefetch as prompt;
 use crate::processor_events::StreamEvent;
 use crate::runner_host::{RunnerHost, RunnerPrompt};
 use crate::runner_protocol::{
-    DesktopSessionProtocol, compact_transient_history_for_request,
+    CompactionBoundary, DesktopSessionProtocol, compact_transient_history_for_request,
     delegated_skill_policy_resolution, option_string_values, prepare_context_before_llm_step,
     provider_request_options,
 };
@@ -400,21 +400,28 @@ pub fn run<H: RunnerHost>(
         .filter(|value| !value.is_empty())
         .map(ToOwned::to_owned);
     let mut llm_messages = restored_context;
-    let history_len = checkpoint_source.len();
-    let mut current_messages = checkpoint_source;
-    llm_messages::extend_llm_messages_from_session_range(
-        &mut current_messages,
-        &session,
-        prefetch_start,
+    let prefetch_start_in_context = llm_messages.len();
+    llm_messages.extend(
+        session.messages[session_protocol.hidden_prefetch.clone()]
+            .iter()
+            .flat_map(llm_messages::session_message_to_llm_messages),
     );
-    llm_messages.extend_from_slice(&current_messages[history_len..]);
-    if let Err(error) = session_protocol
-        .persist_checkpoint::<H>(&req.session, &session_protocol.checkpoint_history(&session))
-    {
+    let prefetch_end_in_context = llm_messages.len();
+    llm_messages::extend_llm_messages_from_session_range(
+        &mut llm_messages,
+        &session,
+        session_protocol.hidden_prefetch.end,
+    );
+    let checkpoint_source = session_protocol.checkpoint_history(&session);
+    if let Err(error) = session_protocol.persist_checkpoint::<H>(&req.session, &checkpoint_source) {
         on_event(StreamEvent::Error(error));
         return;
     }
-    let checkpoint_source = current_messages;
+    let mut compaction_boundary = CompactionBoundary {
+        source: checkpoint_source,
+        live_prefix_len: llm_messages.len(),
+        hidden_prefetch: prefetch_start_in_context..prefetch_end_in_context,
+    };
     // Capture the user position in session history before tool output can append user-role messages.
     let mut current_user_index = llm_messages.iter().rposition(|message| message["role"] == "user");
     if let (Some(index), Some(source)) =
@@ -593,10 +600,15 @@ pub fn run<H: RunnerHost>(
         // LLM step will actually receive. In particular, OCR's nested request
         // disables tools and should not spend its input budget on every local
         // tool schema.
+        let hook_messages = ctx
+            .tool_use_context()
+            .take_hook_contexts()
+            .into_iter()
+            .map(|text| json!({"role":"user", "content":text}))
+            .collect::<Vec<_>>();
         let (mut provider_messages, message_sources) = if employee {
             // The accepted query is the turn source. Protocol assembly also adds
             // user-role hook and workspace messages, so use the query directly.
-            ctx.tool_use_context().take_hook_contexts();
             (vec![json!({"role":"user", "content":req.query})], vec![
                 llm_messages::input_source_from_options(&req.options).unwrap_or(Value::Null),
             ])
@@ -613,12 +625,7 @@ pub fn run<H: RunnerHost>(
                 }
             };
             let mut provider_messages = assembled_messages.messages;
-            provider_messages.extend(
-                ctx.tool_use_context()
-                    .take_hook_contexts()
-                    .into_iter()
-                    .map(|text| json!({"role":"user", "content":text})),
-            );
+            provider_messages.extend_from_slice(&hook_messages);
             (provider_messages, assembled_messages.message_sources)
         };
         let compaction = match prepare_context_before_llm_step(
@@ -643,6 +650,53 @@ pub fn run<H: RunnerHost>(
                 return;
             }
         };
+        let mut compact = |protocol: &mut DesktopSessionProtocol,
+                           history: &mut Vec<Value>,
+                           user_index: &mut Option<usize>,
+                           on_event: &mut _| {
+            if employee {
+                return Ok(false);
+            }
+            let current_tokens = context_governance::context_usage_tokens(
+                &provider_messages,
+                &system,
+                &tool_specs_for_context,
+                None,
+            );
+            let overhead_tokens = current_tokens
+                .saturating_sub(context_governance::context_usage_tokens(history, &[], &[], None));
+            compact_transient_history_for_request::<H>(
+                &req.session,
+                Some(&mut compaction_boundary),
+                history,
+                user_index,
+                &selected_model.model,
+                &req.reliability,
+                on_event,
+                req.abort_token.as_ref(),
+                &model_limit,
+                overhead_tokens,
+                |history| {
+                    let mut candidate = protocol
+                        .assemble_after_compaction(
+                            history,
+                            base_system.instruction_context(),
+                            !is_acp && tools_for_step.contains("skill"),
+                        )?
+                        .messages;
+                    candidate.extend_from_slice(&hook_messages);
+                    let candidate_tokens = context_governance::context_usage_tokens(
+                        &candidate,
+                        &system,
+                        &tool_specs_for_context,
+                        None,
+                    );
+                    Ok(candidate_tokens < current_tokens
+                        && candidate_tokens
+                            <= context_governance::effective_input_window(&model_limit))
+                },
+            )
+        };
         if compaction.needs_internal_compaction && !internal_compaction_attempted {
             tracing::info!(
                 target: "vw_agent",
@@ -657,22 +711,11 @@ pub fn run<H: RunnerHost>(
             match tool_context::context::scope_tool_use_context_sync::<H::CtxHost, _>(
                 ctx.tool_use_context().clone(),
                 || {
-                    compact_transient_history_for_request::<H>(
-                        &req.session,
-                        &checkpoint_source,
+                    compact(
+                        &mut session_protocol,
                         &mut llm_messages,
                         &mut current_user_index,
-                        &selected_model.model,
-                        &req.reliability,
                         &mut on_event,
-                        req.abort_token.as_ref(),
-                        &model_limit,
-                        context_governance::context_usage_tokens(
-                            &[],
-                            &system,
-                            &tool_specs_for_context,
-                            None,
-                        ),
                     )
                 },
             ) {
@@ -764,22 +807,11 @@ pub fn run<H: RunnerHost>(
                     match tool_context::context::scope_tool_use_context_sync::<H::CtxHost, _>(
                         ctx.tool_use_context().clone(),
                         || {
-                            compact_transient_history_for_request::<H>(
-                                &req.session,
-                                &checkpoint_source,
+                            compact(
+                                &mut session_protocol,
                                 &mut llm_messages,
                                 &mut current_user_index,
-                                &selected_model.model,
-                                &req.reliability,
                                 &mut on_event,
-                                req.abort_token.as_ref(),
-                                &model_limit,
-                                context_governance::context_usage_tokens(
-                                    &[],
-                                    &system,
-                                    &tool_specs_for_context,
-                                    None,
-                                ),
                             )
                         },
                     ) {

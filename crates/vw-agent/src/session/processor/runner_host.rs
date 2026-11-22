@@ -218,12 +218,14 @@ impl session_engine::runner_protocol::RunnerCheckpointHost for AgentRunnerHost {
         source: &[Value],
         summary: &str,
         retained_user: Option<Value>,
+        retained_tail: Vec<Value>,
     ) -> Result<(), String> {
-        prompt::block_on(crate::session::compaction_checkpoint::save(
+        prompt::block_on(crate::session::compaction_checkpoint::save_with_retained(
             session,
             source,
             summary,
             retained_user,
+            retained_tail,
         ))
     }
     fn compact_hook(

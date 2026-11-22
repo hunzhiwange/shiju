@@ -12,7 +12,13 @@ use std::collections::{BTreeSet, HashSet};
 pub trait RunnerCheckpointHost {
     fn restore_skills(session: &str, agent: &str, history: &[Value]) -> Result<Vec<agent_skills::invoked::InvokedSkillRecord>, String>;
     fn save_skills(session: &str, agent: &str, history: &[Value], records: &[agent_skills::invoked::InvokedSkillRecord]) -> Result<(), String>;
-    fn save_context(session: &str, source: &[Value], summary: &str, retained_user: Option<Value>) -> Result<(), String>;
+    fn save_context(
+        session: &str,
+        source: &[Value],
+        summary: &str,
+        retained_user: Option<Value>,
+        retained_tail: Vec<Value>,
+    ) -> Result<(), String>;
     fn compact_hook(session: &str, conversation: &str, model: &str, automatic: bool, completed: bool) -> Result<(), String>;
 }
 
@@ -88,6 +94,20 @@ impl DesktopSessionProtocol {
             &invoked_skill_messages,
             skill_listing,
         ))
+    }
+
+    /// Assemble the continuation with the same catalog reset as a committed compaction.
+    pub fn assemble_after_compaction(
+        &mut self,
+        history: &[Value],
+        instructions: &[session_instructions::Resolved],
+        skill_tool_enabled: bool,
+    ) -> Result<llm_messages::AssembledProtocolMessages, String> {
+        let previous = self.skill_state.clone();
+        self.skill_state.reset_catalog(&self.agent_id);
+        let assembled = self.assemble(history, instructions, skill_tool_enabled);
+        self.skill_state = previous;
+        assembled
     }
 
     pub fn prepare_native_skill_context<H: RunnerCheckpointHost>(
@@ -367,12 +387,19 @@ fn compaction_history(
     (summary_input, retained)
 }
 
+/// Maps the raw checkpoint source to the live prefix eligible for compaction.
+pub struct CompactionBoundary {
+    pub source: Vec<Value>,
+    pub live_prefix_len: usize,
+    pub hidden_prefetch: std::ops::Range<usize>,
+}
+
 /// Summarize completed history around the user position captured at session ingestion.
 /// Replace model context after checkpoint persistence and move the index to the retained user.
 #[allow(clippy::too_many_arguments)] // Keep request identity, budget, and lifecycle explicit.
 pub fn compact_transient_history_for_request<H: RunnerCheckpointHost + crate::compaction_summary::SummaryHost>(
     session_id: &str,
-    checkpoint_source: &[Value],
+    mut boundary: Option<&mut CompactionBoundary>,
     llm_messages: &mut Vec<Value>,
     current_user_index: &mut Option<usize>,
     model: &str,
@@ -381,6 +408,7 @@ pub fn compact_transient_history_for_request<H: RunnerCheckpointHost + crate::co
     cancellation: Option<&tokio_util::sync::CancellationToken>,
     model_limit: &model_types::ModelLimit,
     request_overhead_tokens: u64,
+    validate_candidate: impl FnOnce(&[Value]) -> Result<bool, String>,
 ) -> Result<bool, String> {
     let Some(index) = *current_user_index else {
         return Ok(false);
@@ -389,18 +417,39 @@ pub fn compact_transient_history_for_request<H: RunnerCheckpointHost + crate::co
         .get(index)
         .filter(|message| message["role"] == "user")
         .ok_or_else(|| "invalid compaction user index".to_string())?;
-    if llm_messages.len() == 1 {
+    let prefix_len = boundary.as_ref().map_or(llm_messages.len(), |b| b.live_prefix_len);
+    let prefix = llm_messages.get(..prefix_len).ok_or("invalid compaction history boundary")?;
+    if index >= prefix_len {
+        return Err("compaction user lies past the history boundary".into());
+    }
+    let (prefix, prefix_user_index) = match boundary.as_ref().map(|b| &b.hidden_prefetch) {
+        Some(prefetch) if !prefetch.is_empty() => {
+            if prefetch.contains(&index) {
+                return Err("compaction user lies within transient prefetch".into());
+            }
+            let before_prefetch =
+                prefix.get(..prefetch.start).ok_or("invalid compaction prefetch boundary")?;
+            let after_prefetch =
+                prefix.get(prefetch.end..).ok_or("invalid compaction prefetch boundary")?;
+            let without_prefetch =
+                before_prefetch.iter().chain(after_prefetch).cloned().collect::<Vec<_>>();
+            let before_user = prefetch.end.min(index).saturating_sub(prefetch.start);
+            (Cow::Owned(without_prefetch), index - before_user)
+        }
+        _ => (Cow::Borrowed(prefix), index),
+    };
+    if prefix.len() <= 1 {
         return Ok(false);
     }
     if !on_event(StreamEvent::Compaction { phase: CompactionPhase::Started }) {
         return Err("stream consumer stopped".to_string());
     }
-    H::compact_hook(
-        session_id, session_id, model, true, false,
-    )
-    .map_err(|error| error.to_string())?;
+    H::compact_hook(session_id, session_id, model, true, false)?;
+    let delta = &llm_messages[prefix_len..];
+    let reserved_tokens = request_overhead_tokens
+        .saturating_add(context_governance::context_usage_tokens(delta, &[], &[], None));
     let (summary_input, retained) =
-        compaction_history(llm_messages, index, model_limit, request_overhead_tokens);
+        compaction_history(&prefix, prefix_user_index, model_limit, reserved_tokens);
     let summary = crate::compaction_summary::summarize::<H>(
         session_id,
         &summary_input,
@@ -409,42 +458,34 @@ pub fn compact_transient_history_for_request<H: RunnerCheckpointHost + crate::co
         cancellation,
         model_limit,
     )?;
+    let retained_user = current_user.clone();
     let mut replacement = vec![
         json!({ "role": "assistant", "content": format!("[Compaction summary]\n{summary}") }),
-        current_user.clone(),
+        retained_user.clone(),
     ];
-    replacement.extend(retained);
+    replacement.extend_from_slice(&retained);
+    let replacement_prefix_len = replacement.len();
+    replacement.extend_from_slice(delta);
+    if !validate_candidate(&replacement)? {
+        return Ok(false);
+    }
     if cancellation.is_some_and(|token| token.is_cancelled()) {
         return Err("执行已取消".into());
     }
-    persist_context_checkpoint::<H>(session_id, checkpoint_source, &replacement)?;
+    if let Some(boundary) = boundary.as_mut() {
+        H::save_context(session_id, &boundary.source, &summary, Some(retained_user), retained)?;
+        boundary.live_prefix_len = replacement_prefix_len;
+        boundary.hidden_prefetch = 0..0;
+    }
     *llm_messages = replacement;
     *current_user_index = Some(1);
-    H::compact_hook(session_id, session_id, model, true, true)
-        .map_err(|error| error.to_string())?;
-    on_event(StreamEvent::Compaction { phase: CompactionPhase::Completed });
-    Ok(true)
-}
-
-pub fn persist_context_checkpoint<H: RunnerCheckpointHost>(
-    session: &str,
-    source: &[Value],
-    context: &[Value],
-) -> Result<(), String> {
-    if source.is_empty() {
-        return Ok(());
+    if let Err(error) = H::compact_hook(session_id, session_id, model, true, true) {
+        tracing::warn!(session_id, %error, "post-compaction hook failed");
     }
-    let summary = context
-        .first()
-        .and_then(|item| item["content"].as_str())
-        .and_then(|text| text.strip_prefix("[Compaction summary]\n"))
-        .ok_or_else(|| "missing compaction summary".to_string())?;
-    H::save_context(
-        session,
-        source,
-        summary,
-        context.get(1).cloned(),
-    )
+    if !on_event(StreamEvent::Compaction { phase: CompactionPhase::Completed }) {
+        return Err("stream consumer stopped".into());
+    }
+    Ok(true)
 }
 
 pub fn delegated_skill_policy_resolution(

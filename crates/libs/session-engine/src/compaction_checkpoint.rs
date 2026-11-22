@@ -10,6 +10,8 @@ struct Checkpoint {
     source_hashes: Vec<String>,
     summary: String,
     retained_user: Option<Value>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    retained_tail: Vec<Value>,
 }
 
 pub fn validate_session(session: &str) -> Result<(), String> {
@@ -44,6 +46,17 @@ pub async fn save(
     summary: &str,
     retained_user: Option<Value>,
 ) -> Result<(), String> {
+    save_with_retained(scope, session, source, summary, retained_user, Vec::new()).await
+}
+
+pub async fn save_with_retained(
+    scope: &str,
+    session: &str,
+    source: &[Value],
+    summary: &str,
+    retained_user: Option<Value>,
+    retained_tail: Vec<Value>,
+) -> Result<(), String> {
     validate_session(session)?;
     if source.is_empty() || summary.trim().is_empty() {
         return Err("cannot persist an empty compaction checkpoint".into());
@@ -53,6 +66,7 @@ pub async fn save(
         source_hashes: source.iter().map(message_hash).collect(),
         summary: summary.to_string(),
         retained_user,
+        retained_tail,
     };
     storage::write_atomic(&["context_checkpoint", &scope, session, &id], &checkpoint)
         .await
@@ -80,6 +94,7 @@ pub async fn restore(scope: &str, session: &str, history: &[Value]) -> Result<Ve
             if let Some(user) = checkpoint.retained_user {
                 context.push(user);
             }
+            context.extend(checkpoint.retained_tail);
             context.extend_from_slice(&history[checkpoint.source_hashes.len()..]);
             return normalize_native_history(&context);
         }

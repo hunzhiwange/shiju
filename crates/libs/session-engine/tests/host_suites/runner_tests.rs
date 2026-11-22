@@ -597,7 +597,7 @@ fn desktop_compaction_tool_pairs_keep_native_and_bounded_ordinary_evidence() {
 
     let compacted = session_engine::runner_protocol::compact_transient_history_for_request::<super::AgentRunnerHost>(
         "runner-transient-compaction",
-        &[],
+        None,
         &mut messages,
         &mut Some(3),
         "provider/model",
@@ -609,6 +609,7 @@ fn desktop_compaction_tool_pairs_keep_native_and_bounded_ordinary_evidence() {
         None,
         &crate::provider::provider::resolve_model_limit(None, None, None),
         0,
+        |_| Ok(true),
     )
     .expect("summary should succeed");
 
@@ -666,7 +667,7 @@ fn compaction_lifecycle_keeps_history_and_omits_completion_when_summary_fails() 
 
     let error = session_engine::runner_protocol::compact_transient_history_for_request::<super::AgentRunnerHost>(
         "runner-transient-compaction-failure",
-        &[],
+        None,
         &mut messages,
         &mut Some(2),
         "provider/model",
@@ -678,6 +679,7 @@ fn compaction_lifecycle_keeps_history_and_omits_completion_when_summary_fails() 
         None,
         &crate::provider::provider::resolve_model_limit(None, None, None),
         0,
+        |_| Ok(true),
     )
     .expect_err("failed summaries must not change history");
 
@@ -1154,7 +1156,7 @@ fn compaction_lifecycle_failure_preserves_multibyte_history() {
     let mut events = Vec::new();
     let error = session_engine::runner_protocol::compact_transient_history_for_request::<super::AgentRunnerHost>(
         "chunk-failure",
-        &[],
+        None,
         &mut messages,
         &mut Some(3),
         "provider/model",
@@ -1166,6 +1168,7 @@ fn compaction_lifecycle_failure_preserves_multibyte_history() {
         None,
         &crate::provider::provider::resolve_model_limit(None, None, None),
         0,
+        |_| Ok(true),
     )
     .unwrap_err();
     assert!(error.contains("summary unavailable"));
@@ -1194,7 +1197,7 @@ fn compaction_lifecycle_rejects_truncated_summary_without_replacing_history() {
     let before = messages.clone();
     let error = session_engine::runner_protocol::compact_transient_history_for_request::<super::AgentRunnerHost>(
         "truncated-summary",
-        &[],
+        None,
         &mut messages,
         &mut Some(1),
         "provider/model",
@@ -1203,6 +1206,7 @@ fn compaction_lifecycle_rejects_truncated_summary_without_replacing_history() {
         None,
         &crate::provider::provider::resolve_model_limit(None, None, None),
         0,
+        |_| Ok(true),
     )
     .unwrap_err();
     assert!(error.contains("truncated"));
@@ -1231,7 +1235,7 @@ fn compaction_lifecycle_user_anchor_survives_identical_tool_message_and_rebuild(
         assert!(
             session_engine::runner_protocol::compact_transient_history_for_request::<super::AgentRunnerHost>(
                 "successive-rounds",
-                &[],
+                None,
                 &mut messages,
                 &mut current_user_index,
                 "provider/model",
@@ -1243,6 +1247,7 @@ fn compaction_lifecycle_user_anchor_survives_identical_tool_message_and_rebuild(
                 None,
                 &crate::provider::provider::resolve_model_limit(None, None, None),
                 0,
+                |_| Ok(true),
             )
             .unwrap()
         );
@@ -1267,57 +1272,114 @@ fn compaction_lifecycle_user_anchor_survives_identical_tool_message_and_rebuild(
 }
 
 #[test]
-fn compaction_checkpoint_replays_after_restart_without_rewriting_chat() {
+fn desktop_compaction_checkpoint_boundary_replays_two_compactions() {
+    use serde_json::json;
+
     let _guard = super::llm_runner::test_llm_stream_guard();
-    super::llm_runner::enqueue_test_llm_stream(vec![
-        crate::session::llm::StreamEvent::Delta("remember decision".into()),
-        crate::session::llm::StreamEvent::Done {
-            usage: Default::default(),
-            finish_reason: Some("stop".into()),
-        },
-    ]);
     let id = unique_session_id("checkpoint-replay");
-    let raw = vec![
-        serde_json::json!({"role":"user","content":"old task"}),
-        serde_json::json!({"role":"assistant","content":"old details"}),
-        serde_json::json!({"role":"user","content":"current task"}),
+    let prefix = vec![
+        json!({"role":"user","content":"old task ".repeat(200)}),
+        json!({"role":"assistant","content":"old details"}),
+        json!({"role":"user","content":"current task"}),
+        json!({"role":"assistant","tool_calls":[{"id":"old-call","type":"function","function":{"name":"read","arguments":"{}"}}]}),
+        json!({"role":"tool","tool_call_id":"old-call","content":"old evidence"}),
     ];
-    let mut context = raw.clone();
-    let mut events = Vec::new();
-    session_engine::runner_protocol::compact_transient_history_for_request::<super::AgentRunnerHost>(
-        &id,
-        &raw,
-        &mut context,
-        &mut Some(2),
-        "provider/model",
-        &crate::config::ReliabilityConfig { provider_retries: 0, ..Default::default() },
-        &mut |event| {
-            events.push(event);
-            true
-        },
-        None,
-        &crate::provider::provider::resolve_model_limit(None, None, None),
-        0,
-    )
+    let delta = [
+        json!({"role":"assistant","tool_calls":[{"id":"new-call","type":"function","function":{"name":"read","arguments":"{}"}}]}),
+        json!({"role":"tool","tool_call_id":"new-call","content":"new evidence"}),
+    ];
+    let mut boundary = session_engine::runner_protocol::CompactionBoundary {
+        source: prefix.clone(),
+        live_prefix_len: prefix.len(),
+        hidden_prefetch: 0..0,
+    };
+    let mut raw = prefix.clone();
+    let mut context = prefix.clone();
+    let mut user = Some(2);
+    for round in 0..2 {
+        if round == 1 {
+            raw.extend_from_slice(&delta);
+            context.extend_from_slice(&delta);
+        }
+        super::llm_runner::enqueue_test_llm_stream(vec![
+            crate::session::llm::StreamEvent::Delta(if round == 0 {
+                "decision ".repeat(200)
+            } else {
+                "decision".into()
+            }),
+            crate::session::llm::StreamEvent::Done {
+                usage: Default::default(),
+                finish_reason: Some("stop".into()),
+            },
+        ]);
+        assert!(
+            session_engine::runner_protocol::compact_transient_history_for_request::<
+                super::AgentRunnerHost,
+            >(
+                &id,
+                Some(&mut boundary),
+                &mut context,
+                &mut user,
+                "provider/model",
+                &crate::config::ReliabilityConfig { provider_retries: 0, ..Default::default() },
+                &mut |_| true,
+                None,
+                &crate::provider::provider::resolve_model_limit(None, None, None),
+                0,
+                |_| Ok(true),
+            )
+            .unwrap()
+        );
+    }
+
+    let summary_requests = super::llm_runner::take_test_llm_messages(&id);
+    assert_eq!(summary_requests.len(), 2);
+    assert!(summary_requests[1].messages.iter().all(|message| {
+        message["tool_calls"][0]["id"] != "new-call" && message["content"] != "new evidence"
+    }));
+
+    let mut resumed =
+        crate::session::prompt::block_on(crate::session::compaction_checkpoint::restore(&id, &raw))
+            .unwrap();
+    assert_eq!(resumed, context);
+    let next = json!({"role":"user","content":"next task"});
+    resumed.push(next.clone());
+    raw.push(next.clone());
+    context.push(next);
+    let restored =
+        crate::session::prompt::block_on(crate::session::compaction_checkpoint::restore(&id, &raw))
+            .unwrap();
+    assert_eq!(restored, resumed, "the new suffix must replay once in its original order");
+    assert_eq!(restored, context, "restored history must match live message order and tool IDs");
+    for call_id in ["old-call", "new-call"] {
+        assert_eq!(restored.iter().filter(|message| message["tool_call_id"] == call_id).count(), 1,);
+    }
+    assert_eq!(&raw[..prefix.len()], &prefix);
+
+    let fork = unique_session_id("checkpoint-fork");
+    let directory = crate::project::instance::directory();
+    crate::session::prompt::block_on(crate::session::compaction_checkpoint::copy_fork(
+        &directory, &directory, &id, &fork, &raw,
+    ))
     .unwrap();
-    assert_eq!(raw[1]["content"], "old details");
-    let mut next_turn = raw.clone();
-    next_turn.push(serde_json::json!({"role":"assistant","content":"answer"}));
-    let restored = crate::session::prompt::block_on(
-        crate::session::compaction_checkpoint::restore(&id, &next_turn),
-    )
-    .unwrap();
-    assert_eq!(restored[0], context[0]);
-    assert_eq!(restored[1], raw[2]);
-    assert_eq!(restored[2]["content"], "answer");
-    assert!(matches!(
-        events.last(),
-        Some(super::StreamEvent::Compaction { phase: super::CompactionPhase::Completed })
-    ));
+    assert_eq!(
+        crate::session::prompt::block_on(crate::session::compaction_checkpoint::restore(
+            &fork, &raw
+        ))
+        .unwrap(),
+        restored,
+    );
+
+    raw[0]["content"] = json!("edited task");
+    assert_eq!(
+        crate::session::prompt::block_on(crate::session::compaction_checkpoint::restore(&id, &raw))
+            .unwrap(),
+        raw,
+    );
 }
 
 #[test]
-fn compaction_checkpoint_failure_keeps_context_and_never_emits_completion() {
+fn compaction_lifecycle_checkpoint_write_failure_keeps_raw_history() {
     let _guard = super::llm_runner::test_llm_stream_guard();
     super::llm_runner::enqueue_test_llm_stream(vec![
         crate::session::llm::StreamEvent::Delta("summary".into()),
@@ -1330,11 +1392,19 @@ fn compaction_checkpoint_failure_keeps_context_and_never_emits_completion() {
         serde_json::json!({"role":"user","content":"old"}),
         serde_json::json!({"role":"user","content":"current"}),
     ];
+    let mut boundary = session_engine::runner_protocol::CompactionBoundary {
+        source: raw.clone(),
+        live_prefix_len: raw.len(),
+        hidden_prefetch: 0..0,
+    };
+    // Checkpoint directory creation must fail for an overlong path component.
+    let id = "checkpoint".repeat(105);
     let mut context = raw.clone();
     let mut events = Vec::new();
+    let mut candidate_validated = false;
     let result = session_engine::runner_protocol::compact_transient_history_for_request::<super::AgentRunnerHost>(
-        "../invalid",
-        &raw,
+        &id,
+        Some(&mut boundary),
         &mut context,
         &mut Some(1),
         "provider/model",
@@ -1346,14 +1416,94 @@ fn compaction_checkpoint_failure_keeps_context_and_never_emits_completion() {
         None,
         &crate::provider::provider::resolve_model_limit(None, None, None),
         0,
+        |_| {
+            candidate_validated = true;
+            Ok(true)
+        },
     );
-    assert!(result.unwrap_err().contains("invalid session ID"));
+    assert!(candidate_validated);
+    assert!(result.is_err());
+    let restored =
+        crate::session::prompt::block_on(crate::session::compaction_checkpoint::restore(&id, &raw))
+            .unwrap();
+    assert_eq!(restored, raw);
     assert_eq!(context, raw);
     assert_eq!(events.len(), 1);
     assert!(matches!(
         events[0],
         super::StreamEvent::Compaction { phase: super::CompactionPhase::Started }
     ));
+}
+
+#[test]
+fn compaction_lifecycle_installs_only_valid_uncancelled_candidates() {
+    use serde_json::json;
+
+    let _guard = super::llm_runner::test_llm_stream_guard();
+    let id = unique_session_id("checkpoint-candidate");
+    let raw = vec![
+        json!({"role":"user","content":"old ".repeat(100)}),
+        json!({"role":"user","content":"continue"}),
+    ];
+    let mut boundary = session_engine::runner_protocol::CompactionBoundary {
+        source: raw.clone(),
+        live_prefix_len: raw.len(),
+        hidden_prefetch: 0..0,
+    };
+    let mut context = raw.clone();
+    let mut user = Some(1);
+    let token = tokio_util::sync::CancellationToken::new();
+    let restore = || {
+        crate::session::prompt::block_on(crate::session::compaction_checkpoint::restore(&id, &raw))
+            .unwrap()
+    };
+    for attempt in 0..3 {
+        super::llm_runner::enqueue_test_llm_stream(vec![
+            crate::session::llm::StreamEvent::Delta("remember decision".into()),
+            crate::session::llm::StreamEvent::Done {
+                finish_reason: Some("stop".into()),
+                usage: Default::default(),
+            },
+        ]);
+        let result = session_engine::runner_protocol::compact_transient_history_for_request::<
+            super::AgentRunnerHost,
+        >(
+            &id,
+            Some(&mut boundary),
+            &mut context,
+            &mut user,
+            "provider/model",
+            &crate::config::ReliabilityConfig { provider_retries: 0, ..Default::default() },
+            &mut |event| {
+                !matches!(
+                    event,
+                    super::StreamEvent::Compaction { phase: super::CompactionPhase::Completed }
+                )
+            },
+            (attempt < 2).then_some(&token),
+            &crate::provider::provider::resolve_model_limit(None, None, None),
+            0,
+            |_| {
+                if attempt == 0 {
+                    return Ok(false);
+                }
+                if attempt == 1 {
+                    token.cancel();
+                }
+                Ok(true)
+            },
+        );
+        match attempt {
+            0 => assert!(!result.unwrap()),
+            1 => assert_eq!(result.unwrap_err(), "执行已取消"),
+            _ => assert_eq!(result.unwrap_err(), "stream consumer stopped"),
+        }
+        assert_eq!(restore(), context);
+        if attempt < 2 {
+            assert_eq!(context, raw);
+        }
+    }
+    assert_ne!(context, raw);
 }
 
 #[test]
@@ -2474,7 +2624,7 @@ fn codex_plugin_compat_t10_compaction_restores_qualified_invocation_arguments() 
     ]);
     session_engine::runner_protocol::compact_transient_history_for_request::<super::AgentRunnerHost>(
         "t10-compaction",
-        &[],
+        None,
         &mut history,
         &mut Some(2),
         "provider/model",
@@ -2482,7 +2632,8 @@ fn codex_plugin_compat_t10_compaction_restores_qualified_invocation_arguments() 
         &mut |_| true,
         None,
         &crate::provider::provider::resolve_model_limit(None, None, None),
-        0,
+         0,
+        |_| Ok(true),
     )
     .unwrap();
     assert_eq!(history.len(), 2);
@@ -2527,7 +2678,7 @@ fn codex_plugin_compat_t42_processor_emits_around_real_summary() {
     crate::tools::scope_tool_use_context_sync(context, || {
         session_engine::runner_protocol::compact_transient_history_for_request::<super::AgentRunnerHost>(
             &session,
-            &[],
+            None,
             &mut history,
             &mut Some(2),
             "fixture/model",
@@ -2536,6 +2687,7 @@ fn codex_plugin_compat_t42_processor_emits_around_real_summary() {
             None,
             &crate::provider::provider::resolve_model_limit(None, None, None),
             0,
+            |_| Ok(true),
         )
         .unwrap();
     });

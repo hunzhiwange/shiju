@@ -10,6 +10,23 @@ fn scope() -> String { scope_for_directory(&crate::project::instance::directory(
 pub(crate) async fn save(session: &str, source: &[Value], summary: &str, retained_user: Option<Value>) -> Result<(), String> {
     session_engine::compaction_checkpoint::save(&scope(), session, source, summary, retained_user).await
 }
+pub(crate) async fn save_with_retained(
+    session: &str,
+    source: &[Value],
+    summary: &str,
+    retained_user: Option<Value>,
+    retained_tail: Vec<Value>,
+) -> Result<(), String> {
+    session_engine::compaction_checkpoint::save_with_retained(
+        &scope(),
+        session,
+        source,
+        summary,
+        retained_user,
+        retained_tail,
+    )
+    .await
+}
 pub(crate) async fn restore(session: &str, history: &[Value]) -> Result<Vec<Value>, String> {
     session_engine::compaction_checkpoint::restore(&scope(), session, history).await
 }

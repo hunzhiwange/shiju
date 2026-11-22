@@ -214,8 +214,17 @@ pub(crate) fn page(app: &App) -> Element<'_, Message> {
         app.cron_settings.active_tab,
         CronSettingsTab::Jobs | CronSettingsTab::History | CronSettingsTab::Add
     );
-    let content = iced::widget::column![view(app)].padding(iced::Padding::ZERO.top(24));
-    desktop_settings_shell::content_page(content, true, owns_scroll)
+    let content = desktop_settings_shell::content_page(
+        iced::widget::column![view(app)],
+        true,
+        owns_scroll,
+    );
+    // 与识矩技能保持 28px 横向边距，设置页外壳已预留 7px。
+    iced::widget::container(content)
+        .padding([24, 28 - desktop_settings_shell::SETTINGS_SCROLL_GUTTER])
+        .width(iced::Length::Fill)
+        .height(iced::Length::Fill)
+        .into()
 }
 
 fn view(app: &App) -> Element<'_, Message> {

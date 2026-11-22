@@ -126,13 +126,13 @@ async fn cron_list_render_theme_and_width_matrix() {
                     positions.labels.iter().find(|(s, _)| s.starts_with("全部 (")).unwrap().1;
                 assert!((title.x - scroll.x).abs() <= 1.0);
                 assert!((group.x - 14.0 - scroll.x).abs() <= 1.0);
-                assert!((scroll.x - 7.0).abs() <= 1.0, "{scroll:?}");
+                assert!((scroll.x - 28.0).abs() <= 1.0, "{scroll:?}");
                 assert_eq!(
                     positions.labels.iter().any(|(label, _)| label == "试试这些常用任务"),
                     state == "empty",
                 );
                 assert!(
-                    (scroll.x + scroll.width - (width as f32 - 7.0)).abs() <= 1.0,
+                    (scroll.x + scroll.width - (width as f32 - 28.0)).abs() <= 1.0,
                     "{scroll:?}"
                 );
                 let footer =
@@ -244,7 +244,8 @@ async fn cron_list_tabs_and_modals_preserve_width_and_scroll() {
             let before = geometry(&mut ui, &renderer);
             let title = before.label("定时任务");
             assert!((title.x - *left.get_or_insert(title.x)).abs() <= 1.0);
-            let content_width = size.width as f32 - title.x - 7.0;
+            assert!((title.x - 28.0).abs() <= 1.0);
+            let content_width = size.width as f32 - title.x - 28.0;
             assert!(before.containers.iter().any(|r| (r.x - title.x).abs() <= 1.0 && (r.width - content_width).abs() <= 1.0), "Cron tab must fill the content area");
             assert_single_content_scroll(&before);
             capture(

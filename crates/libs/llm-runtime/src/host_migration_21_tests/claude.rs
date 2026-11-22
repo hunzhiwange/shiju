@@ -345,6 +345,30 @@ fn model_protocol_015_claude_enables_expressible_converted_thinking() {
     assert_eq!(launch.config().env["VW_ACP_CLAUDE_NATIVE_MESSAGES"], "0");
 }
 
+#[cfg(target_os = "linux")]
+#[test]
+fn acp_platform_claude_contract_checks_managed_settings_drop_ins() {
+    let root = tempfile::tempdir().unwrap();
+    let drop_ins = root.path().join("managed-settings.d");
+    validate_linux_managed_settings(root.path()).unwrap();
+    std::fs::create_dir(&drop_ins).unwrap();
+    std::fs::write(
+        drop_ins.join("10-restrictions.json"),
+        br#"{"permissions":{"deny":["Bash"]}}"#,
+    )
+    .unwrap();
+    std::fs::write(drop_ins.join(".ignored.json"), br#"{"model":"ignored"}"#).unwrap();
+    std::fs::write(drop_ins.join("README"), b"unused").unwrap();
+    validate_linux_managed_settings(root.path()).unwrap();
+
+    let routing = drop_ins.join("20-routing.json");
+    std::fs::write(&routing, br#"{"model":"org-model"}"#).unwrap();
+    assert!(validate_linux_managed_settings(root.path()).is_err());
+    std::fs::remove_file(&routing).unwrap();
+    std::os::unix::fs::symlink(root.path().join("missing.json"), routing).unwrap();
+    assert!(validate_linux_managed_settings(root.path()).is_err());
+}
+
 #[cfg(all(
     target_os = "linux",
     target_env = "gnu",
@@ -353,9 +377,7 @@ fn model_protocol_015_claude_enables_expressible_converted_thinking() {
 #[tokio::test]
 #[ignore = "requires isolated installations of both pinned Claude ACP releases"]
 async fn acp_platform_claude_contract() {
-    use acp_access_policy::access_policy::claude::{
-        verified_entry, verified_linux_effort_engine, verified_linux_legacy_engine,
-    };
+    use acp_access_policy::access_policy::claude::{verified_entry, verified_linux_engine};
 
     let state = tempfile::tempdir().unwrap();
     let entries = [
@@ -368,11 +390,9 @@ async fn acp_platform_claude_contract() {
         });
         assert!(Path::new(&command).is_absolute());
         assert_eq!(verified_entry(&command, &[]), !native);
-        let legacy_engine = verified_linux_legacy_engine(&command);
-        let effort_engine = verified_linux_effort_engine(&command);
-        assert_eq!(legacy_engine.is_some(), !native);
-        assert_eq!(effort_engine.is_some(), native);
-        let engine = legacy_engine.or(effort_engine).unwrap();
+        assert_eq!(verified_linux_engine(&command, &[], false).is_some(), !native);
+        assert!(verified_linux_engine(&command, &["--cli".into()], native).is_none());
+        let engine = verified_linux_engine(&command, &[], native).unwrap();
         assert!(engine.is_absolute());
         assert!(engine.ends_with(if native { "claude" } else { "cli.js" }));
 

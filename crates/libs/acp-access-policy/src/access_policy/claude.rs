@@ -48,13 +48,23 @@ pub fn verified_entry(command: &str, args: &[String]) -> bool {
     args.is_empty() && verified_legacy_engine(command).is_some()
 }
 
-/// Verify the bundled JavaScript engine for a managed Linux launch.
+/// Resolve the reviewed engine for a managed Linux launch with no CLI overrides.
+/// Only the legacy SDK can send Messages that the host relay can convert.
 #[cfg(target_os = "linux")]
-pub fn verified_linux_legacy_engine(command: &str) -> Option<PathBuf> {
-    if !Path::new(command).is_absolute() {
+pub fn verified_linux_engine(
+    command: &str,
+    args: &[String],
+    native_messages: bool,
+) -> Option<PathBuf> {
+    if !args.is_empty() || !Path::new(command).is_absolute() {
         return None;
     }
-    verified_legacy_engine(command)
+    let engine = match verified_legacy_engine(command) {
+        Some(engine) => engine,
+        None if native_messages => verified_effort_engine(command)?,
+        None => return None,
+    };
+    engine.canonicalize().ok()
 }
 
 fn verified_legacy_engine(command: &str) -> Option<PathBuf> {
@@ -97,15 +107,6 @@ fn verified_legacy_engine(command: &str) -> Option<PathBuf> {
 pub fn verified_effort_entry(command: &str) -> bool {
     cfg!(all(target_os = "macos", target_arch = "aarch64"))
         && verified_effort_engine(command).is_some()
-}
-
-/// Verify the engine that a managed Linux launch must pin before starting Node.
-#[cfg(target_os = "linux")]
-pub fn verified_linux_effort_engine(command: &str) -> Option<PathBuf> {
-    if !Path::new(command).is_absolute() {
-        return None;
-    }
-    verified_effort_engine(command)?.canonicalize().ok()
 }
 
 fn verified_effort_engine(command: &str) -> Option<PathBuf> {

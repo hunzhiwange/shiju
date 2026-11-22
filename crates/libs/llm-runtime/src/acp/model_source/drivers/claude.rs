@@ -79,11 +79,14 @@ pub fn configure(profile: &mut AcpLaunchProfile, endpoint: &str) -> anyhow::Resu
     }
     // Enterprise policy remains authoritative. Refuse routing overrides instead of
     // silently sending the session to an enterprise account/backend.
+    #[cfg(target_os = "linux")]
+    validate_linux_managed_settings(std::path::Path::new("/etc/claude-code"))?;
     #[cfg(target_os = "macos")]
     let managed =
         std::path::Path::new("/Library/Application Support/ClaudeCode/managed-settings.json");
-    #[cfg(not(target_os = "macos"))]
+    #[cfg(not(any(target_os = "macos", target_os = "linux")))]
     let managed = std::path::Path::new("/etc/claude-code/managed-settings.json");
+    #[cfg(not(target_os = "linux"))]
     match std::fs::read(managed) {
         Ok(bytes) => validate_managed_settings(&bytes)?,
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
@@ -129,6 +132,48 @@ pub fn configure(profile: &mut AcpLaunchProfile, endpoint: &str) -> anyhow::Resu
     // Validate all explicit overrides before publishing private launch material.
     profile.overlay_environment(env)?;
     profile.write_config("settings.json", &settings)?;
+    Ok(())
+}
+
+#[cfg(target_os = "linux")]
+pub(crate) fn validate_linux_managed_settings(root: &std::path::Path) -> anyhow::Result<()> {
+    use std::{fs, io::ErrorKind};
+
+    fn validate_file(path: &std::path::Path) -> anyhow::Result<()> {
+        let cannot_verify = |_| anyhow::anyhow!("Claude managed settings cannot be verified");
+        let metadata = fs::metadata(path).map_err(cannot_verify)?;
+        anyhow::ensure!(metadata.is_file(), "Claude managed settings cannot be verified");
+        validate_managed_settings(&fs::read(path).map_err(cannot_verify)?)
+    }
+
+    let base = root.join("managed-settings.json");
+    match fs::symlink_metadata(&base) {
+        Ok(_) => validate_file(&base)?,
+        Err(error) if error.kind() == ErrorKind::NotFound => {}
+        Err(_) => anyhow::bail!("Claude managed settings cannot be verified"),
+    }
+    let directory = root.join("managed-settings.d");
+    let entries = match fs::read_dir(&directory) {
+        Ok(entries) => entries,
+        Err(error) if error.kind() == ErrorKind::NotFound => {
+            anyhow::ensure!(
+                matches!(fs::symlink_metadata(&directory), Err(error) if error.kind() == ErrorKind::NotFound),
+                "Claude managed settings cannot be verified"
+            );
+            return Ok(());
+        }
+        Err(_) => anyhow::bail!("Claude managed settings cannot be verified"),
+    };
+    for entry in entries {
+        let entry = entry.map_err(|_| anyhow::anyhow!("Claude managed settings cannot be verified"))?;
+        let kind =
+            entry.file_type().map_err(|_| anyhow::anyhow!("Claude managed settings cannot be verified"))?;
+        let name = entry.file_name();
+        let name = name.as_encoded_bytes();
+        if (kind.is_file() || kind.is_symlink()) && !name.starts_with(b".") && name.ends_with(b".json") {
+            validate_file(&entry.path())?;
+        }
+    }
     Ok(())
 }
 

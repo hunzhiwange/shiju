@@ -9,10 +9,11 @@ use iced::widget::{button, column, container, row, scrollable, text};
 use iced::{Background, Color, Element, Length, Point, Theme};
 
 use desktop_assets::assets::Icon;
-use desktop_ui_controls::system_settings_common::icon_svg;
 use desktop_ui_controls::overlays::PointBelowOverlay;
+use desktop_ui_controls::system_settings_common::icons::icon_btn_svg_style;
 use desktop_ui_controls::system_settings_common::{
-    round_icon_btn_style, rounded_action_btn_style, settings_muted_text_style, settings_panel_style,
+    icon_svg, round_icon_btn_style, rounded_action_btn_style, settings_muted_text_style,
+    settings_panel_style,
 };
 use desktop_ui_controls::{right_click_area::RightClickArea, single_line_label::SingleLineLabel};
 
@@ -393,7 +394,7 @@ pub fn project_sessions_header_with_tools<'a>(
 ) -> Element<'a, Message> {
     let refresh_btn = Tooltip::new(
         button(
-            container(icon_svg(Icon::ArrowRepeat, 12.0))
+            container(icon_svg(Icon::ArrowRepeat, 12.0).style(icon_btn_svg_style))
                 .width(Length::Fixed(26.0))
                 .height(Length::Fixed(26.0))
                 .align_x(iced::alignment::Horizontal::Center)
@@ -414,7 +415,7 @@ pub fn project_sessions_header_with_tools<'a>(
     )
     .gap(8);
     let more_btn = button(
-        container(icon_svg(Icon::Sliders, 12.0))
+        container(icon_svg(Icon::Sliders, 12.0).style(icon_btn_svg_style))
             .width(Length::Fixed(26.0))
             .height(Length::Fixed(26.0))
             .align_x(iced::alignment::Horizontal::Center)

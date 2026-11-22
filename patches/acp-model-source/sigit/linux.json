@@ -1,0 +1,20 @@
+{
+  "version": "1.7.10",
+  "revision": "sigit-1.7.10-model-source-v5",
+  "entry": "sigit",
+  "args": ["--acp"],
+  "source_url": "https://api.github.com/repos/getsigit/sigit/tarball/v1.7.10",
+  "source_sha256": "088809cfc43ceda419913488390a65e830ac8ff66f1b5dd14a8d833d6b46369e",
+  "base_patch_sha256": "419c0cc2e4572084c6479cfcaea7f84cd467d362ed97d6bf3037bdb963849ab8",
+  "linux_patch_sha256": "5814eaad8c4dfb17d2efb73b626197ff0d7b48d75aa549172f76b7375f92d5c8",
+  "targets": {
+    "x86_64": {
+      "rust_target": "x86_64-unknown-linux-gnu",
+      "elf_machine": 62
+    },
+    "aarch64": {
+      "rust_target": "aarch64-unknown-linux-gnu",
+      "elf_machine": 183
+    }
+  }
+}

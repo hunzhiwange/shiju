@@ -1,0 +1,97 @@
+--- a/crates/cli/src/skills.rs
++++ b/crates/cli/src/skills.rs
+@@ -182 +181,0 @@
+-/// Discover the workspace's native skill roots, followed by the host selection.
+@@ -184,2 +183 @@
+-pub fn discover_managed_skills() -> Vec<Skill> {
+-    use std::io::{BufRead, BufReader, Read};
++fn open_managed_skill_file(path: &Path) -> Option<std::fs::File> {
+@@ -186,0 +185,48 @@
++
++    std::fs::OpenOptions::new()
++        .read(true)
++        .custom_flags(libc::O_NOFOLLOW_ANY | libc::O_NONBLOCK)
++        .open(path)
++        .ok()
++}
++
++#[cfg(all(
++    target_os = "linux",
++    target_env = "gnu",
++    any(target_arch = "x86_64", target_arch = "aarch64")
++))]
++fn open_managed_skill_file(path: &Path) -> Option<std::fs::File> {
++    use std::ffi::{CString, OsStr};
++    use std::fs::File;
++    use std::os::fd::{AsRawFd, FromRawFd};
++    use std::os::unix::ffi::OsStrExt;
++    use std::path::Component;
++
++    fn open_child(parent: &File, name: &OsStr, flags: libc::c_int) -> Option<File> {
++        let name = CString::new(name.as_bytes()).ok()?;
++        // The caller supplies one path component and never requests creation.
++        let fd = unsafe {
++            libc::openat(
++                parent.as_raw_fd(),
++                name.as_ptr(),
++                flags | libc::O_NOFOLLOW | libc::O_CLOEXEC,
++            )
++        };
++        if fd < 0 {
++            return None;
++        }
++        // A successful openat returns a new descriptor owned by this call.
++        Some(unsafe { File::from_raw_fd(fd) })
++    }
++
++    // Open every ancestor without following links. Holding each directory
++    // descriptor prevents replacement of its path from redirecting the read.
++    let mut parent = File::open("/").ok()?;
++    for component in path.parent()?.strip_prefix("/").ok()?.components() {
++        let Component::Normal(name) = component else {
++            return None;
++        };
++        parent = open_child(&parent, name, libc::O_PATH | libc::O_DIRECTORY)?;
++    }
++    open_child(&parent, path.file_name()?, libc::O_RDONLY | libc::O_NONBLOCK)
++}
+@@ -187,0 +234,11 @@
++/// Discover the workspace's native skill roots, followed by the host selection.
++#[cfg(any(
++    all(target_os = "macos", target_arch = "aarch64"),
++    all(
++        target_os = "linux",
++        target_env = "gnu",
++        any(target_arch = "x86_64", target_arch = "aarch64")
++    )
++))]
++pub fn discover_managed_skills() -> Vec<Skill> {
++    use std::io::{BufRead, BufReader, Read};
+@@ -190,5 +247 @@
+-        let file = std::fs::OpenOptions::new()
+-            .read(true)
+-            .custom_flags(libc::O_NOFOLLOW_ANY | libc::O_NONBLOCK)
+-            .open(dir.join("SKILL.md"))
+-            .ok()?;
++        let file = open_managed_skill_file(&dir.join("SKILL.md"))?;
+@@ -238 +291,8 @@
+-#[cfg(not(all(target_os = "macos", target_arch = "aarch64")))]
++#[cfg(not(any(
++    all(target_os = "macos", target_arch = "aarch64"),
++    all(
++        target_os = "linux",
++        target_env = "gnu",
++        any(target_arch = "x86_64", target_arch = "aarch64")
++    )
++)))]
+@@ -244 +304,9 @@
+-    if !cfg!(all(target_os = "macos", target_arch = "aarch64")) || std::env::var_os("VW_ACP_LAUNCH_REFERENCE").is_none() {
++    if !cfg!(any(
++        all(target_os = "macos", target_arch = "aarch64"),
++        all(
++            target_os = "linux",
++            target_env = "gnu",
++            any(target_arch = "x86_64", target_arch = "aarch64")
++        )
++    )) || std::env::var_os("VW_ACP_LAUNCH_REFERENCE").is_none()
++    {

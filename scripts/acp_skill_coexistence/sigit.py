@@ -28,18 +28,51 @@ MCP_TOOL = "mcp__coexistence__read_probe"
 
 
 def launch(env):
-    require((platform.system(), platform.machine()) == ("Darwin", "arm64"),
-            "unreviewed siGit platform")
+    system, architecture = platform.system(), platform.machine()
+    linux = system == "Linux"
+    require(linux or (system, architecture) == ("Darwin", "arm64"), "unreviewed siGit platform")
+    revision = REVISION
+    linux_contract = None
+    if linux:
+        manifest = ROOT / "patches/acp-model-source/sigit/linux.json"
+        linux_contract = json.loads(manifest.read_text())
+        require(linux_contract["version"] == VERSION and architecture in linux_contract["targets"],
+                "unreviewed siGit Linux version or architecture")
+        require(os.environ.get("ACP_SIGIT_REVIEWED_DIR"), "set ACP_SIGIT_REVIEWED_DIR to a private Linux build")
+        revision = linux_contract["revision"]
     manifest = ROOT / "crates/libs/acp-agent-registry/src/managed_runtime/contracts.json"
     contract = json.loads(manifest.read_text())["sigit"]
     base = Path(os.environ.get("VIBEWINDOW_CONFIG_DIR", Path.home() / ".local/share/shiju"))
-    source = Path(os.environ.get("ACP_SIGIT_REVIEWED_DIR", base / "acp-runtime" / REVISION))
+    source = Path(os.environ.get("ACP_SIGIT_REVIEWED_DIR", base / "acp-runtime" / revision))
     require(contract["version"] == VERSION and (source / "build-receipt.json").is_file()
             and (source / "sigit").is_file(), "reviewed siGit executable unavailable")
     receipt = json.loads((source / "build-receipt.json").read_text())
     for field in ("version", "source_sha256", "patch_sha256"):
         require(receipt[field] == contract[field], "siGit build receipt mismatch")
-    target = Path(env["VIBEWINDOW_CONFIG_DIR"]) / "acp-runtime" / REVISION
+    evidence = {}
+    if linux:
+        require(source.name == revision and all(not (source / name).is_symlink()
+                for name in (linux_contract["entry"], "build-receipt.json")),
+                "invalid siGit Linux build location")
+        platform_target = linux_contract["targets"][architecture]
+        require(receipt["source_sha256"] == linux_contract["source_sha256"]
+                and receipt["patch_sha256"] == linux_contract["base_patch_sha256"]
+                and receipt["target"] == platform_target["rust_target"]
+                and receipt["linux_patch_sha256"] == linux_contract["linux_patch_sha256"],
+                "siGit Linux build receipt mismatch")
+        with (source / "sigit").open("rb") as stream:
+            header = stream.read(20)
+        require(header[:7] == b"\x7fELF\x02\x01\x01"
+                and int.from_bytes(header[18:20], "little") == platform_target["elf_machine"],
+                "unexpected siGit Linux ELF")
+        evidence = {
+            "entry": linux_contract["entry"],
+            "elf_machine": platform_target["elf_machine"],
+            "linux_patch_sha256": receipt["linux_patch_sha256"],
+            # The Chat Completions handler rejects every other request path.
+            "model_protocol": "POST /v1/chat/completions",
+        }
+    target = Path(env["VIBEWINDOW_CONFIG_DIR"]) / "acp-runtime" / revision
     target.mkdir(parents=True, mode=0o700)
     entry = target / "sigit"
     shutil.copy2(source / "sigit", entry)
@@ -53,15 +86,18 @@ def launch(env):
     require(version.returncode == 0 and version.stdout.strip() == b"sigit 1.7.10",
             "unexpected siGit executable version")
     return {"command": str(entry), "args": ["--acp"]}, {
-        "version": VERSION, "platform": "darwin-arm64", "sha256": digest.hexdigest(),
-        "revision": REVISION, "source_sha256": receipt["source_sha256"],
-        "patch_sha256": receipt["patch_sha256"],
+        "version": VERSION, "platform": f"{system.lower()}-{architecture}", "sha256": digest.hexdigest(),
+        "revision": revision, "source_sha256": receipt["source_sha256"],
+        "patch_sha256": receipt["patch_sha256"], **evidence,
     }
 
 
 @contextmanager
 def mcp_server(workspace, attachment, audit):
     with stdio_fixture(workspace, attachment, audit) as spec:
+        if platform.system() == "Linux":
+            yield spec
+            return
         # siGit denies CLT paths under /Library. The framework executable finds
         # libpython relative to itself, so put the runtime inside the test root.
         source = Path(sys.base_prefix).resolve()
@@ -76,7 +112,15 @@ def mcp_server(workspace, attachment, audit):
 def prepare_workspace(workspace):
     # A project skill symlink must not expose a source outside the native roots.
     unselected, = (workspace / ".shiju/skills").glob("unselected-probe-*")
-    (workspace / NATIVE_DIR / unselected.name).symlink_to(unselected, target_is_directory=True)
+    native = workspace / NATIVE_DIR
+    (native / unselected.name).symlink_to(unselected, target_is_directory=True)
+    if platform.system() == "Linux":
+        redirected = native / "linked-skill-file"
+        redirected.mkdir()
+        (redirected / "SKILL.md").symlink_to(unselected / "SKILL.md")
+        blocking = native / "fifo-skill-file"
+        blocking.mkdir()
+        os.mkfifo(blocking / "SKILL.md")
 
 
 class Probe(ChatProbe):

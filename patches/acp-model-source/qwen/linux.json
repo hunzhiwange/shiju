@@ -1,0 +1,28 @@
+{
+  "managed_revision": "qwen-0.26.7-model-source-linux-v1",
+  "package": "@qwen-code/qwen-code",
+  "version": "0.26.7",
+  "archive_url": "https://registry.npmjs.org/@qwen-code/qwen-code/-/qwen-code-0.26.7.tgz",
+  "archive_sha256": "4cb0587ce0eb368230b128ffd4ff999e7b517865145a26fdab14b7e744c307f0",
+  "integrity": "sha512-sRFWwmakpvF3bWBfG1M/ijoZG5h8Yxs0IC4cXZP3dJLyEbbTHItyhzMySG4o4CzLGFIfofArummQJo/xcggweQ==",
+  "node": ">=22.0.0",
+  "entry": "cli-entry.js",
+  "args": ["--acp"],
+  "model_protocol": "POST /v1/chat/completions",
+  "targets": {
+    "x86_64-unknown-linux-gnu": {
+      "files": {
+        "vendor/landlock-run/x64-linux/qwen-landlock-run": "dd872dc3b9fd39fa1e2a9dda5b4d96f50edb265a8139375e55c860a88f78ccba",
+        "vendor/ripgrep/x64-linux/rg": "f2ee496a39139b8d9ad9408081217a55f1382cef4950100565d147d247364856",
+        "opentui-assets/@opentui/core-linux-x64/libopentui.so": "e212cf409dc410fd4ad17cf1a279a49869b43067378e052065d5b656d17be852"
+      }
+    },
+    "aarch64-unknown-linux-gnu": {
+      "files": {
+        "vendor/landlock-run/arm64-linux/qwen-landlock-run": "4a6025dc22865e89faab74a52bd3933278f75eb3f58573815dd0f0cbe12164dd",
+        "vendor/ripgrep/arm64-linux/rg": "204c5d433e275ee8f29f1a22a5fb9c32a667f280f003a2e0a5011af122d8d6f2",
+        "opentui-assets/@opentui/core-linux-arm64/libopentui.so": "7f691b3a2527b5411774137f6818a6cba1e3c055d03660f5441848309e946b46"
+      }
+    }
+  }
+}

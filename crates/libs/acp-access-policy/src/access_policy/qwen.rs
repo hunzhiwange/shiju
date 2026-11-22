@@ -34,6 +34,49 @@ pub fn advertises_mode(options: Option<&[SessionConfigOption]>, value: &str) -> 
 
 /// Hash the fixed npm package, including permission implementation chunks.
 pub fn verified_entry(command: &str, args: &[String]) -> bool {
+    let (base, managed) =
+        if let Some(index) = args.iter().position(|arg| arg == "--shiju-model-source") {
+            let suffix = &args[index..];
+            if suffix.len() != 7
+                || suffix[1] != "--auth-type"
+                || suffix[2] != "openai"
+                || suffix[3] != "--model"
+                || suffix[5] != "--openai-base-url"
+            {
+                return false;
+            }
+            (&args[..index], true)
+        } else {
+            (args, false)
+        };
+    if base != ["--acp"] && base != ["--acp", "--experimental-skills"] {
+        return false;
+    }
+    if managed
+        && cfg!(all(
+            target_os = "linux",
+            target_env = "gnu",
+            any(target_arch = "x86_64", target_arch = "aarch64")
+        ))
+    {
+        return verified_linux_package(command);
+    }
+    package_fingerprint(command).is_some_and(|fingerprint| {
+        fingerprint == "d34ed30c3b0647300e549f9f7e947e0ab4110307e55508ae77220c3b4e1577ca"
+            || (!managed
+                && fingerprint
+                    == "bb52c5bcfc0c461f69dc66799856d0e4b246d47449cecb2fb55a8c0e692272e8")
+    })
+}
+
+/// Check the exact patched Linux tree, independent of the launch arguments.
+pub fn verified_linux_package(command: &str) -> bool {
+    // The Linux installation uses the v2 skill scanner and original home helper.
+    package_fingerprint(command).as_deref()
+        == Some("b2fdbd34cebf7510cfd4a11fea11804e805a7f09b09301d9b5b6ecea2852769f")
+}
+
+fn package_fingerprint(command: &str) -> Option<String> {
     use sha2::{Digest, Sha256};
     use std::path::{Path, PathBuf};
     fn collect(root: &Path, files: &mut Vec<PathBuf>) -> std::io::Result<()> {
@@ -54,55 +97,21 @@ pub fn verified_entry(command: &str, args: &[String]) -> bool {
         }
         Ok(())
     }
-    let (base, managed) =
-        if let Some(index) = args.iter().position(|arg| arg == "--shiju-model-source") {
-            let suffix = &args[index..];
-            if suffix.len() != 7
-                || suffix[1] != "--auth-type"
-                || suffix[2] != "openai"
-                || suffix[3] != "--model"
-                || suffix[5] != "--openai-base-url"
-            {
-                return false;
-            }
-            (&args[..index], true)
-        } else {
-            (args, false)
-        };
-    if base != ["--acp"] && base != ["--acp", "--experimental-skills"] {
-        return false;
+    let entry = Path::new(command).canonicalize().ok()?;
+    if entry.file_name()?.to_str()? != "cli-entry.js" {
+        return None;
     }
-    let Ok(entry) = Path::new(command).canonicalize() else {
-        return false;
-    };
-    if entry.file_name().and_then(|x| x.to_str()) != Some("cli-entry.js") {
-        return false;
-    }
-    let Some(package) = entry.parent() else {
-        return false;
-    };
+    let package = entry.parent()?;
     let mut files = Vec::new();
-    if collect(package, &mut files).is_err() {
-        return false;
-    }
+    collect(package, &mut files).ok()?;
     files.sort();
     let mut digest = Sha256::new();
     for file in files {
-        let Ok(name) = file.strip_prefix(package) else {
-            return false;
-        };
-        let Some(name) = name.to_str() else {
-            return false;
-        };
-        let Ok(bytes) = std::fs::read(&file) else {
-            return false;
-        };
+        let name = file.strip_prefix(package).ok()?.to_str()?;
+        let bytes = std::fs::read(&file).ok()?;
         digest.update(name.as_bytes());
         digest.update([0]);
         digest.update(Sha256::digest(bytes));
     }
-    let fingerprint = hex::encode(digest.finalize());
-    fingerprint == "d34ed30c3b0647300e549f9f7e947e0ab4110307e55508ae77220c3b4e1577ca"
-        || (!managed
-            && fingerprint == "bb52c5bcfc0c461f69dc66799856d0e4b246d47449cecb2fb55a8c0e692272e8")
+    Some(hex::encode(digest.finalize()))
 }

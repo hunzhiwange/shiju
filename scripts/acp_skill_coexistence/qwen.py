@@ -23,12 +23,25 @@ MCP_TOOL = "mcp__coexistence__read_probe"
 
 
 def launch(env):
-    require((platform.system(), platform.machine()) == ("Darwin", "arm64"), "unreviewed Qwen platform")
+    system, machine = platform.system(), platform.machine()
+    linux = system == "Linux" and machine in ("x86_64", "aarch64")
+    require(linux or (system, machine) == ("Darwin", "arm64"), "unreviewed Qwen platform")
     contract = json.loads((ROOT / "crates/libs/acp-agent-registry/src/managed_runtime/contracts.json")
                           .read_text())["qwen"]
     require(contract["version"] == "0.26.7", "Qwen version differs from coexistence pin")
     require(shutil.which("node", path=env["PATH"]), "Node is unavailable")
     revision = "qwen-0.26.7-model-source-v2"
+    args = ["--acp"]
+    if linux:
+        manifest = json.loads((ROOT / "patches/acp-model-source/qwen/linux.json").read_text())
+        require(all(manifest[left] == contract[right] for left, right in (
+            ("package", "package"), ("version", "version"), ("entry", "bin"),
+            ("integrity", "integrity"),
+        )), "Qwen Linux manifest differs from the reviewed package contract")
+        target = f"{machine}-unknown-linux-gnu"
+        native_files = manifest["targets"][target]["files"]
+        revision = manifest["managed_revision"]
+        args = manifest["args"]
     if source := os.environ.get("QWEN_COEXISTENCE_RUNTIME"):
         runtime = Path(source).resolve()
     else:
@@ -47,8 +60,22 @@ def launch(env):
         require(hashlib.sha256((package / name).read_bytes()).hexdigest() == digest,
                 "Qwen artifact digest differs from contract")
     entry = package / contract["bin"]
-    return {"command": str(entry), "args": ["--acp"], "env": {}}, {
-        "version": contract["version"], "sha256": contract["files"]}
+    artifact = {"version": contract["version"], "sha256": contract["files"]}
+    if linux:
+        require(entry.resolve(strict=True) == entry and os.access(entry, os.X_OK),
+                "Qwen Linux entry is redirected or not executable")
+        verified = {}
+        for name, digest in native_files.items():
+            path = package / name
+            require(path.resolve(strict=True) == path and path.is_file(),
+                    "Qwen Linux helper is redirected or missing")
+            require(name.endswith(".so") or os.access(path, os.X_OK),
+                    "Qwen Linux helper is not executable")
+            verified[name] = hashlib.sha256(path.read_bytes()).hexdigest()
+            require(verified[name] == digest, "Qwen Linux helper digest differs from contract")
+        artifact.update(target=target, native_sha256=verified,
+                        model_protocol=manifest["model_protocol"])
+    return {"command": str(entry), "args": args, "env": {}}, artifact
 
 
 def prepare_workspace(workspace):

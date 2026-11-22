@@ -24,6 +24,8 @@ PATCH_DIR = ROOT / "patches/acp-model-source/cursor"
 
 
 def launch(env):
+    if platform.system() == "Linux":
+        return launch_linux(env)
     require((platform.system(), platform.machine()) == ("Darwin", "arm64"),
             "unreviewed Cursor platform")
     contract = json.loads((MANAGED_DIR / "contracts.json").read_text())["cursor"]
@@ -67,6 +69,46 @@ def launch(env):
         "revision": target.name, "version": VERSION, "archive_sha256": contract["archive_sha256"],
         "file_count": len(hashes), "entry_sha256": hashes[contract["bin"]],
         "model_bridge_sha256": hashes["dist-package/session-model.cjs"],
+    }
+
+
+def launch_linux(env):
+    manifest = json.loads((PATCH_DIR / "linux-artifacts.json").read_text())
+    contract = manifest["targets"].get(platform.machine())
+    require(contract is not None and contract["version"] == manifest["version"] == VERSION,
+            "unreviewed Cursor Linux target")
+    runtime = Path(env["VIBEWINDOW_CONFIG_DIR"]) / "acp-runtime"
+    runtime.mkdir(parents=True)
+    target = runtime / f"cursor-{VERSION}-model-source-v6"
+    with tempfile.TemporaryDirectory(dir=env["TMPDIR"], prefix="cursor-") as directory:
+        assets = Path(directory)
+        shutil.copy2(MANAGED_DIR / "contracts.json", assets)
+        shutil.copytree(PATCH_DIR, assets / "cursor")
+        command = [sys.executable, str(MANAGED_DIR / "install.py"), str(assets), str(target), "cursor"]
+        try:
+            result = subprocess.run(command, env=env, capture_output=True, timeout=300)
+        except subprocess.TimeoutExpired as error:
+            raise AssertionError("reviewed Linux Cursor runtime installation timed out") from error
+        require(result.returncode == 0, "reviewed Linux Cursor runtime installation failed")
+    entry = target / contract["bin"]
+    digest = hashlib.sha256(entry.read_bytes()).hexdigest()
+    require(digest == contract["files"][contract["bin"]], "Cursor Linux entry digest mismatch")
+    node_digest = hashlib.sha256()
+    with (entry.parent / "node").open("rb") as stream:
+        for block in iter(lambda: stream.read(1024 * 1024), b""):
+            node_digest.update(block)
+    require(node_digest.hexdigest() == contract["files"]["dist-package/node"],
+            "Cursor Linux bundled Node digest mismatch")
+    try:
+        version = subprocess.run([str(entry), "--version"], env=env, cwd=target,
+                                 capture_output=True, timeout=15)
+    except subprocess.TimeoutExpired as error:
+        raise AssertionError("Cursor Linux version check timed out") from error
+    require(version.returncode == 0 and version.stdout.strip() == VERSION.encode(),
+            "unexpected Linux Cursor executable version")
+    return {"command": str(entry), "args": ["acp"]}, {
+        "entry": contract["bin"], "version": VERSION, "entry_sha256": digest,
+        "archive_sha256": contract["archive_sha256"], "node_sha256": node_digest.hexdigest(),
     }
 
 

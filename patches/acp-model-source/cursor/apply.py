@@ -7,7 +7,14 @@ import sys
 
 root = Path(sys.argv[1])
 assets = Path(__file__).parent
-contract = json.loads((assets / 'patch.json').read_text())
+linux = len(sys.argv) == 3 and sys.argv[2] in ('x86_64', 'aarch64')
+if linux:
+    manifest = json.loads((assets / 'linux-artifacts.json').read_text())
+    contract = manifest['targets'][sys.argv[2]]
+elif len(sys.argv) == 2:
+    contract = json.loads((assets / 'patch.json').read_text())
+else:
+    raise RuntimeError('Unsupported Cursor patch target')
 for name, digest in contract['original'].items():
     if hashlib.sha256((root / name).read_bytes()).hexdigest() != digest:
         raise RuntimeError('Cursor supplier checksum mismatch: ' + name)
@@ -22,15 +29,18 @@ source = entry.read_text()
 anchor = 'async run(t,e,r,s,i,c,u,l,d,m,p){const f='
 source = replace(source, anchor,
     'async run(t,e,r,s,i,c,u,l,d,m,p){if(process.env.SHIJU_CURSOR_MODEL_CONFIG)return shijuCursor.run(shijuCursorApi,t,e,r,s,i,c,u,l,d,m,p);const f=')
-source = replace(source, 'class Me{constructor(t,e,r={}){this.client=t',
-    'const shijuCursorApi={pb:g,context:h,updates:b,exec:o.n6O,ExecServerMessage:C.Ye,parseShell:r("../shell-exec/dist/api/shell-parser.js").UD};class Me{constructor(t,e,r={}){this.client=t')
+agent_class, updates, exec_pb = ('$e', '_', 'v') if linux else ('Me', 'b', 'C')
+client_anchor = f'class {agent_class}{{constructor(t,e,r={{}}){{this.client=t'
+source = replace(source, client_anchor,
+    f'const shijuCursorApi={{pb:g,context:h,updates:{updates},exec:o.n6O,ExecServerMessage:{exec_pb}.Ye,parseShell:r("../shell-exec/dist/api/shell-parser.js").UD}};' + client_anchor)
 # Disable backend bootstrap/telemetry, using Cursor's existing authless startup path.
-source = replace(source, 'o=void 0!==(q={localAgentRuntime:e,argv:i,env:process.env}).localAgentRuntime&&',
-    'o=!!process.env.SHIJU_CURSOR_MODEL_CONFIG||void 0!==(q={localAgentRuntime:e,argv:i,env:process.env}).localAgentRuntime&&')
+bootstrap = 'O' if linux else 'q'
+bootstrap_anchor = f'void 0!==({bootstrap}={{localAgentRuntime:e,argv:i,env:process.env}}).localAgentRuntime&&'
+source = replace(source, 'o=' + bootstrap_anchor, 'o=!!process.env.SHIJU_CURSOR_MODEL_CONFIG||' + bootstrap_anchor)
 source = 'const shijuCursor=require("./session-model.cjs");\n' + source
 entry.write_text(source)
 
-entry = root / '4119.index.js'
+entry = root / ('6136.index.js' if linux else '4119.index.js')
 source = entry.read_text()
 source = replace(source, 'const{isAuthenticated:M}=await(0,r.D)(a.credentialManager,{authToken:t.authToken})',
     'const{isAuthenticated:M}=process.env.SHIJU_CURSOR_MODEL_CONFIG?{isAuthenticated:!!shijuCursor.config()}:await(0,r.D)(a.credentialManager,{authToken:t.authToken})')
@@ -44,25 +54,29 @@ native_services = source[services_start:services_end]
 start = source.index('const _=await(0,S.Qy)(n.configProvider),R=')
 end = source.index(',D=new c.xK7', start)
 # The managed entry requires a private binding; the user's original CLI is untouched.
+chunks = ('2240,8096,7923,1297,5504,5493,5164,3198,5557,8952,9494,1212' if linux
+          else '2240,8096,7923,982,1989,8752,2699,1253,9966,7244,5738,8170')
 replacement = (
-    'await Promise.all([2240,8096,7923,982,1989,8752,2699,1253,9966,7244,5738,8170].map(id=>s.e(id)));'
+    f'await Promise.all([{chunks}].map(id=>s.e(id)));'
     'const _=undefined,U=shijuCursor.unavailableServices(),E=U,L=new(s("../agent-client/dist/index.js").PW)(null,shijuCursor.config().endpoint)')
 source = source[:start] + replacement + source[end:]
 source = replace(source, 'await(0,c.W33)(e,{getManagedSkills:async()=>(await E.getManagedSkills(new h.X8g({}))).skills??[]});', '')
-start = source.index('X=new c.waD(')
-end = source.index(',Z=new v.P', start)
-source = source[:start] + 'X=s("./src/shared/resources.ts").cn()' + source[end:]
+team_settings, disabled_store = ('Z', 'X') if linux else ('X', 'Z')
+start = source.index(f'{team_settings}=new c.waD(')
+end = source.index(f',{disabled_store}=new v.P', start)
+source = source[:start] + f'{team_settings}=s("./src/shared/resources.ts").cn()' + source[end:]
 source = replace(source, 'se=await w.P3.init(U,{configProvider:n.configProvider,initialModel:k}),ae=await ee.load(e)',
     'se=shijuCursor.modelManager(w.P3,s("../proto/dist/generated/agent/v1/agent_pb.js"),n.configProvider),ae=new d.i9({})')
 source = replace(source, 'ce=(0,g.Np)(j)', 'ce=shijuCursor.unavailableServices()')
 # The Agent Store scanner accepts additional roots without changing project rule discovery.
-source = replace(source, 'D,B,void 0,W,void 0,"cli"),K=',
-    'D,B,void 0,W,void 0,"cli",void 0,shijuCursor.skillRoots),K=')
+skill_loader, skill_scanner = ('Q', 'B') if linux else ('B', 'z')
+source = replace(source, f'D,{skill_loader},void 0,W,void 0,"cli"),K=',
+    f'D,{skill_loader},void 0,W,void 0,"cli",void 0,shijuCursor.skillRoots),K=')
 services_start = source.index('async function M(e,t,n,M,T){')
 services_end = source.index('}(0,n.h)("shared-services")', services_start) + 1
 managed_services = source[services_start:services_end].replace('async function M(', 'async function shijuCursorShared(', 1)
 managed_services = replace(managed_services, 'return{aiServerClient:U',
-    'await z.agentStoreSkillsSettled();return{aiServerClient:U')
+    f'await {skill_scanner}.agentStoreSkillsSettled();return{{aiServerClient:U')
 native_services = native_services.replace('async function M(e,t,n,M,T){', 'async function M(e,t,n,M,T){if(process.env.SHIJU_CURSOR_MODEL_CONFIG)return shijuCursorShared(e,t,n,M,T);', 1)
 source = source[:services_start] + native_services + managed_services + source[services_end:]
 # Bind the managed shell default to the working directory of the ACP session.

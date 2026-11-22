@@ -30,9 +30,9 @@ fn deserialize_employee_id<'de, D: serde::Deserializer<'de>>(
     deserializer: D,
 ) -> Result<String, D::Error> {
     let value = String::deserialize(deserializer)?;
-    let id = uuid::Uuid::parse_str(&value)
-        .map_err(|_| serde::de::Error::custom("invalid employee_id"))?;
-    if id.is_nil() || id.hyphenated().to_string() != value {
+    if !(1..=128).contains(&value.len())
+        || !value.bytes().all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'-' | b'_'))
+    {
         return Err(serde::de::Error::custom("invalid employee_id"));
     }
     Ok(value)

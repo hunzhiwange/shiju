@@ -20,12 +20,19 @@ fn employee_acp_gateway_target_has_a_closed_schema() {
     let target: EmployeeTarget = serde_json::from_value(valid.clone()).unwrap();
     assert_eq!(target.employee_id(), EMPLOYEE_ID);
     assert_eq!(serde_json::to_value(target).unwrap(), valid);
+    assert!(
+        serde_json::from_value::<EmployeeTarget>(
+            json!({"employee_id": "employee_1", "kind": "shared"})
+        )
+        .is_ok()
+    );
 
     for invalid in [
         json!({"employee_id": EMPLOYEE_ID, "kind": "team"}),
         json!({"employee_id": EMPLOYEE_ID, "kind": "private", "user_id": "42"}),
         json!({"employee_id": EMPLOYEE_ID, "kind": "private", "credential": "synthetic"}),
-        json!({"employee_id": "00000000-0000-0000-0000-000000000000", "kind": "shared"}),
+        json!({"employee_id": "", "kind": "shared"}),
+        json!({"employee_id": "x".repeat(129), "kind": "shared"}),
         json!({"employee_id": "../assistant", "kind": "shared"}),
         json!({"employee_id": EMPLOYEE_ID}),
         Value::Null,

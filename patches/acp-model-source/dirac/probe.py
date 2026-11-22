@@ -75,14 +75,17 @@ class Model(BaseHTTPRequestHandler):
 with tempfile.TemporaryDirectory(prefix="dirac-acp-") as private_home, \
         ThreadingHTTPServer(("127.0.0.1", 0), Model) as model:
     config = Path(private_home) / "dirac"
-    config.mkdir()
+    config.mkdir(mode=0o700)
     if args.plain_text:
         (config / "data").mkdir()
         (config / "data/globalState.json").write_text(json.dumps({"toolToggles": {"respond": False}}))
     threading.Thread(target=model.serve_forever, daemon=True).start()
     env = dict(PATH=os.environ["PATH"], HOME=private_home, DIRAC_DIR=str(config), DIRAC_DATA_DIR=str(config), DIRAC_PROVIDER="openai", DIRAC_MODEL="probe", DIRAC_API_KEY="fixture", DIRAC_BASE_URL=f"http://127.0.0.1:{model.server_port}/v1")
-    with subprocess.Popen(["node", args.dirac.absolute(), "--acp", "--config", str(config)], cwd=cwd, env=env, text=True,
-                          stdin=subprocess.PIPE, stdout=subprocess.PIPE) as proc:
+    if sys.platform == "linux":
+        env["VW_ACP_LAUNCH_REFERENCE"] = "fixture"
+    command = ["node", args.dirac.absolute(), "--acp", "--config", str(config)]
+    process_options = dict(cwd=cwd, env=env, text=True, stdin=subprocess.PIPE, stdout=subprocess.PIPE)
+    with subprocess.Popen(command, **process_options) as proc:
         deadline = threading.Timer(45, proc.terminate)
         deadline.start()
         rpc_id = 0
@@ -126,6 +129,10 @@ with tempfile.TemporaryDirectory(prefix="dirac-acp-") as private_home, \
                 updates.clear()
                 permissions.clear()
                 session = rpc("session/new", dict(cwd=str(cwd), mcpServers=mount))["sessionId"]
+                if label == "before":
+                    baseline_session = session
+                if label == "mounted":
+                    mounted_session = session
                 end = rpc("session/prompt", dict(sessionId=session, prompt=[dict(type="text",text="Run the fixture")]))
                 names, results, _ = seen[-1]
                 completed = [u for u in updates if u.get("status") == "completed" and u.get("title","").startswith(name_prefix)]
@@ -175,6 +182,12 @@ with tempfile.TemporaryDirectory(prefix="dirac-acp-") as private_home, \
                 else:
                     assert not any(n.startswith(name_prefix) for n in names)
                     assert not results and not permissions and not completed
+            if sys.platform == "linux":
+                skill = Path(private_home) / "shiju-session-skills-fixture/skills/selected"
+                skill.mkdir(parents=True)
+                skill_session = rpc("session/new", dict(cwd=str(cwd), mcpServers=[], _meta={
+                    "shiju.skillMounts": {"version": 1, "skills": [{"name": skill.name, "path": str(skill)}]},
+                }))["sessionId"]
         finally:
             deadline.cancel()
             proc.stdin.close()
@@ -183,4 +196,27 @@ with tempfile.TemporaryDirectory(prefix="dirac-acp-") as private_home, \
             except subprocess.TimeoutExpired:
                 proc.terminate()
                 proc.wait(timeout=3)
+    if sys.platform == "linux":
+        with subprocess.Popen(command, **process_options) as proc:
+            deadline = threading.Timer(45, proc.terminate)
+            deadline.start()
+            try:
+                rpc("initialize", dict(protocolVersion=1, clientCapabilities={}))
+                rpc("session/load", dict(sessionId=baseline_session, cwd=str(cwd), mcpServers=[]))
+                for previous in (mounted_session, skill_session):
+                    for method in ("session/load", "session/resume", "session/fork"):
+                        try:
+                            rpc(method, dict(sessionId=previous, cwd=str(cwd), mcpServers=[]))
+                        except RuntimeError as error:
+                            assert "Dirac mounts support only new sessions" in str(error), error
+                        else:
+                            raise AssertionError(f"{method} restored a mounted session after restart")
+            finally:
+                deadline.cancel()
+                proc.stdin.close()
+                try:
+                    proc.wait(timeout=3)
+                except subprocess.TimeoutExpired:
+                    proc.terminate()
+                    proc.wait(timeout=3)
     model.shutdown()

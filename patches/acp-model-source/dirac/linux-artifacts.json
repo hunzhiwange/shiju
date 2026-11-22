@@ -5,8 +5,9 @@
   "bin": "dist/shiju-dirac.mjs",
   "rg": "dist/shiju-rg",
   "files": {
-    "dist/shiju-dirac.mjs": "06dd871cc53d8b1aa017b945265b60d93eab2e59a6c8ef0fb535dfe79a01df71",
-    "dist/session-mcp.mjs": "825385b5a7292d3a1bbe05231de4efd95aa94c671de882eede7eb342b42bb5ab"
+    "dist/shiju-dirac.mjs": "27d509dc8f31a80c7f715a523c6b2c6da09292dd2148660c1d07ee0be977b286",
+    "dist/session-mcp.mjs": "facf2193837ec0a88b4868a91497c37da3712f0586470f9c554e2166192fffdc",
+    "dist/linux-session.mjs": "40553caf0805ab67319414dcef5d05c0bc8ea90b208f74176f2f8c6472b2cd81"
   },
   "targets": {
     "x86_64": {

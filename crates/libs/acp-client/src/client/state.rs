@@ -21,6 +21,21 @@ pub(super) struct ActivePromptControl {
     pub(super) session_id: String,
     pub(super) cancel_tx: watch::Sender<bool>,
     pub(super) completed_rx: watch::Receiver<bool>,
+    pub(super) approval_calls: Arc<Mutex<HashSet<String>>>,
+}
+
+impl ActivePromptControl {
+    pub(super) fn new(
+        session_id: String,
+        cancel_tx: watch::Sender<bool>,
+        completed_rx: watch::Receiver<bool>,
+    ) -> Self {
+        Self { session_id, cancel_tx, completed_rx, approval_calls: Arc::default() }
+    }
+
+    pub(super) fn accepts_approvals(&self) -> bool {
+        !*self.cancel_tx.borrow() && !*self.completed_rx.borrow()
+    }
 }
 
 pub(super) struct AcpEventClient {

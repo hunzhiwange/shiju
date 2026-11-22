@@ -394,3 +394,19 @@ impl Drop for TestPty {
         }
     }
 }
+
+#[test]
+fn acp_platform_approval_rejects_truncated_terminal_answer() {
+    let mut reader = std::io::Cursor::new(b"yes");
+    let mut output = Vec::new();
+    let approved = prompt_for_permission_with_io(
+        &PermissionPromptOptions {
+            prompt: "Allow /usr/bin/touch /tmp/shiju-approval/marker? ".into(),
+            header: None,
+            details: None,
+        },
+        &mut reader,
+        &mut output,
+    ).unwrap();
+    assert!(!approved);
+}

@@ -21,19 +21,32 @@ impl AcpClient {
         };
         let actor_state = Arc::downgrade(&self.actor_state);
         let on_update = self.on_session_update.clone();
-        let confirm_execute = self.permission_confirmation.clone().map(|confirm| {
+        let confirm_terminal = self.permission_confirmation.clone().map(|confirm| {
             let policy = self.non_interactive_permissions;
-            let handler: crate::terminal::TerminalConfirmExecuteFn = Arc::new(move |command| {
+            let active_prompt = self.active_prompt.clone();
+            let handler: crate::terminal::TerminalConfirmRequestFn = Arc::new(move |arguments| {
                 let confirm = confirm.clone();
+                let active_prompt = active_prompt.clone();
                 Box::pin(async move {
                     match policy {
-                        None => Ok(confirm("Terminal".into(), json!({"command": command})).await),
-                        Some(NonInteractivePermissionPolicy::Deny) => Ok(false),
+                        Some(NonInteractivePermissionPolicy::Deny) => return Ok(false),
                         Some(NonInteractivePermissionPolicy::Fail) => {
-                            Err(Box::new(crate::errors::PermissionPromptUnavailableError::new())
-                                as crate::errors::ErrorSource)
+                            return Err(Box::new(crate::errors::PermissionPromptUnavailableError::new())
+                                as crate::errors::ErrorSource);
                         }
+                        None => {}
                     }
+                    let Some(session_id) = arguments["sessionId"].as_str() else {
+                        return Ok(false);
+                    };
+                    let prompt = active_prompt.lock().clone();
+                    let Some(prompt) = prompt.filter(|prompt| {
+                        prompt.session_id == session_id && prompt.accepts_approvals()
+                    }) else {
+                        return Ok(false);
+                    };
+                    let approved = confirm("Terminal".into(), arguments).await;
+                    Ok(approved && prompt_is_current(&active_prompt, &prompt))
                 })
             });
             handler
@@ -165,10 +178,11 @@ impl AcpClient {
                 permission_mode,
                 non_interactive_permissions: self.non_interactive_permissions,
                 on_operation,
-                confirm_execute,
+                confirm_execute: None,
                 kill_grace_ms: None,
             })
-            .with_workspace_auto_execute(self.desktop_workspace.is_none()),
+            .with_workspace_auto_execute(self.desktop_workspace.is_none())
+            .with_request_confirmation(confirm_terminal),
             permission_mode,
             non_interactive_permissions: self.non_interactive_permissions,
             permission_confirmation: self.permission_confirmation.clone(),
@@ -201,6 +215,10 @@ impl acp::Client for AcpEventClient {
             return Ok(cancelled_permission_response());
         }
         self.permission_stats.lock().requested += 1;
+        if !crate::permissions::has_unambiguous_permission_options(&args) {
+            self.permission_stats.lock().cancelled += 1;
+            return Ok(cancelled_permission_response());
+        }
         // Only the reviewed Gemini bundle emits this marker for an MCP invocation.
         let gemini_mcp = args.meta.as_ref().and_then(|meta| meta.get("shiju.gemini/mcp"));
         if let Some(mcp) = gemini_mcp
@@ -344,16 +362,44 @@ impl acp::Client for AcpEventClient {
         } else {
             self.permission_mode
         };
-        let response = if let Some(confirm) = &self.permission_confirmation
+        // A relay grant must follow an explicit host decision, even when the
+        // agent's native mode automatically approves its own tools.
+        let mut approval_prompt = None;
+        let response = if managed_mcp.is_some()
+            && (mode == PermissionMode::DenyAll
+                || self.non_interactive_permissions == Some(NonInteractivePermissionPolicy::Deny)
+                || (self.non_interactive_permissions.is_none()
+                    && self.permission_confirmation.is_none()))
+        {
+            crate::permissions::resolve_host_confirmation(&args, false)
+        } else if let Some(confirm) = &self.permission_confirmation
             && self.non_interactive_permissions.is_none()
         {
-            match resolve(&args, mode, Some(NonInteractivePermissionPolicy::Fail)) {
-                Ok(response) => response,
-                Err(_) => {
+            let policy_response = if managed_mcp.is_some() {
+                None
+            } else {
+                resolve(&args, mode, Some(NonInteractivePermissionPolicy::Fail)).ok()
+            };
+            match policy_response {
+                Some(response) => response,
+                None => {
                     let has_allow_once = args
                         .options
                         .iter()
                         .any(|option| option.kind == acp::PermissionOptionKind::AllowOnce);
+                    approval_prompt = self.active_prompt.lock().clone();
+                    let call_id = args.tool_call.tool_call_id.0.as_ref();
+                    if call_id.is_empty()
+                        || (managed_mcp.is_some() && approval_prompt.is_none())
+                        || approval_prompt.as_ref().is_some_and(|prompt| {
+                            prompt.session_id != args.session_id.0.as_ref()
+                                || !prompt.accepts_approvals()
+                                || !prompt.approval_calls.lock().insert(call_id.to_owned())
+                        })
+                    {
+                        self.permission_stats.lock().cancelled += 1;
+                        return Ok(cancelled_permission_response());
+                    }
                     let approved = has_allow_once
                         && confirm(
                             args.tool_call
@@ -364,21 +410,41 @@ impl acp::Client for AcpEventClient {
                             args.tool_call.fields.raw_input.clone().unwrap_or(Value::Null),
                         )
                         .await;
-                    if self.cancelling_session_ids.lock().contains(args.session_id.0.as_ref()) {
+                    if self.cancelling_session_ids.lock().contains(args.session_id.0.as_ref())
+                        || approval_prompt.as_ref().is_some_and(|prompt| {
+                            !prompt_is_current(&self.active_prompt, prompt)
+                                || self.expected_session_id.lock().as_deref() != Some(args.session_id.0.as_ref())
+                        })
+                    {
                         cancelled_permission_response()
                     } else {
                         crate::permissions::resolve_host_confirmation(&args, approved)
                     }
                 }
             }
+        } else if managed_mcp.is_some() {
+            return Err(acp::Error::into_internal_error(
+                crate::errors::PermissionPromptUnavailableError::new(),
+            ));
         } else {
             resolve(&args, mode, self.non_interactive_permissions)
                 .map_err(acp::Error::into_internal_error)?
         };
         if let Some((grant, title)) = managed_mcp
             && matches!(classify_permission_decision(&args, &response), PermissionDecision::Approved)
-            && (!self.owns_active_prompt(&args.session_id)
-                || !args.tool_call.fields.raw_input.as_ref().is_some_and(|input| grant(title, input)))
+            && !approval_prompt.zip(args.tool_call.fields.raw_input.as_ref()).is_some_and(
+                |(prompt, input)| {
+                    let active = self.active_prompt.clone();
+                    let expected = self.expected_session_id.clone();
+                    let cancelling = self.cancelling_session_ids.clone();
+                    let valid = move || {
+                        let owns_session = expected.lock().as_deref() == Some(prompt.session_id.as_str());
+                        let cancelled = cancelling.lock().contains(&prompt.session_id);
+                        owns_session && !cancelled && prompt_is_current(&active, &prompt)
+                    };
+                    valid() && grant(title, input, Box::new(valid))
+                },
+            )
         {
             self.permission_stats.lock().cancelled += 1;
             return Ok(cancelled_permission_response());
@@ -591,10 +657,21 @@ impl AcpEventClient {
         let session_id = session_id.0.as_ref();
         self.expected_session_id.lock().as_deref() == Some(session_id)
             && self.active_prompt.lock().as_ref().is_some_and(|prompt| {
-                prompt.session_id == session_id && !*prompt.cancel_tx.borrow()
+                prompt.session_id == session_id && prompt.accepts_approvals()
             })
             && !self.cancelling_session_ids.lock().contains(session_id)
     }
+}
+
+fn prompt_is_current(
+    active: &Mutex<Option<ActivePromptControl>>,
+    expected: &ActivePromptControl,
+) -> bool {
+    active.lock().as_ref().is_some_and(|prompt| {
+        prompt.session_id == expected.session_id
+            && prompt.cancel_tx.same_channel(&expected.cancel_tx)
+            && prompt.accepts_approvals()
+    })
 }
 
 fn resolve_transient_permission_request(

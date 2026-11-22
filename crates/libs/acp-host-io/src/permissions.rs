@@ -5,6 +5,8 @@
 //!
 //! 该层的目标是让权限语义保持可预测，避免运行时各处重复实现分散的判断分支。
 
+use std::collections::HashSet;
+
 use agent_client_protocol::{
     PermissionOption, PermissionOptionKind, RequestPermissionOutcome, RequestPermissionRequest,
     RequestPermissionResponse, SelectedPermissionOutcome, ToolKind,
@@ -29,6 +31,9 @@ pub fn resolve_host_confirmation(
     request: &RequestPermissionRequest,
     approved: bool,
 ) -> RequestPermissionResponse {
+    if !has_unambiguous_permission_options(request) {
+        return cancelled();
+    }
     let kind =
         if approved { PermissionOptionKind::AllowOnce } else { PermissionOptionKind::RejectOnce };
     pick_option(&request.options, &[kind])
@@ -59,6 +64,14 @@ fn selected(option_id: String) -> RequestPermissionResponse {
 
 fn cancelled() -> RequestPermissionResponse {
     RequestPermissionResponse::new(RequestPermissionOutcome::Cancelled)
+}
+
+pub fn has_unambiguous_permission_options(request: &RequestPermissionRequest) -> bool {
+    let mut ids = HashSet::new();
+    request.options.iter().all(|option| {
+        let id = option.option_id.0.as_ref();
+        !id.is_empty() && ids.insert(id)
+    })
 }
 
 fn pick_option<'a>(
@@ -204,7 +217,7 @@ fn resolve_permission_request_with_prompt(
     prompt: fn(&RequestPermissionRequest) -> bool,
 ) -> Result<RequestPermissionResponse, PermissionPromptUnavailableError> {
     let options = &params.options;
-    if options.is_empty() {
+    if options.is_empty() || !has_unambiguous_permission_options(params) {
         return Ok(cancelled());
     }
 
@@ -275,6 +288,9 @@ pub fn classify_permission_decision(
     params: &RequestPermissionRequest,
     response: &RequestPermissionResponse,
 ) -> PermissionDecision {
+    if !has_unambiguous_permission_options(params) {
+        return PermissionDecision::Cancelled;
+    }
     let RequestPermissionOutcome::Selected(SelectedPermissionOutcome { option_id, .. }) =
         &response.outcome
     else {

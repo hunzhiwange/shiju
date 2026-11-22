@@ -635,7 +635,7 @@ async fn acp_skill_coexistence_qwen_mcp_requires_owned_verified_tool_and_once() 
     let (cancel_tx, _) = tokio::sync::watch::channel(false);
     let (_, completed_rx) = tokio::sync::watch::channel(false);
     *client.active_prompt.lock() =
-        Some(super::ActivePromptControl { session_id: "owned".into(), cancel_tx, completed_rx });
+        Some(super::ActivePromptControl::new("owned".into(), cancel_tx, completed_rx));
     client.permission_confirmation = Some(Arc::new(|title, arguments| {
         assert_eq!(title, "mcp__selected__read_probe");
         assert_eq!(arguments, serde_json::json!({}));
@@ -668,7 +668,11 @@ async fn acp_skill_coexistence_qwen_mcp_requires_owned_verified_tool_and_once() 
     let response = client.request_permission(mounted.clone()).await.unwrap();
     assert_eq!(serde_json::to_value(response).unwrap()["outcome"]["optionId"], "once");
     client.permission_confirmation = Some(Arc::new(|_, _| Box::pin(async { false })));
-    let response = client.request_permission(mounted.clone()).await.unwrap();
+    let replay = client.request_permission(mounted.clone()).await.unwrap();
+    assert_eq!(serde_json::to_value(replay).unwrap()["outcome"]["outcome"], "cancelled");
+    let mut next_call = mounted.clone();
+    next_call.tool_call.tool_call_id = acp::ToolCallId::new("next-call");
+    let response = client.request_permission(next_call).await.unwrap();
     assert_eq!(serde_json::to_value(response).unwrap()["outcome"]["optionId"], "deny");
     client.permission_mode = PermissionMode::DenyAll;
     assert!(client.request_permission(mounted.clone()).await.is_err());
@@ -1515,13 +1519,14 @@ async fn acp_skill_coexistence_droid_mcp_uses_owned_metadata_and_once() {
     let (cancel_tx, _) = tokio::sync::watch::channel(false);
     let (_, completed_rx) = tokio::sync::watch::channel(false);
     *client.active_prompt.lock() =
-        Some(super::ActivePromptControl { session_id: "owned".into(), cancel_tx, completed_rx });
+        Some(super::ActivePromptControl::new("owned".into(), cancel_tx, completed_rx));
     client.permission_confirmation = Some(Arc::new(|title, arguments| {
         assert_eq!(title, "selected: read_probe");
         assert_eq!(arguments, serde_json::json!({}));
         Box::pin(async { true })
     }));
-    client.managed_mcp_approval = Some(Arc::new(|key, input| {
+    client.managed_mcp_approval = Some(Arc::new(|key, input, valid| {
+        assert!(valid());
         key == crate::droid_mcp_identity("selected", "read_probe") && input == &serde_json::json!({})
     }));
     let request = |session: &str, factory: serde_json::Value| {
@@ -1550,4 +1555,65 @@ async fn acp_skill_coexistence_droid_mcp_uses_owned_metadata_and_once() {
     assert_eq!(serde_json::to_value(response).unwrap()["outcome"]["optionId"], "once");
     let replay = client.request_permission(request("owned", factory)).await.unwrap();
     assert_eq!(serde_json::to_value(replay).unwrap()["outcome"]["outcome"], "cancelled");
+}
+
+#[tokio::test]
+async fn acp_platform_approval_replay_cannot_reach_managed_grant() {
+    let (event_tx, _) = mpsc::unbounded_channel();
+    let mut client = event_client(event_tx, Some("owned".into()));
+    client.permission_mode = PermissionMode::ApproveReads;
+    client.permission_confirmation = Some(Arc::new(|_, _| Box::pin(async { true })));
+    let (cancel_tx, _cancel_rx) = tokio::sync::watch::channel(false);
+    let (completed_tx, completed_rx) = tokio::sync::watch::channel(false);
+    *client.active_prompt.lock() = Some(super::ActivePromptControl::new(
+        "owned".into(), cancel_tx, completed_rx,
+    ));
+    let grants = Arc::new(Mutex::new(Vec::new()));
+    let observed = grants.clone();
+    client.managed_mcp_approval = Some(Arc::new(move |tool, args, valid| {
+        assert!(valid());
+        observed.lock().push((tool.to_owned(), args.clone(), valid));
+        true
+    }));
+    let request = |session: &str, title: &str, path: &str| {
+        serde_json::from_value::<acp::RequestPermissionRequest>(serde_json::json!({
+            "sessionId": session,
+            "toolCall": {
+                "toolCallId": "call", "kind": "other", "title": title,
+                "rawInput": {"path": path}
+            },
+            "options": [
+                {"optionId": "once", "name": "Allow", "kind": "allow_once"},
+                {"optionId": "deny", "name": "Reject", "kind": "reject_once"}
+            ]
+        })).unwrap()
+    };
+    let original = request("owned", "mcp__mounted__write", "/tmp/shiju-approval/note.txt");
+    let approved = client.request_permission(original.clone()).await.unwrap();
+    assert_eq!(crate::classify_permission_decision(&original, &approved), crate::PermissionDecision::Approved);
+    for replay in [
+        original,
+        request("foreign", "mcp__mounted__write", "/tmp/shiju-approval/note.txt"),
+        request("owned", "mcp__mounted__write", "/tmp/shiju-approval/other.txt"),
+        request("owned", "mcp__static__write", "/tmp/shiju-approval/note.txt"),
+    ] {
+        let response = client.request_permission(replay.clone()).await.unwrap();
+        assert_ne!(crate::classify_permission_decision(&replay, &response), crate::PermissionDecision::Approved);
+    }
+    client.permission_mode = PermissionMode::ApproveAll;
+    client.non_interactive_permissions = Some(NonInteractivePermissionPolicy::Deny);
+    let mut headless = request("owned", "mcp__mounted__write", "/tmp/shiju-approval/note.txt");
+    headless.tool_call.tool_call_id = acp::ToolCallId::new("headless");
+    let response = client.request_permission(headless.clone()).await.unwrap();
+    assert_eq!(
+        crate::classify_permission_decision(&headless, &response),
+        crate::PermissionDecision::Denied
+    );
+    let grants = grants.lock();
+    assert_eq!(grants.len(), 1);
+    let (tool, input, valid) = &grants[0];
+    assert_eq!(tool, "mcp__mounted__write");
+    assert_eq!(input, &serde_json::json!({"path": "/tmp/shiju-approval/note.txt"}));
+    completed_tx.send(true).unwrap();
+    assert!(!valid());
 }

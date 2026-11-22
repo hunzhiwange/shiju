@@ -69,17 +69,13 @@ impl AcpClient {
         completed_rx: watch::Receiver<bool>,
     ) {
         *self.active_prompt.lock() =
-            Some(ActivePromptControl { session_id, cancel_tx, completed_rx });
+            Some(ActivePromptControl::new(session_id, cancel_tx, completed_rx));
     }
 
     pub(super) fn clear_active_prompt(&self, session_id: &str) {
-        let should_clear = self
-            .active_prompt
-            .lock()
-            .as_ref()
-            .is_some_and(|active_prompt| active_prompt.session_id == session_id);
-        if should_clear {
-            *self.active_prompt.lock() = None;
+        let mut active = self.active_prompt.lock();
+        if active.as_ref().is_some_and(|prompt| prompt.session_id == session_id) {
+            *active = None;
         }
     }
 

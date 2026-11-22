@@ -52,6 +52,8 @@ pub type TerminalConfirmExecuteFuture =
     Pin<Box<dyn Future<Output = Result<bool, ErrorSource>> + Send + 'static>>;
 pub type TerminalConfirmExecuteFn =
     Arc<dyn Fn(String) -> TerminalConfirmExecuteFuture + Send + Sync>;
+pub type TerminalConfirmRequestFn =
+    Arc<dyn Fn(Value) -> TerminalConfirmExecuteFuture + Send + Sync>;
 pub type TerminalOperationCallback = Arc<dyn Fn(ClientOperation) + Send + Sync>;
 
 #[derive(Clone, Default)]
@@ -72,6 +74,7 @@ pub struct TerminalManager {
     uses_default_confirm_execute: bool,
     workspace_auto_execute: bool,
     confirm_execute: TerminalConfirmExecuteFn,
+    confirm_request: Option<TerminalConfirmRequestFn>,
     kill_grace_ms: u64,
     terminals: Mutex<HashMap<String, Arc<ManagedTerminal>>>,
 }
@@ -114,6 +117,7 @@ impl TerminalManager {
             confirm_execute: options
                 .confirm_execute
                 .unwrap_or_else(|| Arc::new(default_confirm_execute)),
+            confirm_request: None,
             kill_grace_ms: options.kill_grace_ms.unwrap_or(DEFAULT_KILL_GRACE_MS),
             terminals: Mutex::new(HashMap::new()),
         }
@@ -121,6 +125,14 @@ impl TerminalManager {
 
     pub fn with_workspace_auto_execute(mut self, enabled: bool) -> Self {
         self.workspace_auto_execute = enabled;
+        self
+    }
+
+    pub fn with_request_confirmation(
+        mut self,
+        confirmation: Option<TerminalConfirmRequestFn>,
+    ) -> Self {
+        self.confirm_request = confirmation;
         self
     }
 
@@ -156,7 +168,20 @@ impl TerminalManager {
         });
 
         let result = async {
-            if !self.is_execute_approved(&cwd, &command_line).await? {
+            let approved = match (&self.confirm_request, self.permission_mode) {
+                (Some(confirm), PermissionMode::ApproveReads) => {
+                    confirm(serde_json::json!({
+                        "sessionId": params.session_id,
+                        "command": command,
+                        "args": args,
+                        "cwd": cwd,
+                        "envNames": params.env.iter().map(|entry| &entry.name).collect::<Vec<_>>(),
+                    }))
+                    .await?
+                }
+                _ => self.is_execute_approved(&cwd, &command_line).await?,
+            };
+            if !approved {
                 return Err(Box::new(permission_denied_error(
                     "Permission denied for terminal/create",
                 )) as ErrorSource);

@@ -83,16 +83,37 @@ def peer(workspace, outside):
             options = [{"optionId": key, "name": key, "kind": kind} for key, kind in
                        (("always", "allow_always"), ("once", "allow_once"), ("deny", "reject_once"))]
             decisions = []
-            for sequence, kind in enumerate(("edit", "delete", "execute"), 102):
+            samples = (
+                ("edit", {"path": str(workspace / "note.txt")}),
+                ("delete", {"path": str(workspace / "keep.txt")}),
+                ("execute", {"command": "/usr/bin/touch", "args": [str(workspace / "terminal.txt")]}),
+            )
+            for sequence, (kind, arguments) in enumerate(samples, 102):
                 response = call(sequence, "session/request_permission", options=options,
-                                toolCall={"toolCallId": str(sequence), "title": kind, "kind": kind})
+                                toolCall={"toolCallId": str(sequence), "title": kind, "kind": kind,
+                                          "rawInput": arguments})
                 decisions.append(response.get("result", {}).get("outcome", {}).get("optionId"))
             response = call(105, "fs/write_text_file", path=str(outside), content="outside edit")
+            observed = [decisions, "result" in response, lifecycle]
+            if platform.system() == "Linux":
+                foreign_marker = workspace / "foreign-terminal.txt"
+                foreign = call(106, "terminal/create", sessionId="foreign-peer",
+                               command="/usr/bin/touch", args=[str(foreign_marker)],
+                               cwd=str(workspace))
+                require("error" in foreign and not foreign_marker.exists(),
+                        "foreign session reached terminal execution")
+                marker = workspace / "terminal.txt"
+                terminal = call(107, "terminal/create", command="/usr/bin/touch",
+                                args=[str(marker)], cwd=str(workspace))
+                if "result" in terminal:
+                    exit_status = call(108, "terminal/wait_for_exit",
+                                       terminalId=terminal["result"]["terminalId"])
+                    require(exit_status.get("result", {}).get("exitCode") == 0,
+                            "approved marker command failed")
+                observed.append(marker.is_file())
             send({"method": "session/update", "params": {"sessionId": "approval-peer", "update": {
                 "sessionUpdate": "agent_message_chunk", "content": {
-                    "type": "text", "text": DONE + " " + json.dumps([
-                        decisions, "result" in response, lifecycle
-                    ])
+                    "type": "text", "text": DONE + " " + json.dumps(observed)
                 }
             }}})
             result = {"stopReason": "end_turn"}
@@ -135,7 +156,7 @@ def expect_reply_error(url, route, reply, status):
 
 
 def interactive_turn(url, query, other_query, body, workspace, approve_edits, rendezvous=None,
-                     fixture_edit=None, edit_titles=()):
+                     fixture_edit=None, edit_titles=(), approve_terminal=False):
     """Drive the same one-time approval route used by the desktop."""
     decisions = []
     seen = set()
@@ -150,13 +171,19 @@ def interactive_turn(url, query, other_query, body, workspace, approve_edits, re
                 require(metadata.get("requested_channel") == "desktop-acp",
                         "permission request does not belong to ACP")
                 arguments = metadata.get("arguments") or {}
-                # Only approve an exact fixture write. Titles do not authorize commands.
+                # Match the fixture arguments for operations that receive approval.
                 write = matches_workspace_edit(arguments, workspace)
                 # Some adapters omit rawInput. For their isolated single-tool turns,
                 # correlate the reported action to the exact input emitted by the fixture.
                 if fixture_edit and fixture_edit() and not arguments:
                     write = metadata.get("title") in edit_titles
-                decision = "once" if approve_edits and write else "reject"
+                terminal = (metadata.get("title") == "Terminal"
+                            and arguments.get("command") == "/usr/bin/touch"
+                            and arguments.get("args") == [str(workspace / "terminal.txt")]
+                            and arguments.get("cwd") == str(workspace)
+                            and arguments.get("envNames") == [])
+                decision = "once" if (approve_edits and write
+                                      or approve_terminal and terminal) else "reject"
                 if rendezvous is not None and not decisions:
                     rendezvous.wait(timeout=20)
                 route = f"/permission/{row['id']}/reply"
@@ -210,14 +237,25 @@ def parallel_host_sessions(url, agent, workspaces):
                 "messages": [{"role": "user", "content": "Run the parallel approval fixture"}],
                 "options": {"full_access": False, "cwd": str(workspace),
                             "acp_close_client_after_request": True}}
+        linux = platform.system() == "Linux"
+        approve_terminal = linux and index == 0
+        marker = workspace / "terminal.txt"
+        marker.unlink(missing_ok=True)
         stream, decisions = interactive_turn(
-            url, query, queries[1 - index], body, workspace, False, barrier
+            url, query, queries[1 - index], body, workspace, False, barrier,
+            approve_terminal=approve_terminal,
         )
         completed, answer = stream_evidence(stream)
         result = answer.partition(DONE + " ")[2].strip()
-        require(completed and json.loads(result) == [["deny"] * 3, False, "new"],
+        expected = [["deny"] * 3, False, "new"]
+        if linux:
+            expected.append(approve_terminal)
+            require(marker.is_file() == approve_terminal,
+                    "terminal effect did not follow its own session approval")
+        require(completed and json.loads(result) == expected,
                 "parallel session did not finish with its own permission results")
-        require(len(decisions) == 3, "an approval escaped or replayed during parallel turns")
+        require(len(decisions) == (4 if linux else 3),
+                "an approval escaped or replayed during parallel turns")
         return len(decisions)
 
     with ThreadPoolExecutor(max_workers=len(workspaces)) as pool:
@@ -417,9 +455,12 @@ def session_turns(binary, backend, source, row, entry=None):
                         lifecycle = "new" if phase == "approval" else "load"
                         marker = answer.partition(DONE + " ")[2].strip()
                         observed["peer_observation"] = json.loads(marker) if marker else None
-                        observed["permission_outcomes"] = observed["peer_observation"] == [
-                            [decision] * 3, full, lifecycle
-                        ]
+                        expected = [[decision] * 3, full, lifecycle]
+                        if platform.system() == "Linux":
+                            expected.append(full)
+                            require(observed["terminal_marker"] == full,
+                                    "terminal effect did not follow the current access policy")
+                        observed["permission_outcomes"] = observed["peer_observation"] == expected
                     else:
                         observed["approvals"] = decisions
                         observed["model_tool_requests"] = actions

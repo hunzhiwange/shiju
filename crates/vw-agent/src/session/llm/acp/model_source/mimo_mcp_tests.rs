@@ -108,10 +108,22 @@ fn vtcode_mcp_approval_is_bound_to_name_and_arguments_and_consumed_once() {
     let tool = "mcp__graph__query";
     let args = serde_json::json!({"search": "createRueSiteApp"});
     assert!(!grants.consume(tool, &args));
-    assert!(grants.issue(tool, &args));
+    assert!(grants.issue(tool, &args, Box::new(|| true)));
     assert!(!grants.consume(tool, &serde_json::json!({"search":"other"})));
     assert!(!grants.consume(tool, &args));
-    assert!(grants.issue(tool, &args));
+    assert!(grants.issue(tool, &args, Box::new(|| true)));
     assert!(grants.consume(tool, &args));
+    assert!(!grants.consume(tool, &args));
+}
+
+#[test]
+fn vtcode_mcp_approval_rejects_revoked_prompt_before_dispatch() {
+    let grants = super::VtcodeApproval::default();
+    let args = serde_json::json!({"path": "/tmp/shiju-approval/note.txt"});
+    let tool = "mcp__selected__write";
+    let cancellation = tokio_util::sync::CancellationToken::new();
+    let prompt = cancellation.clone();
+    assert!(grants.issue(tool, &args, Box::new(move || !prompt.is_cancelled())));
+    cancellation.cancel();
     assert!(!grants.consume(tool, &args));
 }

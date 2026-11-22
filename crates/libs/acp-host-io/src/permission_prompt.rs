@@ -36,6 +36,9 @@ where
 
     let mut answer = String::new();
     reader.read_line(&mut answer)?;
+    if !answer.ends_with('\n') {
+        return Ok(false);
+    }
     let normalized = answer.trim().to_ascii_lowercase();
     Ok(matches!(normalized.as_str(), "y" | "yes"))
 }

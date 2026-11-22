@@ -631,3 +631,28 @@ fn acp_full_access_policy_approve_all_selects_allow_once_after_reject() {
     .unwrap();
     assert_eq!(selected_option_id(&response).as_deref(), Some("allow-once"));
 }
+
+#[test]
+fn acp_platform_approval_rejects_ambiguous_options() {
+    let request = request_with_options(
+        Some("Write /tmp/shiju-approval/note.txt"),
+        Some("edit"),
+        vec![
+            option("same", PermissionOptionKind::AllowOnce),
+            option("same", PermissionOptionKind::RejectOnce),
+        ],
+    );
+    for approved in [true, false] {
+        assert_eq!(
+            classify_permission_decision(&request, &resolve_host_confirmation(&request, approved)),
+            PermissionDecision::Cancelled
+        );
+    }
+    let response = resolve_permission_request(
+        &request,
+        PermissionMode::ApproveReads,
+        Some(NonInteractivePermissionPolicy::Deny),
+    )
+    .unwrap();
+    assert_eq!(classify_permission_decision(&request, &response), PermissionDecision::Cancelled);
+}

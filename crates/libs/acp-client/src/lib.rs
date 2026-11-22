@@ -32,4 +32,9 @@ use acp_agent_registry::{
 mod claude_fallback_acceptance;
 
 /// Records a host-approved call for the request-owned MCP relay.
-pub type ManagedMcpApproval = std::sync::Arc<dyn Fn(&str, &serde_json::Value) -> bool + Send + Sync>;
+pub type ManagedMcpApproval = std::sync::Arc<
+    dyn Fn(&str, &serde_json::Value, ApprovalValidity) -> bool + Send + Sync,
+>;
+
+/// Checks that the original prompt still owns an issued approval.
+pub type ApprovalValidity = Box<dyn Fn() -> bool + Send + Sync>;

@@ -47,20 +47,35 @@ struct Server {
     graph_root: Option<std::path::PathBuf>,
 }
 
+struct PendingApproval {
+    tool: String,
+    arguments: Value,
+    issued: Instant,
+    valid: acp_client::ApprovalValidity,
+}
+
 #[derive(Default)]
-struct VtcodeApproval(Mutex<Option<(String, Value, Instant)>>);
+struct VtcodeApproval(Mutex<Option<PendingApproval>>);
 
 impl VtcodeApproval {
-    fn issue(&self, name: &str, input: &Value) -> bool {
+    fn issue(&self, name: &str, input: &Value, valid: acp_client::ApprovalValidity) -> bool {
         let Ok(mut current) = self.0.lock() else { return false };
-        *current = Some((name.to_owned(), input.clone(), Instant::now()));
+        *current = Some(PendingApproval {
+            tool: name.to_owned(),
+            arguments: input.clone(),
+            issued: Instant::now(),
+            valid,
+        });
         true
     }
 
     fn consume(&self, name: &str, input: &Value) -> bool {
         let Ok(mut current) = self.0.lock() else { return false };
-        current.take().is_some_and(|(tool, arguments, issued)| {
-            tool == name && &arguments == input && issued.elapsed() <= TIMEOUT
+        current.take().is_some_and(|approval| {
+            approval.tool == name
+                && &approval.arguments == input
+                && approval.issued.elapsed() <= TIMEOUT
+                && (approval.valid)()
         })
     }
 }
@@ -91,8 +106,8 @@ impl Projection {
         use agent_client_protocol::{HttpHeader, McpServerHttp};
         let approvals = self.approvals.clone().ok_or_else(|| anyhow::anyhow!("Missing managed MCP approval store"))?;
         let catalog = self.tools.clone();
-        let approve: acp_client::ManagedMcpApproval = Arc::new(move |name, input| {
-            input.is_object() && catalog.iter().any(|tool| tool == name) && approvals.issue(name, input)
+        let approve: acp_client::ManagedMcpApproval = Arc::new(move |name, input, valid| {
+            input.is_object() && catalog.iter().any(|tool| tool == name) && approvals.issue(name, input, valid)
         });
         let servers = self.servers.iter().map(|name| {
             AcpMcpServer::Http(McpServerHttp::new(name.as_str(), format!("{endpoint}{VTCODE_PREFIX}/{name}"))

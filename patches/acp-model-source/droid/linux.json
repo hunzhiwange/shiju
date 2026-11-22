@@ -1,0 +1,35 @@
+{
+  "version": "1.9.0",
+  "revision": "droid-1.9.0-model-source-linux-v2",
+  "bin": "droid",
+  "targets": {
+    "x86_64": {
+      "artifact_url": "https://downloads.factory.ai/factory-cli/releases/1.9.0/linux/x64-baseline/droid",
+      "source_sha256": "205b94a003aec97a2343212ad40bc378bc0bdbf6d7826bd6e07372b2b3ec5cec",
+      "patched_sha256": "f125a2548c35bf5391f56e2ffc4b74ebdf3b4dcd23deffa743840cc80e780231",
+      "graph_offset": 109068296,
+      "module_offset": 343671796,
+      "module_name": "/$bunfs/root/chunk-w9emehv1.js",
+      "bytecode": [
+        38162808,
+        22824,
+        38185632,
+        0
+      ]
+    },
+    "aarch64": {
+      "artifact_url": "https://downloads.factory.ai/factory-cli/releases/1.9.0/linux/arm64/droid",
+      "source_sha256": "a5e5c1f0465d4ee73fbac38e444716f5dcafe68afb862a846a978a93f8c0ae97",
+      "patched_sha256": "528b38c18aefd0f8b9ab4729a4483bddb520202c54a8e27eeab0aa0d8a017bfe",
+      "graph_offset": 109117448,
+      "module_offset": 335542178,
+      "module_name": "/$bunfs/root/chunk-qxtnchkf.js",
+      "bytecode": [
+        38103544,
+        22824,
+        38126368,
+        0
+      ]
+    }
+  }
+}

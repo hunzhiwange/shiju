@@ -1,6 +1,8 @@
 """Probe Factory Droid's reviewed native Skill, Read, and stdio MCP paths."""
 
 import hashlib
+from contextlib import contextmanager
+from inspect import getsource
 import json
 import os
 from pathlib import Path
@@ -12,11 +14,12 @@ import subprocess
 import sys
 import tempfile
 
+from acp_mount_integration import rpc
 from verify_acp_integration import ProviderHandler, require
 from verify_acp_model_source import ROOT
 
 from . import correlated_result
-from .mimo_code import mcp_server as mcp_server
+from .mimo_code import mcp_server as darwin_mcp_server
 
 MODEL = "deepseek-v4.1-flash-1017"
 MODEL_REASONING = True
@@ -32,6 +35,8 @@ MANAGED_DIR = ROOT / "crates/libs/acp-agent-registry/src/managed_runtime"
 
 
 def launch(env):
+    if platform.system() == "Linux":
+        return launch_linux(env)
     require((platform.system(), platform.machine()) == ("Darwin", "arm64"),
             "unreviewed Droid platform")
     manifest = MANAGED_DIR / "contracts.json"
@@ -71,6 +76,63 @@ def launch(env):
     return {"command": str(entry), "args": ["exec", "--output-format", "acp"]}, {
         "version": VERSION, "revision": REVISION, "sha256": digest.hexdigest(),
     }
+
+
+def launch_linux(env):
+    manifest = MANAGED_DIR / "contracts.json"
+    patches = ROOT / "patches/acp-model-source/droid"
+    contract = json.loads((patches / "linux.json").read_text())
+    target = contract["targets"].get(platform.machine())
+    require(target is not None, "unreviewed Linux Droid architecture")
+    require(contract["version"] == VERSION, "unexpected Droid artifact version")
+    runtime = Path(env["VIBEWINDOW_CONFIG_DIR"]) / "acp-runtime" / contract["revision"]
+    runtime.parent.mkdir()
+    with tempfile.TemporaryDirectory(dir=env["TMPDIR"]) as directory:
+        assets = Path(directory)
+        shutil.copy2(manifest, assets)
+        shutil.copytree(patches, assets / "droid")
+        installed = subprocess.run(
+            [sys.executable, str(MANAGED_DIR / "install.py"), str(assets), str(runtime), "droid"],
+            env=env, capture_output=True, timeout=300)
+    require(installed.returncode == 0, "Droid reviewed Linux runtime installation failed")
+    entry = runtime / contract["bin"]
+    digest = hashlib.sha256()
+    with entry.open("rb") as stream:
+        for block in iter(lambda: stream.read(1024 * 1024), b""):
+            digest.update(block)
+    require(digest.hexdigest() == target["patched_sha256"], "Droid Linux executable digest mismatch")
+    version = subprocess.run([str(entry), "--version"], env=env, capture_output=True, timeout=15)
+    require(version.returncode == 0 and version.stdout.strip() == VERSION.encode(),
+            "unexpected Droid Linux executable version")
+    return {"command": str(entry), "args": ["exec", "--output-format", "acp"]}, {
+        "version": VERSION, "revision": contract["revision"], "entry": entry.name,
+        "sha256": digest.hexdigest(), "model_endpoint": API_PATH + "/chat/completions",
+    }
+
+
+@contextmanager
+def mcp_server(workspace, attachment, audit):
+    if platform.system() != "Linux":
+        with darwin_mcp_server(workspace, attachment, audit) as server:
+            yield server
+        return
+    script = workspace / "mcp-fixture.py"
+    script.write_text(
+        "import json, os, sys\nfrom pathlib import Path\n"
+        "def require(condition, message):\n"
+        "    if not condition:\n"
+        "        raise AssertionError(message)\n\n"
+        + getsource(rpc)
+        + "\naudit = Path(os.environ['TMPDIR']) / 'mimo-fixture-audit'\n"
+        "audit.touch(exist_ok=False)\n"
+        "for line in sys.stdin:\n"
+        "    reply = rpc(json.loads(line), sys.argv[1], audit, 'stdio')\n"
+        "    if reply is not None:\n"
+        "        print(json.dumps(reply), flush=True)\n")
+    payload = workspace / "mcp-payload.txt"
+    payload.write_text(attachment.read_text())
+    yield {"name": "coexistence", "command": str(Path(sys.executable).resolve(strict=True)),
+           "args": ["-I", "-B", str(script), str(payload)], "env": []}
 
 
 def prepare_workspace(workspace):
@@ -218,8 +280,20 @@ class Probe:
         self.completed["mcp"] = call_id
         return True
 
-    def mcp_trace(self, _events):
+    def mcp_trace(self, events):
         audit = self.audit.read_text().splitlines() if self.mounted else []
+        if platform.system() == "Linux":
+            root = self.fixtures["skills"]["native"]["path"].parents[3]
+            approved = root / "droid-mounted-audit"
+            if approved.exists() and approved != self.audit:
+                require(approved.read_text().splitlines() == ["stdio"],
+                        "Droid executed a previously mounted MCP service again")
+            if self.mounted:
+                call_id = self.completed["mcp"]
+                status = "failed" if self.rejected else "completed"
+                require(any(event.get("type") == "chat.tool" and event.get("call_id") == call_id
+                            and event.get("status") == status for event in events),
+                        "Droid terminal MCP event did not match its tool call")
         return audit, self.completed.get("mcp")
 
 

@@ -729,19 +729,19 @@ impl Drop for Stage {
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-pub(super) async fn install(agent: &str) -> Result<bool, String> {
+pub(super) async fn install(agent: &str, log: &mut crate::install::InstallLog) -> Result<bool, String> {
     #[cfg(all(target_os = "linux", target_env = "gnu", any(target_arch = "x86_64", target_arch = "aarch64")))]
     if agent == "droid" {
-        droid::install().await?;
+        droid::install(log).await?;
         return Ok(true);
     }
     if linux_native_only(agent) {
         #[cfg(all(target_os = "linux", target_env = "gnu", any(target_arch = "x86_64", target_arch = "aarch64")))]
         {
             if agent == "junie" {
-                junie::install().await?;
+                junie::install(log).await?;
             } else {
-                linux_cli::install(agent).await?;
+                linux_cli::install(agent, log).await?;
             }
             return Ok(true);
         }
@@ -763,6 +763,7 @@ pub(super) async fn install(agent: &str) -> Result<bool, String> {
         // Preserve the existing native installer for CLI-local use on unverified hosts.
         return Ok(false);
     }
+    log.step("检查托管运行时");
     let mut destination = installed_directory(agent, &contract)?;
     if destination.exists() {
         if agent == "glm-acp-agent" {
@@ -789,6 +790,7 @@ pub(super) async fn install(agent: &str) -> Result<bool, String> {
             _ => return Err("Packaged vtcode-acp is not a regular file".into()),
         }
     }
+    log.step("准备托管安装目录和补丁");
     let stage = Stage::new(agent, &root(agent)?)?;
     let assets = stage.0.join("assets");
     for (name, text) in [
@@ -1021,7 +1023,7 @@ pub(super) async fn install(agent: &str) -> Result<bool, String> {
     }
     let runtime = stage.0.join("runtime");
     let uv = if matches!(agent, "vibe" | "hermes") {
-        crate::install::ensure_uv(tokio::time::Instant::now() + std::time::Duration::from_secs(300))
+        crate::install::ensure_uv(log, tokio::time::Instant::now() + std::time::Duration::from_secs(300))
             .await?
     } else {
         String::new()
@@ -1036,6 +1038,8 @@ pub(super) async fn install(agent: &str) -> Result<bool, String> {
         "python3"
     };
     crate::install::run_installer(
+        log,
+        "运行托管安装脚本",
         python,
         &[
             script.to_str().ok_or("Invalid installer path")?,
@@ -1048,7 +1052,9 @@ pub(super) async fn install(agent: &str) -> Result<bool, String> {
         tokio::time::Instant::now() + std::time::Duration::from_secs(timeout),
     )
     .await?;
+    log.step("校验托管运行时");
     verify(&runtime, &contract)?;
+    log.step("发布托管运行时");
     if std::fs::rename(&runtime, &destination).is_err()
         && (agent != "glm-acp-agent" || !destination.is_dir())
     {

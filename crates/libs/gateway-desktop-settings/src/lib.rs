@@ -7,6 +7,7 @@ mod hooks;
 mod external;
 mod preferences;
 mod service;
+pub use service::{AcpInstallInstructions, AcpInstallReport};
 
 #[derive(Debug, Clone)]
 pub struct GatewayDesktopSettingsClient {

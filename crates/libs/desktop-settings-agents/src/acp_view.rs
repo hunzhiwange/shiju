@@ -124,49 +124,7 @@ pub fn acp_card<'a>(input: Input<'a>, agent: String, config: &'a AcpAgentConfig)
     })
     .height(Length::Shrink);
 
-    let installation: Element<'_, Event> =
-        if config_acp_install::acp_install_supported(&agent) {
-            let installing = input.state.installing_agent.as_deref() == Some(agent.as_str());
-            let title = tr("官方安装包 / 安装器");
-            row![
-                column![
-                    settings_hover_help_label(input.help,
-                        I18n::new(locale),
-                        input.theme,
-                        title,
-                        text(title).size(12),
-                        tr("网关按操作系统选择并执行安装程序，无需复制命令。"),
-                    )
-                    .wrap(),
-                    text(tr("在网关主机安装，安装后仍需完成认证。"))
-                        .size(12)
-                        .style(settings_muted_text_style),
-                ]
-                .spacing(4)
-                .width(Length::Fill),
-                button(text(tr(if installing { "安装中…" } else { "一键安装" })).size(13))
-                    .padding([7, 14])
-                    .style(rounded_action_btn_style)
-                    .on_press_maybe(
-                        input.state
-                            .installing_agent
-                            .is_none()
-                            .then(|| { acp_message(AcpMessage::InstallAgent(agent.clone())) })
-                    ),
-            ]
-            .spacing(8)
-            .align_y(Alignment::Center)
-            .into()
-        } else {
-            text(tr(if builtin {
-                "请手动安装此 ACP。"
-            } else {
-                "请自行安装自定义 ACP。"
-            }))
-            .size(12)
-            .style(settings_muted_text_style)
-            .into()
-        };
+    let installation = installation_section(input, &agent, builtin);
 
     let mut content = column![
         summary,
@@ -215,6 +173,131 @@ pub fn acp_card<'a>(input: Input<'a>, agent: String, config: &'a AcpAgentConfig)
         content = content.push(diagnostic_status(*status, input.frame, locale));
     }
     container(content).padding([16, 18]).width(Length::Fill).style(settings_panel_style).into()
+}
+
+fn installation_section<'a>(input: Input<'a>, agent: &str, builtin: bool) -> Element<'a, Event> {
+    let tr = |label: &'static str| I18n::new(input.locale).__(label);
+    if !builtin {
+        return text(tr("请自行安装自定义 ACP。"))
+            .size(12)
+            .style(settings_muted_text_style)
+            .into();
+    }
+    let state = input.state;
+    let expanded = state.install_expanded.contains(agent);
+    let instructions = state.install_instructions.get(agent).and_then(Option::as_ref);
+    let installing = state.installing_agent.as_deref() == Some(agent);
+    let supported = state.install_supported(agent);
+    let mut actions = row![
+        button(text(tr(if expanded { "收起安装详情" } else { "展开安装详情" })).size(13))
+            .padding([7, 14])
+            .style(rounded_action_btn_style)
+            .on_press(acp_message(AcpMessage::ToggleInstallDetails(agent.to_owned()))),
+    ].spacing(8);
+    if supported || installing {
+        actions = actions.push(
+            button(text(tr(if installing { "安装中…" } else { "一键安装" })).size(13))
+                .padding([7, 14])
+                .style(rounded_action_btn_style)
+                .on_press_maybe(state.installing_agent.is_none()
+                    .then(|| acp_message(AcpMessage::InstallAgent(agent.to_owned())))),
+        );
+    }
+    let title = tr("官方安装包 / 安装器");
+    let mut section = column![
+        settings_hover_help_label(
+            input.help,
+            I18n::new(input.locale),
+            input.theme,
+            title,
+            text(title).size(12),
+            tr("网关按操作系统选择并执行安装程序，无需复制命令。"),
+        ).wrap(),
+        text(tr("在网关主机安装，安装后仍需完成认证。"))
+            .size(12).style(settings_muted_text_style),
+        actions.align_y(Alignment::Center).wrap(),
+    ].spacing(8).width(Length::Fill);
+    if !expanded {
+        return section.into();
+    }
+
+    if installing {
+        section = section.push(text(tr("正在网关主机安装，完成后可查看输出。"))
+            .size(12).style(settings_muted_text_style));
+    }
+    if let Some(report) = state.install_reports.get(agent) {
+        let mut transcript = report.steps.join("\n\n");
+        if !transcript.is_empty() {
+            transcript.push_str("\n\n");
+        }
+        transcript.push_str(&report.message);
+        let status = if report.success { "安装完成" } else { "安装失败" };
+        let copy = if report.success { "复制安装输出" } else { "复制安装错误" };
+        section = section.push(install_text_block(tr(status), tr(copy), transcript));
+    }
+    match instructions {
+        Some(Ok(info)) if !info.commands.is_empty() => {
+            let hint = if info.commands.len() > 1 {
+                "在网关主机上执行。已有 uv 可跳过第一条，否则安装 uv 后重新打开终端再执行下一条。"
+            } else {
+                "在网关主机的终端执行，完成后刷新并测试连接。"
+            };
+            section = section
+                .push(text(tr(hint)).size(12).style(settings_muted_text_style))
+                .push(text(format!("{} · {}", tr("手动安装命令"), info.shell)).size(13));
+            for command in &info.commands {
+                section = section.push(install_text_block(
+                    tr("官方 CLI 安装"),
+                    tr("复制安装命令"),
+                    command.clone(),
+                ));
+            }
+        }
+        Some(Ok(info)) => {
+            let hint = if info.supported {
+                "该 ACP 由网关准备安装资源并校验，暂无独立手动命令。"
+            } else {
+                "该网关平台没有内置安装命令，请使用官方安装说明。"
+            };
+            section = section.push(text(tr(hint)).size(12).style(settings_muted_text_style));
+        }
+        Some(Err(error)) => {
+            section = section.push(text(tr("无法读取网关安装命令")).size(12))
+                .push(text(error.as_str()).size(12).style(settings_muted_text_style));
+        }
+        None => {
+            section = section.push(text(tr("正在读取网关安装命令…"))
+                .size(12).style(settings_muted_text_style));
+        }
+    }
+    section.into()
+}
+
+fn install_text_block<'a>(
+    label: impl Into<String>,
+    copy_label: &'static str,
+    content: String,
+) -> Element<'a, Event> {
+    let output = scrollable(
+        container(text(content.clone()).size(12).width(Length::Fill))
+            .padding([0, 7])
+            .width(Length::Fill),
+    )
+    .direction(scrollable::Direction::Vertical(
+        scrollable::Scrollbar::new().width(4).scroller_width(4),
+    ))
+    .height(Length::Shrink)
+    .width(Length::Fill);
+    settings_panel(column![
+        row![
+            text(label.into()).size(13).width(Length::Fill),
+            button(text(copy_label).size(12))
+                .padding([5, 10])
+                .style(rounded_action_btn_style)
+                .on_press(Event::CopyText(content)),
+        ].spacing(8).align_y(Alignment::Center),
+        container(output).max_height(220).width(Length::Fill),
+    ].spacing(8)).into()
 }
 
 fn form_field<'a>(

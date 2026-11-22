@@ -205,13 +205,15 @@ pub(super) fn verify_launch(
     Ok(())
 }
 
-pub(super) async fn install(agent: &str) -> Result<(), String> {
+pub(super) async fn install(agent: &str, log: &mut crate::install::InstallLog) -> Result<(), String> {
+    log.step("检查 Linux ACP 托管运行时");
     let artifact = contract(agent, std::env::consts::ARCH)?
         .ok_or("No fixed ACP executable for this Linux architecture")?;
     let root = root(agent)?;
     if discover(agent, &root)?.is_some() {
         return Ok(());
     }
+    log.step("准备 Linux ACP 安装目录");
     let stage = Stage::new(agent, &root)?;
     let staging_root = &stage.0;
     let runtime = staging_root.join(&artifact.directory);
@@ -227,6 +229,8 @@ pub(super) async fn install(agent: &str) -> Result<(), String> {
     }
     let script = staging_root.join("install.py");
     crate::install::run_installer(
+        log,
+        "运行 Linux ACP 安装脚本",
         "python3",
         &[
             script.to_str().ok_or("Invalid installer path")?,
@@ -243,6 +247,7 @@ pub(super) async fn install(agent: &str) -> Result<(), String> {
         tokio::time::Instant::now() + Duration::from_secs(300),
     )
     .await?;
+    log.step("校验并发布 Linux ACP 运行时");
     discover(agent, staging_root)?.ok_or("Fixed ACP runtime was not staged")?;
     let destination: PathBuf = root.join(&artifact.directory);
     if fs::rename(&runtime, &destination).is_err() && discover(agent, &root)?.is_none() {

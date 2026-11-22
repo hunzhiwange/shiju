@@ -56,12 +56,14 @@ pub(super) fn verify_command(command: &str) -> Result<(), String> {
     }
 }
 
-pub(super) async fn install() -> Result<(), String> {
+pub(super) async fn install(log: &mut crate::install::InstallLog) -> Result<(), String> {
+    log.step("检查 Droid 托管运行时");
     if reviewed_command()?.is_some() {
         return Ok(());
     }
     let manifest = Manifest::load()?;
     let root = root("droid")?;
+    log.step("准备 Droid 安装目录");
     let stage = Stage::new("droid", &root)?;
     for (name, content) in
         [("linux.json", MANIFEST), ("apply.py", PATCH), ("install_linux.py", INSTALLER)]
@@ -71,6 +73,8 @@ pub(super) async fn install() -> Result<(), String> {
     let runtime = stage.0.join(&manifest.revision);
     let script = stage.0.join("install_linux.py");
     crate::install::run_installer(
+        log,
+        "运行 Droid 安装脚本",
         "python3",
         &[
             "-E",
@@ -82,6 +86,7 @@ pub(super) async fn install() -> Result<(), String> {
         tokio::time::Instant::now() + Duration::from_secs(300),
     )
     .await?;
+    log.step("校验并发布 Droid 运行时");
     verify(&runtime, &manifest)?;
     let destination = root.join(&manifest.revision);
     if fs::rename(runtime, destination).is_err() && reviewed_command()?.is_none() {

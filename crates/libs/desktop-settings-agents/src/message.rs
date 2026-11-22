@@ -117,6 +117,7 @@ pub enum AcpMessage {
     StartDiagnostic,
     TestAgent(String),
     InstallAgent(String),
+    ToggleInstallDetails(String),
     CancelDiagnostic,
     EditAgent(String),
     CancelEditor,

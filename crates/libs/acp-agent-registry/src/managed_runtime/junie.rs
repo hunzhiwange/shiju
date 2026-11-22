@@ -75,7 +75,8 @@ pub(super) fn verify_launch(root: &Path, command: &Path, args: &[String]) -> Res
     Ok(())
 }
 
-pub(super) async fn install() -> Result<(), String> {
+pub(super) async fn install(log: &mut crate::install::InstallLog) -> Result<(), String> {
+    log.step("检查 Junie 托管运行时");
     let root = root("junie")?;
     if discover(&root)?.is_some() {
         return Ok(());
@@ -84,6 +85,7 @@ pub(super) async fn install() -> Result<(), String> {
     let root = root.canonicalize().map_err(|_| "Cannot resolve Junie Linux runtime root")?;
     validate_runtime_parent(&root)?;
     let manifest = Manifest::load()?;
+    log.step("准备 Junie 安装目录");
     let stage = Stage::new("junie", &root)?;
     let runtime = stage.0.join(&manifest.native_revision);
     for (name, body) in [("linux-artifacts.json", MANIFEST), ("install_linux_native.py", INSTALLER)]
@@ -92,6 +94,8 @@ pub(super) async fn install() -> Result<(), String> {
     }
     let script = stage.0.join("install_linux_native.py");
     crate::install::run_installer(
+        log,
+        "运行 Junie 安装脚本",
         "python3",
         &[
             "-I",
@@ -103,6 +107,7 @@ pub(super) async fn install() -> Result<(), String> {
         tokio::time::Instant::now() + Duration::from_secs(300),
     )
     .await?;
+    log.step("校验并发布 Junie 运行时");
     verify(&runtime, &manifest)?;
     if fs::rename(&runtime, root.join(&manifest.native_revision)).is_err()
         && discover(&root)?.is_none()

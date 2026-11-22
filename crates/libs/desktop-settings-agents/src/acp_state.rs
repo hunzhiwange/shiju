@@ -31,6 +31,12 @@ impl AcpDiagnosticStatus {
 pub struct AcpSettingsState {
     pub installed: std::collections::BTreeMap<String, bool>,
     pub installing_agent: Option<String>,
+    pub install_expanded: std::collections::BTreeSet<String>,
+    pub install_instructions: std::collections::BTreeMap<
+        String,
+        Option<Result<gateway_desktop_settings::AcpInstallInstructions, String>>,
+    >,
+    pub install_reports: std::collections::BTreeMap<String, gateway_desktop_settings::AcpInstallReport>,
     pub diagnostic_id: Option<String>,
     pub diagnostic_status: Option<AcpDiagnosticStatus>,
     pub diagnostic_agent: Option<String>,
@@ -56,11 +62,24 @@ pub struct AcpSettingsState {
     pub error_translation: Option<desktop_i18n::format::Message>,
 }
 
+impl AcpSettingsState {
+    pub(crate) fn install_supported(&self, agent: &str) -> bool {
+        self.install_instructions
+            .get(agent)
+            .and_then(Option::as_ref)
+            .and_then(|result| result.as_ref().ok())
+            .map_or_else(|| config_acp_install::acp_install_supported(agent), |info| info.supported)
+    }
+}
+
 impl Default for AcpSettingsState {
     fn default() -> Self {
         Self {
             installed: Default::default(),
             installing_agent: None,
+            install_expanded: Default::default(),
+            install_instructions: Default::default(),
+            install_reports: Default::default(),
             diagnostic_id: None,
             diagnostic_status: None,
             diagnostic_agent: None,

@@ -539,6 +539,10 @@ fn acp_install_tracks_busy_state_and_releases_after_failure() {
         }),
     );
     assert!(app.acp_settings.installing_agent.is_none());
+    assert!(app.acp_settings.install_expanded.contains("codex"));
+    let report = &app.acp_settings.install_reports["codex"];
+    assert!(!report.success);
+    assert_eq!(report.message, "installation failed");
 }
 
 #[test]

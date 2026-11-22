@@ -85,7 +85,9 @@ pub fn update(app: &mut Update, message: AcpMessage) -> Task<Message> {
     if app.state.adding_agent
         && !matches!(
             message,
-            AcpMessage::AddAgentCompleted { .. } | AcpMessage::InstallCompleted { .. }
+            AcpMessage::AddAgentCompleted { .. }
+                | AcpMessage::InstallCompleted { .. }
+                | AcpMessage::InstallInstructionsLoaded { .. }
         )
     {
         return Task::none();
@@ -115,38 +117,62 @@ pub fn update(app: &mut Update, message: AcpMessage) -> Task<Message> {
         Task::none()
     };
     let task = match message {
+        AcpMessage::ToggleInstallDetails(agent) => {
+            if !app.state.install_expanded.insert(agent.clone()) {
+                app.state.install_expanded.remove(&agent);
+                return Task::none();
+            }
+            load_install_instructions(app, agent)
+        }
+        AcpMessage::InstallInstructionsLoaded { agent, result } => {
+            app.state.install_instructions.insert(agent, Some(result));
+            Task::none()
+        }
         AcpMessage::InstallAgent(agent) => {
             if app.state.installing_agent.is_some() {
                 return Task::none();
             }
-            if !config_acp_install::acp_install_supported(&agent) {
+            if !app.state.install_supported(&agent) {
                 return app.show_error_toast("该 ACP 暂无一键安装命令，请使用官方安装器");
             }
             app.state.installing_agent = Some(agent.clone());
-            { let client = app.client.clone(); Task::perform(
+            app.state.install_expanded.insert(agent.clone());
+            app.state.install_reports.remove(&agent);
+            let instructions = load_install_instructions(app, agent.clone());
+            let client = app.client.clone();
+            let install = Task::perform(
                 async move {
-                    let result =
-                        async { gateway_desktop_settings::GatewayDesktopSettingsClient::new(client.clone()?.transport().clone()).acp_install(&agent).await }
-                            .await;
+                    let result = async {
+                        let client = client?;
+                        gateway_desktop_settings::GatewayDesktopSettingsClient::new(client.transport().clone())
+                            .acp_install_report(&agent).await
+                    }.await;
                     (agent, result)
                 },
-                |(agent, result)| {
-                    Message::Acp(AcpMessage::InstallCompleted {
-                        agent,
-                        result,
-                    })
-                },
-            ) }
+                |(agent, result)| Message::Acp(AcpMessage::InstallCompleted { agent, result }),
+            );
+            Task::batch([instructions, install])
         }
         AcpMessage::InstallCompleted { agent, result } => {
             if app.state.installing_agent.as_deref() != Some(&agent) {
                 return Task::none();
             }
             app.state.installing_agent = None;
-            match result {
-                Ok(status) => { let refresh = refresh_task(app.access.clone()); let toast = app.show_info_toast(status); Task::batch([refresh, toast]) },
-                Err(error) => app.show_error_toast(error),
-            }
+            let report = result.unwrap_or_else(|message| gateway_desktop_settings::AcpInstallReport {
+                success: false,
+                message,
+                steps: Vec::new(),
+            });
+            let task = if report.success {
+                let refresh = refresh_task(app.access.clone());
+                let toast = app.show_info_toast(report.message.clone());
+                Task::batch([refresh, toast])
+            } else {
+                app.state.install_expanded.insert(agent.clone());
+                app.show_error_toast("ACP 安装失败，请查看安装详情")
+            };
+            app.state.install_reports.insert(agent, report);
+            task
         }
         AcpMessage::DiagnosticCancelled => Task::none(),
         AcpMessage::StartDiagnostic | AcpMessage::TestAgent(_) => {
@@ -484,6 +510,26 @@ pub fn update(app: &mut Update, message: AcpMessage) -> Task<Message> {
         }
     };
     Task::batch([cancellation, task])
+}
+
+fn load_install_instructions(app: &mut Update, agent: String) -> Task<Message> {
+    // An empty entry denotes an in-flight request. Reopening after an error retries it.
+    if matches!(app.state.install_instructions.get(&agent), Some(None | Some(Ok(_)))) {
+        return Task::none();
+    }
+    app.state.install_instructions.insert(agent.clone(), None);
+    let client = app.client.clone();
+    Task::perform(
+        async move {
+            let result = async {
+                let client = client?;
+                gateway_desktop_settings::GatewayDesktopSettingsClient::new(client.transport().clone())
+                    .acp_install_instructions(&agent).await
+            }.await;
+            (agent, result)
+        },
+        |(agent, result)| Message::Acp(AcpMessage::InstallInstructionsLoaded { agent, result }),
+    )
 }
 
 fn cancel_diagnostic(app: &mut Update) -> Task<Message> {

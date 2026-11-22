@@ -19,7 +19,7 @@ hex = "0.4"
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 acp-host-io = { path = "../acp-host-io" }
 config-acp-install = { path = "../config-acp-install" }
-tokio = { version = "1", features = ["macros", "process", "rt", "sync", "time"] }
+tokio = { version = "1", features = ["io-util", "macros", "process", "rt", "sync", "time"] }
 
 [target.'cfg(unix)'.dependencies]
 libc = "0.2"

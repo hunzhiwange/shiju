@@ -32,6 +32,7 @@ pub(in crate::app::components) fn event(event: Event) -> Message {
             LocalAcp::StartDiagnostic => AcpMessage::StartDiagnostic,
             LocalAcp::TestAgent(v0) => AcpMessage::TestAgent(v0),
             LocalAcp::InstallAgent(v0) => AcpMessage::InstallAgent(v0),
+            LocalAcp::ToggleInstallDetails(agent) => AcpMessage::ToggleInstallDetails(agent),
             LocalAcp::CancelDiagnostic => AcpMessage::CancelDiagnostic,
             LocalAcp::EditAgent(v0) => AcpMessage::EditAgent(v0),
             LocalAcp::CancelEditor => AcpMessage::CancelEditor,

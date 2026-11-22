@@ -2,6 +2,21 @@ use crate::{DesktopServiceCommand, DesktopServiceCommandResponseDto};
 use serde_json::Value;
 use crate::GatewayDesktopSettingsClient;
 
+/// 网关主机返回适用于自身平台的安装命令。
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct AcpInstallInstructions {
+    pub supported: bool,
+    pub shell: String,
+    pub commands: Vec<String>,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct AcpInstallReport {
+    pub success: bool,
+    pub message: String,
+    pub steps: Vec<String>,
+}
+
 impl GatewayDesktopSettingsClient {
     /// 在网关主机安装浏览器依赖，沿用认证上下文并允许下载时间。
     pub async fn browser_install(&self, backend: &str) -> Result<String, String> {
@@ -23,18 +38,43 @@ impl GatewayDesktopSettingsClient {
 
     /// 安装可能需要下载较大的包，使用独立请求超时。
     pub async fn acp_install(&self, agent: &str) -> Result<String, String> {
-        if agent.is_empty() || !agent.bytes().all(|c| c.is_ascii_alphanumeric() || c == b'-') {
-            return Err("invalid ACP install name".into());
+        self.request_acp_install(agent, false).await
+    }
+
+    pub async fn acp_install_instructions(&self, agent: &str) -> Result<AcpInstallInstructions, String> {
+        let path = acp_install_path(agent)?;
+        self.transport.get_json(&path, &[]).await
+    }
+
+    pub async fn acp_install_report(&self, agent: &str) -> Result<AcpInstallReport, String> {
+        #[derive(serde::Deserialize)]
+        #[serde(untagged)]
+        enum Reply {
+            Report(AcpInstallReport),
+            Legacy(String),
         }
-        let path = format!("/v1/desktop/acp-install/{agent}");
+
+        match self.request_acp_install(agent, true).await? {
+            Reply::Report(report) => Ok(report),
+            Reply::Legacy(message) => Ok(AcpInstallReport { success: true, message, steps: Vec::new() }),
+        }
+    }
+
+    async fn request_acp_install<T: serde::de::DeserializeOwned>(
+        &self,
+        agent: &str,
+        report: bool,
+    ) -> Result<T, String> {
+        let path = acp_install_path(agent)?;
         let request = self.transport.client()
             .post(format!("{}{}", self.transport.endpoint().base_url(), path))
             .json(&serde_json::json!({}));
+        let request = if report { request.query(&[("report", true)]) } else { request };
         #[cfg(not(target_arch = "wasm32"))]
-        let request = request.timeout(std::time::Duration::from_secs(if agent == "cortex-code" {
-            610
-        } else {
-            310
+        let request = request.timeout(std::time::Duration::from_secs(match agent {
+            "aionrs" => 920,
+            "cortex-code" => 620,
+            _ => 320,
         }));
         let response = gateway_http::apply_request_context(request, self.transport.endpoint())
             .send()
@@ -72,4 +112,12 @@ impl GatewayDesktopSettingsClient {
         )
         .await
     }
+}
+
+
+fn acp_install_path(agent: &str) -> Result<String, String> {
+    if agent.is_empty() || !agent.bytes().all(|c| c.is_ascii_alphanumeric() || c == b'-') {
+        return Err("invalid ACP install name".into());
+    }
+    Ok(format!("/v1/desktop/acp-install/{agent}"))
 }

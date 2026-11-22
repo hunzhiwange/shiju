@@ -5,6 +5,13 @@ use desktop_settings_agents::{acp_update, acp_update_message::{Message as Local,
 use iced::Task;
 pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
  let SettingsMessage::Acp(message) = message else { return Task::none(); };
+ let refresh_chat_source = matches!(&message,
+     super::AcpMessage::InstallCompleted { agent, result: Ok(report) }
+         if report.success && app.acp_settings.installing_agent.as_deref() == Some(agent.as_str())
+             && app.current_session_runtime_ref().is_some_and(|runtime| {
+                 runtime.acp_agent.as_deref() == Some(agent.as_str())
+             }) && !app.current_session_has_started()
+ );
  let mut inputs = acp_update::Update { state: &mut app.acp_settings, acp_agents: &mut app.session_state.acp_agents, acp_agent: &mut app.session_state.acp_agent, access: crate::app::config::agent_config_access(), client: crate::app::config::gateway_client(), snapshot_applied: false, toasts: Vec::new() };
  let task = acp_update::update(&mut inputs, message);
  #[cfg(not(target_arch="wasm32"))]
@@ -15,6 +22,11 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
  if applied { app.note_startup_setting_edit("acp_agents"); }
  let task = task.then(|event| match event { Local::Acp(message) => Task::done(Message::Settings(SettingsMessage::Acp(message))), Local::After(duration, message) => crate::app::message::after(duration, Message::Settings(SettingsMessage::Acp(message))) });
  let mut tasks = vec![task];
+ if refresh_chat_source {
+     tasks.push(Task::done(Message::Chat(
+         crate::app::message::ChatMessage::AcpSourceRefresh,
+     )));
+ }
  for toast in toasts { tasks.push(match toast { Toast::Error(text) => app.show_error_toast(text), Toast::Info(text) => app.show_info_toast(text), Toast::Success(text) => app.show_success_toast(text) }); }
  Task::batch(tasks)
 }

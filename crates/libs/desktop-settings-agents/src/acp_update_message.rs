@@ -3,9 +3,14 @@ pub enum AcpMessage {
     StartDiagnostic,
     TestAgent(String),
     InstallAgent(String),
+    ToggleInstallDetails(String),
+    InstallInstructionsLoaded {
+        agent: String,
+        result: Result<gateway_desktop_settings::AcpInstallInstructions, String>,
+    },
     InstallCompleted {
         agent: String,
-        result: Result<String, String>,
+        result: Result<gateway_desktop_settings::AcpInstallReport, String>,
     },
     CancelDiagnostic,
     DiagnosticCancelled,

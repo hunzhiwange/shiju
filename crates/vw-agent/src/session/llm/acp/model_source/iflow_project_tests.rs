@@ -5,9 +5,8 @@ use llm_runtime::acp::host::Host;
 use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
 use std::{path::Path, time::Duration};
-use vw_api_mcp_management::{
-    McpCatalogDraft, McpCatalogScope, McpConnectionDefinition, McpLinuxStdioSelection,
-};
+use vw_agent_apps::mcp::catalog::McpCatalogDraft;
+use vw_api_mcp_management::{McpCatalogScope, McpConnectionDefinition, McpLinuxStdioSelection};
 
 const STDIO: &str = r#"
 count=0

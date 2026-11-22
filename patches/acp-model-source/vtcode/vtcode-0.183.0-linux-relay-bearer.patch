@@ -1,0 +1,224 @@
+--- a/crates/common/vtcode-commons/src/http.rs
++++ b/crates/common/vtcode-commons/src/http.rs
+@@ -28,6 +28,20 @@
+ /// Fixed mount supplied only to the isolated ShiJu ACP process.
+ #[cfg(target_os = "linux")]
+ pub const SHIJU_RELAY_SOCKET: &str = "/run/shiju/relay.sock";
++
++/// Read-only launch configuration mounted by the host.
++#[cfg(target_os = "linux")]
++pub const SHIJU_RELAY_CONFIG: &str = "/run/shiju/vtcode.toml";
++
++/// Split the first-line launch credential from the normal TOML. Never attach the
++/// input to an error: callers may report malformed launch configuration.
++#[cfg(target_os = "linux")]
++pub fn split_shiju_relay_config(content: &str) -> Option<(&str, &str)> {
++    let (header, toml) = content.split_once('\n')?;
++    let token = header.strip_prefix("# shiju-relay-bearer = ")?;
++    (token.len() == 64 && token.bytes().all(|byte| matches!(byte, b'0'..=b'9' | b'a'..=b'f')))
++        .then_some((token, toml))
++}
+
+ /// The host provides this launch reference only to the managed ACP process.
+ pub fn shiju_managed_linux() -> bool {
+--- a/crates/codegen/vtcode-config/src/loader/manager/mod.rs
++++ b/crates/codegen/vtcode-config/src/loader/manager/mod.rs
+@@ -498,6 +498,16 @@
+     /// every layer kind (required workspace path and optional system/user
+     /// layers) gets identical treatment.
+     fn parse_layer_value(content: &str, path: &Path) -> Result<toml::Value> {
++        #[cfg(target_os = "linux")]
++        let content = if vtcode_commons::http::shiju_managed_linux()
++            && path == Path::new(vtcode_commons::http::SHIJU_RELAY_CONFIG)
++        {
++            vtcode_commons::http::split_shiju_relay_config(content)
++                .ok_or_else(|| anyhow::anyhow!("Invalid managed relay configuration"))?
++                .1
++        } else {
++            content
++        };
+         let mut value: toml::Value =
+             toml::from_str(content).with_context(|| format!("Failed to parse config file: {}", path.display()))?;
+         crate::loader::merge::normalize_legacy_top_level_provider_aliases(&mut value);
+--- a/crates/codegen/vtcode-llm/src/http_client.rs
++++ b/crates/codegen/vtcode-llm/src/http_client.rs
+@@ -15,14 +15,32 @@
+ pub(crate) fn shiju_relay_client(
+     config: &TimeoutsConfig,
+     socket: &std::path::Path,
++    authorization: reqwest::header::HeaderValue,
+ ) -> Result<Client, reqwest::Error> {
++    let mut headers = reqwest::header::HeaderMap::new();
++    drop(headers.insert(reqwest::header::AUTHORIZATION, authorization));
+     Client::builder()
+         .unix_socket(socket.to_path_buf())
++        .default_headers(headers)
+         .no_proxy()
+         .redirect(reqwest::redirect::Policy::none())
+         .connect_timeout(HttpClientFactory::connect_timeout(config))
+         .timeout(HttpClientFactory::llm_timeout(config))
+         .build()
++}
++
++#[cfg(target_os = "linux")]
++pub(crate) fn shiju_relay_authorization(
++    config: &std::path::Path,
++) -> Option<reqwest::header::HeaderValue> {
++    use std::io::{BufRead, BufReader, Read};
++    let file = std::fs::File::open(config).ok()?;
++    let mut prefix = String::new();
++    BufReader::new(file.take(128)).read_line(&mut prefix).ok()?;
++    let (token, _) = vtcode_commons::http::split_shiju_relay_config(&prefix)?;
++    let mut authorization = reqwest::header::HeaderValue::from_str(&format!("Bearer {token}")).ok()?;
++    authorization.set_sensitive(true);
++    Some(authorization)
+ }
+
+ #[cfg(all(test, target_os = "linux"))]
+--- a/crates/codegen/vtcode-llm/src/providers/openai/provider.rs
++++ b/crates/codegen/vtcode-llm/src/providers/openai/provider.rs
+@@ -140,6 +140,41 @@
+         }
+     }
+
++    /// Construct the ACP-only Chat provider for the host's fixed Unix relay.
++    #[cfg(target_os = "linux")]
++    pub fn new_shiju_unix_relay(provider_key: &str, model: &str) -> Result<Self, provider::LLMError> {
++        let unavailable = || provider::LLMError::Provider {
++            message: "Managed model relay configuration is unavailable".into(),
++            metadata: None,
++        };
++        if !vtcode_commons::http::shiju_managed_linux() || provider_key.is_empty() || model.is_empty() {
++            return Err(unavailable());
++        }
++        let authorization = crate::http_client::shiju_relay_authorization(std::path::Path::new(
++            vtcode_commons::http::SHIJU_RELAY_CONFIG,
++        ))
++        .ok_or_else(unavailable)?;
++        let timeouts = TimeoutsConfig::default();
++        let client = crate::http_client::shiju_relay_client(
++            &timeouts,
++            std::path::Path::new(vtcode_commons::http::SHIJU_RELAY_SOCKET),
++            authorization,
++        )
++        .map_err(|_| unavailable())?;
++        let mut provider = Self::new_with_client(
++            String::new(),
++            None,
++            model.into(),
++            client,
++            "http://127.0.0.1:1/v1".into(),
++            timeouts,
++        )
++        .with_api_format_override(Some(CustomProviderApiFormat::OpenAIChat));
++        provider.provider_key_override = Some(Arc::from(provider_key));
++        provider.supported_models_override = Some(vec![model.into()]);
++        Ok(provider)
++    }
++
+     pub fn new(api_key: String) -> Self {
+         Self::with_model_internal(
+             api_key,
+@@ -358,17 +393,6 @@
+         use crate::http_client::HttpClientFactory;
+         let http_client = HttpClientFactory::for_llm(&timeouts);
+         let decisions_client = HttpClientFactory::for_llm_without_redirects(&timeouts);
+-        #[cfg(target_os = "linux")]
+-        let (http_client, decisions_client) = if vtcode_commons::http::shiju_managed_linux() {
+-            let relay = crate::http_client::shiju_relay_client(
+-                &timeouts,
+-                std::path::Path::new(vtcode_commons::http::SHIJU_RELAY_SOCKET),
+-            )
+-            .expect("managed ShiJu ACP requires its Unix HTTP client");
+-            (relay.clone(), Ok(relay))
+-        } else {
+-            (http_client, decisions_client)
+-        };
+
+         Self {
+             api_key: Arc::from(api_key.as_str()),
+--- a/crates/codegen/vtcode-acp/src/zed/agent/handlers.rs
++++ b/crates/codegen/vtcode-acp/src/zed/agent/handlers.rs
+@@ -664,6 +664,15 @@
+             SdkError::invalid_params().data(format!("Provider '{provider_name}' is not in providers_whitelist"))
+         );
+     }
++    #[cfg(target_os = "linux")]
++    if crate::permissions::managed_linux_launch() {
++        if provider_name != agent.config.provider || model != agent.config.model {
++            return Err(SdkError::invalid_params().data("Managed model relay requires the host selection"));
++        }
++        let provider = vtcode_core::llm::providers::OpenAIProvider::new_shiju_unix_relay(provider_name, model)
++            .map_err(|_| SdkError::internal_error().data("Managed model relay configuration is unavailable"))?;
++        return Ok(Box::new(provider));
++    }
+     let api_key = if provider_name.eq_ignore_ascii_case(&agent.config.provider) && !agent.config.api_key.is_empty() {
+         agent.config.api_key.clone()
+     } else {
+--- a/crates/codegen/vtcode-llm/src/http_client_shiju_tests.rs
++++ b/crates/codegen/vtcode-llm/src/http_client_shiju_tests.rs
+@@ -1,10 +1,16 @@
+-use super::shiju_relay_client;
++use super::{shiju_relay_authorization, shiju_relay_client};
+ use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
+ use tokio::net::UnixListener;
+
+ #[tokio::test]
+ async fn shiju_relay_uses_unix_socket_and_refuses_redirect() {
+     let directory = tempfile::tempdir().unwrap();
++    let config = directory.path().join("vtcode.toml");
++    let token = "a".repeat(64);
++    std::fs::write(&config, format!("# shiju-relay-bearer = {token}\n[agent]\n")).unwrap();
++    let authorization = shiju_relay_authorization(&config).unwrap();
++    assert!(authorization.is_sensitive());
++    assert!(!format!("{authorization:?}").contains(&token));
+     let socket = directory.path().join("relay.sock");
+     let listener = UnixListener::bind(&socket).unwrap();
+     let server = tokio::spawn(async move {
+@@ -13,20 +19,25 @@
+         let mut line = String::new();
+         stream.read_line(&mut line).await.unwrap();
+         assert_eq!(line, "POST /v1/chat/completions HTTP/1.1\r\n");
++        let mut authorized = false;
+         loop {
+             line.clear();
+             assert!(stream.read_line(&mut line).await.unwrap() > 0);
+             if line == "\r\n" {
+                 break;
+             }
++            if let Some(value) = line.strip_prefix("authorization: ") {
++                authorized = value.trim_end() == format!("Bearer {token}");
++            }
+         }
++        assert!(authorized);
+         stream
+             .get_mut()
+             .write_all(b"HTTP/1.1 307 Temporary Redirect\r\nLocation: http://127.0.0.1:1/other\r\nContent-Length: 0\r\nConnection: close\r\n\r\n")
+             .await
+             .unwrap();
+     });
+-    let client = shiju_relay_client(&Default::default(), &socket).unwrap();
++    let client = shiju_relay_client(&Default::default(), &socket, authorization).unwrap();
+     let response = tokio::time::timeout(
+         std::time::Duration::from_secs(3),
+         client.post("http://127.0.0.1:1/v1/chat/completions").send(),
+@@ -37,3 +48,19 @@
+     assert_eq!(response.status(), reqwest::StatusCode::TEMPORARY_REDIRECT);
+     server.await.unwrap();
+ }
++
++#[test]
++fn shiju_relay_rejects_unmarked_and_malformed_credentials() {
++    let directory = tempfile::tempdir().unwrap();
++    let config = directory.path().join("vtcode.toml");
++    assert!(shiju_relay_authorization(&config).is_none());
++    for invalid in [
++        r#"api_key = "example""#.to_owned(),
++        format!("# shiju-relay-bearer = {}\n", "a".repeat(65)),
++        format!("# shiju-relay-bearer = {}", "a".repeat(64)),
++        format!("# shiju-relay-bearer = {}\n", "Z".repeat(64)),
++    ] {
++        std::fs::write(&config, invalid).unwrap();
++        assert!(shiju_relay_authorization(&config).is_none());
++    }
++}

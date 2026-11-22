@@ -44,6 +44,10 @@
       {
         "file": "vtcode-0.183.0-linux-unix-relay.patch",
         "sha256": "1118bba70585c057b616e20ced82ee426a9694c49a616e2a24f98970e69d1a71"
+      },
+      {
+        "file": "vtcode-0.183.0-linux-relay-bearer.patch",
+        "sha256": "786acd954a7a2d520c174b9c393714a294d244f887da4c4b41d0082b6cb3b706"
       }
     ]
   }

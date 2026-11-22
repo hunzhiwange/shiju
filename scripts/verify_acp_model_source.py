@@ -423,13 +423,18 @@ def run(args):
         claude_effort = args.agent == "claude" and effort_check is not None
         if opencode_effort and entry["distribution"]["release"] != "1.19.5":
             raise VersionMismatch("OpenCode effort check requires the reviewed 1.19.5 release")
-        upstream_protocol = entry.get("offline_acceptance", {}).get(args.mode, {}).get("upstream_protocol", "chat")
+        recipe = entry.get("offline_acceptance", {}).get(args.mode, {})
+        if local_model and "upstream_protocol" not in recipe:
+            raise Unavailable("local model contract requires an explicit upstream_protocol in the reviewed recipe")
+        upstream_protocol = recipe.get("upstream_protocol", "chat")
         supported = tuple(LOCAL_MODEL_ROUTES) if local_model else ("chat", "messages")
         if upstream_protocol not in supported or (claude_effort and upstream_protocol != "messages"):
             raise Unavailable("selected model source has no offline driver for the configured upstream protocol")
         local_protocol = upstream_protocol if local_model else None
         with tempfile.TemporaryDirectory(prefix="acp-model-acceptance-") as temp, \
-                ModelFixture(local_protocol=local_protocol) as fixture, ExitStack() as owned:
+                ExitStack() as owned:
+            fixture = owned.enter_context(
+                ModelFixture(local_protocol=local_protocol) if local_model else ModelFixture())
             if effort_check:
                 effort_check["configure_fixture"](fixture)
             root = Path(temp).resolve() if opencode_effort else Path(temp)

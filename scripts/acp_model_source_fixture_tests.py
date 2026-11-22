@@ -260,6 +260,7 @@ class RunnerContract(unittest.TestCase):
             with patch.object(runner, "cargo_slot", return_value="/mock-flow/rust-slot-1"), \
                  patch.object(runner, "locate", return_value={"command": "/mock-flow/cli", "args": [], "env": {}}), \
                  patch.object(runner, "isolated_environment", return_value={"MOCK_CONFIG_DIR": str(root)}), \
+                 patch.object(runner, "ModelFixture", side_effect=lambda: ModelFixture()), \
                  patch.object(runner, "execute_cargo", side_effect=fake_cargo):
                 self.assertEqual(runner.run(args), 1)
             report = json.loads(output.read_text())
@@ -531,6 +532,29 @@ class LocalModelContract(unittest.TestCase):
             self.assertEqual(report["status"], "unavailable")
             self.assertEqual(report["effective_tests"], 0)
             self.assertNotIn("mcp_challenge", json.dumps(report))
+
+    def test_local_runner_requires_an_explicit_reviewed_protocol(self):
+        import argparse
+        import tempfile
+        from pathlib import Path
+        from unittest.mock import patch
+        import verify_acp_model_source as runner
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            manifest = root / "manifest.json"
+            manifest.write_text(json.dumps({"entries": [{"key": "probe", "offline_acceptance": {
+                "session-model": {"config_root_env": "TEST_CONFIG_DIR", "files": {"config": "x"}}}}]}))
+            args = argparse.Namespace(agent="probe", mode="session-model", manifest=manifest,
+                                      output=root / "result.json", local_model_contract=True)
+            with patch.object(runner, "cargo_slot", return_value="/mock/rust-slot-1"), \
+                 patch.object(runner, "ModelFixture") as fixture, patch.object(runner, "locate") as locate:
+                self.assertEqual(runner.run(args), 1)
+                fixture.assert_not_called()
+                locate.assert_not_called()
+            report = json.loads(args.output.read_text())
+            self.assertEqual(report["status"], "unavailable")
+            self.assertIn("explicit upstream_protocol", report["reason"])
 
 
 if __name__ == "__main__":

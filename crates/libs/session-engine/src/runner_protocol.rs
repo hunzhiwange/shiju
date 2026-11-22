@@ -5,6 +5,7 @@ use crate::session_memory::Session;
 use crate::processor_events::StreamEvent;
 use session_port::CompactionPhase;
 use serde_json::{Value, json};
+use std::borrow::Cow;
 use std::collections::{BTreeSet, HashSet};
 
 /// Existing scoped checkpoint storage and plugin lifecycle operations.
@@ -225,6 +226,147 @@ pub fn provider_request_options(options: &Value) -> Value {
     options
 }
 
+/// A function call message may start a parallel batch. Native search pairs and
+/// tool-supplied context can appear between that message and its final result.
+fn completed_tool_groups(messages: &[Value]) -> Vec<std::ops::Range<usize>> {
+    let mut groups = Vec::new();
+    let mut start = None;
+    let mut pending_functions = HashSet::new();
+    let mut pending_search: Option<String> = None;
+
+    for (index, message) in messages.iter().enumerate() {
+        let valid = match (message["role"].as_str(), message["tool_calls"].as_array()) {
+            (Some("assistant"), Some(calls)) => {
+                start = Some(index);
+                pending_functions.clear();
+                pending_search = None;
+                !calls.is_empty()
+                    && calls.iter().all(|call| {
+                        call["id"].as_str().is_some_and(|id| {
+                            !id.trim().is_empty()
+                                && call["function"]["name"]
+                                    .as_str()
+                                    .is_some_and(|name| !name.trim().is_empty())
+                                && pending_functions.insert(id)
+                        })
+                    })
+            }
+            (Some("tool"), _) => {
+                message["tool_call_id"].as_str().is_some_and(|id| pending_functions.remove(id))
+            }
+            #[cfg(not(target_arch = "wasm32"))]
+            (Some("native"), _) => {
+                use crate::native_history::NativeHistoryItem;
+                use aisdk::core::ToolSearchExecution;
+
+                match message["content"]
+                    .as_str()
+                    .and_then(|content| serde_json::from_str::<NativeHistoryItem>(content).ok())
+                {
+                    Some(NativeHistoryItem::ToolSearchCall(call))
+                        if call.execution == ToolSearchExecution::Client
+                            && pending_search.is_none() =>
+                    {
+                        start.get_or_insert(index);
+                        pending_search = call.call_id.filter(|id| !id.trim().is_empty());
+                        pending_search.is_some()
+                    }
+                    Some(NativeHistoryItem::ToolSearchOutput(output))
+                        if output.execution == ToolSearchExecution::Client =>
+                    {
+                        pending_search.take().is_some_and(|id| output.call_id == Some(id))
+                    }
+                    _ => false,
+                }
+            }
+            (Some("user"), _) => true, // For example, an image attached by pdf_read.
+            _ => false,
+        };
+        if !valid {
+            start = None;
+            pending_functions.clear();
+            pending_search = None;
+        } else if pending_functions.is_empty()
+            && pending_search.is_none()
+            && let Some(start) = start.take()
+        {
+            groups.push(start..index + 1);
+        }
+    }
+    groups
+}
+
+fn compaction_history(
+    history: &[Value],
+    user_index: usize,
+    model_limit: &model_types::ModelLimit,
+    request_overhead_tokens: u64,
+) -> (Vec<Value>, Vec<Value>) {
+    const MAX_RESULT_PREVIEW_BYTES: u64 = 3 * 1024;
+
+    let tail = &history[user_index + 1..];
+    let window = context_governance::effective_input_window(model_limit);
+    let user_tokens =
+        context_governance::context_usage_tokens(&history[user_index..=user_index], &[], &[], None);
+    let reserved = request_overhead_tokens
+        .saturating_add(user_tokens)
+        .saturating_add(crate::compaction_budget::summary_output_budget(model_limit));
+    // Share the continuation window with the summary, current user, and request scaffolding.
+    let mut budget = (window / 4).min(window.saturating_sub(reserved));
+    let mut omit_from_summary = tail
+        .iter()
+        .map(|message| {
+            matches!(message["role"].as_str(), Some("tool" | "native"))
+                || (message["role"] == "assistant" && message["tool_calls"].is_array())
+        })
+        .collect::<Vec<_>>();
+    let mut retained_groups = Vec::new();
+
+    for range in completed_tool_groups(tail).into_iter().rev() {
+        if budget == 0 {
+            omit_from_summary[range].fill(false);
+            continue;
+        }
+        let mut group = tail[range.clone()].to_vec();
+        let results = group.iter().filter(|message| message["role"] == "tool").count().max(1);
+        let result_bytes =
+            MAX_RESULT_PREVIEW_BYTES.min(budget.saturating_mul(2) / results as u64) as usize;
+        for message in group.iter_mut().filter(|message| message["role"] == "tool") {
+            let content = &message["content"];
+            let text = match content {
+                Value::String(text) => Cow::Borrowed(text.as_str()),
+                Value::Object(_) | Value::Array(_) => Cow::Owned(content.to_string()),
+                _ => continue,
+            };
+            if text.len() > result_bytes {
+                message["content"] =
+                    Value::String(crate::tool_output::truncate_string_middle(&text, result_bytes));
+            }
+        }
+        let tokens = context_governance::context_usage_tokens(&group, &[], &[], None);
+        let retain = tokens <= budget;
+        // Complete groups either travel together to the continuation or remain
+        // together in the summary input. Unmatched protocol items go to neither.
+        omit_from_summary[range].fill(retain);
+        if retain {
+            budget -= tokens;
+            retained_groups.push(group);
+        }
+    }
+
+    let summary_input = history[..=user_index]
+        .iter()
+        .chain(
+            tail.iter()
+                .zip(omit_from_summary)
+                .filter_map(|(message, omit)| (!omit).then_some(message)),
+        )
+        .cloned()
+        .collect();
+    let retained = retained_groups.into_iter().rev().flatten().collect();
+    (summary_input, retained)
+}
+
 /// Summarize completed history around the user position captured at session ingestion.
 /// Replace model context after checkpoint persistence and move the index to the retained user.
 #[allow(clippy::too_many_arguments)] // Keep request identity, budget, and lifecycle explicit.
@@ -238,6 +380,7 @@ pub fn compact_transient_history_for_request<H: RunnerCheckpointHost + crate::co
     on_event: &mut impl FnMut(StreamEvent) -> bool,
     cancellation: Option<&tokio_util::sync::CancellationToken>,
     model_limit: &model_types::ModelLimit,
+    request_overhead_tokens: u64,
 ) -> Result<bool, String> {
     let Some(index) = *current_user_index else {
         return Ok(false);
@@ -256,18 +399,21 @@ pub fn compact_transient_history_for_request<H: RunnerCheckpointHost + crate::co
         session_id, session_id, model, true, false,
     )
     .map_err(|error| error.to_string())?;
+    let (summary_input, retained) =
+        compaction_history(llm_messages, index, model_limit, request_overhead_tokens);
     let summary = crate::compaction_summary::summarize::<H>(
         session_id,
-        llm_messages,
+        &summary_input,
         model,
         reliability,
         cancellation,
         model_limit,
     )?;
-    let replacement = vec![
+    let mut replacement = vec![
         json!({ "role": "assistant", "content": format!("[Compaction summary]\n{summary}") }),
         current_user.clone(),
     ];
+    replacement.extend(retained);
     if cancellation.is_some_and(|token| token.is_cancelled()) {
         return Err("执行已取消".into());
     }

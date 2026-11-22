@@ -667,6 +667,12 @@ pub fn run<H: RunnerHost>(
                         &mut on_event,
                         req.abort_token.as_ref(),
                         &model_limit,
+                        context_governance::context_usage_tokens(
+                            &[],
+                            &system,
+                            &tool_specs_for_context,
+                            None,
+                        ),
                     )
                 },
             ) {
@@ -768,6 +774,12 @@ pub fn run<H: RunnerHost>(
                                 &mut on_event,
                                 req.abort_token.as_ref(),
                                 &model_limit,
+                                context_governance::context_usage_tokens(
+                                    &[],
+                                    &system,
+                                    &tool_specs_for_context,
+                                    None,
+                                ),
                             )
                         },
                     ) {

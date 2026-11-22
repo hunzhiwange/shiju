@@ -539,7 +539,7 @@ fn acp_context_preflight_preserves_large_prompt_without_local_compaction() {
 }
 
 #[test]
-fn desktop_compaction_user_anchor_preserves_user_source_over_pdf_image() {
+fn desktop_compaction_tool_pairs_keep_native_and_bounded_ordinary_evidence() {
     let _guard = super::llm_runner::test_llm_stream_guard();
     super::llm_runner::enqueue_test_llm_stream(vec![
         crate::app::agent::session::llm::StreamEvent::Delta("remembered context".to_string()),
@@ -573,9 +573,26 @@ fn desktop_compaction_user_anchor_preserves_user_source_over_pdf_image() {
             "content": "PDF page 1 of 1; PNG 1x1\n[IMAGE:data:image/png;base64,AA==]",
         }),
         serde_json::json!({
-            "role": "tool", "tool_call_id": "pdf-call", "content": "Rendered PDF page",
+            "role": "tool", "tool_call_id": "pdf-call",
+            "content": format!("Rendered PDF page {}", "页".repeat(250_000)),
         }),
     ];
+    let native_pair = [
+        serde_json::json!({"type":"tool_search_call","call_id":"search-call","execution":"client","status":"completed","arguments":{"query":"ledger"}}),
+        serde_json::json!({"type":"tool_search_output","call_id":"search-call","execution":"client","status":"completed","tools":[]}),
+    ]
+    .map(|item| serde_json::json!({"role":"native","content":item.to_string()}));
+    drop(messages.splice(6..6, native_pair.iter().cloned()));
+    messages.extend([
+        serde_json::json!({"role":"assistant","tool_calls":[
+            {"id":"complete-half","type":"function","function":{"name":"read","arguments":"{}"}},
+            {"id":"missing-half","type":"function","function":{"name":"read","arguments":"{}"}},
+        ]}),
+        serde_json::json!({"role":"tool","tool_call_id":"complete-half","content":"partial batch"}),
+        serde_json::json!({"role":"tool","tool_call_id":"orphan","content":"orphan output"}),
+    ]);
+    let ordinary_call = messages[4].clone();
+    let pdf_image = messages[5].clone();
     let mut events = Vec::new();
 
     let compacted = session_engine::runner_protocol::compact_transient_history_for_request::<super::AgentRunnerHost>(
@@ -591,17 +608,33 @@ fn desktop_compaction_user_anchor_preserves_user_source_over_pdf_image() {
         },
         None,
         &crate::provider::provider::resolve_model_limit(None, None, None),
+        0,
     )
     .expect("summary should succeed");
 
     assert!(compacted);
-    assert_eq!(messages.len(), 2);
+    let retained_call = messages.iter().find(|message| message["tool_calls"][0]["id"] == "pdf-call");
+    assert_eq!(retained_call, Some(&ordinary_call), "continuation lost pdf-call");
+    assert_eq!(messages[3], pdf_image);
+    assert_eq!(&messages[4..6], &native_pair);
+    assert_eq!(messages[6]["tool_call_id"], "pdf-call");
+    let result = messages[6]["content"].as_str().unwrap();
+    assert!(result.starts_with("Rendered PDF page"));
+    assert!(result.len() <= 4096);
+    assert!(result.contains("…<middle truncated>…"));
+    assert_eq!(messages.len(), 7);
     assert!(
         messages[0]["content"].as_str().is_some_and(|text| text.contains("remembered context"))
     );
     assert_eq!(messages[1]["content"], "latest request");
     assert_eq!(messages[1]["_vw_source"]["rpcId"], "desktop-compaction-request");
     assert_eq!(messages[1]["_vw_source"]["clientTimeZone"], "Asia/Shanghai");
+    let summary_requests = super::llm_runner::take_test_llm_messages("runner-transient-compaction");
+    assert_eq!(summary_requests.len(), 1);
+    assert!(summary_requests[0].messages.iter().any(|message| message["content"] == "old response"));
+    assert!(summary_requests[0].messages.iter().all(|message| {
+        message["tool_calls"].is_null() && message["role"] != "tool" && message["role"] != "native"
+    }));
     assert_eq!(super::llm_runner::take_test_llm_stream_tool_ids(), vec![Vec::<String>::new()]);
     assert!(matches!(
         events.as_slice(),
@@ -644,6 +677,7 @@ fn compaction_lifecycle_keeps_history_and_omits_completion_when_summary_fails() 
         },
         None,
         &crate::provider::provider::resolve_model_limit(None, None, None),
+        0,
     )
     .expect_err("failed summaries must not change history");
 
@@ -1131,6 +1165,7 @@ fn compaction_lifecycle_failure_preserves_multibyte_history() {
         },
         None,
         &crate::provider::provider::resolve_model_limit(None, None, None),
+        0,
     )
     .unwrap_err();
     assert!(error.contains("summary unavailable"));
@@ -1167,6 +1202,7 @@ fn compaction_lifecycle_rejects_truncated_summary_without_replacing_history() {
         &mut |_| true,
         None,
         &crate::provider::provider::resolve_model_limit(None, None, None),
+        0,
     )
     .unwrap_err();
     assert!(error.contains("truncated"));
@@ -1174,7 +1210,7 @@ fn compaction_lifecycle_rejects_truncated_summary_without_replacing_history() {
 }
 
 #[test]
-fn desktop_compaction_user_anchor_survives_identical_tool_message_and_rebuild() {
+fn compaction_lifecycle_user_anchor_survives_identical_tool_message_and_rebuild() {
     let _guard = super::llm_runner::test_llm_stream_guard();
     let user = serde_json::json!({"role": "user", "content": "continue", "_vw_source": {"rpcId": "original"}});
     let mut messages = vec![user.clone()];
@@ -1205,11 +1241,19 @@ fn desktop_compaction_user_anchor_survives_identical_tool_message_and_rebuild() 
                 },
                 &mut |_| true,
                 None,
-                &crate::provider::provider::resolve_model_limit(None, None, None)
+                &crate::provider::provider::resolve_model_limit(None, None, None),
+                0,
             )
             .unwrap()
         );
-        assert_eq!(messages.len(), 2);
+        for retained_round in 0..=round {
+            let id = format!("call-{retained_round}");
+            assert!(messages.iter().any(|message| message["tool_calls"][0]["id"] == id));
+            assert!(messages.iter().any(|message| {
+                message["tool_call_id"] == id
+                    && message["content"] == format!("completed tool round {retained_round}")
+            }));
+        }
         assert_eq!(messages[1], user);
         assert_eq!(current_user_index, Some(1));
         assert!(
@@ -1253,6 +1297,7 @@ fn compaction_checkpoint_replays_after_restart_without_rewriting_chat() {
         },
         None,
         &crate::provider::provider::resolve_model_limit(None, None, None),
+        0,
     )
     .unwrap();
     assert_eq!(raw[1]["content"], "old details");
@@ -1300,6 +1345,7 @@ fn compaction_checkpoint_failure_keeps_context_and_never_emits_completion() {
         },
         None,
         &crate::provider::provider::resolve_model_limit(None, None, None),
+        0,
     );
     assert!(result.unwrap_err().contains("invalid session ID"));
     assert_eq!(context, raw);
@@ -2436,6 +2482,7 @@ fn codex_plugin_compat_t10_compaction_restores_qualified_invocation_arguments() 
         &mut |_| true,
         None,
         &crate::provider::provider::resolve_model_limit(None, None, None),
+        0,
     )
     .unwrap();
     assert_eq!(history.len(), 2);
@@ -2488,6 +2535,7 @@ fn codex_plugin_compat_t42_processor_emits_around_real_summary() {
             &mut |_| true,
             None,
             &crate::provider::provider::resolve_model_limit(None, None, None),
+            0,
         )
         .unwrap();
     });

@@ -217,6 +217,12 @@ async fn serve_gateway(
         .layer(axum::Extension(database))
         .layer(axum::Extension(sync));
 
+    let app = if addr.ip().is_loopback() && tunnel.is_none() {
+        app.layer(axum::Extension(api::handlers::session::employee_account::LocalEmployeeGateway))
+    } else {
+        app
+    };
+
     #[cfg(target_os = "macos")]
     let refresh_service = api::handlers::agent_apps::init_usage_refresh().await;
     #[cfg(target_os = "macos")]

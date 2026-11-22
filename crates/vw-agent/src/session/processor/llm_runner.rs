@@ -58,6 +58,8 @@ fn spawn_real_llm_stream_thread(
 ) -> std::thread::JoinHandle<()> {
     let tool_context = crate::tools::current_tool_use_context();
     let tenant = crate::session::ui_store::current_tenant_scope();
+    #[cfg(not(target_arch = "wasm32"))]
+    let employee = llm::employee_context::processor_launch(&tenant, &session_id);
     let project =
         crate::project::instance::project().map(|project| crate::project::instance::Context {
             directory: crate::project::instance::directory(),
@@ -78,7 +80,7 @@ fn spawn_real_llm_stream_thread(
                 return;
             }
         };
-        runtime.block_on(crate::session::ui_store::with_tenant_scope(tenant, async move {
+        let request = crate::session::ui_store::with_tenant_scope(tenant, async move {
             let usage_session = session_id.clone();
             let request = async move {
                 llm::stream_chat_with_tools_for_session_with_abort(
@@ -106,7 +108,10 @@ fn spawn_real_llm_stream_thread(
                 Some(context) => crate::project::instance::provide_context(context, request).await,
                 None => request.await,
             }
-        }));
+        });
+        #[cfg(not(target_arch = "wasm32"))]
+        let request = llm::employee_context::with_worker_launch(employee, request);
+        runtime.block_on(request);
     })
 }
 

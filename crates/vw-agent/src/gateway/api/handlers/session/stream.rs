@@ -3,7 +3,7 @@ use serde_json::Value;
 use std::{future::Future, path::Path};
 use vw_api_transport::TenantScope;
 
-use gateway_session::stream_host::{PromptInput, StreamHost};
+use gateway_session::stream_host::{EmployeeAuthorization, PromptInput, StreamHost};
 pub(crate) struct Host;
 impl gateway_session::message_host::MessageHost for Host {
     fn current_tenant_scope() -> TenantScope {
@@ -69,14 +69,28 @@ impl StreamHost for Host {
     ) -> anyhow::Result<Option<session_engine::capability_policy::NativeAgentDefaults>> {
         crate::session::capability_policy::native_agent_defaults(config, name, model, path).await
     }
+    async fn load_binding(
+        session: &str,
+    ) -> anyhow::Result<Option<session_engine::agent_binding::AgentBinding>> {
+        crate::session::agent_binding::load(session).await
+    }
+    async fn authorize_employee(
+        tenant: &TenantScope,
+        headers: &axum::http::HeaderMap,
+    ) -> Result<EmployeeAuthorization, gateway_types::ApiError> {
+        super::employee_account::authorize(tenant, headers).await
+    }
     async fn prepare_binding(
         session: &str,
         agent: Option<&str>,
         model: Option<&str>,
         path: &Path,
+        employee: session_engine::admission::EmployeeAdmission<'_>,
     ) -> anyhow::Result<(session_engine::agent_binding::AgentBinding, config_aggregate::Config)>
     {
-        crate::session::agent_binding::prepare(session, agent, None, model, path).await
+        session_engine::admission::prepare_with_employee::<crate::session::agent_binding::AdmissionHost>(
+            session, agent, None, model, path, employee,
+        ).await
     }
     async fn resolve_full_access(
         session: &str,
@@ -139,9 +153,14 @@ impl StreamHost for Host {
         tenant: TenantScope,
         context: Self::ToolContext,
         approval: Self::Approval,
-        input: PromptInput,
+        mut input: PromptInput,
         mut before_emit: impl FnMut(&session_port::PromptEvent) + Send + 'static,
     ) -> session_port::PromptTurn {
+        let employee = input.employee.take().map(|(target, authorization)| {
+            crate::session::llm::employee_context::Launch::new(
+                tenant.clone(), input.session.clone(), target, authorization.credential, authorization.stop,
+            )
+        });
         crate::session::ui_store::with_tenant_scope_sync(tenant, || {
             let start = || {
                 let (request, persisted_history, prompt_rx) =
@@ -150,14 +169,16 @@ impl StreamHost for Host {
                     request,
                     move |request, mut emit| {
                         let _approval_prompt_rx = prompt_rx;
-                        crate::session::processor::run_with_persisted_history(
-                            request,
-                            persisted_history,
-                            move |event| {
-                                gateway_session::prompt_adapter::observe_event(&event, &mut before_emit);
-                                emit(event)
-                            },
-                        )
+                        crate::session::llm::employee_context::with_processor_launch(employee, || {
+                            crate::session::processor::run_with_persisted_history(
+                                request,
+                                persisted_history,
+                                move |event| {
+                                    gateway_session::prompt_adapter::observe_event(&event, &mut before_emit);
+                                    emit(event)
+                                },
+                            )
+                        })
                     },
                 )
             };
@@ -306,13 +327,17 @@ pub(crate) fn reserve_stream_agent_session(
 #[allow(clippy::too_many_arguments)]
 pub(crate) async fn chat_stream(
     Query(query): Query<InstanceQuery>,
+    local: Option<Extension<super::employee_account::LocalEmployeeGateway>>,
+    peer: Option<Extension<axum::extract::ConnectInfo<std::net::SocketAddr>>>,
     headers: HeaderMap,
     Json(body): Json<GatewayChatStreamRequest>,
 ) -> Result<impl IntoResponse, ApiError> {
-    domain::chat_stream::<Host>(
+    let local = super::employee_account::allowed(local, peer, &headers);
+    domain::chat_stream_with_employee::<Host>(
         Query(gateway_instance::host::InstanceQuery { directory: query.directory }),
         headers,
         Json(body),
+        local,
     )
     .await
 }

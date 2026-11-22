@@ -127,6 +127,15 @@ impl ShijuAccountClient {
 
     fn new(passport_base: &str, gateway_base: &str) -> Result<Self, ShijuAccountError> {
         let http = reqwest::Client::builder()
+            .redirect(reqwest::redirect::Policy::custom(|attempt| {
+                if attempt.previous().len() < 10
+                    && attempt.previous().first().is_some_and(|origin| origin.origin() == attempt.url().origin())
+                {
+                    attempt.follow()
+                } else {
+                    attempt.stop()
+                }
+            }))
             .timeout(Duration::from_secs(15))
             .build()
             .map_err(|_| ShijuAccountError::Message("failed to create SHIJU account client"))?;
@@ -237,10 +246,13 @@ impl ShijuAccountClient {
         if credential.trim().is_empty() {
             return Err(ShijuAccountError::Message("SHIJU credential cannot be empty"));
         }
+        let mut header = reqwest::header::HeaderValue::from_str(credential)
+            .map_err(|_| ShijuAccountError::Message("invalid SHIJU credential header"))?;
+        header.set_sensitive(true);
         let response = self
             .http
             .get(endpoint(&self.gateway_base, ACCOUNT_ME_PATH)?)
-            .header("X-Api-Key", credential)
+            .header("X-Api-Key", header)
             .send()
             .await
             .map_err(|_| ShijuAccountError::Message("SHIJU account details request failed"))?;

@@ -69,13 +69,15 @@ pub async fn do_stream_request_acp<H: Host>(
     let (acp_agent_name, acp_cfg) = lookup_acp_command(&cfg, model, merged_options)
         .ok_or_else(|| to_api_error(format!("acp command not configured for model {}", model.api.id)))?;
     let employee = normalize_agent_name(&acp_agent_name) == EMPLOYEE_ACP_BACKEND;
-    let (acp_agent_name, acp_cfg, employee_text, source) = if employee {
+    let (acp_agent_name, acp_cfg, employee_text, employee_stop, source) = if employee {
         let launch = H::employee_acp_launch(session_id)
             .ok_or_else(|| acp_option_error("Employee ACP requires an authorized session binding"))?;
+        let stop = launch.stop.clone();
         (
             EMPLOYEE_ACP_BACKEND.to_owned(),
-            employee_launch_config(launch)?,
+            employee_launch_config(launch, H::employee_acp_executable().map_err(to_api_error)?)?,
             Some(super::replay::employee_text(chat_messages)?),
+            stop,
             AcpModelSource::CliLocal,
         )
     } else {
@@ -83,7 +85,7 @@ pub async fn do_stream_request_acp<H: Host>(
         if source == AcpModelSource::SessionModel {
             validate_session_model(model, provider_info, auth_info)?;
         }
-        (acp_agent_name, acp_cfg, None, source)
+        (acp_agent_name, acp_cfg, None, None, source)
     };
 
     let tool_context = H::tool_context();
@@ -1195,6 +1197,15 @@ pub async fn do_stream_request_acp<H: Host>(
             return Err(to_api_error(error));
         }
 
+        if employee_stop.as_ref().is_some_and(|stop| stop.is_cancelled()) {
+            close_client_after_request_if_needed(true, &cached_client_entry).await;
+            on_event(StreamEvent::Done {
+                finish_reason: Some("cancelled".into()),
+                usage: ui_types::TokenUsage::default(),
+            });
+            return Ok(());
+        }
+
         let (acp_message_tx, mut acp_message_rx) = {
             let (tx, rx) = mpsc::unbounded_channel::<AcpJsonRpcMessage>();
             (tx, rx)
@@ -1226,6 +1237,19 @@ pub async fn do_stream_request_acp<H: Host>(
         let mut latest_usage = ui_types::TokenUsage::default();
         let mut finish_reason = None;
         let mut abort_rx = abort.cloned();
+        let stop_session = record.acp_session_id.clone();
+        let request_employee_stop = async {
+            let Some(stop) = &employee_stop else {
+                return std::future::pending::<()>().await;
+            };
+            stop.cancelled().await;
+            // Stop may arrive before the actor has registered its prompt.
+            while !cached_client.client.cancel(&stop_session).await.unwrap_or(false) {
+                tokio::time::sleep(std::time::Duration::from_millis(15)).await;
+            }
+        };
+        tokio::pin!(request_employee_stop);
+        let mut employee_stop_sent = false;
         loop {
             if should_abort(abort) {
                 *cached_client.output_tx.lock() = None;
@@ -1245,6 +1269,9 @@ pub async fn do_stream_request_acp<H: Host>(
             }
             if let Some(abort_rx) = abort_rx.as_mut() {
                 tokio::select! {
+                    _ = &mut request_employee_stop, if !employee_stop_sent => {
+                        employee_stop_sent = true;
+                    }
                     changed = abort_rx.changed() => {
                         match changed {
                             Ok(_) if *abort_rx.borrow() => {
@@ -1326,6 +1353,9 @@ pub async fn do_stream_request_acp<H: Host>(
                 }
             } else {
                 tokio::select! {
+                    _ = &mut request_employee_stop, if !employee_stop_sent => {
+                        employee_stop_sent = true;
+                    }
                     maybe_message = acp_message_rx.recv() => {
                         if let Some(message) = maybe_message {
                             if !employee && launch_profile.is_none()
@@ -1557,14 +1587,8 @@ pub fn validate_session_model(
 
 fn employee_launch_config(
     launch: super::host::EmployeeAcpLaunch,
+    executable: std::path::PathBuf,
 ) -> Result<config::schema::AcpAgentConfig, Error> {
-    #[cfg(not(test))]
-    let executable = std::env::current_exe().map_err(to_api_error)?;
-    #[cfg(test)]
-    let executable = match launch.executable.as_ref() {
-        Some(path) => path.clone(),
-        None => std::env::current_exe().map_err(to_api_error)?,
-    };
     let command = executable
         .to_str()
         .filter(|_| executable.is_absolute())

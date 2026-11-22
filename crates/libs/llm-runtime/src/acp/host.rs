@@ -22,15 +22,14 @@ pub struct DesktopContext {
 }
 
 /// Request-only data supplied by the host after checking the server-owned binding.
-#[cfg_attr(test, derive(Clone))]
+#[derive(Clone)]
 pub struct EmployeeAcpLaunch {
     pub employee_id: String,
     pub kind: EmployeeAcpKind,
     pub account_scope: String,
     pub state_dir: PathBuf,
     pub credential: String,
-    #[cfg(test)]
-    pub(crate) executable: Option<PathBuf>,
+    pub stop: Option<tokio_util::sync::CancellationToken>,
 }
 
 #[derive(Clone, Copy)]
@@ -56,6 +55,9 @@ pub trait Host: Send + Sync + 'static {
     /// The gateway carries it across the stream worker boundary outside JSON options.
     fn employee_acp_launch(_session: &str) -> Option<EmployeeAcpLaunch> {
         None
+    }
+    fn employee_acp_executable() -> std::io::Result<PathBuf> {
+        std::env::current_exe()
     }
     fn bind_agent<'a>(session: &'a str, cfg: &'a mut Config) -> HostFuture<'a, anyhow::Result<()>>;
     fn agent_defaults<'a>(cfg: &'a Config, options: &'a serde_json::Value, agent: &'a str, cwd: &'a Path, parsed: &'a mut ParsedAcpOptions<Self::Skills>, messages: &'a serde_json::Value) -> HostFuture<'a, Result<serde_json::Value, Error>>;

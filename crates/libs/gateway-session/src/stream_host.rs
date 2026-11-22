@@ -2,6 +2,16 @@
 use serde_json::Value;
 use std::{future::Future, path::Path};
 use vw_api_transport::TenantScope;
+use session_engine::{admission::EmployeeAdmission, agent_binding::{AgentBinding, EmployeeTarget}};
+use tokio_util::sync::CancellationToken;
+
+/// Request-only account information. It never enters processor options or replay data.
+pub struct EmployeeAuthorization {
+    pub credential: String,
+    pub generation: u64,
+    pub revoked: CancellationToken,
+    pub stop: CancellationToken,
+}
 
 /// Inputs actually consumed by the native processor adapter.
 pub struct PromptInput {
@@ -18,6 +28,7 @@ pub struct PromptInput {
     pub persisted_history: Option<Vec<Value>>,
     pub persist_app_session_artifacts: bool,
     pub app_session_scope: Option<String>,
+    pub employee: Option<(EmployeeTarget, EmployeeAuthorization)>,
     pub abort_token: Option<tokio_util::sync::CancellationToken>,
 }
 
@@ -55,11 +66,17 @@ pub trait StreamHost: crate::message_host::MessageHost {
     ) -> impl Future<
         Output = anyhow::Result<Option<session_engine::capability_policy::NativeAgentDefaults>>,
     > + Send;
+    fn load_binding(session: &str) -> impl Future<Output = anyhow::Result<Option<AgentBinding>>> + Send;
+    fn authorize_employee(
+        tenant: &TenantScope,
+        headers: &axum::http::HeaderMap,
+    ) -> impl Future<Output = Result<EmployeeAuthorization, gateway_types::ApiError>> + Send;
     fn prepare_binding(
         session: &str,
         agent: Option<&str>,
         model: Option<&str>,
         path: &Path,
+        employee: EmployeeAdmission<'_>,
     ) -> impl Future<
         Output = anyhow::Result<(
             session_engine::agent_binding::AgentBinding,

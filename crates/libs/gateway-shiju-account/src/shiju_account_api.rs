@@ -322,6 +322,33 @@ impl GatewayShijuAccountClient {
         .await
     }
 
+    /// Invalidates outstanding employee streams for the outgoing local account.
+    pub async fn shiju_employee_account_revoke(
+        &self,
+        credential: &ShijuCredential,
+    ) -> Result<(), String> {
+        let endpoint = self.transport.endpoint();
+        if !endpoint.is_loopback() {
+            return Err("Employee ACP requires the local desktop gateway".into());
+        }
+        let path = "/v1/chat/employee-account/revoke";
+        let mut header = reqwest::header::HeaderValue::from_str(credential.expose())
+            .map_err(|_| "invalid SHIJU credential header".to_owned())?;
+        header.set_sensitive(true);
+        let request = self.transport.native_transport()?
+            .post(format!("{}{path}", endpoint.base_url()))
+            .header(SHIJU_CREDENTIAL_HEADER, header);
+        let response = apply_request_context(request, endpoint)
+            .send()
+            .await
+            .map_err(|error| transport_error("POST", endpoint, path, error))?;
+        if response.status() == reqwest::StatusCode::NO_CONTENT {
+            Ok(())
+        } else {
+            Err(format!("Employee account invalidation failed: {}", response.status()))
+        }
+    }
+
     pub async fn shiju_account_sensitive_request<B, T>(
         &self,
         method: reqwest::Method,

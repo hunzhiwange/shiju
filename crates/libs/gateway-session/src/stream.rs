@@ -21,18 +21,18 @@ use vw_api_chat_identity::ReasoningEffortDto;
 use vw_api_transport::id::TenantScope;
 
 use crate::raw_commit;
-use crate::stream_host::{PromptInput, StreamHost};
+use crate::stream_host::{EmployeeAuthorization, PromptInput, StreamHost};
 use agent_project::instance;
 use agent_provider::provider;
 use agent_snapshot as snapshot;
 use gateway_instance::host::InstanceQuery;
 use gateway_resumable_stream::{
     STREAM_REQUEST_ID_HEADER, StreamKind, StreamOpenError, global_stream_store, last_event_id,
-    request_signature, sse_response, stream_request_id,
+    request_signature, sse_response, sse_response_until, stream_request_id,
 };
 use gateway_types::ApiError;
 use ordered_id as id;
-use session_engine::message;
+use session_engine::{admission::EmployeeAdmission, agent_binding::EmployeeTarget, message};
 use session_port::PromptEvent;
 use session_ui_types as ui_models;
 
@@ -534,6 +534,7 @@ pub fn merge_gateway_request_options(
 
 #[derive(Debug, Clone, Default)]
 pub struct DelegateRequestOverrides {
+    pub employee_target: Option<EmployeeTarget>,
     pub acp_backend: Option<String>,
     pub agent: Option<String>,
     pub model: Option<String>,
@@ -980,6 +981,7 @@ pub fn resolve_delegate_policy(
     });
 
     Ok(DelegateRequestOverrides {
+        employee_target: None,
         acp_backend: None,
         agent: Some(agent_name),
         model,
@@ -1153,7 +1155,45 @@ pub async fn prepare_gateway_agent_request<H: StreamHost>(
     body: &mut GatewayChatStreamRequest,
     background_full_access: Option<bool>,
 ) -> Result<DelegateRequestOverrides, ApiError> {
+    prepare_gateway_agent_request_with_employee::<H>(body, background_full_access, false).await
+}
+
+async fn prepare_gateway_agent_request_with_employee<H: StreamHost>(
+    body: &mut GatewayChatStreamRequest,
+    background_full_access: Option<bool>,
+    employee_verified: bool,
+) -> Result<DelegateRequestOverrides, ApiError> {
     merge_acp_model_source(body)?;
+    let target = body.options.as_mut().and_then(Value::as_object_mut)
+        .and_then(|options| options.remove("employee_target"));
+    let employee_admission = if employee_verified {
+        let target = target.map(serde_json::from_value::<EmployeeTarget>).transpose()
+            .map_err(|_| ApiError::bad_request("invalid employee_target"))?;
+        Some(target)
+    } else {
+        if target.is_some() {
+            return Err(ApiError::bad_request("employee_target requires the employee ACP backend"));
+        }
+        None
+    };
+    if employee_verified {
+        let invalid_text = || ApiError::bad_request("Employee ACP requires a non-empty text message");
+        let content = body.messages.last_mut()
+            .filter(|message| message["role"] == "user")
+            .and_then(|message| message.get_mut("content"))
+            .ok_or_else(invalid_text)?;
+        if let Value::Array(blocks) = content {
+            let text = blocks.iter().map(|block| {
+                (block["type"] == "text").then(|| block["text"].as_str()).flatten()
+            }).collect::<Option<String>>().ok_or_else(invalid_text)?;
+            *content = Value::String(text);
+        }
+        if content.as_str().is_none_or(|text| text.trim().is_empty()) {
+            return Err(invalid_text());
+        }
+        // The product owns model selection for employee chat.
+        body.model = None;
+    }
     let options = body.options.as_ref();
     validate_agent_selection_options(options)?;
     let ephemeral =
@@ -1173,31 +1213,20 @@ pub async fn prepare_gateway_agent_request<H: StreamHost>(
         body.agent.as_deref(),
         body.model.as_deref(),
         Path::new(&instance::directory()),
+        match &employee_admission {
+            Some(target) => EmployeeAdmission::Verified { target: target.as_ref() },
+            None => EmployeeAdmission::Unverified,
+        },
     )
     .await
     .map_err(|error| ApiError::bad_request(error.to_string()))?;
+    let employee_target = binding.employee_target().cloned();
     let acp_backend = match &binding.runtime {
         config_agent_profile::AgentRuntime::Native => None,
         config_agent_profile::AgentRuntime::Acp { backend } => Some(backend.clone()),
     };
     let employee = acp_backend.as_deref() == Some("employee-acp");
     if employee {
-        let invalid_text = || ApiError::bad_request("Employee ACP requires a non-empty text message");
-        let content = body.messages.last_mut()
-            .filter(|message| message["role"] == "user")
-            .and_then(|message| message.get_mut("content"))
-            .ok_or_else(invalid_text)?;
-        if let Value::Array(blocks) = content {
-            let text = blocks.iter().map(|block| {
-                (block["type"] == "text").then(|| block["text"].as_str()).flatten()
-            }).collect::<Option<String>>().ok_or_else(invalid_text)?;
-            *content = Value::String(text);
-        }
-        if content.as_str().is_none_or(|text| text.trim().is_empty()) {
-            return Err(invalid_text());
-        }
-        // A product-owned model has no provider/model selection on the gateway.
-        body.model = None;
         body.acp_model_source = vw_api_acp_model::acp_model_source::AcpModelSource::CliLocal;
     }
     let model = session_model::<H>(body, &binding, session).await?;
@@ -1248,6 +1277,7 @@ pub async fn prepare_gateway_agent_request<H: StreamHost>(
     )
     .await?;
     overrides.acp_backend = acp_backend;
+    overrides.employee_target = employee_target;
     Ok(overrides)
 }
 
@@ -1352,10 +1382,25 @@ type SharedPromptCancel = Arc<Mutex<Option<session_port::PromptCancelHandle>>>;
 pub async fn start_gateway_chat_producer<H: StreamHost>(
     tenant: TenantScope,
     dir: String,
+    body: GatewayChatStreamRequest,
+    background_full_access: Option<bool>,
+    abort_token: Option<tokio_util::sync::CancellationToken>,
+    prompt_cancel: Option<SharedPromptCancel>,
+    send: impl FnMut(Value, bool) -> bool + Send + 'static,
+) -> Result<(), ApiError> {
+    start_chat_producer::<H>(
+        tenant, dir, body, background_full_access, abort_token, prompt_cancel, None, send,
+    ).await
+}
+
+async fn start_chat_producer<H: StreamHost>(
+    tenant: TenantScope,
+    dir: String,
     mut body: GatewayChatStreamRequest,
     background_full_access: Option<bool>,
     abort_token: Option<tokio_util::sync::CancellationToken>,
     prompt_cancel: Option<SharedPromptCancel>,
+    employee: Option<EmployeeAuthorization>,
     send: impl FnMut(Value, bool) -> bool + Send + 'static,
 ) -> Result<(), ApiError> {
     let fork = match body.session_id.as_ref().map(|id| id.0.trim()).filter(|id| !id.is_empty()) {
@@ -1393,8 +1438,17 @@ pub async fn start_gateway_chat_producer<H: StreamHost>(
     let (session_project, _) = H::project_from_directory(&tenant, &dir)
         .await
         .map_err(|error| ApiError::bad_request(format!("无法解析会话项目：{error}")))?;
+    if employee.as_ref().is_some_and(|auth| auth.revoked.is_cancelled()) {
+        return Err(ApiError {
+            status: StatusCode::UNAUTHORIZED,
+            message: "Employee account authorization changed".into(),
+        });
+    }
     let delegate_overrides =
-        prepare_gateway_agent_request::<H>(&mut body, background_full_access).await?;
+        prepare_gateway_agent_request_with_employee::<H>(
+            &mut body, background_full_access, employee.is_some(),
+        ).await?;
+    let employee = employee.zip(delegate_overrides.employee_target.clone());
     let GatewayChatStreamRequest {
         acp_model_source: _,
         session_id,
@@ -1410,7 +1464,9 @@ pub async fn start_gateway_chat_producer<H: StreamHost>(
 
     let model = delegate_overrides.model.clone();
     let message_agent = delegate_overrides.agent.clone().unwrap_or_else(|| "gateway".to_string());
-    let employee = delegate_overrides.acp_backend.as_deref() == Some("employee-acp");
+    let employee_revoked = employee.as_ref().map(|(auth, _)| auth.revoked.clone());
+    let employee_prompt = employee.map(|(auth, target)| (target, auth));
+    let employee = employee_prompt.is_some();
     let preserve_structured_prompt = delegate_overrides.acp_backend.is_some();
     let background_acp = background_full_access.is_some() && preserve_structured_prompt;
     let options = merge_gateway_request_options(
@@ -1561,6 +1617,7 @@ pub async fn start_gateway_chat_producer<H: StreamHost>(
                     persist_app_session_artifacts: should_persist_app_session_artifacts,
                     app_session_scope: app_session_scope.clone(),
                     abort_token,
+                    employee: employee_prompt,
                 },
                 move |event| {
                     if let Some(assistant_id) = &event_assistant {
@@ -1601,6 +1658,10 @@ pub async fn start_gateway_chat_producer<H: StreamHost>(
                     Some(cancel.clone());
             }
             while let Ok(prompt_event) = turn.events.recv() {
+                if employee_revoked.as_ref().is_some_and(|token| token.is_cancelled()) {
+                    cancel.interrupt();
+                    break;
+                }
                 let mut ev = processor_event_from_prompt_event(prompt_event);
                 if let session_engine::processor_events::StreamEvent::LlmRawArtifact(artifact) = ev
                 {
@@ -1683,7 +1744,9 @@ pub async fn start_gateway_chat_producer<H: StreamHost>(
                 let payload = match ev {
                     session_engine::processor_events::StreamEvent::Done(usage) => {
                         let processing_completed_ms = H::now_ms();
+                        let employee_cancelled = employee && assistant_finish_reason.as_deref() == Some("cancelled");
                         let persisted_turn = if should_persist_app_session_artifacts
+                            && !employee_cancelled
                             && !(resume_history_only && query.trim().is_empty())
                         {
                             let stream_message_ids = stream_message_ids.clone();
@@ -1804,13 +1867,19 @@ pub async fn start_gateway_chat_producer<H: StreamHost>(
                             Ok((None, None))
                         };
                         match persisted_turn {
-                            Ok((message_id, parent_message_id)) => serde_json::json!({
+                            Ok((message_id, parent_message_id)) => {
+                                let mut done = serde_json::json!({
                                 "type": "chat.done",
                                 "session_id": stream_session_id,
                                 "usage": usage,
                                 "message_id": message_id,
                                 "parent_message_id": parent_message_id
-                            }),
+                                });
+                                if employee {
+                                    done["finish_reason"] = serde_json::json!(assistant_finish_reason);
+                                }
+                                done
+                            }
                             Err(error) => {
                                 serde_json::json!({ "type": "chat.error", "session_id": stream_session_id, "error": error })
                             }
@@ -2125,7 +2194,16 @@ pub(crate) async fn collect_gateway_chat_stream_payloads_borrowed(
 pub async fn chat_stream<H: StreamHost>(
     Query(query): Query<InstanceQuery>,
     headers: HeaderMap,
+    Json(body): Json<GatewayChatStreamRequest>,
+) -> Result<impl IntoResponse, ApiError> {
+    chat_stream_with_employee::<H>(Query(query), headers, Json(body), false).await
+}
+
+pub async fn chat_stream_with_employee<H: StreamHost>(
+    Query(query): Query<InstanceQuery>,
+    headers: HeaderMap,
     Json(mut body): Json<GatewayChatStreamRequest>,
+    local_employee_gateway: bool,
 ) -> Result<impl IntoResponse, ApiError> {
     validate_public_acp_chat_options(body.options.as_ref())?;
     // Public background requests can only opt into the restricted ACP path.
@@ -2154,9 +2232,37 @@ pub async fn chat_stream<H: StreamHost>(
                 .ok_or_else(|| ApiError::internal("chat stream is missing project context"))?;
             let serialized = serde_json::to_vec(&(&project.id, &dir, &body))
                 .map_err(|error| ApiError::internal(format!("chat stream 请求签名失败: {error}")))?;
-            let signature = request_signature(&serialized);
             let session_id = body.session_id.as_ref().map(|id| id.0.trim())
                 .filter(|id| !id.is_empty()).map(str::to_owned);
+            let binding = match session_id.as_deref() {
+                Some(session) => H::load_binding(session).await
+                    .map_err(|_| ApiError::internal("session binding unavailable"))?,
+                None => None,
+            };
+            let employee = binding.as_ref().is_some_and(|binding| binding.is_employee())
+                || body.agent.as_deref().is_some_and(|agent| agent.trim() == "acp-employee-acp");
+            let authorization = if employee {
+                if !local_employee_gateway {
+                    return Err(ApiError { status: StatusCode::FORBIDDEN, message:
+                        "Employee ACP requires the local desktop gateway".into() });
+                }
+                let evaluation = body.options.as_ref().and_then(|options| options.get("goal_evaluation"))
+                    .and_then(Value::as_bool) == Some(true);
+                if evaluation || background_full_access.is_some() {
+                    return Err(ApiError::bad_request("Employee ACP requires an interactive chat session"));
+                }
+                Some(H::authorize_employee(&tenant_for_stream, &headers).await?)
+            } else {
+                if body.options.as_ref().is_some_and(|options| options.get("employee_target").is_some()) {
+                    return Err(ApiError::bad_request("employee_target requires the employee ACP backend"));
+                }
+                None
+            };
+            let mut signature = request_signature(&serialized);
+            if let Some(auth) = &authorization {
+                // Each credential generation owns its own resumable delivery.
+                signature.push_str(&format!(":{}", auth.generation));
+            }
             let goal_evaluation = body.options.as_ref().and_then(|options| {
                 options.get("goal_evaluation").and_then(Value::as_bool)
             }) == Some(true);
@@ -2188,12 +2294,18 @@ pub async fn chat_stream<H: StreamHost>(
                     },
                 })?;
             body.session_id = opened.chat_session_id.clone().map(Into::into);
+            let revoked = authorization.as_ref().map(|auth| auth.revoked.clone());
             if let Some(producer) = opened.producer.take() {
-                let cancellation = tokio_util::sync::CancellationToken::new();
+                let cancellation = revoked.as_ref().map(|token| token.child_token()).unwrap_or_default();
                 let cancellation_for_stop = cancellation.clone();
+                let employee_stop = authorization.as_ref().map(|auth| auth.stop.clone());
                 let prompt_cancel: SharedPromptCancel = Arc::new(Mutex::new(None));
                 let handle_for_stop = prompt_cancel.clone();
                 producer.install_cancellation(move || {
+                    if let Some(stop) = &employee_stop {
+                        stop.cancel();
+                        return;
+                    }
                     cancellation_for_stop.cancel();
                     let handle = handle_for_stop
                         .lock()
@@ -2203,18 +2315,29 @@ pub async fn chat_stream<H: StreamHost>(
                         handle.cancel();
                     }
                 });
-                start_gateway_chat_producer::<H>(
+                let delivery = revoked.clone();
+                start_chat_producer::<H>(
                     tenant_for_stream,
                     dir,
                     body,
                     background_full_access,
                     Some(cancellation),
                     Some(prompt_cancel),
-                    move |payload, terminal| producer.publish(payload.to_string(), terminal),
+                    authorization,
+                    move |payload, terminal| {
+                        if delivery.as_ref().is_some_and(|token| token.is_cancelled()) {
+                            producer.publish(r#"{"type":"chat.error","error":"Employee account authorization changed"}"#, true);
+                            return false;
+                        }
+                        producer.publish(payload.to_string(), terminal)
+                    },
                 )
                 .await?;
             }
-            let mut response = sse_response(opened.subscription);
+            let mut response = match revoked {
+                Some(revoked) => sse_response_until(opened.subscription, revoked.cancelled_owned()),
+                None => sse_response(opened.subscription),
+            };
             response.headers_mut().insert(
                 STREAM_REQUEST_ID_HEADER,
                 axum::http::HeaderValue::from_str(&request_id)

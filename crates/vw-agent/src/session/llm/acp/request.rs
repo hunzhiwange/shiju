@@ -27,6 +27,17 @@ impl Host for RuntimeHost {
     fn model_source(options: &Value) -> Result<vw_api_acp_model::acp_model_source::AcpModelSource, String> { super::super::prompt::acp_model_source(options) }
     fn config() -> HostFuture<'static, anyhow::Result<config::schema::Config>> { Box::pin(async { Ok(config::get_current().await?) }) }
     fn project_id() -> Option<String> { crate::project::instance::project().map(|project| project.id) }
+    #[cfg(not(target_arch = "wasm32"))]
+    fn employee_acp_launch(session: &str) -> Option<llm_runtime::acp::host::EmployeeAcpLaunch> {
+        super::super::employee_context::worker_launch(&Self::tenant(), session)
+    }
+    #[cfg(all(test, not(target_arch = "wasm32")))]
+    fn employee_acp_executable() -> std::io::Result<std::path::PathBuf> {
+        match super::super::employee_context::test_executable(&Self::tenant()) {
+            Some(path) => Ok(path),
+            None => std::env::current_exe(),
+        }
+    }
     fn bind_agent<'a>(session: &'a str, cfg: &'a mut config::schema::Config) -> HostFuture<'a, anyhow::Result<()>> { Box::pin(crate::session::agent_binding::apply_to_config(session, cfg)) }
     fn agent_defaults<'a>(cfg: &'a config::schema::Config, options: &'a Value, agent: &'a str, cwd: &'a Path, parsed: &'a mut ParsedAcpOptions, messages: &'a Value) -> HostFuture<'a, Result<Value, Error>> { Box::pin(super::config::apply_agent_defaults(cfg, options, agent, cwd, parsed, messages)) }
     fn prepare_skills(mounts: &[acp_types::SessionSkillMount], cwd: &Path, session: &str, cfg: &config::schema::Config) -> Result<Option<Self::Skills>, Error> { super::skill_mounts::prepare(mounts, cwd, session, &cfg.skills.security) }

@@ -170,7 +170,7 @@ fn agent_model_inheritance_validates_credentials_and_model_snapshot() {
 async fn employee_acp_host_sends_only_current_text_and_restores_original_id() {
     use crate::acp::{
         host::{EmployeeAcpKind, EmployeeAcpLaunch},
-        host_migration_20_tests::{CacheHost, EMPLOYEE_LAUNCH, REQUEST_CONFIG},
+        host_migration_20_tests::{CacheHost, EMPLOYEE_EXECUTABLE, EMPLOYEE_LAUNCH, REQUEST_CONFIG},
     };
     use std::{fs, os::unix::fs::PermissionsExt, path::PathBuf};
 
@@ -251,7 +251,7 @@ for line in sys.stdin:
         account_scope: "fixture-account".into(),
         state_dir: root.clone(),
         credential: "fixture-turn-credential".into(),
-        executable: Some(executable.clone()),
+        stop: None,
     };
     let mut config = agent_config::schema::Config::default();
     for backend in ["employee-acp", "local-fixture"] {
@@ -311,7 +311,7 @@ for line in sys.stdin:
         )
         .await
     };
-    REQUEST_CONFIG.scope(config, async {
+    EMPLOYEE_EXECUTABLE.scope(executable, REQUEST_CONFIG.scope(config, async {
         // The backend name and a configured command give no launch authority.
         let error = request("employee-acp", "employee-chat", &messages, "session_model", None)
             .await.unwrap_err();
@@ -376,5 +376,5 @@ for line in sys.stdin:
         let prompt = frame["params"]["prompt"][0]["text"].as_str().unwrap();
         assert!(prompt.contains("workspace rules"));
         assert!(prompt.contains("current text"));
-    }).await;
+    })).await;
 }

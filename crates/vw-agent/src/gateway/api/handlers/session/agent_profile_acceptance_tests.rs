@@ -15,7 +15,7 @@ impl gateway_session::profile_acceptance_host::ProfileAcceptanceHost for Host {
     fn config_router() -> axum::Router { super::super::config::router::<()>() }
     async fn chat(query: axum::extract::Query<gateway_instance::host::InstanceQuery>, headers: axum::http::HeaderMap, body: axum::Json<vw_api_chat::chat::GatewayChatStreamRequest>) -> Result<axum::response::Response, crate::gateway::ApiError> {
         use axum::response::IntoResponse;
-        super::stream::chat_stream(axum::extract::Query(crate::gateway::instance::InstanceQuery { directory: query.0.directory }), headers, body).await.map(IntoResponse::into_response)
+        super::stream::chat_stream(axum::extract::Query(crate::gateway::instance::InstanceQuery { directory: query.0.directory }), None, None, headers, body).await.map(IntoResponse::into_response)
     }
 }
 

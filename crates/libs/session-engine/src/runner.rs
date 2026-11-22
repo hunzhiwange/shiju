@@ -890,6 +890,10 @@ pub fn run<H: RunnerHost>(
             if req.abort_token.as_ref().is_some_and(|token| token.is_cancelled()) {
                 return;
             }
+            if step_out.finish_reason.as_deref() == Some("cancelled") {
+                on_event(StreamEvent::Done(total_usage));
+                return;
+            }
             if step_out.text.trim().is_empty() {
                 on_event(StreamEvent::Error(EMPTY_RESPONSE_ERR.into()));
                 return;

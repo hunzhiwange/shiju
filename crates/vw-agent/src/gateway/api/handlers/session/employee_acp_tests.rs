@@ -114,12 +114,9 @@ async fn employee_acp_gateway_sessions_replay_and_stop_are_user_scoped() {
     assert_eq!(response.status(), StatusCode::OK);
     assert_eq!(response_json(response).await["title"], "Owner session");
 
-    assert_employee_binding(&owner, &project.id, &directory, session_id).await;
-
     let request_id = uuid::Uuid::new_v4().to_string();
     let chat = json!({
         "session_id": session_id,
-        "agent": "acp-employee-acp",
         "messages": [{"role": "user", "content": "fixture"}],
     });
     let body: GatewayChatStreamRequest = serde_json::from_value(chat.clone()).unwrap();
@@ -169,6 +166,10 @@ async fn employee_acp_gateway_sessions_replay_and_stop_are_user_scoped() {
     assert_eq!(owner_replay.status(), StatusCode::OK);
     let body = to_bytes(owner_replay.into_body(), 8192).await.unwrap();
     assert!(String::from_utf8_lossy(&body).contains(r#"{"type":"done"}"#));
+    let owner = TenantScope::new("employee-acp-fixture", "42")
+        .unwrap()
+        .with_user_id(UserId::new("101").unwrap());
+    assert_employee_binding(&owner, &project.id, &directory, session_id).await;
 }
 
 async fn response_json(response: axum::response::Response) -> Value {
@@ -279,4 +280,292 @@ fn employee_acp_gateway_recovery_anchor_isolates_users_in_one_tenant() {
     let _owner_guard = try_lock(&owner, session, workspace).unwrap();
     assert!(try_lock(&owner, session, workspace).is_err());
     assert!(try_lock(&other, session, workspace).is_ok());
+}
+
+#[cfg(unix)]
+#[tokio::test(flavor = "multi_thread")]
+async fn employee_acp_gateway_verifies_account_and_waits_for_product_stop() {
+    use super::employee_account::{LocalEmployeeGateway, TEST_CLIENT};
+    use axum::{Extension, extract::ConnectInfo, routing::get};
+    use gateway_shiju_account::SHIJU_CREDENTIAL_HEADER;
+    use std::{fs, net::SocketAddr, os::unix::fs::PermissionsExt, time::Duration};
+
+    let _env = crate::test_support::global_async_env_lock().lock().await;
+    let _fixture = crate::session::llm::recovery_test_support::RecoveryConfig::new(
+        "https://example.test/v1",
+        None,
+    )
+    .await;
+    let workspace = tempfile::tempdir().unwrap();
+    let directory = workspace.path().canonicalize().unwrap();
+    let executable = directory.join("employee-peer");
+    fs::write(&executable, r#"#!/bin/sh
+exec python3 -c '
+import json, os, pathlib, sys
+os.chdir(pathlib.Path(sys.argv.pop(1)).parent)
+assert sys.argv[1:6] == ["employee-acp", "--employee-id", "worker-1", "--employee-kind", "private"]
+assert os.environ.get("SHIJU_EMPLOYEE_ACP_CREDENTIAL") in ("fixture-login-a", "fixture-login-b")
+pending = None
+for line in sys.stdin:
+    request = json.loads(line)
+    method = request.get("method")
+    if method == "session/cancel":
+        pathlib.Path("cancelled").touch()
+        if pending is not None:
+            if pathlib.Path("late-event").exists():
+                print(json.dumps({"jsonrpc":"2.0","method":"session/update","params":{"sessionId":"employee-gateway-fixture","update":{"sessionUpdate":"agent_message_chunk","content":{"type":"text","text":"late reply"}}}}), flush=True)
+            print(json.dumps({"jsonrpc":"2.0","id":pending,"result":{"stopReason":"cancelled"}}), flush=True)
+        continue
+    if "id" not in request:
+        continue
+    result = {}
+    if method == "initialize":
+        result = {"protocolVersion":1,"agentCapabilities":{"loadSession":True},"authMethods":[]}
+    elif method == "session/new":
+        result = {"sessionId":"employee-gateway-fixture"}
+    elif method == "session/prompt":
+        assert request["params"]["prompt"] == [{"type":"text","text":"wait for stop"}]
+        pending = request["id"]
+        pathlib.Path("prompted").touch()
+        continue
+    print(json.dumps({"jsonrpc":"2.0","id":request["id"],"result":result}), flush=True)
+' "$0" "$@"
+"#).unwrap();
+    fs::set_permissions(&executable, fs::Permissions::from_mode(0o700)).unwrap();
+
+    let tenant = TenantScope::new("employee-acp-live-fixture", "42").unwrap();
+    let account = tenant.clone().with_user_id(UserId::new("103").unwrap());
+    let skey = "employee-live-fixture-local";
+    crate::config::replace_gateway_skeys_for_tenant(
+        &tenant,
+        &[GatewaySkey {
+            enabled: true,
+            skey: None,
+            skey_hash: hash_skey(skey),
+            masked_skey: String::new(),
+            name: String::new(),
+            expires_at: None,
+            user_id: Some("103".into()),
+        }],
+    )
+    .await
+    .unwrap();
+    let mut profile = agent_config::catalog::merged_agent_catalog(&Default::default())
+        .remove("acp-employee-acp")
+        .unwrap();
+    profile.enabled = true;
+    crate::config::update_global_for_tenant(
+        &tenant,
+        json!({"agents":{"acp-employee-acp":profile}}),
+    )
+    .await
+    .unwrap();
+
+    use crate::session::llm::employee_context::TEST_EXECUTABLE;
+    struct ResetFixture;
+    impl Drop for ResetFixture {
+        fn drop(&mut self) {
+            TEST_EXECUTABLE.lock().take();
+        }
+    }
+    let _reset = ResetFixture;
+    *TEST_EXECUTABLE.lock() = Some((account.clone(), executable));
+
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let base = format!("http://{}/", listener.local_addr().unwrap());
+    let upstream = axum::Router::new().route("/iam/api/v1/me", get(|headers: axum::http::HeaderMap| async move {
+        let user = match headers.get("x-api-key").and_then(|key| key.to_str().ok()) {
+            Some("fixture-login-a" | "fixture-login-b") => "103",
+            Some("fixture-foreign") => "999",
+            _ => return (StatusCode::UNAUTHORIZED, axum::Json(json!({}))),
+        };
+        (StatusCode::OK, axum::Json(json!({"code":200,"message":"","data":{
+            "user_id":user,"company_id":"42","account_id":user,"account_name":"fixture","name":"fixture",
+            "source_type":"manual","external_user_id":"","allow_console_login":true,"status":"enabled",
+        }})))
+    }));
+    let server = tokio::spawn(async move { axum::serve(listener, upstream).await.unwrap() });
+    let client = shiju_client::account::ShijuAccountClient::with_base_urls(&base, &base).unwrap();
+
+    let app = super::tests::test_app_for_tenant(tenant)
+        .layer(Extension(LocalEmployeeGateway))
+        .layer(Extension(ConnectInfo("127.0.0.1:12345".parse::<SocketAddr>().unwrap())));
+    let request_id = uuid::Uuid::new_v4().to_string();
+    let query = url::form_urlencoded::Serializer::new(String::new())
+        .append_pair("directory", directory.to_str().unwrap())
+        .finish();
+    let request = |path: &str, key: Option<&str>, body: Value| {
+        let mut request = Request::post(path)
+            .header("authorization", format!("Bearer {skey}"))
+            .header(USER_ID_HEADER, "103")
+            .header("content-type", "application/json");
+        if let Some(key) = key {
+            request = request.header(SHIJU_CREDENTIAL_HEADER, key);
+        }
+        request.body(Body::from(body.to_string())).unwrap()
+    };
+    let chat_path = format!("/chat/stream?{query}");
+    let chat = json!({
+        "agent":"acp-employee-acp",
+        "messages":[{"role":"user","content":"wait for stop"}],
+        "options":{"employee_target":{"employee_id":"worker-1","kind":"private"}},
+    });
+    TEST_CLIENT
+        .scope(client, async {
+            for key in [None, Some("fixture-foreign")] {
+                let response =
+                    app.clone().oneshot(request(&chat_path, key, chat.clone())).await.unwrap();
+                assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
+            }
+
+            let mut proxied = request(&chat_path, Some("fixture-login-a"), chat.clone());
+            proxied.headers_mut().insert("x-forwarded-for", "203.0.113.7".parse().unwrap());
+            let response = app.clone().oneshot(proxied).await.unwrap();
+            assert_eq!(response.status(), StatusCode::FORBIDDEN);
+
+            let mut start = request(&chat_path, Some("fixture-login-a"), chat.clone());
+            start.headers_mut().insert(STREAM_REQUEST_ID_HEADER, request_id.parse().unwrap());
+            let response = app.clone().oneshot(start).await.unwrap();
+            let status = response.status();
+            if status != StatusCode::OK {
+                panic!(
+                    "employee chat admission returned {status}: {}",
+                    response_json(response).await
+                );
+            }
+            let session = response.headers()["x-vw-session-id"].to_str().unwrap().to_owned();
+            tokio::time::timeout(Duration::from_secs(20), async {
+                while !directory.join("prompted").exists() {
+                    tokio::time::sleep(Duration::from_millis(10)).await;
+                }
+            })
+            .await
+            .expect("credential reached the controlled peer and it received the prompt");
+
+            let stop_path = format!("/chat/stream/{request_id}/stop");
+            let stopped =
+                app.clone().oneshot(request(&stop_path, None, Value::Null)).await.unwrap();
+            assert_eq!(response_json(stopped).await, json!({"cancelled":true}));
+            let body = tokio::time::timeout(
+                Duration::from_secs(10),
+                to_bytes(response.into_body(), 32_768),
+            )
+            .await
+            .unwrap()
+            .unwrap();
+            let sse = String::from_utf8_lossy(&body);
+            assert!(
+                sse.contains(r#""type":"chat.done""#)
+                    && sse.contains(r#""finish_reason":"cancelled""#),
+                "{sse}"
+            );
+            assert!(directory.join("cancelled").exists());
+            assert!(!sse.contains("fixture-login-a"));
+            let (project, _) = crate::project::from_directory(&account, &directory).await.unwrap();
+            let binding = session_engine::binding_store::load_scoped(
+                crate::global::paths().home.clone(),
+                account.clone(),
+                &project.id,
+                &session,
+            )
+            .await
+            .unwrap()
+            .unwrap();
+            assert_eq!(binding.employee_target().unwrap().employee_id(), "worker-1");
+            assert!(!serde_json::to_string(&binding).unwrap().contains("fixture-login-a"));
+            let record =
+                acp_storage::resolve_session_record("employee-gateway-fixture").await.unwrap();
+            assert!(record.agent_config.is_none());
+            assert!(!serde_json::to_string(&record).unwrap().contains("fixture-login-a"));
+
+            let mut continued = chat.clone();
+            continued["session_id"] = json!(session);
+            continued.as_object_mut().unwrap().remove("options");
+            continued.as_object_mut().unwrap().remove("agent");
+            let mut changed = continued.clone();
+            changed["options"] =
+                json!({"employee_target":{"employee_id":"worker-2","kind":"private"}});
+            let denied = app
+                .clone()
+                .oneshot(request(&chat_path, Some("fixture-login-a"), changed.clone()))
+                .await
+                .unwrap();
+            assert_eq!(denied.status(), StatusCode::BAD_REQUEST);
+
+            fs::remove_file(directory.join("prompted")).unwrap();
+            fs::write(directory.join("late-event"), []).unwrap();
+            let stale = app
+                .clone()
+                .oneshot(request(&chat_path, Some("fixture-login-a"), continued.clone()))
+                .await
+                .unwrap();
+            assert_eq!(stale.status(), StatusCode::OK);
+            tokio::time::timeout(Duration::from_secs(20), async {
+                while !directory.join("prompted").exists() {
+                    tokio::time::sleep(Duration::from_millis(10)).await;
+                }
+            })
+            .await
+            .expect("existing employee session reopened");
+
+            // The refreshed account can authorize the same session, but the old stream loses
+            // delivery immediately. The requested employee change still fails.
+            let rotated = app
+                .clone()
+                .oneshot(request(&chat_path, Some("fixture-login-b"), changed))
+                .await
+                .unwrap();
+            assert_eq!(rotated.status(), StatusCode::BAD_REQUEST);
+            let body =
+                tokio::time::timeout(Duration::from_secs(10), to_bytes(stale.into_body(), 32_768))
+                    .await
+                    .unwrap()
+                    .unwrap();
+            assert!(!String::from_utf8_lossy(&body).contains("late reply"));
+
+            let old = app
+                .clone()
+                .oneshot(request(&chat_path, Some("fixture-login-a"), continued.clone()))
+                .await
+                .unwrap();
+            assert_eq!(old.status(), StatusCode::UNAUTHORIZED);
+            fs::remove_file(directory.join("prompted")).unwrap();
+            let fresh = app
+                .clone()
+                .oneshot(request(&chat_path, Some("fixture-login-b"), continued.clone()))
+                .await
+                .unwrap();
+            assert_eq!(fresh.status(), StatusCode::OK);
+            assert_eq!(fresh.headers()["x-vw-session-id"], session.as_str());
+            tokio::time::timeout(Duration::from_secs(20), async {
+                while !directory.join("prompted").exists() {
+                    tokio::time::sleep(Duration::from_millis(10)).await;
+                }
+            })
+            .await
+            .expect("refreshed credential resumed the original employee session");
+
+            let revoke = app
+                .clone()
+                .oneshot(request(
+                    "/chat/employee-account/revoke",
+                    Some("fixture-login-b"),
+                    Value::Null,
+                ))
+                .await
+                .unwrap();
+            assert_eq!(revoke.status(), StatusCode::NO_CONTENT);
+            let body =
+                tokio::time::timeout(Duration::from_secs(10), to_bytes(fresh.into_body(), 32_768))
+                    .await
+                    .unwrap()
+                    .unwrap();
+            assert!(!String::from_utf8_lossy(&body).contains("late reply"));
+
+            let denied =
+                app.oneshot(request(&chat_path, Some("fixture-login-b"), continued)).await.unwrap();
+            assert_eq!(denied.status(), StatusCode::UNAUTHORIZED);
+        })
+        .await;
+    server.abort();
 }

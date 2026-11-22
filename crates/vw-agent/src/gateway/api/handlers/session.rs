@@ -31,6 +31,8 @@ use session_ops::{
     session_title_generate, session_todo_get, session_todo_put, ui_session_create,
     ui_session_delete, ui_session_get, ui_session_list, ui_session_patch, ui_session_status,
 };
+#[path = "session/employee_account.rs"]
+pub(crate) mod employee_account;
 use stream::{chat_stream, chat_stream_stop};
 use gateway_session::ui_ops::{
     session_archived_get, session_archived_put, session_path_get, session_scope_get,
@@ -53,6 +55,7 @@ pub(crate) fn router() -> Router<AppState> {
     Router::new()
         .route("/acp-model-source/{agent}", get(acp_options::source_capabilities))
         .route("/chat/stream", post(chat_stream))
+        .route("/chat/employee-account/revoke", post(employee_account::revoke_account))
         .route("/chat/stream/{request_id}/stop", post(chat_stream_stop))
         .route("/session", get(ui_session_list).post(ui_session_create))
         .route("/session/status", get(ui_session_status))

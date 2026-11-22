@@ -422,11 +422,21 @@ pub fn global_stream_store() -> &'static ResumableStreamStore {
 }
 
 pub fn sse_response(subscription: ResumableSubscription) -> Response {
-    let stream = stream::unfold(subscription, |mut subscription| async move {
-        subscription.next().await.map(|stored| {
-            let event = Event::default().id(stored.id.to_string()).data(stored.data);
-            (Ok::<Event, Infallible>(event), subscription)
-        })
+    sse_response_until(subscription, std::future::pending())
+}
+
+pub fn sse_response_until(
+    subscription: ResumableSubscription,
+    stop: impl std::future::Future<Output = ()> + Send + 'static,
+) -> Response {
+    let stream = stream::unfold((subscription, Box::pin(stop)), |(mut subscription, mut stop)| async move {
+        let stored = tokio::select! {
+            biased;
+            _ = stop.as_mut() => return None,
+            next = subscription.next() => next?,
+        };
+        let event = Event::default().id(stored.id.to_string()).data(stored.data);
+        Some((Ok::<Event, Infallible>(event), (subscription, stop)))
     });
     let mut response = Sse::new(stream).keep_alive(KeepAlive::new()).into_response();
     response.headers_mut().insert(header::CONNECTION, HeaderValue::from_static("keep-alive"));

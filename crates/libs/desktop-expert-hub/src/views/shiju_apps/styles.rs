@@ -13,7 +13,6 @@ pub const SCROLLABLE_SIDE_PADDING: u16 = 7;
 
 const INK: Color = iced::color!(0x172948);
 const MUTED: Color = iced::color!(0x5e6d84);
-const PAGE: Color = iced::color!(0xf8f7f2);
 const LINE: Color = iced::color!(0xe6e1d8);
 const ACCENT: Color = iced::color!(0xd6633c);
 const CARD: Color = iced::color!(0xfdfdfd);
@@ -37,11 +36,11 @@ fn surface(theme: &Theme, light: Color, radius: f32, bordered: bool) -> containe
 }
 
 pub fn page_style(theme: &Theme) -> container::Style {
-    let mut style = surface(theme, PAGE, 0.0, false);
-    if is_dark_theme(theme) {
-        style.background = Some(theme.palette().background.into());
+    // 由工作区容器绘制背景和外框，避免页面背景覆盖圆角边框。
+    container::Style {
+        text_color: Some(color(theme, INK, theme.palette().text)),
+        ..Default::default()
     }
-    style
 }
 
 pub fn pill_track(theme: &Theme) -> container::Style {

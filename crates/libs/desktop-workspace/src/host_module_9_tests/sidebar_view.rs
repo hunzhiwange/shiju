@@ -17,6 +17,7 @@ impl SidebarViewFixture {
     fn view(&self) -> iced::Element<'static, work_sidebar::events::Message> {
         work_sidebar::view(
             &work_sidebar::ViewInput {
+                navigation_page: None,
                 desktop_locale: config_ui::DesktopLocale::SimplifiedChinese,
                 recent_projects: &[],
                 project_sessions_loading: &Default::default(),

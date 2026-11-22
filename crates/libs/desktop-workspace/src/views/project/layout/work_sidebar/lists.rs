@@ -156,6 +156,7 @@ pub(super) fn new_task_button(app: &ViewInput<'_>) -> Element<'static, Message> 
         icon,
         (!app.new_session_creating).then_some(Message::View(ViewMessage::ProjectFileNewSession)),
         None,
+        false,
     )
 }
 
@@ -169,6 +170,7 @@ pub(super) fn navigation_section(app: &ViewInput<'_>) -> Element<'static, Messag
             specs[1].1,
             agent_settings_message(),
             specs[1].2,
+            app.navigation_page == Some(NavigationPage::Agents),
         ))
         .push(project_navigation_control(app));
 
@@ -180,10 +182,20 @@ pub(super) fn navigation_section(app: &ViewInput<'_>) -> Element<'static, Messag
             Icon::Person,
             Message::DigitalEmployees,
             None,
+            app.navigation_page == Some(NavigationPage::DigitalEmployees),
         ))
-        .push(shiju_apps_button(desktop_i18n::I18n::new(app.desktop_locale)))
-        .push(shiju_skills_button(desktop_i18n::I18n::new(app.desktop_locale)))
-        .push(expert_hub_button(desktop_i18n::I18n::new(app.desktop_locale)));
+        .push(shiju_apps_button(
+            desktop_i18n::I18n::new(app.desktop_locale),
+            app.navigation_page == Some(NavigationPage::ShijuApps),
+        ))
+        .push(shiju_skills_button(
+            desktop_i18n::I18n::new(app.desktop_locale),
+            app.navigation_page == Some(NavigationPage::ShijuSkills),
+        ))
+        .push(expert_hub_button(
+            desktop_i18n::I18n::new(app.desktop_locale),
+            app.navigation_page == Some(NavigationPage::ExpertHub),
+        ));
 
     let navigation = navigation.push(navigation_button(
         desktop_i18n::I18n::new(app.desktop_locale),
@@ -191,6 +203,7 @@ pub(super) fn navigation_section(app: &ViewInput<'_>) -> Element<'static, Messag
         specs[6].1,
         Message::View(ViewMessage::OpenCron),
         specs[6].2,
+        app.navigation_page == Some(NavigationPage::Cron),
     ));
     #[cfg(not(target_arch = "wasm32"))]
     let navigation = navigation.push(navigation_button(
@@ -199,6 +212,7 @@ pub(super) fn navigation_section(app: &ViewInput<'_>) -> Element<'static, Messag
         specs[7].1,
         expert_hub_message(ExpertHubSection::Knowledge),
         specs[7].2,
+        app.navigation_page == Some(NavigationPage::Knowledge),
     ));
     navigation.push(more_control(app)).into()
 }
@@ -218,6 +232,7 @@ pub fn project_create_message() -> Message {
 pub(super) fn project_navigation_control(app: &ViewInput<'_>) -> Element<'static, Message> {
     const CREATE_CONTROL_SIZE: f32 = 30.0;
     let (_, icon, _) = navigation_specs()[2];
+    let selected = app.navigation_page == Some(NavigationPage::Projects);
     let switch = button(
         row![
             container(navigation_icon(icon))
@@ -232,7 +247,7 @@ pub(super) fn project_navigation_control(app: &ViewInput<'_>) -> Element<'static
     .on_press(project_navigation_message())
     .padding([9, 11])
     .width(Length::Fill)
-    .style(navigation_button_style);
+    .style(move |theme, status| navigation_selection_style(theme, status, selected));
 
     let create = header_icon_button_sized(
         desktop_i18n::I18n::new(app.desktop_locale),

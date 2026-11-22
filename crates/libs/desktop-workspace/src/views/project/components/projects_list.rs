@@ -59,6 +59,7 @@ pub struct Input<'a> {
  pub project_path: &'a Option<String>,
  pub hovered_recent_project: &'a Option<String>,
  pub code_projects_menu_open: bool,
+ pub selected_action: Option<ProjectListAction>,
  pub desktop_locale: config_ui::DesktopLocale,
  pub project_attention: Vec<(&'a str, bool)>,
 }
@@ -406,6 +407,7 @@ fn navigation_badge_button<'a>(
     label: &'static str,
     tooltip: &'static str,
     message: Message,
+    selected: bool,
 ) -> Element<'a, Message> {
     let badge = container(
         text(label)
@@ -416,21 +418,32 @@ fn navigation_badge_button<'a>(
     .height(36)
     .align_x(iced::alignment::Horizontal::Center)
     .align_y(iced::alignment::Vertical::Center);
-    title_tooltip(navigation_badge(badge, message), tooltip, TooltipPosition::Right)
+    title_tooltip(navigation_badge(badge, message, selected), tooltip, TooltipPosition::Right)
 }
 
 fn navigation_badge<'a>(
     badge: impl Into<Element<'a, Message>>,
     message: Message,
+    selected: bool,
 ) -> Element<'a, Message> {
     button(badge)
         .on_press(message)
         .padding(0)
         .width(42)
         .height(42)
-        .style(|theme: &Theme, status| {
+        .style(move |theme: &Theme, status| {
             let p = theme.extended_palette();
             let is_dark = super::super::badge_styles::is_dark_theme(theme);
+            if selected {
+                let accent = p.primary.base.color;
+                let tint = if status == iced::widget::button::Status::Hovered { 0.26 } else { 0.16 };
+                return iced::widget::button::Style {
+                    background: Some(Background::Color(mix_color(p.background.base.color, accent, tint))),
+                    text_color: p.background.base.text,
+                    border: iced::Border { width: 2.0, color: accent, radius: 16.0.into() },
+                    ..Default::default()
+                };
+            }
             // 根据主题计算悬停背景色
             let hover_bg = if is_dark {
                 p.background.weak.color
@@ -493,38 +506,42 @@ pub fn open_project_badge_button<'a>(i18n: desktop_i18n::I18n) -> Element<'a, Me
         "+",
         i18n.__("打开项目"),
         Message::OpenFolderPressed,
+        false,
     )
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-pub fn expert_hub_badge_button<'a>(i18n: desktop_i18n::I18n) -> Element<'a, Message> {
+pub fn expert_hub_badge_button<'a>(i18n: desktop_i18n::I18n, selected: bool) -> Element<'a, Message> {
     navigation_badge_button(
         i18n.__("技"),
         i18n.__("专家 · 技能 · 连接器"),
         Message::ExpertHub,
+        selected,
     )
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-pub fn shiju_skills_badge_button<'a>(i18n: desktop_i18n::I18n) -> Element<'a, Message> {
+pub fn shiju_skills_badge_button<'a>(i18n: desktop_i18n::I18n, selected: bool) -> Element<'a, Message> {
     navigation_badge_button(
         i18n.__("识"),
         i18n.__("识矩技能"),
         Message::ShijuSkills,
+        selected,
     )
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-pub fn shiju_apps_badge_button<'a>(i18n: desktop_i18n::I18n) -> Element<'a, Message> {
+pub fn shiju_apps_badge_button<'a>(i18n: desktop_i18n::I18n, selected: bool) -> Element<'a, Message> {
     navigation_badge_button(
         i18n.__("应"),
         i18n.__("识矩应用"),
         Message::ShijuApps,
+        selected,
     )
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-fn digital_employees_badge_button(i18n: desktop_i18n::I18n) -> Element<'static, Message> {
+fn digital_employees_badge_button(i18n: desktop_i18n::I18n, selected: bool) -> Element<'static, Message> {
     use desktop_assets::assets::{Icon, get_icon};
     use iced::widget::svg;
 
@@ -537,13 +554,13 @@ fn digital_employees_badge_button(i18n: desktop_i18n::I18n) -> Element<'static, 
     .center_x(36)
     .center_y(36);
     title_tooltip(
-        navigation_badge(badge, Message::DigitalEmployees),
+        navigation_badge(badge, Message::DigitalEmployees, selected),
         i18n.__("数字员工"),
         TooltipPosition::Right,
     )
 }
 
-fn agent_settings_badge_button(i18n: desktop_i18n::I18n) -> Element<'static, Message> {
+fn agent_settings_badge_button(i18n: desktop_i18n::I18n, selected: bool) -> Element<'static, Message> {
     use iced::widget::svg;
 
     let badge = container(
@@ -556,23 +573,23 @@ fn agent_settings_badge_button(i18n: desktop_i18n::I18n) -> Element<'static, Mes
     .center_x(36)
     .center_y(36);
     title_tooltip(
-        navigation_badge(badge, Message::OpenAgentSettings),
+        navigation_badge(badge, Message::OpenAgentSettings, selected),
         i18n.__("智能体"),
         TooltipPosition::Right,
     )
 }
 
-fn cron_badge_button(i18n: desktop_i18n::I18n) -> Element<'static, Message> {
+fn cron_badge_button(i18n: desktop_i18n::I18n, selected: bool) -> Element<'static, Message> {
     let badge = container(desktop_ui_controls::system_settings_common::icon_svg(
         desktop_assets::assets::Icon::Clock,
         20.0,
     ))
     .center_x(36)
     .center_y(36);
-    title_tooltip(navigation_badge(badge, Message::OpenCron), i18n.__("定时任务"), TooltipPosition::Right)
+    title_tooltip(navigation_badge(badge, Message::OpenCron, selected), i18n.__("定时任务"), TooltipPosition::Right)
 }
 
-fn projects_badge_button(i18n: desktop_i18n::I18n) -> Element<'static, Message> {
+fn projects_badge_button(i18n: desktop_i18n::I18n, selected: bool) -> Element<'static, Message> {
     let badge = container(desktop_ui_controls::system_settings_common::icon_svg(
         desktop_assets::assets::Icon::FolderOpen,
         20.0,
@@ -580,20 +597,24 @@ fn projects_badge_button(i18n: desktop_i18n::I18n) -> Element<'static, Message> 
     .center_x(36)
     .center_y(36);
     title_tooltip(
-        navigation_badge(badge, Message::OpenProjects),
+        navigation_badge(badge, Message::OpenProjects, selected),
         i18n.__("项目管理"),
         TooltipPosition::Right,
     )
 }
 
-#[cfg(not(target_arch = "wasm32"))]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum ProjectListAction {
+pub enum ProjectListAction {
+    #[cfg(not(target_arch = "wasm32"))]
     OpenProject,
+    #[cfg(not(target_arch = "wasm32"))]
     ExpertHub,
+    #[cfg(not(target_arch = "wasm32"))]
     ShijuSkills,
+    #[cfg(not(target_arch = "wasm32"))]
     ShijuApps,
     AgentSettings,
+    #[cfg(not(target_arch = "wasm32"))]
     DigitalEmployees,
     Cron,
     Projects,
@@ -602,13 +623,13 @@ enum ProjectListAction {
 #[cfg(not(target_arch = "wasm32"))]
 const PROJECT_LIST_ACTIONS: [ProjectListAction; 8] = [
     ProjectListAction::OpenProject,
+    ProjectListAction::Projects,
     ProjectListAction::ExpertHub,
     ProjectListAction::ShijuSkills,
     ProjectListAction::ShijuApps,
     ProjectListAction::AgentSettings,
     ProjectListAction::DigitalEmployees,
     ProjectListAction::Cron,
-    ProjectListAction::Projects,
 ];
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -675,42 +696,28 @@ pub fn projects_list<'a>(app: &Input<'_>, collapsed_hover_mode: bool) -> Element
         projects_col = projects_col.push(overflow::view(app, menu_open));
     }
 
+    let i18n = desktop_i18n::I18n::new(app.desktop_locale);
     #[cfg(not(target_arch = "wasm32"))]
     for action in PROJECT_LIST_ACTIONS {
+        let selected = app.selected_action == Some(action);
         projects_col = projects_col.push(match action {
-            ProjectListAction::OpenProject => {
-                open_project_badge_button(desktop_i18n::I18n::new(app.desktop_locale))
-            }
-            ProjectListAction::ExpertHub => {
-                expert_hub_badge_button(desktop_i18n::I18n::new(app.desktop_locale))
-            }
-            ProjectListAction::ShijuSkills => {
-                shiju_skills_badge_button(desktop_i18n::I18n::new(app.desktop_locale))
-            }
-            ProjectListAction::ShijuApps => {
-                shiju_apps_badge_button(desktop_i18n::I18n::new(app.desktop_locale))
-            }
-            ProjectListAction::AgentSettings => {
-                agent_settings_badge_button(desktop_i18n::I18n::new(app.desktop_locale))
-            }
-            ProjectListAction::DigitalEmployees => {
-                digital_employees_badge_button(desktop_i18n::I18n::new(app.desktop_locale))
-            }
-            ProjectListAction::Cron => {
-                cron_badge_button(desktop_i18n::I18n::new(app.desktop_locale))
-            }
-            ProjectListAction::Projects => {
-                projects_badge_button(desktop_i18n::I18n::new(app.desktop_locale))
-            }
+            ProjectListAction::OpenProject => open_project_badge_button(i18n),
+            ProjectListAction::Projects => projects_badge_button(i18n, selected),
+            ProjectListAction::ExpertHub => expert_hub_badge_button(i18n, selected),
+            ProjectListAction::ShijuSkills => shiju_skills_badge_button(i18n, selected),
+            ProjectListAction::ShijuApps => shiju_apps_badge_button(i18n, selected),
+            ProjectListAction::AgentSettings => agent_settings_badge_button(i18n, selected),
+            ProjectListAction::DigitalEmployees => digital_employees_badge_button(i18n, selected),
+            ProjectListAction::Cron => cron_badge_button(i18n, selected),
         });
     }
     #[cfg(target_arch = "wasm32")]
     {
         projects_col = projects_col
-            .push(open_project_badge_button(desktop_i18n::I18n::new(app.desktop_locale)))
-            .push(agent_settings_badge_button(desktop_i18n::I18n::new(app.desktop_locale)))
-            .push(cron_badge_button(desktop_i18n::I18n::new(app.desktop_locale)))
-            .push(projects_badge_button(desktop_i18n::I18n::new(app.desktop_locale)));
+            .push(open_project_badge_button(i18n))
+            .push(projects_badge_button(i18n, app.selected_action == Some(ProjectListAction::Projects)))
+            .push(agent_settings_badge_button(i18n, app.selected_action == Some(ProjectListAction::AgentSettings)))
+            .push(cron_badge_button(i18n, app.selected_action == Some(ProjectListAction::Cron)));
     }
 
     // 包装为可滚动容器，填充可用空间

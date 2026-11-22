@@ -10,6 +10,7 @@ struct ProjectsFixture {
 fn projects_list(app: &ProjectsFixture, collapsed: bool) -> Element<'static, Message> {
     projects_list::projects_list(
         &projects_list::Input {
+            selected_action: None,
             recent_projects: &app.recent_projects,
             recent_projects_edits: &app.recent_projects_edits,
             recent_projects_meta: &[],

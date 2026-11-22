@@ -39,19 +39,19 @@ fn expert_hub_message(section: ExpertHubSection) -> Message {
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-pub fn expert_hub_button(i18n: desktop_i18n::I18n) -> Element<'static, Message> {
+pub fn expert_hub_button(i18n: desktop_i18n::I18n, selected: bool) -> Element<'static, Message> {
     let (label, icon, trailing) = navigation_specs()[5];
-    navigation_button(i18n, label, icon, Message::SkillHub(SkillHubMessage::Open), trailing)
+    navigation_button(i18n, label, icon, Message::SkillHub(SkillHubMessage::Open), trailing, selected)
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-pub fn shiju_apps_button(i18n: desktop_i18n::I18n) -> Element<'static, Message> {
+pub fn shiju_apps_button(i18n: desktop_i18n::I18n, selected: bool) -> Element<'static, Message> {
     let (label, icon, trailing) = navigation_specs()[3];
-    navigation_button(i18n, label, icon, Message::ShijuApps(ShijuAppsMessage::Open), trailing)
+    navigation_button(i18n, label, icon, Message::ShijuApps(ShijuAppsMessage::Open), trailing, selected)
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-pub fn shiju_skills_button(i18n: desktop_i18n::I18n) -> Element<'static, Message> {
+pub fn shiju_skills_button(i18n: desktop_i18n::I18n, selected: bool) -> Element<'static, Message> {
     let (label, icon, trailing) = navigation_specs()[4];
     navigation_button(
         i18n,
@@ -59,6 +59,7 @@ pub fn shiju_skills_button(i18n: desktop_i18n::I18n) -> Element<'static, Message
         icon,
         Message::SkillHub(SkillHubMessage::OpenShijuSkills),
         trailing,
+        selected,
     )
 }
 
@@ -225,7 +226,21 @@ pub fn view(app: &ViewInput<'_>, model: &WorkSidebarModel, current_project: Opti
     row![rail, sidebar].into()
 }
 
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub enum NavigationPage {
+    Home,
+    Agents,
+    Projects,
+    Cron,
+    DigitalEmployees,
+    ShijuApps,
+    ShijuSkills,
+    ExpertHub,
+    Knowledge,
+}
+
 pub struct ViewInput<'a> {
+ pub navigation_page: Option<NavigationPage>,
  pub desktop_locale: config_ui::DesktopLocale,
  pub recent_projects: &'a [String],
  pub project_sessions_loading: &'a std::collections::HashSet<String>,

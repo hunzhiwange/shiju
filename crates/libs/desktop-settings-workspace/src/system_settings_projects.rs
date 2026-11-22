@@ -198,7 +198,7 @@ fn project_row<'a, Host: Clone + 'static>(
 /// 渲染项目管理、搜索和 Worktree 快捷设置。
 pub fn view<'a, Host: Clone + 'static>(app: &ViewState<'a>, map: fn(Event) -> Host, avatar: Avatar<Host>, help: Help<Host>, appearance: &dyn Fn(&str) -> (Option<&'a str>, Option<&'a str>)) -> Element<'a, Host> {
     let i18n = I18n::new(app.desktop_locale);
-    let open_folder = button(text(i18n.__("打开文件夹")).size(SETTINGS_CONTROL_TEXT_SIZE))
+    let open_folder = button(text(i18n.__("打开项目")).size(SETTINGS_CONTROL_TEXT_SIZE))
         .on_press(map(Event::OpenFolderPressed))
         .padding([8, 14])
         .style(primary_action_btn_style);

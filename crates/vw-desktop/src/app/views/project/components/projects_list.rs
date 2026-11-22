@@ -23,7 +23,30 @@ fn map(event: domain::Message) -> Message {
 }
 pub fn projects_list<'a>(app: &App, collapsed_hover_mode: bool) -> iced::Element<'a, Message> {
  let attention = |sessions: &[session_info::Info]| sessions.iter().any(|session| app.session_state.session_runtime_states.get(&session.id).is_some_and(|runtime| runtime.request_lifecycle.is_requesting || !runtime.request_lifecycle.queue.is_empty() || runtime.has_unseen_success));
+ use crate::app::Screen;
+ use domain::ProjectListAction;
+
+ let selected_action = if app.navigation_panels.show_system_settings {
+     (app.navigation_panels.system_settings_tab
+         == crate::app::components::system_settings::SystemTab::Agents)
+         .then_some(ProjectListAction::AgentSettings)
+ } else {
+     match app.navigation_tabs.screen {
+         Screen::Projects => Some(ProjectListAction::Projects),
+         Screen::Cron => Some(ProjectListAction::Cron),
+         #[cfg(not(target_arch = "wasm32"))]
+         Screen::ExpertHub => Some(ProjectListAction::ExpertHub),
+         #[cfg(not(target_arch = "wasm32"))]
+         Screen::ShijuSkills => Some(ProjectListAction::ShijuSkills),
+         #[cfg(not(target_arch = "wasm32"))]
+         Screen::ShijuApps => Some(ProjectListAction::ShijuApps),
+         #[cfg(not(target_arch = "wasm32"))]
+         Screen::DigitalEmployees => Some(ProjectListAction::DigitalEmployees),
+         _ => None,
+     }
+ };
  let input = domain::Input {
+ selected_action,
  recent_projects: &app.workspace_state.recent_projects, recent_projects_edits: &app.workspace_state.recent_projects_edits,
  recent_projects_meta: &app.workspace_state.recent_projects_meta, project_path: &app.navigation_tabs.project_path,
  hovered_recent_project: &app.workspace_state.hovered_recent_project, code_projects_menu_open: app.navigation_mode.code_projects_menu_open,

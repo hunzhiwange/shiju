@@ -24,8 +24,9 @@ pub(super) fn navigation_button(
     icon: Icon,
     message: Message,
     trailing: Option<&'static str>,
+    selected: bool,
 ) -> Element<'static, Message> {
-    navigation_button_maybe(i18n, label, icon, Some(message), trailing)
+    navigation_button_maybe(i18n, label, icon, Some(message), trailing, selected)
 }
 
 pub(super) fn navigation_button_maybe(
@@ -34,6 +35,7 @@ pub(super) fn navigation_button_maybe(
     icon: Icon,
     message: Option<Message>,
     trailing: Option<&'static str>,
+    selected: bool,
 ) -> Element<'static, Message> {
     let enabled = message.is_some();
     let mut content = row![
@@ -55,7 +57,7 @@ pub(super) fn navigation_button_maybe(
     }
 
     let mut control =
-        button(content).padding([9, 11]).width(Length::Fill).style(navigation_button_style);
+        button(content).padding([9, 11]).width(Length::Fill).style(move |theme, status| navigation_selection_style(theme, status, selected));
     if let Some(message) = message {
         control = control.on_press(message);
     }
@@ -161,6 +163,7 @@ pub(super) fn more_control(app: &ViewInput<'_>) -> Element<'static, Message> {
         icon,
         Message::View(ViewMessage::WorkSidebarMoreOpened),
         trailing,
+        app.work_sidebar_more_open,
     );
     let hover_trigger =
         mouse_area(trigger).on_enter(Message::View(ViewMessage::WorkSidebarMoreOpened));

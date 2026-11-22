@@ -39,12 +39,18 @@ pub(crate) fn with_session_sidebar<'a>(
     content: Element<'a, Message>,
 ) -> Element<'a, Message> {
     use crate::app::message::ViewMessage;
+    use desktop_workspace::views::project::badge_styles::content_panel_style;
     use desktop_workspace::views::project::handles::HResizeHandle;
-    use iced::widget::{mouse_area, row};
+    use iced::widget::{container, mouse_area, row};
 
     if app.navigation_mode.workspace_mode == crate::app::state::WorkspaceMode::Work {
         let divider = mouse_area(HResizeHandle)
             .on_press(Message::View(ViewMessage::WorkSidebarDragStarted));
+        let content = container(content)
+            .width(Length::Fill)
+            .height(Length::Fill)
+            .clip(true)
+            .style(content_panel_style);
         row![work_sidebar::view(app), divider, content].height(Length::Fill).into()
     } else {
         let width = desktop_workspace::views::project::composition::settings_panel_width(

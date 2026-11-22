@@ -12,7 +12,7 @@ use desktop_ui_controls::overlays::SideOverlay;
 use desktop_i18n::I18n;
 use super::events::*;
 use super::presentation::WORK_SIDEBAR_RAIL_WIDTH;
-use super::ViewInput;
+use super::{NavigationPage, ViewInput, navigation_selection_style};
 
 #[cfg(not(target_arch = "wasm32"))]
 use super::expert_hub_message;
@@ -32,12 +32,20 @@ pub(super) fn view(app: &ViewInput<'_>) -> Element<'static, Message> {
         "首页",
         Icon::Home,
         Some(Message::View(ViewMessage::WorkProjectHome)),
+        app.navigation_page == Some(NavigationPage::Home),
     )];
     let (label, icon, _) = navigation_specs()[1];
-    let navigation = navigation.push(control(i18n, label, icon, Some(agent_settings_message())));
+    let navigation = navigation.push(control(
+        i18n,
+        label,
+        icon,
+        Some(agent_settings_message()),
+        app.navigation_page == Some(NavigationPage::Agents),
+    ));
     #[cfg(not(target_arch = "wasm32"))]
     let navigation = navigation.push(control(
         i18n, "数字员工", Icon::Person, Some(Message::DigitalEmployees),
+        app.navigation_page == Some(NavigationPage::DigitalEmployees),
     ));
     let controls = navigation
         .push(control(
@@ -45,6 +53,7 @@ pub(super) fn view(app: &ViewInput<'_>) -> Element<'static, Message> {
             "定时任务",
             Icon::Clock,
             Some(Message::View(ViewMessage::OpenCron)),
+            app.navigation_page == Some(NavigationPage::Cron),
         ))
         .push(more_control(app, i18n))
         .push(container(more_menu_divider()).width(Length::Fixed(24.0)))
@@ -69,9 +78,13 @@ fn control(
     label: &'static str,
     icon: Icon,
     message: Option<Message>,
+    selected: bool,
 ) -> Element<'static, Message> {
     let icon = navigation_icon_enabled(icon, message.is_some());
-    let button = icon_control(icon, message, false, CONTROL_SIZE);
+    let mut button = icon_control(icon, message, false, CONTROL_SIZE);
+    if selected {
+        button = button.style(|theme, status| navigation_selection_style(theme, status, true));
+    }
     Tooltip::new(
         button,
         container(text(i18n.__(label)).size(12)).padding([6, 8]).style(tooltip_dark_style),
@@ -86,12 +99,21 @@ fn more_control(app: &ViewInput<'_>, i18n: I18n) -> Element<'static, Message> {
         .rotation(Radians(std::f32::consts::FRAC_PI_2));
     let open = Message::View(ViewMessage::WorkSidebarMoreOpened);
     let close = Message::View(ViewMessage::WorkSidebarMoreClosed);
+    let more_open = app.work_sidebar_more_open;
+    let selected = matches!(
+        app.navigation_page,
+        Some(NavigationPage::Projects | NavigationPage::ShijuApps | NavigationPage::ShijuSkills
+            | NavigationPage::ExpertHub | NavigationPage::Knowledge)
+    );
     let trigger = mouse_area(icon_control(
         icon,
         Some(open.clone()),
         app.work_sidebar_more_open,
         CONTROL_SIZE,
-    ))
+    ).style(move |theme, status| {
+        if selected { navigation_selection_style(theme, status, true) }
+        else { super::header_control_style(more_open)(theme, status) }
+    }))
     .on_enter(open);
     SideOverlay::new(trigger, more_menu(i18n))
         .show(app.work_sidebar_more_open)

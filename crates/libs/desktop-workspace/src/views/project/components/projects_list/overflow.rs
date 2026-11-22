@@ -25,7 +25,7 @@ pub(super) fn view(app: &Input<'_>, open: bool) -> Element<'static, Message> {
         .height(20)
         .rotation(Radians(std::f32::consts::FRAC_PI_2))
         .style(|theme: &Theme, _| svg::Style { color: Some(theme.palette().text) });
-    let trigger = navigation_badge(container(icon).center(Length::Fill), open_menu.clone());
+    let trigger = navigation_badge(container(icon).center(Length::Fill), open_menu.clone(), false);
     if !open {
         return mouse_area(trigger).on_enter(open_menu).into();
     }

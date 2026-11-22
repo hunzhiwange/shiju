@@ -102,7 +102,37 @@ work_sidebar_visible_spaces: app.navigation_sidebar.work_sidebar_visible_spaces,
 pinned: &app.session_ui_projection.pinned, drafts: &drafts, activity: &activity,
 })
 }
-fn input(app: &App) -> domain::ViewInput<'_> { domain::ViewInput {
+fn input(app: &App) -> domain::ViewInput<'_> {
+ use crate::app::Screen;
+ use domain::NavigationPage;
+
+ let navigation_page = if app.navigation_panels.show_system_settings {
+     (app.navigation_panels.system_settings_tab
+         == crate::app::components::system_settings::SystemTab::Agents)
+         .then_some(NavigationPage::Agents)
+ } else {
+     match app.navigation_tabs.screen {
+         Screen::Home => Some(NavigationPage::Home),
+         Screen::Project if app.navigation_tabs.project_path.is_some()
+             && app.session_state.active_session_id.is_none() => Some(NavigationPage::Home),
+         Screen::Projects => Some(NavigationPage::Projects),
+         Screen::Cron => Some(NavigationPage::Cron),
+         #[cfg(not(target_arch = "wasm32"))]
+         Screen::DigitalEmployees => Some(NavigationPage::DigitalEmployees),
+         #[cfg(not(target_arch = "wasm32"))]
+         Screen::ShijuApps => Some(NavigationPage::ShijuApps),
+         #[cfg(not(target_arch = "wasm32"))]
+         Screen::ShijuSkills => Some(NavigationPage::ShijuSkills),
+         #[cfg(not(target_arch = "wasm32"))]
+         Screen::ExpertHub => Some(match app.expert_hub.section {
+             crate::app::skill_hub::ExpertHubSection::Knowledge => NavigationPage::Knowledge,
+             _ => NavigationPage::ExpertHub,
+         }),
+         _ => None,
+     }
+ };
+ domain::ViewInput {
+navigation_page,
 recent_projects: &app.workspace_state.recent_projects,
 project_sessions_loading: &app.workspace_state.project_sessions_loading,
 desktop_locale: app.general_settings.desktop_locale,
@@ -144,13 +174,13 @@ pub(super) fn refresh_all_control(app: &App) -> Element<'static, Message> { doma
 pub(super) fn task_pool_control(app: &App) -> Element<'static, Message> { domain::task_pool_control(&input(app)).map(map) }
 #[cfg(not(target_arch = "wasm32"))]
 #[cfg(test)]
-pub(super) fn expert_hub_button(i18n: crate::app::i18n::I18n) -> Element<'static, Message> { domain::expert_hub_button(i18n).map(map) }
+pub(super) fn expert_hub_button(i18n: crate::app::i18n::I18n) -> Element<'static, Message> { domain::expert_hub_button(i18n, false).map(map) }
 #[cfg(not(target_arch = "wasm32"))]
 #[cfg(test)]
-pub(super) fn shiju_apps_button(i18n: crate::app::i18n::I18n) -> Element<'static, Message> { domain::shiju_apps_button(i18n).map(map) }
+pub(super) fn shiju_apps_button(i18n: crate::app::i18n::I18n) -> Element<'static, Message> { domain::shiju_apps_button(i18n, false).map(map) }
 #[cfg(not(target_arch = "wasm32"))]
 #[cfg(test)]
-pub(super) fn shiju_skills_button(i18n: crate::app::i18n::I18n) -> Element<'static, Message> { domain::shiju_skills_button(i18n).map(map) }
+pub(super) fn shiju_skills_button(i18n: crate::app::i18n::I18n) -> Element<'static, Message> { domain::shiju_skills_button(i18n, false).map(map) }
 #[cfg(test)]
 pub(super) fn task_session_context_menu(
     app: &App,

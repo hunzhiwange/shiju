@@ -120,19 +120,13 @@ fn open_project_badge_button_builds() {
 fn expert_hub_entry_follows_open_project_action() {
     assert_eq!(
         project_list_action_order(),
-        ["open_project", "expert_hub", "shiju_skills", "shiju_apps", "agent_settings", "digital_employees", "cron", "projects"]
+        ["open_project", "projects", "expert_hub", "shiju_skills", "shiju_apps", "agent_settings", "digital_employees", "cron"]
     );
-    let element: Element<'_, Message> = expert_hub_badge_button(desktop_i18n::I18n::new(
-        config_ui::DesktopLocale::SimplifiedChinese,
-    ));
+    let element: Element<'_, Message> = expert_hub_badge_button(desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese), false);
     std::hint::black_box(element);
-    let element: Element<'_, Message> = shiju_skills_badge_button(desktop_i18n::I18n::new(
-        config_ui::DesktopLocale::SimplifiedChinese,
-    ));
+    let element: Element<'_, Message> = shiju_skills_badge_button(desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese), false);
     std::hint::black_box(element);
-    let element: Element<'_, Message> = shiju_apps_badge_button(desktop_i18n::I18n::new(
-        config_ui::DesktopLocale::SimplifiedChinese,
-    ));
+    let element: Element<'_, Message> = shiju_apps_badge_button(desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese), false);
     std::hint::black_box(element);
 }
 

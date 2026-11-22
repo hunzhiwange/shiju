@@ -1,14 +1,10 @@
 use super::*;
+use crate::views::project::badge_styles::content_panel_style;
 
 pub fn sidebar_style(theme: &Theme) -> container::Style {
-    let palette = theme.extended_palette();
     container::Style {
         text_color: Some(theme.palette().text),
-        border: Border {
-            color: palette.background.strong.color.scale_alpha(0.72),
-            width: 0.0,
-            radius: 0.0.into(),
-        },
+        border: content_panel_style(theme).border,
         ..work_surface_style(theme)
     }
 }
@@ -26,6 +22,26 @@ pub(super) fn navigation_button_style(theme: &Theme, status: button::Status) -> 
         border: Border { radius: 8.0.into(), ..Default::default() },
         ..Default::default()
     }
+}
+
+pub(super) fn navigation_selection_style(
+    theme: &Theme,
+    status: button::Status,
+    selected: bool,
+) -> button::Style {
+    let mut style = navigation_button_style(theme, status);
+    if selected {
+        let palette = theme.extended_palette();
+        let tint = if status == button::Status::Hovered { 0.26 } else { 0.16 };
+        style.background = Some(Background::Color(crate::views::project::utils::mix_color(
+            palette.background.base.color,
+            palette.primary.base.color,
+            tint,
+        )));
+        style.border.color = palette.primary.base.color;
+        style.border.width = 1.0;
+    }
+    style
 }
 
 pub(super) fn header_icon(icon: Icon) -> svg::Svg<'static> {

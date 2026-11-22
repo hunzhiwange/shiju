@@ -377,9 +377,45 @@ class GeminiContract(unittest.TestCase):
 
 
 class LocalModelContract(unittest.TestCase):
+    def test_combined_mounts_require_distinct_same_id_execution_receipts(self):
+        with ModelFixture(local_protocol="chat") as fixture:
+            fixture.mount_turn = ("both-probe", ("project", "session"))
+            fixture.mount_tools = {"project": ("read_project", "project|execution=1|"),
+                                   "session": ("read_mounted", "session|execution=1|")}
+            tools = [{"name": "read_file", "parameters": {"properties": {"path": {}}}},
+                     {"name": "read_project"}, {"name": "read_mounted"}]
+            body = {"model": fixture.models[0], "messages": [{"role": "user", "content": "both-probe"}],
+                    "tools": [{"type": "function", "function": tool} for tool in tools]}
+
+            def request():
+                req = urllib.request.Request(fixture.url + fixture.local_route, json.dumps(body).encode(),
+                                             {"Authorization": "Bearer " + fixture.key})
+                with urllib.request.urlopen(req) as reply:
+                    return json.load(reply)["choices"][0]["message"]
+
+            ids = []
+            for name, output in (("read_file", fixture.challenge), *fixture.mount_tools.values()):
+                message = request()
+                call = message["tool_calls"][0]
+                self.assertEqual(call["function"]["name"], name)
+                ids.append(call["id"])
+                body["messages"] += [message, {"role": "tool", "tool_call_id": call["id"], "content": output}]
+            body["messages"][-1]["content"] = "project|execution=1|"
+            with self.assertRaises(urllib.error.HTTPError):
+                request()
+            body["messages"][-1]["content"] = "session|execution=2|"
+            with self.assertRaises(urllib.error.HTTPError):
+                request()
+            body["messages"][-1]["content"] = "session|execution=1|"
+            self.assertIn(fixture.challenge, request()["content"])
+            row = fixture.snapshot()["requests"][-1]
+            self.assertEqual(row["continued_tools"], ["native", "project", "session"])
+            self.assertEqual(row["continued_call_ids"], ids)
+            self.assertEqual(len(set(ids)), 3)
+
     def test_removed_mount_rejects_old_catalog_and_keeps_native_continuation(self):
         with ModelFixture(local_protocol="chat") as fixture:
-            fixture.mount_turn = ("removed-probe", False)
+            fixture.mount_turn = ("removed-probe", ())
             read = {"name": "read_file", "parameters": {"properties": {"path": {}}}}
             body = {"model": fixture.models[0], "tools": [{"type": "function", "function": read}],
                     "messages": [{"role": "user", "content": "removed-probe"}]}

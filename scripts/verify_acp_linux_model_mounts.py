@@ -13,7 +13,7 @@ import tempfile
 from urllib.parse import urlencode
 
 from acp_model_source_fixture import ModelFixture
-from verify_acp_approval import environment, gateway, request
+from verify_acp_approval import environment, expect_reply_error, gateway, request
 from verify_acp_integration import platform_process, require
 from verify_acp_model_source import Unavailable
 from verify_acp_skill_coexistence import AGENT_PROFILE, PROVIDER, interactive_turn, readback
@@ -26,7 +26,9 @@ CATALOG = "/agent-apps/mcp"
 SERVER = "coexistence"
 TOOL = "read_probe"
 APPROVAL = f"mcp__{SERVER}__{TOOL}"
+MOUNTED_SERVER = "mounted"
 STDIO = r'''
+count=0
 while IFS= read -r line; do
     case "$line" in
         *'"id":'*) id=${line#*\"id\":}; id=${id%%,*}; id=${id%%\}*};;
@@ -39,7 +41,9 @@ while IFS= read -r line; do
             result='{"tools":[{"name":"read_probe","inputSchema":{"type":"object","properties":{}}}]}';;
         *'"method":"tools/call"'*)
             case "$line" in *'"shijuCallId"'*) exit 3;; esac
-            result='{"content":[{"type":"text","text":"__CHALLENGE__"}]}';;
+            count=$((count+1))
+            receipt=__RECEIPT__
+            result='{"content":[{"type":"text","text":"__CHALLENGE__'"$receipt"'"}]}';;
         *) exit 2;;
     esac
     printf '{"jsonrpc":"2.0","id":%s,"result":%s}\n' "$id" "$result"
@@ -48,26 +52,32 @@ done
 
 
 class TurnApproval:
-    def __init__(self, fixture):
+    def __init__(self, fixture, approvals, pending_request=None):
         self.fixture = fixture
-        self.mcp_call = None
+        self.approvals = approvals
+        self.pending_request = pending_request
+        self.calls = {}
 
     def approves(self, metadata):
         with self.fixture.lock:
             call = self.fixture.pending_call
-            if (call and call["name"] == self.fixture.mcp_tool
-                    and metadata.get("title") == APPROVAL
-                    and metadata.get("arguments") == call["input"]):
-                require(self.mcp_call is None, "duplicate mounted tool approval")
-                self.mcp_call = call["id"]
-                return True
-        return False
+        if (not call or call["stage"] not in self.approvals
+                or metadata.get("title") != self.approvals[call["stage"]]
+                or metadata.get("arguments") != call["input"]):
+            return False
+        stage = call["stage"]
+        require(stage not in self.calls, "duplicate mounted tool approval")
+        receipt = {"tool": metadata["title"], "model_call_id": call["id"]}
+        if self.pending_request is not None:
+            receipt["request_id"] = self.pending_request(metadata)
+        self.calls[stage] = receipt
+        return True
 
     def approves_skill(self, metadata):
         # The shared HTTP driver identifies explicit approvals by title and raw input.
         with self.fixture.lock:
             call = self.fixture.pending_call
-            if (call and call["name"] != self.fixture.mcp_tool
+            if (call and call["stage"] == "native"
                     and metadata.get("title") == call["name"]
                     and metadata.get("arguments") == call["input"]):
                 return "native_read"
@@ -106,13 +116,20 @@ def replace_session_mount(binary, root, env, workspace, session, mounts):
         return updated["revision"]
 
 
-def observe_turn(url, query, session, agent, model_id, fixture, mounted, *, revoked_project=False):
+def observe_turn(url, query, session, agent, model_id, fixture, selected, *,
+                 revoked_project=False, both_sources=False):
     marker = "ACP_MODEL_CONTRACT_" + secrets.token_hex(16)
     with fixture.lock:
-        fixture.mount_turn = (marker, mounted)
+        fixture.mount_turn = (marker, tuple(selected))
         fixture.pending_call = None
         offset = len(fixture.records)
-    probe = TurnApproval(fixture)
+    def pending_request(metadata):
+        rows = json.loads(request(url, "/permission" + query))
+        ids = [row["id"] for row in rows if row["session_id"] == session and row["metadata"] == metadata]
+        require(len(ids) == 1, "approval did not identify a unique pending request")
+        return ids[0]
+
+    probe = TurnApproval(fixture, selected, pending_request if both_sources else None)
     body = {"session_id": session, "agent": AGENT_PROFILE, "acp_model_source": "session_model",
             "model": model_id, "options": {"full_access": False, "cwd": str(Path(fixture.read_path).parent)},
             "messages": [{"role": "user", "content": marker + " Read the fixture resources."}]}
@@ -130,7 +147,8 @@ def observe_turn(url, query, session, agent, model_id, fixture, mounted, *, revo
             "gateway did not complete the model turn")
     answer = "".join(event["delta"] for event in events if event.get("type") == "chat.delta")
     require("FIXTURE_MODEL_REPLY " + fixture.challenge in answer, "model reply did not reach the gateway")
-    require(decisions == (["once"] if mounted else []), "unexpected MCP approval receipt")
+    require(decisions == ["once"] * len(selected) and list(probe.calls) == list(selected),
+            "unexpected MCP approval receipt")
     require(native_decisions in ([], ["native_read"]), "unexpected native read approvals")
     observed = fixture.snapshot()
     require(observed["errors"] == 0, "loopback model rejected an upstream request")
@@ -138,20 +156,32 @@ def observe_turn(url, query, session, agent, model_id, fixture, mounted, *, revo
     require(all(row["model"] == fixture.models[0] and row["route"] == fixture.local_route
                 and row["authenticated"] is True for row in requests), "unexpected relay model or protocol")
     rounds = [row for row in requests if not row.get("auxiliary")]
-    expected = [[], ["native"], ["native", "mcp"]] if mounted else [[], ["native"]]
+    stages = ["native", *selected]
+    expected = [stages[:index] for index in range(len(stages) + 1)]
     require([row["continued_tools"] for row in rounds] == expected, "unexpected model continuation sequence")
     ids = rounds[-1]["continued_call_ids"]
-    require(len(set(ids)) == len(ids) and (not mounted or ids[-1] == probe.mcp_call),
+    require(len(set(ids)) == len(ids)
+            and ids[1:] == [receipt["model_call_id"] for receipt in probe.calls.values()],
             "approved tool did not continue with its issued model call ID")
     # A fast resumed turn may close its private ACP process before live access polling.
-    selection = readback(url, query, session, agent, model_id, access, require_live_access=mounted)
-    return {"phase": "mounted" if mounted else "removed", "session": session,
+    require_live_access = "session" in selected if both_sources else bool(selected)
+    selection = readback(url, query, session, agent, model_id, access,
+                         require_live_access=require_live_access)
+    row = {"phase": "mounted" if selected else "removed", "session": session,
             "source": selection["source"], "selected_model": selection["model"],
             "live_access_observed": bool(selection["access"]),
-            "mcp_approval": decisions, "approved_model_call_id": probe.mcp_call, "relay_requests": requests}
+            "mcp_approval": decisions, "relay_requests": requests}
+    if both_sources:
+        row.update(phase="both" if "session" in selected else "project_after_removal",
+                   approvals=probe.calls,
+                   executions={source: rounds[-1]["continued_tools"].count(source)
+                               for source in ("project", "session")})
+    else:
+        row["approved_model_call_id"] = probe.calls.get("mcp", {}).get("model_call_id")
+    return row
 
 
-def run(agent, binary, report, session_mount=False):
+def run(agent, binary, report, session_mount=False, both_sources=False):
     require(platform.system() == "Linux" and platform.machine() in ("x86_64", "aarch64")
             and os.geteuid() != 0, "requires non-root Linux x86_64 or aarch64")
     supplier = import_module("acp_skill_coexistence." + agent.replace("-", "_"))
@@ -169,10 +199,30 @@ def run(agent, binary, report, session_mount=False):
         fixture.read_path = str(workspace / "challenge.txt")
         Path(fixture.read_path).write_text(fixture.challenge)
         executable = Path("/bin/dash").resolve(strict=True)
-        args = ["-c", STDIO.replace("__CHALLENGE__", fixture.mcp_challenge)]
-        connection = {"transport": "stdio", "command": str(executable), "args": args}
+        executable_hash = hashlib.sha256(executable.read_bytes()).hexdigest()
+
+        def connection(tool, challenge, counted=False):
+            script = (STDIO.replace(TOOL, tool).replace("__CHALLENGE__", challenge)
+                      .replace("__RECEIPT__", '"|execution=$count|"' if counted else '""'))
+            return {"transport": "stdio", "command": str(executable), "args": ["-c", script]}
+
+        if both_sources:
+            services = {}
+            approvals = {}
+            for source, server, tool in (("project", SERVER, "read_project"),
+                                         ("session", MOUNTED_SERVER, "read_mounted")):
+                challenge = secrets.token_hex(24)
+                services[server] = (tool, connection(tool, challenge, counted=True))
+                approvals[source] = f"mcp__{server}__{tool}"
+                name = tool if agent == "iflow" else approvals[source]
+                fixture.mount_tools[source] = (name, challenge + "|execution=1|")
+        else:
+            services = {SERVER: (TOOL, connection(TOOL, fixture.mcp_challenge))}
+            approvals = {"mcp": APPROVAL}
+        project_connection = services[SERVER][1]
         (workspace / ".vwacprc.json").write_text(json.dumps({"mcpServers": [{
-            "name": SERVER, "command": str(executable), "args": args, "env": [],
+            "name": SERVER, "command": project_connection["command"],
+            "args": project_connection["args"], "env": [],
         }]}))
         if agent == "iflow" and not session_mount:
             # iFlow cross-checks project-source names against its native declaration.
@@ -197,36 +247,48 @@ def run(agent, binary, report, session_mount=False):
             session = json.loads(request(url, "/session" + query, {"title": "ACP model mounts"}))
             review_policy(policy, Path(env["HOME"]), token, session["projectID"])
             report["stage"] = "catalog"
-            record = json.loads(request(url, CATALOG, {"projectId": session["projectID"], "id": SERVER,
-                                                       "connection": connection}, extra_headers=headers))["record"]
+            records = {}
 
-            def review(action):
-                response = json.loads(request(url, f"{CATALOG}/{SERVER}", {
+            def review(server, action):
+                record = records[server]
+                response = json.loads(request(url, f"{CATALOG}/{server}", {
                     "projectId": session["projectID"], "expectedRevision": record["revision"],
                     "linuxStdioSelection": action,
                 }, method="PUT", extra_headers=headers))
                 require(response["record"] == record, "review changed the selected definition")
 
-            review({"action": "select", "sha256": hashlib.sha256(executable.read_bytes()).hexdigest(),
-                    "allowedTools": [TOOL]})
-            if session_mount:
+            for server, (tool, definition) in services.items():
+                records[server] = json.loads(request(url, CATALOG, {
+                    "projectId": session["projectID"], "id": server, "connection": definition,
+                }, extra_headers=headers))["record"]
+                review(server, {"action": "select", "sha256": executable_hash, "allowedTools": [tool]})
+            if session_mount or both_sources:
                 scope = {"kind": "project", "scope": {"platform_id": "10000",
                     "company_id": "100000000", "project_id": session["projectID"]}}
+                mounted_record = records[MOUNTED_SERVER if both_sources else SERVER]
                 mounted_revision = replace_session_mount(binary, root, env, workspace, session["id"],
-                                                         [{"scope": scope, "record": record}])
+                                                         [{"scope": scope, "record": mounted_record}])
             report["stage"] = "mounted"
-            report["turns"].append(observe_turn(url, query, session["id"], agent, model_id, fixture, True))
+            mounted = observe_turn(url, query, session["id"], agent, model_id, fixture, approvals,
+                                   both_sources=both_sources)
+            report["turns"].append(mounted)
             report["stage"] = "removed"
-            if session_mount:
-                report["turns"][0]["mount_revision"] = mounted_revision
+            if session_mount or both_sources:
+                mounted["mount_revision"] = mounted_revision
                 removed_revision = replace_session_mount(binary, root, env, workspace, session["id"], [])
                 require(removed_revision == mounted_revision + 1, "removal did not follow the mounted revision")
             else:
-                review({"action": "disable"})
-            report["turns"].append(observe_turn(url, query, session["id"], agent, model_id, fixture, False,
-                                                revoked_project=not session_mount))
-            if session_mount:
-                report["turns"][1]["mount_revision"] = removed_revision
+                review(SERVER, {"action": "disable"})
+            if both_sources:
+                old_approval = mounted["approvals"]["session"]["request_id"]
+                expect_reply_error(url, f"/permission/{old_approval}/reply" + query, "once", 404)
+                report["removed_approval_replay_status"] = 404
+            removed = observe_turn(url, query, session["id"], agent, model_id, fixture,
+                                   {"project": approvals["project"]} if both_sources else {},
+                                   revoked_project=not (session_mount or both_sources), both_sources=both_sources)
+            report["turns"].append(removed)
+            if session_mount or both_sources:
+                removed["mount_revision"] = removed_revision
             mounted_ids, removed_ids = (
                 {call_id for row in turn["relay_requests"] for call_id in row.get("continued_call_ids", ())}
                 for turn in report["turns"])
@@ -238,14 +300,17 @@ def main():
     parser.add_argument("--agent", choices=AGENTS, required=True)
     parser.add_argument("--gateway-bin", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
-    parser.add_argument("--session-mount", action="store_true",
+    mounts = parser.add_mutually_exclusive_group()
+    mounts.add_argument("--session-mount", action="store_true",
                         help="select and remove a committed ACP session mount")
+    mounts.add_argument("--both-sources", action="store_true",
+                        help="select reviewed project and session services together, then remove the session service")
     args = parser.parse_args()
     report = {"agent": args.agent, "platform": f"{platform.system()}-{platform.machine()}",
-              "mount_source": "session" if args.session_mount else "project",
+              "mount_source": "both" if args.both_sources else "session" if args.session_mount else "project",
               "turns": [], "passed": False}
     try:
-        run(args.agent, args.gateway_bin.resolve(strict=True), report, args.session_mount)
+        run(args.agent, args.gateway_bin.resolve(strict=True), report, args.session_mount, args.both_sources)
         report.pop("stage", None)
         report["passed"] = True
     except AssertionError as error:

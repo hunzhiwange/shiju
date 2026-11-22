@@ -43,6 +43,7 @@ class ModelFixture:
         self.text_only_model = "acp-fixture-text-only"
         self.issued_calls = {}
         self.mount_turn = None
+        self.mount_tools = {}
         self.pending_call = None
         if self.local_route:
             self.models += (self.text_only_model,)
@@ -167,15 +168,19 @@ class ModelFixture:
                            for message in messages[start + 1:] if message.get("role") == "tool"]
                 continued = []
                 parent = None
-                stages = ("native", "mcp") if turn is None or turn[1] else ("native",)
+                mount_tools = fixture.mount_tools or {"mcp": (fixture.mcp_tool, fixture.mcp_challenge)}
+                selected = ("mcp",) if turn is None else turn[1]
+                stages = ("native", *selected)
                 with fixture.lock:
-                    if turn is not None and any(tool.get("name") == fixture.mcp_tool for tool in tools) != turn[1]:
+                    declared = {tool.get("name") for tool in tools}
+                    visible = {source for source, (name, _) in mount_tools.items() if name in declared}
+                    if turn is not None and visible != set(selected):
                         raise ValueError("tools_missing")
                     for call_id, output in outputs:
                         if len(continued) == len(stages):
                             raise ValueError("continuation")
                         stage = stages[len(continued)]
-                        expected = fixture.challenge if stage == "native" else fixture.mcp_challenge
+                        expected = fixture.challenge if stage == "native" else mount_tools[stage][1]
                         if (not isinstance(call_id, str)
                                 or fixture.issued_calls.get(call_id) != (model, stage, parent, turn)
                                 or expected not in json.dumps(output)):
@@ -197,7 +202,7 @@ class ModelFixture:
                                 raise ValueError("tools_missing")
                             arguments = {argument: fixture.read_path}
                         else:
-                            tool = next((tool for tool in tools if tool.get("name") == fixture.mcp_tool), None)
+                            tool = next((tool for tool in tools if tool.get("name") == mount_tools[stage][0]), None)
                             if tool is None:
                                 raise ValueError("tools_missing")
                             arguments = {}
@@ -207,7 +212,7 @@ class ModelFixture:
                     record = {"model": model, "authenticated": True, "route": fixture.local_route,
                               "tool_results": len(continued), "continued_tools": continued}
                     if turn is not None:
-                        fixture.pending_call = call
+                        fixture.pending_call = dict(call, stage=stage) if call else None
                         record["continued_call_ids"] = [call_id for call_id, _ in outputs]
                     fixture.records.append(record)
                 if cancelled:

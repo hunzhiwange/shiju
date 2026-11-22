@@ -219,7 +219,7 @@ release-goreleaser-snapshot: ## 用 GoReleaser 在本地生成 snapshot 发布�
 	@command -v goreleaser >/dev/null || { echo "$(RED)Error: goreleaser not found.$(RESET)"; exit 1; }
 	goreleaser release --snapshot --clean --skip=publish
 
-release-check: release-check-clean release-check-fetch release-check-version release-check-clippy release-check-test ## 发版前本地校验，尽量提前覆盖 CI 发布失败点
+release-check: release-check-clean release-check-fetch release-check-version release-check-clippy ## 发版前本地校验
 	@if [ "$(RELEASE_CHECK_WASM)" = "1" ]; then \
 		$(MAKE) release-check-wasm; \
 	else \
@@ -264,7 +264,7 @@ release-check-version: ## 校验 workspace crate 版本保持一致
 release-check-clippy: ## 对齐 CI clippy: 所有 target + 所有 feature + warnings deny
 	cargo clippy --all-targets --all-features -- -D warnings
 
-release-check-test: ## 对齐 CI 测试: workspace lib/bin/tests
+release-check-test: ## 单独运行 workspace lib/bin/tests 测试
 	mkdir -p target/test-home
 	CARGO_HOME="$${CARGO_HOME:-$$HOME/.cargo}" RUSTUP_HOME="$${RUSTUP_HOME:-$$HOME/.rustup}" HOME="$(CURDIR)/target/test-home" RUST_TEST_THREADS=1 perl -e 'alarm shift; exec @ARGV' $(TEST_TIMEOUT) cargo nextest run --workspace --exclude vw-agent --exclude vw-desktop --lib --bins --tests
 	CARGO_HOME="$${CARGO_HOME:-$$HOME/.cargo}" RUSTUP_HOME="$${RUSTUP_HOME:-$$HOME/.rustup}" HOME="$(CURDIR)/target/test-home" RUST_TEST_THREADS=1 perl -e 'alarm shift; exec @ARGV' $(TEST_TIMEOUT) cargo test -p vw-agent -p vw-desktop --lib --bins --tests

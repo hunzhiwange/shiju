@@ -22,6 +22,7 @@ from . import correlated_result
 MODEL = "deepseek-v4.1-flash-1017"
 ADAPTER = "openai"
 API_PATH = "/v1"
+MODEL_ENDPOINT = API_PATH + "/chat/completions"
 TRANSPORT = "stdio"
 NATIVE_DIR = ".augment/skills"
 REVISION = "auggie-0.37.1-model-source-v2"
@@ -31,8 +32,9 @@ PATCH_DIR = ROOT / "patches/acp-model-source/auggie"
 
 
 def launch(env):
-    require((platform.system(), platform.machine()) == ("Darwin", "arm64"),
-            "unreviewed Auggie platform")
+    require((platform.system(), platform.machine()) in {
+        ("Darwin", "arm64"), ("Linux", "x86_64"), ("Linux", "aarch64"),
+    }, "unsupported Auggie probe platform")
     manifest = MANAGED_DIR / "contracts.json"
     contract = json.loads(manifest.read_text())["auggie"]
     require(contract["version"] == "0.37.1", "unexpected Auggie contract version")
@@ -69,6 +71,7 @@ def launch(env):
             "unexpected Auggie executable version")
     return {"command": str(entry), "args": ["--acp"]}, {
         "version": contract["version"], "revision": REVISION, "sha256": files,
+        "entry": contract["bin"], "model_endpoint": MODEL_ENDPOINT,
     }
 
 
@@ -193,7 +196,7 @@ class Handler(ProviderHandler):
         try:
             require(self.headers.get("Authorization") == "Bearer " + self.server.key,
                     "unauthenticated Auggie model request")
-            require(self.path == "/v1/chat/completions", "unexpected Auggie model protocol")
+            require(self.path == MODEL_ENDPOINT, "unexpected Auggie model protocol")
             size = int(self.headers["Content-Length"])
             require(0 < size <= 8_000_000, "invalid Auggie model request size")
             body = json.loads(self.rfile.read(size))

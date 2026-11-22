@@ -71,11 +71,14 @@ pub(in crate::acp) fn history_directory(profile: &AcpLaunchProfile) -> anyhow::R
             .strip_prefix("vw-session-model:")
             .filter(|value| value.len() == 64 && value.bytes().all(|b| b.is_ascii_hexdigit()))
             .ok_or_else(|| anyhow::anyhow!("Auggie requires a session-owned history reference"))?;
-        let root = profile
+        let parent = profile
             .directory()
             .parent()
-            .ok_or_else(|| anyhow::anyhow!("Auggie runtime parent missing"))?
-            .join("shiju-acp-auggie-history");
+            .ok_or_else(|| anyhow::anyhow!("Auggie runtime parent missing"))?;
+        #[cfg(target_os = "linux")]
+        super::super::profile::verify_linux_directory_tree(parent)?;
+        let root = parent.join("shiju-acp-auggie-history");
+        let mode_mask = if cfg!(target_os = "linux") { 0o7777 } else { 0o777 };
         let history = root.join(reference);
         for path in [&root, &history] {
             match std::fs::DirBuilder::new().mode(0o700).create(path) {
@@ -87,7 +90,7 @@ pub(in crate::acp) fn history_directory(profile: &AcpLaunchProfile) -> anyhow::R
             anyhow::ensure!(
                 metadata.is_dir()
                     && metadata.uid() == unsafe { libc::geteuid() }
-                    && metadata.permissions().mode() & 0o777 == 0o700,
+                    && metadata.permissions().mode() & mode_mask == 0o700,
                 "insecure Auggie history directory"
             );
         }

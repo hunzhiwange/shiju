@@ -1205,6 +1205,97 @@ async fn gateway_context_budget_compacts_after_tool_output_without_reexecution()
 }
 
 #[tokio::test]
+async fn gateway_budget_recovery_roundtrip_retries_provider_overflow() {
+    let result = run_budget_recovery_roundtrip(
+        20,
+        vec![
+            ProviderStep::Error("prompt too long"),
+            ProviderStep::Response(chat_text("recovered", None)),
+        ],
+        &[false, false, true],
+    )
+    .await;
+    assert_eq!(result.unwrap(), "recovered");
+}
+
+#[tokio::test]
+async fn gateway_budget_recovery_roundtrip_shares_compaction_with_provider_rejection() {
+    let result = run_budget_recovery_roundtrip(
+        630,
+        vec![ProviderStep::Error("prompt too long")],
+        &[false, true],
+    )
+    .await;
+    assert_eq!(result.unwrap_err().to_string(), "prompt too long");
+}
+
+#[tokio::test]
+async fn gateway_budget_recovery_roundtrip_stops_when_compacted_input_still_overflows() {
+    let result = run_budget_recovery_roundtrip(1800, vec![], &[false]).await;
+    assert!(result.unwrap_err().to_string().contains("超过模型输入窗口"));
+}
+
+#[allow(clippy::await_holding_lock)] // Serialize the summary-model boundary.
+async fn run_budget_recovery_roundtrip(
+    output_repeats: usize,
+    continuation: Vec<ProviderStep>,
+    expected_summaries: &[bool],
+) -> anyhow::Result<String> {
+    let guard = crate::session::processor::test_llm_stream_guard();
+    enqueue_budget_summary();
+
+    let call_id = "budget-recovery-tool";
+    let output = format!("{}complete", "tool output ".repeat(output_repeats));
+    let mut steps = vec![ProviderStep::Response(chat_tool_call(call_id))];
+    steps.extend(continuation);
+    let provider = ScriptedProvider::with_steps(steps);
+    let mut engine = budget_engine(provider.clone());
+    let old = "previous details ".repeat(480);
+    engine.history.push(ChatMessage::user(old.clone()));
+    let tool = HookProbeTool { output: Some(output.clone()), ..Default::default() };
+    let executions = tool.executions.clone();
+    engine.tools_registry.push(Box::new(tool));
+    let window = session_engine::context_governance::provider_input_window(&engine.model_limit);
+
+    let result = engine.submit_message("run the tool").await;
+    let compaction_requests = crate::session::processor::take_test_llm_messages(&engine.session_id);
+    drop(guard);
+
+    assert_eq!(executions.load(Ordering::SeqCst), 1);
+    assert_eq!(compaction_requests.len(), 1, "one compaction for the follow-up step");
+    let requests = provider.seen_messages();
+    assert_eq!(requests.len(), expected_summaries.len());
+    let tokens = provider.state.seen_request_tokens.lock().unwrap();
+    assert!(tokens.iter().all(|tokens| *tokens <= window));
+
+    for (request, &summarized) in requests.iter().zip(expected_summaries) {
+        assert_eq!(
+            request.iter().any(|message| message.content.contains("[Compaction summary]")),
+            summarized,
+        );
+        assert_eq!(request.iter().any(|message| message.content == old), !summarized);
+    }
+
+    assert!(!requests[0].iter().any(|message| message.content.contains(call_id)));
+    for history in requests.iter().skip(1).chain(std::iter::once(&engine.history)) {
+        let pairs: Vec<_> = history
+            .windows(2)
+            .filter(|pair| pair[0].role == "assistant" && pair[1].role == "tool")
+            .collect();
+        assert_eq!(pairs.len(), 1);
+        assert_eq!(history.iter().filter(|message| message.role == "tool").count(), 1);
+        let call: serde_json::Value = serde_json::from_str(&pairs[0][0].content).unwrap();
+        let reply: serde_json::Value = serde_json::from_str(&pairs[0][1].content).unwrap();
+        assert_eq!(call["tool_calls"].as_array().unwrap().len(), 1);
+        assert_eq!(call["tool_calls"][0]["id"], call_id);
+        assert_eq!(reply["tool_call_id"], call_id);
+        assert_eq!(reply["content"].as_str(), Some(output.as_str()));
+    }
+
+    result
+}
+
+#[tokio::test]
 async fn gateway_context_budget_keeps_provider_behavior_when_compaction_is_disabled() {
     let provider = ScriptedProvider::with_steps(vec![ProviderStep::Error("prompt too long")]);
     let mut engine = budget_engine(provider.clone());

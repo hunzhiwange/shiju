@@ -25,6 +25,7 @@ impl OwnedGateway {
         anyhow::bail!("owned Gateway process containment is unverified on this platform");
         #[cfg(unix)]
         {
+            anyhow::ensure!(self.address.ip().is_loopback(), "owned Gateway requires loopback");
             let mut command =
                 self.command.take().ok_or_else(|| anyhow::anyhow!("Gateway already started"))?;
             self.child = Some(

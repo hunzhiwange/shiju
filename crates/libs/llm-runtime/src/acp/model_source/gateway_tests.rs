@@ -44,3 +44,12 @@ async fn acp_model_source_openclaw_cancelled_startup_reaps_gateway() {
     drop(gateway);
     assert_eq!(unsafe { libc::kill(pid as i32, 0) }, -1);
 }
+
+#[cfg(target_os = "linux")]
+#[tokio::test]
+async fn acp_platform_private_profile_gateway_rejects_non_loopback_before_spawn() {
+    let mut gateway = OwnedGateway::new(Command::new("true"), "0.0.0.0:12345".parse().unwrap());
+    assert!(gateway.start().await.unwrap_err().to_string().contains("loopback"));
+    assert!(gateway.child.is_none());
+    assert!(gateway.command.is_some());
+}

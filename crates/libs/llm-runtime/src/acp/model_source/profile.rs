@@ -11,6 +11,48 @@ use std::{
 
 pub const REFERENCE_ENV: &str = "VW_ACP_LAUNCH_REFERENCE";
 
+#[cfg(target_os = "linux")]
+pub(in crate::acp) fn verify_linux_directory_tree(path: &Path) -> anyhow::Result<()> {
+    use std::os::unix::fs::MetadataExt;
+    use std::path::Component;
+
+    anyhow::ensure!(
+        path.is_absolute() && !path.components().any(|part| part == Component::ParentDir),
+        "invalid ACP directory path"
+    );
+    // Normalize trailing separators so symlink_metadata inspects the link itself.
+    let path: PathBuf = path.components().collect();
+    let uid = unsafe { libc::geteuid() };
+    let ancestors: Vec<_> = path.ancestors().collect();
+    for ancestor in ancestors.into_iter().rev() {
+        let metadata = ancestor.symlink_metadata()?;
+        let mode = metadata.mode();
+        // A trusted sticky directory such as /tmp protects trusted-owned entries.
+        anyhow::ensure!(
+            metadata.is_dir()
+                && (metadata.uid() == 0 || metadata.uid() == uid)
+                && (mode & 0o022 == 0 || mode & 0o1000 != 0),
+            "insecure ACP directory ancestor"
+        );
+    }
+    Ok(())
+}
+
+#[cfg(unix)]
+fn verify_private_directory(path: &Path) -> anyhow::Result<()> {
+    use std::os::unix::fs::MetadataExt;
+
+    let metadata = path.symlink_metadata()?;
+    let mode_mask = if cfg!(target_os = "linux") { 0o7777 } else { 0o777 };
+    anyhow::ensure!(
+        metadata.is_dir()
+            && metadata.mode() & mode_mask == 0o700
+            && metadata.uid() == unsafe { libc::geteuid() },
+        "insecure ACP private directory"
+    );
+    Ok(())
+}
+
 pub fn launch_reference(
     identity: &RelayIdentity,
 ) -> anyhow::Result<String> {
@@ -66,10 +108,19 @@ impl AcpLaunchProfile {
         #[cfg(unix)]
         let directory = {
             use std::os::unix::fs::PermissionsExt;
-            let directory = tempfile::Builder::new()
-                .prefix("shiju-acp-launch-")
-                .permissions(std::fs::Permissions::from_mode(0o700))
-                .tempdir()?;
+            let mut builder = tempfile::Builder::new();
+            builder.prefix("shiju-acp-launch-").permissions(std::fs::Permissions::from_mode(0o700));
+            #[cfg(target_os = "linux")]
+            let directory = {
+                let parent = std::env::temp_dir();
+                verify_linux_directory_tree(&parent)?;
+                let directory = builder.tempdir_in(parent)?;
+                verify_private_directory(directory.path())?;
+                directory
+            };
+            #[cfg(not(target_os = "linux"))]
+            let directory = builder.tempdir()?;
+            #[cfg(not(target_os = "linux"))]
             anyhow::ensure!(
                 directory.path().symlink_metadata()?.permissions().mode() & 0o777 == 0o700,
                 "insecure ACP launch directory"
@@ -143,8 +194,16 @@ impl AcpLaunchProfile {
         anyhow::bail!("private ACP state directory ACL verification unavailable");
         #[cfg(unix)]
         {
-            use std::os::unix::fs::{DirBuilderExt, MetadataExt, PermissionsExt};
+            use std::os::unix::fs::DirBuilderExt;
             let root = self.state_root.as_deref().unwrap_or(self.directory.path());
+            #[cfg(target_os = "linux")]
+            {
+                verify_linux_directory_tree(root)?;
+                if self.state_root.is_none() {
+                    verify_private_directory(root)?;
+                }
+            }
+            #[cfg(not(target_os = "linux"))]
             anyhow::ensure!(root.is_absolute() && root.is_dir(), "invalid ACP state root");
             let reference = self.config.env[REFERENCE_ENV]
                 .strip_prefix("vw-session-model:")
@@ -157,14 +216,7 @@ impl AcpLaunchProfile {
                     Err(error) if error.kind() == std::io::ErrorKind::AlreadyExists => {}
                     Err(error) => return Err(error.into()),
                 }
-                let metadata = path.symlink_metadata()?;
-                anyhow::ensure!(
-                    metadata.is_dir()
-                        && !metadata.file_type().is_symlink()
-                        && metadata.permissions().mode() & 0o777 == 0o700
-                        && metadata.uid() == unsafe { libc::geteuid() },
-                    "insecure ACP state directory"
-                );
+                verify_private_directory(&path)?;
             }
             Ok(path)
         }
@@ -249,14 +301,26 @@ impl AcpLaunchProfile {
                 ),
             "invalid ACP config filename"
         );
+        #[cfg(target_os = "linux")]
+        {
+            verify_linux_directory_tree(self.directory.path())?;
+            verify_private_directory(self.directory.path())?;
+        }
         let path = self.directory.path().join(name);
         let mut file = tempfile::NamedTempFile::new_in(self.directory.path())?;
         #[cfg(unix)]
         {
-            use std::os::unix::fs::PermissionsExt;
+            use std::os::unix::fs::MetadataExt;
+            let metadata = file.as_file().metadata()?;
+            let mode_mask = if cfg!(target_os = "linux") { 0o7777 } else { 0o777 };
             anyhow::ensure!(
-                file.as_file().metadata()?.permissions().mode() & 0o777 == 0o600,
+                metadata.mode() & mode_mask == 0o600,
                 "insecure ACP config file"
+            );
+            #[cfg(target_os = "linux")]
+            anyhow::ensure!(
+                metadata.uid() == unsafe { libc::geteuid() },
+                "insecure ACP config owner"
             );
         }
         file.write_all(bytes)?;
@@ -269,6 +333,7 @@ impl AcpLaunchProfile {
 impl Drop for AcpLaunchProfile {
     fn drop(&mut self) {
         self.binding.revoke();
+        drop(self.server.take());
         // Reap the owned Gateway before its configuration and credentials disappear.
         drop(self.gateway.take());
     }

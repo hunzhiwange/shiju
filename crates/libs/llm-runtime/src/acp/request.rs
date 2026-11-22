@@ -967,13 +967,18 @@ pub async fn do_stream_request_acp<H: Host>(
         if let Some(profile) = launch_profile.as_ref() {
             profile.validate_managed_mcp().map_err(to_api_error)?;
         }
-        let record = if employee && let Some(selection) = locked_selection {
+        let employee_reference = if employee {
+            Some(normalized_acp_cfg.env.get(super::model_source::profile::REFERENCE_ENV)
+                .ok_or_else(|| acp_option_error("Employee ACP launch binding is incomplete"))?)
+        } else {
+            None
+        };
+        let record = if let (Some(reference), Some(selection)) = (employee_reference, locked_selection) {
             acp_storage::resolve_session_record(&selection.record_id).await
                 .map_err(to_api_error)
                 .and_then(|record| {
                     if record.vwacp_record_id == selection.record_id
-                        && normalized_acp_cfg.env.get(super::model_source::profile::REFERENCE_ENV)
-                            .is_some_and(|reference| reference == &record.agent_command)
+                        && (&record.agent_command == reference || legacy_employee_record(&record))
                     {
                         Ok(record)
                     } else {
@@ -1017,11 +1022,17 @@ pub async fn do_stream_request_acp<H: Host>(
         let acp_session_id = record.acp_session_id.clone();
         // session/load replays remote history. Complete it before attaching this
         // turn's output channel so historical updates cannot become a new reply.
-        if employee && !cached_client.client.has_reusable_session(&acp_session_id)
-            && let Err(error) = cached_client.client.load_session(acp_session_id.clone(), &cwd).await
-        {
-            close_client_after_request_if_needed(true, &cached_client_entry).await;
-            return Err(to_api_error(format!("could not restore Employee ACP session: {error}")));
+        if let Some(reference) = employee_reference {
+            // Legacy process-keyed fingerprints cannot be recomputed. The employee child
+            // must restore the saved local ID in the verified account and target state.
+            if (record.agent_command != *reference
+                || !cached_client.client.has_reusable_session(&acp_session_id))
+                && let Err(error) = cached_client.client.load_session(acp_session_id.clone(), &cwd).await
+            {
+                close_client_after_request_if_needed(true, &cached_client_entry).await;
+                return Err(to_api_error(format!("could not restore Employee ACP session: {error}")));
+            }
+            record.agent_command.clone_from(reference);
         }
         if !employee {
             let bound_model_id =
@@ -1663,6 +1674,17 @@ pub fn validate_session_model(
     Ok(())
 }
 
+const EMPLOYEE_REFERENCE_PREFIX: &str = "vw-employee-acp:";
+
+fn legacy_employee_record(record: &acp_types::SessionRecord) -> bool {
+    record.agent_config.is_none()
+        && record.acp_session_id == record.vwacp_record_id
+        && record.acp_session_id.strip_prefix("local-")
+            .is_some_and(|id| uuid::Uuid::parse_str(id).is_ok())
+        && record.agent_command.strip_prefix(EMPLOYEE_REFERENCE_PREFIX)
+            .is_some_and(|digest| digest.len() == 64 && digest.bytes().all(|byte| byte.is_ascii_hexdigit()))
+}
+
 fn employee_launch_config(
     launch: super::host::EmployeeAcpLaunch,
     executable: std::path::PathBuf,
@@ -1688,9 +1710,12 @@ fn employee_launch_config(
         super::host::EmployeeAcpKind::Shared => "shared",
     };
     let binding = serde_json::json!([launch.account_scope, kind, launch.employee_id]);
+    // This reference is persisted across gateway restarts. Its inputs are
+    // binding identifiers only. The request credential stays in the launch environment.
+    use sha2::{Digest, Sha256};
     let reference = format!(
-        "vw-employee-acp:{}",
-        super::model_source::fingerprint(binding.to_string().as_bytes())
+        "{EMPLOYEE_REFERENCE_PREFIX}v1:{}",
+        hex::encode(Sha256::digest(binding.to_string().as_bytes()))
     );
     Ok(config::schema::AcpAgentConfig {
         command: command.into(),

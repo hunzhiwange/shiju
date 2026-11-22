@@ -495,6 +495,20 @@ async fn employee_acp_gateway_roundtrip() {
         chat.answer(&gateway, ALICE, Some(&private), None, "recall", "marker private-marker").await,
         private
     );
+    // Only the private employee has a record so far. Retain its path to simulate
+    // a process-keyed reference written by the previous implementation.
+    let private_record = fs::read_dir(&root_path)
+        .unwrap()
+        .filter_map(|entry| fs::read_dir(entry.unwrap().path().join("acp/sessions")).ok())
+        .flatten()
+        .map(|entry| entry.unwrap().path())
+        .find(|path| {
+            path.file_name()
+                .and_then(|name| name.to_str())
+                .is_some_and(|name| name.starts_with("local-") && name.ends_with(".json"))
+        })
+        .expect("private employee ACP record is on disk");
+
     let (alice, bob) = tokio::join!(
         chat.answer(&gateway, ALICE, None, Some(SHARED), "alice-marker", "answer alice-marker"),
         chat.answer(&gateway, BOB, None, Some(SHARED), "bob-marker", "answer bob-marker")
@@ -536,12 +550,20 @@ async fn employee_acp_gateway_roundtrip() {
     assert!(!failed.iter().any(|e| e["type"] == "chat.delta"), "{failed:?}");
 
     drop(gateway);
+    let mut record: Value = serde_json::from_slice(&fs::read(&private_record).unwrap()).unwrap();
+    let stable_reference = record["agent_command"].as_str().unwrap().to_owned();
+    assert!(stable_reference.starts_with("vw-employee-acp:v1:"));
+    record["agent_command"] = json!(format!("vw-employee-acp:{}", "a".repeat(64)));
+    fs::write(&private_record, serde_json::to_vec(&record).unwrap()).unwrap();
+
     let gateway = Gateway::start(&root_path, address, false, &chat.client).await;
     assert_eq!(
         chat.answer(&gateway, ALICE, Some(&private), None, "lost-response", "answer lost-response")
             .await,
         private
     );
+    let migrated: Value = serde_json::from_slice(&fs::read(&private_record).unwrap()).unwrap();
+    assert_eq!(migrated["agent_command"], stable_reference);
     assert_eq!(
         chat.answer(&gateway, ALICE, Some(&alice), None, "recall", "marker alice-marker").await,
         alice

@@ -35,7 +35,7 @@
 python3 scripts/cargo_slot.py cargo test -j 1 -p vw-cli --features employee-acp-test-support --test employee_acp_roundtrip
 ```
 
-本轮采用本地模拟 Agent Cloud，真实租户验收延期到后端发布后。macOS 桌面构建和受控 UI 验收可在仓库根目录执行：
+本轮采用本地模拟 Agent Cloud，真实租户验收延期到后端发布后。跨进程用例通过了同一员工会话的网关重启恢复、已提交消息的原键重试、旧绑定记录迁移、双账号隔离、撤权复核和取消后续聊。错账号注入返回 HTTP 401。macOS 桌面构建和受控 UI 验收可在仓库根目录执行：
 
 ```bash
 python3 scripts/cargo_slot.py cargo build -j 1 -p vw-desktop --bin shi-ju

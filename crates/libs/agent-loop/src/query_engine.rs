@@ -78,7 +78,6 @@ pub struct QueryEngineSnapshot {
 }
 
 pub struct QueryEngine<H: QueryEngineHost> {
-    workspace_dir: std::path::PathBuf,
     session_id: String,
     reliability: config_reliability::ReliabilityConfig,
     history: Vec<ChatMessage>,
@@ -288,7 +287,6 @@ impl<H: QueryEngineHost> QueryEngine<H> {
             usize::try_from(model_limit.context).unwrap_or(usize::MAX),
         ));
         Ok(Self {
-            workspace_dir: config.workspace_dir.clone(),
             session_id: session_id.to_string(),
             reliability: config.reliability.clone(),
             history: Vec::new(),
@@ -342,7 +340,7 @@ impl<H: QueryEngineHost> QueryEngine<H> {
         if let Some(skills) = self.skill_session.as_mut() {
             skills.begin_turn(message, &self.request_system_prompt, &self.history);
         }
-        let context = match self.compact_before_primary_request().await {
+        let context = match self.restore_request_history().await {
             Ok(context) => context,
             Err(error) => {
                 self.history = history_snapshot;
@@ -366,6 +364,7 @@ impl<H: QueryEngineHost> QueryEngine<H> {
         let (result, confirmed_tool_history) = track_confirmed_tool_history(
             self.session_id.clone(),
             recovery,
+            self.compact_context.then(|| self.model_limit.clone()),
             H::agent_turn(
                 self.provider.as_ref(),
                 &mut request_history,
@@ -414,7 +413,10 @@ impl<H: QueryEngineHost> QueryEngine<H> {
     }
 
     fn step_recovery(&self) -> Option<StepRecovery> {
-        if !self.compact_context {
+        let system_prefix = usize::from(
+            self.history.first().is_some_and(|message| message.role == "system"),
+        );
+        if !self.compact_context || self.history.len() <= system_prefix + 1 {
             return None;
         }
         let source = self.history.clone();
@@ -442,7 +444,7 @@ impl<H: QueryEngineHost> QueryEngine<H> {
         }))
     }
 
-    async fn compact_before_primary_request(&self) -> Result<Vec<ChatMessage>> {
+    async fn restore_request_history(&self) -> Result<Vec<ChatMessage>> {
         let start =
             usize::from(self.history.first().is_some_and(|message| message.role == "system"));
         let source = self.history[start..]
@@ -457,52 +459,7 @@ impl<H: QueryEngineHost> QueryEngine<H> {
             role: item["role"].as_str().unwrap_or("assistant").to_string(),
             content: item["content"].as_str().unwrap_or_default().to_string(),
         }));
-        let input_tokens = context
-            .iter()
-            .map(|message| agent_text::token::estimate(&message.content))
-            .sum();
-        if !self.compact_context
-            || !session_engine::context_governance::should_compact(input_tokens, &self.model_limit)
-        {
-            return Ok(context);
-        }
-        // Keep the authoritative history intact, including across repeated checkpoints.
-        // The service restores the previous checkpoint before summarizing this raw prefix.
-        let mut source_history = self.history.clone();
-        let mut hook_context = tool_context::context::ToolUseContext::<H::Context>::new(
-            &self.session_id,
-            Some(self.workspace_dir.to_string_lossy().into_owned()),
-        )
-        .with_turn_id(uuid::Uuid::new_v4().to_string())
-        .with_model(&self.model_name);
-        if let Some(runner) =
-            self.hook_runtime.as_ref().and_then(|runtime| runtime.runner_snapshot())
-        {
-            hook_context = hook_context.with_hook_runner(runner);
-        }
-        let compacted = tool_context::context::scope_tool_use_context(
-            Arc::new(hook_context),
-            H::compact_history(
-                &mut source_history,
-                &self.session_id,
-                &self.compaction_model(),
-                &self.reliability,
-                &self.model_limit,
-                false,
-            ),
-        )
-        .await?;
-        if !compacted {
-            if input_tokens
-                > session_engine::context_governance::effective_input_window(
-                    &self.model_limit,
-                )
-            {
-                anyhow::bail!("当前请求超过模型输入窗口，且没有可压缩的历史；请缩短输入或减少附件");
-            }
-            return Ok(context);
-        }
-        Ok(source_history)
+        Ok(context)
     }
 
     /// 返回当前会话已成功提交的轮次数。

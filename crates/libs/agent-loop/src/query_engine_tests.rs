@@ -103,6 +103,7 @@ struct ProviderState {
     seen_models: Mutex<Vec<String>>,
     seen_temperatures: Mutex<Vec<f64>>,
     seen_tools: Mutex<Vec<Vec<String>>>,
+    seen_request_tokens: Mutex<Vec<u64>>,
 }
 
 #[derive(Clone, Default)]
@@ -176,6 +177,20 @@ impl Provider for ScriptedProvider {
             .unwrap()
             .push(request.tools.unwrap_or_default().iter().map(|spec| spec.id.clone()).collect());
 
+        let messages = request
+            .messages
+            .iter()
+            .map(|message| serde_json::json!(message))
+            .collect::<Vec<_>>();
+        self.state.seen_request_tokens.lock().unwrap().push(
+            session_engine::context_governance::context_usage_tokens(
+                &messages,
+                &[],
+                request.tools.unwrap_or_default(),
+                None,
+            ),
+        );
+
         match self.state.steps.lock().unwrap().pop_front() {
             Some(ProviderStep::Response(response)) => Ok(response),
             Some(ProviderStep::Error(message)) => anyhow::bail!("{message}"),
@@ -238,7 +253,11 @@ fn chat_tool_call(id: &str) -> ChatResponse {
 }
 
 #[derive(Default)]
-struct HookProbeTool(Arc<AtomicUsize>);
+struct HookProbeTool {
+    executions: Arc<AtomicUsize>,
+    schema_description: String,
+    output: Option<String>,
+}
 
 #[async_trait::async_trait]
 impl Tool for HookProbeTool {
@@ -251,12 +270,20 @@ impl Tool for HookProbeTool {
     }
 
     fn parameters_schema(&self) -> serde_json::Value {
-        serde_json::json!({"type": "object", "properties": {}})
+        let mut schema = serde_json::json!({"type": "object", "properties": {}});
+        if !self.schema_description.is_empty() {
+            schema["description"] = serde_json::json!(self.schema_description);
+        }
+        schema
     }
 
     async fn execute(&self, _args: serde_json::Value) -> anyhow::Result<ToolResult> {
-        self.0.fetch_add(1, Ordering::SeqCst);
-        Ok(ToolResult { success: true, output: "ok".to_string(), error: None })
+        self.executions.fetch_add(1, Ordering::SeqCst);
+        Ok(ToolResult {
+            success: true,
+            output: self.output.clone().unwrap_or_else(|| "ok".to_string()),
+            error: None,
+        })
     }
 }
 
@@ -271,7 +298,6 @@ fn command_logger_runtime(enabled: bool) -> crate::app::agent::hooks::HookRuntim
 // 查询引擎夹具关闭无关外部能力，只保留可记录供应商与可控记忆。
 fn test_engine(provider: ScriptedProvider, memory: Arc<dyn Memory>) -> QueryEngine {
     QueryEngine {
-        workspace_dir: std::env::temp_dir(),
         session_id: format!("query-engine-{}", uuid::Uuid::new_v4()),
         reliability: crate::config::ReliabilityConfig { provider_retries: 0, ..Default::default() },
         history: Vec::new(),
@@ -415,7 +441,7 @@ async fn assert_step_recovery(retry: ProviderStep, succeeds: bool) {
     ]);
     let mut engine = test_engine(provider.clone(), Arc::new(FakeMemory::default()));
     let tool = HookProbeTool::default();
-    let executions = tool.0.clone();
+    let executions = tool.executions.clone();
     engine.tools_registry = vec![Box::new(tool)];
     engine.compact_context = true;
     let old = "previous task with details ".repeat(60);
@@ -473,7 +499,10 @@ async fn query_engine_step_recovery_rejects_a_larger_summary() {
     assert_eq!(error.to_string(), "prompt too long");
     assert_eq!(provider.seen_messages().len(), 1);
     assert_eq!(compaction_requests.len(), 1);
-    assert_eq!(engine.compact_before_primary_request().await.unwrap()[0].content, "old");
+    assert_eq!(
+        engine.restore_request_history().await.unwrap()[0].content,
+        "old",
+    );
 }
 
 #[tokio::test]
@@ -832,11 +861,11 @@ async fn first_turn_compaction_allows_threshold_but_rejects_overflow() {
         output: 0,
     };
 
-    let context = engine.compact_before_primary_request().await.expect("first turn fits");
+    let context = engine.restore_request_history().await.expect("first turn fits");
     assert_eq!(context[0].content, engine.history[0].content);
 
     engine.model_limit.input = Some(tokens - 1);
-    let error = engine.compact_before_primary_request().await.expect_err("input overflow");
+    let error = engine.restore_request_history().await.expect_err("input overflow");
     assert!(error.to_string().contains("超过模型输入窗口"));
     assert_eq!(engine.history.len(), 1);
 }
@@ -939,7 +968,7 @@ async fn query_engine_failed_turn_history_omits_rejected_tool_call() {
     let handle = provider.clone();
     let mut engine = test_engine(provider, Arc::new(crate::memory::NoneMemory));
     let tool = HookProbeTool::default();
-    let executions = tool.0.clone();
+    let executions = tool.executions.clone();
     engine.tools_registry.push(Box::new(tool));
 
     let error = engine.submit_message("run first tool").await.unwrap_err();
@@ -964,7 +993,7 @@ async fn query_engine_failed_turn_history_keeps_confirmed_tool_pair_in_next_requ
     let mut engine = test_engine(provider, Arc::new(crate::memory::NoneMemory));
     engine.max_iterations = 3;
     let tool = HookProbeTool::default();
-    let executions = tool.0.clone();
+    let executions = tool.executions.clone();
     engine.tools_registry.push(Box::new(tool));
     engine.history.push(ChatMessage::assistant("prior answer"));
 
@@ -1008,7 +1037,7 @@ async fn query_engine_failed_turn_history_keeps_confirmed_tool_pair_in_next_requ
 
 #[tokio::test]
 #[allow(clippy::await_holding_lock)] // Serialize the summary-model boundary.
-async fn submit_message_compacts_before_the_primary_request() {
+async fn gateway_context_budget_compacts_history_before_the_primary_request() {
     let _guard = crate::session::processor::test_llm_stream_guard();
     crate::session::processor::enqueue_test_llm_stream(vec![
         crate::session::llm::StreamEvent::Delta("preserved decision".into()),
@@ -1037,6 +1066,160 @@ async fn submit_message_compacts_before_the_primary_request() {
     let primary_request = provider_handle.seen_messages().pop().expect("primary request");
     assert!(primary_request.iter().any(|message| message.content.contains("[Compaction summary]")));
     assert!(!primary_request.iter().any(|message| message.content.contains("message-0")));
+}
+
+fn budget_engine(provider: ScriptedProvider) -> QueryEngine {
+    let mut engine = test_engine(provider, Arc::new(FakeMemory::default()));
+    engine.compact_context = true;
+    engine.model_limit = model_types::ModelLimit {
+        context: 4096,
+        input: Some(4096),
+        output: 512,
+    };
+    engine
+}
+
+fn enqueue_budget_summary() {
+    crate::session::processor::enqueue_test_llm_stream(vec![
+        crate::session::llm::StreamEvent::Delta("previous progress".into()),
+        crate::session::llm::StreamEvent::Done {
+            finish_reason: Some("stop".into()),
+            usage: Default::default(),
+        },
+    ]);
+}
+
+#[tokio::test]
+#[allow(clippy::await_holding_lock)] // Serialize the summary-model boundary.
+async fn gateway_context_budget_counts_native_tool_schema_before_first_send() {
+    let guard = crate::session::processor::test_llm_stream_guard();
+    enqueue_budget_summary();
+    let provider =
+        ScriptedProvider::with_steps(vec![ProviderStep::Response(chat_text("done", None))]);
+    let mut engine = budget_engine(provider.clone());
+    engine
+        .history
+        .push(ChatMessage::user("previous details ".repeat(480)));
+    engine.tools_registry.push(Box::new(HookProbeTool {
+        schema_description: "schema detail ".repeat(530),
+        ..Default::default()
+    }));
+
+    let result = engine.submit_message("latest").await;
+    let compaction_requests = crate::session::processor::take_test_llm_messages(&engine.session_id);
+    drop(guard);
+
+    assert_eq!(result.unwrap(), "done");
+
+    let requests = provider.seen_messages();
+    assert_eq!(requests.len(), 1);
+    let tokens = provider.state.seen_request_tokens.lock().unwrap();
+    assert!(
+        tokens[0] <= 3584,
+        "provider received an over-budget request"
+    );
+    assert_eq!(compaction_requests.len(), 1);
+    assert!(
+        requests[0]
+            .iter()
+            .any(|message| message.content.contains("[Compaction summary]"))
+    );
+    assert_eq!(
+        *provider.state.seen_tools.lock().unwrap(),
+        [vec!["hook_probe"]]
+    );
+}
+
+#[tokio::test]
+async fn gateway_context_budget_rejects_fixed_overhead_before_send() {
+    let provider =
+        ScriptedProvider::with_steps(vec![ProviderStep::Response(chat_text("done", None))]);
+    let mut engine = budget_engine(provider.clone());
+    engine.request_system_prompt = "fixed instruction ".repeat(840);
+
+    let result = engine.submit_message("latest").await;
+
+    assert!(
+        provider.seen_messages().is_empty(),
+        "fixed overhead reached the provider"
+    );
+    assert!(result.unwrap_err().to_string().contains("超过模型输入窗口"));
+    assert!(engine.history_snapshot().is_empty());
+}
+
+#[tokio::test]
+#[allow(clippy::await_holding_lock)] // Serialize the summary-model boundary.
+async fn gateway_context_budget_compacts_after_tool_output_without_reexecution() {
+    let guard = crate::session::processor::test_llm_stream_guard();
+    enqueue_budget_summary();
+    let provider = ScriptedProvider::with_steps(vec![
+        ProviderStep::Response(chat_tool_call("budget-tool")),
+        ProviderStep::Response(chat_text("done", None)),
+    ]);
+    let mut engine = budget_engine(provider.clone());
+    engine
+        .history
+        .push(ChatMessage::user("previous details ".repeat(480)));
+    let executions = Arc::new(AtomicUsize::new(0));
+    engine.tools_registry.push(Box::new(HookProbeTool {
+        executions: executions.clone(),
+        output: Some("tool output ".repeat(630)),
+        ..Default::default()
+    }));
+
+    let result = engine.submit_message("run the tool").await;
+    let compaction_requests = crate::session::processor::take_test_llm_messages(&engine.session_id);
+    drop(guard);
+
+    assert_eq!(result.unwrap(), "done");
+    assert_eq!(executions.load(Ordering::SeqCst), 1);
+    let requests = provider.seen_messages();
+    assert_eq!(requests.len(), 2);
+    let tokens = provider.state.seen_request_tokens.lock().unwrap();
+    assert!(
+        tokens.iter().all(|tokens| *tokens <= 3584),
+        "provider received an over-budget request"
+    );
+    assert_eq!(compaction_requests.len(), 1);
+    assert!(
+        !requests[0]
+            .iter()
+            .any(|message| message.content.contains("[Compaction summary]"))
+    );
+    assert!(
+        requests[1]
+            .iter()
+            .any(|message| message.content.contains("[Compaction summary]"))
+    );
+    assert_eq!(
+        requests[1]
+            .iter()
+            .filter(|message| {
+                message.role == "tool"
+                    && message.content.contains("budget-tool")
+                    && message.content.contains("tool output")
+            })
+            .count(),
+        1
+    );
+}
+
+#[tokio::test]
+async fn gateway_context_budget_keeps_provider_behavior_when_compaction_is_disabled() {
+    let provider = ScriptedProvider::with_steps(vec![ProviderStep::Error("prompt too long")]);
+    let mut engine = budget_engine(provider.clone());
+    engine.compact_context = false;
+    engine.request_system_prompt = "fixed instruction ".repeat(840);
+
+    assert_eq!(
+        engine
+            .submit_message("latest")
+            .await
+            .unwrap_err()
+            .to_string(),
+        "prompt too long"
+    );
+    assert_eq!(provider.seen_messages().len(), 1);
 }
 
 #[tokio::test]

@@ -6,15 +6,94 @@
 use agent_multimodal as multimodal;
 use agent_multimodal::ocr::ImageTextExtractor;
 use agent_observability::{Observer, ObserverEvent, runtime_trace};
-use model_types::{ChatMessage, ChatRequest, Provider, ProviderCapabilityError, ToolCall};
 use agent_providers::sanitize_api_error;
-use tool_types::ToolSpec;
 use agent_util::truncate_with_ellipsis;
 use anyhow::Result;
-use std::time::Instant;
+use model_types::{
+    ChatMessage, ChatRequest, ModelLimit, Provider, ProviderCapabilityError, ToolCall,
+};
+use session_engine::context_governance;
+use std::{future::Future, time::Instant};
 use tokio_util::sync::CancellationToken;
+use tool_types::ToolSpec;
 
 use super::errors::ToolLoopCancelled;
+
+struct RequestBudget {
+    turn_id: String,
+    limit: ModelLimit,
+    proactive: bool,
+}
+
+tokio::task_local! { static REQUEST_BUDGET: RequestBudget; }
+
+pub(super) async fn sample_with_request_budget<T>(
+    turn_id: &str,
+    limit: Option<&ModelLimit>,
+    proactive: bool,
+    sample: impl Future<Output = Result<T>>,
+) -> Result<T> {
+    match limit {
+        Some(limit) => {
+            REQUEST_BUDGET
+                .scope(
+                    RequestBudget {
+                        turn_id: turn_id.to_owned(),
+                        limit: limit.clone(),
+                        proactive,
+                    },
+                    sample,
+                )
+                .await
+        }
+        None => sample.await,
+    }
+}
+
+#[derive(Debug)]
+pub(super) struct RequestBudgetExceeded {
+    pub over_window: bool,
+}
+
+impl std::fmt::Display for RequestBudgetExceeded {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        if self.over_window {
+            f.write_str("当前请求超过模型输入窗口，请缩短输入或减少附件与工具")
+        } else {
+            f.write_str("当前请求达到自动压缩阈值")
+        }
+    }
+}
+
+impl std::error::Error for RequestBudgetExceeded {}
+
+fn check_request_budget(turn_id: &str, request: ChatRequest<'_>) -> Result<()> {
+    REQUEST_BUDGET
+        .try_with(|budget| {
+            if budget.turn_id != turn_id {
+                return Ok(());
+            }
+            let messages = request
+                .messages
+                .iter()
+                .map(|message| serde_json::json!(message))
+                .collect::<Vec<_>>();
+            let decision = context_governance::context_governance_decision(
+                &messages,
+                &[],
+                request.tools.unwrap_or_default(),
+                &budget.limit,
+                None,
+            );
+            let over_window =
+                decision.input_tokens > context_governance::provider_input_window(&budget.limit);
+            if over_window || (budget.proactive && decision.needs_internal_compaction) {
+                return Err(RequestBudgetExceeded { over_window }.into());
+            }
+            Ok(())
+        })
+        .unwrap_or(Ok(()))
+}
 
 /// 单轮 LLM 响应的规范化结果。
 ///
@@ -74,6 +153,12 @@ pub async fn run_llm_round_with_extractor<T>(
         .into());
     };
 
+    let request = ChatRequest {
+        messages: &prepared_messages.messages,
+        tools: use_native_tools.then_some(tool_specs),
+    };
+    check_request_budget(turn_id, request)?;
+
     observer.record_event(&ObserverEvent::LlmRequest {
         provider: provider_name.to_string(),
         model: model.to_string(),
@@ -100,13 +185,8 @@ pub async fn run_llm_round_with_extractor<T>(
         hooks.fire_llm_input(history, model).await;
     }
 
-    let request_tools = if use_native_tools { Some(tool_specs) } else { None };
     (services.emit_model)(None, serde_json::Value::Null).await;
-    let chat_future = provider.chat(
-        ChatRequest { messages: &prepared_messages.messages, tools: request_tools },
-        model,
-        temperature,
-    );
+    let chat_future = provider.chat(request, model, temperature);
     let chat_result = if let Some(token) = cancellation_token {
         tokio::select! {
             () = token.cancelled() => {

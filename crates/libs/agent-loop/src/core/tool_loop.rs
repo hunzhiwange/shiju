@@ -2,7 +2,7 @@
 use std::{sync::Arc, collections::HashSet, path::Path, io::Write as _};
 use std::{cell::RefCell, future::Future};
 use anyhow::Result;
-use model_types::{Provider, ChatMessage, ToolCall};
+use model_types::{Provider, ChatMessage, ModelLimit, ToolCall};
 use agent_approval::ApprovalManager;
 use agent_hooks::{HookRunner, TurnEndOutcome};
 use agent_security::SecurityPolicy;
@@ -19,7 +19,7 @@ use super::constants::{DEFAULT_MAX_ITERATIONS, EMPTY_FINAL_RESPONSE_RETRY_PROMPT
 use super::errors::ToolLoopCancelled;
 use super::detection::looks_like_unverified_action_completion_without_tool_call;
 use super::output::{ProgressWire, send_retry_progress, stream_final_response, update_thinking_progress, update_tool_call_progress};
-use super::llm_round::LlmRoundResult;
+use super::llm_round::{LlmRoundResult, RequestBudgetExceeded, sample_with_request_budget};
 use session_port::child_agent::{ChildAgentTaskSnapshot, ChildAgentWaitOutcome};
 
 #[derive(Default)]
@@ -28,6 +28,7 @@ struct ConfirmedToolHistory {
     messages: Vec<ChatMessage>,
     session_id: String,
     recovery: Option<StepRecovery>,
+    model_limit: Option<ModelLimit>,
 }
 
 tokio::task_local! {
@@ -43,9 +44,15 @@ pub type StepRecovery = Box<dyn Fn() -> LoopFuture<'static, Result<Option<Vec<Ch
 pub async fn track_confirmed_tool_history<T>(
     session_id: String,
     recovery: Option<StepRecovery>,
+    model_limit: Option<ModelLimit>,
     turn: impl Future<Output = T>,
 ) -> (T, Vec<ChatMessage>) {
-    let state = ConfirmedToolHistory { session_id, recovery, ..Default::default() };
+    let state = ConfirmedToolHistory {
+        session_id,
+        recovery,
+        model_limit,
+        ..Default::default()
+    };
     CONFIRMED_TOOL_HISTORY
         .scope(RefCell::new(state), async {
             let result = turn.await;
@@ -197,14 +204,18 @@ where
         .collect();
     let turn_id = Uuid::new_v4().to_string();
     // Nested loops on the same task have their own turn IDs.
-    let (query_session, mut recovery_safe) = CONFIRMED_TOOL_HISTORY
+    let (query_session, mut recovery_safe, model_limit) = CONFIRMED_TOOL_HISTORY
         .try_with(|history| {
             let mut history = history.borrow_mut();
             let owner = history.turn_id.get_or_insert_with(|| turn_id.clone());
             if *owner == turn_id {
-                (Some(history.session_id.clone()), history.recovery.is_some())
+                (
+                    Some(history.session_id.clone()),
+                    history.recovery.is_some(),
+                    history.model_limit.clone(),
+                )
             } else {
-                (None, false)
+                (None, false, None)
             }
         })
         .unwrap_or_default();
@@ -400,12 +411,17 @@ where
             turn_id: &turn_id,
             iteration,
         };
-        let sample = (services.llm_round)(request);
+        let sample = sample_with_request_budget(
+            &turn_id,
+            model_limit.as_ref(),
+            recovery_safe && compacted_prefix.is_none(),
+            (services.llm_round)(request),
+        );
         let round = if recovery_safe {
             let (result, overflow) =
                 super::turn::sample_with_overflow_tracking(&turn_id, sample).await;
             match result {
-                Err(error) if overflow => {
+                Err(error) if overflow || error.is::<RequestBudgetExceeded>() => {
                     let recover = CONFIRMED_TOOL_HISTORY.with(|history| {
                         history.borrow().recovery.as_ref().expect("active step recovery")()
                     });
@@ -423,7 +439,10 @@ where
                         recover.await
                     };
                     let prefix = match recovery {
-                        Ok(Some(prefix)) => prefix,
+                        Ok(Some(prefix)) => Some(prefix),
+                        Ok(None)
+                            if error.downcast_ref::<RequestBudgetExceeded>()
+                                .is_some_and(|budget| !budget.over_window) => None,
                         Ok(None) => return Err(error),
                         Err(compaction_error) => {
                             return Err(anyhow::anyhow!(
@@ -434,13 +453,21 @@ where
                     if cancellation_token.as_ref().is_some_and(CancellationToken::is_cancelled) {
                         return Err(ToolLoopCancelled.into());
                     }
-                    let retry_history = prepare_request(Some(&prefix)).expect("compacted request");
-                    let round = (services.llm_round)(RoundRequest {
-                        history: &retry_history,
-                        ..request
-                    })
+                    let retry_history = prefix.as_deref()
+                        .and_then(|prefix| prepare_request(Some(prefix)));
+                    let round = sample_with_request_budget(
+                        &turn_id,
+                        model_limit.as_ref(),
+                        false,
+                        (services.llm_round)(RoundRequest {
+                            history: retry_history.as_deref().unwrap_or(request.history),
+                            ..request
+                        }),
+                    )
                     .await?;
-                    compacted_prefix = Some(prefix);
+                    if let Some(prefix) = prefix {
+                        compacted_prefix = Some(prefix);
+                    }
                     round
                 }
                 result => result?,

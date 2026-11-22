@@ -40,6 +40,21 @@ pub use crate::compaction_budget::{effective_input_window, should_compact};
 #[cfg(test)]
 pub use crate::compaction_budget::summary_output_budget;
 
+/// Bound a prepared primary request by both its input limit and combined window.
+pub fn provider_input_window(limit: &ModelLimit) -> u64 {
+    if limit.context > 0 {
+        effective_input_window(limit).min(limit.context.saturating_sub(limit.output))
+    } else if limit.input.is_some_and(|input| input > 0) {
+        effective_input_window(limit)
+    } else {
+        model_state::DEFAULT_MODEL_CONTEXT_LIMIT.saturating_sub(if limit.output > 0 {
+            limit.output
+        } else {
+            model_state::DEFAULT_MODEL_OUTPUT_LIMIT
+        })
+    }
+}
+
 fn estimate_bytes_as_tokens(bytes: usize) -> u64 {
     (bytes as u64).saturating_add(ESTIMATED_CHARS_PER_TOKEN - 1) / ESTIMATED_CHARS_PER_TOKEN
 }
@@ -96,9 +111,15 @@ fn estimate_context_tokens(messages: &[Value], system: &[String], tools: &[ToolS
         .iter()
         .fold(0_u64, |total, prompt| total.saturating_add(estimate_bytes_as_tokens(prompt.len())));
     let tool_tokens = tools.iter().fold(0_u64, |total, tool| {
-        total.saturating_add(estimate_value_tokens(
-            &serde_json::to_value(tool).unwrap_or(Value::Null),
-        ))
+        // ToolSpec also stores a compatibility mirror of its schema. Only
+        // the provider-facing definition contributes to the model request.
+        total.saturating_add(estimate_value_tokens(&serde_json::json!({
+            "type": "function",
+            "name": tool.id,
+            "description": tool.description,
+            "parameters": tool.input_schema,
+            "strict": tool.strict,
+        })))
     });
 
     message_tokens.saturating_add(system_tokens).saturating_add(tool_tokens)

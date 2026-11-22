@@ -1,0 +1,82 @@
+--- a/mcp.py
++++ b/mcp.py
+@@ -1,5 +1,6 @@
+ """Adapt the reviewed Stakpak startup catalog to one host-owned ACP session."""
+
++import asyncio
+ import json
+ import os
+ from pathlib import Path
+@@ -7,8 +8,9 @@
+ import signal
+ import subprocess
+ import sys
+-
+-from mcp_bridge import Mounts, POLICY, arguments_key
++from time import monotonic
++
++from mcp_bridge import Mounts, POLICY, TIMEOUT, arguments_key
+
+
+ BUILTIN_NAMES = ('stakpak__view', 'stakpak__create', 'stakpak__str_replace', 'stakpak__load_skill')
+@@ -150,9 +152,59 @@
+                 return title in BUILTIN_TITLES
+             if len(allow) != 1:
+                 return False
+-            self.pending[identifier] = (allow[0]['optionId'], (*pair, arguments_key(arguments)))
++            call_id = call.get('toolCallId')
++            if not isinstance(call_id, str) or not call_id:
++                return False
++            identity = (self.turn, call_id, *pair, arguments_key(arguments))
++            self.pending[identifier] = (allow[0]['optionId'], identity)
+             params['options'] = allow + [option for option in options if option.get('kind') == 'reject_once']
+             return True
++
++
++    def decide(self, identifier, result):
++        with self.lock:
++            entry = self.pending.pop(identifier, None)
++            if entry and self.turn == entry[1][0] and isinstance(result, dict) and result.get('outcome') == {
++                'outcome': 'selected', 'optionId': entry[0]
++            }:
++                self.approved.append((entry[1], monotonic() + TIMEOUT))
++
++    def claim(self, server, tool, arguments, metadata):
++        # The HTTP dispatcher holds the same lock as turn cancellation.
++        if not isinstance(metadata, dict) or self.turn is None:
++            return None
++        session = metadata.get('dev.shiju/acp-session-id')
++        call_id = metadata.get('dev.shiju/acp-tool-call-id')
++        if session != self.turn or not isinstance(call_id, str) or not call_id:
++            return None
++        identity = (session, call_id, server, tool, arguments_key(arguments))
++        now = monotonic()
++        self.approved[:] = [entry for entry in self.approved if entry[1] > now]
++        for index, (approval, _) in enumerate(self.approved):
++            if identity == approval:
++                self.approved.pop(index)
++                return identity
++        return None
++
++    def request(self, server, method, params):
++        if method != 'tools/call':
++            return super().request(server, method, params)
++        arguments = params.get('arguments')
++        tool = params.get('name')
++        if not isinstance(arguments, dict) or not isinstance(tool, str):
++            raise ValueError('Invalid Stakpak MCP call')
++        with self.lock:
++            if self.worker is not None or self.claim(server, tool, arguments, params.get('_meta')) is None:
++                raise ValueError('No matching Stakpak MCP approval')
++            worker = asyncio.run_coroutine_threadsafe(
++                self.execute(server, tool, arguments), self.loop)
++            self.worker = worker
++        try:
++            return worker.result(TIMEOUT + 2)
++        finally:
++            with self.lock:
++                worker.cancel()
++                self.worker = None
+
+
+ def frames(child, host):

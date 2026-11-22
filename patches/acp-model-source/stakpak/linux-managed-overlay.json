@@ -1,0 +1,13 @@
+{
+  "version": "0.3.88",
+  "source_patch": {
+    "file": "linux-approval.patch",
+    "sha256": "84a8236f4f80b03528ff4a92498a4940e87de7de5a05a86e9eb679f5c7f983a0"
+  },
+  "bridge_patch": {
+    "file": "linux-bridge.patch",
+    "sha256": "0569e53d127e680d4805113b16294bafb8a5f66f8f5dbd6dbdab0ceafa833b60",
+    "input_sha256": "d3650efa659045dffbc1b3b59cfd5dee60bd3ea6aa13eecdf3acbf4a34084d2b",
+    "output_sha256": "4fc484d83da3b69f2e32f24eb11b17bc3a10fb3f9f579f96d19f2f2a8dcbff2f"
+  }
+}

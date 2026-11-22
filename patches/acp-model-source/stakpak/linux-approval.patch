@@ -1,0 +1,102 @@
+--- a/cli/src/commands/acp/server.rs
++++ b/cli/src/commands/acp/server.rs
+@@ -27,6 +27,10 @@
+
+ fn managed_skills() -> bool {
+     std::env::var("SHIJU_STAKPAK_MANAGED_SKILLS").as_deref() == Ok("1")
++}
++
++fn managed_linux() -> bool {
++    cfg!(target_os = "linux") && managed_skills()
+ }
+
+ fn check_skill_workspace(cwd: &Path) -> Result<(), acp::Error> {
+@@ -360,7 +364,7 @@
+                     acp::RequestPermissionOutcome::Selected(outcome) => {
+                         log::info!("User selected permission option: {}", outcome.option_id.0);
+                         Ok(outcome.option_id.0.as_ref() == "allow"
+-                            || outcome.option_id.0.as_ref() == "allow_always")
++                            || (!managed_linux() && outcome.option_id.0.as_ref() == "allow_always"))
+                     }
+                     acp::RequestPermissionOutcome::Cancelled => {
+                         log::info!("Permission request was cancelled");
+@@ -377,6 +381,9 @@
+                 }
+             }
+         } else {
++            if managed_linux() {
++                return Ok(false);
++            }
+             // Fall back to auto-approve if no permission channel available
+             log::warn!("No permission request channel available, auto-approving");
+             Ok(true)
+@@ -962,6 +969,12 @@
+             let should_delegate = self.fs_operation_tx.is_some()
+                 && ((is_read_tool && client_reads) || (is_write_tool && client_writes));
+
++            if managed_linux() && super::tool_names::is_fs_tool(stripped_name) && !should_delegate {
++                return Err(acp::Error::internal_error().data(
++                    "Managed Stakpak Linux file tools require ACP host filesystem callbacks",
++                ));
++            }
++
+             let result = if should_delegate {
+                 log::info!(
+                     "🔧 DEBUG: Executing filesystem tool via native ACP: {}",
+@@ -996,6 +1009,7 @@
+                     self.current_session_id.get(),
+                     Some(self.model.read().await.id.clone()),
+                     Some(self.model.read().await.provider.clone()),
++                    managed_linux().then(|| (session_id.0.as_ref(), tool_call_id.as_str())),
+                 )
+                 .await
+                 .map_err(|e| {
+--- a/cli/src/commands/agent/run/tooling.rs
++++ b/cli/src/commands/agent/run/tooling.rs
+@@ -41,6 +41,7 @@
+     session_id: Option<Uuid>,
+     model_id: Option<String>,
+     model_provider: Option<String>,
++    acp_approval: Option<(&str, &str)>,
+ ) -> Result<Option<CallToolResult>, String> {
+     let tool_name = &tool_call.function.name;
+     let tool_exists = tools.iter().any(|tool| tool.name == *tool_name);
+@@ -83,6 +84,10 @@
+                     "model_provider".to_string(),
+                     serde_json::Value::String(model_provider),
+                 );
++            }
++            if let Some((session, call)) = acp_approval {
++                meta.insert("dev.shiju/acp-session-id".into(), session.into());
++                meta.insert("dev.shiju/acp-tool-call-id".into(), call.into());
+             }
+             meta
+         });
+--- a/cli/src/commands/agent/run/mode_async.rs
++++ b/cli/src/commands/agent/run/mode_async.rs
+@@ -341,6 +341,7 @@
+                             current_session_id,
+                             Some(config.model.id.clone()),
+                             Some(config.model.provider.clone()),
++                            None,
+                         )
+                         .await
+                     };
+@@ -692,6 +693,7 @@
+                         current_session_id,
+                         Some(config.model.id.clone()),
+                         Some(config.model.provider.clone()),
++                        None,
+                     )
+                     .await
+                 };
+--- a/cli/src/commands/agent/run/mode_interactive.rs
++++ b/cli/src/commands/agent/run/mode_interactive.rs
+@@ -809,6 +809,7 @@
+                                 current_session_id,
+                                 Some(model.id.clone()),
+                                 Some(model.provider.clone()),
++                                None,
+                             )
+                             .await?
+                         } else {

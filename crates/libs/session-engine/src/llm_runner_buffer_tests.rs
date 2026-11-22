@@ -15,7 +15,7 @@ mod llm_runner_test_support;
 use llm_runner_test_support::{collect_events, observe_first_delta_before_stream_continues, usage};
 
 #[test]
-fn collect_stream_returns_text_tool_calls_usage_and_full_messages() {
+fn stream_explicit_completion_returns_text_tool_calls_usage_and_full_messages() {
     let tool_call = llm::ToolCall {
         kind: Default::default(),
         namespace: None,
@@ -327,14 +327,51 @@ fn collect_stream_rejects_whitespace_only_text() {
 }
 
 #[test]
-fn collect_stream_returns_buffered_text_when_sender_disconnects_without_done() {
-    let (result, deltas) = collect_events([llm::StreamEvent::Delta("partial".to_string())]);
+fn stream_explicit_completion_reports_disconnect_after_text() {
+    let (result, deltas) = collect_events([
+        llm::StreamEvent::Delta("partial".to_string()),
+        llm::StreamEvent::Delta(" text".to_string()),
+    ]);
 
-    let step = result.expect("buffered text should remain a valid step after disconnect");
-    assert_eq!(step.text, "partial");
-    assert_eq!(step.usage, models::TokenUsage::default());
+    assert_eq!(deltas.join(""), "partial text");
+    let error = result.expect_err("partial text must not complete the step");
+    assert_eq!(runner::llm_error_message(&error), "模型响应流中断");
+}
+
+#[test]
+fn stream_explicit_completion_reports_disconnect_after_tool_calls() {
+    let (result, deltas) = collect_events([llm::StreamEvent::ToolCalls(vec![llm::ToolCall {
+        kind: Default::default(),
+        namespace: None,
+        id: "call-1".to_string(),
+        name: "read_file".to_string(),
+        arguments: "{}".to_string(),
+    }])]);
+
+    assert!(deltas.is_empty());
+    let error = result.expect_err("incomplete tool calls must not produce a dispatchable step");
+    let error = serde_json::from_str::<AssistantError>(&error).unwrap();
+    assert!(matches!(
+        error,
+        AssistantError::APIError { message, is_retryable: false, metadata: Some(metadata), .. }
+            if message == "模型响应流中断"
+                && metadata.get("replay_safe").is_some_and(|value| value == "false")
+    ));
+}
+
+#[test]
+fn stream_explicit_completion_accepts_done_without_finish_reason() {
+    let (result, deltas) = collect_events([
+        llm::StreamEvent::Delta("answer".to_string()),
+        llm::StreamEvent::Done { usage: usage(11, 7), finish_reason: None },
+    ]);
+
+    let step = result.expect("Done should complete the step without a finish reason");
+    assert_eq!(step.text, "answer");
+    assert_eq!(step.usage.input_tokens, 11);
+    assert_eq!(step.usage.output_tokens, 7);
     assert_eq!(step.finish_reason, None);
-    assert_eq!(deltas, vec!["partial"]);
+    assert_eq!(deltas, vec!["answer"]);
 }
 
 #[test]

@@ -65,7 +65,7 @@ fn collect_stream_allows_silent_acp_prompt_past_model_idle_timeout() {
 }
 
 #[test]
-fn collect_stream_reports_empty_when_sender_disconnects_without_done() {
+fn stream_explicit_completion_reports_disconnect_on_empty_stream() {
     let (tx, rx) = mpsc::channel();
     drop(tx);
 
@@ -84,7 +84,8 @@ fn collect_stream_reports_empty_when_sender_disconnects_without_done() {
         None,
     );
 
-    assert_eq!(result.unwrap_err(), "模型未返回内容");
+    let error = result.unwrap_err();
+    assert_eq!(runner::llm_error_message(&error), "模型响应流中断");
     assert!(deltas.is_empty());
 }
 

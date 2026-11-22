@@ -29,7 +29,6 @@ use session_port::{ToolCallStatus, ToolEvent, ToolEventKind};
 use crate::processor_clock::now_ms;
 use crate::llm_stream as llm;
 use tool_types::ToolSpec;
-use session_port::ui_types as models;
 use serde_json::Value;
 use std::time::Duration;
 use web_time::Instant;
@@ -93,11 +92,10 @@ pub fn collect_llm_step_from_stream(
 
     let mut reasoning_content = String::new(); // 推理内容缓冲区
     let mut text = String::new(); // 普通文本内容缓冲区
-    let mut usage = models::TokenUsage::default(); // 令牌使用统计
-    let mut finish_reason: Option<String> = None; // 完成原因
     #[cfg(not(target_arch = "wasm32"))]
     let mut call_collector = crate::native_call_collector::NativeCallCollector::default();
     let mut tool_calls: Vec<crate::processor_events::ToolCall> = Vec::new(); // 工具调用列表
+    let mut saw_tool_calls = false;
     let mut full_messages: Vec<serde_json::Value> = Vec::new(); // 完整消息历史
 
     // === 状态追踪变量 ===
@@ -115,7 +113,7 @@ pub fn collect_llm_step_from_stream(
     let mut monitor_idle = true;
     let mut last_event = Instant::now();
     // === 主事件处理循环 ===
-    loop {
+    let completion = loop {
         if cancellation.is_some_and(|token| token.is_cancelled()) {
             request_stream_abort(abort_tx);
             return Err("执行已取消".into());
@@ -154,8 +152,7 @@ pub fn collect_llm_step_from_stream(
                 request_stream_abort(abort_tx);
                 return Err("模型响应超时".to_string());
             }
-            // 发送端断开，表示流结束
-            Err(std::sync::mpsc::RecvTimeoutError::Disconnected) => break,
+            Err(std::sync::mpsc::RecvTimeoutError::Disconnected) => break None,
         };
 
         // 根据事件类型进行相应处理
@@ -227,6 +224,7 @@ pub fn collect_llm_step_from_stream(
             }
             // 处理工具调用
             llm::StreamEvent::ToolCalls(calls) => {
+                saw_tool_calls |= !calls.is_empty();
                 #[cfg(not(target_arch = "wasm32"))]
                 for call in &calls {
                     call_collector.record(call.clone()).map_err(|error| error.to_string())?;
@@ -275,10 +273,8 @@ pub fn collect_llm_step_from_stream(
                 full_messages = msgs;
             }
             // 处理完成事件
-            llm::StreamEvent::Done { usage: u, finish_reason: f } => {
-                usage = u;
-                finish_reason = f;
-                break;
+            llm::StreamEvent::Done { usage, finish_reason } => {
+                break Some((usage, finish_reason));
             }
             // 处理错误事件
             llm::StreamEvent::Error(mut e) => {
@@ -308,7 +304,7 @@ pub fn collect_llm_step_from_stream(
                 );
             }
         }
-    }
+    };
 
     // === 流结束后的收尾处理 ===
 
@@ -336,6 +332,16 @@ pub fn collect_llm_step_from_stream(
             StreamEvent::Delta(format!("\n\n<think>{}</think>\n\n", late_reasoning.trim_end())),
         )?;
     }
+
+    let Some((usage, finish_reason)) = completion else {
+        let mut error = crate::message::AssistantError::Unknown {
+            message: "模型响应流中断".to_string(),
+        };
+        if saw_tool_calls {
+            crate::replay_safety::prevent_error_replay(&mut error);
+        }
+        return Err(serde_json::to_string(&error).expect("assistant error serializes"));
+    };
 
     // 推理内容只是中间过程，不能作为最终答复。否则模型仅输出“接下来继续……”
     // 之类的思考后以 stop 结束时，会被上层误判为任务已经完成。

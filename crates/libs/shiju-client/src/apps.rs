@@ -22,7 +22,7 @@ const PRODUCTION_IAM_BASE_URL: &str = "https://gateway.shiju.cloud/sj/iam/api/v1
 const CATALOG_PATH: &str = "catalog";
 const APPS_PATH: &str = "apps";
 const IAM_API_KEYS_PATH: &str = "api-keys";
-const BROWSER_SESSION_PATH: &str = "runtime/browser-session";
+const BROWSER_SESSION_PATH: &str = "/api/runtime/browser-session";
 const API_KEY_HEADER: &str = "X-Api-Key";
 const RUNTIME_SESSION_COOKIE_NAME: &str = "app_runtime_session";
 const RUNTIME_HOST: &str = "app.shiju.cloud";
@@ -70,28 +70,40 @@ pub struct ShijuAppClient {
     http: reqwest::Client,
     app_base_url: Url,
     iam_base_url: Url,
+    browser_session_endpoint: Url,
 }
 
 impl ShijuAppClient {
     /// 使用固定生产端点创建客户端。
     pub fn production() -> Result<Self, ShijuAppError> {
-        Self::new(PRODUCTION_APP_BASE_URL, PRODUCTION_IAM_BASE_URL)
+        Self::new(
+            PRODUCTION_APP_BASE_URL,
+            PRODUCTION_IAM_BASE_URL,
+            &format!("https://{RUNTIME_HOST}"),
+        )
     }
 
     #[cfg(any(test, feature = "test-support"))]
     /// 使用显式应用与 IAM 基础地址创建客户端。
     pub fn with_base_urls(app_base_url: &str, iam_base_url: &str) -> Result<Self, ShijuAppError> {
-        Self::new(app_base_url, iam_base_url)
+        Self::new(app_base_url, iam_base_url, app_base_url)
     }
 
-    fn new(app_base_url: &str, iam_base_url: &str) -> Result<Self, ShijuAppError> {
+    fn new(
+        app_base_url: &str,
+        iam_base_url: &str,
+        runtime_base_url: &str,
+    ) -> Result<Self, ShijuAppError> {
         let http = reqwest::Client::builder()
             .timeout(Duration::from_secs(15))
             .build()
             .map_err(|_| ShijuAppError::upstream("failed to create SHIJU application client"))?;
         let app_base_url = parse_base_url(app_base_url)?;
         let iam_base_url = parse_base_url(iam_base_url)?;
-        Ok(Self { http, app_base_url, iam_base_url })
+        let browser_session_endpoint = parse_base_url(runtime_base_url)?
+            .join(BROWSER_SESSION_PATH)
+            .map_err(|_| ShijuAppError::upstream("SHIJU browser session endpoint is invalid"))?;
+        Ok(Self { http, app_base_url, iam_base_url, browser_session_endpoint })
     }
 
     /// 读取当前凭证可见的应用目录。
@@ -385,14 +397,10 @@ impl ShijuAppClient {
     }
 
     async fn establish_browser_session(&self, credential: &str) -> Result<String, ShijuAppError> {
-        let endpoint = self
-            .app_base_url
-            .join(BROWSER_SESSION_PATH)
-            .map_err(|_| ShijuAppError::upstream("SHIJU application upstream URL is invalid"))?;
         let response = self
             .http
-            .post(endpoint)
-            .header(API_KEY_HEADER, credential_header(credential)?)
+            .post(self.browser_session_endpoint.clone())
+            .bearer_auth(credential)
             .send()
             .await
             .map_err(|_| ShijuAppError::upstream("SHIJU browser session request failed"))?;

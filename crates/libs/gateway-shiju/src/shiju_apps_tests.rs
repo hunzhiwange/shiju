@@ -278,7 +278,12 @@ async fn shiju_app_routes_map_catalog_apps_and_launch() {
     assert!(requests[3].starts_with(&format!(
         "GET /app-platform/api/tenant/installations/{INSTALLATION_ID}/api-key-binding "
     )));
-    assert!(requests[4].starts_with("POST /app-platform/api/runtime/browser-session "));
+    assert!(requests[4].starts_with("POST /api/runtime/browser-session "));
+    assert!(requests[4].lines().any(|line| {
+        line.split_once(": ").is_some_and(|(name, value)| {
+            name.eq_ignore_ascii_case("authorization") && value == format!("Bearer {CREDENTIAL}")
+        })
+    }));
     for request in requests {
         assert!(!request.lines().next().unwrap_or_default().contains(CREDENTIAL));
     }

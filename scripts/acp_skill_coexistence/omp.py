@@ -34,7 +34,7 @@ def launch(env):
         artifact = contract["targets"][f"{machine}-unknown-linux-gnu"]
         platform_name = "linux-x64" if machine == "x86_64" else "linux-arm64"
         expected_digest = artifact["sha256"]
-        revision = f"{REVISION}-{platform_name}"
+        revision = f"omp-{VERSION}-linux-cli-{machine}"
         args = contract["args"]
     else:
         require((system, machine) == ("Darwin", "arm64"), "unreviewed OMP platform")

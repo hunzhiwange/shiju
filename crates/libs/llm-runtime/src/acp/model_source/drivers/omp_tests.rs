@@ -101,3 +101,78 @@ fn acp_platform_omp_contract() {
         );
     }
 }
+
+#[cfg(all(
+    target_os = "linux",
+    target_env = "gnu",
+    any(target_arch = "x86_64", target_arch = "aarch64")
+))]
+#[tokio::test]
+#[ignore = "requires a disposable GNU Linux container with access to the pinned OMP release"]
+async fn acp_platform_omp_contract_cli_local() {
+    use acp_agent_registry::{install_builtin_agent, resolve_agent_spec};
+    use acp_client::AcpClient;
+    use acp_types::AcpAgentConfig;
+    use std::{env, fs, path::Path, process::Command, time::Duration};
+
+    const CHILD_ROOT: &str = "SHIJU_TEST_OMP_CLI_LOCAL_ROOT";
+    let Some(root) = env::var_os(CHILD_ROOT) else {
+        let root = tempfile::tempdir().unwrap();
+        for directory in ["home", "config", "workspace"] {
+            fs::create_dir(root.path().join(directory)).unwrap();
+        }
+        let module = module_path!().split_once("::").unwrap().1;
+        let name = format!("{module}::acp_platform_omp_contract_cli_local");
+        let status = Command::new(env::current_exe().unwrap())
+            .args(["--ignored", "--exact", &name])
+            .env_clear()
+            .env("PATH", "/usr/bin:/bin")
+            .env("HOME", root.path().join("home"))
+            .env("VIBEWINDOW_CONFIG_DIR", root.path().join("config"))
+            .env(CHILD_ROOT, root.path())
+            .current_dir(root.path().join("workspace"))
+            .status()
+            .unwrap();
+        assert!(status.success(), "isolated OMP cli_local contract failed");
+        return;
+    };
+
+    let root = Path::new(&root);
+    install_builtin_agent("omp").await.unwrap();
+    let entry = root
+        .join(format!("config/acp-runtime/omp-18.22.0-linux-cli-{}/omp", env::consts::ARCH))
+        .canonicalize()
+        .unwrap();
+    let spec = resolve_agent_spec("omp").unwrap();
+    assert_eq!(Path::new(&spec.command), entry.as_path());
+    assert_eq!(spec.args, ["acp"]);
+    assert!(spec.env.is_empty());
+
+    let client = || {
+        AcpClient::new(
+            "omp",
+            AcpAgentConfig {
+                command: spec.command.clone(),
+                args: spec.args.clone(),
+                env: spec.env.clone(),
+            },
+        )
+        .with_full_access(true)
+    };
+    let workspace = root.join("workspace");
+    let first = client();
+    let session =
+        tokio::time::timeout(Duration::from_secs(30), first.create_session(&workspace)).await;
+    first.close().await.unwrap();
+    assert!(!session.unwrap().unwrap().session_id.is_empty());
+
+    // Keep the persisted command and args while replacing the installed file.
+    // A new ACP client must recheck the entry before handing it to the OS.
+    fs::write(&entry, b"unreviewed executable").unwrap();
+    let second = client();
+    let session =
+        tokio::time::timeout(Duration::from_secs(10), second.create_session(&workspace)).await;
+    second.close().await.unwrap();
+    let error = session.unwrap().unwrap_err().to_string();
+    assert!(error.contains("Invalid reviewed OMP Linux executable metadata"), "{error}");
+}

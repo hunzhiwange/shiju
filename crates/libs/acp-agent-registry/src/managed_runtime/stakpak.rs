@@ -1,7 +1,7 @@
 //! Verify the upstream Linux executable for ordinary CLI use.
 use serde::Deserialize;
 use sha2::{Digest, Sha256};
-use std::{collections::BTreeMap, fs, io, os::unix::fs::PermissionsExt, path::Path};
+use std::{collections::BTreeMap, fs, io, io::Read, os::unix::fs::PermissionsExt, path::Path};
 
 pub(super) const LINUX_CLI_CONTRACT: &str =
     include_str!("../../../../../patches/acp-model-source/stakpak/linux-cli.json");
@@ -45,7 +45,14 @@ pub(super) fn cli_local_command(root: &Path) -> Result<Option<(String, Vec<Strin
     }
     let mut file = fs::File::open(&entry).map_err(|_| "Cannot read Stakpak Linux CLI")?;
     let mut digest = Sha256::new();
-    io::copy(&mut file, &mut digest).map_err(|_| "Cannot hash Stakpak Linux CLI")?;
+    let mut buffer = [0; 64 * 1024];
+    loop {
+        let size = file.read(&mut buffer).map_err(|_| "Cannot hash Stakpak Linux CLI")?;
+        if size == 0 {
+            break;
+        }
+        digest.update(&buffer[..size]);
+    }
     if hex::encode(digest.finalize()) != target.executable_sha256 {
         return Err("Stakpak Linux CLI checksum mismatch".into());
     }

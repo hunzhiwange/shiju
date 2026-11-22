@@ -1,7 +1,7 @@
 use agent_config::schema::AcpAgentConfig;
 use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
-use std::{fs, io, path::Path, process::Command};
+use std::{fs, path::Path, process::Command};
 
 use crate::acp::model_source::{drivers, launch_identity, prepare_profile};
 
@@ -91,9 +91,7 @@ fn acp_platform_stakpak_contract_resolves_pinned_cli_without_managed_access() {
     assert_eq!(Path::new(&spec.command), expected);
     assert_eq!(spec.args, ["acp"]);
 
-    let mut digest = Sha256::new();
-    io::copy(&mut fs::File::open(&expected).unwrap(), &mut digest).unwrap();
-    let sha256 = hex::encode(digest.finalize());
+    let sha256 = hex::encode(Sha256::digest(fs::read(&expected).unwrap()));
     assert_eq!(target["executable_sha256"].as_str(), Some(sha256.as_str()));
     assert_managed_launch_rejected(spec.command, spec.args);
 }

@@ -18,16 +18,26 @@ pub fn configure(profile: &mut AcpLaunchProfile, endpoint: &str) -> anyhow::Resu
                 .map(|modules| modules.join("@mariozechner/pi-coding-agent/dist/cli.js"))
         })
         .filter(|path| path.is_file());
-    let engine = installed_engine
-        .or_else(|| {
-            std::env::var_os("PATH").and_then(|paths| {
-                std::env::split_paths(&paths)
-                    .map(|path| path.join("pi"))
-                    .find(|path| path.is_file())
+    let engine = if cfg!(target_os = "linux") {
+        let engine = installed_engine
+            .ok_or_else(|| anyhow::anyhow!("Linux Pi requires the co-installed native engine"))?;
+        anyhow::ensure!(
+            engine.canonicalize()? == engine,
+            "Linux Pi native engine must be inside the reviewed runtime"
+        );
+        engine
+    } else {
+        let engine = installed_engine
+            .or_else(|| {
+                std::env::var_os("PATH").and_then(|paths| {
+                    std::env::split_paths(&paths)
+                        .map(|path| path.join("pi"))
+                        .find(|path| path.is_file())
+                })
             })
-        })
-        .ok_or_else(|| anyhow::anyhow!("pinned native Pi executable is not installed"))?;
-    let engine = engine.canonicalize()?;
+            .ok_or_else(|| anyhow::anyhow!("pinned native Pi executable is not installed"))?;
+        engine.canonicalize()?
+    };
     anyhow::ensure!(
         hex::encode(Sha256::digest(std::fs::read(&engine)?))
             == "e959f463b06ddd15ed882783ac02f39ecaeef950ef967da86380f39dda6595fa",

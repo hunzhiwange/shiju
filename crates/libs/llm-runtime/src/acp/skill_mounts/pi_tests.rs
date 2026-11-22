@@ -91,6 +91,95 @@ fn acp_platform_pi_contract_denies_skill_view_without_reviewed_sandbox() {
     target_env = "gnu",
     any(target_arch = "x86_64", target_arch = "aarch64")
 ))]
+#[tokio::test]
+#[ignore = "requires a private Linux npm prefix with the two fixed upstream Pi packages"]
+async fn acp_platform_pi_contract_native() {
+    use sha2::{Digest, Sha256};
+    use std::{env, fs, path::Path, process::Command, time::Duration};
+
+    let prefix = env::var_os("SHIJU_ACP_PI_NATIVE_PREFIX")
+        .expect("set SHIJU_ACP_PI_NATIVE_PREFIX to the private npm prefix");
+    let prefix = Path::new(&prefix).canonicalize().unwrap();
+    const CHILD_ROOT: &str = "SHIJU_TEST_PI_NATIVE_ROOT";
+    let Some(root) = env::var_os(CHILD_ROOT) else {
+        let root = tempfile::tempdir().unwrap();
+        for directory in ["home", "config", "workspace"] {
+            fs::create_dir(root.path().join(directory)).unwrap();
+        }
+        let paths = env::join_paths([prefix.join("bin")].into_iter().chain(env::split_paths(
+            &env::var_os("PATH").expect("Node must be available on PATH"),
+        )))
+        .unwrap();
+        let module = module_path!().split_once("::").unwrap().1;
+        let test = format!("{module}::acp_platform_pi_contract_native");
+        let output = Command::new(env::current_exe().unwrap())
+            .args(["--ignored", "--exact", &test, "--nocapture"])
+            .env_clear()
+            .env("PATH", paths)
+            .env("HOME", root.path().join("home"))
+            .env("VIBEWINDOW_CONFIG_DIR", root.path().join("config"))
+            .env("SHIJU_ACP_PI_NATIVE_PREFIX", prefix)
+            .env(CHILD_ROOT, root.path())
+            .current_dir(root.path().join("workspace"))
+            .output()
+            .unwrap();
+        assert!(
+            output.status.success() && String::from_utf8_lossy(&output.stdout).contains("1 passed"),
+            "Pi native contract failed: {}\n{}",
+            String::from_utf8_lossy(&output.stdout),
+            String::from_utf8_lossy(&output.stderr)
+        );
+        return;
+    };
+
+    let manifest: serde_json::Value = serde_json::from_str(include_str!(
+        "../../../../../../patches/acp-model-source/pi/linux.json"
+    ))
+    .unwrap();
+    let root = Path::new(&root);
+    for (record, command, digest) in
+        [("adapter", "pi-acp", "upstream_entry_sha256"), ("engine", "pi", "entry_sha256")]
+    {
+        let record = &manifest[record];
+        let package = prefix.join("lib/node_modules").join(record["package"].as_str().unwrap());
+        let entry = package.join(record["entry"].as_str().unwrap());
+        assert_eq!(prefix.join("bin").join(command).canonicalize().unwrap(), entry);
+        let metadata: serde_json::Value =
+            serde_json::from_slice(&fs::read(package.join("package.json")).unwrap()).unwrap();
+        assert_eq!(metadata["name"], record["package"]);
+        assert_eq!(metadata["version"], record["version"]);
+        assert_eq!(
+            hex::encode(Sha256::digest(fs::read(&entry).unwrap())),
+            record[digest].as_str().unwrap()
+        );
+    }
+
+    let spec = acp_agent_registry::resolve_agent_spec("pi").unwrap();
+    assert_eq!(
+        Path::new(&spec.command).canonicalize().unwrap(),
+        prefix.join("lib/node_modules/pi-acp/dist/index.js")
+    );
+    assert!(spec.args.is_empty() && spec.env.is_empty());
+    let client = acp_client::AcpClient::new(
+        "pi",
+        acp_types::AcpAgentConfig { command: spec.command, args: spec.args, env: spec.env },
+    )
+    .with_full_access(true)
+    .with_permission_mode(acp_types::PermissionMode::ApproveAll);
+    let created = tokio::time::timeout(
+        Duration::from_secs(30),
+        client.create_session(root.join("workspace")),
+    )
+    .await;
+    client.close().await.unwrap();
+    assert!(!created.unwrap().unwrap().session_id.is_empty());
+}
+
+#[cfg(all(
+    target_os = "linux",
+    target_env = "gnu",
+    any(target_arch = "x86_64", target_arch = "aarch64")
+))]
 #[test]
 #[ignore = "requires a Linux gateway and a private reviewed Pi install"]
 fn acp_platform_pi_contract() {
@@ -128,7 +217,7 @@ fn acp_platform_pi_contract() {
     for (turn, phase) in turns.iter().zip(["baseline", "mounted", "removed", "rejected"]) {
         assert_eq!(turn["phase"], phase);
         assert_eq!(turn["source"], "session_model");
-        assert_eq!(turn["model"], "deepseek-v4.1-flash-1017");
+        assert_eq!(turn["model"], "coexistence-fixture/deepseek-v4.1-flash-1017");
         assert_eq!(turn["done"], 1);
         assert_eq!(turn["errors"], 0);
         let selected = matches!(phase, "mounted" | "rejected");

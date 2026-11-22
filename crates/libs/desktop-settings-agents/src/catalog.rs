@@ -93,11 +93,13 @@ pub fn cards(input: Input<'_>) -> Vec<Element<'_, Event>> {
     entries(settings.entries, settings.catalog_official, settings.catalog_query)
         .into_iter()
         .map(|entry| {
+            let employee = entry.key == acp_agent_registry::EMPLOYEE_ACP_PROFILE;
             let engine = match &entry.runtime {
                 AgentRuntime::Native => label("识矩原生").to_string(),
                 AgentRuntime::Acp { backend } => format!("ACP · {backend}"),
             };
             let status = match &entry.runtime {
+                AgentRuntime::Acp { .. } if employee => label(crate::acp::EMPLOYEE_ACP_HINT).into(),
                 AgentRuntime::Native => label("原生运行引擎").to_string(),
                 AgentRuntime::Acp { backend } => input.diagnostic_results
                     .get(backend)
@@ -120,17 +122,24 @@ pub fn cards(input: Input<'_>) -> Vec<Element<'_, Event>> {
             };
             let mut actions = row![
                 action(label("编辑配置"), AgentsMessage::ProfileOpen(entry.key.clone())),
-                action(label("复制"), AgentsMessage::CatalogCopy(entry.key.clone())),
             ]
             .spacing(8)
             .align_y(Alignment::Center);
+            if !employee {
+                actions = actions.push(action(
+                    label("复制"),
+                    AgentsMessage::CatalogCopy(entry.key.clone()),
+                ));
+            }
             if entry.can_disable {
                 actions = actions.push(action(
                     label(if entry.enabled { "停用智能体" } else { "启用智能体" }),
                     AgentsMessage::CatalogToggle(entry.key.clone(), !entry.enabled),
                 ));
             }
-            if let AgentRuntime::Acp { backend } = &entry.runtime {
+            if let AgentRuntime::Acp { backend } = &entry.runtime
+                && !employee
+            {
                 actions = actions.push(
                     button(text(label("运行设置")).size(SETTINGS_CONTROL_TEXT_SIZE))
                         .padding([8, 11])

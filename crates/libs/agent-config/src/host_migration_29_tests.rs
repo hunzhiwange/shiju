@@ -677,10 +677,21 @@ fn acp_onboarding_aionrs_catalog_binding() {
 fn employee_acp_builtin_has_one_opt_in_profile() {
     let catalog = load_agent_configs(&json!({}));
     let profile = &catalog["acp-employee-acp"];
+    assert_eq!(profile.label.as_deref(), Some("识矩数字员工"));
     assert!(profile.builtin);
     assert!(!profile.enabled);
     assert!(!profile.allow_as_subagent);
     assert_eq!(profile.runtime, AgentRuntime::Acp { backend: "employee-acp".into() });
+}
+
+#[test]
+fn employee_acp_builtin_updates_legacy_label_and_preserves_enabled_state() {
+    let catalog = load_agent_configs(&json!({"agents":{"acp-employee-acp":{
+        "provider":"", "model":"", "label":"数字员工", "enabled":true
+    }}}));
+    let profile = &catalog["acp-employee-acp"];
+    assert_eq!(profile.label.as_deref(), Some("识矩数字员工"));
+    assert!(profile.enabled);
 }
 
 #[test]

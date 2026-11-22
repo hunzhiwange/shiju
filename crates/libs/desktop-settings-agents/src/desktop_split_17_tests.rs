@@ -20,13 +20,14 @@ fn input<'a>(state: &'a crate::acp_state::AcpSettingsState, theme: &'a iced::The
 fn ordered_agents_uses_known_rank_then_alphabetical_custom_names() {
     let mut state = crate::acp_state::AcpSettingsState::default();
     state.catalog.clear();
-    for name in ["zeta", "codex", "claude", "alpha", "qwen", "gemini"] {
+    for name in ["zeta", "codex", "claude", "alpha", "qwen", "gemini", "employee-acp"] {
         state.catalog.insert(name.to_string(), AcpAgentConfig::default());
     }
 
     assert_eq!(
         ordered_agents(&state.catalog),
         vec![
+            "employee-acp".to_string(),
             "claude".to_string(),
             "gemini".to_string(),
             "codex".to_string(),
@@ -79,6 +80,7 @@ fn acp_view_builds_saving_agent_state() {
 #[test]
 fn acp_catalog_displays_registered_agents() {
     for (key, title) in [
+        ("employee-acp", "识矩数字员工"),
         ("auggie", "Auggie CLI"),
         ("claude", "Claude Code"),
         ("codex", "Codex CLI"),

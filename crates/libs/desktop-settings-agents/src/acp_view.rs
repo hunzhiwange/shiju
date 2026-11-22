@@ -18,10 +18,12 @@ use config_aggregate::AcpAgentConfig;
 use crate::acp_diagnostic::diagnostic_status;
 
 use crate::acp::{
-    acp_description, acp_title, built_in_agent_display_name, command_line, ordered_agents, setup_hint,
+    EMPLOYEE_ACP_HINT, acp_description, acp_title, built_in_agent_display_name, command_line,
+    ordered_agents, setup_hint,
 };
 
 pub fn acp_card<'a>(input: Input<'a>, agent: String, config: &'a AcpAgentConfig) -> Element<'a, Event> {
+    let employee = agent == acp_agent_registry::EMPLOYEE_ACP_BACKEND;
     let builtin = built_in_agent_display_name(&agent).is_some();
     let enabled = input.state.enabled.contains(&agent);
     let installed = input.state.installed.get(&agent).copied().unwrap_or_default();
@@ -62,8 +64,12 @@ pub fn acp_card<'a>(input: Input<'a>, agent: String, config: &'a AcpAgentConfig)
                 tr(acp_description(&summary_agent)),
             )
             .wrap(),
-            settings_value_badge(tr(if enabled { "已启用" } else { "未启用" })),
         ];
+        let labels = if employee {
+            labels
+        } else {
+            labels.push(settings_value_badge(tr(if enabled { "已启用" } else { "未启用" })))
+        };
         let labels = if builtin {
             labels.push(settings_value_badge(tr("内置 ACP")))
         } else {
@@ -88,6 +94,9 @@ pub fn acp_card<'a>(input: Input<'a>, agent: String, config: &'a AcpAgentConfig)
         .spacing(12)
         .align_y(Alignment::Center)
         .width(Length::Fill);
+        if employee {
+            return identity.into();
+        }
         let actions = row![
             button(text(tr("编辑")).size(13))
                 .padding([7, 12])
@@ -123,6 +132,20 @@ pub fn acp_card<'a>(input: Input<'a>, agent: String, config: &'a AcpAgentConfig)
         }
     })
     .height(Length::Shrink);
+
+    if employee {
+        return container(
+            column![
+                summary,
+                text(tr(EMPLOYEE_ACP_HINT)).size(12).style(settings_muted_text_style),
+            ]
+            .spacing(10),
+        )
+        .padding([16, 18])
+        .width(Length::Fill)
+        .style(settings_panel_style)
+        .into();
+    }
 
     let installation = installation_section(input, &agent, builtin);
 

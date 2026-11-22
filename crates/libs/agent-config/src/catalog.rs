@@ -29,6 +29,12 @@ pub fn merged_agent_catalog(
             entry.defaults = Default::default();
             entry.allowed_tools.clear();
             entry.allowed_skills.clear();
+            if entry.label.as_deref() == Some("数字员工") {
+                entry.label = None;
+            }
+            if entry.description.as_deref() == Some("通过 ACP 运行 数字员工。") {
+                entry.description = None;
+            }
         }
         if entry.label.is_none() {
             entry.label = Some(spec.display_name.clone());

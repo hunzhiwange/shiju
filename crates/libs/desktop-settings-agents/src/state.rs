@@ -68,7 +68,9 @@ pub struct DelegateAgentSettingsEntry {
 
 impl DelegateAgentSettingsEntry {
     pub fn can_start_session(&self) -> bool {
-        self.enabled && !matches!(self.kind, AgentSettingsEntryKind::BuiltinWorker)
+        self.enabled
+            && self.key != acp_agent_registry::EMPLOYEE_ACP_PROFILE
+            && !matches!(self.kind, AgentSettingsEntryKind::BuiltinWorker)
     }
 
     /// 执行 from_config 对应的领域操作。

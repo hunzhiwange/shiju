@@ -1,7 +1,9 @@
 pub(crate) use acp_agent_registry::agent_registry::built_in_agent_display_name;
+use acp_agent_registry::EMPLOYEE_ACP_BACKEND;
 use config_aggregate::AcpAgentConfig;
 
 pub(crate) const ACP_ORDER: &[&str] = &[
+    EMPLOYEE_ACP_BACKEND,
     "claude",
     "gemini",
     "opencode",
@@ -25,6 +27,9 @@ pub(crate) const ACP_ORDER: &[&str] = &[
     "hermes",
     "snow",
 ];
+
+pub(crate) const EMPLOYEE_ACP_HINT: &str =
+    "在官方智能体中启用后，请从数字员工页面选择员工发起会话。";
 
 pub fn acp_title(agent: &str) -> &'static str {
     built_in_agent_display_name(agent).unwrap_or("自定义 ACP")

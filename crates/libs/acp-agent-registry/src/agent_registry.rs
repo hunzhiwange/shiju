@@ -260,7 +260,7 @@ pub const EMPLOYEE_ACP_CREDENTIAL_ENV: &str = "SHIJU_EMPLOYEE_ACP_CREDENTIAL";
 const BUILT_IN_AGENT_DEFINITIONS: &[BuiltInAgentDefinition] = &[
     BuiltInAgentDefinition {
         name: EMPLOYEE_ACP_BACKEND,
-        display_name: "数字员工",
+        display_name: "识矩数字员工",
         // A launch can only be supplied by the authenticated request host.
         command: "",
         args: &[],

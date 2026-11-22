@@ -150,12 +150,27 @@ def forward_mcp(path, command):
             try:
                 for line in lines(sys.stdin.buffer):
                     msg = json.loads(line)
-                    if msg.get('method') == 'tools/call' and not catalog.admits(msg.get('params', {}).get('name')):
-                        if 'id' in msg:
-                            forward({'jsonrpc': '2.0', 'id': msg['id'], 'error': {
-                                'code': -32602, 'message': 'MCP tool is outside the selected policy',
-                            }})
-                        continue
+                    if msg.get('method') == 'tools/call':
+                        admitted = catalog.admits(msg.get('params', {}).get('name'))
+                        if admitted and sys.platform == 'linux':
+                            # A child kept alive by Grok must still observe session rebinding.
+                            try:
+                                policy = policy_file.open('rb')
+                            except FileNotFoundError:
+                                admitted = False
+                            else:
+                                with policy:
+                                    fcntl.flock(policy, fcntl.LOCK_SH)
+                                    if os.fstat(policy.fileno()).st_nlink:
+                                        send(peer.stdin, line)
+                                        continue
+                                    admitted = False
+                        if not admitted:
+                            if 'id' in msg:
+                                forward({'jsonrpc': '2.0', 'id': msg['id'], 'error': {
+                                    'code': -32602, 'message': 'MCP tool is outside the selected policy',
+                                }})
+                            continue
                     catalog.request(msg)
                     send(peer.stdin, line)
             except (OSError, ValueError):
@@ -335,9 +350,18 @@ class Selection:
         self.close()
 
     def close(self):
+        previous = self.snapshot
         self.snapshot = (None, {})
+        if sys.platform == 'linux' and previous is not None:
+            for path in previous[1].values():
+                policy_file = path.with_suffix('.policy')
+                with policy_file.open('rb') as policy:
+                    fcntl.flock(policy, fcntl.LOCK_EX)
+                    policy_file.unlink()
 
     def bind(self, params):
+        if sys.platform == 'linux':
+            self.close()
         servers = params.get('mcpServers', [])
         # Remote and mixed transports retain Grok's native discovery path.
         if any(server.get('type', 'stdio') != 'stdio' for server in servers):
@@ -482,7 +506,11 @@ def launch(script, config, port, command):
                 except (OSError, ValueError, KeyError, TypeError):
                     pass
                 finally:
-                    proc.stdin.close()
+                    try:
+                        if sys.platform == 'linux':
+                            server.selection.close()
+                    finally:
+                        proc.stdin.close()
 
             threading.Thread(target=requests, daemon=True).start()
             try:

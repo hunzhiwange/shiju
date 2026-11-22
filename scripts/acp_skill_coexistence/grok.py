@@ -2,6 +2,7 @@
 
 import hashlib
 import json
+import os
 from pathlib import Path
 import platform
 import re
@@ -23,23 +24,41 @@ SHA256 = "197c66a63e5ac46e07450b0ca21d141ce665050a412180f185dadfae1c7a5b2a"
 
 
 def launch(env):
-    require((platform.system(), platform.machine()) == ("Darwin", "arm64"),
-            "unreviewed Grok Build platform")
-    original = Path.home() / ".grok/bin/grok-1.0.77"
-    entry = Path(env["HOME"]) / "grok"
+    artifact = {}
+    if platform.system() == "Linux":
+        manifest_file = (Path(__file__).resolve().parents[2]
+                         / "patches/acp-model-source/grok/linux-artifacts.json")
+        manifest = json.loads(manifest_file.read_text())
+        target = manifest["targets"].get(platform.machine())
+        require(target is not None, "unreviewed Grok Build Linux architecture")
+        source = os.environ.get("SHIJU_ACP_GROK_RUNTIME")
+        require(bool(source), "set SHIJU_ACP_GROK_RUNTIME to the pinned Linux Grok executable")
+        original = Path(source).resolve(strict=True)
+        runtime = Path(env["VIBEWINDOW_CONFIG_DIR"]) / "acp-runtime" / manifest["directory"]
+        entry = runtime / manifest["bin"]
+        entry.parent.mkdir(parents=True)
+        version, expected_digest = manifest["reported_version"], target["sha256"]
+        args = manifest["args"]
+        artifact.update(entry=manifest["bin"], model_endpoint="/v1/chat/completions")
+    else:
+        require((platform.system(), platform.machine()) == ("Darwin", "arm64"),
+                "unreviewed Grok Build platform")
+        original = Path.home() / ".grok/bin/grok-1.0.77"
+        entry = Path(env["HOME"]) / "grok"
+        version, expected_digest = VERSION, SHA256
+        args = ["agent", "stdio"]
     shutil.copy2(original, entry)
     checksum = hashlib.sha256()
     with entry.open("rb") as binary:
         for block in iter(lambda: binary.read(1024 * 1024), b""):
             checksum.update(block)
     digest = checksum.hexdigest()
-    require(digest == SHA256, "unexpected Grok Build artifact digest")
+    require(digest == expected_digest, "unexpected Grok Build artifact digest")
     result = subprocess.run([str(entry), "--version"], env=env, capture_output=True, timeout=15)
-    require(result.returncode == 0 and VERSION.encode() in result.stdout,
+    require(result.returncode == 0 and version.encode() in result.stdout,
             "unexpected Grok Build version")
-    return {"command": str(entry), "args": ["agent", "stdio"]}, {
-        "version": VERSION, "entry_sha256": digest,
-    }
+    artifact.update(version=version, entry_sha256=digest)
+    return {"command": str(entry), "args": args}, artifact
 
 
 def prepare_workspace(workspace):

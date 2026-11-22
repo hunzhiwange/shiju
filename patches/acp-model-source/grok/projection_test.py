@@ -1,6 +1,7 @@
 import io
 import json
 import os
+import select
 import subprocess
 import sys
 import tempfile
@@ -132,6 +133,38 @@ for line in sys.stdin:
             self.assertEqual(selection.current(selection.snapshot), (folder, {}))
             selection.close()
             self.assertEqual(selection.current(selection.snapshot), (None, {}))
+
+    @unittest.skipUnless(sys.platform == 'linux', 'Linux generation revocation')
+    def test_revoked_stdio_cannot_forward_even_an_allowed_call(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            script = Path(__file__).with_name('projection.py').resolve()
+            selection = Selection(root, script)
+            params = {'cwd': folder, 'mcpServers': [{
+                'name': SERVER, 'command': sys.executable,
+                'args': ['-u', '-c', 'import sys; [print(line, end="") for line in sys.stdin]'],
+            }]}
+            selection.bind(params)
+            server = params['mcpServers'][0]
+            with subprocess.Popen([server['command'], *server['args']],
+                                  stdin=subprocess.PIPE, stdout=subprocess.PIPE) as child:
+                handshake = encode({'id': 1, 'method': 'ping'}) + b'\n'
+                call = encode({'id': 2, 'method': 'tools/call', 'params': {'name': 'lookup'}}) + b'\n'
+                try:
+                    child.stdin.write(handshake)
+                    child.stdin.flush()
+                    self.assertTrue(select.select([child.stdout], [], [], 5)[0])
+                    self.assertEqual(child.stdout.readline(), handshake)
+                    selection.bind({'cwd': folder, 'mcpServers': []})
+                    child.stdin.write(call)
+                    child.stdin.flush()
+                    self.assertTrue(select.select([child.stdout], [], [], 5)[0])
+                    reply = json.loads(child.stdout.readline())
+                    self.assertEqual(reply['id'], 2)
+                    self.assertIn('error', reply)
+                finally:
+                    child.stdin.close()
+                    child.wait(timeout=5)
 
     def test_resource_only_server_has_an_empty_catalog(self):
         with tempfile.TemporaryDirectory() as folder:

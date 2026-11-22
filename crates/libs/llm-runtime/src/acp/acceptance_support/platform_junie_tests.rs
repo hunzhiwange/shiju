@@ -76,3 +76,71 @@ fn acp_platform_junie_contract() {
     assert!(!profile.directory().join("junie.json").exists());
     assert!(profile.session_model_id.is_none());
 }
+
+#[tokio::test]
+#[ignore = "requires a disposable GNU Linux container and access to the fixed JetBrains archive"]
+async fn acp_platform_junie_contract_native() {
+    use acp_agent_registry::{install_builtin_agent, resolve_agent_spec};
+    use acp_client::AcpClient;
+    use acp_types::{AcpAgentConfig, PermissionMode};
+    use std::{env, fs, path::Path, process::Command, time::Duration};
+
+    const ROOT_ENV: &str = "SHIJU_TEST_JUNIE_NATIVE_ROOT";
+    let Some(root) = env::var_os(ROOT_ENV) else {
+        let root = tempfile::tempdir().unwrap();
+        for directory in ["home", "config", "workspace"] {
+            fs::create_dir(root.path().join(directory)).unwrap();
+        }
+        let module = module_path!().split_once("::").unwrap().1;
+        let status = Command::new(env::current_exe().unwrap())
+            .args([
+                "--ignored",
+                "--exact",
+                &format!("{module}::acp_platform_junie_contract_native"),
+            ])
+            .env_clear()
+            .env("PATH", "/usr/bin:/bin")
+            .env("HOME", root.path().join("home"))
+            .env("VIBEWINDOW_CONFIG_DIR", root.path().join("config"))
+            .env(ROOT_ENV, root.path())
+            .current_dir(root.path().join("workspace"))
+            .status()
+            .unwrap();
+        assert!(status.success(), "Junie native contract failed");
+        return;
+    };
+
+    let root = Path::new(&root);
+    install_builtin_agent("junie").await.unwrap();
+    let entry = root
+        .join("config/acp-runtime/junie-4100.5-linux-native-v1/junie-app/bin/junie")
+        .canonicalize()
+        .unwrap();
+    let spec = resolve_agent_spec("junie").unwrap();
+    assert_eq!(Path::new(&spec.command), entry.as_path());
+    assert_eq!(spec.args, ["--acp=true"]);
+    assert!(spec.env.is_empty());
+    let client = AcpClient::new(
+        "junie",
+        AcpAgentConfig { command: spec.command, args: spec.args, env: spec.env },
+    )
+    .with_permission_mode(PermissionMode::DenyAll);
+    let created = tokio::time::timeout(
+        Duration::from_secs(30),
+        client.create_session(root.join("workspace")),
+    )
+    .await;
+    client.close().await.unwrap();
+    assert!(!created.unwrap().unwrap().session_id.is_empty());
+
+    // Tampering with a non-entry file must also invalidate the fixed install.
+    fs::write(entry.parent().unwrap().join("../lib/app/junie.cfg"), "changed").unwrap();
+    assert!(
+        acp_agent_registry::verify_fixed_linux_cli_launch(
+            "junie",
+            entry.to_str().unwrap(),
+            &["--acp=true".into()]
+        )
+        .is_err()
+    );
+}

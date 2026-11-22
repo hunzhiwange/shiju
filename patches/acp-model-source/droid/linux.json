@@ -15,7 +15,8 @@
         22824,
         38185632,
         0
-      ]
+      ],
+      "source_size": 343759024
     },
     "aarch64": {
       "artifact_url": "https://downloads.factory.ai/factory-cli/releases/1.9.0/linux/arm64/droid",
@@ -29,7 +30,8 @@
         22824,
         38126368,
         0
-      ]
+      ],
+      "source_size": 335662072
     }
   }
 }

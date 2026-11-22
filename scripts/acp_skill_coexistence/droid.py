@@ -79,7 +79,6 @@ def launch(env):
 
 
 def launch_linux(env):
-    manifest = MANAGED_DIR / "contracts.json"
     patches = ROOT / "patches/acp-model-source/droid"
     contract = json.loads((patches / "linux.json").read_text())
     target = contract["targets"].get(platform.machine())
@@ -87,13 +86,9 @@ def launch_linux(env):
     require(contract["version"] == VERSION, "unexpected Droid artifact version")
     runtime = Path(env["VIBEWINDOW_CONFIG_DIR"]) / "acp-runtime" / contract["revision"]
     runtime.parent.mkdir()
-    with tempfile.TemporaryDirectory(dir=env["TMPDIR"]) as directory:
-        assets = Path(directory)
-        shutil.copy2(manifest, assets)
-        shutil.copytree(patches, assets / "droid")
-        installed = subprocess.run(
-            [sys.executable, str(MANAGED_DIR / "install.py"), str(assets), str(runtime), "droid"],
-            env=env, capture_output=True, timeout=300)
+    installed = subprocess.run(
+        [sys.executable, "-E", "-s", "-B", str(patches / "install_linux.py"), str(runtime)],
+        env=env, capture_output=True, timeout=300)
     require(installed.returncode == 0, "Droid reviewed Linux runtime installation failed")
     entry = runtime / contract["bin"]
     digest = hashlib.sha256()

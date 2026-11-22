@@ -62,3 +62,74 @@ fn acp_platform_poolside_contract() {
         }
     }
 }
+
+#[tokio::test]
+#[ignore = "requires access to the pinned Poolside release from a disposable GNU Linux container"]
+async fn acp_platform_poolside_contract_cli_local() {
+    use acp_agent_registry::{install_builtin_agent, resolve_agent_spec};
+    use acp_client::AcpClient;
+    use acp_types::{AcpAgentConfig, PermissionMode};
+    use std::{env, fs, time::Duration};
+
+    const FIXTURE_ROOT: &str = "SHIJU_TEST_POOLSIDE_CLI_LOCAL_ROOT";
+    let Some(root) = env::var_os(FIXTURE_ROOT) else {
+        let root = tempfile::tempdir().unwrap();
+        for name in ["home", "config", "workspace"] {
+            fs::create_dir(root.path().join(name)).unwrap();
+        }
+        let module = module_path!().split_once("::").unwrap().1;
+        let test = format!("{module}::acp_platform_poolside_contract_cli_local");
+        let status = Command::new(env::current_exe().unwrap())
+            .args(["--ignored", "--exact", &test])
+            .env_clear()
+            .env("PATH", "/usr/local/bin:/usr/bin:/bin")
+            .env("HOME", root.path().join("home"))
+            .env("VIBEWINDOW_CONFIG_DIR", root.path().join("config"))
+            .env(FIXTURE_ROOT, root.path())
+            .current_dir(root.path().join("workspace"))
+            .status()
+            .unwrap();
+        assert!(status.success(), "isolated Poolside cli_local contract failed");
+        return;
+    };
+
+    let root = Path::new(&root);
+    let workspace = root.join("workspace");
+    install_builtin_agent("poolside").await.unwrap();
+    let entry =
+        root.join("config/acp-runtime/poolside-1.0.16-linux-cli-v1/pool").canonicalize().unwrap();
+    let spec = resolve_agent_spec("poolside").unwrap();
+    assert_eq!(Path::new(&spec.command), entry.as_path());
+    assert_eq!(spec.args, ["acp"]);
+    assert!(spec.env.is_empty());
+
+    let ordinary = AcpAgentConfig { command: spec.command, args: spec.args, env: spec.env };
+    let client =
+        |config| AcpClient::new("poolside", config).with_permission_mode(PermissionMode::DenyAll);
+    let timeout = Duration::from_secs(30);
+    let first = client(ordinary.clone());
+    let result = tokio::time::timeout(timeout, first.create_session(&workspace)).await;
+    first.close().await.unwrap();
+    let session_id = result.unwrap().unwrap().session_id;
+    assert!(!session_id.is_empty());
+
+    let second = client(ordinary.clone());
+    let result = tokio::time::timeout(timeout, second.load_session(&session_id, &workspace)).await;
+    second.close().await.unwrap();
+    assert_eq!(result.unwrap().unwrap().session_id, session_id);
+
+    let mut managed = ordinary.clone();
+    managed.env.insert("VW_ACP_LAUNCH_REFERENCE".into(), "unissued-fixture-reference".into());
+    let managed = client(managed);
+    let result = tokio::time::timeout(timeout, managed.create_session(&workspace)).await;
+    managed.close().await.unwrap();
+    let error = result.unwrap().unwrap_err().to_string();
+    assert!(error.contains("no verified managed Linux launch"), "{error}");
+
+    fs::write(&entry, b"unreviewed executable").unwrap();
+    let third = client(ordinary);
+    let result = tokio::time::timeout(timeout, third.load_session(&session_id, &workspace)).await;
+    third.close().await.unwrap();
+    let error = result.unwrap().unwrap_err().to_string();
+    assert!(error.contains("Fixed Linux ACP executable checksum mismatch"), "{error}");
+}

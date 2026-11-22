@@ -1,4 +1,31 @@
 use super::*;
+use std::collections::HashMap;
+
+fn terminal_env() -> HashMap<String, String> {
+    let mut env = HashMap::from([
+        ("TERM".to_string(), "xterm-256color".to_string()),
+        ("CLICOLOR".to_string(), "1".to_string()),
+        ("LSCOLORS".to_string(), "ExFxBxDxCxegedabagacad".to_string()),
+    ]);
+
+    #[cfg(unix)]
+    {
+        let has_locale = ["LC_ALL", "LC_CTYPE", "LANG"]
+            .into_iter()
+            .any(|key| std::env::var_os(key).is_some_and(|value| !value.is_empty()));
+        if !has_locale {
+            // GUI launches may have no locale, leaving zsh in byte-oriented C mode.
+            let locale = if cfg!(target_os = "macos") {
+                "en_US.UTF-8"
+            } else {
+                "C.UTF-8"
+            };
+            env.insert("LC_CTYPE".to_string(), locale.to_string());
+        }
+    }
+
+    env
+}
 
 impl<S: Copy + Into<&'static str>> TerminalState<S> {
     #[cfg(not(target_arch = "wasm32"))]
@@ -11,19 +38,12 @@ impl<S: Copy + Into<&'static str>> TerminalState<S> {
         let shell_path = self.shell.into().to_string();
 
         let settings = iced_term::settings::Settings {
-            backend: {
-                use std::collections::HashMap;
-                let mut env = HashMap::new();
-                env.insert("TERM".to_string(), "xterm-256color".to_string());
-                env.insert("CLICOLOR".to_string(), "1".to_string());
-                env.insert("LSCOLORS".to_string(), "ExFxBxDxCxegedabagacad".to_string());
-                iced_term::settings::BackendSettings {
-                    program: shell_path,
-                    args: vec!["-i".to_string()],
-                    env,
-                    working_directory: cwd,
-                    ..Default::default()
-                }
+            backend: iced_term::settings::BackendSettings {
+                program: shell_path,
+                args: vec!["-i".to_string()],
+                env: terminal_env(),
+                working_directory: cwd,
+                ..Default::default()
             },
             ..Default::default()
         };
@@ -53,19 +73,12 @@ impl<S: Copy + Into<&'static str>> TerminalState<S> {
         let shell_path = self.shell.into().to_string();
 
         let settings = iced_term::settings::Settings {
-            backend: {
-                use std::collections::HashMap;
-                let mut env = HashMap::new();
-                env.insert("TERM".to_string(), "xterm-256color".to_string());
-                env.insert("CLICOLOR".to_string(), "1".to_string());
-                env.insert("LSCOLORS".to_string(), "ExFxBxDxCxegedabagacad".to_string());
-                iced_term::settings::BackendSettings {
-                    program: shell_path,
-                    args: vec!["-lc".to_string(), command],
-                    env,
-                    working_directory: cwd,
-                    ..Default::default()
-                }
+            backend: iced_term::settings::BackendSettings {
+                program: shell_path,
+                args: vec!["-lc".to_string(), command],
+                env: terminal_env(),
+                working_directory: cwd,
+                ..Default::default()
             },
             ..Default::default()
         };
@@ -93,11 +106,7 @@ impl<S: Copy + Into<&'static str>> TerminalState<S> {
 
         let settings = iced_term::settings::Settings {
             backend: {
-                use std::collections::HashMap;
-                let mut env = HashMap::new();
-                env.insert("TERM".to_string(), "xterm-256color".to_string());
-                env.insert("CLICOLOR".to_string(), "1".to_string());
-                env.insert("LSCOLORS".to_string(), "ExFxBxDxCxegedabagacad".to_string());
+                let mut env = terminal_env();
                 env.insert("VW_TOOL_INIT".to_string(), init_script);
                 env.insert(
                     "PROMPT_COMMAND".to_string(),
@@ -174,11 +183,7 @@ fi
 
         let settings = iced_term::settings::Settings {
             backend: {
-                use std::collections::HashMap;
-                let mut env = HashMap::new();
-                env.insert("TERM".to_string(), "xterm-256color".to_string());
-                env.insert("CLICOLOR".to_string(), "1".to_string());
-                env.insert("LSCOLORS".to_string(), "ExFxBxDxCxegedabagacad".to_string());
+                let mut env = terminal_env();
                 env.insert("ZDOTDIR".to_string(), zdotdir.to_string_lossy().to_string());
                 env.insert("VW_TOOL_INIT".to_string(), init_script);
 

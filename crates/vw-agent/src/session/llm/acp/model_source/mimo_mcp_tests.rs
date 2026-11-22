@@ -344,3 +344,7 @@ async fn acp_platform_approval_linux_sandboxed_stdio_dispatch() {
     launch.revoke();
     assert_eq!(post(&projection, ROUTE, token, "tools/call", call).await.0, StatusCode::UNAUTHORIZED);
 }
+
+#[cfg(all(target_os = "linux", target_env = "gnu", any(target_arch = "x86_64", target_arch = "aarch64")))]
+#[path = "mimo_mcp_mount_review_tests.rs"]
+mod mount_review;

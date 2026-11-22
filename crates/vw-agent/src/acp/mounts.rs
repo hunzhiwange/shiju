@@ -34,8 +34,13 @@ pub(super) async fn prepare_revision(
         scope, session, &request, saved, revision, &config.skills.security,
         || crate::skills::load_skills_with_config(scope.directory(), &config),
     )?;
-    let ResolvedCatalogMounts { leases, servers } = managed;
+    let ResolvedCatalogMounts { leases, servers, reviewed_names } = managed;
     request.mcp_servers.extend(servers);
+    if request.mcp_servers.iter().any(|server| {
+        reviewed_names.iter().any(|name| name == crate::tools::mcp_common::server_name(server))
+    }) {
+        return Err(BackendError::InvalidRequest("reviewed MCP name conflicts with a session server".into()));
+    }
     let mcp_catalog = leases.as_ref().map(|leases| leases.mounts.clone()).unwrap_or_default();
     let tools = super::mcp::prepare_session_tools(&request.mcp_servers, leases).await?;
     skills.validate().map_err(|error| BackendError::InvalidRequest(error.to_string()))?;
@@ -43,6 +48,7 @@ pub(super) async fn prepare_revision(
         .mcp_servers
         .iter()
         .map(|server| crate::tools::mcp_common::server_name(server).to_string())
+        .chain(reviewed_names)
         .collect();
     Ok(PreparedMounts {
         skills,

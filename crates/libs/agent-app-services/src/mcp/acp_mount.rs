@@ -27,6 +27,7 @@ use session_port::SessionScope;
 pub struct ResolvedCatalogMounts {
     pub leases: Option<AcpMountLeases>,
     pub servers: Vec<McpServer>,
+    pub reviewed_names: Vec<String>,
 }
 
 pub fn resolve_mounts(
@@ -51,19 +52,36 @@ pub fn resolve_mounts(
             .map_err(|_| mount_error(McpFailureCode::PermissionDenied))?;
         let mut names = HashSet::new();
         for mount in selected {
-            if !scope_belongs_to_project(&mount.scope, &project) {
-                return Err(mount_error(McpFailureCode::PermissionDenied));
-            }
             if !names.insert(&mount.record.id.0) {
                 return Err(mount_error(McpFailureCode::Conflict));
             }
         }
 
         let store = catalog_store(database).map_err(|error| BackendError::Internal(error.to_string()))?;
-        let (mounts, servers) = run_sync_database(|| {
+        let (mounts, servers, reviewed_names) = run_sync_database(|| {
             let mut mounts = Vec::new();
             let mut servers = Vec::new();
+            let mut reviewed_names = Vec::new();
             for mount in selected {
+                match is_reviewed(&store, &project, mount) {
+                    Ok(true) => {
+                        #[cfg(all(target_os = "linux", target_env = "gnu", any(target_arch = "x86_64", target_arch = "aarch64")))]
+                        match store.reviewed_mounted_stdio(&project, mount) {
+                            Ok(_) => {
+                                reviewed_names.push(mount.record.id.0.clone());
+                                mounts.push(mount.clone());
+                                continue;
+                            }
+                            Err(McpFailureCode::PermissionDenied | McpFailureCode::NotFound | McpFailureCode::StaleRevision) if restoring => continue,
+                            Err(code) => return Ok(Err(mount_error(code))),
+                        }
+                        #[cfg(not(all(target_os = "linux", target_env = "gnu", any(target_arch = "x86_64", target_arch = "aarch64"))))]
+                        return Ok(Err(mount_error(McpFailureCode::PermissionDenied)));
+                    }
+                    Ok(false) if scope_belongs_to_project(&mount.scope, &project) => {}
+                    Ok(false) => return Ok(Err(mount_error(McpFailureCode::PermissionDenied))),
+                    Err(code) => return Ok(Err(mount_error(code))),
+                }
                 let connection = match store.resolve_for_native_runtime(&mount.scope, &mount.record)
                 {
                     Ok(connection) => connection,
@@ -92,7 +110,7 @@ pub fn resolve_mounts(
                 servers.push(server);
                 mounts.push(mount.clone());
             }
-            Ok(Ok((mounts, servers)))
+            Ok(Ok((mounts, servers, reviewed_names)))
         })
         .map_err(|_| mount_error(McpFailureCode::StorageUnavailable))??;
         let leases = (!mounts.is_empty()).then(|| AcpMountLeases {
@@ -100,8 +118,9 @@ pub fn resolve_mounts(
             session: session.to_owned(),
             mounts,
             store,
+            project,
         });
-        Ok(ResolvedCatalogMounts { leases, servers })
+        Ok(ResolvedCatalogMounts { leases, servers, reviewed_names })
     }
 }
 
@@ -123,6 +142,8 @@ pub struct AcpMountLeases {
     session: String,
     pub mounts: Vec<McpCatalogMount>,
     store: McpCatalogStore,
+    #[cfg(not(target_arch = "wasm32"))]
+    project: ProjectScope,
 }
 
 impl AcpMountLeases {
@@ -133,19 +154,42 @@ impl AcpMountLeases {
         if context.is_some_and(|(tenant, session)| tenant != self.tenant || session != self.session) {
             return Ok(false);
         }
-        run_sync_database(|| revision_is_current(&self.store, mount))
+        run_sync_database(|| self.native_revision_is_current(mount))
     }
 
     pub fn revoked_names(&self) -> anyhow::Result<HashSet<&str>> {
         run_sync_database(|| {
             let mut revoked = HashSet::new();
             for mount in &self.mounts {
-                if !revision_is_current(&self.store, mount)? {
+                if !self.native_revision_is_current(mount)? {
                     revoked.insert(mount.record.id.0.as_str());
                 }
             }
             Ok(revoked)
         })
+    }
+
+    fn native_revision_is_current(&self, mount: &McpCatalogMount) -> anyhow::Result<bool> {
+        #[cfg(not(target_arch = "wasm32"))]
+        if is_reviewed(&self.store, &self.project, mount)
+            .map_err(|code| anyhow::anyhow!("managed MCP mount: {code:?}"))?
+        {
+            return Ok(false);
+        }
+        revision_is_current(&self.store, mount)
+    }
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+fn is_reviewed(
+    store: &McpCatalogStore,
+    project: &ProjectScope,
+    mount: &McpCatalogMount,
+) -> Result<bool, McpFailureCode> {
+    match store.linux_stdio_selection(project, &mount.record.id.0) {
+        Ok(selection) => Ok(super::reviewed_stdio::matches_catalog_scope(&selection.scope, &mount.scope)),
+        Err(McpFailureCode::NotFound | McpFailureCode::PermissionDenied) => Ok(false),
+        Err(code) => Err(code),
     }
 }
 

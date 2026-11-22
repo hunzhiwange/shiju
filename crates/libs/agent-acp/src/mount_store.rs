@@ -18,6 +18,13 @@ pub struct MountRecord {
     pub mcp_catalog: Vec<McpCatalogMount>,
 }
 
+impl MountRecord {
+    pub fn has_mcp_name(&self, name: &str) -> bool {
+        self.mcp_names.iter().any(|entry| entry == name)
+            || self.mcp_catalog.iter().any(|entry| entry.record.id.0 == name)
+    }
+}
+
 pub fn key(scope: &SessionScope, session: &str) -> String {
     let tenant = scope.tenant();
     let mut identity = vec![
@@ -37,12 +44,27 @@ pub async fn load(
     session: &str,
 ) -> Result<Option<MountRecord>, BackendError> {
     let binding = key(scope, session);
-    let record: MountRecord = match agent_storage::read(&["acp_session_mounts", &binding]).await {
+    decode_record(agent_storage::read(&["acp_session_mounts", &binding]).await, &binding)
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+pub async fn reader(
+    scope: &SessionScope,
+    session: &str,
+) -> impl Fn() -> Result<Option<MountRecord>, BackendError> + Send + Sync + use<> {
+    let binding = key(scope, session);
+    let read = agent_storage::atomic_reader(&["acp_session_mounts", &binding]).await;
+    move || decode_record(read(), &binding)
+}
+
+fn decode_record(
+    record: Result<MountRecord, agent_storage::Error>,
+    binding: &str,
+) -> Result<Option<MountRecord>, BackendError> {
+    let record = match record {
         Ok(record) => record,
         Err(agent_storage::Error::NotFound(_)) => return Ok(None),
-        Err(_) => {
-            return Err(BackendError::InvalidRequest("invalid persisted session mounts".into()));
-        }
+        Err(_) => return Err(BackendError::InvalidRequest("invalid persisted session mounts".into())),
     };
     if record.version != 1
         || record.binding != binding

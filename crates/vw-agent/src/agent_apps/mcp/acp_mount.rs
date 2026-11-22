@@ -8,11 +8,12 @@ use crate::{global_database::GlobalDatabase, session::runtime::SessionScope};
 pub(crate) struct ResolvedCatalogMounts {
     pub(crate) leases: Option<AcpMountLeases>,
     pub(crate) servers: Vec<McpServer>,
+    pub(crate) reviewed_names: Vec<String>,
 }
 pub(crate) fn resolve_mounts(scope: &SessionScope, session: &str, project_id: &str, selected: &[McpCatalogMount], restoring: bool) -> Result<ResolvedCatalogMounts, BackendError> {
     let resolved = agent_app_services::mcp::acp_mount::resolve_mounts(scope, session, project_id, selected, restoring,
         || GlobalDatabase::for_home(&crate::global::paths().home))?;
-    Ok(ResolvedCatalogMounts { leases: resolved.leases.map(AcpMountLeases), servers: resolved.servers })
+    Ok(ResolvedCatalogMounts { leases: resolved.leases.map(AcpMountLeases), servers: resolved.servers, reviewed_names: resolved.reviewed_names })
 }
 pub(crate) struct AcpMountLeases(agent_app_services::mcp::acp_mount::AcpMountLeases);
 impl std::ops::Deref for AcpMountLeases {
@@ -63,3 +64,10 @@ pub(crate) fn reviewed_project_stdio(
     anyhow::ensure!(valid(), "reviewed project MCP selection was revoked");
     Ok((review, valid))
 }
+
+#[cfg(all(target_os = "linux", target_env = "gnu", any(target_arch = "x86_64", target_arch = "aarch64")))]
+#[path = "acp_mount_reviewed.rs"]
+mod reviewed;
+
+#[cfg(all(target_os = "linux", target_env = "gnu", any(target_arch = "x86_64", target_arch = "aarch64")))]
+pub(crate) use reviewed::{ReviewedStdioMount, ReviewedStdioSource, reviewed_linux_stdio};

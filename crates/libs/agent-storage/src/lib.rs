@@ -199,6 +199,17 @@ pub async fn write<T: Serialize>(key: &[&str], content: &T) -> Result<(), Error>
     Ok(())
 }
 
+/// Prepare a synchronous reader for a record published only by `write_atomic`.
+/// The returned reader sees either the previous or the committed generation.
+#[cfg(not(target_arch = "wasm32"))]
+pub async fn atomic_reader<T: DeserializeOwned>(key: &[&str]) -> impl Fn() -> Result<T, Error> + use<T> {
+    let target = target_path(&state().await.dir, key);
+    move || {
+        let bytes = std::fs::read(&target).map_err(|error| map_io_error(error, &target))?;
+        Ok(serde_json::from_slice(&bytes)?)
+    }
+}
+
 /// Publish a complete JSON record with a same-directory atomic rename.
 #[cfg(not(target_arch = "wasm32"))]
 pub async fn write_atomic<T: Serialize>(key: &[&str], content: &T) -> Result<(), Error> {

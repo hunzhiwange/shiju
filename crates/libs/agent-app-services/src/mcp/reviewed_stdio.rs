@@ -60,7 +60,7 @@ impl McpCatalogStore {
         Ok(active.record)
     }
 
-    fn linux_stdio_selection(
+    pub(super) fn linux_stdio_selection(
         &self,
         project: &ProjectScope,
         name: &str,
@@ -81,6 +81,14 @@ impl McpCatalogStore {
         }
         Ok(selected)
     }
+}
+
+pub(super) fn matches_catalog_scope(
+    reviewed: &McpCatalogScope,
+    requested: &McpCatalogScope,
+) -> bool {
+    let McpCatalogScope::Project { scope } = requested else { return false };
+    catalog_project(scope).is_ok_and(|scope| reviewed == &McpCatalogScope::Project { scope })
 }
 
 fn catalog_project(project: &ProjectScope) -> Result<ProjectScope, McpFailureCode> {

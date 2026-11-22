@@ -1,5 +1,6 @@
 use super::*;
-use acp_types::AcpMcpServer;
+use acp_types::{AcpMcpServer, McpCatalogMount};
+use agent_client_protocol::McpServerStdio;
 use std::path::{Path, PathBuf};
 
 /// Owned proof for one project service. Check it again before discovery and execution.
@@ -60,18 +61,42 @@ impl McpCatalogStore {
         let [AcpMcpServer::Stdio(requested)] = requested else {
             return Err(McpFailureCode::PermissionDenied);
         };
-        let selection = self.linux_stdio_selection(project, &requested.name)?;
-        if selection.disabled {
-            return Err(McpFailureCode::PermissionDenied);
-        }
-        let connection = self.connection_for_revision(&selection.scope, &selection.record)?;
-        let (command, args) = fixed_command(&connection)?;
-        if requested.command.as_path() != command
-            || requested.args.as_slice() != args
+        let (proof, server) = self.reviewed_stdio(project, &requested.name, None)?;
+        if requested.command != server.command
+            || requested.args != server.args
             || !requested.env.is_empty()
         {
             return Err(McpFailureCode::PermissionDenied);
         }
+        Ok(proof)
+    }
+
+    /// Resolve an already-authorized mount from a committed host session record.
+    pub fn reviewed_mounted_stdio(
+        &self,
+        project: &ProjectScope,
+        mount: &McpCatalogMount,
+    ) -> Result<(ReviewedProjectStdio, McpServerStdio), McpFailureCode> {
+        self.reviewed_stdio(project, &mount.record.id.0, Some(mount))
+    }
+
+    fn reviewed_stdio(
+        &self,
+        project: &ProjectScope,
+        name: &str,
+        mount: Option<&McpCatalogMount>,
+    ) -> Result<(ReviewedProjectStdio, McpServerStdio), McpFailureCode> {
+        let selection = self.linux_stdio_selection(project, name)?;
+        if selection.disabled
+            || mount.is_some_and(|mount| {
+                !matches_catalog_scope(&selection.scope, &mount.scope)
+                    || selection.record != mount.record
+            })
+        {
+            return Err(McpFailureCode::PermissionDenied);
+        }
+        let connection = self.connection_for_revision(&selection.scope, &selection.record)?;
+        let (command, args) = fixed_command(&connection)?;
         let review = selection.linux_stdio.clone().ok_or(McpFailureCode::PermissionDenied)?;
         let proof = ReviewedProjectStdio {
             project: project.clone(),
@@ -83,7 +108,8 @@ impl McpCatalogStore {
         if !proof.is_current(self, project)? {
             return Err(McpFailureCode::PermissionDenied);
         }
-        Ok(proof)
+        let server = McpServerStdio::new(name, command.to_owned()).args(args.to_vec());
+        Ok((proof, server))
     }
 }
 

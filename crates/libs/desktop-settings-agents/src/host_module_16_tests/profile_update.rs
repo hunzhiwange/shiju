@@ -6,8 +6,6 @@ use crate::{
 
 pub(super) struct ProfileFixture {
     pub app_theme: iced::Theme,
-    pub capabilities:
-        Vec<(Option<String>, Vec<vw_api_acp_model::acp_model_source::AcpModelSourceCapability>)>,
     pub agents_settings: AgentsSettingsState,
     pub acp_agents: Vec<String>,
     pub mcp_settings: McpFixture,
@@ -357,10 +355,7 @@ pub(super) fn defaults_input<'a>(
         app.desktop_locale,
         &app.app_theme,
         super::selectable_help,
-        crate::defaults::supports_fixed_model(
-            &draft.runtime,
-            app.capabilities.iter().map(|(agent, caps)| (agent.as_deref(), caps.as_slice())),
-        ),
+        &draft.runtime,
         app.mcp_settings.inspect.as_ref(),
         app.mcp_settings.inspect_loading,
         app.mcp_settings.inspect_error.as_ref(),
@@ -386,4 +381,4 @@ fn agent_runtime_empty_directory_keeps_native() {
     );
 }
 
-impl Default for ProfileFixture { fn default() -> Self { Self { app_theme: iced::Theme::Light, capabilities: Default::default(), agents_settings: Default::default(), acp_agents: Default::default(), mcp_settings: Default::default(), acp_settings: Default::default(), desktop_locale: Default::default(), project_path: Default::default(), recent_projects: Default::default() } } }
+impl Default for ProfileFixture { fn default() -> Self { Self { app_theme: iced::Theme::Light, agents_settings: Default::default(), acp_agents: Default::default(), mcp_settings: Default::default(), acp_settings: Default::default(), desktop_locale: Default::default(), project_path: Default::default(), recent_projects: Default::default() } } }

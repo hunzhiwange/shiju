@@ -63,21 +63,12 @@ pub(in crate::app::components) fn defaults_input<'a>(
     app: &'a App,
     draft: &domain::state::DelegateAgentSettingsEntry,
 ) -> domain::defaults::Input<'a> {
-    let model_source_available = domain::defaults::supports_fixed_model(
-        &draft.runtime,
-        app.session_state.session_runtime_states.values().map(|state| {
-            (
-                state.acp_agent.as_deref(),
-                state.acp_options_state.options.model_source_capabilities.as_slice(),
-            )
-        }),
-    );
     domain::defaults::catalog_input(
         &app.agents_settings,
         app.general_settings.desktop_locale,
         &app.appearance.app_theme,
         help,
-        model_source_available,
+        &draft.runtime,
         app.mcp_settings.inspect.as_ref(),
         app.mcp_settings.inspect_loading,
         app.mcp_settings.inspect_error.as_ref(),

@@ -749,7 +749,12 @@ pub fn update(app: &mut Update<'_>, message: SettingsMessage) -> Task<Message> {
     {
         return Task::none();
     }
-    if app.state.profile_saving && !matches!(message, AgentsMessage::ProfileSaved(_)) {
+    if app.state.profile_saving
+        && !matches!(
+            message,
+            AgentsMessage::ProfileSaved(_) | AgentsMessage::ProfileModelSourceLoaded { .. }
+        )
+    {
         return Task::none();
     }
     let invert_skill_selection =
@@ -1085,7 +1090,7 @@ pub fn update(app: &mut Update<'_>, message: SettingsMessage) -> Task<Message> {
             } else {
                 Task::none()
             };
-            Task::batch([refresh_skill_catalog(app), catalog])
+            Task::batch([refresh_skill_catalog(app), app.effect(Effect::RefreshMcp), catalog])
         }
         AgentsMessage::DetailTabSelected(tab_key) => {
             let acp_draft = app.state.profile_modal.as_ref().is_some_and(|draft| {

@@ -1,5 +1,34 @@
 //! 智能体资料草稿消息与保存事务。
 use super::*;
+use crate::defaults::ModelSourceStatus;
+
+fn refresh_model_source(app: &mut Update<'_>) -> Task<Message> {
+    app.state.profile_model_source_generation += 1;
+    app.state.profile_model_source = ModelSourceStatus::Loading;
+    let Some(config_agent_profile::AgentRuntime::Acp { backend }) =
+        app.state.profile_modal.as_ref().map(|draft| &draft.runtime)
+    else {
+        return Task::none();
+    };
+    let generation = app.state.profile_model_source_generation;
+    let backend = backend.clone();
+    let client = app.client.clone();
+    Task::perform(
+        async move {
+            use vw_api_acp_model::acp_model_source::{AcpModelSource, AcpModelSourceCapability};
+            let options = client?.acp_model_source_capabilities(&backend).await?;
+            Ok(options.model_source_capabilities.contains(
+                &AcpModelSourceCapability::Supported { source: AcpModelSource::SessionModel },
+            ))
+        },
+        move |result| {
+            Message::Settings(SettingsMessage::Agents(AgentsMessage::ProfileModelSourceLoaded {
+                generation,
+                result,
+            }))
+        },
+    )
+}
 
 pub(super) fn update(app: &mut Update<'_>, message: AgentsMessage) -> Task<Message> {
     match message {
@@ -20,6 +49,7 @@ pub(super) fn update(app: &mut Update<'_>, message: AgentsMessage) -> Task<Messa
                     refresh_tools_task(app.access.clone(), app.client.clone()),
                     refresh_skill_catalog(app),
                     app.effect(Effect::RefreshMcp),
+                    refresh_model_source(app),
                 ]);
             }
             Task::none()
@@ -31,6 +61,22 @@ pub(super) fn update(app: &mut Update<'_>, message: AgentsMessage) -> Task<Messa
                     app.state.new_agent_key_input.clear();
                 }
                 app.state.profile_modal = None;
+                app.state.profile_model_source = ModelSourceStatus::Loading;
+            }
+            Task::none()
+        }
+        AgentsMessage::ProfileModelSourceRefresh => refresh_model_source(app),
+        AgentsMessage::ProfileModelSourceLoaded { generation, result } => {
+            if generation == app.state.profile_model_source_generation
+                && app.state.profile_modal.as_ref().is_some_and(|draft| {
+                    matches!(draft.runtime, config_agent_profile::AgentRuntime::Acp { .. })
+                })
+            {
+                app.state.profile_model_source = match result {
+                    Ok(true) => ModelSourceStatus::Available,
+                    Ok(false) => ModelSourceStatus::Unsupported,
+                    Err(_) => ModelSourceStatus::Failed,
+                };
             }
             Task::none()
         }
@@ -189,6 +235,7 @@ pub(super) fn update(app: &mut Update<'_>, message: AgentsMessage) -> Task<Messa
                             app.state.active_detail_tab =
                                 crate::state::AGENT_DETAIL_BASIC_TAB.to_string();
                         }
+                        return refresh_model_source(app);
                     }
                 }
                 AgentsMessage::ProfilePromptAdd => draft.recommended_prompts.push(String::new()),

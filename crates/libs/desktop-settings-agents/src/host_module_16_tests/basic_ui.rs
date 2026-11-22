@@ -1034,7 +1034,6 @@ async fn settings_help_gap_05_native_modal_moves_explanations_into_help() {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn settings_help_gap_05_acp_model_capability_controls_choices() {
     use config_agent_profile::AgentRuntime;
-    use vw_api_acp_model::acp_model_source::{AcpModelSource, AcpModelSourceCapability};
 
     if !isolated("settings_help_gap_05_acp_model_capability_controls_choices") {
         return;
@@ -1050,12 +1049,11 @@ async fn settings_help_gap_05_acp_model_capability_controls_choices() {
     app.agents_settings.profile_modal = Some(draft);
     let mut renderer = renderer().await;
     for (supported, width) in [(false, 420), (true, 960)] {
-        if supported {
-            app.capabilities.push((
-                Some("fixture".into()),
-                vec![AcpModelSourceCapability::Supported { source: AcpModelSource::SessionModel }],
-            ));
-        }
+        app.agents_settings.profile_model_source = if supported {
+            crate::defaults::ModelSourceStatus::Available
+        } else {
+            crate::defaults::ModelSourceStatus::Unsupported
+        };
         let mut scene = Scene::new(profile(&app), &mut renderer, width, 820);
         let geometry = scene.geometry(&renderer);
         for absent in [
@@ -1073,7 +1071,7 @@ async fn settings_help_gap_05_acp_model_capability_controls_choices() {
         geometry.label("固定运行引擎：fixture");
         geometry.label("允许作为子智能体");
         for hint in [
-            "仅已声明会话模型能力的引擎可固定模型。",
+            "网关当前未提供客户端模型能力，请检查平台和 ACP 安装。",
             "模型不可用，或当前引擎尚未提供此模型来源能力，请重新选择或继承。",
         ] {
             assert_eq!(

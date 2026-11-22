@@ -23,6 +23,11 @@ pub enum AgentsMessage {
     ),
     ProfileDescriptionAction(text_editor::Action),
     ProfileRuntimeChanged(String),
+    ProfileModelSourceRefresh,
+    ProfileModelSourceLoaded {
+        generation: u64,
+        result: Result<bool, String>,
+    },
     ProfilePromptChanged(usize, String),
     ProfilePromptAdd,
     ProfilePromptRemove(usize),

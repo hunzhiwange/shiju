@@ -7,17 +7,6 @@ pub(in crate::app::components) fn overlay<'a>(
     base: Element<'a, Message>,
 ) -> Element<'a, Message> {
     let state = &app.agents_settings;
-    let model_source_available = state.profile_modal.as_ref().is_none_or(|draft| {
-        domain::defaults::supports_fixed_model(
-            &draft.runtime,
-            app.session_state.session_runtime_states.values().map(|state| {
-                (
-                    state.acp_agent.as_deref(),
-                    state.acp_options_state.options.model_source_capabilities.as_slice(),
-                )
-            }),
-        )
-    });
     let workspace_metadata = state
         .workspace_identity_files
         .iter()
@@ -40,7 +29,6 @@ pub(in crate::app::components) fn overlay<'a>(
         inspect: app.mcp_settings.inspect.as_ref(),
         inspect_loading: app.mcp_settings.inspect_loading,
         inspect_error: app.mcp_settings.inspect_error.as_ref(),
-        model_source_available,
         workspace_metadata,
         project_options: super::agent_project_options(app),
     });

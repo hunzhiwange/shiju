@@ -15,11 +15,13 @@ pub async fn load_source_options(
     agent: &str,
     draft_options: Option<AcpSessionOptions>,
 ) -> Result<AcpSessionOptions, String> {
+    let draft = draft_options.is_some();
     let mut options = match draft_options {
         Some(options) => options,
         None => client.acp_session_options(session_id, directory).await?,
     };
-    if options.model_source_capabilities.is_empty() {
+    // Installing a reviewed runtime can change capabilities without changing the draft.
+    if draft || options.model_source_capabilities.is_empty() {
         let capabilities = client.acp_model_source_capabilities(agent).await?;
         if options.selected_model.is_none() && !options.connected {
             options.acp_model_source = capabilities.acp_model_source;
@@ -40,13 +42,10 @@ pub async fn save_source_options(
     draft_options: Option<AcpSessionOptions>,
 ) -> Result<AcpSessionOptions, String> {
     let directory = directory.ok_or("请先选择项目目录")?;
-    if let Some(mut options) = draft_options {
-        if options.model_source_capabilities.is_empty() {
-            let capabilities = client.acp_model_source_capabilities(&update.agent).await?;
-            options.model_source_capabilities = capabilities.model_source_capabilities;
-            options.verified_cli_release = capabilities.verified_cli_release;
-            options.verified_platform = capabilities.verified_platform;
-        }
+    if draft_options.is_some() {
+        let mut options =
+            load_source_options(client, session_id, Some(directory), &update.agent, draft_options)
+                .await?;
         if !options.model_source_capabilities.iter().any(|capability| {
             matches!(capability, AcpModelSourceCapability::Supported { source: supported } if *supported == update.selection.source)
         }) {

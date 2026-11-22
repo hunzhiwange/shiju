@@ -135,7 +135,7 @@ pub const AGENT_CONFIGURATION_HELP: &str =
     "全局管理内建与自定义智能体的模型、身份文件、工具、技能和运行参数。";
 pub struct Input<'a> { pub help: crate::help::Renderer, pub locale: config_ui::DesktopLocale, pub theme: &'a iced::Theme, pub config_ready: bool, pub profile_entering_key: bool, pub new_agent_key_input: &'a str, pub draft: Option<&'a DelegateAgentSettingsEntry>, pub profile_saving: bool, pub active_detail_tab: &'a str }
 
-/// Borrowed page context. Session capability and timestamp projection stay at their owners.
+/// Borrowed page context for the profile and its resource catalogs.
 pub struct PageInput<'a> {
     pub state: &'a crate::agents_state::AgentsSettingsState,
     pub locale: config_ui::DesktopLocale,
@@ -147,20 +147,19 @@ pub struct PageInput<'a> {
     pub inspect: Option<&'a vw_api_mcp_inspect::McpInspectResponse>,
     pub inspect_loading: bool,
     pub inspect_error: Option<&'a String>,
-    pub model_source_available: bool,
     pub workspace_metadata: Option<String>,
     pub project_options: Vec<String>,
 }
 pub fn page_card(input: PageInput<'_>) -> Option<Element<'_, Message>> {
     let state = input.state;
     let draft = state.profile_modal.as_ref();
-    let defaults = || {
+    let defaults = |entry: &DelegateAgentSettingsEntry| {
         crate::defaults::catalog_input(
             state,
             input.locale,
             input.theme,
             input.help,
-            input.model_source_available,
+            &entry.runtime,
             input.inspect,
             input.inspect_loading,
             input.inspect_error,
@@ -217,7 +216,7 @@ pub fn page_card(input: PageInput<'_>) -> Option<Element<'_, Message>> {
                     inspect: input.inspect,
                     inspect_loading: input.inspect_loading,
                     inspect_error: input.inspect_error,
-                    defaults: defaults(),
+                    defaults: defaults(entry),
                 },
                 entry,
             ),
@@ -234,7 +233,7 @@ pub fn page_card(input: PageInput<'_>) -> Option<Element<'_, Message>> {
                         acp_loading: input.acp_loading,
                         acp_error: input.acp_error,
                     },
-                    defaults: defaults(),
+                    defaults: defaults(entry),
                 },
                 entry,
                 Vec::new(),

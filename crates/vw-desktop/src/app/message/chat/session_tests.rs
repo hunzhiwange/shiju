@@ -1737,6 +1737,40 @@ fn queue_guide_preserves_draft_history_across_repeated_handoffs() {
 }
 
 #[test]
+fn selecting_acp_agent_uses_its_configured_default_model() {
+    use config_agent_profile::{AgentDefault, AgentDefaults, AgentModelReference, AgentRuntime};
+
+    let (mut app, _) = crate::app::App::new();
+    app.current_session_runtime_mut().model = "previous/model".into();
+    app.agents_settings.entries.push(
+        crate::app::state::DelegateAgentSettingsEntry::from_config(
+            "managed-agent",
+            Some(config_agent::AgentDefinitionConfig {
+                runtime: AgentRuntime::Acp { backend: "codex".into() },
+                defaults: AgentDefaults {
+                    model: AgentDefault::Fixed(AgentModelReference {
+                        provider: "configured".into(),
+                        model: "models/local".into(),
+                    }),
+                    ..Default::default()
+                },
+                ..Default::default()
+            }),
+        ),
+    );
+
+    let _ = super::update(
+        &mut app,
+        super::ChatMessage::SessionAgentSelected(Some("managed-agent".into())),
+    );
+
+    let runtime = app.current_session_runtime();
+    assert_eq!(runtime.acp_agent.as_deref(), Some("codex"));
+    assert_eq!(runtime.model, "configured/models/local");
+    assert!(!runtime.auto_model);
+}
+
+#[test]
 fn fork_selection_ui_switches_engines_preserving_history_and_input() {
     let (mut app, _) = crate::app::App::new();
     app.session_state.active_session_id = Some("fork".into());

@@ -49,7 +49,7 @@ fn basic_view<'a>(
                 help,
                 locale: DesktopLocale::SimplifiedChinese,
                 theme: &THEME,
-                model_source_available: true,
+                model_source: crate::defaults::ModelSourceStatus::Available,
                 mcp_ready: false,
                 models: vec![],
                 skills: vec![],

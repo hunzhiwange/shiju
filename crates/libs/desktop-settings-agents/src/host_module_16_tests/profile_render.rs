@@ -14,12 +14,6 @@ pub(super) fn overlay<'a>(app: &'a ProfileFixture, base: Element<'a, Event>) -> 
         inspect: app.mcp_settings.inspect.as_ref(),
         inspect_loading: app.mcp_settings.inspect_loading,
         inspect_error: app.mcp_settings.inspect_error.as_ref(),
-        model_source_available: app.agents_settings.profile_modal.as_ref().is_none_or(|draft| {
-            crate::defaults::supports_fixed_model(
-                &draft.runtime,
-                app.capabilities.iter().map(|(agent, caps)| (agent.as_deref(), caps.as_slice())),
-            )
-        }),
         workspace_metadata: None,
         project_options: crate::agents_view::agent_project_options(
             app.project_path.as_deref(),

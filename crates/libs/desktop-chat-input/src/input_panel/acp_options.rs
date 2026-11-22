@@ -180,6 +180,12 @@ pub fn source_controls<'a, Message: Clone + 'static>(
             );
         let reason = match capability {
             Some(AcpModelSourceCapability::Unsupported { reason, .. }) => Some(match reason {
+                AcpModelSourceRejectionReason::UnsupportedCli
+                    if source == AcpModelSource::SessionModel
+                        && runtime.acp_options.verified_cli_release.is_some() =>
+                {
+                    "网关当前未提供客户端模型能力，请检查平台和 ACP 安装。"
+                }
                 AcpModelSourceRejectionReason::UnsupportedCli => {
                     "此 CLI 尚无经过验证的客户端模型入口"
                 }
@@ -213,7 +219,9 @@ pub fn source_controls<'a, Message: Clone + 'static>(
                 );
         controls = controls.push(session_lock_tooltip(control, runtime.i18n, started));
         if let Some(reason) = reason {
-            controls = controls.push(text(reason).size(12).style(settings_muted_text_style));
+            controls = controls.push(
+                text(runtime.i18n.__(reason)).size(12).style(settings_muted_text_style),
+            );
         }
     }
     if runtime.acp_model_source == AcpModelSource::SessionModel {

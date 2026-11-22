@@ -267,9 +267,10 @@ impl App {
                     &gateway_client_cfg,
                 ),
 
-            agents_settings: super::state::AgentsSettingsState {
-                entries: super::state::agent_settings_entries_from_config(&full_agent_cfg),
-                ..Default::default()
+            agents_settings: {
+                let mut state = super::state::AgentsSettingsState::default();
+                state.entries = super::state::agent_settings_entries_from_config(&full_agent_cfg);
+                state
             },
 
             // ========== 成本控制设置 ==========

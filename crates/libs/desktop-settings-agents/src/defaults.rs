@@ -63,7 +63,7 @@ use desktop_ui_controls::system_settings_common::*;
 use desktop_i18n::{I18n, settings_extensions::text as tr};
 use iced::{
     Element, Length,
-    widget::{checkbox, column, responsive, text},
+    widget::{button, checkbox, column, responsive, text},
 };
 use std::fmt;
 use config_agent_profile::{AgentDefault, AgentDefaults, AgentModelReference, AgentRuntime};
@@ -131,7 +131,15 @@ pub fn view<'a>(
     draft: &'a DelegateAgentSettingsEntry,
 ) -> Element<'a, Event> {
     let error = validation_error(&input, draft);
-    let model_source_available = input.model_source_available;
+    let model_source = input.model_source;
+    let model_source_message = match model_source {
+        ModelSourceStatus::Loading => Some("正在读取 ACP 模型能力…"),
+        ModelSourceStatus::Unsupported => {
+            Some("网关当前未提供客户端模型能力，请检查平台和 ACP 安装。")
+        }
+        ModelSourceStatus::Failed => Some("读取 ACP 模型能力失败。"),
+        ModelSourceStatus::Available => None,
+    };
     let models = input.models;
     let i18n = I18n::new(input.locale);
     let theme = input.theme;
@@ -169,10 +177,17 @@ pub fn view<'a>(
         column![
             select,
             force_model,
-            (!model_source_available).then(|| {
-                text(label("仅已声明会话模型能力的引擎可固定模型。"))
-                    .size(12)
-                    .style(settings_muted_text_style)
+            model_source_message.map(|message| {
+                column![
+                    text(label(message)).size(12).style(settings_muted_text_style),
+                    (model_source != ModelSourceStatus::Loading).then(|| {
+                        button(text(label("重新加载")).size(SETTINGS_CONTROL_TEXT_SIZE))
+                            .padding([8, 14])
+                            .style(rounded_action_btn_style)
+                            .on_press(Event::Agents(AgentsMessage::ProfileModelSourceRefresh))
+                    }),
+                ]
+                .spacing(6)
             }),
         ]
         .spacing(8)
@@ -267,7 +282,7 @@ pub struct Input<'a> {
     pub help: crate::help::Renderer,
     pub locale: DesktopLocale,
     pub theme: &'a iced::Theme,
-    pub model_source_available: bool,
+    pub model_source: ModelSourceStatus,
     pub mcp_ready: bool,
     pub models: Vec<AgentModelReference>,
     pub skills: Vec<String>,
@@ -276,19 +291,12 @@ pub struct Input<'a> {
 
 #[cfg(test)] mod tests;
 
-pub fn supports_fixed_model<'a>(
-    runtime: &AgentRuntime,
-    states: impl IntoIterator<Item = (Option<&'a str>, &'a [vw_api_acp_model::acp_model_source::AcpModelSourceCapability])>,
-) -> bool {
-    use vw_api_acp_model::acp_model_source::{AcpModelSource, AcpModelSourceCapability};
-    match runtime {
-        AgentRuntime::Native => true,
-        AgentRuntime::Acp { backend } => states.into_iter().any(|(agent, capabilities)| {
-            agent == Some(backend.as_str()) && capabilities.contains(
-                &AcpModelSourceCapability::Supported { source: AcpModelSource::SessionModel },
-            )
-        }),
-    }
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ModelSourceStatus {
+    Loading,
+    Available,
+    Unsupported,
+    Failed,
 }
 
 /// Project the agent catalogs into validation and form inputs.
@@ -297,11 +305,16 @@ pub fn catalog_input<'a>(
     locale: DesktopLocale,
     theme: &'a iced::Theme,
     help: crate::help::Renderer,
-    model_source_available: bool,
+    runtime: &AgentRuntime,
     inspect: Option<&vw_api_mcp_inspect::McpInspectResponse>,
     inspect_loading: bool,
     inspect_error: Option<&String>,
 ) -> Input<'a> {
+    let model_source = if matches!(runtime, AgentRuntime::Native) {
+        ModelSourceStatus::Available
+    } else {
+        state.profile_model_source
+    };
     let models = state.provider_models.iter().flat_map(|provider| {
         let connected = state.providers.iter().any(|p| p.id == provider.id && p.connected);
         provider
@@ -311,12 +324,13 @@ pub fn catalog_input<'a>(
     });
     let skills =
         state.skill_catalog.iter().map(|skill| (skill.id.as_str(), skill.installed, skill.enabled));
-    let (models, skills, mcp) = catalogs(model_source_available, models, skills, inspect);
+    let (models, skills, mcp) =
+        catalogs(model_source == ModelSourceStatus::Available, models, skills, inspect);
     Input {
         help,
         locale,
         theme,
-        model_source_available,
+        model_source,
         mcp_ready: inspect.is_some() && !inspect_loading && inspect_error.is_none(),
         models,
         skills,

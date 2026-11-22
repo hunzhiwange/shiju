@@ -130,7 +130,12 @@ pub(super) fn process_cleanup_targets_from_entries(
                 continue;
             }
             targets.push_process(child.process_id);
+            #[cfg(not(target_os = "linux"))]
             targets.push_process_group(child.process_group_id);
+            #[cfg(target_os = "linux")]
+            if child.process_id == child.process_group_id {
+                targets.push_process_group(child.process_group_id);
+            }
             pending.push(child.process_id);
         }
     }
@@ -212,6 +217,12 @@ fn send_signal_to_process_group(process_group_id: Option<u32>, signal: i32) -> b
     let Some(process_group_id) = process_group_id else {
         return false;
     };
+    #[cfg(target_os = "linux")]
+    if !(2..=i32::MAX as u32).contains(&process_group_id)
+        || process_group_id == unsafe { libc::getpgrp() } as u32
+    {
+        return false;
+    }
     let result = unsafe { libc::kill(-(process_group_id as i32), signal) };
     if result == 0 {
         return true;

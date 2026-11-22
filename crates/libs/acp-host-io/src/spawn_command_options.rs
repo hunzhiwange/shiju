@@ -105,7 +105,22 @@ pub fn build_spawn_command(
         }
     };
 
-    #[cfg(not(windows))]
+    #[cfg(target_os = "linux")]
+    let mut command = if env_overrides.contains_key("PATH") {
+        // Let exec search the child's PATH from the child's working directory.
+        Command::new(&command_name)
+    } else if let Some(name) = command_name
+        .to_str()
+        .filter(|name| !name.contains('/') && *name == name.trim())
+    {
+        tokio_command(name)
+    } else {
+        let mut command = Command::new(&command_name);
+        shell_command::apply_augmented_path_tokio_command(&mut command);
+        command
+    };
+
+    #[cfg(not(any(windows, target_os = "linux")))]
     let mut command = tokio_command(command_name.to_string_lossy().as_ref());
 
     for (key, value) in env_overrides {

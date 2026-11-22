@@ -17,8 +17,14 @@ impl AcpClient {
         if runtime.io_task.is_finished() {
             return Some("io_closed");
         }
+        #[cfg(target_os = "linux")]
+        let group = runtime.child.id();
         match runtime.child.try_wait() {
-            Ok(Some(_)) => Some("agent_exited"),
+            Ok(Some(_)) => {
+                #[cfg(target_os = "linux")]
+                send_kill_signal_to_process_group(group);
+                Some("agent_exited")
+            }
             Ok(None) => None,
             Err(err) => {
                 tracing::warn!(

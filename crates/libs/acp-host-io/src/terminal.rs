@@ -171,22 +171,32 @@ impl TerminalManager {
                 .stderr(Stdio::piped())
                 .kill_on_drop(true);
 
-            let mut child = child.spawn()?;
-            let stdout = child.stdout.take();
-            let stderr = child.stderr.take();
-
+            #[cfg(target_os = "linux")]
+            child.process_group(0);
+            let child = child.spawn()?;
             let (command_tx, command_rx) = mpsc::unbounded_channel();
             let terminal = Arc::new(ManagedTerminal::new(output_byte_limit, command_tx));
-            if let Some(stdout) = stdout {
-                spawn_output_task(stdout, terminal.clone());
-            }
-            if let Some(stderr) = stderr {
-                spawn_output_task(stderr, terminal.clone());
-            }
 
             let terminal_id = next_terminal_id();
             self.terminals.lock().insert(terminal_id.clone(), terminal.clone());
-            tokio::spawn(run_terminal_process(child, terminal, command_rx, self.kill_grace_ms));
+            #[cfg(target_os = "linux")]
+            {
+                let group = TerminalProcessGroup(child.id());
+                tokio::spawn(run_linux_terminal_process(
+                    child, group, terminal, command_rx, self.kill_grace_ms,
+                ));
+            }
+            #[cfg(not(target_os = "linux"))]
+            {
+                let mut child = child;
+                if let Some(stdout) = child.stdout.take() {
+                    spawn_output_task(stdout, terminal.clone());
+                }
+                if let Some(stderr) = child.stderr.take() {
+                    spawn_output_task(stderr, terminal.clone());
+                }
+                tokio::spawn(run_terminal_process(child, terminal, command_rx, self.kill_grace_ms));
+            }
 
             Ok(create_terminal_response(terminal_id))
         }
@@ -407,6 +417,16 @@ impl TerminalManager {
     }
 }
 
+#[cfg(target_os = "linux")]
+impl Drop for TerminalManager {
+    fn drop(&mut self) {
+        for terminal in self.terminals.get_mut().values() {
+            let (done_tx, _) = oneshot::channel();
+            let _ = terminal.command_tx.send(TerminalCommand::Kill { done_tx });
+        }
+    }
+}
+
 impl ManagedTerminal {
     fn new(output_byte_limit: usize, command_tx: mpsc::UnboundedSender<TerminalCommand>) -> Self {
         Self {
@@ -483,6 +503,89 @@ fn default_confirm_execute(command_line: String) -> TerminalConfirmExecuteFuture
     })
 }
 
+#[cfg(target_os = "linux")]
+struct TerminalProcessGroup(Option<u32>);
+
+#[cfg(target_os = "linux")]
+impl TerminalProcessGroup {
+    fn signal(&self, signal: i32) {
+        if let Some(pid) = self.0 {
+            // The command was spawned with process_group(0).
+            unsafe { libc::kill(-(pid as i32), signal) };
+        }
+    }
+
+    fn kill(&mut self) {
+        self.signal(libc::SIGKILL);
+        self.0 = None;
+    }
+}
+
+#[cfg(target_os = "linux")]
+impl Drop for TerminalProcessGroup {
+    fn drop(&mut self) {
+        self.kill();
+    }
+}
+
+#[cfg(target_os = "linux")]
+async fn run_linux_terminal_process(
+    mut child: Child,
+    mut group: TerminalProcessGroup,
+    terminal: Arc<ManagedTerminal>,
+    mut command_rx: mpsc::UnboundedReceiver<TerminalCommand>,
+    kill_grace_ms: u64,
+) {
+    let stdout = child.stdout.take();
+    let stderr = child.stderr.take();
+    let drain = async {
+        tokio::join!(
+            read_terminal_output(stdout, &terminal),
+            read_terminal_output(stderr, &terminal),
+        );
+    };
+    tokio::pin!(drain);
+
+    let stop = async {
+        tokio::select! {
+            status = child.wait() => {
+                group.kill();
+                (status, None)
+            }
+            command = command_rx.recv() => {
+                group.signal(libc::SIGTERM);
+                let status = tokio::time::timeout(
+                    Duration::from_millis(kill_grace_ms),
+                    child.wait(),
+                ).await;
+                // The leader can exit before members that ignore SIGTERM.
+                group.kill();
+                let status = match status {
+                    Ok(Ok(status)) => Ok(status),
+                    _ => {
+                        let _ = child.start_kill();
+                        child.wait().await
+                    }
+                };
+                (status, command)
+            }
+        }
+    };
+    tokio::pin!(stop);
+    let (status, command) = tokio::select! {
+        result = &mut stop => {
+            let _ = tokio::time::timeout(Duration::from_millis(300), &mut drain).await;
+            result
+        }
+        () = &mut drain => stop.await,
+    };
+    terminal.record_exit(status.unwrap_or_else(|_| exit_status_from_failed_wait()));
+    if let Some(TerminalCommand::Kill { done_tx }) = command {
+        let _ = done_tx.send(());
+    }
+}
+
+#[cfg(any(test, not(target_os = "linux")))]
 async fn run_terminal_process(
     mut child: Child,
     terminal: Arc<ManagedTerminal>,
@@ -508,22 +611,31 @@ async fn run_terminal_process(
     }
 }
 
-fn spawn_output_task<R>(mut reader: R, terminal: Arc<ManagedTerminal>)
+#[cfg(any(test, not(target_os = "linux")))]
+fn spawn_output_task<R>(reader: R, terminal: Arc<ManagedTerminal>)
 where
     R: AsyncRead + Unpin + Send + 'static,
 {
-    tokio::spawn(async move {
-        let mut buffer = vec![0_u8; 8 * 1024];
-        loop {
-            match reader.read(&mut buffer).await {
-                Ok(0) => break,
-                Ok(read) => terminal.append_output(&buffer[..read]),
-                Err(_) => break,
-            }
-        }
-    });
+    tokio::spawn(async move { read_terminal_output(Some(reader), &terminal).await });
 }
 
+async fn read_terminal_output<R>(reader: Option<R>, terminal: &ManagedTerminal)
+where
+    R: AsyncRead + Unpin,
+{
+    let Some(mut reader) = reader else {
+        return;
+    };
+    let mut buffer = vec![0_u8; 8 * 1024];
+    while let Ok(read) = reader.read(&mut buffer).await {
+        if read == 0 {
+            break;
+        }
+        terminal.append_output(&buffer[..read]);
+    }
+}
+
+#[cfg(any(test, not(target_os = "linux")))]
 async fn kill_child_process(
     child: &mut Child,
     terminal: &Arc<ManagedTerminal>,
@@ -562,7 +674,7 @@ async fn kill_child_process(
     }
 }
 
-#[cfg(unix)]
+#[cfg(all(unix, any(test, not(target_os = "linux"))))]
 fn send_terminate_signal(child: &Child) -> bool {
     send_signal(child, libc::SIGTERM)
 }
@@ -572,7 +684,7 @@ fn send_terminate_signal(child: &mut Child) -> bool {
     child.start_kill().is_ok()
 }
 
-#[cfg(unix)]
+#[cfg(all(unix, any(test, not(target_os = "linux"))))]
 fn send_kill_signal(child: &Child) -> bool {
     send_signal(child, libc::SIGKILL)
 }
@@ -582,7 +694,7 @@ fn send_kill_signal(child: &mut Child) -> bool {
     child.start_kill().is_ok()
 }
 
-#[cfg(unix)]
+#[cfg(all(unix, any(test, not(target_os = "linux"))))]
 fn send_signal(child: &Child, signal: i32) -> bool {
     let Some(pid) = child.id() else {
         return false;
@@ -610,10 +722,11 @@ fn trim_to_utf8_boundary(buffer: &[u8], limit: usize) -> Vec<u8> {
 
 async fn wait_for_exit_response(terminal: &Arc<ManagedTerminal>) -> WaitForTerminalExitResponse {
     loop {
+        let notified = terminal.exit_notify.notified();
         if let Some(exit_status) = terminal.state.lock().exit_status.clone() {
             return wait_for_terminal_exit_response(exit_status);
         }
-        terminal.exit_notify.notified().await;
+        notified.await;
     }
 }
 

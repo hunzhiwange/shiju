@@ -917,3 +917,60 @@ async fn terminal_manager_emits_running_and_completed_operations() {
     }));
     let _ = std::fs::remove_dir_all(root);
 }
+
+#[cfg(target_os = "linux")]
+#[tokio::test]
+async fn acp_platform_spawn_terminal_kill_stops_descendant() {
+    let cwd = tempfile::Builder::new().prefix("终端 工作区 ").tempdir().unwrap();
+    let manager = TerminalManager::new(TerminalManagerOptions {
+        cwd: cwd.path().into(),
+        permission_mode: PermissionMode::ApproveAll,
+        kill_grace_ms: Some(50),
+        ..TerminalManagerOptions::default()
+    });
+    let session = "platform-spawn";
+    // The background process inherits the terminal pipes and ignores SIGTERM.
+    let response = manager
+        .create_terminal(
+            &acp::CreateTerminalRequest::new(session, "/bin/sh").args(vec![
+                "-c".into(),
+                "(trap '' TERM; echo ready; exec /bin/sleep 30) & echo \"$!\"; wait".into(),
+            ]),
+        )
+        .await
+        .unwrap();
+    let id = response.terminal_id;
+    let pid = tokio::time::timeout(Duration::from_secs(3), async {
+        loop {
+            let output = manager
+                .terminal_output(&acp::TerminalOutputRequest::new(session, id.clone()))
+                .await
+                .unwrap();
+            if output.output.lines().any(|line| line == "ready")
+                && let Some(pid) = output.output.lines().find_map(|line| line.parse::<i32>().ok())
+            {
+                break pid;
+            }
+            tokio::time::sleep(Duration::from_millis(10)).await;
+        }
+    })
+    .await
+    .unwrap();
+
+    tokio::time::timeout(Duration::from_secs(3), manager.shutdown()).await.unwrap();
+    let stopped = tokio::time::timeout(Duration::from_secs(2), async {
+        loop {
+            match std::fs::read_to_string(format!("/proc/{pid}/stat")) {
+                Ok(stat) if stat.rsplit_once(") ").unwrap().1.starts_with("Z ") => break,
+                Err(error) if error.kind() == std::io::ErrorKind::NotFound => break,
+                Ok(_) => tokio::time::sleep(Duration::from_millis(10)).await,
+                Err(error) => panic!("{error}"),
+            }
+        }
+    })
+    .await;
+    if stopped.is_err() {
+        unsafe { libc::kill(pid, libc::SIGKILL) };
+    }
+    assert!(stopped.is_ok(), "terminal descendant survived shutdown");
+}

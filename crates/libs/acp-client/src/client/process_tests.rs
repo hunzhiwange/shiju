@@ -641,3 +641,23 @@ async fn glm_managed_runtime_probe_executes_only_fixed_node_arguments() {
         Ok(_) => panic!("GLM launched with unreviewed arguments"),
     }
 }
+
+#[cfg(target_os = "linux")]
+#[tokio::test]
+async fn acp_platform_process_cleanup_closes_stalled_stderr_reader() {
+    let client = shell_client(shell_args("exit 0", vec![]));
+    let ProcessHandles { child, stderr_task } = client.spawn_child().unwrap();
+    stderr_task.unwrap().abort();
+
+    let (closed_tx, mut closed_rx) = tokio::sync::oneshot::channel::<()>();
+    let reader = tokio::spawn(async move {
+        let _pipe_guard = closed_tx;
+        std::future::pending::<String>().await
+    });
+    let finalized = client.finalize_child(child, Some(reader)).await;
+    assert_eq!(finalized.summary.exit_code, Some(0));
+    assert!(matches!(
+        closed_rx.try_recv(),
+        Err(tokio::sync::oneshot::error::TryRecvError::Closed)
+    ));
+}

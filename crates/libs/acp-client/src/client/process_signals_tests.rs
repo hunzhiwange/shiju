@@ -125,3 +125,16 @@ async fn cleanup_process_group_kills_term_ignoring_process_group() {
 
     assert_eq!(status.signal(), Some(libc::SIGKILL));
 }
+
+#[cfg(target_os = "linux")]
+#[test]
+fn acp_platform_process_cleanup_excludes_unrelated_process_group() {
+    let entries = super::parse_process_table_entries(
+        "100 1 100\n101 100 200\n102 100 102\n200 1 200\n",
+    );
+    let targets = super::process_cleanup_targets_from_entries(100, &entries);
+    assert!(targets.processes.contains(&101));
+    assert!(targets.process_groups.contains(&102));
+    assert!(!targets.process_groups.contains(&200));
+    assert!(!targets.processes.contains(&200));
+}

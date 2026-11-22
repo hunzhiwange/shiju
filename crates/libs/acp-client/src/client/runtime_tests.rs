@@ -278,3 +278,55 @@ while IFS= read -r _; do :; done"#
         })
         .await;
 }
+
+#[cfg(target_os = "linux")]
+#[tokio::test]
+async fn acp_platform_process_cleanup_stops_group_when_reuse_reaps_leader() {
+    use tokio::time::{Duration, sleep, timeout};
+
+    tokio::task::LocalSet::new()
+        .run_until(async {
+            let cwd = tempfile::tempdir().unwrap();
+            let pid_file = cwd.path().join("descendant.pid");
+            let client = client(
+                "/bin/sh",
+                &[
+                    "-c",
+                    "/bin/sleep 30 & printf '%s\\n' \"$!\" > \"$1\"",
+                    "acp-reuse",
+                    pid_file.to_str().unwrap(),
+                ],
+            );
+            let mut runtime = running_runtime(&client, cwd.path(), pending_io_task());
+            timeout(Duration::from_secs(3), async {
+                loop {
+                    if let Some(reason) = client.actor_runtime_restart_reason(&mut runtime, cwd.path()) {
+                        assert_eq!(reason, "agent_exited");
+                        break;
+                    }
+                    sleep(Duration::from_millis(10)).await;
+                }
+            })
+            .await
+            .unwrap();
+
+            let pid = std::fs::read_to_string(&pid_file).unwrap().trim().parse::<i32>().unwrap();
+            client.shutdown_actor_runtime(runtime, Some("agent_exited"), false).await;
+            let stopped = timeout(Duration::from_secs(2), async {
+                loop {
+                    match std::fs::read_to_string(format!("/proc/{pid}/stat")) {
+                        Ok(stat) if stat.rsplit_once(") ").unwrap().1.starts_with("Z ") => break,
+                        Err(error) if error.kind() == std::io::ErrorKind::NotFound => break,
+                        Ok(_) => sleep(Duration::from_millis(10)).await,
+                        Err(error) => panic!("{error}"),
+                    }
+                }
+            })
+            .await;
+            if stopped.is_err() {
+                unsafe { libc::kill(pid, libc::SIGKILL) };
+            }
+            assert!(stopped.is_ok(), "ACP descendant survived runtime shutdown");
+        })
+        .await;
+}

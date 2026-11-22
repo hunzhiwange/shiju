@@ -92,7 +92,8 @@ impl AcpClient {
             return Err(AcpError::EmptyCommand);
         }
 
-        if matches!(self.agent_name.as_str(), "deepagents" | "sigit" | "amp-acp") {
+        let requires_review = matches!(self.agent_name.as_str(), "deepagents" | "sigit" | "amp-acp");
+        if requires_review {
             // Local discovery, npx fallback and explicit overrides share this boundary.
             // Never execute the supplier's unpatched permission/file fallbacks.
             crate::verify_reviewed_agent_executable(&self.agent_name, self.config.command.trim())
@@ -382,7 +383,22 @@ impl AcpClient {
             command.env_remove("NODE_OPTIONS").env_remove("NODE_PATH");
             command
         } else {
-            build_spawn_command(self.config.command.trim(), &env)
+            let executable = self.config.command.trim();
+            #[cfg(target_os = "linux")]
+            let command = if requires_review {
+                // Launch the file reviewed above even when the child has a different cwd or PATH.
+                let executable = Path::new(executable).canonicalize().map_err(AcpError::Spawn)?;
+                build_spawn_command(executable, &env)
+            } else if env.contains_key("VW_ACP_LAUNCH_REFERENCE") {
+                let mut command = shell_command::tokio_command(executable);
+                command.envs(&env);
+                command
+            } else {
+                build_spawn_command(executable, &env)
+            };
+            #[cfg(not(target_os = "linux"))]
+            let command = build_spawn_command(executable, &env);
+            command
         };
         if self.agent_name == "copilot" {
             cmd.env_remove("COPILOT_ALLOW_ALL");
@@ -447,14 +463,7 @@ impl AcpClient {
             .stderr(if discard_stderr { Stdio::null() } else { Stdio::piped() })
             .kill_on_drop(true);
         #[cfg(unix)]
-        unsafe {
-            cmd.pre_exec(|| {
-                if libc::setpgid(0, 0) != 0 {
-                    return Err(std::io::Error::last_os_error());
-                }
-                Ok(())
-            });
-        }
+        cmd.process_group(0);
 
         tracing::info!(
             target: "vw_acp",
@@ -666,13 +675,16 @@ impl AcpClient {
                     Err(_) => {
                         cleanup_targets.extend(process_cleanup_targets(process_id));
                         send_kill_signal_to_process_targets(&cleanup_targets);
-                        let _ = timeout(Duration::from_millis(500), child.wait()).await;
+                        let forced_status = timeout(Duration::from_millis(500), child.wait())
+                            .await
+                            .ok()
+                            .and_then(Result::ok);
                         tracing::warn!(
                             target: "vw_acp",
                             acp_agent = %self.agent_name,
                             "timed out waiting for ACP agent process exit"
                         );
-                        None
+                        forced_status
                     }
                 }
             }
@@ -689,13 +701,21 @@ impl AcpClient {
                 }
             }
         }
+        // Once wait has reaped the Linux leader, its PID no longer identifies a
+        // process tree. The captured group still covers its remaining members.
+        #[cfg(not(target_os = "linux"))]
         cleanup_targets.extend(process_cleanup_targets(process_id));
         cleanup_process_targets(cleanup_targets).await;
 
         let stderr_output = match stderr_task {
-            Some(task) => match timeout(Duration::from_millis(300), task).await {
+            Some(mut task) => match timeout(Duration::from_millis(300), &mut task).await {
                 Ok(Ok(output)) => output,
-                Ok(Err(_)) | Err(_) => String::new(),
+                Ok(Err(_)) => String::new(),
+                Err(_) => {
+                    task.abort();
+                    let _ = task.await;
+                    String::new()
+                }
             },
             None => String::new(),
         };

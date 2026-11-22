@@ -87,6 +87,7 @@ pub struct AcpLaunchProfile {
     pub model_api: Option<model_types::ApiInfo>,
     /// A selected native provider/model that must be applied by ACP RPC before prompt.
     pub session_model_id: Option<String>,
+    pub managed_mcp_current: Option<Arc<dyn Fn() -> bool + Send + Sync>>,
     pub managed_mcp: Option<(Vec<agent_client_protocol::McpServer>, acp_client::ManagedMcpApproval)>,
 }
 impl AcpLaunchProfile {
@@ -166,6 +167,7 @@ impl AcpLaunchProfile {
                 state_root: None,
                 model_api: None,
                 session_model_id: None,
+                managed_mcp_current: None,
                 managed_mcp: None,
             })
         }
@@ -233,6 +235,14 @@ impl AcpLaunchProfile {
     #[cfg(target_os = "linux")]
     pub(in crate::acp) fn relay_unix_socket(&self) -> Option<&Path> {
         self.server.as_ref()?.unix_socket()
+    }
+
+    pub(in crate::acp) fn validate_managed_mcp(&self) -> anyhow::Result<()> {
+        if self.managed_mcp_current.as_ref().is_some_and(|current| !current()) {
+            self.binding.revoke();
+            anyhow::bail!("Reviewed ACP MCP selection was revoked");
+        }
+        Ok(())
     }
 
     pub fn attach_server(&mut self, server: impl Into<RelayServer>) {

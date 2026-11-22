@@ -124,15 +124,16 @@ impl AcpClient {
             }
             crate::verify_reviewed_agent_executable("iflow", self.config.command.trim())
                 .map_err(AcpError::Initialize)?;
-            if !self.mcp_servers.is_empty() || self.full_access
+            if self.full_access
                 || self.non_interactive_permissions.is_some()
                 || self.permission_confirmation.is_none()
                 || self.permission_mode == PermissionMode::DenyAll
             {
                 return Err(AcpError::Initialize(
-                    "Managed iFlow requires interactive approvals and an empty MCP selection".into(),
+                    "Managed iFlow requires interactive tool approvals".into(),
                 ));
             }
+            self.validate_linux_iflow_mcp()?;
         }
         if let Some(agent) = acp_agent_registry::agent_registry::desktop_permission_agent(&self.agent_name)
             && acp_agent_registry::linux_native_only(agent)
@@ -173,6 +174,7 @@ impl AcpClient {
                 | "IFLOW_modelName" | "IFLOW_selectedAuthType" | "IFLOW_multimodalModelName"
                 | "IFLOW_outputTokensLimit" | "IFLOW_tokensLimit" | "IFLOW_disableAutoUpdate"
                 | "IFLOW_usageStatisticsEnabled" | "SHIJU_IFLOW_MODEL_LOCK" | "SHIJU_IFLOW_SKILL_ROOT"
+                | "SHIJU_IFLOW_MCP_RELAY" | "SHIJU_IFLOW_MCP_TOKEN"
             ));
             let home = env.get("IFLOW_HOME").cloned()
                 .filter(|home| Path::new(home).is_absolute())

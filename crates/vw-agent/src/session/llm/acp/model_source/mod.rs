@@ -86,9 +86,7 @@ async fn prepare_with_mounts(
     }
     let (projection, review_is_current) = match mounts {
         Some((_, servers)) => {
-            let (projection, review_is_current) =
-                prepare_mcp_projection(agent, servers, &directory, profile.binding.clone()).await?;
-            (Some(projection), review_is_current)
+            prepare_mcp_projection(agent, servers, &directory, profile.binding.clone()).await?
         }
         None => (None, None),
     };
@@ -125,7 +123,7 @@ async fn prepare_with_mounts(
     ).await?;
     let endpoint = format!("http://{}", server.address());
     profile.attach_server(server);
-    if let Some(projection) = projection.as_ref().filter(|_| matches!(agent, "vtcode" | "hermes" | "auggie" | "droid" | "autohand")) {
+    if let Some(projection) = projection.as_ref().filter(|_| matches!(agent, "vtcode" | "hermes" | "auggie" | "droid" | "autohand" | "iflow")) {
         llm_runtime::acp::model_source::configure_profile(agent, &mut profile, &endpoint, &directory, openclaw_mcp).await?;
         if agent == "auggie" {
             let tools = projection.tools.iter().map(|name| {
@@ -139,6 +137,13 @@ async fn prepare_with_mounts(
             ]))?;
         }
         let (servers, mut approve) = projection.approval_config(&endpoint)?;
+        if agent == "iflow" {
+            profile.overlay_environment(std::collections::HashMap::from([
+                ("SHIJU_IFLOW_MCP_RELAY".into(), endpoint.clone()),
+                ("SHIJU_IFLOW_MCP_TOKEN".into(), projection.token().to_owned()),
+            ]))?;
+        }
+        profile.managed_mcp_current = review_is_current.clone();
         if let Some(current) = review_is_current {
             let issue = approve;
             approve = std::sync::Arc::new(move |name, call_id, input, valid| {
@@ -173,23 +178,45 @@ async fn prepare_mcp_projection(
     servers: &[acp_types::AcpMcpServer],
     directory: &str,
     binding: std::sync::Arc<crate::model_relay::RelayBinding>,
-) -> anyhow::Result<(mimo_mcp::Projection, Option<ReviewValidity>)> {
+) -> anyhow::Result<(Option<mimo_mcp::Projection>, Option<ReviewValidity>)> {
     #[cfg(all(target_os = "linux", target_env = "gnu", any(target_arch = "x86_64", target_arch = "aarch64")))]
-    if agent == "vtcode" {
-        let (review, current) =
-            crate::agent_apps::mcp::acp_mount::reviewed_project_stdio(binding.clone(), servers)?;
-        let [acp_types::AcpMcpServer::Stdio(service)] = servers else {
-            anyhow::bail!("VT Code requires one reviewed project stdio service");
+    if matches!(agent, "vtcode" | "iflow") {
+        use crate::agent_apps::mcp::acp_mount::{ReviewedStdioSource, reviewed_linux_stdio};
+
+        let Some(selected) = reviewed_linux_stdio(
+            binding.clone(), std::path::Path::new(directory), servers,
+        ).await? else {
+            anyhow::ensure!(servers.is_empty(), "Missing reviewed Linux MCP selection");
+            return Ok((None, None));
         };
-        let selected_policy = service.meta.as_ref()
-            .and_then(|meta| meta.get("shiju.vtcode.toolPolicy"))
-            .ok_or_else(|| anyhow::anyhow!("VT Code MCP requires a host-selected tool policy"))?;
-        let mut policy = acp_config::McpServerManagement {
-            allowed_tools: serde_json::from_value(selected_policy["allow"].clone())?,
-            denied_tools: serde_json::from_value(selected_policy["deny"].clone())?,
-            ..acp_config::McpServerManagement::default_for_server(&service.name)
+        let acp_types::AcpMcpServer::Stdio(service) = &selected.server else {
+            anyhow::bail!("Managed Linux MCP requires one reviewed stdio service");
         };
-        // Request policy may only narrow the independent project review.
+        let (owner, policy_key) = match (agent, selected.source) {
+            ("iflow", ReviewedStdioSource::Project) => (
+                mimo_mcp::LinuxMcpOwner::IFlow(mimo_mcp::IFlowMcpSource::Project),
+                Some("shiju.iflow.toolPolicy"),
+            ),
+            ("iflow", ReviewedStdioSource::Mounted) => (
+                mimo_mcp::LinuxMcpOwner::IFlow(mimo_mcp::IFlowMcpSource::Mounted),
+                None,
+            ),
+            ("vtcode", ReviewedStdioSource::Project) => (
+                mimo_mcp::LinuxMcpOwner::VtCode,
+                Some("shiju.vtcode.toolPolicy"),
+            ),
+            _ => anyhow::bail!("This Linux adapter does not support the MCP selection source"),
+        };
+        let review = &selected.review;
+        let mut policy = acp_config::McpServerManagement::default_for_server(&service.name);
+        if let Some(key) = policy_key {
+            let selected_policy = service.meta.as_ref()
+                .and_then(|meta| meta.get(key))
+                .ok_or_else(|| anyhow::anyhow!("Managed Linux MCP requires a host-selected tool policy"))?;
+            policy.allowed_tools = serde_json::from_value(selected_policy["allow"].clone())?;
+            policy.denied_tools = serde_json::from_value(selected_policy["deny"].clone())?;
+        }
+        // Request policy may only narrow the independent review.
         let mut allowed = Vec::new();
         for name in review.allowed_tools() {
             let id = tool_mcp::mcp_tool::mcp_tool_id(&service.name, name)?;
@@ -198,23 +225,33 @@ async fn prepare_mcp_projection(
             }
         }
         policy.allowed_tools = allowed;
+        let current = selected.current;
+        anyhow::ensure!(current(), "Managed Linux MCP review was revoked");
         let projection = mimo_mcp::prepare_linux_stdio(
-            servers,
+            std::slice::from_ref(&selected.server),
             mimo_mcp::ReviewedLinuxStdio {
-                owner: mimo_mcp::LinuxMcpOwner::VtCode,
+                owner,
                 executable: review.executable(),
                 sha256: review.sha256(),
                 args: review.args(),
                 policy: &policy,
             },
-            binding,
+            binding.clone(),
         )
         .await?;
-        anyhow::ensure!(current(), "VT Code project MCP review changed during discovery");
-        return Ok((projection, Some(std::sync::Arc::new(current))));
+        anyhow::ensure!(current(), "Managed Linux MCP review changed during discovery");
+        let current = move || {
+            if current() {
+                true
+            } else {
+                binding.revoke();
+                false
+            }
+        };
+        return Ok((Some(projection), Some(std::sync::Arc::new(current))));
     }
     let _ = agent;
-    Ok((mimo_mcp::prepare(servers, directory, binding).await?, None))
+    Ok((Some(mimo_mcp::prepare(servers, directory, binding).await?), None))
 }
 
 pub(super) fn launch_identity(
@@ -234,3 +271,6 @@ mod tests;
 
 #[cfg(test)]
 pub(super) mod acceptance_tests;
+
+#[cfg(all(test, target_os = "linux", target_env = "gnu", any(target_arch = "x86_64", target_arch = "aarch64")))]
+mod iflow_project_tests;

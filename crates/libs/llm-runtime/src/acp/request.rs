@@ -552,6 +552,18 @@ pub async fn do_stream_request_acp<H: Host>(
     {
         return Err(acp_option_error("VT Code MCP requires a new managed session with tools enabled"));
     }
+    let iflow_managed = cfg!(all(target_os = "linux", target_env = "gnu",
+        any(target_arch = "x86_64", target_arch = "aarch64")))
+        && acp_agent_name == "iflow" && source == AcpModelSource::SessionModel;
+    let iflow_mcp = iflow_managed && !parsed_options.mcp_servers.is_empty();
+    let iflow_projection_allowed = iflow_managed
+        && !parsed_options.full_access
+        && parsed_options.non_interactive_permissions.is_none()
+        && parsed_options.permission_mode != Some(acp_types::PermissionMode::DenyAll)
+        && merged_options.get("disable_tools").and_then(Value::as_bool) != Some(true);
+    if iflow_mcp && !iflow_projection_allowed {
+        return Err(acp_option_error("iFlow Linux MCP requires session_model and interactive tool approvals"));
+    }
     let mimo_mcp = acp_agent_name == "mimo-code"
         && source == vw_api_acp_model::acp_model_source::AcpModelSource::SessionModel
         && !parsed_options.mcp_servers.is_empty();
@@ -597,7 +609,7 @@ pub async fn do_stream_request_acp<H: Host>(
                 }
                 std::future::pending::<()>().await;
             };
-            let prepare = if mimo_mcp || vtcode_mcp || hermes_mcp || auggie_mcp || droid_mcp || autohand_mcp {
+            let prepare = if iflow_projection_allowed || mimo_mcp || vtcode_mcp || hermes_mcp || auggie_mcp || droid_mcp || autohand_mcp {
                 H::prepare_stdio_mcp_launch(&acp_agent_name, &normalized_acp_cfg, model, &scoped_session, &cwd, &parsed_options.mcp_servers)
             } else if openclaw_mcp.is_empty() {
                 H::prepare_launch(&acp_agent_name, &normalized_acp_cfg, model, &scoped_session)
@@ -736,6 +748,9 @@ pub async fn do_stream_request_acp<H: Host>(
     if mimo_mcp || !openclaw_mcp.is_empty() || restricted_openclaw {
         // The request-owned launch now owns the projected MCP connections.
         parsed_options.mcp_servers.clear();
+    }
+    if iflow_mcp && launch_profile.as_ref().is_none_or(|profile| profile.managed_mcp.is_none()) {
+        return Err(acp_option_error("Missing reviewed iFlow Linux MCP projection"));
     }
     if let Some((servers, _)) = launch_profile.as_ref().and_then(|profile| profile.managed_mcp.as_ref()) {
         parsed_options.mcp_servers = servers.clone();
@@ -914,6 +929,9 @@ pub async fn do_stream_request_acp<H: Host>(
         // 同一个 ACP 客户端可能被多个本地请求复用；串行化 prompt 可以避免代理端
         // 把并发输入混到同一会话流里。
         let _prompt_guard = cached_client.prompt_lock.lock().await;
+        if let Some(profile) = launch_profile.as_ref() {
+            profile.validate_managed_mcp().map_err(to_api_error)?;
+        }
         let record = if employee && let Some(selection) = locked_selection {
             acp_storage::resolve_session_record(&selection.record_id).await
                 .map_err(to_api_error)
@@ -1208,6 +1226,9 @@ pub async fn do_stream_request_acp<H: Host>(
         let prompt_cwd = cwd.clone();
         let prompt_text = prompt.clone();
         let prompt_session_id = record.acp_session_id.clone();
+        if let Some(profile) = launch_profile.as_ref() {
+            profile.validate_managed_mcp().map_err(to_api_error)?;
+        }
         let approval = H::approval(&cached_client.permission_confirmation, session_id);
         let mut acp_task = tokio::spawn(async move {
             let mut on_prompt_event = |_event: acp_types::PromptEvent| {};
@@ -1527,8 +1548,11 @@ pub(super) fn validate_linux_session_mcp(
     if selected
         && (backend.is_some_and(acp_agent_registry::linux_native_only)
             || (cfg!(target_os = "linux") && backend == Some("pi"))
-            || (cfg!(target_os = "linux") && matches!(backend, Some("glm-acp-agent" | "iflow"))
-                && source == AcpModelSource::SessionModel))
+            || (cfg!(target_os = "linux") && backend == Some("glm-acp-agent")
+                && source == AcpModelSource::SessionModel)
+            || (cfg!(target_os = "linux") && backend == Some("iflow")
+                && (source != AcpModelSource::SessionModel
+                    || !cfg!(all(target_env = "gnu", any(target_arch = "x86_64", target_arch = "aarch64"))))))
     {
         return Err(acp_option_error(format!("{agent}: no verified Linux session MCP launch")));
     }

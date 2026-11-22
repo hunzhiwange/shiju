@@ -249,11 +249,47 @@ impl AcpClient {
         }
     }
 
+    pub(super) fn validate_linux_iflow_mcp(&self) -> Result<(), AcpError> {
+        if !self.managed_linux_iflow() || self.mcp_servers.is_empty() {
+            return Ok(());
+        }
+        let projected = (|| {
+            let [acp::McpServer::Http(server)] = self.mcp_servers.as_slice() else {
+                return None;
+            };
+            let origin = self.config.env.get("SHIJU_IFLOW_MCP_RELAY")?;
+            let token = self.config.env.get("SHIJU_IFLOW_MCP_TOKEN")?;
+            let address = origin.strip_prefix("http://")?.parse::<std::net::SocketAddr>().ok()?;
+            let source = server.meta.as_ref()?.get("shiju.iflow.mcp-v4")?.as_str()?;
+            let [auth] = server.headers.as_slice() else { return None };
+            (self.managed_mcp_approval.is_some()
+                && self.permission_confirmation.is_some()
+                && self.non_interactive_permissions.is_none()
+                && self.permission_mode != PermissionMode::DenyAll
+                && !self.full_access
+                && (address.ip() == std::net::Ipv4Addr::LOCALHOST
+                    || address.ip() == std::net::Ipv6Addr::LOCALHOST)
+                && !matches!(address.port(), 0 | 80)
+                && *origin == format!("http://{address}")
+                && matches!(source, "project" | "mounted")
+                && !server.name.is_empty()
+                && server.name.bytes().all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'_' | b'-'))
+                && server.url == format!("{origin}/shiju-vtcode-mcp/{}", server.name)
+                && !token.is_empty()
+                && auth.name.eq_ignore_ascii_case("authorization")
+                && auth.value == format!("Bearer {token}"))
+                .then_some(())
+        })();
+        projected.ok_or_else(|| AcpError::NewSession(
+            "iFlow Linux requires an active reviewed host MCP projection".into(),
+        ))
+    }
+
     fn validate_mcp_contract(&self) -> Result<(), AcpError> {
         let backend = acp_agent_registry::agent_registry::desktop_permission_agent(&self.agent_name);
+        self.validate_linux_iflow_mcp()?;
         if !self.mcp_servers.is_empty()
-            && (self.managed_linux_iflow()
-                || backend.is_some_and(acp_agent_registry::linux_native_only)
+            && (backend.is_some_and(acp_agent_registry::linux_native_only)
                 || (cfg!(target_os = "linux") && matches!(backend, Some("amp-acp" | "pi")))
                 || (cfg!(target_os = "linux")
                     && backend == Some("glm-acp-agent")

@@ -237,7 +237,12 @@ impl acp::Client for AcpEventClient {
                 self.permission_stats.lock().cancelled += 1;
                 return Ok(cancelled_permission_response());
             }
-            args.tool_call.fields.title = tool.as_str().map(str::to_owned);
+            let name = tool.as_str().unwrap_or_default();
+            if name.starts_with("mcp__") && self.managed_mcp_approval.is_none() {
+                self.permission_stats.lock().cancelled += 1;
+                return Ok(cancelled_permission_response());
+            }
+            args.tool_call.fields.title = Some(name.to_owned());
         }
         let iflow_tool = iflow_tool.is_some();
         // Only the reviewed Gemini bundle emits this marker for an MCP invocation.

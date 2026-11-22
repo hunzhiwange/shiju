@@ -21,13 +21,6 @@ impl CronHistoryStatus {
     }
 }
 
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
-pub enum CronHistoryLocation {
-    #[default]
-    All,
-    Local,
-}
-
 #[derive(Debug, Clone, Default)]
 pub struct CronHistoryState {
     pub runs: Vec<CronHistoryRunDto>,
@@ -35,11 +28,9 @@ pub struct CronHistoryState {
     /// 有错误时已有行仍可查看，但不是最新数据。
     pub error: Option<String>,
     pub search: String,
-    pub search_open: bool,
     /// Stable single-run key; resolved against current rows on every view.
     pub selected_run: Option<String>,
     pub status_filter: CronHistoryStatus,
-    pub location_filter: CronHistoryLocation,
     pub selected_job_id: Option<String>,
     pub task_search: String,
     pub task_picker_open: bool,
@@ -54,9 +45,13 @@ fn name_matches(name: &str, search: &str) -> bool {
     name.to_lowercase().contains(&search.trim().to_lowercase())
 }
 
+pub(crate) fn task_title(name: Option<&str>) -> &str {
+    name.map(str::trim).filter(|name| !name.is_empty()).unwrap_or("未命名任务")
+}
+
 impl CronHistoryState {
     pub fn display_name(run: &CronHistoryRunDto) -> &str {
-        run.name.as_deref().map(str::trim).filter(|name| !name.is_empty()).unwrap_or(&run.job_id)
+        task_title(run.name.as_deref())
     }
 
     pub fn visible_runs(&self) -> impl Iterator<Item = &CronHistoryRunDto> {
@@ -64,25 +59,22 @@ impl CronHistoryState {
             self.status_filter.matches(&run.status)
                 && name_matches(Self::display_name(run), &self.search)
                 && self.selected_job_id.as_ref().is_none_or(|id| *id == run.job_id)
-                && matches!(
-                    self.location_filter,
-                    CronHistoryLocation::All | CronHistoryLocation::Local
-                )
         })
     }
 
-    /// 候选来自全部任务，未运行过的任务同样可选；重名显示 ID 提示。
-    pub fn task_candidates<'a>(&'a self, jobs: &'a [CronJobDto]) -> Vec<(&'a str, String)> {
-        let name = |job: &'a CronJobDto| {
-            job.name.as_deref().map(str::trim).filter(|name| !name.is_empty()).unwrap_or(&job.id)
-        };
+    /// 候选包含未运行的任务，重名项按列表顺序编号。
+    pub fn task_candidates<'a>(&self, jobs: &'a [CronJobDto]) -> Vec<(&'a str, String)> {
+        let title = |job: &'a CronJobDto| task_title(job.name.as_deref());
         jobs.iter()
-            .filter(|job| name_matches(name(job), &self.task_search))
-            .map(|job| {
-                let label = if jobs.iter().filter(|other| name(other) == name(job)).count() > 1 {
-                    format!("{} ({})", name(job), job.id)
+            .enumerate()
+            .filter(|(_, job)| name_matches(title(job), &self.task_search))
+            .map(|(index, job)| {
+                let name = title(job);
+                let label = if jobs.iter().filter(|other| title(other) == name).take(2).count() > 1 {
+                    let ordinal = jobs[..=index].iter().filter(|other| title(other) == name).count();
+                    format!("{name}（{ordinal}）")
                 } else {
-                    name(job).to_string()
+                    name.to_string()
                 };
                 (job.id.as_str(), label)
             })
@@ -147,15 +139,6 @@ impl std::fmt::Display for CronHistoryStatus {
             Self::Running => "运行中",
             Self::Success => "成功",
             Self::Failed => "失败",
-        })
-    }
-}
-
-impl std::fmt::Display for CronHistoryLocation {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_str(match self {
-            Self::All => "全部类型",
-            Self::Local => "本地",
         })
     }
 }

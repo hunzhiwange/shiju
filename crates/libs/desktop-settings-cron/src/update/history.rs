@@ -17,10 +17,6 @@ pub fn update(app: &mut super::cron::Inputs<'_>, event: CronHistoryMessage) -> T
 
     let task = match event {
         CronHistoryMessage::Refresh => refresh(app),
-        CronHistoryMessage::SearchToggled => {
-            app.cron_settings.history.search_open = !app.cron_settings.history.search_open;
-            Task::none()
-        }
         CronHistoryMessage::DetailsOpened(key) => {
             app.cron_settings.history.selected_run = Some(key);
             Task::none()
@@ -63,10 +59,6 @@ pub fn update(app: &mut super::cron::Inputs<'_>, event: CronHistoryMessage) -> T
         }
         CronHistoryMessage::StatusChanged(value) => {
             app.cron_settings.history.status_filter = value;
-            Task::none()
-        }
-        CronHistoryMessage::LocationChanged(value) => {
-            app.cron_settings.history.location_filter = value;
             Task::none()
         }
         CronHistoryMessage::TaskSelected(value) => {

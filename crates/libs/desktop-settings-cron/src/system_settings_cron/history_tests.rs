@@ -27,10 +27,6 @@ fn cron_history_rows_format_three_states() {
     assert!(absolute_time("bad").contains("时间无效"));
 }
 #[test]
-fn cron_history_type_options_are_local_only() {
-    assert_eq!(TYPE_OPTIONS.map(|v| v.to_string()), ["全部类型", "本地"]);
-}
-#[test]
 fn cron_history_details_select_exact_run() {
     let first = run("ok", 1);
     let second = run("ok", 2);
@@ -48,7 +44,6 @@ fn cron_history_components_build_real_rows_and_missing_details() {
     let mut app = super::super::helpers_tests::TestApp::default();
     app.cron_settings.history.runs = vec![run("running", 1), run("ok", 2), run("error", 3)];
     app.cron_settings.history.task_picker_open = true;
-    app.cron_settings.history.search_open = true;
     for theme in [Theme::Light, Theme::Dark] {
         app.app_theme = theme;
         let _ = view(&super::super::helpers_tests::data(&app));

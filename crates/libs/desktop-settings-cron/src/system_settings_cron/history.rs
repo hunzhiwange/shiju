@@ -1,13 +1,18 @@
 //! 当前工作区的有界运行记录列表与单次详情。
 use super::*;
 use crate::message::HistoryMessage as Event;
-use crate::state::{CronHistoryLocation, CronHistoryState, CronHistoryStatus};
+use crate::state::{CronHistoryState, CronHistoryStatus};
+use desktop_assets::assets::Icon;
+use desktop_ui_controls::overlays::BelowOverlay;
+use desktop_ui_controls::system_settings_common::{
+    SETTINGS_CONTROL_HEIGHT, SettingsSelectLabel, icon_svg,
+    settings_pick_list_menu_style, settings_pick_list_style, theme::is_dark_theme,
+};
 use iced::widget::scrollable::{Direction, Scrollbar};
-use iced::widget::{column, responsive, scrollable};
+use iced::widget::{column, pick_list, responsive, scrollable, stack, svg};
+use iced::{Border, Color, Padding};
 use gateway_cron::CronHistoryRunDto;
 
-const TYPE_OPTIONS: [CronHistoryLocation; 2] =
-    [CronHistoryLocation::All, CronHistoryLocation::Local];
 fn event(value: Event) -> Message {
     Message::Settings(message::SettingsMessage::CronHistory(value))
 }
@@ -65,7 +70,6 @@ fn empty_label(state: &CronHistoryState) -> Option<&'static str> {
     if !state.search.trim().is_empty()
         || state.selected_job_id.is_some()
         || state.status_filter != CronHistoryStatus::All
-        || state.location_filter != CronHistoryLocation::All
     {
         Some("此范围内无匹配记录")
     } else {
@@ -108,26 +112,176 @@ fn record_row(run: &CronHistoryRunDto, narrow: bool) -> Element<'_, Message> {
     .align_y(Alignment::Center)
     .into()
 }
-pub fn view<'a>(app: &ViewData<'a>) -> Element<'a, Message> {
+fn refresh_style(theme: &Theme, status: button::Status) -> button::Style {
+    let mut style = primary_action_btn_style(theme, status);
+    let dark = is_dark_theme(theme);
+    let color = match (dark, status) {
+        (_, button::Status::Disabled) => return style,
+        (true, button::Status::Active) => Color::from_rgb8(255, 143, 70),
+        (true, button::Status::Hovered) => Color::from_rgb8(255, 162, 101),
+        (true, button::Status::Pressed) => Color::from_rgb8(232, 123, 50),
+        (false, button::Status::Active) => Color::from_rgb8(198, 77, 9),
+        (false, button::Status::Hovered) => Color::from_rgb8(175, 62, 5),
+        (false, button::Status::Pressed) => Color::from_rgb8(153, 52, 3),
+    };
+    style.background = Some(color.into());
+    style.text_color = if dark { Color::from_rgb8(34, 21, 14) } else { Color::WHITE };
+    style
+}
+
+fn task_option(label: String, id: Option<String>, selected: bool) -> Element<'static, Message> {
+    let mut content = row![SettingsSelectLabel::new(label)]
+        .spacing(10)
+        .height(Length::Fill)
+        .align_y(Alignment::Center);
+    if selected {
+        content = content.push(icon_svg(Icon::Check, 16.0).style(|theme, _| svg::Style {
+            color: Some(theme.extended_palette().success.strong.color),
+        }));
+    }
+    button(content)
+        .width(Length::Fill)
+        .height(36)
+        .padding([0, 10])
+        .style(move |theme, status| {
+            let mut style = rounded_action_btn_style(theme, status);
+            let active =
+                selected || matches!(status, button::Status::Hovered | button::Status::Pressed);
+            style.background = active.then(|| theme.palette().text.scale_alpha(0.06).into());
+            style.border = Border { radius: 9.0.into(), ..Default::default() };
+            style
+        })
+        .on_press(event(Event::TaskSelected(id)))
+        .into()
+}
+
+fn task_picker<'a>(app: &ViewData<'a>, tr: I18n) -> Element<'a, Message> {
     let state = &app.cron_settings.history;
-    let task_label = state
+    let all_tasks = tr.__("全部任务");
+    let label = state
         .selected_job_id
         .as_ref()
-        .map(|id| {
-            app.cron_settings
-                .jobs
-                .iter()
-                .find(|job| job.id == *id)
-                .map(job_title)
-                .unwrap_or_else(|| id.clone())
-        })
-        .unwrap_or_else(|| "全部任务".into());
-    let mut toolbar = row![
-        desktop_ui_controls::system_settings_common::icon_btn(
-            desktop_assets::assets::Icon::Search,
-            "搜索任务名称",
-            Some(event(Event::SearchToggled))
-        ),
+        .and_then(|id| app.cron_settings.jobs.iter().find(|job| job.id == *id))
+        .map(job_title)
+        .unwrap_or(all_tasks);
+    let open = state.task_picker_open;
+    let chevron = if open { Icon::ChevronUp } else { Icon::ChevronDown };
+    let trigger = button(
+        row![
+            SettingsSelectLabel::new(label.into()),
+            icon_svg(chevron, 12.0).style(|theme, _| svg::Style {
+                color: Some(theme.palette().text.scale_alpha(0.7)),
+            })
+        ]
+        .spacing(12)
+        .height(Length::Fill)
+        .align_y(Alignment::Center),
+    )
+    .width(216)
+    .height(SETTINGS_CONTROL_HEIGHT)
+    .padding([0, 12])
+    .style(move |theme, status| {
+        let status = if open {
+            pick_list::Status::Opened { is_hovered: false }
+        } else if matches!(status, button::Status::Hovered | button::Status::Pressed) {
+            pick_list::Status::Hovered
+        } else {
+            pick_list::Status::Active
+        };
+        let select = settings_pick_list_style(theme, status);
+        button::Style {
+            background: Some(select.background),
+            text_color: select.text_color,
+            border: Border { radius: 10.0.into(), ..select.border },
+            ..Default::default()
+        }
+    })
+    .on_press(event(Event::TaskPickerToggled(!open)));
+
+    if !open {
+        return trigger.into();
+    }
+
+    let mut candidates =
+        column![task_option(all_tasks.into(), None, state.selected_job_id.is_none(),)].spacing(2);
+    for (id, name) in state.task_candidates(&app.cron_settings.jobs) {
+        candidates = candidates.push(task_option(
+            name,
+            Some(id.into()),
+            state.selected_job_id.as_deref() == Some(id),
+        ));
+    }
+    let options = container(
+        scrollable(container(candidates).padding([0, 7]).width(Length::Fill))
+            .direction(Direction::Vertical(Scrollbar::new().width(4).scroller_width(4)))
+            .height(Length::Shrink),
+    )
+    .max_height(180);
+    let search = search_input(
+        tr.__("搜索任务名称"),
+        &state.task_search,
+        Event::TaskSearchChanged,
+    );
+    let menu = container(column![container(search).padding([0, 7]), options].spacing(8))
+        .width(248)
+        .padding([8, 0])
+        .style(|theme| {
+            let style = settings_pick_list_menu_style(theme);
+            container::Style {
+                background: Some(theme.extended_palette().background.base.color.into()),
+                border: style.border,
+                shadow: style.shadow,
+                ..Default::default()
+            }
+        });
+    BelowOverlay::new(trigger, menu)
+        .show(true)
+        .align_right(true)
+        .gap(8.0)
+        .dismiss_on_escape()
+        .on_close(event(Event::TaskPickerToggled(false)))
+        .into()
+}
+
+fn search_input(
+    placeholder: &str,
+    value: &str,
+    on_input: fn(String) -> Event,
+) -> Element<'static, Message> {
+    stack![
+        settings_text_input(placeholder, value)
+            .padding(Padding::from(SETTINGS_CONTROL_PADDING).left(36))
+            .on_input(move |value| event(on_input(value))),
+        container(icon_svg(Icon::Search, 16.0).style(|theme, _| svg::Style {
+            color: Some(theme.palette().text.scale_alpha(0.6)),
+        }))
+        .padding([0, 12])
+        .center_y(SETTINGS_CONTROL_HEIGHT),
+    ]
+    .into()
+}
+
+pub fn view<'a>(app: &ViewData<'a>) -> Element<'a, Message> {
+    let state = &app.cron_settings.history;
+    let tr = I18n::new(app.desktop_locale);
+    let refresh = button(
+        container(
+            text(tr.__(if state.loading { "刷新中…" } else { "刷新" }))
+                .size(SETTINGS_CONTROL_TEXT_SIZE),
+        )
+        .center_y(Length::Fill),
+    )
+    .height(SETTINGS_CONTROL_HEIGHT)
+    .padding([0, 14])
+    .style(refresh_style)
+    .on_press_maybe((!state.loading).then(|| event(Event::Refresh)));
+    let toolbar = row![
+        container(search_input(
+            tr.__("搜索定时任务/记录"),
+            &state.search,
+            Event::SearchChanged,
+        ))
+        .width(236),
         settings_select(
             [
                 CronHistoryStatus::All,
@@ -136,58 +290,15 @@ pub fn view<'a>(app: &ViewData<'a>) -> Element<'a, Message> {
                 CronHistoryStatus::Failed
             ],
             Some(state.status_filter),
-            |v| event(Event::StatusChanged(v))
+            |value| event(Event::StatusChanged(value))
         )
         .width(130),
-        settings_select(TYPE_OPTIONS, Some(state.location_filter), |v| event(
-            Event::LocationChanged(v)
-        ))
-        .width(120),
-        button(text(task_label).size(13))
-            .width(180)
-            .padding(SETTINGS_CONTROL_PADDING)
-            .style(rounded_action_btn_style)
-            .on_press(event(Event::TaskPickerToggled(!state.task_picker_open))),
+        task_picker(app, tr),
+        refresh,
     ]
-    .spacing(8);
-    let mut refresh = button(text(if state.loading { "刷新中…" } else { "刷新" }))
-        .padding(SETTINGS_CONTROL_PADDING)
-        .style(rounded_action_btn_style);
-    if !state.loading {
-        refresh = refresh.on_press(event(Event::Refresh));
-    }
-    toolbar = toolbar.push(refresh);
+    .spacing(8)
+    .align_y(Alignment::Center);
     let mut content = column![toolbar.wrap()].spacing(12);
-    if state.search_open || !state.search.is_empty() {
-        content = content.push(
-            settings_text_input("搜索任务名称", &state.search)
-                .on_input(|v| event(Event::SearchChanged(v))),
-        );
-    }
-    if state.task_picker_open {
-        let mut candidates = column![secondary_button(
-            if state.selected_job_id.is_none() { "✓ 全部任务" } else { "全部任务" },
-            event(Event::TaskSelected(None))
-        )]
-        .spacing(6);
-        for (id, name) in state.task_candidates(&app.cron_settings.jobs) {
-            let label = if state.selected_job_id.as_deref() == Some(id) {
-                format!("✓ {name}")
-            } else {
-                name
-            };
-            candidates = candidates
-                .push(secondary_button(label, event(Event::TaskSelected(Some(id.into())))));
-        }
-        content = content.push(settings_group_card(
-            column![
-                settings_text_input("搜索任务", &state.task_search)
-                    .on_input(|v| event(Event::TaskSearchChanged(v))),
-                container(scroll(candidates)).height(160)
-            ]
-            .spacing(8),
-        ));
-    }
     content = content.push(text("最近 200 条已结束记录及当前运行任务，筛选仅作用于此范围；时间为本机时区（含 UTC 偏移）").size(12).style(settings_muted_text_style));
     if state.truncated {
         content = content.push(text("存在更早的运行记录").size(12));
@@ -203,6 +314,9 @@ pub fn view<'a>(app: &ViewData<'a>) -> Element<'a, Message> {
     }
     if state.loading && !state.runs.is_empty() {
         content = content.push(text("正在刷新运行记录…"));
+    }
+    if state.visible_runs().next().is_none() {
+        return content.height(Length::Fill).into();
     }
     content = content.push(responsive(move |size| {
         let narrow = size.width < 760.0;

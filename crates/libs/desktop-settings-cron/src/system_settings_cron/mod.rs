@@ -62,9 +62,6 @@ pub struct ViewData<'a> {
 fn hover_help_label<'a>(app: &ViewData<'_>, title: &'a str, label: iced::widget::Text<'a>, description: impl Into<std::borrow::Cow<'a,str>>) -> iced::widget::Row<'a,Message> {
     desktop_ui_controls::system_settings_common::help::settings_hover_help_label(label, (app.help_content)(title, description.into(), Some(app.app_theme.palette().text), I18n::new(app.desktop_locale)))
 }
-fn settings_page_heading_with_help<'a>(app: &ViewData<'_>, title: &'a str, description: impl Into<std::borrow::Cow<'a,str>>) -> Element<'a,Message> {
-    hover_help_label(app, title, text(title).size(24), description).wrap().into()
-}
 fn settings_group_heading_with_help<'a>(app: &ViewData<'_>, title: &'a str, description: impl Into<std::borrow::Cow<'a,str>>) -> Element<'a,Message> {
     hover_help_label(app, title, text(title).size(17), description).wrap().into()
 }
@@ -151,14 +148,21 @@ pub fn view<'a, M: Clone + 'static>(app: &ViewData<'a>, scheduler_content: Eleme
     };
 
     let heading: Element<'_, Message> = row![
-            container(settings_page_heading_with_help(app,
-                i18n.__("定时任务"),
-                i18n.__("配置 Cron 子系统的开关与历史保留策略。")
-            ))
-            .width(Length::Fill),
-            help_btn
+        column![
+            text(i18n.__("定时任务"))
+                .size(24)
+                .font(iced::Font { weight: iced::font::Weight::Bold, ..iced::Font::DEFAULT }),
+            text(i18n.__("配置 Cron 子系统的开关与历史保留策略。"))
+                .size(14)
+                .style(settings_muted_text_style),
         ]
-        .align_y(Alignment::Start).into();
+        .spacing(4)
+        .width(Length::Fill),
+        help_btn,
+    ]
+    .spacing(12)
+    .align_y(Alignment::Start)
+    .into();
     let mut col = column![heading.map(map), Element::<Message>::from(tabs).map(map)].spacing(16).width(Length::Fill);
     if let Some(error) = save_error_banner(app) {
         col = col.push(error.map(map));

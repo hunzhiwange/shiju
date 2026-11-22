@@ -4,7 +4,6 @@ use gateway_cron::{CronHistoryResponse, CronJobDto};
 #[derive(Debug, Clone)]
 pub enum HistoryMessage {
     Refresh,
-    SearchToggled,
     DetailsOpened(String),
     DetailsClosed,
     CopyOutput(String),
@@ -12,7 +11,6 @@ pub enum HistoryMessage {
     Loaded { generation: u64, result: Result<(CronHistoryResponse, Vec<CronJobDto>), String> },
     SearchChanged(String),
     StatusChanged(CronHistoryStatus),
-    LocationChanged(CronHistoryLocation),
     TaskSelected(Option<String>),
     TaskSearchChanged(String),
     TaskPickerToggled(bool),

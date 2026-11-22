@@ -32,8 +32,8 @@ fn cron_history_filters_intersect() {
     state.selected_job_id = None;
     state.status_filter = CronHistoryStatus::Running;
     assert_eq!(state.visible_runs().next().unwrap().job_id, "c");
-    assert_eq!(CronHistoryState::display_name(&state.runs[2]), "c");
-    assert_eq!(CronHistoryState::display_name(&run("empty", Some("  "), "ok")), "empty");
+    assert_eq!(CronHistoryState::display_name(&state.runs[2]), "未命名任务");
+    assert_eq!(CronHistoryState::display_name(&run("empty", Some("  "), "ok")), "未命名任务");
 }
 
 #[test]
@@ -55,9 +55,8 @@ fn cron_history_duplicate_names_with_common_prefix_remain_distinct() {
     let jobs = [first, second];
     let state = CronHistoryState::default();
     let candidates = state.task_candidates(&jobs);
-    assert_ne!(candidates[0].1, candidates[1].1);
-    assert!(candidates[0].1.contains(&jobs[0].id));
-    assert!(candidates[1].1.contains(&jobs[1].id));
+    assert_eq!(candidates[0], (jobs[0].id.as_str(), "中文重名任务（1）".into()));
+    assert_eq!(candidates[1], (jobs[1].id.as_str(), "中文重名任务（2）".into()));
 }
 
 #[test]
@@ -95,7 +94,6 @@ fn cron_history_refresh_prunes_deleted_selection_and_preserves_filters() {
     let mut state = CronHistoryState::default();
     state.search = "search".into();
     state.status_filter = CronHistoryStatus::Failed;
-    state.location_filter = CronHistoryLocation::Local;
     state.selected_job_id = Some("deleted".into());
     state.apply_response(
         gateway_cron::CronHistoryResponse {

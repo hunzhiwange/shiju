@@ -864,7 +864,7 @@ async fn submit_message_success_preserves_history_after_turn() {
 }
 
 #[tokio::test]
-async fn submit_message_error_rolls_back_history_and_turn_count() {
+async fn query_engine_failed_turn_history_rolls_back_on_first_step_error() {
     let provider = ScriptedProvider::with_steps(vec![ProviderStep::Error("boom")]);
     let mut engine = test_engine(provider, Arc::new(FakeMemory::default()));
     engine.history.push(ChatMessage::assistant("previous"));
@@ -877,6 +877,86 @@ async fn submit_message_error_rolls_back_history_and_turn_count() {
     assert_eq!(engine.history_snapshot().len(), before.len());
     assert_eq!(engine.history_snapshot()[0].content, "previous");
     assert_eq!(engine.session_state().usage.llm_calls, 0);
+}
+
+#[tokio::test]
+async fn query_engine_failed_turn_history_omits_rejected_tool_call() {
+    let mut rejected = chat_tool_call("unfinished-call");
+    rejected.tool_calls[0].kind = model_types::ToolCallKind::Search;
+    rejected.tool_calls[0].name = "tool_search".into();
+    let provider = ScriptedProvider::with_steps(vec![
+        ProviderStep::Response(chat_tool_call("confirmed-call")),
+        ProviderStep::Response(rejected),
+        ProviderStep::Response(chat_text("next answer", None)),
+    ]);
+    let handle = provider.clone();
+    let mut engine = test_engine(provider, Arc::new(crate::memory::NoneMemory));
+    let tool = HookProbeTool::default();
+    let executions = tool.0.clone();
+    engine.tools_registry.push(Box::new(tool));
+
+    let error = engine.submit_message("run first tool").await.unwrap_err();
+    assert_eq!(error.to_string(), "native tool search is not authorized for this provider request");
+    assert_eq!(engine.submit_message("next request").await.unwrap(), "next answer");
+    assert_eq!(executions.load(Ordering::SeqCst), 1);
+    let requests = handle.seen_messages();
+    assert_eq!(requests.len(), 3);
+    assert_eq!(requests[2].iter().filter(|message| message.role == "tool").count(), 1);
+    assert!(requests[2].iter().all(|message| !message.content.contains("unfinished-call")));
+}
+
+#[tokio::test]
+async fn query_engine_failed_turn_history_keeps_confirmed_tool_pair_in_next_request() {
+    let provider = ScriptedProvider::with_steps(vec![
+        ProviderStep::Response(chat_tool_call("confirmed-call")),
+        ProviderStep::Response(chat_text("", None)),
+        ProviderStep::Error("terminal model error"),
+        ProviderStep::Response(chat_text("next answer", None)),
+    ]);
+    let handle = provider.clone();
+    let mut engine = test_engine(provider, Arc::new(crate::memory::NoneMemory));
+    engine.max_iterations = 3;
+    let tool = HookProbeTool::default();
+    let executions = tool.0.clone();
+    engine.tools_registry.push(Box::new(tool));
+    engine.history.push(ChatMessage::assistant("prior answer"));
+
+    let error = engine.submit_message("run first tool").await.unwrap_err();
+    assert_eq!(error.to_string(), "terminal model error");
+    assert_eq!(engine.turn_count(), 0);
+    let failed_history = engine.history_snapshot();
+    assert_eq!(engine.submit_message("next request").await.unwrap(), "next answer");
+    assert_eq!(executions.load(Ordering::SeqCst), 1);
+
+    let requests = handle.seen_messages();
+    assert_eq!(requests.len(), 4);
+    let submitted_user = requests[0].last().unwrap();
+    assert!(submitted_user.content.ends_with("run first tool"));
+    let retry_prompt = agent_loop::core::constants::EMPTY_FINAL_RESPONSE_RETRY_PROMPT;
+    assert!(requests[2].iter().any(|message| message.content == retry_prompt));
+    let [prior, user, assistant, result] = failed_history.as_slice() else {
+        panic!("expected prior history, submitted user, and one complete tool pair");
+    };
+    assert_eq!(prior.content, "prior answer");
+    assert_eq!(user.role, "user");
+    assert_eq!(user.content, submitted_user.content);
+    assert_eq!(assistant.role, "assistant");
+    let call: serde_json::Value = serde_json::from_str(&assistant.content).unwrap();
+    assert_eq!(call["tool_calls"].as_array().unwrap().len(), 1);
+    assert_eq!(call["tool_calls"][0]["id"], "confirmed-call");
+    assert_eq!(result.role, "tool");
+    let output: serde_json::Value = serde_json::from_str(&result.content).unwrap();
+    assert_eq!(output, serde_json::json!({"tool_call_id": "confirmed-call", "content": "ok"}));
+
+    let next = &requests[3];
+    let start = next.iter().position(|message| message.content == prior.content).unwrap();
+    assert_eq!(
+        next[start..next.len() - 1]
+            .iter()
+            .map(|message| (&message.role, &message.content))
+            .collect::<Vec<_>>(),
+        failed_history.iter().map(|message| (&message.role, &message.content)).collect::<Vec<_>>(),
+    );
 }
 
 #[tokio::test]

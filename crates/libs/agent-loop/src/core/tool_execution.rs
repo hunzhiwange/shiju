@@ -247,6 +247,7 @@ pub async fn execute_tool_calls_and_update_history<C: ContextHost, T, P, O, N>(
         executed_outcomes.append(&mut batch_outcomes);
     }
 
+    let all_outcomes_returned = executable_calls.len() == executed_outcomes.len();
     for ((idx, call), outcome) in
         executable_indices.iter().zip(executable_calls.iter()).zip(executed_outcomes.into_iter())
     {
@@ -311,6 +312,24 @@ pub async fn execute_tool_calls_and_update_history<C: ContextHost, T, P, O, N>(
         })
         .collect();
 
+    // Keep only batches that can be restored with a result for every call.
+    let mut complete_batch = all_outcomes_returned
+        && !tool_calls.is_empty()
+        && history_entries.len() == tool_calls.len();
+    if use_native_tools || !native_tool_calls.is_empty() {
+        let mut ids = HashSet::new();
+        complete_batch &= history_entries.iter().all(|entry| {
+            entry.tool_call_id.as_deref().is_some_and(|id| !id.trim().is_empty() && ids.insert(id))
+        });
+        if !native_tool_calls.is_empty() {
+            complete_batch &= native_tool_calls
+                .iter()
+                .map(|call| Some(call.id.as_str()))
+                .eq(history_entries.iter().map(|entry| entry.tool_call_id.as_deref()));
+        }
+    }
+    let mut delta = Vec::new();
+
     #[cfg(not(target_arch = "wasm32"))]
     if !native_calls.is_empty() {
         let ordinary_calls: Vec<_> = native_tool_calls
@@ -327,10 +346,10 @@ pub async fn execute_tool_calls_and_update_history<C: ContextHost, T, P, O, N>(
         if !ordinary_calls.is_empty()
             || assistant["content"].as_str().is_some_and(|text| !text.is_empty())
         {
-            history.push(ChatMessage::assistant(assistant.to_string()));
+            delta.push(ChatMessage::assistant(assistant.to_string()));
         }
         for call in native_calls {
-            history.push(ChatMessage {
+            delta.push(ChatMessage {
                 role: "native".into(),
                 content: (services.serialize_native)(&call)?,
             });
@@ -339,7 +358,7 @@ pub async fn execute_tool_calls_and_update_history<C: ContextHost, T, P, O, N>(
             if let Some(output) =
                 entry.tool_call_id.as_ref().and_then(|id| native_outputs.remove(id))
             {
-                history.push(ChatMessage {
+                delta.push(ChatMessage {
                     role: "native".into(),
                     content: (services.serialize_native)(&output)?,
                 });
@@ -349,21 +368,29 @@ pub async fn execute_tool_calls_and_update_history<C: ContextHost, T, P, O, N>(
                     .filter(|call| Some(&call.id) == entry.tool_call_id.as_ref())
                     .cloned()
                     .collect();
-                history.extend(build_tool_result_history_messages(
+                delta.extend(build_tool_result_history_messages(
                     &calls,
                     &[entry],
                     use_native_tools,
                 ));
             }
         }
+        if complete_batch && native_outputs.is_empty() {
+            super::tool_loop::record_confirmed_tool_history(turn_id, &delta);
+        }
+        history.extend(delta);
         return Ok(());
     }
-    history.push(ChatMessage::assistant(assistant_history_content));
-    history.extend(build_tool_result_history_messages(
+    delta.push(ChatMessage::assistant(assistant_history_content));
+    delta.extend(build_tool_result_history_messages(
         native_tool_calls,
         &history_entries,
         use_native_tools,
     ));
+    if complete_batch {
+        super::tool_loop::record_confirmed_tool_history(turn_id, &delta);
+    }
+    history.extend(delta);
 
     Ok(())
 }

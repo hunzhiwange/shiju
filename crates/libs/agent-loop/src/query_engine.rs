@@ -23,6 +23,7 @@ use std::sync::{Arc, Mutex};
 use config_agent::merged_agent_configs;
 
 use agent_loop::context::build_context;
+use agent_loop::core::tool_loop::track_confirmed_tool_history;
 
 use agent_loop::instructions::build_shell_policy_instructions;
 
@@ -361,26 +362,28 @@ impl<H: QueryEngineHost> QueryEngine<H> {
         let transient_len = request_history.len();
         request_history.extend(context);
 
-        let (result, replay_blocked) = H::agent_turn(
-            self.provider.as_ref(),
-            &mut request_history,
-            &self.tools_registry,
-            self.observer.as_ref(),
-            &self.provider_name,
-            &self.model_name,
-            self.default_temperature,
-            true,
-            &self.multimodal_config,
-            self.max_iterations,
-            self.hook_runtime.as_ref().and_then(|runtime| runtime.runner_snapshot()),
-            self.skill_session.as_mut(),
-        )
-        .await;
+        let ((result, replay_blocked), mut confirmed_tool_history) =
+            track_confirmed_tool_history(H::agent_turn(
+                self.provider.as_ref(),
+                &mut request_history,
+                &self.tools_registry,
+                self.observer.as_ref(),
+                &self.provider_name,
+                &self.model_name,
+                self.default_temperature,
+                true,
+                &self.multimodal_config,
+                self.max_iterations,
+                self.hook_runtime.as_ref().and_then(|runtime| runtime.runner_snapshot()),
+                self.skill_session.as_mut(),
+            ))
+            .await;
 
         let mut retry_response_persisted = false;
         let result = match result {
             Err(error)
                 if !replay_blocked
+                    && confirmed_tool_history.is_empty()
                     && !agent_loop::core::errors::is_tool_loop_cancelled(&error)
                     && is_prompt_too_long(&error.to_string(), &request_history) =>
             {
@@ -405,21 +408,23 @@ impl<H: QueryEngineHost> QueryEngine<H> {
                 ))];
                 let transient_len = retry_history.len();
                 retry_history.extend(context);
-                let (retry, _) = H::agent_turn(
-                    self.provider.as_ref(),
-                    &mut retry_history,
-                    &self.tools_registry,
-                    self.observer.as_ref(),
-                    &self.provider_name,
-                    &self.model_name,
-                    self.default_temperature,
-                    true,
-                    &self.multimodal_config,
-                    self.max_iterations,
-                    self.hook_runtime.as_ref().and_then(|runtime| runtime.runner_snapshot()),
-                    self.skill_session.as_mut(),
-                )
-                .await;
+                let ((retry, _), retry_tool_history) =
+                    track_confirmed_tool_history(H::agent_turn(
+                        self.provider.as_ref(),
+                        &mut retry_history,
+                        &self.tools_registry,
+                        self.observer.as_ref(),
+                        &self.provider_name,
+                        &self.model_name,
+                        self.default_temperature,
+                        true,
+                        &self.multimodal_config,
+                        self.max_iterations,
+                        self.hook_runtime.as_ref().and_then(|runtime| runtime.runner_snapshot()),
+                        self.skill_session.as_mut(),
+                    ))
+                    .await;
+                confirmed_tool_history = retry_tool_history;
                 if retry.is_ok() {
                     self.history
                         .extend(retry_history.into_iter().skip(transient_len + persistent_len));
@@ -431,7 +436,11 @@ impl<H: QueryEngineHost> QueryEngine<H> {
         };
 
         if result.is_err() {
-            self.history = history_snapshot;
+            if confirmed_tool_history.is_empty() {
+                self.history = history_snapshot;
+            } else {
+                self.history.extend(confirmed_tool_history);
+            }
         } else {
             if !retry_response_persisted {
                 self.history

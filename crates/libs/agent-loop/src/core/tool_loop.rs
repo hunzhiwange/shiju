@@ -1,5 +1,6 @@
 //! 工具循环主体；实时目录、租约与请求宿主能力按实际调用点绑定。
 use std::{sync::Arc, collections::HashSet, path::Path, io::Write as _};
+use std::{cell::RefCell, future::Future};
 use anyhow::Result;
 use model_types::{Provider, ChatMessage, ToolCall};
 use agent_approval::ApprovalManager;
@@ -20,6 +21,40 @@ use super::detection::looks_like_unverified_action_completion_without_tool_call;
 use super::output::{ProgressWire, send_retry_progress, stream_final_response, update_thinking_progress, update_tool_call_progress};
 use super::llm_round::LlmRoundResult;
 use session_port::child_agent::{ChildAgentTaskSnapshot, ChildAgentWaitOutcome};
+
+#[derive(Default)]
+struct ConfirmedToolHistory {
+    turn_id: Option<String>,
+    messages: Vec<ChatMessage>,
+}
+
+tokio::task_local! {
+    static CONFIRMED_TOOL_HISTORY: RefCell<ConfirmedToolHistory>;
+}
+
+/// Capture the original tool history written by one turn, even when it returns an error.
+pub async fn track_confirmed_tool_history<T>(
+    turn: impl Future<Output = T>,
+) -> (T, Vec<ChatMessage>) {
+    CONFIRMED_TOOL_HISTORY
+        .scope(RefCell::new(ConfirmedToolHistory::default()), async {
+            let result = turn.await;
+            let messages = CONFIRMED_TOOL_HISTORY
+                .with(|history| std::mem::take(&mut history.borrow_mut().messages));
+            (result, messages)
+        })
+        .await
+}
+
+pub(super) fn record_confirmed_tool_history(turn_id: &str, messages: &[ChatMessage]) {
+    let _ = CONFIRMED_TOOL_HISTORY.try_with(|history| {
+        let mut history = history.borrow_mut();
+        if history.turn_id.as_deref() == Some(turn_id) {
+            history.messages.extend_from_slice(messages);
+        }
+    });
+}
+
 pub struct RoundRequest<'a> {
     pub provider: &'a dyn Provider,
     pub history: &'a [ChatMessage],
@@ -146,6 +181,10 @@ where
         .map(|tool| tool.spec())
         .collect();
     let turn_id = Uuid::new_v4().to_string();
+    // Nested loops on the same task have their own turn IDs.
+    let _ = CONFIRMED_TOOL_HISTORY.try_with(|history| {
+        history.borrow_mut().turn_id.get_or_insert_with(|| turn_id.clone());
+    });
     let mut seen_tool_signatures: HashSet<(String, String)> = HashSet::new();
     let mut missing_tool_call_retry_used = false;
     let mut missing_tool_call_retry_prompt: Option<String> = None;

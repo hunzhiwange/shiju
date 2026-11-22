@@ -1,0 +1,37 @@
+{
+  "managed_revision": "pi-0.0.22-model-source-linux-v1",
+  "adapter": {
+    "package": "pi-acp",
+    "version": "0.0.22",
+    "entry": "dist/index.js",
+    "archive_url": "https://registry.npmjs.org/pi-acp/-/pi-acp-0.0.22.tgz",
+    "integrity": "sha512-A9DFxi3dF/xFgf0vm5r5jvEtTszRXqK2MUYXWQN0aSSLeJW53efqFlueczZCj5J119s+FLlQVQYso71PDPL0sw==",
+    "upstream_entry_sha256": "f9a00a801269ecaabbfb977cdabac6dae9dacd1f8f27e39905217cf84b4b87d5",
+    "source_commit": "8be5f22769f71d759aa48d798416c56e8be101ef",
+    "source_lock_sha256": "e257ee4cbe345ee0de44714d34401ed2ed14de41abc2c6ed7511b1a3d923c606",
+    "base_patch_sha256": "6ba08c0cc171d2d410481fe131d05608331cc034c68458790782a4d84c33d6b6"
+  },
+  "engine": {
+    "package": "@mariozechner/pi-coding-agent",
+    "version": "0.73.1",
+    "entry": "dist/cli.js",
+    "archive_url": "https://registry.npmjs.org/@mariozechner/pi-coding-agent/-/pi-coding-agent-0.73.1.tgz",
+    "integrity": "sha512-gXQh3SaZmWTfVMc4Ao5+LGbVeKvzyO7tolok0nLsZgq9nGjZx/EEU3NM8C+qUnB4Nvs2rswG5qOVgLzQkq0fHQ==",
+    "entry_sha256": "e959f463b06ddd15ed882783ac02f39ecaeef950ef967da86380f39dda6595fa",
+    "source_commit": "781152fc24841dc54b22284514604048ebe5e2c9"
+  },
+  "targets": {
+    "x86_64-unknown-linux-gnu": {
+      "build_package": "@esbuild/linux-x64",
+      "build_version": "0.27.2",
+      "build_integrity": "sha512-uwp2Tip5aPmH+NRUwTcfLb+W32WXjpFejTIOWZFw/v7/KnpCDKG66u4DLcurQpiYTiYwQ9B7KOeMJvLCu/OvbA==",
+      "build_entry_sha256": "ecd2aeff7d78a9feefa96d9c6f3bb9a9cbb38cc74ec3e7f044e8e6ed02e33d00"
+    },
+    "aarch64-unknown-linux-gnu": {
+      "build_package": "@esbuild/linux-arm64",
+      "build_version": "0.27.2",
+      "build_integrity": "sha512-hYxN8pr66NsCCiRFkHUAsxylNOcAQaxSSkHMMjcpx0si13t1LHFphxJZUiGwojB1a/Hd5OiPIqDdXONia6bhTw==",
+      "build_entry_sha256": "136015b18f887187ebaeb5f1fc48caf3e82fd86b4a4aefa53780fc0be5e4d41a"
+    }
+  }
+}

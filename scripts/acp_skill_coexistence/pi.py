@@ -10,6 +10,7 @@ import re
 import secrets
 import shutil
 import subprocess
+import sys
 import threading
 import time
 from xml.etree import ElementTree
@@ -30,7 +31,9 @@ ENGINE_SHA256 = "e959f463b06ddd15ed882783ac02f39ecaeef950ef967da86380f39dda6595f
 
 
 def launch(env):
-    require((platform.system(), platform.machine()) == ("Darwin", "arm64"),
+    target = (platform.system(), platform.machine())
+    linux = target in (("Linux", "x86_64"), ("Linux", "aarch64"))
+    require(linux or target == ("Darwin", "arm64"),
             "unreviewed Pi platform")
     manifest = ROOT / "crates/libs/acp-agent-registry/src/managed_runtime/contracts.json"
     contract = json.loads(manifest.read_text())["pi"]
@@ -38,7 +41,20 @@ def launch(env):
             "unexpected Pi contract versions")
     config = Path(os.environ.get("VIBEWINDOW_CONFIG_DIR", Path.home() / ".local/share/shiju"))
     relative = Path("node_modules") / contract["package"]
-    for source in sorted((config / "acp-runtime").glob(f"pi-{VERSION}-model-source-v*"), reverse=True):
+    if linux:
+        linux_manifest = ROOT / "patches/acp-model-source/pi/linux.json"
+        linux_contract = json.loads(linux_manifest.read_text())
+        require(platform.libc_ver()[0] == "glibc", "Pi probe requires glibc")
+        target_contract = linux_contract["targets"][target[1] + "-unknown-linux-gnu"]
+        revision = linux_contract["managed_revision"]
+        candidates = [config / "acp-runtime" / revision]
+        files = target_contract.get("managed_files", {})
+        require(contract["bin"] in files, "reviewed Pi Linux managed artifact contract unavailable")
+        contract = dict(contract, files=files)
+    else:
+        candidates = sorted((config / "acp-runtime").glob(f"pi-{VERSION}-model-source-v*"),
+                            reverse=True)
+    for source in candidates:
         package = source / relative
         if not (package / contract["bin"]).is_file():
             continue
@@ -70,7 +86,8 @@ def launch(env):
             "unexpected Pi executable version")
     return {"command": str(package / contract["bin"])}, {
         "version": VERSION, "engine_version": contract["engine_version"], "revision": source.name,
-        "sha256": hashes, "engine_sha256": ENGINE_SHA256,
+        "sha256": hashes, "engine_sha256": ENGINE_SHA256, "entry": contract["bin"],
+        "model_protocol": "openai-chat-completions",
     }
 
 
@@ -131,10 +148,15 @@ for line in sys.stdin:
     observer = threading.Thread(target=collect)
     observer.start()
     try:
-        python = Path(subprocess.check_output(["xcrun", "--find", "python3"], text=True).strip()).resolve()
-        framework = python.parents[1] / "Resources/Python.app/Contents/MacOS/Python"
-        # The framework's bin/python3 shim needs posix_spawn, denied by the reviewed sandbox.
-        yield {"name": "coexistence", "command": str(framework if framework.is_file() else python),
+        if platform.system() == "Darwin":
+            python = Path(subprocess.check_output(["xcrun", "--find", "python3"], text=True).strip()).resolve()
+            framework = python.parents[1] / "Resources/Python.app/Contents/MacOS/Python"
+            # The framework's bin/python3 shim needs posix_spawn, denied by the reviewed sandbox.
+            if framework.is_file():
+                python = framework
+        else:
+            python = Path(sys.executable).resolve(strict=True)
+        yield {"name": "coexistence", "command": str(python),
                "args": ["-B", str(runner), str(value), str(ack)], "env": []}
     finally:
         stop.set()

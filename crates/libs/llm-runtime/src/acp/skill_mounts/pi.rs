@@ -49,6 +49,11 @@ pub(super) fn configure(
         return Err(super::super::acp_option_error("conflicting Pi skill directory environment"));
     }
     let root = if let Some(view) = view {
+        if cfg!(target_os = "linux") {
+            return Err(super::super::acp_option_error(
+                "Pi skill mounts require a reviewed Linux sandbox",
+            ));
+        }
         view.0.validate().map_err(super::super::to_api_error)?;
         acp_agent_registry::verify_reviewed_agent_executable("pi", &config.command)
             .map_err(super::super::to_api_error)?;

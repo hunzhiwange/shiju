@@ -47,6 +47,35 @@ def staged_runtime(env):
     return runtime / "harn"
 
 
+
+class WriteProbe(harn.Probe):
+    def __init__(self, fixtures, path, rejected):
+        super().__init__(fixtures, False, False)
+        self.rejected = rejected
+        self.arguments = {"path": str(path), "content": secrets.token_hex(24)}
+
+    def response(self, body):
+        self.requests += 1
+        require(body["model"] == harn.MODEL and body["stream"] is True, "unexpected Harn write model")
+        if self.requests == 1:
+            tools = {tool["function"]["name"]: tool["function"] for tool in body["tools"]}
+            return self.call(tools, "write", "write_file", self.arguments)
+        _, call_id = self.pending
+        replies = [item["content"] for item in body["messages"]
+                   if item["role"] == "tool" and item.get("tool_call_id") == call_id]
+        if self.rejected:
+            require(len(replies) == 1 and "File written" not in str(replies[0]),
+                    "denied Harn write returned a success result")
+            return {"content": "WRITE_DENIED"}, "stop"
+        require(len(replies) == 1 and "File written" in str(replies[0]),
+                "missing approved Harn write continuation")
+        self.completed["write"] = call_id
+        return {"content": "WRITE_DONE"}, "stop"
+
+    def approves(self, metadata):
+        return metadata.get("title") == "Harn write_file" and metadata.get("arguments") == self.arguments
+
+
 def run(binary):
     require(os.geteuid() != 0, "run the Harn probe as a non-root Linux user")
     with tempfile.TemporaryDirectory(prefix="shiju-harn-linux-") as directory, ExitStack() as stack:
@@ -85,7 +114,7 @@ def run(binary):
                 }}}},
         }, method="PATCH")
         query = "?" + urlencode({"directory": str(workspace)})
-        for phase in ("baseline", "selected", "blocked", "removed"):
+        for phase in ("baseline", "selected", "blocked", "removed", "approved-write", "denied-write"):
             selected = phase in ("selected", "blocked")
             blocked = phase == "blocked"
             request(url, "/global/config", {"agents": {AGENT_PROFILE: {
@@ -96,7 +125,11 @@ def run(binary):
                 },
             }}}, method="PATCH")
             sid = json.loads(request(url, "/session" + query, {"title": phase}))["id"]
-            model.probe = probe = harn.Probe(fixtures, False, False, selected=selected)
+            write = phase.endswith("-write")
+            rejected = phase == "denied-write"
+            path = workspace / f"{phase}.txt"
+            model.probe = probe = (WriteProbe(fixtures, path, rejected) if write
+                                   else harn.Probe(fixtures, False, False, selected=selected))
             body = {"session_id": sid, "agent": AGENT_PROFILE, "acp_model_source": "session_model",
                     "model": model_id, "options": {"full_access": False, "cwd": str(workspace)},
                     "messages": [{"role": "user", "content": "Read the available fixture skills."}]}
@@ -112,6 +145,15 @@ def run(binary):
                             and not any(event.get("type") == "chat.done" for event in events),
                             "expected an explicit gateway MCP rejection")
                 require(probe.requests == 0, "blocked MCP selection reached the model")
+            elif write:
+                stream, decisions, _, _ = interactive_turn(url, query, body, probe, rejected)
+                require(not probe.failure and decisions == ["reject" if rejected else "once"],
+                        "Harn write lacked one explicit host decision")
+                if rejected:
+                    require(not path.exists() and not probe.completed, "denied Harn write had an effect")
+                else:
+                    require(path.read_text() == probe.arguments["content"] and probe.completed.keys() == {"write"}
+                            and '"chat.done"' in stream, "Harn did not execute and return the approved write")
             else:
                 stream, decisions, _, live = interactive_turn(url, query, body, probe, False)
                 events = [json.loads(line[6:]) for line in stream.splitlines() if line.startswith("data: {")]

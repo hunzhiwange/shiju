@@ -5,13 +5,13 @@
   "patch_sha256": "30752aa0fadd36675e1b088cbca5eb8a20de3e98cc0cc1f5a0c5b7d1e10d420a",
   "files": {
     "agent.harn": "6e312194b007bf517450839268573adfc902bc43f3d0ca9e7506e2d819d3e9a8",
-    "harn": "10e0fd828ad68be972da8ddb6239da7d51adf9155ab496a0b7bf8e0f92871dc6",
+    "harn": "c27063ec7feb7fd69811b5cdc99a0a819e265a7f63b8a9baaa14632a109b2258",
     "shiju_stdio.py": "e6870d58c6c59cb1f1d224a66cdaa8455b34057249912b7bce5b9e21f95a074a"
   },
   "directory": "harn-0.10.201-model-source-v5-linux",
   "source_revision": "4914194ae9f56b0046210ca90ef6f927988e727e",
   "rust_toolchain": "1.99.1",
-  "launcher_patch_sha256": "babc3bd6c1402a7cce3898923359ca57762bc31e46b7ea19ad49ea92c158cd91",
+  "launcher_patch_sha256": "976bb1a827d06654d1e7139a39a5bda3870b68ca13098ad0c9ecb9d03271d3af",
   "targets": {
     "x86_64-unknown-linux-gnu": {
       "upstream_tar_xz_sha256": "a5e1071ae92284ff4c5f8a6bdcabc3a313cb810903b68c97d325948fc85fffa9"

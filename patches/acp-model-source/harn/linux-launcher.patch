@@ -1,22 +1,87 @@
 --- a/harn
 +++ b/harn
-@@ -69,6 +69,9 @@
-                             or any(not isinstance(d, dict) or not NAME.fullmatch(d.get('name', ''))
-                                    for d in definitions)):
-                         raise ValueError('Invalid Harn MCP service selection')
+@@ -12,0 +13 @@
++import uuid
+@@ -72,5 +73,3 @@
+-                    # The existing sandbox adapter enforces the resolved host
+-                    # tool policy. Supply only this backend's trusted metadata.
+-                    definitions = [{**d, '_meta': {'shiju.cortex.toolPolicy':
+-                                     (d.get('_meta') or {}).get('shiju.harn.toolPolicy', {})}}
+-                                   for d in definitions]
 +                    if definitions:
 +                        self.host(fail(identifier, 'Harn Linux MCP requires a reviewed stdio sandbox'))
 +                        continue
-                     # The existing sandbox adapter enforces the resolved host
-                     # tool policy. Supply only this backend's trusted metadata.
-                     definitions = [{**d, '_meta': {'shiju.cortex.toolPolicy':
-@@ -298,6 +301,9 @@
-                'HARN_PROVIDERS_CONFIG', 'HARN_SESSION_STORE_ROOT', 'HARN_STATE_DIR',
-                'XDG_CONFIG_HOME', 'XDG_DATA_HOME', 'XDG_CACHE_HOME', 'SHIJU_HARN_RELAY_TOKEN'}
-     env = {key: value for key, value in os.environ.items() if key in allowed}
+@@ -78 +77 @@
+-                    selection = await asyncio.wait_for(self.selection(definitions), TIMEOUT)
++                    selection = {}
+@@ -144 +143 @@
+-                        and title in self.sessions.get(sid, {})
++                        and title == 'write_file'
+@@ -148 +147,3 @@
+-                    self.calls[call_id] = (title, arguments)
++                    self.calls[call_id] = arguments
++                elif update.get('status') in ('completed', 'failed') and isinstance(call_id, str):
++                    self.calls.pop(call_id, None)
+@@ -166,7 +167 @@
+-            name = values.get('name')
+-            if not isinstance(name, str):
+-                await self.send(fail(identifier, 'Invalid Harn MCP tool'))
+-                return
+-            task = asyncio.create_task(self.call(identifier, name, values.get('arguments')))
+-            self.workers.add(task)
+-            task.add_done_callback(self.workers.discard)
++            await self.send(fail(identifier, 'Harn Linux MCP requires a reviewed stdio sandbox'))
+@@ -178,0 +174,3 @@
++        if name == 'write_file' and '..' in Path(path).parts:
++            await self.send(fail(identifier, 'Harn write requires a path without parent traversal'))
++            return
+@@ -189,0 +188,6 @@
++            calls = [call_id for call_id, arguments in self.calls.items() if arguments == values]
++            if len(calls) != 1 or not path.is_relative_to(self.workspace):
++                await self.send(fail(identifier, 'Harn write has no unambiguous workspace tool call'))
++                return
++            call_id = calls[0]
++            del self.calls[call_id]
+@@ -190,0 +195,4 @@
++            task = asyncio.create_task(self.approve_write(identifier, self.turn, call_id, translated))
++            self.workers.add(task)
++            task.add_done_callback(self.workers.discard)
++            return
+@@ -192,2 +200 @@
+-        self.host({'id': identifier, 'params': translated,
+-                   'method': 'fs/read_text_file' if name == 'read_file' else 'fs/write_text_file'})
++        self.host({'id': identifier, 'params': translated, 'method': 'fs/read_text_file'})
+@@ -194,0 +202,27 @@
++    async def approve_write(self, identifier, turn, call_id, translated):
++        if self.cancelled or self.turn != turn:
++            await self.send(fail(identifier, 'Harn write approval expired'))
++            return
++        approval = APPROVAL_PREFIX + uuid.uuid4().hex
++        waiter = asyncio.get_running_loop().create_future()
++        self.pending[approval] = waiter
++        try:
++            self.host({'id': approval, 'method': 'session/request_permission', 'params': {
++                'sessionId': turn[1],
++                'toolCall': {'toolCallId': call_id, 'title': 'Harn write_file', 'kind': 'edit',
++                             'rawInput': {'path': translated['path'], 'content': translated['content']}},
++                'options': [
++                    {'optionId': 'allow_once', 'kind': 'allow_once', 'name': 'Allow once'},
++                    {'optionId': 'reject_once', 'kind': 'reject_once', 'name': 'Reject'},
++                ],
++            }})
++            response = await asyncio.wait_for(waiter, 300)
++            approved = response == {'outcome': {'outcome': 'selected', 'optionId': 'allow_once'}}
++        except (TimeoutError, asyncio.CancelledError):
++            approved = False
++        finally:
++            self.pending.pop(approval, None)
++        if approved and not self.cancelled and self.turn == turn:
++            self.host({'id': identifier, 'params': translated, 'method': 'fs/write_text_file'})
++        else:
++            await self.send(fail(identifier, 'Harn write was not approved'))
+@@ -195,0 +230 @@
++
+@@ -300,0 +336,3 @@
 +    if binding is not None:
 +        # Keep native account discovery inside the request-owned state directory.
 +        env['HOME'] = env['HARN_STATE_DIR']
-     pipeline = Path(os.environ.get('SHIJU_HARN_PIPELINE', str(root / 'agent.harn')))
-     if hashlib.sha256(pipeline.read_bytes()).digest() != hashlib.sha256((root / 'agent.harn').read_bytes()).digest():
-         raise ValueError('Harn private pipeline differs from the reviewed artifact')

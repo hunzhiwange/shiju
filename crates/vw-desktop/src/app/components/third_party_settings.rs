@@ -986,7 +986,7 @@ pub(crate) fn standalone(app: &App) -> Element<'_, Message> {
     if app.apps_catalog.third_party_page == ThirdPartyPage::Authorization {
         base = super::system_settings_auth::overlay(&app.agent_apps_auth, base);
     }
-    base
+    crate::app::message::app_providers::leave::overlay(app, base)
 }
 
 fn provider_help(app: &App) -> super::app_providers::list::Help<'_> {

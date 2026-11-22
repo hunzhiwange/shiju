@@ -37,6 +37,13 @@ def launch(env, prototype=False):
     contract = json.loads(contracts.read_text())["hermes"]
     require(contract["version"] == "0.19.0", "Hermes version differs from coexistence pin")
     revision = "hermes-0.19.0-model-source-v2" if prototype else "hermes-0.19.0-model-source-v3"
+    if linux:
+        revision = manifest["revision"]
+        overlay = json.loads((ROOT / "patches/acp-model-source/hermes" / manifest["mcp_overlay"]).read_text())
+        for name, hashes in overlay["files"].items():
+            require(contract["files"][name] == hashes["original_sha256"],
+                    "Hermes Linux overlay does not match the registry base")
+            contract["files"][name] = hashes["patched_sha256"]
     if prototype:
         metadata = ROOT / "docs/shiju/acp-model-source/evidence/hermes/patch.json"
         contract["files"] = {name: row["patched_sha256"]
@@ -82,7 +89,8 @@ def launch(env, prototype=False):
             package = BytesHeaderParser().parsebytes(metadata.read_bytes())
             require(package["Name"].replace("-", "_") == name and package["Version"] == expected,
                     "Hermes installed package version mismatch: " + name)
-        artifact.update(target=target, entry=manifest["entry"], mcp_version=manifest["mcp"]["version"],
+        artifact.update(target=target, entry=manifest["entry"], revision=revision,
+                        mcp_version=manifest["mcp"]["version"],
                         model_endpoint="/v1/chat/completions")
     args = manifest["args"] if linux else ["acp"]
     return {"command": str(entry), "args": args, "env": {}}, artifact

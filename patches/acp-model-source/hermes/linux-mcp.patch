@@ -1,0 +1,141 @@
+--- a/acp_adapter/server.py
++++ b/acp_adapter/server.py
+@@ -11,0 +12,2 @@
++import re
++import sys
+@@ -524,0 +527,3 @@
++        self._managed_linux = sys.platform == "linux" and bool(os.getenv("VW_ACP_LAUNCH_REFERENCE"))
++        self._managed_mcp_scope = None
++        self._managed_mcp_ready = False
+@@ -790,0 +796,11 @@
++
++    def _bind_managed_mcp_scope(self, session_id, servers):
++        # Hermes keeps MCP connections process-wide. A changed ACP scope must
++        # revoke this process instead of refreshing its stale tool registry.
++        scope = (session_id, [server.model_dump() for server in servers])
++        if self._managed_mcp_scope is not None:
++            if self._managed_mcp_ready and self._managed_mcp_scope == scope:
++                return False
++            self._managed_mcp_ready = False
++            self._managed_mcp_scope = ()
++            raise RuntimeError("Hermes managed MCP scope changed; restart the runtime")
+@@ -791,0 +808,23 @@
++        base = urlparse(os.environ["CUSTOM_BASE_URL"])
++        origin = f"http://{base.netloc}"
++        names = set()
++        for server in servers:
++            if (
++                not isinstance(server, McpServerHttp)
++                or not re.fullmatch(r"[a-zA-Z0-9_-]+", server.name)
++                or server.name in names
++                or base.scheme != "http"
++                or base.hostname != "127.0.0.1"
++                or base.port is None
++                or base.netloc != f"127.0.0.1:{base.port}"
++                or server.url != f"{origin}/shiju-vtcode-mcp/{server.name}"
++                or len(server.headers) != 1
++                or server.headers[0].name.lower() != "authorization"
++                or not server.headers[0].value.startswith("Bearer ")
++                or not server.headers[0].value[7:].strip()
++            ):
++                raise RuntimeError("Hermes managed MCP requires the host MCP relay")
++            names.add(server.name)
++        self._managed_mcp_scope = scope
++        return True
++
+@@ -797,0 +837,2 @@
++        if self._managed_linux and not self._bind_managed_mcp_scope(state.session_id, mcp_servers or []):
++            return
+@@ -798,0 +840 @@
++            self._managed_mcp_ready = self._managed_linux
+@@ -820 +862,3 @@
+-            await asyncio.to_thread(register_mcp_servers, config_map)
++            names = await asyncio.to_thread(register_mcp_servers, config_map)
++            if self._managed_linux and not names:
++                raise RuntimeError("Empty managed MCP tool registry")
+@@ -821,0 +866,2 @@
++            if self._managed_linux:
++                raise RuntimeError("Hermes managed MCP registration failed") from None
+@@ -856,0 +903,2 @@
++            if self._managed_linux:
++                raise RuntimeError("Hermes managed MCP tool refresh failed") from None
+@@ -861,0 +910,4 @@
++        if self._managed_linux:
++            if not self._managed_mcp_scope:
++                raise RuntimeError("Hermes managed MCP scope was revoked")
++            self._managed_mcp_ready = True
+@@ -1308,0 +1361,4 @@
++        if self._managed_linux and (
++            not self._managed_mcp_ready or self._managed_mcp_scope[0] != session_id
++        ):
++            return PromptResponse(stop_reason="refusal")
+@@ -1468,2 +1524,2 @@
+-        def approve_mcp(title, arguments):
+-            if conn is None:
++        def approve_mcp(title, arguments, call_id=None):
++            if conn is None or (self._managed_linux and (not call_id or not self._managed_mcp_ready)):
+@@ -1473 +1529 @@
+-            update = acp.update_tool_call(str(uuid4()), title=title, kind="other",
++            update = acp.update_tool_call(call_id or str(uuid4()), title=title, kind="other",
+@@ -1486 +1542,5 @@
+-            return isinstance(outcome, AllowedOutcome) and outcome.option_id == "allow"
++            return (
++                isinstance(outcome, AllowedOutcome)
++                and outcome.option_id == "allow"
++                and (not self._managed_linux or self._managed_mcp_ready)
++            )
+@@ -1534 +1594,2 @@
+-            mcp_approval_token = _acp_tool_approval.set(approve_mcp)
++            mcp_approval = (approve_mcp, lambda: self._managed_mcp_ready) if self._managed_linux else approve_mcp
++            mcp_approval_token = _acp_tool_approval.set(mcp_approval)
+--- a/tools/mcp_tool.py
++++ b/tools/mcp_tool.py
+@@ -4101,0 +4102,4 @@
++def _managed_linux_acp() -> bool:
++    return sys.platform == "linux" and bool(os.getenv("VW_ACP_LAUNCH_REFERENCE"))
++
++
+@@ -4176,0 +4181,2 @@
++        call_id = None
++        scope_current = None
+@@ -4178,2 +4184,12 @@
+-            approve = _acp_tool_approval.get()
+-            if approve is None or not approve(mcp_prefixed_tool_name(server_name, tool_name), args):
++            approval = _acp_tool_approval.get()
++            title = mcp_prefixed_tool_name(server_name, tool_name)
++            if _managed_linux_acp():
++                from tools.approval import _approval_tool_call_id
++                if not isinstance(approval, tuple):
++                    return json.dumps({"error": "MCP approval denied"})
++                approve, scope_current = approval
++                call_id = _approval_tool_call_id.get()
++                allowed = bool(call_id) and scope_current() and approve(title, args, call_id)
++            else:
++                allowed = approval is not None and approval(title, args)
++            if not allowed:
+@@ -4184,0 +4201,2 @@
++                if scope_current is not None and not scope_current():
++                    return json.dumps({"error": "MCP approval revoked"})
+@@ -4191 +4209,6 @@
+-                    result = await server.session.call_tool(tool_name, arguments=args)
++                    if call_id:
++                        result = await server.session.call_tool(
++                            tool_name, arguments=args, meta={"shijuCallId": call_id}
++                        )
++                    else:
++                        result = await server.session.call_tool(tool_name, arguments=args)
+@@ -4293,0 +4317,2 @@
++            if scope_current is not None:
++                return json.dumps({"error": "Managed MCP execution failed"})
+@@ -4331,0 +4357,2 @@
++        if _managed_linux_acp():
++            return json.dumps({"error": "MCP operation has no managed approval route"})
+@@ -4391,0 +4419,2 @@
++        if _managed_linux_acp():
++            return json.dumps({"error": "MCP operation has no managed approval route"})
+@@ -4458,0 +4488,2 @@
++        if _managed_linux_acp():
++            return json.dumps({"error": "MCP operation has no managed approval route"})
+@@ -4523,0 +4555,2 @@
++        if _managed_linux_acp():
++            return json.dumps({"error": "MCP operation has no managed approval route"})

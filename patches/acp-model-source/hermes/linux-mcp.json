@@ -1,0 +1,14 @@
+{
+  "patch": "linux-mcp.patch",
+  "patch_sha256": "675200071ef38005c6eeb48125569ae731ad981b37e619c66f4c7134d379d085",
+  "files": {
+    "acp_adapter/server.py": {
+      "original_sha256": "402d2f5ae4041889d970e338eaa34a4c31cf4b394335ce31b79bfc55dbb9dff7",
+      "patched_sha256": "e9b37441a123df6cfc7b1ffcb70bb885ef78d1f500a9c3e77e660291f6b1a491"
+    },
+    "tools/mcp_tool.py": {
+      "original_sha256": "703923450ccbb18a6736015c90423599b25d65b9038bc50a707ff8eb38c918d0",
+      "patched_sha256": "8e5d7d2c40fee9b426a15d17284580f52d787413c24762cbbe370c82d07b201b"
+    }
+  }
+}

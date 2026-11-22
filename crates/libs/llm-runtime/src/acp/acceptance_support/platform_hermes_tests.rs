@@ -32,6 +32,7 @@ fn acp_platform_hermes_contract() {
     let artifact = &evidence["artifact"];
     assert_eq!(artifact["target"], manifest["targets"][std::env::consts::ARCH]);
     assert_eq!(artifact["version"], manifest["hermes"]["version"]);
+    assert_eq!(artifact["revision"], manifest["revision"]);
     assert_eq!(artifact["wheel_sha256"], manifest["hermes"]["sha256"]);
     assert_eq!(artifact["mcp_version"], manifest["mcp"]["version"]);
     assert_eq!(artifact["entry"], manifest["entry"]);

@@ -330,9 +330,7 @@ async fn shared_session_row_renders_pin_without_hover_in_both_themes() {
 fn work_sidebar_navigation_routes_project_actions() {
     assert!(matches!(
         work_sidebar::project_navigation_message(),
-        Message::View(ViewMessage::OpenSystemSettingsTab(
-            crate::app::components::system_settings::SystemTab::Projects
-        ))
+        Message::View(ViewMessage::OpenProjects)
     ));
     assert!(matches!(
         work_sidebar::project_create_message(),

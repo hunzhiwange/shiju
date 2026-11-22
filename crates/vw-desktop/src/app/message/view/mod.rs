@@ -112,6 +112,7 @@ pub enum ViewMessage {
     /// - 标签页标识，指定要打开的系统设置标签
     OpenAcpSettings,
     OpenCron,
+    OpenProjects,
     OpenSystemSettingsTab(crate::app::components::system_settings::SystemTab),
     OpenSystemSettingsTarget(desktop_settings_shell::search::SystemSettingsSearchTarget),
     /// 打开系统设置中的模型详情页
@@ -667,7 +668,7 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
     if matches!(&message,
         ViewMessage::WorkspaceModeSelected(_) | ViewMessage::WorkProjectHome
         | ViewMessage::ToggleSystemSettings | ViewMessage::TaskPetOpenSettings
-        | ViewMessage::OpenAcpSettings | ViewMessage::OpenCron | ViewMessage::OpenSystemSettingsTab(_)
+        | ViewMessage::OpenAcpSettings | ViewMessage::OpenCron | ViewMessage::OpenProjects | ViewMessage::OpenSystemSettingsTab(_)
         | ViewMessage::OpenSystemSettingsTarget(_)
         | ViewMessage::OpenSystemSettingsModelDetail(_, _)
         | ViewMessage::GoHome | ViewMessage::TabSelected(_) | ViewMessage::TabClosed(_)) {
@@ -711,6 +712,7 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
             | ViewMessage::TaskPetOpenSettings
             | ViewMessage::OpenAcpSettings
             | ViewMessage::OpenCron
+            | ViewMessage::OpenProjects
             | ViewMessage::OpenSystemSettingsTab(_)
             | ViewMessage::OpenSystemSettingsTarget(_)
             | ViewMessage::OpenSystemSettingsModelDetail(_, _)
@@ -955,6 +957,26 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
                 session_id,
                 input,
             }))
+        }
+        ViewMessage::OpenProjects => {
+            use crate::app::{AppTab, Screen};
+
+            const TAB_ID: &str = "projects";
+            if !app.navigation_tabs.open_tabs.iter().any(|tab| tab.id == TAB_ID) {
+                let i18n = desktop_i18n::I18n::new(app.general_settings.desktop_locale);
+                app.navigation_tabs.open_tabs.push(AppTab {
+                    id: TAB_ID.into(),
+                    title: i18n.__("项目管理").into(),
+                    screen: Screen::Projects,
+                    project_path: None,
+                });
+            }
+            app.navigation_tabs.active_tab_id = Some(TAB_ID.into());
+            app.navigation_tabs.screen = Screen::Projects;
+            app.navigation_panels.show_system_settings = false;
+            app.mobile_layout.drawer_open = false;
+            app.mobile_layout.mine_open = false;
+            Task::none()
         }
         ViewMessage::OpenCron => crate::app::message::settings::open_cron_page(app),
         // 面板相关消息：包括设置面板、系统设置、菜单、弹窗、工具窗口等

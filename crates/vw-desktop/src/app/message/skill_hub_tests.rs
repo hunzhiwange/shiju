@@ -268,7 +268,7 @@ fn version_switch_preserves_server_success_when_cache_sync_fails() {
 fn expert_hub_navigation_follows_project_add_and_reuses_single_tab() {
     assert_eq!(
         project_list_action_order(),
-        ["open_project", "expert_hub", "shiju_skills", "shiju_apps", "agent_settings", "digital_employees", "cron"]
+        ["open_project", "expert_hub", "shiju_skills", "shiju_apps", "agent_settings", "digital_employees", "cron", "projects"]
     );
 
     let (mut app, _) = App::new();

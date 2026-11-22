@@ -290,7 +290,7 @@ pub mod system_settings_observability;
 /// 配置持久化存储 provider、连接参数与 TLS 选项。
 pub mod system_settings_storage;
 
-/// 系统设置：项目管理
+/// 项目管理页面
 ///
 /// 管理项目列表、项目配置、工作区设置等。
 pub mod system_settings_projects;

@@ -34,7 +34,12 @@ fn state(app: &App) -> ViewState<'_> {
         app_theme: &app.appearance.app_theme,
     }
 }
-pub fn view(app: &App) -> Element<'_, Message> {
+pub(crate) fn page(app: &App) -> Element<'_, Message> {
+    let content = iced::widget::column![view(app)].padding(iced::Padding::ZERO.top(24));
+    desktop_settings_shell::content_page(content, false, false)
+}
+
+fn view(app: &App) -> Element<'_, Message> {
     let appearance = |path: &str| {
         let meta = app.workspace_state.recent_projects_meta.iter().find(|meta| meta.path == path);
         (meta.and_then(|meta| meta.icon.as_deref()), meta.and_then(|meta| meta.icon_color.as_deref()))

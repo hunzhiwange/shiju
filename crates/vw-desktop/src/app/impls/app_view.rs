@@ -130,6 +130,10 @@ impl App {
             Screen::WorkflowTool => crate::apps::workflow::view(self),
             Screen::WorkflowManager => views::workflow_manager::view(self),
             Screen::ThirdPartyAgents => components::third_party_settings::standalone(self),
+            Screen::Projects => views::project::with_session_sidebar(
+                self,
+                components::system_settings_projects::page(self),
+            ),
             Screen::Cron => views::project::with_session_sidebar(
                 self,
                 components::system_settings_cron::page(self),

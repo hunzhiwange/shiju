@@ -208,7 +208,7 @@ pub(super) fn agent_settings_message() -> Message {
 }
 
 pub fn project_navigation_message() -> Message {
-    Message::View(ViewMessage::OpenSystemSettingsTab(SystemTab::Projects))
+    Message::View(ViewMessage::OpenProjects)
 }
 
 pub fn project_create_message() -> Message {

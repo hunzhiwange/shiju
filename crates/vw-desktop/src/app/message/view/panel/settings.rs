@@ -493,6 +493,19 @@ fn update_navigation(
     target: Option<SystemSettingsSearchTarget>,
 ) -> Task<Message> {
     use desktop_navigation::panel::settings as domain;
+    #[cfg(not(target_arch = "wasm32"))]
+    if matches!(message, domain::Message::ProjectFileNewSession)
+        && app.navigation_tabs.screen.shows_workspace_session_sidebar()
+        && app.navigation_tabs.project_path.is_none()
+    {
+        if app.workspace_state.new_session_creating {
+            return Task::none();
+        }
+        return match desktop_workspace::basic::pick_folder() {
+            Some(path) => Task::done(Message::Project(ProjectMessage::ProjectCreateSession(path))),
+            None => Task::none(),
+        };
+    }
     let effect = domain::update(
         domain::Context {
             state: &mut app.navigation_panels,

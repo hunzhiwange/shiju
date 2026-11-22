@@ -5,6 +5,7 @@ fn map(event: domain::Message) -> Message {
  domain::Message::OpenRecentPressed(path) => Message::Project(message::ProjectMessage::OpenRecentPressed(path)),
  domain::Message::RecentHovered(path) => Message::Project(message::ProjectMessage::RecentHovered(path)),
  domain::Message::CodeProjectsMenuChanged(open) => Message::Project(message::ProjectMessage::CodeProjectsMenuChanged(open)),
+ domain::Message::OpenProjects => Message::View(message::ViewMessage::OpenProjects),
  domain::Message::OpenCron => Message::View(message::ViewMessage::OpenCron),
  domain::Message::OpenAgentSettings => Message::View(message::ViewMessage::OpenSystemSettingsTab(
      crate::app::components::system_settings::SystemTab::Agents,

@@ -28,6 +28,8 @@ pub fn view(app: &App) -> Element<'_, Message> {
         "设置"
     } else if app.navigation_tabs.screen == Screen::Cron {
         desktop_i18n::I18n::new(app.general_settings.desktop_locale).__("定时任务")
+    } else if app.navigation_tabs.screen == Screen::Projects {
+        desktop_i18n::I18n::new(app.general_settings.desktop_locale).__("项目管理")
     } else {
         "会话"
     };
@@ -40,6 +42,8 @@ pub fn view(app: &App) -> Element<'_, Message> {
         settings::view(app)
     } else if app.navigation_tabs.screen == Screen::Cron {
         crate::app::components::system_settings_cron::page(app)
+    } else if app.navigation_tabs.screen == Screen::Projects {
+        crate::app::components::system_settings_projects::page(app)
     } else if matches!(app.navigation_tabs.screen, Screen::Home | Screen::Project) {
         chat::view(app)
     } else {
@@ -114,7 +118,7 @@ fn bottom_navigation(app: &App) -> Element<'_, Message> {
                 !mine
                     && !project
                     && !settings
-                    && app.navigation_tabs.screen != Screen::Cron
+                    && !matches!(app.navigation_tabs.screen, Screen::Cron | Screen::Projects)
             ),
             bottom_tab(
                 get_icon(Icon::FolderClosed),

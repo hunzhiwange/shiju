@@ -8,7 +8,6 @@
 /// - `General` - 常规设置，包含界面、终端与编辑器配置项
 /// - `DialogueFlow` - 对话流设置，控制对话流程行为
 /// - `Editor` - 兼容旧入口，选择时转入常规设置的编辑器标签
-/// - `Projects` - 项目设置，管理项目相关配置
 /// - `Providers` - 提供商设置，配置 AI 服务提供商
 /// - `Models` - 模型设置，管理可用 AI 模型
 /// - `ModelRoutes` - 模型路由设置，配置模式到模型的映射
@@ -51,7 +50,6 @@ pub enum SystemTab {
     /// 编辑器设置标签页
     Editor,
     /// 项目设置标签页
-    Projects,
     /// 当前网关所有项目的原生归档会话。
     ArchivedChats,
     /// Gateway-owned worktree settings.
@@ -109,7 +107,6 @@ impl SystemTab {
             SystemTab::General => "常规设置",
             SystemTab::Themes => "主题",
             SystemTab::Editor => "编辑器",
-            SystemTab::Projects => "项目管理",
             SystemTab::ArchivedChats => "已归档的聊天",
             SystemTab::Worktrees => "工作树",
             SystemTab::TaskWorkflow => "工作流",
@@ -182,7 +179,6 @@ pub fn system_tab_keywords(tab: SystemTab) -> &'static [&'static str] {
             &["themes", "gallery", "palette", "custom", "builtin", "画廊", "配色", "色板"]
         }
         SystemTab::Editor => &["editor", "code", "编辑", "主题与显示", "字体大小", "行高"],
-        SystemTab::Projects => &["projects", "workspace", "工作区", "Worktree", "历史项目"],
         SystemTab::Worktrees => &["worktree", "工作树", "清理", "环境"],
         SystemTab::TaskWorkflow => &[
             "workflow",
@@ -234,7 +230,6 @@ pub const GROUPS: &[(&str, &[SystemTab])] = {
                 ComputerControl,
                 #[cfg(not(target_arch = "wasm32"))]
                 Voice,
-                Projects,
                 Worktrees,
                 ArchivedChats,
             ],

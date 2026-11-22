@@ -20,6 +20,7 @@ OpenApps,
 OpenKnowledge,
 OpenSystemSettingsTab(SystemTab),
 OpenCron,
+OpenProjects,
 OpenWorkflowTool,
 ProjectFileNewProject,
 ProjectFileNewSession,
@@ -61,7 +62,6 @@ ToggleBoard,
 #[derive(Debug, Clone)]
 pub enum SystemTab {
 Agents,
-Projects,
 }
 #[derive(Debug, Clone)]
 pub enum ExpertHubSection {

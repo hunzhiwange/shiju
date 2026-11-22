@@ -18,5 +18,5 @@ fn mobile_settings_empty_search_keeps_all_categories() {
 #[test]
 fn mobile_settings_categories_exclude_desktop_tools() {
     assert!(!CATEGORIES.iter().any(|(_, tab)| matches!(tab,
-        SystemTab::Projects | SystemTab::Models | SystemTab::Agents)));
+        SystemTab::Models | SystemTab::Agents)));
 }

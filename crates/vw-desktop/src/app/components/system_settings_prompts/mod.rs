@@ -18,14 +18,12 @@ pub(crate) fn ui_message(event: desktop_settings_skills::prompts::Event) -> crat
     use crate::app::{
         Message,
         components::system_settings::SystemTab,
-        message::{SettingsMessage, settings::prompts},
+        message::{SettingsMessage, ViewMessage, settings::prompts},
     };
     use desktop_settings_skills::prompts::ui_route::{UiRoute, ui_route};
     match ui_route(event) {
         UiRoute::Update(event) => prompts::message(event),
         UiRoute::Agents => Message::Settings(SettingsMessage::SystemTabSelected(SystemTab::Agents)),
-        UiRoute::Projects => {
-            Message::Settings(SettingsMessage::SystemTabSelected(SystemTab::Projects))
-        }
+        UiRoute::Projects => Message::View(ViewMessage::OpenProjects),
     }
 }

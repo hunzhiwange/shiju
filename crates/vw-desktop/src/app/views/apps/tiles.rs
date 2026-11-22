@@ -1,7 +1,6 @@
 //! Host projections and cross-domain navigation mapping.
 use crate::app::{App, Message};
 use crate::app::message::{ProjectMessage, ViewMessage};
-use crate::app::components::system_settings::SystemTab;
 use desktop_apps_ui::apps_tiles::{self as domain, Event};
 use iced::Element;
 fn map(event: Event) -> Message {
@@ -9,7 +8,7 @@ fn map(event: Event) -> Message {
         Event::None => Message::None,
         Event::OpenMostRecent => Message::View(ViewMessage::AppsOpenMostRecent),
         Event::OpenFolder => Message::Project(ProjectMessage::OpenFolderPressed),
-        Event::OpenProjectsSettings => Message::View(ViewMessage::OpenSystemSettingsTab(SystemTab::Projects)),
+        Event::OpenProjectsSettings => Message::View(ViewMessage::OpenProjects),
         Event::ToggleWebLinksMenu => Message::View(ViewMessage::ToggleWebLinksMenu),
         Event::OpenWebUrlWithTitleAndSize(url, title, width, height) => Message::View(ViewMessage::OpenWebUrlWithTitleAndSize(url, title, width, height)),
         Event::OpenUrlExternal(url) => Message::View(ViewMessage::OpenUrlExternal(url)),

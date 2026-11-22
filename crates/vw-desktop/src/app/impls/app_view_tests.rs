@@ -47,6 +47,7 @@ fn view_builds_for_primary_screens_without_modal_state() {
         Screen::WorkflowManager,
         Screen::TaskBoard,
         Screen::Cron,
+        Screen::Projects,
         Screen::ShijuApps,
         Screen::ShijuSkills,
         Screen::ExpertHub,

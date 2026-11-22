@@ -182,7 +182,6 @@ pub(super) fn active_tab_save_error(app: &App, active_tab: SystemTab) -> Option<
         SystemTab::Apps
         | SystemTab::Editor
         | SystemTab::General
-        | SystemTab::Projects
         | SystemTab::TaskWorkflow
         | SystemTab::TaskLabels
         | SystemTab::TaskProperties
@@ -211,7 +210,6 @@ fn settings_content(app: &App, active_tab: SystemTab) -> Element<'_, Message> {
         SystemTab::General => crate::app::components::system_settings_general::view(app),
         SystemTab::Themes => crate::app::components::system_settings_themes::view(app),
         SystemTab::Editor => crate::app::components::system_settings_editor::view(app),
-        SystemTab::Projects => crate::app::components::system_settings_projects::view(app),
         SystemTab::TaskWorkflow
         | SystemTab::TaskLabels
         | SystemTab::TaskProperties

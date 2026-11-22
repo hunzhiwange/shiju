@@ -165,7 +165,7 @@ fn tab_icon(tab: SystemTab) -> Icon {
         SystemTab::ComputerControl => Icon::Sliders,
         #[cfg(not(target_arch = "wasm32"))]
         SystemTab::Auth => Icon::ShieldLock,
-        SystemTab::Projects | SystemTab::Worktrees => Icon::FolderOpen,
+        SystemTab::Worktrees => Icon::FolderOpen,
         SystemTab::TaskWorkflow => Icon::GitBranch,
         SystemTab::TaskLabels => Icon::Capsule,
         SystemTab::TaskProperties => Icon::ListUl,

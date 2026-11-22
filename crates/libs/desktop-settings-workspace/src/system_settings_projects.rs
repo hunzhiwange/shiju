@@ -261,7 +261,7 @@ pub fn view<'a, Host: Clone + 'static>(app: &ViewState<'a>, map: fn(Event) -> Ho
         row![text(i18n.__("历史项目")).size(17).width(Length::Fill), settings_value_badge(count),]
             .align_y(Alignment::Center);
     let heading = settings_page_heading(
-        i18n.__("项目配置"),
+        i18n.__("项目管理"),
         i18n.__("选择文件夹开始一个项目，或从下方最近项目继续。"),
     );
 

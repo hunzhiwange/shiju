@@ -44,25 +44,6 @@ const EDITOR_HELP: &str = r#"编辑器设置说明
 - 如果代码行较长或屏幕较小，适当增大行高更利于扫读。
 "#;
 
-const PROJECTS_HELP: &str = r#"项目设置说明
-
-一、作用
-- 本页管理桌面端最近项目入口、当前项目 Worktree 开关，以及快捷打开项目。
-- 这些设置只影响本机工作流，不会写入服务器端模型配置。
-
-二、主要项
-1) 打开文件夹
-- 选择新的工作区目录并切换当前项目。
-2) 当前项目 Worktree
-- 控制该项目创建新会话时是否允许选择或创建 Git worktree。
-3) 历史项目
-- 支持重命名显示名称、删除入口和再次打开。
-
-三、建议
-- 只有经常需要并行分支开发的项目才建议开启 Worktree。
-- 删除历史项目入口不会删除磁盘上的真实目录。
-"#;
-
 const PROVIDERS_HELP: &str = r#"模型提供商说明
 
 一、作用
@@ -330,7 +311,6 @@ fn help_content(tab: SystemTab) -> Option<(&'static str, &'static str)> {
     match tab {
         SystemTab::General => Some(("常规设置帮助", GENERAL_HELP)),
         SystemTab::Editor => Some(("编辑器设置帮助", EDITOR_HELP)),
-        SystemTab::Projects => Some(("项目设置帮助", PROJECTS_HELP)),
         SystemTab::TaskWorkflow => Some(("任务工作流帮助", TASK_WORKFLOW_HELP)),
         SystemTab::TaskLabels => Some((
             "任务标签帮助",

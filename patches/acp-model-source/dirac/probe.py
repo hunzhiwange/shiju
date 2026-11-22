@@ -4,6 +4,7 @@ import json
 import os
 from pathlib import Path
 import subprocess
+import sys
 import tempfile
 import threading
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -157,10 +158,14 @@ with tempfile.TemporaryDirectory(prefix="dirac-acp-") as private_home, \
                     assert all(u.get("rawOutput") for u in completed)
                     started = [u.get("title") for u in updates if u["sessionUpdate"] == "tool_call" and u.get("title","").startswith(name_prefix)]
                     assert started == expected_tools
-                    for method, params in (
+                    reentries = [
                         ("session/load", {"sessionId": session, "cwd": str(cwd), "mcpServers": []}),
                         ("session/resume", {"sessionId": session, "cwd": str(cwd), "mcpServers": servers}),
-                    ):
+                    ]
+                    if sys.platform == "linux":
+                        reentries.extend((method, {"sessionId": session, "cwd": str(cwd), "mcpServers": []})
+                                         for method in ("session/resume", "session/fork"))
+                    for method, params in reentries:
                         try:
                             rpc(method, params)
                         except RuntimeError as error:

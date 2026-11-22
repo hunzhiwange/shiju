@@ -22,9 +22,18 @@ API_PATH = "/v1"
 TRANSPORT = "stdio"
 NATIVE_DIR = ".dirac/skills"
 MCP_TOOL = "coexistence-read_probe"
+SEARCH_FILE = "dirac-search.txt"
+SEARCH_MARKER = "reviewed Linux native search"
+
+
+def prepare_workspace(workspace):
+    if platform.system() == "Linux":
+        (workspace / SEARCH_FILE).write_text(SEARCH_MARKER + "\n")
 
 
 def launch(env):
+    if platform.system() == "Linux":
+        return launch_linux(env)
     require((platform.system(), platform.machine()) == ("Darwin", "arm64"),
             "unreviewed Dirac platform")
     contract_path = ROOT / "crates/libs/acp-agent-registry/src/managed_runtime/contracts.json"
@@ -61,6 +70,37 @@ def launch(env):
     }
 
 
+def launch_linux(env):
+    manifest = json.loads((ROOT / "patches/acp-model-source/dirac/linux-artifacts.json").read_text())
+    target = manifest["targets"].get(platform.machine())
+    require(target is not None, "unreviewed Dirac Linux architecture")
+    runtime = Path(env["VIBEWINDOW_CONFIG_DIR"]) / "acp-runtime" / manifest["revision"]
+    source = Path(os.environ["SHIJU_DIRAC_COEXISTENCE_RUNTIME"])
+    shutil.copytree(source, runtime, symlinks=True)
+
+    package = runtime / "node_modules" / manifest["package"]
+    files = {}
+    expected = {**manifest["files"], manifest["rg"]: target["sha256"]}
+    for name, digest in expected.items():
+        path = package / name
+        require(path.is_file() and path.resolve() == path,
+                f"unexpected Dirac Linux artifact path: {name}")
+        files[name] = hashlib.sha256(path.read_bytes()).hexdigest()
+        require(files[name] == digest, f"Dirac Linux artifact digest mismatch: {name}")
+    entry = runtime / "node_modules/.bin/dirac"
+    require(entry.resolve(strict=True) == package / manifest["bin"]
+            and os.access(entry, os.X_OK) and os.access(package / manifest["rg"], os.X_OK),
+            "Dirac Linux entry or search helper is unavailable")
+    return {"command": str(entry), "args": ["--acp"]}, {
+        "version": manifest["version"],
+        "revision": manifest["revision"],
+        "entry": manifest["bin"],
+        "model_endpoint": "/v1/chat/completions",
+        "target": platform.machine(),
+        "sha256": files,
+    }
+
+
 class Probe(ChatProbe):
     def response(self, body):
         require(body["model"] == MODEL, "unexpected Dirac model")
@@ -85,7 +125,8 @@ class Probe(ChatProbe):
         step, _, _, call_id = self.pending
         results = [dict(row, tool_use_id=row["tool_call_id"]) for row in messages if row["role"] == "tool"]
         result = str(correlated_result(results, call_id)["content"])
-        self.completed[step] = call_id
+        if step != "search":
+            self.completed[step] = call_id
         if step in ("native", "selected"):
             skill = skills[step]
             require(skill["body"] in result and skill["attachment"] not in result,
@@ -101,6 +142,9 @@ class Probe(ChatProbe):
             value = self.fixtures["mcp"]
             require((value not in result and "Permission denied by user" in result)
                     if self.rejected else value in result, "unexpected Dirac MCP continuation")
+        elif step == "search":
+            require(SEARCH_FILE in result and SEARCH_MARKER in result,
+                    "Dirac native search did not return the workspace fixture")
         else:
             require(skills[step.removesuffix("_read")]["attachment"] in result,
                     f"Dirac {step} could not read its attachment")
@@ -108,6 +152,9 @@ class Probe(ChatProbe):
             return self.activate(tools, "selected")
         if self.mounted and step == "selected_read":
             return self.call(tools, "mcp", MCP_TOOL, {})
+        if platform.system() == "Linux" and step in ("native_read", "mcp"):
+            return self.call(tools, "search", "search_files",
+                             {"paths": ["."], "regex": SEARCH_MARKER})
         if "respond" in tools:
             return self.call(tools, "respond", "respond",
                              {"operation": "complete", "text": "COEXISTENCE_DONE"})

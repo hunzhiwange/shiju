@@ -1,0 +1,23 @@
+{
+  "package": "dirac-cli",
+  "version": "0.5.24",
+  "revision": "dirac-0.5.24-model-source-v3",
+  "bin": "dist/shiju-dirac.mjs",
+  "rg": "dist/shiju-rg",
+  "files": {
+    "dist/shiju-dirac.mjs": "06dd871cc53d8b1aa017b945265b60d93eab2e59a6c8ef0fb535dfe79a01df71",
+    "dist/session-mcp.mjs": "825385b5a7292d3a1bbe05231de4efd95aa94c671de882eede7eb342b42bb5ab"
+  },
+  "targets": {
+    "x86_64": {
+      "url": "https://github.com/microsoft/ripgrep-prebuilt/releases/download/v13.0.0-10/ripgrep-v13.0.0-10-x86_64-unknown-linux-musl.tar.gz",
+      "archive_sha256": "ef820a62c1d6fdc396646762ff0f0e47e127947073ed8b5aa4ceea8b61cb1659",
+      "sha256": "7cdd80707c2841da469a64be650fcdbaa76c6c80aa9e8bd823eb96cafc39f827"
+    },
+    "aarch64": {
+      "url": "https://github.com/microsoft/ripgrep-prebuilt/releases/download/v13.0.0-10/ripgrep-v13.0.0-10-aarch64-unknown-linux-musl.tar.gz",
+      "archive_sha256": "96bcc969ba424c2dd0cd622d7aa8ecf05ec06ff5a0db42c785a737a61c838879",
+      "sha256": "4b259f3814c27f9f505197277af0a7b41ac010ec72d90ab724e360639e809443"
+    }
+  }
+}

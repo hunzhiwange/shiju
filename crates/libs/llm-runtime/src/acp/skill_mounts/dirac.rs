@@ -2,6 +2,17 @@
 use super::super::{Error, acp_option_error, host::SkillLease};
 use agent_config::schema::AcpAgentConfig;
 
+pub(super) const fn supports_session_view_target() -> bool {
+    cfg!(any(
+        all(target_os = "macos", target_arch = "aarch64"),
+        all(
+            target_os = "linux",
+            target_env = "gnu",
+            any(target_arch = "x86_64", target_arch = "aarch64")
+        )
+    ))
+}
+
 pub(super) fn configure(
     config: &AcpAgentConfig,
     view: Option<&impl SkillLease>,
@@ -9,11 +20,9 @@ pub(super) fn configure(
     let Some(view) = view else {
         return Ok(());
     };
-    if !cfg!(all(target_os = "macos", target_arch = "aarch64"))
-        || !config.env.contains_key("VW_ACP_LAUNCH_REFERENCE")
-    {
+    if !supports_session_view_target() || !config.env.contains_key("VW_ACP_LAUNCH_REFERENCE") {
         return Err(acp_option_error(
-            "Dirac skill mounts require the reviewed Darwin arm64 session-model runtime",
+            "Dirac skill mounts require a reviewed session-model runtime on a supported target",
         ));
     }
 

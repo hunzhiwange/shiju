@@ -80,3 +80,11 @@
 - 静态应用原始 npm → v3 → v5 补丁，用生产精确补丁函数逐次核对 SRI、文件和补丁摘要。JavaScript 语法、Python AST、Rust 格式及 Git 空白检查通过。未运行安装器、测试、Docker 或 Cargo。本机子集待任务 48 共享接线和双架构回归，供应商视觉 MCP 单独阻塞于固定可审制品和隔离授权。
 
 窄整合静态检查确认 GLM 专用代码已移除 bwrap 调用和目录挂载。HTTP 仍通过宿主原连接入口、同源保护与取消路径。stdio 若尚未接入共享固定 ELF 投影，继续拒绝。本轮未编译或运行测试。
+
+### v5 生产接线复核与供应商视觉制品
+
+- 生产已由 `b20f55c53`、`bb4129467` 接通受审项目和挂载 stdio 服务。GLM 走 `prepare_reviewed_mcp_batch`、`reviewed_linux_stdio_list` 和 `prepare_linux_stdio_many`，由宿主提供同源投影、守住当前审查状态并单次消费审批。移除没有模块注册和调用方的旧 GLM HTTP 开启函数。该函数的原始上游 HTTP 备选未进入生产接线。
+- 验收入口按覆盖范围组合。 `acp_platform_glm_acp_agent_contract_native_only` 核对固定 v5、指定模型和本地原生技能读回；Linux 夹具额外断言官方视觉、网页 MCP 未进入模型目录。 `scripts/verify_acp_linux_model_mounts.py --agent glm-acp-agent` 测试源码以生产网关、受审 ELF 项目服务和真实工具随机结果覆盖批准、同 ID 续轮及同会话撤除。 `vw-agent --lib acp_platform_glm_contract_host_project_mcp_revision_and_removal -- --ignored` 覆盖项目及挂载来源、重放拒绝和整组撤权。供应商 JS 测试中的 HTTP 服务只替代宿主同源投影边界。此前通用网关夹具的原始 HTTP 挂载不适用 Linux 生产合约。实际双架构运行均未执行。
+- Linux 会话外挂技能仍受 `skill_mounts::validate` 和 `request.rs` 中共享门控约束。独占视图实现可用，当前证据仅覆盖原生项目技能以及独占视图的源码断言。供应商视觉阻塞不影响已接通的本地读取、原生项目技能及受审会话 MCP 子集。
+- 官方 [Z.AI Vision MCP 文档](https://docs.z.ai/devpack/mcp/vision-mcp-server) 对应 [npm 固定版本 0.1.6](https://registry.npmjs.org/@z_ai%2fmcp-server/0.1.6) 和 [tarball](https://registry.npmjs.org/@z_ai/mcp-server/-/mcp-server-0.1.6.tgz)。静态下载后核对 tarball SRI `sha512-RmsCfM7m87dC9JqWmbUcitDvwiFE6oEWNJUoBmqediKt7TIPM2J9h7b4o+BZmPgltLXSlKN+BToBSfbskiAytg==`。固定 Node 入口 `build/index.js`，SHA-256 `cd58df779cb914b2e22615b58f26dd76acbaa84f9cb7e74d01208b08af70bbff`。官方文档建议 Node 22+。包元数据声明 Apache-2.0，归档未附 LICENSE 或 NOTICE，未打包再分发。上游依赖包含 `@modelcontextprotocol/sdk 1.26.0` 和 `zod ^3.23.8`，归档未附依赖锁。
+- 0.1.6 的 `StdioServerTransport` 可提供 `image_analysis` 等工具，但服务通过 HTTPS 请求 `https://api.z.ai/api/paas/v4/chat/completions`。它需要独立的 Coding Plan 账号密钥 `Z_AI_API_KEY` 和 `Z_AI_MODE=ZAI`，与本机模型 relay bearer 不是同一授权。源码还包含环境密钥回退。官方未提供可复用的同源 HTTP 视觉 MCP 入口。现有受审 stdio 要求固定 ELF、空环境且无网络，无法启动该 Node 包或完成供应商请求。接通需要宿主登记可审的运行制品、独立凭据注入、限定的供应商网络访问及对图片或视频发送的逐次批准。当前未取得这些条件，保持该路径关闭。未安装或执行供应商包、读取真实凭据或访问真实账号。

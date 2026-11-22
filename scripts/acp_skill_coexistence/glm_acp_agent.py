@@ -127,6 +127,9 @@ class Probe:
             require(self.fixtures["mcp"] not in wire, "GLM included the MCP result before invocation")
             require("read_file" in tools, "GLM omitted its native file reader")
             if not self.slash:
+                if platform.system() == "Linux":
+                    require(not {"image_analysis", "web_search", "web_reader"} & tools.keys(),
+                            "GLM managed session exposed an unapproved vendor MCP tool")
                 catalogs = [row["content"].split(CATALOG, 1)[1] for row in messages
                             if row["role"] == "system" and CATALOG in row["content"]]
                 require(len(catalogs) == 1, "missing or ambiguous GLM model skill catalog")

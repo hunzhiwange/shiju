@@ -7,6 +7,7 @@
   "source_sha256": "b09c0045b7bac40c4f25e4d714e925d7e01908129f88d3a31e6c17588cad2eac",
   "lock_sha256": "5d28aa8cb809436d83dfa503d3dd48ca299b835a23d2e91adf255c87136baa18",
   "patch_sha256": "1d39b67e136a8bda3f5c4a87ece1a87b66a1988f1c0ed6e135dfba4e76e638ae",
+  "linux_patch_sha256": "09701db5bd977c762a3016b1a9f4ac51dc318a1587730f618c8b650ede600b04",
   "bun_version": "1.3.14",
   "targets": {
     "x86_64-unknown-linux-gnu": {

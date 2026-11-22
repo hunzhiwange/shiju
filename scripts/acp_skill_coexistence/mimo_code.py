@@ -40,7 +40,8 @@ def linux_launch(env):
     require(reviewed_dir, "set ACP_MIMO_REVIEWED_DIR to a privately prepared Linux MiMo build")
     source = Path(reviewed_dir).resolve(strict=True)
     receipt = json.loads((source / "build-receipt.json").read_text())
-    fields = ("version", "revision", "entry", "source_sha256", "patch_sha256", "lock_sha256")
+    fields = ("version", "revision", "entry", "source_sha256", "patch_sha256",
+              "linux_patch_sha256", "lock_sha256")
     require(all(receipt.get(key) == contract[key] for key in fields)
             and receipt.get("target") == target
             and receipt.get("bun_sha256") == platform_contract["bun_sha256"],

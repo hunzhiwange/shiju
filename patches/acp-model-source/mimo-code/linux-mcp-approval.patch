@@ -1,0 +1,67 @@
+--- a/packages/cli/src/acp/agent.ts
++++ b/packages/cli/src/acp/agent.ts
+@@ -39,0 +40 @@
++import { Flag } from "../flag/flag"
+@@ -209 +210,3 @@
+-                options: this.permissionOptions,
++                options: Flag.SHIJU_MANAGED_LINUX_ACP
++                  ? this.permissionOptions.filter((option) => option.kind !== "allow_always")
++                  : this.permissionOptions,
+@@ -235 +238,4 @@
+-            if (res.outcome.optionId !== "reject" && permission.permission == "edit") {
++            const option = Flag.SHIJU_MANAGED_LINUX_ACP && res.outcome.optionId !== "once"
++              ? "reject"
++              : res.outcome.optionId
++            if (option !== "reject" && permission.permission == "edit") {
+@@ -253 +259 @@
+-              reply: res.outcome.optionId as "once" | "always" | "reject",
++              reply: option as "once" | "always" | "reject",
+@@ -542,0 +549,6 @@
++  }
++
++  private validateManagedMcp(mcpServers?: readonly unknown[]) {
++    if (Flag.SHIJU_MANAGED_LINUX_ACP && mcpServers?.length) {
++      throw RequestError.invalidParams("Managed MiMo MCP requires the private host relay")
++    }
+@@ -545,0 +558 @@
++    this.validateManagedMcp(params.mcpServers)
+@@ -580,0 +594 @@
++    this.validateManagedMcp(params.mcpServers)
+@@ -696,0 +711 @@
++    this.validateManagedMcp(params.mcpServers)
+@@ -762,0 +778 @@
++    this.validateManagedMcp(params.mcpServers)
+--- a/packages/cli/src/flag/flag.ts
++++ b/packages/cli/src/flag/flag.ts
+@@ -381,0 +382,3 @@
++  get SHIJU_MANAGED_LINUX_ACP() {
++    return process.platform === "linux" && Boolean(process.env["VW_ACP_LAUNCH_REFERENCE"])
++  },
+--- a/packages/cli/src/mcp/index.ts
++++ b/packages/cli/src/mcp/index.ts
+@@ -13,0 +14 @@
++import { Flag } from "../flag/flag"
+@@ -383,2 +384,8 @@
+-      const metadata =
+-        context && supportsTurnLifecycle(client) ? { _meta: { [TURN_LIFECYCLE_CAPABILITY]: context } } : {}
++      const managed = Flag.SHIJU_MANAGED_LINUX_ACP
++      if (managed && !options.toolCallId) throw new Error("Managed MCP tool call has no call ID")
++      const lifecycle = context && supportsTurnLifecycle(client)
++        ? { [TURN_LIFECYCLE_CAPABILITY]: context }
++        : undefined
++      const metadata = managed || lifecycle ? {
++        _meta: { ...lifecycle, ...(managed ? { shijuCallId: options.toolCallId } : {}) },
++      } : {}
+--- a/packages/cli/src/session/prompt.ts
++++ b/packages/cli/src/session/prompt.ts
+@@ -2149 +2149,9 @@
+-              yield* ctx.ask({ permission: key, metadata: {}, patterns: ["*"], always: ["*"] })
++              if (Flag.SHIJU_MANAGED_LINUX_ACP && !opts.toolCallId) {
++                return yield* Effect.fail(new RecoverableError("Managed MCP tool call has no call ID"))
++              }
++              yield* ctx.ask({
++                permission: key,
++                metadata: Flag.SHIJU_MANAGED_LINUX_ACP ? (mcpBeforeOutput.args ?? {}) : {},
++                patterns: ["*"],
++                always: Flag.SHIJU_MANAGED_LINUX_ACP ? [] : ["*"],
++              })

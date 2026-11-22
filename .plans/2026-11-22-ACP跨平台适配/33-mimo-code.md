@@ -48,3 +48,12 @@
 - 已审外挂路径是 `request.rs::do_stream_request_acp` → `RuntimeHost::prepare_stdio_mcp_launch` → `mimo_mcp::prepare`，按 `shiju.mimo.toolPolicy` 和当前调用复核目录，MCP 与模型各用独立回环凭证。该桥自身也只允许 Darwin arm64 并使用 Seatbelt 启动 stdio。后续需把 Linux 进程、文件、端口隔离接到启动器与桥，再接逐调用审批消费和撤权。受管私有配置只发布桥生成的 `mcp`，隔离项目和用户配置。原生静态 MCP 因此仍缺一个可区分来源且能约束审批的入口。两架构都未证明同一会话在取消、撤除、恢复后的权限和审计，任务 49 按阻塞登记。
 - 测试复用已注册的独占文件 `model_source/drivers/mimo_code_tests.rs`，以 Linux GNU x86_64/aarch64 条件编译，任务 48 无须另注册测试模块。该测试启动当前生产网关，复用原生及外挂技能正文与附件、真实 stdio 审计及同调用 ID 续轮检查。四轮分别是普通、挂载获准、撤除、拒绝。拒绝允许 ACP 按原行为终止并提供匹配的失败调用 ID。旧路由会在网关门控或启动验证失败。四轮使用新会话，内建静态 MCP 和同会话恢复需等对应安全接线后增加正例。
 - 静态验证覆盖源码与锁摘要、现有补丁对固定源码可应用、两份上游 GNU ELF 及两个目标 Bun 归档、JSON/Python 解析、独立 Rust 测试格式及限定 Git 差异。未运行安装器、上游程序、Cargo 或 Docker。后续在两个非 root GNU 容器设置 `SHIJU_ACP_MIMO_GATEWAY_BIN` 和 `ACP_MIMO_REVIEWED_DIR`，运行 `python3 scripts/cargo_slot.py cargo test -j 1 -p llm-runtime --lib acp_platform_mimo_code_contract -- --ignored`。预期每目标命中 1 项，接线前红灯、接线后零失败。暂未取得退出码或命中数。
+
+### 续查与审批接线
+
+- 两架构的普通原生安装现已由共享 `managed_runtime::linux_cli::{install, discover, verify_launch}` 接通。使用上表的官方包，安装至 `mimo-code-0.1.17-linux-cli-v1/mimo`，固定参数 `["acp"]`。共享注册契约已断言两架构不同 URL 与入口摘要。桌面仅允许有效的全访问授权启动该原版，固定绝对入口在启动时复验。该组合实现已接通，待 Linux 运行回归。
+- 新增 `linux-mcp-approval.patch`，摘要已写进 Linux 清单。受管构建先应用原 `stdio-only.patch` 后叠加新补丁，回执增加 `linux_patch_sha256`，验收夹具要求它与清单匹配。补丁仅在 Linux 且存在宿主发布的 `VW_ACP_LAUNCH_REFERENCE` 时生效。ACP 只接受拒绝或单次批准。新建、加载、分叉、恢复遇到直接 `mcpServers` 声明即失败，既有的私有配置投影仍是 MCP 的入口。普通原版与 Apple Silicon 沿用各自入口。
+- 固定版 `session/prompt.ts` 的 `ctx.ask` 已把上下文调用 ID 提供给 ACP `toolCallId`，但原审批元数据为空，MCP SDK 发出执行帧时也没有该 ID。叠加层把执行前最终实参作为审批 `rawInput`，并在之后的 `tools/call.params._meta.shijuCallId` 发送同一上下文 ID。ID 由工具执行上下文取得，缺失则失败。已有 MCP 生命周期元数据仍保留。
+- 任务 48 接入受管桥时，`mimo_mcp::prepare` 要用真实目录保存供应商公开名与服务/工具的绑定。MiMo 的模型侧名字使用单个下划线连接服务和工具。宿主以目录识别批准，缺匹配或碰撞即拒绝。当前 `ManagedMcpApproval` 回调只有名字、实参与提示有效性，`mimo_mcp::dispatch` 现有租约也只消费名字和实参，MiMo 分支尚未接到租约。需让 ACP 宿主把当前提示轮、原始调用 ID、实参和工具的目录身份交给桥，执行前按同一绑定单次消费，剥离内部 ID 后再转发。注册审批回调时保持 MiMo 的 ACP `mcpServers` 为空，服务由私有模型配置投影。无有效提示、缺审批、重复、错 ID、取消、撤除及旧进程恢复时要求零下游执行。
+- 对两个 GNU 目标，继续保留公开受管门控。通用 Landlock 逐命令入口直接报 Unsupported，Bubblewrap/Docker 的默认配置隔离了宿主回环，Firejail 的默认命令封装不提供请求所需的单端口和逐服务执行证明。复用当前同端口桥仍要求 Linux 隔离执行后端及消费调用 ID 的宿主协议。还缺原生静态 MCP 的可撤销投影和受审 Linux ELF 的可信摘要。均属于当前共享入口的能力或制品缺口，不是单纯缺运行记录。任务 49 应将普通路径标为待回归，受管模型、技能、MCP 和同会话恢复分别保留阻塞。
+- 两层补丁已按顺序应用到固定源码的临时副本，六个 TypeScript 文件通过语法解析，补丁摘要、Python AST、JSON、定向 Rust 格式及空白检查均通过。未构建或执行供应商进程，未运行 Cargo 或 Docker。后续网关验收使用上一节命令，补查两个相同工具同实参但不同 ID 的审批，以及同会话取消、撤销和恢复的审计。

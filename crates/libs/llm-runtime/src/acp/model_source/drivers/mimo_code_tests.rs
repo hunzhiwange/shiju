@@ -77,7 +77,15 @@ fn acp_platform_mimo_code_contract() {
     let target = format!("{}-unknown-linux-gnu", std::env::consts::ARCH);
     let artifact = &evidence["artifact"];
     assert_eq!(artifact["target"], target);
-    for field in ["version", "revision", "entry", "source_sha256", "patch_sha256", "lock_sha256"] {
+    for field in [
+        "version",
+        "revision",
+        "entry",
+        "source_sha256",
+        "patch_sha256",
+        "linux_patch_sha256",
+        "lock_sha256",
+    ] {
         assert_eq!(artifact[field], contract[field], "artifact {field}");
     }
     assert_eq!(artifact["bun_sha256"], contract["targets"][target]["bun_sha256"]);

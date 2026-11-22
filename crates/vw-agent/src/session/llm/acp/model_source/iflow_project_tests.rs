@@ -13,7 +13,7 @@ const STDIO: &str = r#"
 count=0
 while IFS= read -r line; do
     case "$line" in
-        *'"id":'*) id=${line#*\"id\":}; id=${id%%[,}]*};;
+        *'"id":'*) id=${line#*\"id\":}; id=${id%%,*}; id=${id%%\}*};;
         *) continue;;
     esac
     case "$line" in
@@ -154,7 +154,7 @@ async fn acp_platform_iflow_contract_host_project_mcp_revision_and_removal() {
     );
     let client =
         reqwest::Client::builder().no_proxy().timeout(Duration::from_secs(5)).build().unwrap();
-    let call = |id: &str| {
+    let call = |server: &agent_client_protocol::McpServerHttp, id: &str| {
         client
             .post(&server.url)
             .header("Authorization", &server.headers[0].value)
@@ -163,15 +163,18 @@ async fn acp_platform_iflow_contract_host_project_mcp_revision_and_removal() {
             }}))
             .send()
     };
-    assert_eq!(call("rejected").await.unwrap().status(), 403);
+    assert_eq!(call(server, "rejected").await.unwrap().status(), 403);
     assert!(issue("mcp__selected__read_fixture", "approved", &json!({}), Box::new(|| true)));
-    let response = call("approved").await.unwrap().json::<Value>().await.unwrap();
+    let response = call(server, "approved").await.unwrap().json::<Value>().await.unwrap();
     assert_eq!(response["result"]["content"][0]["text"], "execution-1");
-    assert_eq!(call("approved").await.unwrap().status(), 403);
+    assert_eq!(call(server, "approved").await.unwrap().status(), 403);
+    assert!(issue("mcp__selected__read_fixture", "after-replay", &json!({}), Box::new(|| true)));
+    let response = call(server, "after-replay").await.unwrap().json::<Value>().await.unwrap();
+    assert_eq!(response["result"]["content"][0]["text"], "execution-2");
 
     assert!(issue("mcp__selected__read_fixture", "old-revision", &json!({}), Box::new(|| true)));
     let updated = store.update_connection(&scope, &record, connection).unwrap().record;
-    assert_eq!(call("old-revision").await.unwrap().status(), 403);
+    assert_eq!(call(server, "old-revision").await.unwrap().status(), 403);
     assert!(!issue("mcp__selected__read_fixture", "late", &json!({}), Box::new(|| true)));
     assert!(!(profile.managed_mcp_current.as_ref().unwrap())());
     assert!(prepare().await.is_err(), "stale review enabled a new launch");
@@ -206,7 +209,7 @@ async fn acp_platform_iflow_contract_host_project_mcp_revision_and_removal() {
         }))
         .unwrap()
     };
-    backend.set_session_mounts(update(0, true)).await.unwrap();
+    assert_eq!(backend.set_session_mounts(update(0, true)).await.unwrap().revision.0, 1);
     assert_eq!(backend.session_tool_count(id), Some(0));
 
     let tool_context = std::sync::Arc::new(
@@ -238,18 +241,20 @@ async fn acp_platform_iflow_contract_host_project_mcp_revision_and_removal() {
         panic!("Expected one committed session projection");
     };
     assert_eq!(server.meta.as_ref().unwrap()["shiju.iflow.mcp-v4"], "mounted");
+    assert_eq!(call(server, "mounted-rejected").await.unwrap().status(), 403);
+    for (id, expected) in [("mounted-once", "execution-1"), ("mounted-after-replay", "execution-2")] {
+        assert!(approve("mcp__selected__read_fixture", id, &json!({}), Box::new(|| true)));
+        let response = call(server, id).await.unwrap().json::<Value>().await.unwrap();
+        assert_eq!(response["result"]["content"][0]["text"], expected);
+        assert_eq!(call(server, id).await.unwrap().status(), 403);
+    }
     assert!(approve("mcp__selected__read_fixture", "mounted-call", &json!({}), Box::new(|| true)));
-    backend.set_session_mounts(update(1, false)).await.unwrap();
-    let old = client
-        .post(&server.url)
-        .header("Authorization", &server.headers[0].value)
-        .json(&json!({"jsonrpc":"2.0","id":1,"method":"tools/call","params":{
-            "name":"read_fixture","arguments":{},"_meta":{"shijuCallId":"mounted-call"}
-        }}))
-        .send()
-        .await
-        .unwrap();
-    assert_eq!(old.status(), 403);
+    assert!(backend.set_session_mounts(update(0, false)).await.is_err());
+    assert!((mounted.managed_mcp_current.as_ref().unwrap())());
+    assert_eq!(backend.set_session_mounts(update(1, false)).await.unwrap().revision.0, 2);
+    assert_eq!(call(server, "mounted-call").await.unwrap().status(), 403);
+    assert!(!approve("mcp__selected__read_fixture", "after-removal", &json!({}), Box::new(|| true)));
+    assert!(!(mounted.managed_mcp_current.as_ref().unwrap())());
     assert!(prepare_mounted().await.unwrap().managed_mcp.is_none());
     profile.binding.revoke();
     replacement.binding.revoke();

@@ -9,6 +9,7 @@ import re
 import secrets
 import shutil
 import subprocess
+import sys
 from xml.etree import ElementTree
 
 from verify_acp_integration import ProviderHandler, require
@@ -27,17 +28,65 @@ VERSION = "2026.10.10"
 REVISION = f"openclaw-{VERSION}-model-source-v3"
 
 
+def install_linux(env, manifest, runtime, arch):
+    assets = runtime.parent.parent / "openclaw-install-assets"
+    assets.mkdir(mode=0o700)
+    shutil.copyfile(manifest, assets / "contracts.json")
+    patches = ROOT / "patches/acp-model-source/openclaw"
+    shutil.copytree(patches, assets / "openclaw")
+    linux = json.loads((patches / "linux.json").read_text())
+    target = linux["targets"][f"{arch}-unknown-linux-gnu"]
+    node = subprocess.run(["node", "--version"], env=env, capture_output=True,
+                          text=True, timeout=15)
+    require(node.returncode == 0 and node.stdout.strip() == "v" + linux["node_version"],
+            "unexpected Linux OpenClaw Node version")
+    runtime.parent.mkdir(mode=0o700)
+    try:
+        result = subprocess.run(
+            [sys.executable, str(manifest.with_name("install.py")), str(assets),
+             str(runtime), "openclaw"],
+            env=dict(env, npm_config_global="false", npm_config_package_lock="true",
+                     npm_config_include="optional"), capture_output=True, timeout=240)
+    except subprocess.TimeoutExpired:
+        raise AssertionError("private OpenClaw installation timed out") from None
+    require(result.returncode == 0, "private OpenClaw installation failed")
+
+    lock = json.loads((runtime / "package-lock.json").read_text())["packages"]
+    hashes = {}
+    for name, spec in target["native_packages"].items():
+        relative = "node_modules/" + name
+        root = runtime / relative
+        metadata = json.loads((root / "package.json").read_text())
+        require((metadata["name"], metadata["version"]) == (name, spec["version"])
+                and lock[relative]["integrity"] == spec["integrity"],
+                f"unexpected Linux OpenClaw dependency identity: {name}")
+        for name_in_package, expected in spec["files"].items():
+            binary = (root / name_in_package).read_bytes()
+            require(binary[:6] == b"\x7fELF\x02\x01"
+                    and int.from_bytes(binary[18:20], "little") == target["elf_machine"]
+                    and hashlib.sha256(binary).hexdigest() == expected,
+                    f"unexpected Linux OpenClaw binary: {name}")
+            hashes[f"{name}/{name_in_package}"] = expected
+    return hashes
+
+
 def launch(env):
-    require((platform.system(), platform.machine()) == ("Darwin", "arm64"),
-            "unreviewed OpenClaw platform")
+    target = (platform.system(), platform.machine())
+    require(target == ("Darwin", "arm64") or (
+        target in {("Linux", "x86_64"), ("Linux", "aarch64")}
+        and platform.libc_ver()[0] == "glibc"
+    ), "unsupported OpenClaw probe target")
     manifest = ROOT / "crates/libs/acp-agent-registry/src/managed_runtime/contracts.json"
     contract = json.loads(manifest.read_text())["openclaw"]
     require(contract["version"] == VERSION, "unexpected OpenClaw contract version")
-    config = Path(os.environ.get("VIBEWINDOW_CONFIG_DIR", Path.home() / ".local/share/shiju"))
-    source = config / "acp-runtime" / REVISION
-    require(source.is_dir(), "reviewed OpenClaw v3 runtime unavailable")
     runtime = Path(env["VIBEWINDOW_CONFIG_DIR"]) / "acp-runtime" / REVISION
-    shutil.copytree(source, runtime, symlinks=True)
+    if target[0] == "Linux":
+        native_hashes = install_linux(env, manifest, runtime, target[1])
+    else:
+        config = Path(os.environ.get("VIBEWINDOW_CONFIG_DIR", Path.home() / ".local/share/shiju"))
+        source = config / "acp-runtime" / REVISION
+        require(source.is_dir(), "reviewed OpenClaw v3 runtime unavailable")
+        shutil.copytree(source, runtime, symlinks=True)
     package = runtime / "node_modules" / contract["package"]
     metadata = json.loads((package / "package.json").read_text())
     require(metadata["name"] == contract["package"] and metadata["version"] == VERSION,
@@ -51,8 +100,10 @@ def launch(env):
                              text=True, timeout=15)
     require(version.returncode == 0 and version.stdout.strip() == f"OpenClaw {VERSION} (7dc3350)",
             "unexpected OpenClaw executable version")
-    return {"command": str(entry), "args": ["acp"]}, {
-        "version": VERSION, "revision": REVISION, "sha256": hashes}
+    artifact = {"version": VERSION, "revision": REVISION, "sha256": hashes}
+    if target[0] == "Linux":
+        artifact.update(entry=contract["bin"], native_sha256=native_hashes)
+    return {"command": str(entry), "args": ["acp"]}, artifact
 
 
 class Probe:

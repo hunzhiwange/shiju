@@ -1,0 +1,61 @@
+{
+  "node_version": "24.22.3",
+  "targets": {
+    "x86_64-unknown-linux-gnu": {
+      "elf_machine": 62,
+      "node_archive": "https://nodejs.org/dist/v24.22.3/node-v24.22.3-linux-x64.tar.xz",
+      "node_archive_sha256": "4f2b175a6d53a5c617a80dba2676238a0688cef28c6da4eba35c7d844e66fcfb",
+      "native_packages": {
+        "@openclaw/fs-safe-linux-x64-gnu": {
+          "version": "0.26.5",
+          "integrity": "sha512-91INEnPlDiYGImNZGNVeL+Q/TTpy7duBKsDqQUSU1rdkRzNyITGocUTWwP9RrIGT2XMJLDTuj7J3/qDzOcIQRA==",
+          "files": {
+            "fs-safe-native.node": "0ad5b8e1a6e1dfdc00becaf6a7080186788b64e93669c082cfab647f4332369b"
+          }
+        },
+        "@openclaw/proc-safe-linux-x64-gnu": {
+          "version": "0.4.2",
+          "integrity": "sha512-bQc6mqlccikVH1DIZ/iDJUW9hCkONmy5k6KvOKz2bxwUj928Rq1AtkNIqDLMitas7Nc7cJuFxYjHur2OL4uLjA==",
+          "files": {
+            "proc-safe-native.node": "ee11a55783260dd48b917766e0be017b08b2b338f04abcb96e670985f28a989a"
+          }
+        },
+        "sqlite-vec-linux-x64": {
+          "version": "0.1.9",
+          "integrity": "sha512-w3tCH8xK2finW8fQJ/m8uqKodXUZ9KAuAar2UIhz4BHILfpE0WM/MTGCRfa7RjYbrYim5Luk3guvMOGI7T7JQA==",
+          "files": {
+            "vec0.so": "5923730861b86c707cca5602b5f91092f9e52a46706dbc6e269fd4bb9c4498e8"
+          }
+        }
+      }
+    },
+    "aarch64-unknown-linux-gnu": {
+      "elf_machine": 183,
+      "node_archive": "https://nodejs.org/dist/v24.22.3/node-v24.22.3-linux-arm64.tar.xz",
+      "node_archive_sha256": "6e51a2ada00f0011cc266f65d98922b403d7ad88f809ca2aa615a5fe1ce6e86c",
+      "native_packages": {
+        "@openclaw/fs-safe-linux-arm64-gnu": {
+          "version": "0.26.5",
+          "integrity": "sha512-0bwNB5A3p8gbx7VpsUfmGxO8kEwoPvRmucskezaiO5LdQmAAenBh1VXj/eAZSnPei3ySMBG4Y76z+Uc8POVwog==",
+          "files": {
+            "fs-safe-native.node": "c493508cffbef5eee14dddc9ecd9f6aefeb9b22c1cd21cd4ef8c2b8dbe2df9d5"
+          }
+        },
+        "@openclaw/proc-safe-linux-arm64-gnu": {
+          "version": "0.4.2",
+          "integrity": "sha512-SxBAYwvDhaBNfqcULabq4B7ejT+4HMHvAyg5EXaZ3AlTryT2563u/FKIHVxz+DsQ6HvkY79JcYdvt9e7076HlQ==",
+          "files": {
+            "proc-safe-native.node": "9e877fe340d5445d1744f15bc53b736fea1a69dba2da21b7ec2e299f2ac1d3b0"
+          }
+        },
+        "sqlite-vec-linux-arm64": {
+          "version": "0.1.9",
+          "integrity": "sha512-5wXVJ9c9kR4CHm/wVqXb/R+XUHTdpZ4nWbPHlS+gc9qQFVHs92Km4bPnCKX4rtcPMzvNis+SIzMJR1SCEwpuUw==",
+          "files": {
+            "vec0.so": "0b84cbd06418ca3040827deddd650539be05be0f657952426b926c8606217437"
+          }
+        }
+      }
+    }
+  }
+}

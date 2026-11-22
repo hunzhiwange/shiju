@@ -7,5 +7,5 @@ async fn installation_rejects_unknown_agents_before_spawning() {
             .await
             .is_err()
     );
-    assert!(!INSTALLING.load(Ordering::Acquire));
+    assert!(INSTALLING.lock().unwrap().is_none());
 }

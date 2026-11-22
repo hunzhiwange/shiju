@@ -86,6 +86,8 @@ pub fn update(app: &mut Update, message: AcpMessage) -> Task<Message> {
         && !matches!(
             message,
             AcpMessage::AddAgentCompleted { .. }
+                | AcpMessage::CancelInstall
+                | AcpMessage::InstallCancelFailed { .. }
                 | AcpMessage::InstallCompleted { .. }
                 | AcpMessage::InstallInstructionsLoaded { .. }
         )
@@ -135,6 +137,8 @@ pub fn update(app: &mut Update, message: AcpMessage) -> Task<Message> {
             if !app.state.install_supported(&agent) {
                 return app.show_error_toast("该 ACP 暂无一键安装命令，请使用官方安装器");
             }
+            let id = operation_id();
+            app.state.install_id = Some(id.clone());
             app.state.installing_agent = Some(agent.clone());
             app.state.install_expanded.insert(agent.clone());
             app.state.install_reports.remove(&agent);
@@ -145,7 +149,7 @@ pub fn update(app: &mut Update, message: AcpMessage) -> Task<Message> {
                     let result = async {
                         let client = client?;
                         gateway_desktop_settings::GatewayDesktopSettingsClient::new(client.transport().clone())
-                            .acp_install_report(&agent).await
+                            .acp_install_report_with_id(&agent, Some(&id)).await
                     }.await;
                     (agent, result)
                 },
@@ -153,17 +157,59 @@ pub fn update(app: &mut Update, message: AcpMessage) -> Task<Message> {
             );
             Task::batch([instructions, install])
         }
+        AcpMessage::CancelInstall => {
+            let (Some(agent), Some(id)) = (app.state.installing_agent.clone(), app.state.install_id.clone()) else {
+                return Task::none();
+            };
+            if app.state.cancelling_install {
+                return Task::none();
+            }
+            app.state.cancelling_install = true;
+            let client = app.client.clone();
+            Task::perform(
+                async move {
+                    let result = async {
+                        let client = gateway_desktop_settings::GatewayDesktopSettingsClient::new(client?.transport().clone());
+                        // The cancellation request can reach the gateway before the install request.
+                        for _ in 0..40 {
+                            if client.acp_install_cancel(&agent, &id).await? {
+                                return Ok(());
+                            }
+                            tokio::time::sleep(Duration::from_millis(250)).await;
+                        }
+                        Err("网关未确认取消 ACP 安装".into())
+                    }.await;
+                    (id, result)
+                },
+                |(id, result)| match result {
+                    Ok(()) => Message::Acp(AcpMessage::InstallCancelAccepted),
+                    Err(message) => Message::Acp(AcpMessage::InstallCancelFailed { id, message }),
+                },
+            )
+        }
+        AcpMessage::InstallCancelAccepted => Task::none(),
+        AcpMessage::InstallCancelFailed { id, message } => {
+            if app.state.install_id.as_deref() != Some(&id) {
+                return Task::none();
+            }
+            app.state.cancelling_install = false;
+            app.show_error_toast(message)
+        }
         AcpMessage::InstallCompleted { agent, result } => {
             if app.state.installing_agent.as_deref() != Some(&agent) {
                 return Task::none();
             }
             app.state.installing_agent = None;
+            app.state.install_id = None;
+            app.state.cancelling_install = false;
             let report = result.unwrap_or_else(|message| gateway_desktop_settings::AcpInstallReport {
                 success: false,
                 message,
                 steps: Vec::new(),
             });
-            let task = if report.success {
+            let task = if report.message == gateway_desktop_settings::ACP_INSTALL_CANCELLED {
+                app.show_info_toast(report.message.clone())
+            } else if report.success {
                 let refresh = refresh_task(app.access.clone());
                 let toast = app.show_info_toast(report.message.clone());
                 Task::batch([refresh, toast])
@@ -193,16 +239,7 @@ pub fn update(app: &mut Update, message: AcpMessage) -> Task<Message> {
                 },
             };
             let previous = cancel_diagnostic(app);
-            static NEXT: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
-            let id = format!(
-                "{}-{}-{}",
-                std::process::id(),
-                std::time::SystemTime::now()
-                    .duration_since(std::time::UNIX_EPOCH)
-                    .unwrap_or_default()
-                    .as_nanos(),
-                NEXT.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
-            );
+            let id = operation_id();
             app.state.diagnostic_id = Some(id.clone());
             app.state.diagnostic_status = Some(AcpDiagnosticStatus::Running);
             if from_card {
@@ -576,3 +613,16 @@ use super::acp_update_message::Toast;
 #[cfg(test)]
 #[path="acp_update_tests.rs"]
 mod acp_tests;
+
+fn operation_id() -> String {
+    static NEXT: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+    format!(
+        "{}-{}-{}",
+        std::process::id(),
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_nanos(),
+        NEXT.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
+    )
+}

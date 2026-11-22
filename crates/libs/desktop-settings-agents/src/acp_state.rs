@@ -31,6 +31,8 @@ impl AcpDiagnosticStatus {
 pub struct AcpSettingsState {
     pub installed: std::collections::BTreeMap<String, bool>,
     pub installing_agent: Option<String>,
+    pub(crate) install_id: Option<String>,
+    pub(crate) cancelling_install: bool,
     pub install_expanded: std::collections::BTreeSet<String>,
     pub install_instructions: std::collections::BTreeMap<
         String,
@@ -77,6 +79,8 @@ impl Default for AcpSettingsState {
         Self {
             installed: Default::default(),
             installing_agent: None,
+            install_id: None,
+            cancelling_install: false,
             install_expanded: Default::default(),
             install_instructions: Default::default(),
             install_reports: Default::default(),

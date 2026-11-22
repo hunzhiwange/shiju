@@ -11,7 +11,6 @@ pub async fn install_builtin_agent(agent: &str) -> Result<(), String> {
 #[derive(Default)]
 pub struct InstallLog {
     pub steps: Vec<String>,
-    deadline: Option<tokio::time::Instant>,
 }
 
 impl InstallLog {
@@ -24,13 +23,6 @@ pub async fn install_builtin_agent_with_log(
     agent: &str,
     log: &mut InstallLog,
 ) -> Result<(), String> {
-    let seconds = match agent {
-        "aionrs" => 900,
-        "cortex-code" => 600,
-        _ => 300,
-    };
-    let deadline = tokio::time::Instant::now() + std::time::Duration::from_secs(seconds);
-    log.deadline = Some(deadline);
     install(agent, log).await
 }
 
@@ -41,13 +33,12 @@ async fn install(agent: &str, log: &mut InstallLog) -> Result<(), String> {
     }
     let (program, args) = acp_install_command(agent)
         .ok_or_else(|| "该 ACP 暂无一键安装命令，请使用官方安装器".to_string())?;
-    let deadline = tokio::time::Instant::now() + std::time::Duration::from_secs(300);
     if program == "uv"
         && installed_uv().is_none()
         && shell_command::resolve_executable("uv").is_none()
     {
         let (bootstrap, args) = uv_bootstrap_command();
-        run_installer(log, "安装 uv", bootstrap, args, deadline).await?;
+        run_installer(log, "安装 uv", bootstrap, args).await?;
     }
     // uv 的安装目录可能刚刚创建，不能只依赖网关启动时缓存的 PATH。
     let executable = if program == "uv" {
@@ -55,21 +46,18 @@ async fn install(agent: &str, log: &mut InstallLog) -> Result<(), String> {
     } else {
         program.into()
     };
-    run_installer(log, "运行 ACP 安装器", &executable, args, deadline).await?;
+    run_installer(log, "运行 ACP 安装器", &executable, args).await?;
     Ok(())
 }
 
-pub(super) async fn ensure_uv(
-    log: &mut InstallLog,
-    deadline: tokio::time::Instant,
-) -> Result<String, String> {
+pub(super) async fn ensure_uv(log: &mut InstallLog) -> Result<String, String> {
     if let Some(path) = installed_uv().or_else(|| {
         shell_command::resolve_executable("uv").map(|path| path.to_string_lossy().into_owned())
     }) {
         return Ok(path);
     }
     let (program, args) = uv_bootstrap_command();
-    run_installer(log, "安装 uv", program, args, deadline).await?;
+    run_installer(log, "安装 uv", program, args).await?;
     installed_uv().ok_or_else(|| "uv bootstrap did not install its executable".into())
 }
 
@@ -152,7 +140,7 @@ pub(super) fn installed_uv() -> Option<String> {
     path.is_file().then(|| path.to_string_lossy().into_owned())
 }
 
-// 请求断开或超时也必须停止 shell 启动的下载、解压等子进程。
+// 请求断开或取消也必须停止 shell 启动的下载、解压等子进程。
 struct InstallerTree(Option<u32>);
 impl Drop for InstallerTree {
     fn drop(&mut self) {
@@ -167,7 +155,7 @@ impl Drop for InstallerTree {
                 .stdin(Stdio::null())
                 .stdout(Stdio::null())
                 .stderr(Stdio::null())
-                .spawn();
+                .status();
         }
     }
 }
@@ -177,18 +165,12 @@ pub(super) async fn run_installer(
     label: &str,
     program: &str,
     args: &[&str],
-    deadline: tokio::time::Instant,
 ) -> Result<(), String> {
     log.step(label);
     // Keep the actual Windows argument boundaries, including the original script.
     let invocation =
         if cfg!(windows) { format!("{program} {args:?}") } else { shell_line(program, args) };
     log.steps.push(invocation);
-    let deadline = log.deadline.map_or(deadline, |limit| limit.min(deadline));
-    let timeout_error = || format!("{label}超时，请检查网关主机网络与安装状态");
-    if tokio::time::Instant::now() >= deadline {
-        return Err(timeout_error());
-    }
     let mut command =
         acp_host_io::spawn_command_options::build_spawn_command(program, &Default::default());
     #[cfg(unix)]
@@ -208,47 +190,39 @@ pub(super) async fn run_installer(
     let mut stderr = OutputTail::default();
     let stdout_pipe = child.stdout.take().expect("installer stdout is piped");
     let stderr_pipe = child.stderr.take().expect("installer stderr is piped");
-    // 同时消费两个管道，保留退出或超时前最后一段输出。
-    let result = {
+    // 同时消费两个管道，保留退出前最后一段输出。
+    let result = async {
         let drain = async {
             tokio::try_join!(stdout.read(stdout_pipe), stderr.read(stderr_pipe)).map(|_| ())
         };
         tokio::pin!(drain);
-        tokio::time::timeout_at(deadline, async {
-            tokio::select! {
-                status = child.wait() => {
-                    // A background process can keep a pipe open after the installer exits.
-                    if let Ok(output) = tokio::time::timeout(
-                        std::time::Duration::from_millis(100), &mut drain,
-                    ).await {
-                        output?;
-                    }
-                    status
-                }
-                output = &mut drain => {
+        tokio::select! {
+            status = child.wait() => {
+                // A background process can keep a pipe open after the installer exits.
+                if let Ok(output) = tokio::time::timeout(
+                    std::time::Duration::from_millis(100), &mut drain,
+                ).await {
                     output?;
-                    child.wait().await
                 }
+                status
             }
-        })
-        .await
-    };
+            output = &mut drain => {
+                output?;
+                child.wait().await
+            }
+        }
+    }
+    .await;
     stdout.append_to(log, "stdout");
     stderr.append_to(log, "stderr");
 
     match result {
-        Ok(Ok(status)) => {
+        Ok(status) => {
             tree.0 = None;
             log.steps.push(status.to_string());
             if status.success() { Ok(()) } else { Err(format!("{label}失败（{status}）")) }
         }
-        Ok(Err(error)) => Err(format!("{label}进程读取失败（{error}）")),
-        Err(_) => {
-            drop(tree);
-            let _ = child.kill().await;
-            let _ = child.wait().await;
-            Err(timeout_error())
-        }
+        Err(error) => Err(format!("{label}进程读取失败（{error}）")),
     }
 }
 

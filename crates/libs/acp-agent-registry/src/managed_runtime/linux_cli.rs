@@ -8,7 +8,6 @@ use std::{
     io::Read,
     os::unix::fs::PermissionsExt,
     path::{Path, PathBuf},
-    time::Duration,
 };
 
 const CORUST: &str =
@@ -244,7 +243,6 @@ pub(super) async fn install(agent: &str, log: &mut crate::install::InstallLog) -
             &artifact.bin,
             &artifact.executable_sha256,
         ],
-        tokio::time::Instant::now() + Duration::from_secs(300),
     )
     .await?;
     log.step("校验并发布 Linux ACP 运行时");

@@ -9,6 +9,8 @@ mod preferences;
 mod service;
 pub use service::{AcpInstallInstructions, AcpInstallReport};
 
+pub const ACP_INSTALL_CANCELLED: &str = "ACP 安装已取消";
+
 #[derive(Debug, Clone)]
 pub struct GatewayDesktopSettingsClient {
     transport: gateway_http::GatewayTransport,

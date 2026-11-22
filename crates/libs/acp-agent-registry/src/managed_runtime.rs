@@ -1023,15 +1023,11 @@ pub(super) async fn install(agent: &str, log: &mut crate::install::InstallLog) -
     }
     let runtime = stage.0.join("runtime");
     let uv = if matches!(agent, "vibe" | "hermes") {
-        crate::install::ensure_uv(log, tokio::time::Instant::now() + std::time::Duration::from_secs(300))
-            .await?
+        crate::install::ensure_uv(log).await?
     } else {
         String::new()
     };
     let script = assets.join("install.py");
-    // Leave time to resume a slow download of the full Cortex Code distribution
-    // and keep the installer deadline inside the desktop request deadline.
-    let timeout = if agent == "cortex-code" { 600 } else { 900 };
     let python = if cfg!(windows) && agent == "glm-acp-agent" {
         "python.exe"
     } else {
@@ -1049,7 +1045,6 @@ pub(super) async fn install(agent: &str, log: &mut crate::install::InstallLog) -
             &uv,
             if agent == "glm-acp-agent" && LINUX_GNU { "--glm-linux-v4" } else { "" },
         ],
-        tokio::time::Instant::now() + std::time::Duration::from_secs(timeout),
     )
     .await?;
     log.step("校验托管运行时");

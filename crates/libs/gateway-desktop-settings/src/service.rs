@@ -36,9 +36,9 @@ impl GatewayDesktopSettingsClient {
         gateway_http::parse_json_response("POST", self.transport.endpoint(), &path, response).await
     }
 
-    /// 安装可能需要下载较大的包，使用独立请求超时。
+    /// 等待网关完成安装。
     pub async fn acp_install(&self, agent: &str) -> Result<String, String> {
-        self.request_acp_install(agent, false).await
+        self.request_acp_install(agent, false, None).await
     }
 
     pub async fn acp_install_instructions(&self, agent: &str) -> Result<AcpInstallInstructions, String> {
@@ -47,6 +47,14 @@ impl GatewayDesktopSettingsClient {
     }
 
     pub async fn acp_install_report(&self, agent: &str) -> Result<AcpInstallReport, String> {
+        self.acp_install_report_with_id(agent, None).await
+    }
+
+    pub async fn acp_install_report_with_id(
+        &self,
+        agent: &str,
+        install_id: Option<&str>,
+    ) -> Result<AcpInstallReport, String> {
         #[derive(serde::Deserialize)]
         #[serde(untagged)]
         enum Reply {
@@ -54,28 +62,33 @@ impl GatewayDesktopSettingsClient {
             Legacy(String),
         }
 
-        match self.request_acp_install(agent, true).await? {
+        match self.request_acp_install(agent, true, install_id).await? {
             Reply::Report(report) => Ok(report),
             Reply::Legacy(message) => Ok(AcpInstallReport { success: true, message, steps: Vec::new() }),
         }
+    }
+
+    pub async fn acp_install_cancel(&self, agent: &str, install_id: &str) -> Result<bool, String> {
+        let path = acp_install_path(agent)?;
+        self.transport.delete_json(&path, &[("install_id".into(), install_id.into())], &serde_json::json!({})).await
     }
 
     async fn request_acp_install<T: serde::de::DeserializeOwned>(
         &self,
         agent: &str,
         report: bool,
+        install_id: Option<&str>,
     ) -> Result<T, String> {
         let path = acp_install_path(agent)?;
-        let request = self.transport.client()
+        let request = self.transport.long_running_client()?
             .post(format!("{}{}", self.transport.endpoint().base_url(), path))
             .json(&serde_json::json!({}));
         let request = if report { request.query(&[("report", true)]) } else { request };
-        #[cfg(not(target_arch = "wasm32"))]
-        let request = request.timeout(std::time::Duration::from_secs(match agent {
-            "aionrs" => 920,
-            "cortex-code" => 620,
-            _ => 320,
-        }));
+        let request = if let Some(id) = install_id {
+            request.query(&[("install_id", id)])
+        } else {
+            request
+        };
         let response = gateway_http::apply_request_context(request, self.transport.endpoint())
             .send()
             .await

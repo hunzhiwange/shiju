@@ -203,6 +203,15 @@ fn installation_section<'a>(input: Input<'a>, agent: &str, builtin: bool) -> Ele
                     .then(|| acp_message(AcpMessage::InstallAgent(agent.to_owned())))),
         );
     }
+    if installing {
+        actions = actions.push(
+            button(text(tr(if state.cancelling_install { "正在取消…" } else { "取消安装" })).size(13))
+                .padding([7, 14])
+                .style(rounded_action_btn_style)
+                .on_press_maybe((!state.cancelling_install)
+                    .then(|| acp_message(AcpMessage::CancelInstall))),
+        );
+    }
     let title = tr("官方安装包 / 安装器");
     let mut section = column![
         settings_hover_help_label(
@@ -231,7 +240,13 @@ fn installation_section<'a>(input: Input<'a>, agent: &str, builtin: bool) -> Ele
             transcript.push_str("\n\n");
         }
         transcript.push_str(&report.message);
-        let status = if report.success { "安装完成" } else { "安装失败" };
+        let status = if report.message == gateway_desktop_settings::ACP_INSTALL_CANCELLED {
+            "ACP 安装已取消"
+        } else if report.success {
+            "安装完成"
+        } else {
+            "安装失败"
+        };
         let copy = if report.success { "复制安装输出" } else { "复制安装错误" };
         section = section.push(install_text_block(tr(status), tr(copy), transcript));
     }

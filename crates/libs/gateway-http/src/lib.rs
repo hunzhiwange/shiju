@@ -71,6 +71,14 @@ impl GatewayTransport {
         &self.dynamic_host_client
     }
 
+    /// 为需要等待长时间操作完成的请求创建无总时限客户端。
+    pub fn long_running_client(&self) -> Result<reqwest::Client, String> {
+        let builder = reqwest::Client::builder();
+        #[cfg(not(target_arch = "wasm32"))]
+        let builder = if self.endpoint.is_loopback() { builder.no_proxy() } else { builder };
+        builder.build().map_err(|err| err.to_string())
+    }
+
     /// 复用普通请求连接池。
     pub fn client(&self) -> &reqwest::Client {
         &self.client

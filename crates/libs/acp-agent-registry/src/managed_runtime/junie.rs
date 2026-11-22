@@ -8,7 +8,6 @@ use std::{
     io::{self, Read},
     os::unix::fs::{MetadataExt, PermissionsExt},
     path::{Path, PathBuf},
-    time::Duration,
 };
 
 const MANIFEST: &str =
@@ -104,7 +103,6 @@ pub(super) async fn install(log: &mut crate::install::InstallLog) -> Result<(), 
             runtime.to_str().ok_or("Invalid Junie Linux runtime path")?,
             std::env::consts::ARCH,
         ],
-        tokio::time::Instant::now() + Duration::from_secs(300),
     )
     .await?;
     log.step("校验并发布 Junie 运行时");

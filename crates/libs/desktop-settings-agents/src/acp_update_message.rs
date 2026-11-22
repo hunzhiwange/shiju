@@ -3,6 +3,9 @@ pub enum AcpMessage {
     StartDiagnostic,
     TestAgent(String),
     InstallAgent(String),
+    CancelInstall,
+    InstallCancelAccepted,
+    InstallCancelFailed { id: String, message: String },
     ToggleInstallDetails(String),
     InstallInstructionsLoaded {
         agent: String,

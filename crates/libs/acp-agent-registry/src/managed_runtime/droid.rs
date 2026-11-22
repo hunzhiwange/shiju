@@ -9,7 +9,6 @@ use std::{
     io::Read,
     os::unix::fs::PermissionsExt,
     path::{Path, PathBuf},
-    time::Duration,
 };
 
 const MANIFEST: &str = include_str!("../../../../../patches/acp-model-source/droid/linux.json");
@@ -83,7 +82,6 @@ pub(super) async fn install(log: &mut crate::install::InstallLog) -> Result<(), 
             script.to_str().ok_or("Invalid Droid Linux installer path")?,
             runtime.to_str().ok_or("Invalid Droid Linux staging path")?,
         ],
-        tokio::time::Instant::now() + Duration::from_secs(300),
     )
     .await?;
     log.step("校验并发布 Droid 运行时");

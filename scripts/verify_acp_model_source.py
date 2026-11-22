@@ -15,12 +15,30 @@ import signal
 import subprocess
 import tempfile
 
-from acp_model_source_fixture import ModelFixture, successful
+from acp_model_source_fixture import LOCAL_MODEL_ROUTES, ModelFixture, successful
 from acp_model_source_pi import PiIdentityError, pi_identity
 
 ROOT = Path(__file__).resolve().parents[1]
 TESTS = {"session-model": "acp_model_source_real_cli_session_model",
          "cli-local": "acp_model_source_real_cli_cli_local"}
+LOCAL_MODEL_TEST = "acp_model_source_real_cli_local_model_contract"
+LOCAL_MODEL_CHECKPOINTS = ("new", "second_turn", "cancel", "restart", "switch", "isolated",
+                           "selected_model_locked", "selection_rejected", "conversion_rejected",
+                           "tools_unsupported", "tool_output")
+
+
+def local_model_successful(evidence, flow, protocol):
+    route = LOCAL_MODEL_ROUTES[protocol]
+    records = evidence["requests"]
+    selected = {"acp-fixture-primary", "acp-fixture-switched"}
+    completed = {row["model"] for row in records if row.get("continued_tools") == ["native", "mcp"]
+                 and row.get("tool_results") == 2}
+    errors = evidence["errors"]
+    return (errors > 0 and evidence.get("error_kinds") == {"tools_unsupported": errors}
+            and completed == selected
+            and all(row["route"] == route and row["authenticated"] is True
+                    and row["model"] in selected | {"acp-fixture-text-only"} for row in records)
+            and all(flow.get(key) is True for key in LOCAL_MODEL_CHECKPOINTS))
 
 
 def configure_opencode_effort_fixture(fixture):
@@ -386,6 +404,9 @@ def run(args):
     report = {"agent": args.agent, "mode": args.mode, "evidence_kind": "real-cli",
               "status": "unavailable", "passed": False, "platform": platform.system() + "-" + platform.machine()}
     try:
+        local_model = getattr(args, "local_model_contract", False)
+        if local_model and (args.mode != "session-model" or getattr(args, "effort_check", False)):
+            raise Unavailable("local model contract requires session-model without the effort probe")
         slot = cargo_slot(os.environ)
         effort_check = None
         expected_claude_effort = None
@@ -403,9 +424,12 @@ def run(args):
         if opencode_effort and entry["distribution"]["release"] != "1.19.5":
             raise VersionMismatch("OpenCode effort check requires the reviewed 1.19.5 release")
         upstream_protocol = entry.get("offline_acceptance", {}).get(args.mode, {}).get("upstream_protocol", "chat")
-        if upstream_protocol not in ("chat", "messages") or (claude_effort and upstream_protocol != "messages"):
-            raise Unavailable("unsupported offline fixture protocol")
-        with tempfile.TemporaryDirectory(prefix="acp-model-acceptance-") as temp, ModelFixture() as fixture, ExitStack() as owned:
+        supported = tuple(LOCAL_MODEL_ROUTES) if local_model else ("chat", "messages")
+        if upstream_protocol not in supported or (claude_effort and upstream_protocol != "messages"):
+            raise Unavailable("selected model source has no offline driver for the configured upstream protocol")
+        local_protocol = upstream_protocol if local_model else None
+        with tempfile.TemporaryDirectory(prefix="acp-model-acceptance-") as temp, \
+                ModelFixture(local_protocol=local_protocol) as fixture, ExitStack() as owned:
             if effort_check:
                 effort_check["configure_fixture"](fixture)
             root = Path(temp).resolve() if opencode_effort else Path(temp)
@@ -488,11 +512,19 @@ def run(args):
                 fixture.auxiliary_profile = "openclaw"
                 fixture.auxiliary_model = None
             runtime = root / "entry.json"
-            runtime.write_text(json.dumps({"agent": args.agent, "mode": args.mode, "upstream_protocol": upstream_protocol,
-                                          "config": config, "isolation_env": native_env, "root": str(root),
-                                          "fixture": fixture.url, "key": fixture.key,
-                                          "control": fixture.control, "challenge": fixture.challenge,
-                                          "effort_check": bool(effort_check)}))
+            runtime_input = {
+                "agent": args.agent, "mode": args.mode, "upstream_protocol": upstream_protocol,
+                "config": config, "isolation_env": native_env, "root": str(root),
+                "fixture": fixture.url, "key": fixture.key, "control": fixture.control,
+                "challenge": fixture.challenge, "effort_check": bool(effort_check),
+            }
+            if local_model:
+                runtime_input["local_model_contract"] = {
+                    "endpoint": fixture.url + fixture.local_route,
+                    "text_only_model": fixture.text_only_model,
+                    "mcp_tool": fixture.mcp_tool, "mcp_challenge": fixture.mcp_challenge,
+                }
+            runtime.write_text(json.dumps(runtime_input))
             os.chmod(runtime, 0o600)
             flow_path = root / "flow.json"
             env.update(VW_ACP_ACCEPTANCE_MANIFEST=str(runtime), VW_ACP_ACCEPTANCE_FLOW=str(flow_path))
@@ -501,7 +533,10 @@ def run(args):
                 diagnostic_path.write_text("{}")
                 os.chmod(diagnostic_path, 0o600)
                 env["VW_ACP_ACCEPTANCE_DIAGNOSTICS"] = str(diagnostic_path)
-            test = effort_check["test"] if effort_check else TESTS[args.mode]
+            if local_model:
+                test = LOCAL_MODEL_TEST
+            else:
+                test = effort_check["test"] if effort_check else TESTS[args.mode]
             command = ["cargo", "test", "-p", "vw-agent", "--lib", "--all-features", test,
                        "--", "--ignored", "--nocapture", "--test-threads=1"]
             # Logs can contain supplier content. Never persist or echo raw stdout/stderr.
@@ -530,7 +565,9 @@ def run(args):
             raw_flow = json.loads(flow_path.read_text()) if flow_path.exists() else {}
             if not isinstance(raw_flow, dict):
                 raise ValueError("invalid flow result")
-            if effort_check:
+            if local_model:
+                flow = {key: raw_flow.get(key) is True for key in LOCAL_MODEL_CHECKPOINTS}
+            elif effort_check:
                 flow = {key: raw_flow.get(key) is True for key in effort_check["checkpoints"]}
             else:
                 flow = {key: raw_flow.get(key) is True for key in
@@ -540,8 +577,12 @@ def run(args):
                     flow["auxiliary"] = raw_flow.get("auxiliary") is True
                     flow["auxiliary_switched"] = raw_flow.get("auxiliary_switched") is True
             flow["mode"] = args.mode
-            predicate = effort_check["successful"] if effort_check else successful
-            passed = result.returncode == 0 and exactly_one and predicate(evidence, flow)
+            if local_model:
+                observed = local_model_successful(evidence, flow, local_protocol)
+            else:
+                predicate = effort_check["successful"] if effort_check else successful
+                observed = predicate(evidence, flow)
+            passed = result.returncode == 0 and exactly_one and observed
             if expected_claude_effort:
                 passed = passed and "claude_effort" in report
             report.update(status="passed" if passed else ("handshake-only" if flow.get("handshake") and not evidence["requests"] else "failed"), passed=passed,
@@ -550,6 +591,12 @@ def run(args):
                               r"(?:crates|src)/[a-zA-Z0-9_./-]+\.rs:\d+(?::\d+)?",
                               (result.stdout + result.stderr).decode(errors="replace")))) if not passed else [],
                           requests=evidence, flow=flow, command=command, cargo_target_dir=slot)
+            if local_model:
+                report["upstream_protocol"] = local_protocol
+                if result.returncode == 0 and re.search(r"running 0 tests\b", text) and not exactly_one:
+                    report.update(status="unavailable", reason="host local model contract entry is missing")
+                elif evidence.get("error_kinds", {}).get("tools_missing"):
+                    report["reason"] = "native read or mounted MCP tool is unavailable to the selected model"
     except VersionMismatch as error:
         report.update(status="version-mismatch", reason=str(error))
     except Unavailable as error:
@@ -571,6 +618,8 @@ def parse_args():
                         help="owned loopback upstream (the only supported upstream)")
     parser.add_argument("--effort-check", action="store_true",
                         help="verify native reasoning effort for the selected agent and source")
+    parser.add_argument("--local-model-contract", action="store_true",
+                        help="verify an exact loopback protocol and native plus mounted MCP continuations")
     return parser.parse_args()
 
 

@@ -1,4 +1,5 @@
 """Tool tests use HTTP clients, never claim to be a supplier ACP implementation."""
+import copy
 import json
 import unittest
 import urllib.error
@@ -372,6 +373,161 @@ class GeminiContract(unittest.TestCase):
             with self.assertRaises(urllib.error.HTTPError):
                 urllib.request.urlopen(request)
             self.assertEqual(fixture.snapshot()["requests"], [])
+
+
+class LocalModelContract(unittest.TestCase):
+    def test_protocols_require_matching_native_and_mcp_results(self):
+        from acp_model_source_fixture import LOCAL_MODEL_ROUTES
+
+        for protocol, route in LOCAL_MODEL_ROUTES.items():
+            with self.subTest(protocol=protocol), ModelFixture(local_protocol=protocol) as fixture:
+                history = [{"role": "user", "content": "Read the two probes"}]
+                schema = {"type": "object", "properties": {"path": {"type": "string"}}}
+                tools = [{"name": "read_file", "parameters": schema},
+                         {"name": fixture.mcp_tool, "parameters": {"type": "object", "properties": {}}}]
+
+                def request(model=fixture.models[0]):
+                    if protocol == "chat":
+                        declared = [{"type": "function", "function": tool} for tool in tools]
+                    elif protocol == "messages":
+                        declared = [{"name": tool["name"], "input_schema": tool["parameters"]} for tool in tools]
+                    else:
+                        declared = [dict(tool, type="function") for tool in tools]
+                    body = {"model": model, "tools": declared,
+                            "input" if protocol == "responses" else "messages": history,
+                            "stream": protocol == "responses"}
+                    req = urllib.request.Request(fixture.url + route, json.dumps(body).encode(),
+                                                 {"Authorization": "Bearer " + fixture.key})
+                    with urllib.request.urlopen(req) as reply:
+                        if protocol != "responses":
+                            return json.load(reply)
+                        events = [json.loads(line[6:]) for line in reply.read().decode().splitlines()
+                                  if line.startswith("data: ")]
+                        self.assertEqual(events[0]["type"], "response.created")
+                        self.assertEqual(events[-2]["type"], "response.output_item.done")
+                        self.assertEqual(events[-1]["type"], "response.completed")
+                        return events[-1]["response"]
+
+                def continuation(reply, expected_name, value):
+                    self.assertEqual(reply["model"], fixture.models[0])
+                    if protocol == "chat":
+                        message = reply["choices"][0]["message"]
+                        call = message["tool_calls"][0]
+                        self.assertEqual(call["function"]["name"], expected_name)
+                        return [message, {"role": "tool", "tool_call_id": call["id"], "content": value}]
+                    if protocol == "messages":
+                        call = reply["content"][0]
+                        self.assertEqual(call["name"], expected_name)
+                        return [{"role": "assistant", "content": [call]},
+                                {"role": "user", "content": [{"type": "tool_result",
+                                    "tool_use_id": call["id"], "content": value}]}]
+                    call = reply["output"][0]
+                    self.assertEqual(call["name"], expected_name)
+                    self.assertNotEqual(call["id"], call["call_id"])
+                    return [call, {"type": "function_call_output", "call_id": call["call_id"], "output": value}]
+
+                native = request()
+                bad = continuation(native, "read_file", fixture.mcp_challenge)
+                history.extend(bad)
+                with self.assertRaises(urllib.error.HTTPError):
+                    request()
+                del history[-len(bad):]
+                correct = continuation(native, "read_file", fixture.challenge)
+                wrong_id = copy.deepcopy(correct)
+                if protocol == "chat":
+                    wrong_id[-1]["tool_call_id"] = "wrong-id"
+                elif protocol == "messages":
+                    wrong_id[-1]["content"][0]["tool_use_id"] = "wrong-id"
+                else:
+                    wrong_id[-1]["call_id"] = native["output"][0]["id"]
+                history.extend(wrong_id)
+                with self.assertRaises(urllib.error.HTTPError):
+                    request()
+                del history[-len(wrong_id):]
+                history.extend(correct)
+                with self.assertRaises(urllib.error.HTTPError):
+                    request(fixture.models[1])
+                mcp = request()
+                history.extend(continuation(mcp, fixture.mcp_tool, fixture.mcp_challenge))
+                result = request()
+                self.assertIn("FIXTURE_MODEL_REPLY " + fixture.challenge, json.dumps(result))
+                evidence = fixture.snapshot()
+                self.assertEqual([(row["route"], row["model"], row["tool_results"]) for row in evidence["requests"]],
+                                 [(route, fixture.models[0], count) for count in (0, 1, 2)])
+                self.assertEqual(evidence["requests"][-1]["continued_tools"], ["native", "mcp"])
+                self.assertEqual(evidence["error_kinds"], {"continuation": 3})
+                self.assertNotIn(fixture.mcp_challenge, json.dumps(evidence))
+                self.assertNotIn(fixture.key, json.dumps(evidence))
+
+    def test_local_model_rejects_wrong_route_model_and_text_only_tools(self):
+        with ModelFixture(local_protocol="chat") as fixture:
+            for route, model, error in (
+                ("/v1/messages", fixture.models[0], "route"),
+                ("/v1/chat/completions", "forbidden-native-model", "model"),
+                ("/v1/chat/completions", fixture.text_only_model, "tools_unsupported"),
+            ):
+                with self.subTest(error=error):
+                    body = {"model": model, "messages": [{"role": "user", "content": "probe"}],
+                            "tools": [{"type": "function", "function": {"name": "read_file"}}]}
+                    req = urllib.request.Request(fixture.url + route, json.dumps(body).encode(),
+                                                 {"Authorization": "Bearer " + fixture.key})
+                    with self.assertRaises(urllib.error.HTTPError) as failure:
+                        urllib.request.urlopen(req)
+                    self.assertEqual(json.load(failure.exception)["error"]["code"], error)
+            self.assertEqual(fixture.snapshot()["requests"], [])
+
+    def test_local_runner_requires_checked_host_and_both_model_continuations(self):
+        from verify_acp_model_source import local_model_successful
+
+        models = ("acp-fixture-primary", "acp-fixture-switched")
+        rows = [{"model": model, "authenticated": True, "route": "/v1/responses",
+                 "tool_results": 2, "continued_tools": ["native", "mcp"]}
+                for model in models for _ in range(2)]
+        evidence = {"errors": 1, "error_kinds": {"tools_unsupported": 1}, "requests": rows}
+        flow = {key: True for key in ("new", "second_turn", "cancel", "restart", "switch", "isolated",
+                                      "selected_model_locked", "selection_rejected", "conversion_rejected",
+                                      "tools_unsupported", "tool_output")}
+        self.assertTrue(local_model_successful(evidence, flow, "responses"))
+        for key in flow:
+            self.assertFalse(local_model_successful(evidence, dict(flow, **{key: False}), "responses"))
+        self.assertFalse(local_model_successful(evidence, flow, "chat"))
+        for row in rows[2:]:
+            row["continued_tools"] = ["native"]
+        self.assertFalse(local_model_successful(evidence, flow, "responses"))
+
+    def test_local_runner_reports_missing_host_entry(self):
+        import argparse
+        import subprocess
+        import tempfile
+        from pathlib import Path
+        from unittest.mock import patch
+        import verify_acp_model_source as runner
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            manifest = root / "manifest.json"
+            manifest.write_text(json.dumps({"entries": [{"key": "probe", "offline_acceptance": {
+                "session-model": {"upstream_protocol": "responses"}}}]}))
+            args = argparse.Namespace(agent="probe", mode="session-model", manifest=manifest,
+                                      output=root / "result.json", local_model_contract=True)
+
+            def missing_entry(command, *, env):
+                self.assertIn(runner.LOCAL_MODEL_TEST, command)
+                runtime = json.loads(Path(env["VW_ACP_ACCEPTANCE_MANIFEST"]).read_text())
+                contract = runtime["local_model_contract"]
+                self.assertEqual(contract["endpoint"], runtime["fixture"] + "/v1/responses")
+                self.assertEqual(runtime["upstream_protocol"], "responses")
+                return subprocess.CompletedProcess(command, 0, b"running 0 tests\n", b"")
+
+            with patch.object(runner, "cargo_slot", return_value="/mock/rust-slot-1"), \
+                 patch.object(runner, "isolated_environment", return_value={"MOCK_CONFIG_DIR": str(root)}), \
+                 patch.object(runner, "locate", return_value={"command": "/mock/cli", "args": []}), \
+                 patch.object(runner, "execute_cargo", side_effect=missing_entry):
+                self.assertEqual(runner.run(args), 1)
+            report = json.loads(args.output.read_text())
+            self.assertEqual(report["status"], "unavailable")
+            self.assertEqual(report["effective_tests"], 0)
+            self.assertNotIn("mcp_challenge", json.dumps(report))
 
 
 if __name__ == "__main__":

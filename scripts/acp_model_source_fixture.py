@@ -10,11 +10,15 @@ from urllib.parse import urlsplit
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from acp_model_source_kiro_fixture import KiroFixtureMixin
 
+LOCAL_MODEL_ROUTES = {"chat": "/v1/chat/completions", "messages": "/v1/messages",
+                      "responses": "/v1/responses"}
+LOCAL_ERROR_CODES = ("route", "auth", "model", "continuation", "tools_unsupported", "tools_missing")
+
 
 class ModelFixture:
     """Own observations; credentials/bodies are deliberately absent from snapshots."""
 
-    def __init__(self):
+    def __init__(self, *, local_protocol=None):
         self.key = secrets.token_hex(24)
         self.control = secrets.token_hex(24)
         self.lock = threading.Lock()
@@ -33,6 +37,13 @@ class ModelFixture:
         self.chat_effort_probe = None
         self.messages_effort_probe = False
         self.models = ("acp-fixture-primary", "acp-fixture-switched")
+        self.local_route = LOCAL_MODEL_ROUTES[local_protocol] if local_protocol else None
+        self.mcp_tool = "mcp__coexistence__read_probe"
+        self.mcp_challenge = secrets.token_hex(16)
+        self.text_only_model = "acp-fixture-text-only"
+        self.issued_calls = {}
+        if self.local_route:
+            self.models += (self.text_only_model,)
         fixture = self
 
         class Handler(KiroFixtureMixin, BaseHTTPRequestHandler):
@@ -138,6 +149,55 @@ class ModelFixture:
                 except (BrokenPipeError, ConnectionResetError):
                     pass
 
+            def local_tool_call(self, body, tools, outputs, messages):
+                """Check returned IDs and payloads before issuing the next external model response."""
+                model = body["model"]
+                if model == fixture.text_only_model and tools:
+                    raise ValueError("tools_unsupported")
+                continued = []
+                parent = None
+                stages = ("native", "mcp")
+                with fixture.lock:
+                    for call_id, output in outputs:
+                        if len(continued) == len(stages):
+                            raise ValueError("continuation")
+                        stage = stages[len(continued)]
+                        expected = fixture.challenge if stage == "native" else fixture.mcp_challenge
+                        if (not isinstance(call_id, str)
+                                or fixture.issued_calls.get(call_id) != (model, stage, parent)
+                                or expected not in json.dumps(output)):
+                            raise ValueError("continuation")
+                        continued.append(stage)
+                        parent = call_id
+                    user = next((message for message in reversed(messages) if message.get("role") == "user"), {})
+                    cancelled = fixture.delay_next_request or "CANCEL_PROBE" in json.dumps(user.get("content"))
+                    fixture.delay_next_request = False
+                    call = None
+                    if model != fixture.text_only_model and not cancelled and len(continued) < len(stages):
+                        stage = stages[len(continued)]
+                        if stage == "native":
+                            tool = next((tool for tool in tools if tool.get("name", "").lower() in
+                                         ("read", "read_file", "readfile", "filesystem-read")), {})
+                            schema = tool.get("parameters", tool.get("input_schema", {}))
+                            argument = next((key for key in ("absolute_path", "file_path", "path", "filePath")
+                                             if key in schema.get("properties", {})), None)
+                            if not argument:
+                                raise ValueError("tools_missing")
+                            arguments = {argument: fixture.read_path}
+                        else:
+                            tool = next((tool for tool in tools if tool.get("name") == fixture.mcp_tool), None)
+                            if tool is None:
+                                raise ValueError("tools_missing")
+                            arguments = {}
+                        call_id = "call_fixture_" + secrets.token_hex(12)
+                        fixture.issued_calls[call_id] = (model, stage, parent)
+                        call = {"id": call_id, "name": tool["name"], "input": arguments}
+                    fixture.records.append({"model": model, "authenticated": True, "route": fixture.local_route,
+                                            "tool_results": len(continued), "continued_tools": continued})
+                if cancelled:
+                    time.sleep(5)
+                return call
+
             def do_POST(self):
                 try:
                     length = int(self.headers.get("Content-Length", "0"))
@@ -148,11 +208,14 @@ class ModelFixture:
                         with fixture.lock:
                             fixture.delay_next_request = True
                         return self.reply(200, {"armed": True})
-                    if self.path.startswith("/v1beta/models/"):
-                        return self.gemini_reply(body)
                     route = urlsplit(self.path).path
                     if route == "/" and fixture.kiro_controls:
                         return self.kiro_control(body)
+                    if fixture.local_route and route != fixture.local_route:
+                        if not (fixture.local_route == "/v1/messages" and route == "/v1/messages/count_tokens"):
+                            raise ValueError("route")
+                    if self.path.startswith("/v1beta/models/"):
+                        return self.gemini_reply(body)
                     if route == "/v1/responses":
                         return self.responses_reply(body)
                     if route in ("/v1/messages", "/v1/messages/count_tokens"):
@@ -179,31 +242,38 @@ class ModelFixture:
                         and any("<conversation>" in json.dumps(m.get("content"))
                             and "</conversation>" in json.dumps(m.get("content"))
                             for m in messages if m.get("role") == "user"))
-                    with fixture.lock:
-                        delay_next_request = fixture.delay_next_request
-                        fixture.delay_next_request = False
-                        record = {"model": model, "authenticated": True,
-                                  "route": self.path, "tool_results": len(tool_results),
-                                  "auxiliary": pi_summary or any("AUXILIARY_CHILD" in json.dumps(m.get("content")) for m in messages if m.get("role") == "user")
-                                  and (fixture.auxiliary_profile != "openclaw" or not any("AUXILIARY_PROBE" in json.dumps(m.get("content")) for m in messages if m.get("role") == "user"))}
-                        if fixture.chat_effort_probe:
-                            if fixture.chat_effort_probe == "opencode":
-                                user = next(m for m in reversed(messages) if m.get("role") == "user")
-                                content = json.dumps(user.get("content"))
-                                record["turn"] = next((tag for tag in ("DEFAULT", "A", "B")
-                                                       if tools and json.dumps("ACP_EFFORT_" + tag) in content), "auxiliary")
-                            effort = body.get("reasoning_effort")
-                            record["reasoning_effort"] = (effort if effort in ("low", "high")
-                                                          else "other" if "reasoning_effort" in body else None)
-                        fixture.records.append(record)
-                    if delay_next_request or "CANCEL_PROBE" in json.dumps(next((m for m in reversed(messages) if m.get("role") == "user"), {})):
-                        time.sleep(5)
+                    local_call = None
+                    if fixture.local_route:
+                        local_call = self.local_tool_call(
+                            body, [tool.get("function", {}) for tool in tools],
+                            [(m.get("tool_call_id"), m.get("content")) for m in messages if m.get("role") == "tool"],
+                            messages)
+                    else:
+                        with fixture.lock:
+                            delay_next_request = fixture.delay_next_request
+                            fixture.delay_next_request = False
+                            record = {"model": model, "authenticated": True,
+                                      "route": self.path, "tool_results": len(tool_results),
+                                      "auxiliary": pi_summary or any("AUXILIARY_CHILD" in json.dumps(m.get("content")) for m in messages if m.get("role") == "user")
+                                      and (fixture.auxiliary_profile != "openclaw" or not any("AUXILIARY_PROBE" in json.dumps(m.get("content")) for m in messages if m.get("role") == "user"))}
+                            if fixture.chat_effort_probe:
+                                if fixture.chat_effort_probe == "opencode":
+                                    user = next(m for m in reversed(messages) if m.get("role") == "user")
+                                    content = json.dumps(user.get("content"))
+                                    record["turn"] = next((tag for tag in ("DEFAULT", "A", "B")
+                                                           if tools and json.dumps("ACP_EFFORT_" + tag) in content), "auxiliary")
+                                effort = body.get("reasoning_effort")
+                                record["reasoning_effort"] = (effort if effort in ("low", "high")
+                                                              else "other" if "reasoning_effort" in body else None)
+                            fixture.records.append(record)
+                        if delay_next_request or "CANCEL_PROBE" in json.dumps(next((m for m in reversed(messages) if m.get("role") == "user"), {})):
+                            time.sleep(5)
                     # Use the real agent's declared read tool; an actual file must be read.
                     read_tool = next((t.get("function", {}) for t in tools
                                       if t.get("function", {}).get("name", "").lower() in
                                       ("read", "read_file", "readfile", "filesystem-read")), None)
-                    auxiliary = self.auxiliary_call(body, messages)
-                    if fixture.auxiliary_profile == "openclaw" and any("AUXILIARY_CHILD" in json.dumps(m) for m in messages if m.get("role") == "assistant"):
+                    auxiliary = local_call if fixture.local_route else self.auxiliary_call(body, messages)
+                    if not fixture.local_route and fixture.auxiliary_profile == "openclaw" and any("AUXILIARY_CHILD" in json.dumps(m) for m in messages if m.get("role") == "assistant"):
                         deadline = time.monotonic() + 10
                         while time.monotonic() < deadline:
                             with fixture.lock:
@@ -213,11 +283,11 @@ class ModelFixture:
                             time.sleep(0.05)
                     delegated = any("AUXILIARY_CHILD" in json.dumps(m) for m in messages if m.get("role") == "assistant")
                     if auxiliary:
-                        call = {"id": "fixture-agent-" + str(len(fixture.records)), "type": "function",
+                        call = {"id": auxiliary.get("id") or "fixture-agent-" + str(len(fixture.records)), "type": "function",
                                 "function": {"name": auxiliary["name"], "arguments": json.dumps(auxiliary["input"])}}
                         message = {"role": "assistant", "content": None, "tool_calls": [call]}
                         finish = "tool_calls"
-                    elif not fixture.chat_effort_probe and len(tool_results) < 2 and read_tool and not (delegated and tool_results):
+                    elif not fixture.local_route and not fixture.chat_effort_probe and len(tool_results) < 2 and read_tool and not (delegated and tool_results):
                         props = read_tool.get("parameters", {}).get("properties", {})
                         name = next((k for k in ("absolute_path", "file_path", "path", "filePath") if k in props), None)
                         if name is None:
@@ -253,11 +323,15 @@ class ModelFixture:
                     pass
                 except (ValueError, TypeError, KeyError, json.JSONDecodeError) as error:
                     # Only closed diagnostic categories: no paths, auth or request bodies.
-                    category = str(error) if str(error) in ("route", "auth", "model") else "contract"
+                    codes = LOCAL_ERROR_CODES if fixture.local_route else ("route", "auth", "model")
+                    category = str(error) if str(error) in codes else "contract"
                     with fixture.lock:
                         fixture.errors += 1
                         fixture.error_kinds[category] = fixture.error_kinds.get(category, 0) + 1
-                    self.reply(400, {"error": {"message": "offline fixture contract rejected request"}})
+                    details = {"message": "offline fixture contract rejected request"}
+                    if fixture.local_route:
+                        details.update(code=category, message="offline fixture: " + category)
+                    self.reply(400, {"error": details})
 
             def messages_reply(self, body, route):
                 authenticated = (self.headers.get("Authorization") == "Bearer " + fixture.key
@@ -274,32 +348,42 @@ class ModelFixture:
                 results = [block for message in messages if message.get("role") == "user"
                            for block in (message.get("content") if isinstance(message.get("content"), list) else [])
                            if block.get("type") == "tool_result" and fixture.challenge in json.dumps(block.get("content"))]
-                with fixture.lock:
-                    record = {"model": body["model"], "authenticated": True,
-                              "route": route, "tool_results": len(results),
-                              "auxiliary": any("AUXILIARY_CHILD" in json.dumps(m.get("content")) for m in messages if m.get("role") == "user")}
-                    if fixture.messages_effort_probe:
-                        user = next(m for m in reversed(messages) if m.get("role") == "user")
-                        content = json.dumps(user.get("content"))
-                        record["turn"] = next((tag for tag in ("DEFAULT", "A", "B")
-                                               if body.get("tools") and json.dumps("ACP_EFFORT_" + tag) in content), "auxiliary")
-                        effort = body.get("output_config", {}).get("effort")
-                        record["effort"] = (effort if effort in ("low", "medium", "high", "xhigh", "max")
-                                            else "other" if effort is not None else None)
-                        thinking = body.get("thinking", {}).get("type")
-                        record["thinking"] = (thinking if thinking in ("adaptive", "enabled", "disabled")
-                                              else "other" if "thinking" in body else None)
-                    fixture.records.append(record)
-                if "CANCEL_PROBE" in json.dumps(next((m for m in reversed(messages) if m.get("role") == "user"), {})):
-                    time.sleep(5)
+                local_call = None
+                if fixture.local_route:
+                    local_call = self.local_tool_call(
+                        body, body.get("tools", []),
+                        [(block.get("tool_use_id"), None if block.get("is_error") else block.get("content"))
+                         for message in messages if message.get("role") == "user"
+                         for block in (message["content"] if isinstance(message.get("content"), list) else [])
+                         if block.get("type") == "tool_result"],
+                        messages)
+                else:
+                    with fixture.lock:
+                        record = {"model": body["model"], "authenticated": True,
+                                  "route": route, "tool_results": len(results),
+                                  "auxiliary": any("AUXILIARY_CHILD" in json.dumps(m.get("content")) for m in messages if m.get("role") == "user")}
+                        if fixture.messages_effort_probe:
+                            user = next(m for m in reversed(messages) if m.get("role") == "user")
+                            content = json.dumps(user.get("content"))
+                            record["turn"] = next((tag for tag in ("DEFAULT", "A", "B")
+                                                   if body.get("tools") and json.dumps("ACP_EFFORT_" + tag) in content), "auxiliary")
+                            effort = body.get("output_config", {}).get("effort")
+                            record["effort"] = (effort if effort in ("low", "medium", "high", "xhigh", "max")
+                                                else "other" if effort is not None else None)
+                            thinking = body.get("thinking", {}).get("type")
+                            record["thinking"] = (thinking if thinking in ("adaptive", "enabled", "disabled")
+                                                  else "other" if "thinking" in body else None)
+                        fixture.records.append(record)
+                    if "CANCEL_PROBE" in json.dumps(next((m for m in reversed(messages) if m.get("role") == "user"), {})):
+                        time.sleep(5)
                 tool = next((tool for tool in body.get("tools", [])
                              if tool.get("name", "").lower() in ("read", "read_file", "readfile", "filesystem-read")), None)
-                auxiliary = self.auxiliary_call(body, messages)
+                auxiliary = local_call if fixture.local_route else self.auxiliary_call(body, messages)
                 delegated = any("AUXILIARY_CHILD" in json.dumps(m) for m in messages if m.get("role") == "assistant")
                 if auxiliary:
                     block = {"type": "tool_use", "id": "fixture-agent-" + str(len(fixture.records)), **auxiliary}
                     reason = "tool_use"
-                elif not fixture.messages_effort_probe and len(results) < 2 and tool and not (delegated and results):
+                elif not fixture.local_route and not fixture.messages_effort_probe and len(results) < 2 and tool and not (delegated and results):
                     properties = tool.get("input_schema", {}).get("properties", {})
                     name = next((name for name in ("file_path", "path", "filePath") if name in properties), None)
                     if name is None:

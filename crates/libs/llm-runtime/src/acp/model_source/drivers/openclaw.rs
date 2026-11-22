@@ -9,6 +9,12 @@ use std::{
 use vw_api_acp_model::acp_model_source::AcpModelSource;
 
 pub(crate) const RESTRICTED_ENV: &str = "SHIJU_OPENCLAW_RESTRICTED";
+const NATIVE_SKILL_WORKSPACE_ENV: &str = "SHIJU_OPENCLAW_NATIVE_SKILL_WORKSPACE";
+const LINUX_GNU: bool = cfg!(all(
+    target_os = "linux",
+    target_env = "gnu",
+    any(target_arch = "x86_64", target_arch = "aarch64")
+));
 
 /// OpenClaw 2026.10.10 ACP is only a bridge. Put the provider on an owned
 /// foreground Gateway, and bind the bridge explicitly to its fresh loopback port.
@@ -74,6 +80,28 @@ pub(crate) fn configure_with_mcp(
         acp_agent_registry::verify_openclaw_restricted_executable(&profile.config().command)
             .map_err(anyhow::Error::msg)?;
     }
+    // The v3 scanner can combine the session projection with a physical
+    // workspace skills root. Older scanners keep their original behavior.
+    let native_skill_workspace = if LINUX_GNU
+        && !mcp.is_empty()
+        && profile.config().env.contains_key("SHIJU_OPENCLAW_SKILL_ROOT")
+        && acp_agent_registry::verify_openclaw_restricted_executable(&profile.config().command).is_ok()
+    {
+        let workspace = Path::new(workspace);
+        anyhow::ensure!(
+            workspace.is_absolute() && workspace.is_dir(),
+            "Invalid OpenClaw workspace"
+        );
+        Some(
+            workspace
+                .canonicalize()?
+                .into_os_string()
+                .into_string()
+                .map_err(|_| anyhow::anyhow!("Invalid OpenClaw workspace encoding"))?,
+        )
+    } else {
+        None
+    };
     let state = if restricted { profile.directory().join("native") } else { state_directory(profile)? };
     let listener = std::net::TcpListener::bind("127.0.0.1:0")?;
     let address = listener.local_addr()?;
@@ -89,7 +117,7 @@ pub(crate) fn configure_with_mcp(
         "session":{"store":state.join("{agentId}/sessions.json")},
         "discovery":{"mdns":{"mode":"off"}}, "browser":{"enabled":false},
         "plugins":{"enabled":false},
-        "agents":{"defaults":{"workspace": workspace,
+        "agents":{"defaults":{"workspace": native_skill_workspace.as_deref().unwrap_or(workspace),
             "model":{"primary":format!("session-provider/{}",profile.model_alias),"fallbacks":[]},
             "imageModel":{"primary":format!("session-provider/{}",profile.model_alias),"fallbacks":[]},
             "subagents":{"model":format!("session-provider/{}",profile.model_alias)},
@@ -148,6 +176,9 @@ pub(crate) fn configure_with_mcp(
             || key.as_str() == "SHIJU_OPENCLAW_SKILL_ROOT"
             || key.as_str() == "NODE_OPTIONS"
     }));
+    if let Some(workspace) = native_skill_workspace {
+        command.env(NATIVE_SKILL_WORKSPACE_ENV, workspace);
+    }
     drop(listener); // OpenClaw does not accept an inherited listening socket.
     profile.gateway = Some(super::super::gateway::OwnedGateway::new(command, address));
     Ok(())
@@ -209,6 +240,14 @@ pub(crate) fn project_mcp<S>(
             && options.non_interactive_permissions.is_none(),
         "OpenClaw native MCP requires full access without non-interactive approval restrictions"
     );
+    anyhow::ensure!(
+        !LINUX_GNU
+            || !options
+                .session_options
+                .as_ref()
+                .is_some_and(|options| options.allowed_tools.is_some()),
+        "OpenClaw native MCP cannot enforce the session tool allowlist"
+    );
     for server in &options.mcp_servers {
         let McpServer::Stdio(server) = server else {
             anyhow::bail!("OpenClaw managed MCP supports only stdio");
@@ -241,3 +280,12 @@ pub(crate) fn project_mcp<S>(
 fn literal_mcp_value(value: &str) -> bool {
     !value.contains('\0') && !value.contains("${")
 }
+
+#[cfg(all(
+    test,
+    target_os = "linux",
+    target_env = "gnu",
+    any(target_arch = "x86_64", target_arch = "aarch64")
+))]
+#[path = "openclaw_tests.rs"]
+mod tests;

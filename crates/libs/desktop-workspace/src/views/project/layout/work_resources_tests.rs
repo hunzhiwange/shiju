@@ -1,14 +1,12 @@
 use iced::Theme;
 use desktop_assets::assets::Icon;
-use super::{panel_style,resource_header_icons,ResourceBodyKind};
-#[test]
-fn browser_resource_surface_has_no_panel_border() {
-    let browser = panel_style(&Theme::Dark, ResourceBodyKind::Browser);
-    let overview = panel_style(&Theme::Dark, ResourceBodyKind::Overview);
+use super::{content_panel_style, panel_style, resource_header_icons};
 
-    assert_eq!(browser.border.width, 0.0);
-    assert_eq!(browser.border.radius, 0.0.into());
-    assert!(overview.border.width > 0.0);
+#[test]
+fn work_resource_surface_uses_code_panel_border_in_both_themes() {
+    for theme in [Theme::Dark, Theme::Light] {
+        assert_eq!(panel_style(&theme).border, content_panel_style(&theme).border);
+    }
 }
 
 #[test]

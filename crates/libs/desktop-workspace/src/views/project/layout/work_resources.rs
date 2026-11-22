@@ -10,6 +10,7 @@ use iced::{Background, Border, Element, Length, Theme};
 use desktop_assets::assets::{self, Icon};
 use desktop_ui_controls::tooltip::tooltip_dark_style;
 
+use super::super::badge_styles::content_panel_style;
 use super::styles::work_surface_style;
 
 const FILE_TREE_WIDTH: f32 = 286.0;
@@ -45,15 +46,9 @@ pub fn overview_model(project_path: Option<&str>, session_title: String, cached_
 }
 #[derive(Clone, Copy)]
 pub enum ResourceEvent { ModeSelected(ResourceBodyKind), SplitRatioChanged(f32), HalfFullscreenToggled, FullscreenToggled }
-fn panel_style(theme: &Theme, mode: ResourceBodyKind) -> container::Style {
-    let palette = theme.extended_palette();
-    let browser_mode = mode == ResourceBodyKind::Browser;
+fn panel_style(theme: &Theme) -> container::Style {
     container::Style {
-        border: Border {
-            width: if browser_mode { 0.0 } else { 1.0 },
-            color: palette.background.strong.color.scale_alpha(0.62),
-            radius: if browser_mode { 0.0 } else { 12.0 }.into(),
-        },
+        border: content_panel_style(theme).border,
         ..work_surface_style(theme)
     }
 }
@@ -286,7 +281,7 @@ pub fn view<'a, Message: Clone + 'static>(resource_mode: ResourceBodyKind, fulls
     )
     .width(Length::Fill)
     .height(Length::Fill)
-    .style(move |theme| panel_style(theme, resource_mode))
+    .style(panel_style)
     .into()
 }
 

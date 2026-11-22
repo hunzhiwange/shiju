@@ -14,7 +14,8 @@
         "package.json": "d7a74db2867f45c30bc4c1cf18daec37521122a3bb7e68254a59d30284034bac",
         "vendor/x86_64-unknown-linux-musl/bin/codex": "c06a67fd8ac76508dc78bd99ce20c9f317b8d568beda59485f3f4134df9962d5",
         "vendor/x86_64-unknown-linux-musl/bin/codex-code-mode-host": "522935d4392ec9674fab60b239b5495992c6a93e4deb65113a216b6f5451ccd4",
-        "vendor/x86_64-unknown-linux-musl/codex-resources/bwrap": "755c8d6a9b893905a4aabab058bd6c02c453e5e8653adb84fc08e570607f3f36"
+        "vendor/x86_64-unknown-linux-musl/codex-resources/bwrap": "755c8d6a9b893905a4aabab058bd6c02c453e5e8653adb84fc08e570607f3f36",
+        "vendor/x86_64-unknown-linux-musl/codex-path/rg": "e62198eb19b136b88c330af83647b5a962cb99b6b1f066758568f12de1974849"
       }
     },
     "aarch64-unknown-linux-gnu": {
@@ -26,7 +27,8 @@
         "package.json": "ba65caf4f54367f2275dddad1ec4ddeec69f70e8b74ff56f78e01d8a3e13ac96",
         "vendor/aarch64-unknown-linux-musl/bin/codex": "b32ece31af06440da980b733fb8fefdd1f193439595fda84096f1caaceec543f",
         "vendor/aarch64-unknown-linux-musl/bin/codex-code-mode-host": "fd7a4a1f29871fb0015c19ad2f885ef6a878244643260703e17663418695aa14",
-        "vendor/aarch64-unknown-linux-musl/codex-resources/bwrap": "0d784834f1674ff02aee25b42f2cbcfd27c5305863806cd6475d0eac8e33c378"
+        "vendor/aarch64-unknown-linux-musl/codex-resources/bwrap": "0d784834f1674ff02aee25b42f2cbcfd27c5305863806cd6475d0eac8e33c378",
+        "vendor/aarch64-unknown-linux-musl/codex-path/rg": "e36d0eb52e70696bdf1781392722e05a21bb91d3b7b762ef5ec20e5df2ec687b"
       }
     }
   }

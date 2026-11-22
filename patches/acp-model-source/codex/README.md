@@ -87,8 +87,10 @@ The GNU host targets use the corresponding upstream musl payloads shipped by
 the npm wrapper. Installation needs Node.js, npm with optional dependencies
 enabled, and patch tooling. Install the bridge and wrapper at the fixed versions
 into the managed layout and compare the lockfile archive integrity values.
-Before launch, verify the installed bundle and pinned engine files in that
-layout. A matching version string alone cannot verify engine identity.
+The Codex-specific registry verifier in
+`crates/libs/acp-agent-registry/src/managed_runtime/codex.rs` checks the exact
+bridge, wrapper, platform package metadata, native executable and pinned
+helpers. It streams the hashes and rejects redirected files. Task 48 wires the Linux installer and runtime dispatch to the verifier.
 
 Source archives are published by [npm](https://registry.npmjs.org/@openai%2fcodex/0.165.0).
 The fixed engine also has an [upstream release](https://github.com/openai/codex/releases/tag/rust-v0.165.0).

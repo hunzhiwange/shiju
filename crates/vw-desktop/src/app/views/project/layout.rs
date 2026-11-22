@@ -43,14 +43,26 @@ pub(crate) fn with_session_sidebar<'a>(
     use desktop_workspace::views::project::handles::HResizeHandle;
     use iced::widget::{container, mouse_area, row};
 
-    if app.navigation_mode.workspace_mode == crate::app::state::WorkspaceMode::Work {
-        let divider = mouse_area(HResizeHandle)
-            .on_press(Message::View(ViewMessage::WorkSidebarDragStarted));
-        let content = container(content)
+    let is_work = app.navigation_mode.workspace_mode == crate::app::state::WorkspaceMode::Work;
+    let frame_content = is_work || match app.navigation_tabs.screen {
+        #[cfg(not(target_arch = "wasm32"))]
+        crate::app::Screen::ShijuApps => true,
+        _ => false,
+    };
+    let content = if frame_content {
+        container(content)
             .width(Length::Fill)
             .height(Length::Fill)
             .clip(true)
-            .style(content_panel_style);
+            .style(content_panel_style)
+            .into()
+    } else {
+        content
+    };
+
+    if is_work {
+        let divider = mouse_area(HResizeHandle)
+            .on_press(Message::View(ViewMessage::WorkSidebarDragStarted));
         row![work_sidebar::view(app), divider, content].height(Length::Fill).into()
     } else {
         let width = desktop_workspace::views::project::composition::settings_panel_width(

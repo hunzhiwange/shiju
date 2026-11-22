@@ -2,6 +2,20 @@
 use super::AcpLaunchProfile;
 use std::collections::HashMap;
 
+/// The v5 skill view uses host file RPCs and has no platform-specific runtime
+/// dependency. The caller must verify the v5 entry and require session_model.
+/// MCP has its own sandbox requirement.
+pub const fn supports_session_view_target() -> bool {
+    cfg!(any(
+        all(target_os = "macos", target_arch = "aarch64"),
+        all(
+            target_os = "linux",
+            target_env = "gnu",
+            any(target_arch = "x86_64", target_arch = "aarch64")
+        )
+    ))
+}
+
 pub fn configure(
     profile: &mut AcpLaunchProfile,
     endpoint: &str,

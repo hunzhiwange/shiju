@@ -19,6 +19,7 @@ from . import correlated_result
 MODEL = "deepseek-v4.1-flash-1017"
 ADAPTER = "openai"
 API_PATH = "/v1"
+MODEL_ENDPOINT = API_PATH + "/chat/completions"
 TRANSPORT = "stdio"
 NATIVE_DIR = ".deepagents/skills"
 MCP_TOOL = "coexistence__read_probe"
@@ -26,14 +27,16 @@ V4_ENTRY = "99235b0c39283be84bef07a2d3beb908533e93d5697e929eac62b450a01a7f52"
 
 
 def launch(env):
-    require((platform.system(), platform.machine()) == ("Darwin", "arm64"),
-            "unreviewed DeepAgents platform")
+    platform_target = (platform.system(), platform.machine())
+    require(platform_target in {("Darwin", "arm64"), ("Linux", "x86_64"), ("Linux", "aarch64")},
+            "unsupported DeepAgents coexistence test platform")
     contract = json.loads((ROOT / "crates/libs/acp-agent-registry/src/managed_runtime"
                            / "contracts.json").read_text())["deepagents"]
     require(contract["version"] == "0.1.42", "unexpected DeepAgents version")
     expected = contract["files"].copy()
     revision = 5
     if os.environ.get("ACP_DEEPAGENTS_V4_BASELINE") == "1":
+        require(platform_target == ("Darwin", "arm64"), "v4 baseline requires Apple Silicon")
         revision = 4
         expected["dist/cli.js"] = V4_ENTRY
         expected.pop("dist/shiju-skills.mjs", None)
@@ -48,12 +51,14 @@ def launch(env):
     files = {name: hashlib.sha256((package / name).read_bytes()).hexdigest()
              for name in expected}
     require(files == expected, "DeepAgents artifact digest mismatch")
-    require(json.loads((package / "package.json").read_text())["version"] == contract["version"],
-            "DeepAgents package metadata version mismatch")
+    metadata = json.loads((package / "package.json").read_text())
+    require((metadata["name"], metadata["version"]) == (contract["package"], contract["version"]),
+            "DeepAgents package metadata identity mismatch")
     entry = runtime / "node_modules/.bin/deepagents-acp"
     require(entry.resolve() == package / contract["bin"], "DeepAgents executable differs from reviewed entry")
     return {"command": str(entry), "args": []}, {
-        "version": contract["version"], "revision": revision, "integrity": contract["integrity"], "sha256": files,
+        "version": contract["version"], "revision": revision, "integrity": contract["integrity"],
+        "entry": contract["bin"], "model_endpoint": MODEL_ENDPOINT, "sha256": files,
     }
 
 
@@ -201,7 +206,7 @@ class Handler(ProviderHandler):
     def do_POST(self):
         probe = self.server.probe
         try:
-            require(self.path == "/v1/chat/completions", "unexpected DeepAgents model endpoint")
+            require(self.path == MODEL_ENDPOINT, "unexpected DeepAgents model endpoint")
             require(self.headers.get("Authorization") == "Bearer " + self.server.key,
                     "unauthenticated DeepAgents fixture request")
             size = int(self.headers["Content-Length"])

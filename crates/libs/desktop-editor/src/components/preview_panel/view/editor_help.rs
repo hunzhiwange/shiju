@@ -1,8 +1,8 @@
 //! Accurate help for the pinned editor; all text uses the normal UI font.
 use super::Message;
-use desktop_ui_controls::system_settings_common::rounded_action_btn_style;
+use desktop_ui_controls::system_settings_common::settings_close_button;
 
-use iced::widget::{Space, button, column, container, row, scrollable, text};
+use iced::widget::{Space, column, container, row, scrollable, text};
 use iced::{Border, Element, Length, Theme};
 
 pub fn entries(mac: bool, vim: bool, folding: bool) -> Vec<(&'static str, String)> {
@@ -59,28 +59,24 @@ pub fn view(
     let mut body = iced::widget::Column::<Message>::new().spacing(8);
     for (label, key) in entries(cfg!(target_os = "macos"), vim, folding) {
         let item: Element<'_, Message> = if key.is_empty() {
-            let heading = text(i18n.__(label)).size(14);
-            match label {
-                "普通模式" | "Vim 模式" => container(heading)
-                    .width(Length::Fill)
-                    .padding([4, 8])
-                    .style(move |theme: &Theme| {
-                        let palette = theme.extended_palette();
-                        let pair = if label == "Vim 模式" {
-                            palette.success.weak
-                        } else {
-                            palette.primary.weak
-                        };
-                        container::Style {
-                            background: Some(pair.color.into()),
-                            text_color: Some(pair.text),
-                            border: Border::default().rounded(5),
-                            ..Default::default()
-                        }
-                    })
-                    .into(),
-                _ => heading.into(),
-            }
+            container(text(i18n.__(label)).size(14))
+                .width(Length::Fill)
+                .padding([4, 8])
+                .style(move |theme: &Theme| {
+                    let palette = theme.extended_palette();
+                    let pair = match label {
+                        "普通模式" => palette.primary.weak,
+                        "Vim 模式" => palette.success.weak,
+                        _ => palette.secondary.weak,
+                    };
+                    container::Style {
+                        background: Some(pair.color.into()),
+                        text_color: Some(pair.text),
+                        border: Border::default().rounded(5),
+                        ..Default::default()
+                    }
+                })
+                .into()
         } else {
             let shortcut = container(text(key).size(12)).padding([3, 6]).style(|theme: &Theme| {
                 let palette = theme.extended_palette();
@@ -106,10 +102,7 @@ pub fn view(
         row![
             text(i18n.__("编辑器使用帮助")).size(14),
             Space::new().width(Length::Fill),
-            button(text(i18n.__("关闭")))
-                .padding([4, 8])
-                .style(rounded_action_btn_style)
-                .on_press(Message::ClosePopover)
+            settings_close_button(Message::ClosePopover),
         ]
         .align_y(iced::Alignment::Center),
         scrollable(container(body).padding([7, 7]).width(Length::Fill)).height(300).direction(

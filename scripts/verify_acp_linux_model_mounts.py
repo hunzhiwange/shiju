@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Verify reviewed iFlow and GLM Chat tool continuations through the production gateway."""
 import argparse
+from concurrent.futures import ThreadPoolExecutor
 from importlib import import_module
 import hashlib
 import json
@@ -10,6 +11,7 @@ import platform
 import secrets
 import subprocess
 import tempfile
+import time
 from urllib.parse import urlencode
 
 from acp_model_source_fixture import ModelFixture
@@ -41,6 +43,7 @@ while IFS= read -r line; do
             result='{"tools":[{"name":"read_probe","inputSchema":{"type":"object","properties":{}}}]}';;
         *'"method":"tools/call"'*)
             case "$line" in *'"shijuCallId"'*) exit 3;; esac
+            __BEFORE_REPLY__
             count=$((count+1))
             receipt=__RECEIPT__
             result='{"content":[{"type":"text","text":"__CHALLENGE__'"$receipt"'"}]}';;
@@ -116,8 +119,60 @@ def replace_session_mount(binary, root, env, workspace, session, mounts):
         return updated["revision"]
 
 
+def process_stat(pid):
+    try:
+        fields = Path(f"/proc/{pid}/stat").read_bytes().rsplit(b")", 1)[1].split()
+        return fields[0], fields[19]
+    except (FileNotFoundError, ProcessLookupError):
+        return None, None
+
+
+def blocked_fixture(marker):
+    argv = [b"/app/entry", b"-c", b"while IFS= read -r line; do :; done", marker.encode(), b""]
+    pids = []
+    for entry in Path("/proc").iterdir():
+        if not entry.name.isdecimal():
+            continue
+        try:
+            if (entry / "cmdline").read_bytes().split(b"\0") == argv:
+                pid = int(entry.name)
+                state, start = process_stat(pid)
+                if state == b"S":
+                    pids.append((pid, start))
+        except OSError:
+            continue
+    require(len(pids) <= 1, "multiple blocked fixture processes")
+    return pids[0] if pids else None
+
+
+def revoke_during_execution(url, query, body, probe, marker, disable):
+    with ThreadPoolExecutor(max_workers=1) as pool:
+        turn = pool.submit(interactive_turn, url, query, body, probe, False)
+        deadline = time.monotonic() + 45
+        while not turn.done() and time.monotonic() < deadline:
+            blocked = blocked_fixture(marker)
+            if blocked is not None:
+                break
+            time.sleep(0.05)
+        else:
+            if turn.done():
+                turn.result()
+            raise AssertionError("stdio tool did not enter its blocking execution")
+        pid, start = blocked
+        require(process_stat(pid) == (b"S", start) and not turn.done(),
+                "tool ended before review withdrawal")
+        disable()
+        result = turn.result(timeout=8)
+        deadline = time.monotonic() + 8
+        while process_stat(pid)[1] == start:
+            require(time.monotonic() < deadline, "revoked stdio process was not reaped")
+            time.sleep(0.05)
+        require(blocked_fixture(marker) is None, "revoked stdio tool executed again")
+        return result, pid
+
+
 def observe_turn(url, query, session, agent, model_id, fixture, selected, *,
-                 revoked_project=False, both_sources=False):
+                 revoked_project=False, both_sources=False, in_flight=None):
     marker = "ACP_MODEL_CONTRACT_" + secrets.token_hex(16)
     with fixture.lock:
         fixture.mount_turn = (marker, tuple(selected))
@@ -129,13 +184,30 @@ def observe_turn(url, query, session, agent, model_id, fixture, selected, *,
         require(len(ids) == 1, "approval did not identify a unique pending request")
         return ids[0]
 
-    probe = TurnApproval(fixture, selected, pending_request if both_sources else None)
+    probe = TurnApproval(fixture, selected, pending_request if both_sources or in_flight else None)
     body = {"session_id": session, "agent": AGENT_PROFILE, "acp_model_source": "session_model",
             "model": model_id, "options": {"full_access": False, "cwd": str(Path(fixture.read_path).parent)},
             "messages": [{"role": "user", "content": marker + " Read the fixture resources."}]}
-    stream, decisions, native_decisions, access = interactive_turn(url, query, body, probe, False)
+    if in_flight:
+        (stream, decisions, native_decisions, access), pid = revoke_during_execution(
+            url, query, body, probe, *in_flight)
+    else:
+        stream, decisions, native_decisions, access = interactive_turn(url, query, body, probe, False)
     events = [json.loads(line[6:]) for line in stream.splitlines() if line.startswith("data: {")]
     types = [event.get("type") for event in events]
+    if in_flight:
+        errors = [event["error"] for event in events if event.get("type") == "chat.error"]
+        require(len(errors) == 1 and "Reviewed ACP MCP selection was revoked" in errors[0]
+                and "chat.done" not in types and "FIXTURE_MODEL_REPLY" not in stream,
+                "in-flight review withdrawal did not produce the revocation terminal")
+        observed = fixture.snapshot()
+        requests = observed["requests"][offset:]
+        rounds = [row for row in requests if not row.get("auxiliary")]
+        require(observed["errors"] == 0 and [row["continued_tools"] for row in rounds] == [[], ["native"]],
+                "revoked tool returned or entered a model continuation")
+        require(decisions == ["once"] and list(probe.calls) == ["mcp"], "missing blocked tool approval")
+        return {"phase": "in_flight_revoked", "session": session, "approval": probe.calls["mcp"],
+                "blocked_stdio_pid": pid, "stdio_reaped": True, "relay_requests": requests}
     if revoked_project:
         errors = [event["error"] for event in events if event.get("type") == "chat.error"]
         require(len(errors) == 1 and "reviewed MCP selection: PermissionDenied" in errors[0]
@@ -181,7 +253,7 @@ def observe_turn(url, query, session, agent, model_id, fixture, selected, *,
     return row
 
 
-def run(agent, binary, report, session_mount=False, both_sources=False):
+def run(agent, binary, report, session_mount=False, both_sources=False, in_flight=False):
     require(platform.system() == "Linux" and platform.machine() in ("x86_64", "aarch64")
             and os.geteuid() != 0, "requires non-root Linux x86_64 or aarch64")
     supplier = import_module("acp_skill_coexistence." + agent.replace("-", "_"))
@@ -200,9 +272,13 @@ def run(agent, binary, report, session_mount=False, both_sources=False):
         Path(fixture.read_path).write_text(fixture.challenge)
         executable = Path("/bin/dash").resolve(strict=True)
         executable_hash = hashlib.sha256(executable.read_bytes()).hexdigest()
+        block_marker = "shiju-acp-block-" + secrets.token_hex(16) if in_flight else None
 
         def connection(tool, challenge, counted=False):
+            block = (f"exec /app/entry -c 'while IFS= read -r line; do :; done' {block_marker}"
+                     if block_marker else ":")
             script = (STDIO.replace(TOOL, tool).replace("__CHALLENGE__", challenge)
+                      .replace("__BEFORE_REPLY__", block)
                       .replace("__RECEIPT__", '"|execution=$count|"' if counted else '""'))
             return {"transport": "stdio", "command": str(executable), "args": ["-c", script]}
 
@@ -262,6 +338,19 @@ def run(agent, binary, report, session_mount=False, both_sources=False):
                     "projectId": session["projectID"], "id": server, "connection": definition,
                 }, extra_headers=headers))["record"]
                 review(server, {"action": "select", "sha256": executable_hash, "allowedTools": [tool]})
+            if in_flight:
+                report["stage"] = "in_flight"
+                revoked = observe_turn(url, query, session["id"], agent, model_id, fixture, approvals,
+                                       in_flight=(block_marker, lambda: review(SERVER, {"action": "disable"})))
+                report["turns"].append(revoked)
+                report["stage"] = "after_revocation"
+                old_approval = revoked["approval"]["request_id"]
+                expect_reply_error(url, f"/permission/{old_approval}/reply" + query, "once", 404)
+                report["removed_approval_replay_status"] = 404
+                report["turns"].append(observe_turn(url, query, session["id"], agent, model_id, fixture, {},
+                                                    revoked_project=True))
+                require(blocked_fixture(block_marker) is None, "old approval reached stdio")
+                return
             if session_mount or both_sources:
                 scope = {"kind": "project", "scope": {"platform_id": "10000",
                     "company_id": "100000000", "project_id": session["projectID"]}}
@@ -305,12 +394,16 @@ def main():
                         help="select and remove a committed ACP session mount")
     mounts.add_argument("--both-sources", action="store_true",
                         help="select reviewed project and session services together, then remove the session service")
+    mounts.add_argument("--in-flight-revocation", action="store_true",
+                        help="withdraw project stdio review after the approved call enters execution")
     args = parser.parse_args()
     report = {"agent": args.agent, "platform": f"{platform.system()}-{platform.machine()}",
               "mount_source": "both" if args.both_sources else "session" if args.session_mount else "project",
+              "in_flight_revocation": args.in_flight_revocation,
               "turns": [], "passed": False}
     try:
-        run(args.agent, args.gateway_bin.resolve(strict=True), report, args.session_mount, args.both_sources)
+        run(args.agent, args.gateway_bin.resolve(strict=True), report,
+            args.session_mount, args.both_sources, args.in_flight_revocation)
         report.pop("stage", None)
         report["passed"] = True
     except AssertionError as error:

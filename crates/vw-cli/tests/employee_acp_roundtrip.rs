@@ -19,7 +19,10 @@ use axum::{
 };
 use serde_json::{Value, json};
 use uuid::Uuid;
-use vw_api_transport::TenantScope;
+use vw_agent::config::ConfigExt;
+use vw_api_transport::{
+    COMPANY_ID_HEADER, DEFAULT_COMPANY_ID, DEFAULT_PLATFORM_ID, PLATFORM_ID_HEADER, TenantScope,
+};
 
 const BINARY: &str = env!("CARGO_BIN_EXE_shiju");
 const FIXTURE_ADDRESS: &str = "SHIJU_EMPLOYEE_ACP_FIXTURE_ADDRESS";
@@ -135,7 +138,7 @@ async fn employee_product(
             account.user
         };
         return Json(json!({"code":200,"message":"","data":{
-            "user_id":user,"company_id":"100000000","account_id":user,"account_name":"fixture","name":"Fixture",
+            "user_id":user,"company_id":DEFAULT_COMPANY_ID,"account_id":user,"account_name":"fixture","name":"Fixture",
             "source_type":"manual","external_user_id":"","allow_console_login":true,"status":"enabled",
         }})).into_response();
     }
@@ -365,6 +368,8 @@ impl Gateway {
                         .filter(|s| s.starts_with("http://127.0.0.1:"))
                 }) && client
                     .get(format!("{base}/v1/global/health"))
+                    .header(PLATFORM_ID_HEADER, DEFAULT_PLATFORM_ID)
+                    .header(COMPANY_ID_HEADER, DEFAULT_COMPANY_ID)
                     .send()
                     .await
                     .is_ok_and(|response| response.status().is_success())
@@ -390,6 +395,8 @@ struct Chat {
 impl Chat {
     fn auth(request: reqwest::RequestBuilder, account: Account) -> reqwest::RequestBuilder {
         request
+            .header(PLATFORM_ID_HEADER, DEFAULT_PLATFORM_ID)
+            .header(COMPANY_ID_HEADER, DEFAULT_COMPANY_ID)
             .bearer_auth(account.pairing)
             .header("x-user-id", account.user)
             .header("x-vibewindow-shiju-credential", account.login)

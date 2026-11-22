@@ -283,15 +283,61 @@ async fn employee_acp_desktop_shared_chat_request_and_stop() {
     check_entry("shared").await;
 }
 
-#[test]
-fn employee_acp_desktop_chat_action_has_readable_text_in_both_themes() {
+#[tokio::test]
+async fn employee_acp_desktop_chat_action_has_readable_text_in_both_themes() {
     use desktop_ui_controls::system_settings_common::rounded_action_btn_style;
-    use iced::{Background, Theme, widget::button::Status};
+    use iced::advanced::renderer::{Headless, Renderer as _, Style};
+    use iced::advanced::widget::Tree;
+    use iced::advanced::{Layout, layout, mouse};
+    use iced::{Background, Font, Rectangle, Renderer, Size, Theme, widget::button::Status};
+
+    {
+        let mut fonts = iced::advanced::graphics::text::font_system().write().unwrap();
+        for font in crate::fonts::load_all() {
+            fonts.load_font(font);
+        }
+    }
+    let mut renderer =
+        Renderer::new(Font::with_name("Noto Sans CJK SC"), 14.0.into(), Some("tiny-skia"))
+            .await
+            .unwrap();
+    let viewport = Rectangle::with_size(Size::new(80.0, 50.0));
+    let limits = layout::Limits::new(Size::ZERO, viewport.size());
     for theme in [Theme::Light, Theme::Dark] {
         let style = rounded_action_btn_style(&theme, Status::Active);
         let Some(Background::Color(background)) = style.background else {
             panic!("chat action needs a visible background");
         };
         assert!(style.text_color.is_readable_on(background));
+
+        let mut button =
+            super::super::view::chat_action(Some(Message::DigitalEmployees(Event::Refresh)));
+        let mut tree = Tree::new(button.as_widget());
+        let node = button.as_widget_mut().layout(&mut tree, &renderer, &limits);
+        renderer.reset(viewport);
+        button.as_widget().draw(
+            &tree,
+            &mut renderer,
+            &theme,
+            &Style::default(),
+            Layout::new(&node),
+            mouse::Cursor::Unavailable,
+            &viewport,
+        );
+        let pixels = renderer.screenshot(Size::new(160, 100), 2.0, theme.palette().background);
+        let [red, green, blue, _] = style.text_color.into_rgba8();
+        // The centered glyphs are inside the padding, away from the rounded border.
+        let glyph_pixels = pixels
+            .chunks_exact(160 * 4)
+            .skip(16)
+            .take(42)
+            .flat_map(|row| row.chunks_exact(4).skip(24).take(56))
+            .filter(|pixel| {
+                pixel[0].abs_diff(red) <= 24
+                    && pixel[1].abs_diff(green) <= 24
+                    && pixel[2].abs_diff(blue) <= 24
+            })
+            .count();
+        assert!(glyph_pixels > 20, "{theme:?}: found {glyph_pixels} legible text pixels");
     }
 }

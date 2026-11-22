@@ -194,7 +194,7 @@ fn open_draft(app: &mut App, selection: Selection) -> Task<Message> {
 
 pub(crate) fn invalidate_chats(
     app: &mut App,
-    outgoing: Option<crate::app::account::SecretSkey>,
+    outgoing: Option<desktop_account::SecretSkey>,
 ) -> Task<Message> {
     use crate::app::message::chat::stream::stop_agent_stream;
     let ids: Vec<_> = app

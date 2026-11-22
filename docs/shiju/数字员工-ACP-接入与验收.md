@@ -35,7 +35,14 @@
 python3 scripts/cargo_slot.py cargo test -j 1 -p vw-cli --features employee-acp-test-support --test employee_acp_roundtrip
 ```
 
-目标部署按以下顺序复验。
+本轮采用本地模拟 Agent Cloud，真实租户验收延期到后端发布后。macOS 桌面构建和受控 UI 验收可在仓库根目录执行：
+
+```bash
+python3 scripts/cargo_slot.py cargo build -j 1 -p vw-desktop --bin shi-ju
+python3 scripts/cargo_slot.py cargo test -j 1 -p vw-desktop --lib employee_acp_desktop_
+```
+
+桌面用例通过实际员工选聊消息入口验证私有和共享聊天请求、重开、停止及账号切换后的迟到结果，并通过 Iced 渲染检查明暗主题下「聊天」按钮的文字。真实部署按以下顺序复验。
 
 1. 分别从私有和共享员工列表点击「聊天」，各完成两轮，再关闭并从历史重开。核对员工和会话未变，检查实际聊天画面。
 2. 两个授权账号同时向同一共享员工发送各自唯一的测试标记。下一轮分别要求复述，确认两人只看到自己的标记。用负向账号验证访问被拒绝，再撤销一个既有账号的员工权限并重开其会话。

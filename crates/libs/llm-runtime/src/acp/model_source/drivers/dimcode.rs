@@ -37,6 +37,15 @@ pub fn configure(
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
         _ => anyhow::bail!("DimCode project provider overrides are not verified"),
     }
+    // ACP reloads its own service list and cannot safely retain project MCP.
+    #[cfg(all(target_os = "linux", target_env = "gnu"))]
+    match std::path::Path::new(directory).join(".mcp.json").symlink_metadata() {
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+        Ok(_) => anyhow::bail!(
+            "DimCode project MCP is unsupported in Linux session_model; use host-selected MCP services"
+        ),
+        Err(error) => anyhow::bail!("Cannot check DimCode project MCP configuration: {error}"),
+    }
     // Preserve HOME. Only the supplier's application state is request-owned.
     let home = profile.directory().join("v2");
     #[cfg(unix)]

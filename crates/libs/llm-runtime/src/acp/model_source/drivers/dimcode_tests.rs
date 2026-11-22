@@ -96,3 +96,25 @@ fn dimcode_rejects_project_provider_override() {
         .is_err()
     );
 }
+
+#[cfg(all(target_os = "linux", target_env = "gnu"))]
+#[test]
+fn acp_platform_dimcode_contract_rejects_unmanaged_project_mcp() {
+    let workspace = tempfile::tempdir().unwrap();
+    let project_mcp = workspace.path().join(".mcp.json");
+    std::fs::write(
+        &project_mcp,
+        br#"{"mcpServers":{"native":{"type":"http","url":"http://127.0.0.1:1/mcp"}}}"#,
+    )
+    .unwrap();
+    let mut launch = profile();
+    let error = dimcode::configure(
+        &mut launch,
+        "http://127.0.0.1:12345",
+        workspace.path().to_str().unwrap(),
+    )
+    .unwrap_err();
+    assert!(error.to_string().contains("DimCode project MCP"));
+    assert!(!launch.directory().join("v2").exists());
+    assert!(!launch.config().env.contains_key("DIMCODE_HOME"));
+}

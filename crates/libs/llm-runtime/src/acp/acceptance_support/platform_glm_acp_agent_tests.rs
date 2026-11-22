@@ -20,8 +20,6 @@ fn acp_platform_glm_acp_agent_contract() {
         .status()
         .unwrap();
     let evidence: Value = serde_json::from_slice(&std::fs::read(report).unwrap()).unwrap();
-    assert!(status.success(), "GLM platform probe failed: {evidence}");
-    assert_eq!(evidence["passed"], true);
     let machine = match std::env::consts::ARCH {
         "x86_64" => "Linux-x86_64",
         "aarch64" => "Linux-aarch64",
@@ -29,13 +27,24 @@ fn acp_platform_glm_acp_agent_contract() {
     };
     assert_eq!(evidence["platform"], machine);
     assert_eq!(evidence["artifact"]["version"], "1.17.1");
-    assert_eq!(evidence["artifact"]["revision"], "glm-acp-agent-1.17.1-model-source-v3");
+    assert_eq!(evidence["artifact"]["revision"], "glm-acp-agent-1.17.1-model-source-v4");
     assert_eq!(evidence["artifact"]["entry"], "dist/index.js");
     assert_eq!(evidence["artifact"]["model_endpoint"], "/v1/chat/completions");
     assert_eq!(
         evidence["artifact"]["sha256"]["dist/index.js"],
         "d0d9237bffcbd5017a0085aa3c4625c29e2b750f87c358fa9c455d3cd4cdbd98"
     );
+
+    let overlay: Value = serde_json::from_str(include_str!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../../../patches/acp-model-source/glm-acp-agent/linux-session-model.json"
+    )))
+    .unwrap();
+    for (file, digest) in overlay["files"].as_object().unwrap() {
+        assert_eq!(&evidence["artifact"]["sha256"][file.as_str()], digest);
+    }
+    assert!(status.success(), "GLM platform probe failed: {evidence}");
+    assert_eq!(evidence["passed"], true);
 
     let turns = evidence["turns"].as_array().unwrap();
     assert_eq!(turns.len(), 4);

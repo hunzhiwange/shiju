@@ -202,7 +202,7 @@ pub fn acp_install_supported(agent: &str) -> bool {
     if cfg!(target_os = "linux") {
         match agent {
             "corust-agent" => return cfg!(all(target_env = "gnu", target_arch = "x86_64")),
-            "stakpak" | "vtcode" | "omp" => {
+            "mimo-code" | "omp" | "poolside" | "stakpak" | "trae" | "vtcode" => {
                 return cfg!(all(target_env = "gnu", any(target_arch = "x86_64", target_arch = "aarch64")));
             }
             _ => {}

@@ -347,3 +347,23 @@ async fn glm_managed_runtime_cold_install_initializes_and_rejects_redirection() 
     assert!(verify_reviewed_agent_executable(AGENT, &registered.command).is_err());
     assert!(crate::install_builtin_agent(AGENT).await.is_err());
 }
+
+#[cfg(all(target_os = "linux", target_env = "gnu", any(target_arch = "x86_64", target_arch = "aarch64")))]
+#[test]
+fn acp_platform_registry_contract_glm_requires_linux_overlay() {
+    let base: std::collections::HashMap<String, Contract> = serde_json::from_str(CONTRACTS).unwrap();
+    let base = &base["glm-acp-agent"];
+    let reviewed = contract("glm-acp-agent").unwrap();
+    let overlay: GlmLinuxOverlay = serde_json::from_str(GLM_LINUX_CONTRACT).unwrap();
+    assert_eq!(reviewed.files.len(), base.files.len());
+    for (file, digest) in &overlay.files {
+        assert_ne!(&base.files[file], digest);
+        assert_eq!(&reviewed.files[file], digest);
+    }
+    assert_eq!(reviewed.files[&reviewed.bin], base.files[&base.bin]);
+    assert!(
+        installed_directory("glm-acp-agent", &reviewed)
+            .unwrap()
+            .ends_with("glm-acp-agent-1.17.1-model-source-v4")
+    );
+}

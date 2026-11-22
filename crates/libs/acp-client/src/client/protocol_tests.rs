@@ -882,3 +882,36 @@ async fn acp_onboarding_sigit_mcp_selection_rejects_before_new_or_load() {
     })
     .await;
 }
+
+
+#[cfg(target_os = "linux")]
+#[tokio::test]
+async fn acp_platform_dispatch_contract_rejects_linux_mcp_before_new_or_restore() {
+    with_connection(TestAgent::with_new_session_ids(["unexpected"]), async |conn, agent| {
+        for (backend, env) in [
+            ("TRAE", HashMap::new()),
+            ("glm-acp-agent", HashMap::from([("VW_ACP_LAUNCH_REFERENCE".into(), "fixture".into())])),
+        ] {
+            let client = AcpClient::new(
+                backend,
+                AcpAgentConfig { command: "/unused".into(), args: vec![], env },
+            )
+            .with_mcp_servers(vec![acp::McpServer::Http(acp::McpServerHttp::new(
+                "selected",
+                "https://example.test/mcp",
+            ))]);
+            let cwd = Path::new("/tmp/shiju-linux-mcp-protocol");
+            assert!(client.new_session_info(&conn, cwd).await.unwrap_err().to_string()
+                .contains("no verified Linux launch boundary"));
+            assert!(client.load_session_info(&conn, cwd, "saved".into()).await.unwrap_err().to_string()
+                .contains("no verified Linux launch boundary"));
+            assert!(client.resume_session_id(&conn, cwd, "saved".into()).await.unwrap_err().to_string()
+                .contains("no verified Linux launch boundary"));
+        }
+        let state = agent.state.lock();
+        assert!(state.new_session_requests.is_empty());
+        assert!(state.load_session_requests.is_empty());
+        assert!(state.resume_session_requests.is_empty());
+    })
+    .await;
+}

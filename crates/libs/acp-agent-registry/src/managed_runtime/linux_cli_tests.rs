@@ -2,12 +2,27 @@ use super::*;
 
 #[test]
 fn acp_platform_registry_contract_selects_fixed_target_artifacts() {
-    for agent in ["omp", "stakpak", "vtcode"] {
+    for agent in ["omp", "stakpak", "vtcode", "mimo-code", "poolside", "trae"] {
         let x64 = contract(agent, "x86_64").unwrap().unwrap();
         let arm64 = contract(agent, "aarch64").unwrap().unwrap();
         assert_ne!(x64.url, arm64.url, "{agent}");
         assert_ne!(x64.executable_sha256, arm64.executable_sha256, "{agent}");
-        assert_eq!(x64.args, ["acp"], "{agent}");
+        if agent == "trae" {
+            assert_eq!(x64.args, ["acp", "serve"]);
+            assert_eq!(x64.archive_entry.as_deref(), Some("trae-cli"));
+            assert_eq!(x64.directory, "trae-0.121.3-linux-native-v1");
+        } else {
+            assert_eq!(x64.args, ["acp"], "{agent}");
+        }
+        if agent == "poolside" {
+            assert_eq!(x64.archive_entry.as_deref(), Some("pool-linux-amd64"));
+            assert_eq!(arm64.archive_entry.as_deref(), Some("pool-linux-arm64"));
+            assert_ne!(x64.directory, "poolside-1.0.16-model-source-v4");
+        }
+        if agent == "mimo-code" {
+            assert_eq!(x64.archive_entry.as_deref(), Some("mimo"));
+            assert_ne!(x64.directory, "mimo-code-0.1.17-model-source-linux-v1");
+        }
         assert_eq!(arm64.args, x64.args, "{agent}");
         assert!(contract(agent, "riscv64").unwrap().is_none(), "{agent}");
         assert!(config_acp_install::acp_install_supported(agent), "{agent}");
@@ -25,7 +40,7 @@ fn acp_platform_registry_contract_selects_fixed_target_artifacts() {
 
 #[test]
 fn acp_platform_registry_contract_rejects_unreviewed_installed_entries() {
-    for agent in ["omp", "stakpak", "vtcode", "corust-agent"] {
+    for agent in ["omp", "stakpak", "vtcode", "corust-agent", "mimo-code", "poolside", "trae"] {
         let Some(artifact) = contract(agent, std::env::consts::ARCH).unwrap() else {
             continue;
         };

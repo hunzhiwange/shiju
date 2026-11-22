@@ -201,7 +201,7 @@ pub async fn do_stream_request_acp<H: Host>(
         let messages = H::agent_defaults(&cfg, merged_options, &acp_agent_name, &cwd, &mut parsed, chat_messages).await?;
         (parsed, messages)
     };
-    validate_linux_cli_mcp(&acp_agent_name, !parsed_options.mcp_servers.is_empty())?;
+    validate_linux_session_mcp(&acp_agent_name, source, !parsed_options.mcp_servers.is_empty())?;
     let mut restricted_auggie = false;
     let mut restricted_hermes = false;
     let mut restricted_droid = false;
@@ -740,8 +740,9 @@ pub async fn do_stream_request_acp<H: Host>(
     // Managed SessionModel requests are metered by the owned relay. Never bill
     // their ACP session snapshots a second time.
     let mut request_usage = std::collections::HashMap::new();
-    if cfg!(all(target_os = "macos", target_arch = "aarch64"))
-        && acp_agent_name == "glm-acp-agent"
+    if acp_agent_name == "glm-acp-agent"
+        && super::skill_mounts::glm_acp_agent::supports_session_view_target()
+        && (parsed_options.skill_view.is_none() || cfg!(target_os = "macos"))
         && let Some(profile) = launch_profile.as_mut()
     {
         super::skill_mounts::glm_acp_agent::configure(
@@ -1497,10 +1498,17 @@ pub async fn do_stream_request_acp<H: Host>(
     }
 }
 
-pub(super) fn validate_linux_cli_mcp(agent: &str, selected: bool) -> Result<(), Error> {
+pub(super) fn validate_linux_session_mcp(
+    agent: &str,
+    source: vw_api_acp_model::acp_model_source::AcpModelSource,
+    selected: bool,
+) -> Result<(), Error> {
+    use vw_api_acp_model::acp_model_source::AcpModelSource;
+    let backend = acp_agent_registry::agent_registry::desktop_permission_agent(agent);
     if selected
-        && acp_agent_registry::agent_registry::desktop_permission_agent(agent)
-            .is_some_and(acp_agent_registry::linux_native_only)
+        && (backend.is_some_and(acp_agent_registry::linux_native_only)
+            || (cfg!(target_os = "linux") && backend == Some("glm-acp-agent")
+                && source == AcpModelSource::SessionModel))
     {
         return Err(acp_option_error(format!("{agent}: no verified Linux session MCP launch")));
     }

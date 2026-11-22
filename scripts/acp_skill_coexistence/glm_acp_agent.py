@@ -15,7 +15,6 @@ from verify_acp_model_source import ROOT
 
 AGENT = "glm-acp-agent"
 VERSION = "1.17.1"
-REVISION = f"{AGENT}-{VERSION}-model-source-v3"
 MODEL = "deepseek-v4.1-flash-1017"
 MODEL_OUTPUT_LIMIT = 32_768
 ADAPTER = "openai"
@@ -39,21 +38,31 @@ def launch(env):
     assets = config / "glm-install-assets"
     assets.mkdir(mode=0o700)
     shutil.copyfile(contracts, assets / "contracts.json")
-    patch = ROOT / "patches/acp-model-source" / AGENT / f"{AGENT}-{VERSION}-skills.patch"
-    shutil.copyfile(patch, assets / f"{AGENT}.patch")
-    runtime = config / "acp-runtime" / REVISION
+    sources = ROOT / "patches/acp-model-source" / AGENT
+    shutil.copyfile(sources / f"{AGENT}-{VERSION}-skills.patch", assets / f"{AGENT}.patch")
+    hashes = dict(contract["files"])
+    args = []
+    revision = f"{AGENT}-{VERSION}-model-source-v3"
+    if platform.system() == "Linux":
+        overlay = sources / "linux-session-model.json"
+        hashes.update(json.loads(overlay.read_text())["files"])
+        shutil.copyfile(overlay, assets / "glm-linux-contract.json")
+        shutil.copyfile(sources / f"{AGENT}-{VERSION}-linux-session-model.patch",
+                        assets / "glm-linux-session-model.patch")
+        args = ["", "--glm-linux-v4"]
+        revision = f"{AGENT}-{VERSION}-model-source-v4"
+    runtime = config / "acp-runtime" / revision
     runtime.parent.mkdir(mode=0o700)
     installed = subprocess.run([sys.executable, str(installer / "install.py"),
-                                str(assets), str(runtime), AGENT],
+                                str(assets), str(runtime), AGENT, *args],
                                env=env, capture_output=True, timeout=100)
     require(installed.returncode == 0, "reviewed GLM private installation failed")
     package = runtime / "node_modules" / AGENT
-    hashes = contract["files"]
     for name, digest in hashes.items():
         require(hashlib.sha256((package / name).read_bytes()).hexdigest() == digest,
                 f"reviewed GLM checksum mismatch: {name}")
     return {"command": str(package / contract["bin"]), "args": []}, {
-        "version": VERSION, "revision": REVISION, "entry": contract["bin"],
+        "version": VERSION, "revision": revision, "entry": contract["bin"],
         "integrity": contract["integrity"], "sha256": hashes,
         "model_endpoint": MODEL_ENDPOINT,
     }

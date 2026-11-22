@@ -16,23 +16,34 @@ const CORUST: &str =
 const CORUST_INSTALL: &str =
     include_str!("../../../../../patches/acp-model-source/corust-agent/install_linux.py");
 
+const TRAE: &str = include_str!("../../../../../patches/acp-model-source/trae/linux.json");
+const TRAE_INSTALL: &str =
+    include_str!("../../../../../patches/acp-model-source/trae/install_linux_native.py");
+const MIMO: &str = include_str!("../../../../../patches/acp-model-source/mimo-code/linux.json");
+const POOLSIDE: &str = include_str!("../../../../../patches/acp-model-source/poolside/linux.json");
+
 #[derive(Deserialize)]
 struct Manifest {
     version: String,
+    #[serde(alias = "native_revision")]
     directory: Option<String>,
-    #[serde(alias = "entry")]
+    #[serde(default, alias = "entry")]
     bin: String,
+    #[serde(default)]
     args: Vec<String>,
     archive_entry: Option<String>,
+    #[serde(alias = "artifacts")]
     targets: BTreeMap<String, Target>,
 }
 
 #[derive(Deserialize)]
 struct Target {
-    #[serde(alias = "archive", alias = "artifact_url")]
+    #[serde(alias = "archive", alias = "artifact_url", alias = "upstream_url")]
     url: String,
+    #[serde(alias = "upstream_sha256")]
     archive_sha256: Option<String>,
-    #[serde(alias = "sha256")]
+    archive_member: Option<String>,
+    #[serde(alias = "sha256", alias = "native_sha256", alias = "upstream_entry_sha256")]
     executable_sha256: String,
 }
 
@@ -82,6 +93,9 @@ fn contract(agent: &str, arch: &str) -> Result<Option<Artifact>, String> {
     }
     let (manifest, target) = match agent {
         "omp" => (super::omp::MANIFEST, format!("{arch}-unknown-linux-gnu")),
+        "mimo-code" => (MIMO, format!("{arch}-unknown-linux-gnu")),
+        "poolside" => (POOLSIDE, format!("{arch}-unknown-linux-gnu")),
+        "trae" => (TRAE, arch.into()),
         "stakpak" => (super::stakpak::LINUX_CLI_CONTRACT, arch.into()),
         "vtcode" => (super::vtcode::LINUX_CLI_CONTRACT, arch.into()),
         _ => return Ok(None),
@@ -92,8 +106,20 @@ fn contract(agent: &str, arch: &str) -> Result<Option<Artifact>, String> {
     if agent == "omp" {
         manifest.directory = Some(format!("omp-{}-linux-cli-{arch}", manifest.version));
     }
-    if agent == "stakpak" {
-        manifest.archive_entry = Some(manifest.bin.clone());
+    match agent {
+        "mimo-code" => {
+            manifest.directory = Some(format!("mimo-code-{}-linux-cli-v1", manifest.version));
+            manifest.archive_entry = Some(manifest.bin.clone());
+            manifest.args = vec!["acp".into()];
+        }
+        "poolside" => {
+            manifest.directory = Some(format!("poolside-{}-linux-cli-v1", manifest.version));
+            manifest.archive_entry = target.archive_member;
+            manifest.bin = "pool".into();
+            manifest.args = vec!["acp".into()];
+        }
+        "stakpak" => manifest.archive_entry = Some(manifest.bin.clone()),
+        _ => {}
     }
     Ok(Some(Artifact {
         directory: manifest.directory.ok_or("Missing Linux CLI installation directory")?,
@@ -189,11 +215,13 @@ pub(super) async fn install(agent: &str) -> Result<(), String> {
     let stage = Stage::new(agent, &root)?;
     let staging_root = &stage.0;
     let runtime = staging_root.join(&artifact.directory);
-    for (name, content) in [
-        ("install.py", include_str!("install.py")),
-        ("install_linux.py", CORUST_INSTALL),
-        ("linux-x64.json", CORUST),
-    ] {
+    let extra_assets = match agent {
+        "corust-agent" => &[("install_linux.py", CORUST_INSTALL), ("linux-x64.json", CORUST)][..],
+        "trae" => &[("install_linux_native.py", TRAE_INSTALL), ("linux.json", TRAE)][..],
+        _ => &[],
+    };
+    for &(name, content) in [("install.py", include_str!("install.py"))].iter().chain(extra_assets)
+    {
         fs::write(staging_root.join(name), content)
             .map_err(|_| "Cannot stage embedded Linux ACP installer")?;
     }

@@ -9,7 +9,7 @@ use vw_api_acp_model::acp_model_source::{
 
 #[test]
 fn acp_platform_dispatch_contract_preserves_native_options_and_rejects_mounts() {
-    for agent in ["corust-agent", "omp", "stakpak", "vtcode"] {
+    for agent in ["corust-agent", "omp", "stakpak", "vtcode", "mimo-code", "poolside", "trae"] {
         let spec = acp_agent_registry::resolve_agent_spec(agent).unwrap();
         assert!(!spec.command.is_empty(), "{agent}");
         let mut options = Default::default();
@@ -37,8 +37,14 @@ fn acp_platform_dispatch_contract_preserves_native_options_and_rejects_mounts() 
         assert!(skill_mounts::validate(agent, true).is_err(), "{agent}");
         assert!(acp_client::AcpClient::ensure_desktop_native_access(agent, false).is_err());
         assert!(acp_client::AcpClient::ensure_desktop_native_access(agent, true).is_ok());
-        assert!(request::validate_linux_cli_mcp(agent, false).is_ok(), "{agent}");
-        assert!(request::validate_linux_cli_mcp(agent, true).is_err(), "{agent}");
+        assert!(
+            request::validate_linux_session_mcp(agent, Source::CliLocal, false).is_ok(),
+            "{agent}"
+        );
+        assert!(
+            request::validate_linux_session_mcp(agent, Source::CliLocal, true).is_err(),
+            "{agent}"
+        );
     }
 }
 
@@ -86,4 +92,15 @@ fn acp_platform_dispatch_contract_resolves_native_config_and_session_options() {
         )
         .is_none()
     );
+}
+
+#[test]
+fn acp_platform_dispatch_contract_glm_keeps_linux_mounts_closed() {
+    assert!(
+        request::validate_linux_session_mcp("glm-acp-agent", Source::SessionModel, false).is_ok()
+    );
+    assert!(
+        request::validate_linux_session_mcp("glm-acp-agent", Source::SessionModel, true).is_err()
+    );
+    assert!(skill_mounts::validate("glm-acp-agent", true).is_err());
 }

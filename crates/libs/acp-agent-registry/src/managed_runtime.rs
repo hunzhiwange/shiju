@@ -6,6 +6,9 @@ use std::path::{Path, PathBuf};
 #[cfg(all(target_os = "linux", target_env = "gnu", any(target_arch = "x86_64", target_arch = "aarch64")))]
 #[path = "managed_runtime/linux_cli.rs"]
 mod linux_cli;
+#[cfg(all(test, target_os = "linux", target_env = "gnu", any(target_arch = "x86_64", target_arch = "aarch64")))]
+#[path = "managed_runtime/codex.rs"]
+mod codex;
 #[cfg(all(target_os = "linux", target_env = "gnu", any(target_arch = "x86_64", target_arch = "aarch64")))]
 #[path = "managed_runtime/omp.rs"]
 mod omp;
@@ -17,7 +20,8 @@ mod stakpak;
 mod vtcode;
 
 pub fn linux_native_only(agent: &str) -> bool {
-    cfg!(target_os = "linux") && matches!(agent, "corust-agent" | "omp" | "stakpak" | "vtcode")
+    cfg!(target_os = "linux")
+        && matches!(agent, "corust-agent" | "mimo-code" | "omp" | "poolside" | "stakpak" | "trae" | "vtcode")
 }
 
 #[cfg(all(target_os = "linux", target_env = "gnu", any(target_arch = "x86_64", target_arch = "aarch64")))]
@@ -52,10 +56,29 @@ struct Contract {
     patch_sha256: Option<String>,
 }
 const CONTRACTS: &str = include_str!("managed_runtime/contracts.json");
+const GLM_LINUX_CONTRACT: &str = include_str!(
+    "../../../../patches/acp-model-source/glm-acp-agent/linux-session-model.json"
+);
+const GLM_LINUX_V4: bool = cfg!(all(
+    target_os = "linux",
+    target_env = "gnu",
+    any(target_arch = "x86_64", target_arch = "aarch64")
+));
+
+#[derive(Deserialize)]
+struct GlmLinuxOverlay {
+    files: std::collections::BTreeMap<String, String>,
+}
+
 fn contract(agent: &str) -> Option<Contract> {
-    serde_json::from_str::<std::collections::HashMap<String, Contract>>(CONTRACTS)
+    let mut contract = serde_json::from_str::<std::collections::HashMap<String, Contract>>(CONTRACTS)
         .ok()?
-        .remove(agent)
+        .remove(agent)?;
+    if agent == "glm-acp-agent" && GLM_LINUX_V4 {
+        let overlay: GlmLinuxOverlay = serde_json::from_str(GLM_LINUX_CONTRACT).ok()?;
+        contract.files.extend(overlay.files);
+    }
+    Some(contract)
 }
 fn root(_agent: &str) -> Result<PathBuf, String> {
     if let Some(directory) = std::env::var_os("VIBEWINDOW_CONFIG_DIR") {
@@ -77,6 +100,8 @@ fn installed_directory(agent: &str, contract: &Contract) -> Result<PathBuf, Stri
     // Install revised contracts beside their prior reviewed runtimes.
     let revision = if agent == "auggie" {
         2
+    } else if agent == "glm-acp-agent" && GLM_LINUX_V4 {
+        4
     } else if matches!(agent, "gemini" | "nova" | "glm-acp-agent") {
         3
     } else if agent == "pi" {
@@ -697,6 +722,11 @@ pub(super) async fn install(agent: &str) -> Result<bool, String> {
             "glm-acp-agent.patch",
             include_str!("../../../../patches/acp-model-source/glm-acp-agent/glm-acp-agent-1.17.1-skills.patch"),
         ),
+        ("glm-linux-contract.json", GLM_LINUX_CONTRACT),
+        (
+            "glm-linux-session-model.patch",
+            include_str!("../../../../patches/acp-model-source/glm-acp-agent/glm-acp-agent-1.17.1-linux-session-model.patch"),
+        ),
         ("droid/apply.py", include_str!("../../../../patches/acp-model-source/droid/apply.py")),
         ("cortex-code/apply.py", include_str!("../../../../patches/acp-model-source/cortex-code/apply.py")),
         ("cortex-code/launcher.py", include_str!("../../../../patches/acp-model-source/cortex-code/launcher.py")),
@@ -914,6 +944,7 @@ pub(super) async fn install(agent: &str) -> Result<bool, String> {
             runtime.to_str().ok_or("Invalid runtime path")?,
             agent,
             &uv,
+            if agent == "glm-acp-agent" && GLM_LINUX_V4 { "--glm-linux-v4" } else { "" },
         ],
         tokio::time::Instant::now() + std::time::Duration::from_secs(timeout),
     )

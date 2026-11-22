@@ -31,6 +31,10 @@ def install_linux_cli(url, archive_sha256, member_name, bin_name, executable_sha
         from install_linux import install_native
         install_native(download, runtime)
         return
+    if agent == 'trae':
+        from install_linux_native import install
+        install(download, runtime)
+        return
     runtime.mkdir(mode=0o700)
     executable = runtime / bin_name
     if archive_sha256:
@@ -797,6 +801,14 @@ if agent == 'copilot':
 if agent == 'glm-acp-agent':
     check_files(root, contract['original'])
     apply_glm_patch(root, patch, contract['original'])
+    if sys.argv[5:6] == ['--glm-linux-v4']:
+        overlay = json.loads((assets / 'glm-linux-contract.json').read_text())
+        linux_patch = assets / 'glm-linux-session-model.patch'
+        if hashlib.sha256(linux_patch.read_bytes().replace(b'\r\n', b'\n')).hexdigest() != overlay['patch_sha256']:
+            raise RuntimeError('GLM Linux overlay checksum mismatch')
+        check_files(root, contract['files'])
+        apply_glm_patch(root, linux_patch, contract['files'])
+        contract['files'].update(overlay['files'])
 elif agent in ('codex', 'gemini'):
     check_files(root, contract['original'])
     run(['patch', '--batch', '--forward', '-p1', '-d', str(root), '-i', str(assets / (agent + '.patch'))])

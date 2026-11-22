@@ -1,0 +1,28 @@
+{
+  "version": "4100.5",
+  "reported_version": "26.11.2 (4100.5)",
+  "entry": "junie-app/bin/junie",
+  "args": ["--acp=true"],
+  "targets": {
+    "x86_64": {
+      "archive_url": "https://github.com/JetBrains/junie/releases/download/4100.5/junie-release-4100.5-linux-amd64.zip",
+      "archive_sha256": "a1843e6f744c21ba64dd04b75688359f20156bad9aa58ebb1b14b21c98773d11",
+      "elf_machine": 62,
+      "files": {
+        "junie-app/bin/junie": "66d310525485f7f662532b9f9ed16203559d01ee6b0aecfac6dc69025667eecd",
+        "junie-app/lib/app/junie.cfg": "b3697296e89099074e1eab60042023b53c8caffd54999dd95cc0b95e29e964d0",
+        "junie-app/lib/app/junie-release-4100.5-linux-amd64.jar": "2f48a25298c3822e6e6cb7309299029c874b0b6a0449af3b176e0540e241e3b3"
+      }
+    },
+    "aarch64": {
+      "archive_url": "https://github.com/JetBrains/junie/releases/download/4100.5/junie-release-4100.5-linux-aarch64.zip",
+      "archive_sha256": "b35af126bc488f5830650e93a008d537fd6e4e1de372cd7b76e9fa86d8c85b04",
+      "elf_machine": 183,
+      "files": {
+        "junie-app/bin/junie": "1b224ff2980c7b0ac994950d26af15496cc5f7d9ccde90468b19a010793de0dd",
+        "junie-app/lib/app/junie.cfg": "40cd6279c2b465b2e2334ae75d853993f422ed09d8fb99f039effd9ab419c3b2",
+        "junie-app/lib/app/junie-release-4100.5-linux-aarch64.jar": "61e044e6d4b6e17906ae299bb07e0ac7f7e9f6f43625eddaf71a8d5569045c5a"
+      }
+    }
+  }
+}

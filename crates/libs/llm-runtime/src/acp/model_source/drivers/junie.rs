@@ -7,6 +7,12 @@ pub fn configure(
     endpoint: &str,
     directory: &str,
 ) -> anyhow::Result<()> {
+    // Linux needs equivalents for both the private native launcher and the
+    // confined stdio process used by the same-port MCP bridge.
+    anyhow::ensure!(
+        !cfg!(target_os = "linux"),
+        "Junie managed launch requires Linux process and MCP isolation"
+    );
     let config = profile.config();
     anyhow::ensure!(config.args == ["--acp=true"], "Junie requires its reviewed ACP arguments");
     anyhow::ensure!(

@@ -388,8 +388,17 @@ async fn codex_discovery_core_query_engine_loads_and_resets_tools_between_user_t
 }
 
 #[tokio::test]
+async fn query_engine_step_recovery_preserves_completed_tool_call() {
+    assert_step_recovery(ProviderStep::Response(chat_text("recovered", None)), true).await;
+}
+
+#[tokio::test]
+async fn query_engine_step_recovery_stops_after_second_overflow() {
+    assert_step_recovery(ProviderStep::Error("prompt too long"), false).await;
+}
+
 #[allow(clippy::await_holding_lock)] // Serialize the summary-model boundary.
-async fn query_engine_no_turn_replay_after_tool_completion() {
+async fn assert_step_recovery(retry: ProviderStep, succeeds: bool) {
     let guard = crate::session::processor::test_llm_stream_guard();
     crate::session::processor::enqueue_test_llm_stream(vec![
         crate::session::llm::StreamEvent::Delta("previous progress".into()),
@@ -402,31 +411,69 @@ async fn query_engine_no_turn_replay_after_tool_completion() {
     let provider = ScriptedProvider::with_steps(vec![
         ProviderStep::Response(chat_tool_call("primary-tool")),
         ProviderStep::Error("prompt too long"),
-        ProviderStep::Response(chat_tool_call("primary-tool")),
-        ProviderStep::Response(chat_text("recovered", None)),
+        retry,
     ]);
-    let provider_handle = provider.clone();
-    let mut engine = test_engine(provider, Arc::new(FakeMemory::default()));
+    let mut engine = test_engine(provider.clone(), Arc::new(FakeMemory::default()));
     let tool = HookProbeTool::default();
     let executions = tool.0.clone();
     engine.tools_registry = vec![Box::new(tool)];
     engine.compact_context = true;
-    engine.history =
-        vec![ChatMessage::user("previous task"), ChatMessage::assistant("previous result")];
+    let old = "previous task with details ".repeat(60);
+    engine.history = vec![ChatMessage::user(old.clone()), ChatMessage::assistant("previous result")];
     engine.hook_runtime = Some(runtime.shared());
 
     let result = engine.submit_message("run the tool").await;
 
-    let compaction_requests =
-        crate::session::processor::take_test_llm_messages(&engine.session_id);
+    let requests = provider.seen_messages();
+    let compaction_requests = crate::session::processor::take_test_llm_messages(&engine.session_id);
     drop(guard);
-    assert_eq!(provider_handle.seen_messages().len(), 2);
-    assert!(compaction_requests.is_empty());
+    assert_eq!(requests.len(), 3, "only the failed model step should be retried");
+    assert_eq!(compaction_requests.len(), 1);
     assert_eq!(executions.load(Ordering::SeqCst), 1);
-    assert_eq!(result.unwrap_err().to_string(), "prompt too long");
     assert_eq!(runtime.audit_store().entries().len(), 1);
-    assert_eq!(engine.history_snapshot()[0].content, "previous task");
-    assert_eq!(engine.history_snapshot()[1].content, "previous result");
+    assert_eq!(engine.history_snapshot()[0].content, old);
+    let tools = provider.state.seen_tools.lock().unwrap();
+    assert_eq!(tools[1], tools[2]);
+    assert!(requests[2].iter().any(|message| message.content.contains("[Compaction summary]")));
+    for role in ["assistant", "tool"] {
+        let original = requests[1].iter().find(|message| {
+            message.role == role && message.content.contains("primary-tool")
+        }).expect("original tool history");
+        assert_eq!(requests[2].iter().filter(|message| {
+            message.role == role && message.content == original.content
+        }).count(), 1);
+    }
+    if succeeds {
+        assert_eq!(result.unwrap(), "recovered");
+    } else {
+        assert_eq!(result.unwrap_err().to_string(), "prompt too long");
+    }
+}
+
+#[tokio::test]
+#[allow(clippy::await_holding_lock)] // Serialize the summary-model boundary.
+async fn query_engine_step_recovery_rejects_a_larger_summary() {
+    let guard = crate::session::processor::test_llm_stream_guard();
+    crate::session::processor::enqueue_test_llm_stream(vec![
+        crate::session::llm::StreamEvent::Delta("a longer summary than the original".into()),
+        crate::session::llm::StreamEvent::Done {
+            finish_reason: Some("stop".into()),
+            usage: Default::default(),
+        },
+    ]);
+    let provider = ScriptedProvider::with_steps(vec![ProviderStep::Error("prompt too long")]);
+    let mut engine = test_engine(provider.clone(), Arc::new(FakeMemory::default()));
+    engine.compact_context = true;
+    engine.history = vec![ChatMessage::user("old")];
+
+    let error = engine.submit_message("latest").await.unwrap_err();
+
+    let compaction_requests = crate::session::processor::take_test_llm_messages(&engine.session_id);
+    drop(guard);
+    assert_eq!(error.to_string(), "prompt too long");
+    assert_eq!(provider.seen_messages().len(), 1);
+    assert_eq!(compaction_requests.len(), 1);
+    assert_eq!(engine.compact_before_primary_request().await.unwrap()[0].content, "old");
 }
 
 #[tokio::test]
@@ -785,11 +832,11 @@ async fn first_turn_compaction_allows_threshold_but_rejects_overflow() {
         output: 0,
     };
 
-    let context = engine.compact_before_primary_request(false).await.expect("first turn fits");
+    let context = engine.compact_before_primary_request().await.expect("first turn fits");
     assert_eq!(context[0].content, engine.history[0].content);
 
     engine.model_limit.input = Some(tokens - 1);
-    let error = engine.compact_before_primary_request(false).await.expect_err("input overflow");
+    let error = engine.compact_before_primary_request().await.expect_err("input overflow");
     assert!(error.to_string().contains("超过模型输入窗口"));
     assert_eq!(engine.history.len(), 1);
 }

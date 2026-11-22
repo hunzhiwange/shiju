@@ -10,8 +10,18 @@ impl agent_loop::history::HistoryHost for HistoryHost {
     async fn summarize(session: String, source: Vec<serde_json::Value>, model: String, reliability: crate::config::ReliabilityConfig, limit: crate::provider::provider::ModelLimit) -> Result<String, String> { crate::session::compaction_summary::summarize_async(session, source, model, reliability, limit).await }
     async fn emit(session: &str, thread: &str, model: &str, automatic: bool, post: bool) -> anyhow::Result<()> { crate::plugins::hook_compact::emit::<crate::tools::context::AgentContextHost>(session, thread, model, automatic, post).await }
 }
-pub(crate) async fn compact_history_with_internal_service(history: &mut Vec<ChatMessage>, session: &str, model: &str, reliability: &crate::config::ReliabilityConfig, limit: &crate::provider::provider::ModelLimit) -> anyhow::Result<bool> {
-    agent_loop::history::compact_history_with_internal_service::<HistoryHost>(history, session, model, reliability, limit).await
+pub(crate) async fn compact_history_with_internal_service(
+    history: &mut Vec<ChatMessage>,
+    session: &str,
+    model: &str,
+    reliability: &crate::config::ReliabilityConfig,
+    limit: &crate::provider::provider::ModelLimit,
+    require_reduction: bool,
+) -> anyhow::Result<bool> {
+    agent_loop::history::compact_history_with_reduction_policy::<HistoryHost>(
+        history, session, model, reliability, limit, require_reduction,
+    )
+    .await
 }
 #[cfg(test)]
 #[path = "history_tests.rs"]

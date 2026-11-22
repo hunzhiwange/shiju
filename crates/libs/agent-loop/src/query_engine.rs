@@ -23,7 +23,7 @@ use std::sync::{Arc, Mutex};
 use config_agent::merged_agent_configs;
 
 use agent_loop::context::build_context;
-use agent_loop::core::tool_loop::track_confirmed_tool_history;
+use agent_loop::core::tool_loop::{StepRecovery, track_confirmed_tool_history};
 
 use agent_loop::instructions::build_shell_policy_instructions;
 
@@ -342,7 +342,7 @@ impl<H: QueryEngineHost> QueryEngine<H> {
         if let Some(skills) = self.skill_session.as_mut() {
             skills.begin_turn(message, &self.request_system_prompt, &self.history);
         }
-        let context = match self.compact_before_primary_request(false).await {
+        let context = match self.compact_before_primary_request().await {
             Ok(context) => context,
             Err(error) => {
                 self.history = history_snapshot;
@@ -362,8 +362,11 @@ impl<H: QueryEngineHost> QueryEngine<H> {
         let transient_len = request_history.len();
         request_history.extend(context);
 
-        let ((result, replay_blocked), mut confirmed_tool_history) =
-            track_confirmed_tool_history(H::agent_turn(
+        let recovery = self.step_recovery();
+        let (result, confirmed_tool_history) = track_confirmed_tool_history(
+            self.session_id.clone(),
+            recovery,
+            H::agent_turn(
                 self.provider.as_ref(),
                 &mut request_history,
                 &self.tools_registry,
@@ -376,64 +379,9 @@ impl<H: QueryEngineHost> QueryEngine<H> {
                 self.max_iterations,
                 self.hook_runtime.as_ref().and_then(|runtime| runtime.runner_snapshot()),
                 self.skill_session.as_mut(),
-            ))
-            .await;
-
-        let mut retry_response_persisted = false;
-        let result = match result {
-            Err(error)
-                if !replay_blocked
-                    && confirmed_tool_history.is_empty()
-                    && !agent_loop::core::errors::is_tool_loop_cancelled(&error)
-                    && is_prompt_too_long(&error.to_string(), &request_history) =>
-            {
-                let context = match self.compact_before_primary_request(true).await {
-                    Ok(context) => context,
-                    Err(compaction_error) => {
-                        self.history = history_snapshot;
-                        return Err(anyhow::anyhow!(
-                            "{error}; internal compaction could not recover the request: {compaction_error}"
-                        ));
-                    }
-                };
-                let team = H::team_runtime_instructions(
-                    &self.session_id,
-                    self.tools_registry.iter().any(|tool| tool.name() == "AgentTool"),
-                )
-                .await;
-                let persistent_len = context.len();
-                let mut retry_history = vec![ChatMessage::user(format!(
-                    "<system-reminder>\n{}\n</system-reminder>",
-                    format_args!("{}\n{}", self.request_system_prompt, team)
-                ))];
-                let transient_len = retry_history.len();
-                retry_history.extend(context);
-                let ((retry, _), retry_tool_history) =
-                    track_confirmed_tool_history(H::agent_turn(
-                        self.provider.as_ref(),
-                        &mut retry_history,
-                        &self.tools_registry,
-                        self.observer.as_ref(),
-                        &self.provider_name,
-                        &self.model_name,
-                        self.default_temperature,
-                        true,
-                        &self.multimodal_config,
-                        self.max_iterations,
-                        self.hook_runtime.as_ref().and_then(|runtime| runtime.runner_snapshot()),
-                        self.skill_session.as_mut(),
-                    ))
-                    .await;
-                confirmed_tool_history = retry_tool_history;
-                if retry.is_ok() {
-                    self.history
-                        .extend(retry_history.into_iter().skip(transient_len + persistent_len));
-                    retry_response_persisted = true;
-                }
-                retry
-            }
-            result => result,
-        };
+            ),
+        )
+        .await;
 
         if result.is_err() {
             if confirmed_tool_history.is_empty() {
@@ -442,10 +390,8 @@ impl<H: QueryEngineHost> QueryEngine<H> {
                 self.history.extend(confirmed_tool_history);
             }
         } else {
-            if !retry_response_persisted {
-                self.history
-                    .extend(request_history.into_iter().skip(transient_len + persistent_len));
-            }
+            self.history
+                .extend(request_history.into_iter().skip(transient_len + persistent_len));
             self.turn_count = self.turn_count.saturating_add(1);
             self.govern_history().await;
         }
@@ -459,7 +405,44 @@ impl<H: QueryEngineHost> QueryEngine<H> {
         // reintroduce the split compaction policy this engine is avoiding.
     }
 
-    async fn compact_before_primary_request(&self, force: bool) -> Result<Vec<ChatMessage>> {
+    fn compaction_model(&self) -> String {
+        if self.model_name.contains('/') {
+            self.model_name.clone()
+        } else {
+            format!("{}/{}", self.provider_name, self.model_name)
+        }
+    }
+
+    fn step_recovery(&self) -> Option<StepRecovery> {
+        if !self.compact_context {
+            return None;
+        }
+        let source = self.history.clone();
+        let session = self.session_id.clone();
+        let model = self.compaction_model();
+        let reliability = self.reliability.clone();
+        let limit = self.model_limit.clone();
+        Some(Box::new(move || {
+            let mut history = source.clone();
+            let session = session.clone();
+            let model = model.clone();
+            let reliability = reliability.clone();
+            let limit = limit.clone();
+            Box::pin(async move {
+                if !H::compact_history(&mut history, &session, &model, &reliability, &limit, true)
+                    .await?
+                {
+                    return Ok(None);
+                }
+                // Keep the live user message and the entire in-turn suffix. The
+                // compaction service only changes raw history before that user.
+                history.pop();
+                Ok(Some(history))
+            })
+        }))
+    }
+
+    async fn compact_before_primary_request(&self) -> Result<Vec<ChatMessage>> {
         let start =
             usize::from(self.history.first().is_some_and(|message| message.role == "system"));
         let source = self.history[start..]
@@ -479,11 +462,7 @@ impl<H: QueryEngineHost> QueryEngine<H> {
             .map(|message| agent_text::token::estimate(&message.content))
             .sum();
         if !self.compact_context
-            || (!force
-                && !session_engine::context_governance::should_compact(
-                    input_tokens,
-                    &self.model_limit,
-                ))
+            || !session_engine::context_governance::should_compact(input_tokens, &self.model_limit)
         {
             return Ok(context);
         }
@@ -506,13 +485,10 @@ impl<H: QueryEngineHost> QueryEngine<H> {
             H::compact_history(
                 &mut source_history,
                 &self.session_id,
-                &if self.model_name.contains('/') {
-                    self.model_name.clone()
-                } else {
-                    format!("{}/{}", self.provider_name, self.model_name)
-                },
+                &self.compaction_model(),
                 &self.reliability,
                 &self.model_limit,
+                false,
             ),
         )
         .await?;
@@ -580,20 +556,6 @@ impl<H: QueryEngineHost> QueryEngine<H> {
     fn non_system_message_count(&self) -> usize {
         self.history.iter().filter(|message| message.role != "system").count()
     }
-}
-
-fn is_prompt_too_long(message: &str, history: &[ChatMessage]) -> bool {
-    if matches!(
-        serde_json::from_str::<message_types::AssistantError>(message),
-        Ok(message_types::AssistantError::MessageAbortedError { .. })
-    ) {
-        return false;
-    }
-    let input = history
-        .iter()
-        .map(|item| serde_json::json!({"role": item.role, "content": item.content}))
-        .collect::<Vec<_>>();
-    session_engine::request_overflow::is_request_too_long_error(message, &input)
 }
 
 fn build_tool_descriptions(config: &Config) -> Vec<(&'static str, &'static str)> {

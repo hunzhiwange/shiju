@@ -152,6 +152,20 @@ pub async fn compact_history_with_internal_service<H: HistoryHost>(
     reliability: &config_reliability::ReliabilityConfig,
     model_limit: &agent_provider::provider::ModelLimit,
 ) -> Result<bool> {
+    compact_history_with_reduction_policy::<H>(
+        history, session_id, model, reliability, model_limit, false,
+    )
+    .await
+}
+
+pub async fn compact_history_with_reduction_policy<H: HistoryHost>(
+    history: &mut Vec<ChatMessage>,
+    session_id: &str,
+    model: &str,
+    reliability: &config_reliability::ReliabilityConfig,
+    model_limit: &agent_provider::provider::ModelLimit,
+    require_reduction: bool,
+) -> Result<bool> {
     let start = usize::from(history.first().is_some_and(|message| message.role == "system"));
     let end = history.iter().rposition(|message| message.role == "user").unwrap_or(start);
     if end <= start {
@@ -164,6 +178,9 @@ pub async fn compact_history_with_internal_service<H: HistoryHost>(
     let context = H::restore(session_id, &source)
         .await
         .map_err(anyhow::Error::msg)?;
+    let previous_tokens = require_reduction.then(|| {
+        session_engine::context_governance::context_usage_tokens(&context, &[], &[], None)
+    });
     H::emit(session_id, session_id, model, true, false).await?;
     let summary = H::summarize(
         session_id.to_string(),
@@ -174,6 +191,16 @@ pub async fn compact_history_with_internal_service<H: HistoryHost>(
     )
     .await
     .map_err(anyhow::Error::msg)?;
+    if previous_tokens.is_some_and(|previous| {
+        let summary_message = serde_json::json!({
+            "role": "assistant",
+            "content": format!("[Compaction summary]\n{}", summary.trim()),
+        });
+        session_engine::context_governance::context_usage_tokens(&[summary_message], &[], &[], None)
+            >= previous
+    }) {
+        return Ok(false);
+    }
     H::save(session_id, &source, &summary, None)
         .await
         .map_err(anyhow::Error::msg)?;

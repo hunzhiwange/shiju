@@ -30,6 +30,38 @@ pub(super) fn block_turn_replay() {
     let _ = TURN_REPLAY_BLOCKED.try_with(|blocked| blocked.set(true));
 }
 
+tokio::task_local! { static MODEL_OVERFLOW: (String, Cell<bool>); }
+
+pub(super) async fn sample_with_overflow_tracking<T>(
+    turn_id: &str,
+    sample: impl Future<Output = Result<T>>,
+) -> (Result<T>, bool) {
+    MODEL_OVERFLOW
+        .scope((turn_id.to_owned(), Cell::new(false)), async {
+            let result = sample.await;
+            (result, MODEL_OVERFLOW.with(|(_, overflow)| overflow.get()))
+        })
+        .await
+}
+
+pub(super) fn record_model_failure(turn_id: &str, error: &str, history: &[ChatMessage]) {
+    let _ = MODEL_OVERFLOW.try_with(|(tracked_turn, overflow)| {
+        if tracked_turn != turn_id
+            || matches!(
+                serde_json::from_str::<message_types::AssistantError>(error),
+                Ok(message_types::AssistantError::MessageAbortedError { .. })
+            )
+        {
+            return;
+        }
+        let input = history
+            .iter()
+            .map(|item| serde_json::json!({"role": item.role, "content": item.content}))
+            .collect::<Vec<_>>();
+        overflow.set(session_engine::request_overflow::is_request_too_long_error(error, &input));
+    });
+}
+
 /// 执行代理循环的单次轮次
 ///
 /// 该函数是代理交互的基础单元，负责：
@@ -109,7 +141,8 @@ where
         ImageAssetScope = agent_multimodal::assets::ImageAssetScope,
     >,
 {
-    // 调用工具调用循环，使用默认参数（无审批管理器、无取消令牌等）
+    let cancellation = tool_context::context::current_tool_use_context::<C>()
+        .and_then(|context| context.abort_token().cloned());
     super::tool_loop::run_tool_call_loop_with_skills(
         services,
         provider,
@@ -124,7 +157,7 @@ where
         "channel", // 默认通道名称
         multimodal_config,
         max_iterations,
-        None, // 无取消令牌
+        cancellation,
         None, // 无增量回调
         hooks,
         None, // 无安全策略上下文

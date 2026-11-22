@@ -26,18 +26,28 @@ use session_port::child_agent::{ChildAgentTaskSnapshot, ChildAgentWaitOutcome};
 struct ConfirmedToolHistory {
     turn_id: Option<String>,
     messages: Vec<ChatMessage>,
+    session_id: String,
+    recovery: Option<StepRecovery>,
 }
 
 tokio::task_local! {
     static CONFIRMED_TOOL_HISTORY: RefCell<ConfirmedToolHistory>;
 }
 
+#[cfg(not(target_arch = "wasm32"))]
+pub type StepRecovery = Box<dyn Fn() -> LoopFuture<'static, Result<Option<Vec<ChatMessage>>>> + Send>;
+#[cfg(target_arch = "wasm32")]
+pub type StepRecovery = Box<dyn Fn() -> LoopFuture<'static, Result<Option<Vec<ChatMessage>>>>>;
+
 /// Capture the original tool history written by one turn, even when it returns an error.
 pub async fn track_confirmed_tool_history<T>(
+    session_id: String,
+    recovery: Option<StepRecovery>,
     turn: impl Future<Output = T>,
 ) -> (T, Vec<ChatMessage>) {
+    let state = ConfirmedToolHistory { session_id, recovery, ..Default::default() };
     CONFIRMED_TOOL_HISTORY
-        .scope(RefCell::new(ConfirmedToolHistory::default()), async {
+        .scope(RefCell::new(state), async {
             let result = turn.await;
             let messages = CONFIRMED_TOOL_HISTORY
                 .with(|history| std::mem::take(&mut history.borrow_mut().messages));
@@ -55,6 +65,11 @@ pub(super) fn record_confirmed_tool_history(turn_id: &str, messages: &[ChatMessa
     });
 }
 
+fn confirmed_tool_message_count() -> usize {
+    CONFIRMED_TOOL_HISTORY.with(|history| history.borrow().messages.len())
+}
+
+#[derive(Clone, Copy)]
 pub struct RoundRequest<'a> {
     pub provider: &'a dyn Provider,
     pub history: &'a [ChatMessage],
@@ -182,9 +197,18 @@ where
         .collect();
     let turn_id = Uuid::new_v4().to_string();
     // Nested loops on the same task have their own turn IDs.
-    let _ = CONFIRMED_TOOL_HISTORY.try_with(|history| {
-        history.borrow_mut().turn_id.get_or_insert_with(|| turn_id.clone());
-    });
+    let (query_session, mut recovery_safe) = CONFIRMED_TOOL_HISTORY
+        .try_with(|history| {
+            let mut history = history.borrow_mut();
+            let owner = history.turn_id.get_or_insert_with(|| turn_id.clone());
+            if *owner == turn_id {
+                (Some(history.session_id.clone()), history.recovery.is_some())
+            } else {
+                (None, false)
+            }
+        })
+        .unwrap_or_default();
+    let mut compacted_prefix = None;
     let mut seen_tool_signatures: HashSet<(String, String)> = HashSet::new();
     let mut missing_tool_call_retry_used = false;
     let mut missing_tool_call_retry_prompt: Option<String> = None;
@@ -208,6 +232,7 @@ where
     let session_id = skills
         .as_ref()
         .and_then(|skills| skills.session_id.clone())
+        .or(query_session)
         .or_else(|| inherited.as_ref().map(|context| context.session().to_string()))
         .unwrap_or_else(|| format!("tool-loop-{turn_id}"));
     let workspace_dir = security
@@ -328,35 +353,101 @@ where
         };
         skill_messages
             .extend(tool_use_context.take_hook_contexts().into_iter().map(ChatMessage::user));
-        let request_history =
-            if !skill_messages.is_empty() || (!use_native_tools && !tool_specs.is_empty()) {
-                let mut request_history = history.clone();
-                // Keep the entry point's system reminder first; skill messages remain
-                // request-local and never enter history or tool-result persistence.
-                let offset =
-                    usize::from(request_history.first().is_some_and(is_transient_protocol_message));
-                request_history.splice(offset..offset, skill_messages);
-                if !use_native_tools && !tool_specs.is_empty() {
-                    let instructions =
-                        (services.exposed_instructions)(&tool_specs);
-                    request_history.insert(
-                        0,
-                        ChatMessage::user(format!(
-                            "<system-reminder>\n{instructions}\n</system-reminder>"
-                        )),
-                    );
+        let tool_instructions = (!use_native_tools && !tool_specs.is_empty())
+            .then(|| (services.exposed_instructions)(&tool_specs));
+        let prepare_request = |prefix: Option<&[ChatMessage]>| {
+            if prefix.is_none() && skill_messages.is_empty() && tool_instructions.is_none() {
+                return None;
+            }
+            let mut request_history = match prefix {
+                Some(prefix) => {
+                    // Preserve the entry reminder, rewritten current user, and
+                    // all context already integrated by the live tool loop.
+                    let mut request = history[..1].to_vec();
+                    request.extend_from_slice(prefix);
+                    request.extend_from_slice(&history[initial_history_len - 1..]);
+                    request
                 }
-                Some(request_history)
-            } else {
-                None
+                None => history.clone(),
             };
-        let round = (services.llm_round)(RoundRequest {
-    provider, history: request_history.as_deref().unwrap_or(history.as_slice()), observer,
-    provider_name, model, temperature, channel_name, multimodal_config,
-    cancellation_token: cancellation_token.as_ref(), hooks: hooks.as_deref(),
-    tool_specs: &tool_specs, use_native_tools, turn_id: &turn_id, iteration,
-})
-        .await?;
+            let offset =
+                usize::from(request_history.first().is_some_and(is_transient_protocol_message));
+            request_history.splice(offset..offset, skill_messages.iter().cloned());
+            if let Some(instructions) = &tool_instructions {
+                request_history.insert(
+                    0,
+                    ChatMessage::user(format!(
+                        "<system-reminder>\n{instructions}\n</system-reminder>"
+                    )),
+                );
+            }
+            Some(request_history)
+        };
+        let request_history = prepare_request(compacted_prefix.as_deref());
+        let request = RoundRequest {
+            provider,
+            history: request_history.as_deref().unwrap_or(history.as_slice()),
+            observer,
+            provider_name,
+            model,
+            temperature,
+            channel_name,
+            multimodal_config,
+            cancellation_token: cancellation_token.as_ref(),
+            hooks: hooks.as_deref(),
+            tool_specs: &tool_specs,
+            use_native_tools,
+            turn_id: &turn_id,
+            iteration,
+        };
+        let sample = (services.llm_round)(request);
+        let round = if recovery_safe {
+            let (result, overflow) =
+                super::turn::sample_with_overflow_tracking(&turn_id, sample).await;
+            match result {
+                Err(error) if overflow => {
+                    let recover = CONFIRMED_TOOL_HISTORY.with(|history| {
+                        history.borrow().recovery.as_ref().expect("active step recovery")()
+                    });
+                    let recover = tool_context::context::scope_tool_use_context(
+                        round_tool_use_context.clone(),
+                        recover,
+                    );
+                    let recovery = if let Some(token) = &cancellation_token {
+                        tokio::select! {
+                            biased;
+                            () = token.cancelled() => return Err(ToolLoopCancelled.into()),
+                            result = recover => result,
+                        }
+                    } else {
+                        recover.await
+                    };
+                    let prefix = match recovery {
+                        Ok(Some(prefix)) => prefix,
+                        Ok(None) => return Err(error),
+                        Err(compaction_error) => {
+                            return Err(anyhow::anyhow!(
+                                "{error}; internal compaction could not recover the request: {compaction_error}"
+                            ));
+                        }
+                    };
+                    if cancellation_token.as_ref().is_some_and(CancellationToken::is_cancelled) {
+                        return Err(ToolLoopCancelled.into());
+                    }
+                    let retry_history = prepare_request(Some(&prefix)).expect("compacted request");
+                    let round = (services.llm_round)(RoundRequest {
+                        history: &retry_history,
+                        ..request
+                    })
+                    .await?;
+                    compacted_prefix = Some(prefix);
+                    round
+                }
+                result => result?,
+            }
+        } else {
+            sample.await?
+        };
 
         // A completed model step may emit output or start tool dispatch before history is updated.
         super::turn::block_turn_replay();
@@ -504,6 +595,7 @@ where
             let _ = std::io::stdout().flush();
         }
 
+        let confirmed_before = recovery_safe.then(confirmed_tool_message_count);
         (services.execute_tools)(ToolRoundRequest {
     history, tool_calls: &round.tool_calls, assistant_history_content: round.assistant_history_content,
     native_tool_calls: &round.native_tool_calls, tools_registry, observer, channel_name,
@@ -514,6 +606,10 @@ where
     use_native_tools,
 })
         .await?;
+        // The execution boundary records a batch only after every call has a result.
+        if let Some(previous) = confirmed_before {
+            recovery_safe = confirmed_tool_message_count() > previous;
+        }
         consume(services, &tool_use_context, history)?;
         if let Some(skills) = skills.as_deref_mut() {
             Box::pin(skills.consume(tool_use_context.as_ref(), history, initial_history_len))

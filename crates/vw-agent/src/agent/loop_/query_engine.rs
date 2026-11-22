@@ -17,7 +17,19 @@ impl agent_loop::query_engine::QueryEngineHost for super::core::skills::NativeCo
     }
     async fn team_runtime_instructions(session: &str, enabled: bool) -> String { crate::session::system::team_runtime_instructions(session, enabled).await }
     async fn restore_history(session: &str, source: &[serde_json::Value]) -> std::result::Result<Vec<serde_json::Value>, String> { crate::session::compaction_checkpoint::restore(session, source).await }
-    async fn compact_history(history: &mut Vec<ChatMessage>, session: &str, model: &str, reliability: &crate::config::ReliabilityConfig, limit: &crate::provider::provider::ModelLimit) -> Result<bool> { super::history::compact_history_with_internal_service(history, session, model, reliability, limit).await }
+    async fn compact_history(
+        history: &mut Vec<ChatMessage>,
+        session: &str,
+        model: &str,
+        reliability: &crate::config::ReliabilityConfig,
+        limit: &crate::provider::provider::ModelLimit,
+        require_reduction: bool,
+    ) -> Result<bool> {
+        super::history::compact_history_with_internal_service(
+            history, session, model, reliability, limit, require_reduction,
+        )
+        .await
+    }
     async fn agent_turn(
         provider: &dyn Provider,
         history: &mut Vec<ChatMessage>,
@@ -31,11 +43,11 @@ impl agent_loop::query_engine::QueryEngineHost for super::core::skills::NativeCo
         max_iterations: usize,
         hooks: Option<Arc<crate::hooks::HookRunner>>,
         skills: Option<&mut super::core::skills::CoreSkillSession>,
-    ) -> (Result<String>, bool) {
-        agent_loop::core::turn::track_replay_safety(super::core::agent_turn(
+    ) -> Result<String> {
+        super::core::agent_turn(
             provider, history, tools, observer, provider_name, model, temperature, silent,
             multimodal, max_iterations, hooks, skills,
-        ))
+        )
         .await
     }
 }

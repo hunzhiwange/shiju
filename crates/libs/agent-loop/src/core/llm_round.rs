@@ -274,7 +274,9 @@ pub async fn run_llm_round_with_extractor<T>(
             })
         }
         Err(error) => {
-            let safe_error = sanitize_api_error(&error.to_string());
+            let message = error.to_string();
+            super::turn::record_model_failure(turn_id, &message, &prepared_messages.messages);
+            let safe_error = sanitize_api_error(&message);
             observer.record_event(&ObserverEvent::LlmResponse {
                 provider: provider_name.to_string(),
                 model: model.to_string(),

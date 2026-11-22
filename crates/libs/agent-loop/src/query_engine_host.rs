@@ -12,8 +12,14 @@ pub trait QueryEngineHost: agent_loop::core::skills::CoreSkillHost<Context: tool
     fn assemble_tools(config: &Config, session: &str) -> Result<(Arc<dyn Memory>, Vec<Box<dyn Tool>>)>;
     async fn team_runtime_instructions(session: &str, enabled: bool) -> String;
     async fn restore_history(session: &str, source: &[serde_json::Value]) -> std::result::Result<Vec<serde_json::Value>, String>;
-    async fn compact_history(history: &mut Vec<ChatMessage>, session: &str, model: &str, reliability: &config_reliability::ReliabilityConfig, limit: &agent_provider::provider::ModelLimit) -> Result<bool>;
-    /// Returns the turn result and whether restarting the turn is unsafe.
+    async fn compact_history(
+        history: &mut Vec<ChatMessage>,
+        session: &str,
+        model: &str,
+        reliability: &config_reliability::ReliabilityConfig,
+        limit: &agent_provider::provider::ModelLimit,
+        require_reduction: bool,
+    ) -> Result<bool>;
     async fn agent_turn(
         provider: &dyn Provider,
         history: &mut Vec<ChatMessage>,
@@ -27,5 +33,5 @@ pub trait QueryEngineHost: agent_loop::core::skills::CoreSkillHost<Context: tool
         max_iterations: usize,
         hooks: Option<Arc<agent_hooks::HookRunner>>,
         skills: Option<&mut agent_loop::core::skills::CoreSkillSession<Self>>,
-    ) -> (Result<String>, bool);
+    ) -> Result<String>;
 }

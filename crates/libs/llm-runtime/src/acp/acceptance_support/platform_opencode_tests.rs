@@ -1,7 +1,7 @@
 use agent_config::schema::AcpAgentConfig;
 use serde_json::Value;
 use sha2::{Digest, Sha256};
-use std::{io, path::Path};
+use std::{fs::File, io::Read, path::Path};
 
 use crate::acp::model_source::{configure_profile, drivers, launch_identity, prepare_profile};
 
@@ -61,8 +61,16 @@ async fn acp_platform_opencode_contract_reviewed_entry_and_chat_profile() {
     let entry = Path::new(&command).canonicalize().unwrap();
     assert!(entry.ends_with("reviewed/opencode"));
     let (manifest, target) = linux_contract();
+    let mut artifact = File::open(&entry).unwrap();
     let mut hash = Sha256::new();
-    io::copy(&mut std::fs::File::open(&entry).unwrap(), &mut hash).unwrap();
+    let mut block = [0; 64 * 1024];
+    loop {
+        let size = artifact.read(&mut block).unwrap();
+        if size == 0 {
+            break;
+        }
+        hash.update(&block[..size]);
+    }
     let digest = hex::encode(hash.finalize());
     assert_eq!(manifest["targets"][target]["patched_sha256"].as_str(), Some(digest.as_str()));
 

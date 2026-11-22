@@ -77,8 +77,10 @@ function shijuIFlowProject(servers, native) {
         const name = server.name;
         const origin = server._meta?.["shiju.iflow.mcp-v4"];
         const project = origin === "project";
+        if ((!project && origin !== "mounted") || project !== nativeNames.has(name)) {
+            throw El.invalidRequest("iFlow MCP source does not match the project directory");
+        }
         if (!relay || !shijuIFlowName(name) || Object.hasOwn(catalog, name) ||
-            (!project && origin !== "mounted") || project !== nativeNames.has(name) ||
             server.type !== "http" || server.url !== shijuIFlowRelayUrl(name, relay) ||
             server.command || server.args || server.env || server.cwd || server.httpUrl ||
             server.tcp || server.trust || server.authProviderType || server.oauth ||
@@ -103,6 +105,14 @@ function shijuIFlowIdentity(server, tool) {
         throw El.invalidRequest("Invalid iFlow relay tool identity");
     }
     return identity;
+}
+
+function shijuIFlowToolAllowed(call, tool, args) {
+    // The supplier labels the native Skill loader as "execute" even though
+    // it returns Markdown. Match its reviewed class, never a display name.
+    return typeof call.id === "string" && Boolean(call.id.trim()) &&
+        !Object.hasOwn(args, "callId") && call.name.toLowerCase() !== "task" &&
+        (tool.kind !== "execute" || (tool instanceof U4e && call.name === U4e.Name));
 }
 
 function shijuIFlowValidateHistory(history, sessionId) {
@@ -279,8 +289,7 @@ if(shijuManaged){n=[];o=undefined;s=undefined;a=undefined;}
     execute = 'let f=await m.execute({callId:o,...s},e),'
     source = replace(source, execute, '''
 if (shijuManaged) {
-    if (e?.aborted || this.agent.sessions.get(this.id) !== this || Object.hasOwn(s, "callId") ||
-        n.name.toLowerCase() === "task" || m.kind === "execute") {
+    if (e?.aborted || this.agent.sessions.get(this.id) !== this || !shijuIFlowToolAllowed(n, m, s)) {
         return u(new Error("iFlow tool execution unavailable in this prompt"));
     }
     const tool = m instanceof bg ? shijuIFlowIdentity(m.serverName, m.serverToolName) : n.name;

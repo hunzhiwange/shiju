@@ -74,3 +74,10 @@
 - iFlow 项目原生 Skill、工作区文件读取及外挂技能扫描使用已有受管路径。补齐新建历史持久化与 Linux 恢复校验，缺失、格式错误或 ID 不匹配的历史会报错。新增网关夹具在同一会话先调用原生及外挂技能并读取附件，撤除外挂后恢复两轮，分开确认历史连续、当前目录撤除及当轮批准和工具结果。历史中已经批准的可见内容保留，后续测试核验当前技能目录及新的访问。MCP 并存及撤权由生产 Host 夹具覆盖，暂时没有合并为一次真实供应商 MCP 网关回合的收据。
 - 已接子集为固定 v4 制品、Chat Completions 选模、原生 Skill/读工具与选中技能、受审项目及会话 MCP、交互单次批准、原 ID load 和撤除。独立 shell/终端及子代理执行、斜杠自动化、隐式附件、供应商直连 MCP 与 headless 仍受显式限制；本轮未放开这些能力。普通 `cli_local` 沿用原生账户，Linux 会话外挂 MCP 仅开放受管模式。
 - 已从锁定归档静态重建 v4，更新补丁和 bundle 摘要，核对补丁上下文、JS 构建文本语法、Python AST、Rust 格式及定向差异。未执行测试、安装、网关、编译或容器。双目标仍使用非 root、目标架构 Node.js/npm、Bubblewrap、dash、Python 3 和当前网关。获准后分别运行 `python3 patches/acp-model-source/iflow/linux_mcp_contract_test.py`（预期 5 项）、`python3 scripts/cargo_slot.py cargo test -j 1 -p vw-agent --lib acp_platform_iflow_contract_host_project_mcp_revision_and_removal -- --ignored`（预期 1 项）及传入 `SHIJU_ACP_IFLOW_GATEWAY_BIN` 的 `python3 scripts/cargo_slot.py cargo test -j 1 -p llm-runtime --lib acp_platform_iflow_contract_native_approval -- --ignored`（预期 1 项，含同会话技能恢复）。保留任务卡至实际运行验收完成。
+
+## ARM64 失败复盘与复跑
+
+- 旧 ARM64 网关报告的 `calls.native` 对应模型续轮中的同 ID 错误结果。只读诊断记录为 `{"error":"iFlow tool execution unavailable in this prompt"}`，宿主技能批准为零，未观察到实际 Skill 执行。固定 bundle 把用于读取 Markdown 的 `U4e` 原生 Skill 标为 `execute`。v4 只豁免经固定摘要验证的该类及其精确名称，使其通过原有单次审批。普通执行和 task 仍拒绝。缺失模型原始调用 ID、实参覆盖 `callId`、取消或失效会话继续拒绝。探针仅在验明返回内容或预期拒绝后记同 ID 回执。
+- 旧 MCP 独立报告停在 `session/new` 的 scoped project 检查，未有模型工具批准或 relay 执行。该次夹具只建 `.vwacprc.json`，缺少供应商原生 `.iflow/settings.json` 项目目录。共享夹具 `a7d7efa468` 已为项目模式写入原生名称，session-mount 模式维持独立来源。v4 保留严格投影检查，单独报告来源与目录不一致。两模式仍待真实复跑确认。
+- 用原始 bundle 固定输入摘要重建 v4 并更新 manifest，Node 只做语法解析，Python AST 和定向差异通过。本次未运行测试、安装、Cargo、网关或容器。由任务 49 串行复跑，确保网关嵌入本次 manifest，使用新安装根，避免旧 v4 目录命中旧摘要。
+- ARM64 在任务 49 现有槽位执行 `python3 scripts/cargo_slot.py cargo test -j 1 -p llm-runtime --lib acp_platform_iflow_contract_native_approval -- --ignored`，令 `SHIJU_ACP_IFLOW_GATEWAY_BIN` 指向含本次 v4 摘要的网关。入口应命中 1 项，同时覆盖原生批准、拒绝、取消和同会话技能撤除。模型/MCP 分别用新根 `IFLOW_COEXISTENCE_RUNTIME` 执行 `python3 scripts/verify_acp_linux_model_mounts.py --agent iflow --gateway-bin <网关> --output <项目模式.json>`，再增加 `--session-mount` 输出至独立报告，核对同 ID 宿主批准、真实 MCP 挑战值、原会话恢复及撤除后的零调用。

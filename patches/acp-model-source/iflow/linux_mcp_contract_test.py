@@ -52,8 +52,10 @@ assert.deepEqual(catalog.native, {
     type: "http", url: "http://127.0.0.1:12345/shiju-vtcode-mcp/native",
 });
 assert.throws(() => shijuIFlowProject([{name: "native", command: "fixture"}], native));
-assert.throws(() => shijuIFlowProject([projected("native", "mounted")], native));
-assert.throws(() => shijuIFlowProject([projected("other", "project")], native));
+assert.throws(() => shijuIFlowProject([projected("native", "mounted")], native),
+    /source does not match the project directory/);
+assert.throws(() => shijuIFlowProject([projected("other", "project")], native),
+    /source does not match the project directory/);
 assert.throws(() => shijuIFlowProject([projected("native", "project"),
     projected("native", "project")], native));
 const selected = projected("selected", "mounted");
@@ -94,6 +96,21 @@ assert.throws(() => shijuIFlowIdentity("native", "other/method"));
 assert.throws(() => shijuIFlowCallParams({name: "read", args}));
 assert.deepEqual(shijuIFlowCallParams({name: "read", args, shijuCallId: "call-1"}),
     {name: "read", arguments: args, _meta: {shijuCallId: "call-1"}});
+""")
+
+    def test_read_only_skill_requires_a_real_model_id_and_the_reviewed_class(self):
+        self.javascript("""
+class U4e {
+    static Name = "Skill";
+    kind = "execute";
+}
+const skill = {id: "model-call", name: "Skill"};
+assert.equal(shijuIFlowToolAllowed(skill, new U4e(), {skill: "fixture"}), true);
+assert.equal(shijuIFlowToolAllowed(skill, {kind: "execute"}, {}), false);
+assert.equal(shijuIFlowToolAllowed({...skill, name: "task"}, {kind: "other"}, {}), false);
+assert.equal(shijuIFlowToolAllowed({...skill, id: ""}, new U4e(), {}), false);
+assert.equal(shijuIFlowToolAllowed(skill, new U4e(), {callId: "wrong"}), false);
+assert.equal(shijuIFlowToolAllowed({...skill, name: "read_file"}, {kind: "read"}, {}), true);
 """)
 
     def test_missing_or_mismatched_history_cannot_be_replaced(self):

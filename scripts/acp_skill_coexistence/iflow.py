@@ -161,7 +161,10 @@ class Probe:
             if kind not in self.calls:
                 return self.call(tools, kind, "Skill", {"skill": skill["name"]})
             result, index = self.result(messages, kind)
+            if result.strip() == '{"error":"iFlow tool execution unavailable in this prompt"}':
+                raise AssertionError("iFlow blocked the skill before requesting approval")
             require("Launching skill: " + skill["name"] in result, "incorrect iFlow skill activation")
+            self.completed[kind] = self.calls[kind]
             read = kind + "_read"
             if read not in self.calls:
                 later_users = (message_text(row["content"]) for row in messages[index + 1:]
@@ -184,9 +187,11 @@ class Probe:
             if read == "native_read" and self.native_read_decision == "reject":
                 require("Tool execution rejected by user" in result, "iFlow native read refusal missing")
                 self.native_read_denied = True
+                self.completed[read] = self.calls[read]
                 continue
             require(skill["attachment"] in result,
                     f"iFlow {kind} attachment was not read")
+            self.completed[read] = self.calls[read]
 
         if self.mcp:
             if "mcp" not in self.calls:
@@ -197,6 +202,7 @@ class Probe:
                         and self.fixtures["mcp"] not in result, "iFlow MCP refusal missing")
             else:
                 require(self.fixtures["mcp"] in result, "iFlow MCP value was not read")
+            self.completed["mcp"] = self.calls["mcp"]
         self.pending = None
         return {"content": "COEXISTENCE_DONE"}, "stop"
 
@@ -216,7 +222,6 @@ class Probe:
         results = [(row["content"], index) for index, row in enumerate(messages)
                    if row["role"] == "tool" and row.get("tool_call_id") == call_id]
         require(len(results) == 1, f"iFlow {kind} result missing or ambiguous")
-        self.completed[kind] = call_id
         content, index = results[0]
         return message_text(content), index
 

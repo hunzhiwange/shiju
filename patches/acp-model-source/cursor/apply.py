@@ -37,6 +37,29 @@ source = replace(source, client_anchor,
 bootstrap = 'O' if linux else 'q'
 bootstrap_anchor = f'void 0!==({bootstrap}={{localAgentRuntime:e,argv:i,env:process.env}}).localAgentRuntime&&'
 source = replace(source, 'o=' + bootstrap_anchor, 'o=!!process.env.SHIJU_CURSOR_MODEL_CONFIG||' + bootstrap_anchor)
+if linux:
+    # Keep native hard denies and sandbox policy. Remove local approval shortcuts.
+    managed = 'process.env.SHIJU_CURSOR_MODEL_CONFIG'
+    source = replace(source, 'function Xr(t){return!(!t.skipApproval',
+        f'function Xr(t){{return !{managed}&&!(!t.skipApproval')
+    source = replace(source, 'let G=U||F?void 0:this.getShellAutoApprovalPolicy',
+        f'let G=U||F||{managed}?void 0:this.getShellAutoApprovalPolicy')
+    source = replace(source, 'const g=e.timeoutBehavior===a._d.BACKGROUND,_=g&&!e.closeStdin',
+        f'if({managed})t.signal.throwIfAborted();'
+        'const g=e.timeoutBehavior===a._d.BACKGROUND,_=g&&!e.closeStdin')
+    # A native MCP allowlist match still needs the current host's approval.
+    source = replace(source, 'if(!n)return;const s=await Es(n,{onNeedsApproval:',
+        f'if(!n&&!{managed})return;'
+        'const s=await Es(n||{type:"needsApproval",approvalReason:"Current host approval required",'
+        'approvalDetails:{type:"mcp",name:e.name,toolName:e.toolName,'
+        'providerIdentifier:e.providerIdentifier,args:e.args,canAllowlist:false}},{onNeedsApproval:')
+    source = replace(source, 'source:r.toolDef?.source,args:n.args,reason:n.reason??t',
+        f'source:r.toolDef?.source,args:{managed}?'
+        'Object.fromEntries(Object.entries(e.args).map(([key,value])=>[key,value.toJson()])):n.args,'
+        'reason:n.reason??t')
+    source = replace(source, 'if(void 0!==p)return p;const f=await this.toolSet.getToolSet(o);let h;try{',
+        f'if(void 0!==p)return p;const f=await this.toolSet.getToolSet(o);'
+        f'if({managed})o.signal.throwIfAborted();let h;try{{')
 source = 'const shijuCursor=require("./session-model.cjs");\n' + source
 entry.write_text(source)
 
@@ -82,6 +105,21 @@ source = source[:services_start] + native_services + managed_services + source[s
 # Bind the managed shell default to the working directory of the ACP session.
 source = replace(source, 'async initializeSessionState(e){this.sessions.set',
     'async initializeSessionState(e){if(process.env.SHIJU_CURSOR_MODEL_CONFIG)e.agentStore.setMetadata("workspacePath",e.cwd);this.sessions.set')
+if linux:
+    source = replace(source, 'async requestPermission(e){if(!e.toolCallId)return{approved:!0};',
+        f'async requestPermission(e){{if(!e.toolCallId)return{{approved:!{managed}}};')
+    source = replace(source, 'title:t,kind:s,status:"pending",content:a},options:[{optionId:"allow-once"',
+        'title:t,kind:s,status:"pending",content:a,'
+        f'...({managed}?(e.type===c.S5n.Shell?'
+        '{rawInput:{command:e.details.command,workingDirectory:e.details.workingDirectory}}:'
+        'e.type===c.S5n.Mcp?{rawInput:e.details.args}:{}):{})},'
+        'options:[{optionId:"allow-once"')
+    source = replace(source, 'try{const t=await this.connection.requestPermission(n);',
+        f'if({managed})n.options=n.options.filter(option=>option.kind!=="allow_always");'
+        'try{const t=await this.connection.requestPermission(n);')
+    source = replace(source, 'a="allow-once"===s||"allow-always"===s;return"allow-always"===s&&await this.persistAllowlistEntry(e)',
+        f'a="allow-once"===s||!{managed}&&"allow-always"===s;'
+        f'return!{managed}&&"allow-always"===s&&await this.persistAllowlistEntry(e)')
 # Upstream ACP normally turns inference failures into successful text responses.
 source = replace(source, 'catch(e){if(this.lastRequestId=M.d.getLastParentAgentRequestId(),e instanceof r.cc||t.canceled)return;',
     'catch(e){if(this.lastRequestId=M.d.getLastParentAgentRequestId(),e instanceof r.cc||t.canceled)return;if(process.env.SHIJU_CURSOR_MODEL_CONFIG)throw new Error("Cursor session model request failed",{cause:e});')

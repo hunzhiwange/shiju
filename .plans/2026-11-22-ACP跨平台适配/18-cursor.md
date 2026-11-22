@@ -56,3 +56,10 @@
 - 受管共享服务用空 `mcpLease` 配置替代供应商原生配置装载，避免依赖远端团队设置。ACP 传入的外挂 MCP 有执行路径，但私有模型缺供应商项目/原生 MCP 与外挂 MCP 的完整并行验证和来源隔离。普通 cli_local 的原生配置路径可保留。
 - Darwin 历史只验证指定工具的 ACP 按次批准。Linux 仍需证明 Cursor 原生权限规则不会跳过当前宿主批准，以及供应商启动 stdio MCP 后任务 4 的执行授权可与当前提示和调用绑定。Linux 同会话撤除后加载、旧服务或审批失效、取消和进程回收仍无用例结果。任务 49 应对 x64、ARM64 分别记录该限制。
 - 两 Linux 归档、ELF 架构、安装布局、补丁前后摘要与分块均已静态核对，生成 JS 经 `node --check`。Apple Silicon 对照通过补丁摘要复现。未执行供应商程序、安装、Cargo 或 Docker。后续两架构分别运行 `python3 scripts/cargo_slot.py cargo test -j 1 -p llm-runtime --lib acp_platform_cursor_contract`，预期命中 1 项。接线完成并具备 Linux 网关后二次设置 `SHIJU_ACP_CURSOR_GATEWAY_BIN` 为其绝对路径，追加 `-- --ignored` 跑网关契约，预期再命中 1 项。当前无退出码、命中数和 Linux 红绿运行结果。
+
+### 续查与可独立交付
+
+- 两架构共用 Linux 专属的审批收紧层。原厂前台 shell 的 `skipApproval` 和本地自动批准分支已关闭，继续经过原生硬拒绝、沙箱决策和 ACP 按次审批。MCP 原生执行器保留既有硬拒绝，在原生策略返回允许时仍进入审批分支，调用服务前重查取消信号。Linux 私有模式的审批拒绝无调用 ID 或持久批准，传递 shell 命令和工作目录及 MCP 实参。普通入口和 Apple Silicon 保留既有逻辑。任务 48 应使用本次清单的最终摘要，Linux 安装参数与目录约定沿用上节。
+- 新增后续直接 ACP 探针入口 `python3 scripts/acp_model_source_cursor_tests.py <受审入口> --linux-preallow`，再追加 `--deny` 对照。默认允许列表中的 `Shell(ls)` 用来暴露原生预允跳过审批，断言只有一次决定、原调用 ID、准确命令与 cwd，以及同 ID 结果和载入后的历史。网关 fixture 同步断言 Linux 的 MCP 审批含准确的空实参。两 Linux 归档重新静态套补丁，JS 语法、清单摘要和 Darwin 三文件对照均通过。未安装、运行或测试。
+- 尝试复用共享 `prepare_stdio_mcp_launch`。其运行实现仍绑定 `mimo_mcp::prepare` 的 Darwin arm64 和 `sandbox-exec`。当前 Linux 本机 MCP 入口由 Cursor 的 `session-resources::D` 直接构造客户端并可在会话初始化启动进程或访问远端，早于工具审批。仅强制 `LocalMcpToolExecutor` 审批能约束执行调用，无法覆盖这些启动或连接副作用。宿主 relay 的现有 grant 接受 `mcp__` 名称或 Droid 专属来源元数据，消费端尚无 ACP 调用 ID。Cursor 的本机调用 ID 到达工具集入口，当前没有 relay 的执行端 ID 验证，单改审批标题或转发原始 stdio 参数不足以补齐。
+- 尝试恢复原厂项目配置装载。原厂 `ee.load` 会加载用户、项目、插件或团队管理来源，并在会话挂载合并时以会话服务覆盖同名项目服务。恢复此分支会绕过宿主来源授权和服务启动边界，因此保持空原生租约。要完成 GNU x64 与 ARM64 的同一组合，需要任务 48 所属的 Linux 受限 stdio 启动与逐调用消费协议，以及宿主识别并授权独立的原生配置来源。现有受管补丁、通用原生 ACP、回环模型中继和 Darwin MCP 投影均无等价实现。保留完整合同的阻塞和现有能力门控。固定制品、私有 Chat、shell/技能及审批收紧可独立接线，运行证据待双架构回归。

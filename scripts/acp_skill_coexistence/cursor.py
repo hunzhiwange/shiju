@@ -199,9 +199,10 @@ class Probe:
                                 "function": {"name": name, "arguments": json.dumps(args)}}]}, "tool_calls"
 
     def approves(self, metadata):
+        expected_args = {} if platform.system() == "Linux" else None
         return (self.pending is not None and self.pending[0] == "mcp"
                 and metadata.get("title") == f"{self.mcp_tool}: read_probe"
-                and metadata.get("arguments") is None)
+                and metadata.get("arguments") == expected_args)
 
 
 class Handler(ProviderHandler):

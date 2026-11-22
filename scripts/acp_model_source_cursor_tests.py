@@ -1,5 +1,5 @@
 """Exercise the reviewed Cursor runtime's real ACP/file-tool loop against a local HTTP fixture.
-Usage: python3 scripts/acp_model_source_cursor_tests.py /absolute/path/to/cursor-agent [--deny] [--past-old-limit | --step-limit | --refuse-final-tool]
+Usage: python3 scripts/acp_model_source_cursor_tests.py /absolute/path/to/cursor-agent [--deny] [--linux-preallow | --past-old-limit | --step-limit | --refuse-final-tool]
 """
 import http.server
 import json
@@ -14,9 +14,12 @@ import time
 
 entry = Path(sys.argv[1]).resolve(strict=True)
 deny = '--deny' in sys.argv[2:]
+preallowed = '--linux-preallow' in sys.argv[2:]
 refuse_final_tool = '--refuse-final-tool' in sys.argv[2:]
 at_step_limit = refuse_final_tool or '--step-limit' in sys.argv[2:]
 tool_count = 2000 if at_step_limit else 257 if '--past-old-limit' in sys.argv[2:] else 1
+assert not preallowed or (sys.platform == 'linux' and tool_count == 1)
+command = 'ls native-probe.txt' if preallowed else "printf 'native tool result' > created.txt"
 with tempfile.TemporaryDirectory(prefix='cursor-native-test-') as directory:
     root = Path(directory)
     root.chmod(0o700)
@@ -50,7 +53,7 @@ with tempfile.TemporaryDirectory(prefix='cursor-native-test-') as directory:
             if request_count <= tool_count or refuse_final_tool:
                 call_id = 'save-fixture' if request_count == 1 else f'save-fixture-{request_count}'
                 delta = {'reasoning_content': 'fixture reasoning', 'tool_calls': [{'index': 0, 'id': call_id, 'type': 'function', 'function': {
-                    'name': 'shell', 'arguments': json.dumps({'command': "printf 'native tool result' > created.txt"})}}]}
+                    'name': 'shell', 'arguments': json.dumps({'command': command})}}]}
                 reason = 'tool_calls'
             else:
                 delta, reason = {'content': '工具已完成'}, 'stop'
@@ -69,6 +72,8 @@ with tempfile.TemporaryDirectory(prefix='cursor-native-test-') as directory:
     (root / 'model.json').chmod(0o600)
     workspace = root / 'workspace'
     workspace.mkdir()
+    if preallowed:
+        (workspace / 'native-probe.txt').touch()
     env = {k: v for k, v in os.environ.items() if k in ('PATH', 'HOME', 'TMPDIR')}
     env.update(SHIJU_CURSOR_MODEL_CONFIG=str(root / 'model.json'), CURSOR_CONFIG_DIR=str(root / 'config'), CURSOR_DATA_DIR=str(root / 'data'), AGENT_CLI_CREDENTIAL_STORE='memory', CURSOR_AGENT_CLI_AUTHLESS_MODE='true')
     with (root / 'stderr').open('w') as stderr:
@@ -124,6 +129,12 @@ with tempfile.TemporaryDirectory(prefix='cursor-native-test-') as directory:
                     updates.append(message['params']['update'])
                 elif message.get('method') == 'session/request_permission':
                     approvals += 1
+                    if preallowed:
+                        params = message['params']
+                        assert {o['kind'] for o in params['options']} == {'allow_once', 'reject_once'}
+                        assert params['toolCall']['toolCallId'] == 'save-fixture'
+                        assert params['toolCall']['rawInput'] == {
+                            'command': command, 'workingDirectory': str(workspace)}
                     option = next(o for o in message['params']['options'] if o['kind'] == ('reject_once' if deny else 'allow_once'))
                     send({'id': message['id'], 'result': {'outcome': {'outcome': 'selected', 'optionId': option['optionId']}}})
             if refuse_final_tool:
@@ -135,7 +146,7 @@ with tempfile.TemporaryDirectory(prefix='cursor-native-test-') as directory:
             assert completed, 'Native Cursor did not complete before the test deadline'
             assert approvals > 0, 'Native shell did not request current client approval'
             assert not (root / 'created.txt').exists(), 'Shell used the ACP process directory'
-            if deny:
+            if deny or preallowed:
                 assert not (workspace / 'created.txt').exists()
             else:
                 assert (workspace / 'created.txt').read_text().strip() == 'native tool result'
@@ -145,6 +156,13 @@ with tempfile.TemporaryDirectory(prefix='cursor-native-test-') as directory:
             results = [m for m in first_followup['messages'] if m['role'] == 'tool']
             assert len(results) == 1 and results[0]['tool_call_id'] == 'save-fixture'
             assert ('rejected' if deny else 'success') in results[0]['content']
+            if preallowed:
+                assert approvals == 1
+                result = json.loads(results[0]['content'])
+                if deny:
+                    assert 'success' not in result
+                else:
+                    assert 'native-probe.txt' in json.dumps(result['success'])
             assert any(u.get('status') == 'completed' and u.get('toolCallId') == 'save-fixture' for u in updates)
             assert any(u.get('sessionUpdate') == 'agent_message_chunk' and u['content'].get('text') == '工具已完成' for u in updates)
             restored = latest_request['messages']

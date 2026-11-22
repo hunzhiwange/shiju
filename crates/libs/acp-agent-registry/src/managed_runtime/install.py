@@ -11,14 +11,49 @@ import os
 import re
 
 assets, runtime, agent = Path(sys.argv[1]), Path(sys.argv[2]), sys.argv[3]
-contracts = json.loads((assets / 'contracts.json').read_text())
-contract = contracts[agent]
-
 def run(args, cwd=None):
     subprocess.run(args, cwd=cwd, check=True, stdin=subprocess.DEVNULL)
 
 def digest(path):
-    return hashlib.sha256(path.read_bytes()).hexdigest()
+    result = hashlib.sha256()
+    with path.open('rb') as stream:
+        for block in iter(lambda: stream.read(1024 * 1024), b''):
+            result.update(block)
+    return result.hexdigest()
+
+def install_linux_cli(url, archive_sha256, member_name, bin_name, executable_sha256):
+    download = assets / 'linux-download'
+    headers = ['--header', 'Accept: application/octet-stream'] if agent == 'corust-agent' else []
+    run(['/usr/bin/curl', '--disable', '--fail', '--silent', '--show-error', '--location',
+         '--proto', '=https', '--proto-redir', '=https', '--retry', '2',
+         '--max-time', '240', *headers, '--output', str(download), url])
+    if agent == 'corust-agent':
+        from install_linux import install_native
+        install_native(download, runtime)
+        return
+    runtime.mkdir(mode=0o700)
+    executable = runtime / bin_name
+    if archive_sha256:
+        if digest(download) != archive_sha256:
+            raise RuntimeError('Fixed Linux CLI archive checksum mismatch')
+        with tarfile.open(download, 'r:gz') as archive:
+            members = [entry for entry in archive if entry.name == member_name]
+            if len(members) != 1 or not members[0].isfile():
+                raise RuntimeError('Unexpected fixed Linux CLI archive layout')
+            with archive.extractfile(members[0]) as source, executable.open('xb') as output:
+                shutil.copyfileobj(source, output)
+    else:
+        download.rename(executable)
+    if digest(executable) != executable_sha256:
+        raise RuntimeError('Fixed Linux CLI executable checksum mismatch')
+    executable.chmod(0o700)
+
+if sys.argv[4:5] == ['--linux-cli']:
+    install_linux_cli(*sys.argv[5:])
+    raise SystemExit(0)
+
+contracts = json.loads((assets / 'contracts.json').read_text())
+contract = contracts[agent]
 
 def check_files(root, files):
     for name, expected in files.items():

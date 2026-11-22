@@ -201,6 +201,7 @@ pub async fn do_stream_request_acp<H: Host>(
         let messages = H::agent_defaults(&cfg, merged_options, &acp_agent_name, &cwd, &mut parsed, chat_messages).await?;
         (parsed, messages)
     };
+    validate_linux_cli_mcp(&acp_agent_name, !parsed_options.mcp_servers.is_empty())?;
     let mut restricted_auggie = false;
     let mut restricted_hermes = false;
     let mut restricted_droid = false;
@@ -1494,6 +1495,16 @@ pub async fn do_stream_request_acp<H: Host>(
         drop(prompt_guard);
         return Ok(());
     }
+}
+
+pub(super) fn validate_linux_cli_mcp(agent: &str, selected: bool) -> Result<(), Error> {
+    if selected
+        && acp_agent_registry::agent_registry::desktop_permission_agent(agent)
+            .is_some_and(acp_agent_registry::linux_native_only)
+    {
+        return Err(acp_option_error(format!("{agent}: no verified Linux session MCP launch")));
+    }
+    Ok(())
 }
 
 /// Validate the captured client model before touching a CLI process. Credentials stay

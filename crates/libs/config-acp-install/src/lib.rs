@@ -199,6 +199,15 @@ fn official_installer(
 /// Managed native distributions do not have a shell installation command.
 /// Keep their platform support explicit while using the same system install endpoint.
 pub fn acp_install_supported(agent: &str) -> bool {
+    if cfg!(target_os = "linux") {
+        match agent {
+            "corust-agent" => return cfg!(all(target_env = "gnu", target_arch = "x86_64")),
+            "stakpak" | "vtcode" | "omp" => {
+                return cfg!(all(target_env = "gnu", any(target_arch = "x86_64", target_arch = "aarch64")));
+            }
+            _ => {}
+        }
+    }
     (matches!(agent, "aionrs" | "cortex-code" | "harn" | "junie" | "vtcode" | "stakpak" | "poolside") && cfg!(all(target_os = "macos", target_arch = "aarch64")))
         || (agent == "corust-agent" && cfg!(all(target_os = "macos", target_arch = "aarch64")))
         || acp_install_command(agent).is_some()

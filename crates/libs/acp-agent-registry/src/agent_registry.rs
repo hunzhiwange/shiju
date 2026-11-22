@@ -160,6 +160,10 @@ fn resolve_installed_kiro_windows() -> Option<String> {
 }
 
 fn built_in_agent_command(definition: &BuiltInAgentDefinition) -> (String, Vec<String>) {
+    #[cfg(all(target_os = "linux", target_env = "gnu", any(target_arch = "x86_64", target_arch = "aarch64")))]
+    if let Ok(Some(command)) = crate::managed_runtime::linux_cli_command(definition.name) {
+        return command;
+    }
     if let Ok(Some(command)) = crate::managed_runtime::reviewed_agent_command(definition.name) {
         return command;
     }
@@ -726,24 +730,18 @@ pub fn built_in_agent_display_name(name: &str) -> Option<&'static str> {
 pub fn built_in_agent_specs() -> BTreeMap<String, AgentCommandSpec> {
     built_in_agent_definitions()
         .iter()
-        .map(|definition| {
-            let (command, args) = built_in_agent_command(definition);
-            let env = definition
-                .env
-                .iter()
-                .map(|(key, value)| ((*key).to_string(), (*value).to_string()))
-                .collect::<HashMap<_, _>>();
-            (
-                definition.name.to_string(),
-                AgentCommandSpec {
-                    display_name: definition.display_name.to_string(),
-                    command,
-                    args,
-                    env,
-                },
-            )
-        })
+        .map(|definition| (definition.name.to_string(), built_in_agent_spec(definition)))
         .collect()
+}
+
+fn built_in_agent_spec(definition: &BuiltInAgentDefinition) -> AgentCommandSpec {
+    let (command, args) = built_in_agent_command(definition);
+    AgentCommandSpec {
+        display_name: definition.display_name.to_string(),
+        command,
+        args,
+        env: definition.env.iter().map(|(key, value)| (key.to_string(), value.to_string())).collect(),
+    }
 }
 
 fn legacy_agent_registry() -> BTreeMap<String, String> {
@@ -833,12 +831,7 @@ pub fn resolve_agent_command(
 /// 返回 `None` 表示名称和别名均未命中内置代理；调用方可据此决定是否使用
 /// 自定义命令或提示用户。
 pub fn resolve_agent_spec(agent_name: &str) -> Option<AgentCommandSpec> {
-    let normalized = normalize_agent_name(agent_name);
-    let registry = built_in_agent_specs();
-    registry
-        .get(&normalized)
-        .cloned()
-        .or_else(|| alias_target(&normalized).and_then(|target| registry.get(target).cloned()))
+    resolve_agent_spec_with_overrides(agent_name, None)
 }
 
 /// 从内置注册表和用户覆盖项中解析代理规格。
@@ -850,11 +843,19 @@ pub fn resolve_agent_spec_with_overrides(
     overrides: Option<&HashMap<String, AgentCommandSpec>>,
 ) -> Option<AgentCommandSpec> {
     let normalized = normalize_agent_name(agent_name);
-    let registry = merge_agent_specs(overrides);
-    registry
-        .get(&normalized)
-        .cloned()
-        .or_else(|| alias_target(&normalized).and_then(|target| registry.get(target).cloned()))
+    let resolve = |key: &str| {
+        // Match merge_agent_specs: the last nonempty override of the normalized key wins.
+        let override_spec = overrides.filter(|_| !key.is_empty() && key != EMPLOYEE_ACP_BACKEND)
+            .and_then(|overrides| overrides.iter().filter_map(|(name, spec)| {
+                (normalize_agent_name(name) == key && !spec.command.trim().is_empty()).then_some(spec)
+            }).last());
+        override_spec.map(|spec| normalize_agent_spec_for_name(key, spec)).or_else(|| {
+            built_in_agent_definitions().iter()
+                .find(|definition| definition.name == key)
+                .map(built_in_agent_spec)
+        })
+    };
+    resolve(&normalized).or_else(|| alias_target(&normalized).and_then(resolve))
 }
 
 /// 列出当前可展示的代理名称。

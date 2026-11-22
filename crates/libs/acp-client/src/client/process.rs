@@ -46,6 +46,11 @@ impl AcpClient {
         unrestricted: bool,
     ) -> Result<(), AcpError> {
         let backend = crate::agent_registry::desktop_permission_agent(agent_name);
+        if !unrestricted && backend.is_some_and(acp_agent_registry::linux_native_only) {
+            return Err(AcpError::Initialize(format!(
+                "{agent_name} on Linux requires a current full access grant for native tools"
+            )));
+        }
         if !unrestricted
             && let Some(
                 backend @ ("auggie" | "droid" | "hermes" | "kilocode" | "openclaw" | "opencode"
@@ -101,6 +106,15 @@ impl AcpClient {
                 .map_err(AcpError::Initialize)?;
         }
         let args = self.launch_args()?;
+        if let Some(agent) = acp_agent_registry::agent_registry::desktop_permission_agent(&self.agent_name)
+            && acp_agent_registry::linux_native_only(agent)
+        {
+            if self.config.env.contains_key("VW_ACP_LAUNCH_REFERENCE") {
+                return Err(AcpError::Initialize(format!("{agent}: no verified managed Linux launch")));
+            }
+            acp_agent_registry::verify_fixed_linux_cli_launch(agent, self.config.command.trim(), &args)
+                .map_err(AcpError::Initialize)?;
+        }
         if self.agent_name == "sigit" && args != ["--acp"] {
             return Err(AcpError::Initialize(
                 "siGit reviewed runtime requires exactly --acp".into(),
@@ -225,7 +239,9 @@ impl AcpClient {
                 ));
             }
             let command = self.config.command.trim();
-            if env.get("VW_ACP_CLAUDE_NATIVE_MESSAGES").is_some_and(|value| value == "1") {
+            let native_messages =
+                env.get("VW_ACP_CLAUDE_NATIVE_MESSAGES").is_some_and(|value| value == "1");
+            if native_messages {
                 crate::verify_reviewed_agent_executable("claude", command)
                     .map_err(AcpError::Initialize)?;
             } else if !Path::new(command).is_absolute()
@@ -235,6 +251,18 @@ impl AcpClient {
                 return Err(AcpError::Initialize(
                     "Claude Chat conversion requires the reviewed 0.26.0 adapter".into(),
                 ));
+            }
+            #[cfg(target_os = "linux")]
+            {
+                let engine = crate::access_policy::claude::verified_linux_engine(
+                    command, &args, native_messages,
+                )
+                .ok_or_else(|| AcpError::Initialize("Claude requires a verified Linux engine".into()))?;
+                let engine = engine.to_str().ok_or_else(|| {
+                    AcpError::Initialize("Claude engine requires a Unicode path".into())
+                })?;
+                env.retain(|key, _| !key.eq_ignore_ascii_case("CLAUDE_CODE_EXECUTABLE"));
+                env.insert("CLAUDE_CODE_EXECUTABLE".into(), engine.into());
             }
         }
         if self.kilocode_sandbox.is_none() && self.hermes_sandbox.is_none() && self.opencode_sandbox.is_none() && !managed_claude && !managed_auggie && !managed_cursor && !managed_droid && !managed_private_provider {

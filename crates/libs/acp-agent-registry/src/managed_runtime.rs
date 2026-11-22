@@ -3,6 +3,41 @@ use serde::Deserialize;
 use sha2::{Digest, Sha256};
 use std::path::{Path, PathBuf};
 
+#[cfg(all(target_os = "linux", target_env = "gnu", any(target_arch = "x86_64", target_arch = "aarch64")))]
+#[path = "managed_runtime/linux_cli.rs"]
+mod linux_cli;
+#[cfg(all(target_os = "linux", target_env = "gnu", any(target_arch = "x86_64", target_arch = "aarch64")))]
+#[path = "managed_runtime/omp.rs"]
+mod omp;
+#[cfg(all(target_os = "linux", target_env = "gnu", any(target_arch = "x86_64", target_arch = "aarch64")))]
+#[path = "managed_runtime/stakpak.rs"]
+mod stakpak;
+#[cfg(all(target_os = "linux", target_env = "gnu", any(target_arch = "x86_64", target_arch = "aarch64")))]
+#[path = "managed_runtime/vtcode.rs"]
+mod vtcode;
+
+pub fn linux_native_only(agent: &str) -> bool {
+    cfg!(target_os = "linux") && matches!(agent, "corust-agent" | "omp" | "stakpak" | "vtcode")
+}
+
+#[cfg(all(target_os = "linux", target_env = "gnu", any(target_arch = "x86_64", target_arch = "aarch64")))]
+pub(super) fn linux_cli_command(agent: &str) -> Result<Option<(String, Vec<String>)>, String> {
+    if !linux_native_only(agent) {
+        return Ok(None);
+    }
+    linux_cli::discover(agent, &root(agent)?)
+}
+
+/// Recheck a fixed Linux CLI entry before spawning it from an existing configuration.
+pub fn verify_fixed_linux_cli_launch(agent: &str, command: &str, args: &[String]) -> Result<(), String> {
+    #[cfg(all(target_os = "linux", target_env = "gnu", any(target_arch = "x86_64", target_arch = "aarch64")))]
+    if linux_native_only(agent) && Path::new(command).is_absolute() {
+        return linux_cli::verify_launch(agent, &root(agent)?, Path::new(command), args);
+    }
+    let _ = (agent, command, args);
+    Ok(())
+}
+
 #[derive(Deserialize)]
 struct Contract {
     #[serde(default)]
@@ -99,6 +134,9 @@ fn original_vtcode_directory(contract: &mut Contract) -> Result<PathBuf, String>
 }
 
 pub fn verify_vtcode_mcp_executable(command: &str) -> Result<(), String> {
+    if linux_native_only("vtcode") {
+        return Err("No reviewed VT Code managed executable for Linux".into());
+    }
     let executable = Path::new(command).canonicalize().map_err(|_| "VT Code executable is unavailable")?;
     let contract = contract("vtcode").ok_or("Missing VT Code runtime contract")?;
     if verify_vtcode_patched_path(&executable, &contract) || verify_vtcode_legacy_path(&executable, &contract) {
@@ -109,6 +147,9 @@ pub fn verify_vtcode_mcp_executable(command: &str) -> Result<(), String> {
 }
 
 pub fn verify_vtcode_skill_executable(command: &str) -> Result<(), String> {
+    if linux_native_only("vtcode") {
+        return Err("No reviewed VT Code managed executable for Linux".into());
+    }
     let executable = Path::new(command).canonicalize().map_err(|_| "VT Code executable is unavailable")?;
     let contract = contract("vtcode").ok_or("Missing VT Code runtime contract")?;
     if cfg!(all(target_os = "macos", target_arch = "aarch64"))
@@ -310,6 +351,9 @@ fn use_auggie_v1_contract(contract: &mut Contract) {
 
 /// Absence is explicit: callers must not advertise patched support based on a CLI name.
 pub fn reviewed_agent_command(agent: &str) -> Result<Option<(String, Vec<String>)>, String> {
+    if linux_native_only(agent) {
+        return Ok(None);
+    }
     let Some(mut contract) = contract(agent) else { return Ok(None) };
     let mut directory = installed_directory(agent, &contract)?;
     if agent == "auggie"
@@ -454,6 +498,9 @@ pub fn verify_droid_restricted_executable(command: &str) -> Result<(), String> {
 
 /// Validate explicit overrides too; a familiar executable name is never proof of a patch.
 pub fn verify_reviewed_agent_executable(agent: &str, command: &str) -> Result<(), String> {
+    if linux_native_only(agent) {
+        return Err("No reviewed managed ACP executable for this Linux agent".into());
+    }
     if agent == "claude" {
         let command = command.trim();
         return if Path::new(command).is_absolute()
@@ -559,6 +606,26 @@ pub fn verify_reviewed_agent_executable(agent: &str, command: &str) -> Result<()
 #[cfg(not(target_arch = "wasm32"))]
 struct Stage(PathBuf);
 #[cfg(not(target_arch = "wasm32"))]
+impl Stage {
+    fn new(agent: &str, root: &Path) -> Result<Self, String> {
+        std::fs::create_dir_all(root).map_err(|_| "Cannot create ACP runtime root")?;
+        let timestamp = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map_err(|_| "Invalid installation clock")?
+            .as_nanos();
+        let path = root.join(format!(".install-{agent}-{}-{timestamp}", std::process::id()));
+        let mut builder = std::fs::DirBuilder::new();
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::DirBuilderExt;
+            builder.mode(0o700);
+        }
+        builder.create(&path).map_err(|_| "Cannot create ACP installation stage")?;
+        Ok(Self(path))
+    }
+}
+
+#[cfg(not(target_arch = "wasm32"))]
 impl Drop for Stage {
     fn drop(&mut self) {
         let _ = std::fs::remove_dir_all(&self.0);
@@ -567,6 +634,15 @@ impl Drop for Stage {
 
 #[cfg(not(target_arch = "wasm32"))]
 pub(super) async fn install(agent: &str) -> Result<bool, String> {
+    if linux_native_only(agent) {
+        #[cfg(all(target_os = "linux", target_env = "gnu", any(target_arch = "x86_64", target_arch = "aarch64")))]
+        {
+            linux_cli::install(agent).await?;
+            return Ok(true);
+        }
+        #[cfg(not(all(target_os = "linux", target_env = "gnu", any(target_arch = "x86_64", target_arch = "aarch64"))))]
+        return Err("No fixed ACP executable for this Linux target".into());
+    }
     let Some(mut contract) = contract(agent) else { return Ok(false) };
     if agent == "amp-acp" && !cfg!(all(target_os = "macos", target_arch = "aarch64")) {
         return Err("Amp reviewed local runtime is only verified on macOS arm64".into());
@@ -606,16 +682,7 @@ pub(super) async fn install(agent: &str) -> Result<bool, String> {
             _ => return Err("Packaged vtcode-acp is not a regular file".into()),
         }
     }
-    std::fs::create_dir_all(root(agent)?).map_err(|_| "Cannot create ACP runtime root")?;
-    let stage = Stage(root(agent)?.join(format!(
-            ".install-{agent}-{}-{}",
-            std::process::id(),
-            std::time::SystemTime::now()
-                .duration_since(std::time::UNIX_EPOCH)
-                .map_err(|_| "Invalid installation clock")?
-                .as_nanos()
-        )));
-    std::fs::create_dir(&stage.0).map_err(|_| "Cannot create ACP installation stage")?;
+    let stage = Stage::new(agent, &root(agent)?)?;
     let assets = stage.0.join("assets");
     for (name, text) in [
         ("autohand/apply.py", include_str!("../../../../patches/acp-model-source/autohand/apply.py")),

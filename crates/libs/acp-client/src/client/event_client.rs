@@ -463,7 +463,9 @@ impl acp::Client for AcpEventClient {
                         let cancelled = cancelling.lock().contains(&prompt.session_id);
                         owns_session && !cancelled && prompt_is_current(&active, &prompt)
                     };
-                    valid() && grant(title, input, Box::new(valid))
+                    valid() && grant(
+                        title, args.tool_call.tool_call_id.0.as_ref(), input, Box::new(valid),
+                    )
                 },
             )
         {

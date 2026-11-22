@@ -1540,7 +1540,8 @@ async fn acp_skill_coexistence_droid_mcp_uses_owned_metadata_and_once() {
         assert_eq!(arguments, serde_json::json!({}));
         Box::pin(async { true })
     }));
-    client.managed_mcp_approval = Some(Arc::new(|key, input, valid| {
+    client.managed_mcp_approval = Some(Arc::new(|key, call_id, input, valid| {
+        assert_eq!(call_id, "call");
         assert!(valid());
         key == crate::droid_mcp_identity("selected", "read_probe") && input == &serde_json::json!({})
     }));
@@ -1585,7 +1586,8 @@ async fn acp_platform_approval_replay_cannot_reach_managed_grant() {
     ));
     let grants = Arc::new(Mutex::new(Vec::new()));
     let observed = grants.clone();
-    client.managed_mcp_approval = Some(Arc::new(move |tool, args, valid| {
+    client.managed_mcp_approval = Some(Arc::new(move |tool, call_id, args, valid| {
+        assert_eq!(call_id, "call");
         assert!(valid());
         observed.lock().push((tool.to_owned(), args.clone(), valid));
         true

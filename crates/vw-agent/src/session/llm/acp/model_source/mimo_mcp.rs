@@ -49,19 +49,36 @@ struct Server {
 
 struct PendingApproval {
     tool: String,
+    call_id: String,
     arguments: Value,
     issued: Instant,
     valid: acp_client::ApprovalValidity,
 }
 
-#[derive(Default)]
-struct VtcodeApproval(Mutex<Option<PendingApproval>>);
+struct VtcodeApproval {
+    require_call_id: bool,
+    pending: Mutex<Option<PendingApproval>>,
+}
 
 impl VtcodeApproval {
-    fn issue(&self, name: &str, input: &Value, valid: acp_client::ApprovalValidity) -> bool {
-        let Ok(mut current) = self.0.lock() else { return false };
+    fn new(require_call_id: bool) -> Self {
+        Self { require_call_id, pending: Mutex::new(None) }
+    }
+
+    fn issue(
+        &self,
+        name: &str,
+        call_id: &str,
+        input: &Value,
+        valid: acp_client::ApprovalValidity,
+    ) -> bool {
+        if call_id.is_empty() {
+            return false;
+        }
+        let Ok(mut current) = self.pending.lock() else { return false };
         *current = Some(PendingApproval {
             tool: name.to_owned(),
+            call_id: call_id.to_owned(),
             arguments: input.clone(),
             issued: Instant::now(),
             valid,
@@ -69,14 +86,19 @@ impl VtcodeApproval {
         true
     }
 
-    fn consume(&self, name: &str, input: &Value) -> bool {
-        let Ok(mut current) = self.0.lock() else { return false };
-        current.take().is_some_and(|approval| {
+    fn consume(&self, name: &str, call_id: Option<&str>, input: &Value) -> bool {
+        let Ok(mut current) = self.pending.lock() else { return false };
+        let allowed = current.as_ref().is_some_and(|approval| {
             approval.tool == name
                 && &approval.arguments == input
+                && (!self.require_call_id || call_id == Some(approval.call_id.as_str()))
                 && approval.issued.elapsed() <= TIMEOUT
                 && (approval.valid)()
-        })
+        });
+        if allowed || !self.require_call_id {
+            *current = None;
+        }
+        allowed
     }
 }
 
@@ -106,8 +128,9 @@ impl Projection {
         use agent_client_protocol::{HttpHeader, McpServerHttp};
         let approvals = self.approvals.clone().ok_or_else(|| anyhow::anyhow!("Missing managed MCP approval store"))?;
         let catalog = self.tools.clone();
-        let approve: acp_client::ManagedMcpApproval = Arc::new(move |name, input, valid| {
-            input.is_object() && catalog.iter().any(|tool| tool == name) && approvals.issue(name, input, valid)
+        let approve: acp_client::ManagedMcpApproval = Arc::new(move |name, call_id, input, valid| {
+            input.is_object() && catalog.iter().any(|tool| tool == name)
+                && approvals.issue(name, call_id, input, valid)
         });
         let servers = self.servers.iter().map(|name| {
             AcpMcpServer::Http(McpServerHttp::new(name.as_str(), format!("{endpoint}{VTCODE_PREFIX}/{name}"))
@@ -153,7 +176,8 @@ pub(super) async fn prepare(
         requires_approval || launch.identity().session.ends_with(":mimo-code"),
         "Managed MCP requires a reviewed relay"
     );
-    let approvals = requires_approval.then(|| Arc::new(VtcodeApproval::default()));
+    let approvals = requires_approval
+        .then(|| Arc::new(VtcodeApproval::new(vtcode && cfg!(target_os = "linux"))));
     anyhow::ensure!(
         !definitions.is_empty() && definitions.len() <= 16,
         "invalid MiMo MCP service count"
@@ -415,9 +439,15 @@ async fn dispatch(server: &Server, approval: Option<&VtcodeApproval>, request: R
                 return Ok(Json(json!({"jsonrpc":"2.0","id":id,"error":{"code":-32602,"message":"Tool is outside the session catalog"}})).into_response());
             }
             if let Some(approval) = approval {
+                if approval.require_call_id && params.arguments.is_none() {
+                    return Err(StatusCode::FORBIDDEN);
+                }
                 let input = params.arguments.as_ref().map_or_else(|| json!({}), |args| json!(args));
+                // The bearer-scoped service and catalog select the source. The
+                // host-private call ID is consumed here and never sent to stdio.
                 let public = server.approval_names.get(params.name.as_ref()).ok_or(StatusCode::FORBIDDEN)?;
-                if !approval.consume(public, &input) {
+                let call_id = message["params"]["_meta"]["shijuCallId"].as_str();
+                if !approval.consume(public, call_id, &input) {
                     return Err(StatusCode::FORBIDDEN);
                 }
                 if let Some(root) = &server.graph_root
@@ -444,6 +474,6 @@ async fn dispatch(server: &Server, approval: Option<&VtcodeApproval>, request: R
     Ok(([(axum::http::header::CONTENT_TYPE, "application/json")], body).into_response())
 }
 
-#[cfg(all(test, target_os = "macos", target_arch = "aarch64"))]
+#[cfg(all(test, any(target_os = "linux", all(target_os = "macos", target_arch = "aarch64"))))]
 #[path = "mimo_mcp_tests.rs"]
 mod tests;

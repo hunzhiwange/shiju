@@ -6,6 +6,8 @@ import shutil
 import subprocess
 import sys
 import tarfile
+import time
+import urllib.error
 import urllib.request
 import os
 import re
@@ -615,7 +617,17 @@ if agent == 'sigit':
     if not os.environ.get('CARGO_TARGET_DIR'):
         raise RuntimeError('siGit source build requires the repository cargo_slot.py entry')
     archive = assets / 'sigit.tar.gz'
-    with urllib.request.urlopen(contract['source_url'], timeout=60) as response, archive.open('wb') as output:
+    for attempt in range(3):
+        try:
+            response = urllib.request.urlopen(contract['source_url'], timeout=60)
+            break
+        except urllib.error.HTTPError:
+            raise
+        except urllib.error.URLError as error:
+            if attempt == 2:
+                raise RuntimeError('Could not connect to the siGit source archive after 3 attempts') from error
+            time.sleep(attempt + 1)
+    with response, archive.open('wb') as output:
         shutil.copyfileobj(response, output)
     if digest(archive) != contract['source_sha256'] or digest(assets / 'sigit.patch') != contract['patch_sha256']:
         raise RuntimeError('siGit source/patch checksum mismatch')

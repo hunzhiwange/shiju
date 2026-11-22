@@ -23,8 +23,9 @@ DISABLED_SKILL = "disabled-nova-coexistence-fixture"
 
 
 def launch(env):
-    require((platform.system(), platform.machine()) == ("Darwin", "arm64"),
-            "unreviewed Nova platform")
+    target = (platform.system(), platform.machine())
+    linux = target in {("Linux", "x86_64"), ("Linux", "aarch64")}
+    require(linux or target == ("Darwin", "arm64"), "unreviewed Nova platform")
     contract = json.loads((ROOT / "crates/libs/acp-agent-registry/src/managed_runtime/"
                            "contracts.json").read_text())["nova"]
     require(contract["version"] == "1.1.65", "unexpected Nova release")
@@ -36,7 +37,14 @@ def launch(env):
     package = modules / contract["package"]
     require(json.loads((package / "package.json").read_text())["version"] == contract["version"],
             "Nova package version mismatch")
-    for path, digest in contract["files"].items():
+    files = contract["files"]
+    revision = "nova-1.1.65-model-source-v3"
+    if linux:
+        overlay = json.loads((ROOT / "patches/acp-model-source/nova/linux.json").read_text())
+        require(f"{target[1]}-unknown-linux-gnu" in overlay["targets"], "unlisted Nova target")
+        files = {**files, **overlay["files"]}
+        revision = overlay["revision"]
+    for path, digest in files.items():
         require(hashlib.sha256((package / path).read_bytes()).hexdigest() == digest,
                 "Nova managed artifact digest mismatch")
     state = Path(env["HOME"]) / ".nova"
@@ -45,7 +53,8 @@ def launch(env):
     target.touch(mode=0o600)
     target.write_bytes(Path(consent).read_bytes())
     return {"command": str(package / contract["bin"]), "args": ["acp"]}, {
-        "version": contract["version"], "platform": "darwin-arm64", "sha256": contract["files"],
+        "version": contract["version"], "platform": "-".join(target).lower(), "sha256": files,
+        "entry": contract["bin"], "revision": revision, "model_protocol": ADAPTER,
     }
 
 

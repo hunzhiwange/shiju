@@ -1,0 +1,12 @@
+{
+  "targets": [
+    "x86_64-unknown-linux-gnu",
+    "aarch64-unknown-linux-gnu"
+  ],
+  "revision": "nova-1.1.65-model-source-v4",
+  "files": {
+    "scripts/bin-wrapper.mjs": "9bed9d8f9a9947644e91678eb09150306d9bd21e9412044abc17f7e37ab28f7f",
+    "dist/cli.js": "904c873dae2a9eba307496bfa72bbbf3df84372711166a0540a1b58bbd077249",
+    "dist/shiju-session-mcp.mjs": "57890218e9a3627ce676801bf794957189e4f0c6dca281bdfda64e7cc610e1c3"
+  }
+}

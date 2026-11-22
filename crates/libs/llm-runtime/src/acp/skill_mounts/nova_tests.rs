@@ -43,7 +43,7 @@ fn acp_skill_coexistence_nova_gates_only_selected_skills() {
     config.env.insert("VW_ACP_LAUNCH_REFERENCE".into(), "fixture".into());
     assert!(configure(&config, Some(&TestView)).is_err());
     VALIDATIONS.with(|validated| {
-        assert_eq!(validated.get(), cfg!(all(target_os = "macos", target_arch = "aarch64")));
+        assert_eq!(validated.get(), supports_session_view_target());
     });
     assert!(configure(&config, None::<&TestView>).is_ok());
 }

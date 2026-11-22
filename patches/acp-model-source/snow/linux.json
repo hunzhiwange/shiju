@@ -1,0 +1,51 @@
+{
+  "original": "b3fb29de76fe1e89ab229b0954bca728589948940e2f203d0ca7ab56ea8702dd",
+  "patched": "c33e2848e9c458e119eeda8cd72156f73dc63d410a71c46e0fba24f3659abc72",
+  "ripgrep": {
+    "version": "1.18.0",
+    "x86_64": {
+      "package": "@vscode/ripgrep-linux-x64",
+      "integrity": "sha512-mQ3bVrUpnD2vs7QT0vX90Lt0cnUq467uFtEktIdsJJmW296RoSULRGqWgzG1AKxyBpNDD6l4ZO4qKf6SgyC23Q==",
+      "sha256": "193906679498de4d939345b937fa24e0e69a03c244bd70c859f5e41232713f21"
+    },
+    "aarch64": {
+      "package": "@vscode/ripgrep-linux-arm64",
+      "integrity": "sha512-lQ/5zTG++U0E3IhVgS4EPTTn/U4okncaRMM5GOFfOYZywS4nuD31GhkHbNYlDk5CuDC68+hYJ0/eQeyCKJDA+g==",
+      "sha256": "e152ea689d6e8420357e592f0d8253b96476c164118ca3e6e13074fa1705ddda"
+    }
+  },
+  "changes": [
+    {
+      "old": "if (error44 instanceof Error && (error44.message === \"Request aborted\" || error44.message === \"User cancelled\")) {\n                return {",
+      "new": "if (controller.signal.aborted || (error44 instanceof Error && (error44.message === \"Request aborted\" || error44.message === \"User cancelled\"))) {\n                return {"
+    },
+    {
+      "old": "          await update(\"in_progress\", void 0, rawInput);\n          const result = await tool.client.callTool",
+      "new": "          await update(\"in_progress\", void 0, rawInput);\n          signal.throwIfAborted();\n          const result = await tool.client.callTool"
+    },
+    {
+      "old": "          const permissionsConfig = loadPermissionsConfig(workingDirectory);\n          const approvedToolsSet = new Set(permissionsConfig.alwaysApprovedTools);\n          const isToolAutoApproved = (toolName) => approvedToolsSet.has(toolName) || toolName.startsWith(\"todo-\") || toolName.startsWith(\"subagent-\") || toolName === \"askuser-ask_question\" || toolName === \"tool_search\";\n          const addToAlwaysApproved = (toolName) => {\n            addMultipleToolsToPermissions(workingDirectory, [toolName]);\n            approvedToolsSet.add(toolName);\n          };\n",
+      "new": ""
+    },
+    {
+      "old": "            let approved = isToolAutoApproved(toolCall.function.name);\n            if (!approved) {\n              approved = await this.requestToolPermission(session.id, toolCall, conn, workingDirectory);\n            }\n            if (!approved) {\n              await this.sendToolCallUpdate(conn, session.id, toolCall, \"failed\", \"Permission denied by user\");\n              continue;\n            }\n            await this.sendToolCallUpdate(conn, session.id, toolCall, \"running\", void 0);\n            try {\n              const result2 = await executeToolCall(toolCall, controller.signal, void 0, void 0, void 0, isToolAutoApproved, false, addToAlwaysApproved, void 0, void 0, workingDirectory);\n",
+      "new": "            const allowed = await this.requestToolPermission(session.id, toolCall, conn, controller.signal);\n            if (!allowed) {\n              const content = \"Permission denied by user\";\n              session.messages.push({ role: \"tool\", content, tool_call_id: toolCall.id });\n              await this.sendToolCallUpdate(conn, session.id, toolCall, \"failed\", content);\n              continue;\n            }\n            await this.sendToolCallUpdate(conn, session.id, toolCall, \"running\", void 0);\n            controller.signal.throwIfAborted();\n            try {\n              const confirmNested = (call) => this.requestToolPermission(\n                session.id, { ...call, id: randomUUID15() }, conn, controller.signal\n              );\n              const result2 = await executeToolCall(toolCall, controller.signal, void 0, void 0, confirmNested, () => false, false, void 0, void 0, void 0, workingDirectory);\n"
+    },
+    {
+      "old": "      async requestToolPermission(sessionId, toolCall, conn, workingDirectory) {\n        if (!this.connection) {\n          return false;\n        }\n        let isSensitive = false;\n        if (toolCall.function.name === \"terminal-execute\") {\n          try {\n            const args2 = JSON.parse(toolCall.function.arguments);\n            if (args2.command && typeof args2.command === \"string\") {\n              const result2 = isSensitiveCommand(args2.command);\n              isSensitive = result2.isSensitive;\n            }\n          } catch (error44) {\n            log168.debug(\"Failed to parse terminal arguments for sensitivity check\", { toolCallId: toolCall.id, error: error44 });\n          }\n        }\n        const options3 = [\n          {\n            optionId: \"approve_once\",\n            name: \"Approve once\",\n            kind: \"allow_once\"\n          }\n        ];\n        if (!isSensitive) {\n          options3.push({\n            optionId: \"approve_always\",\n            name: \"Always approve\",\n            kind: \"allow_always\"\n          });\n        }\n        options3.push({\n          optionId: \"reject_once\",\n          name: \"Reject\",\n          kind: \"reject_once\"\n        });\n        try {\n          const hookContext = {\n            toolName: toolCall.function.name,\n            args: toolCall.function.arguments,\n            isSensitive,\n            allTools: void 0\n          };\n          const hookResult = await unifiedHooksExecutor.executeHooks(\"toolConfirmation\", hookContext);\n          const autoResult = extractHookProvidedConfirmation(hookResult);\n          if (autoResult) {\n            if (autoResult === \"approve\" || autoResult === \"approve_always\") {\n              if (autoResult === \"approve_always\") {\n                addToolToPermissions(workingDirectory, toolCall.function.name);\n              }\n              return true;\n            }\n            return false;\n          }\n        } catch (error44) {\n          log168.debug(\"Failed to execute toolConfirmation hook in ACP permission check\", { toolCallId: toolCall.id, error: error44 });\n        }\n        const toolCallUpdate = {\n          toolCallId: toolCall.id,\n          title: toolCall.function.name\n        };\n        try {\n          const response = await conn.requestPermission({\n            sessionId,\n            options: options3,\n            toolCall: toolCallUpdate\n          });\n          if (response.outcome.outcome === \"cancelled\") {\n            return false;\n          }\n          const selectedOptionId = response.outcome.optionId;\n          const approved = selectedOptionId === \"approve_once\" || selectedOptionId === \"approve_always\";\n          if (approved && selectedOptionId === \"approve_always\") {\n            addToolToPermissions(workingDirectory, toolCall.function.name);\n          }\n          return approved;\n        } catch (error44) {\n          log168.debug(\"Failed to request tool permission via ACP connection\", { toolCallId: toolCall.id, error: error44 });\n          return false;\n        }\n      }\n",
+      "new": "      async requestToolPermission(sessionId, toolCall, conn, signal) {\n        if (!this.connection) {\n          return false;\n        }\n        signal.throwIfAborted();\n        let approved = false;\n        try {\n          const rawInput = JSON.parse(toolCall.function.arguments || \"{}\");\n          if (!rawInput || typeof rawInput !== \"object\" || Array.isArray(rawInput)) {\n            return false;\n          }\n          const { outcome } = await conn.requestPermission({\n            sessionId,\n            toolCall: { toolCallId: toolCall.id, title: toolCall.function.name, rawInput },\n            options: [\n              { optionId: \"approve_once\", name: \"Approve once\", kind: \"allow_once\" },\n              { optionId: \"reject_once\", name: \"Reject\", kind: \"reject_once\" }\n            ]\n          });\n          approved = outcome.outcome === \"selected\" && outcome.optionId === \"approve_once\";\n        } catch (error44) {\n          log168.debug(\"Failed to request tool permission via ACP connection\", { toolCallId: toolCall.id, error: error44 });\n        }\n        signal.throwIfAborted();\n        if (!approved) {\n          return false;\n        }\n        const toolName = toolCall.function.name;\n        const args = toolCall.function.arguments;\n        const command = JSON.parse(args || \"{}\").command;\n        const isSensitive = toolName === \"terminal-execute\" && typeof command === \"string\"\n          && isSensitiveCommand(command).isSensitive;\n        const hookResult = await unifiedHooksExecutor.executeHooks(\n          \"toolConfirmation\", { toolName, args, isSensitive, allTools: void 0 }\n        );\n        signal.throwIfAborted();\n        const confirmation = extractHookProvidedConfirmation(hookResult);\n        return !confirmation || confirmation === \"approve\" || confirmation === \"approve_always\";\n      }\n"
+    },
+    {
+      "old": "async function executeToolCall(toolCall, abortSignal, onTokenUpdate, onSubAgentMessage, requestToolConfirmation, isToolAutoApproved, yoloMode, addToAlwaysApproved, onUserInteractionNeeded, sessionId, workingDirectory) {",
+      "new": "async function executeToolCall(toolCall, abortSignal, onTokenUpdate, onSubAgentMessage, requestToolConfirmation, isToolAutoApproved, yoloMode, addToAlwaysApproved, onUserInteractionNeeded, sessionId, workingDirectory, approveRetry) {"
+    },
+    {
+      "old": "          pendingRepairArguments = decision.argumentsJson;\n          lastRepairReasoning = decision.reasoning;",
+      "new": "          if (approveRetry && !await approveRetry({\n            ...toolCall, function: { ...toolCall.function, arguments: decision.argumentsJson }\n          })) {\n            break;\n          }\n          pendingRepairArguments = decision.argumentsJson;\n          lastRepairReasoning = decision.reasoning;"
+    },
+    {
+      "old": "await executeToolCall(toolCall, controller.signal, void 0, void 0, confirmNested, () => false, false, void 0, void 0, void 0, workingDirectory);",
+      "new": "await executeToolCall(toolCall, controller.signal, void 0, void 0, confirmNested, () => false, false, void 0, void 0, void 0, workingDirectory, confirmNested);"
+    }
+  ]
+}

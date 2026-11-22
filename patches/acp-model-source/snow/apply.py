@@ -4,16 +4,25 @@ import json
 from pathlib import Path
 import sys
 
-spec = json.loads(Path(__file__).with_name("patch.json").read_text())
+def apply(data, name):
+    spec = json.loads(Path(__file__).with_name(name).read_text())
+    if hashlib.sha256(data).hexdigest() != spec["original"]:
+        raise RuntimeError(f"Snow patch input checksum mismatch: {name}")
+    text = data.decode()
+    for change in spec["changes"]:
+        if text.count(change["old"]) != 1:
+            raise RuntimeError(f"Snow patch anchor mismatch: {name}")
+        text = text.replace(change["old"], change["new"])
+    data = text.encode()
+    if hashlib.sha256(data).hexdigest() != spec["patched"]:
+        raise RuntimeError(f"Snow patched checksum mismatch: {name}")
+    return data
+
+
+if len(sys.argv) < 2 or sys.argv[2:] not in ([], ["--linux"]):
+    raise SystemExit("usage: apply.py package-directory [--linux]")
 path = Path(sys.argv[1]) / "bundle/cli.mjs"
-data = path.read_bytes()
-if hashlib.sha256(data).hexdigest() != spec["original"]:
-    raise RuntimeError("Snow upstream checksum mismatch")
-text = data.decode()
-for change in spec["changes"]:
-    if text.count(change["old"]) != 1:
-        raise RuntimeError("Snow patch anchor mismatch")
-    text = text.replace(change["old"], change["new"])
-if hashlib.sha256(text.encode()).hexdigest() != spec["patched"]:
-    raise RuntimeError("Snow patched checksum mismatch")
-path.write_text(text)
+data = apply(path.read_bytes(), "patch.json")
+if sys.argv[2:] == ["--linux"]:
+    data = apply(data, "linux.json")
+path.write_bytes(data)

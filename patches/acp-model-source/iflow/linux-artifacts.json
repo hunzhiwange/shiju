@@ -1,0 +1,26 @@
+{
+  "package": "@iflow-ai/iflow-cli",
+  "version": "0.5.19",
+  "archive": "https://registry.npmjs.org/@iflow-ai/iflow-cli/-/iflow-cli-0.5.19.tgz",
+  "integrity": "sha512-cOQNLXJAjqcKq6XQpx47EUV8ocY5sdLXiy7MfJm+b1miRlMJmrQvueT75w1h9UqzrlFPio2VluTxbLRBoR/QBA==",
+  "lock_sha256": "62d1bb6d5ac873132ea6ec67162eb40c07dec4380c24d7cbb7c3f82336158014",
+  "bin": "bundle/entry.js",
+  "patched_files": {
+    "bundle/entry.js": "55710b7cfea2e5aefebfe0acec4eaf3e647d34538ee5835a3d724a49853d1fa6",
+    "bundle/iflow.js": "e8590e0e5923809928c2c831272fe4d05f917a13e95dfd862fb1c52c4634cd57"
+  },
+  "targets": {
+    "x86_64": {
+      "ripgrep": "vendors/ripgrep/x64-linux/rg",
+      "ripgrep_sha256": "f401154e2393f9002ac77e419f9ee5521c18f4f8cd3e32293972f493ba06fce7",
+      "pty_package": "@lydell/node-pty-linux-x64",
+      "pty_sha256": "ff8c140f142c13030d84193e5ba2ac556d320cf29d8efecc391174bfb8861cb0"
+    },
+    "aarch64": {
+      "ripgrep": "vendors/ripgrep/arm64-linux/rg",
+      "ripgrep_sha256": "717b20bd9176b6b81ecc9930d342cac9dfa3a129f194ea3923ac5a7fedad7ddf",
+      "pty_package": "@lydell/node-pty-linux-arm64",
+      "pty_sha256": "c192e560428e778842fdbbe72f14032824b03373ed49ad3efcdbcf9eb249b75b"
+    }
+  }
+}

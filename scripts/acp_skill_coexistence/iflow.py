@@ -22,6 +22,8 @@ MCP_TOOL = "read_probe"
 
 
 def launch(env):
+    if platform.system() == "Linux":
+        return launch_linux(env)
     require((platform.system(), platform.machine()) == ("Darwin", "arm64"),
             "unreviewed iFlow platform")
     contract = json.loads((ROOT / "crates/libs/acp-agent-registry/src/managed_runtime/contracts.json")
@@ -48,6 +50,52 @@ def launch(env):
             "iFlow entry did not report the pinned version")
     return {"command": str(command), "args": ["--experimental-acp"]}, {
         "version": contract["version"], "revision": revision, "sha256": contract["files"],
+    }
+
+
+def launch_linux(env):
+    manifest = json.loads((ROOT / "patches/acp-model-source/iflow/linux-artifacts.json").read_text())
+    target = manifest["targets"].get(platform.machine())
+    require(target is not None, "unreviewed iFlow Linux architecture")
+    source = os.environ.get("IFLOW_COEXISTENCE_RUNTIME")
+    require(source, "set IFLOW_COEXISTENCE_RUNTIME to the reviewed Linux installation")
+
+    revision = f"iflow-{manifest['version']}-model-source-v2"
+    runtime = Path(env["VIBEWINDOW_CONFIG_DIR"]) / "acp-runtime" / revision
+    shutil.copytree(Path(source).resolve(strict=True), runtime, symlinks=True)
+    modules = runtime / "node_modules"
+    package = modules / manifest["package"]
+    entry = package / manifest["bin"]
+    command = modules / ".bin/iflow"
+
+    def digest(path):
+        require(path.resolve(strict=True) == path, "redirected iFlow artifact")
+        return hashlib.sha256(path.read_bytes()).hexdigest()
+
+    lock_path = runtime / "package-lock.json"
+    require(digest(lock_path) == manifest["lock_sha256"], "unreviewed iFlow dependency lock")
+    lock = json.loads(lock_path.read_text())["packages"]
+    integrity = lock["node_modules/" + manifest["package"]]["integrity"]
+    require(integrity == manifest["integrity"], "iFlow npm archive integrity mismatch")
+    observed = {name: digest(package / name) for name in manifest["patched_files"]}
+    require(observed == manifest["patched_files"], "iFlow managed bundle mismatch")
+
+    ripgrep = package / target["ripgrep"]
+    require(os.access(ripgrep, os.X_OK), "iFlow bundled ripgrep is not executable")
+    ripgrep_digest = digest(ripgrep)
+    pty_digest = digest(modules / target["pty_package"] / "pty.node")
+    require(ripgrep_digest == target["ripgrep_sha256"] and pty_digest == target["pty_sha256"],
+            "iFlow Linux native dependency mismatch")
+    require(command.resolve(strict=True) == entry, "unexpected iFlow entrypoint")
+    version = subprocess.run([str(command), "--version"], cwd=runtime, env=env,
+                             capture_output=True, timeout=15, check=False)
+    require(version.returncode == 0 and version.stdout.strip().decode() == manifest["version"],
+            "iFlow entry did not report the pinned version")
+    args = ["--experimental-acp"]
+    return {"command": str(command), "args": args}, {
+        "version": version.stdout.strip().decode(), "revision": revision,
+        "entry": manifest["bin"], "args": args, "sha256": observed, "integrity": integrity,
+        "ripgrep_sha256": ripgrep_digest, "pty_sha256": pty_digest,
     }
 
 

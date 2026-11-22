@@ -14,11 +14,16 @@ import { promisify } from 'node:util';
 const exec = promisify(execFile);
 const installer = new URL('../../../crates/libs/acp-agent-registry/src/managed_runtime/', import.meta.url);
 const patch = new URL('./glm-acp-agent-1.17.1-skills.patch', import.meta.url);
-const linuxPatch = new URL('./glm-acp-agent-1.17.1-linux-session-model.patch', import.meta.url);
+const linuxPatch = new URL('./glm-acp-agent-1.17.1-linux-host-mcp.patch', import.meta.url);
+const linuxContract = new URL('./linux-host-mcp.json', import.meta.url);
 const managedLinux = process.platform === 'linux' && ['x64', 'arm64'].includes(process.arch);
 const packageName = 'glm-acp-agent';
 const tools = ['fixture_lookup', 'fixture_error', 'fixture_denied', 'fixture_other'];
 const toolSchema = { type: 'object', properties: {} };
+const projectionToken = 'fixture-projection-token';
+const exposed = name => managedLinux && name.startsWith('fixture_')
+    ? `mcp__${name === 'fixture_sibling' ? 'b' : 'a'}__${name}`
+    : name;
 
 async function install(directory) {
     const assets = join(directory, 'assets');
@@ -26,15 +31,14 @@ async function install(directory) {
     await mkdir(assets);
     await copyFile(new URL('contracts.json', installer), join(assets, 'contracts.json'));
     await copyFile(patch, join(assets, 'glm-acp-agent.patch'));
-    // The production installer checks the npm integrity and both sets of file hashes.
-    await exec('python3', [fileURLToPath(new URL('install.py', installer)), assets, runtime, packageName],
-        { timeout: 80_000 });
-    const modules = join(runtime, 'node_modules');
     if (managedLinux) {
-        await exec('patch', ['--batch', '-p1', '-i', fileURLToPath(linuxPatch)],
-            { cwd: join(modules, packageName) });
+        await copyFile(linuxContract, join(assets, 'glm-linux-contract.json'));
+        await copyFile(linuxPatch, join(assets, 'glm-linux-session-model.patch'));
     }
-    return modules;
+    // The production installer checks the npm integrity and both sets of file hashes.
+    await exec('python3', [fileURLToPath(new URL('install.py', installer)), assets, runtime, packageName,
+        ...(managedLinux ? ['', '--glm-linux-v4'] : [])], { timeout: 80_000 });
+    return join(runtime, 'node_modules');
 }
 
 function sendModelTurn(response, calls, id) {
@@ -76,6 +80,7 @@ test('GLM managed entrypoint keeps official tools alongside scoped MCP catalogs'
     const mcpCalls = [];
     const modelRequests = [];
     const serverErrors = [];
+    const grants = new Map();
     let turn;
     server = createServer(async (request, response) => {
         try {
@@ -87,7 +92,10 @@ test('GLM managed entrypoint keeps official tools alongside scoped MCP catalogs'
                 sendModelTurn(response, modelRequests.length === 1 ? turn.calls : null, turn.id);
                 return;
             }
-            assert.match(request.url, /^\/mcp\/[ab]$/);
+            assert.match(request.url, managedLinux ? /^\/shiju-vtcode-mcp\/[ab]$/ : /^\/mcp\/[ab]$/);
+            if (managedLinux)
+                assert.equal(request.headers.authorization, `Bearer ${projectionToken}`);
+            const service = request.url.at(-1);
             let result;
             switch (body.method) {
                 case 'initialize':
@@ -98,11 +106,18 @@ test('GLM managed entrypoint keeps official tools alongside scoped MCP catalogs'
                     response.writeHead(202).end();
                     return;
                 case 'tools/list':
-                    result = { tools: (request.url === '/mcp/a' ? tools : ['fixture_sibling'])
+                    result = { tools: (service === 'a' ? tools : ['fixture_sibling'])
                         .map(name => ({ name, description: name, inputSchema: toolSchema })) };
                     break;
                 case 'tools/call': {
                     const { name } = body.params;
+                    if (managedLinux) {
+                        const id = body.params._meta?.shijuCallId;
+                        assert.deepEqual(grants.get(id), {
+                            title: `mcp__${service}__${name}`, input: body.params.arguments,
+                        });
+                        grants.delete(id);
+                    }
                     mcpCalls.push(name);
                     result = { isError: name === 'fixture_error', content: [{ type: 'text', text: `MCP result: ${name}` }] };
                     break;
@@ -156,8 +171,11 @@ test('GLM managed entrypoint keeps official tools alongside scoped MCP catalogs'
         async sessionUpdate({ update }) { updates.push(update); },
         async requestPermission({ toolCall, options }) {
             approvals.push(toolCall.toolCallId);
-            const approved = managedLinux &&
-                (toolCall.title.startsWith('fixture_') || toolCall.rawInput?.command === envCheck);
+            const mcp = managedLinux && toolCall.title.startsWith('mcp__');
+            const approved = (mcp && turn.id !== 'approval-denied') ||
+                (managedLinux && toolCall.rawInput?.command === envCheck);
+            if (mcp && approved)
+                grants.set(toolCall.toolCallId, { title: toolCall.title, input: toolCall.rawInput });
             const kind = approved ? 'allow_once' : 'reject_once';
             return { outcome: { outcome: 'selected', optionId: options.find(option => option.kind === kind).optionId } };
         },
@@ -165,7 +183,8 @@ test('GLM managed entrypoint keeps official tools alongside scoped MCP catalogs'
 
     await client.initialize({ protocolVersion: 1, clientCapabilities: {} });
     const mount = (name, policy) => ({
-        type: 'http', name, url: `${endpoint}/mcp/${name}`, headers: [],
+        type: 'http', name, url: `${endpoint}${managedLinux ? '/shiju-vtcode-mcp' : '/mcp'}/${name}`,
+        headers: managedLinux ? [{ name: 'Authorization', value: `Bearer ${projectionToken}` }] : [],
         ...(policy && { _meta: { 'shiju.glm.toolPolicy': policy } }),
     });
     const unrestricted = mount('a');
@@ -180,8 +199,9 @@ test('GLM managed entrypoint keeps official tools alongside scoped MCP catalogs'
     let officialTools;
 
     async function checkTurn(sessionId, id, catalog, calls, expectedMcpCalls, expectedResults, rejectedWrite) {
-        turn = { id, calls };
+        turn = { id, calls: calls.map(([name, args]) => [exposed(name), args]) };
         modelRequests.length = mcpCalls.length = updates.length = approvals.length = 0;
+        grants.clear();
         const result = await client.prompt({ sessionId, prompt: [{ type: 'text', text: id }] });
         assert.deepEqual(serverErrors, []);
         assert.equal(result.stopReason, 'end_turn');
@@ -192,10 +212,11 @@ test('GLM managed entrypoint keeps official tools alongside scoped MCP catalogs'
                 assert.ok(!names.includes(name), `${id}: vendor MCP escaped the managed boundary`);
             }
         }
-        const nativeNames = names.filter(name => !name.startsWith('fixture_')).sort();
+        const prefix = managedLinux ? 'mcp__' : 'fixture_';
+        const nativeNames = names.filter(name => !name.startsWith(prefix)).sort();
         officialTools ??= nativeNames;
         assert.deepEqual(nativeNames, officialTools, `${id}: official catalog differs from the unmounted session`);
-        assert.deepEqual(names.filter(name => name.startsWith('fixture_')).sort(), [...catalog].sort());
+        assert.deepEqual(names.filter(name => name.startsWith(prefix)).sort(), catalog.map(exposed).sort());
         assert.equal(modelRequests.length, 2);
         assert.deepEqual([...mcpCalls].sort(), [...expectedMcpCalls].sort());
         const lastUser = modelRequests[1].messages.findLastIndex(message => message.role === 'user');
@@ -208,15 +229,17 @@ test('GLM managed entrypoint keeps official tools alongside scoped MCP catalogs'
             assert.equal(updates.findLast(update => update.toolCallId === toolCallId)?.status, status, toolCallId);
         }
         const expectedApprovals = calls.flatMap(([name], index) => (
-            (managedLinux && (expectedMcpCalls.includes(name) || name === 'run_command')) ||
+            (managedLinux && (expectedMcpCalls.includes(name) || name === 'run_command' ||
+                (id === 'approval-denied' && name === 'fixture_lookup'))) ||
             (rejectedWrite && name === 'write_file')
         ) ? [`call_${id}_${index}`] : []);
         assert.deepEqual([...approvals].sort(), expectedApprovals.sort());
+        assert.equal(grants.size, 0);
     }
 
     const nativeResult = [/native read result/, 'completed'];
     const lookupResult = [/MCP result: fixture_lookup/, 'completed'];
-    const deniedResult = [/unknown tool "fixture_denied"/, 'failed'];
+    const deniedResult = [new RegExp(`unknown tool "${exposed('fixture_denied')}"`), 'failed'];
     await checkTurn(await newSession([]), 'unmounted', [], [read], [], [nativeResult]);
 
     const source = await newSession([unrestricted]);
@@ -229,7 +252,7 @@ test('GLM managed entrypoint keeps official tools alongside scoped MCP catalogs'
         ['write_file', { path: 'rejected.txt', content: 'fixture' }],
     ], ['fixture_lookup', 'fixture_error'], [
         nativeResult, lookupResult, [/MCP result: fixture_error/, 'failed'], deniedResult,
-        [/unknown tool "fixture_other"/, 'failed'], [/reject|denied/i, 'failed'],
+        [new RegExp(`unknown tool "${exposed('fixture_other')}"`), 'failed'], [/reject|denied/i, 'failed'],
     ], true);
     await assert.rejects(readFile(join(cwd, 'rejected.txt')), { code: 'ENOENT' });
 
@@ -245,9 +268,14 @@ test('GLM managed entrypoint keeps official tools alongside scoped MCP catalogs'
 
     await client.loadSession({ sessionId: source, cwd, mcpServers: [] });
     await checkTurn(source, 'revoked', [], [read, ['fixture_lookup', {}]], [],
-        [nativeResult, [/unknown tool "fixture_lookup"/, 'failed']]);
+        [nativeResult, [new RegExp(`unknown tool "${exposed('fixture_lookup')}"`), 'failed']]);
 
     if (managedLinux) {
+        await assert.rejects(newSession([{ name: 'raw', command: process.execPath, args: ['--version'], env: [] }]));
+        await assert.rejects(newSession([{ ...unrestricted, url: `${endpoint}/mcp/a` }]));
+        await assert.rejects(newSession([{ ...unrestricted, headers: [{ name: 'Authorization', value: 'Bearer fixture-token' }] }]));
+        await checkTurn(mounted, 'approval-denied', ['fixture_lookup', 'fixture_error', 'fixture_sibling'],
+            [['fixture_lookup', {}]], [], [[/rejected by user/, 'failed']]);
         await checkTurn(source, 'isolated', [], [
             ['web_search', { query: 'fixture' }],
             ['run_command', { command: envCheck }],

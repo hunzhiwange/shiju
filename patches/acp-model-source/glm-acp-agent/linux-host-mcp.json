@@ -1,0 +1,8 @@
+{
+  "patch_sha256": "67bc52205d32168262bf6fca37e314493117b1779037f2c742c8a611a90a3555",
+  "files": {
+    "dist/protocol/agent.js": "643c2f13a66fc18df8ff8e7aabcab5aa5052370fa863111a992dff07f6a9a561",
+    "dist/tools/executor.js": "3a18c2c636df0cf8275a5aad82aab9a793df744440e6cd07d9b140a2491d4ed5",
+    "dist/tools/session-mcp-client.js": "eba7623a685fe41e66ce75c73de168e56ece7736348a11b06096e9b6540f3382"
+  }
+}

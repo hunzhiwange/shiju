@@ -2,6 +2,19 @@ use super::AcpLaunchProfile;
 #[cfg(any(unix, windows))]
 use std::collections::HashMap;
 
+/// Match the managed GLM HTTP catalog and the host approval title.
+pub fn projected_mcp_tool_name(server: &str, tool: &str) -> anyhow::Result<String> {
+    let valid = |name: &str| {
+        name.bytes().any(|byte| byte.is_ascii_alphanumeric())
+            && name.bytes().all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'_' | b'-'))
+    };
+    anyhow::ensure!(
+        server.len().saturating_add(tool.len()) <= 57 && valid(server) && valid(tool),
+        "invalid managed GLM MCP tool identity"
+    );
+    Ok(format!("mcp__{server}__{tool}"))
+}
+
 /// GLM Agent's explicit environment overrides are read without changing CLI defaults.
 #[cfg(any(unix, windows))]
 pub fn configure(profile: &mut AcpLaunchProfile, endpoint: &str) -> anyhow::Result<()> {

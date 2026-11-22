@@ -68,3 +68,12 @@
 | `dist/tools/session-mcp-client.js` | `e6f448f8e275791edf1b5e2ccacd8ccfe394be56ca3cb9c75de79888530e8ef6` |
 
 静态证据基于 npm 原版、现行 v3 合约和生产 Python 精确补丁函数。两次应用及修改后 JavaScript 的语法检查均通过。上一提交 `db91472de` 提供独占技能候选入口和网关测试源码，本次提交提供 Linux 受管叠加层、供应商测试及接线证据。
+
+### 宿主投影与本机子集
+
+- 两种 GNU 目标已接入 v4 私有选模。本次保留 v4 文件与门控，新增从已审 v3 直接应用的累计叠加层 `glm-acp-agent-1.17.1-linux-host-mcp.patch` 和 `linux-host-mcp.json`。任务 48 将其接到独立安装目录 `glm-acp-agent-1.17.1-model-source-v5`，沿用安装素材名 `glm-linux-contract.json`、`glm-linux-session-model.patch` 与内部参数 `--glm-linux-v4`（参数选叠加格式，目录标识制品修订）。Linux 会话 MCP 须校验 v5 入口。Apple Silicon 和普通 `cli_local` 沿用现有路径。
+- v5 受管分支在任何 MCP 初始化前只接受与模型中继同源的 `http://127.0.0.1:<port>/shiju-vtcode-mcp/<service>`，需要独立的投影 bearer，拒绝原始 HTTP、SSE、stdio、重定向和模型 bearer。工具名调用 `drivers::glm_acp_agent::projected_mcp_tool_name(service, source_tool)`，得到最长 64 字符的 ASCII 名称 `mcp__<service>__<source_tool>`，构建目录时拒绝碰撞。ACP 审批携带同一模型调用 ID、工具名与对象参数，批准后通过 HTTP `tools/call.params._meta.shijuCallId` 交回宿主消费。新建、加载和分叉复用该检查。
+- 任务 48 宿主接线。通过 `prepare_stdio_mcp_launch` 走请求所有的投影入口，在 `model_source/mod.rs` 注册同级 GLM 专有 `glm_mcp`，将投影结果装入 `AcpLaunchProfile::managed_mcp`。在 `mimo_mcp::prepare` 对两种 GNU 目标复用 `Projection::approval_config`、`dispatch` 与 `VtcodeApproval::new(true)`，绑定当前提示轮、真实服务、工具名、参数和 call ID，单次消费。按原始服务的 `shiju.glm.toolPolicy` 筛选目录，显式拒绝优先。缺省名单只表示没有项目工具筛选，仍须有宿主显式选择和逐次准入。无审批、非交互 allow、停用工具和 DenyAll 均拒绝。撤权时撤销 relay binding，缓存继续按照当前选择和权限确定复用。共享 `validate_linux_session_mcp` 和 ACP client `validate_mcp_contract` 仅对通过平台与 v5 校验的投影分支开放，ACP client 还须校验已有 `managed_mcp_approval`。技能沿用 `supports_session_view_target()` 和独占 `configure`，保留技能视图失效检查与现有对外门控。
+- `glm_mcp::open_selected_peer` 只接宿主已选定义。HTTP 复用宿主无交互且同源的连接入口，禁止重定向和 HTTP 重试，接收 relay 取消令牌。stdio 由宿主通过 `open_isolated_stdio_peer` 启动绝对路径 `/usr/bin/bwrap`，只读挂载运行所需系统目录，隔离 PID、网络和临时目录。仅接受 `/usr/bin` 下的绝对系统程序，清空环境，不挂载宿主的 HOME、项目或临时目录。无 bwrap、namespace 失败、非系统入口、环境覆盖或其他传输均失败。仅覆盖自包含 stdio 服务，依赖项目文件或插件私有入口的服务仍拒绝。
+- 网关夹具验证 v5 摘要、实际 HTTP fixture 独立认证、真实资源审计和同 ID 续轮，批准执行一次，拒绝与撤除为零。供应商直连夹具检查原始传输被拒、模型 bearer 无效、投影收到匹配的单次授权、拒绝无派发及同一会话恢复后的撤权。两个架构的 stdio 仍须在支持 bwrap 的容器做宿主启动、拒绝及取消审计。
+- 静态应用原始 npm → v3 → v5 补丁，用生产精确补丁函数逐次核对 SRI、文件和补丁摘要。JavaScript 语法、Python AST、Rust 格式及 Git 空白检查通过。未运行安装器、测试、Docker 或 Cargo。本机子集待任务 48 共享接线和双架构回归，供应商视觉 MCP 单独阻塞于固定可审制品和隔离授权。

@@ -5,7 +5,14 @@ fn acp_skill_coexistence_glm_acp_agent_empty_view() {
     assert_eq!(super::selection(std::path::Path::new("."), None::<&MountedSkills>).unwrap(), "[]");
 }
 
-#[cfg(all(target_os = "macos", target_arch = "aarch64"))]
+#[cfg(any(
+    all(target_os = "macos", target_arch = "aarch64"),
+    all(
+        target_os = "linux",
+        target_env = "gnu",
+        any(target_arch = "x86_64", target_arch = "aarch64")
+    )
+))]
 #[test]
 fn acp_skill_coexistence_glm_acp_agent_validated_workspace_view() {
     use std::fs;
@@ -37,7 +44,7 @@ fn acp_skill_coexistence_glm_acp_agent_validated_workspace_view() {
     };
 
     let view = mount(&selected);
-    assert!(super::super::validate("glm-acp-agent", true).is_ok());
+    assert!(super::supports_session_view_target());
     let config: serde_json::Value =
         serde_json::from_str(&super::selection(&workspace, Some(&view)).unwrap()).unwrap();
     assert_eq!(

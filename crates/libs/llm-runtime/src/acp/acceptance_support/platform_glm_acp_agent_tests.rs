@@ -27,7 +27,7 @@ fn acp_platform_glm_acp_agent_contract() {
     };
     assert_eq!(evidence["platform"], machine);
     assert_eq!(evidence["artifact"]["version"], "1.17.1");
-    assert_eq!(evidence["artifact"]["revision"], "glm-acp-agent-1.17.1-model-source-v4");
+    assert_eq!(evidence["artifact"]["revision"], "glm-acp-agent-1.17.1-model-source-v5");
     assert_eq!(evidence["artifact"]["entry"], "dist/index.js");
     assert_eq!(evidence["artifact"]["model_endpoint"], "/v1/chat/completions");
     assert_eq!(
@@ -37,7 +37,7 @@ fn acp_platform_glm_acp_agent_contract() {
 
     let overlay: Value = serde_json::from_str(include_str!(concat!(
         env!("CARGO_MANIFEST_DIR"),
-        "/../../../patches/acp-model-source/glm-acp-agent/linux-session-model.json"
+        "/../../../patches/acp-model-source/glm-acp-agent/linux-host-mcp.json"
     )))
     .unwrap();
     for (file, digest) in overlay["files"].as_object().unwrap() {

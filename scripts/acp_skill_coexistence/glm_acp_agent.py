@@ -1,4 +1,5 @@
 """Probe GLM 1.17.1's model and ACP slash-command discovery paths."""
+from contextlib import contextmanager
 import hashlib
 import json
 from pathlib import Path
@@ -20,9 +21,35 @@ MODEL_OUTPUT_LIMIT = 32_768
 ADAPTER = "openai"
 API_PATH = "/v1"
 MODEL_ENDPOINT = API_PATH + "/chat/completions"
-TRANSPORT = "stdio"
+TRANSPORT = "http" if platform.system() == "Linux" else "stdio"
 NATIVE_DIR = ".claude/skills"
 CATALOG = "Available skills. Use the native read_file tool on a listed path to load instructions when needed.\n"
+
+
+@contextmanager
+def mcp_server(_workspace, attachment, audit):
+    from acp_mount_integration import McpHandler
+    from verify_acp_skill_coexistence import mcp_server as stdio_fixture, model_server
+
+    if TRANSPORT == "stdio":
+        with stdio_fixture("stdio", attachment, audit) as server:
+            yield server
+        return
+
+    class HttpFixture(McpHandler):
+        def do_POST(self):
+            if self.path != "/mcp" or self.headers.get("Authorization") != "Bearer " + self.server.key:
+                self.reply(401)
+                return
+            super().do_POST()
+
+    key = secrets.token_hex(24)
+    with model_server(HttpFixture, key) as server:
+        server.attachment = attachment
+        server.audit = audit
+        yield {"name": "coexistence", "type": "http",
+               "url": f"http://127.0.0.1:{server.server_port}/mcp",
+               "headers": [{"name": "Authorization", "value": "Bearer " + key}]}
 
 
 def launch(env):
@@ -44,13 +71,13 @@ def launch(env):
     args = []
     revision = f"{AGENT}-{VERSION}-model-source-v3"
     if platform.system() == "Linux":
-        overlay = sources / "linux-session-model.json"
+        overlay = sources / "linux-host-mcp.json"
         hashes.update(json.loads(overlay.read_text())["files"])
         shutil.copyfile(overlay, assets / "glm-linux-contract.json")
-        shutil.copyfile(sources / f"{AGENT}-{VERSION}-linux-session-model.patch",
+        shutil.copyfile(sources / f"{AGENT}-{VERSION}-linux-host-mcp.patch",
                         assets / "glm-linux-session-model.patch")
         args = ["", "--glm-linux-v4"]
-        revision = f"{AGENT}-{VERSION}-model-source-v4"
+        revision = f"{AGENT}-{VERSION}-model-source-v5"
     runtime = config / "acp-runtime" / revision
     runtime.parent.mkdir(mode=0o700)
     installed = subprocess.run([sys.executable, str(installer / "install.py"),
@@ -74,6 +101,8 @@ class Probe:
         self.mounted = mounted
         self.rejected = rejected
         self.slash = slash
+        self.mcp_tool = ("mcp__coexistence__read_probe"
+                         if not slash and platform.system() == "Linux" else "read_probe")
         self.requests = 0
         self.pending = None
         self.completed = {}
@@ -113,7 +142,7 @@ class Probe:
                     require(path == (skills[kind]["path"] / "SKILL.md").resolve(),
                             f"unexpected GLM {kind} skill path")
                     self.paths[kind] = path
-                require(("read_probe" in tools) == self.mounted, "unexpected GLM stdio MCP directory")
+                require((self.mcp_tool in tools) == self.mounted, "unexpected GLM session MCP directory")
                 return self.read(tools, "native")
             source = native["path"] / "SKILL.md"
             require(any(row["role"] == "user" and native["body"] in row["content"]
@@ -146,7 +175,7 @@ class Probe:
             return self.read(tools, "selected")
         if self.mounted and step in ("native_read", "selected_read"):
             # The direct policy control intentionally tries the excluded tool.
-            return self.call(tools, "mcp", "read_probe", {})
+            return self.call(tools, "mcp", self.mcp_tool, {})
         return {"content": "GLM skill coexistence fixture finished"}, "stop"
 
     def read(self, tools, step):
@@ -167,7 +196,7 @@ class Probe:
 
     def approves(self, metadata):
         return (self.pending is not None and self.pending[0] == "mcp"
-                and metadata.get("title") == "read_probe" and metadata.get("arguments") == {})
+                and metadata.get("title") == self.mcp_tool and metadata.get("arguments") == {})
 
 
 class Handler(ProviderHandler):
@@ -192,7 +221,7 @@ class Handler(ProviderHandler):
 
 def direct_control():
     """Observe the provider's client-only menu and the managed stdio dispatch."""
-    from verify_acp_skill_coexistence import make_skill, mcp_server, model_server
+    from verify_acp_skill_coexistence import make_skill, model_server
 
     with tempfile.TemporaryDirectory(prefix="shiju-glm-slash-") as directory:
         root = Path(directory).resolve()
@@ -205,7 +234,7 @@ def direct_control():
         fixtures = {"skills": {"native": native}, "mcp": attachment.read_text()}
         audit = root / "audit.txt"
         key = secrets.token_hex(24)
-        with model_server(Handler, key) as model, mcp_server(TRANSPORT, attachment, audit) as mcp:
+        with model_server(Handler, key) as model, mcp_server(workspace, attachment, audit) as mcp:
             env.update(ACP_GLM_MODEL=MODEL, ACP_GLM_AVAILABLE_MODELS=MODEL,
                        ACP_GLM_BASE_URL=f"http://127.0.0.1:{model.server_port}{API_PATH}",
                        Z_AI_API_KEY=key, XDG_CONFIG_HOME=env["VIBEWINDOW_CONFIG_DIR"],

@@ -1,0 +1,157 @@
+--- a/dist/protocol/agent.js
++++ b/dist/protocol/agent.js
+@@ -9,3 +9,3 @@
+ import { TOOL_DEFINITIONS } from "../tools/definitions.js";
+-import { connectSessionMcpServers } from "../tools/session-mcp-client.js";
++import { connectSessionMcpServers, isManagedLinuxSessionModel, isVendorMcpTool } from "../tools/session-mcp-client.js";
+ import { SessionStore } from "./session-store.js";
+@@ -175,2 +175,4 @@
+     get visionClient() {
++        if (isManagedLinuxSessionModel())
++            return null;
+         if (this.visionClientExplicit)
+@@ -665,3 +667,5 @@
+                     params.prompt.map(block => block.type === "text" ? block.text : "").join("\n").trim() === "/usage";
+-                const text = standalone
++                const text = isManagedLinuxSessionModel()
++                    ? "Z.AI quota is unavailable for a ShiJu session model."
++                    : standalone
+                     ? formatQuotaUsage(await waitForAbort(this.quotaClient.getUsage(), abortController.signal, "Quota lookup cancelled"))
+@@ -2148,3 +2152,4 @@
+         return [
+-            ...TOOL_DEFINITIONS.filter((tool) => allowed.has(tool.function.name)),
++            ...TOOL_DEFINITIONS.filter((tool) => allowed.has(tool.function.name) &&
++                !(isManagedLinuxSessionModel() && isVendorMcpTool(tool.function.name))),
+             ...(mcpTools?.toolDefinitions ?? []),
+--- a/dist/tools/executor.js
++++ b/dist/tools/executor.js
+@@ -10,2 +10,3 @@
+ import { validateToolArguments } from "./argument-validation.js";
++import { childEnvironment, isManagedLinuxSessionModel, isVendorMcpTool } from "./session-mcp-client.js";
+ /**
+@@ -231,2 +232,8 @@
+         const args = validation.value;
++        if (isManagedLinuxSessionModel() && isVendorMcpTool(toolName)) {
++            const message = "Vendor MCP is unavailable for a ShiJu session model.";
++            // Use the normal failed card without retaining the rejected arguments.
++            await this.failedToolCall(toolCallId, toolName, {}, message);
++            return { content: message, outcome: "completed" };
++        }
+         const result = await (async () => {
+@@ -1151,3 +1158,3 @@
+             throw new ToolCallCancelledBeforeExecutionError();
+-        if (process.env.SHIJU_GLM_SKILL_VIEW !== undefined) {
++        if (isManagedLinuxSessionModel() || process.env.SHIJU_GLM_SKILL_VIEW !== undefined) {
+             const decision = await this.maybeRequestPermission({
+@@ -1159,3 +1166,3 @@
+         try {
+-            const mcpResult = await this.sessionMcpTools.callTool(toolName, args, this.signal);
++            const mcpResult = await this.sessionMcpTools.callTool(toolName, args, this.signal, toolCallId);
+             const text = unwrapToolText(mcpResult);
+@@ -1196,3 +1203,3 @@
+         // bypass_permissions: allow everything without prompting
+-        if (!args.requireApproval && mode === "bypass_permissions") {
++        if (!isManagedLinuxSessionModel() && !args.requireApproval && mode === "bypass_permissions") {
+             return { type: "allow" };
+@@ -1200,3 +1207,3 @@
+         // accept_edits: allow writes without prompting, still prompt for commands
+-        if (mode === "accept_edits" && args.kind === "write") {
++        if (!isManagedLinuxSessionModel() && mode === "accept_edits" && args.kind === "write") {
+             return { type: "allow" };
+@@ -1485,2 +1492,3 @@
+             cwd,
++            env: childEnvironment(),
+             // Run the shell in its own process group so that background processes
+--- a/dist/tools/session-mcp-client.js
++++ b/dist/tools/session-mcp-client.js
+@@ -42,3 +42,3 @@
+     }
+-    async callTool(exposedName, args, signal) {
++    async callTool(exposedName, args, signal, callId) {
+         const binding = this.bindings.get(exposedName);
+@@ -46,3 +46,3 @@
+             throw new Error(`Unknown MCP tool: ${exposedName}`);
+-        return binding.client.callTool(binding.sourceName, args, signal);
++        return binding.client.callTool(binding.sourceName, args, signal, callId);
+     }
+@@ -99,2 +99,4 @@
+ export async function connectSessionMcpServers(servers, signal) {
++    if (isManagedLinuxSessionModel() && !servers.every(isHostProjection))
++        throw new Error("Managed GLM requires host-projected HTTP MCP services");
+     const policies = servers.map(toolPolicy);
+@@ -143,3 +145,5 @@
+                     continue;
+-                const exposedName = chooseToolName(tool.name, server.name, usedNames);
++                const exposedName = isManagedLinuxSessionModel()
++                    ? projectedToolName(server.name, tool.name, usedNames)
++                    : chooseToolName(tool.name, server.name, usedNames);
+                 usedNames.add(exposedName);
+@@ -167,2 +171,22 @@
+ }
++function validProjectionComponent(name) {
++    return typeof name === "string" && /^[A-Za-z0-9_-]{1,64}$/.test(name) && /[A-Za-z0-9]/.test(name);
++}
++function isHostProjection(server) {
++    if (server.type !== "http" || !validProjectionComponent(server.name) || server.headers?.length !== 1)
++        return false;
++    const [header] = server.headers;
++    if (header.name.toLowerCase() !== "authorization" ||
++        !/^Bearer [^\s]+$/.test(header.value) || header.value === `Bearer ${process.env.Z_AI_API_KEY}`)
++        return false;
++    const relay = new URL(process.env.ACP_GLM_BASE_URL);
++    return relay.protocol === "http:" && relay.hostname === "127.0.0.1" &&
++        server.url === `${relay.origin}/shiju-vtcode-mcp/${server.name}`;
++}
++function projectedToolName(server, name, used) {
++    const identity = `mcp__${server}__${name}`;
++    if (!validProjectionComponent(name) || identity.length > 64 || used.has(identity))
++        throw new Error("Invalid or duplicate managed GLM MCP tool identity");
++    return identity;
++}
+ function createClient(server) {
+@@ -203,5 +227,11 @@
+     }
+-    async callTool(name, args, signal) {
++    async callTool(name, args, signal, callId) {
+         await this.awaitInitialization(signal);
+-        return this.request("tools/call", { name, arguments: args }, "tools/call", signal, name);
++        const params = { name, arguments: args };
++        if (isManagedLinuxSessionModel()) {
++            if (typeof callId !== "string" || callId.length === 0)
++                throw new Error("Missing managed GLM MCP approval call ID");
++            params._meta = { shijuCallId: callId };
++        }
++        return this.request("tools/call", params, "tools/call", signal, name);
+     }
+@@ -227,2 +257,3 @@
+                 method: "DELETE",
++                ...(isManagedLinuxSessionModel() && { redirect: "error" }),
+                 headers: this.headers("DELETE", undefined, sessionId),
+@@ -373,3 +404,5 @@
+             // Keep cancellation and disposal ownership until body consumption ends.
+-            return await fetchMcpHttp(this.server.url, init, consume, controller.signal, this.options);
++            return await fetchMcpHttp(this.server.url,
++                isManagedLinuxSessionModel() ? { ...init, redirect: "error" } : init,
++                consume, controller.signal, this.options);
+         }
+@@ -851,4 +884,19 @@
+ }
++export function isManagedLinuxSessionModel() {
++    return process.platform === "linux" && process.env.VW_ACP_LAUNCH_REFERENCE !== undefined;
++}
++export function isVendorMcpTool(name) {
++    return name === "web_search" || name === "web_reader" || name === "image_analysis";
++}
++export function childEnvironment() {
++    const env = { ...process.env };
++    if (isManagedLinuxSessionModel()) {
++        // The parent key authenticates only to the ShiJu relay.
++        delete env.Z_AI_API_KEY;
++        delete env.VW_ACP_LAUNCH_REFERENCE;
++    }
++    return env;
++}
+ function buildStdioEnv(server) {
+-    const env = { ...process.env };
++    const env = childEnvironment();
+     for (const entry of server.env) {

@@ -5,6 +5,15 @@ use std::path::{Path, PathBuf};
 
 const ENDPOINT: &str = "http://127.0.0.1:12345";
 
+#[test]
+fn acp_platform_glm_projected_tool_identity() {
+    assert_eq!(projected_mcp_tool_name("a-b", "read_file").unwrap(), "mcp__a-b__read_file");
+    assert!(projected_mcp_tool_name("a/b", "read_file").is_err());
+    assert!(projected_mcp_tool_name("a", "---").is_err());
+    assert_eq!(projected_mcp_tool_name("a", &"b".repeat(56)).unwrap().len(), 64);
+    assert!(projected_mcp_tool_name("a", &"b".repeat(57)).is_err());
+}
+
 fn state_root() -> tempfile::TempDir {
     let mut builder = tempfile::Builder::new();
     builder.prefix("shiju-glm-state-test-");

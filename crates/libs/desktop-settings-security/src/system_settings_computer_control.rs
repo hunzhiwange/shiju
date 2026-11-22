@@ -301,21 +301,21 @@ fn management_page(state: &ComputerControlSettingsState, feature: ControlSetting
             };
             permissions = permissions.push(text(hint).size(13));
         }
-        if cfg!(target_os = "macos") && state.target_is_local && service_state == Some(NativeServiceState::Available) {
-            permissions = permissions.push(row![
-                action("申请辅助功能权限", Event::OpenSystemPermission { screen_recording: false }, !state.busy()),
-                action("申请屏幕录制权限", Event::OpenSystemPermission { screen_recording: true }, !state.busy()),
-            ].spacing(10).wrap());
+        if cfg!(target_os = "macos") && state.target_is_local
+            && matches!(service_state, Some(NativeServiceState::Available | NativeServiceState::Disconnected))
+        {
+            permissions = permissions
+                .push(text("打开对应的系统设置，将授权窗口里的应用图标拖放到列表中，开启开关后返回刷新。")
+                    .size(13))
+                .push(row![
+                    action("打开辅助功能", Event::OpenNativePermissionGuide { screen_recording: false }, !state.busy()),
+                    action("打开屏幕录制", Event::OpenNativePermissionGuide { screen_recording: true }, !state.busy()),
+                ].spacing(10).wrap());
         }
         if let Some(report) = &state.native_permission_report {
-            permissions = permissions.push(text(format!("申请进程：{}", report.executable)).size(13));
             permissions = permissions.push(text(format!("辅助功能：{}；屏幕录制：{}",
                 if report.accessibility { "已授权" } else { "未授权" },
                 if report.screen_recording { "已授权" } else { "未授权" })).size(13));
-            if !report.screen_recording {
-                permissions = permissions.push(text("屏幕录制尚未生效；若已在系统中启用，则待重启执行应用后刷新确认。").size(13));
-            }
-            permissions = permissions.push(text("请在系统授权列表中启用上述进程对应的应用。授权后刷新；屏幕录制仍未生效时，按系统提示退出并重新启动该应用。开发程序重新构建后可能需要重新授权。").size(13));
         }
         content = content.push(settings_group_card(container(permissions).padding([16, 0])));
     }

@@ -14,6 +14,8 @@
 "/Applications/ShiJu.app/Contents/MacOS/shi-ju" --install-computer-use
 ```
 
+安装后，执行应用保存在 `~/.shiju-harness/Helpers/ShiJu Computer Use.app`，以独立应用身份启动。在「任意应用」中分别打开辅助功能和屏幕录制，将授权窗口里的 ShiJu Computer Use 图标拖入对应列表并开启。返回 ShiJu 刷新状态。
+
 1. 在实际运行网关/控制宿主的 Mac 上安装资源。在 ShiJu 的设置→电脑操控点击“刷新状态”，确认当前网关身份。远程网关报告的是远端主机状态，不能用本地系统权限替代。
 2. 原生应用控制：在 macOS 系统设置中为实际宿主授予辅助功能与屏幕录制权限，涉及应用自动化时按系统提示决定授权。ShiJu 的应用授权与系统权限分别管理，开关不会自动取得 TCC 权限。
 3. Chrome：在宿主创建的隔离 profile 中加载安装目录的 `plugin/chrome`。当前资源要求 Chrome 106+，Native Messaging 仅接受扩展 ID `ogfgcnpdhnmkpcbaclbglefaclanipmg`。仓库没有稳定扩展签名 key，任意 unpacked 安装不保证取得该 ID；不匹配时应取得维护者提供的匹配扩展，不能放宽 allowed_origins。每个文档需点击扩展临时授权，站点策略仍独立检查。

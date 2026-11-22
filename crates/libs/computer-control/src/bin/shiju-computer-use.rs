@@ -1,4 +1,4 @@
-//! App-bundle executable. The gateway must pass a connected Unix socket as fd 3.
+//! App-bundle executable. Production macOS launches authenticate a Unix socket.
 //! Credentials and policy never pass through argv, environment, or persistent files.
 #[cfg(unix)]
 fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -18,39 +18,44 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     };
     use tokio_util::sync::CancellationToken;
     use vw_api_computer_control::{ComputerControlAction, ControlErrorCode};
-    if let Some(mode) = std::env::args().nth(1) {
-        let permissions = match mode.as_str() {
-            "--permissions" => computer_control::native::native_permissions(),
-            "--request-accessibility" => computer_control::native::request_native_permission(
-                computer_control::native::NativePermission::Accessibility,
-            ),
-            "--request-screen-recording" => computer_control::native::request_native_permission(
-                computer_control::native::NativePermission::ScreenRecording,
-            ),
-            _ => return Err("unknown control App mode".into()),
-        }
-        .map_err(|_| "native permissions unavailable")?;
-        println!(
-            "{}",
-            serde_json::to_string(&vw_api_computer_control::NativePermissionReport {
-                executable: std::env::current_exe()?.display().to_string(),
-                accessibility: permissions.accessibility,
-                screen_recording: permissions.screen_recording,
-            })?
-        );
+    let mut args = std::env::args_os().skip(1);
+    let mode = args.next();
+    let rendezvous = args.next();
+    if rendezvous.is_none() && let Some(mode) = &mode {
+        let report = permission_report(mode.to_str().unwrap_or_default())?;
+        println!("{}", serde_json::to_string(&report)?);
         return Ok(());
     }
     let runtime = tokio::runtime::Builder::new_current_thread().enable_all().build()?;
     runtime.block_on(async {
-        if unsafe { libc::fcntl(3, libc::F_GETFD) } == -1 {
-            return Err(std::io::Error::last_os_error().into());
-        }
-        // SAFETY: fd 3 is open under the launch contract; this process takes sole ownership.
-        let channel = unsafe { std::os::unix::net::UnixStream::from_raw_fd(3) };
-        channel.set_nonblocking(true)?;
-        let mut channel = tokio::net::UnixStream::from_std(channel)?;
+        let mut channel = if let Some(rendezvous) = rendezvous {
+            #[cfg(not(target_os = "macos"))]
+            { let _ = rendezvous; return Err("application launch requires macOS".into()); }
+            #[cfg(target_os = "macos")]
+            {
+                tokio::time::timeout(Duration::from_secs(5), computer_control::service::macos::connect_to_launcher(
+                    std::path::Path::new(&rendezvous),
+                )).await??
+            }
+        } else {
+            if unsafe { libc::fcntl(3, libc::F_GETFD) } == -1 {
+                return Err(std::io::Error::last_os_error().into());
+            }
+            // SAFETY: The direct launch contract passes an owned Unix socket in fd 3.
+            let channel = unsafe { std::os::unix::net::UnixStream::from_raw_fd(3) };
+            channel.set_nonblocking(true)?;
+            tokio::net::UnixStream::from_std(channel)?
+        };
         if channel.peer_cred()?.uid() != unsafe { libc::geteuid() } {
             return Err(std::io::Error::new(std::io::ErrorKind::PermissionDenied, "launcher uid mismatch").into());
+        }
+        if let Some(mode) = mode.as_deref().and_then(std::ffi::OsStr::to_str)
+            && mode != "--serve"
+        {
+            tokio::time::timeout(Duration::from_secs(5), read_frame::<_, ()>(&mut channel)).await??;
+            let report = permission_report(mode)?;
+            write_frame(&mut channel, &report).await?;
+            return Ok(());
         }
         let bootstrap: ServiceBootstrap = tokio::time::timeout(Duration::from_secs(5), read_frame(&mut channel)).await??;
         let policy = Arc::new(RwLock::new(ComputerControlPolicy::new(bootstrap.config)));
@@ -110,6 +115,22 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             }
         }
         Ok(())
+    })
+}
+
+#[cfg(unix)]
+fn permission_report(mode: &str) -> Result<vw_api_computer_control::NativePermissionReport, Box<dyn std::error::Error>> {
+    use computer_control::native::{NativePermission, native_permissions, request_native_permission};
+    let permissions = match mode {
+        "--permissions" => native_permissions(),
+        "--request-accessibility" => request_native_permission(NativePermission::Accessibility),
+        "--request-screen-recording" => request_native_permission(NativePermission::ScreenRecording),
+        _ => return Err("unknown control app mode".into()),
+    }.map_err(|_| "native permissions unavailable")?;
+    Ok(vw_api_computer_control::NativePermissionReport {
+        executable: std::env::current_exe()?.display().to_string(),
+        accessibility: permissions.accessibility,
+        screen_recording: permissions.screen_recording,
     })
 }
 #[cfg(not(unix))]

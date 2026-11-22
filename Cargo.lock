@@ -7074,6 +7074,7 @@ dependencies = [
  "gateway-mcp",
  "iced",
  "iced_runtime",
+ "libc",
  "serde",
  "serde_json",
  "tempfile",

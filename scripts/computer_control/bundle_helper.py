@@ -28,7 +28,7 @@ def executable(app):
     return binary
 
 
-def stage(binary, icon, destination, version):
+def stage(binary, icon, destination, version, gateway_cdhash=None):
     binary, icon, destination = Path(binary), Path(icon), Path(destination)
     if not binary.is_file() or binary.is_symlink() or not binary.stat().st_mode & 0o111:
         raise ValueError("native control executable required")
@@ -44,6 +44,10 @@ def stage(binary, icon, destination, version):
         "CFBundleIconFile": "ShiJu.icns", "LSUIElement": True,
         "NSHighResolutionCapable": True,
     }
+    if gateway_cdhash is not None:
+        if len(gateway_cdhash) != 40 or any(c not in "0123456789abcdef" for c in gateway_cdhash):
+            raise ValueError("invalid signed gateway code hash")
+        info["ShiJuGatewayCDHash"] = gateway_cdhash
     files = {"Contents/Info.plist": plistlib.dumps(info),
              f"Contents/MacOS/{EXECUTABLE}": binary.read_bytes(),
              "Contents/Resources/ShiJu.icns": icon.read_bytes()}
@@ -78,8 +82,9 @@ def main():
     parser.add_argument('--icon', type=Path, required=True)
     parser.add_argument('--destination', type=Path, required=True)
     parser.add_argument('--version', required=True)
+    parser.add_argument('--gateway-cdhash', required=True)
     args = parser.parse_args()
-    stage(args.binary, args.icon, args.destination, args.version)
+    stage(args.binary, args.icon, args.destination, args.version, args.gateway_cdhash)
 
 
 if __name__ == '__main__':

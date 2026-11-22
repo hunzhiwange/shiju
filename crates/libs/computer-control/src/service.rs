@@ -1,12 +1,10 @@
 //! Private Unix listener for an already-authorized ControlHost. Ticket issuance
 //! belongs to the trusted launcher, never to a client of this socket.
 //!
-//! Launch contract: create a UnixStream pair, inherit only the child endpoint as
-//! fd 3 in shiju-computer-use, send a length-framed ServiceBootstrap, then receive
-//! ServiceReady on that endpoint. Keep it open for the entire grant lease; close
-//! it on policy edits/revocation or gateway shutdown. The service exits after at
-//! most 300 seconds. Never expose this bootstrap channel as a listener or forward
-//! model-provided config. A same-UID connection to control.sock still needs Hello.
+//! macOS starts the signed app through Launch Services. Both ends authenticate
+//! the peer before exchanging ServiceBootstrap or permission reports. Keep the
+//! channel open for the grant lease and close it on revocation or shutdown.
+//! A same-UID connection to control.sock still needs Hello.
 //! The binary dispatches native observation and input with session-scoped media.
 use crate::host::ControlHost;
 use std::{
@@ -19,6 +17,10 @@ use std::{
 use tokio::net::UnixListener;
 use tokio_util::sync::CancellationToken;
 use vw_api_computer_control::{ComputerControlRequest, ControlErrorCode, ControlOutput};
+
+#[cfg(target_os = "macos")]
+#[path = "service_macos.rs"]
+pub mod macos;
 
 /// Owns a fresh directory: existing paths (including stale sockets and symlinks)
 /// are deliberately not reused or deleted. Drop removes only this instance's files.
@@ -127,7 +129,7 @@ pub struct ServiceImageChunk {
     pub data: String,
     pub done: bool,
 }
-/// Locate the bundled helper, including the link installed by desktop bootstrap.
+/// Locate the independently installed controller. The enclosing ShiJu bundle is only the source.
 pub fn executable() -> io::Result<PathBuf> {
     let current = std::env::current_exe()?;
     let contents = current
@@ -141,5 +143,10 @@ pub fn executable() -> io::Result<PathBuf> {
             "bundled computer control App unavailable",
         ));
     }
-    helper.canonicalize()
+    let helper = helper.canonicalize()?;
+    #[cfg(target_os = "macos")]
+    if helper.ancestors().skip(4).any(|path| path.extension().is_some_and(|ext| ext == "app")) {
+        return Err(io::Error::new(io::ErrorKind::NotFound, "computer use app needs independent installation"));
+    }
+    Ok(helper)
 }

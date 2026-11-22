@@ -6,28 +6,23 @@ use super::*;
 
 #[cfg(target_os = "macos")]
 #[test]
-fn bundled_computer_use_link_follows_a_moved_app() {
+fn bundled_computer_use_is_discovered_after_moving_the_app() {
     let temp = tempfile::tempdir().unwrap();
     let old_contents = temp.path().join("ShiJu.app/Contents");
     let new_contents = temp.path().join("Moved ShiJu.app/Contents");
     let app = Path::new("Helpers/ShiJu Computer Use.app");
     let binary = app.join("Contents/MacOS/shiju-computer-use");
-    let config_dir = temp.path().join("runtime");
-    let installed_app = config_dir.join(app);
     let source = old_contents.join(&binary);
     fs::create_dir_all(source.parent().unwrap()).unwrap();
     fs::write(&source, "helper").unwrap();
 
     let old_app = installed_package_helper(&old_contents.join("MacOS/shiju")).unwrap();
-    link_bundled_computer_use(&old_app, &config_dir).unwrap();
-    link_bundled_computer_use(&old_app, &config_dir).unwrap();
-    assert_eq!(fs::read_link(&installed_app).unwrap(), old_contents.join(app));
+    assert_eq!(old_app, old_contents.join(app));
 
     fs::rename(old_contents.parent().unwrap(), new_contents.parent().unwrap()).unwrap();
     let new_app = installed_package_helper(&new_contents.join("MacOS/shiju")).unwrap();
-    link_bundled_computer_use(&new_app, &config_dir).unwrap();
-    assert_eq!(fs::read_link(installed_app).unwrap(), new_contents.join(app));
-    assert!(config_dir.join(binary).is_file());
+    assert_eq!(new_app, new_contents.join(app));
+    assert!(installed_package_helper(&old_contents.join("MacOS/shiju")).is_none());
 }
 
 #[cfg(unix)]

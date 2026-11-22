@@ -217,10 +217,14 @@ fn validate_service_identity(expected: &std::path::Path, report: &NativePermissi
 }
 
 async fn service_permissions(executable: &Path, mode: &'static str) -> Result<NativePermissionReport, Failure> {
+    #[cfg(not(target_os = "macos"))]
+    { let _ = (executable, mode); Err(StatusCode::SERVICE_UNAVAILABLE) }
+    #[cfg(target_os = "macos")]
     tokio::time::timeout(std::time::Duration::from_secs(30), async move {
-        let output = tokio::process::Command::new(executable).arg(mode).kill_on_drop(true).output().await.map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?;
-        if !output.status.success() { return Err(StatusCode::UNPROCESSABLE_ENTITY); }
-        let report = serde_json::from_slice(&output.stdout).map_err(|_| StatusCode::BAD_GATEWAY)?;
+        use computer_control::host::{read_frame, write_frame};
+        let mut channel = computer_control::service::macos::launch(executable, mode).await.map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?;
+        write_frame(&mut channel, &()).await.map_err(|_| StatusCode::BAD_GATEWAY)?;
+        let report = read_frame(&mut channel).await.map_err(|_| StatusCode::BAD_GATEWAY)?;
         validate_service_identity(executable, &report)?;
         Ok(report)
     }).await.map_err(|_| StatusCode::GATEWAY_TIMEOUT)?

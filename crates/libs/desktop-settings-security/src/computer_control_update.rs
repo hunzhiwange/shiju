@@ -16,6 +16,7 @@ pub enum Event {
     BrowserSave,
     CopyNativeInstallPath,
     CopyNativeInstallCommand,
+    OpenNativePermissionGuide { screen_recording: bool },
     OpenSystemPermission { screen_recording: bool },
     NativePermissionRequested { identity: ControlIdentity, generation: u64, result: Result<NativePermissionReport, String> },
     NativeServiceLoaded { identity: ControlIdentity, generation: u64, result: Result<NativeServiceReport, String> },
@@ -136,6 +137,7 @@ fn update_inner(state: &mut ComputerControlSettingsState, endpoint: &GatewayEndp
             Task::perform(async move { client?.save_browser_permissions(&snapshot).await.map_err(safe_error)?; Ok(None) }, move |result| Event::Completed { identity: identity.clone(), generation, result })
         }
         Event::ManageClose => { state.management = None; Task::none() }
+        Event::OpenNativePermissionGuide { .. } => Task::none(),
         event @ (Event::CopyNativeInstallPath | Event::CopyNativeInstallCommand) => {
             let Some(install) = state.native_install.as_ref().filter(|_| endpoint.is_loopback()) else {
                 return Task::none();

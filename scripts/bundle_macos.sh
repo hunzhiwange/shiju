@@ -426,9 +426,13 @@ fi
 # Stage our controller as a separate app with its own stable TCC identity.
 CONTROL_APP="$APP_BUNDLE/Contents/Helpers/ShiJu Computer Use.app"
 CONTROL_VERSION="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$APP_BUNDLE/Contents/Info.plist")"
-python3 "$(dirname "$0")/computer_control/bundle_helper.py" \
-  --binary "$TARGET_DIR/shiju-computer-use" --icon "$MACOS_ICON_SOURCE" \
-  --destination "$CONTROL_APP" --version "$CONTROL_VERSION"
+stage_computer_use_app() {
+  local gateway_cdhash
+  gateway_cdhash="$(/usr/bin/codesign -dv --verbose=4 "$DEST_DIR/$CLI_BIN_NAME" 2>&1 | sed -n 's/^CDHash=//p')"
+  python3 "$(dirname "$0")/computer_control/bundle_helper.py" \
+    --binary "$TARGET_DIR/shiju-computer-use" --icon "$MACOS_ICON_SOURCE" \
+    --destination "$CONTROL_APP" --version "$CONTROL_VERSION" --gateway-cdhash "$gateway_cdhash"
+}
 
 # Public bridge resources are staged independently from native code.
 COMPUTER_CONTROL_RESOURCES="$APP_BUNDLE/Contents/Resources/computer-control"
@@ -468,9 +472,12 @@ if [ "$MACOS_SIGN_MODE" = "developer-id" ]; then
     fi
   done
 
-  codesign_with_identity --force --timestamp --options runtime \
-    "$CONTROL_APP/Contents/MacOS/shiju-computer-use"
-  codesign_with_identity --force --timestamp --options runtime "$CONTROL_APP"
+  if [ "$INCLUDE_CLI_IN_APP" = "1" ]; then
+    stage_computer_use_app
+    codesign_with_identity --force --timestamp --options runtime \
+      "$CONTROL_APP/Contents/MacOS/shiju-computer-use"
+    codesign_with_identity --force --timestamp --options runtime "$CONTROL_APP"
+  fi
 
   echo "Signing app bundle with Developer ID..."
   codesign_with_identity \
@@ -491,15 +498,20 @@ else
       codesign --force --sign - "$binary_path"
     fi
   done
-  codesign --force --sign - "$CONTROL_APP/Contents/MacOS/shiju-computer-use"
-  codesign --force --sign - "$CONTROL_APP"
+  if [ "$INCLUDE_CLI_IN_APP" = "1" ]; then
+    stage_computer_use_app
+    codesign --force --sign - "$CONTROL_APP/Contents/MacOS/shiju-computer-use"
+    codesign --force --sign - "$CONTROL_APP"
+  fi
   codesign --force --sign - \
     --entitlements "$(dirname "$0")/macos_voice_entitlements.plist" \
     "$APP_BUNDLE"
 fi
 
 echo "Verifying code signature..."
-codesign --verify --deep --strict --verbose=2 "$CONTROL_APP"
+if [ "$INCLUDE_CLI_IN_APP" = "1" ]; then
+  codesign --verify --deep --strict --verbose=2 "$CONTROL_APP"
+fi
 codesign --verify --deep --strict --verbose=2 "$APP_BUNDLE"
 
 echo "Done! App bundle is ready at: $APP_BUNDLE"

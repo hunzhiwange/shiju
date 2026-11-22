@@ -55,7 +55,17 @@ async fn gateway_stream_retry_sleep(duration: std::time::Duration) {
 /// 使用宿主提供的配置入口创建会话事件流。
 /// 返回值表达处理结果；失败通过错误值、日志或任务消息显式传递。
 pub fn agent_stream(req: &AgentRequest, config: desktop_config::ConfigAccess, endpoint: gateway_endpoint::GatewayEndpoint) -> AgentBoxStream<StreamMessage> {
-    gateway_agent_stream(req.clone(), config, endpoint)
+    gateway_agent_stream(req.clone(), config, endpoint, None)
+}
+
+pub fn employee_agent_stream(
+    req: &AgentRequest,
+    config: desktop_config::ConfigAccess,
+    endpoint: gateway_endpoint::GatewayEndpoint,
+    credential: gateway_shiju_account::ShijuCredential,
+    target: Option<crate::session::agent::EmployeeTarget>,
+) -> AgentBoxStream<StreamMessage> {
+    gateway_agent_stream(req.clone(), config, endpoint, Some((credential, target)))
 }
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -395,7 +405,12 @@ fn chat_tool_message(request_id: u64, payload: &serde_json::Value) -> Option<Str
         .map(|event| StreamMessage::AgentToolLifecycle(request_id, event))
 }
 
-fn gateway_agent_stream(req: AgentRequest, config: desktop_config::ConfigAccess, endpoint: gateway_endpoint::GatewayEndpoint) -> AgentBoxStream<StreamMessage> {
+fn gateway_agent_stream(
+    req: AgentRequest,
+    config: desktop_config::ConfigAccess,
+    endpoint: gateway_endpoint::GatewayEndpoint,
+    employee: Option<(gateway_shiju_account::ShijuCredential, Option<crate::session::agent::EmployeeTarget>)>,
+) -> AgentBoxStream<StreamMessage> {
     use iced::futures::SinkExt;
     use iced::futures::StreamExt;
     use serde_json::{Value, json};
@@ -414,7 +429,7 @@ fn gateway_agent_stream(req: AgentRequest, config: desktop_config::ConfigAccess,
                 .unwrap_or_else(|_| config_ui::default_timezone());
 
             let mut messages = Vec::new();
-            for message in &req.history {
+            for message in req.history.iter().filter(|_| employee.is_none()) {
                 messages.push(json!({
                     "role": match message.role {
                         models::ChatRole::User => "user",
@@ -434,7 +449,20 @@ fn gateway_agent_stream(req: AgentRequest, config: desktop_config::ConfigAccess,
                 "messages": messages,
                 "model": req.model,
             });
-            let options = gateway_request_options(&req, &rpc_id, &client_time_zone);
+            let mut options = gateway_request_options(&req, &rpc_id, &client_time_zone);
+            let mut headers = reqwest::header::HeaderMap::new();
+            if let Some((credential, target)) = &employee {
+                let Ok(mut value) = reqwest::header::HeaderValue::from_str(credential.expose()) else {
+                    let _ = output.send(StreamMessage::AgentStreamError(req.id, "识矩登录凭据无效".into())).await;
+                    return;
+                };
+                value.set_sensitive(true);
+                headers.insert(gateway_shiju_account::SHIJU_CREDENTIAL_HEADER, value);
+                if let Some(target) = target {
+                    let options = options.get_or_insert_with(|| json!({}));
+                    options["employee_target"] = json!(target);
+                }
+            }
             // 仅工作流开启才进入 task_plan_run；目标模式由网关固定开启。
             let workflow_mode_active =
                 task_plan_run_active(req.workflow_mode_enabled, req.resume_history_only);
@@ -497,7 +525,7 @@ fn gateway_agent_stream(req: AgentRequest, config: desktop_config::ConfigAccess,
                 has_root = req.root.is_some(),
                 history_len = req.history.len(),
                 query_len = req.query.len(),
-                options = ?options,
+                has_options = options.is_some(),
                 "starting gateway agent stream"
             );
 
@@ -736,11 +764,12 @@ fn gateway_agent_stream(req: AgentRequest, config: desktop_config::ConfigAccess,
                     )
                     .await
                 } else {
-                    gateway_chat_stream::stream_chat_resumable(
+                    gateway_chat_stream::stream_chat_resumable_with_headers(
                         &endpoint,
                         req.root.as_deref(),
                         &chat_body,
                         &resume,
+                        headers.clone(),
                         |stream_event| {
                             let event_id = stream_event.id;
                             let event = stream_event.event;
@@ -776,6 +805,12 @@ fn gateway_agent_stream(req: AgentRequest, config: desktop_config::ConfigAccess,
                                     Some(StreamMessage::AgentStreamDelta(
                                         req.id, delta,
                                     ))
+                                }
+                                gateway_chat_stream::GatewayChatStreamEvent::Done {
+                                    ref finish_reason,
+                                    ..
+                                } if employee.is_some() && finish_reason.as_deref() == Some("cancelled") => {
+                                    Some(StreamMessage::AgentStreamCancelled(req.id))
                                 }
                                 gateway_chat_stream::GatewayChatStreamEvent::Done {
                                     usage,

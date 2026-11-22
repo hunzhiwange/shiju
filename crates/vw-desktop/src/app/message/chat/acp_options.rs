@@ -26,6 +26,9 @@ pub(super) fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
             let session_id = app.session_state.active_session_id.clone().unwrap_or_else(|| "__empty__".into());
             let directory = super::stream::session_directory_for_save(app, &session_id);
             let runtime = app.get_session_runtime_mut(&session_id);
+            if runtime.is_employee_chat() {
+                return Task::none();
+            }
             let Some((agent, request_id, draft_options)) =
                 runtime.begin_acp_source_refresh(&session_id)
             else {
@@ -128,7 +131,8 @@ pub(super) fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
             };
             let directory = super::stream::session_directory_for_save(app, &session_id);
             let runtime = app.get_session_runtime_mut(&session_id);
-            if runtime.acp_agent.is_none()
+            if runtime.is_employee_chat()
+                || runtime.acp_agent.is_none()
                 || runtime.request_lifecycle.is_requesting
                 || runtime.acp_options_state.pending
                 || runtime.acp_options_state.source_pending.is_some()

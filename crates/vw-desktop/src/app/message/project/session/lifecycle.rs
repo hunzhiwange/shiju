@@ -461,6 +461,20 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
             };
 
             if let Some(binding) = prepared.agent_binding.as_ref() {
+                #[cfg(not(target_arch = "wasm32"))]
+                if binding.agent == desktop_session::session::agent::EMPLOYEE_CHAT_PROFILE
+                    && crate::app::digital_employees::chat::credential(app, &crate::app::config::gateway_client_endpoint()).is_none()
+                {
+                    app.session_state.active_session_id = None;
+                    app.session_state.session_chat_cache.remove(&target_session_id);
+                    app.session_state.session_chat_message_id_cache.remove(&target_session_id);
+                    app.chat_view.chat.clear();
+                    app.chat_view.chat_message_ids.clear();
+                    app.chat_view.active_session_view_state.ui_preparing = false;
+                    app.chat_view.active_session_view_state.base_ready = false;
+                    app.invalidate_chat_ui_state();
+                    return Some(app.show_error_toast("请登录与本机网关匹配的识矩账号后重开会话"));
+                }
                 app.get_session_runtime_mut(&target_session_id).restore_open_binding(binding);
             }
             if let Some(full_access) = prepared.full_access {

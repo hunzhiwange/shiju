@@ -505,6 +505,15 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
             Task::none()
         }
         ChatMessage::AgentStreamCancelled(id) => handle_agent_stream_cancelled(app, id),
+        #[cfg(not(target_arch = "wasm32"))]
+        ChatMessage::AgentStreamStopFinished(id, _) | ChatMessage::AgentStreamError(id, _)
+            if crate::app::digital_employees::chat::request_is_retired(app, id) => Task::none(),
+        ChatMessage::AgentStreamStopFinished(id, Ok(false))
+            if app.find_session_by_request_id(id)
+                .is_some_and(|session| app.get_session_runtime(&session).is_employee_chat()) =>
+        {
+            app.show_warning_toast("网关尚未确认停止，请稍后重试")
+        }
         ChatMessage::AgentStreamStopFinished(_, result) => match result {
             Ok(_) => Task::none(),
             Err(error) => app.show_localized_toast(
@@ -623,7 +632,7 @@ fn handle_agent_stream_cancelled(app: &mut App, id: u64) -> Task<Message> {
 }
 
 /// 清除重试提示并显式停止对应的可恢复流，不能仅取消本地订阅。
-pub(super) fn stop_agent_stream(app: &mut App, session_id: &str) -> Task<Message> {
+pub(in crate::app) fn stop_agent_stream(app: &mut App, session_id: &str) -> Task<Message> {
     stream_events::clear_model_recovery(app, session_id);
     let Some(request) =
         app.get_session_runtime(session_id).request_lifecycle.active_agent_request.clone()
@@ -636,9 +645,10 @@ pub(super) fn stop_agent_stream(app: &mut App, session_id: &str) -> Task<Message
         request.resume_history_only,
     );
     let id = request.id;
+    let endpoint = crate::app::config::gateway_client_endpoint();
     Task::perform(
         async move {
-            let client = crate::app::config::gateway_client()?;
+            let client = vw_gateway_client::GatewayClient::new(endpoint)?;
             desktop_session::message::chat::stream::projection::stop_stream(
                 &client,
                 &request_id,

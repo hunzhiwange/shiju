@@ -52,7 +52,8 @@ pub(crate) fn update(app: &mut App, message: AccountMessage) -> Task<Message> {
         _ => {}
     }
     #[cfg(not(target_arch = "wasm32"))]
-    let previous_account = app.account.repository().active_account_id().map(str::to_owned);
+    let previous_account = app.account.active_account()
+        .map(|account| (account.id().to_owned(), account.skill_hub_credential()));
     let mut effects = Vec::new();
     let task =
         desktop_account_ui::update::update(&mut app.account, message, &services(), &mut effects)
@@ -75,7 +76,10 @@ pub(crate) fn update(app: &mut App, message: AccountMessage) -> Task<Message> {
         });
     }
     #[cfg(not(target_arch = "wasm32"))]
-    if previous_account.as_deref() != app.account.repository().active_account_id() {
+    if previous_account != app.account.active_account()
+        .map(|account| (account.id().to_owned(), account.skill_hub_credential()))
+    {
+        tasks.push(crate::app::digital_employees::chat::invalidate_chats(app, previous_account.map(|(_, credential)| credential)));
         tasks.push(crate::app::digital_employees::account_changed(app));
     }
     Task::batch(tasks)

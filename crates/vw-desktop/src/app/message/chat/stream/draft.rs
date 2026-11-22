@@ -127,6 +127,7 @@ pub(super) fn publish(
     else {
         return Task::none();
     };
+    app.get_session_runtime_mut(session_id).employee_target = None;
     insert_publication(app.workspace_state.project_sessions.entry(draft.project_path.clone()).or_default(), &info);
     if app.navigation_tabs.project_path.as_deref() == Some(draft.project_path.as_str()) {
         insert_publication(&mut app.session_state.sessions, &info);

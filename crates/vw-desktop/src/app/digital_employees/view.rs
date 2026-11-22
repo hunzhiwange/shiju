@@ -760,6 +760,14 @@ pub(super) fn format_time(value: Option<&str>) -> String {
         .unwrap_or_else(|| "—".into())
 }
 
+pub(super) fn chat_action(message: Option<Message>) -> Item<'static> {
+    button(text("聊天").size(14))
+        .padding([8, 12])
+        .on_press_maybe(message)
+        .style(rounded_action_btn_style)
+        .into()
+}
+
 pub(super) fn action<'a>(
     title: &'static str,
     glyph: Option<Icon>,

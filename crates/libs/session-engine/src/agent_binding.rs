@@ -126,7 +126,9 @@ impl AgentBinding {
     pub fn identity(&self) -> vw_api_chat_identity::SessionAgentIdentity {
         vw_api_chat_identity::SessionAgentIdentity {
             agent: self.agent.clone(),
-            label: self.label.clone(),
+            label: self.employee_target()
+                .map(|target| format!("数字员工 · {}", target.employee_id()))
+                .or_else(|| self.label.clone()),
             acp_agent: match &self.runtime {
                 AgentRuntime::Native => None,
                 AgentRuntime::Acp { backend } => Some(backend.clone()),

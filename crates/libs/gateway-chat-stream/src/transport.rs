@@ -108,7 +108,19 @@ pub async fn stream_chat_resumable(
     resume: &GatewayStreamResume,
     on_event: impl FnMut(GatewayStreamEvent<GatewayChatStreamEvent>) -> bool,
 ) -> Result<GatewayStreamAttemptResult, String> {
-    stream_chat_attempt(endpoint, directory, body, Some(resume), None, on_event).await
+    stream_chat_resumable_with_headers(endpoint, directory, body, resume, Default::default(), on_event).await
+}
+
+/// Send request-scoped headers to a direct native loopback gateway.
+pub async fn stream_chat_resumable_with_headers(
+    endpoint: &GatewayEndpoint,
+    directory: Option<&str>,
+    body: &GatewayChatStreamRequest,
+    resume: &GatewayStreamResume,
+    headers: reqwest::header::HeaderMap,
+    on_event: impl FnMut(GatewayStreamEvent<GatewayChatStreamEvent>) -> bool,
+) -> Result<GatewayStreamAttemptResult, String> {
+    stream_chat_attempt(endpoint, directory, body, Some(resume), None, headers, on_event).await
 }
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -132,7 +144,7 @@ async fn stream_chat_inner(
     idle_timeout: Option<std::time::Duration>,
     mut on_event: impl FnMut(GatewayChatStreamEvent) -> bool,
 ) -> Result<(), String> {
-    stream_chat_attempt(endpoint, directory, body, None, idle_timeout, |event| {
+    stream_chat_attempt(endpoint, directory, body, None, idle_timeout, Default::default(), |event| {
         on_event(event.event)
     })
     .await
@@ -145,12 +157,17 @@ async fn stream_chat_attempt(
     body: &GatewayChatStreamRequest,
     resume: Option<&GatewayStreamResume>,
     idle_timeout: Option<std::time::Duration>,
+    headers: reqwest::header::HeaderMap,
     mut on_event: impl FnMut(GatewayStreamEvent<GatewayChatStreamEvent>) -> bool,
 ) -> Result<GatewayStreamAttemptResult, String> {
     use futures_util::StreamExt;
 
     use gateway_http::{apply_request_context, directory_query, log_request, transport_error};
 
+    let scoped_headers = !headers.is_empty();
+    if scoped_headers && (cfg!(target_arch = "wasm32") || !endpoint.is_loopback()) {
+        return Err("员工聊天需要本机网关".into());
+    }
     log_request("POST", endpoint, CHAT_STREAM_PATH, &directory_query(directory), Some(body));
 
     #[cfg(not(target_arch = "wasm32"))]
@@ -163,6 +180,12 @@ async fn stream_chat_attempt(
 
     #[cfg(not(target_arch = "wasm32"))]
     let builder = if endpoint.is_loopback() { builder.no_proxy() } else { builder };
+    #[cfg(not(target_arch = "wasm32"))]
+    let builder = if !scoped_headers {
+        builder
+    } else {
+        builder.redirect(reqwest::redirect::Policy::none()).retry(reqwest::retry::never())
+    };
     let client =
         builder.build().map_err(|err| transport_error("POST", endpoint, CHAT_STREAM_PATH, err))?;
     let mut request =
@@ -173,7 +196,7 @@ async fn stream_chat_attempt(
     if let Some(resume) = resume {
         request = apply_stream_resume(request, resume);
     }
-    request = apply_request_context(request, endpoint);
+    request = apply_request_context(request.headers(headers), endpoint);
 
     let response = request
         .send()
@@ -181,7 +204,11 @@ async fn stream_chat_attempt(
         .map_err(|err| transport_error("POST", endpoint, CHAT_STREAM_PATH, err))?;
     if !response.status().is_success() {
         let status = response.status();
-        let body = response.text().await.unwrap_or_default();
+        let body = if scoped_headers {
+            String::new()
+        } else {
+            response.text().await.unwrap_or_default()
+        };
         error!(
             target: "vw_gateway_client",
             method = "POST",

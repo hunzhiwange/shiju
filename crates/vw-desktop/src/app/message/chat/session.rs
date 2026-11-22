@@ -586,7 +586,7 @@ fn check_agent_installation(app: &App, backend: String, query: Option<String>) -
 
 fn send_current_session_input(app: &mut App) -> Task<Message> {
     let runtime = app.current_session_runtime();
-    if let Some(backend) = runtime.acp_agent.clone() {
+    if let Some(backend) = runtime.acp_agent.clone().filter(|_| !runtime.is_employee_chat()) {
         return check_agent_installation(app, backend, Some(runtime.input_editor.text()));
     }
     send_current_session_input_checked(app)
@@ -600,6 +600,15 @@ fn send_current_session_input_checked(app: &mut App) -> Task<Message> {
         app.chat_view.active_session_view_state.base_ready,
     ) {
         return app.show_error_toast(message);
+    }
+    #[cfg(not(target_arch = "wasm32"))]
+    if app.current_session_runtime_ref().is_some_and(|runtime| runtime.is_employee_chat()) {
+        if crate::app::digital_employees::chat::credential(app, &crate::app::config::gateway_client_endpoint()).is_none() {
+            return app.show_error_toast("请登录与本机网关匹配的识矩账号后重试");
+        }
+        if !app.session_state.files.is_empty() {
+            return app.show_error_toast("数字员工聊天支持纯文本，请移除附件后重试");
+        }
     }
     use desktop_session::message::chat::send_input::{SendInputEffect, prepare_send_input};
     let root = current_session_directory(app).or_else(|| app.navigation_tabs.project_path.clone());
@@ -766,7 +775,7 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
                 clear_quick_message_handoff_for_request(app, request_id);
             }
             let stop_task = stream::stop_agent_stream(app, &session_id);
-            if app.current_session_runtime().draft.is_some() {
+            if app.current_session_runtime_ref().is_some_and(|runtime| runtime.draft.is_some() || runtime.is_employee_chat()) {
                 return stop_task;
             }
             let completed_ms = crate::app::time::now_ms();
@@ -902,6 +911,9 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
         }
         ChatMessage::SessionAgentSelected(agent) => {
             app.session_state.input_popovers.recommended_prompt = false;
+            if app.current_session_runtime_ref().is_some_and(|runtime| runtime.is_employee_chat()) {
+                return app.show_warning_toast("数字员工会话使用选定的员工");
+            }
             if app.current_session_has_started() {
                 return app.show_localized_toast(
                     crate::app::state::ToastKind::Warning,
@@ -934,13 +946,24 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
                 config_agent_profile::AgentRuntime::Native => None,
                 config_agent_profile::AgentRuntime::Acp { backend } => Some(backend.clone()),
             };
+            let default_model = match (&acp_agent, &entry.defaults.model) {
+                (Some(_), config_agent_profile::AgentDefault::Fixed(model)) => {
+                    Some(format!("{}/{}", model.provider, model.model))
+                }
+                _ => None,
+            };
+            let runtime = app.current_session_runtime_mut();
             desktop_session::message::chat::preferences::select_agent(
-                app.current_session_runtime_mut(),
+                runtime,
                 normalized_agent,
                 agent_label,
                 acp_agent.clone(),
                 full_access,
             );
+            if let Some(model) = default_model {
+                runtime.model = model;
+                runtime.auto_model = false;
+            }
             app.invalidate_project_chat_preferences_read();
             app.session_state.acp_agent = acp_agent.clone();
             app.popover_visibility.acp = false;
@@ -1440,6 +1463,11 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
 /// 返回值表达处理结果；失败通过错误值、日志或任务消息显式传递。
 pub(super) fn start(app: &mut App, item: QueueItem, keep: bool) -> Task<Message> {
     use desktop_session::message::chat::lifecycle::{StartGate, gate_start};
+    let employee_chat = app.current_session_runtime_ref().is_some_and(|runtime| runtime.is_employee_chat());
+    #[cfg(not(target_arch = "wasm32"))]
+    if employee_chat && crate::app::digital_employees::chat::credential(app, &crate::app::config::gateway_client_endpoint()).is_none() {
+        return app.show_error_toast("当前识矩账号无法访问该数字员工会话");
+    }
     let active = app.session_state.active_session_id.is_some();
     let preparing = app.chat_view.active_session_view_state.ui_preparing;
     let base_ready = app.chat_view.active_session_view_state.base_ready;
@@ -1508,6 +1536,9 @@ pub(super) fn start(app: &mut App, item: QueueItem, keep: bool) -> Task<Message>
             app.chat_view.chat.len(),
         );
         app.session_state.session_runtime_states.insert(id.clone(), runtime);
+        if employee_chat {
+            app.current_session_runtime_mut().clear_employee_chat();
+        }
         app.reset_draft_full_access();
         app.session_state.active_session_id = Some(id);
         save_tasks.push(persist_session_reasoning_effort(app));
@@ -1576,7 +1607,7 @@ pub(super) fn start(app: &mut App, item: QueueItem, keep: bool) -> Task<Message>
         }
         app.sync_task_pet_from_runtime();
 
-        {
+        if !employee_chat {
             // Persist accepted input before model execution, including first-response failures.
             let now = crate::app::time::now_ms();
             let title = app.session_state.sessions

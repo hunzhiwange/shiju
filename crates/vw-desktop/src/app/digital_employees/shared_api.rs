@@ -52,6 +52,14 @@ pub(super) struct Occupancy {
 }
 
 impl SharedEmployee {
+    pub(super) fn can_chat(&self) -> bool {
+        !self.employee_id.trim().is_empty()
+            && self.visibility.as_deref() == Some("org")
+            && self.status.as_deref() == Some("ACTIVE")
+            && self.publish_status.as_deref() == Some("PUBLISHED")
+            && self.active_version_id.as_deref().is_some_and(|id| !id.trim().is_empty())
+    }
+
     pub fn archived(&self) -> bool {
         self.status.as_deref().is_some_and(|status| status.eq_ignore_ascii_case("ARCHIVED"))
     }

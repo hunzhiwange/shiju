@@ -6,6 +6,7 @@ mod assistants_view;
 mod board;
 mod board_api;
 mod board_view;
+pub(crate) mod chat;
 mod departments;
 mod portraits;
 mod shared;
@@ -45,6 +46,9 @@ pub(crate) enum Page {
 #[derive(Default)]
 pub(crate) struct State {
     generation: u64,
+    chat_scope_request: u64,
+    chat_request_floor: u64,
+    chat_scope: Option<chat::Scope>,
     page: Page,
     assistants: assistants::List,
     board: board::Board,
@@ -60,6 +64,7 @@ pub(crate) struct State {
 #[derive(Clone)]
 pub(crate) enum Event {
     Open,
+    ChatScopeChecked(u64, Result<chat::Scope, String>, Option<chat::Selection>),
     SelectPage(Page),
     Assistants(assistants::ListEvent),
     Board(board::BoardEvent),
@@ -77,6 +82,7 @@ impl std::fmt::Debug for Event {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         formatter.write_str(match self {
             Self::Open => "Open",
+            Self::ChatScopeChecked(..) => "ChatScopeChecked",
             Self::SelectPage(_) => "SelectPage",
             Self::Assistants(_) => "Assistants",
             Self::Board(_) => "Board",
@@ -94,6 +100,9 @@ impl std::fmt::Debug for Event {
 
 pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
     match event {
+        Event::ChatScopeChecked(request, result, selection) => {
+            return chat::scope_checked(app, request, result, selection);
+        }
         Event::SelectPage(page) => return select_page(app, page),
         Event::Assistants(event) => return assistants::update(app, event),
         Event::Board(event) => return board::update(app, event),
@@ -145,6 +154,8 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
 
 pub(crate) fn account_changed(app: &mut App) -> Task<Message> {
     let generation = app.digital_employees.generation.wrapping_add(1);
+    let chat_scope_request = app.digital_employees.chat_scope_request.wrapping_add(1);
+    let chat_request_floor = app.digital_employees.chat_request_floor;
     let page = app.digital_employees.page;
     let board = board::account_reset(&app.digital_employees);
     let assistants = app.digital_employees.assistants.account_reset();
@@ -152,11 +163,12 @@ pub(crate) fn account_changed(app: &mut App) -> Task<Message> {
     let workflows = app.digital_employees.workflows.account_reset();
     let tasks = app.digital_employees.tasks.reset_account();
     app.digital_employees =
-        State { generation, page, board, tasks, assistants, shared, workflows, ..State::default() };
+        State { generation, chat_scope_request, chat_request_floor, page, board, tasks, assistants, shared, workflows, ..State::default() };
+    let scope = chat::check_scope(app, None);
     if app.navigation_tabs.open_tabs.iter().any(|tab| tab.id == TAB_ID) {
-        return refresh_visible(app);
+        return Task::batch([scope, refresh_visible(app)]);
     }
-    Task::none()
+    scope
 }
 
 fn select_page(app: &mut App, page: Page) -> Task<Message> {

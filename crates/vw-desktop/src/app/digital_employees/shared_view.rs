@@ -325,10 +325,13 @@ fn employee_actions(employee: &SharedEmployee, access: &Access) -> Option<Item<'
     let can_configure = access.can_configure(employee);
     let options: Vec<_> =
         Operation::ALL.into_iter().filter(|op| access.can_manage(employee, *op)).collect();
-    if !can_dispatch && !can_configure && options.is_empty() {
+    if !employee.can_chat() && !can_dispatch && !can_configure && options.is_empty() {
         return None;
     }
     let mut actions = Row::new().spacing(6).align_y(Alignment::Center);
+    if employee.can_chat() {
+        actions = actions.push(super::view::chat_action(Some(message(ListEvent::Chat(id.clone())))));
+    }
     if can_dispatch {
         actions = actions.push(action(
             "派任务",
@@ -607,7 +610,7 @@ fn pager(pagination: Pagination, managers: bool, table: bool) -> Item<'static> {
         row![
             label("每页", 12, Tone::Muted),
             settings_select(sizes, Some(size), |size| message(ListEvent::PageSize(size)))
-                .width(66)
+                .width(104)
                 .height(34.0),
         ]
         .spacing(6)

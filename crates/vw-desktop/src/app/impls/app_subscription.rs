@@ -449,6 +449,19 @@ impl App {
             let subs = agent_reqs
                 .into_iter()
                 .map(|req| {
+                    #[cfg(not(target_arch = "wasm32"))]
+                    if req.agent.as_deref() == Some(desktop_session::session::agent::EMPLOYEE_CHAT_PROFILE) {
+                        let endpoint = crate::app::config::gateway_client_endpoint();
+                        let Some(credential) = crate::app::digital_employees::chat::credential(self, &endpoint) else {
+                            return Subscription::none();
+                        };
+                        let target = self.session_state.session_runtime_states.get(&req.session)
+                            .and_then(|runtime| runtime.employee_target.clone());
+                        return Subscription::run_with(
+                            super::agent_stream::EmployeeStream { request: req, endpoint, credential, target },
+                            super::agent_stream::employee_stream,
+                        );
+                    }
                     Subscription::run_with(req, |req: &Arc<crate::app::AgentRequest>| {
                         agent_stream(req)
                     })

@@ -147,6 +147,9 @@ pub fn apply_draft_preferences<R>(
     auto_model: bool,
     acp_agent: Option<String>,
 ) {
+    if runtime.is_employee_chat() {
+        return;
+    }
     if runtime.task_mode_executor.is_none() && runtime.task_mode_model == runtime.model {
         runtime.task_mode_model = model.clone();
     }

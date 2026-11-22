@@ -61,7 +61,15 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
     } else {
         Task::none()
     };
-    Task::batch([save, preferences, sessions, Task::done(Message::GatewayHealthTick)])
+    #[cfg(not(target_arch = "wasm32"))]
+    let employee_scope = if connection_changed || user_changed {
+        crate::app::digital_employees::chat::check_scope(app, None)
+    } else {
+        Task::none()
+    };
+    #[cfg(target_arch = "wasm32")]
+    let employee_scope = Task::none();
+    Task::batch([save, preferences, sessions, employee_scope, Task::done(Message::GatewayHealthTick)])
 }
 
 #[cfg(test)]

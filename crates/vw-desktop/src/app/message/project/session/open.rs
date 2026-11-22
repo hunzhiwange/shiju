@@ -47,6 +47,12 @@ pub(crate) fn open_project_session(
     info: Option<Info>,
     prepared: Option<crate::app::session::PreparedSessionOpen>,
 ) -> iced::Task<Message> {
+    #[cfg(not(target_arch = "wasm32"))]
+    if app.session_state.session_runtime_states.get(&id).is_some_and(|runtime| runtime.is_employee_chat())
+        && crate::app::digital_employees::chat::credential(app, &crate::app::config::gateway_client_endpoint()).is_none()
+    {
+        return app.show_error_toast("请登录与本机网关匹配的识矩账号后重开会话");
+    }
     app.session_state.session_view_cache.navigation_generation += 1;
     app.session_state.agent_stream_id = app.session_state.agent_stream_id.wrapping_add(1);
     app.session_state.input_popovers.recommended_prompt = false;

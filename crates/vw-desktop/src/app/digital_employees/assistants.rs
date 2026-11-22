@@ -37,6 +37,7 @@ pub(crate) enum ListEvent {
     Search(String),
     Run(RunFilter),
     Page(usize),
+    Chat(String),
     OpenTransfer(String),
     CloseTransfer,
     TransferMembers(u64, Result<Vec<Recipient>, String>),
@@ -123,6 +124,7 @@ pub(super) struct Assistant {
     pub owner_user_id: String,
     pub created_by: String,
     pub publish_status: String,
+    pub status: Option<String>,
     pub runtime_status: Option<String>,
     pub capability_summary: Capabilities,
     pub usage_count: u64,
@@ -192,6 +194,15 @@ pub(super) struct Department {
 }
 
 impl Assistant {
+    pub(super) fn chat_id(&self) -> Option<&str> {
+        self.employee_id.as_deref().filter(|id| {
+            !id.trim().is_empty()
+                && self.owned_by_caller
+                && self.publish_status == "PUBLISHED"
+                && self.status.as_deref().map_or(self.runtime() == "on_duty", |status| status == "ACTIVE")
+        })
+    }
+
     pub(super) fn transfer_id(&self) -> Option<&str> {
         self.employee_id.as_deref().filter(|id| {
             !id.is_empty()
@@ -267,6 +278,12 @@ pub(super) fn update(app: &mut App, event: ListEvent) -> Task<Message> {
                     }
                 }
             }
+        }
+        ListEvent::Chat(id) => {
+            let selection = state.data.as_ref().and_then(|data| data.mine.iter()
+                .find(|employee| employee.chat_id() == Some(id.as_str())))
+                .map(|employee| super::chat::Selection::private(id, employee.name.clone()));
+            return super::chat::select(app, super::Page::Assistants, selection);
         }
         ListEvent::OpenTransfer(id) => return open_transfer(app, id),
         ListEvent::CloseTransfer => {

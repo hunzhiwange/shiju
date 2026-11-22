@@ -215,7 +215,7 @@ pub(super) fn mark_agent_stream_session_dirty(
     updated_ms: u64,
     previous_content_len: Option<usize>,
 ) {
-    if app.session_state.session_runtime_states.get(session_id).is_some_and(|runtime| runtime.is_plan_run_session)
+    if app.session_state.session_runtime_states.get(session_id).is_some_and(|runtime| runtime.is_plan_run_session || runtime.is_employee_chat())
     {
         return;
     }
@@ -1204,6 +1204,25 @@ pub(super) fn handle_agent_stream_error(app: &mut App, id: u64, err: String) -> 
             app.sync_task_pet_from_runtime();
         }
         return app.show_error_toast(display_err);
+    };
+    let display_err = if app.get_session_runtime(&session_id).is_employee_chat() {
+        match display_err.as_str() {
+            error if error.contains("unknown or disabled agent: acp-employee-acp") => {
+                "请在本机网关启用数字员工智能体后重试".into()
+            }
+            error if error.starts_with("gateway stream failed: 401") => {
+                "识矩登录凭据已失效，请重新登录后重试".into()
+            }
+            error if error.starts_with("gateway stream failed: 403") => {
+                "当前网关或账号无法访问数字员工会话".into()
+            }
+            error if error.starts_with("gateway stream failed: 404") => {
+                "数字员工或会话当前不可用，请刷新员工列表".into()
+            }
+            _ => display_err,
+        }
+    } else {
+        display_err
     };
     let recovery = clear_model_recovery(app, &session_id);
     let display_err = if let Some((request, event)) = recovery

@@ -34,6 +34,21 @@ pub struct SessionDraft {
     pub history_len: usize,
 }
 
+pub const EMPLOYEE_CHAT_PROFILE: &str = "acp-employee-acp";
+
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
+pub struct EmployeeTarget {
+    pub employee_id: String,
+    pub kind: EmployeeKind,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum EmployeeKind {
+    Private,
+    Shared,
+}
+
 /// 会话运行时状态
 ///
 /// 管理单个会话的运行时状态，包括请求状态、输入编辑器、
@@ -42,6 +57,7 @@ pub struct SessionDraft {
 pub struct SessionRuntimeState<RenderState> {
     pub request_lifecycle: crate::message::chat::request::RequestLifecycle,
     pub draft: Option<SessionDraft>,
+    pub employee_target: Option<EmployeeTarget>,
     /// Gateway authority: None is a regular session; false is an unstarted fork.
     pub fork_execution_started: Option<bool>,
     /// Lock a submitted fork until a fresh gateway read, including cancellation/errors.
@@ -141,6 +157,7 @@ impl<RenderState: Default> SessionRuntimeState<RenderState> {
         Self {
             request_lifecycle: Default::default(),
             draft: None,
+            employee_target: None,
             fork_execution_started: None,
             fork_request_submitted: false,
             fork_agent_selected: false,
@@ -226,7 +243,22 @@ pub fn collect_agent_subscription_requests<RenderState>(
 }
 
 impl<R> SessionRuntimeState<R> {
+    pub fn is_employee_chat(&self) -> bool {
+        self.employee_target.is_some() || self.agent.as_deref() == Some(EMPLOYEE_CHAT_PROFILE)
+    }
+
+    pub fn clear_employee_chat(&mut self) {
+        if self.is_employee_chat() {
+            self.employee_target = None;
+            self.agent = None;
+            self.agent_label = None;
+            self.acp_agent = None;
+            self.acp_model_source = Default::default();
+        }
+    }
+
     pub fn open_draft(&mut self, project_path: String, directory: String) {
+        self.clear_employee_chat();
         self.input_editor = text_editor::Content::new();
         self.fork_execution_started = None;
         self.fork_request_submitted = false;

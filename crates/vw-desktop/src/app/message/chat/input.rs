@@ -71,6 +71,15 @@ pub(crate) fn is_composer_event(message: &ChatMessage) -> bool {
 }
 
 pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
+    if matches!(
+        message,
+        ChatMessage::TaskModeToggled(true)
+            | ChatMessage::WorkflowModeToggled(true)
+            | ChatMessage::GoalModeToggled(true)
+    ) && app.current_session_runtime_ref().is_some_and(|runtime| runtime.is_employee_chat())
+    {
+        return app.show_warning_toast("数字员工会话支持纯文本聊天");
+    }
     match message {
         ChatMessage::InputChanged(value) => {
             app.session_state.input_text = value;

@@ -310,7 +310,7 @@ fn employee_card<'a>(
     ]
     .spacing(10);
     let note = if person.owned_by_caller {
-        "仅你可使用 · 通过已连接的办公软件交互"
+        "仅你可使用"
     } else {
         "仅使用人可使用 · 不参与团队任务"
     };
@@ -332,6 +332,9 @@ fn employee_card<'a>(
             row![
                 label("今日执行", 12, Tone::Muted),
                 strong(person.usage_count.to_string(), 13, Tone::Ink),
+                person.chat_id().map(|id| super::view::chat_action(
+                    can_open.then(|| message(ListEvent::Chat(id.to_owned()))),
+                )),
                 person.transfer_id().map(|id| action(
                     "转交使用人",
                     None,

@@ -189,7 +189,7 @@ pub fn dispatch<R>(
 ) -> DispatchEffect {
     let kind = runtime
         .request_lifecycle
-        .dispatch_kind(item.send_behavior, active && runtime.draft.is_some());
+        .dispatch_kind(item.send_behavior, active && (runtime.draft.is_some() || runtime.is_employee_chat()));
     match kind {
         DispatchKind::StopDraft => {
             runtime.request_lifecycle.queue.insert(0, item);
@@ -320,6 +320,9 @@ pub async fn load_send_history(
         .session_ui_get_without_raw(session_id, Some(directory))
         .await?
         .ok_or_else(|| "会话历史不存在，未发送消息".to_string())?;
+    if loaded.agent_binding.as_ref().is_some_and(|binding| binding.agent == crate::session::agent::EMPLOYEE_CHAT_PROFILE) {
+        return Err("请先从历史列表打开数字员工会话".into());
+    }
     if loaded.session.id != session_id {
         return Err("网关返回了其他会话的历史".to_string());
     }

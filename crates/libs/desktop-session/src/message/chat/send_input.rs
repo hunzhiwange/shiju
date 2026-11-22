@@ -38,6 +38,38 @@ pub fn prepare_send_input<R>(
     created_ms: u64,
 ) -> SendInputEffect {
     let query = runtime.input_editor.text().to_string();
+    if runtime.is_employee_chat() {
+        if query.trim().is_empty() {
+            return SendInputEffect::None;
+        }
+        return SendInputEffect::Send(QueueItem {
+            created_ms,
+            query,
+            attachments: Vec::new(),
+            root,
+            model: None,
+            reasoning_effort: None,
+            acp_test: false,
+            acp_model_source: AcpModelSource::CliLocal,
+            acp_agent: Some("employee-acp".into()),
+            acp_allowed_tools: None,
+            agent: Some(crate::session::agent::EMPLOYEE_CHAT_PROFILE.into()),
+            allowed_tools: None,
+            require_agent_tool: false,
+            acp_force_new_session: false,
+            acp_history_mode: super::request::AcpHistoryReplayMode::Discard,
+            acp_recent_count: 3,
+            full_access_enabled: false,
+            send_behavior: match send_behavior {
+                ChatSendBehavior::Guide => ChatSendBehavior::Queue,
+                behavior => behavior,
+            },
+            request_history_override: None,
+            resume_history_only: false,
+            workflow_mode_enabled: false,
+            goal_mode_enabled: false,
+        });
+    }
     let selected_tools = runtime.tool_selector.selected_manual_tools();
     let selected_skills = runtime.tool_selector.selected_manual_skills();
     let selected_shiju_skills = runtime.tool_selector.selected_shiju_skills();

@@ -323,6 +323,7 @@ fn loaded_view<'a>(
     detail: &SkillDetail,
     versions: &[SkillVersion],
     versions_notice: Option<String>,
+    last_copied_code_hash: Option<u64>,
 ) -> Element<'a, Message> {
     let i18n = desktop_i18n::I18n::new(app.desktop_locale);
     let installed = is_installed(app, detail);
@@ -568,6 +569,8 @@ fn loaded_view<'a>(
             &[detail.name.clone().into()],
         )
         .expect("valid skill prompt template");
+    let copied = last_copied_code_hash == Some(super::hash_copy_text(&prompt));
+    let copy_label = if copied { i18n.__("已复制") } else { i18n.__("复制任务示例") };
     let preparation = container(
         column![
             text(i18n.__("使用前准备")).size(18),
@@ -575,10 +578,10 @@ fn loaded_view<'a>(
             text(i18n.__("确认拥有相关业务和数据访问权限，准备任务目标和材料。")),
             row![
                 text(i18n.__("任务示例")).size(18).width(Length::Fill),
-                button(text(i18n.__("复制任务示例")).size(13))
+                button(text(copy_label).size(13))
                     .padding([7, 10])
                     .style(styles::quiet_button_style)
-                    .on_press(Message::CopyCode(prompt.clone())),
+                    .on_press_maybe((!copied).then(|| Message::CopyCode(prompt.clone()))),
             ]
             .align_y(Alignment::Center),
             text(prompt).size(14),
@@ -655,7 +658,7 @@ fn status_view(
 }
 
 /// 按详情加载状态构建技能详情、错误或登录提示界面。
-pub fn view<'a>(app: &ViewInput<'a>) -> Element<'a, Message> {
+pub fn view<'a>(app: &ViewInput<'a>, last_copied_code_hash: Option<u64>) -> Element<'a, Message> {
     let i18n = desktop_i18n::I18n::new(app.desktop_locale);
     let Some(state) = &app.expert_hub.detail else {
         return status_view(
@@ -668,7 +671,7 @@ pub fn view<'a>(app: &ViewInput<'a>) -> Element<'a, Message> {
     };
     match (&state.detail, &state.versions) {
         (LoadState::Loaded(detail), LoadState::Loaded(versions)) => {
-            loaded_view(app, state, detail, versions, None)
+            loaded_view(app, state, detail, versions, None, last_copied_code_hash)
         }
         (LoadState::Loaded(detail), LoadState::Error(error)) => loaded_view(
             app,
@@ -683,6 +686,7 @@ pub fn view<'a>(app: &ViewInput<'a>) -> Element<'a, Message> {
                     )
                     .expect("valid display template"),
             ),
+            last_copied_code_hash,
         ),
         (LoadState::Loaded(detail), LoadState::NeedsLogin) => loaded_view(
             app,
@@ -694,6 +698,7 @@ pub fn view<'a>(app: &ViewInput<'a>) -> Element<'a, Message> {
                     .__("登录识矩账户后查看版本列表")
                     .to_string(),
             ),
+            last_copied_code_hash,
         ),
         (LoadState::Loaded(detail), LoadState::Idle | LoadState::Loading { .. }) => loaded_view(
             app,
@@ -703,6 +708,7 @@ pub fn view<'a>(app: &ViewInput<'a>) -> Element<'a, Message> {
             Some(
                 desktop_i18n::I18n::new(app.desktop_locale).__("版本列表正在加载…").to_string(),
             ),
+            last_copied_code_hash,
         ),
         (LoadState::Error(error), _) => status_view(
             i18n,

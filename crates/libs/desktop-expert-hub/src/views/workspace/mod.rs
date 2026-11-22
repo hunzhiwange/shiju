@@ -111,6 +111,7 @@ pub struct ViewInput<'a> {
     pub shiju_apps: &'a desktop_app_launch::ShijuAppsState,
     pub desktop_locale: config_ui::DesktopLocale,
     pub app_theme: &'a iced::Theme,
+    pub last_copied_code_hash: Option<u64>,
     pub project_path: &'a Option<String>,
     pub recent_projects: &'a [String],
     pub screen: Screen,

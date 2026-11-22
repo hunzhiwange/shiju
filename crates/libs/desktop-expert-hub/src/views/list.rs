@@ -1035,18 +1035,22 @@ fn column_width(width: f32, columns: usize) -> f32 {
 
 fn installed(app: &ViewInput<'_>, width: f32, columns: usize) -> Element<'static, Message> {
     let i18n = desktop_i18n::I18n::new(app.desktop_locale);
-    let field_width = column_width(width, columns);
+    let field_width = column_width(width, columns).min(300.0);
+    let search = search_box(
+        i18n,
+        &app.expert_hub.installed_search,
+        field_width,
+        |value| SkillHubMessage::Catalog(SkillCatalogMessage::InstalledSearchChanged(value)),
+        None,
+    );
+    let toolbar = row![search, super::upgrade_actions::view(app)]
+        .spacing(12)
+        .align_y(Alignment::Center)
+        .wrap();
     column![
         heading(i18n, "我安装的技能", "快速查看已安装技能，及时升级到最新版本。"),
-        search_box(
-            i18n,
-            &app.expert_hub.installed_search,
-            field_width,
-            |value| SkillHubMessage::Catalog(SkillCatalogMessage::InstalledSearchChanged(value)),
-            None
-        ),
+        toolbar,
         installed_content(app, width, columns),
-        super::upgrade_actions::view(app),
     ]
     .spacing(20)
     .width(Length::Fill)

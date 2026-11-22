@@ -8,6 +8,7 @@ fn input(app: &App) -> domain::ViewInput<'_> {
         shiju_apps: &app.shiju_apps,
         desktop_locale: app.general_settings.desktop_locale,
         app_theme: &app.appearance.app_theme,
+        last_copied_code_hash: app.clipboard_state.last_copied_code_hash,
         project_path: &app.navigation_tabs.project_path,
         recent_projects: &app.workspace_state.recent_projects,
         has_project_chat: app.navigation_tabs.open_tabs.iter().any(|tab| {

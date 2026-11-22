@@ -6,7 +6,8 @@ use desktop_ui_controls::system_settings_common::{
 use crate::message::skill_hub::SkillHubMessage;
 use desktop_skill_hub::skill_hub::{LoadState, ShijuPackageId, SkillInstallScope, SkillInstallTarget};
 use super::{ViewInput, Message};
-use iced::widget::{button, column, row, text};
+use iced::widget::tooltip::{Position, Tooltip};
+use iced::widget::{button, row, text};
 use iced::{Alignment, Element};
 
 pub fn view(app: &ViewInput<'_>) -> Element<'static, Message> {
@@ -67,14 +68,10 @@ pub fn view(app: &ViewInput<'_>) -> Element<'static, Message> {
             }),
     );
     let paths = targets.join("、");
-    column![
-        row![configure, functions, main].spacing(8).align_y(Alignment::Center).wrap(),
-        text(
-            i18n.format("主技能升级目录：%s", &[paths.into()]).expect("valid upgrade destinations")
-        )
-        .size(12)
-        .style(super::styles::muted_text_style),
-    ]
-    .spacing(8)
-    .into()
+    let destinations = i18n
+        .format("主技能升级目录：%s", &[paths.into()])
+        .expect("valid upgrade destinations");
+    let main = Tooltip::new(main, super::list::description_tooltip(destinations), Position::Bottom)
+        .gap(8);
+    row![configure, functions, main].spacing(8).align_y(Alignment::Center).wrap().into()
 }

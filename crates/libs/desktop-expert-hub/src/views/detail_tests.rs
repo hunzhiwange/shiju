@@ -11,6 +11,19 @@ use super::{Message, ViewInput};
 use iced::Theme;
 use iced::widget::button;
 
+fn skill_detail_view(
+    state: &desktop_skill_hub::skill_hub::ExpertHubState,
+) -> iced::Element<'_, Message> {
+    super::detail::view(
+        &ViewInput {
+            expert_hub: state,
+            desktop_locale: config_ui::DesktopLocale::SimplifiedChinese,
+            app_theme: &Theme::Dark,
+        },
+        None,
+    )
+}
+
 #[test]
 fn expert_hub_detail_view_binds_only_close_download_and_skill_actions() {
     assert!(matches!(close_message(), Message::SkillHub(SkillHubMessage::CloseSkillDetail)));
@@ -29,11 +42,11 @@ fn expert_hub_detail_view_binds_only_close_download_and_skill_actions() {
         readme_items: Vec::new(),
         versions: LoadState::Loading { generation: 1 },
     });
-    let loading: iced::Element<'_, Message> = super::detail::view(&ViewInput { expert_hub: &state, desktop_locale: config_ui::DesktopLocale::SimplifiedChinese, app_theme: &Theme::Dark });
+    let loading: iced::Element<'_, Message> = skill_detail_view(&state);
     std::hint::black_box(loading);
     state.detail.as_mut().unwrap().detail =
         LoadState::Error(("fixture error".to_string()).into());
-    let error: iced::Element<'_, Message> = super::detail::view(&ViewInput { expert_hub: &state, desktop_locale: config_ui::DesktopLocale::SimplifiedChinese, app_theme: &Theme::Dark });
+    let error: iced::Element<'_, Message> = skill_detail_view(&state);
     std::hint::black_box(error);
 
     let detail = SkillDetail {
@@ -75,31 +88,31 @@ fn expert_hub_detail_view_binds_only_close_download_and_skill_actions() {
     let detail_state = state.detail.as_mut().unwrap();
     detail_state.detail = LoadState::Loaded(detail);
     detail_state.versions = LoadState::Loaded(vec![version]);
-    let readme_loading: iced::Element<'_, Message> = super::detail::view(&ViewInput { expert_hub: &state, desktop_locale: config_ui::DesktopLocale::SimplifiedChinese, app_theme: &Theme::Dark });
+    let readme_loading: iced::Element<'_, Message> = skill_detail_view(&state);
     std::hint::black_box(readme_loading);
 
     let detail = state.detail.as_mut().unwrap();
     detail.readme = LoadState::Loaded("# 使用说明\n支持 UTF-8 正文。".to_string());
     detail.readme_items = parse_public_markdown("# 使用说明\n支持 UTF-8 正文。");
-    let readme_loaded: iced::Element<'_, Message> = super::detail::view(&ViewInput { expert_hub: &state, desktop_locale: config_ui::DesktopLocale::SimplifiedChinese, app_theme: &Theme::Dark });
+    let readme_loaded: iced::Element<'_, Message> = skill_detail_view(&state);
     std::hint::black_box(readme_loaded);
 
     state.detail.as_mut().unwrap().readme_mode = PublicDetailMode::Markdown;
-    let readme_markdown: iced::Element<'_, Message> = super::detail::view(&ViewInput { expert_hub: &state, desktop_locale: config_ui::DesktopLocale::SimplifiedChinese, app_theme: &Theme::Dark });
+    let readme_markdown: iced::Element<'_, Message> = skill_detail_view(&state);
     std::hint::black_box(readme_markdown);
 
     state.detail.as_mut().unwrap().readme = LoadState::Loaded(String::new());
-    let readme_empty: iced::Element<'_, Message> = super::detail::view(&ViewInput { expert_hub: &state, desktop_locale: config_ui::DesktopLocale::SimplifiedChinese, app_theme: &Theme::Dark });
+    let readme_empty: iced::Element<'_, Message> = skill_detail_view(&state);
     std::hint::black_box(readme_empty);
 
     state.detail.as_mut().unwrap().readme =
         LoadState::Error(("fixture README error".to_string()).into());
-    let readme_error: iced::Element<'_, Message> = super::detail::view(&ViewInput { expert_hub: &state, desktop_locale: config_ui::DesktopLocale::SimplifiedChinese, app_theme: &Theme::Dark });
+    let readme_error: iced::Element<'_, Message> = skill_detail_view(&state);
     std::hint::black_box(readme_error);
 
     state.detail.as_mut().unwrap().versions =
         LoadState::Error(("fixture versions error".to_string()).into());
-    let detail_with_versions_error: iced::Element<'_, Message> = super::detail::view(&ViewInput { expert_hub: &state, desktop_locale: config_ui::DesktopLocale::SimplifiedChinese, app_theme: &Theme::Dark });
+    let detail_with_versions_error: iced::Element<'_, Message> = skill_detail_view(&state);
     std::hint::black_box(detail_with_versions_error);
 }
 
@@ -224,6 +237,6 @@ fn business_skill_detail_labels_current_upgrade_rollback_and_unknown_versions() 
             VersionRowAction::Current => panic!("fixture must be switchable"),
         }),
     });
-    let busy_view: iced::Element<'_, Message> = super::detail::view(&ViewInput { expert_hub: &state, desktop_locale: config_ui::DesktopLocale::SimplifiedChinese, app_theme: &Theme::Dark });
+    let busy_view: iced::Element<'_, Message> = skill_detail_view(&state);
     std::hint::black_box(busy_view);
 }

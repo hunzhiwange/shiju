@@ -24,5 +24,5 @@ fn map(message: views::Message) -> Message {
     }
 }
 pub(super) fn view<'a>(app: &WorkspaceInput<'a>) -> Element<'a, Message> {
-    views::detail::view(&input(app)).map(map)
+    views::detail::view(&input(app), app.last_copied_code_hash).map(map)
 }

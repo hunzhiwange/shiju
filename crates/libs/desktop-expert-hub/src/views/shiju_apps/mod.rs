@@ -159,7 +159,7 @@ fn pagination(i18n: I18n, total: usize, browse: &ShijuAppsBrowse) -> Element<'st
                 .into()
         },
     )
-    .width(90);
+    .width(136);
     column![
         rule::horizontal(1).style(styles::divider_style),
         container(

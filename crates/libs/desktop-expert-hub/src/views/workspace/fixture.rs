@@ -29,6 +29,7 @@ impl Fixture {
             shiju_apps: &self.shiju_apps,
             desktop_locale: self.desktop_locale,
             app_theme: &self.app_theme,
+            last_copied_code_hash: None,
             project_path: &self.project_path,
             recent_projects: &self.recent_projects,
             screen: self.screen,

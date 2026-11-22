@@ -20,6 +20,13 @@ pub struct ViewInput<'a> {
     pub app_theme: &'a iced::Theme,
 }
 
+fn hash_copy_text(content: &str) -> u64 {
+    use std::hash::{Hash, Hasher};
+    let mut hasher = std::collections::hash_map::DefaultHasher::new();
+    content.hash(&mut hasher);
+    hasher.finish()
+}
+
 #[cfg(test)] mod detail_tests;
 #[cfg(test)] mod connectors_tests;
 

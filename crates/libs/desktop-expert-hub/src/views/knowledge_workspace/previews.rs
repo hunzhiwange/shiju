@@ -392,19 +392,12 @@ pub(super) fn chunk_preview_title(i18n: desktop_i18n::I18n, chunk: &KnowledgeChu
     }
 }
 
-pub(super) fn hash_copy_text(content: &str) -> u64 {
-    use std::hash::{Hash, Hasher};
-    let mut hasher = std::collections::hash_map::DefaultHasher::new();
-    content.hash(&mut hasher);
-    hasher.finish()
-}
-
 pub(super) fn chunk_content_panel<'a>(
     i18n: desktop_i18n::I18n,
     chunk: &'a KnowledgeChunkDto,
     last_copied_code_hash: Option<u64>,
 ) -> Element<'a, Message> {
-    let copied = last_copied_code_hash == Some(hash_copy_text(&chunk.content));
+    let copied = last_copied_code_hash == Some(crate::views::hash_copy_text(&chunk.content));
     let copy_icon = if copied { Icon::Check } else { Icon::Copy };
     let copy_label = if copied { i18n.__("已复制") } else { i18n.__("复制") };
     container(

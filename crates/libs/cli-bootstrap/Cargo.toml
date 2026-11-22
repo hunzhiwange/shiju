@@ -35,6 +35,7 @@ async-trait = "0.1.89"
 tempfile = "3"
 
 [features]
+employee-acp-test-support = ["acp-server/employee-acp-test-support", "vw-agent/employee-acp-test-support"]
 default = ["agent-defaults", "memory-postgres", "memory-mariadb", "channel-lark"]
 agent-defaults = [
   "vw-agent/rag-pdf",

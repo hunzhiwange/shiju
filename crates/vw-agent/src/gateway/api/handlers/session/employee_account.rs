@@ -93,7 +93,7 @@ pub(super) async fn authorize(
     if let Ok(client) = TEST_CLIENT.try_with(Clone::clone) {
         return verify(tenant, credential, &client).await;
     }
-    let client = ShijuAccountClient::production()
+    let client = ShijuAccountClient::for_employee_acp()
         .map_err(|_| ApiError::internal("SHIJU account verification unavailable"))?;
     verify(tenant, credential, &client).await
 }

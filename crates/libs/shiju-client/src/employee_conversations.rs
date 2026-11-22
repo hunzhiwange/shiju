@@ -10,6 +10,19 @@ const PRODUCTION_BASE: &str = "https://gateway.shiju.cloud/sj/agent/api/v1/";
 const MAX_RESPONSE_BYTES: usize = 8 << 20;
 const MAX_CONFLICT_BYTES: usize = 16 << 10;
 
+#[cfg(all(feature = "employee-acp-test-support", debug_assertions))]
+pub(crate) fn fixture_address() -> Result<Option<std::net::SocketAddr>, Error> {
+    let Some(value) = std::env::var_os("SHIJU_EMPLOYEE_ACP_FIXTURE_ADDRESS") else {
+        return Ok(None);
+    };
+    let address = value
+        .to_str()
+        .and_then(|value| value.parse::<std::net::SocketAddr>().ok())
+        .filter(|address| address.ip().is_loopback() && address.port() != 0)
+        .ok_or(Error::InvalidRequest)?;
+    Ok(Some(address))
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum EmployeeKind {
@@ -150,13 +163,21 @@ pub struct EmployeeConversationClient {
 }
 
 impl EmployeeConversationClient {
-    /// 以当前登录账号访问固定的 Agent Cloud 网关。
+    /// 以当前登录账号访问 Agent Cloud。调试测试构建可显式使用回环替身。
     pub fn production(credential: &ShijuCredential) -> Result<Self, Error> {
+        #[cfg(all(feature = "employee-acp-test-support", debug_assertions))]
+        if let Some(address) = fixture_address()? {
+            return Self::with_loopback(address, credential);
+        }
         let base = Url::parse(PRODUCTION_BASE).expect("fixed Agent Cloud gateway URL");
         Self::new(base, credential)
     }
 
-    #[cfg(any(test, feature = "test-support"))]
+    #[cfg(any(
+        test,
+        feature = "test-support",
+        all(feature = "employee-acp-test-support", debug_assertions)
+    ))]
     /// 使用本机回环 HTTP 替身验证产品接口。
     pub fn with_loopback(
         address: std::net::SocketAddr,

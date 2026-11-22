@@ -116,6 +116,18 @@ impl ShijuAccountClient {
         Self::new(PASSPORT_BASE_URL, GATEWAY_BASE_URL)
     }
 
+    /// 校验数字员工会话使用的登录身份。
+    pub fn for_employee_acp() -> Result<Self, ShijuAccountError> {
+        #[cfg(all(feature = "employee-acp-test-support", debug_assertions))]
+        if let Some(address) = crate::employee_conversations::fixture_address()
+            .map_err(|_| ShijuAccountError::Message("invalid employee ACP fixture address"))?
+        {
+            let base = format!("http://{address}/");
+            return Self::build(&base, &base, true);
+        }
+        Self::production()
+    }
+
     #[cfg(any(test, feature = "test-support"))]
     /// 使用显式基础地址创建客户端，供受控环境与测试使用。
     pub fn with_base_urls(
@@ -126,7 +138,15 @@ impl ShijuAccountClient {
     }
 
     fn new(passport_base: &str, gateway_base: &str) -> Result<Self, ShijuAccountError> {
-        let http = reqwest::Client::builder()
+        Self::build(passport_base, gateway_base, false)
+    }
+
+    fn build(
+        passport_base: &str,
+        gateway_base: &str,
+        loopback_fixture: bool,
+    ) -> Result<Self, ShijuAccountError> {
+        let builder = reqwest::Client::builder()
             .redirect(reqwest::redirect::Policy::custom(|attempt| {
                 if attempt.previous().len() < 10
                     && attempt.previous().first().is_some_and(|origin| origin.origin() == attempt.url().origin())
@@ -136,7 +156,9 @@ impl ShijuAccountClient {
                     attempt.stop()
                 }
             }))
-            .timeout(Duration::from_secs(15))
+            .timeout(Duration::from_secs(15));
+        let builder = if loopback_fixture { builder.no_proxy() } else { builder };
+        let http = builder
             .build()
             .map_err(|_| ShijuAccountError::Message("failed to create SHIJU account client"))?;
         Ok(Self {

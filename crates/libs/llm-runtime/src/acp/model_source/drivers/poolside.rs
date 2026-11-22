@@ -2,6 +2,10 @@ use super::AcpLaunchProfile;
 use std::collections::HashMap;
 
 pub fn configure(profile: &mut AcpLaunchProfile, endpoint: &str) -> anyhow::Result<()> {
+    anyhow::ensure!(
+        !cfg!(target_os = "linux"),
+        "Poolside managed model source requires Linux isolation for native skill discovery and stdio MCP"
+    );
     let url = reqwest::Url::parse(endpoint)?;
     anyhow::ensure!(
         url.scheme() == "http"

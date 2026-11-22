@@ -26,16 +26,27 @@ NATIVE_DIR = ".agents/skills"
 # Keep the isolated HOME's Docker socket path within Darwin's Unix socket limit.
 TEMP_PARENT = "/tmp"
 MCP_TOOL = "coexistence__read_probe"
+LINUX_CONTRACT = ROOT / "patches/acp-model-source/poolside/linux.json"
+
+
+def linux_docker_socket():
+    socket = Path(os.environ.get("ACP_POOLSIDE_DOCKER_SOCKET", ""))
+    require(socket.is_absolute() and socket.is_socket(),
+            "set ACP_POOLSIDE_DOCKER_SOCKET to the dedicated fixture daemon's Unix socket")
+    return socket.resolve()
 
 
 def docker(*args):
+    endpoint = ["--host", f"unix://{linux_docker_socket()}"] if platform.system() == "Linux" else []
     try:
-        return subprocess.run(["docker", *args], capture_output=True, text=True, timeout=20)
+        return subprocess.run(["docker", *endpoint, *args], capture_output=True, text=True, timeout=20)
     except subprocess.TimeoutExpired:
         raise AssertionError("Poolside Docker command timed out") from None
 
 
 def launch(env):
+    if platform.system() == "Linux":
+        return launch_linux(env)
     require((platform.system(), platform.machine()) == ("Darwin", "arm64"),
             "unreviewed Poolside platform")
     require(docker("info", "--format", "{{.ServerVersion}}").returncode == 0,
@@ -74,6 +85,69 @@ def launch(env):
         "version": VERSION, "platform": "darwin-arm64", "revision": REVISION,
         "sha256": contract["files"][contract["bin"]], "files": contract["files"],
     }
+
+
+def launch_linux(env):
+    machine = platform.machine()
+    release = json.loads(LINUX_CONTRACT.read_text())
+    artifact = release["artifacts"].get(f"{machine}-unknown-linux-gnu")
+    require(artifact is not None and release["version"] == VERSION, "unreviewed Linux Poolside target")
+    require(os.geteuid() != 0, "run the Poolside gateway fixture as a non-root user")
+    socket = linux_docker_socket()
+    info = docker("info", "--format", "{{.OSType}}/{{.Architecture}}")
+    require(info.returncode == 0 and info.stdout.strip() in {f"linux/{machine}", artifact["docker_platform"]},
+            "Poolside requires an isolated Docker daemon of the target architecture")
+
+    configured = os.environ.get("ACP_POOLSIDE_REVIEWED_DIR")
+    require(configured and Path(configured).is_absolute(),
+            "set ACP_POOLSIDE_REVIEWED_DIR to the private Linux managed install")
+    source = Path(configured).resolve(strict=True)
+    require(source.name == release["runtime_dir"], "unexpected Poolside Linux managed installation")
+    runtime = Path(env["VIBEWINDOW_CONFIG_DIR"]) / "acp-runtime" / source.name
+    runtime.parent.mkdir(mode=0o700)
+    shutil.copytree(source, runtime, symlinks=True)
+    native = runtime / "pool-native"
+    require(native.is_file() and not native.is_symlink(), "Poolside native binary missing")
+    native_digest = hashlib.sha256(native.read_bytes()).hexdigest()
+    require(native_digest == artifact["native_sha256"], "Poolside Linux native digest mismatch")
+    command = runtime / "pool"
+    require(command.is_file() and not command.is_symlink(), "Poolside managed launcher missing")
+
+    link = Path(env["HOME"]) / ".docker/run/docker.sock"
+    link.parent.mkdir(parents=True, mode=0o700)
+    link.symlink_to(socket)
+    # The gateway still resolves and verifies the entire installed runtime.
+    return {"command": str(command), "args": ["acp"]}, {
+        "version": VERSION, "platform": artifact["docker_platform"], "revision": source.name,
+        "entry": command.name, "native_sha256": native_digest,
+        "model_protocol": release["model_protocol"],
+    }
+
+
+def linux_container_binds(workspace, projected_skills):
+    containers = docker("ps", "-q")
+    require(containers.returncode == 0, "could not list live Poolside containers")
+    required = [workspace] if projected_skills is None else [workspace, projected_skills]
+    sandbox_image = json.loads(LINUX_CONTRACT.read_text())["sandbox_image"]
+    for container in containers.stdout.splitlines():
+        details = docker("inspect", "--type", "container",
+                         "--format", "{{json .Config.Image}}\n{{json .Mounts}}", container)
+        if details.returncode != 0:
+            continue
+        image, mounts = map(json.loads, details.stdout.splitlines())
+        if not any(mount.get("Source") == str(workspace) for mount in mounts):
+            continue
+        require(image in {sandbox_image, f"docker.io/library/{sandbox_image}"},
+                "Poolside sandbox did not select the fixed image")
+        for path in required:
+            bindings = [mount for mount in mounts if mount.get("Source") == str(path)]
+            require(len(bindings) == 1 and bindings[0].get("Type") == "bind"
+                    and bindings[0].get("Destination") == str(path) and bindings[0].get("RW") is False,
+                    "Poolside container lost a read-only same-path bind")
+        require(not any(Path(mount.get("Source", "/")).is_socket() for mount in mounts),
+                "Poolside tool container received a host socket")
+        return
+    raise AssertionError("Poolside Docker sandbox missing a live workspace bind")
 
 
 @contextmanager
@@ -150,6 +224,7 @@ class Probe(ChatProbe):
                 require(home.name == "home" and home.parent.name.startswith("shiju-poolside-")
                         and directory.parent == home / NATIVE_DIR and directory != skill["path"],
                         "Poolside selected skill bypassed the private session view")
+                self.projected_skills = directory.parent
             return self.call(tools, step + "_read", "read",
                              {"path": str(directory / "references/value.txt")})
         if step == "mcp":
@@ -159,6 +234,9 @@ class Probe(ChatProbe):
         else:
             require(skills[step.removesuffix("_read")]["attachment"] in str(result),
                     f"Poolside {step} did not return the fixture attachment")
+            if platform.system() == "Linux":
+                workspace = skills["native"]["path"].parents[2].resolve()
+                linux_container_binds(workspace, self.projected_skills if step == "selected_read" else None)
         if self.mounted and step == "native_read":
             return self.activate(tools, "selected")
         if self.mounted and step == "selected_read":

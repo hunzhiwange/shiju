@@ -1,0 +1,25 @@
+{
+  "version": "1.0.16",
+  "runtime_dir": "poolside-1.0.16-model-source-v4",
+  "native_args": ["acp", "--sandbox", "required"],
+  "model_protocol": "POST /v1/chat/completions",
+  "sandbox_image": "node@sha256:18a6d90fd60542269850c80ca03b29b1d9b14d6b221ac7ee8e35b0d33ef904bd",
+  "artifacts": {
+    "x86_64-unknown-linux-gnu": {
+      "artifact_url": "https://downloads.poolside.ai/pool/v1.0.16/pool-linux-amd64.tar.gz",
+      "archive_member": "pool-linux-amd64",
+      "archive_sha256": "e86aa8c9feef003540673ab494e91bfadc273218d531c43d662cafb69e464146",
+      "native_sha256": "db70340b41c8bd76dbe2b5926a6e46cda804789b9774b3d4cfba3591f0de02f2",
+      "docker_platform": "linux/amd64",
+      "image_manifest": "sha256:94c973596a8581a87ba42746ceb0b0e0b5246d098de45b1ce04dcc967cfc5dfb"
+    },
+    "aarch64-unknown-linux-gnu": {
+      "artifact_url": "https://downloads.poolside.ai/pool/v1.0.16/pool-linux-arm64.tar.gz",
+      "archive_member": "pool-linux-arm64",
+      "archive_sha256": "466343b66b03ee4e66476fcc69be1eb5bf8e9155a4ab73e0e72a232d1f8d2a12",
+      "native_sha256": "0c06c4f5a20f092193b9968172dc6c19fd90c1b2e22f53adebaeb97d6ac550d2",
+      "docker_platform": "linux/arm64",
+      "image_manifest": "sha256:a288699fc0f9676950742fae6efcd015180aa7ef2bf8a6477e4b0a8cc0ab1b3f"
+    }
+  }
+}

@@ -344,3 +344,72 @@ fn model_protocol_015_claude_enables_expressible_converted_thinking() {
     assert!(!launch.config().env.contains_key("MAX_THINKING_TOKENS"));
     assert_eq!(launch.config().env["VW_ACP_CLAUDE_NATIVE_MESSAGES"], "0");
 }
+
+#[cfg(all(
+    target_os = "linux",
+    target_env = "gnu",
+    any(target_arch = "x86_64", target_arch = "aarch64")
+))]
+#[tokio::test]
+#[ignore = "requires isolated installations of both pinned Claude ACP releases"]
+async fn acp_platform_claude_contract() {
+    use acp_access_policy::access_policy::claude::{
+        verified_entry, verified_linux_effort_engine, verified_linux_legacy_engine,
+    };
+
+    let state = tempfile::tempdir().unwrap();
+    let entries = [
+        ("SHIJU_TEST_CLAUDE_026_ENTRY", "0.26.0", "openai-compatible", false),
+        ("SHIJU_TEST_CLAUDE_031_ENTRY", "0.31.0", "anthropic", true),
+    ];
+    for (variable, version, adapter, native) in entries {
+        let command = std::env::var(variable).unwrap_or_else(|_| {
+            panic!("{variable} must name the absolute entry of the pinned npm installation")
+        });
+        assert!(Path::new(&command).is_absolute());
+        assert_eq!(verified_entry(&command, &[]), !native);
+        let legacy_engine = verified_linux_legacy_engine(&command);
+        let effort_engine = verified_linux_effort_engine(&command);
+        assert_eq!(legacy_engine.is_some(), !native);
+        assert_eq!(effort_engine.is_some(), native);
+        let engine = legacy_engine.or(effort_engine).unwrap();
+        assert!(engine.is_absolute());
+        assert!(engine.ends_with(if native { "claude" } else { "cli.js" }));
+
+        let mut launch = profile(&AcpAgentConfig { command, ..Default::default() });
+        launch.state_root = Some(state.path().to_path_buf());
+        launch.model_api.as_mut().unwrap().adapter = adapter.into();
+        let route = crate::acp::model_source::drivers::launch_route("claude", &launch).unwrap();
+        assert_eq!(route.source, model_protocols::ModelProtocol::Messages);
+        assert_eq!(route.conversion_required, !native);
+        assert_eq!(
+            route.target,
+            if native {
+                model_protocols::ModelProtocol::Messages
+            } else {
+                model_protocols::ModelProtocol::Chat
+            }
+        );
+        eprintln!(
+            "Claude ACP {version} {} GNU {:?} -> {:?}",
+            std::env::consts::ARCH,
+            route.source,
+            route.target
+        );
+
+        crate::acp::model_source::configure_profile(
+            "claude",
+            &mut launch,
+            "http://127.0.0.1:12345",
+            state.path().to_str().unwrap(),
+            &Default::default(),
+        )
+        .await
+        .unwrap();
+        let env = &launch.config().env;
+        assert_eq!(env["VW_ACP_CLAUDE_NATIVE_MESSAGES"], if native { "1" } else { "0" });
+        assert_eq!(env["ANTHROPIC_MODEL"], "selected-model");
+        assert_eq!(env.contains_key("CLAUDE_CODE_DISABLE_EXPERIMENTAL_BETAS"), !native);
+        assert!(Path::new(&env["CLAUDE_CONFIG_DIR"]).starts_with(state.path()));
+    }
+}

@@ -1,4 +1,4 @@
-//! Fixed Claude ACP 0.26.0 controls. Runtime identity and readback are separate gates.
+//! Fixed Claude ACP runtime identities and permission controls.
 use agent_client_protocol::{SessionConfigKind, SessionConfigOption};
 use sha2::{Digest, Sha256};
 use std::io::Read;
@@ -45,12 +45,20 @@ pub fn advertises_mode(options: Option<&[SessionConfigOption]>, value: &str) -> 
 
 /// Verify the actual npm entry and SDK, rather than trusting agentInfo or an npx label.
 pub fn verified_entry(command: &str, args: &[String]) -> bool {
-    if !args.is_empty() {
-        return false;
+    args.is_empty() && verified_legacy_engine(command).is_some()
+}
+
+/// Verify the bundled JavaScript engine for a managed Linux launch.
+#[cfg(target_os = "linux")]
+pub fn verified_linux_legacy_engine(command: &str) -> Option<PathBuf> {
+    if !Path::new(command).is_absolute() {
+        return None;
     }
-    let Some(package) = adapter_package(command) else {
-        return false;
-    };
+    verified_legacy_engine(command)
+}
+
+fn verified_legacy_engine(command: &str) -> Option<PathBuf> {
+    let package = adapter_package(command)?;
     let files = [
         ("package.json", "822baae8c24189370708779ece72fef22a741de2981a861bd4bc7ee034ed783d"),
         ("dist/index.js", "2859ccaa5ba91ed27b80614eae47399370015acbcbc7d01d1408c71f7964565d"),
@@ -61,27 +69,48 @@ pub fn verified_entry(command: &str, args: &[String]) -> bool {
         ("dist/utils.js", "2a7cc008c0c0614420ec182e0c680a67a06efdfe3a78960ebebcb032326f06c6"),
     ];
     if !matches_hashes(&package, &files) {
-        return false;
+        return None;
     }
-    let Some(sdk) = node_dependency(&package.join("dist"), "@anthropic-ai/claude-agent-sdk") else {
-        return false;
-    };
+    let sdk = node_dependency(&package.join("dist"), "@anthropic-ai/claude-agent-sdk")?;
     let files = [
         ("package.json", "c478cf463b38e9b289e5b16640d60a39b1d2a1528e94b1f7d2578c8754064d9c"),
         ("sdk.mjs", "d4b7aa175a37db7835d354fbdd8a6a0c03ad6a11ab32842d5362531b20ccd35b"),
         ("cli.js", "d4d06b148b05d3d21ad250a9900b7c8c47780088712299acd9892a8777f76ab4"),
     ];
-    matches_hashes(&sdk, &files)
+    #[cfg(target_os = "linux")]
+    let sdk = {
+        let arch = linux_gnu_npm_arch()?;
+        let sdk = sdk.canonicalize().ok()?;
+        // SDK 0.2.96 tries the platform package before its bundled cli.js.
+        let engine = format!("@anthropic-ai/claude-agent-sdk-linux-{arch}");
+        if node_dependency(&sdk, &engine).is_some()
+            || node_dependency(&sdk, &format!("{engine}-musl")).is_some()
+        {
+            return None;
+        }
+        sdk
+    };
+    matches_hashes(&sdk, &files).then(|| sdk.join("cli.js"))
 }
 
 /// The native SDK engine is reviewed for the managed model route only.
 pub fn verified_effort_entry(command: &str) -> bool {
-    if !cfg!(all(target_os = "macos", target_arch = "aarch64")) {
-        return false;
+    cfg!(all(target_os = "macos", target_arch = "aarch64"))
+        && verified_effort_engine(command).is_some()
+}
+
+/// Verify the engine that a managed Linux launch must pin before starting Node.
+#[cfg(target_os = "linux")]
+pub fn verified_linux_effort_engine(command: &str) -> Option<PathBuf> {
+    if !Path::new(command).is_absolute() {
+        return None;
     }
-    let Some(package) = adapter_package(command) else {
-        return false;
-    };
+    verified_effort_engine(command)?.canonicalize().ok()
+}
+
+fn verified_effort_engine(command: &str) -> Option<PathBuf> {
+    let (engine_package, manifest_hash, executable_hash) = effort_engine()?;
+    let package = adapter_package(command)?;
     let files = [
         ("package.json", "fa3ff61211b3af3de18b57cf11575c1c4da823af99d154aae454c68e248e1ed5"),
         ("dist/index.js", "0aa4c4255951db9614d2867df5e905e23167bb581d1391da50995c6491262239"),
@@ -92,31 +121,62 @@ pub fn verified_effort_entry(command: &str) -> bool {
         ("dist/utils.js", "2a7cc008c0c0614420ec182e0c680a67a06efdfe3a78960ebebcb032326f06c6"),
     ];
     if !matches_hashes(&package, &files) {
-        return false;
+        return None;
     }
-    let Some(sdk) = node_dependency(&package.join("dist"), "@anthropic-ai/claude-agent-sdk")
-        .and_then(|path| path.canonicalize().ok())
-    else {
-        return false;
-    };
+    let sdk =
+        node_dependency(&package.join("dist"), "@anthropic-ai/claude-agent-sdk")?.canonicalize().ok()?;
     let files = [
         ("package.json", "2db10595bb1769d0bc0250cfdef1d3200b0391e1b7b219d4df69d537a6ec9a55"),
         ("sdk.mjs", "cabbcc5ba1703b6e31c04051a78875fc778795e88dbddb84f2b98ff4f3cf4d16"),
         ("manifest.json", "cc7ca0fd459d886212e363d4ad439f6c61e26d30fb00bc9bfc4ada9228fc0676"),
     ];
     if !matches_hashes(&sdk, &files) {
-        return false;
+        return None;
     }
-    let Some(engine) = node_dependency(&sdk, "@anthropic-ai/claude-agent-sdk-darwin-arm64") else {
-        return false;
+    // The SDK tries the musl engine first on Linux even on a glibc host.
+    if cfg!(target_os = "linux")
+        && node_dependency(&sdk, &format!("{engine_package}-musl")).is_some()
+    {
+        return None;
+    }
+    let engine = node_dependency(&sdk, engine_package)?;
+    matches_hashes(&engine, &[("package.json", manifest_hash), ("claude", executable_hash)])
+        .then(|| engine.join("claude"))
+}
+
+#[cfg(target_os = "linux")]
+fn linux_gnu_npm_arch() -> Option<&'static str> {
+    if !cfg!(target_env = "gnu") {
+        return None;
+    }
+    match std::env::consts::ARCH {
+        "x86_64" => Some("x64"),
+        "aarch64" => Some("arm64"),
+        _ => None,
+    }
+}
+
+fn effort_engine() -> Option<(&'static str, &'static str, &'static str)> {
+    #[cfg(target_os = "linux")]
+    return match linux_gnu_npm_arch()? {
+        "x64" => Some((
+            "@anthropic-ai/claude-agent-sdk-linux-x64",
+            "0ba1df712e964d143187d6260a2c00ccb3233295cd7768d02629accc654ead30",
+            "cca43053f062949495596b11b6fd1b59cf79102adb13bacbe66997e6fae41e4a",
+        )),
+        "arm64" => Some((
+            "@anthropic-ai/claude-agent-sdk-linux-arm64",
+            "ddde7d3fdaff312832f04e3dff32528c7a7acf38d3c0597d85cb4c6cb1b8d570",
+            "382aa73ea4b07fd8d698e3159b5ef9e1b8739fae7505ba8ddd28b8a6a62819ce",
+        )),
+        _ => None,
     };
-    matches_hashes(
-        &engine,
-        &[
-            ("package.json", "fdc185e90bf9f869b3e5d8ab07f2082eac6811aacf2316df5244430c9041b59b"),
-            ("claude", "31db3444309d5d0f8b85e8782e2dcd86f31f7e48c1a1e83d69b09268c7b4f9a2"),
-        ],
-    )
+    #[cfg(not(target_os = "linux"))]
+    cfg!(all(target_os = "macos", target_arch = "aarch64")).then_some((
+        "@anthropic-ai/claude-agent-sdk-darwin-arm64",
+        "fdc185e90bf9f869b3e5d8ab07f2082eac6811aacf2316df5244430c9041b59b",
+        "31db3444309d5d0f8b85e8782e2dcd86f31f7e48c1a1e83d69b09268c7b4f9a2",
+    ))
 }
 
 fn adapter_package(command: &str) -> Option<PathBuf> {

@@ -189,16 +189,20 @@ if agent == 'omp':
         raise RuntimeError('OMP reviewed runtime is Darwin-arm64 only')
     runtime.mkdir()
     executable = runtime / contract['bin']
+    # Give the large release time to transfer, but resume promptly after a stall.
     for _ in range(3):
         result = subprocess.run([
-            '/usr/bin/curl', '--fail', '--silent', '--show-error', '--location',
-            '--proto', '=https', '--proto-redir', '=https', '--max-time', '85',
+            '/usr/bin/curl', '--disable', '--fail', '--silent', '--show-error', '--location',
+            '--proto', '=https', '--proto-redir', '=https', '--connect-timeout', '20',
+            '--speed-limit', '1024', '--speed-time', '30', '--max-time', '300',
             '--continue-at', '-', '--output', str(executable), contract['artifact_url'],
         ], stdin=subprocess.DEVNULL)
         if result.returncode == 0:
             break
+        if result.returncode == 33:
+            executable.unlink(missing_ok=True)
     else:
-        raise RuntimeError('Could not download the reviewed OMP release')
+        raise RuntimeError(f'OMP release download failed after 3 attempts (curl exit {result.returncode})')
     check_files(runtime, contract['files'])
     executable.chmod(0o700)
     raise SystemExit(0)

@@ -29,6 +29,8 @@ MANAGED_DIR = ROOT / "crates/libs/acp-agent-registry/src/managed_runtime"
 
 
 def launch(env):
+    if platform.system() == "Linux":
+        return launch_linux(env)
     require((platform.system(), platform.machine()) == ("Darwin", "arm64"),
             "unreviewed Kiro platform")
     manifest = MANAGED_DIR / "contracts.json"
@@ -66,6 +68,36 @@ def launch(env):
         "version": contract["version"], "revision": REVISION, "files": files}
 
 
+def launch_linux(env):
+    contract = json.loads((PATCH_DIR / "linux.json").read_text())
+    arch = platform.machine()
+    require(arch in contract["targets"], "unreviewed Kiro Linux architecture")
+    artifact = contract["targets"][arch]
+    source = Path(os.environ.get("SHIJU_ACP_KIRO_RUNTIME_DIR", ""))
+    require(source.is_absolute() and source.is_dir(), "set SHIJU_ACP_KIRO_RUNTIME_DIR")
+    expected = {
+        contract["bin"]: contract["launcher_sha256"],
+        contract["native_entry"]: artifact["native_sha256"],
+        contract["node_entry"]: artifact["node_sha256"],
+        contract["server_entry"]: contract["server_sha256"],
+    }
+    target = Path(env["VIBEWINDOW_CONFIG_DIR"]) / "acp-runtime" / contract["revision"]
+    shutil.copytree(source, target)
+    files = {entry: hashlib.sha256((target / entry).read_bytes()).hexdigest() for entry in expected}
+    require(files == expected, "Kiro Linux runtime digest mismatch")
+    entry = target / contract["bin"]
+    try:
+        version = subprocess.run([str(entry), "--version"], env=env, capture_output=True, timeout=15)
+    except subprocess.TimeoutExpired as error:
+        raise AssertionError("Kiro Linux version check timed out") from error
+    require(version.returncode == 0 and version.stdout.strip() == b"kiro-cli 3.0.0",
+            "unexpected Kiro Linux version")
+    return {"command": str(entry), "args": contract["args"]}, {
+        "version": contract["version"], "revision": contract["revision"], "arch": arch,
+        "archive": artifact["artifact_url"], "files": files,
+        "protocol": contract["model_protocol"], "model_path": "/v1/responses"}
+
+
 class Probe:
     def __init__(self, fixtures, mounted, rejected):
         self.fixtures = fixtures
@@ -75,6 +107,7 @@ class Probe:
         self.completed = {}
         self.failure = None
         self.pending = None
+        self.check_native_power = platform.system() == "Linux"
 
     def response(self, body):
         require(body["model"] == MODEL, "unexpected Kiro model")
@@ -96,12 +129,17 @@ class Probe:
                 require(skill["body"] not in envelope and skill["attachment"] not in envelope,
                         "Kiro skill content appeared before activation")
             require(self.fixtures["mcp"] not in envelope, "Kiro MCP content appeared before invocation")
+            if self.check_native_power:
+                return self.call(tools, "power", "kiro_powers", {"action": "list"})
             return self.activate(tools, "native")
 
         step, _, call_id = self.pending
         results = [{"tool_use_id": item["call_id"], "content": item["output"]}
                    for item in body["input"] if item.get("type") == "function_call_output"]
         result = str(correlated_result(results, call_id)["content"])
+        if step == "power":
+            require("No powers installed" in result, "Kiro native Powers did not return its list")
+            return self.activate(tools, "native")
         if step in ("native", "selected"):
             skill = skills[step]
             require(skill["body"] in result and skill["attachment"] not in result,

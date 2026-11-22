@@ -1,0 +1,40 @@
+{
+  "version": "3.0.0",
+  "revision": "kiro-3.0.0-model-source-v3",
+  "bin": "kiro-cli",
+  "args": [
+    "acp"
+  ],
+  "managed_args": [
+    "acp",
+    "--agent-engine",
+    "v3",
+    "--auth-method",
+    "cli"
+  ],
+  "model_protocol": "responses",
+  "archive_entry": "kirocli/bin/kiro-cli",
+  "native_entry": "native/kiro-cli",
+  "node_entry": "engine/node",
+  "server_entry": "engine/kas/node_modules/@kiro/agent/dist/server/acp-server.js",
+  "original_server_sha256": "bf79b2b0fa7ae68653abdf117b4a4dbf064fec6fa7ca49500115f3f2f67581b1",
+  "v2_server_sha256": "25726b5cf5b69c1cca0aa7685627db5dca37afde52e148d5af8f1a8b0c3083f9",
+  "server_sha256": "8619822571719aab4031891bea39d0286ec7fef441ab71445a9042b963c95329",
+  "launcher_sha256": "a8a55f1c3994d08e3aadfe4c032c90ab99bc87a84062242a2d1b07abd0d0e4a6",
+  "targets": {
+    "x86_64": {
+      "elf_machine": 62,
+      "artifact_url": "https://prod.download.cli.kiro.dev/stable/3.0.0/kirocli-x86_64-linux.zip",
+      "archive_sha256": "83dd96e00a75937958096da0436703562bc8c841bef66bde00a4caa5494d8be8",
+      "native_sha256": "7473674c41fbf124574ea6fcaadfabdea2bf94828a03a33c80a9a19b459d8d8c",
+      "node_sha256": "10702245766b225e70bbf6235fd6b47214fd94b4760d00ffaed8ab0df57ac235"
+    },
+    "aarch64": {
+      "elf_machine": 183,
+      "artifact_url": "https://prod.download.cli.kiro.dev/stable/3.0.0/kirocli-aarch64-linux.zip",
+      "archive_sha256": "e7965abd104a432ebdf2acdb24659c96d70397695699156186915eb333142df6",
+      "native_sha256": "8b20838a24d221962c0bed86311ccd4e23caed1db29359b4c9510b75e97af257",
+      "node_sha256": "354c2b049c716aca07b2e5cddb887928ac58950675d1258bb6312083917793b6"
+    }
+  }
+}

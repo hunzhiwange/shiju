@@ -21,7 +21,14 @@ pub struct InstanceGuard {
 /// `None` means the existing GUI has received the launch request: exit before booting App.
 pub fn acquire_or_forward() -> io::Result<Option<InstanceGuard>> {
     let uid = unsafe { libc::geteuid() };
-    let directory = std::path::PathBuf::from(format!("/tmp/shiju-desktop-{uid}"));
+    let directory = if std::env::var_os("SHIJU_RELAX_DESKTOP").as_deref()
+        == Some(std::ffi::OsStr::new("1"))
+    {
+        format!("/tmp/shiju-relax-desktop-{uid}")
+    } else {
+        format!("/tmp/shiju-desktop-{uid}")
+    };
+    let directory = std::path::PathBuf::from(directory);
     match std::fs::DirBuilder::new().mode(0o700).create(&directory) {
         Ok(()) => {}
         Err(error) if error.kind() == io::ErrorKind::AlreadyExists => {}

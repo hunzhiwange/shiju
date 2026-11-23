@@ -83,8 +83,8 @@ pub(crate) async fn prepare(route: Arc<AuthorizedRoute>) -> Result<Option<Plan>,
         if provider.scope.app_id != AppId::Claude {
             return Err(StatusCode::UNPROCESSABLE_ENTITY);
         }
-        let actual = route.actual_route.lock().clone();
-        Plan::prepare(provider, &route.failover, queue, actual).map(Some)
+        let actual_version = route.actual_route.lock().version;
+        Plan::prepare(provider, &route.failover, queue, actual_version).map(Some)
     })
     .await
     .map_err(unavailable)?
@@ -95,7 +95,7 @@ impl Plan {
         provider: &PublishedProvider,
         runtime: &FailoverRuntime,
         queue: FailoverQueueState,
-        actual: agent_apps_failover_runtime::ActualRoute,
+        actual_version: u64,
     ) -> Result<Self, StatusCode> {
         let scope = &provider.scope;
         let policy = agent_apps_failover_runtime::policy(provider.database.clone(), scope)
@@ -116,7 +116,7 @@ impl Plan {
             account: HealthAccount::Unbound,
         };
         let now = std::time::Instant::now();
-        let mut selected = select(
+        let selected = select(
             &SelectionSnapshot {
                 app: scope.app_id,
                 tenant: scope.project.tenant_scope(),
@@ -128,14 +128,6 @@ impl Plan {
             |id| runtime.health.is_available(&key(id), &policy.circuit_breaker, now),
         )
         .map_err(unavailable)?;
-        // Keep the successful resident target first without changing queue
-        // priority, the configured provider, or its native preimage proof.
-        if let Some(id) = &actual.provider_id
-            && let Some(index) = selected.iter().position(|entry| &entry.provider.id == id)
-        {
-            let current = selected.remove(index);
-            selected.insert(0, current);
-        }
         let mut candidates = Vec::new();
         for entry in selected {
             let id = &entry.provider.id;
@@ -197,7 +189,7 @@ impl Plan {
             candidates,
             max_retries: policy.retry_timeout.max_retries,
             policy: policy.circuit_breaker,
-            actual_version: actual.version,
+            actual_version,
             correlation_id: uuid::Uuid::new_v4().to_string(),
         })
     }

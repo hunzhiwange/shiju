@@ -46,6 +46,24 @@ enum Resource {
     Candidates,
 }
 
+#[derive(serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct LocalTarget {
+    #[serde(default = "vw_api_transport::local_host_id")]
+    target_host_id: String,
+}
+
+async fn local_control(
+    target: Result<Query<LocalTarget>, QueryRejection>,
+    mut request: axum::extract::Request,
+    next: middleware::Next,
+) -> Response {
+    if let Ok(Query(target)) = target {
+        super::lifecycle_api::insert_local_control(request.extensions_mut(), &target.target_host_id);
+    }
+    next.run(request).await
+}
+
 pub fn router() -> Router {
     Router::new()
         .merge(health::router())
@@ -58,6 +76,7 @@ pub fn router() -> Router {
             "/agent-apps/high-availability/candidates",
             get(read).layer(Extension(Resource::Candidates)),
         )
+        .route_layer(middleware::from_fn(local_control))
         .layer(middleware::map_response(async |mut response: Response| {
             response
                 .headers_mut()
@@ -70,7 +89,6 @@ async fn read(
     control: Option<Extension<RoutingControl>>,
     Extension(tenant): Extension<TenantScope>,
     Extension(resource): Extension<Resource>,
-    database: Option<Extension<GlobalDatabase>>,
     headers: HeaderMap,
     query: Result<Query<FailoverQueueQuery>, QueryRejection>,
 ) -> Result<Response, ReadError> {
@@ -78,7 +96,7 @@ async fn read(
     validate_identity(&query.target_host_id).map_err(|_| ReadError::InvalidInput)?;
     let project = ProjectScope::new(tenant.clone(), query.project_id.clone())
         .map_err(|_| ReadError::InvalidInput)?;
-    RoutingControl::authorize(
+    let (control, _) = RoutingControl::authorize(
         control,
         headers,
         tenant,
@@ -98,16 +116,9 @@ async fn read(
     }
     let scope =
         FailoverQueueScope { project, target_host_id: query.target_host_id, app_id: query.app_id };
-    tokio::task::spawn_blocking(move || {
-        let db = match database {
-            Some(Extension(database)) => database,
-            None => GlobalDatabase::for_home(&agent_paths::paths().home)
-                .map_err(|_| ReadError::Unavailable)?,
-        };
-        read_resource(db, scope, resource)
-    })
-    .await
-    .map_err(|_| ReadError::Unavailable)?
+    tokio::task::spawn_blocking(move || read_resource(control.database, scope, resource))
+        .await
+        .map_err(|_| ReadError::Unavailable)?
 }
 
 fn read_resource(
@@ -168,7 +179,6 @@ enum Change {
 async fn member(
     control: Option<Extension<RoutingControl>>,
     Extension(tenant): Extension<TenantScope>,
-    database: Option<Extension<GlobalDatabase>>,
     headers: HeaderMap,
     method: Method,
     query: Result<Query<FailoverQueueQuery>, QueryRejection>,
@@ -181,14 +191,12 @@ async fn member(
     } else {
         QueueChange::Remove(body.provider_id.0)
     };
-    write(control, tenant, database, headers, query, Change::Queue(body.expected_version, change))
-        .await
+    write(control, tenant, headers, query, Change::Queue(body.expected_version, change)).await
 }
 
 async fn order(
     control: Option<Extension<RoutingControl>>,
     Extension(tenant): Extension<TenantScope>,
-    database: Option<Extension<GlobalDatabase>>,
     headers: HeaderMap,
     query: Result<Query<FailoverQueueQuery>, QueryRejection>,
     body: Result<Json<FailoverQueueReorderRequest>, JsonRejection>,
@@ -198,26 +206,23 @@ async fn order(
         validate_identity(id.as_ref()).map_err(|_| ReadError::InvalidInput)?;
     }
     let change = QueueChange::Reorder(body.provider_ids.into_iter().map(|id| id.0).collect());
-    write(control, tenant, database, headers, query, Change::Queue(body.expected_version, change))
-        .await
+    write(control, tenant, headers, query, Change::Queue(body.expected_version, change)).await
 }
 
 async fn enabled(
     control: Option<Extension<RoutingControl>>,
     Extension(tenant): Extension<TenantScope>,
-    database: Option<Extension<GlobalDatabase>>,
     headers: HeaderMap,
     query: Result<Query<FailoverQueueQuery>, QueryRejection>,
     body: Result<Json<FailoverQueueEnabledRequest>, JsonRejection>,
 ) -> Result<Response, ReadError> {
     let Json(body) = body.map_err(|_| ReadError::InvalidInput)?;
-    write(control, tenant, database, headers, query, Change::Enabled(body)).await
+    write(control, tenant, headers, query, Change::Enabled(body)).await
 }
 
 async fn write(
     control: Option<Extension<RoutingControl>>,
     tenant: TenantScope,
-    database: Option<Extension<GlobalDatabase>>,
     headers: HeaderMap,
     query: Result<Query<FailoverQueueQuery>, QueryRejection>,
     change: Change,
@@ -250,11 +255,7 @@ async fn write(
         let (root, _) = control
             .authorize_mode(&headers, &scope.project, &scope.target_host_id, scope.app_id)
             .map_err(ReadError::from_status)?;
-        let database = match database {
-            Some(Extension(database)) => database,
-            None => GlobalDatabase::for_home(&agent_paths::paths().home)
-                .map_err(|_| ReadError::Unavailable)?,
-        };
+        let database = control.database;
         let providers = AppProviderStore::new(database.clone())
             .map_err(|_| ReadError::Unavailable)?
             .failover_providers(&scope.project, scope.app_id)

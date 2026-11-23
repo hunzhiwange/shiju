@@ -19,14 +19,21 @@ impl Drop for Servers {
 
 #[tokio::test]
 async fn ha_macos_headless_routing_acceptance() -> anyhow::Result<()> {
+    exercise_failover(false, "host_migration_14_tests::agent_apps_ha_acceptance_tests::ha_macos_headless_routing_acceptance").await
+}
+
+pub(crate) async fn exercise_failover(local: bool, test_name: &str) -> anyhow::Result<()> {
+    let host = if local { vw_api_transport::LOCAL_HOST_ID } else { HOST };
     const CHILD: &str = "SHIJU_HA_ACCEPTANCE_CHILD";
     if std::env::var_os(CHILD).is_none() {
         let root = tempfile::tempdir()?;
         let output = std::process::Command::new(std::env::current_exe()?)
-            .args(["--exact", "host_migration_14_tests::agent_apps_ha_acceptance_tests::ha_macos_headless_routing_acceptance", "--nocapture"])
+            .args(["--exact", test_name, "--nocapture"])
             .env(CHILD, "1").env("VIBEWINDOW_TEST_ROOT", root.path())
-            .env_remove("VIBEWINDOW_TEST_HOME").output()?;
-        eprint!("{}{}", String::from_utf8_lossy(&output.stdout), String::from_utf8_lossy(&output.stderr));
+            .env_remove("VIBEWINDOW_TEST_HOME").env_remove("SHIJU_AGENT_APPS_ACCESS_FILE").output()?;
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        eprint!("{stdout}{}", String::from_utf8_lossy(&output.stderr));
+        assert!(stdout.contains("running 1 test"), "isolated acceptance did not run");
         assert!(output.status.success(), "isolated acceptance failed: {}", output.status);
         return Ok(());
     }
@@ -84,7 +91,10 @@ async fn ha_macos_headless_routing_acceptance() -> anyhow::Result<()> {
     ]);
     grants["principals"][0]["grants"][0]["provider_config_write"] = json!(true);
     fs::write(&policy, grants.to_string())?;
-    let db = GlobalDatabase::for_home(home.as_path())?;
+    // Keep an independent routing database to catch handlers that reopen the
+    // ambient database instead of using the listener's authorized control.
+    let database_home = if local { home.join("routing-home") } else { home.clone() };
+    let db = GlobalDatabase::for_home(&database_home)?;
     let tenant = TenantScope::new("p", "owner")?;
     for (id, base_url) in [("current", unavailable), ("backup", endpoint)] {
         AppProviderStore::new(db.clone()).map_err(anyhow::Error::msg)?.claude_save(
@@ -105,7 +115,7 @@ async fn ha_macos_headless_routing_acceptance() -> anyhow::Result<()> {
             write_guard::lock_app,
         };
         let transactions =
-            ProviderTransactions::new(&root, ExecutionHostId::new(HOST).unwrap()).unwrap();
+            ProviderTransactions::new(&root, ExecutionHostId::new(host).unwrap()).unwrap();
         let mut guard = lock_app(Claude, &home.as_path().join(".claude")).unwrap();
         transactions
             .commit(
@@ -130,14 +140,21 @@ async fn ha_macos_headless_routing_acceptance() -> anyhow::Result<()> {
         }));
     let app = Router::new().nest("/v1", crate::server::router()
         .merge(crate::server::agent_apps_high_availability::router()).merge(mode));
-    let app = crate::server::lifecycle_api::configure_with_policy(
-        app, &routing, policy.clone(), db.clone(),
-        crate::server::lifecycle_api::RoutingPaths {
-            home: home.as_path().to_owned(), config: home.as_path().join(".config/shiju"),
-            state: home.as_path().join(".local/state/shiju"),
-        },
-        |database, policy, tenant, host| Lifecycle(agent_gateway::aggregation_lifecycle::AggregationLifecycle { database, policy, tenant, host }),
-    ).await.layer(axum::Extension(db.clone()))
+    let paths = crate::server::lifecycle_api::RoutingPaths {
+        home: database_home, config: home.as_path().join(".config/shiju"),
+        state: home.as_path().join(".local/state/shiju"),
+    };
+    let lifecycle = |database, policy, tenant, host| Lifecycle(
+        agent_gateway::aggregation_lifecycle::AggregationLifecycle { database, policy, tenant, host }
+    );
+    let app = if local {
+        crate::server::lifecycle_api::configure(app, &routing, paths, true, lifecycle).await
+    } else {
+        crate::server::lifecycle_api::configure_with_policy(
+            app, &routing, policy, db.clone(), paths, lifecycle,
+        ).await.layer(axum::Extension(db.clone()))
+    };
+    let app = app
         .layer(axum::middleware::from_fn(|mut request: axum::extract::Request, next: axum::middleware::Next| async move {
             let tenant = TenantScope::new(
                 request.headers()["x-platform-id"].to_str().unwrap(),
@@ -155,7 +172,7 @@ async fn ha_macos_headless_routing_acceptance() -> anyhow::Result<()> {
             .with_tenant_scope(tenant.clone()),
     ).map_err(anyhow::Error::msg)?);
     let sdk_scope = FailoverQueueQuery {
-        project_id: "project".into(), target_host_id: HOST.into(), app_id: Claude,
+        project_id: "project".into(), target_host_id: host.into(), app_id: Claude,
     };
     let empty = sdk.agent_apps_failover_queue(&sdk_scope, Some(MANAGER)).await?;
     assert!(empty.entries.is_empty());
@@ -167,21 +184,39 @@ async fn ha_macos_headless_routing_acceptance() -> anyhow::Result<()> {
     };
     let ha = |method, resource: &str| {
         request(method, &format!("agent-apps/high-availability/{resource}"))
-            .query(&[("projectId", "project"), ("targetHostId", HOST), ("appId", "claude")])
+            .query(&[("projectId", "project"), ("targetHostId", host), ("appId", "claude")])
     };
-    assert_eq!(request(Method::POST, &format!("app-routing/hosts/{HOST}/start"))
+    if local {
+        let response = request(Method::PUT, &format!("app-routing/hosts/{host}/config"))
+            .json(&json!({"enabled": true, "listenAddress": "127.0.0.1",
+                "listenPort": 0, "loggingEnabled": false})).send().await?;
+        assert_eq!(response.status(), StatusCode::OK, "listener config: {}", response.text().await?);
+    }
+    assert_eq!(request(Method::POST, &format!("app-routing/hosts/{host}/start"))
         .json(&json!({})).send().await?.status(), StatusCode::OK);
-    let applied = request(Method::POST, "app-providers/claude/mode/apply").json(&json!({
-        "targetHostId":HOST,"projectId":"project","action":{"kind":"proxy","providerId":"current"}
-    })).send().await?;
-    assert_eq!(applied.status(), StatusCode::OK);
+    let applied = if local {
+        request(Method::POST, &format!("app-routing/hosts/{host}/projects/project/apps/claude/mode"))
+            .json(&json!({"action":{"kind":"proxy","providerId":"current"}})).send().await?
+    } else {
+        request(Method::POST, "app-providers/claude/mode/apply").json(&json!({
+            "targetHostId":host,"projectId":"project","action":{"kind":"proxy","providerId":"current"}
+        })).send().await?
+    };
+    assert_eq!(applied.status(), StatusCode::OK, "attach: {}", applied.text().await?);
+    let candidates = ha(Method::GET, "candidates").send().await?.error_for_status()?
+        .json::<Value>().await?;
+    assert_eq!(candidates["candidates"].as_array().unwrap().len(), 2, "candidate response: {candidates}");
     let mut version = 0;
-    for id in ["current", "backup"] {
+    for id in ["backup", "current"] {
         let response = ha(Method::POST, "queue/members")
             .json(&json!({"expectedVersion":version,"providerId":id})).send().await?;
         assert_eq!(response.status(), StatusCode::OK);
         version = response.json::<Value>().await?["version"].as_u64().unwrap();
     }
+    let reordered = ha(Method::PUT, "queue/order")
+        .json(&json!({"expectedVersion":version,"providerIds":["current","backup"]}))
+        .send().await?.error_for_status()?.json::<Value>().await?;
+    version = reordered["version"].as_u64().unwrap();
     let response = ha(Method::GET, "policy").send().await?;
     assert_eq!(response.status(), StatusCode::OK);
     let mut policy: FailoverPolicy = response.json().await?;
@@ -212,20 +247,24 @@ async fn ha_macos_headless_routing_acceptance() -> anyhow::Result<()> {
     assert_eq!(route.status(), StatusCode::OK);
     assert_eq!(route.json::<Value>().await?["actualProviderId"], "backup");
     failures.store(true, Ordering::SeqCst);
-    assert!(!send().await?.status().is_success());
+    assert_eq!(send().await?.status(), StatusCode::BAD_GATEWAY);
     assert_eq!(hits.load(Ordering::SeqCst), 2);
     for id in ["current", "backup"] {
         let health = ha(Method::GET, "health").query(&[("providerId", id)]).send().await?;
         assert_eq!(health.status(), StatusCode::OK);
         assert_eq!(health.json::<Value>().await?["state"], "open");
     }
-    assert!(!send().await?.status().is_success());
+    assert_eq!(send().await?.status(), StatusCode::SERVICE_UNAVAILABLE);
     assert_eq!(hits.load(Ordering::SeqCst), 2, "all-open circuits must reject before sending");
     assert_eq!(connections.load(Ordering::SeqCst), 1);
     // Change the real policy to expire cooldown; the next production request
-    // must acquire the half-open probe and close the circuit on success.
+    // must acquire the half-open probe. In local mode, require two successes
+    // so both the half-open state and subsequent recovery are visible over HTTP.
     failures.store(false, Ordering::SeqCst);
     policy.circuit_breaker.cooldown_secs = 0;
+    if local {
+        policy.circuit_breaker.success_threshold = 2;
+    }
     assert_eq!(ha(Method::PUT, "policy").json(&policy).send().await?.status(), StatusCode::OK);
     let response = send().await?;
     assert_eq!(response.status(), StatusCode::OK);
@@ -233,7 +272,34 @@ async fn ha_macos_headless_routing_acceptance() -> anyhow::Result<()> {
     assert_eq!(hits.load(Ordering::SeqCst), 3);
     let health = ha(Method::GET, "health").query(&[("providerId", "backup")]).send().await?;
     assert_eq!(health.status(), StatusCode::OK);
-    assert_eq!(health.json::<Value>().await?["state"], "closed");
+    assert_eq!(health.json::<Value>().await?["state"], if local { "half_open" } else { "closed" });
+    if local {
+        let other_project = FailoverQueueQuery { project_id: "other-project".into(), ..sdk_scope.clone() };
+        let other_queue = sdk.agent_apps_failover_queue(&other_project, Some(MANAGER)).await?;
+        assert!(!other_queue.enabled);
+        assert!(other_queue.entries.is_empty());
+        policy.circuit_breaker.cooldown_secs = 300;
+        assert_eq!(ha(Method::PUT, "policy").json(&policy).send().await?.status(), StatusCode::OK);
+        let _: Value = send().await?.error_for_status()?.json().await?;
+        let recovered = ha(Method::GET, "health").query(&[("providerId", "backup")])
+            .send().await?.error_for_status()?.json::<Value>().await?;
+        assert_eq!(recovered["state"], "closed");
+        let before = connections.load(Ordering::SeqCst);
+        let reset = ha(Method::POST, "health/reset").query(&[("providerId", "current")])
+            .send().await?.error_for_status()?.json::<Value>().await?;
+        assert_eq!(reset["state"], "unknown");
+        assert_eq!(send().await?.status(), StatusCode::OK);
+        assert_eq!(connections.load(Ordering::SeqCst), before + 1,
+            "reset must make the higher-priority provider eligible for the next attempt");
+        failures.store(true, Ordering::SeqCst);
+        assert_eq!(send().await?.status(), StatusCode::BAD_GATEWAY);
+        failures.store(false, Ordering::SeqCst);
+        let reset = ha(Method::POST, "health/reset").query(&[("providerId", "backup")])
+            .send().await?.error_for_status()?.json::<Value>().await?;
+        assert_eq!(reset["state"], "unknown");
+        assert_eq!(send().await?.status(), StatusCode::OK);
+        assert_eq!(hits.load(Ordering::SeqCst), 7);
+    }
     assert_eq!(fs::read(home.as_path().join(".claude/settings.json"))?, config_bytes);
     let response = ha(Method::GET, "queue").send().await?;
     assert_eq!(response.status(), StatusCode::OK);
@@ -244,6 +310,11 @@ async fn ha_macos_headless_routing_acceptance() -> anyhow::Result<()> {
     let disabled = response.json::<Value>().await?;
     assert_eq!(disabled["enabled"], false);
     assert_eq!(disabled["entries"], queue["entries"]);
+    let removed = ha(Method::DELETE, "queue/members")
+        .json(&json!({"expectedVersion":disabled["version"],"providerId":"backup"}))
+        .send().await?.error_for_status()?.json::<Value>().await?;
+    assert_eq!(removed["entries"].as_array().unwrap().len(), 1);
+    assert_eq!(removed["entries"][0]["providerId"], "current");
     routing.stop().await?;
     eprintln!("controlled headless acceptance: OS={}, arch={}, version={}, backup_http={}, primary_connections={}",
         std::env::consts::OS, std::env::consts::ARCH, env!("CARGO_PKG_VERSION"),

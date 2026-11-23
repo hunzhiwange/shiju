@@ -3,7 +3,6 @@ use super::{ControlError, ReadError, RoutingControl};
 use app_provider_services::AppProviderStore;
 use app_routing_services::{failover_runtime as agent_apps_failover_runtime, failover_store::NAMESPACE};
 use app_settings_store::settings_store::GatewaySettingsStore;
-use agent_database::GlobalDatabase;
 use axum::{
     Extension, Json, Router,
     extract::{Query, rejection::{JsonRejection, QueryRejection}},
@@ -58,60 +57,54 @@ pub(super) fn router() -> Router {
 async fn health(
     control: Option<Extension<RoutingControl>>,
     Extension(tenant): Extension<TenantScope>,
-    database: Option<Extension<GlobalDatabase>>,
     headers: HeaderMap,
     query: Result<Query<ScopeQuery>, QueryRejection>,
 ) -> Result<Response, ReadError> {
-    execute(control, tenant, database, headers, query, Operation::Health).await
+    execute(control, tenant, headers, query, Operation::Health).await
 }
 
 async fn reset(
     control: Option<Extension<RoutingControl>>,
     Extension(tenant): Extension<TenantScope>,
-    database: Option<Extension<GlobalDatabase>>,
     headers: HeaderMap,
     query: Result<Query<ScopeQuery>, QueryRejection>,
 ) -> Result<Response, ReadError> {
-    execute(control, tenant, database, headers, query, Operation::Reset).await
+    execute(control, tenant, headers, query, Operation::Reset).await
 }
 
 async fn route(
     control: Option<Extension<RoutingControl>>,
     Extension(tenant): Extension<TenantScope>,
-    database: Option<Extension<GlobalDatabase>>,
     headers: HeaderMap,
     query: Result<Query<ScopeQuery>, QueryRejection>,
 ) -> Result<Response, ReadError> {
-    execute(control, tenant, database, headers, query, Operation::Route).await
+    execute(control, tenant, headers, query, Operation::Route).await
 }
 
 async fn policy(
     control: Option<Extension<RoutingControl>>,
     Extension(tenant): Extension<TenantScope>,
-    database: Option<Extension<GlobalDatabase>>,
     headers: HeaderMap,
     query: Result<Query<ScopeQuery>, QueryRejection>,
 ) -> Result<Response, ReadError> {
-    execute(control, tenant, database, headers, query, Operation::Policy).await
+    execute(control, tenant, headers, query, Operation::Policy).await
 }
 
 async fn save_policy(
     control: Option<Extension<RoutingControl>>,
     Extension(tenant): Extension<TenantScope>,
-    database: Option<Extension<GlobalDatabase>>,
     headers: HeaderMap,
     query: Result<Query<ScopeQuery>, QueryRejection>,
     body: Result<Json<FailoverPolicy>, JsonRejection>,
 ) -> Result<Response, ReadError> {
     let Json(policy) = body.map_err(|_| ReadError::InvalidInput)?;
     policy.validate().map_err(|_| ReadError::InvalidInput)?;
-    execute(control, tenant, database, headers, query, Operation::SavePolicy(policy)).await
+    execute(control, tenant, headers, query, Operation::SavePolicy(policy)).await
 }
 
 async fn execute(
     control: Option<Extension<RoutingControl>>,
     tenant: TenantScope,
-    database: Option<Extension<GlobalDatabase>>,
     headers: HeaderMap,
     query: Result<Query<ScopeQuery>, QueryRejection>,
     operation: Operation,
@@ -146,11 +139,7 @@ async fn execute(
         project, target_host_id: query.target_host_id, app_id: query.app_id,
     };
     tokio::task::spawn_blocking(move || {
-        let database = match database {
-            Some(Extension(database)) => database,
-            None => GlobalDatabase::for_home(&agent_paths::paths().home)
-                .map_err(|_| ReadError::Unavailable)?,
-        };
+        let database = control.database;
         match operation {
             Operation::Route => control.routing.failover_route(&scope)
                 .map(|route| Json(route).into_response()).map_err(ReadError::from_status),

@@ -5,6 +5,8 @@ pub mod record_resync;
 pub mod snapshot_host;
 mod snapshot_bindings;
 pub mod agent_apps_high_availability;
+#[cfg(test)]
+mod agent_apps_high_availability_tests;
 mod error;
 mod config_body;
 pub use error::ControlError;

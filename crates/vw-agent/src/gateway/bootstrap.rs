@@ -242,7 +242,7 @@ async fn serve_gateway(
         std::future::pending::<()>().await;
     };
     #[cfg(target_os = "macos")]
-    let app = api::handlers::app_routing::configure(app, routing).await;
+    let app = api::handlers::app_routing::configure(app, routing, addr.ip().is_loopback() && tunnel.is_none()).await;
     #[cfg(not(target_arch = "wasm32"))]
     crate::worktree::initialize_host();
     #[cfg(not(target_arch = "wasm32"))]

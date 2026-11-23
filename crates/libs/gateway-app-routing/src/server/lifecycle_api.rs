@@ -51,11 +51,61 @@ pub struct RoutingPaths {
     pub state: PathBuf,
 }
 
+#[derive(Clone)]
+struct LocalLifecycle {
+    database: GlobalDatabase,
+    routing: Arc<RoutingListener>,
+    paths: RoutingPaths,
+}
+
+pub(super) async fn local_lifecycle(
+    Path(host): Path<String>,
+    mut request: axum::extract::Request,
+    next: axum::middleware::Next,
+) -> axum::response::Response {
+    let extensions = request.extensions_mut();
+    if host == "desktop-local" && extensions.get::<RoutingControl>().is_none() {
+        if let (Some(local), Some(tenant)) = (
+            extensions.get::<LocalLifecycle>(),
+            extensions.get::<TenantScope>(),
+        ) {
+            let bind = SocketAddr::from(([127, 0, 0, 1], 15721));
+            let control = RoutingControl {
+                database: local.database.clone(),
+                routing: Arc::clone(&local.routing),
+                paths: local.paths.clone(),
+                policy: app_access_service::access::tenant_policy_path(tenant),
+                scope: Arc::new(RoutingControlScope { tenant: tenant.clone(), host, bind }),
+                policy_default: ListenerConfig { enabled: false, bind, logging_enabled: false },
+                diagnostic_jobs: None,
+            };
+            extensions.insert(control);
+        }
+    }
+    next.run(request).await
+}
+
 pub async fn configure<H: app_routing_services::lifecycle_host::AggregationLifecycleHost + 'static>(
     app: Router, routing: &Arc<RoutingListener>, paths: RoutingPaths,
+    local_only: bool,
     lifecycle: impl FnOnce(GlobalDatabase, PathBuf, TenantScope, String) -> H,
 ) -> Router {
     let Some(path) = std::env::var_os("SHIJU_AGENT_APPS_ACCESS_FILE").map(PathBuf::from) else {
+        let app = if local_only {
+            match GlobalDatabase::for_home(&paths.home) {
+                Ok(database) => app.layer(Extension(LocalLifecycle {
+                    database,
+                    routing: Arc::clone(routing),
+                    paths: paths.clone(),
+                })),
+                Err(error) => {
+                    tracing::warn!(%error, "Local application routing storage unavailable");
+                    app
+                }
+            }
+        } else {
+            app
+        };
         return match tokio::task::spawn_blocking({ let state = paths.state.clone(); move || DiagnosticJobs::open_on_execution_host(&state) })
             .await
             .ok()

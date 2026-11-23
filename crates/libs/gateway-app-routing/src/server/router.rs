@@ -16,9 +16,15 @@ pub fn router() -> axum::Router {
     use super::outbound_probe::*;
     use super::outbound_scan::*;
     use super::mode_attach::attach_mode;
-    Router::new()
-        .route("/app-routing/hosts/{host}/client-host", get(get_client_host::<RoutingControl>).put(put_client_host::<RoutingControl>))
+    let lifecycle = Router::new()
         .route("/app-routing/hosts/{host}/status", get(status))
+        .route("/app-routing/hosts/{host}/health", get(health::<RoutingControl>))
+        .route("/app-routing/hosts/{host}/start", post(start))
+        .route("/app-routing/hosts/{host}/stop", post(stop))
+        .route_layer(middleware::from_fn(super::lifecycle_api::local_lifecycle));
+    Router::new()
+        .merge(lifecycle)
+        .route("/app-routing/hosts/{host}/client-host", get(get_client_host::<RoutingControl>).put(put_client_host::<RoutingControl>))
         .route("/app-routing/hosts/{host}/projects/{project}/apps/{app}/mode", post(attach_mode))
         .route("/app-routing/hosts/{host}/projects/{project}/apps/{app}/requests", get(request_status::<RoutingControl>))
         .route(
@@ -29,9 +35,6 @@ pub fn router() -> axum::Router {
             "/app-routing/hosts/{host}/projects/{project}/apps/{app}/egress/scans/{task}",
             get(outbound_scan_status::<RoutingControl>).delete(cancel_outbound_scan::<RoutingControl>),
         )
-        .route("/app-routing/hosts/{host}/health", get(health::<RoutingControl>))
-        .route("/app-routing/hosts/{host}/start", post(start))
-        .route("/app-routing/hosts/{host}/stop", post(stop))
         .route("/app-routing/hosts/{host}/config", get(get_config).put(put_config))
         .route("/app-routing/hosts/{host}/egress", get(get_egress).put(put_egress))
         .route(

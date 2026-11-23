@@ -12,8 +12,8 @@ fn lifecycle(database: GlobalDatabase, policy: PathBuf, tenant: TenantScope, hos
     -> crate::gateway::aggregation_lifecycle::AggregationLifecycle {
     crate::gateway::aggregation_lifecycle::AggregationLifecycle { database, policy, tenant, host }
 }
-pub(crate) async fn configure(app: Router, routing: &Arc<RoutingListener>) -> Router {
-    gateway_app_routing::server::lifecycle_api::configure(app, routing, paths(), lifecycle).await
+pub(crate) async fn configure(app: Router, routing: &Arc<RoutingListener>, local_only: bool) -> Router {
+    gateway_app_routing::server::lifecycle_api::configure(app, routing, paths(), local_only, lifecycle).await
 }
 #[cfg(test)]
 pub(crate) async fn configure_with_policy(app: Router, routing: &Arc<RoutingListener>, policy: PathBuf, database: GlobalDatabase) -> Router {

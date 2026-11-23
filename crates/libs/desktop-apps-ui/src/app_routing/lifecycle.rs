@@ -29,6 +29,7 @@ pub struct State {
     serial: u64,
     busy: bool,
     status: Option<RoutingStatus>,
+    retry_start: bool,
     health: Option<RoutingHealth>,
     error: Option<String>,
 }
@@ -49,7 +50,12 @@ pub enum Event {
     Attached(Context, u64, vw_api_transport::id::ProjectId, Vec<vw_api_app_identity::AppId>, bool),
     Outbound(super::outbound::Event),
     Run(Operation),
-    Loaded(Context, u64, Result<(RoutingStatus, RoutingHealth), StatusFailure>),
+    Loaded(
+        Context,
+        u64,
+        Operation,
+        Result<(RoutingStatus, RoutingHealth), StatusFailure>,
+    ),
 }
 
 #[derive(Clone, Debug)]
@@ -295,16 +301,22 @@ pub fn update(
             Task::perform(
                 async move {
                     let result = request(client, context.host.clone(), token, operation).await;
-                    Event::Loaded(context, serial, result)
+                    Event::Loaded(context, serial, operation, result)
                 },
                 message,
             )
         }
-        Event::Loaded(request, serial, result) => {
+        Event::Loaded(request, serial, operation, result) => {
             if request != context {
                 return Task::none();
             }
+            let failed = result.is_err();
             if state.finish(&request, serial, result) {
+                match operation {
+                    Operation::Start => state.retry_start = failed,
+                    Operation::Stop if !failed => state.retry_start = false,
+                    _ => {}
+                }
                 if inline_page {
                     return Task::done(Event::InspectPage);
                 }
@@ -323,6 +335,7 @@ fn can_control(state: &State, operation: Operation) -> bool {
     }
     match (operation, state.status.as_ref().map(|s| s.state)) {
         (Operation::Start, Some(RoutingState::Stopped | RoutingState::Failed)) => true,
+        (Operation::Start, None | Some(RoutingState::Running)) => state.retry_start,
         (Operation::Stop, Some(RoutingState::Running)) => true,
         _ => false,
     }
@@ -388,8 +401,15 @@ fn service_card<'a>(
     }
     let stopping = matches!(status.map(|s| s.state), Some(RoutingState::Running));
     let operation = if stopping { Operation::Stop } else { Operation::Start };
+    let action_label = if stopping {
+        "停止"
+    } else if state.retry_start {
+        "重试启动"
+    } else {
+        "启动"
+    };
     let action =
-        button(text(if stopping { "停止" } else { "启动" }).size(SETTINGS_CONTROL_TEXT_SIZE))
+        button(text(action_label).size(SETTINGS_CONTROL_TEXT_SIZE))
             .padding([8, 14])
             .style(rounded_action_btn_style)
             .on_press_maybe(
@@ -402,10 +422,18 @@ fn service_card<'a>(
             (connected && (!fresh || !state.busy && !state.listener.is_busy()))
                 .then_some(Event::Run(Operation::Refresh)),
         );
-    let mut card = column![
-        container(row![details, refresh, action].spacing(8).align_y(Alignment::Center))
-            .padding([16, 0]),
-    ];
+    let mut controls = row![details, refresh, action].spacing(8).align_y(Alignment::Center);
+    if stopping && fresh && state.retry_start {
+        controls = controls.push(
+            button(text("重试启动").size(SETTINGS_CONTROL_TEXT_SIZE))
+                .padding([8, 14])
+                .style(rounded_action_btn_style)
+                .on_press_maybe(
+                    can_control(state, Operation::Start).then_some(Event::Run(Operation::Start)),
+                ),
+        );
+    }
+    let mut card = column![container(controls).padding([16, 0])];
     if fresh && state.unconfigured {
         card = card.push(
             container(

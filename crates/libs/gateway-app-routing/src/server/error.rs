@@ -89,17 +89,17 @@ impl IntoResponse for ControlError {
             Self::AggregationConflict => (
                 StatusCode::CONFLICT,
                 "revision_conflict",
-                "Application aggregation changed or requires recovery",
+                "Application route changed or requires recovery",
             ),
             Self::AggregationUnsupported => (
                 StatusCode::UNPROCESSABLE_ENTITY,
                 "unsupported_target",
-                "Application aggregation recovery is unsupported",
+                "Application route recovery is unsupported",
             ),
             Self::AggregationTargetFailed => (
                 StatusCode::BAD_GATEWAY,
                 "target_failed",
-                "Application aggregation restoration failed",
+                "Application route restoration failed",
             ),
             Self::AddressInUse => {
                 (StatusCode::CONFLICT, "address_in_use", "Routing address is in use")

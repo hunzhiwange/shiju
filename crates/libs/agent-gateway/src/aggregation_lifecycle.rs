@@ -72,11 +72,11 @@ impl AggregationLifecycle {
             return Err(StatusCode::FORBIDDEN);
         }
         let principal = match app {
-            AppId::Claude | AppId::Codex => Some(
+            AppId::Claude | AppId::Codex if state.stack.enabled => Some(
                 state.aggregation_recovery.as_ref().ok_or(StatusCode::CONFLICT)?.principal.as_str(),
             ),
-            // Desktop deliberately retains its client projection on service exit.
-            AppId::ClaudeDesktop => None,
+            // Only CLI aggregation persists a recovery principal.
+            AppId::Claude | AppId::Codex | AppId::ClaudeDesktop => None,
             _ => return Err(StatusCode::UNPROCESSABLE_ENTITY),
         };
         let (home, root, principal) = app_access_service::access::authorize_aggregation_lifecycle(
@@ -143,6 +143,114 @@ impl AggregationLifecycle {
             CatalogPolicy::Preserve
         })
     }
+    fn desktop_route_is_live(
+        &self,
+        routing: &RoutingListener,
+        project: &vw_api_transport::ProjectScope,
+    ) -> bool {
+        let binding = app_routing_services::VerifiedRouteBinding::new(
+            project.clone(),
+            self.host.clone(),
+            AppId::ClaudeDesktop,
+            "saved-aggregation".into(),
+            1,
+        );
+        routing.desktop_revision(&binding).is_some()
+    }
+
+    fn require_desktop_installation(&self) -> Result<(), StatusCode> {
+        use vw_agent_apps::providers::claude_desktop::publication::DesktopInstallation;
+        let (environment, _) = app_access_service::access::aggregation_lifecycle_host(
+            &self.policy,
+            &self.tenant,
+            &self.host,
+        )?;
+        let observation = vw_agent_apps::apps::discovery::read::read(AppId::ClaudeDesktop, &environment)
+            .map_err(unavailable)?
+            .desktop
+            .ok_or(StatusCode::SERVICE_UNAVAILABLE)?;
+        if DesktopInstallation::from(&observation) != DesktopInstallation::Installed {
+            return Err(StatusCode::UNPROCESSABLE_ENTITY);
+        }
+        Ok(())
+    }
+
+    fn resume_provider(
+        &self,
+        host: &impl PublicationHost,
+        routing: &Arc<RoutingListener>,
+        tx: &ProviderTransactions,
+        app: AppId,
+        state: AppState,
+    ) -> Result<(), StatusCode> {
+        let Some(mode) = &state.mode else {
+            return Ok(());
+        };
+        if !mode.attached || mode.mode != Mode::Proxy {
+            return Ok(());
+        }
+        let project = state.project_scope.clone().ok_or(StatusCode::FORBIDDEN)?;
+        state.require_project(&project).map_err(|_| StatusCode::FORBIDDEN)?;
+        let provider_id = mode.proxy_route.clone().ok_or(StatusCode::CONFLICT)?;
+        let scope = FailoverQueueScope {
+            project,
+            target_host_id: self.host.clone(),
+            app_id: app,
+        };
+        if tx.pending(app).map_err(unavailable)?.is_none() {
+            let live = if app == AppId::ClaudeDesktop {
+                self.desktop_route_is_live(routing, &scope.project)
+            } else {
+                routing
+                    .with_provider(&scope, |provider, _| Ok(provider.matches_saved(&provider_id, &state)))
+                    .unwrap_or(false)
+            };
+            if live {
+                return Ok(());
+            }
+        }
+
+        match app {
+            AppId::Claude => {
+                use vw_api_app_provider_environment::mode_apply::ModeApplyAction;
+                let (home, root, _) = app_access_service::access::authorize_aggregation_lifecycle(
+                    &self.policy,
+                    &scope.project,
+                    &self.host,
+                    app,
+                    None,
+                )?;
+                app_routing_services::provider_publication::apply_checked(
+                    self.database.clone(),
+                    routing,
+                    &home,
+                    &root,
+                    &scope,
+                    &ModeApplyAction::Proxy { provider_id },
+                    || tx.state(app).is_ok_and(|current| current == state),
+                )?;
+            }
+            AppId::Codex | AppId::ClaudeDesktop => {
+                if app == AppId::ClaudeDesktop {
+                    self.require_desktop_installation()?;
+                }
+                let mut context = self.context(host, app, state)?;
+                let store = AppProviderStore::new(self.database.clone()).map_err(unavailable)?;
+                let record = store
+                    .publication_record(&self.tenant, app, &provider_id)
+                    .map_err(unavailable)?;
+                context.routing = Some(Arc::clone(routing));
+                let kind = serde_json::to_string(&app).map_err(unavailable)?;
+                let key = format!("{kind}:{provider_id}");
+                if !context.republish_saved(&key, &record)? {
+                    return Err(StatusCode::CONFLICT);
+                }
+            }
+            _ => return Err(StatusCode::UNPROCESSABLE_ENTITY),
+        }
+        Ok(())
+    }
+
     pub fn resume(&self, host: &impl PublicationHost, routing: Arc<RoutingListener>) -> Result<(), StatusCode> {
         let Some(tx) = self.transactions()? else {
             return Ok(());
@@ -151,8 +259,15 @@ impl AggregationLifecycle {
         for app in [AppId::Claude, AppId::Codex, AppId::ClaudeDesktop] {
             let result: Result<(), StatusCode> = (|| {
                 let state = tx.state(app).map_err(unavailable)?;
-                if !state.stack.enabled {
+                if state
+                    .project_scope
+                    .as_ref()
+                    .is_some_and(|project| project.tenant_scope() != &self.tenant)
+                {
                     return Ok(());
+                }
+                if !state.stack.enabled {
+                    return self.resume_provider(host, &routing, &tx, app, state);
                 }
                 let mut context = self.context(host, app, state)?;
                 if lifecycle_restore::startup_action(&tx, &context.project, app)
@@ -162,14 +277,7 @@ impl AggregationLifecycle {
                     return Ok(());
                 }
                 let live = if app == AppId::ClaudeDesktop {
-                    let binding = app_routing_services::VerifiedRouteBinding::new(
-                        context.project.clone(),
-                        self.host.clone(),
-                        app,
-                        "saved-aggregation".into(),
-                        1,
-                    );
-                    routing.desktop_revision(&binding).is_some()
+                    self.desktop_route_is_live(&routing, &context.project)
                 } else {
                     routing.aggregation_revision(&context.project, &self.host, app).is_some()
                 };
@@ -177,18 +285,7 @@ impl AggregationLifecycle {
                     return Ok(());
                 }
                 if app == AppId::ClaudeDesktop {
-                    let (environment, _) = app_access_service::access::aggregation_lifecycle_host(
-                        &self.policy,
-                        &self.tenant,
-                        &self.host,
-                    )?;
-                    let observation = vw_agent_apps::apps::discovery::read::read(app, &environment)
-                        .map_err(unavailable)?
-                        .desktop
-                        .ok_or(StatusCode::SERVICE_UNAVAILABLE)?;
-                    if vw_agent_apps::providers::claude_desktop::publication::DesktopInstallation::from(&observation)
-                        != vw_agent_apps::providers::claude_desktop::publication::DesktopInstallation::Installed
-                    { return Err(StatusCode::UNPROCESSABLE_ENTITY); }
+                    self.require_desktop_installation()?;
                 }
                 let default = context
                     .expected
@@ -201,14 +298,16 @@ impl AggregationLifecycle {
                         .map_err(unavailable)?;
                 context.routing = Some(routing.clone());
                 let policy = Self::catalog_policy(&context)?;
-                host.publish_aggregation(&context, &default, policy, &row)?;
+                if !host.publish_aggregation(&context, &default, policy, &row)? {
+                    return Err(StatusCode::CONFLICT);
+                }
                 Ok(())
             })();
             if let Err(status) = result {
                 tracing::warn!(
                     ?app,
                     status = status.as_u16(),
-                    "aggregation startup recovery failed"
+                    "saved application route recovery failed"
                 );
                 failure.get_or_insert(status);
             }

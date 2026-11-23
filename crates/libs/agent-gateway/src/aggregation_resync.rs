@@ -315,10 +315,14 @@ impl RecordPublicationContext {
                 .as_ref()
                 .is_some_and(|mode| mode.attached && mode.mode == Mode::Proxy);
         if ordinary
-            && matches!(self.app, AppId::Claude | AppId::Codex)
             && candidate.mode.as_ref().and_then(|mode| mode.proxy_route.as_deref()) == Some(id)
         {
-            return self.publish_route(&tx, &store, &state, &candidate, &rows, &change, target);
+            if !rows.iter().any(|(member, _)| member == id) {
+                rows.push((id.into(), serde_json::from_str(after).map_err(failed)?));
+            }
+            if matches!(self.app, AppId::Claude | AppId::Codex) {
+                return self.publish_route(&tx, &store, &state, &candidate, &rows, &change, target);
+            }
         }
         if matches!(self.app, AppId::Claude | AppId::Codex)
             && (!active || !candidate.stack.members.iter().any(|member| member == id))

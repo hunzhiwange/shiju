@@ -414,6 +414,26 @@ async fn local_routing_control_endpoints() {
 
 #[tokio::test]
 async fn local_routing_app_attachment() {
+    exercise_local_routing_attachment(None).await;
+}
+
+#[tokio::test]
+async fn local_routing_manual_restart_restore() {
+    exercise_local_routing_attachment(Some(RestartScenario::Provider)).await;
+}
+
+#[tokio::test]
+async fn local_routing_manual_restart_restore_aggregation() {
+    exercise_local_routing_attachment(Some(RestartScenario::Aggregation)).await;
+}
+
+#[derive(PartialEq)]
+enum RestartScenario {
+    Provider,
+    Aggregation,
+}
+
+async fn exercise_local_routing_attachment(restart: Option<RestartScenario>) {
     use axum::{Json, Router, extract::Path as RoutePath, routing::post};
     use vw_agent_apps::providers::live::{
         commit::{ExecutionHostId, PendingTarget, ProviderTransactions},
@@ -508,7 +528,7 @@ async fn local_routing_app_attachment() {
         )
         .unwrap();
 
-    let (_gateway, port) = spawn_gateway_with_options(&home, None, false).await;
+    let (gateway, port) = spawn_gateway_with_options(&home, None, false).await;
     let client = reqwest::Client::builder()
         .no_proxy()
         .timeout(Duration::from_secs(10))
@@ -629,6 +649,122 @@ async fn local_routing_app_attachment() {
             true
         );
         forward(id, "fixture").await;
+    }
+    if restart == Some(RestartScenario::Provider) {
+        authorized(
+            reqwest::Method::PUT,
+            &format!("http://127.0.0.1:{port}/v1/app-routing/hosts/{host}/egress"),
+        )
+        .json(&json!({"mode":"direct"}))
+        .send()
+        .await
+        .unwrap()
+        .error_for_status()
+        .unwrap();
+        let before = fs::read(&settings).unwrap();
+        let old = saved();
+        drop(gateway);
+        let (_gateway, port) = spawn_gateway_with_options(&home, None, false).await;
+        let control = |method, company, action| {
+            client
+                .request(
+                    method,
+                    format!("http://127.0.0.1:{port}/v1/app-routing/hosts/{host}/{action}"),
+                )
+                .header("x-platform-id", "p")
+                .header("x-company-id", company)
+                .bearer_auth(GATEWAY_SKEY)
+        };
+        let read = async |company, action| {
+            control(reqwest::Method::GET, company, action)
+                .send()
+                .await
+                .unwrap()
+                .error_for_status()
+                .unwrap()
+                .json::<Value>()
+                .await
+                .unwrap()
+        };
+        assert_eq!(read("owner", "status").await["state"], "stopped");
+        assert_eq!(fs::read(&settings).unwrap(), before);
+
+        control(reqwest::Method::PUT, "other", "config")
+            .json(&listener)
+            .send()
+            .await
+            .unwrap()
+            .error_for_status()
+            .unwrap();
+        let start = |company| control(reqwest::Method::POST, company, "start").json(&json!({}));
+        let other = start("other")
+            .send()
+            .await
+            .unwrap()
+            .error_for_status()
+            .unwrap()
+            .json::<Value>()
+            .await
+            .unwrap();
+        assert_eq!(fs::read(&settings).unwrap(), before);
+        let other_url = format!("http://127.0.0.1:{}", other["boundPort"]);
+        let forward = |url: &str, token| {
+            client
+                .post(format!("{url}/v1/messages"))
+                .header("x-api-key", token)
+                .json(&json!({"model":"fixture","messages":[{"role":"user","content":"hello"}]}))
+        };
+        let old_token = old["env"]["ANTHROPIC_AUTH_TOKEN"].as_str().unwrap();
+        assert_eq!(forward(&other_url, old_token).send().await.unwrap().status(), 401);
+        control(reqwest::Method::POST, "other", "stop")
+            .json(&json!({}))
+            .send()
+            .await
+            .unwrap()
+            .error_for_status()
+            .unwrap();
+        assert_eq!(read("owner", "status").await["state"], "stopped");
+
+        fs::write(&settings, b"{malformed").unwrap();
+        let failed = start("owner").send().await.unwrap();
+        let status = failed.status();
+        let body = failed.text().await.unwrap();
+        assert_eq!(status, 409, "recovery should report the malformed file: {body}");
+        assert_eq!(
+            serde_json::from_str::<Value>(&body).unwrap()["error"]["code"],
+            "revision_conflict"
+        );
+        assert_eq!(fs::read(&settings).unwrap(), b"{malformed");
+        assert!(transactions.pending(Claude).unwrap().is_none());
+        assert_eq!(
+            transactions.state(Claude).unwrap().mode.unwrap().proxy_route.as_deref(),
+            Some("second")
+        );
+
+        fs::write(&settings, before).unwrap();
+        let binding = start("owner")
+            .send()
+            .await
+            .unwrap()
+            .error_for_status()
+            .unwrap()
+            .json::<Value>()
+            .await
+            .unwrap();
+        let url = format!("http://127.0.0.1:{}", binding["boundPort"]);
+        assert_eq!(read("owner", "egress").await["configuredMode"], "direct");
+        assert_eq!(read("other", "egress").await["configuredMode"], "system");
+        let current = saved();
+        assert_eq!(current["env"]["ANTHROPIC_BASE_URL"], url);
+        let token = current["env"]["ANTHROPIC_AUTH_TOKEN"].as_str().unwrap();
+        assert!(token != old_token, "restart must rotate the route credential");
+        let response = forward(&url, token).send().await.unwrap().error_for_status().unwrap();
+        assert_eq!(response.json::<Value>().await.unwrap()["id"], "second");
+
+        start("owner").send().await.unwrap().error_for_status().unwrap();
+        assert!(saved() == current, "a repeated start must preserve the live projection");
+        upstream.abort();
+        return;
     }
     let before = saved();
     let response = apply(json!({"kind":"proxy","providerId":"missing"}))
@@ -773,6 +909,56 @@ async fn local_routing_app_attachment() {
     let switched: Value = serde_json::from_str(&body).unwrap();
     assert_eq!(switched["defaultProviderId"], "second");
     forward("second", "fixture").await;
+
+    if restart == Some(RestartScenario::Aggregation) {
+        drop(gateway);
+        let (_gateway, port) = spawn_gateway_with_options(&home, None, false).await;
+        let control = |method, action| {
+            client
+                .request(
+                    method,
+                    format!("http://127.0.0.1:{port}/v1/app-routing/hosts/{host}/{action}"),
+                )
+                .header("x-platform-id", "p")
+                .header("x-company-id", "owner")
+                .bearer_auth(GATEWAY_SKEY)
+        };
+        let status = control(reqwest::Method::GET, "status")
+            .send()
+            .await
+            .unwrap()
+            .error_for_status()
+            .unwrap()
+            .json::<Value>()
+            .await
+            .unwrap();
+        assert_eq!(status["state"], "stopped");
+
+        let response =
+            control(reqwest::Method::POST, "start").json(&json!({})).send().await.unwrap();
+        let status = response.status();
+        let body = response.text().await.unwrap();
+        assert_eq!(status, 200, "aggregate recovery: {body}");
+        let binding: Value = serde_json::from_str(&body).unwrap();
+        let url = format!("http://127.0.0.1:{}", binding["boundPort"]);
+        let native = saved();
+        assert_eq!(native["env"]["ANTHROPIC_BASE_URL"], url);
+        let response = client
+            .post(format!("{url}/v1/messages"))
+            .header("x-api-key", native["env"]["ANTHROPIC_AUTH_TOKEN"].as_str().unwrap())
+            .json(&json!({"model":"fixture","messages":[{"role":"user","content":"hello"}]}))
+            .send()
+            .await
+            .unwrap()
+            .error_for_status()
+            .unwrap();
+        assert_eq!(response.json::<Value>().await.unwrap()["id"], "second");
+        let durable = transactions.state(Claude).unwrap();
+        assert!(durable.stack.enabled);
+        assert_eq!(durable.mode.unwrap().proxy_route.as_deref(), Some("second"));
+        upstream.abort();
+        return;
+    }
 
     finish(post("agent-apps/claude/aggregation/exit", json!({
         "expectedRevision":switched["revision"], "requestId":"fixture-exit", "confirmed":true

@@ -7,6 +7,7 @@ use {
     app_routing_services::{
         ListenerError, RoutingListener,
         config_apply::{ListenerConfig, RoutingConfigStore},
+        lifecycle_host::AggregationLifecycleHost,
     },
     agent_gateway::agent_apps_diagnostic_jobs::DiagnosticJobs,
     agent_database::GlobalDatabase,
@@ -36,6 +37,10 @@ use {
     vw_api_transport::id::TenantScope,
 };
 
+type LocalLifecycle = dyn Fn(GlobalDatabase, PathBuf, TenantScope, String) -> Arc<dyn AggregationLifecycleHost>
+    + Send
+    + Sync;
+
 #[derive(Clone)]
 pub struct RoutingControl {
     pub database: GlobalDatabase,
@@ -45,7 +50,7 @@ pub struct RoutingControl {
     pub policy: PathBuf,
     pub policy_default: ListenerConfig,
     pub diagnostic_jobs: Option<DiagnosticJobs>,
-    pub(super) local_fallback: bool,
+    local_lifecycle: Option<Arc<LocalLifecycle>>,
 }
 
 #[derive(Clone)]
@@ -60,6 +65,7 @@ struct LocalRouting {
     database: GlobalDatabase,
     routing: Arc<RoutingListener>,
     paths: RoutingPaths,
+    lifecycle: Arc<LocalLifecycle>,
 }
 
 pub(super) fn insert_local_control(extensions: &mut axum::http::Extensions, host: &str) {
@@ -81,7 +87,7 @@ pub(super) fn insert_local_control(extensions: &mut axum::http::Extensions, host
         scope: Arc::new(RoutingControlScope { tenant: tenant.clone(), host: host.into(), bind }),
         policy_default: ListenerConfig { enabled: false, bind, logging_enabled: false },
         diagnostic_jobs: None,
-        local_fallback: true,
+        local_lifecycle: Some(Arc::clone(&local.lifecycle)),
     };
     extensions.insert(control);
 }
@@ -109,10 +115,10 @@ pub(super) async fn local_control(
     next.run(request).await
 }
 
-pub async fn configure<H: app_routing_services::lifecycle_host::AggregationLifecycleHost + 'static>(
+pub async fn configure<H: AggregationLifecycleHost + 'static>(
     app: Router, routing: &Arc<RoutingListener>, paths: RoutingPaths,
     local_only: bool,
-    lifecycle: impl FnOnce(GlobalDatabase, PathBuf, TenantScope, String) -> H,
+    lifecycle: impl Fn(GlobalDatabase, PathBuf, TenantScope, String) -> H + Send + Sync + 'static,
 ) -> Router {
     let Some(path) = std::env::var_os("SHIJU_AGENT_APPS_ACCESS_FILE").map(PathBuf::from) else {
         let app = if local_only {
@@ -121,6 +127,9 @@ pub async fn configure<H: app_routing_services::lifecycle_host::AggregationLifec
                     database,
                     routing: Arc::clone(routing),
                     paths: paths.clone(),
+                    lifecycle: Arc::new(move |database, policy, tenant, host| {
+                        Arc::new(lifecycle(database, policy, tenant, host))
+                    }),
                 })),
                 Err(error) => {
                     tracing::warn!(%error, "Local application routing storage unavailable");
@@ -192,7 +201,7 @@ pub async fn configure_with_policy<H: app_routing_services::lifecycle_host::Aggr
         policy,
         policy_default,
         diagnostic_jobs,
-        local_fallback: false,
+        local_lifecycle: None,
     };
     let tenant = control.scope.tenant.clone();
     let host = control.scope.host.clone();
@@ -224,6 +233,10 @@ pub async fn configure_with_policy<H: app_routing_services::lifecycle_host::Aggr
 }
 
 impl RoutingControl {
+    pub(super) fn is_local_fallback(&self) -> bool {
+        self.local_lifecycle.is_some()
+    }
+
     fn check_scope(&self, tenant: &TenantScope, host: &str) -> Result<(), StatusCode> {
         if self.scope.tenant.platform_id() != tenant.platform_id()
             || self.scope.tenant.company_id() != tenant.company_id()
@@ -462,20 +475,38 @@ pub async fn start(
     let (control, _) =
         RoutingControl::authorize(control, headers, tenant, host, None, true).await?;
     let Json(_) = body.map_err(|_| ControlError::InvalidInput)?;
-    let permit = control.routing.try_control().map_err(listener_error)?;
-    let config = control.config().await?;
-    if control.local_fallback {
-        let egress = super::outbound_api::load_egress(&control).await?;
-        control.routing.set_egress(
-            control.scope.tenant.clone(),
-            control.scope.host.clone(),
-            Some(egress),
-        );
-    }
-    control.routing.start_configured(config).map_err(listener_error)?;
-    drop(permit);
-    control.routing.resume_aggregations().await.map_err(listener_error)?;
-    Ok(Json(control.status()))
+    // Complete recovery even when the HTTP caller disconnects after the bind.
+    tokio::spawn(async move {
+        let permit = control.routing.try_control().map_err(listener_error)?;
+        let config = control.config().await?;
+        let tenant = &control.scope.tenant;
+        let host = &control.scope.host;
+        let egress = if control.is_local_fallback() {
+            Some(super::outbound_api::load_egress(&control).await?)
+        } else {
+            None
+        };
+        control.routing.start_configured(config).map_err(listener_error)?;
+        if let Some(egress) = egress {
+            control.routing.set_egress(tenant.clone(), host.clone(), Some(egress));
+        }
+        // Native publishers acquire the control permit at the commit boundary.
+        drop(permit);
+        if let Some(lifecycle) = &control.local_lifecycle {
+            let context = lifecycle(
+                control.database.clone(),
+                control.policy.clone(),
+                tenant.clone(),
+                host.clone(),
+            );
+            control.routing.resume_routes(context).await.map_err(listener_error)?;
+        } else {
+            control.routing.resume_aggregations().await.map_err(listener_error)?;
+        }
+        Ok(Json(control.status()))
+    })
+    .await
+    .map_err(|_| ControlError::Unavailable)?
 }
 
 pub async fn stop(
@@ -557,7 +588,9 @@ pub fn listener_error(error: ListenerError) -> ControlError {
             ListenerError::AggregationRecovery(status) => match status {
                 StatusCode::CONFLICT => ControlError::AggregationConflict,
                 StatusCode::UNPROCESSABLE_ENTITY => ControlError::AggregationUnsupported,
-                StatusCode::BAD_GATEWAY => ControlError::AggregationTargetFailed,
+                StatusCode::BAD_GATEWAY | StatusCode::NOT_FOUND => {
+                    ControlError::AggregationTargetFailed
+                }
                 _ => ControlError::from(status),
             },
             ListenerError::TransitionInProgress => ControlError::TransitionInProgress,

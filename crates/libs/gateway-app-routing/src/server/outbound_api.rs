@@ -34,7 +34,7 @@ pub async fn get_egress(
             .await?;
     let status = match control.routing.egress_status(&tenant, &host) {
         Some(status) => status,
-        None if control.local_fallback => load_egress(&control).await?.status,
+        None if control.is_local_fallback() => load_egress(&control).await?.status,
         None => return Err(ControlError::Unavailable),
     };
     Ok(Json(status))

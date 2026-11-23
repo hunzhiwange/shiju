@@ -39,6 +39,10 @@ pub struct PublishedProvider {
 }
 
 impl PublishedProvider {
+    pub fn matches_saved(&self, id: &str, state: &AppState) -> bool {
+        self.provider_id == id && self.state == *state
+    }
+
     pub fn matches_native(&self, state: &AppState, bytes: Option<&[u8]>) -> bool {
         let mut expected = self.state.clone();
         if state

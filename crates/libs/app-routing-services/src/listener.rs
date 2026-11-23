@@ -84,7 +84,7 @@ pub struct RoutingListener {
     aggregation_lifecycle:
         Mutex<Option<Arc<dyn crate::lifecycle_host::AggregationLifecycleHost>>>,
     #[cfg(target_os = "macos")]
-    aggregation_resume: Arc<tokio::sync::Mutex<()>>,
+    route_resume: Arc<tokio::sync::Mutex<()>>,
     #[cfg(target_os = "macos")]
     egress: Arc<EgressState>,
     body_limits: BodyLimits,
@@ -144,7 +144,17 @@ impl RoutingListener {
         let Some(context) = context else {
             return Ok(());
         };
-        let permit = Arc::clone(&self.aggregation_resume).lock_owned().await;
+        self.resume_routes(context).await
+    }
+
+    /// A local start passes the authenticated scope directly, while a
+    /// configured deployment keeps its runtime-wide lifecycle context.
+    #[cfg(target_os = "macos")]
+    pub async fn resume_routes(
+        self: &Arc<Self>,
+        context: Arc<dyn crate::lifecycle_host::AggregationLifecycleHost>,
+    ) -> Result<(), ListenerError> {
+        let permit = Arc::clone(&self.route_resume).lock_owned().await;
         let routing = Arc::clone(self);
         tokio::task::spawn_blocking(move || {
             let _permit = permit;

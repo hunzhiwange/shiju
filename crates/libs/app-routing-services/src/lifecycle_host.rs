@@ -1,4 +1,4 @@
-//! Host boundary for the existing aggregation recovery and detach operations.
+//! Host boundary for saved route recovery and aggregation detach.
 use crate::RoutingListener;
 use axum::http::StatusCode;
 use std::sync::Arc;

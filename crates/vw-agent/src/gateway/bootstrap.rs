@@ -212,7 +212,8 @@ async fn serve_gateway(
         .layer(cors)
         .layer(axum::Extension(database));
 
-    let app = if addr.ip().is_loopback() && tunnel.is_none() {
+    let local_only = addr.ip().is_loopback() && tunnel.is_none();
+    let app = if local_only {
         app.layer(axum::Extension(api::handlers::session::employee_account::LocalEmployeeGateway))
     } else {
         app
@@ -237,7 +238,7 @@ async fn serve_gateway(
         std::future::pending::<()>().await;
     };
     #[cfg(target_os = "macos")]
-    let app = api::handlers::app_routing::configure(app, routing, addr.ip().is_loopback() && tunnel.is_none()).await;
+    let app = api::handlers::app_routing::configure(app, routing, local_only).await;
     #[cfg(not(target_arch = "wasm32"))]
     crate::worktree::initialize_host();
     #[cfg(not(target_arch = "wasm32"))]

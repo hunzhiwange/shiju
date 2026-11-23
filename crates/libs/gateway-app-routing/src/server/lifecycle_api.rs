@@ -13,7 +13,10 @@ use {
 };
 use axum::{
     Extension, Json, Router,
-    extract::{Path, rejection::JsonRejection},
+    extract::{
+        Path, RawPathParams,
+        rejection::{JsonRejection, RawPathParamsRejection},
+    },
     http::{HeaderMap, StatusCode},
 };
 use std::{net::SocketAddr, path::PathBuf, sync::Arc};
@@ -42,6 +45,7 @@ pub struct RoutingControl {
     pub policy: PathBuf,
     pub policy_default: ListenerConfig,
     pub diagnostic_jobs: Option<DiagnosticJobs>,
+    pub(super) local_fallback: bool,
 }
 
 #[derive(Clone)]
@@ -52,35 +56,45 @@ pub struct RoutingPaths {
 }
 
 #[derive(Clone)]
-struct LocalLifecycle {
+struct LocalRouting {
     database: GlobalDatabase,
     routing: Arc<RoutingListener>,
     paths: RoutingPaths,
 }
 
-pub(super) async fn local_lifecycle(
-    Path(host): Path<String>,
+pub(super) fn insert_local_control(extensions: &mut axum::http::Extensions, host: &str) {
+    if host != vw_api_transport::LOCAL_HOST_ID || extensions.get::<RoutingControl>().is_some() {
+        return;
+    }
+    let (Some(local), Some(tenant)) = (
+        extensions.get::<LocalRouting>(),
+        extensions.get::<TenantScope>(),
+    ) else {
+        return;
+    };
+    let bind = SocketAddr::from(([127, 0, 0, 1], 15721));
+    let control = RoutingControl {
+        database: local.database.clone(),
+        routing: Arc::clone(&local.routing),
+        paths: local.paths.clone(),
+        policy: app_access_service::access::tenant_policy_path(tenant),
+        scope: Arc::new(RoutingControlScope { tenant: tenant.clone(), host: host.into(), bind }),
+        policy_default: ListenerConfig { enabled: false, bind, logging_enabled: false },
+        diagnostic_jobs: None,
+        local_fallback: true,
+    };
+    extensions.insert(control);
+}
+
+pub(super) async fn local_control(
+    params: Result<RawPathParams, RawPathParamsRejection>,
     mut request: axum::extract::Request,
     next: axum::middleware::Next,
 ) -> axum::response::Response {
-    let extensions = request.extensions_mut();
-    if host == "desktop-local" && extensions.get::<RoutingControl>().is_none() {
-        if let (Some(local), Some(tenant)) = (
-            extensions.get::<LocalLifecycle>(),
-            extensions.get::<TenantScope>(),
-        ) {
-            let bind = SocketAddr::from(([127, 0, 0, 1], 15721));
-            let control = RoutingControl {
-                database: local.database.clone(),
-                routing: Arc::clone(&local.routing),
-                paths: local.paths.clone(),
-                policy: app_access_service::access::tenant_policy_path(tenant),
-                scope: Arc::new(RoutingControlScope { tenant: tenant.clone(), host, bind }),
-                policy_default: ListenerConfig { enabled: false, bind, logging_enabled: false },
-                diagnostic_jobs: None,
-            };
-            extensions.insert(control);
-        }
+    if let Ok(params) = params
+        && let Some((_, host)) = params.iter().find(|(key, _)| *key == "host")
+    {
+        insert_local_control(request.extensions_mut(), host);
     }
     next.run(request).await
 }
@@ -93,7 +107,7 @@ pub async fn configure<H: app_routing_services::lifecycle_host::AggregationLifec
     let Some(path) = std::env::var_os("SHIJU_AGENT_APPS_ACCESS_FILE").map(PathBuf::from) else {
         let app = if local_only {
             match GlobalDatabase::for_home(&paths.home) {
-                Ok(database) => app.layer(Extension(LocalLifecycle {
+                Ok(database) => app.layer(Extension(LocalRouting {
                     database,
                     routing: Arc::clone(routing),
                     paths: paths.clone(),
@@ -168,15 +182,12 @@ pub async fn configure_with_policy<H: app_routing_services::lifecycle_host::Aggr
         policy,
         policy_default,
         diagnostic_jobs,
+        local_fallback: false,
     };
     let tenant = control.scope.tenant.clone();
     let host = control.scope.host.clone();
     routing.set_egress(tenant.clone(), host.clone(), None);
-    let secrets = super::outbound_api::secrets(&paths.config);
-    match control
-        .with_config_store(move |store| store.load_egress(&secrets))
-        .await
-    {
+    match super::outbound_api::load_egress(&control).await {
         Ok(egress) => routing.set_egress(tenant, host, Some(egress)),
         Err(_) => tracing::warn!("Application routing egress unavailable"),
     }
@@ -203,6 +214,16 @@ pub async fn configure_with_policy<H: app_routing_services::lifecycle_host::Aggr
 }
 
 impl RoutingControl {
+    fn check_scope(&self, tenant: &TenantScope, host: &str) -> Result<(), StatusCode> {
+        if self.scope.tenant.platform_id() != tenant.platform_id()
+            || self.scope.tenant.company_id() != tenant.company_id()
+            || self.scope.host != host
+        {
+            return Err(StatusCode::FORBIDDEN);
+        }
+        Ok(())
+    }
+
     pub fn authorize_mode(
         &self,
         headers: &HeaderMap,
@@ -210,6 +231,7 @@ impl RoutingControl {
         host: &str,
         app: AppId,
     ) -> Result<(PathBuf, String), StatusCode> {
+        self.check_scope(project.tenant_scope(), host)?;
         authorize_routing_mode(&self.policy, headers, &self.scope, project, host, app)
     }
 
@@ -361,6 +383,7 @@ impl RoutingControl {
         manage: bool,
     ) -> Result<(Self, Option<PathBuf>, String), ControlError> {
         let Extension(control) = control.ok_or(ControlError::Unavailable)?;
+        control.check_scope(&tenant, &host)?;
         let policy = control.policy.clone();
         let scope = Arc::clone(&control.scope);
         let (root, principal) = tokio::task::spawn_blocking(move || {
@@ -431,6 +454,14 @@ pub async fn start(
     let Json(_) = body.map_err(|_| ControlError::InvalidInput)?;
     let permit = control.routing.try_control().map_err(listener_error)?;
     let config = control.config().await?;
+    if control.local_fallback {
+        let egress = super::outbound_api::load_egress(&control).await?;
+        control.routing.set_egress(
+            control.scope.tenant.clone(),
+            control.scope.host.clone(),
+            Some(egress),
+        );
+    }
     control.routing.start_configured(config).map_err(listener_error)?;
     drop(permit);
     control.routing.resume_aggregations().await.map_err(listener_error)?;

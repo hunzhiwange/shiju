@@ -5,7 +5,7 @@ use secret_store::secrets::SecretStore;
 use axum::http::StatusCode;
 use parking_lot::RwLock;
 use serde::{Deserialize, Serialize};
-use std::{net::SocketAddr, sync::Arc};
+use std::{collections::HashMap, net::SocketAddr, sync::Arc};
 use {
     vw_api_app_routing::RoutingEgressMode,
     vw_api_app_routing::RoutingEgressStatus,
@@ -122,18 +122,18 @@ impl StoredEgress {
     }
 }
 
-#[derive(Default)]
-pub(crate) struct EgressState(RwLock<Option<ScopedEgress>>);
+type HostEgress = HashMap<String, Option<Arc<RoutingEgress>>>;
 
-struct ScopedEgress {
-    tenant: TenantScope,
-    host: String,
-    current: Option<Arc<RoutingEgress>>,
-}
+#[derive(Default)]
+pub(crate) struct EgressState(RwLock<HashMap<TenantScope, HostEgress>>);
 
 impl EgressState {
     pub(crate) fn set(&self, tenant: TenantScope, host: String, current: Option<RoutingEgress>) {
-        *self.0.write() = Some(ScopedEgress { tenant, host, current: current.map(Arc::new) });
+        self.0
+            .write()
+            .entry(tenant)
+            .or_default()
+            .insert(host, current.map(Arc::new));
     }
 
     pub(crate) fn for_scope(
@@ -141,14 +141,9 @@ impl EgressState {
         tenant: &TenantScope,
         host: &str,
     ) -> Result<Option<Arc<RoutingEgress>>, StatusCode> {
-        match self.0.read().as_ref() {
-            Some(scope) if &scope.tenant == tenant && scope.host == host => scope
-                .current
-                .as_ref()
-                .map(Arc::clone)
-                .map(Some)
-                .ok_or(StatusCode::SERVICE_UNAVAILABLE),
-            _ => Ok(None),
+        match self.0.read().get(tenant).and_then(|hosts| hosts.get(host)) {
+            Some(current) => current.clone().map(Some).ok_or(StatusCode::SERVICE_UNAVAILABLE),
+            None => Ok(None),
         }
     }
 }

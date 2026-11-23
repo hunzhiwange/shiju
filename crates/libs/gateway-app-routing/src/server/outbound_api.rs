@@ -4,7 +4,7 @@ use super::{
     lifecycle_api::{ControlError, RoutingControl},
 };
 use {
-    app_routing_services::{ListenerError, outbound_config::EgressError},
+    app_routing_services::{ListenerError, outbound_config::{EgressError, RoutingEgress}},
     secret_store::secrets::SecretStore,
 };
 use axum::{Extension, Json, extract::Path, http::HeaderMap};
@@ -18,6 +18,11 @@ pub fn secrets(config: &std::path::Path) -> SecretStore {
     SecretStore::new(config, true)
 }
 
+pub(super) async fn load_egress(control: &RoutingControl) -> Result<RoutingEgress, ControlError> {
+    let secrets = secrets(&control.paths.config);
+    control.with_config_store(move |store| store.load_egress(&secrets)).await
+}
+
 pub async fn get_egress(
     control: Option<Extension<RoutingControl>>,
     Extension(tenant): Extension<TenantScope>,
@@ -27,7 +32,11 @@ pub async fn get_egress(
     let (control, _) =
         RoutingControl::authorize(control, headers, tenant.clone(), host.clone(), None, false)
             .await?;
-    let status = control.routing.egress_status(&tenant, &host).ok_or(ControlError::Unavailable)?;
+    let status = match control.routing.egress_status(&tenant, &host) {
+        Some(status) => status,
+        None if control.local_fallback => load_egress(&control).await?.status,
+        None => return Err(ControlError::Unavailable),
+    };
     Ok(Json(status))
 }
 

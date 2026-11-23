@@ -15,6 +15,7 @@ use {
 };
 use {gateway_endpoint::{GatewayEndpoint}, {vw_gateway_client::GatewayClient}};
 
+const GATEWAY_SKEY: &str = "fixture-local-routing-gateway-skey";
 const CHILD_TEST: &str = "gateway::api::handlers::app_routing::lifecycle_api_tests::gateway_child";
 const GATEWAY_LINE: &str = "VibeWindow Gateway listening on http://127.0.0.1:";
 pub(in crate::gateway::api::handlers) const HOST: &str = "routing-mac";
@@ -25,12 +26,30 @@ pub(super) const MEMBER: &str = "fixture-routing-member-token-000003";
 #[tokio::test]
 #[ignore = "started as a separate process with a private gateway configuration"]
 async fn gateway_child() {
-    let home = std::env::current_dir().unwrap();
-    let config = crate::Config {
+    let home = std::env::current_dir().unwrap().canonicalize().unwrap();
+    assert_eq!(crate::global::paths().home, home);
+    let _ = rustls::crypto::ring::default_provider().install_default();
+    let mut config = crate::Config {
         workspace_dir: home.join("workspace"),
         config_path: home.join("config.toml"),
         ..Default::default()
     };
+    if std::env::var_os("SHIJU_AGENT_APPS_ACCESS_FILE").is_none() {
+        config.gateway.auth_enabled = true;
+        let skeys = serde_json::from_value::<Vec<config_gateway::GatewaySkey>>(json!([{
+            "skey_hash": hex::encode(Sha256::digest(GATEWAY_SKEY)),
+            "name": "local routing fixture",
+        }])).unwrap();
+        crate::config::replace_gateway_skeys_for_tenant(&TenantScope::default(), &skeys)
+            .await
+            .unwrap();
+    }
+    if std::env::var_os("SHIJU_ROUTING_TEST_TUNNEL").is_some() {
+        config.tunnel = serde_json::from_value(json!({
+            "provider": "custom",
+            "custom": {"start_command": "/usr/bin/true"},
+        })).unwrap();
+    }
     fs::create_dir_all(&config.workspace_dir).unwrap();
     crate::gateway::run_gateway("127.0.0.1", 0, config).await.unwrap();
 }
@@ -83,27 +102,49 @@ pub(in crate::gateway::api::handlers) async fn spawn_gateway(
     home: &Path,
     policy: &Path,
 ) -> (GatewayProcess, u16) {
-    let output = tempfile::NamedTempFile::new_in(home).unwrap();
+    spawn_gateway_with_options(home, Some(policy), false).await
+}
+
+async fn spawn_gateway_with_options(
+    home: &Path,
+    policy: Option<&Path>,
+    tunneled: bool,
+) -> (GatewayProcess, u16) {
+    let home = home.canonicalize().unwrap();
+    let output = tempfile::NamedTempFile::new_in(&home).unwrap();
     let log = output.reopen().unwrap();
     let mut command = Command::new(std::env::current_exe().unwrap());
     command
         .args(["--ignored", "--exact", CHILD_TEST, "--nocapture"])
-        .current_dir(home)
+        .current_dir(&home)
         .env_clear()
         .env("PATH", "/usr/bin:/bin")
-        .env("HOME", home)
+        .env("HOME", &home)
+        .env("VIBEWINDOW_TEST_ROOT", &home)
+        .env("CODEX_HOME", home.join(".codex"))
+        .env("XDG_CONFIG_HOME", home.join(".config"))
+        .env("XDG_DATA_HOME", home.join(".local/share"))
+        .env("XDG_STATE_HOME", home.join(".local/state"))
+        .env("XDG_CACHE_HOME", home.join(".cache"))
         .env("USER", "shiju-routing-fixture")
-        .env("TMPDIR", home)
-        .env("SHIJU_AGENT_APPS_ACCESS_FILE", policy)
+        .env("TMPDIR", &home)
         .stdin(Stdio::null())
         .stdout(log.try_clone().unwrap())
         .stderr(log);
+    if let Some(policy) = policy {
+        command.env("SHIJU_AGENT_APPS_ACCESS_FILE", policy);
+    }
+    if tunneled {
+        command.env("SHIJU_ROUTING_TEST_TUNNEL", "1");
+    }
     for key in ["CARGO_TARGET_DIR", "CARGO_BUILD_BUILD_DIR"] {
         if let Some(value) = std::env::var_os(key) {
             command.env(key, value);
         }
     }
     let mut process = GatewayProcess(command.spawn().unwrap());
+    let health =
+        reqwest::Client::builder().no_proxy().timeout(Duration::from_secs(2)).build().unwrap();
     let port = tokio::time::timeout(Duration::from_secs(20), async {
         loop {
             let log = fs::read_to_string(output.path()).unwrap();
@@ -111,7 +152,7 @@ pub(in crate::gateway::api::handlers) async fn spawn_gateway(
             if let Some(port) = log.lines().find_map(|line| line.strip_prefix(GATEWAY_LINE))
                 && let Ok(port) = port.parse()
                 && let Ok(response) =
-                    reqwest::get(format!("http://127.0.0.1:{port}/v1/health")).await
+                    health.get(format!("http://127.0.0.1:{port}/v1/health")).send().await
                 && response.status().is_success()
             {
                 break port;
@@ -253,4 +294,120 @@ async fn routing_status_identifies_unconfigured_control() {
         503,
         "routing_control_not_configured",
     );
+}
+
+#[tokio::test]
+async fn local_routing_control_endpoints() {
+    let _ = rustls::crypto::ring::default_provider().install_default();
+    let home = tempfile::TempDir::new().unwrap();
+    let (gateway, port) = spawn_gateway_with_options(home.path(), None, false).await;
+    let host = vw_api_transport::LOCAL_HOST_ID;
+    let client =
+        reqwest::Client::builder().no_proxy().timeout(Duration::from_secs(5)).build().unwrap();
+    let request = |port, method, host, path, company| {
+        client
+            .request(method, format!("http://127.0.0.1:{port}/v1/app-routing/hosts/{host}/{path}"))
+            .header("x-platform-id", "p")
+            .header("x-company-id", company)
+    };
+    use reqwest::Method;
+    let local_request =
+        |port, method, path| request(port, method, host, path, "owner").bearer_auth(GATEWAY_SKEY);
+    let local = |method, path| local_request(port, method, path);
+    let read = async |port, path| {
+        let response = local_request(port, Method::GET, path).send().await.unwrap();
+        let status = response.status();
+        let body = response.text().await.unwrap();
+        assert_eq!(status, 200, "{path}: {body}");
+        serde_json::from_str::<Value>(&body).unwrap()
+    };
+
+    assert_eq!(
+        request(port, Method::GET, host, "config", "owner").send().await.unwrap().status(),
+        401
+    );
+    assert_eq!(
+        request(port, Method::GET, "other-mac", "config", "owner")
+            .bearer_auth(GATEWAY_SKEY)
+            .send()
+            .await
+            .unwrap()
+            .status(),
+        503
+    );
+    let missing_tenant = client
+        .get(format!("http://127.0.0.1:{port}/v1/app-routing/hosts/{host}/config"))
+        .bearer_auth(GATEWAY_SKEY)
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(missing_tenant.status(), 400);
+    let mut config = read(port, "config").await;
+    assert_eq!(config["enabled"], false);
+    assert_eq!(config["listenAddress"], "127.0.0.1");
+    assert_eq!(read(port, "status").await["state"], "stopped");
+
+    let app_config = "projects/default/apps/codex/config";
+    let mut timeouts = read(port, app_config).await;
+    timeouts["idleTimeoutSecs"] = json!(0);
+    let applied = local(Method::PUT, app_config).json(&timeouts).send().await.unwrap();
+    assert_eq!(applied.status(), 200);
+    assert_eq!(applied.json::<Value>().await.unwrap(), timeouts);
+
+    assert_eq!(read(port, "client-host").await["effectiveHost"], "127.0.0.1");
+    read(port, "projects/default/apps/codex/requests").await;
+    assert_eq!(read(port, "egress").await["configuredMode"], "system");
+
+    let egress =
+        local(Method::PUT, "egress").json(&json!({"mode": "direct"})).send().await.unwrap();
+    assert_eq!(egress.status(), 200);
+    assert_eq!(egress.json::<Value>().await.unwrap()["configuredMode"], "direct");
+
+    let other = request(port, Method::PUT, host, "egress", "other")
+        .bearer_auth(GATEWAY_SKEY)
+        .json(&json!({"mode": "system"}))
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(other.status(), 200);
+    assert_eq!(read(port, "egress").await["configuredMode"], "direct");
+
+    let mut invalid = config.clone();
+    invalid["listenAddress"] = json!("0.0.0.0");
+    assert_eq!(local(Method::PUT, "config").json(&invalid).send().await.unwrap().status(), 400);
+    config["listenPort"] = json!(0);
+    config["enabled"] = json!(true);
+    assert_eq!(local(Method::PUT, "config").json(&config).send().await.unwrap().status(), 200);
+    let response = local(Method::POST, "start").json(&json!({})).send().await.unwrap();
+    assert_eq!(response.status(), 200);
+    let running = response.json::<Value>().await.unwrap();
+    assert_eq!(running["state"], "running");
+    let listen_port = running["boundPort"].as_u64().unwrap() as u16;
+    assert!(tokio::net::TcpStream::connect((Ipv4Addr::LOCALHOST, listen_port)).await.is_ok());
+
+    let response = local(Method::POST, "stop").json(&json!({})).send().await.unwrap();
+    assert_eq!(response.status(), 200);
+    assert_eq!(response.json::<Value>().await.unwrap()["state"], "stopped");
+    assert!(tokio::net::TcpStream::connect((Ipv4Addr::LOCALHOST, listen_port)).await.is_err());
+
+    drop(gateway);
+    let (gateway, port) = spawn_gateway_with_options(home.path(), None, false).await;
+    assert_eq!(read(port, app_config).await, timeouts);
+    assert_eq!(read(port, "config").await, config);
+    assert_eq!(read(port, "status").await["state"], "stopped");
+    assert_eq!(read(port, "egress").await["configuredMode"], "direct");
+
+    drop(gateway);
+    let (tunneled_gateway, port) = spawn_gateway_with_options(home.path(), None, true).await;
+    let response = local_request(port, Method::GET, "config").send().await.unwrap();
+    assert_eq!(response.status(), 503);
+
+    drop(tunneled_gateway);
+    let policy = home.path().join("access.json");
+    write_policy(&policy, home.path(), 0);
+    let (_policy_gateway, port) = spawn_gateway(home.path(), &policy).await;
+    for (host, expected) in [(HOST, 200), (host, 403)] {
+        let response = request(port, Method::GET, host, "config", "owner").send().await.unwrap();
+        assert_eq!(response.status(), expected);
+    }
 }

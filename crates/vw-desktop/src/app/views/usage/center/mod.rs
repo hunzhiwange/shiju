@@ -56,7 +56,10 @@ pub fn update(app: &mut App, event: Event) -> Task<Message> {
         Some(desktop_usage::center::scan::Navigation::Pricing) => update(app, Event::Pricing(pricing::Event::Open)),
         Some(desktop_usage::center::scan::Navigation::Routing) => {
             let navigation = crate::app::components::third_party_settings::navigate(
-                app, desktop_ui_controls::settings_navigation::ThirdPartyPage::ManagementTools,
+                app,
+                desktop_ui_controls::settings_navigation::ThirdPartyPage::Settings(
+                    desktop_ui_controls::settings_navigation::ThirdPartySettingsTab::Routing,
+                ),
             );
             if app.navigation_tabs.screen == Screen::ThirdPartyAgents {
                 navigation

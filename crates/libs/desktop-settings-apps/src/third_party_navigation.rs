@@ -26,7 +26,6 @@ pub enum ResourcePage {
     Sessions,
     Authorization,
     Usage,
-    ManagementTools,
 }
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]

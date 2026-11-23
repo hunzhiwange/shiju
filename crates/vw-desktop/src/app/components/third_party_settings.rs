@@ -98,14 +98,6 @@ pub(crate) fn view(app: &App) -> Element<'_, Message> {
         ThirdPartyPage::Authorization | ThirdPartyPage::Usage => {
             text("此平台不支持授权与用量管理").into()
         }
-        ThirdPartyPage::ManagementTools => column![
-            super::third_party_tools::view(app, selected),
-            super::system_settings_data::migration_preview_ui::entry(),
-            crate::app::message::settings::backup_inventory::view(app),
-            super::system_settings_data::export_ui::view(app),
-        ]
-        .spacing(12)
-        .into(),
     };
     let mut workspace = column![].spacing(16);
     if state.third_party_page != ThirdPartyPage::Sessions {
@@ -482,7 +474,6 @@ fn sidebar(app: &App) -> Element<'_, Message> {
             ThirdPartyPage::Sessions => Icon::Clock,
             ThirdPartyPage::Authorization => Icon::ShieldLock,
             ThirdPartyPage::Usage => Icon::Speedometer2,
-            ThirdPartyPage::ManagementTools => Icon::Wrench,
         };
         resources = resources.push(sidebar_action(
             navigation_icon(icon),
@@ -928,14 +919,13 @@ pub(crate) fn overlays<'a>(app: &'a App, base: Element<'a, Message>) -> Element<
     };
     if matches!(
         app.apps_catalog.third_party_page,
-        ThirdPartyPage::ManagementTools | ThirdPartyPage::Settings(ThirdPartySettingsTab::Data)
+        ThirdPartyPage::Settings(ThirdPartySettingsTab::Data)
     ) {
+        let base = super::system_settings_data::backup_list_ui::overlay(app, base);
+        let base = super::system_settings_data::recovery_ui::overlay(app, base);
         super::system_settings_data::migration_preview_ui::overlay(
             app,
-            super::system_settings_data::export_ui::overlay(
-                app,
-                super::third_party_tools::overlay(app, base),
-            ),
+            super::system_settings_data::export_ui::overlay(app, base),
         )
     } else {
         base

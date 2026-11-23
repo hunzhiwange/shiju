@@ -694,7 +694,7 @@ async fn help_rollout_18_renders_contextual_help() {
             view_overlays(&app, view(&app)),
         );
         skeys.help(t("skey 名称"), t("用于列表展示和识别该 skey。"));
-        skeys.label(t("可手写 YYYY-MM-DD，也可点日历选择；为空表示永不过期。"));
+        skeys.label(t("可手写 YYYY-MM-DD，也可点击「日期」选择；为空表示永不过期。"));
         let generate = skeys.label(t("生成 skey")).center();
         assert!(matches!(
             skeys.click(generate).as_slice(),

@@ -305,7 +305,7 @@
   "新增 skey": "Add skey",
   "生成 skey": "Generate skey",
   "过期日期": "Expiration date",
-  "可手写 YYYY-MM-DD，也可点日历选择；为空表示永不过期。": "Type YYYY-MM-DD or select a date. Leave empty for no expiration.",
+  "可手写 YYYY-MM-DD，也可点击「日期」选择；为空表示永不过期。": "Type YYYY-MM-DD or select a date. Leave empty for no expiration.",
   "复制": "Copy",
   "原始 skey": "Original skey",
   "仅展示一次，请立即复制。": "Shown once. Copy it now.",

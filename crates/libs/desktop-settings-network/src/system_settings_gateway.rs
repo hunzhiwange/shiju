@@ -569,7 +569,7 @@ fn add_skey_modal<'a>(app: View<'a>, dialog: Element<'a, Message>) -> Element<'a
         settings_divider(),
         field_row(
             label("过期日期"),
-            label("可手写 YYYY-MM-DD，也可点日历选择；为空表示永不过期。"),
+            label("可手写 YYYY-MM-DD，也可点击「日期」选择；为空表示永不过期。"),
             skey_date_picker(app),
         ),
     ];
@@ -591,7 +591,7 @@ fn add_skey_modal<'a>(app: View<'a>, dialog: Element<'a, Message>) -> Element<'a
     .align_y(Alignment::Center);
     let card = settings_modal_layout(header, fields, Some(actions.into()))
         .width(640)
-        .height(400);
+        .height(720);
     settings_modal_overlay(Some(dialog), close, container(card).padding(12))
 }
 

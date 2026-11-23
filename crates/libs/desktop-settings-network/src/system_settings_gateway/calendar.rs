@@ -141,7 +141,7 @@ pub fn skey_date_picker<'a>(app: View<'a>) -> Element<'a, Message> {
     let action_label = if s.new_skey_calendar_open {
         connection_text(app.desktop_locale, "收起")
     } else {
-        connection_text(app.desktop_locale, "日历")
+        connection_text(app.desktop_locale, "日期")
     };
 
     let mut trigger = row![

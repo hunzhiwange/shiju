@@ -104,7 +104,7 @@ fn desktop_gettext_area_4_catalog_covers_visible_sources() {
         "变体数量 (variants)",
         "只保存用户显式设置的覆盖，保持自动发现模型的其它配置。",
         "可以维护多个客户端网关，当前选中的网关会用于 Desktop 的 Gateway 请求。",
-        "可手写 YYYY-MM-DD，也可点日历选择；为空表示永不过期。",
+        "可手写 YYYY-MM-DD，也可点击「日期」选择；为空表示永不过期。",
         "可留空，或自动发现该 provider 的模型；也可手动添加并启用/禁用。",
         "可选",
         "可选 family 元数据，用于区分同一厂商的模型系列。",

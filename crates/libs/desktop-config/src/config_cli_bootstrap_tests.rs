@@ -122,6 +122,30 @@ fn same_file_contents_reports_missing_metadata_path() {
     assert!(error.contains(missing.to_string_lossy().as_ref()));
 }
 
+#[cfg(all(target_os = "macos", target_arch = "aarch64"))]
+#[test]
+fn sync_aionrs_bridge_backfills_and_updates_installed_gateway() {
+    use std::os::unix::fs::PermissionsExt;
+
+    let temp = tempfile::tempdir().unwrap();
+    let source_cli = temp.path().join("shiju");
+    let target_cli = temp.path().join("bin/shiju");
+    fs::create_dir_all(target_cli.parent().unwrap()).unwrap();
+    fs::write(&target_cli, b"existing gateway").unwrap();
+    let source = source_cli.with_file_name("aionrs-acp");
+    let target = target_cli.with_file_name("aionrs-acp");
+
+    fs::write(&source, b"bridge v1").unwrap();
+    sync_aionrs_bridge(&source_cli, &target_cli).unwrap();
+    assert_eq!(fs::read(&target).unwrap(), b"bridge v1");
+    assert_ne!(fs::metadata(&target).unwrap().permissions().mode() & 0o100, 0);
+
+    fs::write(&source, b"bridge v2").unwrap();
+    sync_aionrs_bridge(&source_cli, &target_cli).unwrap();
+    assert_eq!(fs::read(&target).unwrap(), b"bridge v2");
+    assert_eq!(fs::read(&target_cli).unwrap(), b"existing gateway");
+}
+
 #[cfg(unix)]
 #[test]
 fn install_cli_from_source_atomically_replaces_running_target() {

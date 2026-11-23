@@ -160,6 +160,11 @@ fn ensure_cli_installed(home: &Path) -> Result<PathBuf, String> {
     {
         tracing::warn!(target: "vw_desktop", %error, "failed to install the bundled computer use app");
     }
+    // A previously installed gateway may still be missing the bundled bridge.
+    #[cfg(all(target_os = "macos", target_arch = "aarch64"))]
+    if let Err(error) = sync_aionrs_bridge(&source_bin, &target_bin) {
+        tracing::warn!(target: "vw_desktop", %error, "failed to install the bundled aionrs ACP bridge");
+    }
     if installed_cli_matches_source(&target_bin, &source_bin) {
         return Ok(target_bin);
     }
@@ -182,6 +187,36 @@ fn ensure_cli_installed(home: &Path) -> Result<PathBuf, String> {
     });
     verify_cli_binary(&target_bin)?;
     Ok(target_bin)
+}
+
+#[cfg(all(target_os = "macos", target_arch = "aarch64"))]
+fn sync_aionrs_bridge(source_cli: &Path, target_cli: &Path) -> std::io::Result<()> {
+    use std::os::unix::fs::PermissionsExt;
+
+    let source = source_cli.with_file_name("aionrs-acp");
+    match source.symlink_metadata() {
+        Ok(metadata) if metadata.is_file() => {}
+        Ok(_) => return Err(std::io::Error::other("bundled aionrs-acp is not a regular file")),
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(()),
+        Err(error) => return Err(error),
+    }
+    let target = target_cli.with_file_name("aionrs-acp");
+    if target.symlink_metadata().is_ok_and(|metadata| {
+        metadata.is_file() && metadata.permissions().mode() & 0o100 != 0
+    }) && same_file_contents(&source, &target).unwrap_or(false)
+    {
+        return Ok(());
+    }
+
+    let install_dir = target
+        .parent()
+        .ok_or_else(|| std::io::Error::other("missing CLI install directory"))?;
+    fs::create_dir_all(install_dir)?;
+    let mut staged = tempfile::NamedTempFile::new_in(install_dir)?;
+    std::io::copy(&mut fs::File::open(source)?, staged.as_file_mut())?;
+    staged.as_file().set_permissions(fs::Permissions::from_mode(0o755))?;
+    staged.persist(target)?;
+    Ok(())
 }
 
 #[cfg(target_os = "macos")]

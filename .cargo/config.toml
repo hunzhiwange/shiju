@@ -29,9 +29,10 @@ rustflags = ["--cfg", "getrandom_backend=\"wasm_js\""]
 target-dir = "target-dir"
 # Let intermediate artifacts follow target-dir, including CARGO_TARGET_DIR slots.
 
-# Run from the repository root; first use installs the pinned patched Relax.
+# Isolate the launcher from workspace builds. Relax claims its own slot after launch.
 [alias]
-dev-setup = "run --quiet --manifest-path tools/relax-dev/Cargo.toml -- setup"
-dev-desktop = "run --quiet --manifest-path tools/relax-dev/Cargo.toml -- desktop"
-dev-gateway = "run --quiet --manifest-path tools/relax-dev/Cargo.toml -- gateway"
-dev-test = "run --quiet --manifest-path tools/relax-dev/Cargo.toml -- test"
+dev-setup = "run --target-dir target/relax-dev-launcher --manifest-path tools/relax-dev/Cargo.toml -- setup"
+dev-desktop = "run --target-dir target/relax-dev-launcher --manifest-path tools/relax-dev/Cargo.toml -- desktop"
+dev-gateway = "run --target-dir target/relax-dev-launcher --manifest-path tools/relax-dev/Cargo.toml -- gateway"
+dev-getway = "run --target-dir target/relax-dev-launcher --manifest-path tools/relax-dev/Cargo.toml -- gateway"
+dev-test = "run --target-dir target/relax-dev-launcher --manifest-path tools/relax-dev/Cargo.toml -- test"

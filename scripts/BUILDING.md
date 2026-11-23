@@ -41,9 +41,9 @@ for that session.
 Keep one selected library test target warm while editing function bodies:
 
 ```sh
-python3 scripts/cargo_slot.py cargo dev-test vw-desktop app::components::voice_chat::tests::voice_task_11_
+cargo dev-test vw-desktop app::components::voice_chat::tests::voice_task_11_
 # Or focus a validated gateway/config/client test family:
-python3 scripts/cargo_slot.py cargo dev-test vw-config-types config_defaults_promote_shiju_as_primary_provider
+cargo dev-test vw-config-types config_defaults_promote_shiju_as_primary_provider
 ```
 
 `cargo dev-test <workspace-package> <test-filter>` uses the same pinned unpatched
@@ -89,17 +89,11 @@ cache. Locks are released after the foreground process group stops, including
 failure or interruption; do not launch detached/background work from this wrapper.
 Existing locks are never reclaimed automatically.
 
-`cargo dev-desktop` always claims `target/rust-slot-19` and `cargo dev-gateway`
-always claims `target/rust-slot-20`, retaining each application's build cache
-between launches. If that slot is occupied, the entry waits rather than selecting
-another directory. Existing caches are not cleared or migrated.
-`cargo dev-setup` and `cargo dev-test` claim the first free slot.
-All entries hold their slot for the Python preparation and Relax process lifetime. When run inside the wrapper,
-they inherit its slot. The small Rust launcher is built by the initial Cargo alias
-before Python can claim a slot; wrap the alias itself when every Cargo invocation
-must be inside the slot. Aliases no longer override the caller's target directory.
-Relax installation builds in the owned slot and copies the finished runner to its
-versioned tool cache; runtime and metadata subprocesses inherit the same paths.
+`cargo dev-desktop`, `cargo dev-gateway`, `cargo dev-setup`, and `cargo dev-test`
+use dedicated build directories under `target/relax-dev-<mode>`. The Cargo alias
+builds the small launcher in `target/relax-dev-launcher`. Relax still serializes
+preparation of its shared installation and dependency cache using
+`.cache/relax-dev/setup.lock`. `cargo dev-getway` is an alias for `cargo dev-gateway`.
 
 The repository no longer fixes `build.build-dir` independently of `target-dir`:
 Cargo's default keeps intermediate and final artifacts together even for existing

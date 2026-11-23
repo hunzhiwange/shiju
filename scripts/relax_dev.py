@@ -75,7 +75,9 @@ def prepare():
     import fcntl  # POSIX only; Windows is rejected above.
     STATE.mkdir(parents=True, exist_ok=True)
     with (STATE / 'setup.lock').open('w') as lock:
+        print(f'Relax：等待初始化锁 {lock.name}', flush=True)
         fcntl.flock(lock, fcntl.LOCK_EX)
+        print('Relax：检查开发工具和依赖缓存', flush=True)
         return prepare_locked()
 
 
@@ -149,6 +151,7 @@ def prepare_launch_dir():
     stamp = STATE / 'vendor-lock.sha256'
     config = config_dir / 'config.toml'
     if not stamp.exists() or stamp.read_text() != vendor_key or not config.exists() or not vendor.is_dir():
+        print('Relax：Cargo.lock 或依赖缓存已变化，正在更新依赖缓存', flush=True)
         prepare_vendor(vendor)
         config.write_text('[source.crates-io]\nreplace-with = "shiju-relax-vendor"\n'
                           '[source.shiju-relax-vendor]\ndirectory = ' + json.dumps(str(vendor), ensure_ascii=False) + '\n')
@@ -169,6 +172,8 @@ def prepare_vendor(vendor):
             checksums[(fields['name'], fields['version'])] = fields['checksum']
     vendor.mkdir(parents=True, exist_ok=True)
     seen = set()
+    print('Relax：正在复制和校验依赖', flush=True)
+    next_notice = time.monotonic() + 15
     for package in metadata['packages']:
         if not (package.get('source') or '').startswith('registry+'):
             continue
@@ -176,6 +181,9 @@ def prepare_vendor(vendor):
         if name in seen:
             raise RuntimeError(f'同名同版本的多个 registry 来源不支持：{name}')
         seen.add(name)
+        if time.monotonic() >= next_notice:
+            print(f'Relax：正在处理第 {len(seen)} 个依赖（{name}）', flush=True)
+            next_notice = time.monotonic() + 15
         source = Path(package['manifest_path']).parent
         dest = vendor / name
         if dest.exists():
@@ -217,7 +225,6 @@ def run_live(args, cwd, env):
 
     restart_delay = 3
     while True:
-        # Leave time for the Cargo slot wrapper to finish stopping this process.
         status = run_foreground(args, cwd, env, shutdown_timeout=3)
         if status == 0:
             return 0
@@ -238,6 +245,11 @@ def main(argv):
             or not argv[2].strip() or argv[2].startswith('-')):
         print('常驻测试需要明确的 workspace 包名与非空过滤条件；例如 cargo dev-test vw-desktop voice_task_11_', file=sys.stderr)
         return 2
+    target = ROOT / 'target' / f'relax-dev-{argv[0]}'
+    if target.is_symlink() or target.parent.is_symlink():
+        raise RuntimeError(f'Refusing Relax development cache through a symlink: {target}')
+    os.environ.update(CARGO_TARGET_DIR=str(target), CARGO_BUILD_BUILD_DIR=str(target))
+    print(f'Relax：构建目录 {target}', flush=True)
     binary, tool, cwd = prepare()
     if argv[0] == 'setup':
         print('Relax 已就绪：cargo dev-desktop / cargo dev-gateway；保存函数体即可热更新。')
@@ -274,15 +286,7 @@ def main(argv):
 
 if __name__ == '__main__':
     try:
-        import cargo_slot
-        if not os.environ.get('SHIJU_CARGO_SLOT_ACTIVE'):
-            # Keep each application on one cache even when other slots are busy.
-            number = {'desktop': 19, 'gateway': 20}.get(sys.argv[1] if len(sys.argv) > 1 else '')
-            sys.exit(cargo_slot.run(
-                [sys.executable, str(Path(__file__).resolve()), *sys.argv[1:]], number=number))
-        with cargo_slot.slot() as env:
-            os.environ.update(env)
-            sys.exit(main(sys.argv[1:]))
+        sys.exit(main(sys.argv[1:]))
     except KeyboardInterrupt:
         sys.exit(130)
     except (RuntimeError, OSError, json.JSONDecodeError, subprocess.CalledProcessError) as exc:

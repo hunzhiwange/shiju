@@ -7,6 +7,7 @@ use tokio_util::sync::CancellationToken;
 
 /// Request-only account information. It never enters processor options or replay data.
 pub struct EmployeeAuthorization {
+    pub account_scope: String,
     pub credential: String,
     pub generation: u64,
     pub revoked: CancellationToken,

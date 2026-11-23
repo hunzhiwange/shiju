@@ -64,9 +64,9 @@ pub(crate) fn check_scope(app: &mut App, selection: Option<Selection>) -> Task<M
             Task::none()
         };
     };
-    if !endpoint.is_loopback() || endpoint.user_id().as_ref() == vw_api_transport::DEFAULT_USER_ID {
+    if !endpoint.is_loopback() {
         return if selection.is_some() {
-            app.show_error_toast("请连接与当前识矩账号匹配的本机网关")
+            app.show_error_toast("请连接本机网关")
         } else {
             Task::none()
         };
@@ -98,11 +98,11 @@ pub(crate) fn check_scope(app: &mut App, selection: Option<Selection>) -> Task<M
                     .json()
                     .await
                     .map_err(verification_failed)?;
-            if account.user_id != endpoint.user_id().as_ref()
-                || account.company_id != endpoint.tenant_scope().company_id().as_ref()
-                || account.status != "enabled"
+            if account.status != "enabled"
+                || account.user_id.trim().is_empty()
+                || account.company_id.trim().is_empty()
             {
-                return Err("本机网关与当前识矩账号不匹配".into());
+                return Err("当前识矩账号不可用，请重新登录".into());
             }
             Ok(Scope {
                 address: endpoint.base_url(),

@@ -1155,14 +1155,15 @@ pub async fn prepare_gateway_agent_request<H: StreamHost>(
     body: &mut GatewayChatStreamRequest,
     background_full_access: Option<bool>,
 ) -> Result<DelegateRequestOverrides, ApiError> {
-    prepare_gateway_agent_request_with_employee::<H>(body, background_full_access, false).await
+    prepare_gateway_agent_request_with_employee::<H>(body, background_full_access, None).await
 }
 
 async fn prepare_gateway_agent_request_with_employee<H: StreamHost>(
     body: &mut GatewayChatStreamRequest,
     background_full_access: Option<bool>,
-    employee_verified: bool,
+    employee_account_scope: Option<&str>,
 ) -> Result<DelegateRequestOverrides, ApiError> {
+    let employee_verified = employee_account_scope.is_some();
     merge_acp_model_source(body)?;
     let target = body.options.as_mut().and_then(Value::as_object_mut)
         .and_then(|options| options.remove("employee_target"));
@@ -1213,9 +1214,12 @@ async fn prepare_gateway_agent_request_with_employee<H: StreamHost>(
         body.agent.as_deref(),
         body.model.as_deref(),
         Path::new(&instance::directory()),
-        match &employee_admission {
-            Some(target) => EmployeeAdmission::Verified { target: target.as_ref() },
-            None => EmployeeAdmission::Unverified,
+        match (employee_account_scope, &employee_admission) {
+            (Some(account_scope), Some(target)) => EmployeeAdmission::Verified {
+                target: target.as_ref(),
+                account_scope,
+            },
+            _ => EmployeeAdmission::Unverified,
         },
     )
     .await
@@ -1446,7 +1450,7 @@ async fn start_chat_producer<H: StreamHost>(
     }
     let delegate_overrides =
         prepare_gateway_agent_request_with_employee::<H>(
-            &mut body, background_full_access, employee.is_some(),
+            &mut body, background_full_access, employee.as_ref().map(|auth| auth.account_scope.as_str()),
         ).await?;
     let employee = employee.zip(delegate_overrides.employee_target.clone());
     let GatewayChatStreamRequest {
@@ -2251,7 +2255,16 @@ pub async fn chat_stream_with_employee<H: StreamHost>(
                 if evaluation || background_full_access.is_some() {
                     return Err(ApiError::bad_request("Employee ACP requires an interactive chat session"));
                 }
-                Some(H::authorize_employee(&tenant_for_stream, &headers).await?)
+                let authorization = H::authorize_employee(&tenant_for_stream, &headers).await?;
+                if binding.as_ref().is_some_and(|binding| {
+                    !binding.employee_account_matches(&authorization.account_scope)
+                }) {
+                    return Err(ApiError {
+                        status: StatusCode::UNAUTHORIZED,
+                        message: "Employee session belongs to another SHIJU account".into(),
+                    });
+                }
+                Some(authorization)
             } else {
                 if body.options.as_ref().is_some_and(|options| options.get("employee_target").is_some()) {
                     return Err(ApiError::bad_request("employee_target requires the employee ACP backend"));

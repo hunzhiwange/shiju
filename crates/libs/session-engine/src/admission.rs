@@ -8,7 +8,7 @@ use crate::admission_host::AdmissionHost;
 /// A trusted caller supplies Verified only after checking the current account.
 pub enum EmployeeAdmission<'a> {
     Unverified,
-    Verified { target: Option<&'a EmployeeTarget> },
+    Verified { target: Option<&'a EmployeeTarget>, account_scope: &'a str },
 }
 
 static INITIALIZE: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());
@@ -43,9 +43,9 @@ pub async fn prepare_with_employee<H: AdmissionHost>(
 ) -> Result<(AgentBinding, Config)> {
     use agent_defaults::{DefaultSelection, DefaultsContext, resolve};
     use config_agent_profile::{AgentDefault, AgentModelReference};
-    let (employee_verified, requested_target) = match employee_request {
-        EmployeeAdmission::Unverified => (false, None),
-        EmployeeAdmission::Verified { target } => (true, target),
+    let (employee_account_scope, requested_target) = match employee_request {
+        EmployeeAdmission::Unverified => (None, None),
+        EmployeeAdmission::Verified { target, account_scope } => (Some(account_scope), target),
     };
     let _guard = INITIALIZE.lock().await;
     let mut config = H::config().await?;
@@ -61,8 +61,11 @@ pub async fn prepare_with_employee<H: AdmissionHost>(
         previous.as_ref().filter(|binding| !fork_selectable || binding.is_employee())
     {
         binding.validate_selection(selected_agent, backend)?;
-        if binding.is_employee() && (!employee_verified || fork_selectable) {
-            anyhow::bail!("employee ACP requires an authorized, non-fork session");
+        if binding.is_employee()
+            && (fork_selectable
+                || employee_account_scope.is_none_or(|scope| !binding.employee_account_matches(scope)))
+        {
+            anyhow::bail!("employee ACP requires the bound SHIJU account and a non-fork session");
         }
         binding.validate_employee_selection(requested_target)?;
         let mut definition = agent_config::catalog::merged_agent_catalog(&config.agents)
@@ -110,10 +113,12 @@ pub async fn prepare_with_employee<H: AdmissionHost>(
         if session.is_empty() || fork_selectable || !history.is_empty() {
             anyhow::bail!("employee ACP requires a new persistent session");
         }
-        Some(
+        Some((
             requested_target
                 .ok_or_else(|| anyhow::anyhow!("employee ACP requires an authorized employee_target"))?,
-        )
+            employee_account_scope
+                .ok_or_else(|| anyhow::anyhow!("employee ACP requires a verified SHIJU account"))?,
+        ))
     } else {
         provisional.validate_employee_selection(requested_target)?;
         None
@@ -180,8 +185,8 @@ pub async fn prepare_with_employee<H: AdmissionHost>(
         definition.defaults.full_access = false;
     }
     let mut binding = AgentBinding::from_definition(agent.clone(), &definition);
-    if let Some(target) = employee_target {
-        binding.set_employee_target(target.clone());
+    if let Some((target, account_scope)) = employee_target {
+        binding.bind_employee(target.clone(), account_scope);
     }
     let project = H::project()
         .ok_or_else(|| anyhow::anyhow!("session binding requires a project"))?;

@@ -15,18 +15,10 @@ impl Launch {
         tenant: TenantScope,
         session: String,
         target: EmployeeTarget,
+        account_scope: String,
         credential: String,
         stop: tokio_util::sync::CancellationToken,
     ) -> Arc<Self> {
-        use sha2::{Digest, Sha256};
-
-        let scope = serde_json::to_vec(&(
-            tenant.platform_id().as_ref(),
-            tenant.company_id().as_ref(),
-            tenant.user_id().as_ref(),
-        ))
-        .expect("serializable employee account scope");
-        let account_scope = hex::encode(Sha256::digest(scope));
         let kind = match target.kind {
             EmployeeKind::Private => EmployeeAcpKind::Private,
             EmployeeKind::Shared => EmployeeAcpKind::Shared,

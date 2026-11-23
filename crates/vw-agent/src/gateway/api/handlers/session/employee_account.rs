@@ -30,8 +30,13 @@ type Fingerprint = [u8; 32];
 #[derive(Default)]
 struct Account {
     current: Option<ActiveCredential>,
-    revoked: HashSet<Fingerprint>,
     last_verified: u64,
+}
+
+#[derive(Default)]
+struct LocalAccounts {
+    accounts: HashMap<String, Account>,
+    revoked: HashSet<Fingerprint>,
 }
 
 struct ActiveCredential {
@@ -40,7 +45,7 @@ struct ActiveCredential {
     revoked: CancellationToken,
 }
 
-static ACCOUNTS: LazyLock<parking_lot::Mutex<HashMap<TenantScope, Account>>> =
+static ACCOUNTS: LazyLock<parking_lot::Mutex<HashMap<TenantScope, LocalAccounts>>> =
     LazyLock::new(Default::default);
 static NEXT_ATTEMPT: AtomicU64 = AtomicU64::new(1);
 
@@ -63,10 +68,7 @@ fn unauthorized() -> ApiError {
     }
 }
 
-fn credential(tenant: &TenantScope, headers: &HeaderMap) -> Result<ShijuCredential, ApiError> {
-    if tenant.user_id().as_ref() == DEFAULT_USER_ID {
-        return Err(unauthorized());
-    }
+fn credential(headers: &HeaderMap) -> Result<ShijuCredential, ApiError> {
     let mut values = headers.get_all(SHIJU_CREDENTIAL_HEADER).iter();
     let value = values.next().and_then(|value| value.to_str().ok()).ok_or_else(unauthorized)?;
     if values.next().is_some() {
@@ -88,7 +90,7 @@ pub(super) async fn authorize(
     tenant: &TenantScope,
     headers: &HeaderMap,
 ) -> Result<EmployeeAuthorization, ApiError> {
-    let credential = credential(tenant, headers)?;
+    let credential = credential(headers)?;
     #[cfg(test)]
     if let Ok(client) = TEST_CLIENT.try_with(Clone::clone) {
         return verify(tenant, credential, &client).await;
@@ -118,26 +120,36 @@ pub(super) async fn verify(
             });
         }
     };
-    if user.user_id != tenant.user_id().as_ref()
-        || user.company_id != tenant.company_id().as_ref()
-        || user.status != "enabled"
+    if user.status != "enabled"
+        || user.user_id.trim().is_empty()
+        || user.user_id == DEFAULT_USER_ID
+        || user.company_id.trim().is_empty()
     {
         revoke(tenant, fingerprint, false);
         return Err(unauthorized());
     }
 
+    // Preserve the platform namespace for existing ACP state. Company and
+    // user identity always come from the verified IAM response.
+    let identity = serde_json::to_vec(&(tenant.platform_id().as_ref(), &user.company_id, &user.user_id))
+        .expect("serializable employee identity");
+    let account_scope = hex::encode(Sha256::digest(identity));
     let mut accounts = ACCOUNTS.lock();
-    let account = accounts.entry(tenant.clone()).or_default();
-    if account.revoked.contains(&fingerprint)
-        || (attempt < account.last_verified
-            && account.current.as_ref().is_none_or(|active| active.fingerprint != fingerprint))
+    let LocalAccounts { accounts: active_accounts, revoked } =
+        accounts.entry(tenant.clone()).or_default();
+    if revoked.contains(&fingerprint) {
+        return Err(unauthorized());
+    }
+    let account = active_accounts.entry(account_scope.clone()).or_default();
+    if attempt < account.last_verified
+        && account.current.as_ref().is_none_or(|active| active.fingerprint != fingerprint)
     {
         return Err(unauthorized());
     }
     account.last_verified = account.last_verified.max(attempt);
     if account.current.as_ref().is_none_or(|current| current.fingerprint != fingerprint) {
         if let Some(previous) = account.current.take() {
-            account.revoked.insert(previous.fingerprint);
+            revoked.insert(previous.fingerprint);
             previous.revoked.cancel();
         }
         account.current = Some(ActiveCredential {
@@ -148,6 +160,7 @@ pub(super) async fn verify(
     }
     let active = account.current.as_ref().expect("verified credential is active");
     Ok(EmployeeAuthorization {
+        account_scope,
         credential: credential.expose().to_owned(),
         generation: active.generation,
         revoked: active.revoked.clone(),
@@ -157,20 +170,21 @@ pub(super) async fn verify(
 
 fn revoke(tenant: &TenantScope, fingerprint: Fingerprint, explicit: bool) {
     let mut accounts = ACCOUNTS.lock();
-    if !explicit
-        && !accounts
-            .get(tenant)
-            .and_then(|account| account.current.as_ref())
-            .is_some_and(|active| active.fingerprint == fingerprint)
-    {
+    let local = if explicit {
+        accounts.entry(tenant.clone()).or_default()
+    } else if let Some(local) = accounts.get_mut(tenant) {
+        local
+    } else {
         return;
-    }
-    let account = accounts.entry(tenant.clone()).or_default();
-    account.revoked.insert(fingerprint);
-    if account.current.as_ref().is_some_and(|active| active.fingerprint == fingerprint) {
-        if let Some(active) = account.current.take() {
-            active.revoked.cancel();
-        }
+    };
+    let active = local.accounts.values_mut().find(|account| {
+        account.current.as_ref().is_some_and(|active| active.fingerprint == fingerprint)
+    });
+    if let Some(active) = active.and_then(|account| account.current.take()) {
+        active.revoked.cancel();
+        local.revoked.insert(fingerprint);
+    } else if explicit {
+        local.revoked.insert(fingerprint);
     }
 }
 
@@ -187,6 +201,6 @@ pub(super) async fn revoke_account(
             message: "Employee ACP requires the local desktop gateway".into(),
         });
     }
-    revoke(&tenant, fingerprint(&credential(&tenant, &headers)?), true);
+    revoke(&tenant, fingerprint(&credential(&headers)?), true);
     Ok(StatusCode::NO_CONTENT)
 }

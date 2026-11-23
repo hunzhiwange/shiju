@@ -220,7 +220,7 @@ async fn assert_employee_binding(
                 None,
                 None,
                 &workspace,
-                EmployeeAdmission::Verified { target: Some(&changed) },
+                EmployeeAdmission::Verified { target: Some(&changed), account_scope: "verified-fixture" },
             )
             .await
             .err()
@@ -232,7 +232,7 @@ async fn assert_employee_binding(
                 None,
                 None,
                 &workspace,
-                EmployeeAdmission::Verified { target: None },
+                EmployeeAdmission::Verified { target: None, account_scope: "verified-fixture" },
             )
             .await
             .unwrap();
@@ -364,23 +364,8 @@ for line in sys.stdin:
 "#).unwrap();
     fs::set_permissions(&executable, fs::Permissions::from_mode(0o700)).unwrap();
 
-    let tenant = TenantScope::new("employee-acp-live-fixture", "42").unwrap();
-    let account = tenant.clone().with_user_id(UserId::new("103").unwrap());
-    let skey = "employee-live-fixture-local";
-    crate::config::replace_gateway_skeys_for_tenant(
-        &tenant,
-        &[GatewaySkey {
-            enabled: true,
-            skey: None,
-            skey_hash: hash_skey(skey),
-            masked_skey: String::new(),
-            name: String::new(),
-            expires_at: None,
-            user_id: Some("103".into()),
-        }],
-    )
-    .await
-    .unwrap();
+    let tenant = TenantScope::new("employee-acp-live-fixture", "local-company").unwrap();
+    let account = tenant.clone();
     let mut profile = agent_config::catalog::merged_agent_catalog(&Default::default())
         .remove("acp-employee-acp")
         .unwrap();
@@ -427,8 +412,6 @@ for line in sys.stdin:
         .finish();
     let request = |path: &str, key: Option<&str>, body: Value| {
         let mut request = Request::post(path)
-            .header("authorization", format!("Bearer {skey}"))
-            .header(USER_ID_HEADER, "103")
             .header("content-type", "application/json");
         if let Some(key) = key {
             request = request.header(SHIJU_CREDENTIAL_HEADER, key);
@@ -443,7 +426,7 @@ for line in sys.stdin:
     });
     TEST_CLIENT
         .scope(client, async {
-            for key in [None, Some("fixture-foreign")] {
+            for key in [None, Some("fixture-invalid")] {
                 let response =
                     app.clone().oneshot(request(&chat_path, key, chat.clone())).await.unwrap();
                 assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
@@ -500,6 +483,15 @@ for line in sys.stdin:
             );
             assert!(directory.join("cancelled").exists());
             assert!(!sse.contains("fixture-login-a"));
+            let foreign = app
+                .clone()
+                .oneshot(request(&chat_path, Some("fixture-foreign"), json!({
+                    "session_id": session,
+                    "messages": [{"role": "user", "content": "must be denied"}],
+                })))
+                .await
+                .unwrap();
+            assert_eq!(foreign.status(), StatusCode::UNAUTHORIZED);
             let (project, _) = crate::project::from_directory(&account, &directory).await.unwrap();
             let binding = session_engine::binding_store::load_scoped(
                 crate::global::paths().home.clone(),

@@ -158,7 +158,7 @@ impl StreamHost for Host {
     ) -> session_port::PromptTurn {
         let employee = input.employee.take().map(|(target, authorization)| {
             crate::session::llm::employee_context::Launch::new(
-                tenant.clone(), input.session.clone(), target, authorization.credential, authorization.stop,
+                tenant.clone(), input.session.clone(), target, authorization.account_scope, authorization.credential, authorization.stop,
             )
         });
         crate::session::ui_store::with_tenant_scope_sync(tenant, || {

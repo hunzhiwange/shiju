@@ -18,9 +18,6 @@ const ACCOUNT: &str = r#"{"user_id":"103","company_id":"42","account_id":"fixtur
 fn signed_in_app(port: u16) -> App {
     let server = config_ui::GatewayClientServerConfig {
         port,
-        company_id: "42".into(),
-        user_id: "103".into(),
-        skey: "test-pairing".into(),
         ..Default::default()
     };
     let id = server.id.clone();

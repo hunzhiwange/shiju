@@ -473,7 +473,7 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
                     app.chat_view.active_session_view_state.ui_preparing = false;
                     app.chat_view.active_session_view_state.base_ready = false;
                     app.invalidate_chat_ui_state();
-                    return Some(app.show_error_toast("请登录与本机网关匹配的识矩账号后重开会话"));
+                    return Some(app.show_error_toast("请登录识矩并连接本机网关后重开会话"));
                 }
                 app.get_session_runtime_mut(&target_session_id).restore_open_binding(binding);
             }

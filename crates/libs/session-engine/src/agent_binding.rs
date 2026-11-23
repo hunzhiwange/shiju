@@ -56,6 +56,8 @@ pub struct AgentBinding {
     pub force_model_selection: bool,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     employee_target: Option<EmployeeTarget>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    employee_account_scope: Option<String>,
 }
 
 impl AgentBinding {
@@ -75,6 +77,7 @@ impl AgentBinding {
             model: definition.model.clone(),
             force_model_selection: definition.force_model_selection,
             employee_target: None,
+            employee_account_scope: None,
         }
     }
 
@@ -86,8 +89,13 @@ impl AgentBinding {
         self.employee_target.as_ref()
     }
 
-    pub(crate) fn set_employee_target(&mut self, target: EmployeeTarget) {
+    pub(crate) fn bind_employee(&mut self, target: EmployeeTarget, account_scope: &str) {
         self.employee_target = Some(target);
+        self.employee_account_scope = Some(account_scope.to_owned());
+    }
+
+    pub fn employee_account_matches(&self, account_scope: &str) -> bool {
+        self.employee_account_scope.as_deref().is_none_or(|bound| bound == account_scope)
     }
 
     pub(crate) fn validate_employee_selection(

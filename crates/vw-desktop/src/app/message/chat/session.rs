@@ -604,7 +604,7 @@ fn send_current_session_input_checked(app: &mut App) -> Task<Message> {
     #[cfg(not(target_arch = "wasm32"))]
     if app.current_session_runtime_ref().is_some_and(|runtime| runtime.is_employee_chat()) {
         if crate::app::digital_employees::chat::credential(app, &crate::app::config::gateway_client_endpoint()).is_none() {
-            return app.show_error_toast("请登录与本机网关匹配的识矩账号后重试");
+            return app.show_error_toast("请登录识矩并连接本机网关后重试");
         }
         if !app.session_state.files.is_empty() {
             return app.show_error_toast("数字员工聊天支持纯文本，请移除附件后重试");

@@ -34,3 +34,91 @@ fn desktop_gettext_sprintf_checks_types_positions_and_limits() {
     assert!(crate::__!(i, "%1$s %1$d", "text").is_err());
     assert_eq!(crate::__!(i, "%1$s %1$s", "原文").unwrap(), "原文 原文");
 }
+
+#[test]
+fn desktop_gettext_sprintf_renders_source_for_unusable_translation() {
+    use crate::format::format_translation;
+
+    let source = "格式化回退测试：%s，数量 %d";
+    let arguments = [Argument::from("用户 %n 原文"), Argument::from(7)];
+    for translation in [
+        "",
+        " \n\t",
+        "%n",
+        "%",
+        "%999999s",
+        "%.4097s",
+        "%s %u",
+        "%s",
+        "%s %d %s",
+        "%2$s %1$d",
+        "%1$s %s",
+        "%2$s",
+    ] {
+        assert_eq!(
+            format_translation(source, translation, &arguments).unwrap(),
+            "格式化回退测试：用户 %n 原文，数量 7",
+            "{translation:?}"
+        );
+    }
+    assert_eq!(
+        format_translation(source, "%2$d items: %1$s", &arguments).unwrap(),
+        "7 items: 用户 %n 原文"
+    );
+    assert_eq!(format_translation("原文", " \n", &[]).unwrap(), "原文");
+    assert_eq!(format_translation("", "", &[]).unwrap(), "");
+}
+
+#[test]
+fn desktop_gettext_sprintf_missing_catalog_key_renders_nested_lines() {
+    let source = "__desktop_sprintf_fallback_unique_20261124__ 原文：%s";
+    for locale in [DesktopLocale::English, DesktopLocale::TraditionalChinese] {
+        let i18n = I18n::new(locale);
+        assert_eq!(i18n.__(source), source);
+        let message = Message::lines(vec![
+            Message::nested(
+                "__desktop_sprintf_fallback_outer_20261124__ 外层：%s".into(),
+                vec![Message::new(source, vec!["用户 %n 原文".into()])],
+            ),
+            Message::new(source, vec!["第二行".into()]),
+        ]);
+        assert_eq!(
+            message.render(i18n).unwrap(),
+            "__desktop_sprintf_fallback_outer_20261124__ 外层：__desktop_sprintf_fallback_unique_20261124__ 原文：用户 %n 原文\n__desktop_sprintf_fallback_unique_20261124__ 原文：第二行"
+        );
+    }
+}
+
+#[test]
+fn desktop_gettext_sprintf_fallback_preserves_source_and_argument_errors() {
+    use crate::format::{FormatError, format_translation};
+
+    assert_eq!(
+        format_translation("%n", "%s", &["raw".into()]),
+        Err(FormatError("unsupported directive"))
+    );
+    assert_eq!(format_translation("%s", "%n", &[]), Err(FormatError("argument count mismatch")));
+    assert_eq!(
+        format_translation("%d", "%n", &["raw".into()]),
+        Err(FormatError("argument type mismatch"))
+    );
+    assert_eq!(
+        format_translation("literal", "", &[1.into()]),
+        Err(FormatError("argument count mismatch"))
+    );
+}
+
+#[test]
+fn desktop_gettext_sprintf_strict_translation_validation_remains_available() {
+    use crate::format::{FormatError, validate_translation};
+
+    assert_eq!(validate_translation("%s %d", "%2$d %1$s"), Ok(()));
+    assert_eq!(validate_translation("%s", "%n"), Err(FormatError("unsupported directive")));
+    assert_eq!(
+        validate_translation("%s", "%u"),
+        Err(FormatError("translation signature mismatch"))
+    );
+    assert_eq!(validate_translation("%s", " \n"), Err(FormatError("empty translation")));
+    assert_eq!(validate_translation("%s", "%4097s"), Err(FormatError("format limit exceeded")));
+    assert_eq!(validate_translation("%n", "%s"), Err(FormatError("unsupported directive")));
+}

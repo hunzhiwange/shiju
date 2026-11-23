@@ -153,39 +153,60 @@ fn parse(template: &str) -> Result<(Vec<Part>, Vec<char>)> {
 }
 impl I18n {
     pub fn format(&self, source: &str, arguments: &[Argument]) -> Result<String> {
-        let (_, original) = parse(source)?;
-        let (parts, translated) = parse(self.__(source))?;
-        if original != translated {
-            return Err(FormatError("translation signature mismatch"));
-        }
-        if arguments.len() != original.len() {
-            return Err(FormatError("argument count mismatch"));
-        }
-        let mut output = String::new();
-        for part in parts {
-            match part {
-                Part::Text(value) => output.push_str(&value),
-                Part::Field { index, kind, width, precision } => {
-                    let value = match (&arguments[index], kind) {
-                        (Argument::Text(v), 's') => {
-                            v.chars().take(precision.unwrap_or(usize::MAX)).collect()
-                        }
-                        (Argument::Signed(v), 'd') => integer(v.to_string(), precision),
-                        (Argument::Unsigned(v), 'u') => integer(v.to_string(), precision),
-                        (Argument::Float(v), 'f') => format!("{:.*}", precision.unwrap_or(6), v),
-                        _ => return Err(FormatError("argument type mismatch")),
-                    };
-                    output.extend(std::iter::repeat_n(
-                        ' ',
-                        width.saturating_sub(value.chars().count()),
-                    ));
-                    output.push_str(&value);
-                }
-            }
-        }
-        Ok(output)
+        format_translation(source, self.__(source), arguments)
     }
 }
+
+/// Strictly checks a translation without applying the runtime source fallback.
+pub fn validate_translation(source: &str, translation: &str) -> Result<()> {
+    let (_, original) = parse(source)?;
+    translation_parts(&original, translation).map(|_| ())
+}
+
+fn translation_parts(original: &[char], translation: &str) -> Result<Vec<Part>> {
+    if translation.trim().is_empty() {
+        return Err(FormatError("empty translation"));
+    }
+    let (parts, translated) = parse(translation)?;
+    if original != translated {
+        return Err(FormatError("translation signature mismatch"));
+    }
+    Ok(parts)
+}
+
+pub(crate) fn format_translation(
+    source: &str,
+    translation: &str,
+    arguments: &[Argument],
+) -> Result<String> {
+    let (source_parts, original) = parse(source)?;
+    if arguments.len() != original.len() {
+        return Err(FormatError("argument count mismatch"));
+    }
+    let parts = translation_parts(&original, translation).unwrap_or(source_parts);
+    let mut output = String::new();
+    for part in parts {
+        match part {
+            Part::Text(value) => output.push_str(&value),
+            Part::Field { index, kind, width, precision } => {
+                let value = match (&arguments[index], kind) {
+                    (Argument::Text(v), 's') => {
+                        v.chars().take(precision.unwrap_or(usize::MAX)).collect()
+                    }
+                    (Argument::Signed(v), 'd') => integer(v.to_string(), precision),
+                    (Argument::Unsigned(v), 'u') => integer(v.to_string(), precision),
+                    (Argument::Float(v), 'f') => format!("{:.*}", precision.unwrap_or(6), v),
+                    _ => return Err(FormatError("argument type mismatch")),
+                };
+                output
+                    .extend(std::iter::repeat_n(' ', width.saturating_sub(value.chars().count())));
+                output.push_str(&value);
+            }
+        }
+    }
+    Ok(output)
+}
+
 fn integer(value: String, precision: Option<usize>) -> String {
     let negative = value.starts_with('-');
     let digits = value.trim_start_matches('-');

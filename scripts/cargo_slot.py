@@ -60,15 +60,39 @@ def slot(root=ROOT, number=None):
         yield env
         return
     candidates = (number,) if number is not None else range(1, 21)
+    next_notice = 0
     while True:
-        for number in candidates:
+        attempted = candidates
+        for number in attempted:
             lock = locks / f'slot-{number}.lock'
             try:
                 lock.mkdir()
             except FileExistsError:
+                if lock.is_symlink():
+                    raise RuntimeError(f'Refusing Cargo slot lock through a symlink: {lock}')
+                if len(candidates) == 1:
+                    try:
+                        pid = json.loads((lock / 'owner.json').read_text())['pid']
+                        if type(pid) is int and pid > 1:
+                            os.kill(pid, 0)
+                    except ProcessLookupError:
+                        # An orphaned child may still use the old cache.
+                        print(f'Cargo slot {number} owner PID {pid} exited; using a free slot.',
+                              file=sys.stderr, flush=True)
+                        candidates = tuple(n for n in range(1, 21) if n != number)
+                    except (OSError, ValueError, KeyError, TypeError):
+                        pass
                 continue
             break
         else:
+            if attempted != candidates:
+                continue
+            now = time.monotonic()
+            if now >= next_notice:
+                location = lock if len(candidates) == 1 else locks
+                print(f'Waiting for Cargo slot: {location} (Ctrl-C to cancel)',
+                      file=sys.stderr, flush=True)
+                next_notice = now + 15
             time.sleep(1)
             continue
         break

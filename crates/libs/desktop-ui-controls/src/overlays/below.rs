@@ -58,6 +58,7 @@ pub struct BelowOverlay<'a, Message, ThemeT = Theme, RendererT = iced::Renderer>
     show: bool,
     gap: f32,
     snap_within_viewport: bool,
+    use_window_bounds: bool,
     on_close: Option<Message>,
     capture_outside_click: bool,
     dismiss_on_escape: bool,
@@ -75,6 +76,7 @@ impl<'a, Message, ThemeT, RendererT> BelowOverlay<'a, Message, ThemeT, RendererT
             show: false,
             gap: 0.0,
             snap_within_viewport: true,
+            use_window_bounds: false,
             on_close: None,
             capture_outside_click: true,
             dismiss_on_escape: false,
@@ -109,6 +111,12 @@ impl<'a, Message, ThemeT, RendererT> BelowOverlay<'a, Message, ThemeT, RendererT
 
     pub fn snap_within_viewport(mut self, snap: bool) -> Self {
         self.snap_within_viewport = snap;
+        self
+    }
+
+    /// Position the overlay within the window even when its trigger is in a scrollable.
+    pub fn within_window(mut self) -> Self {
+        self.use_window_bounds = true;
         self
     }
 
@@ -256,6 +264,7 @@ where
                 viewport: *viewport,
                 gap: self.gap,
                 snap_within_viewport: self.snap_within_viewport,
+                use_window_bounds: self.use_window_bounds,
                 overlay: &mut self.overlay,
                 tree: children.next().unwrap(),
                 on_close: self.on_close.clone(),
@@ -295,6 +304,7 @@ struct BelowOverlayElement<'a, 'b, Message, ThemeT, RendererT> {
     viewport: Rectangle,
     gap: f32,
     snap_within_viewport: bool,
+    use_window_bounds: bool,
     overlay: &'b mut Element<'a, Message, ThemeT, RendererT>,
     tree: &'b mut widget::Tree,
     on_close: Option<Message>,
@@ -312,6 +322,12 @@ where
     fn layout(&mut self, renderer: &RendererT, bounds: Size) -> layout::Node {
         let viewport = Rectangle::with_size(bounds);
 
+        let placement_bounds = if self.use_window_bounds {
+            viewport
+        } else {
+            self.viewport
+        };
+
         let natural_max_h = if self.snap_within_viewport { viewport.height } else { bounds.height };
         let mut node = self.overlay.as_widget_mut().layout(
             self.tree,
@@ -321,16 +337,16 @@ where
 
         let place_above = should_place_overlay_above(
             self.target_bounds,
-            self.viewport,
+            placement_bounds,
             node.size().height,
             self.gap,
         );
 
-        if self.snap_within_viewport {
+        if self.snap_within_viewport && !self.use_window_bounds {
             let available_height = if place_above {
-                available_space_above(self.target_bounds, self.viewport, self.gap)
+                available_space_above(self.target_bounds, placement_bounds, self.gap)
             } else {
-                available_space_below(self.target_bounds, self.viewport, self.gap)
+                available_space_below(self.target_bounds, placement_bounds, self.gap)
             }
             .max(0.0);
 
@@ -356,7 +372,7 @@ where
                 width: self.target_bounds.width,
                 height: self.target_bounds.height,
             },
-            self.viewport,
+            placement_bounds,
             node.size(),
             self.gap,
             self.snap_within_viewport,
@@ -452,11 +468,16 @@ where
             return mouse::Interaction::None;
         };
 
+        let viewport = if self.use_window_bounds {
+            layout.bounds()
+        } else {
+            self.viewport
+        };
         self.overlay.as_widget().mouse_interaction(
             self.tree,
             overlay_layout,
             cursor,
-            &self.viewport,
+            &viewport,
             renderer,
         )
     }

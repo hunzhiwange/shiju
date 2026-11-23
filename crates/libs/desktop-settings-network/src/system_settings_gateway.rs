@@ -591,7 +591,7 @@ fn add_skey_modal<'a>(app: View<'a>, dialog: Element<'a, Message>) -> Element<'a
     .align_y(Alignment::Center);
     let card = settings_modal_layout(header, fields, Some(actions.into()))
         .width(640)
-        .height(720);
+        .height(400);
     settings_modal_overlay(Some(dialog), close, container(card).padding(12))
 }
 

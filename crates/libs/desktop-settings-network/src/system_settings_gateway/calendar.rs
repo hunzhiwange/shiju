@@ -174,6 +174,7 @@ pub fn skey_date_picker<'a>(app: View<'a>) -> Element<'a, Message> {
     }
 
     BelowOverlay::new(trigger, skey_calendar_popover(app))
+        .within_window()
         .show(s.new_skey_calendar_open)
         .gap(6.0)
         .on_close(Message::Gateway(

@@ -7,6 +7,7 @@ on:
       - main
     paths:
       - "**/*.rs"
+      - "crates/libs/desktop-i18n/src/locales/*.json"
       - "**/Cargo.toml"
       - "Cargo.lock"
       - ".cargo/config.toml"
@@ -20,6 +21,7 @@ on:
   pull_request:
     paths:
       - "**/*.rs"
+      - "crates/libs/desktop-i18n/src/locales/*.json"
       - "**/Cargo.toml"
       - "Cargo.lock"
       - ".cargo/config.toml"

@@ -1,11 +1,11 @@
 //! Compile-time embedded, flat catalogs indexed by Chinese source text.
 use std::{collections::BTreeMap, fmt, sync::LazyLock};
 
+use config_ui::DesktopLocale;
 use serde::{
     Deserialize, Deserializer,
     de::{self, MapAccess, Visitor},
 };
-use config_ui::DesktopLocale;
 
 pub fn parse_catalog(source: &str) -> Result<BTreeMap<String, String>, serde_json::Error> {
     struct FlatCatalog;
@@ -42,13 +42,29 @@ pub fn parse_catalog(source: &str) -> Result<BTreeMap<String, String>, serde_jso
     serde_json::from_str::<Catalog>(source).map(|catalog| catalog.0)
 }
 
-static EN: LazyLock<BTreeMap<String, String>> = LazyLock::new(|| {
-    parse_catalog(include_str!("locales/en.json")).expect("invalid embedded English catalog")
-});
-static ZH_TW: LazyLock<BTreeMap<String, String>> = LazyLock::new(|| {
-    parse_catalog(include_str!("locales/zh-TW.json"))
-        .expect("invalid embedded Traditional Chinese catalog")
-});
+/// Cache strict parsing failures so a damaged locale keeps returning source text.
+pub(crate) struct RuntimeCatalog(Result<BTreeMap<String, String>, serde_json::Error>);
+
+impl RuntimeCatalog {
+    pub(crate) fn load(source: &str) -> Self {
+        Self(parse_catalog(source))
+    }
+
+    fn translate<'a>(&'a self, source: &'a str) -> &'a str {
+        self.0
+            .as_ref()
+            .ok()
+            .and_then(|catalog| catalog.get(source))
+            .filter(|translation| !translation.trim().is_empty())
+            .map(String::as_str)
+            .unwrap_or(source)
+    }
+}
+
+static EN: LazyLock<RuntimeCatalog> =
+    LazyLock::new(|| RuntimeCatalog::load(include_str!("locales/en.json")));
+static ZH_TW: LazyLock<RuntimeCatalog> =
+    LazyLock::new(|| RuntimeCatalog::load(include_str!("locales/zh-TW.json")));
 
 /// A locale belongs to the caller; changing languages never changes global state.
 #[derive(Debug, Clone, Copy)]
@@ -61,13 +77,22 @@ impl I18n {
         Self { locale }
     }
 
-    /// Missing translations retain the source text, including any placeholders.
+    /// Missing, blank or damaged translations retain the source text and placeholders.
     pub fn __<'a>(&self, source: &'a str) -> &'a str {
+        self.translate_with_catalogs(source, || &EN, || &ZH_TW)
+    }
+
+    pub(crate) fn translate_with_catalogs<'a>(
+        &self,
+        source: &'a str,
+        en: impl FnOnce() -> &'a RuntimeCatalog,
+        zh_tw: impl FnOnce() -> &'a RuntimeCatalog,
+    ) -> &'a str {
         let catalog = match self.locale {
             DesktopLocale::SimplifiedChinese => return source,
-            DesktopLocale::TraditionalChinese => &*ZH_TW,
-            DesktopLocale::English => &*EN,
+            DesktopLocale::TraditionalChinese => zh_tw(),
+            DesktopLocale::English => en(),
         };
-        catalog.get(source).map(String::as_str).unwrap_or(source)
+        catalog.translate(source)
     }
 }

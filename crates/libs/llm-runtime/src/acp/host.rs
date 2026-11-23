@@ -57,7 +57,7 @@ pub trait Host: Send + Sync + 'static {
         None
     }
     fn employee_acp_executable() -> std::io::Result<PathBuf> {
-        std::env::current_exe()
+        acp_agent_registry::employee_acp_executable()
     }
     fn bind_agent<'a>(session: &'a str, cfg: &'a mut Config) -> HostFuture<'a, anyhow::Result<()>>;
     fn agent_defaults<'a>(cfg: &'a Config, options: &'a serde_json::Value, agent: &'a str, cwd: &'a Path, parsed: &'a mut ParsedAcpOptions<Self::Skills>, messages: &'a serde_json::Value) -> HostFuture<'a, Result<serde_json::Value, Error>>;

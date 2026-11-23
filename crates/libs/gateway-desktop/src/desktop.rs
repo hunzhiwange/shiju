@@ -959,10 +959,11 @@ async fn acp_diagnostic_request(
         AcpDiagnosticRequest::Builtin { builtin }
             if builtin == acp_agent_registry::EMPLOYEE_ACP_BACKEND =>
         {
-            let command = std::env::current_exe()
-                .ok()
-                .and_then(|path| path.into_os_string().into_string().ok())
-                .ok_or_else(|| ApiError::internal("bundled ACP executable is unavailable"))?;
+            let command = acp_agent_registry::employee_acp_executable()
+                .map_err(|error| ApiError::internal(error.to_string()))?
+                .into_os_string()
+                .into_string()
+                .map_err(|_| ApiError::internal("bundled ACP executable path is not valid UTF-8"))?;
             acp_types::AcpAgentConfig {
                 command,
                 args: vec!["employee-acp-probe".into()],

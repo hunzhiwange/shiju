@@ -257,6 +257,8 @@ def main(argv):
     env, prefix = relax_environment(tool)
     if argv[0] == 'desktop' and platform.system() == 'Darwin':
         env['SHIJU_RELAX_DESKTOP'] = '1'
+    if argv[0] == 'gateway':
+        env['SHIJU_RELAX_GATEWAY'] = '1'
     if argv[0] == 'test':
         # Focused assertions need reached code first, not speculative callees.
         env.setdefault(prefix + 'AHEAD', 'minimal')

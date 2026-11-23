@@ -1,10 +1,11 @@
 [package]
 name = "app-auth-kimi"
-version.workspace = true
+version = "0.7.10"
 edition = "2024"
 license = "MIT"
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+product-version = { path = "../product-version" }
 app-auth-core = { path = "../app-auth-core" }
 vw-api-app-auth = { path = "../api-app-auth" }
 reqwest = { version = "0.13", default-features = false, features = ["rustls"] }

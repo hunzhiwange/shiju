@@ -1,6 +1,6 @@
 [package]
 name = "computer-control"
-version.workspace = true
+version = "0.7.10"
 edition = "2024"
 license = "MIT"
 

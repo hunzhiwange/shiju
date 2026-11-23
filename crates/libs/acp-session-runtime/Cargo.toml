@@ -1,6 +1,6 @@
 [package]
 name = "acp-session-runtime"
-version.workspace = true
+version = "0.7.10"
 edition = "2024"
 license = "MIT"
 
@@ -8,6 +8,7 @@ license = "MIT"
 doctest = false
 
 [dependencies]
+product-version = { path = "../product-version" }
 acp-types = { path = "../acp-types" }
 acp-access-policy = { path = "../acp-access-policy" }
 acp-config = { path = "../acp-config" }

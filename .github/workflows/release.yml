@@ -104,6 +104,8 @@ jobs:
         with:
           persist-credentials: false
           submodules: recursive
+      - name: Check release and internal crate versions
+        run: bash scripts/switch_version.sh --check
       - name: Install dist
         # we specify bash to get pipefail; it guards against the `curl` command
         # failing. otherwise `sh` won't catch that `curl` returned non-0

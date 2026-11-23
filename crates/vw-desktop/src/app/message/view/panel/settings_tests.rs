@@ -175,6 +175,7 @@ fn restart_failure_is_exposed_without_exiting() {
 fn app_update_result_controls_install_action_for_each_outcome() {
     use crate::app::message::ViewMessage;
     use desktop_release::{DesktopRelease, UpdateSource};
+    assert_eq!(update_types::current_version(), env!("CARGO_PKG_VERSION"));
     let mut app = crate::app::App::new().0;
     for (version, installable) in
         [(env!("CARGO_PKG_VERSION"), false), ("0.0.0", false), ("99.0.0", true)]
@@ -188,6 +189,7 @@ fn app_update_result_controls_install_action_for_each_outcome() {
             ViewMessage::CheckAppUpdateFinished(request, UpdateSource::Shiju, Ok(release.clone())),
         );
         assert_eq!(app.update_panel.cli_install_modal_show_install_action, installable);
+        assert_eq!(app.desktop_update.installable(), installable);
         assert_eq!(app.desktop_update.release, Some(release));
     }
     let _ = super::update(&mut app, ViewMessage::CheckAppUpdate);

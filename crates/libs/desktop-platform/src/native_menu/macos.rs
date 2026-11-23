@@ -91,7 +91,7 @@ fn build_menu(snapshot: &NativeMenuSnapshot) -> Option<(Menu, Submenu, Submenu)>
             Some(i18n.__("关于识矩")),
             Some(AboutMetadata {
                 name: Some("识矩".to_string()),
-                version: Some(env!("CARGO_PKG_VERSION").to_string()),
+                version: Some(product_version::VERSION.to_string()),
                 ..Default::default()
             }),
         ))

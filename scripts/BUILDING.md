@@ -149,6 +149,14 @@ Local packaging and relocated Node server checks (no publishing):
 python3 -m unittest discover -s scripts/tests -p test_package_shiju_web.py
 ```
 
+## Release versions
+
+Run `scripts/switch_version.sh <version>` before tagging a release. Only the
+packages listed by `scripts/switch_version.sh --packages` inherit the product
+version from the root Cargo manifest. Internal crates declare fixed versions in
+their own manifests. Runtime version displays and update checks use the product
+version, including in development and Web builds.
+
 ## Release permission preflight (no build)
 
 Run **Actions → Release preflight → Run workflow**, selecting the branch with

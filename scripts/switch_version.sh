@@ -1,15 +1,23 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# Keep the cargo-dist packages and optional crates.io release packages in sync.
+RELEASE_PACKAGES=(
+  vw-api-types vw-shared vw-config-types vw-gateway-client vw-acp
+  vw-provider-resolver vw-agent vw-cli vw-webview vw-desktop
+)
+
 usage() {
   cat <<'USAGE'
 Usage:
   scripts/switch_version.sh <version>
   scripts/switch_version.sh --current
+  scripts/switch_version.sh --check
+  scripts/switch_version.sh --packages
 
-Run from the repository root to print the workspace version.
-To switch versions, pass 0.7.0 or v0.7.0. This updates the workspace
-version in Cargo.toml and refreshes Cargo.lock through Cargo.
+Run from the repository root. To switch versions, pass 0.7.0 or v0.7.0.
+This updates the product version inherited by the release packages and
+refreshes Cargo.lock. Internal package versions stay pinned.
 USAGE
 }
 
@@ -42,6 +50,35 @@ workspace_version() {
   ' "$manifest" || die "Could not read the workspace package version in $manifest"
 }
 
+check_release_versions() {
+  local version
+  version="$(workspace_version Cargo.toml)"
+  cargo metadata --no-deps --format-version 1 | perl -0MJSON::PP -e '
+    my ($version, @release_packages) = @ARGV;
+    my %release = map { $_ => 1 } @release_packages;
+    my $metadata = decode_json(<STDIN>);
+    my $invalid = 0;
+    for my $crate (@{$metadata->{packages}}) {
+      my ($name, $manifest) = @$crate{qw(name manifest_path)};
+      open my $file, "<", $manifest or die "$manifest: $!";
+      my $contents = <$file>;
+      my ($package) = $contents =~ /^\h*\[package\]\h*(?:\#[^\n]*)?\R(.*?)(?=^\h*\[|\z)/ms;
+      die "Missing [package] in $manifest\n" unless defined $package;
+      if (delete $release{$name}) {
+        unless ($package =~ /^\h*version\.workspace\h*=\h*true\b/m && $crate->{version} eq $version) {
+          warn "$name must inherit release version $version\n";
+          $invalid = 1;
+        }
+      } elsif ($package !~ /^\h*version\h*=\h*["\x27]/m) {
+        warn "$name must pin its internal crate version in $manifest\n";
+        $invalid = 1;
+      }
+    }
+    die "Missing release packages: " . join(", ", sort keys %release) . "\n" if %release;
+    exit 1 if $invalid;
+  ' "$version" "${RELEASE_PACKAGES[@]}"
+}
+
 if [[ $# -ne 1 ]]; then
   usage
   exit 1
@@ -54,6 +91,14 @@ case "$1" in
     ;;
   --current)
     workspace_version Cargo.toml
+    exit 0
+    ;;
+  --check)
+    check_release_versions
+    exit 0
+    ;;
+  --packages)
+    printf '%s\n' "${RELEASE_PACKAGES[@]}"
     exit 0
     ;;
 esac
@@ -83,10 +128,11 @@ trap cleanup EXIT
 trap 'exit 130' INT
 trap 'exit 143' TERM
 
+check_release_versions
 cp -p Cargo.toml Cargo.lock "$BACKUP/"
 workspace_version Cargo.toml "$VERSION" > "$BACKUP/updated.toml"
 RESTORE=1
 cat "$BACKUP/updated.toml" > Cargo.toml
 cargo update --workspace
 
-echo "[switch_version.sh] Updated workspace version to $VERSION"
+echo "[switch_version.sh] Updated release packages to $VERSION"

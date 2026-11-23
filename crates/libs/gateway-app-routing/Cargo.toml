@@ -1,6 +1,6 @@
 [package]
 name = "gateway-app-routing"
-version.workspace = true
+version = "0.7.10"
 edition = "2024"
 license = "MIT"
 
@@ -24,6 +24,7 @@ reqwest = { version = "0.13", default-features = false, features = ["json", "rus
 reqwest = { version = "0.13", features = ["json"] }
 
 [dev-dependencies]
+product-version = { path = "../product-version" }
 gateway-app-failover = { path = "../gateway-app-failover" }
 vw-api-app-provider-edit = { path = "../api-app-provider-edit" }
 tempfile = "3"

@@ -317,7 +317,7 @@ pub(crate) async fn exercise_failover(local: bool, test_name: &str) -> anyhow::R
     assert_eq!(removed["entries"][0]["providerId"], "current");
     routing.stop().await?;
     eprintln!("controlled headless acceptance: OS={}, arch={}, version={}, backup_http={}, primary_connections={}",
-        std::env::consts::OS, std::env::consts::ARCH, env!("CARGO_PKG_VERSION"),
+        std::env::consts::OS, std::env::consts::ARCH, product_version::VERSION,
         hits.load(Ordering::SeqCst), connections.load(Ordering::SeqCst));
     for task in servers.0.drain(..) {
         task.abort();

@@ -173,7 +173,7 @@ impl McpAppBridge {
                         capabilities["openLinks"] = json!({});
                     }
                 }
-                json!({"protocolVersion":"2026-01-26","hostInfo":{"name":"ShiJu","version":env!("CARGO_PKG_VERSION")},"hostCapabilities":capabilities,"hostContext":{"platform":"desktop"}})
+                json!({"protocolVersion":"2026-01-26","hostInfo":{"name":"ShiJu","version":product_version::VERSION},"hostCapabilities":capabilities,"hostContext":{"platform":"desktop"}})
             }
             "ui/open-link" if handles_host_actions => {
                 let denied = |id, reason| Ok(Admission::Reply(action_error(id, reason)));

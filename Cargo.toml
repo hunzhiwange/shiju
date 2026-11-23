@@ -1,5 +1,6 @@
 [workspace]
 members = [
+  "crates/libs/product-version",
   "crates/libs/agent-doctor",
   "crates/libs/tool-git",
   "crates/libs/gateway-misc",
@@ -624,6 +625,7 @@ exclude = [
 resolver = "3"
 
 [workspace.package]
+# Inherited by release packages only. Internal crates pin their own versions.
 version = "0.7.10"
 
 [profile.dev]

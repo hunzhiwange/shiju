@@ -420,7 +420,7 @@ pub fn help_menu(app: &Inputs<'_>) -> Element<'static, Message> {
         let hint = desktop_i18n::__!(
             app.i18n,
             "当前版本 %s，可升级至 %s",
-            env!("CARGO_PKG_VERSION"),
+            product_version::VERSION,
             release
         )
         .expect("valid update hint");

@@ -33,7 +33,7 @@ fn new_sets_default_builder_state() {
     assert_eq!(client.config.args, vec!["--acp"]);
     assert_eq!(client.config.env.get("AGENT_TOKEN"), Some(&"token".to_string()));
     assert_eq!(client.client_name, "vibewindow-acp-client");
-    assert_eq!(client.client_version, env!("CARGO_PKG_VERSION"));
+    assert_eq!(client.client_version, product_version::VERSION);
     assert!(client.mcp_servers.is_empty());
     assert_eq!(client.permission_mode, PermissionMode::ApproveAll);
     assert!(!client.full_access);

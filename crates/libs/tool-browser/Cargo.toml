@@ -1,6 +1,6 @@
 [package]
 name = "tool-browser"
-version.workspace = true
+version = "0.7.10"
 edition = "2024"
 license = "MIT"
 
@@ -11,6 +11,7 @@ doctest = false
 browser-native = ["dep:fantoccini", "dep:base64"]
 
 [dependencies]
+product-version = { path = "../product-version" }
 network-policy = { path = "../network-policy" }
 anyhow = "1"
 async-trait = "0.1.89"

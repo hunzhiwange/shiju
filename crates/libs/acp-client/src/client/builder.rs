@@ -81,7 +81,7 @@ impl AcpClient {
             agent_name: agent_name.into(),
             config,
             client_name: "vibewindow-acp-client".to_string(),
-            client_version: env!("CARGO_PKG_VERSION").to_string(),
+            client_version: product_version::VERSION.to_string(),
             mcp_servers: Vec::new(),
             permission_mode: PermissionMode::ApproveAll,
             full_access: false,

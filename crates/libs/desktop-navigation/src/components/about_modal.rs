@@ -31,7 +31,7 @@ use iced::{Alignment, Element, Length};
 use std::hash::{Hash, Hasher};
 
 const APP_NAME: &str = "ShiJu";
-const APP_VERSION: &str = env!("CARGO_PKG_VERSION");
+const APP_VERSION: &str = product_version::VERSION;
 const ABOUT_TITLE: &str = "关于识矩";
 const ABOUT_SUBTITLE: &str =
     "自主代理运行时，连接桌面端、CLI、网关服务和长驻守护进程。";

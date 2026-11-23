@@ -37,7 +37,7 @@ pub fn identify(request: RequestBuilder, device_id: &str) -> RequestBuilder {
     request
         .header("Accept", "application/json")
         .header("X-Msh-Platform", "kimi_code_cli")
-        .header("X-Msh-Version", env!("CARGO_PKG_VERSION"))
+        .header("X-Msh-Version", product_version::VERSION)
         .header("X-Msh-Device-Id", device_id)
         .header("X-Msh-Device-Name", "ShiJu")
         .header(

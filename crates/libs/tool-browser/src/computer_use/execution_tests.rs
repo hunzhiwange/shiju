@@ -171,7 +171,7 @@ async fn execute_action_posts_policy_metadata_trimmed_auth_and_structured_data()
     assert_eq!(payload["policy"]["max_coordinate_y"], 1_080);
     assert_eq!(payload["metadata"]["session_name"], "test-session");
     assert_eq!(payload["metadata"]["source"], "vibewindow.browser");
-    assert_eq!(payload["metadata"]["version"], env!("CARGO_PKG_VERSION"));
+    assert_eq!(payload["metadata"]["version"], product_version::VERSION);
 }
 
 #[tokio::test]

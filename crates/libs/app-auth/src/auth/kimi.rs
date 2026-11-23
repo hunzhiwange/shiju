@@ -73,7 +73,7 @@ impl KimiDeviceAuth {
         let client = Client::builder()
             .redirect(reqwest::redirect::Policy::none())
             .timeout(Duration::from_secs(30))
-            .user_agent(concat!("shiju/", env!("CARGO_PKG_VERSION")))
+            .user_agent(format!("shiju/{}", product_version::VERSION))
             .build()
             .map_err(|_| AuthErrorCode::ExecutionHostUnavailable)?;
         Ok(Self { client, starts: Mutex::default() })

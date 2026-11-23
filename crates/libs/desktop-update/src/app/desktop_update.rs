@@ -71,7 +71,7 @@ impl DesktopUpdate {
     pub fn installable(&self) -> bool {
         self.release.as_ref().is_some_and(|release| {
             Some(release.source) == self.source
-                && release.is_newer_than(env!("CARGO_PKG_VERSION")).unwrap_or(false)
+                && release.is_newer_than(update_types::current_version()).unwrap_or(false)
         })
     }
 }

@@ -140,7 +140,7 @@ fn build_client(
         .with_acp_output_message_callback(on_acp_output_message)
         .with_session_update_callback(on_session_update)
         .with_client_operation_callback(on_client_operation)
-        .with_client_info("vibewindow-acp-client", env!("CARGO_PKG_VERSION"))
+        .with_client_info("vibewindow-acp-client", product_version::VERSION)
         .with_verbose(verbose)
         .with_session_options(session_options)
 }

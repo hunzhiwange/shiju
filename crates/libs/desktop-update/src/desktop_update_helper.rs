@@ -261,7 +261,7 @@ fn install(request: &UpdateRequest) -> Result<()> {
         windows::stop_installed_processes(&request.executable)?;
         eprintln!(
             "Windows 更新器 {}，目标版本 {}，安装日志：{}",
-            env!("CARGO_PKG_VERSION"),
+            update_types::current_version(),
             request.ready.version(),
             log.display()
         );

@@ -14,7 +14,7 @@ fn skipped_release_survives_restart_but_newer_release_notifies_and_manual_instal
     state.source = Some(UpdateSource::Github);
     assert!(state.notification_release().is_none());
     state.source = Some(UpdateSource::Shiju);
-    state.release = Some(release(env!("CARGO_PKG_VERSION")));
+    state.release = Some(release(update_types::current_version()));
     assert!(state.notification_release().is_none());
     assert_eq!(crate::app::desktop_update::UPDATE_CHECK_INTERVAL.as_secs(), 10800);
 }

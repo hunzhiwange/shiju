@@ -1,6 +1,6 @@
 [package]
 name = "memory-mariadb"
-version.workspace = true
+version = "0.7.10"
 edition = "2024"
 license = "MIT"
 

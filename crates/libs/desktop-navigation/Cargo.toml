@@ -1,11 +1,12 @@
 [package]
 name = "desktop-navigation"
-version.workspace = true
+version = "0.7.10"
 edition = "2024"
 license = "MIT"
 [lib]
 doctest = false
 [dependencies]
+product-version = { path = "../product-version" }
 desktop-chat-input = { path = "../desktop-chat-input" }
 desktop-workspace = { path = "../desktop-workspace" }
 desktop-platform = { path = "../desktop-platform" }

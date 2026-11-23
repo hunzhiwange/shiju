@@ -45,7 +45,7 @@ pub(super) fn installed() -> Result<Option<PathBuf>> {
 
 fn client() -> Result<reqwest::blocking::Client> {
     reqwest::blocking::Client::builder()
-        .user_agent(concat!("ShiJu/", env!("CARGO_PKG_VERSION")))
+        .user_agent(format!("ShiJu/{}", product_version::VERSION))
         .connect_timeout(Duration::from_secs(20))
         .timeout(Duration::from_secs(300))
         .https_only(true)

@@ -1,9 +1,10 @@
 [package]
 name = "cli-workspace-git"
-version.workspace = true
+version = "0.7.10"
 edition = "2024"
 license = "MIT"
 
 [dependencies]
+product-version = { path = "../product-version" }
 shell-command = { path = "../shell-command", features = ["shell-tokio"] }
 cli-interaction-model = { path = "../cli-interaction-model" }

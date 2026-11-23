@@ -13,7 +13,7 @@ impl std::ops::DerefMut for Fixture {
     fn deref_mut(&mut self) -> &mut Self::Target { &mut self.panel }
 }
 fn update_fixture(fixture: &mut Fixture, message: PanelMessage) -> Task<PanelMessage> {
-    update(&mut fixture.panel, &mut fixture.desktop_update, &mut Vec::new(), env!("CARGO_PKG_VERSION"), #[cfg(not(target_arch = "wasm32"))] config_ui::DesktopLocale::default(), message)
+    update(&mut fixture.panel, &mut fixture.desktop_update, &mut Vec::new(), update_types::current_version(), #[cfg(not(target_arch = "wasm32"))] config_ui::DesktopLocale::default(), message)
 }
 #[test]
 fn closing_install_modal_hides_it_and_resets_update_actions() {

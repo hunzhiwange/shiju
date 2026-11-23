@@ -5,11 +5,8 @@ use cli_interaction_model::GitWorkspaceStatus;
 use std::fmt::Write;
 use std::path::Path;
 
-/// CLI 版本号，从 Cargo 构建元数据中自动提取
-///
-/// 该常量用于在项目信息显示中标识当前 VibeWindow 版本，
-/// 通过 `env!("CARGO_PKG_VERSION")` 宏在编译时注入。
-const CLI_VERSION: &str = env!("CARGO_PKG_VERSION");
+/// 项目信息中显示的产品版本。
+const CLI_VERSION: &str = product_version::VERSION;
 
 /// 构建项目信息字符串，用于 CLI 显示
 ///

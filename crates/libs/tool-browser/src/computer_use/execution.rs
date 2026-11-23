@@ -43,7 +43,7 @@ impl ComputerUseClient {
             "metadata": {
                 "session_name": self.session_name,
                 "source": "vibewindow.browser",
-                "version": env!("CARGO_PKG_VERSION"),
+                "version": product_version::VERSION,
             }
         });
 

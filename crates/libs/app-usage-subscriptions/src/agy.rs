@@ -113,7 +113,7 @@ where
     let version = cli_version.map(ToString::to_string);
     let user_agent = format!(
         "ShiJu/{} (antigravity/cli/{})",
-        env!("CARGO_PKG_VERSION"),
+        product_version::VERSION,
         version.as_deref().unwrap_or(FALLBACK_CLI_VERSION),
     );
     let mut queried_at = None;

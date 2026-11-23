@@ -89,7 +89,7 @@ fn update(
     domain::update(
         &mut app.desktop_update,
         app.update_panel.show_cli_install_modal,
-        env!("CARGO_PKG_VERSION"),
+        product_version::VERSION,
         message,
     )
 }

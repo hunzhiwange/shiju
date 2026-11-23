@@ -1,6 +1,6 @@
 [package]
 name = "acp-client"
-version.workspace = true
+version = "0.7.10"
 edition = "2024"
 license = "MIT"
 
@@ -8,6 +8,7 @@ license = "MIT"
 doctest = false
 
 [dependencies]
+product-version = { path = "../product-version" }
 shell-command = { path = "../shell-command", features = ["shell-tokio"] }
 acp-lifecycle = { path = "../acp-lifecycle" }
 acp-agent-registry = { path = "../acp-agent-registry" }

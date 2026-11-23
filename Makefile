@@ -38,17 +38,7 @@ CLOC ?= cloc
 CLOC_SOURCE_DIRS := $(sort $(wildcard crates/*))
 CLOC_EXCLUDE_DIRS := target,node_modules,dist,coverage,.turbo,.vite,.next
 CLOC_INCLUDE_EXT := rs,html,js,ts,tsx,jsx,mjs,cjs,css,scss,less
-RELEASE_PUBLISH_PACKAGES := \
-        vw-api-types \
-        vw-shared \
-        vw-config-types \
-        vw-gateway-client \
-        vw-acp \
-        vw-provider-resolver \
-        vw-agent \
-        vw-cli \
-        vw-webview \
-        vw-desktop
+RELEASE_PUBLISH_PACKAGES = $(shell bash scripts/switch_version.sh --packages)
 export CARGO_HOME
 export CARGO_TARGET_DIR
 
@@ -257,9 +247,9 @@ release-check-fetch: ## 校验 Cargo.lock 可解析且依赖能按锁文件获�
 	@echo "$(CYAN)Checking locked dependency resolution...$(RESET)"
 	cargo fetch --locked
 
-release-check-version: ## 校验 workspace crate 版本保持一致
-	@echo "$(CYAN)Checking workspace package versions...$(RESET)"
-	@cargo metadata --no-deps --format-version 1 | perl -0MJSON::PP -e 'my $$m = decode_json(<>); my %versions; for my $$p (@{$$m->{packages}}) { push @{$$versions{$$p->{version}}}, $$p->{name}; } if (keys(%versions) != 1) { for my $$version (sort keys %versions) { print STDERR "$$version: ", join(", ", sort @{$$versions{$$version}}), "\n"; } exit 1; } my ($$version) = keys %versions; print "workspace version: $$version\n";'
+release-check-version: ## 校验发布包继承产品版本，内部 crate 固定版本
+	@echo "$(CYAN)Checking release and internal crate versions...$(RESET)"
+	@bash scripts/switch_version.sh --check
 
 release-check-clippy: ## 对齐 CI clippy: 所有 target + 所有 feature + warnings deny
 	cargo clippy --all-targets --all-features -- -D warnings

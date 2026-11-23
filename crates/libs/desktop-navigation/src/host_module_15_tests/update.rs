@@ -13,7 +13,7 @@ fn update(
         &mut app.update_panel,
         &mut app.desktop_update,
         &mut effects,
-        env!("CARGO_PKG_VERSION"),
+        product_version::VERSION,
         #[cfg(not(target_arch = "wasm32"))]
         config_ui::DesktopLocale::default(),
         message,

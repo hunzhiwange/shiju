@@ -162,7 +162,7 @@ fn tui_real_gateway_pipeline_preserves_v2_semantics() {
         assert!(rendered.contains("hello"));
         assert!(rendered.contains("world"));
         if width == 120 {
-            assert!(rendered.contains(&format!(">_ ShiJu (v{})", env!("CARGO_PKG_VERSION"))));
+            assert!(rendered.contains(&format!(">_ ShiJu (v{})", product_version::VERSION)));
         }
     }
 

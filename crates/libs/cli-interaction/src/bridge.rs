@@ -86,7 +86,7 @@ impl GatewayV3Bridge {
         let token_usage = summary.token_usage;
 
         V3SessionDisplayData {
-            version: env!("CARGO_PKG_VERSION").to_string(),
+            version: product_version::VERSION.to_string(),
             cwd: runtime.directory().to_path_buf(),
             gateway_endpoint: runtime.endpoint().describe(),
             model,

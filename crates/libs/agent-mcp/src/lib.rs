@@ -179,7 +179,7 @@ impl ServerHandler for AgentToolServer {
                 name: "vibe-window".to_string(),
                 title: None,
                 // 使用编译时环境变量获取包版本
-                version: env!("CARGO_PKG_VERSION").to_string(),
+                version: product_version::VERSION.to_string(),
                 icons: None,
                 website_url: None,
             },

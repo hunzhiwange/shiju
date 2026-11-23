@@ -1,6 +1,6 @@
 [package]
 name = "desktop-web-install"
-version.workspace = true
+version = "0.7.10"
 edition = "2024"
 license = "MIT"
 
@@ -8,6 +8,7 @@ license = "MIT"
 doctest = false
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+product-version = { path = "../product-version" }
 desktop-release = { path = "../desktop-release" }
 update-types = { path = "../update-types" }
 anyhow = "1"

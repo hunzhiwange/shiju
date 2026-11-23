@@ -92,7 +92,7 @@ impl Fixture {
                     &mut self.update_panel,
                     &mut self.desktop_update,
                     &mut effects,
-                    env!("CARGO_PKG_VERSION"),
+                    product_version::VERSION,
                     #[cfg(not(target_arch = "wasm32"))]
                     self.desktop_locale,
                     desktop_update::panel::PanelMessage::CloseInstallCliModal,

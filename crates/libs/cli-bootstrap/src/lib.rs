@@ -279,7 +279,7 @@ pub async fn run() -> Result<()> {
         }
 
         // 处理 Status 命令：显示系统状态
-        Commands::Status => cli_runtime_status::show_status(&config, env!("CARGO_PKG_VERSION")),
+        Commands::Status => cli_runtime_status::show_status(&config, product_version::VERSION),
 
         /*
         Commands::Update { check, force } => {

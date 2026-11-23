@@ -15,6 +15,7 @@ use {
 };
 use {gateway_endpoint::{GatewayEndpoint}, {vw_gateway_client::GatewayClient}};
 
+const PRIVATE_ROUTING_PROMPT: &str = "fixture-private-routing-prompt";
 const GATEWAY_SKEY: &str = "fixture-local-routing-gateway-skey";
 const CHILD_TEST: &str = "gateway::api::handlers::app_routing::lifecycle_api_tests::gateway_child";
 const GATEWAY_LINE: &str = "VibeWindow Gateway listening on http://127.0.0.1:";
@@ -29,6 +30,11 @@ async fn gateway_child() {
     let home = std::env::current_dir().unwrap().canonicalize().unwrap();
     assert_eq!(crate::global::paths().home, home);
     let _ = rustls::crypto::ring::default_provider().install_default();
+    let subscriber = tracing_subscriber::fmt()
+        .with_env_filter("off,app_routing_services=info")
+        .with_ansi(false)
+        .finish();
+    tracing::subscriber::set_global_default(subscriber).unwrap();
     let mut config = crate::Config {
         workspace_dir: home.join("workspace"),
         config_path: home.join("config.toml"),
@@ -54,12 +60,15 @@ async fn gateway_child() {
     crate::gateway::run_gateway("127.0.0.1", 0, config).await.unwrap();
 }
 
-pub(in crate::gateway::api::handlers) struct GatewayProcess(Child);
+pub(in crate::gateway::api::handlers) struct GatewayProcess {
+    child: Child,
+    output: tempfile::NamedTempFile,
+}
 
 impl Drop for GatewayProcess {
     fn drop(&mut self) {
-        let _ = self.0.kill();
-        let _ = self.0.wait();
+        let _ = self.child.kill();
+        let _ = self.child.wait();
     }
 }
 
@@ -142,13 +151,13 @@ async fn spawn_gateway_with_options(
             command.env(key, value);
         }
     }
-    let mut process = GatewayProcess(command.spawn().unwrap());
+    let mut process = GatewayProcess { child: command.spawn().unwrap(), output };
     let health =
         reqwest::Client::builder().no_proxy().timeout(Duration::from_secs(2)).build().unwrap();
     let port = tokio::time::timeout(Duration::from_secs(20), async {
         loop {
-            let log = fs::read_to_string(output.path()).unwrap();
-            assert!(process.0.try_wait().unwrap().is_none(), "gateway exited: {log}");
+            let log = fs::read_to_string(process.output.path()).unwrap();
+            assert!(process.child.try_wait().unwrap().is_none(), "gateway exited: {log}");
             if let Some(port) = log.lines().find_map(|line| line.strip_prefix(GATEWAY_LINE))
                 && let Ok(port) = port.parse()
                 && let Ok(response) =
@@ -432,8 +441,14 @@ async fn local_routing_manual_restart_restore_aggregation() {
     exercise_local_routing_attachment(Some(RestartScenario::Aggregation)).await;
 }
 
+#[tokio::test]
+async fn local_routing_end_to_end() {
+    exercise_local_routing_attachment(Some(RestartScenario::EndToEnd)).await;
+}
+
 #[derive(PartialEq)]
 enum RestartScenario {
+    EndToEnd,
     Provider,
     Aggregation,
     StopWithRestore,
@@ -468,18 +483,31 @@ async fn exercise_local_routing_attachment(restart: Option<RestartScenario>) {
             upstream,
             Router::new().route(
                 "/{provider}/v1/messages",
-                post(|RoutePath(provider): RoutePath<String>, headers: axum::http::HeaderMap| async move {
+                post(|RoutePath(provider): RoutePath<String>, headers: axum::http::HeaderMap, Json(body): Json<Value>| async move {
                     let id = match (provider.as_str(), headers.get("x-api-key").and_then(|key| key.to_str().ok())) {
                         ("first", Some("first-key")) => "first",
                         ("second", Some("second-key")) => "second",
                         _ => return (axum::http::StatusCode::UNAUTHORIZED, Json(json!({}))),
                     };
+                    let request_id = if id == "second" && body["messages"][0]["content"] == PRIVATE_ROUTING_PROMPT {
+                        "second-failover"
+                    } else {
+                        id
+                    };
                     (
                         axum::http::StatusCode::OK,
-                        Json(json!({"id":id,"type":"message",
+                        Json(json!({"id":request_id,"type":"message",
                     "role":"assistant","model":"fixture","content":[{"type":"text","text":"ok"}],
                     "stop_reason":"end_turn","usage":{"input_tokens":1,"output_tokens":1}})),
                     )
+                }),
+            ).route(
+                "/second/v1/models",
+                axum::routing::get(|headers: axum::http::HeaderMap| async move {
+                    if headers.get("x-api-key").and_then(|key| key.to_str().ok()) != Some("second-key") {
+                        return (axum::http::StatusCode::UNAUTHORIZED, Json(json!({})));
+                    }
+                    (axum::http::StatusCode::OK, Json(json!({"data":[{"id":"fixture"}]})))
                 }),
             ),
         )
@@ -490,6 +518,21 @@ async fn exercise_local_routing_attachment(restart: Option<RestartScenario>) {
         config_runtime_paths::global_database_path(&home),
     )
     .unwrap();
+    if restart == Some(RestartScenario::EndToEnd) {
+        use crate::project::{Info, TimeInfo, store::ProjectStore};
+        let worktree = home.join("workspace");
+        fs::create_dir(&worktree).unwrap();
+        ProjectStore::new(db.clone()).unwrap().create(&tenant, &Info {
+            id: project.into(),
+            worktree: worktree.to_str().unwrap().into(),
+            vcs: None,
+            name: None,
+            icon: None,
+            commands: None,
+            time: TimeInfo { created: 1, updated: 1, initialized: None },
+            sandboxes: vec![],
+        }).unwrap();
+    }
     let store = crate::app_providers::AppProviderStore::new(db).unwrap();
     for id in ["first", "second"] {
         store
@@ -510,6 +553,33 @@ async fn exercise_local_routing_attachment(restart: Option<RestartScenario>) {
             )
             .unwrap();
     }
+    let broken = if restart == Some(RestartScenario::EndToEnd) {
+        let broken = tokio::net::TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await.unwrap();
+        let unavailable = format!("https://{}/v1", broken.local_addr().unwrap());
+        store.claude_save(
+            &tenant,
+            "broken",
+            &ClaudeProfile {
+                name: "broken".into(),
+                config: ClaudeConfig::ThirdParty {
+                    base_url: unavailable,
+                    api_key: "broken-key".into(),
+                    api_key_header: true,
+                },
+                model: Some("fixture".into()),
+            },
+            None,
+            true,
+        ).unwrap();
+        Some(tokio::spawn(async move {
+            // Terminate the TLS handshake before any application request can be sent.
+            while let Ok((socket, _)) = broken.accept().await {
+                drop(socket);
+            }
+        }))
+    } else {
+        None
+    };
     let directory = home.join(".claude");
     fs::create_dir(&directory).unwrap();
     let settings = directory.join("settings.json");
@@ -565,6 +635,21 @@ async fn exercise_local_routing_attachment(restart: Option<RestartScenario>) {
         .json::<Value>()
         .await
         .unwrap();
+    if restart == Some(RestartScenario::EndToEnd) {
+        assert_eq!(listener["enabled"], false);
+        assert_eq!(listener["loggingEnabled"], false);
+        let status = config.replace("/config", "/status");
+        assert_eq!(
+            routing_json(authorized(reqwest::Method::GET, &status), 200).await["state"],
+            "stopped"
+        );
+        let egress = config.replace("/config", "/egress");
+        let egress = routing_json(
+            authorized(reqwest::Method::PUT, &egress).json(&json!({"mode":"direct"})),
+            200,
+        ).await;
+        assert_eq!(egress["configuredMode"], "direct");
+    }
     listener["listenPort"] = json!(0);
     listener["enabled"] = json!(true);
     authorized(reqwest::Method::PUT, &config)
@@ -689,6 +774,12 @@ async fn exercise_local_routing_attachment(restart: Option<RestartScenario>) {
             true
         );
         forward(id, "fixture").await;
+    }
+    if restart == Some(RestartScenario::EndToEnd) {
+        finish_routing_end_to_end(gateway, port, &home, &settings, listener, &direct_endpoint).await;
+        broken.unwrap().abort();
+        upstream.abort();
+        return;
     }
     if restart == Some(RestartScenario::StopWithRestore) {
         use vw_api_app_identity::AppId::Codex;
@@ -1110,4 +1201,219 @@ async fn exercise_local_routing_attachment(restart: Option<RestartScenario>) {
     assert_eq!(read_state().await["attached"], false);
     assert_eq!(saved()["env"]["ANTHROPIC_BASE_URL"], direct_endpoint);
     upstream.abort();
+}
+
+async fn routing_json(request: reqwest::RequestBuilder, expected_status: u16) -> Value {
+    let (client, request) = request.build_split();
+    let request = request.unwrap();
+    let method = request.method().clone();
+    let url = request.url().clone();
+    let response = client.execute(request).await.unwrap();
+    let status = response.status();
+    let body = response.text().await.unwrap();
+    assert_eq!(status, expected_status, "{method} {}: {body}", url.path());
+    serde_json::from_str(&body).unwrap()
+}
+
+async fn finish_routing_end_to_end(
+    gateway: GatewayProcess,
+    port: u16,
+    home: &Path,
+    settings: &Path,
+    mut listener: Value,
+    direct_endpoint: &str,
+) {
+    use reqwest::Method;
+    const LOG: &str = "Authorized application routing request";
+    let host = vw_api_transport::LOCAL_HOST_ID;
+    let project = vw_api_transport::LOCAL_PROJECT_ID;
+    let client =
+        reqwest::Client::builder().no_proxy().timeout(Duration::from_secs(10)).build().unwrap();
+    let api = |port, method, path: &str| {
+        client
+            .request(method, format!("http://127.0.0.1:{port}/v1/{path}"))
+            .header("x-platform-id", "p")
+            .header("x-company-id", "owner")
+            .bearer_auth(GATEWAY_SKEY)
+    };
+    let scope = format!("app-routing/hosts/{host}");
+    let application = format!("{scope}/projects/{project}/apps/claude");
+    let control = |port, method, action| api(port, method, &format!("{scope}/{action}"));
+    let availability = |port, method, action| {
+        api(port, method, &format!("agent-apps/high-availability/{action}")).query(&[
+            ("projectId", project),
+            ("targetHostId", host),
+            ("appId", "claude"),
+        ])
+    };
+    let saved = || serde_json::from_slice::<Value>(&fs::read(settings).unwrap()).unwrap();
+    let forward = |native: &Value, key: &str, prompt: &str| {
+        let url = native["env"]["ANTHROPIC_BASE_URL"].as_str().unwrap();
+        client
+            .post(format!("{url}/v1/messages"))
+            .header("x-api-key", key)
+            .json(&json!({"model":"fixture","messages":[{"role":"user","content":prompt}]}))
+    };
+
+    assert!(!fs::read_to_string(gateway.output.path()).unwrap().contains(LOG));
+    listener["loggingEnabled"] = json!(true);
+    assert_eq!(
+        routing_json(control(port, Method::PUT, "config").json(&listener), 200).await,
+        listener
+    );
+    let selected = routing_json(
+        api(port, Method::POST, &format!("{application}/mode"))
+            .json(&json!({"action":{"kind":"proxy","providerId":"broken"}})),
+        200,
+    )
+    .await;
+    assert_eq!(selected["attached"], true);
+    let mut queue = routing_json(availability(port, Method::GET, "queue"), 200).await;
+    for id in ["broken", "second"] {
+        queue = routing_json(
+            availability(port, Method::POST, "queue/members")
+                .json(&json!({"expectedVersion":queue["version"],"providerId":id})),
+            200,
+        )
+        .await;
+    }
+    let mut policy = routing_json(availability(port, Method::GET, "policy"), 200).await;
+    policy["retryTimeout"]["maxRetries"] = json!(2);
+    policy["circuitBreaker"]["failureThreshold"] = json!(1);
+    policy["circuitBreaker"]["cooldownSecs"] = json!(300);
+    routing_json(availability(port, Method::PUT, "policy").json(&policy), 200).await;
+    let queue = routing_json(
+        availability(port, Method::PUT, "enabled")
+            .json(&json!({"expectedVersion":queue["version"],"enabled":true})),
+        200,
+    )
+    .await;
+    assert_eq!(queue["enabled"], true);
+    let native = saved();
+    let token = native["env"]["ANTHROPIC_AUTH_TOKEN"].as_str().unwrap();
+    let response = routing_json(forward(&native, token, PRIVATE_ROUTING_PROMPT), 200).await;
+    assert_eq!(response["id"], "second-failover");
+    let route = routing_json(availability(port, Method::GET, "route"), 200).await;
+    assert_eq!(route["actualProviderId"], "second");
+    let health = routing_json(
+        availability(port, Method::GET, "health").query(&[("providerId", "broken")]),
+        200,
+    )
+    .await;
+    assert_eq!(health["state"], "open");
+    let requests =
+        routing_json(api(port, Method::GET, &format!("{application}/requests")), 200).await;
+    assert_eq!(requests["active_count"], 0);
+    assert!(requests["requests"].as_array().unwrap().iter().any(|row| row["state"] == "completed"));
+    let logs = fs::read_to_string(gateway.output.path()).unwrap();
+    assert_eq!(logs.matches(LOG).count(), 1);
+    for secret in [PRIVATE_ROUTING_PROMPT, token, "broken-key", "second-key", GATEWAY_SKEY] {
+        assert!(
+            !logs.contains(secret) && !requests.to_string().contains(secret),
+            "routing observation contains sensitive material"
+        );
+    }
+
+    let actual_provider = route["actualProviderId"].as_str().unwrap();
+    let second_endpoint = direct_endpoint.replace("/first/v1", "/second/v1");
+    let discovery = |method, path| {
+        api(port, method, path).query(&[
+            ("projectId", project),
+            ("targetHostId", host),
+            ("directory", ""),
+        ])
+    };
+    let task = routing_json(
+        discovery(Method::POST, "model-catalog/discoveries").json(&json!({
+            "deployment": {
+                "targetHostId": host, "appId": "claude",
+                "providerId": actual_provider, "endpoint": second_endpoint,
+            },
+            "method": "http",
+        })),
+        202,
+    )
+    .await;
+    let task_path = format!("model-catalog/discoveries/{}", task["taskId"].as_str().unwrap());
+    let models = tokio::time::timeout(Duration::from_secs(10), async {
+        loop {
+            let status = routing_json(discovery(Method::GET, &task_path), 200).await;
+            match status["state"]["phase"].as_str().unwrap() {
+                "queued" | "discovering" | "parsing" => {
+                    tokio::time::sleep(Duration::from_millis(25)).await;
+                }
+                "completed" => break status["state"]["models"].clone(),
+                _ => panic!("model discovery did not complete: {status}"),
+            }
+        }
+    })
+    .await
+    .unwrap();
+    assert_eq!(models[0]["identity"]["modelId"], "fixture");
+
+    let address: std::net::SocketAddr = native["env"]["ANTHROPIC_BASE_URL"]
+        .as_str()
+        .unwrap()
+        .strip_prefix("http://")
+        .unwrap()
+        .parse()
+        .unwrap();
+    let before = fs::read(settings).unwrap();
+    drop(gateway);
+    assert!(tokio::net::TcpStream::connect(address).await.is_err());
+    let (_gateway, port) = spawn_gateway_with_options(home, None, false).await;
+    assert_eq!(routing_json(control(port, Method::GET, "status"), 200).await["state"], "stopped");
+    assert_eq!(routing_json(control(port, Method::GET, "config"), 200).await, listener);
+    assert_eq!(fs::read(settings).unwrap(), before);
+    assert_eq!(routing_json(availability(port, Method::GET, "queue"), 200).await, queue);
+    let running = routing_json(control(port, Method::POST, "start").json(&json!({})), 200).await;
+    assert_eq!(running["state"], "running");
+    assert_eq!(routing_json(control(port, Method::GET, "health"), 200).await["ready"], true);
+    let recovered = saved();
+    let new_token = recovered["env"]["ANTHROPIC_AUTH_TOKEN"].as_str().unwrap();
+    assert!(new_token != token);
+    let recovered_url = format!("http://127.0.0.1:{}", running["boundPort"]);
+    assert_eq!(recovered["env"]["ANTHROPIC_BASE_URL"], recovered_url);
+    assert_eq!(
+        routing_json(forward(&recovered, new_token, "recovered"), 200).await["id"],
+        "second"
+    );
+
+    let usage = routing_json(api(port, Method::GET, "usage/logs"), 200).await;
+    assert!(
+        usage["page"]["items"].as_array().unwrap().iter().any(|detail| {
+            let record = &detail["record"];
+            record["sources"][0]["native_request_id"] == "second-failover"
+                && record["provider"]["provider_id"] == "second"
+                && record["models"]["response_model"] == "fixture"
+                && record["tokens"]["output"] == 1
+        }),
+        "usage ledger must attribute the request to the successful provider: {usage}"
+    );
+
+    let stopped =
+        routing_json(control(port, Method::POST, "stop-with-restore").json(&json!({})), 200).await;
+    assert_eq!(stopped["status"]["state"], "stopped");
+    assert_eq!(stopped["failures"], json!([]));
+    let state =
+        routing_json(api(port, Method::GET, "agent-apps/claude/aggregation/state"), 200).await;
+    assert_eq!(state["mode"], "direct");
+    assert_eq!(state["attached"], false);
+    let restored = saved();
+    assert_eq!(restored["env"]["ANTHROPIC_BASE_URL"], direct_endpoint);
+    assert_eq!(restored["fixture"], true);
+    let direct = client
+        .post(format!("{direct_endpoint}/messages"))
+        .header("x-api-key", restored["env"]["ANTHROPIC_API_KEY"].as_str().unwrap())
+        .json(&json!({"model":"fixture","messages":[{"role":"user","content":"direct"}]}));
+    assert_eq!(routing_json(direct, 200).await["id"], "first");
+    assert_eq!(routing_json(control(port, Method::GET, "status"), 200).await["state"], "stopped");
+    assert!(
+        tokio::net::TcpStream::connect((
+            "127.0.0.1",
+            running["boundPort"].as_u64().unwrap() as u16
+        ))
+        .await
+        .is_err()
+    );
 }

@@ -197,7 +197,7 @@ impl Plan {
     pub(crate) async fn forward(
         &self,
         request: AttemptRequest<'_>,
-    ) -> Result<Response, StatusCode> {
+    ) -> Result<(Response, Option<String>), StatusCode> {
         let app = request.route.json_app().ok_or(StatusCode::SERVICE_UNAVAILABLE)?;
         let runtime = &request.route.failover;
         let cancelled = &request.route.cancelled;
@@ -310,7 +310,7 @@ impl Plan {
                         )
                         .await?;
                         self.publish_actual(request.route, candidate, failure.is_some()).await?;
-                        return Ok(response);
+                        return Ok((response, Some(candidate.key.provider_id.0.clone())));
                     }
                     let status = response.status();
                     permit.record(
@@ -324,7 +324,7 @@ impl Plan {
                         std::time::Instant::now(),
                     );
                     // A status never proves that the provider did not execute.
-                    return Ok(response);
+                    return Ok((response, None));
                 }
                 Ok(Err(error)) => {
                     permit.record(

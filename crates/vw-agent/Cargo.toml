@@ -534,6 +534,7 @@ channel-wecom = { path = "../libs/channel-wecom", features = ["test-support"] }
 task-scheduler = { path = "../libs/task-scheduler", features = ["test-support"] }
 
 [dev-dependencies]
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 tool-cron = { path = "../libs/tool-cron", features = ["test-support"] }
 gateway-cron = { path = "../libs/gateway-cron", features = ["test-support"] }
 agent-app-services = { path = "../libs/agent-app-services", features = ["test-support"] }

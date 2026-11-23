@@ -22617,6 +22617,7 @@ dependencies = [
  "tower",
  "tower-http",
  "tracing",
+ "tracing-subscriber",
  "tree-sitter",
  "tree-sitter-bash",
  "update-types",

@@ -67,6 +67,12 @@ impl RequestUsage {
         if let Some(value) = &mut self.value { value.record.provider = UsageProvider::Unknown; }
     }
 
+    pub fn attribute_provider(&mut self, provider_id: String) {
+        if let Some(value) = &mut self.value {
+            value.record.provider = UsageProvider::Known { provider_id };
+        }
+    }
+
     pub fn fail(&mut self, status: axum::http::StatusCode) {
         if let Some(value) = &mut self.value { value.status_code = Some(status.as_u16()); }
         let failure = match status {

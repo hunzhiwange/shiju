@@ -468,7 +468,7 @@ pub(crate) async fn forward_json(
             } else {
                 timeouts.non_streaming_timeout_secs
             };
-            return plan
+            let (response, provider_id) = plan
                 .forward(super::failover_execution::AttemptRequest {
                     route,
                     body,
@@ -478,7 +478,11 @@ pub(crate) async fn forward_json(
                     listener,
                     deadline: started + Duration::from_secs(duration.into()),
                 })
-                .await.map_err(RouteError::from);
+                .await?;
+            if let Some(provider_id) = provider_id {
+                usage.attribute_provider(provider_id);
+            }
+            return Ok(response);
         }
         let response = if compact {
             transport.forward_ordered(authorized_url, outgoing, wire, cancelled.clone(), listener).await?
